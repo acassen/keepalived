@@ -5,7 +5,7 @@
  * 
  * Part:        Vector structure manipulation.
  *  
- * Version:     $Id: vector.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: vector.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              

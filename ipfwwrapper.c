@@ -7,7 +7,7 @@
  *              library to add/remove server MASQ rules to the kernel 
  *              firewall framework.
  *
- * Version:     $Id: ipfwwrapper.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: ipfwwrapper.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -51,7 +51,7 @@ int ipfw_cmd(int cmd, virtual_server *vs, real_server *rs)
     if (!(errno & EINVAL)) {
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "ipfw_cmd : MASQ firewall rule [%s:%d] already exist."
-                      , ip_ntoa(SVR_IP(rs))
+                      , inet_ntop2(SVR_IP(rs))
                       , ntohs(SVR_PORT(rs)));
 #endif
     }
@@ -65,7 +65,7 @@ int ipfw_cmd(int cmd, virtual_server *vs, real_server *rs)
 #ifdef _DEBUG_
     syslog(LOG_DEBUG, "ipfw_cmd : firewall error (%s) processing [%s:%d] MASQ rule."
                     , strerror(errno)
-                    , ip_ntoa(SVR_IP(rs))
+                    , inet_ntop2(SVR_IP(rs))
                     , ntohs(SVR_PORT(rs)));
 #endif
     return IPFW_ERROR;

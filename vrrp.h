@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: vrrp.h,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -74,9 +74,15 @@ typedef struct {	/* rfc2338.5.1 */
  * of VRRP instances that need to be state sync together.
  */
 typedef struct _vrrp_sgroup {
-        char    *gname;         /* Group name */
-        vector  iname;          /* Set of VRRP instances in this group */
-        int     state;          /* current stable state */
+	char    *gname;         /* Group name */
+	vector  iname;          /* Set of VRRP instances in this group */
+	int     state;          /* current stable state */
+
+	/* State transition notification */
+	int     notify_exec;
+	char    *script_backup;
+	char    *script_master;
+	char    *script_fault;
 } vrrp_sgroup;
 
 

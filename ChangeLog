@@ -1,11 +1,28 @@
+2002-06-25  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.6.4 released.
+	* Rewrote the previous ip address utilities functions. Review the string
+	  to ulong convertion function to support CIDR filtering and more simple
+	  handling ("without all hexadecimal and shorthand"), pickted from Paul
+	  Vixie code.
+	* VRRP : extended the notify framework to support scripts inside a
+	  vrrp_sync_group. view the sample/keepalived.conf.vrrp.sync file.
+	* VRRP : Review the previous vrrp_sync_group block. New declaration
+	  is : view the sample/keepalived.conf.vrrp.sync file.
+	* VRRP : fixed a FSM sync_group side effect in FAULT state.
+	* Fixed a Kernel 2.2 code selection issue (ETHTOOL).
+	* Added support to wensong libipvs.
+	* Fixed a sorry_server cleanup side effect.
+	* Alex Karamasov, <alex@incredimail.com> fine the keepalived.init script
+	  to be compatible with redhat chkconfig.
+
 2002-06-18  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.6.3 released.
 	* VRRP : Christian Motelet, <cmotelet@canal-plus.com> pointed out a
 	  flapping issue when runing vrrp_sync_group on multiple NICs. This have
 	  been fixed adding leave FAULT state transition on both FSM state (read
 	  & read_to). The group leave fault state if all NIC of each VRRP Instance
-	  are working.
-	* Fixed some issues in the autoconf/automake scripts.
+	  are functional.
+	* Fixed some issue in the autoconf/automake scripts.
 
 2002-06-16  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.6.2 released.

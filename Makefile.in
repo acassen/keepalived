@@ -21,10 +21,10 @@ CC = @CC@
 CFLAGS = @CFLAGS@ \
 	-Wall -Wunused -Wstrict-prototypes \
 	-D$(KERNEL) -D$(VRRP_FLAG) @DFLAGS@
-LDFLAGS = @LIBS@ @LDFLAGS@ @LIBFW@
+LDFLAGS = @LIBS@ @LDFLAGS@
 IPVSFLAGS = -D$(IPVS_FLAG) -D@IPVS_SYNCD@
 
-CORE_OBJS = @LIBOBJS@ \
+CORE_OBJS = \
 	main.o \
 	memory.o \
 	daemon.o \
@@ -53,6 +53,7 @@ endif
 ifeq ($(VRRP_FLAG),_WITH_VRRP_)
 VRRP_OBJS = \
 	vrrp.o \
+	vrrp_notify.o \
 	vrrp_scheduler.o \
 	vrrp_sync.o \
 	vrrp_netlink.o \
@@ -66,7 +67,15 @@ CI_LINUX_OBJ = check_ci.o
 CIFLAGS = -D$(CI_LINUX)
 endif
 
-OBJS    = $(CORE_OBJS) $(IPVS_OBJS) $(VRRP_OBJS) $(CI_LINUX_OBJ)
+ifeq ($(KERNEL),_KRNL_2_2_)
+IPVS_OBJS := $(IPVS_OBJS) ipfwwrapper.o
+LIBIPFW = libipfwc/libipfwc.a
+else
+LIBIPVS = libipvs/libipvs.a
+endif
+
+
+OBJS = $(CORE_OBJS) $(IPVS_OBJS) $(VRRP_OBJS) $(CI_LINUX_OBJ) $(LIBIPVS) $(LIBIPFW)
 
 .c.o:
 	$(CC) -o $@ $(CFLAGS) $(IPVSFLAGS) $(CIFLAGS) $(INCLUDE) -c $*.c
@@ -87,10 +96,14 @@ $(EXEC): $(OBJS) $(LDFLAGS)
 
 libipfwc/libipfwc.a:
 	cd libipfwc/ && $(MAKE) libipfwc.a
+libipvs/libipvs.a:
+	cd libipvs/ && $(MAKE) libipvs.a
 
 subclean:
 ifeq ($(KERNEL),_KRNL_2_2_)
 	cd libipfwc/ && $(MAKE) clean
+else
+	cd libipvs/ && $(MAKE) clean
 endif
 	cd genhash/ && $(MAKE) clean
 

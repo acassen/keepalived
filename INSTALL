@@ -5,14 +5,13 @@ Kernel needing
 
   Kernel/User netlink socket
   Network firewalls (for Kernel 2.2)
-  Routing messages
   LinuxVirtualServer
 
   Keepalived support all LVS code : including IPVS code for kernel 2.2
   and kernel 2.4
 
-Library needing
-===============
+Libraries dependency
+====================
 
   In order to compile Keepalived needs the following libraries :
 

@@ -6,7 +6,7 @@
  * Part:        Memory management framework. This framework is used to
  *              find any memory leak.
  *
- * Version:     $Id: memory.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: memory.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>

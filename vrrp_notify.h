@@ -1,11 +1,12 @@
 /*
- * Soft:        Keepalived is a failover program for the LVS project
- *              <www.linuxvirtualserver.org>. It monitor & manipulate
- *              a loadbalanced server pool using multi-layer checks.
+ * Soft:        Vrrpd is an implementation of VRRPv2 as specified in rfc2338.
+ *              VRRP is a protocol which elect a master server on a LAN. If the
+ *              master fails, a backup server takes over.
+ *              The original implementation has been made by jerome etienne.
  *
- * Part:        Daemon process handling.
+ * Part:        vrrp_notify.c include file.
  *
- * Version:     $Id: daemon.h,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
+ * Version:     $Id: vrrp_notify.h,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,20 +21,13 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _DAEMON_H
-#define _DAEMON_H
+#ifndef _VRRP_NOTIFY_H
+#define _VRRP_NOTIFY_H
 
-/* System includes */
-#include <stdio.h>
-#include <stdlib.h>
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <errno.h>
-#include <fcntl.h>
+/* local include */
+#include "vrrp.h"
 
-/* prototype */
-extern pid_t xdaemon(int, int, int);
+extern int notify_instance_exec(vrrp_rt *vrrp, int state);
+extern int notify_group_exec(vrrp_sgroup *vgroup, int state);
 
 #endif

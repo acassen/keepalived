@@ -5,7 +5,7 @@
  *
  * Part:        VRRP synchronization framework.
  *
- * Version:     $Id: vrrp_sync.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: vrrp_sync.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -22,6 +22,7 @@
 
 #include "vrrp_sync.h"
 #include "vrrp_if.h"
+#include "vrrp_notify.h"
 #include "data.h"
 
 /* extern global vars */
@@ -88,6 +89,7 @@ int vrrp_sync_leave_fault(vrrp_rt *vrrp)
     syslog(LOG_INFO, "VRRP_Group(%s) Leaving FAULT state"
                    , GROUP_NAME(vgroup));
     vgroup->state = VRRP_STATE_MAST;
+    notify_group_exec(vgroup, VRRP_STATE_MAST);
     return 1;
   }
   return 0;
@@ -110,6 +112,7 @@ static void vrrp_sync_backup(vrrp_rt *vrrp)
       isync->wantstate = VRRP_STATE_BACK;
   }
   vgroup->state = VRRP_STATE_BACK;
+  notify_group_exec(vgroup, VRRP_STATE_BACK);
 }
 
 static void vrrp_sync_master_to(vrrp_rt *vrrp)
@@ -135,6 +138,7 @@ static void vrrp_sync_master_to(vrrp_rt *vrrp)
     }
   }
   vgroup->state = VRRP_STATE_MAST;
+  notify_group_exec(vgroup, VRRP_STATE_MAST);
 }
 
 static void vrrp_sync_fault_to(vrrp_rt *vrrp)
@@ -162,6 +166,7 @@ static void vrrp_sync_fault_to(vrrp_rt *vrrp)
         isync->wantstate = VRRP_STATE_GOTO_FAULT;
   }
   vgroup->state = VRRP_STATE_FAULT;
+  notify_group_exec(vgroup, VRRP_STATE_FAULT);
 }
 
 static void vrrp_sync_dmaster_to(vrrp_rt *vrrp)
@@ -195,7 +200,7 @@ void vrrp_sync_read_to(vrrp_rt *vrrp, int prev_state)
   /* Sync the group instance to MASTER state */
   if (prev_state  == VRRP_STATE_BACK &&
       vrrp->state == VRRP_STATE_MAST)
-    if (GROUP_STATE(vrrp->sync)  == VRRP_STATE_BACK)
+    if (GROUP_STATE(vrrp->sync) == VRRP_STATE_BACK)
       vrrp_sync_master_to(vrrp);
 
   /* sync the group instance to FAULT state */

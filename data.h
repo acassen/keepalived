@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.h,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: data.h,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -130,7 +130,7 @@ typedef struct _data {
 /* prototypes */
 extern void alloc_email(char *addr);
 extern SSL_DATA *alloc_ssl(void);
-extern void alloc_vrrp_sync_group(char *gname, vector iname);
+extern void alloc_vrrp_sync_group(char *gname);
 extern void alloc_vrrp(char *iname);
 extern void alloc_vrrp_vip(char *vip);
 extern void alloc_vrrp_evip(char *vip);

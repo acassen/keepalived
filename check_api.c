@@ -5,7 +5,7 @@
  *
  * Part:        Checkers registration.
  *
- * Version:     $Id: check_api.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: check_api.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -47,7 +47,7 @@ static void dump_checker(void *data)
 {
   checker *checker = data;
   syslog(LOG_INFO, " %s:%d"
-                 , ip_ntoa(CHECKER_RIP(checker))
+                 , inet_ntop2(CHECKER_RIP(checker))
                  , ntohs(CHECKER_RPORT(checker)));
   (*checker->dump) (checker);
 }
@@ -120,15 +120,15 @@ void update_checker_activity(uint32_t address, int enable)
       if (CHECKER_VIP(checker) == address) {
         if (!CHECKER_ENABLED(checker) && enable) {
           syslog(LOG_INFO, "Netlink reflector reports IP %s added"
-                         , ip_ntoa(address));
+                         , inet_ntop2(address));
           syslog(LOG_INFO, "Activating healtchecker for VIP %s"
-                         , ip_ntoa(address));
+                         , inet_ntop2(address));
         }
         if (CHECKER_ENABLED(checker) && !enable) {
           syslog(LOG_INFO, "Netlink reflector reports IP %s removed"
-                         , ip_ntoa(address));
+                         , inet_ntop2(address));
           syslog(LOG_INFO, "Suspending healtchecker for VIP %s"
-                         , ip_ntoa(address));
+                         , inet_ntop2(address));
         }
         checker->enabled = enable;
       }

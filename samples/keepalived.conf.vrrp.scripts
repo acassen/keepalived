@@ -1,6 +1,17 @@
 ! Configuration File for keepalived
 ! extra script call demonstration
+! scripts are supported in Instance and groupes
+! declarations.
 
+vrrp_sync_group G1 {
+  group {
+    VI_2
+    VI_3
+  }
+  notify_backup "/usr/local/bin/vrrp.back arg1 arg2"
+  notify_master "/usr/local/bin/vrrp.mast arg1 arg2"
+  notify_fault "/usr/local/bin/vrrp.fault arg1 arg2"
+}
 
 vrrp_instance VI_1 {
     state MASTER
@@ -18,9 +29,29 @@ vrrp_instance VI_1 {
         192.168.200.17
         192.168.200.18
     }
-
     notify_backup "/usr/local/bin/vrrp.sh  BACKUP   VI_1"
     notify_master "/usr/local/bin/vrrp.sh  MASTER  VI_1"
     notify_fault  "/usr/local/bin/vrrp.sh  FAULT  VI_1"
-
 }
+
+
+vrrp_instance VI_2 {
+    interface eth0
+    state MASTER
+    virtual_router_id 52
+    priority 150
+    virtual_ipaddress {
+        192.168.200.100/27
+    }
+}
+
+vrrp_instance VI_3 {
+    interface eth0
+    state MASTER
+    virtual_router_id 53
+    priority 150
+    virtual_ipaddress {
+        192.168.200.101/27
+    }
+}
+

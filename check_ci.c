@@ -5,7 +5,7 @@
  *
  * Part:        CI-LINUX checker. Integration to Compaq Cluster Infrastructure.
  *
- * Version:     $Id: check_ci.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: check_ci.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Aneesh Kumar K.V, <aneesh.kumar@digital.com>
@@ -95,7 +95,7 @@ int initialize_nodemap(nodenum_ip_map_t *nodemap)
       syslog(LOG_ERR, "[CI-LINUX] %s File Format Error", CLUSTERTAB);
       return -1;
     }
-    nodemap[node_number].addr_ip = inet_addr(buf);
+    inet_ston(buf, &nodemap[node_number].addr_ip);
     if (fscanf(fp, "%[^\n]", buf) == EOF) {
       syslog(LOG_ERR, "[CI-LINUX] %s File Format Error", CLUSTERTAB);
       return -1;

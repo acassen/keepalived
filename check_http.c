@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: check_http.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -288,7 +288,7 @@ int timeout_epilog(thread *thread, char *smtp_msg, char *debug_msg)
 #ifdef _DEBUG_
     syslog(LOG_DEBUG, "Retry %s server [%s:%d] after %d retry."
                     , debug_msg
-                    , ip_ntoa(CHECKER_RIP(checker))
+                    , inet_ntop2(CHECKER_RIP(checker))
                     , ntohs(addr_port)
                     , http_arg->retry_it - 1);
 #endif
@@ -300,7 +300,7 @@ int timeout_epilog(thread *thread, char *smtp_msg, char *debug_msg)
     if (checker->rs)
       syslog(LOG_DEBUG, "Timeout %s server [%s:%d]."
                       , debug_msg
-                      , ip_ntoa(CHECKER_RIP(checker))
+                      , inet_ntop2(CHECKER_RIP(checker))
                       , ntohs(addr_port));
 #endif
     /* check if server is currently alive */
@@ -368,7 +368,7 @@ int http_handle_response(thread *thread, unsigned char digest[16]
 
 #ifdef _DEBUG_
     syslog(LOG_DEBUG, "MD5SUM to [%s:%d] url(%d) = [%s]."
-                    , ip_ntoa(CHECKER_RIP(checker))
+                    , inet_ntop2(CHECKER_RIP(checker))
                     , ntohs(addr_port)
                     , http_arg->url_it + 1
                     , digest_tmp);
@@ -381,7 +381,7 @@ int http_handle_response(thread *thread, unsigned char digest[16]
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "MD5 digest error to [%s:%d] url(%d)"
                         ", expecting MD5SUM [%s]."
-                      , ip_ntoa(CHECKER_RIP(checker))
+                      , inet_ntop2(CHECKER_RIP(checker))
                       , ntohs(addr_port)
                       , http_arg->url_it + 1
                       , fetched_url->digest);
@@ -400,7 +400,7 @@ int http_handle_response(thread *thread, unsigned char digest[16]
     } else {
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "MD5 digest success to [%s:%d] url(%d)."
-                      , ip_ntoa(CHECKER_RIP(checker))
+                      , inet_ntop2(CHECKER_RIP(checker))
                       , ntohs(addr_port)
                       , http_arg->url_it + 1);
 #endif
@@ -442,7 +442,7 @@ int http_read_thread(thread *thread)
       /* We have encourred a real read error */
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "Read error with server [%s:%d]: %s"
-                      , ip_ntoa(CHECKER_RIP(checker))
+                      , inet_ntop2(CHECKER_RIP(checker))
                       , ntohs(addr_port)
                       , strerror(errno));
 #endif
@@ -563,12 +563,12 @@ int http_request_thread(thread *thread)
   snprintf(str_request, GET_REQUEST_BUFFER_LENGTH
                       , REQUEST_TEMPLATE
                       , fetched_url->path
-                      , (vhost)?vhost:ip_ntoa(CHECKER_RIP(checker))
+                      , (vhost)?vhost:inet_ntop2(CHECKER_RIP(checker))
                       , ntohs(addr_port));
 #ifdef _DEBUG_
   syslog(LOG_DEBUG, "Processing url(%d) of [%s:%d]."
                   , http_arg->url_it + 1
-                  , ip_ntoa(CHECKER_RIP(checker))
+                  , inet_ntop2(CHECKER_RIP(checker))
                   , ntohs(addr_port));
 #endif
 
@@ -582,7 +582,7 @@ int http_request_thread(thread *thread)
 
   if (!ret) {
     syslog(LOG_INFO, "Cannot send get request to [%s:%d]."
-                   , ip_ntoa(CHECKER_RIP(checker))
+                   , inet_ntop2(CHECKER_RIP(checker))
                    , ntohs(addr_port));
 
     /* check if server is currently alive */
@@ -626,7 +626,7 @@ int http_check_thread(thread *thread)
     case connect_error:
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "Error connecting server [%s:%d]."
-                      , ip_ntoa(CHECKER_RIP(checker))
+                      , inet_ntop2(CHECKER_RIP(checker))
                       , ntohs(addr_port));
 #endif
       /* check if server is currently alive */
@@ -657,7 +657,7 @@ int http_check_thread(thread *thread)
          */
 #ifdef _DEBUG_
         syslog(LOG_DEBUG, "Remote Web server [%s:%d] connected."
-                        , ip_ntoa(CHECKER_RIP(checker))
+                        , inet_ntop2(CHECKER_RIP(checker))
                         , ntohs(addr_port));
 #endif
         thread_add_write(thread->master, http_request_thread
@@ -667,7 +667,7 @@ int http_check_thread(thread *thread)
       } else {
 #ifdef _DEBUG_
         syslog(LOG_DEBUG, "Connection trouble to: [%s:%d]."
-                        , ip_ntoa(CHECKER_RIP(checker))
+                        , inet_ntop2(CHECKER_RIP(checker))
                         , ntohs(addr_port));
         if (http_get_check->proto == PROTO_SSL)
           ssl_printerr(SSL_get_error(req->ssl, ret));
@@ -718,7 +718,7 @@ int http_connect_thread(thread *thread)
       perform_svr_state(UP, checker->vs, checker->rs);
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "Remote Web server [%s:%d] succeed on service."
-                      , ip_ntoa(CHECKER_RIP(checker))
+                      , inet_ntop2(CHECKER_RIP(checker))
                       , ntohs(addr_port));
 #endif
     }

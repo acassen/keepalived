@@ -178,14 +178,6 @@ fi
 
 AC_SUBST(IPVS_SYNCD)
 
-dnl ----[ Create object list ]----
-if test "$KERN" = "_KRNL_2_2_"; then
-  LIBFW="libipfwc/libipfwc.a"
-  LIBOBJS="$LIBOBJS ipfwwrapper.o"
-  AC_SUBST(LIBFW)dnl
-  AC_SUBST(LIBOBJS)dnl
-fi
-
 dnl ----[ Checks for typedefs, structures, and compiler characteristics ]----
 AC_C_CONST
 AC_TYPE_PID_T
@@ -214,9 +206,6 @@ if test -n "$LIBS"; then
 fi
 if test -n "$LIBOBJS"; then
   echo "Lib objects              : $LIBOBJS"
-fi
-if test -n "$LIBFW"; then
-  echo "Firewall Lib             : $LIBFW"
 fi
 
 if test "${IPVS_SUPPORT}" = "_WITH_LVS_"; then

@@ -5,6 +5,8 @@
 # processname: keepalived
 # pidfile: /var/run/keepalived.pid
 # config: /etc/keepalived/keepalived.conf
+# chkconfig: 2345 92 40
+# description: Start and stop Keepalived
 
 # Global definitions
 PID_FILE="/var/run/keepalived.pid"

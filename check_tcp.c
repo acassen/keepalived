@@ -5,7 +5,7 @@
  *
  * Part:        TCP checker.
  *
- * Version:     $Id: check_tcp.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: check_tcp.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -103,7 +103,7 @@ int tcp_check_thread(thread *thread)
 
 #ifdef _DEBUG_
     syslog(LOG_DEBUG, "TCP connection to [%s:%d] success."
-                    ,  ip_ntoa(CHECKER_RIP(checker))
+                    ,  inet_ntop2(CHECKER_RIP(checker))
                     ,  ntohs(addr_port));
 #endif
     close(thread->u.fd);
@@ -119,7 +119,7 @@ int tcp_check_thread(thread *thread)
   } else {
 #ifdef _DEBUG_
     syslog(LOG_DEBUG, "TCP connection to [%s:%d] failed !!!"
-                    ,  ip_ntoa(CHECKER_RIP(checker))
+                    ,  inet_ntop2(CHECKER_RIP(checker))
                     ,  ntohs(addr_port));
 #endif
 

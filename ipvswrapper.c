@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -28,7 +28,7 @@
 
 int ipvs_syncd_cmd(int cmd, char *ifname, int state)
 {
-  syslog(LOG_INFO, "IPVS WRAPPER : Sync daemon not supported on kernel v2.2");
+  syslog(LOG_INFO, "IPVS : Sync daemon not supported on kernel v2.2");
   return IPVS_ERROR;
 }
 
@@ -49,8 +49,8 @@ int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
   ctl.u.vs_user.protocol = vs->service_type;
 
   if(!parse_timeout(vs->timeout_persistence, &ctl.u.vs_user.timeout))
-    syslog(LOG_INFO, "IPVS WRAPPER : Virtual service [%s:%d] illegal timeout."
-                   , ip_ntoa(SVR_IP(vs))
+    syslog(LOG_INFO, "IPVS : Virtual service [%s:%d] illegal timeout."
+                   , inet_ntop2(SVR_IP(vs))
                    , ntohs(SVR_PORT(vs)));
   if (ctl.u.vs_user.timeout != 0 || vs->granularity_persistence)
     ctl.u.vs_user.vs_flags = IP_VS_SVC_F_PERSISTENT;
@@ -76,27 +76,27 @@ int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
 
   sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
   if (sockfd == -1) {
-    syslog(LOG_INFO, "IPVS WRAPPER : Can not initialize SOCK_RAW descriptor.");
+    syslog(LOG_INFO, "IPVS : Can not initialize SOCK_RAW descriptor.");
     return IPVS_ERROR;
   }
 
   result = setsockopt(sockfd, IPPROTO_IP, IP_FW_MASQ_CTL, (char *)&ctl, sizeof(ctl));
 
   if (errno == ESRCH) {
-    syslog(LOG_INFO, "IPVS WRAPPER : Virtual service [%s:%d] not defined."
-                   , ip_ntoa(SVR_IP(vs))
+    syslog(LOG_INFO, "IPVS : Virtual service [%s:%d] not defined."
+                   , inet_ntop2(SVR_IP(vs))
                    , ntohs(SVR_PORT(vs)));
     close(sockfd);
     return IPVS_ERROR;
   } else if (errno == EEXIST) {
     if (rs)
-      syslog(LOG_INFO, "IPVS WRAPPER : Destination already exists [%s:%d]."
-                     , ip_ntoa(SVR_IP(rs))
+      syslog(LOG_INFO, "IPVS : Destination already exists [%s:%d]."
+                     , inet_ntop2(SVR_IP(rs))
                      , ntohs(SVR_PORT(rs)));
   } else if (errno == ENOENT) {
     if (rs)
-      syslog(LOG_INFO, "IPVS WRAPPER : No such destination [%s:%d]."
-                     , ip_ntoa(SVR_IP(rs))
+      syslog(LOG_INFO, "IPVS : No such destination [%s:%d]."
+                     , inet_ntop2(SVR_IP(rs))
                      , ntohs(SVR_PORT(rs)));
   }
 
@@ -106,49 +106,45 @@ int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
 
 #else /* KERNEL 2.4 LVS handling */
 
+static int ipvs_talk(int cmd, struct ip_vs_rule_user *urule)
+{
+  int result;
+
+  /* Init IPVS kernel channel */
+  if (ipvs_init()) {
+    syslog(LOG_INFO, "IPVS : Can't initialize ipvs: %s"
+                   , ipvs_strerror(errno));
+    return IPVS_ERROR;
+  }
+
+  result = ipvs_command(cmd, urule);
+  if (result) {
+    syslog(LOG_INFO, "IPVS : %s", ipvs_strerror(errno));
+    ipvs_close();
+    return IPVS_ERROR;
+  }
+  ipvs_close();
+  return IPVS_SUCCESS;
+}
+
 int ipvs_syncd_cmd(int cmd, char *ifname, int state)
 {
 #ifdef _HAVE_IPVS_SYNCD_
 
   struct ip_vs_rule_user urule;
-  int result = 0;
-  int sockfd;
 
   memset(&urule, 0, sizeof(struct ip_vs_rule_user));
-
-  sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
-  if (sockfd == -1) {
-    syslog(LOG_INFO, "IPVS WRAPPER : Can not initialize SOCK_RAW descriptor.");
-    return IPVS_ERROR;
-  } 
 
   /* prepare user rule */
   urule.state = state;
   if (ifname != NULL)
     strncpy(urule.mcast_ifn, ifname, IP_VS_IFNAME_MAXLEN);
 
-  result = setsockopt(sockfd, IPPROTO_IP, cmd, (char *)&urule, sizeof(urule));
-
-  if (result) {
-    syslog(LOG_INFO, "IPVS WRAPPER : setsockopt failed !!!");
-
-    switch (cmd) {
-      case IP_VS_SO_SET_STARTDAEMON:
-        if (errno == EEXIST)
-          syslog(LOG_INFO, "IPVS WRAPPER: Sync_daemon is already running");
-        break;
-      case IP_VS_SO_SET_STOPDAEMON:
-        if (errno == ESRCH)
-          syslog(LOG_INFO, "IPVS WRAPPER: Sync_daemon is not running");
-        break;
-    }
-  }
-
-  close(sockfd);
-  return IPVS_SUCCESS;
+  /* Talk to the IPVS channel */
+  return ipvs_talk(cmd, &urule);
 
 #else
-  syslog(LOG_INFO, "IPVS WRAPPER : Sync daemon not supported on kernel v2.2");
+  syslog(LOG_INFO, "IPVS : Sync daemon not supported");
   return IPVS_ERROR;
 #endif
 }
@@ -156,20 +152,18 @@ int ipvs_syncd_cmd(int cmd, char *ifname, int state)
 int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
 {
   struct ip_vs_rule_user urule;
-  int result=0;
-  int sockfd;
 
   memset(&urule, 0, sizeof(struct ip_vs_rule_user));
 
   strncpy(urule.sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
   urule.weight = 1;
   urule.conn_flags = vs->loadbalancing_kind;
-  urule.netmask  = ((u_int32_t) 0xffffffff);
+  urule.netmask    = ((u_int32_t) 0xffffffff);
   urule.protocol   = vs->service_type;
   
   if (!parse_timeout(vs->timeout_persistence, &urule.timeout))
-    syslog(LOG_INFO, "IPVS WRAPPER : Virtual service [%s:%d] illegal timeout."
-                   , ip_ntoa(SVR_IP(vs))
+    syslog(LOG_INFO, "IPVS : Virtual service [%s:%d] illegal timeout."
+                   , inet_ntop2(SVR_IP(vs))
                    , ntohs(SVR_PORT(vs)));
   if (urule.timeout != 0 || vs->granularity_persistence)
     urule.vs_flags = IP_VS_SVC_F_PERSISTENT;
@@ -193,68 +187,8 @@ int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
     urule.dport  = SVR_PORT(rs);
   }
 
-  sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
-  if (sockfd == -1) {
-    syslog(LOG_INFO, "IPVS WRAPPER : Can not initialize SOCK_RAW descriptor.");
-    return IPVS_ERROR;
-  } 
-  
-  result = setsockopt(sockfd, IPPROTO_IP, cmd, (char *)&urule, sizeof(urule));
-
-  /* kernel return error handling */
-
-  if (result) {
-    syslog(LOG_INFO, "IPVS WRAPPER : setsockopt failed !!!");
-
-    switch (cmd) {
-      case IP_VS_SO_SET_ADD:
-        if (errno == EEXIST)
-          syslog(LOG_INFO, "IPVS WRAPPER : Destination already exists [%s:%d]."
-                         , ip_ntoa(SVR_IP(vs))
-                         , ntohs(SVR_PORT(vs)));
-        else if (errno == ENOENT) {
-          syslog(LOG_INFO, "IPVS WRAPPER : Scheduler not found: ip_vs_%s.o !!!"
-                         , urule.sched_name);
-          close(sockfd);
-          return IPVS_ERROR;
-        }
-        break;
-
-      case IP_VS_SO_SET_DEL:
-        if (errno == ESRCH)
-          syslog(LOG_INFO, "IPVS WRAPPER : No such service [%s:%d]."
-                         , ip_ntoa(SVR_IP(vs))
-                         , ntohs(SVR_PORT(vs)));
-        close(sockfd);
-        return IPVS_ERROR;
-        break;
-
-      case IP_VS_SO_SET_ADDDEST:
-        if (errno == ESRCH)
-          syslog(LOG_INFO, "IPVS WRAPPER : Service not defined [%s:%d]."
-                         , ip_ntoa(SVR_IP(rs))
-                         , ntohs(SVR_PORT(rs)));
-        else if (errno == EEXIST)
-          syslog(LOG_INFO, "IPVS WRAPPER : Destination already exists [%s:%d]."
-                         , ip_ntoa(SVR_IP(rs))
-                         , ntohs(SVR_PORT(rs)));
-        break;
-
-      case IP_VS_SO_SET_DELDEST:
-        if (errno == ESRCH)
-          syslog(LOG_INFO, "IPVS WRAPPER : Service not defined [%s:%d]."
-                         , ip_ntoa(SVR_IP(rs))
-                         , ntohs(SVR_PORT(rs)));
-        else if (errno == ENOENT)
-          syslog(LOG_INFO, "IPVS WRAPPER : No such destination [%s:%d]."
-                         , ip_ntoa(SVR_IP(rs))
-                         , ntohs(SVR_PORT(rs)));
-        break;
-    }
-  }
-
-  close(sockfd);
-  return IPVS_SUCCESS;
+  /* Talk to the IPVS channel */
+  return ipvs_talk(cmd, &urule);
 }
 
 #endif

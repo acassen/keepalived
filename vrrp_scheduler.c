@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -25,6 +25,7 @@
 #include "vrrp_if.h"
 #include "vrrp.h"
 #include "vrrp_sync.h"
+#include "vrrp_notify.h"
 #include "ipvswrapper.h"
 #include "memory.h"
 #include "list.h"
@@ -550,11 +551,17 @@ static void vrrp_master(vrrp_rt *vrrp)
 
 static void vrrp_fault(vrrp_rt *vrrp)
 {
-  if (vrrp->sync) {
-    if (vrrp_sync_group_up(vrrp->sync))
-      syslog(LOG_INFO, "VRRP_Group(%s) Leaving FAULT state"
-                     , GROUP_NAME(vrrp->sync));
-    else return;
+  vrrp_sgroup *vgroup = vrrp->sync;
+
+  if (vgroup) {
+    if (vrrp_sync_group_up(vgroup)) {
+      if (vgroup->state == VRRP_STATE_FAULT) {
+        syslog(LOG_INFO, "VRRP_Group(%s) Leaving FAULT state"
+                       , GROUP_NAME(vgroup));
+        notify_group_exec(vgroup, vrrp->init_state);
+        vgroup->state = vrrp->init_state;
+      }
+    } else return;
   } else if (IF_ISUP(vrrp->ifp))
     syslog(LOG_INFO, "Kernel is reporting: interface %s UP"
                    , IF_NAME(vrrp->ifp));

@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: vrrp.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -26,6 +26,7 @@
 /* local include */
 #include <ctype.h>
 #include "vrrp_scheduler.h"
+#include "vrrp_notify.h"
 #include "ipvswrapper.h"
 #include "vrrp.h"
 #include "memory.h"
@@ -33,100 +34,6 @@
 #include "data.h"
 
 extern data *conf_data;
-
-/* Close all FDs >= a specified value */
-void closeall(int fd)
-{
-  int fdlimit = sysconf(_SC_OPEN_MAX);
-
-  while (fd < fdlimit)
-    close(fd++);
-}
-
-static char *notify_get_script(vrrp_rt *vrrp, int state)
-{
-  if (!vrrp->notify_exec)
-    return NULL;
-  if (state == VRRP_STATE_BACK)
-    return vrrp->script_backup;
-  if (state == VRRP_STATE_MAST)
-    return vrrp->script_master;
-  if (state == VRRP_STATE_FAULT)
-    return vrrp->script_fault;
-  return NULL;
-}
-static char *notify_script_name(char *cmdline)
-{
-  char *cp = cmdline;
-  char *script;
-  int strlen;
-
-  if (!cmdline)
-    return NULL;
-  while (!isspace((int) *cp) && *cp != '\0')
-    cp++;
-  strlen = cp - cmdline;
-  script = MALLOC(strlen + 1);
-  memcpy(script, cmdline, strlen);
-  *(script + strlen) = '\0';
-
-  return script;
-}
-/* Execute extern script/program */
-static int notify_exec(vrrp_rt *vrrp, int state)
-{
-  char *script = notify_get_script(vrrp, state);
-  char *script_name = notify_script_name(script);
-  FILE *fOut;
-  int err;
-  pid_t pid;
-
-  if (!script) return 0;
-
-  fOut = fopen(script_name, "r");;
-  if (!fOut) {
-    syslog(LOG_INFO, "Can't open %s (errno %d %s)"
-                   , script_name
-                   , errno
-                   , strerror(errno));
-    return -1;
-  }
-  FREE(script_name);
-  fclose(fOut);
-
-  pid = fork();
-
-  /* In case of fork is error. */
-  if (pid < 0) {
-    syslog(LOG_INFO, "Failed fork process");
-    return -1;
-  }
-
-  /* In case of this is parent process. */
-  if (pid)
-    return (0);
-
-  closeall(0);
-
-  open("/dev/null", O_RDWR);
-  dup(0);
-  dup(0);
-
-  if (vrrp->debug > 0)
-   syslog(LOG_INFO, "Trying to exec [%s]", script);
-
-  err = system(script);
-
-  if (err != 0) {
-    if (err == 127)
-      syslog(LOG_ALERT, "Failed to exec [%s]", script);
-    else
-      syslog(LOG_ALERT, "Error running [%s], error: %d", script, err);
-  } else
-    syslog(LOG_INFO, "Success executing [%s]", script);
-
-  exit(0);
-}
 
 /* compute checksum */
 static u_short in_csum( u_short *addr, int len, u_short csum)
@@ -186,7 +93,7 @@ retry:
       vadd->set = 0;
       syslog(LOG_INFO, "cant %s the address %s to %s\n"
                      , cmd ? "set" : "remove"
-                     , ip_ntoa(vadd->addr)
+                     , inet_ntop2(vadd->addr)
                      , IF_NAME(vrrp->ifp));
       if (cmd == VRRP_IPADDRESS_ADD) {
         syslog(LOG_INFO, "try to delete eventual stalled ip");
@@ -767,7 +674,7 @@ void vrrp_state_become_master(vrrp_rt *vrrp)
   vrrp_send_gratuitous_arp(vrrp);
 
   /* Check if notify is needed */
-  notify_exec(vrrp, VRRP_STATE_MAST);
+  notify_instance_exec(vrrp, VRRP_STATE_MAST);
 
 #ifdef _HAVE_IPVS_SYNCD_
   /* Check if sync daemon handling is needed */
@@ -829,14 +736,14 @@ void vrrp_state_leave_master(vrrp_rt *vrrp)
                      , vrrp->iname);
       vrrp_restore_interface(vrrp, 0);
       vrrp->state = vrrp->wantstate;
-      notify_exec(vrrp, VRRP_STATE_BACK);
+      notify_instance_exec(vrrp, VRRP_STATE_BACK);
       break;
     case VRRP_STATE_GOTO_FAULT:
       syslog(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE"
                      , vrrp->iname);
       vrrp_restore_interface(vrrp, 0);
       vrrp->state = VRRP_STATE_FAULT;
-      notify_exec(vrrp, VRRP_STATE_FAULT);
+      notify_instance_exec(vrrp, VRRP_STATE_FAULT);
       break;
   }
 }

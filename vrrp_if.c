@@ -5,7 +5,7 @@
  *
  * Part:        Interfaces manipulation.
  *
- * Version:     $Id: vrrp_if.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: vrrp_if.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -40,7 +40,9 @@
 #endif
 #include <stdlib.h>
 #include <stdio.h>
+#ifdef _KRNL_2_4_
 #include <linux/ethtool.h>
+#endif
 
 /* local include */
 #include "scheduler.h"
@@ -173,6 +175,7 @@ int if_mii_probe(const char *ifname)
 
 static int if_ethtool_status(const int fd)
 {
+#ifdef _KRNL_2_4_
   struct ethtool_value edata;
   int err = 0;
 
@@ -182,6 +185,7 @@ static int if_ethtool_status(const int fd)
   if (err == 0)
     return (edata.data)?1:0;
   else
+#endif
     return -1;
 }
 
@@ -226,7 +230,7 @@ void dump_if(void *data)
   syslog(LOG_INFO, "------< NIC >------");
   syslog(LOG_INFO, " Name = %s", ifp->ifname);
   syslog(LOG_INFO, " index = %d", ifp->ifindex);
-  syslog(LOG_INFO, " address = %s", ip_ntoa(ifp->address));
+  syslog(LOG_INFO, " address = %s", inet_ntop2(ifp->address));
 
   /* FIXME: Harcoded for ethernet */
   if (ifp->hw_type == ARPHRD_ETHER)

@@ -1,18 +1,25 @@
 ! Configuration File for keepalived
 
 vrrp_sync_group G1 {
-  VI_1
-  VI_2
-  VI_5
-  VI_6
-  VI_7
-  VI_8
-  VI_9
+  group {
+    VI_1
+    VI_2
+    VI_5
+    VI_6
+    VI_7
+    VI_8
+    VI_9
+  }
+  notify_backup "/usr/local/bin/vrrp.back arg1 arg2"
+  notify_master "/usr/local/bin/vrrp.mast arg1 arg2"
+  notify_fault "/usr/local/bin/vrrp.fault arg1 arg2"
 }
 
 vrrp_sync_group G2 {
-  VI_3
-  VI_4
+  group {
+    VI_3
+    VI_4
+  }
 }
 
 vrrp_instance VI_1 {

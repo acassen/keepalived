@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: data.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -90,6 +90,9 @@ static void free_vgroup(void *data)
 
   FREE(vgroup->gname);
   free_strvec(vgroup->iname);
+  FREE_PTR(vgroup->script_backup);
+  FREE_PTR(vgroup->script_master);
+  FREE_PTR(vgroup->script_fault);
   FREE(vgroup);
 }
 static void dump_vgroup(void *data)
@@ -105,6 +108,15 @@ static void dump_vgroup(void *data)
     str = VECTOR_SLOT(vgroup->iname, i);
     syslog(LOG_INFO, "   monitor = %s", str);
   }
+  if (vgroup->script_backup)
+    syslog(LOG_INFO, "   Backup state transition script = %s"
+                   , vgroup->script_backup);
+  if (vgroup->script_master)
+    syslog(LOG_INFO, "   Master state transition script = %s"
+                   , vgroup->script_master);
+  if (vgroup->script_fault)
+    syslog(LOG_INFO, "   Fault state transition script = %s"
+                   , vgroup->script_fault);
 }
 
 static void free_vrrp(void *data)
@@ -134,7 +146,7 @@ static void dump_vrrp(void *data)
   syslog(LOG_INFO, "   Runing on device = %s", IF_NAME(vrrp->ifp));
   if (vrrp->mcast_saddr)
     syslog(LOG_INFO, "   Using mcast src_ip = %s"
-                   , ip_ntoa(vrrp->mcast_saddr));
+                   , inet_ntop2(vrrp->mcast_saddr));
   if (vrrp->lvs_syncd_if)
     syslog(LOG_INFO, "   Runing LVS sync daemon on interface = %s"
                    , vrrp->lvs_syncd_if);
@@ -150,12 +162,12 @@ static void dump_vrrp(void *data)
   }
   syslog(LOG_INFO, "   VIP count = %d", vrrp->naddr);
   for (i = 0; i < vrrp->naddr; i++)
-    syslog(LOG_INFO, "     VIP%d = %s/%d", i+1, ip_ntoa(vrrp->vaddr[i].addr)
+    syslog(LOG_INFO, "     VIP%d = %s/%d", i+1, inet_ntop2(vrrp->vaddr[i].addr)
                                               , vrrp->vaddr[i].mask);
   if (vrrp->neaddr) {
     syslog(LOG_INFO, "   Excluded VIP count = %d", vrrp->neaddr);
     for (i = 0; i < vrrp->neaddr; i++)
-      syslog(LOG_INFO, "     E-VIP%d = %s/%d", i+1, ip_ntoa(vrrp->evaddr[i].addr)
+      syslog(LOG_INFO, "     E-VIP%d = %s/%d", i+1, inet_ntop2(vrrp->evaddr[i].addr)
                                                   , vrrp->evaddr[i].mask);
   }
   if (vrrp->script_backup)
@@ -170,7 +182,7 @@ static void dump_vrrp(void *data)
   if (vrrp->smtp_alert)
     syslog(LOG_INFO, "   Using smtp notification");
 }
-void alloc_vrrp_sync_group(char *gname, vector iname)
+void alloc_vrrp_sync_group(char *gname)
 {
   int size = strlen(gname);
   vrrp_sgroup *new;
@@ -178,8 +190,8 @@ void alloc_vrrp_sync_group(char *gname, vector iname)
   /* Allocate new VRRP group structure */
   new = (vrrp_sgroup *)MALLOC(sizeof(vrrp_sgroup));
   new->gname = (char *)MALLOC(size+1);
+  new->state = VRRP_STATE_BACK;
   memcpy(new->gname, gname, size);
-  new->iname = iname;
 
   list_add(conf_data->vrrp_sync_group, new);
 }
@@ -209,8 +221,9 @@ void alloc_vrrp(char *iname)
 void alloc_vrrp_vip(char *vip)
 {
   vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-  uint32_t ipaddr = ip_ston(vip);
-  uint8_t mask = ip_stom(vip);
+  uint32_t ipaddr = 0;
+  uint8_t mask = inet_stom(vip);
+  inet_ston(vip, &ipaddr);
 
   vrrp->naddr++;
   if (vrrp->vaddr)
@@ -224,8 +237,9 @@ void alloc_vrrp_vip(char *vip)
 void alloc_vrrp_evip(char *vip)
 {
   vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-  uint32_t ipaddr = ip_ston(vip);
-  uint8_t mask = ip_stom(vip);
+  uint32_t ipaddr = 0;
+  uint8_t mask = inet_stom(vip);
+  inet_ston(vip, &ipaddr);
 
   vrrp->neaddr++;
   if (vrrp->evaddr)
@@ -257,7 +271,7 @@ static void dump_vs(void *data)
     syslog(LOG_INFO, " VS FWMARK = %d", vs->vfwmark);
   else
     syslog(LOG_INFO, " VIP = %s, VPORT = %d"
-                   , ip_ntoa(SVR_IP(vs))
+                   , inet_ntop2(SVR_IP(vs))
                    , ntohs(SVR_PORT(vs)));
   if (vs->virtualhost)
     syslog(LOG_INFO, "   VirtualHost = %s", vs->virtualhost);
@@ -269,7 +283,7 @@ static void dump_vs(void *data)
                    , vs->timeout_persistence);
   if (vs->granularity_persistence)
     syslog(LOG_INFO, "   persistence granularity = %s"
-                   , ip_ntoa(vs->granularity_persistence));
+                   , inet_ntop2(vs->granularity_persistence));
   syslog(LOG_INFO, "   protocol = %s"
                  , (vs->service_type == IPPROTO_TCP)?"TCP":"UDP");
 
@@ -278,7 +292,7 @@ static void dump_vs(void *data)
 #ifdef _KRNL_2_2_
     case 0:
       syslog(LOG_INFO, "   lb_kind = NAT");
-      syslog(LOG_INFO, "   nat mask = %s", ip_ntoa(vs->nat_mask));
+      syslog(LOG_INFO, "   nat mask = %s", inet_ntop2(vs->nat_mask));
       break;
     case IP_MASQ_F_VS_DROUTE:
       syslog(LOG_INFO, "   lb_kind = DR");
@@ -302,7 +316,7 @@ static void dump_vs(void *data)
 
   if (vs->s_svr) {
     syslog(LOG_INFO, "   sorry server = %s:%d"
-                   , ip_ntoa(SVR_IP(vs->s_svr))
+                   , inet_ntop2(SVR_IP(vs->s_svr))
                    , ntohs(SVR_PORT(vs->s_svr)));
   }
   if (!LIST_ISEMPTY(vs->rs))
@@ -319,7 +333,7 @@ void alloc_vs(char *ip, char *port)
   if (!strcmp(ip, "fwmark")) {
     new->vfwmark = atoi(port);
   } else {
-    new->addr_ip   = inet_addr(ip);
+    inet_ston(ip, &new->addr_ip);
     new->addr_port = htons(atoi(port));
   }
   new->delay_loop = KEEPALIVED_DEFAULT_DELAY;
@@ -336,7 +350,7 @@ void alloc_ssvr(char *ip, char *port)
 
   vs->s_svr = (real_server *)MALLOC(sizeof(real_server));
   vs->s_svr->weight    = 1;
-  vs->s_svr->addr_ip   = inet_addr(ip);
+  inet_ston(ip, &vs->s_svr->addr_ip);
   vs->s_svr->addr_port = htons(atoi(port));
 }
 
@@ -350,7 +364,7 @@ static void dump_rs(void *data)
 {
   real_server *rs = data;
   syslog(LOG_INFO, "   RIP = %s, RPORT = %d, WEIGHT = %d"
-                 , ip_ntoa(SVR_IP(rs))
+                 , inet_ntop2(SVR_IP(rs))
                  , ntohs(SVR_PORT(rs))
                  , rs->weight);
 }
@@ -361,7 +375,7 @@ void alloc_rs(char *ip, char *port)
 
   new = (real_server *)MALLOC(sizeof(real_server));
 
-  new->addr_ip   = inet_addr(ip);
+  inet_ston(ip, &new->addr_ip);
   new->addr_port = htons(atoi(port));
   new->alive = 1;
 
@@ -395,7 +409,7 @@ void alloc_rsgroup(char *ip, char *port)
 
   new = (real_server *)MALLOC(sizeof(real_server));
 
-  new->addr_ip   = inet_addr(ip);
+  inet_ston(ip, &new->addr_ip);
   new->addr_port = htons(atoi(port));
   new->alive     = 1;
 
@@ -482,7 +496,7 @@ void dump_data(void)
   if (conf_data->lvs_id)
     syslog(LOG_INFO, " LVS ID = %s", conf_data->lvs_id);
   if (conf_data->smtp_server)
-    syslog(LOG_INFO, " Smtp server = %s", ip_ntoa(conf_data->smtp_server));
+    syslog(LOG_INFO, " Smtp server = %s", inet_ntop2(conf_data->smtp_server));
   if (conf_data->smtp_connection_to)
     syslog(LOG_INFO, " Smtp server connection timeout = %d"
                    , conf_data->smtp_connection_to);

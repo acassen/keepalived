@@ -6,7 +6,7 @@
  * Part:        Layer4 checkers handling. Register worker threads &
  *              upper layer checkers.
  *
- * Version:     $Id: layer4.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: layer4.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -83,7 +83,7 @@ enum connect_result tcp_socket_state(int fd, thread *thread
   if(thread->type == THREAD_WRITE_TIMEOUT) {
 #ifdef _DEBUG_
     syslog(LOG_DEBUG, "TCP connection timeout to [%s:%d]."
-                    , ip_ntoa(addr_ip)
+                    , inet_ntop2(addr_ip)
                     , ntohs(addr_port));
 #endif
     close(thread->u.fd);
@@ -99,7 +99,7 @@ enum connect_result tcp_socket_state(int fd, thread *thread
   if (ret) {
 #ifdef _DEBUG_
     syslog(LOG_DEBUG, "TCP connection failed to [%s:%d]."
-                    , ip_ntoa(addr_ip)
+                    , inet_ntop2(addr_ip)
                     , ntohs(addr_port));
 #endif
     close(thread->u.fd);
@@ -114,7 +114,7 @@ enum connect_result tcp_socket_state(int fd, thread *thread
   if (status != 0) {
 #ifdef _DEBUG_
     syslog(LOG_DEBUG, "TCP connection to [%s:%d] still IN_PROGRESS."
-                    , ip_ntoa(addr_ip)
+                    , inet_ntop2(addr_ip)
                     , ntohs(addr_port));
 #endif
 
@@ -149,7 +149,7 @@ void tcp_connection_state(int fd, enum connect_result status
     case connect_error:
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "TCP connection ERROR to [%s:%d]."
-                      , ip_ntoa(SVR_IP(checker->rs))
+                      , inet_ntop2(SVR_IP(checker->rs))
                       , ntohs(SVR_PORT(checker->rs)));
 #endif
       close(fd);
@@ -158,7 +158,7 @@ void tcp_connection_state(int fd, enum connect_result status
     case connect_success:
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "TCP connection SUCCESS to [%s:%d]."
-                      , ip_ntoa(SVR_IP(checker->rs))
+                      , inet_ntop2(SVR_IP(checker->rs))
                       , ntohs(SVR_PORT(checker->rs)));
 #endif
       thread_add_write(thread->master, func, checker, fd, timeout);
@@ -168,7 +168,7 @@ void tcp_connection_state(int fd, enum connect_result status
     case connect_in_progress:
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "TCP connection to [%s:%d] now IN_PROGRESS."
-                      , ip_ntoa(SVR_IP(checker->rs))
+                      , inet_ntop2(SVR_IP(checker->rs))
                       , ntohs(SVR_PORT(checker->rs)));
 #endif
       thread_add_write(thread->master, func, checker, fd, timeout);

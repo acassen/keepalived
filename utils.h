@@ -5,7 +5,7 @@
  *
  * Part:        utils.h include file.
  *
- * Version:     $Id: utils.h,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: utils.h,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -29,12 +29,13 @@
 #include <stdint.h>
 #include <string.h>
 #include <arpa/inet.h>
+#include <arpa/nameser.h>
 
 /* Prototypes defs */
 extern void print_buffer(int count, char *buff);
-extern char *ip_ntoa(uint32_t ip);
-extern char *ip_ntoa2(uint32_t ip, char *buf);
-extern uint32_t ip_ston(char *addr);
-extern uint8_t ip_stom(char *addr);
+extern char *inet_ntop2(uint32_t ip);
+extern char *inet_ntoa2(uint32_t ip, char *buf);
+extern uint8_t inet_stom(char *addr);
+extern int inet_ston(const char* addr, uint32_t *dst);
 
 #endif

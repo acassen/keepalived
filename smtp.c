@@ -7,7 +7,7 @@
  *              using the smtp protocol according to the RFC 821. A non blocking
  *              timeouted connection is used to handle smtp protocol.
  *
- * Version:     $Id: smtp.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: smtp.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -59,7 +59,7 @@ static int smtp_read_cmd_thread(thread *thread)
   if (thread->type == THREAD_READ_TIMEOUT) {
 #ifdef _DEBUG_
     syslog(LOG_DEBUG, "Timeout reading data to remote SMTP server [%s:%d].",
-                      ip_ntoa(conf_data->smtp_server),
+                      inet_ntop2(conf_data->smtp_server),
                       SMTP_PORT);
 #endif
     free_smtp_all(smtp_arg);
@@ -74,7 +74,7 @@ static int smtp_read_cmd_thread(thread *thread)
       if (errno == EAGAIN) goto end;
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "Error reading data to remote SMTP server [%s:%d]."
-                      , ip_ntoa(conf_data->smtp_server)
+                      , inet_ntop2(conf_data->smtp_server)
                       , SMTP_PORT);
 #endif
       free_smtp_all(smtp_arg);
@@ -87,7 +87,7 @@ static int smtp_read_cmd_thread(thread *thread)
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "Received buffer from remote SMTP server [%s:%d]"
                         " overflow our get read buffer length."
-                      , ip_ntoa(conf_data->smtp_server)
+                      , inet_ntop2(conf_data->smtp_server)
                       , SMTP_PORT);
 #endif
       free_smtp_all(smtp_arg);
@@ -252,7 +252,7 @@ static int smtp_send_cmd_thread(thread *thread)
   if (thread->type == THREAD_WRITE_TIMEOUT) {
 #ifdef _DEBUG_
     syslog(LOG_DEBUG, "Timeout sending data to remote SMTP server [%s:%d]."
-                    , ip_ntoa(conf_data->smtp_server)
+                    , inet_ntop2(conf_data->smtp_server)
                     , SMTP_PORT);
 #endif
     free_smtp_all(smtp_arg);
@@ -322,7 +322,7 @@ static int smtp_send_cmd_thread(thread *thread)
     case ERROR:
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "Can not send data to remote SMTP server [%s:%d]."
-                      , ip_ntoa(conf_data->smtp_server)
+                      , inet_ntop2(conf_data->smtp_server)
                       , SMTP_PORT);
 #endif
       /* we just cleanup the room */
@@ -362,7 +362,7 @@ static int smtp_check_thread(thread *thread)
     case connect_error:
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "Error connecting SMTP server [%s:%d]."
-                      , ip_ntoa(conf_data->smtp_server)
+                      , inet_ntop2(conf_data->smtp_server)
                       , SMTP_PORT);
 #endif
       free_smtp_all(smtp_arg);
@@ -371,7 +371,7 @@ static int smtp_check_thread(thread *thread)
     case connect_timeout:
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "Timeout writing data to SMTP server [%s:%d]."
-                      , ip_ntoa(conf_data->smtp_server)
+                      , inet_ntop2(conf_data->smtp_server)
                       , SMTP_PORT);
 #endif
       free_smtp_all(smtp_arg);
@@ -383,7 +383,7 @@ static int smtp_check_thread(thread *thread)
        */
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "Remote SMTP server [%s:%d] connected."
-                      , ip_ntoa(conf_data->smtp_server)
+                      , inet_ntop2(conf_data->smtp_server)
                       , SMTP_PORT);
 #endif
       thread_add_write(thread->master, smtp_send_cmd_thread
@@ -423,7 +423,7 @@ static int smtp_connect_thread(thread *thread)
     case connect_error:
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "SMTP connection ERROR to [%s:%d]."
-                      , ip_ntoa(conf_data->smtp_server)
+                      , inet_ntop2(conf_data->smtp_server)
                       , SMTP_PORT);
 #endif
       free_smtp_all(smtp_arg);
@@ -434,7 +434,7 @@ static int smtp_connect_thread(thread *thread)
     case connect_timeout:
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "Timeout connecting SMTP server [%s:%d]."
-                      , ip_ntoa(conf_data->smtp_server)
+                      , inet_ntop2(conf_data->smtp_server)
                       , SMTP_PORT);
 #endif
       free_smtp_all(smtp_arg);
@@ -445,7 +445,7 @@ static int smtp_connect_thread(thread *thread)
     case connect_success:
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "SMTP connection SUCCESS to [%s:%d]."
-                      , ip_ntoa(conf_data->smtp_server)
+                      , inet_ntop2(conf_data->smtp_server)
                       , SMTP_PORT);
 #endif
       break;
@@ -454,7 +454,7 @@ static int smtp_connect_thread(thread *thread)
     case connect_in_progress:
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "SMTP connection to [%s:%d] now IN_PROGRESS."
-                      , ip_ntoa(conf_data->smtp_server)
+                      , inet_ntop2(conf_data->smtp_server)
                       , SMTP_PORT);
 #endif
       break;
@@ -491,7 +491,7 @@ void smtp_alert(thread_master *master
       snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH
                                 , "[%s] Realserver %s:%d - %s"
                                 , conf_data->lvs_id
-                                , ip_ntoa(SVR_IP(rs))
+                                , inet_ntop2(SVR_IP(rs))
                                 , ntohs(SVR_PORT(rs))
                                 , subject);
     else if (vrrp)

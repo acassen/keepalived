@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
+ * Version:     $Id: parser.c,v 0.6.4 2002/06/25 20:18:34 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -259,7 +259,7 @@ static void smtpto_handler(vector strvec)
 }
 static void smtpip_handler(vector strvec)
 {
-  conf_data->smtp_server = inet_addr(VECTOR_SLOT(strvec, 1));
+  inet_ston(VECTOR_SLOT(strvec, 1), &conf_data->smtp_server);
 }
 static void email_handler(vector strvec)
 {
@@ -300,8 +300,30 @@ static void sslkey_handler(vector strvec)
 /* VRRP handlers */
 static void vrrp_sync_group_handler(vector strvec)
 {
-  vector iname = read_value_block();
-  alloc_vrrp_sync_group(VECTOR_SLOT(strvec, 1), iname);
+  alloc_vrrp_sync_group(VECTOR_SLOT(strvec, 1));
+}
+static void vrrp_group_handler(vector strvec)
+{
+  vrrp_sgroup *vgroup = LIST_TAIL_DATA(conf_data->vrrp_sync_group);
+  vgroup->iname = read_value_block();
+}
+static void vrrp_gnotify_backup_handler(vector strvec)
+{
+  vrrp_sgroup *vgroup = LIST_TAIL_DATA(conf_data->vrrp_sync_group);
+  vgroup->script_backup = set_value(strvec);
+  vgroup->notify_exec = 1;
+}
+static void vrrp_gnotify_master_handler(vector strvec)
+{
+  vrrp_sgroup *vgroup = LIST_TAIL_DATA(conf_data->vrrp_sync_group);
+  vgroup->script_master = set_value(strvec);
+  vgroup->notify_exec = 1;
+}
+static void vrrp_gnotify_fault_handler(vector strvec)
+{
+  vrrp_sgroup *vgroup = LIST_TAIL_DATA(conf_data->vrrp_sync_group);
+  vgroup->script_fault = set_value(strvec);
+  vgroup->notify_exec = 1;
 }
 static void vrrp_handler(vector strvec)
 {
@@ -335,7 +357,7 @@ static void vrrp_int_handler(vector strvec)
 static void vrrp_mcastip_handler(vector strvec)
 {
   vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-  vrrp->mcast_saddr = inet_addr(VECTOR_SLOT(strvec, 1));
+  inet_ston(VECTOR_SLOT(strvec, 1), &vrrp->mcast_saddr);
 }
 static void vrrp_vrid_handler(vector strvec)
 {
@@ -533,7 +555,7 @@ static void lbkind_handler(vector strvec)
 static void natmask_handler(vector strvec)
 {
   virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
-  vs->nat_mask = inet_addr(VECTOR_SLOT(strvec, 1));
+  inet_ston(VECTOR_SLOT(strvec, 1), &vs->nat_mask);
 }
 static void pto_handler(vector strvec)
 {
@@ -546,7 +568,7 @@ static void pto_handler(vector strvec)
 static void pgr_handler(vector strvec)
 {
   virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
-  vs->granularity_persistence = inet_addr(VECTOR_SLOT(strvec, 1));
+  inet_ston(VECTOR_SLOT(strvec, 1), &vs->granularity_persistence);
 }
 static void proto_handler(vector strvec)
 {
@@ -632,7 +654,7 @@ static void process_stream(vector keywords)
   process_stream(keywords);
 }
 
-void init_keywords(void)
+static vector init_keywords(void)
 {
   keywords = vector_alloc();
 
@@ -653,6 +675,10 @@ void init_keywords(void)
 
   /* VRRP Instance mapping */
   install_keyword_root("vrrp_sync_group",	&vrrp_sync_group_handler);
+  install_keyword("group",			&vrrp_group_handler);
+  install_keyword("notify_backup",		&vrrp_gnotify_backup_handler);
+  install_keyword("notify_master",		&vrrp_gnotify_master_handler);
+  install_keyword("notify_fault",		&vrrp_gnotify_fault_handler);
   install_keyword_root("vrrp_instance",		&vrrp_handler);
   install_keyword("state",			&vrrp_state_handler);
   install_keyword("interface",			&vrrp_int_handler);
@@ -710,6 +736,8 @@ void init_keywords(void)
     install_checkers_keyword();
   install_sublevel_end();
 #endif
+
+  return keywords;
 }
 
 void init_data(char *conf_file)
@@ -723,8 +751,7 @@ void init_data(char *conf_file)
   }
 
   /* Init Keywords structure */
-  init_keywords();
-  kw_root = keywords;
+  kw_root = init_keywords();
 
 /* Dump configuration *
   vector_dump(keywords);
