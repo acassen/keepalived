@@ -5,7 +5,7 @@
  *
  * Part:        Daemon process handling.
  *
- * Version:     $Id: daemon.h,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
+ * Version:     $Id: daemon.h,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -35,5 +35,7 @@
 
 /* prototype */
 extern pid_t xdaemon(int, int, int);
+extern void closeall(int fd);
+extern int system_call(char *cmdline);
 
 #endif

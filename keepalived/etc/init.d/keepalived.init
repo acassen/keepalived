@@ -24,8 +24,22 @@ case "$1" in
 	kill $PID
 	echo
 	;;
+  restart)
+	echo -n "Shutting down Keepalived for LVS: "
+	PID=`cat $PID_FILE`
+	kill $PID
+	echo
+	echo -n "Starting Keepalived for LVS: "
+	keepalived
+	echo
+	;;
+  reload)
+	echo -n "Reloading Keepalived config: "
+	killall -HUP keepalived
+	echo
+	;;
   *)
-	echo "Usage: $0 {start|stop}"
+	echo "Usage: $0 {start|stop|restart|reload}"
 	exit 1
 esac
 

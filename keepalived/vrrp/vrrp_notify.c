@@ -5,7 +5,7 @@
  *
  * Part:        VRRP state transition notification scripts handling.
  *
- * Version:     $Id: vrrp_notify.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
+ * Version:     $Id: vrrp_notify.c,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -26,15 +26,7 @@
 /* local include */
 #include "vrrp_notify.h"
 #include "memory.h"
-
-/* Close all FDs >= a specified value */
-void
-closeall(int fd)
-{
-	int fdlimit = sysconf(_SC_OPEN_MAX);
-	while (fd < fdlimit)
-		close(fd++);
-}
+#include "daemon.h"
 
 static char *
 get_iscript(vrrp_rt * vrrp, int state)
@@ -85,9 +77,8 @@ notify_script_name(char *cmdline)
 
 /* Execute extern script/program */
 static int
-notify_exec(const char *cmd)
+notify_exec(char *cmd)
 {
-	int err;
 	pid_t pid;
 
 	pid = fork();
@@ -108,15 +99,7 @@ notify_exec(const char *cmd)
 	dup(0);
 	dup(0);
 
-	err = system(cmd);
-	if (err != 0) {
-		if (err == 127)
-			syslog(LOG_ALERT, "Failed to exec [%s]", cmd);
-		else
-			syslog(LOG_ALERT, "Error running [%s], error: %d", cmd,
-			       err);
-	} else
-		syslog(LOG_INFO, "Success executing [%s]", cmd);
+	system_call(cmd);
 
 	exit(0);
 }

@@ -8,7 +8,7 @@ CC	 = @CC@
 INCLUDES = -I../include
 CFLAGS	 = @CFLAGS@ $(INCLUDES) \
 	   -Wall -Wunused -Wstrict-prototypes
-DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ @DFLAGS@
+DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@VRRP_SUPPORT@ @DFLAGS@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
 OBJS = 	main.o memory.o daemon.o pidfile.o utils.o timer.o \

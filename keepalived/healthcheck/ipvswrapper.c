@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -23,6 +23,7 @@
 
 #include "ipvswrapper.h"
 #include "utils.h"
+#include "memory.h"
 
 /* local helpers functions */
 static int parse_timeout(char *, unsigned *);
@@ -179,53 +180,58 @@ ipvs_syncd_cmd(int cmd, char *ifname, int state)
 int
 ipvs_cmd(int cmd, virtual_server * vs, real_server * rs)
 {
-	struct ip_vs_rule_user urule;
+	struct ip_vs_rule_user *urule;
+	int err = 0;
 
-	memset(&urule, 0, sizeof (struct ip_vs_rule_user));
+	urule = (struct ip_vs_rule_user *) MALLOC(sizeof (struct ip_vs_rule_user));
+	memset(urule, 0, sizeof (struct ip_vs_rule_user));
 
-	strncpy(urule.sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
-	urule.weight = 1;
-	urule.conn_flags = vs->loadbalancing_kind;
-	urule.netmask = ((u_int32_t) 0xffffffff);
-	urule.protocol = vs->service_type;
+	strncpy(urule->sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
+	urule->weight = 1;
+	urule->conn_flags = vs->loadbalancing_kind;
+	urule->netmask = ((u_int32_t) 0xffffffff);
+	urule->protocol = vs->service_type;
 
-	if (!parse_timeout(vs->timeout_persistence, &urule.timeout))
+	if (!parse_timeout(vs->timeout_persistence, &urule->timeout))
 		syslog(LOG_INFO,
 		       "IPVS : Virtual service [%s:%d] illegal timeout.",
 		       inet_ntop2(SVR_IP(vs)), ntohs(SVR_PORT(vs)));
 
-	if (urule.timeout != 0 || vs->granularity_persistence)
-		urule.vs_flags = IP_VS_SVC_F_PERSISTENT;
+	if (urule->timeout != 0 || vs->granularity_persistence)
+		urule->vs_flags = IP_VS_SVC_F_PERSISTENT;
 
 	/* VS specific */
 	if (vs->vfwmark) {
-		urule.vfwmark = vs->vfwmark;
+		urule->vfwmark = vs->vfwmark;
 	} else {
-		urule.vaddr = SVR_IP(vs);
-		urule.vport = SVR_PORT(vs);
+		urule->vaddr = SVR_IP(vs);
+		urule->vport = SVR_PORT(vs);
 	}
 
 	if (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL)
 		if (vs->granularity_persistence)
-			urule.netmask = vs->granularity_persistence;
+			urule->netmask = vs->granularity_persistence;
 
 	/* SVR specific */
 	if (cmd == IP_VS_SO_SET_ADDDEST || cmd == IP_VS_SO_SET_DELDEST) {
-		urule.weight = rs->weight;
-		urule.daddr = SVR_IP(rs);
-		urule.dport = SVR_PORT(rs);
+		urule->weight = rs->weight;
+		urule->daddr = SVR_IP(rs);
+		urule->dport = SVR_PORT(rs);
 	}
 
 	/* Does the service use inhibit flag ? */
 	if (cmd == IP_VS_SO_SET_DELDEST && rs->inhibit) {
-		urule.weight = 0;
+		urule->weight = 0;
 		cmd = IP_VS_SO_SET_EDITDEST;
 	}
 	if (cmd == IP_VS_SO_SET_ADDDEST && rs->inhibit && rs->alive)
 		cmd = IP_VS_SO_SET_EDITDEST;
 
 	/* Talk to the IPVS channel */
-	return ipvs_talk(cmd, &urule);
+	err = ipvs_talk(cmd, urule);
+
+	FREE(urule);
+	return err;
 }
 
 #endif

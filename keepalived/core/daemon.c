@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
+ * Version:     $Id: main.c,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,7 +20,9 @@
  *              2 of the License, or (at your option) any later version.
  */
 
+#include <syslog.h>
 #include "daemon.h"
+#include "utils.h"
 
 /* Daemonization function coming from zebra source code */
 pid_t
@@ -31,7 +33,7 @@ xdaemon(int nochdir, int noclose, int exitflag)
 	/* In case of fork is error. */
 	pid = fork();
 	if (pid < 0) {
-		perror("fork");
+		syslog(LOG_INFO, "xdaemon: fork error");
 		return -1;
 	}
 
@@ -46,7 +48,7 @@ xdaemon(int nochdir, int noclose, int exitflag)
 	/* Become session leader and get pid. */
 	pid = setsid();
 	if (pid < -1) {
-		perror("setsid");
+		syslog(LOG_INFO, "xdaemon: setsid error");
 		return -1;
 	}
 
@@ -70,4 +72,36 @@ xdaemon(int nochdir, int noclose, int exitflag)
 
 	umask(0);
 	return 0;
+}
+
+/* Close all FDs >= a specified value */
+void
+closeall(int fd)
+{
+	int fdlimit = sysconf(_SC_OPEN_MAX);
+	while (fd < fdlimit)
+		close(fd++);
+}
+
+/* perform a system call */
+int
+system_call(char *cmdline)
+{
+	int retval;
+
+	retval = system(cmdline);
+
+	if (retval == 127) {
+		/* couldn't exec command */
+		syslog(LOG_ALERT, "Couldn't exec command: %s", cmdline);
+	} else if (retval == -1) {
+		/* other error */
+		syslog(LOG_ALERT, "Error exec-ing command: %s", cmdline);
+	} else {
+		/* everything is good */
+		DBG("Successfully exec command: %s retval is %d",
+		    cmdline, retval);
+	}
+
+	return retval;
 }

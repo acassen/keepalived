@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
+ * Version:     $Id: vrrp.h,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -204,5 +204,6 @@ extern void vrrp_state_leave_master(vrrp_rt * vrrp);
 extern int vrrp_ipsecah_len(void);
 extern int vrrp_complete_init(void);
 extern void shutdown_vrrp_instances(void);
+extern void clear_diff_vrrp(void);
 
 #endif

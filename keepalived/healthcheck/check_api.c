@@ -5,7 +5,7 @@
  *
  * Part:        Checkers registration.
  *
- * Version:     $Id: check_api.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
+ * Version:     $Id: check_api.c,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -53,13 +53,6 @@ dump_checker(void *data)
 	(*checker->dump) (checker);
 }
 
-/* init the global checkers queue */
-void
-init_checkers_queue(void)
-{
-	checkers_queue = alloc_list(free_checker, dump_checker);
-}
-
 /* Queue a checker to the checkers_queue */
 void
 queue_checker(void (*free) (void *), void (*dump) (void *)
@@ -92,6 +85,13 @@ dump_checkers_queue(void)
 	}
 }
 
+/* init the global checkers queue */
+void
+init_checkers_queue(void)
+{
+	checkers_queue = alloc_list(free_checker, dump_checker);
+}
+
 /* release the checkers_queue */
 void
 free_checkers_queue(void)
@@ -120,27 +120,25 @@ update_checker_activity(uint32_t address, int enable)
 	checker *checker;
 	element e;
 
+	/* Display netlink operation */
+	syslog(LOG_INFO, "Netlink reflector reports IP %s %s",
+	       inet_ntop2(address), (enable) ? "added" : "removed");
+
 	/* Processing Healthcheckers queue */
 	if (!LIST_ISEMPTY(checkers_queue))
 		for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 			checker = ELEMENT_DATA(e);
 			if (CHECKER_VIP(checker) == address) {
-				if (!CHECKER_ENABLED(checker) && enable) {
+				if (!CHECKER_ENABLED(checker) && enable)
 					syslog(LOG_INFO,
-					       "Netlink reflector reports IP %s added",
-					       inet_ntop2(address));
+					       "Activating healtchecker for service [%s:%d]",
+					       inet_ntop2(CHECKER_RIP(checker)),
+					       ntohs(CHECKER_RPORT(checker)));
+				if (CHECKER_ENABLED(checker) && !enable)
 					syslog(LOG_INFO,
-					       "Activating healtchecker for VIP %s",
-					       inet_ntop2(address));
-				}
-				if (CHECKER_ENABLED(checker) && !enable) {
-					syslog(LOG_INFO,
-					       "Netlink reflector reports IP %s removed",
-					       inet_ntop2(address));
-					syslog(LOG_INFO,
-					       "Suspending healtchecker for VIP %s",
-					       inet_ntop2(address));
-				}
+					       "Suspending healtchecker for service [%s:%d]",
+					       inet_ntop2(CHECKER_RIP(checker)),
+					       ntohs(CHECKER_RPORT(checker)));
 				checker->enabled = enable;
 			}
 		}

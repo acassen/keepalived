@@ -7,7 +7,7 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
+ * Version:     $Id: scheduler.c,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -70,9 +70,10 @@ thread_list_add_timeval(thread_list * list, thread * thread)
 {
 	struct _thread *tt;
 
-	for (tt = list->head; tt; tt = tt->next)
+	for (tt = list->head; tt; tt = tt->next) {
 		if (timer_cmp(thread->sands, tt->sands) <= 0)
 			break;
+	}
 
 	if (tt)
 		thread_list_add_before(list, tt, thread);
@@ -130,7 +131,7 @@ thread_add_unuse(thread_master * m, thread * thread)
 }
 
 /* Move list element to unuse queue */
-void
+static void
 thread_destroy_list(thread_master * m, thread_list thread_list)
 {
 	thread *thread;
@@ -149,17 +150,31 @@ thread_destroy_list(thread_master * m, thread_list thread_list)
 	}
 }
 
-/* Stop thread scheduler. */
-void
-thread_destroy_master(thread_master * m)
+/* Cleanup master */
+static void
+thread_cleanup_master(thread_master * m)
 {
+	/* Unuse current thread lists */
 	thread_destroy_list(m, m->read);
 	thread_destroy_list(m, m->write);
 	thread_destroy_list(m, m->timer);
 	thread_destroy_list(m, m->event);
 	thread_destroy_list(m, m->ready);
 
+	/* Clear all FDs */
+	FD_ZERO(&m->readfd);
+	FD_ZERO(&m->writefd);
+	FD_ZERO(&m->exceptfd);
+
+	/* Clean garbage */
 	thread_clean_unuse(m);
+}
+
+/* Stop thread scheduler. */
+void
+thread_destroy_master(thread_master * m)
+{
+	thread_cleanup_master(m);
 	FREE(m);
 }
 

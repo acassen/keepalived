@@ -6,7 +6,7 @@
  * Part:        MISC CHECK. Perform a system call to run an extra
  *              system prog or script.
  *
- * Version:     $Id: check_misc.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
+ * Version:     $Id: check_misc.c,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
@@ -81,72 +81,70 @@ install_misc_check_keyword(void)
 }
 
 int
-misc_check_call(char *cmdline)
-{
-	int retval;
-
-	retval = system(cmdline);
-
-	if (retval == 127) {
-		/* couldn't exec command */
-		DBG("Couldn't exec command: %s", cmdline);
-	} else if (retval == -1) {
-		/* other error */
-		DBG("Error exec-ing command: %s", cmdline);
-	} else {
-		/* everything is good */
-		DBG("Successfully exec command: %s retval is %d",
-		    cmdline, retval);
-	}
-
-	return retval;
-}
-
-int
 misc_check_thread(thread * thread)
 {
 	checker *checker;
 	misc_checker *misc_chk;
 	int status;
+	pid_t pid;
 
 	checker = THREAD_ARG(thread);
 	misc_chk = CHECKER_ARG(checker);
 
-	/* Register next timer checker */
-	thread_add_timer(thread->master, misc_check_thread, checker,
-			 checker->vs->delay_loop);
 	/*
 	 * Register a new checker thread & return
 	 * if checker is disabled
 	 */
-	if (!CHECKER_ENABLED(checker))
+	if (!CHECKER_ENABLED(checker)) {
+		/* Register next timer checker */
+		thread_add_timer(thread->master, misc_check_thread, checker,
+				 checker->vs->delay_loop);
 		return 0;
+	}
 
 	/* Daemonization to not degrade our scheduling timer */
-	if (xdaemon(0, 0, 1))
-		return 0x80000000;
+	pid = fork();
 
-	status = misc_check_call(misc_chk->path);
+	/* In case of fork is error. */
+	if (pid < 0) {
+		syslog(LOG_INFO, "Failed fork process");
+		return -1;
+	}
+
+	/* In case of this is parent process. */
+	if (pid)
+		return (0);
+
+	closeall(0);
+
+	open("/dev/null", O_RDWR);
+	dup(0);
+	dup(0);
+
+	status = system_call(misc_chk->path);
 
 	if (status >= 0) {	/* script error assumed  not an svr error */
 		if (status == 0) {
 			/* everything is good */
-			if (!checker->rs->alive) {
+			if (!ISALIVE(checker->rs)) {
 				smtp_alert(thread->master, checker->rs, NULL,
 					   "UP",
 					   "=> MISC CHECK succeed on service <=\n\n");
 				perform_svr_state(UP, checker->vs, checker->rs);
 			}
 		} else {
-			if (checker->rs->alive) {
+			if (ISALIVE(checker->rs)) {
 				smtp_alert(thread->master, checker->rs, NULL,
 					   "DOWN",
 					   "=> MISC CHECK failed on service <=\n\n");
-				perform_svr_state(DOWN, checker->vs,
-						  checker->rs);
+				perform_svr_state(DOWN, checker->vs, checker->rs);
 			}
 		}
 	}
+
+	/* Register next timer checker */
+	thread_add_timer(thread->master, misc_check_thread, checker,
+			 checker->vs->delay_loop);
 
 	exit(0);
 }

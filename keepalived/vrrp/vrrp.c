@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
+ * Version:     $Id: vrrp.c,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -33,7 +33,9 @@
 #include "list.h"
 #include "data.h"
 
+/* extern global vars */
 extern data *conf_data;
+extern data *old_data;
 
 /* compute checksum */
 static u_short
@@ -89,7 +91,7 @@ vrrp_handle_ipaddress(vrrp_rt * vrrp, int cmd, int type)
 		vip_addr *vadd =
 		    (type ==
 		     VRRP_VIP_TYPE) ? &vrrp->vaddr[i] : &vrrp->evaddr[i];
-		if (!cmd && !vadd->set)
+		if ((!cmd && !vadd->set) || (cmd && vadd->set))
 			continue;
 	      retry:
 		if (netlink_address_ipv4(ifindex, vadd->addr, vadd->mask, cmd) <
@@ -634,16 +636,17 @@ static int
 send_gratuitous_arp(vrrp_rt * vrrp, int addr)
 {
 	struct m_arphdr {
-		unsigned short int ar_hrd;	/* Format of hardware address.  */
-		unsigned short int ar_pro;	/* Format of protocol address.  */
-		unsigned char ar_hln;	/* Length of hardware address.  */
-		unsigned char ar_pln;	/* Length of protocol address.  */
-		unsigned short int ar_op;	/* ARP opcode (command).  */
+		unsigned short int ar_hrd;		/* Format of hardware address.  */
+		unsigned short int ar_pro;		/* Format of protocol address.  */
+		unsigned char ar_hln;			/* Length of hardware address.  */
+		unsigned char ar_pln;			/* Length of protocol address.  */
+		unsigned short int ar_op;		/* ARP opcode (command).  */
+
 		/* Ethernet looks like this : This bit is variable sized however...  */
 		unsigned char __ar_sha[ETH_ALEN];	/* Sender hardware address.  */
-		unsigned char __ar_sip[4];	/* Sender IP address.  */
+		unsigned char __ar_sip[4];		/* Sender IP address.  */
 		unsigned char __ar_tha[ETH_ALEN];	/* Target hardware address.  */
-		unsigned char __ar_tip[4];	/* Target IP address.  */
+		unsigned char __ar_tip[4];		/* Target IP address.  */
 	};
 
 	char buf[sizeof (struct m_arphdr) + ETHER_HDR_LEN];
@@ -940,15 +943,17 @@ chk_min_cfg(vrrp_rt * vrrp)
 {
 	if (vrrp->naddr == 0) {
 		syslog(LOG_INFO,
-		       "provide at least one ip for the virtual server");
+		       "VRRP_Instance(%s) provide at least one ip for the virtual server",
+		       vrrp->iname);
 		return 0;
 	}
 	if (vrrp->vrid == 0) {
-		syslog(LOG_INFO, "the virtual id must be set!");
+		syslog(LOG_INFO, "VRRP_Instance(%s) the virtual id must be set!",
+		       vrrp->iname);
 		return 0;
 	}
 	if (!vrrp->ifp) {
-		syslog(LOG_INFO, "Unknown interface for instance %s !",
+		syslog(LOG_INFO, "VRRP_Instance(%s) Unknown interface !",
 		       vrrp->iname);
 		return 0;
 	}
@@ -1145,4 +1150,111 @@ vrrp_complete_init(void)
 			return 0;
 	}
 	return 1;
+}
+
+/* Try to find a VRRP instance */
+static vrrp_rt *
+vrrp_exist(vrrp_rt * old_vrrp)
+{
+	element e;
+	list l = conf_data->vrrp;
+	vrrp_rt *vrrp;
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+		if (!strcmp(vrrp->iname, old_vrrp->iname))
+			return vrrp;
+	}
+
+	return NULL;
+}
+
+/* Try to find a VIP into a VRRP instance */
+static int
+vrrp_vip_exist(vip_addr * old_vadd, vrrp_rt * vrrp, int type)
+{
+	int i, num;
+
+	num = (type == VRRP_VIP_TYPE) ? vrrp->naddr : vrrp->neaddr;
+	for (i = 0; i < num; i++) {
+		vip_addr *vadd =
+		     (type ==
+                     VRRP_VIP_TYPE) ? &vrrp->vaddr[i] : &vrrp->evaddr[i];
+		if (old_vadd->addr == vadd->addr &&
+		    old_vadd->mask == vadd->mask) {
+			vadd->set = old_vadd->set;
+			return 1;
+		}
+	}
+	return 0;
+}
+
+/* Clear VIP|EVIP that are not present into the new data */
+static void
+clear_diff_vrrp_vip(vrrp_rt * old_vrrp, int type)
+{
+	vrrp_rt *vrrp = vrrp_exist(old_vrrp);
+	int i, num, old_num;
+	char vip[16];
+
+	/* Get the vip count */
+	num = (type == VRRP_VIP_TYPE) ? vrrp->naddr : vrrp->neaddr;
+	old_num = (type == VRRP_VIP_TYPE) ? old_vrrp->naddr : old_vrrp->neaddr;
+
+	/* Return if it is a positive group diff */
+	if (num && !old_num)
+		return;
+
+	/* Clear a whole E-VIP group ? */
+	if (!num && old_num) {
+		syslog(LOG_INFO, "VRRP_Instance(%s) E-VIP group no longer exist"
+		       , old_vrrp->iname);
+		vrrp_handle_ipaddress(old_vrrp, VRRP_IPADDRESS_DEL, type);
+	}
+
+	/* Just clear diff entries */
+	for (i = 0; i < num; i++) {
+		vip_addr *vadd =
+		     (type ==
+		     VRRP_VIP_TYPE) ? &old_vrrp->vaddr[i] : &old_vrrp->evaddr[i];
+		if (!vrrp_vip_exist(vadd, vrrp, type)) {
+			syslog(LOG_INFO, "%s %s/%d no longer exist"
+			       , (type == VRRP_VIP_TYPE) ? "VIP" : "E-VIP"
+			       , inet_ntoa2(vadd->addr, vip)
+			       , vadd->mask);
+			netlink_address_ipv4(IF_INDEX(old_vrrp->ifp)
+					     , vadd->addr
+					     , vadd->mask
+					     , VRRP_IPADDRESS_DEL);
+
+		}
+	}
+}
+
+/* Diff when reloading configuration */
+void
+clear_diff_vrrp(void)
+{
+	element e;
+	list l = old_data->vrrp;
+	vrrp_rt *vrrp;
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+
+		/*
+		 * Try to find this vrrp into the new conf data
+		 * reloaded.
+		 */
+		if (!vrrp_exist(vrrp)) {
+			vrrp_restore_interface(vrrp, 0);
+		} else {
+			/*
+			 * If this vrrp instance exist in new
+			 * data, then perform a VIP|EVIP diff.
+			 */
+			clear_diff_vrrp_vip(vrrp, VRRP_VIP_TYPE);
+			clear_diff_vrrp_vip(vrrp, VRRP_EVIP_TYPE);
+		}
+	}
 }

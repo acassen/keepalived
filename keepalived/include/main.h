@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
+ * Version:     $Id: main.h,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -43,10 +43,18 @@
 #include "vrrp_netlink.h"
 
 /* global var */
-thread_master *master = NULL;
-unsigned int debug;
-unsigned long mem_allocated = 0;
-data *conf_data;
+thread_master *master = NULL;		/* Scheduling master thread */
+char *conf_file = NULL;			/* Configuration file */
+int reload = 0;				/* Global reloading flag */
+unsigned int debug;			/* Debugging flags */
+unsigned long mem_allocated = 0;	/* Total memory used in Bytes */
+data *conf_data;			/* Global configuration data */
+data *old_data;				/* Used during reload process */
+
+/* Reloading helpers */
+#define SET_RELOAD	(reload = 1)
+#define UNSET_RELOAD	(reload = 0)
+#define RELOAD_DELAY	5
 
 /* extern prototypes */
 #ifdef _WITH_LVS_
@@ -58,8 +66,8 @@ extern void register_vrrp_thread(void);
 /* Build version */
 #define PROG    "Keepalived"
 
-#define VERSION_CODE 0x000608
-#define DATE_CODE    0x0F0702
+#define VERSION_CODE 0x000609
+#define DATE_CODE    0x010802
 
 #define KEEPALIVED_VERSION(version)	\
 	(version >> 16) & 0xFF,		\

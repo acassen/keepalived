@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
+ * Version:     $Id: parser.c,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -381,10 +381,11 @@ vrrp_state_handler(vector strvec)
 static void
 vrrp_int_handler(vector strvec)
 {
+#ifdef _WITH_VRRP_
 	vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
 	char *name = VECTOR_SLOT(strvec, 1);
-
 	vrrp->ifp = if_get_by_ifname(name);
+#endif
 }
 static void
 vrrp_mcastip_handler(vector strvec)

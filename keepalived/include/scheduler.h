@@ -5,7 +5,7 @@
  *
  * Part:        scheduler.c include file.
  *
- * Version:     $Id: scheduler.h,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
+ * Version:     $Id: scheduler.h,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

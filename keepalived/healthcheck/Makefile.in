@@ -54,4 +54,5 @@ check_misc.o: check_misc.c ../include/check_misc.h ../include/check_api.h \
   ../include/memory.h ../include/ipwrapper.h ../include/smtp.h \
   ../include/utils.h ../include/parser.h ../include/daemon.h
 ipwrapper.o: ipwrapper.c ../include/ipwrapper.h ../include/utils.h
-ipvswrapper.o: ipvswrapper.c ../include/ipvswrapper.h ../include/utils.h
+ipvswrapper.o: ipvswrapper.c ../include/ipvswrapper.h ../include/utils.h \
+  ../include/memory.h

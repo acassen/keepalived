@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
+ * Version:     $Id: data.c,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -61,7 +61,7 @@ alloc_ssl(void)
 	SSL_DATA *ssl = (SSL_DATA *) MALLOC(sizeof (SSL_DATA));
 	return ssl;
 }
-static void
+void
 free_ssl(void)
 {
 	SSL_DATA *ssl = conf_data->ssl;
@@ -233,7 +233,9 @@ alloc_vrrp(char *iname)
 	new->adver_int = TIMER_HZ;
 	new->iname = (char *) MALLOC(size + 1);
 	memcpy(new->iname, iname, size);
+#ifdef _WITH_VRRP_
 	new->sync = vrrp_get_sync_group(iname);
+#endif
 
 	list_add(conf_data->vrrp, new);
 }
@@ -519,63 +521,62 @@ alloc_data(void)
 }
 
 void
-free_data(void)
+free_data(data * data)
 {
-	free_ssl();
-	free_list(conf_data->email);
-	free_list(conf_data->vrrp);
-	free_list(conf_data->vrrp_sync_group);
-	free_list(conf_data->vs);
-	free_list(conf_data->group);
+	free_list(data->email);
+	free_list(data->vrrp);
+	free_list(data->vrrp_sync_group);
+	free_list(data->vs);
+	free_list(data->group);
 
-	FREE_PTR(conf_data->lvs_id);
-	FREE_PTR(conf_data->email_from);
-	FREE(conf_data);
+	FREE_PTR(data->lvs_id);
+	FREE_PTR(data->email_from);
+	FREE(data);
 }
 
 void
-dump_data(void)
+dump_data(data * data)
 {
-	if (conf_data->lvs_id ||
-	    conf_data->smtp_server ||
-	    conf_data->smtp_connection_to || conf_data->email_from) {
+	if (data->lvs_id ||
+	    data->smtp_server ||
+	    data->smtp_connection_to || data->email_from) {
 		syslog(LOG_INFO, "------< Global definitions >------");
 	}
-	if (conf_data->lvs_id)
-		syslog(LOG_INFO, " LVS ID = %s", conf_data->lvs_id);
-	if (conf_data->smtp_server)
+	if (data->lvs_id)
+		syslog(LOG_INFO, " LVS ID = %s", data->lvs_id);
+	if (data->smtp_server)
 		syslog(LOG_INFO, " Smtp server = %s",
-		       inet_ntop2(conf_data->smtp_server));
-	if (conf_data->smtp_connection_to)
+		       inet_ntop2(data->smtp_server));
+	if (data->smtp_connection_to)
 		syslog(LOG_INFO, " Smtp server connection timeout = %d",
-		       conf_data->smtp_connection_to);
-	if (conf_data->email_from) {
+		       data->smtp_connection_to);
+	if (data->email_from) {
 		syslog(LOG_INFO, " Email notification from = %s",
-		       conf_data->email_from);
-		dump_list(conf_data->email);
+		       data->email_from);
+		dump_list(data->email);
 	}
-	if (conf_data->ssl) {
+	if (data->ssl) {
 		syslog(LOG_INFO, "------< SSL definitions >------");
 		dump_ssl();
 	}
-	if (!LIST_ISEMPTY(conf_data->vrrp)) {
+	if (!LIST_ISEMPTY(data->vrrp)) {
 		syslog(LOG_INFO, "------< VRRP Topology >------");
-		dump_list(conf_data->vrrp);
+		dump_list(data->vrrp);
 	}
-	if (!LIST_ISEMPTY(conf_data->vrrp_sync_group)) {
+	if (!LIST_ISEMPTY(data->vrrp_sync_group)) {
 		syslog(LOG_INFO, "------< VRRP Sync groups >------");
-		dump_list(conf_data->vrrp_sync_group);
+		dump_list(data->vrrp_sync_group);
 	}
-	if (!LIST_ISEMPTY(conf_data->group)) {
+	if (!LIST_ISEMPTY(data->group)) {
 		syslog(LOG_INFO, "------< Real Servers groups >------");
-		dump_list(conf_data->group);
+		dump_list(data->group);
 	}
 #ifdef _WITH_LVS_
-	if (!LIST_ISEMPTY(conf_data->vs)) {
+	if (!LIST_ISEMPTY(data->vs)) {
 		syslog(LOG_INFO, "------< LVS Topology >------");
 		syslog(LOG_INFO, " System is compiled with LVS v%d.%d.%d",
 		       NVERSION(IP_VS_VERSION_CODE));
-		dump_list(conf_data->vs);
+		dump_list(data->vs);
 	}
 	dump_checkers_queue();
 #endif

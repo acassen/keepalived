@@ -22,6 +22,4 @@
 	- hooks in VRRP framework for external checktools.
 	  As state transition decision
 	- a VTYSH to administrate keepalived on the fly
-* Configuration file reload on signal. Extend the parser to use
-  global scheduler with conf file stream.
 * something I forgot right now :)

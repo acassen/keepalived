@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.h,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
+ * Version:     $Id: data.h,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -102,6 +102,7 @@ typedef struct _virtual_server {
 	int last_rs_type;
 #define RS		(1 << 0)
 #define RS_GROUP	(1 << 1)
+	int alive;
 } virtual_server;
 
 /* email link list */
@@ -124,15 +125,18 @@ typedef struct _data {
 } data;
 
 /* macro utility */
-#define ISALIVE(R)   ((R)->alive)
-#define SVR_IP(H)    ((H)->addr_ip)
-#define SVR_PORT(H)  ((H)->addr_port)
-#define VHOST(V)     ((V)->virtualhost)
-#define LAST_RS_TYPE(V)     ((V)->last_rs_type)
+#define ISALIVE(S)	((S)->alive)
+#define SET_ALIVE(S)	((S)->alive = 1)
+#define UNSET_ALIVE(S)	((S)->alive = 0)
+#define SVR_IP(H)	((H)->addr_ip)
+#define SVR_PORT(H)	((H)->addr_port)
+#define VHOST(V)	((V)->virtualhost)
+#define LAST_RS_TYPE(V)	((V)->last_rs_type)
 
 /* prototypes */
 extern void alloc_email(char *addr);
 extern SSL_DATA *alloc_ssl(void);
+extern void free_ssl(void);
 extern void alloc_vrrp_sync_group(char *gname);
 extern void alloc_vrrp(char *iname);
 extern void alloc_vrrp_vip(char *vip);
@@ -145,7 +149,7 @@ extern void alloc_rsgroup(char *ip, char *port);
 extern void set_rsgroup(char *gname);
 
 extern data *alloc_data(void);
-extern void free_data(void);
-extern void dump_data(void);
+extern void free_data(data * data);
+extern void dump_data(data * data);
 
 #endif

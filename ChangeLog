@@ -1,3 +1,31 @@
+2002-07-31  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.6.9 released.
+	* Fixe some code dependence selection during compilation. If autoconf netlink
+	  probe fails then unset VRRP code.
+	* Cleanup daemon lib. Added some logging info for the daemon processing, removed
+	  some repeated code part.
+	* Added 2 new daemon arguments :
+	    --dont-release-vrrp : Dont remove VRRP VIPs on daemon stop
+	    --dont-release-ipvs : Dont remove IPVS topology on daemon stop
+	* Review the global scheduling process to clear FD queues on master thread
+	  destroy.
+	* Fixed a forking issue in the MISC_CHECK.
+	* Review IPVS wrapper functions to use allocated IPVS rules instead of static
+	  referencing pointer.
+	* Fixed the IPVS wrapper to delete IPVS entries according to their 'alive' state.
+	* Added IPVS support to alive flag for VS entries.
+	* Rewrote the previous main.c to support configuration reload on the fly. Extented
+	  signal handling to register a conf reload_thread on SIGHUP. The software design
+	  used here is a dynamic differential conf file reloading framework. This design
+	  offer key decision to add/remove new/old entries to/from low-level framework:
+	  IPVS topology and netlink IP addresses entries. This design reduce to the max
+	  the global service interruption since only negative diff entries are removed.
+	  For VRRP config reload on the fly, if you plan to add/remove many VIPs consider
+	  VIP declaration into the virtual_ipaddress_excluded since they are not present
+	  into VRRP adverts.
+	* Review the keepalived.init script to support restart and reload arguments.
+	* Fixed some typo issues.
+
 2002-07-16  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.6.8 released.
 	* Alex Kramarov, <alex@incredimail.com> & Remi Nivet, <Remi.Nivet@atosorigin.com>
