@@ -5,17 +5,12 @@
  * 
  * Part:        cfreader.c include file.
  *  
- * Version:     $Id: cfreader.h,v 0.2.6 2001/03/01 $
+ * Version:     $Id: cfreader.h,v 0.2.1 2000/12/09 $
  * 
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *              
  * Changes:     
- *              Alexandre Cassen : 2001/03/01 :
- *               <+> Adding keywords.
- *               <+> Change change the whole data structure.
- *               <+> Adding LVS ID & notification email for alertes.
- *
- *              Alexandre Cassen : Initial release : 2000/12/09
+ *              Alexandre Cassen      :       Initial release
  *              
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
@@ -130,5 +125,10 @@ typedef struct _configuration_data {
 
   virtualserver *lvstopology;
 } configuration_data;
+
+/* prototypes */
+//configuration_data * ConfReader(configuration_data *conf_data);
+//void ClearConf(configuration_data * lstptr);
+//void PrintConf(configuration_data * lstptr);
 
 #endif

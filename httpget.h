@@ -5,15 +5,12 @@
  * 
  * Part:        httpget.c include file.
  *  
- * Version:     $Id: httpget.h,v 0.2.6 2001/03/01 $
+ * Version:     $Id: httpget.h,v 0.2.1 2000/12/09 $
  * 
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *              
  * Changes:     
- *              Alexandre Cassen : 2001/03/01 :
- *               <+> Change the GET method.
- *
- *              Alexandre Cassen : 2000/12/09 : Initial release
+ *              Alexandre Cassen      :       Initial release
  *              
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
@@ -56,5 +53,8 @@
 #define GET_REQUEST_BUFFER_LENGTH 128
 #define GET_BUFFER_LENGTH 2048
 #define LOGBUFFER_LENGTH 100
+
+/* prototypes */
+//int HTTP_GET(char *IP_DST,char *PORT_DST,char *URL,char *MDResult,int ctimeout,int getretry,int rdelay);
 
 #endif

@@ -5,15 +5,12 @@
  *
  * Part:        General program utils.
  *
- * Version:     $Id: utils.c,v 0.2.6 2001/03/01 $
+ * Version:     $Id: utils.c,v 0.2.1 2000/12/09 $
  *
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *
  * Changes:
- *              Alexandre Cassen : 2001/03/01 :
- *               <+> Adding daemonpid var to stock running keepalived daemon pid.
- *
- *              Alexandre Cassen : 2000/12/09 : Initial release
+ *              Alexandre Cassen      :       Initial release
  *
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License

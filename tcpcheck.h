@@ -38,6 +38,10 @@
 #define SOCKET_SUCCESS 1
 #define SOCKET_TIMEOUT 3
 
+
 #define LOGBUFFER_LENGTH 100
+
+/* prototypes */
+//int TCP_CHECK(const char *IP_DST, const char *PORT_DST);
 
 #endif

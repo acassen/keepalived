@@ -50,8 +50,10 @@
 #define IPVS_ERROR   0
 #define IPVS_SUCCESS 1
 
-#define IPVS_CMD_DEL 0
-#define IPVS_CMD_ADD 1
+/* Return codes */
+#define IPVSNOTDEFINED 0x0003
+#define IPVSSVREXIST   0x0004
+#define IPVSNODEST     0x0005
 
 #define LOGBUFFER_LENGTH 100
 

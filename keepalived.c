@@ -11,11 +11,8 @@
  *              
  * Changes:       
  *         Alexandre Cassen : 2001/03/01 :
- *          <+> Adding support for multi-url md5sum check.
- *          <+> Adding pidfile lock.
  *          <+> Change the signalhandling.
  *          <+> Change the dynamic data structure.
- *          <+> Use a global var to stock the daemon pid.
  *
  *          Alexandre Cassen : 2000/12/09 : Initial release
  *              
@@ -92,15 +89,16 @@ int main(int argc, char **argv)
     perform_checks(lstCONF);
     sleep(atoi(lstCONF->delay_loop));
   }
+
+  pidfile_rm();
+  return 0;
 }
 
-static void sig_handler(int signum)
+void sig_handler(int signum)
 {
   keep_going=0;
   ClearConf(lstCONF);
   logmessage("Ending keepalived daemon\n");
-  pidfile_rm();
-  exit(1);
 }
 
 void perform_ipvs(int alive, virtualserver *lstptr)
@@ -115,7 +113,8 @@ void perform_ipvs(int alive, virtualserver *lstptr)
             lstptr->svr->addr_ip,lstptr->svr->addr_port,
             lstptr->addr_ip,lstptr->addr_port);
     logmessage(logbuffer);
-    ipvs_pool_cmd(IPVS_CMD_ADD,lstptr);
+    ipvs_cmd(IP_MASQ_CMD_ADD_DEST,lstptr);
+    ipfw_cmd(IP_FW_CMD_ADD,lstptr);
   } else {
     lstptr->svr->alive=alive;
     memset(logbuffer,0,LOGBUFFER_LENGTH);
@@ -123,7 +122,8 @@ void perform_ipvs(int alive, virtualserver *lstptr)
             lstptr->svr->addr_ip,lstptr->svr->addr_port,
             lstptr->addr_ip,lstptr->addr_port);
     logmessage(logbuffer);
-    ipvs_pool_cmd(IPVS_CMD_DEL,lstptr);
+    ipvs_cmd(IP_MASQ_CMD_DEL_DEST,lstptr);
+    ipfw_cmd(IP_FW_CMD_DEL,lstptr);
   }
   free(logbuffer);
 }
@@ -133,10 +133,18 @@ int init_services(virtualserver *lstptr)
   realserver *pointersvr;
 
   while(lstptr != NULL) {
+    if (!ipvs_cmd(IP_MASQ_CMD_ADD,lstptr))
+      return 0;
     pointersvr=lstptr->svr;
     while(lstptr->svr != NULL) {
-      if (!ipvs_pool_cmd(IPVS_CMD_ADD,lstptr))
+      if (!ipvs_cmd(IP_MASQ_CMD_ADD_DEST,lstptr)) {
+        lstptr->svr=pointersvr;
         return 0;
+      }
+      if(!ipfw_cmd(IP_FW_CMD_ADD,lstptr)) {
+        lstptr->svr=pointersvr;
+        return 0;
+      }
       lstptr->svr=(realserver *)lstptr->svr->next;
     }
     lstptr->svr=pointersvr;

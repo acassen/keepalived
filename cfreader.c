@@ -7,20 +7,12 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: cfreader.c,v 0.2.6 2001/03/01 $
+ * Version:     $Id: cfreader.c,v 0.2.1 2000/12/09 $
  * 
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *              
  * Changes:     
- *              Alexandre Cassen : 2001/03/01 :
- *               <+> Change the dynamic data structure. Move to a tree data
- *                   structure.
- *               <+> Revisited the pointer handling for the dynamic data
- *                   structure.
- *               <+> Adding keywords support for the configuration file.
- *               <+> Adding support for email notification.
- *
- *              Alexandre Cassen : 2000/12/09 : Initial release
+ *              Alexandre Cassen      :       Initial release
  *              
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License

@@ -7,11 +7,15 @@
  *              server. This check implement the tcp half open connection
  *              check.
  *  
- * Version:     $Id: tcpcheck.c,v 0.2.5 2001/02/16 $
+ * Version:     $Id: tcpcheck.c,v 0.2.7 2001/03/27 $
  * 
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *              
  * Changes:     
+ *         Alexandre Cassen : 2001/03/27 :
+ *          <+> Close the socket descriptor missing !
+ *              causing a prematurely daemon daemon hangup. (oops)
+ *
  *         Alexandre Cassen : 2001/02/16 :
  *          <-> Suppress the whole RAW_SOCKET tcpcheck level initial implementation.
  *          <+> Replace the RAW_SOCKET initial implementation by a vanilla tcpcheck.
@@ -178,6 +182,7 @@ next:
     return(SOCKET_ERROR);
   }
 
+  close(sdesc);
   free(debugmsg);
   return(SOCKET_SUCCESS);
 }

@@ -3,9 +3,9 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  * 
- * Part:        keepalived.c include file.
+ * Part:        ipfwwrapper.c include file.
  *  
- * Version:     $Id: keepalived.c,v 0.2.1 2000/12/09 $
+ * Version:     $Id: ipfwwrappercmd.h,v 0.2.7 2001/03/30 $
  * 
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *              
@@ -18,22 +18,16 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef KEEPALIVED_H
-#define KEEPALIVED_H
+#ifndef IPFWWRAPPERCMD_H
+#define IPFWWRAPPERCMD_H
 
-#include <stdlib.h>
-#include <stdio.h>
-#include <signal.h>
-#include <string.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <ctype.h>
-#include <fcntl.h>
+/* Cmd codes */
+#define IP_FW_CMD_ADD 0x0001
+#define IP_FW_CMD_DEL 0x0002
 
-#include "smtpwrapper.h"
-
-/* Build version */
-#define PROG    "smtpwrapper"
-#define VERSION "0.2.6 (03/01, 2001), Alexandre Cassen"
+/* Return codes */
+#define IPFWNOTDEFINED 0x0003
+#define IPFWSVREXIST   0x0004
+#define IPFWNODEST     0x0005
 
 #endif

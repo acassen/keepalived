@@ -6,8 +6,9 @@ CC= gcc
 CFLAGS= -Wall
 DEFS= genhash.h md5.h
 OBJECTS= md5.o genhash.o
+INCLUDE= -I/usr/src/linux/include
 .c.o:	
-	$(CC) -o $@ $(CFLAGS) -c $*.c
+	$(CC) -o $@ $(CFLAGS) $(INCLUDE) -c $*.c
 
 all:	$(EXEC)
 	strip $(EXEC)

@@ -7,24 +7,12 @@
  *              url, compute a MD5 over this result and match it to the
  *              expected value.
  *  
- * Version:     $Id: httpget.c,v 0.2.6 2001/03/01 $
+ * Version:     $Id: httpget.c,v 0.2.1 2000/12/09 $
  * 
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *              
  * Changes:     
- *              Alexandre Cassen : 2001/03/01 :
- *               <+> Use a non blocking timeouted tcp connection.
- *               <+> Adding support for multi-url. Can perform a HTTP GET
- *                   over multiple url on the same tcp service (usefull for
- *                   HTTP server owning multiple applications servers).
- *               <+> Adding HTTP GET retry.
- *               <+> Remove the libmd call, use the L. Peter Deutsch
- *                   independant md5 implementation.
- *               <+> Parse the whole HTTP get reply, computing a md5sum
- *                   over the html response part.
- *               <+> Adding delay support between HTTP get retry.
- *
- *              Alexandre Cassen : Initial release : 2000/12/09
+ *              Alexandre Cassen      :       Initial release
  *              
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License

@@ -60,6 +60,6 @@
 
 /* Build version */
 #define PROG    "genhash"
-#define VERSION "0.2.0 (12/09, 2000), Alexandre Cassen"
+#define VERSION "0.2.3 (27/03, 2001), Alexandre Cassen"
 
 #endif

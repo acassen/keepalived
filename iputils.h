@@ -30,4 +30,10 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 
+
+/* prototypes */
+//int in_cksum(register unsigned short *ptr , int nbytes);
+//int hostToaddr(char *host, u_long *val);
+
+
 #endif

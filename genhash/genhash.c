@@ -9,6 +9,9 @@
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *
  * Changes:
+ *              Alexandre Cassen : 2001/03/27 :
+ *               <+> Use non blocking socket.
+ *
  *              Alexandre Cassen : 2000/12/09      Initial release
  *               
  *              This program is free software; you can redistribute it and/or

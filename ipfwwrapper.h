@@ -3,9 +3,9 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  * 
- * Part:        keepalived.c include file.
+ * Part:        ipfwwrapper.c include file.
  *  
- * Version:     $Id: keepalived.c,v 0.2.1 2000/12/09 $
+ * Version:     $Id: ipfwwrapper.h,v 0.2.7 2001/03/30 $
  * 
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *              
@@ -18,30 +18,32 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef KEEPALIVED_H
-#define KEEPALIVED_H
+#ifndef IPFWWRAPPER_H
+#define IPFWWRAPPER_H
 
-#include <stdlib.h>
 #include <stdio.h>
-#include <signal.h>
+#include <stdlib.h>
+#include <getopt.h>
+#include <netdb.h>
 #include <string.h>
-#include <sys/wait.h>
 #include <unistd.h>
+#include <errno.h>
 #include <ctype.h>
-#include <fcntl.h>
+#include <netinet/in.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <sys/param.h>
+#include <arpa/inet.h>
 
+#include "libipfwc/libipfwc.h"
 #include "cfreader.h"
+#include "ipfwwrappercmd.h"
+
+#define IPFW_ERROR   0
+#define IPFW_SUCCESS 1
+
+#define IPFW_SRC_NETMASK "255.255.255.255"
 
 #define LOGBUFFER_LENGTH 100
-
-/* Configuration file home directory */
-#define CONF_HOME_DIR "./"
-
-/* Global variables */
-configuration_data *confDATA;
-
-/* Build version */
-#define PROG    "confreader"
-#define VERSION "0.2.6 (02/20, 2001), Alexandre Cassen"
 
 #endif

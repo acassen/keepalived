@@ -37,6 +37,7 @@
 #include "httpget.h"
 #include "utils.h"
 #include "ipvswrapper.h"
+#include "ipfwwrappercmd.h"
 
 #define LOGBUFFER_LENGTH 100
 
@@ -52,10 +53,10 @@ configuration_data *lstCONF;
 
 /* Build version */
 #define PROG    "keepalived"
-#define VERSION "0.2.6 (03/01, 2001), Alexandre Cassen"
+#define VERSION "0.2.7 (03/30, 2001), Alexandre Cassen"
 
 /* prototypes */
-static void sig_handler(int signum);
+void sig_handler(int signum);
 void perform_checks(configuration_data * lstconf);
 int init_services(virtualserver *lstptr);
 
