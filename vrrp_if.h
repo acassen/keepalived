@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_if.c include file.
  *
- * Version:     $Id: vrrp_if.h,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: vrrp_if.h,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -82,6 +82,7 @@ extern interface *if_get_by_ifindex(const int ifindex);
 extern interface *if_get_by_ifname(const char *ifname);
 extern int if_mii_linkbeat(const interface *ifp);
 extern int if_mii_probe(const char *ifname);
+extern void if_mii_poller_init(void);
 extern void if_add_queue(interface *ifp);
 extern int if_monitor_thread(thread *thread);
 extern void init_interface_queue(void);

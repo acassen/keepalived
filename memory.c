@@ -6,7 +6,7 @@
  * Part:        Memory management framework. This framework is used to
  *              find any memory leak.
  *
- * Version:     $Id: memory.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: memory.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -24,14 +24,19 @@
 
 #include "memory.h"
 
-
 void *xalloc(unsigned long size)
 {
   void *mem;
-
-  if ((mem = malloc(size)))
+  if ((mem = malloc(size))) {
     memset(mem, 0, size);
+    mem_allocated += size;
+  }
   return mem;
+}
+void xfree(void *p)
+{
+  mem_allocated -= sizeof(p);
+  free(p);
 }
 
 /* KeepAlived memory management. in debug mode,

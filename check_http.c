@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: check_http.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -74,8 +74,8 @@ void http_get_handler(vector strvec)
   http_get_checker *http_get_chk;
   char *str = VECTOR_SLOT(strvec, 0);
 
-  http_get_chk = (http_get_checker *)MALLOC(sizeof(http_get_checker));
-  http_get_chk->arg = (http_arg *)MALLOC(sizeof(http_arg));
+  http_get_chk        = (http_get_checker *)MALLOC(sizeof(http_get_checker));
+  http_get_chk->arg   = (http_arg *)MALLOC(sizeof(http_arg));
   http_get_chk->proto = (!strcmp(str, "HTTP_GET"))?PROTO_HTTP:PROTO_SSL;
   http_get_chk->url   = alloc_list(free_url, dump_url);
 
@@ -207,15 +207,9 @@ int epilog(thread *thread, int metod, int t, int c)
         delay = checker->vs->delay_loop;
       else
         delay = checker->vs->delay_loop - http_get_check->delay_before_retry;
-      thread_add_timer(thread->master, http_connect_thread
-                                     , checker
-                                     , delay);
       break; 
     case 2:
       delay = http_get_check->delay_before_retry;
-      thread_add_timer(thread->master, http_connect_thread
-                                     , checker
-                                     , delay);
       break;
   }
 
@@ -229,6 +223,10 @@ int epilog(thread *thread, int metod, int t, int c)
     close(thread->u.fd);
   }
 
+  /* Register next checker thread */
+  thread_add_timer(thread->master, http_connect_thread
+                                 , checker
+                                 , delay);
   return 0;
 }
 
@@ -267,6 +265,7 @@ int timeout_epilog(thread *thread, char *smtp_msg, char *debug_msg)
     /* check if server is currently alive */
     if (ISALIVE(checker->rs)) {
       smtp_alert(thread->master, checker->rs
+                               , NULL
                                , "DOWN"
                                , smtp_msg);
       perform_svr_state(DOWN, checker->vs, checker->rs);
@@ -306,7 +305,9 @@ int http_handle_response(thread *thread, unsigned char digest[16]
 {
   checker *checker                 = THREAD_ARG(thread);
   http_get_checker *http_get_check = CHECKER_ARG(checker);
+#ifdef _DEBUG_
   http_arg *http_arg               = HTTP_ARG(http_get_check);
+#endif
   int r, di = 0;
   unsigned char *digest_tmp;
   url *fetched_url;
@@ -347,6 +348,7 @@ int http_handle_response(thread *thread, unsigned char digest[16]
       /* check if server is currently alive */
       if (ISALIVE(checker->rs)) {
         smtp_alert(thread->master, checker->rs
+                                 , NULL
                                  , "DOWN"
                                  , "=> CHECK failed on service"
                                    " : MD5 digest mismatch <=\n\n");
@@ -360,7 +362,7 @@ int http_handle_response(thread *thread, unsigned char digest[16]
                       , ntohs(CHECKER_RPORT(checker))
                       , http_arg->url_it + 1);
 #endif
-      return epilog(thread,2,1,0)+1;
+      return epilog(thread,1,1,0)+1;
     }
   }
   return epilog(thread,0,0,0)+1;
@@ -393,8 +395,15 @@ int http_read_thread(thread *thread)
 
     if (r == -1) {
       /* We have encourred a real read error */
+#ifdef _DEBUG_
+      syslog(LOG_DEBUG, "Read error with server [%s:%d]: %s"
+                      , ip_ntoa(CHECKER_RIP(checker))
+                      , ntohs(CHECKER_RPORT(checker))
+                      , strerror(errno));
+#endif
       if (ISALIVE(checker->rs)) {
         smtp_alert(thread->master, checker->rs
+                                 , NULL
                                  , "DOWN"
                                  , "=> HTTP CHECK failed on service"
                                    " : cannot receive data <=\n\n");
@@ -471,9 +480,10 @@ int http_response_thread(thread *thread)
 
   /* Register asynchronous http/ssl read thread */
   if (http_get_check->proto == PROTO_SSL)
-    thread_add_event(thread->master, ssl_read_thread
-                                   , checker
-                                   , 0);
+    thread_add_read(thread->master, ssl_read_thread
+                                  , checker
+                                  , thread->u.fd
+                                  , http_get_check->connection_to);
   else
     thread_add_read(thread->master, http_read_thread
                                   , checker
@@ -533,6 +543,7 @@ int http_request_thread(thread *thread)
     /* check if server is currently alive */
     if (ISALIVE(checker->rs)) {
       smtp_alert(thread->master, checker->rs
+                               , NULL
                                , "DOWN"
                                , "=> CHECK failed on service"
                                  " : cannot send data <=\n\n");
@@ -554,8 +565,10 @@ int http_check_thread(thread *thread)
 {
   checker *checker                 = THREAD_ARG(thread);
   http_get_checker *http_get_check = CHECKER_ARG(checker);
+#ifdef _DEBUG_
   http_arg *http_arg               = HTTP_ARG(http_get_check);
   REQ *req                         = HTTP_REQ(http_arg);
+#endif
   int ret = 1;
   int status;
 
@@ -573,6 +586,7 @@ int http_check_thread(thread *thread)
       /* check if server is currently alive */
       if (ISALIVE(checker->rs)) {
         smtp_alert(thread->master, checker->rs
+                                 , NULL
                                  , "DOWN"
                                  , "=> CHECK failed on service"
                                    " : connection error <=\n\n");
@@ -641,6 +655,7 @@ int http_connect_thread(thread *thread)
      */
     if (!ISALIVE(checker->rs)) {
       smtp_alert(thread->master, checker->rs
+                               , NULL
                                , "UP"
                                , "=> CHECK succeed on service <=\n\n");
       perform_svr_state(UP, checker->vs, checker->rs);

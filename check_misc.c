@@ -6,7 +6,7 @@
  * Part:        MISC CHECK. Perform a system call to run an extra
  *              system prog or script.
  *
- * Version:     $Id: check_misc.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: check_misc.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
@@ -119,6 +119,7 @@ int misc_check_thread(thread *thread)
       /* everything is good */
       if (!checker->rs->alive) {
         smtp_alert(thread->master, checker->rs
+                                 , NULL
                                  , "UP"
                                  , "=> MISC CHECK succeed on service <=\n\n");
         perform_svr_state(UP, checker->vs, checker->rs);
@@ -126,6 +127,7 @@ int misc_check_thread(thread *thread)
     } else {
       if (checker->rs->alive) {
         smtp_alert(thread->master, checker->rs
+                                 , NULL
                                  , "DOWN"
                                  , "=> MISC CHECK failed on service <=\n\n");
         perform_svr_state(DOWN, checker->vs, checker->rs);

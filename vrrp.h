@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: vrrp.h,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              Based on the Jerome Etienne, <jetienne@arobas.net> code.
@@ -102,6 +102,9 @@ typedef struct _vrrp_rt {
 	int	fd;		/* the socket descriptor */
 
 	int     debug;          /* Debug level 0-4 */
+
+	/* State transition notification */
+	int	smtp_alert;
 	int     notify_exec;
 	char    notify_file[FILENAME_MAX];
 
@@ -145,16 +148,16 @@ typedef struct _vrrp_rt {
 #define VRRP_PACKET_DROP     2
 #define VRRP_PACKET_NULL     3
 #define VRRP_PACKET_OTHER    4      /* Muliple VRRP on LAN, Identify "other" VRRP */
-#define VRRP_PACKET_TEMP_LEN 256
 
-#define VRRP_AUTH_LEN	8
+/* VRRP Packet fixed lenght */
+#define VRRP_MAX_VIP		20
+#define VRRP_PACKET_TEMP_LEN	512
+#define VRRP_AUTH_LEN		8
 
 #define VRRP_IS_BAD_VID(id)		((id)<1 || (id)>255)	/* rfc2338.6.1.vrid */
 #define VRRP_IS_BAD_PRIORITY(p)		((p)<1 || (p)>255)	/* rfc2338.6.1.prio */
 #define VRRP_IS_BAD_ADVERT_INT(d) 	((d)<1)
-
 #define VRRP_IS_BAD_DEBUG_INT(d)	((d)<0 || (d)>4)
-
 
 #define VRRP_TIMER_SKEW(srv)	((256-(srv)->priority)*TIMER_HZ/256) 
 

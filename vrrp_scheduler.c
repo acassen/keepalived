@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -29,9 +29,19 @@
 #include "memory.h"
 #include "list.h"
 #include "data.h"
+#include "smtp.h"
 
 extern thread_master *master;
 extern data *conf_data;
+
+/* SMTP alert notifier */
+static void vrrp_smtp_notifier(vrrp_rt *vrrp)
+{
+  if (vrrp->smtp_alert)
+    smtp_alert(master, NULL, vrrp
+                     , "Transition to MASTER state"
+                     , "=> VRRP Instance is now owning VRRP VIPs <=\n\n");
+}
 
 /*
  * Initialize state handling
@@ -51,10 +61,12 @@ static void vrrp_init_state(list l)
     } else {
       vrrp->ms_down_timer = 3 * vrrp->adver_int
                               + VRRP_TIMER_SKEW(vrrp);
+#ifdef _HAVE_IPVS_SYNCD_
       /* Check if sync daemon handling is needed */
       if (vrrp->lvs_syncd_if)
         ipvs_syncd_cmd(IPVS_STARTDAEMON, vrrp->lvs_syncd_if
                                        , IPVS_BACKUP);
+#endif
       vrrp->state = VRRP_STATE_BACK;
     }
   }
@@ -393,6 +405,7 @@ static void vrrp_handle_become_master(vrrp_rt *vrrp
   /* Then jump to master state */
   vrrp->wantstate = VRRP_STATE_MAST;
   vrrp_state_goto_master(vrrp);
+  vrrp_smtp_notifier(vrrp);
 }
 
 static void vrrp_handle_leave_master(vrrp_rt *vrrp
@@ -514,6 +527,7 @@ static void vrrp_handle_goto_master(vrrp_rt *vrrp)
 
     /* handle master state transition */
     vrrp_state_goto_master(vrrp);
+    vrrp_smtp_notifier(vrrp);
   }
 }
 
@@ -577,8 +591,10 @@ static void vrrp_handle_fault(vrrp_rt *vrrp)
       /* Otherwise, we transit to init state */
       if (vrrp->init_state == VRRP_STATE_BACK)
         vrrp->state = VRRP_STATE_BACK;
-      else
+      else {
         vrrp_handle_goto_master(vrrp);
+        vrrp_smtp_notifier(vrrp);
+      }
     }
   }
 }

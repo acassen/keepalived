@@ -13,8 +13,17 @@ dnl ----[ Checks for programs ]----
 AC_PROG_CC
 AC_PROG_INSTALL
 
+dnl ----[ Checks for system init script dir ]----
+if test -d /etc/init.d; then
+  SYSTEM_SCRIPT_DIR="/etc/init.d"
+elif test -d /etc/rc.d/init.d; then
+  SYSTEM_SCRIPT_DIR="/etc/rc.d/init.d"
+fi
+AC_SUBST(SYSTEM_SCRIPT_DIR)
+
 dnl ----[ Checks for kernel support ]----
 KERNEL_VERSION=`uname -r`
+KERNEL_CODE=`echo $KERNEL_VERSION | cut -d'.' -f2`
 
 IPVS_MODULE="/lib/modules/`uname -r`/kernel/net/ipv4/ipvs/ip_vs.o"
 if test -f $IPVS_MODULE; then
@@ -23,15 +32,80 @@ fi
 
 if test -f /proc/net/ip_vs; then
   IPVS_VERSION=`cat /proc/net/ip_vs | head -1 | awk '{ print $5}'`
+  IPVS_SUPPORT="_WITH_LVS_"
 elif test -f /proc/net/ip_masq/vs; then
   IPVS_VERSION=`cat /proc/net/ip_masq/vs | head -1 | awk '{ print $5}'`
+  IPVS_SUPPORT="_WITH_LVS_"
 else
-  echo
-  echo "!!!WARN!!! Your kernel need to be patched with LVS code !!!WARN!!!"
-  echo
-  exit 1
+  IPVS_VERSION="0.0.0"
+  IPVS_SUPPORT="_WITHOUT_LVS_"
 fi
 VERSION=`cat VERSION`
+
+dnl ----[ Split IPVS NVERSION code  ]----
+IPVS_MAJOR=`echo $IPVS_VERSION | cut -d'.' -f1`
+IPVS_MINOR=`echo $IPVS_VERSION | cut -d'.' -f2`
+IPVS_PATCH=`echo $IPVS_VERSION | cut -d'.' -f3`
+
+dnl ----[ Keepalived specific configure options ]----
+AC_ARG_ENABLE(lvs-syncd,
+  [  --disable-lvs-syncd     do not use LVS synchronization daemon])
+AC_ARG_ENABLE(lvs,
+  [  --disable-lvs           do not use the LVS framework])
+AC_ARG_ENABLE(vrrp,
+  [  --disable-vrrp          do not use the VRRP framework])
+AC_ARG_ENABLE(debug,
+  [  --enable-debug          compile with debugging flags])
+
+if test "${enable_lvs}" = "no"; then
+  if test "${enable_vrrp}" = "no"; then
+    echo
+    echo "  !!!WARN!!! Keepalived MUST be compiled at least with LVS or VRRP framework !!!WARN!!!"
+    echo
+    exit 1
+  fi
+fi
+
+VRRP_SUPPORT="_WITH_VRRP_"
+if test "${enable_lvs}" = "no"; then
+  IPVS_SUPPORT="_WITHOUT_LVS_"
+fi
+if test "${enable_vrrp}" = "no"; then
+  VRRP_SUPPORT="_WITHOUT_VRRP_"
+fi
+if test "${enable_debug}" = "yes"; then
+  DFLAGS="-D_DEBUG_"
+  AC_SUBST(DFLAGS)
+fi
+
+AC_SUBST(IPVS_SUPPORT)
+AC_SUBST(VRRP_SUPPORT)
+
+dnl ----[ LVS syncd support probe ]---
+dnl Sync daemon is supported since LVS 0.9.2 for kernel 2.4
+
+IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+if test ${IPVS_MAJOR} -eq 0; then
+  if test ${IPVS_MINOR} -eq 9; then
+    if test ${IPVS_PATCH} -ge 2; then
+      if test "${KERNEL_CODE}" = "4"; then
+        IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
+      fi
+    fi
+  fi
+fi
+if test ${IPVS_MAJOR} -ge 1; then
+  if test "${KERNEL_CODE}" = "4"; then
+    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
+  fi
+fi
+if test "${IPVS_SUPPORT}" = "_WITHOUT_LVS_"; then
+  IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+fi
+if test "${enable_lvs_syncd}" = "no"; then
+  IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+fi
+AC_SUBST(IPVS_SYNCD)
 
 dnl ----[ Checks for libraries ]----
 AC_CHECK_LIB(crypto, MD5_Init,,AC_MSG_ERROR([OpenSSL libraries are required]))
@@ -39,7 +113,6 @@ AC_CHECK_LIB(ssl, SSL_CTX_new,,AC_MSG_ERROR([OpenSSL libraries are required]))
 AC_CHECK_LIB(popt, poptGetContext,,AC_MSG_ERROR([Popt libraries is required]))
 
 dnl ----[ Create object list ]----
-KERNEL_CODE=`echo $KERNEL_VERSION | cut -d'.' -f2`
 if test "${KERNEL_CODE}" = "2"; then
   LIBFW="libipfwc/libipfwc.a"
   LIBOBJS="$LIBOBJS ipfwwrapper.o"
@@ -72,13 +145,47 @@ cat <<EOF;
 
 Keepalived configuration
 ------------------------
-Keepalived version   : ${VERSION}
-Linux Kernel release : ${KERNEL_VERSION}
-IPVS version code    : ${IPVS_VERSION}
-Compiler             : ${CC}
-Compiler flags       : ${CFLAGS}
-Extra Lib            : $LIBS
-Lib objects          : $LIBOBJS
-Firewall Lib         : $LIBFW
-
+Keepalived version       : ${VERSION}
+Compiler                 : ${CC}
+Compiler flags           : ${CFLAGS}
+Compiler flags           : ${CFLAGS}
+Linux Kernel release     : ${KERNEL_VERSION}
+Startup scripts location : ${SYSTEM_SCRIPT_DIR}
 EOF
+
+dnl ----[ display optional vars  ]----
+if test -n "$LIBS"; then
+  echo "Extra Lib                : $LIBS"
+fi
+if test -n "$LIBOBJS"; then
+  echo "Lib objects              : $LIBOBJS"
+fi
+if test -n "$LIBFW"; then
+  echo "Firewall Lib             : $LIBFW"
+fi
+
+if test "${IPVS_SUPPORT}" = "_WITH_LVS_"; then
+  echo "Use IPVS Framework       : Yes"
+  echo "IPVS version code        : ${IPVS_VERSION}"
+  if test "${IPVS_SYNCD}" = "_HAVE_IPVS_SYNCD_"; then
+    echo "IPVS sync daemon support : Yes"
+  elif test "${IPVS_SYNCD}" = "_WITHOUT_IPVS_SYNCD_"; then
+    echo "IPVS sync daemon support : No"
+  fi
+else
+  echo "Use IPVS Framework       : No"
+  echo "IPVS sync daemon support : No"
+fi
+
+if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
+  echo "Use VRRP Framework       : Yes"
+else
+  echo "Use VRRP Framework       : No"
+fi
+if test "${DFLAGS}" = "-D_DEBUG_"; then
+  echo "Use Debug flags          : Yes"
+else
+  echo "Use Debug flags          : No"
+fi
+dnl ----[ end configure ]---
+echo

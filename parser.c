@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: parser.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -25,6 +25,7 @@
 #include "parser.h"
 #include "memory.h"
 #include "vrrp.h"
+#include "vrrp_if.h"
 #include "check_api.h"
 
 /* global defs */
@@ -32,6 +33,7 @@ static vector keywords;
 static int sublevel = 0;
 static FILE *stream;
 extern data *conf_data;
+extern unsigned long mem_allocated;
 
 static void keyword_alloc(vector keywords, char *string, void (*handler)(vector))
 {
@@ -96,8 +98,8 @@ static void dump_keywords(vector keydump, int level)
 
 static void free_keywords(vector keywords)
 {
-  int i;
   struct keyword *keyword;
+  int i;
 
   for (i = 0; i < VECTOR_SIZE(keywords); i++) {
     keyword = VECTOR_SLOT(keywords, i);
@@ -154,8 +156,7 @@ static vector alloc_strvec(char *string)
   cp = string;
 
   /* Skip white spaces */
-  while ((isspace((int) *cp) || *cp == '\r' || *cp == '\n') &&
-         *cp != '\0')
+  while (isspace((int) *cp) && *cp != '\0')
     cp++;
 
   /* Return if there is only white spaces */
@@ -171,8 +172,7 @@ static vector alloc_strvec(char *string)
 
   while (1) {
     start = cp;
-    while (!(isspace((int) *cp) || *cp == '\r' || *cp == '\n') &&
-           *cp != '\0')
+    while (!isspace((int) *cp) && *cp != '\0')
       cp++;
     strlen = cp - start;
     token = MALLOC(strlen + 1);
@@ -183,47 +183,62 @@ static vector alloc_strvec(char *string)
     vector_alloc_slot(strvec);
     vector_set_slot(strvec, token);
 
-    while ((isspace((int) *cp) || *cp == '\n' || *cp == '\r') &&
-           *cp != '\0')
+    while (isspace((int) *cp) && *cp != '\0')
       cp++;
     if (*cp == '\0' || *cp == '!' || *cp == '#')
       return strvec;
   }
 }
 
-static char *read_line(char *buf, int size)
+static int read_line(char *buf, int size)
 {
-  return(fgets(buf, size, stream));
+  int ch;
+  int count = 0;
+
+  while ((ch = fgetc(stream)) != EOF && (int) ch != '\n'
+                                     && (int) ch != '\r') {
+    if (count < size)
+      buf[count] = (int) ch;
+    else
+      break;
+    count++;
+  }
+  return (ch == EOF)?0:1;
 }
 
 vector read_value_block(void)
 {
-  char buf[BUFSIZ];
+  char *buf;
   int i;
   char *str = NULL;
   char *dup;
   vector vec = NULL;
   vector elements = vector_alloc();
 
-  while (read_line(buf, BUFSIZ)) {
+  buf = (char *)MALLOC(MAXBUF);
+  while (read_line(buf, MAXBUF)) {
     vec = alloc_strvec(buf);
-    str = VECTOR_SLOT(vec, 0);
-    if (!strcmp(str, EOB)) {
-      free_strvec(vec);
-      break;
-    }
-
-    if (VECTOR_SIZE(vec))
-      for (i = 0; i < VECTOR_SIZE(vec); i++) {
-        str = VECTOR_SLOT(vec, i);
-        dup = (char *)MALLOC(strlen(str)+1);
-        memcpy(dup, str, strlen(str));
-        vector_alloc_slot(elements);
-        vector_set_slot(elements, dup);
+    if (vec) {
+      str = VECTOR_SLOT(vec, 0);
+      if (!strcmp(str, EOB)) {
+        free_strvec(vec);
+        break;
       }
-    free_strvec(vec);
-  }
 
+      if (VECTOR_SIZE(vec))
+        for (i = 0; i < VECTOR_SIZE(vec); i++) {
+          str = VECTOR_SLOT(vec, i);
+          dup = (char *)MALLOC(strlen(str)+1);
+          memcpy(dup, str, strlen(str));
+          vector_alloc_slot(elements);
+          vector_set_slot(elements, dup);
+        }
+      free_strvec(vec);
+    }
+    memset(buf, 0, MAXBUF);
+  }
+  
+  FREE(buf);
   return elements;
 }
 
@@ -382,6 +397,11 @@ static void vrrp_notify_handler(vector strvec)
   memcpy(vrrp->notify_file, str, size);
   vrrp->notify_exec = 1;
 }
+static void vrrp_smtp_handler(vector strvec)
+{
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp->smtp_alert = 1;
+}
 static void vrrp_lvs_syncd_handler(vector strvec)
 {
   vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
@@ -407,11 +427,23 @@ static void vrrp_auth_pass_handler(vector strvec)
 }
 static void vrrp_vip_handler(vector strvec)
 {
-  vector vips = read_value_block();
-  int i;
+  vector vips   = read_value_block();
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
   char *str;
+  int i;
+  int nbvip = 0;
 
-  for (i = 0; i < VECTOR_SIZE(vips); i++) {
+  if (VECTOR_SIZE(vips) > VRRP_MAX_VIP) {
+    syslog(LOG_INFO, "VRRP_Instance(%s) use %d VIPs, trunc to the first %d VIPs."
+                   , vrrp->iname
+                   , VECTOR_SIZE(vips)
+                   , VRRP_MAX_VIP);
+    syslog(LOG_INFO, "  => Declare another VRRP instance to handle all the VIPs");
+    nbvip = VRRP_MAX_VIP;
+  } else
+    nbvip = VECTOR_SIZE(vips);
+
+  for (i = 0; i < nbvip; i++) {
     str = VECTOR_SLOT(vips, i);
     alloc_vrrp_vip(str);
   }
@@ -477,7 +509,11 @@ static void pto_handler(vector strvec)
   int size = sizeof(vs->timeout_persistence);
   
   memcpy(vs->timeout_persistence, str, size);
-  
+}
+static void pgr_handler(vector strvec)
+{
+  virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
+  vs->granularity_persistence = inet_addr(VECTOR_SLOT(strvec, 1));
 }
 static void proto_handler(vector strvec)
 {
@@ -510,13 +546,17 @@ static void process_stream(vector keywords)
   int i;
   struct keyword *keyword;
   char *str;
-  char buf[BUFSIZ];
+  char *buf;
   vector strvec;
 
-  if (!read_line(buf, BUFSIZ))
+  buf = MALLOC(MAXBUF);
+  if (!read_line(buf, MAXBUF)) {
+    FREE(buf);
     return;
+  }
 
   strvec = alloc_strvec(buf);
+  FREE(buf);
 
   if (!strvec) {
     process_stream(keywords);
@@ -578,6 +618,7 @@ void init_keywords(void)
   install_keyword("preempt",			&vrrp_preempt_handler);
   install_keyword("debug",			&vrrp_debug_handler);
   install_keyword("notify",			&vrrp_notify_handler);
+  install_keyword("smtp_alert",			&vrrp_smtp_handler);
   install_keyword("lvs_sync_daemon_interface",	&vrrp_lvs_syncd_handler);
   install_keyword("authentication",		NULL);
   install_sublevel();
@@ -592,6 +633,7 @@ void init_keywords(void)
   install_keyword("lb_kind", 			&lbkind_handler);
   install_keyword("nat_mask", 			&natmask_handler);
   install_keyword("persistence_timeout", 	&pto_handler);
+  install_keyword("persistence_granularity", 	&pgr_handler);
   install_keyword("protocol", 			&proto_handler);
 
   /* Real server mapping */
@@ -601,7 +643,10 @@ void init_keywords(void)
   install_keyword("weight", 			&weight_handler);
 
   /* Checkers mapping */
+#ifdef _WITH_LVS_
   install_checkers_keyword();
+#endif
+  install_sublevel_end();
 }
 
 void init_data(char *conf_file)
@@ -620,12 +665,13 @@ void init_data(char *conf_file)
   process_stream(keywords);
 
 /* Dump configuration *
-
   vector_dump(keywords);
   dump_keywords(keywords, 0);
-  free_keywords(keywords);
 */
 
   fclose(stream);
   free_keywords(keywords);
+
+  syslog(LOG_INFO, "Configuration is using : %lu Bytes"
+                 , mem_allocated);
 }

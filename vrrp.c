@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: vrrp.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -762,11 +762,13 @@ void vrrp_state_goto_master(vrrp_rt *vrrp)
                      , vrrp->notify_exec);
   }
 
+#ifdef _HAVE_IPVS_SYNCD_
   /* Check if sync daemon handling is needed */
   if (vrrp->lvs_syncd_if)
     thread_add_timer(master, ipvs_syncd_master_thread
                            , vrrp->lvs_syncd_if
                            , IPVS_CMD_DELAY);
+#endif
 
   if (vrrp->wantstate == VRRP_STATE_MAST) {
     vrrp->state = VRRP_STATE_MAST;
@@ -804,11 +806,13 @@ void vrrp_state_leave_master(vrrp_rt *vrrp)
                      , vrrp->notify_exec);
   }
 
+#ifdef _HAVE_IPVS_SYNCD_
   /* Check if sync daemon handling is needed */
   if (vrrp->lvs_syncd_if)
     thread_add_timer(master, ipvs_syncd_backup_thread
                            , vrrp->lvs_syncd_if
                            , IPVS_CMD_DELAY);
+#endif
 
   /* set the new vrrp state */
   switch (vrrp->wantstate) {
@@ -1126,9 +1130,11 @@ void shutdown_vrrp_instances(void)
         vrrp->state == VRRP_STATE_DUMMY_MAST)
       vrrp_restore_interface(vrrp, 1);
 
+#ifdef _HAVE_IPVS_SYNCD_
     /* Stop stalled syncd */
     if (vrrp->lvs_syncd_if)
       ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, 0);
+#endif
   }
 }
 

@@ -1,3 +1,26 @@
+2002-05-02  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.5.7 released.
+	* Review autoconf/automake scripts to be more generic on system and code
+	  selection. Added primitives (configure) :
+	    --disable-lvs-syncd : Do not use IPVS sync daemon
+	    --disable-lvs       : Do not use IPVS framework
+	    --disable-vrrp      : Do not use VRRP framework
+	    --enable-debug      : Compile with debugging flags
+	* Fixed a SSL stream handling bug.
+	  Thanks to Andres Salomon, <dilinger@voxel.net> for pointing the issue.
+	* Added a global memory counter to track global memory used.
+	* Fixed configuration parser. read_line. Remove static allocated
+	  temporary read buffer. Only handle stream if line has been spitted into
+	  vector.
+	* Limit maximum number of VIPs per VRRP Instance to 20. (for fragmentation,
+	  overhead, and others reasons).
+	* Added IPVS wrapper support to persistence granularity.
+	  Thanks to Mike Zimmerman, <tarmon@spamcop.net> for the suggestion.
+	* Review smtp notifier to handle VRRP MASTER state transition alert.
+	  Thanks to Paul, <xerox@foonet.net> for the suggestion.
+	* Review the UserGuide.pdf to fixe some english issues :)
+	  Thanks to Jacques Thomas, <jacktom@noos.fr> for reviewing.
+
 2002-04-13  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.5.6 released.
 	* VRRP : Review in "GOTO_MASTER_STATE" the IP address handling.

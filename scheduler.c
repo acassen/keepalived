@@ -7,7 +7,7 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: scheduler.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -487,7 +487,7 @@ retry:  /* When thread can't fetch try to find next thread again. */
   if (ret < 0) {
     if (errno != EINTR) {
       /* Real error. */
-#ifdef DEBUG
+#ifdef _DEBUG_
       syslog(LOG_DEBUG, "select error: %s", strerror (errno));
 #endif
       assert (0);

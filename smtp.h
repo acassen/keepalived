@@ -5,7 +5,7 @@
  *
  * Part:        smtp.c include file.
  *
- * Version:     $Id: smtp.h,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: smtp.h,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -32,6 +32,7 @@
 #include "data.h"
 #include "scheduler.h"
 #include "layer4.h"
+#include "vrrp.h"
 
 /* global defs */
 #define SMTP_PORT          25
@@ -82,6 +83,7 @@ typedef struct _smtp_thread_arg {
 /* Prototypes defs */
 extern void smtp_alert(thread_master *
                        , real_server *
+                       , vrrp_rt *
                        , const char *
                        , const char *);
 #endif

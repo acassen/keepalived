@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: main.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -21,10 +21,6 @@
  */
 
 #include "main.h"
-#include "daemon.h"
-#include "memory.h"
-#include "parser.h"
-#include "vrrp_if.h"
 
 /* SIGHUP handler */
 void sighup(int sig)
@@ -218,20 +214,18 @@ int main(int argc, char **argv)
   /* Signal handling initialization  */
   signal_init();
 
-  /* Create the master thread */
-  master = thread_make_master();
-
   /* Init interface queue */
   init_interface_queue();
 
   /* Parse the configuration file */
+#ifdef _WITH_LVS_
   init_checkers_queue();
+#endif
   init_keywords();
   init_data(conf_file);
   if (!conf_data) {
     syslog(LOG_INFO, "Stopping "VERSION_STRING);
     closelog();
-    thread_destroy_master(master);
 #ifdef _DEBUG_
     keepalived_free_final();
 #endif
@@ -239,27 +233,37 @@ int main(int argc, char **argv)
   }
 
   /* SSL load static data & initialize common ctx context */
+#ifdef _WITH_LVS_
   if (!init_ssl_ctx()) {
     closelog();
-    thread_destroy_master(master);
 #ifdef _DEBUG_
     keepalived_free_final();
 #endif
     exit(0);
   }
+#endif
 
   if (debug & 4) 
     dump_data();
 
+#ifdef _WITH_LVS_
   if (!init_services()) {
     syslog(LOG_INFO, "Stopping "VERSION_STRING);
     closelog();
     free_data();
     exit(0);
   }
+#endif
+
+  /* Create the master thread */
+  master = thread_make_master();
 
   /* register workers threads */
+  kernel_netlink_init();
+  if_mii_poller_init();
+#ifdef _WITH_LVS_
   register_checkers_thread();
+#endif
   vrrp_complete_init();
   register_vrrp_thread();
 
@@ -280,9 +284,11 @@ int main(int argc, char **argv)
   syslog(LOG_INFO, "Stopping "VERSION_STRING);
 
   /* Just cleanup memory & exit */
-  free_checkers_queue();
   thread_destroy_master(master);
+#ifdef _WITH_LVS_
+  free_checkers_queue();
   clear_services();
+#endif
   shutdown_vrrp_instances();
   free_interface_queue();
   free_data();

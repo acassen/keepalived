@@ -5,7 +5,7 @@
  *
  * Part:        Checkers registration.
  *
- * Version:     $Id: check_api.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: check_api.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -61,8 +61,8 @@ void queue_checker(void (*free) (void *), void (*dump) (void *)
                                         , void *data)
 {
   virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
-  real_server *rs = LIST_TAIL_DATA(vs->rs);
-  checker *chk = (checker *)MALLOC(sizeof(checker));
+  real_server *rs    = LIST_TAIL_DATA(vs->rs);
+  checker *chk       = (checker *)MALLOC(sizeof(checker));
 
   chk->free   = free;
   chk->dump   = dump;

@@ -5,7 +5,7 @@
  *
  * Part:        Interfaces manipulation.
  *
- * Version:     $Id: vrrp_if.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: vrrp_if.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -290,9 +290,10 @@ void init_interface_queue(void)
   init_if_queue();
   netlink_interface_lookup();
   init_if_mii();
-  kernel_netlink_init();
 //  dump_list(if_queue);
-
+}
+void if_mii_poller_init(void)
+{
   /* Register NIC Heartbeat monitoring thread */
   thread_add_timer(master, if_monitor_thread
                          , NULL

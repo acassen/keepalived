@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: data.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -123,6 +123,11 @@ static void dump_vrrp(void *data)
   syslog(LOG_INFO, "   VIP count = %d", vrrp->naddr);
   for (i = 0; i < vrrp->naddr; i++)
     syslog(LOG_INFO, "     VIP%d = %s", i+1, ip_ntoa(vrrp->vaddr[i].addr));
+  if (vrrp->notify_exec)
+    syslog(LOG_INFO, "   Using notification script = %s"
+                   , vrrp->notify_file);
+  if (vrrp->smtp_alert)
+    syslog(LOG_INFO, "   Using smtp notification");
 }
 void alloc_vrrp(char *iname)
 {
@@ -182,8 +187,11 @@ static void dump_vs(void *data)
                  , vs->delay_loop
                  , vs->sched);
   if (atoi(vs->timeout_persistence) > 0)
-    syslog(LOG_INFO, "   persistence = %s"
+    syslog(LOG_INFO, "   persistence timeout = %s"
                    , vs->timeout_persistence);
+  if (vs->granularity_persistence)
+    syslog(LOG_INFO, "   persistence granularity = %s"
+                   , ip_ntoa(vs->granularity_persistence));
   syslog(LOG_INFO, "   protocol = %s"
                  , (vs->service_type == IPPROTO_TCP)?"TCP":"UDP");
 
@@ -299,8 +307,8 @@ void free_data(void)
   free_list(conf_data->vrrp);
   free_list(conf_data->vs);
 
-//  FREE(conf_data->lvs_id);
-//  FREE(conf_data->email_from);
+  FREE_PTR(conf_data->lvs_id);
+  FREE_PTR(conf_data->email_from);
   FREE(conf_data);
 }
 void dump_data(void)
@@ -333,5 +341,7 @@ void dump_data(void)
                    , NVERSION(IP_VS_VERSION_CODE));
     dump_list(conf_data->vs);
   }
+#ifdef _WITH_LVS_
   dump_checkers_queue();
+#endif
 }

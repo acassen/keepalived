@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -45,15 +45,15 @@ int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
   strncpy(ctl.m_tname, vs->sched, IP_MASQ_TNAME_MAX);
   ctl.u.vs_user.weight = -1;
   ctl.u.vs_user.masq_flags = vs->loadbalancing_kind;
-  ctl.u.vs_user.netmask = ((u_int32_t) 0xffffffff); /* f:f:f:f for default netmask */
+  ctl.u.vs_user.netmask = ((u_int32_t) 0xffffffff);
   ctl.u.vs_user.protocol = vs->service_type;
 
-  if(!parse_timeout(vs->timeout_persistence, &ctl.u.vs_user.timeout)) {
+  if(!parse_timeout(vs->timeout_persistence, &ctl.u.vs_user.timeout))
     syslog(LOG_INFO, "IPVS WRAPPER : Virtual service [%s:%d] illegal timeout."
                    , ip_ntoa(SVR_IP(vs))
                    , ntohs(SVR_PORT(vs)));
-  }
-  ctl.u.vs_user.vs_flags = (ctl.u.vs_user.timeout!=0)?IP_VS_SVC_F_PERSISTENT:0;
+  if (urule.timeout != 0 || vs->granularity_persistence)
+    ctl.u.vs_user.vs_flags = IP_VS_SVC_F_PERSISTENT;
   
   /* VS specific */
   if (vs->vfwmark) {
@@ -62,6 +62,10 @@ int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
     ctl.u.vs_user.vaddr = SVR_IP(vs);
     ctl.u.vs_user.vport = SVR_PORT(vs);
   }
+
+  if (ctl.m_cmd == IP_MASQ_CMD_ADD || ctl.m_cmd == IP_MASQ_CMD_DEL)
+    if (vs->granularity_persistence)
+      ctl.u.vs_user.netmask = vs->granularity_persistence;
 
   /* SVR specific */
   if (ctl.m_cmd == IP_MASQ_CMD_ADD_DEST || ctl.m_cmd == IP_MASQ_CMD_DEL_DEST) {
@@ -102,6 +106,8 @@ int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
 
 int ipvs_syncd_cmd(int cmd, char *ifname, int state)
 {
+#ifdef _HAVE_IPVS_SYNCD_
+
   struct ip_vs_rule_user urule;
   int result = 0;
   int sockfd;
@@ -138,6 +144,11 @@ int ipvs_syncd_cmd(int cmd, char *ifname, int state)
 
   close(sockfd);
   return IPVS_SUCCESS;
+
+#else
+  syslog(LOG_INFO, "IPVS WRAPPER : Sync daemon not supported on kernel v2.2");
+  return IPVS_ERROR;
+#endif
 }
 
 int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
@@ -151,14 +162,15 @@ int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
   strncpy(urule.sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
   urule.weight = 1;
   urule.conn_flags = vs->loadbalancing_kind;
-  urule.netmask    = ((u_int32_t) 0xffffffff);
+  urule.netmask  = ((u_int32_t) 0xffffffff);
   urule.protocol   = vs->service_type;
   
   if (!parse_timeout(vs->timeout_persistence, &urule.timeout))
     syslog(LOG_INFO, "IPVS WRAPPER : Virtual service [%s:%d] illegal timeout."
                    , ip_ntoa(SVR_IP(vs))
                    , ntohs(SVR_PORT(vs)));
-  urule.vs_flags = (urule.timeout != 0)?IP_VS_SVC_F_PERSISTENT:0;
+  if (urule.timeout != 0 || vs->granularity_persistence)
+    urule.vs_flags = IP_VS_SVC_F_PERSISTENT;
 
   /* VS specific */
   if (vs->vfwmark) {
@@ -167,6 +179,11 @@ int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
     urule.vaddr = SVR_IP(vs);
     urule.vport = SVR_PORT(vs);
   }
+
+  if (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL)
+    if (vs->granularity_persistence)
+      urule.netmask  = vs->granularity_persistence;
+
   /* SVR specific */
   if (cmd == IP_VS_SO_SET_ADDDEST || cmd == IP_VS_SO_SET_DELDEST) {
     urule.weight = rs->weight;

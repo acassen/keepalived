@@ -7,7 +7,7 @@
  *              using the smtp protocol according to the RFC 821. A non blocking
  *              timeouted connection is used to handle smtp protocol.
  *
- * Version:     $Id: smtp.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: smtp.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -378,6 +378,12 @@ static int smtp_connect_thread(thread *thread)
 
   smtp_arg = THREAD_ARG(thread);
 
+  /* Return if no smtp server is defined */
+  if (conf_data->smtp_server == 0) {
+    free_smtp_all(smtp_arg);
+    return 0;
+  }
+
   if ( (fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1 ) {
 #ifdef _DEBUG_
     syslog(LOG_DEBUG, "SMTP connect fail to create socket.");
@@ -438,6 +444,7 @@ static int smtp_connect_thread(thread *thread)
 
 void smtp_alert(thread_master *master
                 , real_server *rs
+                , vrrp_rt *vrrp
                 , const char *subject
                 , const char *body)
 {
@@ -454,14 +461,24 @@ void smtp_alert(thread_master *master
 
     /* format subject if rserver is specified */
     if (rs)
-      snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH, "[%s] %s:%d - %s"
-               , conf_data->lvs_id
-               , ip_ntoa(SVR_IP(rs))
-               , ntohs(SVR_PORT(rs))
-               , subject);
-    else
+      snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH
+                                , "[%s] Realserver %s:%d - %s"
+                                , conf_data->lvs_id
+                                , ip_ntoa(SVR_IP(rs))
+                                , ntohs(SVR_PORT(rs))
+                                , subject);
+    else if (vrrp)
+      snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH
+                                , "[%s] VRRP Instance %s - %s"
+                                , conf_data->lvs_id
+                                , vrrp->iname
+                                , subject);
+    else if (conf_data->lvs_id)
       snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH, "[%s] %s"
                                 , conf_data->lvs_id
+                                , subject);
+    else
+      snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH, "%s"
                                 , subject);
 
     strncpy(smtp_arg->body, body, MAX_BODY_LENGTH);

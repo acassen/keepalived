@@ -5,25 +5,32 @@
 # Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
 
 EXEC = keepalived
-KERNEL := _KRNL_2_$(shell uname -r | cut -d'.' -f2)_
+KERNEL    := _KRNL_2_$(shell uname -r | cut -d'.' -f2)_
+IPVS_FLAG := @IPVS_SUPPORT@
+VRRP_FLAG := @VRRP_SUPPORT@
 
-prefix = @prefix@
+prefix      = @prefix@
 exec_prefix = @exec_prefix@
-sbindir = @sbindir@
+sbindir     = @sbindir@
 
-init_dir            = /etc/rc.d/init.d
+init_dir            = @SYSTEM_SCRIPT_DIR@
 init_script         = keepalived.init
 src_init_script     = etc/rc.d/init.d/$(init_script)
 src_conf_file       = etc/keepalived/keepalived.conf
 keepalived_conf_dir = /etc/keepalived
 
 CC = @CC@
-CFLAGS = @CFLAGS@ -Wall -Wunused -Wstrict-prototypes -D_DEBUG_ -D$(KERNEL)
+CFLAGS = @CFLAGS@ \
+	-Wall -Wunused -Wstrict-prototypes \
+	-D$(KERNEL) -D$(VRRP_FLAG) @DFLAGS@
 LDFLAGS = @LIBS@ @LDFLAGS@ @LIBFW@
-OBJS = @LIBOBJS@ \
+IPVSFLAGS = -D$(IPVS_FLAG) -D@IPVS_SYNCD@
+
+CORE_OBJS = @LIBOBJS@ \
 	main.o \
 	memory.o \
 	daemon.o \
+	pidfile.o \
 	utils.o \
 	timer.o \
 	scheduler.o \
@@ -32,26 +39,34 @@ OBJS = @LIBOBJS@ \
 	data.o \
 	parser.o \
 	layer4.o \
+	smtp.o
+
+ifeq ($(IPVS_FLAG),_WITH_LVS_)
+IPVS_OBJS = \
 	check_api.o \
 	check_tcp.o \
 	check_http.o \
 	check_ssl.o \
 	check_misc.o \
 	ipwrapper.o \
-	ipvswrapper.o \
-	pidfile.o \
-	smtp.o \
+	ipvswrapper.o
+endif
+        
+ifeq ($(VRRP_FLAG),_WITH_VRRP_)
+VRRP_OBJS = \
 	vrrp.o \
 	vrrp_scheduler.o \
 	vrrp_netlink.o \
 	vrrp_if.o \
 	vrrp_ipaddress.o \
 	vrrp_ipsecah.o
+endif
 
-INCLUDE= -I/usr/src/linux/include
+INCLUDE = -I/usr/src/linux/include
+OBJS    = $(CORE_OBJS) $(IPVS_OBJS) $(VRRP_OBJS)
 
 .c.o:
-	$(CC) -o $@ $(CFLAGS) $(INCLUDE) -c $*.c
+	$(CC) -o $@ $(CFLAGS) $(IPVSFLAGS) $(INCLUDE) -c $*.c
 
 all:    $(EXEC)
 	strip $(EXEC)

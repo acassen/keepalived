@@ -5,7 +5,7 @@
  *
  * Part:        TCP checker.
  *
- * Version:     $Id: check_tcp.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: check_tcp.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -95,6 +95,7 @@ int tcp_check_thread(thread *thread)
 
     if (!ISALIVE(checker->rs)) {
       smtp_alert(thread->master, checker->rs
+                               , NULL
                                , "UP"
                                , "=> TCP CHECK succeed on service <=\n\n");
       perform_svr_state(UP, checker->vs, checker->rs);
@@ -109,6 +110,7 @@ int tcp_check_thread(thread *thread)
 
     if (ISALIVE(checker->rs)) {
       smtp_alert(thread->master, checker->rs
+                               , NULL
                                , "DOWN"
                                , "=> TCP CHECK failed on service <=\n\n");
       perform_svr_state(DOWN, checker->vs, checker->rs);

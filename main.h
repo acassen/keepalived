@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: main.h,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -29,31 +29,37 @@
 #include <popt.h>
 
 /* local includes */
+#include "daemon.h"
+#include "memory.h"
+#include "parser.h"
 #include "utils.h"
 #include "pidfile.h"
 #include "data.h"
 #include "scheduler.h"
 #include "ipwrapper.h"
-#include "smtp.h"
-#include "vrrp.h"
 #include "check_api.h"
+#include "vrrp.h"
+#include "vrrp_if.h"
 #include "vrrp_netlink.h"
 
 /* global var */
 thread_master *master;
 unsigned int debug;
+unsigned long mem_allocated = 0;
 data *conf_data;
 
 /* extern prototypes */
-extern void clear_ssl(SSL_DATA *ssl);
-extern int init_ssl_ctx(void);
+#ifdef _WITH_LVS_
+  extern void clear_ssl(SSL_DATA *ssl);
+  extern int init_ssl_ctx(void);
+#endif
 extern void register_vrrp_thread(void);
 
 /* Build version */
 #define PROG    "Keepalived"
 
-#define VERSION_CODE 0x000506
-#define DATE_CODE    0x0d0402
+#define VERSION_CODE 0x000507
+#define DATE_CODE    0x160402
 
 #define KEEPALIVED_VERSION(version)	\
 	(version >> 16) & 0xFF,		\

@@ -5,7 +5,7 @@
  *
  * Part:        ipfwwrapper.c include file.
  *
- * Version:     $Id: ipfwwrapper.h,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: ipfwwrapper.h,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

@@ -5,7 +5,7 @@
  * 
  * Part:        cfreader.c include file.
  *  
- * Version:     $Id: parser.h,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
+ * Version:     $Id: parser.h,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -37,6 +37,7 @@
 /* Global definitions */
 #define CONF "/etc/keepalived/keepalived.conf"
 #define EOB  "}"
+#define MAXBUF	1024
 
 /* ketword definition */
 struct keyword {
