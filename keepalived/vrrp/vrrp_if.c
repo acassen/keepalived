@@ -5,7 +5,7 @@
  *
  * Part:        Interfaces manipulation.
  *
- * Version:     $Id: vrrp_if.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
+ * Version:     $Id: vrrp_if.c,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -299,8 +299,26 @@ if_add_queue(interface * ifp)
 	list_add(if_queue, ifp);
 }
 
+#ifndef _WITH_LINKWATCH_
+static int
+if_linkbeat_refresh_thread(thread * thread)
+{
+	interface *ifp = THREAD_ARG(thread);
+
+	if (IF_MII_SUPPORTED(ifp))
+		ifp->linkbeat = (if_mii_probe(ifp->ifname)) ? 1 : 0;
+	else if (IF_ETHTOOL_SUPPORTED(ifp))
+		ifp->linkbeat = (if_ethtool_probe(ifp->ifname)) ? 1 : 0;
+	else
+		if_ioctl_flags(ifp);
+
+	/* Register next polling thread */
+	thread_add_timer(master, if_linkbeat_refresh_thread, ifp, POLLING_DELAY);
+	return 0;
+}
+
 static void
-init_if_mii(void)
+init_if_linkbeat(void)
 {
 	interface *ifp;
 	element e;
@@ -320,23 +338,10 @@ init_if_mii(void)
 				ifp->linkbeat = (status) ? 1 : 0;
 			}
 		}
-	}
-}
 
-static void
-if_linkbeat_refresh(void)
-{
-	interface *ifp;
-	element e;
-
-	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
-		ifp = ELEMENT_DATA(e);
-		if (IF_MII_SUPPORTED(ifp))
-			ifp->linkbeat = (if_mii_probe(ifp->ifname)) ? 1 : 0;
-		else if (IF_ETHTOOL_SUPPORTED(ifp))
-			ifp->linkbeat = (if_ethtool_probe(ifp->ifname)) ? 1 : 0;
-		else
-			if_ioctl_flags(ifp);
+		/* Register new monitor thread */
+		thread_add_timer(master, if_linkbeat_refresh_thread, ifp
+				 , POLLING_DELAY);
 	}
 }
 
@@ -347,18 +352,7 @@ if_linkbeat(const interface * ifp)
 		return IF_LINKBEAT(ifp);
 	return 1;
 }
-
-/* Our interface Heartbeat thread */
-int
-if_monitor_thread(thread * thread)
-{
-	/* If present, refresh link beat status from MII BMSR */
-	if_linkbeat_refresh();
-
-	/* Register new monitor thread */
-	thread_add_timer(master, if_monitor_thread, NULL, POLLING_DELAY);
-	return 0;
-}
+#endif
 
 /* Interface queue helpers*/
 void
@@ -374,17 +368,14 @@ void
 init_interface_queue(void)
 {
 	init_if_queue();
-	netlink_interface_lookup();
-	init_if_mii();
-}
-
-void
-if_mii_poller_init(void)
-{
 //	dump_list(if_queue);
-
-	/* Register NIC Heartbeat monitoring thread */
-	thread_add_timer(master, if_monitor_thread, NULL, POLLING_DELAY);
+	netlink_interface_lookup();
+#ifdef _WITH_LINKWATCH_
+	syslog(LOG_INFO, "Using LinkWatch kernel netlink reflector...");
+#else
+	syslog(LOG_INFO, "Using MII-BMSR NIC polling thread...");
+	init_if_linkbeat();
+#endif
 }
 
 int

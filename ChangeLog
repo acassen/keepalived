@@ -1,3 +1,36 @@
+2003-12-29  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.4 released.
+	* Refresh autoconf script to use autoconf 2.5.
+	* Extended the autoconf script to support linkwatch kernel
+	  detection.
+	* To work-around the SMP forking bug, added support to two
+	  new daemon starting options :
+	  --vrrp               -P    Only run with VRRP subsystem.
+	  --check              -C    Only run with Health-checker
+	                             subsystem.
+	  Those options extend daemon design to support VRRP &
+	  heathchecking subsystem selection. You can now run
+	  two Keepalived daemon one invoqued with --vrrp and
+	  the other with --check. That way we workaround the
+	  forking issue by running one daemon per subsystem.
+	* Tiddy cleanup in the daemon code.
+	* VRRP : Extended the link media failure detection to support
+	  asynchronous NIC MII polling. The design use now, one
+	  dedicated polling thread per NIC. This reduce scheduling
+	  jitter by this way.
+	* VRRP : Added support to kernel linkwatch subsystem. This
+	  patch that you will find a copy on the Keepalived website
+	  for the kernel 2.4 branch, provides kernel netlink broadcast
+	  events drived by NIC link media state event. That way
+	  we move from a polling design to an event design. Link
+	  events are received throught a kernel netlink broadcast
+	  socket in the userspace land. So, NIC media link failure
+	  detection is now provided by kernel netlink reflection.
+	  You can read the paper attached with the patch for
+	  indepth explanations.
+	* VRRP : fixed timer computation to prevent against negative
+	  value.
+
 2003-09-29  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.3 released.
 	* Stephan von Krawczynski, <skraw@ithnet.com> extended ip

@@ -78,6 +78,14 @@ AC_TRY_RUN([
     KERN="_KRNL_2_2_"
     AC_MSG_RESULT(no)
   ])
+
+AC_CHECK_FILE(/usr/src/linux/net/core/link_watch.c, [
+                LINKWATCH_SUPPORT="_WITH_LINKWATCH_"
+              ], [
+                LINKWATCH_SUPPORT="_WITHOUT_LINKWATCH_"
+              ])
+
+AC_SUBST(LINKWATCH_SUPPORT)
 AC_SUBST(KERN)
 
 dnl ----[ Checks for LVS and VRRP support ]----
@@ -247,9 +255,6 @@ dnl ----[ display optional vars  ]----
 if test -n "$LIBS"; then
   echo "Extra Lib                : $LIBS"
 fi
-if test -n "$LIBOBJS"; then
-  echo "Lib objects              : $LIBOBJS"
-fi
 
 if test "${IPVS_SUPPORT}" = "_WITH_LVS_"; then
   echo "Use IPVS Framework       : Yes"
@@ -267,6 +272,11 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
   echo "Use VRRP Framework       : Yes"
 else
   echo "Use VRRP Framework       : No"
+fi
+if test "${LINKWATCH_SUPPORT}" = "_WITH_LINKWATCH_"; then
+  echo "Use LinkWatch            : Yes"
+else
+  echo "Use LinkWatch            : No"
 fi
 if test "${CI_LINUX}" = "_WITH_CI_LINUX_"; then
   echo "Use CI_LINUX Framework   : Yes"

@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -259,12 +259,14 @@ static long
 vrrp_timer_fd(const int fd)
 {
 	TIMEVAL timer, vrrp_timer, now;
+	long vrrp_long;
 
 	timer = vrrp_compute_timer(fd);
 	now = timer_now();
 	vrrp_timer = timer_sub(timer, now);
+	vrrp_long = TIMER_LONG(vrrp_timer);
 
-	return (vrrp_timer.tv_sec * TIMER_HZ + vrrp_timer.tv_usec);
+	return (vrrp_long < 0) ? TIMER_MAX_SEC : vrrp_long;
 }
 
 static int

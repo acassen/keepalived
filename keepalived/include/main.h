@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
+ * Version:     $Id: main.h,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -52,13 +52,15 @@ pid_t checkers_child = -1;	/* Healthcheckers child process ID */
 long wdog_delay_vrrp = 0;	/* VRRP child polling delay */
 long wdog_delay_check = 0;	/* Healthchecker child polling delay */
 conf_data *data;		/* Global configuration data */
+int daemon_mode = 0;		/* VRRP/CHECK subsystem selection */
+int linkwatch = 0;		/* Use linkwatch kernel netlink reflection */
 
 /* Build version */
 #define LOG_FACILITY_MAX	7
 #define PROG    "Keepalived"
 
-#define VERSION_CODE 0x010103
-#define DATE_CODE    0x1D0903
+#define VERSION_CODE 0x010104
+#define DATE_CODE    0x1D0C03
 
 #define KEEPALIVED_VERSION(version)	\
 	(version >> 16) & 0xFF,		\

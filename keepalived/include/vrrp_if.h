@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_if.c include file.
  *
- * Version:     $Id: vrrp_if.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
+ * Version:     $Id: vrrp_if.h,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -82,9 +82,14 @@ list if_queue;
 #define IF_MII_SUPPORTED(X) ((X)->lb_type & LB_MII)
 #define IF_ETHTOOL_SUPPORTED(X) ((X)->lb_type & LB_ETHTOOL)
 #define IF_LINKBEAT(X) ((X)->linkbeat)
+#ifdef _WITH_LINKWATCH_
+#define IF_ISUP(X) (((X)->flags & IFF_UP)      && \
+                    ((X)->flags & IFF_RUNNING))
+#else
 #define IF_ISUP(X) (((X)->flags & IFF_UP)      && \
                     ((X)->flags & IFF_RUNNING) && \
                     if_linkbeat(X))
+#endif
 
 /* prototypes */
 extern interface *if_get_by_ifindex(const int ifindex);
@@ -92,7 +97,6 @@ extern interface *if_get_by_ifname(const char *ifname);
 extern int if_linkbeat(const interface * ifp);
 extern int if_mii_probe(const char *ifname);
 extern int if_ethtool_probe(const char *ifname);
-extern void if_mii_poller_init(void);
 extern void if_add_queue(interface * ifp);
 extern int if_monitor_thread(thread * thread);
 extern void init_interface_queue(void);

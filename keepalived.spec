@@ -1,7 +1,7 @@
 Name: keepalived
 Summary: HA monitor built upon LVS, VRRP and services poller
 Packager: Christophe Varoqui, <christophe.varoqui@free.fr>
-Version: 1.1.3
+Version: 1.1.4
 Release: 1
 Source: http://www.keepalived.org/software/%{name}-%{version}.tar.gz
 Copyright: GPL
@@ -42,11 +42,3 @@ rm -rf %{buildroot}
 %dir %{_sysconfdir}/keepalived/
 %doc doc
 %doc AUTHOR CONTRIBUTORS TODO COPYING README INSTALL VERSION ChangeLog
-
-%changelog
-* Fri Dec 20 2002 Jason Gilbert <jason@doozer.com> 0.7.6-dzr1
-- Move the samples to be %doc instead of %config
-- Install the init script as 'keepalived' instead of 'keepalived.init'
-- Use the rpm %configure macro
-- No initial config file supplied in /etc/keepalived since it's hard to say what
-  a default config should be

@@ -5,7 +5,7 @@
  *
  * Part:        Forked system call to launch an extra script.
  *
- * Version:     $Id: notify.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
+ * Version:     $Id: notify.c,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

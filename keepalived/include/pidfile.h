@@ -5,7 +5,7 @@
  *
  * Part:        pidfile.c include file.
  *
- * Version:     $Id: pidfile.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
+ * Version:     $Id: pidfile.h,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -34,13 +34,15 @@
 
 /* lock pidfile */
 #define KEEPALIVED_PID_FILE "/var/run/keepalived.pid"
-#define VRRP_PID_FILE "/var/run/keepalived_vrrp.pid"
-#define CHECKERS_PID_FILE "/var/run/keepalived_checkers.pid"
+#define KEEPALIVED_VRRP_PID_FILE "/var/run/keepalived_vrrp.pid"
+#define KEEPALIVED_CHECKERS_PID_FILE "/var/run/keepalived_checkers.pid"
+#define VRRP_PID_FILE "/var/run/vrrp.pid"
+#define CHECKERS_PID_FILE "/var/run/checkers.pid"
 
 /* Prototypes */
 extern int pidfile_write(char *pid_file, int pid);
 extern void pidfile_rm(char *pid_file);
-extern int keepalived_running(void);
+extern int keepalived_running(int mode);
 extern int vrrp_running(void);
 extern int checkers_running(void);
 

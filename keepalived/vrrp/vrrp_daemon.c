@@ -5,7 +5,7 @@
  *
  * Part:        VRRP child process handling.
  *
- * Version:     $Id: vrrp_daemon.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
+ * Version:     $Id: vrrp_daemon.c,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -108,7 +108,6 @@ start_vrrp(void)
 	/* Initialize sub-system */
 	init_interface_queue();
 	kernel_netlink_init();
-	if_mii_poller_init();
 	gratuitous_arp_init();
 
 	/* Parse configuration file */

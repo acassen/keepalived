@@ -5,7 +5,7 @@
  *
  * Part:        pidfile utility.
  *
- * Version:     $Id: pidfile.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
+ * Version:     $Id: pidfile.c,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -73,9 +73,18 @@ process_running(char *pid_file)
 
 /* Return parent process daemon state */
 int
-keepalived_running(void)
+keepalived_running(int mode)
 {
-	return process_running(KEEPALIVED_PID_FILE);
+	if (process_running(KEEPALIVED_PID_FILE))
+		return 1;
+	else if (mode & 1 || mode & 2)
+		return process_running((mode & 1) ? KEEPALIVED_VRRP_PID_FILE :
+				       KEEPALIVED_CHECKERS_PID_FILE);
+
+	if (process_running(KEEPALIVED_VRRP_PID_FILE) ||
+	    process_running(KEEPALIVED_CHECKERS_PID_FILE))
+		return 1;
+	return 0;
 }
 
 /* Return VRRP child process state */

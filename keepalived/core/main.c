@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
+ * Version:     $Id: main.c,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -25,7 +25,7 @@
 #include "main.h"
 #include "watchdog.h"
 
-/* Log faility table */
+/* Log facility table */
 struct {
 	int facility;
 } LOG_FACILITY[LOG_FACILITY_MAX + 1] = {
@@ -41,18 +41,15 @@ stop_keepalived(void)
 	/* Just cleanup memory & exit */
 	thread_destroy_master(master);
 
-	pidfile_rm(KEEPALIVED_PID_FILE);
+	if (daemon_mode == 3 || !daemon_mode)
+		pidfile_rm(KEEPALIVED_PID_FILE);
+	else
+		pidfile_rm((daemon_mode & 1) ? KEEPALIVED_VRRP_PID_FILE :
+			   KEEPALIVED_CHECKERS_PID_FILE);
 
 #ifdef _DEBUG_
 	keepalived_free_final("Parent process");
 #endif
-
-	/*
-	 * Reached when terminate signal catched.
-	 * finally return from system
-	 */
-	closelog();
-	exit(0);
 }
 
 /* Daemon init sequence */
@@ -61,11 +58,13 @@ start_keepalived(void)
 {
 #ifdef _WITH_LVS_
 	/* start healthchecker child */
-	start_check_child();
+	if (daemon_mode & 2 || !daemon_mode)
+		start_check_child();
 #endif
 #ifdef _WITH_VRRP_
 	/* start vrrp child */
-	start_vrrp_child();
+	if (daemon_mode & 1 || !daemon_mode)
+		start_vrrp_child();
 #endif
 }
 
@@ -140,6 +139,8 @@ usage(const char *prog)
 	fprintf(stderr,
 		"Commands:\n"
 		"Either long or short options are allowed.\n"
+		"  %s --vrrp               -P    Only run with VRRP subsystem.\n"
+		"  %s --check              -C    Only run with Health-checker subsystem.\n"
 		"  %s --dont-release-vrrp  -V    Dont remove VRRP VIPs & VROUTEs on daemon stop.\n"
 		"  %s --dont-release-ipvs  -I    Dont remove IPVS topology on daemon stop.\n"
 		"  %s --dont-fork          -n    Dont fork the daemon process.\n"
@@ -154,7 +155,7 @@ usage(const char *prog)
 		"  %s --help               -h    Display this short inlined help screen.\n"
 		"  %s --version            -v    Display the version number\n",
 		prog, prog, prog, prog, prog, prog, prog, prog, prog, prog,
-		prog, prog);
+		prog, prog, prog, prog);
 }
 
 /* Command line parser */
@@ -178,6 +179,8 @@ parse_cmdline(int argc, char **argv)
 		{"use-file", 'f', POPT_ARG_STRING, &optarg, 'f'},
 		{"wdog-vrrp", 'R', POPT_ARG_STRING, &optarg, 'R'},
 		{"wdog-check", 'H', POPT_ARG_STRING, &optarg, 'H'},
+		{"vrrp", 'P', POPT_ARG_NONE, NULL, 'P'},
+		{"check", 'C', POPT_ARG_NONE, NULL, 'C'},
 		{NULL, 0, 0, NULL, 0}
 	};
 
@@ -227,6 +230,12 @@ parse_cmdline(int argc, char **argv)
 	case 'H':
 		wdog_delay_check = atoi(optarg) * TIMER_HZ;
 		break;
+	case 'P':
+		daemon_mode |= 1;
+		break;
+	case 'C':
+		daemon_mode |= 2;
+		break;
 	}
 
 	/* the others */
@@ -262,6 +271,12 @@ parse_cmdline(int argc, char **argv)
 		case 'H':
 			wdog_delay_check = atoi(optarg) * TIMER_HZ;
 			break;
+		case 'P':
+			daemon_mode |= 1;
+			break;
+		case 'C':
+			daemon_mode |= 2;
+			break;
 		}
 	}
 
@@ -293,11 +308,9 @@ main(int argc, char **argv)
 	syslog(LOG_INFO, "Starting " VERSION_STRING);
 
 	/* Check if keepalived is already running */
-	if (keepalived_running()) {
+	if (keepalived_running(daemon_mode)) {
 		syslog(LOG_INFO, "daemon is already running");
-		syslog(LOG_INFO, "Stopping " VERSION_STRING);
-		closelog();
-		exit(0);
+		goto end;
 	}
 
 	/* daemonize process */
@@ -305,10 +318,13 @@ main(int argc, char **argv)
 		xdaemon(0, 0, 0);
 
 	/* write the pidfile */
-	if (!pidfile_write(KEEPALIVED_PID_FILE, getpid())) {
-		syslog(LOG_INFO, "Stopping " VERSION_STRING);
-		closelog();
-		exit(0);
+	if (daemon_mode == 3 || !daemon_mode) {
+		if (!pidfile_write(KEEPALIVED_PID_FILE, getpid()))
+			goto end;
+	} else {
+		if (!pidfile_write((daemon_mode & 1) ? KEEPALIVED_VRRP_PID_FILE :
+				    KEEPALIVED_CHECKERS_PID_FILE, getpid()))
+			goto end;
 	}
 
 	/* Signal handling initialization  */
@@ -325,5 +341,12 @@ main(int argc, char **argv)
 
 	/* Finish daemon process */
 	stop_keepalived();
+
+	/*
+	 * Reached when terminate signal catched.
+	 * finally return from system
+	 */
+end:
+	closelog();
 	exit(0);
 }
