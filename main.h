@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
+ * Version:     $Id: main.h,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -52,8 +52,8 @@ extern void register_vrrp_thread(void);
 /* Build version */
 #define PROG    "Keepalived"
 
-#define VERSION_CODE 0x000505
-#define DATE_CODE    0x0a0402
+#define VERSION_CODE 0x000506
+#define DATE_CODE    0x0d0402
 
 #define KEEPALIVED_VERSION(version)	\
 	(version >> 16) & 0xFF,		\

@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -403,10 +403,11 @@ static void vrrp_handle_leave_master(vrrp_rt *vrrp
     syslog(LOG_INFO, "Kernel is reporting: interface %s DOWN"
                    , IF_NAME(vrrp->ifp));
     vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
-  } else if (vrrp_state_master_rx(vrrp, vrrp_buffer, len))
+    vrrp_state_leave_master(vrrp);
+  } else if (vrrp_state_master_rx(vrrp, vrrp_buffer, len)) {
     vrrp->wantstate = VRRP_STATE_BACK;
-
-  vrrp_state_leave_master(vrrp);
+    vrrp_state_leave_master(vrrp);
+  }
 }
 
 static void vrrp_handle_leave_fault(vrrp_rt *vrrp
@@ -497,11 +498,11 @@ static int vrrp_handle_state(vrrp_rt *vrrp
 
 static void vrrp_handle_goto_master(vrrp_rt *vrrp)
 {
-//  if (!IF_ISUP(vrrp->ifp)) {
-//    syslog(LOG_INFO, "Kernel is reporting: interface %s DOWN"
-//                   , IF_NAME(vrrp->ifp));
-//    vrrp->state = VRRP_STATE_FAULT;
-//  } else {
+  if (!IF_ISUP(vrrp->ifp)) {
+    syslog(LOG_INFO, "Kernel is reporting: interface %s DOWN"
+                   , IF_NAME(vrrp->ifp));
+    vrrp->state = VRRP_STATE_FAULT;
+  } else {
     /* If becoming MASTER in IPSEC AH AUTH, we reset the anti-replay */
     if (vrrp->ipsecah_counter->cycle) {
       vrrp->ipsecah_counter->cycle      = 0;
@@ -513,7 +514,7 @@ static void vrrp_handle_goto_master(vrrp_rt *vrrp)
 
     /* handle master state transition */
     vrrp_state_goto_master(vrrp);
-//  }
+  }
 }
 
 static void vrrp_handle_master(vrrp_rt *vrrp)
@@ -765,6 +766,25 @@ static int vrrp_dispatcher_read(int fd)
       vrrp_isync->wantstate = VRRP_STATE_BACK;
     }
   }
+
+  /*
+   * Handle wanted transition to MASTER state.
+   * When Instance not in FAULT state received a remote
+   * lower priotity advert => For a new VRRP election.
+   */
+  if (vrrp->state     == VRRP_STATE_BACK        && 
+      vrrp->wantstate == VRRP_STATE_GOTO_MASTER &&
+      vrrp->isync) {
+    vrrp_isync = vrrp_search_instance_isync(vrrp->isync);
+
+    if (vrrp_isync->state != VRRP_STATE_FAULT) {
+      /* Force a new protocol master election */
+      syslog(LOG_INFO, "VRRP_Instance(%s) forcing a new MASTER election"
+                     , vrrp->iname);
+      vrrp_send_adv(vrrp, vrrp->priority);
+    }
+  }
+
 
   /*
    * Refresh sands only if found matching instance.

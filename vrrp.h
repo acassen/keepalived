@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
+ * Version:     $Id: vrrp.h,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              Based on the Jerome Etienne, <jetienne@arobas.net> code.
@@ -166,6 +166,7 @@ extern int open_vrrp_socket(const int proto, const int index);
 extern void new_vrrp_socket(vrrp_rt *vrrp);
 extern void close_vrrp_socket(vrrp_rt *vrrp);
 extern void vrrp_send_gratuitous_arp(vrrp_rt *vrrp);
+extern int vrrp_send_adv(vrrp_rt *vrrp, int prio);
 extern int vrrp_state_fault_rx(vrrp_rt *vrrp, char *buf, int buflen);
 extern int vrrp_state_master_rx(vrrp_rt *vrrp, char *buf, int buflen);
 extern void vrrp_state_master_tx(vrrp_rt *vrrp, const int prio);

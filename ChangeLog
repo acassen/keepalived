@@ -1,3 +1,16 @@
+2002-04-13  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.5.6 released.
+	* VRRP : Review in "GOTO_MASTER_STATE" the IP address handling.
+	  send protocol adverts before registering IP address to the interface.
+	* VRRP : Review the "LEAVE_MASTER_STATE" to only handle state transition
+	  if wanted states are BACKUP or FAULT.
+	* VRRP : Review the BACKUP state to force new protocol election if
+	  receiving a lower priority advert.
+	* VRRP : Fixed a BACKUP to MASTER state transition only if interface is
+	  reported UP.
+	* VRRP : Fake the "ipvs_syncd_cmd" function if running LVS using a Kernel
+	  2.2.
+
 2002-04-10  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.5.5 released.
 	* Fixed a gratuitous ARP porting bug.

@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.c,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
+ * Version:     $Id: data.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
+ * Version:     $Id: vrrp.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -638,7 +638,7 @@ static int vrrp_send_pkt(vrrp_rt *vrrp, char *buffer, int buflen)
 }
 
 /* send VRRP advertissement */
-static int vrrp_send_adv(vrrp_rt *vrrp, int prio)
+int vrrp_send_adv(vrrp_rt *vrrp, int prio)
 {
   int buflen, ret;
   char *buffer;
@@ -742,11 +742,11 @@ void vrrp_send_gratuitous_arp(vrrp_rt *vrrp)
 /* becoming master */
 void vrrp_state_goto_master(vrrp_rt *vrrp)
 {
-  /* add the ip addresses */
-  vrrp_handle_ipaddress(vrrp, VRRP_IPADDRESS_ADD);
-
   /* send an advertisement */
   vrrp_send_adv(vrrp, vrrp->priority);
+
+  /* add the ip addresses */
+  vrrp_handle_ipaddress(vrrp, VRRP_IPADDRESS_ADD);
 
   /* remotes arp tables update */
   syslog(LOG_INFO, "Sending gratuitous ARP on %s"
@@ -792,16 +792,6 @@ static void vrrp_restore_interface(vrrp_rt *vrrp, int advF)
 
 void vrrp_state_leave_master(vrrp_rt *vrrp)
 {
-  /* Remove VIPs */
-  vrrp_restore_interface(vrrp, 0);
-
-  if (vrrp->wantstate == VRRP_STATE_BACK)
-    syslog(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE"
-                   , vrrp->iname);
-  if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT)
-    syslog(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE"
-                   , vrrp->iname);
-
   /* Check if notify is needed */
   if (vrrp->notify_exec) {
     if (vrrp->wantstate == VRRP_STATE_BACK)
@@ -823,9 +813,15 @@ void vrrp_state_leave_master(vrrp_rt *vrrp)
   /* set the new vrrp state */
   switch (vrrp->wantstate) {
     case VRRP_STATE_BACK:
+      syslog(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE"
+                     , vrrp->iname);
+      vrrp_restore_interface(vrrp, 0);
       vrrp->state = vrrp->wantstate;
       break;
     case VRRP_STATE_GOTO_FAULT:
+      syslog(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE"
+                     , vrrp->iname);
+      vrrp_restore_interface(vrrp, 0);
       vrrp->state = VRRP_STATE_FAULT;
       break;
   }
@@ -834,9 +830,9 @@ void vrrp_state_leave_master(vrrp_rt *vrrp)
 /* BACKUP state processing */
 void vrrp_state_backup(vrrp_rt *vrrp, char *buf, int buflen)
 {
-  int ret      = 0;
-  struct iphdr *iph  = (struct iphdr *)buf;
-  vrrp_pkt     *hd   = NULL;
+  struct iphdr *iph = (struct iphdr *)buf;
+  vrrp_pkt     *hd  = NULL;
+  int ret           = 0;
 
   /* Fill the VRRP header */
   switch (iph->protocol) {
@@ -858,8 +854,10 @@ void vrrp_state_backup(vrrp_rt *vrrp, char *buf, int buflen)
     vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
   } else if (hd->priority == 0) {
     vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
-  } else if( !vrrp->preempt || hd->priority >= vrrp->priority ) {
+  } else if (!vrrp->preempt || hd->priority >= vrrp->priority) {
     vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+  } else if (hd->priority < vrrp->priority) {
+    vrrp->wantstate = VRRP_STATE_GOTO_MASTER;
   }
 }
 
@@ -913,8 +911,6 @@ int vrrp_state_master_rx(vrrp_rt *vrrp, char *buf, int buflen)
              ntohl(iph->saddr) > IF_ADDR(vrrp->ifp))) {
     syslog(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert"
                    , vrrp->iname);
-    syslog(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP state"
-                   , vrrp->iname);
     vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
     vrrp->state = VRRP_STATE_BACK;
     return 1;
@@ -952,8 +948,6 @@ int vrrp_state_fault_rx(vrrp_rt *vrrp, char *buf, int buflen)
   } else if (vrrp->priority > hd->priority ||
              hd->priority == VRRP_PRIO_OWNER)
     return 1;
-
-printf("Local prio: %d, remote prio: %d\n", vrrp->priority, hd->priority);
 
   return 0;
 }

@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 address manipulation.
  *
- * Version:     $Id: vrrp_ipaddress.c,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.c,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -23,9 +23,7 @@
 /* local include */
 #include "vrrp_ipaddress.h"
 #include "vrrp_netlink.h"
-
-/* Check if interface is UP */
-
+#include "utils.h"
 
 /* Add/Delete IP address to a specific interface */
 int netlink_address_ipv4(int ifindex, uint32_t addr, int cmd)
@@ -46,7 +44,7 @@ int netlink_address_ipv4(int ifindex, uint32_t addr, int cmd)
   req.ifa.ifa_family = AF_INET;
   req.ifa.ifa_index  = ifindex;
   req.ifa.ifa_prefixlen  = 32;
-  
+
   addr = htonl(addr);
   addattr_l(&req.n, sizeof(req), IFA_LOCAL, &addr, sizeof(addr));
 

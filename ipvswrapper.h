@@ -5,7 +5,7 @@
  *
  * Part:        ipvswrapper.c include file.
  *
- * Version:     $Id: ipvswrapper.h,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
+ * Version:     $Id: ipvswrapper.h,v 0.5.6 2002/04/13 06:21:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -50,10 +50,17 @@
 #define IPVS_SUCCESS	1
 #define IPVS_CMD_DELAY	3
 
-#define IPVS_STARTDAEMON	IP_VS_SO_SET_STARTDAEMON
-#define IPVS_STOPDAEMON		IP_VS_SO_SET_STOPDAEMON
-#define IPVS_MASTER		IP_VS_STATE_MASTER
-#define IPVS_BACKUP		IP_VS_STATE_BACKUP
+#ifdef _KRNL_2_2_
+  #define IPVS_STARTDAEMON	1
+  #define IPVS_STOPDAEMON	2
+  #define IPVS_MASTER		3
+  #define IPVS_BACKUP		4
+#else
+  #define IPVS_STARTDAEMON	IP_VS_SO_SET_STARTDAEMON
+  #define IPVS_STOPDAEMON	IP_VS_SO_SET_STOPDAEMON
+  #define IPVS_MASTER		IP_VS_STATE_MASTER
+  #define IPVS_BACKUP		IP_VS_STATE_BACKUP
+#endif
 
 extern thread_master *master;
 
