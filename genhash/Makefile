@@ -3,9 +3,9 @@
 
 EXEC= genhash
 CC= gcc
-CFLAGS= -Wall -lmd
-DEFS= genhash.h
-OBJECTS= genhash.o
+CFLAGS= -Wall
+DEFS= genhash.h md5.h
+OBJECTS= md5.o genhash.o
 .c.o:	
 	$(CC) -o $@ $(CFLAGS) -c $*.c
 
@@ -18,7 +18,7 @@ $(EXEC):	$(OBJECTS) $(DEFS)
 	$(CC) -o $(EXEC) $(CFLAGS) $(OBJECTS)
 
 clean:
-	rm -f core *.o $(EXEC) 
+	rm -f core *.o $(EXEC)
 
-install:
-	cp -av genhash /usr/bin
+install:	
+	install -m 755 genhash /usr/bin/

@@ -1,0 +1,32 @@
+#!/bin/sh
+#
+# Startup script for the Keepalived daemon
+#
+# processname: keepalived
+# pidfile: /var/run/keepalived.pid
+# config: /etc/lvs.conf
+# config: /etc/keepalived/keepalived.conf
+
+
+# Source function library.
+. /etc/rc.d/init.d/functions
+
+# See how we were called.
+case "$1" in
+  start)
+	echo -n "Starting Keepalived for LVS: "
+        sh /etc/lvs.conf
+	daemon keepalived
+	echo
+	;;
+  stop)
+	echo -n "Shutting down Keepalived for LVS: "
+	killproc keepalived
+	echo
+	;;
+  *)
+	echo "Usage: $0 {start|stop}"
+	exit 1
+esac
+
+exit 0

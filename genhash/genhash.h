@@ -39,15 +39,23 @@
 #include <linux/if_ether.h>
 #include <netinet/tcp.h>
 #include <netinet/ip_icmp.h>
+#include <fcntl.h>
 #include <string.h>
 #include <arpa/inet.h>
-#include <md5.h>
+#include <errno.h>
+#include "md5.h"
+
+#define GETCMD "GET %s HTTP/1.0\r\n\r\n"
+
+/* Socket Timeout */
+#define SOCKET_TIMEOUT_READ    3
+#define SOCKET_TIMEOUT_CONNECT 3
 
 /* Sockets connection errors codes */
 #define ERROR_SOCKET        0
 
 /* Data buffer length description */
-#define GET_BUFFER_LENGTH   80
+#define GET_BUFFER_LENGTH   180
 #define RCV_BUFFER_LENGTH   1024
 
 /* Build version */
