@@ -7,13 +7,22 @@
  *              server. This check implement the tcp half open connection
  *              check.
  *  
- * Version:     $Id: keepalived.c,v 0.2.1 2000/12/09 $
+ * Version:     $Id: tcpcheck.c,v 0.2.3 2000/12/29 $
  * 
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *              
  * Changes:     
- *              Alexandre Cassen      :       Initial release
- *              
+ *         Alexandre Cassen : 2000/12/29 :
+ *          <+> Added recvfrom_to() function to handle recvfrom timeouted connection.
+ *              Call this function in TCP_RCV_SYNACK_PACKET with 1s timeout.
+ *          <+> Added a timer (2s timeouted) in TCP_RCV_SYNACK_PACKET to check
+ *              SYN|ACK packet. Check perform on tcp sequence, remote tcp port number,
+ *              tcp SYN|ACK flag, remote ip address.
+ *          <+> Added a 3 time SYN packet send retry.
+ *
+ *         Alexandre Cassen : 2000/12/09 : Initial release
+ *
+ *
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
@@ -22,9 +31,43 @@
 
 #include "tcpcheck.h"
 
-#define SEQUENCE 0x28376839
+int recvfrom_to(int s, char *buf, int len, struct sockaddr *saddr, int timo)
+{
+  int nfound,slen,n;
+  struct timeval to;
+  fd_set readset,writeset;
 
-int TCP_SEND_PACKET(char *IP_SRC,char *IP_DST,char *PORT_DST,char *FLAG)
+  to.tv_sec  = timo/1000;
+  to.tv_usec = 0;
+
+  FD_ZERO(&readset);
+  FD_ZERO(&writeset);
+  FD_SET(s,&readset);
+  nfound = select(s+1,&readset,&writeset,NULL,&to);
+  if (nfound<0) {
+#ifdef DEBUG
+    logmessage("TCP_CHECK : Select socket descriptor error...\n",getpid());
+#endif
+    return(-1);
+  }
+  if (nfound==0) {
+#ifdef DEBUG
+    logmessage("TCP_CHECK : Timeout receiving SYN response...\n",getpid());
+#endif
+    return -1;
+  }
+  slen=sizeof(struct sockaddr_in);
+  n=recvfrom(s,buf,len,0,saddr,&slen);
+  if (n<0) {
+#ifdef DEBUG
+    logmessage("TCP_CHECK : recvfrom error...\n",getpid());
+#endif
+    return -1;
+  }
+  return n;
+}
+
+int TCP_SEND_PACKET(char *IP_SRC,char *IP_DST,char *PORT_DST,char *FLAG,unsigned long int SEQ)
 {
   register int rawsock;
   struct linger li = { 0 };
@@ -33,12 +76,13 @@ int TCP_SEND_PACKET(char *IP_SRC,char *IP_DST,char *PORT_DST,char *FLAG)
   struct iphdr *packet_ip;
   struct tcphdr *packet_tcp;
   struct tcphdr_pseudo packet_tcppseudo;
-  struct sockaddr dest;
+  struct sockaddr_in dest;
   char *packet;
 
   /* Packet pointer affectation */
   packet=(char *)malloc(SYNPACKET_LENGTH);
-  bzero(packet,SYNPACKET_LENGTH);
+  memset(packet,0,SYNPACKET_LENGTH);
+  memset(&dest,0,sizeof(struct sockaddr_in));
   packet_ip=(struct iphdr *)packet;
   packet_tcp=(struct tcphdr *)(packet_ip+1);
 
@@ -68,7 +112,7 @@ int TCP_SEND_PACKET(char *IP_SRC,char *IP_DST,char *PORT_DST,char *FLAG)
   /* Fill in the TCP header structure */
   packet_tcp->source  = htons(STCP);
   packet_tcp->dest    = htons(atoi(PORT_DST));
-  packet_tcp->seq     = htonl(SEQUENCE);
+  packet_tcp->seq     = SEQ;
   packet_tcp->doff    = sizeof(struct tcphdr)/4;
   packet_tcp->ack_seq = 0;
   packet_tcp->res1    = 0;
@@ -95,9 +139,10 @@ int TCP_SEND_PACKET(char *IP_SRC,char *IP_DST,char *PORT_DST,char *FLAG)
                              sizeof(struct tcphdr_pseudo));
 
   /* Fill in the Sockaddr structure */
-  dest.sa_family = AF_INET;
-  bcopy(&packet_ip->daddr,&dest.sa_data[2],4);
-  bcopy(&packet_tcp->source,&dest.sa_data[0],2);
+  /* A little fake, IP & PORT are in IP & TCP headers */
+  dest.sin_family = AF_INET;
+  dest.sin_port  = packet_tcp->dest;
+  dest.sin_addr.s_addr = packet_ip->daddr;
 
   if (sendto(rawsock,packet,sizeof(struct iphdr) + sizeof(struct tcphdr),
              0,&dest,sizeof(dest)) < 0) {
@@ -105,32 +150,40 @@ int TCP_SEND_PACKET(char *IP_SRC,char *IP_DST,char *PORT_DST,char *FLAG)
     free(packet);
     return(SOCKET_ERROR);
   }
+
+  close(rawsock);
   free(packet);
   return(SOCKET_SUCCESS);
 }
 
-int TCP_RCV_SYNACK_PACKET()
+int TCP_RCV_SYNACK_PACKET(char *IP_DST, char *PORT_DST, unsigned long int SEQ)
 {
   register int rawsock;
   struct linger li = { 0 };
+  time_t hint;
+  struct tm *date;
+  int timer_before, timer_after;
+  int loop = 1;
+  char *debugmsg;
 
   /* Packet Data representation */
   struct iphdr *packet_ip;
   struct tcphdr *packet_tcp;
   struct tcphdr_pseudo packet_tcppseudo;
-  struct sockaddr dest;
+  struct sockaddr_in dest;
   char *packet;
-  int fromlen=0;
-
-  fromlen=sizeof(struct sockaddr);
 
   /* Packet pointer affectation */
+  debugmsg=(char *)malloc(LOGBUFFER_LENGTH);
   packet=(char *)malloc(SYNPACKET_LENGTH);
-  bzero(packet,SYNPACKET_LENGTH);
+  memset(packet,0,SYNPACKET_LENGTH);
+  memset(debugmsg,0,LOGBUFFER_LENGTH);
+  memset(&dest,0,sizeof(struct sockaddr_in));
   packet_ip=(struct iphdr *)packet;
   packet_tcp=(struct tcphdr *)(packet_ip+1);
 
   if ( (rawsock = socket(AF_INET, SOCK_RAW, IPPROTO_TCP)) == -1 ) {
+    free(debugmsg);
     free(packet);
     return (SOCKET_ERROR);
   }
@@ -140,54 +193,113 @@ int TCP_RCV_SYNACK_PACKET()
   li.l_linger=0;
   setsockopt(rawsock,SOL_SOCKET,SO_LINGER,(char *)&li,sizeof(struct linger));
 
-  if (recvfrom(rawsock,packet,SYNPACKET_LENGTH,
-               0,(struct sockaddr *)&dest,&fromlen) < 0) {
-    free(packet);
-    close(rawsock);
-    return(SOCKET_ERROR);
+  /* Fill in the Sockaddr structure */
+  memset(&dest,0,sizeof(struct sockaddr_in));
+  dest.sin_family = AF_INET;
+  dest.sin_port = htons(atoi(PORT_DST));
+  dest.sin_addr.s_addr = inet_addr(IP_DST);
+
+  /* Timer initialization */
+  /* We can also use a signal SIGALRM and catch this signal with handler to break the loop */
+  hint = time((long*)0);
+  date = localtime(&hint);
+  timer_before = date->tm_sec;
+
+  while(loop) {
+    if (recvfrom_to(rawsock,packet,SYNPACKET_LENGTH,(struct sockaddr *)&dest,1000) < 0) {
+      close(rawsock);
+      free(debugmsg);
+      free(packet);
+      return(SOCKET_ERROR);
+    }
+
+    if ( packet_tcp->syn && packet_tcp->ack && 
+        (packet_tcp->ack_seq == SEQ) &&
+        (packet_ip->saddr == dest.sin_addr.s_addr) &&
+        (packet_tcp->source == htons(atoi(PORT_DST))) ) {
+      close(rawsock);
+      free(debugmsg);
+      free(packet);
+      return(SOCKET_SUCCESS);
+    }
+
+#ifdef DEBUG
+    memset(debugmsg,0,LOGBUFFER_LENGTH);
+    sprintf(debugmsg,"TCP_CHECK : SYN|ACK packet not recieved from [%s:%s]. Retry\n",IP_DST,PORT_DST);
+    logmessage(debugmsg,getpid());
+#endif
+
+    /* timer to evaluate packet loosed */
+    hint = time((long*)0);
+    date = localtime(&hint);
+    timer_after = date->tm_sec;
+
+    if(abs(timer_after-timer_before)>1) loop=0;
   }
+
+#ifdef DEBUG
+  memset(debugmsg,0,LOGBUFFER_LENGTH);
+  sprintf(debugmsg,"TCP_CHECK : SYN|ACK packet loosed from [%s:%s]\n",IP_DST,PORT_DST);
+  logmessage(debugmsg,getpid());
+#endif
 
   close(rawsock);
-
-  if ( packet_tcp->syn && packet_tcp->ack) {
-    free(packet);
-    return(SOCKET_SUCCESS);
-  } else {
-    free(packet);
-    return(SOCKET_ERROR);
-  }
+  free(debugmsg);
+  free(packet);
+  return(SOCKET_ERROR);
 }
 
 int TCP_CHECK(char *IP_SRC, char *IP_DST, char *PORT_DST)
 {
   register int tcpsock;
   char *debugmsg;
+  int loop=1;
+  int retry=0;
+  unsigned long int SEQTCP=0;
 
   /* Memory allocation for the data structures */
   debugmsg=(char *)malloc(LOGBUFFER_LENGTH);
-  bzero(debugmsg,LOGBUFFER_LENGTH);
 
-  if(!TCP_SEND_PACKET(IP_SRC,IP_DST,PORT_DST,"SYN")) {
+  while(loop) {
+    SEQTCP = random() & 0xffff;
+
+    if(!TCP_SEND_PACKET(IP_SRC,IP_DST,PORT_DST,"SYN",htonl(SEQTCP-1))) {
+#ifdef DEBUG
+      memset(debugmsg,0,LOGBUFFER_LENGTH);
+      sprintf(debugmsg,"TCP_CHECK : Can't send SYN request to [%s:%s]\n",IP_DST,PORT_DST);
+      logmessage(debugmsg,getpid());
+#endif
+      free(debugmsg);
+      return(SOCKET_ERROR);
+    }
+    if(TCP_RCV_SYNACK_PACKET(IP_DST,PORT_DST,htonl(SEQTCP))) {
+      loop=0;
+    } else {
+      retry++;
+#ifdef DEBUG
+      memset(debugmsg,0,LOGBUFFER_LENGTH);
+      sprintf(debugmsg,"TCP_CHECK : Reexpedite SYN request to [%s:%s]\n",IP_DST,PORT_DST);
+      logmessage(debugmsg,getpid());
+#endif
+      loop=(retry==NB_RETRY)?0:1;
+    }
+  }
+
+  if (retry==NB_RETRY) {
 #ifdef DEBUG
     memset(debugmsg,0,LOGBUFFER_LENGTH);
-    sprintf(debugmsg,"TCP_CHECK : Can't send SYN request to [%s:%s]\n",IP_DST,PORT_DST);
+    sprintf(debugmsg,"TCP_CHECK : SYN|ACK response not recieved from [%s:%s] after 3 try\n",IP_DST,PORT_DST);
     logmessage(debugmsg,getpid());
 #endif
     free(debugmsg);
     return(SOCKET_ERROR);
   }
 
-  if(!TCP_RCV_SYNACK_PACKET()) {
-#ifdef DEBUG
-    memset(debugmsg,0,LOGBUFFER_LENGTH);
-    sprintf(debugmsg,"TCP_CHECK : Didn't recieve SYN response from [%s:%s]\n",IP_DST,PORT_DST);
-    logmessage(debugmsg,getpid());
-#endif
-    free(debugmsg);
-    return(SOCKET_ERROR);
-  }
+  /* The we send a RST TCP packet to be sure that the remote host */
+  /* close the communication channel.                             */
+  /* Needed some time by MS Windows .... damned...                */
 
-  if(!TCP_SEND_PACKET(IP_SRC,IP_DST,PORT_DST,"RST ACK")) {
+  if(!TCP_SEND_PACKET(IP_SRC,IP_DST,PORT_DST,"RST ACK",SEQTCP)) {
 #ifdef DEBUG
     memset(debugmsg,0,LOGBUFFER_LENGTH);
     sprintf(debugmsg,"TCP_CHECK : Can't send RST to [%s:%s]\n",IP_DST,PORT_DST);

@@ -1,5 +1,5 @@
 # Makefile
-# Alexandre Cassen <Alexandre.Cassen@canal-plus.com>
+# Alexandre Cassen <Alexandre.Cassen@wanadoo.fr>
 
 EXEC= keepalived
 CC= gcc

@@ -5,7 +5,7 @@
  *
  * Part:        tcpcheck.c include file.
  *
- * Version:     $Id: keepalived.c,v 0.2.1 2000/12/09 $
+ * Version:     $Id: tcpcheck.h,v 0.2.1 2000/12/09 $
  *
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *
@@ -22,6 +22,7 @@
 #define CFREADER_H
 
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <signal.h>
 #include <netdb.h>
@@ -33,11 +34,13 @@
 
 #define SOCKET_ERROR   0
 #define SOCKET_SUCCESS 1
-#define STCP 1111
+#define STCP           1111
 
 #define LOGBUFFER_LENGTH 100
 #define SYNPACKET_LENGTH 1024
 #define HOSTNAME_LENGTH  30
+
+#define NB_RETRY 3
 
 /* Structures used */
 struct tcphdr_pseudo {

@@ -5,7 +5,7 @@
  * 
  * Part:        iputils.c include file.
  *  
- * Version:     $Id: keepalived.c,v 0.2.1 2000/12/09 $
+ * Version:     $Id: iputils.h,v 0.2.1 2000/12/09 $
  * 
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *              

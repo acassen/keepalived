@@ -1,5 +1,5 @@
 # Makefile
-# Alexandre Cassen <Alexandre.Cassen@canal-plus.com>
+# Alexandre Cassen <Alexandre.Cassen@wanadoo.fr>
 
 EXEC= genhash
 CC= gcc
@@ -21,4 +21,4 @@ clean:
 	rm -f core *.o $(EXEC) 
 
 install:
-	cp -av genhash /usr/bin/
+	cp -av genhash /usr/bin

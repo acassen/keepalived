@@ -7,7 +7,7 @@
  *              url, compute a MD5 over this result and match it to the
  *              expected value.
  *  
- * Version:     $Id: keepalived.c,v 0.2.1 2000/12/09 $
+ * Version:     $Id: httpget.c,v 0.2.1 2000/12/09 $
  * 
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *              
@@ -76,7 +76,7 @@ int GET(char *IP_SRC,char *IP_DST, char *PORT_DST, char *URL, char *buffer)
     return(SOCKET_ERROR);
   }
 
-  bzero(&adr_serv,long_inet);
+  memset(&adr_serv,0,long_inet);
   adr_serv.sin_family=ip_serv->h_addrtype;
   bcopy(ip_serv->h_addr, &adr_serv.sin_addr.s_addr,ip_serv->h_length);
   adr_serv.sin_port=htons(atoi(PORT_DST));
@@ -130,7 +130,7 @@ int HTTP_GET(char *IP_SRC,char *IP_DST,char *PORT_DST,char *URL,char MDResult[0x
   int retcode=0;
 
   bufferget=(char *)malloc(GET_BUFFER_LENGTH);
-  bzero(bufferget,GET_BUFFER_LENGTH);
+  memset(bufferget,0,GET_BUFFER_LENGTH);
 
   if ((retcode=GET(IP_SRC,IP_DST,PORT_DST,URL,bufferget))!=0) {
     MD5Data(bufferget,retcode,MDResult);

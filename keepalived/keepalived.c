@@ -5,12 +5,15 @@
  *
  * Part:        Main program structure.
  *  
- * Version:     $Id: keepalived.c,v 0.2.1 2000/12/09 $
+ * Version:     $Id: keepalived.c,v 0.2.3 2001/01/01 $
  * 
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *              
  * Changes:       
- *              Alexandre Cassen      :       Initial release
+ *         Alexandre Cassen : 2001/01/01 :
+ *          <+> Change the signalhandling.
+ *
+ *          Alexandre Cassen : 2000/12/09 : Initial release
  *              
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
@@ -48,9 +51,8 @@ int main(int argc, char **argv)
 
   if (signal(SIGTERM,sig_handler) == SIG_IGN)
     signal(SIGTERM,SIG_IGN);
-
-  signal(SIGINT,sig_handler);
-  signal(SIGHUP,sig_handler);
+  signal(SIGINT,SIG_IGN);
+  signal(SIGHUP,SIG_IGN);
 
   if ((lstVS=(virtualserver *)ConfReader(lstVS,delay_loop))==NULL) {
     logmessage("Config file contain no data\n",getpid());
@@ -67,8 +69,7 @@ int main(int argc, char **argv)
 
   while (keep_going) {
     perform_checks(lstVS);
-/*    sleep(delay_loop); */
-    sleep(60);
+    sleep(delay_loop);
   }
 
   return 0;
@@ -87,7 +88,6 @@ void perform_ipvs(int alive, virtualserver *lstptr)
   char *logbuffer;
   
   logbuffer=(char *)malloc(LOGBUFFER_LENGTH);
-
   if (!lstptr->svr->alive && alive) {
     lstptr->svr->alive=alive;
     memset(logbuffer,0,LOGBUFFER_LENGTH);
@@ -139,6 +139,9 @@ void perform_checks(virtualserver * lstptr)
 
       if (strcmp(lstptr->svr->keepalive_method,"ICMP_CHECK") == 0) {
         if (ICMP_CHECK(lstptr->svr->addr_ip)) {
+#ifdef DEBUG
+          logmessage("ICMP check succeed\n",getpid());
+#endif
           if (!lstptr->svr->alive) {
             memset(logbuffer,0,LOGBUFFER_LENGTH);
             sprintf(logbuffer,"ICMP check succeed to %s.\n",lstptr->svr->addr_ip);
@@ -146,6 +149,9 @@ void perform_checks(virtualserver * lstptr)
             perform_ipvs(1,lstptr);
           }
         } else {
+#ifdef DEBUG
+          logmessage("ICMP check failed\n",getpid());
+#endif
           if (lstptr->svr->alive) {
             memset(logbuffer,0,LOGBUFFER_LENGTH);
             sprintf(logbuffer,"ICMP check failed to %s.\n",lstptr->svr->addr_ip);
@@ -157,7 +163,9 @@ void perform_checks(virtualserver * lstptr)
 
       if (strcmp(lstptr->svr->keepalive_method,"TCP_CHECK") == 0) {
         if (TCP_CHECK(lstptr->addr_ip,lstptr->svr->addr_ip,lstptr->svr->addr_port)) {
+#ifdef DEBUG
           logmessage("TCP check succeed\n",getpid());
+#endif
           if (!lstptr->svr->alive) {
             memset(logbuffer,0,LOGBUFFER_LENGTH);
             sprintf(logbuffer,"TCP check succeed to %s:%s.\n",lstptr->svr->addr_ip,
@@ -166,9 +174,11 @@ void perform_checks(virtualserver * lstptr)
             perform_ipvs(1,lstptr);
           }
         } else {
+#ifdef DEBUG
           logmessage("TCP check failed\n",getpid());
+#endif
           if (lstptr->svr->alive) {
-            bzero(logbuffer,LOGBUFFER_LENGTH);
+            memset(logbuffer,0,LOGBUFFER_LENGTH);
             sprintf(logbuffer,"TCP check failed to %s:%s.\n",lstptr->svr->addr_ip,
                                                              lstptr->svr->addr_port);
             logmessage(logbuffer,getpid());
@@ -183,7 +193,9 @@ void perform_checks(virtualserver * lstptr)
                  lstptr->svr->keepalive_url,MD5Result)) {
 
           if (strcmp(lstptr->svr->keepalive_result,MD5Result) == 0) {
+#ifdef DEBUG
             logmessage("HTTP GET check succeed\n",getpid());
+#endif
             if (!lstptr->svr->alive) {
               memset(logbuffer,0,LOGBUFFER_LENGTH);
               sprintf(logbuffer,"HTTP GET check succeed to %s:%s.\n",lstptr->svr->addr_ip,
@@ -192,7 +204,9 @@ void perform_checks(virtualserver * lstptr)
               perform_ipvs(1,lstptr);
             }
           } else {
+#ifdef DEBUG
             logmessage("HTTP GET check failed\n",getpid());
+#endif
             if (lstptr->svr->alive) {
               memset(logbuffer,0,LOGBUFFER_LENGTH);
               sprintf(logbuffer,"HTTP GET check failed to %s:%s.\n",lstptr->svr->addr_ip,

@@ -5,7 +5,7 @@
  * 
  * Part:        icmpcheck.c include file.
  *  
- * Version:     $Id: keepalived.c,v 0.2.1 2000/12/09 $
+ * Version:     $Id: icmpcheck.h,v 0.2.1 2000/12/09 $
  * 
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *              
@@ -30,7 +30,10 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 
-#define ICMP_DATA "KeepAlive for LVS v1.0"
+#define ICMP_DATA "keepalived for LVS"
+
+#define SOCKET_ERROR   0
+#define SOCKET_SUCCESS 1
 
 #define HDRBUFFSIZE (sizeof(struct icmphdr) + sizeof(struct iphdr))
 #define BUFFSIZE (HDRBUFFSIZE + sizeof(ICMP_DATA))
@@ -40,12 +43,13 @@
 #define SIZE_ICMP_HDR ICMP_MINLEN
 
 #define DELAY_TIME 1
+#define NB_RETRY   3
 
 #define LOGBUFFER_LENGTH 100
 
 #define select_time (DEFAULT_SELECT_TIME * 100)
 
 /* prototypes  */
-int ICMP_CHECK(char dst_ip[16]);
+int ICMP_CHECK(char *IP_DST);
 
 #endif

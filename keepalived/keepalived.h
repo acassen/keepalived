@@ -48,11 +48,11 @@
 /* Global variables */
 volatile sig_atomic_t keep_going = 1;
 virtualserver *lstVS;
-int delay_loop = 5;
+int delay_loop = 60;
 
 /* Build version */
 #define PROG    "keepalived"
-#define VERSION "0.2.1 (12/23, 2000), Alexandre Cassen"
+#define VERSION "0.2.3 (01/01, 2001), Alexandre Cassen"
 
 /* prototypes */
 void sig_handler(int signum);

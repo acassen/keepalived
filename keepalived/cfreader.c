@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: keepalived.c,v 0.2.1 2000/12/09 $
+ * Version:     $Id: cfreader.c,v 0.2.1 2000/12/09 $
  * 
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *              
@@ -131,24 +131,24 @@ void PrintLst(virtualserver * lstptr)
     printf("Queue empty !!!\n");
   else
     while(lstptr != NULL) {
-      bzero(tempbuff,TEMPBUFFERLENGTH);
+      memset(tempbuff,0,TEMPBUFFERLENGTH);
       sprintf(tempbuff,"VS IP = %s, Port = %s, SCHED = %s, PERSISTENCE TIMEOUT = %s\n",
                        lstptr->addr_ip, lstptr->addr_port,
                        lstptr->sched, lstptr->timeout_persistence);
       logmessage(tempbuff,getpid());
       pointersvr=lstptr->svr;
       while(lstptr->svr != NULL) {
-        bzero(tempbuff,TEMPBUFFERLENGTH);
+        memset(tempbuff,0,TEMPBUFFERLENGTH);
         sprintf(tempbuff," -> SVR IP = %s, Port = %s\n",lstptr->svr->addr_ip,lstptr->svr->addr_port);
         logmessage(tempbuff,getpid());
 
-        bzero(tempbuff,TEMPBUFFERLENGTH);
+        memset(tempbuff,0,TEMPBUFFERLENGTH);
         sprintf(tempbuff,"    -> KM = %s, KA = %s, KU = %s, KR = %s\n",
                          lstptr->svr->keepalive_method, lstptr->svr->keepalive_url,
                          lstptr->svr->keepalive_algo, lstptr->svr->keepalive_result);
         logmessage(tempbuff,getpid());
 
-        bzero(tempbuff,TEMPBUFFERLENGTH);
+        memset(tempbuff,0,TEMPBUFFERLENGTH);
         sprintf(tempbuff,"    -> LB = %s, Weight = %s, ST = %s, Alive = %d\n",
                          lstptr->svr->loadbalancing_kind, lstptr->svr->weight,
                          lstptr->svr->service_type, lstptr->svr->alive);

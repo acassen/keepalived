@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: keepalived.c,v 0.2.1 2000/12/09 $
+ * Version:     $Id: ipvswrapper.c,v 0.2.1 2000/12/09 $
  * 
  * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
  *              
@@ -47,7 +47,7 @@ int ipvs_pool_cmd(int cmd, virtualserver *vserver)
       if (strcmp(vserver->svr->loadbalancing_kind,"TUN")==0)
         ctl.u.vs_user.masq_flags = IP_MASQ_F_VS_TUNNEL;
       else {
-        bzero(debugmsg,LOGBUFFER_LENGTH);
+        memset(debugmsg,0,LOGBUFFER_LENGTH);
         sprintf(debugmsg,"ipvs_pool_cmd : service [%s:%s] [%s] unknown routing method...\n",
                          vserver->svr->addr_ip, vserver->svr->addr_port,
                          vserver->svr->loadbalancing_kind);
