@@ -4,133 +4,34 @@
 #
 # Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
 
-EXEC = keepalived
-KERNEL    := @KERN@
-IPVS_FLAG := @IPVS_SUPPORT@
-VRRP_FLAG := @VRRP_SUPPORT@
-CI_LINUX  := @CI_LINUX@
-
-prefix      = @prefix@
-exec_prefix = @exec_prefix@
-sbindir     = @sbindir@
-
-init_script = etc/init.d/keepalived.init
-conf_file   = etc/keepalived/keepalived.conf
-
-CC = @CC@
-CFLAGS = @CFLAGS@ \
-	-Wall -Wunused -Wstrict-prototypes \
-	-D$(KERNEL) -D$(VRRP_FLAG) @DFLAGS@
-LDFLAGS = @LIBS@ @LDFLAGS@
-IPVSFLAGS = -D$(IPVS_FLAG) -D@IPVS_SYNCD@
-
-CORE_OBJS = \
-	main.o \
-	memory.o \
-	daemon.o \
-	pidfile.o \
-	utils.o \
-	timer.o \
-	scheduler.o \
-	vector.o \
-	list.o \
-	data.o \
-	parser.o \
-	layer4.o \
-	smtp.o
-
-ifeq ($(IPVS_FLAG),_WITH_LVS_)
-IPVS_OBJS = \
-	check_api.o \
-	check_tcp.o \
-	check_http.o \
-	check_ssl.o \
-	check_misc.o \
-	ipwrapper.o \
-	ipvswrapper.o
-endif
-        
-ifeq ($(VRRP_FLAG),_WITH_VRRP_)
-VRRP_OBJS = \
-	vrrp.o \
-	vrrp_notify.o \
-	vrrp_scheduler.o \
-	vrrp_sync.o \
-	vrrp_netlink.o \
-	vrrp_if.o \
-	vrrp_ipaddress.o \
-	vrrp_ipsecah.o
-endif
-
-ifeq ($(CI_LINUX),_WITH_CI_LINUX_)
-CI_LINUX_OBJ = check_ci.o
-CIFLAGS = -D$(CI_LINUX)
-endif
-
-ifeq ($(KERNEL),_KRNL_2_2_)
-IPVS_OBJS := $(IPVS_OBJS) ipfwwrapper.o
-LIBIPFW = libipfwc/libipfwc.a
-else
-LIBIPVS = libipvs/libipvs.a
-endif
-
-
-OBJS = $(CORE_OBJS) $(IPVS_OBJS) $(VRRP_OBJS) $(CI_LINUX_OBJ) $(LIBIPVS) $(LIBIPFW)
-
-.c.o:
-	$(CC) -o $@ $(CFLAGS) $(IPVSFLAGS) $(CIFLAGS) $(INCLUDE) -c $*.c
-
-all:    $(EXEC)
-	strip $(EXEC)
-	@echo ""
-	cd genhash && $(MAKE)
+all:
+	$(MAKE) -C keepalived
+	$(MAKE) -C genhash
 	@echo ""
 	@echo "Make complete"
 
-debug:  $(EXEC)
+debug:
+	$(MAKE) -C keepalived debug
 	@echo ""
 	@echo "Make complete"
 
-$(EXEC): $(OBJS) $(LDFLAGS)
-	$(CC) -o $(EXEC) $(CFLAGS) $(OBJS) $(LDFLAGS)
+clean:
+	$(MAKE) -C keepalived clean
+	$(MAKE) -C genhash clean
 
-libipfwc/libipfwc.a:
-	cd libipfwc/ && $(MAKE) libipfwc.a
-libipvs/libipvs.a:
-	cd libipvs/ && $(MAKE) libipvs.a
-
-subclean:
-ifeq ($(KERNEL),_KRNL_2_2_)
-	cd libipfwc/ && $(MAKE) clean
-else
-	cd libipvs/ && $(MAKE) clean
-endif
-	cd genhash/ && $(MAKE) clean
-
-clean: subclean
-	rm -f core *.o $(EXEC)
-
-subclean-dist:
-	cd genhash/ && $(MAKE) clean-dist
-
-clean-dist: subclean-dist
-	rm -f $(sbindir)/$(EXEC)
-	rm -rf $(keepalived_conf_dir)
-	rm -f $(init_dir)/$(init_script)
-
-mrproper: clean clean-dist
-	rm -f config.*
+distclean:
+	$(MAKE) -C keepalived distclean
+	$(MAKE) -C genhash distclean
 	rm -f Makefile
-	rm -f genhash/Makefile
 
-subinstall:
-	cd genhash/ && $(MAKE) install
+mrproper: distclean
+	rm -f bin/*
+	rm -f config.*
 
-install: subinstall
-	install -d $(sbindir)
-	install -m 700 $(EXEC) $(sbindir)/
-	install -d $(sysconfdir)/init.d
-	install -m 755 $(init_script) $(sysconfdir)/init.d/
-	install -d $(sysconfdir)/keepalived/samples
-	install -m 644 $(conf_file) $(sysconfdir)/keepalived/
-	install -m 644 samples/* $(sysconfdir)/keepalived/samples/
+uninstall:
+	$(MAKE) -C keepalived uninstall
+	$(MAKE) -C genhash uninstall
+
+install:
+	$(MAKE) -C keepalived install
+	$(MAKE) -C genhash install

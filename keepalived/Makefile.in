@@ -1,0 +1,87 @@
+# Makefile
+#
+# Keepalived OpenSource project.
+#
+# Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
+
+EXEC = keepalived
+BIN       = ../bin
+KERNEL    = @KERN@
+IPVS_FLAG = @IPVS_SUPPORT@
+VRRP_FLAG = @VRRP_SUPPORT@
+
+prefix      = @prefix@
+exec_prefix = @exec_prefix@
+sbindir     = @sbindir@
+sysconfdir  = @sysconfdir@
+init_script = etc/init.d/keepalived.init
+conf_file   = etc/keepalived/keepalived.conf
+
+CC = @CC@
+LDFLAGS = @LIBS@ @LDFLAGS@
+SUBDIRS = core
+
+ifeq ($(IPVS_FLAG),_WITH_LVS_)
+  SUBDIRS += healthcheck
+endif
+
+ifeq ($(VRRP_FLAG),_WITH_VRRP_)
+  SUBDIRS += vrrp
+endif
+
+ifeq ($(IPVS_FLAG),_WITH_LVS_)
+  ifeq ($(KERNEL),_KRNL_2_2_)
+    SUBDIRS += libipfwc
+  else
+    SUBDIRS += libipvs
+  endif
+endif
+
+all:
+	@set -e; \
+	for i in $(SUBDIRS); do \
+	$(MAKE) -C $$i; done && \
+	echo "Building $(EXEC) in $(BIN)" && \
+	$(CC) -o $(BIN)/$(EXEC) $(LDFLAGS) `find $(SUBDIRS) -name '*.[oa]'`
+	strip $(BIN)/$(EXEC)
+	@echo ""
+	@echo "Make complete"
+
+debug:
+	@set -e; \
+	for i in $(SUBDIRS); do \
+	$(MAKE) -C $$i; done && \
+	echo "Building $(EXEC) in $(BIN)" && \
+	$(CC) -o $(BIN)/$(EXEC) $(LDFLAGS) `find $(SUBDIRS) -name '*.[oa]'`
+	@echo ""
+	@echo "Make complete"
+
+clean:
+	@set -e; \
+	for i in $(SUBDIRS); do \
+	$(MAKE) -C $$i clean; done
+	@echo ""
+	@echo "Make complete"
+
+distclean:
+	@set -e; \
+	for i in $(SUBDIRS); do \
+	$(MAKE) -C $$i distclean; done
+	rm -f Makefile
+
+mrproper: distclean
+	rm -f config.*
+
+uninstall:
+	rm -f $(sbindir)/$(EXEC)
+	rm -rf $(sysconfdir)/keepalived
+	rm -f $(init_dir)/$(init_script)
+
+install:
+	install -d $(sbindir)
+	install -m 700 $(BIN)/$(EXEC) $(sbindir)/
+	install -d $(sysconfdir)/init.d
+	install -m 755 $(init_script) $(sysconfdir)/init.d/
+	install -d $(sysconfdir)/keepalived/samples
+	install -m 644 $(conf_file) $(sysconfdir)/keepalived/
+	install -m 644 samples/* $(sysconfdir)/keepalived/samples/

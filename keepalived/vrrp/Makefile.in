@@ -1,0 +1,27 @@
+# Makefile
+#
+# Keepalived OpenSource project.
+#
+# Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
+
+CC	 = @CC@
+INCLUDES = -I../include
+CFLAGS	 = @CFLAGS@ $(INCLUDES) \
+	   -Wall -Wunused -Wstrict-prototypes
+DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ @DFLAGS@
+COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
+
+OBJS = 	vrrp.o vrrp_notify.o vrrp_scheduler.o vrrp_sync.o \
+	vrrp_netlink.o vrrp_if.o vrrp_ipaddress.o vrrp_ipsecah.o
+HEADERS = $(OBJS:.o=.h)
+
+.c.o:
+	$(COMPILE) -c $<
+
+all:	$(OBJS)
+
+clean:
+	rm -f *.a *.o *~
+
+distclean: clean
+	rm -f Makefile

@@ -1,0 +1,18 @@
+# Makefile to make libipvsc.
+
+CC	= @CC@
+CFLAGS	= @CFLAGS@ -Wall -Wunused
+
+export OBJS += libipvs.a
+
+all: libipvs.a
+
+libipvs.a: libipvs.a(libipvs.o)
+
+libipvsc.o: libipvs.h
+
+clean:
+	rm -f *.a *.o *~
+
+distclean: clean
+	rm -f Makefile

@@ -43,19 +43,19 @@
 
 /* HTTP/HTTPS request structure */
 typedef struct {
-  char *host;
-  char *buffer;
-  int error;
-  int max;
-  int len;
-  char *url;
-  unsigned short int port;
-  int fd;
-  int ssl;
-  char *keyfile;
-  char *password;
-  char *virtualhost;
-  char *cafile;
+	char *host;
+	char *buffer;
+	int error;
+	int max;
+	int len;
+	char *url;
+	unsigned short int port;
+	int fd;
+	int ssl;
+	char *keyfile;
+	char *password;
+	char *virtualhost;
+	char *cafile;
 } REQ;
 
 /* Output delimiters */

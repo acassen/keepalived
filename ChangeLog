@@ -1,3 +1,56 @@
+2002-07-05  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.6.6 released.
+	* added indentation style .indent.pro
+	* Review the previous source tree. Splitted the code into functional subdirs.
+	  Added multi-level automake scripts. The source tree looks like :
+		.
+		|-- bin
+		|-- genhash
+		|-- keepalived
+		|   |-- core
+		|   |-- etc
+		|   |   |-- init.d
+		|   |   `-- keepalived
+		|   |-- healthcheck
+		|   |-- include
+		|   |-- libipfwc
+		|   |-- libipvs
+		|   |-- samples
+		|   `-- vrrp
+		`-- lib
+	* Refine autoconf/automake scripts. Added automake support to libipvs and
+	  libipfwc. Added code selection compilation for libipvs and libipfwc.
+	* Review Makefile(s) to use more convenient facilities like distclean, ...
+	* Added support to modprobe_ipvs if the ip_vs.o module is not loaded.
+	  If modprobe fails then IPVS is assumed unavailable.
+	* Refine the IPVS wrapper to be more tolerant. When a VS or RS is already
+	  configured don t stop the daemon. The daemon is stopped only on critical
+	  IPVS errors.
+	* VRRP : Review the bootstrap sequence to start daemon even if one of the
+	  instance want to run on an interface administratively shut. Added extension
+	  to FSM to force transition to FAULT state during bootstrap if the interface
+	  is shut.
+	* Some cosmetics patches.
+
+2002-07-01  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.6.5 released.
+	* Fixed a NULL pointer exception while releasing IPVS entries.
+	* Review the Makefile.in to fixe some conventional issue. Fixed a libipvs
+	  dependance code selection.
+	* Christophe Varoqui, <Christophe.Varoqui@free.fr> created the rpm spec file.
+	* Roberto Nibali, <ratz@linux-vs.org> helped during OLS with code cleanup.
+	  Review the whole code coding style to use more conventional indentation. The
+	  one used into LVS and Kernel code. Coding style provided by the following
+	  command :
+	    find . -name "*.[chS]" -exec indent -kr -i8 -ts8 -sob -l80 -ss -bs -psl \
+	    {} \; && find . -name "*~" -exec rm  {} \;
+	* Roberto Nibali and I review the DEBUG logging facility adding global DBG()
+	  func declaration.
+	* Roberto Nibali fixed two potential buffer overflow (strcpy).
+	* Richard  L. Allbery, <rla@prideindustries.com> pointed out a fwmark issue.
+	  Healthcheckers is enabled if virtual service is a fwmark.
+	* Some cosmetics patches.
+
 2002-06-25  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.6.4 released.
 	* Rewrote the previous ip address utilities functions. Review the string
@@ -12,7 +65,7 @@
 	* Fixed a Kernel 2.2 code selection issue (ETHTOOL).
 	* Added support to wensong libipvs.
 	* Fixed a sorry_server cleanup side effect.
-	* Alex Karamasov, <alex@incredimail.com> fine the keepalived.init script
+	* Alex Kramarov, <alex@incredimail.com> fine the keepalived.init script
 	  to be compatible with redhat chkconfig.
 
 2002-06-18  Alexandre Cassen  <acassen@linux-vs.org>

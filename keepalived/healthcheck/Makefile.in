@@ -1,0 +1,39 @@
+# Makefile
+#
+# Keepalived OpenSource project.
+#
+# Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
+
+KERNEL   = @KERN@
+CC	 = @CC@
+CI_LINUX = @CI_LINUX@
+ifeq ($(CI_LINUX),_WITH_CI_LINUX_)
+CI_LINUX_OBJ = check_ci.o
+CIFLAGS = -D$(CI_LINUX)
+endif
+INCLUDES = -I../include
+CFLAGS	 = @CFLAGS@ $(INCLUDES) \
+	   -Wall -Wunused -Wstrict-prototypes
+DEFS	 = -D$(KERNEL) -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ @DFLAGS@ $(CIFLAGS)
+COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
+
+OBJS = 	check_api.o check_tcp.o check_http.o check_ssl.o \
+	check_misc.o ipwrapper.o ipvswrapper.o $(CI_LINUX_OBJ)
+
+ifeq ($(KERNEL),_KRNL_2_2_)
+OBJS += ipfwwrapper.o
+HEADERS += ipfwwrapper.h
+endif
+
+HEADERS = $(OBJS:.o=.h)
+
+.c.o:
+	$(COMPILE) -c $<
+
+all:	$(OBJS)
+
+clean:
+	rm -f *.a *.o *~
+
+distclean: clean
+	rm -f Makefile

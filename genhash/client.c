@@ -24,101 +24,110 @@
 
 #include "client.h"
 
-int tcp_connect(int fd, char *host, int port)
+int
+tcp_connect(int fd, char *host, int port)
 {
-  int long_inet = sizeof(struct sockaddr_in);
-  struct sockaddr_in adr_serv;
-  struct hostent *ip_serv;
-  int arglen;
-  struct timeval tv;
-  fd_set wfds;
-  int rc, val;
+	int long_inet = sizeof (struct sockaddr_in);
+	struct sockaddr_in adr_serv;
+	struct hostent *ip_serv;
+	int arglen;
+	struct timeval tv;
+	fd_set wfds;
+	int rc, val;
 
-  /* Proceed remote hostname */
-  memset(&ip_serv, 0, sizeof(struct hostent));
-  if ((ip_serv = gethostbyname(host)) == NULL)
-    return TCP_RESOLV_ERROR;
+	/* Proceed remote hostname */
+	memset(&ip_serv, 0, sizeof (struct hostent));
+	if ((ip_serv = gethostbyname(host)) == NULL)
+		return TCP_RESOLV_ERROR;
 
-  /* Fill in connection structure */
-  memset(&adr_serv, 0, long_inet);
-  adr_serv.sin_family = AF_INET;
-  adr_serv.sin_port = htons(port);
-  adr_serv.sin_addr = *(struct in_addr*)ip_serv->h_addr;
+	/* Fill in connection structure */
+	memset(&adr_serv, 0, long_inet);
+	adr_serv.sin_family = AF_INET;
+	adr_serv.sin_port = htons(port);
+	adr_serv.sin_addr = *(struct in_addr *) ip_serv->h_addr;
 
-  /* Set read/write socket nonblock */
-  val = fcntl(fd, F_GETFL);
-  fcntl(fd, F_SETFL, val | O_NONBLOCK);
+	/* Set read/write socket nonblock */
+	val = fcntl(fd, F_GETFL);
+	fcntl(fd, F_SETFL, val | O_NONBLOCK);
 
-  /* Connect the remote host */
-  rc = connect(fd, (struct sockaddr *)&adr_serv, long_inet);
-  if (rc == -1) {
-    if (errno !=  EINPROGRESS) {
-      rc = errno;
-      return TCP_CONNECT_ERROR;
-    }
-  }
+	/* Connect the remote host */
+	rc = connect(fd, (struct sockaddr *) &adr_serv, long_inet);
+	if (rc == -1) {
+		if (errno != EINPROGRESS) {
+			rc = errno;
+			return TCP_CONNECT_ERROR;
+		}
+	}
 
-  /* Timeout settings */
-  tv.tv_sec = SOCKET_TIMEOUT_READ;
-  tv.tv_usec = 0;
-  FD_ZERO(&wfds);
-  FD_SET(fd, &wfds);
+	/* Timeout settings */
+	tv.tv_sec = SOCKET_TIMEOUT_READ;
+	tv.tv_usec = 0;
+	FD_ZERO(&wfds);
+	FD_SET(fd, &wfds);
 
-  rc = select(fd+1, NULL, &wfds, NULL, &tv);
-  if (!FD_ISSET(fd, &wfds)) 
-    return TCP_WRITE_TIMEOUT;
+	rc = select(fd + 1, NULL, &wfds, NULL, &tv);
+	if (!FD_ISSET(fd, &wfds))
+		return TCP_WRITE_TIMEOUT;
 
-  if (rc <= 0) return TCP_SELECT_ERROR;
+	if (rc <= 0)
+		return TCP_SELECT_ERROR;
 
-  rc = 0;
-  arglen = sizeof(int);
-  if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &rc, &arglen) < 0)
-    rc = errno;
-  if (rc) return TCP_CONNECT_FAILED;
+	rc = 0;
+	arglen = sizeof (int);
+	if (getsockopt(fd, SOL_SOCKET, SO_ERROR, &rc, &arglen) < 0)
+		rc = errno;
+	if (rc)
+		return TCP_CONNECT_FAILED;
 
-  /* Restore socket parameters */
-  fcntl(fd, F_SETFL, val);
+	/* Restore socket parameters */
+	fcntl(fd, F_SETFL, val);
 
-  return TCP_CONNECT_SUCCESS;
+	return TCP_CONNECT_SUCCESS;
 }
 
-int tcp_send(int fd, char *request, int len)
+int
+tcp_send(int fd, char *request, int len)
 {
-  if (send(fd, request, len, 0) == -1)
-    return TCP_SEND_ERROR;
-  return 0;
+	if (send(fd, request, len, 0) == -1)
+		return TCP_SEND_ERROR;
+	return 0;
 }
 
-int tcp_read_to(int fd)
+int
+tcp_read_to(int fd)
 {
-  struct timeval tv;
-  fd_set rfds;
+	struct timeval tv;
+	fd_set rfds;
 
-  /* Timeout settings */
-  tv.tv_sec = SOCKET_TIMEOUT_READ;
-  tv.tv_usec = 0;
-  FD_ZERO(&rfds);
-  FD_SET(fd, &rfds);
+	/* Timeout settings */
+	tv.tv_sec = SOCKET_TIMEOUT_READ;
+	tv.tv_usec = 0;
+	FD_ZERO(&rfds);
+	FD_SET(fd, &rfds);
 
-  /* attempt read data */
-  select(fd+1, &rfds, NULL, NULL, &tv);
-  if (!FD_ISSET(fd, &rfds)) 
-    return TCP_READ_TIMEOUT;
-  return 0;
+	/* attempt read data */
+	select(fd + 1, &rfds, NULL, NULL, &tv);
+	if (!FD_ISSET(fd, &rfds))
+		return TCP_READ_TIMEOUT;
+	return 0;
 }
 
-int tcp_sock(void)
+int
+tcp_sock(void)
 {
-  int fd;
-  struct sockaddr_in adr_local;
+	int fd;
+	struct sockaddr_in adr_local;
 
-  if ((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) return (-1);
-  memset(&adr_local, 0, sizeof(struct sockaddr_in));
-  adr_local.sin_family = AF_INET;
-  adr_local.sin_port = htons(0);
-  adr_local.sin_addr.s_addr = htonl(INADDR_ANY);
+	if ((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1)
+		return (-1);
+	memset(&adr_local, 0, sizeof (struct sockaddr_in));
+	adr_local.sin_family = AF_INET;
+	adr_local.sin_port = htons(0);
+	adr_local.sin_addr.s_addr = htonl(INADDR_ANY);
 
-  if (bind(fd, (struct sockaddr *)&adr_local, sizeof(struct sockaddr_in))) return (-1);
+	if (bind
+	    (fd, (struct sockaddr *) &adr_local, sizeof (struct sockaddr_in)))
+		return (-1);
 
-  return(fd);
+	return (fd);
 }

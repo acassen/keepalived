@@ -29,12 +29,13 @@
 #include <string.h>
 #include <signal.h>
 #include <openssl/ssl.h>
+#include <openssl/err.h>
 
 /* prototypes */
 extern int berr_exit(char *string);
 extern int err_exit(char *string);
 extern SSL_CTX *initialize_ctx(char *keyfile, char *password, char *cafile);
-extern void destroy_ctx(SSL_CTX *ctx);
+extern void destroy_ctx(SSL_CTX * ctx);
 
 #ifndef ALLOW_OLD_VERSIONS
 #if(OPENSSL_VERSION_NUMBER < 0x00905100L)

@@ -5,7 +5,7 @@
 # Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
 
 EXEC = genhash
-
+BIN  = ../bin
 prefix = @prefix@
 exec_prefix = @exec_prefix@
 bindir = @bindir@
@@ -17,19 +17,22 @@ LDFLAGS = @LIBS@ @LDFLAGS@
 OBJS = main.o client.o common.o
 
 all:	$(EXEC)
-	strip $(EXEC)
+	strip $(BIN)/$(EXEC)
 	@echo ""
 	@echo "Make complete"
 
 $(EXEC): $(OBJS)
-	$(CC) $(OBJS) -o $(EXEC) $(LDFLAGS)
+	$(CC) $(OBJS) -o $(BIN)/$(EXEC) $(LDFLAGS)
 
 clean:
-	rm -f core *.o $(EXEC)
+	rm -f core *.o
 
-clean-dist:
+distclean:
+	rm -f Makefile
+
+uninstall:
 	rm -f $(bindir)/$(EXEC)
 
 install:
 	install -d $(bindir)
-	install -m 755 $(EXEC) $(bindir)/
+	install -m 755 $(BIN)/$(EXEC) $(bindir)/

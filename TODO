@@ -1,6 +1,19 @@
 * Insert LDAP, FTP, SSH, IMAP, POP, RADIUS checkers.
 * Add minimum configuration verification (realserver must have
   a checker defined, ...)
-* Add system verification (must have LVS support in kernel, 
-                           must have netlink support in kernel,
-                           must have routing messages in kernel).
+* documentation:
+	- hackers guide
+	- code documentation
+	- users guide
+* code cleanup:
+	- name space cleanup
+	- function returnval check
+	- maybe put *.h files into a ../include directory
+	- maybe add a ../healthcheck directory for the checks
+* more choice with parameters, less hardcoded values:
+	- a general.conf could help, stuff like timeouts and so on
+* functionality:
+	- better startup check mechanism to prevent long debugging sessions
+	- hooks for external checktools. For node-failover
+	- a VTYSH to administrate keepalived on the fly
+	- something I forgot right now :)
