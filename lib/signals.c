@@ -5,7 +5,7 @@
  * 
  * Part:        Signals framework.
  *  
- * Version:     $Id: signals.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
+ * Version:     $Id: signals.c,v 1.1.11 2005/03/01 01:22:13 acassen Exp $
  * 
  * Author:      Kevin Lindsay, <kevinl@netnation.com>
  *              Alexandre Cassen, <acassen@linux-vs.org>
@@ -156,26 +156,26 @@ void
 signal_run_callback(void)
 {
 	if (SIGNAL_SIGHUP & signal_mask) {
+		signal_mask &= ~SIGNAL_SIGHUP;
 		if (signal_SIGHUP_handler)
 			signal_SIGHUP_handler(SIGHUP);
-		signal_mask &= SIGNAL_SIGHUP;
 	}
 
 	if (SIGNAL_SIGINT & signal_mask) {
+		signal_mask &= ~SIGNAL_SIGINT;
 		if (signal_SIGINT_handler)
 			signal_SIGINT_handler(SIGINT);
-		signal_mask &= SIGNAL_SIGINT;
 	}
 
 	if (SIGNAL_SIGTERM & signal_mask) {
+		signal_mask &= ~SIGNAL_SIGTERM;
 		if (signal_SIGTERM_handler)
 			signal_SIGTERM_handler(SIGTERM);
-		signal_mask &= SIGNAL_SIGTERM;
 	}
 
 	if (SIGNAL_SIGCHLD & signal_mask) {
+		signal_mask &= ~SIGNAL_SIGCHLD;
 		if (signal_SIGCHLD_handler)
 			signal_SIGCHLD_handler(SIGCHLD);
-		signal_mask &= SIGNAL_SIGCHLD;
 	}
 }

@@ -10,6 +10,7 @@ exec_prefix = @exec_prefix@
 bindir     = @bindir@
 
 CC = @CC@
+STRIP = @STRIP@
 INCLUDES = -I../lib
 CFLAGS = @CFLAGS@ @CPPFLAGS@ $(INCLUDES) \
 	 -Wall -Wunused -Wstrict-prototypes
@@ -21,7 +22,7 @@ LIB_OBJS = ../lib/timer.o ../lib/scheduler.o \
 	   ../lib/html.o ../lib/signals.o
 
 all:	$(BIN)/$(EXEC)
-	strip $(BIN)/$(EXEC)
+	$(STRIP) $(BIN)/$(EXEC)
 	@echo ""
 	@echo "Make complete"
 

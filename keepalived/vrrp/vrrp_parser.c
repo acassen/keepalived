@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: vrrp_parser.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
+ * Version:     $Id: vrrp_parser.c,v 1.1.11 2005/03/01 01:22:13 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              

@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 routes manipulation.
  *
- * Version:     $Id: vrrp_iproute.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
+ * Version:     $Id: vrrp_iproute.c,v 1.1.11 2005/03/01 01:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -143,6 +143,7 @@ alloc_route(list rt_list, vector strvec)
 {
 	ip_route *new;
 	uint32_t ipaddr = 0;
+	interface *ifp;
 	char *str;
 	int i = 0;
 
@@ -158,7 +159,15 @@ alloc_route(list rt_list, vector strvec)
 		} else if (!strcmp(str, "src")) {
 			inet_ston(VECTOR_SLOT(strvec, ++i), &new->src);
 		} else if (!strcmp(str, "dev") || !strcmp(str, "oif")) {
-			new->index = IF_INDEX(if_get_by_ifname(VECTOR_SLOT(strvec, ++i)));
+			ifp = if_get_by_ifname(VECTOR_SLOT(strvec, ++i));
+			if (!ifp) {
+				syslog(LOG_INFO, "VRRP is trying to assign VROUTE to unknown "
+				       "%s interface !!! go out and fixe your conf !!!",
+				       (char *)VECTOR_SLOT(strvec, i));
+				FREE(new);
+				return;
+			}
+			new->index = IF_INDEX(ifp);
 		} else if (!strcmp(str, "table")) {
 			new->table = atoi(VECTOR_SLOT(strvec, ++i));
 		} else if (!strcmp(str, "scope")) {

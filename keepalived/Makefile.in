@@ -18,6 +18,7 @@ init_script = etc/init.d/keepalived.init
 conf_file   = etc/keepalived/keepalived.conf
 
 CC = @CC@
+STRIP = @STRIP@
 LDFLAGS = @LIBS@ @LDFLAGS@ -ldl
 SUBDIRS = core
 
@@ -47,7 +48,7 @@ all:
 	$(MAKE) -C $$i || exit 1; done && \
 	echo "Building $(BIN)/$(EXEC)" && \
 	$(CC) -o $(BIN)/$(EXEC) `find $(SUBDIRS) ../lib -name '*.[oa]'` $(LDFLAGS)
-	strip $(BIN)/$(EXEC)
+	$(STRIP) $(BIN)/$(EXEC)
 	@echo ""
 	@echo "Make complete"
 

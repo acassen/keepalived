@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 address manipulation.
  *
- * Version:     $Id: vrrp_ipaddress.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.c,v 1.1.11 2005/03/01 01:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -127,6 +127,13 @@ alloc_ipaddress(list ip_list, vector strvec, interface *ifp)
 		/* cmd parsing */
 		if (!strcmp(str, "dev")) {
 			new->ifp = if_get_by_ifname(VECTOR_SLOT(strvec, ++i));
+			if (!new->ifp) {
+				syslog(LOG_INFO, "VRRP is trying to assign VIP to unknown %s"
+				       " interface !!! go out and fixe your conf !!!",
+				       (char *)VECTOR_SLOT(strvec, i));
+				FREE(new);
+				return;
+			}
 			new->ifindex = IF_INDEX(new->ifp);
 		} else if (!strcmp(str, "scope")) {
 			new->scope = netlink_scope_a2n(VECTOR_SLOT(strvec, ++i));

@@ -309,7 +309,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CPP EGREP LINKWATCH_SUPPORT KERN IPVS_SYNCD DFLAGS VERSION VERSION_DATE IPVS_SUPPORT VRRP_SUPPORT LIBOBJS LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA STRIP ac_ct_STRIP CPP EGREP LINKWATCH_SUPPORT KERN IPVS_SYNCD DFLAGS VERSION VERSION_DATE IPVS_SUPPORT VRRP_SUPPORT LIBOBJS LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -2336,6 +2336,85 @@ test -z "$INSTALL_SCRIPT" && INSTALL_SCRIPT='${INSTALL}'
 
 test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
 
+if test -n "$ac_tool_prefix"; then
+  # Extract the first word of "${ac_tool_prefix}strip", so it can be a program name with args.
+set dummy ${ac_tool_prefix}strip; ac_word=$2
+echo "$as_me:$LINENO: checking for $ac_word" >&5
+echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
+if test "${ac_cv_prog_STRIP+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  if test -n "$STRIP"; then
+  ac_cv_prog_STRIP="$STRIP" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if $as_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_STRIP="${ac_tool_prefix}strip"
+    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+
+fi
+fi
+STRIP=$ac_cv_prog_STRIP
+if test -n "$STRIP"; then
+  echo "$as_me:$LINENO: result: $STRIP" >&5
+echo "${ECHO_T}$STRIP" >&6
+else
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+fi
+
+fi
+if test -z "$ac_cv_prog_STRIP"; then
+  ac_ct_STRIP=$STRIP
+  # Extract the first word of "strip", so it can be a program name with args.
+set dummy strip; ac_word=$2
+echo "$as_me:$LINENO: checking for $ac_word" >&5
+echo $ECHO_N "checking for $ac_word... $ECHO_C" >&6
+if test "${ac_cv_prog_ac_ct_STRIP+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  if test -n "$ac_ct_STRIP"; then
+  ac_cv_prog_ac_ct_STRIP="$ac_ct_STRIP" # Let the user override the test.
+else
+as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+  for ac_exec_ext in '' $ac_executable_extensions; do
+  if $as_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_prog_ac_ct_STRIP="strip"
+    echo "$as_me:$LINENO: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+done
+
+fi
+fi
+ac_ct_STRIP=$ac_cv_prog_ac_ct_STRIP
+if test -n "$ac_ct_STRIP"; then
+  echo "$as_me:$LINENO: result: $ac_ct_STRIP" >&5
+echo "${ECHO_T}$ac_ct_STRIP" >&6
+else
+  echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+fi
+
+  STRIP=$ac_ct_STRIP
+else
+  STRIP="$ac_cv_prog_STRIP"
+fi
+
 
 # Check whether --enable-lvs-syncd or --disable-lvs-syncd was given.
 if test "${enable_lvs_syncd+set}" = set; then
@@ -2356,9 +2435,9 @@ fi;
 # Check whether --with-kernel-dir or --without-kernel-dir was given.
 if test "${with_kernel_dir+set}" = set; then
   withval="$with_kernel_dir"
-  kernelinc="$withval/include"
+  kernelinc="$withval/include" kernelpath="$withval"
 else
-  kernelinc="/usr/src/linux/include"
+  kernelinc="/usr/src/linux/include" kernelpath="/usr/src/linux"
 fi;
 # Check whether --enable-debug or --disable-debug was given.
 if test "${enable_debug+set}" = set; then
@@ -3555,24 +3634,25 @@ echo "${ECHO_T}$LINUX_MAJOR.$LINUX_MINOR.$LINUX_PATCH" >&6
 echo "$as_me: WARNING: Cannot determine Linux Kernel version." >&2;}
   fi
 
-echo "$as_me:$LINENO: checking for /usr/src/linux/net/core/link_watch.c" >&5
-echo $ECHO_N "checking for /usr/src/linux/net/core/link_watch.c... $ECHO_C" >&6
-if test "${ac_cv_file__usr_src_linux_net_core_link_watch_c+set}" = set; then
+as_ac_File=`echo "ac_cv_file_$kernelpath/net/core/link_watch.c" | $as_tr_sh`
+echo "$as_me:$LINENO: checking for $kernelpath/net/core/link_watch.c" >&5
+echo $ECHO_N "checking for $kernelpath/net/core/link_watch.c... $ECHO_C" >&6
+if eval "test \"\${$as_ac_File+set}\" = set"; then
   echo $ECHO_N "(cached) $ECHO_C" >&6
 else
   test "$cross_compiling" = yes &&
   { { echo "$as_me:$LINENO: error: cannot check for file existence when cross compiling" >&5
 echo "$as_me: error: cannot check for file existence when cross compiling" >&2;}
    { (exit 1); exit 1; }; }
-if test -r "/usr/src/linux/net/core/link_watch.c"; then
-  ac_cv_file__usr_src_linux_net_core_link_watch_c=yes
+if test -r "$kernelpath/net/core/link_watch.c"; then
+  eval "$as_ac_File=yes"
 else
-  ac_cv_file__usr_src_linux_net_core_link_watch_c=no
+  eval "$as_ac_File=no"
 fi
 fi
-echo "$as_me:$LINENO: result: $ac_cv_file__usr_src_linux_net_core_link_watch_c" >&5
-echo "${ECHO_T}$ac_cv_file__usr_src_linux_net_core_link_watch_c" >&6
-if test $ac_cv_file__usr_src_linux_net_core_link_watch_c = yes; then
+echo "$as_me:$LINENO: result: `eval echo '${'$as_ac_File'}'`" >&5
+echo "${ECHO_T}`eval echo '${'$as_ac_File'}'`" >&6
+if test `eval echo '${'$as_ac_File'}'` = yes; then
 
                 LINKWATCH_SUPPORT="_WITH_LINKWATCH_"
 
@@ -5125,6 +5205,8 @@ s,@OBJEXT@,$OBJEXT,;t t
 s,@INSTALL_PROGRAM@,$INSTALL_PROGRAM,;t t
 s,@INSTALL_SCRIPT@,$INSTALL_SCRIPT,;t t
 s,@INSTALL_DATA@,$INSTALL_DATA,;t t
+s,@STRIP@,$STRIP,;t t
+s,@ac_ct_STRIP@,$ac_ct_STRIP,;t t
 s,@CPP@,$CPP,;t t
 s,@EGREP@,$EGREP,;t t
 s,@LINKWATCH_SUPPORT@,$LINKWATCH_SUPPORT,;t t

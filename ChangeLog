@@ -1,3 +1,16 @@
+2005-03-01  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.11 released.
+	* Asier Llano Palacios, <a.llano@usyscom.com> extended
+	  autoconf script to support cross-compilation.
+	* Kevin Lindsay, <kevinl@netnation.com> and I fixed a
+	  missing bitwise negation while removing signal from
+	  global signal mask. Set this operation before handler
+	  is called. This assume that bitwise negation is an
+	  atomic code generated from compiler. Since gcc 3.3
+	  this is true.
+	* VRRP : extended ipaddress and iproutes code to return
+	  if vip or vroutes is referencing an unknown interface.
+
 2005-02-15  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.10 released.
 	* VRRP : While restoring interface, release iproutes
