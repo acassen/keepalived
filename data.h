@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.h,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
+ * Version:     $Id: data.h,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -31,6 +31,7 @@
 #include <arpa/inet.h>
 #include <openssl/ssl.h>
 
+#ifdef _WITH_LVS_
 #ifdef _KRNL_2_2_
   #include <linux/ip_masq.h>
   #include <net/ip_masq.h>
@@ -39,6 +40,9 @@
   #define SCHED_MAX_LENGTH IP_VS_SCHEDNAME_MAXLEN
 #endif
 #include <net/ip_vs.h>
+#else
+  #define SCHED_MAX_LENGTH   1
+#endif
 
 /* local includes */
 #include "list.h"
@@ -76,10 +80,11 @@ typedef struct _virtual_server {
   uint16_t		service_type;
   int			delay_loop;
   char			sched[SCHED_MAX_LENGTH];
+  char			timeout_persistence[MAX_TIMEOUT_LENGTH];
   unsigned		loadbalancing_kind;
   uint32_t		nat_mask;
-  char			timeout_persistence[MAX_TIMEOUT_LENGTH];
   uint32_t		granularity_persistence;
+  char			*virtualhost;
   real_server		*s_svr;
   list			rs;
 } virtual_server;
@@ -105,6 +110,8 @@ typedef struct _data {
 #define ISALIVE(R)   ((R)->alive)
 #define SVR_IP(H)    ((H)->addr_ip)
 #define SVR_PORT(H)  ((H)->addr_port)
+#define VHOST(V)     ((V)->virtualhost)
+#define LAST_RS_TYPE(V)     ((V)->last_rs_type)
 
 /* prototypes */
 extern void alloc_email(char *addr);

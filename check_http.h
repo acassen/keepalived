@@ -5,7 +5,7 @@
  *
  * Part:        check_http.c include file.
  *
- * Version:     $Id: check_http.h,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
+ * Version:     $Id: check_http.h,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -61,6 +61,7 @@ typedef struct _url {
 } url;
 typedef struct _http_get_checker {
   int      proto;
+  uint16_t connection_port;
   int      connection_to;
   int      nb_get_retry;
   int      delay_before_retry;
@@ -80,7 +81,6 @@ typedef struct _http_get_checker {
 #define REQUEST_TEMPLATE "GET %s HTTP/1.0\r\n" \
                          "User-Agent:KeepAliveClient\r\n" \
                          "Host: %s:%d\r\n\r\n"
-
 /* macro utility */
 #define HTTP_ARG(X) ((X)->arg)
 #define HTTP_REQ(X) ((X)->req)

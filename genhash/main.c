@@ -93,6 +93,7 @@ static char *extract_html(char *buffer, int size_buffer)
 static char *build_request(REQ* req)
 {
   char *request;
+  char *vhost;
   int request_len = 0;
 
   request_len = strlen(REQUEST_TEMPLATE) +
@@ -102,10 +103,13 @@ static char *build_request(REQ* req)
   request = xmalloc(request_len);
   if (!request) return NULL;
 
+  vhost = req->host;
+  if (req->virtualhost)
+    vhost = req->virtualhost;
   snprintf(request, request_len
                   , REQUEST_TEMPLATE
                   , req->url
-                  , req->host
+                  , vhost
                   , req->port);
   return request;
 }
@@ -422,10 +426,11 @@ static void usage(const char *prog)
     "  %s --url             -u       Use the specified remote server url.\n"
     "  %s --use-private-key -K       Use the specified SSL private key.\n"
     "  %s --use-password    -P       Use the specified SSL private key password.\n"
+    "  %s --use-virtualhost -V       Use the specified VirtualHost GET query.\n"
     "  %s --use-certificate -C       Use the specified SSL Certificate file.\n"
     "  %s --help            -h       Display this short inlined help screen.\n"
     "  %s --version         -v       Display the version number\n",
-    prog, prog, prog, prog, prog, prog, prog, prog, prog);
+    prog, prog, prog, prog, prog, prog, prog, prog, prog, prog);
 }
 
 /* Command line parser */
@@ -443,6 +448,7 @@ static int parse_cmdline(int argc, char **argv, REQ *req)
     {"port",            'p', POPT_ARG_STRING, &optarg, 'p'},
     {"url",             'u', POPT_ARG_STRING, &optarg, 'u'},
     {"use-private-key", 'K', POPT_ARG_STRING, &optarg, 'K'},
+    {"use-virtualhost", 'V', POPT_ARG_STRING, &optarg, 'V'},
     {"use-password",    'P', POPT_ARG_STRING, &optarg, 'P'},
     {"use-certificate", 'C', POPT_ARG_STRING, &optarg, 'C'},
     {NULL, 0, 0, NULL, 0}
@@ -491,6 +497,9 @@ static int parse_cmdline(int argc, char **argv, REQ *req)
         break;
       case 'P':
         req->password = optarg;
+        break;
+      case 'V':
+        req->virtualhost = optarg;
         break;
       case 'C':
         req->cafile = optarg;

@@ -5,7 +5,7 @@
  *
  * Part:        ipvswrapper.c include file.
  *
- * Version:     $Id: ipvswrapper.h,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
+ * Version:     $Id: ipvswrapper.h,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -36,11 +36,13 @@
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 
+#ifdef _WITH_LVS_
 #ifdef _KRNL_2_2_
   #include <linux/ip_fw.h>
   #include <net/ip_masq.h>
 #endif
 #include <net/ip_vs.h>
+#endif
 
 /* locale includes */
 #include "scheduler.h"
@@ -69,7 +71,7 @@ extern int parse_timeout(char *buf, unsigned *timeout);
 extern int string_to_number(const char *s, int min, int max);
 extern int ipvs_cmd(int cmd, virtual_server *vserver, real_server *rserver);
 extern int ipvs_syncd_cmd(int cmd, char *ifname, int state);
-extern int ipvs_syncd_master_thread(thread *thread);
-extern int ipvs_syncd_backup_thread(thread *thread);
+extern void ipvs_syncd_master(char *ifname);
+extern void ipvs_syncd_backup(char *ifname);
 
 #endif

@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
+ * Version:     $Id: vrrp.c,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -362,7 +362,7 @@ static int vrrp_in_chk(vrrp_rt *vrrp, char *buffer)
   if (hd->auth_type == VRRP_AUTH_PASS) {
     char *pw = (char *)ip + ntohs(ip->tot_len)
                           - sizeof(vrrp->auth_data);
-    if (memcmp(pw, vrrp->auth_data, sizeof(vrrp->auth_data))) {
+    if (strncmp(pw, vrrp->auth_data, strlen(vrrp->auth_data)) != 0) {
       syslog(LOG_INFO, "receive an invalid passwd!");
       return VRRP_PACKET_KO;
     }
@@ -765,9 +765,7 @@ void vrrp_state_goto_master(vrrp_rt *vrrp)
 #ifdef _HAVE_IPVS_SYNCD_
   /* Check if sync daemon handling is needed */
   if (vrrp->lvs_syncd_if)
-    thread_add_timer(master, ipvs_syncd_master_thread
-                           , vrrp->lvs_syncd_if
-                           , IPVS_CMD_DELAY);
+    ipvs_syncd_master(vrrp->lvs_syncd_if);
 #endif
 
   if (vrrp->wantstate == VRRP_STATE_MAST) {
@@ -809,9 +807,7 @@ void vrrp_state_leave_master(vrrp_rt *vrrp)
 #ifdef _HAVE_IPVS_SYNCD_
   /* Check if sync daemon handling is needed */
   if (vrrp->lvs_syncd_if)
-    thread_add_timer(master, ipvs_syncd_backup_thread
-                           , vrrp->lvs_syncd_if
-                           , IPVS_CMD_DELAY);
+    ipvs_syncd_backup(vrrp->lvs_syncd_if);
 #endif
 
   /* set the new vrrp state */
@@ -918,6 +914,10 @@ int vrrp_state_master_rx(vrrp_rt *vrrp, char *buf, int buflen)
     vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
     vrrp->state = VRRP_STATE_BACK;
     return 1;
+  } else if (hd->priority < vrrp->priority) {
+    /* We receive a lower prio adv we just refresh remote ARP cache */
+    vrrp_send_gratuitous_arp(vrrp);
+    return 0;
   }
 
   return 0;

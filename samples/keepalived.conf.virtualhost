@@ -1,0 +1,38 @@
+! Configuration File for keepalived
+
+global_defs {
+   notification_email {
+     acassen
+   }
+   notification_email_from Alexandre.Cassen@firewall.loc
+   smtp_server 192.168.200.1
+   smtp_connect_timeout 30
+   lvs_id LVS_DEVEL
+}
+
+virtual_server 192.168.200.100 80 {
+    delay_loop 6
+    lb_algo rr 
+    lb_kind NAT
+    persistence_timeout 50
+    protocol TCP
+    virtualhost www.firewall.loc    # The VirtualHost string to use
+                                    # in the GET query.
+
+    real_server 192.168.201.100 80 {
+        weight 1
+        SSL_GET {
+            url { 
+              path /
+              digest ff20ad2481f97b1754ef3e12ecd3a9cc
+            }
+            url { 
+              path /mrtg/
+              digest 9b3a0c85a887a256d6939da88aabd8cd
+            }
+            connect_timeout 3
+            nb_get_retry 3
+            delay_before_retry 3
+        }
+    }
+}

@@ -148,7 +148,6 @@ Keepalived configuration
 Keepalived version       : ${VERSION}
 Compiler                 : ${CC}
 Compiler flags           : ${CFLAGS}
-Compiler flags           : ${CFLAGS}
 Linux Kernel release     : ${KERNEL_VERSION}
 Startup scripts location : ${SYSTEM_SCRIPT_DIR}
 EOF

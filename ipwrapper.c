@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $id: ipwrapper.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
+ * Version:     $id: ipwrapper.c,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -25,23 +25,31 @@
 
 extern data *conf_data;
 
-int clear_service_vs(virtual_server *vs)
+static int clear_service_rs(virtual_server *vs, list l)
 {
   element e;
 
-  for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
-    /* IPVS cleaning server entry */
-    if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs, e->data))
+  for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+    if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs, ELEMENT_DATA(e)))
       return 0;
-
 #ifdef _KRNL_2_2_
-    /* IPFW cleaning server entry if granularity = /32 */
+    /* if we have a /32 mask, we create one nat rules per
+     * realserver.
+     */
     if (vs->nat_mask == HOST_NETMASK)
-      if (!ipfw_cmd(IP_FW_CMD_DEL, vs, e->data))
+      if(!ipfw_cmd(IP_FW_CMD_DEL, vs, ELEMENT_DATA(e)))
         return 0;
 #endif
   }
+  return 1;
+}
 
+int clear_service_vs(virtual_server *vs)
+{
+  /* Processing real server queue */
+  if (!LIST_ISEMPTY(vs->rs))
+    if (!clear_service_rs(vs, vs->rs))
+      return 0;
   if (!ipvs_cmd(LVS_CMD_DEL, vs, NULL))
     return 0;
   return 1;
@@ -155,27 +163,35 @@ void perform_svr_state(int alive, virtual_server *vs, real_server *rs)
   }
 }
 
-int init_service_vs(virtual_server *vs)
+static int init_service_rs(virtual_server *vs, list l)
 {
   element e;
 
-  /* Init the IPVS root */
-  if (!ipvs_cmd(LVS_CMD_ADD, vs, NULL))
-    return 0;
-
-  for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
-    if (!ipvs_cmd(LVS_CMD_ADD_DEST, vs, e->data))
+  for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+    if (!ipvs_cmd(LVS_CMD_ADD_DEST, vs, ELEMENT_DATA(e)))
       return 0;
-
 #ifdef _KRNL_2_2_
     /* if we have a /32 mask, we create one nat rules per
      * realserver.
      */
     if (vs->nat_mask == HOST_NETMASK)
-      if(!ipfw_cmd(IP_FW_CMD_ADD, vs, e->data))
+      if(!ipfw_cmd(IP_FW_CMD_ADD, vs, ELEMENT_DATA(e)))
         return 0;
 #endif
   }
+  return 1;
+}
+
+int init_service_vs(virtual_server *vs)
+{
+  /* Init the IPVS root */
+  if (!ipvs_cmd(LVS_CMD_ADD, vs, NULL))
+    return 0;
+
+  /* Processing real server queue */
+  if (!LIST_ISEMPTY(vs->rs))
+    if (!init_service_rs(vs, vs->rs))
+      return 0;
   return 1;
 }
 

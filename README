@@ -10,3 +10,15 @@ strong multi-threading framework. All the events process use this I/O
 multiplexer.
 
 Keepalived is free software. See the file COPYING for copying conditions.
+
+
+OPENSSL TOOLKIT LICENCE EXCEPTION
+
+In addition, as the copyright holder of Keepalived,
+I, Alexandre Cassen, <acassen@linux-vs.org>,
+grant the following special exception: 
+
+        I, Alexandre Cassen, <acassen@linux-vs.org>, explicitly allow
+        the compilation and distribution of the Keepalived software with
+        the OpenSSL Toolkit.
+

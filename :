@@ -292,6 +292,7 @@ void alloc_rs(char *ip, char *port)
   if (LIST_ISEMPTY(vs->rs))
     vs->rs = alloc_list(free_rs, dump_rs);
   list_add(vs->rs, new);
+  vs->last_rs_type = RS;
 }
 
 /* data facility functions */

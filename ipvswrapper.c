@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -52,7 +52,7 @@ int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
     syslog(LOG_INFO, "IPVS WRAPPER : Virtual service [%s:%d] illegal timeout."
                    , ip_ntoa(SVR_IP(vs))
                    , ntohs(SVR_PORT(vs)));
-  if (urule.timeout != 0 || vs->granularity_persistence)
+  if (ctl.u.vs_user.timeout != 0 || vs->granularity_persistence)
     ctl.u.vs_user.vs_flags = IP_VS_SVC_F_PERSISTENT;
   
   /* VS specific */
@@ -260,38 +260,16 @@ int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
 /*
  * IPVS synchronization daemon state transition
  */
-int ipvs_syncd_goto_master_thread(thread *thread)
+void ipvs_syncd_master(char *ifname)
 {
-  char *ifname = THREAD_ARG(thread);
-  ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_MASTER);
-  return 0;
-}
-
-int ipvs_syncd_master_thread(thread *thread)
-{
-  char *ifname = THREAD_ARG(thread);
   ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_BACKUP);
-  thread_add_timer(master, ipvs_syncd_goto_master_thread
-                         , ifname
-                         , IPVS_CMD_DELAY);
-  return 0;
+  ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_MASTER);
 }
 
-int ipvs_syncd_goto_backup_thread(thread *thread)
+void ipvs_syncd_backup(char *ifname)
 {
-  char *ifname = THREAD_ARG(thread);
-  ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_BACKUP);
-  return 0;
-}
-
-int ipvs_syncd_backup_thread(thread *thread)
-{
-  char *ifname = THREAD_ARG(thread);
   ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_MASTER);
-  thread_add_timer(master, ipvs_syncd_goto_backup_thread
-                         , ifname
-                         , IPVS_CMD_DELAY);
-  return 0;
+  ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_BACKUP);
 }
 
 /*

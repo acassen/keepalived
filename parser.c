@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
+ * Version:     $Id: parser.c,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -172,12 +172,19 @@ static vector alloc_strvec(char *string)
 
   while (1) {
     start = cp;
-    while (!isspace((int) *cp) && *cp != '\0')
+    if (*cp == '"') {
       cp++;
-    strlen = cp - start;
-    token = MALLOC(strlen + 1);
-    memcpy(token, start, strlen);
-    *(token + strlen) = '\0';
+      token = MALLOC(2);
+      *(token)     = '"';
+      *(token + 1) = '\0';
+    } else {
+      while (!isspace((int) *cp) && *cp != '\0' && *cp != '"')
+        cp++;
+      strlen = cp - start;
+      token = MALLOC(strlen + 1);
+      memcpy(token, start, strlen);
+      *(token + strlen) = '\0';
+    }
 
     /* Alloc & set the slot */
     vector_alloc_slot(strvec);
@@ -246,10 +253,27 @@ void *set_value(vector strvec)
 {
   char *str = VECTOR_SLOT(strvec, 1);
   int size = strlen(str);
-  void *alloc;
+  int i = 0;
+  int len = 0;
+  char *alloc = NULL;
 
-  alloc = MALLOC(size+1);
-  memcpy(alloc, str, size);
+  if (*str == '"') {
+    for (i = 2; i < VECTOR_SIZE(strvec); i++) {
+      str = VECTOR_SLOT(strvec, i);
+      len += strlen(str);
+      if (!alloc)
+        alloc = (char *)MALLOC(sizeof(char *) * (len + 1));
+      else {
+        alloc = REALLOC(alloc, sizeof(char *) * (len + 1));
+        strncat(alloc, " ", 1);
+      }
+      if (*str != '"')
+        strncat(alloc, str, strlen(str));
+    }
+  } else {
+    alloc = MALLOC(sizeof(char *) * (size + 1));
+    memcpy(alloc, str, size);
+  }
   return alloc;
 }
 
@@ -471,6 +495,7 @@ static void lbalgo_handler(vector strvec)
 }
 static void lbkind_handler(vector strvec)
 {
+#ifdef _WITH_LVS_
   virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
   char *str = VECTOR_SLOT(strvec, 1);
 
@@ -496,6 +521,7 @@ static void lbkind_handler(vector strvec)
       else
         syslog(LOG_DEBUG, "PARSER : unknown [%s] routing method."
                         , str);
+#endif
 }
 static void natmask_handler(vector strvec)
 {
@@ -520,6 +546,11 @@ static void proto_handler(vector strvec)
   virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
   char *str = VECTOR_SLOT(strvec, 1);
   vs->service_type = (!strcmp(str, "TCP"))?IPPROTO_TCP:IPPROTO_UDP;
+}
+static void virtualhost_handler(vector strvec)
+{
+  virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
+  vs->virtualhost = set_value(strvec);
 }
 
 /* Sorry Servers handlers */
@@ -626,6 +657,7 @@ void init_keywords(void)
     install_keyword("auth_pass",		&vrrp_auth_pass_handler);
   install_sublevel_end();
 
+#ifdef _WITH_LVS_
   /* Virtual server mapping */
   install_keyword_root("virtual_server", 	&vs_handler);
   install_keyword("delay_loop", 		&delay_handler);
@@ -635,18 +667,18 @@ void init_keywords(void)
   install_keyword("persistence_timeout", 	&pto_handler);
   install_keyword("persistence_granularity", 	&pgr_handler);
   install_keyword("protocol", 			&proto_handler);
+  install_keyword("virtualhost", 		&virtualhost_handler);
 
   /* Real server mapping */
   install_keyword("sorry_server",		&ssvr_handler);
   install_keyword("real_server", 		&rs_handler);
   install_sublevel();
-  install_keyword("weight", 			&weight_handler);
+    install_keyword("weight", 			&weight_handler);
 
   /* Checkers mapping */
-#ifdef _WITH_LVS_
-  install_checkers_keyword();
-#endif
+    install_checkers_keyword();
   install_sublevel_end();
+#endif
 }
 
 void init_data(char *conf_file)

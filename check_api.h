@@ -5,7 +5,7 @@
  *
  * Part:        Checkers arguments structures definitions.
  *
- * Version:     $Id: check_api.h,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
+ * Version:     $Id: check_api.h,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -48,6 +48,7 @@ list checkers_queue;
 #define CHECKER_VALUE_STRING(X) (set_value(X))
 #define CHECKER_RIP(C)   (SVR_IP((C)->rs))
 #define CHECKER_RPORT(C) (SVR_PORT((C)->rs))
+#define CHECKER_VHOST(C) (VHOST((C)->vs))
 
 /* Prototypes definition */
 extern void init_checkers_queue(void);

@@ -1,3 +1,30 @@
+2002-05-21  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.5.8 released.
+	* Added an OpenSSL Licence exception to grant Keepalived compilation
+	  with OpenSSL Toolkit.
+	  Thanks to Andres Salomon, <dilinger@voxel.net> for suggesting.
+	* Added connection port selection for Healthcheckers (TCP_CHECK,
+	  HTTP|SSL_GET). Can be usefull for Healthcheck in fwmark LVS topology
+	  for grouping service.
+	  Thanks to Richard  L. Allbery, <rla@prideindustries.com> for suggesting.
+	  See samples directory for examples.
+	* Fixed some IPVS exclusion code when running --disable-lvs.
+	* Added support to VirtualHost selection when using HTTP|SSL_GET.
+	  See samples directory for examples.
+	* Added VirtualHost selection into the genhash utility.
+	* Fixed some IPVS sync daemon initializations issues.
+	* Cometics patches in IPVS wrapper framework.
+	* Added support to quoted string. This can be usefull if you are using
+	  MISC_CHECK and you want to pass arguments to called script. See samples.
+	  Thanks to Benoit Gaussen, <ben@trez42.net> for suggesting.
+	* Prepare work on real_server_group in order to group some realserver
+	  declaration.
+	* VRRP : Fixed a password length exception causing an unwanted dropping
+	  issue.
+	* VRRP : Enhanced the MASTER state to send gratuitous arp if receiving
+	  a remote lower prio advert => This fix a remote stalled ARP cache.
+	  Thanks to Simon Kirby, <sim@netnation.com> for discussing this case.
+
 2002-05-02  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.5.7 released.
 	* Review autoconf/automake scripts to be more generic on system and code

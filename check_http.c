@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
+ * Version:     $Id: check_http.c,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -63,26 +63,42 @@ void dump_http_get_check(void *data)
     syslog(LOG_INFO, "   Keepalive method = HTTP_GET");
   else
     syslog(LOG_INFO, "   Keepalive method = SSL_GET");
+  if (http_get_chk->connection_port)
+    syslog(LOG_INFO, "   Connection port = %d"
+                   , ntohs(http_get_chk->connection_port));
   syslog(LOG_INFO, "   Connection timeout = %d" , http_get_chk->connection_to);
   syslog(LOG_INFO, "   Nb get retry = %d" , http_get_chk->nb_get_retry);
   syslog(LOG_INFO, "   Delay before retry = %d" 
                  , http_get_chk->delay_before_retry);
   dump_list(http_get_chk->url);
 }
+static http_get_checker *alloc_http_get(char *proto)
+{
+  http_get_checker *http_get_chk;
+
+  http_get_chk        = (http_get_checker *)MALLOC(sizeof(http_get_checker));
+  http_get_chk->arg   = (http_arg *)MALLOC(sizeof(http_arg));
+  http_get_chk->proto = (!strcmp(proto, "HTTP_GET"))?PROTO_HTTP:PROTO_SSL;
+  http_get_chk->url   = alloc_list(free_url, dump_url);
+
+  return http_get_chk;
+}
+
 void http_get_handler(vector strvec)
 {
   http_get_checker *http_get_chk;
   char *str = VECTOR_SLOT(strvec, 0);
 
-  http_get_chk        = (http_get_checker *)MALLOC(sizeof(http_get_checker));
-  http_get_chk->arg   = (http_arg *)MALLOC(sizeof(http_arg));
-  http_get_chk->proto = (!strcmp(str, "HTTP_GET"))?PROTO_HTTP:PROTO_SSL;
-  http_get_chk->url   = alloc_list(free_url, dump_url);
-
   /* queue new checker */
+  http_get_chk = alloc_http_get(str);
   queue_checker(free_http_get_check, dump_http_get_check
                                    , http_connect_thread
                                    , http_get_chk);
+}
+void connect_p_handler(vector strvec)
+{
+  http_get_checker *http_get_chk = CHECKER_GET();
+  http_get_chk->connection_port = htons(CHECKER_VALUE_INT(strvec));
 }
 void connect_to_handler(vector strvec)
 {
@@ -127,6 +143,7 @@ void install_http_check_keyword(void)
 {
   install_keyword("HTTP_GET",			&http_get_handler);
   install_sublevel();
+    install_keyword("connect_port",		&connect_p_handler);
     install_keyword("connect_timeout",		&connect_to_handler);
     install_keyword("nb_get_retry",		&nb_get_retry_handler);
     install_keyword("delay_before_retry",	&delay_before_retry_handler);
@@ -142,6 +159,7 @@ void install_ssl_check_keyword(void)
 {
   install_keyword("SSL_GET",			&http_get_handler);
   install_sublevel();
+    install_keyword("connect_port",		&connect_p_handler);
     install_keyword("connect_timeout",		&connect_to_handler);
     install_keyword("nb_get_retry",		&nb_get_retry_handler);
     install_keyword("delay_before_retry",	&delay_before_retry_handler);
@@ -177,6 +195,26 @@ void install_ssl_check_keyword(void)
  *       v              v
  *     http_handle_response (next checker thread registration)
  */
+
+uint16_t get_service_port(checker *checker)
+{
+  http_get_checker *http_get_check = CHECKER_ARG(checker);
+  uint16_t addr_port;
+
+  /*
+   *  Set the remote connection port.
+   *  If a specific checker port is specified, we used this.
+   *  If we are balancing all services (host rather than service),
+   *  then assume we want to use default ports for HTTP or HTTPS.
+   *  Known as 'Layer3 stickyness'.
+   */
+  addr_port = CHECKER_RPORT(checker);
+  if (!addr_port)
+    addr_port = htons((http_get_check->proto == PROTO_SSL)?443:80);
+  if (http_get_check->connection_port)
+    addr_port = http_get_check->connection_port;
+  return addr_port;
+}
 
 /*
  * Simple epilog functions. Handling event timeout.
@@ -235,6 +273,9 @@ int timeout_epilog(thread *thread, char *smtp_msg, char *debug_msg)
   checker *checker                 = THREAD_ARG(thread);
   http_get_checker *http_get_check = CHECKER_ARG(checker);
   http_arg *http_arg               = HTTP_ARG(http_get_check);
+#ifdef _DEBUG_
+  uint16_t addr_port               = get_service_port(checker);
+#endif
 
   /*
    * The get retry implementation mean that we retry performing
@@ -248,7 +289,7 @@ int timeout_epilog(thread *thread, char *smtp_msg, char *debug_msg)
     syslog(LOG_DEBUG, "Retry %s server [%s:%d] after %d retry."
                     , debug_msg
                     , ip_ntoa(CHECKER_RIP(checker))
-                    , ntohs(CHECKER_RPORT(checker))
+                    , ntohs(addr_port)
                     , http_arg->retry_it - 1);
 #endif
     return epilog(thread,2,0,1);
@@ -260,7 +301,7 @@ int timeout_epilog(thread *thread, char *smtp_msg, char *debug_msg)
       syslog(LOG_DEBUG, "Timeout %s server [%s:%d]."
                       , debug_msg
                       , ip_ntoa(CHECKER_RIP(checker))
-                      , ntohs(CHECKER_RPORT(checker)));
+                      , ntohs(addr_port));
 #endif
     /* check if server is currently alive */
     if (ISALIVE(checker->rs)) {
@@ -306,6 +347,7 @@ int http_handle_response(thread *thread, unsigned char digest[16]
   checker *checker                 = THREAD_ARG(thread);
   http_get_checker *http_get_check = CHECKER_ARG(checker);
 #ifdef _DEBUG_
+  uint16_t addr_port               = get_service_port(checker);
   http_arg *http_arg               = HTTP_ARG(http_get_check);
 #endif
   int r, di = 0;
@@ -327,7 +369,7 @@ int http_handle_response(thread *thread, unsigned char digest[16]
 #ifdef _DEBUG_
     syslog(LOG_DEBUG, "MD5SUM to [%s:%d] url(%d) = [%s]."
                     , ip_ntoa(CHECKER_RIP(checker))
-                    , ntohs(CHECKER_RPORT(checker))
+                    , ntohs(addr_port)
                     , http_arg->url_it + 1
                     , digest_tmp);
 #endif
@@ -340,7 +382,7 @@ int http_handle_response(thread *thread, unsigned char digest[16]
       syslog(LOG_DEBUG, "MD5 digest error to [%s:%d] url(%d)"
                         ", expecting MD5SUM [%s]."
                       , ip_ntoa(CHECKER_RIP(checker))
-                      , ntohs(CHECKER_RPORT(checker))
+                      , ntohs(addr_port)
                       , http_arg->url_it + 1
                       , fetched_url->digest);
 #endif
@@ -359,7 +401,7 @@ int http_handle_response(thread *thread, unsigned char digest[16]
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "MD5 digest success to [%s:%d] url(%d)."
                       , ip_ntoa(CHECKER_RIP(checker))
-                      , ntohs(CHECKER_RPORT(checker))
+                      , ntohs(addr_port)
                       , http_arg->url_it + 1);
 #endif
       return epilog(thread,1,1,0)+1;
@@ -375,6 +417,9 @@ int http_read_thread(thread *thread)
   http_get_checker *http_get_check = CHECKER_ARG(checker);
   http_arg *http_arg               = HTTP_ARG(http_get_check);
   REQ *req                         = HTTP_REQ(http_arg);
+#ifdef _DEBUG_
+  uint16_t addr_port               = get_service_port(checker);
+#endif
   unsigned char digest[16];
   int r = 0;
 
@@ -398,7 +443,7 @@ int http_read_thread(thread *thread)
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "Read error with server [%s:%d]: %s"
                       , ip_ntoa(CHECKER_RIP(checker))
-                      , ntohs(CHECKER_RPORT(checker))
+                      , ntohs(addr_port)
                       , strerror(errno));
 #endif
       if (ISALIVE(checker->rs)) {
@@ -499,6 +544,8 @@ int http_request_thread(thread *thread)
   http_get_checker *http_get_check = CHECKER_ARG(checker);
   http_arg *http_arg               = HTTP_ARG(http_get_check);
   REQ *req                         = HTTP_REQ(http_arg);
+  uint16_t addr_port               = get_service_port(checker);
+  char *vhost                      = CHECKER_VHOST(checker);
   char *str_request;
   url *fetched_url;
   int ret = 0;
@@ -513,18 +560,16 @@ int http_request_thread(thread *thread)
   str_request = (char *)MALLOC(GET_REQUEST_BUFFER_LENGTH);
 
   fetched_url = fetch_next_url(http_get_check);
-
   snprintf(str_request, GET_REQUEST_BUFFER_LENGTH
                       , REQUEST_TEMPLATE
                       , fetched_url->path
-                      , ip_ntoa(CHECKER_RIP(checker))
-                      , ntohs(CHECKER_RPORT(checker)));
-
+                      , (vhost)?vhost:ip_ntoa(CHECKER_RIP(checker))
+                      , ntohs(addr_port));
 #ifdef _DEBUG_
   syslog(LOG_DEBUG, "Processing url(%d) of [%s:%d]."
                   , http_arg->url_it + 1
                   , ip_ntoa(CHECKER_RIP(checker))
-                  , ntohs(CHECKER_RPORT(checker)));
+                  , ntohs(addr_port));
 #endif
 
   /* Send the GET request to remote Web server */
@@ -538,7 +583,7 @@ int http_request_thread(thread *thread)
   if (!ret) {
     syslog(LOG_INFO, "Cannot send get request to [%s:%d]."
                    , ip_ntoa(CHECKER_RIP(checker))
-                   , ntohs(CHECKER_RPORT(checker)));
+                   , ntohs(addr_port));
 
     /* check if server is currently alive */
     if (ISALIVE(checker->rs)) {
@@ -565,6 +610,7 @@ int http_check_thread(thread *thread)
 {
   checker *checker                 = THREAD_ARG(thread);
   http_get_checker *http_get_check = CHECKER_ARG(checker);
+  uint16_t addr_port               = get_service_port(checker);
 #ifdef _DEBUG_
   http_arg *http_arg               = HTTP_ARG(http_get_check);
   REQ *req                         = HTTP_REQ(http_arg);
@@ -574,14 +620,14 @@ int http_check_thread(thread *thread)
 
   status = tcp_socket_state(thread->u.fd, thread
                                         , CHECKER_RIP(checker)
-                                        , CHECKER_RPORT(checker)
+                                        , addr_port
                                         , http_check_thread);
   switch (status) {
     case connect_error:
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "Error connecting server [%s:%d]."
                       , ip_ntoa(CHECKER_RIP(checker))
-                      , ntohs(CHECKER_RPORT(checker)));
+                      , ntohs(addr_port));
 #endif
       /* check if server is currently alive */
       if (ISALIVE(checker->rs)) {
@@ -612,7 +658,7 @@ int http_check_thread(thread *thread)
 #ifdef _DEBUG_
         syslog(LOG_DEBUG, "Remote Web server [%s:%d] connected."
                         , ip_ntoa(CHECKER_RIP(checker))
-                        , ntohs(CHECKER_RPORT(checker)));
+                        , ntohs(addr_port));
 #endif
         thread_add_write(thread->master, http_request_thread
                                        , checker
@@ -622,7 +668,7 @@ int http_check_thread(thread *thread)
 #ifdef _DEBUG_
         syslog(LOG_DEBUG, "Connection trouble to: [%s:%d]."
                         , ip_ntoa(CHECKER_RIP(checker))
-                        , ntohs(CHECKER_RPORT(checker)));
+                        , ntohs(addr_port));
         if (http_get_check->proto == PROTO_SSL)
           ssl_printerr(SSL_get_error(req->ssl, ret));
 #endif
@@ -640,9 +686,9 @@ int http_connect_thread(thread *thread)
   checker *checker                 = THREAD_ARG(thread);
   http_get_checker *http_get_check = CHECKER_ARG(checker);
   http_arg *http_arg               = HTTP_ARG(http_get_check);
+  uint16_t addr_port               = get_service_port(checker);
   url *fetched_url;
   enum connect_result status;
-  uint16_t addr_port;
   int fd;
 
   /* Find eventual url end */
@@ -662,7 +708,7 @@ int http_connect_thread(thread *thread)
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "Remote Web server [%s:%d] succeed on service."
                       , ip_ntoa(CHECKER_RIP(checker))
-                      , ntohs(CHECKER_RPORT(checker)));
+                      , ntohs(addr_port));
 #endif
     }
     http_arg->req = NULL;
@@ -678,16 +724,6 @@ int http_connect_thread(thread *thread)
 #endif
     return 0;
   }
-
-  /*
-   *  Set the remote connection port.
-   *  If we are balancing all services (host rather than service),
-   *  then assume we want to use default ports for HTTP or HTTPS.
-   *  Known as 'Layer3 stickyness'
-   */
-  addr_port = CHECKER_RPORT(checker);
-  if (!addr_port)
-    addr_port = htons((http_get_check->proto == PROTO_SSL)?443:80);
 
   status = tcp_connect(fd, CHECKER_RIP(checker), addr_port);
 

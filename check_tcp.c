@@ -5,7 +5,7 @@
  *
  * Part:        TCP checker.
  *
- * Version:     $Id: check_tcp.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
+ * Version:     $Id: check_tcp.c,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -44,6 +44,9 @@ void dump_tcp_check(void *data)
   tcp_checker *tcp_chk = CHECKER_DATA(data);
 
   syslog(LOG_INFO, "   Keepalive method = TCP_CHECK");
+  if (tcp_chk->connection_port)
+    syslog(LOG_INFO, "   Connection port = %d"
+                   , ntohs(tcp_chk->connection_port));
   syslog(LOG_INFO, "   Connection timeout = %d"
                  , tcp_chk->connection_to);
 }
@@ -56,6 +59,11 @@ void tcp_check_handler(vector strvec)
                               , tcp_connect_thread
                               , tcp_chk);
 }
+void connect_port_handler(vector strvec)
+{
+  tcp_checker *tcp_chk = CHECKER_GET();
+  tcp_chk->connection_port = htons(CHECKER_VALUE_INT(strvec));
+}
 void connect_timeout_handler(vector strvec)
 {
   tcp_checker *tcp_chk = CHECKER_GET();
@@ -65,6 +73,7 @@ void install_tcp_check_keyword(void)
 {
   install_keyword("TCP_CHECK",		&tcp_check_handler);
   install_sublevel();
+    install_keyword("connect_port",	&connect_port_handler);
     install_keyword("connect_timeout",	&connect_timeout_handler);
   install_sublevel_end();
 }
@@ -72,13 +81,19 @@ void install_tcp_check_keyword(void)
 int tcp_check_thread(thread *thread)
 {
   checker *checker;
+  tcp_checker *tcp_check;
+  uint16_t addr_port;
   int status;
 
   checker = THREAD_ARG(thread);
+  tcp_check = CHECKER_ARG(checker);
 
+  addr_port = CHECKER_RPORT(checker);
+  if (tcp_check->connection_port)
+    addr_port = tcp_check->connection_port;
   status = tcp_socket_state(thread->u.fd, thread
                                         , CHECKER_RIP(checker)
-                                        , CHECKER_RPORT(checker)
+                                        , addr_port
                                         , tcp_check_thread);
 
   /* If status = connect_success, TCP connection to remote host is established.
@@ -89,7 +104,7 @@ int tcp_check_thread(thread *thread)
 #ifdef _DEBUG_
     syslog(LOG_DEBUG, "TCP connection to [%s:%d] success."
                     ,  ip_ntoa(CHECKER_RIP(checker))
-                    ,  ntohs(CHECKER_RPORT(checker)));
+                    ,  ntohs(addr_port));
 #endif
     close(thread->u.fd);
 
@@ -105,7 +120,7 @@ int tcp_check_thread(thread *thread)
 #ifdef _DEBUG_
     syslog(LOG_DEBUG, "TCP connection to [%s:%d] failed !!!"
                     ,  ip_ntoa(CHECKER_RIP(checker))
-                    ,  ntohs(CHECKER_RPORT(checker)));
+                    ,  ntohs(addr_port));
 #endif
 
     if (ISALIVE(checker->rs)) {
@@ -131,6 +146,7 @@ int tcp_connect_thread(thread *thread)
   checker *checker;
   tcp_checker *tcp_check;
   int fd;
+  uint16_t addr_port;
   int status;
 
   checker   = THREAD_ARG(thread);
@@ -143,8 +159,10 @@ int tcp_connect_thread(thread *thread)
     return 0;
   }
 
-  status = tcp_connect(fd, CHECKER_RIP(checker)
-                         , CHECKER_RPORT(checker));
+  addr_port = CHECKER_RPORT(checker);
+  if (tcp_check->connection_port)
+    addr_port = tcp_check->connection_port;
+  status = tcp_connect(fd, CHECKER_RIP(checker), addr_port);
 
   /* handle tcp connection status & register check worker thread */
   tcp_connection_state(fd, status, thread

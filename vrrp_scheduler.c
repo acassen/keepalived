@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 0.5.7 2002/05/02 22:18:07 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -57,6 +57,12 @@ static void vrrp_init_state(list l)
 
     if (vrrp->priority == VRRP_PRIO_OWNER ||
         vrrp->wantstate == VRRP_STATE_MAST) {
+#ifdef _HAVE_IPVS_SYNCD_
+      /* Check if sync daemon handling is needed */
+      if (vrrp->lvs_syncd_if)
+        ipvs_syncd_cmd(IPVS_STARTDAEMON, vrrp->lvs_syncd_if
+                                       , IPVS_MASTER);
+#endif
       vrrp->state = VRRP_STATE_GOTO_MASTER;
     } else {
       vrrp->ms_down_timer = 3 * vrrp->adver_int

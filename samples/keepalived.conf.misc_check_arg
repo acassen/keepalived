@@ -10,7 +10,7 @@ global_defs {
    lvs_id LVS_DEVEL
 }
 
-virtual_server 192.168.200.100 80 {
+virtual_server 10.10.10.2 1358 {
     delay_loop 6
     lb_algo rr 
     lb_kind NAT
@@ -18,16 +18,12 @@ virtual_server 192.168.200.100 80 {
     persistence_timeout 50
     protocol TCP
 
-    real_server 192.168.201.100 80 {
+    real_server 192.168.200.6 1358 {
         weight 1
-        SSL_GET {
-            url { 
-              path /
-              digest FF20AD2481F97B1754EF3E12ECD3A9CC
-            }
-            connect_timeout 3
-            nb_get_retry 3
-            delay_before_retry 3
+        MISC_CHECK {
+          misc_path "/usr/local/bin/script.sh arg1 arg2"
         }
     }
+
 }
+

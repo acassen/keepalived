@@ -34,7 +34,7 @@
 
 /* Build version */
 #define PROG    "genhash"
-#define VERSION "0.5.3 (03/22, 2002)"
+#define VERSION "0.5.8 (05/17, 2002)"
 
 /* HTTP/HTTPS GET command */
 #define REQUEST_TEMPLATE "GET %s HTTP/1.0\r\n" \
@@ -54,6 +54,7 @@ typedef struct {
   int ssl;
   char *keyfile;
   char *password;
+  char *virtualhost;
   char *cafile;
 } REQ;
 
