@@ -39,10 +39,17 @@ global_defs {				# Block identification
 	The configuration block looks like :
 
 static_routes {							# block identification
-    src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
-    src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
+    src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> # to is optional
+    src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> # to is optional
     ...
 }
+
+SCOPE can take the following values :
+	* site
+	* link
+	* host
+	* nowhere
+	* global
 
 2. VRRP configuration
 
@@ -87,18 +94,18 @@ vrrp_instance <STRING> {		# VRRP instance declaration
         auth_pass <STRING>		# Password string
     }
     virtual_ipaddress {			# VRRP IP addres block
-        <IP ADDRESS>/<MASK> dev <STRING>
-        <IP ADDRESS>/<MASK> dev <STRING>
+        <IP ADDRESS>/<MASK> dev <STRING> scope <SCOPE>
+        <IP ADDRESS>/<MASK> dev <STRING> scope <SCOPE>
         ...
     }
-    virtual_ipaddress_excluded {         # VRRP IP excluded from VRRP
-        <IP ADDRESS>/<MASK> dev <STRING> # packets
-        <IP ADDRESS>/<MASK> dev <STRING>
+    virtual_ipaddress_excluded {         		# VRRP IP excluded from VRRP
+        <IP ADDRESS>/<MASK> dev <STRING> scope <SCOPE>	# packets
+        <IP ADDRESS>/<MASK> dev <STRING> scope <SCOPE>
         ...
     }
     virtual_routes {			 # VRRP virtual routes
-        src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
-        src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
+    	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> # to is optional
+    	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> # to is optional
         ...
     }
     preempt				# VRRP preempt mode (default set)
@@ -109,6 +116,12 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     smtp_alert				   # Same as vrrp_sync_group
 }
 
+SCOPE can take the following values :
+	* site
+	* link
+	* host
+	* nowhere
+	* global
 
 3. LVS configuration
 

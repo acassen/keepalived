@@ -5,7 +5,7 @@
  *
  * Part:        memory.c include file.
  *
- * Version:     $Id: memory.h,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: memory.h,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -57,7 +57,7 @@ extern void xfree(void *p);
 extern char *keepalived_malloc(unsigned long, char *, char *, int);
 extern int keepalived_free(void *, char *, char *, int);
 extern void *keepalived_realloc(void *, unsigned long, char *, char *, int);
-extern void keepalived_free_final(void);
+extern void keepalived_free_final(char *);
 
 #else
 

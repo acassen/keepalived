@@ -7,7 +7,7 @@
  *              url, compute a MD5 over this result and match it to the
  *              expected value.
  *
- * Version:     $Id: check_ssl.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: check_ssl.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -32,7 +32,8 @@
 #include "utils.h"
 #include "html.h"
 
-extern data *conf_data;
+/* External vars */
+extern check_conf_data *check_data;
 
 /* SSL primitives */
 /* Free an SSL context */
@@ -71,51 +72,51 @@ build_ssl_ctx(void)
 	SSL_load_error_strings();
 	bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
 
-	if (!conf_data->ssl)
+	if (!check_data->ssl)
 		ssl = (SSL_DATA *) MALLOC(sizeof (ssl_data));
 	else
-		ssl = conf_data->ssl;
+		ssl = check_data->ssl;
 
 	/* Initialize SSL context for SSL v2/3 */
 	ssl->meth = SSLv23_method();
 	ssl->ctx = SSL_CTX_new(ssl->meth);
 
 	/* return for autogen context */
-	if (!conf_data->ssl) {
-		conf_data->ssl = ssl;
+	if (!check_data->ssl) {
+		check_data->ssl = ssl;
 		goto end;
 	}
 
 	/* Load our keys and certificates */
-	if (conf_data->ssl->keyfile)
+	if (check_data->ssl->keyfile)
 		if (!
 		    (SSL_CTX_use_certificate_chain_file
-		     (ssl->ctx, conf_data->ssl->keyfile))) {
+		     (ssl->ctx, check_data->ssl->keyfile))) {
 			syslog(LOG_INFO,
 			       "SSL error : Cant load certificate file...");
 			return 0;
 		}
 
 	/* Handle password callback using userdata ssl */
-	if (conf_data->ssl->password) {
+	if (check_data->ssl->password) {
 		SSL_CTX_set_default_passwd_cb_userdata(ssl->ctx,
-						       conf_data->ssl);
+						       check_data->ssl);
 		SSL_CTX_set_default_passwd_cb(ssl->ctx, password_cb);
 	}
 
-	if (conf_data->ssl->keyfile)
+	if (check_data->ssl->keyfile)
 		if (!
 		    (SSL_CTX_use_PrivateKey_file
-		     (ssl->ctx, conf_data->ssl->keyfile, SSL_FILETYPE_PEM))) {
+		     (ssl->ctx, check_data->ssl->keyfile, SSL_FILETYPE_PEM))) {
 			syslog(LOG_INFO, "SSL error : Cant load key file...");
 			return 0;
 		}
 
 	/* Load the CAs we trust */
-	if (conf_data->ssl->cafile)
+	if (check_data->ssl->cafile)
 		if (!
 		    (SSL_CTX_load_verify_locations
-		     (ssl->ctx, conf_data->ssl->cafile, 0))) {
+		     (ssl->ctx, check_data->ssl->cafile, 0))) {
 			syslog(LOG_INFO, "SSL error : Cant load CA file...");
 			return 0;
 		}
@@ -135,7 +136,7 @@ build_ssl_ctx(void)
 int
 init_ssl_ctx(void)
 {
-	SSL_DATA *ssl = conf_data->ssl;
+	SSL_DATA *ssl = check_data->ssl;
 
 	if (!build_ssl_ctx()) {
 		syslog(LOG_INFO, "Error Initialize SSL, ctx Instance");
@@ -196,7 +197,7 @@ ssl_connect(thread * thread)
 	http_arg *http_arg = HTTP_ARG(http_get_check);
 	REQ *req = HTTP_REQ(http_arg);
 
-	req->ssl = SSL_new(conf_data->ssl->ctx);
+	req->ssl = SSL_new(check_data->ssl->ctx);
 	req->bio = BIO_new_socket(thread->u.fd, BIO_NOCLOSE);
 	SSL_set_bio(req->ssl, req->bio, req->bio);
 

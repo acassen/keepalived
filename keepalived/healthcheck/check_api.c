@@ -5,7 +5,7 @@
  *
  * Part:        Checkers registration.
  *
- * Version:     $Id: check_api.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: check_api.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -32,8 +32,9 @@
 #include "check_ci.h"
 #endif
 
+/* External vars */
 extern thread_master *master;
-extern data *conf_data;
+extern check_conf_data *check_data;
 
 /* free checker data */
 static void
@@ -59,7 +60,7 @@ queue_checker(void (*free) (void *), void (*dump) (void *)
 	      , int (*launch) (struct _thread *)
 	      , void *data)
 {
-	virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
+	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server *rs = LIST_TAIL_DATA(vs->rs);
 	checker *chk = (checker *) MALLOC(sizeof (checker));
 

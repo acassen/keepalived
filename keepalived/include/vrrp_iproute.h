@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_iproute.c include file.
  *
- * Version:     $Id: vrrp_iproute.h,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: vrrp_iproute.h,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -39,6 +39,7 @@ typedef struct _ip_route {
 	uint32_t gw;	/* RTA_GATEWAY */
 	uint32_t src;	/* RTA_PREFSRC */
 	int index;	/* RTA_OIF */
+	int scope;
 	int table;
 	int set;
 } ip_route;
@@ -52,6 +53,7 @@ typedef struct _ip_route {
 			 (X)->gw     == (Y)->gw    && \
 			 (X)->src    == (Y)->src   && \
 			 (X)->table  == (Y)->table && \
+			 (X)->scope  == (Y)->scope && \
 			 (X)->index  == (Y)->index)
 
 /* prototypes */

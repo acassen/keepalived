@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: check_http.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>

@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -21,14 +21,11 @@
  *               2 of the License, or (at your option) any later version.
  */
 
-#include "data.h"
-#include "list.h"
 #include "ipvswrapper.h"
+#include "check_data.h"
+#include "list.h"
 #include "utils.h"
 #include "memory.h"
-
-/* external types */
-extern data *conf_data;
 
 /* local helpers functions */
 static int parse_timeout(char *, unsigned *);
@@ -94,7 +91,7 @@ ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
 		ctl.m_cmd = IP_MASQ_CMD_SET_DEST;
 		ctl.u.vs_user.weight = 0;
 	}
-	if (ctl.m_cmd == IP_MASQ_CMD_ADD_DEST && rs->inhibit && rs->alive)
+	if (ctl.m_cmd == IP_MASQ_CMD_ADD_DEST && rs->inhibit && !rs->alive)
 		ctl.m_cmd = IP_MASQ_CMD_SET_DEST;
 
 	sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
@@ -219,7 +216,9 @@ ipvs_group_range_cmd(int cmd, struct ip_vs_rule_user *urule
 
 /* set IPVS group rules */
 static int
-ipvs_group_cmd(int cmd, list vs_group, struct ip_vs_rule_user *urule, char * vsgname)
+ipvs_group_cmd(int cmd, list vs_group, real_server * rs
+		      , struct ip_vs_rule_user *urule
+		      , char * vsgname)
 {
 	virtual_server_group *vsg = ipvs_get_group_by_name(vsgname, vs_group);
 	virtual_server_group_entry *vsg_entry;
@@ -238,10 +237,9 @@ ipvs_group_cmd(int cmd, list vs_group, struct ip_vs_rule_user *urule, char * vsg
 		urule->vport = SVR_PORT(vsg_entry);
 
 		/* Talk to the IPVS channel */
-		if (IPVS_ALIVE(cmd, vsg_entry)) {
+		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
 			err = ipvs_talk(cmd, urule);
-			if (cmd == IP_VS_SO_SET_ADD)
-				SET_ALIVE(vsg_entry);
+			IPVS_SET_ALIVE(cmd, vsg_entry);
 		}
 	}
 
@@ -254,10 +252,9 @@ ipvs_group_cmd(int cmd, list vs_group, struct ip_vs_rule_user *urule, char * vsg
 		urule->vfwmark = vsg_entry->vfwmark;
 
 		/* Talk to the IPVS channel */
-		if (IPVS_ALIVE(cmd, vsg_entry)) {
+		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
 			err = ipvs_talk(cmd, urule);
-			if (cmd == IP_VS_SO_SET_ADD)
-				SET_ALIVE(vsg_entry);
+			IPVS_SET_ALIVE(cmd, vsg_entry);
 		}
 	}
 
@@ -268,10 +265,9 @@ ipvs_group_cmd(int cmd, list vs_group, struct ip_vs_rule_user *urule, char * vsg
 		vsg_entry = ELEMENT_DATA(e);
 
 		/* Talk to the IPVS channel */
-		if (IPVS_ALIVE(cmd, vsg_entry)) {
+		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
 			err = ipvs_group_range_cmd(cmd, urule, vsg_entry);
-			if (cmd == IP_VS_SO_SET_ADD)
-				SET_ALIVE(vsg_entry);
+			IPVS_SET_ALIVE(cmd, vsg_entry);
 		}
 	}
 
@@ -329,12 +325,12 @@ ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
 		urule->weight = 0;
 		cmd = IP_VS_SO_SET_EDITDEST;
 	}
-	if (cmd == IP_VS_SO_SET_ADDDEST && rs->inhibit && rs->alive)
+	if (cmd == IP_VS_SO_SET_ADDDEST && rs->inhibit && !rs->alive)
 		cmd = IP_VS_SO_SET_EDITDEST;
 
 	/* Set vs rule and send to kernel */
 	if (vs->vsgname) {
-		err = ipvs_group_cmd(cmd, vs_group, urule, vs->vsgname);
+		err = ipvs_group_cmd(cmd, vs_group, rs, urule, vs->vsgname);
 	} else {
 		if (vs->vfwmark) {
 			urule->vfwmark = vs->vfwmark;

@@ -1,3 +1,67 @@
+2003-05-12  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.0.3 released.
+	* This release has been sponsorized by :
+	  Tiscover AG, <www.tiscover.com>
+	  Please visit sponsor homepage. I would just like to thanks their IT
+	  team for interresting design discussions and testing time, especially
+	  Jacob Rief.
+	* This release consist of a major daemon re-design to increase security
+	  and availability of Keepalived. The daemon has been splitted into 3
+	  distinct process. The global design is based on a minimalistic
+	  parent process responsible for monitoring its forked children process.
+	  Then 2 children process, one responsible for VRRP framework and the
+	  other for healthchecking. Each children process has its own scheduling
+	  I/O multiplexer, that way VRRP scheduling jitter is optimized since
+	  VRRP scheduling must be more sensible than healthcheckers. On the other
+	  hand this splitted design minimalize for healthchecking the usage of
+	  foreign librairies and minimalize its own action down to and idle
+	  mainloop in order to avoid malfunctions caused by itself. The parent
+	  process monitoring framework has been called watchdog, the design is :
+	  each children process open an accept unix domain socket, then while
+	  daemon bootstrap, parent process connect to those unix domain socket
+	  and send periodic (5s) hello packets to children. If parent cannot send
+	  hello packet to remote connected unix domain socket it simply restart
+	  children process. This watchdog design offer 2 benefit, first of all
+	  hello packets sent from parent process to remote connected children
+	  is done throught I/O multiplexer scheduler that way it can detect
+	  deadloop in the children scheduling framework. The second benefit
+	  is brought by the uses of sysV signal to detect dead children.
+	  When running you will see in process list :
+	    PID
+	    111  keepalived	<-- parent process monitoring child activity
+	    112   \_ keepalived	<-- VRRP children
+	    113   \_ keepalived <-- Healthchecking children
+
+	* Parent : Created a global data and global keyword parser structure.
+	* Healthcheck framework : Defined check_conf_data to handle related
+	  checker data structures. Created specific checker framework parser.
+	* VRRP framework : Defined vrrp_conf_data to handle related vrrp
+	  data structures. Created specific vrrp framework parser.
+	* Each child process has its own syslog facility. VRRP use LOG_LOCAL1
+	  and Healthchecker LOG_LOCAL2. To split log you can so configure your
+	  syslog to log both facilities in a different logfile.
+	* Modularized the configuration parser to limit code duplication.
+	* Created modularized software watchdog.
+	* Extended the recursive stream parser to use sublevel detection while
+	  stream processing. Used to skip end-of-block handling if still at
+	  keyword root level to prevent against end parsing if unknown block
+	  is parsed.
+	* Extended pidfile framework to be more generic.
+	* Extended memory framework to log specific child data.
+	* Fixed a virtual_server_group issue while healthchecker bringing back
+	  real_servers. Modularized virtual_server_group API.
+	* Fixed a virtual_server_group issue will reloading configuration.
+	  Remove vsgname test from the VS_ISEQ macro. strcmp(...) comparing
+	  null pointer... this must have been done in libc :)
+	* ipwrapper : set alive flag after ipvs_cmd(...) has been performed.
+	* VRRP : Extended the netlink framework to support SCOPE selection for
+	  both ipaddress and routes fonctionnalities. SCOPE available are
+	  site, link, host, nowhere & global. Default value is set to global.
+	  look at doc/keepalived.conf.SYNOPSIS for more informations.
+	* Renamed doc/samples/keepalived.conf.routes to
+	  doc/samples/keepalived.conf.vrrp.routes.
+	* Updated Makefile include dependencies.
+
 2003-04-14  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.0.2 released.
 	* This release has been sponsorized by :

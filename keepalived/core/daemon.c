@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: main.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -72,4 +72,45 @@ xdaemon(int nochdir, int noclose, int exitflag)
 
 	umask(0);
 	return 0;
+}
+
+/*
+ * SIGCHLD handler. Reap all zombie child.
+ * WNOHANG prevent against parent process get
+ * stuck waiting child termination.
+ */
+void
+sigchld(int sig)
+{
+	while (waitpid(-1, NULL, WNOHANG) > 0);
+}
+
+/* Signal wrapper */
+void *
+signal_set(int signo, void (*func) (int))
+{
+	int ret;
+	struct sigaction sig;
+	struct sigaction osig;
+
+	sig.sa_handler = func;
+	sigemptyset(&sig.sa_mask);
+	sig.sa_flags = 0;
+#ifdef SA_RESTART
+	sig.sa_flags |= SA_RESTART;
+#endif /* SA_RESTART */
+
+	ret = sigaction(signo, &sig, &osig);
+
+	if (ret < 0)
+		return (SIG_ERR);
+	else
+		return (osig.sa_handler);
+}
+
+/* Signal remove */
+void *
+signal_ignore(int signo)
+{
+	return signal_set(signo, SIG_IGN);
 }

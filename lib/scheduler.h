@@ -5,7 +5,7 @@
  *
  * Part:        scheduler.c include file.
  *
- * Version:     $Id: scheduler.h,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: scheduler.h,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -88,20 +88,21 @@ typedef struct _thread_master {
 #define THREAD_VAL(X) ((X)->u.val)
 
 /* Prototypes. */
-thread_master *thread_make_master(void);
-thread *thread_add_terminate_event(thread_master * m);
-void thread_destroy_master(thread_master * m);
-thread *thread_add_read(thread_master * m, int (*func) (thread *)
-			, void *arg, int fd, long timeout);
-thread *thread_add_write(thread_master * m, int (*func) (thread *)
-			 , void *arg, int fd, long timeout);
-thread *thread_add_timer(thread_master * m, int (*func) (thread *)
-			 , void *arg, long timer);
-thread *thread_add_event(thread_master * m, int (*func) (thread *)
-			 , void *arg, int val);
-void thread_cancel(thread * thread);
-void thread_cancel_event(thread_master * m, void *arg);
-thread *thread_fetch(thread_master * m, thread * fetch);
-void thread_call(thread * thread);
+extern thread_master *thread_make_master(void);
+extern thread *thread_add_terminate_event(thread_master * m);
+extern void thread_destroy_master(thread_master * m);
+extern thread *thread_add_read(thread_master * m, int (*func) (thread *)
+			       , void *arg, int fd, long timeout);
+extern thread *thread_add_write(thread_master * m, int (*func) (thread *)
+				, void *arg, int fd, long timeout);
+extern thread *thread_add_timer(thread_master * m, int (*func) (thread *)
+				, void *arg, long timer);
+extern thread *thread_add_event(thread_master * m, int (*func) (thread *)
+				, void *arg, int val);
+extern void thread_cancel(thread * thread);
+extern void thread_cancel_event(thread_master * m, void *arg);
+extern thread *thread_fetch(thread_master * m, thread * fetch);
+extern void thread_call(thread * thread);
+extern void launch_scheduler(void);
 
 #endif

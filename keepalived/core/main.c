@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: main.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -21,6 +21,7 @@
  */
 
 #include "main.h"
+#include "watchdog.h"
 
 /* Daemon stop sequence */
 static void
@@ -29,27 +30,11 @@ stop_keepalived(void)
 	syslog(LOG_INFO, "Stopping " VERSION_STRING);
 	/* Just cleanup memory & exit */
 	thread_destroy_master(master);
-#ifdef _WITH_LVS_
-	free_checkers_queue();
-	free_ssl();
-	if (!(debug & 16))
-		clear_services();
-#endif
 
-#ifdef _WITH_VRRP_
-	/* Clear static routes */
-	netlink_rtlist_ipv4(conf_data->static_routes, IPROUTE_DEL);
-
-	if (!(debug & 8))
-		shutdown_vrrp_instances();
-	free_interface_queue();
-#endif
-	free_data(conf_data);
-
-	pidfile_rm();
+	pidfile_rm(KEEPALIVED_PID_FILE);
 
 #ifdef _DEBUG_
-	keepalived_free_final();
+	keepalived_free_final("Parent process");
 #endif
 
 	/*
@@ -64,153 +49,49 @@ stop_keepalived(void)
 static void
 start_keepalived(void)
 {
-	/* Parse the configuration file */
 #ifdef _WITH_LVS_
-	init_checkers_queue();
+	/* start healthchecker child */
+	start_check_child();
 #endif
-	init_data(conf_file);
-	if (!conf_data) {
-		syslog(LOG_INFO, "Stopping " VERSION_STRING);
-		closelog();
-#ifdef _DEBUG_
-		keepalived_free_final();
-#endif
-		exit(0);
-	}
-
-	/* SSL load static data & initialize common ctx context */
-#ifdef _WITH_LVS_
-	if (!init_ssl_ctx()) {
-		closelog();
-#ifdef _DEBUG_
-		keepalived_free_final();
-#endif
-		exit(0);
-	}
-#endif
-
-#ifdef _WITH_LVS_
-	if (reload)
-		clear_diff_services();
-
-	if (!init_services()) {
-		syslog(LOG_INFO, "Stopping " VERSION_STRING);
-		closelog();
-		free_data(conf_data);
-		exit(0);
-	}
-
-	/* register healthcheckers workers threads */
-	register_checkers_thread();
-#endif
-
 #ifdef _WITH_VRRP_
-	/* Static routes */
-	if (reload)
-		clear_diff_sroutes();
-	netlink_rtlist_ipv4(conf_data->static_routes, IPROUTE_ADD);
-
-	kernel_netlink_init();
-	if_mii_poller_init();
-
-	if (!vrrp_complete_init()) {
-		stop_keepalived();
-		exit(0);
-	}
-
-	if (reload)
-		clear_diff_vrrp();
-
-	/* register vrrp workers threads */
-	register_vrrp_thread();
+	/* start vrrp child */
+	start_vrrp_child();
 #endif
-
-	/* Dump the configuration */
-	if (debug & 4)
-		dump_data(conf_data);
-}
-
-/* reload handler */
-int
-reload_thread(thread * thread)
-{
-	/* set the reloading flag */
-	SET_RELOAD;
-
-	/* Flushing previous configuration */
-	thread_destroy_master(master);
-	master = thread_make_master();
-#ifdef _WITH_LVS_
-	free_checkers_queue();
-	free_ssl();
-#endif
-
-	/* Save previous conf */
-	old_data = conf_data;
-	conf_data = NULL;
-
-	/* Reload the conf */
-	mem_allocated = 0;
-	start_keepalived();
-
-	free_data(old_data);
-
-	/* free the reloading flag */
-	UNSET_RELOAD;
-
-	return 0;
 }
 
 /* SIGHUP handler */
 void
 sighup(int sig)
 {
-	/* register the conf reload thread */
-	syslog(LOG_INFO, "Reloading configuration file");
-	thread_add_event(master, reload_thread, NULL, 0);
+	/* Set the reloading flag */
+	SET_RELOAD;
+
+	/* Signal child process */
+	if (vrrp_child > 0)
+		kill(vrrp_child, SIGHUP);
+	if (checkers_child > 0)
+		kill(checkers_child, SIGHUP);
 }
 
 /* Terminate handler */
 void
 sigend(int sig)
 {
+	int status;
+
 	/* register the terminate thread */
 	syslog(LOG_INFO, "Terminating on signal");
 	thread_add_terminate_event(master);
-}
 
-/*
- * SIGCHLD handler. Reap all zombie child.
- * WNOHANG prevent against parent process get
- * stuck waiting child termination.
- */
-void
-sigchld(int sig)
-{
-	while (waitpid(-1, NULL, WNOHANG) > 0);
-}
-
-/* Signal wrapper */
-void *
-signal_set(int signo, void (*func) (int))
-{
-	int ret;
-	struct sigaction sig;
-	struct sigaction osig;
-
-	sig.sa_handler = func;
-	sigemptyset(&sig.sa_mask);
-	sig.sa_flags = 0;
-#ifdef SA_RESTART
-	sig.sa_flags |= SA_RESTART;
-#endif /* SA_RESTART */
-
-	ret = sigaction(signo, &sig, &osig);
-
-	if (ret < 0)
-		return (SIG_ERR);
-	else
-		return (osig.sa_handler);
+	/* Signal child process */
+	if (vrrp_child > 0) {
+		kill(vrrp_child, SIGTERM);
+		wait(&status);
+	}
+	if (checkers_child > 0) {
+		kill(checkers_child, SIGTERM);
+		wait(&status);
+	}
 }
 
 /* Initialize signal handler */
@@ -222,28 +103,6 @@ signal_init(void)
 	signal_set(SIGTERM, sigend);
 	signal_set(SIGKILL, sigend);
 	signal_set(SIGCHLD, sigchld);
-}
-
-/* Our scheduler */
-static void
-launch_scheduler(void)
-{
-	thread thread;
-
-	/*
-	 * Processing the master thread queues,
-	 * return and execute one ready thread.
-	 */
-	while (thread_fetch(master, &thread)) {
-		/* Run until error, used for debuging only */
-#ifdef _DEBUG_
-		if ((debug & 520) == 520) {
-			debug &= ~520;
-			thread_add_terminate_event(master);
-		}
-#endif
-		thread_call(&thread);
-	}
 }
 
 /* Usage function */
@@ -382,6 +241,7 @@ main(int argc, char **argv)
 
 	/* Check if keepalived is already running */
 	if (keepalived_running()) {
+		syslog(LOG_INFO, "daemon is already running");
 		syslog(LOG_INFO, "Stopping " VERSION_STRING);
 		closelog();
 		exit(0);
@@ -392,7 +252,7 @@ main(int argc, char **argv)
 		xdaemon(0, 0, 0);
 
 	/* write the pidfile */
-	if (!pidfile_write(getpid())) {
+	if (!pidfile_write(KEEPALIVED_PID_FILE, getpid())) {
 		syslog(LOG_INFO, "Stopping " VERSION_STRING);
 		closelog();
 		exit(0);
@@ -404,12 +264,7 @@ main(int argc, char **argv)
 	/* Create the master thread */
 	master = thread_make_master();
 
-#ifdef _WITH_VRRP_
-	/* Init interface queue */
-	init_interface_queue();
-#endif
-
-	/* Init daemon data related */
+	/* Init daemon */
 	start_keepalived();
 
 	/* Launch the scheduling I/O multiplexer */

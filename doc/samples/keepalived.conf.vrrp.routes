@@ -4,12 +4,12 @@ global_defs {
    lvs_id LVS_DEVEL
 }
 
-static_route {
+static_routes {
     src 192.168.100.1 192.168.209.0/24 via 192.168.200.254 dev eth0
     192.168.210.0/24 via 192.168.200.254 dev eth0
     192.168.211.0/24 via 192.168.200.254 dev eth0
-    192.168.212.0/24 dev eth3
-    192.168.213.0/24 dev eth1
+    192.168.212.0/24 dev eth3 scope site
+    192.168.213.0/24 dev eth1 scope link
 }
 
 vrrp_instance VI_1 {

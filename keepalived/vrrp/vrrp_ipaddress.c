@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 address manipulation.
  *
- * Version:     $Id: vrrp_ipaddress.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -46,6 +46,7 @@ netlink_address_ipv4(ip_address *ipaddr, int cmd)
 	req.n.nlmsg_type = cmd ? RTM_NEWADDR : RTM_DELADDR;
 	req.ifa.ifa_family = AF_INET;
 	req.ifa.ifa_index = ipaddr->ifindex;
+	req.ifa.ifa_scope = ipaddr->scope;
 	req.ifa.ifa_prefixlen = ipaddr->mask;
 	addattr_l(&req.n, sizeof (req), IFA_LOCAL, &ipaddr->addr, sizeof (ipaddr->addr));
 
@@ -93,10 +94,11 @@ void
 dump_ipaddress(void *data)
 {
 	ip_address *ip_addr = data;
-	syslog(LOG_INFO, "     %s/%d dev %s"
+	syslog(LOG_INFO, "     %s/%d dev %s scope %s"
 	       , inet_ntop2(ip_addr->addr)
 	       , ip_addr->mask
-	       , IF_NAME(if_get_by_ifindex(ip_addr->ifindex)));
+	       , IF_NAME(if_get_by_ifindex(ip_addr->ifindex))
+	       , netlink_scope_n2a(ip_addr->scope));
 }
 void
 alloc_ipaddress(list ip_list, vector strvec, int ifindex)
@@ -116,6 +118,8 @@ alloc_ipaddress(list ip_list, vector strvec, int ifindex)
 		/* cmd parsing */
 		if (!strcmp(str, "dev")) {
 			new->ifindex = IF_INDEX(if_get_by_ifname(VECTOR_SLOT(strvec, ++i)));
+		} else if (!strcmp(str, "scope")) {
+			new->scope = netlink_scope_a2n(VECTOR_SLOT(strvec, ++i));
 		} else {
 			if (inet_ston(VECTOR_SLOT(strvec, i), &ipaddr)) {
 				inet_ston(VECTOR_SLOT(strvec, i), &new->addr);

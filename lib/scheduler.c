@@ -7,7 +7,7 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: scheduler.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -477,7 +477,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* If there is event process it first. */
 	while ((thread = thread_trim_head(&m->event))) {
 		*fetch = *thread;
-		FREE(timer_wait);
+		FREE_PTR(timer_wait);
 
 		/* If daemon hanging event is received return NULL pointer */
 		if (thread->type == THREAD_TERMINATE) {
@@ -495,7 +495,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		*fetch = *thread;
 		thread->type = THREAD_UNUSED;
 		thread_add_unuse(m, thread);
-		FREE(timer_wait);
+		FREE_PTR(timer_wait);
 		return fetch;
 	}
 
@@ -618,4 +618,27 @@ thread_call(thread * thread)
 {
 	thread->id = thread_get_id();
 	(*thread->func) (thread);
+}
+
+/* Our infinite scheduling loop */
+extern thread_master *master;
+void
+launch_scheduler(void)
+{
+	thread thread;
+
+	/*
+	 * Processing the master thread queues,
+	 * return and execute one ready thread.
+	 */
+	while (thread_fetch(master, &thread)) {
+		/* Run until error, used for debuging only */
+#ifdef _DEBUG_
+		if ((debug & 520) == 520) {
+			debug &= ~520;
+			thread_add_terminate_event(master);
+		}
+#endif
+		thread_call(&thread);
+	}
 }

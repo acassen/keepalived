@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK kernel command channel.
  *
- * Version:     $Id: vrrp_netlink.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: vrrp_netlink.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -153,6 +153,38 @@ parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, int len)
 			tb[rta->rta_type] = rta;
 		rta = RTA_NEXT(rta, len);
 	}
+}
+
+char *
+netlink_scope_n2a(int scope)
+{
+	if (scope == 0)
+		return "global";
+	if (scope == 255)
+		return "nowhere";
+	if (scope == 254)
+		return "host";
+	if (scope == 253)
+		return "link";
+	if (scope == 200)
+		return "site";
+	return "unknown";
+}
+
+int
+netlink_scope_a2n(char *scope)
+{
+	if (!strcmp(scope, "global"))
+		return 0;
+	if (!strcmp(scope, "nowhere"))
+		return 255;
+	if (!strcmp(scope, "host"))
+		return 254;
+	if (!strcmp(scope, "link"))
+		return 253;
+	if (!strcmp(scope, "site"))
+		return 200;
+	return -1;
 }
 
 /* Our netlink parser */

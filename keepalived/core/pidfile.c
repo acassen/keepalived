@@ -5,7 +5,7 @@
  *
  * Part:        pidfile utility.
  *
- * Version:     $Id: pidfile.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: pidfile.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -24,12 +24,13 @@
 
 /* Create the runnnig daemon pidfile */
 int
-pidfile_write(int pid)
+pidfile_write(char *pid_file, int pid)
 {
-	FILE *pidfile = fopen(PIDFILENAME, "w");
+	FILE *pidfile = fopen(pid_file, "w");
 
 	if (!pidfile) {
-		syslog(LOG_INFO, "pidfile_write : Can not open pidfile");
+		syslog(LOG_INFO, "pidfile_write : Can not open %s pidfile"
+		       , pid_file);
 		return 0;
 	}
 	fprintf(pidfile, "%d\n", pid);
@@ -39,16 +40,16 @@ pidfile_write(int pid)
 
 /* Remove the running daemon pidfile */
 void
-pidfile_rm(void)
+pidfile_rm(char *pid_file)
 {
-	unlink(PIDFILENAME);
+	unlink(pid_file);
 }
 
 /* return the daemon running state */
 int
-keepalived_running(void)
+process_running(char *pid_file)
 {
-	FILE *pidfile = fopen(PIDFILENAME, "r");
+	FILE *pidfile = fopen(pid_file, "r");
 	pid_t pid;
 
 	/* No pidfile */
@@ -60,11 +61,31 @@ keepalived_running(void)
 
 	/* If no process is attached to pidfile, remove it */
 	if (kill(pid, 0)) {
-		syslog(LOG_INFO, "Remove a zombie pid file %s.", PIDFILENAME);
-		pidfile_rm();
+		syslog(LOG_INFO, "Remove a zombie pid file %s", pid_file);
+		pidfile_rm(pid_file);
 		return 0;
 	}
 
-	syslog(LOG_INFO, "daemon is already running");
 	return 1;
+}
+
+/* Return parent process daemon state */
+int
+keepalived_running(void)
+{
+	return process_running(KEEPALIVED_PID_FILE);
+}
+
+/* Return VRRP child process state */
+int
+vrrp_running(void)
+{
+	return process_running(VRRP_PID_FILE);
+}
+
+/* Return VRRP child process state */
+int
+checkers_running(void)
+{
+	return process_running(CHECKERS_PID_FILE);
 }

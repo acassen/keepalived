@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -26,14 +26,16 @@
 #include "vrrp.h"
 #include "vrrp_sync.h"
 #include "vrrp_notify.h"
+#include "vrrp_netlink.h"
+#include "vrrp_data.h"
 #include "ipvswrapper.h"
 #include "memory.h"
 #include "list.h"
-#include "data.h"
 #include "smtp.h"
 
+/* Externals vars */
 extern thread_master *master;
-extern data *conf_data;
+extern vrrp_conf_data *vrrp_data;
 
 /* VRRP FSM (Finite State Machine) design.
  *
@@ -225,7 +227,7 @@ vrrp_compute_timer(const int fd)
 	vrrp_rt *vrrp;
 	TIMEVAL timer;
 	element e;
-	list l = conf_data->vrrp;
+	list l = vrrp_data->vrrp;
 
 	/* clean the memory */
 	TIMER_RESET(timer);
@@ -258,7 +260,7 @@ static int
 vrrp_timer_vrid_timeout(const int fd)
 {
 	vrrp_rt *vrrp;
-	list l = conf_data->vrrp;
+	list l = vrrp_data->vrrp;
 	element e;
 	TIMEVAL vrrp_timer;
 	int vrid = 0;
@@ -288,10 +290,10 @@ vrrp_register_workers(list l)
 	memset(&timer, 0, sizeof (struct timeval));
 
 	/* Init the VRRP instances state */
-	vrrp_init_state(conf_data->vrrp);
+	vrrp_init_state(vrrp_data->vrrp);
 
 	/* Init VRRP instances sands */
-	vrrp_init_sands(conf_data->vrrp);
+	vrrp_init_sands(vrrp_data->vrrp);
 
 	/* Register VRRP workers threads */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -357,7 +359,7 @@ static void
 vrrp_create_sockpool(list l)
 {
 	vrrp_rt *vrrp;
-	list p = conf_data->vrrp;
+	list p = vrrp_data->vrrp;
 	element e;
 	int ifindex;
 	int proto;
@@ -393,7 +395,7 @@ vrrp_set_fds(list l)
 {
 	sock *sock;
 	vrrp_rt *vrrp;
-	list p = conf_data->vrrp;
+	list p = vrrp_data->vrrp;
 	element e_sock;
 	element e_vrrp;
 	int proto;
@@ -459,7 +461,7 @@ static vrrp_rt *
 vrrp_search_instance(const int vrid)
 {
 	vrrp_rt *vrrp;
-	list l = conf_data->vrrp;
+	list l = vrrp_data->vrrp;
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -805,15 +807,4 @@ vrrp_read_dispatcher_thread(thread * thread)
 				NULL, fd, vrrp_timer);
 
 	return 0;
-}
-
-/* Register VRRP thread */
-extern int reload;
-void
-register_vrrp_thread(void)
-{
-	/* Init the packet dispatcher */
-	if (!LIST_ISEMPTY(conf_data->vrrp))
-		thread_add_event(master, vrrp_dispatcher_init, NULL,
-				 VRRP_DISPATCHER);
 }

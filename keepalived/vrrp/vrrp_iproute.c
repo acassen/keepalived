@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 routes manipulation.
  *
- * Version:     $Id: vrrp_iproute.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: vrrp_iproute.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -24,13 +24,13 @@
 #include "vrrp_iproute.h"
 #include "vrrp_netlink.h"
 #include "vrrp_if.h"
+#include "vrrp_data.h"
 #include "memory.h"
 #include "utils.h"
-#include "data.h"
 
 /* extern global vars */
-extern data *conf_data;
-extern data *old_data;
+extern vrrp_conf_data *vrrp_data;
+extern vrrp_conf_data *old_vrrp_data;
 
 /* Add/Delete IP route to/from a specific interface */
 int
@@ -55,7 +55,7 @@ netlink_route_ipv4(ip_route *iproute, int cmd)
 
 	if (cmd) {
 		req.r.rtm_protocol = RTPROT_BOOT;
-		req.r.rtm_scope = RT_SCOPE_UNIVERSE;
+		req.r.rtm_scope = iproute->scope;
 		req.r.rtm_type = RTN_UNICAST;
 	}
 
@@ -129,11 +129,17 @@ dump_route(void *data)
 		strncat(log_msg, tmp, 30);
 	}
 	if (route->index) {
-		snprintf(tmp, 30, " dev %s", IF_NAME(if_get_by_ifindex(route->index)));
+		snprintf(tmp, 30, " dev %s",
+			 IF_NAME(if_get_by_ifindex(route->index)));
 		strncat(log_msg, tmp, 30);
 	}
 	if (route->table) {
 		snprintf(tmp, 30, " table %d", route->table);
+		strncat(log_msg, tmp, 30);
+	}
+	if (route->scope) {
+		snprintf(tmp, 30, " scope %s",
+			 netlink_scope_n2a(route->scope));
 		strncat(log_msg, tmp, 30);
 	}
 
@@ -165,6 +171,8 @@ alloc_route(list rt_list, vector strvec)
 			new->index = IF_INDEX(if_get_by_ifname(VECTOR_SLOT(strvec, ++i)));
 		} else if (!strcmp(str, "table")) {
 			new->table = atoi(VECTOR_SLOT(strvec, ++i));
+		} else if (!strcmp(str, "scope")) {
+			new->scope = netlink_scope_a2n(VECTOR_SLOT(strvec, ++i));
 		} else {
 			if (!strcmp(str, "to")) i++;
 			if (inet_ston(VECTOR_SLOT(strvec, i), &ipaddr)) {
@@ -227,5 +235,5 @@ clear_diff_routes(list l, list n)
 void
 clear_diff_sroutes(void)
 {
-	clear_diff_routes(old_data->static_routes, conf_data->static_routes);
+	clear_diff_routes(old_vrrp_data->static_routes, vrrp_data->static_routes);
 }

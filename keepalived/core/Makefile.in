@@ -11,7 +11,8 @@ CFLAGS	 = @CFLAGS@ $(INCLUDES) \
 DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@VRRP_SUPPORT@ @DFLAGS@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
-OBJS = 	main.o daemon.o pidfile.o data.o parser.o layer4.o smtp.o
+OBJS = 	main.o daemon.o pidfile.o layer4.o smtp.o \
+	global_data.o global_parser.o
 HEADERS = $(OBJS:.o=.h)
 
 .c.o:
@@ -26,14 +27,14 @@ distclean: clean
 	rm -f Makefile
 
 
-main.o: main.c ../include/main.h
-daemon.o: daemon.c ../include/daemon.h
+main.o: main.c ../include/main.h ../../lib/watchdog.h
+daemon.o: daemon.c ../include/daemon.h ../../lib/utils.h
 pidfile.o: pidfile.c ../include/pidfile.h
-data.o: data.c ../include/data.h ../../lib/memory.h ../../lib/utils.h \
-  ../include/check_api.h ../include/vrrp.h ../include/vrrp_sync.h
-parser.o: parser.c ../include/parser.h ../../lib/memory.h ../include/vrrp.h \
-  ../include/vrrp_if.h ../include/vrrp_sync.h ../include/check_api.h
 layer4.o: layer4.c ../include/layer4.h ../include/check_api.h ../../lib/utils.h
-smtp.o: smtp.c ../include/smtp.h ../../lib/memory.h ../../lib/list.h \
+smtp.o: smtp.c ../include/smtp.h ../include/global_data.h ../../lib/memory.h \
+  ../../lib/list.h ../../lib/utils.h
+global_data.o: global_data.c ../include/global_data.h ../../lib/memory.h \
+  ../../lib/list.h ../../lib/utils.h
+global_parser.o: global_parser.c ../include/global_parser.h \
+  ../include/global_data.h ../../lib/parser.h ../../lib/memory.h \
   ../../lib/utils.h
-

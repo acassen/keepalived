@@ -1,56 +1,37 @@
-/* 
+/*
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
+ *
+ * Part:        check_daemon.c include file.
  * 
- * Part:        cfreader.c include file.
- *  
- * Version:     $Id: parser.h,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
- *
+ * Version:     $Id: check_daemon.h,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
- *
+ *              
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
  *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *              See the GNU General Public License for more details.
- *
+ *              
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _PARSER_H
-#define _PARSER_H
+#ifndef _CHECK_DAEMON_H
+#define _CHECK_DAEMON_H
 
-/* system includes */
+/* system include */
 #include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <syslog.h>
-#include <ctype.h>
+#include <signal.h>
 
-/* local includes */
-#include "data.h"
-#include "vector.h"
-
-/* Global definitions */
-#define CONF "/etc/keepalived/keepalived.conf"
-#define EOB  "}"
-#define MAXBUF	1024
-
-/* ketword definition */
-struct keyword {
-	char *string;
-	void (*handler) (vector);
-	vector sub;
-};
+/* Daemon define */
+#define PROG_CHECK	"Keepalived_healthcheckers"
+#define WDOG_CHECK	"/tmp/.healthcheckers"
 
 /* Prototypes */
-extern void init_data(char *conf_file);
-extern void install_keyword(char *string, void (*handler) (vector));
-extern void install_sublevel(void);
-extern void install_sublevel_end(void);
-extern void *set_value(vector strvec);
+extern int start_check_child(void);
 
 #endif

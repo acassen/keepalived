@@ -17,7 +17,8 @@ CFLAGS	 = @CFLAGS@ $(INCLUDES) \
 DEFS	 = -D$(KERNEL) -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_SUPPORT@ @DFLAGS@ $(CIFLAGS)
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
-OBJS = 	check_api.o check_tcp.o check_http.o check_ssl.o \
+OBJS = 	check_daemon.o check_data.o check_parser.o \
+	check_api.o check_tcp.o check_http.o check_ssl.o \
 	check_misc.o ipwrapper.o ipvswrapper.o $(CI_LINUX_OBJ)
 
 ifeq ($(KERNEL),_KRNL_2_2_)
@@ -38,21 +39,32 @@ clean:
 distclean: clean
 	rm -f Makefile
 
-check_api.o: check_api.c ../include/check_api.h ../include/parser.h \
+check_daemon.o: check_daemon.c ../include/check_daemon.h \
+  ../include/check_parser.h ../include/check_data.h ../include/check_api.h \
+  ../include/global_data.h ../include/ipwrapper.h ../include/pidfile.h \
+  ../include/daemon.h ../../lib/list.h ../../lib/memory.h \
+  ../../lib/parser.h ../../lib/watchdog.h
+check_data.o: check_data.c ../include/check_data.h \
+  ../include/check_api.h ../../lib/memory.h ../../lib/utils.h
+check_parser.o: check_parser.c ../include/check_parser.h \
+  ../include/check_data.h ../include/check_api.h ../include/global_data.h \
+  ../include/global_parser.h ../../lib/parser.h ../../lib/memory.h \
+  ../../lib/utils.h
+check_api.o: check_api.c ../include/check_api.h ../../lib/parser.h \
   ../../lib/memory.h ../../lib/utils.h ../include/check_misc.h \
   ../include/check_tcp.h ../include/check_http.h ../include/check_ssl.h
 check_tcp.o: check_tcp.c ../include/check_tcp.h ../include/check_api.h \
   ../../lib/memory.h ../include/ipwrapper.h ../include/layer4.h \
-  ../include/smtp.h ../../lib/utils.h ../include/parser.h
+  ../include/smtp.h ../../lib/utils.h ../../lib/parser.h
 check_http.o: check_http.c ../include/check_http.h ../include/check_ssl.h \
-  ../include/check_api.h ../../lib/memory.h ../include/parser.h \
+  ../include/check_api.h ../../lib/memory.h ../../lib/parser.h \
   ../../lib/utils.h
 check_ssl.o: check_ssl.c ../include/check_ssl.h ../include/check_api.h \
-  ../../lib/memory.h ../include/parser.h ../include/smtp.h \
+  ../../lib/memory.h ../../lib/parser.h ../include/smtp.h \
   ../../lib/utils.h
 check_misc.o: check_misc.c ../include/check_misc.h ../include/check_api.h \
   ../../lib/memory.h ../include/ipwrapper.h ../include/smtp.h \
-  ../../lib/utils.h ../../lib/notify.h ../include/parser.h ../include/daemon.h
+  ../../lib/utils.h ../../lib/notify.h ../../lib/parser.h ../include/daemon.h
 ipwrapper.o: ipwrapper.c ../include/ipwrapper.h ../../lib/utils.h \
   ../../lib/notify.h
 ipvswrapper.o: ipvswrapper.c ../include/ipvswrapper.h ../../lib/utils.h \

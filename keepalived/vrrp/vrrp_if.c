@@ -5,7 +5,7 @@
  *
  * Part:        Interfaces manipulation.
  *
- * Version:     $Id: vrrp_if.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: vrrp_if.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -47,7 +47,7 @@ typedef __uint8_t u8;
 
 /* local include */
 #include "scheduler.h"
-#include "data.h"
+#include "vrrp_data.h"
 #include "vrrp.h"
 #include "vrrp_if.h"
 #include "vrrp_netlink.h"
@@ -56,7 +56,7 @@ typedef __uint8_t u8;
 
 /* Global vars */
 extern thread_master *master;
-extern data *conf_data;
+extern vrrp_conf_data *vrrp_data;
 static struct ifreq ifr;
 
 /* Helper functions */

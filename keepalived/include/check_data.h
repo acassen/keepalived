@@ -3,9 +3,9 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        Dynamic data structure definition.
+ * Part:        Healthcheckers dynamic data structure definition.
  *
- * Version:     $Id: data.h,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: check_data.h,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,8 +20,8 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _DATA_H
-#define _DATA_H
+#ifndef _CHECK_DATA_H
+#define _CHECK_DATA_H
 
 /* system includes */
 #include <stdlib.h>
@@ -85,7 +85,6 @@ typedef struct _virtual_server_group_entry {
 	uint32_t vfwmark;
 	uint16_t addr_port;
 	int alive;
-	int rsalive;
 } virtual_server_group_entry;
 
 typedef struct _virtual_server_group {
@@ -115,32 +114,17 @@ typedef struct _virtual_server {
 	int alive;
 } virtual_server;
 
-/* email link list */
-typedef struct _email {
-	char *addr;
-} email;
-
 /* Configuration data root */
-typedef struct _data {
-	char *lvs_id;
-	char *email_from;
-	uint32_t smtp_server;
-	int smtp_connection_to;
+typedef struct _check_conf_data {
 	SSL_DATA *ssl;
-	list email;
-	list static_routes;
-	list vrrp_sync_group;
-	list vrrp;
 	list vs_group;
 	list vs;
-} data;
+} check_conf_data;
 
 /* macro utility */
 #define ISALIVE(S)	((S)->alive)
 #define SET_ALIVE(S)	((S)->alive = 1)
 #define UNSET_ALIVE(S)	((S)->alive = 0)
-#define SET_RSALIVE(S)	((S)->rsalive = 1)
-#define UNSET_RSALIVE(S)((S)->rsalive = 0)
 #define SVR_IP(H)	((H)->addr_ip)
 #define SVR_PORT(H)	((H)->addr_port)
 #define VHOST(V)	((V)->virtualhost)
@@ -153,8 +137,7 @@ typedef struct _data {
 			 (X)->nat_mask                == (Y)->nat_mask &&		\
 			 (X)->granularity_persistence == (Y)->granularity_persistence &&\
 			 !strcmp((X)->sched, (Y)->sched) &&				\
-			 !strcmp((X)->timeout_persistence, (Y)->timeout_persistence) &&	\
-			 !strcmp((X)->vsgname, (Y)->vsgname))
+			 !strcmp((X)->timeout_persistence, (Y)->timeout_persistence))
 
 #define VSGE_ISEQ(X,Y)	((X)->addr_ip   == (Y)->addr_ip &&	\
 			 (X)->range     == (Y)->range &&	\
@@ -166,15 +149,8 @@ typedef struct _data {
 			 (X)->weight    == (Y)->weight)
 
 /* prototypes */
-extern void alloc_email(char *addr);
 extern SSL_DATA *alloc_ssl(void);
 extern void free_ssl(void);
-extern void alloc_sroute(vector strvec);
-extern void alloc_vrrp_sync_group(char *gname);
-extern void alloc_vrrp(char *iname);
-extern void alloc_vrrp_vip(vector strvec);
-extern void alloc_vrrp_evip(vector strvec);
-extern void alloc_vrrp_vroute(vector strvec);
 extern void alloc_vsg(char *gname);
 extern void alloc_vsg_entry(vector strvec);
 extern void alloc_vs(char *ip, char *port);
@@ -183,9 +159,8 @@ extern void alloc_ssvr(char *ip, char *port);
 extern void alloc_group(char *name);
 extern void alloc_rsgroup(char *ip, char *port);
 extern void set_rsgroup(char *gname);
-
-extern data *alloc_data(void);
-extern void free_data(data * data);
-extern void dump_data(data * data);
+extern check_conf_data *alloc_check_data(void);
+extern void free_check_data(check_conf_data * data);
+extern void dump_check_data(check_conf_data * data);
 
 #endif

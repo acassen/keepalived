@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_ipaddress.c include file.
  *
- * Version:     $Id: vrrp_ipaddress.h,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.h,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -39,6 +39,7 @@ typedef struct {
 	uint32_t addr;		/* the ip address */
 	uint8_t mask;		/* the ip address CIDR netmask */
 	int ifindex;		/* Interface owning IP address */
+	int scope;		/* the ip address scope */
 	int set;		/* TRUE if addr is set */
 } ip_address;
 
@@ -48,7 +49,8 @@ typedef struct {
 /* Macro definition */
 #define IP_ISEQ(X,Y)   ((X)->addr    == (Y)->addr && \
 			(X)->mask    == (Y)->mask && \
-			(X)->ifindex == (Y)->ifindex)
+			(X)->ifindex == (Y)->ifindex && \
+			(X)->scope   == (Y)->scope)
 
 /* prototypes */
 extern int netlink_address_ipv4(ip_address *ipaddr, int cmd);

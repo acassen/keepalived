@@ -5,7 +5,7 @@
  *
  * Part:        VRRP synchronization framework.
  *
- * Version:     $Id: vrrp_sync.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: vrrp_sync.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -23,12 +23,12 @@
 #include "vrrp_sync.h"
 #include "vrrp_if.h"
 #include "vrrp_notify.h"
-#include "data.h"
+#include "vrrp_data.h"
 #include "smtp.h"
 
-/* extern global vars */
+/* Externals vars */
 extern thread_master *master;
-extern data *conf_data;
+extern vrrp_conf_data *vrrp_data;
 
 /* Compute the new instance sands */
 void
@@ -58,7 +58,7 @@ vrrp_get_sync_group(char *iname)
 	char *str;
 	element e;
 	vrrp_sgroup *vgroup;
-	list l = conf_data->vrrp_sync_group;
+	list l = vrrp_data->vrrp_sync_group;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vgroup = ELEMENT_DATA(e);
@@ -77,7 +77,7 @@ vrrp_rt *
 vrrp_get_instance(char *iname)
 {
 	vrrp_rt *vrrp;
-	list l = conf_data->vrrp;
+	list l = vrrp_data->vrrp;
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {

@@ -6,7 +6,7 @@
  * Part:        Memory management framework. This framework is used to
  *              find any memory leak.
  *
- * Version:     $Id: memory.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: memory.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -246,13 +246,13 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 }
 
 void
-keepalived_free_final(void)
+keepalived_free_final(char *banner)
 {
 	unsigned int sum = 0, overrun = 0, badptr = 0;
 	int i, j;
 	i = 0;
 
-	printf("\n---[Keepalived memory dump]---\n\n");
+	printf("\n---[ Keepalived memory dump for (%s)]---\n\n", banner);
 
 	while (i < number_alloc_list) {
 		switch (alloc_list[i].type) {
@@ -309,7 +309,7 @@ keepalived_free_final(void)
 		i++;
 	}
 
-	printf("\n\n---[Keepalived memory dump summary]---\n");
+	printf("\n\n---[ Keepalived memory dump summary for (%s) ]---\n", banner);
 	printf("Total number of bytes not freed...: %d\n", sum);
 	printf("Number of entries not freed.......: %d\n", n);
 	printf("Maximum allocated entries.........: %d\n", number_alloc_list);

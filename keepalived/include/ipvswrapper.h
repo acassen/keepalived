@@ -5,7 +5,7 @@
  *
  * Part:        ipvswrapper.c include file.
  *
- * Version:     $Id: ipvswrapper.h,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: ipvswrapper.h,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -53,7 +53,7 @@
 
 /* locale includes */
 #include "scheduler.h"
-#include "data.h"
+#include "check_data.h"
 
 #define IPVS_ERROR	0
 #define IPVS_SUCCESS	1
@@ -66,7 +66,7 @@
 #define IPVS_BACKUP		IP_VS_STATE_BACKUP
 #else
 #define IPVS_STARTDAEMON	1
-#define IPVS_STOPDAEMON	2
+#define IPVS_STOPDAEMON		2
 #define IPVS_MASTER		3
 #define IPVS_BACKUP		4
 #endif
@@ -74,12 +74,20 @@
 extern thread_master *master;
 
 /* Macro */
-#define IPVS_ALIVE(X,Y)	(((X) == IP_VS_SO_SET_ADD && !(Y)->alive)	|| \
-			 ((X) == IP_VS_SO_SET_DEL && (Y)->alive)	|| \
-			 ((X) == IP_VS_SO_SET_ADDDEST && !(Y)->rsalive)	|| \
-			 ((X) == IP_VS_SO_SET_DELDEST && (Y)->rsalive)	|| \
-			 (X) == IP_VS_SO_SET_EDITDEST			   \
-			)
+#define IPVS_ALIVE(X,Y,Z)	(((X) == IP_VS_SO_SET_ADD && !(Y)->alive)	|| \
+				 ((X) == IP_VS_SO_SET_DEL && (Y)->alive)	|| \
+				 ((X) == IP_VS_SO_SET_ADDDEST && !(Z)->alive)	|| \
+				 ((X) == IP_VS_SO_SET_DELDEST && (Z)->alive)	|| \
+				 (X) == IP_VS_SO_SET_EDITDEST			   \
+				)
+
+#define IPVS_SET_ALIVE(C,V)			\
+do {						\
+	if ((C) == IP_VS_SO_SET_ADD)		\
+		SET_ALIVE((V));			\
+	if ((C) == IP_VS_SO_SET_DEL)		\
+		UNSET_ALIVE((V));		\
+} while (0)
 
 /* prototypes */
 extern virtual_server_group *ipvs_get_group_by_name(char *gname, list l);

@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -31,13 +31,13 @@
 #include "vrrp_notify.h"
 #include "ipvswrapper.h"
 #include "vrrp.h"
+#include "vrrp_data.h"
 #include "memory.h"
 #include "list.h"
-#include "data.h"
 
 /* extern global vars */
-extern data *conf_data;
-extern data *old_data;
+extern vrrp_conf_data *vrrp_data;
+extern vrrp_conf_data *old_vrrp_data;
 
 /* compute checksum */
 static u_short
@@ -961,7 +961,7 @@ int
 new_vrrp_socket(vrrp_rt * vrrp)
 {
 	int old_fd = vrrp->fd;
-	list p = conf_data->vrrp;
+	list p = vrrp_data->vrrp;
 	vrrp_rt *vrrp_ptr;
 	element e;
 
@@ -987,7 +987,7 @@ new_vrrp_socket(vrrp_rt * vrrp)
 void
 shutdown_vrrp_instances(void)
 {
-	list l = conf_data->vrrp;
+	list l = vrrp_data->vrrp;
 	element e;
 	vrrp_rt *vrrp;
 
@@ -1024,7 +1024,7 @@ vrrp_complete_instance(vrrp_rt * vrrp)
 int
 vrrp_complete_init(void)
 {
-	list l = conf_data->vrrp;
+	list l = vrrp_data->vrrp;
 	element e;
 	vrrp_rt *vrrp;
 
@@ -1041,7 +1041,7 @@ static vrrp_rt *
 vrrp_exist(vrrp_rt * old_vrrp)
 {
 	element e;
-	list l = conf_data->vrrp;
+	list l = vrrp_data->vrrp;
 	vrrp_rt *vrrp;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -1076,7 +1076,7 @@ void
 clear_diff_vrrp(void)
 {
 	element e;
-	list l = old_data->vrrp;
+	list l = old_vrrp_data->vrrp;
 	vrrp_rt *vrrp;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
