@@ -5,7 +5,7 @@
  *
  * Part:        Checkers arguments structures definitions.
  *
- * Version:     $Id: check.h,v 0.4.0 2001/08/24 00:35:19 acassen Exp $
+ * Version:     $Id: check.h,v 0.4.1 2001/09/14 00:37:56 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

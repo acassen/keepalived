@@ -5,8 +5,16 @@ Kernel needing
 
   IP aliasing
   Kernel/User netlink socket
+  Network firewalls
   Routing messages
   LinuxVirtualServer
+
+  If you use KERNEL 2.4 build your kernel with ipchains support :
+  => Network options
+       IP: Netfilter Configuration
+        <M> ipchains (2.2-style) support
+
+  => Patch your 2.4 kernel with the LVS code
 
 Installation
 ============

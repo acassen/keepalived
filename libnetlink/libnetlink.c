@@ -27,7 +27,7 @@
 
 #ifndef MSG_TRUNC
 #	define MSG_TRUNC 0x20
-#endif MSG_TRUNC
+#endif
 
 #if 1
 #	define nl_perror(str)	perror(str)

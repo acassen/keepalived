@@ -5,16 +5,9 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 0.4.0 2001/08/24 00:35:19 acassen Exp $
+ * Version:     $Id: main.c,v 0.4.1 2001/09/14 00:37:56 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
- *
- * Changes:
- *              Alexandre Cassen : 2001/06/25 : Rewritte the whole framework
- *                <+> Added scheduling framework using I/O multiplexer thread
- *                <+> Added syslog support
- *                <+> Change the signal handling
- *              Alexandre Cassen : 2000/12/09 : Initial release
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of

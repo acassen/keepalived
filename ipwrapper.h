@@ -5,7 +5,7 @@
  *
  * Part:        ipwrapper.c include file.
  *
- * Version:     $Id: ipwrapper.h,v 0.4.0 2001/08/24 00:35:19 acassen Exp $
+ * Version:     $Id: ipwrapper.h,v 0.4.1 2001/09/14 00:37:56 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -40,6 +40,19 @@
 /* UP & DOWN value */
 #define UP   1
 #define DOWN 0
+
+/* LVS command set by kernel */
+#ifdef KERNEL_2_2
+  #define LVS_CMD_ADD      IP_MASQ_CMD_ADD
+  #define LVS_CMD_DEL      IP_MASQ_CMD_DEL
+  #define LVS_CMD_ADD_DEST IP_MASQ_CMD_ADD_DEST
+  #define LVS_CMD_DEL_DEST IP_MASQ_CMD_DEL_DEST
+#else
+  #define LVS_CMD_ADD      IP_VS_SO_SET_ADD
+  #define LVS_CMD_DEL      IP_VS_SO_SET_DEL
+  #define LVS_CMD_ADD_DEST IP_VS_SO_SET_ADDDEST
+  #define LVS_CMD_DEL_DEST IP_VS_SO_SET_DELDEST
+#endif
 
 /* prototypes */
 extern void perform_svr_state(int alive, virtualserver *vserver, realserver *rserver);

@@ -5,11 +5,9 @@
  *
  * Part:        Routing utilities using the NETLINK kernel interface.
  *
- * Version:     $Id: vrrp_iproute.c,v 0.4.0 2001/08/24 00:35:19 acassen Exp $
+ * Version:     $Id: vrrp_iproute.c,v 0.4.1 2001/09/14 00:37:56 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
- *
- * Changes:     Alexandre Cassen : 2001/08/20      Initial release
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
