@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
+ * Version:     $Id: main.h,v 0.3.6 2001/08/23 23:02:51 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -39,6 +39,6 @@ struct thread_master *master;
 
 /* Build version */
 #define PROG    "keepalived"
-#define VERSION "0.3.5 (13/07, 2001)"
+#define VERSION "0.3.6 (23/08, 2001)"
 
 #endif

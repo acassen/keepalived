@@ -7,12 +7,11 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 0.3.5 2001/07/13 03:46:52 acassen Exp $
+ * Version:     $Id: scheduler.c,v 0.3.6 2001/08/23 23:02:51 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
- * Changes:
- *              Alexandre Cassen : 2001/06/08 : Initial release
+ * Changes:     Alexandre Cassen : 2001/06/08 : Initial release
  *
  *              This program is distributed in the hope that it will be useful, 
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of 
@@ -261,7 +260,7 @@ thread_add_read (struct thread_master *m,
   assert (m != NULL);
 
   if (FD_ISSET (fd, &m->readfd)) {
-    syslog(LOG_WARNING,"There is already read fd [%d]", fd);
+    syslog(LOG_WARNING, "There is already read fd [%d]", fd);
     return NULL;
   }
 
@@ -275,12 +274,17 @@ thread_add_read (struct thread_master *m,
   thread->u.fd = fd;
 
   /* Compute read timeout value */
-  gettimeofday(&timer_now,NULL);
-  timer_now.tv_sec += timer;
+  gettimeofday(&timer_now, NULL);
+  if (timer >= TIMER_MAX_SEC) {
+    timer_now.tv_sec  += timer / TIMER_SEC_MICRO;
+    timer_now.tv_usec += timer % TIMER_SEC_MICRO;
+  } else
+    timer_now.tv_sec += timer;
+
   thread->sands = timer_now;
 
   /* Sort the thread. */
-  thread_list_add_timeval(&m->read,thread); 
+  thread_list_add_timeval(&m->read, thread); 
 
   return thread;
 }
@@ -314,11 +318,16 @@ thread_add_write (struct thread_master *m,
 
   /* Compute write timeout value */
   gettimeofday(&timer_now,NULL);
-  timer_now.tv_sec += timer;
+  if (timer >= TIMER_MAX_SEC) {
+    timer_now.tv_sec  += timer / TIMER_SEC_MICRO;
+    timer_now.tv_usec += timer % TIMER_SEC_MICRO;
+  } else
+    timer_now.tv_sec += timer;
+
   thread->sands = timer_now;
 
   /* Sort the thread. */
-  thread_list_add_timeval(&m->write,thread); 
+  thread_list_add_timeval(&m->write, thread); 
 
   return thread;
 }
@@ -344,7 +353,12 @@ thread_add_timer (struct thread_master *m,
 
   /* Do we need jitter here? */
   gettimeofday (&timer_now, NULL);
-  timer_now.tv_sec += timer;
+  if (timer >= TIMER_MAX_SEC) {
+    timer_now.tv_sec  += timer / TIMER_SEC_MICRO;
+    timer_now.tv_usec += timer % TIMER_SEC_MICRO;
+  } else
+    timer_now.tv_sec += timer;
+
   thread->sands = timer_now;
 
   /* Sort by timeval. */
@@ -449,9 +463,6 @@ thread_cancel_event (struct thread_master *m, void *arg)
   }
 }
 
-/* for struct timeval */
-#define TIMER_SEC_MICRO 1000000
-
 /* timer sub */
 struct timeval
 thread_timer_sub (struct timeval a, struct timeval b)
@@ -469,6 +480,14 @@ thread_timer_sub (struct timeval a, struct timeval b)
   return ret;
 }
 
+static int thread_timer_null(struct timeval timer)
+{
+  if (timer.tv_sec == 0 && timer.tv_usec == 0)
+    return 1;
+  else
+    return 0;
+}
+
 /* Compute the wait timer. Take care of timeouted fd */
 struct timeval *
 thread_compute_timer(struct thread_master *m, struct timeval *timer_wait)
@@ -476,32 +495,30 @@ thread_compute_timer(struct thread_master *m, struct timeval *timer_wait)
   struct timeval timer_now;
   struct timeval timer_min;
 
-  if (m->timer.head) {
-    gettimeofday (&timer_now, NULL);
+  timer_min.tv_sec = 0;
+  timer_min.tv_usec = 0;
+  gettimeofday (&timer_now, NULL);
 
-    /* Compare write(sands) to timer(sands) */
-    if (m->write.head) {
-      if (thread_timer_cmp(m->timer.head->sands,
-                           m->write.head->sands) <= 0)
-        timer_min = m->timer.head->sands;
-      else
-        if (m->write.head->sands.tv_sec != 0)
+  if (m->timer.head)
+    timer_min = m->timer.head->sands;
+
+  if (m->write.head) {
+    if (!thread_timer_null(timer_min)) {
+      if (thread_timer_cmp(m->write.head->sands, timer_min) <= 0)
           timer_min = m->write.head->sands;
-        else
-          timer_min = m->timer.head->sands;
     } else
-      timer_min = m->timer.head->sands;
+      timer_min = m->write.head->sands;
+  }
 
-    /* Compare read to min(write(sands),timer(sands)) */
-    if (m->read.head) {
-      if (thread_timer_cmp(m->read.head->sands,
-                           timer_min) <= 0)
-        timer_min = m->read.head->sands;
-      else
-        if (m->read.head->sands.tv_sec != 0)
+  if (m->read.head) {
+    if (!thread_timer_null(timer_min)) {
+      if (thread_timer_cmp(m->read.head->sands, timer_min) <= 0)
           timer_min = m->read.head->sands;
-    }
+    } else
+      timer_min = m->read.head->sands;
+  }
 
+  if (!thread_timer_null(timer_min)) {
     timer_min = thread_timer_sub (timer_min, timer_now);
     if (timer_min.tv_sec < 0) {
       timer_min.tv_sec = 0;
@@ -509,20 +526,8 @@ thread_compute_timer(struct thread_master *m, struct timeval *timer_wait)
     }
     timer_wait->tv_sec = timer_min.tv_sec;
     timer_wait->tv_usec = timer_min.tv_usec;
-  } else {
-    if (m->write.head && (m->write.head->sands.tv_sec != 0)) {
-      gettimeofday (&timer_now, NULL);
-      timer_min = m->write.head->sands;
-      timer_min = thread_timer_sub(timer_min,timer_now);
-      if (timer_min.tv_sec < 0) {
-        timer_min.tv_sec = 0;
-        timer_min.tv_usec = 10;
-      }
-      timer_wait->tv_sec = timer_min.tv_sec;
-      timer_wait->tv_usec = timer_min.tv_usec;
-    } else
-      timer_wait = NULL;
-  }
+  } else
+    timer_wait = NULL;
 
   return timer_wait;
 }
@@ -724,6 +729,11 @@ register_vs_worker_thread(struct thread_master *master,
         break;
       case LDAP_GET_ID:
         break;
+      case MISC_CHECK_ID:
+        thread_arg = thread_arg_new(root, lstptr, lstptr->svr);
+        thread_add_timer(master, misc_check_thread, thread_arg,
+                         thread_arg->vs->delay_loop);
+       break;
       default:
         break;
     }
@@ -740,13 +750,12 @@ register_worker_thread(struct thread_master *master, configuration_data *lstptr)
 {
   virtualserver *pointervs;
 
+  /* register VS specifics threads */
   pointervs = lstptr->lvstopology;
-
   while (lstptr->lvstopology) {
     register_vs_worker_thread(master, lstptr, lstptr->lvstopology);
 
     lstptr->lvstopology = (virtualserver *)lstptr->lvstopology->next;
   }
-
   lstptr->lvstopology = pointervs;
 }

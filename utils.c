@@ -5,11 +5,14 @@
  *
  * Part:        General program utils.
  *
- * Version:     $Id: utils.c,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
+ * Version:     $Id: utils.c,v 0.3.6 2001/08/10 15:33:51 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
- * Changes:
+ *              This program is distributed in the hope that it will be useful,
+ *              but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *              See the GNU General Public License for more details.
  *
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License

@@ -7,12 +7,11 @@
  *              using the smtp protocol according to the RFC 821. A non blocking
  *              timeouted connection is used to handle smtp protocol.
  *
- * Version:     $Id: smtp.c,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
+ * Version:     $Id: smtp.c,v 0.3.6 2001/08/23 23:02:51 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
- * Changes:
- *              Alexandre Cassen : 2001/07/15 : Initial release
+ * Changes:     Alexandre Cassen : 2001/07/15 : Initial release
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -127,7 +126,7 @@ static int smtp_read_cmd_thread(struct thread *thread)
 
 end:
 
-//printf("Received : %s", buffer);
+// printf("Received : %s", buffer);
 
   /* setting the next stage */
   switch (smtp_arg->stage) {
@@ -394,8 +393,8 @@ static int smtp_connect_thread(struct thread *thread)
 {
   struct thread_arg *thread_arg;
   struct smtp_thread_arg *smtp_arg;
-  int fd;
   enum connect_result status;
+  int fd;
 
   thread_arg = THREAD_ARG(thread);
   smtp_arg = THREAD_ARG_CHECKER_ARG(thread_arg);

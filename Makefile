@@ -5,11 +5,35 @@ EXEC= keepalived
 CC= gcc
 
 # To compile with debug messages uncomment the following line
-#CFLAGS= -g -Wall -D DEBUG
-CFLAGS= -g -Wall
+CFLAGS= -g -Wall -D DEBUG
+#CFLAGS= -g -Wall
 
-DEFS= main.h scheduler.h cfreader.h layer4.h check_tcp.h check_http.h md5.h smtp.h
-OBJECTS= main.o utils.o scheduler.o cfreader.o layer4.o check_tcp.o check_http.o md5.o ipwrapper.o ipvswrapper.o ipfwwrapper.o libipfwc/libipfwc.a pidfile.o smtp.o
+DEFS= main.h \
+	scheduler.h \
+	cfreader.h \
+	layer4.h \
+	check_tcp.h \
+	check_http.h \
+	check_misc.h \
+	md5.h \
+	smtp.h
+
+OBJECTS= main.o \
+	utils.o \
+	scheduler.o \
+	cfreader.o \
+	layer4.o \
+	check_tcp.o \
+	check_http.o \
+	check_misc.o \
+	md5.o \
+	ipwrapper.o \
+	ipvswrapper.o \
+	ipfwwrapper.o \
+	libipfwc/libipfwc.a \
+	pidfile.o \
+	smtp.o
+
 INCLUDE= -I/usr/src/linux/include
 
 .c.o:	

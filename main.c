@@ -5,12 +5,11 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 0.3.3 2001/07/13 03:46:38 acassen Exp $
+ * Version:     $Id: main.c,v 0.3.6 2001/08/23 23:02:51 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
- * Changes:
- *              Alexandre Cassen : 2001/06/25 : Rewritte the whole framework
+ * Changes:     Alexandre Cassen : 2001/06/25 : Rewritte the whole framework
  *                <+> Added scheduling framework using I/O multiplexer thread
  *                <+> Added syslog support
  *                <+> Change the signal handling
@@ -77,11 +76,10 @@ int daemon (int nochdir, int noclose)
   pid = fork ();
 
   /* In case of fork is error. */
-  if (pid < 0)
-    {
-      perror ("fork");
-      return -1;
-    }
+  if (pid < 0) {
+    perror ("fork");
+    return -1;
+  }
 
   /* In case of this is parent process. */
   if (pid != 0)
@@ -90,31 +88,28 @@ int daemon (int nochdir, int noclose)
   /* Become session leader and get pid. */
   pid = setsid();
 
-  if (pid < -1)
-    {
-      perror ("setsid");
-      return -1;
-    }
+  if (pid < -1) {
+    perror ("setsid");
+    return -1;
+  }
 
   /* Change directory to root. */
   if (! nochdir)
     chdir ("/");
 
   /* File descriptor close. */
-  if (! noclose)
-    {
-      int fd;
+  if (! noclose) {
+    int fd;
 
-      fd = open ("/dev/null", O_RDWR, 0);
-      if (fd != -1)
-        {
-          dup2 (fd, STDIN_FILENO);
-          dup2 (fd, STDOUT_FILENO);
-          dup2 (fd, STDERR_FILENO);
-          if (fd > 2)
-            close (fd);
-        }
+    fd = open ("/dev/null", O_RDWR, 0);
+    if (fd != -1) {
+      dup2 (fd, STDIN_FILENO);
+      dup2 (fd, STDOUT_FILENO);
+      dup2 (fd, STDERR_FILENO);
+      if (fd > 2)
+        close (fd);
     }
+  }
 
   umask (0);
 

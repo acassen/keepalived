@@ -5,7 +5,7 @@
  * 
  * Part:        cfreader.c include file.
  *  
- * Version:     $Id: cfreader.h,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
+ * Version:     $Id: cfreader.h,v 0.3.6 2001/08/23 23:02:51 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -82,8 +82,10 @@ struct keyword {
 #define KW_HTTPGET     (1 << 26)
 #define KW_SSLGET      (1 << 27)
 #define KW_LDAPGET     (1 << 28)
+#define KW_MISCCHECK   (1 << 29)
+#define KW_MISCPATH    (1 << 30)
 
-#define KW_UNKNOWN     (1 << 29)
+#define KW_UNKNOWN     (1 << 31)
 
 /* Structure definition  */
 typedef struct _urls {
@@ -106,8 +108,10 @@ typedef struct _keepalive_check {
 #define HTTP_GET_ID    (1 << 2)
 #define SSL_GET_ID     (1 << 3)
 #define LDAP_GET_ID    (1 << 4)
+#define MISC_CHECK_ID  (1 << 5)
   int connection_to;
   http_get_check *http_get;    /* FIXME : for new checker use union here */
+  char *misc_check_path;
 } keepalive_check;
 
 typedef struct _real_server {

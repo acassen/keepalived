@@ -1,3 +1,18 @@
+2001-08-23  Alexandre Cassen  <acassen@linux-vs.org>
+
+	* keepalived-0.3.6 released.
+	* Patch a race condition into the scheduler timer computation.
+	* Patch a race condition into the tcp checker thread. Only
+	  register next timer thread if tcp connection is not in progress.
+	* Patch a race condition into the http checker thread. Handle
+	  empty buffer returned from remote http server.
+	* Patch a race condition into the dumping configuration process.
+	  A simple dereferencing pointer value...oops...
+	* Eric Jarman, <ehj38230@cmsu2.cmsu.edu> added MISC CHECKER.
+	  It Perform a system call to run an extra system or script.
+	  => security auditing needed for system call,
+	     buffer overflow over script path must be handled.
+
 2001-07-15  Alexandre Cassen  <acassen@linux-vs.org>
 
 	* keepalived-0.3.5 released.

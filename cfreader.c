@@ -7,12 +7,11 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: cfreader.c,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
+ * Version:     $Id: cfreader.c,v 0.3.6 2001/08/23 23:02:51 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
- * Changes:     
- *              Alexandre Cassen : 2001/06/25 : Initial release
+ * Changes:     Alexandre Cassen : 2001/06/25 : Initial release
  *              
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -64,6 +63,9 @@ struct keyword keywords[] = {
   {KW_HTTPGET,     "HTTP_GET"},
   {KW_SSLGET,      "SSL_GET"},
   {KW_LDAPGET,     "LDAP_GET"},
+
+  {KW_MISCCHECK,   "MISC_CHECK"},
+  {KW_MISCPATH,    "misc_path"},
 
   {KW_UNKNOWN,     NULL}
 };
@@ -237,12 +239,12 @@ void dump_httpget(http_get_check *pointerhttpget)
                    pointerhttpget->delay_before_retry);
 
   pointerurls = pointerhttpget->check_urls;
-  while(pointerurls != NULL) {
+  while(pointerhttpget->check_urls) {
     syslog(LOG_DEBUG,"       -> Url = %s, Digest = %s",
-                     pointerurls->url,
-                     pointerurls->digest);
+                     pointerhttpget->check_urls->url,
+                     pointerhttpget->check_urls->digest);
 
-    pointerurls = (urls *)pointerurls->next;
+    pointerhttpget->check_urls = (urls *)pointerhttpget->check_urls->next;
   }
   pointerhttpget->check_urls = pointerurls;
 }
@@ -274,6 +276,11 @@ void dump_svr(realserver *pointersvr)
         break;
       case LDAP_GET_ID:
         break;
+      case MISC_CHECK_ID:
+       syslog(LOG_DEBUG,"       -> Keepalive method = MISC_CHECK");
+       syslog(LOG_DEBUG,"       -> Check path = %s",
+                        pointersvr->method->misc_check_path);
+       break;
     }
 
     pointersvr = (realserver *)pointersvr->next;
@@ -366,6 +373,37 @@ void process_stream_tcpcheck(FILE *stream, realserver *svrfill)
       case KW_CTIMEOUT:
         fscanf(stream, "%d", &methodfill->connection_to);
         break;
+      case KW_UNKNOWN:
+        break;
+    }
+    fscanf(stream, "%s", string);
+  } while(key(string) != KW_ENDFLAG);
+
+  svrfill->method = methodfill;
+}
+
+void process_stream_misccheck(FILE *stream, realserver *svrfill)
+{
+  keepalive_check *methodfill;
+  char* pathstring = (char*)malloc(512);
+
+  /* Allocate new method structure */
+  methodfill = (keepalive_check *)malloc(sizeof(keepalive_check));
+  memset(methodfill, 0, sizeof(keepalive_check));
+
+  methodfill->type = MISC_CHECK_ID;
+  methodfill->http_get = NULL;
+  methodfill->misc_check_path = NULL;
+
+  do {
+    switch (key(string)) {
+      case KW_CTIMEOUT:
+        fscanf(stream, "%d", &methodfill->connection_to);
+        break;
+      case KW_MISCPATH:
+       fgets(pathstring,512,stream);
+       methodfill->misc_check_path=pathstring;
+       break;
       case KW_UNKNOWN:
         break;
     }
@@ -480,6 +518,9 @@ void process_stream_svr(FILE *stream, virtualserver *vsfill)
         break;
       case KW_LDAPGET: /* not yet implemented */
         break;
+      case KW_MISCCHECK:
+       process_stream_misccheck(stream, svrfill);
+       break;
       case KW_UNKNOWN:
         break;
     }
@@ -640,7 +681,7 @@ configuration_data * conf_reader()
   conf_data->email = NULL;
   conf_data->lvstopology = NULL;
 
-  while(!feof(stream)) {
+  while (!feof(stream)) {
     switch (key(string)) {
       case KW_GLOBALDEFS:
         process_stream_globaldefs(stream, conf_data);

@@ -5,7 +5,7 @@
  *
  * Part:        ipwrapper.c include file.
  *
- * Version:     $Id: ipwrapper.h,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
+ * Version:     $Id: ipwrapper.h,v 0.3.6 2001/08/23 23:02:51 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

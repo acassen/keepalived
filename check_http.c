@@ -7,12 +7,11 @@
  *              url, compute a MD5 over this result and match it to the
  *              expected value.
  *
- * Version:     $Id: check_http.c,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
+ * Version:     $Id: check_http.c,v 0.3.6 2001/08/23 23:02:51 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
- * Changes:
- *              Alexandre Cassen : 2001/06/25 : Initial release
+ * Changes:     Alexandre Cassen : 2001/06/25 : Initial release
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -77,6 +76,32 @@ int http_response_thread(struct thread *thread)
 
   thread_arg = THREAD_ARG(thread);
   checker_arg = THREAD_ARG_CHECKER_ARG(thread_arg);
+
+  /* Handle read timeout */
+  if(thread->type == THREAD_READ_TIMEOUT) {
+#ifdef DEBUG
+    if (thread_arg->svr)
+      syslog(LOG_DEBUG, "HTTP read timeout to [%s:%d].",
+                          inet_ntoa(thread_arg->svr->addr_ip),
+                          ntohs(thread_arg->svr->addr_port));
+#endif
+    /* check if server is currently alive */
+    if (thread_arg->svr->alive) {
+      smtp_alert(thread->master, thread_arg->root, thread_arg->svr,
+                 "DOWN", "=> HTTP CHECK failed on service : cannot receive data <=\n\n");
+      perform_svr_state(DOWN, thread_arg->vs, thread_arg->svr);
+    }
+
+    /* reset iterator counters */
+    memset(thread_arg->checker_arg, 0, sizeof(struct http_thread_arg));
+
+    /* register next timer thread */
+    thread_add_timer(thread->master, http_connect_thread, thread_arg, 
+                     thread_arg->vs->delay_loop);
+
+    close(thread->u.fd);
+    return 0;
+  }
 
   /* Allocate the get buffers */
   buffer = (char *)malloc(MAX_BUFFER_LENGTH);
@@ -146,9 +171,11 @@ int http_response_thread(struct thread *thread)
 
 end:
 
-  buffer_html = extract_html(buffer,total_length);
+  buffer_html = extract_html(buffer, total_length);
 
-  if ((total_length-(buffer_html-buffer)) == 0) {
+//print_buffer(total_length - (buffer_html - buffer),buffer_html);
+
+  if ((total_length == 0) || ((total_length-(buffer_html-buffer)) == 0)) {
 #ifdef DEBUG
     syslog(LOG_DEBUG, "No html data received from remote server [%s:%d].",
                       inet_ntoa(thread_arg->svr->addr_ip),
@@ -191,7 +218,7 @@ end:
                        thread_arg->svr->method->http_get->delay_before_retry);
     }
   } else {
-   
+
     /* Compute MD5SUM */
     digest_tmp = (char *)malloc(2*sizeof(digest));
     memset(digest_tmp, 0, 2*sizeof(digest));
@@ -243,6 +270,13 @@ end:
 
     } else {
 
+#ifdef DEBUG
+      syslog(LOG_DEBUG, "MD5 digest success to [%s:%d] url(%d), expected MD5SUM [%s] match.",
+                        inet_ntoa(thread_arg->svr->addr_ip),
+                        ntohs(thread_arg->svr->addr_port),
+                        checker_arg->url_it+1, fetched_url->digest);
+#endif
+
       /* reset retry iterator and increment url iterator */
       checker_arg->retry_it = 0;
       checker_arg->url_it++;
@@ -250,7 +284,6 @@ end:
 
       thread_add_timer(thread->master, http_connect_thread, thread_arg, 
                        thread_arg->svr->method->http_get->delay_before_retry);
-//      print_buffer(total_length - (buffer_html - buffer),buffer_html);
     }
   }
 
@@ -272,6 +305,32 @@ int http_request_thread(struct thread *thread)
 
   thread_arg = THREAD_ARG(thread);
   checker_arg = THREAD_ARG_CHECKER_ARG(thread_arg);
+
+  /* Handle read timeout */
+  if(thread->type == THREAD_WRITE_TIMEOUT) {
+#ifdef DEBUG
+    if (thread_arg->svr)
+      syslog(LOG_DEBUG, "HTTP write timeout to [%s:%d].",
+                          inet_ntoa(thread_arg->svr->addr_ip),
+                          ntohs(thread_arg->svr->addr_port));
+#endif
+    /* check if server is currently alive */
+    if (thread_arg->svr->alive) {
+      smtp_alert(thread->master, thread_arg->root, thread_arg->svr,
+                 "DOWN", "=> HTTP CHECK failed on service : cannot receive data <=\n\n");
+      perform_svr_state(DOWN, thread_arg->vs, thread_arg->svr);
+    }
+
+    /* reset iterator counters */
+    memset(thread_arg->checker_arg, 0, sizeof(struct http_thread_arg));
+
+    /* register next timer thread */
+    thread_add_timer(thread->master, http_connect_thread, thread_arg, 
+                     thread_arg->vs->delay_loop);
+
+    close(thread->u.fd);
+    return 0;
+  }
 
   str_request = (char *)malloc(GET_REQUEST_BUFFER_LENGTH);
   memset(str_request, 0, GET_REQUEST_BUFFER_LENGTH);
