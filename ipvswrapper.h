@@ -5,7 +5,7 @@
  *
  * Part:        ipvswrapper.c include file.
  *
- * Version:     $Id: ipvswrapper.h,v 0.3.8 2001/11/04 21:41:32 acassen Exp $
+ * Version:     $Id: ipvswrapper.h,v 0.4.0 2001/08/24 00:35:19 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -35,12 +35,9 @@
 #include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
-
-#ifdef KERNEL_2_2
-  #include <linux/ip_fw.h>
-  #include <net/ip_masq.h>
-#endif
-
+#include <linux/ip_fw.h>
+#include <linux/ip_masq.h>
+#include <net/ip_masq.h>
 #include <net/ip_vs.h>
 
 /* locale includes */
@@ -48,6 +45,11 @@
 
 #define IPVS_ERROR   0
 #define IPVS_SUCCESS 1
+
+/* Return codes */
+#define IPVSNOTDEFINED 0x0003
+#define IPVSSVREXIST   0x0004
+#define IPVSNODEST     0x0005
 
 /* prototypes */
 extern int parse_timeout(char *buf, unsigned *timeout);

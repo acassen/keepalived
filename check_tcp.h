@@ -5,7 +5,7 @@
  *
  * Part:        check_tcp.c include file.
  *
- * Version:     $Id: check_tcp.h,v 0.3.8 2001/11/04 21:41:32 acassen Exp $
+ * Version:     $Id: check_tcp.h,v 0.4.0 2001/08/24 00:35:19 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

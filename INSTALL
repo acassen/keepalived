@@ -5,7 +5,6 @@ Kernel needing
 
   IP aliasing
   Kernel/User netlink socket
-  Network firewalls
   Routing messages
   LinuxVirtualServer
 
@@ -32,6 +31,5 @@ Configuration
 
   http://keepalived.sourceforge.net
 
-Have fun with it !
 
-Alexandre Cassen, <acassen@linux-vs.org>
+Have fun with it !

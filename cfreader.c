@@ -7,9 +7,11 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: cfreader.c,v 0.3.8 2001/11/04 21:41:32 acassen Exp $
+ * Version:     $Id: cfreader.c,v 0.4.0 2001/08/24 00:35:19 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
+ *              
+ * Changes:     Alexandre Cassen : 2001/06/25 : Initial release
  *              
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -28,42 +30,53 @@
 char *string; /* Temp read buffer */
 
 struct keyword keywords[] = {
-  {KW_BEGINFLAG,   "{"},
-  {KW_ENDFLAG,     "}"},
+  {KW_BEGINFLAG,    "{"},
+  {KW_ENDFLAG,      "}"},
 
-  {KW_GLOBALDEFS,  "global_defs"},
-  {KW_EMAIL,       "notification_email"},
-  {KW_EMAILFROM,   "notification_email_from"},
-  {KW_LVSID,       "lvs_id"},
-  {KW_SMTP,        "smtp_server"},
-  {KW_STIMEOUT,    "smtp_connect_timeout"},
+  {KW_GLOBALDEFS,   "global_defs"},
+  {KW_EMAIL,        "notification_email"},
+  {KW_EMAILFROM,    "notification_email_from"},
+  {KW_LVSID,        "lvs_id"},
+  {KW_SMTP,         "smtp_server"},
+  {KW_STIMEOUT,     "smtp_connect_timeout"},
 
-  {KW_VS,          "virtual_server"},
-  {KW_DELAY,       "delay_loop"},
-  {KW_LBSCHED,     "lb_algo"},
-  {KW_LBKIND,      "lb_kind"},
-  {KW_NATMASK,     "nat_mask"},
-  {KW_PTIMEOUT,    "persistence_timeout"},
-  {KW_PROTOCOL,    "protocol"},
-  {KW_SSVR,        "sorry_server"},
+  {KW_VS,           "virtual_server"},
+  {KW_DELAY,        "delay_loop"},
+  {KW_LBSCHED,      "lb_algo"},
+  {KW_LBKIND,       "lb_kind"},
+  {KW_NATMASK,      "nat_mask"},
+  {KW_PTIMEOUT,     "persistence_timeout"},
+  {KW_PROTOCOL,     "protocol"},
+  {KW_SSVR,         "sorry_server"},
 
-  {KW_SVR,         "real_server"},
-  {KW_WEIGHT,      "weight"},
-  {KW_CTIMEOUT,    "connect_timeout"},
-  {KW_URL,         "url"},
-  {KW_URLPATH,     "path"},
-  {KW_DIGEST,      "digest"},
-  {KW_NBGETRETRY,  "nb_get_retry"},
-  {KW_DELAYRETRY,  "delay_before_retry"},
+  {KW_SVR,          "real_server"},
+  {KW_WEIGHT,       "weight"},
+  {KW_CTIMEOUT,     "connect_timeout"},
+  {KW_URL,          "url"},
+  {KW_URLPATH,      "path"},
+  {KW_DIGEST,       "digest"},
+  {KW_NBGETRETRY,   "nb_get_retry"},
+  {KW_DELAYRETRY,   "delay_before_retry"},
 
-  {KW_ICMPCHECK,   "ICMP_CHECK"},
-  {KW_TCPCHECK,    "TCP_CHECK"},
-  {KW_HTTPGET,     "HTTP_GET"},
-  {KW_SSLGET,      "SSL_GET"},
-  {KW_LDAPGET,     "LDAP_GET"},
+  {KW_ICMPCHECK,    "ICMP_CHECK"},
+  {KW_TCPCHECK,     "TCP_CHECK"},
+  {KW_HTTPGET,      "HTTP_GET"},
+  {KW_SSLGET,       "SSL_GET"},
+  {KW_LDAPGET,      "LDAP_GET"},
 
-  {KW_MISCCHECK,   "MISC_CHECK"},
-  {KW_MISCPATH,    "misc_path"},
+  {KW_VRRP,         "vrrp_instance"},
+  {KW_VRRPINT,      "interface"},
+  {KW_VRRPVRID,     "virtual_router_id"},
+  {KW_VRRPAUTH,     "authentication"},
+  {KW_VRRPAUTHTYPE, "auth_type"},
+  {KW_VRRPAUTHAH,   "AH"},
+  {KW_VRRPAUTHPWD,  "PASS"},
+  {KW_VRRPAUTHPASS, "auth_pass"},
+  {KW_VRRPPRIO,     "priority"},
+  {KW_VRRPADVERT,   "advert_int"},
+  {KW_VRRPIPADD,    "virtual_ipaddress"},
+  {KW_VRRPSYNC,     "sync_instance"},
+  {KW_VRRPPREEMPT,  "preempt"},
 
   {KW_UNKNOWN,     NULL}
 };
@@ -110,9 +123,23 @@ int already_exist_svr(realserver *lstptr, uint32_t ip, uint16_t port)
   return 0;
 }
 
+vrrp_instance * add_item_vrrp(vrrp_instance *lstvrrp, vrrp_instance *vrrp)
+{
+  vrrp_instance *pointerlst = lstvrrp;
+
+  if (lstvrrp != NULL) {
+    while(lstvrrp->next != NULL) lstvrrp = (vrrp_instance *)lstvrrp->next;
+    lstvrrp->next = (struct vrrp_instance *)vrrp;
+    return pointerlst;
+  } else {
+    lstvrrp = vrrp;
+    return lstvrrp;
+  }
+}
+
 notification_email * add_item_email(notification_email *lstemail,notification_email *email)
 {
-  notification_email *pointerlst=lstemail;
+  notification_email *pointerlst = lstemail;
 
   if (lstemail != NULL) {
     while(lstemail->next != NULL) lstemail = (notification_email *)lstemail->next;
@@ -126,7 +153,7 @@ notification_email * add_item_email(notification_email *lstemail,notification_em
 
 virtualserver * add_item_vs(virtualserver *lstvs,virtualserver *vs)
 {
-  virtualserver *pointerlst=lstvs;
+  virtualserver *pointerlst = lstvs;
 
   if(already_exist_vs(lstvs, vs->addr_ip.s_addr, vs->addr_port)) return lstvs;
 
@@ -142,7 +169,7 @@ virtualserver * add_item_vs(virtualserver *lstvs,virtualserver *vs)
 
 realserver * add_item_svr(realserver *lstsvr,realserver *svr)
 {
-  realserver *pointerlst=lstsvr;
+  realserver *pointerlst = lstsvr;
 
   if(already_exist_svr(lstsvr, svr->addr_ip.s_addr, svr->addr_port)) return lstsvr;
 
@@ -158,7 +185,7 @@ realserver * add_item_svr(realserver *lstsvr,realserver *svr)
 
 urls * add_item_url(urls *lsturls,urls *url)
 {
-  urls *pointerlst=lsturls;
+  urls *pointerlst = lsturls;
 
   if (lsturls != NULL) {
     while(lsturls->next != NULL) lsturls = (urls *)lsturls->next;
@@ -208,6 +235,19 @@ virtualserver * remove_vs(virtualserver * lstptr)
   return t;
 }
 
+vrrp_instance * remove_vrrp(vrrp_instance *lstptr)
+{
+  vrrp_instance *t;
+
+  t = (vrrp_instance *)lstptr->next;
+  free(lstptr->vsrv->vaddr);
+  free(lstptr->vsrv->ipsecah_counter);
+  free(lstptr->vsrv->vif);
+  free(lstptr->vsrv);
+  free(lstptr);
+  return t;
+}
+
 notification_email * remove_email(notification_email *lstptr)
 {
   notification_email *t;
@@ -222,8 +262,19 @@ void clear_conf(configuration_data * lstptr)
   while(lstptr->email != NULL)
     lstptr->email = remove_email(lstptr->email);
 
+  while(lstptr->vrrp != NULL)
+    lstptr->vrrp = remove_vrrp(lstptr->vrrp);
+
   while(lstptr->lvstopology != NULL)
     lstptr->lvstopology = remove_vs(lstptr->lvstopology);
+}
+
+void clear_vrrp_instance(vrrp_instance *lstptr)
+{
+  while (lstptr) {
+    vrrp_state_stop_instance(lstptr->vsrv);
+    lstptr = (vrrp_instance *)lstptr->next;
+  }
 }
 
 /* Dynamic data structure dump functions start here */
@@ -274,11 +325,6 @@ void dump_svr(realserver *pointersvr)
         break;
       case LDAP_GET_ID:
         break;
-      case MISC_CHECK_ID:
-       syslog(LOG_DEBUG,"       -> Keepalive method = MISC_CHECK");
-       syslog(LOG_DEBUG,"       -> Check path = %s",
-                        pointersvr->method->misc_check_path);
-       break;
     }
 
     pointersvr = (realserver *)pointersvr->next;
@@ -293,35 +339,13 @@ void dump_vs(virtualserver *pointervs)
                       ntohs(pointervs->addr_port));
 
     syslog(LOG_DEBUG, " -> delay_loop = %d, lb_algo = %s, "
-                      "persistence = %s, protocol = %s",
+                      "lb_kind = %s, persistence = %s, protocol = %s",
                       pointervs->delay_loop, pointervs->sched,
+                      (pointervs->loadbalancing_kind == 0)?"NAT":"UNKNOWN",
                       pointervs->timeout_persistence,
                       (pointervs->service_type == IPPROTO_TCP)?"TCP":"UDP");
 
-    switch (pointervs->loadbalancing_kind) {
-#ifdef KERNEL_2_2
-      case 0:
-        syslog(LOG_DEBUG, " -> lb_kind = NAT");
-        syslog(LOG_DEBUG, " -> nat mask = %s", inet_ntoa(pointervs->nat_mask));
-        break;
-      case IP_MASQ_F_VS_DROUTE:
-        syslog(LOG_DEBUG, " -> lb_kind = DR");
-        break;
-      case IP_MASQ_F_VS_TUNNEL:
-        syslog(LOG_DEBUG, " -> lb_kind = TUN");
-        break;
-#else
-      case IP_VS_CONN_F_MASQ:
-        syslog(LOG_DEBUG, " -> lb_kind = NAT");
-        break;
-      case IP_VS_CONN_F_DROUTE:
-        syslog(LOG_DEBUG, " -> lb_kind = DR");
-        break;
-      case IP_VS_CONN_F_TUNNEL:
-        syslog(LOG_DEBUG, " -> lb_kind = TUN");
-        break;
-#endif
-    }
+    syslog(LOG_DEBUG, " -> nat mask = %s", inet_ntoa(pointervs->nat_mask));
 
     if (pointervs->s_svr != NULL) {
       syslog(LOG_DEBUG, " -> sorry server = [%s:%d]", 
@@ -344,6 +368,34 @@ void dump_email(notification_email *pointeremail)
   }
 }
 
+void dump_vrrp(vrrp_instance *pointervrrp)
+{
+  int i;
+
+  while (pointervrrp != NULL) {
+    syslog(LOG_DEBUG, " VRRP Instance = %s", pointervrrp->iname);
+    syslog(LOG_DEBUG, "   Device = %s", pointervrrp->vsrv->vif->ifname);
+    if (strlen(pointervrrp->isync) > 0)
+      syslog(LOG_DEBUG, "   Sync with instance = %s", pointervrrp->isync);
+    syslog(LOG_DEBUG, "   Virtual Router ID = %d", pointervrrp->vsrv->vrid);
+    syslog(LOG_DEBUG, "   Priority = %d", pointervrrp->vsrv->priority);
+    syslog(LOG_DEBUG, "   Advert interval = %dsec",
+                      pointervrrp->vsrv->adver_int/VRRP_TIMER_HZ);
+    if (pointervrrp->vsrv->preempt)
+      syslog(LOG_DEBUG, "   Preempt active");
+    if (pointervrrp->vsrv->vif->auth_type) {
+      syslog(LOG_DEBUG, "   Authentication type = %s", 
+            (pointervrrp->vsrv->vif->auth_type == VRRP_AUTH_AH)?"IPSEC_AH":"SIMPLE_PASSWORD" );
+      syslog(LOG_DEBUG, "   Password = %s", pointervrrp->vsrv->vif->auth_data);
+    }
+    syslog(LOG_DEBUG, "   VIP count = %d", pointervrrp->vsrv->naddr);
+    for (i = 0; i<pointervrrp->vsrv->naddr; i++)
+      syslog(LOG_DEBUG, "     VIP%d = %s", i+1, ip_ntoa(ntohl(pointervrrp->vsrv->vaddr[i].addr)));
+
+    pointervrrp = (vrrp_instance *)pointervrrp->next;
+  }
+}
+
 void dump_conf(configuration_data *lstconf)
 {
   if(lstconf == NULL) {
@@ -354,11 +406,17 @@ void dump_conf(configuration_data *lstconf)
     syslog(LOG_DEBUG," Smtp server = %s", inet_ntoa(lstconf->smtp_server));
     syslog(LOG_DEBUG," Smtp server connection timeout = %d", lstconf->smtp_connection_to);
     syslog(LOG_DEBUG," Email notification from = %s",lstconf->email_from);
-
     dump_email(lstconf->email);
 
-    syslog(LOG_DEBUG,"------< LVS Topology >------");
-    dump_vs(lstconf->lvstopology);
+    if (lstconf->vrrp) {
+      syslog(LOG_DEBUG,"------< VRRP Topology >------");
+      dump_vrrp(lstconf->vrrp);
+    }
+
+    if (lstconf->lvstopology) {
+      syslog(LOG_DEBUG,"------< LVS Topology >------");
+      dump_vs(lstconf->lvstopology);
+    }
   }
 }
 
@@ -393,37 +451,6 @@ void process_stream_tcpcheck(FILE *stream, realserver *svrfill)
       case KW_CTIMEOUT:
         fscanf(stream, "%d", &methodfill->connection_to);
         break;
-      case KW_UNKNOWN:
-        break;
-    }
-    fscanf(stream, "%s", string);
-  } while(key(string) != KW_ENDFLAG);
-
-  svrfill->method = methodfill;
-}
-
-void process_stream_misccheck(FILE *stream, realserver *svrfill)
-{
-  keepalive_check *methodfill;
-  char* pathstring = (char*)malloc(512);
-
-  /* Allocate new method structure */
-  methodfill = (keepalive_check *)malloc(sizeof(keepalive_check));
-  memset(methodfill, 0, sizeof(keepalive_check));
-
-  methodfill->type = MISC_CHECK_ID;
-  methodfill->http_get = NULL;
-  methodfill->misc_check_path = NULL;
-
-  do {
-    switch (key(string)) {
-      case KW_CTIMEOUT:
-        fscanf(stream, "%d", &methodfill->connection_to);
-        break;
-      case KW_MISCPATH:
-       fgets(pathstring,512,stream);
-       methodfill->misc_check_path=pathstring;
-       break;
       case KW_UNKNOWN:
         break;
     }
@@ -538,9 +565,6 @@ void process_stream_svr(FILE *stream, virtualserver *vsfill)
         break;
       case KW_LDAPGET: /* not yet implemented */
         break;
-      case KW_MISCCHECK:
-       process_stream_misccheck(stream, svrfill);
-       break;
       case KW_UNKNOWN:
         break;
     }
@@ -603,33 +627,11 @@ void process_stream_vs(FILE *stream, configuration_data *conf_data)
         break;
       case KW_LBKIND:
         fscanf(stream, "%s", string);
-
-#ifdef KERNEL_2_2
-        if (strcmp(string, "NAT") == 0)
-          vsfill->loadbalancing_kind = 0;
-        else
-          if (strcmp(string, "DR") == 0)
-            vsfill->loadbalancing_kind = IP_MASQ_F_VS_DROUTE;
-          else
-            if (strcmp(string, "TUN") == 0)
-              vsfill->loadbalancing_kind = IP_MASQ_F_VS_TUNNEL;
-            else
-              syslog(LOG_DEBUG,"CFREADER : unknown [%s] routing method."
-                              , string);
-#else
-        if (strcmp(string, "NAT") == 0)
-          vsfill->loadbalancing_kind = IP_VS_CONN_F_MASQ;
-        else
-          if (strcmp(string, "DR") == 0)
-            vsfill->loadbalancing_kind = IP_VS_CONN_F_DROUTE;
-          else
-            if (strcmp(string, "TUN") == 0)
-              vsfill->loadbalancing_kind = IP_VS_CONN_F_TUNNEL;
-            else
-              syslog(LOG_DEBUG,"CFREADER : unknown [%s] routing method."
-                              , string);
-#endif
-
+        /* For the moment only NAT is supported.
+         * masq_flags : IP_MASQ_F_VS_DROUTE & IP_MASQ_F_VS_TUNNEL not supported.
+         * So we just set masq_flags to 0.
+         */
+        vsfill->loadbalancing_kind = 0;
         break;
       case KW_NATMASK:
         fscanf(stream, "%s", string);
@@ -700,20 +702,154 @@ void process_stream_globaldefs(FILE *stream, configuration_data *conf_data)
   } while(key(string) != KW_ENDFLAG);
 }
 
+static void add_item_vrrp_vip(vrrp_rt *vsrv, uint32_t ipaddr)
+{
+  vsrv->naddr++;
+  /* alloc the room */
+  if( vsrv->vaddr ){
+    vsrv->vaddr = realloc(vsrv->vaddr, vsrv->naddr*sizeof(*vsrv->vaddr));
+  } else {
+    vsrv->vaddr = malloc(sizeof(*vsrv->vaddr));
+  }
+  /* store the data */
+  vsrv->vaddr[vsrv->naddr-1].addr = ipaddr;
+  vsrv->vaddr[vsrv->naddr-1].deletable = 0;
+}
+
+void process_stream_vrrp_ipaddress(FILE *stream, vrrp_rt *vrrp)
+{
+  uint32_t ipaddr;
+
+  do {
+    fscanf(stream, "%s", string);
+    if(key(string) != KW_BEGINFLAG && key(string) != KW_ENDFLAG) {
+      ipaddr = inet_addr(string);
+      add_item_vrrp_vip(vrrp, ntohl(ipaddr));
+    }
+  } while(key(string) != KW_ENDFLAG);
+}
+
+void process_stream_vrrp_auth(FILE *stream, vrrp_if *vif)
+{
+  do {
+    switch (key(string)) {
+      case KW_VRRPAUTHTYPE:
+        fscanf(stream, "%s", string);
+        vif->auth_type = (key(string) == KW_VRRPAUTHAH)?VRRP_AUTH_AH:VRRP_AUTH_PASS;
+        break;
+      case KW_VRRPAUTHPASS:
+        fscanf(stream, "%s", vif->auth_data);
+        break;
+      case KW_UNKNOWN:
+        break;
+    }
+    fscanf(stream, "%s", string);
+  } while(key(string) != KW_ENDFLAG);
+}
+
+int process_stream_vrrp(FILE *stream, configuration_data *conf_data)
+{
+  vrrp_instance *vrrpfill;
+  vrrp_rt *rtfill;
+  vrrp_if *viffill;
+  seq_counter *counterfill;
+
+  /* Allocate new VRRP structure */
+  vrrpfill = (vrrp_instance *)malloc(sizeof(vrrp_instance));
+  rtfill = (vrrp_rt *)malloc(sizeof(vrrp_rt));
+  viffill = (vrrp_if *)malloc(sizeof(vrrp_if));
+  counterfill = (seq_counter *)malloc(sizeof(seq_counter));
+
+  memset(vrrpfill, 0, sizeof(vrrp_instance));
+  memset(rtfill, 0, sizeof(vrrp_rt));
+  memset(viffill, 0, sizeof(vrrp_if));
+  memset(counterfill, 0, sizeof(seq_counter));
+
+  /* Add the vrrp instance allocated to the configuration
+   * data structure.
+   */
+  vrrpfill->vsrv = rtfill;
+  vrrpfill->vsrv->vif = viffill;
+  vrrpfill->vsrv->ipsecah_counter = counterfill;
+  vrrpfill->vsrv->vaddr = NULL;
+  vrrpfill->vsrv->vaddr = NULL;
+  vrrpfill->next = NULL;
+
+  conf_data->vrrp = add_item_vrrp(conf_data->vrrp, vrrpfill);
+
+  fscanf(stream, "%s", vrrpfill->iname);
+
+  /* Fill in the VRRP structure */
+  do {
+    switch (key(string)) {
+      case KW_VRRPSYNC:
+        fscanf(stream, "%s", vrrpfill->isync);
+        break;
+      case KW_VRRPINT:
+        fscanf(stream, "%s", viffill->ifname);
+        break;
+      case KW_VRRPVRID:
+        fscanf(stream, "%d", &rtfill->vrid);
+        if (VRRP_IS_BAD_VID(rtfill->vrid)) {
+          syslog(LOG_DEBUG, "VRRP Error : VRID not valid !");
+          syslog(LOG_DEBUG, "VRRP Error : must be between 1 & 255. reconfigure !");
+          return 0;
+        }
+        break;
+      case KW_VRRPPRIO:
+        fscanf(stream, "%d", &rtfill->priority);
+        if (VRRP_IS_BAD_PRIORITY(rtfill->priority)) {
+          syslog(LOG_DEBUG, "VRRP Error : priority not valid !");
+          syslog(LOG_DEBUG, "VRRP Error : must be between 1 & 255. reconfigure !");
+          return 0;
+        }
+        break;
+      case KW_VRRPADVERT:
+        fscanf(stream, "%d", &rtfill->adver_int);
+        if (VRRP_IS_BAD_ADVERT_INT(rtfill->adver_int)) {
+          syslog(LOG_DEBUG, "VRRP Error : Advert intervall not valid !");
+          syslog(LOG_DEBUG, "VRRP Error : must be between less than 1sec. reconfigure !");
+          return 0;
+        }
+        rtfill->adver_int *= VRRP_TIMER_HZ;
+        break;
+      case KW_VRRPAUTH:
+        process_stream_vrrp_auth(stream, viffill);
+        break;
+      case KW_VRRPIPADD:
+        process_stream_vrrp_ipaddress(stream, rtfill);
+        break;
+      case KW_VRRPPREEMPT:
+        rtfill->preempt = !rtfill->preempt;
+        break;
+      case KW_UNKNOWN:
+        break;
+    }
+    fscanf(stream, "%s", string);
+  } while(key(string) != KW_ENDFLAG);
+
+  /* Compute the static values to finish initialization */
+  if (!complete_vrrp_init(rtfill))
+    return 0;
+
+  return 1;
+}
+
 configuration_data * conf_reader()
 {
   configuration_data *conf_data;
   FILE *stream;
 
+  /* Allocate configuration data memory */
+  conf_data = (configuration_data *)malloc(sizeof(configuration_data));
+  memset(conf_data, 0, sizeof(configuration_data));
+
+  /* Parse the confuguration file */
   stream = fopen(CONFFILE, "r");
   if(!stream) {
     syslog(LOG_INFO, "ConfReader : Can not read the configuration file...");
     return(NULL);
   }
-
-  /* Allocate configuration data memory */
-  conf_data = (configuration_data *)malloc(sizeof(configuration_data));
-  memset(conf_data, 0, sizeof(configuration_data));
 
   /* Allocate temp buffer string */
   string = (char *)malloc(TEMP_BUFFER_LENGTH);
@@ -730,6 +866,10 @@ configuration_data * conf_reader()
         break;
       case KW_VS:
         process_stream_vs(stream, conf_data);
+        break;
+      case KW_VRRP:
+        if (!process_stream_vrrp(stream, conf_data))
+          return NULL;
         break;
       case KW_UNKNOWN:
         break;

@@ -1,0 +1,10 @@
+* VRRP : handle specific interface multicast binding.
+* Documentation.
+* Insert LDAP, SSL, FTP, SSH, IMAP, POP, RADIUS checkers.
+* Security auditing.
+* Add minimum configuration verification (realserver must have
+  a checker defined, ...)
+* Add system verification (must have LVS support in kernel, 
+                           must have netlink support in kernel,
+                           must have ip alias support in kernel,
+                           must have routing messages in kernel).

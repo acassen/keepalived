@@ -1,29 +1,18 @@
 # Makefile
-# Alexandre Cassen <Alexandre.Cassen@wanadoo.fr>
+# Alexandre Cassen <acassen@linux-vs.org>
 
 EXEC= keepalived
 CC= gcc
 
-KERNEL := KERNEL_2_$(shell uname -r | cut -d'.' -f2)
-
 # To compile with debug messages uncomment the following line
-CFLAGS= -g -Wall -DDEBUG -D$(KERNEL)
-#CFLAGS= -g -Wall -D$(KERNEL)
+CFLAGS= -g -Wall -D DEBUG
+#CFLAGS= -g -Wall
+DEFS=
 
-ifeq ($(KERNEL),KERNEL_2_2)
-  LIB := $(LIB) libipfwc/libipfwc.a
-endif
+LIB=	libipfwc/libipfwc.a \
+	libnetlink/libnetlink.a
 
-DEFS= main.h \
-	scheduler.h \
-	cfreader.h \
-	layer4.h \
-	check_tcp.h \
-	check_http.h \
-	check_misc.h \
-	md5.h \
-	smtp.h
-
+#DEFS= main.h scheduler.h cfreader.h layer4.h check_tcp.h check_http.h md5.h smtp.h
 OBJECTS= main.o \
 	utils.o \
 	scheduler.o \
@@ -31,16 +20,16 @@ OBJECTS= main.o \
 	layer4.o \
 	check_tcp.o \
 	check_http.o \
-	check_misc.o \
 	md5.o \
 	ipwrapper.o \
-	ipvswrapper.o
-ifeq ($(KERNEL),KERNEL_2_2)
-  OBJECTS := $(OBJECTS) ipfwwrapper.o
-endif
-OBJECTS := $(OBJECTS) \
+	ipvswrapper.o \
+	ipfwwrapper.o \
 	pidfile.o \
-	smtp.o
+	smtp.o \
+	vrrp.o \
+	vrrp_iproute.o \
+	vrrp_ipaddress.o \
+	vrrp_ipsecah.o
 
 INCLUDE= -I/usr/src/linux/include
 
@@ -55,15 +44,15 @@ all:	$(EXEC)
 $(EXEC):	$(OBJECTS) $(DEFS) $(LIB)
 	$(CC) -o $(EXEC) $(CFLAGS) $(OBJECTS) $(LIB)
 
-ifeq ($(KERNEL),KERNEL_2_2)
 libipfwc/libipfwc.a:
 	cd libipfwc/ && $(MAKE) libipfwc.a
-endif
+
+libnetlink/libnetlink.a:
+	cd libnetlink/ && $(MAKE) libnetlink.a
 
 subclean:
-ifeq ($(KERNEL),KERNEL_2_2)
 	cd libipfwc/ && $(MAKE) clean
-endif
+	cd libnetlink/ && $(MAKE) clean
 
 clean: subclean
 	rm -f core *.o $(EXEC)

@@ -7,9 +7,11 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 0.3.8 2001/11/04 21:41:32 acassen Exp $
+ * Version:     $Id: scheduler.c,v 0.4.0 2001/08/24 00:35:19 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
+ *
+ * Changes:     Alexandre Cassen : 2001/06/08 : Initial release
  *
  *              This program is distributed in the hope that it will be useful, 
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of 
@@ -727,11 +729,6 @@ register_vs_worker_thread(struct thread_master *master,
         break;
       case LDAP_GET_ID:
         break;
-      case MISC_CHECK_ID:
-        thread_arg = thread_arg_new(root, lstptr, lstptr->svr);
-        thread_add_timer(master, misc_check_thread, thread_arg,
-                         thread_arg->vs->delay_loop);
-       break;
       default:
         break;
     }
@@ -747,6 +744,16 @@ void
 register_worker_thread(struct thread_master *master, configuration_data *lstptr)
 {
   virtualserver *pointervs;
+  vrrp_instance *pointervrrp;
+
+  /* register VRRP specifics threads */
+  pointervrrp = lstptr->vrrp;
+  while (lstptr->vrrp) {
+    thread_add_event(master, vrrp_state_init_thread, lstptr->vrrp, VRRP_STATE_INIT);
+
+    lstptr->vrrp = (vrrp_instance *)lstptr->vrrp->next;
+  }
+  lstptr->vrrp = pointervrrp;
 
   /* register VS specifics threads */
   pointervs = lstptr->lvstopology;

@@ -3,9 +3,9 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        check_http.c include file.
+ * Part:        vrrp_iproute.c include file.
  *
- * Version:     $Id: check_http.h,v 0.4.0 2001/08/24 00:35:19 acassen Exp $
+ * Version:     $Id: vrrp_iproute.h,v 0.4.0 2001/08/24 00:35:19 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,36 +20,42 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _HTTP_H
-#define _HTTP_H
+#ifndef _VRRP_IPROUTE_H
+#define _VRRP_IPROUTE_H
 
-/* local includes */
-#include "cfreader.h"
-#include "ipwrapper.h"
-#include "scheduler.h"
-#include "layer4.h"
-#include "md5.h"
+/* global includes */
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <syslog.h>
 
-/* global defs */
-#define SOCKET_ERROR   0
-#define SOCKET_SUCCESS 1
+/* specify a routing entry */
+struct rt_entry {
+  struct rtmsg *rtm;
 
-#define MD5_BUFFER_LENGTH 32
-#define GET_REQUEST_BUFFER_LENGTH 128
-#define GET_BUFFER_LENGTH 2048
-#define MAX_BUFFER_LENGTH 4096
-#define LOGBUFFER_LENGTH 100
+  uint32_t psrc;
+  uint32_t src;
+  uint32_t dest;
+  uint32_t gate;
+  uint32_t flow;
+  int iif;
+  int oif;
+  int prio;
+  int metrics;
 
-/* http get processing command */
-#define GETCMD "GET %s HTTP/1.0\r\n\r\n"
+  struct rt_entry *next;
+};
 
-/* Prototypes defs */
-extern int http_connect_thread(struct thread *thread);
+/* prototypes */
 
-extern void smtp_alert(struct thread_master *master,
-                       configuration_data *root,
-                       realserver *rserver,
-                       const char *subject,
-                       const char *body);
+extern struct rt_entry *iproute_fetch(struct rt_entry *r);
+extern void iproute_dump(struct rt_entry *r);
+extern void iproute_clear(struct rt_entry *lstentry);
+extern int iproute_restore(struct rt_entry *lstentry, char *dev);
+extern struct rt_entry *iproute_list(char *dev);
 
 #endif

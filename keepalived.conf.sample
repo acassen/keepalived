@@ -10,6 +10,41 @@ global_defs {
    lvs_id LVS_DEVEL
 }
 
+vrrp_instance VI_1 {
+    interface eth0
+    virtual_router_id 50
+    preempt
+    authentication {
+        auth_type AH
+        auth_pass k@!v361
+    }
+    priority 100
+    advert_int 1
+    virtual_ipaddress {
+        192.168.200.11
+        192.168.200.12
+        192.168.200.13
+    }
+    sync_instance VI_2
+}
+
+vrrp_instance VI_2 {
+    interface eth1
+    virtual_router_id 51
+    authentication {
+        auth_type AH
+        auth_pass k@!v362
+    }
+    priority 100
+    advert_int 1
+    virtual_ipaddress {
+        192.168.201.11
+        192.168.201.12
+        192.168.201.13
+    }
+    sync_instance VI_1
+}
+
 virtual_server 10.10.10.2 1358 {
     delay_loop 6
     lb_algo rr 
@@ -57,14 +92,6 @@ virtual_server 10.10.10.2 1358 {
             delay_before_retry 3
         }
     }
-
-    real_server 192.168.200.6 1358 {
-        weight 1
-        MISC_CHECK {
-          misc_path /usr/local/bin/script.sh
-        }
-    }
-
 }
 
 virtual_server 10.10.10.3 1358 {

@@ -6,9 +6,11 @@
  * Part:        Layer4 checkers handling. Register worker threads &
  *              upper layer checkers.
  *
- * Version:     $Id: layer4.c,v 0.3.8 2001/11/04 21:41:32 acassen Exp $
+ * Version:     $Id: layer4.c,v 0.4.0 2001/08/24 00:35:19 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
+ *
+ * Changes:     Alexandre Cassen : 2001/06/25 : Initial release
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of

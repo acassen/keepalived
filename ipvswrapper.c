@@ -6,24 +6,32 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 0.3.8 2001/11/04 21:41:32 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 0.4.0 2001/08/24 00:35:19 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
- *              This program is distributed in the hope that it will be useful,
- *              but WITHOUT ANY WARRANTY; without even the implied warranty of
- *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *              See the GNU General Public License for more details.
+ * Changes:     
+ *              Alexandre Cassen : 2001/03/27 :
+ *                <+> Added setsockopt return value.
+ *                <+> Added support to the IP_MASQ_CMD ruleset.
+ *                    IP_MASQ_CMD_ADD : Adding a virtual service.
+ *                    IP_MASQ_CMD_DEL : Deleting a virtual service.
+ *                    IP_MASQ_CMD_ADD_DEST : Adding a real service.
+ *                    IP_MASQ_CMD_DEL_DEST : Deleting a real service.
+ *               Alexandre Cassen      :       Initial release
+ *              
+ *               This program is distributed in the hope that it will be useful,
+ *               but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *               MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *               See the GNU General Public License for more details.
  *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
+ *               This program is free software; you can redistribute it and/or
+ *               modify it under the terms of the GNU General Public License
+ *               as published by the Free Software Foundation; either version
+ *               2 of the License, or (at your option) any later version.
  */
 
 #include "ipvswrapper.h"
-
-#ifdef KERNEL_2_2  /* KERNEL 2.2 LVS handling */
 
 int ipvs_cmd(int cmd, virtualserver *vserver, realserver *rserver)
 {
@@ -42,10 +50,13 @@ int ipvs_cmd(int cmd, virtualserver *vserver, realserver *rserver)
   ctl.u.vs_user.protocol = vserver->service_type;
 
   if(!parse_timeout(vserver->timeout_persistence, &ctl.u.vs_user.timeout)) {
-    syslog(LOG_INFO, "IPVS WRAPPER : Virtual service [%s:%d] illegal timeout.",
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "IPVS WRAPPER : Virtual service [%s:%d] illegal timeout.",
                       inet_ntoa(vserver->addr_ip), ntohs(vserver->addr_port));
+#endif
   }
   ctl.u.vs_user.vs_flags = (ctl.u.vs_user.timeout!=0)?IP_VS_SVC_F_PERSISTENT:0;
+  ctl.u.vs_user.vfwmark  = 0;
   
   /* VS specific */
   ctl.u.vs_user.vaddr = vserver->addr_ip.s_addr;
@@ -60,120 +71,40 @@ int ipvs_cmd(int cmd, virtualserver *vserver, realserver *rserver)
 
   sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
   if (sockfd == -1) {
-    syslog(LOG_INFO, "IPVS WRAPPER : Can not initialize SOCK_RAW descriptor.");
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "IPVS WRAPPER : Can not initialize SOCK_RAW descriptor.");
+#endif
     return IPVS_ERROR;
   }
 
   result = setsockopt(sockfd, IPPROTO_IP, IP_FW_MASQ_CTL, (char *)&ctl, sizeof(ctl));
 
   if (errno == ESRCH) {
-    syslog(LOG_INFO, "IPVS WRAPPER : Virtual service [%s:%d] not defined.",
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "IPVS WRAPPER : Virtual service [%s:%d] not defined.",
                       inet_ntoa(vserver->addr_ip), ntohs(vserver->addr_port));
-    close(sockfd);
-    return IPVS_ERROR;
-  } else if (errno == EEXIST) {
-    syslog(LOG_INFO, "IPVS WRAPPER : Destination already exists [%s:%d].",
-                      inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port));
-  } else if (errno == ENOENT) {
-    syslog(LOG_INFO, "IPVS WRAPPER : No such destination [%s:%d].",
-                      inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port));
-  }
-
-  close(sockfd);
-  return IPVS_SUCCESS;
-}
-
-#else /* KERNEL 2.4 LVS handling */
-
-int ipvs_cmd(int cmd, virtualserver *vserver, realserver *rserver)
-{
-  struct ip_vs_rule_user urule;
-  int result=0;
-  int sockfd;
-
-  memset(&urule, 0, sizeof(struct ip_vs_rule_user));
-
-  strncpy(urule.sched_name, vserver->sched, IP_VS_SCHEDNAME_MAXLEN);
-  urule.weight = 1;
-  urule.conn_flags = vserver->loadbalancing_kind;
-  urule.netmask    = ((u_int32_t) 0xffffffff);
-  urule.protocol   = vserver->service_type;
-  
-  if (!parse_timeout(vserver->timeout_persistence, &urule.timeout)) {
-    syslog(LOG_INFO, "IPVS WRAPPER : Virtual service [%s:%d] illegal timeout.",
-                      inet_ntoa(vserver->addr_ip), ntohs(vserver->addr_port));
-  }
-  urule.vs_flags = (urule.timeout != 0)?IP_VS_SVC_F_PERSISTENT:0;
-
-  /* VS specific */
-  urule.vaddr = vserver->addr_ip.s_addr;
-  urule.vport = vserver->addr_port;
-
-  /* SVR specific */
-  if (cmd == IP_VS_SO_SET_ADDDEST || cmd == IP_VS_SO_SET_DELDEST) {
-    urule.weight = rserver->weight;
-    urule.daddr  = rserver->addr_ip.s_addr;
-    urule.dport  = rserver->addr_port;
-  }
-
-  sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
-  if (sockfd == -1) {
-    syslog(LOG_INFO, "IPVS WRAPPER : Can not initialize SOCK_RAW descriptor.");
-    return IPVS_ERROR;
-  } 
-  
-  result = setsockopt(sockfd, IPPROTO_IP, cmd, (char *)&urule, sizeof(urule));
-
-  /* kernel return error handling */
-  if (result) {
-    syslog(LOG_INFO, "IPVS WRAPPER : setsockopt failed !!!");
-
-    switch (cmd) {
-      case IP_VS_SO_SET_ADD:
-        if (errno == EEXIST)
-          syslog(LOG_INFO, "IPVS WRAPPER : Destination already exists [%s:%d].",
-                           inet_ntoa(vserver->addr_ip), ntohs(vserver->addr_port));
-        else if (errno == ENOENT) {
-          syslog(LOG_INFO, "IPVS WRAPPER : Scheduler not found: ip_vs_%s.o !!!",
-                           urule.sched_name);
-          close(sockfd);
-          return IPVS_ERROR;
-        }
-        break;
-
-      case IP_VS_SO_SET_DEL:
-        if (errno == ESRCH)
-          syslog(LOG_INFO, "IPVS WRAPPER : No such service [%s:%d].",
-                           inet_ntoa(vserver->addr_ip), ntohs(vserver->addr_port));
-        close(sockfd);
-        return IPVS_ERROR;
-        break;
-
-      case IP_VS_SO_SET_ADDDEST:
-        if (errno == ESRCH)
-          syslog(LOG_INFO, "IPVS WRAPPER : Service not defined [%s:%d].",
-                           inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port));
-        else if (errno == EEXIST)
-          syslog(LOG_INFO, "IPVS WRAPPER : Destination already exists [%s:%d].",
-                           inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port));
-        break;
-
-      case IP_VS_SO_SET_DELDEST:
-        if (errno == ESRCH)
-          syslog(LOG_INFO, "IPVS WRAPPER : Service not defined [%s:%d].",
-                           inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port));
-        else if (errno == ENOENT)
-          syslog(LOG_INFO, "IPVS WRAPPER : No such destination [%s:%d].",
-                           inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port));
-        break;
-    }
-  }
-
-  close(sockfd);
-  return IPVS_SUCCESS;
-}
-
 #endif
+    close(sockfd);
+    return IPVSNOTDEFINED;
+  } else if (errno == EEXIST) {
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "IPVS WRAPPER : Destination already exists [%s:%d].",
+                      inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port));
+#endif
+    close(sockfd);
+    return IPVSSVREXIST;
+  } else if (errno == ENOENT) {
+#ifdef DEBUG
+    syslog(LOG_DEBUG, "IPVS WRAPPER : No such destination [%s:%d].",
+                      inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port));
+#endif
+    close(sockfd);
+    return IPVSNODEST;
+  }
+
+  close(sockfd);
+  return IPVS_SUCCESS;
+}
 
 /*
  * Source code from the ipvsadm.c Wensong code
