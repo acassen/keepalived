@@ -118,7 +118,7 @@ if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
   ])
   rm -f ipvsinfo
   AC_MSG_RESULT([$IPVS_MAJOR.$IPVS_MINOR.$IPVS_PATCH])
-  if test "$IPVS_MAJOR" = "0"; then
+  if test "$IPVS_MAJOR" = "0" -a "$IPVS_MINOR" = "0" -a "$IPVS_PATCH" = "0"; then
     AC_MSG_WARN([Cannot determine IPVS version.])
   fi
 fi

@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -550,36 +550,42 @@ static void vrrp_master(vrrp_rt *vrrp)
 
 static void vrrp_fault(vrrp_rt *vrrp)
 {
-  if (IF_ISUP(vrrp->ifp)) {
+  if (vrrp->sync) {
+    if (vrrp_sync_group_up(vrrp->sync))
+      syslog(LOG_INFO, "VRRP_Group(%s) Leaving FAULT state"
+                     , GROUP_NAME(vrrp->sync));
+    else return;
+  } else if (IF_ISUP(vrrp->ifp))
     syslog(LOG_INFO, "Kernel is reporting: interface %s UP"
                    , IF_NAME(vrrp->ifp));
-    /* refresh the multicast fd */
-    new_vrrp_socket(vrrp);
+  else return;
 
+  /* refresh the multicast fd */
+  new_vrrp_socket(vrrp);
+
+  /*
+   * We force the IPSEC AH seq_number sync
+   * to be done in read advert handler.
+   * So we ignore this timeouted state until remote
+   * VRRP MASTER send its advert for the concerned
+   * instance.
+   */
+  if (vrrp->auth_type == VRRP_AUTH_AH) {
     /*
-     * We force the IPSEC AH seq_number sync
-     * to be done in read advert handler.
-     * So we ignore this timeouted state until remote
-     * VRRP MASTER send its advert for the concerned
-     * instance.
+     * Transition to BACKUP state for AH
+     * seq number synchronization.
      */
-    if (vrrp->auth_type == VRRP_AUTH_AH) {
-      /*
-       * Transition to BACKUP state for AH
-       * seq number synchronization.
-       */
-      syslog(LOG_INFO, "VRRP_Instance(%s) in FAULT state jump to AH sync"
-                     , vrrp->iname);
-      vrrp->wantstate = VRRP_STATE_BACK;
-      vrrp_state_leave_master(vrrp);
-    } else {
-      /* Otherwise, we transit to init state */
-      if (vrrp->init_state == VRRP_STATE_BACK)
-        vrrp->state = VRRP_STATE_BACK;
-      else {
-        vrrp_goto_master(vrrp);
-        vrrp_smtp_notifier(vrrp);
-      }
+    syslog(LOG_INFO, "VRRP_Instance(%s) in FAULT state jump to AH sync"
+                   , vrrp->iname);
+    vrrp->wantstate = VRRP_STATE_BACK;
+    vrrp_state_leave_master(vrrp);
+  } else {
+    /* Otherwise, we transit to init state */
+    if (vrrp->init_state == VRRP_STATE_BACK)
+      vrrp->state = VRRP_STATE_BACK;
+    else {
+      vrrp_goto_master(vrrp);
+      vrrp_smtp_notifier(vrrp);
     }
   }
 }

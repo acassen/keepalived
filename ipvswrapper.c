@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              

@@ -5,7 +5,7 @@
  *
  * Part:        VRRP synchronization framework.
  *
- * Version:     $Id: vrrp_sync.c,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
+ * Version:     $Id: vrrp_sync.c,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -62,30 +62,31 @@ vrrp_rt *vrrp_get_instance(char *iname)
   return NULL;
 }
 
-/* Leaving fault state */
-int vrrp_sync_leave_fault(vrrp_rt *vrrp)
+/* All interface are UP in the same group */
+int vrrp_sync_group_up(vrrp_sgroup *vgroup)
 {
-  int i;
-  int not_fault = 0;
-  int is_up = 0;
-  char *str;
   vrrp_rt *isync;
-  vrrp_sgroup *vgroup = vrrp->sync;
+  char *str;
+  int is_up = 0;
+  int i;
 
   for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
     str = VECTOR_SLOT(vgroup->iname, i);
     isync = vrrp_get_instance(str);
     if (IF_ISUP(isync->ifp))
       is_up++;
-    if (isync != vrrp) {
-      if (isync->state != VRRP_STATE_FAULT)
-        not_fault++;
-    }
   }
+  return (is_up == VECTOR_SIZE(vgroup->iname))?1:0;
+}
 
-  if (not_fault > 0 || is_up == VECTOR_SIZE(vgroup->iname)) {
+/* Leaving fault state */
+int vrrp_sync_leave_fault(vrrp_rt *vrrp)
+{
+  vrrp_sgroup *vgroup = vrrp->sync;
+
+  if (vrrp_sync_group_up(vgroup)) {
     syslog(LOG_INFO, "VRRP_Group(%s) Leaving FAULT state"
-                   , GROUP_NAME(vrrp->sync));
+                   , GROUP_NAME(vgroup));
     vgroup->state = VRRP_STATE_MAST;
     return 1;
   }

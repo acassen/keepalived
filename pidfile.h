@@ -5,7 +5,7 @@
  *
  * Part:        pidfile.c include file.
  *
- * Version:     $Id: pidfile.h,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
+ * Version:     $Id: pidfile.h,v 0.6.3 2002/06/18 21:39:17 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

@@ -1566,7 +1566,7 @@ fi
 
   rm -f ipvsinfo
   echo "$ac_t""$IPVS_MAJOR.$IPVS_MINOR.$IPVS_PATCH" 1>&6
-  if test "$IPVS_MAJOR" = "0"; then
+  if test "$IPVS_MAJOR" = "0" -a "$IPVS_MINOR" = "0" -a "$IPVS_PATCH" = "0"; then
     echo "configure: warning: Cannot determine IPVS version." 1>&2
   fi
 fi

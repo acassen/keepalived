@@ -14,7 +14,7 @@ prefix      = @prefix@
 exec_prefix = @exec_prefix@
 sbindir     = @sbindir@
 
-init_script = etc/rc.d/init.d/keepalived.init
+init_script = etc/init.d/keepalived.init
 conf_file   = etc/keepalived/keepalived.conf
 
 CC = @CC@
@@ -114,10 +114,10 @@ subinstall:
 	cd genhash/ && $(MAKE) install
 
 install: subinstall
-	install -d $(bindir)
+	install -d $(sbindir)
 	install -m 700 $(EXEC) $(sbindir)/
-	install -d $(prefix)/etc/init.d
-	install -m 755 $(init_script) $(prefix)/etc/init.d/
-	install -d $(prefix)/etc/keepalived/samples
-	install -m 644 $(conf_file) $(prefix)/etc/keepalived/
-	install -m 644 samples/* $(prefix)/etc/keepalived/samples/
+	install -d $(sysconfdir)/init.d
+	install -m 755 $(init_script) $(sysconfdir)/init.d/
+	install -d $(sysconfdir)/keepalived/samples
+	install -m 644 $(conf_file) $(sysconfdir)/keepalived/
+	install -m 644 samples/* $(sysconfdir)/keepalived/samples/
