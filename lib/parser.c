@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: parser.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -36,27 +36,27 @@ int reload = 0;
 static int sublevel = 0;
 
 void
-keyword_alloc(vector keywords, char *string, void (*handler) (vector))
+keyword_alloc(vector keywords_vec, char *string, void (*handler) (vector))
 {
 	struct keyword *keyword;
 
-	vector_alloc_slot(keywords);
+	vector_alloc_slot(keywords_vec);
 
 	keyword = (struct keyword *) MALLOC(sizeof (struct keyword));
 	keyword->string = string;
 	keyword->handler = handler;
 
-	vector_set_slot(keywords, keyword);
+	vector_set_slot(keywords_vec, keyword);
 }
 
 void
-keyword_alloc_sub(vector keywords, char *string, void (*handler) (vector))
+keyword_alloc_sub(vector keywords_vec, char *string, void (*handler) (vector))
 {
 	int i = 0;
 	struct keyword *keyword;
 
 	/* fetch last keyword */
-	keyword = VECTOR_SLOT(keywords, VECTOR_SIZE(keywords) - 1);
+	keyword = VECTOR_SLOT(keywords_vec, VECTOR_SIZE(keywords_vec) - 1);
 
 	/* position to last sub level */
 	for (i = 0; i < sublevel; i++)
@@ -100,38 +100,38 @@ void
 dump_keywords(vector keydump, int level)
 {
 	int i, j;
-	struct keyword *keyword;
+	struct keyword *keyword_vec;
 
 	for (i = 0; i < VECTOR_SIZE(keydump); i++) {
-		keyword = VECTOR_SLOT(keydump, i);
+		keyword_vec = VECTOR_SLOT(keydump, i);
 		for (j = 0; j < level; j++)
 			printf("  ");
-		printf("Keyword : %s\n", keyword->string);
-		if (keyword->sub)
-			dump_keywords(keyword->sub, level + 1);
+		printf("Keyword : %s\n", keyword_vec->string);
+		if (keyword_vec->sub)
+			dump_keywords(keyword_vec->sub, level + 1);
 	}
 }
 
 void
-free_keywords(vector keywords)
+free_keywords(vector keywords_vec)
 {
-	struct keyword *keyword;
+	struct keyword *keyword_vec;
 	int i;
 
-	for (i = 0; i < VECTOR_SIZE(keywords); i++) {
-		keyword = VECTOR_SLOT(keywords, i);
-		if (keyword->sub)
-			free_keywords(keyword->sub);
-		FREE(keyword);
+	for (i = 0; i < VECTOR_SIZE(keywords_vec); i++) {
+		keyword_vec = VECTOR_SLOT(keywords_vec, i);
+		if (keyword_vec->sub)
+			free_keywords(keyword_vec->sub);
+		FREE(keyword_vec);
 	}
-	vector_free(keywords);
+	vector_free(keywords_vec);
 }
 
 vector
 alloc_strvec(char *string)
 {
 	char *cp, *start, *token;
-	int strlen;
+	int str_len;
 	vector strvec;
 
 	if (!string)
@@ -164,10 +164,10 @@ alloc_strvec(char *string)
 		} else {
 			while (!isspace((int) *cp) && *cp != '\0' && *cp != '"')
 				cp++;
-			strlen = cp - start;
-			token = MALLOC(strlen + 1);
-			memcpy(token, start, strlen);
-			*(token + strlen) = '\0';
+			str_len = cp - start;
+			token = MALLOC(str_len + 1);
+			memcpy(token, start, str_len);
+			*(token + str_len) = '\0';
 		}
 
 		/* Alloc & set the slot */
@@ -302,53 +302,50 @@ set_value(vector strvec)
 /* recursive configuration stream handler */
 static int kw_level = 0;
 void
-process_stream(vector keywords)
+process_stream(vector keywords_vec)
 {
 	int i;
-	struct keyword *keyword;
+	struct keyword *keyword_vec;
 	char *str;
 	char *buf;
 	vector strvec;
 
-	buf = MALLOC(MAXBUF);
-	if (!read_line(buf, MAXBUF)) {
-		FREE(buf);
-		return;
-	}
+	buf = zalloc(MAXBUF);
+	while (read_line(buf, MAXBUF)) {
+		strvec = alloc_strvec(buf);
+		memset(buf,0, MAXBUF);
 
-	strvec = alloc_strvec(buf);
-	FREE(buf);
+		if (!strvec)
+			continue;
 
-	if (!strvec) {
-		process_stream(keywords);
-		return;
-	}
+		str = VECTOR_SLOT(strvec, 0);
 
-	str = VECTOR_SLOT(strvec, 0);
-
-	if (!strcmp(str, EOB) && kw_level > 0) {
-		free_strvec(strvec);
-		return;
-	}
-
-	for (i = 0; i < VECTOR_SIZE(keywords); i++) {
-		keyword = VECTOR_SLOT(keywords, i);
-
-		if (!strcmp(keyword->string, str)) {
-			if (keyword->handler)
-				(*keyword->handler) (strvec);
-
-			if (keyword->sub) {
-				kw_level++;
-				process_stream(keyword->sub);
-				kw_level--;
-			}
+		if (!strcmp(str, EOB) && kw_level > 0) {
+			free_strvec(strvec);
 			break;
 		}
+
+		for (i = 0; i < VECTOR_SIZE(keywords_vec); i++) {
+			keyword_vec = VECTOR_SLOT(keywords_vec, i);
+
+			if (!strcmp(keyword_vec->string, str)) {
+				if (keyword_vec->handler)
+					(*keyword_vec->handler) (strvec);
+
+				if (keyword_vec->sub) {
+					kw_level++;
+					process_stream(keyword_vec->sub);
+					kw_level--;
+				}
+				break;
+			}
+		}
+
+		free_strvec(strvec);
 	}
 
-	free_strvec(strvec);
-	process_stream(keywords);
+	free(buf);
+	return;
 }
 
 /* Data initialization */

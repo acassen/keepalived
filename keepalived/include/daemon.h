@@ -5,7 +5,7 @@
  *
  * Part:        Daemon process handling.
  *
- * Version:     $Id: daemon.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: daemon.h,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -34,12 +34,8 @@
 #include <unistd.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <signal.h>
 
 /* prototype */
 extern pid_t xdaemon(int, int, int);
-extern void *signal_set(int signo, void (*func) (int));
-extern void *signal_ignore(int signo);
-extern void signal_noignore_sigchld(void);
 
 #endif

@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_netlink.c include file.
  *
- * Version:     $Id: vrrp_netlink.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_netlink.h,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -53,8 +53,8 @@ extern struct nl_handle nl_kernel;	/* Kernel reflection channel */
 extern struct nl_handle nl_cmd;		/* Command channel */
 
 /* prototypes */
-extern int addattr32(struct nlmsghdr *n, int maxlen, int type, uint32_t data);
-extern int addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data,
+extern int addattr32(struct nlmsghdr *n, int maxlen, int type, uint32_t data_obj);
+extern int addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data_obj,
 		     int alen);
 extern char *netlink_scope_n2a(int scope);
 extern int netlink_scope_a2n(char *scope);
@@ -64,5 +64,6 @@ extern int netlink_talk(struct nl_handle *nl, struct nlmsghdr *n);
 extern int netlink_interface_lookup(void);
 extern int netlink_interface_refresh(void);
 extern void kernel_netlink_init(void);
+extern void kernel_netlink_close(void);
 
 #endif

@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_track.c include file.
  *
- * Version:     $Id: vrrp_track.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_track.h,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -40,7 +40,7 @@
 #define TRACK_ISUP(L)	(vrrp_tracked_up((L)))
 
 /* prototypes */
-extern void dump_track(void *data);
+extern void dump_track(void *track_data_obj);
 extern void alloc_track(list track_list, vector strvec);
 extern int vrrp_tracked_up(list l);
 extern void vrrp_log_tracked_down(list l);

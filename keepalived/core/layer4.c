@@ -6,7 +6,7 @@
  * Part:        Layer4 checkers handling. Register worker threads &
  *              upper layer checkers.
  *
- * Version:     $Id: layer4.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: layer4.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -32,7 +32,7 @@ tcp_bind_connect(int fd, uint32_t addr_ip, uint16_t addr_port, uint32_t bind_ip)
 {
 	struct linger li = { 0 };
 	int long_inet;
-	struct sockaddr_in sin;
+	struct sockaddr_in sa_in;
 	int ret;
 	int val;
 
@@ -48,22 +48,22 @@ tcp_bind_connect(int fd, uint32_t addr_ip, uint16_t addr_port, uint32_t bind_ip)
 
 	/* Bind socket */
 	long_inet = sizeof (struct sockaddr_in);
-	memset(&sin, 0, long_inet);
+	memset(&sa_in, 0, long_inet);
 
 	if (bind_ip) {
-		sin.sin_family = AF_INET;
-		sin.sin_addr.s_addr = bind_ip;
-		if (bind(fd, (struct sockaddr *) &sin, sizeof (sin)) != 0)
+		sa_in.sin_family = AF_INET;
+		sa_in.sin_addr.s_addr = bind_ip;
+		if (bind(fd, (struct sockaddr *) &sa_in, sizeof (sa_in)) != 0)
 			return connect_error;
 	}
 
 	/* Set remote IP and connect */
-	memset(&sin, 0, long_inet);
-	sin.sin_family = AF_INET;
-	sin.sin_port = addr_port;
-	sin.sin_addr.s_addr = addr_ip;
+	memset(&sa_in, 0, long_inet);
+	sa_in.sin_family = AF_INET;
+	sa_in.sin_port = addr_port;
+	sa_in.sin_addr.s_addr = addr_ip;
 
-	ret = connect(fd, (struct sockaddr *) &sin, long_inet);
+	ret = connect(fd, (struct sockaddr *) &sa_in, long_inet);
 
 	/* Immediate success */
 	if (ret == 0) {
@@ -89,7 +89,7 @@ tcp_connect(int fd, uint32_t addr_ip, uint16_t addr_port)
 }
 
 enum connect_result
-tcp_socket_state(int fd, thread * thread, uint32_t addr_ip, uint16_t addr_port,
+tcp_socket_state(int fd, thread * thread_obj, uint32_t addr_ip, uint16_t addr_port,
 		 int (*func) (struct _thread *))
 {
 	int status;
@@ -98,24 +98,24 @@ tcp_socket_state(int fd, thread * thread, uint32_t addr_ip, uint16_t addr_port,
 	TIMEVAL timer_min;
 
 	/* Handle connection timeout */
-	if (thread->type == THREAD_WRITE_TIMEOUT) {
+	if (thread_obj->type == THREAD_WRITE_TIMEOUT) {
 		DBG("TCP connection timeout to [%s:%d].",
 		    inet_ntop2(addr_ip), ntohs(addr_port));
-		close(thread->u.fd);
+		close(thread_obj->u.fd);
 		return connect_timeout;
 	}
 
 	/* Check file descriptor */
 	slen = sizeof (status);
 	if (getsockopt
-	    (thread->u.fd, SOL_SOCKET, SO_ERROR, (void *) &status, &slen) < 0)
+	    (thread_obj->u.fd, SOL_SOCKET, SO_ERROR, (void *) &status, &slen) < 0)
 		ret = errno;
 
 	/* Connection failed !!! */
 	if (ret) {
 		DBG("TCP connection failed to [%s:%d].",
 		    inet_ntop2(addr_ip), ntohs(addr_port));
-		close(thread->u.fd);
+		close(thread_obj->u.fd);
 		return connect_error;
 	}
 
@@ -128,12 +128,12 @@ tcp_socket_state(int fd, thread * thread, uint32_t addr_ip, uint16_t addr_port,
 		DBG("TCP connection to [%s:%d] still IN_PROGRESS.",
 		    inet_ntop2(addr_ip), ntohs(addr_port));
 
-		timer_min = timer_sub_now(thread->sands);
-		thread_add_write(thread->master, func, THREAD_ARG(thread)
-				 , thread->u.fd, TIMER_LONG(timer_min));
+		timer_min = timer_sub_now(thread_obj->sands);
+		thread_add_write(thread_obj->master, func, THREAD_ARG(thread_obj)
+				 , thread_obj->u.fd, TIMER_LONG(timer_min));
 		return connect_in_progress;
 	} else if (status != 0) {
-		close(thread->u.fd);
+		close(thread_obj->u.fd);
 		return connect_error;
 	}
 
@@ -141,35 +141,35 @@ tcp_socket_state(int fd, thread * thread, uint32_t addr_ip, uint16_t addr_port,
 }
 
 void
-tcp_connection_state(int fd, enum connect_result status, thread * thread,
+tcp_connection_state(int fd, enum connect_result status, thread * thread_obj,
 		     int (*func) (struct _thread *)
 		     , long timeout)
 {
-	checker *checker;
+	checker *checker_obj;
 
-	checker = THREAD_ARG(thread);
+	checker_obj = THREAD_ARG(thread_obj);
 
 	switch (status) {
 	case connect_error:
 		DBG("TCP connection ERROR to [%s:%d].",
-		    inet_ntop2(SVR_IP(checker->rs)),
-		    ntohs(SVR_PORT(checker->rs)));
+		    inet_ntop2(SVR_IP(checker_obj->rs)),
+		    ntohs(SVR_PORT(checker_obj->rs)));
 		close(fd);
 		break;
 
 	case connect_success:
 		DBG("TCP connection SUCCESS to [%s:%d].",
-		    inet_ntop2(SVR_IP(checker->rs)),
-		    ntohs(SVR_PORT(checker->rs)));
-		thread_add_write(thread->master, func, checker, fd, timeout);
+		    inet_ntop2(SVR_IP(checker_obj->rs)),
+		    ntohs(SVR_PORT(checker_obj->rs)));
+		thread_add_write(thread_obj->master, func, checker_obj, fd, timeout);
 		break;
 
 		/* Checking non-blocking connect, we wait until socket is writable */
 	case connect_in_progress:
 		DBG("TCP connection to [%s:%d] now IN_PROGRESS.",
-		    inet_ntop2(SVR_IP(checker->rs)),
-		    ntohs(SVR_PORT(checker->rs)));
-		thread_add_write(thread->master, func, checker, fd, timeout);
+		    inet_ntop2(SVR_IP(checker_obj->rs)),
+		    ntohs(SVR_PORT(checker_obj->rs)));
+		thread_add_write(thread_obj->master, func, checker_obj, fd, timeout);
 		break;
 
 	default:

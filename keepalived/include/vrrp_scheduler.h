@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_scheduler.c include file.
  * 
- * Version:     $Id: vrrp_scheduler.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.h,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -59,8 +59,8 @@ do {						\
 } while (0)
 
 /* extern prototypes */
-extern void vrrp_dispatcher_release(vrrp_conf_data * data);
-extern int vrrp_dispatcher_init(thread * thread);
-extern int vrrp_read_dispatcher_thread(thread * thread);
+extern void vrrp_dispatcher_release(vrrp_conf_data * conf_data_obj);
+extern int vrrp_dispatcher_init(thread * thread_obj);
+extern int vrrp_read_dispatcher_thread(thread * thread_obj);
 
 #endif

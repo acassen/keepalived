@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp.h,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -74,7 +74,7 @@ typedef struct {		/* rfc2338.5.1 */
 typedef struct _vrrp_sgroup {
 	char *gname;		/* Group name */
 	vector iname;		/* Set of VRRP instances in this group */
-	list index;		/* List of VRRP instances */
+	list index_list;	/* List of VRRP instances */
 	int state;		/* current stable state */
 
 	/* State transition notification */
@@ -203,8 +203,8 @@ typedef struct _vrrp_rt {
 			((!LIST_ISEMPTY((V)->track_ifp)) ? TRACK_ISUP((V)->track_ifp) : 1))
 
 /* prototypes */
-extern int open_vrrp_send_socket(const int proto, const int index);
-extern int open_vrrp_socket(const int proto, const int index);
+extern int open_vrrp_send_socket(const int proto, const int idx);
+extern int open_vrrp_socket(const int proto, const int idx);
 extern int new_vrrp_socket(vrrp_rt * vrrp);
 extern void close_vrrp_socket(vrrp_rt * vrrp);
 extern void vrrp_send_gratuitous_arp(vrrp_rt * vrrp);

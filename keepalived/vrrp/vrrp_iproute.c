@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 routes manipulation.
  *
- * Version:     $Id: vrrp_iproute.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_iproute.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -95,14 +95,14 @@ netlink_rtlist_ipv4(list rt_list, int cmd)
 
 /* Route dump/allocation */
 void
-free_iproute(void *data)
+free_iproute(void *rt_data_obj)
 {
-	FREE(data);
+	FREE(rt_data_obj);
 }
 void
-dump_iproute(void *data)
+dump_iproute(void *rt_data_obj)
 {
-	ip_route *route = data;
+	ip_route *route = rt_data_obj;
 	char *log_msg = MALLOC(100);
 	char *tmp = MALLOC(30);
 

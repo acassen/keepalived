@@ -56,43 +56,43 @@
 
 /* free allocated pieces */
 static void
-free_all(thread * thread)
+free_all(thread * thread_obj)
 {
-	SOCK *sock = THREAD_ARG(thread);
+	SOCK *sock_obj = THREAD_ARG(thread_obj);
 
 	DBG("Total read size read = %d Bytes, fd:%d\n",
-	    sock->total_size, sock->fd);
+	    sock_obj->total_size, sock_obj->fd);
 
-	if (sock->buffer)
-		FREE(sock->buffer);
+	if (sock_obj->buffer)
+		FREE(sock_obj->buffer);
 
 	/*
 	 * Decrement the current global get number.
 	 * => free the reserved thread
 	 */
 	req->response_time = timer_tol(timer_now());
-	thread_add_terminate_event(thread->master);
+	thread_add_terminate_event(thread_obj->master);
 }
 
 /* Simple epilog functions. */
 int
-epilog(thread * thread)
+epilog(thread * thread_obj)
 {
 	DBG("Timeout on URL : [%s]\n", req->url);
-	free_all(thread);
+	free_all(thread_obj);
 	return 0;
 }
 
 /* Simple finalization function */
 int
-finalize(thread * thread)
+finalize(thread * thread_obj)
 {
-	SOCK *sock = THREAD_ARG(thread);
+	SOCK *sock_obj = THREAD_ARG(thread_obj);
 	unsigned char digest[16];
 	int i;
 
 	/* Compute final MD5 digest */
-	MD5_Final(digest, &sock->context);
+	MD5_Final(digest, &sock_obj->context);
 	if (req->verbose) {
 		printf("\n");
 		printf(HTML_MD5);
@@ -106,7 +106,7 @@ finalize(thread * thread)
 	printf("\n\n");
 
 	DBG("Finalize : [%s]\n", req->url);
-	free_all(thread);
+	free_all(thread_obj);
 	return 0;
 }
 
@@ -125,45 +125,45 @@ http_dump_header(char *buffer, int size)
 
 /* Process incoming stream */
 int
-http_process_stream(SOCK * sock, int r)
+http_process_stream(SOCK * sock_obj, int r)
 {
-	sock->size += r;
-	sock->total_size += r;
+	sock_obj->size += r;
+	sock_obj->total_size += r;
 
-	if (!sock->extracted) {
+	if (!sock_obj->extracted) {
 		if (req->verbose)
 			printf(HTTP_HEADER_HEXA);
-		if ((sock->extracted = extract_html(sock->buffer, sock->size))) {
+		if ((sock_obj->extracted = extract_html(sock_obj->buffer, sock_obj->size))) {
 			if (req->verbose)
-				http_dump_header(sock->buffer,
-						 sock->extracted - sock->buffer);
-			r = sock->size - (sock->extracted - sock->buffer);
+				http_dump_header(sock_obj->buffer,
+						 sock_obj->extracted - sock_obj->buffer);
+			r = sock_obj->size - (sock_obj->extracted - sock_obj->buffer);
 			if (r) {
 				if (req->verbose) {
 					printf(HTML_HEADER_HEXA);
-					dump_buffer(sock->extracted, r);
+					dump_buffer(sock_obj->extracted, r);
 				}
-				memmove(sock->buffer, sock->extracted, r);
-				MD5_Update(&sock->context, sock->buffer, r);
+				memmove(sock_obj->buffer, sock_obj->extracted, r);
+				MD5_Update(&sock_obj->context, sock_obj->buffer, r);
 				r = 0;
 			}
-			sock->size = r;
+			sock_obj->size = r;
 		} else {
 			if (req->verbose)
-				http_dump_header(sock->buffer, sock->size);
+				http_dump_header(sock_obj->buffer, sock_obj->size);
 
 			/* minimize buffer using no 2*CR/LF found yet */
-			if (sock->size > 4) {
-				memmove(sock->buffer,
-					sock->buffer + sock->size - 4, 4);
-				sock->size = 4;
+			if (sock_obj->size > 4) {
+				memmove(sock_obj->buffer,
+					sock_obj->buffer + sock_obj->size - 4, 4);
+				sock_obj->size = 4;
 			}
 		}
-	} else if (sock->size) {
+	} else if (sock_obj->size) {
 		if (req->verbose)
-			dump_buffer(sock->buffer, r);
-		MD5_Update(&sock->context, sock->buffer, sock->size);
-		sock->size = 0;
+			dump_buffer(sock_obj->buffer, r);
+		MD5_Update(&sock_obj->context, sock_obj->buffer, sock_obj->size);
+		sock_obj->size = 0;
 	}
 
 	return 0;
@@ -171,21 +171,21 @@ http_process_stream(SOCK * sock, int r)
 
 /* Asynchronous HTTP stream reader */
 int
-http_read_thread(thread * thread)
+http_read_thread(thread * thread_obj)
 {
-	SOCK *sock = THREAD_ARG(thread);
+	SOCK *sock_obj = THREAD_ARG(thread_obj);
 	int r = 0;
 
 	/* Handle read timeout */
-	if (thread->type == THREAD_READ_TIMEOUT)
-		return epilog(thread);
+	if (thread_obj->type == THREAD_READ_TIMEOUT)
+		return epilog(thread_obj);
 
 	/* read the HTTP stream */
-	memset(sock->buffer, 0, MAX_BUFFER_LENGTH);
-	r = read(thread->u.fd, sock->buffer + sock->size,
-		 MAX_BUFFER_LENGTH - sock->size);
+	memset(sock_obj->buffer, 0, MAX_BUFFER_LENGTH);
+	r = read(thread_obj->u.fd, sock_obj->buffer + sock_obj->size,
+		 MAX_BUFFER_LENGTH - sock_obj->size);
 
-	DBG(" [l:%d,fd:%d]\n", r, sock->fd);
+	DBG(" [l:%d,fd:%d]\n", r, sock_obj->fd);
 
 	if (r == -1 || r == 0) {	/* -1:error , 0:EOF */
 		if (r == -1) {
@@ -193,21 +193,21 @@ http_read_thread(thread * thread)
 			DBG("Read error with server [%s:%d]: %s\n",
 			    inet_ntop2(req->addr_ip), ntohs(req->addr_port),
 			    strerror(errno));
-			return epilog(thread);
+			return epilog(thread_obj);
 		}
 
 		/* All the HTTP stream has been parsed */
-		finalize(thread);
+		finalize(thread_obj);
 	} else {
 		/* Handle the response stream */
-		http_process_stream(sock, r);
+		http_process_stream(sock_obj, r);
 
 		/*
 		 * Register next http stream reader.
 		 * Register itself to not perturbe global I/O multiplexer.
 		 */
-		thread_add_read(thread->master, http_read_thread, sock,
-				thread->u.fd, HTTP_CNX_TIMEOUT);
+		thread_add_read(thread_obj->master, http_read_thread, sock_obj,
+				thread_obj->u.fd, HTTP_CNX_TIMEOUT);
 	}
 
 	return 0;
@@ -218,41 +218,41 @@ http_read_thread(thread * thread)
  * Apply trigger check to this result.
  */
 int
-http_response_thread(thread * thread)
+http_response_thread(thread * thread_obj)
 {
-	SOCK *sock = THREAD_ARG(thread);
+	SOCK *sock_obj = THREAD_ARG(thread_obj);
 
 	/* Handle read timeout */
-	if (thread->type == THREAD_READ_TIMEOUT)
-		return epilog(thread);
+	if (thread_obj->type == THREAD_READ_TIMEOUT)
+		return epilog(thread_obj);
 
 	/* Allocate & clean the get buffer */
-	sock->buffer = (char *) MALLOC(MAX_BUFFER_LENGTH);
+	sock_obj->buffer = (char *) MALLOC(MAX_BUFFER_LENGTH);
 
 	/* Initalize the MD5 context */
-	MD5_Init(&sock->context);
+	MD5_Init(&sock_obj->context);
 
 	/* Register asynchronous http/ssl read thread */
 	if (req->ssl)
-		thread_add_read(thread->master, ssl_read_thread, sock,
-				thread->u.fd, HTTP_CNX_TIMEOUT);
+		thread_add_read(thread_obj->master, ssl_read_thread, sock_obj,
+				thread_obj->u.fd, HTTP_CNX_TIMEOUT);
 	else
-		thread_add_read(thread->master, http_read_thread, sock,
-				thread->u.fd, HTTP_CNX_TIMEOUT);
+		thread_add_read(thread_obj->master, http_read_thread, sock_obj,
+				thread_obj->u.fd, HTTP_CNX_TIMEOUT);
 	return 0;
 }
 
 /* remote Web server is connected, send it the get url query.  */
 int
-http_request_thread(thread * thread)
+http_request_thread(thread * thread_obj)
 {
-	SOCK *sock = THREAD_ARG(thread);
+	SOCK *sock_obj = THREAD_ARG(thread_obj);
 	char *str_request;
 	int ret = 0;
 
 	/* Handle read timeout */
-	if (thread->type == THREAD_WRITE_TIMEOUT)
-		return epilog(thread);
+	if (thread_obj->type == THREAD_WRITE_TIMEOUT)
+		return epilog(thread_obj);
 
 	/* Allocate & clean the GET string */
 	str_request = (char *) MALLOC(GET_BUFFER_LENGTH);
@@ -263,14 +263,14 @@ http_request_thread(thread * thread)
 		 , ntohs(req->addr_port));
 
 	/* Send the GET request to remote Web server */
-	DBG("Sending GET request [%s] on fd:%d\n", req->url, sock->fd);
+	DBG("Sending GET request [%s] on fd:%d\n", req->url, sock_obj->fd);
 	if (req->ssl)
 		ret =
-		    ssl_send_request(sock->ssl, str_request,
+		    ssl_send_request(sock_obj->ssl, str_request,
 				     strlen(str_request));
 	else
 		ret =
-		    (send(sock->fd, str_request, strlen(str_request), 0) !=
+		    (send(sock_obj->fd, str_request, strlen(str_request), 0) !=
 		     -1) ? 1 : 0;
 
 	FREE(str_request);
@@ -279,11 +279,11 @@ http_request_thread(thread * thread)
 		fprintf(stderr, "Cannot send get request to [%s:%d].\n",
 			inet_ntop2(req->addr_ip)
 			, ntohs(req->addr_port));
-		return epilog(thread);
+		return epilog(thread_obj);
 	}
 
 	/* Register read timeouted thread */
-	thread_add_read(thread->master, http_response_thread, sock,
-			sock->fd, HTTP_CNX_TIMEOUT);
+	thread_add_read(thread_obj->master, http_response_thread, sock_obj,
+			sock_obj->fd, HTTP_CNX_TIMEOUT);
 	return 1;
 }

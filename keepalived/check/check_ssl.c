@@ -7,7 +7,7 @@
  *              url, compute a MD5 over this result and match it to the
  *              expected value.
  *
- * Version:     $Id: check_ssl.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: check_ssl.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -189,15 +189,15 @@ ssl_printerr(int err)
 }
 
 int
-ssl_connect(thread * thread)
+ssl_connect(thread * thread_obj)
 {
-	checker *checker = THREAD_ARG(thread);
-	http_get_checker *http_get_check = CHECKER_ARG(checker);
-	http_arg *http_arg = HTTP_ARG(http_get_check);
-	REQ *req = HTTP_REQ(http_arg);
+	checker *checker_obj = THREAD_ARG(thread_obj);
+	http_get_checker *http_get_check = CHECKER_ARG(checker_obj);
+	http_arg *http_arg_obj = HTTP_ARG(http_get_check);
+	REQ *req = HTTP_REQ(http_arg_obj);
 
 	req->ssl = SSL_new(check_data->ssl->ctx);
-	req->bio = BIO_new_socket(thread->u.fd, BIO_NOCLOSE);
+	req->bio = BIO_new_socket(thread_obj->u.fd, BIO_NOCLOSE);
 	SSL_set_bio(req->ssl, req->bio, req->bio);
 
 	return (SSL_connect(req->ssl) > 0) ? 1 : 0;
@@ -225,23 +225,32 @@ ssl_send_request(SSL * ssl, char *str_request, int request_len)
 
 /* Asynchronous SSL stream reader */
 int
-ssl_read_thread(thread * thread)
+ssl_read_thread(thread * thread_obj)
 {
-	checker *checker = THREAD_ARG(thread);
-	http_get_checker *http_get_check = CHECKER_ARG(checker);
-	http_arg *http_arg = HTTP_ARG(http_get_check);
-	REQ *req = HTTP_REQ(http_arg);
+	checker *checker_obj = THREAD_ARG(thread_obj);
+	http_get_checker *http_get_check = CHECKER_ARG(checker_obj);
+	http_arg *http_arg_obj = HTTP_ARG(http_get_check);
+	REQ *req = HTTP_REQ(http_arg_obj);
 	unsigned char digest[16];
 	int r = 0;
+	int val;
 
 	/* Handle read timeout */
-	if (thread->type == THREAD_READ_TIMEOUT && !req->extracted)
-		return timeout_epilog(thread, "=> SSL CHECK failed on service"
+	if (thread_obj->type == THREAD_READ_TIMEOUT && !req->extracted)
+		return timeout_epilog(thread_obj, "=> SSL CHECK failed on service"
 				      " : recevice data <=\n\n", "SSL read");
+
+	/* Set descriptor non blocking */
+	val = fcntl(thread_obj->u.fd, F_GETFL, 0);
+	fcntl(thread_obj->u.fd, F_SETFL, val | O_NONBLOCK);
 
 	/* read the SSL stream */
 	r = SSL_read(req->ssl, req->buffer + req->len,
 		     MAX_BUFFER_LENGTH - req->len);
+
+	/* restore descriptor flags */
+	fcntl(thread_obj->u.fd, F_SETFL, val);
+
 	req->error = SSL_get_error(req->ssl, r);
 
 	if (req->error) {
@@ -255,20 +264,20 @@ ssl_read_thread(thread * thread)
 
 		if (r && !req->extracted) {
 			/* check if server is currently alive */
-			if (svr_checker_up(checker->id, checker->rs)) {
-				smtp_alert(thread->master, checker->rs, NULL, NULL,
+			if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
+				smtp_alert(checker_obj->rs, NULL, NULL,
 					   "DOWN",
 					   "=> SSL CHECK failed on service"
 					   " : cannot receive data <=\n\n");
-				update_svr_checker_state(DOWN, checker->id
-							     , checker->vs
-							     , checker->rs);
+				update_svr_checker_state(DOWN, checker_obj->id
+							     , checker_obj->vs
+							     , checker_obj->rs);
 			}
-			return epilog(thread, 1, 0, 0);
+			return epilog(thread_obj, 1, 0, 0);
 		}
 
 		/* Handle response stream */
-		http_handle_response(thread, digest, (!req->extracted) ? 1 : 0);
+		http_handle_response(thread_obj, digest, (!req->extracted) ? 1 : 0);
 
 	} else if (r > 0 && req->error == 0) {
 
@@ -279,8 +288,8 @@ ssl_read_thread(thread * thread)
 		 * Register next ssl stream reader.
 		 * Register itself to not perturbe global I/O multiplexer.
 		 */
-		thread_add_read(thread->master, ssl_read_thread, checker,
-				thread->u.fd, http_get_check->connection_to);
+		thread_add_read(thread_obj->master, ssl_read_thread, checker_obj,
+				thread_obj->u.fd, http_get_check->connection_to);
 	}
 
 	return 0;

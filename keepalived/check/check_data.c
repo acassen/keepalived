@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckers dynamic data structure definition.
  *
- * Version:     $Id: check_data.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: check_data.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -327,27 +327,27 @@ alloc_check_data(void)
 }
 
 void
-free_check_data(check_conf_data *check_data)
+free_check_data(check_conf_data *check_data_obj)
 {
-	free_list(check_data->vs);
-	free_list(check_data->vs_group);
-	FREE(check_data);
+	free_list(check_data_obj->vs);
+	free_list(check_data_obj->vs_group);
+	FREE(check_data_obj);
 }
 
 void
-dump_check_data(check_conf_data *check_data)
+dump_check_data(check_conf_data *check_data_obj)
 {
-	if (check_data->ssl) {
+	if (check_data_obj->ssl) {
 		syslog(LOG_INFO, "------< SSL definitions >------");
 		dump_ssl();
 	}
-	if (!LIST_ISEMPTY(check_data->vs)) {
+	if (!LIST_ISEMPTY(check_data_obj->vs)) {
 		syslog(LOG_INFO, "------< LVS Topology >------");
 		syslog(LOG_INFO, " System is compiled with LVS v%d.%d.%d",
 		       NVERSION(IP_VS_VERSION_CODE));
-		if (!LIST_ISEMPTY(check_data->vs_group))
-			dump_list(check_data->vs_group);
-		dump_list(check_data->vs);
+		if (!LIST_ISEMPTY(check_data_obj->vs_group))
+			dump_list(check_data_obj->vs_group);
+		dump_list(check_data_obj->vs);
 	}
 	dump_checkers_queue();
 }

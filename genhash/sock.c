@@ -36,23 +36,23 @@ SOCK *sock = NULL;
 
 /* Close the descriptor */
 static void
-close_sock(SOCK * sock)
+close_sock(SOCK * sock_obj)
 {
-	if (sock->ssl) {
-		SSL_shutdown(sock->ssl);
-		SSL_free(sock->ssl);
+	if (sock_obj->ssl) {
+		SSL_shutdown(sock_obj->ssl);
+		SSL_free(sock_obj->ssl);
 	}
-	close(sock->fd);
+	close(sock_obj->fd);
 }
 
 /* Destroy the socket handler */
 void
-free_sock(SOCK * sock)
+free_sock(SOCK * sock_obj)
 {
-	DBG("Freeing fd:%d\n", sock->fd);
+	DBG("Freeing fd:%d\n", sock_obj->fd);
 
-	close_sock(sock);
-	FREE(sock);
+	close_sock(sock_obj);
+	FREE(sock_obj);
 }
 
 /* Init socket handler */

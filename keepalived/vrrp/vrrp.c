@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -652,6 +652,10 @@ vrrp_state_goto_master(vrrp_rt * vrrp)
 void
 vrrp_restore_interface(vrrp_rt * vrrp, int advF)
 {
+	/* remove virtual routes */
+	if (!LIST_ISEMPTY(vrrp->vroutes))
+		vrrp_handle_iproutes(vrrp, IPROUTE_DEL);
+
 	/*
 	 * Remove the ip addresses.
 	 *
@@ -668,9 +672,6 @@ vrrp_restore_interface(vrrp_rt * vrrp, int advF)
 		vrrp->vipset = 0;
 	}
 
-	/* remove virtual routes */
-	if (!LIST_ISEMPTY(vrrp->vroutes))
-		vrrp_handle_iproutes(vrrp, IPROUTE_DEL);
 
 	/* if we stop vrrp, warn the other routers to speed up the recovery */
 	if (advF)
@@ -904,13 +905,13 @@ chk_min_cfg(vrrp_rt * vrrp)
 
 /* open a VRRP sending socket */
 int
-open_vrrp_send_socket(const int proto, const int index)
+open_vrrp_send_socket(const int proto, const int idx)
 {
 	interface *ifp;
 	int fd = -1;
 
 	/* Retreive interface */
-	ifp = if_get_by_ifindex(index);
+	ifp = if_get_by_ifindex(idx);
 
 	/* Create and init socket descriptor */
 	fd = socket(AF_INET, SOCK_RAW, proto);
@@ -931,13 +932,13 @@ open_vrrp_send_socket(const int proto, const int index)
 
 /* open a VRRP socket and join the multicast group. */
 int
-open_vrrp_socket(const int proto, const int index)
+open_vrrp_socket(const int proto, const int idx)
 {
 	interface *ifp;
 	int fd = -1;
 
 	/* Retreive interface */
-	ifp = if_get_by_ifindex(index);
+	ifp = if_get_by_ifindex(idx);
 
 	/* open the socket */
 	fd = socket(AF_INET, SOCK_RAW, proto);
@@ -1061,6 +1062,9 @@ vrrp_exist(vrrp_rt * old_vrrp)
 	list l = vrrp_data->vrrp;
 	vrrp_rt *vrrp;
 
+	if (LIST_ISEMPTY(l))
+		return NULL;
+
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 		if (!strcmp(vrrp->iname, old_vrrp->iname))
@@ -1095,6 +1099,9 @@ clear_diff_vrrp(void)
 	element e;
 	list l = old_vrrp_data->vrrp;
 	vrrp_rt *vrrp;
+
+	if (LIST_ISEMPTY(l))
+		return;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);

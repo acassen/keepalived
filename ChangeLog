@@ -1,3 +1,35 @@
+2005-02-15  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.10 released.
+	* VRRP : While restoring interface, release iproutes
+	  before ipaddresses. Routing daemons needs that order
+	  for netlink reflection channel.
+	* VRRP : Bin Guo, <bguo@bluesocket.com> fixed a memory
+	  leak while calling script_open.
+	* Kevin Lindsay, <kevinl@netnation.com> fixed some buffer
+	  overruns, NULL pointer and dangling pointer references.
+	* Kevin Lindsay, <kevinl@netnation.com> redisigned signal
+	  handling. When a signal occurs, a global signal_mask is
+	  modified. In the main loop there is a checked to see if
+	  the signal_mask has any pending signals. The appropriate
+	  signal handler is then run at this time. This is to prevent
+	  races when modifying linked lists.
+	* Kevin Lindsay, <kevinl@netnation.com> fixed shadowed
+	  declarations.
+	* Christophe Varoqui, <Christophe.Varoqui@free.fr> and I
+	  Extended libipvs-2.6 to support syncd zombies handling.
+	  Since ip_vs_sync.c kernel code no longer handle waitpid()
+	  we fork a child before any ipvs syncd operation in order
+	  to workaround zombies generation.
+	* John Ferlito, <johnf@inodes.org> and I Fixed a scheduling
+	  race condition while working with low timers.
+	* Updated check_http and check_ssl to use non-blocking
+	  socket.
+	* Fixed some race conditions while reloading configuration.
+	  Prevent against list gardening if list is empty !
+	* Fixed recursive configuration parsing function to be clean
+	  with stack. Only one recursion level.
+	* Some cosmetics cleanup in Makefiles.
+
 2005-02-07  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.9 released.
 	* VRRP : Chris Caputo, <ccaputo@alt.net> updated keepalived manpage

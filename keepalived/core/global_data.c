@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: global_data.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: global_data.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -35,7 +35,7 @@ conf_data *data = NULL;
 
 /* Default settings */
 static void
-set_default_router_id(conf_data * conf_data)
+set_default_router_id(conf_data * conf_data_obj)
 {
 	char *new_id = NULL;
 	int len = 0;
@@ -45,15 +45,15 @@ set_default_router_id(conf_data * conf_data)
 		return;
 
 	len = strlen(new_id);
-	conf_data->router_id = MALLOC(len + 1);
-	if (!conf_data->router_id)
+	conf_data_obj->router_id = MALLOC(len + 1);
+	if (!conf_data_obj->router_id)
 		return;
 
-	memcpy(conf_data->router_id, new_id, len);
+	memcpy(conf_data_obj->router_id, new_id, len);
 }
 
 static void
-set_default_email_from(conf_data * conf_data)
+set_default_email_from(conf_data * conf_data_obj)
 {
 	struct passwd *pwd = NULL;
 	char *hostname = NULL;
@@ -68,47 +68,47 @@ set_default_email_from(conf_data * conf_data)
 		return;
 
 	len = strlen(hostname) + strlen(pwd->pw_name) + 2;
-	conf_data->email_from = MALLOC(len);
-	if (!conf_data->email_from)
+	conf_data_obj->email_from = MALLOC(len);
+	if (!conf_data_obj->email_from)
 		return;
 
-	snprintf(conf_data->email_from, len, "%s@%s", pwd->pw_name, hostname);
+	snprintf(conf_data_obj->email_from, len, "%s@%s", pwd->pw_name, hostname);
 }
 
 static void
-set_default_smtp_server(conf_data * conf_data)
+set_default_smtp_server(conf_data * conf_data_obj)
 {
-	conf_data->smtp_server = htonl(DEFAULT_SMTP_SERVER);
+	conf_data_obj->smtp_server = htonl(DEFAULT_SMTP_SERVER);
 }
 
 static void
-set_default_smtp_connection_timeout(conf_data * conf_data)
+set_default_smtp_connection_timeout(conf_data * conf_data_obj)
 {
-	conf_data->smtp_connection_to = DEFAULT_SMTP_CONNECTION_TIMEOUT;
+	conf_data_obj->smtp_connection_to = DEFAULT_SMTP_CONNECTION_TIMEOUT;
 }
 
 static void
-set_default_values(conf_data * conf_data)
+set_default_values(conf_data * conf_data_obj)
 {
 	/* No global data so don't default */
-	if (!conf_data)
+	if (!conf_data_obj)
 		return;
-	set_default_router_id(conf_data);
-	set_default_smtp_server(conf_data);
-	set_default_smtp_connection_timeout(conf_data);
-	set_default_email_from(conf_data);
+	set_default_router_id(conf_data_obj);
+	set_default_smtp_server(conf_data_obj);
+	set_default_smtp_connection_timeout(conf_data_obj);
+	set_default_email_from(conf_data_obj);
 }
 
 /* email facility functions */
 static void
-free_email(void *data)
+free_email(void *data_obj)
 {
-	FREE(data);
+	FREE(data_obj);
 }
 static void
-dump_email(void *data)
+dump_email(void *data_obj)
 {
-	char *addr = data;
+	char *addr = data_obj;
 	syslog(LOG_INFO, " Email notification = %s", addr);
 }
 
@@ -138,7 +138,7 @@ alloc_global_data(void)
 }
 
 void
-free_global_data(conf_data * data)
+free_global_data(conf_data * global_data)
 {
 	free_list(data->email);
 	FREE_PTR(data->router_id);
@@ -148,7 +148,7 @@ free_global_data(conf_data * data)
 }
 
 void
-dump_global_data(conf_data * data)
+dump_global_data(conf_data * global_data)
 {
 	if (!data)
 		return;

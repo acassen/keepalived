@@ -16,3 +16,7 @@ Jeremy Rumpf, <rumpf.6@osu.edu> :
 Chris Caputo, <ccaputo@alt.net> :
 	o Added dont_track_primary, nopreempt,
 	  preempt_delay, and misc_dynamic.
+
+Kevin Lindsay, <kevinl@netnation.com> :
+	o Fixed shadowed declaration reported by -Wshadow.
+	o Redesigned signal handling.

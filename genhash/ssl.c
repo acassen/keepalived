@@ -95,19 +95,19 @@ ssl_printerr(int err)
 }
 
 int
-ssl_connect(thread * thread)
+ssl_connect(thread * thread_obj)
 {
-	SOCK *sock = THREAD_ARG(thread);
+	SOCK *sock_obj = THREAD_ARG(thread_obj);
 	int ret;
 
-	sock->ssl = SSL_new(req->ctx);
-	sock->bio = BIO_new_socket(sock->fd, BIO_NOCLOSE);
-	BIO_set_nbio(sock->bio, 1);	/* Set the Non-Blocking flag */
-	SSL_set_bio(sock->ssl, sock->bio, sock->bio);
-	ret = SSL_connect(sock->ssl);
+	sock_obj->ssl = SSL_new(req->ctx);
+	sock_obj->bio = BIO_new_socket(sock_obj->fd, BIO_NOCLOSE);
+	BIO_set_nbio(sock_obj->bio, 1);	/* Set the Non-Blocking flag */
+	SSL_set_bio(sock_obj->ssl, sock_obj->bio, sock_obj->bio);
+	ret = SSL_connect(sock_obj->ssl);
 
-	DBG("  SSL_connect return code = %d on fd:%d\n", ret, thread->u.fd);
-	ssl_printerr(SSL_get_error(sock->ssl, ret));
+	DBG("  SSL_connect return code = %d on fd:%d\n", ret, thread_obj->u.fd);
+	ssl_printerr(SSL_get_error(sock_obj->ssl, ret));
 
 	return (ret > 0) ? 1 : 0;
 }
@@ -134,15 +134,15 @@ ssl_send_request(SSL * ssl, char *str_request, int request_len)
 
 /* Asynchronous SSL stream reader */
 int
-ssl_read_thread(thread * thread)
+ssl_read_thread(thread * thread_obj)
 {
-	SOCK *sock = THREAD_ARG(thread);
+	SOCK *sock_obj = THREAD_ARG(thread_obj);
 	int r = 0;
 	int error;
 
 	/* Handle read timeout */
-	if (thread->type == THREAD_READ_TIMEOUT)
-		return epilog(thread);
+	if (thread_obj->type == THREAD_READ_TIMEOUT)
+		return epilog(thread_obj);
 
 	/*
 	 * The design implemented here is a workaround for use
@@ -163,21 +163,21 @@ ssl_read_thread(thread * thread)
       read_stream:
 
 	/* read the SSL stream */
-	memset(sock->buffer, 0, MAX_BUFFER_LENGTH);
-	r = SSL_read(sock->ssl, sock->buffer, MAX_BUFFER_LENGTH);
-	error = SSL_get_error(sock->ssl, r);
+	memset(sock_obj->buffer, 0, MAX_BUFFER_LENGTH);
+	r = SSL_read(sock_obj->ssl, sock_obj->buffer, MAX_BUFFER_LENGTH);
+	error = SSL_get_error(sock_obj->ssl, r);
 
-	DBG(" [l:%d,fd:%d]\n", r, sock->fd);
+	DBG(" [l:%d,fd:%d]\n", r, sock_obj->fd);
 
 	if (error) {
 		/* All the SSL streal has been parsed */
 		/* Handle response stream */
 		if (error != SSL_ERROR_NONE)
-			return finalize(thread);
+			return finalize(thread_obj);
 	} else if (r > 0 && error == 0) {
 
 		/* Handle the response stream */
-		http_process_stream(sock, r);
+		http_process_stream(sock_obj, r);
 
 		/*
 		 * Register next ssl stream reader.

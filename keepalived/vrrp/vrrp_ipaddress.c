@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 address manipulation.
  *
- * Version:     $Id: vrrp_ipaddress.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -88,14 +88,14 @@ netlink_iplist_ipv4(list ip_list, int cmd)
 
 /* IP address dump/allocation */
 void
-free_ipaddress(void *data)
+free_ipaddress(void *if_data_obj)
 {
-	FREE(data);
+	FREE(if_data_obj);
 }
 void
-dump_ipaddress(void *data)
+dump_ipaddress(void *if_data_obj)
 {
-	ip_address *ip_addr = data;
+	ip_address *ip_addr = if_data_obj;
 	syslog(LOG_INFO, "     %s/%d brd %s dev %s scope %s"
 	       , inet_ntop2(ip_addr->addr)
 	       , ip_addr->mask

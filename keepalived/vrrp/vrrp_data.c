@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: vrrp_data.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_data.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -60,7 +60,7 @@ free_vgroup(void *data)
 
 	FREE(vgroup->gname);
 	free_strvec(vgroup->iname);
-	free_list(vgroup->index);
+	free_list(vgroup->index_list);
 	FREE_PTR(vgroup->script_backup);
 	FREE_PTR(vgroup->script_master);
 	FREE_PTR(vgroup->script_fault);
@@ -97,25 +97,25 @@ dump_vgroup(void *data)
 }
 
 /* Socket pool functions */
-void
-free_sock(void *data)
+static void
+free_sock(void *sock_data_obj)
 {
-	sock *sock = data;
-	interface *ifp = if_get_by_ifindex(sock->ifindex);
-	if_leave_vrrp_group(sock->fd_in, ifp);
-	close(sock->fd_out);
-	FREE(data);
+	sock *sock_obj = sock_data_obj;
+	interface *ifp = if_get_by_ifindex(sock_obj->ifindex);
+	if_leave_vrrp_group(sock_obj->fd_in, ifp);
+	close(sock_obj->fd_out);
+	FREE(sock_data_obj);
 }
 
-void
-dump_sock(void *data)
+static void
+dump_sock(void *sock_data_obj)
 {
-	sock *sock = data;
+	sock *sock_obj = sock_data_obj;
 	syslog(LOG_INFO, "VRRP sockpool: [ifindex(%d), proto(%d), fd(%d,%d)]",
-	       sock->ifindex
-	       , sock->proto
-	       , sock->fd_in
-	       , sock->fd_out);
+	       sock_obj->ifindex
+	       , sock_obj->proto
+	       , sock_obj->fd_in
+	       , sock_obj->fd_out);
 }
 
 static void
@@ -313,35 +313,35 @@ alloc_vrrp_data(void)
 }
 
 void
-free_vrrp_data(vrrp_conf_data * vrrp_data)
+free_vrrp_data(vrrp_conf_data * vrrp_data_obj)
 {
-	free_list(vrrp_data->static_addresses);
-	free_list(vrrp_data->static_routes);
-	free_mlist(vrrp_data->vrrp_index, 255);
-	free_mlist(vrrp_data->vrrp_index_fd, 1024+1);
-	free_list(vrrp_data->vrrp);
-	free_list(vrrp_data->vrrp_sync_group);
-	free_list(vrrp_data->vrrp_socket_pool);
-	FREE(vrrp_data);
+	free_list(vrrp_data_obj->static_addresses);
+	free_list(vrrp_data_obj->static_routes);
+	free_mlist(vrrp_data_obj->vrrp_index, 255);
+	free_mlist(vrrp_data_obj->vrrp_index_fd, 1024+1);
+	free_list(vrrp_data_obj->vrrp);
+	free_list(vrrp_data_obj->vrrp_sync_group);
+	free_list(vrrp_data_obj->vrrp_socket_pool);
+	FREE(vrrp_data_obj);
 }
 
 void
-dump_vrrp_data(vrrp_conf_data * vrrp_data)
+dump_vrrp_data(vrrp_conf_data * vrrp_data_obj)
 {
-	if (!LIST_ISEMPTY(vrrp_data->static_addresses)) {
+	if (!LIST_ISEMPTY(vrrp_data_obj->static_addresses)) {
 		syslog(LOG_INFO, "------< Static Addresses >------");
-		dump_list(vrrp_data->static_addresses);
+		dump_list(vrrp_data_obj->static_addresses);
 	}
-	if (!LIST_ISEMPTY(vrrp_data->static_routes)) {
+	if (!LIST_ISEMPTY(vrrp_data_obj->static_routes)) {
 		syslog(LOG_INFO, "------< Static Routes >------");
-		dump_list(vrrp_data->static_routes);
+		dump_list(vrrp_data_obj->static_routes);
 	}
-	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
+	if (!LIST_ISEMPTY(vrrp_data_obj->vrrp)) {
 		syslog(LOG_INFO, "------< VRRP Topology >------");
-		dump_list(vrrp_data->vrrp);
+		dump_list(vrrp_data_obj->vrrp);
 	}
-	if (!LIST_ISEMPTY(vrrp_data->vrrp_sync_group)) {
+	if (!LIST_ISEMPTY(vrrp_data_obj->vrrp_sync_group)) {
 		syslog(LOG_INFO, "------< VRRP Sync groups >------");
-		dump_list(vrrp_data->vrrp_sync_group);
+		dump_list(vrrp_data_obj->vrrp_sync_group);
 	}
 }

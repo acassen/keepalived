@@ -5,7 +5,7 @@
  *
  * Part:        Checkers arguments structures definitions.
  *
- * Version:     $Id: check_api.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: check_api.h,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -31,8 +31,8 @@
 
 /* Checkers structure definition */
 typedef struct _checker {
-	void (*free) (void *);
-	void (*dump) (void *);
+	void (*free_func) (void *);
+	void (*dump_func) (void *);
 	int (*launch) (struct _thread *);
 	int (*plugin_launch) (void *);
 	virtual_server *vs;	/* pointer to the checker thread virtualserver */
@@ -63,7 +63,7 @@ extern list checkers_queue;
 
 /* Prototypes definition */
 extern void init_checkers_queue(void);
-extern void queue_checker(void (*free) (void *), void (*dump) (void *)
+extern void queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 			  , int (*launch) (struct _thread *)
 			  , void *data);
 extern void dump_checkers_queue(void);

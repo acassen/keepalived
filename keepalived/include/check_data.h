@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckers dynamic data structure definition.
  *
- * Version:     $Id: check_data.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: check_data.h,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -171,7 +171,7 @@ extern void alloc_group(char *name);
 extern void alloc_rsgroup(char *ip, char *port);
 extern void set_rsgroup(char *gname);
 extern check_conf_data *alloc_check_data(void);
-extern void free_check_data(check_conf_data * data);
-extern void dump_check_data(check_conf_data * data);
+extern void free_check_data(check_conf_data * check_data_obj);
+extern void dump_check_data(check_conf_data * check_data_obj);
 
 #endif

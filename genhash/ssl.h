@@ -29,9 +29,9 @@
 
 /* Prototypes */
 extern void init_ssl(void);
-extern int ssl_connect(thread * thread);
+extern int ssl_connect(thread * thread_obj);
 extern int ssl_printerr(int err);
 extern int ssl_send_request(SSL * ssl, char *str_request, int request_len);
-extern int ssl_read_thread(thread * thread);
+extern int ssl_read_thread(thread * thread_obj);
 
 #endif

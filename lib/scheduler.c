@@ -7,7 +7,7 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: scheduler.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -30,6 +30,7 @@
 #include "scheduler.h"
 #include "memory.h"
 #include "utils.h"
+#include "signals.h"
 
 /* global vars */
 thread_master *master = NULL;
@@ -46,78 +47,78 @@ thread_make_master(void)
 
 /* Add a new thread to the list. */
 static void
-thread_list_add(thread_list * list, thread * thread)
+thread_list_add(thread_list * list, thread * thread_obj)
 {
-	thread->next = NULL;
-	thread->prev = list->tail;
+	thread_obj->next = NULL;
+	thread_obj->prev = list->tail;
 	if (list->tail)
-		list->tail->next = thread;
+		list->tail->next = thread_obj;
 	else
-		list->head = thread;
-	list->tail = thread;
+		list->head = thread_obj;
+	list->tail = thread_obj;
 	list->count++;
 }
 
 /* Add a new thread to the list. */
 void
-thread_list_add_before(thread_list * list, thread * point, thread * thread)
+thread_list_add_before(thread_list * list, thread * point, thread * thread_obj)
 {
-	thread->next = point;
-	thread->prev = point->prev;
+	thread_obj->next = point;
+	thread_obj->prev = point->prev;
 	if (point->prev)
-		point->prev->next = thread;
+		point->prev->next = thread_obj;
 	else
-		list->head = thread;
-	point->prev = thread;
+		list->head = thread_obj;
+	point->prev = thread_obj;
 	list->count++;
 }
 
 /* Add a thread in the list sorted by timeval */
 void
-thread_list_add_timeval(thread_list * list, thread * thread)
+thread_list_add_timeval(thread_list * list, thread * thread_obj)
 {
 	struct _thread *tt;
 
 	for (tt = list->head; tt; tt = tt->next) {
-		if (timer_cmp(thread->sands, tt->sands) <= 0)
+		if (timer_cmp(thread_obj->sands, tt->sands) <= 0)
 			break;
 	}
 
 	if (tt)
-		thread_list_add_before(list, tt, thread);
+		thread_list_add_before(list, tt, thread_obj);
 	else
-		thread_list_add(list, thread);
+		thread_list_add(list, thread_obj);
 }
 
 /* Delete a thread from the list. */
 thread *
-thread_list_delete(thread_list * list, thread * thread)
+thread_list_delete(thread_list * list, thread * thread_obj)
 {
-	if (thread->next)
-		thread->next->prev = thread->prev;
+	if (thread_obj->next)
+		thread_obj->next->prev = thread_obj->prev;
 	else
-		list->tail = thread->prev;
-	if (thread->prev)
-		thread->prev->next = thread->next;
+		list->tail = thread_obj->prev;
+	if (thread_obj->prev)
+		thread_obj->prev->next = thread_obj->next;
 	else
-		list->head = thread->next;
-	thread->next = thread->prev = NULL;
+		list->head = thread_obj->next;
+	thread_obj->next = thread_obj->prev = NULL;
 	list->count--;
-	return thread;
+	return thread_obj;
 }
 
 /* Free all unused thread. */
 static void
 thread_clean_unuse(thread_master * m)
 {
-	thread *thread;
+	thread *thread_obj;
 
-	thread = m->unuse.head;
-	while (thread) {
+	thread_obj = m->unuse.head;
+	while (thread_obj) {
 		struct _thread *t;
 
-		t = thread;
-		thread = t->next;
+		t = thread_obj;
+		thread_obj = t->next;
 
 		thread_list_delete(&m->unuse, t);
 
@@ -129,30 +130,30 @@ thread_clean_unuse(thread_master * m)
 
 /* Move thread to unuse list. */
 static void
-thread_add_unuse(thread_master * m, thread * thread)
+thread_add_unuse(thread_master * m, thread * thread_obj)
 {
 	assert(m != NULL);
-	assert(thread->next == NULL);
-	assert(thread->prev == NULL);
-	assert(thread->type == THREAD_UNUSED);
-	thread_list_add(&m->unuse, thread);
+	assert(thread_obj->next == NULL);
+	assert(thread_obj->prev == NULL);
+	assert(thread_obj->type == THREAD_UNUSED);
+	thread_list_add(&m->unuse, thread_obj);
 }
 
 /* Move list element to unuse queue */
 static void
-thread_destroy_list(thread_master * m, thread_list thread_list)
+thread_destroy_list(thread_master * m, thread_list thread_list_obj)
 {
-	thread *thread;
+	thread *thread_obj;
 
-	thread = thread_list.head;
+	thread_obj = thread_list_obj.head;
 
-	while (thread) {
+	while (thread_obj) {
 		struct _thread *t;
 
-		t = thread;
-		thread = t->next;
+		t = thread_obj;
+		thread_obj = t->next;
 
-		thread_list_delete(&thread_list, t);
+		thread_list_delete(&thread_list_obj, t);
 		t->type = THREAD_UNUSED;
 		thread_add_unuse(m, t);
 	}
@@ -218,7 +219,7 @@ thread *
 thread_add_read(thread_master * m, int (*func) (thread *)
 		, void *arg, int fd, long timer)
 {
-	thread *thread;
+	thread *thread_obj;
 
 	assert(m != NULL);
 
@@ -227,23 +228,23 @@ thread_add_read(thread_master * m, int (*func) (thread *)
 		return NULL;
 	}
 
-	thread = thread_new(m);
-	thread->type = THREAD_READ;
-	thread->id = 0;
-	thread->master = m;
-	thread->func = func;
-	thread->arg = arg;
+	thread_obj = thread_new(m);
+	thread_obj->type = THREAD_READ;
+	thread_obj->id = 0;
+	thread_obj->master = m;
+	thread_obj->func = func;
+	thread_obj->arg = arg;
 	FD_SET(fd, &m->readfd);
-	thread->u.fd = fd;
+	thread_obj->u.fd = fd;
 
 	/* Compute read timeout value */
 	set_time_now();
-	thread->sands = timer_add_long(time_now, timer);
+	thread_obj->sands = timer_add_long(time_now, timer);
 
 	/* Sort the thread. */
-	thread_list_add_timeval(&m->read, thread);
+	thread_list_add_timeval(&m->read, thread_obj);
 
-	return thread;
+	return thread_obj;
 }
 
 /* Add new write thread. */
@@ -251,7 +252,7 @@ thread *
 thread_add_write(thread_master * m, int (*func) (thread *)
 		 , void *arg, int fd, long timer)
 {
-	thread *thread;
+	thread *thread_obj;
 
 	assert(m != NULL);
 
@@ -260,23 +261,23 @@ thread_add_write(thread_master * m, int (*func) (thread *)
 		return NULL;
 	}
 
-	thread = thread_new(m);
-	thread->type = THREAD_WRITE;
-	thread->id = 0;
-	thread->master = m;
-	thread->func = func;
-	thread->arg = arg;
+	thread_obj = thread_new(m);
+	thread_obj->type = THREAD_WRITE;
+	thread_obj->id = 0;
+	thread_obj->master = m;
+	thread_obj->func = func;
+	thread_obj->arg = arg;
 	FD_SET(fd, &m->writefd);
-	thread->u.fd = fd;
+	thread_obj->u.fd = fd;
 
 	/* Compute write timeout value */
 	set_time_now();
-	thread->sands = timer_add_long(time_now, timer);
+	thread_obj->sands = timer_add_long(time_now, timer);
 
 	/* Sort the thread. */
-	thread_list_add_timeval(&m->write, thread);
+	thread_list_add_timeval(&m->write, thread_obj);
 
-	return thread;
+	return thread_obj;
 }
 
 /* Add timer event thread. */
@@ -284,25 +285,25 @@ thread *
 thread_add_timer(thread_master * m, int (*func) (thread *)
 		 , void *arg, long timer)
 {
-	thread *thread;
+	thread *thread_obj;
 
 	assert(m != NULL);
 
-	thread = thread_new(m);
-	thread->type = THREAD_TIMER;
-	thread->id = 0;
-	thread->master = m;
-	thread->func = func;
-	thread->arg = arg;
+	thread_obj = thread_new(m);
+	thread_obj->type = THREAD_TIMER;
+	thread_obj->id = 0;
+	thread_obj->master = m;
+	thread_obj->func = func;
+	thread_obj->arg = arg;
 
 	/* Do we need jitter here? */
 	set_time_now();
-	thread->sands = timer_add_long(time_now, timer);
+	thread_obj->sands = timer_add_long(time_now, timer);
 
 	/* Sort by timeval. */
-	thread_list_add_timeval(&m->timer, thread);
+	thread_list_add_timeval(&m->timer, thread_obj);
 
-	return thread;
+	return thread_obj;
 }
 
 /* Add a child thread. */
@@ -310,27 +311,27 @@ thread *
 thread_add_child(thread_master * m, int (*func) (thread *)
 		 , void * arg, pid_t pid, long timer)
 {
-	thread *thread;
+	thread *thread_obj;
 
 	assert(m != NULL);
 
-	thread = thread_new(m);
-	thread->type = THREAD_CHILD;
-	thread->id = 0;
-	thread->master = m;
-	thread->func = func;
-	thread->arg = arg;
-	thread->u.c.pid = pid;
-	thread->u.c.status = 0;
+	thread_obj = thread_new(m);
+	thread_obj->type = THREAD_CHILD;
+	thread_obj->id = 0;
+	thread_obj->master = m;
+	thread_obj->func = func;
+	thread_obj->arg = arg;
+	thread_obj->u.c.pid = pid;
+	thread_obj->u.c.status = 0;
 
 	/* Compute write timeout value */
 	set_time_now();
-	thread->sands = timer_add_long(time_now, timer);
+	thread_obj->sands = timer_add_long(time_now, timer);
 
 	/* Sort by timeval. */
-	thread_list_add_timeval(&m->child, thread);
+	thread_list_add_timeval(&m->child, thread_obj);
 
-	return thread;
+	return thread_obj;
 }
 
 /* Add simple event thread. */
@@ -338,93 +339,93 @@ thread *
 thread_add_event(thread_master * m, int (*func) (thread *)
 		 , void *arg, int val)
 {
-	thread *thread;
+	thread *thread_obj;
 
 	assert(m != NULL);
 
-	thread = thread_new(m);
-	thread->type = THREAD_EVENT;
-	thread->id = 0;
-	thread->master = m;
-	thread->func = func;
-	thread->arg = arg;
-	thread->u.val = val;
-	thread_list_add(&m->event, thread);
+	thread_obj = thread_new(m);
+	thread_obj->type = THREAD_EVENT;
+	thread_obj->id = 0;
+	thread_obj->master = m;
+	thread_obj->func = func;
+	thread_obj->arg = arg;
+	thread_obj->u.val = val;
+	thread_list_add(&m->event, thread_obj);
 
-	return thread;
+	return thread_obj;
 }
 
 /* Add simple event thread. */
 thread *
 thread_add_terminate_event(thread_master * m)
 {
-	thread *thread;
+	thread *thread_obj;
 
 	assert(m != NULL);
 
-	thread = thread_new(m);
-	thread->type = THREAD_TERMINATE;
-	thread->id = 0;
-	thread->master = m;
-	thread->func = NULL;
-	thread->arg = NULL;
-	thread->u.val = 0;
-	thread_list_add(&m->event, thread);
+	thread_obj = thread_new(m);
+	thread_obj->type = THREAD_TERMINATE;
+	thread_obj->id = 0;
+	thread_obj->master = m;
+	thread_obj->func = NULL;
+	thread_obj->arg = NULL;
+	thread_obj->u.val = 0;
+	thread_list_add(&m->event, thread_obj);
 
-	return thread;
+	return thread_obj;
 }
 
 /* Cancel thread from scheduler. */
 void
-thread_cancel(thread * thread)
+thread_cancel(thread * thread_obj)
 {
-	switch (thread->type) {
+	switch (thread_obj->type) {
 	case THREAD_READ:
-		assert(FD_ISSET(thread->u.fd, &thread->master->readfd));
-		FD_CLR(thread->u.fd, &thread->master->readfd);
-		thread_list_delete(&thread->master->read, thread);
+		assert(FD_ISSET(thread_obj->u.fd, &thread_obj->master->readfd));
+		FD_CLR(thread_obj->u.fd, &thread_obj->master->readfd);
+		thread_list_delete(&thread_obj->master->read, thread_obj);
 		break;
 	case THREAD_WRITE:
-		assert(FD_ISSET(thread->u.fd, &thread->master->writefd));
-		FD_CLR(thread->u.fd, &thread->master->writefd);
-		thread_list_delete(&thread->master->write, thread);
+		assert(FD_ISSET(thread_obj->u.fd, &thread_obj->master->writefd));
+		FD_CLR(thread_obj->u.fd, &thread_obj->master->writefd);
+		thread_list_delete(&thread_obj->master->write, thread_obj);
 		break;
 	case THREAD_TIMER:
-		thread_list_delete(&thread->master->timer, thread);
+		thread_list_delete(&thread_obj->master->timer, thread_obj);
 		break;
 	case THREAD_CHILD:
 		/* Does this need to kill the child, or is that the
 		 * caller's job?
 		 * This function is currently unused, so leave it for now.
 		 */
-		thread_list_delete(&thread->master->child, thread);
+		thread_list_delete(&thread_obj->master->child, thread_obj);
 		break;
 	case THREAD_EVENT:
-		thread_list_delete(&thread->master->event, thread);
+		thread_list_delete(&thread_obj->master->event, thread_obj);
 		break;
 	case THREAD_READY:
-		thread_list_delete(&thread->master->ready, thread);
+		thread_list_delete(&thread_obj->master->ready, thread_obj);
 		break;
 	default:
 		break;
 	}
 
-	thread->type = THREAD_UNUSED;
-	thread_add_unuse(thread->master, thread);
+	thread_obj->type = THREAD_UNUSED;
+	thread_add_unuse(thread_obj->master, thread_obj);
 }
 
 /* Delete all events which has argument value arg. */
 void
 thread_cancel_event(thread_master * m, void *arg)
 {
-	thread *thread;
+	thread *thread_obj;
 
-	thread = m->event.head;
-	while (thread) {
+	thread_obj = m->event.head;
+	while (thread_obj) {
 		struct _thread *t;
 
-		t = thread;
-		thread = t->next;
+		t = thread_obj;
+		thread_obj = t->next;
 
 		if (t->arg == arg) {
 			thread_list_delete(&m->event, t);
@@ -471,7 +472,7 @@ thread_compute_timer(thread_master * m, TIMEVAL * timer_wait)
 
 	if (!TIMER_ISNULL(timer_min)) {
 		timer_min = timer_sub(timer_min, time_now);
-		if (timer_min.tv_sec < 0) {
+		if (timer_min.tv_sec < 0 || TIMER_ISNULL(timer_min)) {
 			timer_min.tv_sec = 0;
 			timer_min.tv_usec = 10;
 		}
@@ -486,7 +487,7 @@ thread *
 thread_fetch(thread_master * m, thread * fetch)
 {
 	int ret;
-	thread *thread;
+	thread *thread_obj;
 	fd_set readfd;
 	fd_set writefd;
 	fd_set exceptfd;
@@ -513,25 +514,25 @@ thread_fetch(thread_master * m, thread * fetch)
 retry:	/* When thread can't fetch try to find next thread again. */
 
 	/* If there is event process it first. */
-	while ((thread = thread_trim_head(&m->event))) {
-		*fetch = *thread;
+	while ((thread_obj = thread_trim_head(&m->event))) {
+		*fetch = *thread_obj;
 
 		/* If daemon hanging event is received return NULL pointer */
-		if (thread->type == THREAD_TERMINATE) {
-			thread->type = THREAD_UNUSED;
-			thread_add_unuse(m, thread);
+		if (thread_obj->type == THREAD_TERMINATE) {
+			thread_obj->type = THREAD_UNUSED;
+			thread_add_unuse(m, thread_obj);
 			return NULL;
 		}
-		thread->type = THREAD_UNUSED;
-		thread_add_unuse(m, thread);
+		thread_obj->type = THREAD_UNUSED;
+		thread_add_unuse(m, thread_obj);
 		return fetch;
 	}
 
 	/* If there is ready threads process them */
-	while ((thread = thread_trim_head(&m->ready))) {
-		*fetch = *thread;
-		thread->type = THREAD_UNUSED;
-		thread_add_unuse(m, thread);
+	while ((thread_obj = thread_trim_head(&m->ready))) {
+		*fetch = *thread_obj;
+		thread_obj->type = THREAD_UNUSED;
+		thread_add_unuse(m, thread_obj);
 		return fetch;
 	}
 
@@ -575,6 +576,14 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		sigprocmask(SIG_SETMASK, &saveset, NULL);
 	}
 
+	/*
+	 * When we receive a signal, we only add it to the signal_mask. This
+	 * is so that we can run our handler functions in a safe place and
+	 * not in, for example, the middle of a list modification.
+	 */
+	if (signal_pending())
+		signal_run_callback();
+
 	/* Update current time */
 	set_time_now();
 
@@ -596,11 +605,11 @@ retry:	/* When thread can't fetch try to find next thread again. */
 					DBG("waitpid error: %s", strerror(errno));
 					assert(0);
 				} else {
-					thread = m->child.head;
-					while (thread) {
+					thread_obj = m->child.head;
+					while (thread_obj) {
 						struct _thread *t;
-						t = thread;
-						thread = t->next;
+						t = thread_obj;
+						thread_obj = t->next;
 						if (pid == t->u.c.pid) {
 							thread_list_delete(&m->child, t);
 							thread_list_add(&m->ready, t);
@@ -616,12 +625,12 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	}
 
 	/* Timeout children */
-	thread = m->child.head;
-	while (thread) {
+	thread_obj = m->child.head;
+	while (thread_obj) {
 		struct _thread *t;
 
-		t = thread;
-		thread = t->next;
+		t = thread_obj;
+		thread_obj = t->next;
 
 		if (timer_cmp(time_now, t->sands) >= 0) {
 			thread_list_delete(&m->child, t);
@@ -631,12 +640,12 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	}
 
 	/* Read thead. */
-	thread = m->read.head;
-	while (thread) {
+	thread_obj = m->read.head;
+	while (thread_obj) {
 		struct _thread *t;
 
-		t = thread;
-		thread = t->next;
+		t = thread_obj;
+		thread_obj = t->next;
 
 		if (FD_ISSET(t->u.fd, &readfd)) {
 			assert(FD_ISSET(t->u.fd, &m->readfd));
@@ -655,12 +664,12 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	}
 
 	/* Write thead. */
-	thread = m->write.head;
-	while (thread) {
+	thread_obj = m->write.head;
+	while (thread_obj) {
 		struct _thread *t;
 
-		t = thread;
-		thread = t->next;
+		t = thread_obj;
+		thread_obj = t->next;
 
 		if (FD_ISSET(t->u.fd, &writefd)) {
 			assert(FD_ISSET(t->u.fd, &writefd));
@@ -681,12 +690,12 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/*... */
 
 	/* Timer update. */
-	thread = m->timer.head;
-	while (thread) {
+	thread_obj = m->timer.head;
+	while (thread_obj) {
 		struct _thread *t;
 
-		t = thread;
-		thread = t->next;
+		t = thread_obj;
+		thread_obj = t->next;
 
 		if (timer_cmp(time_now, t->sands) >= 0) {
 			thread_list_delete(&m->timer, t);
@@ -696,15 +705,15 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	}
 
 	/* Return one event. */
-	thread = thread_trim_head(&m->ready);
+	thread_obj = thread_trim_head(&m->ready);
 
 	/* There is no ready thread. */
-	if (!thread)
+	if (!thread_obj)
 		goto retry;
 
-	*fetch = *thread;
-	thread->type = THREAD_UNUSED;
-	thread_add_unuse(m, thread);
+	*fetch = *thread_obj;
+	thread_obj->type = THREAD_UNUSED;
+	thread_add_unuse(m, thread_obj);
 
 	return fetch;
 }
@@ -719,23 +728,23 @@ thread_get_id(void)
 
 /* Call thread ! */
 void
-thread_call(thread * thread)
+thread_call(thread * thread_obj)
 {
-	thread->id = thread_get_id();
-	(*thread->func) (thread);
+	thread_obj->id = thread_get_id();
+	(*thread_obj->func) (thread_obj);
 }
 
 /* Our infinite scheduling loop */
 void
 launch_scheduler(void)
 {
-	thread thread;
+	thread thread_obj;
 
 	/*
 	 * Processing the master thread queues,
 	 * return and execute one ready thread.
 	 */
-	while (thread_fetch(master, &thread)) {
+	while (thread_fetch(master, &thread_obj)) {
 		/* Run until error, used for debuging only */
 #ifdef _DEBUG_
 		if ((debug & 520) == 520) {
@@ -743,6 +752,6 @@ launch_scheduler(void)
 			thread_add_terminate_event(master);
 		}
 #endif
-		thread_call(&thread);
+		thread_call(&thread_obj);
 	}
 }

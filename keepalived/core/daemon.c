@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: main.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -74,67 +74,4 @@ xdaemon(int nochdir, int noclose, int exitflag)
 
 	umask(0);
 	return 0;
-}
-
-/*
- * SIGCHLD handler. Reap all zombie child.
- * WNOHANG prevent against parent process get
- * stuck waiting child termination.
- */
-void
-dummy_handler(int sig)
-{
-	/* Dummy */
-}
-
-void
-signal_noignore_sigchld(void)
-{
-	struct sigaction sa;
-	sigset_t mask;
-
-	/* Need to remove the NOCHLD flag */
-	sigemptyset(&mask);
-	sa.sa_handler = dummy_handler;
-	sa.sa_mask = mask;
-	sa.sa_flags = 0;
-
-	sigaction(SIGCHLD, &sa, NULL);
-
-	/* Block SIGCHLD so that we only receive it
-	 * when required (ie when its unblocked in the
-	 * select loop)
-	 */
-	sigaddset(&mask, SIGCHLD);
-	sigprocmask(SIG_BLOCK, &mask, NULL);
-}
-
-/* Signal wrapper */
-void *
-signal_set(int signo, void (*func) (int))
-{
-	int ret;
-	struct sigaction sig;
-	struct sigaction osig;
-
-	sig.sa_handler = func;
-	sigemptyset(&sig.sa_mask);
-	sig.sa_flags = 0;
-#ifdef SA_RESTART
-	sig.sa_flags |= SA_RESTART;
-#endif				/* SA_RESTART */
-
-	ret = sigaction(signo, &sig, &osig);
-
-	if (ret < 0)
-		return (SIG_ERR);
-	else
-		return (osig.sa_handler);
-}
-
-/* Signal remove */
-void *
-signal_ignore(int signo)
-{
-	return signal_set(signo, SIG_IGN);
 }

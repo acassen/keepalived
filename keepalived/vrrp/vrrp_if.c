@@ -5,7 +5,7 @@
  *
  * Part:        Interfaces manipulation.
  *
- * Version:     $Id: vrrp_if.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_if.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -245,9 +245,9 @@ free_if(void *data)
 }
 
 void
-dump_if(void *data)
+dump_if(void *if_data_obj)
 {
-	interface *ifp = data;
+	interface *ifp = if_data_obj;
 
 	syslog(LOG_INFO, "------< NIC >------");
 	syslog(LOG_INFO, " Name = %s", ifp->ifname);
@@ -306,9 +306,9 @@ if_add_queue(interface * ifp)
 
 #ifndef _WITH_LINKWATCH_
 static int
-if_linkbeat_refresh_thread(thread * thread)
+if_linkbeat_refresh_thread(thread * thread_obj)
 {
-	interface *ifp = THREAD_ARG(thread);
+	interface *ifp = THREAD_ARG(thread_obj);
 
 	if (IF_MII_SUPPORTED(ifp))
 		ifp->linkbeat = (if_mii_probe(ifp->ifname)) ? 1 : 0;
@@ -371,8 +371,8 @@ free_interface_queue(void)
 {
 	if (!LIST_ISEMPTY(if_queue))
 		free_list(if_queue);
-	netlink_close(&nl_kernel);
-	netlink_close(&nl_cmd);
+	if_queue = NULL;
+	kernel_netlink_close();
 }
 
 void

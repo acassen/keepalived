@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: check_parser.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: check_parser.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              

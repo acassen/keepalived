@@ -5,7 +5,7 @@
  *
  * Part:        VRRP synchronization framework.
  *
- * Version:     $Id: vrrp_sync.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_sync.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -74,9 +74,9 @@ vrrp_sync_set_group(vrrp_sgroup *vgroup)
 		str = VECTOR_SLOT(vgroup->iname, i);
 		vrrp = vrrp_get_instance(str);
 		if (vrrp) {
-			if (LIST_ISEMPTY(vgroup->index))
-				vgroup->index = alloc_list(NULL, NULL);
-			list_add(vgroup->index, vrrp);
+			if (LIST_ISEMPTY(vgroup->index_list))
+				vgroup->index_list = alloc_list(NULL, NULL);
+			list_add(vgroup->index_list, vrrp);
 			vrrp->sync = vgroup;
 		}
 	}
@@ -88,7 +88,7 @@ vrrp_sync_group_up(vrrp_sgroup * vgroup)
 {
 	vrrp_rt *vrrp;
 	element e;
-	list l = vgroup->index;
+	list l = vgroup->index_list;
 	int is_up = 0;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -97,7 +97,7 @@ vrrp_sync_group_up(vrrp_sgroup * vgroup)
 			is_up++;
 	}
 
-	if (is_up == LIST_SIZE(vgroup->index)) {
+	if (is_up == LIST_SIZE(vgroup->index_list)) {
 		syslog(LOG_INFO, "Kernel is reporting: Group(%s) UP"
 			       , GROUP_NAME(vgroup));
 		return 1;
@@ -111,11 +111,11 @@ vrrp_sync_smtp_notifier(vrrp_sgroup *vgroup)
 {
 	if (vgroup->smtp_alert) {
 		if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
-			smtp_alert(master, NULL, NULL, vgroup,
+			smtp_alert(NULL, NULL, vgroup,
 				   "Entering MASTER state",
 				   "=> All VRRP group instances are now in MASTER state <=");
 		if (GROUP_STATE(vgroup) == VRRP_STATE_BACK)
-			smtp_alert(master, NULL, NULL, vgroup,
+			smtp_alert(NULL, NULL, vgroup,
 				   "Entering BACKUP state",
 				   "=> All VRRP group instances are now in BACKUP state <=");
 	}
@@ -140,7 +140,7 @@ vrrp_sync_master_election(vrrp_rt * vrrp)
 {
 	vrrp_rt *isync;
 	vrrp_sgroup *vgroup = vrrp->sync;
-	list l = vgroup->index;
+	list l = vgroup->index_list;
 	element e;
 
 	if (vrrp->wantstate != VRRP_STATE_GOTO_MASTER)
@@ -170,7 +170,7 @@ vrrp_sync_backup(vrrp_rt * vrrp)
 {
 	vrrp_rt *isync;
 	vrrp_sgroup *vgroup = vrrp->sync;
-	list l = vgroup->index;
+	list l = vgroup->index_list;
 	element e;
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_BACK)
@@ -198,7 +198,7 @@ vrrp_sync_master(vrrp_rt * vrrp)
 {
 	vrrp_rt *isync;
 	vrrp_sgroup *vgroup = vrrp->sync;
-	list l = vgroup->index;
+	list l = vgroup->index_list;
 	element e;
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
@@ -228,7 +228,7 @@ vrrp_sync_fault(vrrp_rt * vrrp)
 {
 	vrrp_rt *isync;
 	vrrp_sgroup *vgroup = vrrp->sync;
-	list l = vgroup->index;
+	list l = vgroup->index_list;
 	element e;
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_FAULT)

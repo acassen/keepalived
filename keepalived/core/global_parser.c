@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: global_parser.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: global_parser.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -63,16 +63,16 @@ smtpip_handler(vector strvec)
 static void
 email_handler(vector strvec)
 {
-	vector email = read_value_block();
+	vector email_vec = read_value_block();
 	int i;
 	char *str;
 
-	for (i = 0; i < VECTOR_SIZE(email); i++) {
-		str = VECTOR_SLOT(email, i);
+	for (i = 0; i < VECTOR_SIZE(email_vec); i++) {
+		str = VECTOR_SLOT(email_vec, i);
 		alloc_email(str);
 	}
 
-	free_strvec(email);
+	free_strvec(email_vec);
 }
 
 void

@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK kernel command channel.
  *
- * Version:     $Id: vrrp_netlink.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_netlink.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -147,7 +147,7 @@ netlink_set_nonblock(struct nl_handle *nl, int *flags)
 
 /* iproute2 utility function */
 int
-addattr32(struct nlmsghdr *n, int maxlen, int type, uint32_t data)
+addattr32(struct nlmsghdr *n, int maxlen, int type, uint32_t data_obj)
 {
 	int len = RTA_LENGTH(4);
 	struct rtattr *rta;
@@ -156,13 +156,13 @@ addattr32(struct nlmsghdr *n, int maxlen, int type, uint32_t data)
 	rta = (struct rtattr*)(((char*)n) + NLMSG_ALIGN(n->nlmsg_len));
 	rta->rta_type = type;
 	rta->rta_len = len;
-	memcpy(RTA_DATA(rta), &data, 4);
+	memcpy(RTA_DATA(rta), &data_obj, 4);
 	n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + len;
 	return 0;
 }
 
 int
-addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data, int alen)
+addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data_obj, int alen)
 {
 	int len = RTA_LENGTH(alen);
 	struct rtattr *rta;
@@ -173,7 +173,7 @@ addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data, int alen)
 	rta = (struct rtattr *) (((char *) n) + NLMSG_ALIGN(n->nlmsg_len));
 	rta->rta_type = type;
 	rta->rta_len = len;
-	memcpy(RTA_DATA(rta), data, alen);
+	memcpy(RTA_DATA(rta), data_obj, alen);
 	n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + len;
 
 	return 0;
@@ -646,11 +646,11 @@ netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 }
 
 int
-kernel_netlink(thread * thread)
+kernel_netlink(thread * thread_obj)
 {
 	int status = 0;
 
-	if (thread->type != THREAD_READ_TIMEOUT)
+	if (thread_obj->type != THREAD_READ_TIMEOUT)
 		status = netlink_parse_info(netlink_broadcast_filter, &nl_kernel);
 	thread_add_read(master, kernel_netlink, NULL, nl_kernel.fd,
 			NETLINK_TIMER);
@@ -686,4 +686,11 @@ kernel_netlink_init(void)
 		syslog(LOG_INFO, "Registering Kernel netlink command channel");
 	else
 		syslog(LOG_INFO, "Error while registering Kernel netlink cmd channel");
+}
+
+void
+kernel_netlink_close(void)
+{
+	netlink_close(&nl_kernel);
+	netlink_close(&nl_cmd);
 }

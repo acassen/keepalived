@@ -5,7 +5,7 @@
  * 
  * Part:        cfreader.c include file.
  *  
- * Version:     $Id: parser.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: parser.h,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -59,20 +59,20 @@ extern FILE *stream;
 extern int reload;
 
 /* Prototypes */
-extern void keyword_alloc(vector keywords, char *string, void (*handler) (vector));
-extern void keyword_alloc_sub(vector keywords, char *string, void (*handler) (vector));
+extern void keyword_alloc(vector keywords_vec, char *string, void (*handler) (vector));
+extern void keyword_alloc_sub(vector keywords_vec, char *string, void (*handler) (vector));
 extern void install_keyword_root(char *string, void (*handler) (vector));
 extern void install_sublevel(void);
 extern void install_sublevel_end(void);
 extern void install_keyword(char *string, void (*handler) (vector));
 extern void dump_keywords(vector keydump, int level);
-extern void free_keywords(vector keywords);
+extern void free_keywords(vector keywords_vec);
 extern vector alloc_strvec(char *string);
 extern int read_line(char *buf, int size);
 extern vector read_value_block(void);
 extern void alloc_value_block(vector strvec, void (*alloc_func) (vector));
 extern void *set_value(vector strvec);
-extern void process_stream(vector keywords);
+extern void process_stream(vector keywords_vec);
 extern void init_data(char *conf_file, vector (*init_keywords) (void));
 
 #endif

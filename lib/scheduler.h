@@ -5,7 +5,7 @@
  *
  * Part:        scheduler.c include file.
  *
- * Version:     $Id: scheduler.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: scheduler.h,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -118,10 +118,10 @@ extern thread *thread_add_child(thread_master * m, int (*func) (thread *)
 				, void *arg, pid_t pid, long timeout);
 extern thread *thread_add_event(thread_master * m, int (*func) (thread *)
 				, void *arg, int val);
-extern void thread_cancel(thread * thread);
+extern void thread_cancel(thread * thread_obj);
 extern void thread_cancel_event(thread_master * m, void *arg);
 extern thread *thread_fetch(thread_master * m, thread * fetch);
-extern void thread_call(thread * thread);
+extern void thread_call(thread * thread_obj);
 extern void launch_scheduler(void);
 
 #endif

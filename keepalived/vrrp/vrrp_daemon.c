@@ -5,7 +5,7 @@
  *
  * Part:        VRRP child process handling.
  *
- * Version:     $Id: vrrp_daemon.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_daemon.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -35,6 +35,7 @@
 #include "global_data.h"
 #include "pidfile.h"
 #include "daemon.h"
+#include "signals.h"
 #ifdef _WITH_LVS_
   #include "ipvswrapper.h"
 #endif
@@ -51,8 +52,8 @@ stop_vrrp(void)
 	thread_destroy_master(master);
 
 	/* Clear static entries */
-	netlink_iplist_ipv4(vrrp_data->static_addresses, IPADDRESS_DEL);
 	netlink_rtlist_ipv4(vrrp_data->static_routes, IPROUTE_DEL);
+	netlink_iplist_ipv4(vrrp_data->static_addresses, IPADDRESS_DEL);
 
 	if (!(debug & 8))
 		shutdown_vrrp_instances();
@@ -139,7 +140,7 @@ start_vrrp(void)
 
 /* Reload handler */
 int
-reload_vrrp_thread(thread * thread)
+reload_vrrp_thread(thread * thread_obj)
 {
 	/* set the reloading flag */
 	SET_RELOAD;
@@ -194,24 +195,25 @@ sigend_vrrp(int sig)
 void
 vrrp_signal_init(void)
 {
+	signal_handler_init();
 	signal_set(SIGHUP, sighup_vrrp);
 	signal_set(SIGINT, sigend_vrrp);
 	signal_set(SIGTERM, sigend_vrrp);
-	signal_set(SIGKILL, sigend_vrrp);
+	signal_ignore(SIGPIPE);
 	signal_noignore_sigchld();
 }
 
 /* VRRP Child respawning thread */
 int
-vrrp_respawn_thread(thread * thread)
+vrrp_respawn_thread(thread * thread_obj)
 {
 	pid_t pid;
 
 	/* Fetch thread args */
-	pid = THREAD_CHILD_PID(thread);
+	pid = THREAD_CHILD_PID(thread_obj);
 
 	/* Restart respawning thread */
-	if (thread->type == THREAD_CHILD_TIMEOUT) {
+	if (thread_obj->type == THREAD_CHILD_TIMEOUT) {
 		thread_add_child(master, vrrp_respawn_thread, NULL,
 				 pid, RESPAWN_TIMER);
 		return 0;

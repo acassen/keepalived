@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckrs child process handling.
  *
- * Version:     $Id: check_daemon.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: check_daemon.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -32,6 +32,7 @@
 #include "ipvswrapper.h"
 #include "pidfile.h"
 #include "daemon.h"
+#include "signals.h"
 #include "list.h"
 #include "main.h"
 #include "memory.h"
@@ -125,7 +126,7 @@ start_check(void)
 
 /* Reload handler */
 int
-reload_check_thread(thread * thread)
+reload_check_thread(thread * thread_obj)
 {
 	/* set the reloading flag */
 	SET_RELOAD;
@@ -135,6 +136,9 @@ reload_check_thread(thread * thread)
 	master = thread_make_master();
 	free_global_data(data);
 	free_checkers_queue();
+#ifdef _WITH_VRRP_
+	free_interface_queue();
+#endif
 	free_ssl();
 	ipvs_stop();
 
@@ -175,24 +179,25 @@ sigend_check(int sig)
 void
 check_signal_init(void)
 {
+	signal_handler_init();
 	signal_set(SIGHUP, sighup_check);
 	signal_set(SIGINT, sigend_check);
 	signal_set(SIGTERM, sigend_check);
-	signal_set(SIGKILL, sigend_check);
+	signal_ignore(SIGPIPE);
 	signal_noignore_sigchld();
 }
 
 /* CHECK Child respawning thread */
 int
-check_respawn_thread(thread * thread)
+check_respawn_thread(thread * thread_obj)
 {
 	pid_t pid;
 
 	/* Fetch thread args */
-	pid = THREAD_CHILD_PID(thread);
+	pid = THREAD_CHILD_PID(thread_obj);
 
 	/* Restart respawning thread */
-	if (thread->type == THREAD_CHILD_TIMEOUT) {
+	if (thread_obj->type == THREAD_CHILD_TIMEOUT) {
 		thread_add_child(master, check_respawn_thread, NULL,
 				 pid, RESPAWN_TIMER);
 		return 0;

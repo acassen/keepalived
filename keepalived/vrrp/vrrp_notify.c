@@ -5,7 +5,7 @@
  *
  * Part:        VRRP state transition notification scripts handling.
  *
- * Version:     $Id: vrrp_notify.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_notify.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -75,16 +75,16 @@ notify_script_name(char *cmdline)
 {
 	char *cp = cmdline;
 	char *script;
-	int strlen;
+	int str_len;
 
 	if (!cmdline)
 		return NULL;
 	while (!isspace((int) *cp) && *cp != '\0')
 		cp++;
-	strlen = cp - cmdline;
-	script = MALLOC(strlen + 1);
-	memcpy(script, cmdline, strlen);
-	*(script + strlen) = '\0';
+	str_len = cp - cmdline;
+	script = MALLOC(str_len + 1);
+	memcpy(script, cmdline, str_len);
+	*(script + str_len) = '\0';
 
 	return script;
 }
@@ -105,7 +105,11 @@ script_open_litteral(char *script)
 static int
 script_open(char *script)
 {
-	return script_open_litteral(notify_script_name(script));
+	char *name = notify_script_name(script);
+	int ret = name ? script_open_litteral(name) : 0;
+	if (name)
+		FREE(name);
+	return ret;
 }
 
 static int

@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_if.c include file.
  *
- * Version:     $Id: vrrp_if.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_if.h,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -95,10 +95,10 @@ extern int if_linkbeat(const interface *ifp);
 extern int if_mii_probe(const char *ifname);
 extern int if_ethtool_probe(const char *ifname);
 extern void if_add_queue(interface * ifp);
-extern int if_monitor_thread(thread * thread);
+extern int if_monitor_thread(thread * thread_obj);
 extern void init_interface_queue(void);
 extern void free_interface_queue(void);
-extern void dump_if(void *data);
+extern void dump_if(void *if_data_obj);
 extern int if_join_vrrp_group(int sd, interface * ifp, int proto);
 extern void if_leave_vrrp_group(int sd, interface * ifp);
 extern int if_setsockopt_bindtodevice(int sd, interface * ifp);

@@ -27,7 +27,7 @@
 #include <sys/wait.h>
 #include "main.h"
 #include "utils.h"
-#include "sock.h"
+#include "signals.h"
 
 /* global var */
 REQ *req = NULL;
@@ -40,37 +40,15 @@ sigend(int sig)
 	thread_add_terminate_event(master);
 }
 
-/* signal wrapper */
-void *
-signal_set(int signo, void (*func) (int))
-{
-	int ret;
-	struct sigaction sig;
-	struct sigaction osig;
-
-	sig.sa_handler = func;
-	sigemptyset(&sig.sa_mask);
-	sig.sa_flags = 0;
-#ifdef SA_RESTART
-	sig.sa_flags |= SA_RESTART;
-#endif				/* SA_RESTART */
-
-	ret = sigaction(signo, &sig, &osig);
-
-	if (ret < 0)
-		return (SIG_ERR);
-	else
-		return (osig.sa_handler);
-}
-
 /* Initialize signal handler */
 void
 signal_init(void)
 {
+	signal_handler_init();
 	signal_set(SIGHUP, sigend);
 	signal_set(SIGINT, sigend);
 	signal_set(SIGTERM, sigend);
-	signal_set(SIGKILL, sigend);
+	signal_ignore(SIGPIPE);
 }
 
 /* Usage function */
@@ -99,7 +77,7 @@ usage(const char *prog)
 
 /* Command line parser */
 static int
-parse_cmdline(int argc, char **argv, REQ * req)
+parse_cmdline(int argc, char **argv, REQ * req_obj)
 {
 	poptContext context;
 	char *optarg = NULL;
@@ -134,16 +112,16 @@ parse_cmdline(int argc, char **argv, REQ * req)
 		usage(argv[0]);
 		break;
 	case 'v':
-		req->verbose = 1;
+		req_obj->verbose = 1;
 		break;
 	case 'S':
-		req->ssl = 1;
+		req_obj->ssl = 1;
 		break;
 	case 's':
-		inet_ston(optarg, &req->addr_ip);
+		inet_ston(optarg, &req_obj->addr_ip);
 		break;
 	case 'V':
-		req->vhost = optarg;
+		req_obj->vhost = optarg;
 		break;
 	default:
 		usage(argv[0]);
@@ -154,22 +132,22 @@ parse_cmdline(int argc, char **argv, REQ * req)
 	while ((c = poptGetNextOpt(context)) >= 0) {
 		switch (c) {
 		case 'v':
-			req->verbose = 1;
+			req_obj->verbose = 1;
 			break;
 		case 'S':
-			req->ssl = 1;
+			req_obj->ssl = 1;
 			break;
 		case 's':
-			inet_ston(optarg, &req->addr_ip);
+			inet_ston(optarg, &req_obj->addr_ip);
 			break;
 		case 'V':
-			req->vhost = optarg;
+			req_obj->vhost = optarg;
 			break;
 		case 'p':
-			req->addr_port = htons(atoi(optarg));
+			req_obj->addr_port = htons(atoi(optarg));
 			break;
 		case 'u':
-			req->url = optarg;
+			req_obj->url = optarg;
 			break;
 		default:
 			usage(argv[0]);
@@ -192,7 +170,7 @@ parse_cmdline(int argc, char **argv, REQ * req)
 int
 main(int argc, char **argv)
 {
-	thread thread;
+	thread thread_obj;
 
 	/* Allocate the room */
 	req = (REQ *) MALLOC(sizeof (REQ));
@@ -230,8 +208,8 @@ main(int argc, char **argv)
 	 * return and execute one ready thread.
 	 * Run until error, used for debuging only.
 	 */
-	while (thread_fetch(master, &thread))
-		thread_call(&thread);
+	while (thread_fetch(master, &thread_obj))
+		thread_call(&thread_obj);
 
 	/* Finalize output informations */
 	if (req->verbose)

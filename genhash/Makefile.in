@@ -18,7 +18,7 @@ LDFLAGS = @LIBS@ @LDFLAGS@
 OBJS = main.o sock.o layer4.o http.o ssl.o
 LIB_OBJS = ../lib/timer.o ../lib/scheduler.o \
 	   ../lib/memory.o ../lib/list.o ../lib/utils.o \
-	   ../lib/html.o
+	   ../lib/html.o ../lib/signals.o
 
 all:	$(BIN)/$(EXEC)
 	strip $(BIN)/$(EXEC)
@@ -26,7 +26,9 @@ all:	$(BIN)/$(EXEC)
 	@echo "Make complete"
 
 $(BIN)/$(EXEC): $(LIB_OBJS) $(OBJS)
-	$(CC) $(LIB_OBJS) $(OBJS) -o $(BIN)/$(EXEC) $(LDFLAGS)
+	@set -e; \
+	echo "Building $(BIN)/$(EXEC)" && \
+	$(CC) -o $(BIN)/$(EXEC) $(LIB_OBJS) $(OBJS) $(LDFLAGS)
 
 clean:
 	rm -f core *.o

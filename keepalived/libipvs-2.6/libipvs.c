@@ -141,19 +141,47 @@ int ipvs_set_timeout(ipvs_timeout_t *to)
 }
 
 
-int ipvs_start_daemon(ipvs_daemon_t *dm)
+static int _ipvs_start_daemon(void *dm)
 {
 	ipvs_func = ipvs_start_daemon;
-	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STARTDAEMON,
-			  (char *)dm, sizeof(*dm));
+	setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STARTDAEMON,
+		   (char *)dm, sizeof(struct ip_vs_daemon_user));
+	exit(0);
 }
 
 
-extern int ipvs_stop_daemon(ipvs_daemon_t *dm)
+static int _ipvs_stop_daemon(void *dm)
 {
 	ipvs_func = ipvs_stop_daemon;
-	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STOPDAEMON,
-			  (char *)dm, sizeof(*dm));
+	setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STOPDAEMON,
+		   (char *)dm, sizeof(struct ip_vs_daemon_user));
+	exit(0);
+}
+
+int ipvs_start_daemon(ipvs_daemon_t *dm)
+{
+	pid_t pid;
+
+	pid = fork();
+	if (pid == 0) {
+		_ipvs_start_daemon(dm);
+		exit(0);
+	} else if (pid > 0)
+		return 0;
+	return 1;
+}
+
+int ipvs_stop_daemon(ipvs_daemon_t *dm)
+{
+	pid_t pid;
+
+	pid = fork();
+	if (pid == 0) {
+		_ipvs_stop_daemon(dm);
+		exit(0);
+	} else if (pid > 0)
+		return 0;
+	return 1;
 }
 
 struct ip_vs_get_services *ipvs_get_services(void)

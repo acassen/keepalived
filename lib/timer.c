@@ -5,7 +5,7 @@
  * 
  * Part:        Timer manipulations.
  *  
- * Version:     $Id: timer.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: timer.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -96,13 +96,13 @@ timer_add_long(TIMEVAL a, long b)
 TIMEVAL
 timer_now(void)
 {
-	TIMEVAL timer_now;
+	TIMEVAL curr_time;
 
 	/* init timer */
-	TIMER_RESET(timer_now);
-	gettimeofday(&timer_now, NULL);
+	TIMER_RESET(curr_time);
+	gettimeofday(&curr_time, NULL);
 
-	return timer_now;
+	return curr_time;
 }
 
 /* sets and returns current time from system time */

@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $Id: ipwrapper.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: ipwrapper.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -458,6 +458,9 @@ vs_exist(virtual_server * old_vs)
 	virtual_server *vs;
 	virtual_server_group *vsg;
 
+	if (LIST_ISEMPTY(l))
+		return 0;
+
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
 		if (VS_ISEQ(old_vs, vs)) {
@@ -496,6 +499,9 @@ rs_exist(real_server * old_rs, list l)
 	element e;
 	real_server *rs;
 
+	if (LIST_ISEMPTY(l))
+		return 0;
+
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
 		if (RS_ISEQ(rs, old_rs)) {
@@ -521,6 +527,9 @@ get_rs_list(virtual_server * vs)
 	list l = check_data->vs;
 	virtual_server *vsvr;
 
+	if (LIST_ISEMPTY(l))
+		return NULL;
+
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vsvr = ELEMENT_DATA(e);
 		if (VS_ISEQ(vs, vsvr))
@@ -540,6 +549,10 @@ clear_diff_rs(virtual_server * old_vs)
 	list new = get_rs_list(old_vs);
 	real_server *rs;
 	char rsip[16], vsip[16];
+
+	/* If old vs didn't own rs then nothing return */
+	if (LIST_ISEMPTY(l))
+		return 1;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
@@ -569,6 +582,10 @@ clear_diff_services(void)
 	element e;
 	list l = old_check_data->vs;
 	virtual_server *vs;
+
+	/* If old config didn't own vs then nothing return */
+	if (LIST_ISEMPTY(l))
+		return 1;
 
 	/* Remove diff entries from previous IPVS rules */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {

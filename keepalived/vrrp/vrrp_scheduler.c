@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -137,11 +137,11 @@ vrrp_smtp_notifier(vrrp_rt * vrrp)
 {
 	if (vrrp->smtp_alert) {
 		if (vrrp->state == VRRP_STATE_MAST)
-			smtp_alert(master, NULL, vrrp, NULL,
+			smtp_alert(NULL, vrrp, NULL,
 				   "Entering MASTER state",
 				   "=> VRRP Instance is now owning VRRP VIPs <=");
 		if (vrrp->state == VRRP_STATE_BACK)
-			smtp_alert(master, NULL, vrrp, NULL,
+			smtp_alert(NULL, vrrp, NULL,
 				   "Entering BACKUP state",
 				   "=> VRRP Instance is nolonger owning VRRP VIPs <=");
 	}
@@ -291,7 +291,7 @@ vrrp_timer_vrid_timeout(const int fd)
 static void
 vrrp_register_workers(list l)
 {
-	sock *sock;
+	sock *sock_obj;
 	TIMEVAL timer;
 	long vrrp_timer = 0;
 	element e;
@@ -307,17 +307,17 @@ vrrp_register_workers(list l)
 
 	/* Register VRRP workers threads */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		sock = ELEMENT_DATA(e);
+		sock_obj = ELEMENT_DATA(e);
 		/* jump to asynchronous handling */
-		vrrp_timer = vrrp_timer_fd(sock->fd_in);
+		vrrp_timer = vrrp_timer_fd(sock_obj->fd_in);
 
 		/* Register a timer thread if interface is shut */
-		if (sock->fd_in == -1)
+		if (sock_obj->fd_in == -1)
 			thread_add_timer(master, vrrp_read_dispatcher_thread,
 					 (int *)THREAD_TIMER, vrrp_timer);
 		else
 			thread_add_read(master, vrrp_read_dispatcher_thread,
-					NULL, sock->fd_in, vrrp_timer);
+					NULL, sock_obj->fd_in, vrrp_timer);
 	}
 }
 
@@ -325,12 +325,12 @@ vrrp_register_workers(list l)
 static int
 already_exist_sock(list l, int ifindex, int proto)
 {
-	sock *sock;
+	sock *sock_obj;
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		sock = ELEMENT_DATA(e);
-		if ((sock->ifindex == ifindex) && (sock->proto == proto))
+		sock_obj = ELEMENT_DATA(e);
+		if ((sock_obj->ifindex == ifindex) && (sock_obj->proto == proto))
 			return 1;
 	}
 	return 0;
@@ -374,24 +374,24 @@ vrrp_create_sockpool(list l)
 static void
 vrrp_open_sockpool(list l)
 {
-	sock *sock;
+	sock *sock_obj;
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		sock = ELEMENT_DATA(e);
-		sock->fd_in = open_vrrp_socket(sock->proto, sock->ifindex);
-		if (sock->fd_in == -1)
-			sock->fd_out = -1;
+		sock_obj = ELEMENT_DATA(e);
+		sock_obj->fd_in = open_vrrp_socket(sock_obj->proto, sock_obj->ifindex);
+		if (sock_obj->fd_in == -1)
+			sock_obj->fd_out = -1;
 		else
-			sock->fd_out = open_vrrp_send_socket(sock->proto,
-							     sock->ifindex);
+			sock_obj->fd_out = open_vrrp_send_socket(sock_obj->proto,
+							     sock_obj->ifindex);
 	}
 }
 
 static void
 vrrp_set_fds(list l)
 {
-	sock *sock;
+	sock *sock_obj;
 	vrrp_rt *vrrp;
 	list p = vrrp_data->vrrp;
 	element e_sock;
@@ -399,7 +399,7 @@ vrrp_set_fds(list l)
 	int proto;
 
 	for (e_sock = LIST_HEAD(l); e_sock; ELEMENT_NEXT(e_sock)) {
-		sock = ELEMENT_DATA(e_sock);
+		sock_obj = ELEMENT_DATA(e_sock);
 		for (e_vrrp = LIST_HEAD(p); e_vrrp; ELEMENT_NEXT(e_vrrp)) {
 			vrrp = ELEMENT_DATA(e_vrrp);
 			if (vrrp->auth_type == VRRP_AUTH_AH)
@@ -407,10 +407,10 @@ vrrp_set_fds(list l)
 			else
 				proto = IPPROTO_VRRP;
 
-			if ((sock->ifindex == IF_INDEX(vrrp->ifp)) &&
-			    (sock->proto == proto)) {
-				vrrp->fd_in = sock->fd_in;
-				vrrp->fd_out = sock->fd_out;
+			if ((sock_obj->ifindex == IF_INDEX(vrrp->ifp)) &&
+			    (sock_obj->proto == proto)) {
+				vrrp->fd_in = sock_obj->fd_in;
+				vrrp->fd_out = sock_obj->fd_out;
 
 				/* append to hash index */
 				alloc_vrrp_fd_bucket(vrrp);
@@ -434,7 +434,7 @@ vrrp_set_fds(list l)
  * multiplexing points.
  */
 int
-vrrp_dispatcher_init(thread * thread)
+vrrp_dispatcher_init(thread * thread_obj)
 {
 	/* create the VRRP socket pool list */
 	vrrp_create_sockpool(vrrp_data->vrrp_socket_pool);
@@ -455,30 +455,30 @@ vrrp_dispatcher_init(thread * thread)
 }
 
 void
-vrrp_dispatcher_release(vrrp_conf_data *data)
+vrrp_dispatcher_release(vrrp_conf_data *conf_data_obj)
 {
-	free_list(data->vrrp_socket_pool);
+	free_list(conf_data_obj->vrrp_socket_pool);
 }
 
 static void
-vrrp_backup(vrrp_rt * vrrp, char *vrrp_buffer, int len)
+vrrp_backup(vrrp_rt * vrrp, char *buffer, int len)
 {
-	struct iphdr *iph = (struct iphdr *) vrrp_buffer;
+	struct iphdr *iph = (struct iphdr *) buffer;
 	ipsec_ah *ah;
 
 	if (iph->protocol == IPPROTO_IPSEC_AH) {
-		ah = (ipsec_ah *) (vrrp_buffer + sizeof (struct iphdr));
+		ah = (ipsec_ah *) (buffer + sizeof (struct iphdr));
 		if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter->seq_number)
 			vrrp->ipsecah_counter->cycle = 0;
 	}
 
-	vrrp_state_backup(vrrp, vrrp_buffer, len);
+	vrrp_state_backup(vrrp, buffer, len);
 }
 
 static void
-vrrp_become_master(vrrp_rt * vrrp, char *vrrp_buffer, int len)
+vrrp_become_master(vrrp_rt * vrrp, char *buffer, int len)
 {
-	struct iphdr *iph = (struct iphdr *) vrrp_buffer;
+	struct iphdr *iph = (struct iphdr *) buffer;
 	ipsec_ah *ah;
 
 	/*
@@ -488,7 +488,7 @@ vrrp_become_master(vrrp_rt * vrrp, char *vrrp_buffer, int len)
 	if (iph->protocol == IPPROTO_IPSEC_AH) {
 		syslog(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : seq_num sync",
 		       vrrp->iname);
-		ah = (ipsec_ah *) (vrrp_buffer + sizeof (struct iphdr));
+		ah = (ipsec_ah *) (buffer + sizeof (struct iphdr));
 		vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
 		vrrp->ipsecah_counter->cycle = 0;
 	}
@@ -499,13 +499,13 @@ vrrp_become_master(vrrp_rt * vrrp, char *vrrp_buffer, int len)
 }
 
 static void
-vrrp_leave_master(vrrp_rt * vrrp, char *vrrp_buffer, int len)
+vrrp_leave_master(vrrp_rt * vrrp, char *buffer, int len)
 {
 	if (!VRRP_ISUP(vrrp)) {
 		vrrp_log_int_down(vrrp);
 		vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
 		vrrp_state_leave_master(vrrp);
-	} else if (vrrp_state_master_rx(vrrp, vrrp_buffer, len)) {
+	} else if (vrrp_state_master_rx(vrrp, buffer, len)) {
 		vrrp_state_leave_master(vrrp);
 		vrrp_smtp_notifier(vrrp);
 	}
@@ -525,24 +525,24 @@ vrrp_ah_sync(vrrp_rt *vrrp)
 }
 
 static void
-vrrp_leave_fault(vrrp_rt * vrrp, char *vrrp_buffer, int len)
+vrrp_leave_fault(vrrp_rt * vrrp, char *buffer, int len)
 {
 	if (!VRRP_ISUP(vrrp))
 		return;
 
-	if (vrrp_state_fault_rx(vrrp, vrrp_buffer, len)) {
+	if (vrrp_state_fault_rx(vrrp, buffer, len)) {
 		if (vrrp->sync) {
 			if (vrrp_sync_leave_fault(vrrp)) {
 				syslog(LOG_INFO,
 				       "VRRP_Instance(%s) prio is higher than received advert",
 				       vrrp->iname);
-				vrrp_become_master(vrrp, vrrp_buffer, len);
+				vrrp_become_master(vrrp, buffer, len);
 			}
 		} else {
 			syslog(LOG_INFO,
 			       "VRRP_Instance(%s) prio is higher than received advert",
 			       vrrp->iname);
-			vrrp_become_master(vrrp, vrrp_buffer, len);
+			vrrp_become_master(vrrp, buffer, len);
 		}
 	} else {
 		if (vrrp->sync) {
@@ -586,9 +586,9 @@ vrrp_goto_master(vrrp_rt * vrrp)
 
 /* Delayed gratuitous ARP thread */
 int
-vrrp_gratuitous_arp_thread(thread * thread)
+vrrp_gratuitous_arp_thread(thread * thread_obj)
 {
-	vrrp_rt *vrrp = THREAD_ARG(thread);
+	vrrp_rt *vrrp = THREAD_ARG(thread_obj);
 
 	/* Simply broadcast the gratuitous ARP */
 	vrrp_send_gratuitous_arp(vrrp);
@@ -761,26 +761,26 @@ vrrp_dispatcher_read(int fd)
 
 /* Our read packet dispatcher */
 int
-vrrp_read_dispatcher_thread(thread * thread)
+vrrp_read_dispatcher_thread(thread * thread_obj)
 {
 	long vrrp_timer = 0;
 	int fd;
 
 	/* Dispatcher state handler */
-	if (thread->type == THREAD_READ_TIMEOUT)
-		fd = vrrp_dispatcher_read_to(thread->u.fd);
-	else if (thread->arg) {
+	if (thread_obj->type == THREAD_READ_TIMEOUT)
+		fd = vrrp_dispatcher_read_to(thread_obj->u.fd);
+	else if (thread_obj->arg) {
 		fd = vrrp_dispatcher_read_to(-1);
 	} else
-		fd = vrrp_dispatcher_read(thread->u.fd);
+		fd = vrrp_dispatcher_read(thread_obj->u.fd);
 
 	/* register next dispatcher thread */
 	vrrp_timer = vrrp_timer_fd(fd);
 	if (fd == -1)
-		thread_add_timer(thread->master, vrrp_read_dispatcher_thread,
+		thread_add_timer(thread_obj->master, vrrp_read_dispatcher_thread,
 				 (int *)THREAD_TIMER, vrrp_timer);
 	else
-		thread_add_read(thread->master, vrrp_read_dispatcher_thread,
+		thread_add_read(thread_obj->master, vrrp_read_dispatcher_thread,
 				NULL, fd, vrrp_timer);
 
 	return 0;

@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_iproute.c include file.
  *
- * Version:     $Id: vrrp_iproute.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_iproute.h,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -61,8 +61,8 @@ typedef struct _ip_route {
 /* prototypes */
 extern int netlink_route_ipv4(ip_route *iproute, int cmd);
 extern void netlink_rtlist_ipv4(list rt_list, int cmd);
-extern void free_iproute(void *data);
-extern void dump_iproute(void *data);
+extern void free_iproute(void *rt_data_obj);
+extern void dump_iproute(void *rt_data_obj);
 extern void alloc_route(list rt_list, vector strvec);
 extern void clear_diff_routes(list l, list n);
 extern void clear_diff_sroutes(void);

@@ -5,7 +5,7 @@
  *
  * Part:        Checkers registration.
  *
- * Version:     $Id: check_api.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: check_api.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -42,46 +42,46 @@ list checkers_queue;
 
 /* free checker data */
 static void
-free_checker(void *data)
+free_checker(void *chk_data_obj)
 {
-	checker *checker = data;
-	(*checker->free) (checker);
+	checker *checker_obj = chk_data_obj;
+	(*checker_obj->free_func) (checker_obj);
 }
 
 /* dump checker data */
 static void
-dump_checker(void *data)
+dump_checker(void *data_obj)
 {
-	checker *checker = data;
-	syslog(LOG_INFO, " %s:%d", inet_ntop2(CHECKER_RIP(checker))
-	       , ntohs(CHECKER_RPORT(checker)));
-	(*checker->dump) (checker);
+	checker *checker_obj = data_obj;
+	syslog(LOG_INFO, " %s:%d", inet_ntop2(CHECKER_RIP(checker_obj))
+	       , ntohs(CHECKER_RPORT(checker_obj)));
+	(*checker_obj->dump_func) (checker_obj);
 }
 
 /* Queue a checker into the checkers_queue */
 void
-queue_checker(void (*free) (void *), void (*dump) (void *)
+queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	      , int (*launch) (struct _thread *)
-	      , void *data)
+	      , void *data_obj)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server *rs = LIST_TAIL_DATA(vs->rs);
-	checker *chk = (checker *) MALLOC(sizeof (checker));
+	checker *check_obj = (checker *) MALLOC(sizeof (checker));
 
-	chk->free = free;
-	chk->dump = dump;
-	chk->launch = launch;
-	chk->vs = vs;
-	chk->rs = rs;
-	chk->data = data;
-	chk->id = ncheckers++;
-	chk->enabled = (vs->vfwmark) ? 1 : 0;
+	check_obj->free_func = free_func;
+	check_obj->dump_func = dump_func;
+	check_obj->launch = launch;
+	check_obj->vs = vs;
+	check_obj->rs = rs;
+	check_obj->data = data_obj;
+	check_obj->id = ncheckers++;
+	check_obj->enabled = (vs->vfwmark) ? 1 : 0;
 #ifdef _WITHOUT_VRRP_
-	chk->enabled = 1;
+	check_obj->enabled = 1;
 #endif
 
 	/* queue the checker */
-	list_add(checkers_queue, chk);
+	list_add(checkers_queue, check_obj);
 }
 
 /* dump the checkers_queue */
@@ -106,6 +106,7 @@ void
 free_checkers_queue(void)
 {
 	free_list(checkers_queue);
+	checkers_queue = NULL;
 	ncheckers = 0;
 }
 
@@ -113,18 +114,18 @@ free_checkers_queue(void)
 void
 register_checkers_thread(void)
 {
-	checker *checker;
+	checker *checker_obj;
 	element e;
 
 	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
-		checker = ELEMENT_DATA(e);
+		checker_obj = ELEMENT_DATA(e);
 		syslog(LOG_INFO,
 		       "Activating healtchecker for service [%s:%d]",
-		       inet_ntop2(CHECKER_RIP(checker)),
-		       ntohs(CHECKER_RPORT(checker)));
-		CHECKER_ENABLE(checker);
-		if (checker->launch)
-			thread_add_timer(master, checker->launch, checker,
+		       inet_ntop2(CHECKER_RIP(checker_obj)),
+		       ntohs(CHECKER_RPORT(checker_obj)));
+		CHECKER_ENABLE(checker_obj);
+		if (checker_obj->launch)
+			thread_add_timer(master, checker_obj->launch, checker_obj,
 					 BOOTSTRAP_DELAY);
 	}
 }
@@ -133,7 +134,7 @@ register_checkers_thread(void)
 void
 update_checker_activity(uint32_t address, int enable)
 {
-	checker *checker;
+	checker *checker_obj;
 	element e;
 
 	/* Display netlink operation */
@@ -144,19 +145,19 @@ update_checker_activity(uint32_t address, int enable)
 	/* Processing Healthcheckers queue */
 	if (!LIST_ISEMPTY(checkers_queue))
 		for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
-			checker = ELEMENT_DATA(e);
-			if (CHECKER_VIP(checker) == address && CHECKER_HA_SUSPEND(checker)) {
-				if (!CHECKER_ENABLED(checker) && enable)
+			checker_obj = ELEMENT_DATA(e);
+			if (CHECKER_VIP(checker_obj) == address && CHECKER_HA_SUSPEND(checker_obj)) {
+				if (!CHECKER_ENABLED(checker_obj) && enable)
 					syslog(LOG_INFO,
 					       "Activating healtchecker for service [%s:%d]",
-					       inet_ntop2(CHECKER_RIP(checker)),
-					       ntohs(CHECKER_RPORT(checker)));
-				if (CHECKER_ENABLED(checker) && !enable)
+					       inet_ntop2(CHECKER_RIP(checker_obj)),
+					       ntohs(CHECKER_RPORT(checker_obj)));
+				if (CHECKER_ENABLED(checker_obj) && !enable)
 					syslog(LOG_INFO,
 					       "Suspending healtchecker for service [%s:%d]",
-					       inet_ntop2(CHECKER_RIP(checker)),
-					       ntohs(CHECKER_RPORT(checker)));
-				checker->enabled = enable;
+					       inet_ntop2(CHECKER_RIP(checker_obj)),
+					       ntohs(CHECKER_RPORT(checker_obj)));
+				checker_obj->enabled = enable;
 			}
 		}
 }

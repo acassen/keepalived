@@ -5,7 +5,7 @@
  *
  * Part:        TCP checker.
  *
- * Version:     $Id: check_tcp.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: check_tcp.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -100,68 +100,68 @@ install_tcp_check_keyword(void)
 }
 
 int
-tcp_check_thread(thread * thread)
+tcp_check_thread(thread * thread_obj)
 {
-	checker *checker;
+	checker *checker_obj;
 	tcp_checker *tcp_check;
 	uint16_t addr_port;
 	int status;
 
-	checker = THREAD_ARG(thread);
-	tcp_check = CHECKER_ARG(checker);
+	checker_obj = THREAD_ARG(thread_obj);
+	tcp_check = CHECKER_ARG(checker_obj);
 
-	addr_port = CHECKER_RPORT(checker);
+	addr_port = CHECKER_RPORT(checker_obj);
 	if (tcp_check->connection_port)
 		addr_port = tcp_check->connection_port;
-	status = tcp_socket_state(thread->u.fd, thread, CHECKER_RIP(checker)
+	status = tcp_socket_state(thread_obj->u.fd, thread_obj, CHECKER_RIP(checker_obj)
 				  , addr_port, tcp_check_thread);
 
 	/* If status = connect_success, TCP connection to remote host is established.
 	 * Otherwise we have a real connection error or connection timeout.
 	 */
 	if (status == connect_success) {
-		close(thread->u.fd);
+		close(thread_obj->u.fd);
 
-		if (!svr_checker_up(checker->id, checker->rs)) {
+		if (!svr_checker_up(checker_obj->id, checker_obj->rs)) {
 			syslog(LOG_INFO, "TCP connection to [%s:%d] success.",
-			       inet_ntop2(CHECKER_RIP(checker))
+			       inet_ntop2(CHECKER_RIP(checker_obj))
 			       , ntohs(addr_port));
-			smtp_alert(thread->master, checker->rs, NULL, NULL,
+			smtp_alert(checker_obj->rs, NULL, NULL,
 				   "UP",
 				   "=> TCP CHECK succeed on service <=");
-			update_svr_checker_state(UP, checker->id
-						   , checker->vs
-						   , checker->rs);
+			update_svr_checker_state(UP, checker_obj->id
+						   , checker_obj->vs
+						   , checker_obj->rs);
 		}
 
 	} else {
 
-		if (svr_checker_up(checker->id, checker->rs)) {
+		if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
 			syslog(LOG_INFO, "TCP connection to [%s:%d] failed !!!",
-			       inet_ntop2(CHECKER_RIP(checker))
+			       inet_ntop2(CHECKER_RIP(checker_obj))
 			       , ntohs(addr_port));
-			smtp_alert(thread->master, checker->rs, NULL, NULL,
+			smtp_alert(checker_obj->rs, NULL, NULL,
 				   "DOWN",
 				   "=> TCP CHECK failed on service <=");
-			update_svr_checker_state(DOWN, checker->id
-						     , checker->vs
-						     , checker->rs);
+			update_svr_checker_state(DOWN, checker_obj->id
+						     , checker_obj->vs
+						     , checker_obj->rs);
 		}
 
 	}
 
 	/* Register next timer checker */
 	if (status != connect_in_progress)
-		thread_add_timer(thread->master, tcp_connect_thread, checker,
-				 checker->vs->delay_loop);
+		thread_add_timer(thread_obj->master, tcp_connect_thread, checker_obj,
+				 checker_obj->vs->delay_loop);
 	return 0;
 }
 
 int
-tcp_connect_thread(thread * thread)
+tcp_connect_thread(thread * thread_obj)
 {
-	checker *checker = THREAD_ARG(thread);
-	tcp_checker *tcp_check = CHECKER_ARG(checker);
+	checker *checker_obj = THREAD_ARG(thread_obj);
+	tcp_checker *tcp_check = CHECKER_ARG(checker_obj);
 	int fd;
 	uint16_t addr_port;
 	int status;
@@ -170,9 +170,9 @@ tcp_connect_thread(thread * thread)
 	 * Register a new checker thread & return
 	 * if checker is disabled
 	 */
-	if (!CHECKER_ENABLED(checker)) {
-		thread_add_timer(thread->master, tcp_connect_thread, checker,
-				 checker->vs->delay_loop);
+	if (!CHECKER_ENABLED(checker_obj)) {
+		thread_add_timer(thread_obj->master, tcp_connect_thread, checker_obj,
+				 checker_obj->vs->delay_loop);
 		return 0;
 	}
 
@@ -181,14 +181,14 @@ tcp_connect_thread(thread * thread)
 		return 0;
 	}
 
-	addr_port = CHECKER_RPORT(checker);
+	addr_port = CHECKER_RPORT(checker_obj);
 	if (tcp_check->connection_port)
 		addr_port = tcp_check->connection_port;
-	status = tcp_bind_connect(fd, CHECKER_RIP(checker), addr_port
+	status = tcp_bind_connect(fd, CHECKER_RIP(checker_obj), addr_port
 				  , tcp_check->bindto);
 
 	/* handle tcp connection status & register check worker thread */
-	tcp_connection_state(fd, status, thread, tcp_check_thread,
+	tcp_connection_state(fd, status, thread_obj, tcp_check_thread,
 			     tcp_check->connection_to);
 	return 0;
 }

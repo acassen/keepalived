@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_ipaddress.c include file.
  *
- * Version:     $Id: vrrp_ipaddress.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.h,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -61,8 +61,8 @@ typedef struct {
 /* prototypes */
 extern int netlink_address_ipv4(ip_address * ipaddr, int cmd);
 extern void netlink_iplist_ipv4(list ip_list, int cmd);
-extern void free_ipaddress(void *data);
-extern void dump_ipaddress(void *data);
+extern void free_ipaddress(void *ip_data_obj);
+extern void dump_ipaddress(void *ip_data_obj);
 extern void alloc_ipaddress(list ip_list, vector strvec, interface * ifp);
 extern void clear_diff_address(list l, list n);
 extern void clear_diff_saddresses(void);

@@ -5,7 +5,7 @@
  *
  * Part:        Interface tracking framework.
  *
- * Version:     $Id: vrrp_track.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: vrrp_track.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -30,9 +30,9 @@
 
 /* Track interface dump */
 void
-dump_track(void *data)
+dump_track(void *track_data_obj)
 {
-	interface *ifp = data;
+	interface *ifp = track_data_obj;
 	syslog(LOG_INFO, "     %s", IF_NAME(ifp));
 }
 void

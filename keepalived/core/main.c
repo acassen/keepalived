@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: main.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -24,6 +24,7 @@
 
 #include "main.h"
 #include "config.h"
+#include "signals.h"
 
 /* global var */
 char *conf_file = NULL;		/* Configuration file */
@@ -95,21 +96,10 @@ void
 sigend(int sig)
 {
 	int status;
-	sigset_t mask;
 
 	/* register the terminate thread */
 	syslog(LOG_INFO, "Terminating on signal");
 	thread_add_terminate_event(master);
-
-	/*
-	 * Signal child process.
-	 * Disable and unblock the SIGCHLD handler
-	 * so that wait() works.
-	 */
-	signal_ignore(SIGCHLD);
-	sigemptyset(&mask);
-	sigaddset(&mask, SIGCHLD);
-	sigprocmask(SIG_UNBLOCK, &mask, NULL);
 
 	if (vrrp_child > 0) {
 		kill(vrrp_child, SIGTERM);
@@ -125,10 +115,11 @@ sigend(int sig)
 void
 signal_init(void)
 {
+	signal_handler_init();
 	signal_set(SIGHUP, sighup);
 	signal_set(SIGINT, sigend);
 	signal_set(SIGTERM, sigend);
-	signal_set(SIGKILL, sigend);
+	signal_ignore(SIGPIPE);
 	signal_noignore_sigchld();
 }
 
@@ -169,7 +160,7 @@ static void
 parse_cmdline(int argc, char **argv)
 {
 	poptContext context;
-	char *optarg = NULL;
+	char *option_arg = NULL;
 	int c;
 
 	struct poptOption options_table[] = {
@@ -177,12 +168,12 @@ parse_cmdline(int argc, char **argv)
 		{"help", 'h', POPT_ARG_NONE, NULL, 'h'},
 		{"log-console", 'l', POPT_ARG_NONE, NULL, 'l'},
 		{"log-detail", 'D', POPT_ARG_NONE, NULL, 'D'},
-		{"log-facility", 'S', POPT_ARG_STRING, &optarg, 'S'},
+		{"log-facility", 'S', POPT_ARG_STRING, &option_arg, 'S'},
 		{"dont-release-vrrp", 'V', POPT_ARG_NONE, NULL, 'V'},
 		{"dont-release-ipvs", 'I', POPT_ARG_NONE, NULL, 'I'},
 		{"dont-fork", 'n', POPT_ARG_NONE, NULL, 'n'},
 		{"dump-conf", 'd', POPT_ARG_NONE, NULL, 'd'},
-		{"use-file", 'f', POPT_ARG_STRING, &optarg, 'f'},
+		{"use-file", 'f', POPT_ARG_STRING, &option_arg, 'f'},
 		{"vrrp", 'P', POPT_ARG_NONE, NULL, 'P'},
 		{"check", 'C', POPT_ARG_NONE, NULL, 'C'},
 		{NULL, 0, 0, NULL, 0}
@@ -223,10 +214,10 @@ parse_cmdline(int argc, char **argv)
 		debug |= 32;
 		break;
 	case 'S':
-		log_facility = LOG_FACILITY[atoi(optarg)].facility;
+		log_facility = LOG_FACILITY[atoi(option_arg)].facility;
 		break;
 	case 'f':
-		conf_file = optarg;
+		conf_file = option_arg;
 		break;
 	case 'P':
 		daemon_mode |= 1;
@@ -258,10 +249,10 @@ parse_cmdline(int argc, char **argv)
 			debug |= 32;
 			break;
 		case 'S':
-			log_facility = LOG_FACILITY[atoi(optarg)].facility;
+			log_facility = LOG_FACILITY[atoi(option_arg)].facility;
 			break;
 		case 'f':
-			conf_file = optarg;
+			conf_file = option_arg;
 			break;
 		case 'P':
 			daemon_mode |= 1;
@@ -273,8 +264,8 @@ parse_cmdline(int argc, char **argv)
 	}
 
 	/* check unexpected arguments */
-	if ((optarg = (char *) poptGetArg(context))) {
-		fprintf(stderr, "unexpected argument %s\n", optarg);
+	if ((option_arg = (char *) poptGetArg(context))) {
+		fprintf(stderr, "unexpected argument %s\n", option_arg);
 		return;
 	}
 

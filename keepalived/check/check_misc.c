@@ -6,7 +6,7 @@
  * Part:        MISC CHECK. Perform a system call to run an extra
  *              system prog or script.
  *
- * Version:     $Id: check_misc.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
+ * Version:     $Id: check_misc.c,v 1.1.10 2005/02/15 01:15:22 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
@@ -103,30 +103,30 @@ install_misc_check_keyword(void)
 }
 
 int
-misc_check_thread(thread * thread)
+misc_check_thread(thread * thread_obj)
 {
-	checker *checker;
+	checker *checker_obj;
 	misc_checker *misc_chk;
 	int status;
 	pid_t pid;
 
-	checker = THREAD_ARG(thread);
-	misc_chk = CHECKER_ARG(checker);
+	checker_obj = THREAD_ARG(thread_obj);
+	misc_chk = CHECKER_ARG(checker_obj);
 
 	/*
 	 * Register a new checker thread & return
 	 * if checker is disabled
 	 */
-	if (!CHECKER_ENABLED(checker)) {
+	if (!CHECKER_ENABLED(checker_obj)) {
 		/* Register next timer checker */
-		thread_add_timer(thread->master, misc_check_thread, checker,
-				 checker->vs->delay_loop);
+		thread_add_timer(thread_obj->master, misc_check_thread, checker_obj,
+				 checker_obj->vs->delay_loop);
 		return 0;
 	}
 
 	/* Register next timer checker */
-	thread_add_timer(thread->master, misc_check_thread, checker,
-			 checker->vs->delay_loop);
+	thread_add_timer(thread_obj->master, misc_check_thread, checker_obj,
+			 checker_obj->vs->delay_loop);
 
 	/* Daemonization to not degrade our scheduling timer */
 	pid = fork();
@@ -140,10 +140,10 @@ misc_check_thread(thread * thread)
 	/* In case of this is parent process */
 	if (pid) {
 		long timeout;
-		timeout = (misc_chk->timeout) ? misc_chk->timeout : checker->vs->delay_loop;
+		timeout = (misc_chk->timeout) ? misc_chk->timeout : checker_obj->vs->delay_loop;
 
-		thread_add_child(thread->master, misc_check_child_thread,
-				 checker, pid, timeout);
+		thread_add_child(thread_obj->master, misc_check_child_thread,
+				 checker_obj, pid, timeout);
 		return 0;
 	}
 
@@ -177,40 +177,40 @@ misc_check_thread(thread * thread)
 }
 
 int
-misc_check_child_thread(thread * thread)
+misc_check_child_thread(thread * thread_obj)
 {
 	int wait_status;
-	checker *checker;
+	checker *checker_obj;
 	misc_checker *misc_chk;
 
-	checker = THREAD_ARG(thread);
-	misc_chk = CHECKER_ARG(checker);
+	checker_obj = THREAD_ARG(thread_obj);
+	misc_chk = CHECKER_ARG(checker_obj);
 
-	if (thread->type == THREAD_CHILD_TIMEOUT) {
+	if (thread_obj->type == THREAD_CHILD_TIMEOUT) {
 		pid_t pid;
 
-		pid = THREAD_CHILD_PID(thread);
+		pid = THREAD_CHILD_PID(thread_obj);
 
 		/* The child hasn't responded. Kill it off. */
-		if (svr_checker_up(checker->id, checker->rs)) {
+		if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
 			syslog(LOG_INFO, "Misc check to [%s] for [%s] timed out",
-			       inet_ntop2(CHECKER_RIP(checker)),
+			       inet_ntop2(CHECKER_RIP(checker_obj)),
 			       misc_chk->path);
-			smtp_alert(thread->master, checker->rs, NULL, NULL,
+			smtp_alert(checker_obj->rs, NULL, NULL,
 				   "DOWN",
 				   "=> MISC CHECK script timeout on service <=");
-			update_svr_checker_state(DOWN, checker->id
-						     , checker->vs
-						     , checker->rs);
+			update_svr_checker_state(DOWN, checker_obj->id
+						     , checker_obj->vs
+						     , checker_obj->rs);
 		}
 
 		kill(pid, SIGTERM);
-		thread_add_child(thread->master, misc_check_child_timeout_thread,
-				 checker, pid, 2);
+		thread_add_child(thread_obj->master, misc_check_child_timeout_thread,
+				 checker_obj, pid, 2);
 		return 0;
 	}
 
-	wait_status = THREAD_CHILD_STATUS(thread);
+	wait_status = THREAD_CHILD_STATUS(thread_obj);
 
 	if (WIFEXITED(wait_status)) {
 		int status;
@@ -223,31 +223,31 @@ misc_check_child_thread(thread * thread)
 			 * Catch legacy case of status being 0 but misc_dynamic being set.
 			 */
 			if (misc_chk->dynamic == 1 && status != 0)
-				update_svr_wgt(status - 2, checker->vs, checker->rs);
+				update_svr_wgt(status - 2, checker_obj->vs, checker_obj->rs);
 
 			/* everything is good */
-			if (!svr_checker_up(checker->id, checker->rs)) {
+			if (!svr_checker_up(checker_obj->id, checker_obj->rs)) {
 				syslog(LOG_INFO, "Misc check to [%s] for [%s] success.",
-				       inet_ntop2(CHECKER_RIP(checker)),
+				       inet_ntop2(CHECKER_RIP(checker_obj)),
 				       misc_chk->path);
-				smtp_alert(thread->master, checker->rs, NULL, NULL,
+				smtp_alert(checker_obj->rs, NULL, NULL,
 					   "UP",
 					   "=> MISC CHECK succeed on service <=");
-				update_svr_checker_state(UP, checker->id
-							   , checker->vs
-							   , checker->rs);
+				update_svr_checker_state(UP, checker_obj->id
+							   , checker_obj->vs
+							   , checker_obj->rs);
 			}
 		} else {
-			if (svr_checker_up(checker->id, checker->rs)) {
+			if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
 				syslog(LOG_INFO, "Misc check to [%s] for [%s] failed.",
-				       inet_ntop2(CHECKER_RIP(checker)),
+				       inet_ntop2(CHECKER_RIP(checker_obj)),
 				       misc_chk->path);
-				smtp_alert(thread->master, checker->rs, NULL, NULL,
+				smtp_alert(checker_obj->rs, NULL, NULL,
 					   "DOWN",
 					   "=> MISC CHECK failed on service <=");
-				update_svr_checker_state(DOWN, checker->id
-							     , checker->vs
-							     , checker->rs);
+				update_svr_checker_state(DOWN, checker_obj->id
+							     , checker_obj->vs
+							     , checker_obj->rs);
 			}
 		}
 	}
@@ -256,15 +256,15 @@ misc_check_child_thread(thread * thread)
 }
 
 int
-misc_check_child_timeout_thread(thread * thread)
+misc_check_child_timeout_thread(thread * thread_obj)
 {
 	pid_t pid;
 
-	if (thread->type != THREAD_CHILD_TIMEOUT)
+	if (thread_obj->type != THREAD_CHILD_TIMEOUT)
 		return 0;
 
 	/* OK, it still hasn't exited. Now really kill it off. */
-	pid = THREAD_CHILD_PID(thread);
+	pid = THREAD_CHILD_PID(thread_obj);
 	if (kill(pid, SIGKILL) < 0) {
 		/* Its possible it finished while we're handing this */
 		if (errno != ESRCH)
