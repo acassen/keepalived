@@ -12,7 +12,7 @@ DEFS	 = @DFLAGS@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
 OBJS = 	memory.o utils.o notify.o timer.o scheduler.o \
-	vector.o list.o html.o parser.o watchdog.o
+	vector.o list.o html.o parser.o
 HEADERS = $(OBJS:.o=.h)
 
 .c.o:
@@ -26,7 +26,7 @@ clean:
 distclean: clean
 	rm -f Makefile
 
-memory.o: memory.c memory.h
+memory.o: memory.c memory.h utils.h
 utils.o: utils.c utils.h
 notify.o: notify.c notify.h
 timer.o: timer.c timer.h
@@ -35,4 +35,3 @@ vector.o: vector.c vector.h memory.h
 list.o: list.c list.h memory.h
 html.o: html.c html.h memory.h
 parser.o: parser.c parser.h memory.h
-watchdog.o: watchdog.c watchdog.h scheduler.h memory.h parser.h

@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_if.c include file.
  *
- * Version:     $Id: vrrp_if.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: vrrp_if.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -87,9 +87,6 @@ typedef struct _interface {
                     ((X)->flags & IFF_RUNNING) && \
                     if_linkbeat(X))
 #endif
-
-/* Global vars exported */
-extern list if_queue;
 
 /* prototypes */
 extern interface *if_get_by_ifindex(const int ifindex);

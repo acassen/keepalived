@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: main.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -46,8 +46,6 @@ extern char *conf_file;		/* Configuration file */
 extern int log_facility;	/* Optional logging facilities */
 extern pid_t vrrp_child;	/* VRRP child process ID */
 extern pid_t checkers_child;	/* Healthcheckers child process ID */
-extern long wdog_delay_vrrp;	/* VRRP child polling delay */
-extern long wdog_delay_check;	/* Healthchecker child polling delay */
 extern int daemon_mode;		/* VRRP/CHECK subsystem selection */
 extern int linkwatch;		/* Use linkwatch kernel netlink reflection */
 

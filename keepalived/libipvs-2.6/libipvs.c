@@ -32,7 +32,6 @@ static int sockfd = -1;
 static void* ipvs_func = NULL;
 struct ip_vs_getinfo ipvs_info;
 
-
 int ipvs_init(void)
 {
 	socklen_t len;
@@ -156,7 +155,6 @@ extern int ipvs_stop_daemon(ipvs_daemon_t *dm)
 	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STOPDAEMON,
 			  (char *)dm, sizeof(*dm));
 }
-
 
 struct ip_vs_get_services *ipvs_get_services(void)
 {

@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: vrrp_data.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: vrrp_data.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -35,6 +35,18 @@
 /* local includes */
 #include "list.h"
 #include "vector.h"
+
+/*
+ * Our instance dispatcher use a socket pool.
+ * That way we handle VRRP protocol type per
+ * physical interface.
+ */
+typedef struct {
+	int ifindex;
+	int proto;
+	int fd_in;
+	int fd_out;
+} sock;
 
 /* Configuration data root */
 typedef struct _vrrp_conf_data {

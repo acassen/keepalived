@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -1000,9 +1000,16 @@ shutdown_vrrp_instances(void)
 			vrrp_restore_interface(vrrp, 1);
 
 #ifdef _HAVE_IPVS_SYNCD_
-		/* Stop stalled syncd */
+		/*
+		 * Stop stalled syncd. IPVS syncd state is the
+		 * same as VRRP instance one. We need here to
+		 * stop stalled syncd thread according to last
+		 * VRRP instance state.
+		 */
 		if (vrrp->lvs_syncd_if)
-			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, 0);
+			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL,
+				       (vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
+									  IPVS_BACKUP);
 #endif
 	}
 }

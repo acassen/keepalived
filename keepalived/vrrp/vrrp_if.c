@@ -5,7 +5,7 @@
  *
  * Part:        Interfaces manipulation.
  *
- * Version:     $Id: vrrp_if.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: vrrp_if.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -57,7 +57,7 @@ typedef __uint8_t u8;
 #include "utils.h"
 
 /* Global vars */
-list if_queue;
+static list if_queue;
 static struct ifreq ifr;
 
 /* Helper functions */
@@ -67,6 +67,9 @@ if_get_by_ifindex(const int ifindex)
 {
 	interface *ifp;
 	element e;
+
+	if (LIST_ISEMPTY(if_queue))
+		return NULL;
 
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
@@ -81,6 +84,9 @@ if_get_by_ifname(const char *ifname)
 {
 	interface *ifp;
 	element e;
+
+	if (LIST_ISEMPTY(if_queue))
+		return NULL;
 
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
@@ -421,7 +427,7 @@ if_leave_vrrp_group(int sd, interface *ifp)
 	int ret = 0;
 
 	/* If fd is -1 then we add a membership trouble */
-	if (sd < 0)
+	if (sd < 0 || !ifp)
 		return;
 
 	/* Leaving the VRRP multicast group */

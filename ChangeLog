@@ -1,3 +1,28 @@
+2005-02-07  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.9 released.
+	* VRRP : Chris Caputo, <ccaputo@alt.net> updated keepalived manpage
+	  for nopreempt and preempt_delay.
+	* VRRP : Fixed an issue while releasing vrrp socket pool... Just
+	  release pool one time !
+	* VRRP : Fixed netlink framework to properly save netlink socket flags
+	  while setting blocking flags.
+	* VRRP : Fixed a regression introduced with previous release while
+	  hashing vrrp fd bucket into fd hash index.
+	* Patrick Boutilier, <boutilpj@ednet.ns.ca> fixed an issue in the
+	  extract_html function. Read the full html header.
+	* Chris Caputo, <ccaputo@alt.net> and I fixed compilation issue
+	  while using --enable-debug configuration option.
+	* Extended both VRRP and Healthchecker framework to support
+	  debugging flags.
+	* Removed the watchdog framework. Since scheduling framework
+	  support child, we register a child thread for both process
+	  VRRP & Healthcheck. When child die or stop prematuraly this
+	  launch scheduling callback previously registered. Watchdog
+	  is now handled by signaling.
+	  (credit goes to Kevin Lindsay, <kevinl@netnation.com> for nice
+	  idea).
+	* Some cosmetics cleanup.
+
 2005-01-25  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.8 released.
 	* VRRP : Chris Caputo, <ccaputo@alt.net> added "dont_track_primary"

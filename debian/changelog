@@ -1,3 +1,9 @@
+keepalived (1.1.9) unstable; urgency=low
+
+  * Cf ChangeLog
+
+ -- Alexandre Cassen <acassen@linux-vs.org>  Tue, 07 Feb 2005 03:17:15 +0200
+
 keepalived (1.1.8) unstable; urgency=low
 
   * Cf ChangeLog

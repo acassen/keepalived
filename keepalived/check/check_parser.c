@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: check_parser.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: check_parser.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -85,6 +85,10 @@ lbalgo_handler(vector strvec)
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = VECTOR_SLOT(strvec, 1);
 	int size = sizeof (vs->sched);
+	int str_len = strlen(str);
+
+	if (size > str_len)
+		size = str_len;
 
 	memcpy(vs->sched, str, size);
 }
@@ -124,6 +128,10 @@ pto_handler(vector strvec)
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = VECTOR_SLOT(strvec, 1);
 	int size = sizeof (vs->timeout_persistence);
+	int str_len = strlen(str);
+
+	if (size > str_len)
+		size = str_len;
 
 	memcpy(vs->timeout_persistence, str, size);
 }

@@ -38,7 +38,7 @@ check_daemon.o: check_daemon.c ../include/check_daemon.h \
   ../include/check_parser.h ../include/check_data.h ../include/check_api.h \
   ../include/global_data.h ../include/ipwrapper.h ../include/ipwrapper.h \
   ../include/pidfile.h ../include/daemon.h ../../lib/list.h ../../lib/memory.h \
-  ../../lib/parser.h ../../lib/watchdog.h ../include/vrrp_netlink.h \
+  ../../lib/parser.h ../include/vrrp_netlink.h \
   ../include/vrrp_if.h
 check_data.o: check_data.c ../include/check_data.h \
   ../include/check_api.h ../../lib/memory.h ../../lib/utils.h

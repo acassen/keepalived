@@ -5,7 +5,7 @@
  *
  * Part:        VRRP instance index table.
  *
- * Version:     $Id: vrrp_index.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: vrrp_index.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -90,36 +90,13 @@ void set_vrrp_fd_bucket(int old_fd, vrrp_rt *vrrp)
 {
 	vrrp_rt *vrrp_ptr;
 	element e;
-	element next;
 	list l = &vrrp_data->vrrp_index_fd[old_fd%1024 + 1];
 
-	for (e = LIST_HEAD(l); e; e = next) {
-		next = e->next;
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp_ptr =  ELEMENT_DATA(e);
-		if (vrrp_ptr->fd_in == old_fd) {
+		if (IF_INDEX(vrrp_ptr->ifp) == IF_INDEX(vrrp->ifp)) {
 			vrrp_ptr->fd_in = vrrp->fd_in;
 			vrrp_ptr->fd_out = vrrp->fd_out;
-
-			/* Re-hash fd */
-			alloc_vrrp_fd_bucket(vrrp_ptr);
-
-			/* Release element */
-			if (e->prev)
-				e->prev->next = e->next;
-			else
-				l->head = e->next;
-
-			if (e->next)
-				e->next->prev = e->prev;
-			else
-				l->tail = e->prev;
-			l->count--;
-			FREE(e);
 		}
-	}
-
-	if (LIST_ISEMPTY(l)) {
-		l->head = NULL;
-		l->tail = NULL;
 	}
 }

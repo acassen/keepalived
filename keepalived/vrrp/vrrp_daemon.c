@@ -5,7 +5,7 @@
  *
  * Part:        VRRP child process handling.
  *
- * Version:     $Id: vrrp_daemon.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: vrrp_daemon.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -42,19 +42,6 @@
 #include "main.h"
 #include "memory.h"
 #include "parser.h"
-#include "watchdog.h"
-
-/* Global vars */
-static int vrrp_wdog_sd = -1;
-
-/* VRRP watchdog data */
-static wdog_data vrrp_wdog_data = {
-	"VRRP Child",
-	WDOG_VRRP,
-	-1,
-	-1,
-	start_vrrp_child
-};
 
 /* Daemon stop sequence */
 static void
@@ -77,7 +64,6 @@ stop_vrrp(void)
 
 	/* Clean data */
 	free_global_data(data);
-	vrrp_dispatcher_release(vrrp_data);
 	free_vrrp_data(vrrp_data);
 	free_vrrp_buffer();
 
@@ -89,9 +75,6 @@ stop_vrrp(void)
 #ifdef _DEBUG_
 	keepalived_free_final("VRRP Child process");
 #endif
-
-	/* free watchdog sd */
-	wdog_close(vrrp_wdog_sd, WDOG_VRRP);
 
 	/*
 	 * Reached when terminate signal catched.
@@ -149,9 +132,6 @@ start_vrrp(void)
 		dump_vrrp_data(vrrp_data);
 	}
 
-	/* Register vrrp software watchdog */
-	vrrp_wdog_sd = wdog_init(WDOG_VRRP);
-
 	/* Init & start the VRRP packet dispatcher */
 	thread_add_event(master, vrrp_dispatcher_init, NULL,
 			 VRRP_DISPATCHER);
@@ -172,9 +152,6 @@ reload_vrrp_thread(thread * thread)
 	free_vrrp_buffer();
 	gratuitous_arp_close();
 
-	/* free watchdog sd */
-	wdog_close(vrrp_wdog_sd, WDOG_VRRP);
-
 	/* Save previous conf data */
 	old_vrrp_data = vrrp_data;
 	vrrp_data = NULL;
@@ -189,7 +166,6 @@ reload_vrrp_thread(thread * thread)
 	start_vrrp();
 
 	/* free backup data */
-	vrrp_dispatcher_release(old_vrrp_data);
 	free_vrrp_data(old_vrrp_data);
 	UNSET_RELOAD;
 
@@ -200,7 +176,8 @@ reload_vrrp_thread(thread * thread)
 void
 sighup_vrrp(int sig)
 {
-	syslog(LOG_INFO, "Reloading VRRP child process on signal");
+	syslog(LOG_INFO, "Reloading VRRP child process(%d) on signal",
+	       vrrp_child);
 	thread_add_event(master, reload_vrrp_thread, NULL, 0);
 }
 
@@ -224,11 +201,35 @@ vrrp_signal_init(void)
 	signal_noignore_sigchld();
 }
 
+/* VRRP Child respawning thread */
+int
+vrrp_respawn_thread(thread * thread)
+{
+	pid_t pid;
+
+	/* Fetch thread args */
+	pid = THREAD_CHILD_PID(thread);
+
+	/* Restart respawning thread */
+	if (thread->type == THREAD_CHILD_TIMEOUT) {
+		thread_add_child(master, vrrp_respawn_thread, NULL,
+				 pid, RESPAWN_TIMER);
+		return 0;
+	}
+
+	/* We catch a SIGCHLD, handle it */
+	syslog(LOG_INFO, "VRRP child process(%d) died: Respawning", pid);
+	start_vrrp_child();
+	return 0;
+}
+
 /* Register VRRP thread */
 int
 start_vrrp_child(void)
 {
+#ifndef _DEBUG_
 	pid_t pid;
+#endif
 
 	/* Dont start if pid is already running */
 	if (vrrp_running()) {
@@ -236,6 +237,7 @@ start_vrrp_child(void)
 		return -1;
 	}
 
+#ifndef _DEBUG_
 	/* Initialize child process */
 	pid = fork();
 
@@ -244,14 +246,13 @@ start_vrrp_child(void)
 			       , strerror(errno));
 		return -1;
 	} else if (pid) {
-		long poll_delay = (wdog_delay_vrrp) ? wdog_delay_vrrp : WATCHDOG_DELAY;
 		vrrp_child = pid;
 		syslog(LOG_INFO, "Starting VRRP child process, pid=%d"
 			       , pid);
-		/* Connect child watchdog */
-		vrrp_wdog_data.wdog_pid = pid;
-		thread_add_timer(master, wdog_boot_thread, &vrrp_wdog_data,
-				 poll_delay);
+
+		/* Start respawning thread */
+		thread_add_child(master, vrrp_respawn_thread, NULL,
+				 pid, RESPAWN_TIMER);
 		return 0;
 	}
 
@@ -270,14 +271,15 @@ start_vrrp_child(void)
 	thread_destroy_master(master);
 	master = thread_make_master();
 
-	/* Signal handling initialization */
-	vrrp_signal_init();
-
 	/* change to / dir */
 	chdir("/");
 
 	/* Set mask */
 	umask(0);
+#endif
+
+	/* Signal handling initialization */
+	vrrp_signal_init();
 
 	/* Start VRRP daemon */
 	start_vrrp();

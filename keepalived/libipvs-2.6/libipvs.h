@@ -86,7 +86,6 @@ extern int ipvs_start_daemon(ipvs_daemon_t *dm);
 /* stop a connection synchronizaiton daemon (master/backup) */
 extern int ipvs_stop_daemon(ipvs_daemon_t *dm);
 
-
 /* get all the ipvs services */
 extern struct ip_vs_get_services *ipvs_get_services(void);
 

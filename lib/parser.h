@@ -5,7 +5,7 @@
  * 
  * Part:        cfreader.c include file.
  *  
- * Version:     $Id: parser.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: parser.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -56,6 +56,7 @@ struct keyword {
 /* global vars exported */
 extern vector keywords;
 extern FILE *stream;
+extern int reload;
 
 /* Prototypes */
 extern void keyword_alloc(vector keywords, char *string, void (*handler) (vector));

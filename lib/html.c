@@ -5,7 +5,7 @@
  *
  * Part:        HTML stream parser utility functions.
  *
- * Version:     $Id: html.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: html.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -87,7 +87,7 @@ char *extract_html(char *buffer, int size_buffer)
 	char *end = buffer + size_buffer;
 	char *cur;
 
-	for (cur = buffer; cur + 4 < end; cur++)
+	for (cur = buffer; cur + 3 < end; cur++)
 		if (*cur == '\r' && *(cur+1) == '\n'
 		    && *(cur+2) == '\r' && *(cur+3) == '\n')
 			return cur + 4;

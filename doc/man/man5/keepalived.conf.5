@@ -224,12 +224,22 @@ which will transition together on any state change.
         192.168.111.0/24 dev eth2
         192.168.112.0/24 via 192.168.100.254
     }
-    
-    #VRRP will normally preempt a backup when the
-    #original master comes back on line.
-    #nopreempt allows the backup to maintain the
-    #master role.
+
+    # VRRP will normally preempt a lower priority
+    # machine when a higher priority machine comes
+    # online.  "nopreempt" allows the lower priority
+    # machine to maintain the master role, even when
+    # a higher priority machine comes back online.
+    # NOTE: For this to work, the initial state of this
+    # entry must be BACKUP.
     nopreempt
+
+    # Seconds after startup until preemption
+    # (if not disabled by "nopreempt").
+    # Range: 0 (default) to 1,000
+    # NOTE: For this to work, the initial state of this
+    # entry must be BACKUP.
+    preempt_delay 300    # waits 5 minutes
 
     # Debug level, not implemented yet.
     debug

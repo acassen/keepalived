@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -336,28 +336,6 @@ already_exist_sock(list l, int ifindex, int proto)
 	return 0;
 }
 
-/* sockpool list primitives */
-void
-free_sock(void *data)
-{
-	sock *sock = data;
-	interface *ifp = if_get_by_ifindex(sock->ifindex);
-	if_leave_vrrp_group(sock->fd_in, ifp);
-	close(sock->fd_out);
-	FREE(data);
-}
-
-void
-dump_sock(void *data)
-{
-	sock *sock = data;
-	syslog(LOG_INFO, "VRRP sockpool: [ifindex(%d), proto(%d), fd(%d,%d)]",
-	       sock->ifindex
-	       , sock->proto
-	       , sock->fd_in
-	       , sock->fd_out);
-}
-
 void
 alloc_sock(list l, int ifindex, int proto)
 {
@@ -458,9 +436,6 @@ vrrp_set_fds(list l)
 int
 vrrp_dispatcher_init(thread * thread)
 {
-	/* allocate the sockpool */
-	vrrp_data->vrrp_socket_pool = alloc_list(free_sock, dump_sock);
-
 	/* create the VRRP socket pool list */
 	vrrp_create_sockpool(vrrp_data->vrrp_socket_pool);
 

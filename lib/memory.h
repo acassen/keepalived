@@ -5,7 +5,7 @@
  *
  * Part:        memory.c include file.
  *
- * Version:     $Id: memory.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: memory.h,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -48,11 +48,11 @@ extern void xfree(void *p);
 #define MAX_ALLOC_LIST 2048
 
 #define MALLOC(n)    ( keepalived_malloc((n), \
-                      (__FILE__), (__FUNCTION__), (__LINE__)) )
+                      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
 #define FREE(b)      ( keepalived_free((b), \
-                      (__FILE__), (__FUNCTION__), (__LINE__)) )
+                      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
 #define REALLOC(b,n) ( keepalived_realloc((b), (n), \
-                      (__FILE__), (__FUNCTION__), (__LINE__)) )
+                      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
 
 /* Memory debug prototypes defs */
 extern char *keepalived_malloc(unsigned long, char *, char *, int);

@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK kernel command channel.
  *
- * Version:     $Id: vrrp_netlink.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: vrrp_netlink.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -118,17 +118,13 @@ netlink_close(struct nl_handle *nl)
 int
 netlink_set_block(struct nl_handle *nl, int *flags)
 {
-	int ret;
-
-	ret = fcntl(nl->fd, F_GETFL, 0);
-	if (ret < 0) {
+	if ((*flags = fcntl(nl->fd, F_GETFL, 0)) < 0) {
 		syslog(LOG_INFO, "Netlink: Cannot F_GETFL socket : (%s)",
 		       strerror(errno));
 		return -1;
 	}
 	*flags &= ~O_NONBLOCK;
-	ret = fcntl(nl->fd, F_SETFL, *flags);
-	if (ret < 0) {
+	if (fcntl(nl->fd, F_SETFL, *flags) < 0) {
 		syslog(LOG_INFO, "Netlink: Cannot F_SETFL socket : (%s)",
 		       strerror(errno));
 		return -1;
@@ -140,11 +136,8 @@ netlink_set_block(struct nl_handle *nl, int *flags)
 int
 netlink_set_nonblock(struct nl_handle *nl, int *flags)
 {
-	int ret;
-
 	*flags |= O_NONBLOCK;
-	ret = fcntl(nl->fd, F_SETFL, *flags);
-	if (ret < 0) {
+	if (fcntl(nl->fd, F_SETFL, *flags) < 0) {
 		syslog(LOG_INFO, "Netlink: Cannot F_SETFL socket : (%s)",
 		       strerror(errno));
 		return -1;

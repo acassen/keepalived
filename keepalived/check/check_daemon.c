@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckrs child process handling.
  *
- * Version:     $Id: check_daemon.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: check_daemon.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -36,21 +36,8 @@
 #include "main.h"
 #include "memory.h"
 #include "parser.h"
-#include "watchdog.h"
 #include "vrrp_netlink.h"
 #include "vrrp_if.h"
-
-/* Global vars */
-static int check_wdog_sd = -1;
-
-/* Healthchecker watchdog data */
-static wdog_data check_wdog_data = {
-	"Healthcheck Child",
-	WDOG_CHECK,
-	-1,
-	-1,
-	start_check_child
-};
 
 /* Daemon stop sequence */
 static void
@@ -77,9 +64,6 @@ stop_check(void)
 #ifdef _DEBUG_
 	keepalived_free_final("Healthcheck child process");
 #endif
-
-	/* free watchdog sd */
-	wdog_close(check_wdog_sd, WDOG_CHECK);
 
 	/*
 	 * Reached when terminate signal catched.
@@ -135,9 +119,6 @@ start_check(void)
 		dump_check_data(check_data);
 	}
 
-	/* Register healthcheckers software watchdog */
-	check_wdog_sd = wdog_init(WDOG_CHECK);
-
 	/* Register checkers thread */
 	register_checkers_thread();
 }
@@ -156,9 +137,6 @@ reload_check_thread(thread * thread)
 	free_checkers_queue();
 	free_ssl();
 	ipvs_stop();
-
-	/* free watchdog sd */
-	wdog_close(check_wdog_sd, WDOG_CHECK);
 
 	/* Save previous conf data */
 	old_check_data = check_data;
@@ -179,7 +157,8 @@ reload_check_thread(thread * thread)
 void
 sighup_check(int sig)
 {
-	syslog(LOG_INFO, "Reloading Healthchecker child process on signal");
+	syslog(LOG_INFO, "Reloading Healthchecker child processi(%d) on signal",
+	       checkers_child);
 	thread_add_event(master, reload_check_thread, NULL, 0);
 }
 
@@ -203,6 +182,28 @@ check_signal_init(void)
 	signal_noignore_sigchld();
 }
 
+/* CHECK Child respawning thread */
+int
+check_respawn_thread(thread * thread)
+{
+	pid_t pid;
+
+	/* Fetch thread args */
+	pid = THREAD_CHILD_PID(thread);
+
+	/* Restart respawning thread */
+	if (thread->type == THREAD_CHILD_TIMEOUT) {
+		thread_add_child(master, check_respawn_thread, NULL,
+				 pid, RESPAWN_TIMER);
+		return 0;
+	}
+
+	/* We catch a SIGCHLD, handle it */
+	syslog(LOG_INFO, "Healthcheck child process(%d) died: Respawning", pid);
+	start_check_child();
+	return 0;
+}
+
 /* Register CHECK thread */
 int
 start_check_child(void)
@@ -215,6 +216,7 @@ start_check_child(void)
 		return -1;
 	}
 
+#ifndef _DEBUG_
 	/* Initialize child process */
 	pid = fork();
 
@@ -223,14 +225,13 @@ start_check_child(void)
 			       , strerror(errno));
 		return -1;
 	} else if (pid) {
-		long poll_delay = (wdog_delay_check) ? wdog_delay_check : WATCHDOG_DELAY;
 		checkers_child = pid;
 		syslog(LOG_INFO, "Starting Healthcheck child process, pid=%d"
 			       , pid);
-		/* Connect child watchdog */
-		check_wdog_data.wdog_pid = pid;
-		thread_add_timer(master, wdog_boot_thread, &check_wdog_data,
-				 poll_delay);
+
+		/* Start respawning thread */
+		thread_add_child(master, check_respawn_thread, NULL,
+				 pid, RESPAWN_TIMER);
 		return 0;
 	}
 
@@ -248,14 +249,15 @@ start_check_child(void)
 	thread_destroy_master(master);
 	master = thread_make_master();
 
-	/* Signal handling initialization */
-	check_signal_init();
-
 	/* change to / dir */
 	chdir("/");
 
 	/* Set mask */
 	umask(0);
+#endif
+
+	/* Signal handling initialization */
+	check_signal_init();
 
 	/* Start Healthcheck daemon */
 	start_check();

@@ -18,6 +18,7 @@ rm -rf %{buildroot}
 %setup -q
 
 %build
+export CFLAGS=-D__KERNGLUE__
 ./configure --prefix=%{buildroot} --exec-prefix=%{buildroot} --sysconfdir=%{buildroot}/etc
 make
 

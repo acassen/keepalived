@@ -6,7 +6,7 @@
  * Part:        Memory management framework. This framework is used to
  *              find any memory leak.
  *
- * Version:     $Id: memory.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: memory.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -25,6 +25,7 @@
  */
 
 #include "memory.h"
+#include "utils.h"
 
 /* Global var */
 unsigned long mem_allocated;	/* Total memory used in Bytes */
@@ -77,7 +78,6 @@ xfree(void *p)
  */
 
 #ifdef _DEBUG_
-extern void dump_buffer(char *, int);
 
 typedef struct {
 	int type;
@@ -96,7 +96,6 @@ static MEMCHECK alloc_list[MAX_ALLOC_LIST];
 static int number_alloc_list = 0;
 static int n = 0;		/* Alloc list pointer */
 static int f = 0;		/* Free list pointer */
-static int s = 0;		/* Indent counter */
 
 char *
 keepalived_malloc(unsigned long size, char *file, char *function, int line)

@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
+ * Version:     $Id: main.c,v 1.1.9 2005/02/07 03:18:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -23,7 +23,6 @@
  */
 
 #include "main.h"
-#include "watchdog.h"
 #include "config.h"
 
 /* global var */
@@ -31,8 +30,6 @@ char *conf_file = NULL;		/* Configuration file */
 int log_facility = LOG_DAEMON;	/* Optional logging facilities */
 pid_t vrrp_child = -1;		/* VRRP child process ID */
 pid_t checkers_child = -1;	/* Healthcheckers child process ID */
-long wdog_delay_vrrp = 0;	/* VRRP child polling delay */
-long wdog_delay_check = 0;	/* Healthchecker child polling delay */
 int daemon_mode = 0;		/* VRRP/CHECK subsystem selection */
 int linkwatch = 0;		/* Use linkwatch kernel netlink reflection */
 
@@ -157,15 +154,13 @@ usage(const char *prog)
 		"  %s --dont-fork          -n    Dont fork the daemon process.\n"
 		"  %s --use-file           -f    Use the specified configuration file.\n"
 		"                                Default is /etc/keepalived/keepalived.conf.\n"
-		"  %s --wdog-vrrp          -R    Define VRRP watchdog polling delay. (default=5s)\n"
-		"  %s --wdog-check         -H    Define checkers watchdog polling delay. (default=5s)\n"
 		"  %s --dump-conf          -d    Dump the configuration data.\n"
 		"  %s --log-console        -l    Log message to local console.\n"
 		"  %s --log-detail         -D    Detailed log messages.\n"
 		"  %s --log-facility       -S    0-7 Set syslog facility to LOG_LOCAL[0-7]. (default=LOG_DAEMON)\n"
 		"  %s --help               -h    Display this short inlined help screen.\n"
 		"  %s --version            -v    Display the version number\n",
-		prog, prog, prog, prog, prog, prog, prog, prog, prog, prog,
+		prog, prog, prog, prog, prog, prog, prog, prog,
 		prog, prog, prog, prog);
 }
 
@@ -188,8 +183,6 @@ parse_cmdline(int argc, char **argv)
 		{"dont-fork", 'n', POPT_ARG_NONE, NULL, 'n'},
 		{"dump-conf", 'd', POPT_ARG_NONE, NULL, 'd'},
 		{"use-file", 'f', POPT_ARG_STRING, &optarg, 'f'},
-		{"wdog-vrrp", 'R', POPT_ARG_STRING, &optarg, 'R'},
-		{"wdog-check", 'H', POPT_ARG_STRING, &optarg, 'H'},
 		{"vrrp", 'P', POPT_ARG_NONE, NULL, 'P'},
 		{"check", 'C', POPT_ARG_NONE, NULL, 'C'},
 		{NULL, 0, 0, NULL, 0}
@@ -235,12 +228,6 @@ parse_cmdline(int argc, char **argv)
 	case 'f':
 		conf_file = optarg;
 		break;
-	case 'R':
-		wdog_delay_vrrp = atoi(optarg) * TIMER_HZ;
-		break;
-	case 'H':
-		wdog_delay_check = atoi(optarg) * TIMER_HZ;
-		break;
 	case 'P':
 		daemon_mode |= 1;
 		break;
@@ -275,12 +262,6 @@ parse_cmdline(int argc, char **argv)
 			break;
 		case 'f':
 			conf_file = optarg;
-			break;
-		case 'R':
-			wdog_delay_vrrp = atoi(optarg) * TIMER_HZ;
-			break;
-		case 'H':
-			wdog_delay_check = atoi(optarg) * TIMER_HZ;
 			break;
 		case 'P':
 			daemon_mode |= 1;
@@ -338,8 +319,10 @@ main(int argc, char **argv)
 			goto end;
 	}
 
+#ifndef _DEBUG_
 	/* Signal handling initialization  */
 	signal_init();
+#endif
 
 	/* Create the master thread */
 	master = thread_make_master();
@@ -347,11 +330,13 @@ main(int argc, char **argv)
 	/* Init daemon */
 	start_keepalived();
 
+#ifndef _DEBUG_
 	/* Launch the scheduling I/O multiplexer */
 	launch_scheduler();
 
 	/* Finish daemon process */
 	stop_keepalived();
+#endif
 
 	/*
 	 * Reached when terminate signal catched.
