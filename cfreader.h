@@ -5,7 +5,7 @@
  * 
  * Part:        cfreader.c include file.
  *  
- * Version:     $Id: cfreader.h,v 0.3.7 2001/09/14 00:37:56 acassen Exp $
+ * Version:     $Id: cfreader.h,v 0.3.8 2001/11/04 21:41:32 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -33,6 +33,7 @@
 
 #ifdef KERNEL_2_2
   #include <linux/ip_masq.h>
+  #include <net/ip_masq.h>
 #else
   #include <net/ip_vs.h>
 #endif

@@ -1,8 +1,16 @@
+2001-11-04  Alexandre Cassen  <acassen@linux-vs.org>
+
+        * keepalived-0.3.8 released.
+        * Added support to native IPTABLE LVS CODE
+          => using NAT on 2.4 kernel ipchains kernel support
+             has been removed.
+	* Added support to Direct Routing & Tunneling.
+	* Review the keepalived.init script to be much more generic.
+
 2001-09-14  Alexandre Cassen  <acassen@linux-vs.org>
 
         * keepalived-0.3.7 released.
         * Added support to LVS kernel 2.4 code
-
 
 2001-08-23  Alexandre Cassen  <acassen@linux-vs.org>
 
@@ -18,7 +26,6 @@
 	  It Perform a system call to run an extra system or script.
 	  => security auditing needed for system call,
 	     buffer overflow over script path must be handled.
-
 
 2001-07-15  Alexandre Cassen  <acassen@linux-vs.org>
 

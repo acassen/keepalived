@@ -6,7 +6,7 @@
  * Part:        MISC CHECK. Perform a system call to run an extra
  *              system prog or script.
  *
- * Version:     $Id: check_misc.c,v 0.3.7 2001/09/14 00:37:56 acassen Exp $
+ * Version:     $Id: check_misc.c,v 0.3.8 2001/11/04 21:41:32 acassen Exp $
  *
  * Author:      Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
  *

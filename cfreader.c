@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: cfreader.c,v 0.3.7 2001/09/14 00:37:56 acassen Exp $
+ * Version:     $Id: cfreader.c,v 0.3.8 2001/11/04 21:41:32 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -293,13 +293,35 @@ void dump_vs(virtualserver *pointervs)
                       ntohs(pointervs->addr_port));
 
     syslog(LOG_DEBUG, " -> delay_loop = %d, lb_algo = %s, "
-                      "lb_kind = %s, persistence = %s, protocol = %s",
+                      "persistence = %s, protocol = %s",
                       pointervs->delay_loop, pointervs->sched,
-                      (pointervs->loadbalancing_kind == 0)?"NAT":"UNKNOWN",
                       pointervs->timeout_persistence,
                       (pointervs->service_type == IPPROTO_TCP)?"TCP":"UDP");
 
-    syslog(LOG_DEBUG, " -> nat mask = %s", inet_ntoa(pointervs->nat_mask));
+    switch (pointervs->loadbalancing_kind) {
+#ifdef KERNEL_2_2
+      case 0:
+        syslog(LOG_DEBUG, " -> lb_kind = NAT");
+        syslog(LOG_DEBUG, " -> nat mask = %s", inet_ntoa(pointervs->nat_mask));
+        break;
+      case IP_MASQ_F_VS_DROUTE:
+        syslog(LOG_DEBUG, " -> lb_kind = DR");
+        break;
+      case IP_MASQ_F_VS_TUNNEL:
+        syslog(LOG_DEBUG, " -> lb_kind = TUN");
+        break;
+#else
+      case IP_VS_CONN_F_MASQ:
+        syslog(LOG_DEBUG, " -> lb_kind = NAT");
+        break;
+      case IP_VS_CONN_F_DROUTE:
+        syslog(LOG_DEBUG, " -> lb_kind = DR");
+        break;
+      case IP_VS_CONN_F_TUNNEL:
+        syslog(LOG_DEBUG, " -> lb_kind = TUN");
+        break;
+#endif
+    }
 
     if (pointervs->s_svr != NULL) {
       syslog(LOG_DEBUG, " -> sorry server = [%s:%d]", 
@@ -581,11 +603,33 @@ void process_stream_vs(FILE *stream, configuration_data *conf_data)
         break;
       case KW_LBKIND:
         fscanf(stream, "%s", string);
-        /* For the moment only NAT is supported.
-         * masq_flags : IP_MASQ_F_VS_DROUTE & IP_MASQ_F_VS_TUNNEL not supported.
-         * So we just set masq_flafs to 0.
-         */
-        vsfill->loadbalancing_kind = 0;
+
+#ifdef KERNEL_2_2
+        if (strcmp(string, "NAT") == 0)
+          vsfill->loadbalancing_kind = 0;
+        else
+          if (strcmp(string, "DR") == 0)
+            vsfill->loadbalancing_kind = IP_MASQ_F_VS_DROUTE;
+          else
+            if (strcmp(string, "TUN") == 0)
+              vsfill->loadbalancing_kind = IP_MASQ_F_VS_TUNNEL;
+            else
+              syslog(LOG_DEBUG,"CFREADER : unknown [%s] routing method."
+                              , string);
+#else
+        if (strcmp(string, "NAT") == 0)
+          vsfill->loadbalancing_kind = IP_VS_CONN_F_MASQ;
+        else
+          if (strcmp(string, "DR") == 0)
+            vsfill->loadbalancing_kind = IP_VS_CONN_F_DROUTE;
+          else
+            if (strcmp(string, "TUN") == 0)
+              vsfill->loadbalancing_kind = IP_VS_CONN_F_TUNNEL;
+            else
+              syslog(LOG_DEBUG,"CFREADER : unknown [%s] routing method."
+                              , string);
+#endif
+
         break;
       case KW_NATMASK:
         fscanf(stream, "%s", string);

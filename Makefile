@@ -10,6 +10,10 @@ KERNEL := KERNEL_2_$(shell uname -r | cut -d'.' -f2)
 CFLAGS= -g -Wall -DDEBUG -D$(KERNEL)
 #CFLAGS= -g -Wall -D$(KERNEL)
 
+ifeq ($(KERNEL),KERNEL_2_2)
+  LIB := $(LIB) libipfwc/libipfwc.a
+endif
+
 DEFS= main.h \
 	scheduler.h \
 	cfreader.h \
@@ -30,9 +34,11 @@ OBJECTS= main.o \
 	check_misc.o \
 	md5.o \
 	ipwrapper.o \
-	ipvswrapper.o \
-	ipfwwrapper.o \
-	libipfwc/libipfwc.a \
+	ipvswrapper.o
+ifeq ($(KERNEL),KERNEL_2_2)
+  OBJECTS := $(OBJECTS) ipfwwrapper.o
+endif
+OBJECTS := $(OBJECTS) \
 	pidfile.o \
 	smtp.o
 
@@ -46,14 +52,18 @@ all:	$(EXEC)
 	@echo ""
 	@echo "Make complete"
 
-$(EXEC):	$(OBJECTS) $(DEFS)
-	$(CC) -o $(EXEC) $(CFLAGS) $(OBJECTS)
+$(EXEC):	$(OBJECTS) $(DEFS) $(LIB)
+	$(CC) -o $(EXEC) $(CFLAGS) $(OBJECTS) $(LIB)
 
+ifeq ($(KERNEL),KERNEL_2_2)
 libipfwc/libipfwc.a:
 	cd libipfwc/ && $(MAKE) libipfwc.a
+endif
 
 subclean:
+ifeq ($(KERNEL),KERNEL_2_2)
 	cd libipfwc/ && $(MAKE) clean
+endif
 
 clean: subclean
 	rm -f core *.o $(EXEC)

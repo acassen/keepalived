@@ -6,19 +6,19 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 0.3.7 2001/09/14 00:37:56 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 0.3.8 2001/11/04 21:41:32 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
- *               This program is distributed in the hope that it will be useful,
- *               but WITHOUT ANY WARRANTY; without even the implied warranty of
- *               MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
- *               See the GNU General Public License for more details.
+ *              This program is distributed in the hope that it will be useful,
+ *              but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *              See the GNU General Public License for more details.
  *
- *               This program is free software; you can redistribute it and/or
- *               modify it under the terms of the GNU General Public License
- *               as published by the Free Software Foundation; either version
- *               2 of the License, or (at your option) any later version.
+ *              This program is free software; you can redistribute it and/or
+ *              modify it under the terms of the GNU General Public License
+ *              as published by the Free Software Foundation; either version
+ *              2 of the License, or (at your option) any later version.
  */
 
 #include "ipvswrapper.h"
@@ -94,12 +94,8 @@ int ipvs_cmd(int cmd, virtualserver *vserver, realserver *rserver)
   memset(&urule, 0, sizeof(struct ip_vs_rule_user));
 
   strncpy(urule.sched_name, vserver->sched, IP_VS_SCHEDNAME_MAXLEN);
-  urule.weight = -1;
-  /*
-   *  Set MASQ as default forwarding method.
-   *  FIXME: In the current implementation we only support NAT.
-   */
-  urule.conn_flags = IP_VS_CONN_F_MASQ;
+  urule.weight = 1;
+  urule.conn_flags = vserver->loadbalancing_kind;
   urule.netmask    = ((u_int32_t) 0xffffffff);
   urule.protocol   = vserver->service_type;
   
@@ -129,7 +125,6 @@ int ipvs_cmd(int cmd, virtualserver *vserver, realserver *rserver)
   result = setsockopt(sockfd, IPPROTO_IP, cmd, (char *)&urule, sizeof(urule));
 
   /* kernel return error handling */
-
   if (result) {
     syslog(LOG_INFO, "IPVS WRAPPER : setsockopt failed !!!");
 

@@ -9,13 +9,6 @@ Kernel needing
   Routing messages
   LinuxVirtualServer
 
-  If you use KERNEL 2.4 build your kernel with ipchains support :
-  => Network options
-       IP: Netfilter Configuration
-        <M> ipchains (2.2-style) support
-
-  => Patch your 2.4 kernel with the LVS code
-
 Installation
 ============
 
@@ -39,5 +32,6 @@ Configuration
 
   http://keepalived.sourceforge.net
 
-
 Have fun with it !
+
+Alexandre Cassen, <acassen@linux-vs.org>
