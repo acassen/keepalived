@@ -5,7 +5,7 @@
  * 
  * Part:        cfreader.c include file.
  *  
- * Version:     $Id: cfreader.h,v 0.3.6 2001/08/23 23:02:51 acassen Exp $
+ * Version:     $Id: cfreader.h,v 0.3.7 2001/09/14 00:37:56 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -31,19 +31,30 @@
 #include <syslog.h>
 #include <arpa/inet.h>
 
-#include <linux/ip_masq.h>
+#ifdef KERNEL_2_2
+  #include <linux/ip_masq.h>
+#else
+  #include <net/ip_vs.h>
+#endif
 
 /* local includes */
 #include "utils.h"
 
 #define CONFFILE "/etc/keepalived/keepalived.conf"
 
+/* locals defines */
 #define TEMP_BUFFER_LENGTH 100
 #define MAX_EMAIL_LENGTH   45
 #define MAX_LVSID_LENGTH   20
 #define MAX_URL_LENGTH     110
 #define DIGEST_LENGTH      32+1
 #define MAX_TIMEOUT_LENGTH 5
+
+#ifdef KERNEL_2_2
+  #define SCHED_MAX_LENGTH IP_MASQ_TNAME_MAX
+#else
+  #define SCHED_MAX_LENGTH IP_VS_SCHEDNAME_MAXLEN
+#endif
 
 /* Keywords definition */
 struct keyword {
@@ -129,7 +140,7 @@ typedef struct _virtual_server {
   uint16_t addr_port;
   uint16_t service_type;
   int delay_loop;
-  char sched[IP_MASQ_TNAME_MAX];
+  char sched[SCHED_MAX_LENGTH];
   unsigned loadbalancing_kind;
   struct in_addr nat_mask;
   char timeout_persistence[MAX_TIMEOUT_LENGTH];

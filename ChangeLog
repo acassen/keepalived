@@ -1,3 +1,9 @@
+2001-09-14  Alexandre Cassen  <acassen@linux-vs.org>
+
+        * keepalived-0.3.7 released.
+        * Added support to LVS kernel 2.4 code
+
+
 2001-08-23  Alexandre Cassen  <acassen@linux-vs.org>
 
 	* keepalived-0.3.6 released.
@@ -13,6 +19,7 @@
 	  => security auditing needed for system call,
 	     buffer overflow over script path must be handled.
 
+
 2001-07-15  Alexandre Cassen  <acassen@linux-vs.org>
 
 	* keepalived-0.3.5 released.
@@ -22,7 +29,6 @@
         * Added a daemonization function imported from zebra.
         * Rewrite the pidfile handling, check if daemon is running, if not
           remove eventual stalled pidfile and create new pidfile.
-
         * Added a strong scheduling framework based on an I/O multiplexer
           to handle asynchronous process. This code is imported from zebra
           and have been enhanced for keepalived purposes.
@@ -39,24 +45,19 @@
 
           => With this framework keepalived use a Boss/Worker thread model design,
              fetching ready thread from a master threading queues.
-
         * Rewrite the configuration file reader to add flexibility on extending.
           The dynamic data structure has been rewritten to use apropriate types.
           Right now parsing framework is ready for easy new checker structures
           integration.
-
         * Rewrite the smtp connector. The implementation take advantage of the
           I/O multiplexer. All read/write operations from/to the remote smtp server
           are done asynchronously. The implementation is rfc 821 compliant (multiple
           receiver are handled by a multiple RCPT TO command as specified in rfc821.3.1).
-
         * Rewrite the IPFW & IPVS wrappers.
-
         * Added support for NAT mask on IP MASQ rules (keyword nat_mask in configuration
           file). Added support for sorry server facility, so when all the server from a 
           VS server pool are removed, a sorry server is automaticaly added to the VS pool 
           (typically this is used when you have a spare server online).
-
         * Rewrite the previous checkers. Checkers are now based on a hierarchic layer
           stack framework. The protocol implemented for the moment is TCP. All layer 5
           checkers are using layer4.c primitives with the same design :
@@ -66,7 +67,5 @@
           . a connection checker thread testing connection states (error, in_progress,
             timeout, success). When connection success upper level thread are registered
             to handle checks.
-
         * Delay loop is now checkers specifics since we can use a multithreaded framework.
-
         * Update the PDF documentation file.

@@ -4,9 +4,11 @@
 EXEC= keepalived
 CC= gcc
 
+KERNEL := KERNEL_2_$(shell uname -r | cut -d'.' -f2)
+
 # To compile with debug messages uncomment the following line
-CFLAGS= -g -Wall -D DEBUG
-#CFLAGS= -g -Wall
+CFLAGS= -g -Wall -DDEBUG -D$(KERNEL)
+#CFLAGS= -g -Wall -D$(KERNEL)
 
 DEFS= main.h \
 	scheduler.h \

@@ -5,7 +5,7 @@
  *
  * Part:        General program utils.
  *
- * Version:     $Id: utils.c,v 0.3.6 2001/08/10 15:33:51 acassen Exp $
+ * Version:     $Id: utils.c,v 0.3.7 2001/09/14 00:37:56 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

@@ -5,11 +5,9 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $Id: ipwrapper.c,v 0.3.6 2001/08/23 23:02:51 acassen Exp $
+ * Version:     $Id: ipwrapper.c,v 0.3.7 2001/09/14 00:37:56 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
- *
- * Changes:     Alexandre Cassen : 2001/06/25 : Initial release
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -31,7 +29,7 @@ int clear_service_vs(virtualserver *vserver)
   pointersvr = vserver->svr;
   while (vserver->svr) {
     /* IPVS cleaning server entry */
-    if (!ipvs_cmd(IP_MASQ_CMD_DEL_DEST, vserver, vserver->svr)) {
+    if (!ipvs_cmd(LVS_CMD_DEL_DEST, vserver, vserver->svr)) {
       vserver->svr = pointersvr;
       return 0;
     }
@@ -45,7 +43,7 @@ int clear_service_vs(virtualserver *vserver)
   }
   vserver->svr = pointersvr;
 
-  if (!ipvs_cmd(IP_MASQ_CMD_DEL, vserver, vserver->svr))
+  if (!ipvs_cmd(LVS_CMD_DEL, vserver, vserver->svr))
     return 0;
 
   return 1;
@@ -97,7 +95,7 @@ void perform_svr_state(int alive, virtualserver *vserver, realserver *rserver)
                inet_ntoa(vserver->addr_ip), ntohs(vserver->addr_port));
 
         vserver->s_svr->alive = 0;
-        ipvs_cmd(IP_MASQ_CMD_DEL_DEST, vserver, vserver->s_svr);
+        ipvs_cmd(LVS_CMD_DEL_DEST, vserver, vserver->s_svr);
         ipfw_cmd(IP_FW_CMD_DEL, vserver, vserver->s_svr);
       }
     }
@@ -106,7 +104,7 @@ void perform_svr_state(int alive, virtualserver *vserver, realserver *rserver)
     syslog(LOG_INFO, "Adding service [%s:%d] to VS [%s:%d]",
            inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port),
            inet_ntoa(vserver->addr_ip), ntohs(vserver->addr_port));
-    ipvs_cmd(IP_MASQ_CMD_ADD_DEST, vserver, rserver);
+    ipvs_cmd(LVS_CMD_ADD_DEST, vserver, rserver);
     if (vserver->nat_mask.s_addr == HOST_NETMASK)
       ipfw_cmd(IP_FW_CMD_ADD, vserver, rserver);
 
@@ -118,7 +116,7 @@ void perform_svr_state(int alive, virtualserver *vserver, realserver *rserver)
            inet_ntoa(vserver->addr_ip), ntohs(vserver->addr_port));
 
     /* server is down, it is removed from the LVS realserver pool */
-    ipvs_cmd(IP_MASQ_CMD_DEL_DEST, vserver, rserver);
+    ipvs_cmd(LVS_CMD_DEL_DEST, vserver, rserver);
     if (vserver->nat_mask.s_addr == HOST_NETMASK)
       ipfw_cmd(IP_FW_CMD_DEL, vserver, rserver);
 
@@ -130,7 +128,7 @@ void perform_svr_state(int alive, virtualserver *vserver, realserver *rserver)
 
       /* the sorry server is now up in the pool, we flag it alive */
       vserver->s_svr->alive = 1;
-      ipvs_cmd(IP_MASQ_CMD_ADD_DEST, vserver, vserver->s_svr);
+      ipvs_cmd(LVS_CMD_ADD_DEST, vserver, vserver->s_svr);
       ipfw_cmd(IP_FW_CMD_ADD, vserver, vserver->s_svr);
     }
 
@@ -143,7 +141,7 @@ int init_service_vs(virtualserver *vserver)
 
   pointersvr = vserver->svr;
   while (vserver->svr) {
-    if (!ipvs_cmd(IP_MASQ_CMD_ADD_DEST, vserver, vserver->svr)) {
+    if (!ipvs_cmd(LVS_CMD_ADD_DEST, vserver, vserver->svr)) {
       vserver->svr = pointersvr;
       return 0;
     }
@@ -169,7 +167,7 @@ int init_services(virtualserver *vserver)
 
   pointervs = vserver;
   while (vserver) {
-    if (!ipvs_cmd(IP_MASQ_CMD_ADD, vserver, vserver->svr))
+    if (!ipvs_cmd(LVS_CMD_ADD, vserver, vserver->svr))
       return 0;
 
     /* work if all realserver ip address are in the
