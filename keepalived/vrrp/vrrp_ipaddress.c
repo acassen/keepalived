@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 address manipulation.
  *
- * Version:     $Id: vrrp_ipaddress.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -48,7 +48,7 @@ netlink_address_ipv4(ip_address *ipaddr, int cmd)
 	req.n.nlmsg_flags = NLM_F_REQUEST;
 	req.n.nlmsg_type = cmd ? RTM_NEWADDR : RTM_DELADDR;
 	req.ifa.ifa_family = AF_INET;
-	req.ifa.ifa_index = IF_INDEX(ipaddr->ifp);
+	req.ifa.ifa_index = ipaddr->ifindex;
 	req.ifa.ifa_scope = ipaddr->scope;
 	req.ifa.ifa_prefixlen = ipaddr->mask;
 	addattr_l(&req.n, sizeof (req), IFA_LOCAL, &ipaddr->addr, sizeof (ipaddr->addr));
@@ -94,7 +94,7 @@ dump_ipaddress(void *data)
 	syslog(LOG_INFO, "     %s/%d dev %s scope %s"
 	       , inet_ntop2(ip_addr->addr)
 	       , ip_addr->mask
-	       , IF_NAME(ip_addr->ifp)
+	       , IF_NAME(if_get_by_ifindex(ip_addr->ifindex))
 	       , netlink_scope_n2a(ip_addr->scope));
 }
 void
@@ -107,6 +107,7 @@ alloc_ipaddress(list ip_list, vector strvec, interface *ifp)
 
 	new = (ip_address *) MALLOC(sizeof(ip_address));
 	new->ifp = ifp;
+	new->ifindex = IF_INDEX(ifp);
 
 	/* FMT parse */
 	while (i < VECTOR_SIZE(strvec)) {
@@ -115,6 +116,7 @@ alloc_ipaddress(list ip_list, vector strvec, interface *ifp)
 		/* cmd parsing */
 		if (!strcmp(str, "dev")) {
 			new->ifp = if_get_by_ifname(VECTOR_SLOT(strvec, ++i));
+			new->ifindex = IF_INDEX(new->ifp);
 		} else if (!strcmp(str, "scope")) {
 			new->scope = netlink_scope_a2n(VECTOR_SLOT(strvec, ++i));
 		} else {
@@ -127,8 +129,10 @@ alloc_ipaddress(list ip_list, vector strvec, interface *ifp)
 	}
 
 	/* If index not set then use default interface index */
-	if (!ifp)
-		new->ifp = if_get_by_ifname(DFLT_INT);
+	if (!ifp) {
+		new->ifp = ifp;
+		new->ifindex = IF_INDEX(if_get_by_ifname(DFLT_INT));
+	}
 
 	list_add(ip_list, new);
 }
@@ -175,7 +179,7 @@ clear_diff_address(list l, list n)
 			syslog(LOG_INFO, "ip address %s/%d dev %s, no longer exist"
 			       , inet_ntop2(ipaddress->addr)
 			       , ipaddress->mask
-			       , IF_NAME(ipaddress->ifp));
+			       , IF_NAME(if_get_by_ifindex(ipaddress->ifindex)));
 			netlink_address_ipv4(ipaddress, IPADDRESS_DEL);
 		}
 	}

@@ -7,7 +7,7 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: scheduler.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

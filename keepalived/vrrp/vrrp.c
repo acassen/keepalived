@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $id: ipwrapper.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
+ * Version:     $id: ipwrapper.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

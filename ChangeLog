@@ -1,3 +1,10 @@
+2003-07-24  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.1 released.
+	* VRRP : Fixed an issue while reloading configuration. Fixed
+	  a dereferencing pointer.
+	* Fixed misc checker to perform server state according to 
+	  checker result !!!
+
 2003-07-22  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.0 released.
 	* The release focus is : "High Performance"

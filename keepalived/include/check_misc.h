@@ -5,7 +5,7 @@
  *
  * Part:        check_misc.c include file.
  *
- * Version:     $Id: check_misc.h,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
+ * Version:     $Id: check_misc.h,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>

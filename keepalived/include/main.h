@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
+ * Version:     $Id: main.h,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -54,7 +54,7 @@ conf_data *data;			/* Global configuration data */
 #define PROG    "Keepalived"
 
 #define VERSION_CODE 0x010100
-#define DATE_CODE    0x140703
+#define DATE_CODE    0x180703
 
 #define KEEPALIVED_VERSION(version)	\
 	(version >> 16) & 0xFF,		\

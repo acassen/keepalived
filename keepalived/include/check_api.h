@@ -5,7 +5,7 @@
  *
  * Part:        Checkers arguments structures definitions.
  *
- * Version:     $Id: check_api.h,v 1.1.0 2003/07/20 23:41:34 ACAssen Exp $
+ * Version:     $Id: check_api.h,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

@@ -5,7 +5,7 @@
  *
  * Part:        CI-LINUX checker. Integration to Compaq Cluster Infrastructure.
  *
- * Version:     $Id: check_ci.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
+ * Version:     $Id: check_ci.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Aneesh Kumar K.V, <aneesh.kumar@digital.com>

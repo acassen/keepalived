@@ -5,7 +5,7 @@
  * 
  * Part:        Timer manipulations.
  *  
- * Version:     $Id: timer.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: timer.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
