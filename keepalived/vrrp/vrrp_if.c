@@ -5,7 +5,7 @@
  *
  * Part:        Interfaces manipulation.
  *
- * Version:     $Id: vrrp_if.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
+ * Version:     $Id: vrrp_if.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -48,6 +48,7 @@ typedef __uint8_t u8;
 /* local include */
 #include "scheduler.h"
 #include "data.h"
+#include "vrrp.h"
 #include "vrrp_if.h"
 #include "vrrp_netlink.h"
 #include "memory.h"
@@ -381,4 +382,129 @@ if_mii_poller_init(void)
 
 	/* Register NIC Heartbeat monitoring thread */
 	thread_add_timer(master, if_monitor_thread, NULL, POLLING_DELAY);
+}
+
+int
+if_join_vrrp_group(int sd, interface *ifp, int proto)
+{
+	struct ip_mreqn req_add;
+	int ret;
+
+	/* -> outbound processing option
+	 * join the multicast group.
+	 * binding the socket to the interface for outbound multicast
+	 * traffic.
+	 */
+	memset(&req_add, 0, sizeof (req_add));
+	req_add.imr_multiaddr.s_addr = htonl(INADDR_VRRP_GROUP);
+	req_add.imr_address.s_addr = IF_ADDR(ifp);
+	req_add.imr_ifindex = IF_INDEX(ifp);
+
+	/* -> Need to handle multicast convergance after takeover.
+	 * We retry until multicast is available on the interface.
+	 */
+	ret = setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+			 (char *) &req_add, sizeof (struct ip_mreqn));
+	if (ret < 0) {
+		syslog(LOG_INFO, "cant do IP_ADD_MEMBERSHIP errno=%s (%d)",
+		       strerror(errno), errno);
+		close(sd);
+		return -1;
+        }
+
+	return sd;
+}
+
+void
+if_leave_vrrp_group(int sd, interface *ifp)
+{
+	struct ip_mreqn req_add;
+	int ret = 0;
+
+	/* If fd is -1 then we add a membership trouble */
+	if (sd < 0)
+		return;
+
+	/* Leaving the VRRP multicast group */
+	memset(&req_add, 0, sizeof (req_add));
+	req_add.imr_multiaddr.s_addr = htonl(INADDR_VRRP_GROUP);
+	req_add.imr_address.s_addr = IF_ADDR(ifp);
+	req_add.imr_ifindex = IF_INDEX(ifp);
+	ret = setsockopt(sd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
+			 (char *) &req_add, sizeof (struct ip_mreqn));
+	if (ret < 0) {
+		syslog(LOG_INFO, "cant do IP_DROP_MEMBERSHIP errno=%s (%d)",
+		       strerror(errno), errno);
+		return;
+	}
+
+	/* Finally close the desc */
+	close(sd);
+}
+
+int
+if_setsockopt_bindtodevice(int sd, interface *ifp)
+{
+	int ret;
+
+	if (sd < 0)
+		return sd;
+
+	/* -> inbound processing option
+	 * Specify the bound_dev_if.
+	 * why IP_ADD_MEMBERSHIP & IP_MULTICAST_IF doesnt set
+	 * sk->bound_dev_if themself ??? !!!
+	 * Needed for filter multicasted advert per interface.
+	 *
+	 * -- If you read this !!! and know the answer to the question
+	 *    please feel free to answer me ! :)
+	 */
+	ret = setsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, IF_NAME(ifp)
+			 , strlen(IF_NAME(ifp)) + 1);
+	if (ret < 0) {
+		int err = errno;
+		syslog(LOG_INFO,
+		       "cant bind to device %s. errno=%d. (try to run it as root)",
+		       IF_NAME(ifp), err);
+		close(sd);
+		sd = -1;
+	}
+
+	return sd;
+}
+
+int
+if_setsockopt_hdrincl(int sd)
+{
+	int ret;
+	int on = 1;
+
+	/* Include IP header into RAW protocol packet */
+	ret = setsockopt(sd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on));
+	if (ret < 0) {
+		int err = errno;
+		syslog(LOG_INFO, "cant set HDRINCL IP option. errno=%d.", err);
+		close(sd);
+		return -1;
+	}
+
+	return sd;
+}
+
+int
+if_setsockopt_mcast_loop(int sd)
+{
+	int ret;
+	unsigned char loop = 0;
+
+	/* Include IP header into RAW protocol packet */
+	ret = setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
+	if (ret < 0) {
+		int err = errno;
+		syslog(LOG_INFO, "cant set MULTICAST_LOOP IP option. errno=%d.", err);
+		close(sd);
+		return -1;
+	}
+
+	return sd;
 }

@@ -11,7 +11,7 @@ ifeq ($(CI_LINUX),_WITH_CI_LINUX_)
 CI_LINUX_OBJ = check_ci.o
 CIFLAGS = -D$(CI_LINUX)
 endif
-INCLUDES = -I../include
+INCLUDES = -I../include -I../../lib
 CFLAGS	 = @CFLAGS@ $(INCLUDES) \
 	   -Wall -Wunused -Wstrict-prototypes
 DEFS	 = -D$(KERNEL) -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_SUPPORT@ @DFLAGS@ $(CIFLAGS)
@@ -39,20 +39,20 @@ distclean: clean
 	rm -f Makefile
 
 check_api.o: check_api.c ../include/check_api.h ../include/parser.h \
-  ../include/memory.h ../include/utils.h ../include/check_misc.h \
+  ../../lib/memory.h ../../lib/utils.h ../include/check_misc.h \
   ../include/check_tcp.h ../include/check_http.h ../include/check_ssl.h
 check_tcp.o: check_tcp.c ../include/check_tcp.h ../include/check_api.h \
-  ../include/memory.h ../include/ipwrapper.h ../include/layer4.h \
-  ../include/smtp.h ../include/utils.h ../include/parser.h
+  ../../lib/memory.h ../include/ipwrapper.h ../include/layer4.h \
+  ../include/smtp.h ../../lib/utils.h ../include/parser.h
 check_http.o: check_http.c ../include/check_http.h ../include/check_ssl.h \
-  ../include/check_api.h ../include/memory.h ../include/parser.h \
-  ../include/utils.h
+  ../include/check_api.h ../../lib/memory.h ../include/parser.h \
+  ../../lib/utils.h
 check_ssl.o: check_ssl.c ../include/check_ssl.h ../include/check_api.h \
-  ../include/memory.h ../include/parser.h ../include/smtp.h \
-  ../include/utils.h
+  ../../lib/memory.h ../include/parser.h ../include/smtp.h \
+  ../../lib/utils.h
 check_misc.o: check_misc.c ../include/check_misc.h ../include/check_api.h \
-  ../include/memory.h ../include/ipwrapper.h ../include/smtp.h \
-  ../include/utils.h ../include/parser.h ../include/daemon.h
-ipwrapper.o: ipwrapper.c ../include/ipwrapper.h ../include/utils.h
-ipvswrapper.o: ipvswrapper.c ../include/ipvswrapper.h ../include/utils.h \
-  ../include/memory.h
+  ../../lib/memory.h ../include/ipwrapper.h ../include/smtp.h \
+  ../../lib/utils.h ../include/parser.h ../include/daemon.h
+ipwrapper.o: ipwrapper.c ../include/ipwrapper.h ../../lib/utils.h
+ipvswrapper.o: ipvswrapper.c ../include/ipvswrapper.h ../../lib/utils.h \
+  ../../lib/memory.h

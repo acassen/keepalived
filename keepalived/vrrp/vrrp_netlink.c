@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK kernel command channel.
  *
- * Version:     $Id: vrrp_netlink.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
+ * Version:     $Id: vrrp_netlink.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

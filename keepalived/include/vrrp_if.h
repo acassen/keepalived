@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_if.c include file.
  *
- * Version:     $Id: vrrp_if.h,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
+ * Version:     $Id: vrrp_if.h,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -95,5 +95,10 @@ extern int if_monitor_thread(thread * thread);
 extern void init_interface_queue(void);
 extern void free_interface_queue(void);
 extern void dump_if(void *data);
+extern int if_join_vrrp_group(int sd, interface *ifp, int proto);
+extern void if_leave_vrrp_group(int sd, interface *ifp);
+extern int if_setsockopt_bindtodevice(int sd, interface *ifp);
+extern int if_setsockopt_hdrincl(int sd);
+extern int if_setsockopt_mcast_loop(int sd);
 
 #endif

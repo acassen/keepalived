@@ -1993,7 +1993,7 @@ fi
 done
 
 
-OUTPUT_TARGET="$OUTPUT_TARGET keepalived/Makefile keepalived/healthcheck/Makefile keepalived/vrrp/Makefile"
+OUTPUT_TARGET="$OUTPUT_TARGET keepalived/Makefile keepalived/healthcheck/Makefile keepalived/vrrp/Makefile lib/Makefile"
 if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
   if test "$KERN" = "_KRNL_2_4_"; then
     OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs/Makefile"

@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
+ * Version:     $Id: main.h,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -47,7 +47,6 @@ thread_master *master = NULL;		/* Scheduling master thread */
 char *conf_file = NULL;			/* Configuration file */
 int reload = 0;				/* Global reloading flag */
 unsigned int debug;			/* Debugging flags */
-unsigned long mem_allocated = 0;	/* Total memory used in Bytes */
 data *conf_data;			/* Global configuration data */
 data *old_data;				/* Used during reload process */
 
@@ -66,8 +65,8 @@ extern void register_vrrp_thread(void);
 /* Build version */
 #define PROG    "Keepalived"
 
-#define VERSION_CODE 0x000701
-#define DATE_CODE    0x110902
+#define VERSION_CODE 0x000706
+#define DATE_CODE    0x140A02
 
 #define KEEPALIVED_VERSION(version)	\
 	(version >> 16) & 0xFF,		\

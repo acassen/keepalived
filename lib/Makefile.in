@@ -1,0 +1,35 @@
+# Makefile
+#
+# Keepalived OpenSource project.
+#
+# Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
+
+CC	 = @CC@
+INCLUDES = -I.
+CFLAGS	 = @CFLAGS@ $(INCLUDES) \
+	   -Wall -Wunused -Wstrict-prototypes
+DEFS	 = @DFLAGS@
+COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
+
+OBJS = 	memory.o utils.o timer.o scheduler.o vector.o list.o html.o
+HEADERS = $(OBJS:.o=.h)
+
+.c.o:
+	$(COMPILE) -c $<
+
+all:	$(OBJS)
+
+clean:
+	rm -f *.a *.o *~
+
+distclean: clean
+	rm -f Makefile
+
+
+memory.o: memory.c memory.h
+utils.o: utils.c utils.h
+timer.o: timer.c timer.h
+scheduler.o: scheduler.c scheduler.h memory.h utils.h
+vector.o: vector.c vector.h memory.h
+list.o: list.c list.h memory.h
+html.o: html.h memory.h

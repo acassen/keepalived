@@ -212,7 +212,7 @@ AC_TYPE_SIGNAL
 AC_CHECK_FUNCS(gettimeofday select socket strerror strtol uname)
 
 dnl ----[ Process output target ]----
-OUTPUT_TARGET="$OUTPUT_TARGET keepalived/Makefile keepalived/healthcheck/Makefile keepalived/vrrp/Makefile"
+OUTPUT_TARGET="$OUTPUT_TARGET keepalived/Makefile keepalived/healthcheck/Makefile keepalived/vrrp/Makefile lib/Makefile"
 if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
   if test "$KERN" = "_KRNL_2_4_"; then
     OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs/Makefile"

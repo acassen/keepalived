@@ -5,7 +5,7 @@
  *
  * Part:        VRRP synchronization framework.
  *
- * Version:     $Id: vrrp_sync.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
+ * Version:     $Id: vrrp_sync.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -101,7 +101,13 @@ vrrp_sync_group_up(vrrp_sgroup * vgroup)
 		if (IF_ISUP(isync->ifp))
 			is_up++;
 	}
-	return (is_up == VECTOR_SIZE(vgroup->iname)) ? 1 : 0;
+
+	if (is_up == VECTOR_SIZE(vgroup->iname)) {
+		syslog(LOG_INFO, "Kernel is reporting: Group(%s) UP"
+			       , GROUP_NAME(vgroup));
+		return 1;
+	}
+	return 0;
 }
 
 /* Leaving fault state */
@@ -160,9 +166,6 @@ vrrp_sync_backup(vrrp_rt * vrrp)
 	vrrp_rt *isync;
 	vrrp_sgroup *vgroup = vrrp->sync;
 
-	if (GROUP_STATE(vrrp->sync) != VRRP_STATE_MAST)
-		return;
-
 	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to BACKUP state",
 	       GROUP_NAME(vrrp->sync));
 
@@ -186,9 +189,6 @@ vrrp_sync_master(vrrp_rt * vrrp)
 	char *str;
 	vrrp_rt *isync;
 	vrrp_sgroup *vgroup = vrrp->sync;
-
-	if (GROUP_STATE(vrrp->sync) != VRRP_STATE_BACK)
-		return;
 
 	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to MASTER state",
 	       GROUP_NAME(vrrp->sync));

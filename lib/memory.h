@@ -5,7 +5,7 @@
  *
  * Part:        memory.c include file.
  *
- * Version:     $Id: memory.h,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
+ * Version:     $Id: memory.h,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -29,6 +29,9 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+
+/* Global var */
+unsigned long mem_allocated;	/* Total memory used in Bytes */
 
 /* extern types */
 extern unsigned int debug;

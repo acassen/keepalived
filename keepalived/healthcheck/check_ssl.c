@@ -7,7 +7,7 @@
  *              url, compute a MD5 over this result and match it to the
  *              expected value.
  *
- * Version:     $Id: check_ssl.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
+ * Version:     $Id: check_ssl.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -30,6 +30,7 @@
 #include "parser.h"
 #include "smtp.h"
 #include "utils.h"
+#include "html.h"
 
 extern data *conf_data;
 
@@ -270,33 +271,8 @@ ssl_read_thread(thread * thread)
 
 	} else if (r > 0 && req->error == 0) {
 
-		req->len += r;
-		if (!req->extracted) {
-			if ((req->extracted =
-			     extract_html(req->buffer, req->len))) {
-				r = req->len - (req->extracted - req->buffer);
-				if (r) {
-					memcpy(req->buffer, req->extracted, r);
-					MD5_Update(&req->context, req->buffer,
-						   r);
-					r = 0;
-				}
-				req->len = r;
-			} else {
-				/* minimize buffer using no 2*CR/LF found yet */
-				if (req->len > 3) {
-					memcpy(req->buffer,
-					       req->buffer + req->len - 3, 3);
-					req->len = 3;
-				}
-			}
-		} else {
-			if (req->len) {
-				MD5_Update(&req->context, req->buffer,
-					   req->len);
-				req->len = 0;
-			}
-		}
+		/* Handle response stream */
+		http_process_response(req, r);
 
 		/*
 		 * Register next ssl stream reader.

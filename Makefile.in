@@ -5,6 +5,7 @@
 # Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
 
 all:
+	$(MAKE) -C lib || exit 1;
 	$(MAKE) -C keepalived
 	$(MAKE) -C genhash
 	@echo ""
@@ -16,10 +17,12 @@ debug:
 	@echo "Make complete"
 
 clean:
+	$(MAKE) -C lib clean
 	$(MAKE) -C keepalived clean
 	$(MAKE) -C genhash clean
 
 distclean:
+	$(MAKE) -C lib distclean
 	$(MAKE) -C keepalived distclean
 	$(MAKE) -C genhash distclean
 	rm -f Makefile

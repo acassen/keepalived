@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -126,7 +126,7 @@ struct {
   { {NULL}, {NULL},                      {NULL},             {NULL}            },
   { {NULL}, {vrrp_sync_master_election}, {vrrp_sync_master}, {vrrp_sync_fault} },
   { {NULL}, {vrrp_sync_backup},          {NULL},             {vrrp_sync_fault} },
-  { {NULL}, {NULL},                      {NULL},             {vrrp_sync_fault} }
+  { {NULL}, {vrrp_sync_backup},          {vrrp_sync_master}, {vrrp_sync_fault} }
 };
 
 
@@ -457,7 +457,7 @@ vrrp_backup(vrrp_rt * vrrp, char *vrrp_buffer, int len)
 	if (iph->protocol == IPPROTO_IPSEC_AH) {
 		ah = (ipsec_ah *) (vrrp_buffer + sizeof (struct iphdr));
 		if (ah->seq_number >= vrrp->ipsecah_counter->seq_number) {
-			vrrp->ipsecah_counter->seq_number = ah->seq_number + 10;
+//			vrrp->ipsecah_counter->seq_number = ah->seq_number + 10;
 			vrrp->ipsecah_counter->cycle = 0;
 		}
 	}
@@ -476,10 +476,10 @@ vrrp_become_master(vrrp_rt * vrrp, char *vrrp_buffer, int len)
 	 * with the remote IPSEC AH VRRP instance counter.
 	 */
 	if (iph->protocol == IPPROTO_IPSEC_AH) {
-		syslog(LOG_INFO, "VRRP_Instance(%s) AH seq_num sync",
+		syslog(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : seq_num sync",
 		       vrrp->iname);
 		ah = (ipsec_ah *) (vrrp_buffer + sizeof (struct iphdr));
-		vrrp->ipsecah_counter->seq_number = ah->seq_number + 5;
+		vrrp->ipsecah_counter->seq_number = ah->seq_number + 1;
 		vrrp->ipsecah_counter->cycle = 0;
 	}
 

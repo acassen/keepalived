@@ -5,15 +5,13 @@
 # Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
 
 CC	 = @CC@
-INCLUDES = -I../include
+INCLUDES = -I../include -I../../lib
 CFLAGS	 = @CFLAGS@ $(INCLUDES) \
 	   -Wall -Wunused -Wstrict-prototypes
 DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@VRRP_SUPPORT@ @DFLAGS@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
-OBJS = 	main.o memory.o daemon.o pidfile.o utils.o timer.o \
-	scheduler.o vector.o list.o data.o parser.o layer4.o \
-	smtp.o
+OBJS = 	main.o daemon.o pidfile.o data.o parser.o layer4.o smtp.o
 HEADERS = $(OBJS:.o=.h)
 
 .c.o:
@@ -29,20 +27,13 @@ distclean: clean
 
 
 main.o: main.c ../include/main.h
-memory.o: memory.c ../include/memory.h
 daemon.o: daemon.c ../include/daemon.h
 pidfile.o: pidfile.c ../include/pidfile.h
-utils.o: utils.c ../include/utils.h
-timer.o: timer.c ../include/timer.h
-scheduler.o: scheduler.c ../include/scheduler.h ../include/memory.h \
-  ../include/utils.h
-vector.o: vector.c ../include/vector.h ../include/memory.h
-list.o: list.c ../include/list.h ../include/memory.h
-data.o: data.c ../include/data.h ../include/memory.h ../include/utils.h \
+data.o: data.c ../include/data.h ../../lib/memory.h ../../lib/utils.h \
   ../include/check_api.h ../include/vrrp.h ../include/vrrp_sync.h
-parser.o: parser.c ../include/parser.h ../include/memory.h ../include/vrrp.h \
+parser.o: parser.c ../include/parser.h ../../lib/memory.h ../include/vrrp.h \
   ../include/vrrp_if.h ../include/check_api.h
-layer4.o: layer4.c ../include/layer4.h ../include/check_api.h ../include/utils.h
-smtp.o: smtp.c ../include/smtp.h ../include/memory.h ../include/list.h \
-  ../include/utils.h
+layer4.o: layer4.c ../include/layer4.h ../include/check_api.h ../../lib/utils.h
+smtp.o: smtp.c ../include/smtp.h ../../lib/memory.h ../../lib/list.h \
+  ../../lib/utils.h
 

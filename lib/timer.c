@@ -5,7 +5,7 @@
  * 
  * Part:        Timer manipulations.
  *  
- * Version:     $Id: timer.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
+ * Version:     $Id: timer.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -20,6 +20,7 @@
  *              2 of the License, or (at your option) any later version.
  */
 
+#include <stdio.h>
 #include <string.h>
 #include "timer.h"
 
@@ -87,3 +88,21 @@ timer_sub_now(TIMEVAL a)
 {
 	return timer_sub(timer_now(), a);
 }
+
+/* print timer value */
+void
+timer_dump(TIMEVAL a)
+{
+	unsigned long timer;
+	timer = a.tv_sec * TIMER_HZ + a.tv_usec;
+	printf("=> %lu (usecs)\n", timer);
+}
+
+unsigned long
+timer_tol(TIMEVAL a)
+{
+	unsigned long timer;
+	timer = a.tv_sec * TIMER_HZ + a.tv_usec;
+	return timer;
+}
+

@@ -18,13 +18,12 @@ Utilisation
   The global synopsis for the tool is :
 
   [user@lvs]$ genhash --help
-  genhash Version 0.4.9 (30/11, 2001)
+  genhash v1.0.0 (18/11, 2002)
   Usage:
     genhash -s server-address -p port -u url
-    genhash -S -K priv-key-file -P pem-password -s server-address -p port -u url
-    genhash -S -K priv-key-file -P pem-password -C cert-file -s server-address -p port -u url
+    genhash -S -s server-address -p port -u url
     genhash -h
-    genhash -v
+    genhash -r
 
   Commands:
   Either long or short options are allowed.
@@ -32,11 +31,10 @@ Utilisation
     genhash --server          -s       Use the specified remote server address.
     genhash --port            -p       Use the specified remote server port.
     genhash --url             -u       Use the specified remote server url.
-    genhash --use-private-key -K       Use the specified SSL private key.
-    genhash --use-password    -P       Use the specified SSL private key password.
-    genhash --use-certificate -C       Use the specified SSL Certificate file.
+    genhash --use-virtualhost -V       Use the specified virtualhost in GET query.
+    genhash --verbose         -v       Use verbose mode output.
     genhash --help            -h       Display this short inlined help screen.
-    genhash --version         -v       Display the version number
+    genhash --release         -r       Display the release number
 
   Imagine we have a remote HTTP/HTTPS server owning the IP address 192.168.200.10.
   We want to generate a MD5SUM over the server root url (/).

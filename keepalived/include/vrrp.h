@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
+ * Version:     $Id: vrrp.h,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -25,12 +25,6 @@
 #define _VRRP_H
 
 /* system include */
-#include <net/ethernet.h>
-#include <netinet/ip.h>
-#include <net/if.h>
-#include <net/if_arp.h>
-#include <sys/ioctl.h>
-#include <sys/time.h>
 #include <unistd.h>
 
 /* local include */
@@ -113,7 +107,6 @@ typedef struct _vrrp_rt {
 				 * VRRP adverts
 				 */
 	int adver_int;		/* delay between advertisements(in sec) */
-	char hwaddr[6];		/* VMAC -- rfc2338.7.3 */
 	int preempt;		/* true if a higher prio preempt a lower one */
 	int state;		/* internal state (init/backup/master) */
 	int init_state;		/* the initial state of the instance */

@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
+ * Version:     $Id: check_http.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -28,6 +28,7 @@
 #include "memory.h"
 #include "parser.h"
 #include "utils.h"
+#include "html.h"
 
 int http_connect_thread(thread *);
 
@@ -45,8 +46,13 @@ void
 dump_url(void *data)
 {
 	url *url = data;
-	syslog(LOG_INFO, "   Checked url = %s, digest = %s", url->path,
-	       url->digest);
+	syslog(LOG_INFO, "   Checked url = %s", url->path);
+	if (url->digest)
+		syslog(LOG_INFO, "           digest = %s",
+		       url->digest);
+	if (url->status_code)
+		syslog(LOG_INFO, "           HTTP Status Code = %d",
+		       url->status_code);
 }
 
 void
@@ -164,6 +170,15 @@ digest_handler(vector strvec)
 }
 
 void
+status_code_handler(vector strvec)
+{
+	http_get_checker *http_get_chk = CHECKER_GET();
+	url *url = LIST_TAIL_DATA(http_get_chk->url);
+
+	url->status_code = CHECKER_VALUE_INT(strvec);
+}
+
+void
 install_http_check_keyword(void)
 {
 	install_keyword("HTTP_GET", &http_get_handler);
@@ -176,6 +191,7 @@ install_http_check_keyword(void)
 	install_sublevel();
 	install_keyword("path", &path_handler);
 	install_keyword("digest", &digest_handler);
+	install_keyword("status_code", &status_code_handler);
 	install_sublevel_end();
 	install_sublevel_end();
 }
@@ -194,6 +210,7 @@ install_ssl_check_keyword(void)
 	install_sublevel();
 	install_keyword("path", &path_handler);
 	install_keyword("digest", &digest_handler);
+	install_keyword("status_code", &status_code_handler);
 	install_sublevel_end();
 	install_sublevel_end();
 }
@@ -290,6 +307,7 @@ epilog(thread * thread, int method, int t, int c)
 		if (req->buffer)
 			FREE(req->buffer);
 		FREE(req);
+		http_arg->req = NULL;
 		close(thread->u.fd);
 	}
 
@@ -338,22 +356,6 @@ timeout_epilog(thread * thread, char *smtp_msg, char *debug_msg)
 	return 0;
 }
 
-/* HTML stream parser primitives */
-/* simple function returning a pointer to the html buffer begin */
-char *
-extract_html(char *buffer, int size_buffer)
-{
-	char *end = buffer + size_buffer;
-
-	while (buffer < end &&
-	       !(*buffer++ == '\n' &&
-		 (*buffer == '\n' || (*buffer++ == '\r' && *buffer == '\n')))) ;
-
-	if (*buffer == '\n')
-		return buffer + 1;
-	return NULL;
-}
-
 /* return the url pointer of the current url iterator  */
 url *
 fetch_next_url(http_get_checker * http_get_check)
@@ -370,58 +372,114 @@ http_handle_response(thread * thread, unsigned char digest[16]
 {
 	checker *checker = THREAD_ARG(thread);
 	http_get_checker *http_get_check = CHECKER_ARG(checker);
-#ifdef _DEBUG_
-	uint16_t addr_port = get_service_port(checker);
 	http_arg *http_arg = HTTP_ARG(http_get_check);
-#endif
+	REQ *req = HTTP_REQ(http_arg);
+	uint16_t addr_port = get_service_port(checker);
 	int r, di = 0;
 	unsigned char *digest_tmp;
-	url *fetched_url;
+	url *fetched_url = fetch_next_url(http_get_check);
 
-	if (empty_buffer) {
+	/* First check if remote webserver returned data */
+	if (empty_buffer)
 		return timeout_epilog(thread, "=> CHECK failed on service"
 				      " : empty buffer received <=\n\n",
 				      "Read, no data received from ");
-	} else {
+
+	/* Next check the HTTP status code */
+	if (fetched_url->status_code) {
+		if (req->status_code != fetched_url->status_code) {
+			/* check if server is currently alive */
+			if (ISALIVE(checker->rs)) {
+				syslog(LOG_INFO,
+				       "HTTP status code error to [%s:%d] url[%s]"
+				       ", status_code [%d].",
+				       inet_ntop2(CHECKER_RIP(checker)),
+				       ntohs(addr_port), fetched_url->path,
+				       req->status_code);
+				smtp_alert(thread->master, checker->rs, NULL,
+					   "DOWN",
+					   "=> CHECK failed on service"
+					   " : HTTP status code mismatch <=\n\n");
+				perform_svr_state(DOWN, checker->vs, checker->rs);
+			}
+			return epilog(thread, 1, 0, 0);
+		}
+	}
+
+	/* Continue with MD5SUM */
+	if (fetched_url->digest) {
 		/* Compute MD5SUM */
 		digest_tmp = (char *) MALLOC(MD5_BUFFER_LENGTH + 1);
 		for (di = 0; di < 16; di++)
 			sprintf(digest_tmp + 2 * di, "%02x", digest[di]);
-
-		fetched_url = fetch_next_url(http_get_check);
 
 		DBG("MD5SUM to [%s:%d] url(%d) = [%s].",
 		    inet_ntop2(CHECKER_RIP(checker)), ntohs(addr_port),
 		    http_arg->url_it + 1, digest_tmp);
 
 		r = strcmp(fetched_url->digest, digest_tmp);
-		FREE(digest_tmp);
 
 		if (r) {
-			DBG("MD5 digest error to [%s:%d] url(%d)"
-			    ", expecting MD5SUM [%s].",
-			    inet_ntop2(CHECKER_RIP(checker)),
-			    ntohs(addr_port), http_arg->url_it + 1,
-			    fetched_url->digest);
-
 			/* check if server is currently alive */
 			if (ISALIVE(checker->rs)) {
+				syslog(LOG_INFO,
+				       "MD5 digest error to [%s:%d] url[%s]"
+				       ", MD5SUM [%s].",
+				       inet_ntop2(CHECKER_RIP(checker)),
+				       ntohs(addr_port), fetched_url->path,
+				       digest_tmp);
 				smtp_alert(thread->master, checker->rs, NULL,
 					   "DOWN",
 					   "=> CHECK failed on service"
 					   " : MD5 digest mismatch <=\n\n");
-				perform_svr_state(DOWN, checker->vs,
-						  checker->rs);
+				perform_svr_state(DOWN, checker->vs, checker->rs);
 			}
+			FREE(digest_tmp);
 			return epilog(thread, 1, 0, 0);
 		} else {
 			DBG("MD5 digest success to [%s:%d] url(%d).",
 			    inet_ntop2(CHECKER_RIP(checker)), ntohs(addr_port),
 			    http_arg->url_it + 1);
+			FREE(digest_tmp);
 			return epilog(thread, 1, 1, 0) + 1;
 		}
 	}
+
 	return epilog(thread, 1, 0, 0) + 1;
+}
+
+/* Handle response stream performing MD5 updates */
+int
+http_process_response(REQ *req, int r)
+{
+	req->len += r;
+	if (!req->extracted) {
+		if ((req->extracted =
+		     extract_html(req->buffer, req->len))) {
+			req->status_code = extract_status_code(req->buffer, req->len);
+			r = req->len - (req->extracted - req->buffer);
+			if (r) {
+				memcpy(req->buffer, req->extracted, r);
+				MD5_Update(&req->context, req->buffer,
+					   r);
+				r = 0;
+			}
+			req->len = r;
+		} else {
+			/* minimize buffer using no 2*CR/LF found yet */
+			if (req->len > 3) {
+				memcpy(req->buffer,
+				       req->buffer + req->len - 3, 3);
+				req->len = 3;
+			}
+		}
+	} else if (req->len) {
+		MD5_Update(&req->context, req->buffer,
+			   req->len);
+		req->len = 0;
+	}
+
+	return 0;
 }
 
 /* Asynchronous HTTP stream reader */
@@ -473,33 +531,8 @@ http_read_thread(thread * thread)
 
 	} else {
 
-		req->len += r;
-		if (!req->extracted) {
-			if ((req->extracted =
-			     extract_html(req->buffer, req->len))) {
-				r = req->len - (req->extracted - req->buffer);
-				if (r) {
-					memcpy(req->buffer, req->extracted, r);
-					MD5_Update(&req->context, req->buffer,
-						   r);
-					r = 0;
-				}
-				req->len = r;
-			} else {
-				/* minimize buffer using no 2*CR/LF found yet */
-				if (req->len > 3) {
-					memcpy(req->buffer,
-					       req->buffer + req->len - 3, 3);
-					req->len = 3;
-				}
-			}
-		} else {
-			if (req->len) {
-				MD5_Update(&req->context, req->buffer,
-					   req->len);
-				req->len = 0;
-			}
-		}
+		/* Handle response stream */
+		http_process_response(req, r);
 
 		/*
 		 * Register next http stream reader.
@@ -618,8 +651,8 @@ http_check_thread(thread * thread)
 	checker *checker = THREAD_ARG(thread);
 	http_get_checker *http_get_check = CHECKER_ARG(checker);
 	uint16_t addr_port = get_service_port(checker);
-#ifdef _DEBUG_
 	http_arg *http_arg = HTTP_ARG(http_get_check);
+#ifdef _DEBUG_
 	REQ *req = HTTP_REQ(http_arg);
 #endif
 	int ret = 1;
@@ -648,6 +681,9 @@ http_check_thread(thread * thread)
 		break;
 
 	case connect_success:{
+			/* Allocate & clean request struct */
+			http_arg->req = (REQ *) MALLOC(sizeof (REQ));
+
 			if (http_get_check->proto == PROTO_SSL)
 				ret = ssl_connect(thread);
 
@@ -721,9 +757,7 @@ http_connect_thread(thread * thread)
 		return epilog(thread, 1, 0, 0) + 1;
 	}
 
-	/* Allocate & clean request struct */
-	http_arg->req = (REQ *) MALLOC(sizeof (REQ));
-
+	/* Create the socket */
 	if ((fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
 		DBG("WEB connection fail to create socket.");
 		return 0;

@@ -42,7 +42,7 @@ all:
 	for i in $(SUBDIRS); do \
 	$(MAKE) -C $$i || exit 1; done && \
 	echo "Building $(BIN)/$(EXEC)" && \
-	$(CC) -o $(BIN)/$(EXEC) $(LDFLAGS) `find $(SUBDIRS) -name '*.[oa]'`
+	$(CC) -o $(BIN)/$(EXEC) $(LDFLAGS) `find $(SUBDIRS) ../lib -name '*.[oa]'`
 	strip $(BIN)/$(EXEC)
 	@echo ""
 	@echo "Make complete"

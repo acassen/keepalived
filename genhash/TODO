@@ -1,3 +1,0 @@
-* Create a generic function to handle remote server reply.
-  That way we will remove duplicate code for read reply.
-* beautifull the code.

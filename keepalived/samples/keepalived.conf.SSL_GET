@@ -10,13 +10,6 @@ global_defs {
    lvs_id LVS_DEVEL
 }
 
-!SSL {
-!  password password
-!  ca /etc/keepalived/root.pem
-!  certificate /etc/keepalived/dh1024.pem
-!  key /etc/keepalived/client.pem
-!}
-
 vrrp_instance VI_1 {
     state MASTER
     interface eth0
@@ -38,7 +31,6 @@ virtual_server 192.168.200.100 443 {
     delay_loop 6
     lb_algo rr 
     lb_kind NAT
-    nat_mask 255.255.255.0
     persistence_timeout 50
     protocol TCP
 
@@ -64,7 +56,6 @@ virtual_server 192.168.200.100 80 {
     delay_loop 6
     lb_algo rr 
     lb_kind NAT
-    nat_mask 255.255.255.0
     persistence_timeout 50
     protocol TCP
 

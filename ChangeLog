@@ -1,3 +1,50 @@
+2002-11-20  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.7.6 released.
+	* Created a common library for code modularization. This lib will
+	  be used by all Keepalived components (genhash + Keepalived) to
+	  reduce repeated and duplicated code.
+	* Rewrote the genhash utility using the common lib. The design is
+	  similar to Keepalived core design.
+	* Reviewed the autoconf and Makefiles for new code architecture.
+	* Created a html utility lib for HTTP headers manipulations.
+	* Extended the CHECK_HTTP and CHECK_SSL checkers to support remote
+	  webserver HTTP header status_code. HTTP status_code is parsed
+	  according to rfc2616.6.1. The keyword created for the new feature is
+	  "status_code" inside and "url" declaration. "status_code" feature
+	  can be mixed with "digest" feature. See the samples directory
+	  keepalived/samples/keepalived.conf.status_code for example.
+	* Review the CHECK_HTTP and CHECK_SSL MD5SUM code to use a common
+	  stream handling function.
+	* Matthijs van der Klip, <Matthijs.van.der.Klip@tech.omroep.nl> and I
+	  fixed a bug into the HTTP/SSL code that close the socket fd even
+	  if remote webserver has not been connected. As a result of fact,
+	  next socket created were imediatly closed. As a side effect, this
+	  altered the SMTP notification when remote webserver checked fall. No
+	  SMTP notification were sent if webserver were detected DOWN. Thanks
+	  to Matthijs for time debugging and investigation.
+	* VRRP : Rewrote the previous Gratuitous ARP facility. Created a lib
+	  (vrrp_arp.c) dealing with PF_PACKET-SOCK_RAW-ETH_P_RARP and
+	  sockaddr_ll.
+	* VRRP : Some cosmetics patch for messages logging.
+	* VRRP : Fixed an issue during VRRP packet building, appending VRRP
+	  VIPs to the VRRP packet in the network order form.
+	* VRRP : Reviewed the previous VRRP packet building process to not
+	  create the ARP header. Removec the previous hacky
+	  PF_PACKET-SOCK_PACKET-0x300 to use AF_INET-SOCK_RAW-PROTO to leave
+	  kernel appending ARP header since code doesn t currently support
+	  VRRP VMAC.
+	* VRRP : Rewrote the previous vrrp_send_pkt() function to deal with
+	  sendmsg(). optimization lazzyness :)
+	* VRRP : Extended the interfaces library to support common utility
+	  functions (if_setsockopt_hdrincl, if_setsockopt_bindtodevice, ...)
+	* VRRP : Finally extend the code to support VRRP IPSEC-AH authentication
+	  method. Created a IPSEC-AH seq_number syncrhonization mecanism during
+	  VRRP MASTER/BACKUP elections.
+	* VRRP : Extended the VRRP TSM to speed up instances syncrhonization
+	  during FAULT->BACKUP & FAULT->MASTER state transition.
+	* Some cosmetics patches. This release is proposed as a 1.0.0 STABLE
+	  release candidate.
+
 2002-09-17  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.7.1 released.
 	* Fixed a MISC_CHECK issue when registering next timer checker. Must

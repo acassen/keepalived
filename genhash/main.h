@@ -1,15 +1,13 @@
 /*
- * Soft:        Genhash compute MD5 digest from a HTTP get result. This
- *              program is use to compute hash value that you will add
- *              into the /etc/keepalived/keepalived.conf for HTTP_GET
- *              & SSL_GET keepalive method.
+ * Soft:        Perform a GET query to a remote HTTP/HTTPS server.
+ *              Set a timer to compute global remote server response
+ *              time.
  *
  * Part:        main.c include file.
  *
- * Version:     $Id: main.h,v 0.4.9 2001/11/28 11:50:23 acassen Exp $
+ * Version:     $Id: main.h,v 1.0.0 2002/11/20 21:34:18 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
- *              Jan Holmberg, <jan@artech.se>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -25,50 +23,55 @@
 #ifndef _MAIN_H
 #define _MAIN_H
 
+/* global includes */
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 #include <string.h>
 #include <errno.h>
-#include <openssl/md5.h>
 #include <popt.h>
+#include <openssl/ssl.h>
+
+/* local includes */
+#include "memory.h"
+#include "timer.h"
+#include "http.h"
+#include "ssl.h"
+#include "list.h"
 
 /* Build version */
 #define PROG    "genhash"
-#define VERSION "0.6.2 (06/14, 2002)"
 
-/* HTTP/HTTPS GET command */
-#define REQUEST_TEMPLATE "GET %s HTTP/1.0\r\n" \
-                         "User-Agent:KeepAliveClient\r\n" \
-                         "Host: %s:%d\r\n\r\n"
+#define VERSION_CODE 0x010000
+#define DATE_CODE    0x120b02
+
+#define GETMETER_VERSION(version)	\
+        (version >> 16) & 0xFF,		\
+        (version >> 8) & 0xFF,		\
+        version & 0xFF
+
+#define VERSION_STRING PROG" v%d.%d.%d (%.2d/%.2d, 20%.2d)\n",	\
+                GETMETER_VERSION(VERSION_CODE),			\
+                GETMETER_VERSION(DATE_CODE)
 
 /* HTTP/HTTPS request structure */
 typedef struct {
-	char *host;
-	char *buffer;
-	int error;
-	int max;
-	int len;
+	uint32_t addr_ip;
+	uint16_t addr_port;
 	char *url;
-	unsigned short int port;
-	int fd;
+	char *vhost;
+	int verbose;
 	int ssl;
-	char *keyfile;
-	char *password;
-	char *virtualhost;
-	char *cafile;
+	SSL_CTX *ctx;
+	SSL_METHOD *meth;
+	unsigned long ref_time;
+	unsigned long response_time;
 } REQ;
 
-/* Output delimiters */
-#define DELIM_BEGIN "-----------------------["
-#define DELIM_END   "]-----------------------\n"
-#define HTTP_HEADER_HEXA  DELIM_BEGIN"    HTTP Header Buffer    "DELIM_END
-#define HTTP_HEADER_ASCII DELIM_BEGIN" HTTP Header Ascii Buffer "DELIM_END
-#define HTML_HEADER_HEXA  DELIM_BEGIN"       HTML Buffer        "DELIM_END
-#define HTML_MD5          DELIM_BEGIN"    HTML MD5 resulting    "DELIM_END
-#define HTML_MD5_FINAL    DELIM_BEGIN" HTML MD5 final resulting "DELIM_END
+/* Global variables */
+REQ *req;				/* Cmd line arguments */
 
 /* Data buffer length description */
-#define RCV_BUFFER_LENGTH   512
 #define BUFSIZE             1024
 
 /* Command line error handling */

@@ -5,7 +5,7 @@
  * 
  * Part:        timer.c include file.
  *  
- * Version:     $Id: timer.h,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
+ * Version:     $Id: timer.h,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -41,5 +41,7 @@ extern TIMEVAL timer_dup(TIMEVAL b);
 extern int timer_cmp(TIMEVAL a, TIMEVAL b);
 extern TIMEVAL timer_sub(TIMEVAL a, TIMEVAL b);
 extern TIMEVAL timer_sub_now(TIMEVAL a);
+extern void timer_dump(TIMEVAL a);
+extern unsigned long timer_tol(TIMEVAL a);
 
 #endif

@@ -1,28 +1,31 @@
-# Makefile
+# Makefile.in
 #
-# Keepalived OpenSource project.
-#
-# Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
+# Copyright (C) 2002 Alexandre Cassen, <acassen@linux-vs.org>
 
-EXEC = genhash
-BIN  = ../bin
-prefix = @prefix@
+EXEC = ../bin/genhash
+
+prefix      = @prefix@
 exec_prefix = @exec_prefix@
-bindir = @bindir@
+bindir     = @bindir@
 
-CC = gcc
-CFLAGS = @CFLAGS@ -Wall -Wunused -Wstrict-prototypes
-LDFLAGS = @LIBS@ @LDFLAGS@
+CC = @CC@
+INCLUDES = -I../lib
+CFLAGS = @CFLAGS@ $(INCLUDES) \
+	 -Wall -Wunused -Wstrict-prototypes
+LDFLAGS = -lssl -lpopt
 
-OBJS = main.o client.o common.o
+OBJS = main.o sock.o layer4.o http.o ssl.o
+LIB_OBJS = ../lib/timer.o ../lib/scheduler.o \
+	   ../lib/memory.o ../lib/list.o ../lib/utils.o \
+	   ../lib/html.o
 
 all:	$(EXEC)
-	strip $(BIN)/$(EXEC)
+	strip $(EXEC)
 	@echo ""
 	@echo "Make complete"
 
-$(EXEC): $(OBJS)
-	$(CC) $(OBJS) -o $(BIN)/$(EXEC) $(LDFLAGS)
+$(EXEC): $(LIB_OBJS) $(OBJS)
+	$(CC) $(LIB_OBJS) $(OBJS) -o $(EXEC) $(LDFLAGS)
 
 clean:
 	rm -f core *.o
@@ -35,4 +38,20 @@ uninstall:
 
 install:
 	install -d $(bindir)
-	install -m 755 $(BIN)/$(EXEC) $(bindir)/
+	install -m 755 $(EXEC) $(bindir)/
+
+mrproper: clean distclean
+	rm -f config.*
+
+# Code dependencies
+
+main.o: main.c main.h ../lib/utils.h sock.h ../lib/timer.h \
+	http.h ssl.h ../lib/scheduler.h ../lib/memory.h
+sock.o: sock.c sock.h ../lib/utils.h layer4.h ssl.h main.h \
+	../lib/memory.h
+layer4.o: layer4.c layer4.h ../lib/scheduler.h ../lib/utils.h \
+	main.h ssl.h
+http.o: http.c http.h sock.h ../lib/scheduler.h ../lib/utils.h \
+	layer4.h main.h ../lib/html.h ../lib/timer.h ../lib/scheduler.h \
+	../lib/memory.h
+ssl.o: ssl.c ssl.h http.h main.h ../lib/utils.h ../lib/html.h
