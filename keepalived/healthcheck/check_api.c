@@ -5,7 +5,7 @@
  *
  * Part:        Checkers registration.
  *
- * Version:     $Id: check_api.c,v 0.6.10 2002/08/06 02:18:05 acassen Exp $
+ * Version:     $Id: check_api.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -70,6 +70,9 @@ queue_checker(void (*free) (void *), void (*dump) (void *)
 	chk->rs = rs;
 	chk->data = data;
 	chk->enabled = (vs->vfwmark) ? 1 : 0;
+#ifdef _WITHOUT_VRRP_
+	chk->enabled = 1;
+#endif
 
 	/* queue the checker */
 	list_add(checkers_queue, chk);

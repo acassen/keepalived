@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 0.6.10 2002/08/06 02:18:05 acassen Exp $
+ * Version:     $Id: parser.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -486,6 +486,12 @@ vrrp_lvs_syncd_handler(vector strvec)
 	vrrp->lvs_syncd_if = set_value(strvec);
 }
 static void
+vrrp_garp_delay_handler(vector strvec)
+{
+	vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+	vrrp->garp_delay = atoi(VECTOR_SLOT(strvec, 1));
+}
+static void
 vrrp_auth_type_handler(vector strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
@@ -745,6 +751,7 @@ init_keywords(void)
 	install_keyword("certificate", &sslcert_handler);
 	install_keyword("key", &sslkey_handler);
 
+#ifdef _WITH_VRRP_
 	/* VRRP Instance mapping */
 	install_keyword_root("vrrp_sync_group", &vrrp_sync_group_handler);
 	install_keyword("group", &vrrp_group_handler);
@@ -767,11 +774,13 @@ init_keywords(void)
 	install_keyword("notify_fault", &vrrp_notify_fault_handler);
 	install_keyword("smtp_alert", &vrrp_smtp_handler);
 	install_keyword("lvs_sync_daemon_interface", &vrrp_lvs_syncd_handler);
+	install_keyword("garp_master_delay", &vrrp_garp_delay_handler);
 	install_keyword("authentication", NULL);
 	install_sublevel();
 	install_keyword("auth_type", &vrrp_auth_type_handler);
 	install_keyword("auth_pass", &vrrp_auth_pass_handler);
 	install_sublevel_end();
+#endif
 
 #ifdef _WITH_LVS_
 	/* Real server group mapping */

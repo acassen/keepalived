@@ -14,7 +14,7 @@ endif
 INCLUDES = -I../include
 CFLAGS	 = @CFLAGS@ $(INCLUDES) \
 	   -Wall -Wunused -Wstrict-prototypes
-DEFS	 = -D$(KERNEL) -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ @DFLAGS@ $(CIFLAGS)
+DEFS	 = -D$(KERNEL) -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_SUPPORT@ @DFLAGS@ $(CIFLAGS)
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
 OBJS = 	check_api.o check_tcp.o check_http.o check_ssl.o \

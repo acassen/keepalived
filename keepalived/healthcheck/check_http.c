@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 0.6.10 2002/08/06 02:18:05 acassen Exp $
+ * Version:     $Id: check_http.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -421,7 +421,7 @@ http_handle_response(thread * thread, unsigned char digest[16]
 			return epilog(thread, 1, 1, 0) + 1;
 		}
 	}
-	return epilog(thread, 0, 0, 0) + 1;
+	return epilog(thread, 1, 0, 0) + 1;
 }
 
 /* Asynchronous HTTP stream reader */

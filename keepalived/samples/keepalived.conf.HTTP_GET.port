@@ -14,7 +14,6 @@ virtual_server 192.168.200.100 443 {
     delay_loop 6
     lb_algo rr 
     lb_kind NAT
-    nat_mask 255.255.255.0
     persistence_timeout 50
     protocol TCP
 
@@ -25,7 +24,7 @@ virtual_server 192.168.200.100 443 {
               path /
               digest ff20ad2481f97b1754ef3e12ecd3a9cc
             }
-            connect_port    443
+            connect_port    444
             connect_timeout 3
             nb_get_retry 3
             delay_before_retry 3

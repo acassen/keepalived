@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.6.10 2002/08/06 02:18:05 acassen Exp $
+ * Version:     $Id: vrrp.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -681,6 +681,10 @@ vrrp_send_gratuitous_arp(vrrp_rt * vrrp)
 {
 	int i, j;
 
+	/* Only send gratuitous ARP if VIP are set */
+	if (!VRRP_VIP_ISSET(vrrp))
+		return;
+
 	/* send gratuitous arp for each virtual ip */
 	syslog(LOG_INFO, "VRRP_Instance(%s) Sending gratuitous ARP on %s",
 	       vrrp->iname, IF_NAME(vrrp->ifp));
@@ -726,16 +730,9 @@ vrrp_state_goto_master(vrrp_rt * vrrp)
 	 */
 	vrrp_send_adv(vrrp, vrrp->priority);
 
-	if (vrrp->wantstate == VRRP_STATE_MAST) {
-		vrrp->state = VRRP_STATE_MAST;
-		syslog(LOG_INFO, "VRRP_Instance(%s) Transition to MASTER STATE",
-		       vrrp->iname);
-	} else {
-		vrrp->state = VRRP_STATE_DUMMY_MAST;
-		syslog(LOG_INFO,
-		       "VRRP_Instance(%s) Transition to DUMMY_MASTER STATE",
-		       vrrp->iname);
-	}
+	vrrp->state = VRRP_STATE_MAST;
+	syslog(LOG_INFO, "VRRP_Instance(%s) Transition to MASTER STATE",
+	       vrrp->iname);
 }
 
 /* leaving master state */
@@ -786,6 +783,9 @@ vrrp_state_leave_master(vrrp_rt * vrrp)
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 		break;
 	}
+
+	/* Set the down timer */
+	vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 }
 
 /* BACKUP state processing */
@@ -827,18 +827,22 @@ vrrp_state_backup(vrrp_rt * vrrp, char *buf, int buflen)
 }
 
 /* MASTER state processing */
-void
+int
 vrrp_state_master_tx(vrrp_rt * vrrp, const int prio)
 {
+	int ret = 0;
+
 	if (!VRRP_VIP_ISSET(vrrp)) {
 		syslog(LOG_INFO, "VRRP_Instance(%s) Entering MASTER STATE",
 		       vrrp->iname);
 		vrrp_state_become_master(vrrp);
+		ret = 1;
 	}
 
 	vrrp_send_adv(vrrp,
 		      (prio ==
 		       VRRP_PRIO_OWNER) ? VRRP_PRIO_OWNER : vrrp->priority);
+	return ret;
 }
 
 int
@@ -895,6 +899,7 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 		       vrrp->iname);
 		vrrp->ms_down_timer =
 		    3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->wantstate = VRRP_STATE_BACK;
 		vrrp->state = VRRP_STATE_BACK;
 		return 1;
 	}
@@ -1102,8 +1107,7 @@ shutdown_vrrp_instances(void)
 		vrrp = ELEMENT_DATA(e);
 
 		/* remove VIPs */
-		if (vrrp->state == VRRP_STATE_MAST ||
-		    vrrp->state == VRRP_STATE_DUMMY_MAST)
+		if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_restore_interface(vrrp, 1);
 
 #ifdef _HAVE_IPVS_SYNCD_

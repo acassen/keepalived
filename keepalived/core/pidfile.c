@@ -5,7 +5,7 @@
  *
  * Part:        pidfile utility.
  *
- * Version:     $Id: pidfile.c,v 0.6.10 2002/08/06 02:18:05 acassen Exp $
+ * Version:     $Id: pidfile.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

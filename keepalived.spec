@@ -1,9 +1,9 @@
 Summary: Generic HA monitor build upon VRRP and services poller, strongly recommanded for LVS HA.
 Name: keepalived
 Packager: Christophe Varoqui, <christophe.varoqui@free.fr>
-Version: 0.6.10
+Version: 0.7.1
 Release: 1
-Source: http://www.keepalived.org/software/keepalived-0.6.10.tar.gz
+Source: http://www.keepalived.org/software/keepalived-0.7.1.tar.gz
 Copyright: GPL
 Group: Utilities/File
 BuildRoot: /tmp/%{name}-%{version}.build
@@ -14,7 +14,7 @@ The main goal of the keepalived project is to add a strong & robust keepalive fa
 
 %prep
 rm -rf %{buildroot}
-%setup -n keepalived-0.6.10
+%setup -n keepalived-0.7.1
 
 %build
 ./configure --prefix=%{buildroot} --exec-prefix=%{buildroot} --sysconfdir=%{buildroot}/etc

@@ -1,3 +1,68 @@
+2002-09-17  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.7.1 released.
+	* Fixed a MISC_CHECK issue when registering next timer checker. Must
+	  register a new timer thread before forking process. This imply for
+	  the user the extra script call must not execute in more than
+	  checker->vs->delay_loop.
+	* Extented the ipfwwrapper (for LVS kernel 2.2) to not set ipchains
+	  rules if nat_mask is not specified in the configuration file.
+	* VRRP : Added support to delayed gratuitous ARP send. When one instance
+	  enter to MASTER state a timer thread is registered. The default delay
+	  is 5secs. This delay is configurable per vrrp instance and handle the
+	  'garp_master_delay' keyword. This delay refer to the delay after
+	  MASTER state transition we want to launch gratuitous ARP.
+	* VRRP : Force health checker enable flag if VRRP framework is not
+	  selected.
+	* VRRP : Review the gratuitous ARP helper function to only send
+	  gratuitous ARP if VRRP VIPs are set.
+	* VRRP : Review the FSM to eliminate stalled flapping loop. The state
+	  transition diagram implemented is :
+	                           +---------------+
+	          +----------------|               |----------------+
+	          |                |     Fault     |                |
+	          |  +------------>|               |<------------+  |
+	          |  |             +---------------+             |  |
+	          |  |                     |                     |  |
+	          |  |                     V                     |  |
+	          |  |             +---------------+             |  |
+	          |  |  +--------->|               |<---------+  |  |
+	          |  |  |          |  Initialize   |          |  |  |
+	          |  |  |  +-------|               |-------+  |  |  |
+	          |  |  |  |       +---------------+       |  |  |  |
+	          |  |  |  |                               |  |  |  |
+	          V  |  |  V                               V  |  |  V
+	       +---------------+                       +---------------+
+	       |               |---------------------->|               |
+	       |    Master     |                       |    Backup     |
+	       |               |<----------------------|               |
+	       +---------------+                       +---------------+
+
+	  The state DUMMY_MASTER state has been removed since it is a fake.
+	* VRRP : In order to handle all possible state transition, a Transition
+	  State Matrix design (TSM) has been added. This matrix defines
+	  transition state handlers for VRRP sync group extension. The TSM
+	  implemented is (cf: vrrp_scheduler.c for more informations) :
+	   \ E |  B  |  M  |  F  |
+	   S \ |     |     |     |
+	 ------+-----+-----+-----+     Legend:
+	   B   |  x     1     2  |       B: VRRP BACKUP state
+	 ------+                 |       M: VRRP MASTER state
+	   M   |  3     x     4  |       F: VRRP FAULT state
+	 ------+                 |       S: VRRP start state (before transition)
+	   F   |  5     6     x  |       E: VRRP end state (after transition)
+	 ------+-----------------+       [1..6]: Handler functions.
+	* VRRP : Set ms_down_timer to 3 * advert_int + TIMER_SKEW when leaving
+	  MASTER state.
+	* VRRP : In MASTER state, when incoming advert match or FAULT state is
+	  requested then force leaving MASTER state transition. (review the
+	  previous election approach).
+	* VRRP : Optimized the leave FAULT state transition. Directly coded into
+	  the FSM for speed up recovery or code readability.
+	* VRRP : Extended smtp notifier for BACKUP state. Review the MASTER state
+	  notification to only notify when VIPs are set.
+	* some cosmetics patches.
+	* Adam Fletcher, <adamf@rovia.com> created the 'Keepalived+LVS NAT HOWTO'
+
 2002-08-05  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.6.10 released.
 	* Fixed a faked flag during VRRP VIP set. Updated the IP address set flag to reflect

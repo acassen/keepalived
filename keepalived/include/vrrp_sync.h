@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_sync.c include file.
  * 
- * Version:     $Id: vrrp_sync.h,v 0.6.10 2002/08/06 02:18:05 acassen Exp $
+ * Version:     $Id: vrrp_sync.h,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -33,15 +33,21 @@
 /* local include */
 #include "vrrp.h"
 
+/* TSM size */
+#define VRRP_MAX_TSM_STATE	3
+
 /* MACRO definition */
 #define GROUP_STATE(G) ((G)->state)
 #define GROUP_NAME(G)  ((G)->gname)
 
 /* extern prototypes */
+extern void vrrp_init_instance_sands(vrrp_rt * vrrp);
 extern vrrp_sgroup *vrrp_get_sync_group(char *iname);
 extern int vrrp_sync_group_up(vrrp_sgroup * vgroup);
 extern int vrrp_sync_leave_fault(vrrp_rt * vrrp);
-extern void vrrp_sync_read_to(vrrp_rt * vrrp, int prev_state);
-extern void vrrp_sync_read(vrrp_rt * vrrp, int prev_state);
+extern void vrrp_sync_backup(vrrp_rt *);
+extern void vrrp_sync_master(vrrp_rt *);
+extern void vrrp_sync_master_election(vrrp_rt *);
+extern void vrrp_sync_fault(vrrp_rt *);
 
 #endif

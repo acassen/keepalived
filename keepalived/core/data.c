@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.c,v 0.6.10 2002/08/06 02:18:05 acassen Exp $
+ * Version:     $Id: data.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -161,6 +161,8 @@ dump_vrrp(void *data)
 	if (vrrp->lvs_syncd_if)
 		syslog(LOG_INFO, "   Runing LVS sync daemon on interface = %s",
 		       vrrp->lvs_syncd_if);
+	if (vrrp->garp_delay)
+		syslog(LOG_INFO, "   Gratuitous ARP delay = %d", vrrp->garp_delay);
 	syslog(LOG_INFO, "   Virtual Router ID = %d", vrrp->vrid);
 	syslog(LOG_INFO, "   Priority = %d", vrrp->priority);
 	syslog(LOG_INFO, "   Advert interval = %dsec",
@@ -320,7 +322,8 @@ dump_vs(void *data)
 #ifdef _KRNL_2_2_
 	case 0:
 		syslog(LOG_INFO, "   lb_kind = NAT");
-		syslog(LOG_INFO, "   nat mask = %s", inet_ntop2(vs->nat_mask));
+		if (vs->nat_mask)
+			syslog(LOG_INFO, "   nat mask = %s", inet_ntop2(vs->nat_mask));
 		break;
 	case IP_MASQ_F_VS_DROUTE:
 		syslog(LOG_INFO, "   lb_kind = DR");

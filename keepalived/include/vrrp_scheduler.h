@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_scheduler.c include file.
  * 
- * Version:     $Id: vrrp_scheduler.h,v 0.6.10 2002/08/06 02:18:05 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.h,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -52,9 +52,18 @@ do {						\
 } while (0)
 
 #define VRRP_FSM_READ(V, B, L)		 	\
-do {					 	\
+do {						\
   if ((*(VRRP_FSM[(V)->state].read)))	 	\
     (*(VRRP_FSM[(V)->state].read)) (V, B, L);	\
+} while (0)
+
+/* VRRP TSM Macro */
+#define VRRP_TSM_HANDLE(S,V)			\
+do {						\
+  if ((V)->sync && 				\
+      S != VRRP_STATE_GOTO_MASTER)		\
+    if ((*(VRRP_TSM[S][(V)->state].handler)))	\
+      (*(VRRP_TSM[S][(V)->state].handler)) (V);	\
 } while (0)
 
 /* extern prototypes */

@@ -14,12 +14,13 @@ global_defs {
 vrrp_instance VI_1 {
     state MASTER
     interface eth0
+    garp_master_delay 10
     smtp_alert
     virtual_router_id 51
     priority 100
     advert_int 1
     authentication {
-        auth_type AH
+        auth_type PASS
         auth_pass 1111
     }
     virtual_ipaddress {
@@ -50,7 +51,7 @@ vrrp_instance VI_3 {
     priority 100
     advert_int 1
     authentication {
-        auth_type AH
+        auth_type PASS
         auth_pass 1111
     }
     virtual_ipaddress {

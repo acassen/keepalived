@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 0.6.10 2002/08/06 02:18:05 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -35,39 +35,115 @@
 extern thread_master *master;
 extern data *conf_data;
 
-/* VRRP FSM definition */
+/* VRRP FSM (Finite State Machine) design.
+ *
+ * The state transition diagram implemented is :
+ *
+ *                         +---------------+
+ *        +----------------|               |----------------+
+ *        |                |     Fault     |                |
+ *        |  +------------>|               |<------------+  |
+ *        |  |             +---------------+             |  |
+ *        |  |                     |                     |  |
+ *        |  |                     V                     |  |
+ *        |  |             +---------------+             |  |
+ *        |  |  +--------->|               |<---------+  |  |
+ *        |  |  |          |  Initialize   |          |  |  |
+ *        |  |  |  +-------|               |-------+  |  |  |
+ *        |  |  |  |       +---------------+       |  |  |  |
+ *        |  |  |  |                               |  |  |  |
+ *        V  |  |  V                               V  |  |  V
+ *     +---------------+                       +---------------+
+ *     |               |---------------------->|               |
+ *     |    Master     |                       |    Backup     |
+ *     |               |<----------------------|               |
+ *     +---------------+                       +---------------+
+ */
 static void vrrp_backup(vrrp_rt *, char *, int);
 static void vrrp_leave_master(vrrp_rt *, char *, int);
 static void vrrp_leave_fault(vrrp_rt *, char *, int);
 static void vrrp_become_master(vrrp_rt *, char *, int);
-static void vrrp_leave_dummy_master(vrrp_rt *, char *, int);
 
 static void vrrp_goto_master(vrrp_rt *);
 static void vrrp_master(vrrp_rt *);
 static void vrrp_fault(vrrp_rt *);
-static void vrrp_dummy_master(vrrp_rt *);
 
 struct {
 	void (*read) (vrrp_rt *, char *, int);
 	void (*read_to) (vrrp_rt *);
-} VRRP_FSM[VRRP_MAX_FSM_STATE + 1] = {
+} VRRP_FSM[VRRP_MAX_FSM_STATE + 1] =
+{
 /*    Stream Read Handlers      |    Stream Read_to handlers   *
  *------------------------------+------------------------------*/
 	{NULL, 				NULL},
 	{vrrp_backup,			vrrp_goto_master},	/*  BACKUP          */
 	{vrrp_leave_master,		vrrp_master},		/*  MASTER          */
 	{vrrp_leave_fault,		vrrp_fault},		/*  FAULT           */
-	{vrrp_become_master,		vrrp_goto_master},	/*  GOTO_MASTER     */
-	{vrrp_leave_dummy_master,	vrrp_dummy_master}	/*  DUMMY_MASTER    */
+	{vrrp_become_master,		vrrp_goto_master}	/*  GOTO_MASTER     */
 };
+
+/* VRRP TSM (Transition State Matrix) design.
+ *
+ * Introducing the Synchronization extension to VRRP
+ * protocol, introduce the need for a transition machinery.
+ * This mecanism can be designed using a diagonal matrix.
+ * We call this matrix the VRRP TSM:
+ *
+ *   \ E |  B  |  M  |  F  |
+ *   S \ |     |     |     |
+ * ------+-----+-----+-----+     Legend:
+ *   B   |  x     1     2  |       B: VRRP BACKUP state
+ * ------+                 |       M: VRRP MASTER state
+ *   M   |  3     x     4  |       F: VRRP FAULT state
+ * ------+                 |       S: VRRP start state (before transition)
+ *   F   |  5     6     x  |       E: VRRP end state (after transition)
+ * ------+-----------------+       [1..6]: Handler functions.
+ *
+ * So we have have to implement n(n-1) handlers in order to deal with
+ * all transitions possible. This matrix defines the maximum handlers
+ * to implement for having the most time optimized transition machine.
+ * For example:
+ *     . The handler (1) will sync all the BACKUP VRRP instances of a
+ *       group to MASTER state => we will call it vrrp_sync_master.
+ *     .... and so on for all other state ....
+ *
+ * This matrix is the strict implementation way. For readability and
+ * performance we have implemented some handlers directly into the VRRP
+ * FSM. For instance the handlers (5) & (6) are directly into the VRRP
+ * FSM since it will speed up convergence to init state.
+ * Additionnaly, we have implemented some other handlers into the matrix
+ * in order to speed up group synchronization takeover. For instance
+ * transitions : 
+ *    o B->B: To catch wantstate MASTER transition to force sync group
+ *            to this transition state too.
+ *    o F->F: To speed up FAULT state transition if group is not already
+ *            synced to FAULT state.
+ */
+struct {
+	void (*handler) (vrrp_rt *);
+} VRRP_TSM[VRRP_MAX_TSM_STATE + 1][VRRP_MAX_TSM_STATE + 1] =
+{
+  { {NULL}, {NULL},                      {NULL},             {NULL}            },
+  { {NULL}, {vrrp_sync_master_election}, {vrrp_sync_master}, {vrrp_sync_fault} },
+  { {NULL}, {vrrp_sync_backup},          {NULL},             {vrrp_sync_fault} },
+  { {NULL}, {NULL},                      {NULL},             {vrrp_sync_fault} }
+};
+
 
 /* SMTP alert notifier */
 static void
 vrrp_smtp_notifier(vrrp_rt * vrrp)
 {
-	if (vrrp->smtp_alert)
-		smtp_alert(master, NULL, vrrp, "Transition to MASTER state",
-			   "=> VRRP Instance is now owning VRRP VIPs <=\n\n");
+	if (vrrp->smtp_alert) {
+		if (vrrp->state == VRRP_STATE_MAST)
+			smtp_alert(master, NULL, vrrp,
+				   "Entering MASTER state",
+				   "=> VRRP Instance is now owning VRRP VIPs <=\n\n");
+		if (vrrp->state == VRRP_STATE_BACK)
+			smtp_alert(master, NULL, vrrp,
+				   "Entering BACKUP state",
+				   "=> VRRP Instance is nolonger owning VRRP VIPs <=\n\n");
+	}
 }
 
 /*
@@ -101,31 +177,10 @@ vrrp_init_state(list l)
 				ipvs_syncd_cmd(IPVS_STARTDAEMON,
 					       vrrp->lvs_syncd_if, IPVS_BACKUP);
 #endif
+			syslog(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
+			       vrrp->iname);
 			vrrp->state = VRRP_STATE_BACK;
 		}
-	}
-}
-
-static void
-vrrp_init_instance_sands(vrrp_rt * vrrp)
-{
-	TIMEVAL timer;
-
-	timer = timer_now();
-
-	if (vrrp->state == VRRP_STATE_BACK || vrrp->state == VRRP_STATE_FAULT) {
-		vrrp->sands.tv_sec = timer.tv_sec +
-		    vrrp->ms_down_timer / TIMER_HZ;
-		vrrp->sands.tv_usec = timer.tv_usec +
-		    vrrp->ms_down_timer % TIMER_HZ;
-	}
-	if (vrrp->state == VRRP_STATE_GOTO_MASTER ||
-	    vrrp->state == VRRP_STATE_GOTO_DUMMY_MAST ||
-	    vrrp->state == VRRP_STATE_MAST ||
-	    vrrp->state == VRRP_STATE_DUMMY_MAST ||
-	    vrrp->state == VRRP_STATE_GOTO_FAULT) {
-		vrrp->sands.tv_sec = timer.tv_sec + vrrp->adver_int / TIMER_HZ;
-		vrrp->sands.tv_usec = timer.tv_usec;
 	}
 }
 
@@ -431,7 +486,6 @@ vrrp_become_master(vrrp_rt * vrrp, char *vrrp_buffer, int len)
 	/* Then jump to master state */
 	vrrp->wantstate = VRRP_STATE_MAST;
 	vrrp_state_goto_master(vrrp);
-	vrrp_smtp_notifier(vrrp);
 }
 
 static void
@@ -443,8 +497,8 @@ vrrp_leave_master(vrrp_rt * vrrp, char *vrrp_buffer, int len)
 		vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
 		vrrp_state_leave_master(vrrp);
 	} else if (vrrp_state_master_rx(vrrp, vrrp_buffer, len)) {
-		vrrp->wantstate = VRRP_STATE_BACK;
 		vrrp_state_leave_master(vrrp);
+		vrrp_smtp_notifier(vrrp);
 	}
 }
 
@@ -466,39 +520,20 @@ vrrp_leave_fault(vrrp_rt * vrrp, char *vrrp_buffer, int len)
 			vrrp_become_master(vrrp, vrrp_buffer, len);
 		}
 	} else {
-		vrrp->state = VRRP_STATE_BACK;
+		if (vrrp->sync) {
+			if (vrrp_sync_leave_fault(vrrp)) {
+				syslog(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
+				       vrrp->iname);
+				vrrp->state = VRRP_STATE_BACK;
+				vrrp_smtp_notifier(vrrp);
+			}
+		} else {
+			syslog(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
+			       vrrp->iname);
+			vrrp->state = VRRP_STATE_BACK;
+			vrrp_smtp_notifier(vrrp);
+		}
 	}
-}
-
-static void
-vrrp_leave_dummy_master(vrrp_rt * vrrp, char *vrrp_buffer, int len)
-{
-/*
-  vrrp_rt *vrrp_isync;
-
-  if (vrrp->isync) {
-    vrrp_isync = vrrp_search_instance_isync(vrrp->isync);
-
-    if (vrrp_isync->state == VRRP_STATE_FAULT &&
-        vrrp->wantstate   == VRRP_STATE_GOTO_DUMMY_MAST) {
-      vrrp->wantstate = VRRP_STATE_DUMMY_MAST;
-      syslog(LOG_INFO, "VRRP_Instance(%s) leaving DUMMY MASTER state"
-                      , vrrp->iname);
-      vrrp_state_leave_master(vrrp);
-    }
-
-    if (vrrp_isync->state != VRRP_STATE_FAULT) {
-      switch (vrrp_isync->state) {
-        case VRRP_STATE_BACK:
-          vrrp->state = VRRP_STATE_BACK;
-          break;
-        case VRRP_STATE_MAST:
-          vrrp_become_master(vrrp, vrrp_buffer, len);
-          break;
-      }
-    }
-  }
-*/
 }
 
 static void
@@ -519,13 +554,22 @@ vrrp_goto_master(vrrp_rt * vrrp)
 			vrrp->ipsecah_counter->seq_number = 0;
 		}
 
-		if (vrrp->wantstate != VRRP_STATE_GOTO_DUMMY_MAST)
-			vrrp->wantstate = VRRP_STATE_MAST;
-
 		/* handle master state transition */
+		vrrp->wantstate = VRRP_STATE_MAST;
 		vrrp_state_goto_master(vrrp);
-		vrrp_smtp_notifier(vrrp);
 	}
+}
+
+/* Delayed gratuitous ARP thread */
+int
+vrrp_gratuitous_arp_thread(thread * thread)
+{
+	vrrp_rt *vrrp = THREAD_ARG(thread);
+
+	/* Simply broadcast the gratuitous ARP */
+	vrrp_send_gratuitous_arp(vrrp);
+
+	return 0;
 }
 
 static void
@@ -559,8 +603,19 @@ vrrp_master(vrrp_rt * vrrp)
 			syslog(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state",
 			       vrrp->iname);
 	} else if (vrrp->state == VRRP_STATE_MAST) {
-		/* send the VRRP advert */
-		vrrp_state_master_tx(vrrp, 0);
+		/*
+		 * Send the VRRP advert.
+		 * If we catch the master transition
+		 * <=> vrrp_state_master_tx(...) = 1
+		 * register a gratuitous arp thread delayed to 5 secs.
+		 */
+		if (vrrp_state_master_tx(vrrp, 0)) {
+			thread_add_timer(master, vrrp_gratuitous_arp_thread,
+					 vrrp,
+					 (vrrp->garp_delay) ?
+						vrrp->garp_delay : VRRP_GARP_DELAY);
+			vrrp_smtp_notifier(vrrp);
+		}
 	}
 }
 
@@ -611,29 +666,8 @@ vrrp_fault(vrrp_rt * vrrp)
 		/* Otherwise, we transit to init state */
 		if (vrrp->init_state == VRRP_STATE_BACK)
 			vrrp->state = VRRP_STATE_BACK;
-		else {
+		else
 			vrrp_goto_master(vrrp);
-			vrrp_smtp_notifier(vrrp);
-		}
-	}
-}
-
-static void
-vrrp_dummy_master(vrrp_rt * vrrp)
-{
-	/* Check if interface we are running on is UP */
-	if (!IF_ISUP(vrrp->ifp))
-		vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
-
-	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT) {
-		vrrp->ms_down_timer =
-		    3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
-
-		/* handle backup state transition */
-		vrrp_state_leave_master(vrrp);
-	} else {
-		/* send the VRRP advert */
-		vrrp_state_master_tx(vrrp, 0);
 	}
 }
 
@@ -654,7 +688,12 @@ vrrp_dispatcher_read_to(int fd)
 	VRRP_FSM_READ_TO(vrrp);
 
 	/* handle instance synchronization */
-	vrrp_sync_read_to(vrrp, prev_state);
+//	printf("Send [%s] TSM transtition : [%d,%d] Wantstate = [%d]\n"
+//	       , vrrp->iname
+//	       , prev_state
+//	       , vrrp->state
+//	       , vrrp->wantstate);
+	VRRP_TSM_HANDLE(prev_state, vrrp);
 
 	/*
 	 * We are sure the instance exist. So we can
@@ -702,7 +741,12 @@ vrrp_dispatcher_read(int fd)
 	VRRP_FSM_READ(vrrp, vrrp_buffer, len);
 
 	/* handle instance synchronization */
-	vrrp_sync_read(vrrp, prev_state);
+//	printf("Read [%s] TSM transtition : [%d,%d] Wantstate = [%d]\n"
+//	       , vrrp->iname
+//	       , prev_state
+//	       , vrrp->state
+//	       , vrrp->wantstate);
+	VRRP_TSM_HANDLE(prev_state, vrrp);
 
 	/*
 	 * Refresh sands only if found matching instance.
@@ -725,9 +769,9 @@ vrrp_read_dispatcher_thread(thread * thread)
 	/* Dispatcher state handler */
 	if (thread->type == THREAD_READ_TIMEOUT)
 		fd = vrrp_dispatcher_read_to(thread->u.fd);
-	else if (thread->arg)
+	else if (thread->arg) {
 		fd = vrrp_dispatcher_read_to(-1);
-	else
+	} else
 		fd = vrrp_dispatcher_read(thread->u.fd);
 
 	/* register next dispatcher thread */

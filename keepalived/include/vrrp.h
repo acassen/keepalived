@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 0.6.10 2002/08/06 02:18:05 acassen Exp $
+ * Version:     $Id: vrrp.h,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -67,6 +67,7 @@ typedef struct {		/* rfc2338.5.1 */
 #define VRRP_AUTH_AH	2		/* AH(IPSec) authentification - rfc2338.5.3.6 */
 #define VRRP_ADVER_DFL	1		/* advert. interval (in sec) -- rfc2338.5.3.7 */
 #define VRRP_PREEMPT_DFL 1		/* rfc2338.6.1.2.Preempt_Mode */
+#define VRRP_GARP_DELAY 5		/* Default delay to launch gratuitous arp */
 
 /*
  * parameters per vrrp sync group. A vrrp_sync_group is a set
@@ -100,6 +101,7 @@ typedef struct _vrrp_rt {
 				 * instance FSM & running on specific interface
 				 * => eth0 for example.
 				 */
+	int garp_delay;		/* Delay to launch gratuitous ARP */
 	int vrid;		/* virtual id. from 1(!) to 255 */
 	int priority;		/* priority value */
 	int naddr;		/* number of ip addresses */
@@ -154,13 +156,11 @@ typedef struct _vrrp_rt {
 #define VRRP_STATE_MAST			2	/* rfc2338.6.4.3 */
 #define VRRP_STATE_FAULT		3	/* internal */
 #define VRRP_STATE_GOTO_MASTER		4	/* internal */
-#define VRRP_STATE_DUMMY_MAST		5	/* internal */
-#define VRRP_STATE_LEAVE_MASTER		6	/* internal */
-#define VRRP_STATE_GOTO_DUMMY_MAST	97	/* internal */
+#define VRRP_STATE_LEAVE_MASTER		5	/* internal */
 #define VRRP_STATE_GOTO_FAULT		98	/* internal */
 #define VRRP_DISPATCHER 		99	/* internal */
 #define VRRP_MCAST_RETRY		10	/* internal */
-#define VRRP_MAX_FSM_STATE		5	/* internal */
+#define VRRP_MAX_FSM_STATE		4	/* internal */
 
 /* VRRP packet handling */
 #define VRRP_PACKET_OK       0
@@ -197,7 +197,7 @@ extern void vrrp_send_gratuitous_arp(vrrp_rt * vrrp);
 extern int vrrp_send_adv(vrrp_rt * vrrp, int prio);
 extern int vrrp_state_fault_rx(vrrp_rt * vrrp, char *buf, int buflen);
 extern int vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen);
-extern void vrrp_state_master_tx(vrrp_rt * vrrp, const int prio);
+extern int vrrp_state_master_tx(vrrp_rt * vrrp, const int prio);
 extern void vrrp_state_backup(vrrp_rt * vrrp, char *buf, int buflen);
 extern void vrrp_state_goto_master(vrrp_rt * vrrp);
 extern void vrrp_state_leave_master(vrrp_rt * vrrp);

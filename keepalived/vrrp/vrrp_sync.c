@@ -5,7 +5,7 @@
  *
  * Part:        VRRP synchronization framework.
  *
- * Version:     $Id: vrrp_sync.c,v 0.6.10 2002/08/06 02:18:05 acassen Exp $
+ * Version:     $Id: vrrp_sync.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -27,6 +27,26 @@
 
 /* extern global vars */
 extern data *conf_data;
+
+/* Compute the new instance sands */
+void
+vrrp_init_instance_sands(vrrp_rt * vrrp)
+{
+	TIMEVAL timer;
+
+	timer = timer_now();
+
+	if (vrrp->state == VRRP_STATE_BACK || vrrp->state == VRRP_STATE_FAULT) {
+		vrrp->sands.tv_sec = timer.tv_sec + vrrp->ms_down_timer / TIMER_HZ;
+		vrrp->sands.tv_usec = timer.tv_usec + vrrp->ms_down_timer % TIMER_HZ;
+	}
+	if (vrrp->state == VRRP_STATE_GOTO_MASTER ||
+	    vrrp->state == VRRP_STATE_MAST ||
+	    vrrp->state == VRRP_STATE_GOTO_FAULT) {
+		vrrp->sands.tv_sec = timer.tv_sec + vrrp->adver_int / TIMER_HZ;
+ 		vrrp->sands.tv_usec = timer.tv_usec;
+	}
+}
 
 /* return the first group found for a specific instance */
 vrrp_sgroup *
@@ -100,7 +120,39 @@ vrrp_sync_leave_fault(vrrp_rt * vrrp)
 	return 0;
 }
 
-static void
+void
+vrrp_sync_master_election(vrrp_rt * vrrp)
+{
+	int i;
+	char *str;
+	vrrp_rt *isync;
+	vrrp_sgroup *vgroup = vrrp->sync;
+
+	if (vrrp->wantstate != VRRP_STATE_GOTO_MASTER)
+		return;
+	if (GROUP_STATE(vrrp->sync) == VRRP_STATE_FAULT)
+		return;
+
+	syslog(LOG_INFO, "VRRP_Group(%s) Transition to MASTER state",
+	       GROUP_NAME(vrrp->sync));
+
+	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
+		str = VECTOR_SLOT(vgroup->iname, i);
+		isync = vrrp_get_instance(str);
+		if (isync != vrrp)
+			isync->wantstate = VRRP_STATE_GOTO_MASTER;
+
+		/* Force a new protocol master election */
+		syslog(LOG_INFO,
+		       "VRRP_Instance(%s) forcing a new MASTER election",
+		       isync->iname);
+		vrrp_send_adv(isync, isync->priority);
+	}
+	vgroup->state = VRRP_STATE_MAST;
+	notify_group_exec(vgroup, VRRP_STATE_MAST);
+}
+
+void
 vrrp_sync_backup(vrrp_rt * vrrp)
 {
 	int i;
@@ -108,26 +160,35 @@ vrrp_sync_backup(vrrp_rt * vrrp)
 	vrrp_rt *isync;
 	vrrp_sgroup *vgroup = vrrp->sync;
 
+	if (GROUP_STATE(vrrp->sync) != VRRP_STATE_MAST)
+		return;
+
 	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to BACKUP state",
 	       GROUP_NAME(vrrp->sync));
 
 	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
 		str = VECTOR_SLOT(vgroup->iname, i);
 		isync = vrrp_get_instance(str);
-		if (isync != vrrp)
+		if (isync != vrrp) {
 			isync->wantstate = VRRP_STATE_BACK;
+			vrrp_state_leave_master(isync);
+			vrrp_init_instance_sands(isync);
+		}
 	}
 	vgroup->state = VRRP_STATE_BACK;
 	notify_group_exec(vgroup, VRRP_STATE_BACK);
 }
 
-static void
-vrrp_sync_master_to(vrrp_rt * vrrp)
+void
+vrrp_sync_master(vrrp_rt * vrrp)
 {
 	int i;
 	char *str;
 	vrrp_rt *isync;
 	vrrp_sgroup *vgroup = vrrp->sync;
+
+	if (GROUP_STATE(vrrp->sync) != VRRP_STATE_BACK)
+		return;
 
 	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to MASTER state",
 	       GROUP_NAME(vrrp->sync));
@@ -138,24 +199,25 @@ vrrp_sync_master_to(vrrp_rt * vrrp)
 
 		/* Send the higher priority advert on all synced instances */
 		if (isync != vrrp) {
-			syslog(LOG_INFO,
-			       "VRRP_Instance(%s) sending OWNER advert",
-			       isync->iname);
-			vrrp_state_master_tx(isync, VRRP_PRIO_OWNER);
-			isync->state = VRRP_STATE_MAST;
+			isync->wantstate = VRRP_STATE_MAST;
+			vrrp_state_goto_master(isync);
+			vrrp_init_instance_sands(isync);
 		}
 	}
 	vgroup->state = VRRP_STATE_MAST;
 	notify_group_exec(vgroup, VRRP_STATE_MAST);
 }
 
-static void
-vrrp_sync_fault_to(vrrp_rt * vrrp)
+void
+vrrp_sync_fault(vrrp_rt * vrrp)
 {
 	int i;
 	char *str;
 	vrrp_rt *isync;
 	vrrp_sgroup *vgroup = vrrp->sync;
+
+	if (GROUP_STATE(vrrp->sync) == VRRP_STATE_FAULT)
+		return;
 
 	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to FAULT state",
 	       GROUP_NAME(vrrp->sync));
@@ -170,97 +232,13 @@ vrrp_sync_fault_to(vrrp_rt * vrrp)
 		 * => by default ms_down_timer is set to 3secs.
 		 * => Takeover will be less than 3secs !
 		 */
-		if (isync != vrrp)
+		if (isync != vrrp) {
 			if (isync->state == VRRP_STATE_MAST)
 				isync->wantstate = VRRP_STATE_GOTO_FAULT;
+			if (isync->state == VRRP_STATE_BACK)
+				isync->state = VRRP_STATE_FAULT;
+		}
 	}
 	vgroup->state = VRRP_STATE_FAULT;
 	notify_group_exec(vgroup, VRRP_STATE_FAULT);
-}
-
-static void
-vrrp_sync_dmaster_to(vrrp_rt * vrrp)
-{
-	int i;
-	char *str;
-	vrrp_rt *isync;
-	vrrp_sgroup *vgroup = vrrp->sync;
-
-	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
-		str = VECTOR_SLOT(vgroup->iname, i);
-		isync = vrrp_get_instance(str);
-		if (isync != vrrp) {
-			if (isync->state == VRRP_STATE_FAULT) {
-				syslog(LOG_INFO,
-				       "VRRP_Instance(%s) Transition to DUMMY MASTER",
-				       isync->iname);
-				isync->wantstate = VRRP_STATE_GOTO_DUMMY_MAST;
-			}
-		}
-	}
-	vgroup->state = VRRP_STATE_DUMMY_MAST;
-}
-
-/* Read TimeOut synchronization handler */
-void
-vrrp_sync_read_to(vrrp_rt * vrrp, int prev_state)
-{
-	/* Nothing to sync */
-	if (!vrrp->sync)
-		return;
-
-	/* Sync the group instance to MASTER state */
-	if (prev_state == VRRP_STATE_BACK && vrrp->state == VRRP_STATE_MAST)
-		if (GROUP_STATE(vrrp->sync) == VRRP_STATE_BACK)
-			vrrp_sync_master_to(vrrp);
-
-	/* sync the group instance to FAULT state */
-	if (prev_state == VRRP_STATE_MAST && vrrp->state == VRRP_STATE_FAULT)
-		if (GROUP_STATE(vrrp->sync) == VRRP_STATE_MAST)
-			vrrp_sync_fault_to(vrrp);
-
-	/*
-	 * Break a MASTER/BACKUP state loop after sync instance
-	 * FAULT state transition.
-	 * => We doesn't receive remote MASTER adverts.
-	 * => Emulate a DUMMY master to break the loop.
-	 */
-	if (prev_state == VRRP_STATE_MAST && vrrp->state == VRRP_STATE_BACK)
-		if (GROUP_STATE(vrrp->sync) == VRRP_STATE_FAULT)
-			vrrp_sync_dmaster_to(vrrp);
-
-	/* previous state symetry */
-	if (vrrp->state == VRRP_STATE_DUMMY_MAST)
-		if (GROUP_STATE(vrrp->sync) == VRRP_STATE_MAST)
-			vrrp->state = VRRP_STATE_MAST;
-}
-
-/* Read TimeOut synchronization handler */
-void
-vrrp_sync_read(vrrp_rt * vrrp, int prev_state)
-{
-	/* Nothing to sync */
-	if (!vrrp->sync)
-		return;
-
-	/* sync the group instance to BACKUP state */
-	if (prev_state == VRRP_STATE_MAST && vrrp->state == VRRP_STATE_BACK)
-		if (GROUP_STATE(vrrp->sync) == VRRP_STATE_MAST)
-			vrrp_sync_backup(vrrp);
-
-	/* 
-	 * Handle wanted transition to MASTER state.
-	 * When Instance not in FAULT state, we received a remote
-	 * lower priotity advert => Force a new VRRP election.
-	 */
-	if (vrrp->state == VRRP_STATE_BACK &&
-	    vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
-		if (GROUP_STATE(vrrp->sync) != VRRP_STATE_FAULT) {
-			/* Force a new protocol master election */
-			syslog(LOG_INFO,
-			       "VRRP_Instance(%s) forcing a new MASTER election",
-			       vrrp->iname);
-			vrrp_send_adv(vrrp, vrrp->priority);
-		}
-	}
 }

@@ -5,7 +5,7 @@
  *
  * Part:        check_ci.c include file.
  *
- * Version:     $Id: check_ci.h,v 0.6.10 2002/08/06 02:18:05 acassen Exp $
+ * Version:     $Id: check_ci.h,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Aneesh Kumar K.V, <aneesh.kumar@digital.com>

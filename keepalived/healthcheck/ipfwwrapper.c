@@ -7,7 +7,7 @@
  *              library to add/remove server MASQ rules to the kernel 
  *              firewall framework.
  *
- * Version:     $Id: ipfwwrapper.c,v 0.6.10 2002/08/06 02:18:05 acassen Exp $
+ * Version:     $Id: ipfwwrapper.c,v 0.7.1 2002/09/17 22:03:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -30,6 +30,10 @@ ipfw_cmd(int cmd, virtual_server * vs, real_server * rs)
 {
 	struct ip_fwuser ctl;
 	int ret = 1;
+
+	/* Exit if NAT mask is not specified */
+	if (!vs->nat_mask)
+		return IPFW_SUCCESS;
 
 	memset(&ctl, 0, sizeof (struct ip_fwuser));
 
