@@ -32,7 +32,7 @@ vrrp_daemon.o: vrrp_daemon.c ../include/vrrp_daemon.h ../include/vrrp_scheduler.
   ../include/vrrp_if.h ../include/vrrp_arp.h ../include/vrrp_netlink.h ../include/vrrp_iproute.h \
   ../include/vrrp_iproute.h ../include/vrrp_parser.h ../include/vrrp_data.h \
   ../include/vrrp.h ../include/global_data.h ../include/pidfile.h ../include/daemon.h \
-  ../../lib/list.h ../../lib/memory.h ../../lib/parser.h ../../lib/watchdog.h
+  ../include/ipvswrapper.h ../../lib/list.h ../../lib/memory.h ../../lib/parser.h ../../lib/watchdog.h
 vrrp_data.o: vrrp_data.c ../include/vrrp_data.h \
   ../include/vrrp_sync.h ../include/vrrp_index.h ../include/vrrp.h ../../lib/memory.h \
   ../../lib/utils.h

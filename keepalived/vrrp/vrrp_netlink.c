@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK kernel command channel.
  *
- * Version:     $Id: vrrp_netlink.c,v 1.1.6 2004/02/21 02:31:28 acassen Exp $
+ * Version:     $Id: vrrp_netlink.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -609,7 +609,7 @@ kernel_netlink_init(void)
 	/* Prepare netlink command channel. */
 	netlink_socket(&nl_cmd, 0);
 	if (nl_cmd.fd > 0)
-		syslog(LOG_INFO, "Registering Kernel netlink comand channel");
+		syslog(LOG_INFO, "Registering Kernel netlink command channel");
 	else
 		syslog(LOG_INFO, "Error while registering Kernel netlink cmd channel");
 }

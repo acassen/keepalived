@@ -81,6 +81,7 @@ distclean:
 	for i in $(SUBDIRS); do \
 	$(MAKE) -C $$i distclean; done
 	rm -f Makefile $(BIN)/$(EXEC)
+	rm -f include/config.h
 
 mrproper: distclean
 	rm -f config.*
@@ -89,6 +90,8 @@ uninstall:
 	rm -f $(DESTDIR)$(sbindir)/$(EXEC)
 	rm -rf $(DESTDIR)$(sysconfdir)/keepalived
 	rm -f $(DESTDIR)$(init_dir)/$(init_script)
+	rm -f $(DESTDIR)$(prefix)/man/man5/keepalived.conf.5
+	rm -f $(DESTDIR)$(prefix)/man/man8/keepalived.8
 
 install:
 	install -d $(DESTDIR)$(sbindir)
@@ -98,3 +101,7 @@ install:
 	install -d $(DESTDIR)$(sysconfdir)/keepalived/samples
 	install -m 644 $(conf_file) $(DESTDIR)$(sysconfdir)/keepalived/
 	install -m 644 ../doc/samples/* $(DESTDIR)$(sysconfdir)/keepalived/samples/
+	install -d $(DESTDIR)$(prefix)/man/man5
+	install -d $(DESTDIR)$(prefix)/man/man8
+	install -m 644 ../doc/man/man5/keepalived.conf.5 $(DESTDIR)$(prefix)/man/man5
+	install -m 644 ../doc/man/man8/keepalived.8 $(DESTDIR)$(prefix)/man/man8

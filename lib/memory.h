@@ -5,7 +5,7 @@
  *
  * Part:        memory.c include file.
  *
- * Version:     $Id: memory.h,v 1.1.6 2004/02/21 02:31:28 acassen Exp $
+ * Version:     $Id: memory.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -31,6 +31,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
 /* Global var */
 unsigned long mem_allocated;	/* Total memory used in Bytes */
@@ -47,6 +48,8 @@ extern void xfree(void *p);
 
 /* Local defines */
 #ifdef _DEBUG_
+
+#define MAX_ALLOC_LIST 1024
 
 #define MALLOC(n)    ( keepalived_malloc((n), \
                       (__FILE__), (__FUNCTION__), (__LINE__)) )

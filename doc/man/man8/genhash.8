@@ -1,0 +1,56 @@
+.\"
+.\" genhash(8)
+.\"
+.\" Copyright (C) 2004 Andres Salomon
+.TH genhash 8 "Feb 2004"
+.SH NAME
+genhash \- md5 hash generation tool for remote web pages
+.SH SYNOPSIS
+.B "genhash [options] [-s server-address] [-p port] [-u url]"
+.SH DESCRIPTION
+.B genhash
+is a tool used for generating md5sum hashes of remote web pages.
+.B genhash
+can use HTTP or HTTPS to connect to the web page.  The output by this
+utility includes the HTTP header, page data, and the md5sum of the data.
+This md5sum can then be used within the
+.B keepalived(8)
+program, for monitoring HTTP and HTTPS services.
+.SH OPTIONS
+.TP
+.B --use-ssl, -S
+Use SSL to connect to the server.
+.TP
+.B --server <host>, -s
+Specify the host or ip address to connect to.
+.TP
+.B --port <port>, -p
+Specify the port to connect to.
+.TP
+.B --url <url>, -u
+Specify the path to the file you want to generate the hash of.
+.TP
+.B --use-virtualhost <host>, -u
+Specify the virtual host to send along with the HTTP headers.
+.TP
+.B --verbose, -v
+Be verbose with the output.
+.TP
+.B --help, -h
+Display the program help screen and exit.
+.TP
+.B --release, -r
+Display the release number (version) and exit.
+.TP
+.BR
+.SH SEE ALSO
+.BR keepalived (8),
+.BR keepalived.conf (5)
+.SH AUTHOR
+.br
+.B genhash
+was written by Alexandre Cassen <acassen@linux-vs.org>.
+
+This man page was contributed by Andres Salomon <dilinger@voxel.net>
+for the Debian GNU/Linux system (but may be used by others).
+

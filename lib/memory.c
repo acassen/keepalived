@@ -6,7 +6,7 @@
  * Part:        Memory management framework. This framework is used to
  *              find any memory leak.
  *
- * Version:     $Id: memory.c,v 1.1.6 2004/02/21 02:31:28 acassen Exp $
+ * Version:     $Id: memory.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -89,7 +89,7 @@ typedef struct {
 /* Last free pointers */
 static MEMCHECK free_list[256];
 
-static MEMCHECK alloc_list[512];
+static MEMCHECK alloc_list[MAX_ALLOC_LIST];
 static int number_alloc_list = 0;
 static int n = 0;		/* Alloc list pointer */
 static int f = 0;		/* Free list pointer */
@@ -138,6 +138,8 @@ keepalived_malloc(unsigned long size, char *file, char *function, int line)
 	if (i == number_alloc_list)
 		number_alloc_list++;
 
+	assert(number_alloc_list > MAX_ALLOC_LIST);
+
 	alloc_list[i].ptr = buf;
 	alloc_list[i].size = size;
 	alloc_list[i].file = file;
@@ -164,6 +166,9 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 	/* If nullpointer remember */
 	if (buffer == NULL) {
 		i = number_alloc_list++;
+
+		assert(number_alloc_list > MAX_ALLOC_LIST);
+		
 		alloc_list[i].ptr = buffer;
 		alloc_list[i].size = 0;
 		alloc_list[i].file = file;
@@ -215,6 +220,9 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 	if (i == number_alloc_list) {
 		printf("Free ERROR %p\n", buffer);
 		number_alloc_list++;
+
+		assert(number_alloc_list > MAX_ALLOC_LIST);
+
 		alloc_list[i].ptr = buf;
 		alloc_list[i].size = 0;
 		alloc_list[i].file = file;
@@ -336,6 +344,9 @@ keepalived_realloc(void *buffer, unsigned long size, char *file, char *function,
 	if (buffer == NULL) {
 		printf("realloc %p %s, %3d %s\n", buffer, file, line, function);
 		i = number_alloc_list++;
+
+		assert(number_alloc_list > MAX_ALLOC_LIST);
+
 		alloc_list[i].ptr = NULL;
 		alloc_list[i].size = 0;
 		alloc_list[i].file = file;
@@ -359,6 +370,9 @@ keepalived_realloc(void *buffer, unsigned long size, char *file, char *function,
 	if (i == number_alloc_list) {
 		printf("realloc ERROR no matching zalloc %p \n", buffer);
 		number_alloc_list++;
+
+		assert(number_alloc_list > MAX_ALLOC_LIST);
+
 		alloc_list[i].ptr = buf;
 		alloc_list[i].size = 0;
 		alloc_list[i].file = file;

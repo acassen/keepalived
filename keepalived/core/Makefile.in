@@ -27,7 +27,7 @@ distclean: clean
 	rm -f Makefile
 
 
-main.o: main.c ../include/main.h ../../lib/watchdog.h
+main.o: main.c ../include/main.h ../../lib/watchdog.h ../include/config.h
 daemon.o: daemon.c ../include/daemon.h ../../lib/utils.h
 pidfile.o: pidfile.c ../include/pidfile.h
 layer4.o: layer4.c ../include/layer4.h ../include/check_api.h ../../lib/utils.h

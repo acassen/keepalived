@@ -4,12 +4,13 @@
 # Configuration template file for keepalived.
 # autoconf will generate & check deps for proper compilation
 #
-# Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
+# Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
 
 dnl ----[ Process this file with autoconf to produce a configure script ]----
 AC_INIT(keepalived/core/main.c)
 VERSION=`cat VERSION`
-OUTPUT_TARGET="Makefile genhash/Makefile keepalived/core/Makefile"
+VERSION_DATE=`date +%m/%d,20%y`
+OUTPUT_TARGET="Makefile genhash/Makefile keepalived/core/Makefile keepalived/include/config.h keepalived.spec"
 
 dnl ----[ Checks for programs ]----
 AC_PROG_CC
@@ -207,6 +208,8 @@ if test "${enable_profile}" = "yes"; then
   CFLAGS="$CFLAGS -pg"
 fi
 
+AC_SUBST(VERSION)
+AC_SUBST(VERSION_DATE)
 AC_SUBST(IPVS_SUPPORT)
 AC_SUBST(VRRP_SUPPORT)
 

@@ -1,3 +1,20 @@
+2004-04-05  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.7 released.
+	* Jacob Rief, <jacob.rief@tiscover.com> added target tarball into
+	  root Makefile to facilitate packaging (rpm & tarball).
+	* Jacob Rief, <jacob.rief@tiscover.com> and I unified version
+	  handling. Now only the root file VERSION is used by configure
+	  to add VERSION_STRING via config.h.in. Added VERSION_DATE
+	  included into the VERSION_STRING that reflect the building
+	  date into the version banner.
+	* Andres Salomon, <dilinger@voxel.net> wrote the genhash manpage.
+	* VRRP : Added ipvs_start() and ipvs_stop() calls during vrrp child
+	  start and stop stage.
+	* Added some assertion test in memory framework to not allocate
+	  bucket if no more place. This option is only used if compiled
+	  with debug flags.
+	* Some cosmetics patch in Makefiles and autoconf script.
+
 2004-02-23  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.6 released.
 	* VRRP : Fixed scheduling timer update. Global scheduling timer is

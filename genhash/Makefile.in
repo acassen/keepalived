@@ -36,10 +36,13 @@ distclean: clean
 
 uninstall:
 	rm -f $(DESTDIR)$(bindir)/$(EXEC)
+	rm -f $(DESTDIR)$(prefix)/man/man8/genhash.8
 
 install:
 	install -d $(DESTDIR)$(bindir)
 	install -m 755 $(BIN)/$(EXEC) $(DESTDIR)$(bindir)/
+	install -d $(DESTDIR)$(prefix)/man/man8
+	install -m 644 ../doc/man/man8/genhash.8 $(DESTDIR)$(prefix)/man/man8
 
 mrproper: clean distclean
 	rm -f config.*

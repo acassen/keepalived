@@ -308,7 +308,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CPP EGREP LINKWATCH_SUPPORT KERN IPVS_SYNCD DFLAGS IPVS_SUPPORT VRRP_SUPPORT LIBOBJS LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CPP EGREP LINKWATCH_SUPPORT KERN IPVS_SYNCD DFLAGS VERSION VERSION_DATE IPVS_SUPPORT VRRP_SUPPORT LIBOBJS LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -1266,7 +1266,8 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 VERSION=`cat VERSION`
-OUTPUT_TARGET="Makefile genhash/Makefile keepalived/core/Makefile"
+VERSION_DATE=`date +%m/%d,20%y`
+OUTPUT_TARGET="Makefile genhash/Makefile keepalived/core/Makefile keepalived/include/config.h keepalived.spec"
 
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
@@ -3743,6 +3744,8 @@ fi
 
 
 
+
+
 echo "$as_me:$LINENO: checking for an ANSI C-conforming const" >&5
 echo $ECHO_N "checking for an ANSI C-conforming const... $ECHO_C" >&6
 if test "${ac_cv_c_const+set}" = set; then
@@ -4897,6 +4900,8 @@ s,@LINKWATCH_SUPPORT@,$LINKWATCH_SUPPORT,;t t
 s,@KERN@,$KERN,;t t
 s,@IPVS_SYNCD@,$IPVS_SYNCD,;t t
 s,@DFLAGS@,$DFLAGS,;t t
+s,@VERSION@,$VERSION,;t t
+s,@VERSION_DATE@,$VERSION_DATE,;t t
 s,@IPVS_SUPPORT@,$IPVS_SUPPORT,;t t
 s,@VRRP_SUPPORT@,$VRRP_SUPPORT,;t t
 s,@LIBOBJS@,$LIBOBJS,;t t

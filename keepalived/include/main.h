@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 1.1.6 2004/02/21 02:31:28 acassen Exp $
+ * Version:     $Id: main.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -55,19 +55,4 @@ conf_data *data;		/* Global configuration data */
 int daemon_mode = 0;		/* VRRP/CHECK subsystem selection */
 int linkwatch = 0;		/* Use linkwatch kernel netlink reflection */
 
-/* Build version */
-#define LOG_FACILITY_MAX	7
-#define PROG    "Keepalived"
-
-#define VERSION_CODE 0x010106
-#define DATE_CODE    0x170204
-
-#define KEEPALIVED_VERSION(version)	\
-	(version >> 16) & 0xFF,		\
-	(version >> 8) & 0xFF,		\
-	version & 0xFF
-
-#define VERSION_STRING PROG" v%d.%d.%d (%.2d/%.2d, 20%.2d)\n", \
-		KEEPALIVED_VERSION(VERSION_CODE), \
-		KEEPALIVED_VERSION(DATE_CODE)
 #endif

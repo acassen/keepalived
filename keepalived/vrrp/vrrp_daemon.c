@@ -5,7 +5,7 @@
  *
  * Part:        VRRP child process handling.
  *
- * Version:     $Id: vrrp_daemon.c,v 1.1.6 2004/02/21 02:31:28 acassen Exp $
+ * Version:     $Id: vrrp_daemon.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -35,6 +35,9 @@
 #include "global_data.h"
 #include "pidfile.h"
 #include "daemon.h"
+#ifdef _WITH_LVS_
+  #include "ipvswrapper.h"
+#endif
 #include "list.h"
 #include "memory.h"
 #include "parser.h"
@@ -86,6 +89,11 @@ stop_vrrp(void)
 	free_global_data(data);
 	free_vrrp_data(vrrp_data);
 
+#ifdef _WITH_LVS_
+	/* Clean ipvs related */
+	ipvs_stop();
+#endif
+
 #ifdef _DEBUG_
 	keepalived_free_final("VRRP Child process");
 #endif
@@ -110,6 +118,10 @@ start_vrrp(void)
 	kernel_netlink_init();
 	gratuitous_arp_init();
 
+#ifdef _WITH_LVS_
+	/* Initialize ipvs related */
+	ipvs_start();
+#endif
 	/* Parse configuration file */
 	data = alloc_global_data();
 	vrrp_data = alloc_vrrp_data();
@@ -174,6 +186,11 @@ reload_vrrp_thread(thread * thread)
 	/* Save previous conf data */
 	old_vrrp_data = vrrp_data;
 	vrrp_data = NULL;
+
+#ifdef _WITH_LVS_
+	/* Clean ipvs related */
+	ipvs_stop();
+#endif
 
 	/* Reload the conf */
 	mem_allocated = 0;
