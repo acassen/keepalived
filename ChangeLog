@@ -1,3 +1,40 @@
+2002-05-30  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.5.9 released.
+	* Added support to realserver_group. The work is not yet finished since
+	  it introduces new compilation design currently not supported. So please
+	  do not use yet.
+	* VRRP : Review the script notification. Moved to a script per VRRP
+	  instance state => Created new keywords notify_backup|master|fault
+	  to run a specific script during backup|master|fault state transition.
+	* VRRP : Added support to quoted strings for notify_backup|master|fault.
+	  Can now launch script passing arguments.
+	  See sample directory for examples.
+	* VRRP : Added a protocol extension called "virtual_ipaddress_excluded".
+	  This configuration block is similar to "virtual_ipaddress" block =>
+	  those VIPs (called E-VIPs) are set throught netlink kernel channel and
+	  gratuitous arp are sent over each E-VIP. The only difference is that
+	  they are not added into VRRP packet adverts. This can be usefull for
+	  big env where you want to run many VRRP VIPs (200 for example).
+	  VRRP packet lenght are limited to a 20 VIPs, if you want more VRRP VIPs
+	  add them to the "virtual_ipaddress_excluded" configuration block.
+	* VRRP : Added more logging facility when setting/removings VIPs & E-VIPs.
+	* VRRP : Created a new FSM state called become_master in charge of 
+	  VIPs/E-VIPs/notifications handling. The goto_master state is now a state
+	  where the instance send an advert to force a new MASTER election setting
+	  the instance into a transition mode. If election success its finaly
+	  transit to become_master state to own VIPs/E-VIPs and launch scripts.
+	* VRRP : Force a new MASTER election when receiving a lower prio advert.
+	* VRRP : Review the vrrp_scheduler.c to use more conventional FSM design.
+	  This reduce and beautifull the code.
+	* VRRP : Fixed a very noisy flapping issue observed on heavy loaded env.
+	  Simulating big traffic on a backbone figure out this flapping issue.
+	  Added support to a TIMER_MICRO_ADJUST to prevent against timer degradation.
+	  This can be view as a DOS protection policy. VRRP MASTER timers are adjusted
+	  if they are too degradated, due to heavy loaded networking env introducing
+	  latency receiving/sending VRRP protocol adverts.
+	  Thanks goes to Paul, <xerox@foonet.net> for pointing it out and providing
+	  access to its Internet routing backbone.
+
 2002-05-21  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.5.8 released.
 	* Added an OpenSSL Licence exception to grant Keepalived compilation
@@ -6,7 +43,7 @@
 	* Added connection port selection for Healthcheckers (TCP_CHECK,
 	  HTTP|SSL_GET). Can be usefull for Healthcheck in fwmark LVS topology
 	  for grouping service.
-	  Thanks to Richard  L. Allbery, <rla@prideindustries.com> for suggesting.
+	  Thanks to Richard  L. Allbery, <rla@prideindustries.com> for suggection.
 	  See samples directory for examples.
 	* Fixed some IPVS exclusion code when running --disable-lvs.
 	* Added support to VirtualHost selection when using HTTP|SSL_GET.
@@ -16,7 +53,6 @@
 	* Cometics patches in IPVS wrapper framework.
 	* Added support to quoted string. This can be usefull if you are using
 	  MISC_CHECK and you want to pass arguments to called script. See samples.
-	  Thanks to Benoit Gaussen, <ben@trez42.net> for suggesting.
 	* Prepare work on real_server_group in order to group some realserver
 	  declaration.
 	* VRRP : Fixed a password length exception causing an unwanted dropping

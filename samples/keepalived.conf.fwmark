@@ -6,7 +6,7 @@ global_defs {
 
 virtual_server fwmark 1 {
   delay_loop 6
-   lb_algo rr
+  lb_algo rr
   lb_kind NAT
   persistence_timeout 900
   protocol TCP
@@ -14,6 +14,7 @@ virtual_server fwmark 1 {
   real_server 192.168.201.100 {
     weight 1
     TCP_CHECK {
+      connect_port    80
       connect_timeout 3
     }
   }
@@ -21,6 +22,7 @@ virtual_server fwmark 1 {
   real_server 192.168.201.101 {
     weight 1
     TCP_CHECK {
+      connect_port    80
       connect_timeout 3
     }
   }

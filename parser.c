@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
+ * Version:     $Id: parser.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -412,13 +412,22 @@ static void vrrp_preempt_handler(vector strvec)
   vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
   vrrp->preempt = !vrrp->preempt;
 }
-static void vrrp_notify_handler(vector strvec)
+static void vrrp_notify_backup_handler(vector strvec)
 {
   vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-  char *str = VECTOR_SLOT(strvec, 1);
-  int size = sizeof(vrrp->notify_file);
-
-  memcpy(vrrp->notify_file, str, size);
+  vrrp->script_backup = set_value(strvec);
+  vrrp->notify_exec = 1;
+}
+static void vrrp_notify_master_handler(vector strvec)
+{
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp->script_master = set_value(strvec);
+  vrrp->notify_exec = 1;
+}
+static void vrrp_notify_fault_handler(vector strvec)
+{
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp->script_fault = set_value(strvec);
   vrrp->notify_exec = 1;
 }
 static void vrrp_smtp_handler(vector strvec)
@@ -445,15 +454,16 @@ static void vrrp_auth_pass_handler(vector strvec)
 {
   vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
   char *str = VECTOR_SLOT(strvec, 1);
-  int size = sizeof(vrrp->auth_data);
+  int max_size = sizeof(vrrp->auth_data);
+  int size;
 
+  size = (strlen(str) >= max_size)?max_size-1:strlen(str);
   memcpy(vrrp->auth_data, str, size);
 }
 static void vrrp_vip_handler(vector strvec)
 {
   vector vips   = read_value_block();
   vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-  char *str;
   int i;
   int nbvip = 0;
 
@@ -467,12 +477,35 @@ static void vrrp_vip_handler(vector strvec)
   } else
     nbvip = VECTOR_SIZE(vips);
 
-  for (i = 0; i < nbvip; i++) {
-    str = VECTOR_SLOT(vips, i);
-    alloc_vrrp_vip(str);
-  }
-
+  for (i = 0; i < nbvip; i++)
+    alloc_vrrp_vip(VECTOR_SLOT(vips, i));
   free_strvec(vips);
+}
+static void vrrp_evip_handler(vector strvec)
+{
+  vector vips = read_value_block();
+  int i;
+
+  for (i = 0; i < VECTOR_SIZE(vips); i++)
+    alloc_vrrp_evip(VECTOR_SLOT(vips, i));
+  free_strvec(vips);
+}
+
+#ifdef _WITH_LVS_
+/* Real Servers groups handlers */
+static void group_handler(vector strvec)
+{
+  alloc_group(VECTOR_SLOT(strvec, 1));
+}
+static void rsgroup_handler(vector strvec)
+{
+  alloc_rsgroup(VECTOR_SLOT(strvec, 1), VECTOR_SLOT(strvec, 2));
+}
+static void group_weight_handler(vector strvec)
+{
+  real_server_group *group = LIST_TAIL_DATA(conf_data->group);
+  real_server *rs = LIST_TAIL_DATA(group->rs);
+  rs->weight = atoi(VECTOR_SLOT(strvec, 1));
 }
 
 /* Virtual Servers handlers */
@@ -495,7 +528,6 @@ static void lbalgo_handler(vector strvec)
 }
 static void lbkind_handler(vector strvec)
 {
-#ifdef _WITH_LVS_
   virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
   char *str = VECTOR_SLOT(strvec, 1);
 
@@ -521,7 +553,6 @@ static void lbkind_handler(vector strvec)
       else
         syslog(LOG_DEBUG, "PARSER : unknown [%s] routing method."
                         , str);
-#endif
 }
 static void natmask_handler(vector strvec)
 {
@@ -570,6 +601,13 @@ static void weight_handler(vector strvec)
   real_server *rs = LIST_TAIL_DATA(vs->rs);
   rs->weight = atoi(VECTOR_SLOT(strvec, 1));
 }
+
+/* Real Servers Groups for VS handlers */
+static void realgroup_handler(vector strvec)
+{
+  set_rsgroup(VECTOR_SLOT(strvec, 1));
+}
+#endif
 
 /* recursive configuration stream handler */
 static void process_stream(vector keywords)
@@ -645,10 +683,13 @@ void init_keywords(void)
   install_keyword("priority",			&vrrp_prio_handler);
   install_keyword("advert_int",			&vrrp_adv_handler);
   install_keyword("virtual_ipaddress",		&vrrp_vip_handler);
+  install_keyword("virtual_ipaddress_excluded",	&vrrp_evip_handler);
   install_keyword("sync_instance",		&vrrp_isync_handler);
   install_keyword("preempt",			&vrrp_preempt_handler);
   install_keyword("debug",			&vrrp_debug_handler);
-  install_keyword("notify",			&vrrp_notify_handler);
+  install_keyword("notify_backup",		&vrrp_notify_backup_handler);
+  install_keyword("notify_master",		&vrrp_notify_master_handler);
+  install_keyword("notify_fault",		&vrrp_notify_fault_handler);
   install_keyword("smtp_alert",			&vrrp_smtp_handler);
   install_keyword("lvs_sync_daemon_interface",	&vrrp_lvs_syncd_handler);
   install_keyword("authentication",		NULL);
@@ -658,6 +699,13 @@ void init_keywords(void)
   install_sublevel_end();
 
 #ifdef _WITH_LVS_
+  /* Real server group mapping */
+  install_keyword_root("real_server_group", 	&group_handler);
+  install_keyword("real_server", 		&rsgroup_handler);
+  install_sublevel();
+    install_keyword("weight", 			&group_weight_handler);
+  install_sublevel_end();
+
   /* Virtual server mapping */
   install_keyword_root("virtual_server", 	&vs_handler);
   install_keyword("delay_loop", 		&delay_handler);
@@ -676,6 +724,12 @@ void init_keywords(void)
     install_keyword("weight", 			&weight_handler);
 
   /* Checkers mapping */
+    install_checkers_keyword();
+  install_sublevel_end();
+
+  /* VS group mapping */
+  install_keyword("real_group", 		&realgroup_handler);
+  install_sublevel();
     install_checkers_keyword();
   install_sublevel_end();
 #endif

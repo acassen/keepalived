@@ -7,7 +7,7 @@
  *              library to add/remove server MASQ rules to the kernel 
  *              firewall framework.
  *
- * Version:     $Id: ipfwwrapper.c,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
+ * Version:     $Id: ipfwwrapper.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -40,7 +40,7 @@ int ipfw_cmd(int cmd, virtual_server *vs, real_server *rs)
   ctl.ipfw.fw_src.s_addr  = SVR_IP(rs) & vs->nat_mask;
   ctl.ipfw.fw_smsk.s_addr = vs->nat_mask;
 
-  ctl.ipfw.fw_spts[0] = ctl.ipfw.fw_spts[1] = ntohs(rs->addr_port);
+  ctl.ipfw.fw_spts[0] = ctl.ipfw.fw_spts[1] = htons(SVR_PORT(rs));
   ctl.ipfw.fw_dpts[0] = 0x0000;
   ctl.ipfw.fw_dpts[1] = 0xFFFF;
   ctl.ipfw.fw_tosand = 0xFF;

@@ -1,0 +1,26 @@
+! Configuration File for keepalived
+! extra script call demonstration
+
+
+vrrp_instance VI_1 {
+    state MASTER
+    interface eth0
+    smtp_alert
+    virtual_router_id 51
+    priority 100
+    advert_int 1
+    authentication {
+        auth_type PASS
+        auth_pass 1111
+    }
+    virtual_ipaddress {
+        192.168.200.16
+        192.168.200.17
+        192.168.200.18
+    }
+
+    notify_backup "/usr/local/bin/vrrp.sh  BACKUP   VI_1"
+    notify_master "/usr/local/bin/vrrp.sh  MASTER  VI_1"
+    notify_fault  "/usr/local/bin/vrrp.sh  FAULT  VI_1"
+
+}

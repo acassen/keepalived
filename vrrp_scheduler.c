@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -33,6 +33,33 @@
 
 extern thread_master *master;
 extern data *conf_data;
+
+/* VRRP FSM definition */
+static void vrrp_backup(vrrp_rt *, char *, int);
+static void vrrp_leave_master(vrrp_rt *, char *, int);
+static void vrrp_leave_fault(vrrp_rt *, char *, int);
+static void vrrp_become_master(vrrp_rt *, char *, int);
+static void vrrp_leave_dummy_master(vrrp_rt *, char *, int);
+
+static void vrrp_goto_master(vrrp_rt *);
+static void vrrp_master(vrrp_rt *);
+static void vrrp_fault(vrrp_rt *);
+static void vrrp_dummy_master(vrrp_rt *);
+
+struct {
+  void (*read) (vrrp_rt *, char *, int);
+  void (*read_to) (vrrp_rt *);
+} FSM[VRRP_MAX_FSM_STATE + 1] =
+{
+/* Stream Read Handlers    |    Stream Read_to handlers */
+/*-------------------------+----------------------------*/
+  {NULL,			NULL},
+  {vrrp_backup,			vrrp_goto_master},  /*	BACKUP		*/
+  {vrrp_leave_master,		vrrp_master},       /*	MASTER		*/
+  {vrrp_leave_fault,		vrrp_fault},        /*	FAULT		*/
+  {vrrp_become_master,		vrrp_goto_master},  /*	GOTO_MASTER	*/
+  {vrrp_leave_dummy_master,	vrrp_dummy_master}  /*	DUMMY_MASTER	*/
+};
 
 /* SMTP alert notifier */
 static void vrrp_smtp_notifier(vrrp_rt *vrrp)
@@ -143,7 +170,6 @@ static long vrrp_timer_fd(const int fd)
   timer = vrrp_compute_timer(fd);
   now = timer_now();
   vrrp_timer = timer_sub(timer, now);
-//  vrrp_timer = timer_sub_now(timer);
 
   return (vrrp_timer.tv_sec*TIMER_HZ + vrrp_timer.tv_usec);
 }
@@ -371,9 +397,9 @@ static vrrp_rt *vrrp_search_instance(const int vrid)
   return NULL;
 }
 
-static void vrrp_handle_backup(vrrp_rt *vrrp
-                               , char *vrrp_buffer
-                               , int len)
+static void vrrp_backup(vrrp_rt *vrrp
+                        , char *vrrp_buffer
+                        , int len)
 {
   struct iphdr *iph = (struct iphdr *)vrrp_buffer;
   ipsec_ah *ah;
@@ -389,7 +415,7 @@ static void vrrp_handle_backup(vrrp_rt *vrrp
   vrrp_state_backup(vrrp, vrrp_buffer, len);
 }
 
-static void vrrp_handle_become_master(vrrp_rt *vrrp
+static void vrrp_become_master(vrrp_rt *vrrp
                                      , char *vrrp_buffer
                                      , int len)
 {
@@ -414,7 +440,7 @@ static void vrrp_handle_become_master(vrrp_rt *vrrp
   vrrp_smtp_notifier(vrrp);
 }
 
-static void vrrp_handle_leave_master(vrrp_rt *vrrp
+static void vrrp_leave_master(vrrp_rt *vrrp
                                      , char *vrrp_buffer
                                      , int len)
 {
@@ -429,7 +455,7 @@ static void vrrp_handle_leave_master(vrrp_rt *vrrp
   }
 }
 
-static void vrrp_handle_leave_fault(vrrp_rt *vrrp
+static void vrrp_leave_fault(vrrp_rt *vrrp
                                     , char *vrrp_buffer
                                     , int len)
 {
@@ -444,19 +470,19 @@ static void vrrp_handle_leave_fault(vrrp_rt *vrrp
            IF_ISUP(vrrp_isync->ifp))) {
         syslog(LOG_INFO, "VRRP_Instance(%s) prio is higher than received advert"
                        , vrrp->iname);
-        vrrp_handle_become_master(vrrp, vrrp_buffer, len);
+        vrrp_become_master(vrrp, vrrp_buffer, len);
       }
     } else {
       syslog(LOG_INFO, "VRRP_Instance(%s) prio is higher than received advert"
                      , vrrp->iname);
-      vrrp_handle_become_master(vrrp, vrrp_buffer, len);
+      vrrp_become_master(vrrp, vrrp_buffer, len);
     }
   } else {
     vrrp->state = VRRP_STATE_BACK;
   }
 }
 
-static void vrrp_handle_leave_dummy_master(vrrp_rt *vrrp
+static void vrrp_leave_dummy_master(vrrp_rt *vrrp
                                            , char *vrrp_buffer
                                            , int len)
 {
@@ -479,43 +505,14 @@ static void vrrp_handle_leave_dummy_master(vrrp_rt *vrrp
           vrrp->state = VRRP_STATE_BACK;
           break;
         case VRRP_STATE_MAST:
-          vrrp_handle_become_master(vrrp, vrrp_buffer, len);
+          vrrp_become_master(vrrp, vrrp_buffer, len);
           break;
       }
     }
   }
 }
 
-static int vrrp_handle_state(vrrp_rt *vrrp
-                             , char *vrrp_buffer
-                             , int len)
-{
-  int previous_state;
-
-  previous_state = vrrp->state;
-
-  switch (vrrp->state) {
-    case VRRP_STATE_BACK:
-      vrrp_handle_backup(vrrp, vrrp_buffer, len);
-      break;
-    case VRRP_STATE_GOTO_MASTER:
-      vrrp_handle_become_master(vrrp, vrrp_buffer, len);
-      break;
-    case VRRP_STATE_DUMMY_MAST:
-//      vrrp_handle_leave_dummy_master(vrrp, vrrp_buffer, len);
-      break;
-    case VRRP_STATE_MAST:
-      vrrp_handle_leave_master(vrrp, vrrp_buffer, len);
-      break;
-    case VRRP_STATE_FAULT:
-      vrrp_handle_leave_fault(vrrp, vrrp_buffer, len);
-      break;
-  }
-
-  return previous_state;
-}
-
-static void vrrp_handle_goto_master(vrrp_rt *vrrp)
+static void vrrp_goto_master(vrrp_rt *vrrp)
 {
   if (!IF_ISUP(vrrp->ifp)) {
     syslog(LOG_INFO, "Kernel is reporting: interface %s DOWN"
@@ -537,7 +534,7 @@ static void vrrp_handle_goto_master(vrrp_rt *vrrp)
   }
 }
 
-static void vrrp_handle_master(vrrp_rt *vrrp)
+static void vrrp_master(vrrp_rt *vrrp)
 {
   /* Check if interface we are running on is UP */
   if (vrrp->wantstate != VRRP_STATE_GOTO_FAULT) {
@@ -569,7 +566,7 @@ static void vrrp_handle_master(vrrp_rt *vrrp)
   }
 }
 
-static void vrrp_handle_fault(vrrp_rt *vrrp)
+static void vrrp_fault(vrrp_rt *vrrp)
 {
   if (IF_ISUP(vrrp->ifp)) {
     syslog(LOG_INFO, "Kernel is reporting: interface %s UP"
@@ -598,14 +595,14 @@ static void vrrp_handle_fault(vrrp_rt *vrrp)
       if (vrrp->init_state == VRRP_STATE_BACK)
         vrrp->state = VRRP_STATE_BACK;
       else {
-        vrrp_handle_goto_master(vrrp);
+        vrrp_goto_master(vrrp);
         vrrp_smtp_notifier(vrrp);
       }
     }
   }
 }
 
-static void vrrp_handle_dummy_master(vrrp_rt *vrrp)
+static void vrrp_dummy_master(vrrp_rt *vrrp)
 {
   /* Check if interface we are running on is UP */
   if (!IF_ISUP(vrrp->ifp))
@@ -622,50 +619,24 @@ static void vrrp_handle_dummy_master(vrrp_rt *vrrp)
   }
 }
 
-static int vrrp_handle_state_timeout(vrrp_rt *vrrp)
-{
-  int previous_state;
-
-  previous_state = vrrp->state;
-
-  switch (vrrp->state) {
-    case VRRP_STATE_BACK:
-      vrrp_handle_goto_master(vrrp);
-      break;
-    case VRRP_STATE_GOTO_MASTER:
-      vrrp_handle_goto_master(vrrp);
-      break;
-    case VRRP_STATE_DUMMY_MAST:
-      vrrp_handle_dummy_master(vrrp);
-      break;
-    case VRRP_STATE_MAST:
-      vrrp_handle_master(vrrp);
-      break;
-    case VRRP_STATE_FAULT:
-      vrrp_handle_fault(vrrp);
-      break;
-  }
-
-  return previous_state;
-}
-
 /* Handle dispatcher read timeout */
 static int vrrp_dispatcher_read_to(int fd)
 {
   vrrp_rt *vrrp;
   vrrp_rt *vrrp_isync;
   int vrid = 0;
-  int previous_state = 0;
+  int prev_state = 0;
 
   /* Searching for matching instance */
   vrid = vrrp_timer_vrid_timeout(fd);
   vrrp = vrrp_search_instance(vrid);
 
-  previous_state = vrrp_handle_state_timeout(vrrp);
+  prev_state = vrrp->state;
+  VRRP_FSM_READ_TO(vrrp);
 
   /* handle master instance synchronization */
-  if (previous_state == VRRP_STATE_BACK && 
-      vrrp->state    == VRRP_STATE_MAST &&
+  if (prev_state  == VRRP_STATE_BACK && 
+      vrrp->state == VRRP_STATE_MAST &&
       vrrp->isync) {
     vrrp_isync = vrrp_search_instance_isync(vrrp->isync);
 
@@ -686,8 +657,8 @@ static int vrrp_dispatcher_read_to(int fd)
   }
 
   /* handle synchronization in FAULT state */
-  if (previous_state == VRRP_STATE_MAST  &&
-      vrrp->state    == VRRP_STATE_FAULT && 
+  if (prev_state  == VRRP_STATE_MAST  &&
+      vrrp->state == VRRP_STATE_FAULT && 
       vrrp->isync) {
     vrrp_isync = vrrp_search_instance_isync(vrrp->isync);
 
@@ -709,8 +680,8 @@ static int vrrp_dispatcher_read_to(int fd)
    * => We doesn't receive remote MASTER adverts.
    * => Emulate a DUMMY master to break the loop.
    */
-  if (previous_state == VRRP_STATE_MAST &&
-      vrrp->state    == VRRP_STATE_BACK && 
+  if (prev_state  == VRRP_STATE_MAST &&
+      vrrp->state == VRRP_STATE_BACK && 
       vrrp->isync) {
     vrrp_isync = vrrp_search_instance_isync(vrrp->isync);
 
@@ -747,7 +718,7 @@ static int vrrp_dispatcher_read(int fd)
   struct iphdr *iph;
   vrrp_pkt *hd;
   int len = 0;
-  int previous_state = 0;
+  int prev_state = 0;
 
   /* allocate & clean the read buffer */
   vrrp_buffer = (char *)MALLOC(VRRP_PACKET_TEMP_LEN);
@@ -771,11 +742,12 @@ static int vrrp_dispatcher_read(int fd)
     return fd;
   }
 
-  previous_state = vrrp_handle_state(vrrp, vrrp_buffer, len);
+  prev_state = vrrp->state;
+  VRRP_FSM_READ(vrrp, vrrp_buffer, len);
 
   /* handle backup instance synchronization */
-  if (previous_state == VRRP_STATE_MAST && 
-      vrrp->state    == VRRP_STATE_BACK &&
+  if (prev_state  == VRRP_STATE_MAST && 
+      vrrp->state == VRRP_STATE_BACK &&
       vrrp->isync) {
     vrrp_isync = vrrp_search_instance_isync(vrrp->isync);
 
@@ -811,9 +783,6 @@ static int vrrp_dispatcher_read(int fd)
   /*
    * Refresh sands only if found matching instance.
    * Otherwize the packet is simply ignored...
-   *
-   * FIXME: Add a dropping packet framework to not
-   *        degrade the instance timer during dropping.
    */
   vrrp_init_instance_sands(vrrp);
 
@@ -837,6 +806,7 @@ int vrrp_read_dispatcher_thread(thread *thread)
 
   /* register next dispatcher thread */
   vrrp_timer = vrrp_timer_fd(fd);
+  TIMER_MICRO_ADJUST(vrrp_timer);
   thread_add_read(thread->master, vrrp_read_dispatcher_thread
                                 , NULL
                                 , fd

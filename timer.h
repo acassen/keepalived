@@ -5,7 +5,7 @@
  * 
  * Part:        timer.c include file.
  *  
- * Version:     $Id: timer.h,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
+ * Version:     $Id: timer.h,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -33,6 +33,7 @@ typedef struct timeval TIMEVAL;
 #define TIMER_SEC(T) ((T).tv_sec)
 #define TIMER_ISNULL(T) ((T).tv_sec == 0 && (T).tv_usec == 0)
 #define TIMER_RESET(T) (memset(&(T), 0, sizeof(struct timeval)))
+#define TIMER_MICRO_ADJUST(T) ((T) = ((T) < TIMER_MAX_SEC)?TIMER_MAX_SEC:(T))
 
 /* prototypes */
 extern TIMEVAL timer_now(void);

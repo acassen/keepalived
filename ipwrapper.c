@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $id: ipwrapper.c,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
+ * Version:     $id: ipwrapper.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -46,10 +46,23 @@ static int clear_service_rs(virtual_server *vs, list l)
 
 int clear_service_vs(virtual_server *vs)
 {
+  element e;
+  real_server_group *group;
+
   /* Processing real server queue */
   if (!LIST_ISEMPTY(vs->rs))
     if (!clear_service_rs(vs, vs->rs))
       return 0;
+
+  /* Processing real server group queue */
+  if (!LIST_ISEMPTY(vs->rs_group)) {
+    for (e = LIST_HEAD(vs->rs_group); e; ELEMENT_NEXT(e)) {
+      group = ELEMENT_DATA(e);
+      if (!clear_service_rs(vs, group->rs))
+        return 0;
+    }
+  }
+
   if (!ipvs_cmd(LVS_CMD_DEL, vs, NULL))
     return 0;
   return 1;
@@ -65,7 +78,7 @@ int clear_services(void)
 
   for (e = LIST_HEAD(vs); e; ELEMENT_NEXT(e)) {
     vsvr = ELEMENT_DATA(e);
-    rsvr = (real_server *)LIST_HEAD(vsvr->rs);
+    rsvr = ELEMENT_DATA(LIST_HEAD(vsvr->rs));
     if (!clear_service_vs(vsvr))
       return 0;
 
@@ -184,6 +197,9 @@ static int init_service_rs(virtual_server *vs, list l)
 
 int init_service_vs(virtual_server *vs)
 {
+  element e;
+  real_server_group *group;
+
   /* Init the IPVS root */
   if (!ipvs_cmd(LVS_CMD_ADD, vs, NULL))
     return 0;
@@ -192,6 +208,15 @@ int init_service_vs(virtual_server *vs)
   if (!LIST_ISEMPTY(vs->rs))
     if (!init_service_rs(vs, vs->rs))
       return 0;
+
+  /* Processing real server group queue */
+  if (!LIST_ISEMPTY(vs->rs_group)) {
+    for (e = LIST_HEAD(vs->rs_group); e; ELEMENT_NEXT(e)) {
+      group = ELEMENT_DATA(e);
+      if (!init_service_rs(vs, group->rs))
+        return 0;
+    }
+  }
   return 1;
 }
 
@@ -204,7 +229,7 @@ int init_services(void)
 
   for (e = LIST_HEAD(vs); e; ELEMENT_NEXT(e)) {
     vsvr = ELEMENT_DATA(e);
-    rsvr = (real_server *)LIST_HEAD(vsvr->rs);
+    rsvr = ELEMENT_DATA(LIST_HEAD(vsvr->rs));
     if (!init_service_vs(vsvr))
       return 0;
 

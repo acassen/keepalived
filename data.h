@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.h,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
+ * Version:     $Id: data.h,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -72,6 +72,13 @@ typedef struct _real_server {
   int		alive;
 } real_server;
 
+/* Real server group list */
+typedef struct _real_server_group {
+  char *gname;
+  list rs;
+//  list vs;
+} real_server_group;
+
 /* Virtual Server definition */
 typedef struct _virtual_server {
   uint32_t		addr_ip;
@@ -87,6 +94,10 @@ typedef struct _virtual_server {
   char			*virtualhost;
   real_server		*s_svr;
   list			rs;
+  list			rs_group;
+  int			last_rs_type;
+#define RS		(1 << 0)
+#define RS_GROUP	(1 << 1)
 } virtual_server;
 
 /* email link list */
@@ -104,6 +115,7 @@ typedef struct _data {
   list		email;
   list		vrrp;
   list		vs;
+  list		group;
 } data;
 
 /* macro utility */
@@ -118,9 +130,13 @@ extern void alloc_email(char *addr);
 extern SSL_DATA *alloc_ssl(void);
 extern void alloc_vrrp(char *iname);
 extern void alloc_vrrp_vip(char *vip);
+extern void alloc_vrrp_evip(char *vip);
 extern void alloc_vs(char *ip, char *port);
 extern void alloc_rs(char *ip, char *port);
 extern void alloc_ssvr(char *ip, char *port);
+extern void alloc_group(char *name);
+extern void alloc_rsgroup(char *ip, char *port);
+extern void set_rsgroup(char *gname);
 
 extern data *alloc_data(void);
 extern void free_data(void);

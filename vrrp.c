@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
+ * Version:     $Id: vrrp.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -24,6 +24,7 @@
  */
 
 /* local include */
+#include <ctype.h>
 #include "vrrp_scheduler.h"
 #include "ipvswrapper.h"
 #include "vrrp.h"
@@ -42,53 +43,68 @@ void closeall(int fd)
     close(fd++);
 }
 
-static char *notify_get_name(vrrp_rt *vrrp)
+static char *notify_get_script(vrrp_rt *vrrp, int state)
 {
-  static char notifyfile[FILENAME_MAX+1];
-
-  if (vrrp->notify_exec) {
-    if (vrrp->notify_file != NULL)
-      strncpy(notifyfile, vrrp->notify_file, FILENAME_MAX);
-    else
-      snprintf(notifyfile, sizeof(notifyfile),"%s/" VRRP_NOTIFY_FORMAT
-                         , VRRP_NOTIFY_DFL
-                         , IF_NAME(vrrp->ifp)
-                         , vrrp->vrid );
-  }
-  return notifyfile;
+  if (!vrrp->notify_exec)
+    return NULL;
+  if (state == VRRP_STATE_BACK)
+    return vrrp->script_backup;
+  if (state == VRRP_STATE_MAST)
+    return vrrp->script_master;
+  if (state == VRRP_STATE_FAULT)
+    return vrrp->script_fault;
+  return NULL;
 }
-
-/* Execute extern script/program */
-static int notify_exec(vrrp_rt *vrrp , char *cmd)
+static char *notify_script_name(char *cmdline)
 {
-  char *name = notify_get_name(vrrp);
-  FILE *fOut = fopen(name, "r");
-  static char mycmd[FILENAME_MAX + 1 + 32];
-  char tmp[16];
-  int err;
+  char *cp = cmdline;
+  char *script;
+  int strlen;
 
+  if (!cmdline)
+    return NULL;
+  while (!isspace((int) *cp) && *cp != '\0')
+    cp++;
+  strlen = cp - cmdline;
+  script = MALLOC(strlen + 1);
+  memcpy(script, cmdline, strlen);
+  *(script + strlen) = '\0';
+
+  return script;
+}
+/* Execute extern script/program */
+static int notify_exec(vrrp_rt *vrrp, int state)
+{
+  char *script = notify_get_script(vrrp, state);
+  char *script_name = notify_script_name(script);
+  FILE *fOut;
+  int err;
   pid_t pid;
 
+  if (!script) return 0;
+
+  fOut = fopen(script_name, "r");;
   if (!fOut) {
-    syslog(LOG_INFO, "Can't open %s (errno %d %s)\n", name
+    syslog(LOG_INFO, "Can't open %s (errno %d %s)"
+                   , script_name
                    , errno
                    , strerror(errno));
     return -1;
   }
+  FREE(script_name);
   fclose(fOut);
 
   pid = fork();
 
   /* In case of fork is error. */
   if (pid < 0) {
-    syslog (LOG_INFO, "Failed fork process");
+    syslog(LOG_INFO, "Failed fork process");
     return -1;
   }
 
   /* In case of this is parent process. */
-  if (pid) {
+  if (pid)
     return (0);
-  }
 
   closeall(0);
 
@@ -96,31 +112,18 @@ static int notify_exec(vrrp_rt *vrrp , char *cmd)
   dup(0);
   dup(0);
 
-  name = notify_get_name(vrrp);
-
-  if (strlen(name) + strlen(cmd) + 32 >  FILENAME_MAX + 32) {
-    syslog(LOG_INFO, "To long exec stmt");
-    exit (1);
-  }
-
-  strcpy(mycmd, name);
-  strcat(mycmd, " ");
-  strcat(mycmd, cmd);
-  strcat(mycmd, " ");
-  snprintf(tmp, 16, "%d", vrrp->vrid);
-  strcat(mycmd, tmp);
-
   if (vrrp->debug > 0)
-   syslog(LOG_INFO, "Trying to exec %s", mycmd);
+   syslog(LOG_INFO, "Trying to exec [%s]", script);
 
-  err = system(mycmd);
+  err = system(script);
 
   if (err != 0) {
     if (err == 127)
-      syslog(LOG_ALERT, "Failed to exec %s", mycmd);
+      syslog(LOG_ALERT, "Failed to exec [%s]", script);
     else
-      syslog(LOG_ALERT, "Error running %s, error: %d", mycmd, err);
-  }
+      syslog(LOG_ALERT, "Error running [%s], error: %d", script, err);
+  } else
+    syslog(LOG_INFO, "Success executing [%s]", script);
 
   exit(0);
 }
@@ -161,14 +164,21 @@ static u_short in_csum( u_short *addr, int len, u_short csum)
  * add/remove VIP
  * retry must clear for each vip address Hoj:-
  */
-static int vrrp_handle_ipaddress(vrrp_rt *vrrp, int cmd)
+static int vrrp_handle_ipaddress(vrrp_rt *vrrp, int cmd, int type)
 {
   int i, err = 0;
   int retry = 0;
+  int num;
   int ifindex = IF_INDEX(vrrp->ifp);
 
-  for(i = 0; i < vrrp->naddr; i++ ) {
-    vip_addr *vadd = &vrrp->vaddr[i];
+  syslog(LOG_INFO, "VRRP_Instance(%s) %s protocol %s"
+                 , vrrp->iname
+                 , (cmd == VRRP_IPADDRESS_ADD)?"setting":"removing"
+                 , (type == VRRP_VIP_TYPE)?"VIPs.":"E-VIPs");
+
+  num = (type == VRRP_VIP_TYPE)?vrrp->naddr:vrrp->neaddr;
+  for(i = 0; i < num; i++ ) {
+    vip_addr *vadd = (type == VRRP_VIP_TYPE)?&vrrp->vaddr[i]:&vrrp->evaddr[i];
     if(!cmd && !vadd->set) continue;
 retry:
     if (netlink_address_ipv4(ifindex , ntohl(vadd->addr), cmd) < 0) {
@@ -677,9 +687,6 @@ int vrrp_check_packet(vrrp_rt *vrrp, char *buf, int buflen)
     if (ret == VRRP_PACKET_KO)
       syslog(LOG_INFO, "bogus VRRP packet received on %s !!!"
                      , IF_NAME(vrrp->ifp));
-//    else
-//      syslog(LOG_INFO, "Success receiving VRRP packet on %s."
-//                     , IF_NAME(vrrp->ifp));
     return ret;
   }
 
@@ -734,47 +741,56 @@ void vrrp_send_gratuitous_arp(vrrp_rt *vrrp)
   int  i, j;
 
   /* send gratuitous arp for each virtual ip */
-  for (j = 0; j < 5; j++)
+  syslog(LOG_INFO, "VRRP_Instance(%s) Sending gratuitous ARP on %s"
+                 , vrrp->iname
+                 , IF_NAME(vrrp->ifp));
+
+  for (j = 0; j < 5; j++) {
     for (i = 0; i < vrrp->naddr; i++)
       send_gratuitous_arp(vrrp, ntohl(vrrp->vaddr[i].addr));
+    for (i = 0; i < vrrp->neaddr; i++)
+      send_gratuitous_arp(vrrp, ntohl(vrrp->evaddr[i].addr));
+  }
 }
 
 /* becoming master */
-void vrrp_state_goto_master(vrrp_rt *vrrp)
+void vrrp_state_become_master(vrrp_rt *vrrp)
 {
-  /* send an advertisement */
-  vrrp_send_adv(vrrp, vrrp->priority);
-
   /* add the ip addresses */
-  vrrp_handle_ipaddress(vrrp, VRRP_IPADDRESS_ADD);
+  if (vrrp->naddr)
+    vrrp_handle_ipaddress(vrrp, VRRP_IPADDRESS_ADD, VRRP_VIP_TYPE);
+  if (vrrp->neaddr)
+    vrrp_handle_ipaddress(vrrp, VRRP_IPADDRESS_ADD, VRRP_EVIP_TYPE);
+  vrrp->vipset = 1;
 
   /* remotes arp tables update */
-  syslog(LOG_INFO, "Sending gratuitous ARP on %s"
-                 , IF_NAME(vrrp->ifp));
   vrrp_send_gratuitous_arp(vrrp);
 
   /* Check if notify is needed */
-  if (vrrp->notify_exec) {
-    notify_exec(vrrp, "master");
-    if (vrrp->debug > 0)
-      syslog(LOG_INFO, "notify:%s, flg:%d"
-                     , vrrp->notify_file
-                     , vrrp->notify_exec);
-  }
+  notify_exec(vrrp, VRRP_STATE_MAST);
 
 #ifdef _HAVE_IPVS_SYNCD_
   /* Check if sync daemon handling is needed */
   if (vrrp->lvs_syncd_if)
     ipvs_syncd_master(vrrp->lvs_syncd_if);
 #endif
+}
+
+void vrrp_state_goto_master(vrrp_rt *vrrp)
+{
+  /*
+   * Send an advertisement. To force a new master
+   * election.
+   */
+  vrrp_send_adv(vrrp, vrrp->priority);
 
   if (vrrp->wantstate == VRRP_STATE_MAST) {
     vrrp->state = VRRP_STATE_MAST;
-    syslog(LOG_INFO, "VRRP_Instance(%s) Entering MASTER STATE"
+    syslog(LOG_INFO, "VRRP_Instance(%s) Transition to MASTER STATE"
                    , vrrp->iname);
   } else {
     vrrp->state = VRRP_STATE_DUMMY_MAST;
-    syslog(LOG_INFO, "VRRP_Instance(%s) Entering DUMMY_MASTER STATE"
+    syslog(LOG_INFO, "VRRP_Instance(%s) Transition to DUMMY_MASTER STATE"
                    , vrrp->iname);
   }
 }
@@ -783,7 +799,13 @@ void vrrp_state_goto_master(vrrp_rt *vrrp)
 static void vrrp_restore_interface(vrrp_rt *vrrp, int advF)
 {
   /* remove the ip addresses */
-  vrrp_handle_ipaddress(vrrp, VRRP_IPADDRESS_DEL);
+  if (VRRP_VIP_ISSET(vrrp)) {
+    if (vrrp->naddr)
+      vrrp_handle_ipaddress(vrrp, VRRP_IPADDRESS_DEL, VRRP_VIP_TYPE);
+    if (vrrp->neaddr)
+      vrrp_handle_ipaddress(vrrp, VRRP_IPADDRESS_DEL, VRRP_EVIP_TYPE);
+    vrrp->vipset = 0;
+  }
 
   /* if we stop vrrp, warn the other routers to speed up the recovery */
   if (advF)
@@ -792,23 +814,13 @@ static void vrrp_restore_interface(vrrp_rt *vrrp, int advF)
 
 void vrrp_state_leave_master(vrrp_rt *vrrp)
 {
-  /* Check if notify is needed */
-  if (vrrp->notify_exec) {
-    if (vrrp->wantstate == VRRP_STATE_BACK)
-      notify_exec(vrrp, "backup");
-    if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT)
-      notify_exec(vrrp, "fault");
-    if  (vrrp->debug > 0)
-      syslog(LOG_INFO, "notify:%s, flg:%d"
-                     , vrrp->notify_file
-                     , vrrp->notify_exec);
-  }
-
+  if (VRRP_VIP_ISSET(vrrp)) {
 #ifdef _HAVE_IPVS_SYNCD_
-  /* Check if sync daemon handling is needed */
-  if (vrrp->lvs_syncd_if)
-    ipvs_syncd_backup(vrrp->lvs_syncd_if);
+    /* Check if sync daemon handling is needed */
+    if (vrrp->lvs_syncd_if)
+      ipvs_syncd_backup(vrrp->lvs_syncd_if);
 #endif
+  }
 
   /* set the new vrrp state */
   switch (vrrp->wantstate) {
@@ -817,12 +829,14 @@ void vrrp_state_leave_master(vrrp_rt *vrrp)
                      , vrrp->iname);
       vrrp_restore_interface(vrrp, 0);
       vrrp->state = vrrp->wantstate;
+      notify_exec(vrrp, VRRP_STATE_BACK);
       break;
     case VRRP_STATE_GOTO_FAULT:
       syslog(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE"
                      , vrrp->iname);
       vrrp_restore_interface(vrrp, 0);
       vrrp->state = VRRP_STATE_FAULT;
+      notify_exec(vrrp, VRRP_STATE_FAULT);
       break;
   }
 }
@@ -864,6 +878,12 @@ void vrrp_state_backup(vrrp_rt *vrrp, char *buf, int buflen)
 /* MASTER state processing */
 void vrrp_state_master_tx(vrrp_rt *vrrp, const int prio)
 {
+  if (!VRRP_VIP_ISSET(vrrp)) {
+    syslog(LOG_INFO, "VRRP_Instance(%s) Entering MASTER STATE"
+                   , vrrp->iname);
+    vrrp_state_become_master(vrrp);
+  }
+
   if (prio == VRRP_PRIO_OWNER)
     vrrp_send_adv(vrrp, VRRP_PRIO_OWNER);
   else
@@ -903,6 +923,14 @@ int vrrp_state_master_rx(vrrp_rt *vrrp, char *buf, int buflen)
                    , vrrp->iname);
     vrrp_send_adv(vrrp, vrrp->priority);
     return 0;
+  } else if (hd->priority < vrrp->priority) {
+    /* We receive a lower prio adv we just refresh remote ARP cache */
+    syslog(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert"
+                     ", forcing new election"
+                   , vrrp->iname);
+    vrrp_send_adv(vrrp, vrrp->priority);
+    vrrp_send_gratuitous_arp(vrrp);
+    return 0;
   } else if (hd->priority == 0) {
     vrrp_send_adv(vrrp, vrrp->priority);
     return 0;
@@ -914,10 +942,6 @@ int vrrp_state_master_rx(vrrp_rt *vrrp, char *buf, int buflen)
     vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
     vrrp->state = VRRP_STATE_BACK;
     return 1;
-  } else if (hd->priority < vrrp->priority) {
-    /* We receive a lower prio adv we just refresh remote ARP cache */
-    vrrp_send_gratuitous_arp(vrrp);
-    return 0;
   }
 
   return 0;

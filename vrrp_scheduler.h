@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_scheduler.c include file.
  * 
- * Version:     $Id: vrrp_scheduler.h,v 0.5.8 2002/05/21 16:09:46 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.h,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -44,6 +44,19 @@ typedef struct {
   int proto;
   int fd;
 } sock;
+
+/* VRRP FSM Macro */
+#define VRRP_FSM_READ_TO(V) \
+do { \
+  if ((*(FSM[(V)->state].read_to))) \
+    (*(FSM[(V)->state].read_to)) (V); \
+} while (0)
+
+#define VRRP_FSM_READ(V, B, L) \
+do { \
+  if ((*(FSM[(V)->state].read))) \
+    (*(FSM[(V)->state].read)) (V, B, L); \
+} while (0)
 
 /* extern prototypes */
 extern int vrrp_read_dispatcher_thread(thread *thread);
