@@ -4,10 +4,9 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.4.1 2001/09/14 00:37:56 acassen Exp $
+ * Version:     $Id: vrrp.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
- *              Based on the Jerome Etienne, <jetienne@arobas.net> code.
  *
  *              This program is distributed in the hope that it will be useful, 
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of 
@@ -21,15 +20,8 @@
  */
 
 /* local include */
-#include "scheduler.h"
-#include "cfreader.h"
-#include "utils.h"
+#include "vrrp_scheduler.h"
 #include "vrrp.h"
-
-/* local prototypes */
-static int vrrp_state_goto_master_thread(struct thread *thread);
-static int vrrp_state_master_thread(struct thread *thread);
-int vrrp_state_backup_thread(struct thread *thread);
 
 /* compute checksum */
 static u_short in_csum( u_short *addr, int len, u_short csum)
@@ -63,8 +55,23 @@ static u_short in_csum( u_short *addr, int len, u_short csum)
   return (answer);
 }
 
+/* retrieve MAC address from interface name */
+static int hwaddr_get(char *ifname, char *addr, int addrlen)
+{
+  struct ifreq ifr;
+  int fd = socket(AF_INET, SOCK_DGRAM, 0);
+  int ret;
+
+  if (fd < 0) return (-1);
+  strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+  ret = ioctl(fd, SIOCGIFHWADDR, (char *)&ifr);
+  memcpy(addr, ifr.ifr_hwaddr.sa_data, addrlen);
+  close(fd);
+  return ret;
+}
+
 /* resolve ipaddress from interface name */
-static uint32_t ifname_to_ip(char *ifname)
+static uint32_t ifname_to_ip(const char *ifname)
 {
   struct ifreq ifr;
   int fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -82,7 +89,7 @@ static uint32_t ifname_to_ip(char *ifname)
 }
 
 /* resolve interface index from interface name */
-static int ifname_to_idx(char *ifname)
+int ifname_to_idx(const char *ifname)
 {
   struct ifreq ifr;
   int fd = socket(AF_INET, SOCK_DGRAM, 0);
@@ -97,102 +104,60 @@ static int ifname_to_idx(char *ifname)
   return ifindex;
 }
 
-/* retrieve MAC options */
-static int rcvhwaddr_op(char *ifname, char *addr, int addrlen, int addF)
+/* resolve ifname from index */
+static void index_to_ifname(const int ifindex, char *ifname)
 {
   struct ifreq ifr;
   int fd = socket(AF_INET, SOCK_DGRAM, 0);
-  int ret;
 
-  if (fd < 0) return (-1);
+  if (fd < 0) return;
 
-  strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
-  memcpy( ifr.ifr_hwaddr.sa_data, addr, addrlen );
-  ifr.ifr_hwaddr.sa_family = AF_UNSPEC;
-
-  ret = ioctl(fd, addF ? SIOCADDMULTI : SIOCDELMULTI, (char *)&ifr);
-  if (ret) {
-    syslog(LOG_INFO, "Can't %s on %s. errno=%d"
-                   , addF ? "SIOCADDMULTI" : "SIOCDELMULTI"
-                   , ifname, errno );
-  }
+  /* get interface name */
+  ifr.ifr_ifindex = ifindex;
+  if (ioctl(fd, SIOCGIFNAME, (char *)&ifr) == 0)
+    strncpy(ifname, ifr.ifr_name, sizeof(ifr.ifr_name));
   close(fd);
-  return ret;
 }
 
-/* Set MAC address - need to shutdown the interface before */
-static int hwaddr_set(char *ifname, char *addr, int addrlen)
+/* resolve ipaddress from interface index */
+static uint32_t index_to_ip(const int ifindex)
 {
-  struct ifreq ifr;
-  int fd = socket(AF_INET, SOCK_DGRAM, 0);
-  int ret;
-  unsigned long flags;
+  char ifname[IFNAMSIZ];
 
-  if (fd < 0) return (-1);
-  strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+  memset(&ifname, 0, IFNAMSIZ);
+  index_to_ifname(ifindex, ifname);
 
-  /* get the flags */
-  ret = ioctl(fd, SIOCGIFFLAGS, (char *)&ifr);
-  if (ret) goto end;
-  flags = ifr.ifr_flags;
-
-  /* set the interface down */
-  ifr.ifr_flags &= ~IFF_UP;
-  ret = ioctl(fd, SIOCSIFFLAGS, (char *)&ifr);
-  if(ret) goto end;
-
-  /* change the hwaddr */
-  memcpy(ifr.ifr_hwaddr.sa_data, addr, addrlen);
-  ifr.ifr_hwaddr.sa_family = AF_UNIX;
-  ret = ioctl(fd, SIOCSIFHWADDR, (char *)&ifr);
-  if(ret) goto end;
-
-  /* set the interface up */
-  ifr.ifr_flags = flags;
-  ret = ioctl(fd, SIOCSIFFLAGS, (char *)&ifr);
-  if(ret) goto end;
-
-end:;
-  if (ret) syslog(LOG_INFO, "MAC set : error errno=%d", errno);
-
-  close(fd);
-  return ret;
-}
-
-/* retrieve MAC address from interface name */
-static int hwaddr_get(char *ifname, char *addr, int addrlen)
-{
-  struct ifreq ifr;
-  int fd = socket(AF_INET, SOCK_DGRAM, 0);
-  int ret;
-
-  if (fd < 0) return (-1);
-  strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
-  ret = ioctl(fd, SIOCGIFHWADDR, (char *)&ifr);
-  memcpy(addr, ifr.ifr_hwaddr.sa_data, addrlen);
-  close(fd);
-  return ret;
+  return(ifname_to_ip(ifname));
 }
 
 /* add/remove VIP */
-static int ipaddr_ops(vrrp_rt *vsrv, int addF)
+static int vrrp_handle_ipaddress(vrrp_rt *vsrv, int cmd)
 {
   int i, err = 0;
+  int retry = 0;
   int ifidx = ifname_to_idx(vsrv->vif->ifname);
   struct in_addr in;
 
   for(i = 0; i < vsrv->naddr; i++ ) {
     vip_addr *vadd = &vsrv->vaddr[i];
-    if(!addF && !vadd->deletable) continue;
-
-    if (ipaddr_op(ifidx , vadd->addr, addF)) {
+    if(!cmd && !vadd->deletable) continue;
+retry:
+    if (netlink_address_ipv4(ifidx , vadd->addr, cmd) < 0) {
       err = 1;
       vadd->deletable = 0;
       in.s_addr = htonl(vadd->addr);
       syslog(LOG_INFO, "cant %s the address %s to %s\n"
-                     , addF ? "set" : "remove"
+                     , cmd ? "set" : "remove"
                      , inet_ntoa(in)
                      , vsrv->vif->ifname);
+      if (cmd == VRRP_IPADDRESS_ADD) {
+        syslog(LOG_INFO, "try to delete eventual stalled ip");
+        netlink_address_ipv4(ifidx, vadd->addr, VRRP_IPADDRESS_DEL);
+        if (!retry) {
+          retry++;
+          goto retry;
+        }
+      }
     } else {
       vadd->deletable = 1;
     }
@@ -213,7 +178,7 @@ static int vrrp_iphdr_len(vrrp_rt *vsrv)
 }
 
 /* IPSEC AH header length */
-static int vrrp_ipsecah_len(vrrp_rt *vsrv)
+int vrrp_ipsecah_len()
 {
   return sizeof(ipsec_ah);
 }
@@ -230,7 +195,7 @@ static int vrrp_hd_len(vrrp_rt *vsrv)
  * IPSEC AH incoming packet check.
  * return 0 for a valid pkt, != 0 otherwise.
  */
-static int vrrp_in_chk_ipsecah( vrrp_rt *vsrv, char *buffer)
+static int vrrp_in_chk_ipsecah(vrrp_rt *vsrv, char *buffer)
 {
   struct iphdr *ip = (struct iphdr*)(buffer);
   ipsec_ah *ah = (ipsec_ah *)((char *)ip + (ip->ihl<<2));
@@ -252,7 +217,7 @@ static int vrrp_in_chk_ipsecah( vrrp_rt *vsrv, char *buffer)
   vsrv->ipsecah_counter->seq_number++;
   if (ah->seq_number >= vsrv->ipsecah_counter->seq_number) {
 #ifdef DEBUG
-  syslog(LOG_DEBUG, "IPSEC AH : SEQUENCE NUMBER : %d\n", ah->seq_number);
+//  syslog(LOG_DEBUG, "IPSEC AH : SEQUENCE NUMBER : %d\n", ah->seq_number);
 #endif
     vsrv->ipsecah_counter->seq_number = ah->seq_number;
   } else {
@@ -277,10 +242,10 @@ static int vrrp_in_chk_ipsecah( vrrp_rt *vsrv, char *buffer)
   memset(ah->auth_data, 0, sizeof(ah->auth_data));
 
   /* Compute the ICV */
-  hmac_md5(buffer, vrrp_iphdr_len(vsrv)+vrrp_ipsecah_len(vsrv)+vrrp_hd_len(vsrv),
+  hmac_md5(buffer, vrrp_iphdr_len(vsrv)+vrrp_ipsecah_len()+vrrp_hd_len(vsrv),
            vsrv->vif->auth_data, sizeof(vsrv->vif->auth_data), digest);
 
-  if (memcmp(backup_auth_data,digest,HMAC_MD5_TRUNC) != 0) {
+  if (memcmp(backup_auth_data, digest, HMAC_MD5_TRUNC) != 0) {
     syslog(LOG_INFO, "IPSEC AH : invalid IPSEC HMAC-MD5 value."
                      " Due to fields mutation or bad password !");
     return 1;
@@ -297,7 +262,7 @@ static int vrrp_in_chk_vips(vrrp_rt *vsrv, uint32_t ipaddr, unsigned char *buffe
   uint32_t ipbuf;
 
   for (i=0; i < vsrv->naddr; i++) {
-    bcopy(buffer+i*sizeof(uint32_t),&ipbuf,sizeof(uint32_t));
+    bcopy(buffer+i*sizeof(uint32_t), &ipbuf, sizeof(uint32_t));
     if (ipaddr == ntohl(ipbuf)) return 1;
   }
 
@@ -320,7 +285,7 @@ static int vrrp_in_chk(vrrp_rt *vsrv, char *buffer)
 
   if (vif->auth_type == VRRP_AUTH_AH) {
     ah = (ipsec_ah *)(buffer + sizeof(struct iphdr));
-    hd = (vrrp_pkt *)(buffer + ihl + vrrp_ipsecah_len(vsrv));
+    hd = (vrrp_pkt *)(buffer + ihl + vrrp_ipsecah_len());
   } else {
     hd = (vrrp_pkt *)(buffer + ihl);
   }
@@ -379,8 +344,11 @@ static int vrrp_in_chk(vrrp_rt *vsrv, char *buffer)
   }
 
   /* MUST verify that the VRID is valid on the receiving interface */
-  if (vsrv->vrid != hd->vrid)
-    return VRRP_PACKET_KO;
+  if (vsrv->vrid != hd->vrid) {
+    syslog(LOG_INFO, "received VRID mismatch. Received %d, Expected %d", 
+                     hd->vrid, vsrv->vrid);
+    return VRRP_PACKET_DROP;
+  }
 
   /*
    * MAY verify that the IP address(es) associated with the
@@ -398,7 +366,7 @@ static int vrrp_in_chk(vrrp_rt *vsrv, char *buffer)
                      , vsrv->vaddr[i].addr);
       syslog(LOG_INFO, "one or more VIP associated with"
                        " VRID mismatch actual MASTER advert");
-      return VRRP_PACKET_DROP;
+      return VRRP_PACKET_KO;
     }
 
   /*
@@ -414,7 +382,7 @@ static int vrrp_in_chk(vrrp_rt *vsrv, char *buffer)
 
   /* check the authenicaion if it is ipsec ah */
   if(hd->auth_type == VRRP_AUTH_AH)
-    return(vrrp_in_chk_ipsecah(vsrv,buffer));
+    return(vrrp_in_chk_ipsecah(vsrv, buffer));
 
   return VRRP_PACKET_OK;
 }
@@ -448,7 +416,7 @@ static void vrrp_build_ip(vrrp_rt *vsrv, char *buffer, int buflen)
   ip->ihl      = 5;
   ip->version  = 4;
   ip->tos      = 0;
-  ip->tot_len  = ip->ihl*4 + vrrp_hd_len( vsrv );
+  ip->tot_len  = ip->ihl*4 + vrrp_hd_len(vsrv);
   ip->tot_len  = htons(ip->tot_len);
   ip->id       = ++vsrv->vif->ip_id;
   ip->frag_off = 0;
@@ -460,7 +428,7 @@ static void vrrp_build_ip(vrrp_rt *vsrv, char *buffer, int buflen)
   ip->daddr    = htonl(INADDR_VRRP_GROUP);
 
   /* checksum must be done last */
-  ip->check = in_csum( (u_short*)ip, ip->ihl*4, 0 );
+  ip->check = in_csum((u_short*)ip, ip->ihl*4, 0);
 }
 
 /* build IPSEC AH header */
@@ -469,17 +437,17 @@ static void vrrp_build_ipsecah(vrrp_rt *vsrv, char *buffer, int buflen)
   ICV_mutable_fields *ip_mutable_fields;
   unsigned char *digest;
   struct iphdr *ip = (struct iphdr *)(buffer);
-  ipsec_ah *ah = (ipsec_ah *)(buffer+sizeof(struct iphdr));
+  ipsec_ah *ah = (ipsec_ah *)(buffer + sizeof(struct iphdr));
 
   /* alloc a temp memory space to stock the ip mutable fields */
-  ip_mutable_fields=calloc(sizeof(ICV_mutable_fields),1);
-  memset(ip_mutable_fields,0,sizeof(ICV_mutable_fields));
+  ip_mutable_fields=calloc(sizeof(ICV_mutable_fields), 1);
+  memset(ip_mutable_fields, 0, sizeof(ICV_mutable_fields));
 
   /* fill in next header filed --rfc2402.2.1 */
   ah->next_header = IPPROTO_VRRP;
 
   /* update IP header total length value */
-  ip->tot_len = ip->ihl*4 + vrrp_ipsecah_len( vsrv ) + vrrp_hd_len( vsrv );
+  ip->tot_len = ip->ihl*4 + vrrp_ipsecah_len() + vrrp_hd_len(vsrv);
   ip->tot_len = htons(ip->tot_len);
 
   /* update ip checksum */
@@ -568,21 +536,21 @@ static int vrrp_build_vrrp(vrrp_rt *vsrv, int prio, char *buffer, int buflen)
 
   /* copy the ip addresses */
   for( i = 0; i < vsrv->naddr; i++ ){
-    iparr[i] = htonl( vsrv->vaddr[i].addr );
+    iparr[i] = htonl(vsrv->vaddr[i].addr);
   }
   hd->chksum  = in_csum( (u_short*)hd, vrrp_hd_len(vsrv), 0);
 
   /* copy the passwd if the authentication is VRRP_AH_PASS */
   if( vif->auth_type == VRRP_AUTH_PASS ){
-    char  *pw  = (char *)hd+sizeof(*hd)+vsrv->naddr*4;
-    memcpy( pw, vif->auth_data, sizeof(vif->auth_data));
+    char *pw = (char *)hd + sizeof(*hd) + vsrv->naddr*4;
+    memcpy(pw, vif->auth_data, sizeof(vif->auth_data));
   }
 
   return(0);
 }
 
 /* build VRRP packet */
-static void vrrp_build_pkt( vrrp_rt *vsrv, int prio, char *buffer, int buflen )
+static void vrrp_build_pkt(vrrp_rt *vsrv, int prio, char *buffer, int buflen)
 {
   char *bufptr;
 
@@ -594,23 +562,23 @@ static void vrrp_build_pkt( vrrp_rt *vsrv, int prio, char *buffer, int buflen )
   /* build the ip header */
   buffer += vrrp_dlt_len(vsrv);
   buflen -= vrrp_dlt_len(vsrv);
-  vrrp_build_ip( vsrv, buffer, buflen );
+  vrrp_build_ip(vsrv, buffer, buflen);
 
   /* build the vrrp header */
   buffer += vrrp_iphdr_len(vsrv);
 
   if (vsrv->vif->auth_type == VRRP_AUTH_AH)
-    buffer += vrrp_ipsecah_len(vsrv);
+    buffer += vrrp_ipsecah_len();
   buflen -= vrrp_iphdr_len(vsrv);
 
   if (vsrv->vif->auth_type == VRRP_AUTH_AH)
-    buflen -= vrrp_ipsecah_len(vsrv);
+    buflen -= vrrp_ipsecah_len();
   vrrp_build_vrrp(vsrv, prio, buffer, buflen);
 
   /* build the IPSEC AH header */
   if (vsrv->vif->auth_type == VRRP_AUTH_AH) {
     bufptr += vrrp_dlt_len(vsrv);
-    buflen += vrrp_ipsecah_len(vsrv) + vrrp_iphdr_len(vsrv);;
+    buflen += vrrp_ipsecah_len() + vrrp_iphdr_len(vsrv);;
     vrrp_build_ipsecah(vsrv, bufptr, buflen);
   }
 }
@@ -623,18 +591,18 @@ static int vrrp_send_pkt(vrrp_rt *vsrv, char *buffer, int buflen)
   int fd = socket(PF_PACKET, SOCK_PACKET, 0x300); /* 0x300 is magic */
 
   if( fd < 0 ){
-    syslog(LOG_DEBUG, "VRRP Error : socket creation");
+    syslog(LOG_INFO, "VRRP Error : socket creation");
     return -1;
   }
 
   /* build the address */
   memset(&from, 0 , sizeof(from));
-  strcpy( from.sa_data, vsrv->vif->ifname );
+  strcpy(from.sa_data, vsrv->vif->ifname);
 
   /* send the data */
   len = sendto(fd, buffer, buflen, 0, &from, sizeof(from));
 
-  close( fd );
+  close(fd);
   return len;
 }
 
@@ -647,7 +615,7 @@ static int vrrp_send_adv(vrrp_rt *vsrv, int prio)
   /* alloc the memory */
   buflen = vrrp_dlt_len(vsrv) + vrrp_iphdr_len(vsrv) + vrrp_hd_len(vsrv);
   if (vsrv->vif->auth_type == VRRP_AUTH_AH)
-    buflen += vrrp_ipsecah_len(vsrv);
+    buflen += vrrp_ipsecah_len();
   buffer = calloc(buflen, 1);
   memset(buffer,0,buflen);
 
@@ -656,37 +624,31 @@ static int vrrp_send_adv(vrrp_rt *vsrv, int prio)
 
   /* send it */
   ret = vrrp_send_pkt(vsrv, buffer, buflen);
-#ifdef DEBUG
-  syslog(LOG_DEBUG, "Sending VRRP Advert on %s", vsrv->vif->ifname);
-//  printf("Sending on : %s : fd :%d\n", vsrv->vif->ifname,vsrv->sockfd);
-//  print_buffer(buflen,buffer);
-#endif
 
   /* free the memory */
   free(buffer);
   return ret;
 }
 
-
 /* Received packet processing */
-static int vrrp_read(vrrp_rt *vsrv, char *buf, int buflen)
+int vrrp_check_packet(vrrp_rt *vsrv, char *buf, int buflen)
 {
-  int len = 0;
   int ret;
 
-  len = read(vsrv->sockfd, buf, buflen);
-
-#ifdef DEBUG
-  syslog(LOG_DEBUG, "VRRP packet received (%d bytes)", len);
-//  print_buffer(buflen,buf);
-#endif
-
-  if (len > 0) {
+  if (buflen > 0) {
     ret = vrrp_in_chk(vsrv, buf);
 
-    if (ret == VRRP_PACKET_KO || ret == VRRP_PACKET_DROP)
-      syslog(LOG_INFO, "bogus VRRP packet received !!!");
+    if (ret == VRRP_PACKET_DROP) {
+      syslog(LOG_INFO, "Sync instance needed on %s !!!",
+                       vsrv->vif->ifname);
+    }
 
+    if (ret == VRRP_PACKET_KO)
+      syslog(LOG_INFO, "bogus VRRP packet received on %s !!!",
+                       vsrv->vif->ifname);
+//    else
+//      syslog(LOG_INFO, "Success receiving VRRP packet on %s.",
+//                       vsrv->vif->ifname);
     return ret;
   }
 
@@ -694,7 +656,7 @@ static int vrrp_read(vrrp_rt *vsrv, char *buf, int buflen)
 }
 
 /* send a gratuitous ARP packet */
-static int send_gratuitous_arp(vrrp_rt *vsrv, int addr, int vAddrF)
+static int send_gratuitous_arp(vrrp_rt *vsrv, int addr)
 {
   struct m_arphdr {
     unsigned short int ar_hrd;          /* Format of hardware address.  */
@@ -709,11 +671,11 @@ static int send_gratuitous_arp(vrrp_rt *vsrv, int addr, int vAddrF)
     unsigned char __ar_tip[4];          /* Target IP address.  */
   };
 
-  char buf[sizeof(struct m_arphdr)+ETHER_HDR_LEN];
-  char buflen = sizeof(struct m_arphdr)+ETHER_HDR_LEN;
+  char buf[sizeof(struct m_arphdr) + ETHER_HDR_LEN];
+  char buflen = sizeof(struct m_arphdr) + ETHER_HDR_LEN;
   struct ether_header *eth = (struct ether_header *)buf;
-  struct m_arphdr *arph = (struct m_arphdr *)(buf+vrrp_dlt_len(vsrv));
-  char  *hwaddr = vAddrF ? vsrv->hwaddr : vsrv->vif->hwaddr;
+  struct m_arphdr *arph = (struct m_arphdr *)(buf + vrrp_dlt_len(vsrv));
+  char  *hwaddr = vsrv->vif->hwaddr;
   int  hwlen = ETH_ALEN;
 
   /* hardcoded for ethernet */
@@ -722,7 +684,7 @@ static int send_gratuitous_arp(vrrp_rt *vsrv, int addr, int vAddrF)
   eth->ether_type = htons(ETHERTYPE_ARP);
 
   /* build the arp payload */
-  memset(arph, 0, sizeof( *arph ));
+  memset(arph, 0, sizeof(*arph));
   arph->ar_hrd = htons(ARPHRD_ETHER);
   arph->ar_pro = htons(ETHERTYPE_IP);
   arph->ar_hln = 6;
@@ -735,263 +697,143 @@ static int send_gratuitous_arp(vrrp_rt *vsrv, int addr, int vAddrF)
   return vrrp_send_pkt(vsrv, buf, buflen);
 }
 
-/* becoming master */
-static int vrrp_state_goto_master_thread(struct thread *thread)
+/* Gratuitous ARP on each VIP */
+void vrrp_send_gratuitous_arp(vrrp_instance *vrrp_instance)
 {
-  int  i;
-  vrrp_instance *vrrp_instance = THREAD_ARG(thread);
+  int  i, j;
   vrrp_rt *vsrv = vrrp_instance->vsrv;
-  vrrp_if *vif = vsrv->vif;
-  struct rt_entry *rt_table;
 
-  /* set the VRRP MAC address -- rfc2338.7.3 */
-  if(!vsrv->no_vmac) {
-    /* backup the routing table */
-    rt_table = iproute_list(vif->ifname);
+  /* send gratuitous arp for each virtual ip */
+  for (j = 0; j < 5; j++)
+    for (i = 0; i < vsrv->naddr; i++)
+      send_gratuitous_arp(vsrv, vsrv->vaddr[i].addr);
+}
 
-    hwaddr_set(vif->ifname, vsrv->hwaddr, sizeof(vsrv->hwaddr));
-    rcvhwaddr_op(vif->ifname, vif->hwaddr, sizeof(vif->hwaddr), 1);
-
-    /* restore routing table */
-    iproute_restore(rt_table, vif->ifname);
-    iproute_clear(rt_table);
-  }
+/* becoming master */
+void vrrp_state_goto_master(vrrp_instance *vrrp_instance)
+{
+  vrrp_rt *vsrv = vrrp_instance->vsrv;
 
   /* add the ip addresses */
-  ipaddr_ops(vsrv, 1);
+  vrrp_handle_ipaddress(vsrv, VRRP_IPADDRESS_ADD);
 
   /* send an advertisement */
   vrrp_send_adv(vsrv, vsrv->priority);
 
-  /* send gratuitous arp for each virtual ip */
-  for (i = 0; i < vsrv->naddr; i++)
-    send_gratuitous_arp(vsrv, vsrv->vaddr[i].addr, 1);
+  /* remotes arp tables update */
+  vrrp_send_gratuitous_arp(vrrp_instance);
 
-  syslog(LOG_INFO, "VRRP_Instance(%s) entering MASTER STATE"
+  syslog(LOG_INFO, "VRRP_Instance(%s) Entering MASTER STATE"
                  , vrrp_instance->iname);
 
-  /* register master state thread */
   vsrv->state = VRRP_STATE_MAST;
-  thread_add_read(thread->master, vrrp_state_master_thread, vrrp_instance, 
-                  vsrv->sockfd, vsrv->adver_int);
-
-  return 0;
 }
 
 /* leaving master state */
 static void vrrp_restore_interface(vrrp_rt *vsrv, int advF)
 {
-  uint32_t addr[1024];
-  vrrp_if *vif = vsrv->vif;
-  struct rt_entry *rt_table;
-
-  /* restore the original MAC addresses */
-  if (!vsrv->no_vmac) {
-    /* backup the routing table */
-    rt_table = iproute_list(vif->ifname);
-
-    hwaddr_set(vif->ifname, vif->hwaddr, sizeof(vif->hwaddr));
-    rcvhwaddr_op(vif->ifname, vif->hwaddr, sizeof(vif->hwaddr), 0);
-
-    /* restore routing table */
-    iproute_restore(rt_table, vif->ifname);
-    iproute_clear(rt_table);
-  }
-
   /* remove the ip addresses */
-  ipaddr_ops(vsrv, 0);
+  vrrp_handle_ipaddress(vsrv, VRRP_IPADDRESS_DEL);
 
-  /* if we stop vrrpd, warn the other routers to speed up the recovery */
-  if (advF) {
+  /* if we stop vrrp, warn the other routers to speed up the recovery */
+  if (advF)
     vrrp_send_adv(vsrv, VRRP_PRIO_STOP);
-  }
-
-  /*
-   * Send gratuitous ARP for all the non-vrrp ip addresses to update
-   * the cache of remote hosts using these addresses
-   */
-  if (!vsrv->no_vmac) {
-    int i, naddr;
-    naddr = ipaddr_list(ifname_to_idx(vif->ifname), addr
-                        , sizeof(addr)/sizeof(addr[0]));
-    for (i = 0; i < naddr; i++)
-      send_gratuitous_arp(vsrv, addr[i], 0);
-  }
 }
 
-static int vrrp_state_leave_master_thread(struct thread *thread)
+void vrrp_state_leave_master(vrrp_instance *instance)
 {
-  vrrp_instance *vrrp_instance = THREAD_ARG(thread);
-  vrrp_rt *vsrv = vrrp_instance->vsrv;
+  vrrp_rt *vsrv = instance->vsrv;
 
-  /* restore the routing table & remove VIPs */
+  /* Remove VIPs */
   vrrp_restore_interface(vsrv, 0);
 
   syslog(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE"
-                 , vrrp_instance->iname);
+                 , instance->iname);
 
   /* register the vrrp backup handler */
   vsrv->state = VRRP_STATE_BACK;
-  thread_add_read(thread->master, vrrp_state_backup_thread, vrrp_instance,
-                  vsrv->sockfd, vsrv->ms_down_timer);
-  return 0;
 }
 
 /* BACKUP state processing */
-int vrrp_state_backup_thread(struct thread *thread)
+void vrrp_state_backup(vrrp_instance *instance, char *buf, int buflen)
 {
-  char *buf;
   int ret = 0;
-  int buflen = 0;
-  struct iphdr *iph;
+  vrrp_rt *vsrv = instance->vsrv;
+  struct iphdr *iph = (struct iphdr *)buf;
   vrrp_pkt *hd;
-  vrrp_instance *vrrp_instance = THREAD_ARG(thread);
-  vrrp_rt *vsrv = vrrp_instance->vsrv;
 
-//printf("-----[ %s ]------\nBACKUP STATE fd : %d\n", vrrp_instance->iname, thread->u.fd);
-
-  if (thread->type == THREAD_READ_TIMEOUT) {
-
-    /* If becoming MASTER in IPSEC AH AUTH, we reset the anti-replay */
-    if (vsrv->ipsecah_counter->cycle) {
-      vsrv->ipsecah_counter->cycle = 0;
-      vsrv->ipsecah_counter->seq_number = 0;
-    }
-
-    /* register the vrrp transit backup state */
-    vsrv->state = VRRP_STATE_BACK;
-    thread_add_event(thread->master, vrrp_state_goto_master_thread, 
-                     vrrp_instance, VRRP_STATE_MAST);
-
-    syslog(LOG_INFO, "VRRP_Instance(%s) becoming MASTER"
-                   , vrrp_instance->iname);
-  } else {
-    /* buffer allocation */
-    if(vsrv->vif->auth_type == VRRP_AUTH_AH) {
-      buflen = vrrp_iphdr_len(vsrv) + vrrp_ipsecah_len(vsrv) + vrrp_hd_len(vsrv);
-      buf = calloc(buflen,1); 
-      memset(buf,0,buflen);
-
-      /* fill the header structure */
-      ret = vrrp_read(vsrv, buf, buflen);
-      iph = (struct iphdr *)buf;
-      hd  = (vrrp_pkt *)((char *)iph + (iph->ihl<<2) + vrrp_ipsecah_len(vsrv));
-    } else {
-      buflen = vrrp_iphdr_len(vsrv) + vrrp_hd_len(vsrv);
-      buf = calloc(buflen, 1);
-      memset(buf,0,buflen);
-
-      /* fill the header structure */
-      ret = vrrp_read( vsrv, buf, buflen );
-      iph = (struct iphdr *)buf;
-      hd = (vrrp_pkt *)((char *)iph + (iph->ihl<<2));
-    }
-
-    if (ret == VRRP_PACKET_KO   || 
-        ret == VRRP_PACKET_NULL ||
-        ret == VRRP_PACKET_DROP) {
-      syslog(LOG_INFO, "Dropping received advertisment...\n");
-      vsrv->ms_down_timer = 3 * vsrv->adver_int + VRRP_TIMER_SKEW(vsrv);
-    } else if (hd->priority == 0) {
-      vsrv->ms_down_timer = VRRP_TIMER_SKEW(vsrv);
-    } else if( !vsrv->preempt || hd->priority >= vsrv->priority ) {
-      vsrv->ms_down_timer = 3 * vsrv->adver_int + VRRP_TIMER_SKEW(vsrv);
-    }
-
-    /* register next vrrp master thread */
-    thread_add_read(thread->master, vrrp_state_backup_thread, vrrp_instance,
-                    thread->u.fd, vsrv->ms_down_timer);
-
-    free(buf);
+  /* Fill the VRRP header */
+  switch (iph->protocol) {
+    case IPPROTO_IPSEC_AH:
+      hd  = (vrrp_pkt *)((char *)iph + (iph->ihl<<2) + vrrp_ipsecah_len());
+      break;
+    case IPPROTO_VRRP:
+      hd  = (vrrp_pkt *)((char *)iph + (iph->ihl<<2));
+      break;
   }
 
-  return 0;
+  /* Process the incoming packet */
+  ret = vrrp_check_packet(vsrv, buf, buflen);
+
+  if (ret == VRRP_PACKET_KO   || 
+      ret == VRRP_PACKET_NULL) {
+    syslog(LOG_INFO, "VRRP_Instance(%s) ignoring received advertisment..."
+                   , instance->iname);
+    vsrv->ms_down_timer = 3 * vsrv->adver_int + VRRP_TIMER_SKEW(vsrv);
+  } else if (hd->priority == 0) {
+    vsrv->ms_down_timer = VRRP_TIMER_SKEW(vsrv);
+  } else if( !vsrv->preempt || hd->priority >= vsrv->priority ) {
+    vsrv->ms_down_timer = 3 * vsrv->adver_int + VRRP_TIMER_SKEW(vsrv);
+  }
 }
 
 /* MASTER state processing */
-static int vrrp_state_master_thread(struct thread *thread)
+void vrrp_state_master_tx(vrrp_instance *instance, const int prio)
 {
-  char *buf;
-  int ret = 0;
-  int buflen = 0;
-  struct iphdr *iph;
-  vrrp_pkt *hd;
-  vrrp_instance *vrrp_instance = THREAD_ARG(thread);
-  vrrp_rt *vsrv = vrrp_instance->vsrv;
+  vrrp_rt *vsrv = instance->vsrv;
 
-//printf("-----[ %s ]------\nMASTER STATE fd : %d\n", vrrp_instance->iname, thread->u.fd);
-
-  if (thread->type == THREAD_READ_TIMEOUT) {
-
-    if (vsrv->wantstate == VRRP_STATE_BACK ||
-        vsrv->ipsecah_counter->cycle) {
-      vsrv->ms_down_timer = 3 * vsrv->adver_int + VRRP_TIMER_SKEW(vsrv);
-
-      /* register the vrrp transit backup state */
-      vsrv->state  = VRRP_STATE_BACK;
-      thread_add_event(thread->master, vrrp_state_leave_master_thread, 
-                       vrrp_instance, VRRP_STATE_BACK);
-
-      syslog(LOG_INFO, "VRRP_Instance(%s) becoming BACKUP"
-                     , vrrp_instance->iname);
-    }
-
+  if (prio == VRRP_PRIO_OWNER)
+    vrrp_send_adv(vsrv, VRRP_PRIO_OWNER);
+  else
     vrrp_send_adv(vsrv, vsrv->priority);
+}
 
-    /* register next vrrp master thread */
-    thread_add_read(thread->master, vrrp_state_master_thread, vrrp_instance,
-                    thread->u.fd, vsrv->adver_int);
-  } else {
-    /* buffer allocation */
-    if (vsrv->vif->auth_type == VRRP_AUTH_AH) {
-      buflen = vrrp_iphdr_len(vsrv) + vrrp_ipsecah_len(vsrv) + vrrp_hd_len(vsrv);
-      buf = calloc(buflen,1); 
-      memset(buf,0,buflen);
+int vrrp_state_master_rx(vrrp_instance *instance, char *buf, int buflen)
+{
+  int ret = 0;
+  vrrp_rt *vsrv = instance->vsrv;
+  struct iphdr *iph = (struct iphdr *)buf;
+  vrrp_pkt *hd;
 
-      /* fill the header structure */
-      ret = vrrp_read(vsrv, buf, buflen);
-      iph = (struct iphdr *)buf;
-      hd  = (vrrp_pkt *)((char *)iph + (iph->ihl<<2) + vrrp_ipsecah_len(vsrv));
-    } else {
-      buflen = vrrp_iphdr_len(vsrv) + vrrp_hd_len(vsrv);
-      buf = calloc(buflen, 1);
-      memset(buf,0,buflen);
+  /* Fill the VRRP header */
+  switch (iph->protocol) {
+    case IPPROTO_IPSEC_AH:
+      hd  = (vrrp_pkt *)((char *)iph + (iph->ihl<<2) + vrrp_ipsecah_len());
+      break;
+    case IPPROTO_VRRP:
+      hd  = (vrrp_pkt *)((char *)iph + (iph->ihl<<2));
+      break;
+  }
 
-      /* fill the header structure */
-      ret = vrrp_read(vsrv, buf, buflen);
-      iph = (struct iphdr *)buf;
-      hd = (vrrp_pkt *)((char *)iph + (iph->ihl<<2));
-    }
+  /* Process the incoming packet */
+  ret = vrrp_check_packet(vsrv, buf, buflen);
 
-    if (ret == VRRP_PACKET_KO   || 
-        ret == VRRP_PACKET_NULL ||
-        ret == VRRP_PACKET_DROP) {
-      syslog(LOG_INFO, "Dropping received VRRP packet...\n");
-      vrrp_send_adv(vsrv, vsrv->priority);
-
-      /* register next vrrp master thread */
-      thread_add_read(thread->master, vrrp_state_master_thread, vrrp_instance,
-                      thread->u.fd, vsrv->adver_int);
-
-    } else if (hd->priority == 0) {
-      vrrp_send_adv(vsrv, vsrv->priority);
-
-      /* register next vrrp master thread */
-      thread_add_read(thread->master, vrrp_state_master_thread, vrrp_instance,
-                      thread->u.fd, vsrv->adver_int);
-
-    } else if( hd->priority > vsrv->priority ||
-              (hd->priority == vsrv->priority &&
-              ntohl(iph->saddr) > vsrv->vif->ipaddr)) {
-
-      vsrv->ms_down_timer = 3 * vsrv->adver_int + VRRP_TIMER_SKEW(vsrv);
-
-      /* register the vrrp transit backup state */
-      vsrv->state  = VRRP_STATE_BACK;
-      thread_add_event(thread->master, vrrp_state_leave_master_thread, 
-                       vrrp_instance, VRRP_STATE_BACK);
-    }
-    free(buf);
+  if (ret == VRRP_PACKET_KO   ||
+      ret == VRRP_PACKET_NULL ||
+      ret == VRRP_PACKET_DROP) {
+    syslog(LOG_INFO, "VRRP_Instance(%s) Dropping received VRRP packet..."
+                   , instance->iname);
+    vrrp_send_adv(vsrv, vsrv->priority);
+    return 0;
+  } else if (hd->priority == 0) {
+    vrrp_send_adv(vsrv, vsrv->priority);
+    return 0;
+  } else if( hd->priority > vsrv->priority ||
+            (hd->priority == vsrv->priority &&
+            ntohl(iph->saddr) > vsrv->vif->ipaddr)) {
+    vsrv->ms_down_timer = 3 * vsrv->adver_int + VRRP_TIMER_SKEW(vsrv);
+    vsrv->state = VRRP_STATE_BACK;
+    return 1;
   }
 
   return 0;
@@ -1012,9 +854,6 @@ static int chk_min_cfg(vrrp_rt *vsrv)
     syslog(LOG_INFO, "the interface ipaddr must be set!");
     return 0;
   }
-
-  /* vrrp structure is completed */
-  vsrv->initF = 1;
 
   return 1;
 }
@@ -1054,104 +893,68 @@ int complete_vrrp_init(vrrp_rt *vsrv)
 }
 
 /* open the socket and join the multicast group. */
-static int open_vrrp_socket(vrrp_rt *vsrv)
+int open_vrrp_socket(const int proto, const int index)
 {
-  struct ip_mreq req;
-  struct ip_mreqn interface;
-  u_char loop;
+  struct ip_mreqn req_add;
+  char ifname[IFNAMSIZ];
   int fd;
   int ret;
 
   /* open the socket */
-  if (vsrv->vif->auth_type == VRRP_AUTH_AH)
-    fd = socket(AF_INET, SOCK_RAW, IPPROTO_IPSEC_AH);
-  else
-    fd = socket(AF_INET, SOCK_RAW, IPPROTO_VRRP);
+  fd = socket(AF_INET, SOCK_RAW, proto);
 
-  if(fd < 0){
+  if (fd < 0) {
     int err = errno;
     syslog(LOG_INFO, "cant open raw socket. errno=%d. (try to run it as root)"
                    , err);
     return -1;
   }
 
-  /* join the multicast group */
-  memset(&req, 0, sizeof (req));
-  req.imr_multiaddr.s_addr = htonl(INADDR_VRRP_GROUP);
-  req.imr_interface.s_addr = htonl(vsrv->vif->ipaddr);
+  /* -> inbound processing option
+   * Specify the bound_dev_if.
+   * why IP_ADD_MEMBERSHIP & IP_MULTICAST_IF doesnt set
+   * sk->bound_dev_if themself ??? !!!
+   * Needed for filter multicasted advert per interface.
+   * 
+   * -- If you read this !!! and know the answer to the question
+   *    please feal free to answer me ! :)
+   */
+  memset(ifname, 0, IFNAMSIZ);
+  index_to_ifname(index, ifname);
+  ret = setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE,
+                   ifname, strlen(ifname)+1);
+  if (ret < 0) {
+    int  err = errno;
+    syslog(LOG_INFO, "cant bind to device %s. errno=%d. (try to run it as root)",
+                     ifname, err);
+    close(fd); /* sd leak handle */
+    return -1;
+  }
+
+  /* -> outbound processing option
+   * join the multicast group.
+   * binding the socket to the interface for outbound multicast
+   * traffic.
+   */
+  memset(&req_add, 0, sizeof (req_add));
+  req_add.imr_multiaddr.s_addr = htonl(INADDR_VRRP_GROUP);
+  req_add.imr_address.s_addr = htonl(index_to_ip(index));
+  req_add.imr_ifindex = index;
   ret = setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-                   (char *)&req, sizeof(struct ip_mreq));
-
-  /* disable loop back to local socket */
-  loop = 0;
-//  setsockopt(fd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
-
+                   (char *)&req_add, sizeof(struct ip_mreqn));
   if (ret < 0) {
     int  err = errno;
     syslog(LOG_INFO, "cant do IP_ADD_MEMBERSHIP errno=%d", err);
-    return -1;
-  }
-#ifdef DEBUG
-    else {
-    syslog(LOG_DEBUG, "VRRP socket successfully created...");
-  }
-#endif
-
-  /* binding the socket to the local interface */
-  memset(&interface, 0, sizeof(interface));
-  interface.imr_multiaddr.s_addr = htonl(INADDR_VRRP_GROUP);
-  interface.imr_address.s_addr = htonl(vsrv->vif->ipaddr);
-  interface.imr_ifindex = ifname_to_idx(vsrv->vif->ifname);
-  ret = setsockopt(fd, IPPROTO_IP, IP_MULTICAST_IF,
-                   &interface, sizeof(struct ip_mreqn));
-
-  if (ret < 0) {
-    int  err = errno;
-    syslog(LOG_INFO, "cant bind socket to interface errno=%d", err);
     return -1;
   }
 
   return fd;
 }
 
-/* 
- * Initialize state handling
- * --rfc2338.6.4.1
- */
-int vrrp_state_init_thread(struct thread *thread)
-{
-  vrrp_instance *vrrp_instance = THREAD_ARG(thread);
-  vrrp_rt *vsrv = vrrp_instance->vsrv;
-  int fd;
-
-  /* create the socket */
-  fd = open_vrrp_socket(vsrv);
-  if (fd < 0) return -1;
-
-  vsrv->sockfd = fd;
-
-  if (vsrv->priority == VRRP_PRIO_OWNER ||
-      vsrv->wantstate == VRRP_STATE_MAST){
-    thread_add_event(thread->master, vrrp_state_goto_master_thread, 
-                     vrrp_instance, VRRP_STATE_MAST);
-  } else {
-    vsrv->ms_down_timer = 3 * vsrv->adver_int + VRRP_TIMER_SKEW(vsrv);
-
-    syslog(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE"
-                   , vrrp_instance->iname);
-
-    /* register the vrrp backup handler */
-    vsrv->state = VRRP_STATE_BACK;
-    thread_add_read(thread->master, vrrp_state_backup_thread,
-                    vrrp_instance, fd, vsrv->ms_down_timer);
-  }
-
-  return 0;
-}
-
 /* handle terminate state */
 void vrrp_state_stop_instance(vrrp_rt *vsrv)
 {
   /* restore MAC, routing table & remove VIPs */
-  vrrp_restore_interface(vsrv, 1);
+  if (vsrv->state == VRRP_STATE_MAST)
+    vrrp_restore_interface(vsrv, 1);
 }

@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: cfreader.c,v 0.4.1 2001/09/14 00:37:56 acassen Exp $
+ * Version:     $Id: cfreader.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -62,7 +62,11 @@ struct keyword keywords[] = {
   {KW_SSLGET,       "SSL_GET"},
   {KW_LDAPGET,      "LDAP_GET"},
 
+  {KW_MISCCHECK,   "MISC_CHECK"},
+  {KW_MISCPATH,    "misc_path"},
+
   {KW_VRRP,         "vrrp_instance"},
+  {KW_VRRPSTATE,    "state"},
   {KW_VRRPINT,      "interface"},
   {KW_VRRPVRID,     "virtual_router_id"},
   {KW_VRRPAUTH,     "authentication"},
@@ -323,6 +327,11 @@ void dump_svr(realserver *pointersvr)
         break;
       case LDAP_GET_ID:
         break;
+      case MISC_CHECK_ID:
+       syslog(LOG_DEBUG,"       -> Keepalive method = MISC_CHECK");
+       syslog(LOG_DEBUG,"       -> Check path = %s",
+                        pointersvr->method->misc_check_path);
+       break;
     }
 
     pointersvr = (realserver *)pointersvr->next;
@@ -337,16 +346,38 @@ void dump_vs(virtualserver *pointervs)
                       ntohs(pointervs->addr_port));
 
     syslog(LOG_DEBUG, " -> delay_loop = %d, lb_algo = %s, "
-                      "lb_kind = %s, persistence = %s, protocol = %s",
+                      "persistence = %s, protocol = %s",
                       pointervs->delay_loop, pointervs->sched,
-                      (pointervs->loadbalancing_kind == 0)?"NAT":"UNKNOWN",
                       pointervs->timeout_persistence,
                       (pointervs->service_type == IPPROTO_TCP)?"TCP":"UDP");
 
-    syslog(LOG_DEBUG, " -> nat mask = %s", inet_ntoa(pointervs->nat_mask));
+    switch (pointervs->loadbalancing_kind) {
+#ifdef KERNEL_2_2
+      case 0:
+        syslog(LOG_DEBUG, " -> lb_kind = NAT");
+        syslog(LOG_DEBUG, " -> nat mask = %s", inet_ntoa(pointervs->nat_mask));
+        break;
+      case IP_MASQ_F_VS_DROUTE:
+        syslog(LOG_DEBUG, " -> lb_kind = DR");
+        break;
+      case IP_MASQ_F_VS_TUNNEL:
+        syslog(LOG_DEBUG, " -> lb_kind = TUN");
+        break;
+#else
+      case IP_VS_CONN_F_MASQ:
+        syslog(LOG_DEBUG, " -> lb_kind = NAT");
+        break;
+      case IP_VS_CONN_F_DROUTE:
+        syslog(LOG_DEBUG, " -> lb_kind = DR");
+        break;
+      case IP_VS_CONN_F_TUNNEL:
+        syslog(LOG_DEBUG, " -> lb_kind = TUN");
+        break;
+#endif
+    }
 
     if (pointervs->s_svr != NULL) {
-      syslog(LOG_DEBUG, " -> sorry server = [%s:%d]", 
+      syslog(LOG_DEBUG, " -> sorry server = [%s:%d]",
                         inet_ntoa(pointervs->s_svr->addr_ip),
                         ntohs(pointervs->s_svr->addr_port));
     }
@@ -372,6 +403,10 @@ void dump_vrrp(vrrp_instance *pointervrrp)
 
   while (pointervrrp != NULL) {
     syslog(LOG_DEBUG, " VRRP Instance = %s", pointervrrp->iname);
+    if (pointervrrp->vsrv->init_state == VRRP_STATE_BACK)
+      syslog(LOG_DEBUG, "   Want State = BACKUP");
+    else
+      syslog(LOG_DEBUG, "   Want State = MASTER");
     syslog(LOG_DEBUG, "   Device = %s", pointervrrp->vsrv->vif->ifname);
     if (strlen(pointervrrp->isync) > 0)
       syslog(LOG_DEBUG, "   Sync with instance = %s", pointervrrp->isync);
@@ -449,6 +484,37 @@ void process_stream_tcpcheck(FILE *stream, realserver *svrfill)
       case KW_CTIMEOUT:
         fscanf(stream, "%d", &methodfill->connection_to);
         break;
+      case KW_UNKNOWN:
+        break;
+    }
+    fscanf(stream, "%s", string);
+  } while(key(string) != KW_ENDFLAG);
+
+  svrfill->method = methodfill;
+}
+
+void process_stream_misccheck(FILE *stream, realserver *svrfill)
+{
+  keepalive_check *methodfill;
+  char* pathstring = (char*)malloc(512);
+
+  /* Allocate new method structure */
+  methodfill = (keepalive_check *)malloc(sizeof(keepalive_check));
+  memset(methodfill, 0, sizeof(keepalive_check));
+
+  methodfill->type = MISC_CHECK_ID;
+  methodfill->http_get = NULL;
+  methodfill->misc_check_path = NULL;
+
+  do {
+    switch (key(string)) {
+      case KW_CTIMEOUT:
+        fscanf(stream, "%d", &methodfill->connection_to);
+        break;
+      case KW_MISCPATH:
+       fgets(pathstring,512,stream);
+       methodfill->misc_check_path=pathstring;
+       break;
       case KW_UNKNOWN:
         break;
     }
@@ -563,6 +629,9 @@ void process_stream_svr(FILE *stream, virtualserver *vsfill)
         break;
       case KW_LDAPGET: /* not yet implemented */
         break;
+      case KW_MISCCHECK:
+       process_stream_misccheck(stream, svrfill);
+       break;
       case KW_UNKNOWN:
         break;
     }
@@ -615,6 +684,9 @@ void process_stream_vs(FILE *stream, configuration_data *conf_data)
   fscanf(stream, "%s", string);
   vsfill->addr_port = htons(atoi(string));
 
+  /* Setting default value */
+  vsfill->delay_loop = KEEPALIVED_DEFAULT_DELAY;
+
   do {
     switch (key(string)) {
       case KW_DELAY:
@@ -625,11 +697,33 @@ void process_stream_vs(FILE *stream, configuration_data *conf_data)
         break;
       case KW_LBKIND:
         fscanf(stream, "%s", string);
-        /* For the moment only NAT is supported.
-         * masq_flags : IP_MASQ_F_VS_DROUTE & IP_MASQ_F_VS_TUNNEL not supported.
-         * So we just set masq_flags to 0.
-         */
-        vsfill->loadbalancing_kind = 0;
+
+#ifdef KERNEL_2_2
+        if (strcmp(string, "NAT") == 0)
+          vsfill->loadbalancing_kind = 0;
+        else
+          if (strcmp(string, "DR") == 0)
+            vsfill->loadbalancing_kind = IP_MASQ_F_VS_DROUTE;
+          else
+            if (strcmp(string, "TUN") == 0)
+              vsfill->loadbalancing_kind = IP_MASQ_F_VS_TUNNEL;
+            else
+              syslog(LOG_DEBUG,"CFREADER : unknown [%s] routing method."
+                              , string);
+#else
+        if (strcmp(string, "NAT") == 0)
+          vsfill->loadbalancing_kind = IP_VS_CONN_F_MASQ;
+        else
+          if (strcmp(string, "DR") == 0)
+            vsfill->loadbalancing_kind = IP_VS_CONN_F_DROUTE;
+          else
+            if (strcmp(string, "TUN") == 0)
+              vsfill->loadbalancing_kind = IP_VS_CONN_F_TUNNEL;
+            else
+              syslog(LOG_DEBUG,"CFREADER : unknown [%s] routing method."
+                              , string);
+#endif
+
         break;
       case KW_NATMASK:
         fscanf(stream, "%s", string);
@@ -773,6 +867,10 @@ int process_stream_vrrp(FILE *stream, configuration_data *conf_data)
   vrrpfill->vsrv->vaddr = NULL;
   vrrpfill->next = NULL;
 
+  /* default value */
+  rtfill->wantstate = VRRP_STATE_BACK;
+  rtfill->init_state = VRRP_STATE_BACK;
+
   conf_data->vrrp = add_item_vrrp(conf_data->vrrp, vrrpfill);
 
   fscanf(stream, "%s", vrrpfill->iname);
@@ -782,6 +880,16 @@ int process_stream_vrrp(FILE *stream, configuration_data *conf_data)
     switch (key(string)) {
       case KW_VRRPSYNC:
         fscanf(stream, "%s", vrrpfill->isync);
+        break;
+      case KW_VRRPSTATE:
+        fscanf(stream, "%s", string);
+        if (strcmp(string, "MASTER") == 0) {
+          rtfill->wantstate = VRRP_STATE_MAST;
+          rtfill->init_state = VRRP_STATE_MAST;
+        } else {
+          rtfill->wantstate = VRRP_STATE_BACK;
+          rtfill->init_state = VRRP_STATE_BACK;
+        }
         break;
       case KW_VRRPINT:
         fscanf(stream, "%s", viffill->ifname);

@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_ipaddress.c include file.
  *
- * Version:     $Id: vrrp_ipaddress.h,v 0.4.1 2001/09/14 00:37:56 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -30,17 +30,12 @@
 #include <string.h>
 #include <syslog.h>
 
-/* types definitions */
-typedef struct {
-  int    ifindex;
-  uint32_t  *addr;
-  int    max_elem;
-  int    nb_elem;
-} iplist_ctx;
+/* types definition */
+#define VRRP_IPADDRESS_DEL 0
+#define VRRP_IPADDRESS_ADD 1
 
 /* prototypes */
-int ipaddr_list(int ifindex, uint32_t *array, int max_elem);
-int ipaddr_op(int ifindex, uint32_t addr, int addF);
- 
+extern int netlink_address_ipv4(int ifindex, uint32_t addr, int cmd);
+
 #endif
 

@@ -4,7 +4,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.h,v 0.4.1 2001/09/14 00:37:56 acassen Exp $
+ * Version:     $Id: vrrp.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              Based on the Jerome Etienne, <jetienne@arobas.net> code.
@@ -29,11 +29,14 @@
 #include <net/if.h>
 #include <net/if_arp.h>
 #include <sys/ioctl.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 /* local include */
-#include "vrrp_iproute.h"
+#include "cfreader.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_ipsecah.h"
+#include "utils.h"
 
 typedef struct {	/* rfc2338.5.1 */
 	uint8_t		vers_type;	/* 0-3=type, 4-7=version */
@@ -62,7 +65,8 @@ typedef struct {	/* rfc2338.5.1 */
 #define VRRP_ADVER_DFL	1	/* advert. interval (in sec) -- rfc2338.5.3.7 */
 #define VRRP_PREEMPT_DFL 1	/* rfc2338.6.1.2.Preempt_Mode */
 
-typedef struct {	/* parameters per interface -- rfc2338.6.1.1 */
+/* parameters per interface -- rfc2338.6.1.1 */
+typedef struct {
 	int		auth_type;	/* authentification type. VRRP_AUTH_* */
 	uint8_t		auth_data[8];	/* authentification data */
 
@@ -77,7 +81,6 @@ typedef struct {	/* parameters per interface -- rfc2338.6.1.1 */
 	 * to warn the user only if the outoing mtu is too small
 	 */
 	int		ip_id;
-
 } vrrp_if;
 
 typedef struct {
@@ -85,28 +88,23 @@ typedef struct {
 	int		deletable;	/* TRUE if one of my primary addr */
 } vip_addr;
 
-typedef struct {	/* parameters per virtual router -- rfc2338.6.1.2 */
+/* parameters per virtual router -- rfc2338.6.1.2 */
+typedef struct {
 	int	vrid;		/* virtual id. from 1(!) to 255 */
 	int	priority;	/* priority value */
 	int	naddr;		/* number of ip addresses */
 	vip_addr *vaddr;	/* point on the ip address array */
 	int	adver_int;	/* delay between advertisements(in sec) */	
 	char	hwaddr[6];	/* VMAC -- rfc2338.7.3 */
-
-#if 0	/* dynamically calculated */
-	double	skew_time;	/* skew Master_Down_Interval. (256-Prio)/256 */	
-	int	mast_down_int;	/* interval for backup to declare master down*/
-#endif
 	int	preempt;	/* true if a higher prio preempt a lower one */
 	int	state;		/* internal state (init/backup/master) */
+	int	init_state;	/* the initial state of the instance */
 	int	wantstate;	/* user explicitly wants a state (back/mast) */
-	int	sockfd;		/* the socket descriptor */
-	int	initF;		/* true if the struct is init */
-	int	no_vmac;	/* dont handle the virtual MAC --rfc2338.7.3 */
+	int	fd;		/* the socket descriptor */
 
 	/* rfc2336.6.2 */
 	uint32_t	ms_down_timer;
-	uint32_t	adver_timer;
+	struct timeval	sands;
 
 	/* IPSEC AH counter def --rfc2402.3.3.2 */
 	seq_counter *ipsecah_counter;
@@ -116,30 +114,35 @@ typedef struct {	/* parameters per virtual router -- rfc2338.6.1.2 */
 } vrrp_rt;
 
 /* VRRP state machine -- rfc2338.6.4 */
-#define VRRP_STATE_INIT	1	/* rfc2338.6.4.1 */
-#define VRRP_STATE_BACK	2	/* rfc2338.6.4.2 */
-#define VRRP_STATE_MAST	3	/* rfc2338.6.4.3 */
-#define VRRP_STATE_NONE	99	/* internal */
+#define VRRP_DISPATCHER 	0	/* internal */
+#define VRRP_STATE_INIT		1	/* rfc2338.6.4.1 */
+#define VRRP_STATE_BACK		2	/* rfc2338.6.4.2 */
+#define VRRP_STATE_MAST		3	/* rfc2338.6.4.3 */
+#define VRRP_STATE_GOTO_MASTER	4	/* internal */
+#define VRRP_STATE_LEAVE_MASTER	5	/* internal */
+#define VRRP_STATE_FAULT	99	/* internal */
 
 /* VRRP packet handling */
-#define VRRP_PACKET_OK   0
-#define VRRP_PACKET_KO   1
-#define VRRP_PACKET_DROP 2
-#define VRRP_PACKET_NULL 3
+#define VRRP_PACKET_OK       0
+#define VRRP_PACKET_KO       1
+#define VRRP_PACKET_DROP     2
+#define VRRP_PACKET_NULL     3
+#define VRRP_PACKET_TEMP_LEN 256
 
 #define VRRP_AUTH_LEN	8
 
-#define VRRP_IS_BAD_VID(id) ((id)<1 || (id)>255)	/* rfc2338.6.1.vrid */
-#define VRRP_IS_BAD_PRIORITY(p) ((p)<1 || (p)>255)	/* rfc2338.6.1.prio */
-#define VRRP_IS_BAD_ADVERT_INT(d) ((d)<1)
+#define VRRP_IS_BAD_VID(id)		((id)<1 || (id)>255)	/* rfc2338.6.1.vrid */
+#define VRRP_IS_BAD_PRIORITY(p)		((p)<1 || (p)>255)	/* rfc2338.6.1.prio */
+#define VRRP_IS_BAD_ADVERT_INT(d)	((d)<1)
 
-#define VRRP_TIMER_HZ			1000000
-#define VRRP_TIMER_SKEW( srv ) ((256-(srv)->priority)*VRRP_TIMER_HZ/256) 
+#define VRRP_TIMER_HZ		1000000
+#define VRRP_TIMER_SKEW(srv)	((256-(srv)->priority)*VRRP_TIMER_HZ/256) 
 
-#define VRRP_MIN( a , b )	( (a) < (b) ? (a) : (b) )
-#define VRRP_MAX( a , b )	( (a) > (b) ? (a) : (b) )
+#define VRRP_MIN(a, b)	((a) < (b)?(a):(b))
+#define VRRP_MAX(a, b)	((a) > (b)?(a):(b))
 
 /* prototypes */
+extern int vrrp_ipsecah_len();
 extern int complete_vrrp_init(vrrp_rt *vsrv);
 extern void vrrp_state_stop_instance(vrrp_rt *vsrv);
 

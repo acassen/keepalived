@@ -5,7 +5,7 @@
  *
  * Part:        scheduler.c include file.
  *
- * Version:     $Id: scheduler.h,v 0.4.1 2001/09/14 00:37:56 acassen Exp $
+ * Version:     $Id: scheduler.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -86,7 +86,7 @@ struct thread
 
 /* MICRO SEC def */
 #define TIMER_SEC_MICRO 1000000
-#define TIMER_MAX_SEC   10
+#define TIMER_MAX_SEC   1000
 
 /* Macros. */
 #define THREAD_ARG(X) ((X)->arg)
@@ -148,6 +148,9 @@ thread_fetch (struct thread_master *m,
 void
 thread_call (struct thread *thread);
 
+int
+thread_timer_cmp (struct timeval a, struct timeval b);
+
 struct timeval
 thread_timer_sub (struct timeval a, struct timeval b);
 
@@ -163,6 +166,9 @@ extern int
 http_connect_thread(struct thread *thread);
 
 extern int
-vrrp_state_init_thread(struct thread *thread);
+misc_check_thread(struct thread *thread);
+
+extern int
+vrrp_dispatcher_init_thread(struct thread *thread);
 
 #endif

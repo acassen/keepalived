@@ -3,11 +3,11 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        pidfile.c include file.
+ * Part:        check_misc.c include file.
  *
- * Version:     $Id: pidfile.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: check_misc.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
  *
- * Author:      Alexandre Cassen, <acassen@linux-vs.org>
+ * Author:      Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,22 +20,19 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _PIDFILE_H
-#define _PIDFILE_H
+#ifndef _MISC_H
+#define _MISC_H
 
-/* system include */
-#include <unistd.h>
-#include <stdio.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <syslog.h>
+/* system includes */
+#include <stdlib.h>
 
-/* lock pidfile */
-#define PIDFILENAME "/var/run/keepalived.pid"
+/* local includes */
+#include "cfreader.h"
+#include "ipwrapper.h"
+#include "scheduler.h"
+#include "smtp.h"
 
-/* Prototypes */
-extern int pidfile_write(int pid);
-extern void pidfile_rm();
-extern int keepalived_running();
+/* Prototypes defs */
+extern int misc_check_thread(struct thread *thread);
 
 #endif

@@ -7,7 +7,7 @@
  *              using the smtp protocol according to the RFC 821. A non blocking
  *              timeouted connection is used to handle smtp protocol.
  *
- * Version:     $Id: smtp.c,v 0.4.1 2001/09/14 00:37:56 acassen Exp $
+ * Version:     $Id: smtp.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -465,30 +465,33 @@ void smtp_alert(struct thread_master *master,
   struct thread_arg *thread_arg;
   struct smtp_thread_arg *smtp_arg;
 
-  /* allocate a new thread_arg */
-  thread_arg = thread_arg_new(root, NULL, NULL);
+  /* Only send mail if email specified */
+  if (root->email) {
+    /* allocate a new thread_arg */
+    thread_arg = thread_arg_new(root, NULL, NULL);
 
-  /* allocate & initialize smtp argument data structure */
-  smtp_arg = (struct smtp_thread_arg *)malloc(sizeof(struct smtp_thread_arg));
-  memset(smtp_arg, 0, sizeof(struct smtp_thread_arg));
+    /* allocate & initialize smtp argument data structure */
+    smtp_arg = (struct smtp_thread_arg *)malloc(sizeof(struct smtp_thread_arg));
+    memset(smtp_arg, 0, sizeof(struct smtp_thread_arg));
 
-  smtp_arg->subject = (char *)malloc(MAX_SUBJECT_LENGTH);
-  smtp_arg->body = (char *)malloc(MAX_BODY_LENGTH);
-  memset(smtp_arg->subject, 0, MAX_SUBJECT_LENGTH);
-  memset(smtp_arg->body, 0, MAX_BODY_LENGTH);
+    smtp_arg->subject = (char *)malloc(MAX_SUBJECT_LENGTH);
+    smtp_arg->body = (char *)malloc(MAX_BODY_LENGTH);
+    memset(smtp_arg->subject, 0, MAX_SUBJECT_LENGTH);
+    memset(smtp_arg->body, 0, MAX_BODY_LENGTH);
 
-  smtp_arg->stage = connection; /* first smtp command set to HELO */
+    smtp_arg->stage = connection; /* first smtp command set to HELO */
 
-  /* format subject if rserver is specified */
-  if (rserver)
-    snprintf(smtp_arg->subject, MAX_SUBJECT_LENGTH, "[%s] %s:%d - %s",
-             root->lvs_id, inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port), subject);
-  else
-    snprintf(smtp_arg->subject, MAX_SUBJECT_LENGTH, "[%s] %s", root->lvs_id, subject);
+    /* format subject if rserver is specified */
+    if (rserver)
+      snprintf(smtp_arg->subject, MAX_SUBJECT_LENGTH, "[%s] %s:%d - %s",
+               root->lvs_id, inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port), subject);
+    else
+      snprintf(smtp_arg->subject, MAX_SUBJECT_LENGTH, "[%s] %s", root->lvs_id, subject);
 
-  strncpy(smtp_arg->body, body, MAX_BODY_LENGTH);
+    strncpy(smtp_arg->body, body, MAX_BODY_LENGTH);
 
-  thread_arg->checker_arg = smtp_arg;
+    thread_arg->checker_arg = smtp_arg;
 
-  thread_add_event(master, smtp_connect_thread, thread_arg, 0);
+    thread_add_event(master, smtp_connect_thread, thread_arg, 0);
+  }
 }

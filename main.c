@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 0.4.1 2001/09/14 00:37:56 acassen Exp $
+ * Version:     $Id: main.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -125,6 +125,10 @@ int main(int argc, char **argv)
     closelog();
     exit(0);
   }
+
+  /* daemonize process */
+  daemon(0, 0);
+
   /* write the pidfile */
   if (!pidfile_write(getpid())) {
     syslog(LOG_INFO, "Stopping "PROG" v"VERSION);
@@ -152,9 +156,6 @@ int main(int argc, char **argv)
   /* Signal handling initialization  */
   signal_init();
 
-  /* daemonize process */
-  daemon(0, 0);
-
   /* Create the master thread */
   master = thread_make_master();
 
@@ -171,6 +172,7 @@ int main(int argc, char **argv)
   /* We then cleanup the room & closelog */
   thread_destroy_master(master);
   clear_services(conf_data->lvstopology);
+
   /* Stop VRRP instances */
   clear_vrrp_instance(conf_data->vrrp);
   clear_conf(conf_data);

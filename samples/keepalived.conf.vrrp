@@ -1,0 +1,70 @@
+# Configuration File for keepalived
+
+global_defs {
+   notification_email {
+     acassen
+   }
+   notification_email_from Alexandre.Cassen@firewall.loc
+   smtp_server 192.168.200.1
+   smtp_connect_timeout 30
+   lvs_id LVS_DEVEL
+}
+
+
+vrrp_instance VI_1 {
+    state MASTER
+    interface eth0
+    virtual_router_id 51
+    priority 100
+    advert_int 1
+    authentication {
+        auth_type AH
+        auth_pass 1111
+    }
+    virtual_ipaddress {
+        192.168.200.16
+        192.168.200.17
+        192.168.200.18
+    }
+}
+
+vrrp_instance VI_2 {
+    interface eth0
+    virtual_router_id 50
+    priority 50
+    advert_int 1
+    virtual_ipaddress {
+        192.168.200.13
+        192.168.200.14
+        192.168.200.15
+    }
+}
+
+vrrp_instance VI_3 {
+    state MASTER
+    interface eth1
+    virtual_router_id 52
+    priority 100
+    advert_int 1
+    authentication {
+        auth_type AH
+        auth_pass 1111
+    }
+    virtual_ipaddress {
+        192.168.201.13
+        192.168.201.14
+        192.168.201.15
+    }
+}
+
+vrrp_instance VI_4 {
+    interface eth1
+    virtual_router_id 53
+    priority 50
+    advert_int 1
+    virtual_ipaddress {
+        192.168.201.16
+        192.168.201.17
+        192.168.201.18
+    }
+}

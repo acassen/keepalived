@@ -1,11 +1,73 @@
-2001-09-14  Alexandre Cassen  <acassen@linux-vs.org>
+2001-11-20  Alexandre Cassen  <acassen@linux-vs.org>
+        * keepalived-0.4.8 released.
+	* Rewrite the whole VRRP previous code.
+	* VRRP : Created a hierarchic scheduling framework.
+	  Handle VRRP instances multiplexing on the same I/O fd.
+	  VRRP I/O events are handled by our global scheduling 
+	  framework. Then the global sheduling framework call a VRRP
+	  I/O instance dispatcher to manage VRRP instances.
+	* VRRP : Created a temporary socket pool to handle register
+	         our VRRP thread instances.
+	  We create & allocate a socket pool here. The soft design
+	  can be sum up by the following sketch :
+ 
+	         fd1  fd2    fd3  fd4          fdi  fdi+1
+	      -----\__/--------\__/---........---\__/---
+	         | ETH0 |    | ETH1 |          | ETHn |
+	         +------+    +------+          +------+
+ 
+ 	  Here we have n physical NIC. Each NIC own a maximum of 2 fds.
+	  (one for VRRP the other for IPSEC_AH). All our VRRP instances
+	  are multiplexed through this fds. So our design can handle 2*n
+	  multiplexing points.
+	* VRRP : Review the multicast socket creating. We bind the socket
+	  to a specific NIC. inbound & outbound traffic are bound to the
+	  NIC.
+	  => why IP_ADD_MEMBERSHIP & IP_MULTICAST_IF doesnt set
+	     sk->bound_dev_if themself ??? !!!
+	     Needed for filter multicasted advert per interface.
+	  => For inbound binding we use SO_BINDTODEVICE kernel option.
+	* VRRP : Created a read dispatcher thread to deal with our sockpool.
+	  Handle VRRP states & transition states.
+	* VRRP : Created a VRRP synchronization instance circuit. This
+	  functionnality gave you the ability to monitor VRRP instance
+	  each other. This mean that if 2 VRRP instances are monitoring 
+	  themself and if one of this instance change state, the other
+	  follow the same state. ex.: With 2 VRRP instances (VI_1 & VI_2)
+	  if VI_1 become backup then VI_2 become backup too. (symetricly
+	  with master VRRP state).
+	* VRRP : Rewrite the netlink interface to use non blocking socket.
+	* VRRP : Rewrite the ipaddress handling to use the new netlink
+	  interface.
+	* VRRP : Remove the VRPP VMAC handling since linux kernel only
+	  permit to use one MAC address on a specific NIC. We use gratuitous
+	  arp when setting up VRRP VIP, to uptade remote host arp caches.
+	  => In certain case this can cause a TCP session renegociation
+	     which can cause a permature session end.
+	  => To be fully compliant with the VRRP RFC, need to patch the
+	     kernel to gave it the possibility to deal with more than one
+	     MAC address at a time. Give me clue on it please ! to same me
+	     a little time :)
+	* Starting VRRP documentation.
+	* Patch a pidfile handling bug when forking the keepalived daemon.
+	  Thanks goes to Gianni D'Aprile for pointing it to me.
+	* Patch a timer race condition into the scheduling framework.
+	  This bug caused tcpcheck to respawn quickly...
+	  Thanks goes to Gianni D'Aprile for pointing it to me.
 
+2001-11-04  Alexandre Cassen  <acassen@linux-vs.org>
+        * keepalived-0.3.8 released.
+        * Added support to native IPTABLE LVS CODE
+          => using NAT on 2.4 kernel ipchains kernel support
+             has been removed.
+        * Added support to Direct Routing & Tunneling.
+        * Review the keepalived.init script to be much more generic.
+
+2001-09-14  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.4.1 released.
 	* Added support to LVS kernel 2.4 code
 
-
 2001-08-23  Alexandre Cassen  <acassen@linux-vs.org>
-
 	* keepalived-0.4.0 released.
 	* Patch a race condition into the scheduler timer computation.
 	* Patch a race condition into the tcp checker thread. Only
@@ -27,9 +89,7 @@
 	  or set by kernel. Only UNICAST route are stored.
 	* Added dropping packet support.
 
-
 2001-07-15  Alexandre Cassen  <acassen@linux-vs.org>
-
 	* keepalived-0.3.5 released.
         * Rewrite the whole signal handling, registering a terminating
           thread on signal.

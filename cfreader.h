@@ -5,7 +5,7 @@
  * 
  * Part:        cfreader.c include file.
  *  
- * Version:     $Id: cfreader.h,v 0.4.1 2001/09/14 00:37:56 acassen Exp $
+ * Version:     $Id: cfreader.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -33,6 +33,7 @@
 
 #ifdef KERNEL_2_2
   #include <linux/ip_masq.h>
+  #include <net/ip_masq.h>
 #else
   #include <net/ip_vs.h>
 #endif
@@ -94,22 +95,27 @@ struct keyword {
 #define KW_HTTPGET	26
 #define KW_SSLGET	27
 #define KW_LDAPGET	28
+#define KW_MISCCHECK    29
+#define KW_MISCPATH     30
 
-#define KW_VRRP		29
-#define KW_VRRPINT	30
-#define KW_VRRPVRID	31
-#define KW_VRRPAUTH	32
-#define KW_VRRPAUTHTYPE	33
-#define KW_VRRPAUTHAH	34
-#define KW_VRRPAUTHPWD	35
-#define KW_VRRPAUTHPASS	36
-#define KW_VRRPPRIO	37
-#define KW_VRRPADVERT	38
-#define KW_VRRPIPADD	39
-#define KW_VRRPSYNC	40
-#define KW_VRRPPREEMPT	41
+#define KW_VRRP		31
+#define KW_VRRPSTATE	32
+#define KW_VRRPINT	33
+#define KW_VRRPVRID	34
+#define KW_VRRPAUTH	35
+#define KW_VRRPAUTHTYPE	36
+#define KW_VRRPAUTHAH	37
+#define KW_VRRPAUTHPWD	38
+#define KW_VRRPAUTHPASS	39
+#define KW_VRRPPRIO	40
+#define KW_VRRPADVERT	41
+#define KW_VRRPIPADD	42
+#define KW_VRRPSYNC	43
+#define KW_VRRPPREEMPT	44
 
-#define KW_UNKNOWN	42
+#define KW_UNKNOWN	45
+
+#define KEEPALIVED_DEFAULT_DELAY 60
 
 /* Structure definition  */
 typedef struct _urls {
@@ -132,8 +138,10 @@ typedef struct _keepalive_check {
 #define HTTP_GET_ID    (1 << 2)
 #define SSL_GET_ID     (1 << 3)
 #define LDAP_GET_ID    (1 << 4)
+#define MISC_CHECK_ID  (1 << 5)
   int connection_to;
   http_get_check *http_get;    /* FIXME : for new checker use union here */
+  char *misc_check_path;
 } keepalive_check;
 
 typedef struct _real_server {

@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 0.4.1 2001/09/14 00:37:56 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -94,12 +94,8 @@ int ipvs_cmd(int cmd, virtualserver *vserver, realserver *rserver)
   memset(&urule, 0, sizeof(struct ip_vs_rule_user));
 
   strncpy(urule.sched_name, vserver->sched, IP_VS_SCHEDNAME_MAXLEN);
-  urule.weight = -1;
-  /*
-   *  Set MASQ as default forwarding method.
-   *  FIXME: In the current implementation we only support NAT.
-   */
-  urule.conn_flags = IP_VS_CONN_F_MASQ;
+  urule.weight = 1;
+  urule.conn_flags = vserver->loadbalancing_kind;
   urule.netmask    = ((u_int32_t) 0xffffffff);
   urule.protocol   = vserver->service_type;
   

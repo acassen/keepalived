@@ -7,7 +7,7 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 0.4.1 2001/09/14 00:37:56 acassen Exp $
+ * Version:     $Id: scheduler.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -101,7 +101,7 @@ thread_list_add_before (struct thread_list *list,
 }
 
 /* timer compare */
-static int
+int
 thread_timer_cmp (struct timeval a, struct timeval b)
 {
   if (a.tv_sec > b.tv_sec) 
@@ -551,26 +551,26 @@ thread_fetch (struct thread_master *m, struct thread *fetch)
 retry:  /* When thread can't fetch try to find next thread again. */
 
   /* If there is event process it first. */
-  while ((thread = thread_trim_head (&m->event))) {
+  while ((thread = thread_trim_head(&m->event))) {
     *fetch = *thread;
     free(timer_wait);
 
     /* If daemon hanging event is received return NULL pointer */ 
     if (thread->type == THREAD_TERMINATE) {
       thread->type = THREAD_UNUSED;
-      thread_add_unuse (m, thread);
+      thread_add_unuse(m, thread);
       return NULL;
     }
     thread->type = THREAD_UNUSED;
-    thread_add_unuse (m, thread);
+    thread_add_unuse(m, thread);
     return fetch;
   }
 
   /* If there is ready threads process them */
-  while ((thread = thread_trim_head (&m->ready))) {
+  while ((thread = thread_trim_head(&m->ready))) {
     *fetch = *thread;
     thread->type = THREAD_UNUSED;
-    thread_add_unuse (m, thread);
+    thread_add_unuse(m, thread);
     free(timer_wait);
     return fetch;
   }
@@ -727,6 +727,10 @@ register_vs_worker_thread(struct thread_master *master,
         break;
       case LDAP_GET_ID:
         break;
+      case MISC_CHECK_ID:
+        thread_arg = thread_arg_new(root, lstptr, lstptr->svr);
+        thread_add_timer(master, misc_check_thread, thread_arg,
+                         thread_arg->vs->delay_loop);
       default:
         break;
     }
@@ -742,16 +746,11 @@ void
 register_worker_thread(struct thread_master *master, configuration_data *lstptr)
 {
   virtualserver *pointervs;
-  vrrp_instance *pointervrrp;
 
-  /* register VRRP specifics threads */
-  pointervrrp = lstptr->vrrp;
-  while (lstptr->vrrp) {
-    thread_add_event(master, vrrp_state_init_thread, lstptr->vrrp, VRRP_STATE_INIT);
-
-    lstptr->vrrp = (vrrp_instance *)lstptr->vrrp->next;
-  }
-  lstptr->vrrp = pointervrrp;
+  /* register VRRP instances dispatcher */
+  if (lstptr->vrrp)
+    thread_add_event(master, vrrp_dispatcher_init_thread,
+                     lstptr->vrrp, VRRP_DISPATCHER);
 
   /* register VS specifics threads */
   pointervs = lstptr->lvstopology;

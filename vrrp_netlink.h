@@ -3,9 +3,9 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        vrrp_iproute.c include file.
+ * Part:        vrrp_netlink.c include file.
  *
- * Version:     $Id: vrrp_iproute.h,v 0.4.1 2001/09/14 00:37:56 acassen Exp $
+ * Version:     $Id: vrrp_netlink.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -13,49 +13,37 @@
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
  *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *              See the GNU General Public License for more details.
- *
+ *              
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _VRRP_IPROUTE_H
-#define _VRRP_IPROUTE_H
+#ifndef _VRRP_NETLINK_H
+#define _VRRP_NETLINK_H 1
+
+/* Hack for GNU libc version 2. */
+#ifndef MSG_TRUNC
+#define MSG_TRUNC      0x20
+#endif /* MSG_TRUNC */
 
 /* global includes */
-#include <stdio.h>
-#include <stdlib.h>
-#include <unistd.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <syslog.h>
+#include <asm/types.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
 
-/* specify a routing entry */
-struct rt_entry {
-  struct rtmsg *rtm;
-
-  uint32_t psrc;
-  uint32_t src;
-  uint32_t dest;
-  uint32_t gate;
-  uint32_t flow;
-  int iif;
-  int oif;
-  int prio;
-  int metrics;
-
-  struct rt_entry *next;
+/* types definitions */
+struct nl_handle {
+  int fd;
+  struct sockaddr_nl snl;
+  __u32 seq;
 };
 
 /* prototypes */
-
-extern struct rt_entry *iproute_fetch(struct rt_entry *r);
-extern void iproute_dump(struct rt_entry *r);
-extern void iproute_clear(struct rt_entry *lstentry);
-extern int iproute_restore(struct rt_entry *lstentry, char *dev);
-extern struct rt_entry *iproute_list(char *dev);
+extern int addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data, int alen);
+extern int netlink_socket(struct nl_handle *nl, unsigned long groups);
+extern int netlink_close(struct nl_handle *nl);
+extern int netlink_talk (struct nl_handle *nl, struct nlmsghdr *n);
 
 #endif

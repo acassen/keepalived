@@ -7,29 +7,49 @@ CC= gcc
 KERNEL := KERNEL_2_$(shell uname -r | cut -d'.' -f2)
 
 # To compile with debug messages uncomment the following line
-CFLAGS= -g -Wall -DDEBUG -D$(KERNEL)
+CFLAGS= -g -Wall -Wunused -DDEBUG -D$(KERNEL)
 #CFLAGS= -g -Wall -D$(KERNEL)
 DEFS=
 
-LIB=	libipfwc/libipfwc.a \
-	libnetlink/libnetlink.a
+ifeq ($(KERNEL),KERNEL_2_2)
+  LIB := $(LIB) libipfwc/libipfwc.a
+endif
 
-#DEFS= main.h scheduler.h cfreader.h layer4.h check_tcp.h check_http.h md5.h smtp.h
-OBJECTS= main.o \
+DEFS= main.h \
+        scheduler.h \
+        cfreader.h \
+        layer4.h \
+        check_tcp.h \
+        check_http.h \
+        check_misc.h \
+        md5.h \
+	vrrp.h \
+	vrrp_scheduler.h \
+	vrrp_netlink.h \
+	vrrp_ipaddress.h \
+	vrrp_ipsecah.h \
+        smtp.h
+
+OBJECTS := main.o \
 	utils.o \
 	scheduler.o \
 	cfreader.o \
 	layer4.o \
 	check_tcp.o \
 	check_http.o \
+	check_misc.o \
 	md5.o \
 	ipwrapper.o \
-	ipvswrapper.o \
-	ipfwwrapper.o \
+	ipvswrapper.o
+ifeq ($(KERNEL),KERNEL_2_2)
+  OBJECTS := $(OBJECTS) ipfwwrapper.o
+endif
+OBJECTS := $(OBJECTS) \
 	pidfile.o \
 	smtp.o \
 	vrrp.o \
-	vrrp_iproute.o \
+	vrrp_scheduler.o \
+	vrrp_netlink.o \
 	vrrp_ipaddress.o \
 	vrrp_ipsecah.o
 
@@ -46,15 +66,15 @@ all:	$(EXEC)
 $(EXEC):	$(OBJECTS) $(DEFS) $(LIB)
 	$(CC) -o $(EXEC) $(CFLAGS) $(OBJECTS) $(LIB)
 
+ifeq ($(KERNEL),KERNEL_2_2)
 libipfwc/libipfwc.a:
 	cd libipfwc/ && $(MAKE) libipfwc.a
-
-libnetlink/libnetlink.a:
-	cd libnetlink/ && $(MAKE) libnetlink.a
+endif
 
 subclean:
+ifeq ($(KERNEL),KERNEL_2_2)
 	cd libipfwc/ && $(MAKE) clean
-	cd libnetlink/ && $(MAKE) clean
+endif
 
 clean: subclean
 	rm -f core *.o $(EXEC)
