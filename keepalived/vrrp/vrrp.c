@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
+ * Version:     $Id: vrrp.c,v 0.6.10 2002/08/06 02:18:05 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -113,7 +113,7 @@ vrrp_handle_ipaddress(vrrp_rt * vrrp, int cmd, int type)
 				}
 			}
 		} else {
-			vadd->set = 1;
+			vadd->set = (cmd == VRRP_IPADDRESS_ADD) ? 1 : 0;
 		}
 	}
 	return err;

@@ -130,6 +130,7 @@ if test "$IPVS_SUPPORT" = "_WITHOUT_LVS_" -a "$enable_vrrp" = "no"; then
 fi
 
 dnl ----[ Checks for kernel netlink support ]----
+VRRP_SUPPORT="_WITHOUT_VRRP_"
 if test "$enable_vrrp" != "no"; then
   AC_MSG_CHECKING([for kernel netlink support])
   AC_TRY_RUN([

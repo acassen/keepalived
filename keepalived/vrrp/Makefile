@@ -1,0 +1,48 @@
+# Generated automatically from Makefile.in by configure.
+# Makefile
+#
+# Keepalived OpenSource project.
+#
+# Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
+
+CC	 = gcc
+INCLUDES = -I../include
+CFLAGS	 = -g -O2 -I/usr/src/linux/include $(INCLUDES) \
+	   -Wall -Wunused -Wstrict-prototypes
+DEFS	 = -D_KRNL_2_4_ -D_WITH_LVS_ -D_WITHOUT_IPVS_SYNCD_ 
+COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
+
+OBJS = 	vrrp.o vrrp_notify.o vrrp_scheduler.o vrrp_sync.o \
+	vrrp_netlink.o vrrp_if.o vrrp_ipaddress.o vrrp_ipsecah.o
+HEADERS = $(OBJS:.o=.h)
+
+.c.o:
+	$(COMPILE) -c $<
+
+all:	$(OBJS)
+
+clean:
+	rm -f *.a *.o *~
+
+distclean: clean
+	rm -f Makefile
+
+vrrp.o: vrrp.c ../include/vrrp.h ../include/vrrp_scheduler.h \
+  ../include/vrrp_notify.h ../include/ipvswrapper.h ../include/memory.h \
+  ../include/list.h ../include/data.h
+vrrp_notify.o: vrrp_notify.c ../include/vrrp_notify.h ../include/memory.h
+vrrp_scheduler.o: vrrp_scheduler.c ../include/vrrp_scheduler.h \
+  ../include/vrrp_ipsecah.h ../include/vrrp_if.h ../include/vrrp.h \
+  ../include/vrrp_sync.h ../include/vrrp_notify.h ../include/ipvswrapper.h \
+  ../include/memory.h ../include/list.h ../include/data.h ../include/smtp.h
+vrrp_sync.o: vrrp_sync.c ../include/vrrp_sync.h ../include/vrrp_if.h \
+  ../include/vrrp_notify.h ../include/data.h
+vrrp_netlink.o: vrrp_netlink.c ../include/vrrp_netlink.h ../include/check_api.h \
+  ../include/vrrp_if.h ../include/memory.h ../include/scheduler.h \
+  ../include/utils.h
+vrrp_if.o: vrrp_if.c ../include/vrrp_if.h ../include/vrrp_netlink.h \
+  ../include/scheduler.h ../include/data.h ../include/memory.h \
+  ../include/utils.h
+vrrp_ipaddress.o: vrrp_ipaddress.c ../include/vrrp_ipaddress.h \
+  ../include/vrrp_netlink.h ../include/utils.h
+vrrp_ipsecah.o: vrrp_ipsecah.c ../include/vrrp_ipsecah.h

@@ -5,7 +5,7 @@
  *
  * Part:        layer4.c include file.
  *
- * Version:     $Id: layer4.h,v 0.6.9 2002/07/31 01:33:12 acassen Exp $
+ * Version:     $Id: layer4.h,v 0.6.10 2002/08/06 02:18:05 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
