@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckrs child process handling.
  *
- * Version:     $Id: check_daemon.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $Id: check_daemon.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -18,6 +18,8 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "check_daemon.h"
@@ -76,7 +78,9 @@ stop_check(void)
 	/* Clean data */
 	free_global_data(data);
 	free_check_data(check_data);
+#ifdef _WITH_VRRP_
 	free_interface_queue();
+#endif
 
 #ifdef _DEBUG_
 	keepalived_free_final("Healthcheck child process");
@@ -99,8 +103,10 @@ start_check(void)
 {
 	/* Initialize sub-system */
 	init_checkers_queue();
+#ifdef _WITH_VRRP_
 	init_interface_queue();
 	kernel_netlink_init();
+#endif
 
 	/* Parse configuration file */
 	data = alloc_global_data();
@@ -136,6 +142,9 @@ start_check(void)
 		dump_check_data(check_data);
 	}
 
+	/* Register healthcheckers software watchdog */
+	check_wdog_sd = wdog_init(WDOG_CHECK);
+
 	/* Register checkers thread */
 	register_checkers_thread();
 }
@@ -153,6 +162,9 @@ reload_check_thread(thread * thread)
 	free_global_data(data);
 	free_checkers_queue();
 	free_ssl();
+
+	/* free watchdog sd */
+	wdog_close(check_wdog_sd, WDOG_CHECK);
 
 	/* Save previous conf data */
 	old_check_data = check_data;
@@ -182,7 +194,8 @@ void
 sigend_check(int sig)
 {
 	syslog(LOG_INFO, "Terminating Healthchecker child process on signal");
-	thread_add_terminate_event(master);
+	if (master)
+		thread_add_terminate_event(master);
 }
 
 /* VRRP Child signal handling */
@@ -251,9 +264,6 @@ start_check_child(void)
 
 	/* Start Healthcheck daemon */
 	start_check();
-
-	/* Register healthcheckers software watchdog */
-	check_wdog_sd = wdog_init(WDOG_CHECK);
 
 	/* Launch the scheduling I/O multiplexer */
 	launch_scheduler();

@@ -6,7 +6,7 @@
  * Part:        Layer4 checkers handling. Register worker threads &
  *              upper layer checkers.
  *
- * Version:     $Id: layer4.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $Id: layer4.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,6 +19,8 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "layer4.h"
@@ -26,11 +28,11 @@
 #include "utils.h"
 
 enum connect_result
-tcp_connect(int fd, uint32_t addr_ip, uint16_t addr_port)
+tcp_bind_connect(int fd, uint32_t addr_ip, uint16_t addr_port, uint32_t bind_ip)
 {
 	struct linger li = { 0 };
 	int long_inet;
-	struct sockaddr_in adr_serv;
+	struct sockaddr_in sin;
 	int ret;
 	int val;
 
@@ -40,18 +42,28 @@ tcp_connect(int fd, uint32_t addr_ip, uint16_t addr_port)
 	setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *) &li,
 		   sizeof (struct linger));
 
-	long_inet = sizeof (struct sockaddr_in);
-	memset(&adr_serv, 0, long_inet);
-	adr_serv.sin_family = AF_INET;
-	adr_serv.sin_port = addr_port;
-	adr_serv.sin_addr.s_addr = addr_ip;
-
 	/* Make socket non-block. */
 	val = fcntl(fd, F_GETFL, 0);
 	fcntl(fd, F_SETFL, val | O_NONBLOCK);
 
-	/* Call connect function. */
-	ret = connect(fd, (struct sockaddr *) &adr_serv, long_inet);
+	/* Bind socket */
+	long_inet = sizeof (struct sockaddr_in);
+	memset(&sin, 0, long_inet);
+
+	if (bind_ip) {
+		sin.sin_family = AF_INET;
+		sin.sin_addr.s_addr = bind_ip;
+		if (bind(fd, (struct sockaddr *) &sin, sizeof(sin)) != 0)
+			return connect_error;
+	}
+
+	/* Set remote IP and connect */
+	memset(&sin, 0, long_inet);
+	sin.sin_family = AF_INET;
+	sin.sin_port = addr_port;
+	sin.sin_addr.s_addr = addr_ip;
+
+	ret = connect(fd, (struct sockaddr *) &sin, long_inet);
 
 	/* Immediate success */
 	if (ret == 0) {
@@ -68,6 +80,12 @@ tcp_connect(int fd, uint32_t addr_ip, uint16_t addr_port)
 	/* restore previous fd args */
 	fcntl(fd, F_SETFL, val);
 	return connect_in_progress;
+}
+
+enum connect_result
+tcp_connect(int fd, uint32_t addr_ip, uint16_t addr_port)
+{
+	return tcp_bind_connect(fd, addr_ip, addr_port, 0);
 }
 
 enum connect_result

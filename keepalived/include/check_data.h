@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckers dynamic data structure definition.
  *
- * Version:     $Id: check_data.h,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $Id: check_data.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -18,6 +18,8 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _CHECK_DATA_H
@@ -48,6 +50,9 @@
 #include "list.h"
 #include "vector.h"
 
+/* Typedefs */
+typedef unsigned int checker_id_t;
+
 /* Daemon dynamic data structure definition */
 #define MAX_TIMEOUT_LENGTH	5
 #define KEEPALIVED_DEFAULT_DELAY 60
@@ -76,6 +81,7 @@ typedef struct _real_server {
 	char *notify_up;	/* Script to launch when RS is added to LVS */
 	char *notify_down;	/* Script to launch when RS is removed from LVS */
 	int alive;
+	list failed_checkers;	/* List of failed checkers */
 	int set;		/* in the IPVS table */
 } real_server;
 

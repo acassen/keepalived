@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $Id: check_http.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -19,6 +19,8 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include <openssl/err.h>
@@ -78,6 +80,9 @@ dump_http_get_check(void *data)
 	if (http_get_chk->connection_port)
 		syslog(LOG_INFO, "   Connection port = %d",
 		       ntohs(http_get_chk->connection_port));
+	if (http_get_chk->bindto)
+		syslog(LOG_INFO, "   Bind to = %s",
+		       inet_ntop2(http_get_chk->bindto));
 	syslog(LOG_INFO, "   Connection timeout = %d",
 	       http_get_chk->connection_to);
 	syslog(LOG_INFO, "   Nb get retry = %d", http_get_chk->nb_get_retry);
@@ -117,6 +122,13 @@ connect_p_handler(vector strvec)
 {
 	http_get_checker *http_get_chk = CHECKER_GET();
 	http_get_chk->connection_port = htons(CHECKER_VALUE_INT(strvec));
+}
+
+void
+bindto_handler(vector strvec)
+{
+	http_get_checker *http_get_chk = CHECKER_GET();
+	inet_ston(VECTOR_SLOT(strvec, 1), &http_get_chk->bindto);
 }
 
 void
@@ -185,6 +197,7 @@ install_http_check_keyword(void)
 	install_keyword("HTTP_GET", &http_get_handler);
 	install_sublevel();
 	install_keyword("connect_port", &connect_p_handler);
+	install_keyword("bindto", &bindto_handler);
 	install_keyword("connect_timeout", &connect_to_handler);
 	install_keyword("nb_get_retry", &nb_get_retry_handler);
 	install_keyword("delay_before_retry", &delay_before_retry_handler);
@@ -204,6 +217,7 @@ install_ssl_check_keyword(void)
 	install_keyword("SSL_GET", &http_get_handler);
 	install_sublevel();
 	install_keyword("connect_port", &connect_p_handler);
+	install_keyword("bindto", &bindto_handler);
 	install_keyword("connect_timeout", &connect_to_handler);
 	install_keyword("nb_get_retry", &nb_get_retry_handler);
 	install_keyword("delay_before_retry", &delay_before_retry_handler);
@@ -294,7 +308,7 @@ epilog(thread * thread, int method, int t, int c)
 	 * servers.
 	 */
 	if (http_arg->retry_it > http_get_check->nb_get_retry-1) {
-		if (ISALIVE(checker->rs)) {
+		if (svr_checker_up(checker->id, checker->rs)) {
 			syslog(LOG_INFO, "Check on service [%s:%d] failed after %d retry."
 			       , inet_ntop2(CHECKER_RIP(checker))
 			       , ntohs(addr_port), http_arg->retry_it);
@@ -302,7 +316,9 @@ epilog(thread * thread, int method, int t, int c)
 				   "DOWN",
 				   "=> CHECK failed on service"
 				   " : MD5 digest mismatch <=");
-			perform_svr_state(DOWN, checker->vs, checker->rs);
+			update_svr_checker_state(DOWN, checker->id
+						     , checker->vs
+						     , checker->rs);
 		}
 
 		/* Reset it counters */
@@ -355,10 +371,12 @@ timeout_epilog(thread * thread, char *smtp_msg, char *debug_msg)
 	       , ntohs(addr_port));
 
 	/* check if server is currently alive */
-	if (ISALIVE(checker->rs)) {
+	if (svr_checker_up(checker->id, checker->rs)) {
 		smtp_alert(thread->master, checker->rs, NULL, NULL,
 			   "DOWN", smtp_msg);
-		perform_svr_state(DOWN, checker->vs, checker->rs);
+		update_svr_checker_state(DOWN, checker->id
+					     , checker->vs
+					     , checker->rs);
 	}
 
 	return epilog(thread, 1, 0, 0);
@@ -397,7 +415,7 @@ http_handle_response(thread * thread, unsigned char digest[16]
 	if (fetched_url->status_code) {
 		if (req->status_code != fetched_url->status_code) {
 			/* check if server is currently alive */
-			if (ISALIVE(checker->rs)) {
+			if (svr_checker_up(checker->id, checker->rs)) {
 				syslog(LOG_INFO,
 				       "HTTP status code error to [%s:%d] url(%s)"
 				       ", status_code [%d].",
@@ -408,7 +426,9 @@ http_handle_response(thread * thread, unsigned char digest[16]
 					   "DOWN",
 					   "=> CHECK failed on service"
 					   " : HTTP status code mismatch <=");
-				perform_svr_state(DOWN, checker->vs, checker->rs);
+				update_svr_checker_state(DOWN, checker->id
+							     , checker->vs
+							     , checker->rs);
 			} else {
 				DBG("HTTP Status_code to [%s:%d] url(%d) = [%d].",
 				    inet_ntop2(CHECKER_RIP(checker))
@@ -423,7 +443,7 @@ http_handle_response(thread * thread, unsigned char digest[16]
 			}
 			return epilog(thread, 2, 0, 1);
 		} else {
-			if (!ISALIVE(checker->rs))
+			if (!svr_checker_up(checker->id, checker->rs))
 				syslog(LOG_INFO,
 				       "HTTP status code success to [%s:%d] url(%d).",
 				       inet_ntop2(CHECKER_RIP(checker))
@@ -444,7 +464,7 @@ http_handle_response(thread * thread, unsigned char digest[16]
 
 		if (r) {
 			/* check if server is currently alive */
-			if (ISALIVE(checker->rs)) {
+			if (svr_checker_up(checker->id, checker->rs)) {
 				syslog(LOG_INFO,
 				       "MD5 digest error to [%s:%d] url[%s]"
 				       ", MD5SUM [%s].",
@@ -466,7 +486,7 @@ http_handle_response(thread * thread, unsigned char digest[16]
 			FREE(digest_tmp);
 			return epilog(thread, 2, 0, 1);
 		} else {
-			if (!ISALIVE(checker->rs))
+			if (!svr_checker_up(checker->id, checker->rs))
 				syslog(LOG_INFO, "MD5 digest success to [%s:%d] url(%d).",
 				       inet_ntop2(CHECKER_RIP(checker))
 				       , ntohs(addr_port)
@@ -541,7 +561,7 @@ http_read_thread(thread * thread)
 
 		if (r == -1) {
 			/* We have encourred a real read error */
-			if (ISALIVE(checker->rs)) {
+			if (svr_checker_up(checker->id, checker->rs)) {
 				syslog(LOG_INFO, "Read error with server [%s:%d]: %s",
 				       inet_ntop2(CHECKER_RIP(checker))
 				       , ntohs(addr_port)
@@ -550,8 +570,9 @@ http_read_thread(thread * thread)
 					   "DOWN",
 					   "=> HTTP CHECK failed on service"
 					   " : cannot receive data <=");
-				perform_svr_state(DOWN, checker->vs,
-						  checker->rs);
+				update_svr_checker_state(DOWN, checker->id
+							     , checker->vs
+							     , checker->rs);
 			}
 			return epilog(thread, 1, 0, 0);
 		}
@@ -660,12 +681,14 @@ http_request_thread(thread * thread)
 		       , ntohs(addr_port));
 
 		/* check if server is currently alive */
-		if (ISALIVE(checker->rs)) {
+		if (svr_checker_up(checker->id, checker->rs)) {
 			smtp_alert(thread->master, checker->rs, NULL, NULL,
 				   "DOWN",
 				   "=> CHECK failed on service"
 				   " : cannot send data <=");
-			perform_svr_state(DOWN, checker->vs, checker->rs);
+			update_svr_checker_state(DOWN, checker->id
+						     , checker->vs
+						     , checker->rs);
 		}
 		return epilog(thread, 1, 0, 0);
 	}
@@ -695,7 +718,7 @@ http_check_thread(thread * thread)
 	switch (status) {
 	case connect_error:
 		/* check if server is currently alive */
-		if (ISALIVE(checker->rs)) {
+		if (svr_checker_up(checker->id, checker->rs)) {
 			syslog(LOG_INFO, "Error connecting server [%s:%d].",
 			       inet_ntop2(CHECKER_RIP(checker))
 			       , ntohs(addr_port));
@@ -703,7 +726,9 @@ http_check_thread(thread * thread)
 				   "DOWN",
 				   "=> CHECK failed on service"
 				   " : connection error <=");
-			perform_svr_state(DOWN, checker->vs, checker->rs);
+			update_svr_checker_state(DOWN, checker->id
+						     , checker->vs
+						     , checker->rs);
 		}
 		return epilog(thread, 1, 0, 0);
 		break;
@@ -779,13 +804,15 @@ http_connect_thread(thread * thread)
 		 * Check completed.
 		 * check if server is currently alive.
 		 */
-		if (!ISALIVE(checker->rs)) {
+		if (!svr_checker_up(checker->id, checker->rs)) {
 			syslog(LOG_INFO, "Remote Web server [%s:%d] succeed on service.",
 			       inet_ntop2(CHECKER_RIP(checker))
 			       , ntohs(addr_port));
 			smtp_alert(thread->master, checker->rs, NULL, NULL, "UP",
 				   "=> CHECK succeed on service <=");
-			perform_svr_state(UP, checker->vs, checker->rs);
+			update_svr_checker_state(UP, checker->id
+						   , checker->vs
+						   , checker->rs);
 		}
 		http_arg->req = NULL;
 		return epilog(thread, 1, 0, 0) + 1;
@@ -797,7 +824,8 @@ http_connect_thread(thread * thread)
 		return 0;
 	}
 
-	status = tcp_connect(fd, CHECKER_RIP(checker), addr_port);
+	status = tcp_bind_connect(fd, CHECKER_RIP(checker), addr_port
+				  , http_get_check->bindto);
 
 	/* handle tcp connection status & register check worker thread */
 	tcp_connection_state(fd, status, thread, http_check_thread,

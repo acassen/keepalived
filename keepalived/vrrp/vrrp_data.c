@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: vrrp_data.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $Id: vrrp_data.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -18,6 +18,8 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "vrrp_data.h"
@@ -60,6 +62,7 @@ free_vgroup(void *data)
 	FREE_PTR(vgroup->script_backup);
 	FREE_PTR(vgroup->script_master);
 	FREE_PTR(vgroup->script_fault);
+	FREE_PTR(vgroup->script);
 	FREE(vgroup);
 }
 static void
@@ -84,6 +87,9 @@ dump_vgroup(void *data)
 	if (vgroup->script_fault)
 		syslog(LOG_INFO, "   Fault state transition script = %s",
 		       vgroup->script_fault);
+	if (vgroup->script)
+		syslog(LOG_INFO, "   Generic state transition script = '%s'",
+		       vgroup->script);
 	if (vgroup->smtp_alert)
 		syslog(LOG_INFO, "   Using smtp notification");
 }
@@ -99,6 +105,7 @@ free_vrrp(void *data)
 	FREE_PTR(vrrp->script_backup);
 	FREE_PTR(vrrp->script_master);
 	FREE_PTR(vrrp->script_fault);
+	FREE_PTR(vrrp->script);
 	FREE(vrrp->ipsecah_counter);
 	free_list(vrrp->track_ifp);
 	free_list(vrrp->vip);
@@ -162,6 +169,9 @@ dump_vrrp(void *data)
 	if (vrrp->script_fault)
 		syslog(LOG_INFO, "   Fault state transition script = %s",
 		       vrrp->script_fault);
+	if (vrrp->script)
+		syslog(LOG_INFO, "   Generic state transition script = '%s'",
+		       vrrp->script);
 	if (vrrp->smtp_alert)
 		syslog(LOG_INFO, "   Using smtp notification");
 }
@@ -245,6 +255,18 @@ alloc_vrrp_vroute(vector strvec)
 }
 
 /* data facility functions */
+void
+alloc_vrrp_buffer(void)
+{
+	vrrp_buffer = (char *) MALLOC(VRRP_PACKET_TEMP_LEN);
+}
+
+void
+free_vrrp_buffer(void)
+{
+	FREE(vrrp_buffer);
+}
+
 vrrp_conf_data *
 alloc_vrrp_data(void)
 {
@@ -255,7 +277,6 @@ alloc_vrrp_data(void)
 	new->vrrp_index = alloc_mlist(NULL, NULL, 255);
 	new->vrrp_index_fd = alloc_mlist(NULL, NULL, 1024+1);
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
-	vrrp_buffer = (char *) MALLOC(VRRP_PACKET_TEMP_LEN);
 
 	return new;
 }
@@ -270,7 +291,6 @@ free_vrrp_data(vrrp_conf_data * vrrp_data)
 	free_list(vrrp_data->vrrp);
 	free_list(vrrp_data->vrrp_sync_group);
 	FREE(vrrp_data);
-	FREE(vrrp_buffer);
 }
 
 void

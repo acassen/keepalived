@@ -5,7 +5,7 @@
  * 
  * Part:        List structure manipulation.
  *  
- * Version:     $Id: list.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $Id: list.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -18,6 +18,8 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "list.h"
@@ -126,6 +128,24 @@ free_list(list l)
 	FREE(l);
 }
 
+void
+free_list_element(list l, element e)
+{
+	if (!e)
+		return;
+	if (l->head == e)
+		l->head = (e->next == e) ? NULL : e->next;
+	if (l->tail == e)
+		l->tail = (e->prev == e) ? NULL : e->prev;
+	if (e->prev)
+		e->prev->next = e->next;
+	if (e->next)
+		e->next->prev = e->prev;
+	if (l->free)
+		(*l->free) (e->data);
+	l->count--;
+	FREE(e);
+}
 
 /* Multiple list helpers functions */
 list

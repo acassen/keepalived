@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 address manipulation.
  *
- * Version:     $Id: vrrp_ipaddress.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -18,6 +18,8 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 /* local include */
@@ -106,8 +108,13 @@ alloc_ipaddress(list ip_list, vector strvec, interface *ifp)
 	int i = 0;
 
 	new = (ip_address *) MALLOC(sizeof(ip_address));
-	new->ifp = ifp;
-	new->ifindex = IF_INDEX(ifp);
+	if (ifp) {
+		new->ifp = ifp;
+		new->ifindex = IF_INDEX(ifp);
+	} else {
+		new->ifp = if_get_by_ifname(DFLT_INT);
+		new->ifindex = IF_INDEX(new->ifp);
+	}
 
 	/* FMT parse */
 	while (i < VECTOR_SIZE(strvec)) {
@@ -127,13 +134,6 @@ alloc_ipaddress(list ip_list, vector strvec, interface *ifp)
 		}
 		i++;
 	}
-
-	/* If index not set then use default interface index */
-	if (!ifp) {
-		new->ifp = ifp;
-		new->ifindex = IF_INDEX(if_get_by_ifname(DFLT_INT));
-	}
-
 	list_add(ip_list, new);
 }
 

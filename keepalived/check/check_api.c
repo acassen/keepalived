@@ -5,7 +5,7 @@
  *
  * Part:        Checkers registration.
  *
- * Version:     $Id: check_api.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $Id: check_api.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -18,6 +18,8 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "check_api.h"
@@ -36,6 +38,9 @@
 extern thread_master *master;
 extern check_conf_data *check_data;
 extern unsigned int debug;
+
+/* Global vars */
+static checker_id_t ncheckers = 0;
 
 /* free checker data */
 static void
@@ -71,6 +76,7 @@ queue_checker(void (*free) (void *), void (*dump) (void *)
 	chk->vs = vs;
 	chk->rs = rs;
 	chk->data = data;
+	chk->id = ncheckers++;
 	chk->enabled = (vs->vfwmark) ? 1 : 0;
 #ifdef _WITHOUT_VRRP_
 	chk->enabled = 1;
@@ -102,6 +108,7 @@ void
 free_checkers_queue(void)
 {
 	free_list(checkers_queue);
+	ncheckers = 0;
 }
 
 /* register the checker to the global I/O scheduler */

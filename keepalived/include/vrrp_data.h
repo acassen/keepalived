@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: vrrp_data.h,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $Id: vrrp_data.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -18,6 +18,8 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _VRRP_DATA_H
@@ -56,6 +58,8 @@ extern void alloc_vrrp_track(vector strvec);
 extern void alloc_vrrp_vip(vector strvec);
 extern void alloc_vrrp_evip(vector strvec);
 extern void alloc_vrrp_vroute(vector strvec);
+extern void alloc_vrrp_buffer(void);
+extern void free_vrrp_buffer(void);
 extern vrrp_conf_data *alloc_vrrp_data(void);
 extern void free_vrrp_data(vrrp_conf_data * data);
 extern void dump_vrrp_data(vrrp_conf_data * data);

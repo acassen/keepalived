@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $id: ipwrapper.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $id: ipwrapper.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -18,10 +18,13 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "ipwrapper.h"
 #include "ipvswrapper.h"
+#include "memory.h"
 #include "utils.h"
 #include "notify.h"
 
@@ -299,6 +302,59 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 #endif
 		}
 
+	}
+}
+
+/* Test if realserver is marked UP for a specific checker */
+int
+svr_checker_up(checker_id_t cid, real_server *rs)
+{
+	element e;
+	list l = rs->failed_checkers;
+	checker_id_t *id;
+
+	/*
+	 * We assume there is not too much checker per
+	 * real server, so we consider this lookup as
+	 * o(1).
+	 */
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		id = ELEMENT_DATA(e);
+		if (*id == cid)
+			return 0;
+	}
+
+	return 1;
+}
+
+/* Update checker's state */
+void
+update_svr_checker_state(int alive, checker_id_t cid, virtual_server *vs, real_server *rs)
+{
+	element e;
+	list l = rs->failed_checkers;
+	checker_id_t *id;
+
+	/* Handle alive state */
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		id = ELEMENT_DATA(e);
+		if (*id == cid) {
+			if (alive) {
+				free_list_element(l, e);
+				if (LIST_SIZE(l) == 0)
+					perform_svr_state(alive, vs, rs);
+			} 
+			return;
+		}
+	}
+
+	/* Handle not alive state */
+	if (!alive) {
+		id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
+		*id = cid;
+		list_add(l, id);
+		if (LIST_SIZE(l) == 1)
+			perform_svr_state(alive, vs, rs);
 	}
 }
 

@@ -5,7 +5,7 @@
  *
  * Part:        layer4.c include file.
  *
- * Version:     $Id: layer4.h,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $Id: layer4.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -18,6 +18,8 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _LAYER4_H
@@ -44,7 +46,10 @@ enum connect_result {
 
 /* Prototypes defs */
 extern enum connect_result
-tcp_connect(int fd, uint32_t, uint16_t);
+tcp_bind_connect(int, uint32_t, uint16_t, uint32_t);
+
+extern enum connect_result
+tcp_connect(int, uint32_t, uint16_t);
 
 extern enum connect_result
 tcp_socket_state(int, thread *, uint32_t, uint16_t,

@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckers dynamic data structure definition.
  *
- * Version:     $Id: check_data.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $Id: check_data.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -18,6 +18,8 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "check_data.h"
@@ -265,6 +267,7 @@ free_rs(void *data)
 	real_server *rs = data;
 	FREE_PTR(rs->notify_up);
 	FREE_PTR(rs->notify_down);
+	free_list(rs->failed_checkers);
 	FREE(rs);
 }
 static void
@@ -285,6 +288,12 @@ dump_rs(void *data)
 		       rs->notify_down);
 }
 
+static void
+free_failed_checkers(void *data)
+{
+	FREE(data);
+}
+
 void
 alloc_rs(char *ip, char *port)
 {
@@ -296,6 +305,7 @@ alloc_rs(char *ip, char *port)
 	inet_ston(ip, &new->addr_ip);
 	new->addr_port = htons(atoi(port));
 	new->weight = 1;
+	new->failed_checkers = alloc_list(free_failed_checkers, NULL);
 
 	if (LIST_ISEMPTY(vs->rs))
 		vs->rs = alloc_list(free_rs, dump_rs);

@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -21,6 +21,8 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 /* local include */
@@ -149,13 +151,13 @@ vrrp_in_chk_ipsecah(vrrp_rt * vrrp, char *buffer)
 	 * sender counter.
 	 */
 	vrrp->ipsecah_counter->seq_number++;
-	if (ah->seq_number >= vrrp->ipsecah_counter->seq_number || vrrp->sync) {
-		vrrp->ipsecah_counter->seq_number = ah->seq_number;
+	if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter->seq_number || vrrp->sync) {
+		vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number);
 	} else {
 		syslog(LOG_INFO,
 		       "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
 		       " already proceeded. Packet dropped. Local(%d)", vrrp->iname
-		       , ah->seq_number, vrrp->ipsecah_counter->seq_number);
+		       , ntohl(ah->seq_number), vrrp->ipsecah_counter->seq_number);
 		return 1;
 	}
 
@@ -167,7 +169,6 @@ vrrp_in_chk_ipsecah(vrrp_rt * vrrp, char *buffer)
 
 	/* zero the ip mutable fields */
 	ip->tos = 0;
-	ip->id = 0;
 	ip->frag_off = 0;
 	ip->check = 0;
 	memcpy(backup_auth_data, ah->auth_data, sizeof (ah->auth_data));
@@ -390,13 +391,11 @@ vrrp_build_ipsecah(vrrp_rt * vrrp, char *buffer, int buflen)
 
 	/* backup the ip mutable fields */
 	ip_mutable_fields->tos = ip->tos;
-	ip_mutable_fields->id = ip->id;
 	ip_mutable_fields->frag_off = ip->frag_off;
 	ip_mutable_fields->check = ip->check;
 
 	/* zero the ip mutable fields */
 	ip->tos = 0;
-	ip->id = 0;
 	ip->frag_off = 0;
 	ip->check = 0;
 
@@ -432,7 +431,7 @@ vrrp_build_ipsecah(vrrp_rt * vrrp, char *buffer, int buflen)
 		vrrp->ipsecah_counter->seq_number++;
 	}
 
-	ah->seq_number = vrrp->ipsecah_counter->seq_number;
+	ah->seq_number = htonl(vrrp->ipsecah_counter->seq_number);
 
 	/* Compute the ICV & trunc the digest to 96bits
 	   => No padding needed.
@@ -445,7 +444,6 @@ vrrp_build_ipsecah(vrrp_rt * vrrp, char *buffer, int buflen)
 
 	/* Restore the ip mutable fields */
 	ip->tos = ip_mutable_fields->tos;
-	ip->id = ip_mutable_fields->id;
 	ip->frag_off = ip_mutable_fields->frag_off;
 	ip->check = ip_mutable_fields->check;
 
@@ -840,7 +838,7 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 			syslog(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
 			       " - Increment seq"
 			       , vrrp->iname);
-			vrrp->ipsecah_counter->seq_number = ah->seq_number + 1;
+			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
 			vrrp->ipsecah_counter->cycle = 0;
 		}
 		vrrp_send_adv(vrrp, vrrp->priority);
@@ -860,7 +858,7 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 			syslog(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
 			       " - Decrement seq"
 			       , vrrp->iname);
-			vrrp->ipsecah_counter->seq_number = ah->seq_number - 1;
+			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) - 1;
 			vrrp->ipsecah_counter->cycle = 0;
 		}
 		vrrp->ms_down_timer =

@@ -7,7 +7,7 @@
  *              url, compute a MD5 over this result and match it to the
  *              expected value.
  *
- * Version:     $Id: check_ssl.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $Id: check_ssl.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -21,6 +21,8 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include <openssl/err.h>
@@ -256,13 +258,14 @@ ssl_read_thread(thread * thread)
 
 		if (r && !req->extracted) {
 			/* check if server is currently alive */
-			if (ISALIVE(checker->rs)) {
+			if (svr_checker_up(checker->id, checker->rs)) {
 				smtp_alert(thread->master, checker->rs, NULL, NULL,
 					   "DOWN",
 					   "=> SSL CHECK failed on service"
 					   " : cannot receive data <=\n\n");
-				perform_svr_state(DOWN, checker->vs,
-						  checker->rs);
+				update_svr_checker_state(DOWN, checker->id
+							     , checker->vs
+							     , checker->rs);
 			}
 			return epilog(thread, 1, 0, 0);
 		}

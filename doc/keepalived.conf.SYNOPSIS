@@ -88,8 +88,20 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
     notify_master <STRING>|<QUOTED-STRING> # Script to run during MASTER transit
     notify_backup <STRING>|<QUOTED-STRING> # Script to run during BACKUP transit
     notify_fault <STRING>|<QUOTED-STRING>  # Script to run during FAULT transit
+    notify <STRING>|<QUOTED-STRING>	   # Script to run during ANY state transit (1)
     smtp_alert		 # Send email notif during state transit
 }
+
+(1) The "notify" script is called AFTER the corresponding notify_* script has
+    been called, and is given exactly 3 arguments (the whole string is interpreted
+    as a litteral filename so don't add parameters!):
+
+    $1 = A string indicating whether it's a "GROUP" or an "INSTANCE"
+    $2 = The name of said group or instance
+    $3 = The state it's transitioning to ("MASTER", "BACKUP" or "FAULT")
+
+    $1 and $3 are ALWAYS sent in uppercase, and the possible strings sent are the
+    same ones listed above ("GROUP"/"INSTANCE", "MASTER"/"BACKUP"/"FAULT").
 
 	2.2. VRRP instance
 
@@ -134,6 +146,7 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     notify_master <STRING>|<QUOTED-STRING> # Same as vrrp_sync_group
     notify_backup <STRING>|<QUOTED-STRING> # Same as vrrp_sync_group
     notify_fault <STRING>|<QUOTED-STRING>  # Same as vrrp_sync_group
+    notify <STRING>|<QUOTED-STRING>	   # Same as vrrp_sync_group
     smtp_alert				   # Same as vrrp_sync_group
 }
 
@@ -221,6 +234,7 @@ virtual_server group <STRING>      {	# VS group declaration
             }
             ...
             connect_port <PORT>		# TCP port to connect
+            bindto <IP ADDRESS>		# IP address to bind to
             connect_timeout <INTEGER>	# Timeout connection
             nb_get_retry <INTEGER>	# number of get retry
             delay_before_retry <INTEGER> # delay before retry
@@ -235,6 +249,7 @@ virtual_server group <STRING>      {	# VS group declaration
 
         TCP_CHECK {			# TCP healthchecker
             connect_port <PORT>		# TCP port to connect
+            bindto <IP ADDRESS>		# IP address to bind to
             connect_timeout <INTEGER>	# Timeout connection
         }
     }

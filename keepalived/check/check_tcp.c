@@ -5,7 +5,7 @@
  *
  * Part:        TCP checker.
  *
- * Version:     $Id: check_tcp.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $Id: check_tcp.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -18,6 +18,8 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "check_tcp.h"
@@ -50,6 +52,8 @@ dump_tcp_check(void *data)
 	if (tcp_chk->connection_port)
 		syslog(LOG_INFO, "   Connection port = %d",
 		       ntohs(tcp_chk->connection_port));
+        if (tcp_chk->bindto)
+                syslog(LOG_INFO, "   Bind to = %s", inet_ntop2(tcp_chk->bindto));
 	syslog(LOG_INFO, "   Connection timeout = %d", tcp_chk->connection_to);
 }
 
@@ -71,6 +75,13 @@ connect_port_handler(vector strvec)
 }
 
 void
+bind_handler(vector strvec)
+{
+	tcp_checker *tcp_chk = CHECKER_GET();
+	inet_ston(VECTOR_SLOT(strvec, 1), &tcp_chk->bindto);
+}
+
+void
 connect_timeout_handler(vector strvec)
 {
 	tcp_checker *tcp_chk = CHECKER_GET();
@@ -83,6 +94,7 @@ install_tcp_check_keyword(void)
 	install_keyword("TCP_CHECK", &tcp_check_handler);
 	install_sublevel();
 	install_keyword("connect_port", &connect_port_handler);
+	install_keyword("bindto", &bind_handler);
 	install_keyword("connect_timeout", &connect_timeout_handler);
 	install_sublevel_end();
 }
@@ -110,26 +122,30 @@ tcp_check_thread(thread * thread)
 	if (status == connect_success) {
 		close(thread->u.fd);
 
-		if (!ISALIVE(checker->rs)) {
+		if (!svr_checker_up(checker->id, checker->rs)) {
 			syslog(LOG_INFO, "TCP connection to [%s:%d] success.",
 			       inet_ntop2(CHECKER_RIP(checker))
 			       , ntohs(addr_port));
 			smtp_alert(thread->master, checker->rs, NULL, NULL,
 				   "UP",
 				   "=> TCP CHECK succeed on service <=");
-			perform_svr_state(UP, checker->vs, checker->rs);
+			update_svr_checker_state(UP, checker->id
+						   , checker->vs
+						   , checker->rs);
 		}
 
 	} else {
 
-		if (ISALIVE(checker->rs)) {
+		if (svr_checker_up(checker->id, checker->rs)) {
 			syslog(LOG_INFO, "TCP connection to [%s:%d] failed !!!",
 			       inet_ntop2(CHECKER_RIP(checker))
 			       , ntohs(addr_port));
 			smtp_alert(thread->master, checker->rs, NULL, NULL,
 				   "DOWN",
 				   "=> TCP CHECK failed on service <=");
-			perform_svr_state(DOWN, checker->vs, checker->rs);
+			update_svr_checker_state(DOWN, checker->id
+						     , checker->vs
+						     , checker->rs);
 		}
 
 	}
@@ -144,14 +160,11 @@ tcp_check_thread(thread * thread)
 int
 tcp_connect_thread(thread * thread)
 {
-	checker *checker;
-	tcp_checker *tcp_check;
+	checker *checker = THREAD_ARG(thread);
+	tcp_checker *tcp_check = CHECKER_ARG(checker);
 	int fd;
 	uint16_t addr_port;
 	int status;
-
-	checker = THREAD_ARG(thread);
-	tcp_check = CHECKER_ARG(checker);
 
 	/*
 	 * Register a new checker thread & return
@@ -171,7 +184,8 @@ tcp_connect_thread(thread * thread)
 	addr_port = CHECKER_RPORT(checker);
 	if (tcp_check->connection_port)
 		addr_port = tcp_check->connection_port;
-	status = tcp_connect(fd, CHECKER_RIP(checker), addr_port);
+	status = tcp_bind_connect(fd, CHECKER_RIP(checker), addr_port
+				  , tcp_check->bindto);
 
 	/* handle tcp connection status & register check worker thread */
 	tcp_connection_state(fd, status, thread, tcp_check_thread,

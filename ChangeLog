@@ -1,3 +1,58 @@
+2003-09-07  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.2 released.
+	* Dominik Vogt, <dominik.vogt@gmx.de> and I extended checker
+	  framework to support multiple checkers per realserver.
+	  Each checker own a uniq id, each realserver own a list
+	  of checkers id. Realserver is considered down if one of the
+	  checkers fails.
+	* Dominik Vogt, <dominik.vogt@gmx.de> extended list library to
+	  support free_list_element.
+	* Dominik Vogt, <dominik.vogt@gmx.de> and I extended ipwrapper
+	  to support multiple checkers test. Created a checker state
+	  updater helper function to perform realserver state according
+	  to checker state.
+	* Dominik Vogt, <dominik.vogt@gmx.de> extended all checkers
+	  code to support multiple checker design (to not perform
+	  server state according a single checkers test).
+	* Tobias Klausmann, <klausman@schwarzvogel.de> and I extended
+	  layer4 framework to support socket binding to a specific
+	  ip address before calling connect(). Extended the TCP, HTTP
+	  and SSL checker to support binding selection, creating
+	  a new checker keyword named "bindto".
+	  look at doc/keepalived.conf.SYNOPSIS for more informations.
+	* VRRP : Extended the ethtool code to be selected only if
+	  ETHTOOL_GLINK is available. This is useful for s/390 zSeries
+	  users :) since zSerie 2.4 kernel doesn't support ethtool
+	  extension.
+	* VRRP : Gatis Peisenieks, <gatis@mt.lv> fixed IPSEC-AH
+	  code to exclude ip header id filed while computing AH digest.
+	  Fixed AH sequence number to be set in network byte order.
+	* VRRP : Fixed a bug in the static_ipaddress block that caused
+	  a noisy crashing startup.
+	* VRRP : Kjetil Torgrim Homme, <kjetilho@ifi.uio.no> and I
+	  fixed a daemon crash while reloading configuration due to a
+	  vrrp_buffer not freed.
+	* VRRP : Review the watchdog calling location. watchdog listener
+	  is reinitialized during a daemon reload.
+	* VRRP : Diego Rivera, <lrivera@racsa.co.cr> extended notify
+	  framework to support simple notify script call. Created a new
+	  keyword "notify", for both vrrp_instance and vrrp_sync_group.
+	  If configured, this notify script is called after FSM state
+	  transition notify scripts.
+	  look at doc/keepalived.conf.SYNOPSIS for more informations.
+	* Review the checker watchdog calling location like VRRP.
+	* Fixed code selection to exclude VRRP dependencies if code is
+	  configured without VRRP framework.
+	* Extended memory lib free function to reset memory location to
+	  NULL.
+	* Diego Rivera, <lrivera@racsa.co.cr> extended global parser
+	  to support default handlers for lvs_id, smtp_server,
+	  smtp_connection_timeout and email_from. default values are :
+	   o lvs_id : box local name
+	   o smtp_server : localhost
+	   o email_from : uid@box_local_name
+	   o smtp_connection_timeout : 30s
+
 2003-07-24  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.1 released.
 	* VRRP : Fixed an issue while reloading configuration. Fixed

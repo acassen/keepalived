@@ -6,7 +6,7 @@
  * Part:        MISC CHECK. Perform a system call to run an extra
  *              system prog or script.
  *
- * Version:     $Id: check_misc.c,v 1.1.1 2003/07/24 22:36:16 acassen Exp $
+ * Version:     $Id: check_misc.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
@@ -21,6 +21,8 @@
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
+ *
+ * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "check_misc.h"
@@ -182,14 +184,16 @@ misc_check_child_thread(thread * thread)
 		pid = THREAD_CHILD_PID(thread);
 
 		/* The child hasn't responded. Kill it off. */
-		if (ISALIVE(checker->rs)) {
+		if (svr_checker_up(checker->id, checker->rs)) {
 			syslog(LOG_INFO, "Misc check to [%s] for [%s] timed out",
 			       inet_ntop2(CHECKER_RIP(checker)),
 			       misc_chk->path);
 			smtp_alert(thread->master, checker->rs, NULL, NULL,
 				   "DOWN",
 				   "=> MISC CHECK script timeout on service <=");
-			perform_svr_state(DOWN, checker->vs, checker->rs);
+			update_svr_checker_state(DOWN, checker->id
+						     , checker->vs
+						     , checker->rs);
 		}
 
 		kill(pid, SIGTERM);
@@ -205,24 +209,28 @@ misc_check_child_thread(thread * thread)
 		status = WEXITSTATUS(wait_status);
 		if (status == 0) {
 			/* everything is good */
-			if (!ISALIVE(checker->rs)) {
+			if (!svr_checker_up(checker->id, checker->rs)) {
 				syslog(LOG_INFO, "Misc check to [%s] for [%s] success.",
 				       inet_ntop2(CHECKER_RIP(checker)),
 				       misc_chk->path);
 				smtp_alert(thread->master, checker->rs, NULL, NULL,
 					   "UP",
 					   "=> MISC CHECK succeed on service <=");
-				perform_svr_state(UP, checker->vs, checker->rs);
+				update_svr_checker_state(UP, checker->id
+							   , checker->vs
+							   , checker->rs);
 			}
 		} else {
-			if (ISALIVE(checker->rs)) {
+			if (svr_checker_up(checker->id, checker->rs)) {
 				syslog(LOG_INFO, "Misc check to [%s] for [%s] failed.",
 				       inet_ntop2(CHECKER_RIP(checker)),
 				       misc_chk->path);
 				smtp_alert(thread->master, checker->rs, NULL, NULL,
 					   "DOWN",
 					   "=> MISC CHECK failed on service <=");
-				perform_svr_state(DOWN, checker->vs, checker->rs);
+				update_svr_checker_state(DOWN, checker->id
+							     , checker->vs
+							     , checker->rs);
 			}
 		}
 	}
