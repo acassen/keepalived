@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK kernel command channel.
  *
- * Version:     $Id: vrrp_netlink.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
+ * Version:     $Id: vrrp_netlink.c,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -392,8 +392,11 @@ static int netlink_if_address_filter(struct sockaddr_nl *snl, struct nlmsghdr *h
   if (!ifp->address)
     ifp->address = address;
 
+#ifdef _WITH_LVS_
   /* Refresh checkers state */
   update_checker_activity(address, (h->nlmsg_type == RTM_NEWADDR)?1:0);
+#endif
+
   return 0;
 }
 

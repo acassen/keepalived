@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
+ * Version:     $Id: parser.c,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -714,6 +714,7 @@ void init_keywords(void)
 
 void init_data(char *conf_file)
 {
+  vector kw_root;
   conf_data = NULL;
   stream = fopen((conf_file)?conf_file:CONF, "r");
   if (!stream) {
@@ -723,6 +724,12 @@ void init_data(char *conf_file)
 
   /* Init Keywords structure */
   init_keywords();
+  kw_root = keywords;
+
+/* Dump configuration *
+  vector_dump(keywords);
+  dump_keywords(keywords, 0);
+*/
 
   /* Init data structure */
   conf_data = alloc_data();
@@ -730,13 +737,8 @@ void init_data(char *conf_file)
   /* Stream handling */
   process_stream(keywords);
 
-/* Dump configuration *
-  vector_dump(keywords);
-  dump_keywords(keywords, 0);
-*/
-
   fclose(stream);
-  free_keywords(keywords);
+  free_keywords(kw_root);
 
   syslog(LOG_INFO, "Configuration is using : %lu Bytes"
                  , mem_allocated);

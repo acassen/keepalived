@@ -5,7 +5,7 @@
  *
  * Part:        utils.h include file.
  *
- * Version:     $Id: utils.h,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
+ * Version:     $Id: utils.h,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -33,6 +33,7 @@
 /* Prototypes defs */
 extern void print_buffer(int count, char *buff);
 extern char *ip_ntoa(uint32_t ip);
+extern char *ip_ntoa2(uint32_t ip, char *buf);
 extern uint32_t ip_ston(char *addr);
 extern uint8_t ip_stom(char *addr);
 

@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -89,13 +89,15 @@ int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
     close(sockfd);
     return IPVS_ERROR;
   } else if (errno == EEXIST) {
-    syslog(LOG_INFO, "IPVS WRAPPER : Destination already exists [%s:%d]."
-                   , ip_ntoa(SVR_IP(rs))
-                   , ntohs(SVR_PORT(rs)));
+    if (rs)
+      syslog(LOG_INFO, "IPVS WRAPPER : Destination already exists [%s:%d]."
+                     , ip_ntoa(SVR_IP(rs))
+                     , ntohs(SVR_PORT(rs)));
   } else if (errno == ENOENT) {
-    syslog(LOG_INFO, "IPVS WRAPPER : No such destination [%s:%d]."
-                   , ip_ntoa(SVR_IP(rs))
-                   , ntohs(SVR_PORT(rs)));
+    if (rs)
+      syslog(LOG_INFO, "IPVS WRAPPER : No such destination [%s:%d]."
+                     , ip_ntoa(SVR_IP(rs))
+                     , ntohs(SVR_PORT(rs)));
   }
 
   close(sockfd);

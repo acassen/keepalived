@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $id: ipwrapper.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
+ * Version:     $id: ipwrapper.c,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -105,6 +105,8 @@ int all_realservers_down(virtual_server *vs)
 
 void perform_svr_state(int alive, virtual_server *vs, real_server *rs)
 {
+  char rsip[16], vsip[16];
+
   if (!ISALIVE(rs) && alive) {
 
     /* adding a server to the vs pool, if sorry server is flagged alive,
@@ -113,9 +115,9 @@ void perform_svr_state(int alive, virtual_server *vs, real_server *rs)
     if (vs->s_svr) {
       if (vs->s_svr->alive) {
         syslog(LOG_INFO, "Removing sorry server [%s:%d] from VS [%s:%d]"
-                       , ip_ntoa(SVR_IP(vs->s_svr))
+                       , ip_ntoa2(SVR_IP(vs->s_svr), rsip)
                        , ntohs(SVR_PORT(vs->s_svr))
-                       , ip_ntoa(SVR_IP(vs))
+                       , ip_ntoa2(SVR_IP(vs), vsip)
                        , ntohs(SVR_PORT(vs)));
 
         vs->s_svr->alive = 0;
@@ -128,9 +130,9 @@ void perform_svr_state(int alive, virtual_server *vs, real_server *rs)
 
     rs->alive = alive;
     syslog(LOG_INFO, "Adding service [%s:%d] to VS [%s:%d]"
-                   , ip_ntoa(SVR_IP(rs))
+                   , ip_ntoa2(SVR_IP(rs), rsip)
                    , ntohs(SVR_PORT(rs))
-                   , ip_ntoa(SVR_IP(vs))
+                   , ip_ntoa2(SVR_IP(vs), vsip)
                    , ntohs(SVR_PORT(vs)));
     ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
 
@@ -143,9 +145,9 @@ void perform_svr_state(int alive, virtual_server *vs, real_server *rs)
 
     rs->alive = alive;
     syslog(LOG_INFO, "Removing service [%s:%d] from VS [%s:%d]"
-                   , ip_ntoa(SVR_IP(rs))
+                   , ip_ntoa2(SVR_IP(rs), rsip)
                    , ntohs(SVR_PORT(rs))
-                   , ip_ntoa(SVR_IP(vs))
+                   , ip_ntoa2(SVR_IP(vs), vsip)
                    , ntohs(SVR_PORT(vs)));
 
     /* server is down, it is removed from the LVS realserver pool */
@@ -159,9 +161,9 @@ void perform_svr_state(int alive, virtual_server *vs, real_server *rs)
     /* if all the realserver pool is down, we add sorry server */
     if (vs->s_svr && all_realservers_down(vs)) {
       syslog(LOG_INFO, "Adding sorry server [%s:%d] to VS [%s:%d]"
-                     , ip_ntoa(SVR_IP(vs->s_svr))
+                     , ip_ntoa2(SVR_IP(vs->s_svr), rsip)
                      , ntohs(SVR_PORT(vs->s_svr))
-                     , ip_ntoa(SVR_IP(vs))
+                     , ip_ntoa2(SVR_IP(vs), vsip)
                      , ntohs(SVR_PORT(vs)));
 
       /* the sorry server is now up in the pool, we flag it alive */

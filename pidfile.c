@@ -5,7 +5,7 @@
  *
  * Part:        pidfile utility.
  *
- * Version:     $Id: pidfile.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
+ * Version:     $Id: pidfile.c,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -56,7 +56,7 @@ int keepalived_running(void)
 
   /* If no process is attached to pidfile, remove it */
   if (kill(pid,0)) {
-    syslog(LOG_INFO,"Remove a zomby pid file %s.",PIDFILENAME);
+    syslog(LOG_INFO,"Remove a zombie pid file %s.",PIDFILENAME);
     pidfile_rm();
     return 0;
   }

@@ -10,6 +10,11 @@ global_defs {
    lvs_id LVS_DEVEL
 }
 
+vrrp_sync_group G1 {
+  VI_1
+  VI_2
+}
+
 vrrp_instance VI_1 {
     interface eth0
     virtual_router_id 50
@@ -25,7 +30,6 @@ vrrp_instance VI_1 {
         192.168.200.12
         192.168.200.13
     }
-    sync_instance VI_2
 }
 
 vrrp_instance VI_2 {
@@ -42,7 +46,6 @@ vrrp_instance VI_2 {
         192.168.201.12
         192.168.201.13
     }
-    sync_instance VI_1
 }
 
 virtual_server 10.10.10.2 1358 {

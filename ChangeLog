@@ -1,3 +1,28 @@
+2002-06-16  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.6.2 released.
+	* Andres Salomon, <dilinger@voxel.net> enhanced the autoconf/automake scripts
+	  to be more generic and to facilitate cross compilation. Including more efficient
+	  IPVS code detection, Kernel version, install script location, ...
+	* Johannes Erdfelt, <johannes@erdfelt.com> fixed a genhash get request length
+	  calculation issue.
+	* Johannes Erdfelt, <johannes@erdfelt.com> fixed a wrong printed IP address issue
+	  due to a static pivot buffer called multiple times for a single syslog call.
+	* Johannes Erdfelt, <johannes@erdfelt.com> enhanced SMTP notification framework
+	  to use more compliant SMTP protocol handling. Enhanced both sending and receiving
+	  functions. A nice response code buffer handling calculating remote SMTP server
+	  retcode.
+	* Johannes Erdfelt, <johannes@erdfelt.com> fixed a NULL pointer exception into the
+	  2.2 ipvswrapper code.
+	* Aneesh Kumar, <aneesh.kumar@digital.com> fixed a compilation issue for CI-LINUX
+	  checker compilation.
+	* Jan Du Caju, <jan@kulnet.kuleuven.ac.be> fixed a compilation dependence selection
+	  into the VRRP framework when compiling without LVS support. This disable checkers
+	  activity update when compiled without LVS support.
+	* fixed a dereferencing pointer into the parser.
+	* move the dump configuration to printout conf after daemon initialization.
+	* VRRP : Added support to start on complete init. VRRP framework and thus keepalived
+	  will start if VRRP instances are properly configured.
+
 2002-06-13  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.6.1 released.
 	* Aneesh Kumar, <aneesh.kumar@digital.com> and I added support to

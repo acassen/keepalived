@@ -98,8 +98,9 @@ static char *build_request(REQ* req)
 
   request_len = strlen(REQUEST_TEMPLATE) +
                 strlen(req->host) +
-                strlen(req->url) +
-                sizeof(unsigned short int);
+                strlen(req->url)  +
+                5                 + /* characters for port */
+                1;                  /* null terminator     */
   request = xmalloc(request_len);
   if (!request) return NULL;
 

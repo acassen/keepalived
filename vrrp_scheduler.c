@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

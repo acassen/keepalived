@@ -5,7 +5,7 @@
  *
  * Part:        General program utils.
  *
- * Version:     $Id: utils.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
+ * Version:     $Id: utils.c,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -65,6 +65,14 @@ void print_buffer(int count, char *buff)
 char *ip_ntoa(uint32_t ip)
 {
   static char buf[16];
+  unsigned char *bytep;
+
+  bytep = (unsigned char *) &(ip);
+  sprintf(buf, "%d.%d.%d.%d", bytep[0], bytep[1], bytep[2], bytep[3]);
+  return buf;
+}
+char *ip_ntoa2(uint32_t ip, char *buf)
+{
   unsigned char *bytep;
 
   bytep = (unsigned char *) &(ip);

@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
+ * Version:     $Id: main.c,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -242,9 +242,6 @@ int main(int argc, char **argv)
   }
 #endif
 
-  if (debug & 4) 
-    dump_data();
-
 #ifdef _WITH_LVS_
   if (!init_services()) {
     syslog(LOG_INFO, "Stopping "VERSION_STRING);
@@ -263,8 +260,13 @@ int main(int argc, char **argv)
 #ifdef _WITH_LVS_
   register_checkers_thread();
 #endif
-  vrrp_complete_init();
+  if (!vrrp_complete_init())
+    goto end;
   register_vrrp_thread();
+
+  /* Dump the configuration */
+  if (debug & 4) 
+    dump_data();
 
   /* processing the master thread queues, return and execute one ready thread */
   while (thread_fetch(master, &thread)) {
@@ -279,6 +281,7 @@ int main(int argc, char **argv)
     thread_call(&thread);
   }
 
+end:
   /* Reached when terminate signal catched */
   syslog(LOG_INFO, "Stopping "VERSION_STRING);
 

@@ -5,7 +5,7 @@
  *
  * Part:        check_ci.c include file.
  *
- * Version:     $Id: check_ci.h,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
+ * Version:     $Id: check_ci.h,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Aneesh Kumar K.V, <aneesh.kumar@digital.com>
@@ -36,7 +36,6 @@
 /* local includes */
 #include "scheduler.h"
 
-#define SIGCLUSTER 2
 #define CLUSTERTAB "/etc/clustertab"
 #define BUFFSIZE 100
 #define UP 1
@@ -51,6 +50,7 @@ typedef struct nodenum_ip_map {
 extern int initialize_nodemap(nodenum_ip_map_t *nodemap);
 extern clusternode_t address_to_nodenum(uint32_t addr_ip);
 extern int nodestatus(uint32_t addr_ip);
-extern void install_ci_check_kerword(void);
+extern void install_ci_check_keyword(void);
+extern int ci_check_thread(thread *thread);
 
 #endif

@@ -5,7 +5,7 @@
  *
  * Part:        memory.c include file.
  *
- * Version:     $Id: memory.h,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
+ * Version:     $Id: memory.h,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>

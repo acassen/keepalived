@@ -8,44 +8,11 @@
 
 dnl ----[ Process this file with autoconf to produce a configure script ]----
 AC_INIT(scheduler.c)
+VERSION=`cat VERSION`
 
 dnl ----[ Checks for programs ]----
 AC_PROG_CC
 AC_PROG_INSTALL
-
-dnl ----[ Checks for system init script dir ]----
-if test -d /etc/init.d; then
-  SYSTEM_SCRIPT_DIR="/etc/init.d"
-elif test -d /etc/rc.d/init.d; then
-  SYSTEM_SCRIPT_DIR="/etc/rc.d/init.d"
-fi
-AC_SUBST(SYSTEM_SCRIPT_DIR)
-
-dnl ----[ Checks for kernel support ]----
-KERNEL_VERSION=`uname -r`
-KERNEL_CODE=`echo $KERNEL_VERSION | cut -d'.' -f2`
-
-IPVS_MODULE="/lib/modules/`uname -r`/kernel/net/ipv4/ipvs/ip_vs.o"
-if test -f $IPVS_MODULE; then
-  modprobe ip_vs
-fi
-
-if test -f /proc/net/ip_vs; then
-  IPVS_VERSION=`cat /proc/net/ip_vs | head -1 | awk '{ print $5}'`
-  IPVS_SUPPORT="_WITH_LVS_"
-elif test -f /proc/net/ip_masq/vs; then
-  IPVS_VERSION=`cat /proc/net/ip_masq/vs | head -1 | awk '{ print $5}'`
-  IPVS_SUPPORT="_WITH_LVS_"
-else
-  IPVS_VERSION="0.0.0"
-  IPVS_SUPPORT="_WITHOUT_LVS_"
-fi
-VERSION=`cat VERSION`
-
-dnl ----[ Split IPVS NVERSION code  ]----
-IPVS_MAJOR=`echo $IPVS_VERSION | cut -d'.' -f1`
-IPVS_MINOR=`echo $IPVS_VERSION | cut -d'.' -f2`
-IPVS_PATCH=`echo $IPVS_VERSION | cut -d'.' -f3`
 
 dnl ----[ Keepalived specific configure options ]----
 AC_ARG_ENABLE(lvs-syncd,
@@ -54,31 +21,127 @@ AC_ARG_ENABLE(lvs,
   [  --disable-lvs           do not use the LVS framework])
 AC_ARG_ENABLE(vrrp,
   [  --disable-vrrp          do not use the VRRP framework])
+AC_ARG_WITH(kernel-dir,
+  [  --with-kernel-dir=DIR   path to linux kernel source directory],
+  [kernelinc="$withval/include"],
+  [kernelinc="/usr/src/linux/include"])
 AC_ARG_WITH(ci_linux,
   [  --with-ci_linux         Compile with Cluster Infrastructure support (default no)],
-  ci_linux=$withval,ci_linux="no")
+  [ci_linux=$withval],
+  [ci_linux="no"])
 AC_ARG_ENABLE(debug,
   [  --enable-debug          compile with debugging flags])
 
-if test "${enable_lvs}" = "no"; then
-  if test "${enable_vrrp}" = "no"; then
-    echo
-    echo "  !!!WARN!!! Keepalived MUST be compiled at least with LVS or VRRP framework !!!WARN!!!"
-    echo
-    exit 1
+dnl ----[ Checks for header files ]----
+AC_HEADER_STDC
+AC_HEADER_SYS_WAIT
+AC_CHECK_HEADERS(fcntl.h syslog.h unistd.h sys/ioctl.h sys/time.h)
+AC_CHECK_HEADERS(openssl/ssl.h openssl/md5.h openssl/err.h,,AC_MSG_ERROR([
+  !!! OpenSSL is not properly installed on your system. !!!
+  !!! Can not include OpenSSL headers files.            !!!]))
+if test "${ci_linux}" = "yes"; then
+  AC_CHECK_HEADERS(linux/cluster.h,,AC_MSG_ERROR([linux/cluster.h  file not found]))
+fi
+
+dnl ----[ Checks for libraries ]----
+AC_CHECK_LIB(crypto, MD5_Init,,AC_MSG_ERROR([OpenSSL libraries are required]))
+AC_CHECK_LIB(ssl, SSL_CTX_new,,AC_MSG_ERROR([OpenSSL libraries are required]))
+AC_CHECK_LIB(popt, poptGetContext,,AC_MSG_ERROR([Popt libraries is required]))
+if test "${ci_linux}" = "yes"; then
+  AC_CHECK_LIB(cluster,cluster_maxnodes,,AC_MSG_ERROR([libcluster libraries are required]))
+fi
+
+dnl ----[ Kernel version check ]----
+CPPFLAGS="$CPPFLAGS -I$kernelinc"
+CFLAGS="$CFLAGS -I$kernelinc"
+AC_MSG_CHECKING([for kernel >= 2.4.0])
+AC_TRY_RUN([
+  #include <stdlib.h>
+  #include <linux/version.h>
+  int main (void) {
+  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
+    return 0;
+  #else
+    return 1;
+  #endif
+  }], [
+    KERN="_KRNL_2_4_"
+    AC_MSG_RESULT(yes)
+  ], [
+    KERN="_KRNL_2_2_"
+    AC_MSG_RESULT(no)
+  ], [
+    KERN="_KRNL_2_2_"
+    AC_MSG_RESULT(no)
+  ])
+AC_SUBST(KERN)
+
+dnl ----[ Checks for LVS and VRRP support ]----
+IPVS_SUPPORT="_WITHOUT_LVS_"
+if test "$enable_lvs" != "no"; then
+  AC_CHECK_HEADER([net/ip_vs.h],
+    [IPVS_SUPPORT="_WITH_LVS_"],
+    [
+      IPVS_SUPPORT="_WITHOUT_LVS_"
+      IPVS_MAJOR="0"
+      IPVS_MINOR="0"
+      IPVS_PATCH="0"
+      AC_MSG_WARN([keepalived will be built without LVS support.])
+    ])
+fi  
+
+if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
+  AC_MSG_CHECKING([for IPVS version])
+  AC_TRY_RUN([ 
+    #include <stdlib.h>
+    #include <stdio.h>
+    #include <net/ip_vs.h>
+    int main (void) {
+      FILE *fp = fopen ("ipvsinfo", "w");
+      if (!fp) return 1;
+      fprintf (fp, "%d\n%d\n%d\n", NVERSION(IP_VS_VERSION_CODE));
+      fclose (fp); 
+      return 0;
+    } 
+  ], [
+    IPVS_MAJOR=`head -n 1 ipvsinfo | tail -n 1`
+    IPVS_MINOR=`head -n 2 ipvsinfo | tail -n 1`
+    IPVS_PATCH=`head -n 3 ipvsinfo | tail -n 1`
+  ], [
+    IPVS_MAJOR="0"
+    IPVS_MINOR="0"
+    IPVS_PATCH="0"
+  ], [
+    IPVS_MAJOR="0"
+    IPVS_MINOR="0"
+    IPVS_PATCH="0"
+  ])
+  rm -f ipvsinfo
+  AC_MSG_RESULT([$IPVS_MAJOR.$IPVS_MINOR.$IPVS_PATCH])
+  if test "$IPVS_MAJOR" = "0"; then
+    AC_MSG_WARN([Cannot determine IPVS version.])
   fi
 fi
 
-VRRP_SUPPORT="_WITH_VRRP_"
-if test "${enable_lvs}" = "no"; then
-  IPVS_SUPPORT="_WITHOUT_LVS_"
+if test "$IPVS_SUPPORT" = "_WITHOUT_LVS_" -a "$enable_vrrp" = "no"; then
+  AC_MSG_ERROR([keepalived MUST be compiled at least with LVS or VRRP framework])
 fi
-if test "${enable_vrrp}" = "no"; then
-  VRRP_SUPPORT="_WITHOUT_VRRP_"
+
+if test "$enable_vrrp" != "no"; then
+  VRRP_SUPPORT="_WITH_VRRP_"
 fi
+
 if test "${ci_linux}" = "yes"; then
-  CI_LINUX="_WITH_CI_LINUX_"
+  if test "${IPVS_SUPPORT}" = "_WITHOUT_LVS_"; then
+    echo
+    echo "!!!WARN!!! Keepalived cannot be configured with CI-LINUX without LVS support !!!WARN!!!"
+    echo
+    exit 1
+  else
+    CI_LINUX="_WITH_CI_LINUX_"
+  fi
 fi
+
 if test "${enable_debug}" = "yes"; then
   DFLAGS="-D_DEBUG_"
   AC_SUBST(DFLAGS)
@@ -92,53 +155,35 @@ dnl ----[ LVS syncd support probe ]---
 dnl Sync daemon is supported since LVS 0.9.2 for kernel 2.4
 
 IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
-if test ${IPVS_MAJOR} -eq 0; then
-  if test ${IPVS_MINOR} -eq 9; then
-    if test ${IPVS_PATCH} -ge 2; then
-      if test "${KERNEL_CODE}" = "4"; then
-        IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
-      fi
-    fi
-  fi
-fi
-if test ${IPVS_MAJOR} -ge 1; then
-  if test "${KERNEL_CODE}" = "4"; then
+if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
+  AC_MSG_CHECKING([for LVS syncd support])
+  if test "$IPVS_MAJOR" -ge 1 -a "$KERN" = "_KRNL_2_4_"; then
     IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
+  elif test "$IPVS_MINOR" -ge 9 -a "$IPVS_PATCH" -ge 2 -a "$KERN" = "_KRNL_2_4_"; then
+    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
+  else
+    IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+  fi
+
+  if test "${IPVS_SUPPORT}" = "_WITHOUT_LVS_" -o "$enable_lvs_syncd" = "no"; then
+    IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+  fi
+
+  if test "$IPVS_SYNCD" = "_HAVE_IPVS_SYNCD_"; then
+    AC_MSG_RESULT([yes])
+  else
+    AC_MSG_RESULT([no])
   fi
 fi
-if test "${IPVS_SUPPORT}" = "_WITHOUT_LVS_"; then
-  IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
-fi
-if test "${enable_lvs_syncd}" = "no"; then
-  IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
-fi
+
 AC_SUBST(IPVS_SYNCD)
 
-dnl ----[ Checks for libraries ]----
-AC_CHECK_LIB(crypto, MD5_Init,,AC_MSG_ERROR([OpenSSL libraries are required]))
-AC_CHECK_LIB(ssl, SSL_CTX_new,,AC_MSG_ERROR([OpenSSL libraries are required]))
-AC_CHECK_LIB(popt, poptGetContext,,AC_MSG_ERROR([Popt libraries is required]))
-if test "${ci_linux}" = "yes"; then
-AC_CHECK_LIB(cluster,cluster_maxnodes,,AC_MSG_ERROR([libcluster libraries are required]))
-fi
-
 dnl ----[ Create object list ]----
-if test "${KERNEL_CODE}" = "2"; then
+if test "$KERN" = "_KRNL_2_2_"; then
   LIBFW="libipfwc/libipfwc.a"
   LIBOBJS="$LIBOBJS ipfwwrapper.o"
   AC_SUBST(LIBFW)dnl
   AC_SUBST(LIBOBJS)dnl
-fi
-
-dnl ----[ Checks for header files ]----
-AC_HEADER_STDC
-AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(openssl/ssl.h openssl/md5.h openssl/err.h,,AC_MSG_ERROR([
-  !!! OpenSSL is not properly installed on your system. !!!
-  !!! Can not include OpenSSL headers files.            !!!]))
-AC_CHECK_HEADERS(fcntl.h sys/ioctl.h sys/time.h syslog.h unistd.h)
-if test "${ci_linux}" = "yes"; then
-AC_CHECK_HEADERS(linux/cluster.h,,AC_MSG_ERROR([linux/cluster.h  file not found]))
 fi
 
 dnl ----[ Checks for typedefs, structures, and compiler characteristics ]----
@@ -161,8 +206,6 @@ Keepalived configuration
 Keepalived version       : ${VERSION}
 Compiler                 : ${CC}
 Compiler flags           : ${CFLAGS}
-Linux Kernel release     : ${KERNEL_VERSION}
-Startup scripts location : ${SYSTEM_SCRIPT_DIR}
 EOF
 
 dnl ----[ display optional vars  ]----
@@ -178,7 +221,6 @@ fi
 
 if test "${IPVS_SUPPORT}" = "_WITH_LVS_"; then
   echo "Use IPVS Framework       : Yes"
-  echo "IPVS version code        : ${IPVS_VERSION}"
   if test "${IPVS_SYNCD}" = "_HAVE_IPVS_SYNCD_"; then
     echo "IPVS sync daemon support : Yes"
   elif test "${IPVS_SYNCD}" = "_WITHOUT_IPVS_SYNCD_"; then
@@ -205,4 +247,3 @@ else
   echo "Use Debug flags          : No"
 fi
 dnl ----[ end configure ]---
-echo

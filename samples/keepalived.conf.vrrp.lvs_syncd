@@ -1,5 +1,10 @@
 ! Configuration File for keepalived
 
+vrrp_sync_group VG1 {
+  VI_2
+  VI_3
+}
+
 vrrp_instance VI_1 {
     state MASTER
     interface eth0
@@ -28,7 +33,6 @@ vrrp_instance VI_2 {
         192.168.200.20
         192.168.200.21
     }
-    sync_instance VI_3
 }
 
 vrrp_instance VI_3 {
@@ -41,7 +45,6 @@ vrrp_instance VI_3 {
         192.168.201.20
         192.168.201.21
     }
-    sync_instance VI_2
 }
 
 virtual_server 192.168.200.19 80 {

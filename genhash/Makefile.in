@@ -30,5 +30,6 @@ clean:
 clean-dist:
 	rm -f $(bindir)/$(EXEC)
 
-install:	
+install:
+	install -d $(bindir)
 	install -m 755 $(EXEC) $(bindir)/

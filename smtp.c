@@ -7,7 +7,7 @@
  *              using the smtp protocol according to the RFC 821. A non blocking
  *              timeouted connection is used to handle smtp protocol.
  *
- * Version:     $Id: smtp.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
+ * Version:     $Id: smtp.c,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -34,6 +34,7 @@ static int smtp_send_cmd_thread(thread *);
 
 static void free_smtp_all(smtp_thread_arg *smtp_arg)
 {
+  FREE(smtp_arg->buffer);
   FREE(smtp_arg->subject);
   FREE(smtp_arg->body);
   FREE(smtp_arg);
@@ -48,10 +49,10 @@ static int smtp_read_cmd_thread(thread *thread)
 {
   smtp_thread_arg *smtp_arg;
   char *fetched_email;
-  long total_length = 0;
-  int rcv_buffer_size = 0;
   char *buffer;
-  char *buffer_tmp;
+  char *reply;
+  int rcv_buffer_size = 0;
+  int status = -1;
 
   smtp_arg = THREAD_ARG(thread);
 
@@ -66,15 +67,9 @@ static int smtp_read_cmd_thread(thread *thread)
     return 0;
   }
 
-  /* Allocate the get buffers */
-  buffer     = (char *)MALLOC(SMTP_BUFFER_MAX);
-  buffer_tmp = (char *)MALLOC(SMTP_BUFFER_LENGTH);
+  buffer = smtp_arg->buffer;
 
-  /* Cleanup the room */
-  memset(buffer, 0, SMTP_BUFFER_MAX);
-  memset(buffer_tmp, 0, SMTP_BUFFER_LENGTH);
-
-  while ((rcv_buffer_size = read(thread->u.fd, buffer_tmp, SMTP_BUFFER_LENGTH)) != 0) {
+  while ((rcv_buffer_size = read(thread->u.fd, buffer + smtp_arg->buflen, SMTP_BUFFER_LENGTH - smtp_arg->buflen)) != 0) {
     if (rcv_buffer_size == -1) {
       if (errno == EAGAIN) goto end;
 #ifdef _DEBUG_
@@ -84,13 +79,11 @@ static int smtp_read_cmd_thread(thread *thread)
 #endif
       free_smtp_all(smtp_arg);
       close(thread->u.fd);
-      FREE(buffer);
-      FREE(buffer_tmp);
       return 0;
     }
 
     /* received data overflow buffer size ? */
-    if (total_length >= SMTP_BUFFER_MAX) {
+    if (smtp_arg->buflen >= SMTP_BUFFER_MAX) {
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "Received buffer from remote SMTP server [%s:%d]"
                         " overflow our get read buffer length."
@@ -99,13 +92,10 @@ static int smtp_read_cmd_thread(thread *thread)
 #endif
       free_smtp_all(smtp_arg);
       close(thread->u.fd);
-      FREE(buffer);
-      FREE(buffer_tmp);
       return 0;
     } else {
-      memcpy(buffer+total_length, buffer_tmp, rcv_buffer_size);
-      memset(buffer_tmp, 0, SMTP_BUFFER_LENGTH);
-      total_length += rcv_buffer_size;
+      smtp_arg->buflen += rcv_buffer_size;
+      buffer[smtp_arg->buflen] = 0;   /* NULL terminate */
       if (rcv_buffer_size < SMTP_BUFFER_LENGTH) goto end;
     }
   }
@@ -114,10 +104,52 @@ end:
 
 // printf("Received : %s", buffer);
 
+  /* parse the buffer, finding the last line of the response for the code */
+  reply = buffer;
+  while (reply < buffer + smtp_arg->buflen) {
+    char *p;
+
+    p = strstr(reply, "\r\n");
+    if (!p) {
+      memmove(buffer, reply, smtp_arg->buflen - (reply - buffer));
+      smtp_arg->buflen -= (reply - buffer);
+      buffer[smtp_arg->buflen] = 0;
+
+      thread_add_read(thread->master, smtp_read_cmd_thread
+                                    , smtp_arg
+                                    , thread->u.fd
+                                    , conf_data->smtp_connection_to);
+      return 0;
+    }
+
+    if (reply[3] == '-') {
+      /* Skip over the \r\n */
+      reply = p + 2;
+      continue;
+    }
+
+    status = ((reply[0] - '0') * 100) + ((reply[1] - '0') * 10) + (reply[2] - '0');
+
+    reply = p + 2;
+    break;
+  }
+
+  memmove(buffer, reply, smtp_arg->buflen - (reply - buffer));
+  smtp_arg->buflen -= (reply - buffer);
+  buffer[smtp_arg->buflen] = 0;
+
+  if (status == -1) {
+    thread_add_read(thread->master, smtp_read_cmd_thread
+                                  , smtp_arg
+                                  , thread->u.fd
+                                  , conf_data->smtp_connection_to);
+    return 0;
+  }
+
   /* setting the next stage */
   switch (smtp_arg->stage) {
     case CONNECTION:
-      if (memcmp(buffer, SMTP_CONNECT, 3) == 0) {
+      if (status == 220) {
         smtp_arg->stage = HELO;
       } else {
         syslog(LOG_DEBUG, "Error connecting smtp server : [%s]", buffer);
@@ -126,7 +158,7 @@ end:
       break;
 
     case HELO:
-      if (memcmp(buffer, SMTP_HELO, 3) == 0) {
+      if (status == 250) {
         smtp_arg->stage = MAIL;
       } else {
         syslog(LOG_DEBUG, "Error processing HELO cmd : [%s]", buffer);
@@ -135,7 +167,7 @@ end:
       break;
 
     case MAIL:
-      if (memcmp(buffer, SMTP_MAIL_FROM, 3) == 0) {
+      if (status == 250) {
         smtp_arg->stage = RCPT;
       } else {
         syslog(LOG_DEBUG, "Error processing MAIL FROM cmd : [%s]", buffer);
@@ -144,7 +176,7 @@ end:
       break;
 
     case RCPT:
-      if (memcmp(buffer, SMTP_RCPT_TO, 3) == 0) {
+      if (status == 250) {
         smtp_arg->email_it++;
 
         fetched_email = fetch_next_email(smtp_arg);
@@ -158,7 +190,7 @@ end:
       break;
 
     case DATA:
-      if (memcmp(buffer, SMTP_DATA, 3) == 0) {
+      if (status == 354) {
         smtp_arg->stage = BODY;
       } else {
         syslog(LOG_DEBUG, "Error processing DATA cmd : [%s]", buffer);
@@ -167,7 +199,7 @@ end:
       break;
 
     case BODY:
-      if (memcmp(buffer, SMTP_DOT, 3) == 0) {
+      if (status == 250) {
         smtp_arg->stage = QUIT;
         syslog(LOG_INFO, "SMTP alert successfully sent.");
       } else {
@@ -180,10 +212,7 @@ end:
       /* final state, we are disconnected from the remote host */
       free_smtp_all(smtp_arg);
       close(thread->u.fd);
-      FREE(buffer);
-      FREE(buffer_tmp);
       return 0;
-      break;
 
     case ERROR:
       break;
@@ -194,9 +223,6 @@ end:
                                  , smtp_arg
                                  , thread->u.fd
                                  , conf_data->smtp_connection_to);
-
-  FREE(buffer);
-  FREE(buffer_tmp);
   return 0;
 }
 
@@ -307,7 +333,7 @@ static int smtp_send_cmd_thread(thread *thread)
       break;
   }
 
-//printf("Sending : %s", buffer);
+// printf("Sending : %s", buffer);
 
   /* Registering next smtp command processing thread */
   thread_add_read(thread->master, smtp_read_cmd_thread
@@ -456,6 +482,7 @@ void smtp_alert(thread_master *master
     smtp_arg          = (smtp_thread_arg *)MALLOC(sizeof(smtp_thread_arg));
     smtp_arg->subject = (char *)MALLOC(MAX_HEADERS_LENGTH);
     smtp_arg->body    = (char *)MALLOC(MAX_BODY_LENGTH);
+    smtp_arg->buffer  = (char *)MALLOC(SMTP_BUFFER_MAX);
 
     smtp_arg->stage = CONNECTION; /* first smtp command set to HELO */
 

@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
+ * Version:     $Id: vrrp.c,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -988,8 +988,9 @@ static int chk_min_cfg(vrrp_rt *vrrp)
     syslog(LOG_INFO, "the virtual id must be set!");
     return 0;
   }
-  if (!IF_ADDR(vrrp->ifp)) {
-    syslog(LOG_INFO, "the interface ipaddr must be set!");
+  if (!vrrp->ifp) {
+    syslog(LOG_INFO, "Unknown interface for instance %s !"
+                   , vrrp->iname);
     return 0;
   }
 
@@ -1178,7 +1179,7 @@ static int vrrp_complete_instance(vrrp_rt *vrrp)
   return(chk_min_cfg(vrrp));
 }
 
-void vrrp_complete_init(void)
+int vrrp_complete_init(void)
 {
   list l = conf_data->vrrp;
   element e;
@@ -1186,6 +1187,8 @@ void vrrp_complete_init(void)
 
   for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
     vrrp = ELEMENT_DATA(e);
-    vrrp_complete_instance(vrrp);
+    if (!vrrp_complete_instance(vrrp))
+      return 0;
   }
+  return 1;
 }

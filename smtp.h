@@ -5,7 +5,7 @@
  *
  * Part:        smtp.c include file.
  *
- * Version:     $Id: smtp.h,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
+ * Version:     $Id: smtp.h,v 0.6.2 2002/06/16 05:23:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -60,25 +60,19 @@ typedef struct _smtp_thread_arg {
   int email_it;
   char *subject;
   char *body;
+  char *buffer;
+  long buflen;
 } smtp_thread_arg;
 
-/* Smtp error code */
-#define SMTP_CONNECT   "220"
-#define SMTP_HELO      "250"
-#define SMTP_MAIL_FROM "250"
-#define SMTP_RCPT_TO   "250"
-#define SMTP_DATA      "354"
-#define SMTP_DOT       "250"
-
 /* Smtp command string processing */
-#define SMTP_HELO_CMD    "HELO %s\n"
-#define SMTP_MAIL_CMD    "MAIL FROM:<%s>\n"
-#define SMTP_RCPT_CMD    "RCPT TO:<%s>\n"
-#define SMTP_DATA_CMD    "DATA\n"
-#define SMTP_HEADERS_CMD "From: %s\nSubject: %s\nX-Mailer: Keepalived\n\n"
-#define SMTP_BODY_CMD    "\n\n%s\n\n"
-#define SMTP_SEND_CMD    "\n.\n"
-#define SMTP_QUIT_CMD    "QUIT\n"
+#define SMTP_HELO_CMD    "HELO %s\r\n"
+#define SMTP_MAIL_CMD    "MAIL FROM:<%s>\r\n"
+#define SMTP_RCPT_CMD    "RCPT TO:<%s>\r\n"
+#define SMTP_DATA_CMD    "DATA\r\n"
+#define SMTP_HEADERS_CMD "From: %s\r\nSubject: %s\r\nX-Mailer: Keepalived\r\n\r\n"
+#define SMTP_BODY_CMD    "\r\n\r\n%s\r\n\r\n"
+#define SMTP_SEND_CMD    "\r\n.\r\n"
+#define SMTP_QUIT_CMD    "QUIT\r\n"
 
 /* Prototypes defs */
 extern void smtp_alert(thread_master *
