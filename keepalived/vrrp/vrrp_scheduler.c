@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -125,7 +125,7 @@ struct {
 {
   { {NULL}, {NULL},                      {NULL},             {NULL}            },
   { {NULL}, {vrrp_sync_master_election}, {vrrp_sync_master}, {vrrp_sync_fault} },
-  { {NULL}, {vrrp_sync_backup},          {NULL},             {vrrp_sync_fault} },
+  { {NULL}, {vrrp_sync_backup},          {vrrp_sync_master}, {vrrp_sync_fault} },
   { {NULL}, {vrrp_sync_backup},          {vrrp_sync_master}, {vrrp_sync_fault} }
 };
 
@@ -136,11 +136,11 @@ vrrp_smtp_notifier(vrrp_rt * vrrp)
 {
 	if (vrrp->smtp_alert) {
 		if (vrrp->state == VRRP_STATE_MAST)
-			smtp_alert(master, NULL, vrrp,
+			smtp_alert(master, NULL, vrrp, NULL,
 				   "Entering MASTER state",
 				   "=> VRRP Instance is now owning VRRP VIPs <=\n\n");
 		if (vrrp->state == VRRP_STATE_BACK)
-			smtp_alert(master, NULL, vrrp,
+			smtp_alert(master, NULL, vrrp, NULL,
 				   "Entering BACKUP state",
 				   "=> VRRP Instance is nolonger owning VRRP VIPs <=\n\n");
 	}
@@ -312,11 +312,11 @@ free_sock(void *data)
 void
 dump_sock(void *data)
 {
-#ifdef _DEBUG_
 	sock *sock = data;
-	DBG("sockpool -> ifindex(%d), proto(%d), fd(%d)",
-	    sock->ifindex, sock->proto, sock->fd);
-#endif
+	syslog(LOG_INFO, "VRRP sockpool: [ifindex(%d), proto(%d), fd(%d)]",
+	       sock->ifindex
+	       , sock->proto
+	       , sock->fd);
 }
 
 void
@@ -503,6 +503,19 @@ vrrp_leave_master(vrrp_rt * vrrp, char *vrrp_buffer, int len)
 }
 
 static void
+vrrp_ah_sync(vrrp_rt *vrrp)
+{
+	/*
+	 * Transition to BACKUP state for AH
+	 * seq number synchronization.
+	 */
+	syslog(LOG_INFO, "VRRP_Instance(%s) in FAULT state jump to AH sync",
+	       vrrp->iname);
+	vrrp->wantstate = VRRP_STATE_BACK;
+	vrrp_state_leave_master(vrrp);
+}
+
+static void
 vrrp_leave_fault(vrrp_rt * vrrp, char *vrrp_buffer, int len)
 {
 	if (vrrp_state_fault_rx(vrrp, vrrp_buffer, len)) {
@@ -625,14 +638,9 @@ vrrp_fault(vrrp_rt * vrrp)
 	vrrp_sgroup *vgroup = vrrp->sync;
 
 	if (vgroup) {
-		if (vrrp_sync_group_up(vgroup)) {
-			if (vgroup->state == VRRP_STATE_FAULT) {
-				syslog(LOG_INFO,
-				       "VRRP_Group(%s) Leaving FAULT state",
-				       GROUP_NAME(vgroup));
-				notify_group_exec(vgroup, vrrp->init_state);
+		if (vrrp_sync_leave_fault(vrrp)) {
+			if (vgroup->state == VRRP_STATE_FAULT)
 				vgroup->state = vrrp->init_state;
-			}
 		} else
 			return;
 	} else if (IF_ISUP(vrrp->ifp))
@@ -653,15 +661,7 @@ vrrp_fault(vrrp_rt * vrrp)
 	 * instance.
 	 */
 	if (vrrp->auth_type == VRRP_AUTH_AH) {
-		/*
-		 * Transition to BACKUP state for AH
-		 * seq number synchronization.
-		 */
-		syslog(LOG_INFO,
-		       "VRRP_Instance(%s) in FAULT state jump to AH sync",
-		       vrrp->iname);
-		vrrp->wantstate = VRRP_STATE_BACK;
-		vrrp_state_leave_master(vrrp);
+		vrrp_ah_sync(vrrp);
 	} else {
 		/* Otherwise, we transit to init state */
 		if (vrrp->init_state == VRRP_STATE_BACK)

@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: main.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -170,12 +170,15 @@ sigend(int sig)
 	thread_add_terminate_event(master);
 }
 
-/* SIGCHLD handler */
+/*
+ * SIGCHLD handler. Reap any zombie child.
+ * WNOHANG prevent against parent process get
+ * stuck waiting child termination.
+ */
 void
 sigchld(int sig)
 {
-	int child;
-	wait(&child);
+	waitpid(-1, NULL, WNOHANG);
 }
 
 /* Signal wrapper */

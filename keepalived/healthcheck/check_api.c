@@ -5,7 +5,7 @@
  *
  * Part:        Checkers registration.
  *
- * Version:     $Id: check_api.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: check_api.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -111,6 +111,11 @@ register_checkers_thread(void)
 
 	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 		checker = ELEMENT_DATA(e);
+		syslog(LOG_INFO,
+		       "Activating healtchecker for service [%s:%d]",
+		       inet_ntop2(CHECKER_RIP(checker)),
+		       ntohs(CHECKER_RPORT(checker)));
+		CHECKER_ENABLE(checker);
 		thread_add_timer(master, checker->launch, checker,
 				 BOOTSTRAP_DELAY);
 	}
@@ -131,7 +136,7 @@ update_checker_activity(uint32_t address, int enable)
 	if (!LIST_ISEMPTY(checkers_queue))
 		for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 			checker = ELEMENT_DATA(e);
-			if (CHECKER_VIP(checker) == address) {
+			if (CHECKER_VIP(checker) == address && CHECKER_HA_SUSPEND(checker)) {
 				if (!CHECKER_ENABLED(checker) && enable)
 					syslog(LOG_INFO,
 					       "Activating healtchecker for service [%s:%d]",

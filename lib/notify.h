@@ -1,11 +1,11 @@
-/* 
+/*
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
- * 
- * Part:        vector.c include file.
- *  
- * Version:     $Id: vector.h,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ *
+ * Part:        notify.c include file.
+ *
+ * Version:     $Id: notify.h,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,27 +20,12 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _VECTOR_H
-#define _VECTOR_H
+#ifndef _NOTIFY_H
+#define _NOTIFY_H
 
-/* vector definition */
-struct _vector {
-	unsigned int allocated;
-	void **slot;
-};
-typedef struct _vector *vector;
-
-#define VECTOR_DEFAULT_SIZE 1
-#define VECTOR_SLOT(V,E) ((V)->slot[(E)])
-#define VECTOR_SIZE(V)   ((V)->allocated)
-
-/* Prototypes */
-extern vector vector_alloc(void);
-extern void vector_alloc_slot(vector v);
-extern void vector_free(vector v);
-extern void free_strvec(vector strvec);
-extern void vector_set_slot(vector v, void *value);
-extern void vector_dump(vector v);
-extern void dump_strvec(vector strvec);
+/* system includes */
+extern int system_call(char *cmdline);
+extern void closeall(int fd);
+extern int notify_exec(char *cmd);
 
 #endif

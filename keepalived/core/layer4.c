@@ -6,7 +6,7 @@
  * Part:        Layer4 checkers handling. Register worker threads &
  *              upper layer checkers.
  *
- * Version:     $Id: layer4.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: layer4.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -106,7 +106,7 @@ tcp_socket_state(int fd, thread * thread, uint32_t addr_ip, uint16_t addr_port,
 	 * and other error code until connection is established.
 	 * Recompute the write timeout (or pending connection).
 	 */
-	if (status != 0) {
+	if (status == EINPROGRESS) {
 		DBG("TCP connection to [%s:%d] still IN_PROGRESS.",
 		    inet_ntop2(addr_ip), ntohs(addr_port));
 
@@ -121,6 +121,9 @@ tcp_socket_state(int fd, thread * thread, uint32_t addr_ip, uint16_t addr_port,
 					 THREAD_ARG(thread)
 					 , thread->u.fd, TIMER_SEC(timer_min));
 		return connect_in_progress;
+	} else if (status != 0) {
+		close(thread->u.fd);
+		return connect_error;
 	}
 
 	return connect_success;

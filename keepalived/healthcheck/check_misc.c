@@ -6,7 +6,7 @@
  * Part:        MISC CHECK. Perform a system call to run an extra
  *              system prog or script.
  *
- * Version:     $Id: check_misc.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: check_misc.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
@@ -29,7 +29,7 @@
 #include "smtp.h"
 #include "utils.h"
 #include "parser.h"
-#include "daemon.h"
+#include "notify.h"
 
 int misc_check_thread(thread *);
 
@@ -115,10 +115,11 @@ misc_check_thread(thread * thread)
 		return -1;
 	}
 
-	/* In case of this is parent process. */
+	/* In case of this is parent process */
 	if (pid)
-		return (0);
+		return 0;
 
+	/* Child part */
 	closeall(0);
 
 	open("/dev/null", O_RDWR);
@@ -131,14 +132,14 @@ misc_check_thread(thread * thread)
 		if (status == 0) {
 			/* everything is good */
 			if (!ISALIVE(checker->rs)) {
-				smtp_alert(thread->master, checker->rs, NULL,
+				smtp_alert(thread->master, checker->rs, NULL, NULL,
 					   "UP",
 					   "=> MISC CHECK succeed on service <=\n\n");
 				perform_svr_state(UP, checker->vs, checker->rs);
 			}
 		} else {
 			if (ISALIVE(checker->rs)) {
-				smtp_alert(thread->master, checker->rs, NULL,
+				smtp_alert(thread->master, checker->rs, NULL, NULL,
 					   "DOWN",
 					   "=> MISC CHECK failed on service <=\n\n");
 				perform_svr_state(DOWN, checker->vs, checker->rs);

@@ -81,7 +81,7 @@ install:
 	install -d $(sbindir)
 	install -m 700 $(BIN)/$(EXEC) $(sbindir)/
 	install -d $(sysconfdir)/init.d
-	install -m 755 $(init_script) $(sysconfdir)/init.d/
+	install -m 755 $(init_script) $(sysconfdir)/init.d/keepalived
 	install -d $(sysconfdir)/keepalived/samples
 	install -m 644 $(conf_file) $(sysconfdir)/keepalived/
 	install -m 644 samples/* $(sysconfdir)/keepalived/samples/

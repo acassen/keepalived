@@ -5,7 +5,7 @@
  *
  * Part:        smtp.c include file.
  *
- * Version:     $Id: smtp.h,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: smtp.h,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -88,6 +88,7 @@ typedef struct _smtp_thread_arg {
 #define SMTP_QUIT_CMD    "QUIT\r\n"
 
 /* Prototypes defs */
-extern void smtp_alert(thread_master *, real_server *, vrrp_rt *, const char *,
-		       const char *);
+extern void smtp_alert(thread_master *,
+		       real_server *, vrrp_rt *,  vrrp_sgroup *,
+		       const char *, const char *);
 #endif

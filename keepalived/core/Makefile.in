@@ -32,7 +32,7 @@ pidfile.o: pidfile.c ../include/pidfile.h
 data.o: data.c ../include/data.h ../../lib/memory.h ../../lib/utils.h \
   ../include/check_api.h ../include/vrrp.h ../include/vrrp_sync.h
 parser.o: parser.c ../include/parser.h ../../lib/memory.h ../include/vrrp.h \
-  ../include/vrrp_if.h ../include/check_api.h
+  ../include/vrrp_if.h ../include/vrrp_sync.h ../include/check_api.h
 layer4.o: layer4.c ../include/layer4.h ../include/check_api.h ../../lib/utils.h
 smtp.o: smtp.c ../include/smtp.h ../../lib/memory.h ../../lib/list.h \
   ../../lib/utils.h

@@ -5,7 +5,7 @@
  *
  * Part:        TCP checker.
  *
- * Version:     $Id: check_tcp.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: check_tcp.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -108,22 +108,26 @@ tcp_check_thread(thread * thread)
 	 * Otherwise we have a real connection error or connection timeout.
 	 */
 	if (status == connect_success) {
-		DBG("TCP connection to [%s:%d] success.",
-		    inet_ntop2(CHECKER_RIP(checker)), ntohs(addr_port));
 		close(thread->u.fd);
 
 		if (!ISALIVE(checker->rs)) {
-			smtp_alert(thread->master, checker->rs, NULL, "UP",
+			syslog(LOG_INFO, "TCP connection to [%s:%d] success.",
+			       inet_ntop2(CHECKER_RIP(checker))
+			       , ntohs(addr_port));
+			smtp_alert(thread->master, checker->rs, NULL, NULL,
+				   "UP",
 				   "=> TCP CHECK succeed on service <=\n\n");
 			perform_svr_state(UP, checker->vs, checker->rs);
 		}
 
 	} else {
-		DBG("TCP connection to [%s:%d] failed !!!",
-		    inet_ntop2(CHECKER_RIP(checker)), ntohs(addr_port));
 
 		if (ISALIVE(checker->rs)) {
-			smtp_alert(thread->master, checker->rs, NULL, "DOWN",
+			syslog(LOG_INFO, "TCP connection to [%s:%d] failed !!!",
+			       inet_ntop2(CHECKER_RIP(checker))
+			       , ntohs(addr_port));
+			smtp_alert(thread->master, checker->rs, NULL, NULL,
+				   "DOWN",
 				   "=> TCP CHECK failed on service <=\n\n");
 			perform_svr_state(DOWN, checker->vs, checker->rs);
 		}

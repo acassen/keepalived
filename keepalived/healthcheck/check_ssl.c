@@ -7,7 +7,7 @@
  *              url, compute a MD5 over this result and match it to the
  *              expected value.
  *
- * Version:     $Id: check_ssl.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: check_ssl.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -158,29 +158,29 @@ ssl_printerr(int err)
 
 	switch (err) {
 	case SSL_ERROR_ZERO_RETURN:
-		DBG("  SSL error: (zero return)");
+		syslog(LOG_INFO, "  SSL error: (zero return)");
 		break;
 	case SSL_ERROR_WANT_READ:
-		DBG("  SSL error: (read error)");
+		syslog(LOG_INFO, "  SSL error: (read error)");
 		break;
 	case SSL_ERROR_WANT_WRITE:
-		DBG("  SSL error: (write error)");
+		syslog(LOG_INFO, "  SSL error: (write error)");
 		break;
 	case SSL_ERROR_WANT_CONNECT:
-		DBG("  SSL error: (connect error)");
+		syslog(LOG_INFO, "  SSL error: (connect error)");
 		break;
 	case SSL_ERROR_WANT_X509_LOOKUP:
-		DBG("  SSL error: (X509 lookup error)");
+		syslog(LOG_INFO, "  SSL error: (X509 lookup error)");
 		break;
 	case SSL_ERROR_SYSCALL:
-		DBG("  SSL error: (syscall error)");
+		syslog(LOG_INFO, "  SSL error: (syscall error)");
 		break;
 	case SSL_ERROR_SSL:{
 			ssl_strerr = (char *) MALLOC(500);
 
 			extended_error = ERR_get_error();
 			ERR_error_string(extended_error, ssl_strerr);
-			DBG("  SSL error: (%s)", ssl_strerr);
+			syslog(LOG_INFO, "  SSL error: (%s)", ssl_strerr);
 			FREE(ssl_strerr);
 			break;
 		}
@@ -256,7 +256,7 @@ ssl_read_thread(thread * thread)
 		if (r && !req->extracted) {
 			/* check if server is currently alive */
 			if (ISALIVE(checker->rs)) {
-				smtp_alert(thread->master, checker->rs, NULL,
+				smtp_alert(thread->master, checker->rs, NULL, NULL,
 					   "DOWN",
 					   "=> SSL CHECK failed on service"
 					   " : cannot receive data <=\n\n");

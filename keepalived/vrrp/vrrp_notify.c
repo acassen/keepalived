@@ -5,7 +5,7 @@
  *
  * Part:        VRRP state transition notification scripts handling.
  *
- * Version:     $Id: vrrp_notify.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: vrrp_notify.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -26,7 +26,7 @@
 /* local include */
 #include "vrrp_notify.h"
 #include "memory.h"
-#include "daemon.h"
+#include "notify.h"
 
 static char *
 get_iscript(vrrp_rt * vrrp, int state)
@@ -73,35 +73,6 @@ notify_script_name(char *cmdline)
 	*(script + strlen) = '\0';
 
 	return script;
-}
-
-/* Execute extern script/program */
-static int
-notify_exec(char *cmd)
-{
-	pid_t pid;
-
-	pid = fork();
-
-	/* In case of fork is error. */
-	if (pid < 0) {
-		syslog(LOG_INFO, "Failed fork process");
-		return -1;
-	}
-
-	/* In case of this is parent process. */
-	if (pid)
-		return (0);
-
-	closeall(0);
-
-	open("/dev/null", O_RDWR);
-	dup(0);
-	dup(0);
-
-	system_call(cmd);
-
-	exit(0);
 }
 
 static int

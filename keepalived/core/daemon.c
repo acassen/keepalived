@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: main.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -72,36 +72,4 @@ xdaemon(int nochdir, int noclose, int exitflag)
 
 	umask(0);
 	return 0;
-}
-
-/* Close all FDs >= a specified value */
-void
-closeall(int fd)
-{
-	int fdlimit = sysconf(_SC_OPEN_MAX);
-	while (fd < fdlimit)
-		close(fd++);
-}
-
-/* perform a system call */
-int
-system_call(char *cmdline)
-{
-	int retval;
-
-	retval = system(cmdline);
-
-	if (retval == 127) {
-		/* couldn't exec command */
-		syslog(LOG_ALERT, "Couldn't exec command: %s", cmdline);
-	} else if (retval == -1) {
-		/* other error */
-		syslog(LOG_ALERT, "Error exec-ing command: %s", cmdline);
-	} else {
-		/* everything is good */
-		DBG("Successfully exec command: %s retval is %d",
-		    cmdline, retval);
-	}
-
-	return retval;
 }

@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_if.c include file.
  *
- * Version:     $Id: vrrp_if.h,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: vrrp_if.h,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -75,6 +75,7 @@ list if_queue;
 #define IF_NAME(X) ((X)->ifname)
 #define IF_INDEX(X) ((X)->ifindex)
 #define IF_ADDR(X) ((X)->address)
+#define IF_MTU(X) ((X)->mtu)
 #define IF_HWADDR(X) ((X)->hw_addr)
 #define IF_MII_SUPPORTED(X) ((X)->lb_type & LB_MII)
 #define IF_ETHTOOL_SUPPORTED(X) ((X)->lb_type & LB_ETHTOOL)

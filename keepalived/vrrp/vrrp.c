@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -170,13 +170,13 @@ vrrp_in_chk_ipsecah(vrrp_rt * vrrp, char *buffer)
 	 * sender counter.
 	 */
 	vrrp->ipsecah_counter->seq_number++;
-	if (ah->seq_number >= vrrp->ipsecah_counter->seq_number) {
+	if (ah->seq_number >= vrrp->ipsecah_counter->seq_number || vrrp->sync) {
 		vrrp->ipsecah_counter->seq_number = ah->seq_number;
 	} else {
 		syslog(LOG_INFO,
 		       "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
-		       " already proceeded. Packet dropped", vrrp->iname
-		       , ah->seq_number);
+		       " already proceeded. Packet dropped. Local(%d)", vrrp->iname
+		       , ah->seq_number, vrrp->ipsecah_counter->seq_number);
 		return 1;
 	}
 
@@ -762,7 +762,11 @@ vrrp_state_backup(vrrp_rt * vrrp, char *buf, int buflen)
 		vrrp->ms_down_timer =
 		    3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	} else if (hd->priority < vrrp->priority) {
+		syslog(LOG_INFO,
+		       "VRRP_Instance(%s) forcing a new MASTER election",
+		       vrrp->iname);
 		vrrp->wantstate = VRRP_STATE_GOTO_MASTER;
+		vrrp_send_adv(vrrp, vrrp->priority);
 	}
 }
 
@@ -829,7 +833,8 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 		if (iph->protocol == IPPROTO_IPSEC_AH) {
 			ah = (ipsec_ah *) (buf + sizeof(struct iphdr));
 			syslog(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
-			       " with received = %d", vrrp->iname, ah->seq_number);
+			       " - Increment seq"
+			       , vrrp->iname);
 			vrrp->ipsecah_counter->seq_number = ah->seq_number + 1;
 			vrrp->ipsecah_counter->cycle = 0;
 		}
@@ -845,6 +850,14 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 		syslog(LOG_INFO,
 		       "VRRP_Instance(%s) Received higher prio advert",
 		       vrrp->iname);
+		if (iph->protocol == IPPROTO_IPSEC_AH) {
+			ah = (ipsec_ah *) (buf + sizeof(struct iphdr));
+			syslog(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
+			       " - Decrement seq"
+			       , vrrp->iname);
+			vrrp->ipsecah_counter->seq_number = ah->seq_number - 1;
+			vrrp->ipsecah_counter->cycle = 0;
+		}
 		vrrp->ms_down_timer =
 		    3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		vrrp->wantstate = VRRP_STATE_BACK;

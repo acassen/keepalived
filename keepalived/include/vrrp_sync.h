@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_sync.c include file.
  * 
- * Version:     $Id: vrrp_sync.h,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: vrrp_sync.h,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -41,10 +41,11 @@
 #define GROUP_NAME(G)  ((G)->gname)
 
 /* extern prototypes */
-extern void vrrp_init_instance_sands(vrrp_rt * vrrp);
-extern vrrp_sgroup *vrrp_get_sync_group(char *iname);
-extern int vrrp_sync_group_up(vrrp_sgroup * vgroup);
-extern int vrrp_sync_leave_fault(vrrp_rt * vrrp);
+extern void vrrp_init_instance_sands(vrrp_rt *);
+extern vrrp_sgroup *vrrp_get_sync_group(char *);
+extern void vrrp_sync_set_group(vrrp_sgroup *);
+extern int vrrp_sync_group_up(vrrp_sgroup *);
+extern int vrrp_sync_leave_fault(vrrp_rt *);
 extern void vrrp_sync_backup(vrrp_rt *);
 extern void vrrp_sync_master(vrrp_rt *);
 extern void vrrp_sync_master_election(vrrp_rt *);

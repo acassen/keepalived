@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: data.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -126,6 +126,8 @@ dump_vgroup(void *data)
 	if (vgroup->script_fault)
 		syslog(LOG_INFO, "   Fault state transition script = %s",
 		       vgroup->script_fault);
+	if (vgroup->smtp_alert)
+		syslog(LOG_INFO, "   Using smtp notification");
 }
 
 static void
@@ -316,6 +318,8 @@ dump_vs(void *data)
 		       inet_ntop2(vs->granularity_persistence));
 	syslog(LOG_INFO, "   protocol = %s",
 	       (vs->service_type == IPPROTO_TCP) ? "TCP" : "UDP");
+	if (vs->ha_suspend)
+		syslog(LOG_INFO, "   Using HA suspend");
 
 	switch (vs->loadbalancing_kind) {
 #ifdef _WITH_LVS_
@@ -393,6 +397,8 @@ static void
 free_rs(void *data)
 {
 	real_server *rs = data;
+	FREE_PTR(rs->notify_up);
+	FREE_PTR(rs->notify_down);
 	FREE(rs);
 }
 static void
@@ -405,6 +411,12 @@ dump_rs(void *data)
 	       , rs->weight);
 	if (rs->inhibit)
 		syslog(LOG_INFO, "     -> Inhibit service on failure");
+	if (rs->notify_up)
+		syslog(LOG_INFO, "     -> Notify script UP = %s",
+		       rs->notify_up);
+	if (rs->notify_down)
+		syslog(LOG_INFO, "     -> Notify script DOWN = %s",
+		       rs->notify_down);
 }
 
 void
@@ -417,6 +429,7 @@ alloc_rs(char *ip, char *port)
 
 	inet_ston(ip, &new->addr_ip);
 	new->addr_port = htons(atoi(port));
+	new->weight = 1;
 
 	if (LIST_ISEMPTY(vs->rs))
 		vs->rs = alloc_list(free_rs, dump_rs);

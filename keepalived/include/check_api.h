@@ -5,7 +5,7 @@
  *
  * Part:        Checkers arguments structures definitions.
  *
- * Version:     $Id: check_api.h,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: check_api.h,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -55,6 +55,7 @@ list checkers_queue;
 #define CHECKER_ENABLED(C) ((C)->enabled)
 #define CHECKER_ENABLE(C)  ((C)->enabled = 1)
 #define CHECKER_DISABLE(C) ((C)->enabled = 0)
+#define CHECKER_HA_SUSPEND(C) ((C)->vs->ha_suspend)
 
 /* Prototypes definition */
 extern void init_checkers_queue(void);

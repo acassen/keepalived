@@ -1,3 +1,59 @@
+2003-01-06  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.0.0 released.
+	* After fixed all bugs users reported during 2 months, I am glad to
+	  announce the first STABLE production ready Keepalived release.
+	* Rename keepalived.init to keepalived RedHat startup script. Fixed
+	  some issues to be RedHat release generic. Thanks go to
+	  Jeroen Simonetti <jeroens@q-go.com> & Jason Gilbert <jason@doozer.com>
+	* Jason Gilbert, <jason@doozer.com> cleaned keepalived.spec.
+	* Added support to "ha_suspend" for healthcheckers. This option, if set,
+	  inform Keepalived to active/suspend checkers according to netlink
+	  IP address information reflection. If one IP is removed and this is
+	  a virtual_server VIP then the healthcheckers corresponding will be
+	  desactivated. (and reciprocity).
+	* Added support to "notify_up" & "notify_down" for realserver config.
+	  These options specify a script to be run according to healthchecker
+	  activity. If healthchecking fails then "notify_down" script is
+	  launched (and reciprocity for healthcheck succeed). This can be
+	  usefull for global monitoring system, to send alert to Unicenter TNG
+	  or HPOV.
+	* Set default realserver weight to 1. So, realserver will be active
+	  if no weight is specified into the configuration file.
+	* Review the layer4.c/tcp_socket_state to return connection in progress
+	  only if SOL_SOCKET/SO_ERROR return EINPROGRESS. Thanks go to
+	  Mark Weaver, <mark@npsl.co.uk>
+	* Reviewed the global SIGCHLD handler to not suspend execution of the
+	  calling process if status is not immediately available for one of the
+	  child processes. This remove zombies by reaping.
+	* Extended the parser.c/set_value() code to accept encapsulated quoted
+	  string.
+	* Review SMTP DBG() message to LOG_INFO message for more verbose
+	  error handling.
+	* Review the check_tcp.c/check_http.c logging messages to be more
+	  detailed.
+	* Review the check_tcp.c/check_http.c retry facility to fixes some
+	  stalled issues.
+	* VRRP : Added support to sync_group smtp notification in addition to
+	  the per instances approach.
+	* VRRP : Fixed some IPSEC-AH seq_num synchronizations issues. Force
+	  seq_num sync if vrrp instance is linked to a group.
+	* VRRP : In BACKUP state, force a new MASTER election is received adv.
+	  has a lower priority as locale instance.
+	* VRRP : vrrp.c/vrrp_state_master_rx(), sync IPSEC-AH seq_num counter
+	  (decrement) if receiving higher prio advert in MASTER state.
+	* VRRP : Reviewed the TSM to be fully filled. Extended speed-up
+	  synchronization handling MASTER sync if group is not already synced.
+	* VRRP : Leaving fault state, force MASTER transition is received adv
+	  priority is lower than locale.
+	* VRRP : Extended the parser to not be borred with sync_group
+	  declaration position in the conf file. vrrp_sync_group can be
+	  declared before or after vrrp_instance. Done by adding a reverse
+	  instance lookup during parsing.
+	* VRRP : sync_master_election cleanup.
+	* Some cosmetics patches.
+	* Created the keepalived/samples/keepalived.conf.SYNOPSIS to describe
+	  all keywords available.
+
 2002-11-20  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.7.6 released.
 	* Created a common library for code modularization. This lib will

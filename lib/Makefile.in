@@ -11,7 +11,8 @@ CFLAGS	 = @CFLAGS@ $(INCLUDES) \
 DEFS	 = @DFLAGS@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
-OBJS = 	memory.o utils.o timer.o scheduler.o vector.o list.o html.o
+OBJS = 	memory.o utils.o notify.o timer.o scheduler.o \
+	vector.o list.o html.o
 HEADERS = $(OBJS:.o=.h)
 
 .c.o:
@@ -25,9 +26,9 @@ clean:
 distclean: clean
 	rm -f Makefile
 
-
 memory.o: memory.c memory.h
 utils.o: utils.c utils.h
+notify.o: notify.c notify.h
 timer.o: timer.c timer.h
 scheduler.o: scheduler.c scheduler.h memory.h utils.h
 vector.o: vector.c vector.h memory.h

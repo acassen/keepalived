@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.h,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: data.h,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -73,6 +73,8 @@ typedef struct _real_server {
 	int inhibit;		/* Set weight to 0 instead of removing
 				 * the service from IPVS topology.
 				 */
+	char *notify_up;	/* Script to launch when RS is added to LVS */
+	char *notify_down;	/* Script to launch when RS is removed from LVS */
 	int alive;
 } real_server;
 
@@ -90,6 +92,7 @@ typedef struct _virtual_server {
 	uint16_t addr_port;
 	uint16_t service_type;
 	int delay_loop;
+	int ha_suspend;
 	char sched[SCHED_MAX_LENGTH];
 	char timeout_persistence[MAX_TIMEOUT_LENGTH];
 	unsigned loadbalancing_kind;

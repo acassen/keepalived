@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: parser.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -26,6 +26,7 @@
 #include "memory.h"
 #include "vrrp.h"
 #include "vrrp_if.h"
+#include "vrrp_sync.h"
 #include "check_api.h"
 
 /* global defs */
@@ -236,6 +237,7 @@ set_value(vector strvec)
 	int i = 0;
 	int len = 0;
 	char *alloc = NULL;
+	char *tmp;
 
 	if (*str == '"') {
 		for (i = 2; i < VECTOR_SIZE(strvec); i++) {
@@ -248,9 +250,12 @@ set_value(vector strvec)
 			else {
 				alloc =
 				    REALLOC(alloc, sizeof (char *) * (len + 1));
-				strncat(alloc, " ", 1);
+				tmp = VECTOR_SLOT(strvec, i-1);
+				if (*str != '"' && *tmp != '"')
+					strncat(alloc, " ", 1);
 			}
-			if (*str != '"')
+
+			if (i != VECTOR_SIZE(strvec)-1)
 				strncat(alloc, str, strlen(str));
 		}
 	} else {
@@ -335,6 +340,7 @@ vrrp_group_handler(vector strvec)
 {
 	vrrp_sgroup *vgroup = LIST_TAIL_DATA(conf_data->vrrp_sync_group);
 	vgroup->iname = read_value_block();
+	vrrp_sync_set_group(vgroup);
 }
 static void
 vrrp_gnotify_backup_handler(vector strvec)
@@ -356,6 +362,12 @@ vrrp_gnotify_fault_handler(vector strvec)
 	vrrp_sgroup *vgroup = LIST_TAIL_DATA(conf_data->vrrp_sync_group);
 	vgroup->script_fault = set_value(strvec);
 	vgroup->notify_exec = 1;
+}
+static void
+vrrp_gsmtp_handler(vector strvec)
+{
+	vrrp_sgroup *vgroup = LIST_TAIL_DATA(conf_data->vrrp_sync_group);
+	vgroup->smtp_alert = 1;
 }
 static void
 vrrp_handler(vector strvec)
@@ -519,7 +531,7 @@ vrrp_vip_handler(vector strvec)
 	vector vips = read_value_block();
 	vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
 	int i;
-	int nbvip = 0;
+	int nbvip = VECTOR_SIZE(vips);
 
 	if (VECTOR_SIZE(vips) > VRRP_MAX_VIP) {
 		syslog(LOG_INFO,
@@ -529,8 +541,7 @@ vrrp_vip_handler(vector strvec)
 		syslog(LOG_INFO,
 		       "  => Declare another VRRP instance to handle all the VIPs");
 		nbvip = VRRP_MAX_VIP;
-	} else
-		nbvip = VECTOR_SIZE(vips);
+	}
 
 	for (i = 0; i < nbvip; i++)
 		alloc_vrrp_vip(VECTOR_SLOT(vips, i));
@@ -641,6 +652,12 @@ proto_handler(vector strvec)
 	vs->service_type = (!strcmp(str, "TCP")) ? IPPROTO_TCP : IPPROTO_UDP;
 }
 static void
+hasuspend_handler(vector strvec)
+{
+	virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
+	vs->ha_suspend = 1;
+}
+static void
 virtualhost_handler(vector strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
@@ -673,6 +690,20 @@ inhibit_handler(vector strvec)
 	virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
 	real_server *rs = LIST_TAIL_DATA(vs->rs);
 	rs->inhibit = 1;
+}
+static void
+notify_up_handler(vector strvec)
+{
+	virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
+	real_server *rs = LIST_TAIL_DATA(vs->rs);
+	rs->notify_up = set_value(strvec);
+}
+static void
+notify_down_handler(vector strvec)
+{
+	virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
+	real_server *rs = LIST_TAIL_DATA(vs->rs);
+	rs->notify_down = set_value(strvec);
 }
 
 /* Real Servers Groups for VS handlers */
@@ -758,6 +789,7 @@ init_keywords(void)
 	install_keyword("notify_backup", &vrrp_gnotify_backup_handler);
 	install_keyword("notify_master", &vrrp_gnotify_master_handler);
 	install_keyword("notify_fault", &vrrp_gnotify_fault_handler);
+	install_keyword("smtp_alert", &vrrp_gsmtp_handler);
 	install_keyword_root("vrrp_instance", &vrrp_handler);
 	install_keyword("state", &vrrp_state_handler);
 	install_keyword("interface", &vrrp_int_handler);
@@ -799,6 +831,7 @@ init_keywords(void)
 	install_keyword("persistence_timeout", &pto_handler);
 	install_keyword("persistence_granularity", &pgr_handler);
 	install_keyword("protocol", &proto_handler);
+	install_keyword("ha_suspend", &hasuspend_handler);
 	install_keyword("virtualhost", &virtualhost_handler);
 
 	/* Real server mapping */
@@ -807,6 +840,8 @@ init_keywords(void)
 	install_sublevel();
 	install_keyword("weight", &weight_handler);
 	install_keyword("inhibit_on_failure", &inhibit_handler);
+	install_keyword("notify_up", &notify_up_handler);
+	install_keyword("notify_down", &notify_down_handler);
 
 	/* Checkers mapping */
 	install_checkers_keyword();

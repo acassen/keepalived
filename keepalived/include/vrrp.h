@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: vrrp.h,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -77,6 +77,7 @@ typedef struct _vrrp_sgroup {
 	char *script_backup;
 	char *script_master;
 	char *script_fault;
+	int smtp_alert;
 } vrrp_sgroup;
 
 /* parameters per virtual router -- rfc2338.6.1.2 */

@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: check_http.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -95,6 +95,7 @@ alloc_http_get(char *proto)
 	http_get_chk->proto =
 	    (!strcmp(proto, "HTTP_GET")) ? PROTO_HTTP : PROTO_SSL;
 	http_get_chk->url = alloc_list(free_url, dump_url);
+	http_get_chk->nb_get_retry = 1;
 
 	return http_get_chk;
 }
@@ -278,11 +279,35 @@ epilog(thread * thread, int method, int t, int c)
 	http_get_checker *http_get_check = CHECKER_ARG(checker);
 	http_arg *http_arg = HTTP_ARG(http_get_check);
 	REQ *req = HTTP_REQ(http_arg);
+	uint16_t addr_port = get_service_port(checker);
 	int delay = 0;
 
 	if (method) {
 		http_arg->url_it += t ? t : -http_arg->url_it;
 		http_arg->retry_it += c ? c : -http_arg->retry_it;
+	}
+
+	/*
+	 * The get retry implementation mean that we retry performing
+	 * a GET on the same url until the remote web server return 
+	 * html buffer. This is sometime needed with some applications
+	 * servers.
+	 */
+	if (http_arg->retry_it > http_get_check->nb_get_retry-1) {
+		if (ISALIVE(checker->rs)) {
+			syslog(LOG_INFO, "Check on service [%s:%d] failed after %d retry."
+			       , inet_ntop2(CHECKER_RIP(checker))
+			       , ntohs(addr_port), http_arg->retry_it);
+			smtp_alert(thread->master, checker->rs, NULL, NULL,
+				   "DOWN",
+				   "=> CHECK failed on service"
+				   " : MD5 digest mismatch <=\n\n");
+			perform_svr_state(DOWN, checker->vs, checker->rs);
+		}
+
+		/* Reset it counters */
+		http_arg->url_it = 0;
+		http_arg->retry_it = 0;
 	}
 
 	/* register next timer thread */
@@ -292,11 +317,13 @@ epilog(thread * thread, int method, int t, int c)
 			delay = checker->vs->delay_loop;
 		else
 			delay =
-			    checker->vs->delay_loop -
 			    http_get_check->delay_before_retry;
 		break;
 	case 2:
-		delay = http_get_check->delay_before_retry;
+		if (http_arg->url_it == 0 && http_arg->retry_it == 0)
+			delay = checker->vs->delay_loop;
+		else
+			delay = http_get_check->delay_before_retry;
 		break;
 	}
 
@@ -320,40 +347,21 @@ int
 timeout_epilog(thread * thread, char *smtp_msg, char *debug_msg)
 {
 	checker *checker = THREAD_ARG(thread);
-	http_get_checker *http_get_check = CHECKER_ARG(checker);
-	http_arg *http_arg = HTTP_ARG(http_get_check);
-#ifdef _DEBUG_
 	uint16_t addr_port = get_service_port(checker);
-#endif
 
-	/*
-	 * The get retry implementation mean that we retry performing
-	 * a GET on the same url until the remote web server return 
-	 * html buffer. This is sometime needed with some applications
-	 * servers.
-	 */
-	if (++http_arg->retry_it <= http_get_check->nb_get_retry) {
-		DBG("Retry %s server [%s:%d] after %d retry.",
-		    debug_msg, inet_ntop2(CHECKER_RIP(checker)),
-		    ntohs(addr_port), http_arg->retry_it - 1);
-		return epilog(thread, 2, 0, 1);
+	syslog(LOG_INFO, "Timeout %s server [%s:%d].",
+	       debug_msg
+	       , inet_ntop2(CHECKER_RIP(checker))
+	       , ntohs(addr_port));
 
-	} else {
-		if (checker->rs)
-			DBG("Timeout %s server [%s:%d].",
-			    debug_msg, inet_ntop2(CHECKER_RIP(checker)),
-			    ntohs(addr_port));
-		/* check if server is currently alive */
-		if (ISALIVE(checker->rs)) {
-			smtp_alert(thread->master, checker->rs, NULL, "DOWN",
-				   smtp_msg);
-			perform_svr_state(DOWN, checker->vs, checker->rs);
-		}
-
-		return epilog(thread, 1, 0, 0);
+	/* check if server is currently alive */
+	if (ISALIVE(checker->rs)) {
+		smtp_alert(thread->master, checker->rs, NULL, NULL,
+			   "DOWN", smtp_msg);
+		perform_svr_state(DOWN, checker->vs, checker->rs);
 	}
 
-	return 0;
+	return epilog(thread, 1, 0, 0);
 }
 
 /* return the url pointer of the current url iterator  */
@@ -391,18 +399,37 @@ http_handle_response(thread * thread, unsigned char digest[16]
 			/* check if server is currently alive */
 			if (ISALIVE(checker->rs)) {
 				syslog(LOG_INFO,
-				       "HTTP status code error to [%s:%d] url[%s]"
+				       "HTTP status code error to [%s:%d] url(%s)"
 				       ", status_code [%d].",
 				       inet_ntop2(CHECKER_RIP(checker)),
 				       ntohs(addr_port), fetched_url->path,
 				       req->status_code);
-				smtp_alert(thread->master, checker->rs, NULL,
+				smtp_alert(thread->master, checker->rs, NULL, NULL,
 					   "DOWN",
 					   "=> CHECK failed on service"
 					   " : HTTP status code mismatch <=\n\n");
 				perform_svr_state(DOWN, checker->vs, checker->rs);
+			} else {
+				DBG("HTTP Status_code to [%s:%d] url(%d) = [%d].",
+				    inet_ntop2(CHECKER_RIP(checker))
+				    , ntohs(addr_port)
+				    , http_arg->url_it + 1
+				    , req->status_code);
+				/*
+				 * We set retry iterator to max value to not retry
+				 * when service is already know as die.
+				 */
+				http_arg->retry_it = http_get_check->nb_get_retry;
 			}
-			return epilog(thread, 1, 0, 0);
+			return epilog(thread, 2, 0, 1);
+		} else {
+			if (!ISALIVE(checker->rs))
+				syslog(LOG_INFO,
+				       "HTTP status code success to [%s:%d] url(%d).",
+				       inet_ntop2(CHECKER_RIP(checker))
+				       , ntohs(addr_port)
+				       , http_arg->url_it + 1);
+			return epilog(thread, 1, 1, 0) + 1;
 		}
 	}
 
@@ -412,10 +439,6 @@ http_handle_response(thread * thread, unsigned char digest[16]
 		digest_tmp = (char *) MALLOC(MD5_BUFFER_LENGTH + 1);
 		for (di = 0; di < 16; di++)
 			sprintf(digest_tmp + 2 * di, "%02x", digest[di]);
-
-		DBG("MD5SUM to [%s:%d] url(%d) = [%s].",
-		    inet_ntop2(CHECKER_RIP(checker)), ntohs(addr_port),
-		    http_arg->url_it + 1, digest_tmp);
 
 		r = strcmp(fetched_url->digest, digest_tmp);
 
@@ -428,18 +451,26 @@ http_handle_response(thread * thread, unsigned char digest[16]
 				       inet_ntop2(CHECKER_RIP(checker)),
 				       ntohs(addr_port), fetched_url->path,
 				       digest_tmp);
-				smtp_alert(thread->master, checker->rs, NULL,
-					   "DOWN",
-					   "=> CHECK failed on service"
-					   " : MD5 digest mismatch <=\n\n");
-				perform_svr_state(DOWN, checker->vs, checker->rs);
+			} else {
+				DBG("MD5SUM to [%s:%d] url(%d) = [%s].",
+				    inet_ntop2(CHECKER_RIP(checker))
+				    , ntohs(addr_port)
+				    , http_arg->url_it + 1
+				    , digest_tmp);
+				/*
+				 * We set retry iterator to max value to not retry
+				 * when service is already know as die.
+				 */
+				http_arg->retry_it = http_get_check->nb_get_retry;
 			}
 			FREE(digest_tmp);
-			return epilog(thread, 1, 0, 0);
+			return epilog(thread, 2, 0, 1);
 		} else {
-			DBG("MD5 digest success to [%s:%d] url(%d).",
-			    inet_ntop2(CHECKER_RIP(checker)), ntohs(addr_port),
-			    http_arg->url_it + 1);
+			if (!ISALIVE(checker->rs))
+				syslog(LOG_INFO, "MD5 digest success to [%s:%d] url(%d).",
+				       inet_ntop2(CHECKER_RIP(checker))
+				       , ntohs(addr_port)
+				       , http_arg->url_it + 1);
 			FREE(digest_tmp);
 			return epilog(thread, 1, 1, 0) + 1;
 		}
@@ -490,9 +521,7 @@ http_read_thread(thread * thread)
 	http_get_checker *http_get_check = CHECKER_ARG(checker);
 	http_arg *http_arg = HTTP_ARG(http_get_check);
 	REQ *req = HTTP_REQ(http_arg);
-#ifdef _DEBUG_
 	uint16_t addr_port = get_service_port(checker);
-#endif
 	unsigned char digest[16];
 	int r = 0;
 
@@ -512,11 +541,12 @@ http_read_thread(thread * thread)
 
 		if (r == -1) {
 			/* We have encourred a real read error */
-			DBG("Read error with server [%s:%d]: %s",
-			    inet_ntop2(CHECKER_RIP(checker)), ntohs(addr_port),
-			    strerror(errno));
 			if (ISALIVE(checker->rs)) {
-				smtp_alert(thread->master, checker->rs, NULL,
+				syslog(LOG_INFO, "Read error with server [%s:%d]: %s",
+				       inet_ntop2(CHECKER_RIP(checker))
+				       , ntohs(addr_port)
+				       , strerror(errno));
+				smtp_alert(thread->master, checker->rs, NULL, NULL,
 					   "DOWN",
 					   "=> HTTP CHECK failed on service"
 					   " : cannot receive data <=\n\n");
@@ -608,8 +638,9 @@ http_request_thread(thread * thread)
 		 (vhost) ? vhost : inet_ntop2(CHECKER_RIP(checker))
 		 , ntohs(addr_port));
 	DBG("Processing url(%d) of [%s:%d].",
-	    http_arg->url_it + 1, inet_ntop2(CHECKER_RIP(checker)),
-	    ntohs(addr_port));
+	    http_arg->url_it + 1
+	    , inet_ntop2(CHECKER_RIP(checker))
+	    , ntohs(addr_port));
 
 	/* Send the GET request to remote Web server */
 	if (http_get_check->proto == PROTO_SSL)
@@ -630,7 +661,8 @@ http_request_thread(thread * thread)
 
 		/* check if server is currently alive */
 		if (ISALIVE(checker->rs)) {
-			smtp_alert(thread->master, checker->rs, NULL, "DOWN",
+			smtp_alert(thread->master, checker->rs, NULL, NULL,
+				   "DOWN",
 				   "=> CHECK failed on service"
 				   " : cannot send data <=\n\n");
 			perform_svr_state(DOWN, checker->vs, checker->rs);
@@ -662,11 +694,13 @@ http_check_thread(thread * thread)
 				  , addr_port, http_check_thread);
 	switch (status) {
 	case connect_error:
-		DBG("Error connecting server [%s:%d].",
-		    inet_ntop2(CHECKER_RIP(checker)), ntohs(addr_port));
 		/* check if server is currently alive */
 		if (ISALIVE(checker->rs)) {
-			smtp_alert(thread->master, checker->rs, NULL, "DOWN",
+			syslog(LOG_INFO, "Error connecting server [%s:%d].",
+			       inet_ntop2(CHECKER_RIP(checker))
+			       , ntohs(addr_port));
+			smtp_alert(thread->master, checker->rs, NULL, NULL,
+				   "DOWN",
 				   "=> CHECK failed on service"
 				   " : connection error <=\n\n");
 			perform_svr_state(DOWN, checker->vs, checker->rs);
@@ -699,9 +733,9 @@ http_check_thread(thread * thread)
 						 thread->u.fd,
 						 http_get_check->connection_to);
 			} else {
-				DBG("Connection trouble to: [%s:%d].",
-				    inet_ntop2(CHECKER_RIP(checker)),
-				    ntohs(addr_port));
+				syslog(LOG_INFO, "Connection trouble to: [%s:%d].",
+				       inet_ntop2(CHECKER_RIP(checker))
+				       , ntohs(addr_port));
 #ifdef _DEBUG_
 				if (http_get_check->proto == PROTO_SSL)
 					ssl_printerr(SSL_get_error
@@ -746,12 +780,12 @@ http_connect_thread(thread * thread)
 		 * check if server is currently alive.
 		 */
 		if (!ISALIVE(checker->rs)) {
-			smtp_alert(thread->master, checker->rs, NULL, "UP",
+			syslog(LOG_INFO, "Remote Web server [%s:%d] succeed on service.",
+			       inet_ntop2(CHECKER_RIP(checker))
+			       , ntohs(addr_port));
+			smtp_alert(thread->master, checker->rs, NULL, NULL, "UP",
 				   "=> CHECK succeed on service <=\n\n");
 			perform_svr_state(UP, checker->vs, checker->rs);
-			DBG("Remote Web server [%s:%d] succeed on service.",
-			    inet_ntop2(CHECKER_RIP(checker)),
-			    ntohs(addr_port));
 		}
 		http_arg->req = NULL;
 		return epilog(thread, 1, 0, 0) + 1;

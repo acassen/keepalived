@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $id: ipwrapper.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $id: ipwrapper.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -22,6 +22,7 @@
 
 #include "ipwrapper.h"
 #include "utils.h"
+#include "notify.h"
 
 /* extern global vars */
 extern data *conf_data;
@@ -240,6 +241,16 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 		       , inet_ntoa2(SVR_IP(vs), vsip)
 		       , ntohs(SVR_PORT(vs)));
 		ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
+		if (rs->notify_up) {
+			syslog(LOG_INFO, "Executing [%s] for service [%s:%d]"
+			       " in VS [%s:%d]"
+			       , rs->notify_up
+			       , inet_ntoa2(SVR_IP(rs), rsip)
+			       , ntohs(SVR_PORT(rs))
+			       , inet_ntoa2(SVR_IP(vs), vsip)
+			       , ntohs(SVR_PORT(vs)));
+			notify_exec(rs->notify_up);
+		}
 #ifdef _KRNL_2_2_
 		if (vs->nat_mask == HOST_NETMASK)
 			ipfw_cmd(IP_FW_CMD_ADD, vs, rs);
@@ -257,6 +268,16 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 
 		/* server is down, it is removed from the LVS realserver pool */
 		ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs);
+		if (rs->notify_down) {
+			syslog(LOG_INFO, "Executing [%s] for service [%s:%d]"
+			       " in VS [%s:%d]"
+			       , rs->notify_down
+			       , inet_ntoa2(SVR_IP(rs), rsip)
+			       , ntohs(SVR_PORT(rs))
+			       , inet_ntoa2(SVR_IP(vs), vsip)
+			       , ntohs(SVR_PORT(vs)));
+			notify_exec(rs->notify_down);
+		}
 
 #ifdef _KRNL_2_2_
 		if (vs->nat_mask == HOST_NETMASK)

@@ -1,0 +1,153 @@
+This file describe all the Keepalived available keywords. The keepalived.conf
+file is compounded by three configurations parts :
+
+	* Globals configurations
+	* VRRP configuration
+	* LVS configuration
+
+0. Comment string
+
+There is 2 valid comment valid string : # or ! If you want to add comment
+in you configuration file use this char.
+
+1. Globals configurations
+
+The configuration block looks like :
+
+global_defs {				# Block identification
+   notification_email {			# Email to send alertes to
+     <EMAIL ADDRESS>			# Standard email address
+     <EMAIL ADDRESS>
+     ...
+   }
+   notification_email_from <EMAIL ADDRESS> # Email From dealing with SMTP proto
+   smtp_server <IP ADDRESS>		   # SMTP server IP address
+   smtp_connect_timeout <INTEGER>	   # Number of seconds timeout connect
+					   #  remote SMTP server
+   lvs_id <STRING>			   # String identifying router
+}
+
+
+2. VRRP configuration
+
+This block is divided in 2 sub-block :
+
+	* VRRP synchronization group
+	* VRRP instance
+
+	2.1. VRRP synchronization group
+
+	The configuration block looks like :
+
+vrrp_sync_group <STRING> {	# VRRP sync group declaration
+  group {			# group of instance to sync together
+    <STRING>			#   a
+    <STRING>			#       set
+    ...				#             of VRRP_Instance string
+  }
+  notify_master <STRING>|<QUOTED-STRING> # Script to run during MASTER transit
+  notify_backup <STRING>|<QUOTED-STRING> # Script to run during BACKUP transit
+  notify_fault <STRING>|<QUOTED-STRING>  # Script to run during FAULT transit
+  smtp_alert		 # Send email notif during state transit
+}
+
+	2.2. VRRP instance
+
+	The configuration block looks like :
+
+vrrp_instance <STRING> {		# VRRP instance declaration
+    state MASTER|BACKUP			# Start-up default state
+    interface <STRING>			# Binding interface
+    mcast_src_ip <IP ADDRESS>		# src_ip to use into the VRRP packets
+    lvs_sync_daemon_interface <STRING>	# Binding interface for lvs syncd
+    garp_master_delay <INTEGER>		# delay for gratuitous ARP after MASTER
+					#  state transition
+    virtual_router_id <INTEGER-0..255>	# VRRP VRID
+    priority <INTEGER-0..255>		# VRRP PRIO
+    advert_int <INTEGER>		# VRRP Advert interval (use default)
+    authentication {			# Authentication block
+        auth_type PASS|AH		# Simple Passwd or IPSEC AH
+        auth_pass <STRING>		# Password string
+    }
+    virtual_ipaddress {			# VRRP IP addres block
+        <IP ADDRESS>
+        <IP ADDRESS>
+        ...
+    }
+    virtual_ipaddress_excluded {	# VRRP IP to excluded from VRRP
+        <IP ADDRESS>			# packets
+        <IP ADDRESS>
+        ...
+    }
+    preempt				# VRRP preempt mode (default set)
+    debug				# Debug level
+    notify_master <STRING>|<QUOTED-STRING> # Same as vrrp_sync_group
+    notify_backup <STRING>|<QUOTED-STRING> # Same as vrrp_sync_group
+    notify_fault <STRING>|<QUOTED-STRING>  # Same as vrrp_sync_group
+    smtp_alert				   # Same as vrrp_sync_group
+}
+
+
+3. LVS configuration
+
+The configuration block looks like :
+
+
+virtual_server <IP ADDRESS> <PORT> {	# VS declaration
+    delay_loop <INTEGER>		# delay timer for service polling
+    lb_algo rr|wrr|lc|wlc|lblc|sh|dh	# LVS scheduler used
+    lb_kind NAT|DR|TUN			# LVS method used
+    persistence_timeout <INTEGER>	# LVS persistence timeout
+    persistence_granularity <NETMASK>	# LVS granularity mask
+    protocol TCP			# Only TCP is implemented
+    ha_suspend				# If VS IP address is not set, suspend
+					#  healthcheckers activity
+    virtualhost <STRING>		# VirtualHost string to use for
+					#  HTTP_GET or SSL_GET
+
+    sorry_server <IP ADDRESS> <PORT>	# RS to add to LVS topology when all
+					#   realserver are down
+
+    real_server <IP ADDRESS> <PORT> {	# RS declaration
+        weight <INTEGER>		# weight to use (default: 1)
+        inhibit_on_failure		# Set weight to 0 on healtchecker
+					#  failure
+        notify_up <STRING>|<QUOTED-STRING> # Script to launch when
+					   #  healthchecker consider service
+					   #  as up.
+        notify_down <STRING>|<QUOTED-STRING> # Script to launch when 
+					     #  healthchecker consider service
+					     #  as down.
+	
+        HTTP_GET|SSL_GET {		# HTTP and SSL healthcheckers
+            url {			# A set of url to test
+              path <STRING>		# Path
+              digest <STRING>		# Digest computed with genhash
+              status_code <INTEGER>	# status code returned into the HTTP
+            }                           #   header.
+            url {
+              path <STRING>
+              digest <STRING>
+              status_code <INTEGER>
+            }
+            ...
+            connect_port <PORT>		# TCP port to connect
+            connect_timeout <INTEGER>	# Timeout connection
+            nb_get_retry <INTEGER>	# number of get retry
+            delay_before_retry <INTEGER> # delay before retry
+        }
+    }
+
+    real_server <IP ADDRESS> <PORT> {	# Idem
+        weight <INTEGER>		# Idem
+        inhibit_on_failure		# Idem
+        notify_up <STRING>|<QUOTED-STRING> # Idem
+        notify_down <STRING>|<QUOTED-STRING> # Idem
+
+        TCP_CHECK {			# TCP healthchecker
+            connect_port <PORT>		# TCP port to connect
+            connect_timeout <INTEGER>	# Timeout connection
+        }
+    }
+}
+

@@ -5,7 +5,7 @@
  *
  * Part:        VRRP synchronization framework.
  *
- * Version:     $Id: vrrp_sync.c,v 0.7.6 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: vrrp_sync.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -24,8 +24,10 @@
 #include "vrrp_if.h"
 #include "vrrp_notify.h"
 #include "data.h"
+#include "smtp.h"
 
 /* extern global vars */
+extern thread_master *master;
 extern data *conf_data;
 
 /* Compute the new instance sands */
@@ -86,6 +88,22 @@ vrrp_get_instance(char *iname)
 	return NULL;
 }
 
+/* Set instances group pointer */
+void
+vrrp_sync_set_group(vrrp_sgroup *vgroup)
+{
+	vrrp_rt *vrrp;
+	char *str;
+	int i;
+
+	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
+		str = VECTOR_SLOT(vgroup->iname, i);
+		vrrp = vrrp_get_instance(str);
+		if (vrrp)
+			vrrp->sync = vgroup;
+	}
+}
+
 /* All interface are UP in the same group */
 int
 vrrp_sync_group_up(vrrp_sgroup * vgroup)
@@ -110,6 +128,22 @@ vrrp_sync_group_up(vrrp_sgroup * vgroup)
 	return 0;
 }
 
+/* SMTP alert group notifier */
+static void
+vrrp_sync_smtp_notifier(vrrp_sgroup *vgroup)
+{
+	if (vgroup->smtp_alert) {
+		if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
+			smtp_alert(master, NULL, NULL, vgroup,
+				   "Entering MASTER state",
+				   "=> All VRRP group instances are now in MASTER state <=\n\n");
+		if (GROUP_STATE(vgroup) == VRRP_STATE_BACK)
+			smtp_alert(master, NULL, NULL, vgroup,
+				   "Entering BACKUP state",
+				   "=> All VRRP group instances are now in BACKUP state <=\n\n");
+	}
+}
+
 /* Leaving fault state */
 int
 vrrp_sync_leave_fault(vrrp_rt * vrrp)
@@ -119,8 +153,6 @@ vrrp_sync_leave_fault(vrrp_rt * vrrp)
 	if (vrrp_sync_group_up(vgroup)) {
 		syslog(LOG_INFO, "VRRP_Group(%s) Leaving FAULT state",
 		       GROUP_NAME(vgroup));
-		vgroup->state = VRRP_STATE_MAST;
-		notify_group_exec(vgroup, VRRP_STATE_MAST);
 		return 1;
 	}
 	return 0;
@@ -136,7 +168,7 @@ vrrp_sync_master_election(vrrp_rt * vrrp)
 
 	if (vrrp->wantstate != VRRP_STATE_GOTO_MASTER)
 		return;
-	if (GROUP_STATE(vrrp->sync) == VRRP_STATE_FAULT)
+	if (GROUP_STATE(vgroup) == VRRP_STATE_FAULT)
 		return;
 
 	syslog(LOG_INFO, "VRRP_Group(%s) Transition to MASTER state",
@@ -145,17 +177,15 @@ vrrp_sync_master_election(vrrp_rt * vrrp)
 	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
 		str = VECTOR_SLOT(vgroup->iname, i);
 		isync = vrrp_get_instance(str);
-		if (isync != vrrp)
+		if (isync != vrrp) {
+			/* Force a new protocol master election */
 			isync->wantstate = VRRP_STATE_GOTO_MASTER;
-
-		/* Force a new protocol master election */
-		syslog(LOG_INFO,
-		       "VRRP_Instance(%s) forcing a new MASTER election",
-		       isync->iname);
-		vrrp_send_adv(isync, isync->priority);
+			syslog(LOG_INFO,
+			       "VRRP_Instance(%s) forcing a new MASTER election",
+			       isync->iname);
+			vrrp_send_adv(isync, isync->priority);
+		}
 	}
-	vgroup->state = VRRP_STATE_MAST;
-	notify_group_exec(vgroup, VRRP_STATE_MAST);
 }
 
 void
@@ -167,7 +197,7 @@ vrrp_sync_backup(vrrp_rt * vrrp)
 	vrrp_sgroup *vgroup = vrrp->sync;
 
 	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to BACKUP state",
-	       GROUP_NAME(vrrp->sync));
+	       GROUP_NAME(vgroup));
 
 	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
 		str = VECTOR_SLOT(vgroup->iname, i);
@@ -179,6 +209,7 @@ vrrp_sync_backup(vrrp_rt * vrrp)
 		}
 	}
 	vgroup->state = VRRP_STATE_BACK;
+	vrrp_sync_smtp_notifier(vgroup);
 	notify_group_exec(vgroup, VRRP_STATE_BACK);
 }
 
@@ -189,6 +220,9 @@ vrrp_sync_master(vrrp_rt * vrrp)
 	char *str;
 	vrrp_rt *isync;
 	vrrp_sgroup *vgroup = vrrp->sync;
+
+	if (GROUP_STATE(vrrp->sync) == VRRP_STATE_MAST)
+		return;
 
 	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to MASTER state",
 	       GROUP_NAME(vrrp->sync));
@@ -205,6 +239,7 @@ vrrp_sync_master(vrrp_rt * vrrp)
 		}
 	}
 	vgroup->state = VRRP_STATE_MAST;
+	vrrp_sync_smtp_notifier(vgroup);
 	notify_group_exec(vgroup, VRRP_STATE_MAST);
 }
 
