@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 address manipulation.
  *
- * Version:     $Id: vrrp_ipaddress.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.c,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -24,9 +24,14 @@
 #include "vrrp_ipaddress.h"
 #include "vrrp_netlink.h"
 
+/* Check if interface is UP */
+
+
+/* Add/Delete IP address to a specific interface */
 int netlink_address_ipv4(int ifindex, uint32_t addr, int cmd)
 {
   struct nl_handle nlh;
+  int status = 1;
   struct {
     struct nlmsghdr n;
     struct ifaddrmsg ifa;
@@ -49,10 +54,9 @@ int netlink_address_ipv4(int ifindex, uint32_t addr, int cmd)
     return -1;
 
   if (netlink_talk(&nlh, &req.n) < 0)
-    return -1;
-  
+    status = -1;
+
   /* to close the clocket */
   netlink_close(&nlh);
-
-  return(0);
+  return status;
 }

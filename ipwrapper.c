@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $id: ipwrapper.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $id: ipwrapper.c,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -36,7 +36,7 @@ int clear_service_vs(virtual_server *vs)
 
 #ifdef _KRNL_2_2_
     /* IPFW cleaning server entry if granularity = /32 */
-    if (vserver->nat_mask == HOST_NETMASK)
+    if (vs->nat_mask == HOST_NETMASK)
       if (!ipfw_cmd(IP_FW_CMD_DEL, vs, e->data))
         return 0;
 #endif

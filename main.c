@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $Id: main.c,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -24,6 +24,7 @@
 #include "daemon.h"
 #include "memory.h"
 #include "parser.h"
+#include "vrrp_if.h"
 
 /* SIGHUP handler */
 void sighup(int sig)
@@ -70,7 +71,7 @@ void signal_init(void)
   signal_set(SIGINT,  sighup);
   signal_set(SIGTERM, sighup);
   signal_set(SIGKILL, sighup);
-  signal_set (SIGCHLD, sigchld);
+  signal_set(SIGCHLD, sigchld);
 }
 
 /* Usage function */
@@ -220,6 +221,9 @@ int main(int argc, char **argv)
   /* Create the master thread */
   master = thread_make_master();
 
+  /* Init interface queue */
+  init_interface_queue();
+
   /* Parse the configuration file */
   init_checkers_queue();
   init_keywords();
@@ -228,7 +232,9 @@ int main(int argc, char **argv)
     syslog(LOG_INFO, "Stopping "VERSION_STRING);
     closelog();
     thread_destroy_master(master);
+#ifdef _DEBUG_
     keepalived_free_final();
+#endif
     exit(0);
   }
 
@@ -236,7 +242,9 @@ int main(int argc, char **argv)
   if (!init_ssl_ctx()) {
     closelog();
     thread_destroy_master(master);
+#ifdef _DEBUG_
     keepalived_free_final();
+#endif
     exit(0);
   }
 
@@ -276,6 +284,7 @@ int main(int argc, char **argv)
   thread_destroy_master(master);
   clear_services();
   shutdown_vrrp_instances();
+  free_interface_queue();
   free_data();
 
   pidfile_rm();

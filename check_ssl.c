@@ -7,7 +7,7 @@
  *              url, compute a MD5 over this result and match it to the
  *              expected value.
  *
- * Version:     $Id: check_ssl.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $Id: check_ssl.c,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>

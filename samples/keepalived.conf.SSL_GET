@@ -1,4 +1,4 @@
-# Configuration File for keepalived
+! Configuration File for keepalived
 
 global_defs {
    notification_email {
@@ -10,12 +10,12 @@ global_defs {
    lvs_id LVS_DEVEL
 }
 
-;SSL {
-  password password
-  ca /etc/keepalived/root.pem
-  certificate /etc/keepalived/dh1024.pem
-  key /etc/keepalived/client.pem
-}
+!SSL {
+!  password password
+!  ca /etc/keepalived/root.pem
+!  certificate /etc/keepalived/dh1024.pem
+!  key /etc/keepalived/client.pem
+!}
 
 vrrp_instance VI_1 {
     state MASTER

@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $Id: main.h,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -37,7 +37,7 @@
 #include "smtp.h"
 #include "vrrp.h"
 #include "check_api.h"
-//#include "check_ssl.h"
+#include "vrrp_netlink.h"
 
 /* global var */
 thread_master *master;
@@ -52,15 +52,15 @@ extern void register_vrrp_thread(void);
 /* Build version */
 #define PROG    "Keepalived"
 
-#define VERSION_CODE 0x000503
-#define DATE_CODE    0x160202
+#define VERSION_CODE 0x000505
+#define DATE_CODE    0x0a0402
 
 #define KEEPALIVED_VERSION(version)	\
 	(version >> 16) & 0xFF,		\
 	(version >> 8) & 0xFF,		\
 	version & 0xFF
 
-#define VERSION_STRING PROG" v%d.%d.%d (%.2d/%.2d, 20%.2d)", \
+#define VERSION_STRING PROG" v%d.%d.%d (%.2d/%.2d, 20%.2d)\n", \
 		KEEPALIVED_VERSION(VERSION_CODE), \
 		KEEPALIVED_VERSION(DATE_CODE)
 #endif

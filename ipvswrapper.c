@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -25,6 +25,12 @@
 #include "utils.h"
 
 #ifdef _KRNL_2_2_  /* KERNEL 2.2 LVS handling */
+
+int ipvs_syncd_cmd(int cmd, char *ifname, int state)
+{
+  syslog(LOG_INFO, "IPVS WRAPPER : Sync daemon not supported on kernel v2.2");
+  return IPVS_ERROR;
+}
 
 int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
 {
@@ -93,6 +99,46 @@ int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
 }
 
 #else /* KERNEL 2.4 LVS handling */
+
+int ipvs_syncd_cmd(int cmd, char *ifname, int state)
+{
+  struct ip_vs_rule_user urule;
+  int result = 0;
+  int sockfd;
+
+  memset(&urule, 0, sizeof(struct ip_vs_rule_user));
+
+  sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+  if (sockfd == -1) {
+    syslog(LOG_INFO, "IPVS WRAPPER : Can not initialize SOCK_RAW descriptor.");
+    return IPVS_ERROR;
+  } 
+
+  /* prepare user rule */
+  urule.state = state;
+  if (ifname != NULL)
+    strncpy(urule.mcast_ifn, ifname, IP_VS_IFNAME_MAXLEN);
+
+  result = setsockopt(sockfd, IPPROTO_IP, cmd, (char *)&urule, sizeof(urule));
+
+  if (result) {
+    syslog(LOG_INFO, "IPVS WRAPPER : setsockopt failed !!!");
+
+    switch (cmd) {
+      case IP_VS_SO_SET_STARTDAEMON:
+        if (errno == EEXIST)
+          syslog(LOG_INFO, "IPVS WRAPPER: Sync_daemon is already running");
+        break;
+      case IP_VS_SO_SET_STOPDAEMON:
+        if (errno == ESRCH)
+          syslog(LOG_INFO, "IPVS WRAPPER: Sync_daemon is not running");
+        break;
+    }
+  }
+
+  close(sockfd);
+  return IPVS_SUCCESS;
+}
 
 int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
 {
@@ -193,6 +239,43 @@ int ipvs_cmd(int cmd, virtual_server *vs, real_server *rs)
 }
 
 #endif
+
+/*
+ * IPVS synchronization daemon state transition
+ */
+int ipvs_syncd_goto_master_thread(thread *thread)
+{
+  char *ifname = THREAD_ARG(thread);
+  ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_MASTER);
+  return 0;
+}
+
+int ipvs_syncd_master_thread(thread *thread)
+{
+  char *ifname = THREAD_ARG(thread);
+  ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_BACKUP);
+  thread_add_timer(master, ipvs_syncd_goto_master_thread
+                         , ifname
+                         , IPVS_CMD_DELAY);
+  return 0;
+}
+
+int ipvs_syncd_goto_backup_thread(thread *thread)
+{
+  char *ifname = THREAD_ARG(thread);
+  ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_BACKUP);
+  return 0;
+}
+
+int ipvs_syncd_backup_thread(thread *thread)
+{
+  char *ifname = THREAD_ARG(thread);
+  ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_MASTER);
+  thread_add_timer(master, ipvs_syncd_goto_backup_thread
+                         , ifname
+                         , IPVS_CMD_DELAY);
+  return 0;
+}
 
 /*
  * Source code from the ipvsadm.c Wensong code

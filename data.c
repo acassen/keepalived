@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $Id: data.c,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -24,6 +24,7 @@
 #include "memory.h"
 #include "utils.h"
 #include "check_api.h"
+#include "vrrp.h"
 
 extern data *conf_data;
 
@@ -84,87 +85,79 @@ static void dump_ssl(void)
 /* VRRP facility functions */
 static void free_vrrp(void *data)
 {
-  vrrp_instance *vrrp = data;
-  vrrp_rt *ptr = vrrp->vsrv;
+  vrrp_rt *vrrp = data;
 
   FREE(vrrp->iname);
   FREE_PTR(vrrp->isync);
-  FREE_PTR(ptr->vaddr);
-  FREE(ptr->ipsecah_counter);
-  FREE(ptr->vif->ifname);
-  FREE(ptr->vif);
-  FREE(ptr);
+  FREE_PTR(vrrp->lvs_syncd_if);
+  FREE_PTR(vrrp->vaddr);
+  FREE(vrrp->ipsecah_counter);
   FREE(vrrp);
 }
 static void dump_vrrp(void *data)
 {
-  vrrp_instance *vrrp = data;
-  vrrp_rt *ptr = vrrp->vsrv;
+  vrrp_rt *vrrp = data;
   int i;
 
   syslog(LOG_INFO, " VRRP Instance = %s", vrrp->iname);
   if (vrrp->isync)
     syslog(LOG_INFO, "   Sync with instance = %s", vrrp->isync);
-  if (ptr->init_state == VRRP_STATE_BACK)
+  if (vrrp->init_state == VRRP_STATE_BACK)
     syslog(LOG_INFO, "   Want State = BACKUP");
   else
     syslog(LOG_INFO, "   Want State = MASTER");
-  syslog(LOG_INFO, "   Runing on device = %s", ptr->vif->ifname);
-  syslog(LOG_INFO, "   Virtual Router ID = %d", ptr->vrid);
-  syslog(LOG_INFO, "   Priority = %d", ptr->priority);
-  syslog(LOG_INFO, "   Advert interval = %dsec", ptr->adver_int/TIMER_HZ);
-  if (ptr->preempt)
+  syslog(LOG_INFO, "   Runing on device = %s", IF_NAME(vrrp->ifp));
+  if (vrrp->lvs_syncd_if)
+    syslog(LOG_INFO, "   Runing LVS sync daemon on interface = %s"
+                   , vrrp->lvs_syncd_if);
+  syslog(LOG_INFO, "   Virtual Router ID = %d", vrrp->vrid);
+  syslog(LOG_INFO, "   Priority = %d", vrrp->priority);
+  syslog(LOG_INFO, "   Advert interval = %dsec", vrrp->adver_int/TIMER_HZ);
+  if (vrrp->preempt)
     syslog(LOG_INFO, "   Preempt Active");
-  if (ptr->vif->auth_type) {
+  if (vrrp->auth_type) {
     syslog(LOG_INFO, "   Authentication type = %s",
-               (ptr->vif->auth_type == VRRP_AUTH_AH)?"IPSEC_AH":"SIMPLE_PASSWORD" );
-    syslog(LOG_INFO, "   Password = %s", ptr->vif->auth_data);
+               (vrrp->auth_type == VRRP_AUTH_AH)?"IPSEC_AH":"SIMPLE_PASSWORD" );
+    syslog(LOG_INFO, "   Password = %s", vrrp->auth_data);
   }
-  syslog(LOG_INFO, "   VIP count = %d", ptr->naddr);
-  for (i = 0; i < ptr->naddr; i++)
-    syslog(LOG_INFO, "     VIP%d = %s", i+1, ip_ntoa(ptr->vaddr[i].addr));
+  syslog(LOG_INFO, "   VIP count = %d", vrrp->naddr);
+  for (i = 0; i < vrrp->naddr; i++)
+    syslog(LOG_INFO, "     VIP%d = %s", i+1, ip_ntoa(vrrp->vaddr[i].addr));
 }
 void alloc_vrrp(char *iname)
 {
   int size = strlen(iname);
-  vrrp_instance *new;
-  vrrp_rt *rt;
-  vrrp_if *vif;
   seq_counter *counter;
+  vrrp_rt *new;
 
   /* Allocate new VRRP structure */
-  new     = (vrrp_instance *)MALLOC(sizeof(vrrp_instance));
-  rt      = (vrrp_rt *)      MALLOC(sizeof(vrrp_rt));
-  vif     = (vrrp_if *)      MALLOC(sizeof(vrrp_if));
+  new     = (vrrp_rt *)      MALLOC(sizeof(vrrp_rt));
   counter = (seq_counter *)  MALLOC(sizeof(seq_counter));
 
   /* Build the structure */
-  new->vsrv           = rt;
-  rt->vif             = vif;
-  rt->ipsecah_counter = counter;
+  new->ipsecah_counter = counter;
 
   /* Set default values */
-  rt->wantstate  = VRRP_STATE_BACK;
-  rt->init_state = VRRP_STATE_BACK;
-  rt->adver_int  = TIMER_HZ;
-  new->iname = (char *)MALLOC(size+1);
+  new->wantstate  = VRRP_STATE_BACK;
+  new->init_state = VRRP_STATE_BACK;
+  new->adver_int  = TIMER_HZ;
+  new->iname      = (char *)MALLOC(size+1);
   memcpy(new->iname, iname, size);
 
   list_add(conf_data->vrrp, new);
 }
 void alloc_vrrp_vip(char *vip)
 {
-  vrrp_instance *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
   uint32_t ipaddr = inet_addr(vip);
-  vrrp_rt *ptr = vrrp->vsrv;
 
-  ptr->naddr++;
-  if (ptr->vaddr)
-    ptr->vaddr = REALLOC(ptr->vaddr, ptr->naddr*sizeof(*ptr->vaddr));
+  vrrp->naddr++;
+  if (vrrp->vaddr)
+    vrrp->vaddr = REALLOC(vrrp->vaddr, vrrp->naddr*sizeof(*vrrp->vaddr));
   else
-    ptr->vaddr = (vip_addr *)MALLOC(sizeof(*ptr->vaddr));
-  ptr->vaddr[ptr->naddr-1].addr = ipaddr;
-  ptr->vaddr[ptr->naddr-1].deletable = 0;
+    vrrp->vaddr = (vip_addr *)MALLOC(sizeof(*vrrp->vaddr));
+  vrrp->vaddr[vrrp->naddr-1].addr = ipaddr;
+  vrrp->vaddr[vrrp->naddr-1].set  = 0;
 }
 
 /* Virtual server facility functions */
@@ -306,18 +299,25 @@ void free_data(void)
   free_list(conf_data->vrrp);
   free_list(conf_data->vs);
 
-  FREE(conf_data->lvs_id);
-  FREE(conf_data->email_from);
+//  FREE(conf_data->lvs_id);
+//  FREE(conf_data->email_from);
   FREE(conf_data);
 }
 void dump_data(void)
 {
-  syslog(LOG_INFO, "------< Global definitions >------");
-  syslog(LOG_INFO, " LVS ID = %s", conf_data->lvs_id);
-  syslog(LOG_INFO, " Smtp server = %s", ip_ntoa(conf_data->smtp_server));
-  syslog(LOG_INFO, " Smtp server connection timeout = %d", conf_data->smtp_connection_to);
-  syslog(LOG_INFO, " Email notification from = %s", conf_data->email_from);
-  dump_list(conf_data->email);
+  if (conf_data->lvs_id             && 
+      conf_data->smtp_server        &&
+      conf_data->smtp_connection_to &&
+      conf_data->email_from) {
+    syslog(LOG_INFO, "------< Global definitions >------");
+    syslog(LOG_INFO, " LVS ID = %s", conf_data->lvs_id);
+    syslog(LOG_INFO, " Smtp server = %s", ip_ntoa(conf_data->smtp_server));
+    syslog(LOG_INFO, " Smtp server connection timeout = %d"
+                   , conf_data->smtp_connection_to);
+    syslog(LOG_INFO, " Email notification from = %s"
+                   , conf_data->email_from);
+    dump_list(conf_data->email);
+  }
 
   if (conf_data->ssl) {
     syslog(LOG_INFO, "------< SSL definitions >------");

@@ -1,4 +1,4 @@
-# Configuration File for keepalived
+! Configuration File for keepalived
 
 global_defs {
    notification_email {

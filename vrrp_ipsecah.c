@@ -7,7 +7,7 @@
  *              authentication data encryption using HMAC MD5 according to
  *              RFCs 2085 & 2104.
  *
- * Version:     $Id: vrrp_ipsecah.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $Id: vrrp_ipsecah.c,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -26,8 +26,10 @@
 #include <openssl/md5.h>
 
 /* hmac_md5 computation according to the RFCs 2085 & 2104 */
-void hmac_md5(unsigned char *buffer,int buffer_len,
-              unsigned char *key,int key_len,unsigned char *digest)
+void hmac_md5(unsigned char *buffer, int buffer_len
+                                   , unsigned char *key
+                                   , int key_len
+                                   , unsigned char *digest)
 {
   MD5_CTX context;
   unsigned char k_ipad[65]; /* inner padding - key XORd with ipad */

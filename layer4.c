@@ -6,7 +6,7 @@
  * Part:        Layer4 checkers handling. Register worker threads &
  *              upper layer checkers.
  *
- * Version:     $Id: layer4.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $Id: layer4.c,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -23,6 +23,7 @@
 
 #include "layer4.h"
 #include "check_api.h"
+#include "utils.h"
 
 enum connect_result
 tcp_connect (int fd, uint32_t addr_ip, uint16_t addr_port)

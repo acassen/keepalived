@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK kernel command channel.
  *
- * Version:     $Id: vrrp_netlink.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $Id: vrrp_netlink.c,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,7 +20,7 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-/* local include */
+/* global include */
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -34,7 +34,15 @@
 #include <time.h>
 #include <sys/uio.h>
 
+/* local include */
 #include "vrrp_netlink.h"
+#include "vrrp_if.h"
+#include "memory.h"
+#include "scheduler.h"
+#include "utils.h"
+
+/* Global vars */
+extern thread_master *master;
 
 /* Create a socket to netlink interface */
 int netlink_socket(struct nl_handle *nl, unsigned long groups)
@@ -114,6 +122,15 @@ int addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data, int alen)
   n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + len;
 
   return 0;
+}
+
+static void parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, int len)
+{
+  while (RTA_OK(rta, len)) {
+    if (rta->rta_type <= max)
+      tb[rta->rta_type] = rta;
+    rta = RTA_NEXT(rta, len);
+  }
 }
 
 /* Our netlink parser */
@@ -226,4 +243,269 @@ int netlink_talk(struct nl_handle *nl, struct nlmsghdr *n)
 
   status = netlink_parse_info(netlink_talk_filter, nl);
   return status;
+}
+
+/* Fetch a specific type information from netlink kernel */
+static int netlink_request(struct nl_handle *nl, int family, int type)
+{
+  int status;
+  struct sockaddr_nl snl;
+  struct {
+    struct nlmsghdr nlh;
+    struct rtgenmsg g;
+  } req;
+
+  /* Cleanup the room */
+  memset(&snl, 0, sizeof(snl));
+  snl.nl_family = AF_NETLINK;
+
+  req.nlh.nlmsg_len = sizeof(req);
+  req.nlh.nlmsg_type = type;
+  req.nlh.nlmsg_flags = NLM_F_ROOT | NLM_F_MATCH | NLM_F_REQUEST;
+  req.nlh.nlmsg_pid = 0;
+  req.nlh.nlmsg_seq = ++nl->seq;
+  req.g.rtgen_family = family;
+
+  status = sendto(nl->fd, (void *) &req
+                        , sizeof(req)
+                        , 0
+                        , (struct sockaddr *) &snl
+                        , sizeof(snl));
+  if (status < 0) {
+    syslog(LOG_INFO, "Netlink: sendto() failed: %s"
+                   , strerror(errno));
+    return -1;
+  }
+  return 0;
+}
+
+/* Netlink interface link lookup filter */
+static int netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
+{
+  struct ifinfomsg *ifi;
+  struct rtattr *tb[IFLA_MAX + 1];
+  interface *ifp;
+  int i, len;
+  char *name;
+
+  ifi = NLMSG_DATA(h);
+
+  if (h->nlmsg_type != RTM_NEWLINK)
+    return 0;
+
+  len = h->nlmsg_len - NLMSG_LENGTH(sizeof(struct ifinfomsg));
+  if (len < 0)
+    return -1;
+
+  /* Interface name lookup */
+  memset(tb, 0, sizeof(tb));
+  parse_rtattr(tb, IFLA_MAX, IFLA_RTA(ifi), len);
+  if (tb[IFLA_IFNAME] == NULL)
+    return -1;
+  name = (char *)RTA_DATA(tb[IFLA_IFNAME]);
+
+  /* Return if loopback */
+  if (ifi->ifi_type == ARPHRD_LOOPBACK)
+    return 0;
+
+  /* Fill the interface structure */
+  ifp = (interface *)MALLOC(sizeof(interface));
+  memcpy(ifp->ifname, name, strlen(name));
+  ifp->ifindex = ifi->ifi_index;
+  ifp->flags = ifi->ifi_flags;
+  ifp->mtu = *(int *)RTA_DATA(tb[IFLA_MTU]);
+  ifp->hw_type = ifi->ifi_type;
+
+  if (tb[IFLA_ADDRESS]) {
+    int hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
+
+    if (hw_addr_len > IF_HWADDR_MAX)
+      syslog(LOG_ERR, "MAC address for %s is too large: %d"
+                    , name
+                    , hw_addr_len);
+    else {
+      ifp->hw_addr_len = hw_addr_len;
+      memcpy(ifp->hw_addr, RTA_DATA(tb[IFLA_ADDRESS]), hw_addr_len);
+      for (i = 0; i < hw_addr_len; i++)
+        if (ifp->hw_addr[i] != 0)
+          break;
+      if (i == hw_addr_len)
+        ifp->hw_addr_len = 0;
+      else
+        ifp->hw_addr_len = hw_addr_len;
+    }
+  }
+
+  /* Queue this new interface */
+  if_add_queue(ifp);
+  return 0;
+}
+
+/*
+ * Netlink interface address lookup filter
+ * We need to handle multiple primary address and
+ * multiple secondary address to the same interface.
+ */
+static int netlink_if_address_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
+{
+  struct ifaddrmsg *ifa;
+  struct rtattr *tb[IFA_MAX + 1];
+  interface *ifp;
+  int len;
+
+  ifa = NLMSG_DATA(h);
+
+  /* Only IPV4 are valid us */
+  if (ifa->ifa_family != AF_INET)
+    return 0;
+
+  if (h->nlmsg_type != RTM_NEWADDR &&
+      h->nlmsg_type != RTM_DELADDR)
+    return 0;
+
+  len = h->nlmsg_len - NLMSG_LENGTH(sizeof(struct ifaddrmsg));
+  if (len < 0)
+    return -1;
+
+  memset(tb, 0, sizeof(tb));
+  parse_rtattr(tb, IFA_MAX, IFA_RTA(ifa), len);
+
+  /* Fetch interface */
+  ifp = if_get_by_ifindex(ifa->ifa_index);
+  if (!ifp)
+    return 0;
+
+  if (ifa->ifa_flags & IFA_F_SECONDARY)
+    return 0;
+
+  if (tb[IFA_ADDRESS] == NULL)
+    tb[IFA_ADDRESS] = tb[IFA_LOCAL];
+
+  if (ifp->flags & IFF_POINTOPOINT) {
+    if (tb[IFA_LOCAL]) {
+      ifp->address = *(uint32_t *)RTA_DATA(tb[IFA_LOCAL]);
+    } else {
+      if (tb[IFA_ADDRESS])
+        ifp->address = *(uint32_t *)RTA_DATA(tb[IFA_LOCAL]);
+    }
+  } else {
+    if (tb[IFA_ADDRESS])
+      ifp->address = *(uint32_t *)RTA_DATA(tb[IFA_ADDRESS]);
+  }
+
+  return 0;
+}
+
+/* Interface lookup bootstrap function */
+int netlink_interface_lookup(void)
+{
+  struct nl_handle nlh;
+  int status = 0;
+
+  if (netlink_socket(&nlh, 0) < 0)
+    return -1;
+
+  /* Interface lookup */
+  if (netlink_request(&nlh, AF_PACKET, RTM_GETLINK) < 0) {
+    status = -1;
+    goto end;
+  }
+  status = netlink_parse_info(netlink_if_link_filter, &nlh); 
+
+  /* Address lookup */
+  if (netlink_request(&nlh, AF_INET, RTM_GETADDR) < 0) {
+    status = -1;
+    goto end;
+  }
+  status = netlink_parse_info(netlink_if_address_filter, &nlh); 
+  
+end:
+  netlink_close(&nlh);
+  return status;
+}
+
+/* Netlink flag Link update */
+static int netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
+{
+  struct ifinfomsg *ifi;
+  struct rtattr *tb[IFLA_MAX + 1];
+  interface *ifp;
+  int len;
+
+  ifi = NLMSG_DATA(h);
+  if ( !(h->nlmsg_type == RTM_NEWLINK || h->nlmsg_type == RTM_DELLINK))
+    return 0;
+
+  len = h->nlmsg_len - NLMSG_LENGTH(sizeof(struct ifinfomsg));
+  if (len < 0)
+    return -1;
+
+  /* Interface name lookup */
+  memset(tb, 0, sizeof(tb));
+  parse_rtattr(tb, IFLA_MAX, IFLA_RTA(ifi), len);
+  if (tb[IFLA_IFNAME] == NULL)
+    return -1;
+
+  /* ignore loopback device */
+  if (ifi->ifi_type == ARPHRD_LOOPBACK)
+    return 0;
+
+  /* find the interface */
+  ifp = if_get_by_ifindex(ifi->ifi_index);
+  if (!ifp)
+    return -1;
+
+  /* Update flags */
+  ifp->flags = ifi->ifi_flags;
+
+  return 0;
+}
+
+/* Netlink kernel message reflection */
+static int netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
+{
+  switch (h->nlmsg_type) {
+    case RTM_NEWLINK:
+    case RTM_DELLINK:
+      return netlink_reflect_filter(snl, h);
+      break;
+    case RTM_NEWADDR:
+    case RTM_DELADDR:
+//      return netlink_if_address_filter(snl, h);
+      break;
+    default:
+      syslog(LOG_INFO, "Kernel is reflecting an unknown netlink nlmsg_type: %d"
+                     , h->nlmsg_type);
+      break;
+  }
+  return 0;
+}
+
+int kernel_netlink(thread *thread)
+{
+  int status = 0;
+
+  if (thread->type != THREAD_READ_TIMEOUT)
+    status = netlink_parse_info(netlink_broadcast_filter, &nl_kernel);
+  thread_add_read(master, kernel_netlink
+                        , NULL
+                        , nl_kernel.fd
+                        , NETLINK_TIMER);
+  return 0;
+}
+
+void kernel_netlink_init(void)
+{
+  unsigned long groups;
+
+  groups = RTMGRP_LINK | RTMGRP_IPV4_IFADDR;
+  netlink_socket(&nl_kernel, groups);
+
+  if (nl_kernel.fd > 0) {
+    syslog(LOG_INFO, "Registering Kernel netlink reflector");
+    thread_add_read(master, kernel_netlink
+                          , NULL
+                          , nl_kernel.fd
+                          , NETLINK_TIMER);
+  }
 }

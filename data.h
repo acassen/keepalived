@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $Id: data.h,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -42,7 +42,6 @@
 
 /* local includes */
 #include "list.h"
-#include "vrrp.h"
 
 /* Daemon dynamic data structure definition */
 #define MAX_TIMEOUT_LENGTH	5
@@ -83,13 +82,6 @@ typedef struct _virtual_server {
   real_server		*s_svr;
   list			rs;
 } virtual_server;
-
-/* VRRP instance definition */
-typedef struct _vrrp_instance {
-  char		*iname;	/* Instance Name */
-  char		*isync;	/* Instance Name to synchronize with */
-  vrrp_rt	*vsrv;	/* VRRP data */
-} vrrp_instance;
 
 /* email link list */
 typedef struct _email {

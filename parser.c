@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $Id: parser.c,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -299,105 +299,111 @@ static void vrrp_handler(vector strvec)
 }
 static void vrrp_isync_handler(vector strvec)
 {
-  vrrp_instance *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
   vrrp->isync = set_value(strvec);
 }
 static void vrrp_state_handler(vector strvec)
 {
   char *str = VECTOR_SLOT(strvec, 1);
-  vrrp_instance *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-  vrrp_rt *rt = vrrp->vsrv;
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
 
   if (!strcmp(str, "MASTER")) {
-    rt->wantstate  = VRRP_STATE_MAST;
-    rt->init_state = VRRP_STATE_MAST;
+    vrrp->wantstate  = VRRP_STATE_MAST;
+    vrrp->init_state = VRRP_STATE_MAST;
   } else {
-    rt->wantstate  = VRRP_STATE_BACK;
-    rt->init_state = VRRP_STATE_BACK;
+    vrrp->wantstate  = VRRP_STATE_BACK;
+    vrrp->init_state = VRRP_STATE_BACK;
   }
 }
 static void vrrp_int_handler(vector strvec)
 {
-  vrrp_instance *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-  vrrp->vsrv->vif->ifname = set_value(strvec);
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  char *name = VECTOR_SLOT(strvec, 1);
+
+  vrrp->ifp = if_get_by_ifname(name);
 }
 static void vrrp_vrid_handler(vector strvec)
 {
-  vrrp_instance *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-  vrrp->vsrv->vrid = atoi(VECTOR_SLOT(strvec, 1));
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp->vrid = atoi(VECTOR_SLOT(strvec, 1));
 
-  if (VRRP_IS_BAD_VID(vrrp->vsrv->vrid)) {
+  if (VRRP_IS_BAD_VID(vrrp->vrid)) {
     syslog(LOG_INFO, "VRRP Error : VRID not valid !\n");
     syslog(LOG_INFO, "             must be between 1 & 255. reconfigure !\n");
   }
 }
 static void vrrp_prio_handler(vector strvec)
 {
-  vrrp_instance *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-  vrrp->vsrv->priority = atoi(VECTOR_SLOT(strvec, 1));
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp->priority = atoi(VECTOR_SLOT(strvec, 1));
 
-  if (VRRP_IS_BAD_PRIORITY(vrrp->vsrv->priority)) {
+  if (VRRP_IS_BAD_PRIORITY(vrrp->priority)) {
     syslog(LOG_INFO, "VRRP Error : Priority not valid !\n");
     syslog(LOG_INFO, "             must be between 1 & 255. reconfigure !\n");
     syslog(LOG_INFO, "             Using default value : 100\n");
-    vrrp->vsrv->priority = 100;
+    vrrp->priority = 100;
   }
 }
 static void vrrp_adv_handler(vector strvec)
 {
-  vrrp_instance *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-  vrrp->vsrv->adver_int = atoi(VECTOR_SLOT(strvec, 1));
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp->adver_int = atoi(VECTOR_SLOT(strvec, 1));
 
-  if (VRRP_IS_BAD_ADVERT_INT(vrrp->vsrv->adver_int)) {
+  if (VRRP_IS_BAD_ADVERT_INT(vrrp->adver_int)) {
     syslog(LOG_INFO, "VRRP Error : Advert intervall not valid !\n");
     syslog(LOG_INFO, "             must be between less than 1sec.\n");
     syslog(LOG_INFO, "             Using default value : 1sec\n");
-    vrrp->vsrv->adver_int = 1;
+    vrrp->adver_int = 1;
   }
-  vrrp->vsrv->adver_int *= TIMER_HZ;
+  vrrp->adver_int *= TIMER_HZ;
 }
 static void vrrp_debug_handler(vector strvec)
 {
-  vrrp_instance *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-  vrrp->vsrv->debug = atoi(VECTOR_SLOT(strvec, 1));
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp->debug = atoi(VECTOR_SLOT(strvec, 1));
 
-  if (VRRP_IS_BAD_DEBUG_INT(vrrp->vsrv->debug)) {
+  if (VRRP_IS_BAD_DEBUG_INT(vrrp->debug)) {
     syslog(LOG_INFO, "VRRP Error : Debug intervall not valid !\n");
     syslog(LOG_INFO, "             must be between 0-4\n");
-    vrrp->vsrv->debug = 0;
+    vrrp->debug = 0;
   }
 }
 static void vrrp_preempt_handler(vector strvec)
 {
-  vrrp_instance *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-  vrrp->vsrv->preempt = !vrrp->vsrv->preempt;
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp->preempt = !vrrp->preempt;
 }
 static void vrrp_notify_handler(vector strvec)
 {
-  vrrp_instance *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
   char *str = VECTOR_SLOT(strvec, 1);
-  int size = sizeof(vrrp->vsrv->notify_file);
+  int size = sizeof(vrrp->notify_file);
 
-  memcpy(vrrp->vsrv->notify_file, str, size);
-  vrrp->vsrv->notify_exec = 1;
+  memcpy(vrrp->notify_file, str, size);
+  vrrp->notify_exec = 1;
+}
+static void vrrp_lvs_syncd_handler(vector strvec)
+{
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp->lvs_syncd_if = set_value(strvec);
 }
 static void vrrp_auth_type_handler(vector strvec)
 {
-  vrrp_instance *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
   char *str = VECTOR_SLOT(strvec, 1);
 
   if (!strcmp(str, "AH"))
-    vrrp->vsrv->vif->auth_type = VRRP_AUTH_AH;
+    vrrp->auth_type = VRRP_AUTH_AH;
   else
-    vrrp->vsrv->vif->auth_type = VRRP_AUTH_PASS;
+    vrrp->auth_type = VRRP_AUTH_PASS;
 }
 static void vrrp_auth_pass_handler(vector strvec)
 {
-  vrrp_instance *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
   char *str = VECTOR_SLOT(strvec, 1);
-  int size = sizeof(vrrp->vsrv->vif->auth_data);
+  int size = sizeof(vrrp->auth_data);
 
-  memcpy(vrrp->vsrv->vif->auth_data, str, size);
+  memcpy(vrrp->auth_data, str, size);
 }
 static void vrrp_vip_handler(vector strvec)
 {
@@ -572,6 +578,7 @@ void init_keywords(void)
   install_keyword("preempt",			&vrrp_preempt_handler);
   install_keyword("debug",			&vrrp_debug_handler);
   install_keyword("notify",			&vrrp_notify_handler);
+  install_keyword("lvs_sync_daemon_interface",	&vrrp_lvs_syncd_handler);
   install_keyword("authentication",		NULL);
   install_sublevel();
     install_keyword("auth_type",		&vrrp_auth_type_handler);

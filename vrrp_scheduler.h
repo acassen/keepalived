@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_scheduler.c include file.
  * 
- * Version:     $Id: vrrp_scheduler.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.h,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -32,11 +32,11 @@
 
 /* local include */
 #include "scheduler.h"
-#include "data.h"
+#include "vrrp.h"
 
 /*
  * Our instance dispatcher use a socket pool.
- * That way we handle VRRP protocole type per
+ * That way we handle VRRP protocol type per
  * physical interface.
  */
 typedef struct {
@@ -46,14 +46,6 @@ typedef struct {
 } sock;
 
 /* extern prototypes */
-extern int open_vrrp_socket(const int proto, const int index);
-extern int ifname_to_idx(const char *ifname);
-extern void vrrp_send_gratuitous_arp(vrrp_instance *vrrp_instance);
 extern int vrrp_read_dispatcher_thread(thread *thread);
-extern int vrrp_state_master_rx(vrrp_instance *instance, char *buf, int buflen);
-extern void vrrp_state_master_tx(vrrp_instance *instance, const int prio);
-extern void vrrp_state_backup(vrrp_instance *instance, char *buf, int buflen);
-extern void vrrp_state_goto_master(vrrp_instance *vrrp_instance);
-extern void vrrp_state_leave_master(vrrp_instance *instance);
 
 #endif

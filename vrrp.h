@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $Id: vrrp.h,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              Based on the Jerome Etienne, <jetienne@arobas.net> code.
@@ -37,9 +37,9 @@
 /* local include */
 #include "vrrp_ipaddress.h"
 #include "vrrp_ipsecah.h"
+#include "vrrp_if.h"
 #include "timer.h"
 #include "utils.h"
-
 
 /* Default dir to notify file */
 #define VRRP_NOTIFY_DFL "/etc/init.d"
@@ -74,31 +74,21 @@ typedef struct {	/* rfc2338.5.1 */
 #define VRRP_ADVER_DFL	1	/* advert. interval (in sec) -- rfc2338.5.3.7 */
 #define VRRP_PREEMPT_DFL 1	/* rfc2338.6.1.2.Preempt_Mode */
 
-/* parameters per interface -- rfc2338.6.1.1 */
 typedef struct {
-	int		auth_type;	/* authentification type. VRRP_AUTH_* */
-	uint8_t		auth_data[8];	/* authentification data */
-
-	uint32_t	ipaddr;		/* the address of the interface */
-	char		hwaddr[6];	/* hardcoded for ethernet */
-	char		*ifname;	/* the device name for this ipaddr */
-	/*
-	 * To have my own ip_id creates collision with kernel ip->id
-	 * but it should be ok because the packets are unlikely to be
-	 * fragmented (they are non routable and small)
-	 * This packet isnt routed, i can check the outgoing MTU
-	 * to warn the user only if the outoing mtu is too small
-	 */
-	int		ip_id;
-} vrrp_if;
-
-typedef struct {
-	uint32_t	addr;		/* the ip address */
-	int		deletable;	/* TRUE if one of my primary addr */
+	uint32_t	addr;	/* the ip address */
+	int		set;	/* TRUE if addr is set */
 } vip_addr;
 
 /* parameters per virtual router -- rfc2338.6.1.2 */
-typedef struct {
+typedef struct _vrrp_rt {
+	char	*iname;		/* Instance Name */
+	char	*isync;		/* Instance Name to be sync with */
+	interface *ifp;		/* Interface we belong to */
+	char	*lvs_syncd_if;	/* handle LVS sync daemon state using this
+                                 * instance FSM & running on specific interface
+                                 * => eth0 for example.
+                                 */
+
 	int	vrid;		/* virtual id. from 1(!) to 255 */
 	int	priority;	/* priority value */
 	int	naddr;		/* number of ip addresses */
@@ -111,29 +101,43 @@ typedef struct {
 	int	wantstate;	/* user explicitly wants a state (back/mast) */
 	int	fd;		/* the socket descriptor */
 
-        int     debug;          /* Debug level 0-4 */
-        int     notify_exec;
-        char    notify_file[FILENAME_MAX];
+	int     debug;          /* Debug level 0-4 */
+	int     notify_exec;
+	char    notify_file[FILENAME_MAX];
 
 	/* rfc2336.6.2 */
 	uint32_t	ms_down_timer;
 	struct timeval	sands;
 
+	/* Authentication data */
+	int		auth_type;	/* authentification type. VRRP_AUTH_* */
+	uint8_t		auth_data[8];	/* authentification data */
+
+	/*
+	 * To have my own ip_id creates collision with kernel ip->id
+	 * but it should be ok because the packets are unlikely to be
+	 * fragmented (they are non routable and small)
+	 * This packet isnt routed, i can check the outgoing MTU
+	 * to warn the user only if the outoing mtu is too small
+	 */
+	int		ip_id;
+
 	/* IPSEC AH counter def --rfc2402.3.3.2 */
 	seq_counter *ipsecah_counter;
-
-	/* interface parameters */
-	vrrp_if	*vif;
 } vrrp_rt;
 
 /* VRRP state machine -- rfc2338.6.4 */
-#define VRRP_DISPATCHER 	0	/* internal */
-#define VRRP_STATE_INIT		1	/* rfc2338.6.4.1 */
-#define VRRP_STATE_BACK		2	/* rfc2338.6.4.2 */
-#define VRRP_STATE_MAST		3	/* rfc2338.6.4.3 */
-#define VRRP_STATE_GOTO_MASTER	4	/* internal */
-#define VRRP_STATE_LEAVE_MASTER	5	/* internal */
-#define VRRP_STATE_FAULT	99	/* internal */
+#define VRRP_DISPATCHER 		0	/* internal */
+#define VRRP_STATE_INIT			1	/* rfc2338.6.4.1 */
+#define VRRP_STATE_BACK			2	/* rfc2338.6.4.2 */
+#define VRRP_STATE_MAST			3	/* rfc2338.6.4.3 */
+#define VRRP_STATE_GOTO_MASTER		4	/* internal */
+#define VRRP_STATE_LEAVE_MASTER		5	/* internal */
+#define VRRP_STATE_GOTO_DUMMY_MAST	96	/* internal */
+#define VRRP_STATE_DUMMY_MAST		97	/* internal */
+#define VRRP_STATE_GOTO_FAULT		98	/* internal */
+#define VRRP_STATE_FAULT		99	/* internal */
+#define VRRP_MCAST_RETRY		10	/* internal */
 
 /* VRRP packet handling */
 #define VRRP_PACKET_OK       0
@@ -158,6 +162,16 @@ typedef struct {
 #define VRRP_MAX(a, b)	((a) > (b)?(a):(b))
 
 /* prototypes */
+extern int open_vrrp_socket(const int proto, const int index);
+extern void new_vrrp_socket(vrrp_rt *vrrp);
+extern void close_vrrp_socket(vrrp_rt *vrrp);
+extern void vrrp_send_gratuitous_arp(vrrp_rt *vrrp);
+extern int vrrp_state_fault_rx(vrrp_rt *vrrp, char *buf, int buflen);
+extern int vrrp_state_master_rx(vrrp_rt *vrrp, char *buf, int buflen);
+extern void vrrp_state_master_tx(vrrp_rt *vrrp, const int prio);
+extern void vrrp_state_backup(vrrp_rt *vrrp, char *buf, int buflen);
+extern void vrrp_state_goto_master(vrrp_rt *vrrp);
+extern void vrrp_state_leave_master(vrrp_rt *vrrp);
 extern int vrrp_ipsecah_len(void);
 extern void vrrp_complete_init(void);
 extern void shutdown_vrrp_instances(void);

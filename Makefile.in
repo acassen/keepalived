@@ -19,7 +19,7 @@ keepalived_conf_dir = /etc/keepalived
 
 CC = @CC@
 CFLAGS = @CFLAGS@ -Wall -Wunused -Wstrict-prototypes -D_DEBUG_ -D$(KERNEL)
-LDFLAGS = @LIBS@ @LDFLAGS@
+LDFLAGS = @LIBS@ @LDFLAGS@ @LIBFW@
 OBJS = @LIBOBJS@ \
 	main.o \
 	memory.o \
@@ -44,6 +44,7 @@ OBJS = @LIBOBJS@ \
 	vrrp.o \
 	vrrp_scheduler.o \
 	vrrp_netlink.o \
+	vrrp_if.o \
 	vrrp_ipaddress.o \
 	vrrp_ipsecah.o
 

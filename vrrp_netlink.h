@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_netlink.c include file.
  *
- * Version:     $Id: vrrp_netlink.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $Id: vrrp_netlink.h,v 0.5.5 2002/04/10 02:34:23 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -40,10 +40,19 @@ struct nl_handle {
   __u32 seq;
 };
 
+/* Define types */
+#define NETLINK_TIMER 30
+
+/* Our global netlink reflection handler */
+struct nl_handle nl_kernel;
+
 /* prototypes */
 extern int addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data, int alen);
 extern int netlink_socket(struct nl_handle *nl, unsigned long groups);
 extern int netlink_close(struct nl_handle *nl);
 extern int netlink_talk (struct nl_handle *nl, struct nlmsghdr *n);
+extern int netlink_interface_lookup(void);
+extern int netlink_interface_refresh(void);
+extern void kernel_netlink_init(void);
 
 #endif

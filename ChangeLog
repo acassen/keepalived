@@ -1,3 +1,74 @@
+2002-04-10  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.5.5 released.
+	* Fixed a gratuitous ARP porting bug.
+	* VRRP : Review the data structure to be more generic
+	  and clean with the rest of the code.
+	* VRRP : Remove the interface flags (NIC) ioctl functions
+	* VRRP : Created an interface (NIC) library giving access
+	  to common interface helpers functions.
+	* VRRP : Created an interface lookup function creating a global
+	  interface structure during daemon bootstrap. Consist of a netlink
+	  RTM_GETLINK & RTM_GETADDR lookup, so we can work with a userspace
+	  interface representation.
+	* VRRP : Create a netlink kernel reflection framework updating
+	  dynamically our interface structure according to kernel
+	  netlink broadcast. This design is highly inspired from zebra.
+	  => Reflection mean : wait for netlink kernel broadcast, if received,
+	  wakeup netlink filter to update our userspace representation.
+	  Prefer this design instead of a delayed netlink poller. That way
+	  we reduce global overhead.
+	* VRRP : VRRP need to detect failure from many places.
+	  If netlink can notify for many troubles like mainly
+	  IFF_UP|DOWN & IFF_RUNNING, those flags are kernel drivers dependent.
+	  To reduce takeover time and performance we need to have informations like
+	  : Does the media link is present ?. The fact is that most of the new NICs
+	  own embended hardware chip providing such informations. So created a
+	  MII transceiver status register thread poller. Monitoring Basic Mode
+	  Status Register (BMSR) of the MII status words. Waiting for kernel
+	  NIC drivers hackers to support this functionnality through netlink
+          (=> Like a IFF_RUNNING update broadcast).
+	* VRRP : Linked the state machine to the global interface structure.
+	  NIC failure/events are handled.
+	* VRRP : Review the whole state machine code to be more realistic. The
+	  State transition diagram described into the RFC2338 is an obtimist
+	  view. The VRRP state transition diagram implemented here is :
+
+                              +---------------+
+                   +--------->|               |<-------------+
+                   |          |  Initialize   |              |
+                   |   +------|               |----------+   |
+                   |   |      +---------------+          |   |
+                   |   V                                 V   |
+           +---------------+                       +---------------+
+           |               |---------------------->|               |
+           |    Master     |                       |    Backup     |
+           |               |<----------------------|               |
+           +---------------+                       +---------------+
+            ^   |     |                                   |    ^
+            |   |     |       +---------------+           |    |
+            |   |     +------>|  Dummy Master |           |    |
+            |   |             +---------------+           |    |
+            |   |                     |                   |    |
+            |   |                     V                   |    |
+            |   |             +---------------+           |    |
+            |   +------------>|               |<----------+    |
+            |                 |     Fault     |                |
+            +-----------------|               |----------------+
+                              +---------------+
+
+	* VRRP : Robust multicast handling. Something really strange
+	  is : after a NIC failure (in fallback mode) without closing
+	  the socket, multicast advert can be sent but not received ?
+	  really strange don t know why probably an IGMP resubmit ?.
+	  So multicast group is left during failover (media trouble,
+          IFF_DOWN or !IFF_RUNNING). In fallback, we register a new
+	  membership and synchronize all the packet dispatcher fds.
+	* VRRP : Fixed a checksum trouble using password authentication.
+	* VRRP : Added support to the LVS sync daemon. This permit
+	  LVS sync daemon to be state drived by a specific VRRP instance.
+	* Review the autoconf/automake to be more generic.
+	* Some cosmetics patches.
+
 2002-02-25  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.5.3 released.
 	* Added autoconf / automake generic scripts.

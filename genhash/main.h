@@ -34,7 +34,7 @@
 
 /* Build version */
 #define PROG    "genhash"
-#define VERSION "0.4.9 (05/12, 2001)"
+#define VERSION "0.5.3 (03/22, 2002)"
 
 /* HTTP/HTTPS GET command */
 #define REQUEST_TEMPLATE "GET %s HTTP/1.0\r\n" \
