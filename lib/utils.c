@@ -5,7 +5,7 @@
  *
  * Part:        General program utils.
  *
- * Version:     $Id: utils.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
+ * Version:     $Id: utils.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -91,7 +91,7 @@ inet_ntoa2(uint32_t ip, char *buf)
 	return buf;
 }
 
-/* IP string to network mask representation */
+/* IP string to network mask representation. CIDR notation. */
 uint8_t
 inet_stom(char *addr)
 {
@@ -105,6 +105,22 @@ inet_stom(char *addr)
 	if (*cp == '/')
 		return atoi(++cp);
 	return mask;
+}
+
+/* IP string to network range representation. */
+uint8_t
+inet_stor(char *addr)
+{
+	uint8_t range = 0;
+	char *cp = addr;
+
+	if (!strstr(addr, "-"))
+		return range;
+	while (*cp != '-' && *cp != '\0')
+		cp++;
+	if (*cp == '-')
+		return atoi(++cp);
+	return range;
 }
 
 /*
@@ -122,7 +138,7 @@ inet_ston(const char *addr, uint32_t * dst)
 	octets = 0;
 	*(tp = tmp) = 0;
 
-	while ((ch = *addr++) != '\0' && ch != '/') {
+	while ((ch = *addr++) != '\0' && ch != '/' && ch != '-') {
 		const char *pch;
 		if ((pch = strchr(digits, ch)) != NULL) {
 			u_int new = *tp * 10 + (pch - digits);

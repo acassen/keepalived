@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
+ * Version:     $Id: main.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -180,14 +180,14 @@ sigend(int sig)
 }
 
 /*
- * SIGCHLD handler. Reap any zombie child.
+ * SIGCHLD handler. Reap all zombie child.
  * WNOHANG prevent against parent process get
  * stuck waiting child termination.
  */
 void
 sigchld(int sig)
 {
-	waitpid(-1, NULL, WNOHANG);
+	while (waitpid(-1, NULL, WNOHANG) > 0);
 }
 
 /* Signal wrapper */

@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
+ * Version:     $Id: parser.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -229,6 +229,34 @@ read_value_block(void)
 	return elements;
 }
 
+static void
+alloc_value_block(vector strvec, void (*alloc_func) (vector))
+{
+	char *buf;
+	char *str = NULL;
+	vector vec = NULL;
+
+	buf = (char *) MALLOC(MAXBUF);
+	while (read_line(buf, MAXBUF)) {
+		vec = alloc_strvec(buf);
+		if (vec) {
+			str = VECTOR_SLOT(vec, 0);
+			if (!strcmp(str, EOB)) {
+				free_strvec(vec);
+				break;
+			}
+
+			if (VECTOR_SIZE(vec))
+				(*alloc_func) (vec);
+
+			free_strvec(vec);
+		}
+		memset(buf, 0, MAXBUF);
+	}
+	FREE(buf);
+}
+
+
 void *
 set_value(vector strvec)
 {
@@ -335,28 +363,7 @@ sslkey_handler(vector strvec)
 static void
 static_routes_handler(vector strvec)
 {
-	char *buf;
-	char *str = NULL;
-	vector vec = NULL;
-
-	buf = (char *) MALLOC(MAXBUF);
-	while (read_line(buf, MAXBUF)) {
-		vec = alloc_strvec(buf);
-		if (vec) {
-			str = VECTOR_SLOT(vec, 0);
-			if (!strcmp(str, EOB)) {
-				free_strvec(vec);
-				break;
-			}
-
-			if (VECTOR_SIZE(vec))
-				alloc_sroute(vec);
-
-			free_strvec(vec);
-		}
-		memset(buf, 0, MAXBUF);
-	}
-	FREE(buf);
+	alloc_value_block(strvec, alloc_sroute);
 }
 
 /* VRRP handlers */
@@ -602,59 +609,24 @@ vrrp_vip_handler(vector strvec)
 static void
 vrrp_evip_handler(vector strvec)
 {
-	char *buf;
-	char *str = NULL;
-	vector vec = NULL;
-
-	buf = (char *) MALLOC(MAXBUF);
-	while (read_line(buf, MAXBUF)) {
-		vec = alloc_strvec(buf);
-		if (vec) {
-			str = VECTOR_SLOT(vec, 0);
-			if (!strcmp(str, EOB)) {
-				free_strvec(vec);
-				break;
-			}
-
-			if (VECTOR_SIZE(vec))
-				alloc_vrrp_evip(vec);
-
-			free_strvec(vec);
-		}
-		memset(buf, 0, MAXBUF);
-	}
-	FREE(buf);
+	alloc_value_block(strvec, alloc_vrrp_evip);
 }
 static void
 vrrp_vroutes_handler(vector strvec)
 {
-	char *buf;
-	char *str = NULL;
-	vector vec = NULL;
-
-	buf = (char *) MALLOC(MAXBUF);
-	while (read_line(buf, MAXBUF)) {
-		vec = alloc_strvec(buf);
-		if (vec) {
-			str = VECTOR_SLOT(vec, 0);
-			if (!strcmp(str, EOB)) {
-				free_strvec(vec);
-				break;
-			}
-
-			if (VECTOR_SIZE(vec))
-				alloc_vrrp_vroute(vec);
-
-			free_strvec(vec);
-		}
-		memset(buf, 0, MAXBUF);
-	}
-	FREE(buf);
+	alloc_value_block(strvec, alloc_vrrp_vroute);
 }
 #endif
 
 #ifdef _WITH_LVS_
 /* Virtual Servers handlers */
+static void
+vsg_handler(vector strvec)
+{
+	/* Fetch queued vsg */
+	alloc_vsg(VECTOR_SLOT(strvec, 1));
+	alloc_value_block(strvec, alloc_vsg_entry);
+}
 static void
 vs_handler(vector strvec)
 {
@@ -890,6 +862,7 @@ init_keywords(void)
 
 #ifdef _WITH_LVS_
 	/* Virtual server mapping */
+	install_keyword_root("virtual_server_group", &vsg_handler);
 	install_keyword_root("virtual_server", &vs_handler);
 	install_keyword("delay_loop", &delay_handler);
 	install_keyword("lb_algo", &lbalgo_handler);

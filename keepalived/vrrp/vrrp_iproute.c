@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 routes manipulation.
  *
- * Version:     $Id: vrrp_iproute.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
+ * Version:     $Id: vrrp_iproute.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -46,12 +46,12 @@ netlink_route_ipv4(ip_route *iproute, int cmd)
 
 	memset(&req, 0, sizeof (req));
 
-	req.n.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtmsg));
+	req.n.nlmsg_len   = NLMSG_LENGTH(sizeof(struct rtmsg));
 	req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE;
-	req.n.nlmsg_type = cmd ? RTM_NEWROUTE : RTM_DELROUTE;
-	req.r.rtm_family = AF_INET;
-	req.r.rtm_table = RT_TABLE_MAIN;
-	req.r.rtm_scope = RT_SCOPE_NOWHERE;
+	req.n.nlmsg_type  = cmd ? RTM_NEWROUTE : RTM_DELROUTE;
+	req.r.rtm_family  = AF_INET;
+	req.r.rtm_table   = iproute->table ? iproute->table : RT_TABLE_MAIN;
+	req.r.rtm_scope   = RT_SCOPE_NOWHERE;
 
 	if (cmd) {
 		req.r.rtm_protocol = RTPROT_BOOT;
@@ -60,12 +60,15 @@ netlink_route_ipv4(ip_route *iproute, int cmd)
 	}
 
 	/* Set routing entry */
+	req.r.rtm_dst_len = iproute->dmask;
 	addattr_l(&req.n, sizeof(req), RTA_DST,		&iproute->dst, 4);
 	addattr_l(&req.n, sizeof(req), RTA_GATEWAY,	&iproute->gw,  4);
 	if (iproute->index)
 		addattr32(&req.n, sizeof(req), RTA_OIF, iproute->index);
-	req.r.rtm_dst_len = iproute->dmask;
+	if (iproute->src)
+		addattr_l(&req.n, sizeof(req), RTA_PREFSRC, &iproute->src, 4);
 
+	/* Send to netlink channel */
 	if (netlink_socket(&nlh, 0) < 0)
 		return -1;
 
@@ -111,32 +114,32 @@ dump_route(void *data)
 {
 	ip_route *route = data;
 	char *log_msg = MALLOC(100);
-	char *to_msg = NULL;
-	char *gw_msg = NULL;
-	char *dev_msg = NULL;
+	char *tmp = MALLOC(30);
 
 	if (route->dst) {
-		to_msg = MALLOC(30);
-		snprintf(to_msg, 30, "%s/%d",
-		         inet_ntop2(route->dst), route->dmask);
-		strncat(log_msg, to_msg, 30);
-		FREE(to_msg);
+		snprintf(tmp, 30, "%s/%d", inet_ntop2(route->dst), route->dmask);
+		strncat(log_msg, tmp, 30);
 	}
 	if (route->gw) {
-		gw_msg = MALLOC(30);
-		snprintf(gw_msg, 30, " gw %s", inet_ntop2(route->gw));
-		strncat(log_msg, gw_msg, 30);
-		FREE(gw_msg);
+		snprintf(tmp, 30, " gw %s", inet_ntop2(route->gw));
+		strncat(log_msg, tmp, 30);
+	}
+	if (route->src) {
+		snprintf(tmp, 30, " src %s", inet_ntop2(route->src));
+		strncat(log_msg, tmp, 30);
 	}
 	if (route->index) {
-		dev_msg = MALLOC(30);
-		snprintf(dev_msg, 30, " dev %s",
-		         IF_NAME(if_get_by_ifindex(route->index)));
-		strncat(log_msg, dev_msg, 30);
-		FREE(dev_msg);
+		snprintf(tmp, 30, " dev %s", IF_NAME(if_get_by_ifindex(route->index)));
+		strncat(log_msg, tmp, 30);
+	}
+	if (route->table) {
+		snprintf(tmp, 30, " table %d", route->table);
+		strncat(log_msg, tmp, 30);
 	}
 
 	syslog(LOG_INFO, "     %s", log_msg);
+
+	FREE(tmp);
 	FREE(log_msg);
 }
 void
@@ -156,8 +159,12 @@ alloc_route(list rt_list, vector strvec)
 		/* cmd parsing */
 		if (!strcmp(str, "via") || !strcmp(str, "gw")) {
 			inet_ston(VECTOR_SLOT(strvec, ++i), &new->gw);
+		} else if (!strcmp(str, "src")) {
+			inet_ston(VECTOR_SLOT(strvec, ++i), &new->src);
 		} else if (!strcmp(str, "dev") || !strcmp(str, "oif")) {
 			new->index = IF_INDEX(if_get_by_ifname(VECTOR_SLOT(strvec, ++i)));
+		} else if (!strcmp(str, "table")) {
+			new->table = atoi(VECTOR_SLOT(strvec, ++i));
 		} else {
 			if (!strcmp(str, "to")) i++;
 			if (inet_ston(VECTOR_SLOT(strvec, i), &ipaddr)) {

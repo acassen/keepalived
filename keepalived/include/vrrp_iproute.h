@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_iproute.c include file.
  *
- * Version:     $Id: vrrp_iproute.h,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
+ * Version:     $Id: vrrp_iproute.h,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -34,10 +34,12 @@
 
 /* types definition */
 typedef struct _ip_route {
-	uint32_t dst;    /* RTA_DST */
+	uint32_t dst;	/* RTA_DST */
 	uint8_t dmask;
-	uint32_t gw;     /* RTA_GATEWAY */
-	int index;       /* RTA_OIF */
+	uint32_t gw;	/* RTA_GATEWAY */
+	uint32_t src;	/* RTA_PREFSRC */
+	int index;	/* RTA_OIF */
+	int table;
 	int set;
 } ip_route;
 
@@ -48,6 +50,8 @@ typedef struct _ip_route {
 #define ROUTE_ISEQ(X,Y)	((X)->dst    == (Y)->dst   && \
 			 (X)->dmask  == (Y)->dmask && \
 			 (X)->gw     == (Y)->gw    && \
+			 (X)->src    == (Y)->src   && \
+			 (X)->table  == (Y)->table && \
 			 (X)->index  == (Y)->index)
 
 /* prototypes */

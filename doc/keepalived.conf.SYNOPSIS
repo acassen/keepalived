@@ -39,8 +39,8 @@ global_defs {				# Block identification
 	The configuration block looks like :
 
 static_routes {							# block identification
-    [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
-    [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
+    src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
+    src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
     ...
 }
 
@@ -97,8 +97,8 @@ vrrp_instance <STRING> {		# VRRP instance declaration
         ...
     }
     virtual_routes {			 # VRRP virtual routes
-        [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
-        [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
+        src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
+        src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
         ...
     }
     preempt				# VRRP preempt mode (default set)
@@ -112,9 +112,43 @@ vrrp_instance <STRING> {		# VRRP instance declaration
 
 3. LVS configuration
 
-The configuration block looks like :
+This block is divided in 2 sub-block :
 
-virtual_server <IP ADDRESS> <PORT> {	# VS declaration
+	* Virtual server group
+	* Virtual server
+
+	3.1. Virtual server group
+	
+	The configuration block looks like :
+
+virtual_server_group <STRING> {
+	<IP ADDRESS> <PORT>		# VIP VPORT
+	<IP ADDRESS> <PORT>
+	...
+	<IP ADDRESS RANGE> <PORT>	# VIP range VPORT
+	<IP ADDRESS RANGE> <PORT>
+	...
+	fwmark <INTEGER>		# fwmark
+	fwmark <INTEGER>
+	...
+}
+
+Note:	<IP ADDRESS RANGE> has the form of : XXX.YYY.ZZZ.WWW-VVV, define
+	the IP address range starting at WWW and monotonaly incremented by
+	one to VVV. Example : 192.168.200.1-10 means .1 to .10 IP addresses.
+
+	3.2. Virtual server
+	
+	The configuration block looks like :
+
+	A virtual_server can be either :
+	* vip vport declaration
+	* fwmark declaration
+	* group declaration
+
+virtual_server <IP ADDRESS> <PORT> {	# VS IP/PORT declaration
+virtual_server fwmark <INTEGER>    {	# VS fwmark declaration
+virtual_server group <STRING>      {	# VS group declaration
     delay_loop <INTEGER>		# delay timer for service polling
     lb_algo rr|wrr|lc|wlc|lblc|sh|dh	# LVS scheduler used
     lb_kind NAT|DR|TUN			# LVS method used

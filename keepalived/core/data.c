@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
+ * Version:     $Id: data.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -288,11 +288,92 @@ alloc_vrrp_vroute(vector strvec)
 }
 #endif
 
+/* Virtual server group facility functions */
+static void
+free_vsg(void *data)
+{
+	virtual_server_group *vsg = data;
+	FREE_PTR(vsg->gname);
+	free_list(vsg->addr_ip);
+	free_list(vsg->range);
+	free_list(vsg->vfwmark);
+	FREE(vsg);
+}
+static void
+dump_vsg(void *data)
+{
+	virtual_server_group *vsg = data;
+
+	syslog(LOG_INFO, " Virtual Server Group = %s", vsg->gname);
+	dump_list(vsg->addr_ip);
+	dump_list(vsg->range);
+	dump_list(vsg->vfwmark);
+}
+static void
+free_vsg_entry(void *data)
+{
+	FREE(data);
+}
+static void
+dump_vsg_entry(void *data)
+{
+	virtual_server_group_entry *vsg_entry = data;
+
+	if (vsg_entry->vfwmark)
+		syslog(LOG_INFO, "   FWMARK = %d", vsg_entry->vfwmark);
+	else if (vsg_entry->range)
+		syslog(LOG_INFO, "   VIP Range = %s-%d, VPORT = %d"
+		       , inet_ntop2(SVR_IP(vsg_entry))
+		       , vsg_entry->range
+		       , ntohs(SVR_PORT(vsg_entry)));
+	else
+		syslog(LOG_INFO, "   VIP = %s, VPORT = %d"
+		       , inet_ntop2(SVR_IP(vsg_entry))
+		       , ntohs(SVR_PORT(vsg_entry)));
+}
+void
+alloc_vsg(char *gname)
+{
+	int size = strlen(gname);
+	virtual_server_group *new;
+
+	new = (virtual_server_group *) MALLOC(sizeof (virtual_server_group));
+	new->gname = (char *) MALLOC(size + 1);
+	memcpy(new->gname, gname, size);
+	new->addr_ip = alloc_list(free_vsg_entry, dump_vsg_entry);
+	new->range = alloc_list(free_vsg_entry, dump_vsg_entry);
+	new->vfwmark = alloc_list(free_vsg_entry, dump_vsg_entry);
+
+	list_add(conf_data->vs_group, new);
+}
+void
+alloc_vsg_entry(vector strvec)
+{
+	virtual_server_group *vsg = LIST_TAIL_DATA(conf_data->vs_group);
+	virtual_server_group_entry *new;
+
+	new = (virtual_server_group_entry *) MALLOC(sizeof (virtual_server_group_entry));
+
+	if (!strcmp(VECTOR_SLOT(strvec, 0), "fwmark")) {
+		new->vfwmark = atoi(VECTOR_SLOT(strvec, 1));
+		list_add(vsg->vfwmark, new);
+	} else {
+		inet_ston(VECTOR_SLOT(strvec, 0), &new->addr_ip);
+		new->range = inet_stor(VECTOR_SLOT(strvec, 0));
+		new->addr_port = htons(atoi(VECTOR_SLOT(strvec, 1)));
+		if (!new->range)
+			list_add(vsg->addr_ip, new);
+		else
+			list_add(vsg->range, new);
+	}
+}
+
 /* Virtual server facility functions */
 static void
 free_vs(void *data)
 {
 	virtual_server *vs = data;
+	FREE_PTR(vs->vsgname);
 	FREE_PTR(vs->virtualhost);
 	FREE_PTR(vs->s_svr);
 	if (!LIST_ISEMPTY(vs->rs))
@@ -304,7 +385,9 @@ dump_vs(void *data)
 {
 	virtual_server *vs = data;
 
-	if (vs->vfwmark)
+	if (vs->vsgname)
+		syslog(LOG_INFO, " VS GROUP = %s", vs->vsgname);
+	else if (vs->vfwmark)
 		syslog(LOG_INFO, " VS FWMARK = %d", vs->vfwmark);
 	else
 		syslog(LOG_INFO, " VIP = %s, VPORT = %d", inet_ntop2(SVR_IP(vs))
@@ -364,11 +447,15 @@ dump_vs(void *data)
 void
 alloc_vs(char *ip, char *port)
 {
+	int size = strlen(port);
 	virtual_server *new;
 
 	new = (virtual_server *) MALLOC(sizeof (virtual_server));
 
-	if (!strcmp(ip, "fwmark")) {
+	if (!strcmp(ip, "group")) {
+		new->vsgname = (char *) MALLOC(size + 1);
+		memcpy(new->vsgname, port, size);
+	} else if (!strcmp(ip, "fwmark")) {
 		new->vfwmark = atoi(port);
 	} else {
 		inet_ston(ip, &new->addr_ip);
@@ -450,6 +537,7 @@ alloc_data(void)
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
 #endif
 	new->vs = alloc_list(free_vs, dump_vs);
+	new->vs_group = alloc_list(free_vsg, dump_vsg);
 
 	return new;
 }
@@ -463,6 +551,7 @@ free_data(data * data)
 	free_list(data->vrrp_sync_group);
 #endif
 	free_list(data->vs);
+	free_list(data->vs_group);
 
 	FREE_PTR(data->lvs_id);
 	FREE_PTR(data->email_from);
@@ -511,6 +600,8 @@ dump_data(data * data)
 		syslog(LOG_INFO, "------< LVS Topology >------");
 		syslog(LOG_INFO, " System is compiled with LVS v%d.%d.%d",
 		       NVERSION(IP_VS_VERSION_CODE));
+		if (!LIST_ISEMPTY(data->vs_group))
+			dump_list(data->vs_group);
 		dump_list(data->vs);
 	}
 	dump_checkers_queue();

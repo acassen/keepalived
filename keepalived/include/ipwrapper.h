@@ -5,7 +5,7 @@
  *
  * Part:        ipwrapper.c include file.
  *
- * Version:     $Id: ipwrapper.h,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
+ * Version:     $Id: ipwrapper.h,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -62,7 +62,7 @@ extern int init_services(void);
 extern int clear_services(void);
 extern int clear_diff_services(void);
 
-extern int ipvs_cmd(int cmd, virtual_server * vserver, real_server * rserver);
+//extern int ipvs_cmd(int cmd, virtual_server * vserver, real_server * rserver);
 extern int ipfw_cmd(int cmd, virtual_server * vserver, real_server * rserver);
 
 #endif

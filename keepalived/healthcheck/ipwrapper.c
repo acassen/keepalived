@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $id: ipwrapper.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
+ * Version:     $id: ipwrapper.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -21,6 +21,7 @@
  */
 
 #include "ipwrapper.h"
+#include "ipvswrapper.h"
 #include "utils.h"
 #include "notify.h"
 
@@ -30,16 +31,21 @@ extern data *old_data;
 
 /* Remove a realserver IPVS rule */
 static int
-clear_service_rs(virtual_server * vs, list l)
+clear_service_rs(list vs_group, virtual_server * vs, list l)
 {
 	element e;
 	real_server *rs;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
-		if (ISALIVE(rs))
-			if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs))
+		if (ISALIVE(rs)) {
+			if (!ipvs_cmd(LVS_CMD_DEL_DEST
+				      , vs_group
+				      , vs
+				      , rs))
 				return 0;
+			UNSET_ALIVE(rs);
+		}
 #ifdef _KRNL_2_2_
 		/* if we have a /32 mask, we create one nat rules per
 		 * realserver.
@@ -54,20 +60,25 @@ clear_service_rs(virtual_server * vs, list l)
 
 /* Remove a virtualserver IPVS rule */
 static int
-clear_service_vs(virtual_server * vs)
+clear_service_vs(list vs_group, virtual_server * vs)
 {
 	/* Processing real server queue */
 	if (!LIST_ISEMPTY(vs->rs)) {
 		if (vs->s_svr) {
 			if (ISALIVE(vs->s_svr))
-				if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr))
+				if (!ipvs_cmd(LVS_CMD_DEL_DEST
+					      , vs_group
+					      , vs
+					      , vs->s_svr))
 					return 0;
-		} else if (!clear_service_rs(vs, vs->rs))
+		} else if (!clear_service_rs(vs_group, vs, vs->rs))
 			return 0;
 	}
 
-	if (!ipvs_cmd(LVS_CMD_DEL, vs, NULL))
+	if (!ipvs_cmd(LVS_CMD_DEL, vs_group, vs, NULL))
 		return 0;
+
+	UNSET_ALIVE(vs);
 	return 1;
 }
 
@@ -83,7 +94,7 @@ clear_services(void)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
 		rs = ELEMENT_DATA(LIST_HEAD(vs->rs));
-		if (!clear_service_vs(vs))
+		if (!clear_service_vs(conf_data->vs_group, vs))
 			return 0;
 #ifdef _KRNL_2_2_
 		if (vs->nat_mask != HOST_NETMASK)
@@ -91,6 +102,43 @@ clear_services(void)
 				return 0;
 #endif
 	}
+	return 1;
+}
+
+/* Set rsalive flag if vs is a group */
+static int
+set_group_rsalive(virtual_server * vs, list group, int set)
+{
+	virtual_server_group *vsg = ipvs_get_group_by_name(vs->vsgname, group);
+	virtual_server_group_entry *vsg_entry;
+	list l;
+	element e;
+
+	/* return if jointure fails */
+	if (!vsg)
+		return 0;
+
+	/* visit addr_ip list */
+	l = vsg->addr_ip;
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vsg_entry = ELEMENT_DATA(e);
+		vsg_entry->rsalive = set;
+	}
+
+	/* visit vfwmark list */
+	l = vsg->vfwmark;
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vsg_entry = ELEMENT_DATA(e);
+		vsg_entry->rsalive = set;
+	}
+
+	/* visit range list */
+	l = vsg->range;
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vsg_entry = ELEMENT_DATA(e);
+		vsg_entry->rsalive = set;
+	}
+
 	return 1;
 }
 
@@ -104,10 +152,19 @@ init_service_rs(virtual_server * vs, list l)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
 		if (!ISALIVE(rs)) {
-			if (!ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs))
+			/* flush rsalive flag */
+			if (vs->vsgname)
+				set_group_rsalive(vs, conf_data->vs_group, 0);
+
+			if (!ipvs_cmd(LVS_CMD_ADD_DEST, conf_data->vs_group, vs, rs))
 				return 0;
 			else
 				SET_ALIVE(rs);
+		} else if (vs->vsgname) {
+			UNSET_ALIVE(rs);
+			if (!ipvs_cmd(LVS_CMD_ADD_DEST, conf_data->vs_group, vs, rs))
+				return 0;
+			SET_ALIVE(rs);
 		}
 #ifdef _KRNL_2_2_
 		/* if we have a /32 mask, we create one nat rules per
@@ -118,6 +175,14 @@ init_service_rs(virtual_server * vs, list l)
 				return 0;
 #endif
 	}
+
+	/*
+	 * All rs entries have been set,
+	 * set rsalive flag for all vsg entries.
+	 */
+	if (vs->vsgname)
+		set_group_rsalive(vs, conf_data->vs_group, 1);
+
 	return 1;
 }
 
@@ -126,8 +191,8 @@ static int
 init_service_vs(virtual_server * vs)
 {
 	/* Init the VS root */
-	if (!ISALIVE(vs)) {
-		if (!ipvs_cmd(LVS_CMD_ADD, vs, NULL))
+	if (!ISALIVE(vs) || vs->vsgname) {
+		if (!ipvs_cmd(LVS_CMD_ADD, conf_data->vs_group, vs, NULL))
 			return 0;
 		else
 			SET_ALIVE(vs);
@@ -199,11 +264,14 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 				       "Removing sorry server [%s:%d] from VS [%s:%d]",
 				       inet_ntoa2(SVR_IP(vs->s_svr), rsip)
 				       , ntohs(SVR_PORT(vs->s_svr))
-				       , inet_ntoa2(SVR_IP(vs), vsip)
+				       , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
 				       , ntohs(SVR_PORT(vs)));
 
 				vs->s_svr->alive = 0;
-				ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
+				ipvs_cmd(LVS_CMD_DEL_DEST
+					 , conf_data->vs_group
+					 , vs
+					 , vs->s_svr);
 #ifdef _KRNL_2_2_
 				ipfw_cmd(IP_FW_CMD_DEL, vs, vs->s_svr);
 #endif
@@ -215,16 +283,16 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 		       (rs->inhibit) ? "Enabling" : "Adding"
 		       , inet_ntoa2(SVR_IP(rs), rsip)
 		       , ntohs(SVR_PORT(rs))
-		       , inet_ntoa2(SVR_IP(vs), vsip)
+		       , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
 		       , ntohs(SVR_PORT(vs)));
-		ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
+		ipvs_cmd(LVS_CMD_ADD_DEST, conf_data->vs_group, vs, rs);
 		if (rs->notify_up) {
 			syslog(LOG_INFO, "Executing [%s] for service [%s:%d]"
 			       " in VS [%s:%d]"
 			       , rs->notify_up
 			       , inet_ntoa2(SVR_IP(rs), rsip)
 			       , ntohs(SVR_PORT(rs))
-			       , inet_ntoa2(SVR_IP(vs), vsip)
+			       , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
 			       , ntohs(SVR_PORT(vs)));
 			notify_exec(rs->notify_up);
 		}
@@ -240,18 +308,18 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 		       (rs->inhibit) ? "Disabling" : "Removing"
 		       , inet_ntoa2(SVR_IP(rs), rsip)
 		       , ntohs(SVR_PORT(rs))
-		       , inet_ntoa2(SVR_IP(vs), vsip)
+		       , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
 		       , ntohs(SVR_PORT(vs)));
 
 		/* server is down, it is removed from the LVS realserver pool */
-		ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs);
+		ipvs_cmd(LVS_CMD_DEL_DEST, conf_data->vs_group, vs, rs);
 		if (rs->notify_down) {
 			syslog(LOG_INFO, "Executing [%s] for service [%s:%d]"
 			       " in VS [%s:%d]"
 			       , rs->notify_down
 			       , inet_ntoa2(SVR_IP(rs), rsip)
 			       , ntohs(SVR_PORT(rs))
-			       , inet_ntoa2(SVR_IP(vs), vsip)
+			       , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
 			       , ntohs(SVR_PORT(vs)));
 			notify_exec(rs->notify_down);
 		}
@@ -267,12 +335,12 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 			       "Adding sorry server [%s:%d] to VS [%s:%d]",
 			       inet_ntoa2(SVR_IP(vs->s_svr), rsip)
 			       , ntohs(SVR_PORT(vs->s_svr))
-			       , inet_ntoa2(SVR_IP(vs), vsip)
+			       , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
 			       , ntohs(SVR_PORT(vs)));
 
 			/* the sorry server is now up in the pool, we flag it alive */
 			vs->s_svr->alive = 1;
-			ipvs_cmd(LVS_CMD_ADD_DEST, vs, vs->s_svr);
+			ipvs_cmd(LVS_CMD_ADD_DEST, conf_data->vs_group, vs, vs->s_svr);
 
 #ifdef _KRNL_2_2_
 			ipfw_cmd(IP_FW_CMD_ADD, vs, vs->s_svr);
@@ -282,32 +350,76 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 	}
 }
 
-/* Check if rs1 = rs2 */
+/* Check if a vsg entry is in new data */
 static int
-rs_iseq(real_server * rs1, real_server * rs2)
+vsge_exist(virtual_server_group_entry *vsg_entry, list l)
 {
-	if (rs1->addr_ip == rs2->addr_ip &&
-	    rs1->addr_port == rs2->addr_port &&
-	    rs1->weight == rs2->weight)
-		return 1;
+	element e;
+	virtual_server_group_entry *vsge;
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vsge = ELEMENT_DATA(e);
+		if (VSGE_ISEQ(vsg_entry, vsge)) {
+			/*
+			 * If vsge exist this entry
+			 * is alive since only rs entries
+			 * are changing from alive state.
+			 */
+			SET_ALIVE(vsge);
+			SET_RSALIVE(vsge);
+			return 1;
+		}
+	}
+
 	return 0;
 }
 
-/* Check if vs1 = vs2 */
+/* Clear the diff vsge of old group */
 static int
-vs_iseq(virtual_server * vs1, virtual_server * vs2)
+clear_diff_vsge(list old, list new, virtual_server * old_vs)
 {
-	if (vs1->addr_ip == vs2->addr_ip &&
-	    vs1->vfwmark == vs2->vfwmark &&
-	    vs1->addr_port == vs2->addr_port &&
-	    vs1->service_type == vs2->service_type &&
-	    !strcmp(vs1->sched, vs2->sched) &&
-	    !strcmp(vs1->timeout_persistence, vs2->timeout_persistence) &&
-	    vs1->loadbalancing_kind == vs2->loadbalancing_kind &&
-	    vs1->nat_mask == vs2->nat_mask &&
-	    vs1->granularity_persistence == vs2->granularity_persistence)
-		return 1;
-	return 0;
+	element e;
+	virtual_server_group_entry *vsge;
+
+	for (e = LIST_HEAD(old); e; ELEMENT_NEXT(e)) {
+		vsge = ELEMENT_DATA(e);
+		if (!vsge_exist(vsge, new)) {
+			syslog(LOG_INFO, "VS [%s:%d:%d:%d] in group %s"
+			       " no longer exist\n" 
+			       , inet_ntop2(vsge->addr_ip)
+			       , ntohs(vsge->addr_port)
+			       , vsge->range
+			       , vsge->vfwmark
+			       , old_vs->vsgname);
+
+			if (!ipvs_group_remove_entry(old_vs, vsge))
+				return 0;
+		}
+	}
+
+	return 1;
+}
+
+/* Clear the diff vsg of the old vs */
+static int
+clear_diff_vsg(virtual_server * old_vs)
+{
+	virtual_server_group *old;
+	virtual_server_group *new;
+
+	/* Fetch group */
+	old = ipvs_get_group_by_name(old_vs->vsgname, old_data->vs_group);
+	new = ipvs_get_group_by_name(old_vs->vsgname, conf_data->vs_group);
+
+	/* Diff the group entries */
+	if (!clear_diff_vsge(old->addr_ip, new->addr_ip, old_vs))
+		return 0;
+	if (!clear_diff_vsge(old->range, new->range, old_vs))
+		return 0;
+	if (!clear_diff_vsge(old->vfwmark, new->vfwmark, old_vs))
+		return 0;
+
+	return 1;
 }
 
 /* Check if a vs exist in new data */
@@ -317,16 +429,26 @@ vs_exist(virtual_server * old_vs)
 	element e;
 	list l = conf_data->vs;
 	virtual_server *vs;
+	virtual_server_group *vsg;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
-		if (vs_iseq(old_vs, vs)) {
+		if (VS_ISEQ(old_vs, vs)) {
+			/* Check if group exist */
+			if (vs->vsgname) {
+				vsg = ipvs_get_group_by_name(old_vs->vsgname,
+							    conf_data->vs_group);
+				if (!vsg)
+					return 0;
+				else
+					if (!clear_diff_vsg(old_vs))
+						return 0;	
+			}
+
 			/*
-			 * We reflect the previous alive
-			 * flag value to not try to set
-			 * already set IPVS rule.
+			 * Exist so set alive.
 			 */
-			vs->alive = old_vs->alive;
+			SET_ALIVE(vs);
 			return 1;
 		}
 	}
@@ -343,7 +465,7 @@ rs_exist(real_server * old_rs, list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
-		if (rs_iseq(rs, old_rs)) {
+		if (RS_ISEQ(rs, old_rs)) {
 			/*
 			 * We reflect the previous alive
 			 * flag value to not try to set
@@ -367,7 +489,7 @@ get_rs_list(virtual_server * vs)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vsrv = ELEMENT_DATA(e);
-		if (vs_iseq(vs, vsrv))
+		if (VS_ISEQ(vs, vsrv))
 			return vsrv->rs;
 	}
 
@@ -387,7 +509,7 @@ clear_diff_rs(virtual_server * old_vs)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
-		if (!rs_exist(rs, new) && (ISALIVE(rs) || rs->inhibit)) {
+		if (!rs_exist(rs, new)) {
 			/* Reset inhibit flag to delete inhibit entries */
 			syslog(LOG_INFO, "service [%s:%d] no longer exist"
 			       , inet_ntoa2(SVR_IP(rs), rsip)
@@ -398,15 +520,7 @@ clear_diff_rs(virtual_server * old_vs)
 			       , inet_ntoa2(SVR_IP(old_vs), vsip)
 			       , ntohs(SVR_PORT(old_vs)));
 			rs->inhibit = 0;
-			if (!ipvs_cmd(LVS_CMD_DEL_DEST, old_vs, rs))
-				return 0;
-		} else if (!ISALIVE(rs) && rs->inhibit) {
-			/*
-			 * We duplicate here just for optimization. We
-			 * don t want to call rs_exist() 2 times.
-			 */
-			rs->inhibit = 0;
-			if (!ipvs_cmd(LVS_CMD_DEL_DEST, old_vs, rs))
+			if (!ipvs_cmd(LVS_CMD_DEL_DEST, conf_data->vs_group, old_vs, rs))
 				return 0;
 		}
 	}
@@ -431,7 +545,16 @@ clear_diff_services(void)
 		 * reloaded.
 		 */
 		if (!vs_exist(vs)) {
-			if (!clear_service_vs(vs))
+			if (vs->vsgname)
+				syslog(LOG_INFO, "Removing Virtual Server Group [%s]"
+				       , vs->vsgname);
+			else
+				syslog(LOG_INFO, "Removing Virtual Server [%s:%d]"
+				       , inet_ntop2(vs->addr_ip)
+				       , ntohs(vs->addr_port));
+
+			/* Clear VS entry */
+			if (!clear_service_vs(old_data->vs_group, vs))
 				return 0;
 		} else {
 			/* If vs exist, perform rs pool diff */
@@ -439,8 +562,10 @@ clear_diff_services(void)
 				return 0;
 			if (vs->s_svr)
 				if (ISALIVE(vs->s_svr))
-					if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs,
-						      vs->s_svr))
+					if (!ipvs_cmd(LVS_CMD_DEL_DEST
+						      , conf_data->vs_group
+						      , vs
+						      , vs->s_svr))
 						return 0;
 		}
 	}

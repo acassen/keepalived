@@ -1,4 +1,36 @@
-2003-03-17  Alexandre Cassen  <acassen@linux-vs.org>
+2003-04-14  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.0.2 released.
+	* This release has been sponsorized by :
+	  edNET, <www.ednet.co.uk>
+	  Please visit sponsor homepage and thanks to them for supporting
+	  keepalived project.
+	* Added support to virtual_server_group so that a virtual_server
+	  can be either an IP:PORT, a fwmark or group. A group is a set
+	  of virtual_server IP:PORT, IP range and fwmark. So, now a
+	  real_server can be part of multiple virtual_server without launching
+	  multiple time the same healthchecker that finaly flood real_server.
+	  This extension is useful for big ISP/ASP configuration using many
+	  virtual_server.
+	  look at doc/samples/keepalived.conf.virtual_server_group.
+	* Extended differential configuration parser to support diff
+	  virtual_server_group entries keeping current entry state as
+	  persistent (weight, conn, ...) big work here...
+	* Added support to IP range declaration for virtual_server_group.
+	  The IP range has the notation XXX.YYY.ZZZ.WWW-VVV. This will
+	  set IPVS virtual_server from WWW to VVV monotonaly incremented by
+	  one.
+	  look at doc/samples/keepalived.conf.virtual_server_group.
+	* Dominik Vogt, <dominik.vogt@gmx.de> enhanced SIGCHLD handler to
+	  reap all zombie child processes.
+	* Created a generic allocation value block with callback handler for
+	  block parsing. This remove duplicated code in parser.
+	* VRRP : Jan Holmberg, <jan@artech.net> extended the virtual_routes
+	  and static_routes to support source route selection (netlink
+	  RTA_PREFSRC).
+	  look at doc/samples/keepalived.conf.routes.
+	* Some cosmetics patches to reduce code duplication.
+
+003-03-17  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.0.1 released.
 	* This release has been sponsorized by :
 	  Creative Internet Techniques, <www.httpd.net>

@@ -5,7 +5,7 @@
  *
  * Part:        ipvswrapper.c include file.
  *
- * Version:     $Id: ipvswrapper.h,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
+ * Version:     $Id: ipvswrapper.h,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -73,8 +73,19 @@
 
 extern thread_master *master;
 
+/* Macro */
+#define IPVS_ALIVE(X,Y)	(((X) == IP_VS_SO_SET_ADD && !(Y)->alive)	|| \
+			 ((X) == IP_VS_SO_SET_DEL && (Y)->alive)	|| \
+			 ((X) == IP_VS_SO_SET_ADDDEST && !(Y)->rsalive)	|| \
+			 ((X) == IP_VS_SO_SET_DELDEST && (Y)->rsalive)	|| \
+			 (X) == IP_VS_SO_SET_EDITDEST			   \
+			)
+
 /* prototypes */
-extern int ipvs_cmd(int cmd, virtual_server * vserver, real_server * rserver);
+extern virtual_server_group *ipvs_get_group_by_name(char *gname, list l);
+extern int ipvs_group_remove_entry(virtual_server *vs,
+				   virtual_server_group_entry *vsge);
+extern int ipvs_cmd(int cmd, list vs_group, virtual_server * vserver, real_server * rserver);
 extern int ipvs_syncd_cmd(int cmd, char *ifname, int state);
 extern void ipvs_syncd_master(char *ifname);
 extern void ipvs_syncd_backup(char *ifname);

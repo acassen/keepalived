@@ -5,7 +5,7 @@
  *
  * Part:        utils.h include file.
  *
- * Version:     $Id: utils.h,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
+ * Version:     $Id: utils.h,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -46,6 +46,7 @@ extern void print_buffer(int count, char *buff);
 extern char *inet_ntop2(uint32_t ip);
 extern char *inet_ntoa2(uint32_t ip, char *buf);
 extern uint8_t inet_stom(char *addr);
+extern uint8_t inet_stor(char *addr);
 extern int inet_ston(const char *addr, uint32_t * dst);
 extern char *get_local_name(void);
 

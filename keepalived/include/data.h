@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.h,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
+ * Version:     $Id: data.h,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -78,11 +78,29 @@ typedef struct _real_server {
 	int alive;
 } real_server;
 
-/* Virtual Server definition */
-typedef struct _virtual_server {
+/* Virtual Server group definition */
+typedef struct _virtual_server_group_entry {
 	uint32_t addr_ip;
+	uint8_t range;
 	uint32_t vfwmark;
 	uint16_t addr_port;
+	int alive;
+	int rsalive;
+} virtual_server_group_entry;
+
+typedef struct _virtual_server_group {
+	char *gname;
+	list addr_ip;
+	list range;
+	list vfwmark;
+} virtual_server_group;
+
+/* Virtual Server definition */
+typedef struct _virtual_server {
+	char *vsgname;
+	uint32_t addr_ip;
+	uint16_t addr_port;
+	uint32_t vfwmark;
 	uint16_t service_type;
 	int delay_loop;
 	int ha_suspend;
@@ -113,6 +131,7 @@ typedef struct _data {
 	list static_routes;
 	list vrrp_sync_group;
 	list vrrp;
+	list vs_group;
 	list vs;
 } data;
 
@@ -120,10 +139,31 @@ typedef struct _data {
 #define ISALIVE(S)	((S)->alive)
 #define SET_ALIVE(S)	((S)->alive = 1)
 #define UNSET_ALIVE(S)	((S)->alive = 0)
+#define SET_RSALIVE(S)	((S)->rsalive = 1)
+#define UNSET_RSALIVE(S)((S)->rsalive = 0)
 #define SVR_IP(H)	((H)->addr_ip)
 #define SVR_PORT(H)	((H)->addr_port)
 #define VHOST(V)	((V)->virtualhost)
-#define LAST_RS_TYPE(V)	((V)->last_rs_type)
+
+#define VS_ISEQ(X,Y)	((X)->addr_ip                 == (Y)->addr_ip &&		\
+			 (X)->addr_port               == (Y)->addr_port &&		\
+			 (X)->vfwmark                 == (Y)->vfwmark &&		\
+			 (X)->service_type            == (Y)->service_type &&		\
+			 (X)->loadbalancing_kind      == (Y)->loadbalancing_kind &&	\
+			 (X)->nat_mask                == (Y)->nat_mask &&		\
+			 (X)->granularity_persistence == (Y)->granularity_persistence &&\
+			 !strcmp((X)->sched, (Y)->sched) &&				\
+			 !strcmp((X)->timeout_persistence, (Y)->timeout_persistence) &&	\
+			 !strcmp((X)->vsgname, (Y)->vsgname))
+
+#define VSGE_ISEQ(X,Y)	((X)->addr_ip   == (Y)->addr_ip &&	\
+			 (X)->range     == (Y)->range &&	\
+			 (X)->vfwmark   == (Y)->vfwmark &&	\
+			 (X)->addr_port == (Y)->addr_port)
+
+#define RS_ISEQ(X,Y)	((X)->addr_ip   == (Y)->addr_ip &&	\
+			 (X)->addr_port == (Y)->addr_port &&	\
+			 (X)->weight    == (Y)->weight)
 
 /* prototypes */
 extern void alloc_email(char *addr);
@@ -135,6 +175,8 @@ extern void alloc_vrrp(char *iname);
 extern void alloc_vrrp_vip(vector strvec);
 extern void alloc_vrrp_evip(vector strvec);
 extern void alloc_vrrp_vroute(vector strvec);
+extern void alloc_vsg(char *gname);
+extern void alloc_vsg_entry(vector strvec);
 extern void alloc_vs(char *ip, char *port);
 extern void alloc_rs(char *ip, char *port);
 extern void alloc_ssvr(char *ip, char *port);

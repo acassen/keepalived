@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -932,15 +932,15 @@ open_vrrp_socket(const int proto, const int index)
 	if (!IF_ISUP(ifp))
 		return fd;
 
-        /* open the socket */
-        fd = socket(AF_INET, SOCK_RAW, proto);
-        if (fd < 0) {
-                int err = errno;
-                syslog(LOG_INFO,
-                       "cant open raw socket. errno=%d. (try to run it as root)",
-                       err);
-                return -1;
-        }
+	/* open the socket */
+	fd = socket(AF_INET, SOCK_RAW, proto);
+	if (fd < 0) {
+		int err = errno;
+		syslog(LOG_INFO,
+		       "cant open raw socket. errno=%d. (try to run it as root)",
+		       err);
+		return -1;
+	}
 
 	/* Join the VRRP MCAST group */
 	if_join_vrrp_group(fd, ifp, proto);

@@ -5,7 +5,7 @@
  *
  * Part:        VRRP state transition notification scripts handling.
  *
- * Version:     $Id: vrrp_notify.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
+ * Version:     $Id: vrrp_notify.c,v 1.0.2 2003/04/14 02:35:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
