@@ -5,9 +5,10 @@
  *
  * Part:        check_http.c include file.
  *
- * Version:     $Id: check_http.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: check_http.h,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
- * Author:      Alexandre Cassen, <acassen@linux-vs.org>
+ * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
+ *              Jan Holmberg, <jan@artech.net>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -28,28 +29,31 @@
 #include "ipwrapper.h"
 #include "scheduler.h"
 #include "layer4.h"
-#include "md5.h"
 
 /* global defs */
-#define SOCKET_ERROR   0
-#define SOCKET_SUCCESS 1
-
 #define MD5_BUFFER_LENGTH 32
 #define GET_REQUEST_BUFFER_LENGTH 128
 #define GET_BUFFER_LENGTH 2048
 #define MAX_BUFFER_LENGTH 4096
-#define LOGBUFFER_LENGTH 100
 
 /* http get processing command */
-#define GETCMD "GET %s HTTP/1.0\r\n\r\n"
+#define REQUEST_TEMPLATE "GET %s HTTP/1.0\r\n" \
+                         "User-Agent:KeepAliveClient\r\n" \
+                         "Host: %s:%d\r\n\r\n"
 
-/* Prototypes defs */
-extern int http_connect_thread(struct thread *thread);
+/* Define prototypes */
+extern int epilog(thread *thread, int metod, int t, int c);
+extern int timeout_epilog(thread *thread, char *smtp_msg, char *debug_msg);
+extern char *extract_html(char *buffer, int size_buffer);
+extern urls *fetch_next_url(thread_arg *thread_arg);
+extern int http_handle_response(thread *thread
+                                , unsigned char digest[16]
+                                , int empty_buffer);
 
-extern void smtp_alert(struct thread_master *master,
-                       configuration_data *root,
-                       realserver *rserver,
-                       const char *subject,
-                       const char *body);
+extern void smtp_alert(thread_master *
+                       , configuration_data *
+                       , realserver *
+                       , const char *
+                       , const char *);
 
 #endif

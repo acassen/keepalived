@@ -5,7 +5,7 @@
  *
  * Part:        smtp.c include file.
  *
- * Version:     $Id: smtp.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: smtp.h,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -54,12 +54,12 @@ enum smtp_cmd {
 #define MAX_SUBJECT_LENGTH 256
 #define MAX_BODY_LENGTH    512
 
-struct smtp_thread_arg {
+typedef struct _smtp_thread_arg {
   enum smtp_cmd stage;
   int email_it;
   char *subject;
   char *body;
-};
+} smtp_thread_arg;
 
 /* Smtp error code */
 #define SMTP_CONNECT   "220"
@@ -80,10 +80,10 @@ struct smtp_thread_arg {
 #define SMTP_QUIT_CMD    "QUIT\n"
 
 /* Prototypes defs */
-extern void smtp_alert(struct thread_master *master,
-                       configuration_data *root,
-                       realserver *rserver,
-                       const char *subject,
-                       const char *body);
+extern void smtp_alert(thread_master *
+                       , configuration_data *
+                       , realserver *
+                       , const char *
+                       , const char *);
 
 #endif

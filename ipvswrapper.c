@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -23,7 +23,7 @@
 
 #include "ipvswrapper.h"
 
-#ifdef KERNEL_2_2  /* KERNEL 2.2 LVS handling */
+#ifdef _KRNL_2_2_  /* KERNEL 2.2 LVS handling */
 
 int ipvs_cmd(int cmd, virtualserver *vserver, realserver *rserver)
 {
@@ -48,8 +48,12 @@ int ipvs_cmd(int cmd, virtualserver *vserver, realserver *rserver)
   ctl.u.vs_user.vs_flags = (ctl.u.vs_user.timeout!=0)?IP_VS_SVC_F_PERSISTENT:0;
   
   /* VS specific */
-  ctl.u.vs_user.vaddr = vserver->addr_ip.s_addr;
-  ctl.u.vs_user.vport = vserver->addr_port;
+  if (vserver->vfwmark) {
+    ctl.u.vs_user.vfwmark = vserver->vfwmark;
+  } else {
+    ctl.u.vs_user.vaddr = vserver->addr_ip.s_addr;
+    ctl.u.vs_user.vport = vserver->addr_port;
+  }
 
   /* SVR specific */
   if (ctl.m_cmd == IP_MASQ_CMD_ADD_DEST || ctl.m_cmd == IP_MASQ_CMD_DEL_DEST) {
@@ -106,9 +110,12 @@ int ipvs_cmd(int cmd, virtualserver *vserver, realserver *rserver)
   urule.vs_flags = (urule.timeout != 0)?IP_VS_SVC_F_PERSISTENT:0;
 
   /* VS specific */
-  urule.vaddr = vserver->addr_ip.s_addr;
-  urule.vport = vserver->addr_port;
-
+  if (vserver->vfwmark) {
+    urule.vfwmark = vserver->vfwmark;
+  } else {
+    urule.vaddr = vserver->addr_ip.s_addr;
+    urule.vport = vserver->addr_port;
+  }
   /* SVR specific */
   if (cmd == IP_VS_SO_SET_ADDDEST || cmd == IP_VS_SO_SET_DELDEST) {
     urule.weight = rserver->weight;

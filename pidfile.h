@@ -5,7 +5,7 @@
  *
  * Part:        pidfile.c include file.
  *
- * Version:     $Id: pidfile.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: pidfile.h,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -35,7 +35,7 @@
 
 /* Prototypes */
 extern int pidfile_write(int pid);
-extern void pidfile_rm();
-extern int keepalived_running();
+extern void pidfile_rm(void);
+extern int keepalived_running(void);
 
 #endif

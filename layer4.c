@@ -6,7 +6,7 @@
  * Part:        Layer4 checkers handling. Register worker threads &
  *              upper layer checkers.
  *
- * Version:     $Id: layer4.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: layer4.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -67,22 +67,21 @@ tcp_connect (int fd, uint32_t IP_DST, uint16_t PORT_DST)
   return connect_in_progress;
 }
 
-enum connect_result
-tcp_socket_state(int fd, struct thread *thread,
-                         int (*func) (struct thread *))
+enum connect_result tcp_socket_state(int fd, thread *thread
+				     , int (*func) (struct _thread *))
 {
-  struct thread_arg *thread_arg;
+  thread_arg *thread_arg;
   int status;
   int slen;
   int ret = 0;
-  struct timeval timer_now;
-  struct timeval timer_min;
+  TIMEVAL timer_now;
+  TIMEVAL timer_min;
 
   thread_arg = THREAD_ARG(thread);
 
   /* Handle connection timeout */
   if(thread->type == THREAD_WRITE_TIMEOUT) {
-#ifdef DEBUG
+#ifdef _DEBUG_
     if (thread_arg->svr)
       syslog(LOG_DEBUG, "TCP connection timeout to [%s:%d].",
                           inet_ntoa(thread_arg->svr->addr_ip),
@@ -99,7 +98,7 @@ tcp_socket_state(int fd, struct thread *thread,
 
   /* Connection failed !!! */
   if (ret) {
-#ifdef DEBUG
+#ifdef _DEBUG_
     if (thread_arg->svr)
       syslog(LOG_DEBUG, "TCP connection failed to [%s:%d].",
                           inet_ntoa(thread_arg->svr->addr_ip), 
@@ -115,7 +114,7 @@ tcp_socket_state(int fd, struct thread *thread,
    * Recompute the write timeout (or pending connection).
    */
   if (status != 0) {
-#ifdef DEBUG
+#ifdef _DEBUG_
     if (thread_arg->svr)
       syslog(LOG_DEBUG, "TCP connection to [%s:%d] still IN_PROGRESS.",
                         inet_ntoa(thread_arg->svr->addr_ip),
@@ -138,18 +137,17 @@ tcp_socket_state(int fd, struct thread *thread,
   return connect_success;
 }
 
-void
-tcp_connection_state(int fd, enum connect_result status,
-                             struct thread *thread,
-                             int (*func) (struct thread *))
+void tcp_connection_state(int fd, enum connect_result status
+			  , thread *thread
+			  , int (*func) (struct _thread *))
 {
-  struct thread_arg *thread_arg;
+  thread_arg *thread_arg;
 
   thread_arg = THREAD_ARG(thread);
 
   switch (status) {
     case connect_error:
-#ifdef DEBUG
+#ifdef _DEBUG_
       syslog(LOG_DEBUG,"TCP connection ERROR to [%s:%d].",
                        inet_ntoa(thread_arg->svr->addr_ip),
                        ntohs(thread_arg->svr->addr_port));
@@ -158,7 +156,7 @@ tcp_connection_state(int fd, enum connect_result status,
       break;
 
     case connect_success:
-#ifdef DEBUG
+#ifdef _DEBUG_
       syslog(LOG_DEBUG,"TCP connection SUCCESS to [%s:%d].",
                        inet_ntoa(thread_arg->svr->addr_ip),
                        ntohs(thread_arg->svr->addr_port));
@@ -169,7 +167,7 @@ tcp_connection_state(int fd, enum connect_result status,
 
     /* Checking non-blocking connect, we wait until socket is writable */
     case connect_in_progress:
-#ifdef DEBUG
+#ifdef _DEBUG_
       syslog(LOG_DEBUG,"TCP connection to [%s:%d] now IN_PROGRESS.",
                        inet_ntoa(thread_arg->svr->addr_ip),
                        ntohs(thread_arg->svr->addr_port));

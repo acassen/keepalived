@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -23,6 +23,7 @@
 #include "vrrp_scheduler.h"
 #include "vrrp_ipsecah.h"
 #include "vrrp.h"
+#include "memory.h"
 
 /*
  * Initialize state handling
@@ -80,10 +81,10 @@ static void vrrp_init_sands(vrrp_instance *instance)
 }
 
 /* Timer functions */
-static struct timeval vrrp_compute_timer(const int fd, vrrp_instance *vrrp)
+static TIMEVAL vrrp_compute_timer(const int fd, vrrp_instance *vrrp)
 {
   vrrp_instance *ptr = vrrp;
-  struct timeval timer;
+  TIMEVAL timer;
 
   /* clean the memory */
   memset(&timer, 0, sizeof(struct timeval));
@@ -104,9 +105,9 @@ static struct timeval vrrp_compute_timer(const int fd, vrrp_instance *vrrp)
   return timer;
 }
 
-static struct timeval vrrp_timer_delta(struct timeval timer)
+static TIMEVAL vrrp_timer_delta(TIMEVAL timer)
 {
-  struct timeval timer_now;
+  TIMEVAL timer_now;
 
   /* init timer */
   memset(&timer_now, 0, sizeof(struct timeval));
@@ -117,7 +118,7 @@ static struct timeval vrrp_timer_delta(struct timeval timer)
 
 static long vrrp_timer_fd(const int fd, vrrp_instance *instance)
 {
-  struct timeval timer;
+  TIMEVAL timer;
   long vrrp_timer = 0;
 
   timer = vrrp_compute_timer(fd, instance);
@@ -130,7 +131,7 @@ static long vrrp_timer_fd(const int fd, vrrp_instance *instance)
 static int vrrp_timer_vrid_timeout(const int fd, vrrp_instance *vrrp)
 {
   vrrp_instance *ptr = vrrp;
-  struct timeval vrrp_timer;
+  TIMEVAL vrrp_timer;
   int vrid = 0;
 
   /* clean the memory */
@@ -152,8 +153,8 @@ static int vrrp_timer_vrid_timeout(const int fd, vrrp_instance *vrrp)
 static void vrrp_timer_dump(vrrp_instance *vrrp)
 {
   vrrp_instance *ptr = vrrp;
-  struct timeval timer_now;
-  struct timeval timer;
+  TIMEVAL timer_now;
+  TIMEVAL timer;
   long vrrp_timer = 0;
 
   memset(&timer, 0, sizeof(struct timeval));
@@ -172,12 +173,12 @@ static void vrrp_timer_dump(vrrp_instance *vrrp)
 */
 
 /* Thread functions */
-static void vrrp_register_workers(struct thread_master *master,
-                                  vrrp_instance *instance,
-                                  sockpool *pool)
+static void vrrp_register_workers(thread_master *master
+                                  , vrrp_instance *instance
+                                  , sockpool *pool)
 {
   sockpool *poolptr = pool;
-  struct timeval timer;
+  TIMEVAL timer;
   long vrrp_timer = 0;
 
   /* init compute timer */
@@ -235,7 +236,7 @@ static sockpool *remove_sock(sockpool *pool)
   sockpool *t;
 
   t = (sockpool *)pool->next;
-  free(pool);
+  FREE(pool);
   return t;
 }
 
@@ -261,8 +262,7 @@ static sockpool *vrrp_create_sockpool(vrrp_instance *instance, sockpool *pool)
 
     if (!already_exist_sock(pool, ifindex, proto)) {
       /* allocate & clean the new struct */
-      sock = (sockpool *)malloc(sizeof(sockpool));
-      memset(sock, 0, sizeof(sockpool));
+      sock = (sockpool *)MALLOC(sizeof(sockpool));
 
       /* fill in the new sock structure */
       sock->ifindex = ifindex;
@@ -330,7 +330,7 @@ static void vrrp_set_fds(vrrp_instance *instance, sockpool *pool)
  * are multiplexed through this fds. So our design can handle 2*n
  * multiplexing points.
  */
-int vrrp_dispatcher_init_thread(struct thread *thread)
+int vrrp_dispatcher_init_thread(thread *thread)
 {
   vrrp_instance *instance = THREAD_ARG(thread);
   sockpool *pool;
@@ -378,16 +378,16 @@ static vrrp_instance *vrrp_search_instance(const int vrid, vrrp_instance *instan
   return NULL;
 }
 
-static void vrrp_handle_backup(vrrp_instance *instance,
-                               char *vrrp_buffer,
-                               int len)
+static void vrrp_handle_backup(vrrp_instance *instance
+                               , char *vrrp_buffer
+                               , int len)
 {
   vrrp_state_backup(instance, vrrp_buffer, len);
 }
 
-static void vrrp_handle_become_master(vrrp_instance *instance,
-                                     char *vrrp_buffer,
-                                     int len)
+static void vrrp_handle_become_master(vrrp_instance *instance
+                                     , char *vrrp_buffer
+                                     , int len)
 {
   vrrp_rt *vsrv = instance->vsrv;
   struct iphdr *iph = (struct iphdr *)vrrp_buffer;
@@ -404,9 +404,9 @@ static void vrrp_handle_become_master(vrrp_instance *instance,
   }
 }
 
-static void vrrp_handle_leave_master(vrrp_instance *instance,
-                                     char *vrrp_buffer,
-                                     int len)
+static void vrrp_handle_leave_master(vrrp_instance *instance
+                                     , char *vrrp_buffer
+                                     , int len)
 {
   if (vrrp_state_master_rx(instance, vrrp_buffer, len)) {
     syslog(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert"
@@ -415,9 +415,9 @@ static void vrrp_handle_leave_master(vrrp_instance *instance,
   }
 }
 
-static int vrrp_handle_state(vrrp_instance *instance,
-                             char *vrrp_buffer,
-                             int len)
+static int vrrp_handle_state(vrrp_instance *instance
+                             , char *vrrp_buffer
+                             , int len)
 {
   int previous_state;
 
@@ -500,7 +500,7 @@ static int vrrp_handle_state_timeout(vrrp_instance *instance)
 }
 
 /* Our read packet dispatcher */
-int vrrp_read_dispatcher_thread(struct thread *thread)
+int vrrp_read_dispatcher_thread(thread *thread)
 {
   vrrp_instance *instance = THREAD_ARG(thread);
   vrrp_instance *ptr = instance;
@@ -559,21 +559,16 @@ int vrrp_read_dispatcher_thread(struct thread *thread)
   } else {
 
     /* allocate & clean the read buffer */
-    vrrp_buffer = (char *)malloc(VRRP_PACKET_TEMP_LEN);
-    memset(vrrp_buffer, 0, VRRP_PACKET_TEMP_LEN);
+    vrrp_buffer = (char *)MALLOC(VRRP_PACKET_TEMP_LEN);
 
     /* read & affect received buffer */
     len = read(thread->u.fd, vrrp_buffer, VRRP_PACKET_TEMP_LEN);
     iph = (struct iphdr *)vrrp_buffer;
 
-    switch (iph->protocol) {
-      case IPPROTO_IPSEC_AH:
-        hd  = (vrrp_pkt *)((char *)iph + (iph->ihl<<2) + vrrp_ipsecah_len());
-        break;
-      case IPPROTO_VRRP:
-        hd  = (vrrp_pkt *)((char *)iph + (iph->ihl<<2));
-        break;
-    }
+    if (iph->protocol == IPPROTO_IPSEC_AH)
+      hd = (vrrp_pkt *)((char *)iph + (iph->ihl<<2) + vrrp_ipsecah_len());
+    else
+      hd = (vrrp_pkt *)((char *)iph + (iph->ihl<<2));
 
     /* Searching for matching instance */
     vrrp_instance = vrrp_search_instance(hd->vrid, instance);
@@ -619,7 +614,7 @@ int vrrp_read_dispatcher_thread(struct thread *thread)
     }
 
     /* cleanup the room */
-    free(vrrp_buffer);
+    FREE(vrrp_buffer);
 
   }
 

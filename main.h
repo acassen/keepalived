@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: main.h,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -25,6 +25,8 @@
 
 /* global includes */
 #include <sys/stat.h>
+#include <sys/wait.h>
+#include <popt.h>
 
 /* local includes */
 #include "utils.h"
@@ -33,12 +35,19 @@
 #include "scheduler.h"
 #include "ipwrapper.h"
 #include "smtp.h"
+#include "vrrp.h"
+#include "check_ssl.h"
 
 /* global var */
-struct thread_master *master;
+thread_master *master;
+unsigned int debug;
+
+/* SSL support */
+extern void clear_ssl(SSL_DATA *ssl);
+extern SSL_DATA *init_ssl_ctx(SSL_DATA *ssl);
 
 /* Build version */
 #define PROG    "keepalived"
-#define VERSION "0.4.8 (20/11, 2001)"
+#define VERSION "0.4.9 (10/12, 2001)"
 
 #endif

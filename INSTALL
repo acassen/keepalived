@@ -15,9 +15,10 @@ Installation
   2. cd into the directory
   3. 'make' and 'make install'. This will install 
      keepalived into your system (binary and configuration file).
-  4. cd into genhash directory
+  4. cd into genhash directory (read the INSTALL file).
   5. 'make' and 'make install'. This will install
-     the MD5 url digest generator. You need it to configure HTTP GET check.
+     the MD5 url digest generator. You need it to configure HTTP GET check
+     and SSL GET check in order to compute MD5SUM digest etalon.
   6. link keepalived.init into your runlevel directory. On redhat systems :
      ln -s /etc/rc.d/init.d/keepalived.init /etc/rc.d/rc3.d/S99keepalived
 
@@ -33,3 +34,4 @@ Configuration
 
 
 Have fun with it !
+Alexandre

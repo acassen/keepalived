@@ -5,7 +5,7 @@
  *
  * Part:        TCP checker.
  *
- * Version:     $Id: check_tcp.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: check_tcp.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -22,10 +22,9 @@
 
 #include "check_tcp.h"
 
-int
-tcp_check_thread(struct thread *thread)
+int tcp_check_thread(thread *thread)
 {
-  struct thread_arg *thread_arg;
+  thread_arg *thread_arg;
   int status;
 
   thread_arg = THREAD_ARG(thread);
@@ -37,7 +36,7 @@ tcp_check_thread(struct thread *thread)
    */
   if (status == connect_success) {
 
-#ifdef DEBUG
+#ifdef _DEBUG_
     syslog(LOG_DEBUG, "TCP connection to [%s:%d] success.",
                       inet_ntoa(thread_arg->svr->addr_ip),
                       ntohs(thread_arg->svr->addr_port));
@@ -51,7 +50,7 @@ tcp_check_thread(struct thread *thread)
     }
 
   } else {
-#ifdef DEBUG
+#ifdef _DEBUG_
     syslog(LOG_DEBUG, "TCP connection to [%s:%d] failed !!!",
                       inet_ntoa(thread_arg->svr->addr_ip),
                       ntohs(thread_arg->svr->addr_port));
@@ -73,17 +72,16 @@ tcp_check_thread(struct thread *thread)
   return 0;
 }
 
-int
-tcp_connect_thread(struct thread *thread)
+int tcp_connect_thread(thread *thread)
 {
-  struct thread_arg *thread_arg;
+  thread_arg *thread_arg;
   int fd;
   int status;
 
   thread_arg = THREAD_ARG(thread);
 
   if ( (fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1 ) {
-#ifdef DEBUG
+#ifdef _DEBUG_
     syslog(LOG_DEBUG, "TCP connect fail to create socket.");
 #endif
     return 0;

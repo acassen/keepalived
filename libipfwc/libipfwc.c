@@ -444,7 +444,7 @@ struct ipfwc_fwrule *ipfwc_get_rules(unsigned int *num_rules, int zero)
 }
 
 /* Get raw socket. */
-int ipfwc_get_raw_socket()
+int ipfwc_get_raw_socket(void)
 {
 	return sockfd;
 }

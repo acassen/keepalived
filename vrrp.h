@@ -4,7 +4,9 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Part:        vrrp.c program include file.
+ *
+ * Version:     $Id: vrrp.h,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              Based on the Jerome Etienne, <jetienne@arobas.net> code.
@@ -37,6 +39,13 @@
 #include "vrrp_ipaddress.h"
 #include "vrrp_ipsecah.h"
 #include "utils.h"
+
+
+/* Default dir to notify file */
+#define VRRP_NOTIFY_DFL "/etc/init.d"
+
+/* notify name (vrrpd-eth0-101) */
+#define VRRP_NOTIFY_FORMAT "vrrpd-%s-%d"
 
 typedef struct {	/* rfc2338.5.1 */
 	uint8_t		vers_type;	/* 0-3=type, 4-7=version */
@@ -102,6 +111,11 @@ typedef struct {
 	int	wantstate;	/* user explicitly wants a state (back/mast) */
 	int	fd;		/* the socket descriptor */
 
+        int     debug;          /* Debug level 0-4 */
+        int     notify_exec;
+        char    notify_file[FILENAME_MAX ];
+
+
 	/* rfc2336.6.2 */
 	uint32_t	ms_down_timer;
 	struct timeval	sands;
@@ -127,13 +141,17 @@ typedef struct {
 #define VRRP_PACKET_KO       1
 #define VRRP_PACKET_DROP     2
 #define VRRP_PACKET_NULL     3
+#define VRRP_PACKET_OTHER    4      /* Muliple VRRP on LAN, Identify "other" VRRP */
 #define VRRP_PACKET_TEMP_LEN 256
 
 #define VRRP_AUTH_LEN	8
 
 #define VRRP_IS_BAD_VID(id)		((id)<1 || (id)>255)	/* rfc2338.6.1.vrid */
 #define VRRP_IS_BAD_PRIORITY(p)		((p)<1 || (p)>255)	/* rfc2338.6.1.prio */
-#define VRRP_IS_BAD_ADVERT_INT(d)	((d)<1)
+#define VRRP_IS_BAD_ADVERT_INT(d) 	((d)<1)
+
+#define VRRP_IS_BAD_DEBUG_INT(d)	((d)<0 || (d)>4)
+
 
 #define VRRP_TIMER_HZ		1000000
 #define VRRP_TIMER_SKEW(srv)	((256-(srv)->priority)*VRRP_TIMER_HZ/256) 
@@ -142,7 +160,7 @@ typedef struct {
 #define VRRP_MAX(a, b)	((a) > (b)?(a):(b))
 
 /* prototypes */
-extern int vrrp_ipsecah_len();
+extern int vrrp_ipsecah_len(void);
 extern int complete_vrrp_init(vrrp_rt *vsrv);
 extern void vrrp_state_stop_instance(vrrp_rt *vsrv);
 

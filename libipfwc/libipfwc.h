@@ -80,7 +80,7 @@ int ipfwc_delete_chain(const ip_chainlabel chain);
 int ipfwc_set_policy(const ip_chainlabel chain, const ip_chainlabel policy);
 
 /* Get raw socket. */
-int ipfwc_get_raw_socket();
+int ipfwc_get_raw_socket(void);
 
 /* Translates errno numbers into more human-readable form than strerror. */
 const char *ipfwc_strerror(int err);

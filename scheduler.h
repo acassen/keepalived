@@ -5,7 +5,7 @@
  *
  * Part:        scheduler.c include file.
  *
- * Version:     $Id: scheduler.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: scheduler.h,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -33,45 +33,43 @@
 #include "cfreader.h"
 #include "check.h"
 
+/* Thread itself. */
+typedef struct timeval TIMEVAL;
+typedef struct _thread {
+  unsigned long id;
+  unsigned char type;			/* thread type */
+  struct _thread *next;			/* next pointer of the thread */
+  struct _thread *prev;			/* previous pointer of the thread */
+  struct _thread_master *master;	/* pointer to the struct thread_master. */
+  int (*func) (struct _thread *);	/* event function */
+  void *arg;				/* event argument */
+  TIMEVAL sands;			/* rest of time sands value. */
+  union {
+    int val;				/* second argument of the event. */
+    int fd;				/* file descriptor in case of read/write. */
+  } u;
+} thread;
+
 /* Linked list of thread. */
-struct thread_list
-{
-  struct thread *head;
-  struct thread *tail;
+typedef struct _thread_list {
+  thread *head;
+  thread *tail;
   int count;
-};
+} thread_list;
 
 /* Master of the theads. */
-struct thread_master
-{
-  struct thread_list read;
-  struct thread_list write;
-  struct thread_list timer;
-  struct thread_list event;
-  struct thread_list ready;
-  struct thread_list unuse;
+typedef struct _thread_master {
+  thread_list read;
+  thread_list write;
+  thread_list timer;
+  thread_list event;
+  thread_list ready;
+  thread_list unuse;
   fd_set readfd;
   fd_set writefd;
   fd_set exceptfd;
   unsigned long alloc;
-};
-
-/* Thread itself. */
-struct thread
-{
-  unsigned long id;
-  unsigned char type;		/* thread type */
-  struct thread *next;		/* next pointer of the thread */
-  struct thread *prev;		/* previous pointer of the thread */
-  struct thread_master *master;	/* pointer to the struct thread_master. */
-  int (*func) (struct thread *); /* event function */
-  void *arg;			/* event argument */
-  struct timeval sands;	/* rest of time sands value. */
-  union {
-    int val;			/* second argument of the event. */
-    int fd;			/* file descriptor in case of read/write. */
-  } u;
-};
+} thread_master;
 
 /* Thread types. */
 #define THREAD_READ           0
@@ -87,6 +85,7 @@ struct thread
 /* MICRO SEC def */
 #define TIMER_SEC_MICRO 1000000
 #define TIMER_MAX_SEC   1000
+#define BOOTSTRAP_DELAY 1
 
 /* Macros. */
 #define THREAD_ARG(X) ((X)->arg)
@@ -95,80 +94,58 @@ struct thread
 #define THREAD_VAL(X) ((X)->u.val)
 
 /* Prototypes. */
-struct thread_master *thread_make_master ();
+thread_master *thread_make_master(void);
 
-struct thread *
-thread_add_terminate_event (struct thread_master *m);
+thread *thread_add_terminate_event(thread_master *m);
 
-void
-thread_destroy_master (struct thread_master *m);
+void thread_destroy_master(thread_master *m);
 
-struct thread_arg *
-thread_arg_new (configuration_data *root,
-                virtualserver *vserver,
-                realserver *rserver);
+thread_arg *thread_arg_new(configuration_data *root
+			   , virtualserver *vserver
+			   , realserver *rserver);
 
-struct thread *
-thread_add_read (struct thread_master *m, 
-		 int (*func)(struct thread *),
-		 void *arg,
-		 int fd,
-                 long timeout);
+thread *thread_add_read(thread_master *m
+			, int (*func)(thread *)
+			, void *arg
+			, int fd
+			, long timeout);
 
-struct thread *
-thread_add_write (struct thread_master *m,
-		 int (*func)(struct thread *),
-		 void *arg,
-		 int fd,
-                 long timeout);
+thread *thread_add_write(thread_master *m
+			 , int (*func)(thread *)
+			 , void *arg
+			 , int fd
+			 , long timeout);
 
-struct thread *
-thread_add_timer (struct thread_master *m,
-		  int (*func)(struct thread *),
-		  void *arg,
-		  long timer);
+thread *thread_add_timer(thread_master *m
+			 , int (*func)(thread *)
+			 , void *arg
+			 , long timer);
 
-struct thread *
-thread_add_event (struct thread_master *m,
-		  int (*func)(struct thread *), 
-		  void *arg,
-		  int val);
+thread *thread_add_event(thread_master *m
+			 , int (*func)(thread *)
+			 , void *arg
+			 , int val);
 
+void thread_cancel(thread *thread);
 
-void
-thread_cancel (struct thread *thread);
+void thread_cancel_event(thread_master *m, void *arg);
 
-void
-thread_cancel_event (struct thread_master *m, void *arg);
+thread *thread_fetch(thread_master *m, thread *fetch);
 
-struct thread *
-thread_fetch (struct thread_master *m, 
-	      struct thread *fetch);
+void thread_call(thread *thread);
 
-void
-thread_call (struct thread *thread);
+int thread_timer_cmp(TIMEVAL a, TIMEVAL b);
 
-int
-thread_timer_cmp (struct timeval a, struct timeval b);
+TIMEVAL thread_timer_sub(TIMEVAL a, TIMEVAL b);
 
-struct timeval
-thread_timer_sub (struct timeval a, struct timeval b);
-
-void
-register_worker_thread(struct thread_master *master,
-                       configuration_data *lstptr);
+void register_worker_thread(thread_master *master
+			    , configuration_data *lstptr);
 
 /* extern prototypes */
-extern int
-tcp_connect_thread(struct thread *thread);
-
-extern int
-http_connect_thread(struct thread *thread);
-
-extern int
-misc_check_thread(struct thread *thread);
-
-extern int
-vrrp_dispatcher_init_thread(struct thread *thread);
+extern int tcp_connect_thread(thread *thread);
+extern int http_connect_thread(thread *thread);
+extern int ssl_connect_thread(thread *thread);
+extern int misc_check_thread(thread *thread);
+extern int vrrp_dispatcher_init_thread(thread *thread);
 
 #endif

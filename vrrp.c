@@ -1,10 +1,14 @@
 /*
- * Soft:        Vrrpd is an implementation of VRRPv2 as specified in rfc2338.
+ * Soft:        Keepalived is a failover program for the LVS project
+ *              <www.linuxvirtualserver.org>. It monitor & manipulate
+ *              a loadbalanced server pool using multi-layer checks.
+ *
+ * Part:        VRRP implementation of VRRPv2 as specified in rfc2338.
  *              VRRP is a protocol which elect a master server on a LAN. If the
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: vrrp.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -22,6 +26,100 @@
 /* local include */
 #include "vrrp_scheduler.h"
 #include "vrrp.h"
+#include "memory.h"
+
+/* Close all FDs >= a specified value */
+void closeall(int fd)
+{
+  int fdlimit = sysconf(_SC_OPEN_MAX);
+
+  while (fd < fdlimit)
+    close(fd++);
+}
+
+static char *notify_get_name(vrrp_rt *vsrv)
+{
+  static char notifyfile[FILENAME_MAX+1];
+
+  if (vsrv->notify_exec) {
+    if (vsrv->notify_file != NULL)
+      strncpy(notifyfile,vsrv->notify_file, FILENAME_MAX);
+    else
+      snprintf( notifyfile, sizeof(notifyfile),"%s/" VRRP_NOTIFY_FORMAT
+                          , VRRP_NOTIFY_DFL
+                          , vsrv->vif->ifname
+                          , vsrv->vrid );
+  }
+  return notifyfile;
+}
+
+/* Execute extern script/program */
+static int notify_exec( vrrp_rt *vsrv , char *cmd)
+{
+  char *name = notify_get_name(vsrv);
+  FILE *fOut = fopen(name, "r");
+  static char mycmd[FILENAME_MAX + 1 + 32];
+  char tmp[16];
+  int err;
+
+  pid_t pid;
+
+  if (!fOut) {
+    syslog(LOG_INFO, "Can't open %s (errno %d %s)\n", name
+                   , errno
+                   , strerror(errno));
+    return -1;
+  }
+  fclose(fOut);
+
+  pid = fork();
+
+  /* In case of fork is error. */
+  if (pid < 0) {
+    syslog (LOG_INFO, "Failed fork process");
+    return -1;
+  }
+
+  /* In case of this is parent process. */
+  if (pid) {
+    return (0);
+  }
+
+  closeall(0);
+
+  open("/dev/null", O_RDWR);
+  dup(0);
+  dup(0);
+
+  name  = notify_get_name(vsrv);
+
+  if (strlen(name) + strlen(cmd) + 32 >  FILENAME_MAX + 32) {
+    syslog(LOG_INFO,"To long exec stmt");
+    exit (1);
+  }
+
+  strcpy(mycmd,name);
+  strcat(mycmd," ");
+  strcat(mycmd,cmd);
+  strcat(mycmd," ");
+  snprintf(tmp,16,"%d",vsrv->vrid);
+  strcat(mycmd, tmp);
+
+  if (vsrv->debug > 0)
+   syslog(LOG_INFO, "Trying to exec %s", mycmd);
+
+  err = system(mycmd);
+
+  if (err != 0) {
+    if (err == 127)
+      syslog(LOG_ALERT, "Failed to exec %s", mycmd);
+    else
+      syslog(LOG_ALERT, "Error running %s, error: %d", mycmd, err);
+  }
+
+  exit(0);
+}
+
 
 /* compute checksum */
 static u_short in_csum( u_short *addr, int len, u_short csum)
@@ -178,7 +276,7 @@ static int vrrp_iphdr_len(vrrp_rt *vsrv)
 }
 
 /* IPSEC AH header length */
-int vrrp_ipsecah_len()
+int vrrp_ipsecah_len(void)
 {
   return sizeof(ipsec_ah);
 }
@@ -216,7 +314,7 @@ static int vrrp_in_chk_ipsecah(vrrp_rt *vsrv, char *buffer)
    */
   vsrv->ipsecah_counter->seq_number++;
   if (ah->seq_number >= vsrv->ipsecah_counter->seq_number) {
-#ifdef DEBUG
+#ifdef _DEBUG_
 //  syslog(LOG_DEBUG, "IPSEC AH : SEQUENCE NUMBER : %d\n", ah->seq_number);
 #endif
     vsrv->ipsecah_counter->seq_number = ah->seq_number;
@@ -230,8 +328,7 @@ static int vrrp_in_chk_ipsecah(vrrp_rt *vsrv, char *buffer)
    * then compute a ICV to compare with the one present in AH pkt.
    * alloc a temp memory space to stock the ip mutable fields
    */
-  digest=(unsigned char *)malloc(16*sizeof(unsigned char *));
-  memset(digest, 0, 16*sizeof(unsigned char *));
+  digest = (unsigned char *)MALLOC(16*sizeof(unsigned char *));
 
   /* zero the ip mutable fields */
   ip->tos = 0;
@@ -251,7 +348,7 @@ static int vrrp_in_chk_ipsecah(vrrp_rt *vsrv, char *buffer)
     return 1;
   }
 
-  free(digest);
+  FREE(digest);
   return 0;
 }
 
@@ -440,8 +537,7 @@ static void vrrp_build_ipsecah(vrrp_rt *vsrv, char *buffer, int buflen)
   ipsec_ah *ah = (ipsec_ah *)(buffer + sizeof(struct iphdr));
 
   /* alloc a temp memory space to stock the ip mutable fields */
-  ip_mutable_fields=calloc(sizeof(ICV_mutable_fields), 1);
-  memset(ip_mutable_fields, 0, sizeof(ICV_mutable_fields));
+  ip_mutable_fields = (ICV_mutable_fields *)MALLOC(sizeof(ICV_mutable_fields));
 
   /* fill in next header filed --rfc2402.2.1 */
   ah->next_header = IPPROTO_VRRP;
@@ -504,8 +600,7 @@ static void vrrp_build_ipsecah(vrrp_rt *vsrv, char *buffer, int buflen)
      => No padding needed.
      -- rfc2402.3.3.3.1.1.1 & rfc2401.5
   */
-  digest=(unsigned char *)malloc(16*sizeof(unsigned char *));
-  memset(digest, 0, 16*sizeof(unsigned char *));
+  digest = (unsigned char *)MALLOC(16*sizeof(unsigned char *));
   hmac_md5(buffer, buflen,vsrv->vif->auth_data, sizeof(vsrv->vif->auth_data), digest);
   memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
 
@@ -515,8 +610,8 @@ static void vrrp_build_ipsecah(vrrp_rt *vsrv, char *buffer, int buflen)
   ip->frag_off = ip_mutable_fields->frag_off;
   ip->check    = ip_mutable_fields->check;
 
-  free(ip_mutable_fields);
-  free(digest);
+  FREE(ip_mutable_fields);
+  FREE(digest);
 }
 
 /* build VRRP header */
@@ -616,8 +711,8 @@ static int vrrp_send_adv(vrrp_rt *vsrv, int prio)
   buflen = vrrp_dlt_len(vsrv) + vrrp_iphdr_len(vsrv) + vrrp_hd_len(vsrv);
   if (vsrv->vif->auth_type == VRRP_AUTH_AH)
     buflen += vrrp_ipsecah_len();
-  buffer = calloc(buflen, 1);
-  memset(buffer,0,buflen);
+
+  buffer = MALLOC(buflen);
 
   /* build the packet  */
   vrrp_build_pkt(vsrv, prio, buffer, buflen);
@@ -626,7 +721,7 @@ static int vrrp_send_adv(vrrp_rt *vsrv, int prio)
   ret = vrrp_send_pkt(vsrv, buffer, buflen);
 
   /* free the memory */
-  free(buffer);
+  FREE(buffer);
   return ret;
 }
 
@@ -726,6 +821,14 @@ void vrrp_state_goto_master(vrrp_instance *vrrp_instance)
   syslog(LOG_INFO, "VRRP_Instance(%s) Entering MASTER STATE"
                  , vrrp_instance->iname);
 
+  if (vsrv->notify_exec) {
+    notify_exec(vsrv, "master");
+    if (vsrv->debug > 0)
+      syslog(LOG_INFO, "notify:%s, flg:%d"
+                     , vsrv->notify_file
+                     , vsrv->notify_exec);
+  }
+
   vsrv->state = VRRP_STATE_MAST;
 }
 
@@ -750,6 +853,14 @@ void vrrp_state_leave_master(vrrp_instance *instance)
   syslog(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE"
                  , instance->iname);
 
+  if (vsrv->notify_exec) {
+    notify_exec(vsrv, "backup");
+    if  (vsrv->debug > 0)
+      syslog(LOG_INFO, "notify:%s, flg:%d"
+                     , vsrv->notify_file
+                     , vsrv->notify_exec);
+  }
+
   /* register the vrrp backup handler */
   vsrv->state = VRRP_STATE_BACK;
 }
@@ -757,10 +868,10 @@ void vrrp_state_leave_master(vrrp_instance *instance)
 /* BACKUP state processing */
 void vrrp_state_backup(vrrp_instance *instance, char *buf, int buflen)
 {
-  int ret = 0;
-  vrrp_rt *vsrv = instance->vsrv;
-  struct iphdr *iph = (struct iphdr *)buf;
-  vrrp_pkt *hd;
+  int ret      = 0;
+  vrrp_rt      *vsrv = instance->vsrv;
+  struct iphdr *iph  = (struct iphdr *)buf;
+  vrrp_pkt     *hd   = NULL;
 
   /* Fill the VRRP header */
   switch (iph->protocol) {
@@ -800,10 +911,10 @@ void vrrp_state_master_tx(vrrp_instance *instance, const int prio)
 
 int vrrp_state_master_rx(vrrp_instance *instance, char *buf, int buflen)
 {
-  int ret = 0;
-  vrrp_rt *vsrv = instance->vsrv;
-  struct iphdr *iph = (struct iphdr *)buf;
-  vrrp_pkt *hd;
+  int ret            = 0;
+  vrrp_rt      *vsrv = instance->vsrv;
+  struct iphdr *iph  = (struct iphdr *)buf;
+  vrrp_pkt     *hd   = NULL; 
 
   /* Fill the VRRP header */
   switch (iph->protocol) {

@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_scheduler.c include file.
  * 
- * Version:     $Id: vrrp_scheduler.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.h,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -50,7 +50,7 @@ typedef struct {
 extern int open_vrrp_socket(const int proto, const int index);
 extern int ifname_to_idx(const char *ifname);
 extern void vrrp_send_gratuitous_arp(vrrp_instance *vrrp_instance);
-extern int vrrp_read_dispatcher_thread(struct thread *thread);
+extern int vrrp_read_dispatcher_thread(thread *thread);
 extern int vrrp_state_master_rx(vrrp_instance *instance, char *buf, int buflen);
 extern void vrrp_state_master_tx(vrrp_instance *instance, const int prio);
 extern void vrrp_state_backup(vrrp_instance *instance, char *buf, int buflen);

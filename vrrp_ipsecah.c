@@ -7,7 +7,7 @@
  *              authentication data encryption using HMAC MD5 according to
  *              RFCs 2085 & 2104.
  *
- * Version:     $Id: vrrp_ipsecah.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: vrrp_ipsecah.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -23,7 +23,7 @@
  */
 
 #include "vrrp_ipsecah.h"
-#include "md5.h"
+#include <openssl/md5.h>
 
 /* hmac_md5 computation according to the RFCs 2085 & 2104 */
 void hmac_md5(unsigned char *buffer,int buffer_len,
@@ -45,9 +45,9 @@ void hmac_md5(unsigned char *buffer,int buffer_len,
     MD5_CTX tctx;
 
     /* Compute the MD5 digest */
-    MD5Init(&tctx);
-    MD5Update(&tctx,key,key_len);
-    MD5Final(tk,&tctx);
+    MD5_Init(&tctx);
+    MD5_Update(&tctx,key,key_len);
+    MD5_Final(tk,&tctx);
 
     key = tk;
     key_len = 16;
@@ -72,14 +72,14 @@ void hmac_md5(unsigned char *buffer,int buffer_len,
   }
 
   /* Compute inner MD5 */
-  MD5Init(&context);                     /* Init context for 1st pass */
-  MD5Update(&context,k_ipad,64);         /* start with inner pad */
-  MD5Update(&context,buffer,buffer_len); /* next with buffer datagram */
-  MD5Final(digest,&context);             /* Finish 1st pass */
+  MD5_Init(&context);                     /* Init context for 1st pass */
+  MD5_Update(&context,k_ipad,64);         /* start with inner pad */
+  MD5_Update(&context,buffer,buffer_len); /* next with buffer datagram */
+  MD5_Final(digest,&context);             /* Finish 1st pass */
 
   /* Compute outer MD5 */
-  MD5Init(&context);                     /* Init context for 2nd pass */
-  MD5Update(&context,k_opad,64);         /* start with inner pad */
-  MD5Update(&context,digest,16);         /* next result of 1st pass */
-  MD5Final(digest,&context);             /* Finish 2nd pass */
+  MD5_Init(&context);                     /* Init context for 2nd pass */
+  MD5_Update(&context,k_opad,64);         /* start with inner pad */
+  MD5_Update(&context,digest,16);         /* next result of 1st pass */
+  MD5_Final(digest,&context);             /* Finish 2nd pass */
 }

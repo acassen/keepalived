@@ -1,0 +1,10 @@
+The main goal of the keepalived project is to add a strong & robust
+keepalive facility to the Linux Virtual Server project.
+It implements a multilayer TCP/IP stack checks. Keepalived implements
+a framework based on three family checks : Layer3, Layer4 & Layer5. 
+This framework gives the daemon the ability of checking a LVS server 
+pool states. Keepalived can be sumarize as a LVS driving daemon.
+
+To generate MD5SUM digest the this tool (genhash) is used.
+
+Keepalived is free software. See the file COPYING for copying conditions.

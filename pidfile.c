@@ -5,7 +5,7 @@
  *
  * Part:        pidfile utility.
  *
- * Version:     $Id: pidfile.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: pidfile.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -37,13 +37,13 @@ int pidfile_write(int pid)
 }
 
 /* Remove the running daemon pidfile */
-void pidfile_rm()
+void pidfile_rm(void)
 {
   unlink(PIDFILENAME);
 }
 
 /* return the daemon running state */
-int keepalived_running()
+int keepalived_running(void)
 {
   FILE *pidfile = fopen(PIDFILENAME,"r");
   pid_t pid;

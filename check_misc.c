@@ -6,9 +6,10 @@
  * Part:        MISC CHECK. Perform a system call to run an extra
  *              system prog or script.
  *
- * Version:     $Id: check_misc.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: check_misc.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
- * Author:      Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
+ * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
+ *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -24,8 +25,7 @@
 #include "check_misc.h"
 
 /* does this need to be threaded? */
-int
-misc_check_call(char* cmdline)
+int misc_check_call(char* cmdline)
 {
   int retval;
 
@@ -46,15 +46,14 @@ misc_check_call(char* cmdline)
   return retval;
 }
 
-int
-misc_check_thread(struct thread *thread)
+int misc_check_thread(thread *thread)
 {
-  struct thread_arg *thread_arg;
+  thread_arg *thread_arg;
   int status;
 
   thread_arg = THREAD_ARG(thread);
 
-  status = misc_check_call(thread_arg->svr->method->misc_check_path);
+  status = misc_check_call(thread_arg->svr->method->u.misc_check_path);
 
   if (status == 0) {
     /* everything is good */

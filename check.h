@@ -5,7 +5,7 @@
  *
  * Part:        Checkers arguments structures definitions.
  *
- * Version:     $Id: check.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: check.h,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -23,18 +23,34 @@
 #ifndef _CHECK_H
 #define _CHECK_H
 
+/* system includes */
+#include <openssl/md5.h>
+#include <openssl/ssl.h>
+
+/* ssl specific thread arguments defs */
+typedef struct {
+  char *buffer;
+  char *extracted;
+  int   error;
+  int   len;
+  SSL   *ssl;
+  BIO   *bio;
+  MD5_CTX context;
+} REQ;
+
 /* http specific thread arguments defs */
-struct http_thread_arg {
+typedef struct _http_thread_arg {
   int retry_it;                /* current number of get retry */
   int url_it;                  /* current url checked index */
-};
+  REQ *req;                    /* GET buffer and SSL args */
+} http_thread_arg;
 
 /* global thread arguments defs */
-struct thread_arg {
+typedef struct _thread_arg {
   configuration_data *root;    /* pointer to the configuration root data */
   virtualserver *vs;           /* pointer to the checker thread virtualserver */
   realserver *svr;             /* pointer to the checker thread realserver */
   void *checker_arg;           /* pointer to the specific checker arg */
-};
+} thread_arg;
 
 #endif

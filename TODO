@@ -1,7 +1,7 @@
 * Documentation.
 * Synchronize IPVS topology with VRRP synchronization events.
 * Insert LDAP, SSL, FTP, SSH, IMAP, POP, RADIUS checkers.
-* Security auditing.
+* Replave some unfixed len strcat & sprintf
 * Add minimum configuration verification (realserver must have
   a checker defined, ...)
 * Add system verification (must have LVS support in kernel, 

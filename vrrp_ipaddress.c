@@ -3,12 +3,9 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        VRRP implementation of VRRPv2 as specified in rfc2338.
- *              VRRP is a protocol which elect a master server on a LAN. If the
- *              master fails, a backup server takes over.
- *              The original implementation has been made by jerome etienne.
+ * Part:        NETLINK IPv4 address manipulation.
  *
- * Version:     $Id: vrrp_ipaddress.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

@@ -5,7 +5,7 @@
  *
  * Part:        check_tcp.c include file.
  *
- * Version:     $Id: check_tcp.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: check_tcp.h,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -36,6 +36,6 @@
 #include "smtp.h"
 
 /* Prototypes defs */
-extern int tcp_connect_thread(struct thread *thread);
+extern int tcp_connect_thread(thread *thread);
 
 #endif

@@ -5,7 +5,7 @@
  *
  * Part:        ipwrapper.c include file.
  *
- * Version:     $Id: ipwrapper.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: ipwrapper.h,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -42,7 +42,7 @@
 #define DOWN 0
 
 /* LVS command set by kernel */
-#ifdef KERNEL_2_2
+#ifdef _KRNL_2_2_
   #define LVS_CMD_ADD      IP_MASQ_CMD_ADD
   #define LVS_CMD_DEL      IP_MASQ_CMD_DEL
   #define LVS_CMD_ADD_DEST IP_MASQ_CMD_ADD_DEST

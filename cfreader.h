@@ -5,7 +5,7 @@
  * 
  * Part:        cfreader.c include file.
  *  
- * Version:     $Id: cfreader.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: cfreader.h,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -30,8 +30,8 @@
 #include <stdint.h>
 #include <syslog.h>
 #include <arpa/inet.h>
-
-#ifdef KERNEL_2_2
+#include <openssl/ssl.h>
+#ifdef _KRNL_2_2_
   #include <linux/ip_masq.h>
   #include <net/ip_masq.h>
 #else
@@ -52,7 +52,10 @@
 #define MAX_TIMEOUT_LENGTH 5
 #define MAX_INT_LENGTH     10
 
-#ifdef KERNEL_2_2
+#define MAX_SSL_PASSWORD    48
+#define MAX_SSL_PATH        240
+
+#ifdef _KRNL_2_2_
   #define SCHED_MAX_LENGTH IP_MASQ_TNAME_MAX
 #else
   #define SCHED_MAX_LENGTH IP_VS_SCHEDNAME_MAXLEN
@@ -113,11 +116,35 @@ struct keyword {
 #define KW_VRRPSYNC	43
 #define KW_VRRPPREEMPT	44
 
-#define KW_UNKNOWN	45
+#define KW_VRRPDEBUG    45
+#define KW_VRRPNOTIFY   46
+#define KW_FWMARK       47
+
+#define KW_SSLPASSWORD  48
+#define KW_SSLCAFILE    49
+#define KW_SSLKEYFILE   50
+#define KW_SSLCERTFILE  51
+#define KW_SSL          52
+
+#define KW_UNKNOWN	53
 
 #define KEEPALIVED_DEFAULT_DELAY 60
 
 /* Structure definition  */
+
+/* SSL common data */
+typedef struct _ssl_data SSL_DATA;
+typedef struct _ssl_data {
+  int        enable;
+  int        strong_check;
+  SSL_CTX    *ctx;
+  SSL_METHOD *meth;
+  char       password[MAX_SSL_PASSWORD];
+  char       cafile[MAX_SSL_PATH];
+  char       certfile[MAX_SSL_PATH];
+  char       keyfile[MAX_SSL_PATH];
+} ssl_data;
+
 typedef struct _urls {
   char url[MAX_URL_LENGTH];
   char digest[DIGEST_LENGTH];
@@ -140,8 +167,10 @@ typedef struct _keepalive_check {
 #define LDAP_GET_ID    (1 << 4)
 #define MISC_CHECK_ID  (1 << 5)
   int connection_to;
-  http_get_check *http_get;    /* FIXME : for new checker use union here */
-  char *misc_check_path;
+  union {
+    http_get_check *http_get;
+    char *misc_check_path;
+  } u;
 } keepalive_check;
 
 typedef struct _real_server {
@@ -156,6 +185,7 @@ typedef struct _real_server {
 
 typedef struct _virtual_server {
   struct in_addr addr_ip;
+  uint32_t vfwmark;
   uint16_t addr_port;
   uint16_t service_type;
   int delay_loop;
@@ -190,12 +220,12 @@ typedef struct _configuration_data {
   int smtp_connection_to;
   notification_email *email;
   vrrp_instance *vrrp;
-
   virtualserver *lvstopology;
+  ssl_data      *ssldata;
 } configuration_data;
 
 /* prototypes */
-extern configuration_data * conf_reader();
+extern configuration_data *conf_reader(char *conf_file);
 extern void clear_conf(configuration_data * lstptr);
 extern void clear_vrrp_instance(vrrp_instance *lstptr);
 extern void dump_conf(configuration_data * lstptr);

@@ -1,0 +1,10 @@
+2001-11-29  Alexandre Cassen  <acassen@linux-vs.org>
+	* genhash 0.4.9 released.
+	* Rewrite the whole previous code
+	* Jan Holmberg, <jan@artech.se> and I added SSL support.
+	* Possibility to use specific SSL certificate.
+	* Added a command line parser using the popt library.
+	* Added error handling support.
+	* Review the MD5 computation.
+	* Added a dynamic buffer allocation for remote server
+	  reply.

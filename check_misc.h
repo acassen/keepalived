@@ -5,9 +5,10 @@
  *
  * Part:        check_misc.c include file.
  *
- * Version:     $Id: check_misc.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: check_misc.h,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
- * Author:      Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
+ * Author:      Alexandre Cassen, <acassen@linux-vs.org>
+ *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -33,6 +34,6 @@
 #include "smtp.h"
 
 /* Prototypes defs */
-extern int misc_check_thread(struct thread *thread);
+extern int misc_check_thread(thread *thread);
 
 #endif

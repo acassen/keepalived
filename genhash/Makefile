@@ -1,25 +1,22 @@
 # Makefile
-# Alexandre Cassen <Alexandre.Cassen@wanadoo.fr>
+# Alexandre Cassen <acassen@linux-vs.org>
 
-EXEC= genhash
-CC= gcc
-CFLAGS= -Wall
-DEFS= genhash.h md5.h
-OBJECTS= md5.o genhash.o
-INCLUDE= -I/usr/src/linux/include
-.c.o:	
-	$(CC) -o $@ $(CFLAGS) $(INCLUDE) -c $*.c
+EXEC = genhash
 
-all:	$(EXEC)
-	strip $(EXEC)
+CC = gcc
+CFLAGS = -Wall -Wunused -Wstrict-prototypes -g -O2
+#LD = -lssl -lcrypto -dynamic -lpopt
+LD = -lssl -lcrypto -lpopt
+
+OBJS = main.o client.o common.o
+
+all:	genhash
+	strip genhash
 	@echo ""
 	@echo "Make complete"
-
-$(EXEC):	$(OBJECTS) $(DEFS)
-	$(CC) -o $(EXEC) $(CFLAGS) $(OBJECTS)
-
+$(EXEC): $(OBJS)
+	$(CC) $(OBJS) -o $(EXEC) $(LD)
 clean:
 	rm -f core *.o $(EXEC)
-
 install:	
 	install -m 755 genhash /usr/bin/

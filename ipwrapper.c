@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $id: ipwrapper.c,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $id: ipwrapper.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -34,7 +34,7 @@ int clear_service_vs(virtualserver *vserver)
       return 0;
     }
 
-#ifdef KERNEL_2_2
+#ifdef _KRNL_2_2_
     /* IPFW cleaning server entry if granularity = /32 */
     if (vserver->nat_mask.s_addr == HOST_NETMASK)
       if (!ipfw_cmd(IP_FW_CMD_DEL, vserver, vserver->svr))
@@ -58,7 +58,7 @@ int clear_services(virtualserver *vserver)
     if (!clear_service_vs(vserver))
       return 0;
 
-#ifdef KERNEL_2_2
+#ifdef _KRNL_2_2_
     /* IPFW cleaner processing */
     if (vserver->nat_mask.s_addr != HOST_NETMASK)
       if (!ipfw_cmd(IP_FW_CMD_DEL, vserver, vserver->svr))
@@ -99,7 +99,7 @@ void perform_svr_state(int alive, virtualserver *vserver, realserver *rserver)
 
         vserver->s_svr->alive = 0;
         ipvs_cmd(LVS_CMD_DEL_DEST, vserver, vserver->s_svr);
-#ifdef KERNEL_2_2
+#ifdef _KRNL_2_2_
         ipfw_cmd(IP_FW_CMD_DEL, vserver, vserver->s_svr);
 #endif
       }
@@ -111,7 +111,7 @@ void perform_svr_state(int alive, virtualserver *vserver, realserver *rserver)
            inet_ntoa(vserver->addr_ip), ntohs(vserver->addr_port));
     ipvs_cmd(LVS_CMD_ADD_DEST, vserver, rserver);
 
-#ifdef KERNEL_2_2
+#ifdef _KRNL_2_2_
     if (vserver->nat_mask.s_addr == HOST_NETMASK)
       ipfw_cmd(IP_FW_CMD_ADD, vserver, rserver);
 #endif
@@ -126,7 +126,7 @@ void perform_svr_state(int alive, virtualserver *vserver, realserver *rserver)
     /* server is down, it is removed from the LVS realserver pool */
     ipvs_cmd(LVS_CMD_DEL_DEST, vserver, rserver);
 
-#ifdef KERNEL_2_2
+#ifdef _KRNL_2_2_
     if (vserver->nat_mask.s_addr == HOST_NETMASK)
       ipfw_cmd(IP_FW_CMD_DEL, vserver, rserver);
 #endif
@@ -141,7 +141,7 @@ void perform_svr_state(int alive, virtualserver *vserver, realserver *rserver)
       vserver->s_svr->alive = 1;
       ipvs_cmd(LVS_CMD_ADD_DEST, vserver, vserver->s_svr);
 
-#ifdef KERNEL_2_2
+#ifdef _KRNL_2_2_
       ipfw_cmd(IP_FW_CMD_ADD, vserver, vserver->s_svr);
 #endif
     }
@@ -160,7 +160,7 @@ int init_service_vs(virtualserver *vserver)
       return 0;
     }
 
-#ifdef KERNEL_2_2
+#ifdef _KRNL_2_2_
     /* if we have a /32 mask, we create one nat rules per
      * realserver.
      */
@@ -187,7 +187,7 @@ int init_services(virtualserver *vserver)
     if (!ipvs_cmd(LVS_CMD_ADD, vserver, vserver->svr))
       return 0;
 
-#ifdef KERNEL_2_2
+#ifdef _KRNL_2_2_
     /* work if all realserver ip address are in the
      * same network (it is assumed).
      */

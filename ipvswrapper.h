@@ -5,7 +5,7 @@
  *
  * Part:        ipvswrapper.c include file.
  *
- * Version:     $Id: ipvswrapper.h,v 0.4.8 2001/11/20 15:26:11 acassen Exp $
+ * Version:     $Id: ipvswrapper.h,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -36,7 +36,7 @@
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 
-#ifdef KERNEL_2_2
+#ifdef _KRNL_2_2_
   #include <linux/ip_fw.h>
   #include <net/ip_masq.h>
 #endif
