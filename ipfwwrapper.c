@@ -7,7 +7,7 @@
  *              library to add/remove server MASQ rules to the kernel 
  *              firewall framework.
  *
- * Version:     $Id: ipfwwrapper.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: ipfwwrapper.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

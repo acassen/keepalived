@@ -6,7 +6,7 @@
  * Part:        MISC CHECK. Perform a system call to run an extra
  *              system prog or script.
  *
- * Version:     $Id: check_misc.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: check_misc.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
@@ -107,6 +107,12 @@ int misc_check_thread(thread *thread)
   thread_add_timer(thread->master, misc_check_thread
                                  , checker
                                  , checker->vs->delay_loop);
+  /*
+   * Register a new checker thread & return
+   * if checker is disabled
+   */
+  if (!CHECKER_ENABLED(checker))
+    return 0;
 
   /* Daemonization to not degrade our scheduling timer */
   if (xdaemon(0, 0, 1))

@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -22,9 +22,9 @@
 
 #include "vrrp_scheduler.h"
 #include "vrrp_ipsecah.h"
-#include "vrrp_netlink.h"
 #include "vrrp_if.h"
 #include "vrrp.h"
+#include "vrrp_sync.h"
 #include "ipvswrapper.h"
 #include "memory.h"
 #include "list.h"
@@ -369,20 +369,6 @@ int vrrp_dispatcher_init(thread *thread)
   return 1;
 }
 
-static vrrp_rt *vrrp_search_instance_isync(char *isync)
-{
-  vrrp_rt *vrrp;
-  list l = conf_data->vrrp;
-  element e;
-
-  for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-    vrrp = ELEMENT_DATA(e);
-    if (strcmp(vrrp->iname, isync) == 0)
-      return vrrp;
-  }
-  return NULL;
-}
-
 static vrrp_rt *vrrp_search_instance(const int vrid)
 {
   vrrp_rt *vrrp;
@@ -459,15 +445,9 @@ static void vrrp_leave_fault(vrrp_rt *vrrp
                                     , char *vrrp_buffer
                                     , int len)
 {
-  vrrp_rt *vrrp_isync;
-
   if (vrrp_state_fault_rx(vrrp, vrrp_buffer, len)) {
-    if (vrrp->isync) {
-      vrrp_isync = vrrp_search_instance_isync(vrrp->isync);
-
-      if (vrrp_isync->state != VRRP_STATE_FAULT ||
-          (vrrp_isync->state == VRRP_STATE_FAULT &&
-           IF_ISUP(vrrp_isync->ifp))) {
+    if (vrrp->sync) {
+      if (vrrp_sync_leave_fault(vrrp)) {
         syslog(LOG_INFO, "VRRP_Instance(%s) prio is higher than received advert"
                        , vrrp->iname);
         vrrp_become_master(vrrp, vrrp_buffer, len);
@@ -486,6 +466,7 @@ static void vrrp_leave_dummy_master(vrrp_rt *vrrp
                                            , char *vrrp_buffer
                                            , int len)
 {
+/*
   vrrp_rt *vrrp_isync;
 
   if (vrrp->isync) {
@@ -510,6 +491,7 @@ static void vrrp_leave_dummy_master(vrrp_rt *vrrp
       }
     }
   }
+*/
 }
 
 static void vrrp_goto_master(vrrp_rt *vrrp)
@@ -623,7 +605,6 @@ static void vrrp_dummy_master(vrrp_rt *vrrp)
 static int vrrp_dispatcher_read_to(int fd)
 {
   vrrp_rt *vrrp;
-  vrrp_rt *vrrp_isync;
   int vrid = 0;
   int prev_state = 0;
 
@@ -631,75 +612,12 @@ static int vrrp_dispatcher_read_to(int fd)
   vrid = vrrp_timer_vrid_timeout(fd);
   vrrp = vrrp_search_instance(vrid);
 
+  /* Run the FSM handler */
   prev_state = vrrp->state;
   VRRP_FSM_READ_TO(vrrp);
 
-  /* handle master instance synchronization */
-  if (prev_state  == VRRP_STATE_BACK && 
-      vrrp->state == VRRP_STATE_MAST &&
-      vrrp->isync) {
-    vrrp_isync = vrrp_search_instance_isync(vrrp->isync);
-
-    if (vrrp_isync->state == VRRP_STATE_BACK) {
-      syslog(LOG_INFO, "VRRP_Instance(%s) must be sync with %s"
-                      , vrrp->iname
-                      , vrrp_isync->iname);
-
-      /* Send the higher priority advert */
-      syslog(LOG_INFO, "VRRP_Instance(%s) sending OWNER advert"
-                     , vrrp_isync->iname);
-      vrrp_state_master_tx(vrrp_isync, VRRP_PRIO_OWNER);
-    } else {
-      /* Otherwise, we simply update remotes arp caches */
-      vrrp_isync->state = VRRP_STATE_MAST;
-      vrrp_send_gratuitous_arp(vrrp_isync);
-    }
-  }
-
-  /* handle synchronization in FAULT state */
-  if (prev_state  == VRRP_STATE_MAST  &&
-      vrrp->state == VRRP_STATE_FAULT && 
-      vrrp->isync) {
-    vrrp_isync = vrrp_search_instance_isync(vrrp->isync);
-
-    if (vrrp_isync->state == VRRP_STATE_MAST) {
-      /*
-       * We force sync instance to backup mode.
-       * This reduce instance takeover to less than ms_down_timer.
-       * => by default ms_down_timer is set to 3secs.
-       * => Takeover will be less than 3secs !
-       */
-      //vrrp_isync->wantstate = VRRP_STATE_BACK;
-      vrrp_isync->wantstate = VRRP_STATE_GOTO_FAULT;
-    }
-  }
-
-  /*
-   * Break a MASTER/BACKUP state loop after sync instance
-   * FAULT state transition.
-   * => We doesn't receive remote MASTER adverts.
-   * => Emulate a DUMMY master to break the loop.
-   */
-  if (prev_state  == VRRP_STATE_MAST &&
-      vrrp->state == VRRP_STATE_BACK && 
-      vrrp->isync) {
-    vrrp_isync = vrrp_search_instance_isync(vrrp->isync);
-
-    if (vrrp_isync->state == VRRP_STATE_FAULT) {
-      syslog(LOG_INFO, "VRRP_Instance(%s) Transition to DUMMY MASTER"
-                     , vrrp->iname);
-      vrrp->wantstate = VRRP_STATE_GOTO_DUMMY_MAST;
-    }
-  }
-
-  /* previous state symetry */
-  if (vrrp->state == VRRP_STATE_DUMMY_MAST &&
-      vrrp->isync) {
-    vrrp_isync = vrrp_search_instance_isync(vrrp->isync);
-
-    if (vrrp_isync->state == VRRP_STATE_MAST)
-      vrrp->state = VRRP_STATE_MAST;
-  }
+  /* handle instance synchronization */
+  vrrp_sync_read_to(vrrp, prev_state);
 
   /*
    * We are sure the instance exist. So we can
@@ -713,7 +631,6 @@ static int vrrp_dispatcher_read_to(int fd)
 static int vrrp_dispatcher_read(int fd)
 {
   vrrp_rt *vrrp;
-  vrrp_rt *vrrp_isync;
   char *vrrp_buffer;
   struct iphdr *iph;
   vrrp_pkt *hd;
@@ -742,43 +659,12 @@ static int vrrp_dispatcher_read(int fd)
     return fd;
   }
 
+  /* Run the FSM handler */
   prev_state = vrrp->state;
   VRRP_FSM_READ(vrrp, vrrp_buffer, len);
 
-  /* handle backup instance synchronization */
-  if (prev_state  == VRRP_STATE_MAST && 
-      vrrp->state == VRRP_STATE_BACK &&
-      vrrp->isync) {
-    vrrp_isync = vrrp_search_instance_isync(vrrp->isync);
-
-    if (vrrp_isync->state == VRRP_STATE_MAST) {
-      syslog(LOG_INFO, "VRRP_Instance(%s) must be sync with %s"
-                     , vrrp->iname
-                     , vrrp_isync->iname);
-
-      /* Transition to BACKUP state */
-      vrrp_isync->wantstate = VRRP_STATE_BACK;
-    }
-  }
-
-  /*
-   * Handle wanted transition to MASTER state.
-   * When Instance not in FAULT state received a remote
-   * lower priotity advert => For a new VRRP election.
-   */
-  if (vrrp->state     == VRRP_STATE_BACK        && 
-      vrrp->wantstate == VRRP_STATE_GOTO_MASTER &&
-      vrrp->isync) {
-    vrrp_isync = vrrp_search_instance_isync(vrrp->isync);
-
-    if (vrrp_isync->state != VRRP_STATE_FAULT) {
-      /* Force a new protocol master election */
-      syslog(LOG_INFO, "VRRP_Instance(%s) forcing a new MASTER election"
-                     , vrrp->iname);
-      vrrp_send_adv(vrrp, vrrp->priority);
-    }
-  }
-
+  /* handle instance synchronization */
+  vrrp_sync_read(vrrp, prev_state);
 
   /*
    * Refresh sands only if found matching instance.
@@ -788,7 +674,6 @@ static int vrrp_dispatcher_read(int fd)
 
   /* cleanup the room */
   FREE(vrrp_buffer);
-
   return fd;
 }
 

@@ -5,7 +5,7 @@
  *
  * Part:        Checkers registration.
  *
- * Version:     $Id: check_api.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: check_api.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -28,6 +28,9 @@
 #include "check_tcp.h"
 #include "check_http.h"
 #include "check_ssl.h"
+#ifdef _WITH_CI_LINUX_
+  #include "check_ci.h"
+#endif
 
 extern thread_master *master;
 extern data *conf_data;
@@ -64,12 +67,12 @@ void queue_checker(void (*free) (void *), void (*dump) (void *)
   real_server *rs    = LIST_TAIL_DATA(vs->rs);
   checker *chk       = (checker *)MALLOC(sizeof(checker));
 
-  chk->free   = free;
-  chk->dump   = dump;
-  chk->launch = launch;
-  chk->vs     = vs;
-  chk->rs     = rs;
-  chk->data   = data;
+  chk->free    = free;
+  chk->dump    = dump;
+  chk->launch  = launch;
+  chk->vs      = vs;
+  chk->rs      = rs;
+  chk->data    = data;
 
   /* queue the checker */
   list_add(checkers_queue, chk);
@@ -104,6 +107,34 @@ void register_checkers_thread(void)
   }
 }
 
+/* Sync checkers activity with netlink kernel reflection */
+void update_checker_activity(uint32_t address, int enable)
+{
+  checker *checker;
+  element e;
+
+  /* Processing Healthcheckers queue */
+  if (!LIST_ISEMPTY(checkers_queue))
+    for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
+      checker = ELEMENT_DATA(e);
+      if (CHECKER_VIP(checker) == address) {
+        if (!CHECKER_ENABLED(checker) && enable) {
+          syslog(LOG_INFO, "Netlink reflector reports IP %s added"
+                         , ip_ntoa(address));
+          syslog(LOG_INFO, "Activating healtchecker for VIP %s"
+                         , ip_ntoa(address));
+        }
+        if (CHECKER_ENABLED(checker) && !enable) {
+          syslog(LOG_INFO, "Netlink reflector reports IP %s removed"
+                         , ip_ntoa(address));
+          syslog(LOG_INFO, "Suspending healtchecker for VIP %s"
+                         , ip_ntoa(address));
+        }
+        checker->enabled = enable;
+      }
+    }
+}
+
 /* Install checkers keywords */
 void install_checkers_keyword(void)
 {
@@ -111,4 +142,7 @@ void install_checkers_keyword(void)
   install_tcp_check_keyword();
   install_http_check_keyword();
   install_ssl_check_keyword();
+#ifdef _WITH_CI_LINUX_
+  install_ci_check_keyword();
+#endif
 }

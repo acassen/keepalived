@@ -5,7 +5,7 @@
  *
  * Part:        General program utils.
  *
- * Version:     $Id: utils.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: utils.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -22,6 +22,7 @@
 
 #include "utils.h"
 
+/* Display a buffer into a HEXA formated output */
 void print_buffer(int count, char *buff)
 {
   int i,j,c;
@@ -60,12 +61,41 @@ void print_buffer(int count, char *buff)
   }
 }
 
+/* IP network to ascii representation */
 char *ip_ntoa(uint32_t ip)
 {
-  static char buf[20];
+  static char buf[16];
   unsigned char *bytep;
 
   bytep = (unsigned char *) &(ip);
   sprintf(buf, "%d.%d.%d.%d", bytep[0], bytep[1], bytep[2], bytep[3]);
   return buf;
+}
+
+/* IP string to network representation */
+uint32_t ip_ston(char *addr)
+{
+  char *cp = addr;
+  static char buf[16];
+  int strlen;
+
+  while (*cp != '/' && *cp != '\0')
+    cp++;
+  strlen = cp - addr;
+  memcpy(buf, addr, strlen);
+  buf[strlen + 1] = '\0';
+  return inet_addr(buf);
+}
+
+/* IP string to network mask representation */
+uint8_t ip_stom(char *addr)
+{
+  uint8_t mask = 32;
+  char *cp = addr;
+
+  while (*cp != '/' && *cp != '\0')
+    cp++;
+  if (*cp == '/')
+    return atoi(++cp);
+  return mask;
 }

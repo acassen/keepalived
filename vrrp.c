@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: vrrp.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -181,7 +181,7 @@ static int vrrp_handle_ipaddress(vrrp_rt *vrrp, int cmd, int type)
     vip_addr *vadd = (type == VRRP_VIP_TYPE)?&vrrp->vaddr[i]:&vrrp->evaddr[i];
     if(!cmd && !vadd->set) continue;
 retry:
-    if (netlink_address_ipv4(ifindex , ntohl(vadd->addr), cmd) < 0) {
+    if (netlink_address_ipv4(ifindex , vadd->addr, vadd->mask, cmd) < 0) {
       err = 1;
       vadd->set = 0;
       syslog(LOG_INFO, "cant %s the address %s to %s\n"
@@ -190,7 +190,7 @@ retry:
                      , IF_NAME(vrrp->ifp));
       if (cmd == VRRP_IPADDRESS_ADD) {
         syslog(LOG_INFO, "try to delete eventual stalled ip");
-        netlink_address_ipv4(ifindex, ntohl(vadd->addr), VRRP_IPADDRESS_DEL);
+        netlink_address_ipv4(ifindex, vadd->addr, vadd->mask, VRRP_IPADDRESS_DEL);
         if (retry < 4) {
           retry++;
           goto retry;
@@ -461,7 +461,7 @@ static void vrrp_build_ip(vrrp_rt *vrrp, char *buffer, int buflen)
 
   /* fill protocol type --rfc2402.2 */
   ip->protocol = (vrrp->auth_type == VRRP_AUTH_AH)?IPPROTO_IPSEC_AH:IPPROTO_VRRP;
-  ip->saddr    = IF_ADDR(vrrp->ifp);
+  ip->saddr    = VRRP_PKT_SADDR(vrrp);
   ip->daddr    = htonl(INADDR_VRRP_GROUP);
 
   /* checksum must be done last */
@@ -729,9 +729,9 @@ static int send_gratuitous_arp(vrrp_rt *vrrp, int addr)
   arph->ar_pln = 4;
   arph->ar_op  = htons(ARPOP_REQUEST);
   memcpy(arph->__ar_sha, hwaddr, hwlen);
-  addr = htonl(addr);
   memcpy(arph->__ar_sip, &addr, sizeof(addr));
   memcpy(arph->__ar_tip, &addr, sizeof(addr));
+
   return vrrp_send_pkt(vrrp, buf, buflen);
 }
 
@@ -747,9 +747,9 @@ void vrrp_send_gratuitous_arp(vrrp_rt *vrrp)
 
   for (j = 0; j < 5; j++) {
     for (i = 0; i < vrrp->naddr; i++)
-      send_gratuitous_arp(vrrp, ntohl(vrrp->vaddr[i].addr));
+      send_gratuitous_arp(vrrp, vrrp->vaddr[i].addr);
     for (i = 0; i < vrrp->neaddr; i++)
-      send_gratuitous_arp(vrrp, ntohl(vrrp->evaddr[i].addr));
+      send_gratuitous_arp(vrrp, vrrp->evaddr[i].addr);
   }
 }
 
@@ -884,10 +884,7 @@ void vrrp_state_master_tx(vrrp_rt *vrrp, const int prio)
     vrrp_state_become_master(vrrp);
   }
 
-  if (prio == VRRP_PRIO_OWNER)
-    vrrp_send_adv(vrrp, VRRP_PRIO_OWNER);
-  else
-    vrrp_send_adv(vrrp, vrrp->priority);
+  vrrp_send_adv(vrrp, (prio==VRRP_PRIO_OWNER)?VRRP_PRIO_OWNER:vrrp->priority);
 }
 
 int vrrp_state_master_rx(vrrp_rt *vrrp, char *buf, int buflen)
@@ -936,7 +933,7 @@ int vrrp_state_master_rx(vrrp_rt *vrrp, char *buf, int buflen)
     return 0;
   } else if (hd->priority > vrrp->priority   ||
              (hd->priority == vrrp->priority &&
-             ntohl(iph->saddr) > IF_ADDR(vrrp->ifp))) {
+             ntohl(iph->saddr) > VRRP_PKT_SADDR(vrrp))) {
     syslog(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert"
                    , vrrp->iname);
     vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);

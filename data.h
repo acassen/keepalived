@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.h,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: data.h,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -46,6 +46,7 @@
 
 /* local includes */
 #include "list.h"
+#include "vector.h"
 
 /* Daemon dynamic data structure definition */
 #define MAX_TIMEOUT_LENGTH	5
@@ -114,6 +115,7 @@ typedef struct _data {
   SSL_DATA	*ssl;
   list		email;
   list		vrrp;
+  list		vrrp_sync_group;
   list		vs;
   list		group;
 } data;
@@ -128,6 +130,7 @@ typedef struct _data {
 /* prototypes */
 extern void alloc_email(char *addr);
 extern SSL_DATA *alloc_ssl(void);
+extern void alloc_vrrp_sync_group(char *gname, vector iname);
 extern void alloc_vrrp(char *iname);
 extern void alloc_vrrp_vip(char *vip);
 extern void alloc_vrrp_evip(char *vip);

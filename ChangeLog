@@ -1,3 +1,38 @@
+2002-06-13  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.6.1 released.
+	* Aneesh Kumar, <aneesh.kumar@digital.com> and I added support to
+	  Cluster Infrastructure checkers. Providing HA-LVS for their cluster
+	  project (http://ci-linux.sourceforge.net/). The new checker added
+	  provide a derivation to the internal CI healthcheck mechanism.
+	* Enhanced the Kernel netlink reflector to drive global healthcheckers
+	  activity. The policy implemented here is : If healthchecker is performing
+	  test on a service that belong to a VIP not owned by the director, then
+	  the healthchecker is suspended. This suspend/active state is particulary
+	  usefull if runing VRRP for HA => That way the backup LVS will not charge
+	  the realserver pool since LVS VIP is owned by master LVS.
+	* Cosmetics patches into the vector lib.
+	* VRRP : Rewrote the previous VRRP synchronization instance policy.
+	  Created a new config block called "vrrp_sync_group" that define VRRP
+	  instances synchronization dependences. That way we replace the previous
+	  "by-pair" sync approach by this "by-group" approach. This can be useefull
+	  for firewall HA with many NICs. Created a dedicated framework to speed up
+	  takeover synchronization.
+	* VRRP : Added support to CIDR notation for VRRP VIPs definitions
+	  => VRRP VIPs definition like a.b.c.d/e. By default "e" value is set to 32.
+	* VRRP : Added support to multicast source IP address selection
+	  => "mcast_src_ip" keyword. Can be usefull for strongly filtered env.
+	  The mcast group subscription is done using the NIC default IP after this
+	  mcast_src_ip is used if specified.
+	* VRRP : Enhanced the link media failure detection. Added support to the
+	  new kernel SIOCETHTOOL probing for ETHTOOL_GLINK command. New drivers
+	  use this ETHTOOL interface to report link failure activity. During
+	  bootstrap a probe is done to determine the proper polling method to
+	  use for link media failure detection. The policy used is : probe for
+	  SIOCGMIIREG if not supported then try SIOCETHTOOL GLINK probe, otherwise
+	  use a ioctl SIOCGIFFLAGS polling function mirroring kernel NIC flags to
+	  localy reflected representation.
+	* Ramon Kagan, <rkagan@YorkU.CA> and I updated the UserGuide.pdf.
+
 2002-05-30  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.5.9 released.
 	* Added support to realserver_group. The work is not yet finished since

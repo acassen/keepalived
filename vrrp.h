@@ -6,10 +6,9 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: vrrp.h,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
- *              Based on the Jerome Etienne, <jetienne@arobas.net> code.
  *
  *              This program is distributed in the hope that it will be useful, 
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of 
@@ -40,6 +39,7 @@
 #include "vrrp_if.h"
 #include "timer.h"
 #include "utils.h"
+#include "vector.h"
 
 typedef struct {	/* rfc2338.5.1 */
 	uint8_t		vers_type;	/* 0-3=type, 4-7=version */
@@ -68,21 +68,34 @@ typedef struct {	/* rfc2338.5.1 */
 #define VRRP_ADVER_DFL	1	/* advert. interval (in sec) -- rfc2338.5.3.7 */
 #define VRRP_PREEMPT_DFL 1	/* rfc2338.6.1.2.Preempt_Mode */
 
+
+/*
+ * parameters per vrrp sync group. A vrrp_sync_group is a set
+ * of VRRP instances that need to be state sync together.
+ */
+typedef struct _vrrp_sgroup {
+        char    *gname;         /* Group name */
+        vector  iname;          /* Set of VRRP instances in this group */
+        int     state;          /* current stable state */
+} vrrp_sgroup;
+
+
+/* parameters per virtual router -- rfc2338.6.1.2 */
 typedef struct {
 	uint32_t	addr;	/* the ip address */
+	uint8_t		mask;	/* the ip address CIDR netmask */
 	int		set;	/* TRUE if addr is set */
 } vip_addr;
 
-/* parameters per virtual router -- rfc2338.6.1.2 */
 typedef struct _vrrp_rt {
 	char	*iname;		/* Instance Name */
-	char	*isync;		/* Instance Name to be sync with */
+	vrrp_sgroup *sync;
 	interface *ifp;		/* Interface we belong to */
+	uint32_t  mcast_saddr;	/* Src IP address to use in VRRP IP header */
 	char	*lvs_syncd_if;	/* handle LVS sync daemon state using this
                                  * instance FSM & running on specific interface
                                  * => eth0 for example.
                                  */
-
 	int	vrid;		/* virtual id. from 1(!) to 255 */
 	int	priority;	/* priority value */
 	int	naddr;		/* number of ip addresses */
@@ -169,6 +182,8 @@ typedef struct _vrrp_rt {
 
 #define VRRP_MIN(a, b)	((a) < (b)?(a):(b))
 #define VRRP_MAX(a, b)	((a) > (b)?(a):(b))
+
+#define VRRP_PKT_SADDR(V) (((V)->mcast_saddr)?(V)->mcast_saddr:IF_ADDR((V)->ifp))
 
 /* prototypes */
 extern int open_vrrp_socket(const int proto, const int index);

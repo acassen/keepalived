@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_scheduler.c include file.
  * 
- * Version:     $Id: vrrp_scheduler.h,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.h,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -30,9 +30,8 @@
 #include <string.h>
 #include <stdint.h>
 
-/* local include */
+/* local includes */
 #include "scheduler.h"
-#include "vrrp.h"
 
 /*
  * Our instance dispatcher use a socket pool.

@@ -5,7 +5,7 @@
  *
  * Part:        Checkers arguments structures definitions.
  *
- * Version:     $Id: check_api.h,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: check_api.h,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -32,9 +32,10 @@ typedef struct _checker {
   void (*free)	(void *);
   void (*dump)	(void *);
   int (*launch)	(struct _thread *);
-  virtual_server	*vs;	/* pointer to the checker thread virtualserver */
-  real_server		*rs;	/* pointer to the checker thread realserver */
+  virtual_server	*vs;     /* pointer to the checker thread virtualserver */
+  real_server		*rs;     /* pointer to the checker thread realserver */
   void			*data;
+  int			enabled; /* Activation flag */
 } checker;
 
 /* Checkers queue */
@@ -46,9 +47,14 @@ list checkers_queue;
 #define CHECKER_GET() (CHECKER_DATA(LIST_TAIL_DATA(checkers_queue)))
 #define CHECKER_VALUE_INT(X) (atoi(VECTOR_SLOT(X,1)))
 #define CHECKER_VALUE_STRING(X) (set_value(X))
+#define CHECKER_VIP(C)   (SVR_IP((C)->vs))
+#define CHECKER_VPORT(C) (SVR_PORT((C)->vs))
 #define CHECKER_RIP(C)   (SVR_IP((C)->rs))
 #define CHECKER_RPORT(C) (SVR_PORT((C)->rs))
 #define CHECKER_VHOST(C) (VHOST((C)->vs))
+#define CHECKER_ENABLED(C) ((C)->enabled)
+#define CHECKER_ENABLE(C)  ((C)->enabled = 1)
+#define CHECKER_DISABLE(C) ((C)->enabled = 0)
 
 /* Prototypes definition */
 extern void init_checkers_queue(void);
@@ -59,5 +65,6 @@ extern void dump_checkers_queue(void);
 extern void free_checkers_queue(void);
 extern void register_checkers_thread(void);
 extern void install_checkers_keyword(void);
+extern void update_checker_activity(uint32_t address, int enable);
 
 #endif

@@ -5,7 +5,7 @@
  *
  * Part:        TCP checker.
  *
- * Version:     $Id: check_tcp.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: check_tcp.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -151,6 +151,17 @@ int tcp_connect_thread(thread *thread)
 
   checker   = THREAD_ARG(thread);
   tcp_check = CHECKER_ARG(checker);
+
+  /*
+   * Register a new checker thread & return
+   * if checker is disabled
+   */
+  if (!CHECKER_ENABLED(checker)) {
+    thread_add_timer(thread->master, tcp_connect_thread
+                                   , checker
+                                   , checker->vs->delay_loop);
+    return 0;
+  }
 
   if ( (fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1 ) {
 #ifdef _DEBUG_

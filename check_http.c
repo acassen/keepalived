@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: check_http.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -690,6 +690,17 @@ int http_connect_thread(thread *thread)
   url *fetched_url;
   enum connect_result status;
   int fd;
+
+  /*
+   * Register a new checker thread & return
+   * if checker is disabled
+   */
+  if (!CHECKER_ENABLED(checker)) {
+    thread_add_timer(thread->master, http_connect_thread
+                                   , checker
+                                   , checker->vs->delay_loop);
+    return 0;
+  }
 
   /* Find eventual url end */
   fetched_url = fetch_next_url(http_get_check);

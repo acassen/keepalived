@@ -6,6 +6,9 @@
 # pidfile: /var/run/keepalived.pid
 # config: /etc/keepalived/keepalived.conf
 
+# Global definitions
+PID_FILE="/var/run/keepalived.pid"
+
 # See how we were called.
 case "$1" in
   start)
@@ -15,7 +18,7 @@ case "$1" in
 	;;
   stop)
 	echo -n "Shutting down Keepalived for LVS: "
-	PID=`ps ax | grep keepalived | awk '{print $1}'`
+	PID=`cat $PID_FILE`
 	kill $PID
 	echo
 	;;

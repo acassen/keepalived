@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK kernel command channel.
  *
- * Version:     $Id: vrrp_netlink.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: vrrp_netlink.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -35,6 +35,7 @@
 #include <sys/uio.h>
 
 /* local include */
+#include "check_api.h"
 #include "vrrp_netlink.h"
 #include "vrrp_if.h"
 #include "memory.h"
@@ -351,6 +352,7 @@ static int netlink_if_address_filter(struct sockaddr_nl *snl, struct nlmsghdr *h
   struct ifaddrmsg *ifa;
   struct rtattr *tb[IFA_MAX + 1];
   interface *ifp;
+  uint32_t address = 0;
   int len;
 
   ifa = NLMSG_DATA(h);
@@ -375,28 +377,27 @@ static int netlink_if_address_filter(struct sockaddr_nl *snl, struct nlmsghdr *h
   if (!ifp)
     return 0;
 
-  if (ifa->ifa_flags & IFA_F_SECONDARY)
-    return 0;
-
   if (tb[IFA_ADDRESS] == NULL)
     tb[IFA_ADDRESS] = tb[IFA_LOCAL];
 
   if (ifp->flags & IFF_POINTOPOINT) {
-    if (tb[IFA_LOCAL]) {
-      ifp->address = *(uint32_t *)RTA_DATA(tb[IFA_LOCAL]);
-    } else {
-      if (tb[IFA_ADDRESS])
-        ifp->address = *(uint32_t *)RTA_DATA(tb[IFA_LOCAL]);
-    }
+    if (tb[IFA_LOCAL])
+      address = *(uint32_t *)RTA_DATA(tb[IFA_LOCAL]);
   } else {
     if (tb[IFA_ADDRESS])
-      ifp->address = *(uint32_t *)RTA_DATA(tb[IFA_ADDRESS]);
+      address = *(uint32_t *)RTA_DATA(tb[IFA_ADDRESS]);
   }
 
+  /* If no address is set on interface then set the first time */
+  if (!ifp->address)
+    ifp->address = address;
+
+  /* Refresh checkers state */
+  update_checker_activity(address, (h->nlmsg_type == RTM_NEWADDR)?1:0);
   return 0;
 }
 
-/* Interface lookup bootstrap function */
+/* Interfaces lookup bootstrap function */
 int netlink_interface_lookup(void)
 {
   struct nl_handle nlh;
@@ -408,18 +409,32 @@ int netlink_interface_lookup(void)
   /* Interface lookup */
   if (netlink_request(&nlh, AF_PACKET, RTM_GETLINK) < 0) {
     status = -1;
-    goto end;
+    goto end_int;
   }
   status = netlink_parse_info(netlink_if_link_filter, &nlh); 
+
+end_int:
+  netlink_close(&nlh);
+  return status;
+}
+
+/* Adresses lookup bootstrap function */
+static int netlink_address_lookup(void)
+{
+  struct nl_handle nlh;
+  int status = 0;
+
+  if (netlink_socket(&nlh, 0) < 0)
+    return -1;
 
   /* Address lookup */
   if (netlink_request(&nlh, AF_INET, RTM_GETADDR) < 0) {
     status = -1;
-    goto end;
+    goto end_addr;
   }
   status = netlink_parse_info(netlink_if_address_filter, &nlh); 
-  
-end:
+
+end_addr:
   netlink_close(&nlh);
   return status;
 }
@@ -471,7 +486,7 @@ static int netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
       break;
     case RTM_NEWADDR:
     case RTM_DELADDR:
-//      return netlink_if_address_filter(snl, h);
+      return netlink_if_address_filter(snl, h);
       break;
     default:
       syslog(LOG_INFO, "Kernel is reflecting an unknown netlink nlmsg_type: %d"
@@ -498,6 +513,14 @@ void kernel_netlink_init(void)
 {
   unsigned long groups;
 
+  /* Start with a netlink address lookup */
+  netlink_address_lookup();
+
+  /*
+   * Prepare netlink kernel broadcast channel
+   * subscribtion. We subscribe to LINK and ADDR
+   * netlink broadcast messages.
+   */
   groups = RTMGRP_LINK | RTMGRP_IPV4_IFADDR;
   netlink_socket(&nl_kernel, groups);
 

@@ -6,7 +6,7 @@
  * Part:        Memory management framework. This framework is used to
  *              find any memory leak.
  *
- * Version:     $Id: memory.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: memory.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -25,6 +25,13 @@
 #include "memory.h"
 
 void *xalloc(unsigned long size)
+{
+  void *mem;
+  if ((mem = malloc(size)))
+    mem_allocated += size;
+  return mem;
+}
+void *zalloc(unsigned long size)
 {
   void *mem;
   if ((mem = malloc(size))) {
@@ -107,7 +114,7 @@ char *keepalived_malloc(unsigned long size, char *file, char *function, int line
   int i = 0;
   long check;
 
-  buf = xalloc(size+sizeof(long)) ;
+  buf = zalloc(size + sizeof(long));
 
   check =  0xa5a5 + size;
   *(long *)((char *)buf+size) = check;
@@ -130,7 +137,7 @@ char *keepalived_malloc(unsigned long size, char *file, char *function, int line
   alloc_list[i].type = 9;
 
   if (debug & 1)
-    printf("%sxalloc[%3d:%3d], %p, %4ld at %s, %3d, %s\n"
+    printf("%szalloc[%3d:%3d], %p, %4ld at %s, %3d, %s\n"
            ,nspace(s++), i, number_alloc_list, buf, size, file, line, function);
 
   n++;
@@ -328,7 +335,7 @@ void *keepalived_realloc(void * buffer, unsigned long size, char *file, char* fu
 
   /* not found */
   if (i == number_alloc_list) {
-    printf("realloc ERROR no matching xalloc %p \n", buffer);
+    printf("realloc ERROR no matching zalloc %p \n", buffer);
     number_alloc_list++;
     alloc_list[i].ptr  = buf;
     alloc_list[i].size = 0;

@@ -5,7 +5,7 @@
  * 
  * Part:        Vector structure manipulation.
  *  
- * Version:     $Id: vector.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: vector.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -49,6 +49,20 @@ void vector_free(vector v)
   FREE(v->slot);
   FREE(v);
 }
+void free_strvec(vector strvec)
+{
+  int i;
+  char *str;
+
+  if (!strvec)
+    return;
+
+  for (i=0; i < VECTOR_SIZE(strvec); i++)
+    if ((str = VECTOR_SLOT(strvec, i)) != NULL)
+      FREE(str);
+
+  vector_free(strvec);
+}
 
 /* Set a vector slot value */
 void vector_set_slot(vector v, void *value)
@@ -68,4 +82,21 @@ void vector_dump(vector v)
   for (i = 0; i < v->allocated; i++)
     if (v->slot[i] != NULL)
       printf("  Slot [%d]: %p\n", i, VECTOR_SLOT(v, i));
+}
+
+void dump_strvec(vector strvec)
+{
+  int i;
+  char *str;
+
+  if (!strvec)
+    return;
+
+  printf("String Vector : ");
+
+  for (i = 0; i < VECTOR_SIZE(strvec); i++) {
+    str = VECTOR_SLOT(strvec, i);
+    printf("[%i]=%s ", i, str);
+  }
+  printf("\n");
 }

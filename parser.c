@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: parser.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -108,40 +108,6 @@ static void free_keywords(vector keywords)
     FREE(keyword);
   }
   vector_free(keywords);
-}
-
-/*
-static void dump_strvec(vector strvec)
-{
-  int i;
-  char *str;
-
-  if (!strvec)
-    return;
-
-  printf("String Vector : ");
-
-  for (i = 0; i < VECTOR_SIZE(strvec); i++) {
-    str = VECTOR_SLOT(strvec, i);
-    printf("[%i]=%s ", i, str);
-  }
-  printf("\n");
-}
-*/
-
-static void free_strvec(vector strvec)
-{
-  int i;
-  char *str;
-
-  if (!strvec)
-    return;
-
-  for (i=0; i < VECTOR_SIZE(strvec); i++)
-    if ((str = VECTOR_SLOT(strvec, i)) != NULL)
-      FREE(str);
-
-  vector_free(strvec);
 }
 
 static vector alloc_strvec(char *string)
@@ -332,19 +298,20 @@ static void sslkey_handler(vector strvec)
 }
 
 /* VRRP handlers */
+static void vrrp_sync_group_handler(vector strvec)
+{
+  vector iname = read_value_block();
+  alloc_vrrp_sync_group(VECTOR_SLOT(strvec, 1), iname);
+}
 static void vrrp_handler(vector strvec)
 {
   alloc_vrrp(VECTOR_SLOT(strvec, 1));
-}
-static void vrrp_isync_handler(vector strvec)
-{
-  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-  vrrp->isync = set_value(strvec);
 }
 static void vrrp_state_handler(vector strvec)
 {
   char *str = VECTOR_SLOT(strvec, 1);
   vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp_sgroup *vgroup = vrrp->sync;
 
   if (!strcmp(str, "MASTER")) {
     vrrp->wantstate  = VRRP_STATE_MAST;
@@ -353,6 +320,10 @@ static void vrrp_state_handler(vector strvec)
     vrrp->wantstate  = VRRP_STATE_BACK;
     vrrp->init_state = VRRP_STATE_BACK;
   }
+
+  /* set eventual sync group */
+  if (vgroup)
+    vgroup->state = vrrp->wantstate;
 }
 static void vrrp_int_handler(vector strvec)
 {
@@ -360,6 +331,11 @@ static void vrrp_int_handler(vector strvec)
   char *name = VECTOR_SLOT(strvec, 1);
 
   vrrp->ifp = if_get_by_ifname(name);
+}
+static void vrrp_mcastip_handler(vector strvec)
+{
+  vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+  vrrp->mcast_saddr = inet_addr(VECTOR_SLOT(strvec, 1));
 }
 static void vrrp_vrid_handler(vector strvec)
 {
@@ -676,15 +652,16 @@ void init_keywords(void)
   install_keyword("key", 			&sslkey_handler);
 
   /* VRRP Instance mapping */
+  install_keyword_root("vrrp_sync_group",	&vrrp_sync_group_handler);
   install_keyword_root("vrrp_instance",		&vrrp_handler);
   install_keyword("state",			&vrrp_state_handler);
   install_keyword("interface",			&vrrp_int_handler);
+  install_keyword("mcast_src_ip",		&vrrp_mcastip_handler);
   install_keyword("virtual_router_id",		&vrrp_vrid_handler);
   install_keyword("priority",			&vrrp_prio_handler);
   install_keyword("advert_int",			&vrrp_adv_handler);
   install_keyword("virtual_ipaddress",		&vrrp_vip_handler);
   install_keyword("virtual_ipaddress_excluded",	&vrrp_evip_handler);
-  install_keyword("sync_instance",		&vrrp_isync_handler);
   install_keyword("preempt",			&vrrp_preempt_handler);
   install_keyword("debug",			&vrrp_debug_handler);
   install_keyword("notify_backup",		&vrrp_notify_backup_handler);
@@ -743,6 +720,9 @@ void init_data(char *conf_file)
     syslog(LOG_INFO, "Configuration file open problem...\n");
     return;
   }
+
+  /* Init Keywords structure */
+  init_keywords();
 
   /* Init data structure */
   conf_data = alloc_data();

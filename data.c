@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: data.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -25,6 +25,7 @@
 #include "utils.h"
 #include "check_api.h"
 #include "vrrp.h"
+#include "vrrp_sync.h"
 
 extern data *conf_data;
 
@@ -83,12 +84,34 @@ static void dump_ssl(void)
 }
 
 /* VRRP facility functions */
+static void free_vgroup(void *data)
+{
+  vrrp_sgroup *vgroup = data;
+
+  FREE(vgroup->gname);
+  free_strvec(vgroup->iname);
+  FREE(vgroup);
+}
+static void dump_vgroup(void *data)
+{
+  vrrp_sgroup *vgroup = data;
+  int i;
+  char *str;
+
+  syslog(LOG_INFO, " VRRP Sync Group = %s, %s"
+                 , vgroup->gname
+                 , (vgroup->state == VRRP_STATE_MAST)?"MASTER":"BACKUP");
+  for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
+    str = VECTOR_SLOT(vgroup->iname, i);
+    syslog(LOG_INFO, "   monitor = %s", str);
+  }
+}
+
 static void free_vrrp(void *data)
 {
   vrrp_rt *vrrp = data;
 
   FREE(vrrp->iname);
-  FREE_PTR(vrrp->isync);
   FREE_PTR(vrrp->lvs_syncd_if);
   FREE_PTR(vrrp->vaddr);
   FREE_PTR(vrrp->evaddr);
@@ -104,13 +127,14 @@ static void dump_vrrp(void *data)
   int i;
 
   syslog(LOG_INFO, " VRRP Instance = %s", vrrp->iname);
-  if (vrrp->isync)
-    syslog(LOG_INFO, "   Sync with instance = %s", vrrp->isync);
   if (vrrp->init_state == VRRP_STATE_BACK)
     syslog(LOG_INFO, "   Want State = BACKUP");
   else
     syslog(LOG_INFO, "   Want State = MASTER");
   syslog(LOG_INFO, "   Runing on device = %s", IF_NAME(vrrp->ifp));
+  if (vrrp->mcast_saddr)
+    syslog(LOG_INFO, "   Using mcast src_ip = %s"
+                   , ip_ntoa(vrrp->mcast_saddr));
   if (vrrp->lvs_syncd_if)
     syslog(LOG_INFO, "   Runing LVS sync daemon on interface = %s"
                    , vrrp->lvs_syncd_if);
@@ -126,11 +150,13 @@ static void dump_vrrp(void *data)
   }
   syslog(LOG_INFO, "   VIP count = %d", vrrp->naddr);
   for (i = 0; i < vrrp->naddr; i++)
-    syslog(LOG_INFO, "     VIP%d = %s", i+1, ip_ntoa(vrrp->vaddr[i].addr));
+    syslog(LOG_INFO, "     VIP%d = %s/%d", i+1, ip_ntoa(vrrp->vaddr[i].addr)
+                                              , vrrp->vaddr[i].mask);
   if (vrrp->neaddr) {
     syslog(LOG_INFO, "   Excluded VIP count = %d", vrrp->neaddr);
     for (i = 0; i < vrrp->neaddr; i++)
-      syslog(LOG_INFO, "     E-VIP%d = %s", i+1, ip_ntoa(vrrp->evaddr[i].addr));
+      syslog(LOG_INFO, "     E-VIP%d = %s/%d", i+1, ip_ntoa(vrrp->evaddr[i].addr)
+                                                  , vrrp->evaddr[i].mask);
   }
   if (vrrp->script_backup)
     syslog(LOG_INFO, "   Backup state transition script = %s"
@@ -143,6 +169,19 @@ static void dump_vrrp(void *data)
                    , vrrp->script_fault);
   if (vrrp->smtp_alert)
     syslog(LOG_INFO, "   Using smtp notification");
+}
+void alloc_vrrp_sync_group(char *gname, vector iname)
+{
+  int size = strlen(gname);
+  vrrp_sgroup *new;
+
+  /* Allocate new VRRP group structure */
+  new = (vrrp_sgroup *)MALLOC(sizeof(vrrp_sgroup));
+  new->gname = (char *)MALLOC(size+1);
+  memcpy(new->gname, gname, size);
+  new->iname = iname;
+
+  list_add(conf_data->vrrp_sync_group, new);
 }
 void alloc_vrrp(char *iname)
 {
@@ -163,13 +202,15 @@ void alloc_vrrp(char *iname)
   new->adver_int  = TIMER_HZ;
   new->iname      = (char *)MALLOC(size+1);
   memcpy(new->iname, iname, size);
+  new->sync = vrrp_get_sync_group(iname);
 
   list_add(conf_data->vrrp, new);
 }
 void alloc_vrrp_vip(char *vip)
 {
   vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-  uint32_t ipaddr = inet_addr(vip);
+  uint32_t ipaddr = ip_ston(vip);
+  uint8_t mask = ip_stom(vip);
 
   vrrp->naddr++;
   if (vrrp->vaddr)
@@ -177,12 +218,14 @@ void alloc_vrrp_vip(char *vip)
   else
     vrrp->vaddr = (vip_addr *)MALLOC(sizeof(*vrrp->vaddr));
   vrrp->vaddr[vrrp->naddr-1].addr = ipaddr;
+  vrrp->vaddr[vrrp->naddr-1].mask = mask;
   vrrp->vaddr[vrrp->naddr-1].set  = 0;
 }
 void alloc_vrrp_evip(char *vip)
 {
   vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-  uint32_t ipaddr = inet_addr(vip);
+  uint32_t ipaddr = ip_ston(vip);
+  uint8_t mask = ip_stom(vip);
 
   vrrp->neaddr++;
   if (vrrp->evaddr)
@@ -190,6 +233,7 @@ void alloc_vrrp_evip(char *vip)
   else
     vrrp->evaddr = (vip_addr *)MALLOC(sizeof(*vrrp->evaddr));
   vrrp->evaddr[vrrp->neaddr-1].addr = ipaddr;
+  vrrp->evaddr[vrrp->neaddr-1].mask = mask;
   vrrp->evaddr[vrrp->neaddr-1].set  = 0;
 }
 
@@ -408,6 +452,7 @@ data *alloc_data(void)
   new = (data *)MALLOC(sizeof(data));
   new->email = alloc_list(free_email, dump_email);
   new->vrrp  = alloc_list(free_vrrp,  dump_vrrp);
+  new->vrrp_sync_group  = alloc_list(free_vgroup,  dump_vgroup);
   new->vs    = alloc_list(free_vs,    dump_vs);
   new->group = alloc_list(free_group, dump_group);
 
@@ -418,6 +463,7 @@ void free_data(void)
   free_ssl();
   free_list(conf_data->email);
   free_list(conf_data->vrrp);
+  free_list(conf_data->vrrp_sync_group);
   free_list(conf_data->vs);
   free_list(conf_data->group);
 
@@ -452,6 +498,10 @@ void dump_data(void)
   if (!LIST_ISEMPTY(conf_data->vrrp)) {
     syslog(LOG_INFO, "------< VRRP Topology >------");
     dump_list(conf_data->vrrp);
+  }
+  if (!LIST_ISEMPTY(conf_data->vrrp_sync_group)) {
+    syslog(LOG_INFO, "------< VRRP Sync groups >------");
+    dump_list(conf_data->vrrp_sync_group);
   }
   if (!LIST_ISEMPTY(conf_data->group)) {
     syslog(LOG_INFO, "------< Real Servers groups >------");

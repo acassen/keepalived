@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 address manipulation.
  *
- * Version:     $Id: vrrp_ipaddress.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -26,7 +26,7 @@
 #include "utils.h"
 
 /* Add/Delete IP address to a specific interface */
-int netlink_address_ipv4(int ifindex, uint32_t addr, int cmd)
+int netlink_address_ipv4(int ifindex, uint32_t addr, uint8_t mask, int cmd)
 {
   struct nl_handle nlh;
   int status = 1;
@@ -43,9 +43,7 @@ int netlink_address_ipv4(int ifindex, uint32_t addr, int cmd)
   req.n.nlmsg_type   = cmd ? RTM_NEWADDR:RTM_DELADDR;
   req.ifa.ifa_family = AF_INET;
   req.ifa.ifa_index  = ifindex;
-  req.ifa.ifa_prefixlen  = 32;
-
-  addr = htonl(addr);
+  req.ifa.ifa_prefixlen = mask;
   addattr_l(&req.n, sizeof(req), IFA_LOCAL, &addr, sizeof(addr));
 
   if (netlink_socket(&nlh, 0) < 0)

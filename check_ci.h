@@ -3,11 +3,12 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        check_tcp.c include file.
+ * Part:        check_ci.c include file.
  *
- * Version:     $Id: check_tcp.h,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
+ * Version:     $Id: check_ci.h,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
- * Author:      Alexandre Cassen, <acassen@linux-vs.org>
+ * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
+ *              Aneesh Kumar K.V, <aneesh.kumar@digital.com>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -20,24 +21,36 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _TCP_H
-#define _TCP_H
+#ifndef _CI_LINUX_H
+#define _CI_LINUX_H
 
 /* system includes */
-#include <unistd.h>
-#include <netdb.h>
+#include <signal.h>
+#include <pthread.h>
+#include <linux/cluster.h> /* Should change this to cluster.h alone */
+#include <syslog.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <arpa/inet.h>
 
 /* local includes */
 #include "scheduler.h"
 
-/* Checker argument structure  */
-typedef struct _tcp_checker {
-  uint16_t connection_port;
-  int connection_to;
-} tcp_checker;
+#define SIGCLUSTER 2
+#define CLUSTERTAB "/etc/clustertab"
+#define BUFFSIZE 100
+#define UP 1
+#define DOWN 2
+#define UNKNOWN_NODE 0
+
+typedef struct nodenum_ip_map {
+  uint32_t      addr_ip;
+} nodenum_ip_map_t;
 
 /* Prototypes defs */
-extern void install_tcp_check_keyword(void);
+extern int initialize_nodemap(nodenum_ip_map_t *nodemap);
+extern clusternode_t address_to_nodenum(uint32_t addr_ip);
+extern int nodestatus(uint32_t addr_ip);
+extern void install_ci_check_kerword(void);
 
 #endif

@@ -5,7 +5,7 @@
  *
  * Part:        memory.c include file.
  *
- * Version:     $Id: memory.h,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: memory.h,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -34,7 +34,11 @@
 extern unsigned int debug;
 extern unsigned long mem_allocated;
 extern void *xalloc(unsigned long size);
+extern void *zalloc(unsigned long size);
 extern void xfree(void *p);
+
+/* Global alloc macro */
+#define ALLOC(n) (xalloc(n))
 
 /* Local defines */
 #ifdef _DEBUG_
@@ -54,7 +58,7 @@ extern void keepalived_free_final(void);
 
 #else
 
-#define MALLOC(n)    (xalloc(n))
+#define MALLOC(n)    (zalloc(n))
 #define FREE(p)      (xfree(p))
 #define REALLOC(p,n) (realloc((p),(n)))
 

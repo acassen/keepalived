@@ -5,7 +5,7 @@
  * 
  * Part:        vector.c include file.
  *  
- * Version:     $Id: vector.h,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: vector.h,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -39,7 +39,9 @@ typedef struct _vector *vector;
 extern vector vector_alloc(void);
 extern void vector_alloc_slot(vector v);
 extern void vector_free(vector v);
+extern void free_strvec(vector strvec);
 extern void vector_set_slot(vector v, void *value);
 extern void vector_dump(vector v);
+extern void dump_strvec(vector strvec);
 
 #endif

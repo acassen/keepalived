@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_if.c include file.
  *
- * Version:     $Id: vrrp_if.h,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: vrrp_if.h,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -31,6 +31,9 @@
 #include "list.h"
 
 /* types definition */
+#ifndef SIOCETHTOOL
+  #define SIOCETHTOOL     0x8946
+#endif
 #ifndef SIOCGMIIPHY
   #define SIOCGMIIPHY (SIOCDEVPRIVATE)            /* Get the PHY in use. */
   #define SIOCGMIIREG (SIOCDEVPRIVATE+1)          /* Read a PHY register. */
@@ -46,20 +49,23 @@
 #define ARPHRD_LOOPBACK 772
 #define POLLING_DELAY 1
 
+/* Interface Linkbeat code selection */
+#define LB_IOCTL   0x1
+#define LB_MII     0x2
+#define LB_ETHTOOL 0x4
+
 /* Interface structure definition */
 typedef struct _interface {
   char ifname[IF_NAMESIZ + 1];		/* Interface name */
   unsigned int ifindex;			/* Interface index */
   uint32_t address;			/* Interface main primary IP address */
-//  list primary;
-//  list secondary;
   unsigned long flags;			/* flags */
   unsigned int mtu;			/* MTU for this interface */
   unsigned short hw_type;		/* Type of hardware address */
   u_char hw_addr[IF_HWADDR_MAX];	/* MAC address */
   int hw_addr_len;			/* MAC addresss length */
-  int mii;				/* Interface support MII regs ? */
-  int mii_linkbeat;			/* LinkBeat from MII BMSR req */
+  int lb_type;				/* Interface regs selection */
+  int linkbeat;				/* LinkBeat from MII BMSR req */
 } interface;
 
 /* Global interface queue */
@@ -70,18 +76,19 @@ list if_queue;
 #define IF_INDEX(X) ((X)->ifindex)
 #define IF_ADDR(X) ((X)->address)
 #define IF_HWADDR(X) ((X)->hw_addr)
-#define IF_LINK_ISUP(X) (if_mii_probe(X))
-#define IF_MII_SUPPORTED(X) ((X)->mii)
-#define IF_MII_LINKBEAT(X) ((X)->mii_linkbeat)
+#define IF_MII_SUPPORTED(X) ((X)->lb_type & LB_MII)
+#define IF_ETHTOOL_SUPPORTED(X) ((X)->lb_type & LB_ETHTOOL)
+#define IF_LINKBEAT(X) ((X)->linkbeat)
 #define IF_ISUP(X) (((X)->flags & IFF_UP)      && \
                     ((X)->flags & IFF_RUNNING) && \
-                    if_mii_linkbeat(X))
+                    if_linkbeat(X))
 
 /* prototypes */
 extern interface *if_get_by_ifindex(const int ifindex);
 extern interface *if_get_by_ifname(const char *ifname);
-extern int if_mii_linkbeat(const interface *ifp);
+extern int if_linkbeat(const interface *ifp);
 extern int if_mii_probe(const char *ifname);
+extern int if_ethtool_probe(const char *ifname);
 extern void if_mii_poller_init(void);
 extern void if_add_queue(interface *ifp);
 extern int if_monitor_thread(thread *thread);

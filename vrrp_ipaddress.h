@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_ipaddress.c include file.
  *
- * Version:     $Id: vrrp_ipaddress.h,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.h,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -35,7 +35,9 @@
 #define VRRP_IPADDRESS_ADD 1
 
 /* prototypes */
-extern int netlink_address_ipv4(int ifindex, uint32_t addr, int cmd);
+extern int netlink_address_ipv4(int ifindex, uint32_t addr
+                                           , uint8_t mask
+                                           , int cmd);
 
 #endif
 

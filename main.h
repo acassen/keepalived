@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: main.h,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -43,7 +43,7 @@
 #include "vrrp_netlink.h"
 
 /* global var */
-thread_master *master;
+thread_master *master = NULL;
 unsigned int debug;
 unsigned long mem_allocated = 0;
 data *conf_data;
@@ -58,8 +58,8 @@ extern void register_vrrp_thread(void);
 /* Build version */
 #define PROG    "Keepalived"
 
-#define VERSION_CODE 0x000509
-#define DATE_CODE    0x1E0502
+#define VERSION_CODE 0x000601
+#define DATE_CODE    0x0D0602
 
 #define KEEPALIVED_VERSION(version)	\
 	(version >> 16) & 0xFF,		\

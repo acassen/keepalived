@@ -5,7 +5,7 @@
  *
  * Part:        Interfaces manipulation.
  *
- * Version:     $Id: vrrp_if.c,v 0.5.9 2002/05/30 16:05:31 acassen Exp $
+ * Version:     $Id: vrrp_if.c,v 0.6.1 2002/06/13 15:12:26 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -24,6 +24,9 @@
 #include <unistd.h>
 #include <string.h>
 #include <sys/types.h>
+  typedef __uint32_t u32;
+  typedef __uint16_t u16;
+  typedef __uint8_t  u8;
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/ip.h>
@@ -37,6 +40,7 @@
 #endif
 #include <stdlib.h>
 #include <stdio.h>
+#include <linux/ethtool.h>
 
 /* local include */
 #include "scheduler.h"
@@ -167,6 +171,49 @@ int if_mii_probe(const char *ifname)
   return status;
 }
 
+static int if_ethtool_status(const int fd)
+{
+  struct ethtool_value edata;
+  int err = 0;
+
+  edata.cmd = ETHTOOL_GLINK;
+  ifr.ifr_data = (caddr_t)&edata;
+  err = ioctl(fd, SIOCETHTOOL, &ifr);
+  if (err == 0)
+    return (edata.data)?1:0;
+  else
+    return -1;
+}
+
+int if_ethtool_probe(const char *ifname)
+{
+  int fd = socket(AF_INET, SOCK_DGRAM, 0);
+  int status = 0;
+
+  if (fd < 0) return -1;
+  memset(&ifr, 0, sizeof(struct ifreq));
+  strncpy(ifr.ifr_name, ifname, sizeof(ifr.ifr_name));
+
+  status = if_ethtool_status(fd);
+  close(fd);
+  return status;
+}
+
+void if_ioctl_flags(interface *ifp)
+{
+  int fd = socket(AF_INET, SOCK_DGRAM, 0);
+
+  if (fd < 0) return;
+  memset(&ifr, 0, sizeof(struct ifreq));
+  strncpy(ifr.ifr_name, ifp->ifname, sizeof(ifr.ifr_name));
+  if (ioctl(fd, SIOCGIFFLAGS, &ifr) < 0) {
+    close (fd);
+    return;
+  }
+  ifp->flags = ifr.ifr_flags;
+  close(fd);
+}
+
 /* Interfaces lookup */
 static void free_if(void *data)
 {
@@ -210,9 +257,13 @@ void dump_if(void *data)
       break;
   }
 
-  /* MII registers supported ? */
+  /* MII channel supported ? */
   if (IF_MII_SUPPORTED(ifp))
     syslog(LOG_INFO, " NIC support MII regs");
+  else if (IF_ETHTOOL_SUPPORTED(ifp))
+    syslog(LOG_INFO, " NIC support EHTTOOL GLINK interface");
+  else
+    syslog(LOG_INFO, " Enabling NIC ioctl refresh polling");
 }
 
 static void init_if_queue(void)
@@ -232,36 +283,41 @@ static void init_if_mii(void)
 
   for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
     ifp = ELEMENT_DATA(e);
+    ifp->lb_type = LB_IOCTL;
     status = if_mii_probe(ifp->ifname);
-    if (status < 0)
-      ifp->mii = 0;
-    else {
-      ifp->mii = 1;
-      ifp->mii_linkbeat = (status)?1:0;
+    if (status >= 0) {
+      ifp->lb_type = LB_MII;
+      ifp->linkbeat = (status)?1:0;
+    } else {
+      status = if_ethtool_probe(ifp->ifname);
+      if (status >= 0) {
+        ifp->lb_type = LB_ETHTOOL;
+        ifp->linkbeat = (status)?1:0;
+      }
     }
   }
 }
 
-static void if_mii_refresh(void)
+static void if_linkbeat_refresh(void)
 {
   interface *ifp;
   element e;
 
   for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
     ifp = ELEMENT_DATA(e);
-    if (IF_MII_SUPPORTED(ifp)) {
-      if (IF_LINK_ISUP(ifp->ifname))
-        ifp->mii_linkbeat = 1;
-      else
-        ifp->mii_linkbeat = 0;
-    }
+    if (IF_MII_SUPPORTED(ifp))
+      ifp->linkbeat = (if_mii_probe(ifp->ifname))?1:0;
+    else if (IF_ETHTOOL_SUPPORTED(ifp))
+      ifp->linkbeat = (if_ethtool_probe(ifp->ifname))?1:0;
+    else
+      if_ioctl_flags(ifp);
   }
 }
 
-int if_mii_linkbeat(const interface *ifp)
+int if_linkbeat(const interface *ifp)
 {
-  if (IF_MII_SUPPORTED(ifp))
-    return IF_MII_LINKBEAT(ifp);
+  if (IF_MII_SUPPORTED(ifp) || IF_ETHTOOL_SUPPORTED(ifp))
+    return IF_LINKBEAT(ifp);
   return 1;
 }
 
@@ -269,7 +325,7 @@ int if_mii_linkbeat(const interface *ifp)
 int if_monitor_thread(thread *thread)
 {
   /* If present, refresh link beat status from MII BMSR */
-  if_mii_refresh();
+  if_linkbeat_refresh();
 
   /* Register new monitor thread */
   thread_add_timer(master, if_monitor_thread
@@ -290,10 +346,11 @@ void init_interface_queue(void)
   init_if_queue();
   netlink_interface_lookup();
   init_if_mii();
-//  dump_list(if_queue);
 }
 void if_mii_poller_init(void)
 {
+//  dump_list(if_queue);
+
   /* Register NIC Heartbeat monitoring thread */
   thread_add_timer(master, if_monitor_thread
                          , NULL
