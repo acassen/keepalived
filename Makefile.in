@@ -1,0 +1,103 @@
+# Makefile
+#
+# Keepalived OpenSource project.
+#
+# Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
+
+EXEC = keepalived
+KERNEL := _KRNL_2_$(shell uname -r | cut -d'.' -f2)_
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+sbindir = @sbindir@
+
+init_dir            = /etc/rc.d/init.d
+init_script         = keepalived.init
+src_init_script     = etc/rc.d/init.d/$(init_script)
+src_conf_file       = etc/keepalived/keepalived.conf
+keepalived_conf_dir = /etc/keepalived
+
+CC = @CC@
+CFLAGS = @CFLAGS@ -Wall -Wunused -Wstrict-prototypes -D_DEBUG_ -D$(KERNEL)
+LDFLAGS = @LIBS@ @LDFLAGS@
+OBJS = @LIBOBJS@ \
+	main.o \
+	memory.o \
+	daemon.o \
+	utils.o \
+	timer.o \
+	scheduler.o \
+	vector.o \
+	list.o \
+	data.o \
+	parser.o \
+	layer4.o \
+	check_api.o \
+	check_tcp.o \
+	check_http.o \
+	check_ssl.o \
+	check_misc.o \
+	ipwrapper.o \
+	ipvswrapper.o \
+	pidfile.o \
+	smtp.o \
+	vrrp.o \
+	vrrp_scheduler.o \
+	vrrp_netlink.o \
+	vrrp_ipaddress.o \
+	vrrp_ipsecah.o
+
+INCLUDE= -I/usr/src/linux/include
+
+.c.o:
+	$(CC) -o $@ $(CFLAGS) $(INCLUDE) -c $*.c
+
+all:    $(EXEC)
+	strip $(EXEC)
+	@echo ""
+	cd genhash && $(MAKE)
+	@echo ""
+	@echo "Make complete"
+
+debug:  $(EXEC)
+	@echo ""
+	@echo "Make complete"
+
+$(EXEC): $(OBJS) $(LDFLAGS)
+	$(CC) -o $(EXEC) $(CFLAGS) $(OBJS) $(LDFLAGS)
+
+libipfwc/libipfwc.a:
+	cd libipfwc/ && $(MAKE) libipfwc.a
+
+subclean:
+ifeq ($(KERNEL),_KRNL_2_2_)
+	cd libipfwc/ && $(MAKE) clean
+endif
+	cd genhash/ && $(MAKE) clean
+
+clean: subclean
+	rm -f core *.o $(EXEC)
+
+subclean-dist:
+	cd genhash/ && $(MAKE) clean-dist
+
+clean-dist: subclean-dist
+	rm -f $(sbindir)/$(EXEC)
+	rm -rf $(keepalived_conf_dir)
+	rm -f $(init_dir)/$(init_script)
+
+mrproper: clean clean-dist
+	rm -f config.*
+	rm -f Makefile
+	rm -f genhash/Makefile
+
+subinstall:
+	cd genhash/ && $(MAKE) install
+
+install: subinstall
+	install -m 700 $(EXEC) $(sbindir)/
+	install -m 755 $(src_init_script) $(init_dir)/
+	mkdir $(keepalived_conf_dir)
+	install -m 644 $(src_conf_file) $(keepalived_conf_dir)
+	mkdir $(keepalived_conf_dir)/samples
+	install -m 644 samples/* $(keepalived_conf_dir)/samples/

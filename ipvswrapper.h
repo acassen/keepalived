@@ -5,7 +5,7 @@
  *
  * Part:        ipvswrapper.c include file.
  *
- * Version:     $Id: ipvswrapper.h,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: ipvswrapper.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -40,11 +40,10 @@
   #include <linux/ip_fw.h>
   #include <net/ip_masq.h>
 #endif
-
 #include <net/ip_vs.h>
 
 /* locale includes */
-#include "cfreader.h"
+#include "data.h"
 
 #define IPVS_ERROR   0
 #define IPVS_SUCCESS 1
@@ -52,6 +51,6 @@
 /* prototypes */
 extern int parse_timeout(char *buf, unsigned *timeout);
 extern int string_to_number(const char *s, int min, int max);
-extern int ipvs_cmd(int cmd, virtualserver *vserver, realserver *rserver);
+extern int ipvs_cmd(int cmd, virtual_server *vserver, real_server *rserver);
 
 #endif

@@ -1,3 +1,37 @@
+2002-02-25  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.5.3 released.
+	* Added autoconf / automake generic scripts.
+	* Rewrite the configuration file stream parser.
+	  Using a generic keywords tree. Each keyword refer a specific
+	  stream handler. The main stream processor is a multilevel
+	  recursive function getting file stream and backtracking the
+	  keyword tree. Kind of global compiler structure using event driven
+	  stream processing.
+	* Re-design the global data structure to be much more generic and
+	  to dissociate LVS configuration related to checkers related. Remove
+	  static char lenght to use dynamic length strings.
+	* Created a global timer framework.
+	* Created a global vector template, used in cofiguration file
+	  parsing (both stream process & keywords tree generation).
+	* Created a global list template, used in most of the code.
+	* Review the global scheduler to remove repeated code.
+	* Created a global checkers API. The design and goal here is to
+	  facilitate new checkers creation by localizing specific checker
+	  code into a single file without any other global framework
+	  integration.
+	* Patched a SSL stream handling race condition finding end of stream.
+	* Jan Holmberg, review MISC checker to use forked process to not degrade
+	  global scheduler timer.
+	* Revisited the whole code to use new templates structures.
+	* Fixed a url lentgh bug into the genhash utility.
+	* Fabrice Bucher, <fabrice.bucher@urbanet.ch> fixed a timeout_persistence
+	  bug in the IPVS wrapper code.
+	* Bradley McLean, <bradlist@bradm.net> added support to '0' port number
+	  service in VS manipulation. Useful for balancing all services (host rather
+	  than service).
+	* Matthijs van der Klip, <matthijs.van.der.klip@nos.nl> enhanced smtp
+	  framework to use SMTP header and email enclosed with angle brackets.
+
 2001-12-20  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.4.9a released.
 	* Jan and I patched a memory pointer problems in vrrp_scheduler.c

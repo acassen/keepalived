@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: main.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -21,7 +21,9 @@
  */
 
 #include "main.h"
+#include "daemon.h"
 #include "memory.h"
+#include "parser.h"
 
 /* SIGHUP handler */
 void sighup(int sig)
@@ -36,13 +38,7 @@ void sighup(int sig)
 void sigchld(int sig)
 {
   int child;
-
   wait(&child);
-/*  child >>= 9;
- *  if (child)
- *    syslog(LOG_INFO, "Error from notify program, code:%d, %s"
- *                   , child, strerror(child));
- */
 }
 
 /* Signal wrapper */
@@ -77,57 +73,12 @@ void signal_init(void)
   signal_set (SIGCHLD, sigchld);
 }
 
-/* Daemonization function coming from zebra source code */
-int daemon(int nochdir, int noclose)
-{
-  pid_t pid;
-
-  /* In case of fork is error. */
-  pid = fork ();
-  if (pid < 0) {
-    perror ("fork");
-    return -1;
-  }
-
-  /* In case of this is parent process. */
-  if (pid != 0)
-    exit (0);
-
-  /* Become session leader and get pid. */
-  pid = setsid();
-  if (pid < -1) {
-    perror ("setsid");
-    return -1;
-  }
-
-  /* Change directory to root. */
-  if (!nochdir)
-    chdir ("/");
-
-  /* File descriptor close. */
-  if (! noclose) {
-    int fd;
-
-    fd = open ("/dev/null", O_RDWR, 0);
-    if (fd != -1) {
-      dup2 (fd, STDIN_FILENO);
-      dup2 (fd, STDOUT_FILENO);
-      dup2 (fd, STDERR_FILENO);
-      if (fd > 2)
-        close (fd);
-    }
-  }
-
-  umask (0);
-  return 0;
-}
-
 /* Usage function */
 static void usage(const char *prog)
 {
-  fprintf(stderr, "%s Version %s\n", PROG, VERSION);
+  fprintf(stderr, VERSION_STRING);
   fprintf(stderr,
-    "Usage:\n"
+    "\nUsage:\n"
     "  %s\n"
     "  %s -n\n"
     "  %s -f keepalived.conf\n"
@@ -175,7 +126,7 @@ static char *parse_cmdline(int argc, char **argv)
   /* The first option car */
   switch (c) {
     case 'v':
-      fprintf(stderr, "%s Version %s\n", PROG, VERSION);
+      fprintf(stderr, VERSION_STRING);
       exit(0);
       break;
     case 'h':
@@ -229,7 +180,6 @@ static char *parse_cmdline(int argc, char **argv)
 /* Entry point */
 int main(int argc, char **argv)
 {
-  configuration_data *conf_data;
   char *conf_file = NULL;
   thread thread;
 
@@ -244,47 +194,23 @@ int main(int argc, char **argv)
 
   openlog(PROG, LOG_PID | (debug & 1)?LOG_CONS:0
               , LOG_DAEMON);
-  syslog(LOG_INFO, "Starting "PROG" v"VERSION);
+  syslog(LOG_INFO, "Starting "VERSION_STRING);
 
   /* Check if keepalived is already running */
   if (keepalived_running()) {
-    syslog(LOG_INFO, "Stopping "PROG" v"VERSION);
+    syslog(LOG_INFO, "Stopping "VERSION_STRING);
     closelog();
     exit(0);
   }
 
   /* daemonize process */
-  if (!(debug & 2)) {
-    daemon(0, 0);
-  }
+  if (!(debug & 2))
+    xdaemon(0, 0, 0);
 
   /* write the pidfile */
   if (!pidfile_write(getpid())) {
-    syslog(LOG_INFO, "Stopping "PROG" v"VERSION);
+    syslog(LOG_INFO, "Stopping "VERSION_STRING);
     closelog();
-    exit(0);
-  }
-
-  /* Parse the configuration file */
-  if (!(conf_data = (configuration_data *)conf_reader(conf_file))) {
-    syslog(LOG_INFO, "Stopping "PROG" v"VERSION);
-    closelog();
-    exit(0);
-  }
-
-  /* SSL load static data & initialize common ctx context */
-  if (!(conf_data->ssldata = init_ssl_ctx(conf_data->ssldata))) {
-    closelog();
-    exit(0);
-  }
-
-  if (debug & 4) 
-    dump_conf(conf_data);
-
-  if (!init_services(conf_data->lvstopology)) {
-    syslog(LOG_INFO, "Stopping "PROG" v"VERSION);
-    closelog();
-    clear_conf(conf_data);
     exit(0);
   }
 
@@ -294,8 +220,40 @@ int main(int argc, char **argv)
   /* Create the master thread */
   master = thread_make_master();
 
-  /* registering worker threads */
-  register_worker_thread(master, conf_data);
+  /* Parse the configuration file */
+  init_checkers_queue();
+  init_keywords();
+  init_data(conf_file);
+  if (!conf_data) {
+    syslog(LOG_INFO, "Stopping "VERSION_STRING);
+    closelog();
+    thread_destroy_master(master);
+    keepalived_free_final();
+    exit(0);
+  }
+
+  /* SSL load static data & initialize common ctx context */
+  if (!init_ssl_ctx()) {
+    closelog();
+    thread_destroy_master(master);
+    keepalived_free_final();
+    exit(0);
+  }
+
+  if (debug & 4) 
+    dump_data();
+
+  if (!init_services()) {
+    syslog(LOG_INFO, "Stopping "VERSION_STRING);
+    closelog();
+    free_data();
+    exit(0);
+  }
+
+  /* register workers threads */
+  register_checkers_thread();
+  vrrp_complete_init();
+  register_vrrp_thread();
 
   /* processing the master thread queues, return and execute one ready thread */
   while(thread_fetch(master, &thread)) {
@@ -311,14 +269,14 @@ int main(int argc, char **argv)
   }
 
   /* Reached when terminate signal catched */
-  syslog(LOG_INFO, "Stopping "PROG" v"VERSION);
+  syslog(LOG_INFO, "Stopping "VERSION_STRING);
 
   /* Just cleanup memory & exit */
+  free_checkers_queue();
   thread_destroy_master(master);
-  clear_services(conf_data->lvstopology);
-  clear_vrrp_instance(conf_data->vrrp);
-  clear_ssl(conf_data->ssldata);
-  clear_conf(conf_data);
+  clear_services();
+  shutdown_vrrp_instances();
+  free_data();
 
   pidfile_rm();
 

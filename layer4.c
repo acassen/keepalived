@@ -6,7 +6,7 @@
  * Part:        Layer4 checkers handling. Register worker threads &
  *              upper layer checkers.
  *
- * Version:     $Id: layer4.c,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: layer4.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -22,9 +22,10 @@
  */
 
 #include "layer4.h"
+#include "check_api.h"
 
 enum connect_result
-tcp_connect (int fd, uint32_t IP_DST, uint16_t PORT_DST)
+tcp_connect (int fd, uint32_t addr_ip, uint16_t addr_port)
 {
   struct linger li = { 0 };
   int long_inet;
@@ -35,13 +36,13 @@ tcp_connect (int fd, uint32_t IP_DST, uint16_t PORT_DST)
   /* free the tcp port after closing the socket descriptor */
   li.l_onoff=1;
   li.l_linger=0;
-  setsockopt(fd,SOL_SOCKET,SO_LINGER,(char *)&li,sizeof(struct linger));
+  setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *)&li, sizeof(struct linger));
 
   long_inet = sizeof(struct sockaddr_in);
   memset(&adr_serv,0,long_inet);
-  adr_serv.sin_family = AF_INET;
-  adr_serv.sin_port = PORT_DST;
-  adr_serv.sin_addr.s_addr = IP_DST;
+  adr_serv.sin_family      = AF_INET;
+  adr_serv.sin_port        = addr_port;
+  adr_serv.sin_addr.s_addr = addr_ip;
 
   /* Make socket non-block. */
   val = fcntl (fd, F_GETFL, 0);
@@ -68,24 +69,21 @@ tcp_connect (int fd, uint32_t IP_DST, uint16_t PORT_DST)
 }
 
 enum connect_result tcp_socket_state(int fd, thread *thread
-				     , int (*func) (struct _thread *))
+                                           , uint32_t addr_ip
+                                           , uint16_t addr_port
+                                           , int (*func) (struct _thread *))
 {
-  thread_arg *thread_arg;
   int status;
   int slen;
   int ret = 0;
-  TIMEVAL timer_now;
   TIMEVAL timer_min;
-
-  thread_arg = THREAD_ARG(thread);
 
   /* Handle connection timeout */
   if(thread->type == THREAD_WRITE_TIMEOUT) {
 #ifdef _DEBUG_
-    if (thread_arg->svr)
-      syslog(LOG_DEBUG, "TCP connection timeout to [%s:%d].",
-                          inet_ntoa(thread_arg->svr->addr_ip),
-                          ntohs(thread_arg->svr->addr_port));
+    syslog(LOG_DEBUG, "TCP connection timeout to [%s:%d]."
+                    , ip_ntoa(addr_ip)
+                    , ntohs(addr_port));
 #endif
     close(thread->u.fd);
     return connect_timeout;
@@ -99,10 +97,9 @@ enum connect_result tcp_socket_state(int fd, thread *thread
   /* Connection failed !!! */
   if (ret) {
 #ifdef _DEBUG_
-    if (thread_arg->svr)
-      syslog(LOG_DEBUG, "TCP connection failed to [%s:%d].",
-                          inet_ntoa(thread_arg->svr->addr_ip), 
-                          ntohs(thread_arg->svr->addr_port));
+    syslog(LOG_DEBUG, "TCP connection failed to [%s:%d]."
+                    , ip_ntoa(addr_ip)
+                    , ntohs(addr_port));
 #endif
     close(thread->u.fd);
     return connect_error;
@@ -115,22 +112,23 @@ enum connect_result tcp_socket_state(int fd, thread *thread
    */
   if (status != 0) {
 #ifdef _DEBUG_
-    if (thread_arg->svr)
-      syslog(LOG_DEBUG, "TCP connection to [%s:%d] still IN_PROGRESS.",
-                        inet_ntoa(thread_arg->svr->addr_ip),
-                        ntohs(thread_arg->svr->addr_port));
+    syslog(LOG_DEBUG, "TCP connection to [%s:%d] still IN_PROGRESS."
+                    , ip_ntoa(addr_ip)
+                    , ntohs(addr_port));
 #endif
 
-    gettimeofday(&timer_now,NULL);
-    timer_min = thread_timer_sub(thread->sands,timer_now);
+    timer_min = timer_sub_now(thread->sands);
 
-    if (timer_min.tv_sec <= 0)
-      thread_add_write(thread->master, func,
-                       thread_arg, thread->u.fd, 0);
+    if (TIMER_SEC(timer_min) <= 0)
+      thread_add_write(thread->master, func
+                                     , THREAD_ARG(thread)
+                                     , thread->u.fd
+                                     , 0);
     else
-      thread_add_write(thread->master, func,
-                       thread_arg, thread->u.fd, timer_min.tv_sec);
-
+      thread_add_write(thread->master, func
+                                     , THREAD_ARG(thread)
+                                     , thread->u.fd
+                                     , TIMER_SEC(timer_min));
     return connect_in_progress;
   }
 
@@ -139,41 +137,40 @@ enum connect_result tcp_socket_state(int fd, thread *thread
 
 void tcp_connection_state(int fd, enum connect_result status
 			  , thread *thread
-			  , int (*func) (struct _thread *))
+			  , int (*func) (struct _thread *)
+                          , int timeout)
 {
-  thread_arg *thread_arg;
+  checker *checker;
 
-  thread_arg = THREAD_ARG(thread);
+  checker = THREAD_ARG(thread);
 
   switch (status) {
     case connect_error:
 #ifdef _DEBUG_
-      syslog(LOG_DEBUG,"TCP connection ERROR to [%s:%d].",
-                       inet_ntoa(thread_arg->svr->addr_ip),
-                       ntohs(thread_arg->svr->addr_port));
+      syslog(LOG_DEBUG, "TCP connection ERROR to [%s:%d]."
+                      , ip_ntoa(SVR_IP(checker->rs))
+                      , ntohs(SVR_PORT(checker->rs)));
 #endif
       close(fd);
       break;
 
     case connect_success:
 #ifdef _DEBUG_
-      syslog(LOG_DEBUG,"TCP connection SUCCESS to [%s:%d].",
-                       inet_ntoa(thread_arg->svr->addr_ip),
-                       ntohs(thread_arg->svr->addr_port));
+      syslog(LOG_DEBUG, "TCP connection SUCCESS to [%s:%d]."
+                      , ip_ntoa(SVR_IP(checker->rs))
+                      , ntohs(SVR_PORT(checker->rs)));
 #endif
-      thread_add_write(thread->master, func, thread_arg, fd,
-                       thread_arg->svr->method->connection_to);
+      thread_add_write(thread->master, func, checker, fd, timeout);
       break;
 
     /* Checking non-blocking connect, we wait until socket is writable */
     case connect_in_progress:
 #ifdef _DEBUG_
-      syslog(LOG_DEBUG,"TCP connection to [%s:%d] now IN_PROGRESS.",
-                       inet_ntoa(thread_arg->svr->addr_ip),
-                       ntohs(thread_arg->svr->addr_port));
+      syslog(LOG_DEBUG, "TCP connection to [%s:%d] now IN_PROGRESS."
+                      , ip_ntoa(SVR_IP(checker->rs))
+                      , ntohs(SVR_PORT(checker->rs)));
 #endif
-      thread_add_write(thread->master, func, thread_arg, fd,
-                       thread_arg->svr->method->connection_to);
+      thread_add_write(thread->master, func, checker, fd, timeout);
       break;
 
     default:

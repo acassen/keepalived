@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: vrrp.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              Based on the Jerome Etienne, <jetienne@arobas.net> code.
@@ -35,9 +35,9 @@
 #include <unistd.h>
 
 /* local include */
-#include "cfreader.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_ipsecah.h"
+#include "timer.h"
 #include "utils.h"
 
 
@@ -81,7 +81,7 @@ typedef struct {
 
 	uint32_t	ipaddr;		/* the address of the interface */
 	char		hwaddr[6];	/* hardcoded for ethernet */
-	char		ifname[10];	/* the device name for this ipaddr */
+	char		*ifname;	/* the device name for this ipaddr */
 	/*
 	 * To have my own ip_id creates collision with kernel ip->id
 	 * but it should be ok because the packets are unlikely to be
@@ -113,8 +113,7 @@ typedef struct {
 
         int     debug;          /* Debug level 0-4 */
         int     notify_exec;
-        char    notify_file[FILENAME_MAX ];
-
+        char    notify_file[FILENAME_MAX];
 
 	/* rfc2336.6.2 */
 	uint32_t	ms_down_timer;
@@ -153,15 +152,14 @@ typedef struct {
 #define VRRP_IS_BAD_DEBUG_INT(d)	((d)<0 || (d)>4)
 
 
-#define VRRP_TIMER_HZ		1000000
-#define VRRP_TIMER_SKEW(srv)	((256-(srv)->priority)*VRRP_TIMER_HZ/256) 
+#define VRRP_TIMER_SKEW(srv)	((256-(srv)->priority)*TIMER_HZ/256) 
 
 #define VRRP_MIN(a, b)	((a) < (b)?(a):(b))
 #define VRRP_MAX(a, b)	((a) > (b)?(a):(b))
 
 /* prototypes */
 extern int vrrp_ipsecah_len(void);
-extern int complete_vrrp_init(vrrp_rt *vsrv);
-extern void vrrp_state_stop_instance(vrrp_rt *vsrv);
+extern void vrrp_complete_init(void);
+extern void shutdown_vrrp_instances(void);
 
 #endif

@@ -7,7 +7,7 @@
  *              library to add/remove server MASQ rules to the kernel 
  *              firewall framework.
  *
- * Version:     $Id: ipfwwrapper.c,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: ipfwwrapper.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -23,8 +23,9 @@
  */
 
 #include "ipfwwrapper.h"
+#include "utils.h"
 
-int ipfw_cmd(int cmd, virtualserver *vserver, realserver *rserver)
+int ipfw_cmd(int cmd, virtual_server *vs, real_server *rs)
 {
   struct ip_fwuser ctl;
   int ret = 1;
@@ -33,13 +34,13 @@ int ipfw_cmd(int cmd, virtualserver *vserver, realserver *rserver)
 
   /* Create the firewall MASQ rule */
   strncpy(ctl.label, IP_FW_LABEL_MASQUERADE, IP_FW_MAX_LABEL_LENGTH);
-  ctl.ipfw.fw_proto = vserver->service_type;
+  ctl.ipfw.fw_proto = vs->service_type;
  
   /* compute the source ip address */
-  ctl.ipfw.fw_src.s_addr = rserver->addr_ip.s_addr & vserver->nat_mask.s_addr;
-  ctl.ipfw.fw_smsk.s_addr = vserver->nat_mask.s_addr;
+  ctl.ipfw.fw_src.s_addr  = SVR_IP(rs) & vs->nat_mask;
+  ctl.ipfw.fw_smsk.s_addr = vs->nat_mask;
 
-  ctl.ipfw.fw_spts[0] = ctl.ipfw.fw_spts[1] = ntohs(rserver->addr_port);
+  ctl.ipfw.fw_spts[0] = ctl.ipfw.fw_spts[1] = ntohs(rs->addr_port);
   ctl.ipfw.fw_dpts[0] = 0x0000;
   ctl.ipfw.fw_dpts[1] = 0xFFFF;
   ctl.ipfw.fw_tosand = 0xFF;
@@ -48,9 +49,10 @@ int ipfw_cmd(int cmd, virtualserver *vserver, realserver *rserver)
   if (cmd & IP_FW_CMD_ADD) {
     ipfwc_delete_entry(IP_FW_LABEL_FORWARD, &ctl);
     if (!(errno & EINVAL)) {
-#ifdef DEBUG
-      syslog(LOG_DEBUG, "ipfw_cmd : MASQ firewall rule [%s:%d] already exist.",
-                        inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port));
+#ifdef _DEBUG_
+      syslog(LOG_DEBUG, "ipfw_cmd : MASQ firewall rule [%s:%d] already exist."
+                      , ip_ntoa(SVR_IP(rs))
+                      , ntohs(SVR_PORT(rs)));
 #endif
     }
     ret &= ipfwc_insert_entry(IP_FW_LABEL_FORWARD, &ctl, 1);
@@ -60,10 +62,11 @@ int ipfw_cmd(int cmd, virtualserver *vserver, realserver *rserver)
     ret &= ipfwc_delete_entry(IP_FW_LABEL_FORWARD, &ctl);
 
   if(!ret) {
-#ifdef DEBUG
-    syslog(LOG_DEBUG, "ipfw_cmd : firewall error (%s) processing [%s:%d] MASQ rule.",
-                      strerror(errno),
-                      inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port));
+#ifdef _DEBUG_
+    syslog(LOG_DEBUG, "ipfw_cmd : firewall error (%s) processing [%s:%d] MASQ rule."
+                    , strerror(errno)
+                    , ip_ntoa(SVR_IP(rs))
+                    , ntohs(SVR_PORT(rs)));
 #endif
     return IPFW_ERROR;
   }

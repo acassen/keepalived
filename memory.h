@@ -5,7 +5,7 @@
  *
  * Part:        memory.c include file.
  *
- * Version:     $Id: memory.h,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: memory.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -56,5 +56,8 @@ extern void keepalived_free_final(void);
 #define REALLOC(p,n) (realloc((p),(n)))
 
 #endif
+
+/* Common defines */
+#define FREE_PTR(P) if((P)) FREE((P));
 
 #endif

@@ -5,7 +5,7 @@
  *
  * Part:        smtp.c include file.
  *
- * Version:     $Id: smtp.h,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: smtp.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,8 +20,8 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _HTTP_H
-#define _HTTP_H
+#ifndef _SMTP_H
+#define _SMTP_H
 
 /* globales includes */
 #include <netdb.h>
@@ -29,7 +29,7 @@
 #include <sys/utsname.h>
 
 /* local includes */
-#include "cfreader.h"
+#include "data.h"
 #include "scheduler.h"
 #include "layer4.h"
 
@@ -40,18 +40,18 @@
 
 /* command stage */
 enum smtp_cmd {
-  connection,
-  helo,
-  mail,
-  rcpt,
-  data,
-  body,
-  quit,
-  error
+  CONNECTION,
+  HELO,
+  MAIL,
+  RCPT,
+  DATA,
+  BODY,
+  QUIT,
+  ERROR
 };
 
 /* SMTP thread argument structure */
-#define MAX_SUBJECT_LENGTH 256
+#define MAX_HEADERS_LENGTH 256
 #define MAX_BODY_LENGTH    512
 
 typedef struct _smtp_thread_arg {
@@ -71,19 +71,17 @@ typedef struct _smtp_thread_arg {
 
 /* Smtp command string processing */
 #define SMTP_HELO_CMD    "HELO %s\n"
-#define SMTP_MAIL_CMD    "MAIL FROM:%s\n"
-#define SMTP_RCPT_CMD    "RCPT TO:%s\n"
+#define SMTP_MAIL_CMD    "MAIL FROM:<%s>\n"
+#define SMTP_RCPT_CMD    "RCPT TO:<%s>\n"
 #define SMTP_DATA_CMD    "DATA\n"
-#define SMTP_SUBJECT_CMD "Subject: %s\nX-Mailer: Keepalived\n\n"
+#define SMTP_HEADERS_CMD "From: %s\nSubject: %s\nX-Mailer: Keepalived\n\n"
 #define SMTP_BODY_CMD    "\n\n%s\n\n"
 #define SMTP_SEND_CMD    "\n.\n"
 #define SMTP_QUIT_CMD    "QUIT\n"
 
 /* Prototypes defs */
 extern void smtp_alert(thread_master *
-                       , configuration_data *
-                       , realserver *
+                       , real_server *
                        , const char *
                        , const char *);
-
 #endif

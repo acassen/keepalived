@@ -8,6 +8,9 @@ Kernel needing
   Routing messages
   LinuxVirtualServer
 
+  Keepalived support all LVS code : including IPVS code for kernel 2.2
+  and kernel 2.4
+
 Library needing
 ===============
 
@@ -21,14 +24,22 @@ Installation
 
   1. uncompress the tarball
   2. cd into the directory
-  3. 'make' and 'make install'. This will install 
-     keepalived into your system (binary and configuration file).
-  4. cd into genhash directory (read the INSTALL file).
-  5. 'make' and 'make install'. This will install
-     the MD5 url digest generator. You need it to configure HTTP GET check
-     and SSL GET check in order to compute MD5SUM digest etalon.
+  3. './configure'
+  4. 'make'
+  5. 'make install'. This will install keepalived on your system,
+     binaries and configuration file :
+     * keepalived : The keepalived daemon program.
+     * genhash : The MD5 url digest generator. You need it to 
+                 configure HTTP GET check and SSL GET check in
+                 order to compute MD5SUM digest etalon.
+     * /etc/keepalived/keepalived.conf
   6. link keepalived.init into your runlevel directory. On redhat systems :
      ln -s /etc/rc.d/init.d/keepalived.init /etc/rc.d/rc3.d/S99keepalived
+
+  By default configure script use /usr/local as base directory. You can change
+  this value to your own by passing --prefix value to configure script
+
+  eg: './configure --prefix=/usr/'
 
 Configuration
 =============
@@ -42,4 +53,5 @@ Configuration
 
 
 Have fun with it !
-Alexandre
+
+Alexandre, <acassen@linux-vs.org>

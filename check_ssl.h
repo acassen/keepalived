@@ -5,7 +5,7 @@
  *
  * Part:        check_http.c include file.
  *
- * Version:     $Id: check_http.h,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: check_http.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -28,7 +28,8 @@
 #include "check_http.h"
 
 /* Prototypes */
-extern SSL_DATA *init_ssl_ctx(SSL_DATA *ssl);
+extern void install_ssl_check_keyword(void);
+extern int init_ssl_ctx(void);
 extern void clear_ssl(SSL_DATA *ssl);
 extern int ssl_connect(thread *thread);
 extern int ssl_printerr(int err);

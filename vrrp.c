@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: vrrp.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -27,6 +27,7 @@
 #include "vrrp_scheduler.h"
 #include "vrrp.h"
 #include "memory.h"
+#include "list.h"
 
 /* Close all FDs >= a specified value */
 void closeall(int fd)
@@ -119,7 +120,6 @@ static int notify_exec( vrrp_rt *vsrv , char *cmd)
 
   exit(0);
 }
-
 
 /* compute checksum */
 static u_short in_csum( u_short *addr, int len, u_short csum)
@@ -237,24 +237,22 @@ static int vrrp_handle_ipaddress(vrrp_rt *vsrv, int cmd)
   int i, err = 0;
   int retry;
   int ifidx = ifname_to_idx(vsrv->vif->ifname);
-  struct in_addr in;
 
   for(i = 0; i < vsrv->naddr; i++ ) {
     vip_addr *vadd = &vsrv->vaddr[i];
     retry ^= retry;
     if(!cmd && !vadd->deletable) continue;
 retry:
-    if (netlink_address_ipv4(ifidx , vadd->addr, cmd) < 0) {
+    if (netlink_address_ipv4(ifidx , ntohl(vadd->addr), cmd) < 0) {
       err = 1;
       vadd->deletable = 0;
-      in.s_addr = htonl(vadd->addr);
       syslog(LOG_INFO, "cant %s the address %s to %s\n"
                      , cmd ? "set" : "remove"
-                     , inet_ntoa(in)
+                     , ip_ntoa(vadd->addr)
                      , vsrv->vif->ifname);
       if (cmd == VRRP_IPADDRESS_ADD) {
         syslog(LOG_INFO, "try to delete eventual stalled ip");
-        netlink_address_ipv4(ifidx, vadd->addr, VRRP_IPADDRESS_DEL);
+        netlink_address_ipv4(ifidx, ntohl(vadd->addr), VRRP_IPADDRESS_DEL);
         if (!retry) {
           retry++;
           goto retry;
@@ -474,7 +472,7 @@ static int vrrp_in_chk(vrrp_rt *vsrv, char *buffer)
    * MUST verify that the Adver Interval in the packet is the same as
    * the locally configured for this virtual router
    */
-  if (vsrv->adver_int/VRRP_TIMER_HZ != hd->adver_int) {
+  if (vsrv->adver_int/TIMER_HZ != hd->adver_int) {
     syslog(LOG_INFO, "advertissement interval mismatch mine=%d rcved=%d"
                    , vsrv->adver_int, hd->adver_int);
     /* to prevent concurent VRID running => multiple master in 1 VRID */
@@ -631,7 +629,7 @@ static int vrrp_build_vrrp(vrrp_rt *vsrv, int prio, char *buffer, int buflen)
   hd->priority  = prio;
   hd->naddr  = vsrv->naddr;
   hd->auth_type  = vsrv->vif->auth_type;
-  hd->adver_int  = vsrv->adver_int/VRRP_TIMER_HZ;
+  hd->adver_int  = vsrv->adver_int/TIMER_HZ;
 
   /* copy the ip addresses */
   for( i = 0; i < vsrv->naddr; i++ ){
@@ -697,6 +695,8 @@ static int vrrp_send_pkt(vrrp_rt *vsrv, char *buffer, int buflen)
   /* build the address */
   memset(&from, 0 , sizeof(from));
   strcpy(from.sa_data, vsrv->vif->ifname);
+
+//print_buffer(buflen, buffer);
 
   /* send the data */
   len = sendto(fd, buffer, buflen, 0, &from, sizeof(from));
@@ -973,40 +973,6 @@ static int chk_min_cfg(vrrp_rt *vsrv)
   return 1;
 }
 
-/* compute vrrp structure */
-int complete_vrrp_init(vrrp_rt *vsrv)
-{
-  vrrp_if *vif = vsrv->vif;
-
-  /* complete the VMAC address */
-  vsrv->hwaddr[0] = 0x00;
-  vsrv->hwaddr[1] = 0x00;
-  vsrv->hwaddr[2] = 0x5E;
-  vsrv->hwaddr[3] = 0x00;
-  vsrv->hwaddr[4] = 0x01;
-  vsrv->hwaddr[5] = vsrv->vrid;
-
-  /* get the ip address */
-  vif->ipaddr = ifname_to_ip(vif->ifname);
-  if (!vif->ipaddr) {
-    syslog(LOG_INFO, "VRRP Error : no interface found : %s !\n", vif->ifname);
-    return 0;
-  }
-  /* get the hwaddr */
-  if (hwaddr_get(vif->ifname, vif->hwaddr, sizeof(vif->hwaddr))) {
-    syslog(LOG_INFO, "VRRP Error : Unreadable MAC"
-                     "address for interface : %s !\n", vif->ifname);
-    return 0;
-  }
-
-  vsrv->state = VRRP_STATE_INIT;
-  if (!vsrv->adver_int) vsrv->adver_int = VRRP_ADVER_DFL * VRRP_TIMER_HZ;
-  if (!vsrv->priority) vsrv->priority = VRRP_PRIO_DFL;
-  if (!vsrv->preempt) vsrv->preempt = VRRP_PREEMPT_DFL;
-
-  return(chk_min_cfg(vsrv));
-}
-
 /* open the socket and join the multicast group. */
 int open_vrrp_socket(const int proto, const int index)
 {
@@ -1066,10 +1032,67 @@ int open_vrrp_socket(const int proto, const int index)
   return fd;
 }
 
+
+extern data *conf_data;
+
 /* handle terminate state */
-void vrrp_state_stop_instance(vrrp_rt *vsrv)
+void shutdown_vrrp_instances(void)
 {
-  /* restore MAC, routing table & remove VIPs */
-  if (vsrv->state == VRRP_STATE_MAST)
-    vrrp_restore_interface(vsrv, 1);
+  list l = conf_data->vrrp;
+  element e;
+  vrrp_instance *vrrp;
+
+  for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+    vrrp = ELEMENT_DATA(e);
+
+    /* remove VIPs */
+    if (vrrp->vsrv->state == VRRP_STATE_MAST)
+      vrrp_restore_interface(vrrp->vsrv, 1);
+  }
+}
+
+/* complete vrrp structure */
+static int vrrp_complete_instance(vrrp_rt *vsrv)
+{
+  vrrp_if *vif = vsrv->vif;
+
+  /* complete the VMAC address */
+  vsrv->hwaddr[0] = 0x00;
+  vsrv->hwaddr[1] = 0x00;
+  vsrv->hwaddr[2] = 0x5E;
+  vsrv->hwaddr[3] = 0x00;
+  vsrv->hwaddr[4] = 0x01;
+  vsrv->hwaddr[5] = vsrv->vrid;
+
+  /* get the ip address */
+  vif->ipaddr = ifname_to_ip(vif->ifname);
+  if (!vif->ipaddr) {
+    syslog(LOG_INFO, "VRRP Error : no interface found : %s !\n", vif->ifname);
+    return 0;
+  }
+  /* get the hwaddr */
+  if (hwaddr_get(vif->ifname, vif->hwaddr, sizeof(vif->hwaddr))) {
+    syslog(LOG_INFO, "VRRP Error : Unreadable MAC"
+                     "address for interface : %s !\n", vif->ifname);
+    return 0;
+  }
+
+  vsrv->state = VRRP_STATE_INIT;
+  if (!vsrv->adver_int) vsrv->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
+  if (!vsrv->priority) vsrv->priority = VRRP_PRIO_DFL;
+  if (!vsrv->preempt) vsrv->preempt = VRRP_PREEMPT_DFL;
+
+  return(chk_min_cfg(vsrv));
+}
+
+void vrrp_complete_init(void)
+{
+  list l = conf_data->vrrp;
+  element e;
+  vrrp_instance *vrrp;
+
+  for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+    vrrp = ELEMENT_DATA(e);
+    vrrp_complete_instance(vrrp->vsrv);
+  }
 }

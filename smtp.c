@@ -7,7 +7,7 @@
  *              using the smtp protocol according to the RFC 821. A non blocking
  *              timeouted connection is used to handle smtp protocol.
  *
- * Version:     $Id: smtp.c,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: smtp.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -24,67 +24,49 @@
 
 #include "smtp.h"
 #include "memory.h"
+#include "list.h"
+
+extern data *conf_data;
 
 /* static prototype */
-static int smtp_send_cmd_thread(thread *thread);
+static int smtp_send_cmd_thread(thread *);
 
-static void free_smtp_arg(smtp_thread_arg *smtp_arg)
+static void free_smtp_all(smtp_thread_arg *smtp_arg)
 {
   FREE(smtp_arg->subject);
   FREE(smtp_arg->body);
   FREE(smtp_arg);
 }
 
-static void free_smtp_all(thread_arg *thread_arg)
+static char *fetch_next_email(smtp_thread_arg *smtp_arg)
 {
-  free_smtp_arg(THREAD_ARG_CHECKER_ARG(thread_arg));
-  FREE(thread_arg);
-}
-
-static char *fetch_next_email(thread_arg *thread_arg)
-{
-  smtp_thread_arg *smtp_arg;
-  int i = 0;
-
-  smtp_arg = THREAD_ARG_CHECKER_ARG(thread_arg);
-
-  for (i=0; i<smtp_arg->email_it; i++)
-    thread_arg->root->email = (notification_email *)thread_arg->root->email->next;
-
-  if (thread_arg->root->email)
-    return thread_arg->root->email->addr;
-
-  return NULL;
+  return list_element(conf_data->email, smtp_arg->email_it);
 }
 
 static int smtp_read_cmd_thread(thread *thread)
 {
-  thread_arg *thread_arg;
   smtp_thread_arg *smtp_arg;
-  notification_email *pointeremail;
   char *fetched_email;
   long total_length = 0;
   int rcv_buffer_size = 0;
   char *buffer;
   char *buffer_tmp;
 
-  thread_arg = THREAD_ARG(thread);
-  smtp_arg = THREAD_ARG_CHECKER_ARG(thread_arg);
+  smtp_arg = THREAD_ARG(thread);
 
   if (thread->type == THREAD_READ_TIMEOUT) {
 #ifdef _DEBUG_
     syslog(LOG_DEBUG, "Timeout reading data to remote SMTP server [%s:%d].",
-                      inet_ntoa(thread_arg->root->smtp_server),
+                      ip_ntoa(conf_data->smtp_server),
                       SMTP_PORT);
 #endif
-    free_smtp_all(thread_arg);
-    thread_arg->checker_arg = NULL;
+    free_smtp_all(smtp_arg);
     close(thread->u.fd);
     return 0;
   }
 
   /* Allocate the get buffers */
-  buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
+  buffer     = (char *)MALLOC(SMTP_BUFFER_MAX);
   buffer_tmp = (char *)MALLOC(SMTP_BUFFER_LENGTH);
 
   /* Cleanup the room */
@@ -95,12 +77,11 @@ static int smtp_read_cmd_thread(thread *thread)
     if (rcv_buffer_size == -1) {
       if (errno == EAGAIN) goto end;
 #ifdef _DEBUG_
-      syslog(LOG_DEBUG, "Error reading data to remote SMTP server [%s:%d].",
-                        inet_ntoa(thread_arg->root->smtp_server),
-                        SMTP_PORT);
+      syslog(LOG_DEBUG, "Error reading data to remote SMTP server [%s:%d]."
+                      , ip_ntoa(conf_data->smtp_server)
+                      , SMTP_PORT);
 #endif
-      free_smtp_all(thread_arg);
-      thread_arg->checker_arg = NULL;
+      free_smtp_all(smtp_arg);
       close(thread->u.fd);
       FREE(buffer);
       FREE(buffer_tmp);
@@ -111,12 +92,11 @@ static int smtp_read_cmd_thread(thread *thread)
     if (total_length >= SMTP_BUFFER_MAX) {
 #ifdef _DEBUG_
       syslog(LOG_DEBUG, "Received buffer from remote SMTP server [%s:%d]"
-                        " overflow our get read buffer length.",
-                        inet_ntoa(thread_arg->root->smtp_server),
-                        SMTP_PORT);
+                        " overflow our get read buffer length."
+                      , ip_ntoa(conf_data->smtp_server)
+                      , SMTP_PORT);
 #endif
-      free_smtp_all(thread_arg);
-      thread_arg->checker_arg = NULL;
+      free_smtp_all(smtp_arg);
       close(thread->u.fd);
       FREE(buffer);
       FREE(buffer_tmp);
@@ -135,85 +115,84 @@ end:
 
   /* setting the next stage */
   switch (smtp_arg->stage) {
-    case connection:
+    case CONNECTION:
       if (memcmp(buffer, SMTP_CONNECT, 3) == 0) {
-        smtp_arg->stage = helo;
+        smtp_arg->stage = HELO;
       } else {
         syslog(LOG_DEBUG, "Error connecting smtp server : [%s]", buffer);
-        smtp_arg->stage = error;
+        smtp_arg->stage = ERROR;
       }
       break;
 
-    case helo:
+    case HELO:
       if (memcmp(buffer, SMTP_HELO, 3) == 0) {
-        smtp_arg->stage = mail;
+        smtp_arg->stage = MAIL;
       } else {
         syslog(LOG_DEBUG, "Error processing HELO cmd : [%s]", buffer);
-        smtp_arg->stage = error;
+        smtp_arg->stage = ERROR;
       }
       break;
 
-    case mail:
+    case MAIL:
       if (memcmp(buffer, SMTP_MAIL_FROM, 3) == 0) {
-        smtp_arg->stage = rcpt;
+        smtp_arg->stage = RCPT;
       } else {
         syslog(LOG_DEBUG, "Error processing MAIL FROM cmd : [%s]", buffer);
-        smtp_arg->stage = error;
+        smtp_arg->stage = ERROR;
       }
       break;
 
-    case rcpt:
+    case RCPT:
       if (memcmp(buffer, SMTP_RCPT_TO, 3) == 0) {
         smtp_arg->email_it++;
 
-        pointeremail = thread_arg->root->email;
-        fetched_email = fetch_next_email(thread_arg);
-        thread_arg->root->email = pointeremail;
+        fetched_email = fetch_next_email(smtp_arg);
 
         if (!fetched_email)
-          smtp_arg->stage = data;
+          smtp_arg->stage = DATA;
       } else {
         syslog(LOG_DEBUG, "Error processing RCPT TO cmd : [%s]", buffer);
-        smtp_arg->stage = error;
+        smtp_arg->stage = ERROR;
       }
       break;
 
-    case data:
+    case DATA:
       if (memcmp(buffer, SMTP_DATA, 3) == 0) {
-        smtp_arg->stage = body;
+        smtp_arg->stage = BODY;
       } else {
         syslog(LOG_DEBUG, "Error processing DATA cmd : [%s]", buffer);
-        smtp_arg->stage = error;
+        smtp_arg->stage = ERROR;
       }
       break;
 
-    case body:
+    case BODY:
       if (memcmp(buffer, SMTP_DOT, 3) == 0) {
-        smtp_arg->stage = quit;
+        smtp_arg->stage = QUIT;
         syslog(LOG_INFO, "SMTP alert successfully sent.");
       } else {
         syslog(LOG_DEBUG, "Error processing DOT cmd : [%s]", buffer);
-        smtp_arg->stage = error;
+        smtp_arg->stage = ERROR;
       }
       break;
 
-    case quit:
+    case QUIT:
       /* final state, we are disconnected from the remote host */
-      free_smtp_all(thread_arg);
-      thread_arg->checker_arg = NULL;
+      free_smtp_all(smtp_arg);
       close(thread->u.fd);
       FREE(buffer);
       FREE(buffer_tmp);
       return 0;
       break;
 
-    case error:
+    case ERROR:
       break;
   }
 
   /* Registering next smtp command processing thread */
-  thread_add_write(thread->master, smtp_send_cmd_thread, thread_arg, thread->u.fd,
-                   thread_arg->root->smtp_connection_to);
+  thread_add_write(thread->master, smtp_send_cmd_thread
+                                 , smtp_arg
+                                 , thread->u.fd
+                                 , conf_data->smtp_connection_to);
 
   FREE(buffer);
   FREE(buffer_tmp);
@@ -237,23 +216,19 @@ static char *get_local_name(void)
 
 static int smtp_send_cmd_thread(thread *thread)
 {
-  thread_arg *thread_arg;
   smtp_thread_arg *smtp_arg;
-  notification_email *pointeremail;
   char *fetched_email;
   char *buffer;
 
-  thread_arg = THREAD_ARG(thread);
-  smtp_arg = THREAD_ARG_CHECKER_ARG(thread_arg);
+  smtp_arg = THREAD_ARG(thread);
 
   if (thread->type == THREAD_WRITE_TIMEOUT) {
 #ifdef _DEBUG_
-    syslog(LOG_DEBUG, "Timeout sending data to remote SMTP server [%s:%d].",
-                      inet_ntoa(thread_arg->root->smtp_server),
-                      SMTP_PORT);
+    syslog(LOG_DEBUG, "Timeout sending data to remote SMTP server [%s:%d]."
+                    , ip_ntoa(conf_data->smtp_server)
+                    , SMTP_PORT);
 #endif
-    free_smtp_all(thread_arg);
-    thread_arg->checker_arg = NULL;
+    free_smtp_all(smtp_arg);
     close(thread->u.fd);
     return 0;
   }
@@ -262,70 +237,69 @@ static int smtp_send_cmd_thread(thread *thread)
   buffer = (char *)MALLOC(SMTP_BUFFER_MAX);
 
   switch (smtp_arg->stage) {
-    case connection:
+    case CONNECTION:
       break;
 
-    case helo:
-      snprintf(buffer, TEMP_BUFFER_LENGTH, SMTP_HELO_CMD, get_local_name());
+    case HELO:
+      snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HELO_CMD, get_local_name());
       if (send(thread->u.fd, buffer, strlen(buffer), 0) == -1)
-        smtp_arg->stage = error;
+        smtp_arg->stage = ERROR;
       break;
 
-    case mail:
-      snprintf(buffer, TEMP_BUFFER_LENGTH, SMTP_MAIL_CMD, thread_arg->root->email_from);
+    case MAIL:
+      snprintf(buffer, SMTP_BUFFER_MAX, SMTP_MAIL_CMD, conf_data->email_from);
       if (send(thread->u.fd, buffer, strlen(buffer), 0) == -1)
-        smtp_arg->stage = error;
+        smtp_arg->stage = ERROR;
       break;
 
-    case rcpt:
+    case RCPT:
       /* We send RCPT TO command multiple time to add all our email receivers.
        * --rfc821.3.1
        */
-      pointeremail = thread_arg->root->email;
-      fetched_email = fetch_next_email(thread_arg);
-      thread_arg->root->email = pointeremail;
+      fetched_email = fetch_next_email(smtp_arg);
 
-      snprintf(buffer, TEMP_BUFFER_LENGTH, SMTP_RCPT_CMD, fetched_email);
+      snprintf(buffer, SMTP_BUFFER_MAX, SMTP_RCPT_CMD, fetched_email);
       if (send(thread->u.fd, buffer, strlen(buffer), 0) == -1)
-        smtp_arg->stage = error;
+        smtp_arg->stage = ERROR;
       break;
 
-    case data:
+    case DATA:
       if (send(thread->u.fd, SMTP_DATA_CMD, strlen(SMTP_DATA_CMD), 0) == -1)
-        smtp_arg->stage = error;
+        smtp_arg->stage = ERROR;
       break;
 
-    case body:
-      snprintf(buffer, TEMP_BUFFER_LENGTH, SMTP_SUBJECT_CMD, smtp_arg->subject);
+    case BODY:
+      snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HEADERS_CMD
+                     , conf_data->email_from
+                     , smtp_arg->subject);
       /* send the subject field */
       if (send(thread->u.fd, buffer, strlen(buffer), 0) == -1)
-        smtp_arg->stage = error;
+        smtp_arg->stage = ERROR;
 
       memset(buffer, 0, SMTP_BUFFER_MAX);
-      snprintf(buffer, TEMP_BUFFER_LENGTH, SMTP_BODY_CMD, smtp_arg->body);
+      snprintf(buffer, SMTP_BUFFER_MAX, SMTP_BODY_CMD, smtp_arg->body);
       /* send the the body field */
       if (send(thread->u.fd, buffer, strlen(buffer), 0) == -1)
-        smtp_arg->stage = error;
+        smtp_arg->stage = ERROR;
 
       /* send the sending dot */
       if (send(thread->u.fd, SMTP_SEND_CMD, strlen(SMTP_SEND_CMD), 0) == -1)
-        smtp_arg->stage = error;
+        smtp_arg->stage = ERROR;
       break;
 
-    case quit:
+    case QUIT:
       if (send(thread->u.fd, SMTP_QUIT_CMD, strlen(SMTP_QUIT_CMD), 0) == -1)
-        smtp_arg->stage = error;
+        smtp_arg->stage = ERROR;
       break;
 
-    case error:
+    case ERROR:
 #ifdef _DEBUG_
-      syslog(LOG_DEBUG, "Can not send data to remote SMTP server [%s:%d].",
-                        inet_ntoa(thread_arg->root->smtp_server),
-                        SMTP_PORT);
+      syslog(LOG_DEBUG, "Can not send data to remote SMTP server [%s:%d]."
+                      , ip_ntoa(conf_data->smtp_server)
+                      , SMTP_PORT);
 #endif
       /* we just cleanup the room */
-      free_smtp_all(thread_arg);
-      thread_arg->checker_arg = NULL;
+      free_smtp_all(smtp_arg);
       close(thread->u.fd);
       FREE(buffer);
       return 0;
@@ -335,8 +309,10 @@ static int smtp_send_cmd_thread(thread *thread)
 //printf("Sending : %s", buffer);
 
   /* Registering next smtp command processing thread */
-  thread_add_read(thread->master, smtp_read_cmd_thread, thread_arg, thread->u.fd,
-                  thread_arg->root->smtp_connection_to);
+  thread_add_read(thread->master, smtp_read_cmd_thread
+                                , smtp_arg
+                                , thread->u.fd
+                                , conf_data->smtp_connection_to);
 
   FREE(buffer);
   return 0;
@@ -345,34 +321,33 @@ static int smtp_send_cmd_thread(thread *thread)
 /* SMTP checkers threads */
 static int smtp_check_thread(thread *thread)
 {
-  thread_arg *thread_arg;
   smtp_thread_arg *smtp_arg;
   int status;
 
-  thread_arg = THREAD_ARG(thread);
-  smtp_arg = THREAD_ARG_CHECKER_ARG(thread_arg);
+  smtp_arg = THREAD_ARG(thread);
 
-  status = tcp_socket_state(thread->u.fd, thread, smtp_check_thread);
+  status = tcp_socket_state(thread->u.fd, thread
+                                        , conf_data->smtp_server
+                                        , htons(SMTP_PORT)
+                                        , smtp_check_thread);
 
   switch (status) {
     case connect_error:
 #ifdef _DEBUG_
-      syslog(LOG_DEBUG, "Error connecting SMTP server [%s:%d].",
-                        inet_ntoa(thread_arg->root->smtp_server),
-                        SMTP_PORT);
+      syslog(LOG_DEBUG, "Error connecting SMTP server [%s:%d]."
+                      , ip_ntoa(conf_data->smtp_server)
+                      , SMTP_PORT);
 #endif
-      free_smtp_all(thread_arg);
-      thread_arg->checker_arg = NULL;
+      free_smtp_all(smtp_arg);
       break;
 
     case connect_timeout:
 #ifdef _DEBUG_
-      syslog(LOG_DEBUG, "Timeout writing data to SMTP server [%s:%d].",
-                        inet_ntoa(thread_arg->root->smtp_server),
-                        SMTP_PORT);
+      syslog(LOG_DEBUG, "Timeout writing data to SMTP server [%s:%d]."
+                      , ip_ntoa(conf_data->smtp_server)
+                      , SMTP_PORT);
 #endif
-      free_smtp_all(thread_arg);
-      thread_arg->checker_arg = NULL;
+      free_smtp_all(smtp_arg);
       break;
 
     case connect_success:
@@ -380,13 +355,14 @@ static int smtp_check_thread(thread *thread)
        * Register the next step thread smtp_cmd_thread.
        */
 #ifdef _DEBUG_
-      syslog(LOG_DEBUG, "Remote SMTP server [%s:%d] connected.",
-                        inet_ntoa(thread_arg->root->smtp_server),
-                        SMTP_PORT);
+      syslog(LOG_DEBUG, "Remote SMTP server [%s:%d] connected."
+                      , ip_ntoa(conf_data->smtp_server)
+                      , SMTP_PORT);
 #endif
-
-      thread_add_write(thread->master, smtp_send_cmd_thread, thread_arg, thread->u.fd,
-                       thread_arg->root->smtp_connection_to);
+      thread_add_write(thread->master, smtp_send_cmd_thread
+                                     , smtp_arg
+                                     , thread->u.fd
+                                     , conf_data->smtp_connection_to);
       break;
   }
 
@@ -395,13 +371,11 @@ static int smtp_check_thread(thread *thread)
 
 static int smtp_connect_thread(thread *thread)
 {
-  thread_arg *thread_arg;
   smtp_thread_arg *smtp_arg;
   enum connect_result status;
   int fd;
 
-  thread_arg = THREAD_ARG(thread);
-  smtp_arg = THREAD_ARG_CHECKER_ARG(thread_arg);
+  smtp_arg = THREAD_ARG(thread);
 
   if ( (fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1 ) {
 #ifdef _DEBUG_
@@ -410,90 +384,87 @@ static int smtp_connect_thread(thread *thread)
     return 0;
   }
 
-  status = tcp_connect(fd, thread_arg->root->smtp_server.s_addr, htons(SMTP_PORT));
+  status = tcp_connect(fd, conf_data->smtp_server, htons(SMTP_PORT));
 
   switch (status) {
     case connect_error:
 #ifdef _DEBUG_
-      syslog(LOG_DEBUG, "SMTP connection ERROR to [%s:%d].",
-                        inet_ntoa(thread_arg->root->smtp_server),
-                        SMTP_PORT);
+      syslog(LOG_DEBUG, "SMTP connection ERROR to [%s:%d]."
+                      , ip_ntoa(conf_data->smtp_server)
+                      , SMTP_PORT);
 #endif
-      free_smtp_all(thread_arg);
-      thread_arg->checker_arg = NULL;
+      free_smtp_all(smtp_arg);
       close(fd);
       return 0;
       break;
 
     case connect_timeout:
 #ifdef _DEBUG_
-      syslog(LOG_DEBUG, "Timeout connecting SMTP server [%s:%d].",
-                        inet_ntoa(thread_arg->root->smtp_server),
-                        SMTP_PORT);
+      syslog(LOG_DEBUG, "Timeout connecting SMTP server [%s:%d]."
+                      , ip_ntoa(conf_data->smtp_server)
+                      , SMTP_PORT);
 #endif
-      free_smtp_all(thread_arg);
-      thread_arg->checker_arg = NULL;
+      free_smtp_all(smtp_arg);
       close(fd);
       return 0;
       break;
 
     case connect_success:
 #ifdef _DEBUG_
-      syslog(LOG_DEBUG, "SMTP connection SUCCESS to [%s:%d].",
-                        inet_ntoa(thread_arg->root->smtp_server),
-                        SMTP_PORT);
+      syslog(LOG_DEBUG, "SMTP connection SUCCESS to [%s:%d]."
+                      , ip_ntoa(conf_data->smtp_server)
+                      , SMTP_PORT);
 #endif
       break;
 
     /* Checking non-blocking connect, we wait until socket is writable */
     case connect_in_progress:
 #ifdef _DEBUG_
-      syslog(LOG_DEBUG, "SMTP connection to [%s:%d] now IN_PROGRESS.",
-                        inet_ntoa(thread_arg->root->smtp_server),
-                        SMTP_PORT);
+      syslog(LOG_DEBUG, "SMTP connection to [%s:%d] now IN_PROGRESS."
+                      , ip_ntoa(conf_data->smtp_server)
+                      , SMTP_PORT);
 #endif
       break;
   }
 
   /* connection have succeeded or still in progress */
-  thread_add_write(thread->master, smtp_check_thread, thread_arg, fd,
-                   thread_arg->root->smtp_connection_to);
-
+  thread_add_write(thread->master, smtp_check_thread
+                                 , smtp_arg
+                                 , fd
+                                 , conf_data->smtp_connection_to);
   return 1;
 }
 
 void smtp_alert(thread_master *master
-                , configuration_data *root
-                , realserver *rserver
+                , real_server *rs
                 , const char *subject
                 , const char *body)
 {
-  thread_arg *thread_arg;
   smtp_thread_arg *smtp_arg;
 
   /* Only send mail if email specified */
-  if (root->email) {
-    /* allocate a new thread_arg */
-    thread_arg = thread_arg_new(root, NULL, NULL);
-
+  if (!LIST_ISEMPTY(conf_data->email)) {
     /* allocate & initialize smtp argument data structure */
-    smtp_arg = (smtp_thread_arg *)MALLOC(sizeof(smtp_thread_arg));
-    smtp_arg->subject = (char *)MALLOC(MAX_SUBJECT_LENGTH);
-    smtp_arg->body = (char *)MALLOC(MAX_BODY_LENGTH);
+    smtp_arg          = (smtp_thread_arg *)MALLOC(sizeof(smtp_thread_arg));
+    smtp_arg->subject = (char *)MALLOC(MAX_HEADERS_LENGTH);
+    smtp_arg->body    = (char *)MALLOC(MAX_BODY_LENGTH);
 
-    smtp_arg->stage = connection; /* first smtp command set to HELO */
+    smtp_arg->stage = CONNECTION; /* first smtp command set to HELO */
 
     /* format subject if rserver is specified */
-    if (rserver)
-      snprintf(smtp_arg->subject, MAX_SUBJECT_LENGTH, "[%s] %s:%d - %s",
-               root->lvs_id, inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port), subject);
+    if (rs)
+      snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH, "[%s] %s:%d - %s"
+               , conf_data->lvs_id
+               , ip_ntoa(SVR_IP(rs))
+               , ntohs(SVR_PORT(rs))
+               , subject);
     else
-      snprintf(smtp_arg->subject, MAX_SUBJECT_LENGTH, "[%s] %s", root->lvs_id, subject);
+      snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH, "[%s] %s"
+                                , conf_data->lvs_id
+                                , subject);
 
     strncpy(smtp_arg->body, body, MAX_BODY_LENGTH);
 
-    thread_arg->checker_arg = smtp_arg;
-
-    thread_add_event(master, smtp_connect_thread, thread_arg, 0);
+    thread_add_event(master, smtp_connect_thread, smtp_arg, 0);
   }
 }

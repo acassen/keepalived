@@ -5,7 +5,7 @@
  *
  * Part:        scheduler.c include file.
  *
- * Version:     $Id: scheduler.h,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: scheduler.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -28,13 +28,10 @@
 #include <assert.h>
 #include <fcntl.h>
 #include <errno.h>
-
-/* local includes */
-#include "cfreader.h"
-#include "check.h"
+#include <syslog.h>
+#include "timer.h"
 
 /* Thread itself. */
-typedef struct timeval TIMEVAL;
 typedef struct _thread {
   unsigned long id;
   unsigned char type;			/* thread type */
@@ -83,69 +80,38 @@ typedef struct _thread_master {
 #define THREAD_TERMINATE      8
 
 /* MICRO SEC def */
-#define TIMER_SEC_MICRO 1000000
-#define TIMER_MAX_SEC   1000
 #define BOOTSTRAP_DELAY 1
 
 /* Macros. */
 #define THREAD_ARG(X) ((X)->arg)
-#define THREAD_ARG_CHECKER_ARG(X) ((X)->checker_arg)
 #define THREAD_FD(X)  ((X)->u.fd)
 #define THREAD_VAL(X) ((X)->u.val)
 
 /* Prototypes. */
 thread_master *thread_make_master(void);
-
 thread *thread_add_terminate_event(thread_master *m);
-
 void thread_destroy_master(thread_master *m);
-
-thread_arg *thread_arg_new(configuration_data *root
-			   , virtualserver *vserver
-			   , realserver *rserver);
-
 thread *thread_add_read(thread_master *m
 			, int (*func)(thread *)
 			, void *arg
 			, int fd
 			, long timeout);
-
 thread *thread_add_write(thread_master *m
 			 , int (*func)(thread *)
 			 , void *arg
 			 , int fd
 			 , long timeout);
-
 thread *thread_add_timer(thread_master *m
 			 , int (*func)(thread *)
 			 , void *arg
 			 , long timer);
-
 thread *thread_add_event(thread_master *m
 			 , int (*func)(thread *)
 			 , void *arg
 			 , int val);
-
 void thread_cancel(thread *thread);
-
 void thread_cancel_event(thread_master *m, void *arg);
-
 thread *thread_fetch(thread_master *m, thread *fetch);
-
 void thread_call(thread *thread);
-
-int thread_timer_cmp(TIMEVAL a, TIMEVAL b);
-
-TIMEVAL thread_timer_sub(TIMEVAL a, TIMEVAL b);
-
-void register_worker_thread(thread_master *master
-			    , configuration_data *lstptr);
-
-/* extern prototypes */
-extern int tcp_connect_thread(thread *thread);
-extern int http_connect_thread(thread *thread);
-extern int ssl_connect_thread(thread *thread);
-extern int misc_check_thread(thread *thread);
-extern int vrrp_dispatcher_init_thread(thread *thread);
 
 #endif

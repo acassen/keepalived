@@ -5,7 +5,7 @@
  *
  * Part:        TCP checker.
  *
- * Version:     $Id: check_tcp.c,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: check_tcp.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -21,15 +21,65 @@
  */
 
 #include "check_tcp.h"
+#include "check_api.h"
+#include "memory.h"
+#include "ipwrapper.h"
+#include "layer4.h"
+#include "smtp.h"
+#include "utils.h"
+#include "parser.h"
+
+int tcp_connect_thread(thread *);
+
+/* Configuration stream handling */
+void free_tcp_check(void *data)
+{
+  tcp_checker *tcp_chk = CHECKER_DATA(data);
+
+  FREE(tcp_chk);
+  FREE(data);
+}
+void dump_tcp_check(void *data)
+{
+  tcp_checker *tcp_chk = CHECKER_DATA(data);
+
+  syslog(LOG_INFO, "   Keepalive method = TCP_CHECK");
+  syslog(LOG_INFO, "   Connection timeout = %d"
+                 , tcp_chk->connection_to);
+}
+void tcp_check_handler(vector strvec)
+{
+  tcp_checker *tcp_chk = (tcp_checker *)MALLOC(sizeof(tcp_checker));
+
+  /* queue new checker */
+  queue_checker(free_tcp_check, dump_tcp_check
+                              , tcp_connect_thread
+                              , tcp_chk);
+}
+void connect_timeout_handler(vector strvec)
+{
+  tcp_checker *tcp_chk = CHECKER_GET();
+  tcp_chk->connection_to = CHECKER_VALUE_INT(strvec);
+}
+void install_tcp_check_keyword(void)
+{
+  install_keyword("TCP_CHECK",		&tcp_check_handler);
+  install_sublevel();
+    install_keyword("connect_timeout",	&connect_timeout_handler);
+  install_sublevel_end();
+}
 
 int tcp_check_thread(thread *thread)
 {
-  thread_arg *thread_arg;
+  checker *checker;
   int status;
 
-  thread_arg = THREAD_ARG(thread);
+  checker = THREAD_ARG(thread);
 
-  status = tcp_socket_state(thread->u.fd, thread, tcp_check_thread);
+  status = tcp_socket_state(thread->u.fd, thread
+                                        , CHECKER_RIP(checker)
+                                        , CHECKER_RPORT(checker)
+                                        , tcp_check_thread);
 
   /* If status = connect_success, TCP connection to remote host is established.
    * Otherwise we have a real connection error or connection timeout.
@@ -37,48 +87,52 @@ int tcp_check_thread(thread *thread)
   if (status == connect_success) {
 
 #ifdef _DEBUG_
-    syslog(LOG_DEBUG, "TCP connection to [%s:%d] success.",
-                      inet_ntoa(thread_arg->svr->addr_ip),
-                      ntohs(thread_arg->svr->addr_port));
+    syslog(LOG_DEBUG, "TCP connection to [%s:%d] success."
+                    ,  ip_ntoa(CHECKER_RIP(checker))
+                    ,  ntohs(CHECKER_RPORT(checker)));
 #endif
     close(thread->u.fd);
 
-    if (!thread_arg->svr->alive) {
-      smtp_alert(thread->master, thread_arg->root, thread_arg->svr,
-                 "UP", "=> TCP CHECK succeed on service <=\n\n");
-      perform_svr_state(UP, thread_arg->vs, thread_arg->svr);
+    if (!ISALIVE(checker->rs)) {
+      smtp_alert(thread->master, checker->rs
+                               , "UP"
+                               , "=> TCP CHECK succeed on service <=\n\n");
+      perform_svr_state(UP, checker->vs, checker->rs);
     }
 
   } else {
 #ifdef _DEBUG_
-    syslog(LOG_DEBUG, "TCP connection to [%s:%d] failed !!!",
-                      inet_ntoa(thread_arg->svr->addr_ip),
-                      ntohs(thread_arg->svr->addr_port));
+    syslog(LOG_DEBUG, "TCP connection to [%s:%d] failed !!!"
+                    ,  ip_ntoa(CHECKER_RIP(checker))
+                    ,  ntohs(CHECKER_RPORT(checker)));
 #endif
 
-    if (thread_arg->svr->alive) {
-      smtp_alert(thread->master, thread_arg->root, thread_arg->svr,
-                 "DOWN", "=> TCP CHECK failed on service <=\n\n");
-      perform_svr_state(DOWN, thread_arg->vs, thread_arg->svr);
+    if (ISALIVE(checker->rs)) {
+      smtp_alert(thread->master, checker->rs
+                               , "DOWN"
+                               , "=> TCP CHECK failed on service <=\n\n");
+      perform_svr_state(DOWN, checker->vs, checker->rs);
     }
 
   }
 
   /* Register next timer checker */
   if (status != connect_in_progress)
-    thread_add_timer(thread->master, tcp_connect_thread, thread_arg,
-                     thread_arg->vs->delay_loop);
-
+    thread_add_timer(thread->master, tcp_connect_thread
+                                   , checker
+                                   , checker->vs->delay_loop);
   return 0;
 }
 
 int tcp_connect_thread(thread *thread)
 {
-  thread_arg *thread_arg;
+  checker *checker;
+  tcp_checker *tcp_check;
   int fd;
   int status;
 
-  thread_arg = THREAD_ARG(thread);
+  checker   = THREAD_ARG(thread);
+  tcp_check = CHECKER_ARG(checker);
 
   if ( (fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1 ) {
 #ifdef _DEBUG_
@@ -87,10 +141,12 @@ int tcp_connect_thread(thread *thread)
     return 0;
   }
 
-  status = tcp_connect(fd, thread_arg->svr->addr_ip.s_addr, thread_arg->svr->addr_port);
+  status = tcp_connect(fd, CHECKER_RIP(checker)
+                         , CHECKER_RPORT(checker));
 
   /* handle tcp connection status & register check worker thread */
-  tcp_connection_state(fd, status, thread, tcp_check_thread);
-
+  tcp_connection_state(fd, status, thread
+                                 , tcp_check_thread
+                                 , tcp_check->connection_to);
   return 0;
 }

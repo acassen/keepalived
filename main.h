@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: main.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -31,23 +31,36 @@
 /* local includes */
 #include "utils.h"
 #include "pidfile.h"
-#include "cfreader.h"
+#include "data.h"
 #include "scheduler.h"
 #include "ipwrapper.h"
 #include "smtp.h"
 #include "vrrp.h"
-#include "check_ssl.h"
+#include "check_api.h"
+//#include "check_ssl.h"
 
 /* global var */
 thread_master *master;
 unsigned int debug;
+data *conf_data;
 
-/* SSL support */
+/* extern prototypes */
 extern void clear_ssl(SSL_DATA *ssl);
-extern SSL_DATA *init_ssl_ctx(SSL_DATA *ssl);
+extern int init_ssl_ctx(void);
+extern void register_vrrp_thread(void);
 
 /* Build version */
-#define PROG    "keepalived"
-#define VERSION "0.4.9a (20/12, 2001)"
+#define PROG    "Keepalived"
 
+#define VERSION_CODE 0x000503
+#define DATE_CODE    0x160202
+
+#define KEEPALIVED_VERSION(version)	\
+	(version >> 16) & 0xFF,		\
+	(version >> 8) & 0xFF,		\
+	version & 0xFF
+
+#define VERSION_STRING PROG" v%d.%d.%d (%.2d/%.2d, 20%.2d)", \
+		KEEPALIVED_VERSION(VERSION_CODE), \
+		KEEPALIVED_VERSION(DATE_CODE)
 #endif

@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -24,128 +24,117 @@
 #include "vrrp_ipsecah.h"
 #include "vrrp.h"
 #include "memory.h"
+#include "list.h"
+
+extern thread_master *master;
+extern data *conf_data;
 
 /*
  * Initialize state handling
  * --rfc2338.6.4.1
  */
-static void vrrp_init_state(vrrp_instance *instance)
+static void vrrp_init_state(list l)
 {
-  vrrp_instance *vrrpptr = instance;
+  vrrp_instance *vrrp;
+  element e;
 
-  while (instance) {
-    if (instance->vsrv->priority == VRRP_PRIO_OWNER ||
-        instance->vsrv->wantstate == VRRP_STATE_MAST) {
-      instance->vsrv->state = VRRP_STATE_GOTO_MASTER;
+  for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+    vrrp = ELEMENT_DATA(e);
+
+    if (vrrp->vsrv->priority == VRRP_PRIO_OWNER ||
+        vrrp->vsrv->wantstate == VRRP_STATE_MAST) {
+      vrrp->vsrv->state = VRRP_STATE_GOTO_MASTER;
     } else {
-      instance->vsrv->ms_down_timer = 3 * instance->vsrv->adver_int
-                                      + VRRP_TIMER_SKEW(instance->vsrv);
-      instance->vsrv->state = VRRP_STATE_BACK;
+      vrrp->vsrv->ms_down_timer = 3 * vrrp->vsrv->adver_int
+                                      + VRRP_TIMER_SKEW(vrrp->vsrv);
+      vrrp->vsrv->state = VRRP_STATE_BACK;
     }
-
-    instance = (vrrp_instance *)instance->next;
-  }
-  instance = vrrpptr;
-}
-
-static void vrrp_init_instance_sands(vrrp_instance *instance)
-{
-  struct timeval timer_now;
-
-  gettimeofday(&timer_now, NULL);
-
-  if (instance->vsrv->state == VRRP_STATE_BACK) {
-    instance->vsrv->sands.tv_sec = timer_now.tv_sec +
-                                   instance->vsrv->ms_down_timer / VRRP_TIMER_HZ;
-    instance->vsrv->sands.tv_usec = timer_now.tv_usec +
-                                    instance->vsrv->ms_down_timer % VRRP_TIMER_HZ;
-  }
-  if (instance->vsrv->state == VRRP_STATE_GOTO_MASTER ||
-      instance->vsrv->state == VRRP_STATE_MAST) {
-    instance->vsrv->sands.tv_sec = timer_now.tv_sec +
-                                   instance->vsrv->adver_int / VRRP_TIMER_HZ;
-    instance->vsrv->sands.tv_usec = timer_now.tv_usec;
   }
 }
 
-static void vrrp_init_sands(vrrp_instance *instance)
+static void vrrp_init_instance_sands(vrrp_instance *vrrp)
 {
-  vrrp_instance *vrrpptr = instance;
+  TIMEVAL timer;
 
-  while (instance) {
-    vrrp_init_instance_sands(instance);
+  timer = timer_now();
 
-    instance = (vrrp_instance *)instance->next;
+  if (vrrp->vsrv->state == VRRP_STATE_BACK) {
+    vrrp->vsrv->sands.tv_sec = timer.tv_sec +
+                               vrrp->vsrv->ms_down_timer / TIMER_HZ;
+    vrrp->vsrv->sands.tv_usec = timer.tv_usec +
+                                vrrp->vsrv->ms_down_timer % TIMER_HZ;
   }
-  instance = vrrpptr;
+  if (vrrp->vsrv->state == VRRP_STATE_GOTO_MASTER ||
+      vrrp->vsrv->state == VRRP_STATE_MAST) {
+    vrrp->vsrv->sands.tv_sec = timer.tv_sec +
+                               vrrp->vsrv->adver_int / TIMER_HZ;
+    vrrp->vsrv->sands.tv_usec = timer.tv_usec;
+  }
+}
+
+static void vrrp_init_sands(list l)
+{
+  vrrp_instance *vrrp;
+  element e;
+
+  for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+    vrrp = ELEMENT_DATA(e);
+    vrrp_init_instance_sands(vrrp);
+  }
 }
 
 /* Timer functions */
-static TIMEVAL vrrp_compute_timer(const int fd, vrrp_instance *vrrp)
+static TIMEVAL vrrp_compute_timer(const int fd)
 {
-  vrrp_instance *ptr = vrrp;
+  vrrp_instance *vrrp;
   TIMEVAL timer;
+  element e;
+  list l = conf_data->vrrp;
 
   /* clean the memory */
-  memset(&timer, 0, sizeof(struct timeval));
+  TIMER_RESET(timer);
 
-  while (vrrp) {
+  for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+    vrrp = ELEMENT_DATA(e);
     if (vrrp->vsrv->fd == fd) {
-      if (thread_timer_cmp(vrrp->vsrv->sands, timer) < 0 ||
-          (timer.tv_sec == 0 && timer.tv_usec == 0)) {
-        timer.tv_sec = vrrp->vsrv->sands.tv_sec;
-        timer.tv_usec = vrrp->vsrv->sands.tv_usec;
-      }
+      if (timer_cmp(vrrp->vsrv->sands, timer) < 0 ||
+          TIMER_ISNULL(timer))
+        timer = timer_dup(vrrp->vsrv->sands);
     }
-
-    vrrp = (vrrp_instance *)vrrp->next;
   }
-  vrrp = ptr;
 
   return timer;
 }
 
-static TIMEVAL vrrp_timer_delta(TIMEVAL timer)
+static long vrrp_timer_fd(const int fd)
 {
-  TIMEVAL timer_now;
+  TIMEVAL timer, vrrp_timer, now;
 
-  /* init timer */
-  memset(&timer_now, 0, sizeof(struct timeval));
-  gettimeofday(&timer_now, NULL);
+  timer = vrrp_compute_timer(fd);
+  now = timer_now();
+  vrrp_timer = timer_sub(timer, now);
+//  vrrp_timer = timer_sub_now(timer);
 
-  return(thread_timer_sub(timer, timer_now));
+  return (vrrp_timer.tv_sec*TIMER_HZ + vrrp_timer.tv_usec);
 }
 
-static long vrrp_timer_fd(const int fd, vrrp_instance *instance)
+static int vrrp_timer_vrid_timeout(const int fd)
 {
-  TIMEVAL timer;
-  long vrrp_timer = 0;
-
-  timer = vrrp_compute_timer(fd, instance);
-  timer = vrrp_timer_delta(timer);
-  vrrp_timer = timer.tv_sec * VRRP_TIMER_HZ + timer.tv_usec;
-
-  return vrrp_timer;
-}
-
-static int vrrp_timer_vrid_timeout(const int fd, vrrp_instance *vrrp)
-{
-  vrrp_instance *ptr = vrrp;
+  vrrp_instance *vrrp;
+  list l = conf_data->vrrp;
+  element e;
   TIMEVAL vrrp_timer;
   int vrid = 0;
 
   /* clean the memory */
   memset(&vrrp_timer, 0, sizeof(struct timeval));
-  vrrp_timer = vrrp_compute_timer(fd, vrrp);
+  vrrp_timer = vrrp_compute_timer(fd);
 
-  while (vrrp) {
-    if (thread_timer_cmp(vrrp->vsrv->sands, vrrp_timer) == 0)
+  for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+    vrrp = ELEMENT_DATA(e);
+    if (timer_cmp(vrrp->vsrv->sands, vrrp_timer) == 0)
       vrid = vrrp->vsrv->vrid;
-
-    vrrp = (vrrp_instance *)vrrp->next;
   }
-  vrrp = ptr;
-
   return vrid;
 }
 
@@ -158,12 +147,10 @@ static void vrrp_timer_dump(vrrp_instance *vrrp)
   long vrrp_timer = 0;
 
   memset(&timer, 0, sizeof(struct timeval));
-  memset(&timer_now, 0, sizeof(struct timeval));
-  gettimeofday(&timer_now, NULL);
 
   while (vrrp) {
-    timer = thread_timer_sub(vrrp->vsrv->sands, timer_now);
-    vrrp_timer = timer.tv_sec * VRRP_TIMER_HZ + timer.tv_usec;
+    timer = timer_sub_now(vrrp->vsrv->sands);
+    vrrp_timer = timer.tv_sec * TIMER_HZ + timer.tv_usec;
     syslog(LOG_DEBUG, "Timer(vrid,value) : (%d,%d)", vrrp->vsrv->vrid, vrrp_timer);
 
     vrrp = (vrrp_instance *)vrrp->next;
@@ -173,147 +160,128 @@ static void vrrp_timer_dump(vrrp_instance *vrrp)
 */
 
 /* Thread functions */
-static void vrrp_register_workers(thread_master *master
-                                  , vrrp_instance *instance
-                                  , sockpool *pool)
+static void vrrp_register_workers(list l)
 {
-  sockpool *poolptr = pool;
+  sock *sock;
   TIMEVAL timer;
   long vrrp_timer = 0;
+  element e;
 
-  /* init compute timer */
+  /* Init compute timer */
   memset(&timer, 0, sizeof(struct timeval));
 
   /* Init the VRRP instances state */
-  vrrp_init_state(instance);
+  vrrp_init_state(conf_data->vrrp);
 
   /* Init VRRP instances sands */
-  vrrp_init_sands(instance);
+  vrrp_init_sands(conf_data->vrrp);
 
-  while (pool) {
+  /* Register VRRP workers threads */
+  for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+    sock = ELEMENT_DATA(e);
     /* jump to asynchronous handling */
-    vrrp_timer = vrrp_timer_fd(pool->fd, instance);
-    thread_add_read(master, vrrp_read_dispatcher_thread,
-                    instance, pool->fd, vrrp_timer);
-
-    pool = (sockpool *)pool->next;
+    vrrp_timer = vrrp_timer_fd(sock->fd);
+    thread_add_read(master, vrrp_read_dispatcher_thread
+                          , NULL
+                          , sock->fd
+                          , vrrp_timer);
   }
-  pool = poolptr;
 }
 
 /* VRRP dispatcher functions */
-static int already_exist_sock(sockpool *lstptr, int ifindex, int proto)
+static int already_exist_sock(list l, int ifindex, int proto)
 {
-  sockpool *ptrpool = lstptr;
+  sock *sock;
+  element e;
 
-  while (lstptr) {
-    if ((lstptr->ifindex == ifindex) && (lstptr->proto == proto)) {
-      lstptr = ptrpool;
+  for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+    sock = ELEMENT_DATA(e);
+    if ((sock->ifindex == ifindex) && (sock->proto == proto))
       return 1;
-    }
-    lstptr = (sockpool *)lstptr->next;
   }
-  lstptr = ptrpool;
   return 0;
 }
 
-static sockpool *add_sock(sockpool *lstsock, sockpool *sock)
+/* sockpool list primitives */
+void free_sock(void *data)
 {
-  sockpool *ptrpool = lstsock;
+  FREE(data);
+}
+void dump_sock(void *data)
+{
+  sock *sock = data;
+  syslog(LOG_DEBUG, "sockpool -> ifindex(%d), proto(%d), fd(%d)"
+                  , sock->ifindex
+                  , sock->proto
+                  , sock->fd);
+}
+void alloc_sock(list l, int ifindex, int proto)
+{
+  sock *new;
 
-  if (lstsock) {
-    while (lstsock->next) lstsock = (sockpool *)lstsock->next;
-    lstsock->next = (struct sockpool *)sock;
-    return ptrpool;
-  } else {
-    lstsock = sock;
-    return lstsock;
-  }
+  new = (sock *)MALLOC(sizeof(sock));
+  new->ifindex = ifindex;
+  new->proto   = proto;
+
+  list_add(l, new);
 }
 
-static sockpool *remove_sock(sockpool *pool)
+static void vrrp_create_sockpool(list l)
 {
-  sockpool *t;
-
-  t = (sockpool *)pool->next;
-  FREE(pool);
-  return t;
-}
-
-static void clear_sockpool(sockpool *pool)
-{
-  while (pool)
-    pool = remove_sock(pool);
-}
-
-static sockpool *vrrp_create_sockpool(vrrp_instance *instance, sockpool *pool)
-{
-  vrrp_instance *ptr = instance;
-  sockpool *sock;
+  vrrp_instance *vrrp;
+  list p = conf_data->vrrp;
+  element e;
   int ifindex;
   int proto;
 
-  while (instance) {
-    ifindex = ifname_to_idx(instance->vsrv->vif->ifname);
-    if (instance->vsrv->vif->auth_type == VRRP_AUTH_AH)
+  for (e = LIST_HEAD(p); e; ELEMENT_NEXT(e)) {
+    vrrp = ELEMENT_DATA(e);
+    ifindex = ifname_to_idx(vrrp->vsrv->vif->ifname);
+    if (vrrp->vsrv->vif->auth_type == VRRP_AUTH_AH)
       proto = IPPROTO_IPSEC_AH;
     else
       proto = IPPROTO_VRRP;
 
-    if (!already_exist_sock(pool, ifindex, proto)) {
-      /* allocate & clean the new struct */
-      sock = (sockpool *)MALLOC(sizeof(sockpool));
-
-      /* fill in the new sock structure */
-      sock->ifindex = ifindex;
-      sock->proto = proto;
-      pool = add_sock(pool, sock);
-    }
-
-    instance = (vrrp_instance *)instance->next;
+    /* add the vrrp element if not exist */
+    if (!already_exist_sock(l, ifindex, proto))
+      alloc_sock(l, ifindex, proto);
   }
-
-  instance = ptr;
-  return pool;
 }
 
-static void vrrp_open_sockpool(sockpool *pool)
+static void vrrp_open_sockpool(list l)
 {
-  sockpool *ptr = pool;
+  sock *sock;
+  element e;
 
-  while (pool) {
-    pool->fd = open_vrrp_socket(pool->proto, pool->ifindex);
-    syslog(LOG_DEBUG, "sockpool -> ifindex %d, proto %d, fd %d",
-                      pool->ifindex, pool->proto, pool->fd);
-    pool = (sockpool *)pool->next;
+  for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+    sock = ELEMENT_DATA(e);
+    sock->fd = open_vrrp_socket(sock->proto, sock->ifindex);
   }
-  pool = ptr;
 }
 
-static void vrrp_set_fds(vrrp_instance *instance, sockpool *pool)
+static void vrrp_set_fds(list l)
 {
-  sockpool *ptr = pool;
-  vrrp_instance *ptrvrrp = instance;
+  sock *sock;
+  vrrp_instance *vrrp;
+  list p = conf_data->vrrp;
+  element e_sock;
+  element e_vrrp;
   int proto;
 
-  while (pool) {
-    while (instance) {
-      if (instance->vsrv->vif->auth_type == VRRP_AUTH_AH)
+  for (e_sock = LIST_HEAD(l); e_sock; ELEMENT_NEXT(e_sock)) {
+    sock = ELEMENT_DATA(e_sock);
+    for (e_vrrp = LIST_HEAD(p); e_vrrp; ELEMENT_NEXT(e_vrrp)) {
+      vrrp = ELEMENT_DATA(e_vrrp);
+      if (vrrp->vsrv->vif->auth_type == VRRP_AUTH_AH)
         proto = IPPROTO_IPSEC_AH;
       else
         proto = IPPROTO_VRRP;
 
-      if ((pool->ifindex == ifname_to_idx(instance->vsrv->vif->ifname)) &&
-          (pool->proto == proto))
-        instance->vsrv->fd = pool->fd;
-
-      instance = (vrrp_instance *)instance->next;
+      if ((sock->ifindex == ifname_to_idx(vrrp->vsrv->vif->ifname)) &&
+          (sock->proto == proto))
+        vrrp->vsrv->fd = sock->fd;
     }
-    instance = ptrvrrp;
-
-    pool = (sockpool *)pool->next;
   }
-  pool = ptr;
 }
 
 /*
@@ -330,51 +298,57 @@ static void vrrp_set_fds(vrrp_instance *instance, sockpool *pool)
  * are multiplexed through this fds. So our design can handle 2*n
  * multiplexing points.
  */
-int vrrp_dispatcher_init_thread(thread *thread)
+int vrrp_dispatcher_init(thread *thread)
 {
-  vrrp_instance *instance = THREAD_ARG(thread);
-  sockpool *pool;
+  list pool;
 
-  /* init */
-  pool = NULL;
+  /* allocate the sockpool */
+  pool = alloc_list(free_sock, dump_sock);
 
   /* create the VRRP socket pool list */
-  pool = vrrp_create_sockpool(instance, pool);
+  vrrp_create_sockpool(pool);
 
   /* open the VRRP socket pool */
   vrrp_open_sockpool(pool);
 
   /* set VRRP instance fds to sockpool */
-  vrrp_set_fds(instance, pool);
+  vrrp_set_fds(pool);
 
   /* register read dispatcher worker thread */
-  vrrp_register_workers(thread->master, instance, pool);
+  vrrp_register_workers(pool);
 
   /* cleanup the temp socket pool */
-  clear_sockpool(pool);
+  dump_list(pool);
+  free_list(pool);
 
   return 0;
 }
 
-static vrrp_instance *vrrp_search_instance_isync(char *isync, vrrp_instance *instance)
+static vrrp_instance *vrrp_search_instance_isync(char *isync)
 {
-  while (instance) {
-    if (strcmp(instance->iname, isync) == 0) /* FIXME: handle buffer overflow */
-      return instance;
-    instance = (vrrp_instance *)instance->next;
-  }
+  vrrp_instance *vrrp;
+  list l = conf_data->vrrp;
+  element e;
 
+  for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+    vrrp = ELEMENT_DATA(e);
+    if (strcmp(vrrp->iname, isync) == 0)
+      return vrrp;
+  }
   return NULL;
 }
 
-static vrrp_instance *vrrp_search_instance(const int vrid, vrrp_instance *instance)
+static vrrp_instance *vrrp_search_instance(const int vrid)
 {
-  while (instance) {
-    if (instance->vsrv->vrid == vrid)
-      return instance;
-    instance = (vrrp_instance *)instance->next;
-  }
+  vrrp_instance *vrrp;
+  list l = conf_data->vrrp;
+  element e;
 
+  for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+    vrrp = ELEMENT_DATA(e);
+    if (vrrp->vsrv->vrid == vrid)
+      return vrrp;
+  }
   return NULL;
 }
 
@@ -410,7 +384,7 @@ static void vrrp_handle_leave_master(vrrp_instance *instance
 {
   if (vrrp_state_master_rx(instance, vrrp_buffer, len)) {
     syslog(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert"
-                    , instance->iname);
+                   , instance->iname);
     vrrp_state_leave_master(instance);
   }
 }
@@ -502,8 +476,6 @@ static int vrrp_handle_state_timeout(vrrp_instance *instance)
 /* Our read packet dispatcher */
 int vrrp_read_dispatcher_thread(thread *thread)
 {
-  vrrp_instance *instance = THREAD_ARG(thread);
-  vrrp_instance *ptr = instance;
   vrrp_instance *vrrp_isync;
   vrrp_instance *vrrp_instance;
   long vrrp_timer = 0;
@@ -517,19 +489,14 @@ int vrrp_read_dispatcher_thread(thread *thread)
   if (thread->type == THREAD_READ_TIMEOUT) {
 
     /* Searching for matching instance */
-    vrid = vrrp_timer_vrid_timeout(thread->u.fd, instance);
-    vrrp_instance = vrrp_search_instance(vrid, instance);
-    instance = ptr;
-
-// syslog(LOG_DEBUG, "Dispatcher timeout on (fd,vrid) : (%d,%d)", thread->u.fd, vrid);
+    vrid = vrrp_timer_vrid_timeout(thread->u.fd);
+    vrrp_instance = vrrp_search_instance(vrid);
 
     previous_state = vrrp_handle_state_timeout(vrrp_instance);
 
     /* handle master instance synchronization */
-    if (previous_state == VRRP_STATE_BACK && 
-        strlen(vrrp_instance->isync) > 0) {
-      vrrp_isync = vrrp_search_instance_isync(vrrp_instance->isync, instance);
-      instance = ptr;
+    if (previous_state == VRRP_STATE_BACK && vrrp_instance->isync) {
+      vrrp_isync = vrrp_search_instance_isync(vrrp_instance->isync);
 
       if (vrrp_isync->vsrv->state == VRRP_STATE_BACK) {
         syslog(LOG_INFO, "VRRP_Instance(%s) must be sync with %s"
@@ -566,27 +533,23 @@ int vrrp_read_dispatcher_thread(thread *thread)
     iph = (struct iphdr *)vrrp_buffer;
 
     /* GCC bug : Workaround */
-    hd = (vrrp_pkt *) ((char *)iph + (iph->ihl<<2));
+    hd = (vrrp_pkt *) ((char *)iph + (iph->ihl << 2));
     if (iph->protocol == IPPROTO_IPSEC_AH)
       hd = (vrrp_pkt *) ((char *)hd + vrrp_ipsecah_len());
     /* GCC bug : end */
 
     /* Searching for matching instance */
-    vrrp_instance = vrrp_search_instance(hd->vrid, instance);
-    instance = ptr;
+    vrrp_instance = vrrp_search_instance(hd->vrid);
 
     if (vrrp_instance) {
-
-//syslog(LOG_DEBUG, "VRRP packet received: on fd:%d", thread->u.fd);
 
       previous_state = vrrp_handle_state(vrrp_instance, vrrp_buffer, len);
 
       /* handle backup instance synchronization */
       if (previous_state == VRRP_STATE_MAST && 
           vrrp_instance->vsrv->state == VRRP_STATE_BACK &&
-          strlen(vrrp_instance->isync) > 0) {
-        vrrp_isync = vrrp_search_instance_isync(vrrp_instance->isync, instance);
-        instance = ptr;
+          vrrp_instance->isync) {
+        vrrp_isync = vrrp_search_instance_isync(vrrp_instance->isync);
 
         /* synchronized instance probably failed */
         if (vrrp_isync->vsrv->state == VRRP_STATE_MAST &&
@@ -620,11 +583,19 @@ int vrrp_read_dispatcher_thread(thread *thread)
   }
 
   /* register next dispatcher thread */
-  vrrp_timer = vrrp_timer_fd(thread->u.fd, instance);
-  thread_add_read(thread->master, vrrp_read_dispatcher_thread,
-                  instance, thread->u.fd, vrrp_timer);
-
-//syslog(LOG_DEBUG, "VRRP new timer: %lu on fd:%d", vrrp_timer, thread->u.fd);
-
+  vrrp_timer = vrrp_timer_fd(thread->u.fd);
+  thread_add_read(thread->master, vrrp_read_dispatcher_thread
+                                , NULL
+                                , thread->u.fd
+                                , vrrp_timer);
   return 0;
+}
+
+/* Register VRRP thread */
+void register_vrrp_thread(void)
+{
+  if (!LIST_ISEMPTY(conf_data->vrrp))
+    thread_add_event(master, vrrp_dispatcher_init
+                           , NULL
+                           , VRRP_DISPATCHER);
 }

@@ -1,0 +1,34 @@
+# Makefile
+#
+# Keepalived OpenSource project.
+#
+# Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
+
+EXEC = genhash
+
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+
+CC = gcc
+CFLAGS = @CFLAGS@ -Wall -Wunused -Wstrict-prototypes
+LDFLAGS = @LIBS@ @LDFLAGS@
+
+OBJS = main.o client.o common.o
+
+all:	$(EXEC)
+	strip $(EXEC)
+	@echo ""
+	@echo "Make complete"
+
+$(EXEC): $(OBJS)
+	$(CC) $(OBJS) -o $(EXEC) $(LDFLAGS)
+
+clean:
+	rm -f core *.o $(EXEC)
+
+clean-dist:
+	rm -f $(bindir)/$(EXEC)
+
+install:	
+	install -m 755 $(EXEC) $(bindir)/

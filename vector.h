@@ -1,11 +1,11 @@
-/*
+/* 
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
- *
- * Part:        pidfile.c include file.
- *
- * Version:     $Id: pidfile.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * 
+ * Part:        vector.c include file.
+ *  
+ * Version:     $Id: vector.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,22 +20,26 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _PIDFILE_H
-#define _PIDFILE_H
 
-/* system include */
-#include <unistd.h>
-#include <stdio.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <syslog.h>
+#ifndef _VECTOR_H
+#define _VECTOR_H
 
-/* lock pidfile */
-#define PIDFILENAME "/var/run/keepalived.pid"
+/* vector definition */
+struct _vector {
+  unsigned int allocated;
+  void **slot;
+};
+typedef struct _vector *vector;
+
+#define VECTOR_DEFAULT_SIZE 1
+#define VECTOR_SLOT(V,E) ((V)->slot[(E)])
+#define VECTOR_SIZE(V)   ((V)->allocated)
 
 /* Prototypes */
-extern int pidfile_write(int pid);
-extern void pidfile_rm(void);
-extern int keepalived_running(void);
+extern vector vector_alloc(void);
+extern void vector_alloc_slot(vector v);
+extern void vector_free(vector v);
+extern void vector_set_slot(vector v, void *value);
+extern void vector_dump(vector v);
 
 #endif

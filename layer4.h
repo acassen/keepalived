@@ -5,7 +5,7 @@
  *
  * Part:        layer4.c include file.
  *
- * Version:     $Id: layer4.h,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: layer4.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -25,14 +25,15 @@
 
 /* system includes */
 #include <unistd.h>
+#include <string.h>
 #include <stdint.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 /* local includes */
-#include "cfreader.h"
 #include "scheduler.h"
-#include "check_http.h"
 
 enum connect_result {
   connect_error,
@@ -43,15 +44,17 @@ enum connect_result {
 
 /* Prototypes defs */
 extern enum connect_result
-tcp_connect(int fd, uint32_t IP_DST, uint16_t PORT_DST);
+tcp_connect(int fd, uint32_t, uint16_t);
 
 extern enum connect_result
-tcp_socket_state(int fd, thread *thread,
-                         int (*func) (struct _thread *));
+tcp_socket_state(int, thread *
+                    , uint32_t
+                    , uint16_t
+                    , int (*func) (struct _thread *));
 
 extern void
-tcp_connection_state(int fd, enum connect_result status,
-                             thread *thread,
-                             int (*func) (struct _thread *));
-
+tcp_connection_state(int, enum connect_result
+                        , thread *
+                        , int (*func) (struct _thread *)
+                        , int);
 #endif

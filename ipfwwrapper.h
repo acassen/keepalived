@@ -5,7 +5,7 @@
  *
  * Part:        ipfwwrapper.c include file.
  *
- * Version:     $Id: ipfwwrapper.h,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: ipfwwrapper.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -29,7 +29,7 @@
 
 /* locale includes */
 #include "libipfwc/libipfwc.h"
-#include "cfreader.h"
+#include "data.h"
 
 /* local defs */
 #define IPFW_ERROR   0
@@ -42,6 +42,6 @@
 #define IPFW_SRC_NETMASK 0xffffffff
 
 /* prototypes */
-extern int ipfw_cmd(int cmd, virtualserver *vserver, realserver *rserver);
+extern int ipfw_cmd(int cmd, virtual_server *vserver, real_server *rserver);
 
 #endif

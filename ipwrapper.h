@@ -5,7 +5,7 @@
  *
  * Part:        ipwrapper.c include file.
  *
- * Version:     $Id: ipwrapper.h,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: ipwrapper.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -27,7 +27,7 @@
 #include <syslog.h>
 
 /* locale includes */
-#include "cfreader.h"
+#include "data.h"
 #include "smtp.h"
 
 /* NAT netmask */
@@ -55,11 +55,11 @@
 #endif
 
 /* prototypes */
-extern void perform_svr_state(int alive, virtualserver *vserver, realserver *rserver);
-extern int init_services(virtualserver *vserver);
-extern int clear_services(virtualserver *vserver);
+extern void perform_svr_state(int alive, virtual_server *vs, real_server *rs);
+extern int init_services(void);
+extern int clear_services(void);
 
-extern int ipvs_cmd(int cmd, virtualserver *vserver, realserver *rserver);
-extern int ipfw_cmd(int cmd, virtualserver *vserver, realserver *rserver);
+extern int ipvs_cmd(int cmd, virtual_server *vserver, real_server *rserver);
+extern int ipfw_cmd(int cmd, virtual_server *vserver, real_server *rserver);
 
 #endif

@@ -95,7 +95,10 @@ static char *build_request(REQ* req)
   char *request;
   int request_len = 0;
 
-  request_len = strlen(REQUEST_TEMPLATE) + strlen(req->host) + 12;
+  request_len = strlen(REQUEST_TEMPLATE) +
+                strlen(req->host) +
+                strlen(req->url) +
+                sizeof(unsigned short int);
   request = xmalloc(request_len);
   if (!request) return NULL;
 

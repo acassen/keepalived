@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $id: ipwrapper.c,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $id: ipwrapper.c,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -21,187 +21,185 @@
  */
 
 #include "ipwrapper.h"
+#include "utils.h"
 
-int clear_service_vs(virtualserver *vserver)
+extern data *conf_data;
+
+int clear_service_vs(virtual_server *vs)
 {
-  realserver *pointersvr;
+  element e;
 
-  pointersvr = vserver->svr;
-  while (vserver->svr) {
+  for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
     /* IPVS cleaning server entry */
-    if (!ipvs_cmd(LVS_CMD_DEL_DEST, vserver, vserver->svr)) {
-      vserver->svr = pointersvr;
+    if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs, e->data))
       return 0;
-    }
 
 #ifdef _KRNL_2_2_
     /* IPFW cleaning server entry if granularity = /32 */
-    if (vserver->nat_mask.s_addr == HOST_NETMASK)
-      if (!ipfw_cmd(IP_FW_CMD_DEL, vserver, vserver->svr))
+    if (vserver->nat_mask == HOST_NETMASK)
+      if (!ipfw_cmd(IP_FW_CMD_DEL, vs, e->data))
         return 0;
 #endif
-
-    vserver->svr = (realserver *)vserver->svr->next;
   }
-  vserver->svr = pointersvr;
 
-  if (!ipvs_cmd(LVS_CMD_DEL, vserver, vserver->svr))
+  if (!ipvs_cmd(LVS_CMD_DEL, vs, NULL))
     return 0;
-
   return 1;
 }
 
-int clear_services(virtualserver *vserver)
+/* IPVS cleaner processing */
+int clear_services(void)
 {
-  while (vserver) {
-    /* IPVS cleaner processing */
-    if (!clear_service_vs(vserver))
+  element e;
+  list vs = conf_data->vs;
+  virtual_server *vsvr;
+  real_server *rsvr;
+
+  for (e = LIST_HEAD(vs); e; ELEMENT_NEXT(e)) {
+    vsvr = ELEMENT_DATA(e);
+    rsvr = (real_server *)LIST_HEAD(vsvr->rs);
+    if (!clear_service_vs(vsvr))
       return 0;
 
 #ifdef _KRNL_2_2_
-    /* IPFW cleaner processing */
-    if (vserver->nat_mask.s_addr != HOST_NETMASK)
-      if (!ipfw_cmd(IP_FW_CMD_DEL, vserver, vserver->svr))
+    if (vsvr->nat_mask != HOST_NETMASK)
+      if (!ipfw_cmd(IP_FW_CMD_DEL, vsvr, rsvr))
         return 0;
 #endif
-
-    vserver = (virtualserver *)vserver->next;
   }
   return 1;
 }
 
-int all_realservers_down(virtualserver *vserver)
+int all_realservers_down(virtual_server *vs)
 {
-  realserver *pointersvr;
+  element e;
+  real_server *svr;
 
-  pointersvr = vserver->svr;
-  while (vserver->svr) {
-    if (vserver->svr->alive) return 0;
-
-    vserver->svr = (realserver *)vserver->svr->next;
+  for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
+    svr = ELEMENT_DATA(e);
+    if (svr->alive) return 0;
   }
-  vserver->svr = pointersvr;
   return 1;
 }
 
-void perform_svr_state(int alive, virtualserver *vserver, realserver *rserver)
+void perform_svr_state(int alive, virtual_server *vs, real_server *rs)
 {
-  if (!rserver->alive && alive) {
+  if (!ISALIVE(rs) && alive) {
 
     /* adding a server to the vs pool, if sorry server is flagged alive,
      * we remove it from the vs pool.
      */
-    if (vserver->s_svr) {
-      if (vserver->s_svr->alive) {
-        syslog(LOG_INFO, "Removing sorry server [%s:%d] from VS [%s:%d]",
-               inet_ntoa(vserver->s_svr->addr_ip), ntohs(vserver->s_svr->addr_port),
-               inet_ntoa(vserver->addr_ip), ntohs(vserver->addr_port));
+    if (vs->s_svr) {
+      if (vs->s_svr->alive) {
+        syslog(LOG_INFO, "Removing sorry server [%s:%d] from VS [%s:%d]"
+                       , ip_ntoa(SVR_IP(vs->s_svr))
+                       , ntohs(SVR_PORT(vs->s_svr))
+                       , ip_ntoa(SVR_IP(vs))
+                       , ntohs(SVR_PORT(vs)));
 
-        vserver->s_svr->alive = 0;
-        ipvs_cmd(LVS_CMD_DEL_DEST, vserver, vserver->s_svr);
+        vs->s_svr->alive = 0;
+        ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
 #ifdef _KRNL_2_2_
-        ipfw_cmd(IP_FW_CMD_DEL, vserver, vserver->s_svr);
+        ipfw_cmd(IP_FW_CMD_DEL, vs, vs->s_svr);
 #endif
       }
     }
 
-    rserver->alive = alive;
-    syslog(LOG_INFO, "Adding service [%s:%d] to VS [%s:%d]",
-           inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port),
-           inet_ntoa(vserver->addr_ip), ntohs(vserver->addr_port));
-    ipvs_cmd(LVS_CMD_ADD_DEST, vserver, rserver);
+    rs->alive = alive;
+    syslog(LOG_INFO, "Adding service [%s:%d] to VS [%s:%d]"
+                   , ip_ntoa(SVR_IP(rs))
+                   , ntohs(SVR_PORT(rs))
+                   , ip_ntoa(SVR_IP(vs))
+                   , ntohs(SVR_PORT(vs)));
+    ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
 
 #ifdef _KRNL_2_2_
-    if (vserver->nat_mask.s_addr == HOST_NETMASK)
-      ipfw_cmd(IP_FW_CMD_ADD, vserver, rserver);
+    if (vs->nat_mask == HOST_NETMASK)
+      ipfw_cmd(IP_FW_CMD_ADD, vs, rs);
 #endif
 
   } else {
 
-    rserver->alive = alive;
-    syslog(LOG_INFO, "Removing service [%s:%d] from VS [%s:%d]",
-           inet_ntoa(rserver->addr_ip), ntohs(rserver->addr_port),
-           inet_ntoa(vserver->addr_ip), ntohs(vserver->addr_port));
+    rs->alive = alive;
+    syslog(LOG_INFO, "Removing service [%s:%d] from VS [%s:%d]"
+                   , ip_ntoa(SVR_IP(rs))
+                   , ntohs(SVR_PORT(rs))
+                   , ip_ntoa(SVR_IP(vs))
+                   , ntohs(SVR_PORT(vs)));
 
     /* server is down, it is removed from the LVS realserver pool */
-    ipvs_cmd(LVS_CMD_DEL_DEST, vserver, rserver);
+    ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs);
 
 #ifdef _KRNL_2_2_
-    if (vserver->nat_mask.s_addr == HOST_NETMASK)
-      ipfw_cmd(IP_FW_CMD_DEL, vserver, rserver);
+    if (vs->nat_mask == HOST_NETMASK)
+      ipfw_cmd(IP_FW_CMD_DEL, vs, rs);
 #endif
 
     /* if all the realserver pool is down, we add sorry server */
-    if (vserver->s_svr && all_realservers_down(vserver)) {
-      syslog(LOG_INFO, "Adding sorry server [%s:%d] to VS [%s:%d]",
-             inet_ntoa(vserver->s_svr->addr_ip), ntohs(vserver->s_svr->addr_port),
-             inet_ntoa(vserver->addr_ip), ntohs(vserver->addr_port));
+    if (vs->s_svr && all_realservers_down(vs)) {
+      syslog(LOG_INFO, "Adding sorry server [%s:%d] to VS [%s:%d]"
+                     , ip_ntoa(SVR_IP(vs->s_svr))
+                     , ntohs(SVR_PORT(vs->s_svr))
+                     , ip_ntoa(SVR_IP(vs))
+                     , ntohs(SVR_PORT(vs)));
 
       /* the sorry server is now up in the pool, we flag it alive */
-      vserver->s_svr->alive = 1;
-      ipvs_cmd(LVS_CMD_ADD_DEST, vserver, vserver->s_svr);
+      vs->s_svr->alive = 1;
+      ipvs_cmd(LVS_CMD_ADD_DEST, vs, vs->s_svr);
 
 #ifdef _KRNL_2_2_
-      ipfw_cmd(IP_FW_CMD_ADD, vserver, vserver->s_svr);
+      ipfw_cmd(IP_FW_CMD_ADD, vs, vs->s_svr);
 #endif
     }
 
   }
 }
 
-int init_service_vs(virtualserver *vserver)
+int init_service_vs(virtual_server *vs)
 {
-  realserver *pointersvr;
+  element e;
 
-  pointersvr = vserver->svr;
-  while (vserver->svr) {
-    if (!ipvs_cmd(LVS_CMD_ADD_DEST, vserver, vserver->svr)) {
-      vserver->svr = pointersvr;
+  /* Init the IPVS root */
+  if (!ipvs_cmd(LVS_CMD_ADD, vs, NULL))
+    return 0;
+
+  for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
+    if (!ipvs_cmd(LVS_CMD_ADD_DEST, vs, e->data))
       return 0;
-    }
 
 #ifdef _KRNL_2_2_
     /* if we have a /32 mask, we create one nat rules per
      * realserver.
      */
-    if (vserver->nat_mask.s_addr == HOST_NETMASK)
-      if(!ipfw_cmd(IP_FW_CMD_ADD, vserver, vserver->svr)) {
-        vserver->svr = pointersvr;
+    if (vs->nat_mask == HOST_NETMASK)
+      if(!ipfw_cmd(IP_FW_CMD_ADD, vs, e->data))
         return 0;
-      }
 #endif
-
-    vserver->svr = (realserver *)vserver->svr->next;
   }
-  vserver->svr = pointersvr;
-
   return 1;
 }
 
-int init_services(virtualserver *vserver)
+int init_services(void)
 {
-  virtualserver *pointervs;
+  element e;
+  list vs = conf_data->vs;
+  virtual_server *vsvr;
+  real_server *rsvr;
 
-  pointervs = vserver;
-  while (vserver) {
-    if (!ipvs_cmd(LVS_CMD_ADD, vserver, vserver->svr))
+  for (e = LIST_HEAD(vs); e; ELEMENT_NEXT(e)) {
+    vsvr = ELEMENT_DATA(e);
+    rsvr = (real_server *)LIST_HEAD(vsvr->rs);
+    if (!init_service_vs(vsvr))
       return 0;
 
 #ifdef _KRNL_2_2_
     /* work if all realserver ip address are in the
      * same network (it is assumed).
      */
-    if (vserver->nat_mask.s_addr != HOST_NETMASK)
-      if (!ipfw_cmd(IP_FW_CMD_ADD, vserver, vserver->svr))
+    if (vsvr->nat_mask != HOST_NETMASK)
+      if (!ipfw_cmd(IP_FW_CMD_ADD, vsvr, rsvr))
         return 0;
 #endif
-
-    if (!init_service_vs(vserver))
-      return 0;
-
-    vserver = (virtualserver *)vserver->next;
   }
-  vserver = pointervs;
-
   return 1;
 }

@@ -1,0 +1,72 @@
+#
+# Keepalived OpenSource project.
+#
+# Configuration template file for keepalived.
+# autoconf will generate & check deps for proper compilation
+#
+# Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
+
+dnl ----[ Process this file with autoconf to produce a configure script ]----
+AC_INIT(cfreader.c)
+
+dnl ----[ Checks for programs ]----
+AC_PROG_CC
+AC_PROG_INSTALL
+
+dnl ----[ Checks for kernel support ]----
+KERNEL_VERSION=`uname -r`
+modprobe ip_vs
+if test -f /proc/net/ip_vs; then
+  IPVS_VERSION=`cat /proc/net/ip_vs | head -1 | awk '{ print $5}'`
+else
+  echo
+  echo "!!!WARN!!! Your kernel need to be patched with LVS code !!!WARN!!!"
+  echo
+  exit 1
+fi
+VERSION=`cat VERSION`
+
+dnl ----[ Checks for libraries ]----
+dnl Replace `main' with a function in -lcrypto:
+AC_CHECK_LIB(crypto, main)
+dnl Replace `main' with a function in -lpopt:
+AC_CHECK_LIB(popt, main)
+dnl Replace `main' with a function in -lssl:
+AC_CHECK_LIB(ssl, main)
+
+dnl ----[ Create object list ]----
+KERNEL_CODE=`echo $KERNEL_VERSION | cut -d'.' -f2`
+if test "${KERNEL_CODE}" = "2"; then
+  LDFLAGS = ${LIBS} libipfwc/libipfwc.a
+  LIBOBJS = ${LIBOBJS} ipfwwrapper.o
+fi
+
+dnl ----[ Checks for header files ]----
+AC_HEADER_STDC
+AC_HEADER_SYS_WAIT
+AC_CHECK_HEADERS(fcntl.h sys/ioctl.h sys/time.h syslog.h unistd.h)
+
+dnl ----[ Checks for typedefs, structures, and compiler characteristics ]----
+AC_C_CONST
+AC_TYPE_PID_T
+AC_HEADER_TIME
+
+dnl ----[ Checks for library functions ]----
+AC_PROG_GCC_TRADITIONAL
+AC_FUNC_MEMCMP
+AC_TYPE_SIGNAL
+AC_CHECK_FUNCS(gettimeofday select socket strerror strtol uname)
+
+AC_OUTPUT(Makefile genhash/Makefile)
+
+cat <<EOF;
+
+Keepalived configuration
+------------------------
+Keepalived version   : ${VERSION}
+Linux Kernel release : ${KERNEL_VERSION}
+IPVS version code    : ${IPVS_VERSION}
+Compiler             : ${CC}
+Compiler flags       : ${CFLAGS}
+
+EOF

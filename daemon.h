@@ -3,9 +3,9 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        pidfile.c include file.
+ * Part:        Daemon process handling.
  *
- * Version:     $Id: pidfile.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * Version:     $Id: daemon.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,22 +20,20 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _PIDFILE_H
-#define _PIDFILE_H
+#ifndef _DAEMON_H
+#define _DAEMON_H
 
-/* system include */
-#include <unistd.h>
+/* System includes */
 #include <stdio.h>
-#include <signal.h>
+#include <stdlib.h>
+#include <sys/stat.h>
+#include <sys/wait.h>
 #include <sys/types.h>
-#include <syslog.h>
+#include <unistd.h>
+#include <errno.h>
+#include <fcntl.h>
 
-/* lock pidfile */
-#define PIDFILENAME "/var/run/keepalived.pid"
-
-/* Prototypes */
-extern int pidfile_write(int pid);
-extern void pidfile_rm(void);
-extern int keepalived_running(void);
+/* prototype */
+extern pid_t xdaemon(int, int, int);
 
 #endif

@@ -1,11 +1,11 @@
-/*
+/* 
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
- *
- * Part:        pidfile.c include file.
- *
- * Version:     $Id: pidfile.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
+ * 
+ * Part:        timer.c include file.
+ *  
+ * Version:     $Id: timer.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,22 +20,25 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _PIDFILE_H
-#define _PIDFILE_H
+#ifndef _TIMER_H
+#define _TIMER_H
 
-/* system include */
-#include <unistd.h>
-#include <stdio.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <syslog.h>
+#include <sys/time.h>
 
-/* lock pidfile */
-#define PIDFILENAME "/var/run/keepalived.pid"
+typedef struct timeval TIMEVAL;
 
-/* Prototypes */
-extern int pidfile_write(int pid);
-extern void pidfile_rm(void);
-extern int keepalived_running(void);
+/* macro utilities */
+#define TIMER_HZ      1000000
+#define TIMER_MAX_SEC 1000
+#define TIMER_SEC(T) ((T).tv_sec)
+#define TIMER_ISNULL(T) ((T).tv_sec == 0 && (T).tv_usec == 0)
+#define TIMER_RESET(T) (memset(&(T), 0, sizeof(struct timeval)))
+
+/* prototypes */
+extern TIMEVAL timer_now(void);
+extern TIMEVAL timer_dup(TIMEVAL b);
+extern int timer_cmp(TIMEVAL a, TIMEVAL b);
+extern TIMEVAL timer_sub(TIMEVAL a, TIMEVAL b);
+extern TIMEVAL timer_sub_now(TIMEVAL a);
 
 #endif

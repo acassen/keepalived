@@ -5,7 +5,7 @@
  *
  * Part:        check_misc.c include file.
  *
- * Version:     $Id: check_misc.h,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
+ * Version:     $Id: check_misc.h,v 0.5.3 2002/02/24 23:50:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
@@ -28,12 +28,14 @@
 #include <stdlib.h>
 
 /* local includes */
-#include "cfreader.h"
-#include "ipwrapper.h"
 #include "scheduler.h"
-#include "smtp.h"
+
+/* Checker argument structure  */
+typedef struct _misc_checker {
+  char *path;
+} misc_checker;
 
 /* Prototypes defs */
-extern int misc_check_thread(thread *thread);
+extern void install_misc_check_keyword(void);
 
 #endif
