@@ -1,7 +1,7 @@
 ! Sample configuration for use Linux FWMARK
 
 global_defs {
-  lvs_id io
+  router_id io
 }
 
 virtual_server fwmark 1 {

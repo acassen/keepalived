@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckrs child process handling.
  *
- * Version:     $Id: check_daemon.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: check_daemon.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,12 +19,13 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "check_daemon.h"
 #include "check_parser.h"
 #include "check_data.h"
+#include "check_ssl.h"
 #include "check_api.h"
 #include "global_data.h"
 #include "ipwrapper.h"
@@ -32,6 +33,7 @@
 #include "pidfile.h"
 #include "daemon.h"
 #include "list.h"
+#include "main.h"
 #include "memory.h"
 #include "parser.h"
 #include "watchdog.h"
@@ -39,28 +41,16 @@
 #include "vrrp_if.h"
 
 /* Global vars */
-check_conf_data *check_data;
-check_conf_data *old_check_data;
-int check_wdog_sd = -1;
+static int check_wdog_sd = -1;
 
 /* Healthchecker watchdog data */
-wdog_data check_wdog_data = {
+static wdog_data check_wdog_data = {
 	"Healthcheck Child",
 	WDOG_CHECK,
 	-1,
 	-1,
 	start_check_child
 };
-
-/* Externals vars */
-extern thread_master *master;
-extern conf_data *data;
-extern unsigned int debug;
-extern int reload;
-extern pid_t checkers_child;
-extern char *conf_file;
-extern int init_ssl_ctx(void);
-extern int wdog_delay_check;
 
 /* Daemon stop sequence */
 static void
@@ -202,7 +192,7 @@ sigend_check(int sig)
 		thread_add_terminate_event(master);
 }
 
-/* VRRP Child signal handling */
+/* CHECK Child signal handling */
 void
 check_signal_init(void)
 {
@@ -213,7 +203,7 @@ check_signal_init(void)
 	signal_noignore_sigchld();
 }
 
-/* Register VRRP thread */
+/* Register CHECK thread */
 int
 start_check_child(void)
 {
@@ -244,8 +234,9 @@ start_check_child(void)
 		return 0;
 	}
 
-	/* Opening local VRRP syslog channel */
-	openlog(PROG_CHECK, LOG_PID | (debug & 1) ? LOG_CONS : 0, LOG_LOCAL2);
+	/* Opening local CHECK syslog channel */
+	openlog(PROG_CHECK, LOG_PID | (debug & 1) ? LOG_CONS : 0, 
+		(log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(CHECKERS_PID_FILE, getpid())) {

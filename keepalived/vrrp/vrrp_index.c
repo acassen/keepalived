@@ -5,7 +5,7 @@
  *
  * Part:        VRRP instance index table.
  *
- * Version:     $Id: vrrp_index.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: vrrp_index.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 /* local include */
@@ -28,9 +28,6 @@
 #include "vrrp.h"
 #include "memory.h"
 #include "list.h"
-
-/* Externals vars */
-extern vrrp_conf_data *vrrp_data;
 
 /* VRID hash table */
 void
@@ -93,13 +90,36 @@ void set_vrrp_fd_bucket(int old_fd, vrrp_rt *vrrp)
 {
 	vrrp_rt *vrrp_ptr;
 	element e;
+	element next;
 	list l = &vrrp_data->vrrp_index_fd[old_fd%1024 + 1];
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+	for (e = LIST_HEAD(l); e; e = next) {
+		next = e->next;
 		vrrp_ptr =  ELEMENT_DATA(e);
-		if (IF_INDEX(vrrp_ptr->ifp) == IF_INDEX(vrrp->ifp)) {
+		if (vrrp_ptr->fd_in == old_fd) {
 			vrrp_ptr->fd_in = vrrp->fd_in;
 			vrrp_ptr->fd_out = vrrp->fd_out;
+
+			/* Re-hash fd */
+			alloc_vrrp_fd_bucket(vrrp_ptr);
+
+			/* Release element */
+			if (e->prev)
+				e->prev->next = e->next;
+			else
+				l->head = e->next;
+
+			if (e->next)
+				e->next->prev = e->prev;
+			else
+				l->tail = e->prev;
+			l->count--;
+			FREE(e);
 		}
+	}
+
+	if (LIST_ISEMPTY(l)) {
+		l->head = NULL;
+		l->tail = NULL;
 	}
 }

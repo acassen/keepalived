@@ -5,7 +5,7 @@
  *
  * Part:        smtp.c include file.
  *
- * Version:     $Id: smtp.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: smtp.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _SMTP_H
@@ -84,9 +84,9 @@ typedef struct _smtp_thread_arg {
 #define SMTP_MAIL_CMD    "MAIL FROM:<%s>\r\n"
 #define SMTP_RCPT_CMD    "RCPT TO:<%s>\r\n"
 #define SMTP_DATA_CMD    "DATA\r\n"
-#define SMTP_HEADERS_CMD "From: %s\r\nSubject: %s\r\n" \
+#define SMTP_HEADERS_CMD "Date: %s\r\nFrom: %s\r\nSubject: %s\r\n" \
 			 "X-Mailer: Keepalived\r\n\r\n"
-#define SMTP_BODY_CMD    "\r\n\r\n%s\r\n\r\n"
+#define SMTP_BODY_CMD    "%s\r\n"
 #define SMTP_SEND_CMD    "\r\n.\r\n"
 #define SMTP_QUIT_CMD    "QUIT\r\n"
 

@@ -5,7 +5,7 @@
  *
  * Part:        General program utils.
  *
- * Version:     $Id: utils.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: utils.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,14 +19,17 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "utils.h"
 
+/* global vars */
+int debug = 0;
+
 /* Display a buffer into a HEXA formated output */
 void
-print_buffer(int count, char *buff)
+dump_buffer(char *buff, int count)
 {
 	int i, j, c;
 	int printnext = 1;
@@ -65,6 +68,39 @@ print_buffer(int count, char *buff)
 			}
 		}
 	}
+}
+
+/* Compute a checksum */
+u_short
+in_csum(u_short * addr, int len, u_short csum)
+{
+	register int nleft = len;
+	const u_short *w = addr;
+	register u_short answer;
+	register int sum = csum;
+
+	/*
+	 *  Our algorithm is simple, using a 32 bit accumulator (sum),
+	 *  we add sequential 16 bit words to it, and at the end, fold
+	 *  back all the carry bits from the top 16 bits into the lower
+	 *  16 bits.
+	 */
+	while (nleft > 1) {
+		sum += *w++;
+		nleft -= 2;
+	}
+
+	/* mop up an odd byte, if necessary */
+	if (nleft == 1)
+		sum += htons(*(u_char *) w << 8);
+
+	/*
+	 * add back carry outs from top 16 bits to low 16 bits
+	 */
+	sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
+	sum += (sum >> 16);			/* add carry */
+	answer = ~sum;				/* truncate to 16 bits */
+	return (answer);
 }
 
 /* IP network to ascii representation */
@@ -166,6 +202,29 @@ inet_ston(const char *addr, uint32_t * dst)
 
 	memcpy(dst, tmp, INADDRSZ);
 	return 1;
+}
+
+/*
+ * Return broadcast address from network and netmask.
+ */
+uint32_t
+inet_broadcast(uint32_t network, uint32_t netmask)
+{
+	return 0xffffffff - netmask + network;
+}
+
+/*
+ * Convert CIDR netmask notation to long notation.
+ */
+uint32_t
+inet_cidrtomask(uint8_t cidr)
+{
+	uint32_t mask = 0;
+	int b;
+
+	for (b = 0; b < cidr; b++)
+		mask |= (1 << (31 - b));
+	return ntohl(mask);
 }
 
 /* Getting localhost official canonical name */

@@ -5,7 +5,7 @@
  * 
  * Part:        vector.c include file.
  *  
- * Version:     $Id: vector.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: vector.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _VECTOR_H
@@ -36,12 +36,17 @@ typedef struct _vector *vector;
 #define VECTOR_SLOT(V,E) ((V)->slot[(E)])
 #define VECTOR_SIZE(V)   ((V)->allocated)
 
+#define vector_foreach_slot(v,p,i) \
+	for (i = 0; i < (v)->allocated && ((p) = (v)->slot[i]); i++)
+
 /* Prototypes */
 extern vector vector_alloc(void);
 extern void vector_alloc_slot(vector v);
 extern void vector_free(vector v);
 extern void free_strvec(vector strvec);
 extern void vector_set_slot(vector v, void *value);
+extern void vector_del_slot(vector v, int slot);
+extern void vector_insert_slot(vector v, int slot, void *value);
 extern void vector_dump(vector v);
 extern void dump_strvec(vector strvec);
 

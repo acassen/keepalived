@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "vrrp_scheduler.h"
@@ -34,12 +34,8 @@
 #include "ipvswrapper.h"
 #include "memory.h"
 #include "list.h"
+#include "main.h"
 #include "smtp.h"
-
-/* Externals vars */
-extern thread_master *master;
-extern vrrp_conf_data *vrrp_data;
-extern unsigned int debug;
 
 /* VRRP FSM (Finite State Machine) design.
  *
@@ -206,6 +202,7 @@ vrrp_init_state(list l)
 			       vrrp->iname);
 
 			/* Set BACKUP state */
+			vrrp_restore_interface(vrrp, 0);
 			vrrp->state = VRRP_STATE_BACK;
 			vrrp_smtp_notifier(vrrp);
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);
@@ -343,6 +340,10 @@ already_exist_sock(list l, int ifindex, int proto)
 void
 free_sock(void *data)
 {
+	sock *sock = data;
+	interface *ifp = if_get_by_ifindex(sock->ifindex);
+	if_leave_vrrp_group(sock->fd_in, ifp);
+	close(sock->fd_out);
 	FREE(data);
 }
 
@@ -457,29 +458,31 @@ vrrp_set_fds(list l)
 int
 vrrp_dispatcher_init(thread * thread)
 {
-	list pool;
-
 	/* allocate the sockpool */
-	pool = alloc_list(free_sock, dump_sock);
+	vrrp_data->vrrp_socket_pool = alloc_list(free_sock, dump_sock);
 
 	/* create the VRRP socket pool list */
-	vrrp_create_sockpool(pool);
+	vrrp_create_sockpool(vrrp_data->vrrp_socket_pool);
 
 	/* open the VRRP socket pool */
-	vrrp_open_sockpool(pool);
+	vrrp_open_sockpool(vrrp_data->vrrp_socket_pool);
 
 	/* set VRRP instance fds to sockpool */
-	vrrp_set_fds(pool);
+	vrrp_set_fds(vrrp_data->vrrp_socket_pool);
 
 	/* register read dispatcher worker thread */
-	vrrp_register_workers(pool);
+	vrrp_register_workers(vrrp_data->vrrp_socket_pool);
 
-	/* cleanup the temp socket pool */
+	/* Dump socket pool */
 	if (debug & 32)
-		dump_list(pool);
-	free_list(pool);
-
+		dump_list(vrrp_data->vrrp_socket_pool);
 	return 1;
+}
+
+void
+vrrp_dispatcher_release(vrrp_conf_data *data)
+{
+	free_list(data->vrrp_socket_pool);
 }
 
 static void
@@ -490,10 +493,8 @@ vrrp_backup(vrrp_rt * vrrp, char *vrrp_buffer, int len)
 
 	if (iph->protocol == IPPROTO_IPSEC_AH) {
 		ah = (ipsec_ah *) (vrrp_buffer + sizeof (struct iphdr));
-		if (ah->seq_number >= vrrp->ipsecah_counter->seq_number) {
-//			vrrp->ipsecah_counter->seq_number = ah->seq_number + 10;
+		if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter->seq_number)
 			vrrp->ipsecah_counter->cycle = 0;
-		}
 	}
 
 	vrrp_state_backup(vrrp, vrrp_buffer, len);
@@ -513,7 +514,7 @@ vrrp_become_master(vrrp_rt * vrrp, char *vrrp_buffer, int len)
 		syslog(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : seq_num sync",
 		       vrrp->iname);
 		ah = (ipsec_ah *) (vrrp_buffer + sizeof (struct iphdr));
-		vrrp->ipsecah_counter->seq_number = ah->seq_number + 1;
+		vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
 		vrrp->ipsecah_counter->cycle = 0;
 	}
 
@@ -671,10 +672,7 @@ vrrp_fault(vrrp_rt * vrrp)
 	vrrp_sgroup *vgroup = vrrp->sync;
 
 	if (vgroup) {
-		if (vrrp_sync_leave_fault(vrrp)) {
-			if (vgroup->state == VRRP_STATE_FAULT)
-				vgroup->state = vrrp->init_state;
-		} else
+		if (!vrrp_sync_leave_fault(vrrp))
 			return;
 	} else if (VRRP_ISUP(vrrp))
 		vrrp_log_int_up(vrrp);

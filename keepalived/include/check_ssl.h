@@ -5,7 +5,7 @@
  *
  * Part:        check_http.c include file.
  *
- * Version:     $Id: check_http.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: check_http.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -20,11 +20,11 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
-#ifndef _SSL_H
-#define _SSL_H
+#ifndef _CHECK_SSL_H
+#define _CHECK_SSL_H
 
 /* local includes */
 #include "check_http.h"

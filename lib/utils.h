@@ -5,7 +5,7 @@
  *
  * Part:        utils.h include file.
  *
- * Version:     $Id: utils.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: utils.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _UTILS_H
@@ -43,13 +43,19 @@
 #define DBG(fmt, msg...)
 #endif
 
+/* global vars exported */
+extern int debug;
+
 /* Prototypes defs */
-extern void print_buffer(int count, char *buff);
+extern void dump_buffer(char *buff, int count);
+extern u_short in_csum(u_short * addr, int len, u_short csum);
 extern char *inet_ntop2(uint32_t ip);
 extern char *inet_ntoa2(uint32_t ip, char *buf);
 extern uint8_t inet_stom(char *addr);
 extern uint8_t inet_stor(char *addr);
-extern int inet_ston(const char *addr, uint32_t * dst);
+extern int inet_ston(const char *addr, uint32_t *dst);
+uint32_t inet_broadcast(uint32_t network, uint32_t netmask);
+uint32_t inet_cidrtomask(uint8_t cidr);
 extern char *get_local_name(void);
 
 #endif

@@ -7,7 +7,7 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: scheduler.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -21,7 +21,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include <signal.h>
@@ -30,6 +30,9 @@
 #include "scheduler.h"
 #include "memory.h"
 #include "utils.h"
+
+/* global vars */
+thread_master *master = NULL;
 
 /* Make thread master. */
 thread_master *
@@ -432,7 +435,7 @@ thread_cancel_event(thread_master * m, void *arg)
 }
 
 /* Compute the wait timer. Take care of timeouted fd */
-TIMEVAL *
+static void
 thread_compute_timer(thread_master * m, TIMEVAL * timer_wait)
 {
 	TIMEVAL timer_min;
@@ -476,8 +479,6 @@ thread_compute_timer(thread_master * m, TIMEVAL * timer_wait)
 		timer_wait->tv_usec = timer_min.tv_usec;
 	} else
 		timer_wait = NULL;
-
-	return timer_wait;
 }
 
 /* Fetch next ready thread. */
@@ -489,7 +490,7 @@ thread_fetch(thread_master * m, thread * fetch)
 	fd_set readfd;
 	fd_set writefd;
 	fd_set exceptfd;
-	TIMEVAL *timer_wait;
+	TIMEVAL timer_wait;
 	int status;
 	sigset_t sigset, dummy_sigset, block_sigset, pending;
 
@@ -506,15 +507,14 @@ thread_fetch(thread_master * m, thread * fetch)
 	sigemptyset(&block_sigset);
 	sigaddset(&block_sigset, SIGCHLD);
 
-	/* Timer allocation */
-	timer_wait = (TIMEVAL *) MALLOC(sizeof (TIMEVAL));
+	/* Timer initialization */
+	memset(&timer_wait, 0, sizeof (TIMEVAL));
 
 retry:	/* When thread can't fetch try to find next thread again. */
 
 	/* If there is event process it first. */
 	while ((thread = thread_trim_head(&m->event))) {
 		*fetch = *thread;
-		FREE_PTR(timer_wait);
 
 		/* If daemon hanging event is received return NULL pointer */
 		if (thread->type == THREAD_TERMINATE) {
@@ -532,7 +532,6 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		*fetch = *thread;
 		thread->type = THREAD_UNUSED;
 		thread_add_unuse(m, thread);
-		FREE_PTR(timer_wait);
 		return fetch;
 	}
 
@@ -541,7 +540,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	 * Calculate select wait timer. Take care of timeouted fd.
 	 */
 	set_time_now();
-	timer_wait = thread_compute_timer(m, timer_wait);
+	thread_compute_timer(m, &timer_wait);
 
 	/* Call select function. */
 	readfd = m->readfd;
@@ -571,7 +570,8 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		/* Emulate pselect */
 		sigset_t saveset;
 		sigprocmask(SIG_SETMASK, &sigset, &saveset);
-		ret = select(FD_SETSIZE, &readfd, &writefd, &exceptfd, timer_wait);
+		ret = select(FD_SETSIZE, &readfd, &writefd, &exceptfd,
+			     (TIMER_ISNULL(timer_wait)) ? NULL : &timer_wait);
 		sigprocmask(SIG_SETMASK, &saveset, NULL);
 	}
 
@@ -706,7 +706,6 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	thread->type = THREAD_UNUSED;
 	thread_add_unuse(m, thread);
 
-	FREE(timer_wait);
 	return fetch;
 }
 
@@ -727,8 +726,6 @@ thread_call(thread * thread)
 }
 
 /* Our infinite scheduling loop */
-extern thread_master *master;
-extern unsigned int debug;
 void
 launch_scheduler(void)
 {

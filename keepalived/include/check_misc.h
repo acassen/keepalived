@@ -5,7 +5,7 @@
  *
  * Part:        check_misc.c include file.
  *
- * Version:     $Id: check_misc.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: check_misc.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
@@ -20,11 +20,11 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
-#ifndef _MISC_H
-#define _MISC_H
+#ifndef _CHECK_MISC_H
+#define _CHECK_MISC_H
 
 /* system includes */
 #include <stdlib.h>
@@ -36,6 +36,7 @@
 typedef struct _misc_checker {
 	char *path;
 	long timeout;
+	int dynamic;  /* 0: old-style, 1: exit code from checker affects weight */
 } misc_checker;
 
 /* Prototypes defs */

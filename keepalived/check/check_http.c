@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: check_http.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -20,7 +20,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include <openssl/err.h>
@@ -510,18 +510,17 @@ http_process_response(REQ *req, int r)
 			req->status_code = extract_status_code(req->buffer, req->len);
 			r = req->len - (req->extracted - req->buffer);
 			if (r) {
-				memcpy(req->buffer, req->extracted, r);
-				MD5_Update(&req->context, req->buffer,
-					   r);
+				memmove(req->buffer, req->extracted, r);
+				MD5_Update(&req->context, req->buffer, r);
 				r = 0;
 			}
 			req->len = r;
 		} else {
 			/* minimize buffer using no 2*CR/LF found yet */
-			if (req->len > 3) {
-				memcpy(req->buffer,
-				       req->buffer + req->len - 3, 3);
-				req->len = 3;
+			if (req->len > 4) {
+				memmove(req->buffer,
+					req->buffer + req->len - 4, 4);
+				req->len = 4;
 			}
 		}
 	} else if (req->len) {

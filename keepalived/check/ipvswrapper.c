@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -20,7 +20,7 @@
  *               as published by the Free Software Foundation; either version
  *               2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "ipvswrapper.h"
@@ -108,7 +108,8 @@ ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
 
 	/* SVR specific */
 	if (ctl.m_cmd == IP_MASQ_CMD_ADD_DEST
-	    || ctl.m_cmd == IP_MASQ_CMD_DEL_DEST) {
+	    || ctl.m_cmd == IP_MASQ_CMD_DEL_DEST
+	    || ctl.m_cmd == IP_MASQ_CMD_SET_DEST) {
 		ctl.u.vs_user.weight = rs->weight;
 		ctl.u.vs_user.daddr = SVR_IP(rs);
 		ctl.u.vs_user.dport = SVR_PORT(rs);
@@ -325,7 +326,9 @@ ipvs_set_rule(int cmd, virtual_server * vs, real_server * rs)
 
 	/* SVR specific */
 	if (rs) {
-		if (cmd == IP_VS_SO_SET_ADDDEST || cmd == IP_VS_SO_SET_DELDEST) {
+		if (cmd == IP_VS_SO_SET_ADDDEST
+		    || cmd == IP_VS_SO_SET_DELDEST
+		    || cmd == IP_VS_SO_SET_EDITDEST) {
 			urule->weight = rs->weight;
 			urule->daddr = SVR_IP(rs);
 			urule->dport = SVR_PORT(rs);

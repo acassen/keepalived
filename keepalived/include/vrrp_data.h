@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: vrrp_data.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: vrrp_data.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _VRRP_DATA_H
@@ -44,10 +44,13 @@ typedef struct _vrrp_conf_data {
 	list vrrp;
 	list vrrp_index;
 	list vrrp_index_fd;
+	list vrrp_socket_pool;
 } vrrp_conf_data;
 
-/* Global Vars */
-char *vrrp_buffer;
+/* Global Vars exported */
+extern vrrp_conf_data *vrrp_data;
+extern vrrp_conf_data *old_vrrp_data;
+extern char *vrrp_buffer;
 
 /* prototypes */
 extern void alloc_saddress(vector strvec);

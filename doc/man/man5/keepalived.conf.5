@@ -38,7 +38,7 @@ and
  notification_email_from admin@example.com 
  smtp_server 127.0.0.1   # IP
  smtp_connect_timeout 30 # integer, seconds
- lvs_id my_hostname      # string identifying the machine,
+ router_id my_hostname   # string identifying the machine,
                          # (doesn't have to be hostname).
  }
 
@@ -150,6 +150,9 @@ which will transition together on any state change.
     # interface for inside_network, bound by vrrp
     interface eth0
 
+    # Ignore VRRP interface faults (default unset)
+    dont_track_primary
+
     # optional, monitor these as well. 
     # go to FAULT state if any of these go down.
     track_interface {
@@ -222,13 +225,11 @@ which will transition together on any state change.
         192.168.112.0/24 via 192.168.100.254
     }
     
-    #VRRP preempt mode (default set), 
-    #Normally failover toggles, ie the backup
-    #stays as master, after the old master comes
-    #back on line.
-    #preempt allows the old master to resume
-    #the master role when it comes back online.
-    preempt 
+    #VRRP will normally preempt a backup when the
+    #original master comes back on line.
+    #nopreempt allows the backup to maintain the
+    #master role.
+    nopreempt
 
     # Debug level, not implemented yet.
     debug
@@ -335,7 +336,7 @@ A virtual_server can be a declaration of one of
            notify_down <STRING>|<QUOTED-STRING> 
    
            # pick one healthchecker
-           # HTTP_GET|SSL_GET|TCP_CHECK|MISC_CHECK
+           # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|MISC_CHECK
    
            # HTTP and SSL healthcheckers
            HTTP_GET|SSL_GET 
@@ -372,7 +373,35 @@ A virtual_server can be a declaration of one of
                bindto <IPADDR>
                connect_timeout <INT> 
            } #TCP_CHECK
-   
+
+           # SMTP healthchecker
+           SMTP_CHECK
+           {
+               # An optional host interface to check.
+               # If no host directives are present, only
+               # the ip address of the real server will
+               # be checked.
+               host {
+                 # IP address to connect to
+                 connect_ip <IP ADDRESS>
+                 # Optional port to connect to if not
+                 # the default of 25
+                 connect_port <PORT>
+                 # Optional interface to use to
+                 # originate the connection
+                 bindto <IP ADDRESS>
+              }
+              # Connection and read/write timeout
+              # in seconds
+              connect_timeout <INTEGER>
+              # Number of times to retry a failed check
+              retry <INTEGER>
+              # Delay in seconds before retrying
+              delay_before_retry <INTEGER>
+              # Optional string to use for the smtp HELO request
+              helo_name <STRING>|<QUOTED-STRING>
+           } #SMTP_CHECK
+
            #MISC healthchecker, run a program
            MISC_CHECK 
            {
@@ -380,6 +409,17 @@ A virtual_server can be a declaration of one of
                misc_path <STRING>|<QUOTED-STRING>
                # Script execution timeout
                misc_timeout <INT>
+
+               # If set, exit code from healthchecker is used
+               # to dynamically adjust the weight as follows:
+               #   exit status 0: svc check success, weight
+               #     unchanged.
+               #   exit status 1: svc check failed.
+               #   exit status 2-255: svc check success, weight
+               #     changed to 2 less than exit status.
+               #   (for example: exit status of 255 would set
+               #     weight to 253)
+               misc_dynamic
            }
        } # realserver defn
     } # virtual service

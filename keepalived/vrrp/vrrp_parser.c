@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: vrrp_parser.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: vrrp_parser.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -21,7 +21,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "vrrp_parser.h"
@@ -34,10 +34,6 @@
 #include "global_parser.h"
 #include "parser.h"
 #include "memory.h"
-
-/* global defs */
-extern vrrp_conf_data *vrrp_data;
-extern unsigned long mem_allocated;
 
 /* Static addresses handler */
 static void
@@ -133,6 +129,12 @@ vrrp_track_int_handler(vector strvec)
 	alloc_value_block(strvec, alloc_vrrp_track);
 }
 static void
+vrrp_dont_track_handler(vector strvec)
+{
+	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->dont_track_primary = 1;
+}
+static void
 vrrp_mcastip_handler(vector strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -172,7 +174,7 @@ vrrp_adv_handler(vector strvec)
 	vrrp->adver_int = atoi(VECTOR_SLOT(strvec, 1));
 
 	if (VRRP_IS_BAD_ADVERT_INT(vrrp->adver_int)) {
-		syslog(LOG_INFO, "VRRP Error : Advert intervall not valid !\n");
+		syslog(LOG_INFO, "VRRP Error : Advert interval not valid !\n");
 		syslog(LOG_INFO,
 		       "             must be between less than 1sec.\n");
 		syslog(LOG_INFO, "             Using default value : 1sec\n");
@@ -187,16 +189,37 @@ vrrp_debug_handler(vector strvec)
 	vrrp->debug = atoi(VECTOR_SLOT(strvec, 1));
 
 	if (VRRP_IS_BAD_DEBUG_INT(vrrp->debug)) {
-		syslog(LOG_INFO, "VRRP Error : Debug intervall not valid !\n");
+		syslog(LOG_INFO, "VRRP Error : Debug interval not valid !\n");
 		syslog(LOG_INFO, "             must be between 0-4\n");
 		vrrp->debug = 0;
 	}
 }
 static void
+vrrp_nopreempt_handler(vector strvec)
+{
+	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->nopreempt = 1;
+}
+static void	/* backwards compatibility */
 vrrp_preempt_handler(vector strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->preempt = !vrrp->preempt;
+	vrrp->nopreempt = 0;
+}
+static void
+vrrp_preempt_delay_handler(vector strvec)
+{
+	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->preempt_delay = atoi(VECTOR_SLOT(strvec, 1));
+
+	if (VRRP_IS_BAD_PREEMPT_DELAY(vrrp->preempt_delay)) {
+		syslog(LOG_INFO, "VRRP Error : Preempt_delay not valid !\n");
+		syslog(LOG_INFO, "             must be between 0-%d\n",
+		       TIMER_MAX_SEC);
+		vrrp->preempt_delay = 0;
+	}
+	vrrp->preempt_delay *= TIMER_HZ;
+	vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
 }
 static void
 vrrp_notify_backup_handler(vector strvec)
@@ -319,8 +342,6 @@ vrrp_vroutes_handler(vector strvec)
 vector
 vrrp_init_keywords(void)
 {
-	keywords = vector_alloc();
-
 	/* global definitions mapping */
 	global_init_keywords();
 
@@ -339,6 +360,7 @@ vrrp_init_keywords(void)
 	install_keyword_root("vrrp_instance", &vrrp_handler);
 	install_keyword("state", &vrrp_state_handler);
 	install_keyword("interface", &vrrp_int_handler);
+	install_keyword("dont_track_primary", &vrrp_dont_track_handler);
 	install_keyword("track_interface", &vrrp_track_int_handler);
 	install_keyword("mcast_src_ip", &vrrp_mcastip_handler);
 	install_keyword("virtual_router_id", &vrrp_vrid_handler);
@@ -348,6 +370,8 @@ vrrp_init_keywords(void)
 	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
 	install_keyword("preempt", &vrrp_preempt_handler);
+	install_keyword("nopreempt", &vrrp_nopreempt_handler);
+	install_keyword("preempt_delay", &vrrp_preempt_delay_handler);
 	install_keyword("debug", &vrrp_debug_handler);
 	install_keyword("notify_backup", &vrrp_notify_backup_handler);
 	install_keyword("notify_master", &vrrp_notify_master_handler);

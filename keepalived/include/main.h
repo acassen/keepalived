@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: main.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _MAIN_H
@@ -41,18 +41,14 @@
 #include "check_daemon.h"
 #include "global_data.h"
 
-/* global var */
-thread_master *master = NULL;	/* Scheduling master thread */
-char *conf_file = NULL;		/* Configuration file */
-int log_facility = LOG_DAEMON;	/* Optional logging facilities */
-int reload = 0;			/* Global reloading flag */
-unsigned int debug;		/* Debugging flags */
-pid_t vrrp_child = -1;		/* VRRP child process ID */
-pid_t checkers_child = -1;	/* Healthcheckers child process ID */
-long wdog_delay_vrrp = 0;	/* VRRP child polling delay */
-long wdog_delay_check = 0;	/* Healthchecker child polling delay */
-conf_data *data;		/* Global configuration data */
-int daemon_mode = 0;		/* VRRP/CHECK subsystem selection */
-int linkwatch = 0;		/* Use linkwatch kernel netlink reflection */
+/* Global vars exported */
+extern char *conf_file;		/* Configuration file */
+extern int log_facility;	/* Optional logging facilities */
+extern pid_t vrrp_child;	/* VRRP child process ID */
+extern pid_t checkers_child;	/* Healthcheckers child process ID */
+extern long wdog_delay_vrrp;	/* VRRP child polling delay */
+extern long wdog_delay_check;	/* Healthchecker child polling delay */
+extern int daemon_mode;		/* VRRP/CHECK subsystem selection */
+extern int linkwatch;		/* Use linkwatch kernel netlink reflection */
 
 #endif

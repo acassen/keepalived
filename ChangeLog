@@ -1,3 +1,68 @@
+2005-01-25  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.8 released.
+	* VRRP : Chris Caputo, <ccaputo@alt.net> added "dont_track_primary"
+	  vrrp_instance keyword which tells keepalived to ignore VRRP
+	  interface faults. Can be useful on setup where two routers
+	  are connected directly to each other on the interface used
+	  for VRRP.  Without this feature the link down caused
+	  by one router crashing would also inspire the other router to lose
+	  (or not gain) MASTER state, since it was also tracking link status.
+	* VRRP : Chris Caputo, <ccaputo@alt.net> added "nopreempt" which
+	  overrides the VRRP RFC preemption default. This replaces the
+	  "preempt" keyword which was not fully implemented. "preempt" is
+	  kept around for backward compatibility but is deprecated.
+	* VRRP : Chris Caputo, <ccaputo@alt.net> added "preempt_delay" which
+	  allows one to specify number of seconds after startup until VRRP
+	  preemption.  (range 0 to 1,000 seconds) this is useful because
+	  sometimes when a machine recovers it takes a while for it to become
+	  usable, such as when it is a router and BGP sessions need to come
+	  back up.
+	* Chris Caputo, <ccaputo@alt.net> made it so there is a useful "Date:"
+	  in SMTP alert emails.
+	* VRRP : Chris Caputo, <ccaputo@alt.net>. In debug output log
+	  gratuitous ARPs with actual IP addresses being ARPed.
+	* VRRP : Chris Caputo, <ccaputo@alt.net>. If started with
+	  "--dont-release-vrrp" then try to remove addresses even if we didn't
+	  add them during the current run, when it makes sense to do so.
+	* VRRP : Chris Caputo, <ccaputo@alt.net> added a missing
+	  free_vrrp_buffer() during VRRP stop.
+	* VRRP : Kees Bos, <k.bos@zx.nl> fixed VRRP sanity check to perform
+	  checksum computation over incoming packet and not local router
+	  instance memory representation => Better to log 'invalid vip
+	  count' instead of 'Invalid vrrp checksum' when the number of
+	  configured vips differ in the master and backup server :)
+	* VRRP : Release socket pool during daemon stop and reload
+	* VRRP : Refresh socket pool during reload
+	* VRRP : Extended netlink framework to support blocking
+	  operation. During initialization, set blocking netlink channel
+	  to wait responses from kernel while parsing result. Kernel netlink
+	  reflection are still handled using non-blocking.
+	* Jeremy Rumpf, <rumpf.6@osu.edu> added SMTP checker. It take
+	  a special care of smtp server return code.
+	* Merged genhash man page
+	* Chris Caputo, <ccaputo@alt.net> added "misc_dynamic" to a
+	  MISC_CHECK which makes it so a script can adjust the weight of
+	  a real server.
+	* Fixed some assertion issue in memory framework.
+	* Use router_id instead of lvs_id in the global_def configuration
+	  block (lvs_id kept for backward compatibility).
+	* Ronald Wahl <rwa@peppercon.com>, fixed declarations to be only
+	  in includes files.
+	* Ronald Wahl <rwa@peppercon.com>, moved the definition of variables
+	  to C files
+	* Ronald Wahl <rwa@peppercon.com> and I fixed scanning for header/body
+	  separator in HTTP protocol 
+	* Ronald Wahl <rwa@peppercon.com> replaced memcpy by memmove where source
+	  & destination may overlap
+	* Extended checker API to only register checkers when checker callback
+	  is defined.
+	* Jacob Rief, <jacob.rief@tiscover.com> fixed openlog to take care
+	  of configured log facility.
+	* Move in_csum to util file.
+	* Extended libraries to support some new facilities (list and vector).
+	* Extended scheduler I/O to use timer decalred on the stack.
+	* Some cosmetics changes.
+
 2004-04-05  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.7 released.
 	* Jacob Rief, <jacob.rief@tiscover.com> added target tarball into

@@ -5,7 +5,7 @@
  *
  * Part:        ipwrapper.c include file.
  *
- * Version:     $Id: ipwrapper.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: ipwrapper.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _IPWRAPPER_H
@@ -60,6 +60,7 @@
 
 /* prototypes */
 extern void perform_svr_state(int alive, virtual_server * vs, real_server * rs);
+extern void update_svr_wgt(int weight, virtual_server * vs, real_server * rs);
 extern int svr_checker_up(checker_id_t cid, real_server * rs);
 extern void update_svr_checker_state(int alive, checker_id_t cid,
 				     virtual_server * vs, real_server * rs);

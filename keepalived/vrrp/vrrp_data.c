@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: vrrp_data.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: vrrp_data.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "vrrp_data.h"
@@ -29,8 +29,10 @@
 #include "memory.h"
 #include "utils.h"
 
-/* Externals vars */
-extern vrrp_conf_data *vrrp_data;
+/* global vars */
+vrrp_conf_data *vrrp_data = NULL;
+vrrp_conf_data *old_vrrp_data = NULL;
+char *vrrp_buffer;
 
 /* Static addresses facility function */
 void
@@ -124,6 +126,8 @@ dump_vrrp(void *data)
 	else
 		syslog(LOG_INFO, "   Want State = MASTER");
 	syslog(LOG_INFO, "   Runing on device = %s", IF_NAME(vrrp->ifp));
+	if (vrrp->dont_track_primary)
+		syslog(LOG_INFO, "   VRRP interface tracking disabled");
 	if (vrrp->mcast_saddr)
 		syslog(LOG_INFO, "   Using mcast src_ip = %s",
 		       inet_ntop2(vrrp->mcast_saddr));
@@ -137,8 +141,11 @@ dump_vrrp(void *data)
 	syslog(LOG_INFO, "   Priority = %d", vrrp->priority);
 	syslog(LOG_INFO, "   Advert interval = %dsec",
 	       vrrp->adver_int / TIMER_HZ);
-	if (vrrp->preempt)
-		syslog(LOG_INFO, "   Preempt Active");
+	if (vrrp->nopreempt)
+		syslog(LOG_INFO, "   Preempt disabled");
+	if (vrrp->preempt_delay)
+		syslog(LOG_INFO, "   Preempt delay = %ld secs",
+		       vrrp->preempt_delay / TIMER_HZ);
 	if (vrrp->auth_type) {
 		syslog(LOG_INFO, "   Authentication type = %s",
 		       (vrrp->auth_type ==
@@ -291,6 +298,7 @@ free_vrrp_data(vrrp_conf_data * vrrp_data)
 	free_mlist(vrrp_data->vrrp_index_fd, 1024+1);
 	free_list(vrrp_data->vrrp);
 	free_list(vrrp_data->vrrp_sync_group);
+	free_list(vrrp_data->vrrp_socket_pool);
 	FREE(vrrp_data);
 }
 

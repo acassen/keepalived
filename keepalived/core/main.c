@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: main.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,15 +19,25 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "main.h"
 #include "watchdog.h"
 #include "config.h"
 
+/* global var */
+char *conf_file = NULL;		/* Configuration file */
+int log_facility = LOG_DAEMON;	/* Optional logging facilities */
+pid_t vrrp_child = -1;		/* VRRP child process ID */
+pid_t checkers_child = -1;	/* Healthcheckers child process ID */
+long wdog_delay_vrrp = 0;	/* VRRP child polling delay */
+long wdog_delay_check = 0;	/* Healthchecker child polling delay */
+int daemon_mode = 0;		/* VRRP/CHECK subsystem selection */
+int linkwatch = 0;		/* Use linkwatch kernel netlink reflection */
+
 /* Log facility table */
-struct {
+static struct {
 	int facility;
 } LOG_FACILITY[LOG_FACILITY_MAX + 1] = {
 	{LOG_LOCAL0}, {LOG_LOCAL1}, {LOG_LOCAL2}, {LOG_LOCAL3},

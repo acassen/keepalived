@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $id: ipwrapper.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $id: ipwrapper.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "ipwrapper.h"
@@ -27,10 +27,6 @@
 #include "memory.h"
 #include "utils.h"
 #include "notify.h"
-
-/* extern global vars */
-extern check_conf_data *check_data;
-extern check_conf_data *old_check_data;
 
 /* Remove a realserver IPVS rule */
 static int
@@ -300,7 +296,32 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 			ipfw_cmd(IP_FW_CMD_ADD, vs, vs->s_svr);
 #endif
 		}
+	}
+}
 
+/* Store new weight in real_server struct and then update kernel. */
+void
+update_svr_wgt(int weight, virtual_server * vs, real_server * rs)
+{
+	char rsip[16], vsip[16];
+
+	if (weight != rs->weight) {
+		syslog(LOG_INFO, "Changing weight from %d to %d for %s service [%s:%d]"
+				 " of VS [%s:%d]"
+				 , rs->weight
+				 , weight
+				 , ISALIVE(rs) ? "active" : "inactive"
+				 , inet_ntoa2(SVR_IP(rs), rsip)
+				 , ntohs(SVR_PORT(rs))
+				 , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
+				 , ntohs(SVR_PORT(vs)));
+		rs->weight = weight;
+		/*
+		 * Have weight change take effect now only if rs is alive.
+		 * If not, it will take effect later when it becomes alive.
+		 */
+		if (ISALIVE(rs))
+			ipvs_cmd(LVS_CMD_EDIT_DEST, check_data->vs_group, vs, rs);
 	}
 }
 

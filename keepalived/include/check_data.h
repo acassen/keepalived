@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckers dynamic data structure definition.
  *
- * Version:     $Id: check_data.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: check_data.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _CHECK_DATA_H
@@ -154,6 +154,10 @@ typedef struct _check_conf_data {
 #define RS_ISEQ(X,Y)	((X)->addr_ip   == (Y)->addr_ip &&	\
 			 (X)->addr_port == (Y)->addr_port &&	\
 			 (X)->weight    == (Y)->weight)
+
+/* Global vars exported */
+extern check_conf_data *check_data;
+extern check_conf_data *old_check_data;
 
 /* prototypes */
 extern SSL_DATA *alloc_ssl(void);

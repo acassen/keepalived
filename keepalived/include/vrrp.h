@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: vrrp.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,7 +20,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _VRRP_H
@@ -65,7 +65,6 @@ typedef struct {		/* rfc2338.5.1 */
 #define VRRP_AUTH_PASS	1	/* password authentification -- rfc2338.5.3.6 */
 #define VRRP_AUTH_AH	2	/* AH(IPSec) authentification - rfc2338.5.3.6 */
 #define VRRP_ADVER_DFL	1	/* advert. interval (in sec) -- rfc2338.5.3.7 */
-#define VRRP_PREEMPT_DFL 1	/* rfc2338.6.1.2.Preempt_Mode */
 #define VRRP_GARP_DELAY (5 * TIMER_HZ)	/* Default delay to launch gratuitous arp */
 
 /*
@@ -92,6 +91,7 @@ typedef struct _vrrp_rt {
 	char *iname;		/* Instance Name */
 	vrrp_sgroup *sync;	/* Sync group we belong to */
 	interface *ifp;		/* Interface we belong to */
+	int dont_track_primary; /* If set ignores ifp faults */
 	list track_ifp;		/* Interface state we monitor */
 	uint32_t mcast_saddr;	/* Src IP address to use in VRRP IP header */
 	char *lvs_syncd_if;	/* handle LVS sync daemon state using this
@@ -109,7 +109,12 @@ typedef struct _vrrp_rt {
 				 */
 	list vroutes;		/* list of virtual routes */
 	int adver_int;		/* delay between advertisements(in sec) */
-	int preempt;		/* true if a higher prio preempt a lower one */
+	int nopreempt;          /* true if higher prio does not preempt lower */
+	long preempt_delay;     /* Seconds*TIMER_HZ after startup until
+				 * preemption based on higher prio over lower
+				 * prio is allowed.  0 means no delay.
+				 */
+	TIMEVAL preempt_time;   /* Time after which preemption can happen */
 	int state;		/* internal state (init/backup/master) */
 	int init_state;		/* the initial state of the instance */
 	int wantstate;		/* user explicitly wants a state (back/mast) */
@@ -182,6 +187,7 @@ typedef struct _vrrp_rt {
 #define VRRP_IS_BAD_PRIORITY(p)		((p)<1 || (p)>255)	/* rfc2338.6.1.prio */
 #define VRRP_IS_BAD_ADVERT_INT(d) 	((d)<1)
 #define VRRP_IS_BAD_DEBUG_INT(d)	((d)<0 || (d)>4)
+#define VRRP_IS_BAD_PREEMPT_DELAY(d)	((d)<0 || (d)>TIMER_MAX_SEC)
 #define VRRP_SEND_BUFFER(V)		((V)->send_buffer)
 #define VRRP_SEND_BUFFER_SIZE(V)	((V)->send_buffer_size)
 
@@ -193,7 +199,7 @@ typedef struct _vrrp_rt {
 
 #define VRRP_PKT_SADDR(V) (((V)->mcast_saddr) ? (V)->mcast_saddr : IF_ADDR((V)->ifp))
 
-#define VRRP_ISUP(V)	(IF_ISUP((V)->ifp) & \
+#define VRRP_ISUP(V)   ((IF_ISUP((V)->ifp) || (V)->dont_track_primary) & \
 			((!LIST_ISEMPTY((V)->track_ifp)) ? TRACK_ISUP((V)->track_ifp) : 1))
 
 /* prototypes */
@@ -213,5 +219,6 @@ extern int vrrp_ipsecah_len(void);
 extern int vrrp_complete_init(void);
 extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);
+extern void vrrp_restore_interface(vrrp_rt * vrrp, int advF);
 
 #endif

@@ -5,7 +5,7 @@
  * 
  * Part:        List structure manipulation.
  *  
- * Version:     $Id: list.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: list.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "list.h"
@@ -89,7 +89,6 @@ list_element(list l, int num)
 	for (i = 0; i < num; i++)
 		if (e)
 			ELEMENT_NEXT(e);
-
 	if (e)
 		return ELEMENT_DATA(e);
 	return NULL;
@@ -115,8 +114,24 @@ free_element(list l)
 		next = e->next;
 		if (l->free)
 			(*l->free) (e->data);
+		l->count--;
 		FREE(e);
 	}
+}
+
+void
+free_list_elements(list l)
+{
+	element e;
+	element next;
+	
+	for (e = LIST_HEAD(l); e; e = next) {
+		next = e->next;
+		l->count--;
+		FREE(e);
+	}
+	l->head = NULL;
+	l->tail = NULL;
 }
 
 void
@@ -160,10 +175,28 @@ alloc_mlist(void (*free_func) (void *), void (*dump_func) (void *), int size)
 void
 dump_mlist(list l, int size)
 {
+	element e;
 	int i;
 
-	for (i = 0; i < size; i++)
-		dump_list(&l[i]);
+	for (i = 0; i < size; i++) {
+		for (e = LIST_HEAD(&l[i]); e; ELEMENT_NEXT(e))
+			if (l->dump)
+				(*l->dump) (e->data);
+	}
+}
+
+void
+free_melement(list l, void (*free_func) (void *))
+{
+	element e;
+	element next;
+
+	for (e = LIST_HEAD(l); e; e = next) {
+		next = e->next;
+		if (free_func)
+			(*free_func) (e->data);
+		FREE(e);
+	}
 }
 
 void
@@ -175,6 +208,6 @@ free_mlist(list l, int size)
 		return;
 
 	for (i = 0; i < size; i++)
-		free_element(&l[i]);
+		free_melement(&l[i], l->free);
 	FREE(l);
 }

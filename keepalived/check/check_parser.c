@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: check_parser.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: check_parser.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -21,7 +21,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "check_parser.h"
@@ -32,10 +32,6 @@
 #include "parser.h"
 #include "memory.h"
 #include "utils.h"
-
-/* global defs */
-extern check_conf_data *check_data;
-extern unsigned long mem_allocated;
 
 /* SSL handlers */
 static void
@@ -202,8 +198,6 @@ notify_down_handler(vector strvec)
 vector
 check_init_keywords(void)
 {
-	keywords = vector_alloc();
-
 	/* global definitions mapping */
 	global_init_keywords();
 

@@ -5,7 +5,7 @@
  * 
  * Part:        cfreader.c include file.
  *  
- * Version:     $Id: parser.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: parser.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _PARSER_H
@@ -53,12 +53,13 @@ struct keyword {
 #define UNSET_RELOAD    (reload = 0)
 #define RELOAD_DELAY    5
 
-/* global var exported */
-vector keywords;
-FILE *stream;
+/* global vars exported */
+extern vector keywords;
+extern FILE *stream;
 
 /* Prototypes */
 extern void keyword_alloc(vector keywords, char *string, void (*handler) (vector));
+extern void keyword_alloc_sub(vector keywords, char *string, void (*handler) (vector));
 extern void install_keyword_root(char *string, void (*handler) (vector));
 extern void install_sublevel(void);
 extern void install_sublevel_end(void);

@@ -7,7 +7,7 @@
  *              url, compute a MD5 over this result and match it to the
  *              expected value.
  *
- * Version:     $Id: check_ssl.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: check_ssl.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -22,7 +22,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include <openssl/err.h>
@@ -33,9 +33,6 @@
 #include "smtp.h"
 #include "utils.h"
 #include "html.h"
-
-/* External vars */
-extern check_conf_data *check_data;
 
 /* SSL primitives */
 /* Free an SSL context */

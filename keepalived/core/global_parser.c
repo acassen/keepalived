@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: global_parser.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: global_parser.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -21,25 +21,28 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "global_parser.h"
 #include "global_data.h"
+#include "check_data.h"
 #include "parser.h"
 #include "memory.h"
 #include "utils.h"
 
-/* External vars */
-extern conf_data *data;
-
 /* data handlers */
 /* Global def handlers */
 static void
-lvsid_handler(vector strvec)
+routerid_handler(vector strvec)
 {
-	FREE_PTR(data->lvs_id);
-	data->lvs_id = set_value(strvec);
+	FREE_PTR(data->router_id);
+	data->router_id = set_value(strvec);
+}
+static void
+plugin_handler(vector strvec)
+{
+	data->plugin_dir = set_value(strvec);
 }
 static void
 emailfrom_handler(vector strvec)
@@ -77,7 +80,8 @@ global_init_keywords(void)
 {
 	/* global definitions mapping */
 	install_keyword_root("global_defs", NULL);
-	install_keyword("lvs_id", &lvsid_handler);
+	install_keyword("router_id", &routerid_handler);
+	install_keyword("plugin_dir", &plugin_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);
 	install_keyword("smtp_server", &smtpip_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);

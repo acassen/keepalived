@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 address manipulation.
  *
- * Version:     $Id: vrrp_ipaddress.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 /* local include */
@@ -28,10 +28,6 @@
 #include "vrrp_data.h"
 #include "memory.h"
 #include "utils.h"
-
-/* extern global vars */
-extern vrrp_conf_data *vrrp_data;
-extern vrrp_conf_data *old_vrrp_data;
 
 /* Add/Delete IP address to a specific interface */
 int
@@ -74,10 +70,14 @@ netlink_iplist_ipv4(list ip_list, int cmd)
 	if (LIST_ISEMPTY(ip_list))
 		return;
 
+	/*
+	 * If "--dont-release-vrrp" (debug & 8) is set then try to release
+	 * addresses that may be there, even if we didn't set them.
+	 */
 	for (e = LIST_HEAD(ip_list); e; ELEMENT_NEXT(e)) {
 		ipaddress = ELEMENT_DATA(e);
 		if ((cmd && !ipaddress->set) ||
-		    (!cmd && ipaddress->set)) {
+		    (!cmd && (ipaddress->set || debug & 8))) {
 			if (netlink_address_ipv4(ipaddress, cmd) > 0)
 				ipaddress->set = (cmd) ? 1 : 0;
 			else

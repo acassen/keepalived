@@ -5,7 +5,7 @@
  * 
  * Part:        Vector structure manipulation.
  *  
- * Version:     $Id: vector.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: vector.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "vector.h"
@@ -45,6 +45,40 @@ vector_alloc_slot(vector v)
 		v->slot = REALLOC(v->slot, sizeof (void *) * v->allocated);
 	else
 		v->slot = (void *) MALLOC(sizeof (void *) * v->allocated);
+}
+
+/* Insert a value into a specific slot */
+void
+vector_insert_slot(vector v, int slot, void *value)
+{
+	int i;
+
+	vector_alloc_slot(v);
+	for (i = (v->allocated / VECTOR_DEFAULT_SIZE) - 2; i >= slot; i--)
+		v->slot[i + 1] = v->slot[i];
+	v->slot[slot] = value;
+}
+
+/* Del a slot */
+void
+vector_del_slot(vector v, int slot)
+{
+	int i;
+
+	if (!v->allocated)
+		return;
+
+	for (i = slot + 1; i < (v->allocated / VECTOR_DEFAULT_SIZE); i++)
+		v->slot[i - 1] = v->slot[i];
+
+	v->allocated -= VECTOR_DEFAULT_SIZE;
+
+	if (!v->allocated)
+		v->slot = NULL;
+	else
+		v->slot = (void *) MALLOC(sizeof (void *) * v->allocated);
+
+	v = REALLOC(v->slot, sizeof (void *) * v->allocated);
 }
 
 /* Free memory vector allocation */

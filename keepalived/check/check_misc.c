@@ -6,7 +6,7 @@
  * Part:        MISC CHECK. Perform a system call to run an extra
  *              system prog or script.
  *
- * Version:     $Id: check_misc.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: check_misc.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
@@ -22,7 +22,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "check_misc.h"
@@ -54,10 +54,10 @@ void
 dump_misc_check(void *data)
 {
 	misc_checker *misc_chk = CHECKER_DATA(data);
-
 	syslog(LOG_INFO, "   Keepalive method = MISC_CHECK");
 	syslog(LOG_INFO, "   script = %s", misc_chk->path);
 	syslog(LOG_INFO, "   timeout = %lu", misc_chk->timeout/TIMER_HZ);
+	syslog(LOG_INFO, "   dynamic = %s", misc_chk->dynamic ? "YES" : "NO");
 }
 
 void
@@ -85,12 +85,20 @@ misc_timeout_handler(vector strvec)
 }
 
 void
+misc_dynamic_handler(vector strvec)
+{
+	misc_checker *misc_chk = CHECKER_GET();
+	misc_chk->dynamic = 1;
+}
+
+void
 install_misc_check_keyword(void)
 {
 	install_keyword("MISC_CHECK", &misc_check_handler);
 	install_sublevel();
 	install_keyword("misc_path", &misc_path_handler);
 	install_keyword("misc_timeout", &misc_timeout_handler);
+	install_keyword("misc_dynamic", &misc_dynamic_handler);
 	install_sublevel_end();
 }
 
@@ -207,7 +215,16 @@ misc_check_child_thread(thread * thread)
 	if (WIFEXITED(wait_status)) {
 		int status;
 		status = WEXITSTATUS(wait_status);
-		if (status == 0) {
+		if (status == 0 ||
+                    (misc_chk->dynamic == 1 && status >= 2 && status <= 255)) {
+			/*
+			 * The actual weight set when using misc_dynamic is two less than
+			 * the exit status returned.  Effective range is 0..253.
+			 * Catch legacy case of status being 0 but misc_dynamic being set.
+			 */
+			if (misc_chk->dynamic == 1 && status != 0)
+				update_svr_wgt(status - 2, checker->vs, checker->rs);
+
 			/* everything is good */
 			if (!svr_checker_up(checker->id, checker->rs)) {
 				syslog(LOG_INFO, "Misc check to [%s] for [%s] success.",

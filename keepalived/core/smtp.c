@@ -7,7 +7,7 @@
  *              using the smtp protocol according to the RFC 821. A non blocking
  *              timeouted connection is used to handle smtp protocol.
  *
- * Version:     $Id: smtp.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: smtp.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -21,18 +21,18 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
+
+#include <time.h>
 
 #include "smtp.h"
 #include "global_data.h"
+#include "check_data.h"
+#include "scheduler.h"
 #include "memory.h"
 #include "list.h"
 #include "utils.h"
-
-/* External vars */
-extern conf_data *data;
-extern thread_master *master;
 
 /* SMTP FSM definition */
 static int connection_error(thread *);
@@ -455,11 +455,16 @@ body_cmd(thread * thread)
 {
 	smtp_thread_arg *smtp_arg = THREAD_ARG(thread);
 	char *buffer;
+	char rfc822[80];
+	time_t tm;
 
 	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
 
+	time(&tm);
+	strftime(rfc822, sizeof(rfc822), "%a, %d %b %Y %H:%M:%S %z", gmtime(&tm));
+
 	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HEADERS_CMD,
-		 data->email_from, smtp_arg->subject);
+		 rfc822, data->email_from, smtp_arg->subject);
 
 	/* send the subject field */
 	if (send(thread->u.fd, buffer, strlen(buffer), 0) == -1)
@@ -561,20 +566,20 @@ smtp_alert(thread_master * master, real_server * rs, vrrp_rt * vrrp,
 		if (rs)
 			snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH,
 				 "[%s] Realserver %s:%d - %s",
-				 data->lvs_id, inet_ntop2(SVR_IP(rs))
+				 data->router_id, inet_ntop2(SVR_IP(rs))
 				 , ntohs(SVR_PORT(rs))
 				 , subject);
 		else if (vrrp)
 			snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH,
 				 "[%s] VRRP Instance %s - %s",
-				 data->lvs_id, vrrp->iname, subject);
+				 data->router_id, vrrp->iname, subject);
 		else if (vgroup)
 			snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH,
 				 "[%s] VRRP Group %s - %s",
-				 data->lvs_id, vgroup->gname, subject);
-		else if (data->lvs_id)
+				 data->router_id, vgroup->gname, subject);
+		else if (data->router_id)
 			snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH,
-				 "[%s] %s", data->lvs_id, subject);
+				 "[%s] %s", data->router_id, subject);
 		else
 			snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH, "%s",
 				 subject);

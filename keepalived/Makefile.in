@@ -18,7 +18,7 @@ init_script = etc/init.d/keepalived.init
 conf_file   = etc/keepalived/keepalived.conf
 
 CC = @CC@
-LDFLAGS = @LIBS@ @LDFLAGS@
+LDFLAGS = @LIBS@ @LDFLAGS@ -ldl
 SUBDIRS = core
 
 ifeq ($(IPVS_FLAG),_WITH_LVS_)
@@ -90,8 +90,8 @@ uninstall:
 	rm -f $(DESTDIR)$(sbindir)/$(EXEC)
 	rm -rf $(DESTDIR)$(sysconfdir)/keepalived
 	rm -f $(DESTDIR)$(init_dir)/$(init_script)
-	rm -f $(DESTDIR)$(prefix)/man/man5/keepalived.conf.5
-	rm -f $(DESTDIR)$(prefix)/man/man8/keepalived.8
+	rm -f $(DESTDIR)$(prefix)@mandir@/man/man5/keepalived.conf.5
+	rm -f $(DESTDIR)$(prefix)@mandir@/man/man8/keepalived.8
 
 install:
 	install -d $(DESTDIR)$(sbindir)
@@ -101,7 +101,7 @@ install:
 	install -d $(DESTDIR)$(sysconfdir)/keepalived/samples
 	install -m 644 $(conf_file) $(DESTDIR)$(sysconfdir)/keepalived/
 	install -m 644 ../doc/samples/* $(DESTDIR)$(sysconfdir)/keepalived/samples/
-	install -d $(DESTDIR)$(prefix)/man/man5
-	install -d $(DESTDIR)$(prefix)/man/man8
-	install -m 644 ../doc/man/man5/keepalived.conf.5 $(DESTDIR)$(prefix)/man/man5
-	install -m 644 ../doc/man/man8/keepalived.8 $(DESTDIR)$(prefix)/man/man8
+	install -d $(DESTDIR)$(prefix)@mandir@/man/man5
+	install -d $(DESTDIR)$(prefix)@mandir@/man/man8
+	install -m 644 ../doc/man/man5/keepalived.conf.5 $(DESTDIR)$(prefix)@mandir@/man/man5
+	install -m 644 ../doc/man/man8/keepalived.8 $(DESTDIR)$(prefix)@mandir@/man/man8

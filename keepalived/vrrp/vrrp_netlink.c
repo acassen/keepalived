@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK kernel command channel.
  *
- * Version:     $Id: vrrp_netlink.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: vrrp_netlink.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 /* global include */
@@ -45,7 +45,8 @@
 #include "utils.h"
 
 /* Global vars */
-extern thread_master *master;
+struct nl_handle nl_kernel;	/* Kernel reflection channel */
+struct nl_handle nl_cmd;	/* Command channel */
 
 /* Create a socket to netlink interface */
 int
@@ -110,6 +111,44 @@ int
 netlink_close(struct nl_handle *nl)
 {
 	close(nl->fd);
+	return 0;
+}
+
+/* Set netlink socket channel as blocking */
+int
+netlink_set_block(struct nl_handle *nl, int *flags)
+{
+	int ret;
+
+	ret = fcntl(nl->fd, F_GETFL, 0);
+	if (ret < 0) {
+		syslog(LOG_INFO, "Netlink: Cannot F_GETFL socket : (%s)",
+		       strerror(errno));
+		return -1;
+	}
+	*flags &= ~O_NONBLOCK;
+	ret = fcntl(nl->fd, F_SETFL, *flags);
+	if (ret < 0) {
+		syslog(LOG_INFO, "Netlink: Cannot F_SETFL socket : (%s)",
+		       strerror(errno));
+		return -1;
+	}
+	return 0;
+}
+
+/* Set netlink socket channel as non-blocking */
+int
+netlink_set_nonblock(struct nl_handle *nl, int *flags)
+{
+	int ret;
+
+	*flags |= O_NONBLOCK;
+	ret = fcntl(nl->fd, F_SETFL, *flags);
+	if (ret < 0) {
+		syslog(LOG_INFO, "Netlink: Cannot F_SETFL socket : (%s)",
+		       strerror(errno));
+		return -1;
+	}
 	return 0;
 }
 
@@ -211,7 +250,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 		if (status < 0) {
 			if (errno == EINTR)
 				continue;
-			if (errno == EWOULDBLOCK)
+			if (errno == EWOULDBLOCK || errno == EAGAIN)
 				break;
 			syslog(LOG_INFO, "Netlink: Received message overrun");
 			continue;
@@ -237,10 +276,19 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 
 			/* Error handling. */
 			if (h->nlmsg_type == NLMSG_ERROR) {
-				struct nlmsgerr *err =
-				    (struct nlmsgerr *) NLMSG_DATA(h);
-				if (h->nlmsg_len <
-				    NLMSG_LENGTH(sizeof (struct nlmsgerr))) {
+				struct nlmsgerr *err = (struct nlmsgerr *) NLMSG_DATA(h);
+
+				/*
+				 * If error == 0 then this is a netlink ACK.
+				 * return if not related to multipart message.
+				 */
+				if (err->error == 0) {
+					if (!(h->nlmsg_flags & NLM_F_MULTI))
+						return 0;
+					continue;
+				}
+
+				if (h->nlmsg_len < NLMSG_LENGTH(sizeof (struct nlmsgerr))) {
 					syslog(LOG_INFO,
 					       "Netlink: error: message truncated");
 					return -1;
@@ -252,6 +300,12 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				       err->msg.nlmsg_seq, err->msg.nlmsg_pid);
 
 				return -1;
+			}
+
+			/* Skip unsolicited messages from cmd channel */
+			if (nl != &nl_cmd && h->nlmsg_pid == nl_cmd.snl.nl_pid) {
+				syslog(LOG_INFO, "Netlink: skipping nl_cmd msg...");
+				continue;
 			}
 
 			error = (*filter) (&snl, h);
@@ -291,6 +345,7 @@ int
 netlink_talk(struct nl_handle *nl, struct nlmsghdr *n)
 {
 	int status;
+	int ret, flags;
 	struct sockaddr_nl snl;
 	struct iovec iov = { (void *) n, n->nlmsg_len };
 	struct msghdr msg = { (void *) &snl, sizeof snl, &iov, 1, NULL, 0, 0 };
@@ -300,6 +355,9 @@ netlink_talk(struct nl_handle *nl, struct nlmsghdr *n)
 
 	n->nlmsg_seq = ++nl->seq;
 
+	/* Request Netlink acknowledgement */
+	n->nlmsg_flags |= NLM_F_ACK;
+
 	/* Send message to netlink interface. */
 	status = sendmsg(nl->fd, &msg, 0);
 	if (status < 0) {
@@ -308,7 +366,17 @@ netlink_talk(struct nl_handle *nl, struct nlmsghdr *n)
 		return -1;
 	}
 
+	/* Set blocking flag */
+	ret = netlink_set_block(nl, &flags);
+	if (ret < 0)
+		syslog(LOG_INFO, "Netlink: Warning, couldn't set "
+		       "blocking flag to netlink socket...");
+
 	status = netlink_parse_info(netlink_talk_filter, nl);
+
+	/* Restore previous flags */
+	if (ret == 0)
+		netlink_set_nonblock(nl, &flags);
 	return status;
 }
 
@@ -472,9 +540,16 @@ netlink_interface_lookup(void)
 {
 	struct nl_handle nlh;
 	int status = 0;
+	int ret, flags;
 
 	if (netlink_socket(&nlh, 0) < 0)
 		return -1;
+
+	/* Set blocking flag */
+	ret = netlink_set_block(&nlh, &flags);
+	if (ret < 0)
+		syslog(LOG_INFO, "Netlink: 1Warning, couldn't set "
+		       "blocking flag to netlink socket...");
 
 	/* Interface lookup */
 	if (netlink_request(&nlh, AF_PACKET, RTM_GETLINK) < 0) {
@@ -494,9 +569,16 @@ netlink_address_lookup(void)
 {
 	struct nl_handle nlh;
 	int status = 0;
+	int ret, flags;
 
 	if (netlink_socket(&nlh, 0) < 0)
 		return -1;
+
+	/* Set blocking flag */
+	ret = netlink_set_block(&nlh, &flags);
+	if (ret < 0)
+		syslog(LOG_INFO, "Netlink: 2Warning, couldn't set "
+		       "blocking flag to netlink socket...");
 
 	/* Address lookup */
 	if (netlink_request(&nlh, AF_INET, RTM_GETADDR) < 0) {
@@ -576,8 +658,7 @@ kernel_netlink(thread * thread)
 	int status = 0;
 
 	if (thread->type != THREAD_READ_TIMEOUT)
-		status =
-		    netlink_parse_info(netlink_broadcast_filter, &nl_kernel);
+		status = netlink_parse_info(netlink_broadcast_filter, &nl_kernel);
 	thread_add_read(master, kernel_netlink, NULL, nl_kernel.fd,
 			NETLINK_TIMER);
 	return 0;

@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: global_data.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: global_data.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _GLOBAL_DATA_H
@@ -37,6 +37,7 @@
 /* constants */
 #define DEFAULT_SMTP_SERVER 0x7f000001
 #define DEFAULT_SMTP_CONNECTION_TIMEOUT (30 * TIMER_HZ)
+#define DEFAULT_PLUGIN_DIR "/etc/keepalived/plugins"
 
 /* email link list */
 typedef struct _email {
@@ -45,12 +46,16 @@ typedef struct _email {
 
 /* Configuration data root */
 typedef struct _conf_data {
-	char *lvs_id;
+	char *router_id;
+	char *plugin_dir;
 	char *email_from;
 	uint32_t smtp_server;
 	long smtp_connection_to;
 	list email;
 } conf_data;
+
+/* Global vars exported */
+extern conf_data *data;		/* Global configuration data */
 
 /* Prototypes */
 extern void alloc_email(char *addr);

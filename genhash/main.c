@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include <signal.h>
@@ -30,8 +30,7 @@
 #include "sock.h"
 
 /* global var */
-thread_master *master = NULL;
-SOCK *sock = NULL;
+REQ *req = NULL;
 
 /* Terminate handler */
 void

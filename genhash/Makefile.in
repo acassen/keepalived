@@ -1,6 +1,6 @@
 # Makefile.in
 #
-# Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+# Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
 
 EXEC = genhash
 BIN  = ../bin
@@ -36,13 +36,13 @@ distclean: clean
 
 uninstall:
 	rm -f $(DESTDIR)$(bindir)/$(EXEC)
-	rm -f $(DESTDIR)$(prefix)/man/man8/genhash.8
+	rm -f $(DESTDIR)@mandir@/man/man1/genhash.1
 
 install:
 	install -d $(DESTDIR)$(bindir)
 	install -m 755 $(BIN)/$(EXEC) $(DESTDIR)$(bindir)/
-	install -d $(DESTDIR)$(prefix)/man/man8
-	install -m 644 ../doc/man/man8/genhash.8 $(DESTDIR)$(prefix)/man/man8
+	install -d $(DESTDIR)@mandir@/man/man1
+	install -m 644 ../doc/man/man1/genhash.1 $(DESTDIR)@mandir@/man/man1
 
 mrproper: clean distclean
 	rm -f config.*

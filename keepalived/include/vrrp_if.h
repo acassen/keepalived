@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_if.c include file.
  *
- * Version:     $Id: vrrp_if.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: vrrp_if.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _VRRP_IF_H
@@ -70,9 +70,6 @@ typedef struct _interface {
 	int linkbeat;		/* LinkBeat from MII BMSR req */
 } interface;
 
-/* Global interface queue */
-list if_queue;
-
 /* Macros */
 #define IF_NAME(X) ((X)->ifname)
 #define IF_INDEX(X) ((X)->ifindex)
@@ -90,6 +87,9 @@ list if_queue;
                     ((X)->flags & IFF_RUNNING) && \
                     if_linkbeat(X))
 #endif
+
+/* Global vars exported */
+extern list if_queue;
 
 /* prototypes */
 extern interface *if_get_by_ifindex(const int ifindex);

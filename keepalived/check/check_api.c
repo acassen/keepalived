@@ -5,7 +5,7 @@
  *
  * Part:        Checkers registration.
  *
- * Version:     $Id: check_api.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: check_api.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,25 +19,26 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
+#include <dirent.h>
+#include <dlfcn.h>
 #include "check_api.h"
+#include "main.h"
 #include "parser.h"
 #include "memory.h"
 #include "utils.h"
+#include "global_data.h"
 #include "check_misc.h"
+#include "check_smtp.h"
 #include "check_tcp.h"
 #include "check_http.h"
 #include "check_ssl.h"
 
-/* External vars */
-extern thread_master *master;
-extern check_conf_data *check_data;
-extern unsigned int debug;
-
 /* Global vars */
 static checker_id_t ncheckers = 0;
+list checkers_queue;
 
 /* free checker data */
 static void
@@ -57,7 +58,7 @@ dump_checker(void *data)
 	(*checker->dump) (checker);
 }
 
-/* Queue a checker to the checkers_queue */
+/* Queue a checker into the checkers_queue */
 void
 queue_checker(void (*free) (void *), void (*dump) (void *)
 	      , int (*launch) (struct _thread *)
@@ -108,7 +109,7 @@ free_checkers_queue(void)
 	ncheckers = 0;
 }
 
-/* register the checker to the global I/O scheduler */
+/* register checkers to the global I/O scheduler */
 void
 register_checkers_thread(void)
 {
@@ -122,8 +123,9 @@ register_checkers_thread(void)
 		       inet_ntop2(CHECKER_RIP(checker)),
 		       ntohs(CHECKER_RPORT(checker)));
 		CHECKER_ENABLE(checker);
-		thread_add_timer(master, checker->launch, checker,
-				 BOOTSTRAP_DELAY);
+		if (checker->launch)
+			thread_add_timer(master, checker->launch, checker,
+					 BOOTSTRAP_DELAY);
 	}
 }
 
@@ -164,6 +166,7 @@ void
 install_checkers_keyword(void)
 {
 	install_misc_check_keyword();
+	install_smtp_check_keyword();
 	install_tcp_check_keyword();
 	install_http_check_keyword();
 	install_ssl_check_keyword();

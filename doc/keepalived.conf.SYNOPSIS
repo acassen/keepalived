@@ -31,7 +31,7 @@ global_defs {				# Block identification
     smtp_server <IP ADDRESS>		   # SMTP server IP address
     smtp_connect_timeout <INTEGER>	   # Number of seconds timeout connect
  					   #  remote SMTP server
-    lvs_id <STRING>			   # String identifying router
+    router_id <STRING>			   # String identifying router
 }
 
 	1.2. Static addresses
@@ -115,6 +115,8 @@ vrrp_instance <STRING> {		# VRRP instance declaration
       <STRING>
       ...
     }
+    dont_track_primary                  # (default unset) ignore VRRP interface faults.
+                                        #  useful for cross-connect VRRP config.
     mcast_src_ip <IP ADDRESS>		# src_ip to use into the VRRP packets
     lvs_sync_daemon_interface <STRING>	# Binding interface for lvs syncd
     garp_master_delay <INTEGER>		# delay for gratuitous ARP after MASTER
@@ -131,23 +133,25 @@ vrrp_instance <STRING> {		# VRRP instance declaration
         <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
         ...
     }
-    virtual_ipaddress_excluded {         		# VRRP IP excluded from VRRP
+    virtual_ipaddress_excluded {       	# VRRP IP excluded from VRRP
         <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>	# packets
         <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
         ...
     }
-    virtual_routes {			 # VRRP virtual routes
+    virtual_routes {			# VRRP virtual routes
     	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # to is optional
     	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # to is optional
         ...
     }
-    preempt				# VRRP preempt mode (default set)
-    debug				# Debug level
-    notify_master <STRING>|<QUOTED-STRING> # Same as vrrp_sync_group
-    notify_backup <STRING>|<QUOTED-STRING> # Same as vrrp_sync_group
-    notify_fault <STRING>|<QUOTED-STRING>  # Same as vrrp_sync_group
-    notify <STRING>|<QUOTED-STRING>	   # Same as vrrp_sync_group
-    smtp_alert				   # Same as vrrp_sync_group
+    nopreempt					# Override VRRP RFC preemption default
+    preempt_delay				# Seconds after startup until
+						#  preemption. 0 (default) to 1,000
+    debug					# Debug level
+    notify_master <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
+    notify_backup <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
+    notify_fault <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
+    notify <STRING>|<QUOTED-STRING>		# Same as vrrp_sync_group
+    smtp_alert					# Same as vrrp_sync_group
 }
 
 SCOPE can take the following values :
@@ -197,8 +201,8 @@ virtual_server <IP ADDRESS> <PORT> {	# VS IP/PORT declaration
 virtual_server fwmark <INTEGER>    {	# VS fwmark declaration
 virtual_server group <STRING>      {	# VS group declaration
     delay_loop <INTEGER>		# delay timer for service polling
-    lb_algo rr|wrr|lc|wlc|lblc|sh|dh	# LVS scheduler used
-    lb_kind NAT|DR|TUN			# LVS method used
+    lvs_sched rr|wrr|lc|wlc|lblc|sh|dh	# LVS scheduler used
+    lvs_method NAT|DR|TUN		# LVS method used
     persistence_timeout <INTEGER>	# LVS persistence timeout
     persistence_granularity <NETMASK>	# LVS granularity mask
     protocol TCP			# Only TCP is implemented
@@ -260,9 +264,46 @@ virtual_server group <STRING>      {	# VS group declaration
         notify_up <STRING>|<QUOTED-STRING> # Idem
         notify_down <STRING>|<QUOTED-STRING> # Idem
 
+        SMTP_CHECK {                   # SMTP healthchecker
+            host {                      # Optional additional host/port to check
+                connect_ip <IP ADDRESS> # IP address to connect to
+                connect_port <PORT>     # Port to connect to
+                bindto <IP ADDRESS>     # IP address to bind to
+
+            }
+            host {
+                connect_ip <IP ADDRESS>
+                connect_port <PORT>
+                bindto <IP ADDRESS>
+            }
+            ...
+            connect_timeout <INTEGER>  # Connection and read/write timeout
+            retry <INTEGER>             # Number of times to retry a failed check
+            delay_before_retry <INTEGER> # Delay in seconds before retrying
+            helo_name <STRING>|<QUOTED-STRING> # Host to use for the HELO request
+        }
+    }
+
+    real_server <IP ADDRESS> <PORT> {	# Idem
+        weight <INTEGER>		# Idem
+        inhibit_on_failure		# Idem
+        notify_up <STRING>|<QUOTED-STRING> # Idem
+        notify_down <STRING>|<QUOTED-STRING> # Idem
+
         MISC_CHECK {				# MISC healthchecker
             misc_path <STRING>|<QUOTED-STRING>	# External system script or program
             misc_timeout <INTEGER>		# Script execution timeout
+
+            # If set, exit code from healthchecker is used
+            # to dynamically adjust the weight as follows:
+            #   exit status 0: svc check success, weight
+            #     unchanged.
+            #   exit status 1: svc check failed.
+            #   exit status 2-255: svc check success, weight
+            #     changed to 2 less than exit status.
+            #   (for example: exit status of 255 would set
+            #     weight to 253)
+            misc_dynamic
         }
     }
 }

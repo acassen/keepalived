@@ -1,7 +1,7 @@
 ! Configuration File for keepalived
 
 global_defs {
-   lvs_id LVS_DEVEL
+   router_id LVS_DEVEL
 }
 
 static_routes {

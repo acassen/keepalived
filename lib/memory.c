@@ -6,7 +6,7 @@
  * Part:        Memory management framework. This framework is used to
  *              find any memory leak.
  *
- * Version:     $Id: memory.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: memory.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -21,10 +21,13 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "memory.h"
+
+/* Global var */
+unsigned long mem_allocated;	/* Total memory used in Bytes */
 
 void *
 xalloc(unsigned long size)
@@ -74,7 +77,7 @@ xfree(void *p)
  */
 
 #ifdef _DEBUG_
-extern void print_buffer(int, char *);
+extern void dump_buffer(char *, int);
 
 typedef struct {
 	int type;
@@ -94,28 +97,6 @@ static int number_alloc_list = 0;
 static int n = 0;		/* Alloc list pointer */
 static int f = 0;		/* Free list pointer */
 static int s = 0;		/* Indent counter */
-
-static char *
-nspace(int n)
-{
-
-	return "";
-
-/*
- static char buf[64];
- int start = 0; 
- char *p;
- p = buf;
- 
- while ( n-- > start ) {	
-  *p++ = ' '; 
- }
- *p=0;
-
- return buf;
-*/
-
-}
 
 char *
 keepalived_malloc(unsigned long size, char *file, char *function, int line)
@@ -138,7 +119,7 @@ keepalived_malloc(unsigned long size, char *file, char *function, int line)
 	if (i == number_alloc_list)
 		number_alloc_list++;
 
-	assert(number_alloc_list > MAX_ALLOC_LIST);
+	assert(number_alloc_list < MAX_ALLOC_LIST);
 
 	alloc_list[i].ptr = buf;
 	alloc_list[i].size = size;
@@ -149,8 +130,8 @@ keepalived_malloc(unsigned long size, char *file, char *function, int line)
 	alloc_list[i].type = 9;
 
 	if (debug & 1)
-		printf("%szalloc[%3d:%3d], %p, %4ld at %s, %3d, %s\n",
-		       nspace(s++), i, number_alloc_list, buf, size, file, line,
+		printf("zalloc[%3d:%3d], %p, %4ld at %s, %3d, %s\n",
+		       i, number_alloc_list, buf, size, file, line,
 		       function);
 
 	n++;
@@ -167,8 +148,8 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 	if (buffer == NULL) {
 		i = number_alloc_list++;
 
-		assert(number_alloc_list > MAX_ALLOC_LIST);
-		
+		assert(number_alloc_list < MAX_ALLOC_LIST);
+
 		alloc_list[i].ptr = buffer;
 		alloc_list[i].size = 0;
 		alloc_list[i].file = file;
@@ -176,7 +157,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 		alloc_list[i].line = line;
 		alloc_list[i].type = 2;
 		if (debug & 1)
-			printf("%sfree NULL in %s, %3d, %s\n", nspace(s), file,
+			printf("free NULL in %s, %3d, %s\n", file,
 			       line, function);
 
 		debug |= 512;	/* Memory Error detect */
@@ -195,18 +176,15 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 			else {
 				alloc_list[i].type = 1;	/* Overrun */
 				if (debug & 1) {
-					printf
-					    ("%sfree corrupt, buffer overrun [%3d:%3d], %p, %4ld at %s, %3d, %s\n",
-					     nspace(--s), i, number_alloc_list,
-					     buf, alloc_list[i].size, file,
-					     line, function);
-					print_buffer(alloc_list[i].size +
-						     sizeof (long),
-						     alloc_list[i].ptr);
-					printf("%sCheck_sum\n", nspace(i));
-					print_buffer(sizeof (long),
-						     (char *) &alloc_list[i].
-						     csum);
+					printf("free corrupt, buffer overrun [%3d:%3d], %p, %4ld at %s, %3d, %s\n",
+					       i, number_alloc_list,
+					       buf, alloc_list[i].size, file,
+					       line, function);
+					dump_buffer(alloc_list[i].ptr,
+						    alloc_list[i].size + sizeof (long));
+					printf("Check_sum\n");
+					dump_buffer((char *) &alloc_list[i].csum,
+						    sizeof(long));
 
 					debug |= 512;	/* Memory Error detect */
 				}
@@ -221,7 +199,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 		printf("Free ERROR %p\n", buffer);
 		number_alloc_list++;
 
-		assert(number_alloc_list > MAX_ALLOC_LIST);
+		assert(number_alloc_list < MAX_ALLOC_LIST);
 
 		alloc_list[i].ptr = buf;
 		alloc_list[i].size = 0;
@@ -238,8 +216,8 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 		xfree(buffer);
 
 	if (debug & 1)
-		printf("%sfree  [%3d:%3d], %p, %4ld at %s, %3d, %s\n",
-		       nspace(--s), i, number_alloc_list, buf,
+		printf("free  [%3d:%3d], %p, %4ld at %s, %3d, %s\n",
+		       i, number_alloc_list, buf,
 		       alloc_list[i].size, file, line, function);
 
 	free_list[f].file = file;
@@ -345,7 +323,7 @@ keepalived_realloc(void *buffer, unsigned long size, char *file, char *function,
 		printf("realloc %p %s, %3d %s\n", buffer, file, line, function);
 		i = number_alloc_list++;
 
-		assert(number_alloc_list > MAX_ALLOC_LIST);
+		assert(number_alloc_list < MAX_ALLOC_LIST);
 
 		alloc_list[i].ptr = NULL;
 		alloc_list[i].size = 0;
@@ -371,7 +349,7 @@ keepalived_realloc(void *buffer, unsigned long size, char *file, char *function,
 		printf("realloc ERROR no matching zalloc %p \n", buffer);
 		number_alloc_list++;
 
-		assert(number_alloc_list > MAX_ALLOC_LIST);
+		assert(number_alloc_list < MAX_ALLOC_LIST);
 
 		alloc_list[i].ptr = buf;
 		alloc_list[i].size = 0;
@@ -396,12 +374,11 @@ keepalived_realloc(void *buffer, unsigned long size, char *file, char *function,
 	alloc_list[i].csum = check;
 
 	if (debug & 1)
-		printf
-		    ("%srealloc [%3d:%3d] %p, %4ld %s %d %s -> %p %4ld %s %d %s\n",
-		     nspace(s), i, number_alloc_list, alloc_list[i].ptr,
-		     alloc_list[i].size, file, line, function, buf, size,
-		     alloc_list[i].file, alloc_list[i].line,
-		     alloc_list[i].func);
+		printf("realloc [%3d:%3d] %p, %4ld %s %d %s -> %p %4ld %s %d %s\n",
+		       i, number_alloc_list, alloc_list[i].ptr,
+		       alloc_list[i].size, file, line, function, buf, size,
+		       alloc_list[i].file, alloc_list[i].line,
+		       alloc_list[i].func);
 
 	alloc_list[i].ptr = buf;
 	alloc_list[i].size = size;

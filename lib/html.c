@@ -5,7 +5,7 @@
  *
  * Part:        HTML stream parser utility functions.
  *
- * Version:     $Id: html.c,v 1.1.7 2004/04/04 23:28:05 ACAssen Exp $
+ * Version:     $Id: html.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include <string.h>
@@ -85,12 +85,11 @@ int extract_status_code(char *buffer, int size)
 char *extract_html(char *buffer, int size_buffer)
 {
 	char *end = buffer + size_buffer;
+	char *cur;
 
-	while (buffer < end &&
-	       !(*buffer++ == '\n' &&
-		(*buffer == '\n' || (*buffer++ == '\r' && *buffer == '\n')))) ;
-
-	if (*buffer == '\n')
-		return buffer + 1;
+	for (cur = buffer; cur + 4 < end; cur++)
+		if (*cur == '\r' && *(cur+1) == '\n'
+		    && *(cur+2) == '\r' && *(cur+3) == '\n')
+			return cur + 4;
 	return NULL;
 }

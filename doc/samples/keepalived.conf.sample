@@ -7,13 +7,13 @@ global_defs {
    notification_email_from Alexandre.Cassen@firewall.loc
    smtp_server 192.168.200.1
    smtp_connect_timeout 30
-   lvs_id LVS_DEVEL
+   router_id LVS_DEVEL
 }
 
 vrrp_instance VI_1 {
     interface eth0
     virtual_router_id 50
-    preempt
+    nopreempt
     priority 100
     advert_int 1
     virtual_ipaddress {

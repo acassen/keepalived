@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include <errno.h>
@@ -31,9 +31,6 @@
 #include "utils.h"
 #include "html.h"
 #include "timer.h"
-
-/* extern variables */
-extern REQ *req;
 
 /* 
  * The global design of this checker is the following :
@@ -99,7 +96,7 @@ finalize(thread * thread)
 	if (req->verbose) {
 		printf("\n");
 		printf(HTML_MD5);
-		print_buffer(16, digest);
+		dump_buffer(digest, 16);
 
 		printf(HTML_MD5_FINAL);
 	}
@@ -113,6 +110,19 @@ finalize(thread * thread)
 	return 0;
 }
 
+/* Dump HTTP header */
+static void
+http_dump_header(char *buffer, int size)
+{
+	int r;
+
+	dump_buffer(buffer, size);
+	printf(HTTP_HEADER_ASCII);
+	for (r = 0; r < size; r++)
+		printf("%c", buffer[r]);
+	printf("\n");
+}
+
 /* Process incoming stream */
 int
 http_process_stream(SOCK * sock, int r)
@@ -124,36 +134,34 @@ http_process_stream(SOCK * sock, int r)
 		if (req->verbose)
 			printf(HTTP_HEADER_HEXA);
 		if ((sock->extracted = extract_html(sock->buffer, sock->size))) {
-			if (req->verbose) {
-				print_buffer(sock->extracted - sock->buffer,
-					     sock->buffer);
-				printf(HTTP_HEADER_ASCII);
-				for (r = 0; r < sock->extracted - sock->buffer;
-				     r++)
-					printf("%c", sock->buffer[r]);
-				printf("\n");
-				printf(HTML_HEADER_HEXA);
-			}
+			if (req->verbose)
+				http_dump_header(sock->buffer,
+						 sock->extracted - sock->buffer);
 			r = sock->size - (sock->extracted - sock->buffer);
 			if (r) {
-				if (req->verbose)
-					print_buffer(r, sock->extracted);
-				memcpy(sock->buffer, sock->extracted, r);
+				if (req->verbose) {
+					printf(HTML_HEADER_HEXA);
+					dump_buffer(sock->extracted, r);
+				}
+				memmove(sock->buffer, sock->extracted, r);
 				MD5_Update(&sock->context, sock->buffer, r);
 				r = 0;
 			}
 			sock->size = r;
 		} else {
+			if (req->verbose)
+				http_dump_header(sock->buffer, sock->size);
+
 			/* minimize buffer using no 2*CR/LF found yet */
-			if (sock->size > 3) {
-				memcpy(sock->buffer,
-				       sock->buffer + sock->size - 3, 3);
-				sock->size = 3;
+			if (sock->size > 4) {
+				memmove(sock->buffer,
+					sock->buffer + sock->size - 4, 4);
+				sock->size = 4;
 			}
 		}
 	} else if (sock->size) {
 		if (req->verbose)
-			print_buffer(r, sock->buffer);
+			dump_buffer(sock->buffer, r);
 		MD5_Update(&sock->context, sock->buffer, sock->size);
 		sock->size = 0;
 	}
@@ -174,7 +182,8 @@ http_read_thread(thread * thread)
 
 	/* read the HTTP stream */
 	memset(sock->buffer, 0, MAX_BUFFER_LENGTH);
-	r = read(thread->u.fd, sock->buffer, MAX_BUFFER_LENGTH);
+	r = read(thread->u.fd, sock->buffer + sock->size,
+		 MAX_BUFFER_LENGTH - sock->size);
 
 	DBG(" [l:%d,fd:%d]\n", r, sock->fd);
 

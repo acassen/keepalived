@@ -1,0 +1,114 @@
+! Configuration File for keepalived
+!
+! The SMTP_CHECK connects to a smtp server
+! and checks with the following dialogue:
+!
+! 220 mta1.somecompany.com ESMTP
+! HELO foo.bar.com
+! 250 mta1.somecompany.com Hello foo.bar.com [192.168.1.45], pleased to meet you
+! QUIT
+! 221 2.0.0 mta1.somecompany.com closing connection
+!
+! It specifically checks the numeric codes returned (220, 250, and 221).
+!
+
+global_defs {
+   notification_email {
+     acassen
+   }
+   notification_email_from Alexandre.Cassen@firewall.loc
+   smtp_server 192.168.200.1
+   smtp_connect_timeout 30
+   lvs_id LVS_DEVEL
+}
+
+virtual_server 192.168.200.100 25 {
+    delay_loop 60
+    lb_algo rr
+    lb_kind NAT
+    protocol TCP
+
+! In this real_server example we will simply check
+! the ip address of the real_server. This could be
+! the case where the real server only has a single
+! interface that keepalived is balancing traffic
+! to.
+
+    real_server 172.16.1.10 25 {
+        weight 1
+        SMTP_CHECK {
+            connect_timeout 30
+            retry 2
+            delay_before_retry 5
+            helo_name "foo.bar.com"
+        }
+    }
+
+! In this complex example, the real_server has
+! multiple interfaces. Keepalived is sending traffic
+! to 172.16.1.11 but the smtp server also routes
+! traffic to some additional subnets. We do not
+! want to dispatch traffic unless all the interfaces
+! appear to be up. Note: The main ip of the real
+! server that we are dipatching traffic to must
+! explicitly be checked by a host directive.
+
+    real_server 172.16.1.11 25 {
+        weight 1
+        SMTP_CHECK {
+            connect_timeout 10
+            retry 2
+            delay_before_retry 5
+            helo_name foo.bar.com
+
+            host {
+                connect_ip 172.16.1.11
+            }
+
+            host {
+                connect_ip  192.168.155.10
+            }
+
+            host {
+                connect_ip  64.233.167.99
+            }
+        }
+    }
+
+
+! Final example showing some of the more extended
+! features.
+!
+! Use connect_port to provide an alternate port
+! other than the default 25.
+!
+! Use bindto to force the connection to originate
+! from a specific interface.
+
+    real_server 172.16.1.12 25 {
+        weight 1
+        SMTP_CHECK {
+            connect_timeout 10
+            retry 2
+            delay_before_retry 5
+            helo_name "foo.bar.com"
+
+            host {
+                connect_ip 172.16.1.12
+                connect_port 25
+                bindto 172.16.1.2
+            }
+
+            host {
+                connect_ip  192.168.155.11
+                connect_port 25
+                bindto 192.168.155.2
+            }
+
+            host {
+                connect_ip  64.233.167.100
+                connect_port 587
+            }
+        }
+    }
+}

@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: global_data.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: global_data.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include <syslog.h>
@@ -30,12 +30,12 @@
 #include "list.h"
 #include "utils.h"
 
-/* External vars */
-extern conf_data *data;
+/* global vars */
+conf_data *data = NULL;
 
 /* Default settings */
 static void
-set_default_lvs_id(conf_data * conf_data)
+set_default_router_id(conf_data * conf_data)
 {
 	char *new_id = NULL;
 	int len = 0;
@@ -45,11 +45,11 @@ set_default_lvs_id(conf_data * conf_data)
 		return;
 
 	len = strlen(new_id);
-	conf_data->lvs_id = MALLOC(len + 1);
-	if (!conf_data->lvs_id)
+	conf_data->router_id = MALLOC(len + 1);
+	if (!conf_data->router_id)
 		return;
 
-	memcpy(conf_data->lvs_id, new_id, len);
+	memcpy(conf_data->router_id, new_id, len);
 }
 
 static void
@@ -93,7 +93,7 @@ set_default_values(conf_data * conf_data)
 	/* No global data so don't default */
 	if (!conf_data)
 		return;
-	set_default_lvs_id(conf_data);
+	set_default_router_id(conf_data);
 	set_default_smtp_server(conf_data);
 	set_default_smtp_connection_timeout(conf_data);
 	set_default_email_from(conf_data);
@@ -141,7 +141,8 @@ void
 free_global_data(conf_data * data)
 {
 	free_list(data->email);
-	FREE_PTR(data->lvs_id);
+	FREE_PTR(data->router_id);
+	FREE_PTR(data->plugin_dir);
 	FREE_PTR(data->email_from);
 	FREE(data);
 }
@@ -152,12 +153,14 @@ dump_global_data(conf_data * data)
 	if (!data)
 		return;
 
-	if (data->lvs_id ||
+	if (data->router_id ||
 	    data->smtp_server || data->smtp_connection_to || data->email_from) {
 		syslog(LOG_INFO, "------< Global definitions >------");
 	}
-	if (data->lvs_id)
-		syslog(LOG_INFO, " LVS ID = %s", data->lvs_id);
+	if (data->router_id)
+		syslog(LOG_INFO, " Router ID = %s", data->router_id);
+	if (data->plugin_dir)
+		syslog(LOG_INFO, " Plugin dir = %s", data->plugin_dir);
 	if (data->smtp_server)
 		syslog(LOG_INFO, " Smtp server = %s",
 		       inet_ntop2(data->smtp_server));

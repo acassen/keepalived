@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -22,7 +22,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 /* local include */
@@ -38,44 +38,8 @@
 #include "vrrp_index.h"
 #include "memory.h"
 #include "list.h"
-
-/* extern global vars */
-extern vrrp_conf_data *vrrp_data;
-extern vrrp_conf_data *old_vrrp_data;
-extern unsigned int debug;
-
-/* compute checksum */
-static u_short
-in_csum(u_short * addr, int len, u_short csum)
-{
-	register int nleft = len;
-	const u_short *w = addr;
-	register u_short answer;
-	register int sum = csum;
-
-	/*
-	 *  Our algorithm is simple, using a 32 bit accumulator (sum),
-	 *  we add sequential 16 bit words to it, and at the end, fold
-	 *  back all the carry bits from the top 16 bits into the lower
-	 *  16 bits.
-	 */
-	while (nleft > 1) {
-		sum += *w++;
-		nleft -= 2;
-	}
-
-	/* mop up an odd byte, if necessary */
-	if (nleft == 1)
-		sum += htons(*(u_char *) w << 8);
-
-	/*
-	 * add back carry outs from top 16 bits to low 16 bits
-	 */
-	sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
-	sum += (sum >> 16);			/* add carry */
-	answer = ~sum;				/* truncate to 16 bits */
-	return (answer);
-}
+#include "main.h"
+#include "utils.h"
 
 /* add/remove Virtual IP addresses */
 static int
@@ -259,7 +223,8 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 	}
 
 	/* MUST verify the VRRP checksum */
-	if (in_csum((u_short *) hd, vrrp_hd_len(vrrp), 0)) {
+	if (in_csum((u_short *) hd,
+	    sizeof(vrrp_pkt) + VRRP_AUTH_LEN + hd->naddr * sizeof(uint32_t), 0)) {
 		syslog(LOG_INFO, "Invalid vrrp checksum");
 		return VRRP_PACKET_KO;
 	}
@@ -424,7 +389,6 @@ vrrp_build_ipsecah(vrrp_rt * vrrp, char *buffer, int buflen)
 	   In the current implementation if counter has cycled, we stop sending adverts and 
 	   become BACKUP. If all the master are down we reset the counter for becoming MASTER.
 	 */
-//  if (vrrp->ipsecah_counter->seq_number > 5) {
 	if (vrrp->ipsecah_counter->seq_number > 0xFFFFFFFD) {
 		vrrp->ipsecah_counter->cycle = 1;
 	} else {
@@ -614,19 +578,29 @@ vrrp_send_gratuitous_arp(vrrp_rt * vrrp)
 		return;
 
 	/* send gratuitous arp for each virtual ip */
-	if (debug & 32)
-		syslog(LOG_INFO, "VRRP_Instance(%s) Sending gratuitous ARP on %s",
-		       vrrp->iname, IF_NAME(vrrp->ifp));
-
 	for (j = 0; j < 5; j++) {
 		if (!LIST_ISEMPTY(vrrp->vip))
 			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 				ipaddress = ELEMENT_DATA(e);
+				if (0 == j && debug & 32)
+					syslog(LOG_INFO,
+					       "VRRP_Instance(%s) Sending gratuitous ARPs "
+					       "on %s for %s",
+					       vrrp->iname,
+					       IF_NAME(ipaddress->ifp),
+					       inet_ntop2(ipaddress->addr));
 				send_gratuitous_arp(ipaddress);
 			}
 		if (!LIST_ISEMPTY(vrrp->evip))
 			for (e = LIST_HEAD(vrrp->evip); e; ELEMENT_NEXT(e)) {
 				ipaddress = ELEMENT_DATA(e);
+				if (0 == j && debug & 32)
+					syslog(LOG_INFO,
+					       "VRRP_Instance(%s) Sending gratuitous ARPs "
+					       "on %s for %s",
+					       vrrp->iname,
+					       IF_NAME(ipaddress->ifp),
+					       inet_ntop2(ipaddress->addr));
 				send_gratuitous_arp(ipaddress);
 			}
 	}
@@ -675,11 +649,16 @@ vrrp_state_goto_master(vrrp_rt * vrrp)
 }
 
 /* leaving master state */
-static void
+void
 vrrp_restore_interface(vrrp_rt * vrrp, int advF)
 {
-	/* remove the ip addresses */
-	if (VRRP_VIP_ISSET(vrrp)) {
+	/*
+	 * Remove the ip addresses.
+	 *
+	 * If started with "--dont-release-vrrp" (debug & 8) then try to remove
+	 * addresses even if we didn't add them during this run.
+	 */
+	if (debug & 8 || VRRP_VIP_ISSET(vrrp)) {
 		if (!LIST_ISEMPTY(vrrp->vip))
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL,
 					      VRRP_VIP_TYPE);
@@ -761,7 +740,8 @@ vrrp_state_backup(vrrp_rt * vrrp, char *buf, int buflen)
 		    3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	} else if (hd->priority == 0) {
 		vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
-	} else if (!vrrp->preempt || hd->priority >= vrrp->priority) {
+	} else if (vrrp->nopreempt || hd->priority >= vrrp->priority ||
+		   timer_cmp(vrrp->preempt_time, timer_now()) > 0) {
 		vrrp->ms_down_timer =
 		    3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	} else if (hd->priority < vrrp->priority) {
@@ -959,10 +939,6 @@ open_vrrp_socket(const int proto, const int index)
 	/* Retreive interface */
 	ifp = if_get_by_ifindex(index);
 
-	/* Simply return if interface is shut */
-	if (!IF_ISUP(ifp))
-		return fd;
-
 	/* open the socket */
 	fd = socket(AF_INET, SOCK_RAW, proto);
 	if (fd < 0) {
@@ -1040,8 +1016,6 @@ vrrp_complete_instance(vrrp_rt * vrrp)
 		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
 	if (!vrrp->priority)
 		vrrp->priority = VRRP_PRIO_DFL;
-	if (!vrrp->preempt)
-		vrrp->preempt = VRRP_PREEMPT_DFL;
 
 	return (chk_min_cfg(vrrp));
 }

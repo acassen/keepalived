@@ -5,7 +5,7 @@
  *
  * Part:        VRRP child process handling.
  *
- * Version:     $Id: vrrp_daemon.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: vrrp_daemon.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "vrrp_daemon.h"
@@ -39,32 +39,22 @@
   #include "ipvswrapper.h"
 #endif
 #include "list.h"
+#include "main.h"
 #include "memory.h"
 #include "parser.h"
 #include "watchdog.h"
 
 /* Global vars */
-vrrp_conf_data *vrrp_data;
-vrrp_conf_data *old_vrrp_data;
-int vrrp_wdog_sd = -1;
+static int vrrp_wdog_sd = -1;
 
 /* VRRP watchdog data */
-wdog_data vrrp_wdog_data = {
+static wdog_data vrrp_wdog_data = {
 	"VRRP Child",
 	WDOG_VRRP,
 	-1,
 	-1,
 	start_vrrp_child
 };
-
-/* Externals vars */
-extern thread_master *master;
-extern conf_data *data;
-extern unsigned int debug;
-extern int reload;
-extern pid_t vrrp_child;
-extern char *conf_file;
-extern int wdog_delay_vrrp;
 
 /* Daemon stop sequence */
 static void
@@ -87,7 +77,9 @@ stop_vrrp(void)
 
 	/* Clean data */
 	free_global_data(data);
+	vrrp_dispatcher_release(vrrp_data);
 	free_vrrp_data(vrrp_data);
+	free_vrrp_buffer();
 
 #ifdef _WITH_LVS_
 	/* Clean ipvs related */
@@ -197,6 +189,7 @@ reload_vrrp_thread(thread * thread)
 	start_vrrp();
 
 	/* free backup data */
+	vrrp_dispatcher_release(old_vrrp_data);
 	free_vrrp_data(old_vrrp_data);
 	UNSET_RELOAD;
 
@@ -263,7 +256,8 @@ start_vrrp_child(void)
 	}
 
 	/* Opening local VRRP syslog channel */
-	openlog(PROG_VRRP, LOG_PID | (debug & 1) ? LOG_CONS : 0, LOG_LOCAL1);
+	openlog(PROG_VRRP, LOG_PID | (debug & 1) ? LOG_CONS : 0,
+		(log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(VRRP_PID_FILE, getpid())) {

@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_scheduler.c include file.
  * 
- * Version:     $Id: vrrp_scheduler.h,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.h,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _VRRP_SCHEDULER_H
@@ -34,6 +34,7 @@
 
 /* local includes */
 #include "scheduler.h"
+#include "vrrp_data.h"
 
 /*
  * Our instance dispatcher use a socket pool.
@@ -70,6 +71,7 @@ do {						\
 } while (0)
 
 /* extern prototypes */
+extern void vrrp_dispatcher_release(vrrp_conf_data * data);
 extern int vrrp_dispatcher_init(thread * thread);
 extern int vrrp_read_dispatcher_thread(thread * thread);
 

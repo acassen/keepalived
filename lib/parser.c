@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 1.1.7 2004/04/04 23:28:05 acassen Exp $
+ * Version:     $Id: parser.c,v 1.1.8 2005/01/25 23:20:11 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -21,11 +21,15 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "parser.h"
 #include "memory.h"
+
+/* global vars */
+vector keywords;
+FILE *stream;
 
 /* local vars */
 static int sublevel = 0;
@@ -45,25 +49,7 @@ keyword_alloc(vector keywords, char *string, void (*handler) (vector))
 }
 
 void
-install_keyword_root(char *string, void (*handler) (vector))
-{
-	keyword_alloc(keywords, string, handler);
-}
-
-void
-install_sublevel(void)
-{
-	sublevel++;
-}
-
-void
-install_sublevel_end(void)
-{
-	sublevel--;
-}
-
-void
-install_keyword(char *string, void (*handler) (vector))
+keyword_alloc_sub(vector keywords, char *string, void (*handler) (vector))
 {
 	int i = 0;
 	struct keyword *keyword;
@@ -82,6 +68,31 @@ install_keyword(char *string, void (*handler) (vector))
 
 	/* add new sub keyword */
 	keyword_alloc(keyword->sub, string, handler);
+}
+
+/* Exported helpers */
+void
+install_sublevel(void)
+{
+	sublevel++;
+}
+
+void
+install_sublevel_end(void)
+{
+	sublevel--;
+}
+
+void
+install_keyword_root(char *string, void (*handler) (vector))
+{
+	keyword_alloc(keywords, string, handler);
+}
+
+void
+install_keyword(char *string, void (*handler) (vector))
+{
+	keyword_alloc_sub(keywords, string, handler);
 }
 
 void
@@ -350,12 +361,12 @@ init_data(char *conf_file, vector (*init_keywords) (void))
 	}
 
 	/* Init Keywords structure */
+	keywords = vector_alloc();
 	(*init_keywords) ();
 
-/* Dump configuration *
-  vector_dump(keywords);
-  dump_keywords(keywords, 0);
-*/
+/* Dump configuration */
+vector_dump(keywords);
+dump_keywords(keywords, 0);
 
 	/* Stream handling */
 	process_stream(keywords);
