@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 0.6.5 2002/07/01 23:41:28 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -51,8 +51,8 @@ struct {
 	void (*read) (vrrp_rt *, char *, int);
 	void (*read_to) (vrrp_rt *);
 } VRRP_FSM[VRRP_MAX_FSM_STATE + 1] = {
-/*    Stream Read Handlers      |    Stream Read_to handlers   */
-/*------------------------------+------------------------------*/
+/*    Stream Read Handlers      |    Stream Read_to handlers   *
+ *------------------------------+------------------------------*/
 	{NULL, 				NULL},
 	{vrrp_backup,			vrrp_goto_master},	/*  BACKUP          */
 	{vrrp_leave_master,		vrrp_master},		/*  MASTER          */
@@ -587,7 +587,8 @@ vrrp_fault(vrrp_rt * vrrp)
 		return;
 
 	/* refresh the multicast fd */
-	new_vrrp_socket(vrrp);
+	if (new_vrrp_socket(vrrp) < 0)
+		return;
 
 	/*
 	 * We force the IPSEC AH seq_number sync

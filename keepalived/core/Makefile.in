@@ -26,3 +26,23 @@ clean:
 
 distclean: clean
 	rm -f Makefile
+
+
+main.o: main.c ../include/main.h
+memory.o: memory.c ../include/memory.h
+daemon.o: daemon.c ../include/daemon.h
+pidfile.o: pidfile.c ../include/pidfile.h
+utils.o: utils.c ../include/utils.h
+timer.o: timer.c ../include/timer.h
+scheduler.o: scheduler.c ../include/scheduler.h ../include/memory.h \
+  ../include/utils.h
+vector.o: vector.c ../include/vector.h ../include/memory.h
+list.o: list.c ../include/list.h ../include/memory.h
+data.o: data.c ../include/data.h ../include/memory.h ../include/utils.h \
+  ../include/check_api.h ../include/vrrp.h ../include/vrrp_sync.h
+parser.o: parser.c ../include/parser.h ../include/memory.h ../include/vrrp.h \
+  ../include/vrrp_if.h ../include/check_api.h
+layer4.o: layer4.c ../include/layer4.h ../include/check_api.h ../include/utils.h
+smtp.o: smtp.c ../include/smtp.h ../include/memory.h ../include/list.h \
+  ../include/utils.h
+

@@ -35,3 +35,6 @@ uninstall:
 install:
 	$(MAKE) -C keepalived install
 	$(MAKE) -C genhash install
+
+rpm:
+	rpm -ba keepalived.spec

@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.h,v 0.6.5 2002/07/01 23:41:28 acassen Exp $
+ * Version:     $Id: data.h,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -70,6 +70,9 @@ typedef struct _real_server {
 	uint32_t addr_ip;
 	uint16_t addr_port;
 	int weight;
+	int inhibit;		/* Set weight to 0 instead of removing
+				 * the service from IPVS topology.
+				 */
 	int alive;
 } real_server;
 

@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 0.6.5 2002/07/01 23:41:28 acassen Exp $
+ * Version:     $Id: vrrp.h,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -191,7 +191,7 @@ typedef struct _vrrp_rt {
 
 /* prototypes */
 extern int open_vrrp_socket(const int proto, const int index);
-extern void new_vrrp_socket(vrrp_rt * vrrp);
+extern int new_vrrp_socket(vrrp_rt * vrrp);
 extern void close_vrrp_socket(vrrp_rt * vrrp);
 extern void vrrp_send_gratuitous_arp(vrrp_rt * vrrp);
 extern int vrrp_send_adv(vrrp_rt * vrrp, int prio);

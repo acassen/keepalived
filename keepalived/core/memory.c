@@ -6,7 +6,7 @@
  * Part:        Memory management framework. This framework is used to
  *              find any memory leak.
  *
- * Version:     $Id: memory.c,v 0.6.5 2002/07/01 23:41:28 acassen Exp $
+ * Version:     $Id: memory.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -224,7 +224,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 	}
 
 	if (buffer != NULL)
-		free(buffer);
+		xfree(buffer);
 
 	if (debug & 1)
 		printf("%sfree  [%3d:%3d], %p, %4ld at %s, %3d, %s\n",

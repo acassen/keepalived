@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.6.5 2002/07/01 23:41:28 acassen Exp $
+ * Version:     $Id: vrrp.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -570,7 +570,7 @@ vrrp_send_pkt(vrrp_rt * vrrp, char *buffer, int buflen)
 
 	/* build the address */
 	memset(&from, 0, sizeof (from));
-	strncpy(from.sa_data, IF_NAME(vrrp->ifp), IF_NAMESIZ);
+	strncpy(from.sa_data, IF_NAME(vrrp->ifp), sizeof(from.sa_data));
 
 //print_buffer(buflen, buffer);
 
@@ -964,7 +964,6 @@ open_vrrp_socket(const int proto, const int index)
 	interface *ifp;
 	int fd;
 	int ret;
-	int retry_num = 0;
 
 	/* Retreive interface */
 	ifp = if_get_by_ifindex(index);
@@ -1017,29 +1016,14 @@ open_vrrp_socket(const int proto, const int index)
 
 	/* -> Need to handle multicast convergance after takeover.
 	 * We retry until multicast is available on the interface.
-	 * After VRRP_MCAST_RETRY we assume interface doesn't support
-	 * multicast then exist with error.
-	 * -> This can sound a little nasty since it degrade a little
-	 * the global scheduling timers.
 	 */
-moretry:
 	ret =
 	    setsockopt(fd, IPPROTO_IP, IP_ADD_MEMBERSHIP, (char *) &req_add,
 		       sizeof (struct ip_mreqn));
 	if (ret < 0) {
 		syslog(LOG_INFO, "cant do IP_ADD_MEMBERSHIP errno=%s (%d)",
 		       strerror(errno), errno);
-		if (errno == 19) {
-			retry_num++;
-			if (retry_num > VRRP_MCAST_RETRY) {
-				syslog(LOG_INFO,
-				       "cant do IP_ADD_MEMBERSHIP after %d retry errno=%s",
-				       VRRP_MCAST_RETRY, strerror(errno));
-				return -1;
-			}
-			sleep(1);	/* FIXME: Beurk... Very nasty... !!! */
-			goto moretry;
-		}
+		close(fd);
 		return -1;
 	}
 
@@ -1051,6 +1035,10 @@ close_vrrp_socket(vrrp_rt * vrrp)
 {
 	struct ip_mreqn req_add;
 	int ret = 0;
+
+	/* If fd is -1 then we add a membership trouble */
+	if (vrrp->fd < 0)
+		return;
 
 	/* Leaving the VRRP multicast group */
 	memset(&req_add, 0, sizeof (req_add));
@@ -1071,7 +1059,7 @@ close_vrrp_socket(vrrp_rt * vrrp)
 	close(vrrp->fd);
 }
 
-void
+int
 new_vrrp_socket(vrrp_rt * vrrp)
 {
 	int old_fd = vrrp->fd;
@@ -1093,6 +1081,8 @@ new_vrrp_socket(vrrp_rt * vrrp)
 		if (vrrp_ptr->fd == old_fd)
 			vrrp_ptr->fd = vrrp->fd;
 	}
+
+	return vrrp->fd;
 }
 
 /* handle terminate state */

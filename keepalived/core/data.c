@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.c,v 0.6.5 2002/07/01 23:41:28 acassen Exp $
+ * Version:     $Id: data.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -398,6 +398,8 @@ dump_rs(void *data)
 	       inet_ntop2(SVR_IP(rs))
 	       , ntohs(SVR_PORT(rs))
 	       , rs->weight);
+	if (rs->inhibit)
+		syslog(LOG_INFO, "     -> Inhibit service on failure");
 }
 
 void
@@ -410,7 +412,6 @@ alloc_rs(char *ip, char *port)
 
 	inet_ston(ip, &new->addr_ip);
 	new->addr_port = htons(atoi(port));
-	new->alive = 1;
 
 	if (LIST_ISEMPTY(vs->rs))
 		vs->rs = alloc_list(free_rs, dump_rs);

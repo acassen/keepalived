@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 0.6.5 2002/07/01 23:41:28 acassen Exp $
+ * Version:     $Id: parser.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -660,6 +660,13 @@ weight_handler(vector strvec)
 	real_server *rs = LIST_TAIL_DATA(vs->rs);
 	rs->weight = atoi(VECTOR_SLOT(strvec, 1));
 }
+static void
+inhibit_handler(vector strvec)
+{
+	virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
+	real_server *rs = LIST_TAIL_DATA(vs->rs);
+	rs->inhibit = 1;
+}
 
 /* Real Servers Groups for VS handlers */
 static void
@@ -789,6 +796,7 @@ init_keywords(void)
 	install_keyword("real_server", &rs_handler);
 	install_sublevel();
 	install_keyword("weight", &weight_handler);
+	install_keyword("inhibit_on_failure", &inhibit_handler);
 
 	/* Checkers mapping */
 	install_checkers_keyword();

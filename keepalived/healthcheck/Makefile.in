@@ -21,8 +21,8 @@ OBJS = 	check_api.o check_tcp.o check_http.o check_ssl.o \
 	check_misc.o ipwrapper.o ipvswrapper.o $(CI_LINUX_OBJ)
 
 ifeq ($(KERNEL),_KRNL_2_2_)
-OBJS += ipfwwrapper.o
-HEADERS += ipfwwrapper.h
+  OBJS += ipfwwrapper.o
+  HEADERS += ipfwwrapper.h
 endif
 
 HEADERS = $(OBJS:.o=.h)
@@ -37,3 +37,21 @@ clean:
 
 distclean: clean
 	rm -f Makefile
+
+check_api.o: check_api.c ../include/check_api.h ../include/parser.h \
+  ../include/memory.h ../include/utils.h ../include/check_misc.h \
+  ../include/check_tcp.h ../include/check_http.h ../include/check_ssl.h
+check_tcp.o: check_tcp.c ../include/check_tcp.h ../include/check_api.h \
+  ../include/memory.h ../include/ipwrapper.h ../include/layer4.h \
+  ../include/smtp.h ../include/utils.h ../include/parser.h
+check_http.o: check_http.c ../include/check_http.h ../include/check_ssl.h \
+  ../include/check_api.h ../include/memory.h ../include/parser.h \
+  ../include/utils.h
+check_ssl.o: check_ssl.c ../include/check_ssl.h ../include/check_api.h \
+  ../include/memory.h ../include/parser.h ../include/smtp.h \
+  ../include/utils.h
+check_misc.o: check_misc.c ../include/check_misc.h ../include/check_api.h \
+  ../include/memory.h ../include/ipwrapper.h ../include/smtp.h \
+  ../include/utils.h ../include/parser.h ../include/daemon.h
+ipwrapper.o: ipwrapper.c ../include/ipwrapper.h ../include/utils.h
+ipvswrapper.o: ipvswrapper.c ../include/ipvswrapper.h ../include/utils.h

@@ -1,3 +1,38 @@
+2002-07-16  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.6.8 released.
+	* Alex Kramarov, <alex@incredimail.com> & Remi Nivet, <Remi.Nivet@atosorigin.com>
+	  reported an assertion error during smtp notification process. The assertion
+	  caused a bad file descriptor registration during in_progress connection
+	  handling. Fixed registering an event thread calling upper level SMTP
+	  protocol in_progress connection handler. So the SMTP stream handlers use
+	  global I/O multiplexer on connection success.
+	* Benoit Gaussen, <ben@trez42.net> and I added support to "inhibit" feature.
+	  Added a new keyword called "inhibit_on_failure" for real_server declaration.
+	  If specified the real_server will not be removed from the IPVS topology if
+	  real_server fail according to checker result. Instead of removing the entry
+	  from IPVS topology, the corresponding real_server weight will be set to 0.
+	  When real_server will be back, then weight will be set back to original value.
+	  See sample directory for example.
+	* Added support to IP_MASQ_CMD_SET_DEST for 2.2 krnl and IP_VS_SO_SET_EDITDEST
+	  for 2.4 IPVS code to provide support to "inhibit" feature.
+	* Review Makefile.in to exit on compilation error.
+	* Extended autconf script to check for kernel netlink support.
+
+2002-07-12  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-0.6.7 released.
+	* Rewrote the previous SMTP notification framework. New code use a strong
+	  multi-threaded FSM design.
+	* Moved the SMTP get_local_name() into utils.c
+	* IPVS : updated the code to support IPVS_SVC_PERSISTENT_TIMEOUT. Introduced
+	  into the new libipvs coming with ipvs-1.0.4.
+	* VRRP : Extended the mcast membership subscription to handle more robust
+	  mcast subscription errors. Removed the previous ugly stalling sleeping
+	  call retry for membership subscription. Membership subscriptions are now
+	  multi-threaded to not degrade global scheduling timer.
+	* VRRP : Remi Nivet, <Remi.Nivet@atosorigin.com> pointed out a buffer
+	  overflow during the sending advert interface binding process.
+	* Some more cosmetics patches.
+
 2002-07-05  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.6.6 released.
 	* added indentation style .indent.pro
@@ -21,6 +56,7 @@
 	* Refine autoconf/automake scripts. Added automake support to libipvs and
 	  libipfwc. Added code selection compilation for libipvs and libipfwc.
 	* Review Makefile(s) to use more convenient facilities like distclean, ...
+	* Review the Makefile(s) code dependencies.
 	* Added support to modprobe_ipvs if the ip_vs.o module is not loaded.
 	  If modprobe fails then IPVS is assumed unavailable.
 	* Refine the IPVS wrapper to be more tolerant. When a VS or RS is already
@@ -30,6 +66,7 @@
 	  instance want to run on an interface administratively shut. Added extension
 	  to FSM to force transition to FAULT state during bootstrap if the interface
 	  is shut.
+	* Updated the TODO file.
 	* Some cosmetics patches.
 
 2002-07-01  Alexandre Cassen  <acassen@linux-vs.org>

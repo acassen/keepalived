@@ -40,8 +40,8 @@ endif
 all:
 	@set -e; \
 	for i in $(SUBDIRS); do \
-	$(MAKE) -C $$i; done && \
-	echo "Building $(EXEC) in $(BIN)" && \
+	$(MAKE) -C $$i || exit 1; done && \
+	echo "Building $(BIN)/$(EXEC)" && \
 	$(CC) -o $(BIN)/$(EXEC) $(LDFLAGS) `find $(SUBDIRS) -name '*.[oa]'`
 	strip $(BIN)/$(EXEC)
 	@echo ""
@@ -50,8 +50,8 @@ all:
 debug:
 	@set -e; \
 	for i in $(SUBDIRS); do \
-	$(MAKE) -C $$i; done && \
-	echo "Building $(EXEC) in $(BIN)" && \
+	$(MAKE) -C $$i || exit 1; done && \
+	echo "Building $(BIN)/$(EXEC)" && \
 	$(CC) -o $(BIN)/$(EXEC) $(LDFLAGS) `find $(SUBDIRS) -name '*.[oa]'`
 	@echo ""
 	@echo "Make complete"

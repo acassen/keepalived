@@ -5,7 +5,7 @@
  *
  * Part:        ipvswrapper.c include file.
  *
- * Version:     $Id: ipvswrapper.h,v 0.6.5 2002/07/01 23:41:28 acassen Exp $
+ * Version:     $Id: ipvswrapper.h,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -47,6 +47,10 @@
 #include <net/ip_vs.h>
 #endif
 
+#ifndef IP_VS_TEMPLATE_TIMEOUT
+#define IP_VS_TEMPLATE_TIMEOUT IPVS_SVC_PERSISTENT_TIMEOUT
+#endif
+
 /* locale includes */
 #include "scheduler.h"
 #include "data.h"
@@ -57,7 +61,7 @@
 
 #ifdef _HAVE_IPVS_SYNCD_
 #define IPVS_STARTDAEMON	IP_VS_SO_SET_STARTDAEMON
-#define IPVS_STOPDAEMON	IP_VS_SO_SET_STOPDAEMON
+#define IPVS_STOPDAEMON		IP_VS_SO_SET_STOPDAEMON
 #define IPVS_MASTER		IP_VS_STATE_MASTER
 #define IPVS_BACKUP		IP_VS_STATE_BACKUP
 #else
@@ -70,8 +74,6 @@
 extern thread_master *master;
 
 /* prototypes */
-extern int parse_timeout(char *buf, unsigned *timeout);
-extern int string_to_number(const char *s, int min, int max);
 extern int ipvs_cmd(int cmd, virtual_server * vserver, real_server * rserver);
 extern int ipvs_syncd_cmd(int cmd, char *ifname, int state);
 extern void ipvs_syncd_master(char *ifname);

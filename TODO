@@ -1,19 +1,27 @@
 * Insert LDAP, FTP, SSH, IMAP, POP, RADIUS checkers.
 * Add minimum configuration verification (realserver must have
   a checker defined, ...)
+* VRRP : finish IPSEC-AH integration for seqnum synchronization when
+  using vrrp_sync_group in fallback mode.
 * documentation:
 	- hackers guide
 	- code documentation
-	- users guide
 * code cleanup:
 	- name space cleanup
 	- function returnval check
-	- maybe put *.h files into a ../include directory
-	- maybe add a ../healthcheck directory for the checks
-* more choice with parameters, less hardcoded values:
-	- a general.conf could help, stuff like timeouts and so on
+	- beautifull the genhash code
+	- check_ssl.c audit the password_cb() call back func
+	  for buffer overflow.
+	- check smtp.c to release allocated buffer when terminate
+	  thread is registered. Occur when sigint is receive when
+	  smtp alertes have not been able to finish the whole sending
+	  sequence.
+* more choice with parameters, less hardcoded values
 * functionality:
 	- better startup check mechanism to prevent long debugging sessions
-	- hooks for external checktools. For node-failover
+	- hooks in VRRP framework for external checktools.
+	  As state transition decision
 	- a VTYSH to administrate keepalived on the fly
-	- something I forgot right now :)
+* Configuration file reload on signal. Extend the parser to use
+  global scheduler with conf file stream.
+* something I forgot right now :)

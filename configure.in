@@ -37,6 +37,7 @@ dnl ----[ Checks for header files ]----
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(fcntl.h syslog.h unistd.h sys/ioctl.h sys/time.h)
+AC_CHECK_HEADERS(linux/netlink.h linux/rtnetlink.h)
 AC_CHECK_HEADERS(openssl/ssl.h openssl/md5.h openssl/err.h,,AC_MSG_ERROR([
   !!! OpenSSL is not properly installed on your system. !!!
   !!! Can not include OpenSSL headers files.            !!!]))
@@ -128,8 +129,27 @@ if test "$IPVS_SUPPORT" = "_WITHOUT_LVS_" -a "$enable_vrrp" = "no"; then
   AC_MSG_ERROR([keepalived MUST be compiled at least with LVS or VRRP framework])
 fi
 
+dnl ----[ Checks for kernel netlink support ]----
 if test "$enable_vrrp" != "no"; then
-  VRRP_SUPPORT="_WITH_VRRP_"
+  AC_MSG_CHECKING([for kernel netlink support])
+  AC_TRY_RUN([
+    #include <asm/types.h>
+    #include <sys/socket.h>
+    #include <linux/netlink.h>
+    int main (void) {
+      int fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+      if (fd < 0)
+        exit(1);
+      close(fd);
+      exit(0);
+    }], [
+      AC_MSG_RESULT(yes)
+      VRRP_SUPPORT="_WITH_VRRP_"
+    ], [
+      AC_MSG_RESULT(no)
+    ], [
+      AC_MSG_RESULT(no)
+    ])
 fi
 
 if test "${ci_linux}" = "yes"; then

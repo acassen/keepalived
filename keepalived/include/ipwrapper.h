@@ -5,7 +5,7 @@
  *
  * Part:        ipwrapper.c include file.
  *
- * Version:     $Id: ipwrapper.h,v 0.6.5 2002/07/01 23:41:28 acassen Exp $
+ * Version:     $Id: ipwrapper.h,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -43,15 +43,17 @@
 
 /* LVS command set by kernel */
 #ifdef _KRNL_2_2_
-#define LVS_CMD_ADD      IP_MASQ_CMD_ADD
-#define LVS_CMD_DEL      IP_MASQ_CMD_DEL
-#define LVS_CMD_ADD_DEST IP_MASQ_CMD_ADD_DEST
-#define LVS_CMD_DEL_DEST IP_MASQ_CMD_DEL_DEST
+#define LVS_CMD_ADD		IP_MASQ_CMD_ADD
+#define LVS_CMD_DEL		IP_MASQ_CMD_DEL
+#define LVS_CMD_ADD_DEST	IP_MASQ_CMD_ADD_DEST
+#define LVS_CMD_DEL_DEST	IP_MASQ_CMD_DEL_DEST
+#define LVS_CMD_EDIT_DEST	IP_MASQ_CMD_SET_DEST
 #else
-#define LVS_CMD_ADD      IP_VS_SO_SET_ADD
-#define LVS_CMD_DEL      IP_VS_SO_SET_DEL
-#define LVS_CMD_ADD_DEST IP_VS_SO_SET_ADDDEST
-#define LVS_CMD_DEL_DEST IP_VS_SO_SET_DELDEST
+#define LVS_CMD_ADD		IP_VS_SO_SET_ADD
+#define LVS_CMD_DEL		IP_VS_SO_SET_DEL
+#define LVS_CMD_ADD_DEST	IP_VS_SO_SET_ADDDEST
+#define LVS_CMD_DEL_DEST	IP_VS_SO_SET_DELDEST
+#define LVS_CMD_EDIT_DEST	IP_VS_SO_SET_EDITDEST
 #endif
 
 /* prototypes */

@@ -5,7 +5,7 @@
  *
  * Part:        utils.h include file.
  *
- * Version:     $Id: utils.h,v 0.6.5 2002/07/01 23:41:28 acassen Exp $
+ * Version:     $Id: utils.h,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -30,6 +30,9 @@
 #include <string.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
+#include <sys/param.h>
+#include <sys/utsname.h>
+#include <netdb.h>
 
 /* Global debugging logging facilities */
 #ifdef _DEBUG_
@@ -44,5 +47,6 @@ extern char *inet_ntop2(uint32_t ip);
 extern char *inet_ntoa2(uint32_t ip, char *buf);
 extern uint8_t inet_stom(char *addr);
 extern int inet_ston(const char *addr, uint32_t * dst);
+extern char *get_local_name(void);
 
 #endif

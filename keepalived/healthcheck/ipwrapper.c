@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $id: ipwrapper.c,v 0.6.5 2002/07/01 23:41:28 acassen Exp $
+ * Version:     $id: ipwrapper.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -140,8 +140,9 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 		}
 
 		rs->alive = alive;
-		syslog(LOG_INFO, "Adding service [%s:%d] to VS [%s:%d]",
-		       inet_ntoa2(SVR_IP(rs), rsip)
+		syslog(LOG_INFO, "%s service [%s:%d] to VS [%s:%d]",
+		       (rs->inhibit) ? "Enabling" : "Adding"
+		       , inet_ntoa2(SVR_IP(rs), rsip)
 		       , ntohs(SVR_PORT(rs))
 		       , inet_ntoa2(SVR_IP(vs), vsip)
 		       , ntohs(SVR_PORT(vs)));
@@ -154,8 +155,9 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 	} else {
 
 		rs->alive = alive;
-		syslog(LOG_INFO, "Removing service [%s:%d] from VS [%s:%d]",
-		       inet_ntoa2(SVR_IP(rs), rsip)
+		syslog(LOG_INFO, "%s service [%s:%d] from VS [%s:%d]",
+		       (rs->inhibit) ? "Disabling" : "Removing"
+		       , inet_ntoa2(SVR_IP(rs), rsip)
 		       , ntohs(SVR_PORT(rs))
 		       , inet_ntoa2(SVR_IP(vs), vsip)
 		       , ntohs(SVR_PORT(vs)));
@@ -193,16 +195,20 @@ static int
 init_service_rs(virtual_server * vs, list l)
 {
 	element e;
+	real_server *rs;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		if (!ipvs_cmd(LVS_CMD_ADD_DEST, vs, ELEMENT_DATA(e)))
+		rs = ELEMENT_DATA(e);
+		if (!ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs))
 			return 0;
+		else
+			rs->alive = 1;
 #ifdef _KRNL_2_2_
 		/* if we have a /32 mask, we create one nat rules per
 		 * realserver.
 		 */
 		if (vs->nat_mask == HOST_NETMASK)
-			if (!ipfw_cmd(IP_FW_CMD_ADD, vs, ELEMENT_DATA(e)))
+			if (!ipfw_cmd(IP_FW_CMD_ADD, vs, rs))
 				return 0;
 #endif
 	}

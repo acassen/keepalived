@@ -6,7 +6,7 @@
  *
  * Part:        vrrp_notify.c include file.
  *
- * Version:     $Id: vrrp_notify.h,v 0.6.5 2002/07/01 23:41:28 acassen Exp $
+ * Version:     $Id: vrrp_notify.h,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

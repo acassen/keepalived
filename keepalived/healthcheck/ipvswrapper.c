@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 0.6.5 2002/07/01 23:41:28 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -23,6 +23,11 @@
 
 #include "ipvswrapper.h"
 #include "utils.h"
+
+/* local helpers functions */
+static int parse_timeout(char *, unsigned *);
+static int string_to_number(const char *, int, int);
+static int modprobe_ipvs(void);
 
 #ifdef _KRNL_2_2_		/* KERNEL 2.2 LVS handling */
 
@@ -78,6 +83,14 @@ ipvs_cmd(int cmd, virtual_server * vs, real_server * rs)
 		ctl.u.vs_user.dport = SVR_PORT(rs);
 	}
 
+	/* Does the service use inhibit flag ? */
+	if (ctl.m_cmd == IP_MASQ_CMD_DEL_DEST && rs->inhibit) {
+		ctl.m_cmd = IP_MASQ_CMD_SET_DEST;
+		ctl.u.vs_user.weight = 0;
+	}
+	if (ctl.m_cmd == IP_MASQ_CMD_ADD_DEST && rs->inhibit && rs->alive)
+		ctl.m_cmd = IP_MASQ_CMD_SET_DEST;
+
 	sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
 	if (sockfd == -1) {
 		syslog(LOG_INFO,
@@ -112,10 +125,10 @@ ipvs_cmd(int cmd, virtual_server * vs, real_server * rs)
 	return IPVS_SUCCESS;
 }
 
-#else				/* KERNEL 2.4 LVS handling */
 
-/* 2.4 prototypes */
-static int modprobe_ipvs(void);
+
+
+#else				/* KERNEL 2.4 LVS handling */
 
 static int
 ipvs_talk(int cmd, struct ip_vs_rule_user *urule)
@@ -179,8 +192,8 @@ ipvs_cmd(int cmd, virtual_server * vs, real_server * rs)
 	if (!parse_timeout(vs->timeout_persistence, &urule.timeout))
 		syslog(LOG_INFO,
 		       "IPVS : Virtual service [%s:%d] illegal timeout.",
-		       inet_ntop2(SVR_IP(vs))
-		       , ntohs(SVR_PORT(vs)));
+		       inet_ntop2(SVR_IP(vs)), ntohs(SVR_PORT(vs)));
+
 	if (urule.timeout != 0 || vs->granularity_persistence)
 		urule.vs_flags = IP_VS_SVC_F_PERSISTENT;
 
@@ -203,6 +216,14 @@ ipvs_cmd(int cmd, virtual_server * vs, real_server * rs)
 		urule.dport = SVR_PORT(rs);
 	}
 
+	/* Does the service use inhibit flag ? */
+	if (cmd == IP_VS_SO_SET_DELDEST && rs->inhibit) {
+		urule.weight = 0;
+		cmd = IP_VS_SO_SET_EDITDEST;
+	}
+	if (cmd == IP_VS_SO_SET_ADDDEST && rs->inhibit && rs->alive)
+		cmd = IP_VS_SO_SET_EDITDEST;
+
 	/* Talk to the IPVS channel */
 	return ipvs_talk(cmd, &urule);
 }
@@ -210,7 +231,7 @@ ipvs_cmd(int cmd, virtual_server * vs, real_server * rs)
 #endif
 
 /*
- * IPVS synchronization daemon state transition
+ * Common IPVS functions
  */
 void
 ipvs_syncd_master(char *ifname)
@@ -227,10 +248,10 @@ ipvs_syncd_backup(char *ifname)
 }
 
 /*
- * Source code from the ipvsadm.c Wensong code
+ * Utility functions coming from Wensong code
  */
 
-int
+static int
 parse_timeout(char *buf, unsigned *timeout)
 {
 	int i;
@@ -243,11 +264,11 @@ parse_timeout(char *buf, unsigned *timeout)
 	if ((i = string_to_number(buf, 0, 86400 * 31)) == -1)
 		return 0;
 
-	*timeout = i * HZ;
+	*timeout = i * (IP_VS_TEMPLATE_TIMEOUT / (6*60));
 	return 1;
 }
 
-int
+static int
 string_to_number(const char *s, int min, int max)
 {
 	int number;
@@ -267,7 +288,8 @@ string_to_number(const char *s, int min, int max)
 		return -1;
 }
 
-static int modprobe_ipvs(void)
+static int
+modprobe_ipvs(void)
 {
 	char *argv[] = { "/sbin/modprobe", "-s", "-k", "--", "ip_vs", NULL };
 	int child;

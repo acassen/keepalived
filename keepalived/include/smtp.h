@@ -5,7 +5,7 @@
  *
  * Part:        smtp.c include file.
  *
- * Version:     $Id: smtp.h,v 0.6.5 2002/07/01 23:41:28 acassen Exp $
+ * Version:     $Id: smtp.h,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -25,8 +25,6 @@
 
 /* globales includes */
 #include <netdb.h>
-#include <sys/param.h>
-#include <sys/utsname.h>
 
 /* local includes */
 #include "data.h"
@@ -35,28 +33,42 @@
 #include "vrrp.h"
 
 /* global defs */
-#define SMTP_PORT          25
-#define SMTP_BUFFER_LENGTH 128
-#define SMTP_BUFFER_MAX    256
+#define SMTP_PORT		25
+#define SMTP_BUFFER_LENGTH	128
+#define SMTP_BUFFER_MAX		256
+#define SMTP_MAX_FSM_STATE	10
 
-/* command stage */
-enum smtp_cmd {
-	CONNECTION,
-	HELO,
-	MAIL,
-	RCPT,
-	DATA,
-	BODY,
-	QUIT,
-	ERROR
-};
+/* SMTP command stage */
+#define HELO	4
+#define MAIL	5
+#define RCPT	6
+#define DATA	7
+#define BODY	8
+#define QUIT	9
+#define END	10
+#define ERROR	11
 
 /* SMTP thread argument structure */
 #define MAX_HEADERS_LENGTH 256
 #define MAX_BODY_LENGTH    512
 
+/* SMTP FSM Macro */
+#define SMTP_FSM_SEND(S, T)	\
+do {				\
+  if ((*(SMTP_FSM[S].send)))	\
+    (*(SMTP_FSM[S].send)) (T);	\
+} while (0)
+
+#define SMTP_FSM_READ(S, T, N)		\
+do {					\
+  if ((*(SMTP_FSM[S].read)))		\
+    (*(SMTP_FSM[S].read)) (T, N);	\
+} while (0)
+
+/* SMTP thread arguments */
 typedef struct _smtp_thread_arg {
-	enum smtp_cmd stage;
+	int fd;
+	int stage;
 	int email_it;
 	char *subject;
 	char *body;
@@ -64,12 +76,13 @@ typedef struct _smtp_thread_arg {
 	long buflen;
 } smtp_thread_arg;
 
-/* Smtp command string processing */
+/* SMTP command string processing */
 #define SMTP_HELO_CMD    "HELO %s\r\n"
 #define SMTP_MAIL_CMD    "MAIL FROM:<%s>\r\n"
 #define SMTP_RCPT_CMD    "RCPT TO:<%s>\r\n"
 #define SMTP_DATA_CMD    "DATA\r\n"
-#define SMTP_HEADERS_CMD "From: %s\r\nSubject: %s\r\nX-Mailer: Keepalived\r\n\r\n"
+#define SMTP_HEADERS_CMD "From: %s\r\nSubject: %s\r\n" \
+			 "X-Mailer: Keepalived\r\n\r\n"
 #define SMTP_BODY_CMD    "\r\n\r\n%s\r\n\r\n"
 #define SMTP_SEND_CMD    "\r\n.\r\n"
 #define SMTP_QUIT_CMD    "QUIT\r\n"

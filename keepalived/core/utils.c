@@ -5,7 +5,7 @@
  *
  * Part:        General program utils.
  *
- * Version:     $Id: utils.c,v 0.6.5 2002/07/01 23:41:28 acassen Exp $
+ * Version:     $Id: utils.c,v 0.6.8 2002/07/16 02:41:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -148,4 +148,20 @@ inet_ston(const char *addr, uint32_t * dst)
 
 	memcpy(dst, tmp, INADDRSZ);
 	return 1;
+}
+
+/* Getting localhost official canonical name */
+char *
+get_local_name(void)
+{
+	struct hostent *host;
+	struct utsname name;
+
+	if (uname(&name) < 0)
+		return NULL;
+
+	if (!(host = gethostbyname(name.nodename)))
+		return NULL;
+
+	return host->h_name;
 }
