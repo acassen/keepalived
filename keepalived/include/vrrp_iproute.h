@@ -3,9 +3,9 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        vrrp_ipaddress.c include file.
+ * Part:        vrrp_iproute.c include file.
  *
- * Version:     $Id: vrrp_ipaddress.h,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
+ * Version:     $Id: vrrp_iproute.h,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,42 +20,43 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _VRRP_IPADDR_H
-#define _VRRP_IPADDR_H
+#ifndef _VRRP_IPROUTE_H
+#define _VRRP_IPROUTE_H
 
 /* global includes */
 #include <stdio.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
-#include <string.h>
-#include <syslog.h>
 
 /* local includes */
 #include "list.h"
 #include "vector.h"
 
 /* types definition */
-typedef struct {
-	uint32_t addr;		/* the ip address */
-	uint8_t mask;		/* the ip address CIDR netmask */
-	int ifindex;		/* Interface owning IP address */
-	int set;		/* TRUE if addr is set */
-} ip_address;
+typedef struct _ip_route {
+	uint32_t dst;    /* RTA_DST */
+	uint8_t dmask;
+	uint32_t gw;     /* RTA_GATEWAY */
+	int index;       /* RTA_OIF */
+	int set;
+} ip_route;
 
-#define IPADDRESS_DEL 0
-#define IPADDRESS_ADD 1
+#define IPROUTE_DEL 0
+#define IPROUTE_ADD 1
 
 /* Macro definition */
-#define IP_ISEQ(X,Y)   ((X)->addr    == (Y)->addr && \
-			(X)->mask    == (Y)->mask && \
-			(X)->ifindex == (Y)->ifindex)
+#define ROUTE_ISEQ(X,Y)	((X)->dst    == (Y)->dst   && \
+			 (X)->dmask  == (Y)->dmask && \
+			 (X)->gw     == (Y)->gw    && \
+			 (X)->index  == (Y)->index)
 
 /* prototypes */
-extern int netlink_address_ipv4(ip_address *ipaddr, int cmd);
-extern void netlink_iplist_ipv4(list ip_list, int cmd);
-extern void free_ipaddress(void *data);
-extern void dump_ipaddress(void *data);
-extern void alloc_ipaddress(list ip_list, vector strvec, int ifindex);
-extern void clear_diff_address(list l, list n);
+extern int netlink_route_ipv4(ip_route *iproute, int cmd);
+extern void netlink_rtlist_ipv4(list rt_list, int cmd);
+extern void free_route(void *data);
+extern void dump_route(void *data);
+extern void alloc_route(list rt_list, vector strvec);
+extern void clear_diff_routes(list l, list n);
+extern void clear_diff_sroutes(void);
 
 #endif

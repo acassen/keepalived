@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ * Version:     $Id: vrrp.h,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -29,11 +29,13 @@
 
 /* local include */
 #include "vrrp_ipaddress.h"
+#include "vrrp_iproute.h"
 #include "vrrp_ipsecah.h"
 #include "vrrp_if.h"
 #include "timer.h"
 #include "utils.h"
 #include "vector.h"
+#include "list.h"
 
 typedef struct {		/* rfc2338.5.1 */
 	uint8_t vers_type;	/* 0-3=type, 4-7=version */
@@ -81,16 +83,11 @@ typedef struct _vrrp_sgroup {
 } vrrp_sgroup;
 
 /* parameters per virtual router -- rfc2338.6.1.2 */
-typedef struct {
-	uint32_t addr;		/* the ip address */
-	uint8_t mask;		/* the ip address CIDR netmask */
-	int set;		/* TRUE if addr is set */
-} vip_addr;
-
 typedef struct _vrrp_rt {
 	char *iname;		/* Instance Name */
 	vrrp_sgroup *sync;
 	interface *ifp;		/* Interface we belong to */
+	interface *track_ifp;	/* Interface state we monitor */
 	uint32_t mcast_saddr;	/* Src IP address to use in VRRP IP header */
 	char *lvs_syncd_if;	/* handle LVS sync daemon state using this
 				 * instance FSM & running on specific interface
@@ -99,14 +96,13 @@ typedef struct _vrrp_rt {
 	int garp_delay;		/* Delay to launch gratuitous ARP */
 	int vrid;		/* virtual id. from 1(!) to 255 */
 	int priority;		/* priority value */
-	int naddr;		/* number of ip addresses */
 	int vipset;		/* All the vips are set ? */
-	vip_addr *vaddr;	/* point on the ip address array */
-	int neaddr;		/* number of excluded ip addresses */
-	vip_addr *evaddr;	/* list of protocol excluded VIPs.
+	list vip;		/* list of virtual ip addresses */
+	list evip;		/* list of protocol excluded VIPs.
 				 * Those VIPs will not be presents into the
 				 * VRRP adverts
 				 */
+	list vroutes;		/* list of virtual routes */
 	int adver_int;		/* delay between advertisements(in sec) */
 	int preempt;		/* true if a higher prio preempt a lower one */
 	int state;		/* internal state (init/backup/master) */
@@ -170,6 +166,7 @@ typedef struct _vrrp_rt {
 #define VRRP_VIP_TYPE		(1 << 0)
 #define VRRP_EVIP_TYPE		(1 << 1)
 
+/* VRRP macro */
 #define VRRP_IS_BAD_VID(id)		((id)<1 || (id)>255)	/* rfc2338.6.1.vrid */
 #define VRRP_IS_BAD_PRIORITY(p)		((p)<1 || (p)>255)	/* rfc2338.6.1.prio */
 #define VRRP_IS_BAD_ADVERT_INT(d) 	((d)<1)
@@ -181,7 +178,9 @@ typedef struct _vrrp_rt {
 #define VRRP_MIN(a, b)	((a) < (b)?(a):(b))
 #define VRRP_MAX(a, b)	((a) > (b)?(a):(b))
 
-#define VRRP_PKT_SADDR(V) (((V)->mcast_saddr)?(V)->mcast_saddr:IF_ADDR((V)->ifp))
+#define VRRP_PKT_SADDR(V) (((V)->mcast_saddr) ? (V)->mcast_saddr : IF_ADDR((V)->ifp))
+
+#define VRRP_ISUP(V)	(IF_ISUP((V)->ifp) & (((V)->track_ifp) ? IF_ISUP((V)->track_ifp) : 1))
 
 /* prototypes */
 extern int open_vrrp_socket(const int proto, const int index);

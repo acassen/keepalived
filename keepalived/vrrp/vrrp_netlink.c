@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK kernel command channel.
  *
- * Version:     $Id: vrrp_netlink.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ * Version:     $Id: vrrp_netlink.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -112,6 +112,21 @@ netlink_close(struct nl_handle *nl)
 }
 
 /* iproute2 utility function */
+int
+addattr32(struct nlmsghdr *n, int maxlen, int type, uint32_t data)
+{
+	int len = RTA_LENGTH(4);
+	struct rtattr *rta;
+	if (NLMSG_ALIGN(n->nlmsg_len) + len > maxlen)
+		return -1;
+	rta = (struct rtattr*)(((char*)n) + NLMSG_ALIGN(n->nlmsg_len));
+	rta->rta_type = type;
+	rta->rta_len = len;
+	memcpy(RTA_DATA(rta), &data, 4);
+	n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + len;
+	return 0;
+}
+
 int
 addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data, int alen)
 {

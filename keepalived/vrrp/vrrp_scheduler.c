@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -129,7 +129,6 @@ struct {
   { {NULL}, {vrrp_sync_backup},          {vrrp_sync_master}, {vrrp_sync_fault} }
 };
 
-
 /* SMTP alert notifier */
 static void
 vrrp_smtp_notifier(vrrp_rt * vrrp)
@@ -138,12 +137,35 @@ vrrp_smtp_notifier(vrrp_rt * vrrp)
 		if (vrrp->state == VRRP_STATE_MAST)
 			smtp_alert(master, NULL, vrrp, NULL,
 				   "Entering MASTER state",
-				   "=> VRRP Instance is now owning VRRP VIPs <=\n\n");
+				   "=> VRRP Instance is now owning VRRP VIPs <=");
 		if (vrrp->state == VRRP_STATE_BACK)
 			smtp_alert(master, NULL, vrrp, NULL,
 				   "Entering BACKUP state",
-				   "=> VRRP Instance is nolonger owning VRRP VIPs <=\n\n");
+				   "=> VRRP Instance is nolonger owning VRRP VIPs <=");
 	}
+}
+
+/* Log interface message */
+static void vrrp_log_int_down(vrrp_rt *vrrp)
+{
+	if (!IF_ISUP(vrrp->ifp))
+		syslog(LOG_INFO, "Kernel is reporting: interface %s DOWN",
+		       IF_NAME(vrrp->ifp));
+	if (vrrp->track_ifp)
+		if (!IF_ISUP(vrrp->track_ifp))
+			syslog(LOG_INFO, "Kernel is reporting: interface %s DOWN",
+			       IF_NAME(vrrp->track_ifp));
+}
+
+static void vrrp_log_int_up(vrrp_rt *vrrp)
+{
+	if (IF_ISUP(vrrp->ifp))
+		syslog(LOG_INFO, "Kernel is reporting: interface %s UP",
+		       IF_NAME(vrrp->ifp));
+	if (vrrp->track_ifp)
+		if (IF_ISUP(vrrp->track_ifp))
+			syslog(LOG_INFO, "Kernel is reporting: interface %s UP",
+			       IF_NAME(vrrp->track_ifp));
 }
 
 /*
@@ -491,9 +513,8 @@ vrrp_become_master(vrrp_rt * vrrp, char *vrrp_buffer, int len)
 static void
 vrrp_leave_master(vrrp_rt * vrrp, char *vrrp_buffer, int len)
 {
-	if (!IF_ISUP(vrrp->ifp)) {
-		syslog(LOG_INFO, "Kernel is reporting: interface %s DOWN",
-		       IF_NAME(vrrp->ifp));
+	if (!VRRP_ISUP(vrrp)) {
+		vrrp_log_int_down(vrrp);
 		vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
 		vrrp_state_leave_master(vrrp);
 	} else if (vrrp_state_master_rx(vrrp, vrrp_buffer, len)) {
@@ -518,6 +539,9 @@ vrrp_ah_sync(vrrp_rt *vrrp)
 static void
 vrrp_leave_fault(vrrp_rt * vrrp, char *vrrp_buffer, int len)
 {
+	if (!VRRP_ISUP(vrrp))
+		return;
+
 	if (vrrp_state_fault_rx(vrrp, vrrp_buffer, len)) {
 		if (vrrp->sync) {
 			if (vrrp_sync_leave_fault(vrrp)) {
@@ -552,9 +576,8 @@ vrrp_leave_fault(vrrp_rt * vrrp, char *vrrp_buffer, int len)
 static void
 vrrp_goto_master(vrrp_rt * vrrp)
 {
-	if (!IF_ISUP(vrrp->ifp)) {
-		syslog(LOG_INFO, "Kernel is reporting: interface %s DOWN",
-		       IF_NAME(vrrp->ifp));
+	if (!VRRP_ISUP(vrrp)) {
+		vrrp_log_int_down(vrrp);
 		syslog(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state",
 		       vrrp->iname);
 		vrrp->state = VRRP_STATE_FAULT;
@@ -590,10 +613,8 @@ vrrp_master(vrrp_rt * vrrp)
 {
 	/* Check if interface we are running on is UP */
 	if (vrrp->wantstate != VRRP_STATE_GOTO_FAULT) {
-		if (!IF_ISUP(vrrp->ifp)) {
-			syslog(LOG_INFO,
-			       "Kernel is reporting: interface %s DOWN",
-			       IF_NAME(vrrp->ifp));
+		if (!VRRP_ISUP(vrrp)) {
+			vrrp_log_int_down(vrrp);
 			vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
 		}
 	}
@@ -643,9 +664,8 @@ vrrp_fault(vrrp_rt * vrrp)
 				vgroup->state = vrrp->init_state;
 		} else
 			return;
-	} else if (IF_ISUP(vrrp->ifp))
-		syslog(LOG_INFO, "Kernel is reporting: interface %s UP",
-		       IF_NAME(vrrp->ifp));
+	} else if (VRRP_ISUP(vrrp))
+		vrrp_log_int_up(vrrp);
 	else
 		return;
 

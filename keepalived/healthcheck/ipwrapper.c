@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $id: ipwrapper.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ * Version:     $id: ipwrapper.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -56,9 +56,6 @@ clear_service_rs(virtual_server * vs, list l)
 static int
 clear_service_vs(virtual_server * vs)
 {
-	element e;
-	real_server_group *group;
-
 	/* Processing real server queue */
 	if (!LIST_ISEMPTY(vs->rs)) {
 		if (vs->s_svr) {
@@ -67,15 +64,6 @@ clear_service_vs(virtual_server * vs)
 					return 0;
 		} else if (!clear_service_rs(vs, vs->rs))
 			return 0;
-	}
-
-	/* Processing real server group queue */
-	if (!LIST_ISEMPTY(vs->rs_group)) {
-		for (e = LIST_HEAD(vs->rs_group); e; ELEMENT_NEXT(e)) {
-			group = ELEMENT_DATA(e);
-			if (!clear_service_rs(vs, group->rs))
-				return 0;
-		}
 	}
 
 	if (!ipvs_cmd(LVS_CMD_DEL, vs, NULL))
@@ -137,9 +125,6 @@ init_service_rs(virtual_server * vs, list l)
 static int
 init_service_vs(virtual_server * vs)
 {
-	element e;
-	real_server_group *group;
-
 	/* Init the VS root */
 	if (!ISALIVE(vs)) {
 		if (!ipvs_cmd(LVS_CMD_ADD, vs, NULL))
@@ -153,14 +138,6 @@ init_service_vs(virtual_server * vs)
 		if (!init_service_rs(vs, vs->rs))
 			return 0;
 
-	/* Processing real server group queue */
-	if (!LIST_ISEMPTY(vs->rs_group)) {
-		for (e = LIST_HEAD(vs->rs_group); e; ELEMENT_NEXT(e)) {
-			group = ELEMENT_DATA(e);
-			if (!init_service_rs(vs, group->rs))
-				return 0;
-		}
-	}
 	return 1;
 }
 

@@ -5,7 +5,7 @@
  *
  * Part:        TCP checker.
  *
- * Version:     $Id: check_tcp.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ * Version:     $Id: check_tcp.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -116,7 +116,7 @@ tcp_check_thread(thread * thread)
 			       , ntohs(addr_port));
 			smtp_alert(thread->master, checker->rs, NULL, NULL,
 				   "UP",
-				   "=> TCP CHECK succeed on service <=\n\n");
+				   "=> TCP CHECK succeed on service <=");
 			perform_svr_state(UP, checker->vs, checker->rs);
 		}
 
@@ -128,7 +128,7 @@ tcp_check_thread(thread * thread)
 			       , ntohs(addr_port));
 			smtp_alert(thread->master, checker->rs, NULL, NULL,
 				   "DOWN",
-				   "=> TCP CHECK failed on service <=\n\n");
+				   "=> TCP CHECK failed on service <=");
 			perform_svr_state(DOWN, checker->vs, checker->rs);
 		}
 

@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ * Version:     $Id: main.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -35,7 +35,11 @@ stop_keepalived(void)
 	if (!(debug & 16))
 		clear_services();
 #endif
+
 #ifdef _WITH_VRRP_
+	/* Clear static routes */
+	netlink_rtlist_ipv4(conf_data->static_routes, IPROUTE_DEL);
+
 	if (!(debug & 8))
 		shutdown_vrrp_instances();
 	free_interface_queue();
@@ -101,6 +105,11 @@ start_keepalived(void)
 #endif
 
 #ifdef _WITH_VRRP_
+	/* Static routes */
+	if (reload)
+		clear_diff_sroutes();
+	netlink_rtlist_ipv4(conf_data->static_routes, IPROUTE_ADD);
+
 	kernel_netlink_init();
 	if_mii_poller_init();
 
@@ -252,7 +261,7 @@ usage(const char *prog)
 	fprintf(stderr,
 		"Commands:\n"
 		"Either long or short options are allowed.\n"
-		"  %s --dont-release-vrrp  -V    Dont remove VRRP VIPs on daemon stop.\n"
+		"  %s --dont-release-vrrp  -V    Dont remove VRRP VIPs & VROUTEs on daemon stop.\n"
 		"  %s --dont-release-ipvs  -I    Dont remove IPVS topology on daemon stop.\n"
 		"  %s --dont-fork          -n    Dont fork the daemon process.\n"
 		"  %s --use-file           -f    Use the specified configuration file.\n"

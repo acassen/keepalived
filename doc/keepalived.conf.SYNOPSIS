@@ -12,21 +12,37 @@ in you configuration file use this char.
 
 1. Globals configurations
 
-The configuration block looks like :
+This block is divided in 2 sub-block :
+
+	* Global definitions
+	* Static routes
+
+	1.1. Global definitions
+
+	The configuration block looks like :
 
 global_defs {				# Block identification
-   notification_email {			# Email to send alertes to
-     <EMAIL ADDRESS>			# Standard email address
-     <EMAIL ADDRESS>
-     ...
-   }
-   notification_email_from <EMAIL ADDRESS> # Email From dealing with SMTP proto
-   smtp_server <IP ADDRESS>		   # SMTP server IP address
-   smtp_connect_timeout <INTEGER>	   # Number of seconds timeout connect
-					   #  remote SMTP server
-   lvs_id <STRING>			   # String identifying router
+    notification_email {			# Email to send alertes to
+       <EMAIL ADDRESS>			# Standard email address
+      <EMAIL ADDRESS>
+      ...
+    }
+    notification_email_from <EMAIL ADDRESS> # Email From dealing with SMTP proto
+    smtp_server <IP ADDRESS>		   # SMTP server IP address
+    smtp_connect_timeout <INTEGER>	   # Number of seconds timeout connect
+ 					   #  remote SMTP server
+    lvs_id <STRING>			   # String identifying router
 }
 
+	1.2. Static routes
+
+	The configuration block looks like :
+
+static_routes {							# block identification
+    [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
+    [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
+    ...
+}
 
 2. VRRP configuration
 
@@ -40,15 +56,15 @@ This block is divided in 2 sub-block :
 	The configuration block looks like :
 
 vrrp_sync_group <STRING> {	# VRRP sync group declaration
-  group {			# group of instance to sync together
-    <STRING>			#   a
-    <STRING>			#       set
-    ...				#             of VRRP_Instance string
-  }
-  notify_master <STRING>|<QUOTED-STRING> # Script to run during MASTER transit
-  notify_backup <STRING>|<QUOTED-STRING> # Script to run during BACKUP transit
-  notify_fault <STRING>|<QUOTED-STRING>  # Script to run during FAULT transit
-  smtp_alert		 # Send email notif during state transit
+    group {			# group of instance to sync together
+      <STRING>			#   a
+      <STRING>			#       set
+      ...			#             of VRRP_Instance string
+    }
+    notify_master <STRING>|<QUOTED-STRING> # Script to run during MASTER transit
+    notify_backup <STRING>|<QUOTED-STRING> # Script to run during BACKUP transit
+    notify_fault <STRING>|<QUOTED-STRING>  # Script to run during FAULT transit
+    smtp_alert		 # Send email notif during state transit
 }
 
 	2.2. VRRP instance
@@ -58,6 +74,7 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
 vrrp_instance <STRING> {		# VRRP instance declaration
     state MASTER|BACKUP			# Start-up default state
     interface <STRING>			# Binding interface
+    track_interface <STRING>		# Interface state we monitor
     mcast_src_ip <IP ADDRESS>		# src_ip to use into the VRRP packets
     lvs_sync_daemon_interface <STRING>	# Binding interface for lvs syncd
     garp_master_delay <INTEGER>		# delay for gratuitous ARP after MASTER
@@ -70,13 +87,18 @@ vrrp_instance <STRING> {		# VRRP instance declaration
         auth_pass <STRING>		# Password string
     }
     virtual_ipaddress {			# VRRP IP addres block
-        <IP ADDRESS>
-        <IP ADDRESS>
+        <IP ADDRESS>/<MASK> dev <STRING>
+        <IP ADDRESS>/<MASK> dev <STRING>
         ...
     }
-    virtual_ipaddress_excluded {	# VRRP IP to excluded from VRRP
-        <IP ADDRESS>			# packets
-        <IP ADDRESS>
+    virtual_ipaddress_excluded {         # VRRP IP excluded from VRRP
+        <IP ADDRESS>/<MASK> dev <STRING> # packets
+        <IP ADDRESS>/<MASK> dev <STRING>
+        ...
+    }
+    virtual_routes {			 # VRRP virtual routes
+        [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
+        [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING>	# to is optional
         ...
     }
     preempt				# VRRP preempt mode (default set)
@@ -91,7 +113,6 @@ vrrp_instance <STRING> {		# VRRP instance declaration
 3. LVS configuration
 
 The configuration block looks like :
-
 
 virtual_server <IP ADDRESS> <PORT> {	# VS declaration
     delay_loop <INTEGER>		# delay timer for service polling

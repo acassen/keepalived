@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.h,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ * Version:     $Id: data.h,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -78,13 +78,6 @@ typedef struct _real_server {
 	int alive;
 } real_server;
 
-/* Real server group list */
-typedef struct _real_server_group {
-	char *gname;
-	list rs;
-//  list vs;
-} real_server_group;
-
 /* Virtual Server definition */
 typedef struct _virtual_server {
 	uint32_t addr_ip;
@@ -101,10 +94,6 @@ typedef struct _virtual_server {
 	char *virtualhost;
 	real_server *s_svr;
 	list rs;
-	list rs_group;
-	int last_rs_type;
-#define RS		(1 << 0)
-#define RS_GROUP	(1 << 1)
 	int alive;
 } virtual_server;
 
@@ -121,10 +110,10 @@ typedef struct _data {
 	int smtp_connection_to;
 	SSL_DATA *ssl;
 	list email;
-	list vrrp;
+	list static_routes;
 	list vrrp_sync_group;
+	list vrrp;
 	list vs;
-	list group;
 } data;
 
 /* macro utility */
@@ -140,10 +129,12 @@ typedef struct _data {
 extern void alloc_email(char *addr);
 extern SSL_DATA *alloc_ssl(void);
 extern void free_ssl(void);
+extern void alloc_sroute(vector strvec);
 extern void alloc_vrrp_sync_group(char *gname);
 extern void alloc_vrrp(char *iname);
-extern void alloc_vrrp_vip(char *vip);
-extern void alloc_vrrp_evip(char *vip);
+extern void alloc_vrrp_vip(vector strvec);
+extern void alloc_vrrp_evip(vector strvec);
+extern void alloc_vrrp_vroute(vector strvec);
 extern void alloc_vs(char *ip, char *port);
 extern void alloc_rs(char *ip, char *port);
 extern void alloc_ssvr(char *ip, char *port);

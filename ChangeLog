@@ -1,3 +1,44 @@
+2003-03-17  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.0.1 released.
+	* This release has been sponsorized by :
+	  Creative Internet Techniques, <www.httpd.net>
+	  Please visit sponsor homepage, open minded people here !
+	* Fixed some Makefile and autoconf code dependence issues.
+	* Move keepalived.conf.SYNOPSIS and samples into "doc" directory. 
+	* Enhanced HTTP|SSL check to support large url. Get buffer request is
+	  now 2KBytes.
+	* Removed \n in healthchecker smtp_alert call. This cause some troubles
+	  with MTA like qmail. Thanks go to John Koyle, <jkoyle@rfpdepot.com>.
+	* Added support to netlink route as global keyword "static_routes".
+	  look at doc/samples/keepalived.conf.routes. Routes specified into
+	  this block will be added during daemon bootstrap and removed during
+	  daemon shutdown. Differential conf parsing is enabled for this block,
+	  removing/adding static_route can be done on the fly sending SIGHUP
+	  signal to daemon.
+	* VRRP : Added support to "virtual_routes". This is the same as
+	  virtual_address. Those routes are set when VRRP instance enter
+	  MASTER state and removed otherwise. Differential conf parsing is
+	  enabled for this block. This concept extend VRRP and bring
+	  dynamic routing as a "route takeover" concept.
+	* VRRP : Rewrote the VRRP vip handling to use template lib list
+	  structure. VIP and E-VIP are no longer a simple array reallocated.
+	  List library is used to limite code duplication.
+	* VRRP : Extended virtual_ipaddres and virtual_ipaddress_excluded
+	  block to support "dev" specification. So that a VIP can be set to
+	  a specific interface instead of default runing VRRP instance
+	  interface.
+	* VRRP : Added support to "track_interface". Interesting for use with
+	  vlan interface. The concept here is to drive VRRP FSM according
+	  do both "interface" and "track_interface" state. If tracked interface
+	  is down or instance interface is down then VRRP instance transit to
+	  FAULT state. For use with vlan, add track to interface vlan belong
+	  to. Look at doc/sample/keepalived.conf.track_interface for sample.
+	  doc/keepalived.conf.SYNOPSIS for configuration details.
+	* VRRP : Extended FSM FAULT state to keep in fault if track_interface
+	  still fault.
+	* VRRP : Extended sync group design to test if group is unary or not.
+	* Some code cleaning and cosmetics enhancements.
+
 2003-01-06  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.0.0 released.
 	* After fixed all bugs users reported during 2 months, I am glad to

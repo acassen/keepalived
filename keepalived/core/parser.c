@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ * Version:     $Id: parser.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -329,6 +329,36 @@ sslkey_handler(vector strvec)
 	conf_data->ssl->keyfile = set_value(strvec);
 }
 
+#ifdef _WITH_VRRP_
+
+/* Static routes handler */
+static void
+static_routes_handler(vector strvec)
+{
+	char *buf;
+	char *str = NULL;
+	vector vec = NULL;
+
+	buf = (char *) MALLOC(MAXBUF);
+	while (read_line(buf, MAXBUF)) {
+		vec = alloc_strvec(buf);
+		if (vec) {
+			str = VECTOR_SLOT(vec, 0);
+			if (!strcmp(str, EOB)) {
+				free_strvec(vec);
+				break;
+			}
+
+			if (VECTOR_SIZE(vec))
+				alloc_sroute(vec);
+
+			free_strvec(vec);
+		}
+		memset(buf, 0, MAXBUF);
+	}
+	FREE(buf);
+}
+
 /* VRRP handlers */
 static void
 vrrp_sync_group_handler(vector strvec)
@@ -393,11 +423,16 @@ vrrp_state_handler(vector strvec)
 static void
 vrrp_int_handler(vector strvec)
 {
-#ifdef _WITH_VRRP_
 	vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
 	char *name = VECTOR_SLOT(strvec, 1);
 	vrrp->ifp = if_get_by_ifname(name);
-#endif
+}
+static void
+vrrp_track_int_handler(vector strvec)
+{
+	vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+	char *name = VECTOR_SLOT(strvec, 1);
+	vrrp->track_ifp = if_get_by_ifname(name);
 }
 static void
 vrrp_mcastip_handler(vector strvec)
@@ -528,56 +563,97 @@ vrrp_auth_pass_handler(vector strvec)
 static void
 vrrp_vip_handler(vector strvec)
 {
-	vector vips = read_value_block();
 	vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-	int i;
-	int nbvip = VECTOR_SIZE(vips);
+	char *buf;
+	char *str = NULL;
+	vector vec = NULL;
+	int nbvip = 0;
 
-	if (VECTOR_SIZE(vips) > VRRP_MAX_VIP) {
-		syslog(LOG_INFO,
-		       "VRRP_Instance(%s) use %d VIPs, trunc to the first %d VIPs.",
-		       vrrp->iname, VECTOR_SIZE(vips)
-		       , VRRP_MAX_VIP);
-		syslog(LOG_INFO,
-		       "  => Declare another VRRP instance to handle all the VIPs");
-		nbvip = VRRP_MAX_VIP;
+	buf = (char *) MALLOC(MAXBUF);
+	while (read_line(buf, MAXBUF)) {
+		vec = alloc_strvec(buf);
+		if (vec) {
+			str = VECTOR_SLOT(vec, 0);
+			if (!strcmp(str, EOB)) {
+				free_strvec(vec);
+				break;
+			}
+
+			if (VECTOR_SIZE(vec)) {
+				nbvip++;
+				if (nbvip > VRRP_MAX_VIP) {
+					syslog(LOG_INFO,
+					       "VRRP_Instance(%s) "
+					       "trunc to the first %d VIPs.",
+					       vrrp->iname, VRRP_MAX_VIP);
+					syslog(LOG_INFO,
+					       "  => Declare others VIPs into"
+					       " the excluded vip block");
+				} else
+					alloc_vrrp_vip(vec);
+			}
+
+			free_strvec(vec);
+		}
+		memset(buf, 0, MAXBUF);
 	}
-
-	for (i = 0; i < nbvip; i++)
-		alloc_vrrp_vip(VECTOR_SLOT(vips, i));
-	free_strvec(vips);
+	FREE(buf);
 }
 static void
 vrrp_evip_handler(vector strvec)
 {
-	vector vips = read_value_block();
-	int i;
+	char *buf;
+	char *str = NULL;
+	vector vec = NULL;
 
-	for (i = 0; i < VECTOR_SIZE(vips); i++)
-		alloc_vrrp_evip(VECTOR_SLOT(vips, i));
-	free_strvec(vips);
+	buf = (char *) MALLOC(MAXBUF);
+	while (read_line(buf, MAXBUF)) {
+		vec = alloc_strvec(buf);
+		if (vec) {
+			str = VECTOR_SLOT(vec, 0);
+			if (!strcmp(str, EOB)) {
+				free_strvec(vec);
+				break;
+			}
+
+			if (VECTOR_SIZE(vec))
+				alloc_vrrp_evip(vec);
+
+			free_strvec(vec);
+		}
+		memset(buf, 0, MAXBUF);
+	}
+	FREE(buf);
 }
+static void
+vrrp_vroutes_handler(vector strvec)
+{
+	char *buf;
+	char *str = NULL;
+	vector vec = NULL;
+
+	buf = (char *) MALLOC(MAXBUF);
+	while (read_line(buf, MAXBUF)) {
+		vec = alloc_strvec(buf);
+		if (vec) {
+			str = VECTOR_SLOT(vec, 0);
+			if (!strcmp(str, EOB)) {
+				free_strvec(vec);
+				break;
+			}
+
+			if (VECTOR_SIZE(vec))
+				alloc_vrrp_vroute(vec);
+
+			free_strvec(vec);
+		}
+		memset(buf, 0, MAXBUF);
+	}
+	FREE(buf);
+}
+#endif
 
 #ifdef _WITH_LVS_
-/* Real Servers groups handlers */
-static void
-group_handler(vector strvec)
-{
-	alloc_group(VECTOR_SLOT(strvec, 1));
-}
-static void
-rsgroup_handler(vector strvec)
-{
-	alloc_rsgroup(VECTOR_SLOT(strvec, 1), VECTOR_SLOT(strvec, 2));
-}
-static void
-group_weight_handler(vector strvec)
-{
-	real_server_group *group = LIST_TAIL_DATA(conf_data->group);
-	real_server *rs = LIST_TAIL_DATA(group->rs);
-	rs->weight = atoi(VECTOR_SLOT(strvec, 1));
-}
-
 /* Virtual Servers handlers */
 static void
 vs_handler(vector strvec)
@@ -705,13 +781,6 @@ notify_down_handler(vector strvec)
 	real_server *rs = LIST_TAIL_DATA(vs->rs);
 	rs->notify_down = set_value(strvec);
 }
-
-/* Real Servers Groups for VS handlers */
-static void
-realgroup_handler(vector strvec)
-{
-	set_rsgroup(VECTOR_SLOT(strvec, 1));
-}
 #endif
 
 /* recursive configuration stream handler */
@@ -783,6 +852,9 @@ init_keywords(void)
 	install_keyword("key", &sslkey_handler);
 
 #ifdef _WITH_VRRP_
+	/* Static routes mapping */
+	install_keyword_root("static_routes", &static_routes_handler);
+
 	/* VRRP Instance mapping */
 	install_keyword_root("vrrp_sync_group", &vrrp_sync_group_handler);
 	install_keyword("group", &vrrp_group_handler);
@@ -793,12 +865,14 @@ init_keywords(void)
 	install_keyword_root("vrrp_instance", &vrrp_handler);
 	install_keyword("state", &vrrp_state_handler);
 	install_keyword("interface", &vrrp_int_handler);
+	install_keyword("track_interface", &vrrp_track_int_handler);
 	install_keyword("mcast_src_ip", &vrrp_mcastip_handler);
 	install_keyword("virtual_router_id", &vrrp_vrid_handler);
 	install_keyword("priority", &vrrp_prio_handler);
 	install_keyword("advert_int", &vrrp_adv_handler);
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
 	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
+	install_keyword("virtual_routes", &vrrp_vroutes_handler);
 	install_keyword("preempt", &vrrp_preempt_handler);
 	install_keyword("debug", &vrrp_debug_handler);
 	install_keyword("notify_backup", &vrrp_notify_backup_handler);
@@ -815,13 +889,6 @@ init_keywords(void)
 #endif
 
 #ifdef _WITH_LVS_
-	/* Real server group mapping */
-	install_keyword_root("real_server_group", &group_handler);
-	install_keyword("real_server", &rsgroup_handler);
-	install_sublevel();
-	install_keyword("weight", &group_weight_handler);
-	install_sublevel_end();
-
 	/* Virtual server mapping */
 	install_keyword_root("virtual_server", &vs_handler);
 	install_keyword("delay_loop", &delay_handler);
@@ -844,12 +911,6 @@ init_keywords(void)
 	install_keyword("notify_down", &notify_down_handler);
 
 	/* Checkers mapping */
-	install_checkers_keyword();
-	install_sublevel_end();
-
-	/* VS group mapping */
-	install_keyword("real_group", &realgroup_handler);
-	install_sublevel();
 	install_checkers_keyword();
 	install_sublevel_end();
 #endif

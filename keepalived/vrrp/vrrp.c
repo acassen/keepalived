@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -72,53 +72,27 @@ in_csum(u_short * addr, int len, u_short csum)
 	return (answer);
 }
 
-/*
- * add/remove VIP
- * retry must clear for each vip address Hoj:-
- */
+/* add/remove Virtual IP addresses */
 static int
 vrrp_handle_ipaddress(vrrp_rt * vrrp, int cmd, int type)
 {
-	int i, err = 0;
-	int retry = 0;
-	int num;
-	int ifindex = IF_INDEX(vrrp->ifp);
-
 	syslog(LOG_INFO, "VRRP_Instance(%s) %s protocol %s", vrrp->iname,
-	       (cmd == VRRP_IPADDRESS_ADD) ? "setting" : "removing",
+	       (cmd == IPADDRESS_ADD) ? "setting" : "removing",
 	       (type == VRRP_VIP_TYPE) ? "VIPs." : "E-VIPs");
+	netlink_iplist_ipv4((type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip
+			    , cmd);
+	return 1;
+}
 
-	num = (type == VRRP_VIP_TYPE) ? vrrp->naddr : vrrp->neaddr;
-	for (i = 0; i < num; i++) {
-		vip_addr *vadd =
-		    (type ==
-		     VRRP_VIP_TYPE) ? &vrrp->vaddr[i] : &vrrp->evaddr[i];
-		if ((!cmd && !vadd->set) || (cmd && vadd->set))
-			continue;
-	      retry:
-		if (netlink_address_ipv4(ifindex, vadd->addr, vadd->mask, cmd) <
-		    0) {
-			err = 1;
-			vadd->set = 0;
-			syslog(LOG_INFO, "cant %s the address %s to %s\n",
-			       cmd ? "set" : "remove", inet_ntop2(vadd->addr)
-			       , IF_NAME(vrrp->ifp));
-			if (cmd == VRRP_IPADDRESS_ADD) {
-				syslog(LOG_INFO,
-				       "try to delete eventual stalled ip");
-				netlink_address_ipv4(ifindex, vadd->addr,
-						     vadd->mask,
-						     VRRP_IPADDRESS_DEL);
-				if (retry < 4) {
-					retry++;
-					goto retry;
-				}
-			}
-		} else {
-			vadd->set = (cmd == VRRP_IPADDRESS_ADD) ? 1 : 0;
-		}
-	}
-	return err;
+/* add/remove Virtual routes */
+static int
+vrrp_handle_iproutes(vrrp_rt * vrrp, int cmd)
+{
+	syslog(LOG_INFO, "VRRP_Instance(%s) %s protocol Virtual Routes",
+	       vrrp->iname,
+	       (cmd == IPROUTE_ADD) ? "setting" : "removing");
+	netlink_rtlist_ipv4(vrrp->vroutes, cmd);
+	return 1;
 }
 
 /* IP header length */
@@ -140,7 +114,7 @@ static int
 vrrp_hd_len(vrrp_rt * vrrp)
 {
 	return sizeof (vrrp_pkt)
-	    + vrrp->naddr * sizeof (uint32_t)
+	    + LIST_SIZE(vrrp->vip) * sizeof (uint32_t)
 	    + VRRP_AUTH_LEN;
 }
 
@@ -218,10 +192,9 @@ vrrp_in_chk_vips(vrrp_rt * vrrp, uint32_t ipaddr, unsigned char *buffer)
 	int i;
 	uint32_t ipbuf;
 
-	for (i = 0; i < vrrp->naddr; i++) {
+	for (i = 0; i < LIST_SIZE(vrrp->vip); i++) {
 		bcopy(buffer + i * sizeof (uint32_t), &ipbuf,
 		      sizeof (uint32_t));
-//		if (ipaddr == ntohl(ipbuf))
 		if (ipaddr == ipbuf)
 			return 1;
 	}
@@ -241,7 +214,8 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 	ipsec_ah *ah;
 	vrrp_pkt *hd;
 	unsigned char *vips;
-	int i;
+	ip_address *ipaddress;
+	element e;
 
 	if (vrrp->auth_type == VRRP_AUTH_AH) {
 		ah = (ipsec_ah *) (buffer + sizeof (struct iphdr));
@@ -316,21 +290,24 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 	 * MAY verify that the IP address(es) associated with the
 	 * VRID are valid
 	 */
-	if (vrrp->naddr != hd->naddr) {
+	if (hd->naddr != LIST_SIZE(vrrp->vip)) {
 		syslog(LOG_INFO,
 		       "receive an invalid ip number count associated with VRID!");
 		return VRRP_PACKET_KO;
 	}
 
-	for (i = 0; i < vrrp->naddr; i++)
-		if (!vrrp_in_chk_vips(vrrp, vrrp->vaddr[i].addr, vips)) {
-			syslog(LOG_INFO, "ip address associated with VRID"
-			       " not present in received packet : %d",
-			       vrrp->vaddr[i].addr);
-			syslog(LOG_INFO,
-			       "one or more VIP associated with"
-			       " VRID mismatch actual MASTER advert");
-			return VRRP_PACKET_KO;
+	if (!LIST_ISEMPTY(vrrp->vip))
+		for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
+			ipaddress = ELEMENT_DATA(e);
+			if (!vrrp_in_chk_vips(vrrp, ipaddress->addr, vips)) {
+				syslog(LOG_INFO, "ip address associated with VRID"
+				       " not present in received packet : %d",
+				       ipaddress->addr);
+				syslog(LOG_INFO,
+				       "one or more VIP associated with"
+				       " VRID mismatch actual MASTER advert");
+				return VRRP_PACKET_KO;
+			}
 		}
 
 	/*
@@ -470,25 +447,29 @@ vrrp_build_ipsecah(vrrp_rt * vrrp, char *buffer, int buflen)
 static int
 vrrp_build_vrrp(vrrp_rt * vrrp, int prio, char *buffer, int buflen)
 {
-	int i;
+	int i = 0;
 	vrrp_pkt *hd = (vrrp_pkt *) buffer;
 	uint32_t *iparr = (uint32_t *) ((char *) hd + sizeof (*hd));
+	element e;
+	ip_address *ip_addr;
 
 	hd->vers_type = (VRRP_VERSION << 4) | VRRP_PKT_ADVERT;
 	hd->vrid = vrrp->vrid;
 	hd->priority = prio;
-	hd->naddr = vrrp->naddr;
+	hd->naddr = LIST_SIZE(vrrp->vip);
 	hd->auth_type = vrrp->auth_type;
 	hd->adver_int = vrrp->adver_int / TIMER_HZ;
 
 	/* copy the ip addresses */
-	for (i = 0; i < vrrp->naddr; i++)
-		iparr[i] = vrrp->vaddr[i].addr;
-//		iparr[i] = htonl(vrrp->vaddr[i].addr);
+	if (!LIST_ISEMPTY(vrrp->vip))
+		for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
+			ip_addr = ELEMENT_DATA(e);
+			iparr[i++] = ip_addr->addr;
+		}
 
 	/* copy the passwd if the authentication is VRRP_AH_PASS */
 	if (vrrp->auth_type == VRRP_AUTH_PASS) {
-		char *pw = (char *) hd + sizeof (*hd) + vrrp->naddr * 4;
+		char *pw = (char *) hd + sizeof (*hd) + LIST_SIZE(vrrp->vip) * 4;
 		memcpy(pw, vrrp->auth_data, sizeof (vrrp->auth_data));
 	}
 
@@ -619,7 +600,9 @@ vrrp_check_packet(vrrp_rt * vrrp, char *buf, int buflen)
 void
 vrrp_send_gratuitous_arp(vrrp_rt * vrrp)
 {
-	int i, j;
+	int j;
+	ip_address *ipaddress;
+	element e;
 
 	/* Only send gratuitous ARP if VIP are set */
 	if (!VRRP_VIP_ISSET(vrrp))
@@ -630,10 +613,16 @@ vrrp_send_gratuitous_arp(vrrp_rt * vrrp)
 	       vrrp->iname, IF_NAME(vrrp->ifp));
 
 	for (j = 0; j < 5; j++) {
-		for (i = 0; i < vrrp->naddr; i++)
-			send_gratuitous_arp(vrrp, vrrp->vaddr[i].addr);
-		for (i = 0; i < vrrp->neaddr; i++)
-			send_gratuitous_arp(vrrp, vrrp->evaddr[i].addr);
+		if (!LIST_ISEMPTY(vrrp->vip))
+			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
+				ipaddress = ELEMENT_DATA(e);
+				send_gratuitous_arp(vrrp, ipaddress->addr);
+			}
+		if (!LIST_ISEMPTY(vrrp->evip))
+			for (e = LIST_HEAD(vrrp->evip); e; ELEMENT_NEXT(e)) {
+				ipaddress = ELEMENT_DATA(e);
+				send_gratuitous_arp(vrrp, ipaddress->addr);
+			}
 	}
 }
 
@@ -642,11 +631,15 @@ void
 vrrp_state_become_master(vrrp_rt * vrrp)
 {
 	/* add the ip addresses */
-	if (vrrp->naddr)
-		vrrp_handle_ipaddress(vrrp, VRRP_IPADDRESS_ADD, VRRP_VIP_TYPE);
-	if (vrrp->neaddr)
-		vrrp_handle_ipaddress(vrrp, VRRP_IPADDRESS_ADD, VRRP_EVIP_TYPE);
+	if (!LIST_ISEMPTY(vrrp->vip))
+		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
+	if (!LIST_ISEMPTY(vrrp->evip))
+		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
 	vrrp->vipset = 1;
+
+	/* add virtual routes */
+	if (!LIST_ISEMPTY(vrrp->vroutes))
+		vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
 
 	/* remotes arp tables update */
 	vrrp_send_gratuitous_arp(vrrp);
@@ -681,14 +674,18 @@ vrrp_restore_interface(vrrp_rt * vrrp, int advF)
 {
 	/* remove the ip addresses */
 	if (VRRP_VIP_ISSET(vrrp)) {
-		if (vrrp->naddr)
-			vrrp_handle_ipaddress(vrrp, VRRP_IPADDRESS_DEL,
+		if (!LIST_ISEMPTY(vrrp->vip))
+			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL,
 					      VRRP_VIP_TYPE);
-		if (vrrp->neaddr)
-			vrrp_handle_ipaddress(vrrp, VRRP_IPADDRESS_DEL,
+		if (!LIST_ISEMPTY(vrrp->evip))
+			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL,
 					      VRRP_EVIP_TYPE);
 		vrrp->vipset = 0;
 	}
+
+	/* remove virtual routes */
+	if (!LIST_ISEMPTY(vrrp->vroutes))
+		vrrp_handle_iproutes(vrrp, IPROUTE_DEL);
 
 	/* if we stop vrrp, warn the other routers to speed up the recovery */
 	if (advF)
@@ -907,12 +904,6 @@ vrrp_state_fault_rx(vrrp_rt * vrrp, char *buf, int buflen)
 static int
 chk_min_cfg(vrrp_rt * vrrp)
 {
-	if (vrrp->naddr == 0) {
-		syslog(LOG_INFO,
-		       "VRRP_Instance(%s) provide at least one ip for the virtual server",
-		       vrrp->iname);
-		return 0;
-	}
 	if (vrrp->vrid == 0) {
 		syslog(LOG_INFO, "VRRP_Instance(%s) the virtual id must be set!",
 		       vrrp->iname);
@@ -1062,66 +1053,22 @@ vrrp_exist(vrrp_rt * old_vrrp)
 	return NULL;
 }
 
-/* Try to find a VIP into a VRRP instance */
-static int
-vrrp_vip_exist(vip_addr * old_vadd, vrrp_rt * vrrp, int type)
-{
-	int i, num;
-
-	num = (type == VRRP_VIP_TYPE) ? vrrp->naddr : vrrp->neaddr;
-	for (i = 0; i < num; i++) {
-		vip_addr *vadd =
-		     (type ==
-                     VRRP_VIP_TYPE) ? &vrrp->vaddr[i] : &vrrp->evaddr[i];
-		if (old_vadd->addr == vadd->addr &&
-		    old_vadd->mask == vadd->mask) {
-			vadd->set = old_vadd->set;
-			return 1;
-		}
-	}
-	return 0;
-}
-
-/* Clear VIP|EVIP that are not present into the new data */
+/* Clear VIP|EVIP not present into the new data */
 static void
 clear_diff_vrrp_vip(vrrp_rt * old_vrrp, int type)
 {
 	vrrp_rt *vrrp = vrrp_exist(old_vrrp);
-	int i, num, old_num;
-	char vip[16];
+	list l = (type == VRRP_VIP_TYPE) ? old_vrrp->vip : old_vrrp->evip;
+	list n = (type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip;
+	clear_diff_address(l, n);
+}
 
-	/* Get the vip count */
-	num = (type == VRRP_VIP_TYPE) ? vrrp->naddr : vrrp->neaddr;
-	old_num = (type == VRRP_VIP_TYPE) ? old_vrrp->naddr : old_vrrp->neaddr;
-
-	/* Return if it is a positive group diff */
-	if (num && !old_num)
-		return;
-
-	/* Clear a whole E-VIP group ? */
-	if (!num && old_num) {
-		syslog(LOG_INFO, "VRRP_Instance(%s) E-VIP group no longer exist"
-		       , old_vrrp->iname);
-		vrrp_handle_ipaddress(old_vrrp, VRRP_IPADDRESS_DEL, type);
-	}
-
-	/* Just clear diff entries */
-	for (i = 0; i < num; i++) {
-		vip_addr *vadd =
-		     (type ==
-		     VRRP_VIP_TYPE) ? &old_vrrp->vaddr[i] : &old_vrrp->evaddr[i];
-		if (!vrrp_vip_exist(vadd, vrrp, type)) {
-			syslog(LOG_INFO, "%s %s/%d no longer exist"
-			       , (type == VRRP_VIP_TYPE) ? "VIP" : "E-VIP"
-			       , inet_ntoa2(vadd->addr, vip)
-			       , vadd->mask);
-			netlink_address_ipv4(IF_INDEX(old_vrrp->ifp)
-					     , vadd->addr
-					     , vadd->mask
-					     , VRRP_IPADDRESS_DEL);
-
-		}
-	}
+/* Clear virtual routes not present in the new data */
+static void
+clear_diff_vrrp_vroutes(vrrp_rt * old_vrrp)
+{
+	vrrp_rt *vrrp = vrrp_exist(old_vrrp);
+	clear_diff_routes(old_vrrp->vroutes, vrrp->vroutes);
 }
 
 /* Diff when reloading configuration */
@@ -1148,6 +1095,9 @@ clear_diff_vrrp(void)
 			 */
 			clear_diff_vrrp_vip(vrrp, VRRP_VIP_TYPE);
 			clear_diff_vrrp_vip(vrrp, VRRP_EVIP_TYPE);
+
+			/* virtual routes diff */
+			clear_diff_vrrp_vroutes(vrrp);
 		}
 	}
 }

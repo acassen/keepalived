@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ * Version:     $Id: check_http.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -301,7 +301,7 @@ epilog(thread * thread, int method, int t, int c)
 			smtp_alert(thread->master, checker->rs, NULL, NULL,
 				   "DOWN",
 				   "=> CHECK failed on service"
-				   " : MD5 digest mismatch <=\n\n");
+				   " : MD5 digest mismatch <=");
 			perform_svr_state(DOWN, checker->vs, checker->rs);
 		}
 
@@ -407,7 +407,7 @@ http_handle_response(thread * thread, unsigned char digest[16]
 				smtp_alert(thread->master, checker->rs, NULL, NULL,
 					   "DOWN",
 					   "=> CHECK failed on service"
-					   " : HTTP status code mismatch <=\n\n");
+					   " : HTTP status code mismatch <=");
 				perform_svr_state(DOWN, checker->vs, checker->rs);
 			} else {
 				DBG("HTTP Status_code to [%s:%d] url(%d) = [%d].",
@@ -549,7 +549,7 @@ http_read_thread(thread * thread)
 				smtp_alert(thread->master, checker->rs, NULL, NULL,
 					   "DOWN",
 					   "=> HTTP CHECK failed on service"
-					   " : cannot receive data <=\n\n");
+					   " : cannot receive data <=");
 				perform_svr_state(DOWN, checker->vs,
 						  checker->rs);
 			}
@@ -630,10 +630,10 @@ http_request_thread(thread * thread)
 				      "Web read, timeout");
 
 	/* Allocate & clean the GET string */
-	str_request = (char *) MALLOC(GET_REQUEST_BUFFER_LENGTH);
+	str_request = (char *) MALLOC(GET_BUFFER_LENGTH);
 
 	fetched_url = fetch_next_url(http_get_check);
-	snprintf(str_request, GET_REQUEST_BUFFER_LENGTH, REQUEST_TEMPLATE,
+	snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE,
 		 fetched_url->path,
 		 (vhost) ? vhost : inet_ntop2(CHECKER_RIP(checker))
 		 , ntohs(addr_port));
@@ -664,7 +664,7 @@ http_request_thread(thread * thread)
 			smtp_alert(thread->master, checker->rs, NULL, NULL,
 				   "DOWN",
 				   "=> CHECK failed on service"
-				   " : cannot send data <=\n\n");
+				   " : cannot send data <=");
 			perform_svr_state(DOWN, checker->vs, checker->rs);
 		}
 		return epilog(thread, 1, 0, 0);
@@ -702,7 +702,7 @@ http_check_thread(thread * thread)
 			smtp_alert(thread->master, checker->rs, NULL, NULL,
 				   "DOWN",
 				   "=> CHECK failed on service"
-				   " : connection error <=\n\n");
+				   " : connection error <=");
 			perform_svr_state(DOWN, checker->vs, checker->rs);
 		}
 		return epilog(thread, 1, 0, 0);
@@ -784,7 +784,7 @@ http_connect_thread(thread * thread)
 			       inet_ntop2(CHECKER_RIP(checker))
 			       , ntohs(addr_port));
 			smtp_alert(thread->master, checker->rs, NULL, NULL, "UP",
-				   "=> CHECK succeed on service <=\n\n");
+				   "=> CHECK succeed on service <=");
 			perform_svr_state(UP, checker->vs, checker->rs);
 		}
 		http_arg->req = NULL;

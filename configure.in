@@ -4,7 +4,7 @@
 # Configuration template file for keepalived.
 # autoconf will generate & check deps for proper compilation
 #
-# Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
+# Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
 
 dnl ----[ Process this file with autoconf to produce a configure script ]----
 AC_INIT(keepalived/core/main.c)
@@ -212,8 +212,12 @@ AC_TYPE_SIGNAL
 AC_CHECK_FUNCS(gettimeofday select socket strerror strtol uname)
 
 dnl ----[ Process output target ]----
-OUTPUT_TARGET="$OUTPUT_TARGET keepalived/Makefile keepalived/healthcheck/Makefile keepalived/vrrp/Makefile lib/Makefile"
+OUTPUT_TARGET="$OUTPUT_TARGET keepalived/Makefile lib/Makefile"
+if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
+  OUTPUT_TARGET="$OUTPUT_TARGET keepalived/vrrp/Makefile"
+fi
 if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
+  OUTPUT_TARGET="$OUTPUT_TARGET keepalived/healthcheck/Makefile"
   if test "$KERN" = "_KRNL_2_4_"; then
     OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs/Makefile"
   else

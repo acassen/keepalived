@@ -1,0 +1,30 @@
+! Configuration File for keepalived
+
+global_defs {
+   lvs_id LVS_DEVEL
+}
+
+static_route {
+    192.168.210.0/24 via 192.168.200.254 dev eth0
+    192.168.211.0/24 via 192.168.200.254 dev eth0
+    192.168.212.0/24 dev eth3
+    192.168.213.0/24 dev eth1
+}
+
+vrrp_instance VI_1 {
+    state MASTER
+    interface eth0.1		# Vlaned interface
+    track_interface eth0	# Interface state we monitor
+    virtual_router_id 51
+    priority 100
+    virtual_ipaddress {
+        192.168.200.16
+        192.168.200.17 dev eth1
+        192.168.200.18 dev eth2
+    }
+    virtual_routes {
+        192.168.110.0/24 via 192.168.200.254 dev eth1
+        192.168.111.0/24 dev eth2
+        192.168.112.0/24 via 192.168.100.254
+    }
+}

@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: data.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ * Version:     $Id: data.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -91,6 +91,16 @@ dump_ssl(void)
 		syslog(LOG_INFO, " Using autogen SSL context");
 }
 
+#ifdef _WITH_VRRP_
+/* Static routes facility functions */
+void
+alloc_sroute(vector strvec)
+{
+	if (LIST_ISEMPTY(conf_data->static_routes))
+		conf_data->static_routes = alloc_list(free_route, dump_route);
+	alloc_route(conf_data->static_routes, strvec);
+}
+
 /* VRRP facility functions */
 static void
 free_vgroup(void *data)
@@ -137,19 +147,22 @@ free_vrrp(void *data)
 
 	FREE(vrrp->iname);
 	FREE_PTR(vrrp->lvs_syncd_if);
-	FREE_PTR(vrrp->vaddr);
-	FREE_PTR(vrrp->evaddr);
 	FREE_PTR(vrrp->script_backup);
 	FREE_PTR(vrrp->script_master);
 	FREE_PTR(vrrp->script_fault);
 	FREE(vrrp->ipsecah_counter);
+	if (!LIST_ISEMPTY(vrrp->vip))
+		free_list(vrrp->vip);
+	if (!LIST_ISEMPTY(vrrp->evip))
+		free_list(vrrp->evip);
+	if (!LIST_ISEMPTY(vrrp->vroutes))
+		free_list(vrrp->vroutes);
 	FREE(vrrp);
 }
 static void
 dump_vrrp(void *data)
 {
 	vrrp_rt *vrrp = data;
-	int i;
 
 	syslog(LOG_INFO, " VRRP Instance = %s", vrrp->iname);
 	if (vrrp->init_state == VRRP_STATE_BACK)
@@ -157,6 +170,9 @@ dump_vrrp(void *data)
 	else
 		syslog(LOG_INFO, "   Want State = MASTER");
 	syslog(LOG_INFO, "   Runing on device = %s", IF_NAME(vrrp->ifp));
+	if (vrrp->track_ifp)
+		syslog(LOG_INFO, "   Track interface = %s",
+		       IF_NAME(vrrp->track_ifp));
 	if (vrrp->mcast_saddr)
 		syslog(LOG_INFO, "   Using mcast src_ip = %s",
 		       inet_ntop2(vrrp->mcast_saddr));
@@ -177,17 +193,17 @@ dump_vrrp(void *data)
 			VRRP_AUTH_AH) ? "IPSEC_AH" : "SIMPLE_PASSWORD");
 		syslog(LOG_INFO, "   Password = %s", vrrp->auth_data);
 	}
-	syslog(LOG_INFO, "   VIP count = %d", vrrp->naddr);
-	for (i = 0; i < vrrp->naddr; i++)
-		syslog(LOG_INFO, "     VIP%d = %s/%d", i + 1,
-		       inet_ntop2(vrrp->vaddr[i].addr)
-		       , vrrp->vaddr[i].mask);
-	if (vrrp->neaddr) {
-		syslog(LOG_INFO, "   Excluded VIP count = %d", vrrp->neaddr);
-		for (i = 0; i < vrrp->neaddr; i++)
-			syslog(LOG_INFO, "     E-VIP%d = %s/%d", i + 1,
-			       inet_ntop2(vrrp->evaddr[i].addr)
-			       , vrrp->evaddr[i].mask);
+	if (!LIST_ISEMPTY(vrrp->vip)) {
+		syslog(LOG_INFO, "   Virtual IP = %d", LIST_SIZE(vrrp->vip));
+		dump_list(vrrp->vip);
+	}
+	if (!LIST_ISEMPTY(vrrp->evip)) {
+		syslog(LOG_INFO, "   Virtual IP Excluded = %d", LIST_SIZE(vrrp->evip));
+		dump_list(vrrp->evip);
+	}
+	if (!LIST_ISEMPTY(vrrp->vroutes)) {
+		syslog(LOG_INFO, "   Virtual Routes = %d", LIST_SIZE(vrrp->vroutes));
+		dump_list(vrrp->vroutes);
 	}
 	if (vrrp->script_backup)
 		syslog(LOG_INFO, "   Backup state transition script = %s",
@@ -237,51 +253,40 @@ alloc_vrrp(char *iname)
 	new->adver_int = TIMER_HZ;
 	new->iname = (char *) MALLOC(size + 1);
 	memcpy(new->iname, iname, size);
-#ifdef _WITH_VRRP_
 	new->sync = vrrp_get_sync_group(iname);
-#endif
 
 	list_add(conf_data->vrrp, new);
 }
 
 void
-alloc_vrrp_vip(char *vip)
+alloc_vrrp_vip(vector strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-	uint32_t ipaddr = 0;
-	uint8_t mask = inet_stom(vip);
-	inet_ston(vip, &ipaddr);
 
-	vrrp->naddr++;
-	if (vrrp->vaddr)
-		vrrp->vaddr =
-		    REALLOC(vrrp->vaddr, vrrp->naddr * sizeof (*vrrp->vaddr));
-	else
-		vrrp->vaddr = (vip_addr *) MALLOC(sizeof (*vrrp->vaddr));
-	vrrp->vaddr[vrrp->naddr - 1].addr = ipaddr;
-	vrrp->vaddr[vrrp->naddr - 1].mask = mask;
-	vrrp->vaddr[vrrp->naddr - 1].set = 0;
+	if (LIST_ISEMPTY(vrrp->vip))
+		vrrp->vip = alloc_list(free_ipaddress, dump_ipaddress);
+	alloc_ipaddress(vrrp->vip, strvec, IF_INDEX(vrrp->ifp));
+}
+void
+alloc_vrrp_evip(vector strvec)
+{
+	vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
+
+	if (LIST_ISEMPTY(vrrp->evip))
+		vrrp->evip = alloc_list(free_ipaddress, dump_ipaddress);
+	alloc_ipaddress(vrrp->evip, strvec, IF_INDEX(vrrp->ifp));
 }
 
 void
-alloc_vrrp_evip(char *vip)
+alloc_vrrp_vroute(vector strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(conf_data->vrrp);
-	uint32_t ipaddr = 0;
-	uint8_t mask = inet_stom(vip);
-	inet_ston(vip, &ipaddr);
 
-	vrrp->neaddr++;
-	if (vrrp->evaddr)
-		vrrp->evaddr =
-		    REALLOC(vrrp->evaddr,
-			    vrrp->neaddr * sizeof (*vrrp->evaddr));
-	else
-		vrrp->evaddr = (vip_addr *) MALLOC(sizeof (*vrrp->evaddr));
-	vrrp->evaddr[vrrp->neaddr - 1].addr = ipaddr;
-	vrrp->evaddr[vrrp->neaddr - 1].mask = mask;
-	vrrp->evaddr[vrrp->neaddr - 1].set = 0;
+	if (LIST_ISEMPTY(vrrp->vroutes))
+		vrrp->vroutes = alloc_list(free_route, dump_route);
+	alloc_route(vrrp->vroutes, strvec);
 }
+#endif
 
 /* Virtual server facility functions */
 static void
@@ -292,8 +297,6 @@ free_vs(void *data)
 	FREE_PTR(vs->s_svr);
 	if (!LIST_ISEMPTY(vs->rs))
 		free_list(vs->rs);
-	if (!LIST_ISEMPTY(vs->rs_group))
-		free_list(vs->rs_group);
 	FREE(vs);
 }
 static void
@@ -356,8 +359,6 @@ dump_vs(void *data)
 	}
 	if (!LIST_ISEMPTY(vs->rs))
 		dump_list(vs->rs);
-	if (!LIST_ISEMPTY(vs->rs_group))
-		dump_list(vs->rs_group);
 }
 
 void
@@ -434,90 +435,6 @@ alloc_rs(char *ip, char *port)
 	if (LIST_ISEMPTY(vs->rs))
 		vs->rs = alloc_list(free_rs, dump_rs);
 	list_add(vs->rs, new);
-	vs->last_rs_type = RS;
-}
-
-/* Real server group facility functions */
-static void
-free_group(void *data)
-{
-	real_server_group *group = data;
-	FREE(group->gname);
-	if (!LIST_ISEMPTY(group->rs))
-		free_list(group->rs);
-//  if (!LIST_ISEMPTY(group->vs))
-//    free_list(group->vs);
-	FREE(group);
-}
-static void
-dump_group(void *data)
-{
-	real_server_group *group = data;
-	syslog(LOG_INFO, " Real Server Group = %s", group->gname);
-	dump_list(group->rs);
-}
-
-void
-alloc_rsgroup(char *ip, char *port)
-{
-	real_server_group *group = LIST_TAIL_DATA(conf_data->group);
-	real_server *new;
-
-	new = (real_server *) MALLOC(sizeof (real_server));
-
-	inet_ston(ip, &new->addr_ip);
-	new->addr_port = htons(atoi(port));
-	new->alive = 1;
-
-	if (LIST_ISEMPTY(group->rs))
-		group->rs = alloc_list(free_rs, dump_rs);
-	list_add(group->rs, new);
-}
-
-void
-alloc_group(char *name)
-{
-	real_server_group *new;
-	int size = strlen(name);
-
-	new = (real_server_group *) MALLOC(sizeof (real_server_group));
-
-	new->gname = (char *) MALLOC(size + 1);
-	memcpy(new->gname, name, size);
-	list_add(conf_data->group, new);
-}
-static real_server_group *
-get_group_by_name(char *name)
-{
-	real_server_group *group;
-	element e;
-
-	for (e = LIST_HEAD(conf_data->group); e; ELEMENT_NEXT(e)) {
-		group = ELEMENT_DATA(e);
-		if (strcmp(group->gname, name) == 0)
-			return group;
-	}
-	return NULL;
-}
-static void
-dump_rs_group(void *data)
-{
-	real_server_group *group = data;
-	syslog(LOG_INFO, "   Linking Real Server Group = %s", group->gname);
-}
-
-void
-set_rsgroup(char *gname)
-{
-	real_server_group *group = get_group_by_name(gname);
-	virtual_server *vs = LIST_TAIL_DATA(conf_data->vs);
-
-	if (group) {
-		if (LIST_ISEMPTY(vs->rs_group))
-			vs->rs_group = alloc_list(NULL, dump_rs_group);
-		list_add(vs->rs_group, group);
-		vs->last_rs_type = RS_GROUP;
-	}
 }
 
 /* data facility functions */
@@ -528,10 +445,11 @@ alloc_data(void)
 
 	new = (data *) MALLOC(sizeof (data));
 	new->email = alloc_list(free_email, dump_email);
+#ifdef _WITH_VRRP_
 	new->vrrp = alloc_list(free_vrrp, dump_vrrp);
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
+#endif
 	new->vs = alloc_list(free_vs, dump_vs);
-	new->group = alloc_list(free_group, dump_group);
 
 	return new;
 }
@@ -540,10 +458,11 @@ void
 free_data(data * data)
 {
 	free_list(data->email);
+#ifdef _WITH_VRRP_
 	free_list(data->vrrp);
 	free_list(data->vrrp_sync_group);
+#endif
 	free_list(data->vs);
-	free_list(data->group);
 
 	FREE_PTR(data->lvs_id);
 	FREE_PTR(data->email_from);
@@ -575,6 +494,10 @@ dump_data(data * data)
 		syslog(LOG_INFO, "------< SSL definitions >------");
 		dump_ssl();
 	}
+	if (!LIST_ISEMPTY(data->static_routes)) {
+		syslog(LOG_INFO, "------< Static Routes >------");
+		dump_list(data->static_routes);
+	}
 	if (!LIST_ISEMPTY(data->vrrp)) {
 		syslog(LOG_INFO, "------< VRRP Topology >------");
 		dump_list(data->vrrp);
@@ -582,10 +505,6 @@ dump_data(data * data)
 	if (!LIST_ISEMPTY(data->vrrp_sync_group)) {
 		syslog(LOG_INFO, "------< VRRP Sync groups >------");
 		dump_list(data->vrrp_sync_group);
-	}
-	if (!LIST_ISEMPTY(data->group)) {
-		syslog(LOG_INFO, "------< Real Servers groups >------");
-		dump_list(data->group);
 	}
 #ifdef _WITH_LVS_
 	if (!LIST_ISEMPTY(data->vs)) {

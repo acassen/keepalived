@@ -32,7 +32,6 @@
 #include "sock.h"
 
 /* global defs */
-#define GET_REQUEST_BUFFER_LENGTH 1024
 #define GET_BUFFER_LENGTH 2048
 #define MAX_BUFFER_LENGTH 4096
 #define HTTP_CNX_TIMEOUT 5

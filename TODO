@@ -1,12 +1,7 @@
 * Insert LDAP, FTP, SSH, IMAP, POP, RADIUS checkers.
-* Add minimum configuration verification (realserver must have
-  a checker defined, ...)
 * documentation:
 	- hackers guide
-	- code documentation
 * code cleanup:
-	- name space cleanup
-	- function returnval check
 	- check_ssl.c audit the password_cb() call back func
 	  for buffer overflow.
 	- check smtp.c to release allocated buffer when terminate
@@ -15,8 +10,6 @@
 	  sequence.
 * more choice with parameters, less hardcoded values
 * functionality:
-	- better startup check mechanism to prevent long debugging sessions
 	- hooks in VRRP framework for external checktools.
 	  As state transition decision
 	- a VTYSH to administrate keepalived on the fly
-* something I forgot right now :)

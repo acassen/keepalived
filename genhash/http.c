@@ -236,10 +236,10 @@ http_request_thread(thread * thread)
 		return epilog(thread);
 
 	/* Allocate & clean the GET string */
-	str_request = (char *) MALLOC(GET_REQUEST_BUFFER_LENGTH);
-	memset(str_request, 0, GET_REQUEST_BUFFER_LENGTH);
+	str_request = (char *) MALLOC(GET_BUFFER_LENGTH);
+	memset(str_request, 0, GET_BUFFER_LENGTH);
 
-	snprintf(str_request, GET_REQUEST_BUFFER_LENGTH, REQUEST_TEMPLATE,
+	snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE,
 		 req->url,
 		 (req->vhost) ? req->vhost : inet_ntop2(req->addr_ip)
 		 , ntohs(req->addr_port));

@@ -5,7 +5,7 @@
  *
  * Part:        check_http.c include file.
  *
- * Version:     $Id: check_http.h,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ * Version:     $Id: check_http.h,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -73,7 +73,6 @@ typedef struct _http_get_checker {
 
 /* global defs */
 #define MD5_BUFFER_LENGTH 32
-#define GET_REQUEST_BUFFER_LENGTH 128
 #define GET_BUFFER_LENGTH 2048
 #define MAX_BUFFER_LENGTH 4096
 #define PROTO_HTTP	0x01

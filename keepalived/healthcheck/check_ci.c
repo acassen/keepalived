@@ -5,7 +5,7 @@
  *
  * Part:        CI-LINUX checker. Integration to Compaq Cluster Infrastructure.
  *
- * Version:     $Id: check_ci.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ * Version:     $Id: check_ci.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Aneesh Kumar K.V, <aneesh.kumar@digital.com>
@@ -176,14 +176,14 @@ ci_check_thread(thread * thread)
 	case UP:
 		if (!ISALIVE(checker->rs)) {
 			smtp_alert(thread->master, checker->rs, NULL, NULL, "UP",
-				   "=> CI-Linux  CHECK succeed on service <=\n\n");
+				   "=> CI-Linux  CHECK succeed on service <=");
 			perform_svr_state(UP, checker->vs, checker->rs);
 		}
 		break;
 	case DOWN:
 		if (ISALIVE(checker->rs)) {
 			smtp_alert(thread->master, checker->rs, NULL, NULL, "DOWN",
-				   "=> CI-Linux CHECK failed on service <=\n\n");
+				   "=> CI-Linux CHECK failed on service <=");
 			perform_svr_state(DOWN, checker->vs, checker->rs);
 		}
 		break;

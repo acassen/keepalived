@@ -1,7 +1,7 @@
 Name: keepalived
 Summary: HA monitor built upon LVS, VRRP and services poller
 Packager: Christophe Varoqui, <christophe.varoqui@free.fr>
-Version: 1.0.0
+Version: 1.0.1
 Release: 1
 Source: http://www.keepalived.org/software/%{name}-%{version}.tar.gz
 Copyright: GPL
@@ -40,7 +40,7 @@ rm -rf %{buildroot}
 %{_sbindir}/keepalived
 %{_sysconfdir}/init.d/keepalived
 %dir %{_sysconfdir}/keepalived/
-%doc keepalived/samples
+%doc doc
 %doc AUTHOR CONTRIBUTORS TODO COPYING README INSTALL VERSION ChangeLog
 
 %changelog

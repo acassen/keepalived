@@ -5,7 +5,7 @@
  *
  * Part:        VRRP synchronization framework.
  *
- * Version:     $Id: vrrp_sync.c,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ * Version:     $Id: vrrp_sync.c,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -116,8 +116,9 @@ vrrp_sync_group_up(vrrp_sgroup * vgroup)
 	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
 		str = VECTOR_SLOT(vgroup->iname, i);
 		isync = vrrp_get_instance(str);
-		if (IF_ISUP(isync->ifp))
-			is_up++;
+		if (isync)
+			if (VRRP_ISUP(isync))
+				is_up++;
 	}
 
 	if (is_up == VECTOR_SIZE(vgroup->iname)) {
@@ -136,11 +137,11 @@ vrrp_sync_smtp_notifier(vrrp_sgroup *vgroup)
 		if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
 			smtp_alert(master, NULL, NULL, vgroup,
 				   "Entering MASTER state",
-				   "=> All VRRP group instances are now in MASTER state <=\n\n");
+				   "=> All VRRP group instances are now in MASTER state <=");
 		if (GROUP_STATE(vgroup) == VRRP_STATE_BACK)
 			smtp_alert(master, NULL, NULL, vgroup,
 				   "Entering BACKUP state",
-				   "=> All VRRP group instances are now in BACKUP state <=\n\n");
+				   "=> All VRRP group instances are now in BACKUP state <=");
 	}
 }
 
@@ -177,14 +178,15 @@ vrrp_sync_master_election(vrrp_rt * vrrp)
 	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
 		str = VECTOR_SLOT(vgroup->iname, i);
 		isync = vrrp_get_instance(str);
-		if (isync != vrrp) {
-			/* Force a new protocol master election */
-			isync->wantstate = VRRP_STATE_GOTO_MASTER;
-			syslog(LOG_INFO,
-			       "VRRP_Instance(%s) forcing a new MASTER election",
-			       isync->iname);
-			vrrp_send_adv(isync, isync->priority);
-		}
+		if (isync)
+			if (isync != vrrp) {
+				/* Force a new protocol master election */
+				isync->wantstate = VRRP_STATE_GOTO_MASTER;
+				syslog(LOG_INFO,
+				       "VRRP_Instance(%s) forcing a new MASTER election",
+				       isync->iname);
+				vrrp_send_adv(isync, isync->priority);
+			}
 	}
 }
 
@@ -202,11 +204,12 @@ vrrp_sync_backup(vrrp_rt * vrrp)
 	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
 		str = VECTOR_SLOT(vgroup->iname, i);
 		isync = vrrp_get_instance(str);
-		if (isync != vrrp) {
-			isync->wantstate = VRRP_STATE_BACK;
-			vrrp_state_leave_master(isync);
-			vrrp_init_instance_sands(isync);
-		}
+		if (isync)
+			if (isync != vrrp) {
+				isync->wantstate = VRRP_STATE_BACK;
+				vrrp_state_leave_master(isync);
+				vrrp_init_instance_sands(isync);
+			}
 	}
 	vgroup->state = VRRP_STATE_BACK;
 	vrrp_sync_smtp_notifier(vgroup);
@@ -232,11 +235,12 @@ vrrp_sync_master(vrrp_rt * vrrp)
 		isync = vrrp_get_instance(str);
 
 		/* Send the higher priority advert on all synced instances */
-		if (isync != vrrp) {
-			isync->wantstate = VRRP_STATE_MAST;
-			vrrp_state_goto_master(isync);
-			vrrp_init_instance_sands(isync);
-		}
+		if (isync)
+			if (isync != vrrp) {
+				isync->wantstate = VRRP_STATE_MAST;
+				vrrp_state_goto_master(isync);
+				vrrp_init_instance_sands(isync);
+			}
 	}
 	vgroup->state = VRRP_STATE_MAST;
 	vrrp_sync_smtp_notifier(vgroup);
@@ -267,12 +271,13 @@ vrrp_sync_fault(vrrp_rt * vrrp)
 		 * => by default ms_down_timer is set to 3secs.
 		 * => Takeover will be less than 3secs !
 		 */
-		if (isync != vrrp) {
-			if (isync->state == VRRP_STATE_MAST)
-				isync->wantstate = VRRP_STATE_GOTO_FAULT;
-			if (isync->state == VRRP_STATE_BACK)
-				isync->state = VRRP_STATE_FAULT;
-		}
+		if (isync)
+			if (isync != vrrp) {
+				if (isync->state == VRRP_STATE_MAST)
+					isync->wantstate = VRRP_STATE_GOTO_FAULT;
+				if (isync->state == VRRP_STATE_BACK)
+					isync->state = VRRP_STATE_FAULT;
+			}
 	}
 	vgroup->state = VRRP_STATE_FAULT;
 	notify_group_exec(vgroup, VRRP_STATE_FAULT);

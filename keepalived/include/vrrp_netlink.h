@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_netlink.c include file.
  *
- * Version:     $Id: vrrp_netlink.h,v 1.0.0 2003/01/06 19:40:11 acassen Exp $
+ * Version:     $Id: vrrp_netlink.h,v 1.0.1 2003/03/17 22:14:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -47,6 +47,7 @@ struct nl_handle {
 struct nl_handle nl_kernel;
 
 /* prototypes */
+extern int addattr32(struct nlmsghdr *n, int maxlen, int type, uint32_t data);
 extern int addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data,
 		     int alen);
 extern int netlink_socket(struct nl_handle *nl, unsigned long groups);

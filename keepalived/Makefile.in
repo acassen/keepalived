@@ -2,7 +2,7 @@
 #
 # Keepalived OpenSource project.
 #
-# Copyright (C) 2001, 2002 Alexandre Cassen, <acassen@linux-vs.org>
+# Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
 
 EXEC = keepalived
 BIN       = ../bin
@@ -52,7 +52,7 @@ debug:
 	for i in $(SUBDIRS); do \
 	$(MAKE) -C $$i || exit 1; done && \
 	echo "Building $(BIN)/$(EXEC)" && \
-	$(CC) -o $(BIN)/$(EXEC) $(LDFLAGS) `find $(SUBDIRS) -name '*.[oa]'`
+	$(CC) -o $(BIN)/$(EXEC) $(LDFLAGS) `find $(SUBDIRS) ../lib -name '*.[oa]'`
 	@echo ""
 	@echo "Make complete"
 
@@ -84,4 +84,4 @@ install:
 	install -m 755 $(init_script) $(sysconfdir)/init.d/keepalived
 	install -d $(sysconfdir)/keepalived/samples
 	install -m 644 $(conf_file) $(sysconfdir)/keepalived/
-	install -m 644 samples/* $(sysconfdir)/keepalived/samples/
+	install -m 644 ../doc/samples/* $(sysconfdir)/keepalived/samples/
