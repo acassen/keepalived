@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: main.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -78,19 +78,29 @@ void
 sigend(int sig)
 {
 	int status;
+	sigset_t mask;
 
 	/* register the terminate thread */
 	syslog(LOG_INFO, "Terminating on signal");
 	thread_add_terminate_event(master);
 
-	/* Signal child process */
+	/*
+	 * Signal child process.
+	 * Disable and unblock the SIGCHLD handler
+	 * so that wait() works.
+	 */
+	signal_ignore(SIGCHLD);
+	sigemptyset(&mask);
+	sigaddset(&mask, SIGCHLD);
+	sigprocmask(SIG_UNBLOCK, &mask, NULL);
+
 	if (vrrp_child > 0) {
 		kill(vrrp_child, SIGTERM);
-		wait(&status);
+		waitpid(vrrp_child, &status, WNOHANG);
 	}
 	if (checkers_child > 0) {
 		kill(checkers_child, SIGTERM);
-		wait(&status);
+		waitpid(checkers_child, &status, WNOHANG);
 	}
 }
 
@@ -102,7 +112,7 @@ signal_init(void)
 	signal_set(SIGINT, sigend);
 	signal_set(SIGTERM, sigend);
 	signal_set(SIGKILL, sigend);
-	signal_set(SIGCHLD, sigchld);
+	signal_noignore_sigchld();
 }
 
 /* Usage function */
@@ -125,11 +135,14 @@ usage(const char *prog)
 		"  %s --dont-fork          -n    Dont fork the daemon process.\n"
 		"  %s --use-file           -f    Use the specified configuration file.\n"
 		"                                Default is /etc/keepalived/keepalived.conf.\n"
+		"  %s --wdog-vrrp          -R    Define VRRP watchdog polling delay. (default=5s)\n"
+		"  %s --wdog-check         -H    Define checkers watchdog polling delay. (default=5s)\n"
 		"  %s --dump-conf          -d    Dump the configuration data.\n"
 		"  %s --log-console        -l    Log message to local console.\n"
+		"  %s --log-detail         -D    Detailed log messages.\n"
 		"  %s --help               -h    Display this short inlined help screen.\n"
 		"  %s --version            -v    Display the version number\n",
-		prog, prog, prog, prog, prog, prog, prog, prog);
+		prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog);
 }
 
 /* Command line parser */
@@ -144,11 +157,14 @@ parse_cmdline(int argc, char **argv)
 		{"version", 'v', POPT_ARG_NONE, NULL, 'v'},
 		{"help", 'h', POPT_ARG_NONE, NULL, 'h'},
 		{"log-console", 'l', POPT_ARG_NONE, NULL, 'l'},
+		{"log-detail", 'D', POPT_ARG_NONE, NULL, 'D'},
 		{"dont-release-vrrp", 'V', POPT_ARG_NONE, NULL, 'V'},
 		{"dont-release-ipvs", 'I', POPT_ARG_NONE, NULL, 'I'},
 		{"dont-fork", 'n', POPT_ARG_NONE, NULL, 'n'},
 		{"dump-conf", 'd', POPT_ARG_NONE, NULL, 'd'},
 		{"use-file", 'f', POPT_ARG_STRING, &optarg, 'f'},
+		{"wdog-vrrp", 'R', POPT_ARG_STRING, &optarg, 'R'},
+		{"wdog-check", 'H', POPT_ARG_STRING, &optarg, 'H'},
 		{NULL, 0, 0, NULL, 0}
 	};
 
@@ -183,8 +199,17 @@ parse_cmdline(int argc, char **argv)
 	case 'I':
 		debug |= 16;
 		break;
+	case 'D':
+		debug |= 32;
+		break;
 	case 'f':
 		conf_file = optarg;
+		break;
+	case 'R':
+		wdog_delay_vrrp = atoi(optarg);
+		break;
+	case 'H':
+		wdog_delay_check = atoi(optarg);
 		break;
 	}
 
@@ -206,8 +231,17 @@ parse_cmdline(int argc, char **argv)
 		case 'I':
 			debug |= 16;
 			break;
+		case 'D':
+			debug |= 32;
+			break;
 		case 'f':
 			conf_file = optarg;
+			break;
+		case 'R':
+			wdog_delay_vrrp = atoi(optarg);
+			break;
+		case 'H':
+			wdog_delay_check = atoi(optarg);
 			break;
 		}
 	}

@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: main.h,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -46,13 +46,15 @@ int reload = 0;				/* Global reloading flag */
 unsigned int debug;			/* Debugging flags */
 pid_t vrrp_child = -1;			/* VRRP child process ID */
 pid_t checkers_child = -1;		/* Healthcheckers child process ID */
+int wdog_delay_vrrp = 0;		/* VRRP child polling delay */
+int wdog_delay_check = 0;		/* Healthchecker child polling delay */
 conf_data *data;			/* Global configuration data */
 
 /* Build version */
 #define PROG    "Keepalived"
 
-#define VERSION_CODE 0x010003
-#define DATE_CODE    0x0C0503
+#define VERSION_CODE 0x010100
+#define DATE_CODE    0x140703
 
 #define KEEPALIVED_VERSION(version)	\
 	(version >> 16) & 0xFF,		\

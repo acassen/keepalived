@@ -25,6 +25,8 @@
 
 /* system includes */
 #include <sys/time.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <assert.h>
 #include <fcntl.h>
 #include <errno.h>
@@ -44,6 +46,10 @@ typedef struct _thread {
 	union {
 		int val;		/* second argument of the event. */
 		int fd;			/* file descriptor in case of read/write. */
+		struct {
+			pid_t pid;	/* process id a child thread is wanting. */
+			int status;	/* return status of the process */
+		} c;
 	} u;
 } thread;
 
@@ -59,6 +65,7 @@ typedef struct _thread_master {
 	thread_list read;
 	thread_list write;
 	thread_list timer;
+	thread_list child;
 	thread_list event;
 	thread_list ready;
 	thread_list unuse;
@@ -69,15 +76,18 @@ typedef struct _thread_master {
 } thread_master;
 
 /* Thread types. */
-#define THREAD_READ           0
-#define THREAD_WRITE          1
-#define THREAD_TIMER          2
-#define THREAD_EVENT          3
-#define THREAD_READY          4
-#define THREAD_UNUSED         5
-#define THREAD_WRITE_TIMEOUT  6
-#define THREAD_READ_TIMEOUT   7
-#define THREAD_TERMINATE      8
+#define THREAD_READ		0
+#define THREAD_WRITE		1
+#define THREAD_TIMER		2
+#define THREAD_EVENT		3
+#define THREAD_CHILD		4
+#define THREAD_READY		5
+#define THREAD_UNUSED		6
+#define THREAD_WRITE_TIMEOUT	7
+#define THREAD_READ_TIMEOUT	8
+#define THREAD_CHILD_TIMEOUT	9
+#define THREAD_TERMINATE	10
+
 
 /* MICRO SEC def */
 #define BOOTSTRAP_DELAY 1
@@ -86,6 +96,8 @@ typedef struct _thread_master {
 #define THREAD_ARG(X) ((X)->arg)
 #define THREAD_FD(X)  ((X)->u.fd)
 #define THREAD_VAL(X) ((X)->u.val)
+#define THREAD_CHILD_PID(X) ((X)->u.c.pid)
+#define THREAD_CHILD_STATUS(X) ((X)->u.c.status)
 
 /* Prototypes. */
 extern thread_master *thread_make_master(void);
@@ -97,6 +109,8 @@ extern thread *thread_add_write(thread_master * m, int (*func) (thread *)
 				, void *arg, int fd, long timeout);
 extern thread *thread_add_timer(thread_master * m, int (*func) (thread *)
 				, void *arg, long timer);
+extern thread *thread_add_child(thread_master * m, int (*func) (thread *)
+				, void *arg, pid_t pid, long timeout);
 extern thread *thread_add_event(thread_master * m, int (*func) (thread *)
 				, void *arg, int val);
 extern void thread_cancel(thread * thread);

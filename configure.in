@@ -32,6 +32,8 @@ AC_ARG_WITH(ci_linux,
   [ci_linux="no"])
 AC_ARG_ENABLE(debug,
   [  --enable-debug          compile with debugging flags])
+AC_ARG_ENABLE(profile,
+  [  --enable-profile        compile with profiling flags])
 
 dnl ----[ Checks for header files ]----
 AC_HEADER_STDC
@@ -169,6 +171,10 @@ if test "${enable_debug}" = "yes"; then
   AC_SUBST(DFLAGS)
 fi
 
+if test "${enable_profile}" = "yes"; then
+  CFLAGS="$CFLAGS -pg"
+fi
+
 AC_SUBST(IPVS_SUPPORT)
 AC_SUBST(VRRP_SUPPORT)
 AC_SUBST(CI_LINUX)
@@ -217,7 +223,7 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
   OUTPUT_TARGET="$OUTPUT_TARGET keepalived/vrrp/Makefile"
 fi
 if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
-  OUTPUT_TARGET="$OUTPUT_TARGET keepalived/healthcheck/Makefile"
+  OUTPUT_TARGET="$OUTPUT_TARGET keepalived/check/Makefile"
   if test "$KERN" = "_KRNL_2_4_"; then
     OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs/Makefile"
   else

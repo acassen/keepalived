@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: check_parser.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: check_parser.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -79,7 +79,7 @@ static void
 delay_handler(vector strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->delay_loop = atoi(VECTOR_SLOT(strvec, 1));
+	vs->delay_loop = atoi(VECTOR_SLOT(strvec, 1)) * TIMER_HZ;
 }
 static void
 lbalgo_handler(vector strvec)

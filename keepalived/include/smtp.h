@@ -5,7 +5,7 @@
  *
  * Part:        smtp.c include file.
  *
- * Version:     $Id: smtp.h,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: smtp.h,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -35,8 +35,8 @@
 
 /* global defs */
 #define SMTP_PORT		25
-#define SMTP_BUFFER_LENGTH	128
-#define SMTP_BUFFER_MAX		256
+#define SMTP_BUFFER_LENGTH	512
+#define SMTP_BUFFER_MAX		1024
 #define SMTP_MAX_FSM_STATE	10
 
 /* SMTP command stage */

@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckers dynamic data structure definition.
  *
- * Version:     $Id: check_data.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: check_data.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -153,8 +153,7 @@ free_vs(void *data)
 	FREE_PTR(vs->vsgname);
 	FREE_PTR(vs->virtualhost);
 	FREE_PTR(vs->s_svr);
-	if (!LIST_ISEMPTY(vs->rs))
-		free_list(vs->rs);
+	free_list(vs->rs);
 	FREE(vs);
 }
 static void
@@ -171,7 +170,9 @@ dump_vs(void *data)
 		       , ntohs(SVR_PORT(vs)));
 	if (vs->virtualhost)
 		syslog(LOG_INFO, "   VirtualHost = %s", vs->virtualhost);
-	syslog(LOG_INFO, "   delay_loop = %d, lb_algo = %s", vs->delay_loop,
+	syslog(LOG_INFO, "   delay_loop = %lu, lb_algo = %s",
+	       (vs->delay_loop >= TIMER_MAX_SEC) ? vs->delay_loop/TIMER_HZ :
+						   vs->delay_loop,
 	       vs->sched);
 	if (atoi(vs->timeout_persistence) > 0)
 		syslog(LOG_INFO, "   persistence timeout = %s",

@@ -5,7 +5,7 @@
  *
  * Part:        VRRP synchronization framework.
  *
- * Version:     $Id: vrrp_sync.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: vrrp_sync.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -34,45 +34,40 @@ extern vrrp_conf_data *vrrp_data;
 void
 vrrp_init_instance_sands(vrrp_rt * vrrp)
 {
-	TIMEVAL timer;
+	TIMEVAL timer = timer_now();
 
-	timer = timer_now();
+	/*
+	 * We only make timer auto-recalibration while being in
+	 * master state. Other state are transtions so recalibration
+	 * is not needed. Here we estimate the VRRP advert time
+	 * handling and substract it to new computed timer.
+	 * We just take care to the usec sub timer and not sec one
+	 * to not conflict scheduling decision.
+	 */
+	if (vrrp->state == VRRP_STATE_MAST) {
+		long usec;
+		usec = timer.tv_usec - vrrp->sands.tv_usec;
+		vrrp->sands.tv_sec = timer.tv_sec + vrrp->adver_int / TIMER_HZ;
+ 		vrrp->sands.tv_usec = timer.tv_usec;
+		if (usec > 0)
+			vrrp->sands.tv_usec -= usec;
+		return;
+	}
+
+	if (vrrp->state == VRRP_STATE_GOTO_MASTER ||
+	    vrrp->state == VRRP_STATE_GOTO_FAULT) {
+		vrrp->sands.tv_sec = timer.tv_sec + vrrp->adver_int / TIMER_HZ;
+ 		vrrp->sands.tv_usec = timer.tv_usec;
+		return;
+	}
 
 	if (vrrp->state == VRRP_STATE_BACK || vrrp->state == VRRP_STATE_FAULT) {
 		vrrp->sands.tv_sec = timer.tv_sec + vrrp->ms_down_timer / TIMER_HZ;
 		vrrp->sands.tv_usec = timer.tv_usec + vrrp->ms_down_timer % TIMER_HZ;
 	}
-	if (vrrp->state == VRRP_STATE_GOTO_MASTER ||
-	    vrrp->state == VRRP_STATE_MAST ||
-	    vrrp->state == VRRP_STATE_GOTO_FAULT) {
-		vrrp->sands.tv_sec = timer.tv_sec + vrrp->adver_int / TIMER_HZ;
- 		vrrp->sands.tv_usec = timer.tv_usec;
-	}
 }
 
-/* return the first group found for a specific instance */
-vrrp_sgroup *
-vrrp_get_sync_group(char *iname)
-{
-	int i;
-	char *str;
-	element e;
-	vrrp_sgroup *vgroup;
-	list l = vrrp_data->vrrp_sync_group;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vgroup = ELEMENT_DATA(e);
-		if (vgroup->iname)
-			for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
-				str = VECTOR_SLOT(vgroup->iname, i);
-				if (strcmp(str, iname) == 0)
-					return vgroup;
-			}
-	}
-	return NULL;
-}
-
-/* jointure between instance and group => iname */
+/* Instance name lookup */
 vrrp_rt *
 vrrp_get_instance(char *iname)
 {
@@ -99,8 +94,12 @@ vrrp_sync_set_group(vrrp_sgroup *vgroup)
 	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
 		str = VECTOR_SLOT(vgroup->iname, i);
 		vrrp = vrrp_get_instance(str);
-		if (vrrp)
+		if (vrrp) {
+			if (LIST_ISEMPTY(vgroup->index))
+				vgroup->index = alloc_list(NULL, NULL);
+			list_add(vgroup->index, vrrp);
 			vrrp->sync = vgroup;
+		}
 	}
 }
 
@@ -108,20 +107,18 @@ vrrp_sync_set_group(vrrp_sgroup *vgroup)
 int
 vrrp_sync_group_up(vrrp_sgroup * vgroup)
 {
-	vrrp_rt *isync;
-	char *str;
+	vrrp_rt *vrrp;
+	element e;
+	list l = vgroup->index;
 	int is_up = 0;
-	int i;
 
-	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
-		str = VECTOR_SLOT(vgroup->iname, i);
-		isync = vrrp_get_instance(str);
-		if (isync)
-			if (VRRP_ISUP(isync))
-				is_up++;
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+		if (VRRP_ISUP(vrrp))
+			is_up++;
 	}
 
-	if (is_up == VECTOR_SIZE(vgroup->iname)) {
+	if (is_up == LIST_SIZE(vgroup->index)) {
 		syslog(LOG_INFO, "Kernel is reporting: Group(%s) UP"
 			       , GROUP_NAME(vgroup));
 		return 1;
@@ -162,10 +159,10 @@ vrrp_sync_leave_fault(vrrp_rt * vrrp)
 void
 vrrp_sync_master_election(vrrp_rt * vrrp)
 {
-	int i;
-	char *str;
 	vrrp_rt *isync;
 	vrrp_sgroup *vgroup = vrrp->sync;
+	list l = vgroup->index;
+	element e;
 
 	if (vrrp->wantstate != VRRP_STATE_GOTO_MASTER)
 		return;
@@ -175,41 +172,39 @@ vrrp_sync_master_election(vrrp_rt * vrrp)
 	syslog(LOG_INFO, "VRRP_Group(%s) Transition to MASTER state",
 	       GROUP_NAME(vrrp->sync));
 
-	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
-		str = VECTOR_SLOT(vgroup->iname, i);
-		isync = vrrp_get_instance(str);
-		if (isync)
-			if (isync != vrrp) {
-				/* Force a new protocol master election */
-				isync->wantstate = VRRP_STATE_GOTO_MASTER;
-				syslog(LOG_INFO,
-				       "VRRP_Instance(%s) forcing a new MASTER election",
-				       isync->iname);
-				vrrp_send_adv(isync, isync->priority);
-			}
+	/* Perform sync index */
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		isync = ELEMENT_DATA(e);
+		if (isync != vrrp) {
+			/* Force a new protocol master election */
+			isync->wantstate = VRRP_STATE_GOTO_MASTER;
+			syslog(LOG_INFO,
+			       "VRRP_Instance(%s) forcing a new MASTER election",
+			       isync->iname);
+			vrrp_send_adv(isync, isync->priority);
+		}
 	}
 }
 
 void
 vrrp_sync_backup(vrrp_rt * vrrp)
 {
-	int i;
-	char *str;
 	vrrp_rt *isync;
 	vrrp_sgroup *vgroup = vrrp->sync;
+	list l = vgroup->index;
+	element e;
 
 	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to BACKUP state",
 	       GROUP_NAME(vgroup));
 
-	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
-		str = VECTOR_SLOT(vgroup->iname, i);
-		isync = vrrp_get_instance(str);
-		if (isync)
-			if (isync != vrrp) {
-				isync->wantstate = VRRP_STATE_BACK;
-				vrrp_state_leave_master(isync);
-				vrrp_init_instance_sands(isync);
-			}
+	/* Perform sync index */
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		isync = ELEMENT_DATA(e);
+		if (isync != vrrp) {
+			isync->wantstate = VRRP_STATE_BACK;
+			vrrp_state_leave_master(isync);
+			vrrp_init_instance_sands(isync);
+		}
 	}
 	vgroup->state = VRRP_STATE_BACK;
 	vrrp_sync_smtp_notifier(vgroup);
@@ -219,10 +214,10 @@ vrrp_sync_backup(vrrp_rt * vrrp)
 void
 vrrp_sync_master(vrrp_rt * vrrp)
 {
-	int i;
-	char *str;
 	vrrp_rt *isync;
 	vrrp_sgroup *vgroup = vrrp->sync;
+	list l = vgroup->index;
+	element e;
 
 	if (GROUP_STATE(vrrp->sync) == VRRP_STATE_MAST)
 		return;
@@ -230,17 +225,16 @@ vrrp_sync_master(vrrp_rt * vrrp)
 	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to MASTER state",
 	       GROUP_NAME(vrrp->sync));
 
-	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
-		str = VECTOR_SLOT(vgroup->iname, i);
-		isync = vrrp_get_instance(str);
+	/* Perform sync index */
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		isync = ELEMENT_DATA(e);
 
 		/* Send the higher priority advert on all synced instances */
-		if (isync)
-			if (isync != vrrp) {
-				isync->wantstate = VRRP_STATE_MAST;
-				vrrp_state_goto_master(isync);
-				vrrp_init_instance_sands(isync);
-			}
+		if (isync != vrrp) {
+			isync->wantstate = VRRP_STATE_MAST;
+			vrrp_state_goto_master(isync);
+			vrrp_init_instance_sands(isync);
+		}
 	}
 	vgroup->state = VRRP_STATE_MAST;
 	vrrp_sync_smtp_notifier(vgroup);
@@ -250,10 +244,10 @@ vrrp_sync_master(vrrp_rt * vrrp)
 void
 vrrp_sync_fault(vrrp_rt * vrrp)
 {
-	int i;
-	char *str;
 	vrrp_rt *isync;
 	vrrp_sgroup *vgroup = vrrp->sync;
+	list l = vgroup->index;
+	element e;
 
 	if (GROUP_STATE(vrrp->sync) == VRRP_STATE_FAULT)
 		return;
@@ -261,9 +255,9 @@ vrrp_sync_fault(vrrp_rt * vrrp)
 	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to FAULT state",
 	       GROUP_NAME(vrrp->sync));
 
-	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
-		str = VECTOR_SLOT(vgroup->iname, i);
-		isync = vrrp_get_instance(str);
+	/* Perform sync index */
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		isync = ELEMENT_DATA(e);
 
 		/*
 		 * We force sync instance to backup mode.
@@ -271,13 +265,12 @@ vrrp_sync_fault(vrrp_rt * vrrp)
 		 * => by default ms_down_timer is set to 3secs.
 		 * => Takeover will be less than 3secs !
 		 */
-		if (isync)
-			if (isync != vrrp) {
-				if (isync->state == VRRP_STATE_MAST)
-					isync->wantstate = VRRP_STATE_GOTO_FAULT;
-				if (isync->state == VRRP_STATE_BACK)
-					isync->state = VRRP_STATE_FAULT;
-			}
+		if (isync != vrrp) {
+			if (isync->state == VRRP_STATE_MAST)
+				isync->wantstate = VRRP_STATE_GOTO_FAULT;
+			if (isync->state == VRRP_STATE_BACK)
+				isync->state = VRRP_STATE_FAULT;
+		}
 	}
 	vgroup->state = VRRP_STATE_FAULT;
 	notify_group_exec(vgroup, VRRP_STATE_FAULT);

@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 routes manipulation.
  *
- * Version:     $Id: vrrp_iproute.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: vrrp_iproute.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -36,7 +36,6 @@ extern vrrp_conf_data *old_vrrp_data;
 int
 netlink_route_ipv4(ip_route *iproute, int cmd)
 {
-	struct nl_handle nlh;
 	int status = 1;
 	struct {
 		struct nlmsghdr n;
@@ -68,15 +67,8 @@ netlink_route_ipv4(ip_route *iproute, int cmd)
 	if (iproute->src)
 		addattr_l(&req.n, sizeof(req), RTA_PREFSRC, &iproute->src, 4);
 
-	/* Send to netlink channel */
-	if (netlink_socket(&nlh, 0) < 0)
-		return -1;
-
-	if (netlink_talk(&nlh, &req.n) < 0)
+	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;
-
-	/* to close the clocket */
-	netlink_close(&nlh);
 	return status;
 }
 
@@ -105,12 +97,12 @@ netlink_rtlist_ipv4(list rt_list, int cmd)
 
 /* Route dump/allocation */
 void
-free_route(void *data)
+free_iproute(void *data)
 {
 	FREE(data);
 }
 void
-dump_route(void *data)
+dump_iproute(void *data)
 {
 	ip_route *route = data;
 	char *log_msg = MALLOC(100);

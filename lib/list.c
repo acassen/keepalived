@@ -23,13 +23,11 @@
 #include "list.h"
 #include "memory.h"
 
+/* Simple list helpers functions */
 list
 alloc_list(void (*free_func) (void *), void (*dump_func) (void *))
 {
-	list new = (list) MALLOC(sizeof (struct _list));
-	new->free = free_func;
-	new->dump = dump_func;
-	return new;
+	return alloc_mlist(free_func, dump_func, 1);
 }
 
 static element
@@ -55,13 +53,35 @@ list_add(list l, void *data)
 	l->count++;
 }
 
+void
+list_del(list l, void *data)
+{
+	element e;
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		if (ELEMENT_DATA(e) == data) {
+			if (e->prev)
+				e->prev->next = e->next;
+			else
+				l->head = e->next;
+
+			if (e->next)
+				e->next->prev = e->prev;
+			else
+				l->tail = e->prev;
+
+			l->count--;
+			FREE(e);
+			return;
+		}
+	}
+}
+
 void *
 list_element(list l, int num)
 {
-	element e;
+	element e = LIST_HEAD(l);
 	int i = 0;
-
-	e = LIST_HEAD(l);
 
 	/* fetch element number num */
 	for (i = 0; i < num; i++)
@@ -83,8 +103,8 @@ dump_list(list l)
 			(*l->dump) (e->data);
 }
 
-void
-free_list(list l)
+static void
+free_element(list l)
 {
 	element e;
 	element next;
@@ -95,5 +115,46 @@ free_list(list l)
 			(*l->free) (e->data);
 		FREE(e);
 	}
+}
+
+void
+free_list(list l)
+{
+	if (!l)
+		return;
+	free_element(l);
+	FREE(l);
+}
+
+
+/* Multiple list helpers functions */
+list
+alloc_mlist(void (*free_func) (void *), void (*dump_func) (void *), int size)
+{
+	list new = (list) MALLOC(size * sizeof (struct _list));
+	new->free = free_func;
+	new->dump = dump_func;
+	return new;
+}
+
+void
+dump_mlist(list l, int size)
+{
+	int i;
+
+	for (i = 0; i < size; i++)
+		dump_list(&l[i]);
+}
+
+void
+free_mlist(list l, int size)
+{
+	int i;
+
+	if (!l)
+		return;
+
+	for (i = 0; i < size; i++)
+		free_element(&l[i]);
 	FREE(l);
 }

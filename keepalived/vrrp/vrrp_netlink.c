@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK kernel command channel.
  *
- * Version:     $Id: vrrp_netlink.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: vrrp_netlink.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -601,5 +601,13 @@ kernel_netlink_init(void)
 		syslog(LOG_INFO, "Registering Kernel netlink reflector");
 		thread_add_read(master, kernel_netlink, NULL, nl_kernel.fd,
 				NETLINK_TIMER);
-	}
+	} else
+		syslog(LOG_INFO, "Error while registering Kernel netlink reflector channel");
+
+	/* Prepare netlink command channel. */
+	netlink_socket(&nl_cmd, 0);
+	if (nl_cmd.fd > 0)
+		syslog(LOG_INFO, "Registering Kernel netlink comand channel");
+	else
+		syslog(LOG_INFO, "Error while registering Kernel netlink cmd channel");
 }

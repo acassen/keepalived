@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -32,12 +32,15 @@
 #include "ipvswrapper.h"
 #include "vrrp.h"
 #include "vrrp_data.h"
+#include "vrrp_sync.h"
+#include "vrrp_index.h"
 #include "memory.h"
 #include "list.h"
 
 /* extern global vars */
 extern vrrp_conf_data *vrrp_data;
 extern vrrp_conf_data *old_vrrp_data;
+extern unsigned int debug;
 
 /* compute checksum */
 static u_short
@@ -76,9 +79,10 @@ in_csum(u_short * addr, int len, u_short csum)
 static int
 vrrp_handle_ipaddress(vrrp_rt * vrrp, int cmd, int type)
 {
-	syslog(LOG_INFO, "VRRP_Instance(%s) %s protocol %s", vrrp->iname,
-	       (cmd == IPADDRESS_ADD) ? "setting" : "removing",
-	       (type == VRRP_VIP_TYPE) ? "VIPs." : "E-VIPs");
+	if (debug & 32)
+		syslog(LOG_INFO, "VRRP_Instance(%s) %s protocol %s", vrrp->iname,
+		       (cmd == IPADDRESS_ADD) ? "setting" : "removing",
+		       (type == VRRP_VIP_TYPE) ? "VIPs." : "E-VIPs.");
 	netlink_iplist_ipv4((type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip
 			    , cmd);
 	return 1;
@@ -88,9 +92,10 @@ vrrp_handle_ipaddress(vrrp_rt * vrrp, int cmd, int type)
 static int
 vrrp_handle_iproutes(vrrp_rt * vrrp, int cmd)
 {
-	syslog(LOG_INFO, "VRRP_Instance(%s) %s protocol Virtual Routes",
-	       vrrp->iname,
-	       (cmd == IPROUTE_ADD) ? "setting" : "removing");
+	if (debug & 32)
+		syslog(LOG_INFO, "VRRP_Instance(%s) %s protocol Virtual Routes",
+		       vrrp->iname,
+		       (cmd == IPROUTE_ADD) ? "setting" : "removing");
 	netlink_rtlist_ipv4(vrrp->vroutes, cmd);
 	return 1;
 }
@@ -113,9 +118,9 @@ vrrp_ipsecah_len(void)
 static int
 vrrp_hd_len(vrrp_rt * vrrp)
 {
-	return sizeof (vrrp_pkt)
-	    + LIST_SIZE(vrrp->vip) * sizeof (uint32_t)
-	    + VRRP_AUTH_LEN;
+	int len = sizeof (vrrp_pkt) + VRRP_AUTH_LEN;
+        return (!LIST_ISEMPTY(vrrp->vip)) ?
+		len + LIST_SIZE(vrrp->vip) * sizeof (uint32_t) : len;
 }
 
 /*
@@ -286,17 +291,17 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 		return VRRP_PACKET_DROP;
 	}
 
-	/*
-	 * MAY verify that the IP address(es) associated with the
-	 * VRID are valid
-	 */
-	if (hd->naddr != LIST_SIZE(vrrp->vip)) {
-		syslog(LOG_INFO,
-		       "receive an invalid ip number count associated with VRID!");
-		return VRRP_PACKET_KO;
-	}
+	if (!LIST_ISEMPTY(vrrp->vip)) {
+		/*
+		 * MAY verify that the IP address(es) associated with the
+		 * VRID are valid
+		 */
+		if (hd->naddr != LIST_SIZE(vrrp->vip)) {
+			syslog(LOG_INFO,
+			       "receive an invalid ip number count associated with VRID!");
+			return VRRP_PACKET_KO;
+		}
 
-	if (!LIST_ISEMPTY(vrrp->vip))
 		for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 			ipaddress = ELEMENT_DATA(e);
 			if (!vrrp_in_chk_vips(vrrp, ipaddress->addr, vips)) {
@@ -309,6 +314,11 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 				return VRRP_PACKET_KO;
 			}
 		}
+	} else if (hd->naddr > 0) {
+		syslog(LOG_INFO,
+		       "receive an invalid ip number count associated with VRID!");
+		return VRRP_PACKET_KO;
+	}
 
 	/*
 	 * MUST verify that the Adver Interval in the packet is the same as
@@ -456,7 +466,7 @@ vrrp_build_vrrp(vrrp_rt * vrrp, int prio, char *buffer, int buflen)
 	hd->vers_type = (VRRP_VERSION << 4) | VRRP_PKT_ADVERT;
 	hd->vrid = vrrp->vrid;
 	hd->priority = prio;
-	hd->naddr = LIST_SIZE(vrrp->vip);
+	hd->naddr = (!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) : 0;
 	hd->auth_type = vrrp->auth_type;
 	hd->adver_int = vrrp->adver_int / TIMER_HZ;
 
@@ -469,7 +479,8 @@ vrrp_build_vrrp(vrrp_rt * vrrp, int prio, char *buffer, int buflen)
 
 	/* copy the passwd if the authentication is VRRP_AH_PASS */
 	if (vrrp->auth_type == VRRP_AUTH_PASS) {
-		char *pw = (char *) hd + sizeof (*hd) + LIST_SIZE(vrrp->vip) * 4;
+		int vip_count = (!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) : 0;
+		char *pw = (char *) hd + sizeof (*hd) + vip_count * 4;
 		memcpy(pw, vrrp->auth_data, sizeof (vrrp->auth_data));
 	}
 
@@ -481,50 +492,47 @@ vrrp_build_vrrp(vrrp_rt * vrrp, int prio, char *buffer, int buflen)
 
 /* build VRRP packet */
 static void
-vrrp_build_pkt(vrrp_rt * vrrp, int prio, char *buffer, int buflen)
+vrrp_build_pkt(vrrp_rt * vrrp, int prio)
 {
 	char *bufptr;
+	int len;
 
-	bufptr = buffer;
+	/* save reference values */
+	bufptr = VRRP_SEND_BUFFER(vrrp);
+	len = VRRP_SEND_BUFFER_SIZE(vrrp);
 
 	/* build the ip header */
-	vrrp_build_ip(vrrp, buffer, buflen);
+	vrrp_build_ip(vrrp, VRRP_SEND_BUFFER(vrrp), VRRP_SEND_BUFFER_SIZE(vrrp));
 
 	/* build the vrrp header */
-	buffer += vrrp_iphdr_len(vrrp);
+	vrrp->send_buffer += vrrp_iphdr_len(vrrp);
 
 	if (vrrp->auth_type == VRRP_AUTH_AH)
-		buffer += vrrp_ipsecah_len();
-	buflen -= vrrp_iphdr_len(vrrp);
+		vrrp->send_buffer += vrrp_ipsecah_len();
+	vrrp->send_buffer_size -= vrrp_iphdr_len(vrrp);
 
 	if (vrrp->auth_type == VRRP_AUTH_AH)
-		buflen -= vrrp_ipsecah_len();
-	vrrp_build_vrrp(vrrp, prio, buffer, buflen);
+		vrrp->send_buffer_size -= vrrp_ipsecah_len();
+	vrrp_build_vrrp(vrrp, prio, vrrp->send_buffer, vrrp->send_buffer_size);
 
 	/* build the IPSEC AH header */
 	if (vrrp->auth_type == VRRP_AUTH_AH) {
-		buflen += vrrp_iphdr_len(vrrp) + vrrp_ipsecah_len();
-		vrrp_build_ipsecah(vrrp, bufptr, buflen);
+		vrrp->send_buffer_size += vrrp_iphdr_len(vrrp) + vrrp_ipsecah_len();
+		vrrp_build_ipsecah(vrrp, bufptr, VRRP_SEND_BUFFER_SIZE(vrrp));
 	}
+
+	/* restore reference values */
+	vrrp->send_buffer = bufptr;
+	vrrp->send_buffer_size = len;
 }
 
 /* send VRRP packet */
 static int
-vrrp_send_pkt(vrrp_rt * vrrp, char *buffer, int buflen)
+vrrp_send_pkt(vrrp_rt * vrrp)
 {
 	struct sockaddr_in dst;
 	struct msghdr msg;
 	struct iovec iov;
-	int fd;
-	int ret;
-
-	/* Create and init socket descriptor */
-	fd = socket(AF_INET
-		    , SOCK_RAW
-	    	    , (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH : IPPROTO_VRRP);
-	if_setsockopt_hdrincl(fd);
-	if_setsockopt_bindtodevice(fd, vrrp->ifp);
-	if_setsockopt_mcast_loop(fd);
 
 	/* Sending path */
 	memset(&dst, 0, sizeof(dst));
@@ -538,39 +546,38 @@ vrrp_send_pkt(vrrp_rt * vrrp, char *buffer, int buflen)
 	msg.msg_namelen = sizeof(dst);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
-	iov.iov_base = buffer;
-	iov.iov_len = buflen;
+	iov.iov_base = VRRP_SEND_BUFFER(vrrp);
+	iov.iov_len = VRRP_SEND_BUFFER_SIZE(vrrp);
 
 	/* Send the packet */
-	ret = sendmsg(fd, &msg, MSG_DONTROUTE);
+	return sendmsg(vrrp->fd_out, &msg, MSG_DONTROUTE);
+}
 
-	close(fd);
-	return 0;
+/* Allocate the sending buffer */
+static void
+vrrp_alloc_send_buffer(vrrp_rt * vrrp)
+{
+	vrrp->send_buffer_size = vrrp_iphdr_len(vrrp) + vrrp_hd_len(vrrp);
+	if (vrrp->auth_type == VRRP_AUTH_AH)
+		vrrp->send_buffer_size += vrrp_ipsecah_len();
+	vrrp->send_buffer = MALLOC(VRRP_SEND_BUFFER_SIZE(vrrp));
 }
 
 /* send VRRP advertissement */
 int
 vrrp_send_adv(vrrp_rt * vrrp, int prio)
 {
-	int buflen, ret;
-	char *buffer;
+	/* alloc send buffer */
+	if (!vrrp->send_buffer)
+		vrrp_alloc_send_buffer(vrrp);
+	else
+		memset(vrrp->send_buffer, 0, VRRP_SEND_BUFFER_SIZE(vrrp));
 
-	/* alloc the memory */
-	buflen = vrrp_iphdr_len(vrrp) + vrrp_hd_len(vrrp);
-	if (vrrp->auth_type == VRRP_AUTH_AH)
-		buflen += vrrp_ipsecah_len();
-
-	buffer = MALLOC(buflen);
-
-	/* build the packet  */
-	vrrp_build_pkt(vrrp, prio, buffer, buflen);
+	/* build the packet */
+	vrrp_build_pkt(vrrp, prio);
 
 	/* send it */
-	ret = vrrp_send_pkt(vrrp, buffer, buflen);
-
-	/* free the memory */
-	FREE(buffer);
-	return ret;
+	return vrrp_send_pkt(vrrp);
 }
 
 /* Received packet processing */
@@ -609,19 +616,20 @@ vrrp_send_gratuitous_arp(vrrp_rt * vrrp)
 		return;
 
 	/* send gratuitous arp for each virtual ip */
-	syslog(LOG_INFO, "VRRP_Instance(%s) Sending gratuitous ARP on %s",
-	       vrrp->iname, IF_NAME(vrrp->ifp));
+	if (debug & 32)
+		syslog(LOG_INFO, "VRRP_Instance(%s) Sending gratuitous ARP on %s",
+		       vrrp->iname, IF_NAME(vrrp->ifp));
 
 	for (j = 0; j < 5; j++) {
 		if (!LIST_ISEMPTY(vrrp->vip))
 			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 				ipaddress = ELEMENT_DATA(e);
-				send_gratuitous_arp(vrrp, ipaddress->addr);
+				send_gratuitous_arp(ipaddress);
 			}
 		if (!LIST_ISEMPTY(vrrp->evip))
 			for (e = LIST_HEAD(vrrp->evip); e; ELEMENT_NEXT(e)) {
 				ipaddress = ELEMENT_DATA(e);
-				send_gratuitous_arp(vrrp, ipaddress->addr);
+				send_gratuitous_arp(ipaddress);
 			}
 	}
 }
@@ -918,7 +926,34 @@ chk_min_cfg(vrrp_rt * vrrp)
 	return 1;
 }
 
-/* open the socket and join the multicast group. */
+/* open a VRRP sending socket */
+int
+open_vrrp_send_socket(const int proto, const int index)
+{
+	interface *ifp;
+	int fd = -1;
+
+	/* Retreive interface */
+	ifp = if_get_by_ifindex(index);
+
+	/* Create and init socket descriptor */
+	fd = socket(AF_INET, SOCK_RAW, proto);
+	if (fd < 0) {
+		int err = errno;
+		syslog(LOG_INFO, "cant open raw socket. errno=%d",
+		       err);
+		return -1;
+	}
+
+	/* Set fd */
+	if_setsockopt_hdrincl(fd);
+	if_setsockopt_bindtodevice(fd, ifp);
+	if_setsockopt_mcast_loop(fd);
+
+	return fd;
+}
+
+/* open a VRRP socket and join the multicast group. */
 int
 open_vrrp_socket(const int proto, const int index)
 {
@@ -936,8 +971,7 @@ open_vrrp_socket(const int proto, const int index)
 	fd = socket(AF_INET, SOCK_RAW, proto);
 	if (fd < 0) {
 		int err = errno;
-		syslog(LOG_INFO,
-		       "cant open raw socket. errno=%d. (try to run it as root)",
+		syslog(LOG_INFO, "cant open raw socket. errno=%d",
 		       err);
 		return -1;
 	}
@@ -954,33 +988,28 @@ open_vrrp_socket(const int proto, const int index)
 void
 close_vrrp_socket(vrrp_rt * vrrp)
 {
-	if_leave_vrrp_group(vrrp->fd, vrrp->ifp);
+	if_leave_vrrp_group(vrrp->fd_in, vrrp->ifp);
+	close(vrrp->fd_out);
 }
 
 int
 new_vrrp_socket(vrrp_rt * vrrp)
 {
-	int old_fd = vrrp->fd;
-	list p = vrrp_data->vrrp;
-	vrrp_rt *vrrp_ptr;
-	element e;
+	int old_fd = vrrp->fd_in;
+	int proto;
 
 	/* close the desc & open a new one */
 	close_vrrp_socket(vrrp);
-	if (vrrp->auth_type == VRRP_AUTH_AH)
-		vrrp->fd =
-		    open_vrrp_socket(IPPROTO_IPSEC_AH, IF_INDEX(vrrp->ifp));
-	else
-		vrrp->fd = open_vrrp_socket(IPPROTO_VRRP, IF_INDEX(vrrp->ifp));
+	remove_vrrp_fd_bucket(vrrp);
+	proto = (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH : IPPROTO_VRRP;
+	vrrp->fd_in = open_vrrp_socket(proto, IF_INDEX(vrrp->ifp));
+	vrrp->fd_out = open_vrrp_send_socket(proto, IF_INDEX(vrrp->ifp));
+	alloc_vrrp_fd_bucket(vrrp);
 
 	/* Sync the other desc */
-	for (e = LIST_HEAD(p); e; ELEMENT_NEXT(e)) {
-		vrrp_ptr = ELEMENT_DATA(e);
-		if (vrrp_ptr->fd == old_fd)
-			vrrp_ptr->fd = vrrp->fd;
-	}
+	set_vrrp_fd_bucket(old_fd, vrrp);
 
-	return vrrp->fd;
+	return vrrp->fd_in;
 }
 
 /* handle terminate state */
@@ -1024,15 +1053,26 @@ vrrp_complete_instance(vrrp_rt * vrrp)
 int
 vrrp_complete_init(void)
 {
-	list l = vrrp_data->vrrp;
+	list l;
 	element e;
 	vrrp_rt *vrrp;
+	vrrp_sgroup *sgroup;
 
+	/* Complete VRRP instance initialization */
+	l = vrrp_data->vrrp;
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 		if (!vrrp_complete_instance(vrrp))
 			return 0;
 	}
+
+	/* Build synchronization group index */
+	l = vrrp_data->vrrp_sync_group;
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		sgroup = ELEMENT_DATA(e);
+		vrrp_sync_set_group(sgroup);
+	}
+
 	return 1;
 }
 

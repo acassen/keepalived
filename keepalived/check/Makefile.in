@@ -1,21 +1,20 @@
-# Generated automatically from Makefile.in by configure.
 # Makefile
 #
 # Keepalived OpenSource project.
 #
 # Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
 
-KERNEL   = _KRNL_2_4_
-CC	 = gcc
-CI_LINUX = 
+KERNEL   = @KERN@
+CC	 = @CC@
+CI_LINUX = @CI_LINUX@
 ifeq ($(CI_LINUX),_WITH_CI_LINUX_)
 CI_LINUX_OBJ = check_ci.o
 CIFLAGS = -D$(CI_LINUX)
 endif
 INCLUDES = -I../include -I../../lib
-CFLAGS	 = -g -O2 -I/usr/src/linux/include $(INCLUDES) \
+CFLAGS	 = @CFLAGS@ $(INCLUDES) \
 	   -Wall -Wunused -Wstrict-prototypes
-DEFS	 = -D$(KERNEL) -D_WITH_LVS_ -D_HAVE_IPVS_SYNCD_ -D_WITH_VRRP_  $(CIFLAGS)
+DEFS	 = -D$(KERNEL) -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_SUPPORT@ @DFLAGS@ $(CIFLAGS)
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
 OBJS = 	check_daemon.o check_data.o check_parser.o \
@@ -44,7 +43,8 @@ check_daemon.o: check_daemon.c ../include/check_daemon.h \
   ../include/check_parser.h ../include/check_data.h ../include/check_api.h \
   ../include/global_data.h ../include/ipwrapper.h ../include/pidfile.h \
   ../include/daemon.h ../../lib/list.h ../../lib/memory.h \
-  ../../lib/parser.h ../../lib/watchdog.h
+  ../../lib/parser.h ../../lib/watchdog.h ../include/vrrp_netlink.h \
+  ../include/vrrp_if.h
 check_data.o: check_data.c ../include/check_data.h \
   ../include/check_api.h ../../lib/memory.h ../../lib/utils.h
 check_parser.o: check_parser.c ../include/check_parser.h \

@@ -5,7 +5,7 @@
  *
  * Part:        ARP primitives.
  *
- * Version:     $Id: vrrp_arp.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: vrrp_arp.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -28,38 +28,54 @@
 #include "memory.h"
 #include "utils.h"
 
-/* Send the gratuitous ARP message */
-static int send_arp(vrrp_rt *vrrp, char *buffer, int buflen)
+/* Make shared socket */
+void gratuitous_arp_init(void)
 {
-	int fd;
-	int len;
-	struct sockaddr_ll sll;
+	/* Initalize shared buffer */
+	garp_buffer = (char *)MALLOC(sizeof(m_arphdr) + ETHER_HDR_LEN);
 
 	/* Create the socket descriptor */
-	fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_RARP));
+	garp_fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_RARP));
+
+	if (garp_fd > 0)
+		syslog(LOG_INFO, "Registering gratutious ARP shared channel");
+	else
+		syslog(LOG_INFO, "Error while registering gratutious ARP shared channel");
+}
+void gratuitous_arp_close(void)
+{
+	FREE(garp_buffer);
+	close(garp_fd);
+}
+
+/* Send the gratuitous ARP message */
+static int send_arp(ip_address *ipaddress)
+{
+	struct sockaddr_ll sll;
+	int len;
 
 	/* Build the dst device */
 	memset(&sll, 0, sizeof(sll));
 	sll.sll_family = AF_PACKET;
-	strncpy(sll.sll_addr, IF_HWADDR(vrrp->ifp), sizeof(sll.sll_addr));
+	strncpy(sll.sll_addr, IF_HWADDR(ipaddress->ifp), sizeof(sll.sll_addr));
 	sll.sll_halen = ETHERNET_HW_LEN;
-	sll.sll_ifindex = IF_INDEX(vrrp->ifp);
+	sll.sll_ifindex = IF_INDEX(ipaddress->ifp);
 
 	/* Send packet */
-	len = sendto(fd, buffer, buflen, 0,(struct sockaddr *)&sll, sizeof(sll));
-
-	close(fd);
+	len = sendto(garp_fd, garp_buffer, sizeof(m_arphdr) + ETHER_HDR_LEN
+		     , 0, (struct sockaddr *)&sll, sizeof(sll));
+	if (len < 0)
+		syslog(LOG_INFO, "Error sending gratutious ARP on %s for %s"
+		       , IF_NAME(ipaddress->ifp), inet_ntop2(ipaddress->addr));
 	return len;
 }
 
 /* Build a gratuitous ARP message over a specific interface */
-int send_gratuitous_arp(vrrp_rt * vrrp, int addr)
+int send_gratuitous_arp(ip_address *ipaddress)
 {
-	char buflen			= sizeof(m_arphdr) + ETHER_HDR_LEN;
-	char *buf			= (char *)MALLOC(buflen);
-	struct ether_header *eth	= (struct ether_header *) buf;
-	m_arphdr *arph			= (m_arphdr *) (buf + ETHER_HDR_LEN);
-	char *hwaddr			= IF_HWADDR(vrrp->ifp);
+	struct ether_header *eth = (struct ether_header *) garp_buffer;
+	m_arphdr *arph		 = (m_arphdr *) (garp_buffer + ETHER_HDR_LEN);
+	char *hwaddr		 = IF_HWADDR(ipaddress->ifp);
 	int len;
 
 	/* Ethernet header */
@@ -74,12 +90,13 @@ int send_gratuitous_arp(vrrp_rt * vrrp, int addr)
 	arph->ar_pln = IPPROTO_ADDR_LEN;
 	arph->ar_op = htons(ARPOP_REQUEST);
 	memcpy(arph->__ar_sha, hwaddr, ETH_ALEN);
-	memcpy(arph->__ar_sip, &addr, sizeof (addr));
-	memcpy(arph->__ar_tip, &addr, sizeof (addr));
+	memcpy(arph->__ar_sip, &ipaddress->addr, sizeof (ipaddress->addr));
+	memcpy(arph->__ar_tip, &ipaddress->addr, sizeof (ipaddress->addr));
 
 	/* Send the ARP message */
-	len = send_arp(vrrp, buf, buflen);
+	len = send_arp(ipaddress);
 
-	FREE(buf);
+	/* Cleanup room for next round */
+	memset(garp_buffer, 0, sizeof(m_arphdr) + ETHER_HDR_LEN);
 	return len;
 }

@@ -17,6 +17,12 @@ debug:
 	@echo ""
 	@echo "Make complete"
 
+profile:
+	$(MAKE) -C lib || exit 1;
+	$(MAKE) -C keepalived profile
+	@echo ""
+	@echo "Make complete"
+
 clean:
 	$(MAKE) -C lib clean
 	$(MAKE) -C keepalived clean

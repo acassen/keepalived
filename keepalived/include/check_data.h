@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckers dynamic data structure definition.
  *
- * Version:     $Id: check_data.h,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: check_data.h,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -76,6 +76,7 @@ typedef struct _real_server {
 	char *notify_up;	/* Script to launch when RS is added to LVS */
 	char *notify_down;	/* Script to launch when RS is removed from LVS */
 	int alive;
+	int set;		/* in the IPVS table */
 } real_server;
 
 /* Virtual Server group definition */
@@ -101,7 +102,7 @@ typedef struct _virtual_server {
 	uint16_t addr_port;
 	uint32_t vfwmark;
 	uint16_t service_type;
-	int delay_loop;
+	long delay_loop;
 	int ha_suspend;
 	char sched[SCHED_MAX_LENGTH];
 	char timeout_persistence[MAX_TIMEOUT_LENGTH];

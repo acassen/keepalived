@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: main.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -80,9 +80,31 @@ xdaemon(int nochdir, int noclose, int exitflag)
  * stuck waiting child termination.
  */
 void
-sigchld(int sig)
+dummy_handler(int sig)
 {
-	while (waitpid(-1, NULL, WNOHANG) > 0);
+	/* Dummy */
+}
+
+void
+signal_noignore_sigchld(void)
+{
+	struct sigaction sa;
+	sigset_t mask;
+
+	/* Need to remove the NOCHLD flag */
+	sigemptyset(&mask);
+	sa.sa_handler = dummy_handler;
+	sa.sa_mask = mask;
+	sa.sa_flags = 0;
+
+	sigaction(SIGCHLD, &sa, NULL);
+
+	/* Block SIGCHLD so that we only receive it
+	 * when required (ie when its unblocked in the
+	 * select loop)
+	 */
+	sigaddset(&mask, SIGCHLD);
+	sigprocmask(SIG_BLOCK, &mask, NULL);
 }
 
 /* Signal wrapper */

@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -28,6 +28,7 @@
 #include "vrrp_notify.h"
 #include "vrrp_netlink.h"
 #include "vrrp_data.h"
+#include "vrrp_index.h"
 #include "ipvswrapper.h"
 #include "memory.h"
 #include "list.h"
@@ -36,6 +37,7 @@
 /* Externals vars */
 extern thread_master *master;
 extern vrrp_conf_data *vrrp_data;
+extern unsigned int debug;
 
 /* VRRP FSM (Finite State Machine) design.
  *
@@ -153,10 +155,8 @@ static void vrrp_log_int_down(vrrp_rt *vrrp)
 	if (!IF_ISUP(vrrp->ifp))
 		syslog(LOG_INFO, "Kernel is reporting: interface %s DOWN",
 		       IF_NAME(vrrp->ifp));
-	if (vrrp->track_ifp)
-		if (!IF_ISUP(vrrp->track_ifp))
-			syslog(LOG_INFO, "Kernel is reporting: interface %s DOWN",
-			       IF_NAME(vrrp->track_ifp));
+	if (!LIST_ISEMPTY(vrrp->track_ifp))
+		vrrp_log_tracked_down(vrrp->track_ifp);
 }
 
 static void vrrp_log_int_up(vrrp_rt *vrrp)
@@ -164,10 +164,8 @@ static void vrrp_log_int_up(vrrp_rt *vrrp)
 	if (IF_ISUP(vrrp->ifp))
 		syslog(LOG_INFO, "Kernel is reporting: interface %s UP",
 		       IF_NAME(vrrp->ifp));
-	if (vrrp->track_ifp)
-		if (IF_ISUP(vrrp->track_ifp))
-			syslog(LOG_INFO, "Kernel is reporting: interface %s UP",
-			       IF_NAME(vrrp->track_ifp));
+	if (!LIST_ISEMPTY(vrrp->track_ifp))
+		syslog(LOG_INFO, "Kernel is reporting: tracked interface are UP");
 }
 
 /*
@@ -225,20 +223,17 @@ static TIMEVAL
 vrrp_compute_timer(const int fd)
 {
 	vrrp_rt *vrrp;
-	TIMEVAL timer;
 	element e;
-	list l = vrrp_data->vrrp;
+	list l = &vrrp_data->vrrp_index_fd[fd%1024 + 1];
+	TIMEVAL timer;
 
-	/* clean the memory */
+	/* Multiple instances on the same interface */
 	TIMER_RESET(timer);
-
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-		if (vrrp->fd == fd) {
-			if (timer_cmp(vrrp->sands, timer) < 0 ||
-			    TIMER_ISNULL(timer))
-				timer = timer_dup(vrrp->sands);
-		}
+		if (timer_cmp(vrrp->sands, timer) < 0 ||
+		    TIMER_ISNULL(timer))
+			timer = timer_dup(vrrp->sands);
 	}
 
 	return timer;
@@ -260,19 +255,20 @@ static int
 vrrp_timer_vrid_timeout(const int fd)
 {
 	vrrp_rt *vrrp;
-	list l = vrrp_data->vrrp;
 	element e;
-	TIMEVAL vrrp_timer;
+	list l = &vrrp_data->vrrp_index_fd[fd%1024 + 1];
+	TIMEVAL timer;
 	int vrid = 0;
 
-	/* clean the memory */
-	memset(&vrrp_timer, 0, sizeof (struct timeval));
-	vrrp_timer = vrrp_compute_timer(fd);
-
+	/* Multiple instances on the same interface */
+	TIMER_RESET(timer);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-		if (timer_cmp(vrrp->sands, vrrp_timer) == 0)
+		if (timer_cmp(vrrp->sands, timer) < 0 ||
+		    TIMER_ISNULL(timer)) {
+			timer = timer_dup(vrrp->sands);
 			vrid = vrrp->vrid;
+		}
 	}
 	return vrid;
 }
@@ -299,15 +295,15 @@ vrrp_register_workers(list l)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		sock = ELEMENT_DATA(e);
 		/* jump to asynchronous handling */
-		vrrp_timer = vrrp_timer_fd(sock->fd);
+		vrrp_timer = vrrp_timer_fd(sock->fd_in);
 
 		/* Register a timer thread if interface is shut */
-		if (sock->fd == -1)
+		if (sock->fd_in == -1)
 			thread_add_timer(master, vrrp_read_dispatcher_thread,
 					 (int *)THREAD_TIMER, vrrp_timer);
 		else
 			thread_add_read(master, vrrp_read_dispatcher_thread,
-					NULL, sock->fd, vrrp_timer);
+					NULL, sock->fd_in, vrrp_timer);
 	}
 }
 
@@ -337,10 +333,11 @@ void
 dump_sock(void *data)
 {
 	sock *sock = data;
-	syslog(LOG_INFO, "VRRP sockpool: [ifindex(%d), proto(%d), fd(%d)]",
+	syslog(LOG_INFO, "VRRP sockpool: [ifindex(%d), proto(%d), fd(%d,%d)]",
 	       sock->ifindex
 	       , sock->proto
-	       , sock->fd);
+	       , sock->fd_in
+	       , sock->fd_out);
 }
 
 void
@@ -386,7 +383,12 @@ vrrp_open_sockpool(list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		sock = ELEMENT_DATA(e);
-		sock->fd = open_vrrp_socket(sock->proto, sock->ifindex);
+		sock->fd_in = open_vrrp_socket(sock->proto, sock->ifindex);
+		if (sock->fd_in == -1)
+			sock->fd_out = -1;
+		else
+			sock->fd_out = open_vrrp_send_socket(sock->proto,
+							     sock->ifindex);
 	}
 }
 
@@ -410,8 +412,13 @@ vrrp_set_fds(list l)
 				proto = IPPROTO_VRRP;
 
 			if ((sock->ifindex == IF_INDEX(vrrp->ifp)) &&
-			    (sock->proto == proto))
-				vrrp->fd = sock->fd;
+			    (sock->proto == proto)) {
+				vrrp->fd_in = sock->fd_in;
+				vrrp->fd_out = sock->fd_out;
+
+				/* append to hash index */
+				alloc_vrrp_fd_bucket(vrrp);
+			}
 		}
 	}
 }
@@ -451,25 +458,11 @@ vrrp_dispatcher_init(thread * thread)
 	vrrp_register_workers(pool);
 
 	/* cleanup the temp socket pool */
-	dump_list(pool);
+	if (debug & 32)
+		dump_list(pool);
 	free_list(pool);
 
 	return 1;
-}
-
-static vrrp_rt *
-vrrp_search_instance(const int vrid)
-{
-	vrrp_rt *vrrp;
-	list l = vrrp_data->vrrp;
-	element e;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-		if (vrrp->vrid == vrid)
-			return vrrp;
-	}
-	return NULL;
 }
 
 static void
@@ -703,7 +696,7 @@ vrrp_dispatcher_read_to(int fd)
 
 	/* Searching for matching instance */
 	vrid = vrrp_timer_vrid_timeout(fd);
-	vrrp = vrrp_search_instance(vrid);
+	vrrp = vrrp_index_lookup(vrid, fd);
 
 	/* Run the FSM handler */
 	prev_state = vrrp->state;
@@ -722,7 +715,7 @@ vrrp_dispatcher_read_to(int fd)
 	 * compute new sands timer safely.
 	 */
 	vrrp_init_instance_sands(vrrp);
-	return vrrp->fd;
+	return vrrp->fd_in;
 }
 
 /* Handle dispatcher read packet */
@@ -730,14 +723,13 @@ static int
 vrrp_dispatcher_read(int fd)
 {
 	vrrp_rt *vrrp;
-	char *vrrp_buffer;
 	struct iphdr *iph;
 	vrrp_pkt *hd;
 	int len = 0;
 	int prev_state = 0;
 
-	/* allocate & clean the read buffer */
-	vrrp_buffer = (char *) MALLOC(VRRP_PACKET_TEMP_LEN);
+	/* Clean the read buffer */
+	memset(vrrp_buffer, 0, VRRP_PACKET_TEMP_LEN);
 
 	/* read & affect received buffer */
 	len = read(fd, vrrp_buffer, VRRP_PACKET_TEMP_LEN);
@@ -750,13 +742,11 @@ vrrp_dispatcher_read(int fd)
 	/* GCC bug : end */
 
 	/* Searching for matching instance */
-	vrrp = vrrp_search_instance(hd->vrid);
+	vrrp = vrrp_index_lookup(hd->vrid, fd);
 
 	/* If no instance found => ignore the advert */
-	if (!vrrp) {
-		FREE(vrrp_buffer);
+	if (!vrrp)
 		return fd;
-	}
 
 	/* Run the FSM handler */
 	prev_state = vrrp->state;
@@ -776,8 +766,6 @@ vrrp_dispatcher_read(int fd)
 	 */
 	vrrp_init_instance_sands(vrrp);
 
-	/* cleanup the room */
-	FREE(vrrp_buffer);
 	return fd;
 }
 

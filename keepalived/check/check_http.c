@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: check_http.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -280,7 +280,7 @@ epilog(thread * thread, int method, int t, int c)
 	http_arg *http_arg = HTTP_ARG(http_get_check);
 	REQ *req = HTTP_REQ(http_arg);
 	uint16_t addr_port = get_service_port(checker);
-	int delay = 0;
+	long delay = 0;
 
 	if (method) {
 		http_arg->url_it += t ? t : -http_arg->url_it;

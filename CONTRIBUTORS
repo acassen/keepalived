@@ -1,1 +1,11 @@
-Jan Holmberg, <jan@artech.net>
+Jan Holmberg, <jan@artech.net> :
+	o Memory framework
+	o HTTP/SSL checkers
+
+Bradley Baetz, <bradley.baetz@optusnet.com.au> :
+	o MISC checker redesign
+	o Scheduler framework extension to support
+	  child process handling.
+	o Daemon framework extension to block SIGCHLD
+	  to only receive it when its unblocked in the
+	  scheduling select loop.

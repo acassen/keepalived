@@ -14,7 +14,10 @@ static_route {
 vrrp_instance VI_1 {
     state MASTER
     interface eth0.1		# Vlaned interface
-    track_interface eth0	# Interface state we monitor
+    track_interface {		# Interface state we monitor
+      eth0
+      eth1
+    }
     virtual_router_id 51
     priority 100
     virtual_ipaddress {

@@ -5,7 +5,7 @@
  *
  * Part:        Checkers registration.
  *
- * Version:     $Id: check_api.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: check_api.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -35,6 +35,7 @@
 /* External vars */
 extern thread_master *master;
 extern check_conf_data *check_data;
+extern unsigned int debug;
 
 /* free checker data */
 static void
@@ -130,8 +131,9 @@ update_checker_activity(uint32_t address, int enable)
 	element e;
 
 	/* Display netlink operation */
-	syslog(LOG_INFO, "Netlink reflector reports IP %s %s",
-	       inet_ntop2(address), (enable) ? "added" : "removed");
+	if (debug & 32)
+		syslog(LOG_INFO, "Netlink reflector reports IP %s %s",
+		       inet_ntop2(address), (enable) ? "added" : "removed");
 
 	/* Processing Healthcheckers queue */
 	if (!LIST_ISEMPTY(checkers_queue))

@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: vrrp.h,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -32,6 +32,7 @@
 #include "vrrp_iproute.h"
 #include "vrrp_ipsecah.h"
 #include "vrrp_if.h"
+#include "vrrp_track.h"
 #include "timer.h"
 #include "utils.h"
 #include "vector.h"
@@ -72,6 +73,7 @@ typedef struct {		/* rfc2338.5.1 */
 typedef struct _vrrp_sgroup {
 	char *gname;		/* Group name */
 	vector iname;		/* Set of VRRP instances in this group */
+	list index;		/* List of VRRP instances */
 	int state;		/* current stable state */
 
 	/* State transition notification */
@@ -85,9 +87,9 @@ typedef struct _vrrp_sgroup {
 /* parameters per virtual router -- rfc2338.6.1.2 */
 typedef struct _vrrp_rt {
 	char *iname;		/* Instance Name */
-	vrrp_sgroup *sync;
+	vrrp_sgroup *sync;	/* Sync group we belong to */
 	interface *ifp;		/* Interface we belong to */
-	interface *track_ifp;	/* Interface state we monitor */
+	list track_ifp;		/* Interface state we monitor */
 	uint32_t mcast_saddr;	/* Src IP address to use in VRRP IP header */
 	char *lvs_syncd_if;	/* handle LVS sync daemon state using this
 				 * instance FSM & running on specific interface
@@ -108,7 +110,8 @@ typedef struct _vrrp_rt {
 	int state;		/* internal state (init/backup/master) */
 	int init_state;		/* the initial state of the instance */
 	int wantstate;		/* user explicitly wants a state (back/mast) */
-	int fd;			/* the socket descriptor */
+	int fd_in;		/* IN socket descriptor */
+	int fd_out;		/* OUT socket descriptor */
 
 	int debug;		/* Debug level 0-4 */
 
@@ -122,6 +125,10 @@ typedef struct _vrrp_rt {
 	/* rfc2336.6.2 */
 	uint32_t ms_down_timer;
 	struct timeval sands;
+
+	/* Sending buffer */
+	char *send_buffer;	/* Allocated send buffer */
+	int send_buffer_size;
 
 	/* Authentication data */
 	int auth_type;		/* authentification type. VRRP_AUTH_* */
@@ -161,7 +168,7 @@ typedef struct _vrrp_rt {
 
 /* VRRP Packet fixed lenght */
 #define VRRP_MAX_VIP		20
-#define VRRP_PACKET_TEMP_LEN	512
+#define VRRP_PACKET_TEMP_LEN	1024
 #define VRRP_AUTH_LEN		8
 #define VRRP_VIP_TYPE		(1 << 0)
 #define VRRP_EVIP_TYPE		(1 << 1)
@@ -171,8 +178,10 @@ typedef struct _vrrp_rt {
 #define VRRP_IS_BAD_PRIORITY(p)		((p)<1 || (p)>255)	/* rfc2338.6.1.prio */
 #define VRRP_IS_BAD_ADVERT_INT(d) 	((d)<1)
 #define VRRP_IS_BAD_DEBUG_INT(d)	((d)<0 || (d)>4)
+#define VRRP_SEND_BUFFER(V)		((V)->send_buffer)
+#define VRRP_SEND_BUFFER_SIZE(V)	((V)->send_buffer_size)
 
-#define VRRP_TIMER_SKEW(srv)	((256-(srv)->priority)*TIMER_HZ/256)
+#define VRRP_TIMER_SKEW(svr)	((256-(svr)->priority)*TIMER_HZ/256)
 #define VRRP_VIP_ISSET(V)	((V)->vipset)
 
 #define VRRP_MIN(a, b)	((a) < (b)?(a):(b))
@@ -180,9 +189,11 @@ typedef struct _vrrp_rt {
 
 #define VRRP_PKT_SADDR(V) (((V)->mcast_saddr) ? (V)->mcast_saddr : IF_ADDR((V)->ifp))
 
-#define VRRP_ISUP(V)	(IF_ISUP((V)->ifp) & (((V)->track_ifp) ? IF_ISUP((V)->track_ifp) : 1))
+#define VRRP_ISUP(V)	(IF_ISUP((V)->ifp) & \
+			((!LIST_ISEMPTY((V)->track_ifp)) ? TRACK_ISUP((V)->track_ifp) : 1))
 
 /* prototypes */
+extern int open_vrrp_send_socket(const int proto, const int index);
 extern int open_vrrp_socket(const int proto, const int index);
 extern int new_vrrp_socket(vrrp_rt * vrrp);
 extern void close_vrrp_socket(vrrp_rt * vrrp);

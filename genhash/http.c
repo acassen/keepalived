@@ -91,13 +91,16 @@ finalize(thread *thread)
 	unsigned char digest[16];
 	int i;
 
-	printf("\n");
 	/* Compute final MD5 digest */
 	MD5_Final(digest, &sock->context);
-	printf(HTML_MD5);
-	print_buffer(16, digest);
-
-	printf(HTML_MD5_FINAL);
+	if (req->verbose) {
+		printf("\n");
+		printf(HTML_MD5);
+		print_buffer(16, digest);
+	
+		printf(HTML_MD5_FINAL);
+	}
+	printf("MD5SUM = ");
 	for (i = 0; i < 16; i++)
 		printf("%02x", digest[i]);
 	printf("\n\n");
@@ -114,19 +117,22 @@ int http_process_stream(SOCK *sock, int r)
 	sock->total_size += r;
 
 	if (!sock->extracted) {
-		printf(HTTP_HEADER_HEXA);
+		if (req->verbose)
+			printf(HTTP_HEADER_HEXA);
 		if ((sock->extracted =
 		    extract_html(sock->buffer, sock->size))) {
-			print_buffer(sock->extracted - sock->buffer, sock->buffer);
-			printf(HTTP_HEADER_ASCII);
-			for (r = 0; r < sock->extracted - sock->buffer; r++)
-				printf("%c", sock->buffer[r]);
-			printf("\n");
-
-			printf(HTML_HEADER_HEXA);
+			if (req->verbose) {
+				print_buffer(sock->extracted - sock->buffer, sock->buffer);
+				printf(HTTP_HEADER_ASCII);
+				for (r = 0; r < sock->extracted - sock->buffer; r++)
+					printf("%c", sock->buffer[r]);
+				printf("\n");
+				printf(HTML_HEADER_HEXA);
+			}
 			r = sock->size - (sock->extracted - sock->buffer);
 			if (r) {
-				print_buffer(r, sock->extracted);
+				if (req->verbose)
+					print_buffer(r, sock->extracted);
 				memcpy(sock->buffer, sock->extracted, r);
 				MD5_Update(&sock->context, sock->buffer,
 					   r);
@@ -142,7 +148,8 @@ int http_process_stream(SOCK *sock, int r)
 			}
 		}
 	} else if (sock->size) {
-		print_buffer(r, sock->buffer);
+		if (req->verbose)
+			print_buffer(r, sock->buffer);
 		MD5_Update(&sock->context, sock->buffer,
 			   sock->size);
 		sock->size = 0;

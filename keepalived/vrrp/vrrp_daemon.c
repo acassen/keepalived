@@ -5,7 +5,7 @@
  *
  * Part:        VRRP child process handling.
  *
- * Version:     $Id: vrrp_daemon.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: vrrp_daemon.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -23,7 +23,9 @@
 #include "vrrp_daemon.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_if.h"
+#include "vrrp_arp.h"
 #include "vrrp_netlink.h"
+#include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
 #include "vrrp_parser.h"
 #include "vrrp_data.h"
@@ -57,6 +59,7 @@ extern unsigned int debug;
 extern int reload;
 extern pid_t vrrp_child;
 extern char *conf_file;
+extern int wdog_delay_vrrp;
 
 /* Daemon stop sequence */
 static void
@@ -65,12 +68,14 @@ stop_vrrp(void)
 	/* Destroy master thread */
 	thread_destroy_master(master);
 
-	/* Clear static routes */
+	/* Clear static entries */
+	netlink_iplist_ipv4(vrrp_data->static_addresses, IPADDRESS_DEL);
 	netlink_rtlist_ipv4(vrrp_data->static_routes, IPROUTE_DEL);
 
 	if (!(debug & 8))
 		shutdown_vrrp_instances();
 	free_interface_queue();
+	gratuitous_arp_close();
 
 	/* Stop daemon */
 	pidfile_rm(VRRP_PID_FILE);
@@ -102,6 +107,7 @@ start_vrrp(void)
 	init_interface_queue();
 	kernel_netlink_init();
 	if_mii_poller_init();
+	gratuitous_arp_init();
 
 	/* Parse configuration file */
 	data = alloc_global_data();
@@ -112,22 +118,24 @@ start_vrrp(void)
 		return;
 	}
 
-	/* Post initializations */
-	syslog(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
-
 	if (reload) {
+		clear_diff_saddresses();
 		clear_diff_sroutes();
 		clear_diff_vrrp();
 	}
-
-	/* Set static routes */
-	netlink_rtlist_ipv4(vrrp_data->static_routes, IPROUTE_ADD);
 
 	/* Complete VRRP initialization */
 	if (!vrrp_complete_init()) {
 		stop_vrrp();
 		return;
 	}
+
+	/* Post initializations */
+	syslog(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
+
+	/* Set static entries */
+	netlink_iplist_ipv4(vrrp_data->static_addresses, IPADDRESS_ADD);
+	netlink_rtlist_ipv4(vrrp_data->static_routes, IPROUTE_ADD);
 
 	/* Dump configuration */
 	if (debug & 4) {
@@ -152,6 +160,7 @@ reload_vrrp_thread(thread * thread)
 	master = thread_make_master();
 	free_global_data(data);
 	free_interface_queue();
+	gratuitous_arp_close();
 
 	/* Save previous conf data */
 	old_vrrp_data = vrrp_data;
@@ -192,7 +201,7 @@ vrrp_signal_init(void)
 	signal_set(SIGINT, sigend_vrrp);
 	signal_set(SIGTERM, sigend_vrrp);
 	signal_set(SIGKILL, sigend_vrrp);
-	signal_set(SIGCHLD, sigchld);
+	signal_noignore_sigchld();
 }
 
 /* Register VRRP thread */
@@ -215,13 +224,14 @@ start_vrrp_child(void)
 			       , strerror(errno));
 		return -1;
 	} else if (pid) {
+		int poll_delay = (wdog_delay_vrrp) ? wdog_delay_vrrp : WATCHDOG_DELAY;
 		vrrp_child = pid;
 		syslog(LOG_INFO, "Starting VRRP child process, pid=%d"
 			       , pid);
 		/* Connect child watchdog */
 		vrrp_wdog_data.wdog_pid = pid;
 		thread_add_timer(master, wdog_boot_thread, &vrrp_wdog_data,
-				 WATCHDOG_DELAY);
+				 poll_delay);
 		return 0;
 	}
 

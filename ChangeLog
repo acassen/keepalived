@@ -1,3 +1,164 @@
+2003-07-22  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.0 released.
+	* The release focus is : "High Performance"
+	* Name cleanup for the healthchecking directory. use check 
+	  instead of healthcheck to be in conformance with watchdog and 
+	  global software architecture.
+	* updated the SYNOPSIS file for documenting the table arg inside
+	  virtual/static_routes declaration. You can set routes refering
+	  to a specific TABLE-ID.
+	* Added a dummy debug var in the genhash declaration code to
+	  support compilation when compilation is done with debug flag.
+	* Added a set flag inside the real_server declaration correctly
+	  relfect the IPVS topology when inhibit_on_failure is used.
+	* fixed a daemon.h include depandency on signal.h
+	* VRRP : Added support to a global shared buffer for incoming
+	  advert handling. A new buffer is no longer allocated each time
+	  processing incoming advert, instead a shared room is used.
+	* VRRP : Added support to pre-allocated shared buffer for 
+	  outgoing adverts. Each vrrp instance use a 'one time'
+	  allocated buffer instead of a 'all time' one.
+	* VRRP : Extended the socket pool design to support shared fd
+	  for the outbound channel. Now, socket pool create a sending
+	  socket and affect the fd returned to vrrp instances. This
+	  forces instances to use a shared socket instead of creating
+	  new socket for each outgoing adverts. The error detection
+	  is based on the incoming socket, so that outgoing socket is
+	  not created as long as incoming socket can not be created.
+	* Added support to netlink ipaddress as global keyword
+	  "static_ipaddress".
+	  look at doc/samples/keepalived.conf.static_ipaddress.
+	  IP addresses specified into this block will be added during
+	  daemon bootstrap and removed during daemon shutdown. 
+	  Differential conf parsing is enabled for this block, 
+	  removing/adding static_ipaddress can be done on the fly 
+	  sending SIGHUP signal to daemon.
+	* VRRP : Extended track_interface to support multiple interface
+	  tracking. For those familiar with Nokia monitored circuit, 
+	  this extention provide the same functionality.
+	  look at doc/samples/keepalived.conf.track_interface.
+	* VRRP : The VRRP instance lookup framework has been extended
+	  to use a o(1) scheduling design. Rewrote the whole instance
+	  lookup to use o(1) lookup instead of previous o(n^2). When
+	  receiving incoming adverts vrrp_scheduler performs a lookup
+	  over the VRID received to get local instance representation.
+	  Since the internal instance representation is an non-sorted
+	  linked list, then we run a lookup at o(n^2) complexity that
+	  introduce lantency and scheduling jitter side effect when
+	  runing large number of instances. To avoid this limitation
+	  a static hash table of 255 buckets were created. Since
+	  lookup is performed over VRID and since VRID is 8bit fixed,
+	  then the hashkey will be VRID. In order to extend code the
+	  hashkey is based on incoming fd too. Internally, a NIC is
+	  represented by a 2 fds : sending socket and receiving socket.
+	  Those fds are NIC specific so we are using them as a hash
+	  table lookup collision resolver. With this design we can now
+	  use the same VRID on different NICs. The collision design
+	  is a linked list so lookup is o(n^2) but due to low number
+	  of entries we can consider o(1) speed. But to reach best
+	  perf, differents VRID on all instance must be used. The
+	  design can be sumed by :
+
+          VRID hash table :
+
+             +---+---+---+---+---+---+.........+-----+
+             | 1 | 2 | 3 | 4 | 5 | 6 |.........| 255 |
+             +---+---+---+---+---+---+.........+-----+
+                   |       |
+                 +---+   +---+
+                 |fd3|   |fd1|
+                 +---+   +---+
+                           |
+                         +---+
+                         |fd5|
+                         +---+ 
+
+	  This hash table is filled during configuration parsing and
+	  VRRP instances are not duplicated but dynamically pointed
+	  to optimize memory.
+	* VRRP : The VRRP synchronization group lookup has been 
+	  extended. During bootstrap a VRRP instance index is built upon
+	  sync_group instance name. This extension speed up 
+	  synchronization since while synchronizing it perfoms the 
+	  instance index instead of lookup by instance_name. The 
+	  previous synchornization code has been rewritten to use this 
+	  'list visiting' design for FAULT/BACKUP/MASTER states 
+	  synchronization.
+	* VRRP : Optimized the vrrp_timer_vrid_timeout(...) to speed
+	  up vrid lookup over timeouted fd using a one pass lookup.
+	* Bradley Baetz, <bradley.baetz@optusnet.com.au> extended
+	  the scheduler framework to support child process handling.
+	  Adding support to new thread child facility for handling
+	  child processes, and modifying the scheduling select
+	  loop & signal handling to catch SIGCHLD, and call the
+	  appropriate process.
+	* Bradley Baetz, <bradley.baetz@optusnet.com.au> fixed
+	  the misc_check healthchecker using new thread child
+	  scheduling facility. Introduced a new keyword
+	  "misc_timeout" to kill processes which take too long
+	  time (default is delay_loop). SIGKILL is send to processes
+	  if they take too long time to shutdown.
+	* Bradley Baetz, <bradley.baetz@optusnet.com.au> extended
+	  daemon framework to block SIGCHLD to only receive it
+	  whn its unblocked in the scheduling loop.
+	* Extended healthchecker delay_loop to support long
+	  delay (ie: >1000s).
+	* VRRP : Added support to a shared kernel netlink command
+	  channel for setting ip address and routes.
+	* Extended the genhash code to support verbose output
+	  selection. command arg '-v' will generate a very verbose
+	  output.
+	* VRRP : Extended the logging code to select verbose log
+	  output or not. This selection is done by passing the
+	  '-D' option to command line while starting daemon.
+	  By default the output is silent.
+	* VRRP : Extended the gratuitous ARP framework to support
+	  shared buffer and shared socket. This increase performances
+	  for instances owning a bunch of VIP.
+	* VRRP : Extended the scheduling timer computation to support
+	  timer auto-recalibrating. While computing next instance
+	  timer, the scheduler will substract the time taken by
+	  previous advert handling. This provide software overhead
+	  adaptation. The recalibration is performed over usec timer
+	  to not pertube global scheduler.
+	* VRRP : Fixed a gratuitous ARP issue. Extended the
+	  ipaddress framework to point directly to interface
+	  reflected by netlink channel instead of storing device
+	  index. Extended the gratuitous ARP code to use new
+	  ipaddress structure and for sending garp over device
+	  ipaddess belong to. Needed if you run an instance on
+	  one device interface and set VRRP VIP on different
+	  interface.
+	* Extended watchdog framework to support polling delay
+	  selection via daemon command line. Created two new
+	  cmdline options :
+	       --wdog-vrrp  -R  Define VRRP watchdog polling
+	                        delay. (default=5s)
+               --wdog-check -H  Define checkers watchdog
+	                        polling delay. (default=5s)
+	* Extended SMTP code to support bigger buffer while
+	  processing remote mta messages.
+	* Erik Barker, <erikb@netnation.com> extended initscript
+	  to support native redhat init functions.
+	* Extended the autoconf scripts and Makefile(s) to support
+	  code profiling. New configure option : --enable-profile
+	* list library has been extended to support multi-sized list &
+	  specific element deletion. Extended to return when list is
+	  empty. This reduce duplicated code to test is list is empty
+	  while processing.
+	* VRRP : Extended VRRP scheduler to support fd hash
+	  table design. Speed up instance lookup while
+	  computing instance sands. This offer o(1) design
+	  if we consider limited number of instances per
+	  device.
+	* VRRP : Extended vrrp new socket creation to replace
+	  refreshed instance fd into fd hash table index.
+	* VRRP : Extended vrrp framework to support
+	  blank virtual_ipaddress block, can be usefull
+	  if someone want to use just the VRRP advert
+	  as hello monitoring channel.
+	* Some code cleaning.
+
 2003-05-12  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.0.3 released.
 	* This release has been sponsorized by :

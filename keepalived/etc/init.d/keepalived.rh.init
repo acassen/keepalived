@@ -1,0 +1,71 @@
+#!/bin/sh
+#
+# Startup script for the Keepalived daemon
+#
+# processname: keepalived
+# pidfile: /var/run/keepalived.pid
+# config: /etc/keepalived/keepalived.conf
+# chkconfig: 35 21 79
+# description: Start and stop Keepalived
+
+# Global definitions
+PID_FILE="/var/run/keepalived.pid"
+
+# source function library
+. /etc/init.d/functions
+
+RETVAL=0
+
+start() {
+	echo -n "Starting Keepalived for LVS: "
+	daemon keepalived -D
+	RETVAL=$?
+        echo
+        [ $RETVAL -eq 0 ] && touch /var/lock/subsys/keepalived
+        return $RETVAL
+}
+
+stop() {
+	echo -n "Shutting down Keepalived for LVS: "
+	killproc keepalived
+	RETVAL=0
+        echo
+        [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/keepalived
+        return $RETVAL
+}
+
+reload() {
+	echo -n "Reloading Keepalived config: "
+	killproc keepalived -1
+	RETVAL=$?
+        echo
+        return $RETVAL
+}
+
+# See how we were called.
+case "$1" in
+  start)
+        start
+        ;;
+  stop)
+        stop
+        ;;
+  restart)
+        stop
+        start
+        ;;
+  reload)
+        reload
+        ;;
+  status)
+        status keepalived
+        ;;
+  condrestart)
+        [ -f /var/lock/subsys/keepalived ] && $0 restart || :
+        ;;
+  *)
+	echo "Usage: $0 {start|stop|restart|reload|condrestart|status}"
+	exit 1
+esac
+
+exit 0

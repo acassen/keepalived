@@ -22,7 +22,7 @@ This block is divided in 2 sub-block :
 	The configuration block looks like :
 
 global_defs {				# Block identification
-    notification_email {			# Email to send alertes to
+    notification_email {		# Email to send alertes to
        <EMAIL ADDRESS>			# Standard email address
       <EMAIL ADDRESS>
       ...
@@ -34,13 +34,30 @@ global_defs {				# Block identification
     lvs_id <STRING>			   # String identifying router
 }
 
-	1.2. Static routes
+	1.2. Static addresses
+
+	The configuration block looks like :
+
+static_ipaddress {			# block identification
+    <IP ADDRESS>/<MASK> dev <STRING> scope <SCOPE>
+    <IP ADDRESS>/<MASK> dev <STRING> scope <SCOPE>
+    ...
+}
+
+SCOPE can take the following values :
+	* site
+	* link
+	* host
+	* nowhere
+	* global
+
+	1.3. Static routes
 
 	The configuration block looks like :
 
 static_routes {							# block identification
-    src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> # to is optional
-    src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> # to is optional
+    src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # to is optional
+    src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # to is optional
     ...
 }
 
@@ -81,7 +98,11 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
 vrrp_instance <STRING> {		# VRRP instance declaration
     state MASTER|BACKUP			# Start-up default state
     interface <STRING>			# Binding interface
-    track_interface <STRING>		# Interface state we monitor
+    track_interface {			# Interfaces state we monitor
+      <STRING>
+      <STRING>
+      ...
+    }
     mcast_src_ip <IP ADDRESS>		# src_ip to use into the VRRP packets
     lvs_sync_daemon_interface <STRING>	# Binding interface for lvs syncd
     garp_master_delay <INTEGER>		# delay for gratuitous ARP after MASTER
@@ -104,8 +125,8 @@ vrrp_instance <STRING> {		# VRRP instance declaration
         ...
     }
     virtual_routes {			 # VRRP virtual routes
-    	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> # to is optional
-    	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> # to is optional
+    	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # to is optional
+    	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # to is optional
         ...
     }
     preempt				# VRRP preempt mode (default set)
@@ -215,6 +236,18 @@ virtual_server group <STRING>      {	# VS group declaration
         TCP_CHECK {			# TCP healthchecker
             connect_port <PORT>		# TCP port to connect
             connect_timeout <INTEGER>	# Timeout connection
+        }
+    }
+
+    real_server <IP ADDRESS> <PORT> {	# Idem
+        weight <INTEGER>		# Idem
+        inhibit_on_failure		# Idem
+        notify_up <STRING>|<QUOTED-STRING> # Idem
+        notify_down <STRING>|<QUOTED-STRING> # Idem
+
+        MISC_CHECK {				# MISC healthchecker
+            misc_path <STRING>|<QUOTED-STRING>	# External system script or program
+            misc_timeout <INTEGER>		# Script execution timeout
         }
     }
 }

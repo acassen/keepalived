@@ -15,7 +15,7 @@ PID_FILE="/var/run/keepalived.pid"
 case "$1" in
   start)
 	echo -n "Starting Keepalived for LVS: "
-	keepalived
+	keepalived -D
 	touch /var/lock/subsys/keepalived
 	echo
 	;;
@@ -32,7 +32,7 @@ case "$1" in
 	kill $PID
 	echo
 	echo -n "Starting Keepalived for LVS: "
-	keepalived
+	keepalived -D
 	echo
 	;;
   reload)

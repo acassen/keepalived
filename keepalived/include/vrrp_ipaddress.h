@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_ipaddress.c include file.
  *
- * Version:     $Id: vrrp_ipaddress.h,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.h,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -31,6 +31,7 @@
 #include <syslog.h>
 
 /* local includes */
+#include "vrrp_if.h"
 #include "list.h"
 #include "vector.h"
 
@@ -38,26 +39,28 @@
 typedef struct {
 	uint32_t addr;		/* the ip address */
 	uint8_t mask;		/* the ip address CIDR netmask */
-	int ifindex;		/* Interface owning IP address */
+	interface *ifp;		/* Interface owning IP address */
 	int scope;		/* the ip address scope */
 	int set;		/* TRUE if addr is set */
 } ip_address;
 
 #define IPADDRESS_DEL 0
 #define IPADDRESS_ADD 1
+#define DFLT_INT	"eth0"
 
 /* Macro definition */
-#define IP_ISEQ(X,Y)   ((X)->addr    == (Y)->addr && \
-			(X)->mask    == (Y)->mask && \
-			(X)->ifindex == (Y)->ifindex && \
-			(X)->scope   == (Y)->scope)
+#define IP_ISEQ(X,Y)   ((X)->addr          == (Y)->addr && \
+			(X)->mask          == (Y)->mask && \
+			IF_INDEX((X)->ifp) == IF_INDEX((Y)->ifp) && \
+			(X)->scope         == (Y)->scope)
 
 /* prototypes */
 extern int netlink_address_ipv4(ip_address *ipaddr, int cmd);
 extern void netlink_iplist_ipv4(list ip_list, int cmd);
 extern void free_ipaddress(void *data);
 extern void dump_ipaddress(void *data);
-extern void alloc_ipaddress(list ip_list, vector strvec, int ifindex);
+extern void alloc_ipaddress(list ip_list, vector strvec, interface *ifp);
 extern void clear_diff_address(list l, list n);
+extern void clear_diff_saddresses(void);
 
 #endif

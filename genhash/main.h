@@ -70,6 +70,7 @@ typedef struct {
 
 /* Global variables */
 REQ *req;				/* Cmd line arguments */
+unsigned int debug;
 
 /* Data buffer length description */
 #define BUFSIZE             1024

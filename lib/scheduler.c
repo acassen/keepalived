@@ -22,6 +22,9 @@
  *              2 of the License, or (at your option) any later version.
  */
 
+#include <signal.h>
+#include <sys/wait.h>
+#include <sys/select.h>
 #include "scheduler.h"
 #include "memory.h"
 #include "utils.h"
@@ -318,6 +321,41 @@ thread_add_timer(thread_master * m, int (*func) (thread *)
 	return thread;
 }
 
+/* Add a child thread. */
+thread *
+thread_add_child(thread_master * m, int (*func) (thread *)
+		 , void * arg, pid_t pid, long timer)
+{
+	thread *thread;
+	TIMEVAL time_now;
+
+	assert(m != NULL);
+
+	thread = thread_new(m);
+	thread->type = THREAD_CHILD;
+	thread->id = 0;
+	thread->master = m;
+	thread->func = func;
+	thread->arg = arg;
+	thread->u.c.pid = pid;
+	thread->u.c.status = 0;
+
+	/* Compute write timeout value */
+	time_now = timer_now();
+	if (timer >= TIMER_MAX_SEC) {
+		time_now.tv_sec += timer / TIMER_HZ;
+		time_now.tv_usec += timer % TIMER_HZ;
+	} else
+		time_now.tv_sec += timer;
+
+	thread->sands = time_now;
+
+	/* Sort by timeval. */
+	thread_list_add_timeval(&m->child, thread);
+
+	return thread;
+}
+
 /* Add simple event thread. */
 thread *
 thread_add_event(thread_master * m, int (*func) (thread *)
@@ -376,6 +414,13 @@ thread_cancel(thread * thread)
 		break;
 	case THREAD_TIMER:
 		thread_list_delete(&thread->master->timer, thread);
+		break;
+	case THREAD_CHILD:
+		/* Does this need to kill the child, or is that the
+		 * caller's job?
+		 * This function is currently unused, so leave it for now.
+		 */
+		thread_list_delete(&thread->master->child, thread);
 		break;
 	case THREAD_EVENT:
 		thread_list_delete(&thread->master->event, thread);
@@ -466,8 +511,21 @@ thread_fetch(thread_master * m, thread * fetch)
 	fd_set exceptfd;
 	TIMEVAL time_now;
 	TIMEVAL *timer_wait;
+	int status;
+	sigset_t sigset, dummy_sigset, block_sigset, pending;
 
 	assert(m != NULL);
+
+	/*
+	 * Set up the signal mask for select, by removing
+	 * SIGCHLD from the set of blocked signals.
+	 */
+	sigemptyset(&dummy_sigset);
+	sigprocmask(SIG_BLOCK, &dummy_sigset, &sigset);
+	sigdelset(&sigset, SIGCHLD);
+
+	sigemptyset(&block_sigset);
+	sigaddset(&block_sigset, SIGCHLD);
 
 	/* Timer allocation */
 	timer_wait = (TIMEVAL *) MALLOC(sizeof (TIMEVAL));
@@ -507,15 +565,84 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	writefd = m->writefd;
 	exceptfd = m->exceptfd;
 
-	ret = select(FD_SETSIZE, &readfd, &writefd, &exceptfd, timer_wait);
+	/*
+	 * Linux doesn't have a pselect syscall. Need to manually
+	 * check if we have a signal waiting for us, else we lose the SIGCHLD
+	 * when the pselect emulation changes the procmask.
+	 * Theres still a small race between the procmask change and the select
+	 * call, but it'll be picked up in the next iteration.
+	 * Note that we don't use pselect here for portability between glibc
+	 * versions. Until/unless linux gets a pselect syscall, this is
+	 * equivalent to what glibc does, anyway.
+	 */
+
+	sigpending(&pending);
+	if (sigismember(&pending, SIGCHLD)) {
+		/* Clear the pending signal */
+		int sig;
+		sigwait(&block_sigset, &sig);
+
+		ret = -1;
+		errno = EINTR;
+	} else {
+		/* Emulate pselect */
+		sigset_t saveset;
+		sigprocmask(SIG_SETMASK, &sigset, &saveset);
+		ret = select(FD_SETSIZE, &readfd, &writefd, &exceptfd, timer_wait);
+		sigprocmask(SIG_SETMASK, &saveset, NULL);
+	}
+
 	if (ret < 0) {
 		if (errno != EINTR) {
 			/* Real error. */
 			DBG("select error: %s", strerror(errno));
 			assert(0);
+		} else {
+			/*
+			 * This is O(n^2), but there will only be a few entries on
+			 * this list.
+			 */
+			pid_t pid;
+			while ((pid = waitpid(-1, &status, WNOHANG))) {
+				if (pid == -1) {
+					if (errno == ECHILD)
+						goto retry;
+					DBG("waitpid error: %s", strerror(errno));
+					assert(0);
+				} else {
+					thread = m->child.head;
+					while (thread) {
+						struct _thread *t;
+						t = thread;
+						thread = t->next;
+						if (pid == t->u.c.pid) {
+							thread_list_delete(&m->child, t);
+							thread_list_add(&m->ready, t);
+							t->u.c.status = status;
+							t->type = THREAD_READY;
+							break;
+						}
+					}
+				}
+			}
 		}
-		/* Signal is coming. */
 		goto retry;
+	}
+
+	/* Timeout children */
+	time_now = timer_now();
+	thread = m->child.head;
+	while (thread) {
+		struct _thread *t;
+
+		t = thread;
+		thread = t->next;
+
+		if (timer_cmp(time_now, t->sands) >= 0) {
+			thread_list_delete(&m->child, t);
+			thread_list_add(&m->ready, t);
+			t->type = THREAD_CHILD_TIMEOUT;
+		}
 	}
 
 	/* Read thead. */
@@ -622,6 +749,7 @@ thread_call(thread * thread)
 
 /* Our infinite scheduling loop */
 extern thread_master *master;
+extern unsigned int debug;
 void
 launch_scheduler(void)
 {

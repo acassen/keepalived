@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: vrrp_parser.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: vrrp_parser.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -25,6 +25,7 @@
 #include "vrrp_parser.h"
 #include "vrrp_data.h"
 #include "vrrp_sync.h"
+#include "vrrp_index.h"
 #include "vrrp_if.h"
 #include "vrrp.h"
 #include "global_data.h"
@@ -35,6 +36,13 @@
 /* global defs */
 extern vrrp_conf_data *vrrp_data;
 extern unsigned long mem_allocated;
+
+/* Static addresses handler */
+static void
+static_addresses_handler(vector strvec)
+{
+	alloc_value_block(strvec, alloc_saddress);
+}
 
 /* Static routes handler */
 static void
@@ -54,7 +62,6 @@ vrrp_group_handler(vector strvec)
 {
 	vrrp_sgroup *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	vgroup->iname = read_value_block();
-	vrrp_sync_set_group(vgroup);
 }
 static void
 vrrp_gnotify_backup_handler(vector strvec)
@@ -114,9 +121,7 @@ vrrp_int_handler(vector strvec)
 static void
 vrrp_track_int_handler(vector strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	char *name = VECTOR_SLOT(strvec, 1);
-	vrrp->track_ifp = if_get_by_ifname(name);
+	alloc_value_block(strvec, alloc_vrrp_track);
 }
 static void
 vrrp_mcastip_handler(vector strvec)
@@ -134,7 +139,8 @@ vrrp_vrid_handler(vector strvec)
 		syslog(LOG_INFO, "VRRP Error : VRID not valid !\n");
 		syslog(LOG_INFO,
 		       "             must be between 1 & 255. reconfigure !\n");
-	}
+	} else
+		alloc_vrrp_bucket(vrrp);
 }
 static void
 vrrp_prio_handler(vector strvec)
@@ -303,6 +309,7 @@ vrrp_init_keywords(void)
 	global_init_keywords();
 
 	/* Static routes mapping */
+	install_keyword_root("static_ipaddress", &static_addresses_handler);
 	install_keyword_root("static_routes", &static_routes_handler);
 
 	/* VRRP Instance mapping */

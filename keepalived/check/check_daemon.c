@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckrs child process handling.
  *
- * Version:     $Id: check_daemon.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: check_daemon.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -32,6 +32,8 @@
 #include "memory.h"
 #include "parser.h"
 #include "watchdog.h"
+#include "vrrp_netlink.h"
+#include "vrrp_if.h"
 
 /* Global vars */
 check_conf_data *check_data;
@@ -55,6 +57,7 @@ extern int reload;
 extern pid_t checkers_child;
 extern char *conf_file;
 extern int init_ssl_ctx(void);
+extern int wdog_delay_check;
 
 /* Daemon stop sequence */
 static void
@@ -73,6 +76,7 @@ stop_check(void)
 	/* Clean data */
 	free_global_data(data);
 	free_check_data(check_data);
+	free_interface_queue();
 
 #ifdef _DEBUG_
 	keepalived_free_final("Healthcheck child process");
@@ -95,6 +99,8 @@ start_check(void)
 {
 	/* Initialize sub-system */
 	init_checkers_queue();
+	init_interface_queue();
+	kernel_netlink_init();
 
 	/* Parse configuration file */
 	data = alloc_global_data();
@@ -187,7 +193,7 @@ check_signal_init(void)
 	signal_set(SIGINT, sigend_check);
 	signal_set(SIGTERM, sigend_check);
 	signal_set(SIGKILL, sigend_check);
-	signal_set(SIGCHLD, sigchld);
+	signal_noignore_sigchld();
 }
 
 /* Register VRRP thread */
@@ -210,13 +216,14 @@ start_check_child(void)
 			       , strerror(errno));
 		return -1;
 	} else if (pid) {
+		int poll_delay = (wdog_delay_check) ? wdog_delay_check : WATCHDOG_DELAY;
 		checkers_child = pid;
 		syslog(LOG_INFO, "Starting Healthcheck child process, pid=%d"
 			       , pid);
 		/* Connect child watchdog */
 		check_wdog_data.wdog_pid = pid;
 		thread_add_timer(master, wdog_boot_thread, &check_wdog_data,
-				 WATCHDOG_DELAY);
+				 poll_delay);
 		return 0;
 	}
 

@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: vrrp_data.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: vrrp_data.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -21,6 +21,7 @@
  */
 
 #include "vrrp_data.h"
+#include "vrrp_index.h"
 #include "vrrp_sync.h"
 #include "vrrp.h"
 #include "memory.h"
@@ -29,12 +30,21 @@
 /* Externals vars */
 extern vrrp_conf_data *vrrp_data;
 
-/* Static routes facility functions */
+/* Static addresses facility function */
+void
+alloc_saddress(vector strvec)
+{
+	if (LIST_ISEMPTY(vrrp_data->static_addresses))
+		vrrp_data->static_addresses = alloc_list(free_ipaddress, dump_ipaddress);
+	alloc_ipaddress(vrrp_data->static_addresses, strvec, NULL);
+}
+
+/* Static routes facility function */
 void
 alloc_sroute(vector strvec)
 {
 	if (LIST_ISEMPTY(vrrp_data->static_routes))
-		vrrp_data->static_routes = alloc_list(free_route, dump_route);
+		vrrp_data->static_routes = alloc_list(free_iproute, dump_iproute);
 	alloc_route(vrrp_data->static_routes, strvec);
 }
 
@@ -46,6 +56,7 @@ free_vgroup(void *data)
 
 	FREE(vgroup->gname);
 	free_strvec(vgroup->iname);
+	free_list(vgroup->index);
 	FREE_PTR(vgroup->script_backup);
 	FREE_PTR(vgroup->script_master);
 	FREE_PTR(vgroup->script_fault);
@@ -83,17 +94,16 @@ free_vrrp(void *data)
 	vrrp_rt *vrrp = data;
 
 	FREE(vrrp->iname);
+	FREE_PTR(vrrp->send_buffer);
 	FREE_PTR(vrrp->lvs_syncd_if);
 	FREE_PTR(vrrp->script_backup);
 	FREE_PTR(vrrp->script_master);
 	FREE_PTR(vrrp->script_fault);
 	FREE(vrrp->ipsecah_counter);
-	if (!LIST_ISEMPTY(vrrp->vip))
-		free_list(vrrp->vip);
-	if (!LIST_ISEMPTY(vrrp->evip))
-		free_list(vrrp->evip);
-	if (!LIST_ISEMPTY(vrrp->vroutes))
-		free_list(vrrp->vroutes);
+	free_list(vrrp->track_ifp);
+	free_list(vrrp->vip);
+	free_list(vrrp->evip);
+	free_list(vrrp->vroutes);
 	FREE(vrrp);
 }
 static void
@@ -107,9 +117,6 @@ dump_vrrp(void *data)
 	else
 		syslog(LOG_INFO, "   Want State = MASTER");
 	syslog(LOG_INFO, "   Runing on device = %s", IF_NAME(vrrp->ifp));
-	if (vrrp->track_ifp)
-		syslog(LOG_INFO, "   Track interface = %s",
-		       IF_NAME(vrrp->track_ifp));
 	if (vrrp->mcast_saddr)
 		syslog(LOG_INFO, "   Using mcast src_ip = %s",
 		       inet_ntop2(vrrp->mcast_saddr));
@@ -129,6 +136,10 @@ dump_vrrp(void *data)
 		       (vrrp->auth_type ==
 			VRRP_AUTH_AH) ? "IPSEC_AH" : "SIMPLE_PASSWORD");
 		syslog(LOG_INFO, "   Password = %s", vrrp->auth_data);
+	}
+	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
+		syslog(LOG_INFO, "   Tracked interfaces = %d", LIST_SIZE(vrrp->track_ifp));
+		dump_list(vrrp->track_ifp);
 	}
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		syslog(LOG_INFO, "   Virtual IP = %d", LIST_SIZE(vrrp->vip));
@@ -190,9 +201,18 @@ alloc_vrrp(char *iname)
 	new->adver_int = TIMER_HZ;
 	new->iname = (char *) MALLOC(size + 1);
 	memcpy(new->iname, iname, size);
-	new->sync = vrrp_get_sync_group(iname);
 
 	list_add(vrrp_data->vrrp, new);
+}
+
+void
+alloc_vrrp_track(vector strvec)
+{
+	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	if (LIST_ISEMPTY(vrrp->track_ifp))
+		vrrp->track_ifp = alloc_list(NULL, dump_track);
+	alloc_track(vrrp->track_ifp, strvec);
 }
 
 void
@@ -202,7 +222,7 @@ alloc_vrrp_vip(vector strvec)
 
 	if (LIST_ISEMPTY(vrrp->vip))
 		vrrp->vip = alloc_list(free_ipaddress, dump_ipaddress);
-	alloc_ipaddress(vrrp->vip, strvec, IF_INDEX(vrrp->ifp));
+	alloc_ipaddress(vrrp->vip, strvec, vrrp->ifp);
 }
 void
 alloc_vrrp_evip(vector strvec)
@@ -211,7 +231,7 @@ alloc_vrrp_evip(vector strvec)
 
 	if (LIST_ISEMPTY(vrrp->evip))
 		vrrp->evip = alloc_list(free_ipaddress, dump_ipaddress);
-	alloc_ipaddress(vrrp->evip, strvec, IF_INDEX(vrrp->ifp));
+	alloc_ipaddress(vrrp->evip, strvec, vrrp->ifp);
 }
 
 void
@@ -220,7 +240,7 @@ alloc_vrrp_vroute(vector strvec)
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	if (LIST_ISEMPTY(vrrp->vroutes))
-		vrrp->vroutes = alloc_list(free_route, dump_route);
+		vrrp->vroutes = alloc_list(free_iproute, dump_iproute);
 	alloc_route(vrrp->vroutes, strvec);
 }
 
@@ -232,7 +252,10 @@ alloc_vrrp_data(void)
 
 	new = (vrrp_conf_data *) MALLOC(sizeof (vrrp_conf_data));
 	new->vrrp = alloc_list(free_vrrp, dump_vrrp);
+	new->vrrp_index = alloc_mlist(NULL, NULL, 255);
+	new->vrrp_index_fd = alloc_mlist(NULL, NULL, 1024+1);
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
+	vrrp_buffer = (char *) MALLOC(VRRP_PACKET_TEMP_LEN);
 
 	return new;
 }
@@ -240,14 +263,23 @@ alloc_vrrp_data(void)
 void
 free_vrrp_data(vrrp_conf_data * vrrp_data)
 {
+	free_list(vrrp_data->static_addresses);
+	free_list(vrrp_data->static_routes);
+	free_mlist(vrrp_data->vrrp_index, 255);
+	free_mlist(vrrp_data->vrrp_index_fd, 1024+1);
 	free_list(vrrp_data->vrrp);
 	free_list(vrrp_data->vrrp_sync_group);
 	FREE(vrrp_data);
+	FREE(vrrp_buffer);
 }
 
 void
 dump_vrrp_data(vrrp_conf_data * vrrp_data)
 {
+	if (!LIST_ISEMPTY(vrrp_data->static_addresses)) {
+		syslog(LOG_INFO, "------< Static Addresses >------");
+		dump_list(vrrp_data->static_addresses);
+	}
 	if (!LIST_ISEMPTY(vrrp_data->static_routes)) {
 		syslog(LOG_INFO, "------< Static Routes >------");
 		dump_list(vrrp_data->static_routes);

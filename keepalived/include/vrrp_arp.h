@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_arp.c include file.
  *
- * Version:     $Id: vrrp_arp.h,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: vrrp_arp.h,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -29,6 +29,7 @@
 
 /* local includes */
 #include "vrrp.h"
+#include "vrrp_ipaddress.h"
 
 /* local definitions */
 #define ETHERNET_HW_LEN		6
@@ -49,7 +50,13 @@ typedef struct _m_arphdr {
 	unsigned char __ar_tip[4];		/* Target IP address.  */
 } m_arphdr;
 
+/* Global var */
+char *garp_buffer;
+int garp_fd;
+
 /* prototypes */
-extern int send_gratuitous_arp(vrrp_rt * vrrp, int addr);
+extern void gratuitous_arp_init(void);
+extern void gratuitous_arp_close(void);
+extern int send_gratuitous_arp(ip_address *ipaddress);
 
 #endif

@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 address manipulation.
  *
- * Version:     $Id: vrrp_ipaddress.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -23,15 +23,18 @@
 /* local include */
 #include "vrrp_ipaddress.h"
 #include "vrrp_netlink.h"
-#include "vrrp_if.h"
+#include "vrrp_data.h"
 #include "memory.h"
 #include "utils.h"
+
+/* extern global vars */
+extern vrrp_conf_data *vrrp_data;
+extern vrrp_conf_data *old_vrrp_data;
 
 /* Add/Delete IP address to a specific interface */
 int
 netlink_address_ipv4(ip_address *ipaddr, int cmd)
 {
-	struct nl_handle nlh;
 	int status = 1;
 	struct {
 		struct nlmsghdr n;
@@ -45,19 +48,13 @@ netlink_address_ipv4(ip_address *ipaddr, int cmd)
 	req.n.nlmsg_flags = NLM_F_REQUEST;
 	req.n.nlmsg_type = cmd ? RTM_NEWADDR : RTM_DELADDR;
 	req.ifa.ifa_family = AF_INET;
-	req.ifa.ifa_index = ipaddr->ifindex;
+	req.ifa.ifa_index = IF_INDEX(ipaddr->ifp);
 	req.ifa.ifa_scope = ipaddr->scope;
 	req.ifa.ifa_prefixlen = ipaddr->mask;
 	addattr_l(&req.n, sizeof (req), IFA_LOCAL, &ipaddr->addr, sizeof (ipaddr->addr));
 
-	if (netlink_socket(&nlh, 0) < 0)
-		return -1;
-
-	if (netlink_talk(&nlh, &req.n) < 0)
+	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;
-
-	/* to close the socket */
-	netlink_close(&nlh);
 	return status;
 }
 
@@ -97,11 +94,11 @@ dump_ipaddress(void *data)
 	syslog(LOG_INFO, "     %s/%d dev %s scope %s"
 	       , inet_ntop2(ip_addr->addr)
 	       , ip_addr->mask
-	       , IF_NAME(if_get_by_ifindex(ip_addr->ifindex))
+	       , IF_NAME(ip_addr->ifp)
 	       , netlink_scope_n2a(ip_addr->scope));
 }
 void
-alloc_ipaddress(list ip_list, vector strvec, int ifindex)
+alloc_ipaddress(list ip_list, vector strvec, interface *ifp)
 {
 	ip_address *new;
 	uint32_t ipaddr = 0;
@@ -109,7 +106,7 @@ alloc_ipaddress(list ip_list, vector strvec, int ifindex)
 	int i = 0;
 
 	new = (ip_address *) MALLOC(sizeof(ip_address));
-	new->ifindex = ifindex;
+	new->ifp = ifp;
 
 	/* FMT parse */
 	while (i < VECTOR_SIZE(strvec)) {
@@ -117,7 +114,7 @@ alloc_ipaddress(list ip_list, vector strvec, int ifindex)
 
 		/* cmd parsing */
 		if (!strcmp(str, "dev")) {
-			new->ifindex = IF_INDEX(if_get_by_ifname(VECTOR_SLOT(strvec, ++i)));
+			new->ifp = if_get_by_ifname(VECTOR_SLOT(strvec, ++i));
 		} else if (!strcmp(str, "scope")) {
 			new->scope = netlink_scope_a2n(VECTOR_SLOT(strvec, ++i));
 		} else {
@@ -128,6 +125,10 @@ alloc_ipaddress(list ip_list, vector strvec, int ifindex)
 		}
 		i++;
 	}
+
+	/* If index not set then use default interface index */
+	if (!ifp)
+		new->ifp = if_get_by_ifname(DFLT_INT);
 
 	list_add(ip_list, new);
 }
@@ -174,8 +175,15 @@ clear_diff_address(list l, list n)
 			syslog(LOG_INFO, "ip address %s/%d dev %s, no longer exist"
 			       , inet_ntop2(ipaddress->addr)
 			       , ipaddress->mask
-			       , IF_NAME(if_get_by_ifindex(ipaddress->ifindex)));
+			       , IF_NAME(ipaddress->ifp));
 			netlink_address_ipv4(ipaddress, IPADDRESS_DEL);
 		}
 	}
+}
+
+/* Clear static ip address */
+void
+clear_diff_saddresses(void)
+{
+	clear_diff_address(old_vrrp_data->static_addresses, vrrp_data->static_addresses);
 }

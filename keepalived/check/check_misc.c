@@ -6,10 +6,11 @@
  * Part:        MISC CHECK. Perform a system call to run an extra
  *              system prog or script.
  *
- * Version:     $Id: check_misc.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: check_misc.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
+ *		Bradley Baetz, <bradley.baetz@optusnet.com.au>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -30,8 +31,11 @@
 #include "utils.h"
 #include "parser.h"
 #include "notify.h"
+#include "daemon.h"
 
 int misc_check_thread(thread *);
+int misc_check_child_thread(thread *);
+int misc_check_child_timeout_thread(thread *);
 
 /* Configuration stream handling */
 void
@@ -51,6 +55,7 @@ dump_misc_check(void *data)
 
 	syslog(LOG_INFO, "   Keepalive method = MISC_CHECK");
 	syslog(LOG_INFO, "   script = %s", misc_chk->path);
+	syslog(LOG_INFO, "   timeout = %d", misc_chk->timeout);
 }
 
 void
@@ -67,8 +72,14 @@ void
 misc_path_handler(vector strvec)
 {
 	misc_checker *misc_chk = CHECKER_GET();
-
 	misc_chk->path = CHECKER_VALUE_STRING(strvec);
+}
+
+void
+misc_timeout_handler(vector strvec)
+{
+	misc_checker *misc_chk = CHECKER_GET();
+	misc_chk->timeout = CHECKER_VALUE_INT(strvec);
 }
 
 void
@@ -77,6 +88,7 @@ install_misc_check_keyword(void)
 	install_keyword("MISC_CHECK", &misc_check_handler);
 	install_sublevel();
 	install_keyword("misc_path", &misc_path_handler);
+	install_keyword("misc_timeout", &misc_timeout_handler);
 	install_sublevel_end();
 }
 
@@ -116,8 +128,14 @@ misc_check_thread(thread * thread)
 	}
 
 	/* In case of this is parent process */
-	if (pid)
+	if (pid) {
+		long timeout;
+		timeout = (misc_chk->timeout) ? misc_chk->timeout : checker->vs->delay_loop;
+
+		thread_add_child(thread->master, misc_check_child_thread,
+				 checker, pid, timeout);
 		return 0;
+	}
 
 	/* Child part */
 	closeall(0);
@@ -126,26 +144,109 @@ misc_check_thread(thread * thread)
 	dup(0);
 	dup(0);
 
+	/* Also need to reset the signal state */
+	{
+		sigset_t empty_set;
+		sigemptyset(&empty_set);
+		sigprocmask(SIG_SETMASK, &empty_set, NULL);
+
+		signal(SIGHUP, SIG_DFL);
+		signal(SIGINT, SIG_DFL);
+		signal(SIGTERM, SIG_DFL);
+		signal(SIGKILL, SIG_DFL);
+	}
+
 	status = system_call(misc_chk->path);
 
-	if (status >= 0) {	/* script error assumed  not an svr error */
+	if (status < 0 || !WIFEXITED(status))
+		status = 0; /* Script errors aren't server errors */
+	else
+		status = WEXITSTATUS(status);
+
+	exit(status);
+}
+
+int
+misc_check_child_thread(thread * thread)
+{
+	int wait_status;
+	checker *checker;
+	misc_checker *misc_chk;
+
+	checker = THREAD_ARG(thread);
+	misc_chk = CHECKER_ARG(checker);
+
+	if (thread->type == THREAD_CHILD_TIMEOUT) {
+		pid_t pid;
+
+		pid = THREAD_CHILD_PID(thread);
+
+		/* The child hasn't responded. Kill it off. */
+		if (ISALIVE(checker->rs)) {
+			syslog(LOG_INFO, "Misc check to [%s] for [%s] timed out",
+			       inet_ntop2(CHECKER_RIP(checker)),
+			       misc_chk->path);
+			smtp_alert(thread->master, checker->rs, NULL, NULL,
+				   "DOWN",
+				   "=> MISC CHECK script timeout on service <=");
+			perform_svr_state(DOWN, checker->vs, checker->rs);
+		}
+
+		kill(pid, SIGTERM);
+		thread_add_child(thread->master, misc_check_child_timeout_thread,
+				 checker, pid, 2);
+		return 0;
+	}
+
+	wait_status = THREAD_CHILD_STATUS(thread);
+
+	if (WIFEXITED(wait_status)) {
+		int status;
+		status = WEXITSTATUS(wait_status);
 		if (status == 0) {
 			/* everything is good */
 			if (!ISALIVE(checker->rs)) {
+				syslog(LOG_INFO, "Misc check to [%s] for [%s] success.",
+				       inet_ntop2(CHECKER_RIP(checker)),
+				       misc_chk->path);
 				smtp_alert(thread->master, checker->rs, NULL, NULL,
 					   "UP",
 					   "=> MISC CHECK succeed on service <=");
-				perform_svr_state(UP, checker->vs, checker->rs);
 			}
 		} else {
 			if (ISALIVE(checker->rs)) {
+				syslog(LOG_INFO, "Misc check to [%s] for [%s] failed.",
+				       inet_ntop2(CHECKER_RIP(checker)),
+				       misc_chk->path);
 				smtp_alert(thread->master, checker->rs, NULL, NULL,
 					   "DOWN",
 					   "=> MISC CHECK failed on service <=");
-				perform_svr_state(DOWN, checker->vs, checker->rs);
 			}
 		}
 	}
 
-	exit(0);
+	return 0;
+}
+
+int
+misc_check_child_timeout_thread(thread * thread)
+{
+	pid_t pid;
+
+	if (thread->type != THREAD_CHILD_TIMEOUT)
+		return 0;
+
+	/* OK, it still hasn't exited. Now really kill it off. */
+	pid = THREAD_CHILD_PID(thread);
+	if (kill(pid, SIGKILL) < 0) {
+		/* Its possible it finished while we're handing this */
+		if (errno != ESRCH)
+			DBG("kill error: %s", strerror(errno));
+		return 0;
+	}
+
+	syslog(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
+	waitpid(pid, NULL, 0);
+
+	return 0;
 }

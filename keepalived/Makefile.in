@@ -22,7 +22,7 @@ LDFLAGS = @LIBS@ @LDFLAGS@
 SUBDIRS = core
 
 ifeq ($(IPVS_FLAG),_WITH_LVS_)
-  SUBDIRS += healthcheck
+  SUBDIRS += check
 endif
 
 ifeq ($(VRRP_FLAG),_WITH_VRRP_)
@@ -53,6 +53,15 @@ debug:
 	$(MAKE) -C $$i || exit 1; done && \
 	echo "Building $(BIN)/$(EXEC)" && \
 	$(CC) -o $(BIN)/$(EXEC) $(LDFLAGS) `find $(SUBDIRS) ../lib -name '*.[oa]'`
+	@echo ""
+	@echo "Make complete"
+
+profile:
+	@set -e; \
+	for i in $(SUBDIRS); do \
+	$(MAKE) -C $$i || exit 1; done && \
+	echo "Building $(BIN)/$(EXEC)" && \
+	$(CC) -o $(BIN)/$(EXEC) $(LDFLAGS) -pg `find $(SUBDIRS) ../lib -name '*.[oa]'`
 	@echo ""
 	@echo "Make complete"
 

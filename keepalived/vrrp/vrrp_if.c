@@ -5,7 +5,7 @@
  *
  * Part:        Interfaces manipulation.
  *
- * Version:     $Id: vrrp_if.c,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: vrrp_if.c,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -365,6 +365,7 @@ free_interface_queue(void)
 	if (!LIST_ISEMPTY(if_queue))
 		free_list(if_queue);
 	netlink_close(&nl_kernel);
+	netlink_close(&nl_cmd);
 }
 
 void

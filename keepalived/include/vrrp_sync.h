@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_sync.c include file.
  * 
- * Version:     $Id: vrrp_sync.h,v 1.0.3 2003/05/11 02:28:03 acassen Exp $
+ * Version:     $Id: vrrp_sync.h,v 1.1.0 2003/07/20 23:41:34 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -42,7 +42,6 @@
 
 /* extern prototypes */
 extern void vrrp_init_instance_sands(vrrp_rt *);
-extern vrrp_sgroup *vrrp_get_sync_group(char *);
 extern void vrrp_sync_set_group(vrrp_sgroup *);
 extern int vrrp_sync_group_up(vrrp_sgroup *);
 extern int vrrp_sync_leave_fault(vrrp_rt *);
