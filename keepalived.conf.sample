@@ -2,9 +2,7 @@
 
 global_defs {
    notification_email {
-     acassen@firewall.loc
-     failover@firewall.loc
-     sysadmin@firewall.loc
+     acassen
    }
    notification_email_from Alexandre.Cassen@firewall.loc
    smtp_server 192.168.200.1

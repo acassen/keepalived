@@ -3,9 +3,9 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        ipfwwrapper.c include file.
+ * Part:        ipwrapper.c include file.
  *
- * Version:     $Id: ipfwwrapper.h,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
+ * Version:     $Id: ipwrapper.h,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,28 +20,33 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _IPFWWRAPPER_H
-#define _IPFWWRAPPER_H
+#ifndef _IPWRAPPER_H
+#define _IPWRAPPER_H
 
 /* system includes */
-#include <errno.h>
-#include <arpa/inet.h>
+#include <syslog.h>
 
 /* locale includes */
-#include "libipfwc/libipfwc.h"
 #include "cfreader.h"
+#include "smtp.h"
 
-/* local defs */
-#define IPFW_ERROR   0
-#define IPFW_SUCCESS 1
+/* NAT netmask */
+#define HOST_NETMASK   0xffffffff
 
+/* firewall rules framework command */
 #define IP_FW_CMD_ADD 0x0001
 #define IP_FW_CMD_DEL 0x0002
 
-/* NAT netmask */
-#define IPFW_SRC_NETMASK 0xffffffff
+/* UP & DOWN value */
+#define UP   1
+#define DOWN 0
 
 /* prototypes */
+extern void perform_svr_state(int alive, virtualserver *vserver, realserver *rserver);
+extern int init_services(virtualserver *vserver);
+extern int clear_services(virtualserver *vserver);
+
+extern int ipvs_cmd(int cmd, virtualserver *vserver, realserver *rserver);
 extern int ipfw_cmd(int cmd, virtualserver *vserver, realserver *rserver);
 
 #endif

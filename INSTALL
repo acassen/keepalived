@@ -1,0 +1,25 @@
+Installation
+============
+
+  1. uncompress the tarball
+  2. cd into the directory
+  3. 'make' and 'make install'. This will install 
+     keepalived into your system (binary and configuration file).
+  4. cd into genhash directory
+  5. 'make' and 'make install'. This will install
+     the MD5 url digest generator. You need it to configure HTTP GET check.
+  6. link keepalived.init into your runlevel directory. On redhat systems :
+     ln -s /etc/rc.d/init.d/keepalived.init /etc/rc.d/rc3.d/S99keepalived
+
+Configuration
+=============
+
+  Just take a look to the /etc/keepalived/keepalived.conf file installed.
+  It will give you all the informations needed. If you want more informations
+  considering keepalived, please refer to the keepalived homepage into the
+  documentation section.
+
+  http://keepalived.sourceforge.net
+
+
+Have fun with it !

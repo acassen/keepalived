@@ -3,9 +3,9 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        ipfwwrapper.c include file.
+ * Part:        check_tcp.c include file.
  *
- * Version:     $Id: ipfwwrapper.h,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
+ * Version:     $Id: check_tcp.h,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,28 +20,22 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _IPFWWRAPPER_H
-#define _IPFWWRAPPER_H
+#ifndef _TCP_H
+#define _TCP_H
 
 /* system includes */
-#include <errno.h>
+#include <unistd.h>
+#include <netdb.h>
 #include <arpa/inet.h>
 
-/* locale includes */
-#include "libipfwc/libipfwc.h"
+/* local includes */
 #include "cfreader.h"
+#include "ipwrapper.h"
+#include "scheduler.h"
+#include "layer4.h"
+#include "smtp.h"
 
-/* local defs */
-#define IPFW_ERROR   0
-#define IPFW_SUCCESS 1
-
-#define IP_FW_CMD_ADD 0x0001
-#define IP_FW_CMD_DEL 0x0002
-
-/* NAT netmask */
-#define IPFW_SRC_NETMASK 0xffffffff
-
-/* prototypes */
-extern int ipfw_cmd(int cmd, virtualserver *vserver, realserver *rserver);
+/* Prototypes defs */
+extern int tcp_connect_thread(struct thread *thread);
 
 #endif

@@ -3,9 +3,9 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        ipfwwrapper.c include file.
+ * Part:        check_http.c include file.
  *
- * Version:     $Id: ipfwwrapper.h,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
+ * Version:     $Id: check_http.h,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,28 +20,36 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef _IPFWWRAPPER_H
-#define _IPFWWRAPPER_H
+#ifndef _HTTP_H
+#define _HTTP_H
 
-/* system includes */
-#include <errno.h>
-#include <arpa/inet.h>
-
-/* locale includes */
-#include "libipfwc/libipfwc.h"
+/* local includes */
 #include "cfreader.h"
+#include "ipwrapper.h"
+#include "scheduler.h"
+#include "layer4.h"
+#include "md5.h"
 
-/* local defs */
-#define IPFW_ERROR   0
-#define IPFW_SUCCESS 1
+/* global defs */
+#define SOCKET_ERROR   0
+#define SOCKET_SUCCESS 1
 
-#define IP_FW_CMD_ADD 0x0001
-#define IP_FW_CMD_DEL 0x0002
+#define MD5_BUFFER_LENGTH 32
+#define GET_REQUEST_BUFFER_LENGTH 128
+#define GET_BUFFER_LENGTH 2048
+#define MAX_BUFFER_LENGTH 4096
+#define LOGBUFFER_LENGTH 100
 
-/* NAT netmask */
-#define IPFW_SRC_NETMASK 0xffffffff
+/* http get processing command */
+#define GETCMD "GET %s HTTP/1.0\r\n\r\n"
 
-/* prototypes */
-extern int ipfw_cmd(int cmd, virtualserver *vserver, realserver *rserver);
+/* Prototypes defs */
+extern int http_connect_thread(struct thread *thread);
+
+extern void smtp_alert(struct thread_master *master,
+                       configuration_data *root,
+                       realserver *rserver,
+                       const char *subject,
+                       const char *body);
 
 #endif

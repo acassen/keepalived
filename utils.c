@@ -5,12 +5,11 @@
  *
  * Part:        General program utils.
  *
- * Version:     $Id: utils.c,v 0.2.1 2000/12/09 $
+ * Version:     $Id: utils.c,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
  *
- * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
+ * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
  * Changes:
- *              Alexandre Cassen      :       Initial release
  *
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
@@ -58,28 +57,4 @@ void print_buffer(int count, char *buff)
   }
 }
 
-void initdaemonpid(int pid)
-{
-  daemonpid=pid;
-}
 
-void logmessage(char *msg)
-{
-  FILE *logfile;
-  time_t hint;
-  struct tm *date;
-
-  hint = time((long*)0);
-  date = localtime(&hint);
-
-  logfile=fopen(LOGFILE,"ab");
-  fprintf(logfile,"[%.2d/%.2d/%.2d - %.2d:%.2d:%.2d] keepalived[%d]: %s",
-                  date->tm_mday,
-                  date->tm_mon+1,
-                  date->tm_year-100,
-                  date->tm_hour,
-                  date->tm_min,
-                  date->tm_sec,
-                  daemonpid,msg);
-  fclose(logfile);
-}

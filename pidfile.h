@@ -5,12 +5,14 @@
  *
  * Part:        pidfile.c include file.
  *
- * Version:     $Id: pidfile.h,v 0.2.6 2001/03/05 $
+ * Version:     $Id: pidfile.h,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
  *
- * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
+ * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
- * Changes:
- *              Alexandre Cassen      :       Initial release
+ *              This program is distributed in the hope that it will be useful,
+ *              but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *              See the GNU General Public License for more details.
  *
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
@@ -18,19 +20,22 @@
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef PIDFILE_H
-#define PIDFILE_H
+#ifndef _PIDFILE_H
+#define _PIDFILE_H
 
+/* system include */
 #include <unistd.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <termios.h>
 #include <signal.h>
 #include <sys/types.h>
-#include <sys/time.h>
-#include <netdb.h>
-#include <string.h>
+#include <syslog.h>
 
+/* lock pidfile */
 #define PIDFILENAME "/var/run/keepalived.pid"
+
+/* Prototypes */
+extern int pidfile_write(int pid);
+extern void pidfile_rm();
+extern int keepalived_running();
 
 #endif

@@ -5,93 +5,115 @@
  * 
  * Part:        cfreader.c include file.
  *  
- * Version:     $Id: cfreader.h,v 0.2.1 2000/12/09 $
- * 
- * Author:      Alexandre Cassen, <Alexandre.Cassen@wanadoo.fr>
- *              
- * Changes:     
- *              Alexandre Cassen      :       Initial release
- *              
+ * Version:     $Id: cfreader.h,v 0.3.5 2001/07/13 03:46:38 acassen Exp $
+ *
+ * Author:      Alexandre Cassen, <acassen@linux-vs.org>
+ *
+ *              This program is distributed in the hope that it will be useful,
+ *              but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ *              See the GNU General Public License for more details.
+ *
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  */
 
-#ifndef CFREADER_H
-#define CFREADER_H
 
-#include <stdio.h>
+#ifndef _CFREADER_H
+#define _CFREADER_H
+
+/* system includes */
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#include <syslog.h>
+#include <arpa/inet.h>
 
-#define CONFFILE "keepalived.conf"
+#include <linux/ip_masq.h>
 
-#define TEMPBUFFERLENGTH 100
+/* local includes */
+#include "utils.h"
+
+#define CONFFILE "/etc/keepalived/keepalived.conf"
+
+#define TEMP_BUFFER_LENGTH 100
+#define MAX_EMAIL_LENGTH   45
+#define MAX_LVSID_LENGTH   20
+#define MAX_URL_LENGTH     110
+#define DIGEST_LENGTH      32+1
+#define MAX_TIMEOUT_LENGTH 5
 
 /* Keywords definition */
-#define GLOBALDEFS   "global_defs"
-#define VS           "virtual_server"
-#define SVR          "real_server"
-#define BEGINFLAG    "{"
-#define ENDFLAG      "}"
-#define DELAY        "delay_loop"
-#define EMAIL        "notification_email"
-#define EMAILFROM    "notification_email_from"
-#define LVSID        "lvs_id"
-#define SMTP         "smtp_server"
-#define LBSCHED      "lb_algo"
-#define LBKIND       "lb_kind"
-#define PTIMEOUT     "persistence_timeout"
-#define PROTOCOL     "protocol"
-#define WEIGHT       "weight"
-#define URL          "url"
-#define URLPATH      "path"
-#define DIGEST       "digest"
-#define CTIMEOUT     "connect_timeout"
-#define NBGETRETRY   "nb_get_retry"
-#define DELAYRETRY   "delay_before_retry"
+struct keyword {
+  int key;
+  char *word;
+};
 
-#define ICMPCHECK    "ICMP_CHECK"
-#define TCPCHECK     "TCP_CHECK"
-#define HTTPGET      "HTTP_GET"
-#define SSLGET       "SSL_GET"
+/* configuration file keyword definition */
+#define KW_GLOBALDEFS  (1 << 0)
+#define KW_VS          (1 << 1)
+#define KW_SVR         (1 << 2)
+#define KW_SSVR        (1 << 3)
+#define KW_BEGINFLAG   (1 << 4)
+#define KW_ENDFLAG     (1 << 5)
+#define KW_DELAY       (1 << 6)
+#define KW_EMAIL       (1 << 7)
+#define KW_EMAILFROM   (1 << 8)
+#define KW_LVSID       (1 << 9)
+#define KW_SMTP        (1 << 10)
+#define KW_STIMEOUT    (1 << 11)
+#define KW_LBSCHED     (1 << 12)
+#define KW_LBKIND      (1 << 13)
+#define KW_NATMASK     (1 << 14)
+#define KW_PTIMEOUT    (1 << 15)
+#define KW_PROTOCOL    (1 << 16)
+#define KW_WEIGHT      (1 << 17)
+#define KW_URL         (1 << 18)
+#define KW_URLPATH     (1 << 19)
+#define KW_DIGEST      (1 << 20)
+#define KW_CTIMEOUT    (1 << 21)
+#define KW_NBGETRETRY  (1 << 22)
+#define KW_DELAYRETRY  (1 << 23)
 
-/* Check method id */
-#define ICMP_CHECK_ID  0x001
-#define TCP_CHECK_ID   0x002
-#define HTTP_GET_ID    0x003
-#define SSL_GET_ID     0x004
+#define KW_ICMPCHECK   (1 << 24)
+#define KW_TCPCHECK    (1 << 25)
+#define KW_HTTPGET     (1 << 26)
+#define KW_SSLGET      (1 << 27)
+#define KW_LDAPGET     (1 << 28)
+
+#define KW_UNKNOWN     (1 << 29)
 
 /* Structure definition  */
-typedef struct _tcp_vanilla_check {
-  char connection_to[4+1];
-} tcp_vanilla_check;
-
 typedef struct _urls {
-  char url[100+1];
-  char digest[32+1];
+  char url[MAX_URL_LENGTH];
+  char digest[DIGEST_LENGTH];
 
   struct urls *next;
 } urls;
 
 typedef struct _http_get_check {
-  char connection_to[4+1];
-  char nb_get_retry[1+1];
-  char delay_before_retry[4+1];
+  int nb_get_retry;
+  int delay_before_retry;
   urls *check_urls;
 } http_get_check;
 
 typedef struct _keepalive_check {
-  int flag_type;
-  http_get_check *http_get;
-  tcp_vanilla_check *tcp_vanilla;
+  int type;
+#define ICMP_CHECK_ID  (1 << 0)
+#define TCP_CHECK_ID   (1 << 1)
+#define HTTP_GET_ID    (1 << 2)
+#define SSL_GET_ID     (1 << 3)
+#define LDAP_GET_ID    (1 << 4)
+  int connection_to;
+  http_get_check *http_get;    /* FIXME : for new checker use union here */
 } keepalive_check;
 
 typedef struct _real_server {
-  char addr_ip[15+1];
-  char addr_port[5+1];
-  char weight[3+1];
+  struct in_addr addr_ip;
+  uint16_t addr_port;
+  int weight;
   keepalive_check *method;
   int alive;
 
@@ -99,36 +121,39 @@ typedef struct _real_server {
 } realserver;
 
 typedef struct _virtual_server {
-  char addr_ip[15+1];
-  char addr_port[5+1];
-  char sched[5+1];
-  char loadbalancing_kind[5+1];
-  char timeout_persistence[4];
-  char service_type[3+1];
+  struct in_addr addr_ip;
+  uint16_t addr_port;
+  uint16_t service_type;
+  int delay_loop;
+  char sched[IP_MASQ_TNAME_MAX];
+  unsigned loadbalancing_kind;
+  struct in_addr nat_mask;
+  char timeout_persistence[MAX_TIMEOUT_LENGTH];
+  realserver *s_svr;
   realserver *svr;
 
   struct virtualserver *next;
 } virtualserver;
 
 typedef struct _notification_email {
-  char addr[40+1];
+  char addr[MAX_EMAIL_LENGTH];
 
   struct notification_email *next;
 } notification_email;
 
 typedef struct _configuration_data {
-  char delay_loop[4+1];
-  char email_from[40+1];
-  char smtp_server[15+1];
-  char lvs_id[20+1];
+  char lvs_id[MAX_LVSID_LENGTH];
+  char email_from[MAX_EMAIL_LENGTH];
+  struct in_addr smtp_server;
+  int smtp_connection_to;
   notification_email *email;
 
   virtualserver *lvstopology;
 } configuration_data;
 
 /* prototypes */
-//configuration_data * ConfReader(configuration_data *conf_data);
-//void ClearConf(configuration_data * lstptr);
-//void PrintConf(configuration_data * lstptr);
+extern configuration_data * conf_reader();
+extern void clear_conf(configuration_data * lstptr);
+extern void dump_conf(configuration_data * lstptr);
 
 #endif
