@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: global_data.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: global_data.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -35,58 +35,64 @@ extern conf_data *data;
 
 /* Default settings */
 static void
-set_default_lvs_id(conf_data* conf_data)
+set_default_lvs_id(conf_data * conf_data)
 {
 	char *new_id = NULL;
 	int len = 0;
 
 	new_id = get_local_name();
-	if (!new_id || !new_id[0]) return;
+	if (!new_id || !new_id[0])
+		return;
 
 	len = strlen(new_id);
 	conf_data->lvs_id = MALLOC(len + 1);
-	if (!conf_data->lvs_id) return;
+	if (!conf_data->lvs_id)
+		return;
 
 	memcpy(conf_data->lvs_id, new_id, len);
 }
 
 static void
-set_default_email_from(conf_data* conf_data)
+set_default_email_from(conf_data * conf_data)
 {
 	struct passwd *pwd = NULL;
-	char* hostname = NULL;
+	char *hostname = NULL;
 	int len = 0;
 
 	hostname = get_local_name();
-	if (!hostname || !hostname[0]) return;
+	if (!hostname || !hostname[0])
+		return;
 
 	pwd = getpwuid(getuid());
-	if (!pwd) return;
+	if (!pwd)
+		return;
 
 	len = strlen(hostname) + strlen(pwd->pw_name) + 2;
 	conf_data->email_from = MALLOC(len);
-	if (!conf_data->email_from) return;
-       
+	if (!conf_data->email_from)
+		return;
+
 	snprintf(conf_data->email_from, len, "%s@%s", pwd->pw_name, hostname);
 }
 
 static void
-set_default_smtp_server(conf_data* conf_data)
+set_default_smtp_server(conf_data * conf_data)
 {
 	conf_data->smtp_server = htonl(DEFAULT_SMTP_SERVER);
 }
 
 static void
-set_default_smtp_connection_timeout(conf_data* conf_data)
+set_default_smtp_connection_timeout(conf_data * conf_data)
 {
 	conf_data->smtp_connection_to = DEFAULT_SMTP_CONNECTION_TIMEOUT;
 }
 
 static void
-set_default_values(conf_data* conf_data)
+set_default_values(conf_data * conf_data)
 {
 	/* No global data so don't default */
-	if (!conf_data) return;
+	if (!conf_data)
+		return;
 	set_default_lvs_id(conf_data);
 	set_default_smtp_server(conf_data);
 	set_default_smtp_connection_timeout(conf_data);
@@ -132,7 +138,7 @@ alloc_global_data(void)
 }
 
 void
-free_global_data(conf_data *data)
+free_global_data(conf_data * data)
 {
 	free_list(data->email);
 	FREE_PTR(data->lvs_id);
@@ -141,14 +147,13 @@ free_global_data(conf_data *data)
 }
 
 void
-dump_global_data(conf_data *data)
+dump_global_data(conf_data * data)
 {
 	if (!data)
 		return;
 
 	if (data->lvs_id ||
-	    data->smtp_server ||
-	    data->smtp_connection_to || data->email_from) {
+	    data->smtp_server || data->smtp_connection_to || data->email_from) {
 		syslog(LOG_INFO, "------< Global definitions >------");
 	}
 	if (data->lvs_id)
@@ -157,8 +162,8 @@ dump_global_data(conf_data *data)
 		syslog(LOG_INFO, " Smtp server = %s",
 		       inet_ntop2(data->smtp_server));
 	if (data->smtp_connection_to)
-		syslog(LOG_INFO, " Smtp server connection timeout = %d",
-		       data->smtp_connection_to);
+		syslog(LOG_INFO, " Smtp server connection timeout = %lu",
+		       data->smtp_connection_to / TIMER_HZ);
 	if (data->email_from) {
 		syslog(LOG_INFO, " Email notification from = %s",
 		       data->email_from);

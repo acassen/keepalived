@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: main.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -42,21 +42,23 @@
 #include "global_data.h"
 
 /* global var */
-thread_master *master = NULL;		/* Scheduling master thread */
-char *conf_file = NULL;			/* Configuration file */
-int reload = 0;				/* Global reloading flag */
-unsigned int debug;			/* Debugging flags */
-pid_t vrrp_child = -1;			/* VRRP child process ID */
-pid_t checkers_child = -1;		/* Healthcheckers child process ID */
-int wdog_delay_vrrp = 0;		/* VRRP child polling delay */
-int wdog_delay_check = 0;		/* Healthchecker child polling delay */
-conf_data *data;			/* Global configuration data */
+thread_master *master = NULL;	/* Scheduling master thread */
+char *conf_file = NULL;		/* Configuration file */
+int log_facility = LOG_DAEMON;	/* Optional logging facilities */
+int reload = 0;			/* Global reloading flag */
+unsigned int debug;		/* Debugging flags */
+pid_t vrrp_child = -1;		/* VRRP child process ID */
+pid_t checkers_child = -1;	/* Healthcheckers child process ID */
+long wdog_delay_vrrp = 0;	/* VRRP child polling delay */
+long wdog_delay_check = 0;	/* Healthchecker child polling delay */
+conf_data *data;		/* Global configuration data */
 
 /* Build version */
+#define LOG_FACILITY_MAX	7
 #define PROG    "Keepalived"
 
-#define VERSION_CODE 0x010102
-#define DATE_CODE    0x080903
+#define VERSION_CODE 0x010103
+#define DATE_CODE    0x1D0903
 
 #define KEEPALIVED_VERSION(version)	\
 	(version >> 16) & 0xFF,		\

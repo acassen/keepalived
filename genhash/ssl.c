@@ -106,8 +106,7 @@ ssl_connect(thread * thread)
 	SSL_set_bio(sock->ssl, sock->bio, sock->bio);
 	ret = SSL_connect(sock->ssl);
 
-	DBG("  SSL_connect return code = %d on fd:%d\n",
-	    ret, thread->u.fd);
+	DBG("  SSL_connect return code = %d on fd:%d\n", ret, thread->u.fd);
 	ssl_printerr(SSL_get_error(sock->ssl, ret));
 
 	return (ret > 0) ? 1 : 0;
@@ -161,7 +160,7 @@ ssl_read_thread(thread * thread)
 	 * and sometime not...
 	 */
 
-read_stream:
+      read_stream:
 
 	/* read the SSL stream */
 	memset(sock->buffer, 0, MAX_BUFFER_LENGTH);

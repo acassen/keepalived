@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: global_data.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: global_data.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -32,10 +32,11 @@
 
 /* local includes */
 #include "list.h"
+#include "timer.h"
 
 /* constants */
 #define DEFAULT_SMTP_SERVER 0x7f000001
-#define DEFAULT_SMTP_CONNECTION_TIMEOUT 30
+#define DEFAULT_SMTP_CONNECTION_TIMEOUT (30 * TIMER_HZ)
 
 /* email link list */
 typedef struct _email {
@@ -47,7 +48,7 @@ typedef struct _conf_data {
 	char *lvs_id;
 	char *email_from;
 	uint32_t smtp_server;
-	int smtp_connection_to;
+	long smtp_connection_to;
 	list email;
 } conf_data;
 

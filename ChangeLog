@@ -1,3 +1,33 @@
+2003-09-29  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.3 released.
+	* Stephan von Krawczynski, <skraw@ithnet.com> extended ip
+	  address framework to support broadcast address selection.
+	* Extended the scheduling framework to support plain 'long' 
+	  timer. Visited the layer4 framework to support this new
+	  scheduling scheme. Reviewed the checkers and VRRP framework
+	  to support long timer.
+	* VRRP : Removed the timer micro adjust call. Its use is
+	  obsolete with the new scheduling 'long' timer support.
+	* Jacob Rief, <Jacob.Rief@tiscover.com> and I added support
+	  log level selection for main daemon. A new command line
+	  argument has been created :
+	  --log-facility  -S  0-7 Set syslog facility to
+	                      LOG_LOCAL[0-7]. (default=LOG_DAEMON)
+	* Extended the HTTP checker to support non blocking read
+	  while processing stream. NONBLOCK flags is set before
+	  read operation to catch EAGAIN error.
+	* VRRP : Diego Rivera, <lrivera@racsa.co.cr> and I fixed a
+	  notify issue while building notify exec string.
+	* VRRP : Diego Rivera, <lrivera@racsa.co.cr> and I extended
+	  FSM to support BACKUP state notifiers and smtp_alert call
+	  during VRRP initialization.
+	* Jan Vanhercke, <jan.vanhercke@c-cure.be> and I extended
+	  scheduling timer computation to support micro-sec second
+	  overlap. Extended the whole scheduling framework to support
+	  this scheduling scheme while computing thread timers.
+	* Fixed scheduling framework to support child thread timers
+	  while computing global scheduling timer.
+
 2003-09-07  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.2 released.
 	* Dominik Vogt, <dominik.vogt@gmx.de> and I extended checker

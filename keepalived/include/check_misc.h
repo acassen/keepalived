@@ -5,7 +5,7 @@
  *
  * Part:        check_misc.c include file.
  *
- * Version:     $Id: check_misc.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: check_misc.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
@@ -35,7 +35,7 @@
 /* Checker argument structure  */
 typedef struct _misc_checker {
 	char *path;
-	int timeout;
+	long timeout;
 } misc_checker;
 
 /* Prototypes defs */

@@ -5,7 +5,7 @@
  *
  * Part:        scheduler.c include file.
  *
- * Version:     $Id: scheduler.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: scheduler.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -92,7 +92,7 @@ typedef struct _thread_master {
 
 
 /* MICRO SEC def */
-#define BOOTSTRAP_DELAY 1
+#define BOOTSTRAP_DELAY TIMER_HZ
 
 /* Macros. */
 #define THREAD_ARG(X) ((X)->arg)

@@ -58,7 +58,8 @@ extern REQ *req;
  */
 
 /* free allocated pieces */
-static void free_all(thread * thread)
+static void
+free_all(thread * thread)
 {
 	SOCK *sock = THREAD_ARG(thread);
 
@@ -87,7 +88,7 @@ epilog(thread * thread)
 
 /* Simple finalization function */
 int
-finalize(thread *thread)
+finalize(thread * thread)
 {
 	SOCK *sock = THREAD_ARG(thread);
 	unsigned char digest[16];
@@ -99,7 +100,7 @@ finalize(thread *thread)
 		printf("\n");
 		printf(HTML_MD5);
 		print_buffer(16, digest);
-	
+
 		printf(HTML_MD5_FINAL);
 	}
 	printf("MD5SUM = ");
@@ -113,7 +114,8 @@ finalize(thread *thread)
 }
 
 /* Process incoming stream */
-int http_process_stream(SOCK *sock, int r)
+int
+http_process_stream(SOCK * sock, int r)
 {
 	sock->size += r;
 	sock->total_size += r;
@@ -121,12 +123,13 @@ int http_process_stream(SOCK *sock, int r)
 	if (!sock->extracted) {
 		if (req->verbose)
 			printf(HTTP_HEADER_HEXA);
-		if ((sock->extracted =
-		    extract_html(sock->buffer, sock->size))) {
+		if ((sock->extracted = extract_html(sock->buffer, sock->size))) {
 			if (req->verbose) {
-				print_buffer(sock->extracted - sock->buffer, sock->buffer);
+				print_buffer(sock->extracted - sock->buffer,
+					     sock->buffer);
 				printf(HTTP_HEADER_ASCII);
-				for (r = 0; r < sock->extracted - sock->buffer; r++)
+				for (r = 0; r < sock->extracted - sock->buffer;
+				     r++)
 					printf("%c", sock->buffer[r]);
 				printf("\n");
 				printf(HTML_HEADER_HEXA);
@@ -136,8 +139,7 @@ int http_process_stream(SOCK *sock, int r)
 				if (req->verbose)
 					print_buffer(r, sock->extracted);
 				memcpy(sock->buffer, sock->extracted, r);
-				MD5_Update(&sock->context, sock->buffer,
-					   r);
+				MD5_Update(&sock->context, sock->buffer, r);
 				r = 0;
 			}
 			sock->size = r;
@@ -152,8 +154,7 @@ int http_process_stream(SOCK *sock, int r)
 	} else if (sock->size) {
 		if (req->verbose)
 			print_buffer(r, sock->buffer);
-		MD5_Update(&sock->context, sock->buffer,
-			   sock->size);
+		MD5_Update(&sock->context, sock->buffer, sock->size);
 		sock->size = 0;
 	}
 
@@ -249,13 +250,11 @@ http_request_thread(thread * thread)
 	memset(str_request, 0, GET_BUFFER_LENGTH);
 
 	snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE,
-		 req->url,
-		 (req->vhost) ? req->vhost : inet_ntop2(req->addr_ip)
+		 req->url, (req->vhost) ? req->vhost : inet_ntop2(req->addr_ip)
 		 , ntohs(req->addr_port));
 
 	/* Send the GET request to remote Web server */
-	DBG("Sending GET request [%s] on fd:%d\n",
-	    req->url, sock->fd);
+	DBG("Sending GET request [%s] on fd:%d\n", req->url, sock->fd);
 	if (req->ssl)
 		ret =
 		    ssl_send_request(sock->ssl, str_request,
@@ -269,8 +268,8 @@ http_request_thread(thread * thread)
 
 	if (!ret) {
 		fprintf(stderr, "Cannot send get request to [%s:%d].\n",
-		    inet_ntop2(req->addr_ip)
-		    , ntohs(req->addr_port));
+			inet_ntop2(req->addr_ip)
+			, ntohs(req->addr_port));
 		return epilog(thread);
 	}
 

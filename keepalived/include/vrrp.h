@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: vrrp.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -54,19 +54,19 @@ typedef struct {		/* rfc2338.5.1 */
 
 /* protocol constants */
 #define INADDR_VRRP_GROUP 0xe0000012	/* multicast addr - rfc2338.5.2.2 */
-#define VRRP_IP_TTL	255		/* in and out pkt ttl -- rfc2338.5.2.3 */
-#define IPPROTO_VRRP	112		/* IP protocol number -- rfc2338.5.2.4 */
-#define VRRP_VERSION	2		/* current version -- rfc2338.5.3.1 */
-#define VRRP_PKT_ADVERT	1		/* packet type -- rfc2338.5.3.2 */
-#define VRRP_PRIO_OWNER	255		/* priority of the ip owner -- rfc2338.5.3.4 */
-#define VRRP_PRIO_DFL	100		/* default priority -- rfc2338.5.3.4 */
-#define VRRP_PRIO_STOP	0		/* priority to stop -- rfc2338.5.3.4 */
-#define VRRP_AUTH_NONE	0		/* no authentification -- rfc2338.5.3.6 */
-#define VRRP_AUTH_PASS	1		/* password authentification -- rfc2338.5.3.6 */
-#define VRRP_AUTH_AH	2		/* AH(IPSec) authentification - rfc2338.5.3.6 */
-#define VRRP_ADVER_DFL	1		/* advert. interval (in sec) -- rfc2338.5.3.7 */
-#define VRRP_PREEMPT_DFL 1		/* rfc2338.6.1.2.Preempt_Mode */
-#define VRRP_GARP_DELAY 5		/* Default delay to launch gratuitous arp */
+#define VRRP_IP_TTL	255	/* in and out pkt ttl -- rfc2338.5.2.3 */
+#define IPPROTO_VRRP	112	/* IP protocol number -- rfc2338.5.2.4 */
+#define VRRP_VERSION	2	/* current version -- rfc2338.5.3.1 */
+#define VRRP_PKT_ADVERT	1	/* packet type -- rfc2338.5.3.2 */
+#define VRRP_PRIO_OWNER	255	/* priority of the ip owner -- rfc2338.5.3.4 */
+#define VRRP_PRIO_DFL	100	/* default priority -- rfc2338.5.3.4 */
+#define VRRP_PRIO_STOP	0	/* priority to stop -- rfc2338.5.3.4 */
+#define VRRP_AUTH_NONE	0	/* no authentification -- rfc2338.5.3.6 */
+#define VRRP_AUTH_PASS	1	/* password authentification -- rfc2338.5.3.6 */
+#define VRRP_AUTH_AH	2	/* AH(IPSec) authentification - rfc2338.5.3.6 */
+#define VRRP_ADVER_DFL	1	/* advert. interval (in sec) -- rfc2338.5.3.7 */
+#define VRRP_PREEMPT_DFL 1	/* rfc2338.6.1.2.Preempt_Mode */
+#define VRRP_GARP_DELAY (5 * TIMER_HZ)	/* Default delay to launch gratuitous arp */
 
 /*
  * parameters per vrrp sync group. A vrrp_sync_group is a set

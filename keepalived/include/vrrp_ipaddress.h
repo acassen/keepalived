@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_ipaddress.c include file.
  *
- * Version:     $Id: vrrp_ipaddress.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -40,6 +40,7 @@
 /* types definition */
 typedef struct {
 	uint32_t addr;		/* the ip address */
+	uint32_t broadcast;	/* the broadcast address */
 	uint8_t mask;		/* the ip address CIDR netmask */
 	int ifindex;		/* Interface index owning IP address */
 	interface *ifp;		/* Interface owning IP address */
@@ -58,11 +59,11 @@ typedef struct {
 			(X)->scope   == (Y)->scope)
 
 /* prototypes */
-extern int netlink_address_ipv4(ip_address *ipaddr, int cmd);
+extern int netlink_address_ipv4(ip_address * ipaddr, int cmd);
 extern void netlink_iplist_ipv4(list ip_list, int cmd);
 extern void free_ipaddress(void *data);
 extern void dump_ipaddress(void *data);
-extern void alloc_ipaddress(list ip_list, vector strvec, interface *ifp);
+extern void alloc_ipaddress(list ip_list, vector strvec, interface * ifp);
 extern void clear_diff_address(list l, list n);
 extern void clear_diff_saddresses(void);
 

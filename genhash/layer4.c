@@ -115,15 +115,8 @@ tcp_socket_state(int fd, thread * thread, uint32_t addr_ip, uint16_t addr_port,
 		    inet_ntop2(addr_ip), ntohs(addr_port));
 
 		timer_min = timer_sub_now(thread->sands);
-
-		if (TIMER_SEC(timer_min) <= 0)
-			thread_add_write(thread->master, func,
-					 THREAD_ARG(thread)
-					 , thread->u.fd, 0);
-		else
-			thread_add_write(thread->master, func,
-					 THREAD_ARG(thread)
-					 , thread->u.fd, TIMER_SEC(timer_min));
+		thread_add_write(thread->master, func, THREAD_ARG(thread)
+				 , thread->u.fd, TIMER_LONG(timer_min));
 		return connect_in_progress;
 	}
 
@@ -133,7 +126,7 @@ tcp_socket_state(int fd, thread * thread, uint32_t addr_ip, uint16_t addr_port,
 void
 tcp_connection_state(int fd, enum connect_result status, thread * thread,
 		     int (*func) (struct _thread *)
-		     , int timeout)
+		     , long timeout)
 {
 	switch (status) {
 	case connect_error:
@@ -145,7 +138,7 @@ tcp_connection_state(int fd, enum connect_result status, thread * thread,
 				 fd, timeout);
 		break;
 
-	/* Checking non-blocking connect, we wait until socket is writable */
+		/* Checking non-blocking connect, we wait until socket is writable */
 	case connect_in_progress:
 		thread_add_write(thread->master, func, THREAD_ARG(thread),
 				 fd, timeout);
@@ -162,8 +155,9 @@ tcp_check_thread(thread * thread)
 	SOCK *sock = THREAD_ARG(thread);
 	int ret = 1;
 
-	sock->status = tcp_socket_state(thread->u.fd, thread, req->addr_ip
-				  , req->addr_port, tcp_check_thread);
+	sock->status =
+	    tcp_socket_state(thread->u.fd, thread, req->addr_ip, req->addr_port,
+			     tcp_check_thread);
 	switch (sock->status) {
 	case connect_error:
 		DBG("Error connecting server [%s:%d].\n",
@@ -189,8 +183,7 @@ tcp_check_thread(thread * thread)
 				 */
 				sock->lock = 0;
 				thread_add_event(thread->master,
-						 http_request_thread,
-						 sock, 0);
+						 http_request_thread, sock, 0);
 			} else {
 				DBG("Connection trouble to: [%s:%d].\n",
 				    inet_ntop2(req->addr_ip),

@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_if.c include file.
  *
- * Version:     $Id: vrrp_if.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: vrrp_if.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -49,7 +49,7 @@
 #define IF_HWADDR_MAX 20	/* Max MAC address length size */
 #define ARPHRD_ETHER 1
 #define ARPHRD_LOOPBACK 772
-#define POLLING_DELAY 1
+#define POLLING_DELAY TIMER_HZ
 
 /* Interface Linkbeat code selection */
 #define LB_IOCTL   0x1
@@ -59,15 +59,15 @@
 /* Interface structure definition */
 typedef struct _interface {
 	char ifname[IF_NAMESIZ + 1];	/* Interface name */
-	unsigned int ifindex;		/* Interface index */
-	uint32_t address;		/* Interface main primary IP address */
-	unsigned long flags;		/* flags */
-	unsigned int mtu;		/* MTU for this interface */
-	unsigned short hw_type;		/* Type of hardware address */
+	unsigned int ifindex;	/* Interface index */
+	uint32_t address;	/* Interface main primary IP address */
+	unsigned long flags;	/* flags */
+	unsigned int mtu;	/* MTU for this interface */
+	unsigned short hw_type;	/* Type of hardware address */
 	u_char hw_addr[IF_HWADDR_MAX];	/* MAC address */
-	int hw_addr_len;		/* MAC addresss length */
-	int lb_type;			/* Interface regs selection */
-	int linkbeat;			/* LinkBeat from MII BMSR req */
+	int hw_addr_len;	/* MAC addresss length */
+	int lb_type;		/* Interface regs selection */
+	int linkbeat;		/* LinkBeat from MII BMSR req */
 } interface;
 
 /* Global interface queue */
@@ -98,9 +98,9 @@ extern int if_monitor_thread(thread * thread);
 extern void init_interface_queue(void);
 extern void free_interface_queue(void);
 extern void dump_if(void *data);
-extern int if_join_vrrp_group(int sd, interface *ifp, int proto);
-extern void if_leave_vrrp_group(int sd, interface *ifp);
-extern int if_setsockopt_bindtodevice(int sd, interface *ifp);
+extern int if_join_vrrp_group(int sd, interface * ifp, int proto);
+extern void if_leave_vrrp_group(int sd, interface * ifp);
+extern int if_setsockopt_bindtodevice(int sd, interface * ifp);
 extern int if_setsockopt_hdrincl(int sd);
 extern int if_setsockopt_mcast_loop(int sd);
 

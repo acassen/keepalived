@@ -54,13 +54,13 @@ signal_set(int signo, void (*func) (int))
 	sig.sa_flags = 0;
 #ifdef SA_RESTART
 	sig.sa_flags |= SA_RESTART;
-#endif /* SA_RESTART */
+#endif				/* SA_RESTART */
 
 	ret = sigaction(signo, &sig, &osig);
 
 	if (ret < 0)
 		return (SIG_ERR);
-        else
+	else
 		return (osig.sa_handler);
 }
 
@@ -73,7 +73,6 @@ signal_init(void)
 	signal_set(SIGTERM, sigend);
 	signal_set(SIGKILL, sigend);
 }
-
 
 /* Usage function */
 static void
@@ -220,7 +219,7 @@ main(int argc, char **argv)
 
 	/* Signal handling initialization  */
 	signal_init();
-	
+
 	/* Create the master thread */
 	master = thread_make_master();
 
@@ -238,7 +237,7 @@ main(int argc, char **argv)
 	/* Finalize output informations */
 	if (req->verbose)
 		printf("Global response time for [%s] =%lu\n",
-		       req->url, req->response_time-req->ref_time);
+		       req->url, req->response_time - req->ref_time);
 
 	/* exit cleanly */
 	SSL_CTX_free(req->ctx);

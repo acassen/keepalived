@@ -6,7 +6,7 @@
  * Part:        MISC CHECK. Perform a system call to run an extra
  *              system prog or script.
  *
- * Version:     $Id: check_misc.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: check_misc.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
@@ -57,7 +57,7 @@ dump_misc_check(void *data)
 
 	syslog(LOG_INFO, "   Keepalive method = MISC_CHECK");
 	syslog(LOG_INFO, "   script = %s", misc_chk->path);
-	syslog(LOG_INFO, "   timeout = %d", misc_chk->timeout);
+	syslog(LOG_INFO, "   timeout = %lu", misc_chk->timeout/TIMER_HZ);
 }
 
 void
@@ -81,7 +81,7 @@ void
 misc_timeout_handler(vector strvec)
 {
 	misc_checker *misc_chk = CHECKER_GET();
-	misc_chk->timeout = CHECKER_VALUE_INT(strvec);
+	misc_chk->timeout = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
 }
 
 void

@@ -71,7 +71,7 @@ typedef struct {
 } REQ;
 
 /* Global variables */
-REQ *req;				/* Cmd line arguments */
+REQ *req;			/* Cmd line arguments */
 unsigned int debug;
 
 /* Data buffer length description */

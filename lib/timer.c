@@ -5,7 +5,7 @@
  * 
  * Part:        Timer manipulations.
  *  
- * Version:     $Id: timer.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: timer.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -66,6 +66,24 @@ timer_sub(TIMEVAL a, TIMEVAL b)
 	if (ret.tv_usec < 0) {
 		ret.tv_usec += TIMER_HZ;
 		ret.tv_sec--;
+	}
+
+	return ret;
+}
+
+/* timer add */
+TIMEVAL
+timer_add_long(TIMEVAL a, long b)
+{
+	TIMEVAL ret;
+
+	TIMER_RESET(ret);
+	ret.tv_usec = a.tv_usec + b % TIMER_HZ;
+	ret.tv_sec = a.tv_sec + b / TIMER_HZ;
+
+	if (ret.tv_usec >= TIMER_HZ) {
+		ret.tv_sec++;
+		ret.tv_usec -= TIMER_HZ;
 	}
 
 	return ret;

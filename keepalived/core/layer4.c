@@ -6,7 +6,7 @@
  * Part:        Layer4 checkers handling. Register worker threads &
  *              upper layer checkers.
  *
- * Version:     $Id: layer4.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: layer4.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -53,7 +53,7 @@ tcp_bind_connect(int fd, uint32_t addr_ip, uint16_t addr_port, uint32_t bind_ip)
 	if (bind_ip) {
 		sin.sin_family = AF_INET;
 		sin.sin_addr.s_addr = bind_ip;
-		if (bind(fd, (struct sockaddr *) &sin, sizeof(sin)) != 0)
+		if (bind(fd, (struct sockaddr *) &sin, sizeof (sin)) != 0)
 			return connect_error;
 	}
 
@@ -129,15 +129,8 @@ tcp_socket_state(int fd, thread * thread, uint32_t addr_ip, uint16_t addr_port,
 		    inet_ntop2(addr_ip), ntohs(addr_port));
 
 		timer_min = timer_sub_now(thread->sands);
-
-		if (TIMER_SEC(timer_min) <= 0)
-			thread_add_write(thread->master, func,
-					 THREAD_ARG(thread)
-					 , thread->u.fd, 0);
-		else
-			thread_add_write(thread->master, func,
-					 THREAD_ARG(thread)
-					 , thread->u.fd, TIMER_SEC(timer_min));
+		thread_add_write(thread->master, func, THREAD_ARG(thread)
+				 , thread->u.fd, TIMER_LONG(timer_min));
 		return connect_in_progress;
 	} else if (status != 0) {
 		close(thread->u.fd);
@@ -150,7 +143,7 @@ tcp_socket_state(int fd, thread * thread, uint32_t addr_ip, uint16_t addr_port,
 void
 tcp_connection_state(int fd, enum connect_result status, thread * thread,
 		     int (*func) (struct _thread *)
-		     , int timeout)
+		     , long timeout)
 {
 	checker *checker;
 

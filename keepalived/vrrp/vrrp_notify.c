@@ -5,7 +5,7 @@
  *
  * Part:        VRRP state transition notification scripts handling.
  *
- * Version:     $Id: vrrp_notify.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: vrrp_notify.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -111,6 +111,10 @@ script_open(char *script)
 static int
 notify_script_exec(char* script, char *type, int state_num, char* name)
 {
+	char *state = "{UNKNOWN}";
+	char *command_line = NULL;
+	int size = 0;
+
 	/*
 	 * Determine the length of the buffer that we'll need to generate the command
 	 * to run:
@@ -133,20 +137,19 @@ notify_script_exec(char* script, char *type, int state_num, char* name)
 	 *
 	 *     strlen(script) + strlen(type) + strlen(state) + strlen(name) + 8
 	 */
-
-	char *state = "{UNKNOWN}";
 	switch (state_num) {
 		case VRRP_STATE_MAST  : state = "MASTER" ; break;
 		case VRRP_STATE_BACK  : state = "BACKUP" ; break;
 		case VRRP_STATE_FAULT : state = "FAULT" ; break;
 	}
 
-	int size = (strlen(script) + strlen(type) + strlen(state) + strlen(name) + 8);
-	char *command_line = MALLOC(size);
+	size = strlen(script) + strlen(type) + strlen(state) + strlen(name) + 8;
+	command_line = MALLOC(size);
 	if (!command_line)
 		return 0;
 
 	/* Launch the script */
+	snprintf(command_line, size, "\"%s\" %s \"%s\" %s",script, type, name, state);
 	notify_exec(command_line);
 	FREE(command_line);
 	return 1;

@@ -5,7 +5,7 @@
  * 
  * Part:        watchdog.c include file.
  *  
- * Version:     $Id: watchdog.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: watchdog.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -39,7 +39,7 @@ typedef struct _wdog_data {
 
 /* watchdog definition */
 #define WATCHDOG_TIMER		30
-#define WATCHDOG_DELAY		5
+#define WATCHDOG_DELAY		(5 * TIMER_HZ)
 #define WATCHDOG_STRING		"hello"
 #define WDOG_READ_BUFSIZ	32
 

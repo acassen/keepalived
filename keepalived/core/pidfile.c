@@ -5,7 +5,7 @@
  *
  * Part:        pidfile utility.
  *
- * Version:     $Id: pidfile.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: pidfile.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -31,8 +31,8 @@ pidfile_write(char *pid_file, int pid)
 	FILE *pidfile = fopen(pid_file, "w");
 
 	if (!pidfile) {
-		syslog(LOG_INFO, "pidfile_write : Can not open %s pidfile"
-		       , pid_file);
+		syslog(LOG_INFO, "pidfile_write : Can not open %s pidfile",
+		       pid_file);
 		return 0;
 	}
 	fprintf(pidfile, "%d\n", pid);

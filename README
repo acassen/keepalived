@@ -9,7 +9,8 @@ Keepalived implementation is based on an I/O multiplexer to handle a
 strong multi-threading framework. All the events process use this I/O
 multiplexer.
 
-Keepalived is free software. See the file COPYING for copying conditions.
+Keepalived is free software, Copyright (C) Alexandre Cassen.
+See the file COPYING for copying conditions.
 
 
 OPENSSL TOOLKIT LICENCE EXCEPTION

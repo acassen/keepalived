@@ -5,7 +5,7 @@
  *
  * Part:        ipvswrapper.c include file.
  *
- * Version:     $Id: ipvswrapper.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: ipvswrapper.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -93,9 +93,10 @@ do {						\
 
 /* prototypes */
 extern virtual_server_group *ipvs_get_group_by_name(char *gname, list l);
-extern int ipvs_group_remove_entry(virtual_server *vs,
-				   virtual_server_group_entry *vsge);
-extern int ipvs_cmd(int cmd, list vs_group, virtual_server * vserver, real_server * rserver);
+extern int ipvs_group_remove_entry(virtual_server * vs,
+				   virtual_server_group_entry * vsge);
+extern int ipvs_cmd(int cmd, list vs_group, virtual_server * vserver,
+		    real_server * rserver);
 extern int ipvs_syncd_cmd(int cmd, char *ifname, int state);
 extern void ipvs_syncd_master(char *ifname);
 extern void ipvs_syncd_backup(char *ifname);

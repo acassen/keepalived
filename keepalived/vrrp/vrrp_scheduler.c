@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -178,6 +178,7 @@ static void
 vrrp_init_state(list l)
 {
 	vrrp_rt *vrrp;
+	vrrp_sgroup *vgroup;
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -203,7 +204,20 @@ vrrp_init_state(list l)
 #endif
 			syslog(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
 			       vrrp->iname);
+
+			/* Set BACKUP state */
 			vrrp->state = VRRP_STATE_BACK;
+			vrrp_smtp_notifier(vrrp);
+			notify_instance_exec(vrrp, VRRP_STATE_BACK);
+
+			/* Init group if needed  */
+			if ((vgroup = vrrp->sync)) {
+				if (GROUP_STATE(vgroup) != VRRP_STATE_BACK) {
+					vgroup->state = VRRP_STATE_BACK;
+					vrrp_sync_smtp_notifier(vgroup);
+					notify_group_exec(vgroup, VRRP_STATE_BACK);
+				}
+			}
 		}
 	}
 }
@@ -788,7 +802,6 @@ vrrp_read_dispatcher_thread(thread * thread)
 
 	/* register next dispatcher thread */
 	vrrp_timer = vrrp_timer_fd(fd);
-	TIMER_MICRO_ADJUST(vrrp_timer);
 	if (fd == -1)
 		thread_add_timer(thread->master, vrrp_read_dispatcher_thread,
 				 (int *)THREAD_TIMER, vrrp_timer);

@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: main.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -122,7 +122,7 @@ signal_set(int signo, void (*func) (int))
 	sig.sa_flags = 0;
 #ifdef SA_RESTART
 	sig.sa_flags |= SA_RESTART;
-#endif /* SA_RESTART */
+#endif				/* SA_RESTART */
 
 	ret = sigaction(signo, &sig, &osig);
 

@@ -5,7 +5,7 @@
  *
  * Part:        layer4.c include file.
  *
- * Version:     $Id: layer4.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: layer4.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -46,17 +46,17 @@ enum connect_result {
 
 /* Prototypes defs */
 extern enum connect_result
-tcp_bind_connect(int, uint32_t, uint16_t, uint32_t);
+ tcp_bind_connect(int, uint32_t, uint16_t, uint32_t);
 
 extern enum connect_result
-tcp_connect(int, uint32_t, uint16_t);
+ tcp_connect(int, uint32_t, uint16_t);
 
 extern enum connect_result
-tcp_socket_state(int, thread *, uint32_t, uint16_t,
-		 int (*func) (struct _thread *));
+ tcp_socket_state(int, thread *, uint32_t, uint16_t,
+		  int (*func) (struct _thread *));
 
 extern void
-tcp_connection_state(int, enum connect_result
-		     , thread *, int (*func) (struct _thread *)
-		     , int);
+ tcp_connection_state(int, enum connect_result
+		      , thread *, int (*func) (struct _thread *)
+		      , long);
 #endif

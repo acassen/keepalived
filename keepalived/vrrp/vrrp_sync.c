@@ -5,7 +5,7 @@
  *
  * Part:        VRRP synchronization framework.
  *
- * Version:     $Id: vrrp_sync.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: vrrp_sync.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -38,35 +38,16 @@ vrrp_init_instance_sands(vrrp_rt * vrrp)
 {
 	TIMEVAL timer = timer_now();
 
-	/*
-	 * We only make timer auto-recalibration while being in
-	 * master state. Other state are transtions so recalibration
-	 * is not needed. Here we estimate the VRRP advert time
-	 * handling and substract it to new computed timer.
-	 * We just take care to the usec sub timer and not sec one
-	 * to not conflict scheduling decision.
-	 */
-	if (vrrp->state == VRRP_STATE_MAST) {
-		long usec;
-		usec = timer.tv_usec - vrrp->sands.tv_usec;
-		vrrp->sands.tv_sec = timer.tv_sec + vrrp->adver_int / TIMER_HZ;
- 		vrrp->sands.tv_usec = timer.tv_usec;
-		if (usec > 0)
-			vrrp->sands.tv_usec -= usec;
-		return;
-	}
-
-	if (vrrp->state == VRRP_STATE_GOTO_MASTER ||
+	if (vrrp->state == VRRP_STATE_MAST	  ||
+	    vrrp->state == VRRP_STATE_GOTO_MASTER ||
 	    vrrp->state == VRRP_STATE_GOTO_FAULT) {
 		vrrp->sands.tv_sec = timer.tv_sec + vrrp->adver_int / TIMER_HZ;
  		vrrp->sands.tv_usec = timer.tv_usec;
 		return;
 	}
 
-	if (vrrp->state == VRRP_STATE_BACK || vrrp->state == VRRP_STATE_FAULT) {
-		vrrp->sands.tv_sec = timer.tv_sec + vrrp->ms_down_timer / TIMER_HZ;
-		vrrp->sands.tv_usec = timer.tv_usec + vrrp->ms_down_timer % TIMER_HZ;
-	}
+	if (vrrp->state == VRRP_STATE_BACK || vrrp->state == VRRP_STATE_FAULT)
+		vrrp->sands = timer_add_long(timer, vrrp->ms_down_timer);
 }
 
 /* Instance name lookup */
@@ -129,7 +110,7 @@ vrrp_sync_group_up(vrrp_sgroup * vgroup)
 }
 
 /* SMTP alert group notifier */
-static void
+void
 vrrp_sync_smtp_notifier(vrrp_sgroup *vgroup)
 {
 	if (vgroup->smtp_alert) {
@@ -172,7 +153,7 @@ vrrp_sync_master_election(vrrp_rt * vrrp)
 		return;
 
 	syslog(LOG_INFO, "VRRP_Group(%s) Transition to MASTER state",
-	       GROUP_NAME(vrrp->sync));
+	       GROUP_NAME(vgroup));
 
 	/* Perform sync index */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -196,13 +177,16 @@ vrrp_sync_backup(vrrp_rt * vrrp)
 	list l = vgroup->index;
 	element e;
 
+	if (GROUP_STATE(vgroup) == VRRP_STATE_BACK)
+		return;
+
 	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to BACKUP state",
 	       GROUP_NAME(vgroup));
 
 	/* Perform sync index */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		isync = ELEMENT_DATA(e);
-		if (isync != vrrp) {
+		if (isync != vrrp && isync->state != VRRP_STATE_BACK) {
 			isync->wantstate = VRRP_STATE_BACK;
 			vrrp_state_leave_master(isync);
 			vrrp_init_instance_sands(isync);
@@ -221,18 +205,18 @@ vrrp_sync_master(vrrp_rt * vrrp)
 	list l = vgroup->index;
 	element e;
 
-	if (GROUP_STATE(vrrp->sync) == VRRP_STATE_MAST)
+	if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
 		return;
 
 	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to MASTER state",
-	       GROUP_NAME(vrrp->sync));
+	       GROUP_NAME(vgroup));
 
 	/* Perform sync index */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		isync = ELEMENT_DATA(e);
 
 		/* Send the higher priority advert on all synced instances */
-		if (isync != vrrp) {
+		if (isync != vrrp && isync->state != VRRP_STATE_MAST) {
 			isync->wantstate = VRRP_STATE_MAST;
 			vrrp_state_goto_master(isync);
 			vrrp_init_instance_sands(isync);
@@ -251,11 +235,11 @@ vrrp_sync_fault(vrrp_rt * vrrp)
 	list l = vgroup->index;
 	element e;
 
-	if (GROUP_STATE(vrrp->sync) == VRRP_STATE_FAULT)
+	if (GROUP_STATE(vgroup) == VRRP_STATE_FAULT)
 		return;
 
 	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to FAULT state",
-	       GROUP_NAME(vrrp->sync));
+	       GROUP_NAME(vgroup));
 
 	/* Perform sync index */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -267,7 +251,7 @@ vrrp_sync_fault(vrrp_rt * vrrp)
 		 * => by default ms_down_timer is set to 3secs.
 		 * => Takeover will be less than 3secs !
 		 */
-		if (isync != vrrp) {
+		if (isync != vrrp && isync->state != VRRP_STATE_FAULT) {
 			if (isync->state == VRRP_STATE_MAST)
 				isync->wantstate = VRRP_STATE_GOTO_FAULT;
 			if (isync->state == VRRP_STATE_BACK)

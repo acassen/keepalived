@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: vrrp_data.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: vrrp_data.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -131,7 +131,8 @@ dump_vrrp(void *data)
 		syslog(LOG_INFO, "   Runing LVS sync daemon on interface = %s",
 		       vrrp->lvs_syncd_if);
 	if (vrrp->garp_delay)
-		syslog(LOG_INFO, "   Gratuitous ARP delay = %d", vrrp->garp_delay);
+		syslog(LOG_INFO, "   Gratuitous ARP delay = %d",
+		       vrrp->garp_delay/TIMER_HZ);
 	syslog(LOG_INFO, "   Virtual Router ID = %d", vrrp->vrid);
 	syslog(LOG_INFO, "   Priority = %d", vrrp->priority);
 	syslog(LOG_INFO, "   Advert interval = %dsec",
@@ -185,7 +186,7 @@ alloc_vrrp_sync_group(char *gname)
 	/* Allocate new VRRP group structure */
 	new = (vrrp_sgroup *) MALLOC(sizeof (vrrp_sgroup));
 	new->gname = (char *) MALLOC(size + 1);
-	new->state = VRRP_STATE_BACK;
+	new->state = VRRP_STATE_INIT;
 	memcpy(new->gname, gname, size);
 
 	list_add(vrrp_data->vrrp_sync_group, new);

@@ -7,7 +7,7 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: scheduler.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -216,7 +216,6 @@ thread_add_read(thread_master * m, int (*func) (thread *)
 		, void *arg, int fd, long timer)
 {
 	thread *thread;
-	TIMEVAL time_now;
 
 	assert(m != NULL);
 
@@ -235,14 +234,7 @@ thread_add_read(thread_master * m, int (*func) (thread *)
 	thread->u.fd = fd;
 
 	/* Compute read timeout value */
-	time_now = timer_now();
-	if (timer >= TIMER_MAX_SEC) {
-		time_now.tv_sec += timer / TIMER_HZ;
-		time_now.tv_usec += timer % TIMER_HZ;
-	} else
-		time_now.tv_sec += timer;
-
-	thread->sands = time_now;
+	thread->sands = timer_add_long(timer_now(), timer);
 
 	/* Sort the thread. */
 	thread_list_add_timeval(&m->read, thread);
@@ -256,7 +248,6 @@ thread_add_write(thread_master * m, int (*func) (thread *)
 		 , void *arg, int fd, long timer)
 {
 	thread *thread;
-	TIMEVAL time_now;
 
 	assert(m != NULL);
 
@@ -275,14 +266,7 @@ thread_add_write(thread_master * m, int (*func) (thread *)
 	thread->u.fd = fd;
 
 	/* Compute write timeout value */
-	time_now = timer_now();
-	if (timer >= TIMER_MAX_SEC) {
-		time_now.tv_sec += timer / TIMER_HZ;
-		time_now.tv_usec += timer % TIMER_HZ;
-	} else
-		time_now.tv_sec += timer;
-
-	thread->sands = time_now;
+	thread->sands = timer_add_long(timer_now(), timer);
 
 	/* Sort the thread. */
 	thread_list_add_timeval(&m->write, thread);
@@ -296,7 +280,6 @@ thread_add_timer(thread_master * m, int (*func) (thread *)
 		 , void *arg, long timer)
 {
 	thread *thread;
-	TIMEVAL time_now;
 
 	assert(m != NULL);
 
@@ -308,14 +291,7 @@ thread_add_timer(thread_master * m, int (*func) (thread *)
 	thread->arg = arg;
 
 	/* Do we need jitter here? */
-	time_now = timer_now();
-	if (timer >= TIMER_MAX_SEC) {
-		time_now.tv_sec += timer / TIMER_HZ;
-		time_now.tv_usec += timer % TIMER_HZ;
-	} else
-		time_now.tv_sec += timer;
-
-	thread->sands = time_now;
+	thread->sands = timer_add_long(timer_now(), timer);
 
 	/* Sort by timeval. */
 	thread_list_add_timeval(&m->timer, thread);
@@ -329,7 +305,6 @@ thread_add_child(thread_master * m, int (*func) (thread *)
 		 , void * arg, pid_t pid, long timer)
 {
 	thread *thread;
-	TIMEVAL time_now;
 
 	assert(m != NULL);
 
@@ -343,14 +318,7 @@ thread_add_child(thread_master * m, int (*func) (thread *)
 	thread->u.c.status = 0;
 
 	/* Compute write timeout value */
-	time_now = timer_now();
-	if (timer >= TIMER_MAX_SEC) {
-		time_now.tv_sec += timer / TIMER_HZ;
-		time_now.tv_usec += timer % TIMER_HZ;
-	} else
-		time_now.tv_sec += timer;
-
-	thread->sands = time_now;
+	thread->sands = timer_add_long(timer_now(), timer);
 
 	/* Sort by timeval. */
 	thread_list_add_timeval(&m->child, thread);
@@ -486,6 +454,14 @@ thread_compute_timer(thread_master * m, TIMEVAL * timer_wait)
 				timer_min = m->read.head->sands;
 		} else
 			timer_min = m->read.head->sands;
+	}
+
+	if (m->child.head) {
+		if (!TIMER_ISNULL(timer_min)) {
+			if (timer_cmp(m->child.head->sands, timer_min) <= 0)
+				timer_min = m->child.head->sands;
+		} else
+			timer_min = m->child.head->sands;
 	}
 
 	if (!TIMER_ISNULL(timer_min)) {

@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_netlink.c include file.
  *
- * Version:     $Id: vrrp_netlink.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: vrrp_netlink.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -35,6 +35,9 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
+/* local includes */
+#include "timer.h"
+
 /* types definitions */
 struct nl_handle {
 	int fd;
@@ -43,7 +46,7 @@ struct nl_handle {
 };
 
 /* Define types */
-#define NETLINK_TIMER 30
+#define NETLINK_TIMER (30 * TIMER_HZ)
 
 /* Our global netlink handler */
 struct nl_handle nl_kernel;	/* Kernel reflection channel */

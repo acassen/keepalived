@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: vrrp_parser.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: vrrp_parser.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -242,7 +242,7 @@ static void
 vrrp_garp_delay_handler(vector strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->garp_delay = atoi(VECTOR_SLOT(strvec, 1));
+	vrrp->garp_delay = atoi(VECTOR_SLOT(strvec, 1)) * TIMER_HZ;
 }
 static void
 vrrp_auth_type_handler(vector strvec)

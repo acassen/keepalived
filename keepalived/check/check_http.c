@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: check_http.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -83,11 +83,11 @@ dump_http_get_check(void *data)
 	if (http_get_chk->bindto)
 		syslog(LOG_INFO, "   Bind to = %s",
 		       inet_ntop2(http_get_chk->bindto));
-	syslog(LOG_INFO, "   Connection timeout = %d",
-	       http_get_chk->connection_to);
+	syslog(LOG_INFO, "   Connection timeout = %lu",
+	       http_get_chk->connection_to/TIMER_HZ);
 	syslog(LOG_INFO, "   Nb get retry = %d", http_get_chk->nb_get_retry);
-	syslog(LOG_INFO, "   Delay before retry = %d",
-	       http_get_chk->delay_before_retry);
+	syslog(LOG_INFO, "   Delay before retry = %lu",
+	       http_get_chk->delay_before_retry/TIMER_HZ);
 	dump_list(http_get_chk->url);
 }
 static http_get_checker *
@@ -135,7 +135,7 @@ void
 connect_to_handler(vector strvec)
 {
 	http_get_checker *http_get_chk = CHECKER_GET();
-	http_get_chk->connection_to = CHECKER_VALUE_INT(strvec);
+	http_get_chk->connection_to = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
 }
 
 void
@@ -149,7 +149,7 @@ void
 delay_before_retry_handler(vector strvec)
 {
 	http_get_checker *http_get_chk = CHECKER_GET();
-	http_get_chk->delay_before_retry = CHECKER_VALUE_INT(strvec);
+	http_get_chk->delay_before_retry = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
 }
 
 void
@@ -544,15 +544,34 @@ http_read_thread(thread * thread)
 	uint16_t addr_port = get_service_port(checker);
 	unsigned char digest[16];
 	int r = 0;
+	int val;
 
 	/* Handle read timeout */
 	if (thread->type == THREAD_READ_TIMEOUT)
 		return timeout_epilog(thread, "=> HTTP CHECK failed on service"
 				      " : recevice data <=\n\n", "HTTP read");
 
+	/* Set descriptor non blocking */
+	val = fcntl(thread->u.fd, F_GETFL, 0);
+	fcntl(thread->u.fd, F_SETFL, val | O_NONBLOCK);
+
 	/* read the HTTP stream */
 	r = read(thread->u.fd, req->buffer + req->len,
 		 MAX_BUFFER_LENGTH - req->len);
+
+	/* restore descriptor flags */
+	fcntl(thread->u.fd, F_SETFL, val);
+
+	/* Test if data are ready */
+	if (r == -1 && errno == EAGAIN) {
+		syslog(LOG_INFO, "Read error with server [%s:%d]: %s",
+		       inet_ntop2(CHECKER_RIP(checker))
+		       , ntohs(addr_port)
+		       , strerror(errno));
+		thread_add_read(thread->master, http_read_thread, checker,
+				thread->u.fd, http_get_check->connection_to);
+		return 0;
+	}
 
 	if (r == -1 || r == 0) {	/* -1:error , 0:EOF */
 

@@ -36,7 +36,7 @@
 /* global defs */
 #define GET_BUFFER_LENGTH 2048
 #define MAX_BUFFER_LENGTH 4096
-#define HTTP_CNX_TIMEOUT 5
+#define HTTP_CNX_TIMEOUT (5 * TIMER_HZ)
 #define PROTO_HTTP	0x01
 #define PROTO_SSL	0x02
 
@@ -55,9 +55,9 @@
 #define HTML_MD5_FINAL    DELIM_BEGIN" HTML MD5 final resulting "DELIM_END
 
 /* Define prototypes */
-extern int epilog(thread *thread);
-extern int finalize(thread *thread);
-extern int http_process_stream(SOCK *sock, int r);
+extern int epilog(thread * thread);
+extern int finalize(thread * thread);
+extern int http_process_stream(SOCK * sock, int r);
 extern int http_request_thread(thread * thread);
 
 #endif

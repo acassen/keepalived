@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: main.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -24,6 +24,14 @@
 
 #include "main.h"
 #include "watchdog.h"
+
+/* Log faility table */
+struct {
+	int facility;
+} LOG_FACILITY[LOG_FACILITY_MAX + 1] = {
+	{LOG_LOCAL0}, {LOG_LOCAL1}, {LOG_LOCAL2}, {LOG_LOCAL3},
+	{LOG_LOCAL4}, {LOG_LOCAL5}, {LOG_LOCAL6}, {LOG_LOCAL7}
+};
 
 /* Daemon stop sequence */
 static void
@@ -142,9 +150,11 @@ usage(const char *prog)
 		"  %s --dump-conf          -d    Dump the configuration data.\n"
 		"  %s --log-console        -l    Log message to local console.\n"
 		"  %s --log-detail         -D    Detailed log messages.\n"
+		"  %s --log-facility       -S    0-7 Set syslog facility to LOG_LOCAL[0-7]. (default=LOG_DAEMON)\n"
 		"  %s --help               -h    Display this short inlined help screen.\n"
 		"  %s --version            -v    Display the version number\n",
-		prog, prog, prog, prog, prog, prog, prog, prog, prog, prog, prog);
+		prog, prog, prog, prog, prog, prog, prog, prog, prog, prog,
+		prog, prog);
 }
 
 /* Command line parser */
@@ -160,6 +170,7 @@ parse_cmdline(int argc, char **argv)
 		{"help", 'h', POPT_ARG_NONE, NULL, 'h'},
 		{"log-console", 'l', POPT_ARG_NONE, NULL, 'l'},
 		{"log-detail", 'D', POPT_ARG_NONE, NULL, 'D'},
+		{"log-facility", 'S', POPT_ARG_STRING, &optarg, 'S'},
 		{"dont-release-vrrp", 'V', POPT_ARG_NONE, NULL, 'V'},
 		{"dont-release-ipvs", 'I', POPT_ARG_NONE, NULL, 'I'},
 		{"dont-fork", 'n', POPT_ARG_NONE, NULL, 'n'},
@@ -204,14 +215,17 @@ parse_cmdline(int argc, char **argv)
 	case 'D':
 		debug |= 32;
 		break;
+	case 'S':
+		log_facility = LOG_FACILITY[atoi(optarg)].facility;
+		break;
 	case 'f':
 		conf_file = optarg;
 		break;
 	case 'R':
-		wdog_delay_vrrp = atoi(optarg);
+		wdog_delay_vrrp = atoi(optarg) * TIMER_HZ;
 		break;
 	case 'H':
-		wdog_delay_check = atoi(optarg);
+		wdog_delay_check = atoi(optarg) * TIMER_HZ;
 		break;
 	}
 
@@ -236,14 +250,17 @@ parse_cmdline(int argc, char **argv)
 		case 'D':
 			debug |= 32;
 			break;
+		case 'S':
+			log_facility = LOG_FACILITY[atoi(optarg)].facility;
+			break;
 		case 'f':
 			conf_file = optarg;
 			break;
 		case 'R':
-			wdog_delay_vrrp = atoi(optarg);
+			wdog_delay_vrrp = atoi(optarg) * TIMER_HZ;
 			break;
 		case 'H':
-			wdog_delay_check = atoi(optarg);
+			wdog_delay_check = atoi(optarg) * TIMER_HZ;
 			break;
 		}
 	}
@@ -272,7 +289,7 @@ main(int argc, char **argv)
 	 */
 	parse_cmdline(argc, argv);
 
-	openlog(PROG, LOG_PID | (debug & 1) ? LOG_CONS : 0, LOG_DAEMON);
+	openlog(PROG, LOG_PID | (debug & 1) ? LOG_CONS : 0, log_facility);
 	syslog(LOG_INFO, "Starting " VERSION_STRING);
 
 	/* Check if keepalived is already running */

@@ -5,7 +5,7 @@
  *
  * Part:        VRRP instance index table.
  *
- * Version:     $Id: vrrp_index.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: vrrp_index.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

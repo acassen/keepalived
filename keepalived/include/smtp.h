@@ -5,7 +5,7 @@
  *
  * Part:        smtp.c include file.
  *
- * Version:     $Id: smtp.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: smtp.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -92,6 +92,6 @@ typedef struct _smtp_thread_arg {
 
 /* Prototypes defs */
 extern void smtp_alert(thread_master *,
-		       real_server *, vrrp_rt *,  vrrp_sgroup *,
+		       real_server *, vrrp_rt *, vrrp_sgroup *,
 		       const char *, const char *);
 #endif

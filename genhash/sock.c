@@ -36,7 +36,8 @@ extern thread_master *master;
 extern SOCK *sock;
 
 /* Close the descriptor */
-static void close_sock(SOCK *sock)
+static void
+close_sock(SOCK * sock)
 {
 	if (sock->ssl) {
 		SSL_shutdown(sock->ssl);
@@ -46,7 +47,8 @@ static void close_sock(SOCK *sock)
 }
 
 /* Destroy the socket handler */
-void free_sock(SOCK *sock)
+void
+free_sock(SOCK * sock)
 {
 	DBG("Freeing fd:%d\n", sock->fd);
 
@@ -55,10 +57,10 @@ void free_sock(SOCK *sock)
 }
 
 /* Init socket handler */
-void init_sock(void)
+void
+init_sock(void)
 {
-	sock = (SOCK *)MALLOC(sizeof(SOCK));
-	memset(sock, 0, sizeof(SOCK));
-	thread_add_event(master, tcp_connect_thread,
-			 sock, 0);
+	sock = (SOCK *) MALLOC(sizeof (SOCK));
+	memset(sock, 0, sizeof (SOCK));
+	thread_add_event(master, tcp_connect_thread, sock, 0);
 }

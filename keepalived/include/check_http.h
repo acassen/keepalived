@@ -5,7 +5,7 @@
  *
  * Part:        check_http.c include file.
  *
- * Version:     $Id: check_http.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: check_http.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -67,9 +67,9 @@ typedef struct _http_get_checker {
 	int proto;
 	uint16_t connection_port;
 	uint32_t bindto;
-	int connection_to;
+	long connection_to;
 	int nb_get_retry;
-	int delay_before_retry;
+	long delay_before_retry;
 	list url;
 	http_arg *arg;
 } http_get_checker;
@@ -94,7 +94,7 @@ extern void install_http_check_keyword(void);
 extern int epilog(thread * thread, int metod, int t, int c);
 extern int timeout_epilog(thread * thread, char *smtp_msg, char *debug_msg);
 extern url *fetch_next_url(http_get_checker * http_get_check);
-extern int http_process_response(REQ *req, int r);
+extern int http_process_response(REQ * req, int r);
 extern int http_handle_response(thread * thread, unsigned char digest[16]
 				, int empty_buffer);
 #endif

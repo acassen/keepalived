@@ -39,8 +39,8 @@ global_defs {				# Block identification
 	The configuration block looks like :
 
 static_ipaddress {			# block identification
-    <IP ADDRESS>/<MASK> dev <STRING> scope <SCOPE>
-    <IP ADDRESS>/<MASK> dev <STRING> scope <SCOPE>
+    <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
+    <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
     ...
 }
 
@@ -127,13 +127,13 @@ vrrp_instance <STRING> {		# VRRP instance declaration
         auth_pass <STRING>		# Password string
     }
     virtual_ipaddress {			# VRRP IP addres block
-        <IP ADDRESS>/<MASK> dev <STRING> scope <SCOPE>
-        <IP ADDRESS>/<MASK> dev <STRING> scope <SCOPE>
+        <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
+        <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
         ...
     }
     virtual_ipaddress_excluded {         		# VRRP IP excluded from VRRP
-        <IP ADDRESS>/<MASK> dev <STRING> scope <SCOPE>	# packets
-        <IP ADDRESS>/<MASK> dev <STRING> scope <SCOPE>
+        <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>	# packets
+        <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
         ...
     }
     virtual_routes {			 # VRRP virtual routes

@@ -5,7 +5,7 @@
  *
  * Part:        TCP checker.
  *
- * Version:     $Id: check_tcp.c,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: check_tcp.c,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -54,7 +54,7 @@ dump_tcp_check(void *data)
 		       ntohs(tcp_chk->connection_port));
         if (tcp_chk->bindto)
                 syslog(LOG_INFO, "   Bind to = %s", inet_ntop2(tcp_chk->bindto));
-	syslog(LOG_INFO, "   Connection timeout = %d", tcp_chk->connection_to);
+	syslog(LOG_INFO, "   Connection timeout = %d", tcp_chk->connection_to/TIMER_HZ);
 }
 
 void
@@ -85,7 +85,7 @@ void
 connect_timeout_handler(vector strvec)
 {
 	tcp_checker *tcp_chk = CHECKER_GET();
-	tcp_chk->connection_to = CHECKER_VALUE_INT(strvec);
+	tcp_chk->connection_to = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
 }
 
 void

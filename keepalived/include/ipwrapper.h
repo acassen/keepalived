@@ -5,7 +5,7 @@
  *
  * Part:        ipwrapper.c include file.
  *
- * Version:     $Id: ipwrapper.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: ipwrapper.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -60,10 +60,9 @@
 
 /* prototypes */
 extern void perform_svr_state(int alive, virtual_server * vs, real_server * rs);
-extern int svr_checker_up(checker_id_t cid, real_server *rs);
-extern void update_svr_checker_state(int alive, checker_id_t cid
-				     , virtual_server *vs
-				     , real_server *rs);
+extern int svr_checker_up(checker_id_t cid, real_server * rs);
+extern void update_svr_checker_state(int alive, checker_id_t cid,
+				     virtual_server * vs, real_server * rs);
 extern int init_services(void);
 extern int clear_services(void);
 extern int clear_diff_services(void);

@@ -44,7 +44,7 @@ typedef struct {
 } SOCK;
 
 /* Prototypes */
-extern void free_sock(SOCK *sock);
+extern void free_sock(SOCK * sock);
 extern void init_sock(void);
 
 #endif

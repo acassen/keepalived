@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_arp.c include file.
  *
- * Version:     $Id: vrrp_arp.h,v 1.1.2 2003/09/08 01:18:41 acassen Exp $
+ * Version:     $Id: vrrp_arp.h,v 1.1.3 2003/09/29 02:37:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -39,17 +39,17 @@
 
 /* types definition */
 typedef struct _m_arphdr {
-	unsigned short int ar_hrd;		/* Format of hardware address.  */
-	unsigned short int ar_pro;		/* Format of protocol address.  */
-	unsigned char ar_hln;			/* Length of hardware address.  */
-	unsigned char ar_pln;			/* Length of protocol address.  */
-	unsigned short int ar_op;		/* ARP opcode (command).  */
+	unsigned short int ar_hrd;	/* Format of hardware address.  */
+	unsigned short int ar_pro;	/* Format of protocol address.  */
+	unsigned char ar_hln;	/* Length of hardware address.  */
+	unsigned char ar_pln;	/* Length of protocol address.  */
+	unsigned short int ar_op;	/* ARP opcode (command).  */
 
 	/* Ethernet looks like this : This bit is variable sized however...  */
 	unsigned char __ar_sha[ETH_ALEN];	/* Sender hardware address.  */
-	unsigned char __ar_sip[4];		/* Sender IP address.  */
+	unsigned char __ar_sip[4];	/* Sender IP address.  */
 	unsigned char __ar_tha[ETH_ALEN];	/* Target hardware address.  */
-	unsigned char __ar_tip[4];		/* Target IP address.  */
+	unsigned char __ar_tip[4];	/* Target IP address.  */
 } m_arphdr;
 
 /* Global var */
@@ -59,6 +59,6 @@ int garp_fd;
 /* prototypes */
 extern void gratuitous_arp_init(void);
 extern void gratuitous_arp_close(void);
-extern int send_gratuitous_arp(ip_address *ipaddress);
+extern int send_gratuitous_arp(ip_address * ipaddress);
 
 #endif
