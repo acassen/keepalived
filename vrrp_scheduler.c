@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -565,10 +565,11 @@ int vrrp_read_dispatcher_thread(thread *thread)
     len = read(thread->u.fd, vrrp_buffer, VRRP_PACKET_TEMP_LEN);
     iph = (struct iphdr *)vrrp_buffer;
 
+    /* GCC bug : Workaround */
+    hd = (vrrp_pkt *) ((char *)iph + (iph->ihl<<2));
     if (iph->protocol == IPPROTO_IPSEC_AH)
-      hd = (vrrp_pkt *)((char *)iph + (iph->ihl<<2) + vrrp_ipsecah_len());
-    else
-      hd = (vrrp_pkt *)((char *)iph + (iph->ihl<<2));
+      hd = (vrrp_pkt *) ((char *)hd + vrrp_ipsecah_len());
+    /* GCC bug : end */
 
     /* Searching for matching instance */
     vrrp_instance = vrrp_search_instance(hd->vrid, instance);

@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
+ * Version:     $Id: main.h,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -48,6 +48,6 @@ extern SSL_DATA *init_ssl_ctx(SSL_DATA *ssl);
 
 /* Build version */
 #define PROG    "keepalived"
-#define VERSION "0.4.9 (10/12, 2001)"
+#define VERSION "0.4.9a (20/12, 2001)"
 
 #endif

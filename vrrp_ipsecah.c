@@ -7,7 +7,7 @@
  *              authentication data encryption using HMAC MD5 according to
  *              RFCs 2085 & 2104.
  *
- * Version:     $Id: vrrp_ipsecah.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
+ * Version:     $Id: vrrp_ipsecah.c,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

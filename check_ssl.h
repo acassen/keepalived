@@ -5,7 +5,7 @@
  *
  * Part:        check_http.c include file.
  *
- * Version:     $Id: check_http.h,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
+ * Version:     $Id: check_http.h,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>

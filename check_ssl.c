@@ -7,7 +7,7 @@
  *              url, compute a MD5 over this result and match it to the
  *              expected value.
  *
- * Version:     $Id: check_ssl.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
+ * Version:     $Id: check_ssl.c,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -223,7 +223,7 @@ int ssl_read_thread(thread *thread)
 
     r = (req->error == SSL_ERROR_ZERO_RETURN) ? SSL_shutdown(req->ssl) : 0;
 
-    if (r != 1) {
+    if (r) {
       /* check if server is currently alive */
       if (thread_arg->svr->alive) {
         smtp_alert(thread->master, thread_arg->root, thread_arg->svr,

@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
+ * Version:     $Id: check_http.c,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -235,10 +235,10 @@ int http_handle_response(thread *thread, unsigned char digest[16], int empty_buf
       return epilog(thread,1,0,0);
     } else {
 #ifdef _DEBUG_
-      syslog(LOG_DEBUG, "MD5 digest success to [%s:%d] url(%d), expected MD5SUM [%s] match.",
+      syslog(LOG_DEBUG, "MD5 digest success to [%s:%d] url(%d).",
                         inet_ntoa(thread_arg->svr->addr_ip),
                         ntohs(thread_arg->svr->addr_port),
-                        checker_arg->url_it+1, fetched_url->digest);
+                        checker_arg->url_it+1);
 #endif
       return epilog(thread,2,1,0)+1;
     }
@@ -526,6 +526,11 @@ int http_connect_thread(thread *thread)
       smtp_alert(thread->master, thread_arg->root, thread_arg->svr,
                  "UP", "=> CHECK succeed on service <=\n\n");
       perform_svr_state(UP, thread_arg->vs, thread_arg->svr);
+#ifdef _DEBUG_
+      syslog(LOG_DEBUG, "Remote Web server [%s:%d] succeed on service."
+                      , inet_ntoa(thread_arg->svr->addr_ip)
+                      , ntohs(thread_arg->svr->addr_port));
+#endif
     }
     checker_arg->req = NULL;
     return epilog(thread,1,0,0)+1;

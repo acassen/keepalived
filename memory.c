@@ -6,7 +6,7 @@
  * Part:        Memory management framework. This framework is used to
  *              find any memory leak.
  *
- * Version:     $Id: memory.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
+ * Version:     $Id: memory.c,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -302,7 +302,7 @@ void *keepalived_realloc(void * buffer, unsigned long size, char *file, char* fu
   if (buffer == NULL) {
     printf("realloc %p %s, %3d %s\n", buffer, file, line, function);
     i = number_alloc_list++;
-    alloc_list[i].ptr  = buf;
+    alloc_list[i].ptr  = NULL;
     alloc_list[i].size = 0;
     alloc_list[i].file = file;
     alloc_list[i].func = function;
@@ -316,8 +316,7 @@ void *keepalived_realloc(void * buffer, unsigned long size, char *file, char* fu
   while (i < number_alloc_list) {
     if (alloc_list[i].ptr == buf) {
       buf = alloc_list[i].ptr;
-      alloc_list[i].ptr = NULL;
-        break;
+      break;
     }
     i++;
   }

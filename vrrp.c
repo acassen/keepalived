@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 0.4.9 2001/12/10 10:52:33 acassen Exp $
+ * Version:     $Id: vrrp.c,v 0.4.9a 2001/12/20 17:14:25 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -228,16 +228,20 @@ static uint32_t index_to_ip(const int ifindex)
   return(ifname_to_ip(ifname));
 }
 
-/* add/remove VIP */
+/*
+ * add/remove VIP
+ * retry must clear for each vip address Hoj:-
+ */
 static int vrrp_handle_ipaddress(vrrp_rt *vsrv, int cmd)
 {
   int i, err = 0;
-  int retry = 0;
+  int retry;
   int ifidx = ifname_to_idx(vsrv->vif->ifname);
   struct in_addr in;
 
   for(i = 0; i < vsrv->naddr; i++ ) {
     vip_addr *vadd = &vsrv->vaddr[i];
+    retry ^= retry;
     if(!cmd && !vadd->deletable) continue;
 retry:
     if (netlink_address_ipv4(ifidx , vadd->addr, cmd) < 0) {
