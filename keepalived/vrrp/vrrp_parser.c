@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: vrrp_parser.c,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
+ * Version:     $Id: vrrp_parser.c,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -263,7 +263,7 @@ vrrp_auth_pass_handler(vector strvec)
 	int max_size = sizeof (vrrp->auth_data);
 	int size;
 
-	size = (strlen(str) >= max_size) ? max_size - 1 : strlen(str);
+	size = (strlen(str) >= max_size) ? max_size : strlen(str);
 	memcpy(vrrp->auth_data, str, size);
 }
 static void

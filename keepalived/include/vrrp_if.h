@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_if.c include file.
  *
- * Version:     $Id: vrrp_if.h,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
+ * Version:     $Id: vrrp_if.h,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -88,13 +88,12 @@ list if_queue;
 #else
 #define IF_ISUP(X) (((X)->flags & IFF_UP)      && \
                     ((X)->flags & IFF_RUNNING) && \
-                    if_linkbeat(X))
+                    IF_LINKBEAT(X))
 #endif
 
 /* prototypes */
 extern interface *if_get_by_ifindex(const int ifindex);
 extern interface *if_get_by_ifname(const char *ifname);
-extern int if_linkbeat(const interface * ifp);
 extern int if_mii_probe(const char *ifname);
 extern int if_ethtool_probe(const char *ifname);
 extern void if_add_queue(interface * ifp);

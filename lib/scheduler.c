@@ -7,7 +7,7 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
+ * Version:     $Id: scheduler.c,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -234,7 +234,7 @@ thread_add_read(thread_master * m, int (*func) (thread *)
 	thread->u.fd = fd;
 
 	/* Compute read timeout value */
-	thread->sands = timer_add_long(timer_now(), timer);
+	thread->sands = timer_add_long(time_now, timer);
 
 	/* Sort the thread. */
 	thread_list_add_timeval(&m->read, thread);
@@ -266,7 +266,7 @@ thread_add_write(thread_master * m, int (*func) (thread *)
 	thread->u.fd = fd;
 
 	/* Compute write timeout value */
-	thread->sands = timer_add_long(timer_now(), timer);
+	thread->sands = timer_add_long(time_now, timer);
 
 	/* Sort the thread. */
 	thread_list_add_timeval(&m->write, thread);
@@ -291,7 +291,7 @@ thread_add_timer(thread_master * m, int (*func) (thread *)
 	thread->arg = arg;
 
 	/* Do we need jitter here? */
-	thread->sands = timer_add_long(timer_now(), timer);
+	thread->sands = timer_add_long(time_now, timer);
 
 	/* Sort by timeval. */
 	thread_list_add_timeval(&m->timer, thread);
@@ -318,7 +318,7 @@ thread_add_child(thread_master * m, int (*func) (thread *)
 	thread->u.c.status = 0;
 
 	/* Compute write timeout value */
-	thread->sands = timer_add_long(timer_now(), timer);
+	thread->sands = timer_add_long(time_now, timer);
 
 	/* Sort by timeval. */
 	thread_list_add_timeval(&m->child, thread);
@@ -431,11 +431,9 @@ thread_cancel_event(thread_master * m, void *arg)
 TIMEVAL *
 thread_compute_timer(thread_master * m, TIMEVAL * timer_wait)
 {
-	TIMEVAL time_now;
 	TIMEVAL timer_min;
 
 	TIMER_RESET(timer_min);
-	time_now = timer_now();
 
 	if (m->timer.head)
 		timer_min = m->timer.head->sands;
@@ -487,7 +485,6 @@ thread_fetch(thread_master * m, thread * fetch)
 	fd_set readfd;
 	fd_set writefd;
 	fd_set exceptfd;
-	TIMEVAL time_now;
 	TIMEVAL *timer_wait;
 	int status;
 	sigset_t sigset, dummy_sigset, block_sigset, pending;
@@ -535,7 +532,11 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		return fetch;
 	}
 
-	/* Calculate select wait timer. Take care of timeouted fd */
+	/*
+	 * Re-read the current time to get the maximum accuracy.
+	 * Calculate select wait timer. Take care of timeouted fd.
+	 */
+	set_time_now();
 	timer_wait = thread_compute_timer(m, timer_wait);
 
 	/* Call select function. */
@@ -569,6 +570,9 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		ret = select(FD_SETSIZE, &readfd, &writefd, &exceptfd, timer_wait);
 		sigprocmask(SIG_SETMASK, &saveset, NULL);
 	}
+
+	/* Update current time */
+	set_time_now();
 
 	if (ret < 0) {
 		if (errno != EINTR) {
@@ -608,7 +612,6 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	}
 
 	/* Timeout children */
-	time_now = timer_now();
 	thread = m->child.head;
 	while (thread) {
 		struct _thread *t;
@@ -624,9 +627,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	}
 
 	/* Read thead. */
-	time_now = timer_now();
 	thread = m->read.head;
-
 	while (thread) {
 		struct _thread *t;
 
@@ -650,9 +651,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	}
 
 	/* Write thead. */
-	time_now = timer_now();
 	thread = m->write.head;
-
 	while (thread) {
 		struct _thread *t;
 
@@ -678,8 +677,6 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/*... */
 
 	/* Timer update. */
-	time_now = timer_now();
-
 	thread = m->timer.head;
 	while (thread) {
 		struct _thread *t;

@@ -5,7 +5,7 @@
  * 
  * Part:        timer.c include file.
  *  
- * Version:     $Id: timer.h,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
+ * Version:     $Id: timer.h,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -29,6 +29,9 @@
 
 typedef struct timeval TIMEVAL;
 
+/* Global vars */
+extern TIMEVAL time_now;
+
 /* macro utilities */
 #define TIMER_HZ      1000000
 #define TIMER_MAX_SEC 1000
@@ -39,6 +42,7 @@ typedef struct timeval TIMEVAL;
 
 /* prototypes */
 extern TIMEVAL timer_now(void);
+extern TIMEVAL set_time_now(void);
 extern TIMEVAL timer_dup(TIMEVAL b);
 extern int timer_cmp(TIMEVAL a, TIMEVAL b);
 extern TIMEVAL timer_sub(TIMEVAL a, TIMEVAL b);

@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: check_parser.c,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
+ * Version:     $Id: check_parser.c,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -219,7 +219,9 @@ check_init_keywords(void)
 	install_keyword_root("virtual_server", &vs_handler);
 	install_keyword("delay_loop", &delay_handler);
 	install_keyword("lb_algo", &lbalgo_handler);
+	install_keyword("lvs_sched", &lbalgo_handler);
 	install_keyword("lb_kind", &lbkind_handler);
+	install_keyword("lvs_method", &lbkind_handler);
 	install_keyword("nat_mask", &natmask_handler);
 	install_keyword("persistence_timeout", &pto_handler);
 	install_keyword("persistence_granularity", &pgr_handler);

@@ -1,3 +1,32 @@
+2004-01-25  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.5 released.
+	* Joseph Mack, <mack.joseph@epa.gov> wrote keeplived manpages
+	  in doc/man/man5/keepalived.conf.5 and doc/man/man8/keepalived.8.
+	* VRRP : Tsuji Akira, <tsuji@centurysys.co.jp> fixed a length
+	  issue while testing password field for auth_pass method.
+	* VRRP : Willy Tarreau, <willy@w.ods.org> fixed a quick loop
+	  in the watchdog timer thread.
+	* VRRP : Willy Tarreau, <willy@w.ods.org> extended scheduler
+	  to support stable scheduling time. There is now, only one
+	  time source updated before and after scheduling event. This
+	  solve sliding timer observed on some env, also known as
+	  periodically flapping issue (sometime a VRRP election is
+	  forced).
+	* VRRP : Willy Tarreau, <willy@w.ods.org> updated the default
+	  media link failure detection strategy to perform a ioctl
+	  ifflags even if NIC driver are supporting MII or ETHTOOL.
+	  Some buggy drivers need this. Anyway the linkwatch patch
+	  still the best solution to support efficient and scalable
+	  media link failure detection.
+	* Some cosmetics clean-up, removed some dead files, updated
+	  autoconf and Makefile prototypes to support dependencies
+	  libs like kerberos for RedHat/Fedora distro. To compile
+	  keepalived properly on redhat 9 box, for example, run :
+	  CPPFLAGS="-I/usr/kerberos/include" && ./configure
+	  Renamed keywords lb_kind to lvs_method and ld_algo to
+	  lvs_sched. For compatibility reasons, old keywords are still
+	  available.
+
 2003-12-29  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.4 released.
 	* Refresh autoconf script to use autoconf 2.5.

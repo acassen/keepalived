@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
+ * Version:     $Id: vrrp.h,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

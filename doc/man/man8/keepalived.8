@@ -1,0 +1,72 @@
+.\"
+.\" keepalived(8)
+.\"
+.\" Copyright (C) 2004 Joseph Mack
+.TH keepalived 8 "Jan 2004"
+.SH NAME
+keepalived. \- keepalive demon
+.SH SYNOPSIS
+.B "/usr/sbin/keepalived [-n] [-f keepalived.conf] [-d] [-h] [-v]"
+.SH DESCRIPTION
+The
+.B keepalived
+The keepalived server implements the vrrpd routing demon 
+which enables routing failover for a pair (or set) of routers 
+(or LVS directors) 
+and the keepalived demon which sets up and does the health checking 
+of virtual services in a Linux Virtual Servier.
+.SH OPTIONS
+.TP
+.B --vrrp, -P
+Only run the VRRP subsystem.
+.TP
+.B --check, -C 
+Only run the healthchecker subsystem.
+.TP
+.B --dont-release-vrrp, -V    
+leave (don't remove) VRRP VIPs & VROUTEs on daemon stop.
+.TP
+--dont-release-ipvs, -I    
+Dont remove IPVS topology on daemon stop.
+.TP
+--dont-fork, -n
+Dont fork the daemon process.
+.TP
+--use-file, -f keepalived.conf_file 
+Use the specified configuration file.
+.TP
+--wdog-vrrp, -R
+Define VRRP watchdog polling delay (default=5s)
+.TP
+--wdog-check, -H 
+Define healthchecker's watchdog polling delay (default=5s)
+.TP
+--dump-conf, -d
+Dump the configuration data.
+.TP
+--log-console, -l
+Log messages to local console.
+.TP
+--log-detail, -D    
+Detailed log messages (the default with the rc script provided).
+.TP
+--log-facility, -S    
+0-7 Set syslog facility to LOG_LOCAL[0-7] (default=LOG_DAEMON)
+.TP
+--help, -h    
+Display a short inlined help screen.
+.TP
+--version, -v    
+Display the version number.
+
+.SH FILES
+.BR /etc/keepalived/keepalived.conf
+.SH SEE ALSO
+.BR keepalived.conf(5)
+.SH AUTHORS
+.br
+Joseph Mack
+.br
+from inspection of the output of 
+.I keepalived --help 
+from keepalived-1.1.4

@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
+ * Version:     $Id: main.h,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -59,8 +59,8 @@ int linkwatch = 0;		/* Use linkwatch kernel netlink reflection */
 #define LOG_FACILITY_MAX	7
 #define PROG    "Keepalived"
 
-#define VERSION_CODE 0x010104
-#define DATE_CODE    0x1D0C03
+#define VERSION_CODE 0x010105
+#define DATE_CODE    0x190104
 
 #define KEEPALIVED_VERSION(version)	\
 	(version >> 16) & 0xFF,		\

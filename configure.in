@@ -26,10 +26,6 @@ AC_ARG_WITH(kernel-dir,
   [  --with-kernel-dir=DIR   path to linux kernel source directory],
   [kernelinc="$withval/include"],
   [kernelinc="/usr/src/linux/include"])
-AC_ARG_WITH(ci_linux,
-  [  --with-ci_linux         Compile with Cluster Infrastructure support (default no)],
-  [ci_linux=$withval],
-  [ci_linux="no"])
 AC_ARG_ENABLE(debug,
   [  --enable-debug          compile with debugging flags])
 AC_ARG_ENABLE(profile,
@@ -43,21 +39,14 @@ AC_CHECK_HEADERS(linux/netlink.h linux/rtnetlink.h)
 AC_CHECK_HEADERS(openssl/ssl.h openssl/md5.h openssl/err.h,,AC_MSG_ERROR([
   !!! OpenSSL is not properly installed on your system. !!!
   !!! Can not include OpenSSL headers files.            !!!]))
-if test "${ci_linux}" = "yes"; then
-  AC_CHECK_HEADERS(linux/cluster.h,,AC_MSG_ERROR([linux/cluster.h  file not found]))
-fi
 
 dnl ----[ Checks for libraries ]----
 AC_CHECK_LIB(crypto, MD5_Init,,AC_MSG_ERROR([OpenSSL libraries are required]))
 AC_CHECK_LIB(ssl, SSL_CTX_new,,AC_MSG_ERROR([OpenSSL libraries are required]))
 AC_CHECK_LIB(popt, poptGetContext,,AC_MSG_ERROR([Popt libraries is required]))
-if test "${ci_linux}" = "yes"; then
-  AC_CHECK_LIB(cluster,cluster_maxnodes,,AC_MSG_ERROR([libcluster libraries are required]))
-fi
 
 dnl ----[ Kernel version check ]----
 CPPFLAGS="$CPPFLAGS -I$kernelinc"
-CFLAGS="$CFLAGS -I$kernelinc"
 AC_MSG_CHECKING([for kernel >= 2.4.0])
 AC_TRY_RUN([
   #include <stdlib.h>
@@ -163,17 +152,6 @@ if test "$enable_vrrp" != "no"; then
     ])
 fi
 
-if test "${ci_linux}" = "yes"; then
-  if test "${IPVS_SUPPORT}" = "_WITHOUT_LVS_"; then
-    echo
-    echo "!!!WARN!!! Keepalived cannot be configured with CI-LINUX without LVS support !!!WARN!!!"
-    echo
-    exit 1
-  else
-    CI_LINUX="_WITH_CI_LINUX_"
-  fi
-fi
-
 if test "${enable_debug}" = "yes"; then
   DFLAGS="-D_DEBUG_"
   AC_SUBST(DFLAGS)
@@ -185,7 +163,6 @@ fi
 
 AC_SUBST(IPVS_SUPPORT)
 AC_SUBST(VRRP_SUPPORT)
-AC_SUBST(CI_LINUX)
 
 dnl ----[ LVS syncd support probe ]---
 dnl Sync daemon is supported since LVS 0.9.2 for kernel 2.4
@@ -277,11 +254,6 @@ if test "${LINKWATCH_SUPPORT}" = "_WITH_LINKWATCH_"; then
   echo "Use LinkWatch            : Yes"
 else
   echo "Use LinkWatch            : No"
-fi
-if test "${CI_LINUX}" = "_WITH_CI_LINUX_"; then
-  echo "Use CI_LINUX Framework   : Yes"
-else
-  echo "Use CI_LINUX Framework   : No"
 fi
 if test "${DFLAGS}" = "-D_DEBUG_"; then
   echo "Use Debug flags          : Yes"

@@ -5,7 +5,7 @@
  *
  * Part:        Interfaces manipulation.
  *
- * Version:     $Id: vrrp_if.c,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
+ * Version:     $Id: vrrp_if.c,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -310,7 +310,13 @@ if_linkbeat_refresh_thread(thread * thread)
 	else if (IF_ETHTOOL_SUPPORTED(ifp))
 		ifp->linkbeat = (if_ethtool_probe(ifp->ifname)) ? 1 : 0;
 	else
-		if_ioctl_flags(ifp);
+		ifp->linkbeat = 1;
+
+	/*
+	 * update ifp->flags to get the new IFF_RUNNING status.
+	 * Some buggy drivers need this...
+	 */
+	if_ioctl_flags(ifp);
 
 	/* Register next polling thread */
 	thread_add_timer(master, if_linkbeat_refresh_thread, ifp, POLLING_DELAY);
@@ -343,14 +349,6 @@ init_if_linkbeat(void)
 		thread_add_timer(master, if_linkbeat_refresh_thread, ifp
 				 , POLLING_DELAY);
 	}
-}
-
-int
-if_linkbeat(const interface * ifp)
-{
-	if (IF_MII_SUPPORTED(ifp) || IF_ETHTOOL_SUPPORTED(ifp))
-		return IF_LINKBEAT(ifp);
-	return 1;
 }
 #endif
 

@@ -6,20 +6,15 @@
 
 KERNEL   = @KERN@
 CC	 = @CC@
-CI_LINUX = @CI_LINUX@
-ifeq ($(CI_LINUX),_WITH_CI_LINUX_)
-CI_LINUX_OBJ = check_ci.o
-CIFLAGS = -D$(CI_LINUX)
-endif
 INCLUDES = -I../include -I../../lib
-CFLAGS	 = @CFLAGS@ $(INCLUDES) \
+CFLAGS	 = @CFLAGS@ @CPPFLAGS@ $(INCLUDES) \
 	   -Wall -Wunused -Wstrict-prototypes
 DEFS	 = -D$(KERNEL) -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_SUPPORT@ @DFLAGS@ $(CIFLAGS)
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
 OBJS = 	check_daemon.o check_data.o check_parser.o \
 	check_api.o check_tcp.o check_http.o check_ssl.o \
-	check_misc.o ipwrapper.o ipvswrapper.o $(CI_LINUX_OBJ)
+	check_misc.o ipwrapper.o ipvswrapper.o
 
 ifeq ($(KERNEL),_KRNL_2_2_)
   OBJS += ipfwwrapper.o

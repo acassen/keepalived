@@ -5,7 +5,7 @@
  *
  * Part:        VRRP synchronization framework.
  *
- * Version:     $Id: vrrp_sync.c,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
+ * Version:     $Id: vrrp_sync.c,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -36,18 +36,16 @@ extern vrrp_conf_data *vrrp_data;
 void
 vrrp_init_instance_sands(vrrp_rt * vrrp)
 {
-	TIMEVAL timer = timer_now();
-
 	if (vrrp->state == VRRP_STATE_MAST	  ||
 	    vrrp->state == VRRP_STATE_GOTO_MASTER ||
 	    vrrp->state == VRRP_STATE_GOTO_FAULT) {
-		vrrp->sands.tv_sec = timer.tv_sec + vrrp->adver_int / TIMER_HZ;
- 		vrrp->sands.tv_usec = timer.tv_usec;
+		vrrp->sands.tv_sec = time_now.tv_sec + vrrp->adver_int / TIMER_HZ;
+ 		vrrp->sands.tv_usec = time_now.tv_usec;
 		return;
 	}
 
 	if (vrrp->state == VRRP_STATE_BACK || vrrp->state == VRRP_STATE_FAULT)
-		vrrp->sands = timer_add_long(timer, vrrp->ms_down_timer);
+		vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
 }
 
 /* Instance name lookup */

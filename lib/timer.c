@@ -5,7 +5,7 @@
  * 
  * Part:        Timer manipulations.
  *  
- * Version:     $Id: timer.c,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
+ * Version:     $Id: timer.c,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -25,6 +25,9 @@
 #include <stdio.h>
 #include <string.h>
 #include "timer.h"
+
+/* time_now holds current time */
+TIMEVAL time_now = { tv_sec: 0, tv_usec: 0 };
 
 /* set a timer to a specific value */
 TIMEVAL
@@ -102,11 +105,22 @@ timer_now(void)
 	return timer_now;
 }
 
+/* sets and returns current time from system time */
+TIMEVAL
+set_time_now(void)
+{
+	/* init timer */
+	TIMER_RESET(time_now);
+	gettimeofday(&time_now, NULL);
+
+	return time_now;
+}
+
 /* timer sub from current time */
 TIMEVAL
 timer_sub_now(TIMEVAL a)
 {
-	return timer_sub(timer_now(), a);
+	return timer_sub(time_now, a);
 }
 
 /* print timer value */

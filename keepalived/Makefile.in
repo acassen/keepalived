@@ -42,7 +42,7 @@ all:
 	for i in $(SUBDIRS); do \
 	$(MAKE) -C $$i || exit 1; done && \
 	echo "Building $(BIN)/$(EXEC)" && \
-	$(CC) -o $(BIN)/$(EXEC) $(LDFLAGS) `find $(SUBDIRS) ../lib -name '*.[oa]'`
+	$(CC) -o $(BIN)/$(EXEC) `find $(SUBDIRS) ../lib -name '*.[oa]'` $(LDFLAGS)
 	strip $(BIN)/$(EXEC)
 	@echo ""
 	@echo "Make complete"
@@ -52,7 +52,7 @@ debug:
 	for i in $(SUBDIRS); do \
 	$(MAKE) -C $$i || exit 1; done && \
 	echo "Building $(BIN)/$(EXEC)" && \
-	$(CC) -o $(BIN)/$(EXEC) $(LDFLAGS) `find $(SUBDIRS) ../lib -name '*.[oa]'`
+	$(CC) -o $(BIN)/$(EXEC) `find $(SUBDIRS) ../lib -name '*.[oa]'` $(LDFLAGS)
 	@echo ""
 	@echo "Make complete"
 
@@ -61,7 +61,7 @@ profile:
 	for i in $(SUBDIRS); do \
 	$(MAKE) -C $$i || exit 1; done && \
 	echo "Building $(BIN)/$(EXEC)" && \
-	$(CC) -o $(BIN)/$(EXEC) $(LDFLAGS) -pg `find $(SUBDIRS) ../lib -name '*.[oa]'`
+	$(CC) -o $(BIN)/$(EXEC) `find $(SUBDIRS) ../lib -name '*.[oa]'` $(LDFLAGS) -pg
 	@echo ""
 	@echo "Make complete"
 

@@ -6,7 +6,7 @@
 
 CC	 = @CC@
 INCLUDES = -I../include -I../../lib
-CFLAGS	 = @CFLAGS@ $(INCLUDES) \
+CFLAGS	 = @CFLAGS@ @CPPFLAGS@ $(INCLUDES) \
 	   -Wall -Wunused -Wstrict-prototypes
 DEFS	 = -D@KERN@ -D@LINKWATCH_SUPPORT@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ @DFLAGS@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)

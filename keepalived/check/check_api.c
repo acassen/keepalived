@@ -5,7 +5,7 @@
  *
  * Part:        Checkers registration.
  *
- * Version:     $Id: check_api.c,v 1.1.4 2003/12/29 12:12:04 acassen Exp $
+ * Version:     $Id: check_api.c,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -30,9 +30,6 @@
 #include "check_tcp.h"
 #include "check_http.h"
 #include "check_ssl.h"
-#ifdef _WITH_CI_LINUX_
-#include "check_ci.h"
-#endif
 
 /* External vars */
 extern thread_master *master;
@@ -170,7 +167,4 @@ install_checkers_keyword(void)
 	install_tcp_check_keyword();
 	install_http_check_keyword();
 	install_ssl_check_keyword();
-#ifdef _WITH_CI_LINUX_
-	install_ci_check_keyword();
-#endif
 }
