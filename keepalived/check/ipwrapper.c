@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $id: ipwrapper.c,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
+ * Version:     $id: ipwrapper.c,v 1.1.6 2004/02/21 02:31:28 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "ipwrapper.h"
@@ -157,7 +157,6 @@ init_service_vs(virtual_server * vs)
 	if (!LIST_ISEMPTY(vs->rs))
 		if (!init_service_rs(vs, vs->rs))
 			return 0;
-
 	return 1;
 }
 

@@ -35,7 +35,6 @@ distclean:
 	rm -f Makefile
 
 mrproper: distclean
-	rm -f bin/*
 	rm -f config.*
 
 uninstall:

@@ -5,7 +5,7 @@
  *
  * Part:        Main program include file.
  *
- * Version:     $Id: main.h,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
+ * Version:     $Id: main.h,v 1.1.6 2004/02/21 02:31:28 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _MAIN_H
@@ -59,8 +59,8 @@ int linkwatch = 0;		/* Use linkwatch kernel netlink reflection */
 #define LOG_FACILITY_MAX	7
 #define PROG    "Keepalived"
 
-#define VERSION_CODE 0x010105
-#define DATE_CODE    0x190104
+#define VERSION_CODE 0x010106
+#define DATE_CODE    0x170204
 
 #define KEEPALIVED_VERSION(version)	\
 	(version >> 16) & 0xFF,		\

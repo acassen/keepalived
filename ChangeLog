@@ -1,3 +1,26 @@
+2004-02-23  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.6 released.
+	* VRRP : Fixed scheduling timer update. Global scheduling timer is
+	  updated before each thread registering and after scheduling I/O MUX.
+	  Since is needed to take care of scheduling jitter introduced by
+	  overhead (VRRP is using low low timer so more sensitive to overhead).
+	  Thanks to Nathan Neulinger, <nneul@umr.edu> for his quick feedback
+	  debugging time.
+	* VRRP : Nathan Neulinger, <nneul@umr.edu> updated vrrp dropping
+	  strategy to not reply to incoming bogus adverts. Since this can
+	  introduce flooding loop, bogus adverts are now simply silently
+	  dropped.
+	* VRRP : Fixed a linkbeat issue while polling NIC flags.
+	* Updated autoconf and Makefile to support 2.6 kernel IPVS code. For
+	  code readability, created 2 differents libipvs for 2.4 and 2.6 kernel
+	  . Fixed autoconf generated warning.
+	* Extended ipvswrapper to support shared buffer user rule. This
+	  increase performances by limiting memory allocation. OTOH, created
+	  two new ipvs helpers ipvs_start & ipvs_stop to initialize ipvs
+	  subsystem.
+	* Andres Salomon, <dilinger@voxel.net> made some cosmetics update
+	  in Makefiles to support $(DESTDIR) and $(BIN)/$(EXEC) path split.
+
 2004-01-25  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.5 released.
 	* Joseph Mack, <mack.joseph@epa.gov> wrote keeplived manpages
@@ -22,7 +45,7 @@
 	  autoconf and Makefile prototypes to support dependencies
 	  libs like kerberos for RedHat/Fedora distro. To compile
 	  keepalived properly on redhat 9 box, for example, run :
-	  CPPFLAGS="-I/usr/kerberos/include" && ./configure
+	  export CPPFLAGS="-I/usr/kerberos/include" && ./configure
 	  Renamed keywords lb_kind to lvs_method and ld_algo to
 	  lvs_sched. For compatibility reasons, old keywords are still
 	  available.

@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.1.6 2004/02/21 02:31:28 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -22,7 +22,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 /* local include */
@@ -827,7 +827,6 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 		syslog(LOG_INFO,
 		       "VRRP_Instance(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
-		vrrp_send_adv(vrrp, vrrp->priority);
 		return 0;
 	} else if (hd->priority < vrrp->priority) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
@@ -897,7 +896,6 @@ vrrp_state_fault_rx(vrrp_rt * vrrp, char *buf, int buflen)
 		syslog(LOG_INFO,
 		       "VRRP_Instance(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
-		vrrp_send_adv(vrrp, vrrp->priority);
 		return 0;
 	} else if (vrrp->priority > hd->priority ||
 		   hd->priority == VRRP_PRIO_OWNER)

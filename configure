@@ -308,7 +308,7 @@ ac_includes_default="\
 # include <unistd.h>
 #endif"
 
-ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CPP EGREP LINKWATCH_SUPPORT KERN DFLAGS IPVS_SUPPORT VRRP_SUPPORT IPVS_SYNCD LIBOBJS LTLIBOBJS'
+ac_subst_vars='SHELL PATH_SEPARATOR PACKAGE_NAME PACKAGE_TARNAME PACKAGE_VERSION PACKAGE_STRING PACKAGE_BUGREPORT exec_prefix prefix program_transform_name bindir sbindir libexecdir datadir sysconfdir sharedstatedir localstatedir libdir includedir oldincludedir infodir mandir build_alias host_alias target_alias DEFS ECHO_C ECHO_N ECHO_T LIBS CC CFLAGS LDFLAGS CPPFLAGS ac_ct_CC EXEEXT OBJEXT INSTALL_PROGRAM INSTALL_SCRIPT INSTALL_DATA CPP EGREP LINKWATCH_SUPPORT KERN IPVS_SYNCD DFLAGS IPVS_SUPPORT VRRP_SUPPORT LIBOBJS LTLIBOBJS'
 ac_subst_files=''
 
 # Initialize some variables set by options.
@@ -2957,149 +2957,6 @@ done
 
 
 
-for ac_header in linux/netlink.h linux/rtnetlink.h
-do
-as_ac_Header=`echo "ac_cv_header_$ac_header" | $as_tr_sh`
-if eval "test \"\${$as_ac_Header+set}\" = set"; then
-  echo "$as_me:$LINENO: checking for $ac_header" >&5
-echo $ECHO_N "checking for $ac_header... $ECHO_C" >&6
-if eval "test \"\${$as_ac_Header+set}\" = set"; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-fi
-echo "$as_me:$LINENO: result: `eval echo '${'$as_ac_Header'}'`" >&5
-echo "${ECHO_T}`eval echo '${'$as_ac_Header'}'`" >&6
-else
-  # Is the header compilable?
-echo "$as_me:$LINENO: checking $ac_header usability" >&5
-echo $ECHO_N "checking $ac_header usability... $ECHO_C" >&6
-cat >conftest.$ac_ext <<_ACEOF
-#line $LINENO "configure"
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-$ac_includes_default
-#include <$ac_header>
-_ACEOF
-rm -f conftest.$ac_objext
-if { (eval echo "$as_me:$LINENO: \"$ac_compile\"") >&5
-  (eval $ac_compile) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } &&
-         { ac_try='test -s conftest.$ac_objext'
-  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
-  (eval $ac_try) 2>&5
-  ac_status=$?
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); }; }; then
-  ac_header_compiler=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-ac_header_compiler=no
-fi
-rm -f conftest.$ac_objext conftest.$ac_ext
-echo "$as_me:$LINENO: result: $ac_header_compiler" >&5
-echo "${ECHO_T}$ac_header_compiler" >&6
-
-# Is the header present?
-echo "$as_me:$LINENO: checking $ac_header presence" >&5
-echo $ECHO_N "checking $ac_header presence... $ECHO_C" >&6
-cat >conftest.$ac_ext <<_ACEOF
-#line $LINENO "configure"
-/* confdefs.h.  */
-_ACEOF
-cat confdefs.h >>conftest.$ac_ext
-cat >>conftest.$ac_ext <<_ACEOF
-/* end confdefs.h.  */
-#include <$ac_header>
-_ACEOF
-if { (eval echo "$as_me:$LINENO: \"$ac_cpp conftest.$ac_ext\"") >&5
-  (eval $ac_cpp conftest.$ac_ext) 2>conftest.er1
-  ac_status=$?
-  grep -v '^ *+' conftest.er1 >conftest.err
-  rm -f conftest.er1
-  cat conftest.err >&5
-  echo "$as_me:$LINENO: \$? = $ac_status" >&5
-  (exit $ac_status); } >/dev/null; then
-  if test -s conftest.err; then
-    ac_cpp_err=$ac_c_preproc_warn_flag
-  else
-    ac_cpp_err=
-  fi
-else
-  ac_cpp_err=yes
-fi
-if test -z "$ac_cpp_err"; then
-  ac_header_preproc=yes
-else
-  echo "$as_me: failed program was:" >&5
-sed 's/^/| /' conftest.$ac_ext >&5
-
-  ac_header_preproc=no
-fi
-rm -f conftest.err conftest.$ac_ext
-echo "$as_me:$LINENO: result: $ac_header_preproc" >&5
-echo "${ECHO_T}$ac_header_preproc" >&6
-
-# So?  What about this header?
-case $ac_header_compiler:$ac_header_preproc in
-  yes:no )
-    { echo "$as_me:$LINENO: WARNING: $ac_header: accepted by the compiler, rejected by the preprocessor!" >&5
-echo "$as_me: WARNING: $ac_header: accepted by the compiler, rejected by the preprocessor!" >&2;}
-    { echo "$as_me:$LINENO: WARNING: $ac_header: proceeding with the preprocessor's result" >&5
-echo "$as_me: WARNING: $ac_header: proceeding with the preprocessor's result" >&2;}
-    (
-      cat <<\_ASBOX
-## ------------------------------------ ##
-## Report this to bug-autoconf@gnu.org. ##
-## ------------------------------------ ##
-_ASBOX
-    ) |
-      sed "s/^/$as_me: WARNING:     /" >&2
-    ;;
-  no:yes )
-    { echo "$as_me:$LINENO: WARNING: $ac_header: present but cannot be compiled" >&5
-echo "$as_me: WARNING: $ac_header: present but cannot be compiled" >&2;}
-    { echo "$as_me:$LINENO: WARNING: $ac_header: check for missing prerequisite headers?" >&5
-echo "$as_me: WARNING: $ac_header: check for missing prerequisite headers?" >&2;}
-    { echo "$as_me:$LINENO: WARNING: $ac_header: proceeding with the preprocessor's result" >&5
-echo "$as_me: WARNING: $ac_header: proceeding with the preprocessor's result" >&2;}
-    (
-      cat <<\_ASBOX
-## ------------------------------------ ##
-## Report this to bug-autoconf@gnu.org. ##
-## ------------------------------------ ##
-_ASBOX
-    ) |
-      sed "s/^/$as_me: WARNING:     /" >&2
-    ;;
-esac
-echo "$as_me:$LINENO: checking for $ac_header" >&5
-echo $ECHO_N "checking for $ac_header... $ECHO_C" >&6
-if eval "test \"\${$as_ac_Header+set}\" = set"; then
-  echo $ECHO_N "(cached) $ECHO_C" >&6
-else
-  eval "$as_ac_Header=$ac_header_preproc"
-fi
-echo "$as_me:$LINENO: result: `eval echo '${'$as_ac_Header'}'`" >&5
-echo "${ECHO_T}`eval echo '${'$as_ac_Header'}'`" >&6
-
-fi
-if test `eval echo '${'$as_ac_Header'}'` = yes; then
-  cat >>confdefs.h <<_ACEOF
-#define `echo "HAVE_$ac_header" | $as_tr_cpp` 1
-_ACEOF
-
-fi
-
-done
-
-
-
 
 for ac_header in openssl/ssl.h openssl/md5.h openssl/err.h
 do
@@ -3457,13 +3314,13 @@ fi
 
 
 CPPFLAGS="$CPPFLAGS -I$kernelinc"
-echo "$as_me:$LINENO: checking for kernel >= 2.4.0" >&5
-echo $ECHO_N "checking for kernel >= 2.4.0... $ECHO_C" >&6
+echo "$as_me:$LINENO: checking for kernel version" >&5
+echo $ECHO_N "checking for kernel version... $ECHO_C" >&6
 if test "$cross_compiling" = yes; then
 
-    KERN="_KRNL_2_2_"
-    echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
+    LINUX_MAJOR="0"
+    LINUX_MINOR="0"
+    LINUX_PATCH="0"
 
 else
   cat >conftest.$ac_ext <<_ACEOF
@@ -3474,15 +3331,17 @@ cat confdefs.h >>conftest.$ac_ext
 cat >>conftest.$ac_ext <<_ACEOF
 /* end confdefs.h.  */
 
-  #include <stdlib.h>
-  #include <linux/version.h>
-  int main (void) {
-  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
-    return 0;
-  #else
-    return 1;
-  #endif
-  }
+    #include <stdlib.h>
+    #include <stdio.h>
+    #include <linux/version.h>
+    int main (void) {
+      FILE *fp = fopen ("linuxinfo", "w");
+      if (!fp) return 1;
+      fprintf (fp, "%s\n", UTS_RELEASE);
+      fclose (fp);
+      return 0;
+    }
+
 _ACEOF
 rm -f conftest$ac_exeext
 if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
@@ -3496,9 +3355,9 @@ if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
   echo "$as_me:$LINENO: \$? = $ac_status" >&5
   (exit $ac_status); }; }; then
 
-    KERN="_KRNL_2_4_"
-    echo "$as_me:$LINENO: result: yes" >&5
-echo "${ECHO_T}yes" >&6
+    LINUX_MAJOR=`cat linuxinfo | cut -d'.' -f1`
+    LINUX_MINOR=`cat linuxinfo | cut -d'.' -f2`
+    LINUX_PATCH=`cat linuxinfo | cut -d'.' -f3`
 
 else
   echo "$as_me: program exited with status $ac_status" >&5
@@ -3507,13 +3366,27 @@ sed 's/^/| /' conftest.$ac_ext >&5
 
 ( exit $ac_status )
 
-    KERN="_KRNL_2_2_"
-    echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
+    LINUX_MAJOR="0"
+    LINUX_MINOR="0"
+    LINUX_PATCH="0"
 
 fi
 rm -f core core.* *.core gmon.out bb.out conftest$ac_exeext conftest.$ac_objext conftest.$ac_ext
 fi
+  rm -f linuxinfo
+  echo "$as_me:$LINENO: result: $LINUX_MAJOR.$LINUX_MINOR.$LINUX_PATCH" >&5
+echo "${ECHO_T}$LINUX_MAJOR.$LINUX_MINOR.$LINUX_PATCH" >&6
+  if test "$LINUX_MINOR" = "6"; then
+    KERN="_KRNL_2_6_"
+  elif test "$LINUX_MINOR" = "4"; then
+    KERN="_KRNL_2_4_"
+  else
+    KERN="_KRNL_2_2_"
+  fi
+  if test "$LINUX_MAJOR" = "0" -a "$LINUX_MINOR" = "0" -a "$LINUX_PATCH" = "0"; then
+    { echo "$as_me:$LINENO: WARNING: Cannot determine Linux Kernel version." >&5
+echo "$as_me: WARNING: Cannot determine Linux Kernel version." >&2;}
+  fi
 
 echo "$as_me:$LINENO: checking for /usr/src/linux/net/core/link_watch.c" >&5
 echo $ECHO_N "checking for /usr/src/linux/net/core/link_watch.c... $ECHO_C" >&6
@@ -3768,6 +3641,36 @@ echo "$as_me: error: keepalived MUST be compiled at least with LVS or VRRP frame
    { (exit 1); exit 1; }; }
 fi
 
+
+IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
+  echo "$as_me:$LINENO: checking for IPVS syncd support" >&5
+echo $ECHO_N "checking for IPVS syncd support... $ECHO_C" >&6
+  if test "$KERN" = "_KRNL_2_6_"; then
+    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
+  elif test "$IPVS_MAJOR" -ge 1 -a "$KERN" = "_KRNL_2_4_"; then
+    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
+  elif test "$IPVS_MINOR" -ge 9 -a "$IPVS_PATCH" -ge 2 -a "$KERN" = "_KRNL_2_4_"; then
+    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
+  else
+    IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+  fi
+
+  if test "${IPVS_SUPPORT}" = "_WITHOUT_LVS_" -o "$enable_lvs_syncd" = "no"; then
+    IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+  fi
+
+  if test "$IPVS_SYNCD" = "_HAVE_IPVS_SYNCD_"; then
+    echo "$as_me:$LINENO: result: yes" >&5
+echo "${ECHO_T}yes" >&6
+  else
+    echo "$as_me:$LINENO: result: no" >&5
+echo "${ECHO_T}no" >&6
+  fi
+fi
+
+
+
 VRRP_SUPPORT="_WITHOUT_VRRP_"
 if test "$enable_vrrp" != "no"; then
   echo "$as_me:$LINENO: checking for kernel netlink support" >&5
@@ -3837,34 +3740,6 @@ if test "${enable_profile}" = "yes"; then
   CFLAGS="$CFLAGS -pg"
 fi
 
-
-
-
-
-IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
-if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
-  echo "$as_me:$LINENO: checking for LVS syncd support" >&5
-echo $ECHO_N "checking for LVS syncd support... $ECHO_C" >&6
-  if test "$IPVS_MAJOR" -ge 1 -a "$KERN" = "_KRNL_2_4_"; then
-    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
-  elif test "$IPVS_MINOR" -ge 9 -a "$IPVS_PATCH" -ge 2 -a "$KERN" = "_KRNL_2_4_"; then
-    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
-  else
-    IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
-  fi
-
-  if test "${IPVS_SUPPORT}" = "_WITHOUT_LVS_" -o "$enable_lvs_syncd" = "no"; then
-    IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
-  fi
-
-  if test "$IPVS_SYNCD" = "_HAVE_IPVS_SYNCD_"; then
-    echo "$as_me:$LINENO: result: yes" >&5
-echo "${ECHO_T}yes" >&6
-  else
-    echo "$as_me:$LINENO: result: no" >&5
-echo "${ECHO_T}no" >&6
-  fi
-fi
 
 
 
@@ -4132,6 +4007,81 @@ echo "${ECHO_T}$ac_cv_prog_gcc_traditional" >&6
   fi
 fi
 
+echo "$as_me:$LINENO: checking for working memcmp" >&5
+echo $ECHO_N "checking for working memcmp... $ECHO_C" >&6
+if test "${ac_cv_func_memcmp_working+set}" = set; then
+  echo $ECHO_N "(cached) $ECHO_C" >&6
+else
+  if test "$cross_compiling" = yes; then
+  ac_cv_func_memcmp_working=no
+else
+  cat >conftest.$ac_ext <<_ACEOF
+#line $LINENO "configure"
+/* confdefs.h.  */
+_ACEOF
+cat confdefs.h >>conftest.$ac_ext
+cat >>conftest.$ac_ext <<_ACEOF
+/* end confdefs.h.  */
+
+int
+main ()
+{
+
+  /* Some versions of memcmp are not 8-bit clean.  */
+  char c0 = 0x40, c1 = 0x80, c2 = 0x81;
+  if (memcmp(&c0, &c2, 1) >= 0 || memcmp(&c1, &c2, 1) >= 0)
+    exit (1);
+
+  /* The Next x86 OpenStep bug shows up only when comparing 16 bytes
+     or more and with at least one buffer not starting on a 4-byte boundary.
+     William Lewis provided this test program.   */
+  {
+    char foo[21];
+    char bar[21];
+    int i;
+    for (i = 0; i < 4; i++)
+      {
+        char *a = foo + i;
+        char *b = bar + i;
+        strcpy (a, "--------01111111");
+        strcpy (b, "--------10000000");
+        if (memcmp (a, b, 16) >= 0)
+          exit (1);
+      }
+    exit (0);
+  }
+
+  ;
+  return 0;
+}
+_ACEOF
+rm -f conftest$ac_exeext
+if { (eval echo "$as_me:$LINENO: \"$ac_link\"") >&5
+  (eval $ac_link) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); } && { ac_try='./conftest$ac_exeext'
+  { (eval echo "$as_me:$LINENO: \"$ac_try\"") >&5
+  (eval $ac_try) 2>&5
+  ac_status=$?
+  echo "$as_me:$LINENO: \$? = $ac_status" >&5
+  (exit $ac_status); }; }; then
+  ac_cv_func_memcmp_working=yes
+else
+  echo "$as_me: program exited with status $ac_status" >&5
+echo "$as_me: failed program was:" >&5
+sed 's/^/| /' conftest.$ac_ext >&5
+
+( exit $ac_status )
+ac_cv_func_memcmp_working=no
+fi
+rm -f core core.* *.core gmon.out bb.out conftest$ac_exeext conftest.$ac_objext conftest.$ac_ext
+fi
+fi
+echo "$as_me:$LINENO: result: $ac_cv_func_memcmp_working" >&5
+echo "${ECHO_T}$ac_cv_func_memcmp_working" >&6
+test $ac_cv_func_memcmp_working = no && LIBOBJS="$LIBOBJS memcmp.$ac_objext"
+
 echo "$as_me:$LINENO: checking return type of signal handlers" >&5
 echo $ECHO_N "checking return type of signal handlers... $ECHO_C" >&6
 if test "${ac_cv_type_signal+set}" = set; then
@@ -4288,8 +4238,10 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
 fi
 if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
   OUTPUT_TARGET="$OUTPUT_TARGET keepalived/check/Makefile"
-  if test "$KERN" = "_KRNL_2_4_"; then
-    OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs/Makefile"
+  if test "$KERN" = "_KRNL_2_6_"; then
+    OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs-2.6/Makefile"
+  elif test "$KERN" = "_KRNL_2_4_"; then
+    OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs-2.4/Makefile"
   else
     OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipfwc/Makefile"
   fi
@@ -4943,10 +4895,10 @@ s,@CPP@,$CPP,;t t
 s,@EGREP@,$EGREP,;t t
 s,@LINKWATCH_SUPPORT@,$LINKWATCH_SUPPORT,;t t
 s,@KERN@,$KERN,;t t
+s,@IPVS_SYNCD@,$IPVS_SYNCD,;t t
 s,@DFLAGS@,$DFLAGS,;t t
 s,@IPVS_SUPPORT@,$IPVS_SUPPORT,;t t
 s,@VRRP_SUPPORT@,$VRRP_SUPPORT,;t t
-s,@IPVS_SYNCD@,$IPVS_SYNCD,;t t
 s,@LIBOBJS@,$LIBOBJS,;t t
 s,@LTLIBOBJS@,$LTLIBOBJS,;t t
 CEOF

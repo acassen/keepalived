@@ -1,0 +1,21 @@
+# Makefile for libipvs
+
+CC		= @CC@
+CFLAGS		= @CFLAGS@ @CPPFLAGS@ -Wall -Wunused
+
+.PHONY		= all clean install dist distclean rpm rpms
+STATIC_LIB	= libipvs.a
+
+all:		$(STATIC_LIB)
+
+$(STATIC_LIB):	libipvs.o
+		ar rv $@ $^
+
+%.o:		%.c
+		$(CC) $(CFLAGS) -c -o $@ $<
+
+clean:
+		rm -f *.[ao] *~ *.orig *.rej core
+
+distclean:	clean
+		rm -f Makefile

@@ -35,7 +35,7 @@ dnl ----[ Checks for header files ]----
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
 AC_CHECK_HEADERS(fcntl.h syslog.h unistd.h sys/ioctl.h sys/time.h)
-AC_CHECK_HEADERS(linux/netlink.h linux/rtnetlink.h)
+dnl [do we really need this ?] AC_CHECK_HEADERS(linux/netlink.h linux/rtnetlink.h)
 AC_CHECK_HEADERS(openssl/ssl.h openssl/md5.h openssl/err.h,,AC_MSG_ERROR([
   !!! OpenSSL is not properly installed on your system. !!!
   !!! Can not include OpenSSL headers files.            !!!]))
@@ -47,26 +47,43 @@ AC_CHECK_LIB(popt, poptGetContext,,AC_MSG_ERROR([Popt libraries is required]))
 
 dnl ----[ Kernel version check ]----
 CPPFLAGS="$CPPFLAGS -I$kernelinc"
-AC_MSG_CHECKING([for kernel >= 2.4.0])
+AC_MSG_CHECKING([for kernel version])
 AC_TRY_RUN([
-  #include <stdlib.h>
-  #include <linux/version.h>
-  int main (void) {
-  #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,4,0)
-    return 0;
-  #else
-    return 1;
-  #endif
-  }], [
-    KERN="_KRNL_2_4_"
-    AC_MSG_RESULT(yes)
+    #include <stdlib.h>
+    #include <stdio.h>
+    #include <linux/version.h>
+    int main (void) {
+      FILE *fp = fopen ("linuxinfo", "w");
+      if (!fp) return 1;
+      fprintf (fp, "%s\n", UTS_RELEASE);
+      fclose (fp); 
+      return 0;
+    } 
   ], [
-    KERN="_KRNL_2_2_"
-    AC_MSG_RESULT(no)
+    LINUX_MAJOR=`cat linuxinfo | cut -d'.' -f1`
+    LINUX_MINOR=`cat linuxinfo | cut -d'.' -f2`
+    LINUX_PATCH=`cat linuxinfo | cut -d'.' -f3`
   ], [
-    KERN="_KRNL_2_2_"
-    AC_MSG_RESULT(no)
+    LINUX_MAJOR="0"
+    LINUX_MINOR="0"
+    LINUX_PATCH="0"
+  ], [
+    LINUX_MAJOR="0"
+    LINUX_MINOR="0"
+    LINUX_PATCH="0"
   ])
+  rm -f linuxinfo
+  AC_MSG_RESULT([$LINUX_MAJOR.$LINUX_MINOR.$LINUX_PATCH])
+  if test "$LINUX_MINOR" = "6"; then
+    KERN="_KRNL_2_6_"
+  elif test "$LINUX_MINOR" = "4"; then
+    KERN="_KRNL_2_4_"
+  else
+    KERN="_KRNL_2_2_"
+  fi
+  if test "$LINUX_MAJOR" = "0" -a "$LINUX_MINOR" = "0" -a "$LINUX_PATCH" = "0"; then
+    AC_MSG_WARN([Cannot determine Linux Kernel version.])
+  fi
 
 AC_CHECK_FILE(/usr/src/linux/net/core/link_watch.c, [
                 LINKWATCH_SUPPORT="_WITH_LINKWATCH_"
@@ -128,6 +145,35 @@ if test "$IPVS_SUPPORT" = "_WITHOUT_LVS_" -a "$enable_vrrp" = "no"; then
   AC_MSG_ERROR([keepalived MUST be compiled at least with LVS or VRRP framework])
 fi
 
+dnl ----[ IPVS syncd support probe ]---
+dnl Sync daemon is supported since IPVS 0.9.2 for kernel 2.4
+
+IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
+  AC_MSG_CHECKING([for IPVS syncd support])
+  if test "$KERN" = "_KRNL_2_6_"; then
+    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
+  elif test "$IPVS_MAJOR" -ge 1 -a "$KERN" = "_KRNL_2_4_"; then
+    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
+  elif test "$IPVS_MINOR" -ge 9 -a "$IPVS_PATCH" -ge 2 -a "$KERN" = "_KRNL_2_4_"; then
+    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
+  else
+    IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+  fi
+
+  if test "${IPVS_SUPPORT}" = "_WITHOUT_LVS_" -o "$enable_lvs_syncd" = "no"; then
+    IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+  fi
+
+  if test "$IPVS_SYNCD" = "_HAVE_IPVS_SYNCD_"; then
+    AC_MSG_RESULT([yes])
+  else
+    AC_MSG_RESULT([no])
+  fi
+fi
+
+AC_SUBST(IPVS_SYNCD)
+
 dnl ----[ Checks for kernel netlink support ]----
 VRRP_SUPPORT="_WITHOUT_VRRP_"
 if test "$enable_vrrp" != "no"; then
@@ -164,33 +210,6 @@ fi
 AC_SUBST(IPVS_SUPPORT)
 AC_SUBST(VRRP_SUPPORT)
 
-dnl ----[ LVS syncd support probe ]---
-dnl Sync daemon is supported since LVS 0.9.2 for kernel 2.4
-
-IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
-if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
-  AC_MSG_CHECKING([for LVS syncd support])
-  if test "$IPVS_MAJOR" -ge 1 -a "$KERN" = "_KRNL_2_4_"; then
-    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
-  elif test "$IPVS_MINOR" -ge 9 -a "$IPVS_PATCH" -ge 2 -a "$KERN" = "_KRNL_2_4_"; then
-    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
-  else
-    IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
-  fi
-
-  if test "${IPVS_SUPPORT}" = "_WITHOUT_LVS_" -o "$enable_lvs_syncd" = "no"; then
-    IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
-  fi
-
-  if test "$IPVS_SYNCD" = "_HAVE_IPVS_SYNCD_"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-  fi
-fi
-
-AC_SUBST(IPVS_SYNCD)
-
 dnl ----[ Checks for typedefs, structures, and compiler characteristics ]----
 AC_C_CONST
 AC_TYPE_PID_T
@@ -198,7 +217,7 @@ AC_HEADER_TIME
 
 dnl ----[ Checks for library functions ]----
 AC_PROG_GCC_TRADITIONAL
-dnl AC_FUNC_MEMCMP
+AC_FUNC_MEMCMP
 AC_TYPE_SIGNAL
 AC_CHECK_FUNCS(gettimeofday select socket strerror strtol uname)
 
@@ -209,8 +228,10 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
 fi
 if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
   OUTPUT_TARGET="$OUTPUT_TARGET keepalived/check/Makefile"
-  if test "$KERN" = "_KRNL_2_4_"; then
-    OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs/Makefile"
+  if test "$KERN" = "_KRNL_2_6_"; then
+    OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs-2.6/Makefile"
+  elif test "$KERN" = "_KRNL_2_4_"; then
+    OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs-2.4/Makefile"
   else
     OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipfwc/Makefile"
   fi

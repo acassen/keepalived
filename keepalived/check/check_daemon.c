@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckrs child process handling.
  *
- * Version:     $Id: check_daemon.c,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
+ * Version:     $Id: check_daemon.c,v 1.1.6 2004/02/21 02:31:28 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "check_daemon.h"
@@ -28,6 +28,7 @@
 #include "check_api.h"
 #include "global_data.h"
 #include "ipwrapper.h"
+#include "ipvswrapper.h"
 #include "pidfile.h"
 #include "daemon.h"
 #include "list.h"
@@ -71,6 +72,7 @@ stop_check(void)
 	free_ssl();
 	if (!(debug & 16))
 		clear_services();
+	ipvs_stop();
 
 	/* Stop daemon */
 	pidfile_rm(CHECKERS_PID_FILE);
@@ -102,6 +104,7 @@ static void
 start_check(void)
 {
 	/* Initialize sub-system */
+	ipvs_start();
 	init_checkers_queue();
 #ifdef _WITH_VRRP_
 	init_interface_queue();
@@ -162,6 +165,7 @@ reload_check_thread(thread * thread)
 	free_global_data(data);
 	free_checkers_queue();
 	free_ssl();
+	ipvs_stop();
 
 	/* free watchdog sd */
 	wdog_close(check_wdog_sd, WDOG_CHECK);
@@ -268,7 +272,7 @@ start_check_child(void)
 	/* Launch the scheduling I/O multiplexer */
 	launch_scheduler();
 
-	/* Finish VRRP daemon process */
+	/* Finish healthchecker daemon process */
 	stop_check();
 	exit(0);
 }

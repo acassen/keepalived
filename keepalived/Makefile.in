@@ -4,7 +4,7 @@
 #
 # Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
 
-EXEC = keepalived
+EXEC      = keepalived
 BIN       = ../bin
 KERNEL    = @KERN@
 IPVS_FLAG = @IPVS_SUPPORT@
@@ -33,7 +33,11 @@ ifeq ($(IPVS_FLAG),_WITH_LVS_)
   ifeq ($(KERNEL),_KRNL_2_2_)
     SUBDIRS += libipfwc
   else
-    SUBDIRS += libipvs
+    ifeq ($(KERNEL),_KRNL_2_4_)
+      SUBDIRS += libipvs-2.4
+    else
+      SUBDIRS += libipvs-2.6
+    endif
   endif
 endif
 
@@ -76,21 +80,21 @@ distclean:
 	@set -e; \
 	for i in $(SUBDIRS); do \
 	$(MAKE) -C $$i distclean; done
-	rm -f Makefile
+	rm -f Makefile $(BIN)/$(EXEC)
 
 mrproper: distclean
 	rm -f config.*
 
 uninstall:
-	rm -f $(sbindir)/$(EXEC)
-	rm -rf $(sysconfdir)/keepalived
-	rm -f $(init_dir)/$(init_script)
+	rm -f $(DESTDIR)$(sbindir)/$(EXEC)
+	rm -rf $(DESTDIR)$(sysconfdir)/keepalived
+	rm -f $(DESTDIR)$(init_dir)/$(init_script)
 
 install:
-	install -d $(sbindir)
-	install -m 700 $(BIN)/$(EXEC) $(sbindir)/
-	install -d $(sysconfdir)/init.d
-	install -m 755 $(init_script) $(sysconfdir)/init.d/keepalived
-	install -d $(sysconfdir)/keepalived/samples
-	install -m 644 $(conf_file) $(sysconfdir)/keepalived/
-	install -m 644 ../doc/samples/* $(sysconfdir)/keepalived/samples/
+	install -d $(DESTDIR)$(sbindir)
+	install -m 700 $(BIN)/$(EXEC) $(DESTDIR)$(sbindir)/
+	install -d $(DESTDIR)$(sysconfdir)/init.d
+	install -m 755 $(init_script) $(DESTDIR)$(sysconfdir)/init.d/keepalived
+	install -d $(DESTDIR)$(sysconfdir)/keepalived/samples
+	install -m 644 $(conf_file) $(DESTDIR)$(sysconfdir)/keepalived/
+	install -m 644 ../doc/samples/* $(DESTDIR)$(sysconfdir)/keepalived/samples/

@@ -7,7 +7,7 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
+ * Version:     $Id: scheduler.c,v 1.1.6 2004/02/21 02:31:28 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -21,7 +21,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include <signal.h>
@@ -234,6 +234,7 @@ thread_add_read(thread_master * m, int (*func) (thread *)
 	thread->u.fd = fd;
 
 	/* Compute read timeout value */
+	set_time_now();
 	thread->sands = timer_add_long(time_now, timer);
 
 	/* Sort the thread. */
@@ -266,6 +267,7 @@ thread_add_write(thread_master * m, int (*func) (thread *)
 	thread->u.fd = fd;
 
 	/* Compute write timeout value */
+	set_time_now();
 	thread->sands = timer_add_long(time_now, timer);
 
 	/* Sort the thread. */
@@ -291,6 +293,7 @@ thread_add_timer(thread_master * m, int (*func) (thread *)
 	thread->arg = arg;
 
 	/* Do we need jitter here? */
+	set_time_now();
 	thread->sands = timer_add_long(time_now, timer);
 
 	/* Sort by timeval. */
@@ -318,6 +321,7 @@ thread_add_child(thread_master * m, int (*func) (thread *)
 	thread->u.c.status = 0;
 
 	/* Compute write timeout value */
+	set_time_now();
 	thread->sands = timer_add_long(time_now, timer);
 
 	/* Sort by timeval. */

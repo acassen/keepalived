@@ -5,7 +5,7 @@
  *
  * Part:        ipvswrapper.c include file.
  *
- * Version:     $Id: ipvswrapper.h,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
+ * Version:     $Id: ipvswrapper.h,v 1.1.6 2004/02/21 02:31:28 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _IPVSWRAPPER_H
@@ -41,12 +41,14 @@
 
 #ifdef _WITH_LVS_
 #ifdef _KRNL_2_2_
-#include <linux/ip_fw.h>
-#include <net/ip_masq.h>
-#else
-#include "../libipvs/libipvs.h"
+  #include <linux/ip_fw.h>
+  #include <net/ip_masq.h>
+#elif _KRNL_2_4_
+  #include "../libipvs-2.4/libipvs.h"
+#elif _KRNL_2_6_
+  #include "../libipvs-2.6/libipvs.h"
 #endif
-#include <net/ip_vs.h>
+  #include <net/ip_vs.h>
 #endif
 
 #ifndef IP_VS_TEMPLATE_TIMEOUT
@@ -92,6 +94,8 @@ do {						\
 } while (0)
 
 /* prototypes */
+extern int ipvs_start(void);
+extern void ipvs_stop(void);
 extern virtual_server_group *ipvs_get_group_by_name(char *gname, list l);
 extern int ipvs_group_remove_entry(virtual_server * vs,
 				   virtual_server_group_entry * vsge);

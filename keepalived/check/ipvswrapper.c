@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 1.1.5 2004/01/25 23:14:31 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 1.1.6 2004/02/21 02:31:28 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -20,7 +20,7 @@
  *               as published by the Free Software Foundation; either version
  *               2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001, 2002, 2003 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "ipvswrapper.h"
@@ -34,7 +34,33 @@ static int parse_timeout(char *, unsigned *);
 static int string_to_number(const char *, int, int);
 static int modprobe_ipvs(void);
 
-#ifdef _KRNL_2_2_		/* KERNEL 2.2 LVS handling */
+/* fetch virtual server group from group name */
+virtual_server_group *
+ipvs_get_group_by_name(char *gname, list l)
+{
+	element e;
+	virtual_server_group *vsg;
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vsg = ELEMENT_DATA(e);
+		if (!strcmp(vsg->gname, gname))
+			return vsg;
+	}
+	return NULL;
+}
+
+#ifdef _KRNL_2_2_		/* KERNEL 2.2 IPVS handling */
+
+/* Simple fake func for compatibility */
+int
+ipvs_start(void)
+{
+	return IPVS_SUCCESS;
+}
+void
+ipvs_stop(void)
+{
+}
 
 int
 ipvs_syncd_cmd(int cmd, char *ifname, int state)
@@ -131,13 +157,15 @@ ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
 }
 
 
-#else				/* KERNEL 2.4 LVS handling */
+#elif _KRNL_2_4_			/* KERNEL 2.4 IPVS handling */
 
-static int
-ipvs_talk(int cmd, struct ip_vs_rule_user *urule)
+/* Global module def IPVS rules */
+static struct ip_vs_rule_user *urule;
+
+/* Initialization helpers */
+int
+ipvs_start(void)
 {
-	int result;
-
 	/* Init IPVS kernel channel */
 	if (ipvs_init()) {
 		/* try to insmod the ip_vs module if ipvs_init failed */
@@ -149,10 +177,24 @@ ipvs_talk(int cmd, struct ip_vs_rule_user *urule)
 		}
 	}
 
-	result = ipvs_command(cmd, urule);
-	if (result)
-		syslog(LOG_INFO, "IPVS : %s", ipvs_strerror(errno));
+	/* Allocate global user rules */
+	urule = (struct ip_vs_rule_user *) MALLOC(sizeof (struct ip_vs_rule_user));
+	return IPVS_SUCCESS;
+}
+
+void
+ipvs_stop(void)
+{
+	/* Clean up the room */
+	FREE(urule);
 	ipvs_close();
+}
+
+static int
+ipvs_talk(int cmd)
+{
+	if (ipvs_command(cmd, urule))
+		syslog(LOG_INFO, "IPVS : %s", ipvs_strerror(errno));
 	return IPVS_SUCCESS;
 }
 
@@ -161,17 +203,15 @@ ipvs_syncd_cmd(int cmd, char *ifname, int state)
 {
 #ifdef _HAVE_IPVS_SYNCD_
 
-	struct ip_vs_rule_user urule;
-
-	memset(&urule, 0, sizeof (struct ip_vs_rule_user));
+	memset(urule, 0, sizeof (struct ip_vs_rule_user));
 
 	/* prepare user rule */
-	urule.state = state;
+	urule->state = state;
 	if (ifname != NULL)
-		strncpy(urule.mcast_ifn, ifname, IP_VS_IFNAME_MAXLEN);
+		strncpy(urule->mcast_ifn, ifname, IP_VS_IFNAME_MAXLEN);
 
 	/* Talk to the IPVS channel */
-	return ipvs_talk(cmd, &urule);
+	return ipvs_talk(cmd);
 
 #else
 	syslog(LOG_INFO, "IPVS : Sync daemon not supported");
@@ -179,25 +219,9 @@ ipvs_syncd_cmd(int cmd, char *ifname, int state)
 #endif
 }
 
-/* fetch virtual server group from group name */
-virtual_server_group *
-ipvs_get_group_by_name(char *gname, list l)
-{
-	element e;
-	virtual_server_group *vsg;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vsg = ELEMENT_DATA(e);
-		if (!strcmp(vsg->gname, gname))
-			return vsg;
-	}
-	return NULL;
-}
-
 /* IPVS group range rule */
 static int
-ipvs_group_range_cmd(int cmd, struct ip_vs_rule_user *urule
-		     , virtual_server_group_entry *vsg_entry)
+ipvs_group_range_cmd(int cmd, virtual_server_group_entry *vsg_entry)
 {
 	uint32_t addr_ip;
 	int err = 0;
@@ -210,7 +234,7 @@ ipvs_group_range_cmd(int cmd, struct ip_vs_rule_user *urule
 		urule->vport = SVR_PORT(vsg_entry);
 
 		/* Talk to the IPVS channel */
-		err = ipvs_talk(cmd, urule);
+		err = ipvs_talk(cmd);
 	}
 
 	return err;
@@ -218,9 +242,7 @@ ipvs_group_range_cmd(int cmd, struct ip_vs_rule_user *urule
 
 /* set IPVS group rules */
 static int
-ipvs_group_cmd(int cmd, list vs_group, real_server * rs
-		      , struct ip_vs_rule_user *urule
-		      , char * vsgname)
+ipvs_group_cmd(int cmd, list vs_group, real_server * rs, char * vsgname)
 {
 	virtual_server_group *vsg = ipvs_get_group_by_name(vsgname, vs_group);
 	virtual_server_group_entry *vsg_entry;
@@ -240,7 +262,7 @@ ipvs_group_cmd(int cmd, list vs_group, real_server * rs
 
 		/* Talk to the IPVS channel */
 		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
-			err = ipvs_talk(cmd, urule);
+			err = ipvs_talk(cmd);
 			IPVS_SET_ALIVE(cmd, vsg_entry);
 		}
 	}
@@ -255,7 +277,7 @@ ipvs_group_cmd(int cmd, list vs_group, real_server * rs
 
 		/* Talk to the IPVS channel */
 		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
-			err = ipvs_talk(cmd, urule);
+			err = ipvs_talk(cmd);
 			IPVS_SET_ALIVE(cmd, vsg_entry);
 		}
 	}
@@ -268,7 +290,7 @@ ipvs_group_cmd(int cmd, list vs_group, real_server * rs
 
 		/* Talk to the IPVS channel */
 		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
-			err = ipvs_group_range_cmd(cmd, urule, vsg_entry);
+			err = ipvs_group_range_cmd(cmd, vsg_entry);
 			IPVS_SET_ALIVE(cmd, vsg_entry);
 		}
 	}
@@ -277,13 +299,11 @@ ipvs_group_cmd(int cmd, list vs_group, real_server * rs
 }
 
 /* Fill IPVS rule with root vs infos */
-struct ip_vs_rule_user *
+void
 ipvs_set_rule(int cmd, virtual_server * vs, real_server * rs)
 {
-	struct ip_vs_rule_user *urule;
-
-	/* Allocate target rule */
-	urule = (struct ip_vs_rule_user *) MALLOC(sizeof (struct ip_vs_rule_user));
+	/* Clean up target rule */
+	memset(urule, 0, sizeof (struct ip_vs_rule_user));
 
 	strncpy(urule->sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
 	urule->weight = 1;
@@ -311,16 +331,16 @@ ipvs_set_rule(int cmd, virtual_server * vs, real_server * rs)
 			urule->dport = SVR_PORT(rs);
 		}
 	}
-
-	return urule;
 }
 
 /* Set/Remove a RS from a VS */
 int
 ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
 {
-	struct ip_vs_rule_user *urule = ipvs_set_rule(cmd, vs, rs);
 	int err = 0;
+
+	/* Prepare target rule */
+	ipvs_set_rule(cmd, vs, rs);
 
 	/* Does the service use inhibit flag ? */
 	if (cmd == IP_VS_SO_SET_DELDEST && rs->inhibit) {
@@ -338,7 +358,7 @@ ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
 
 	/* Set vs rule and send to kernel */
 	if (vs->vsgname) {
-		err = ipvs_group_cmd(cmd, vs_group, rs, urule, vs->vsgname);
+		err = ipvs_group_cmd(cmd, vs_group, rs, vs->vsgname);
 	} else {
 		if (vs->vfwmark) {
 			urule->vfwmark = vs->vfwmark;
@@ -348,10 +368,9 @@ ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
 		}
 
 		/* Talk to the IPVS channel */
-		err = ipvs_talk(cmd, urule);
+		err = ipvs_talk(cmd);
 	}
 
-	FREE(urule);
 	return err;
 }
 
@@ -359,11 +378,13 @@ ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
 int
 ipvs_group_remove_entry(virtual_server *vs, virtual_server_group_entry *vsge)
 {
-	struct ip_vs_rule_user *urule = NULL;
 	real_server *rs;
 	int err = 0;
 	element e;
 	list l = vs->rs;
+
+	/* Clean target rules */
+	memset(urule, 0, sizeof (struct ip_vs_rule_user));
 
 	/* Process realserver queue */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -371,9 +392,9 @@ ipvs_group_remove_entry(virtual_server *vs, virtual_server_group_entry *vsge)
 
 		if (rs->alive) {
 			/* Prepare the IPVS rule */
-			if (!urule) {
+			if (urule->daddr) {
 				/* Setting IPVS rule with vs root rs */
-				urule = ipvs_set_rule(IP_VS_SO_SET_DELDEST, vs, rs);
+				ipvs_set_rule(IP_VS_SO_SET_DELDEST, vs, rs);
 			} else {
 				urule->weight = rs->weight;
 				urule->daddr = SVR_IP(rs);
@@ -382,26 +403,313 @@ ipvs_group_remove_entry(virtual_server *vs, virtual_server_group_entry *vsge)
 
 			/* Set vs rule */
 			if (vsge->range) {
-				ipvs_group_range_cmd(IP_VS_SO_SET_DELDEST, urule, vsge);
+				ipvs_group_range_cmd(IP_VS_SO_SET_DELDEST, vsge);
 			} else {
 				urule->vfwmark = vsge->vfwmark;
 				urule->vaddr = SVR_IP(vsge);
 				urule->vport = SVR_PORT(vsge);
 
 				/* Talk to the IPVS channel */
-				err = ipvs_talk(IP_VS_SO_SET_DELDEST, urule);
+				err = ipvs_talk(IP_VS_SO_SET_DELDEST);
 			}
 		}
 	}
 
 	/* Remove VS entry */
 	if (vsge->range)
-		err = ipvs_group_range_cmd(IP_VS_SO_SET_DEL, urule, vsge);
+		err = ipvs_group_range_cmd(IP_VS_SO_SET_DEL, vsge);
 	else
-		err = ipvs_talk(IP_VS_SO_SET_DEL, urule);
-
-	FREE(urule);
+		err = ipvs_talk(IP_VS_SO_SET_DEL);
 	return err;
+}
+
+#else					/* KERNEL 2.6 IPVS handling */
+
+/* Global module def IPVS rules */
+static struct ip_vs_service_user *srule;
+static struct ip_vs_dest_user *drule;
+static struct ip_vs_daemon_user *daemonrule;
+
+/* Initialization helpers */
+int
+ipvs_start(void)
+{
+	/* Initialize IPVS module */
+	if (ipvs_init()) {
+		if (modprobe_ipvs() || ipvs_init()) {
+			syslog(LOG_INFO, "IPVS: Can't initialize ipvs: %s",
+			       ipvs_strerror(errno));
+			return IPVS_ERROR;
+		}
+	}
+
+	/* Allocate global user rules */
+	srule = (struct ip_vs_service_user *) MALLOC(sizeof (struct ip_vs_service_user));
+	drule = (struct ip_vs_dest_user *) MALLOC(sizeof (struct ip_vs_dest_user));
+	daemonrule = (struct ip_vs_daemon_user *) MALLOC(sizeof (struct ip_vs_daemon_user));
+	return IPVS_SUCCESS;
+}
+
+void
+ipvs_stop(void)
+{
+	/* Clean up the room */
+	FREE(srule);
+	FREE(drule);
+	FREE(daemonrule);
+	ipvs_close();
+}
+
+/* Send user rules to IPVS module */
+static void
+ipvs_talk(int cmd)
+{
+	int result = -1;
+
+	switch (cmd) {
+		case IP_VS_SO_SET_STARTDAEMON:
+			result = ipvs_start_daemon(daemonrule);
+			break;
+		case IP_VS_SO_SET_STOPDAEMON:
+			result = ipvs_stop_daemon(daemonrule);
+			break;
+		case IP_VS_SO_SET_ADD:
+			result = ipvs_add_service(srule);
+			break;
+		case IP_VS_SO_SET_DEL:
+			result = ipvs_del_service(srule);
+			break;
+		case IP_VS_SO_SET_EDIT:
+			result = ipvs_update_service(srule);
+			break;
+		case IP_VS_SO_SET_ZERO:
+			result = ipvs_zero_service(srule);
+			break;
+		case IP_VS_SO_SET_ADDDEST:
+			result = ipvs_add_dest(srule, drule);
+			break;
+		case IP_VS_SO_SET_DELDEST:
+			result = ipvs_del_dest(srule, drule);
+			break;
+		case IP_VS_SO_SET_EDITDEST:
+			result = ipvs_update_dest(srule, drule);
+			break;
+	}
+
+	if (result)
+		syslog(LOG_INFO, "IPVS: %s", ipvs_strerror(errno));
+}
+
+int
+ipvs_syncd_cmd(int cmd, char *ifname, int state)
+{
+	memset(daemonrule, 0, sizeof (struct ip_vs_daemon_user));
+
+	/* prepare user rule */
+	daemonrule->state = state;
+	if (ifname != NULL)
+		strncpy(daemonrule->mcast_ifn, ifname, IP_VS_IFNAME_MAXLEN);
+
+	/* Talk to the IPVS channel */
+	ipvs_talk(cmd);
+	return IPVS_SUCCESS;
+}
+
+/* IPVS group range rule */
+static void
+ipvs_group_range_cmd(int cmd, virtual_server_group_entry *vsg_entry)
+{
+	uint32_t addr_ip;
+
+	/* Parse the whole range */
+	for (addr_ip = SVR_IP(vsg_entry);
+	     ((addr_ip >> 24) & 0xFF) <= vsg_entry->range;
+	     addr_ip += 0x01000000) {
+		srule->addr = addr_ip;
+		srule->port = SVR_PORT(vsg_entry);
+
+		/* Talk to the IPVS channel */
+		ipvs_talk(cmd);
+	}
+}
+
+/* set IPVS group rules */
+static void
+ipvs_group_cmd(int cmd, list vs_group, real_server * rs, char * vsgname)
+{
+	virtual_server_group *vsg = ipvs_get_group_by_name(vsgname, vs_group);
+	virtual_server_group_entry *vsg_entry;
+	list l;
+	element e;
+
+	/* return if jointure fails */
+	if (!vsg) return;
+
+	/* visit addr_ip list */
+	l = vsg->addr_ip;
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vsg_entry = ELEMENT_DATA(e);
+		srule->addr = SVR_IP(vsg_entry);
+		srule->port = SVR_PORT(vsg_entry);
+
+		/* Talk to the IPVS channel */
+		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
+			ipvs_talk(cmd);
+			IPVS_SET_ALIVE(cmd, vsg_entry);
+		}
+	}
+
+	/* visit vfwmark list */
+	l = vsg->vfwmark;
+	srule->addr = 0;
+	srule->port = 0;
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vsg_entry = ELEMENT_DATA(e);
+		srule->fwmark = vsg_entry->vfwmark;
+
+		/* Talk to the IPVS channel */
+		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
+			ipvs_talk(cmd);
+			IPVS_SET_ALIVE(cmd, vsg_entry);
+		}
+	}
+
+	/* visit range list */
+	l = vsg->range;
+	srule->fwmark = 0;
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vsg_entry = ELEMENT_DATA(e);
+
+		/* Talk to the IPVS channel */
+		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
+			ipvs_group_range_cmd(cmd, vsg_entry);
+			IPVS_SET_ALIVE(cmd, vsg_entry);
+		}
+	}
+}
+
+/* Fill IPVS rule with root vs infos */
+void
+ipvs_set_rule(int cmd, virtual_server * vs, real_server * rs)
+{
+	/* Clean target rule */
+	memset(drule, 0, sizeof (struct ip_vs_dest_user));
+
+	drule->weight = 1;
+	drule->conn_flags = vs->loadbalancing_kind;
+	strncpy(srule->sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
+	srule->netmask = ((u_int32_t) 0xffffffff);
+	srule->protocol = vs->service_type;
+
+	if (!parse_timeout(vs->timeout_persistence, &srule->timeout))
+		syslog(LOG_INFO,
+		       "IPVS : Virtual service [%s:%d] illegal timeout.",
+		       inet_ntop2(SVR_IP(vs)), ntohs(SVR_PORT(vs)));
+
+	if (srule->timeout != 0 || vs->granularity_persistence)
+		srule->flags = IP_VS_SVC_F_PERSISTENT;
+
+	if (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL)
+		if (vs->granularity_persistence)
+			srule->netmask = vs->granularity_persistence;
+
+	/* SVR specific */
+	if (rs) {
+		if (cmd == IP_VS_SO_SET_ADDDEST || cmd == IP_VS_SO_SET_DELDEST) {
+			drule->weight = rs->weight;
+			drule->addr = SVR_IP(rs);
+			drule->port = SVR_PORT(rs);
+		}
+	}
+}
+
+/* Set/Remove a RS from a VS */
+int
+ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
+{
+	/* Allocate the room */
+	memset(srule, 0, sizeof (struct ip_vs_service_user));
+	ipvs_set_rule(cmd, vs, rs);
+
+	/* Does the service use inhibit flag ? */
+	if (cmd == IP_VS_SO_SET_DELDEST && rs->inhibit) {
+		drule->weight = 0;
+		cmd = IP_VS_SO_SET_EDITDEST;
+	}
+	if (cmd == IP_VS_SO_SET_ADDDEST && rs->inhibit && rs->set)
+		cmd = IP_VS_SO_SET_EDITDEST;
+
+	/* Set flag */
+	if (cmd == IP_VS_SO_SET_ADDDEST && !rs->set)
+		rs->set = 1;
+	if (cmd == IP_VS_SO_SET_DELDEST && rs->set)
+		rs->set = 0;
+
+	/* Set vs rule and send to kernel */
+	if (vs->vsgname) {
+		ipvs_group_cmd(cmd, vs_group, rs, vs->vsgname);
+	} else {
+		if (vs->vfwmark) {
+			srule->fwmark = vs->vfwmark;
+		} else {
+			srule->addr = SVR_IP(vs);
+			srule->port = SVR_PORT(vs);
+		}
+
+		/* Talk to the IPVS channel */
+		ipvs_talk(cmd);
+	}
+
+	return IPVS_SUCCESS;
+}
+
+/* Remove a specific vs group entry */
+int
+ipvs_group_remove_entry(virtual_server *vs, virtual_server_group_entry *vsge)
+{
+	real_server *rs;
+	element e;
+	list l = vs->rs;
+
+	/* Clean target rules */
+	memset(srule, 0, sizeof (struct ip_vs_service_user));
+	memset(drule, 0, sizeof (struct ip_vs_dest_user));
+
+	/* Process realserver queue */
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		rs = ELEMENT_DATA(e);
+
+		if (rs->alive) {
+			/* Prepare the IPVS rule */
+			if (!drule->addr) {
+				/* Setting IPVS rule with vs root rs */
+				ipvs_set_rule(IP_VS_SO_SET_DELDEST, vs, rs);
+			} else {
+				drule->weight = rs->weight;
+				drule->addr = SVR_IP(rs);
+				drule->port = SVR_PORT(rs);
+			}
+
+			/* Set vs rule */
+			if (vsge->range) {
+				ipvs_group_range_cmd(IP_VS_SO_SET_DELDEST, vsge);
+			} else {
+				srule->fwmark = vsge->vfwmark;
+				srule->addr = SVR_IP(vsge);
+				srule->port = SVR_PORT(vsge);
+
+				/* Talk to the IPVS channel */
+				ipvs_talk(IP_VS_SO_SET_DELDEST);
+			}
+		}
+	}
+
+	/* Remove VS entry */
+	if (vsge->range)
+		ipvs_group_range_cmd(IP_VS_SO_SET_DEL, vsge);
+	else
+		ipvs_talk(IP_VS_SO_SET_DEL);
+	return IPVS_SUCCESS;
 }
 
 #endif
