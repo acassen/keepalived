@@ -5,7 +5,7 @@
  *
  * Part:        check_misc.c include file.
  *
- * Version:     $Id: check_misc.h,v 1.1.11 2005/03/01 01:22:13 acassen Exp $
+ * Version:     $Id: check_misc.h,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
@@ -20,7 +20,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _CHECK_MISC_H

@@ -7,7 +7,7 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 1.1.11 2005/03/01 01:22:13 acassen Exp $
+ * Version:     $Id: scheduler.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -21,7 +21,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include <signal.h>

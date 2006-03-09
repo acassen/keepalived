@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 1.1.11 2005/03/01 01:22:13 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -20,7 +20,7 @@
  *               as published by the Free Software Foundation; either version
  *               2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "ipvswrapper.h"
@@ -63,7 +63,7 @@ ipvs_stop(void)
 }
 
 int
-ipvs_syncd_cmd(int cmd, char *ifname, int state)
+ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid)
 {
 	syslog(LOG_INFO, "IPVS : Sync daemon not supported on kernel v2.2");
 	return IPVS_ERROR;
@@ -200,7 +200,7 @@ ipvs_talk(int cmd)
 }
 
 int
-ipvs_syncd_cmd(int cmd, char *ifname, int state)
+ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid)
 {
 #ifdef _HAVE_IPVS_SYNCD_
 
@@ -208,6 +208,7 @@ ipvs_syncd_cmd(int cmd, char *ifname, int state)
 
 	/* prepare user rule */
 	urule->state = state;
+	urule->syncid = syncid;
 	if (ifname != NULL)
 		strncpy(urule->mcast_ifn, ifname, IP_VS_IFNAME_MAXLEN);
 
@@ -504,12 +505,13 @@ ipvs_talk(int cmd)
 }
 
 int
-ipvs_syncd_cmd(int cmd, char *ifname, int state)
+ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid)
 {
 	memset(daemonrule, 0, sizeof (struct ip_vs_daemon_user));
 
 	/* prepare user rule */
 	daemonrule->state = state;
+	daemonrule->syncid = syncid;
 	if (ifname != NULL)
 		strncpy(daemonrule->mcast_ifn, ifname, IP_VS_IFNAME_MAXLEN);
 
@@ -721,17 +723,17 @@ ipvs_group_remove_entry(virtual_server *vs, virtual_server_group_entry *vsge)
  * Common IPVS functions
  */
 void
-ipvs_syncd_master(char *ifname)
+ipvs_syncd_master(char *ifname, int syncid)
 {
-	ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_BACKUP);
-	ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_MASTER);
+	ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_BACKUP, syncid);
+	ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_MASTER, syncid);
 }
 
 void
-ipvs_syncd_backup(char *ifname)
+ipvs_syncd_backup(char *ifname, int syncid)
 {
-	ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_MASTER);
-	ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_BACKUP);
+	ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_MASTER, syncid);
+	ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_BACKUP, syncid);
 }
 
 /*

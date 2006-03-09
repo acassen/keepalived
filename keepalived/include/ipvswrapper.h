@@ -5,7 +5,7 @@
  *
  * Part:        ipvswrapper.c include file.
  *
- * Version:     $Id: ipvswrapper.h,v 1.1.11 2005/03/01 01:22:13 acassen Exp $
+ * Version:     $Id: ipvswrapper.h,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #ifndef _IPVSWRAPPER_H
@@ -99,8 +99,8 @@ extern int ipvs_group_remove_entry(virtual_server * vs,
 				   virtual_server_group_entry * vsge);
 extern int ipvs_cmd(int cmd, list vs_group, virtual_server * vserver,
 		    real_server * rserver);
-extern int ipvs_syncd_cmd(int cmd, char *ifname, int state);
-extern void ipvs_syncd_master(char *ifname);
-extern void ipvs_syncd_backup(char *ifname);
+extern int ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid);
+extern void ipvs_syncd_master(char *ifname, int syncid);
+extern void ipvs_syncd_backup(char *ifname, int syncid);
 
 #endif

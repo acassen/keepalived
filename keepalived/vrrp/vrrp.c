@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 1.1.11 2005/03/01 01:22:13 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -22,7 +22,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 /* local include */
@@ -630,7 +630,7 @@ vrrp_state_become_master(vrrp_rt * vrrp)
 #ifdef _HAVE_IPVS_SYNCD_
 	/* Check if sync daemon handling is needed */
 	if (vrrp->lvs_syncd_if)
-		ipvs_syncd_master(vrrp->lvs_syncd_if);
+		ipvs_syncd_master(vrrp->lvs_syncd_if, vrrp->vrid);
 #endif
 }
 
@@ -685,7 +685,7 @@ vrrp_state_leave_master(vrrp_rt * vrrp)
 #ifdef _HAVE_IPVS_SYNCD_
 		/* Check if sync daemon handling is needed */
 		if (vrrp->lvs_syncd_if)
-			ipvs_syncd_backup(vrrp->lvs_syncd_if);
+			ipvs_syncd_backup(vrrp->lvs_syncd_if, vrrp->vrid);
 #endif
 	}
 
@@ -1010,7 +1010,8 @@ shutdown_vrrp_instances(void)
 		if (vrrp->lvs_syncd_if)
 			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL,
 				       (vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
-									  IPVS_BACKUP);
+									  IPVS_BACKUP,
+				       vrrp->vrid);
 #endif
 	}
 }

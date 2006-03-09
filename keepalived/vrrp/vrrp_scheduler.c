@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 1.1.11 2005/03/01 01:22:13 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include "vrrp_scheduler.h"
@@ -186,7 +186,8 @@ vrrp_init_state(list l)
 			/* Check if sync daemon handling is needed */
 			if (vrrp->lvs_syncd_if)
 				ipvs_syncd_cmd(IPVS_STARTDAEMON,
-					       vrrp->lvs_syncd_if, IPVS_MASTER);
+					       vrrp->lvs_syncd_if, IPVS_MASTER,
+					       vrrp->vrid);
 #endif
 			vrrp->state = VRRP_STATE_GOTO_MASTER;
 		} else {
@@ -196,7 +197,8 @@ vrrp_init_state(list l)
 			/* Check if sync daemon handling is needed */
 			if (vrrp->lvs_syncd_if)
 				ipvs_syncd_cmd(IPVS_STARTDAEMON,
-					       vrrp->lvs_syncd_if, IPVS_BACKUP);
+					       vrrp->lvs_syncd_if, IPVS_BACKUP,
+					       vrrp->vrid);
 #endif
 			syslog(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
 			       vrrp->iname);

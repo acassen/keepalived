@@ -5,7 +5,7 @@
  *
  * Part:        SMTP CHECK. Check an SMTP-server.
  *
- * Version:     $Id: check_smtp.c,v 1.1.11 2005/03/01 01:22:13 acassen Exp $
+ * Version:     $Id: check_smtp.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
  *
  * Authors:     Jeremy Rumpf, <jrumpf@heavyload.net>
  *              Alexandre Cassen, <acassen@linux-vs.org>
@@ -20,7 +20,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include <ctype.h>
@@ -148,11 +148,16 @@ smtp_check_handler(vector strvec)
 	 * configuration structures. We'll set a "default host", which
 	 * is the same ip as the real server. If there are additional "host"
 	 * sections in the config, the default will be deleted and overridden.
+	 * If the default is still set by a previous "SMTP_CHECK" section,
+	 * we must simply overwrite the old value:
+	 * - it must not be reused, because it was probably located in a
+	 *   different "real_server" section and
+	 * - it must not be freed, because it is still referenced
+	 *   by some other smtp_chk->host.
 	 * This must come after queue_checker()!
 	 */
 	smtp_chk->host = alloc_list(smtp_free_host, smtp_dump_host);
-	if (!default_host)
-		default_host = smtp_alloc_host();
+	default_host = smtp_alloc_host();
 	list_add(smtp_chk->host, default_host);
 }
 

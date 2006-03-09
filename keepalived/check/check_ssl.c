@@ -7,7 +7,7 @@
  *              url, compute a MD5 over this result and match it to the
  *              expected value.
  *
- * Version:     $Id: check_ssl.c,v 1.1.11 2005/03/01 01:22:13 acassen Exp $
+ * Version:     $Id: check_ssl.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -22,7 +22,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include <openssl/err.h>
@@ -189,18 +189,32 @@ ssl_printerr(int err)
 }
 
 int
-ssl_connect(thread * thread_obj)
+ssl_connect(thread * thread_obj, int new_req)
 {
 	checker *checker_obj = THREAD_ARG(thread_obj);
 	http_get_checker *http_get_check = CHECKER_ARG(checker_obj);
 	http_arg *http_arg_obj = HTTP_ARG(http_get_check);
 	REQ *req = HTTP_REQ(http_arg_obj);
+	int ret = 0;
+	int val = 0;
 
-	req->ssl = SSL_new(check_data->ssl->ctx);
-	req->bio = BIO_new_socket(thread_obj->u.fd, BIO_NOCLOSE);
-	SSL_set_bio(req->ssl, req->bio, req->bio);
+	/* First round, create SSL context */
+	if (new_req) {
+		req->ssl = SSL_new(check_data->ssl->ctx);
+		req->bio = BIO_new_socket(thread_obj->u.fd, BIO_NOCLOSE);
+		SSL_set_bio(req->ssl, req->bio, req->bio);
+	}
 
-	return (SSL_connect(req->ssl) > 0) ? 1 : 0;
+	/* Set descriptor non blocking */
+	val = fcntl(thread_obj->u.fd, F_GETFL, 0);
+	fcntl(thread_obj->u.fd, F_SETFL, val | O_NONBLOCK);
+
+	ret = SSL_connect(req->ssl);
+
+	/* restore descriptor flags */
+	fcntl(thread_obj->u.fd, F_SETFL, val);
+
+	return ret;
 }
 
 int
@@ -253,7 +267,21 @@ ssl_read_thread(thread * thread_obj)
 
 	req->error = SSL_get_error(req->ssl, r);
 
-	if (req->error) {
+	if (req->error == SSL_ERROR_WANT_READ) {
+		 /* async read unfinished */ 
+		thread_add_read(thread_obj->master, ssl_read_thread, checker_obj,
+				thread_obj->u.fd, http_get_check->connection_to);
+	} else if (r > 0 && req->error == 0) {
+		/* Handle response stream */
+		http_process_response(req, r);
+
+		/*
+		 * Register next ssl stream reader.
+		 * Register itself to not perturbe global I/O multiplexer.
+		 */
+		thread_add_read(thread_obj->master, ssl_read_thread, checker_obj,
+				thread_obj->u.fd, http_get_check->connection_to);
+	} else if (req->error) {
 
 		/* All the SSL streal has been parsed */
 		MD5_Final(digest, &req->context);
@@ -279,17 +307,6 @@ ssl_read_thread(thread * thread_obj)
 		/* Handle response stream */
 		http_handle_response(thread_obj, digest, (!req->extracted) ? 1 : 0);
 
-	} else if (r > 0 && req->error == 0) {
-
-		/* Handle response stream */
-		http_process_response(req, r);
-
-		/*
-		 * Register next ssl stream reader.
-		 * Register itself to not perturbe global I/O multiplexer.
-		 */
-		thread_add_read(thread_obj->master, ssl_read_thread, checker_obj,
-				thread_obj->u.fd, http_get_check->connection_to);
 	}
 
 	return 0;

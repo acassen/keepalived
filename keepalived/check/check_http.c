@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 1.1.11 2005/03/01 01:22:13 acassen Exp $
+ * Version:     $Id: check_http.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -20,7 +20,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
 #include <openssl/err.h>
@@ -737,6 +737,9 @@ http_check_thread(thread * thread_obj)
 #endif
 	int ret = 1;
 	int status;
+	long timeout = 0;
+	int ssl_err = 0;
+	int new_req = 0;
 
 	status = tcp_socket_state(thread_obj->u.fd, thread_obj, CHECKER_RIP(checker_obj)
 				  , addr_port, http_check_thread);
@@ -752,8 +755,8 @@ http_check_thread(thread * thread_obj)
 				   "=> CHECK failed on service"
 				   " : connection error <=");
 			update_svr_checker_state(DOWN, checker_obj->id
-						     , checker_obj->vs
-						     , checker_obj->rs);
+						 , checker_obj->vs
+						 , checker_obj->rs);
 		}
 		return epilog(thread_obj, 1, 0, 0);
 		break;
@@ -765,11 +768,47 @@ http_check_thread(thread * thread_obj)
 		break;
 
 	case connect_success:{
-			/* Allocate & clean request struct */
-			http_arg_obj->req = (REQ *) MALLOC(sizeof (REQ));
+			if (!http_arg_obj->req) {
+				http_arg_obj->req = (REQ *) MALLOC(sizeof (REQ));
+				new_req = 1;
+			} else
+				new_req = 0;
 
-			if (http_get_check->proto == PROTO_SSL)
-				ret = ssl_connect(thread_obj);
+			if (http_get_check->proto == PROTO_SSL) {
+				timeout = TIMER_LONG(thread_obj->sands)-TIMER_LONG(time_now);
+				if (thread_obj->type != THREAD_WRITE_TIMEOUT &&
+				    thread_obj->type != THREAD_READ_TIMEOUT)
+					ret = ssl_connect(thread_obj, new_req);
+				else {
+					return timeout_epilog(thread_obj, "==> CHECK failed on service"
+							      " : connection timeout <=\n\n",
+							      "connect, timeout");
+				}
+
+				if (ret == -1) {
+					switch ((ssl_err = SSL_get_error(http_arg_obj->req->ssl,
+									 ret))) {
+					case SSL_ERROR_WANT_READ:
+						thread_add_read(thread_obj->master,
+								http_check_thread,
+								THREAD_ARG(thread_obj),
+								thread_obj->u.fd, timeout);
+						break;
+					case SSL_ERROR_WANT_WRITE:
+						thread_add_write(thread_obj->master,
+								 http_check_thread,
+								 THREAD_ARG(thread_obj),
+								 thread_obj->u.fd, timeout);
+						break;
+					default:
+						ret = 0;
+						break;
+					}
+					if (ret == -1)
+						break;
+				} else if (ret != 1)
+					ret = 0;
+			}
 
 			if (ret) {
 				/* Remote WEB server is connected.
@@ -783,9 +822,9 @@ http_check_thread(thread * thread_obj)
 						 thread_obj->u.fd,
 						 http_get_check->connection_to);
 			} else {
-				syslog(LOG_INFO, "Connection trouble to: [%s:%d].",
-				       inet_ntop2(CHECKER_RIP(checker_obj))
-				       , ntohs(addr_port));
+				DBG(LOG_INFO, "Connection trouble to: [%s:%d]."
+				    , inet_ntop2(CHECKER_RIP(checker_obj))
+				    , ntohs(addr_port));
 #ifdef _DEBUG_
 				if (http_get_check->proto == PROTO_SSL)
 					ssl_printerr(SSL_get_error

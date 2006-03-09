@@ -1,3 +1,20 @@
+2006-03-09  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.12 released.
+	* VRRP : Christophe Varoqui, <Christophe.Varoqui@free.fr> extended
+	  VRRP framework to use virtual_router_id as syncid in LVS mcast
+	  datagram while using LVS syncd in VRRP instance.
+	* Kevin Lindsay, <kevinl@netnation.com> and Christophe Varoqui,
+	  <Christophe.Varoqui@free.fr> fixed SSL checker to properly
+	  use openssl when dealing with asynchronous stream handling.
+	  Kevin fixed asynchronous handling during connection stage
+	  while Christophe fixed stream handling after connection stage.
+	* Kjetil Torgrim Homme, <kjetilho@ifi.uio.no> extended keepalived
+	  spec file to cleanly compile on RedHat enterprise 3 and 4.
+	* Heinz Knutzen, <Heinz.Knutzen@dataport.de> fixed SMTP checker
+	  to overwrite default_host while parsing configuration file.
+	  A SMTP_CHECK without a "host" section should use the ip of the
+	  current real server as default.
+
 2005-03-01  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.11 released.
 	* Asier Llano Palacios, <a.llano@usyscom.com> extended
