@@ -1,6 +1,6 @@
 # Makefile.in
 #
-# Copyright (C) 2001-2005 Alexandre Cassen, <acassen@linux-vs.org>
+# Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
 
 EXEC = genhash
 BIN  = ../bin

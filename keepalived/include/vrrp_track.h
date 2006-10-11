@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_track.c include file.
  *
- * Version:     $Id: vrrp_track.h,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: vrrp_track.h,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -39,10 +39,40 @@
 /* Macro definition */
 #define TRACK_ISUP(L)	(vrrp_tracked_up((L)))
 
+/* VRRP script tracking defaults */
+#define VRRP_SCRIPT_DI 1       /* external script track interval (in sec) */
+#define VRRP_SCRIPT_DW 2       /* external script default weight */
+
+/* VRRP script tracking results */
+#define VRRP_SCRIPT_STATUS_DISABLED  0
+#define VRRP_SCRIPT_STATUS_INIT      1
+#define VRRP_SCRIPT_STATUS_NONE      2
+#define VRRP_SCRIPT_STATUS_GOOD      3
+
+/* external script we call to track local processes */
+typedef struct _vrrp_script {
+	char *sname;		/* instance name */
+	char *script;		/* the command to be called */
+	int interval;		/* interval between script calls */
+	int weight;		/* weight associated to this script */
+	int result;		/* result of last call to this script */
+	int inuse;		/* how many users have weight>0 ? */
+} vrrp_script;
+
+/* Tracked script structure definition */
+typedef struct _tracked_sc {
+	int weight;		/* tracking weight when non-zero */
+	vrrp_script *scr;	/* script pointer, cannot be NULL */
+} tracked_sc;
+
 /* prototypes */
 extern void dump_track(void *track_data_obj);
 extern void alloc_track(list track_list, vector strvec);
+extern void dump_track_script(void *track_data_obj);
+extern void alloc_track_script(list track_list, vector strvec);
 extern int vrrp_tracked_up(list l);
 extern void vrrp_log_tracked_down(list l);
+extern int vrrp_tracked_weight(list l);
+extern int vrrp_script_weight(list l);
 
 #endif

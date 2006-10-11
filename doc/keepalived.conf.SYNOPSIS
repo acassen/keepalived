@@ -70,12 +70,34 @@ SCOPE can take the following values :
 
 2. VRRP configuration
 
-This block is divided in 2 sub-block :
+This block is divided in 3 sub-block :
 
+	* VRRP scripts
 	* VRRP synchronization group
 	* VRRP instance
 
-	2.1. VRRP synchronization group
+	2.1. VRRP scripts
+
+	The configuration block looks like :
+
+vrrp_script <STRING> {         # VRRP script declaration
+    script <QUOTED_STRING>     # script to run periodically
+    interval <INTEGER>         # run the script this every seconds
+    weight <INTEGER:-254..254>  # adjust priority by this weight
+}
+
+The script will be executed periodically, every <interval> seconds. Its exit
+code will be recorded for all VRRP instances which will want to monitor it.
+Note that the script will only be executed if at least one VRRP instance
+monitors it with a non-zero weight. Thus, any number of scripts may be
+declared without taking the system down.
+
+If unspecified, the weight equals 2, which means that a success will add +2
+to the priority of all VRRP instances which monitor it. On the opposite, a
+negative weight will be subtracted from the initial priority in case of
+failure.
+
+	2.2. VRRP synchronization group
 
 	The configuration block looks like :
 
@@ -103,7 +125,15 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
     $1 and $3 are ALWAYS sent in uppercase, and the possible strings sent are the
     same ones listed above ("GROUP"/"INSTANCE", "MASTER"/"BACKUP"/"FAULT").
 
-	2.2. VRRP instance
+Important: for a SYNC group to run reliably, it is vital that all instances in
+           the group are MASTER or that they are all either BACKUP or FAULT. A
+           situation with half instances having higher priority on machine A
+           half others with higher priority on machine B will lead to constant
+           re-elections. For this reason, when instances are grouped, their
+           tracking weights are automatically set to zero, in order to avoid
+           inconsistent priorities across instances.
+
+	2.3. VRRP instance
 
 	The configuration block looks like :
 
@@ -113,6 +143,12 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     track_interface {			# Interfaces state we monitor
       <STRING>
       <STRING>
+      <STRING> weight <INTEGER:-254..254>
+      ...
+    }
+    track_script {                     # Scripts state we monitor
+      <STRING>
+      <STRING> weight <INTEGER:-254..254>
       ...
     }
     dont_track_primary                  # (default unset) ignore VRRP interface faults.
@@ -150,6 +186,7 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     notify_master <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
     notify_backup <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
     notify_fault <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
+    notify_stop <STRING>|<QUOTED-STRING>	# Script to launch when stopping vrrp
     notify <STRING>|<QUOTED-STRING>		# Same as vrrp_sync_group
     smtp_alert					# Same as vrrp_sync_group
 }
@@ -160,6 +197,23 @@ SCOPE can take the following values :
 	* host
 	* nowhere
 	* global
+
+When a weight is specified in track_interface, instead of setting the vrrp
+instance to the FAULT state in case of failure, its priority will be
+increased by the weight when the interface is up (for positive weights),
+or decreased by the weight's absolute value when the interface is down
+(for negative weights). The weight must be comprised between -254 and +254
+inclusive. 0 is the default behaviour which means that a failure implies a
+FAULT state. The common practise is to use positive weights to count a
+limited number of good services so that the server with the highest count
+becomes master. Negative weights are better to count unexpected failures
+among a high number of interfaces, as it will not saturate even with high
+number of interfaces.
+
+The same principle can be applied to track_script entries, except that an
+unspecified weight means that the default weight declared in the script
+will be used.
+
 
 3. LVS configuration
 

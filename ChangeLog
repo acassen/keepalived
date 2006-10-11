@@ -1,3 +1,81 @@
+2006-10-11  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.13 released.
+	* VRRP : Added a new notify script to be launch during vrrp
+	  instances shutdown. This new notify hook is configured
+	  using notify_stop keyword inside vrrp_instance block.
+	* VRRP : Willy Tarreau <w at 1wt.eu> fixed an errno issue in
+	  thread_fetch(), errno is lost during set_time_now(). This
+	  patch saves it across the call to set_time_now() in order
+	  to get the valid error.
+	* VRRP : Willy Tarreau <w at 1wt.eu> extended timer framework
+	  to save errno in timer_now() and set_time_now() just in
+	  case other functions do not expect these functions to modify
+	  it. This is a safer approach than the initial patch to
+	  thread_fetch(), while still compatible.
+	* VRRP : Willy Tarreau <w at 1wt.eu> fixed an FSM silent issue.
+	  By default, the VRRP daemon stops sending during new MASTER
+	  elections. This causes 3 to 4 seconds of silence depending on
+	  the local priority, and sometimes causes flapping when the
+	  differences in priorities are very low, due to the kernel timer's
+	  resolution : sometimes, the old master receives a first
+	  advertisement, enters backup, waits 3 seconds, sees nothing and
+	  finally becomes master again, which forces a new reelection on
+	  the other one.
+	* VRRP : Willy Tarreau <w at 1wt.eu> extended VRRP framework to
+	  support floating priority. Replace the priority in each
+	  vrrp_instance with a base priority and an effective priority,
+	  to prepare the support for floating priorities. The configuration
+	  sets the base_priority, and all comparisons use the new
+	  effective_priority value. This one is computed in the
+	  vrrp_update_priority() thread by adding an offset to base_priority,
+	  based on the result of various checks.
+	* VRRP : Willy Tarreau <w at 1wt.eu> extended notify script to add
+	  the priority in "$4" when calling a notify script. This is
+	  important in labs and datacenters when systems can display the
+	  priority on a front LCD, because it allows workers to carefully
+	  operate without causing unexpected reelections.
+	* VRRP : Willy Tarreau <w at 1wt.eu> extended interface tracking
+	  framework to let interface tracking change the priority by adding
+	  a "weight" parameter. If the weight is positive, it will be added
+	  to the priority when the interface is UP. If the weight is negative,
+	  it will be subtracted from the priority when the interface is down.
+	  If the weight is zero (default), a down interface will switch the
+	  instance to the FAULT state.
+	* VRRP : Willy Tarreau <w at 1wt.eu> added a new "vrrp_script" section
+	  to monitor local processes or do any type of local processing to
+	  decide whether the machine is in good enough health to be elected
+	  as master. A same script will be run once for all instances which
+	  monitor it. If no instance use it, it will not be run, so that it's
+	  safe to declare a lot of useful scripts. A weight is associated to
+	  the script result. If the weight is positive, it will be added to
+	  the priority when the result is OK (exit 0). If the weight is
+	  negative, it will be subtracted from the priority when the result
+	  is KO (exit != 0). If the weight is zero, the script will not be
+	  monitored. The default value is 2.
+	* VRRP : Willy Tarreau <w at 1wt.eu> extended vrrp scheduler so that
+	  when a VRRP is part of a SYNC group, it must not use floating
+	  priorities, otherwise this may lead to infinite re-election after
+	  every advertisement because some VRRPs will announce higher prios
+	  than the peer, while others will announce lower prios. The solution
+	  is to set all weights to 0 to enable standard interface tracking,
+	  and to disable the update prio thread if VRRP SYNC is enabled on a
+	  VRRP.
+	* VRRP : Willy Tarreau <w at 1wt.eu> added some documentation and
+	  examples for the brand new VRRP tracking mechanisms.
+	* VRRP : Ranko Zivojnovic, <ranko at spidernet.net> fixed vrrp
+	  scheduler to execute notify* scripts in transition from the
+	  failed state to the backup state.
+	* Nick Couchman, <nick.couchman at seakr.com>, added support for
+	  real server upper and lower thresholds.  This allows you to set
+	  a minimum and maximum number of connections to each real server
+	  using the "uthreshold" (maximum) and "lthreshold" (minimum)
+	  options in the real_server section of the configuration file.
+	* Chris Caputo, <ccaputo at alt.net> extended autoconf script
+	  to support recent move of UTS_RELEASE from linux/version.h to
+	  linux/utsrelease.h.
+	* Chris Caputo, <ccaputo at alt.net> extended ipvswrapper 2.4
+	  code to support misc_dynamic weight.
+
 2006-03-09  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.12 released.
 	* VRRP : Christophe Varoqui, <Christophe.Varoqui@free.fr> extended

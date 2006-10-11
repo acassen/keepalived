@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: vrrp_data.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: vrrp_data.c,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -25,6 +25,7 @@
 #include "vrrp_data.h"
 #include "vrrp_index.h"
 #include "vrrp_sync.h"
+#include "vrrp_if.h"
 #include "vrrp.h"
 #include "memory.h"
 #include "utils.h"
@@ -96,6 +97,40 @@ dump_vgroup(void *data)
 		syslog(LOG_INFO, "   Using smtp notification");
 }
 
+static void
+free_vscript(void *data)
+{
+	vrrp_script *vscript = data;
+
+	FREE(vscript->sname);
+	FREE_PTR(vscript->script);
+	FREE(vscript);
+}
+static void
+dump_vscript(void *data)
+{
+	vrrp_script *vscript = data;
+	char *str;
+
+	syslog(LOG_INFO, " VRRP Script = %s", vscript->sname);
+	syslog(LOG_INFO, "   Command = %s", vscript->script);
+	syslog(LOG_INFO, "   Interval = %d sec", vscript->interval / TIMER_HZ);
+	syslog(LOG_INFO, "   Weight = %d", vscript->weight);
+
+	switch (vscript->result) {
+	case VRRP_SCRIPT_STATUS_INIT:
+		str = "INIT"; break;
+	case VRRP_SCRIPT_STATUS_NONE:
+		str = "BAD"; break;
+	case VRRP_SCRIPT_STATUS_GOOD:
+		str = "GOOD"; break;
+	case VRRP_SCRIPT_STATUS_DISABLED:
+	default:
+		str = "DISABLED"; break;
+	}
+	syslog(LOG_INFO, "   Status = %s", str);
+}
+
 /* Socket pool functions */
 static void
 free_sock(void *sock_data_obj)
@@ -122,6 +157,7 @@ static void
 free_vrrp(void *data)
 {
 	vrrp_rt *vrrp = data;
+	element e;
 
 	FREE(vrrp->iname);
 	FREE_PTR(vrrp->send_buffer);
@@ -129,9 +165,20 @@ free_vrrp(void *data)
 	FREE_PTR(vrrp->script_backup);
 	FREE_PTR(vrrp->script_master);
 	FREE_PTR(vrrp->script_fault);
+	FREE_PTR(vrrp->script_stop);
 	FREE_PTR(vrrp->script);
 	FREE(vrrp->ipsecah_counter);
+
+	if (!LIST_ISEMPTY(vrrp->track_ifp))
+		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e))
+			FREE(ELEMENT_DATA(e));
 	free_list(vrrp->track_ifp);
+
+	if (!LIST_ISEMPTY(vrrp->track_script))
+		for (e = LIST_HEAD(vrrp->track_script); e; ELEMENT_NEXT(e))
+			FREE(ELEMENT_DATA(e));
+	free_list(vrrp->track_script);
+
 	free_list(vrrp->vip);
 	free_list(vrrp->evip);
 	free_list(vrrp->vroutes);
@@ -160,7 +207,7 @@ dump_vrrp(void *data)
 		syslog(LOG_INFO, "   Gratuitous ARP delay = %d",
 		       vrrp->garp_delay/TIMER_HZ);
 	syslog(LOG_INFO, "   Virtual Router ID = %d", vrrp->vrid);
-	syslog(LOG_INFO, "   Priority = %d", vrrp->priority);
+	syslog(LOG_INFO, "   Priority = %d", vrrp->base_priority);
 	syslog(LOG_INFO, "   Advert interval = %dsec",
 	       vrrp->adver_int / TIMER_HZ);
 	if (vrrp->nopreempt)
@@ -177,6 +224,11 @@ dump_vrrp(void *data)
 	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
 		syslog(LOG_INFO, "   Tracked interfaces = %d", LIST_SIZE(vrrp->track_ifp));
 		dump_list(vrrp->track_ifp);
+	}
+	if (!LIST_ISEMPTY(vrrp->track_script)) {
+		syslog(LOG_INFO, "   Tracked scripts = %d",
+		       LIST_SIZE(vrrp->track_script));
+		dump_list(vrrp->track_script);
 	}
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		syslog(LOG_INFO, "   Virtual IP = %d", LIST_SIZE(vrrp->vip));
@@ -199,6 +251,9 @@ dump_vrrp(void *data)
 	if (vrrp->script_fault)
 		syslog(LOG_INFO, "   Fault state transition script = %s",
 		       vrrp->script_fault);
+	if (vrrp->script_stop)
+		syslog(LOG_INFO, "   Stop state transition script = %s",
+		       vrrp->script_stop);
 	if (vrrp->script)
 		syslog(LOG_INFO, "   Generic state transition script = '%s'",
 		       vrrp->script);
@@ -256,6 +311,16 @@ alloc_vrrp_track(vector strvec)
 }
 
 void
+alloc_vrrp_track_script(vector strvec)
+{
+	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	if (LIST_ISEMPTY(vrrp->track_script))
+		vrrp->track_script = alloc_list(NULL, dump_track_script);
+	alloc_track_script(vrrp->track_script, strvec);
+}
+
+void
 alloc_vrrp_vip(vector strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -284,6 +349,23 @@ alloc_vrrp_vroute(vector strvec)
 	alloc_route(vrrp->vroutes, strvec);
 }
 
+void
+alloc_vrrp_script(char *sname)
+{
+	int size = strlen(sname);
+	vrrp_script *new;
+
+	/* Allocate new VRRP group structure */
+	new = (vrrp_script *) MALLOC(sizeof (vrrp_script));
+	new->sname = (char *) MALLOC(size + 1);
+	memcpy(new->sname, sname, size);
+	new->interval = VRRP_SCRIPT_DI * TIMER_HZ;
+	new->weight = VRRP_SCRIPT_DW;
+	new->result = VRRP_SCRIPT_STATUS_INIT;
+	new->inuse = 0;
+	list_add(vrrp_data->vrrp_script, new);
+}
+
 /* data facility functions */
 void
 alloc_vrrp_buffer(void)
@@ -307,6 +389,7 @@ alloc_vrrp_data(void)
 	new->vrrp_index = alloc_mlist(NULL, NULL, 255);
 	new->vrrp_index_fd = alloc_mlist(NULL, NULL, 1024+1);
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
+	new->vrrp_script = alloc_list(free_vscript, dump_vscript);
 	new->vrrp_socket_pool = alloc_list(free_sock, dump_sock);
 
 	return new;
@@ -321,6 +404,7 @@ free_vrrp_data(vrrp_conf_data * vrrp_data_obj)
 	free_mlist(vrrp_data_obj->vrrp_index_fd, 1024+1);
 	free_list(vrrp_data_obj->vrrp);
 	free_list(vrrp_data_obj->vrrp_sync_group);
+	free_list(vrrp_data_obj->vrrp_script);
 	free_list(vrrp_data_obj->vrrp_socket_pool);
 	FREE(vrrp_data_obj);
 }
@@ -343,5 +427,9 @@ dump_vrrp_data(vrrp_conf_data * vrrp_data_obj)
 	if (!LIST_ISEMPTY(vrrp_data_obj->vrrp_sync_group)) {
 		syslog(LOG_INFO, "------< VRRP Sync groups >------");
 		dump_list(vrrp_data_obj->vrrp_sync_group);
+	}
+	if (!LIST_ISEMPTY(vrrp_data_obj->vrrp_script)) {
+		syslog(LOG_INFO, "------< VRRP Scripts >------");
+		dump_list(vrrp_data_obj->vrrp_script);
 	}
 }

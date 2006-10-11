@@ -54,6 +54,9 @@ AC_TRY_RUN([
     #include <stdlib.h>
     #include <stdio.h>
     #include <linux/version.h>
+    #if !defined(UTS_RELEASE)
+    #include <linux/utsrelease.h>
+    #endif
     int main (void) {
       FILE *fp = fopen ("linuxinfo", "w");
       if (!fp) return 1;

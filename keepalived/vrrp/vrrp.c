@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -40,6 +40,7 @@
 #include "list.h"
 #include "main.h"
 #include "utils.h"
+#include "notify.h"
 
 /* add/remove Virtual IP addresses */
 static int
@@ -641,7 +642,7 @@ vrrp_state_goto_master(vrrp_rt * vrrp)
 	 * Send an advertisement. To force a new master
 	 * election.
 	 */
-	vrrp_send_adv(vrrp, vrrp->priority);
+	vrrp_send_adv(vrrp, vrrp->effective_priority);
 
 	vrrp->state = VRRP_STATE_MAST;
 	syslog(LOG_INFO, "VRRP_Instance(%s) Transition to MASTER STATE",
@@ -741,16 +742,16 @@ vrrp_state_backup(vrrp_rt * vrrp, char *buf, int buflen)
 		    3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	} else if (hd->priority == 0) {
 		vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
-	} else if (vrrp->nopreempt || hd->priority >= vrrp->priority ||
+	} else if (vrrp->nopreempt || hd->priority >= vrrp->effective_priority ||
 		   timer_cmp(vrrp->preempt_time, timer_now()) > 0) {
 		vrrp->ms_down_timer =
 		    3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
-	} else if (hd->priority < vrrp->priority) {
+	} else if (hd->priority < vrrp->effective_priority) {
 		syslog(LOG_INFO,
 		       "VRRP_Instance(%s) forcing a new MASTER election",
 		       vrrp->iname);
 		vrrp->wantstate = VRRP_STATE_GOTO_MASTER;
-		vrrp_send_adv(vrrp, vrrp->priority);
+		vrrp_send_adv(vrrp, vrrp->effective_priority);
 	}
 }
 
@@ -768,8 +769,8 @@ vrrp_state_master_tx(vrrp_rt * vrrp, const int prio)
 	}
 
 	vrrp_send_adv(vrrp,
-		      (prio ==
-		       VRRP_PRIO_OWNER) ? VRRP_PRIO_OWNER : vrrp->priority);
+		      (prio == VRRP_PRIO_OWNER) ? VRRP_PRIO_OWNER :
+						  vrrp->effective_priority);
 	return ret;
 }
 
@@ -809,7 +810,7 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 		       "VRRP_Instance(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
 		return 0;
-	} else if (hd->priority < vrrp->priority) {
+	} else if (hd->priority < vrrp->effective_priority) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
 		syslog(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert"
 		       ", forcing new election", vrrp->iname);
@@ -821,14 +822,14 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
 			vrrp->ipsecah_counter->cycle = 0;
 		}
-		vrrp_send_adv(vrrp, vrrp->priority);
+		vrrp_send_adv(vrrp, vrrp->effective_priority);
 		vrrp_send_gratuitous_arp(vrrp);
 		return 0;
 	} else if (hd->priority == 0) {
-		vrrp_send_adv(vrrp, vrrp->priority);
+		vrrp_send_adv(vrrp, vrrp->effective_priority);
 		return 0;
-	} else if (hd->priority > vrrp->priority ||
-		   (hd->priority == vrrp->priority &&
+	} else if (hd->priority > vrrp->effective_priority ||
+		   (hd->priority == vrrp->effective_priority &&
 		    ntohl(iph->saddr) > VRRP_PKT_SADDR(vrrp))) {
 		syslog(LOG_INFO,
 		       "VRRP_Instance(%s) Received higher prio advert",
@@ -878,7 +879,7 @@ vrrp_state_fault_rx(vrrp_rt * vrrp, char *buf, int buflen)
 		       "VRRP_Instance(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
 		return 0;
-	} else if (vrrp->priority > hd->priority ||
+	} else if (vrrp->effective_priority > hd->priority ||
 		   hd->priority == VRRP_PRIO_OWNER)
 		return 1;
 
@@ -1000,6 +1001,10 @@ shutdown_vrrp_instances(void)
 		if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_restore_interface(vrrp, 1);
 
+		/* Run stop script */
+		if (vrrp->script_stop)
+			notify_exec(vrrp->script_stop);
+
 #ifdef _HAVE_IPVS_SYNCD_
 		/*
 		 * Stop stalled syncd. IPVS syncd state is the
@@ -1023,8 +1028,8 @@ vrrp_complete_instance(vrrp_rt * vrrp)
 	vrrp->state = VRRP_STATE_INIT;
 	if (!vrrp->adver_int)
 		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
-	if (!vrrp->priority)
-		vrrp->priority = VRRP_PRIO_DFL;
+	if (!vrrp->effective_priority)
+		vrrp->effective_priority = VRRP_PRIO_DFL;
 
 	return (chk_min_cfg(vrrp));
 }

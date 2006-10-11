@@ -5,7 +5,7 @@
  *
  * Part:        VRRP synchronization framework.
  *
- * Version:     $Id: vrrp_sync.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: vrrp_sync.c,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -36,7 +36,8 @@ vrrp_init_instance_sands(vrrp_rt * vrrp)
 
 	if (vrrp->state == VRRP_STATE_MAST	  ||
 	    vrrp->state == VRRP_STATE_GOTO_MASTER ||
-	    vrrp->state == VRRP_STATE_GOTO_FAULT) {
+	    vrrp->state == VRRP_STATE_GOTO_FAULT  ||
+	    vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
 		vrrp->sands.tv_sec = time_now.tv_sec + vrrp->adver_int / TIMER_HZ;
  		vrrp->sands.tv_usec = time_now.tv_usec;
 		return;
@@ -160,7 +161,7 @@ vrrp_sync_master_election(vrrp_rt * vrrp)
 			syslog(LOG_INFO,
 			       "VRRP_Instance(%s) forcing a new MASTER election",
 			       isync->iname);
-			vrrp_send_adv(isync, isync->priority);
+			vrrp_send_adv(isync, isync->effective_priority);
 		}
 	}
 }

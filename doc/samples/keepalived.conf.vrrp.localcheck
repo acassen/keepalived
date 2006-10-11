@@ -1,0 +1,142 @@
+! Configuration File for keepalived
+
+vrrp_script chk_sshd {
+       script "killall -0 sshd"        # cheaper than pidof
+       interval 2                      # check every 2 seconds
+       weight -4                       # default prio: -4 if KO
+}
+
+vrrp_script chk_haproxy {
+       script "killall -0 haproxy"     # cheaper than pidof
+       interval 2                      # check every 2 seconds
+}
+
+vrrp_script chk_http_port {
+       script "</dev/tcp/127.0.0.1/80" # connects and exits
+       interval 1                      # check every second
+       weight -2                       # default prio: -2 if connect fails
+}
+
+vrrp_script chk_https_port {
+       script "</dev/tcp/127.0.0.1/443"
+       interval 1
+       weight -2
+}
+
+vrrp_script chk_smtp_port {
+       script "</dev/tcp/127.0.0.1/25"
+       interval 1
+       weight -2
+}
+
+vrrp_instance VI_1 {
+    interface eth0
+    state MASTER
+    virtual_router_id 51
+    priority 100
+    virtual_ipaddress {
+        192.168.200.18/25
+    }
+    track_interface {
+       eth1 weight 2   # prio = +2 if UP
+       eth2 weight -2  # prio = -2 if DOWN
+       eth3            # no weight, fault if down
+    }
+    track_script {
+       chk_sshd                # use default weight from the script
+       chk_haproxy weight 2    # +2 if process is present
+       chk_http_port
+       chk_https_port
+       chk_smtp_port
+    }
+}
+
+vrrp_instance VI_2 {
+    interface eth1
+    state MASTER
+    virtual_router_id 52
+    priority 100
+    virtual_ipaddress {
+        192.168.201.18/26
+    }
+    track_interface {
+       eth0 weight 2   # prio = +2 if UP
+       eth2 weight -2  # prio = -2 if DOWN
+       eth3            # no weight, fault if down
+    }
+    track_script {
+       chk_haproxy weight 2
+       chk_http_port
+       chk_https_port
+       chk_smtp_port
+    }
+}
+
+vrrp_instance VI_3 {
+    interface eth0
+    virtual_router_id 53
+    priority 100
+    virtual_ipaddress {
+        192.168.200.19/27
+    }
+}
+
+vrrp_instance VI_4 {
+    interface eth1
+    virtual_router_id 54
+    priority 100
+    virtual_ipaddress {
+        192.168.201.19/28
+    }
+}
+
+vrrp_instance VI_5 {
+    state MASTER
+    interface eth0
+    virtual_router_id 55
+    priority 100
+    virtual_ipaddress {
+        192.168.200.20/27
+    }
+}
+
+
+vrrp_instance VI_6 {
+    state MASTER
+    interface eth0
+    virtual_router_id 56
+    priority 100
+    virtual_ipaddress {
+        192.168.200.21/27
+    }
+}
+
+vrrp_instance VI_7 {
+    state MASTER
+    interface eth0
+    virtual_router_id 57
+    priority 100
+    virtual_ipaddress {
+        192.168.200.22/27
+    }
+}
+
+vrrp_instance VI_8 {
+    state MASTER
+    interface eth0
+    virtual_router_id 58
+    priority 100
+    virtual_ipaddress {
+        192.168.200.23/27
+    }
+}
+
+vrrp_instance VI_9 {
+    state MASTER
+    interface eth0
+    virtual_router_id 59
+    priority 100
+    virtual_ipaddress {
+        192.168.200.24/27
+    }
+}

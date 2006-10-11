@@ -5,7 +5,7 @@
  * 
  * Part:        vrrp_parser.c include file.
  *  
- * Version:     $Id: global_parser.h,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: global_parser.h,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

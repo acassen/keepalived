@@ -20,3 +20,10 @@ Chris Caputo, <ccaputo@alt.net> :
 Kevin Lindsay, <kevinl@netnation.com> :
 	o Fixed shadowed declaration reported by -Wshadow.
 	o Redesigned signal handling.
+
+Nick Couchman, <nick.couchman at seakr.com> :
+        o Patch for u_threshold and l_threshold support.
+
+Willy Tarreau, <w at 1wt.eu> :
+	o Extended VRRP framework to support floating
+	  priority.

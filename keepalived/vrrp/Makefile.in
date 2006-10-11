@@ -35,8 +35,8 @@ vrrp_daemon.o: vrrp_daemon.c ../include/vrrp_daemon.h ../include/vrrp_scheduler.
   ../include/ipvswrapper.h ../../lib/list.h ../../lib/memory.h ../../lib/parser.h \
   ../../lib/signals.h
 vrrp_data.o: vrrp_data.c ../include/vrrp_data.h \
-  ../include/vrrp_sync.h ../include/vrrp_index.h ../include/vrrp.h ../../lib/memory.h \
-  ../../lib/utils.h
+  ../include/vrrp_sync.h ../include/vrrp_if.h ../include/vrrp_index.h \
+  ../include/vrrp.h ../../lib/memory.h ../../lib/utils.h ../../lib/notify.h
 vrrp_parser.o: vrrp_parser.c ../include/vrrp_parser.h \
   ../include/vrrp_data.h ../include/vrrp_sync.h ../include/vrrp_index.h \
   ../include/vrrp.h ../include/global_data.h ../include/global_parser.h \
@@ -51,7 +51,7 @@ vrrp_scheduler.o: vrrp_scheduler.c ../include/vrrp_scheduler.h \
   ../include/vrrp_ipsecah.h ../include/vrrp_if.h ../include/vrrp.h \
   ../include/vrrp_sync.h ../include/vrrp_notify.h ../include/ipvswrapper.h \
   ../../lib/memory.h ../../lib/list.h ../include/vrrp_data.h ../include/vrrp_index.h \
-  ../include/smtp.h
+  ../include/smtp.h ../../lib/notify.h
 vrrp_sync.o: vrrp_sync.c ../include/vrrp_sync.h ../include/vrrp_if.h \
   ../include/vrrp_notify.h ../include/vrrp_data.h
 vrrp_index.o: vrrp_index.c ../include/vrrp_index.h ../include/vrrp.h \

@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_if.c include file.
  *
- * Version:     $Id: vrrp_if.h,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: vrrp_if.h,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -69,6 +69,12 @@ typedef struct _interface {
 	int lb_type;		/* Interface regs selection */
 	int linkbeat;		/* LinkBeat from MII BMSR req */
 } interface;
+
+/* Tracked interface structure definition */
+typedef struct _tracked_if {
+	int weight;		/* tracking weight when non-zero */
+	interface *ifp;		/* interface backpointer, cannot be NULL */
+} tracked_if;
 
 /* Macros */
 #define IF_NAME(X) ((X)->ifname)

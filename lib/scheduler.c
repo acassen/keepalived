@@ -7,7 +7,7 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: scheduler.c,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -486,7 +486,7 @@ thread_compute_timer(thread_master * m, TIMEVAL * timer_wait)
 thread *
 thread_fetch(thread_master * m, thread * fetch)
 {
-	int ret;
+	int ret, old_errno;
 	thread *thread_obj;
 	fd_set readfd;
 	fd_set writefd;
@@ -576,6 +576,9 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		sigprocmask(SIG_SETMASK, &saveset, NULL);
 	}
 
+	/* we have to save errno here because the next syscalls will set it */
+	old_errno = errno;
+
 	/*
 	 * When we receive a signal, we only add it to the signal_mask. This
 	 * is so that we can run our handler functions in a safe place and
@@ -588,9 +591,9 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	set_time_now();
 
 	if (ret < 0) {
-		if (errno != EINTR) {
+		if (old_errno != EINTR) {
 			/* Real error. */
-			DBG("select error: %s", strerror(errno));
+			DBG("select error: %s", strerror(old_errno));
 			assert(0);
 		} else {
 			/*

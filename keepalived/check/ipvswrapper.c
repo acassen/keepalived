@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -601,6 +601,8 @@ ipvs_set_rule(int cmd, virtual_server * vs, real_server * rs)
 	memset(drule, 0, sizeof (struct ip_vs_dest_user));
 
 	drule->weight = 1;
+	drule->u_threshold = 0;
+	drule->l_threshold = 0;
 	drule->conn_flags = vs->loadbalancing_kind;
 	strncpy(srule->sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
 	srule->netmask = ((u_int32_t) 0xffffffff);
@@ -620,10 +622,14 @@ ipvs_set_rule(int cmd, virtual_server * vs, real_server * rs)
 
 	/* SVR specific */
 	if (rs) {
-		if (cmd == IP_VS_SO_SET_ADDDEST || cmd == IP_VS_SO_SET_DELDEST) {
+		if (cmd == IP_VS_SO_SET_ADDDEST
+		    || cmd == IP_VS_SO_SET_DELDEST
+		    || cmd == IP_VS_SO_SET_EDITDEST) {
 			drule->weight = rs->weight;
 			drule->addr = SVR_IP(rs);
 			drule->port = SVR_PORT(rs);
+			drule->u_threshold = rs->u_threshold;
+			drule->l_threshold = rs->l_threshold;
 		}
 	}
 }
@@ -702,6 +708,8 @@ ipvs_group_remove_entry(virtual_server *vs, virtual_server_group_entry *vsge)
 				srule->fwmark = vsge->vfwmark;
 				srule->addr = SVR_IP(vsge);
 				srule->port = SVR_PORT(vsge);
+				drule->u_threshold = rs->u_threshold;
+				drule->l_threshold = rs->l_threshold;
 
 				/* Talk to the IPVS channel */
 				ipvs_talk(IP_VS_SO_SET_DELDEST);

@@ -5,7 +5,7 @@
  *
  * Part:        VRRP state transition notification scripts handling.
  *
- * Version:     $Id: vrrp_notify.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: vrrp_notify.c,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -113,7 +113,7 @@ script_open(char *script)
 }
 
 static int
-notify_script_exec(char* script, char *type, int state_num, char* name)
+notify_script_exec(char* script, char *type, int state_num, char* name, int prio)
 {
 	char *state = "{UNKNOWN}";
 	char *command_line = NULL;
@@ -123,23 +123,28 @@ notify_script_exec(char* script, char *type, int state_num, char* name)
 	 * Determine the length of the buffer that we'll need to generate the command
 	 * to run:
 	 *
-	 * "script" {GROUP|INSTANCE} "NAME" {MASTER|BACKUP|FAULT}
+	 * "script" {GROUP|INSTANCE} "NAME" {MASTER|BACKUP|FAULT} PRIO
 	 *
 	 * Thus, the length of the buffer will be:
 	 *
-	 *     ( strlen(script) + 3 ) + ( strlen(type) + 1 ) + ( strlen(state) + 1 ) + ( strlen(name) + 2 ) + 1
+	 *     ( strlen(script) + 3 ) + ( strlen(type) + 1 ) + ( strlen(name) + 1 ) +
+	 *      ( strlen(state) + 2 ) + ( strlen(prio) + 1 ) + 1 
+	 *
+	 * Note that the prio will be indicated as zero for a group.
 	 *
 	 * Which is:
 	 *     - The length of the script plus two enclosing quotes plus adjacent space
 	 *     - The length of the type string plus the adjacent space
-	 *     - The length of the state string plus the adjacent space
 	 *     - The length of the name of the instance or group, plus two enclosing
 	 *       quotes (just in case)
+	 *     - The length of the state string plus the adjacent space
+	 *     - The length of the priority value (3 digits) plus the adjacent
+	 *       space
 	 *     - The null-terminator
 	 *
 	 * Which results in:
 	 *
-	 *     strlen(script) + strlen(type) + strlen(state) + strlen(name) + 8
+	 *     strlen(script) + strlen(type) + strlen(state) + strlen(name) + 12
 	 */
 	switch (state_num) {
 		case VRRP_STATE_MAST  : state = "MASTER" ; break;
@@ -147,13 +152,14 @@ notify_script_exec(char* script, char *type, int state_num, char* name)
 		case VRRP_STATE_FAULT : state = "FAULT" ; break;
 	}
 
-	size = strlen(script) + strlen(type) + strlen(state) + strlen(name) + 8;
+	size = strlen(script) + strlen(type) + strlen(state) + strlen(name) + 12;
 	command_line = MALLOC(size);
 	if (!command_line)
 		return 0;
 
 	/* Launch the script */
-	snprintf(command_line, size, "\"%s\" %s \"%s\" %s",script, type, name, state);
+	snprintf(command_line, size, "\"%s\" %s \"%s\" %s %d",
+		 script, type, name, state, prio);
 	notify_exec(command_line);
 	FREE(command_line);
 	return 1;
@@ -174,7 +180,8 @@ notify_instance_exec(vrrp_rt * vrrp, int state)
 
 	/* Launch the generic notify script */
 	if (gscript && script_open_litteral(gscript)) {
-		notify_script_exec(gscript, "INSTANCE", state, vrrp->iname);
+		notify_script_exec(gscript, "INSTANCE", state, vrrp->iname,
+				   vrrp->effective_priority);
 		ret = 1;
 	}
 
@@ -196,7 +203,7 @@ notify_group_exec(vrrp_sgroup * vgroup, int state)
 
 	/* Launch the generic notify script */
 	if (gscript && script_open_litteral(gscript)) {
-		notify_script_exec(gscript, "GROUP", state, vgroup->gname);
+		notify_script_exec(gscript, "GROUP", state, vgroup->gname, 0);
 		ret = 1;
 	}
 

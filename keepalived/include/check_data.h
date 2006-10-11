@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckers dynamic data structure definition.
  *
- * Version:     $Id: check_data.h,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: check_data.h,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -75,6 +75,10 @@ typedef struct _real_server {
 	uint32_t addr_ip;
 	uint16_t addr_port;
 	int weight;
+#ifdef _KRNL_2_6_
+	uint32_t u_threshold;   /* Upper connection limit. */
+	uint32_t l_threshold;   /* Lower connection limit. */
+#endif
 	int inhibit;		/* Set weight to 0 instead of removing
 				 * the service from IPVS topology.
 				 */

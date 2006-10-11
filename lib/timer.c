@@ -5,7 +5,7 @@
  * 
  * Part:        Timer manipulations.
  *  
- * Version:     $Id: timer.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: timer.c,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <string.h>
+#include <errno.h>
 #include "timer.h"
 
 /* time_now holds current time */
@@ -97,10 +98,12 @@ TIMEVAL
 timer_now(void)
 {
 	TIMEVAL curr_time;
+	int old_errno = errno;
 
 	/* init timer */
 	TIMER_RESET(curr_time);
 	gettimeofday(&curr_time, NULL);
+	errno = old_errno;
 
 	return curr_time;
 }
@@ -109,9 +112,12 @@ timer_now(void)
 TIMEVAL
 set_time_now(void)
 {
+	int old_errno = errno;
+
 	/* init timer */
 	TIMER_RESET(time_now);
 	gettimeofday(&time_now, NULL);
+	errno = old_errno;
 
 	return time_now;
 }

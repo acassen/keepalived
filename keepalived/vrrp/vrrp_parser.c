@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: vrrp_parser.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: vrrp_parser.c,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -129,6 +129,11 @@ vrrp_track_int_handler(vector strvec)
 	alloc_value_block(strvec, alloc_vrrp_track);
 }
 static void
+vrrp_track_scr_handler(vector strvec)
+{
+	alloc_value_block(strvec, alloc_vrrp_track_script);
+}
+static void
 vrrp_dont_track_handler(vector strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -157,14 +162,14 @@ static void
 vrrp_prio_handler(vector strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->priority = atoi(VECTOR_SLOT(strvec, 1));
+	vrrp->effective_priority = vrrp->base_priority = atoi(VECTOR_SLOT(strvec, 1));
 
-	if (VRRP_IS_BAD_PRIORITY(vrrp->priority)) {
+	if (VRRP_IS_BAD_PRIORITY(vrrp->base_priority)) {
 		syslog(LOG_INFO, "VRRP Error : Priority not valid !\n");
 		syslog(LOG_INFO,
 		       "             must be between 1 & 255. reconfigure !\n");
 		syslog(LOG_INFO, "             Using default value : 100\n");
-		vrrp->priority = 100;
+		vrrp->effective_priority = vrrp->base_priority = 100;
 	}
 }
 static void
@@ -240,6 +245,13 @@ vrrp_notify_fault_handler(vector strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->script_fault = set_value(strvec);
+	vrrp->notify_exec = 1;
+}
+static void
+vrrp_notify_stop_handler(vector strvec)
+{
+	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->script_stop = set_value(strvec);
 	vrrp->notify_exec = 1;
 }
 static void
@@ -338,6 +350,29 @@ vrrp_vroutes_handler(vector strvec)
 {
 	alloc_value_block(strvec, alloc_vrrp_vroute);
 }
+static void
+vrrp_script_handler(vector strvec)
+{
+	alloc_vrrp_script(VECTOR_SLOT(strvec, 1));
+}
+static void
+vrrp_vscript_script_handler(vector strvec)
+{
+	vrrp_script *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+	vscript->script = set_value(strvec);
+}
+static void
+vrrp_vscript_interval_handler(vector strvec)
+{
+	vrrp_script *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+	vscript->interval = atoi(VECTOR_SLOT(strvec, 1)) * TIMER_HZ;
+}
+static void
+vrrp_vscript_weight_handler(vector strvec)
+{
+	vrrp_script *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+	vscript->weight = atoi(VECTOR_SLOT(strvec, 1));
+}
 
 vector
 vrrp_init_keywords(void)
@@ -362,6 +397,7 @@ vrrp_init_keywords(void)
 	install_keyword("interface", &vrrp_int_handler);
 	install_keyword("dont_track_primary", &vrrp_dont_track_handler);
 	install_keyword("track_interface", &vrrp_track_int_handler);
+	install_keyword("track_script", &vrrp_track_scr_handler);
 	install_keyword("mcast_src_ip", &vrrp_mcastip_handler);
 	install_keyword("virtual_router_id", &vrrp_vrid_handler);
 	install_keyword("priority", &vrrp_prio_handler);
@@ -376,6 +412,7 @@ vrrp_init_keywords(void)
 	install_keyword("notify_backup", &vrrp_notify_backup_handler);
 	install_keyword("notify_master", &vrrp_notify_master_handler);
 	install_keyword("notify_fault", &vrrp_notify_fault_handler);
+	install_keyword("notify_stop", &vrrp_notify_stop_handler);
 	install_keyword("notify", &vrrp_notify_handler);
 	install_keyword("smtp_alert", &vrrp_smtp_handler);
 	install_keyword("lvs_sync_daemon_interface", &vrrp_lvs_syncd_handler);
@@ -385,6 +422,10 @@ vrrp_init_keywords(void)
 	install_keyword("auth_type", &vrrp_auth_type_handler);
 	install_keyword("auth_pass", &vrrp_auth_pass_handler);
 	install_sublevel_end();
+	install_keyword_root("vrrp_script", &vrrp_script_handler);
+	install_keyword("script", &vrrp_vscript_script_handler);
+	install_keyword("interval", &vrrp_vscript_interval_handler);
+	install_keyword("weight", &vrrp_vscript_weight_handler);
 
 	return keywords;
 }

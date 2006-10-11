@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: check_parser.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: check_parser.c,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -181,6 +181,22 @@ weight_handler(vector strvec)
 	real_server *rs = LIST_TAIL_DATA(vs->rs);
 	rs->weight = atoi(VECTOR_SLOT(strvec, 1));
 }
+#ifdef _KRNL_2_6_
+static void
+uthreshold_handler(vector strvec)
+{
+	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server *rs = LIST_TAIL_DATA(vs->rs);
+	rs->u_threshold = atoi(VECTOR_SLOT(strvec, 1));
+}
+static void
+lthreshold_handler(vector strvec)
+{
+	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server *rs = LIST_TAIL_DATA(vs->rs);
+	rs->l_threshold = atoi(VECTOR_SLOT(strvec, 1));
+}
+#endif
 static void
 inhibit_handler(vector strvec)
 {
@@ -236,6 +252,10 @@ check_init_keywords(void)
 	install_keyword("real_server", &rs_handler);
 	install_sublevel();
 	install_keyword("weight", &weight_handler);
+#ifdef _KRNL_2_6_
+	install_keyword("uthreshold", &uthreshold_handler);
+	install_keyword("lthreshold", &lthreshold_handler);
+#endif
 	install_keyword("inhibit_on_failure", &inhibit_handler);
 	install_keyword("notify_up", &notify_up_handler);
 	install_keyword("notify_down", &notify_down_handler);

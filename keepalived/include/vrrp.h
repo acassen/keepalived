@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: vrrp.h,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -93,6 +93,7 @@ typedef struct _vrrp_rt {
 	interface *ifp;		/* Interface we belong to */
 	int dont_track_primary; /* If set ignores ifp faults */
 	list track_ifp;		/* Interface state we monitor */
+	list track_script;	/* Script state we monitor */
 	uint32_t mcast_saddr;	/* Src IP address to use in VRRP IP header */
 	char *lvs_syncd_if;	/* handle LVS sync daemon state using this
 				 * instance FSM & running on specific interface
@@ -100,7 +101,8 @@ typedef struct _vrrp_rt {
 				 */
 	int garp_delay;		/* Delay to launch gratuitous ARP */
 	int vrid;		/* virtual id. from 1(!) to 255 */
-	int priority;		/* priority value */
+	int base_priority;	/* configured priority value */
+	int effective_priority;	/* effective priority value */
 	int vipset;		/* All the vips are set ? */
 	list vip;		/* list of virtual ip addresses */
 	list evip;		/* list of protocol excluded VIPs.
@@ -129,6 +131,7 @@ typedef struct _vrrp_rt {
 	char *script_backup;
 	char *script_master;
 	char *script_fault;
+	char *script_stop;
 	char *script;
 
 	/* rfc2336.6.2 */
@@ -191,7 +194,7 @@ typedef struct _vrrp_rt {
 #define VRRP_SEND_BUFFER(V)		((V)->send_buffer)
 #define VRRP_SEND_BUFFER_SIZE(V)	((V)->send_buffer_size)
 
-#define VRRP_TIMER_SKEW(svr)	((256-(svr)->priority)*TIMER_HZ/256)
+#define VRRP_TIMER_SKEW(svr)	((256-(svr)->base_priority)*TIMER_HZ/256)
 #define VRRP_VIP_ISSET(V)	((V)->vipset)
 
 #define VRRP_MIN(a, b)	((a) < (b)?(a):(b))

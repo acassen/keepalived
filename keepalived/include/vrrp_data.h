@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: vrrp_data.h,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: vrrp_data.h,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -57,6 +57,7 @@ typedef struct _vrrp_conf_data {
 	list vrrp_index;
 	list vrrp_index_fd;
 	list vrrp_socket_pool;
+	list vrrp_script;
 } vrrp_conf_data;
 
 /* Global Vars exported */
@@ -70,6 +71,8 @@ extern void alloc_sroute(vector strvec);
 extern void alloc_vrrp_sync_group(char *gname);
 extern void alloc_vrrp(char *iname);
 extern void alloc_vrrp_track(vector strvec);
+extern void alloc_vrrp_script(char *sname);
+extern void alloc_vrrp_track_script(vector strvec);
 extern void alloc_vrrp_vip(vector strvec);
 extern void alloc_vrrp_evip(vector strvec);
 extern void alloc_vrrp_vroute(vector strvec);

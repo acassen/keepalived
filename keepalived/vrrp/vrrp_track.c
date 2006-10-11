@@ -5,7 +5,7 @@
  *
  * Part:        Interface tracking framework.
  *
- * Version:     $Id: vrrp_track.c,v 1.1.12 2006/03/09 01:22:13 acassen Exp $
+ * Version:     $Id: vrrp_track.c,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -32,13 +32,15 @@
 void
 dump_track(void *track_data_obj)
 {
-	interface *ifp = track_data_obj;
-	syslog(LOG_INFO, "     %s", IF_NAME(ifp));
+	tracked_if *tip = track_data_obj;
+	syslog(LOG_INFO, "     %s weight %d", IF_NAME(tip->ifp), tip->weight);
 }
 void
 alloc_track(list track_list, vector strvec)
 {
 	interface *ifp = NULL;
+	tracked_if *tip = NULL;
+	int weight = 0;
 	char *tracked = VECTOR_SLOT(strvec, 0);
 
 	ifp = if_get_by_ifname(tracked);
@@ -49,19 +51,95 @@ alloc_track(list track_list, vector strvec)
 		return;
 	}
 
-	list_add(track_list, ifp);
+	if (VECTOR_SIZE(strvec) >= 3 &&
+	    !strcmp(VECTOR_SLOT(strvec, 1), "weight")) {
+		weight = atoi(VECTOR_SLOT(strvec, 2));
+		if (weight < -254 || weight > 254) {
+			syslog(LOG_INFO, "     %s: weight must be between "
+					 "[-254..254] inclusive. Ignoring...", tracked);
+			weight = 0;
+		}
+	}
+
+	tip         = (tracked_if *) MALLOC(sizeof (tracked_if));
+	tip->ifp    = ifp;
+	tip->weight = weight;
+
+	list_add(track_list, tip);
 }
 
-/* Test if all tracked interfaces are UP */
+static vrrp_script *
+find_script_by_name(char *name)
+{
+	element e;
+	vrrp_script *scr;
+
+	if (LIST_ISEMPTY(vrrp_data->vrrp_script))
+		return NULL;
+
+	for (e = LIST_HEAD(vrrp_data->vrrp_script); e; ELEMENT_NEXT(e)) {
+		scr = ELEMENT_DATA(e);
+		if (!strcmp(scr->sname, name))
+			return scr;
+	}
+	return NULL;
+}
+
+/* Track script dump */
+void
+dump_track_script(void *track_data_obj)
+{
+	tracked_sc *tsc = track_data_obj;
+	syslog(LOG_INFO, "     %s weight %d", tsc->scr->sname, tsc->weight);
+}
+void
+alloc_track_script(list track_list, vector strvec)
+{
+	vrrp_script *vsc = NULL;
+	tracked_sc *tsc = NULL;
+	int weight = 0;
+	char *tracked = VECTOR_SLOT(strvec, 0);
+
+	vsc = find_script_by_name(tracked);
+
+	/* Ignoring if no interface found */
+	if (!vsc) {
+		syslog(LOG_INFO, "     %s no match, ignoring...", tracked);
+		return;
+	}
+
+	/* default weight */
+	weight = vsc->weight;
+
+	if (VECTOR_SIZE(strvec) >= 3 &&
+	    !strcmp(VECTOR_SLOT(strvec, 1), "weight")) {
+		weight = atoi(VECTOR_SLOT(strvec, 2));
+		if (weight < -254 || weight > 254) {
+			weight = vsc->weight;
+			syslog(LOG_INFO, "     %s: weight must be between [-254..254]"
+				         " inclusive, ignoring...",
+			       tracked);
+		}
+	}
+
+	tsc         = (tracked_sc *) MALLOC(sizeof (tracked_sc));
+	tsc->scr    = vsc;
+	tsc->weight = weight;
+	if (weight > 0)
+		vsc->inuse++;
+	list_add(track_list, tsc);
+}
+
+/* Test if all tracked interfaces are either UP or weight-tracked */
 int
 vrrp_tracked_up(list l)
 {
 	element e;
-	interface *ifp;
+	tracked_if *tip;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		ifp = ELEMENT_DATA(e);
-		if (!IF_ISUP(ifp))
+		tip = ELEMENT_DATA(e);
+		if (!tip->weight && !IF_ISUP(tip->ifp))
 			return 0;
 	}
 
@@ -73,12 +151,66 @@ void
 vrrp_log_tracked_down(list l)
 {
 	element e;
-	interface *ifp;
+	tracked_if *tip;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		ifp = ELEMENT_DATA(e);
-		if (!IF_ISUP(ifp))
+		tip = ELEMENT_DATA(e);
+		if (!IF_ISUP(tip->ifp))
 			syslog(LOG_INFO, "Kernel is reporting: interface %s DOWN",
-			       IF_NAME(ifp));
+			       IF_NAME(tip->ifp));
 	}
+}
+
+/* Returns total weights of all tracked interfaces :
+ * - a positive interface weight adds to the global weight when the
+ *   interface is UP.
+ * - a negative interface weight subtracts from the global weight when the
+ *   interface is DOWN.
+ *
+ */
+int
+vrrp_tracked_weight(list l)
+{
+	element e;
+	tracked_if *tip;
+	int weight = 0;
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		tip = ELEMENT_DATA(e);
+		if (IF_ISUP(tip->ifp)) {
+			if (tip->weight > 0)
+				weight += tip->weight;
+		} else {
+			if (tip->weight < 0)
+				weight += tip->weight;
+		}
+	}
+
+	return weight;
+}
+
+/* Returns total weights of all tracked scripts :
+ * - a positive weight adds to the global weight when the result is OK
+ * - a negative weight subtracts from the global weight when the result is bad
+ *
+ */
+int
+vrrp_script_weight(list l)
+{
+	element e;
+	tracked_sc *tsc;
+	int weight = 0;
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		tsc = ELEMENT_DATA(e);
+		if (tsc->scr->result == VRRP_SCRIPT_STATUS_GOOD) {
+			if (tsc->weight > 0)
+				weight += tsc->weight;
+		} else if (tsc->scr->result == VRRP_SCRIPT_STATUS_NONE) {
+			if (tsc->weight < 0)
+				weight += tsc->weight;
+		}
+	}
+
+	return weight;
 }
