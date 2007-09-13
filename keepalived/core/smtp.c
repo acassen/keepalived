@@ -21,7 +21,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include <time.h>

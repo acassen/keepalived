@@ -1,3 +1,26 @@
+2007-09-13  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.14 released.
+	* Shinji Tanaka, <stanaka at hatena.ne.jp> extended parsing
+	  framework to support "include" directives. For more
+	  informations and documentation please refer to Shinji
+	  website : 
+	    http://misccs.dyndns.org/index.php?keepalived%20include%20patch
+	* Tobias Klausmann, <klausman at schwarzvogel.de> add error loggin
+	  while parsing configuration file.
+	* Merged patches from rpmforge.net on Makefile and redhat specfile.
+	* Create a goodies directory to store nice scripts received from
+	  users. Add Steve Milton (milton AT isomedia.com) arpreset script
+	  to delete a single ARP entry from a CISCO router.
+	* VRRP : David Woodhouse, <dwmw2 at redhat.com> fixed vrrp_arp
+	  includes.
+	* VRRP : Pierre-Yves Ritschard, <pyr at spootnik.org> fixed negative
+	  weights in script.
+	* VRRP : Michael Smith, <msmith at cbnco.com> extended
+	  virtual_ipaddress setting to support Old-style Linux interface
+	  aliases like eth0:1.
+	* VRRP : Ward Wouts, <ward.wouts at gmail.com> add support to 
+	  vrrp_script logging.
+
 2006-10-11  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.13 released.
 	* VRRP : Added a new notify script to be launch during vrrp

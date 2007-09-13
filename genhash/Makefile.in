@@ -1,13 +1,14 @@
 # Makefile.in
 #
-# Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
+# Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
 
 EXEC = genhash
 BIN  = ../bin
 
 prefix      = @prefix@
 exec_prefix = @exec_prefix@
-bindir     = @bindir@
+bindir      = @bindir@
+mandir      = @mandir@
 
 CC = @CC@
 STRIP = @STRIP@
@@ -17,9 +18,8 @@ CFLAGS = @CFLAGS@ @CPPFLAGS@ $(INCLUDES) \
 LDFLAGS = @LIBS@ @LDFLAGS@
 
 OBJS = main.o sock.o layer4.o http.o ssl.o
-LIB_OBJS = ../lib/timer.o ../lib/scheduler.o \
-	   ../lib/memory.o ../lib/list.o ../lib/utils.o \
-	   ../lib/html.o ../lib/signals.o
+LIB_OBJS = ../lib/timer.o ../lib/scheduler.o ../lib/memory.o ../lib/list.o \
+	   ../lib/utils.o ../lib/html.o ../lib/signals.o
 
 all:	$(BIN)/$(EXEC)
 	$(STRIP) $(BIN)/$(EXEC)
@@ -39,13 +39,13 @@ distclean: clean
 
 uninstall:
 	rm -f $(DESTDIR)$(bindir)/$(EXEC)
-	rm -f $(DESTDIR)@mandir@/man/man1/genhash.1
+	rm -f $(DESTDIR)$(mandir)/man/man1/genhash.1
 
 install:
 	install -d $(DESTDIR)$(bindir)
 	install -m 755 $(BIN)/$(EXEC) $(DESTDIR)$(bindir)/
-	install -d $(DESTDIR)@mandir@/man/man1
-	install -m 644 ../doc/man/man1/genhash.1 $(DESTDIR)@mandir@/man/man1
+	install -d $(DESTDIR)$(mandir)/man/man1
+	install -m 644 ../doc/man/man1/genhash.1 $(DESTDIR)$(mandir)/man/man1
 
 mrproper: clean distclean
 	rm -f config.*

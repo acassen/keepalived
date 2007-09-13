@@ -5,7 +5,7 @@
  *
  * Part:        Interface tracking framework.
  *
- * Version:     $Id: vrrp_track.c,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
+ * Version:     $Id: vrrp_track.c,v 1.1.14 2007/09/13 21:12:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 /* local include */
@@ -125,7 +125,7 @@ alloc_track_script(list track_list, vector strvec)
 	tsc         = (tracked_sc *) MALLOC(sizeof (tracked_sc));
 	tsc->scr    = vsc;
 	tsc->weight = weight;
-	if (weight > 0)
+	if (weight != 0)
 		vsc->inuse++;
 	list_add(track_list, tsc);
 }

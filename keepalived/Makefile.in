@@ -14,8 +14,10 @@ prefix      = @prefix@
 exec_prefix = @exec_prefix@
 sbindir     = @sbindir@
 sysconfdir  = @sysconfdir@
-init_script = etc/init.d/keepalived.init
-conf_file   = etc/keepalived/keepalived.conf
+mandir      = @mandir@
+init_dir    = $(sysconfdir)/rc.d/init.d
+conf_dir    = $(sysconfdir)/keepalived
+sysconf_dir = $(sysconfdir)/sysconfig
 
 CC = @CC@
 STRIP = @STRIP@
@@ -89,20 +91,23 @@ mrproper: distclean
 
 uninstall:
 	rm -f $(DESTDIR)$(sbindir)/$(EXEC)
+	rm -f $(DESTDIR)$(init_dir)/keepalived.init
+	rm -f $(DESTDIR)$(sysconf_dir)/keepalived
 	rm -rf $(DESTDIR)$(sysconfdir)/keepalived
-	rm -f $(DESTDIR)$(init_dir)/$(init_script)
-	rm -f $(DESTDIR)@mandir@/man/man5/keepalived.conf.5
-	rm -f $(DESTDIR)@mandir@/man/man8/keepalived.8
+	rm -f $(DESTDIR)$(mandir)/man/man5/keepalived.conf.5
+	rm -f $(DESTDIR)$(mandir)/man/man8/keepalived.8
 
 install:
 	install -d $(DESTDIR)$(sbindir)
 	install -m 700 $(BIN)/$(EXEC) $(DESTDIR)$(sbindir)/
-	install -d $(DESTDIR)$(sysconfdir)/init.d
-	install -m 755 $(init_script) $(DESTDIR)$(sysconfdir)/init.d/keepalived
+	install -d $(DESTDIR)$(init_dir)
+	install -m 755 etc/init.d/keepalived.init $(DESTDIR)$(init_dir)/keepalived
+	install -d $(DESTDIR)$(sysconf_dir)
+	install -m 755 etc/init.d/keepalived.sysconfig $(DESTDIR)$(sysconf_dir)/keepalived
 	install -d $(DESTDIR)$(sysconfdir)/keepalived/samples
-	install -m 644 $(conf_file) $(DESTDIR)$(sysconfdir)/keepalived/
+	install -m 644 etc/keepalived/keepalived.conf $(DESTDIR)$(sysconfdir)/keepalived/
 	install -m 644 ../doc/samples/* $(DESTDIR)$(sysconfdir)/keepalived/samples/
-	install -d $(DESTDIR)@mandir@/man/man5
-	install -d $(DESTDIR)@mandir@/man/man8
-	install -m 644 ../doc/man/man5/keepalived.conf.5 $(DESTDIR)@mandir@/man/man5
-	install -m 644 ../doc/man/man8/keepalived.8 $(DESTDIR)@mandir@/man/man8
+	install -d $(DESTDIR)$(mandir)/man5
+	install -d $(DESTDIR)$(mandir)/man8
+	install -m 644 ../doc/man/man5/keepalived.conf.5 $(DESTDIR)$(mandir)/man5
+	install -m 644 ../doc/man/man8/keepalived.8 $(DESTDIR)$(mandir)/man8

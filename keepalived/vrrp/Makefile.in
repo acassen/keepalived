@@ -2,7 +2,7 @@
 #
 # Keepalived OpenSource project.
 #
-# Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
+# Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
 
 CC	 = @CC@
 INCLUDES = -I../include -I../../lib

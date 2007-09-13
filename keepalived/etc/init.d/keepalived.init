@@ -5,44 +5,69 @@
 # processname: keepalived
 # pidfile: /var/run/keepalived.pid
 # config: /etc/keepalived/keepalived.conf
-# chkconfig: 35 21 79
+# chkconfig: - 21 79
 # description: Start and stop Keepalived
 
-# Global definitions
-PID_FILE="/var/run/keepalived.pid"
+# Source function library
+. /etc/rc.d/init.d/functions
+
+# Source configuration file (we set KEEPALIVED_OPTIONS there)
+. /etc/sysconfig/keepalived
+
+RETVAL=0
+
+prog="keepalived"
+
+start() {
+    echo -n $"Starting $prog: "
+    daemon keepalived ${KEEPALIVED_OPTIONS}
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && touch /var/lock/subsys/$prog
+}
+
+stop() {
+    echo -n $"Stopping $prog: "
+    killproc keepalived
+    RETVAL=$?
+    echo
+    [ $RETVAL -eq 0 ] && rm -f /var/lock/subsys/$prog
+}
+
+reload() {
+    echo -n $"Reloading $prog: "
+    killproc keepalived -1
+    RETVAL=$?
+    echo
+}
 
 # See how we were called.
 case "$1" in
-  start)
-	echo -n "Starting Keepalived for LVS: "
-	keepalived -D
-	touch /var/lock/subsys/keepalived
-	echo
-	;;
-  stop)
-	echo -n "Shutting down Keepalived for LVS: "
-	PID=`cat $PID_FILE`
-	kill $PID
-	rm -rf /var/lock/subsys/keepalived
-	echo
-	;;
-  restart)
-	echo -n "Shutting down Keepalived for LVS: "
-	PID=`cat $PID_FILE`
-	kill $PID
-	echo
-	echo -n "Starting Keepalived for LVS: "
-	keepalived -D
-	echo
-	;;
-  reload)
-	echo -n "Reloading Keepalived config: "
-	killall -HUP keepalived
-	echo
-	;;
-  *)
-	echo "Usage: $0 {start|stop|restart|reload}"
-	exit 1
+    start)
+        start
+        ;;
+    stop)
+        stop
+        ;;
+    reload)
+        reload
+        ;;
+    restart)
+        stop
+        start
+        ;;
+    condrestart)
+        if [ -f /var/lock/subsys/$prog ]; then
+            stop
+            start
+        fi
+        ;;
+    status)
+        status keepalived
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|reload|restart|condrestart|status}"
+        exit 1
 esac
 
-exit 0
+exit $RETVAL

@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 address manipulation.
  *
- * Version:     $Id: vrrp_ipaddress.c,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.c,v 1.1.14 2007/09/13 21:12:33 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 /* local include */
@@ -53,6 +53,10 @@ netlink_address_ipv4(ip_address *ipaddr, int cmd)
 	if (ipaddr->broadcast)
 		addattr_l(&req.n, sizeof (req), IFA_BROADCAST,
 			  &ipaddr->broadcast, sizeof (ipaddr->broadcast));
+
+	if (ipaddr->label)
+		addattr_l(&req.n, sizeof (req), IFA_LABEL,
+			  ipaddr->label, strlen(ipaddr->label) + 1);
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;
@@ -90,18 +94,23 @@ netlink_iplist_ipv4(list ip_list, int cmd)
 void
 free_ipaddress(void *if_data_obj)
 {
-	FREE(if_data_obj);
+	ip_address *ip_addr = if_data_obj;
+
+	FREE_PTR(ip_addr->label);
+	FREE(ip_addr);
 }
 void
 dump_ipaddress(void *if_data_obj)
 {
 	ip_address *ip_addr = if_data_obj;
-	syslog(LOG_INFO, "     %s/%d brd %s dev %s scope %s"
+	syslog(LOG_INFO, "     %s/%d brd %s dev %s scope %s%s%s"
 	       , inet_ntop2(ip_addr->addr)
 	       , ip_addr->mask
 	       , inet_ntop2(ip_addr->broadcast)
 	       , IF_NAME(if_get_by_ifindex(ip_addr->ifindex))
-	       , netlink_scope_n2a(ip_addr->scope));
+	       , netlink_scope_n2a(ip_addr->scope)
+	       , ip_addr->label ? " label " : ""
+	       , ip_addr->label ? ip_addr->label : "");
 }
 void
 alloc_ipaddress(list ip_list, vector strvec, interface *ifp)
@@ -139,6 +148,9 @@ alloc_ipaddress(list ip_list, vector strvec, interface *ifp)
 			new->scope = netlink_scope_a2n(VECTOR_SLOT(strvec, ++i));
 		} else if (!strcmp(str, "broadcast") || !strcmp(str, "brd")) {
 			inet_ston(VECTOR_SLOT(strvec, ++i), &new->broadcast);
+		} else if (!strcmp(str, "label")) {
+			new->label = MALLOC(IFNAMSIZ);
+			strncpy(new->label, VECTOR_SLOT(strvec, ++i), IFNAMSIZ);
 		} else {
 			if (inet_ston(VECTOR_SLOT(strvec, i), &ipaddr)) {
 				inet_ston(VECTOR_SLOT(strvec, i), &new->addr);

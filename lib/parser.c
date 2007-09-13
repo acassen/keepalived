@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
+ * Version:     $Id: parser.c,v 1.1.14 2007/09/13 21:12:33 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -21,15 +21,20 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
  */
 
+#include <glob.h>
+#include <unistd.h>
+#include <libgen.h>
+#include <errno.h>
 #include "parser.h"
 #include "memory.h"
 
 /* global vars */
 vector keywords;
-FILE *stream;
+FILE *current_stream;
+char *current_conf_file;
 int reload = 0;
 
 /* local vars */
@@ -181,20 +186,94 @@ alloc_strvec(char *string)
 	}
 }
 
+void read_conf_file(char *conf_file)
+{
+	FILE *stream;
+
+	glob_t globbuf;
+
+	globbuf.gl_offs = 0;
+	glob(conf_file, 0, NULL, &globbuf);
+
+	int i;
+	for(i = 0; i < globbuf.gl_pathc; i++){
+		syslog(LOG_INFO, "Opening file '%s'.\n",globbuf.gl_pathv[i]);
+		stream = fopen(globbuf.gl_pathv[i], "r");
+		if (!stream) {
+			syslog(LOG_INFO, "Configuration file '%s' open problem (%s)...\n"
+				       , globbuf.gl_pathv[i], strerror(errno));
+			return;
+		}
+		current_stream = stream;
+		current_conf_file = globbuf.gl_pathv[i];
+		
+		char prev_path[MAXBUF];
+		getcwd(prev_path, MAXBUF);
+
+		char *confpath = strdup(globbuf.gl_pathv[i]);
+		dirname(confpath);
+		chdir(confpath);
+		process_stream(keywords);
+		fclose(stream);
+
+		chdir(prev_path);
+	}
+
+	globfree(&globbuf);
+}
+
+int
+check_include(char *buf)
+{
+	char *str;
+	vector strvec;
+
+	strvec = alloc_strvec(buf);
+
+	if (!strvec){
+		return 0;
+	}
+	str = VECTOR_SLOT(strvec, 0);
+	
+	if (!strcmp(str, EOB)) {
+		free_strvec(strvec);
+		return 0;
+	}
+
+	if(!strcmp("include", str) && VECTOR_SIZE(strvec) == 2){
+		char *conf_file = VECTOR_SLOT(strvec, 1);
+
+		FILE *prev_stream = current_stream;
+		char *prev_conf_file = current_conf_file;
+		char prev_path[MAXBUF];
+		getcwd(prev_path, MAXBUF);
+		read_conf_file(conf_file);
+		current_stream = prev_stream;
+		current_conf_file = prev_conf_file;
+		chdir(prev_path);
+		return 1;
+	}
+	free_strvec(strvec);
+	return 0;
+}
+
 int
 read_line(char *buf, int size)
 {
 	int ch;
-	int count = 0;
 
-	while ((ch = fgetc(stream)) != EOF && (int) ch != '\n'
-	       && (int) ch != '\r') {
-		if (count < size)
-			buf[count] = (int) ch;
-		else
-			break;
-		count++;
-	}
+	do {
+		int count = 0;
+		memset(buf, 0, MAXBUF);
+		while ((ch = fgetc(current_stream)) != EOF && (int) ch != '\n'
+			   && (int) ch != '\r') {
+			if (count < size)
+				buf[count] = (int) ch;
+			else
+				break;
+			count++;
+		}
+	} while (check_include(buf) == 1);
 	return (ch == EOF) ? 0 : 1;
 }
 
@@ -352,23 +431,17 @@ process_stream(vector keywords_vec)
 void
 init_data(char *conf_file, vector (*init_keywords) (void))
 {
-	stream = fopen((conf_file) ? conf_file : CONF, "r");
-	if (!stream) {
-		syslog(LOG_INFO, "Configuration file open problem...\n");
-		return;
-	}
-
 	/* Init Keywords structure */
 	keywords = vector_alloc();
 	(*init_keywords) ();
 
-/* Dump configuration *
-vector_dump(keywords);
-dump_keywords(keywords, 0);
-*/
+#if 0
+	/* Dump configuration */
+	vector_dump(keywords);
+	dump_keywords(keywords, 0);
+#endif
 
 	/* Stream handling */
-	process_stream(keywords);
-	fclose(stream);
+	read_conf_file((conf_file) ? conf_file : CONF);
 	free_keywords(keywords);
 }

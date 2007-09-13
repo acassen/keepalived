@@ -27,6 +27,10 @@ vrrp_instance VI_1 {
         192.168.200.16
         192.168.200.17
         192.168.200.18
+
+	# optional label. should be of the form "realdev:sometext" for
+	# compatibility with ifconfig.
+	192.168.200.18 label eth0:1
     }
 }
 

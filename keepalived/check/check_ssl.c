@@ -7,7 +7,7 @@
  *              url, compute a MD5 over this result and match it to the
  *              expected value.
  *
- * Version:     $Id: check_ssl.c,v 1.1.13 2006/10/11 05:22:13 acassen Exp $
+ * Version:     $Id: check_ssl.c,v 1.1.14 2007/09/13 21:12:33 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -22,7 +22,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2006 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include <openssl/err.h>

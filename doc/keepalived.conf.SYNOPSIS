@@ -165,8 +165,8 @@ vrrp_instance <STRING> {		# VRRP instance declaration
         auth_pass <STRING>		# Password string
     }
     virtual_ipaddress {			# VRRP IP addres block
-        <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
-        <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
+        <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE> label <LABEL>
+        <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE> label <LABEL>
         ...
     }
     virtual_ipaddress_excluded {       	# VRRP IP excluded from VRRP
@@ -197,6 +197,10 @@ SCOPE can take the following values :
 	* host
 	* nowhere
 	* global
+
+LABEL is optional and creates a name for the alias. For compatibility with
+"ifconfig", it should be of the form <realdev>:<anytext>, for example
+eth0:1 for an alias on eth0.
 
 When a weight is specified in track_interface, instead of setting the vrrp
 instance to the FAULT state in case of failure, its priority will be

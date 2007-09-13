@@ -199,9 +199,9 @@ which will transition together on any state change.
     #With the same entries on other machines,
     #the opposite transition will be occuring.
     virtual_ipaddress {
-        <IPADDR>/<MASK> brd <IPADDR> dev <STRING> scope <SCOPE>
+        <IPADDR>/<MASK> brd <IPADDR> dev <STRING> scope <SCOPE> label <LABEL>
         192.168.200.17/24 dev eth1
-        192.168.200.18/24 dev eth2
+        192.168.200.18/24 dev eth2 label eth2:1
     }
 
     #VRRP IP excluded from VRRP
