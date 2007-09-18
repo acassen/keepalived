@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 routes manipulation.
  *
- * Version:     $Id: vrrp_iproute.c,v 1.1.14 2007/09/13 21:12:33 acassen Exp $
+ * Version:     $Id: vrrp_iproute.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -64,6 +64,8 @@ netlink_route_ipv4(ip_route *iproute, int cmd)
 		addattr32(&req.n, sizeof(req), RTA_OIF, iproute->index);
 	if (iproute->src)
 		addattr_l(&req.n, sizeof(req), RTA_PREFSRC, &iproute->src, 4);
+	if (iproute->metric)
+		addattr32(&req.n, sizeof(req), RTA_PRIORITY, iproute->metric);
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;
@@ -103,7 +105,7 @@ void
 dump_iproute(void *rt_data_obj)
 {
 	ip_route *route = rt_data_obj;
-	char *log_msg = MALLOC(100);
+	char *log_msg = MALLOC(150);
 	char *tmp = MALLOC(30);
 
 	if (route->dst) {
@@ -130,6 +132,10 @@ dump_iproute(void *rt_data_obj)
 	if (route->scope) {
 		snprintf(tmp, 30, " scope %s",
 			 netlink_scope_n2a(route->scope));
+		strncat(log_msg, tmp, 30);
+	}
+	if (route->metric) {
+		snprintf(tmp, 30, " metric %d", route->metric);
 		strncat(log_msg, tmp, 30);
 	}
 
@@ -170,6 +176,8 @@ alloc_route(list rt_list, vector strvec)
 			new->index = IF_INDEX(ifp);
 		} else if (!strcmp(str, "table")) {
 			new->table = atoi(VECTOR_SLOT(strvec, ++i));
+		} else if (!strcmp(str, "metric")) {
+			new->metric = atoi(VECTOR_SLOT(strvec, ++i));
 		} else if (!strcmp(str, "scope")) {
 			new->scope = netlink_scope_a2n(VECTOR_SLOT(strvec, ++i));
 		} else {

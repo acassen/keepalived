@@ -1,3 +1,22 @@
+2007-09-15  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.15 released.
+	* Matthias Saou, <matthias at rpmforge.net> fixed genhash
+	  Makefile for man page installation.
+	* Casey Zacek, <keepalived at bogleg.org> provided a patch
+	  to check_http to remove buffer minimization while processing
+	  stream. It appears some webserver cause healthchecker crash.
+	* Chris Marchesi, <chris.marchesi at canadawebhosting.com> provided
+	  a patch for better handling of SSL handshake errors.
+	* Shinji Tanaka, <stanaka at hatena.ne.jp> fixed parser "include" 
+	  directive to support declaration inside configuration directives,
+	  like including file inside vrrp_instance declaration.
+	* Andreas Kotes, <count at flatline.de> fixed HTTP healthchecker
+	  while handling MD5SUM result. It appears checker never removed
+	  realserver on MD5SUM mismatch !!! whats that crap.
+	* VRRP : Willy Tarreau, <w at 1wt.eu> fixed a missing notifications
+	  upon transition from fault to backup.
+	* VRRP : Add support to route metric in virtual_routes definition.
+	
 2007-09-13  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.14 released.
 	* Shinji Tanaka, <stanaka at hatena.ne.jp> extended parsing

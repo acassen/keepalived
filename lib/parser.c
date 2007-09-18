@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 1.1.14 2007/09/13 21:12:33 acassen Exp $
+ * Version:     $Id: parser.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -33,6 +33,7 @@
 
 /* global vars */
 vector keywords;
+vector current_keywords;
 FILE *current_stream;
 char *current_conf_file;
 int reload = 0;
@@ -213,7 +214,7 @@ void read_conf_file(char *conf_file)
 		char *confpath = strdup(globbuf.gl_pathv[i]);
 		dirname(confpath);
 		chdir(confpath);
-		process_stream(keywords);
+		process_stream(current_keywords);
 		fclose(stream);
 
 		chdir(prev_path);
@@ -388,6 +389,8 @@ process_stream(vector keywords_vec)
 	char *str;
 	char *buf;
 	vector strvec;
+	vector prev_keywords = current_keywords;
+	current_keywords = keywords_vec;
 
 	buf = zalloc(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
@@ -423,6 +426,7 @@ process_stream(vector keywords_vec)
 		free_strvec(strvec);
 	}
 
+	current_keywords = prev_keywords;
 	free(buf);
 	return;
 }
@@ -442,6 +446,7 @@ init_data(char *conf_file, vector (*init_keywords) (void))
 #endif
 
 	/* Stream handling */
+	current_keywords = keywords;
 	read_conf_file((conf_file) ? conf_file : CONF);
 	free_keywords(keywords);
 }

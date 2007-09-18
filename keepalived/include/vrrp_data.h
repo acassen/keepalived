@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: vrrp_data.h,v 1.1.14 2007/09/13 21:12:33 acassen Exp $
+ * Version:     $Id: vrrp_data.h,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

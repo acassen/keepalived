@@ -175,8 +175,8 @@ vrrp_instance <STRING> {		# VRRP instance declaration
         ...
     }
     virtual_routes {			# VRRP virtual routes
-    	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # to is optional
-    	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # to is optional
+    	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> metric <METRIC> # to is optional
+    	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> metric <METRIC> # to is optional
         ...
     }
     nopreempt					# Override VRRP RFC preemption default
@@ -201,6 +201,8 @@ SCOPE can take the following values :
 LABEL is optional and creates a name for the alias. For compatibility with
 "ifconfig", it should be of the form <realdev>:<anytext>, for example
 eth0:1 for an alias on eth0.
+
+METRIC is optional and specify a route priority.
 
 When a weight is specified in track_interface, instead of setting the vrrp
 instance to the FAULT state in case of failure, its priority will be

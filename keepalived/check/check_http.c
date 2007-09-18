@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 1.1.14 2007/09/13 21:12:33 acassen Exp $
+ * Version:     $Id: check_http.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -471,6 +471,13 @@ http_handle_response(thread * thread_obj, unsigned char digest[16]
 				       inet_ntop2(CHECKER_RIP(checker_obj)),
 				       ntohs(addr_port), fetched_url->path,
 				       digest_tmp);
+				smtp_alert(checker_obj->rs, NULL, NULL,
+					   "DOWN",
+					   "=> CHECK failed on service"
+					   " : HTTP MD5SUM mismatch <=");
+				update_svr_checker_state(DOWN, checker_obj->id
+							     , checker_obj->vs
+							     , checker_obj->rs);
 			} else {
 				DBG("MD5SUM to [%s:%d] url(%d) = [%s].",
 				    inet_ntop2(CHECKER_RIP(checker_obj))
@@ -515,13 +522,6 @@ http_process_response(REQ *req, int r)
 				r = 0;
 			}
 			req->len = r;
-		} else {
-			/* minimize buffer using no 2*CR/LF found yet */
-			if (req->len > 4) {
-				memmove(req->buffer,
-					req->buffer + req->len - 4, 4);
-				req->len = 4;
-			}
 		}
 	} else if (req->len) {
 		MD5_Update(&req->context, req->buffer,
@@ -830,6 +830,23 @@ http_check_thread(thread * thread_obj)
 					ssl_printerr(SSL_get_error
 						     (req->ssl, ret));
 #endif
+				if ((http_get_check->proto == PROTO_SSL) &&
+				    (svr_checker_up(checker_obj->id, checker_obj->rs))) {
+					syslog(LOG_INFO, "SSL handshake/communication error"
+							 " connecting to server"
+							 " (openssl errno: %d) [%s:%d]."
+						       , SSL_get_error (http_arg_obj->req->ssl, ret)
+						       , inet_ntop2(CHECKER_RIP(checker_obj))
+						       , ntohs(addr_port));
+					smtp_alert(checker_obj->rs, NULL, NULL,
+						   "DOWN",
+						   "=> CHECK failed on service"
+						   " : SSL connection error <=");
+					update_svr_checker_state(DOWN, checker_obj->id
+								 , checker_obj->vs
+								 , checker_obj->rs);
+				}
+
 				return epilog(thread_obj, 1, 0, 0);
 			}
 		}

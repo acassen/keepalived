@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 1.1.14 2007/09/13 21:12:33 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -647,8 +647,8 @@ vrrp_goto_master(vrrp_rt * vrrp)
 		syslog(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state",
 		       vrrp->iname);
 		vrrp->state = VRRP_STATE_FAULT;
-		vrrp->ms_down_timer =
-		    3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 	} else {
 		/* If becoming MASTER in IPSEC AH AUTH, we reset the anti-replay */
 		if (vrrp->ipsecah_counter->cycle) {
@@ -786,10 +786,12 @@ vrrp_fault(vrrp_rt * vrrp)
 		vrrp_ah_sync(vrrp);
 	} else {
 		/* Otherwise, we transit to init state */
-		if (vrrp->init_state == VRRP_STATE_BACK)
+		if (vrrp->init_state == VRRP_STATE_BACK) {
 			vrrp->state = VRRP_STATE_BACK;
-		else
+			notify_instance_exec(vrrp, VRRP_STATE_BACK);
+		} else {
 			vrrp_goto_master(vrrp);
+		}
 	}
 }
 

@@ -5,7 +5,7 @@
  *
  * Part:        SMTP CHECK. Check an SMTP-server.
  *
- * Version:     $Id: check_smtp.c,v 1.1.14 2007/09/13 21:12:33 acassen Exp $
+ * Version:     $Id: check_smtp.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
  *
  * Authors:     Jeremy Rumpf, <jrumpf@heavyload.net>
  *              Alexandre Cassen, <acassen@linux-vs.org>
