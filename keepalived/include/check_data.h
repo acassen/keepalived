@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckers dynamic data structure definition.
  *
- * Version:     $Id: check_data.h,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: check_data.h,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #ifndef _CHECK_DATA_H
@@ -49,13 +49,14 @@
 /* local includes */
 #include "list.h"
 #include "vector.h"
+#include "timer.h"
 
 /* Typedefs */
 typedef unsigned int checker_id_t;
 
 /* Daemon dynamic data structure definition */
-#define MAX_TIMEOUT_LENGTH	5
-#define KEEPALIVED_DEFAULT_DELAY 60
+#define MAX_TIMEOUT_LENGTH		5
+#define KEEPALIVED_DEFAULT_DELAY	(60 * TIMER_HZ) 
 
 /* SSL specific data */
 typedef struct _ssl_data SSL_DATA;
@@ -123,6 +124,13 @@ typedef struct _virtual_server {
 	real_server *s_svr;
 	list rs;
 	int alive;
+	unsigned alpha;			/* Alpha mode enabled. */
+	unsigned omega;			/* Omega mode enabled. */
+	char * quorum_up;		/* A hook to call when the VS gains quorum. */
+	char * quorum_down;		/* A hook to call when the VS loses quorum. */
+	long unsigned quorum;		/* Minimum live RSs to consider VS up. */
+	long unsigned hysteresis;	/* up/down events "lag" WRT quorum. */
+	unsigned quorum_state;		/* Reflects result of the last transition done. */
 } virtual_server;
 
 /* Configuration data root */

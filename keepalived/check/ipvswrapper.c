@@ -6,7 +6,7 @@
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
  *  
- * Version:     $Id: ipvswrapper.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: ipvswrapper.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -20,7 +20,7 @@
  *               as published by the Free Software Foundation; either version
  *               2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include "ipvswrapper.h"
@@ -28,6 +28,7 @@
 #include "list.h"
 #include "utils.h"
 #include "memory.h"
+#include "logger.h"
 
 /* local helpers functions */
 static int parse_timeout(char *, unsigned *);
@@ -65,7 +66,7 @@ ipvs_stop(void)
 int
 ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid)
 {
-	syslog(LOG_INFO, "IPVS : Sync daemon not supported on kernel v2.2");
+	log_message(LOG_INFO, "IPVS : Sync daemon not supported on kernel v2.2");
 	return IPVS_ERROR;
 }
 
@@ -87,7 +88,7 @@ ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
 	ctl.u.vs_user.protocol = vs->service_type;
 
 	if (!parse_timeout(vs->timeout_persistence, &ctl.u.vs_user.timeout))
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "IPVS : Virtual service [%s:%d] illegal timeout.",
 		       inet_ntop2(SVR_IP(vs))
 		       , ntohs(SVR_PORT(vs)));
@@ -125,7 +126,7 @@ ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
 
 	sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
 	if (sockfd == -1) {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "IPVS : Can not initialize SOCK_RAW descriptor.");
 		return IPVS_ERROR;
 	}
@@ -135,20 +136,20 @@ ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
 		       sizeof (ctl));
 
 	if (errno == ESRCH) {
-		syslog(LOG_INFO, "IPVS : Virtual service [%s:%d] not defined.",
+		log_message(LOG_INFO, "IPVS : Virtual service [%s:%d] not defined.",
 		       inet_ntop2(SVR_IP(vs))
 		       , ntohs(SVR_PORT(vs)));
 		close(sockfd);
 		return IPVS_ERROR;
 	} else if (errno == EEXIST) {
 		if (rs)
-			syslog(LOG_INFO,
+			log_message(LOG_INFO,
 			       "IPVS : Destination already exists [%s:%d].",
 			       inet_ntop2(SVR_IP(rs))
 			       , ntohs(SVR_PORT(rs)));
 	} else if (errno == ENOENT) {
 		if (rs)
-			syslog(LOG_INFO, "IPVS : No such destination [%s:%d].",
+			log_message(LOG_INFO, "IPVS : No such destination [%s:%d].",
 			       inet_ntop2(SVR_IP(rs))
 			       , ntohs(SVR_PORT(rs)));
 	}
@@ -167,11 +168,12 @@ static struct ip_vs_rule_user *urule;
 int
 ipvs_start(void)
 {
+	log_message(LOG_DEBUG, "Initializing ipvs 2.4");
 	/* Init IPVS kernel channel */
 	if (ipvs_init()) {
 		/* try to insmod the ip_vs module if ipvs_init failed */
 		if (modprobe_ipvs() || ipvs_init()) {
-			syslog(LOG_INFO,
+			log_message(LOG_INFO,
 			       "IPVS : Can't initialize ipvs: %s",
 		 	       ipvs_strerror(errno));
 			return IPVS_ERROR;
@@ -195,7 +197,7 @@ static int
 ipvs_talk(int cmd)
 {
 	if (ipvs_command(cmd, urule))
-		syslog(LOG_INFO, "IPVS : %s", ipvs_strerror(errno));
+		log_message(LOG_INFO, "IPVS : %s", ipvs_strerror(errno));
 	return IPVS_SUCCESS;
 }
 
@@ -216,7 +218,7 @@ ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid)
 	return ipvs_talk(cmd);
 
 #else
-	syslog(LOG_INFO, "IPVS : Sync daemon not supported");
+	log_message(LOG_INFO, "IPVS : Sync daemon not supported");
 	return IPVS_ERROR;
 #endif
 }
@@ -314,7 +316,7 @@ ipvs_set_rule(int cmd, virtual_server * vs, real_server * rs)
 	urule->protocol = vs->service_type;
 
 	if (!parse_timeout(vs->timeout_persistence, &urule->timeout))
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "IPVS : Virtual service [%s:%d] illegal timeout.",
 		       inet_ntop2(SVR_IP(vs)), ntohs(SVR_PORT(vs)));
 
@@ -438,10 +440,11 @@ static struct ip_vs_daemon_user *daemonrule;
 int
 ipvs_start(void)
 {
+	log_message(LOG_DEBUG, "Initializing ipvs 2.6");
 	/* Initialize IPVS module */
 	if (ipvs_init()) {
 		if (modprobe_ipvs() || ipvs_init()) {
-			syslog(LOG_INFO, "IPVS: Can't initialize ipvs: %s",
+			log_message(LOG_INFO, "IPVS: Can't initialize ipvs: %s",
 			       ipvs_strerror(errno));
 			return IPVS_ERROR;
 		}
@@ -501,7 +504,7 @@ ipvs_talk(int cmd)
 	}
 
 	if (result)
-		syslog(LOG_INFO, "IPVS: %s", ipvs_strerror(errno));
+		log_message(LOG_INFO, "IPVS: %s", ipvs_strerror(errno));
 }
 
 int
@@ -609,7 +612,7 @@ ipvs_set_rule(int cmd, virtual_server * vs, real_server * rs)
 	srule->protocol = vs->service_type;
 
 	if (!parse_timeout(vs->timeout_persistence, &srule->timeout))
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "IPVS : Virtual service [%s:%d] illegal timeout.",
 		       inet_ntop2(SVR_IP(vs)), ntohs(SVR_PORT(vs)));
 

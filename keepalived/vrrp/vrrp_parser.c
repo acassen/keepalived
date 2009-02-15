@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: vrrp_parser.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: vrrp_parser.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -21,7 +21,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include "vrrp_parser.h"
@@ -32,6 +32,7 @@
 #include "vrrp.h"
 #include "global_data.h"
 #include "global_parser.h"
+#include "logger.h"
 #include "parser.h"
 #include "memory.h"
 
@@ -152,8 +153,8 @@ vrrp_vrid_handler(vector strvec)
 	vrrp->vrid = atoi(VECTOR_SLOT(strvec, 1));
 
 	if (VRRP_IS_BAD_VID(vrrp->vrid)) {
-		syslog(LOG_INFO, "VRRP Error : VRID not valid !\n");
-		syslog(LOG_INFO,
+		log_message(LOG_INFO, "VRRP Error : VRID not valid !\n");
+		log_message(LOG_INFO,
 		       "             must be between 1 & 255. reconfigure !\n");
 	} else
 		alloc_vrrp_bucket(vrrp);
@@ -165,10 +166,10 @@ vrrp_prio_handler(vector strvec)
 	vrrp->effective_priority = vrrp->base_priority = atoi(VECTOR_SLOT(strvec, 1));
 
 	if (VRRP_IS_BAD_PRIORITY(vrrp->base_priority)) {
-		syslog(LOG_INFO, "VRRP Error : Priority not valid !\n");
-		syslog(LOG_INFO,
+		log_message(LOG_INFO, "VRRP Error : Priority not valid !\n");
+		log_message(LOG_INFO,
 		       "             must be between 1 & 255. reconfigure !\n");
-		syslog(LOG_INFO, "             Using default value : 100\n");
+		log_message(LOG_INFO, "             Using default value : 100\n");
 		vrrp->effective_priority = vrrp->base_priority = 100;
 	}
 }
@@ -179,10 +180,10 @@ vrrp_adv_handler(vector strvec)
 	vrrp->adver_int = atoi(VECTOR_SLOT(strvec, 1));
 
 	if (VRRP_IS_BAD_ADVERT_INT(vrrp->adver_int)) {
-		syslog(LOG_INFO, "VRRP Error : Advert interval not valid !\n");
-		syslog(LOG_INFO,
+		log_message(LOG_INFO, "VRRP Error : Advert interval not valid !\n");
+		log_message(LOG_INFO,
 		       "             must be between less than 1sec.\n");
-		syslog(LOG_INFO, "             Using default value : 1sec\n");
+		log_message(LOG_INFO, "             Using default value : 1sec\n");
 		vrrp->adver_int = 1;
 	}
 	vrrp->adver_int *= TIMER_HZ;
@@ -194,8 +195,8 @@ vrrp_debug_handler(vector strvec)
 	vrrp->debug = atoi(VECTOR_SLOT(strvec, 1));
 
 	if (VRRP_IS_BAD_DEBUG_INT(vrrp->debug)) {
-		syslog(LOG_INFO, "VRRP Error : Debug interval not valid !\n");
-		syslog(LOG_INFO, "             must be between 0-4\n");
+		log_message(LOG_INFO, "VRRP Error : Debug interval not valid !\n");
+		log_message(LOG_INFO, "             must be between 0-4\n");
 		vrrp->debug = 0;
 	}
 }
@@ -218,8 +219,8 @@ vrrp_preempt_delay_handler(vector strvec)
 	vrrp->preempt_delay = atoi(VECTOR_SLOT(strvec, 1));
 
 	if (VRRP_IS_BAD_PREEMPT_DELAY(vrrp->preempt_delay)) {
-		syslog(LOG_INFO, "VRRP Error : Preempt_delay not valid !\n");
-		syslog(LOG_INFO, "             must be between 0-%d\n",
+		log_message(LOG_INFO, "VRRP Error : Preempt_delay not valid !\n");
+		log_message(LOG_INFO, "             must be between 0-%d\n",
 		       TIMER_MAX_SEC);
 		vrrp->preempt_delay = 0;
 	}
@@ -323,11 +324,11 @@ vrrp_vip_handler(vector strvec)
 			if (VECTOR_SIZE(vec)) {
 				nbvip++;
 				if (nbvip > VRRP_MAX_VIP) {
-					syslog(LOG_INFO,
+					log_message(LOG_INFO,
 					       "VRRP_Instance(%s) "
 					       "trunc to the first %d VIPs.",
 					       vrrp->iname, VRRP_MAX_VIP);
-					syslog(LOG_INFO,
+					log_message(LOG_INFO,
 					       "  => Declare others VIPs into"
 					       " the excluded vip block");
 				} else

@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_if.c include file.
  *
- * Version:     $Id: vrrp_if.h,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: vrrp_if.h,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #ifndef _VRRP_IF_H
@@ -28,20 +28,36 @@
 /* global includes */
 #include <net/if.h>
 
+/* needed to get correct values for SIOC* */
+#include <linux/sockios.h>
+
 /* local includes */
 #include "scheduler.h"
 #include "list.h"
 
 /* types definition */
 #ifndef SIOCETHTOOL
+/* should not happen, otherwise we have a broken toolchain */
+#warning "SIOCETHTOOL not defined. Defaulting to 0x8946, which is probably wrong !"
 #define SIOCETHTOOL     0x8946
 #endif
 #ifndef SIOCGMIIPHY
+/* should not happen, otherwise we have a broken toolchain */
+#warning "SIOCGMIIPHY not defined. Defaulting to SIOCDEVPRIVATE, which is probably wrong !"
 #define SIOCGMIIPHY (SIOCDEVPRIVATE)	/* Get the PHY in use. */
-#define SIOCGMIIREG (SIOCDEVPRIVATE+1)	/* Read a PHY register. */
-#define SIOCSMIIREG (SIOCDEVPRIVATE+2)	/* Write a PHY register. */
-#define SIOCGPARAMS (SIOCDEVPRIVATE+3)	/* Read operational parameters. */
-#define SIOCSPARAMS (SIOCDEVPRIVATE+4)	/* Set operational parameters. */
+#define SIOCGMIIREG (SIOCGMIIPHY+1)	/* Read a PHY register. */
+#endif
+
+/* ethtool.h cannot be included because old versions use kernel-only types
+ * which cannot be included from user-land. We don't need much anyway.
+ */
+#ifndef ETHTOOL_GLINK
+#define ETHTOOL_GLINK   0x0000000a
+/* for passing single values */
+struct ethtool_value {
+        uint32_t   cmd;
+        uint32_t   data;
+};
 #endif
 #define LINK_UP   1
 #define LINK_DOWN 0

@@ -5,7 +5,7 @@
  *
  * Part:        Checkers registration.
  *
- * Version:     $Id: check_api.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: check_api.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include <dirent.h>
@@ -29,6 +29,7 @@
 #include "parser.h"
 #include "memory.h"
 #include "utils.h"
+#include "logger.h"
 #include "global_data.h"
 #include "check_misc.h"
 #include "check_smtp.h"
@@ -53,7 +54,7 @@ static void
 dump_checker(void *data_obj)
 {
 	checker *checker_obj = data_obj;
-	syslog(LOG_INFO, " %s:%d", inet_ntop2(CHECKER_RIP(checker_obj))
+	log_message(LOG_INFO, " %s:%d", inet_ntop2(CHECKER_RIP(checker_obj))
 	       , ntohs(CHECKER_RPORT(checker_obj)));
 	(*checker_obj->dump_func) (checker_obj);
 }
@@ -82,6 +83,14 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 
 	/* queue the checker */
 	list_add(checkers_queue, check_obj);
+
+	/* In Alpha mode also mark the check as failed. */
+	if (vs->alpha) {
+		list fc = rs->failed_checkers;
+		checker_id_t *id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
+		*id = check_obj->id;
+		list_add (fc, id);
+	}
 }
 
 /* dump the checkers_queue */
@@ -89,7 +98,7 @@ void
 dump_checkers_queue(void)
 {
 	if (!LIST_ISEMPTY(checkers_queue)) {
-		syslog(LOG_INFO, "------< Health checkers >------");
+		log_message(LOG_INFO, "------< Health checkers >------");
 		dump_list(checkers_queue);
 	}
 }
@@ -119,7 +128,7 @@ register_checkers_thread(void)
 
 	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 		checker_obj = ELEMENT_DATA(e);
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "Activating healtchecker for service [%s:%d]",
 		       inet_ntop2(CHECKER_RIP(checker_obj)),
 		       ntohs(CHECKER_RPORT(checker_obj)));
@@ -139,7 +148,7 @@ update_checker_activity(uint32_t address, int enable)
 
 	/* Display netlink operation */
 	if (debug & 32)
-		syslog(LOG_INFO, "Netlink reflector reports IP %s %s",
+		log_message(LOG_INFO, "Netlink reflector reports IP %s %s",
 		       inet_ntop2(address), (enable) ? "added" : "removed");
 
 	/* Processing Healthcheckers queue */
@@ -148,12 +157,12 @@ update_checker_activity(uint32_t address, int enable)
 			checker_obj = ELEMENT_DATA(e);
 			if (CHECKER_VIP(checker_obj) == address && CHECKER_HA_SUSPEND(checker_obj)) {
 				if (!CHECKER_ENABLED(checker_obj) && enable)
-					syslog(LOG_INFO,
+					log_message(LOG_INFO,
 					       "Activating healtchecker for service [%s:%d]",
 					       inet_ntop2(CHECKER_RIP(checker_obj)),
 					       ntohs(CHECKER_RPORT(checker_obj)));
 				if (CHECKER_ENABLED(checker_obj) && !enable)
-					syslog(LOG_INFO,
+					log_message(LOG_INFO,
 					       "Suspending healtchecker for service [%s:%d]",
 					       inet_ntop2(CHECKER_RIP(checker_obj)),
 					       ntohs(CHECKER_RPORT(checker_obj)));

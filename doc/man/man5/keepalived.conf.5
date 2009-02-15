@@ -324,6 +324,34 @@ A virtual_server can be a declaration of one of
     # eg virtualhost www.firewall.loc
     virtualhost <STRING>                
 
+    # Assume silently all RSs down and healthchecks
+    # failed on start. This helps preventing false
+    # positive actions on startup. Alpha mode is
+    # disabled by default.
+    alpha
+
+    # On daemon shutdown, consider quorum and RS
+    # down notifiers for execution, where appropriate.
+    # Omega mode is disabled by default.
+    omega
+
+    # Minimum total weight of all live servers in
+    # the pool necessary to operate VS with no
+    # quality regression. Defaults to 1.
+    quorum <INT>
+
+    # Tolerate this much weight units compared to the
+    # nominal quorum, when considering quorum gain
+    # or loss. A flap dampener. Defaults to 0.
+    hysteresis <INT>
+
+    # Script to launch when quorum is gained.
+    quorum_up <STRING>|<QUOTED-STRING>
+
+    # Script to launch when quorum is lost.
+    quorum_down <STRING>|<QUOTED-STRING>
+
+
     # setup realserver(s)
 
     # RS to add when all realservers are down

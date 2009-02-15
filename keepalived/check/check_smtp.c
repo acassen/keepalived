@@ -5,7 +5,7 @@
  *
  * Part:        SMTP CHECK. Check an SMTP-server.
  *
- * Version:     $Id: check_smtp.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: check_smtp.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Authors:     Jeremy Rumpf, <jrumpf@heavyload.net>
  *              Alexandre Cassen, <acassen@linux-vs.org>
@@ -20,13 +20,14 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include <ctype.h>
 
 #include "check_smtp.h"
 #include "check_api.h"
+#include "logger.h"
 #include "memory.h"
 #include "ipwrapper.h"
 #include "utils.h"
@@ -70,10 +71,10 @@ void
 smtp_dump_host(void *data)
 {
         smtp_host *smtp_hst = data;
-        syslog(LOG_INFO, "   Checked ip = %s", inet_ntop2(smtp_hst->ip));
-        syslog(LOG_INFO, "           port = %d", ntohs(smtp_hst->port));
+        log_message(LOG_INFO, "   Checked ip = %s", inet_ntop2(smtp_hst->ip));
+        log_message(LOG_INFO, "           port = %d", ntohs(smtp_hst->port));
 	if (smtp_hst->bindto)
-        	syslog(LOG_INFO, "           bindto = %s", inet_ntop2(smtp_hst->bindto));
+        	log_message(LOG_INFO, "           bindto = %s", inet_ntop2(smtp_hst->bindto));
 }
 
 /* 
@@ -84,11 +85,11 @@ void
 dump_smtp_check(void *data)
 {
 	smtp_checker *smtp_chk = CHECKER_DATA(data);
-	syslog(LOG_INFO, "   Keepalive method = SMTP_CHECK");
-        syslog(LOG_INFO, "           helo = %s", smtp_chk->helo_name);
-        syslog(LOG_INFO, "           timeout = %ld", smtp_chk->timeout/TIMER_HZ);
-        syslog(LOG_INFO, "           retry = %d", smtp_chk->retry);
-        syslog(LOG_INFO, "           delay before retry = %ld", smtp_chk->db_retry/TIMER_HZ);
+	log_message(LOG_INFO, "   Keepalive method = SMTP_CHECK");
+        log_message(LOG_INFO, "           helo = %s", smtp_chk->helo_name);
+        log_message(LOG_INFO, "           timeout = %ld", smtp_chk->timeout/TIMER_HZ);
+        log_message(LOG_INFO, "           retry = %d", smtp_chk->retry);
+        log_message(LOG_INFO, "           delay before retry = %ld", smtp_chk->db_retry/TIMER_HZ);
 	dump_list(smtp_chk->host);
 }
 
@@ -297,9 +298,9 @@ smtp_final(thread *thread_obj, int error, const char *format, ...)
 				va_end(varg_list);
 				error_buff[512 - 1] = '\0';
 
-				syslog(LOG_INFO, error_buff);
+				log_message(LOG_INFO, error_buff);
 			} else {
-				syslog(LOG_INFO, "SMTP_CHECK Unknown error");
+				log_message(LOG_INFO, "SMTP_CHECK Unknown error");
 			}
 		}
 
@@ -392,7 +393,7 @@ smtp_get_line_cb(thread *thread_obj)
 
 	/* wrap the buffer, if full, by clearing it */
 	if (SMTP_BUFF_MAX - smtp_chk->buff_ctr <= 0) {
-		syslog(LOG_INFO, "SMTP_CHECK Buffer overflow reading from server [%s:%d]. "
+		log_message(LOG_INFO, "SMTP_CHECK Buffer overflow reading from server [%s:%d]. "
 		       "Increase SMTP_BUFF_MAX in smtp_check.h",
 		       inet_ntop2(smtp_hst->ip), ntohs(smtp_hst->port));
 		smtp_clear_buff(thread_obj);
@@ -779,7 +780,7 @@ smtp_connect_thread(thread *thread_obj)
 	 */
 	if ((smtp_chk->host_ptr = list_element(smtp_chk->host, smtp_chk->host_ctr)) == NULL) {
 		if (!svr_checker_up(chk->id, chk->rs)) {
-			syslog(LOG_INFO, "Remote SMTP server [%s:%d] succeed on service.",
+			log_message(LOG_INFO, "Remote SMTP server [%s:%d] succeed on service.",
 			       inet_ntop2(CHECKER_RIP(chk)), ntohs(CHECKER_RPORT(chk)));
 
 			smtp_alert(chk->rs, NULL, NULL, "UP",

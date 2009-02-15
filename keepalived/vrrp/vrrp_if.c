@@ -5,7 +5,7 @@
  *
  * Part:        Interfaces manipulation.
  *
- * Version:     $Id: vrrp_if.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: vrrp_if.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 /* global include */
@@ -55,6 +55,7 @@ typedef __uint8_t u8;
 #include "vrrp_netlink.h"
 #include "memory.h"
 #include "utils.h"
+#include "logger.h"
 
 /* Global vars */
 static list if_queue;
@@ -85,14 +86,17 @@ if_get_by_ifname(const char *ifname)
 	interface *ifp;
 	element e;
 
-	if (LIST_ISEMPTY(if_queue))
+	if (LIST_ISEMPTY(if_queue)) {
+		log_message(LOG_ERR, "Interface queue is empty");
 		return NULL;
+	}
 
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
 		if (!strcmp(ifp->ifname, ifname))
 			return ifp;
 	}
+	log_message(LOG_ERR, "No such interface, %s", ifname);
 	return NULL;
 }
 
@@ -106,7 +110,7 @@ if_mii_read(const int fd, const int phy_id, int location)
 	data[1] = location;
 
 	if (ioctl(fd, SIOCGMIIREG, &ifr) < 0) {
-		syslog(LOG_ERR, "SIOCGMIIREG on %s failed: %s", ifr.ifr_name,
+		log_message(LOG_ERR, "SIOCGMIIREG on %s failed: %s", ifr.ifr_name,
 		       strerror(errno));
 		return -1;
 	}
@@ -142,7 +146,7 @@ if_mii_status(const int fd)
 // if_mii_dump(mii_regs, phy_id);
 
 	if (mii_regs[0] == 0xffff) {
-		syslog(LOG_ERR, "No MII transceiver present for %s !!!",
+		log_message(LOG_ERR, "No MII transceiver present for %s !!!",
 		       ifr.ifr_name);
 		return -1;
 	}
@@ -249,47 +253,47 @@ dump_if(void *if_data_obj)
 {
 	interface *ifp = if_data_obj;
 
-	syslog(LOG_INFO, "------< NIC >------");
-	syslog(LOG_INFO, " Name = %s", ifp->ifname);
-	syslog(LOG_INFO, " index = %d", ifp->ifindex);
-	syslog(LOG_INFO, " address = %s", inet_ntop2(ifp->address));
+	log_message(LOG_INFO, "------< NIC >------");
+	log_message(LOG_INFO, " Name = %s", ifp->ifname);
+	log_message(LOG_INFO, " index = %d", ifp->ifindex);
+	log_message(LOG_INFO, " address = %s", inet_ntop2(ifp->address));
 
 	/* FIXME: Harcoded for ethernet */
 	if (ifp->hw_type == ARPHRD_ETHER)
-		syslog(LOG_INFO, " MAC = %.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
+		log_message(LOG_INFO, " MAC = %.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
 		       ifp->hw_addr[0], ifp->hw_addr[1], ifp->hw_addr[2]
 		       , ifp->hw_addr[3], ifp->hw_addr[4], ifp->hw_addr[5]);
 
 	if (ifp->flags & IFF_UP)
-		syslog(LOG_INFO, " is UP");
+		log_message(LOG_INFO, " is UP");
 
 	if (ifp->flags & IFF_RUNNING)
-		syslog(LOG_INFO, " is RUNNING");
+		log_message(LOG_INFO, " is RUNNING");
 
 	if (!(ifp->flags & IFF_UP) && !(ifp->flags & IFF_RUNNING))
-		syslog(LOG_INFO, " is DOWN");
+		log_message(LOG_INFO, " is DOWN");
 
-	syslog(LOG_INFO, " MTU = %d", ifp->mtu);
+	log_message(LOG_INFO, " MTU = %d", ifp->mtu);
 
 	switch (ifp->hw_type) {
 	case ARPHRD_LOOPBACK:
-		syslog(LOG_INFO, " HW Type = LOOPBACK");
+		log_message(LOG_INFO, " HW Type = LOOPBACK");
 		break;
 	case ARPHRD_ETHER:
-		syslog(LOG_INFO, " HW Type = ETHERNET");
+		log_message(LOG_INFO, " HW Type = ETHERNET");
 		break;
 	default:
-		syslog(LOG_INFO, " HW Type = UNKNOWN");
+		log_message(LOG_INFO, " HW Type = UNKNOWN");
 		break;
 	}
 
 	/* MII channel supported ? */
 	if (IF_MII_SUPPORTED(ifp))
-		syslog(LOG_INFO, " NIC support MII regs");
+		log_message(LOG_INFO, " NIC support MII regs");
 	else if (IF_ETHTOOL_SUPPORTED(ifp))
-		syslog(LOG_INFO, " NIC support EHTTOOL GLINK interface");
+		log_message(LOG_INFO, " NIC support EHTTOOL GLINK interface");
 	else
-		syslog(LOG_INFO, " Enabling NIC ioctl refresh polling");
+		log_message(LOG_INFO, " Enabling NIC ioctl refresh polling");
 }
 
 static void
@@ -382,10 +386,10 @@ init_interface_queue(void)
 //	dump_list(if_queue);
 	netlink_interface_lookup();
 #ifdef _WITH_LINKWATCH_
-	syslog(LOG_INFO, "Using LinkWatch kernel netlink reflector...");
+	  log_message(LOG_INFO, "Using LinkWatch kernel netlink reflector...");
 #else
-	syslog(LOG_INFO, "Using MII-BMSR NIC polling thread...");
-	init_if_linkbeat();
+	  log_message(LOG_INFO, "Using MII-BMSR NIC polling thread...");
+	  init_if_linkbeat();
 #endif
 }
 
@@ -411,7 +415,7 @@ if_join_vrrp_group(int sd, interface *ifp, int proto)
 	ret = setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
 			 (char *) &req_add, sizeof (struct ip_mreqn));
 	if (ret < 0) {
-		syslog(LOG_INFO, "cant do IP_ADD_MEMBERSHIP errno=%s (%d)",
+		log_message(LOG_INFO, "cant do IP_ADD_MEMBERSHIP errno=%s (%d)",
 		       strerror(errno), errno);
 		close(sd);
 		return -1;
@@ -438,7 +442,7 @@ if_leave_vrrp_group(int sd, interface *ifp)
 	ret = setsockopt(sd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
 			 (char *) &req_add, sizeof (struct ip_mreqn));
 	if (ret < 0) {
-		syslog(LOG_INFO, "cant do IP_DROP_MEMBERSHIP errno=%s (%d)",
+		log_message(LOG_INFO, "cant do IP_DROP_MEMBERSHIP errno=%s (%d)",
 		       strerror(errno), errno);
 		return;
 	}
@@ -468,7 +472,7 @@ if_setsockopt_bindtodevice(int sd, interface *ifp)
 			 , strlen(IF_NAME(ifp)) + 1);
 	if (ret < 0) {
 		int err = errno;
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "cant bind to device %s. errno=%d. (try to run it as root)",
 		       IF_NAME(ifp), err);
 		close(sd);
@@ -488,7 +492,7 @@ if_setsockopt_hdrincl(int sd)
 	ret = setsockopt(sd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on));
 	if (ret < 0) {
 		int err = errno;
-		syslog(LOG_INFO, "cant set HDRINCL IP option. errno=%d.", err);
+		log_message(LOG_INFO, "cant set HDRINCL IP option. errno=%d.", err);
 		close(sd);
 		return -1;
 	}
@@ -506,7 +510,7 @@ if_setsockopt_mcast_loop(int sd)
 	ret = setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
 	if (ret < 0) {
 		int err = errno;
-		syslog(LOG_INFO, "cant set MULTICAST_LOOP IP option. errno=%d.", err);
+		log_message(LOG_INFO, "cant set MULTICAST_LOOP IP option. errno=%d.", err);
 		close(sd);
 		return -1;
 	}

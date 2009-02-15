@@ -4,7 +4,7 @@
 # Configuration template file for keepalived.
 # autoconf will generate & check deps for proper compilation
 #
-# Copyright (C) 2001-2004 Alexandre Cassen, <acassen@linux-vs.org>
+# Copyright (C) 2001-2009 Alexandre Cassen, <acassen@linux-vs.org>
 
 dnl ----[ Process this file with autoconf to produce a configure script ]----
 AC_INIT(keepalived/core/main.c)
@@ -106,61 +106,21 @@ if test "$enable_lvs" != "no"; then
     [IPVS_SUPPORT="_WITH_LVS_"],
     [
       IPVS_SUPPORT="_WITHOUT_LVS_"
-      IPVS_MAJOR="0"
-      IPVS_MINOR="0"
-      IPVS_PATCH="0"
       AC_MSG_WARN([keepalived will be built without LVS support.])
     ])
 fi  
-
-if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
-  AC_MSG_CHECKING([for IPVS version])
-  AC_TRY_RUN([ 
-    #include <stdlib.h>
-    #include <stdio.h>
-    #include <net/ip_vs.h>
-    int main (void) {
-      FILE *fp = fopen ("ipvsinfo", "w");
-      if (!fp) return 1;
-      fprintf (fp, "%d\n%d\n%d\n", NVERSION(IP_VS_VERSION_CODE));
-      fclose (fp); 
-      return 0;
-    } 
-  ], [
-    IPVS_MAJOR=`head -n 1 ipvsinfo | tail -n 1`
-    IPVS_MINOR=`head -n 2 ipvsinfo | tail -n 1`
-    IPVS_PATCH=`head -n 3 ipvsinfo | tail -n 1`
-  ], [
-    IPVS_MAJOR="0"
-    IPVS_MINOR="0"
-    IPVS_PATCH="0"
-  ], [
-    IPVS_MAJOR="0"
-    IPVS_MINOR="0"
-    IPVS_PATCH="0"
-  ])
-  rm -f ipvsinfo
-  AC_MSG_RESULT([$IPVS_MAJOR.$IPVS_MINOR.$IPVS_PATCH])
-  if test "$IPVS_MAJOR" = "0" -a "$IPVS_MINOR" = "0" -a "$IPVS_PATCH" = "0"; then
-    AC_MSG_WARN([Cannot determine IPVS version.])
-  fi
-fi
 
 if test "$IPVS_SUPPORT" = "_WITHOUT_LVS_" -a "$enable_vrrp" = "no"; then
   AC_MSG_ERROR([keepalived MUST be compiled at least with LVS or VRRP framework])
 fi
 
 dnl ----[ IPVS syncd support probe ]---
-dnl Sync daemon is supported since IPVS 0.9.2 for kernel 2.4
-
 IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
 if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
   AC_MSG_CHECKING([for IPVS syncd support])
   if test "$KERN" = "_KRNL_2_6_"; then
     IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
-  elif test "$IPVS_MAJOR" -ge 1 -a "$KERN" = "_KRNL_2_4_"; then
-    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
-  elif test "$IPVS_MINOR" -ge 9 -a "$IPVS_PATCH" -ge 2 -a "$KERN" = "_KRNL_2_4_"; then
+  elif test "_KRNL_2_4_"; then
     IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
   else
     IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
@@ -182,25 +142,7 @@ AC_SUBST(IPVS_SYNCD)
 dnl ----[ Checks for kernel netlink support ]----
 VRRP_SUPPORT="_WITHOUT_VRRP_"
 if test "$enable_vrrp" != "no"; then
-  AC_MSG_CHECKING([for kernel netlink support])
-  AC_TRY_RUN([
-    #include <asm/types.h>
-    #include <sys/socket.h>
-    #include <linux/netlink.h>
-    int main (void) {
-      int fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
-      if (fd < 0)
-        exit(1);
-      close(fd);
-      exit(0);
-    }], [
-      AC_MSG_RESULT(yes)
-      VRRP_SUPPORT="_WITH_VRRP_"
-    ], [
-      AC_MSG_RESULT(no)
-    ], [
-      AC_MSG_RESULT(no)
-    ])
+  VRRP_SUPPORT="_WITH_VRRP_"
 fi
 
 if test "${enable_debug}" = "yes"; then

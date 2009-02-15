@@ -1,14 +1,14 @@
-/*
+/* 
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
- *
- * Part:        Configuration include file.
- *
- * Version:     $Id: config.h.in,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
- *
- * Author:      Jacob Rief, <jacob.rief@tiscover.com>
- *
+ * 
+ * Part:        logging facility.
+ *  
+ * Version:     $Id: vector.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
+ * 
+ * Author:      Alexandre Cassen, <acassen@linux-vs.org>
+ *              
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
  *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -22,11 +22,29 @@
  * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
-#ifndef _CONFIG_H
-#define _CONFIG_H
+#include <syslog.h>
+#include <stdio.h>
+#include <stdarg.h>
 
-#define LOG_FACILITY_MAX	7
-#define PROG			"Keepalived"
-#define VERSION_STRING PROG" v@VERSION@ (@VERSION_DATE@)\n"
+/* Boolean flag - send messages to console as well as syslog */
+static int log_console = 0;
 
-#endif
+void
+enable_console_log(void) {
+	log_console = 1;
+}
+
+void
+log_message(const int facility, const char *format, ...)
+{
+	va_list args;
+
+	va_start(args,format);
+
+	if (log_console) {
+		vfprintf(stderr, format, args);
+		fprintf(stderr,"\n");
+	}
+
+	vsyslog(facility, format, args);
+}

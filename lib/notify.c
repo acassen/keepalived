@@ -5,7 +5,7 @@
  *
  * Part:        Forked system call to launch an extra script.
  *
- * Version:     $Id: notify.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: notify.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include <unistd.h>
@@ -27,6 +27,8 @@
 #include <syslog.h>
 #include <fcntl.h>
 #include "notify.h"
+#include "signals.h"
+#include "logger.h"
 
 /* perform a system call */
 int
@@ -38,10 +40,10 @@ system_call(char *cmdline)
 
 	if (retval == 127) {
 		/* couldn't exec command */
-		syslog(LOG_ALERT, "Couldn't exec command: %s", cmdline);
+		log_message(LOG_ALERT, "Couldn't exec command: %s", cmdline);
 	} else if (retval == -1) {
 		/* other error */
-		syslog(LOG_ALERT, "Error exec-ing command: %s", cmdline);
+		log_message(LOG_ALERT, "Error exec-ing command: %s", cmdline);
 	}
 
 	return retval;
@@ -66,7 +68,7 @@ notify_exec(char *cmd)
 
 	/* In case of fork is error. */
 	if (pid < 0) {
-		syslog(LOG_INFO, "Failed fork process");
+		log_message(LOG_INFO, "Failed fork process");
 		return -1;
 	}
 
@@ -74,6 +76,7 @@ notify_exec(char *cmd)
 	if (pid)
 		return 0;
 
+	signal_handler_destroy();
 	closeall(0);
 
 	open("/dev/null", O_RDWR);

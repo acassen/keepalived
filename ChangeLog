@@ -1,3 +1,65 @@
+2009-02-15  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.16 released.
+	* Code clean-up.
+	* Stefan Rompf, <stefan@loplof.de> extended scheduler to
+	  synchronize signal handling by sending the signal number through
+	  a self pipe, making signals select()able. Child reaping has been
+	  moved to a simple signal synchronous signal handler. Signal
+	  shutdown handling has been centralized.
+	* Denis Ovsienko, <pilot@etcnet.org> extended healthchecker
+	  framework to support alpha/omega design. It provides virtual
+	  service control in a more fine-graned maner. You may have a
+	  look to the SYNOPSIS file to have full picture on configation.
+	  It addresses the following issues :
+	  - A virtual service is considered up even with an empty RS pool.
+	  - There is no reliable mean to avoid service regression, when
+	    the server pool becomes too small.
+	  - There is no mean to escalate any of the above fault/recovery
+	    events.
+	  - Real servers are assumed alive initially. This leads to
+	    unnecessary state flap on keepalived start.
+	  - notify_down isn't executed for working real servers on
+	    keepalived shutdown.
+	  - There is no reliable mean to handle keepalived stop to move
+	    the virtual service over another load balancer.
+	* Stephan Mayr, <Mayr.Stefan@swm.de> fixed default value for
+	  checker loop... a missing TIMER_HZ.
+	* Merge keepalived.init.suse.
+	* Robin Garner, <robin.garner@scu.edu.au> added support to
+	  --log-console facility.
+	* Tobias Klausmann, <klausman@schwarzvogel.de> fixed an openfile
+	  leak while performing reload.
+	* Leo Baltus, <Leo.Baltus@omroep.nl> extended pidfile handling
+	  to allow keepalived to start using configurated pidfile.
+	* VRRP : Siim Poder, <siim@p6drad-teel.net> fixed IPSEC AH auth
+	  to skip IPv4 id field of zero. If zeroed kernel will fill it
+	  and lead to an unwanted protocol re-election.
+	* VRRP : Siim Poder, <siim@p6drad-teel.net> fixed reloading issue.
+	  New ip addresses are added (from configuration). State is kept
+	  instead of starting from whatever is in configuration file.
+	  If prios are changed in such a way, state change can occur after
+	  reload.
+	* VRRP : Vincent Bernat, <bernat@luffy.cx> extended virtual_route
+	  to support virtual "black hole" route as well as multihop route.
+	* VRRP : Stig Thormodsrud, <stig@vyatta.com> fixed a crash while
+	  using virtual_router_id set to 255.
+	* VRRP: Jon DeVree, <jadevree@arbor.net> fixed arp handling to
+	  to initialize the target hardware address, using 0xff as found
+	  in arping. Let scripts work without dealing with weight, if the
+	  script fails, VRRP fails.
+	* VRRP : Pierre-Yves Ritschard, <pierre-yves@spootnik.org> removed
+	  the GOTO_FAULT state from FSM.
+	* VRRP : Willy Tarreau, <w@1wt.eu> fixed link detection handling
+	  to support right ioctl values for recent kernel ! It can lead
+	  to issue while running instance on a bonding interface.
+	* VRRP : Willy Tarreau, <w@1wt.eu> extended scheduler to catch
+	  time drift. It implements an internal monotonic clock. It
+	  maintains an offset between sysclock and monotonic clock, if
+	  computed time if anterior to monotonic time then just update
+	  offset. If time computed if fare away into the future then
+	  limit delay and recompute offset.
+	* VRRP : Willy Tarreau, <w@1wt.eu> fixed autoconf issues.
+
 2007-09-15  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.15 released.
 	* Matthias Saou, <matthias at rpmforge.net> fixed genhash

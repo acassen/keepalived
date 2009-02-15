@@ -1,6 +1,6 @@
 # Makefile.in
 #
-# Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+# Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
 
 EXEC = genhash
 BIN  = ../bin
@@ -19,7 +19,7 @@ LDFLAGS = @LIBS@ @LDFLAGS@
 
 OBJS = main.o sock.o layer4.o http.o ssl.o
 LIB_OBJS = ../lib/timer.o ../lib/scheduler.o ../lib/memory.o ../lib/list.o \
-	   ../lib/utils.o ../lib/html.o ../lib/signals.o
+	   ../lib/utils.o ../lib/html.o ../lib/signals.o ../lib/logger.o
 
 all:	$(BIN)/$(EXEC)
 	$(STRIP) $(BIN)/$(EXEC)

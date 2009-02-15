@@ -5,7 +5,7 @@
  *
  * Part:        WEB CHECK. Common HTTP/SSL checker primitives.
  *
- * Version:     $Id: check_http.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: check_http.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -20,13 +20,14 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include <openssl/err.h>
 #include "check_http.h"
 #include "check_ssl.h"
 #include "check_api.h"
+#include "logger.h"
 #include "memory.h"
 #include "parser.h"
 #include "utils.h"
@@ -48,12 +49,12 @@ void
 dump_url(void *data)
 {
 	url *url_obj = data;
-	syslog(LOG_INFO, "   Checked url = %s", url_obj->path);
+	log_message(LOG_INFO, "   Checked url = %s", url_obj->path);
 	if (url_obj->digest)
-		syslog(LOG_INFO, "           digest = %s",
+		log_message(LOG_INFO, "           digest = %s",
 		       url_obj->digest);
 	if (url_obj->status_code)
-		syslog(LOG_INFO, "           HTTP Status Code = %d",
+		log_message(LOG_INFO, "           HTTP Status Code = %d",
 		       url_obj->status_code);
 }
 
@@ -74,19 +75,19 @@ dump_http_get_check(void *data)
 	http_get_checker *http_get_chk = CHECKER_DATA(data);
 
 	if (http_get_chk->proto == PROTO_HTTP)
-		syslog(LOG_INFO, "   Keepalive method = HTTP_GET");
+		log_message(LOG_INFO, "   Keepalive method = HTTP_GET");
 	else
-		syslog(LOG_INFO, "   Keepalive method = SSL_GET");
+		log_message(LOG_INFO, "   Keepalive method = SSL_GET");
 	if (http_get_chk->connection_port)
-		syslog(LOG_INFO, "   Connection port = %d",
+		log_message(LOG_INFO, "   Connection port = %d",
 		       ntohs(http_get_chk->connection_port));
 	if (http_get_chk->bindto)
-		syslog(LOG_INFO, "   Bind to = %s",
+		log_message(LOG_INFO, "   Bind to = %s",
 		       inet_ntop2(http_get_chk->bindto));
-	syslog(LOG_INFO, "   Connection timeout = %lu",
+	log_message(LOG_INFO, "   Connection timeout = %lu",
 	       http_get_chk->connection_to/TIMER_HZ);
-	syslog(LOG_INFO, "   Nb get retry = %d", http_get_chk->nb_get_retry);
-	syslog(LOG_INFO, "   Delay before retry = %lu",
+	log_message(LOG_INFO, "   Nb get retry = %d", http_get_chk->nb_get_retry);
+	log_message(LOG_INFO, "   Delay before retry = %lu",
 	       http_get_chk->delay_before_retry/TIMER_HZ);
 	dump_list(http_get_chk->url);
 }
@@ -309,7 +310,7 @@ epilog(thread * thread_obj, int method, int t, int c)
 	 */
 	if (http_arg_obj->retry_it > http_get_check->nb_get_retry-1) {
 		if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
-			syslog(LOG_INFO, "Check on service [%s:%d] failed after %d retry."
+			log_message(LOG_INFO, "Check on service [%s:%d] failed after %d retry."
 			       , inet_ntop2(CHECKER_RIP(checker_obj))
 			       , ntohs(addr_port), http_arg_obj->retry_it);
 			smtp_alert(checker_obj->rs, NULL, NULL,
@@ -365,7 +366,7 @@ timeout_epilog(thread * thread_obj, char *smtp_msg, char *debug_msg)
 	checker *checker_obj = THREAD_ARG(thread_obj);
 	uint16_t addr_port = get_service_port(checker_obj);
 
-	syslog(LOG_INFO, "Timeout %s server [%s:%d].",
+	log_message(LOG_INFO, "Timeout %s server [%s:%d].",
 	       debug_msg
 	       , inet_ntop2(CHECKER_RIP(checker_obj))
 	       , ntohs(addr_port));
@@ -402,7 +403,7 @@ http_handle_response(thread * thread_obj, unsigned char digest[16]
 	REQ *req = HTTP_REQ(http_arg_obj);
 	uint16_t addr_port = get_service_port(checker_obj);
 	int r, di = 0;
-	unsigned char *digest_tmp;
+	char *digest_tmp;
 	url *fetched_url = fetch_next_url(http_get_check);
 
 	/* First check if remote webserver returned data */
@@ -416,7 +417,7 @@ http_handle_response(thread * thread_obj, unsigned char digest[16]
 		if (req->status_code != fetched_url->status_code) {
 			/* check if server is currently alive */
 			if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
-				syslog(LOG_INFO,
+				log_message(LOG_INFO,
 				       "HTTP status code error to [%s:%d] url(%s)"
 				       ", status_code [%d].",
 				       inet_ntop2(CHECKER_RIP(checker_obj)),
@@ -444,7 +445,7 @@ http_handle_response(thread * thread_obj, unsigned char digest[16]
 			return epilog(thread_obj, 2, 0, 1);
 		} else {
 			if (!svr_checker_up(checker_obj->id, checker_obj->rs))
-				syslog(LOG_INFO,
+				log_message(LOG_INFO,
 				       "HTTP status code success to [%s:%d] url(%d).",
 				       inet_ntop2(CHECKER_RIP(checker_obj))
 				       , ntohs(addr_port)
@@ -465,7 +466,7 @@ http_handle_response(thread * thread_obj, unsigned char digest[16]
 		if (r) {
 			/* check if server is currently alive */
 			if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
-				syslog(LOG_INFO,
+				log_message(LOG_INFO,
 				       "MD5 digest error to [%s:%d] url[%s]"
 				       ", MD5SUM [%s].",
 				       inet_ntop2(CHECKER_RIP(checker_obj)),
@@ -494,7 +495,7 @@ http_handle_response(thread * thread_obj, unsigned char digest[16]
 			return epilog(thread_obj, 2, 0, 1);
 		} else {
 			if (!svr_checker_up(checker_obj->id, checker_obj->rs))
-				syslog(LOG_INFO, "MD5 digest success to [%s:%d] url(%d).",
+				log_message(LOG_INFO, "MD5 digest success to [%s:%d] url(%d).",
 				       inet_ntop2(CHECKER_RIP(checker_obj))
 				       , ntohs(addr_port)
 				       , http_arg_obj->url_it + 1);
@@ -563,7 +564,7 @@ http_read_thread(thread * thread_obj)
 
 	/* Test if data are ready */
 	if (r == -1 && (errno == EAGAIN || errno == EINTR)) {
-		syslog(LOG_INFO, "Read error with server [%s:%d]: %s",
+		log_message(LOG_INFO, "Read error with server [%s:%d]: %s",
 		       inet_ntop2(CHECKER_RIP(checker_obj))
 		       , ntohs(addr_port)
 		       , strerror(errno));
@@ -580,7 +581,7 @@ http_read_thread(thread * thread_obj)
 		if (r == -1) {
 			/* We have encourred a real read error */
 			if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
-				syslog(LOG_INFO, "Read error with server [%s:%d]: %s",
+				log_message(LOG_INFO, "Read error with server [%s:%d]: %s",
 				       inet_ntop2(CHECKER_RIP(checker_obj))
 				       , ntohs(addr_port)
 				       , strerror(errno));
@@ -701,7 +702,7 @@ http_request_thread(thread * thread_obj)
 	FREE(str_request);
 
 	if (!ret) {
-		syslog(LOG_INFO, "Cannot send get request to [%s:%d].",
+		log_message(LOG_INFO, "Cannot send get request to [%s:%d].",
 		       inet_ntop2(CHECKER_RIP(checker_obj))
 		       , ntohs(addr_port));
 
@@ -747,7 +748,7 @@ http_check_thread(thread * thread_obj)
 	case connect_error:
 		/* check if server is currently alive */
 		if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
-			syslog(LOG_INFO, "Error connecting server [%s:%d].",
+			log_message(LOG_INFO, "Error connecting server [%s:%d].",
 			       inet_ntop2(CHECKER_RIP(checker_obj))
 			       , ntohs(addr_port));
 			smtp_alert(checker_obj->rs, NULL, NULL,
@@ -832,7 +833,7 @@ http_check_thread(thread * thread_obj)
 #endif
 				if ((http_get_check->proto == PROTO_SSL) &&
 				    (svr_checker_up(checker_obj->id, checker_obj->rs))) {
-					syslog(LOG_INFO, "SSL handshake/communication error"
+					log_message(LOG_INFO, "SSL handshake/communication error"
 							 " connecting to server"
 							 " (openssl errno: %d) [%s:%d]."
 						       , SSL_get_error (http_arg_obj->req->ssl, ret)
@@ -886,7 +887,7 @@ http_connect_thread(thread * thread_obj)
 		 * check if server is currently alive.
 		 */
 		if (!svr_checker_up(checker_obj->id, checker_obj->rs)) {
-			syslog(LOG_INFO, "Remote Web server [%s:%d] succeed on service.",
+			log_message(LOG_INFO, "Remote Web server [%s:%d] succeed on service.",
 			       inet_ntop2(CHECKER_RIP(checker_obj))
 			       , ntohs(addr_port));
 			smtp_alert(checker_obj->rs, NULL, NULL, "UP",

@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK kernel command channel.
  *
- * Version:     $Id: vrrp_netlink.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: vrrp_netlink.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 /* global include */
@@ -40,6 +40,7 @@
 #include "check_api.h"
 #include "vrrp_netlink.h"
 #include "vrrp_if.h"
+#include "logger.h"
 #include "memory.h"
 #include "scheduler.h"
 #include "utils.h"
@@ -52,21 +53,21 @@ struct nl_handle nl_cmd;	/* Command channel */
 int
 netlink_socket(struct nl_handle *nl, unsigned long groups)
 {
-	int addr_len;
+	socklen_t addr_len;
 	int ret;
 
 	memset(nl, 0, sizeof (nl));
 
 	nl->fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (nl->fd < 0) {
-		syslog(LOG_INFO, "Netlink: Cannot open netlink socket : (%s)",
+		log_message(LOG_INFO, "Netlink: Cannot open netlink socket : (%s)",
 		       strerror(errno));
 		return -1;
 	}
 
 	ret = fcntl(nl->fd, F_SETFL, O_NONBLOCK);
 	if (ret < 0) {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "Netlink: Cannot set netlink socket flags : (%s)",
 		       strerror(errno));
 		close(nl->fd);
@@ -79,7 +80,7 @@ netlink_socket(struct nl_handle *nl, unsigned long groups)
 
 	ret = bind(nl->fd, (struct sockaddr *) &nl->snl, sizeof (nl->snl));
 	if (ret < 0) {
-		syslog(LOG_INFO, "Netlink: Cannot bind netlink socket : (%s)",
+		log_message(LOG_INFO, "Netlink: Cannot bind netlink socket : (%s)",
 		       strerror(errno));
 		close(nl->fd);
 		return -1;
@@ -88,14 +89,14 @@ netlink_socket(struct nl_handle *nl, unsigned long groups)
 	addr_len = sizeof (nl->snl);
 	ret = getsockname(nl->fd, (struct sockaddr *) &nl->snl, &addr_len);
 	if (ret < 0 || addr_len != sizeof (nl->snl)) {
-		syslog(LOG_INFO, "Netlink: Cannot getsockname : (%s)",
+		log_message(LOG_INFO, "Netlink: Cannot getsockname : (%s)",
 		       strerror(errno));
 		close(nl->fd);
 		return -1;
 	}
 
 	if (nl->snl.nl_family != AF_NETLINK) {
-		syslog(LOG_INFO, "Netlink: Wrong address family %d",
+		log_message(LOG_INFO, "Netlink: Wrong address family %d",
 		       nl->snl.nl_family);
 		close(nl->fd);
 		return -1;
@@ -119,13 +120,13 @@ int
 netlink_set_block(struct nl_handle *nl, int *flags)
 {
 	if ((*flags = fcntl(nl->fd, F_GETFL, 0)) < 0) {
-		syslog(LOG_INFO, "Netlink: Cannot F_GETFL socket : (%s)",
+		log_message(LOG_INFO, "Netlink: Cannot F_GETFL socket : (%s)",
 		       strerror(errno));
 		return -1;
 	}
 	*flags &= ~O_NONBLOCK;
 	if (fcntl(nl->fd, F_SETFL, *flags) < 0) {
-		syslog(LOG_INFO, "Netlink: Cannot F_SETFL socket : (%s)",
+		log_message(LOG_INFO, "Netlink: Cannot F_SETFL socket : (%s)",
 		       strerror(errno));
 		return -1;
 	}
@@ -138,7 +139,7 @@ netlink_set_nonblock(struct nl_handle *nl, int *flags)
 {
 	*flags |= O_NONBLOCK;
 	if (fcntl(nl->fd, F_SETFL, *flags) < 0) {
-		syslog(LOG_INFO, "Netlink: Cannot F_SETFL socket : (%s)",
+		log_message(LOG_INFO, "Netlink: Cannot F_SETFL socket : (%s)",
 		       strerror(errno));
 		return -1;
 	}
@@ -176,6 +177,23 @@ addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data_obj, int alen)
 	memcpy(RTA_DATA(rta), data_obj, alen);
 	n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + len;
 
+	return 0;
+}
+
+int rta_addattr_l(struct rtattr *rta, int maxlen, int type,
+		  const void *data, int alen)
+{
+	struct rtattr *subrta;
+	int len = RTA_LENGTH(alen);
+
+	if (RTA_ALIGN(rta->rta_len) + RTA_ALIGN(len) > maxlen) {
+		return -1;
+	}
+	subrta = (struct rtattr*)(((char*)rta) + RTA_ALIGN(rta->rta_len));
+	subrta->rta_type = type;
+	subrta->rta_len = len;
+	memcpy(RTA_DATA(subrta), data, alen);
+	rta->rta_len = NLMSG_ALIGN(rta->rta_len) + RTA_ALIGN(len);
 	return 0;
 }
 
@@ -245,17 +263,17 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				continue;
 			if (errno == EWOULDBLOCK || errno == EAGAIN)
 				break;
-			syslog(LOG_INFO, "Netlink: Received message overrun");
+			log_message(LOG_INFO, "Netlink: Received message overrun");
 			continue;
 		}
 
 		if (status == 0) {
-			syslog(LOG_INFO, "Netlink: EOF");
+			log_message(LOG_INFO, "Netlink: EOF");
 			return -1;
 		}
 
 		if (msg.msg_namelen != sizeof snl) {
-			syslog(LOG_INFO,
+			log_message(LOG_INFO,
 			       "Netlink: Sender address length error: length %d",
 			       msg.msg_namelen);
 			return -1;
@@ -282,11 +300,11 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				}
 
 				if (h->nlmsg_len < NLMSG_LENGTH(sizeof (struct nlmsgerr))) {
-					syslog(LOG_INFO,
+					log_message(LOG_INFO,
 					       "Netlink: error: message truncated");
 					return -1;
 				}
-				syslog(LOG_INFO,
+				log_message(LOG_INFO,
 				       "Netlink: error: %s, type=(%u), seq=%u, pid=%d",
 				       strerror(-err->error),
 				       err->msg.nlmsg_type,
@@ -297,13 +315,13 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 
 			/* Skip unsolicited messages from cmd channel */
 			if (nl != &nl_cmd && h->nlmsg_pid == nl_cmd.snl.nl_pid) {
-				syslog(LOG_INFO, "Netlink: skipping nl_cmd msg...");
+				log_message(LOG_INFO, "Netlink: skipping nl_cmd msg...");
 				continue;
 			}
 
 			error = (*filter) (&snl, h);
 			if (error < 0) {
-				syslog(LOG_INFO,
+				log_message(LOG_INFO,
 				       "Netlink: filter function error");
 				ret = error;
 			}
@@ -311,11 +329,11 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 
 		/* After error care. */
 		if (msg.msg_flags & MSG_TRUNC) {
-			syslog(LOG_INFO, "Netlink: error: message truncated");
+			log_message(LOG_INFO, "Netlink: error: message truncated");
 			continue;
 		}
 		if (status) {
-			syslog(LOG_INFO, "Netlink: error: data remnant size %d",
+			log_message(LOG_INFO, "Netlink: error: data remnant size %d",
 			       status);
 			return -1;
 		}
@@ -328,7 +346,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 static int
 netlink_talk_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
-	syslog(LOG_INFO, "Netlink: ignoring message type 0x%04x",
+	log_message(LOG_INFO, "Netlink: ignoring message type 0x%04x",
 	       h->nlmsg_type);
 	return 0;
 }
@@ -354,7 +372,7 @@ netlink_talk(struct nl_handle *nl, struct nlmsghdr *n)
 	/* Send message to netlink interface. */
 	status = sendmsg(nl->fd, &msg, 0);
 	if (status < 0) {
-		syslog(LOG_INFO, "Netlink: sendmsg() error: %s",
+		log_message(LOG_INFO, "Netlink: sendmsg() error: %s",
 		       strerror(errno));
 		return -1;
 	}
@@ -362,7 +380,7 @@ netlink_talk(struct nl_handle *nl, struct nlmsghdr *n)
 	/* Set blocking flag */
 	ret = netlink_set_block(nl, &flags);
 	if (ret < 0)
-		syslog(LOG_INFO, "Netlink: Warning, couldn't set "
+		log_message(LOG_INFO, "Netlink: Warning, couldn't set "
 		       "blocking flag to netlink socket...");
 
 	status = netlink_parse_info(netlink_talk_filter, nl);
@@ -398,7 +416,7 @@ netlink_request(struct nl_handle *nl, int family, int type)
 	status = sendto(nl->fd, (void *) &req, sizeof (req)
 			, 0, (struct sockaddr *) &snl, sizeof (snl));
 	if (status < 0) {
-		syslog(LOG_INFO, "Netlink: sendto() failed: %s",
+		log_message(LOG_INFO, "Netlink: sendto() failed: %s",
 		       strerror(errno));
 		return -1;
 	}
@@ -447,7 +465,7 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 		int hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
 
 		if (hw_addr_len > IF_HWADDR_MAX)
-			syslog(LOG_ERR, "MAC address for %s is too large: %d",
+			log_message(LOG_ERR, "MAC address for %s is too large: %d",
 			       name, hw_addr_len);
 		else {
 			ifp->hw_addr_len = hw_addr_len;
@@ -541,7 +559,7 @@ netlink_interface_lookup(void)
 	/* Set blocking flag */
 	ret = netlink_set_block(&nlh, &flags);
 	if (ret < 0)
-		syslog(LOG_INFO, "Netlink: 1Warning, couldn't set "
+		log_message(LOG_INFO, "Netlink: 1Warning, couldn't set "
 		       "blocking flag to netlink socket...");
 
 	/* Interface lookup */
@@ -570,7 +588,7 @@ netlink_address_lookup(void)
 	/* Set blocking flag */
 	ret = netlink_set_block(&nlh, &flags);
 	if (ret < 0)
-		syslog(LOG_INFO, "Netlink: 2Warning, couldn't set "
+		log_message(LOG_INFO, "Netlink: 2Warning, couldn't set "
 		       "blocking flag to netlink socket...");
 
 	/* Address lookup */
@@ -637,7 +655,7 @@ netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 		return netlink_if_address_filter(snl, h);
 		break;
 	default:
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "Kernel is reflecting an unknown netlink nlmsg_type: %d",
 		       h->nlmsg_type);
 		break;
@@ -674,18 +692,18 @@ kernel_netlink_init(void)
 	netlink_socket(&nl_kernel, groups);
 
 	if (nl_kernel.fd > 0) {
-		syslog(LOG_INFO, "Registering Kernel netlink reflector");
+		log_message(LOG_INFO, "Registering Kernel netlink reflector");
 		thread_add_read(master, kernel_netlink, NULL, nl_kernel.fd,
 				NETLINK_TIMER);
 	} else
-		syslog(LOG_INFO, "Error while registering Kernel netlink reflector channel");
+		log_message(LOG_INFO, "Error while registering Kernel netlink reflector channel");
 
 	/* Prepare netlink command channel. */
 	netlink_socket(&nl_cmd, 0);
 	if (nl_cmd.fd > 0)
-		syslog(LOG_INFO, "Registering Kernel netlink command channel");
+		log_message(LOG_INFO, "Registering Kernel netlink command channel");
 	else
-		syslog(LOG_INFO, "Error while registering Kernel netlink cmd channel");
+		log_message(LOG_INFO, "Error while registering Kernel netlink cmd channel");
 }
 
 void

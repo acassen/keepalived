@@ -5,7 +5,7 @@
  *
  * Part:        scheduler.c include file.
  *
- * Version:     $Id: scheduler.h,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: scheduler.h,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #ifndef _SCHEDULER_H
@@ -89,6 +89,7 @@ typedef struct _thread_master {
 #define THREAD_READ_TIMEOUT	8
 #define THREAD_CHILD_TIMEOUT	9
 #define THREAD_TERMINATE	10
+#define THREAD_READY_FD		11
 
 /* MICRO SEC def */
 #define BOOTSTRAP_DELAY TIMER_HZ
@@ -121,6 +122,7 @@ extern thread *thread_add_event(thread_master * m, int (*func) (thread *)
 extern void thread_cancel(thread * thread_obj);
 extern void thread_cancel_event(thread_master * m, void *arg);
 extern thread *thread_fetch(thread_master * m, thread * fetch);
+extern void thread_child_handler(void * v, int sig);
 extern void thread_call(thread * thread_obj);
 extern void launch_scheduler(void);
 

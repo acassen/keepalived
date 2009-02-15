@@ -5,7 +5,7 @@
  *
  * Part:        Interface tracking framework.
  *
- * Version:     $Id: vrrp_track.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: vrrp_track.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,13 +19,14 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 /* local include */
 #include "vrrp_track.h"
 #include "vrrp_if.h"
 #include "vrrp_data.h"
+#include "logger.h"
 #include "memory.h"
 
 /* Track interface dump */
@@ -33,7 +34,7 @@ void
 dump_track(void *track_data_obj)
 {
 	tracked_if *tip = track_data_obj;
-	syslog(LOG_INFO, "     %s weight %d", IF_NAME(tip->ifp), tip->weight);
+	log_message(LOG_INFO, "     %s weight %d", IF_NAME(tip->ifp), tip->weight);
 }
 void
 alloc_track(list track_list, vector strvec)
@@ -47,7 +48,7 @@ alloc_track(list track_list, vector strvec)
 
 	/* Ignoring if no interface found */
 	if (!ifp) {
-		syslog(LOG_INFO, "     %s no match, ignoring...", tracked);
+		log_message(LOG_INFO, "     %s no match, ignoring...", tracked);
 		return;
 	}
 
@@ -55,7 +56,7 @@ alloc_track(list track_list, vector strvec)
 	    !strcmp(VECTOR_SLOT(strvec, 1), "weight")) {
 		weight = atoi(VECTOR_SLOT(strvec, 2));
 		if (weight < -254 || weight > 254) {
-			syslog(LOG_INFO, "     %s: weight must be between "
+			log_message(LOG_INFO, "     %s: weight must be between "
 					 "[-254..254] inclusive. Ignoring...", tracked);
 			weight = 0;
 		}
@@ -68,7 +69,7 @@ alloc_track(list track_list, vector strvec)
 	list_add(track_list, tip);
 }
 
-static vrrp_script *
+vrrp_script *
 find_script_by_name(char *name)
 {
 	element e;
@@ -90,7 +91,7 @@ void
 dump_track_script(void *track_data_obj)
 {
 	tracked_sc *tsc = track_data_obj;
-	syslog(LOG_INFO, "     %s weight %d", tsc->scr->sname, tsc->weight);
+	log_message(LOG_INFO, "     %s weight %d", tsc->scr->sname, tsc->weight);
 }
 void
 alloc_track_script(list track_list, vector strvec)
@@ -104,7 +105,7 @@ alloc_track_script(list track_list, vector strvec)
 
 	/* Ignoring if no interface found */
 	if (!vsc) {
-		syslog(LOG_INFO, "     %s no match, ignoring...", tracked);
+		log_message(LOG_INFO, "     %s no match, ignoring...", tracked);
 		return;
 	}
 
@@ -116,7 +117,7 @@ alloc_track_script(list track_list, vector strvec)
 		weight = atoi(VECTOR_SLOT(strvec, 2));
 		if (weight < -254 || weight > 254) {
 			weight = vsc->weight;
-			syslog(LOG_INFO, "     %s: weight must be between [-254..254]"
+			log_message(LOG_INFO, "     %s: weight must be between [-254..254]"
 				         " inclusive, ignoring...",
 			       tracked);
 		}
@@ -125,8 +126,7 @@ alloc_track_script(list track_list, vector strvec)
 	tsc         = (tracked_sc *) MALLOC(sizeof (tracked_sc));
 	tsc->scr    = vsc;
 	tsc->weight = weight;
-	if (weight != 0)
-		vsc->inuse++;
+	vsc->inuse++;
 	list_add(track_list, tsc);
 }
 
@@ -156,7 +156,7 @@ vrrp_log_tracked_down(list l)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		tip = ELEMENT_DATA(e);
 		if (!IF_ISUP(tip->ifp))
-			syslog(LOG_INFO, "Kernel is reporting: interface %s DOWN",
+			log_message(LOG_INFO, "Kernel is reporting: interface %s DOWN",
 			       IF_NAME(tip->ifp));
 	}
 }
@@ -187,6 +187,22 @@ vrrp_tracked_weight(list l)
 	}
 
 	return weight;
+}
+
+/* Test if all tracked scripts are either OK or weight-tracked */
+int
+vrrp_script_up(list l)
+{
+	element e;
+	tracked_sc *tsc;
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		tsc = ELEMENT_DATA(e);
+		if (!tsc->weight && tsc->scr->result == VRRP_SCRIPT_STATUS_NONE)
+			return 0;
+	}
+
+	return 1;
 }
 
 /* Returns total weights of all tracked scripts :

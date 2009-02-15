@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: vrrp.h,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,7 +20,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #ifndef _VRRP_H
@@ -166,7 +166,6 @@ typedef struct _vrrp_rt {
 #define VRRP_STATE_FAULT		3	/* internal */
 #define VRRP_STATE_GOTO_MASTER		4	/* internal */
 #define VRRP_STATE_LEAVE_MASTER		5	/* internal */
-#define VRRP_STATE_GOTO_FAULT		98	/* internal */
 #define VRRP_DISPATCHER 		99	/* internal */
 #define VRRP_MCAST_RETRY		10	/* internal */
 #define VRRP_MAX_FSM_STATE		4	/* internal */
@@ -202,8 +201,12 @@ typedef struct _vrrp_rt {
 
 #define VRRP_PKT_SADDR(V) (((V)->mcast_saddr) ? (V)->mcast_saddr : IF_ADDR((V)->ifp))
 
-#define VRRP_ISUP(V)   ((IF_ISUP((V)->ifp) || (V)->dont_track_primary) & \
-			((!LIST_ISEMPTY((V)->track_ifp)) ? TRACK_ISUP((V)->track_ifp) : 1))
+#define VRRP_IF_ISUP(V)        ((IF_ISUP((V)->ifp) || (V)->dont_track_primary) & \
+                               ((!LIST_ISEMPTY((V)->track_ifp)) ? TRACK_ISUP((V)->track_ifp) : 1))
+
+#define VRRP_SCRIPT_ISUP(V)    ((!LIST_ISEMPTY((V)->track_script)) ? SCRIPT_ISUP((V)->track_script) : 1)
+
+#define VRRP_ISUP(V)           (VRRP_IF_ISUP(V) && VRRP_SCRIPT_ISUP(V))
 
 /* prototypes */
 extern int open_vrrp_send_socket(const int proto, const int idx);
@@ -222,6 +225,7 @@ extern int vrrp_ipsecah_len(void);
 extern int vrrp_complete_init(void);
 extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);
+extern void clear_diff_script(void);
 extern void vrrp_restore_interface(vrrp_rt * vrrp, int advF);
 
 #endif

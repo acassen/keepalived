@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 address manipulation.
  *
- * Version:     $Id: vrrp_ipaddress.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: vrrp_ipaddress.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,13 +19,14 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 /* local include */
 #include "vrrp_ipaddress.h"
 #include "vrrp_netlink.h"
 #include "vrrp_data.h"
+#include "logger.h"
 #include "memory.h"
 #include "utils.h"
 
@@ -103,7 +104,7 @@ void
 dump_ipaddress(void *if_data_obj)
 {
 	ip_address *ip_addr = if_data_obj;
-	syslog(LOG_INFO, "     %s/%d brd %s dev %s scope %s%s%s"
+	log_message(LOG_INFO, "     %s/%d brd %s dev %s scope %s%s%s"
 	       , inet_ntop2(ip_addr->addr)
 	       , ip_addr->mask
 	       , inet_ntop2(ip_addr->broadcast)
@@ -137,7 +138,7 @@ alloc_ipaddress(list ip_list, vector strvec, interface *ifp)
 		if (!strcmp(str, "dev")) {
 			new->ifp = if_get_by_ifname(VECTOR_SLOT(strvec, ++i));
 			if (!new->ifp) {
-				syslog(LOG_INFO, "VRRP is trying to assign VIP to unknown %s"
+				log_message(LOG_INFO, "VRRP is trying to assign VIP to unknown %s"
 				       " interface !!! go out and fixe your conf !!!",
 				       (char *)VECTOR_SLOT(strvec, i));
 				FREE(new);
@@ -193,7 +194,7 @@ clear_diff_address(list l, list n)
 
 	/* All addresses removed */
 	if (LIST_ISEMPTY(n)) {
-		syslog(LOG_INFO, "Removing a VIP|E-VIP block");
+		log_message(LOG_INFO, "Removing a VIP|E-VIP block");
 		netlink_iplist_ipv4(l, IPADDRESS_DEL);
 		return;
 	}
@@ -201,7 +202,7 @@ clear_diff_address(list l, list n)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		ipaddress = ELEMENT_DATA(e);
 		if (!address_exist(n, ipaddress) && ipaddress->set) {
-			syslog(LOG_INFO, "ip address %s/%d dev %s, no longer exist"
+			log_message(LOG_INFO, "ip address %s/%d dev %s, no longer exist"
 			       , inet_ntop2(ipaddress->addr)
 			       , ipaddress->mask
 			       , IF_NAME(if_get_by_ifindex(ipaddress->ifindex)));

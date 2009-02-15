@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: parser.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -21,7 +21,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include <glob.h>
@@ -30,6 +30,7 @@
 #include <errno.h>
 #include "parser.h"
 #include "memory.h"
+#include "logger.h"
 
 /* global vars */
 vector keywords;
@@ -198,10 +199,10 @@ void read_conf_file(char *conf_file)
 
 	int i;
 	for(i = 0; i < globbuf.gl_pathc; i++){
-		syslog(LOG_INFO, "Opening file '%s'.\n",globbuf.gl_pathv[i]);
+		log_message(LOG_INFO, "Opening file '%s'.\n",globbuf.gl_pathv[i]);
 		stream = fopen(globbuf.gl_pathv[i], "r");
 		if (!stream) {
-			syslog(LOG_INFO, "Configuration file '%s' open problem (%s)...\n"
+			log_message(LOG_INFO, "Configuration file '%s' open problem (%s)...\n"
 				       , globbuf.gl_pathv[i], strerror(errno));
 			return;
 		}

@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -22,7 +22,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 /* local include */
@@ -38,6 +38,7 @@
 #include "vrrp_index.h"
 #include "memory.h"
 #include "list.h"
+#include "logger.h"
 #include "main.h"
 #include "utils.h"
 #include "notify.h"
@@ -47,7 +48,7 @@ static int
 vrrp_handle_ipaddress(vrrp_rt * vrrp, int cmd, int type)
 {
 	if (debug & 32)
-		syslog(LOG_INFO, "VRRP_Instance(%s) %s protocol %s", vrrp->iname,
+		log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol %s", vrrp->iname,
 		       (cmd == IPADDRESS_ADD) ? "setting" : "removing",
 		       (type == VRRP_VIP_TYPE) ? "VIPs." : "E-VIPs.");
 	netlink_iplist_ipv4((type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip
@@ -60,7 +61,7 @@ static int
 vrrp_handle_iproutes(vrrp_rt * vrrp, int cmd)
 {
 	if (debug & 32)
-		syslog(LOG_INFO, "VRRP_Instance(%s) %s protocol Virtual Routes",
+		log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol Virtual Routes",
 		       vrrp->iname,
 		       (cmd == IPROUTE_ADD) ? "setting" : "removing");
 	netlink_rtlist_ipv4(vrrp->vroutes, cmd);
@@ -104,7 +105,7 @@ vrrp_in_chk_ipsecah(vrrp_rt * vrrp, char *buffer)
 
 	/* first verify that the SPI value is equal to src IP */
 	if (ah->spi != ip->saddr) {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "IPSEC AH : invalid IPSEC SPI value. %d and expect %d",
 		       ip->saddr, ah->spi);
 		return 1;
@@ -119,7 +120,7 @@ vrrp_in_chk_ipsecah(vrrp_rt * vrrp, char *buffer)
 	if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter->seq_number || vrrp->sync) {
 		vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number);
 	} else {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
 		       " already proceeded. Packet dropped. Local(%d)", vrrp->iname
 		       , ntohl(ah->seq_number), vrrp->ipsecah_counter->seq_number);
@@ -140,13 +141,13 @@ vrrp_in_chk_ipsecah(vrrp_rt * vrrp, char *buffer)
 	memset(ah->auth_data, 0, sizeof (ah->auth_data));
 
 	/* Compute the ICV */
-	hmac_md5(buffer,
+	hmac_md5((unsigned char *) buffer,
 		 vrrp_iphdr_len(vrrp) + vrrp_ipsecah_len() + vrrp_hd_len(vrrp)
 		 , vrrp->auth_data, sizeof (vrrp->auth_data)
 		 , digest);
 
 	if (memcmp(backup_auth_data, digest, HMAC_MD5_TRUNC) != 0) {
-		syslog(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : invalid"
+		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : invalid"
 		       " IPSEC HMAC-MD5 value. Due to fields mutation"
 		       " or bad password !", vrrp->iname);
 		return 1;
@@ -200,14 +201,14 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 
 	/* MUST verify that the IP TTL is 255 */
 	if (ip->ttl != VRRP_IP_TTL) {
-		syslog(LOG_INFO, "invalid ttl. %d and expect %d", ip->ttl,
+		log_message(LOG_INFO, "invalid ttl. %d and expect %d", ip->ttl,
 		       VRRP_IP_TTL);
 		return VRRP_PACKET_KO;
 	}
 
 	/* MUST verify the VRRP version */
 	if ((hd->vers_type >> 4) != VRRP_VERSION) {
-		syslog(LOG_INFO, "invalid version. %d and expect %d",
+		log_message(LOG_INFO, "invalid version. %d and expect %d",
 		       (hd->vers_type >> 4), VRRP_VERSION);
 		return VRRP_PACKET_KO;
 	}
@@ -217,7 +218,7 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 	 * equal to the VRRP header
 	 */
 	if ((ntohs(ip->tot_len) - ihl) <= sizeof (vrrp_pkt)) {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "ip payload too short. %d and expect at least %d",
 		       ntohs(ip->tot_len) - ihl, sizeof (vrrp_pkt));
 		return VRRP_PACKET_KO;
@@ -226,7 +227,7 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 	/* MUST verify the VRRP checksum */
 	if (in_csum((u_short *) hd,
 	    sizeof(vrrp_pkt) + VRRP_AUTH_LEN + hd->naddr * sizeof(uint32_t), 0)) {
-		syslog(LOG_INFO, "Invalid vrrp checksum");
+		log_message(LOG_INFO, "Invalid vrrp checksum");
 		return VRRP_PACKET_KO;
 	}
 
@@ -235,7 +236,7 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 	 * check the authentication type
 	 */
 	if (vrrp->auth_type != hd->auth_type) {
-		syslog(LOG_INFO, "receive a %d auth, expecting %d!",
+		log_message(LOG_INFO, "receive a %d auth, expecting %d!",
 		       vrrp->auth_type, hd->auth_type);
 		return VRRP_PACKET_KO;
 	}
@@ -245,14 +246,14 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 		char *pw = (char *) ip + ntohs(ip->tot_len)
 		    - sizeof (vrrp->auth_data);
 		if (memcmp(pw, vrrp->auth_data, sizeof(vrrp->auth_data)) != 0) {
-			syslog(LOG_INFO, "receive an invalid passwd!");
+			log_message(LOG_INFO, "receive an invalid passwd!");
 			return VRRP_PACKET_KO;
 		}
 	}
 
 	/* MUST verify that the VRID is valid on the receiving interface */
 	if (vrrp->vrid != hd->vrid) {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "received VRID mismatch. Received %d, Expected %d",
 		       hd->vrid, vrrp->vrid);
 		return VRRP_PACKET_DROP;
@@ -264,7 +265,7 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 		 * VRID are valid
 		 */
 		if (hd->naddr != LIST_SIZE(vrrp->vip)) {
-			syslog(LOG_INFO,
+			log_message(LOG_INFO,
 			       "receive an invalid ip number count associated with VRID!");
 			return VRRP_PACKET_KO;
 		}
@@ -272,17 +273,17 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 		for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 			ipaddress = ELEMENT_DATA(e);
 			if (!vrrp_in_chk_vips(vrrp, ipaddress->addr, vips)) {
-				syslog(LOG_INFO, "ip address associated with VRID"
+				log_message(LOG_INFO, "ip address associated with VRID"
 				       " not present in received packet : %d",
 				       ipaddress->addr);
-				syslog(LOG_INFO,
+				log_message(LOG_INFO,
 				       "one or more VIP associated with"
 				       " VRID mismatch actual MASTER advert");
 				return VRRP_PACKET_KO;
 			}
 		}
 	} else if (hd->naddr > 0) {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "receive an invalid ip number count associated with VRID!");
 		return VRRP_PACKET_KO;
 	}
@@ -292,7 +293,7 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 	 * the locally configured for this virtual router
 	 */
 	if (vrrp->adver_int / TIMER_HZ != hd->adver_int) {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "advertissement interval mismatch mine=%d rcved=%d",
 		       vrrp->adver_int, hd->adver_int);
 		/* to prevent concurent VRID running => multiple master in 1 VRID */
@@ -317,7 +318,10 @@ vrrp_build_ip(vrrp_rt * vrrp, char *buffer, int buflen)
 	ip->tos = 0;
 	ip->tot_len = ip->ihl * 4 + vrrp_hd_len(vrrp);
 	ip->tot_len = htons(ip->tot_len);
-	ip->id = ++vrrp->ip_id;
+	ip->id = htons(++vrrp->ip_id);
+	/* kernel will fill in ID if left to 0, so we overflow to 1 */
+	if (vrrp->ip_id == 65535)
+		vrrp->ip_id = 1;
 	ip->frag_off = 0;
 	ip->ttl = VRRP_IP_TTL;
 
@@ -403,7 +407,7 @@ vrrp_build_ipsecah(vrrp_rt * vrrp, char *buffer, int buflen)
 	   -- rfc2402.3.3.3.1.1.1 & rfc2401.5
 	 */
 	digest = (unsigned char *) MALLOC(16 * sizeof (unsigned char *));
-	hmac_md5(buffer, buflen, vrrp->auth_data, sizeof (vrrp->auth_data)
+	hmac_md5((unsigned char *) buffer, buflen, vrrp->auth_data, sizeof (vrrp->auth_data)
 		 , digest);
 	memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
 
@@ -553,12 +557,12 @@ vrrp_check_packet(vrrp_rt * vrrp, char *buf, int buflen)
 		ret = vrrp_in_chk(vrrp, buf);
 
 		if (ret == VRRP_PACKET_DROP) {
-			syslog(LOG_INFO, "Sync instance needed on %s !!!",
+			log_message(LOG_INFO, "Sync instance needed on %s !!!",
 			       IF_NAME(vrrp->ifp));
 		}
 
 		if (ret == VRRP_PACKET_KO)
-			syslog(LOG_INFO, "bogus VRRP packet received on %s !!!",
+			log_message(LOG_INFO, "bogus VRRP packet received on %s !!!",
 			       IF_NAME(vrrp->ifp));
 		return ret;
 	}
@@ -584,7 +588,7 @@ vrrp_send_gratuitous_arp(vrrp_rt * vrrp)
 			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 				ipaddress = ELEMENT_DATA(e);
 				if (0 == j && debug & 32)
-					syslog(LOG_INFO,
+					log_message(LOG_INFO,
 					       "VRRP_Instance(%s) Sending gratuitous ARPs "
 					       "on %s for %s",
 					       vrrp->iname,
@@ -596,7 +600,7 @@ vrrp_send_gratuitous_arp(vrrp_rt * vrrp)
 			for (e = LIST_HEAD(vrrp->evip); e; ELEMENT_NEXT(e)) {
 				ipaddress = ELEMENT_DATA(e);
 				if (0 == j && debug & 32)
-					syslog(LOG_INFO,
+					log_message(LOG_INFO,
 					       "VRRP_Instance(%s) Sending gratuitous ARPs "
 					       "on %s for %s",
 					       vrrp->iname,
@@ -645,7 +649,7 @@ vrrp_state_goto_master(vrrp_rt * vrrp)
 	vrrp_send_adv(vrrp, vrrp->effective_priority);
 
 	vrrp->state = VRRP_STATE_MAST;
-	syslog(LOG_INFO, "VRRP_Instance(%s) Transition to MASTER STATE",
+	log_message(LOG_INFO, "VRRP_Instance(%s) Transition to MASTER STATE",
 	       vrrp->iname);
 }
 
@@ -691,22 +695,11 @@ vrrp_state_leave_master(vrrp_rt * vrrp)
 	}
 
 	/* set the new vrrp state */
-	switch (vrrp->wantstate) {
-	case VRRP_STATE_BACK:
-		syslog(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
-		       vrrp->iname);
-		vrrp_restore_interface(vrrp, 0);
-		vrrp->state = vrrp->wantstate;
-		notify_instance_exec(vrrp, VRRP_STATE_BACK);
-		break;
-	case VRRP_STATE_GOTO_FAULT:
-		syslog(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE",
-		       vrrp->iname);
-		vrrp_restore_interface(vrrp, 0);
-		vrrp->state = VRRP_STATE_FAULT;
-		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
-		break;
-	}
+	log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
+		    vrrp->iname);
+	vrrp_restore_interface(vrrp, 0);
+	vrrp->state = vrrp->wantstate;
+	notify_instance_exec(vrrp, VRRP_STATE_BACK);
 
 	/* Set the down timer */
 	vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
@@ -735,7 +728,7 @@ vrrp_state_backup(vrrp_rt * vrrp, char *buf, int buflen)
 	ret = vrrp_check_packet(vrrp, buf, buflen);
 
 	if (ret == VRRP_PACKET_KO || ret == VRRP_PACKET_NULL) {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "VRRP_Instance(%s) ignoring received advertisment...",
 		       vrrp->iname);
 		vrrp->ms_down_timer =
@@ -747,7 +740,7 @@ vrrp_state_backup(vrrp_rt * vrrp, char *buf, int buflen)
 		vrrp->ms_down_timer =
 		    3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	} else if (hd->priority < vrrp->effective_priority) {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "VRRP_Instance(%s) forcing a new MASTER election",
 		       vrrp->iname);
 		vrrp->wantstate = VRRP_STATE_GOTO_MASTER;
@@ -762,7 +755,7 @@ vrrp_state_master_tx(vrrp_rt * vrrp, const int prio)
 	int ret = 0;
 
 	if (!VRRP_VIP_ISSET(vrrp)) {
-		syslog(LOG_INFO, "VRRP_Instance(%s) Entering MASTER STATE",
+		log_message(LOG_INFO, "VRRP_Instance(%s) Entering MASTER STATE",
 		       vrrp->iname);
 		vrrp_state_become_master(vrrp);
 		ret = 1;
@@ -783,7 +776,7 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 	ipsec_ah *ah;
 
 	/* return on link failure */
-	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT) {
+	if (vrrp->wantstate == VRRP_STATE_FAULT) {
 		vrrp->ms_down_timer =
 		    3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		vrrp->state = VRRP_STATE_FAULT;
@@ -806,17 +799,17 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 
 	if (ret == VRRP_PACKET_KO ||
 	    ret == VRRP_PACKET_NULL || ret == VRRP_PACKET_DROP) {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "VRRP_Instance(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
 		return 0;
 	} else if (hd->priority < vrrp->effective_priority) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
-		syslog(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert"
+		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert"
 		       ", forcing new election", vrrp->iname);
 		if (iph->protocol == IPPROTO_IPSEC_AH) {
 			ah = (ipsec_ah *) (buf + sizeof(struct iphdr));
-			syslog(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
+			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
 			       " - Increment seq"
 			       , vrrp->iname);
 			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
@@ -831,12 +824,12 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 	} else if (hd->priority > vrrp->effective_priority ||
 		   (hd->priority == vrrp->effective_priority &&
 		    ntohl(iph->saddr) > VRRP_PKT_SADDR(vrrp))) {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "VRRP_Instance(%s) Received higher prio advert",
 		       vrrp->iname);
 		if (iph->protocol == IPPROTO_IPSEC_AH) {
 			ah = (ipsec_ah *) (buf + sizeof(struct iphdr));
-			syslog(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
+			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
 			       " - Decrement seq"
 			       , vrrp->iname);
 			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) - 1;
@@ -875,7 +868,7 @@ vrrp_state_fault_rx(vrrp_rt * vrrp, char *buf, int buflen)
 
 	if (ret == VRRP_PACKET_KO ||
 	    ret == VRRP_PACKET_NULL || ret == VRRP_PACKET_DROP) {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "VRRP_Instance(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
 		return 0;
@@ -891,12 +884,12 @@ static int
 chk_min_cfg(vrrp_rt * vrrp)
 {
 	if (vrrp->vrid == 0) {
-		syslog(LOG_INFO, "VRRP_Instance(%s) the virtual id must be set!",
+		log_message(LOG_INFO, "VRRP_Instance(%s) the virtual id must be set!",
 		       vrrp->iname);
 		return 0;
 	}
 	if (!vrrp->ifp) {
-		syslog(LOG_INFO, "VRRP_Instance(%s) Unknown interface !",
+		log_message(LOG_INFO, "VRRP_Instance(%s) Unknown interface !",
 		       vrrp->iname);
 		return 0;
 	}
@@ -918,7 +911,7 @@ open_vrrp_send_socket(const int proto, const int idx)
 	fd = socket(AF_INET, SOCK_RAW, proto);
 	if (fd < 0) {
 		int err = errno;
-		syslog(LOG_INFO, "cant open raw socket. errno=%d",
+		log_message(LOG_INFO, "cant open raw socket. errno=%d",
 		       err);
 		return -1;
 	}
@@ -945,7 +938,7 @@ open_vrrp_socket(const int proto, const int idx)
 	fd = socket(AF_INET, SOCK_RAW, proto);
 	if (fd < 0) {
 		int err = errno;
-		syslog(LOG_INFO, "cant open raw socket. errno=%d",
+		log_message(LOG_INFO, "cant open raw socket. errno=%d",
 		       err);
 		return -1;
 	}
@@ -1098,6 +1091,42 @@ clear_diff_vrrp_vroutes(vrrp_rt * old_vrrp)
 	clear_diff_routes(old_vrrp->vroutes, vrrp->vroutes);
 }
 
+/* Keep the state from before reload */
+static void
+reset_vrrp_state(vrrp_rt * old_vrrp)
+{
+	/* Keep VRRP state, ipsec AH seq_number */
+	vrrp_rt *vrrp = vrrp_exist(old_vrrp);
+	vrrp->state = old_vrrp->state;
+	vrrp->init_state = old_vrrp->state;
+	vrrp->wantstate = old_vrrp->state;
+	memcpy(vrrp->ipsecah_counter, old_vrrp->ipsecah_counter, sizeof(seq_counter));
+
+#ifdef _HAVE_IPVS_SYNCD_
+	if (old_vrrp->lvs_syncd_if)
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL,
+			       (old_vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
+								      IPVS_BACKUP,
+			       old_vrrp->vrid);
+	if (vrrp->lvs_syncd_if)
+		ipvs_syncd_cmd(IPVS_STARTDAEMON, NULL,
+			       (vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
+								  IPVS_BACKUP,
+			       vrrp->vrid);
+#endif
+
+	/* Remember if we had vips up and add new ones if needed */
+	vrrp->vipset = old_vrrp->vipset;
+	if (vrrp->vipset) {
+		if (!LIST_ISEMPTY(vrrp->vip))
+			vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
+		if (!LIST_ISEMPTY(vrrp->evip))
+			vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
+		if (!LIST_ISEMPTY(vrrp->vroutes))
+			vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
+	}
+}
+
 /* Diff when reloading configuration */
 void
 clear_diff_vrrp(void)
@@ -1128,6 +1157,34 @@ clear_diff_vrrp(void)
 
 			/* virtual routes diff */
 			clear_diff_vrrp_vroutes(vrrp);
+
+			/* reset the state */
+			reset_vrrp_state(vrrp);
+		}
+	}
+}
+
+/* Set script status to a sensible value on reload */
+void
+clear_diff_script(void)
+{
+	element e;
+	list l = old_vrrp_data->vrrp_script;
+	vrrp_script *vscript, *nvscript;
+
+	if (LIST_ISEMPTY(l))
+		return;
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vscript = ELEMENT_DATA(e);
+		if (vscript->result == VRRP_SCRIPT_STATUS_GOOD) {
+			nvscript = find_script_by_name(vscript->sname);
+			if (nvscript) {
+				log_message(LOG_INFO, "VRRP_Script(%s) considered successful on reload",
+					   nvscript->sname);
+				nvscript->result = VRRP_SCRIPT_STATUS_INIT_GOOD;
+				break;
+			}
 		}
 	}
 }

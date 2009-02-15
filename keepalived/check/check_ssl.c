@@ -7,7 +7,7 @@
  *              url, compute a MD5 over this result and match it to the
  *              expected value.
  *
- * Version:     $Id: check_ssl.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: check_ssl.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Jan Holmberg, <jan@artech.net>
@@ -22,12 +22,13 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include <openssl/err.h>
 #include "check_ssl.h"
 #include "check_api.h"
+#include "logger.h"
 #include "memory.h"
 #include "parser.h"
 #include "smtp.h"
@@ -91,7 +92,7 @@ build_ssl_ctx(void)
 		if (!
 		    (SSL_CTX_use_certificate_chain_file
 		     (ssl->ctx, check_data->ssl->keyfile))) {
-			syslog(LOG_INFO,
+			log_message(LOG_INFO,
 			       "SSL error : Cant load certificate file...");
 			return 0;
 		}
@@ -107,7 +108,7 @@ build_ssl_ctx(void)
 		if (!
 		    (SSL_CTX_use_PrivateKey_file
 		     (ssl->ctx, check_data->ssl->keyfile, SSL_FILETYPE_PEM))) {
-			syslog(LOG_INFO, "SSL error : Cant load key file...");
+			log_message(LOG_INFO, "SSL error : Cant load key file...");
 			return 0;
 		}
 
@@ -116,7 +117,7 @@ build_ssl_ctx(void)
 		if (!
 		    (SSL_CTX_load_verify_locations
 		     (ssl->ctx, check_data->ssl->cafile, 0))) {
-			syslog(LOG_INFO, "SSL error : Cant load CA file...");
+			log_message(LOG_INFO, "SSL error : Cant load CA file...");
 			return 0;
 		}
 
@@ -138,11 +139,11 @@ init_ssl_ctx(void)
 	SSL_DATA *ssl = check_data->ssl;
 
 	if (!build_ssl_ctx()) {
-		syslog(LOG_INFO, "Error Initialize SSL, ctx Instance");
-		syslog(LOG_INFO, "  SSL  keyfile:%s", ssl->keyfile);
-		syslog(LOG_INFO, "  SSL password:%s", ssl->password);
-		syslog(LOG_INFO, "  SSL   cafile:%s", ssl->cafile);
-		syslog(LOG_INFO, "Terminate...\n");
+		log_message(LOG_INFO, "Error Initialize SSL, ctx Instance");
+		log_message(LOG_INFO, "  SSL  keyfile:%s", ssl->keyfile);
+		log_message(LOG_INFO, "  SSL password:%s", ssl->password);
+		log_message(LOG_INFO, "  SSL   cafile:%s", ssl->cafile);
+		log_message(LOG_INFO, "Terminate...\n");
 		clear_ssl(ssl);
 		return 0;
 	}
@@ -158,29 +159,29 @@ ssl_printerr(int err)
 
 	switch (err) {
 	case SSL_ERROR_ZERO_RETURN:
-		syslog(LOG_INFO, "  SSL error: (zero return)");
+		log_message(LOG_INFO, "  SSL error: (zero return)");
 		break;
 	case SSL_ERROR_WANT_READ:
-		syslog(LOG_INFO, "  SSL error: (read error)");
+		log_message(LOG_INFO, "  SSL error: (read error)");
 		break;
 	case SSL_ERROR_WANT_WRITE:
-		syslog(LOG_INFO, "  SSL error: (write error)");
+		log_message(LOG_INFO, "  SSL error: (write error)");
 		break;
 	case SSL_ERROR_WANT_CONNECT:
-		syslog(LOG_INFO, "  SSL error: (connect error)");
+		log_message(LOG_INFO, "  SSL error: (connect error)");
 		break;
 	case SSL_ERROR_WANT_X509_LOOKUP:
-		syslog(LOG_INFO, "  SSL error: (X509 lookup error)");
+		log_message(LOG_INFO, "  SSL error: (X509 lookup error)");
 		break;
 	case SSL_ERROR_SYSCALL:
-		syslog(LOG_INFO, "  SSL error: (syscall error)");
+		log_message(LOG_INFO, "  SSL error: (syscall error)");
 		break;
 	case SSL_ERROR_SSL:{
 			ssl_strerr = (char *) MALLOC(500);
 
 			extended_error = ERR_get_error();
 			ERR_error_string(extended_error, ssl_strerr);
-			syslog(LOG_INFO, "  SSL error: (%s)", ssl_strerr);
+			log_message(LOG_INFO, "  SSL error: (%s)", ssl_strerr);
 			FREE(ssl_strerr);
 			break;
 		}

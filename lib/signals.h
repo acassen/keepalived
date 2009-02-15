@@ -5,7 +5,7 @@
  * 
  * Part:        signals.c include file.
  *  
- * Version:     $Id: signals.h,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: signals.h,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Kevin Lindsay, <kevinl@netnation.com>
  *              Alexandre Cassen, <acassen@linux-vs.org>
@@ -20,24 +20,20 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #ifndef _SIGNALS_H
 #define _SIGNALS_H
 
-/* signals definition */
-#define SIGNAL_SIGHUP	0x02
-#define SIGNAL_SIGINT	0x04
-#define SIGNAL_SIGTERM	0x08
-#define SIGNAL_SIGCHLD	0x10
-
 /* Prototypes */
 extern int signal_pending(void);
-extern void *signal_set(int signo, void (*func) (int));
+extern void *signal_set(int signo, void (*func) (void *, int), void *);
 extern void *signal_ignore(int signo);
-extern void signal_noignore_sigchld(void);
 extern void signal_handler_init(void);
+extern void signal_handler_destroy(void);
 extern void signal_run_callback(void);
+
+extern int signal_rfd(void);
 
 #endif

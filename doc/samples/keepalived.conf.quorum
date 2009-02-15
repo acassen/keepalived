@@ -1,0 +1,106 @@
+! Sample configuration for quorum/hysteresis setup.
+! The server pool below consists of 10 servers. After
+! start, the quorum will not be reached until 9 (7+2)
+! live servers are present in the pool (all servers are
+! equally weighted, and quorum is the sum of weights).
+! Once this happens, a custom script will be executed,
+! which supposedly invokes some actions to start
+! announcing IP address of the virtual server to the
+! world. After that the quorum will not break until
+! the pool has 5 (7-2) or more live servers. Pool size
+! change from 7 to 6 and back will not trigger a quorum
+! flap this way. Once there are less than 5 servers,
+! the quorum is considered lost and corresponding
+! script is executed, supposedly propagating the
+! failure, so necessary actions can be taken.
+!
+! Due to the alpha mode, all real servers are considered
+! down on server start, so the quorum is initially lost.
+! Due to the omega mode, quorum_down notifier is executed
+! on keepalived shutdown as well (see keepalived.conf
+! manpage for details).
+
+virtual_server 10.0.1.1 80 {
+  delay_loop 6
+  lb_algo wrr
+  lb_kind NAT
+  persistence_timeout 900
+  protocol TCP
+  alpha
+  omega
+  quorum 7
+  hysteresis 2
+  quorum_up /usr/local/sbin/quorum-up.sh
+  quorum_down /usr/local/sbin/quorum-down.sh
+
+  real_server 10.0.0.1 8080 {
+    weight 1
+    TCP_CHECK {
+      connect_port    80
+      connect_timeout 3
+    }
+  }
+  real_server 10.0.0.2 8080 {
+    weight 1
+    TCP_CHECK {
+      connect_port    80
+      connect_timeout 3
+    }
+  }
+  real_server 10.0.0.3 8080 {
+    weight 1
+    TCP_CHECK {
+      connect_port    80
+      connect_timeout 3
+    }
+  }
+  real_server 10.0.0.4 8080 {
+    weight 1
+    TCP_CHECK {
+      connect_port    80
+      connect_timeout 3
+    }
+  }
+  real_server 10.0.0.5 8080 {
+    weight 1
+    TCP_CHECK {
+      connect_port    80
+      connect_timeout 3
+    }
+  }
+  real_server 10.0.0.6 8080 {
+    weight 1
+    TCP_CHECK {
+      connect_port    80
+      connect_timeout 3
+    }
+  }
+  real_server 10.0.0.7 8080 {
+    weight 1
+    TCP_CHECK {
+      connect_port    80
+      connect_timeout 3
+    }
+  }
+  real_server 10.0.0.8 8080 {
+    weight 1
+    TCP_CHECK {
+      connect_port    80
+      connect_timeout 3
+    }
+  }
+  real_server 10.0.0.9 8080 {
+    weight 1
+    TCP_CHECK {
+      connect_port    80
+      connect_timeout 3
+    }
+  }
+  real_server 10.0.0.10 8080 {
+    weight 1
+    TCP_CHECK {
+      connect_port    80
+      connect_timeout 3
+    }
+  }
+}

@@ -7,7 +7,7 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: scheduler.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -21,16 +21,18 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include <signal.h>
 #include <sys/wait.h>
 #include <sys/select.h>
+#include <unistd.h>
 #include "scheduler.h"
 #include "memory.h"
 #include "utils.h"
 #include "signals.h"
+#include "logger.h"
 
 /* global vars */
 thread_master *master = NULL;
@@ -153,6 +155,13 @@ thread_destroy_list(thread_master * m, thread_list thread_list_obj)
 		t = thread_obj;
 		thread_obj = t->next;
 
+		if (t->type == THREAD_READY_FD ||
+		    t->type == THREAD_READ ||
+		    t->type == THREAD_WRITE ||
+		    t->type == THREAD_READ_TIMEOUT ||
+		    t->type == THREAD_WRITE_TIMEOUT)
+			close (t->u.fd);
+
 		thread_list_delete(&thread_list_obj, t);
 		t->type = THREAD_UNUSED;
 		thread_add_unuse(m, t);
@@ -224,7 +233,7 @@ thread_add_read(thread_master * m, int (*func) (thread *)
 	assert(m != NULL);
 
 	if (FD_ISSET(fd, &m->readfd)) {
-		syslog(LOG_WARNING, "There is already read fd [%d]", fd);
+		log_message(LOG_WARNING, "There is already read fd [%d]", fd);
 		return NULL;
 	}
 
@@ -257,7 +266,7 @@ thread_add_write(thread_master * m, int (*func) (thread *)
 	assert(m != NULL);
 
 	if (FD_ISSET(fd, &m->writefd)) {
-		syslog(LOG_WARNING, "There is already write fd [%d]", fd);
+		log_message(LOG_WARNING, "There is already write fd [%d]", fd);
 		return NULL;
 	}
 
@@ -404,6 +413,7 @@ thread_cancel(thread * thread_obj)
 		thread_list_delete(&thread_obj->master->event, thread_obj);
 		break;
 	case THREAD_READY:
+	case THREAD_READY_FD:
 		thread_list_delete(&thread_obj->master->ready, thread_obj);
 		break;
 	default:
@@ -472,14 +482,17 @@ thread_compute_timer(thread_master * m, TIMEVAL * timer_wait)
 
 	if (!TIMER_ISNULL(timer_min)) {
 		timer_min = timer_sub(timer_min, time_now);
-		if (timer_min.tv_sec < 0 || TIMER_ISNULL(timer_min)) {
-			timer_min.tv_sec = 0;
-			timer_min.tv_usec = 10;
+		if (timer_min.tv_sec < 0) {
+			timer_wait->tv_sec = timer_wait->tv_usec = 0;
+		} else {
+			timer_wait->tv_sec = timer_min.tv_sec;
+			timer_wait->tv_usec = timer_min.tv_usec;
 		}
-		timer_wait->tv_sec = timer_min.tv_sec;
-		timer_wait->tv_usec = timer_min.tv_usec;
-	} else
-		timer_wait = NULL;
+		return;
+	}
+
+	if (TIMER_ISNULL(*timer_wait))
+		timer_wait->tv_sec = 1;
 }
 
 /* Fetch next ready thread. */
@@ -492,21 +505,9 @@ thread_fetch(thread_master * m, thread * fetch)
 	fd_set writefd;
 	fd_set exceptfd;
 	TIMEVAL timer_wait;
-	int status;
-	sigset_t sigset, dummy_sigset, block_sigset, pending;
+	int signal_fd;
 
 	assert(m != NULL);
-
-	/*
-	 * Set up the signal mask for select, by removing
-	 * SIGCHLD from the set of blocked signals.
-	 */
-	sigemptyset(&dummy_sigset);
-	sigprocmask(SIG_BLOCK, &dummy_sigset, &sigset);
-	sigdelset(&sigset, SIGCHLD);
-
-	sigemptyset(&block_sigset);
-	sigaddset(&block_sigset, SIGCHLD);
 
 	/* Timer initialization */
 	memset(&timer_wait, 0, sizeof (TIMEVAL));
@@ -548,83 +549,28 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	writefd = m->writefd;
 	exceptfd = m->exceptfd;
 
-	/*
-	 * Linux doesn't have a pselect syscall. Need to manually
-	 * check if we have a signal waiting for us, else we lose the SIGCHLD
-	 * when the pselect emulation changes the procmask.
-	 * Theres still a small race between the procmask change and the select
-	 * call, but it'll be picked up in the next iteration.
-	 * Note that we don't use pselect here for portability between glibc
-	 * versions. Until/unless linux gets a pselect syscall, this is
-	 * equivalent to what glibc does, anyway.
-	 */
+	signal_fd = signal_rfd();
+	FD_SET(signal_fd, &readfd);
 
-	sigpending(&pending);
-	if (sigismember(&pending, SIGCHLD)) {
-		/* Clear the pending signal */
-		int sig;
-		sigwait(&block_sigset, &sig);
-
-		ret = -1;
-		errno = EINTR;
-	} else {
-		/* Emulate pselect */
-		sigset_t saveset;
-		sigprocmask(SIG_SETMASK, &sigset, &saveset);
-		ret = select(FD_SETSIZE, &readfd, &writefd, &exceptfd,
-			     (TIMER_ISNULL(timer_wait)) ? NULL : &timer_wait);
-		sigprocmask(SIG_SETMASK, &saveset, NULL);
-	}
+	ret = select(FD_SETSIZE, &readfd, &writefd, &exceptfd,
+		    (TIMER_ISNULL(timer_wait)) ? NULL : &timer_wait);
 
 	/* we have to save errno here because the next syscalls will set it */
 	old_errno = errno;
 
-	/*
-	 * When we receive a signal, we only add it to the signal_mask. This
-	 * is so that we can run our handler functions in a safe place and
-	 * not in, for example, the middle of a list modification.
-	 */
-	if (signal_pending())
+	/* handle signals synchronously, including child reaping */
+	if (FD_ISSET(signal_fd, &readfd))
 		signal_run_callback();
 
 	/* Update current time */
 	set_time_now();
 
 	if (ret < 0) {
-		if (old_errno != EINTR) {
-			/* Real error. */
-			DBG("select error: %s", strerror(old_errno));
-			assert(0);
-		} else {
-			/*
-			 * This is O(n^2), but there will only be a few entries on
-			 * this list.
-			 */
-			pid_t pid;
-			while ((pid = waitpid(-1, &status, WNOHANG))) {
-				if (pid == -1) {
-					if (errno == ECHILD)
-						goto retry;
-					DBG("waitpid error: %s", strerror(errno));
-					assert(0);
-				} else {
-					thread_obj = m->child.head;
-					while (thread_obj) {
-						struct _thread *t;
-						t = thread_obj;
-						thread_obj = t->next;
-						if (pid == t->u.c.pid) {
-							thread_list_delete(&m->child, t);
-							thread_list_add(&m->ready, t);
-							t->u.c.status = status;
-							t->type = THREAD_READY;
-							break;
-						}
-					}
-				}
-			}
-		}
-		goto retry;
+		if (old_errno == EINTR)
+			goto retry;
+		/* Real error. */
+		DBG("select error: %s", strerror(old_errno));
+		assert(0);
 	}
 
 	/* Timeout children */
@@ -655,7 +601,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 			FD_CLR(t->u.fd, &m->readfd);
 			thread_list_delete(&m->read, t);
 			thread_list_add(&m->ready, t);
-			t->type = THREAD_READY;
+			t->type = THREAD_READY_FD;
 		} else {
 			if (timer_cmp(time_now, t->sands) >= 0) {
 				FD_CLR(t->u.fd, &m->readfd);
@@ -679,7 +625,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 			FD_CLR(t->u.fd, &m->writefd);
 			thread_list_delete(&m->write, t);
 			thread_list_add(&m->ready, t);
-			t->type = THREAD_READY;
+			t->type = THREAD_READY_FD;
 		} else {
 			if (timer_cmp(time_now, t->sands) >= 0) {
 				FD_CLR(t->u.fd, &m->writefd);
@@ -721,6 +667,42 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	return fetch;
 }
 
+/* Synchronous signal handler to reap child processes */
+void
+thread_child_handler(void * v, int sig) {
+	thread_master * m = v;
+	/*
+	 * This is O(n^2), but there will only be a few entries on
+	 * this list.
+	 */
+	thread *thread_obj;
+	pid_t pid;
+	int status = 77;
+	while ((pid = waitpid(-1, &status, WNOHANG))) {
+		if (pid == -1) {
+			if (errno == ECHILD)
+				return;
+			DBG("waitpid error: %s", strerror(errno));
+			assert(0);
+		} else {
+			thread_obj = m->child.head;
+			while (thread_obj) {
+				struct _thread *t;
+				t = thread_obj;
+				thread_obj = t->next;
+				if (pid == t->u.c.pid) {
+					thread_list_delete(&m->child, t);
+					thread_list_add(&m->ready, t);
+					t->u.c.status = status;
+					t->type = THREAD_READY;
+					break;
+				}
+			}
+		}
+	}
+}
+
+
 /* Make unique thread id for non pthread version of thread manager. */
 unsigned long int
 thread_get_id(void)
@@ -742,6 +724,8 @@ void
 launch_scheduler(void)
 {
 	thread thread_obj;
+
+	signal_set(SIGCHLD, thread_child_handler, master);
 
 	/*
 	 * Processing the master thread queues,

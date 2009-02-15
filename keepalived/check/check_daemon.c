@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckrs child process handling.
  *
- * Version:     $Id: check_daemon.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: check_daemon.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include "check_daemon.h"
@@ -33,6 +33,7 @@
 #include "pidfile.h"
 #include "daemon.h"
 #include "signals.h"
+#include "logger.h"
 #include "list.h"
 #include "main.h"
 #include "memory.h"
@@ -40,11 +41,14 @@
 #include "vrrp_netlink.h"
 #include "vrrp_if.h"
 
+extern char *checkers_pidfile;
+
 /* Daemon stop sequence */
 static void
 stop_check(void)
 {
 	/* Destroy master thread */
+	signal_handler_destroy();
 	thread_destroy_master(master);
 	free_checkers_queue();
 	free_ssl();
@@ -53,7 +57,7 @@ stop_check(void)
 	ipvs_stop();
 
 	/* Stop daemon */
-	pidfile_rm(CHECKERS_PID_FILE);
+	pidfile_rm(checkers_pidfile);
 
 	/* Clean data */
 	free_global_data(data);
@@ -96,7 +100,7 @@ start_check(void)
 	}
 
 	/* Post initializations */
-	syslog(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
+	log_message(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
 
 	/* SSL load static data & initialize common ctx context */
 	if (!init_ssl_ctx()) {
@@ -159,18 +163,18 @@ reload_check_thread(thread * thread_obj)
 
 /* Reload handler */
 void
-sighup_check(int sig)
+sighup_check(void *v, int sig)
 {
-	syslog(LOG_INFO, "Reloading Healthchecker child processi(%d) on signal",
+	log_message(LOG_INFO, "Reloading Healthchecker child processi(%d) on signal",
 	       checkers_child);
 	thread_add_event(master, reload_check_thread, NULL, 0);
 }
 
 /* Terminate handler */
 void
-sigend_check(int sig)
+sigend_check(void *v, int sig)
 {
-	syslog(LOG_INFO, "Terminating Healthchecker child process on signal");
+	log_message(LOG_INFO, "Terminating Healthchecker child process on signal");
 	if (master)
 		thread_add_terminate_event(master);
 }
@@ -180,11 +184,10 @@ void
 check_signal_init(void)
 {
 	signal_handler_init();
-	signal_set(SIGHUP, sighup_check);
-	signal_set(SIGINT, sigend_check);
-	signal_set(SIGTERM, sigend_check);
+	signal_set(SIGHUP, sighup_check, NULL);
+	signal_set(SIGINT, sigend_check, NULL);
+	signal_set(SIGTERM, sigend_check, NULL);
 	signal_ignore(SIGPIPE);
-	signal_noignore_sigchld();
 }
 
 /* CHECK Child respawning thread */
@@ -204,7 +207,7 @@ check_respawn_thread(thread * thread_obj)
 	}
 
 	/* We catch a SIGCHLD, handle it */
-	syslog(LOG_INFO, "Healthcheck child process(%d) died: Respawning", pid);
+	log_message(LOG_INFO, "Healthcheck child process(%d) died: Respawning", pid);
 	start_check_child();
 	return 0;
 }
@@ -217,7 +220,7 @@ start_check_child(void)
 
 	/* Dont start if pid is already running */
 	if (checkers_running()) {
-		syslog(LOG_INFO, "Healthcheck child process already running");
+		log_message(LOG_INFO, "Healthcheck child process already running");
 		return -1;
 	}
 
@@ -226,12 +229,12 @@ start_check_child(void)
 	pid = fork();
 
 	if (pid < 0) {
-		syslog(LOG_INFO, "Healthcheck child process: fork error(%s)"
+		log_message(LOG_INFO, "Healthcheck child process: fork error(%s)"
 			       , strerror(errno));
 		return -1;
 	} else if (pid) {
 		checkers_child = pid;
-		syslog(LOG_INFO, "Starting Healthcheck child process, pid=%d"
+		log_message(LOG_INFO, "Starting Healthcheck child process, pid=%d"
 			       , pid);
 
 		/* Start respawning thread */
@@ -245,12 +248,13 @@ start_check_child(void)
 		(log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
 
 	/* Child process part, write pidfile */
-	if (!pidfile_write(CHECKERS_PID_FILE, getpid())) {
-		syslog(LOG_INFO, "Healthcheck child process: cannot write pidfile");
+	if (!pidfile_write(checkers_pidfile, getpid())) {
+		log_message(LOG_INFO, "Healthcheck child process: cannot write pidfile");
 		exit(0);
 	}
 
 	/* Create the new master thread */
+	signal_handler_destroy();
 	thread_destroy_master(master);
 	master = thread_make_master();
 

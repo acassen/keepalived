@@ -5,7 +5,7 @@
  *
  * Part:        TCP checker.
  *
- * Version:     $Id: check_tcp.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: check_tcp.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include "check_tcp.h"
@@ -27,6 +27,7 @@
 #include "memory.h"
 #include "ipwrapper.h"
 #include "layer4.h"
+#include "logger.h"
 #include "smtp.h"
 #include "utils.h"
 #include "parser.h"
@@ -48,13 +49,13 @@ dump_tcp_check(void *data)
 {
 	tcp_checker *tcp_chk = CHECKER_DATA(data);
 
-	syslog(LOG_INFO, "   Keepalive method = TCP_CHECK");
+	log_message(LOG_INFO, "   Keepalive method = TCP_CHECK");
 	if (tcp_chk->connection_port)
-		syslog(LOG_INFO, "   Connection port = %d",
+		log_message(LOG_INFO, "   Connection port = %d",
 		       ntohs(tcp_chk->connection_port));
 	if (tcp_chk->bindto)
-		syslog(LOG_INFO, "   Bind to = %s", inet_ntop2(tcp_chk->bindto));
-	syslog(LOG_INFO, "   Connection timeout = %d", tcp_chk->connection_to/TIMER_HZ);
+		log_message(LOG_INFO, "   Bind to = %s", inet_ntop2(tcp_chk->bindto));
+	log_message(LOG_INFO, "   Connection timeout = %d", tcp_chk->connection_to/TIMER_HZ);
 }
 
 void
@@ -123,7 +124,7 @@ tcp_check_thread(thread * thread_obj)
 		close(thread_obj->u.fd);
 
 		if (!svr_checker_up(checker_obj->id, checker_obj->rs)) {
-			syslog(LOG_INFO, "TCP connection to [%s:%d] success.",
+			log_message(LOG_INFO, "TCP connection to [%s:%d] success.",
 			       inet_ntop2(CHECKER_RIP(checker_obj))
 			       , ntohs(addr_port));
 			smtp_alert(checker_obj->rs, NULL, NULL,
@@ -137,7 +138,7 @@ tcp_check_thread(thread * thread_obj)
 	} else {
 
 		if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
-			syslog(LOG_INFO, "TCP connection to [%s:%d] failed !!!",
+			log_message(LOG_INFO, "TCP connection to [%s:%d] failed !!!",
 			       inet_ntop2(CHECKER_RIP(checker_obj))
 			       , ntohs(addr_port));
 			smtp_alert(checker_obj->rs, NULL, NULL,

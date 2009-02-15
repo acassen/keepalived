@@ -5,7 +5,7 @@
  *
  * Part:        ARP primitives.
  *
- * Version:     $Id: vrrp_arp.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: vrrp_arp.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,11 +19,12 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 /* local includes */
 #include "vrrp_arp.h"
+#include "logger.h"
 #include "memory.h"
 #include "utils.h"
 
@@ -44,9 +45,9 @@ void gratuitous_arp_init(void)
 	garp_fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_RARP));
 
 	if (garp_fd > 0)
-		syslog(LOG_INFO, "Registering gratutious ARP shared channel");
+		log_message(LOG_INFO, "Registering gratutious ARP shared channel");
 	else
-		syslog(LOG_INFO, "Error while registering gratutious ARP shared channel");
+		log_message(LOG_INFO, "Error while registering gratutious ARP shared channel");
 }
 void gratuitous_arp_close(void)
 {
@@ -71,7 +72,7 @@ static int send_arp(ip_address *ipaddress)
 	len = sendto(garp_fd, garp_buffer, sizeof(m_arphdr) + ETHER_HDR_LEN
 		     , 0, (struct sockaddr *)&sll, sizeof(sll));
 	if (len < 0)
-		syslog(LOG_INFO, "Error sending gratutious ARP on %s for %s"
+		log_message(LOG_INFO, "Error sending gratutious ARP on %s for %s"
 		       , IF_NAME(ipaddress->ifp), inet_ntop2(ipaddress->addr));
 	return len;
 }
@@ -81,7 +82,7 @@ int send_gratuitous_arp(ip_address *ipaddress)
 {
 	struct ether_header *eth = (struct ether_header *) garp_buffer;
 	m_arphdr *arph		 = (m_arphdr *) (garp_buffer + ETHER_HDR_LEN);
-	char *hwaddr		 = IF_HWADDR(ipaddress->ifp);
+	char *hwaddr		 = (char *) IF_HWADDR(ipaddress->ifp);
 	int len;
 
 	/* Ethernet header */
@@ -97,6 +98,7 @@ int send_gratuitous_arp(ip_address *ipaddress)
 	arph->ar_op = htons(ARPOP_REQUEST);
 	memcpy(arph->__ar_sha, hwaddr, ETH_ALEN);
 	memcpy(arph->__ar_sip, &ipaddress->addr, sizeof (ipaddress->addr));
+	memset(arph->__ar_tha, 0xFF, ETH_ALEN);
 	memcpy(arph->__ar_tip, &ipaddress->addr, sizeof (ipaddress->addr));
 
 	/* Send the ARP message */

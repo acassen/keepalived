@@ -5,7 +5,7 @@
  *
  * Part:        VRRP synchronization framework.
  *
- * Version:     $Id: vrrp_sync.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: vrrp_sync.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,13 +19,14 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include "vrrp_sync.h"
 #include "vrrp_if.h"
 #include "vrrp_notify.h"
 #include "vrrp_data.h"
+#include "logger.h"
 #include "smtp.h"
 
 /* Compute the new instance sands */
@@ -36,7 +37,7 @@ vrrp_init_instance_sands(vrrp_rt * vrrp)
 
 	if (vrrp->state == VRRP_STATE_MAST	  ||
 	    vrrp->state == VRRP_STATE_GOTO_MASTER ||
-	    vrrp->state == VRRP_STATE_GOTO_FAULT  ||
+	    vrrp->state == VRRP_STATE_FAULT	  ||
 	    vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
 		vrrp->sands.tv_sec = time_now.tv_sec + vrrp->adver_int / TIMER_HZ;
  		vrrp->sands.tv_usec = time_now.tv_usec;
@@ -99,7 +100,7 @@ vrrp_sync_group_up(vrrp_sgroup * vgroup)
 	}
 
 	if (is_up == LIST_SIZE(vgroup->index_list)) {
-		syslog(LOG_INFO, "Kernel is reporting: Group(%s) UP"
+		log_message(LOG_INFO, "Kernel is reporting: Group(%s) UP"
 			       , GROUP_NAME(vgroup));
 		return 1;
 	}
@@ -129,7 +130,7 @@ vrrp_sync_leave_fault(vrrp_rt * vrrp)
 	vrrp_sgroup *vgroup = vrrp->sync;
 
 	if (vrrp_sync_group_up(vgroup)) {
-		syslog(LOG_INFO, "VRRP_Group(%s) Leaving FAULT state",
+		log_message(LOG_INFO, "VRRP_Group(%s) Leaving FAULT state",
 		       GROUP_NAME(vgroup));
 		return 1;
 	}
@@ -149,7 +150,7 @@ vrrp_sync_master_election(vrrp_rt * vrrp)
 	if (GROUP_STATE(vgroup) == VRRP_STATE_FAULT)
 		return;
 
-	syslog(LOG_INFO, "VRRP_Group(%s) Transition to MASTER state",
+	log_message(LOG_INFO, "VRRP_Group(%s) Transition to MASTER state",
 	       GROUP_NAME(vgroup));
 
 	/* Perform sync index */
@@ -158,7 +159,7 @@ vrrp_sync_master_election(vrrp_rt * vrrp)
 		if (isync != vrrp) {
 			/* Force a new protocol master election */
 			isync->wantstate = VRRP_STATE_GOTO_MASTER;
-			syslog(LOG_INFO,
+			log_message(LOG_INFO,
 			       "VRRP_Instance(%s) forcing a new MASTER election",
 			       isync->iname);
 			vrrp_send_adv(isync, isync->effective_priority);
@@ -177,7 +178,7 @@ vrrp_sync_backup(vrrp_rt * vrrp)
 	if (GROUP_STATE(vgroup) == VRRP_STATE_BACK)
 		return;
 
-	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to BACKUP state",
+	log_message(LOG_INFO, "VRRP_Group(%s) Syncing instances to BACKUP state",
 	       GROUP_NAME(vgroup));
 
 	/* Perform sync index */
@@ -205,7 +206,7 @@ vrrp_sync_master(vrrp_rt * vrrp)
 	if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
 		return;
 
-	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to MASTER state",
+	log_message(LOG_INFO, "VRRP_Group(%s) Syncing instances to MASTER state",
 	       GROUP_NAME(vgroup));
 
 	/* Perform sync index */
@@ -235,7 +236,7 @@ vrrp_sync_fault(vrrp_rt * vrrp)
 	if (GROUP_STATE(vgroup) == VRRP_STATE_FAULT)
 		return;
 
-	syslog(LOG_INFO, "VRRP_Group(%s) Syncing instances to FAULT state",
+	log_message(LOG_INFO, "VRRP_Group(%s) Syncing instances to FAULT state",
 	       GROUP_NAME(vgroup));
 
 	/* Perform sync index */
@@ -250,7 +251,7 @@ vrrp_sync_fault(vrrp_rt * vrrp)
 		 */
 		if (isync != vrrp && isync->state != VRRP_STATE_FAULT) {
 			if (isync->state == VRRP_STATE_MAST)
-				isync->wantstate = VRRP_STATE_GOTO_FAULT;
+				isync->wantstate = VRRP_STATE_FAULT;
 			if (isync->state == VRRP_STATE_BACK)
 				isync->state = VRRP_STATE_FAULT;
 		}

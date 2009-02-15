@@ -6,7 +6,7 @@
  * Part:        MISC CHECK. Perform a system call to run an extra
  *              system prog or script.
  *
- * Version:     $Id: check_misc.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: check_misc.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
@@ -22,18 +22,20 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include "check_misc.h"
 #include "check_api.h"
 #include "memory.h"
 #include "ipwrapper.h"
+#include "logger.h"
 #include "smtp.h"
 #include "utils.h"
 #include "parser.h"
 #include "notify.h"
 #include "daemon.h"
+#include "signals.h"
 
 int misc_check_thread(thread *);
 int misc_check_child_thread(thread *);
@@ -54,10 +56,10 @@ void
 dump_misc_check(void *data)
 {
 	misc_checker *misc_chk = CHECKER_DATA(data);
-	syslog(LOG_INFO, "   Keepalive method = MISC_CHECK");
-	syslog(LOG_INFO, "   script = %s", misc_chk->path);
-	syslog(LOG_INFO, "   timeout = %lu", misc_chk->timeout/TIMER_HZ);
-	syslog(LOG_INFO, "   dynamic = %s", misc_chk->dynamic ? "YES" : "NO");
+	log_message(LOG_INFO, "   Keepalive method = MISC_CHECK");
+	log_message(LOG_INFO, "   script = %s", misc_chk->path);
+	log_message(LOG_INFO, "   timeout = %lu", misc_chk->timeout/TIMER_HZ);
+	log_message(LOG_INFO, "   dynamic = %s", misc_chk->dynamic ? "YES" : "NO");
 }
 
 void
@@ -133,7 +135,7 @@ misc_check_thread(thread * thread_obj)
 
 	/* In case of fork is error. */
 	if (pid < 0) {
-		syslog(LOG_INFO, "Failed fork process");
+		log_message(LOG_INFO, "Failed fork process");
 		return -1;
 	}
 
@@ -148,23 +150,12 @@ misc_check_thread(thread * thread_obj)
 	}
 
 	/* Child part */
+	signal_handler_destroy();
 	closeall(0);
 
 	open("/dev/null", O_RDWR);
 	dup(0);
 	dup(0);
-
-	/* Also need to reset the signal state */
-	{
-		sigset_t empty_set;
-		sigemptyset(&empty_set);
-		sigprocmask(SIG_SETMASK, &empty_set, NULL);
-
-		signal(SIGHUP, SIG_DFL);
-		signal(SIGINT, SIG_DFL);
-		signal(SIGTERM, SIG_DFL);
-		signal(SIGKILL, SIG_DFL);
-	}
 
 	status = system_call(misc_chk->path);
 
@@ -193,7 +184,7 @@ misc_check_child_thread(thread * thread_obj)
 
 		/* The child hasn't responded. Kill it off. */
 		if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
-			syslog(LOG_INFO, "Misc check to [%s] for [%s] timed out",
+			log_message(LOG_INFO, "Misc check to [%s] for [%s] timed out",
 			       inet_ntop2(CHECKER_RIP(checker_obj)),
 			       misc_chk->path);
 			smtp_alert(checker_obj->rs, NULL, NULL,
@@ -227,7 +218,7 @@ misc_check_child_thread(thread * thread_obj)
 
 			/* everything is good */
 			if (!svr_checker_up(checker_obj->id, checker_obj->rs)) {
-				syslog(LOG_INFO, "Misc check to [%s] for [%s] success.",
+				log_message(LOG_INFO, "Misc check to [%s] for [%s] success.",
 				       inet_ntop2(CHECKER_RIP(checker_obj)),
 				       misc_chk->path);
 				smtp_alert(checker_obj->rs, NULL, NULL,
@@ -239,7 +230,7 @@ misc_check_child_thread(thread * thread_obj)
 			}
 		} else {
 			if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
-				syslog(LOG_INFO, "Misc check to [%s] for [%s] failed.",
+				log_message(LOG_INFO, "Misc check to [%s] for [%s] failed.",
 				       inet_ntop2(CHECKER_RIP(checker_obj)),
 				       misc_chk->path);
 				smtp_alert(checker_obj->rs, NULL, NULL,
@@ -272,7 +263,7 @@ misc_check_child_timeout_thread(thread * thread_obj)
 		return 0;
 	}
 
-	syslog(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
+	log_message(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
 	waitpid(pid, NULL, 0);
 
 	return 0;

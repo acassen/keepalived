@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: check_parser.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: check_parser.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -21,7 +21,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include "check_parser.h"
@@ -29,6 +29,7 @@
 #include "check_api.h"
 #include "global_data.h"
 #include "global_parser.h"
+#include "logger.h"
 #include "parser.h"
 #include "memory.h"
 #include "utils.h"
@@ -114,7 +115,7 @@ lbkind_handler(vector strvec)
 		vs->loadbalancing_kind = IP_VS_CONN_F_TUNNEL;
 #endif
 	else
-		syslog(LOG_INFO, "PARSER : unknown [%s] routing method.", str);
+		log_message(LOG_INFO, "PARSER : unknown [%s] routing method.", str);
 }
 static void
 natmask_handler(vector strvec)
@@ -218,6 +219,57 @@ notify_down_handler(vector strvec)
 	real_server *rs = LIST_TAIL_DATA(vs->rs);
 	rs->notify_down = set_value(strvec);
 }
+static void
+alpha_handler(vector strvec)
+{
+	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
+	vs->alpha = 1;
+}
+static void
+omega_handler(vector strvec)
+{
+	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
+	vs->omega = 1;
+}
+static void
+quorum_up_handler(vector strvec)
+{
+	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
+	vs->quorum_up = set_value(strvec);
+}
+static void
+quorum_down_handler(vector strvec)
+{
+	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
+	vs->quorum_down = set_value(strvec);
+}
+static void
+quorum_handler(vector strvec)
+{
+	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
+	long tmp = atol (VECTOR_SLOT(strvec, 1));
+	if (tmp < 1) {
+		log_message(LOG_ERR, "Condition not met: Quorum >= 1");
+		log_message(LOG_ERR, "Ignoring requested value %s, using 1 instead",
+		  (char *) VECTOR_SLOT(strvec, 1));
+		tmp = 1;
+	}
+	vs->quorum = tmp;
+}
+static void
+hysteresis_handler(vector strvec)
+{
+	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
+	long tmp = atol (VECTOR_SLOT(strvec, 1));
+	if (tmp < 0 || tmp >= vs->quorum) {
+		log_message(LOG_ERR, "Condition not met: 0 <= Hysteresis <= Quorum - 1");
+		log_message(LOG_ERR, "Ignoring requested value %s, using 0 instead",
+		       (char *) VECTOR_SLOT(strvec, 1));
+		log_message(LOG_ERR, "Hint: try defining hysteresis after quorum");
+		tmp = 0;
+	}
+	vs->hysteresis = tmp;
+}
 
 vector
 check_init_keywords(void)
@@ -246,6 +298,14 @@ check_init_keywords(void)
 	install_keyword("protocol", &proto_handler);
 	install_keyword("ha_suspend", &hasuspend_handler);
 	install_keyword("virtualhost", &virtualhost_handler);
+
+	/* Pool regression detection and handling. */
+	install_keyword("alpha", &alpha_handler);
+	install_keyword("omega", &omega_handler);
+	install_keyword("quorum_up", &quorum_up_handler);
+	install_keyword("quorum_down", &quorum_down_handler);
+	install_keyword("quorum", &quorum_handler);
+	install_keyword("hysteresis", &hysteresis_handler);
 
 	/* Real server mapping */
 	install_keyword("sorry_server", &ssvr_handler);

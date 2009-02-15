@@ -1,14 +1,14 @@
-/*
+/* 
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
- *
- * Part:        Configuration include file.
- *
- * Version:     $Id: config.h.in,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
- *
- * Author:      Jacob Rief, <jacob.rief@tiscover.com>
- *
+ * 
+ * Part:        logging facility.
+ *  
+ * Version:     $Id: vector.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
+ * 
+ * Author:      Alexandre Cassen, <acassen@linux-vs.org>
+ *              
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
  *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -22,11 +22,10 @@
  * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
-#ifndef _CONFIG_H
-#define _CONFIG_H
+#ifndef _LOGGER_H
+#define _LOGGER_H
 
-#define LOG_FACILITY_MAX	7
-#define PROG			"Keepalived"
-#define VERSION_STRING PROG" v@VERSION@ (@VERSION_DATE@)\n"
+void enable_console_log(void);
+void log_message(int priority, char* format, ...);
 
 #endif

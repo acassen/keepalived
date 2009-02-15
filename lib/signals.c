@@ -5,7 +5,7 @@
  * 
  * Part:        Signals framework.
  *  
- * Version:     $Id: signals.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: signals.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  * 
  * Author:      Kevin Lindsay, <kevinl@netnation.com>
  *              Alexandre Cassen, <acassen@linux-vs.org>
@@ -20,51 +20,62 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include <signal.h>
 #include <string.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <errno.h>
+#include <assert.h>
 
 #include "signals.h"
+#include "utils.h"
 
 /* Local Vars */
-static int signal_mask;
-void (*signal_SIGHUP_handler) (int sig);
-void (*signal_SIGINT_handler) (int sig);
-void (*signal_SIGTERM_handler) (int sig);
-void (*signal_SIGCHLD_handler) (int sig);
+void (*signal_SIGHUP_handler) (void *, int sig);
+void *signal_SIGHUP_v;
+void (*signal_SIGINT_handler) (void *, int sig);
+void *signal_SIGINT_v;
+void (*signal_SIGTERM_handler) (void *, int sig);
+void *signal_SIGTERM_v;
+void (*signal_SIGCHLD_handler) (void *, int sig);
+void *signal_SIGCHLD_v;
+
+static int signal_pipe[2] = { -1, -1 };
 
 /* Local signal test */
 int
 signal_pending(void)
 {
-	return (signal_mask) ? 1 : 0;
+	fd_set readset;
+	int rc;
+	struct timeval timeout = { 0, 0 };
+
+	FD_ZERO(&readset);
+	FD_SET(signal_pipe[0], &readset);
+
+	rc = select(signal_pipe[0] + 1, &readset, NULL, NULL, &timeout);
+
+	return rc>0?1:0;
 }
 
 /* Signal flag */
 void
 signal_handler(int sig)
 {
-	switch(sig) {
-	case SIGHUP:
-		signal_mask |= SIGNAL_SIGHUP;
-		break;
-	case SIGINT:
-		signal_mask |= SIGNAL_SIGINT;
-		break;
-	case SIGTERM:
-		signal_mask |= SIGNAL_SIGTERM;
-		break;
-	case SIGCHLD:
-		signal_mask |= SIGNAL_SIGCHLD;
-		break;
+	if (write(signal_pipe[1], &sig, sizeof(int)) != sizeof(int)) {
+		DBG("signal_pipe write error %s", strerror(errno));
+		assert(0);
 	}
-}
+}	
 
 /* Signal wrapper */
 void *
-signal_set(int signo, void (*func) (int))
+signal_set(int signo, void (*func) (void *, int), void *v)
 {
 	int ret;
 	struct sigaction sig;
@@ -82,15 +93,19 @@ signal_set(int signo, void (*func) (int))
 	switch(signo) {
 	case SIGHUP:
 		signal_SIGHUP_handler = func;
+		signal_SIGHUP_v = v;
 		break;
 	case SIGINT:
 		signal_SIGINT_handler = func;
+		signal_SIGINT_v = v;
 		break;
 	case SIGTERM:
 		signal_SIGTERM_handler = func;
+		signal_SIGTERM_v = v;
 		break;
 	case SIGCHLD:
 		signal_SIGCHLD_handler = func;
+		signal_SIGCHLD_v = v;
 		break;
 	}
 
@@ -104,78 +119,77 @@ signal_set(int signo, void (*func) (int))
 void *
 signal_ignore(int signo)
 {
-	return signal_set(signo, SIG_IGN);
-}
-
-/*
- * SIGCHLD handler. Reap all zombie child.
- * WNOHANG prevent against parent process get
- * stuck waiting child termination.
- */
-void
-dummy_handler(int sig)
-{
-	/* Dummy */
-}
-
-void
-signal_noignore_sigchld(void)
-{
-	struct sigaction sa;
-	sigset_t mask;
-
-	/* Need to remove the NOCHLD flag */
-	sigemptyset(&mask);
-	sa.sa_handler = dummy_handler;
-	sa.sa_mask = mask;
-	sa.sa_flags = 0;
-
-	sigaction(SIGCHLD, &sa, NULL);
-
-	/* Block SIGCHLD so that we only receive it
-	 * when required (ie when its unblocked in the
-	 * select loop)
-	 */
-	sigaddset(&mask, SIGCHLD);
-	sigprocmask(SIG_BLOCK, &mask, NULL);
+	return signal_set(signo, NULL, NULL);
 }
 
 /* Handlers intialization */
 void
 signal_handler_init(void)
 {
-	signal_mask = 0;
+	int n = pipe(signal_pipe);
+	assert(!n);
+
+	fcntl(signal_pipe[0], F_SETFL, O_NONBLOCK | fcntl(signal_pipe[0], F_GETFL));
+	fcntl(signal_pipe[1], F_SETFL, O_NONBLOCK | fcntl(signal_pipe[1], F_GETFL));
+
 	signal_SIGHUP_handler = NULL;
 	signal_SIGINT_handler = NULL;
 	signal_SIGTERM_handler = NULL;
 	signal_SIGCHLD_handler = NULL;
 }
 
-/* Handlers callback according to global signal mask */
+void
+signal_handler_destroy(void) {
+	struct sigaction sig;
+
+	sig.sa_handler = SIG_DFL;
+	sigemptyset(&sig.sa_mask);
+	sig.sa_flags = 0;
+
+	/* First ensure that no more signals happen, then close pipe */
+	sigaction(SIGHUP, &sig, NULL);
+	sigaction(SIGINT, &sig, NULL);
+	sigaction(SIGTERM, &sig, NULL);
+	sigaction(SIGCHLD, &sig, NULL);
+
+	close(signal_pipe[1]);
+	close(signal_pipe[0]);
+	signal_pipe[1] = -1;
+	signal_pipe[0] = -1;
+}	
+
+int
+signal_rfd(void) {
+	return(signal_pipe[0]);
+}
+
+/* Handlers callback  */
 void
 signal_run_callback(void)
 {
-	if (SIGNAL_SIGHUP & signal_mask) {
-		signal_mask &= ~SIGNAL_SIGHUP;
-		if (signal_SIGHUP_handler)
-			signal_SIGHUP_handler(SIGHUP);
-	}
+	int sig;
 
-	if (SIGNAL_SIGINT & signal_mask) {
-		signal_mask &= ~SIGNAL_SIGINT;
-		if (signal_SIGINT_handler)
-			signal_SIGINT_handler(SIGINT);
-	}
-
-	if (SIGNAL_SIGTERM & signal_mask) {
-		signal_mask &= ~SIGNAL_SIGTERM;
-		if (signal_SIGTERM_handler)
-			signal_SIGTERM_handler(SIGTERM);
-	}
-
-	if (SIGNAL_SIGCHLD & signal_mask) {
-		signal_mask &= ~SIGNAL_SIGCHLD;
-		if (signal_SIGCHLD_handler)
-			signal_SIGCHLD_handler(SIGCHLD);
+	while(read(signal_pipe[0], &sig, sizeof(int)) == sizeof(int)) {
+		switch(sig) {
+		case SIGHUP:
+			if (signal_SIGHUP_handler)
+				signal_SIGHUP_handler(signal_SIGHUP_v, SIGHUP);
+			break;
+		case SIGINT:
+			if (signal_SIGINT_handler)
+				signal_SIGINT_handler(signal_SIGINT_v, SIGINT);
+			break;
+		case SIGTERM:
+			if (signal_SIGTERM_handler)
+				signal_SIGTERM_handler(signal_SIGTERM_v, SIGTERM);
+			break;	
+		case SIGCHLD:	
+			if (signal_SIGCHLD_handler)
+				signal_SIGCHLD_handler(signal_SIGCHLD_v, SIGCHLD);
+			break;
+		default:
+			break;
+		}	
 	}
 }
+

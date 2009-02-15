@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include "vrrp_scheduler.h"
@@ -35,8 +35,10 @@
 #include "memory.h"
 #include "notify.h"
 #include "list.h"
+#include "logger.h"
 #include "main.h"
 #include "smtp.h"
+#include "signals.h"
 
 /* VRRP FSM (Finite State Machine) design.
  *
@@ -157,7 +159,7 @@ vrrp_smtp_notifier(vrrp_rt * vrrp)
 static void vrrp_log_int_down(vrrp_rt *vrrp)
 {
 	if (!IF_ISUP(vrrp->ifp))
-		syslog(LOG_INFO, "Kernel is reporting: interface %s DOWN",
+		log_message(LOG_INFO, "Kernel is reporting: interface %s DOWN",
 		       IF_NAME(vrrp->ifp));
 	if (!LIST_ISEMPTY(vrrp->track_ifp))
 		vrrp_log_tracked_down(vrrp->track_ifp);
@@ -166,10 +168,10 @@ static void vrrp_log_int_down(vrrp_rt *vrrp)
 static void vrrp_log_int_up(vrrp_rt *vrrp)
 {
 	if (IF_ISUP(vrrp->ifp))
-		syslog(LOG_INFO, "Kernel is reporting: interface %s UP",
+		log_message(LOG_INFO, "Kernel is reporting: interface %s UP",
 		       IF_NAME(vrrp->ifp));
 	if (!LIST_ISEMPTY(vrrp->track_ifp))
-		syslog(LOG_INFO, "Kernel is reporting: tracked interface are UP");
+		log_message(LOG_INFO, "Kernel is reporting: tracked interface are UP");
 }
 
 /*
@@ -218,7 +220,7 @@ vrrp_init_state(list l)
 			}
 
 			if (warning > 0) {
-				syslog(LOG_INFO, "VRRP_Instance(%s) : ignoring "
+				log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring "
 						 "track weights due to SYNC group",
 				       vrrp->iname);
 			}
@@ -248,7 +250,7 @@ vrrp_init_state(list l)
 					       vrrp->lvs_syncd_if, IPVS_BACKUP,
 					       vrrp->vrid);
 #endif
-			syslog(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
+			log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
 			       vrrp->iname);
 
 			/* Set BACKUP state */
@@ -297,6 +299,10 @@ vrrp_init_script(list l)
 
 		if (vscript->result == VRRP_SCRIPT_STATUS_INIT) {
 			vscript->result = VRRP_SCRIPT_STATUS_NONE;
+			thread_add_timer(master, vrrp_script_thread,
+					 vscript, vscript->interval);
+		} else if (vscript->result == VRRP_SCRIPT_STATUS_INIT_GOOD) {
+			vscript->result = VRRP_SCRIPT_STATUS_GOOD;
 			thread_add_timer(master, vrrp_script_thread,
 					 vscript, vscript->interval);
 		}
@@ -562,7 +568,7 @@ vrrp_become_master(vrrp_rt * vrrp, char *buffer, int len)
 	 * with the remote IPSEC AH VRRP instance counter.
 	 */
 	if (iph->protocol == IPPROTO_IPSEC_AH) {
-		syslog(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : seq_num sync",
+		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : seq_num sync",
 		       vrrp->iname);
 		ah = (ipsec_ah *) (buffer + sizeof (struct iphdr));
 		vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
@@ -579,7 +585,7 @@ vrrp_leave_master(vrrp_rt * vrrp, char *buffer, int len)
 {
 	if (!VRRP_ISUP(vrrp)) {
 		vrrp_log_int_down(vrrp);
-		vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
+		vrrp->wantstate = VRRP_STATE_FAULT;
 		vrrp_state_leave_master(vrrp);
 	} else if (vrrp_state_master_rx(vrrp, buffer, len)) {
 		vrrp_state_leave_master(vrrp);
@@ -594,7 +600,7 @@ vrrp_ah_sync(vrrp_rt *vrrp)
 	 * Transition to BACKUP state for AH
 	 * seq number synchronization.
 	 */
-	syslog(LOG_INFO, "VRRP_Instance(%s) in FAULT state jump to AH sync",
+	log_message(LOG_INFO, "VRRP_Instance(%s) in FAULT state jump to AH sync",
 	       vrrp->iname);
 	vrrp->wantstate = VRRP_STATE_BACK;
 	vrrp_state_leave_master(vrrp);
@@ -609,13 +615,13 @@ vrrp_leave_fault(vrrp_rt * vrrp, char *buffer, int len)
 	if (vrrp_state_fault_rx(vrrp, buffer, len)) {
 		if (vrrp->sync) {
 			if (vrrp_sync_leave_fault(vrrp)) {
-				syslog(LOG_INFO,
+				log_message(LOG_INFO,
 				       "VRRP_Instance(%s) prio is higher than received advert",
 				       vrrp->iname);
 				vrrp_become_master(vrrp, buffer, len);
 			}
 		} else {
-			syslog(LOG_INFO,
+			log_message(LOG_INFO,
 			       "VRRP_Instance(%s) prio is higher than received advert",
 			       vrrp->iname);
 			vrrp_become_master(vrrp, buffer, len);
@@ -623,14 +629,14 @@ vrrp_leave_fault(vrrp_rt * vrrp, char *buffer, int len)
 	} else {
 		if (vrrp->sync) {
 			if (vrrp_sync_leave_fault(vrrp)) {
-				syslog(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
+				log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
 				       vrrp->iname);
 				vrrp->state = VRRP_STATE_BACK;
 				vrrp_smtp_notifier(vrrp);
 				notify_instance_exec(vrrp, VRRP_STATE_BACK);
 			}
 		} else {
-			syslog(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
+			log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
 			       vrrp->iname);
 			vrrp->state = VRRP_STATE_BACK;
 			vrrp_smtp_notifier(vrrp);
@@ -644,7 +650,7 @@ vrrp_goto_master(vrrp_rt * vrrp)
 {
 	if (!VRRP_ISUP(vrrp)) {
 		vrrp_log_int_down(vrrp);
-		syslog(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state",
+		log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state",
 		       vrrp->iname);
 		vrrp->state = VRRP_STATE_FAULT;
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
@@ -717,15 +723,15 @@ static void
 vrrp_master(vrrp_rt * vrrp)
 {
 	/* Check if interface we are running on is UP */
-	if (vrrp->wantstate != VRRP_STATE_GOTO_FAULT) {
+	if (vrrp->wantstate != VRRP_STATE_FAULT) {
 		if (!VRRP_ISUP(vrrp)) {
 			vrrp_log_int_down(vrrp);
-			vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
+			vrrp->wantstate = VRRP_STATE_FAULT;
 		}
 	}
 
 	/* Then perform the state transition */
-	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT ||
+	if (vrrp->wantstate == VRRP_STATE_FAULT ||
 	    vrrp->wantstate == VRRP_STATE_BACK ||
 	    vrrp->ipsecah_counter->cycle) {
 		vrrp->ms_down_timer =
@@ -735,11 +741,11 @@ vrrp_master(vrrp_rt * vrrp)
 		vrrp_state_leave_master(vrrp);
 
 		if (vrrp->state == VRRP_STATE_BACK)
-			syslog(LOG_INFO,
+			log_message(LOG_INFO,
 			       "VRRP_Instance(%s) Now in BACKUP state",
 			       vrrp->iname);
 		if (vrrp->state == VRRP_STATE_FAULT)
-			syslog(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state",
+			log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state",
 			       vrrp->iname);
 	} else if (vrrp->state == VRRP_STATE_MAST) {
 		/*
@@ -922,7 +928,7 @@ vrrp_script_thread(thread * thread_obj)
 
 	/* In case of fork is error. */
 	if (pid < 0) {
-		syslog(LOG_INFO, "Failed fork process");
+		log_message(LOG_INFO, "Failed fork process");
 		return -1;
 	}
 
@@ -936,22 +942,11 @@ vrrp_script_thread(thread * thread_obj)
 	}
 
 	/* Child part */
+	signal_handler_destroy();
 	closeall(0);
 	open("/dev/null", O_RDWR);
 	dup(0);
 	dup(0);
-
-	/* Also need to reset the signal state */
-	{
-		sigset_t empty_set;
-		sigemptyset(&empty_set);
-		sigprocmask(SIG_SETMASK, &empty_set, NULL);
-
-		signal(SIGHUP, SIG_DFL);
-		signal(SIGINT, SIG_DFL);
-		signal(SIGTERM, SIG_DFL);
-		signal(SIGKILL, SIG_DFL);
-	}
 
 	status = system_call(vscript->script);
 
@@ -988,10 +983,10 @@ vrrp_script_child_thread(thread * thread_obj)
 		int status;
 		status = WEXITSTATUS(wait_status);
 		if (status == 0 && vscript->result != VRRP_SCRIPT_STATUS_GOOD) {
-			syslog(LOG_INFO, "VRRP_Script(%s) succeeded", vscript->sname);
+			log_message(LOG_INFO, "VRRP_Script(%s) succeeded", vscript->sname);
 		}
 		if (status != 0 && vscript->result != VRRP_SCRIPT_STATUS_NONE) {
-			syslog(LOG_INFO, "VRRP_Script(%s) failed", vscript->sname);
+			log_message(LOG_INFO, "VRRP_Script(%s) failed", vscript->sname);
 		}
 		vscript->result = (status == 0) ?  VRRP_SCRIPT_STATUS_GOOD :
 						   VRRP_SCRIPT_STATUS_NONE;
@@ -1017,7 +1012,7 @@ vrrp_script_child_timeout_thread(thread * thread_obj)
 		return 0;
 	}
 
-	syslog(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
+	log_message(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
 	waitpid(pid, NULL, 0);
 
 	return 0;

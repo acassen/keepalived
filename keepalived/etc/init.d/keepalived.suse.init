@@ -1,0 +1,131 @@
+#! /bin/sh
+
+### BEGIN INIT INFO
+# Provides:	 keepalived
+# Required-Start: $remote_fs $syslog
+# Required-Stop : $remote_fs $syslog
+# Default-Start : 3 5
+# Default-Stop  : 0 1 2 6
+# Description   : Start keepalived to allow XY and provide YZ
+# continued on second line by '#<TAB>'
+### END INIT INFO
+
+
+DAEMON="Keepalived daemon"
+DAEMON_BIN="/usr/local/sbin/keepalived"
+DAEMON_CONF="/etc/keepalived/keepalived.conf"
+DAEMON_PIDFILE="/var/run/keepalived.pid"
+DAEMON_OPT="-d"
+#DAEMON_USER="root"
+SUPPORTS_HUP="yes"    
+# "yes" if exist next values in freshclam.conf
+#       PidFile /var/run/keepalived.pid
+#       DatabaseOwner root
+
+pid_par=${DAEMON_PIDFILE:+"-p $DAEMON_PIDFILE"}
+usr_par=${DAEMON_USER:+"-u $DAEMON_USER"}
+
+test -x $DAEMON_BIN || exit 5
+
+# Shell functions sourced from /etc/rc.status:
+#      rc_check         check and set local and overall rc status
+#      rc_status        check and set local and overall rc status
+#      rc_status -v     ditto but be verbose in local rc status
+#      rc_status -v -r  ditto and clear the local rc status
+#      rc_failed        set local and overall rc status to failed
+#      rc_failed <num>  set local and overall rc status to <num><num>
+#      rc_reset         clear local rc status (overall remains)
+#      rc_exit          exit appropriate to overall rc status
+. /etc/rc.status
+
+# First reset status of this service
+rc_reset
+
+# Return values acc. to LSB for all commands but status:
+# 0 - success
+# 1 - generic or unspecified error
+# 2 - invalid or excess argument(s)
+# 3 - unimplemented feature (e.g. "reload")
+# 4 - insufficient privilege
+# 5 - program is not installed
+# 6 - program is not configured
+# 7 - program is not running
+# 
+# Note that starting an already running service, stopping
+# or restarting a not-running service as well as the restart
+# with force-reload (in case signalling is not supported) are
+# considered a success.
+
+# remove empty pid files to avoid disturbing warnings by checkproc/killproc
+# (these can occur if dhcpd does not start correctly)
+test -e $DAEMON_PIDFILE && ! test -s $DAEMON_PIDFILE && rm $DAEMON_PIDFILE
+
+case "$1" in
+        start)
+		echo -n "Starting $DAEMON "
+		if test ! -f ${DAEMON_CONF}; then
+		    echo -n >&2 "Configuration file, ${DAEMON_CONF} does not exist. "
+		    rc_status -s
+	    	    exit 6
+		fi
+		checkproc $pid_par ${DAEMON_BIN}
+		case $? in
+	    	    0) echo -n "- Warning: daemon already running. " ;;
+		    1) echo -n "- Warning: ${DAEMON_PIDFILE} exists. " ;;
+		esac
+#		echo "startproc $usr_par $pid_par ${DAEMON_BIN} ${DAEMON_OPT}"
+		startproc $usr_par $pid_par ${DAEMON_BIN} ${DAEMON_OPT}
+		rc_status -v
+		;;
+	stop)
+		echo -n "Shutting down $DAEMON "
+		checkproc $pid_par ${DAEMON_BIN} || \
+		echo -n " Warning: daemon not running. "
+		killproc $pid_par -t 10 ${DAEMON_BIN}
+		rc_status -v
+		;;
+	try-restart|condrestart)
+		if test "$1" = "condrestart"; then
+			echo "${attn} Use try-restart ${done}(LSB)${attn} rather than condrestart ${warn}(RH)${norm}"
+		fi
+		$0 status
+		if test $? = 0; then
+			$0 restart
+		else 
+			rc_reset
+		fi
+		rc_status
+		;;
+	restart)
+		$0 stop
+		$0 start
+		rc_status
+		;;
+	force-reload|reload)
+	        if test "$SUPPORTS_HUP" = "yes"; then
+	            echo -n "Reload service $DAEMON "
+		    checkproc $pid_par ${DAEMON_BIN} && \
+			touch ${DAEMON_PIDFILE} || \
+			echo -n >&2 " Warning: daemon not running. "
+		    killproc $pid_par -HUP ${DAEMON_BIN}
+                    rc_status -v
+	        else
+                    $0 stop  &&  sleep 3  &&  $0 start
+                    rc_status
+	        fi
+    		;;
+	status)
+		echo -n "Checking for $DAEMON "
+		checkproc $pid_par ${DAEMON_BIN}
+		rc_status -v
+		;;
+	probe)
+		test ${DAEMON_CONF} -nt ${DAEMON_PIDFILE} && echo reload
+		;;
+	*)
+		echo "Usage: $0 {start|stop|status|try-restart|restart|force-reload|reload|probe}"
+		exit 1
+		;;
+esac
+rc_exit
+

@@ -2,7 +2,7 @@
 #
 # Keepalived OpenSource project.
 #
-# Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+# Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
 
 CC	 = @CC@
 INCLUDES = -I.
@@ -12,7 +12,7 @@ DEFS	 = @DFLAGS@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
 OBJS = 	memory.o utils.o notify.o timer.o scheduler.o \
-	vector.o list.o html.o parser.o signals.o
+	vector.o list.o html.o parser.o signals.o logger.o
 HEADERS = $(OBJS:.o=.h)
 
 .c.o:
@@ -36,3 +36,4 @@ list.o: list.c list.h memory.h
 html.o: html.c html.h memory.h
 parser.o: parser.c parser.h memory.h
 signals.o: signals.c signals.h
+logger.o: logger.c logger.h

@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: global_data.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: global_data.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include <syslog.h>
@@ -28,6 +28,7 @@
 #include "global_data.h"
 #include "memory.h"
 #include "list.h"
+#include "logger.h"
 #include "utils.h"
 
 /* global vars */
@@ -109,7 +110,7 @@ static void
 dump_email(void *data_obj)
 {
 	char *addr = data_obj;
-	syslog(LOG_INFO, " Email notification = %s", addr);
+	log_message(LOG_INFO, " Email notification = %s", addr);
 }
 
 void
@@ -155,20 +156,20 @@ dump_global_data(conf_data * global_data)
 
 	if (data->router_id ||
 	    data->smtp_server || data->smtp_connection_to || data->email_from) {
-		syslog(LOG_INFO, "------< Global definitions >------");
+		log_message(LOG_INFO, "------< Global definitions >------");
 	}
 	if (data->router_id)
-		syslog(LOG_INFO, " Router ID = %s", data->router_id);
+		log_message(LOG_INFO, " Router ID = %s", data->router_id);
 	if (data->plugin_dir)
-		syslog(LOG_INFO, " Plugin dir = %s", data->plugin_dir);
+		log_message(LOG_INFO, " Plugin dir = %s", data->plugin_dir);
 	if (data->smtp_server)
-		syslog(LOG_INFO, " Smtp server = %s",
+		log_message(LOG_INFO, " Smtp server = %s",
 		       inet_ntop2(data->smtp_server));
 	if (data->smtp_connection_to)
-		syslog(LOG_INFO, " Smtp server connection timeout = %lu",
+		log_message(LOG_INFO, " Smtp server connection timeout = %lu",
 		       data->smtp_connection_to / TIMER_HZ);
 	if (data->email_from) {
-		syslog(LOG_INFO, " Email notification from = %s",
+		log_message(LOG_INFO, " Email notification from = %s",
 		       data->email_from);
 		dump_list(data->email);
 	}

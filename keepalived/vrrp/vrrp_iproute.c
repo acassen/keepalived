@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK IPv4 routes manipulation.
  *
- * Version:     $Id: vrrp_iproute.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: vrrp_iproute.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 /* local include */
@@ -27,6 +27,7 @@
 #include "vrrp_netlink.h"
 #include "vrrp_if.h"
 #include "vrrp_data.h"
+#include "logger.h"
 #include "memory.h"
 #include "utils.h"
 
@@ -40,6 +41,10 @@ netlink_route_ipv4(ip_route *iproute, int cmd)
 		struct rtmsg r;
 		char buf[1024];
 	} req;
+
+	char buf[1024];
+	struct rtattr *rta = (void*)buf;
+	struct rtnexthop *rtnh;
 
 	memset(&req, 0, sizeof (req));
 
@@ -55,12 +60,31 @@ netlink_route_ipv4(ip_route *iproute, int cmd)
 		req.r.rtm_scope = iproute->scope;
 		req.r.rtm_type = RTN_UNICAST;
 	}
+	if (iproute->blackhole)
+		req.r.rtm_type = RTN_BLACKHOLE;
 
 	/* Set routing entry */
 	req.r.rtm_dst_len = iproute->dmask;
 	addattr_l(&req.n, sizeof(req), RTA_DST,		&iproute->dst, 4);
-	addattr_l(&req.n, sizeof(req), RTA_GATEWAY,	&iproute->gw,  4);
-	if (iproute->index)
+	if ((!iproute->blackhole) && (!iproute->gw2))
+		addattr_l(&req.n, sizeof(req), RTA_GATEWAY, &iproute->gw,  4);
+	if (iproute->gw2) {
+		rta->rta_type = RTA_MULTIPATH;
+		rta->rta_len = RTA_LENGTH(0);
+		rtnh = RTA_DATA(rta);
+#define MULTIPATH_ADD_GW(x) \
+	memset(rtnh, 0, sizeof(*rtnh)); \
+	rtnh->rtnh_len = sizeof(*rtnh); \
+	if (iproute->index) rtnh->rtnh_ifindex = iproute->index; \
+	rta->rta_len += rtnh->rtnh_len;	\
+	rta_addattr_l(rta, 1024, RTA_GATEWAY, x, 4); \
+	rtnh->rtnh_len += sizeof(struct rtattr) + 4; \
+	rtnh = RTNH_NEXT(rtnh);
+		MULTIPATH_ADD_GW(&iproute->gw);
+		MULTIPATH_ADD_GW(&iproute->gw2);
+		addattr_l(&req.n, sizeof(req), RTA_MULTIPATH, RTA_DATA(rta), RTA_PAYLOAD(rta));
+	}
+	if ((iproute->index) && (!iproute->gw2))
 		addattr32(&req.n, sizeof(req), RTA_OIF, iproute->index);
 	if (iproute->src)
 		addattr_l(&req.n, sizeof(req), RTA_PREFSRC, &iproute->src, 4);
@@ -108,12 +132,19 @@ dump_iproute(void *rt_data_obj)
 	char *log_msg = MALLOC(150);
 	char *tmp = MALLOC(30);
 
+	if (route->blackhole) {
+		strncat(log_msg, "blackhole ", 30);
+	}
 	if (route->dst) {
 		snprintf(tmp, 30, "%s/%d", inet_ntop2(route->dst), route->dmask);
 		strncat(log_msg, tmp, 30);
 	}
 	if (route->gw) {
 		snprintf(tmp, 30, " gw %s", inet_ntop2(route->gw));
+		strncat(log_msg, tmp, 30);
+	}
+	if (route->gw2) {
+		snprintf(tmp, 30, " or gw %s", inet_ntop2(route->gw2));
 		strncat(log_msg, tmp, 30);
 	}
 	if (route->src) {
@@ -139,7 +170,7 @@ dump_iproute(void *rt_data_obj)
 		strncat(log_msg, tmp, 30);
 	}
 
-	syslog(LOG_INFO, "     %s", log_msg);
+	log_message(LOG_INFO, "     %s", log_msg);
 
 	FREE(tmp);
 	FREE(log_msg);
@@ -160,14 +191,19 @@ alloc_route(list rt_list, vector strvec)
 		str = VECTOR_SLOT(strvec, i);
 
 		/* cmd parsing */
-		if (!strcmp(str, "via") || !strcmp(str, "gw")) {
+		if (!strcmp(str, "blackhole")) {
+			new->blackhole = 1;
+			inet_ston(VECTOR_SLOT(strvec, ++i), &new->dst);
+		} else if (!strcmp(str, "via") || !strcmp(str, "gw")) {
 			inet_ston(VECTOR_SLOT(strvec, ++i), &new->gw);
+		} else if (!strcmp(str, "or")) {
+			inet_ston(VECTOR_SLOT(strvec, ++i), &new->gw2);
 		} else if (!strcmp(str, "src")) {
 			inet_ston(VECTOR_SLOT(strvec, ++i), &new->src);
 		} else if (!strcmp(str, "dev") || !strcmp(str, "oif")) {
 			ifp = if_get_by_ifname(VECTOR_SLOT(strvec, ++i));
 			if (!ifp) {
-				syslog(LOG_INFO, "VRRP is trying to assign VROUTE to unknown "
+				log_message(LOG_INFO, "VRRP is trying to assign VROUTE to unknown "
 				       "%s interface !!! go out and fixe your conf !!!",
 				       (char *)VECTOR_SLOT(strvec, i));
 				FREE(new);
@@ -223,7 +259,7 @@ clear_diff_routes(list l, list n)
 
 	/* All Static routes removed */
 	if (LIST_ISEMPTY(n)) {
-		syslog(LOG_INFO, "Removing a VirtualRoute block");
+		log_message(LOG_INFO, "Removing a VirtualRoute block");
 		netlink_rtlist_ipv4(l, IPROUTE_DEL);
 		return;
 	}
@@ -231,7 +267,7 @@ clear_diff_routes(list l, list n)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		iproute = ELEMENT_DATA(e);
 		if (!route_exist(n, iproute) && iproute->set) {
-			syslog(LOG_INFO, "ip route %s/%d ... , no longer exist"
+			log_message(LOG_INFO, "ip route %s/%d ... , no longer exist"
 			       , inet_ntop2(iproute->dst), iproute->dmask);
 			netlink_route_ipv4(iproute, IPROUTE_DEL);
 		}

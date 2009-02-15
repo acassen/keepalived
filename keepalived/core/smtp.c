@@ -7,7 +7,7 @@
  *              using the smtp protocol according to the RFC 821. A non blocking
  *              timeouted connection is used to handle smtp protocol.
  *
- * Version:     $Id: smtp.c,v 1.1.15 2007/09/15 04:07:41 acassen Exp $
+ * Version:     $Id: smtp.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -21,7 +21,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include <time.h>
@@ -32,6 +32,7 @@
 #include "scheduler.h"
 #include "memory.h"
 #include "list.h"
+#include "logger.h"
 #include "utils.h"
 
 /* SMTP FSM definition */
@@ -96,7 +97,7 @@ connection_error(thread * thread_obj)
 {
 	smtp_thread_arg *smtp_arg = THREAD_ARG(thread_obj);
 
-	syslog(LOG_INFO, "SMTP connection ERROR to [%s:%d].",
+	log_message(LOG_INFO, "SMTP connection ERROR to [%s:%d].",
 	       inet_ntop2(data->smtp_server), SMTP_PORT);
 	free_smtp_all(smtp_arg);
 	return 0;
@@ -106,7 +107,7 @@ connection_timeout(thread * thread_obj)
 {
 	smtp_thread_arg *smtp_arg = THREAD_ARG(thread_obj);
 
-	syslog(LOG_INFO, "Timeout connecting SMTP server [%s:%d].",
+	log_message(LOG_INFO, "Timeout connecting SMTP server [%s:%d].",
 	       inet_ntop2(data->smtp_server), SMTP_PORT);
 	free_smtp_all(smtp_arg);
 	return 0;
@@ -137,7 +138,7 @@ connection_success(thread * thread_obj)
 {
 	smtp_thread_arg *smtp_arg = THREAD_ARG(thread_obj);
 
-	syslog(LOG_INFO, "Remote SMTP server [%s:%d] connected.",
+	log_message(LOG_INFO, "Remote SMTP server [%s:%d] connected.",
 	       inet_ntop2(data->smtp_server), SMTP_PORT);
 
 	smtp_arg->stage = connect_success;
@@ -159,7 +160,7 @@ smtp_read_thread(thread * thread_obj)
 	smtp_arg = THREAD_ARG(thread_obj);
 
 	if (thread_obj->type == THREAD_READ_TIMEOUT) {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "Timeout reading data to remote SMTP server [%s:%d].",
 		       inet_ntop2(data->smtp_server), SMTP_PORT);
 		SMTP_FSM_READ(QUIT, thread_obj, 0);
@@ -174,7 +175,7 @@ smtp_read_thread(thread * thread_obj)
 	if (rcv_buffer_size == -1) {
 		if (errno == EAGAIN)
 			goto end;
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "Error reading data from remote SMTP server [%s:%d].",
 		       inet_ntop2(data->smtp_server), SMTP_PORT);
 		SMTP_FSM_READ(QUIT, thread_obj, 0);
@@ -183,7 +184,7 @@ smtp_read_thread(thread * thread_obj)
 
 	/* received data overflow buffer size ? */
 	if (smtp_arg->buflen >= SMTP_BUFFER_MAX) {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "Received buffer from remote SMTP server [%s:%d]"
 		       " overflow our get read buffer length.",
 		       inet_ntop2(data->smtp_server), SMTP_PORT);
@@ -245,7 +246,7 @@ smtp_read_thread(thread * thread_obj)
 		thread_add_write(thread_obj->master, smtp_send_thread, smtp_arg,
 				 smtp_arg->fd, data->smtp_connection_to);
 	} else {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "Can not read data from remote SMTP server [%s:%d].",
 		       inet_ntop2(data->smtp_server), SMTP_PORT);
 		SMTP_FSM_READ(QUIT, thread_obj, 0);
@@ -260,7 +261,7 @@ smtp_send_thread(thread * thread_obj)
 	smtp_thread_arg *smtp_arg = THREAD_ARG(thread_obj);
 
 	if (thread_obj->type == THREAD_WRITE_TIMEOUT) {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "Timeout sending data to remote SMTP server [%s:%d].",
 		       inet_ntop2(data->smtp_server), SMTP_PORT);
 		SMTP_FSM_READ(QUIT, thread_obj, 0);
@@ -280,7 +281,7 @@ smtp_send_thread(thread * thread_obj)
 		thread_add_read(thread_obj->master, smtp_read_thread, smtp_arg,
 				thread_obj->u.fd, data->smtp_connection_to);
 	} else {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "Can not send data to remote SMTP server [%s:%d].",
 		       inet_ntop2(data->smtp_server), SMTP_PORT);
 		SMTP_FSM_READ(QUIT, thread_obj, 0);
@@ -297,7 +298,7 @@ connection_code(thread * thread_obj, int status)
 	if (status == 220) {
 		smtp_arg->stage++;
 	} else {
-		syslog(LOG_INFO, "Error connecting SMTP server[%s:%d]."
+		log_message(LOG_INFO, "Error connecting SMTP server[%s:%d]."
 		       " SMTP status code = %d", inet_ntop2(data->smtp_server),
 		       SMTP_PORT, status);
 		smtp_arg->stage = ERROR;
@@ -329,7 +330,7 @@ helo_code(thread * thread_obj, int status)
 	if (status == 250) {
 		smtp_arg->stage++;
 	} else {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "Error processing HELO cmd on SMTP server [%s:%d]."
 		       " SMTP status code = %d", inet_ntop2(data->smtp_server),
 		       SMTP_PORT, status);
@@ -362,7 +363,7 @@ mail_code(thread * thread_obj, int status)
 	if (status == 250) {
 		smtp_arg->stage++;
 	} else {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "Error processing MAIL cmd on SMTP server [%s:%d]."
 		       " SMTP status code = %d", inet_ntop2(data->smtp_server),
 		       SMTP_PORT, status);
@@ -407,7 +408,7 @@ rcpt_code(thread * thread_obj, int status)
 		if (!fetched_email)
 			smtp_arg->stage++;
 	} else {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "Error processing RCPT cmd on SMTP server [%s:%d]."
 		       " SMTP status code = %d", inet_ntop2(data->smtp_server),
 		       SMTP_PORT, status);
@@ -436,7 +437,7 @@ data_code(thread * thread_obj, int status)
 	if (status == 354) {
 		smtp_arg->stage++;
 	} else {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "Error processing DATA cmd on SMTP server [%s:%d]."
 		       " SMTP status code = %d", inet_ntop2(data->smtp_server),
 		       SMTP_PORT, status);
@@ -491,10 +492,10 @@ body_code(thread * thread_obj, int status)
 	smtp_thread_arg *smtp_arg = THREAD_ARG(thread_obj);
 
 	if (status == 250) {
-		syslog(LOG_INFO, "SMTP alert successfully sent.");
+		log_message(LOG_INFO, "SMTP alert successfully sent.");
 		smtp_arg->stage++;
 	} else {
-		syslog(LOG_INFO,
+		log_message(LOG_INFO,
 		       "Error processing DOT cmd on SMTP server [%s:%d]."
 		       " SMTP status code = %d", inet_ntop2(data->smtp_server),
 		       SMTP_PORT, status);

@@ -58,6 +58,8 @@ SCOPE can take the following values :
 static_routes {							# block identification
     src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # to is optional
     src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # to is optional
+    src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> or <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # will use multipath route
+    blackhole <IP ADDRESS>[/<MASK>]
     ...
 }
 
@@ -177,7 +179,9 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     virtual_routes {			# VRRP virtual routes
     	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> metric <METRIC> # to is optional
     	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> metric <METRIC> # to is optional
+    	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> or <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # will use multipath route
         ...
+	blackhole <IP ADDRESS>[/<MASK>]
     }
     nopreempt					# Override VRRP RFC preemption default
     preempt_delay				# Seconds after startup until
@@ -270,6 +274,33 @@ virtual_server group <STRING>      {	# VS group declaration
 					#  healthcheckers activity
     virtualhost <STRING>		# VirtualHost string to use for
 					#  HTTP_GET or SSL_GET
+
+    # Assume silently all RSs down and healthchecks
+    # failed on start. This helps preventing false
+    # positive actions on startup. Alpha mode is
+    # disabled by default.
+    alpha
+
+    # On daemon shutdown, consider quorum and RS
+    # down notifiers for execution, where appropriate.
+    # Omega mode is disabled by default.
+    omega
+
+    # Minimum total weight of all live servers in
+    # the pool necessary to operate VS with no
+    # quality regression. Defaults to 1.
+    quorum <INT>
+
+    # Tolerate this much weight units compared to the
+    # nominal quorum, when considering quorum gain
+    # or loss. A flap dampener. Defaults to 0.
+    hysteresis <INT>
+
+    # Script to launch when quorum is gained.
+    quorum_up <STRING>|<QUOTED-STRING>
+
+    # Script to launch when quorum is lost.
+    quorum_down <STRING>|<QUOTED-STRING>
 
     sorry_server <IP ADDRESS> <PORT>	# RS to add to LVS topology when all
 					#   realserver are down

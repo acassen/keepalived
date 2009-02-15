@@ -5,7 +5,7 @@
  *
  * Part:        Layer4 asynchronous primitives.
  *
- * Version:     $Id: layer4.c,v 1.0.0 2002/11/20 21:34:18 acassen Exp $
+ * Version:     $Id: layer4.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -19,7 +19,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2007 Alexandre Cassen, <acassen@freebox.fr>
+ * Copyright (C) 2001-2009 Alexandre Cassen, <acassen@freebox.fr>
  */
 
 #include "layer4.h"
@@ -79,7 +79,7 @@ tcp_socket_state(int fd, thread * thread_obj, uint32_t addr_ip, uint16_t addr_po
 		 int (*func) (struct _thread *))
 {
 	int status;
-	int slen;
+	socklen_t slen;
 	int ret = 0;
 	TIMEVAL timer_min;
 
