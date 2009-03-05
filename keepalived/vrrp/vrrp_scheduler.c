@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -299,12 +299,10 @@ vrrp_init_script(list l)
 
 		if (vscript->result == VRRP_SCRIPT_STATUS_INIT) {
 			vscript->result = VRRP_SCRIPT_STATUS_NONE;
-			thread_add_timer(master, vrrp_script_thread,
-					 vscript, vscript->interval);
+			thread_add_event(master, vrrp_script_thread, vscript, vscript->interval);
 		} else if (vscript->result == VRRP_SCRIPT_STATUS_INIT_GOOD) {
 			vscript->result = VRRP_SCRIPT_STATUS_GOOD;
-			thread_add_timer(master, vrrp_script_thread,
-					 vscript, vscript->interval);
+			thread_add_event(master, vrrp_script_thread, vscript, vscript->interval);
 		}
 	}
 }
@@ -585,7 +583,7 @@ vrrp_leave_master(vrrp_rt * vrrp, char *buffer, int len)
 {
 	if (!VRRP_ISUP(vrrp)) {
 		vrrp_log_int_down(vrrp);
-		vrrp->wantstate = VRRP_STATE_FAULT;
+		vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
 		vrrp_state_leave_master(vrrp);
 	} else if (vrrp_state_master_rx(vrrp, buffer, len)) {
 		vrrp_state_leave_master(vrrp);
@@ -723,30 +721,28 @@ static void
 vrrp_master(vrrp_rt * vrrp)
 {
 	/* Check if interface we are running on is UP */
-	if (vrrp->wantstate != VRRP_STATE_FAULT) {
+	if (vrrp->wantstate != VRRP_STATE_GOTO_FAULT) {
 		if (!VRRP_ISUP(vrrp)) {
 			vrrp_log_int_down(vrrp);
-			vrrp->wantstate = VRRP_STATE_FAULT;
+			vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
 		}
 	}
 
 	/* Then perform the state transition */
-	if (vrrp->wantstate == VRRP_STATE_FAULT ||
+	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT ||
 	    vrrp->wantstate == VRRP_STATE_BACK ||
 	    vrrp->ipsecah_counter->cycle) {
-		vrrp->ms_down_timer =
-		    3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 
 		/* handle backup state transition */
 		vrrp_state_leave_master(vrrp);
 
 		if (vrrp->state == VRRP_STATE_BACK)
-			log_message(LOG_INFO,
-			       "VRRP_Instance(%s) Now in BACKUP state",
-			       vrrp->iname);
+			log_message(LOG_INFO, "VRRP_Instance(%s) Now in BACKUP state",
+				    vrrp->iname);
 		if (vrrp->state == VRRP_STATE_FAULT)
 			log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state",
-			       vrrp->iname);
+				    vrrp->iname);
 	} else if (vrrp->state == VRRP_STATE_MAST) {
 		/*
 		 * Send the VRRP advert.

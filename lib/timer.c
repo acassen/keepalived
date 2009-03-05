@@ -5,7 +5,7 @@
  * 
  * Part:        Timer manipulations.
  *  
- * Version:     $Id: timer.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
+ * Version:     $Id: timer.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -102,11 +102,11 @@ timer_add_long(TIMEVAL a, long b)
  * normally return 0, unless <now> is NULL, in which case it will return -1 and
  * set errno to EFAULT.
  */
-int monotonic_gettimeofday(struct timeval *now)
+int monotonic_gettimeofday(TIMEVAL *now)
 {
-	static struct timeval mono_date;
-	static struct timeval drift; /* warning: signed seconds! */
-	struct timeval sys_date, adjusted, deadline;
+	static TIMEVAL mono_date;
+	static TIMEVAL drift; /* warning: signed seconds! */
+	TIMEVAL sys_date, adjusted, deadline;
 
 	if (!now) {
 		errno = EFAULT;
@@ -126,8 +126,8 @@ int monotonic_gettimeofday(struct timeval *now)
 	/* compute new adjusted time by adding the drift offset */
 	adjusted.tv_sec  = sys_date.tv_sec  + drift.tv_sec;
 	adjusted.tv_usec = sys_date.tv_usec + drift.tv_usec;
-	if (adjusted.tv_usec >= 1000000) {
-		adjusted.tv_usec -= 1000000;
+	if (adjusted.tv_usec >= TIMER_HZ) {
+		adjusted.tv_usec -= TIMER_HZ;
 		adjusted.tv_sec++;
 	}
 
@@ -140,10 +140,10 @@ int monotonic_gettimeofday(struct timeval *now)
 	/* check for jumps too far in the future, and bound them to
 	 * TIME_MAX_FORWARD_US microseconds.
 	 */
-	deadline.tv_sec  = mono_date.tv_sec  + TIME_MAX_FORWARD_US / 1000000;
-	deadline.tv_usec = mono_date.tv_usec + TIME_MAX_FORWARD_US % 1000000;
-	if (deadline.tv_usec >= 1000000) {
-		deadline.tv_usec -= 1000000;
+	deadline.tv_sec  = mono_date.tv_sec  + TIME_MAX_FORWARD_US / TIMER_HZ;
+	deadline.tv_usec = mono_date.tv_usec + TIME_MAX_FORWARD_US % TIMER_HZ;
+	if (deadline.tv_usec >= TIMER_HZ) {
+		deadline.tv_usec -= TIMER_HZ;
 		deadline.tv_sec++;
 	}
 
@@ -168,7 +168,7 @@ int monotonic_gettimeofday(struct timeval *now)
 	drift.tv_sec  = mono_date.tv_sec  - sys_date.tv_sec;
 	drift.tv_usec = mono_date.tv_usec - sys_date.tv_usec;
 	if (drift.tv_usec < 0) {
-		drift.tv_usec += 1000000;
+		drift.tv_usec += TIMER_HZ;
 		drift.tv_sec--;
 	}
 	*now = mono_date;

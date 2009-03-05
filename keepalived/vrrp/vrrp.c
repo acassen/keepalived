@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -695,11 +695,20 @@ vrrp_state_leave_master(vrrp_rt * vrrp)
 	}
 
 	/* set the new vrrp state */
-	log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
-		    vrrp->iname);
-	vrrp_restore_interface(vrrp, 0);
-	vrrp->state = vrrp->wantstate;
-	notify_instance_exec(vrrp, VRRP_STATE_BACK);
+	switch (vrrp->wantstate) {
+	case VRRP_STATE_BACK:
+		log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
+		vrrp_restore_interface(vrrp, 0);
+		vrrp->state = vrrp->wantstate;
+		notify_instance_exec(vrrp, VRRP_STATE_BACK);
+		break;
+	case VRRP_STATE_GOTO_FAULT:
+		log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE", vrrp->iname);
+		vrrp_restore_interface(vrrp, 0);
+		vrrp->state = VRRP_STATE_FAULT;
+		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
+		break;
+	}
 
 	/* Set the down timer */
 	vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
@@ -776,9 +785,8 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 	ipsec_ah *ah;
 
 	/* return on link failure */
-	if (vrrp->wantstate == VRRP_STATE_FAULT) {
-		vrrp->ms_down_timer =
-		    3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT) {
+		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		vrrp->state = VRRP_STATE_FAULT;
 		return 1;
 	}

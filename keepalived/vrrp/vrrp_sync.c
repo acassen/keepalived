@@ -5,7 +5,7 @@
  *
  * Part:        VRRP synchronization framework.
  *
- * Version:     $Id: vrrp_sync.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
+ * Version:     $Id: vrrp_sync.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -37,7 +37,7 @@ vrrp_init_instance_sands(vrrp_rt * vrrp)
 
 	if (vrrp->state == VRRP_STATE_MAST	  ||
 	    vrrp->state == VRRP_STATE_GOTO_MASTER ||
-	    vrrp->state == VRRP_STATE_FAULT	  ||
+	    vrrp->state == VRRP_STATE_GOTO_FAULT  ||
 	    vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
 		vrrp->sands.tv_sec = time_now.tv_sec + vrrp->adver_int / TIMER_HZ;
  		vrrp->sands.tv_usec = time_now.tv_usec;
@@ -251,7 +251,7 @@ vrrp_sync_fault(vrrp_rt * vrrp)
 		 */
 		if (isync != vrrp && isync->state != VRRP_STATE_FAULT) {
 			if (isync->state == VRRP_STATE_MAST)
-				isync->wantstate = VRRP_STATE_FAULT;
+				isync->wantstate = VRRP_STATE_GOTO_FAULT;
 			if (isync->state == VRRP_STATE_BACK)
 				isync->state = VRRP_STATE_FAULT;
 		}

@@ -5,7 +5,7 @@
  *
  * Part:        utils.h include file.
  *
- * Version:     $Id: utils.h,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
+ * Version:     $Id: utils.h,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *

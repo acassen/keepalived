@@ -7,7 +7,7 @@
  *              the thread management routine (thread.c) present in the 
  *              very nice zebra project (http://www.zebra.org).
  *
- * Version:     $Id: scheduler.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
+ * Version:     $Id: scheduler.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -445,54 +445,50 @@ thread_cancel_event(thread_master * m, void *arg)
 	}
 }
 
+/* Update timer value */
+static void
+thread_update_timer(thread_list *list, TIMEVAL *timer_min)
+{
+	if (list->head) {
+		if (!TIMER_ISNULL(*timer_min)) {
+			if (timer_cmp(list->head->sands, *timer_min) <= 0) {
+				*timer_min = list->head->sands;
+			}
+		} else {
+			*timer_min = list->head->sands;
+		}
+	}
+}
+
 /* Compute the wait timer. Take care of timeouted fd */
 static void
 thread_compute_timer(thread_master * m, TIMEVAL * timer_wait)
 {
 	TIMEVAL timer_min;
 
+	/* Prepare timer */
 	TIMER_RESET(timer_min);
+	thread_update_timer(&m->timer, &timer_min);
+	thread_update_timer(&m->write, &timer_min);
+	thread_update_timer(&m->read, &timer_min);
+	thread_update_timer(&m->child, &timer_min);
 
-	if (m->timer.head)
-		timer_min = m->timer.head->sands;
-
-	if (m->write.head) {
-		if (!TIMER_ISNULL(timer_min)) {
-			if (timer_cmp(m->write.head->sands, timer_min) <= 0)
-				timer_min = m->write.head->sands;
-		} else
-			timer_min = m->write.head->sands;
-	}
-
-	if (m->read.head) {
-		if (!TIMER_ISNULL(timer_min)) {
-			if (timer_cmp(m->read.head->sands, timer_min) <= 0)
-				timer_min = m->read.head->sands;
-		} else
-			timer_min = m->read.head->sands;
-	}
-
-	if (m->child.head) {
-		if (!TIMER_ISNULL(timer_min)) {
-			if (timer_cmp(m->child.head->sands, timer_min) <= 0)
-				timer_min = m->child.head->sands;
-		} else
-			timer_min = m->child.head->sands;
-	}
-
+	/* Take care about monothonic clock */
 	if (!TIMER_ISNULL(timer_min)) {
 		timer_min = timer_sub(timer_min, time_now);
 		if (timer_min.tv_sec < 0) {
-			timer_wait->tv_sec = timer_wait->tv_usec = 0;
-		} else {
-			timer_wait->tv_sec = timer_min.tv_sec;
-			timer_wait->tv_usec = timer_min.tv_usec;
+			timer_min.tv_sec = timer_min.tv_usec = 0;
+		} else if (timer_min.tv_sec >= 1) {
+			timer_min.tv_sec = 1;
+			timer_min.tv_usec = 0;
 		}
-		return;
-	}
 
-	if (TIMER_ISNULL(*timer_wait))
+		timer_wait->tv_sec = timer_min.tv_sec;
+		timer_wait->tv_usec = timer_min.tv_usec;
+	} else {
 		timer_wait->tv_sec = 1;
+		timer_wait->tv_usec = 0;
+	}
 }
 
 /* Fetch next ready thread. */
@@ -552,8 +548,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	signal_fd = signal_rfd();
 	FD_SET(signal_fd, &readfd);
 
-	ret = select(FD_SETSIZE, &readfd, &writefd, &exceptfd,
-		    (TIMER_ISNULL(timer_wait)) ? NULL : &timer_wait);
+	ret = select(FD_SETSIZE, &readfd, &writefd, &exceptfd, &timer_wait);
 
 	/* we have to save errno here because the next syscalls will set it */
 	old_errno = errno;

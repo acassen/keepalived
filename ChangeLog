@@ -1,3 +1,16 @@
+2009-03-05  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.17 released.
+	* Fixed low-level scheduler timer computation to take care to
+	  monothonic computation. Select returns if timer is null!
+	* VRRP : Fixed vrrp script initialization to use event thread
+	  instead of timer thread so that script no longer need to
+	  wait until first polling timer fired.
+	* VRRP : Willy and I fixed MII media link failure detection
+	  to test SIOCGMIIREG call before fetching BMSR.
+	* VRRP : Resurected VRRP_STATE_GOTO_FAULT. This state is
+	  really needed to speed-up convergence and prevent against
+	  any issue while using vrrp_sync_group.
+
 2009-02-15  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.16 released.
 	* Code clean-up.

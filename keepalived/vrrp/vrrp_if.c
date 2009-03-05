@@ -5,7 +5,7 @@
  *
  * Part:        Interfaces manipulation.
  *
- * Version:     $Id: vrrp_if.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
+ * Version:     $Id: vrrp_if.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -173,6 +173,8 @@ if_mii_status(const int fd)
 int
 if_mii_probe(const char *ifname)
 {
+	uint16_t *data = (uint16_t *) (&ifr.ifr_data);
+	int phy_id;
 	int fd = socket(AF_INET, SOCK_DGRAM, 0);
 	int status = 0;
 
@@ -184,6 +186,17 @@ if_mii_probe(const char *ifname)
 		close(fd);
 		return -1;
 	}
+
+	/* check if the driver reports BMSR using the MII interface, as we
+	 * will need this and we already know that some don't support it.
+	 */
+	phy_id = data[0]; /* save it in case it is overwritten */
+	data[1] = 1;
+	if (ioctl(fd, SIOCGMIIREG, &ifr) < 0) {
+		close(fd);
+		return -1;
+	}
+	data[0] = phy_id;
 
 	/* Dump the MII transceiver */
 	status = if_mii_status(fd);
@@ -355,8 +368,7 @@ init_if_linkbeat(void)
 		}
 
 		/* Register new monitor thread */
-		thread_add_timer(master, if_linkbeat_refresh_thread, ifp
-				 , POLLING_DELAY);
+		thread_add_timer(master, if_linkbeat_refresh_thread, ifp, POLLING_DELAY);
 	}
 }
 

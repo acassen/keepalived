@@ -6,7 +6,7 @@
  *
  * Part:        vrrp.c program include file.
  *
- * Version:     $Id: vrrp.h,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
+ * Version:     $Id: vrrp.h,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -166,6 +166,7 @@ typedef struct _vrrp_rt {
 #define VRRP_STATE_FAULT		3	/* internal */
 #define VRRP_STATE_GOTO_MASTER		4	/* internal */
 #define VRRP_STATE_LEAVE_MASTER		5	/* internal */
+#define VRRP_STATE_GOTO_FAULT 		98	/* internal */
 #define VRRP_DISPATCHER 		99	/* internal */
 #define VRRP_MCAST_RETRY		10	/* internal */
 #define VRRP_MAX_FSM_STATE		4	/* internal */

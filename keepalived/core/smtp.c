@@ -7,7 +7,7 @@
  *              using the smtp protocol according to the RFC 821. A non blocking
  *              timeouted connection is used to handle smtp protocol.
  *
- * Version:     $Id: smtp.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
+ * Version:     $Id: smtp.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
