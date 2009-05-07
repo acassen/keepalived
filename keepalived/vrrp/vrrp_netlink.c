@@ -240,7 +240,7 @@ netlink_scope_a2n(char *scope)
 /* Our netlink parser */
 static int
 netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
-		   struct nl_handle *nl)
+		   struct nl_handle *nl, struct nlmsghdr *n)
 {
 	int status;
 	int ret = 0;
@@ -302,6 +302,12 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 					       "Netlink: error: message truncated");
 					return -1;
 				}
+
+				if (n && (err->error == -EEXIST) &&
+				    ((n->nlmsg_type == RTM_NEWROUTE) ||
+				     (n->nlmsg_type == RTM_NEWADDR)))
+					return 0;
+
 				log_message(LOG_INFO,
 				       "Netlink: error: %s, type=(%u), seq=%u, pid=%d",
 				       strerror(-err->error),
@@ -378,7 +384,7 @@ netlink_talk(struct nl_handle *nl, struct nlmsghdr *n)
 		log_message(LOG_INFO, "Netlink: Warning, couldn't set "
 		       "blocking flag to netlink socket...");
 
-	status = netlink_parse_info(netlink_talk_filter, nl);
+	status = netlink_parse_info(netlink_talk_filter, nl, n);
 
 	/* Restore previous flags */
 	if (ret == 0)
@@ -562,7 +568,7 @@ netlink_interface_lookup(void)
 		status = -1;
 		goto end_int;
 	}
-	status = netlink_parse_info(netlink_if_link_filter, &nlh);
+	status = netlink_parse_info(netlink_if_link_filter, &nlh, NULL);
 
 end_int:
 	netlink_close(&nlh);
@@ -591,7 +597,7 @@ netlink_address_lookup(void)
 		status = -1;
 		goto end_addr;
 	}
-	status = netlink_parse_info(netlink_if_address_filter, &nlh);
+	status = netlink_parse_info(netlink_if_address_filter, &nlh, NULL);
 
 end_addr:
 	netlink_close(&nlh);
@@ -664,7 +670,7 @@ kernel_netlink(thread * thread_obj)
 	int status = 0;
 
 	if (thread_obj->type != THREAD_READ_TIMEOUT)
-		status = netlink_parse_info(netlink_broadcast_filter, &nl_kernel);
+		status = netlink_parse_info(netlink_broadcast_filter, &nl_kernel, NULL);
 	thread_add_read(master, kernel_netlink, NULL, nl_kernel.fd,
 			NETLINK_TIMER);
 	return 0;
