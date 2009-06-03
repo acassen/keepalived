@@ -176,8 +176,9 @@ vrrp_prio_handler(vector strvec)
 		log_message(LOG_INFO, "VRRP Error : Priority not valid !\n");
 		log_message(LOG_INFO,
 		       "             must be between 1 & 255. reconfigure !\n");
-		log_message(LOG_INFO, "             Using default value : 100\n");
-		vrrp->effective_priority = vrrp->base_priority = 100;
+		log_message(LOG_INFO,
+			    "             Using default value : %d\n", VRRP_PRIO_DFL);
+		vrrp->effective_priority = vrrp->base_priority = VRRP_PRIO_DFL;
 	}
 }
 static void
