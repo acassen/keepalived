@@ -566,13 +566,7 @@ vs_exist(virtual_server * old_vs)
 		vs = ELEMENT_DATA(e);
 		if (VS_ISEQ(old_vs, vs)) {
 			/* Check if group exist */
-			if ((vs->vsgname && !old_vs->vsgname) ||
-			    (!vs->vsgname && old_vs->vsgname))
-				return 0;
-
 			if (vs->vsgname) {
-				if (strcmp(vs->vsgname, old_vs->vsgname) != 0)
-					return 0;
 				vsg = ipvs_get_group_by_name(old_vs->vsgname,
 							    check_data->vs_group);
 				if (!vsg)
