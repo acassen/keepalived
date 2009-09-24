@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckers dynamic data structure definition.
  *
- * Version:     $Id: check_data.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: check_data.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -264,7 +264,7 @@ alloc_vs(char *ip, char *port)
 	new->quorum_down = NULL;
 	new->quorum = 1;
 	new->hysteresis = 0;
-	new->quorum_state = DOWN;
+	new->quorum_state = UP;
 
 	list_add(check_data->vs, new);
 }

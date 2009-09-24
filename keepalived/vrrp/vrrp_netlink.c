@@ -5,7 +5,7 @@
  *
  * Part:        NETLINK kernel command channel.
  *
- * Version:     $Id: vrrp_netlink.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: vrrp_netlink.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -559,7 +559,7 @@ netlink_interface_lookup(void)
 	/* Set blocking flag */
 	ret = netlink_set_block(&nlh, &flags);
 	if (ret < 0)
-		log_message(LOG_INFO, "Netlink: 1Warning, couldn't set "
+		log_message(LOG_INFO, "Netlink: Warning, couldn't set "
 		       "blocking flag to netlink socket...");
 
 	/* Interface lookup */

@@ -5,7 +5,7 @@
  *
  * Part:        pidfile utility.
  *
- * Version:     $Id: pidfile.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: pidfile.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -57,12 +57,13 @@ process_running(char *pid_file)
 {
 	FILE *pidfile = fopen(pid_file, "r");
 	pid_t pid;
+	int ret;
 
 	/* No pidfile */
 	if (!pidfile)
 		return 0;
 
-	fscanf(pidfile, "%d", &pid);
+	ret = fscanf(pidfile, "%d", &pid);
 	fclose(pidfile);
 
 	/* If no process is attached to pidfile, remove it */
@@ -89,18 +90,4 @@ keepalived_running(int mode)
 	    process_running(checkers_pidfile))
 		return 1;
 	return 0;
-}
-
-/* Return VRRP child process state */
-int
-vrrp_running(void)
-{
-	return process_running(vrrp_pidfile);
-}
-
-/* Return VRRP child process state */
-int
-checkers_running(void)
-{
-	return process_running(checkers_pidfile);
 }

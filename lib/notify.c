@@ -5,7 +5,7 @@
  *
  * Part:        Forked system call to launch an extra script.
  *
- * Version:     $Id: notify.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: notify.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -63,6 +63,7 @@ int
 notify_exec(char *cmd)
 {
 	pid_t pid;
+	int ret;
 
 	pid = fork();
 
@@ -80,8 +81,8 @@ notify_exec(char *cmd)
 	closeall(0);
 
 	open("/dev/null", O_RDWR);
-	dup(0);
-	dup(0);
+	ret = dup(0);
+	ret = dup(0);
 
 	system_call(cmd);
 

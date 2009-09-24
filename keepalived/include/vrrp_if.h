@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_if.c include file.
  *
- * Version:     $Id: vrrp_if.h,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: vrrp_if.h,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -101,14 +101,9 @@ typedef struct _tracked_if {
 #define IF_MII_SUPPORTED(X) ((X)->lb_type & LB_MII)
 #define IF_ETHTOOL_SUPPORTED(X) ((X)->lb_type & LB_ETHTOOL)
 #define IF_LINKBEAT(X) ((X)->linkbeat)
-#ifdef _WITH_LINKWATCH_
-#define IF_ISUP(X) (((X)->flags & IFF_UP)      && \
-                    ((X)->flags & IFF_RUNNING))
-#else
 #define IF_ISUP(X) (((X)->flags & IFF_UP)      && \
                     ((X)->flags & IFF_RUNNING) && \
                     if_linkbeat(X))
-#endif
 
 /* prototypes */
 extern interface *if_get_by_ifindex(const int ifindex);
@@ -119,6 +114,7 @@ extern int if_ethtool_probe(const char *ifname);
 extern void if_add_queue(interface * ifp);
 extern int if_monitor_thread(thread * thread_obj);
 extern void init_interface_queue(void);
+extern void init_interface_linkbeat(void);
 extern void free_interface_queue(void);
 extern void dump_if(void *if_data_obj);
 extern int if_join_vrrp_group(int sd, interface * ifp, int proto);

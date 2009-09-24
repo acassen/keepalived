@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: global_parser.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: global_parser.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -33,6 +33,11 @@
 
 /* data handlers */
 /* Global def handlers */
+static void
+use_polling_handler(vector strvec)
+{
+	data->linkbeat_use_polling = 1;
+}
 static void
 routerid_handler(vector strvec)
 {
@@ -79,6 +84,7 @@ void
 global_init_keywords(void)
 {
 	/* global definitions mapping */
+	install_keyword_root("linkbeat_use_polling", use_polling_handler);
 	install_keyword_root("global_defs", NULL);
 	install_keyword("router_id", &routerid_handler);
 	install_keyword("plugin_dir", &plugin_handler);

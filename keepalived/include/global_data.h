@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: global_data.h,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: global_data.h,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -46,6 +46,7 @@ typedef struct _email {
 
 /* Configuration data root */
 typedef struct _conf_data {
+	int linkbeat_use_polling;
 	char *router_id;
 	char *plugin_dir;
 	char *email_from;

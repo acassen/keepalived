@@ -5,7 +5,7 @@
  *
  * Part:        Interfaces manipulation.
  *
- * Version:     $Id: vrrp_if.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: vrrp_if.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -49,6 +49,7 @@ typedef __uint8_t u8;
 
 /* local include */
 #include "scheduler.h"
+#include "global_data.h"
 #include "vrrp_data.h"
 #include "vrrp.h"
 #include "vrrp_if.h"
@@ -321,7 +322,6 @@ if_add_queue(interface * ifp)
 	list_add(if_queue, ifp);
 }
 
-#ifndef _WITH_LINKWATCH_
 static int
 if_linkbeat_refresh_thread(thread * thread_obj)
 {
@@ -375,11 +375,14 @@ init_if_linkbeat(void)
 int
 if_linkbeat(const interface * ifp)
 {
+	if (!data->linkbeat_use_polling)
+		return 1;
+
 	if (IF_MII_SUPPORTED(ifp) || IF_ETHTOOL_SUPPORTED(ifp))
 		return IF_LINKBEAT(ifp);
+
 	return 1;
 }
-#endif
 
 /* Interface queue helpers*/
 void
@@ -397,12 +400,17 @@ init_interface_queue(void)
 	init_if_queue();
 //	dump_list(if_queue);
 	netlink_interface_lookup();
-#ifdef _WITH_LINKWATCH_
-	  log_message(LOG_INFO, "Using LinkWatch kernel netlink reflector...");
-#else
-	  log_message(LOG_INFO, "Using MII-BMSR NIC polling thread...");
-	  init_if_linkbeat();
-#endif
+}
+
+void
+init_interface_linkbeat(void)
+{
+	if (data->linkbeat_use_polling) {
+		log_message(LOG_INFO, "Using MII-BMSR NIC polling thread...");
+		init_if_linkbeat();
+	} else {
+		log_message(LOG_INFO, "Using LinkWatch kernel netlink reflector...");
+	}
 }
 
 int

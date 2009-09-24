@@ -1,3 +1,37 @@
+2009-09-24  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.18 released.
+	* Fixed compilation warnings
+	* Updated autoconf kernel version detection. Created a new
+	  configuration option to force kernel versioni selection.
+	  This option can be useful for crosscompilation:
+	  --with-kernel-version={2.2|2.4|2.6}
+	* Updated media link failure detection strategy. Kernel
+	  linkwatch has been around for long time so set it as
+	  default strategy. Alternatively you can choose to use
+	  MII BSMR polling strategy by adding new keyword
+	  'vrrp_linkbeat_use_polling' in your configuration file.
+	* Vincent Bernat <bernat <at> luffy.cx> fixed ip_vs.h includes.
+	* Removed vrrp_running and check_running test since it is
+	  already performed by keepalived_running.
+	* Properly handle father pidfile handling.
+	* fixed reload handler to properly print out PID.
+	* Willy and I fixed a signal handling issue while reloading
+	  daemon. A dereferencing master thread issue leading to a
+	  segfault, so that reload was seen as a restart because it
+	  was respawned by keepalived father process.
+	* Willy fixed a missing UNSET_RELOAD declaration leading to
+	  a potential infinite loop while performing reload.
+	* Vincent Bernat <bernat <at> luffy.cx> fixed initial value
+	  of quorum state on startup and reload. Fixed sorry server
+	  removal to consider quorum state.
+	* VRRP : Add missing notify calls while entering FAULT state.
+	* VRRP : Willy added support to delayed script check launch
+	  (up and down). It defines "rise" and "fall" keywords. "fall"
+	  defines the required number of failures to switch in KO mode,
+	  "rise" defines the number of sucesses to switch in OK mode.
+	* VRRP : Fixed an IP_DROP_MEMBERSHIP issue while performing
+	  reload. vrrp socket pool is released at first.
+
 2009-03-05  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.17 released.
 	* Fixed low-level scheduler timer computation to take care to

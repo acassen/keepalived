@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: main.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -32,6 +32,7 @@ pid_t
 xdaemon(int nochdir, int noclose, int exitflag)
 {
 	pid_t pid;
+	int ret;
 
 	/* In case of fork is error. */
 	pid = fork();
@@ -57,7 +58,7 @@ xdaemon(int nochdir, int noclose, int exitflag)
 
 	/* Change directory to root. */
 	if (!nochdir)
-		chdir("/");
+		ret = chdir("/");
 
 	/* File descriptor close. */
 	if (!noclose) {

@@ -5,7 +5,7 @@
  *
  * Part:        Healthcheckrs child process handling.
  *
- * Version:     $Id: check_daemon.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: check_daemon.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -124,16 +124,58 @@ start_check(void)
 		dump_check_data(check_data);
 	}
 
+#ifdef _WITH_VRRP_
+	/* Initialize linkbeat */
+	init_interface_linkbeat();
+#endif
+
 	/* Register checkers thread */
 	register_checkers_thread();
 }
 
 /* Reload handler */
+int reload_check_thread(thread * thread_obj);
+void
+sighup_check(void *v, int sig)
+{
+	log_message(LOG_INFO, "Reloading Healthchecker child process(%d) on signal",
+		    getpid());
+	thread_add_event(master, reload_check_thread, NULL, 0);
+}
+
+/* Terminate handler */
+void
+sigend_check(void *v, int sig)
+{
+	log_message(LOG_INFO, "Terminating Healthchecker child process on signal");
+	if (master)
+		thread_add_terminate_event(master);
+}
+
+/* CHECK Child signal handling */
+void
+check_signal_init(void)
+{
+	signal_handler_init();
+	signal_set(SIGHUP, sighup_check, NULL);
+	signal_set(SIGINT, sigend_check, NULL);
+	signal_set(SIGTERM, sigend_check, NULL);
+	signal_ignore(SIGPIPE);
+}
+
+/* Reload thread */
 int
 reload_check_thread(thread * thread_obj)
 {
 	/* set the reloading flag */
 	SET_RELOAD;
+
+	/* Signals handling */
+	signal_reset();
+	signal_set(SIGHUP, sighup_check, NULL);
+	signal_set(SIGINT, sigend_check, NULL);
+	signal_set(SIGTERM, sigend_check, NULL);
+	signal_ignore(SIGPIPE);
 
 	/* Destroy master thread */
 	thread_destroy_master(master);
@@ -159,35 +201,6 @@ reload_check_thread(thread * thread_obj)
 	UNSET_RELOAD;
 
 	return 0;
-}
-
-/* Reload handler */
-void
-sighup_check(void *v, int sig)
-{
-	log_message(LOG_INFO, "Reloading Healthchecker child processi(%d) on signal",
-	       checkers_child);
-	thread_add_event(master, reload_check_thread, NULL, 0);
-}
-
-/* Terminate handler */
-void
-sigend_check(void *v, int sig)
-{
-	log_message(LOG_INFO, "Terminating Healthchecker child process on signal");
-	if (master)
-		thread_add_terminate_event(master);
-}
-
-/* CHECK Child signal handling */
-void
-check_signal_init(void)
-{
-	signal_handler_init();
-	signal_set(SIGHUP, sighup_check, NULL);
-	signal_set(SIGINT, sigend_check, NULL);
-	signal_set(SIGTERM, sigend_check, NULL);
-	signal_ignore(SIGPIPE);
 }
 
 /* CHECK Child respawning thread */
@@ -216,15 +229,10 @@ check_respawn_thread(thread * thread_obj)
 int
 start_check_child(void)
 {
-	pid_t pid;
-
-	/* Dont start if pid is already running */
-	if (checkers_running()) {
-		log_message(LOG_INFO, "Healthcheck child process already running");
-		return -1;
-	}
-
 #ifndef _DEBUG_
+	pid_t pid;
+	int ret;
+
 	/* Initialize child process */
 	pid = fork();
 
@@ -259,11 +267,16 @@ start_check_child(void)
 	master = thread_make_master();
 
 	/* change to / dir */
-	chdir("/");
+	ret = chdir("/");
 
 	/* Set mask */
 	umask(0);
 #endif
+
+	/* If last process died during a reload, we can get there and we
+	 * don't want to loop again, because we're not reloading anymore.
+	 */
+	UNSET_RELOAD;
 
 	/* Signal handling initialization */
 	check_signal_init();

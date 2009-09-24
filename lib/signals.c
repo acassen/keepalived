@@ -5,7 +5,7 @@
  * 
  * Part:        Signals framework.
  *  
- * Version:     $Id: signals.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: signals.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  * 
  * Author:      Kevin Lindsay, <kevinl@netnation.com>
  *              Alexandre Cassen, <acassen@linux-vs.org>
@@ -139,19 +139,40 @@ signal_handler_init(void)
 }
 
 void
-signal_handler_destroy(void) {
+signal_wait_handlers(void)
+{
 	struct sigaction sig;
 
 	sig.sa_handler = SIG_DFL;
 	sigemptyset(&sig.sa_mask);
 	sig.sa_flags = 0;
 
-	/* First ensure that no more signals happen, then close pipe */
+	/* Ensure no more pending signals */
 	sigaction(SIGHUP, &sig, NULL);
 	sigaction(SIGINT, &sig, NULL);
 	sigaction(SIGTERM, &sig, NULL);
 	sigaction(SIGCHLD, &sig, NULL);
 
+	/* reset */
+	signal_SIGHUP_v = NULL;
+	signal_SIGINT_v = NULL;
+	signal_SIGTERM_v = NULL;
+	signal_SIGCHLD_v = NULL;
+}
+
+void signal_reset(void)
+{
+	signal_wait_handlers();
+	signal_SIGHUP_handler = NULL;
+	signal_SIGINT_handler = NULL;
+	signal_SIGTERM_handler = NULL;
+	signal_SIGCHLD_handler = NULL;
+}
+
+void
+signal_handler_destroy(void)
+{
+	signal_wait_handlers();
 	close(signal_pipe[1]);
 	close(signal_pipe[0]);
 	signal_pipe[1] = -1;
@@ -159,7 +180,8 @@ signal_handler_destroy(void) {
 }	
 
 int
-signal_rfd(void) {
+signal_rfd(void)
+{
 	return(signal_pipe[0]);
 }
 
@@ -192,4 +214,3 @@ signal_run_callback(void)
 		}	
 	}
 }
-

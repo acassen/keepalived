@@ -8,7 +8,7 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Version:     $Id: vrrp.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: vrrp.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -788,6 +788,7 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT) {
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		vrrp->state = VRRP_STATE_FAULT;
+		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 		return 1;
 	}
 
@@ -1185,12 +1186,12 @@ clear_diff_script(void)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vscript = ELEMENT_DATA(e);
-		if (vscript->result == VRRP_SCRIPT_STATUS_GOOD) {
+		if (vscript->result >= vscript->rise) {
 			nvscript = find_script_by_name(vscript->sname);
 			if (nvscript) {
 				log_message(LOG_INFO, "VRRP_Script(%s) considered successful on reload",
 					   nvscript->sname);
-				nvscript->result = VRRP_SCRIPT_STATUS_INIT_GOOD;
+				nvscript->result = nvscript->rise;
 				break;
 			}
 		}

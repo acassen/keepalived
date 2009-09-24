@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: vrrp_data.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: vrrp_data.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -117,19 +117,18 @@ dump_vscript(void *data)
 	log_message(LOG_INFO, "   Command = %s", vscript->script);
 	log_message(LOG_INFO, "   Interval = %d sec", vscript->interval / TIMER_HZ);
 	log_message(LOG_INFO, "   Weight = %d", vscript->weight);
+	log_message(LOG_INFO, "   Rise = %d", vscript->rise);
+	log_message(LOG_INFO, "   Full = %d", vscript->fall);
 
 	switch (vscript->result) {
 	case VRRP_SCRIPT_STATUS_INIT:
 		str = "INIT"; break;
-	case VRRP_SCRIPT_STATUS_NONE:
-		str = "BAD"; break;
-	case VRRP_SCRIPT_STATUS_GOOD:
-		str = "GOOD"; break;
 	case VRRP_SCRIPT_STATUS_INIT_GOOD:
 		str = "INIT/GOOD"; break;
 	case VRRP_SCRIPT_STATUS_DISABLED:
-	default:
 		str = "DISABLED"; break;
+	default:
+		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
 	log_message(LOG_INFO, "   Status = %s", str);
 }
@@ -139,9 +138,13 @@ static void
 free_sock(void *sock_data_obj)
 {
 	sock *sock_obj = sock_data_obj;
-	interface *ifp = if_get_by_ifindex(sock_obj->ifindex);
-	if_leave_vrrp_group(sock_obj->fd_in, ifp);
-	close(sock_obj->fd_out);
+	interface *ifp;
+	if (sock_obj->fd_in > 0) {
+		ifp = if_get_by_ifindex(sock_obj->ifindex);
+		if_leave_vrrp_group(sock_obj->fd_in, ifp);
+	}
+	if (sock_obj->fd_out > 0)
+		close(sock_obj->fd_out);
 	FREE(sock_data_obj);
 }
 
@@ -364,11 +367,13 @@ alloc_vrrp_script(char *sname)
 	/* Allocate new VRRP group structure */
 	new = (vrrp_script *) MALLOC(sizeof (vrrp_script));
 	new->sname = (char *) MALLOC(size + 1);
-	memcpy(new->sname, sname, size);
+	memcpy(new->sname, sname, size + 1);
 	new->interval = VRRP_SCRIPT_DI * TIMER_HZ;
 	new->weight = VRRP_SCRIPT_DW;
 	new->result = VRRP_SCRIPT_STATUS_INIT;
 	new->inuse = 0;
+	new->rise = 1;
+	new->fall = 1;
 	list_add(vrrp_data->vrrp_script, new);
 }
 
@@ -411,8 +416,14 @@ free_vrrp_data(vrrp_conf_data * vrrp_data_obj)
 	free_list(vrrp_data_obj->vrrp);
 	free_list(vrrp_data_obj->vrrp_sync_group);
 	free_list(vrrp_data_obj->vrrp_script);
-	free_list(vrrp_data_obj->vrrp_socket_pool);
+//	free_list(vrrp_data_obj->vrrp_socket_pool);
 	FREE(vrrp_data_obj);
+}
+
+void
+free_vrrp_sockpool(vrrp_conf_data * vrrp_data_obj)
+{
+	free_list(vrrp_data_obj->vrrp_socket_pool);
 }
 
 void

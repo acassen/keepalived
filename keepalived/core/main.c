@@ -5,7 +5,7 @@
  *
  * Part:        Main program structure.
  *
- * Version:     $Id: main.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: main.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -56,11 +56,13 @@ stop_keepalived(void)
 	signal_handler_destroy();
 	thread_destroy_master(master);
 
-	if (daemon_mode == 3 || !daemon_mode)
-		pidfile_rm(main_pidfile);
-	else
-		pidfile_rm((daemon_mode & 1) ? vrrp_pidfile :
-			   checkers_pidfile);
+	pidfile_rm(main_pidfile);
+
+	if (daemon_mode & 1 || !daemon_mode)
+		pidfile_rm(vrrp_pidfile);
+
+	if (daemon_mode & 2 || !daemon_mode)
+		pidfile_rm(checkers_pidfile);
 
 #ifdef _DEBUG_
 	keepalived_free_final("Parent process");
@@ -330,15 +332,9 @@ main(int argc, char **argv)
 	if (!(debug & 2))
 		xdaemon(0, 0, 0);
 
-	/* write the pidfile */
-	if (daemon_mode == 3 || !daemon_mode) {
-		if (!pidfile_write(main_pidfile, getpid()))
-			goto end;
-	} else {
-		if (!pidfile_write((daemon_mode & 1) ? vrrp_pidfile :
-				    checkers_pidfile, getpid()))
-			goto end;
-	}
+	/* write the father's pidfile */
+	if (!pidfile_write(main_pidfile, getpid()))
+		goto end;
 
 #ifndef _DEBUG_
 	/* Signal handling initialization  */

@@ -5,7 +5,7 @@
  * 
  * Part:        Vector structure manipulation.
  *  
- * Version:     $Id: vector.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: vector.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -57,28 +57,6 @@ vector_insert_slot(vector v, int slot, void *value)
 	for (i = (v->allocated / VECTOR_DEFAULT_SIZE) - 2; i >= slot; i--)
 		v->slot[i + 1] = v->slot[i];
 	v->slot[slot] = value;
-}
-
-/* Del a slot */
-void
-vector_del_slot(vector v, int slot)
-{
-	int i;
-
-	if (!v->allocated)
-		return;
-
-	for (i = slot + 1; i < (v->allocated / VECTOR_DEFAULT_SIZE); i++)
-		v->slot[i - 1] = v->slot[i];
-
-	v->allocated -= VECTOR_DEFAULT_SIZE;
-
-	if (!v->allocated)
-		v->slot = NULL;
-	else
-		v->slot = (void *) MALLOC(sizeof (void *) * v->allocated);
-
-	v = REALLOC(v->slot, sizeof (void *) * v->allocated);
 }
 
 /* Free memory vector allocation */

@@ -5,7 +5,7 @@
  *
  * Part:        Dynamic data structure definition.
  *
- * Version:     $Id: global_data.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: global_data.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -120,7 +120,7 @@ alloc_email(char *addr)
 	char *new;
 
 	new = (char *) MALLOC(size + 1);
-	memcpy(new, addr, size);
+	memcpy(new, addr, size + 1);
 
 	list_add(data->email, new);
 }

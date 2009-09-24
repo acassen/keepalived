@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: parser.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: parser.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -191,6 +191,8 @@ alloc_strvec(char *string)
 void read_conf_file(char *conf_file)
 {
 	FILE *stream;
+	char *path;
+	int ret;
 
 	glob_t globbuf;
 
@@ -210,15 +212,15 @@ void read_conf_file(char *conf_file)
 		current_conf_file = globbuf.gl_pathv[i];
 		
 		char prev_path[MAXBUF];
-		getcwd(prev_path, MAXBUF);
+		path = getcwd(prev_path, MAXBUF);
 
 		char *confpath = strdup(globbuf.gl_pathv[i]);
 		dirname(confpath);
-		chdir(confpath);
+		ret = chdir(confpath);
 		process_stream(current_keywords);
 		fclose(stream);
 
-		chdir(prev_path);
+		ret = chdir(prev_path);
 	}
 
 	globfree(&globbuf);
@@ -229,6 +231,8 @@ check_include(char *buf)
 {
 	char *str;
 	vector strvec;
+	char *path;
+	int ret;
 
 	strvec = alloc_strvec(buf);
 
@@ -248,11 +252,11 @@ check_include(char *buf)
 		FILE *prev_stream = current_stream;
 		char *prev_conf_file = current_conf_file;
 		char prev_path[MAXBUF];
-		getcwd(prev_path, MAXBUF);
+		path = getcwd(prev_path, MAXBUF);
 		read_conf_file(conf_file);
 		current_stream = prev_stream;
 		current_conf_file = prev_conf_file;
-		chdir(prev_path);
+		ret = chdir(prev_path);
 		return 1;
 	}
 	free_strvec(strvec);

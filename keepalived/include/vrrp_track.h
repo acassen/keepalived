@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_track.c include file.
  *
- * Version:     $Id: vrrp_track.h,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: vrrp_track.h,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -44,12 +44,16 @@
 #define VRRP_SCRIPT_DI 1       /* external script track interval (in sec) */
 #define VRRP_SCRIPT_DW 0       /* external script default weight */
 
-/* VRRP script tracking results */
-#define VRRP_SCRIPT_STATUS_DISABLED  0
-#define VRRP_SCRIPT_STATUS_INIT      1
-#define VRRP_SCRIPT_STATUS_NONE      2
-#define VRRP_SCRIPT_STATUS_GOOD      3
-#define VRRP_SCRIPT_STATUS_INIT_GOOD 4
+/* VRRP script tracking results.
+ * The result is an integer between 0 and rise-1 to indicate a DOWN state,
+ * or between rise-1 and rise+fall-1 to indicate an UP state. Upon failure,
+ * we decrease result and set it to zero when we pass below rise. Upon
+ * success, we increase result and set it to rise+fall-1 when we pass above
+ * rise-1.
+ */
+#define VRRP_SCRIPT_STATUS_DISABLED  -3
+#define VRRP_SCRIPT_STATUS_INIT_GOOD -2
+#define VRRP_SCRIPT_STATUS_INIT      -1
 
 /* external script we call to track local processes */
 typedef struct _vrrp_script {
@@ -57,8 +61,10 @@ typedef struct _vrrp_script {
 	char *script;		/* the command to be called */
 	int interval;		/* interval between script calls */
 	int weight;		/* weight associated to this script */
-	int result;		/* result of last call to this script */
+	int result;		/* result of last call to this script: 0..R-1 = KO, R..R+F-1 = OK */
 	int inuse;		/* how many users have weight>0 ? */
+	int rise;		/* R: how many successes before OK */
+	int fall;		/* F: how many failures before KO */
 } vrrp_script;
 
 /* Tracked script structure definition */

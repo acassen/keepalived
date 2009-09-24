@@ -5,7 +5,7 @@
  *
  * Part:        vrrp_ipsecah.c include file.
  * 
- * Version:     $Id: vrrp_ipsecah.h,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: vrrp_ipsecah.h,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              

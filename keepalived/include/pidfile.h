@@ -5,7 +5,7 @@
  *
  * Part:        pidfile.c include file.
  *
- * Version:     $Id: pidfile.h,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: pidfile.h,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -43,7 +43,5 @@
 extern int pidfile_write(char *pid_file, int pid);
 extern void pidfile_rm(char *pid_file);
 extern int keepalived_running(int mode);
-extern int vrrp_running(void);
-extern int checkers_running(void);
 
 #endif

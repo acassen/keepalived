@@ -5,7 +5,7 @@
  *
  * Part:        Interface tracking framework.
  *
- * Version:     $Id: vrrp_track.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: vrrp_track.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -198,7 +198,7 @@ vrrp_script_up(list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		tsc = ELEMENT_DATA(e);
-		if (!tsc->weight && tsc->scr->result == VRRP_SCRIPT_STATUS_NONE)
+		if (!tsc->weight && tsc->scr->result < tsc->scr->rise)
 			return 0;
 	}
 
@@ -219,10 +219,10 @@ vrrp_script_weight(list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		tsc = ELEMENT_DATA(e);
-		if (tsc->scr->result == VRRP_SCRIPT_STATUS_GOOD) {
+		if (tsc->scr->result >= tsc->scr->rise) {
 			if (tsc->weight > 0)
 				weight += tsc->weight;
-		} else if (tsc->scr->result == VRRP_SCRIPT_STATUS_NONE) {
+		} else if (tsc->scr->result < tsc->scr->rise) {
 			if (tsc->weight < 0)
 				weight += tsc->weight;
 		}

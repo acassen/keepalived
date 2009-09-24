@@ -28,6 +28,9 @@ AC_ARG_WITH(kernel-dir,
   [  --with-kernel-dir=DIR   path to linux kernel source directory],
   [kernelinc="$withval/include" kernelpath="$withval"],
   [kernelinc="/usr/src/linux/include" kernelpath="/usr/src/linux"])
+AC_ARG_WITH(kernel-version,
+  [  --with-kernel-version=VER forced value for linux kernel version (VER=2.2|2.4|2.6)],
+  [kernelversion="$withval"], [kernelversion=""])
 AC_ARG_ENABLE(debug,
   [  --enable-debug          compile with debugging flags])
 AC_ARG_ENABLE(profile,
@@ -54,13 +57,19 @@ AC_TRY_RUN([
     #include <stdlib.h>
     #include <stdio.h>
     #include <linux/version.h>
-    #if !defined(UTS_RELEASE)
+    #if !defined(UTS_RELEASE) && !defined(LINUX_VERSION_CODE)
     #include <linux/utsrelease.h>
     #endif
     int main (void) {
       FILE *fp = fopen ("linuxinfo", "w");
       if (!fp) return 1;
+    #if defined(UTS_RELEASE)
       fprintf (fp, "%s\n", UTS_RELEASE);
+    #elif defined(LINUX_VERSION_CODE)
+      fprintf (fp, "%d.%d.%d\n", LINUX_VERSION_CODE >> 16, (LINUX_VERSION_CODE >> 8) & 0xFF, LINUX_VERSION_CODE & 0xFF);
+    #else
+      fprintf (fp, "0.0.0\n"); /* Let's fail gently */
+    #endif
       fclose (fp); 
       return 0;
     } 
@@ -78,25 +87,30 @@ AC_TRY_RUN([
     LINUX_PATCH="0"
   ])
   rm -f linuxinfo
-  AC_MSG_RESULT([$LINUX_MAJOR.$LINUX_MINOR.$LINUX_PATCH])
-  if test "$LINUX_MINOR" = "6"; then
-    KERN="_KRNL_2_6_"
-  elif test "$LINUX_MINOR" = "4"; then
-    KERN="_KRNL_2_4_"
-  else
+
+  if test "$kernelversion" = "2.2"; then
     KERN="_KRNL_2_2_"
-  fi
-  if test "$LINUX_MAJOR" = "0" -a "$LINUX_MINOR" = "0" -a "$LINUX_PATCH" = "0"; then
-    AC_MSG_WARN([Cannot determine Linux Kernel version.])
+    AC_MSG_RESULT([2.2])
+  elif test "$kernelversion" = "2.4"; then
+    KERN="_KRNL_2_4_"
+    AC_MSG_RESULT([2.4])
+  elif test "$kernelversion" = "2.6"; then
+    KERN="_KRNL_2_6_"
+    AC_MSG_RESULT([2.6])
+  else
+    AC_MSG_RESULT([$LINUX_MAJOR.$LINUX_MINOR.$LINUX_PATCH])
+    if test "$LINUX_MINOR" = "6"; then
+      KERN="_KRNL_2_6_"
+    elif test "$LINUX_MINOR" = "4"; then
+      KERN="_KRNL_2_4_"
+    else
+      KERN="_KRNL_2_2_"
+    fi
+    if test "$LINUX_MAJOR" = "0" -a "$LINUX_MINOR" = "0" -a "$LINUX_PATCH" = "0"; then
+      AC_MSG_WARN([Cannot determine Linux Kernel version.])
+    fi
   fi
 
-AC_CHECK_FILE($kernelpath/net/core/link_watch.c, [
-                LINKWATCH_SUPPORT="_WITH_LINKWATCH_"
-              ], [
-                LINKWATCH_SUPPORT="_WITHOUT_LINKWATCH_"
-              ])
-
-AC_SUBST(LINKWATCH_SUPPORT)
 AC_SUBST(KERN)
 
 dnl ----[ Checks for LVS and VRRP support ]----
@@ -219,11 +233,6 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
   echo "Use VRRP Framework       : Yes"
 else
   echo "Use VRRP Framework       : No"
-fi
-if test "${LINKWATCH_SUPPORT}" = "_WITH_LINKWATCH_"; then
-  echo "Use LinkWatch            : Yes"
-else
-  echo "Use LinkWatch            : No"
 fi
 if test "${DFLAGS}" = "-D_DEBUG_"; then
   echo "Use Debug flags          : Yes"

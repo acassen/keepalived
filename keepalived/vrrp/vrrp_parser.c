@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: vrrp_parser.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: vrrp_parser.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -297,10 +297,13 @@ vrrp_auth_pass_handler(vector strvec)
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *str = VECTOR_SLOT(strvec, 1);
 	int max_size = sizeof (vrrp->auth_data);
-	int size;
+	int str_len = strlen(str);
 
-	size = (strlen(str) >= max_size) ? max_size : strlen(str);
-	memcpy(vrrp->auth_data, str, size);
+	if (str_len > max_size - 1)
+		str_len = max_size - 1;
+
+	memcpy(vrrp->auth_data, str, str_len);
+	vrrp->auth_data[str_len] = '\0';
 }
 static void
 vrrp_vip_handler(vector strvec)
@@ -374,6 +377,22 @@ vrrp_vscript_weight_handler(vector strvec)
 	vrrp_script *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	vscript->weight = atoi(VECTOR_SLOT(strvec, 1));
 }
+static void
+vrrp_vscript_rise_handler(vector strvec)
+{
+	vrrp_script *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+	vscript->rise = atoi(VECTOR_SLOT(strvec, 1));
+	if (vscript->rise < 1)
+		vscript->rise = 1;
+}
+static void
+vrrp_vscript_fall_handler(vector strvec)
+{
+	vrrp_script *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+	vscript->fall = atoi(VECTOR_SLOT(strvec, 1));
+	if (vscript->fall < 1)
+		vscript->fall = 1;
+}
 
 vector
 vrrp_init_keywords(void)
@@ -427,6 +446,8 @@ vrrp_init_keywords(void)
 	install_keyword("script", &vrrp_vscript_script_handler);
 	install_keyword("interval", &vrrp_vscript_interval_handler);
 	install_keyword("weight", &vrrp_vscript_weight_handler);
+	install_keyword("rise", &vrrp_vscript_rise_handler);
+	install_keyword("fall", &vrrp_vscript_fall_handler);
 
 	return keywords;
 }

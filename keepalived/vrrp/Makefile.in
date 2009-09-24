@@ -8,7 +8,7 @@ CC	 = @CC@
 INCLUDES = -I../include -I../../lib
 CFLAGS	 = @CFLAGS@ @CPPFLAGS@ $(INCLUDES) \
 	   -Wall -Wunused -Wstrict-prototypes
-DEFS	 = -D@KERN@ -D@LINKWATCH_SUPPORT@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ @DFLAGS@
+DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ @DFLAGS@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
 OBJS = 	vrrp_daemon.o vrrp_data.o vrrp_parser.o \

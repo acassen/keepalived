@@ -5,7 +5,7 @@
  *
  * Part:        Sheduling framework for vrrp code.
  *
- * Version:     $Id: vrrp_scheduler.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: vrrp_scheduler.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -298,10 +298,10 @@ vrrp_init_script(list l)
 			vscript->result = VRRP_SCRIPT_STATUS_DISABLED;
 
 		if (vscript->result == VRRP_SCRIPT_STATUS_INIT) {
-			vscript->result = VRRP_SCRIPT_STATUS_NONE;
+			vscript->result = vscript->rise - 1; /* one success is enough */
 			thread_add_event(master, vrrp_script_thread, vscript, vscript->interval);
 		} else if (vscript->result == VRRP_SCRIPT_STATUS_INIT_GOOD) {
-			vscript->result = VRRP_SCRIPT_STATUS_GOOD;
+			vscript->result = vscript->rise; /* one failure is enough */
 			thread_add_event(master, vrrp_script_thread, vscript, vscript->interval);
 		}
 	}
@@ -464,7 +464,7 @@ vrrp_open_sockpool(list l)
 			sock_obj->fd_out = -1;
 		else
 			sock_obj->fd_out = open_vrrp_send_socket(sock_obj->proto,
-							     sock_obj->ifindex);
+								 sock_obj->ifindex);
 	}
 }
 
@@ -650,6 +650,8 @@ vrrp_goto_master(vrrp_rt * vrrp)
 		vrrp_log_int_down(vrrp);
 		log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state",
 		       vrrp->iname);
+		if (vrrp->state != VRRP_STATE_FAULT)
+			notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 		vrrp->state = VRRP_STATE_FAULT;
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
@@ -912,7 +914,7 @@ static int
 vrrp_script_thread(thread * thread_obj)
 {
 	vrrp_script *vscript = THREAD_ARG(thread_obj);
-	int status;
+	int status, ret;
 	pid_t pid;
 
 	/* Register next timer tracker */
@@ -941,8 +943,8 @@ vrrp_script_thread(thread * thread_obj)
 	signal_handler_destroy();
 	closeall(0);
 	open("/dev/null", O_RDWR);
-	dup(0);
-	dup(0);
+	ret = dup(0);
+	ret = dup(0);
 
 	status = system_call(vscript->script);
 
@@ -966,7 +968,13 @@ vrrp_script_child_thread(thread * thread_obj)
 		pid = THREAD_CHILD_PID(thread_obj);
 
 		/* The child hasn't responded. Kill it off. */
-		vscript->result = VRRP_SCRIPT_STATUS_NONE;
+		if (vscript->result > vscript->rise) {
+			vscript->result--;
+		} else {
+			if (vscript->result == vscript->rise)
+				log_message(LOG_INFO, "VRRP_Script(%s) timed out", vscript->sname);
+			vscript->result = 0;
+		}
 		kill(pid, SIGTERM);
 		thread_add_child(thread_obj->master, vrrp_script_child_timeout_thread,
 				 vscript, pid, 2);
@@ -978,15 +986,26 @@ vrrp_script_child_thread(thread * thread_obj)
 	if (WIFEXITED(wait_status)) {
 		int status;
 		status = WEXITSTATUS(wait_status);
-		if (status == 0 && vscript->result != VRRP_SCRIPT_STATUS_GOOD) {
-			log_message(LOG_INFO, "VRRP_Script(%s) succeeded", vscript->sname);
+		if (status == 0) {
+			/* success */
+			if (vscript->result < vscript->rise - 1) {
+				vscript->result++;
+			} else {
+				if (vscript->result < vscript->rise)
+					log_message(LOG_INFO, "VRRP_Script(%s) succeeded", vscript->sname);
+				vscript->result = vscript->rise + vscript->fall - 1;
+			}
+		} else {
+			/* failure */
+			if (vscript->result > vscript->rise) {
+				vscript->result--;
+			} else {
+				if (vscript->result >= vscript->rise)
+					log_message(LOG_INFO, "VRRP_Script(%s) failed", vscript->sname);
+				vscript->result = 0;
+			}
 		}
-		if (status != 0 && vscript->result != VRRP_SCRIPT_STATUS_NONE) {
-			log_message(LOG_INFO, "VRRP_Script(%s) failed", vscript->sname);
-		}
-		vscript->result = (status == 0) ?  VRRP_SCRIPT_STATUS_GOOD :
-						   VRRP_SCRIPT_STATUS_NONE;
-       }
+	}
 
 	return 0;
 }

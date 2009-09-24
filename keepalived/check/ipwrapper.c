@@ -5,7 +5,7 @@
  *
  * Part:        Manipulation functions for IPVS & IPFW wrappers.
  *
- * Version:     $Id: ipwrapper.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: ipwrapper.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -209,6 +209,8 @@ init_service_vs(virtual_server * vs)
 
 	/* Processing real server queue */
 	if (!LIST_ISEMPTY(vs->rs))
+		if (vs->alpha)
+			vs->quorum_state = DOWN;
 		if (!init_service_rs(vs))
 			return 0;
 	return 1;
@@ -259,7 +261,10 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 		 * we remove it from the vs pool.
 		 */
 		if (vs->s_svr) {
-			if (ISALIVE(vs->s_svr)) {
+			if (ISALIVE(vs->s_svr) &&
+			    (vs->quorum_state == UP ||
+			     (weigh_live_realservers(vs) + rs->weight >=
+			      vs->quorum + vs->hysteresis))) {
 				log_message(LOG_INFO,
 				       "Removing sorry server [%s:%d] from VS [%s:%d]",
 				       inet_ntoa2(SVR_IP(vs->s_svr), rsip)

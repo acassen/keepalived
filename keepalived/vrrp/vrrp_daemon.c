@@ -5,7 +5,7 @@
  *
  * Part:        VRRP child process handling.
  *
- * Version:     $Id: vrrp_daemon.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: vrrp_daemon.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -53,6 +53,7 @@ stop_vrrp(void)
 {
 	/* Destroy master thread */
 	signal_handler_destroy();
+	free_vrrp_sockpool(vrrp_data);
 	thread_destroy_master(master);
 
 	/* Clear static entries */
@@ -138,17 +139,60 @@ start_vrrp(void)
 		dump_vrrp_data(vrrp_data);
 	}
 
+	/* Initialize linkbeat */
+	init_interface_linkbeat();
+
 	/* Init & start the VRRP packet dispatcher */
 	thread_add_event(master, vrrp_dispatcher_init, NULL,
 			 VRRP_DISPATCHER);
 }
 
 /* Reload handler */
+int reload_vrrp_thread(thread * thread_obj);
+void
+sighup_vrrp(void *v, int sig)
+{
+	log_message(LOG_INFO, "Reloading VRRP child process(%d) on signal",
+		    getpid());
+	thread_add_event(master, reload_vrrp_thread, NULL, 0);
+}
+
+/* Terminate handler */
+void
+sigend_vrrp(void *v, int sig)
+{
+	log_message(LOG_INFO, "Terminating VRRP child process on signal");
+	if (master)
+		thread_add_terminate_event(master);
+}
+
+/* VRRP Child signal handling */
+void
+vrrp_signal_init(void)
+{
+	signal_handler_init();
+	signal_set(SIGHUP, sighup_vrrp, NULL);
+	signal_set(SIGINT, sigend_vrrp, NULL);
+	signal_set(SIGTERM, sigend_vrrp, NULL);
+	signal_ignore(SIGPIPE);
+}
+
+/* Reload thread */
 int
 reload_vrrp_thread(thread * thread_obj)
 {
 	/* set the reloading flag */
 	SET_RELOAD;
+
+	/* Close sockpool */
+	free_vrrp_sockpool(vrrp_data);
+
+	/* Signal handling */
+	signal_reset();
+	signal_set(SIGHUP, sighup_vrrp, NULL);
+	signal_set(SIGINT, sigend_vrrp, NULL);
+	signal_set(SIGTERM, sigend_vrrp, NULL);
+	signal_ignore(SIGPIPE);
 
 	/* Destroy master thread */
 	thread_destroy_master(master);
@@ -176,35 +220,6 @@ reload_vrrp_thread(thread * thread_obj)
 	UNSET_RELOAD;
 
 	return 0;
-}
-
-/* Reload handler */
-void
-sighup_vrrp(void *v, int sig)
-{
-	log_message(LOG_INFO, "Reloading VRRP child process(%d) on signal",
-	       vrrp_child);
-	thread_add_event(master, reload_vrrp_thread, NULL, 0);
-}
-
-/* Terminate handler */
-void
-sigend_vrrp(void *v, int sig)
-{
-	log_message(LOG_INFO, "Terminating VRRP child process on signal");
-	if (master)
-		thread_add_terminate_event(master);
-}
-
-/* VRRP Child signal handling */
-void
-vrrp_signal_init(void)
-{
-	signal_handler_init();
-	signal_set(SIGHUP, sighup_vrrp, NULL);
-	signal_set(SIGINT, sigend_vrrp, NULL);
-	signal_set(SIGTERM, sigend_vrrp, NULL);
-	signal_ignore(SIGPIPE);
 }
 
 /* VRRP Child respawning thread */
@@ -235,15 +250,8 @@ start_vrrp_child(void)
 {
 #ifndef _DEBUG_
 	pid_t pid;
-#endif
+	int ret;
 
-	/* Dont start if pid is already running */
-	if (vrrp_running()) {
-		log_message(LOG_INFO, "VRRP child process already running");
-		return -1;
-	}
-
-#ifndef _DEBUG_
 	/* Initialize child process */
 	pid = fork();
 
@@ -279,11 +287,16 @@ start_vrrp_child(void)
 	master = thread_make_master();
 
 	/* change to / dir */
-	chdir("/");
+	ret = chdir("/");
 
 	/* Set mask */
 	umask(0);
 #endif
+
+	/* If last process died during a reload, we can get there and we
+	 * don't want to loop again, because we're not reloading anymore.
+	 */
+	UNSET_RELOAD;
 
 	/* Signal handling initialization */
 	vrrp_signal_init();

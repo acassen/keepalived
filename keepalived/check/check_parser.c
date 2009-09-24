@@ -7,7 +7,7 @@
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
  *  
- * Version:     $Id: check_parser.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: check_parser.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  * 
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              
@@ -33,6 +33,7 @@
 #include "parser.h"
 #include "memory.h"
 #include "utils.h"
+#include "ipwrapper.h"
 
 /* SSL handlers */
 static void
@@ -224,6 +225,7 @@ alpha_handler(vector strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->alpha = 1;
+	vs->quorum_state = DOWN;
 }
 static void
 omega_handler(vector strvec)

@@ -4,6 +4,8 @@ vrrp_script chk_sshd {
        script "killall -0 sshd"        # cheaper than pidof
        interval 2                      # check every 2 seconds
        weight -4                       # default prio: -4 if KO
+       fall 2                          # require 2 failures for KO
+       rise 2                          # require 2 successes for OK
 }
 
 vrrp_script chk_haproxy {

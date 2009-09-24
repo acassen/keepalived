@@ -6,7 +6,7 @@
  * Part:        MISC CHECK. Perform a system call to run an extra
  *              system prog or script.
  *
- * Version:     $Id: check_misc.c,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: check_misc.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
@@ -109,7 +109,7 @@ misc_check_thread(thread * thread_obj)
 {
 	checker *checker_obj;
 	misc_checker *misc_chk;
-	int status;
+	int status, ret;
 	pid_t pid;
 
 	checker_obj = THREAD_ARG(thread_obj);
@@ -154,8 +154,8 @@ misc_check_thread(thread * thread_obj)
 	closeall(0);
 
 	open("/dev/null", O_RDWR);
-	dup(0);
-	dup(0);
+	ret = dup(0);
+	ret = dup(0);
 
 	status = system_call(misc_chk->path);
 

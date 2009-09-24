@@ -34,6 +34,8 @@ global_defs {				# Block identification
     router_id <STRING>			   # String identifying router
 }
 
+vrrp_linkbeat_use_polling	# Use media link failure detection polling fashion
+
 	1.2. Static addresses
 
 	The configuration block looks like :
@@ -82,10 +84,12 @@ This block is divided in 3 sub-block :
 
 	The configuration block looks like :
 
-vrrp_script <STRING> {         # VRRP script declaration
-    script <QUOTED_STRING>     # script to run periodically
-    interval <INTEGER>         # run the script this every seconds
+vrrp_script <STRING> {          # VRRP script declaration
+    script <QUOTED_STRING>      # script to run periodically
+    interval <INTEGER>          # run the script this every seconds
     weight <INTEGER:-254..254>  # adjust priority by this weight
+    fall <INTEGER>              # required number of failures for KO switch
+    rise <INTEGER>              # required number of successes for OK switch
 }
 
 The script will be executed periodically, every <interval> seconds. Its exit

@@ -5,7 +5,7 @@
  * 
  * Part:        signals.c include file.
  *  
- * Version:     $Id: signals.h,v 1.1.17 2009/03/05 01:31:12 acassen Exp $
+ * Version:     $Id: signals.h,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
  *
  * Author:      Kevin Lindsay, <kevinl@netnation.com>
  *              Alexandre Cassen, <acassen@linux-vs.org>
@@ -32,7 +32,9 @@ extern void *signal_set(int signo, void (*func) (void *, int), void *);
 extern void *signal_ignore(int signo);
 extern void signal_handler_init(void);
 extern void signal_handler_destroy(void);
+extern void signal_reset(void);
 extern void signal_run_callback(void);
+extern void signal_wait_handlers(void);
 
 extern int signal_rfd(void);
 
