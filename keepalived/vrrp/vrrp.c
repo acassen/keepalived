@@ -881,7 +881,8 @@ vrrp_state_fault_rx(vrrp_rt * vrrp, char *buf, int buflen)
 		return 0;
 	} else if (vrrp->effective_priority > hd->priority ||
 		   hd->priority == VRRP_PRIO_OWNER)
-		return 1;
+		if (!vrrp->nopreempt)
+			return 1;
 
 	return 0;
 }
