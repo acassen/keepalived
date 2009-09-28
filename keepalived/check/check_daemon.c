@@ -194,6 +194,7 @@ reload_check_thread(thread * thread_obj)
 
 	/* Reload the conf */
 	mem_allocated = 0;
+	check_signal_init();
 	start_check();
 
 	/* free backup data */

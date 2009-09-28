@@ -213,6 +213,7 @@ reload_vrrp_thread(thread * thread_obj)
 
 	/* Reload the conf */
 	mem_allocated = 0;
+	vrrp_signal_init();
 	start_vrrp();
 
 	/* free backup data */
