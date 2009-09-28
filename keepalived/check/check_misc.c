@@ -6,8 +6,6 @@
  * Part:        MISC CHECK. Perform a system call to run an extra
  *              system prog or script.
  *
- * Version:     $Id: check_misc.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
- *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *              Eric Jarman, <ehj38230@cmsu2.cmsu.edu>
  *		Bradley Baetz, <bradley.baetz@optusnet.com.au>

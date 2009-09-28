@@ -5,8 +5,6 @@
  *
  * Part:        check_smtp.c include file.
  *
- * Version:     $Id: check_smtp.h,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
- *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *              Jeremy Rumpf, <jrumpf@heavyload.net>
  *

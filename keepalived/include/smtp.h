@@ -5,8 +5,6 @@
  *
  * Part:        smtp.c include file.
  *
- * Version:     $Id: smtp.h,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
- *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
  *              This program is distributed in the hope that it will be useful,

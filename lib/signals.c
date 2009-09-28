@@ -5,8 +5,6 @@
  * 
  * Part:        Signals framework.
  *  
- * Version:     $Id: signals.c,v 1.1.18 2009/09/24 06:19:31 acassen Exp $
- * 
  * Author:      Kevin Lindsay, <kevinl@netnation.com>
  *              Alexandre Cassen, <acassen@linux-vs.org>
  *              
