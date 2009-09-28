@@ -154,7 +154,10 @@ typedef struct _check_conf_data {
 			 (X)->nat_mask                == (Y)->nat_mask &&		\
 			 (X)->granularity_persistence == (Y)->granularity_persistence &&\
 			 !strcmp((X)->sched, (Y)->sched) &&				\
-			 !strcmp((X)->timeout_persistence, (Y)->timeout_persistence))
+			 !strcmp((X)->timeout_persistence, (Y)->timeout_persistence) && \
+			 (((X)->vsgname && (Y)->vsgname &&				\
+			 !strcmp((X)->vsgname, (Y)->vsgname)) ||			\
+			 (!(X)->vsgname && !(Y)->vsgname)))
 
 #define VSGE_ISEQ(X,Y)	((X)->addr_ip   == (Y)->addr_ip &&	\
 			 (X)->range     == (Y)->range &&	\
