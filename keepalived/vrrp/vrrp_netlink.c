@@ -312,15 +312,12 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			}
 
 			/* Skip unsolicited messages from cmd channel */
-			if (nl != &nl_cmd && h->nlmsg_pid == nl_cmd.snl.nl_pid) {
-				log_message(LOG_INFO, "Netlink: skipping nl_cmd msg...");
+			if (nl != &nl_cmd && h->nlmsg_pid == nl_cmd.snl.nl_pid)
 				continue;
-			}
 
 			error = (*filter) (&snl, h);
 			if (error < 0) {
-				log_message(LOG_INFO,
-				       "Netlink: filter function error");
+				log_message(LOG_INFO, "Netlink: filter function error");
 				ret = error;
 			}
 		}
