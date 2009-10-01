@@ -206,11 +206,12 @@ init_service_vs(virtual_server * vs)
 	}
 
 	/* Processing real server queue */
-	if (!LIST_ISEMPTY(vs->rs))
+	if (!LIST_ISEMPTY(vs->rs)) {
 		if (vs->alpha)
 			vs->quorum_state = DOWN;
 		if (!init_service_rs(vs))
 			return 0;
+	}
 	return 1;
 }
 
