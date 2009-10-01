@@ -1,3 +1,16 @@
+2009-10-01  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.19 released.
+	* Cosmetics changes.
+	* Vincent Bernat <bernat <at> luffy.cx> fix a segfault
+	  when there is no real server for a virtual server.
+	* Vincent Bernat <bernat <at> luffy.cx>, Willy Tarreau
+	  and I finally fixed SIGCHLD handling upon reload.
+	* Vincent Bernat <bernat <at> luffy.cx> fix VS_ISEQ macro.
+	* VRRP : Kimitoshi Takahashi <ktaka <at> clustcom.com>
+	  fixed nopreempt from FAULT state. The owner of higher
+	  priority in FAULT state shouldn't preempt current MASTER
+	  when it's recovering, if the nopreempt option is set.
+
 2009-09-24  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.18 released.
 	* Fixed compilation warnings

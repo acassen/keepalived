@@ -55,7 +55,7 @@ install:
 tarball: mrproper
 	mkdir keepalived-@VERSION@
 	cp -a $(TARFILES) keepalived-@VERSION@
-	tar --exclude CVS -czf $(TARBALL) keepalived-@VERSION@
+	tar --exclude .git -czf $(TARBALL) keepalived-@VERSION@
 	rm -rf keepalived-@VERSION@
 
 rpm:
