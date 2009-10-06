@@ -1108,6 +1108,7 @@ reset_vrrp_state(vrrp_rt * old_vrrp)
 	vrrp->state = old_vrrp->state;
 	vrrp->init_state = old_vrrp->state;
 	vrrp->wantstate = old_vrrp->state;
+	vrrp->effective_priority = old_vrrp->effective_priority;
 	memcpy(vrrp->ipsecah_counter, old_vrrp->ipsecah_counter, sizeof(seq_counter));
 
 #ifdef _HAVE_IPVS_SYNCD_
