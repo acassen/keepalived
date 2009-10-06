@@ -1191,7 +1191,6 @@ clear_diff_script(void)
 				log_message(LOG_INFO, "VRRP_Script(%s) considered successful on reload",
 					   nvscript->sname);
 				nvscript->result = nvscript->rise;
-				break;
 			}
 		}
 	}
