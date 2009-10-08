@@ -194,7 +194,12 @@ ipvs_stop(void)
 static int
 ipvs_talk(int cmd)
 {
-	if (ipvs_command(cmd, urule))
+	int result;
+	if (result = ipvs_command(cmd, urule))
+		if ((cmd == IP_VS_SO_SET_EDITDEST) &&
+		    (errno == ENOENT))
+			result = ipvs_command(IP_VS_SO_SET_ADDDEST, urule);
+	if (result)
 		log_message(LOG_INFO, "IPVS : %s", ipvs_strerror(errno));
 	return IPVS_SUCCESS;
 }
@@ -497,7 +502,9 @@ ipvs_talk(int cmd)
 			result = ipvs_del_dest(srule, drule);
 			break;
 		case IP_VS_SO_SET_EDITDEST:
-			result = ipvs_update_dest(srule, drule);
+			if ((result = ipvs_update_dest(srule, drule)) &&
+			    (errno == ENOENT))
+				result = ipvs_add_dest(srule, drule);
 			break;
 	}
 
