@@ -222,17 +222,21 @@ init_services(void)
 	element e;
 	list l = check_data->vs;
 	virtual_server *vs;
+#ifdef _KRNL_2_2_
 	real_server *rs;
+#endif
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
-		rs = ELEMENT_DATA(LIST_HEAD(vs->rs));
 		if (!init_service_vs(vs))
 			return 0;
 #ifdef _KRNL_2_2_
 		/* work if all realserver ip address are in the
 		 * same network (it is assumed).
 		 */
+		if (LIST_ISEMPTY(vs->rs))
+			continue;
+		rs = ELEMENT_DATA(LIST_HEAD(vs->rs));
 		if (vs->nat_mask != HOST_NETMASK)
 			if (!ipfw_cmd(IP_FW_CMD_ADD, vs, rs))
 				return 0;
