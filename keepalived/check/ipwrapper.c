@@ -210,6 +210,33 @@ init_services(void)
 	return 1;
 }
 
+/* add or remove _alive_ real servers from a virtual server */
+void
+perform_quorum_state(virtual_server *vs, int add)
+{
+	element e;
+	real_server *rs;
+	char vsip[16];
+	if (LIST_ISEMPTY(vs->rs))
+		return;
+	log_message(LOG_INFO,
+	       "%s the pool for VS [%s:%d]"
+	       , add?"Adding alive servers to":"Removing alive servers from"
+	       , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
+	       , ntohs(SVR_PORT(vs)));
+	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
+		rs = ELEMENT_DATA(e);
+		if (!ISALIVE(rs)) /* We only handle alive servers */
+			continue;
+		if (!(add ^ rs->set)) /* Already done */
+			continue;
+		if (add) rs->alive = 0;
+		ipvs_cmd(add?LVS_CMD_ADD_DEST:LVS_CMD_DEL_DEST,
+			 check_data->vs_group, vs, rs);
+		rs->alive = 1;
+	}
+}
+
 /* manipulate add/remove rs according to alive state */
 void
 perform_svr_state(int alive, virtual_server * vs, real_server * rs)
@@ -254,7 +281,10 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 		       , ntohs(SVR_PORT(rs))
 		       , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
 		       , ntohs(SVR_PORT(vs)));
-		ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, rs);
+		/* Add only if we have quorum or no sorry server */
+		if (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)) {
+			ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, rs);
+		}
 		rs->alive = alive;
 		if (rs->notify_up) {
 			log_message(LOG_INFO, "Executing [%s] for service [%s:%d]"
@@ -277,6 +307,9 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 				    , weigh_live_realservers(vs)
 				    , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
 				    , ntohs(SVR_PORT(vs)));
+			if (vs->s_svr)
+				/* Adding back alive real servers */
+				perform_quorum_state(vs, 1);
 			if (vs->quorum_up) {
 				log_message(LOG_INFO, "Executing [%s] for VS [%s:%d]"
 					    , vs->quorum_up
@@ -298,7 +331,10 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 		       , ntohs(SVR_PORT(vs)));
 
 		/* server is down, it is removed from the LVS realserver pool */
-		ipvs_cmd(LVS_CMD_DEL_DEST, check_data->vs_group, vs, rs);
+		/* Remove only if we have quorum or no sorry server */
+		if (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)) {
+			ipvs_cmd(LVS_CMD_DEL_DEST, check_data->vs_group, vs, rs);
+		}
 		rs->alive = alive;
 		if (rs->notify_down) {
 			log_message(LOG_INFO, "Executing [%s] for service [%s:%d]"
@@ -342,6 +378,9 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 				/* the sorry server is now up in the pool, we flag it alive */
 				ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, vs->s_svr);
 				vs->s_svr->alive = 1;
+
+				/* Remove remaining alive real servers */
+				perform_quorum_state(vs, 0);
 			}
 		}
 	}
