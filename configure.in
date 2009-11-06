@@ -29,7 +29,7 @@ AC_ARG_WITH(kernel-dir,
   [kernelinc="$withval/include" kernelpath="$withval"],
   [kernelinc="/usr/src/linux/include" kernelpath="/usr/src/linux"])
 AC_ARG_WITH(kernel-version,
-  [  --with-kernel-version=VER forced value for linux kernel version (VER=2.2|2.4|2.6)],
+  [  --with-kernel-version=VER forced value for linux kernel version (VER=2.4|2.6)],
   [kernelversion="$withval"], [kernelversion=""])
 AC_ARG_ENABLE(debug,
   [  --enable-debug          compile with debugging flags])
@@ -88,10 +88,7 @@ AC_TRY_RUN([
   ])
   rm -f linuxinfo
 
-  if test "$kernelversion" = "2.2"; then
-    KERN="_KRNL_2_2_"
-    AC_MSG_RESULT([2.2])
-  elif test "$kernelversion" = "2.4"; then
+  if test "$kernelversion" = "2.4"; then
     KERN="_KRNL_2_4_"
     AC_MSG_RESULT([2.4])
   elif test "$kernelversion" = "2.6"; then
@@ -104,7 +101,7 @@ AC_TRY_RUN([
     elif test "$LINUX_MINOR" = "4"; then
       KERN="_KRNL_2_4_"
     else
-      KERN="_KRNL_2_2_"
+      KERN="_KRNL_2_6_"
     fi
     if test "$LINUX_MAJOR" = "0" -a "$LINUX_MINOR" = "0" -a "$LINUX_PATCH" = "0"; then
       AC_MSG_WARN([Cannot determine Linux Kernel version.])

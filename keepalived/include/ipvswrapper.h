@@ -38,10 +38,7 @@
 #include <sys/wait.h>
 
 #ifdef _WITH_LVS_
-#ifdef _KRNL_2_2_
-  #include <linux/ip_fw.h>
-  #include <net/ip_masq.h>
-#elif _KRNL_2_4_
+#ifdef _KRNL_2_4_
   #include "../libipvs-2.4/libipvs.h"
 #elif _KRNL_2_6_
   #include "../libipvs-2.6/libipvs.h"

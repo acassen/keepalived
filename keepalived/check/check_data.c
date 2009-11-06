@@ -201,19 +201,6 @@ dump_vs(void *data)
 
 	switch (vs->loadbalancing_kind) {
 #ifdef _WITH_LVS_
-#ifdef _KRNL_2_2_
-	case 0:
-		log_message(LOG_INFO, "   lb_kind = NAT");
-		if (vs->nat_mask)
-			log_message(LOG_INFO, "   nat mask = %s", inet_ntop2(vs->nat_mask));
-		break;
-	case IP_MASQ_F_VS_DROUTE:
-		log_message(LOG_INFO, "   lb_kind = DR");
-		break;
-	case IP_MASQ_F_VS_TUNNEL:
-		log_message(LOG_INFO, "   lb_kind = TUN");
-		break;
-#else
 	case IP_VS_CONN_F_MASQ:
 		log_message(LOG_INFO, "   lb_kind = NAT");
 		break;
@@ -223,7 +210,6 @@ dump_vs(void *data)
 	case IP_VS_CONN_F_TUNNEL:
 		log_message(LOG_INFO, "   lb_kind = TUN");
 		break;
-#endif
 #endif
 	}
 

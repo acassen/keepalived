@@ -16,11 +16,6 @@ OBJS = 	check_daemon.o check_data.o check_parser.o \
 	check_api.o check_tcp.o check_http.o check_ssl.o \
 	check_smtp.o check_misc.o ipwrapper.o ipvswrapper.o
 
-ifeq ($(KERNEL),_KRNL_2_2_)
-  OBJS += ipfwwrapper.o
-  HEADERS += ipfwwrapper.h
-endif
-
 HEADERS = $(OBJS:.o=.h)
 
 .c.o:

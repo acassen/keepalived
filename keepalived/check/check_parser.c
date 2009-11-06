@@ -98,21 +98,12 @@ lbkind_handler(vector strvec)
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = VECTOR_SLOT(strvec, 1);
 
-#ifdef _KRNL_2_2_
-	if (!strcmp(str, "NAT"))
-		vs->loadbalancing_kind = 0;
-	else if (!strcmp(str, "DR"))
-		vs->loadbalancing_kind = IP_MASQ_F_VS_DROUTE;
-	else if (!strcmp(str, "TUN"))
-		vs->loadbalancing_kind = IP_MASQ_F_VS_TUNNEL;
-#else
 	if (!strcmp(str, "NAT"))
 		vs->loadbalancing_kind = IP_VS_CONN_F_MASQ;
 	else if (!strcmp(str, "DR"))
 		vs->loadbalancing_kind = IP_VS_CONN_F_DROUTE;
 	else if (!strcmp(str, "TUN"))
 		vs->loadbalancing_kind = IP_VS_CONN_F_TUNNEL;
-#endif
 	else
 		log_message(LOG_INFO, "PARSER : unknown [%s] routing method.", str);
 }

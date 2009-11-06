@@ -92,14 +92,6 @@ clear_service_rs(list vs_group, virtual_server * vs, list l)
 				notify_exec(vs->quorum_down);
 			}
 		}
-#ifdef _KRNL_2_2_
-		/* if we have a /32 mask, we create one nat rules per
-		 * realserver.
-		 */
-		if (vs->nat_mask == HOST_NETMASK)
-			if (!ipfw_cmd(IP_FW_CMD_DEL, vs, rs))
-				return 0;
-#endif
 	}
 	return 1;
 }
@@ -143,11 +135,6 @@ clear_services(void)
 		rs = ELEMENT_DATA(LIST_HEAD(vs->rs));
 		if (!clear_service_vs(check_data->vs_group, vs))
 			return 0;
-#ifdef _KRNL_2_2_
-		if (vs->nat_mask != HOST_NETMASK)
-			if (!ipfw_cmd(IP_FW_CMD_DEL, vs, rs))
-				return 0;
-#endif
 	}
 	return 1;
 }
@@ -180,14 +167,6 @@ init_service_rs(virtual_server * vs)
 				return 0;
 			SET_ALIVE(rs);
 		}
-#ifdef _KRNL_2_2_
-		/* if we have a /32 mask, we create one nat rules per
-		 * realserver.
-		 */
-		if (vs->nat_mask == HOST_NETMASK)
-			if (!ipfw_cmd(IP_FW_CMD_ADD, vs, rs))
-				return 0;
-#endif
 	}
 
 	return 1;
@@ -222,25 +201,11 @@ init_services(void)
 	element e;
 	list l = check_data->vs;
 	virtual_server *vs;
-#ifdef _KRNL_2_2_
-	real_server *rs;
-#endif
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
 		if (!init_service_vs(vs))
 			return 0;
-#ifdef _KRNL_2_2_
-		/* work if all realserver ip address are in the
-		 * same network (it is assumed).
-		 */
-		if (LIST_ISEMPTY(vs->rs))
-			continue;
-		rs = ELEMENT_DATA(LIST_HEAD(vs->rs));
-		if (vs->nat_mask != HOST_NETMASK)
-			if (!ipfw_cmd(IP_FW_CMD_ADD, vs, rs))
-				return 0;
-#endif
 	}
 	return 1;
 }
@@ -280,9 +245,6 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 					 , vs
 					 , vs->s_svr);
 				vs->s_svr->alive = 0;
-#ifdef _KRNL_2_2_
-				ipfw_cmd(IP_FW_CMD_DEL, vs, vs->s_svr);
-#endif
 			}
 		}
 
@@ -323,10 +285,6 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 				notify_exec(vs->quorum_up);
 			}
 		}
-#ifdef _KRNL_2_2_
-		if (vs->nat_mask == HOST_NETMASK)
-			ipfw_cmd(IP_FW_CMD_ADD, vs, rs);
-#endif
 		return;
 	}
 
@@ -352,12 +310,6 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 			       , ntohs(SVR_PORT(vs)));
 			notify_exec(rs->notify_down);
 		}
-
-#ifdef _KRNL_2_2_
-		if (vs->nat_mask == HOST_NETMASK)
-			ipfw_cmd(IP_FW_CMD_DEL, vs, rs);
-#endif
-
 
 		/* If we have just lost quorum for the VS, we need to consider
 		 * VS notify_down and sorry_server cases
@@ -390,10 +342,6 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 				/* the sorry server is now up in the pool, we flag it alive */
 				ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, vs->s_svr);
 				vs->s_svr->alive = 1;
-
- #ifdef _KRNL_2_2_
-				ipfw_cmd(IP_FW_CMD_ADD, vs, vs->s_svr);
- #endif
 			}
 		}
 	}

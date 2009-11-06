@@ -32,16 +32,10 @@
 #include <openssl/ssl.h>
 
 #ifdef _WITH_LVS_
-#ifdef _KRNL_2_2_
-#include <linux/ip_masq.h>
-#include <net/ip_masq.h>
-#define SCHED_MAX_LENGTH IP_MASQ_TNAME_MAX
+  #define SCHED_MAX_LENGTH IP_VS_SCHEDNAME_MAXLEN
+  #include <net/ip_vs.h>
 #else
-#define SCHED_MAX_LENGTH IP_VS_SCHEDNAME_MAXLEN
-#endif
-#include <net/ip_vs.h>
-#else
-#define SCHED_MAX_LENGTH   1
+  #define SCHED_MAX_LENGTH   1
 #endif
 
 /* local includes */
