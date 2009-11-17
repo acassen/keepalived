@@ -125,6 +125,13 @@ alloc_ipaddress(list ip_list, vector strvec, interface *ifp)
 		new->ifindex = IF_INDEX(ifp);
 	} else {
 		new->ifp = if_get_by_ifname(DFLT_INT);
+		if (!new->ifp) {
+			log_message(LOG_INFO, "Default interface " DFLT_INT
+				    " does not exist and no interface specified. "
+				    "Skip VRRP address.");
+			FREE(new);
+			return;
+		}
 		new->ifindex = IF_INDEX(new->ifp);
 	}
 
