@@ -329,9 +329,8 @@ smtp_final(thread *thread_obj, int error, const char *format, ...)
 
 			smtp_buff[542 - 1] = '\0';
 			smtp_alert(chk->rs, NULL, NULL, "DOWN", smtp_buff);
+			update_svr_checker_state(DOWN, chk->id, chk->vs, chk->rs);
 		}
-
-		update_svr_checker_state(DOWN, chk->id, chk->vs, chk->rs);
 
 		/* Reset everything back to the first host in the list */
 		smtp_chk->attempts = 0;
