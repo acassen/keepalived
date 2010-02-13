@@ -187,10 +187,7 @@ reload_vrrp_thread(thread * thread_obj)
 
 	/* Signal handling */
 	signal_reset();
-	signal_set(SIGHUP, sighup_vrrp, NULL);
-	signal_set(SIGINT, sigend_vrrp, NULL);
-	signal_set(SIGTERM, sigend_vrrp, NULL);
-	signal_ignore(SIGPIPE);
+	signal_handler_destroy();
 
 	/* Destroy master thread */
 	thread_destroy_master(master);

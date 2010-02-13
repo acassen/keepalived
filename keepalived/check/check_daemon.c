@@ -170,10 +170,7 @@ reload_check_thread(thread * thread_obj)
 
 	/* Signals handling */
 	signal_reset();
-	signal_set(SIGHUP, sighup_check, NULL);
-	signal_set(SIGINT, sigend_check, NULL);
-	signal_set(SIGTERM, sigend_check, NULL);
-	signal_ignore(SIGPIPE);
+	signal_handler_destroy();
 
 	/* Destroy master thread */
 	thread_destroy_master(master);
