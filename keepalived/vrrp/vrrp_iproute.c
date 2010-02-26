@@ -192,6 +192,7 @@ alloc_route(list rt_list, vector strvec)
 		if (!strcmp(str, "blackhole")) {
 			new->blackhole = 1;
 			inet_ston(VECTOR_SLOT(strvec, ++i), &new->dst);
+			new->dmask = inet_stom(VECTOR_SLOT(strvec, i));
 		} else if (!strcmp(str, "via") || !strcmp(str, "gw")) {
 			inet_ston(VECTOR_SLOT(strvec, ++i), &new->gw);
 		} else if (!strcmp(str, "or")) {
