@@ -118,7 +118,10 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 		req_obj->ssl = 1;
 		break;
 	case 's':
-		inet_ston(optarg, &req_obj->addr_ip);
+		if (!inet_ston(optarg, &req_obj->addr_ip)) {
+			fprintf(stderr, "server should be an IP, not %s\n", optarg);
+			return CMD_LINE_ERROR;
+		}
 		break;
 	case 'V':
 		req_obj->vhost = optarg;
@@ -138,7 +141,10 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 			req_obj->ssl = 1;
 			break;
 		case 's':
-			inet_ston(optarg, &req_obj->addr_ip);
+			if (!inet_ston(optarg, &req_obj->addr_ip)) {
+				fprintf(stderr, "server should be an IP, not %s\n", optarg);
+				return CMD_LINE_ERROR;
+			}
 			break;
 		case 'V':
 			req_obj->vhost = optarg;
@@ -157,7 +163,7 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 
 	/* check unexpected arguments */
 	if ((optarg = (char *) poptGetArg(context))) {
-		fprintf(stderr, "unexpected argument %s", optarg);
+		fprintf(stderr, "unexpected argument %s\n", optarg);
 		return CMD_LINE_ERROR;
 	}
 
