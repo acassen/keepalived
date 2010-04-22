@@ -102,10 +102,14 @@ void
 dump_ipaddress(void *if_data_obj)
 {
 	ip_address *ip_addr = if_data_obj;
-	log_message(LOG_INFO, "     %s/%d brd %s dev %s scope %s%s%s"
+	char broadcast[21] = "";
+	if (ip_addr->broadcast)
+		snprintf(broadcast, sizeof(broadcast), " brd %s",
+			 inet_ntop2(ip_addr->broadcast));
+	log_message(LOG_INFO, "     %s/%d%s dev %s scope %s%s%s"
 	       , inet_ntop2(ip_addr->addr)
 	       , ip_addr->mask
-	       , inet_ntop2(ip_addr->broadcast)
+	       , broadcast
 	       , IF_NAME(if_get_by_ifindex(ip_addr->ifindex))
 	       , netlink_scope_n2a(ip_addr->scope)
 	       , ip_addr->label ? " label " : ""
