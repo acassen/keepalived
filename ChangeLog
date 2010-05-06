@@ -1,3 +1,36 @@
+2010-05-06  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.1.20 released.
+	* Vincent Bernat <bernat <at> luffy.cx> extended ip/route
+	  framework to be able to add route or ip address if they
+	  already exist.
+	* Vincent Bernat <bernat <at> luffy.cx> fixed broadcast
+	  address display.
+	* Vincent Bernat <bernat <at> luffy.cx> extended genhash to
+	  display an error when giving an incorrect IP address.
+	* Vincent Bernat <bernat <at> luffy.cx>: When parsing 
+	  "blackhole" route, also parse IP mask.
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  On reload, destroy signal pipes before recreating them.
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  Fix SMTP checker adding himself repeatedly in the list of
+	  failed checkers.
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  Handle non-existant default interface in VIP definition.
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  Remove alive real servers when quorum is lost.
+	* Vincent Bernat <bernat <at> luffy.cx>: 
+	  Fix a segfault when a virtual_server is empty.
+	* Vincent Bernat <bernat <at> luffy.cx>: 
+	  Add real servers to new member of a virtual server group
+	  on reload.
+	* Vincent Bernat <bernat <at> luffy.cx>: 
+	  Keep previous effective VRRP priority on reload.
+	* Vincent Bernat <bernat <at> luffy.cx>: 
+	  Fix VRRP script not running any more after reload.
+	* Vincent Bernat <bernat <at> luffy.cx>: 
+	  On reload, keep status for all VRRP scripts.
+	* Removed IPVS Kernel 2.2 support
+
 2009-10-01  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.19 released.
 	* Cosmetics changes.
