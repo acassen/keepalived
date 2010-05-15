@@ -306,11 +306,11 @@ vrrp_auth_pass_handler(vector strvec)
 	int max_size = sizeof (vrrp->auth_data);
 	int str_len = strlen(str);
 
-	if (str_len > max_size - 1)
-		str_len = max_size - 1;
+	if (str_len > max_size)
+		str_len = max_size;
 
+	memset(vrrp->auth_data, 0, max_size);
 	memcpy(vrrp->auth_data, str, str_len);
-	vrrp->auth_data[str_len] = '\0';
 }
 static void
 vrrp_vip_handler(vector strvec)
