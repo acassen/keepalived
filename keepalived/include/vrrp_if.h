@@ -73,15 +73,16 @@ struct ethtool_value {
 /* Interface structure definition */
 typedef struct _interface {
 	char ifname[IF_NAMESIZ + 1];	/* Interface name */
-	unsigned int ifindex;	/* Interface index */
-	uint32_t address;	/* Interface main primary IP address */
-	unsigned long flags;	/* flags */
-	unsigned int mtu;	/* MTU for this interface */
-	unsigned short hw_type;	/* Type of hardware address */
+	unsigned int ifindex;		/* Interface index */
+	struct in_addr sin_addr;	/* IPv4 primary IPv4 address */
+	struct in6_addr sin6_addr;	/* IPv6 link address */
+	unsigned long flags;		/* flags */
+	unsigned int mtu;		/* MTU for this interface */
+	unsigned short hw_type;		/* Type of hardware address */
 	u_char hw_addr[IF_HWADDR_MAX];	/* MAC address */
-	int hw_addr_len;	/* MAC addresss length */
-	int lb_type;		/* Interface regs selection */
-	int linkbeat;		/* LinkBeat from MII BMSR req */
+	int hw_addr_len;		/* MAC addresss length */
+	int lb_type;			/* Interface regs selection */
+	int linkbeat;			/* LinkBeat from MII BMSR req */
 } interface;
 
 /* Tracked interface structure definition */
@@ -93,7 +94,7 @@ typedef struct _tracked_if {
 /* Macros */
 #define IF_NAME(X) ((X)->ifname)
 #define IF_INDEX(X) ((X)->ifindex)
-#define IF_ADDR(X) ((X)->address)
+#define IF_ADDR(X) ((X)->sin_addr.s_addr)
 #define IF_MTU(X) ((X)->mtu)
 #define IF_HWADDR(X) ((X)->hw_addr)
 #define IF_MII_SUPPORTED(X) ((X)->lb_type & LB_MII)
@@ -104,21 +105,23 @@ typedef struct _tracked_if {
                     if_linkbeat(X))
 
 /* prototypes */
-extern interface *if_get_by_ifindex(const int ifindex);
-extern interface *if_get_by_ifname(const char *ifname);
-extern int if_linkbeat(const interface *ifp);
-extern int if_mii_probe(const char *ifname);
-extern int if_ethtool_probe(const char *ifname);
-extern void if_add_queue(interface * ifp);
-extern int if_monitor_thread(thread * thread_obj);
+extern interface *if_get_by_ifindex(const int);
+extern interface *if_get_by_ifname(const char *);
+extern int if_linkbeat(const interface *);
+extern int if_mii_probe(const char *);
+extern int if_ethtool_probe(const char *);
+extern void if_add_queue(interface *);
+extern int if_monitor_thread(thread *);
 extern void init_interface_queue(void);
 extern void init_interface_linkbeat(void);
 extern void free_interface_queue(void);
-extern void dump_if(void *if_data_obj);
-extern int if_join_vrrp_group(int sd, interface * ifp, int proto);
-extern void if_leave_vrrp_group(int sd, interface * ifp);
-extern int if_setsockopt_bindtodevice(int sd, interface * ifp);
-extern int if_setsockopt_hdrincl(int sd);
-extern int if_setsockopt_mcast_loop(int sd);
+extern void dump_if(void *);
+extern int if_join_vrrp_group(sa_family_t, int *, interface *, int);
+extern int if_leave_vrrp_group(sa_family_t, int, interface *);
+extern int if_setsockopt_bindtodevice(int *, interface *);
+extern int if_setsockopt_hdrincl(int *);
+extern int if_setsockopt_mcast_loop(sa_family_t, int *);
+extern int if_setsockopt_mcast_hops(sa_family_t, int *);
+extern int if_setsockopt_mcast_if(sa_family_t, int *, interface *);
 
 #endif

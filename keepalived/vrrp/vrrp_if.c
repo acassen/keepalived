@@ -30,7 +30,7 @@ typedef __uint16_t u16;
 typedef __uint8_t u8;
 #include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <netinet/ip.h>
+#include <netinet/in.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <syslog.h>
@@ -264,11 +264,14 @@ void
 dump_if(void *if_data_obj)
 {
 	interface *ifp = if_data_obj;
+	char addr_str[41];
 
 	log_message(LOG_INFO, "------< NIC >------");
 	log_message(LOG_INFO, " Name = %s", ifp->ifname);
 	log_message(LOG_INFO, " index = %d", ifp->ifindex);
-	log_message(LOG_INFO, " address = %s", inet_ntop2(ifp->address));
+	log_message(LOG_INFO, " IPv4 address = %s", inet_ntop2(ifp->sin_addr.s_addr));
+	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, 41);
+	log_message(LOG_INFO, " IPv6 address = %s", addr_str);
 
 	/* FIXME: Harcoded for ethernet */
 	if (ifp->hw_type == ARPHRD_ETHER)
@@ -412,70 +415,102 @@ init_interface_linkbeat(void)
 }
 
 int
-if_join_vrrp_group(int sd, interface *ifp, int proto)
+if_join_vrrp_group(sa_family_t family, int *sd, interface *ifp, int proto)
 {
-	struct ip_mreqn req_add;
-	int ret;
+	struct ip_mreqn imr;
+	struct ipv6_mreq imr6;
+	int ret = 0;
+
+	if (*sd < 0)
+		return -1;
 
 	/* -> outbound processing option
 	 * join the multicast group.
 	 * binding the socket to the interface for outbound multicast
 	 * traffic.
 	 */
-	memset(&req_add, 0, sizeof (req_add));
-	req_add.imr_multiaddr.s_addr = htonl(INADDR_VRRP_GROUP);
-	req_add.imr_address.s_addr = IF_ADDR(ifp);
-	req_add.imr_ifindex = IF_INDEX(ifp);
 
-	/* -> Need to handle multicast convergance after takeover.
-	 * We retry until multicast is available on the interface.
-	 */
-	ret = setsockopt(sd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-			 (char *) &req_add, sizeof (struct ip_mreqn));
+	if (family == AF_INET) {
+		memset(&imr, 0, sizeof(imr));
+		imr.imr_multiaddr.s_addr = htonl(INADDR_VRRP_GROUP);
+		imr.imr_address.s_addr = IF_ADDR(ifp);
+		imr.imr_ifindex = IF_INDEX(ifp);
+
+		/* -> Need to handle multicast convergance after takeover.
+		 * We retry until multicast is available on the interface.
+		 */
+		ret = setsockopt(*sd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
+				 (char *) &imr, sizeof(struct ip_mreqn));
+	} else {
+		memset(&imr6, 0, sizeof(imr6));
+		imr6.ipv6mr_multiaddr.s6_addr16[0] = htons(0xff02);
+		imr6.ipv6mr_multiaddr.s6_addr16[7] = htons(0x12);
+		imr6.ipv6mr_interface = IF_INDEX(ifp);
+		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
+				 (char *) &imr6, sizeof(struct ipv6_mreq));
+	}
+
 	if (ret < 0) {
-		log_message(LOG_INFO, "cant do IP_ADD_MEMBERSHIP errno=%s (%d)",
-		       strerror(errno), errno);
-		close(sd);
-		return -1;
+		log_message(LOG_INFO, "cant do IP%s_ADD_MEMBERSHIP errno=%s (%d)",
+			    (family == AF_INET) ? "" : "V6", strerror(errno), errno);
+		close(*sd);
+		*sd = -1;
         }
 
-	return sd;
+	return *sd;
 }
 
-void
-if_leave_vrrp_group(int sd, interface *ifp)
+int
+if_leave_vrrp_group(sa_family_t family, int sd, interface *ifp)
 {
-	struct ip_mreqn req_add;
+	struct ip_mreqn imr;
+	struct ipv6_mreq imr6;
 	int ret = 0;
 
 	/* If fd is -1 then we add a membership trouble */
 	if (sd < 0 || !ifp)
-		return;
+		return -1;
 
 	/* Leaving the VRRP multicast group */
-	memset(&req_add, 0, sizeof (req_add));
-	req_add.imr_multiaddr.s_addr = htonl(INADDR_VRRP_GROUP);
-	req_add.imr_address.s_addr = IF_ADDR(ifp);
-	req_add.imr_ifindex = IF_INDEX(ifp);
-	ret = setsockopt(sd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-			 (char *) &req_add, sizeof (struct ip_mreqn));
+	if (family == AF_INET) {
+		memset(&imr, 0, sizeof(imr));
+		/* FIXME: change this to use struct ip_mreq */
+		imr.imr_multiaddr.s_addr = htonl(INADDR_VRRP_GROUP);
+		imr.imr_address.s_addr = IF_ADDR(ifp);
+		imr.imr_ifindex = IF_INDEX(ifp);
+		ret = setsockopt(sd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
+				 (char *) &imr, sizeof (struct ip_mreqn));
+	} else {
+		memset(&imr6, 0, sizeof(imr6));
+		/* rfc5798.5.1.2.2 : destination IPv6 mcast group is
+		 * ff02:0:0:0:0:0:0:12.
+		 */
+		imr6.ipv6mr_multiaddr.s6_addr16[0] = htons(0xff02);
+		imr6.ipv6mr_multiaddr.s6_addr16[7] = htons(0x12);
+		imr6.ipv6mr_interface = IF_INDEX(ifp);
+		ret = setsockopt(sd, IPPROTO_IPV6, IPV6_DROP_MEMBERSHIP,
+				 (char *) &imr6, sizeof(struct ipv6_mreq));
+	}
+
 	if (ret < 0) {
-		log_message(LOG_INFO, "cant do IP_DROP_MEMBERSHIP errno=%s (%d)",
-		       strerror(errno), errno);
-		return;
+		log_message(LOG_INFO, "cant do IP%s_DROP_MEMBERSHIP errno=%s (%d)",
+			    (family == AF_INET) ? "" : "V6", strerror(errno), errno);
+		close(sd);
+		return -1;
 	}
 
 	/* Finally close the desc */
 	close(sd);
+	return 0;
 }
 
 int
-if_setsockopt_bindtodevice(int sd, interface *ifp)
+if_setsockopt_bindtodevice(int *sd, interface *ifp)
 {
 	int ret;
 
-	if (sd < 0)
-		return sd;
+	if (*sd < 0)
+		return -1;
 
 	/* -> inbound processing option
 	 * Specify the bound_dev_if.
@@ -486,52 +521,102 @@ if_setsockopt_bindtodevice(int sd, interface *ifp)
 	 * -- If you read this !!! and know the answer to the question
 	 *    please feel free to answer me ! :)
 	 */
-	ret = setsockopt(sd, SOL_SOCKET, SO_BINDTODEVICE, IF_NAME(ifp)
-			 , strlen(IF_NAME(ifp)) + 1);
+	ret = setsockopt(*sd, SOL_SOCKET, SO_BINDTODEVICE, IF_NAME(ifp), strlen(IF_NAME(ifp)) + 1);
 	if (ret < 0) {
-		int err = errno;
-		log_message(LOG_INFO,
-		       "cant bind to device %s. errno=%d. (try to run it as root)",
-		       IF_NAME(ifp), err);
-		close(sd);
-		sd = -1;
+		log_message(LOG_INFO, "cant bind to device %s. errno=%d. (try to run it as root)",
+			    IF_NAME(ifp), errno);
+		close(*sd);
+		*sd = -1;
 	}
 
-	return sd;
+	return *sd;
 }
 
 int
-if_setsockopt_hdrincl(int sd)
+if_setsockopt_hdrincl(int *sd)
 {
 	int ret;
 	int on = 1;
 
-	/* Include IP header into RAW protocol packet */
-	ret = setsockopt(sd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on));
-	if (ret < 0) {
-		int err = errno;
-		log_message(LOG_INFO, "cant set HDRINCL IP option. errno=%d.", err);
-		close(sd);
+	if (*sd < 0)
 		return -1;
+
+	/* Include IP header into RAW protocol packet */
+	ret = setsockopt(*sd, IPPROTO_IP, IP_HDRINCL, &on, sizeof(on));
+	if (ret < 0) {
+		log_message(LOG_INFO, "cant set HDRINCL IP option. errno=%d (%m)", errno);
+		close(*sd);
+		*sd = -1;
 	}
 
-	return sd;
+	return *sd;
 }
 
 int
-if_setsockopt_mcast_loop(int sd)
+if_setsockopt_mcast_loop(sa_family_t family, int *sd)
 {
 	int ret;
 	unsigned char loop = 0;
+	int loopv6 = 0;
+
+	if (*sd < 0)
+		return -1;
 
 	/* Include IP header into RAW protocol packet */
-	ret = setsockopt(sd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
+	if (family == AF_INET)
+		ret = setsockopt(*sd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
+	else
+		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_LOOP, &loopv6, sizeof(loopv6));
+
 	if (ret < 0) {
-		int err = errno;
-		log_message(LOG_INFO, "cant set MULTICAST_LOOP IP option. errno=%d.", err);
-		close(sd);
-		return -1;
+		log_message(LOG_INFO, "cant set IP%s_MULTICAST_LOOP IP option. errno=%d (%m)",
+			    (family == AF_INET) ? "" : "V6", errno);
+		close(*sd);
+		*sd = -1;
 	}
 
-	return sd;
+	return *sd;
+}
+
+int
+if_setsockopt_mcast_hops(sa_family_t family, int *sd)
+{
+	int ret;
+	int hops = 255;
+
+	/* Not applicable for IPv4 */
+	if (*sd < 0 || family == AF_INET)
+		return -1;
+
+	/* Include IP header into RAW protocol packet */
+	ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &hops, sizeof(hops));
+	if (ret < 0) {
+		log_message(LOG_INFO, "cant set IPV6_MULTICAST_HOPS IP option. errno=%d (%m)", errno);
+		close(*sd);
+		*sd = -1;
+	}
+
+	return *sd;
+}
+
+int
+if_setsockopt_mcast_if(sa_family_t family, int *sd, interface *ifp)
+{
+	int ret;
+	unsigned int ifindex;
+
+	/* Not applicable for IPv4 */
+	if (*sd < 0 || family == AF_INET)
+		return -1;
+
+	/* Include IP header into RAW protocol packet */
+	ifindex = IF_INDEX(ifp);
+	ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifindex, sizeof(ifindex));
+	if (ret < 0) {
+		log_message(LOG_INFO, "cant set IPV6_MULTICAST_IF IP option. errno=%d (%m)", errno);
+		close(*sd);
+		*sd = -1;
+	}
+
+	return *sd;
 }

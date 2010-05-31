@@ -392,36 +392,39 @@ vrrp_register_workers(list l)
 		/* Register a timer thread if interface is shut */
 		if (sock_obj->fd_in == -1)
 			thread_add_timer(master, vrrp_read_dispatcher_thread,
-					 (int *)THREAD_TIMER, vrrp_timer);
+					 sock_obj, vrrp_timer);
 		else
 			thread_add_read(master, vrrp_read_dispatcher_thread,
-					NULL, sock_obj->fd_in, vrrp_timer);
+					sock_obj, sock_obj->fd_in, vrrp_timer);
 	}
 }
 
 /* VRRP dispatcher functions */
 static int
-already_exist_sock(list l, int ifindex, int proto)
+already_exist_sock(list l, sa_family_t family, int proto, int ifindex)
 {
 	sock *sock_obj;
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		sock_obj = ELEMENT_DATA(e);
-		if ((sock_obj->ifindex == ifindex) && (sock_obj->proto == proto))
+		if ((sock_obj->family == family) &&
+		    (sock_obj->proto == proto)	 &&
+		    (sock_obj->ifindex == ifindex))
 			return 1;
 	}
 	return 0;
 }
 
 void
-alloc_sock(list l, int ifindex, int proto)
+alloc_sock(sa_family_t family, list l, int proto, int ifindex)
 {
 	sock *new;
 
 	new = (sock *) MALLOC(sizeof (sock));
-	new->ifindex = ifindex;
+	new->family = family;
 	new->proto = proto;
+	new->ifindex = ifindex;
 
 	list_add(l, new);
 }
@@ -444,8 +447,8 @@ vrrp_create_sockpool(list l)
 			proto = IPPROTO_VRRP;
 
 		/* add the vrrp element if not exist */
-		if (!already_exist_sock(l, ifindex, proto))
-			alloc_sock(l, ifindex, proto);
+		if (!already_exist_sock(l, vrrp->family, proto, ifindex))
+			alloc_sock(vrrp->family, l, proto, ifindex);
 	}
 }
 
@@ -457,11 +460,12 @@ vrrp_open_sockpool(list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		sock_obj = ELEMENT_DATA(e);
-		sock_obj->fd_in = open_vrrp_socket(sock_obj->proto, sock_obj->ifindex);
+		sock_obj->fd_in = open_vrrp_socket(sock_obj->family, sock_obj->proto,
+						   sock_obj->ifindex);
 		if (sock_obj->fd_in == -1)
 			sock_obj->fd_out = -1;
 		else
-			sock_obj->fd_out = open_vrrp_send_socket(sock_obj->proto,
+			sock_obj->fd_out = open_vrrp_send_socket(sock_obj->family, sock_obj->proto,
 								 sock_obj->ifindex);
 	}
 }
@@ -541,13 +545,17 @@ vrrp_dispatcher_release(vrrp_conf_data *conf_data_obj)
 static void
 vrrp_backup(vrrp_rt * vrrp, char *buffer, int len)
 {
-	struct iphdr *iph = (struct iphdr *) buffer;
+	struct iphdr *iph;
 	ipsec_ah *ah;
 
-	if (iph->protocol == IPPROTO_IPSEC_AH) {
-		ah = (ipsec_ah *) (buffer + sizeof (struct iphdr));
-		if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter->seq_number)
-			vrrp->ipsecah_counter->cycle = 0;
+	if (vrrp->family == AF_INET) {
+		iph = (struct iphdr *) buffer;
+
+		if (iph->protocol == IPPROTO_IPSEC_AH) {
+			ah = (ipsec_ah *) (buffer + sizeof (struct iphdr));
+			if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter->seq_number)
+				vrrp->ipsecah_counter->cycle = 0;
+		}
 	}
 
 	vrrp_state_backup(vrrp, buffer, len);
@@ -556,19 +564,23 @@ vrrp_backup(vrrp_rt * vrrp, char *buffer, int len)
 static void
 vrrp_become_master(vrrp_rt * vrrp, char *buffer, int len)
 {
-	struct iphdr *iph = (struct iphdr *) buffer;
+	struct iphdr *iph;
 	ipsec_ah *ah;
 
-	/*
-	 * If we are in IPSEC AH mode, we must be sync
-	 * with the remote IPSEC AH VRRP instance counter.
-	 */
-	if (iph->protocol == IPPROTO_IPSEC_AH) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : seq_num sync",
-		       vrrp->iname);
-		ah = (ipsec_ah *) (buffer + sizeof (struct iphdr));
-		vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
-		vrrp->ipsecah_counter->cycle = 0;
+	if (vrrp->family == AF_INET) {
+		iph = (struct iphdr *) buffer;
+
+		/*
+		 * If we are in IPSEC AH mode, we must be sync
+		 * with the remote IPSEC AH VRRP instance counter.
+		 */
+		if (iph->protocol == IPPROTO_IPSEC_AH) {
+			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : seq_num sync",
+			       vrrp->iname);
+			ah = (ipsec_ah *) (buffer + sizeof (struct iphdr));
+			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
+			vrrp->ipsecah_counter->cycle = 0;
+		}
 	}
 
 	/* Then jump to master state */
@@ -673,7 +685,7 @@ vrrp_gratuitous_arp_thread(thread * thread_obj)
 	vrrp_rt *vrrp = THREAD_ARG(thread_obj);
 
 	/* Simply broadcast the gratuitous ARP */
-	vrrp_send_gratuitous_arp(vrrp);
+	vrrp_send_link_update(vrrp);
 
 	return 0;
 }
@@ -831,33 +843,26 @@ vrrp_dispatcher_read_to(int fd)
 
 /* Handle dispatcher read packet */
 static int
-vrrp_dispatcher_read(int fd)
+vrrp_dispatcher_read(sock * sock_obj)
 {
 	vrrp_rt *vrrp;
-	struct iphdr *iph;
 	vrrp_pkt *hd;
-	int len = 0;
-	int prev_state = 0;
+	int len = 0, prev_state = 0, proto = 0;
+	uint32_t saddr;
 
 	/* Clean the read buffer */
 	memset(vrrp_buffer, 0, VRRP_PACKET_TEMP_LEN);
 
 	/* read & affect received buffer */
-	len = read(fd, vrrp_buffer, VRRP_PACKET_TEMP_LEN);
-	iph = (struct iphdr *) vrrp_buffer;
-
-	/* GCC bug : Workaround */
-	hd = (vrrp_pkt *) ((char *) iph + (iph->ihl << 2));
-	if (iph->protocol == IPPROTO_IPSEC_AH)
-		hd = (vrrp_pkt *) ((char *) hd + vrrp_ipsecah_len());
-	/* GCC bug : end */
+	len = read(sock_obj->fd_in, vrrp_buffer, VRRP_PACKET_TEMP_LEN);
+	hd = vrrp_get_header(sock_obj->family, vrrp_buffer, &proto, &saddr);
 
 	/* Searching for matching instance */
-	vrrp = vrrp_index_lookup(hd->vrid, fd);
+	vrrp = vrrp_index_lookup(hd->vrid, sock_obj->fd_in);
 
 	/* If no instance found => ignore the advert */
 	if (!vrrp)
-		return fd;
+		return sock_obj->fd_in;
 
 	/* Run the FSM handler */
 	prev_state = vrrp->state;
@@ -877,7 +882,7 @@ vrrp_dispatcher_read(int fd)
 	 */
 	vrrp_init_instance_sands(vrrp);
 
-	return fd;
+	return sock_obj->fd_in;
 }
 
 /* Our read packet dispatcher */
@@ -885,24 +890,26 @@ int
 vrrp_read_dispatcher_thread(thread * thread_obj)
 {
 	long vrrp_timer = 0;
+	sock *sock_obj;
 	int fd;
 
+	/* Fetch thread arg */
+	sock_obj = THREAD_ARG(thread_obj);
+
 	/* Dispatcher state handler */
-	if (thread_obj->type == THREAD_READ_TIMEOUT)
-		fd = vrrp_dispatcher_read_to(thread_obj->u.fd);
-	else if (thread_obj->arg) {
-		fd = vrrp_dispatcher_read_to(-1);
-	} else
-		fd = vrrp_dispatcher_read(thread_obj->u.fd);
+	if (thread_obj->type == THREAD_READ_TIMEOUT || sock_obj->fd_in == -1)
+		fd = vrrp_dispatcher_read_to(sock_obj->fd_in);
+	else
+		fd = vrrp_dispatcher_read(sock_obj);
 
 	/* register next dispatcher thread */
 	vrrp_timer = vrrp_timer_fd(fd);
 	if (fd == -1)
 		thread_add_timer(thread_obj->master, vrrp_read_dispatcher_thread,
-				 (int *)THREAD_TIMER, vrrp_timer);
+				 sock_obj, vrrp_timer);
 	else
 		thread_add_read(thread_obj->master, vrrp_read_dispatcher_thread,
-				NULL, fd, vrrp_timer);
+				sock_obj, fd, vrrp_timer);
 
 	return 0;
 }

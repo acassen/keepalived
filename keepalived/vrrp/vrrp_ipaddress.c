@@ -29,8 +29,8 @@
 #include "utils.h"
 
 /* Add/Delete IP address to a specific interface */
-int
-netlink_address_ipv4(ip_address *ipaddr, int cmd)
+static int
+netlink_ipaddress(ip_address *ipaddress, int cmd)
 {
 	int status = 1;
 	struct {
@@ -44,29 +44,34 @@ netlink_address_ipv4(ip_address *ipaddr, int cmd)
 	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifaddrmsg));
 	req.n.nlmsg_flags = NLM_F_REQUEST;
 	req.n.nlmsg_type = cmd ? RTM_NEWADDR : RTM_DELADDR;
-	req.ifa.ifa_family = AF_INET;
-	req.ifa.ifa_index = ipaddr->ifindex;
-	req.ifa.ifa_scope = ipaddr->scope;
-	req.ifa.ifa_prefixlen = ipaddr->mask;
-	addattr_l(&req.n, sizeof (req), IFA_LOCAL, &ipaddr->addr, sizeof (ipaddr->addr));
-	if (ipaddr->broadcast)
-		addattr_l(&req.n, sizeof (req), IFA_BROADCAST,
-			  &ipaddr->broadcast, sizeof (ipaddr->broadcast));
+	req.ifa = ipaddress->ifa;
 
-	if (ipaddr->label)
+	if (IP_IS6(ipaddress)) {
+		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
+			  &ipaddress->u.sin6_addr, sizeof(ipaddress->u.sin6_addr));
+	} else {
+		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
+			  &ipaddress->u.sin.sin_addr, sizeof(ipaddress->u.sin.sin_addr));
+		if (ipaddress->u.sin.sin_brd.s_addr)
+			addattr_l(&req.n, sizeof(req), IFA_BROADCAST,
+				  &ipaddress->u.sin.sin_brd, sizeof(ipaddress->u.sin.sin_brd));
+	}
+
+	if (ipaddress->label)
 		addattr_l(&req.n, sizeof (req), IFA_LABEL,
-			  ipaddr->label, strlen(ipaddr->label) + 1);
+			  ipaddress->label, strlen(ipaddress->label) + 1);
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;
+
 	return status;
 }
 
 /* Add/Delete a list of IP addresses */
 void
-netlink_iplist_ipv4(list ip_list, int cmd)
+netlink_iplist(list ip_list, int cmd)
 {
-	ip_address *ipaddress;
+	ip_address *ipaddr;
 	element e;
 
 	/* No addresses in this list */
@@ -78,13 +83,13 @@ netlink_iplist_ipv4(list ip_list, int cmd)
 	 * addresses that may be there, even if we didn't set them.
 	 */
 	for (e = LIST_HEAD(ip_list); e; ELEMENT_NEXT(e)) {
-		ipaddress = ELEMENT_DATA(e);
-		if ((cmd && !ipaddress->set) ||
-		    (!cmd && (ipaddress->set || debug & 8))) {
-			if (netlink_address_ipv4(ipaddress, cmd) > 0)
-				ipaddress->set = (cmd) ? 1 : 0;
+		ipaddr = ELEMENT_DATA(e);
+		if ((cmd && !ipaddr->set) ||
+		    (!cmd && (ipaddr->set || debug & 8))) {
+			if (netlink_ipaddress(ipaddr, cmd) > 0)
+				ipaddr->set = (cmd) ? 1 : 0;
 			else
-				ipaddress->set = 0;
+				ipaddr->set = 0;
 		}
 	}
 }
@@ -93,50 +98,62 @@ netlink_iplist_ipv4(list ip_list, int cmd)
 void
 free_ipaddress(void *if_data_obj)
 {
-	ip_address *ip_addr = if_data_obj;
+	ip_address *ipaddr = if_data_obj;
 
-	FREE_PTR(ip_addr->label);
-	FREE(ip_addr);
+	FREE_PTR(ipaddr->label);
+	FREE(ipaddr);
 }
 void
 dump_ipaddress(void *if_data_obj)
 {
-	ip_address *ip_addr = if_data_obj;
-	char broadcast[21] = "";
-	if (ip_addr->broadcast)
-		snprintf(broadcast, sizeof(broadcast), " brd %s",
-			 inet_ntop2(ip_addr->broadcast));
+	ip_address *ipaddr = if_data_obj;
+	char *broadcast = (char *) MALLOC(21);
+	char *addr_str = (char *) MALLOC(41);
+
+	if (IP_IS6(ipaddr)) {
+		inet_ntop(AF_INET6, &ipaddr->u.sin6_addr, addr_str, 41);
+	} else {
+		inet_ntop(AF_INET, &ipaddr->u.sin.sin_addr, addr_str, 41);
+		if (ipaddr->u.sin.sin_brd.s_addr)
+			snprintf(broadcast, sizeof(broadcast), " brd %s",
+				 inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));
+	}
+
 	log_message(LOG_INFO, "     %s/%d%s dev %s scope %s%s%s"
-	       , inet_ntop2(ip_addr->addr)
-	       , ip_addr->mask
+	       , addr_str
+	       , ipaddr->ifa.ifa_prefixlen
 	       , broadcast
-	       , IF_NAME(if_get_by_ifindex(ip_addr->ifindex))
-	       , netlink_scope_n2a(ip_addr->scope)
-	       , ip_addr->label ? " label " : ""
-	       , ip_addr->label ? ip_addr->label : "");
+	       , IF_NAME(ipaddr->ifp)
+	       , netlink_scope_n2a(ipaddr->ifa.ifa_scope)
+	       , ipaddr->label ? " label " : ""
+	       , ipaddr->label ? ipaddr->label : "");
+	FREE(broadcast);
+	FREE(addr_str);
 }
 void
 alloc_ipaddress(list ip_list, vector strvec, interface *ifp)
 {
 	ip_address *new;
-	uint32_t ipaddr = 0;
-	char *str;
-	int i = 0;
+	interface *ifp_local;
+	char *str, *p;
+	void *addr;
+	int i = 0, addr_idx =0;
 
 	new = (ip_address *) MALLOC(sizeof(ip_address));
 	if (ifp) {
+		new->ifa.ifa_index = IF_INDEX(ifp);
 		new->ifp = ifp;
-		new->ifindex = IF_INDEX(ifp);
 	} else {
-		new->ifp = if_get_by_ifname(DFLT_INT);
-		if (!new->ifp) {
+		ifp_local = if_get_by_ifname(DFLT_INT);
+		if (!ifp_local) {
 			log_message(LOG_INFO, "Default interface " DFLT_INT
 				    " does not exist and no interface specified. "
 				    "Skip VRRP address.");
 			FREE(new);
 			return;
 		}
-		new->ifindex = IF_INDEX(new->ifp);
+		new->ifa.ifa_index = IF_INDEX(ifp_local);
+		new->ifp = ifp_local;
 	}
 
 	/* FMT parse */
@@ -145,32 +162,61 @@ alloc_ipaddress(list ip_list, vector strvec, interface *ifp)
 
 		/* cmd parsing */
 		if (!strcmp(str, "dev")) {
-			new->ifp = if_get_by_ifname(VECTOR_SLOT(strvec, ++i));
-			if (!new->ifp) {
+			ifp_local = if_get_by_ifname(VECTOR_SLOT(strvec, ++i));
+			if (!ifp_local) {
 				log_message(LOG_INFO, "VRRP is trying to assign VIP to unknown %s"
 				       " interface !!! go out and fixe your conf !!!",
 				       (char *)VECTOR_SLOT(strvec, i));
 				FREE(new);
 				return;
 			}
-			new->ifindex = IF_INDEX(new->ifp);
+			new->ifa.ifa_index = IF_INDEX(ifp_local);
+			new->ifp = ifp_local;
 		} else if (!strcmp(str, "scope")) {
-			new->scope = netlink_scope_a2n(VECTOR_SLOT(strvec, ++i));
+			new->ifa.ifa_scope = netlink_scope_a2n(VECTOR_SLOT(strvec, ++i));
 		} else if (!strcmp(str, "broadcast") || !strcmp(str, "brd")) {
-			inet_ston(VECTOR_SLOT(strvec, ++i), &new->broadcast);
+			if (IP_IS6(new)) {
+				log_message(LOG_INFO, "VRRP is trying to assign a broadcast %s to the IPv6 address %s !!?? "
+						      "WTF... skipping VIP..."
+						    , VECTOR_SLOT(strvec, i), VECTOR_SLOT(strvec, addr_idx));
+				FREE(new);
+				return;
+			} else if (!inet_pton(AF_INET, VECTOR_SLOT(strvec, ++i), &new->u.sin.sin_brd)) {
+				log_message(LOG_INFO, "VRRP is trying to assign invalid broadcast %s. "
+						      "skipping VIP...", VECTOR_SLOT(strvec, i));
+				FREE(new);
+				return;
+			}
 		} else if (!strcmp(str, "label")) {
 			new->label = MALLOC(IFNAMSIZ);
 			strncpy(new->label, VECTOR_SLOT(strvec, ++i), IFNAMSIZ);
 		} else {
-			if (inet_ston(VECTOR_SLOT(strvec, i), &ipaddr)) {
-				inet_ston(VECTOR_SLOT(strvec, i), &new->addr);
-				new->mask = inet_stom(VECTOR_SLOT(strvec, i));
+			p = strchr(str, '/');
+			if (p) {
+				new->ifa.ifa_prefixlen = atoi(p + 1);
+				*p = 0;
 			}
+
+			new->ifa.ifa_family = (strchr(str, ':')) ? AF_INET6 : AF_INET;
+			if (!new->ifa.ifa_prefixlen)
+				new->ifa.ifa_prefixlen = (IP_IS6(new)) ? 128 : 32;
+			addr = (IP_IS6(new)) ? (void *) &new->u.sin6_addr :
+					       (void *) &new->u.sin.sin_addr;
+			if (!inet_pton(IP_FAMILY(new), str, addr)) {
+				log_message(LOG_INFO, "VRRP is trying to assign invalid VIP %s. "
+						      "skipping VIP...", str);
+				FREE(new);
+				return;
+			}
+			addr_idx  = i;
 		}
 		i++;
 	}
+
 	list_add(ip_list, new);
 }
+
+
 
 /* Find an address in a list */
 int
@@ -181,9 +227,12 @@ address_exist(list l, ip_address *ipaddress)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		ipaddr = ELEMENT_DATA(e);
-		if (IP_ISEQ(ipaddr, ipaddress)) {
-			ipaddr->set = ipaddress->set;
-			return 1;
+		if (IP_FAMILY(ipaddr) == IP_FAMILY(ipaddress)) {
+			if ((IP_IS6(ipaddress) && IP6_ISEQ(ipaddr, ipaddress)) ||
+			    (!IP_IS6(ipaddress) && IP_ISEQ(ipaddr, ipaddress))) {
+				ipaddr->set = ipaddress->set;
+				return 1;
+			}
 		}
 	}
 
@@ -194,8 +243,10 @@ address_exist(list l, ip_address *ipaddress)
 void
 clear_diff_address(list l, list n)
 {
-	ip_address *ipaddress;
+	ip_address *ipaddr;
 	element e;
+	char *addr_str;
+	void *addr;
 
 	/* No addresses in previous conf */
 	if (LIST_ISEMPTY(l))
@@ -204,20 +255,27 @@ clear_diff_address(list l, list n)
 	/* All addresses removed */
 	if (LIST_ISEMPTY(n)) {
 		log_message(LOG_INFO, "Removing a VIP|E-VIP block");
-		netlink_iplist_ipv4(l, IPADDRESS_DEL);
+		netlink_iplist(l, IPADDRESS_DEL);
 		return;
 	}
 
+	addr_str = (char *) MALLOC(41);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		ipaddress = ELEMENT_DATA(e);
-		if (!address_exist(n, ipaddress) && ipaddress->set) {
+		ipaddr = ELEMENT_DATA(e);
+
+		if (!address_exist(n, ipaddr) && ipaddr->set) {
+			addr = (IP_IS6(ipaddr)) ? (void *) &ipaddr->u.sin6_addr :
+						  (void *) &ipaddr->u.sin.sin_addr;
+			inet_ntop(IP_FAMILY(ipaddr), addr, addr_str, 41);
+
 			log_message(LOG_INFO, "ip address %s/%d dev %s, no longer exist"
-			       , inet_ntop2(ipaddress->addr)
-			       , ipaddress->mask
-			       , IF_NAME(if_get_by_ifindex(ipaddress->ifindex)));
-			netlink_address_ipv4(ipaddress, IPADDRESS_DEL);
+					    , addr_str
+					    , ipaddr->ifa.ifa_prefixlen
+					    , IF_NAME(if_get_by_ifindex(ipaddr->ifa.ifa_index)));
+			netlink_ipaddress(ipaddr, IPADDRESS_DEL);
 		}
 	}
+	FREE(addr_str);
 }
 
 /* Clear static ip address */

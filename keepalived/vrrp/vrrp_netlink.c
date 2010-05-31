@@ -498,13 +498,13 @@ netlink_if_address_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	struct ifaddrmsg *ifa;
 	struct rtattr *tb[IFA_MAX + 1];
 	interface *ifp;
-	uint32_t address = 0;
 	int len;
+	void *addr;
 
 	ifa = NLMSG_DATA(h);
 
 	/* Only IPV4 are valid us */
-	if (ifa->ifa_family != AF_INET)
+	if (ifa->ifa_family != AF_INET && ifa->ifa_family != AF_INET6)
 		return 0;
 
 	if (h->nlmsg_type != RTM_NEWADDR && h->nlmsg_type != RTM_DELADDR)
@@ -521,27 +521,31 @@ netlink_if_address_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	ifp = if_get_by_ifindex(ifa->ifa_index);
 	if (!ifp)
 		return 0;
-
+	if (tb[IFA_LOCAL] == NULL)
+		tb[IFA_LOCAL] = tb[IFA_ADDRESS];
 	if (tb[IFA_ADDRESS] == NULL)
 		tb[IFA_ADDRESS] = tb[IFA_LOCAL];
 
-	if (ifp->flags & IFF_POINTOPOINT) {
-		if (tb[IFA_LOCAL])
-			address = *(uint32_t *) RTA_DATA(tb[IFA_LOCAL]);
-	} else {
-		if (tb[IFA_ADDRESS])
-			address = *(uint32_t *) RTA_DATA(tb[IFA_ADDRESS]);
-	}
+	/* local interface address */
+	addr = (tb[IFA_LOCAL] ? RTA_DATA(tb[IFA_LOCAL]) : NULL);
+
+	if (addr == NULL)
+		return -1;
 
 	/* If no address is set on interface then set the first time */
-	if (!ifp->address)
-		ifp->address = address;
-
+	if (ifa->ifa_family == AF_INET) {
+		if (!ifp->sin_addr.s_addr)
+			ifp->sin_addr = *(struct in_addr *) addr;
 #ifdef _WITH_LVS_
-	/* Refresh checkers state */
-	update_checker_activity(address,
-				(h->nlmsg_type == RTM_NEWADDR) ? 1 : 0);
+		/* Refresh checkers state */
+		update_checker_activity(ifp->sin_addr.s_addr,
+					(h->nlmsg_type == RTM_NEWADDR) ? 1 : 0);
 #endif
+
+	} else {
+		if (!ifp->sin6_addr.s6_addr16[0] && ifa->ifa_scope == RT_SCOPE_LINK)
+			ifp->sin6_addr = *(struct in6_addr *) addr;
+	}
 
 	return 0;
 }
@@ -589,11 +593,18 @@ netlink_address_lookup(void)
 	/* Set blocking flag */
 	ret = netlink_set_block(&nlh, &flags);
 	if (ret < 0)
-		log_message(LOG_INFO, "Netlink: 2Warning, couldn't set "
+		log_message(LOG_INFO, "Netlink: Warning, couldn't set "
 		       "blocking flag to netlink socket...");
 
-	/* Address lookup */
+	/* IPv4 Address lookup */
 	if (netlink_request(&nlh, AF_INET, RTM_GETADDR) < 0) {
+		status = -1;
+		goto end_addr;
+	}
+	status = netlink_parse_info(netlink_if_address_filter, &nlh, NULL);
+
+	/* IPv6 Address lookup */
+	if (netlink_request(&nlh, AF_INET6, RTM_GETADDR) < 0) {
 		status = -1;
 		goto end_addr;
 	}
@@ -689,7 +700,7 @@ kernel_netlink_init(void)
 	 * subscribtion. We subscribe to LINK and ADDR
 	 * netlink broadcast messages.
 	 */
-	groups = RTMGRP_LINK | RTMGRP_IPV4_IFADDR;
+	groups = RTMGRP_LINK | RTMGRP_IPV4_IFADDR | RTMGRP_IPV6_IFADDR;
 	netlink_socket(&nl_kernel, groups);
 
 	if (nl_kernel.fd > 0) {

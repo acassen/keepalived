@@ -100,6 +100,15 @@ vrrp_handler(vector strvec)
 	alloc_vrrp(VECTOR_SLOT(strvec, 1));
 }
 static void
+vrrp_native_ipv6_handler(vector strvec)
+{
+	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->family = AF_INET6;
+
+	if (vrrp->auth_type != VRRP_AUTH_NONE)
+		vrrp->auth_type = VRRP_AUTH_NONE;
+}
+static void
 vrrp_state_handler(vector strvec)
 {
 	char *str = VECTOR_SLOT(strvec, 1);
@@ -284,9 +293,9 @@ vrrp_auth_type_handler(vector strvec)
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *str = VECTOR_SLOT(strvec, 1);
 
-	if (!strcmp(str, "AH"))
+	if (!strcmp(str, "AH") && vrrp->family == AF_INET)
 		vrrp->auth_type = VRRP_AUTH_AH;
-	else
+	else if (!strcmp(str, "PASS") && vrrp->family == AF_INET)
 		vrrp->auth_type = VRRP_AUTH_PASS;
 }
 static void
@@ -411,6 +420,7 @@ vrrp_init_keywords(void)
 	install_keyword("notify", &vrrp_gnotify_handler);
 	install_keyword("smtp_alert", &vrrp_gsmtp_handler);
 	install_keyword_root("vrrp_instance", &vrrp_handler);
+	install_keyword("native_ipv6", &vrrp_native_ipv6_handler);
 	install_keyword("state", &vrrp_state_handler);
 	install_keyword("interface", &vrrp_int_handler);
 	install_keyword("dont_track_primary", &vrrp_dont_track_handler);

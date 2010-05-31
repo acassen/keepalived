@@ -24,6 +24,7 @@
 #include "vrrp_scheduler.h"
 #include "vrrp_if.h"
 #include "vrrp_arp.h"
+#include "vrrp_ndisc.h"
 #include "vrrp_netlink.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
@@ -56,12 +57,13 @@ stop_vrrp(void)
 
 	/* Clear static entries */
 	netlink_rtlist_ipv4(vrrp_data->static_routes, IPROUTE_DEL);
-	netlink_iplist_ipv4(vrrp_data->static_addresses, IPADDRESS_DEL);
+	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL);
 
 	if (!(debug & 8))
 		shutdown_vrrp_instances();
 	free_interface_queue();
 	gratuitous_arp_close();
+	ndisc_close();
 
 	/* Stop daemon */
 	pidfile_rm(vrrp_pidfile);
@@ -96,6 +98,7 @@ start_vrrp(void)
 	init_interface_queue();
 	kernel_netlink_init();
 	gratuitous_arp_init();
+	ndisc_init();
 
 #ifdef _WITH_LVS_
 	/* Initialize ipvs related */
@@ -128,7 +131,7 @@ start_vrrp(void)
 	log_message(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
 
 	/* Set static entries */
-	netlink_iplist_ipv4(vrrp_data->static_addresses, IPADDRESS_ADD);
+	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_ADD);
 	netlink_rtlist_ipv4(vrrp_data->static_routes, IPROUTE_ADD);
 
 	/* Dump configuration */
@@ -196,6 +199,7 @@ reload_vrrp_thread(thread * thread_obj)
 	free_interface_queue();
 	free_vrrp_buffer();
 	gratuitous_arp_close();
+	ndisc_close();
 
 	/* Save previous conf data */
 	old_vrrp_data = vrrp_data;

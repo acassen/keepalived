@@ -29,6 +29,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <syslog.h>
+#include <linux/if_addr.h>
 
 /* local includes */
 #include "vrrp_if.h"
@@ -37,12 +38,17 @@
 
 /* types definition */
 typedef struct {
-	uint32_t addr;		/* the ip address */
-	uint32_t broadcast;	/* the broadcast address */
-	uint8_t mask;		/* the ip address CIDR netmask */
-	int ifindex;		/* Interface index owning IP address */
+	struct ifaddrmsg ifa;
+
+	union {
+		struct {
+			struct in_addr sin_addr;
+			struct in_addr sin_brd;
+		} sin;
+		struct in6_addr sin6_addr;
+	} u;
+
 	interface *ifp;		/* Interface owning IP address */
-	int scope;		/* the ip address scope */
 	char *label;		/* Alias name, e.g. eth0:1 */
 	int set;		/* TRUE if addr is set */
 } ip_address;
@@ -52,14 +58,25 @@ typedef struct {
 #define DFLT_INT	"eth0"
 
 /* Macro definition */
-#define IP_ISEQ(X,Y)   ((X)->addr    == (Y)->addr     && \
-			(X)->mask    == (Y)->mask     && \
-			(X)->ifindex == (Y)->ifindex  && \
-			(X)->scope   == (Y)->scope)
+#define IP_FAMILY(X)	(X)->ifa.ifa_family
+#define IP_IS6(X)	((X)->ifa.ifa_family == AF_INET6)
+
+#define IP_ISEQ(X,Y)   ((X)->u.sin.sin_addr.s_addr == (Y)->u.sin.sin_addr.s_addr	&& \
+			(X)->ifa.ifa_prefixlen     == (Y)->ifa.ifa_prefixlen		&& \
+			(X)->ifa.ifa_index         == (Y)->ifa.ifa_index		&& \
+			(X)->ifa.ifa_scope         == (Y)->ifa.ifa_scope)
+
+#define IP6_ISEQ(X,Y)   ((X)->u.sin6_addr.s6_addr32[0] == (Y)->u.sin6_addr.s6_addr32[0]	&& \
+			(X)->u.sin6_addr.s6_addr32[1] == (Y)->u.sin6_addr.s6_addr32[1]	&& \
+			(X)->u.sin6_addr.s6_addr32[2] == (Y)->u.sin6_addr.s6_addr32[2]	&& \
+			(X)->u.sin6_addr.s6_addr32[3] == (Y)->u.sin6_addr.s6_addr32[3]	&& \
+			(X)->ifa.ifa_prefixlen     == (Y)->ifa.ifa_prefixlen		&& \
+			(X)->ifa.ifa_index         == (Y)->ifa.ifa_index		&& \
+			(X)->ifa.ifa_scope         == (Y)->ifa.ifa_scope)
+
 
 /* prototypes */
-extern int netlink_address_ipv4(ip_address * ipaddr, int cmd);
-extern void netlink_iplist_ipv4(list ip_list, int cmd);
+extern void netlink_iplist(list ip_list, int cmd);
 extern void free_ipaddress(void *ip_data_obj);
 extern void dump_ipaddress(void *ip_data_obj);
 extern void alloc_ipaddress(list ip_list, vector strvec, interface * ifp);

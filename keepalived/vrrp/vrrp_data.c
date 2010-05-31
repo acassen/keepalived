@@ -139,7 +139,7 @@ free_sock(void *sock_data_obj)
 	interface *ifp;
 	if (sock_obj->fd_in > 0) {
 		ifp = if_get_by_ifindex(sock_obj->ifindex);
-		if_leave_vrrp_group(sock_obj->fd_in, ifp);
+		if_leave_vrrp_group(sock_obj->family, sock_obj->fd_in, ifp);
 	}
 	if (sock_obj->fd_out > 0)
 		close(sock_obj->fd_out);
@@ -194,6 +194,8 @@ dump_vrrp(void *data)
 	vrrp_rt *vrrp = data;
 
 	log_message(LOG_INFO, " VRRP Instance = %s", vrrp->iname);
+	if (vrrp->family == AF_INET6)
+		log_message(LOG_INFO, "   Using Native IPv6");
 	if (vrrp->init_state == VRRP_STATE_BACK)
 		log_message(LOG_INFO, "   Want State = BACKUP");
 	else
@@ -295,6 +297,7 @@ alloc_vrrp(char *iname)
 	new->ipsecah_counter = counter;
 
 	/* Set default values */
+	new->family = AF_INET;
 	new->wantstate = VRRP_STATE_BACK;
 	new->init_state = VRRP_STATE_BACK;
 	new->adver_int = TIMER_HZ;

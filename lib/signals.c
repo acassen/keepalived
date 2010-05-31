@@ -29,6 +29,7 @@
 #include <sys/wait.h>
 #include <errno.h>
 #include <assert.h>
+#include <syslog.h>
 
 #include "signals.h"
 #include "utils.h"

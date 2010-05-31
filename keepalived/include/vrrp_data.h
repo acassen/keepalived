@@ -40,8 +40,9 @@
  * physical interface.
  */
 typedef struct {
-	int ifindex;
+	sa_family_t family;
 	int proto;
+	int ifindex;
 	int fd_in;
 	int fd_out;
 } sock;

@@ -1,3 +1,53 @@
+2010-05-31  Alexandre Cassen  <acassen@linux-vs.org>
+	* Branch 1.2.0 created. This branch will host all new
+	  developments on Keepalived. New code will be added
+	  in here only.
+	* VRRP : Add support to IPv6 protocol. The global framework
+	  has been extended to support this branch new family !
+	* VRRP : Implement IPv6 Neighbour Discovery protocol (NDISC).
+	  In IPv6 gratuitous ARP doesnt exist since ARP is IPv4 only.
+	  NDISC can provide the same feature by sending so called
+	  Unsolicited Neighbour Advertisement. A node can send such a
+	  protocol datagram in order to (unreliable) propagate new
+	  information quickly (rfc4861.4.4). NDISC build an ICMPv6
+	  message with taget link-layer address option, this option is
+	  set icmp6_override flag to indicate that advertisement should
+	  override an existing cache entry and update the cached
+	  link-layer.
+	* VRRP : Extend ip address framework to be IPv4 and IPv6
+	  independant. An ip address, as defined in framework, is
+	  now {IPv4,broadcast} or {IPv6}. Use struct ifaddrmsg to
+	  store and prepare netlink related operation. This clean-
+	  -up the code.
+	* VRRP : Extend parser to support IPv6 declarations. IPv6
+	  and IPv4 addresses can be configured inside the same
+	  configuration block (eg: virtual_ipaddress or
+	  virtual_ipaddress_excluded). An instance can run IPv4 and
+	  IPv6 addresses at a time, this can be useful in dual-stack
+	  env (since this will become certainly the most common use
+	  case in the next years).
+	* VRRP : Extend netlink framwork to support IPv6 addresses
+	  interactions (reflection/addition/deletion).
+	* VRRP : Extend finite state machine support IPv4 & IPv6
+	  at a time.
+	* VRRP : Extend protocol helpers to support IPv6 multicast
+	  related. AF_INET6 SOCK_RAW tweaking it done through
+	  socket API instead of PF_PACKET header building... This
+	  makes code cleaner.
+	* VRRP : Set default VRRP instance protocol to be IPv4.
+	  you can use configuration keyword "native_ipv6" inside
+	  vrrp_instance configuration block to specify that you
+	  want to use IPv6 for VRRP multicasting protocol instead.
+	* VRRP : Extend socket option related helpers to support
+	  IPv6 specifics.
+	* VRRP : Extend protocol scheduler and dispatcher to
+	  support IPv6.
+	* VRRP : Extend socket pool to keep track of socket
+	  family.
+	* VRRP : Cleanup protocol offset pointer by removing
+	  duplication code...
+	* VRRP : some code clean-up...
+
 2010-05-06  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.20 released.
 	* Vincent Bernat <bernat <at> luffy.cx> extended ip/route
