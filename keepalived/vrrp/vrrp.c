@@ -86,7 +86,7 @@ vrrp_hd_len(vrrp_rt * vrrp)
 {
 	int len = sizeof (vrrp_pkt);
 	if (vrrp->family == AF_INET)
-		len += VRRP_AUTH_LEN + (!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) * sizeof (uint32_t) : 0;
+		len += VRRP_AUTH_LEN + ((!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) * sizeof (uint32_t) : 0);
         return len;
 }
 
