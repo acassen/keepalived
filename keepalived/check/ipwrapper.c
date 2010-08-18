@@ -237,6 +237,89 @@ perform_quorum_state(virtual_server *vs, int add)
 	}
 }
 
+/* set quorum state depending on current weight of real servers */
+void
+update_quorum_state(virtual_server * vs)
+{
+	char rsip[16], vsip[16];
+
+	/* If we have just gained quorum, it's time to consider notify_up. */
+	if (vs->quorum_state == DOWN
+	    && weigh_live_realservers(vs) >= vs->quorum + vs->hysteresis) {
+		vs->quorum_state = UP;
+		log_message(LOG_INFO, "Gained quorum %lu+%lu=%lu <= %u for VS [%s:%d]"
+			    , vs->quorum
+			    , vs->hysteresis
+			    , vs->quorum + vs->hysteresis
+			    , weigh_live_realservers(vs)
+			    , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
+			    , ntohs(SVR_PORT(vs)));
+		if (vs->s_svr && ISALIVE(vs->s_svr)) {
+			log_message(LOG_INFO,
+				    "Removing sorry server [%s:%d] from VS [%s:%d]",
+				    inet_ntoa2(SVR_IP(vs->s_svr), rsip)
+				    , ntohs(SVR_PORT(vs->s_svr))
+				    , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
+				    , ntohs(SVR_PORT(vs)));
+
+			ipvs_cmd(LVS_CMD_DEL_DEST
+				 , check_data->vs_group
+				 , vs
+				 , vs->s_svr);
+			vs->s_svr->alive = 0;
+
+			/* Adding back alive real servers */
+			perform_quorum_state(vs, 1);
+		}
+		if (vs->quorum_up) {
+			log_message(LOG_INFO, "Executing [%s] for VS [%s:%d]"
+				    , vs->quorum_up
+				    , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
+				    , ntohs(SVR_PORT(vs)));
+			notify_exec(vs->quorum_up);
+		}
+		return;
+	}
+
+	/* If we have just lost quorum for the VS, we need to consider
+	 * VS notify_down and sorry_server cases
+	 */
+	if (vs->quorum_state == UP
+	    && weigh_live_realservers(vs) < vs->quorum - vs->hysteresis) {
+		vs->quorum_state = DOWN;
+		log_message(LOG_INFO, "Lost quorum %lu-%lu=%lu > %u for VS [%s:%d]"
+			    , vs->quorum
+			    , vs->hysteresis
+			    , vs->quorum - vs->hysteresis
+			    , weigh_live_realservers(vs)
+			    , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
+			    , ntohs(SVR_PORT(vs)));
+		if (vs->quorum_down) {
+			log_message(LOG_INFO, "Executing [%s] for VS [%s:%d]"
+				    , vs->quorum_down
+				    , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
+				    , ntohs(SVR_PORT(vs)));
+			notify_exec(vs->quorum_down);
+		}
+		if (vs->s_svr) {
+			log_message(LOG_INFO,
+				    "Adding sorry server [%s:%d] to VS [%s:%d]",
+				    inet_ntoa2(SVR_IP(vs->s_svr), rsip)
+				    , ntohs(SVR_PORT(vs->s_svr))
+				    , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
+				    , ntohs(SVR_PORT(vs)));
+
+			/* the sorry server is now up in the pool, we flag it alive */
+			ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, vs->s_svr);
+			vs->s_svr->alive = 1;
+
+			/* Remove remaining alive real servers */
+			perform_quorum_state(vs, 0);
+		}
+		return;
+	}
+}
+
 /* manipulate add/remove rs according to alive state */
 void
 perform_svr_state(int alive, virtual_server * vs, real_server * rs)
@@ -251,29 +334,6 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
  */
 
 	if (!ISALIVE(rs) && alive) {
-
-		/* adding a server to the vs pool, if sorry server is flagged alive,
-		 * we remove it from the vs pool.
-		 */
-		if (vs->s_svr) {
-			if (ISALIVE(vs->s_svr) &&
-			    (vs->quorum_state == UP ||
-			     (weigh_live_realservers(vs) + rs->weight >=
-			      vs->quorum + vs->hysteresis))) {
-				log_message(LOG_INFO,
-				       "Removing sorry server [%s:%d] from VS [%s:%d]",
-				       inet_ntoa2(SVR_IP(vs->s_svr), rsip)
-				       , ntohs(SVR_PORT(vs->s_svr))
-				       , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
-				       , ntohs(SVR_PORT(vs)));
-
-				ipvs_cmd(LVS_CMD_DEL_DEST
-					 , check_data->vs_group
-					 , vs
-					 , vs->s_svr);
-				vs->s_svr->alive = 0;
-			}
-		}
 
 		log_message(LOG_INFO, "%s service [%s:%d] to VS [%s:%d]",
 		       (rs->inhibit) ? "Enabling" : "Adding"
@@ -296,29 +356,9 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 			       , ntohs(SVR_PORT(vs)));
 			notify_exec(rs->notify_up);
 		}
-		/* If we have just gained quorum, it's time to consider notify_up. */
-		if (vs->quorum_state == DOWN
-		  && weigh_live_realservers(vs) >= vs->quorum + vs->hysteresis) {
-			vs->quorum_state = UP;
-			log_message(LOG_INFO, "Gained quorum %lu+%lu=%lu <= %u for VS [%s:%d]"
-				    , vs->quorum
-				    , vs->hysteresis
-				    , vs->quorum + vs->hysteresis
-				    , weigh_live_realservers(vs)
-				    , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
-				    , ntohs(SVR_PORT(vs)));
-			if (vs->s_svr)
-				/* Adding back alive real servers */
-				perform_quorum_state(vs, 1);
-			if (vs->quorum_up) {
-				log_message(LOG_INFO, "Executing [%s] for VS [%s:%d]"
-					    , vs->quorum_up
-					    , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
-					    , ntohs(SVR_PORT(vs)));
-				notify_exec(vs->quorum_up);
-			}
-		}
-		return;
+
+		/* We may have gained quorum */
+		update_quorum_state(vs);
 	}
 
 	if (ISALIVE(rs) && !alive) {
@@ -347,42 +387,8 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 			notify_exec(rs->notify_down);
 		}
 
-		/* If we have just lost quorum for the VS, we need to consider
-		 * VS notify_down and sorry_server cases
-		 */
-		if (vs->quorum_state == UP
-		    && weigh_live_realservers(vs) < vs->quorum - vs->hysteresis) {
-			vs->quorum_state = DOWN;
-			log_message(LOG_INFO, "Lost quorum %lu-%lu=%lu > %u for VS [%s:%d]"
-				    , vs->quorum
-				    , vs->hysteresis
-				    , vs->quorum - vs->hysteresis
-				    , weigh_live_realservers(vs)
-				    , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
-				    , ntohs(SVR_PORT(vs)));
-			if (vs->quorum_down) {
-				log_message(LOG_INFO, "Executing [%s] for VS [%s:%d]"
-					    , vs->quorum_down
-					    , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
-					    , ntohs(SVR_PORT(vs)));
-				notify_exec(vs->quorum_down);
-			}
-			if (vs->s_svr) {
-				log_message(LOG_INFO,
-					    "Adding sorry server [%s:%d] to VS [%s:%d]",
-					    inet_ntoa2(SVR_IP(vs->s_svr), rsip)
-					    , ntohs(SVR_PORT(vs->s_svr))
-					    , (vs->vsgname) ? vs->vsgname : inet_ntoa2(SVR_IP(vs), vsip)
-					    , ntohs(SVR_PORT(vs)));
-
-				/* the sorry server is now up in the pool, we flag it alive */
-				ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, vs->s_svr);
-				vs->s_svr->alive = 1;
-
-				/* Remove remaining alive real servers */
-				perform_quorum_state(vs, 0);
-			}
-		}
+		/* We may have lost quorum */
+		update_quorum_state(vs);
 	}
 }
 
@@ -404,11 +410,12 @@ update_svr_wgt(int weight, virtual_server * vs, real_server * rs)
 				 , ntohs(SVR_PORT(vs)));
 		rs->weight = weight;
 		/*
-		 * Have weight change take effect now only if rs is alive.
+		 * Have weight change take effect now only if rs is in the pool.
 		 * If not, it will take effect later when it becomes alive.
 		 */
-		if (ISALIVE(rs))
+		if (rs->set)
 			ipvs_cmd(LVS_CMD_EDIT_DEST, check_data->vs_group, vs, rs);
+		update_quorum_state(vs);
 	}
 }
 
