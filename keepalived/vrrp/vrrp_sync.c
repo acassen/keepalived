@@ -154,7 +154,7 @@ vrrp_sync_master_election(vrrp_rt * vrrp)
 	/* Perform sync index */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		isync = ELEMENT_DATA(e);
-		if (isync != vrrp) {
+		if (isync != vrrp && isync->wantstate != VRRP_STATE_GOTO_MASTER) {
 			/* Force a new protocol master election */
 			isync->wantstate = VRRP_STATE_GOTO_MASTER;
 			log_message(LOG_INFO,
