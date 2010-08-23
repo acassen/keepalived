@@ -261,6 +261,7 @@ alloc_ssvr(char *ip, char *port)
 
 	vs->s_svr = (real_server *) MALLOC(sizeof (real_server));
 	vs->s_svr->weight = 1;
+	vs->s_svr->iweight = 1;
 	inet_ston(ip, &vs->s_svr->addr_ip);
 	vs->s_svr->addr_port = htons(atoi(port));
 }
@@ -310,6 +311,7 @@ alloc_rs(char *ip, char *port)
 	inet_ston(ip, &new->addr_ip);
 	new->addr_port = htons(atoi(port));
 	new->weight = 1;
+	new->iweight = 1;
 	new->failed_checkers = alloc_list(free_failed_checkers, NULL);
 
 	if (LIST_ISEMPTY(vs->rs))

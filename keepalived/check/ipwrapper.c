@@ -606,6 +606,7 @@ rs_exist(real_server * old_rs, list l)
 			 */
 			rs->alive = old_rs->alive;
 			rs->set = old_rs->set;
+			rs->weight = old_rs->weight;
 			return 1;
 		}
 	}

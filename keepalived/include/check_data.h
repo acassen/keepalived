@@ -68,6 +68,7 @@ typedef struct _real_server {
 	uint32_t addr_ip;
 	uint16_t addr_port;
 	int weight;
+	int iweight;		/* Initial weight */
 #ifdef _KRNL_2_6_
 	uint32_t u_threshold;   /* Upper connection limit. */
 	uint32_t l_threshold;   /* Lower connection limit. */
@@ -160,7 +161,7 @@ typedef struct _check_conf_data {
 
 #define RS_ISEQ(X,Y)	((X)->addr_ip   == (Y)->addr_ip &&	\
 			 (X)->addr_port == (Y)->addr_port &&	\
-			 (X)->weight    == (Y)->weight)
+			 (X)->iweight   == (Y)->iweight)
 
 /* Global vars exported */
 extern check_conf_data *check_data;

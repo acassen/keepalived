@@ -171,6 +171,7 @@ weight_handler(vector strvec)
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server *rs = LIST_TAIL_DATA(vs->rs);
 	rs->weight = atoi(VECTOR_SLOT(strvec, 1));
+	rs->iweight = rs->weight;
 }
 #ifdef _KRNL_2_6_
 static void
