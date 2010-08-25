@@ -659,7 +659,7 @@ clear_diff_rs(virtual_server * old_vs)
 			log_message(LOG_INFO, "Removing service [%s:%d] from VS [%s:%d]"
 			       , inet_ntoa2(SVR_IP(rs), rsip)
 			       , ntohs(SVR_PORT(rs))
-			       , inet_ntoa2(SVR_IP(old_vs), vsip)
+			       , (old_vs->vsgname) ? old_vs->vsgname : inet_ntoa2(SVR_IP(old_vs), vsip)
 			       , ntohs(SVR_PORT(old_vs)));
 			rs->inhibit = 0;
 			if (!ipvs_cmd(LVS_CMD_DEL_DEST, check_data->vs_group, old_vs, rs))
