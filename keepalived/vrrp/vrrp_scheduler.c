@@ -210,7 +210,6 @@ vrrp_init_state(list l)
 				     ELEMENT_NEXT(e)) {
 					sc = ELEMENT_DATA(e);
 					if (sc->weight) {
-						sc->weight = 0;
 						sc->scr->inuse--;
 						warning++;
 					}
@@ -219,7 +218,7 @@ vrrp_init_state(list l)
 
 			if (warning > 0) {
 				log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring "
-						 "track weights due to SYNC group",
+						 "tracked script with weights due to SYNC group",
 				       vrrp->iname);
 			}
 		} else {
