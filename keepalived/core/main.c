@@ -87,9 +87,6 @@ start_keepalived(void)
 void
 sighup(void *v, int sig)
 {
-	/* Set the reloading flag */
-	SET_RELOAD;
-
 	/* Signal child process */
 	if (vrrp_child > 0)
 		kill(vrrp_child, SIGHUP);
