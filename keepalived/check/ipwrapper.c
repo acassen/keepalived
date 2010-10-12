@@ -228,8 +228,6 @@ perform_quorum_state(virtual_server *vs, int add)
 		rs = ELEMENT_DATA(e);
 		if (!ISALIVE(rs)) /* We only handle alive servers */
 			continue;
-		if (!(add ^ rs->set)) /* Already done */
-			continue;
 		if (add) rs->alive = 0;
 		ipvs_cmd(add?LVS_CMD_ADD_DEST:LVS_CMD_DEL_DEST,
 			 check_data->vs_group, vs, rs);
