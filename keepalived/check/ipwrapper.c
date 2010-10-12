@@ -410,10 +410,11 @@ update_svr_wgt(int weight, virtual_server * vs, real_server * rs)
 				 , ntohs(SVR_PORT(vs)));
 		rs->weight = weight;
 		/*
-		 * Have weight change take effect now only if rs is in the pool.
+		 * Have weight change take effect now only if rs is in
+		 * the pool and alive and the quorum is met.
 		 * If not, it will take effect later when it becomes alive.
 		 */
-		if (rs->set)
+		if (rs->set && ISALIVE(rs) && (vs->quorum_state == UP))
 			ipvs_cmd(LVS_CMD_EDIT_DEST, check_data->vs_group, vs, rs);
 		update_quorum_state(vs);
 	}
