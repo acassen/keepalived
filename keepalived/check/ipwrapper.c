@@ -409,10 +409,12 @@ update_svr_wgt(int weight, virtual_server * vs, real_server * rs)
 		rs->weight = weight;
 		/*
 		 * Have weight change take effect now only if rs is in
-		 * the pool and alive and the quorum is met.
-		 * If not, it will take effect later when it becomes alive.
+		 * the pool and alive and the quorum is met (or if
+		 * there is no sorry server). If not, it will take
+		 * effect later when it becomes alive.
 		 */
-		if (rs->set && ISALIVE(rs) && (vs->quorum_state == UP))
+		if (rs->set && ISALIVE(rs) &&
+		    (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)))
 			ipvs_cmd(LVS_CMD_EDIT_DEST, check_data->vs_group, vs, rs);
 		update_quorum_state(vs);
 	}
