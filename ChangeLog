@@ -1,3 +1,91 @@
+2010-12-08  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.1 released.
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  VRRP: Fix incorrect computation for packet size
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  VRRP: handle passwords up to 8 characters
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  When updating weight, check quorum state.
+	  MISC check can update the weight of a real server. This
+	  can lead to a change in quorum state.
+	  We factor out quorum handling from perform_svr_state()
+	  into a new function update_quorum_state() that will check if
+	  the quorum state changed and if yes, update sorry server status,
+	  exec quorum commands and add back or remove alive real servers
+	  (with existing function perform_quorum_state()).
+	  This patch is mostly cut'n'paste and adding a call to
+	  update_quorum_state() in update_svr_wgt(). We also make
+	  perform_svr_state() and update_quorum_state() almost symmetric.
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  Fix an infinite loop in master transition with sync groups.
+	  This patch is from Arjan Filius. See:
+	  http://marc.info/?l=keepalived-devel&m=128212278218825&w=2
+	  When transitioning to master state, keepalived might try to
+	  force transition to master state of other VRRP instances into
+	  the same group before their transition is complete. This leads
+	  to an infinite loop with huge VRRP trafic.
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  VRRP : Use VRRP_PRIO_DFL instead of 100 for default priority.
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  Use netpacket/packet.h instead of linux/if_packet.h to get
+	  sockaddr_ll.
+	  linux/if_packet.h pulls linux/types.h that should not be used
+	  by a userland program since types defined here can conflict
+	  with stdint.h. We use netpacket/packet.h which is a GNU LibC
+	  header.
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  Keep current weight on reload when initial weight is not
+	  altered.
+	  Weight can be changed by MISC_CHECK when using dynamic option.
+	  In case of reload, the change is lost until the script runs
+	  again. We record the initial weight in a separate variable and
+	  use it to check if a real server has changed instead of using
+	  the actual weight.
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  VRRP : disabled scripts and initially good scripts should be
+	  considered as OK.
+	  When a script is not weighted, its failure will lead to a
+	  failure of the associated VRRP instance. However, disabled
+	  script and scripts that are initially good (after a reload)
+	  should be considered as successful and not make the instance
+	  fail.  Moreover, a disabled script should not be used when
+	  computing script weights.
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  VRRP : more informative message when disabling a script due
+	  to use of weights.
+	  When using a weight for a tracked script, the script is
+	  disabled.  However, the warning message said that the weight
+	  was ignored. We change the message to tell that the script is
+	  ignored. Moreover, we don't change its weight since it can be
+	  used in another instance, not in a SYNC group.
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  check : include missing virtual server group name in a log
+	  message
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  configure: add a check for ETHERTYPE_IPV6.
+	  ETHERTYPE_IPV6 defined in net/ethernet.h is pretty recent.
+	  If absent, we hard-code the value into CFLAGS. This patch
+	  requires regeneration of configure.
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  check : update server weight in IPVS only if server is alive
+	  and in the pool.
+	  With inhibit_on_failure, a server can be in the pool and not
+	  alive. We don't want to set the weight of an inhibited server
+	  or a server in a virtual server whose qorum is not met yet.
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  check: really add back inhibited server when quorum is gained
+	  A previous change contained an erroneous check to add back
+	  alive servers when quorum state was gained. This check was
+	  incompatible with inhibit_on_failure. When servers were added
+	  back in the pool, the weight was not updated accordingly.
+	* Vincent Bernat <bernat <at> luffy.cx>:
+	  check : update server weight despite quorum when no sorry
+	  server.
+	  In absence of a sorry server, the logic is to not use quorum
+	  except to run commands when quorum is gained or lost. This
+	  means that if a MISC check modifies the weight of a server
+	  and there is no sorry server, we do not consider quorum.
+
 2010-05-31  Alexandre Cassen  <acassen@linux-vs.org>
 	* Branch 1.2.0 created. This branch will host all new
 	  developments on Keepalived. New code will be added
