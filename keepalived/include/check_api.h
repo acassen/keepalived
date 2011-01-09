@@ -49,10 +49,6 @@ extern list checkers_queue;
 #define CHECKER_GET() (CHECKER_DATA(LIST_TAIL_DATA(checkers_queue)))
 #define CHECKER_VALUE_INT(X) (atoi(VECTOR_SLOT(X,1)))
 #define CHECKER_VALUE_STRING(X) (set_value(X))
-#define CHECKER_VIP(C)   (SVR_IP((C)->vs))
-#define CHECKER_VPORT(C) (SVR_PORT((C)->vs))
-#define CHECKER_RIP(C)   (SVR_IP((C)->rs))
-#define CHECKER_RPORT(C) (SVR_PORT((C)->rs))
 #define CHECKER_VHOST(C) (VHOST((C)->vs))
 #define CHECKER_ENABLED(C) ((C)->enabled)
 #define CHECKER_ENABLE(C)  ((C)->enabled = 1)
@@ -63,11 +59,13 @@ extern list checkers_queue;
 extern void init_checkers_queue(void);
 extern void queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 			  , int (*launch) (struct _thread *)
-			  , void *data);
+			  , void *);
 extern void dump_checkers_queue(void);
 extern void free_checkers_queue(void);
 extern void register_checkers_thread(void);
 extern void install_checkers_keyword(void);
-extern void update_checker_activity(uint32_t address, int enable);
+extern void update_checker_activity(sa_family_t, void *, int);
+extern void checker_set_dst(struct sockaddr_storage *);
+extern void checker_set_dst_port(struct sockaddr_storage *, uint16_t);
 
 #endif

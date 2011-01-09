@@ -63,8 +63,8 @@ typedef struct _url {
 } url;
 typedef struct _http_get_checker {
 	int proto;
-	uint16_t connection_port;
-	uint32_t bindto;
+	struct sockaddr_storage dst;
+	struct sockaddr_storage bindto;
 	long connection_to;
 	int nb_get_retry;
 	long delay_before_retry;

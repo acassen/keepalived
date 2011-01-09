@@ -130,7 +130,10 @@ static void
 pgr_handler(vector strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	inet_ston(VECTOR_SLOT(strvec, 1), &vs->granularity_persistence);
+	if (vs->addr.ss_family == AF_INET6)
+		vs->granularity_persistence = atoi(VECTOR_SLOT(strvec, 1));
+	else
+		inet_ston(VECTOR_SLOT(strvec, 1), &vs->granularity_persistence);
 }
 static void
 proto_handler(vector strvec)

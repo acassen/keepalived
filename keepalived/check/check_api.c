@@ -52,8 +52,9 @@ static void
 dump_checker(void *data_obj)
 {
 	checker *checker_obj = data_obj;
-	log_message(LOG_INFO, " %s:%d", inet_ntop2(CHECKER_RIP(checker_obj))
-	       , ntohs(CHECKER_RPORT(checker_obj)));
+	log_message(LOG_INFO, " %s:%d"
+			    , inet_sockaddrtos(&checker_obj->rs->addr)
+			    , ntohs(inet_sockaddrport(&checker_obj->rs->addr)));
 	(*checker_obj->dump_func) (checker_obj);
 }
 
@@ -88,6 +89,28 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 		checker_id_t *id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
 		*id = check_obj->id;
 		list_add (fc, id);
+	}
+}
+
+/* Set dst */
+void
+checker_set_dst(struct sockaddr_storage *dst)
+{
+	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server *rs = LIST_TAIL_DATA(vs->rs);
+
+	*dst = rs->addr;
+}
+
+void
+checker_set_dst_port(struct sockaddr_storage *dst, uint16_t port)
+{
+	if (dst->ss_family == AF_INET6) {
+		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) dst;
+		addr6->sin6_port = port;
+	} else {
+		struct sockaddr_in *addr4 = (struct sockaddr_in *) dst;
+		addr4->sin_port = port;
 	}
 }
 
@@ -126,10 +149,9 @@ register_checkers_thread(void)
 
 	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 		checker_obj = ELEMENT_DATA(e);
-		log_message(LOG_INFO,
-		       "Activating healtchecker for service [%s:%d]",
-		       inet_ntop2(CHECKER_RIP(checker_obj)),
-		       ntohs(CHECKER_RPORT(checker_obj)));
+		log_message(LOG_INFO, "Activating healtchecker for service [%s:%d]"
+				    , inet_sockaddrtos(&checker_obj->rs->addr)
+				    , ntohs(inet_sockaddrport(&checker_obj->rs->addr)));
 		CHECKER_ENABLE(checker_obj);
 		if (checker_obj->launch)
 			thread_add_timer(master, checker_obj->launch, checker_obj,
@@ -139,34 +161,50 @@ register_checkers_thread(void)
 
 /* Sync checkers activity with netlink kernel reflection */
 void
-update_checker_activity(uint32_t address, int enable)
+update_checker_activity(sa_family_t family, void *address, int enable)
 {
 	checker *checker_obj;
+	sa_family_t vip_family;
 	element e;
+	char addr_str[INET6_ADDRSTRLEN];
+	void *addr;
 
 	/* Display netlink operation */
-	if (debug & 32)
-		log_message(LOG_INFO, "Netlink reflector reports IP %s %s",
-		       inet_ntop2(address), (enable) ? "added" : "removed");
+	if (debug & 32) {
+		inet_ntop(family, address, addr_str, sizeof(addr_str));
+		log_message(LOG_INFO, "Netlink reflector reports IP %s %s"
+				    , addr_str, (enable) ? "added" : "removed");
+	}
 
 	/* Processing Healthcheckers queue */
-	if (!LIST_ISEMPTY(checkers_queue))
+	if (!LIST_ISEMPTY(checkers_queue)) {
 		for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 			checker_obj = ELEMENT_DATA(e);
-			if (CHECKER_VIP(checker_obj) == address && CHECKER_HA_SUSPEND(checker_obj)) {
+			vip_family = checker_obj->vs->addr.ss_family;
+
+			if (vip_family != family)
+				continue;
+
+			if (family == AF_INET6) {
+				addr = (void *) &((struct sockaddr_in6 *)&checker_obj->vs->addr)->sin6_addr;
+			} else {
+				addr = (void *) &((struct sockaddr_in *)&checker_obj->vs->addr)->sin_addr;
+			}
+
+			if (inaddr_equal(family, addr, address) &&
+			    CHECKER_HA_SUSPEND(checker_obj)) {
 				if (!CHECKER_ENABLED(checker_obj) && enable)
-					log_message(LOG_INFO,
-					       "Activating healtchecker for service [%s:%d]",
-					       inet_ntop2(CHECKER_RIP(checker_obj)),
-					       ntohs(CHECKER_RPORT(checker_obj)));
+					log_message(LOG_INFO, "Activating healtchecker for service [%s:%d]"
+							    , inet_sockaddrtos(&checker_obj->rs->addr)
+							    , ntohs(inet_sockaddrport(&checker_obj->rs->addr)));
 				if (CHECKER_ENABLED(checker_obj) && !enable)
-					log_message(LOG_INFO,
-					       "Suspending healtchecker for service [%s:%d]",
-					       inet_ntop2(CHECKER_RIP(checker_obj)),
-					       ntohs(CHECKER_RPORT(checker_obj)));
+					log_message(LOG_INFO, "Suspending healtchecker for service [%s:%d]"
+							    , inet_sockaddrtos(&checker_obj->rs->addr)
+							    , ntohs(inet_sockaddrport(&checker_obj->rs->addr)));
 				checker_obj->enabled = enable;
 			}
 		}
+	}
 }
 
 /* Install checkers keywords */

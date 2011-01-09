@@ -95,8 +95,8 @@ connection_error(thread * thread_obj)
 {
 	smtp_thread_arg *smtp_arg = THREAD_ARG(thread_obj);
 
-	log_message(LOG_INFO, "SMTP connection ERROR to [%s:%d].",
-	       inet_ntop2(data->smtp_server), SMTP_PORT);
+	log_message(LOG_INFO, "SMTP connection ERROR to [%s:%d]."
+			    , inet_sockaddrtos(&data->smtp_server), SMTP_PORT);
 	free_smtp_all(smtp_arg);
 	return 0;
 }
@@ -105,8 +105,8 @@ connection_timeout(thread * thread_obj)
 {
 	smtp_thread_arg *smtp_arg = THREAD_ARG(thread_obj);
 
-	log_message(LOG_INFO, "Timeout connecting SMTP server [%s:%d].",
-	       inet_ntop2(data->smtp_server), SMTP_PORT);
+	log_message(LOG_INFO, "Timeout connecting SMTP server [%s:%d]."
+			    , inet_sockaddrtos(&data->smtp_server), SMTP_PORT);
 	free_smtp_all(smtp_arg);
 	return 0;
 }
@@ -116,15 +116,13 @@ connection_in_progress(thread * thread_obj)
 	int status;
 
 	DBG("SMTP connection to [%s:%d] now IN_PROGRESS.",
-	    inet_ntop2(data->smtp_server), SMTP_PORT);
+	    inet_sockaddrtos(&data->smtp_server), SMTP_PORT);
 
 	/*
 	 * Here we use the propriety of a union structure,
 	 * each element of the structure have the same value.
 	 */
-	status =
-	    tcp_socket_state(thread_obj->u.fd, thread_obj, data->smtp_server,
-			     htons(SMTP_PORT), connection_in_progress);
+	status = tcp_socket_state(thread_obj->u.fd, thread_obj, connection_in_progress);
 
 	if (status != connect_in_progress)
 		SMTP_FSM_SEND(status, thread_obj);
@@ -136,8 +134,8 @@ connection_success(thread * thread_obj)
 {
 	smtp_thread_arg *smtp_arg = THREAD_ARG(thread_obj);
 
-	log_message(LOG_INFO, "Remote SMTP server [%s:%d] connected.",
-	       inet_ntop2(data->smtp_server), SMTP_PORT);
+	log_message(LOG_INFO, "Remote SMTP server [%s:%d] connected."
+			    , inet_sockaddrtos(&data->smtp_server), SMTP_PORT);
 
 	smtp_arg->stage = connect_success;
 	thread_add_read(thread_obj->master, smtp_read_thread, smtp_arg,
@@ -158,9 +156,8 @@ smtp_read_thread(thread * thread_obj)
 	smtp_arg = THREAD_ARG(thread_obj);
 
 	if (thread_obj->type == THREAD_READ_TIMEOUT) {
-		log_message(LOG_INFO,
-		       "Timeout reading data to remote SMTP server [%s:%d].",
-		       inet_ntop2(data->smtp_server), SMTP_PORT);
+		log_message(LOG_INFO, "Timeout reading data to remote SMTP server [%s:%d]."
+				    , inet_sockaddrtos(&data->smtp_server), SMTP_PORT);
 		SMTP_FSM_READ(QUIT, thread_obj, 0);
 		return -1;
 	}
@@ -173,19 +170,17 @@ smtp_read_thread(thread * thread_obj)
 	if (rcv_buffer_size == -1) {
 		if (errno == EAGAIN)
 			goto end;
-		log_message(LOG_INFO,
-		       "Error reading data from remote SMTP server [%s:%d].",
-		       inet_ntop2(data->smtp_server), SMTP_PORT);
+		log_message(LOG_INFO, "Error reading data from remote SMTP server [%s:%d]."
+				    , inet_sockaddrtos(&data->smtp_server), SMTP_PORT);
 		SMTP_FSM_READ(QUIT, thread_obj, 0);
 		return 0;
 	}
 
 	/* received data overflow buffer size ? */
 	if (smtp_arg->buflen >= SMTP_BUFFER_MAX) {
-		log_message(LOG_INFO,
-		       "Received buffer from remote SMTP server [%s:%d]"
-		       " overflow our get read buffer length.",
-		       inet_ntop2(data->smtp_server), SMTP_PORT);
+		log_message(LOG_INFO, "Received buffer from remote SMTP server [%s:%d]"
+				      " overflow our get read buffer length."
+				    , inet_sockaddrtos(&data->smtp_server), SMTP_PORT);
 		SMTP_FSM_READ(QUIT, thread_obj, 0);
 		return 0;
 	} else {
@@ -219,9 +214,7 @@ smtp_read_thread(thread * thread_obj)
 			continue;
 		}
 
-		status =
-		    ((reply[0] - '0') * 100) + ((reply[1] - '0') * 10) +
-		    (reply[2] - '0');
+		status = ((reply[0] - '0') * 100) + ((reply[1] - '0') * 10) + (reply[2] - '0');
 
 		reply = p + 2;
 		break;
@@ -244,9 +237,8 @@ smtp_read_thread(thread * thread_obj)
 		thread_add_write(thread_obj->master, smtp_send_thread, smtp_arg,
 				 smtp_arg->fd, data->smtp_connection_to);
 	} else {
-		log_message(LOG_INFO,
-		       "Can not read data from remote SMTP server [%s:%d].",
-		       inet_ntop2(data->smtp_server), SMTP_PORT);
+		log_message(LOG_INFO, "Can not read data from remote SMTP server [%s:%d]."
+				    , inet_sockaddrtos(&data->smtp_server), SMTP_PORT);
 		SMTP_FSM_READ(QUIT, thread_obj, 0);
 	}
 
@@ -259,9 +251,8 @@ smtp_send_thread(thread * thread_obj)
 	smtp_thread_arg *smtp_arg = THREAD_ARG(thread_obj);
 
 	if (thread_obj->type == THREAD_WRITE_TIMEOUT) {
-		log_message(LOG_INFO,
-		       "Timeout sending data to remote SMTP server [%s:%d].",
-		       inet_ntop2(data->smtp_server), SMTP_PORT);
+		log_message(LOG_INFO, "Timeout sending data to remote SMTP server [%s:%d]."
+				    , inet_sockaddrtos(&data->smtp_server), SMTP_PORT);
 		SMTP_FSM_READ(QUIT, thread_obj, 0);
 		return 0;
 	}
@@ -281,7 +272,7 @@ smtp_send_thread(thread * thread_obj)
 	} else {
 		log_message(LOG_INFO,
 		       "Can not send data to remote SMTP server [%s:%d].",
-		       inet_ntop2(data->smtp_server), SMTP_PORT);
+		       inet_sockaddrtos(&data->smtp_server), SMTP_PORT);
 		SMTP_FSM_READ(QUIT, thread_obj, 0);
 	}
 
@@ -297,7 +288,7 @@ connection_code(thread * thread_obj, int status)
 		smtp_arg->stage++;
 	} else {
 		log_message(LOG_INFO, "Error connecting SMTP server[%s:%d]."
-		       " SMTP status code = %d", inet_ntop2(data->smtp_server),
+		       " SMTP status code = %d", inet_sockaddrtos(&data->smtp_server),
 		       SMTP_PORT, status);
 		smtp_arg->stage = ERROR;
 	}
@@ -330,7 +321,7 @@ helo_code(thread * thread_obj, int status)
 	} else {
 		log_message(LOG_INFO,
 		       "Error processing HELO cmd on SMTP server [%s:%d]."
-		       " SMTP status code = %d", inet_ntop2(data->smtp_server),
+		       " SMTP status code = %d", inet_sockaddrtos(&data->smtp_server),
 		       SMTP_PORT, status);
 		smtp_arg->stage = ERROR;
 	}
@@ -363,7 +354,7 @@ mail_code(thread * thread_obj, int status)
 	} else {
 		log_message(LOG_INFO,
 		       "Error processing MAIL cmd on SMTP server [%s:%d]."
-		       " SMTP status code = %d", inet_ntop2(data->smtp_server),
+		       " SMTP status code = %d", inet_sockaddrtos(&data->smtp_server),
 		       SMTP_PORT, status);
 		smtp_arg->stage = ERROR;
 	}
@@ -408,7 +399,7 @@ rcpt_code(thread * thread_obj, int status)
 	} else {
 		log_message(LOG_INFO,
 		       "Error processing RCPT cmd on SMTP server [%s:%d]."
-		       " SMTP status code = %d", inet_ntop2(data->smtp_server),
+		       " SMTP status code = %d", inet_sockaddrtos(&data->smtp_server),
 		       SMTP_PORT, status);
 		smtp_arg->stage = ERROR;
 	}
@@ -422,8 +413,7 @@ data_cmd(thread * thread_obj)
 {
 	smtp_thread_arg *smtp_arg = THREAD_ARG(thread_obj);
 
-	if (send(thread_obj->u.fd, SMTP_DATA_CMD, strlen(SMTP_DATA_CMD), 0)
-	    == -1)
+	if (send(thread_obj->u.fd, SMTP_DATA_CMD, strlen(SMTP_DATA_CMD), 0) == -1)
 		smtp_arg->stage = ERROR;
 	return 0;
 }
@@ -437,7 +427,7 @@ data_code(thread * thread_obj, int status)
 	} else {
 		log_message(LOG_INFO,
 		       "Error processing DATA cmd on SMTP server [%s:%d]."
-		       " SMTP status code = %d", inet_ntop2(data->smtp_server),
+		       " SMTP status code = %d", inet_sockaddrtos(&data->smtp_server),
 		       SMTP_PORT, status);
 		smtp_arg->stage = ERROR;
 	}
@@ -495,7 +485,7 @@ body_code(thread * thread_obj, int status)
 	} else {
 		log_message(LOG_INFO,
 		       "Error processing DOT cmd on SMTP server [%s:%d]."
-		       " SMTP status code = %d", inet_ntop2(data->smtp_server),
+		       " SMTP status code = %d", inet_sockaddrtos(&data->smtp_server),
 		       SMTP_PORT, status);
 		smtp_arg->stage = ERROR;
 	}
@@ -509,8 +499,7 @@ quit_cmd(thread * thread_obj)
 {
 	smtp_thread_arg *smtp_arg = THREAD_ARG(thread_obj);
 
-	if (send(thread_obj->u.fd, SMTP_QUIT_CMD, strlen(SMTP_QUIT_CMD), 0)
-	    == -1)
+	if (send(thread_obj->u.fd, SMTP_QUIT_CMD, strlen(SMTP_QUIT_CMD), 0) == -1)
 		smtp_arg->stage = ERROR;
 	else
 		smtp_arg->stage++;
@@ -533,14 +522,13 @@ smtp_connect(smtp_thread_arg * smtp_arg)
 {
 	enum connect_result status;
 
-	if ((smtp_arg->fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP))
-	    == -1) {
+	if ((smtp_arg->fd = socket(data->smtp_server.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
 		DBG("SMTP connect fail to create socket.");
 		free_smtp_all(smtp_arg);
 		return;
 	}
 
-	status = tcp_connect(smtp_arg->fd, data->smtp_server, htons(SMTP_PORT));
+	status = tcp_connect(smtp_arg->fd, &data->smtp_server);
 
 	/* Handle connection status code */
 	thread_add_event(master, SMTP_FSM[status].send, smtp_arg, smtp_arg->fd);
@@ -554,7 +542,7 @@ smtp_alert(real_server * rs, vrrp_rt * vrrp,
 	smtp_thread_arg *smtp_arg;
 
 	/* Only send mail if email specified */
-	if (!LIST_ISEMPTY(data->email) && data->smtp_server != 0) {
+	if (!LIST_ISEMPTY(data->email) && data->smtp_server.ss_family != 0) {
 		/* allocate & initialize smtp argument data structure */
 		smtp_arg = (smtp_thread_arg *) MALLOC(sizeof (smtp_thread_arg));
 		smtp_arg->subject = (char *) MALLOC(MAX_HEADERS_LENGTH);
@@ -562,13 +550,12 @@ smtp_alert(real_server * rs, vrrp_rt * vrrp,
 		smtp_arg->buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
 
 		/* format subject if rserver is specified */
-		if (rs)
-			snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH,
-				 "[%s] Realserver %s:%d - %s",
-				 data->router_id, inet_ntop2(SVR_IP(rs))
-				 , ntohs(SVR_PORT(rs))
+		if (rs) {
+			snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s:%d - %s"
+				 , data->router_id, inet_sockaddrtos(&rs->addr)
+				 , ntohs(inet_sockaddrport(&rs->addr))
 				 , subject);
-		else if (vrrp)
+		} else if (vrrp)
 			snprintf(smtp_arg->subject, MAX_HEADERS_LENGTH,
 				 "[%s] VRRP Instance %s - %s",
 				 data->router_id, vrrp->iname, subject);

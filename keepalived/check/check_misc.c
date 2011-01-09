@@ -182,9 +182,9 @@ misc_check_child_thread(thread * thread_obj)
 
 		/* The child hasn't responded. Kill it off. */
 		if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
-			log_message(LOG_INFO, "Misc check to [%s] for [%s] timed out",
-			       inet_ntop2(CHECKER_RIP(checker_obj)),
-			       misc_chk->path);
+			log_message(LOG_INFO, "Misc check to [%s] for [%s] timed out"
+					    , inet_sockaddrtos(&checker_obj->rs->addr)
+					    , misc_chk->path);
 			smtp_alert(checker_obj->rs, NULL, NULL,
 				   "DOWN",
 				   "=> MISC CHECK script timeout on service <=");
@@ -216,9 +216,9 @@ misc_check_child_thread(thread * thread_obj)
 
 			/* everything is good */
 			if (!svr_checker_up(checker_obj->id, checker_obj->rs)) {
-				log_message(LOG_INFO, "Misc check to [%s] for [%s] success.",
-				       inet_ntop2(CHECKER_RIP(checker_obj)),
-				       misc_chk->path);
+				log_message(LOG_INFO, "Misc check to [%s] for [%s] success."
+						    , inet_sockaddrtos(&checker_obj->rs->addr)
+						    , misc_chk->path);
 				smtp_alert(checker_obj->rs, NULL, NULL,
 					   "UP",
 					   "=> MISC CHECK succeed on service <=");
@@ -228,9 +228,9 @@ misc_check_child_thread(thread * thread_obj)
 			}
 		} else {
 			if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
-				log_message(LOG_INFO, "Misc check to [%s] for [%s] failed.",
-				       inet_ntop2(CHECKER_RIP(checker_obj)),
-				       misc_chk->path);
+				log_message(LOG_INFO, "Misc check to [%s] for [%s] failed."
+						    , inet_sockaddrtos(&checker_obj->rs->addr)
+						    , misc_chk->path);
 				smtp_alert(checker_obj->rs, NULL, NULL,
 					   "DOWN",
 					   "=> MISC CHECK failed on service <=");

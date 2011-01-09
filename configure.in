@@ -51,6 +51,15 @@ dnl ----[ Checks for libraries ]----
 AC_CHECK_LIB(crypto, MD5_Init,,AC_MSG_ERROR([OpenSSL libraries are required]))
 AC_CHECK_LIB(ssl, SSL_CTX_new,,AC_MSG_ERROR([OpenSSL libraries are required]))
 AC_CHECK_LIB(popt, poptGetContext,,AC_MSG_ERROR([Popt libraries is required]))
+AC_CHECK_LIB(nl, nl_handle_alloc,
+  [
+    USE_NL="LIBIPVS_USE_NL"
+    LIBS="$LIBS -lnl"
+  ],
+  [
+    USE_NL="LIBIPVS_DONTUSE_NL"
+    AC_MSG_WARN([keepalived will be built without libnl support.])
+  ])
 
 dnl ----[ Kernel version check ]----
 CPPFLAGS="$CPPFLAGS -I$kernelinc"
@@ -170,6 +179,7 @@ fi
 AC_SUBST(VERSION)
 AC_SUBST(VERSION_DATE)
 AC_SUBST(IPVS_SUPPORT)
+AC_SUBST(USE_NL)
 AC_SUBST(VRRP_SUPPORT)
 
 dnl ----[ Checks for typedefs, structures, and compiler characteristics ]----
@@ -194,8 +204,6 @@ if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
     OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs-2.6/Makefile"
   elif test "$KERN" = "_KRNL_2_4_"; then
     OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs-2.4/Makefile"
-  else
-    OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipfwc/Makefile"
   fi
 fi
 AC_OUTPUT($OUTPUT_TARGET)
@@ -222,6 +230,11 @@ if test "${IPVS_SUPPORT}" = "_WITH_LVS_"; then
     echo "IPVS sync daemon support : Yes"
   elif test "${IPVS_SYNCD}" = "_WITHOUT_IPVS_SYNCD_"; then
     echo "IPVS sync daemon support : No"
+  fi
+  if test "${USE_NL}" = "LIBIPVS_USE_NL"; then
+    echo "IPVS use libnl           : Yes"
+  else
+    echo "IPVS use libnl           : No"
   fi
 else
   echo "Use IPVS Framework       : No"

@@ -23,6 +23,7 @@
 #include <syslog.h>
 #include <unistd.h>
 #include <pwd.h>
+#include <netdb.h>
 #include "global_data.h"
 #include "memory.h"
 #include "list.h"
@@ -75,12 +76,6 @@ set_default_email_from(conf_data * conf_data_obj)
 }
 
 static void
-set_default_smtp_server(conf_data * conf_data_obj)
-{
-	conf_data_obj->smtp_server = htonl(DEFAULT_SMTP_SERVER);
-}
-
-static void
 set_default_smtp_connection_timeout(conf_data * conf_data_obj)
 {
 	conf_data_obj->smtp_connection_to = DEFAULT_SMTP_CONNECTION_TIMEOUT;
@@ -93,7 +88,6 @@ set_default_values(conf_data * conf_data_obj)
 	if (!conf_data_obj)
 		return;
 	set_default_router_id(conf_data_obj);
-	set_default_smtp_server(conf_data_obj);
 	set_default_smtp_connection_timeout(conf_data_obj);
 	set_default_email_from(conf_data_obj);
 }
@@ -153,16 +147,15 @@ dump_global_data(conf_data * global_data)
 		return;
 
 	if (data->router_id ||
-	    data->smtp_server || data->smtp_connection_to || data->email_from) {
+	    data->smtp_server.ss_family || data->smtp_connection_to || data->email_from) {
 		log_message(LOG_INFO, "------< Global definitions >------");
 	}
 	if (data->router_id)
 		log_message(LOG_INFO, " Router ID = %s", data->router_id);
 	if (data->plugin_dir)
 		log_message(LOG_INFO, " Plugin dir = %s", data->plugin_dir);
-	if (data->smtp_server)
-		log_message(LOG_INFO, " Smtp server = %s",
-		       inet_ntop2(data->smtp_server));
+	if (data->smtp_server.ss_family)
+		log_message(LOG_INFO, " Smtp server = %s", inet_sockaddrtos(&data->smtp_server));
 	if (data->smtp_connection_to)
 		log_message(LOG_INFO, " Smtp server connection timeout = %lu",
 		       data->smtp_connection_to / TIMER_HZ);

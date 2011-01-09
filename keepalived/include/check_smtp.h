@@ -46,9 +46,8 @@
 
 /* Per host configuration structure  */
 typedef struct _smtp_host {
-	uint16_t port;
-	uint32_t ip;
-	uint32_t bindto;
+	struct sockaddr_storage dst;
+	struct sockaddr_storage bindto;
 } smtp_host;
 
 /* Checker argument structure  */

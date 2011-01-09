@@ -22,6 +22,8 @@
 
 #include "check_daemon.h"
 #include "check_parser.h"
+#include "ipwrapper.h"
+#include "ipvswrapper.h"
 #include "check_data.h"
 #include "check_ssl.h"
 #include "check_api.h"

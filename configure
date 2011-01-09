@@ -594,6 +594,7 @@ ac_includes_default="\
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
 VRRP_SUPPORT
+USE_NL
 IPVS_SUPPORT
 VERSION_DATE
 VERSION
@@ -3841,6 +3842,55 @@ else
   as_fn_error "Popt libraries is required" "$LINENO" 5
 fi
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_handle_alloc in -lnl" >&5
+$as_echo_n "checking for nl_handle_alloc in -lnl... " >&6; }
+if test "${ac_cv_lib_nl_nl_handle_alloc+set}" = set; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lnl  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char nl_handle_alloc ();
+int
+main ()
+{
+return nl_handle_alloc ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_nl_nl_handle_alloc=yes
+else
+  ac_cv_lib_nl_nl_handle_alloc=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_nl_nl_handle_alloc" >&5
+$as_echo "$ac_cv_lib_nl_nl_handle_alloc" >&6; }
+if test "x$ac_cv_lib_nl_nl_handle_alloc" = x""yes; then :
+
+    USE_NL="LIBIPVS_USE_NL"
+    LIBS="$LIBS -lnl"
+
+else
+
+    USE_NL="LIBIPVS_DONTUSE_NL"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: keepalived will be built without libnl support." >&5
+$as_echo "$as_me: WARNING: keepalived will be built without libnl support." >&2;}
+
+fi
+
 
 CPPFLAGS="$CPPFLAGS -I$kernelinc"
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for kernel version" >&5
@@ -3981,6 +4031,7 @@ fi
 if test "${enable_profile}" = "yes"; then
   CFLAGS="$CFLAGS -pg"
 fi
+
 
 
 
@@ -4275,8 +4326,6 @@ if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
     OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs-2.6/Makefile"
   elif test "$KERN" = "_KRNL_2_4_"; then
     OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs-2.4/Makefile"
-  else
-    OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipfwc/Makefile"
   fi
 fi
 ac_config_files="$ac_config_files $OUTPUT_TARGET"
@@ -5445,6 +5494,11 @@ if test "${IPVS_SUPPORT}" = "_WITH_LVS_"; then
     echo "IPVS sync daemon support : Yes"
   elif test "${IPVS_SYNCD}" = "_WITHOUT_IPVS_SYNCD_"; then
     echo "IPVS sync daemon support : No"
+  fi
+  if test "${USE_NL}" = "LIBIPVS_USE_NL"; then
+    echo "IPVS use libnl           : Yes"
+  else
+    echo "IPVS use libnl           : No"
   fi
 else
   echo "Use IPVS Framework       : No"

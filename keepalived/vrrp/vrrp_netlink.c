@@ -536,17 +536,16 @@ netlink_if_address_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	if (ifa->ifa_family == AF_INET) {
 		if (!ifp->sin_addr.s_addr)
 			ifp->sin_addr = *(struct in_addr *) addr;
-#ifdef _WITH_LVS_
-		/* Refresh checkers state */
-		update_checker_activity(ifp->sin_addr.s_addr,
-					(h->nlmsg_type == RTM_NEWADDR) ? 1 : 0);
-#endif
-
 	} else {
 		if (!ifp->sin6_addr.s6_addr16[0] && ifa->ifa_scope == RT_SCOPE_LINK)
 			ifp->sin6_addr = *(struct in6_addr *) addr;
 	}
 
+#ifdef _WITH_LVS_
+	/* Refresh checkers state */
+	update_checker_activity(ifa->ifa_family, addr,
+				(h->nlmsg_type == RTM_NEWADDR) ? 1 : 0);
+#endif
 	return 0;
 }
 

@@ -1,18 +1,22 @@
-# Makefile to make libipvsc.
+# Makefile for libipvs
 
-CC	= @CC@
-CFLAGS	= @CFLAGS@ @CPPFLAGS@ -Wall -Wunused
+CC		= @CC@
+CFLAGS		= @CFLAGS@ @CPPFLAGS@ -D@USE_NL@ -Wall -Wunused
 
 export OBJS += libipvs.a
 
-all: libipvs.a
+STATIC_LIB	= libipvs.a
 
-libipvs.a: libipvs.a(libipvs.o)
+all:		$(STATIC_LIB)
 
-libipvsc.o: libipvs.h
+$(STATIC_LIB):	libipvs.o ip_vs_nl_policy.o
+		ar rv $@ $^
+		rm $^
+
+%.o:		%.c
+		$(CC) $(CFLAGS) -c -o $@ $<
 
 clean:
-	rm -f *.a *.o *~
+		rm -f *.[ao] *~ *.orig *.rej core
 
-distclean: clean
-	rm -f Makefile
+distclean:	clean

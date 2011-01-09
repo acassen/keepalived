@@ -33,8 +33,8 @@
 
 /* Checker argument structure  */
 typedef struct _tcp_checker {
-	uint16_t connection_port;
-	uint32_t bindto;
+	struct sockaddr_storage dst;
+	struct sockaddr_storage bindto;
 	int connection_to;
 } tcp_checker;
 

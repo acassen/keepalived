@@ -1,3 +1,24 @@
+2011-01-09  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.2 released.
+	* IPv6 : extended autoconf script to support libnl detection.
+	         IPv6 IPVS kernel subsystem is reachable through
+	         generic netlink configuration interface.
+	* IPv6 : Enhanced libipvs-2.6 to support generic netlink
+	         configuration interface. If generic netlink is
+	         available with kernel then it will be the
+	         prefered path to configure IPVS.
+	* IPv6 : Enhanced the whole checker API to use
+	         sockaddr_storage.
+	* IPv6 : Enhanced the whole core framework to use
+	         sockaddr_storage.
+	* IPv6 : Enhanced all checkers to use sockaddr_storage.
+	* fixed a long time pending issue in all checkers. If
+	  first connection attempt to remote peer was failing
+	  no more check was performed to service... Up on error
+	  connecting remote peer simply register a new timer for
+	  next check. This is specially needed in IPv6 context
+	  where a unreachable host can be reached at delayed time.
+
 2010-12-08  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.1 released.
 	* Vincent Bernat <bernat <at> luffy.cx>:

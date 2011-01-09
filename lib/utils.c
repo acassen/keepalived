@@ -159,6 +159,110 @@ inet_stor(char *addr)
 	return range;
 }
 
+/* IP string to sockaddr_storage */
+int
+inet_stosockaddr(char *ip, char *port, struct sockaddr_storage *addr)
+{
+	void *addr_ip;
+	char *cp = ip;
+
+	addr->ss_family = (strchr(ip, ':')) ? AF_INET6 : AF_INET;
+
+	/* remove range and mask stuff */
+	if (strstr(ip, "-")) {
+		while (*cp != '-' && *cp != '\0')
+			cp++;
+		if (*cp == '-')
+			*cp = 0;
+	} else if (strstr(ip, "/")) {
+		while (*cp != '/' && *cp != '\0')
+			cp++;
+		if (*cp == '/')
+			*cp = 0;
+	}
+
+	if (addr->ss_family == AF_INET6) {
+		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
+		if (port)
+			addr6->sin6_port = htons(atoi(port));
+		addr_ip = &addr6->sin6_addr;
+	} else {
+		struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
+		if (port)
+			addr4->sin_port = htons(atoi(port));
+		addr_ip = &addr4->sin_addr;
+	}
+
+	if (!inet_pton(addr->ss_family, ip, addr_ip))
+		return -1;
+
+	return 0;
+}
+
+/* IP network to string representation */
+char *
+inet_sockaddrtos2(struct sockaddr_storage *addr, char *addr_str)
+{
+	void *addr_ip;
+
+	if (addr->ss_family == AF_INET6) {
+		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
+		addr_ip = &addr6->sin6_addr;
+	} else {
+		struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
+		addr_ip = &addr4->sin_addr;
+	}
+
+	if (!inet_ntop(addr->ss_family, addr_ip, addr_str, INET6_ADDRSTRLEN))
+		return NULL;
+
+	return addr_str;
+}
+
+char *
+inet_sockaddrtos(struct sockaddr_storage *addr)
+{
+	static char addr_str[INET6_ADDRSTRLEN];
+	inet_sockaddrtos2(addr, addr_str);
+	return addr_str;
+}
+
+uint16_t
+inet_sockaddrport(struct sockaddr_storage *addr)
+{
+	uint16_t port;
+
+	if (addr->ss_family == AF_INET6) {
+		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
+		port = addr6->sin6_port;
+	} else {
+		struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
+		port = addr4->sin_port;
+	}
+	
+	return port;
+}
+
+uint32_t
+inet_sockaddrip4(struct sockaddr_storage *addr)
+{
+	if (addr->ss_family != AF_INET)
+		return -1;
+	
+	return ((struct sockaddr_in *) addr)->sin_addr.s_addr;
+}
+
+int
+inet_sockaddrip6(struct sockaddr_storage *addr, struct in6_addr *ip6)
+{
+	if (addr->ss_family != AF_INET6)
+		return -1;
+	
+	*ip6 = ((struct sockaddr_in6 *) addr)->sin6_addr;
+	return 0;
+}
+
+
 /*
  * IP string to network representation
  * Highly inspired from Paul Vixie code.

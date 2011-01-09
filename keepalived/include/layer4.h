@@ -44,14 +44,13 @@ enum connect_result {
 
 /* Prototypes defs */
 extern enum connect_result
- tcp_bind_connect(int, uint32_t, uint16_t, uint32_t);
+ tcp_bind_connect(int, struct sockaddr_storage *, struct sockaddr_storage *);
 
 extern enum connect_result
- tcp_connect(int, uint32_t, uint16_t);
+ tcp_connect(int, struct sockaddr_storage *);
 
 extern enum connect_result
- tcp_socket_state(int, thread *, uint32_t, uint16_t,
-		  int (*func) (struct _thread *));
+ tcp_socket_state(int, thread *, int (*func) (struct _thread *));
 
 extern void
  tcp_connection_state(int, enum connect_result

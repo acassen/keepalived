@@ -10,8 +10,6 @@
 #ifndef _LIBIPVS_H
 #define _LIBIPVS_H
 
-#include <net/ip_vs.h>
-
 #define MINIMUM_IPVS_VERSION_MAJOR      1
 #define MINIMUM_IPVS_VERSION_MINOR      1
 #define MINIMUM_IPVS_VERSION_PATCH      4
@@ -39,7 +37,6 @@ typedef struct ip_vs_timeout_user	ipvs_timeout_t;
 typedef struct ip_vs_daemon_user	ipvs_daemon_t;
 typedef struct ip_vs_service_entry	ipvs_service_entry_t;
 typedef struct ip_vs_dest_entry		ipvs_dest_entry_t;
-
 
 /* ipvs info variable */
 extern struct ip_vs_getinfo ipvs_info;
@@ -86,6 +83,7 @@ extern int ipvs_start_daemon(ipvs_daemon_t *dm);
 /* stop a connection synchronizaiton daemon (master/backup) */
 extern int ipvs_stop_daemon(ipvs_daemon_t *dm);
 
+
 /* get all the ipvs services */
 extern struct ip_vs_get_services *ipvs_get_services(void);
 
@@ -107,10 +105,6 @@ extern int ipvs_cmp_dests(ipvs_dest_entry_t *d1,
 			  ipvs_dest_entry_t *d2);
 extern void ipvs_sort_dests(struct ip_vs_get_dests *d,
 			    ipvs_dest_cmp_t f);
-
-/* get an ipvs service entry */
-extern ipvs_service_entry_t *
-ipvs_get_service(__u32 fwmark, __u16 protocol, __u32 addr, __u16 port);
 
 /* get ipvs timeout */
 extern ipvs_timeout_t *ipvs_get_timeout(void);

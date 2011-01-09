@@ -48,7 +48,7 @@ typedef struct _conf_data {
 	char *router_id;
 	char *plugin_dir;
 	char *email_from;
-	uint32_t smtp_server;
+	struct sockaddr_storage smtp_server;
 	long smtp_connection_to;
 	list email;
 } conf_data;

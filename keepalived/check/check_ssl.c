@@ -286,8 +286,7 @@ ssl_read_thread(thread * thread_obj)
 		MD5_Final(digest, &req->context);
 		SSL_set_quiet_shutdown(req->ssl, 1);
 
-		r = (req->error ==
-		     SSL_ERROR_ZERO_RETURN) ? SSL_shutdown(req->ssl) : 0;
+		r = (req->error == SSL_ERROR_ZERO_RETURN) ? SSL_shutdown(req->ssl) : 0;
 
 		if (r && !req->extracted) {
 			/* check if server is currently alive */
