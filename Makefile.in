@@ -2,7 +2,7 @@
 #
 # Keepalived OpenSource project.
 #
-# Copyright (C) 2001-2009 Alexandre Cassen, <acassen@linux-vs.org>
+# Copyright (C) 2001-2011 Alexandre Cassen, <acassen@linux-vs.org>
 
 TARFILES = AUTHOR bin ChangeLog configure configure.in CONTRIBUTORS COPYING \
 	   doc genhash INSTALL install-sh keepalived keepalived.spec.in lib Makefile.in \
