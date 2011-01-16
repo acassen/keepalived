@@ -188,9 +188,9 @@ ssl_printerr(int err)
 }
 
 int
-ssl_connect(thread * thread_obj, int new_req)
+ssl_connect(thread_t * thread, int new_req)
 {
-	checker *checker_obj = THREAD_ARG(thread_obj);
+	checker *checker_obj = THREAD_ARG(thread);
 	http_get_checker *http_get_check = CHECKER_ARG(checker_obj);
 	http_arg *http_arg_obj = HTTP_ARG(http_get_check);
 	REQ *req = HTTP_REQ(http_arg_obj);
@@ -200,18 +200,18 @@ ssl_connect(thread * thread_obj, int new_req)
 	/* First round, create SSL context */
 	if (new_req) {
 		req->ssl = SSL_new(check_data->ssl->ctx);
-		req->bio = BIO_new_socket(thread_obj->u.fd, BIO_NOCLOSE);
+		req->bio = BIO_new_socket(thread->u.fd, BIO_NOCLOSE);
 		SSL_set_bio(req->ssl, req->bio, req->bio);
 	}
 
 	/* Set descriptor non blocking */
-	val = fcntl(thread_obj->u.fd, F_GETFL, 0);
-	fcntl(thread_obj->u.fd, F_SETFL, val | O_NONBLOCK);
+	val = fcntl(thread->u.fd, F_GETFL, 0);
+	fcntl(thread->u.fd, F_SETFL, val | O_NONBLOCK);
 
 	ret = SSL_connect(req->ssl);
 
 	/* restore descriptor flags */
-	fcntl(thread_obj->u.fd, F_SETFL, val);
+	fcntl(thread->u.fd, F_SETFL, val);
 
 	return ret;
 }
@@ -238,9 +238,9 @@ ssl_send_request(SSL * ssl, char *str_request, int request_len)
 
 /* Asynchronous SSL stream reader */
 int
-ssl_read_thread(thread * thread_obj)
+ssl_read_thread(thread_t * thread)
 {
-	checker *checker_obj = THREAD_ARG(thread_obj);
+	checker *checker_obj = THREAD_ARG(thread);
 	http_get_checker *http_get_check = CHECKER_ARG(checker_obj);
 	http_arg *http_arg_obj = HTTP_ARG(http_get_check);
 	REQ *req = HTTP_REQ(http_arg_obj);
@@ -249,27 +249,27 @@ ssl_read_thread(thread * thread_obj)
 	int val;
 
 	/* Handle read timeout */
-	if (thread_obj->type == THREAD_READ_TIMEOUT && !req->extracted)
-		return timeout_epilog(thread_obj, "=> SSL CHECK failed on service"
+	if (thread->type == THREAD_READ_TIMEOUT && !req->extracted)
+		return timeout_epilog(thread, "=> SSL CHECK failed on service"
 				      " : recevice data <=\n\n", "SSL read");
 
 	/* Set descriptor non blocking */
-	val = fcntl(thread_obj->u.fd, F_GETFL, 0);
-	fcntl(thread_obj->u.fd, F_SETFL, val | O_NONBLOCK);
+	val = fcntl(thread->u.fd, F_GETFL, 0);
+	fcntl(thread->u.fd, F_SETFL, val | O_NONBLOCK);
 
 	/* read the SSL stream */
 	r = SSL_read(req->ssl, req->buffer + req->len,
 		     MAX_BUFFER_LENGTH - req->len);
 
 	/* restore descriptor flags */
-	fcntl(thread_obj->u.fd, F_SETFL, val);
+	fcntl(thread->u.fd, F_SETFL, val);
 
 	req->error = SSL_get_error(req->ssl, r);
 
 	if (req->error == SSL_ERROR_WANT_READ) {
 		 /* async read unfinished */ 
-		thread_add_read(thread_obj->master, ssl_read_thread, checker_obj,
-				thread_obj->u.fd, http_get_check->connection_to);
+		thread_add_read(thread->master, ssl_read_thread, checker_obj,
+				thread->u.fd, http_get_check->connection_to);
 	} else if (r > 0 && req->error == 0) {
 		/* Handle response stream */
 		http_process_response(req, r);
@@ -278,8 +278,8 @@ ssl_read_thread(thread * thread_obj)
 		 * Register next ssl stream reader.
 		 * Register itself to not perturbe global I/O multiplexer.
 		 */
-		thread_add_read(thread_obj->master, ssl_read_thread, checker_obj,
-				thread_obj->u.fd, http_get_check->connection_to);
+		thread_add_read(thread->master, ssl_read_thread, checker_obj,
+				thread->u.fd, http_get_check->connection_to);
 	} else if (req->error) {
 
 		/* All the SSL streal has been parsed */
@@ -299,11 +299,11 @@ ssl_read_thread(thread * thread_obj)
 							     , checker_obj->vs
 							     , checker_obj->rs);
 			}
-			return epilog(thread_obj, 1, 0, 0);
+			return epilog(thread, 1, 0, 0);
 		}
 
 		/* Handle response stream */
-		http_handle_response(thread_obj, digest, (!req->extracted) ? 1 : 0);
+		http_handle_response(thread, digest, (!req->extracted) ? 1 : 0);
 
 	}
 

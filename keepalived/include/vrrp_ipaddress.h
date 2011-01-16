@@ -76,11 +76,11 @@ typedef struct {
 
 
 /* prototypes */
-extern void netlink_iplist(list ip_list, int cmd);
-extern void free_ipaddress(void *ip_data_obj);
-extern void dump_ipaddress(void *ip_data_obj);
-extern void alloc_ipaddress(list ip_list, vector strvec, interface * ifp);
-extern void clear_diff_address(list l, list n);
+extern void netlink_iplist(list, int);
+extern void free_ipaddress(void *);
+extern void dump_ipaddress(void *);
+extern void alloc_ipaddress(list, vector, interface *);
+extern void clear_diff_address(list, list);
 extern void clear_diff_saddresses(void);
 
 #endif

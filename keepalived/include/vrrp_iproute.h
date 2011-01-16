@@ -60,12 +60,12 @@ typedef struct _ip_route {
 			 (X)->index  == (Y)->index)
 
 /* prototypes */
-extern int netlink_route_ipv4(ip_route *iproute, int cmd);
-extern void netlink_rtlist_ipv4(list rt_list, int cmd);
-extern void free_iproute(void *rt_data_obj);
-extern void dump_iproute(void *rt_data_obj);
-extern void alloc_route(list rt_list, vector strvec);
-extern void clear_diff_routes(list l, list n);
+extern int netlink_route_ipv4(ip_route *, int);
+extern void netlink_rtlist_ipv4(list, int);
+extern void free_iproute(void *);
+extern void dump_iproute(void *);
+extern void alloc_route(list, vector);
+extern void clear_diff_routes(list, list);
 extern void clear_diff_sroutes(void);
 
 #endif

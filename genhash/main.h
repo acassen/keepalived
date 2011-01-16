@@ -71,7 +71,7 @@ typedef struct {
 } REQ;
 
 /* Global variables */
-extern thread_master *master;
+extern thread_master_t *master;
 extern REQ *req;		/* Cmd line arguments */
 
 /* Data buffer length description */

@@ -56,9 +56,9 @@
 
 /* free allocated pieces */
 static void
-free_all(thread * thread_obj)
+free_all(thread_t * thread)
 {
-	SOCK *sock_obj = THREAD_ARG(thread_obj);
+	SOCK *sock_obj = THREAD_ARG(thread);
 
 	DBG("Total read size read = %d Bytes, fd:%d\n",
 	    sock_obj->total_size, sock_obj->fd);
@@ -71,23 +71,23 @@ free_all(thread * thread_obj)
 	 * => free the reserved thread
 	 */
 	req->response_time = timer_tol(timer_now());
-	thread_add_terminate_event(thread_obj->master);
+	thread_add_terminate_event(thread->master);
 }
 
 /* Simple epilog functions. */
 int
-epilog(thread * thread_obj)
+epilog(thread_t * thread)
 {
 	DBG("Timeout on URL : [%s]\n", req->url);
-	free_all(thread_obj);
+	free_all(thread);
 	return 0;
 }
 
 /* Simple finalization function */
 int
-finalize(thread * thread_obj)
+finalize(thread_t * thread)
 {
-	SOCK *sock_obj = THREAD_ARG(thread_obj);
+	SOCK *sock_obj = THREAD_ARG(thread);
 	unsigned char digest[16];
 	int i;
 
@@ -106,7 +106,7 @@ finalize(thread * thread_obj)
 	printf("\n\n");
 
 	DBG("Finalize : [%s]\n", req->url);
-	free_all(thread_obj);
+	free_all(thread);
 	return 0;
 }
 
@@ -171,18 +171,18 @@ http_process_stream(SOCK * sock_obj, int r)
 
 /* Asynchronous HTTP stream reader */
 int
-http_read_thread(thread * thread_obj)
+http_read_thread(thread_t * thread)
 {
-	SOCK *sock_obj = THREAD_ARG(thread_obj);
+	SOCK *sock_obj = THREAD_ARG(thread);
 	int r = 0;
 
 	/* Handle read timeout */
-	if (thread_obj->type == THREAD_READ_TIMEOUT)
-		return epilog(thread_obj);
+	if (thread->type == THREAD_READ_TIMEOUT)
+		return epilog(thread);
 
 	/* read the HTTP stream */
 	memset(sock_obj->buffer, 0, MAX_BUFFER_LENGTH);
-	r = read(thread_obj->u.fd, sock_obj->buffer + sock_obj->size,
+	r = read(thread->u.fd, sock_obj->buffer + sock_obj->size,
 		 MAX_BUFFER_LENGTH - sock_obj->size);
 
 	DBG(" [l:%d,fd:%d]\n", r, sock_obj->fd);
@@ -193,11 +193,11 @@ http_read_thread(thread * thread_obj)
 			DBG("Read error with server [%s:%d]: %s\n",
 			    inet_ntop2(req->addr_ip), ntohs(req->addr_port),
 			    strerror(errno));
-			return epilog(thread_obj);
+			return epilog(thread);
 		}
 
 		/* All the HTTP stream has been parsed */
-		finalize(thread_obj);
+		finalize(thread);
 	} else {
 		/* Handle the response stream */
 		http_process_stream(sock_obj, r);
@@ -206,8 +206,8 @@ http_read_thread(thread * thread_obj)
 		 * Register next http stream reader.
 		 * Register itself to not perturbe global I/O multiplexer.
 		 */
-		thread_add_read(thread_obj->master, http_read_thread, sock_obj,
-				thread_obj->u.fd, HTTP_CNX_TIMEOUT);
+		thread_add_read(thread->master, http_read_thread, sock_obj,
+				thread->u.fd, HTTP_CNX_TIMEOUT);
 	}
 
 	return 0;
@@ -218,13 +218,13 @@ http_read_thread(thread * thread_obj)
  * Apply trigger check to this result.
  */
 int
-http_response_thread(thread * thread_obj)
+http_response_thread(thread_t * thread)
 {
-	SOCK *sock_obj = THREAD_ARG(thread_obj);
+	SOCK *sock_obj = THREAD_ARG(thread);
 
 	/* Handle read timeout */
-	if (thread_obj->type == THREAD_READ_TIMEOUT)
-		return epilog(thread_obj);
+	if (thread->type == THREAD_READ_TIMEOUT)
+		return epilog(thread);
 
 	/* Allocate & clean the get buffer */
 	sock_obj->buffer = (char *) MALLOC(MAX_BUFFER_LENGTH);
@@ -234,25 +234,25 @@ http_response_thread(thread * thread_obj)
 
 	/* Register asynchronous http/ssl read thread */
 	if (req->ssl)
-		thread_add_read(thread_obj->master, ssl_read_thread, sock_obj,
-				thread_obj->u.fd, HTTP_CNX_TIMEOUT);
+		thread_add_read(thread->master, ssl_read_thread, sock_obj,
+				thread->u.fd, HTTP_CNX_TIMEOUT);
 	else
-		thread_add_read(thread_obj->master, http_read_thread, sock_obj,
-				thread_obj->u.fd, HTTP_CNX_TIMEOUT);
+		thread_add_read(thread->master, http_read_thread, sock_obj,
+				thread->u.fd, HTTP_CNX_TIMEOUT);
 	return 0;
 }
 
 /* remote Web server is connected, send it the get url query.  */
 int
-http_request_thread(thread * thread_obj)
+http_request_thread(thread_t * thread)
 {
-	SOCK *sock_obj = THREAD_ARG(thread_obj);
+	SOCK *sock_obj = THREAD_ARG(thread);
 	char *str_request;
 	int ret = 0;
 
 	/* Handle read timeout */
-	if (thread_obj->type == THREAD_WRITE_TIMEOUT)
-		return epilog(thread_obj);
+	if (thread->type == THREAD_WRITE_TIMEOUT)
+		return epilog(thread);
 
 	/* Allocate & clean the GET string */
 	str_request = (char *) MALLOC(GET_BUFFER_LENGTH);
@@ -279,11 +279,11 @@ http_request_thread(thread * thread_obj)
 		fprintf(stderr, "Cannot send get request to [%s:%d].\n",
 			inet_ntop2(req->addr_ip)
 			, ntohs(req->addr_port));
-		return epilog(thread_obj);
+		return epilog(thread);
 	}
 
 	/* Register read timeouted thread */
-	thread_add_read(thread_obj->master, http_response_thread, sock_obj,
+	thread_add_read(thread->master, http_response_thread, sock_obj,
 			sock_obj->fd, HTTP_CNX_TIMEOUT);
 	return 1;
 }

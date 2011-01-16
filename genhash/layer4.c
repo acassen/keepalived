@@ -75,8 +75,8 @@ tcp_connect(int fd, uint32_t addr_ip, uint16_t addr_port)
 }
 
 enum connect_result
-tcp_socket_state(int fd, thread * thread_obj, uint32_t addr_ip, uint16_t addr_port,
-		 int (*func) (struct _thread *))
+tcp_socket_state(int fd, thread_t * thread, uint32_t addr_ip, uint16_t addr_port,
+		 int (*func) (thread_t *))
 {
 	int status;
 	socklen_t slen;
@@ -84,24 +84,24 @@ tcp_socket_state(int fd, thread * thread_obj, uint32_t addr_ip, uint16_t addr_po
 	TIMEVAL timer_min;
 
 	/* Handle connection timeout */
-	if (thread_obj->type == THREAD_WRITE_TIMEOUT) {
+	if (thread->type == THREAD_WRITE_TIMEOUT) {
 		DBG("TCP connection timeout to [%s:%d].\n",
 		    inet_ntop2(addr_ip), ntohs(addr_port));
-		close(thread_obj->u.fd);
+		close(thread->u.fd);
 		return connect_timeout;
 	}
 
 	/* Check file descriptor */
 	slen = sizeof (status);
 	if (getsockopt
-	    (thread_obj->u.fd, SOL_SOCKET, SO_ERROR, (void *) &status, &slen) < 0)
+	    (thread->u.fd, SOL_SOCKET, SO_ERROR, (void *) &status, &slen) < 0)
 		ret = errno;
 
 	/* Connection failed !!! */
 	if (ret) {
 		DBG("TCP connection failed to [%s:%d].\n",
 		    inet_ntop2(addr_ip), ntohs(addr_port));
-		close(thread_obj->u.fd);
+		close(thread->u.fd);
 		return connect_error;
 	}
 
@@ -114,9 +114,9 @@ tcp_socket_state(int fd, thread * thread_obj, uint32_t addr_ip, uint16_t addr_po
 		DBG("TCP connection to [%s:%d] still IN_PROGRESS.\n",
 		    inet_ntop2(addr_ip), ntohs(addr_port));
 
-		timer_min = timer_sub_now(thread_obj->sands);
-		thread_add_write(thread_obj->master, func, THREAD_ARG(thread_obj)
-				 , thread_obj->u.fd, TIMER_LONG(timer_min));
+		timer_min = timer_sub_now(thread->sands);
+		thread_add_write(thread->master, func, THREAD_ARG(thread)
+				 , thread->u.fd, TIMER_LONG(timer_min));
 		return connect_in_progress;
 	}
 
@@ -124,8 +124,8 @@ tcp_socket_state(int fd, thread * thread_obj, uint32_t addr_ip, uint16_t addr_po
 }
 
 void
-tcp_connection_state(int fd, enum connect_result status, thread * thread_obj,
-		     int (*func) (struct _thread *)
+tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
+		     int (*func) (thread_t *)
 		     , long timeout)
 {
 	switch (status) {
@@ -134,13 +134,13 @@ tcp_connection_state(int fd, enum connect_result status, thread * thread_obj,
 		break;
 
 	case connect_success:
-		thread_add_write(thread_obj->master, func, THREAD_ARG(thread_obj),
+		thread_add_write(thread->master, func, THREAD_ARG(thread),
 				 fd, timeout);
 		break;
 
 		/* Checking non-blocking connect, we wait until socket is writable */
 	case connect_in_progress:
-		thread_add_write(thread_obj->master, func, THREAD_ARG(thread_obj),
+		thread_add_write(thread->master, func, THREAD_ARG(thread),
 				 fd, timeout);
 		break;
 
@@ -150,39 +150,39 @@ tcp_connection_state(int fd, enum connect_result status, thread * thread_obj,
 }
 
 int
-tcp_check_thread(thread * thread_obj)
+tcp_check_thread(thread_t * thread)
 {
-	SOCK *sock_obj = THREAD_ARG(thread_obj);
+	SOCK *sock_obj = THREAD_ARG(thread);
 	int ret = 1;
 
 	sock_obj->status =
-	    tcp_socket_state(thread_obj->u.fd, thread_obj, req->addr_ip, req->addr_port,
+	    tcp_socket_state(thread->u.fd, thread, req->addr_ip, req->addr_port,
 			     tcp_check_thread);
 	switch (sock_obj->status) {
 	case connect_error:
 		DBG("Error connecting server [%s:%d].\n",
 		    inet_ntop2(req->addr_ip), ntohs(req->addr_port));
-		thread_add_terminate_event(thread_obj->master);
+		thread_add_terminate_event(thread->master);
 		return -1;
 		break;
 
 	case connect_timeout:
 		DBG("Timeout connecting server [%s:%d].\n",
 		    inet_ntop2(req->addr_ip), ntohs(req->addr_port));
-		thread_add_terminate_event(thread_obj->master);
+		thread_add_terminate_event(thread->master);
 		return -1;
 		break;
 
 	case connect_success:{
 			if (req->ssl)
-				ret = ssl_connect(thread_obj);
+				ret = ssl_connect(thread);
 
 			if (ret) {
 				/* Remote WEB server is connected.
 				 * Unlock eventual locked socket.
 				 */
 				sock_obj->lock = 0;
-				thread_add_event(thread_obj->master,
+				thread_add_event(thread->master,
 						 http_request_thread, sock_obj, 0);
 			} else {
 				DBG("Connection trouble to: [%s:%d].\n",
@@ -202,9 +202,9 @@ tcp_check_thread(thread * thread_obj)
 }
 
 int
-tcp_connect_thread(thread * thread_obj)
+tcp_connect_thread(thread_t * thread)
 {
-	SOCK *sock_obj = THREAD_ARG(thread_obj);
+	SOCK *sock_obj = THREAD_ARG(thread);
 
 	if ((sock_obj->fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
 		DBG("WEB connection fail to create socket.\n");
@@ -214,7 +214,7 @@ tcp_connect_thread(thread * thread_obj)
 	sock->status = tcp_connect(sock_obj->fd, req->addr_ip, req->addr_port);
 
 	/* handle tcp connection status & register check worker thread */
-	tcp_connection_state(sock_obj->fd, sock_obj->status, thread_obj, tcp_check_thread,
+	tcp_connection_state(sock_obj->fd, sock_obj->status, thread, tcp_check_thread,
 			     HTTP_CNX_TIMEOUT);
 	return 0;
 }

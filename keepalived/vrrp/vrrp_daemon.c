@@ -149,7 +149,7 @@ start_vrrp(void)
 }
 
 /* Reload handler */
-int reload_vrrp_thread(thread * thread_obj);
+int reload_vrrp_thread(thread_t * thread);
 void
 sighup_vrrp(void *v, int sig)
 {
@@ -180,7 +180,7 @@ vrrp_signal_init(void)
 
 /* Reload thread */
 int
-reload_vrrp_thread(thread * thread_obj)
+reload_vrrp_thread(thread_t * thread)
 {
 	/* set the reloading flag */
 	SET_RELOAD;
@@ -225,15 +225,15 @@ reload_vrrp_thread(thread * thread_obj)
 
 /* VRRP Child respawning thread */
 int
-vrrp_respawn_thread(thread * thread_obj)
+vrrp_respawn_thread(thread_t * thread)
 {
 	pid_t pid;
 
 	/* Fetch thread args */
-	pid = THREAD_CHILD_PID(thread_obj);
+	pid = THREAD_CHILD_PID(thread);
 
 	/* Restart respawning thread */
-	if (thread_obj->type == THREAD_CHILD_TIMEOUT) {
+	if (thread->type == THREAD_CHILD_TIMEOUT) {
 		thread_add_child(master, vrrp_respawn_thread, NULL,
 				 pid, RESPAWN_TIMER);
 		return 0;

@@ -77,7 +77,7 @@ tcp_connect(int fd, struct sockaddr_storage *addr)
 }
 
 enum connect_result
-tcp_socket_state(int fd, thread * thread_obj, int (*func) (struct _thread *))
+tcp_socket_state(int fd, thread_t * thread, int (*func) (thread_t *))
 {
 	int status;
 	socklen_t addrlen;
@@ -85,19 +85,19 @@ tcp_socket_state(int fd, thread * thread_obj, int (*func) (struct _thread *))
 	TIMEVAL timer_min;
 
 	/* Handle connection timeout */
-	if (thread_obj->type == THREAD_WRITE_TIMEOUT) {
-		close(thread_obj->u.fd);
+	if (thread->type == THREAD_WRITE_TIMEOUT) {
+		close(thread->u.fd);
 		return connect_timeout;
 	}
 
 	/* Check file descriptor */
 	addrlen = sizeof(status);
-	if (getsockopt(thread_obj->u.fd, SOL_SOCKET, SO_ERROR, (void *) &status, &addrlen) < 0)
+	if (getsockopt(thread->u.fd, SOL_SOCKET, SO_ERROR, (void *) &status, &addrlen) < 0)
 		ret = errno;
 
 	/* Connection failed !!! */
 	if (ret) {
-		close(thread_obj->u.fd);
+		close(thread->u.fd);
 		return connect_error;
 	}
 
@@ -107,12 +107,12 @@ tcp_socket_state(int fd, thread * thread_obj, int (*func) (struct _thread *))
 	 * Recompute the write timeout (or pending connection).
 	 */
 	if (status == EINPROGRESS) {
-		timer_min = timer_sub_now(thread_obj->sands);
-		thread_add_write(thread_obj->master, func, THREAD_ARG(thread_obj),
-				 thread_obj->u.fd, TIMER_LONG(timer_min));
+		timer_min = timer_sub_now(thread->sands);
+		thread_add_write(thread->master, func, THREAD_ARG(thread),
+				 thread->u.fd, TIMER_LONG(timer_min));
 		return connect_in_progress;
 	} else if (status != 0) {
-		close(thread_obj->u.fd);
+		close(thread->u.fd);
 		return connect_error;
 	}
 
@@ -120,12 +120,12 @@ tcp_socket_state(int fd, thread * thread_obj, int (*func) (struct _thread *))
 }
 
 void
-tcp_connection_state(int fd, enum connect_result status, thread * thread_obj,
-		     int (*func) (struct _thread *), long timeout)
+tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
+		     int (*func) (thread_t *), long timeout)
 {
 	checker *checker_obj;
 
-	checker_obj = THREAD_ARG(thread_obj);
+	checker_obj = THREAD_ARG(thread);
 
 	switch (status) {
 	case connect_error:
@@ -133,12 +133,12 @@ tcp_connection_state(int fd, enum connect_result status, thread * thread_obj,
 		break;
 
 	case connect_success:
-		thread_add_write(thread_obj->master, func, checker_obj, fd, timeout);
+		thread_add_write(thread->master, func, checker_obj, fd, timeout);
 		break;
 
 		/* Checking non-blocking connect, we wait until socket is writable */
 	case connect_in_progress:
-		thread_add_write(thread_obj->master, func, checker_obj, fd, timeout);
+		thread_add_write(thread->master, func, checker_obj, fd, timeout);
 		break;
 
 	default:

@@ -51,29 +51,29 @@ typedef struct _thread {
 			int status;	/* return status of the process */
 		} c;
 	} u;
-} thread;
+} thread_t;
 
 /* Linked list of thread. */
 typedef struct _thread_list {
-	thread *head;
-	thread *tail;
+	thread_t *head;
+	thread_t *tail;
 	int count;
-} thread_list;
+} thread_list_t;
 
 /* Master of the theads. */
 typedef struct _thread_master {
-	thread_list read;
-	thread_list write;
-	thread_list timer;
-	thread_list child;
-	thread_list event;
-	thread_list ready;
-	thread_list unuse;
+	thread_list_t read;
+	thread_list_t write;
+	thread_list_t timer;
+	thread_list_t child;
+	thread_list_t event;
+	thread_list_t ready;
+	thread_list_t unuse;
 	fd_set readfd;
 	fd_set writefd;
 	fd_set exceptfd;
 	unsigned long alloc;
-} thread_master;
+} thread_master_t;
 
 /* Thread types. */
 #define THREAD_READ		0
@@ -101,27 +101,22 @@ typedef struct _thread_master {
 #define THREAD_CHILD_STATUS(X) ((X)->u.c.status)
 
 /* global vars exported */
-extern thread_master *master;
+extern thread_master_t *master;
 
 /* Prototypes. */
-extern thread_master *thread_make_master(void);
-extern thread *thread_add_terminate_event(thread_master * m);
-extern void thread_destroy_master(thread_master * m);
-extern thread *thread_add_read(thread_master * m, int (*func) (thread *)
-			       , void *arg, int fd, long timeout);
-extern thread *thread_add_write(thread_master * m, int (*func) (thread *)
-				, void *arg, int fd, long timeout);
-extern thread *thread_add_timer(thread_master * m, int (*func) (thread *)
-				, void *arg, long timer);
-extern thread *thread_add_child(thread_master * m, int (*func) (thread *)
-				, void *arg, pid_t pid, long timeout);
-extern thread *thread_add_event(thread_master * m, int (*func) (thread *)
-				, void *arg, int val);
-extern void thread_cancel(thread * thread_obj);
-extern void thread_cancel_event(thread_master * m, void *arg);
-extern thread *thread_fetch(thread_master * m, thread * fetch);
-extern void thread_child_handler(void * v, int sig);
-extern void thread_call(thread * thread_obj);
+extern thread_master_t *thread_make_master(void);
+extern thread_t *thread_add_terminate_event(thread_master_t *);
+extern void thread_destroy_master(thread_master_t *);
+extern thread_t *thread_add_read(thread_master_t *, int (*func) (thread_t *), void *, int, long);
+extern thread_t *thread_add_write(thread_master_t *, int (*func) (thread_t *), void *, int, long);
+extern thread_t *thread_add_timer(thread_master_t *, int (*func) (thread_t *), void *, long);
+extern thread_t *thread_add_child(thread_master_t *, int (*func) (thread_t *), void *, pid_t, long);
+extern thread_t *thread_add_event(thread_master_t *, int (*func) (thread_t *), void *, int);
+extern void thread_cancel(thread_t *);
+extern void thread_cancel_event(thread_master_t *, void *);
+extern thread_t *thread_fetch(thread_master_t *, thread_t *);
+extern void thread_child_handler(void *, int);
+extern void thread_call(thread_t *);
 extern void launch_scheduler(void);
 
 #endif

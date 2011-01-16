@@ -65,21 +65,21 @@ extern vrrp_conf_data *old_vrrp_data;
 extern char *vrrp_buffer;
 
 /* prototypes */
-extern void alloc_saddress(vector strvec);
-extern void alloc_sroute(vector strvec);
-extern void alloc_vrrp_sync_group(char *gname);
-extern void alloc_vrrp(char *iname);
-extern void alloc_vrrp_track(vector strvec);
-extern void alloc_vrrp_script(char *sname);
-extern void alloc_vrrp_track_script(vector strvec);
-extern void alloc_vrrp_vip(vector strvec);
-extern void alloc_vrrp_evip(vector strvec);
-extern void alloc_vrrp_vroute(vector strvec);
+extern void alloc_saddress(vector);
+extern void alloc_sroute(vector);
+extern void alloc_vrrp_sync_group(char *);
+extern void alloc_vrrp(char *);
+extern void alloc_vrrp_track(vector);
+extern void alloc_vrrp_script(char *);
+extern void alloc_vrrp_track_script(vector);
+extern void alloc_vrrp_vip(vector);
+extern void alloc_vrrp_evip(vector);
+extern void alloc_vrrp_vroute(vector);
 extern void alloc_vrrp_buffer(void);
 extern void free_vrrp_buffer(void);
 extern vrrp_conf_data *alloc_vrrp_data(void);
-extern void free_vrrp_data(vrrp_conf_data * vrrp_data_obj);
-extern void dump_vrrp_data(vrrp_conf_data * vrrp_data_obj);
-extern void free_vrrp_sockpool(vrrp_conf_data * vrrp_data_obj);
+extern void free_vrrp_data(vrrp_conf_data *);
+extern void dump_vrrp_data(vrrp_conf_data *);
+extern void free_vrrp_sockpool(vrrp_conf_data *);
 
 #endif

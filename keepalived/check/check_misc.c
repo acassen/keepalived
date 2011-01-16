@@ -35,9 +35,9 @@
 #include "daemon.h"
 #include "signals.h"
 
-int misc_check_thread(thread *);
-int misc_check_child_thread(thread *);
-int misc_check_child_timeout_thread(thread *);
+int misc_check_thread(thread_t *);
+int misc_check_child_thread(thread_t *);
+int misc_check_child_timeout_thread(thread_t *);
 
 /* Configuration stream handling */
 void
@@ -103,14 +103,14 @@ install_misc_check_keyword(void)
 }
 
 int
-misc_check_thread(thread * thread_obj)
+misc_check_thread(thread_t * thread)
 {
 	checker *checker_obj;
 	misc_checker *misc_chk;
 	int status, ret;
 	pid_t pid;
 
-	checker_obj = THREAD_ARG(thread_obj);
+	checker_obj = THREAD_ARG(thread);
 	misc_chk = CHECKER_ARG(checker_obj);
 
 	/*
@@ -119,13 +119,13 @@ misc_check_thread(thread * thread_obj)
 	 */
 	if (!CHECKER_ENABLED(checker_obj)) {
 		/* Register next timer checker */
-		thread_add_timer(thread_obj->master, misc_check_thread, checker_obj,
+		thread_add_timer(thread->master, misc_check_thread, checker_obj,
 				 checker_obj->vs->delay_loop);
 		return 0;
 	}
 
 	/* Register next timer checker */
-	thread_add_timer(thread_obj->master, misc_check_thread, checker_obj,
+	thread_add_timer(thread->master, misc_check_thread, checker_obj,
 			 checker_obj->vs->delay_loop);
 
 	/* Daemonization to not degrade our scheduling timer */
@@ -142,7 +142,7 @@ misc_check_thread(thread * thread_obj)
 		long timeout;
 		timeout = (misc_chk->timeout) ? misc_chk->timeout : checker_obj->vs->delay_loop;
 
-		thread_add_child(thread_obj->master, misc_check_child_thread,
+		thread_add_child(thread->master, misc_check_child_thread,
 				 checker_obj, pid, timeout);
 		return 0;
 	}
@@ -166,19 +166,19 @@ misc_check_thread(thread * thread_obj)
 }
 
 int
-misc_check_child_thread(thread * thread_obj)
+misc_check_child_thread(thread_t * thread)
 {
 	int wait_status;
 	checker *checker_obj;
 	misc_checker *misc_chk;
 
-	checker_obj = THREAD_ARG(thread_obj);
+	checker_obj = THREAD_ARG(thread);
 	misc_chk = CHECKER_ARG(checker_obj);
 
-	if (thread_obj->type == THREAD_CHILD_TIMEOUT) {
+	if (thread->type == THREAD_CHILD_TIMEOUT) {
 		pid_t pid;
 
-		pid = THREAD_CHILD_PID(thread_obj);
+		pid = THREAD_CHILD_PID(thread);
 
 		/* The child hasn't responded. Kill it off. */
 		if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
@@ -194,12 +194,12 @@ misc_check_child_thread(thread * thread_obj)
 		}
 
 		kill(pid, SIGTERM);
-		thread_add_child(thread_obj->master, misc_check_child_timeout_thread,
+		thread_add_child(thread->master, misc_check_child_timeout_thread,
 				 checker_obj, pid, 2);
 		return 0;
 	}
 
-	wait_status = THREAD_CHILD_STATUS(thread_obj);
+	wait_status = THREAD_CHILD_STATUS(thread);
 
 	if (WIFEXITED(wait_status)) {
 		int status;
@@ -245,15 +245,15 @@ misc_check_child_thread(thread * thread_obj)
 }
 
 int
-misc_check_child_timeout_thread(thread * thread_obj)
+misc_check_child_timeout_thread(thread_t * thread)
 {
 	pid_t pid;
 
-	if (thread_obj->type != THREAD_CHILD_TIMEOUT)
+	if (thread->type != THREAD_CHILD_TIMEOUT)
 		return 0;
 
 	/* OK, it still hasn't exited. Now really kill it off. */
-	pid = THREAD_CHILD_PID(thread_obj);
+	pid = THREAD_CHILD_PID(thread);
 	if (kill(pid, SIGKILL) < 0) {
 		/* Its possible it finished while we're handing this */
 		if (errno != ESRCH)

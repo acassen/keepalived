@@ -36,10 +36,10 @@
 /* Macro definition */
 
 /* prototypes */
-extern void alloc_vrrp_bucket(vrrp_rt *vrrp);
-extern void alloc_vrrp_fd_bucket(vrrp_rt *vrrp);
-extern void remove_vrrp_fd_bucket(vrrp_rt *vrrp);
-extern void set_vrrp_fd_bucket(int old_fd, vrrp_rt *vrrp);
-extern vrrp_rt *vrrp_index_lookup(const int vrid, const int fd);
+extern void alloc_vrrp_bucket(vrrp_rt *);
+extern void alloc_vrrp_fd_bucket(vrrp_rt *);
+extern void remove_vrrp_fd_bucket(vrrp_rt *);
+extern void set_vrrp_fd_bucket(int, vrrp_rt *);
+extern vrrp_rt *vrrp_index_lookup(const int, const int);
 
 #endif

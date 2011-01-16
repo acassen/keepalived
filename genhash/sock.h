@@ -47,7 +47,7 @@ typedef struct {
 extern SOCK *sock;
 
 /* Prototypes */
-extern void free_sock(SOCK * sock_obj);
+extern void free_sock(SOCK *);
 extern void init_sock(void);
 
 #endif

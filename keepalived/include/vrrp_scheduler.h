@@ -58,8 +58,8 @@ do {						\
 } while (0)
 
 /* extern prototypes */
-extern void vrrp_dispatcher_release(vrrp_conf_data * conf_data_obj);
-extern int vrrp_dispatcher_init(thread * thread_obj);
-extern int vrrp_read_dispatcher_thread(thread * thread_obj);
+extern void vrrp_dispatcher_release(vrrp_conf_data *);
+extern int vrrp_dispatcher_init(thread_t *);
+extern int vrrp_read_dispatcher_thread(thread_t *);
 
 #endif

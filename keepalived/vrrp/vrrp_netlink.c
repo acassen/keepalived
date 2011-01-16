@@ -675,11 +675,11 @@ netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 }
 
 int
-kernel_netlink(thread * thread_obj)
+kernel_netlink(thread_t * thread)
 {
 	int status = 0;
 
-	if (thread_obj->type != THREAD_READ_TIMEOUT)
+	if (thread->type != THREAD_READ_TIMEOUT)
 		status = netlink_parse_info(netlink_broadcast_filter, &nl_kernel, NULL);
 	thread_add_read(master, kernel_netlink, NULL, nl_kernel.fd,
 			NETLINK_TIMER);

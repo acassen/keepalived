@@ -30,7 +30,7 @@
 #include "utils.h"
 #include "parser.h"
 
-int tcp_connect_thread(thread *);
+int tcp_connect_thread(thread_t *);
 
 /* Configuration stream handling */
 void
@@ -98,22 +98,22 @@ install_tcp_check_keyword(void)
 }
 
 int
-tcp_check_thread(thread * thread_obj)
+tcp_check_thread(thread_t * thread)
 {
 	checker *checker_obj;
 	tcp_checker *tcp_check;
 	int status;
 
-	checker_obj = THREAD_ARG(thread_obj);
+	checker_obj = THREAD_ARG(thread);
 	tcp_check = CHECKER_ARG(checker_obj);
 
-	status = tcp_socket_state(thread_obj->u.fd, thread_obj, tcp_check_thread);
+	status = tcp_socket_state(thread->u.fd, thread, tcp_check_thread);
 
 	/* If status = connect_success, TCP connection to remote host is established.
 	 * Otherwise we have a real connection error or connection timeout.
 	 */
 	if (status == connect_success) {
-		close(thread_obj->u.fd);
+		close(thread->u.fd);
 
 		if (!svr_checker_up(checker_obj->id, checker_obj->rs)) {
 			log_message(LOG_INFO, "TCP connection to [%s]:%d success."
@@ -145,15 +145,15 @@ tcp_check_thread(thread * thread_obj)
 
 	/* Register next timer checker */
 	if (status != connect_in_progress)
-		thread_add_timer(thread_obj->master, tcp_connect_thread, checker_obj,
+		thread_add_timer(thread->master, tcp_connect_thread, checker_obj,
 				 checker_obj->vs->delay_loop);
 	return 0;
 }
 
 int
-tcp_connect_thread(thread * thread_obj)
+tcp_connect_thread(thread_t * thread)
 {
-	checker *checker_obj = THREAD_ARG(thread_obj);
+	checker *checker_obj = THREAD_ARG(thread);
 	tcp_checker *tcp_check = CHECKER_ARG(checker_obj);
 	int fd;
 	int status;
@@ -163,7 +163,7 @@ tcp_connect_thread(thread * thread_obj)
 	 * if checker is disabled
 	 */
 	if (!CHECKER_ENABLED(checker_obj)) {
-		thread_add_timer(thread_obj->master, tcp_connect_thread, checker_obj,
+		thread_add_timer(thread->master, tcp_connect_thread, checker_obj,
 				 checker_obj->vs->delay_loop);
 		return 0;
 	}
@@ -175,13 +175,13 @@ tcp_connect_thread(thread * thread_obj)
 
 	status = tcp_bind_connect(fd, &tcp_check->dst, &tcp_check->bindto);
 	if (status == connect_error) {
-		thread_add_timer(thread_obj->master, tcp_connect_thread, checker_obj,
+		thread_add_timer(thread->master, tcp_connect_thread, checker_obj,
 				 checker_obj->vs->delay_loop);
 		return 0;
 	}
 
 	/* handle tcp connection status & register check worker thread */
-	tcp_connection_state(fd, status, thread_obj, tcp_check_thread,
+	tcp_connection_state(fd, status, thread, tcp_check_thread,
 			     tcp_check->connection_to);
 	return 0;
 }

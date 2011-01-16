@@ -71,10 +71,10 @@ static void vrrp_goto_master(vrrp_rt *);
 static void vrrp_master(vrrp_rt *);
 static void vrrp_fault(vrrp_rt *);
 
-static int vrrp_update_priority(thread * thread_obj);
-static int vrrp_script_child_timeout_thread(thread * thread_obj);
-static int vrrp_script_child_thread(thread * thread_obj);
-static int vrrp_script_thread(thread * thread_obj);
+static int vrrp_update_priority(thread_t * thread);
+static int vrrp_script_child_timeout_thread(thread_t * thread);
+static int vrrp_script_child_thread(thread_t * thread);
+static int vrrp_script_thread(thread_t * thread);
 
 struct {
 	void (*read) (vrrp_rt *, char *, int);
@@ -515,7 +515,7 @@ vrrp_set_fds(list l)
  * multiplexing points.
  */
 int
-vrrp_dispatcher_init(thread * thread_obj)
+vrrp_dispatcher_init(thread_t * thread)
 {
 	/* create the VRRP socket pool list */
 	vrrp_create_sockpool(vrrp_data->vrrp_socket_pool);
@@ -679,9 +679,9 @@ vrrp_goto_master(vrrp_rt * vrrp)
 
 /* Delayed gratuitous ARP thread */
 int
-vrrp_gratuitous_arp_thread(thread * thread_obj)
+vrrp_gratuitous_arp_thread(thread_t * thread)
 {
-	vrrp_rt *vrrp = THREAD_ARG(thread_obj);
+	vrrp_rt *vrrp = THREAD_ARG(thread);
 
 	/* Simply broadcast the gratuitous ARP */
 	vrrp_send_link_update(vrrp);
@@ -693,9 +693,9 @@ vrrp_gratuitous_arp_thread(thread * thread_obj)
  * This is a thread which is executed every adver_int.
  */
 static int
-vrrp_update_priority(thread * thread_obj)
+vrrp_update_priority(thread_t * thread)
 {
-	vrrp_rt *vrrp = THREAD_ARG(thread_obj);
+	vrrp_rt *vrrp = THREAD_ARG(thread);
 	int prio_offset, new_prio;
 
 	/* compute prio_offset right here */
@@ -886,17 +886,17 @@ vrrp_dispatcher_read(sock * sock_obj)
 
 /* Our read packet dispatcher */
 int
-vrrp_read_dispatcher_thread(thread * thread_obj)
+vrrp_read_dispatcher_thread(thread_t * thread)
 {
 	long vrrp_timer = 0;
 	sock *sock_obj;
 	int fd;
 
 	/* Fetch thread arg */
-	sock_obj = THREAD_ARG(thread_obj);
+	sock_obj = THREAD_ARG(thread);
 
 	/* Dispatcher state handler */
-	if (thread_obj->type == THREAD_READ_TIMEOUT || sock_obj->fd_in == -1)
+	if (thread->type == THREAD_READ_TIMEOUT || sock_obj->fd_in == -1)
 		fd = vrrp_dispatcher_read_to(sock_obj->fd_in);
 	else
 		fd = vrrp_dispatcher_read(sock_obj);
@@ -904,10 +904,10 @@ vrrp_read_dispatcher_thread(thread * thread_obj)
 	/* register next dispatcher thread */
 	vrrp_timer = vrrp_timer_fd(fd);
 	if (fd == -1)
-		thread_add_timer(thread_obj->master, vrrp_read_dispatcher_thread,
+		thread_add_timer(thread->master, vrrp_read_dispatcher_thread,
 				 sock_obj, vrrp_timer);
 	else
-		thread_add_read(thread_obj->master, vrrp_read_dispatcher_thread,
+		thread_add_read(thread->master, vrrp_read_dispatcher_thread,
 				sock_obj, fd, vrrp_timer);
 
 	return 0;
@@ -915,14 +915,14 @@ vrrp_read_dispatcher_thread(thread * thread_obj)
 
 /* Script tracking threads */
 static int
-vrrp_script_thread(thread * thread_obj)
+vrrp_script_thread(thread_t * thread)
 {
-	vrrp_script *vscript = THREAD_ARG(thread_obj);
+	vrrp_script *vscript = THREAD_ARG(thread);
 	int status, ret;
 	pid_t pid;
 
 	/* Register next timer tracker */
-	thread_add_timer(thread_obj->master, vrrp_script_thread, vscript,
+	thread_add_timer(thread->master, vrrp_script_thread, vscript,
 			 vscript->interval);
 
 	/* Daemonization to not degrade our scheduling timer */
@@ -938,7 +938,7 @@ vrrp_script_thread(thread * thread_obj)
 	if (pid) {
 		long timeout;
 		timeout = vscript->interval;
-		thread_add_child(thread_obj->master, vrrp_script_child_thread,
+		thread_add_child(thread->master, vrrp_script_child_thread,
 				 vscript, pid, timeout);
 		return 0;
 	}
@@ -961,15 +961,15 @@ vrrp_script_thread(thread * thread_obj)
 }
 
 static int
-vrrp_script_child_thread(thread * thread_obj)
+vrrp_script_child_thread(thread_t * thread)
 {
 	int wait_status;
-	vrrp_script *vscript = THREAD_ARG(thread_obj);
+	vrrp_script *vscript = THREAD_ARG(thread);
 
-	if (thread_obj->type == THREAD_CHILD_TIMEOUT) {
+	if (thread->type == THREAD_CHILD_TIMEOUT) {
 		pid_t pid;
 
-		pid = THREAD_CHILD_PID(thread_obj);
+		pid = THREAD_CHILD_PID(thread);
 
 		/* The child hasn't responded. Kill it off. */
 		if (vscript->result > vscript->rise) {
@@ -980,12 +980,12 @@ vrrp_script_child_thread(thread * thread_obj)
 			vscript->result = 0;
 		}
 		kill(pid, SIGTERM);
-		thread_add_child(thread_obj->master, vrrp_script_child_timeout_thread,
+		thread_add_child(thread->master, vrrp_script_child_timeout_thread,
 				 vscript, pid, 2);
 		return 0;
 	}
 
-	wait_status = THREAD_CHILD_STATUS(thread_obj);
+	wait_status = THREAD_CHILD_STATUS(thread);
 
 	if (WIFEXITED(wait_status)) {
 		int status;
@@ -1015,15 +1015,15 @@ vrrp_script_child_thread(thread * thread_obj)
 }
 
 static int
-vrrp_script_child_timeout_thread(thread * thread_obj)
+vrrp_script_child_timeout_thread(thread_t * thread)
 {
 	pid_t pid;
 
-	if (thread_obj->type != THREAD_CHILD_TIMEOUT)
+	if (thread->type != THREAD_CHILD_TIMEOUT)
 		return 0;
 
 	/* OK, it still hasn't exited. Now really kill it off. */
-	pid = THREAD_CHILD_PID(thread_obj);
+	pid = THREAD_CHILD_PID(thread);
 	if (kill(pid, SIGKILL) < 0) {
 		/* Its possible it finished while we're handing this */
 		if (errno != ESRCH)

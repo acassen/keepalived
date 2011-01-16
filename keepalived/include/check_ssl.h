@@ -30,10 +30,10 @@
 /* Prototypes */
 extern void install_ssl_check_keyword(void);
 extern int init_ssl_ctx(void);
-extern void clear_ssl(SSL_DATA * ssl);
-extern int ssl_connect(thread * thread_obj, int new_req);
-extern int ssl_printerr(int err);
-extern int ssl_send_request(SSL * ssl, char *str_request, int request_len);
-extern int ssl_read_thread(thread * thread_obj);
+extern void clear_ssl(SSL_DATA *);
+extern int ssl_connect(thread_t *, int);
+extern int ssl_printerr(int);
+extern int ssl_send_request(SSL *, char *, int);
+extern int ssl_read_thread(thread_t *);
 
 #endif

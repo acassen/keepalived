@@ -57,9 +57,9 @@ typedef struct _conf_data {
 extern conf_data *data;		/* Global configuration data */
 
 /* Prototypes */
-extern void alloc_email(char *addr);
+extern void alloc_email(char *);
 extern conf_data *alloc_global_data(void);
-extern void free_global_data(conf_data *global_data);
-extern void dump_global_data(conf_data *global_data);
+extern void free_global_data(conf_data *);
+extern void dump_global_data(conf_data *);
 
 #endif

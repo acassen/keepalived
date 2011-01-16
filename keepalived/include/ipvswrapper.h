@@ -91,13 +91,11 @@ do {						\
 /* prototypes */
 extern int ipvs_start(void);
 extern void ipvs_stop(void);
-extern virtual_server_group *ipvs_get_group_by_name(char *gname, list l);
-extern int ipvs_group_remove_entry(virtual_server * vs,
-				   virtual_server_group_entry * vsge);
-extern int ipvs_cmd(int cmd, list vs_group, virtual_server * vserver,
-		    real_server * rserver);
-extern int ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid);
-extern void ipvs_syncd_master(char *ifname, int syncid);
-extern void ipvs_syncd_backup(char *ifname, int syncid);
+extern virtual_server_group *ipvs_get_group_by_name(char *, list);
+extern int ipvs_group_remove_entry(virtual_server *, virtual_server_group_entry *);
+extern int ipvs_cmd(int, list, virtual_server *, real_server *);
+extern int ipvs_syncd_cmd(int, char *, int, int);
+extern void ipvs_syncd_master(char *, int);
+extern void ipvs_syncd_backup(char *, int);
 
 #endif

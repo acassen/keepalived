@@ -27,7 +27,7 @@
 /* local include */
 #include "vrrp.h"
 
-extern int notify_instance_exec(vrrp_rt * vrrp, int state);
-extern int notify_group_exec(vrrp_sgroup * vgroup, int state);
+extern int notify_instance_exec(vrrp_rt *, int);
+extern int notify_group_exec(vrrp_sgroup *, int);
 
 #endif

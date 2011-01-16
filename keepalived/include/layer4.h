@@ -50,10 +50,10 @@ extern enum connect_result
  tcp_connect(int, struct sockaddr_storage *);
 
 extern enum connect_result
- tcp_socket_state(int, thread *, int (*func) (struct _thread *));
+ tcp_socket_state(int, thread_t *, int (*func) (thread_t *));
 
 extern void
  tcp_connection_state(int, enum connect_result
-		      , thread *, int (*func) (struct _thread *)
+		      , thread_t *, int (*func) (thread_t *)
 		      , long);
 #endif

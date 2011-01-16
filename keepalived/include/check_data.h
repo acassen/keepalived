@@ -222,16 +222,16 @@ extern check_conf_data *old_check_data;
 /* prototypes */
 extern SSL_DATA *alloc_ssl(void);
 extern void free_ssl(void);
-extern void alloc_vsg(char *gname);
-extern void alloc_vsg_entry(vector strvec);
-extern void alloc_vs(char *ip, char *port);
-extern void alloc_rs(char *ip, char *port);
-extern void alloc_ssvr(char *ip, char *port);
-extern void alloc_group(char *name);
-extern void alloc_rsgroup(char *ip, char *port);
-extern void set_rsgroup(char *gname);
+extern void alloc_vsg(char *);
+extern void alloc_vsg_entry(vector);
+extern void alloc_vs(char *, char *);
+extern void alloc_rs(char *, char *);
+extern void alloc_ssvr(char *, char *);
+extern void alloc_group(char *);
+extern void alloc_rsgroup(char *, char *);
+extern void set_rsgroup(char *);
 extern check_conf_data *alloc_check_data(void);
-extern void free_check_data(check_conf_data * check_data_obj);
-extern void dump_check_data(check_conf_data * check_data_obj);
+extern void free_check_data(check_conf_data *);
+extern void dump_check_data(check_conf_data *);
 
 #endif

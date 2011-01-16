@@ -95,9 +95,9 @@ ssl_printerr(int err)
 }
 
 int
-ssl_connect(thread * thread_obj)
+ssl_connect(thread_t * thread)
 {
-	SOCK *sock_obj = THREAD_ARG(thread_obj);
+	SOCK *sock_obj = THREAD_ARG(thread);
 	int ret;
 
 	sock_obj->ssl = SSL_new(req->ctx);
@@ -106,7 +106,7 @@ ssl_connect(thread * thread_obj)
 	SSL_set_bio(sock_obj->ssl, sock_obj->bio, sock_obj->bio);
 	ret = SSL_connect(sock_obj->ssl);
 
-	DBG("  SSL_connect return code = %d on fd:%d\n", ret, thread_obj->u.fd);
+	DBG("  SSL_connect return code = %d on fd:%d\n", ret, thread->u.fd);
 	ssl_printerr(SSL_get_error(sock_obj->ssl, ret));
 
 	return (ret > 0) ? 1 : 0;
@@ -134,15 +134,15 @@ ssl_send_request(SSL * ssl, char *str_request, int request_len)
 
 /* Asynchronous SSL stream reader */
 int
-ssl_read_thread(thread * thread_obj)
+ssl_read_thread(thread_t * thread)
 {
-	SOCK *sock_obj = THREAD_ARG(thread_obj);
+	SOCK *sock_obj = THREAD_ARG(thread);
 	int r = 0;
 	int error;
 
 	/* Handle read timeout */
-	if (thread_obj->type == THREAD_READ_TIMEOUT)
-		return epilog(thread_obj);
+	if (thread->type == THREAD_READ_TIMEOUT)
+		return epilog(thread);
 
 	/*
 	 * The design implemented here is a workaround for use
@@ -173,7 +173,7 @@ ssl_read_thread(thread * thread_obj)
 		/* All the SSL streal has been parsed */
 		/* Handle response stream */
 		if (error != SSL_ERROR_NONE)
-			return finalize(thread_obj);
+			return finalize(thread);
 	} else if (r > 0 && error == 0) {
 
 		/* Handle the response stream */

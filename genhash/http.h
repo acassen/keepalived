@@ -55,9 +55,9 @@
 #define HTML_MD5_FINAL    DELIM_BEGIN" HTML MD5 final resulting "DELIM_END
 
 /* Define prototypes */
-extern int epilog(thread * thread_obj);
-extern int finalize(thread * thread_obj);
-extern int http_process_stream(SOCK * sock_obj, int r);
-extern int http_request_thread(thread * thread_obj);
+extern int epilog(thread_t *);
+extern int finalize(thread_t *);
+extern int http_process_stream(SOCK *, int);
+extern int http_request_thread(thread_t *);
 
 #endif

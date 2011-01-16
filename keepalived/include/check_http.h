@@ -89,10 +89,10 @@ typedef struct _http_get_checker {
 
 /* Define prototypes */
 extern void install_http_check_keyword(void);
-extern int epilog(thread * thread_obj, int metod, int t, int c);
-extern int timeout_epilog(thread * thread_obj, char *smtp_msg, char *debug_msg);
-extern url *fetch_next_url(http_get_checker * http_get_check);
-extern int http_process_response(REQ * req, int r);
-extern int http_handle_response(thread * thread_obj, unsigned char digest[16]
-				, int empty_buffer);
+extern int epilog(thread_t *, int, int, int);
+extern int timeout_epilog(thread_t *, char *, char *);
+extern url *fetch_next_url(http_get_checker *);
+extern int http_process_response(REQ *, int);
+extern int http_handle_response(thread_t *, unsigned char digest[16]
+				, int);
 #endif

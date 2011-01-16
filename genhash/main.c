@@ -176,7 +176,7 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 int
 main(int argc, char **argv)
 {
-	thread thread_obj;
+	thread_t thread;
 
 	/* Allocate the room */
 	req = (REQ *) MALLOC(sizeof (REQ));
@@ -217,8 +217,8 @@ main(int argc, char **argv)
 	 * not activate SIGCHLD handling, however, this
 	 * is no issue here.
 	 */
-	while (thread_fetch(master, &thread_obj))
-		thread_call(&thread_obj);
+	while (thread_fetch(master, &thread))
+		thread_call(&thread);
 
 	/* Finalize output informations */
 	if (req->verbose)

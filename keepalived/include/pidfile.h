@@ -38,8 +38,8 @@
 #define CHECKERS_PID_FILE "/var/run/checkers.pid"
 
 /* Prototypes */
-extern int pidfile_write(char *pid_file, int pid);
-extern void pidfile_rm(char *pid_file);
-extern int keepalived_running(int mode);
+extern int pidfile_write(char *, int);
+extern void pidfile_rm(char *);
+extern int keepalived_running(int);
 
 #endif

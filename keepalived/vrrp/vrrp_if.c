@@ -324,9 +324,9 @@ if_add_queue(interface * ifp)
 }
 
 static int
-if_linkbeat_refresh_thread(thread * thread_obj)
+if_linkbeat_refresh_thread(thread_t * thread)
 {
-	interface *ifp = THREAD_ARG(thread_obj);
+	interface *ifp = THREAD_ARG(thread);
 
 	if (IF_MII_SUPPORTED(ifp))
 		ifp->linkbeat = (if_mii_probe(ifp->ifname)) ? 1 : 0;

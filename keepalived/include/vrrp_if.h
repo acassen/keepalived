@@ -111,7 +111,7 @@ extern int if_linkbeat(const interface *);
 extern int if_mii_probe(const char *);
 extern int if_ethtool_probe(const char *);
 extern void if_add_queue(interface *);
-extern int if_monitor_thread(thread *);
+extern int if_monitor_thread(thread_t *);
 extern void init_interface_queue(void);
 extern void init_interface_linkbeat(void);
 extern void free_interface_queue(void);
