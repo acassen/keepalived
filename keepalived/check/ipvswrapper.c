@@ -210,7 +210,7 @@ ipvs_set_rule(int cmd, virtual_server * vs, real_server * rs)
 	urule->protocol = vs->service_type;
 
 	if (!parse_timeout(vs->timeout_persistence, &urule->timeout))
-		log_message(LOG_INFO, "IPVS : Virtual service [%s:%d] illegal timeout."
+		log_message(LOG_INFO, "IPVS : Virtual service [%s]:%d illegal timeout."
 				    , inet_ntop2(inet_sockaddrip4(&vs->addr))
 				    , ntohs(inet_sockaddrport(&vs->addr)));
 
@@ -532,7 +532,7 @@ ipvs_set_rule(int cmd, virtual_server * vs, real_server * rs)
 	srule->protocol = vs->service_type;
 
 	if (!parse_timeout(vs->timeout_persistence, &srule->timeout))
-		log_message(LOG_INFO, "IPVS : Virtual service [%s:%d] illegal timeout."
+		log_message(LOG_INFO, "IPVS : Virtual service [%s]:%d illegal timeout."
 				    , inet_ntop2(inet_sockaddrip4(&vs->addr))
 				    , ntohs(inet_sockaddrport(&vs->addr)));
 
