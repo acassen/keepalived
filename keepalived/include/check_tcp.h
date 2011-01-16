@@ -36,7 +36,7 @@ typedef struct _tcp_checker {
 	struct sockaddr_storage dst;
 	struct sockaddr_storage bindto;
 	int connection_to;
-} tcp_checker;
+} tcp_checker_t;
 
 /* Prototypes defs */
 extern void install_tcp_check_keyword(void);

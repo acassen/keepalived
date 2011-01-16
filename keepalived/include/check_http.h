@@ -38,7 +38,7 @@
 
 /* Checker argument structure  */
 /* ssl specific thread arguments defs */
-typedef struct {
+typedef struct _request {
 	char *buffer;
 	char *extracted;
 	int error;
@@ -47,21 +47,22 @@ typedef struct {
 	SSL *ssl;
 	BIO *bio;
 	MD5_CTX context;
-} REQ;
+} request_t;
 
 /* http specific thread arguments defs */
 typedef struct _http_arg {
 	int retry_it;		/* current number of get retry */
 	int url_it;		/* current url checked index */
-	REQ *req;		/* GET buffer and SSL args */
-} http_arg;
+	request_t *req;		/* GET buffer and SSL args */
+} http_arg_t ;
 
 typedef struct _url {
 	char *path;
 	char *digest;
 	int status_code;
-} url;
-typedef struct _http_get_checker {
+} url_t;
+
+typedef struct _http_checker {
 	int proto;
 	struct sockaddr_storage dst;
 	struct sockaddr_storage bindto;
@@ -69,8 +70,8 @@ typedef struct _http_get_checker {
 	int nb_get_retry;
 	long delay_before_retry;
 	list url;
-	http_arg *arg;
-} http_get_checker;
+	http_arg_t *arg;
+} http_checker_t;
 
 /* global defs */
 #define MD5_BUFFER_LENGTH 32
@@ -91,8 +92,8 @@ typedef struct _http_get_checker {
 extern void install_http_check_keyword(void);
 extern int epilog(thread_t *, int, int, int);
 extern int timeout_epilog(thread_t *, char *, char *);
-extern url *fetch_next_url(http_get_checker *);
-extern int http_process_response(REQ *, int);
+extern url_t *fetch_next_url(http_checker_t *);
+extern int http_process_response(request_t *, int);
 extern int http_handle_response(thread_t *, unsigned char digest[16]
 				, int);
 #endif

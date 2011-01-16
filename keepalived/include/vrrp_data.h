@@ -39,13 +39,13 @@
  * That way we handle VRRP protocol type per
  * physical interface.
  */
-typedef struct {
+typedef struct _sock {
 	sa_family_t family;
 	int proto;
 	int ifindex;
 	int fd_in;
 	int fd_out;
-} sock;
+} sock_t;
 
 /* Configuration data root */
 typedef struct _vrrp_conf_data {

@@ -190,10 +190,10 @@ ssl_printerr(int err)
 int
 ssl_connect(thread_t * thread, int new_req)
 {
-	checker *checker_obj = THREAD_ARG(thread);
-	http_get_checker *http_get_check = CHECKER_ARG(checker_obj);
-	http_arg *http_arg_obj = HTTP_ARG(http_get_check);
-	REQ *req = HTTP_REQ(http_arg_obj);
+	checker_t *checker = THREAD_ARG(thread);
+	http_checker_t *http_get_check = CHECKER_ARG(checker);
+	http_arg_t *http_arg = HTTP_ARG(http_get_check);
+	request_t *req = HTTP_REQ(http_arg);
 	int ret = 0;
 	int val = 0;
 
@@ -240,10 +240,10 @@ ssl_send_request(SSL * ssl, char *str_request, int request_len)
 int
 ssl_read_thread(thread_t * thread)
 {
-	checker *checker_obj = THREAD_ARG(thread);
-	http_get_checker *http_get_check = CHECKER_ARG(checker_obj);
-	http_arg *http_arg_obj = HTTP_ARG(http_get_check);
-	REQ *req = HTTP_REQ(http_arg_obj);
+	checker_t *checker = THREAD_ARG(thread);
+	http_checker_t *http_get_check = CHECKER_ARG(checker);
+	http_arg_t *http_arg = HTTP_ARG(http_get_check);
+	request_t *req = HTTP_REQ(http_arg);
 	unsigned char digest[16];
 	int r = 0;
 	int val;
@@ -268,7 +268,7 @@ ssl_read_thread(thread_t * thread)
 
 	if (req->error == SSL_ERROR_WANT_READ) {
 		 /* async read unfinished */ 
-		thread_add_read(thread->master, ssl_read_thread, checker_obj,
+		thread_add_read(thread->master, ssl_read_thread, checker,
 				thread->u.fd, http_get_check->connection_to);
 	} else if (r > 0 && req->error == 0) {
 		/* Handle response stream */
@@ -278,7 +278,7 @@ ssl_read_thread(thread_t * thread)
 		 * Register next ssl stream reader.
 		 * Register itself to not perturbe global I/O multiplexer.
 		 */
-		thread_add_read(thread->master, ssl_read_thread, checker_obj,
+		thread_add_read(thread->master, ssl_read_thread, checker,
 				thread->u.fd, http_get_check->connection_to);
 	} else if (req->error) {
 
@@ -290,14 +290,14 @@ ssl_read_thread(thread_t * thread)
 
 		if (r && !req->extracted) {
 			/* check if server is currently alive */
-			if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
-				smtp_alert(checker_obj->rs, NULL, NULL,
+			if (svr_checker_up(checker->id, checker->rs)) {
+				smtp_alert(checker->rs, NULL, NULL,
 					   "DOWN",
 					   "=> SSL CHECK failed on service"
 					   " : cannot receive data <=\n\n");
-				update_svr_checker_state(DOWN, checker_obj->id
-							     , checker_obj->vs
-							     , checker_obj->rs);
+				update_svr_checker_state(DOWN, checker->id
+							     , checker->vs
+							     , checker->rs);
 			}
 			return epilog(thread, 1, 0, 0);
 		}

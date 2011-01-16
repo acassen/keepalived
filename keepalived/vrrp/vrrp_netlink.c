@@ -146,7 +146,7 @@ netlink_set_nonblock(struct nl_handle *nl, int *flags)
 
 /* iproute2 utility function */
 int
-addattr32(struct nlmsghdr *n, int maxlen, int type, uint32_t data_obj)
+addattr32(struct nlmsghdr *n, int maxlen, int type, uint32_t data)
 {
 	int len = RTA_LENGTH(4);
 	struct rtattr *rta;
@@ -155,13 +155,13 @@ addattr32(struct nlmsghdr *n, int maxlen, int type, uint32_t data_obj)
 	rta = (struct rtattr*)(((char*)n) + NLMSG_ALIGN(n->nlmsg_len));
 	rta->rta_type = type;
 	rta->rta_len = len;
-	memcpy(RTA_DATA(rta), &data_obj, 4);
+	memcpy(RTA_DATA(rta), &data, 4);
 	n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + len;
 	return 0;
 }
 
 int
-addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data_obj, int alen)
+addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data, int alen)
 {
 	int len = RTA_LENGTH(alen);
 	struct rtattr *rta;
@@ -172,7 +172,7 @@ addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data_obj, int alen)
 	rta = (struct rtattr *) (((char *) n) + NLMSG_ALIGN(n->nlmsg_len));
 	rta->rta_type = type;
 	rta->rta_len = len;
-	memcpy(RTA_DATA(rta), data_obj, alen);
+	memcpy(RTA_DATA(rta), data, alen);
 	n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + len;
 
 	return 0;

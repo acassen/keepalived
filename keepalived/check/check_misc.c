@@ -43,52 +43,52 @@ int misc_check_child_timeout_thread(thread_t *);
 void
 free_misc_check(void *data)
 {
-	misc_checker *misc_chk = CHECKER_DATA(data);
+	misc_checker_t *misck_checker = CHECKER_DATA(data);
 
-	FREE(misc_chk->path);
-	FREE(misc_chk);
+	FREE(misck_checker->path);
+	FREE(misck_checker);
 	FREE(data);
 }
 
 void
 dump_misc_check(void *data)
 {
-	misc_checker *misc_chk = CHECKER_DATA(data);
+	misc_checker_t *misck_checker = CHECKER_DATA(data);
 	log_message(LOG_INFO, "   Keepalive method = MISC_CHECK");
-	log_message(LOG_INFO, "   script = %s", misc_chk->path);
-	log_message(LOG_INFO, "   timeout = %lu", misc_chk->timeout/TIMER_HZ);
-	log_message(LOG_INFO, "   dynamic = %s", misc_chk->dynamic ? "YES" : "NO");
+	log_message(LOG_INFO, "   script = %s", misck_checker->path);
+	log_message(LOG_INFO, "   timeout = %lu", misck_checker->timeout/TIMER_HZ);
+	log_message(LOG_INFO, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
 }
 
 void
 misc_check_handler(vector strvec)
 {
-	misc_checker *misc_chk = (misc_checker *) MALLOC(sizeof (misc_checker));
+	misc_checker_t *misck_checker = (misc_checker_t *) MALLOC(sizeof (misc_checker_t));
 
 	/* queue new checker */
 	queue_checker(free_misc_check, dump_misc_check, misc_check_thread,
-		      misc_chk);
+		      misck_checker);
 }
 
 void
 misc_path_handler(vector strvec)
 {
-	misc_checker *misc_chk = CHECKER_GET();
-	misc_chk->path = CHECKER_VALUE_STRING(strvec);
+	misc_checker_t *misck_checker = CHECKER_GET();
+	misck_checker->path = CHECKER_VALUE_STRING(strvec);
 }
 
 void
 misc_timeout_handler(vector strvec)
 {
-	misc_checker *misc_chk = CHECKER_GET();
-	misc_chk->timeout = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
+	misc_checker_t *misck_checker = CHECKER_GET();
+	misck_checker->timeout = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
 }
 
 void
 misc_dynamic_handler(vector strvec)
 {
-	misc_checker *misc_chk = CHECKER_GET();
-	misc_chk->dynamic = 1;
+	misc_checker_t *misck_checker = CHECKER_GET();
+	misck_checker->dynamic = 1;
 }
 
 void
@@ -105,28 +105,28 @@ install_misc_check_keyword(void)
 int
 misc_check_thread(thread_t * thread)
 {
-	checker *checker_obj;
-	misc_checker *misc_chk;
+	checker_t *checker;
+	misc_checker_t *misck_checker;
 	int status, ret;
 	pid_t pid;
 
-	checker_obj = THREAD_ARG(thread);
-	misc_chk = CHECKER_ARG(checker_obj);
+	checker = THREAD_ARG(thread);
+	misck_checker = CHECKER_ARG(checker);
 
 	/*
 	 * Register a new checker thread & return
 	 * if checker is disabled
 	 */
-	if (!CHECKER_ENABLED(checker_obj)) {
+	if (!CHECKER_ENABLED(checker)) {
 		/* Register next timer checker */
-		thread_add_timer(thread->master, misc_check_thread, checker_obj,
-				 checker_obj->vs->delay_loop);
+		thread_add_timer(thread->master, misc_check_thread, checker,
+				 checker->vs->delay_loop);
 		return 0;
 	}
 
 	/* Register next timer checker */
-	thread_add_timer(thread->master, misc_check_thread, checker_obj,
-			 checker_obj->vs->delay_loop);
+	thread_add_timer(thread->master, misc_check_thread, checker,
+			 checker->vs->delay_loop);
 
 	/* Daemonization to not degrade our scheduling timer */
 	pid = fork();
@@ -140,10 +140,10 @@ misc_check_thread(thread_t * thread)
 	/* In case of this is parent process */
 	if (pid) {
 		long timeout;
-		timeout = (misc_chk->timeout) ? misc_chk->timeout : checker_obj->vs->delay_loop;
+		timeout = (misck_checker->timeout) ? misck_checker->timeout : checker->vs->delay_loop;
 
 		thread_add_child(thread->master, misc_check_child_thread,
-				 checker_obj, pid, timeout);
+				 checker, pid, timeout);
 		return 0;
 	}
 
@@ -155,7 +155,7 @@ misc_check_thread(thread_t * thread)
 	ret = dup(0);
 	ret = dup(0);
 
-	status = system_call(misc_chk->path);
+	status = system_call(misck_checker->path);
 
 	if (status < 0 || !WIFEXITED(status))
 		status = 0; /* Script errors aren't server errors */
@@ -169,11 +169,11 @@ int
 misc_check_child_thread(thread_t * thread)
 {
 	int wait_status;
-	checker *checker_obj;
-	misc_checker *misc_chk;
+	checker_t *checker;
+	misc_checker_t *misck_checker;
 
-	checker_obj = THREAD_ARG(thread);
-	misc_chk = CHECKER_ARG(checker_obj);
+	checker = THREAD_ARG(thread);
+	misck_checker = CHECKER_ARG(checker);
 
 	if (thread->type == THREAD_CHILD_TIMEOUT) {
 		pid_t pid;
@@ -181,21 +181,21 @@ misc_check_child_thread(thread_t * thread)
 		pid = THREAD_CHILD_PID(thread);
 
 		/* The child hasn't responded. Kill it off. */
-		if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
+		if (svr_checker_up(checker->id, checker->rs)) {
 			log_message(LOG_INFO, "Misc check to [%s] for [%s] timed out"
-					    , inet_sockaddrtos(&checker_obj->rs->addr)
-					    , misc_chk->path);
-			smtp_alert(checker_obj->rs, NULL, NULL,
+					    , inet_sockaddrtos(&checker->rs->addr)
+					    , misck_checker->path);
+			smtp_alert(checker->rs, NULL, NULL,
 				   "DOWN",
 				   "=> MISC CHECK script timeout on service <=");
-			update_svr_checker_state(DOWN, checker_obj->id
-						     , checker_obj->vs
-						     , checker_obj->rs);
+			update_svr_checker_state(DOWN, checker->id
+						     , checker->vs
+						     , checker->rs);
 		}
 
 		kill(pid, SIGTERM);
 		thread_add_child(thread->master, misc_check_child_timeout_thread,
-				 checker_obj, pid, 2);
+				 checker, pid, 2);
 		return 0;
 	}
 
@@ -205,38 +205,38 @@ misc_check_child_thread(thread_t * thread)
 		int status;
 		status = WEXITSTATUS(wait_status);
 		if (status == 0 ||
-                    (misc_chk->dynamic == 1 && status >= 2 && status <= 255)) {
+                    (misck_checker->dynamic == 1 && status >= 2 && status <= 255)) {
 			/*
 			 * The actual weight set when using misc_dynamic is two less than
 			 * the exit status returned.  Effective range is 0..253.
 			 * Catch legacy case of status being 0 but misc_dynamic being set.
 			 */
-			if (misc_chk->dynamic == 1 && status != 0)
-				update_svr_wgt(status - 2, checker_obj->vs, checker_obj->rs);
+			if (misck_checker->dynamic == 1 && status != 0)
+				update_svr_wgt(status - 2, checker->vs, checker->rs);
 
 			/* everything is good */
-			if (!svr_checker_up(checker_obj->id, checker_obj->rs)) {
+			if (!svr_checker_up(checker->id, checker->rs)) {
 				log_message(LOG_INFO, "Misc check to [%s] for [%s] success."
-						    , inet_sockaddrtos(&checker_obj->rs->addr)
-						    , misc_chk->path);
-				smtp_alert(checker_obj->rs, NULL, NULL,
+						    , inet_sockaddrtos(&checker->rs->addr)
+						    , misck_checker->path);
+				smtp_alert(checker->rs, NULL, NULL,
 					   "UP",
 					   "=> MISC CHECK succeed on service <=");
-				update_svr_checker_state(UP, checker_obj->id
-							   , checker_obj->vs
-							   , checker_obj->rs);
+				update_svr_checker_state(UP, checker->id
+							   , checker->vs
+							   , checker->rs);
 			}
 		} else {
-			if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
+			if (svr_checker_up(checker->id, checker->rs)) {
 				log_message(LOG_INFO, "Misc check to [%s] for [%s] failed."
-						    , inet_sockaddrtos(&checker_obj->rs->addr)
-						    , misc_chk->path);
-				smtp_alert(checker_obj->rs, NULL, NULL,
+						    , inet_sockaddrtos(&checker->rs->addr)
+						    , misck_checker->path);
+				smtp_alert(checker->rs, NULL, NULL,
 					   "DOWN",
 					   "=> MISC CHECK failed on service <=");
-				update_svr_checker_state(DOWN, checker_obj->id
-							     , checker_obj->vs
-							     , checker_obj->rs);
+				update_svr_checker_state(DOWN, checker->id
+							     , checker->vs
+							     , checker->rs);
 			}
 		}
 	}

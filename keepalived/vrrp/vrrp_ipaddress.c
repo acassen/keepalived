@@ -96,17 +96,17 @@ netlink_iplist(list ip_list, int cmd)
 
 /* IP address dump/allocation */
 void
-free_ipaddress(void *if_data_obj)
+free_ipaddress(void *if_data)
 {
-	ip_address *ipaddr = if_data_obj;
+	ip_address *ipaddr = if_data;
 
 	FREE_PTR(ipaddr->label);
 	FREE(ipaddr);
 }
 void
-dump_ipaddress(void *if_data_obj)
+dump_ipaddress(void *if_data)
 {
-	ip_address *ipaddr = if_data_obj;
+	ip_address *ipaddr = if_data;
 	char *broadcast = (char *) MALLOC(21);
 	char *addr_str = (char *) MALLOC(41);
 

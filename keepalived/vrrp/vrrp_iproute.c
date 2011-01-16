@@ -119,14 +119,14 @@ netlink_rtlist_ipv4(list rt_list, int cmd)
 
 /* Route dump/allocation */
 void
-free_iproute(void *rt_data_obj)
+free_iproute(void *rt_data)
 {
-	FREE(rt_data_obj);
+	FREE(rt_data);
 }
 void
-dump_iproute(void *rt_data_obj)
+dump_iproute(void *rt_data)
 {
-	ip_route *route = rt_data_obj;
+	ip_route *route = rt_data;
 	char *log_msg = MALLOC(150);
 	char *tmp = MALLOC(30);
 

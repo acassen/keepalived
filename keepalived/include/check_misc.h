@@ -35,7 +35,7 @@ typedef struct _misc_checker {
 	char *path;
 	long timeout;
 	int dynamic;  /* 0: old-style, 1: exit code from checker affects weight */
-} misc_checker;
+} misc_checker_t;
 
 /* Prototypes defs */
 extern void install_misc_check_keyword(void);

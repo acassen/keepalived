@@ -261,9 +261,9 @@ free_if(void *data)
 }
 
 void
-dump_if(void *if_data_obj)
+dump_if(void *if_data)
 {
-	interface *ifp = if_data_obj;
+	interface *ifp = if_data;
 	char addr_str[41];
 
 	log_message(LOG_INFO, "------< NIC >------");

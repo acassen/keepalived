@@ -38,14 +38,14 @@ typedef struct _checker {
 	void *data;
 	checker_id_t id;	/* Checker identifier */
 	int enabled;		/* Activation flag */
-} checker;
+} checker_t;
 
 /* Checkers queue */
 extern list checkers_queue;
 
 /* utility macro */
 #define CHECKER_ARG(X) ((X)->data)
-#define CHECKER_DATA(X) (((checker *)X)->data)
+#define CHECKER_DATA(X) (((checker_t *)X)->data)
 #define CHECKER_GET() (CHECKER_DATA(LIST_TAIL_DATA(checkers_queue)))
 #define CHECKER_VALUE_INT(X) (atoi(VECTOR_SLOT(X,1)))
 #define CHECKER_VALUE_STRING(X) (set_value(X))
@@ -58,7 +58,7 @@ extern list checkers_queue;
 /* Prototypes definition */
 extern void init_checkers_queue(void);
 extern void queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
-			  , int (*launch) (struct _thread *)
+			  , int (*launch) (thread_t *)
 			  , void *);
 extern void dump_checkers_queue(void);
 extern void free_checkers_queue(void);

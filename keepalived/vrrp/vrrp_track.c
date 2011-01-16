@@ -29,9 +29,9 @@
 
 /* Track interface dump */
 void
-dump_track(void *track_data_obj)
+dump_track(void *track_data)
 {
-	tracked_if *tip = track_data_obj;
+	tracked_if *tip = track_data;
 	log_message(LOG_INFO, "     %s weight %d", IF_NAME(tip->ifp), tip->weight);
 }
 void
@@ -86,9 +86,9 @@ find_script_by_name(char *name)
 
 /* Track script dump */
 void
-dump_track_script(void *track_data_obj)
+dump_track_script(void *track_data)
 {
-	tracked_sc *tsc = track_data_obj;
+	tracked_sc *tsc = track_data;
 	log_message(LOG_INFO, "     %s weight %d", tsc->scr->sname, tsc->weight);
 }
 void

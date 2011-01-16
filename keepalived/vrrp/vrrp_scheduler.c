@@ -364,7 +364,7 @@ vrrp_timer_vrid_timeout(const int fd)
 static void
 vrrp_register_workers(list l)
 {
-	sock *sock_obj;
+	sock_t *sock;
 	TIMEVAL timer;
 	long vrrp_timer = 0;
 	element e;
@@ -384,17 +384,17 @@ vrrp_register_workers(list l)
 
 	/* Register VRRP workers threads */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		sock_obj = ELEMENT_DATA(e);
+		sock = ELEMENT_DATA(e);
 		/* jump to asynchronous handling */
-		vrrp_timer = vrrp_timer_fd(sock_obj->fd_in);
+		vrrp_timer = vrrp_timer_fd(sock->fd_in);
 
 		/* Register a timer thread if interface is shut */
-		if (sock_obj->fd_in == -1)
+		if (sock->fd_in == -1)
 			thread_add_timer(master, vrrp_read_dispatcher_thread,
-					 sock_obj, vrrp_timer);
+					 sock, vrrp_timer);
 		else
 			thread_add_read(master, vrrp_read_dispatcher_thread,
-					sock_obj, sock_obj->fd_in, vrrp_timer);
+					sock, sock->fd_in, vrrp_timer);
 	}
 }
 
@@ -402,14 +402,14 @@ vrrp_register_workers(list l)
 static int
 already_exist_sock(list l, sa_family_t family, int proto, int ifindex)
 {
-	sock *sock_obj;
+	sock_t *sock;
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		sock_obj = ELEMENT_DATA(e);
-		if ((sock_obj->family == family) &&
-		    (sock_obj->proto == proto)	 &&
-		    (sock_obj->ifindex == ifindex))
+		sock = ELEMENT_DATA(e);
+		if ((sock->family == family) &&
+		    (sock->proto == proto)	 &&
+		    (sock->ifindex == ifindex))
 			return 1;
 	}
 	return 0;
@@ -418,9 +418,9 @@ already_exist_sock(list l, sa_family_t family, int proto, int ifindex)
 void
 alloc_sock(sa_family_t family, list l, int proto, int ifindex)
 {
-	sock *new;
+	sock_t *new;
 
-	new = (sock *) MALLOC(sizeof (sock));
+	new = (sock_t *) MALLOC(sizeof (sock_t));
 	new->family = family;
 	new->proto = proto;
 	new->ifindex = ifindex;
@@ -454,25 +454,25 @@ vrrp_create_sockpool(list l)
 static void
 vrrp_open_sockpool(list l)
 {
-	sock *sock_obj;
+	sock_t *sock;
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		sock_obj = ELEMENT_DATA(e);
-		sock_obj->fd_in = open_vrrp_socket(sock_obj->family, sock_obj->proto,
-						   sock_obj->ifindex);
-		if (sock_obj->fd_in == -1)
-			sock_obj->fd_out = -1;
+		sock = ELEMENT_DATA(e);
+		sock->fd_in = open_vrrp_socket(sock->family, sock->proto,
+						   sock->ifindex);
+		if (sock->fd_in == -1)
+			sock->fd_out = -1;
 		else
-			sock_obj->fd_out = open_vrrp_send_socket(sock_obj->family, sock_obj->proto,
-								 sock_obj->ifindex);
+			sock->fd_out = open_vrrp_send_socket(sock->family, sock->proto,
+								 sock->ifindex);
 	}
 }
 
 static void
 vrrp_set_fds(list l)
 {
-	sock *sock_obj;
+	sock_t *sock;
 	vrrp_rt *vrrp;
 	list p = vrrp_data->vrrp;
 	element e_sock;
@@ -480,7 +480,7 @@ vrrp_set_fds(list l)
 	int proto;
 
 	for (e_sock = LIST_HEAD(l); e_sock; ELEMENT_NEXT(e_sock)) {
-		sock_obj = ELEMENT_DATA(e_sock);
+		sock = ELEMENT_DATA(e_sock);
 		for (e_vrrp = LIST_HEAD(p); e_vrrp; ELEMENT_NEXT(e_vrrp)) {
 			vrrp = ELEMENT_DATA(e_vrrp);
 			if (vrrp->auth_type == VRRP_AUTH_AH)
@@ -488,10 +488,10 @@ vrrp_set_fds(list l)
 			else
 				proto = IPPROTO_VRRP;
 
-			if ((sock_obj->ifindex == IF_INDEX(vrrp->ifp)) &&
-			    (sock_obj->proto == proto)) {
-				vrrp->fd_in = sock_obj->fd_in;
-				vrrp->fd_out = sock_obj->fd_out;
+			if ((sock->ifindex == IF_INDEX(vrrp->ifp)) &&
+			    (sock->proto == proto)) {
+				vrrp->fd_in = sock->fd_in;
+				vrrp->fd_out = sock->fd_out;
 
 				/* append to hash index */
 				alloc_vrrp_fd_bucket(vrrp);
@@ -536,9 +536,9 @@ vrrp_dispatcher_init(thread_t * thread)
 }
 
 void
-vrrp_dispatcher_release(vrrp_conf_data *conf_data_obj)
+vrrp_dispatcher_release(vrrp_conf_data *conf_data)
 {
-	free_list(conf_data_obj->vrrp_socket_pool);
+	free_list(conf_data->vrrp_socket_pool);
 }
 
 static void
@@ -842,7 +842,7 @@ vrrp_dispatcher_read_to(int fd)
 
 /* Handle dispatcher read packet */
 static int
-vrrp_dispatcher_read(sock * sock_obj)
+vrrp_dispatcher_read(sock_t * sock)
 {
 	vrrp_rt *vrrp;
 	vrrp_pkt *hd;
@@ -853,15 +853,15 @@ vrrp_dispatcher_read(sock * sock_obj)
 	memset(vrrp_buffer, 0, VRRP_PACKET_TEMP_LEN);
 
 	/* read & affect received buffer */
-	len = read(sock_obj->fd_in, vrrp_buffer, VRRP_PACKET_TEMP_LEN);
-	hd = vrrp_get_header(sock_obj->family, vrrp_buffer, &proto, &saddr);
+	len = read(sock->fd_in, vrrp_buffer, VRRP_PACKET_TEMP_LEN);
+	hd = vrrp_get_header(sock->family, vrrp_buffer, &proto, &saddr);
 
 	/* Searching for matching instance */
-	vrrp = vrrp_index_lookup(hd->vrid, sock_obj->fd_in);
+	vrrp = vrrp_index_lookup(hd->vrid, sock->fd_in);
 
 	/* If no instance found => ignore the advert */
 	if (!vrrp)
-		return sock_obj->fd_in;
+		return sock->fd_in;
 
 	/* Run the FSM handler */
 	prev_state = vrrp->state;
@@ -881,7 +881,7 @@ vrrp_dispatcher_read(sock * sock_obj)
 	 */
 	vrrp_init_instance_sands(vrrp);
 
-	return sock_obj->fd_in;
+	return sock->fd_in;
 }
 
 /* Our read packet dispatcher */
@@ -889,26 +889,26 @@ int
 vrrp_read_dispatcher_thread(thread_t * thread)
 {
 	long vrrp_timer = 0;
-	sock *sock_obj;
+	sock_t *sock;
 	int fd;
 
 	/* Fetch thread arg */
-	sock_obj = THREAD_ARG(thread);
+	sock = THREAD_ARG(thread);
 
 	/* Dispatcher state handler */
-	if (thread->type == THREAD_READ_TIMEOUT || sock_obj->fd_in == -1)
-		fd = vrrp_dispatcher_read_to(sock_obj->fd_in);
+	if (thread->type == THREAD_READ_TIMEOUT || sock->fd_in == -1)
+		fd = vrrp_dispatcher_read_to(sock->fd_in);
 	else
-		fd = vrrp_dispatcher_read(sock_obj);
+		fd = vrrp_dispatcher_read(sock);
 
 	/* register next dispatcher thread */
 	vrrp_timer = vrrp_timer_fd(fd);
 	if (fd == -1)
 		thread_add_timer(thread->master, vrrp_read_dispatcher_thread,
-				 sock_obj, vrrp_timer);
+				 sock, vrrp_timer);
 	else
 		thread_add_read(thread->master, vrrp_read_dispatcher_thread,
-				sock_obj, fd, vrrp_timer);
+				sock, fd, vrrp_timer);
 
 	return 0;
 }

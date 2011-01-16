@@ -332,27 +332,27 @@ alloc_check_data(void)
 }
 
 void
-free_check_data(check_conf_data *check_data_obj)
+free_check_data(check_conf_data *check_data)
 {
-	free_list(check_data_obj->vs);
-	free_list(check_data_obj->vs_group);
-	FREE(check_data_obj);
+	free_list(check_data->vs);
+	free_list(check_data->vs_group);
+	FREE(check_data);
 }
 
 void
-dump_check_data(check_conf_data *check_data_obj)
+dump_check_data(check_conf_data *check_data)
 {
-	if (check_data_obj->ssl) {
+	if (check_data->ssl) {
 		log_message(LOG_INFO, "------< SSL definitions >------");
 		dump_ssl();
 	}
-	if (!LIST_ISEMPTY(check_data_obj->vs)) {
+	if (!LIST_ISEMPTY(check_data->vs)) {
 		log_message(LOG_INFO, "------< LVS Topology >------");
 		log_message(LOG_INFO, " System is compiled with LVS v%d.%d.%d",
 		       NVERSION(IP_VS_VERSION_CODE));
-		if (!LIST_ISEMPTY(check_data_obj->vs_group))
-			dump_list(check_data_obj->vs_group);
-		dump_list(check_data_obj->vs);
+		if (!LIST_ISEMPTY(check_data->vs_group))
+			dump_list(check_data->vs_group);
+		dump_list(check_data->vs);
 	}
 	dump_checkers_queue();
 }

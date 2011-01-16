@@ -36,7 +36,7 @@ int tcp_connect_thread(thread_t *);
 void
 free_tcp_check(void *data)
 {
-	tcp_checker *tcp_chk = CHECKER_DATA(data);
+	tcp_checker_t *tcp_chk = CHECKER_DATA(data);
 
 	FREE(tcp_chk);
 	FREE(data);
@@ -45,7 +45,7 @@ free_tcp_check(void *data)
 void
 dump_tcp_check(void *data)
 {
-	tcp_checker *tcp_chk = CHECKER_DATA(data);
+	tcp_checker_t *tcp_chk = CHECKER_DATA(data);
 
 	log_message(LOG_INFO, "   Keepalive method = TCP_CHECK");
 	log_message(LOG_INFO, "   Connection port = %d", ntohs(inet_sockaddrport(&tcp_chk->dst)));
@@ -57,7 +57,7 @@ dump_tcp_check(void *data)
 void
 tcp_check_handler(vector strvec)
 {
-	tcp_checker *tcp_chk = (tcp_checker *) MALLOC(sizeof (tcp_checker));
+	tcp_checker_t *tcp_chk = (tcp_checker_t *) MALLOC(sizeof (tcp_checker_t));
 
 	/* queue new checker */
 	checker_set_dst(&tcp_chk->dst);
@@ -67,7 +67,7 @@ tcp_check_handler(vector strvec)
 void
 connect_port_handler(vector strvec)
 {
-	tcp_checker *tcp_chk = CHECKER_GET();
+	tcp_checker_t *tcp_chk = CHECKER_GET();
 
 	checker_set_dst_port(&tcp_chk->dst, htons(CHECKER_VALUE_INT(strvec)));
 }
@@ -75,14 +75,14 @@ connect_port_handler(vector strvec)
 void
 bind_handler(vector strvec)
 {
-	tcp_checker *tcp_chk = CHECKER_GET();
+	tcp_checker_t *tcp_chk = CHECKER_GET();
 	inet_stosockaddr(VECTOR_SLOT(strvec, 1), 0, &tcp_chk->bindto);
 }
 
 void
 connect_timeout_handler(vector strvec)
 {
-	tcp_checker *tcp_chk = CHECKER_GET();
+	tcp_checker_t *tcp_chk = CHECKER_GET();
 	tcp_chk->connection_to = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
 }
 
@@ -100,12 +100,12 @@ install_tcp_check_keyword(void)
 int
 tcp_check_thread(thread_t * thread)
 {
-	checker *checker_obj;
-	tcp_checker *tcp_check;
+	checker_t *checker;
+	tcp_checker_t *tcp_check;
 	int status;
 
-	checker_obj = THREAD_ARG(thread);
-	tcp_check = CHECKER_ARG(checker_obj);
+	checker = THREAD_ARG(thread);
+	tcp_check = CHECKER_ARG(checker);
 
 	status = tcp_socket_state(thread->u.fd, thread, tcp_check_thread);
 
@@ -115,46 +115,46 @@ tcp_check_thread(thread_t * thread)
 	if (status == connect_success) {
 		close(thread->u.fd);
 
-		if (!svr_checker_up(checker_obj->id, checker_obj->rs)) {
+		if (!svr_checker_up(checker->id, checker->rs)) {
 			log_message(LOG_INFO, "TCP connection to [%s]:%d success."
 					    , inet_sockaddrtos(&tcp_check->dst)
 					    , ntohs(inet_sockaddrport(&tcp_check->dst)));
-			smtp_alert(checker_obj->rs, NULL, NULL,
+			smtp_alert(checker->rs, NULL, NULL,
 				   "UP",
 				   "=> TCP CHECK succeed on service <=");
-			update_svr_checker_state(UP, checker_obj->id
-						   , checker_obj->vs
-						   , checker_obj->rs);
+			update_svr_checker_state(UP, checker->id
+						   , checker->vs
+						   , checker->rs);
 		}
 
 	} else {
 
-		if (svr_checker_up(checker_obj->id, checker_obj->rs)) {
+		if (svr_checker_up(checker->id, checker->rs)) {
 			log_message(LOG_INFO, "TCP connection to [%s]:%d failed !!!"
 					    , inet_sockaddrtos(&tcp_check->dst)
 					    , ntohs(inet_sockaddrport(&tcp_check->dst)));
-			smtp_alert(checker_obj->rs, NULL, NULL,
+			smtp_alert(checker->rs, NULL, NULL,
 				   "DOWN",
 				   "=> TCP CHECK failed on service <=");
-			update_svr_checker_state(DOWN, checker_obj->id
-						     , checker_obj->vs
-						     , checker_obj->rs);
+			update_svr_checker_state(DOWN, checker->id
+						     , checker->vs
+						     , checker->rs);
 		}
 
 	}
 
 	/* Register next timer checker */
 	if (status != connect_in_progress)
-		thread_add_timer(thread->master, tcp_connect_thread, checker_obj,
-				 checker_obj->vs->delay_loop);
+		thread_add_timer(thread->master, tcp_connect_thread, checker,
+				 checker->vs->delay_loop);
 	return 0;
 }
 
 int
 tcp_connect_thread(thread_t * thread)
 {
-	checker *checker_obj = THREAD_ARG(thread);
-	tcp_checker *tcp_check = CHECKER_ARG(checker_obj);
+	checker_t *checker = THREAD_ARG(thread);
+	tcp_checker_t *tcp_check = CHECKER_ARG(checker);
 	int fd;
 	int status;
 
@@ -162,9 +162,9 @@ tcp_connect_thread(thread_t * thread)
 	 * Register a new checker thread & return
 	 * if checker is disabled
 	 */
-	if (!CHECKER_ENABLED(checker_obj)) {
-		thread_add_timer(thread->master, tcp_connect_thread, checker_obj,
-				 checker_obj->vs->delay_loop);
+	if (!CHECKER_ENABLED(checker)) {
+		thread_add_timer(thread->master, tcp_connect_thread, checker,
+				 checker->vs->delay_loop);
 		return 0;
 	}
 
@@ -175,8 +175,8 @@ tcp_connect_thread(thread_t * thread)
 
 	status = tcp_bind_connect(fd, &tcp_check->dst, &tcp_check->bindto);
 	if (status == connect_error) {
-		thread_add_timer(thread->master, tcp_connect_thread, checker_obj,
-				 checker_obj->vs->delay_loop);
+		thread_add_timer(thread->master, tcp_connect_thread, checker,
+				 checker->vs->delay_loop);
 		return 0;
 	}
 

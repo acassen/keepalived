@@ -123,9 +123,9 @@ void
 tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
 		     int (*func) (thread_t *), long timeout)
 {
-	checker *checker_obj;
+	checker_t *checker;
 
-	checker_obj = THREAD_ARG(thread);
+	checker = THREAD_ARG(thread);
 
 	switch (status) {
 	case connect_error:
@@ -133,12 +133,12 @@ tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
 		break;
 
 	case connect_success:
-		thread_add_write(thread->master, func, checker_obj, fd, timeout);
+		thread_add_write(thread->master, func, checker, fd, timeout);
 		break;
 
 		/* Checking non-blocking connect, we wait until socket is writable */
 	case connect_in_progress:
-		thread_add_write(thread->master, func, checker_obj, fd, timeout);
+		thread_add_write(thread->master, func, checker, fd, timeout);
 		break;
 
 	default:

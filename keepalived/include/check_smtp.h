@@ -48,7 +48,7 @@
 typedef struct _smtp_host {
 	struct sockaddr_storage dst;
 	struct sockaddr_storage bindto;
-} smtp_host;
+} smtp_host_t;
 
 /* Checker argument structure  */
 typedef struct _smtp_checker {
@@ -59,18 +59,18 @@ typedef struct _smtp_checker {
 	int retry;
 	int attempts;
 	int  host_ctr;
-	smtp_host *host_ptr;
+	smtp_host_t *host_ptr;
 
 	/* data buffer */
 	char buff[SMTP_BUFF_MAX];
 	int buff_ctr;
-	int (*buff_cb) (struct _thread *);
+	int (*buff_cb) (thread_t *);
 
 	int state;
 
 	/* list holding the host config data */
 	list host;
-} smtp_checker;
+} smtp_checker_t;
 
 /* Prototypes defs */
 extern void install_smtp_check_keyword(void);
