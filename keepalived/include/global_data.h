@@ -51,15 +51,15 @@ typedef struct _conf_data {
 	struct sockaddr_storage smtp_server;
 	long smtp_connection_to;
 	list email;
-} conf_data;
+} conf_data_t;
 
 /* Global vars exported */
-extern conf_data *data;		/* Global configuration data */
+extern conf_data_t *data;	/* Global configuration data */
 
 /* Prototypes */
 extern void alloc_email(char *);
-extern conf_data *alloc_global_data(void);
-extern void free_global_data(conf_data *);
-extern void dump_global_data(conf_data *);
+extern conf_data_t *alloc_global_data(void);
+extern void free_global_data(conf_data_t *);
+extern void dump_global_data(conf_data_t *);
 
 #endif
