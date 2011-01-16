@@ -1,0 +1,57 @@
+# Configuration File for keepalived
+
+global_defs {
+   router_id LVS_DEVEL
+}
+
+
+virtual_server_group IPv6_group {
+	ae00::2-9	80 
+	ae00::1		80 
+}
+
+#virtual_server group IPv6_group {
+virtual_server ae00::1 80 {
+    delay_loop 6
+    lb_algo rr 
+    lb_kind NAT
+    persistence_timeout 50
+    protocol TCP
+
+#    real_server ae00::10 80 {
+    real_server ae00::10 25 {
+        weight 1
+
+	SMTP_CHECK {
+            connect_timeout 3
+	    retry 3
+	    helo_name "foo.bar.com"
+
+#	    host {
+#               bindto ae00::2
+#	       connect_ip ae00::10
+#	       connect_port 25
+#	    }
+	}
+
+#	TCP_CHECK {
+#		connect_port 80
+#		bind_to ae00::2
+#	}
+
+#        HTTP_GET {
+#            url { 
+#              path /ind.html
+#              status_code 200
+#            }
+#            bindto ae00::2
+#            connect_timeout 3
+#            nb_get_retry 3
+#            delay_before_retry 3
+#        }
+#    }
+
+
+}
+
+

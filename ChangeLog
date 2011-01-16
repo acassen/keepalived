@@ -18,6 +18,10 @@
 	  connecting remote peer simply register a new timer for
 	  next check. This is specially needed in IPv6 context
 	  where a unreachable host can be reached at delayed time.
+	* code clean-up: revisited the code to use more POSIX
+	  compliant declaration. thread typedef to use thread_t
+	  instead. revisisted checker framework to use POSIX typdef
+	  declaration.
 
 2010-12-08  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.1 released.
