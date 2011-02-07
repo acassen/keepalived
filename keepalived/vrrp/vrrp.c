@@ -331,7 +331,7 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 	 */
 	if (vrrp->auth_type != hd->auth_type) {
 		log_message(LOG_INFO, "receive a %d auth, expecting %d!",
-		       vrrp->auth_type, hd->auth_type);
+		       hd->auth_type, vrrp->auth_type);
 		return VRRP_PACKET_KO;
 	}
 
