@@ -149,7 +149,7 @@ register_checkers_thread(void)
 
 	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 		checker = ELEMENT_DATA(e);
-		log_message(LOG_INFO, "Activating healtchecker for service [%s]:%d"
+		log_message(LOG_INFO, "Activating healthchecker for service [%s]:%d"
 				    , inet_sockaddrtos(&checker->rs->addr)
 				    , ntohs(inet_sockaddrport(&checker->rs->addr)));
 		CHECKER_ENABLE(checker);
@@ -194,11 +194,11 @@ update_checker_activity(sa_family_t family, void *address, int enable)
 			if (inaddr_equal(family, addr, address) &&
 			    CHECKER_HA_SUSPEND(checker)) {
 				if (!CHECKER_ENABLED(checker) && enable)
-					log_message(LOG_INFO, "Activating healtchecker for service [%s]:%d"
+					log_message(LOG_INFO, "Activating healthchecker for service [%s]:%d"
 							    , inet_sockaddrtos(&checker->rs->addr)
 							    , ntohs(inet_sockaddrport(&checker->rs->addr)));
 				if (CHECKER_ENABLED(checker) && !enable)
-					log_message(LOG_INFO, "Suspending healtchecker for service [%s]:%d"
+					log_message(LOG_INFO, "Suspending healthchecker for service [%s]:%d"
 							    , inet_sockaddrtos(&checker->rs->addr)
 							    , ntohs(inet_sockaddrport(&checker->rs->addr)));
 				checker->enabled = enable;

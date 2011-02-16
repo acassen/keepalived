@@ -314,7 +314,7 @@ virtual_server group <STRING>      {	# VS group declaration
 
     real_server <IP ADDRESS> <PORT> {	# RS declaration
         weight <INTEGER>		# weight to use (default: 1)
-        inhibit_on_failure		# Set weight to 0 on healtchecker
+        inhibit_on_failure		# Set weight to 0 on healthchecker
 					#  failure
         notify_up <STRING>|<QUOTED-STRING> # Script to launch when
 					   #  healthchecker consider service
