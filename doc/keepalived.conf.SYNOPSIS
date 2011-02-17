@@ -34,7 +34,7 @@ global_defs {				# Block identification
     router_id <STRING>			   # String identifying router
 }
 
-vrrp_linkbeat_use_polling	# Use media link failure detection polling fashion
+linkbeat_use_polling	# Use media link failure detection polling fashion
 
 	1.2. Static addresses
 

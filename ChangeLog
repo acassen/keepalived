@@ -218,7 +218,7 @@
 	  linkwatch has been around for long time so set it as
 	  default strategy. Alternatively you can choose to use
 	  MII BSMR polling strategy by adding new keyword
-	  'vrrp_linkbeat_use_polling' in your configuration file.
+	  'linkbeat_use_polling' in your configuration file.
 	* Vincent Bernat <bernat <at> luffy.cx> fixed ip_vs.h includes.
 	* Removed vrrp_running and check_running test since it is
 	  already performed by keepalived_running.
