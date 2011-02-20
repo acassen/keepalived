@@ -51,7 +51,7 @@ dnl ----[ Checks for libraries ]----
 AC_CHECK_LIB(crypto, MD5_Init,,AC_MSG_ERROR([OpenSSL libraries are required]))
 AC_CHECK_LIB(ssl, SSL_CTX_new,,AC_MSG_ERROR([OpenSSL libraries are required]))
 AC_CHECK_LIB(popt, poptGetContext,,AC_MSG_ERROR([Popt libraries is required]))
-AC_CHECK_LIB(nl, nl_handle_alloc,
+AC_CHECK_LIB(nl, nl_socket_modify_cb,
   [
     USE_NL="LIBIPVS_USE_NL"
     LIBS="$LIBS -lnl"
