@@ -6,10 +6,16 @@
 #ifndef _IP_VS_H
 #define _IP_VS_H
 
+/* Userland compatibility with kernel */
+#define __u32 u_int32_t
+#define __be32 u_int32_t
+#define __u16 u_int16_t
+#define __be16 u_int16_t
+#define __u64 u_int64_t
+
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
-#include <linux/types.h>	/* For __beXX types in userland */
 
 #ifdef LIBIPVS_USE_NL
 #include <netlink/netlink.h>
