@@ -52,7 +52,6 @@ stop_vrrp(void)
 {
 	/* Destroy master thread */
 	signal_handler_destroy();
-	free_vrrp_sockpool(vrrp_data);
 	thread_destroy_master(master);
 
 	/* Clear static entries */
@@ -70,6 +69,7 @@ stop_vrrp(void)
 
 	/* Clean data */
 	free_global_data(data);
+	free_vrrp_sockpool(vrrp_data);
 	free_vrrp_data(vrrp_data);
 	free_vrrp_buffer();
 
