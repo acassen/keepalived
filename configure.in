@@ -124,12 +124,16 @@ AC_SUBST(KERN)
 dnl ----[ Checks for LVS and VRRP support ]----
 IPVS_SUPPORT="_WITHOUT_LVS_"
 if test "$enable_lvs" != "no"; then
-  AC_CHECK_HEADER([net/ip_vs.h],
-    [IPVS_SUPPORT="_WITH_LVS_"],
-    [
-      IPVS_SUPPORT="_WITHOUT_LVS_"
-      AC_MSG_WARN([keepalived will be built without LVS support.])
-    ])
+  if test "$KERN" = "_KRNL_2_6_"; then
+    IPVS_SUPPORT="_WITH_LVS_"
+  else
+    AC_CHECK_HEADER([net/ip_vs.h],
+      [IPVS_SUPPORT="_WITH_LVS_"],
+      [
+        IPVS_SUPPORT="_WITHOUT_LVS_"
+        AC_MSG_WARN([keepalived will be built without LVS support.])
+      ])
+  fi
 fi  
 
 if test "$IPVS_SUPPORT" = "_WITHOUT_LVS_" -a "$enable_vrrp" = "no"; then
