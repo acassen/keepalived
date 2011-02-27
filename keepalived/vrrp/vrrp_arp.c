@@ -50,7 +50,7 @@ static int send_arp(ip_address *ipaddress)
 	len = sendto(garp_fd, garp_buffer, sizeof(m_arphdr) + ETHER_HDR_LEN
 		     , 0, (struct sockaddr *)&sll, sizeof(sll));
 	if (len < 0)
-		log_message(LOG_INFO, "Error sending gratutious ARP on %s for %s",
+		log_message(LOG_INFO, "Error sending gratuitous ARP on %s for %s",
 			    IF_NAME(ipaddress->ifp), inet_ntop2(ipaddress->u.sin.sin_addr.s_addr));
 	return len;
 }
@@ -100,9 +100,9 @@ void gratuitous_arp_init(void)
 	garp_fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_RARP));
 
 	if (garp_fd > 0)
-		log_message(LOG_INFO, "Registering gratutious ARP shared channel");
+		log_message(LOG_INFO, "Registering gratuitous ARP shared channel");
 	else
-		log_message(LOG_INFO, "Error while registering gratutious ARP shared channel");
+		log_message(LOG_INFO, "Error while registering gratuitous ARP shared channel");
 }
 void gratuitous_arp_close(void)
 {
