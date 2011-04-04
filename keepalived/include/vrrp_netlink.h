@@ -45,6 +45,7 @@ struct nl_handle {
 
 /* Define types */
 #define NETLINK_TIMER (30 * TIMER_HZ)
+#define NLMSG_TAIL(nmsg) ((struct rtattr *) (((void *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len)))
 
 /* Global vars exported */
 extern struct nl_handle nl_kernel;	/* Kernel reflection channel */
