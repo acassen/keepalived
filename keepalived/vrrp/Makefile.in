@@ -44,7 +44,7 @@ vrrp_parser.o: vrrp_parser.c ../include/vrrp_parser.h \
 vrrp.o: vrrp.c ../include/vrrp.h ../include/vrrp_scheduler.h \
   ../include/vrrp_notify.h ../include/ipvswrapper.h ../../lib/memory.h \
   ../../lib/list.h ../include/vrrp_data.h ../include/vrrp_sync.h ../include/vrrp_index.h \
-  ../include/vrrp_arp.h ../../lib/utils.h
+  ../include/vrrp_arp.h ../../lib/utils.h ../include/vrrp_vmac.h
 vrrp_notify.o: vrrp_notify.c ../include/vrrp_notify.h ../../lib/memory.h \
   ../../lib/notify.h
 vrrp_scheduler.o: vrrp_scheduler.c ../include/vrrp_scheduler.h \

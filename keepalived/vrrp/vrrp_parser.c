@@ -27,6 +27,7 @@
 #include "vrrp_sync.h"
 #include "vrrp_index.h"
 #include "vrrp_if.h"
+#include "vrrp_vmac.h"
 #include "vrrp.h"
 #include "global_data.h"
 #include "global_parser.h"
@@ -100,6 +101,14 @@ vrrp_handler(vector strvec)
 	alloc_vrrp(VECTOR_SLOT(strvec, 1));
 }
 static void
+vrrp_vmac_handler(vector strvec)
+{
+	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->vmac = 1;
+	if (vrrp->ifp && !(vrrp->vmac & 2))
+		netlink_link_add_vmac(vrrp);
+}
+static void
 vrrp_native_ipv6_handler(vector strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -130,6 +139,8 @@ vrrp_int_handler(vector strvec)
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *name = VECTOR_SLOT(strvec, 1);
 	vrrp->ifp = if_get_by_ifname(name);
+	if (vrrp->vmac && !(vrrp->vmac & 2))
+		netlink_link_add_vmac(vrrp);
 }
 static void
 vrrp_track_int_handler(vector strvec)
@@ -421,6 +432,7 @@ vrrp_init_keywords(void)
 	install_keyword("notify", &vrrp_gnotify_handler);
 	install_keyword("smtp_alert", &vrrp_gsmtp_handler);
 	install_keyword_root("vrrp_instance", &vrrp_handler);
+	install_keyword("use_vmac", &vrrp_vmac_handler);
 	install_keyword("native_ipv6", &vrrp_native_ipv6_handler);
 	install_keyword("state", &vrrp_state_handler);
 	install_keyword("interface", &vrrp_int_handler);

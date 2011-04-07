@@ -454,6 +454,11 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	if (ifi->ifi_type == ARPHRD_LOOPBACK)
 		return 0;
 
+	/* Skip it if already exist */
+	ifp = if_get_by_ifname(name);
+	if (ifp)
+		return 0;
+
 	/* Fill the interface structure */
 	ifp = (interface *) MALLOC(sizeof (interface));
 	memcpy(ifp->ifname, name, strlen(name));

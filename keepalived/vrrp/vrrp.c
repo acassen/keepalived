@@ -35,6 +35,7 @@
 #include "vrrp_data.h"
 #include "vrrp_sync.h"
 #include "vrrp_index.h"
+#include "vrrp_vmac.h"
 #include "memory.h"
 #include "list.h"
 #include "logger.h"
@@ -1086,9 +1087,13 @@ shutdown_vrrp_instances(void)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-		/* remove VIPs */
+		/* Remove VIPs/VROUTEs */
 		if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_restore_interface(vrrp, 1);
+
+		/* Remove VMAC */
+		if (vrrp->vmac)
+			netlink_link_del_vmac(vrrp);
 
 		/* Run stop script */
 		if (vrrp->script_stop)

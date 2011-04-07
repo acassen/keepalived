@@ -95,6 +95,7 @@ if_get_by_ifname(const char *ifname)
 		if (!strcmp(ifp->ifname, ifname))
 			return ifp;
 	}
+
 	log_message(LOG_ERR, "No such interface, %s", ifname);
 	return NULL;
 }
@@ -261,9 +262,9 @@ free_if(void *data)
 }
 
 void
-dump_if(void *if_data)
+dump_if(void *data)
 {
-	interface *ifp = if_data;
+	interface *ifp = data;
 	char addr_str[41];
 
 	log_message(LOG_INFO, "------< NIC >------");
