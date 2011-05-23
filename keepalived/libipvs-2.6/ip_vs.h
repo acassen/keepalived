@@ -6,13 +6,6 @@
 #ifndef _IP_VS_H
 #define _IP_VS_H
 
-/* Userland compatibility with kernel */
-#define __u32 u_int32_t
-#define __be32 u_int32_t
-#define __u16 u_int16_t
-#define __be16 u_int16_t
-#define __u64 u_int64_t
-
 #include <netinet/in.h>
 #include <sys/types.h>
 #include <sys/socket.h>
@@ -23,6 +16,13 @@
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
 #endif
+
+/* Userland compatibility with kernel */
+#define __u32 u_int32_t
+#define __be32 u_int32_t
+#define __u16 u_int16_t
+#define __be16 u_int16_t
+#define __u64 u_int64_t
 
 #define IP_VS_VERSION_CODE	0x010201
 #define NVERSION(version)			\
@@ -532,5 +532,11 @@ extern struct nla_policy ipvs_daemon_policy[IPVS_DAEMON_ATTR_MAX + 1];
 #endif
 
 /* End of Generic Netlink interface definitions */
+
+#undef __u32
+#undef __be32
+#undef __u16
+#undef __be16
+#undef __u64
 
 #endif	/* _IP_VS_H */
