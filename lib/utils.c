@@ -147,16 +147,15 @@ inet_stom(char *addr)
 uint8_t
 inet_stor(char *addr)
 {
-	uint8_t range = 0;
 	char *cp = addr;
 
 	if (!strstr(addr, "-"))
-		return range;
+		return 0;
 	while (*cp != '-' && *cp != '\0')
 		cp++;
 	if (*cp == '-')
-		return atoi(++cp);
-	return range;
+		return strtoul(++cp, NULL, (strchr(addr, ':')) ? 16 : 10);
+	return 0;
 }
 
 /* IP string to sockaddr_storage */
