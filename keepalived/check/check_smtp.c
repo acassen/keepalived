@@ -70,7 +70,7 @@ smtp_dump_host(void *data)
 {
         smtp_host_t *smtp_host = data;
         log_message(LOG_INFO, "   Checked ip = %s", inet_sockaddrtos(&smtp_host->dst));
-        log_message(LOG_INFO, "           port = %d", ntohs(ntohs(inet_sockaddrport(&smtp_host->dst))));
+        log_message(LOG_INFO, "           port = %d", ntohs(inet_sockaddrport(&smtp_host->dst)));
 	if (smtp_host->bindto.ss_family)
         	log_message(LOG_INFO, "           bindto = %s", inet_sockaddrtos(&smtp_host->bindto));
 }
