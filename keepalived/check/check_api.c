@@ -52,7 +52,7 @@ static void
 dump_checker(void *data)
 {
 	checker_t *checker = data;
-	log_message(LOG_INFO, " %s:%d"
+	log_message(LOG_INFO, " [%s]:%d"
 			    , inet_sockaddrtos(&checker->rs->addr)
 			    , ntohs(inet_sockaddrport(&checker->rs->addr)));
 	(*checker->dump_func) (checker);

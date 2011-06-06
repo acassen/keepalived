@@ -190,7 +190,7 @@ http_read_thread(thread_t * thread)
 	if (r == -1 || r == 0) {	/* -1:error , 0:EOF */
 		if (r == -1) {
 			/* We have encourred a real read error */
-			DBG("Read error with server [%s:%d]: %s\n",
+			DBG("Read error with server [%s]:%d: %s\n",
 			    inet_ntop2(req->addr_ip), ntohs(req->addr_port),
 			    strerror(errno));
 			return epilog(thread);
@@ -276,7 +276,7 @@ http_request_thread(thread_t * thread)
 	FREE(str_request);
 
 	if (!ret) {
-		fprintf(stderr, "Cannot send get request to [%s:%d].\n",
+		fprintf(stderr, "Cannot send get request to [%s]:%d.\n",
 			inet_ntop2(req->addr_ip)
 			, ntohs(req->addr_port));
 		return epilog(thread);

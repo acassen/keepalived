@@ -497,7 +497,7 @@ clear_diff_vsge(list old, list new, virtual_server * old_vs)
 	for (e = LIST_HEAD(old); e; ELEMENT_NEXT(e)) {
 		vsge = ELEMENT_DATA(e);
 		if (!vsge_exist(vsge, new)) {
-			log_message(LOG_INFO, "VS [%s:%d:%d:%d] in group %s no longer exist\n" 
+			log_message(LOG_INFO, "VS [[%s]:%d:%d:%d] in group %s no longer exist\n" 
 					    , inet_sockaddrtos(&vsge->addr)
 					    , ntohs(inet_sockaddrport(&vsge->addr))
 					    , vsge->range

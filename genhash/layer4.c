@@ -85,7 +85,7 @@ tcp_socket_state(int fd, thread_t * thread, uint32_t addr_ip, uint16_t addr_port
 
 	/* Handle connection timeout */
 	if (thread->type == THREAD_WRITE_TIMEOUT) {
-		DBG("TCP connection timeout to [%s:%d].\n",
+		DBG("TCP connection timeout to [%s]:%d.\n",
 		    inet_ntop2(addr_ip), ntohs(addr_port));
 		close(thread->u.fd);
 		return connect_timeout;
@@ -99,7 +99,7 @@ tcp_socket_state(int fd, thread_t * thread, uint32_t addr_ip, uint16_t addr_port
 
 	/* Connection failed !!! */
 	if (ret) {
-		DBG("TCP connection failed to [%s:%d].\n",
+		DBG("TCP connection failed to [%s]:%d.\n",
 		    inet_ntop2(addr_ip), ntohs(addr_port));
 		close(thread->u.fd);
 		return connect_error;
@@ -111,7 +111,7 @@ tcp_socket_state(int fd, thread_t * thread, uint32_t addr_ip, uint16_t addr_port
 	 * Recompute the write timeout (or pending connection).
 	 */
 	if (status != 0) {
-		DBG("TCP connection to [%s:%d] still IN_PROGRESS.\n",
+		DBG("TCP connection to [%s]:%d still IN_PROGRESS.\n",
 		    inet_ntop2(addr_ip), ntohs(addr_port));
 
 		timer_min = timer_sub_now(thread->sands);
@@ -160,14 +160,14 @@ tcp_check_thread(thread_t * thread)
 			     tcp_check_thread);
 	switch (sock_obj->status) {
 	case connect_error:
-		DBG("Error connecting server [%s:%d].\n",
+		DBG("Error connecting server [%s]:%d.\n",
 		    inet_ntop2(req->addr_ip), ntohs(req->addr_port));
 		thread_add_terminate_event(thread->master);
 		return -1;
 		break;
 
 	case connect_timeout:
-		DBG("Timeout connecting server [%s:%d].\n",
+		DBG("Timeout connecting server [%s]:%d.\n",
 		    inet_ntop2(req->addr_ip), ntohs(req->addr_port));
 		thread_add_terminate_event(thread->master);
 		return -1;
@@ -185,7 +185,7 @@ tcp_check_thread(thread_t * thread)
 				thread_add_event(thread->master,
 						 http_request_thread, sock_obj, 0);
 			} else {
-				DBG("Connection trouble to: [%s:%d].\n",
+				DBG("Connection trouble to: [%s]:%d.\n",
 				    inet_ntop2(req->addr_ip),
 				    ntohs(req->addr_port));
 				if (req->ssl)

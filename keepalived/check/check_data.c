@@ -214,7 +214,7 @@ dump_vs(void *data)
 	}
 
 	if (vs->s_svr) {
-		log_message(LOG_INFO, "   sorry server = %s:%d"
+		log_message(LOG_INFO, "   sorry server = [%s]:%d"
 				    , inet_sockaddrtos(&vs->s_svr->addr)
 				    , ntohs(inet_sockaddrport(&vs->s_svr->addr)));
 	}
