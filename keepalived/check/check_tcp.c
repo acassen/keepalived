@@ -169,19 +169,23 @@ tcp_connect_thread(thread_t * thread)
 	}
 
 	if ((fd = socket(tcp_check->dst.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-		DBG("TCP connect fail to create socket.");
+		log_message(LOG_INFO, "TCP connect fail to create socket. Rescheduling.");
+		thread_add_timer(thread->master, tcp_connect_thread, checker,
+				checker->vs->delay_loop);
+ 
 		return 0;
 	}
 
 	status = tcp_bind_connect(fd, &tcp_check->dst, &tcp_check->bindto);
-	if (status == connect_error) {
-		thread_add_timer(thread->master, tcp_connect_thread, checker,
-				 checker->vs->delay_loop);
-		return 0;
-	}
 
 	/* handle tcp connection status & register check worker thread */
-	tcp_connection_state(fd, status, thread, tcp_check_thread,
-			     tcp_check->connection_to);
+	if(tcp_connection_state(fd, status, thread, tcp_check_thread,
+			tcp_check->connection_to)) {
+		close(fd);
+		log_message(LOG_INFO, "TCP socket bind failed. Rescheduling.");
+		thread_add_timer(thread->master, tcp_connect_thread, checker,
+				checker->vs->delay_loop);
+	}
+ 
 	return 0;
 }

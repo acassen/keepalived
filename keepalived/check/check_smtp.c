@@ -811,20 +811,21 @@ smtp_connect_thread(thread_t *thread)
 
 	/* Create the socket, failling here should be an oddity */
 	if ((sd = socket(smtp_host->dst.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-		DBG("SMTP_CHECK connection failed to create socket.");
+		log_message(LOG_INFO, "SMTP_CHECK connection failed to create socket. Rescheduling.");
 		thread_add_timer(thread->master, smtp_connect_thread, checker,
 				 checker->vs->delay_loop);
 		return 0;
 	}
 
 	status = tcp_bind_connect(sd, &smtp_host->dst, &smtp_host->bindto);
-	if (status == connect_error) {
-		thread_add_timer(thread->master, smtp_connect_thread, checker,
-				 checker->vs->delay_loop);
-		return 0;
-	}
 
 	/* handle tcp connection status & register callback the next setp in the process */
-	tcp_connection_state(sd, status, thread, smtp_check_thread, smtp_checker->timeout);
+	if(tcp_connection_state(sd, status, thread, smtp_check_thread, smtp_checker->timeout)) {
+		close(sd);
+		log_message(LOG_INFO, "SMTP_CHECK socket bind failed. Rescheduling.");
+		thread_add_timer(thread->master, smtp_connect_thread, checker,
+			checker->vs->delay_loop);
+	}
+ 
 	return 0;
 }

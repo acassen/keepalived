@@ -793,7 +793,7 @@ http_check_thread(thread_t * thread)
 						 thread->u.fd,
 						 http_get_check->connection_to);
 			} else {
-				DBG(LOG_INFO, "Connection trouble to: [%s]:%d."
+				DBG("Connection trouble to: [%s]:%d."
 					    , inet_sockaddrtos(&http_get_check->dst)
 					    , ntohs(inet_sockaddrport(&http_get_check->dst)));
 #ifdef _DEBUG_
@@ -871,19 +871,23 @@ http_connect_thread(thread_t * thread)
 
 	/* Create the socket */
 	if ((fd = socket(http_get_check->dst.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-		DBG("WEB connection fail to create socket.");
+		log_message(LOG_INFO, "WEB connection fail to create socket. Rescheduling.");
+		thread_add_timer(thread->master, http_connect_thread, checker,
+				checker->vs->delay_loop);
+ 
 		return 0;
 	}
 
 	status = tcp_bind_connect(fd, &http_get_check->dst, &http_get_check->bindto);
-	if (status == connect_error) {
-		thread_add_timer(thread->master, http_connect_thread, checker,
-				 checker->vs->delay_loop);
-		return 0;
-	}
 
 	/* handle tcp connection status & register check worker thread */
-	tcp_connection_state(fd, status, thread, http_check_thread,
-			     http_get_check->connection_to);
+	if(tcp_connection_state(fd, status, thread, http_check_thread,
+			http_get_check->connection_to)) {
+		close(fd);
+		log_message(LOG_INFO, "WEB socket bind failed. Rescheduling");
+		thread_add_timer(thread->master, http_connect_thread, checker,
+				checker->vs->delay_loop);
+	}
+
 	return 0;
 }
