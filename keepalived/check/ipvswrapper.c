@@ -728,7 +728,7 @@ string_to_number(const char *s, int min, int max)
 static int
 modprobe_ipvs(void)
 {
-	char *argv[] = { "/sbin/modprobe", "-s", "-k", "--", "ip_vs", NULL };
+	char *argv[] = { "/sbin/modprobe", "-s", "--", "ip_vs", NULL };
 	int child;
 	int status;
 	int rc;
