@@ -455,9 +455,9 @@ ipvs_group_range_cmd(int cmd, virtual_server_group_entry *vsg_entry)
 
 /* set IPVS group rules */
 static void
-ipvs_group_cmd(int cmd, list vs_group, real_server * rs, char * vsgname)
+ipvs_group_cmd(int cmd, list vs_group, real_server * rs, virtual_server * vs)
 {
-	virtual_server_group *vsg = ipvs_get_group_by_name(vsgname, vs_group);
+	virtual_server_group *vsg = ipvs_get_group_by_name(vs->vsgname, vs_group);
 	virtual_server_group_entry *vsg_entry;
 	list l;
 	element e;
@@ -493,6 +493,12 @@ ipvs_group_cmd(int cmd, list vs_group, real_server * rs, char * vsgname)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vsg_entry = ELEMENT_DATA(e);
 		srule->af = AF_INET;
+		/* Need to get address family from first real server */
+		if (vs->rs && !LIST_ISEMPTY(vs->rs) &&
+		    (((real_server *)ELEMENT_DATA(LIST_HEAD(vs->rs)))->addr.ss_family == AF_INET6)) {
+			srule->af = AF_INET6;
+			srule->netmask = 128;
+		}
 		srule->fwmark = vsg_entry->vfwmark;
 
 		/* Talk to the IPVS channel */
@@ -584,10 +590,16 @@ ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
 
 	/* Set vs rule and send to kernel */
 	if (vs->vsgname) {
-		ipvs_group_cmd(cmd, vs_group, rs, vs->vsgname);
+		ipvs_group_cmd(cmd, vs_group, rs, vs);
 	} else {
 		if (vs->vfwmark) {
 			srule->af = AF_INET;
+			/* Need to get address family from first real server */
+			if (vs->rs && !LIST_ISEMPTY(vs->rs) &&
+			    (((real_server *)ELEMENT_DATA(LIST_HEAD(vs->rs)))->addr.ss_family == AF_INET6)) {
+				srule->af = AF_INET6;
+				srule->netmask = 128;
+			}
 			srule->fwmark = vs->vfwmark;
 		} else {
 			srule->af = vs->addr.ss_family;
