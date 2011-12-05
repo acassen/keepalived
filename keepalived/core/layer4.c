@@ -43,7 +43,7 @@ tcp_bind_connect(int fd, struct sockaddr_storage *addr, struct sockaddr_storage 
 	fcntl(fd, F_SETFL, val | O_NONBLOCK);
 
 	/* Bind socket */
-	if (bind_addr) {
+	if (bind_addr && ((struct sockaddr *) bind_addr)->sa_family != AF_UNSPEC) {
 		addrlen = sizeof(*bind_addr);
 		if (bind(fd, (struct sockaddr *) bind_addr, addrlen) != 0)
 			return connect_error;
