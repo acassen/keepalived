@@ -163,7 +163,7 @@ static inline int sockstorage_equal(const struct sockaddr_storage *s1,
 		struct sockaddr_in *a1 = (struct sockaddr_in *) s1;
 		struct sockaddr_in *a2 = (struct sockaddr_in *) s2;
 
-		if ((a1->sin_addr.s_addr == a1->sin_addr.s_addr) &&
+		if ((a1->sin_addr.s_addr == a2->sin_addr.s_addr) &&
 		    (a1->sin_port == a2->sin_port))
 			return 1;
 	}
