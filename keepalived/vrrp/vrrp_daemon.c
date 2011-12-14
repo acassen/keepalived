@@ -53,6 +53,9 @@ extern char *vrrp_pidfile;
 static void
 stop_vrrp(void)
 {
+	if (!(debug & 8))
+		shutdown_vrrp_instances();
+
 	/* Destroy master thread */
 	signal_handler_destroy();
 	thread_destroy_master(master);
@@ -61,8 +64,6 @@ stop_vrrp(void)
 	netlink_rtlist_ipv4(vrrp_data->static_routes, IPROUTE_DEL);
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL);
 
-	if (!(debug & 8))
-		shutdown_vrrp_instances();
 	free_interface_queue();
 	gratuitous_arp_close();
 	ndisc_close();
