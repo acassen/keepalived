@@ -97,6 +97,8 @@ alloc_http_get(char *proto)
 	    (!strcmp(proto, "HTTP_GET")) ? PROTO_HTTP : PROTO_SSL;
 	http_get_chk->url = alloc_list(free_url, dump_url);
 	http_get_chk->nb_get_retry = 1;
+	http_get_chk->connection_to = 5 * TIMER_HZ;
+	http_get_chk->delay_before_retry = 3 * TIMER_HZ;
 
 	return http_get_chk;
 }
@@ -133,6 +135,8 @@ connect_to_handler(vector strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	http_get_chk->connection_to = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
+	if (http_get_chk->connection_to < TIMER_HZ)
+		http_get_chk->connection_to = TIMER_HZ;
 }
 
 void

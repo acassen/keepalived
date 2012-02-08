@@ -78,6 +78,8 @@ delay_handler(vector strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->delay_loop = atoi(VECTOR_SLOT(strvec, 1)) * TIMER_HZ;
+	if (vs->delay_loop < TIMER_HZ)
+		vs->delay_loop = TIMER_HZ;
 }
 static void
 lbalgo_handler(vector strvec)
