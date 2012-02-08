@@ -320,6 +320,8 @@ vrrp_garp_delay_handler(vector strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->garp_delay = atoi(VECTOR_SLOT(strvec, 1)) * TIMER_HZ;
+	if (vrrp->garp_delay < TIMER_HZ)
+		vrrp->garp_delay = TIMER_HZ;
 }
 static void
 vrrp_auth_type_handler(vector strvec)
@@ -411,6 +413,8 @@ vrrp_vscript_interval_handler(vector strvec)
 {
 	vrrp_script *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	vscript->interval = atoi(VECTOR_SLOT(strvec, 1)) * TIMER_HZ;
+	if (vscript->interval < TIMER_HZ)
+		vscript->interval = TIMER_HZ;
 }
 static void
 vrrp_vscript_weight_handler(vector strvec)
