@@ -741,6 +741,8 @@ vrrp_state_goto_master(vrrp_rt * vrrp)
 	 * Send an advertisement. To force a new master
 	 * election.
 	 */
+        if (vrrp->sync && !vrrp_sync_goto_master(vrrp))
+	      return;
 	vrrp_send_adv(vrrp, vrrp->effective_priority);
 
 	vrrp->state = VRRP_STATE_MAST;

@@ -46,6 +46,7 @@ extern void vrrp_sync_smtp_notifier(vrrp_sgroup *);
 extern void vrrp_sync_set_group(vrrp_sgroup *);
 extern int vrrp_sync_group_up(vrrp_sgroup *);
 extern int vrrp_sync_leave_fault(vrrp_rt *);
+extern int vrrp_sync_goto_master(vrrp_rt *);
 extern void vrrp_sync_backup(vrrp_rt *);
 extern void vrrp_sync_master(vrrp_rt *);
 extern void vrrp_sync_master_election(vrrp_rt *);

@@ -135,6 +135,32 @@ vrrp_sync_leave_fault(vrrp_rt * vrrp)
 	return 0;
 }
 
+/* Check transition to master state */
+int
+vrrp_sync_goto_master(vrrp_rt * vrrp)
+{
+	vrrp_rt *isync;
+	vrrp_sgroup *vgroup = vrrp->sync;
+	list l = vgroup->index_list;
+	element e;
+
+	if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
+		return 1;
+	if (GROUP_STATE(vgroup) == VRRP_STATE_GOTO_MASTER)
+		return 1;
+
+        /* Only sync to master if everyone wants to 
+	 * i.e. prefer backup state to avoid thrashing */
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		isync = ELEMENT_DATA(e);
+		if (isync != vrrp && (isync->wantstate != VRRP_STATE_GOTO_MASTER && 
+		                      isync->wantstate != VRRP_STATE_MAST)) {
+			return 0;	
+		}
+	}
+	return 1;
+}
+
 void
 vrrp_sync_master_election(vrrp_rt * vrrp)
 {
@@ -202,6 +228,8 @@ vrrp_sync_master(vrrp_rt * vrrp)
 	element e;
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
+		return;
+	if (!vrrp_sync_goto_master(vrrp))
 		return;
 
 	log_message(LOG_INFO, "VRRP_Group(%s) Syncing instances to MASTER state",
