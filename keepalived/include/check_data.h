@@ -166,7 +166,8 @@ static inline int sockstorage_equal(const struct sockaddr_storage *s1,
 		if ((a1->sin_addr.s_addr == a2->sin_addr.s_addr) &&
 		    (a1->sin_port == a2->sin_port))
 			return 1;
-	}
+	} else if (s1->ss_family == AF_UNSPEC)
+		return 1;
 
 	return 0;
 }
