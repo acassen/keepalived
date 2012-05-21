@@ -621,3 +621,21 @@ if_setsockopt_mcast_if(sa_family_t family, int *sd, interface *ifp)
 
 	return *sd;
 }
+
+int if_setsockopt_priority(int *sd) {
+	int ret;
+	int priority = 6;
+
+	if (*sd < 0)
+		return -1;
+
+	/* Set SO_PRIORITY for VRRP traffic */
+	ret = setsockopt(*sd, SOL_SOCKET, SO_PRIORITY, &priority, sizeof(priority));
+	if (ret < 0) {
+		log_message(LOG_INFO, "cant set SO_PRIORITY IP option. errno=%d (%m)", errno);
+		close(*sd);
+		*sd = -1;
+	}
+
+	return *sd;
+}
