@@ -272,7 +272,7 @@ start_vrrp_child(void)
 	}
 
 	/* Opening local VRRP syslog channel */
-	openlog(PROG_VRRP, LOG_PID | (debug & 1) ? LOG_CONS : 0,
+	openlog(PROG_VRRP, LOG_PID | ((debug & 1) ? LOG_CONS : 0),
 		(log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
 
 	/* Child process part, write pidfile */
