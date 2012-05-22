@@ -74,6 +74,9 @@ typedef struct _vrrp_sgroup {
 	vector iname;		/* Set of VRRP instances in this group */
 	list index_list;	/* List of VRRP instances */
 	int state;		/* current stable state */
+	int global_tracking;	/* Use floating priority and scripts
+				 * All VRRP must share same tracking conf
+				 */
 
 	/* State transition notification */
 	int notify_exec;

@@ -96,6 +96,12 @@ vrrp_gsmtp_handler(vector strvec)
 	vgroup->smtp_alert = 1;
 }
 static void
+vrrp_gglobal_tracking_handler(vector strvec)
+{
+	vrrp_sgroup *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+	vgroup->global_tracking = 1;
+}
+static void
 vrrp_handler(vector strvec)
 {
 	alloc_vrrp(VECTOR_SLOT(strvec, 1));
@@ -457,6 +463,7 @@ vrrp_init_keywords(void)
 	install_keyword("notify_fault", &vrrp_gnotify_fault_handler);
 	install_keyword("notify", &vrrp_gnotify_handler);
 	install_keyword("smtp_alert", &vrrp_gsmtp_handler);
+	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler);
 	install_keyword_root("vrrp_instance", &vrrp_handler);
 	install_keyword("use_vmac", &vrrp_vmac_handler);
 	install_keyword("native_ipv6", &vrrp_native_ipv6_handler);
