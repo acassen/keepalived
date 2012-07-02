@@ -107,9 +107,9 @@ AC_TRY_RUN([
     AC_MSG_RESULT([2.6])
   else
     AC_MSG_RESULT([$LINUX_MAJOR.$LINUX_MINOR.$LINUX_PATCH])
-    if test "$LINUX_MINOR" = "6"; then
+    if test "$LINUX_MAJOR" = "2" && test "$LINUX_MINOR" = "6"; then
       KERN="_KRNL_2_6_"
-    elif test "$LINUX_MINOR" = "4"; then
+    elif test "$LINUX_MAJOR" = "2" && test "$LINUX_MINOR" = "4"; then
       KERN="_KRNL_2_4_"
     else
       KERN="_KRNL_2_6_"
