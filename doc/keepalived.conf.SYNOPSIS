@@ -144,6 +144,7 @@ Important: for a SYNC group to run reliably, it is vital that all instances in
 	The configuration block looks like :
 
 vrrp_instance <STRING> {		# VRRP instance declaration
+    use_vmac				# Use VRRP Virtual MAC
     native_ipv6				# Force instance to use IPv6
 					#  when using mixed IPv4&IPv6 conf
     state MASTER|BACKUP			# Start-up default state

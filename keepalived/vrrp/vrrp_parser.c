@@ -105,6 +105,20 @@ vrrp_vmac_handler(vector strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->vmac = 1;
+	if (!vrrp->mcast_saddr)
+		vrrp->mcast_saddr  = IF_ADDR(vrrp->ifp);
+	if (VECTOR_SIZE(strvec) == 2) {
+		strncpy(vrrp->vmac_ifname, VECTOR_SLOT(strvec, 1),
+			IFNAMSIZ - 1);
+	} else if (vrrp->vrid) {
+		snprintf(vrrp->vmac_ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
+	}
+
+	if (strlen(vrrp->vmac_ifname)) {
+		log_message(LOG_INFO, "vmac_ifname=%s for vrrp_instace %s"
+				    , vrrp->vmac_ifname
+				    , vrrp->iname);
+	}
 	if (vrrp->ifp && !(vrrp->vmac & 2))
 		netlink_link_add_vmac(vrrp);
 }
@@ -174,8 +188,16 @@ vrrp_vrid_handler(vector strvec)
 		log_message(LOG_INFO, "VRRP Error : VRID not valid !\n");
 		log_message(LOG_INFO,
 		       "             must be between 1 & 255. reconfigure !\n");
-	} else
+	} else {
 		alloc_vrrp_bucket(vrrp);
+		if (vrrp->vmac && strlen(vrrp->vmac_ifname) == 0) {
+			snprintf(vrrp->vmac_ifname, IFNAMSIZ, "vrrp.%d"
+						  , vrrp->vrid);
+			log_message(LOG_INFO, "vmac_ifname=%s for vrrp_instace %s"
+					    , vrrp->vmac_ifname
+					    , vrrp->iname);
+		}
+	}
 }
 static void
 vrrp_prio_handler(vector strvec)

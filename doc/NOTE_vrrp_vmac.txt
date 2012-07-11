@@ -1,0 +1,82 @@
+
+
+                           Note on using VRRP with Virtual MAC address
+                          =============================================
+                                       Alexandre Cassen
+                                        July 11th 2012
+
+
+To reduce takeover impact, some networking environment would require using
+VRRP with VMAC address. To reach that goal Keepalived VRRP framework implements
+VMAC support by the invocation of 'use_vmac' keyword in configuration file.
+
+Internally, Keepalived code will bring up virtual interfaces, each interface
+dedicated to a specific virtual_router. Keepalived uses Liunx kernel macvlan
+driver to defines thoses interfaces. It is then mandatory to use kernel
+compiled with macvlan support.
+
+In addition we can mention that VRRP VMAC will work only with kernel including
+the following patch :
+
+http://git.kernel.org/?p=linux/kernel/git/torvalds/linux.git;a=commitdiff;h=729e72a10930ef765c11a5a35031ba47f18221c4
+
+By default MACVLAN interface are in VEPA mode which filters out received
+packets whose MAC source address matches that of the MACVLAN interface. Setting
+MACVLAN interface in private mode will not filter based on source MAC address.  
+
+You also need to tweak your physical interfaces to play around with well knwon
+ARP issue. I would recommand using the following configurations :
+
+1) Global configuration
+
+	net.ipv4.conf.all.arp_ignore = 1
+	net.ipv4.conf.all.arp_announce = 1
+	net.ipv4.conf.all.arp_filter = 0
+
+2) Physical interface configuration
+
+For the physical ethernet interface running VRRP instance use:
+
+net.ipv4.conf.eth0.arp_filter = 1
+
+3) VMAC interface
+
+consider the following VRRP configuration : 
+
+vrrp_instance instance1 {
+	state BACKUP
+	interface eth0
+	virtual_router_id 250
+	use_vmac
+	priority 150
+	advert_int 1
+	virtual_ipaddress {
+		10.0.0.254
+	}
+}
+
+The 'use_vmac' keyword will drive keepalived code to create a macvlan interface
+named 'vrrp.250' (default internal paradigm is vrrp.{virtual_router_id}, you can
+override this naming by giving an argument to 'use_vmac' keyword, eg: use_vmac
+vrrp250).
+
+you then need to configure interface with :
+net.ipv4.conf.vrrp.250.arp_filter = 0
+net.ipv4.conf.vrrp.250.accept_local = 1 (this is needed for the address owner case)
+
+you can create notify_master script to automate this configuration step for you :
+
+vrrp_instance instance1 {
+	state BACKUP
+	interface eth0
+	virtual_router_id 250
+	use_vmac
+	priority 150
+	advert_int 1
+	virtual_ipaddress {
+		10.0.0.254
+	}
+	notify_master "/usr/local/bin/vmac_tweak.sh vrrp.250"
+}
+
+

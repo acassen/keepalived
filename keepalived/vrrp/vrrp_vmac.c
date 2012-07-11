@@ -62,6 +62,50 @@ netlink_link_setlladdr(vrrp_rt *vrrp)
 }
 
 static int
+netlink_link_setmode(vrrp_rt *vrrp)
+{
+	int status = 1;
+	struct {
+		struct nlmsghdr n;
+		struct ifinfomsg ifi;
+		char buf[256];
+	} req;
+	struct rtattr *linkinfo;
+	struct rtattr *data;
+
+	memset(&req, 0, sizeof (req));
+
+	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
+	req.n.nlmsg_flags = NLM_F_REQUEST;
+	req.n.nlmsg_type = RTM_NEWLINK;
+	req.ifi.ifi_family = AF_INET;
+	req.ifi.ifi_index = IF_INDEX(vrrp->ifp);
+
+	linkinfo = NLMSG_TAIL(&req.n);
+	addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
+	addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, ll_kind,
+		  strlen(ll_kind));
+
+	data = NLMSG_TAIL(&req.n);
+	addattr_l(&req.n, sizeof(req), IFLA_INFO_DATA, NULL, 0);
+
+	/*
+	 * In private mode, macvlan will receive frames with same MAC addr
+	 * as configured on the interface.
+	 */
+	addattr32(&req.n, sizeof(req), IFLA_MACVLAN_MODE,
+		  MACVLAN_MODE_PRIVATE);
+	data->rta_len = (void *)NLMSG_TAIL(&req.n) - (void *)data;
+
+	linkinfo->rta_len = (void *)NLMSG_TAIL(&req.n) - (void *)linkinfo;
+
+	if (netlink_talk(&nl_cmd, &req.n) < 0)
+		status = -1;
+
+	return status;
+}
+
+static int
 netlink_link_up(vrrp_rt *vrrp)
 {
 	int status = 1;
@@ -103,7 +147,8 @@ netlink_link_add_vmac(vrrp_rt *vrrp)
 		return -1;
 
 	memset(&req, 0, sizeof (req));
-	snprintf(ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
+	memset(ifname, 0, IFNAMSIZ);
+	strncpy(ifname, vrrp->vmac_ifname, IFNAMSIZ - 1);
 
 	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
 	req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL;
@@ -133,6 +178,14 @@ netlink_link_add_vmac(vrrp_rt *vrrp)
 	vrrp->vmac |= 2;
 	netlink_link_setlladdr(vrrp);
 	netlink_link_up(vrrp);
+
+	/*
+	 * By default MACVLAN interface are in VEPA mode which filters
+	 * out received packets whose MAC source address matches that
+	 * of the MACVLAN interface. Setting MACVLAN interface in private
+	 * mode will not filter based on source MAC address.
+	 */
+	netlink_link_setmode(vrrp);
 
 	return 1;
 }
