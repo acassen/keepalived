@@ -127,8 +127,13 @@ ndisc_send_unsolicited_na(ip_address *ipaddress)
 	char *lladdr = (char *) IF_HWADDR(ipaddress->ifp);
 	int len;
 
-	/* Ethernet header */
-	memset(eth->ether_dhost, 0xFF, ETH_ALEN);
+	/* Ethernet header:
+	 * Destination ethernet address MUST use specific address Mapping
+	 * as specified in rfc2464.7 Address Mapping for
+	 */
+	memset(eth->ether_dhost, 0, ETH_ALEN);
+	eth->ether_dhost[0] = eth->ether_dhost[1] = 0x33;
+	eth->ether_dhost[5] = 1;
 	memcpy(eth->ether_shost, lladdr, ETH_ALEN);
 	eth->ether_type = htons(ETHERTYPE_IPV6);
 
