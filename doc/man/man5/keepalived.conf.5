@@ -45,45 +45,24 @@ and
 
 .SH Static routes/addresses
 .PP
-keepalived can configure static addresses and routes 
-with 
-.I ip
-(ie if addresses are not already on the machine). These addresses are
+keepalived can configure static addresses and routes. These addresses are
 .B NOT
 moved by vrrpd, they stay on the machine. 
 If you already have IPs and routes on your machines and
 your machines can ping each other, you don't need this section.
 .PP
-The whole string is fed to 
-.I ip addr add.
-You can truncate the string anywhere you like and let
-.I ip addr add 
-use defaults for the rest of the string. If you just
-feed the string "192.168.1.1", the IP will be 192.168.1.1/32,
-which you probably don't want.
-This is different to 
-.I ifconfig
-which will configure the IP with the standard class, here 
-192.168.1.1/24. 
-The minimum string then would be the IP/netmask, eg 192.168.1.1/24
+The syntax is the same as for virtual addresses and virtual routes.
 .PP
  static_ipaddress
  {
- 192.168.1.1/24 brd + dev eth0 scope global
+ 192.168.1.1/24 dev eth0 scope global
  ...
  }
 .PP
-The whole string is fed to 
-.I ip route add.  
-You can truncate the string allowing 
-.I ip route add 
-to use defaults.
-.PP
  static_routes
  {
- src $SRC_IP to $DST_IP dev $SRC_DEVICE 
+ 192.168.2.0/24 via 192.168.1.100 dev eth0
  ...
- src $SRC_IP to $DST_IP via $GW dev $SRC_DEVICE
  }
 .PP
 .SH VRRPD CONFIGURATION
@@ -149,6 +128,9 @@ which will transition together on any state change.
 
     # interface for inside_network, bound by vrrp
     interface eth0
+
+    # Use VRRP Virtual MAC.
+    use_vmac <VMAC_INTERFACE>
 
     # Ignore VRRP interface faults (default unset)
     dont_track_primary
@@ -218,11 +200,13 @@ which will transition together on any state change.
     }
     # routes add|del when changing to MASTER, to BACKUP
     virtual_routes {
-        # src <IPADDR> [to] <IPADDR>/<MASK> via|gw <IPADDR> dev <STRING> scope <SCOPE> tab
+        # src <IPADDR> [to] <IPADDR>/<MASK> via|gw <IPADDR> [or <IPADDR>] dev <STRING> scope <SCOPE> tab
         src 192.168.100.1 to 192.168.109.0/24 via 192.168.200.254 dev eth1
         192.168.110.0/24 via 192.168.200.254 dev eth1
         192.168.111.0/24 dev eth2
         192.168.112.0/24 via 192.168.100.254
+	192.168.113.0/24 via 192.168.200.254 or 192.168.100.254 dev eth1
+	blackhole 192.168.114.0/24
     }
 
     # VRRP will normally preempt a lower priority
