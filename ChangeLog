@@ -1,3 +1,52 @@
+2012-07-13  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.3 released.
+	* Please look at git repo for credits.
+	* VRRP : allow group to use priority with 'global_tracking'
+	  group keyword
+	* VRRP : Adjust TOS values. The TOS value used by other
+	  vendors is ip precedence 6, so change that. Use socket
+	  priority option to force packets into band 0 of pfifo_fast.
+	* VRRP : Fix sync-group thrashing.The sync group implementation
+	  was not very robust. If one synced instance lost communication
+	  without going to fault state then all synced intances would
+	  transition to master. Following this all instances would
+	  transition back to backup because they heard higher priority
+	  advertisements. This thrashing would continue indefinitely.
+	  To fix this the sync-group code was made to prefer backup state.
+	  That is, the sync-groups don't sync to master state unless
+	  every instance wants to be master.
+	* VRRP : Fix dst lladdr in IPv6 Unsollicited NA.
+	* VRRP : fix pid display in syslog messages.
+	* Fix configure script to correctly identify kernel version.
+	* check : handle unspecified sockaddr_storage when comparing
+	* VRRP : ensure VRRP script interval and GARP delay is not 0.
+	* check: ensure non 0 default values for timeouts.
+	* VRRP : Fix priority not changing on reload.
+	* check : Fix IPv4 address comparison routine.
+	* Don't use bind() with AF_UNSPEC.
+	* check : enable the use of fwmark with IPv6 virtual servers.
+	* Fix modprobe arguments.
+	* Fix double ntohs() in SMTP checker.
+	* Pretty-print IP:port as [%s]:%d.
+	* check : keep retry in case of early TCP failures in checks.
+	* when specifying an IPv6 range, range is hexadecimal value.
+	* Only define kernel types for ip_vs.h header to avoid problems
+	  when loading other headers.
+	* When respawning VRRP or check process, use LOG_ALERT.
+	* Do not set reload flag in the main process.
+	* Set correct rights on PID file.
+	* fix 'gratuitous' typos.
+	* ipvs: don't include linux/types.h or asm/types.h.
+	* configure: check for nl_socket_modify_cb for libnl.
+	* configure: don't check for IPVS support with kernel 2.6.x.
+	* VRRP : On shutdown, release sockets later to be able to send
+	  shutdown packet.
+	* fix documentation on linkbeat_use_polling keyword.
+	* Fix a typo for healthchecker.
+	* fix syslog message if bogous vrrp packet (wrong auth type)
+	  received.
+	* manpage update.
+
 2011-01-09  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.2 released.
 	* IPv6 : extended autoconf script to support libnl detection.

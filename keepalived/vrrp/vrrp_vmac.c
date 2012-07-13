@@ -83,7 +83,7 @@ netlink_link_setmode(vrrp_rt *vrrp)
 
 	linkinfo = NLMSG_TAIL(&req.n);
 	addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
-	addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, ll_kind,
+	addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (void *) ll_kind,
 		  strlen(ll_kind));
 
 	data = NLMSG_TAIL(&req.n);
