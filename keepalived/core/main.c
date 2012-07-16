@@ -25,6 +25,8 @@
 #include "signals.h"
 #include "pidfile.h"
 #include "logger.h"
+#include "global_parser.h"
+#include "notify.h"
 
 /* global var */
 char *conf_file = NULL;		/* Configuration file */
@@ -94,6 +96,15 @@ sighup(void *v, int sig)
 		kill(checkers_child, SIGHUP);
 }
 
+vector main_init_keywords(void) {
+	vector keywords;
+
+	/* global definitions mapping */
+	global_init_keywords();
+
+	return keywords;
+}
+
 /* Terminate handler */
 void
 sigend(void *v, int sig)
@@ -102,6 +113,21 @@ sigend(void *v, int sig)
 
 	/* register the terminate thread */
 	log_message(LOG_INFO, "Terminating on signal");
+
+
+	/* do we have any shutdown script to run? */
+	if (
+			data != NULL &&
+			data->shutdown_script != NULL &&
+			strlen(data->shutdown_script) > 0
+	) {
+		log_message(
+			LOG_INFO,
+			"Running shutdown script: '%s'", data->shutdown_script
+		);
+		notify_exec(data->shutdown_script);
+	}
+
 	thread_add_terminate_event(master);
 
 	if (vrrp_child > 0) {
@@ -322,6 +348,10 @@ main(int argc, char **argv)
 		log_message(LOG_INFO, "daemon is already running");
 		goto end;
 	}
+
+	/* Parse configuration file */
+	data = alloc_global_data();
+	init_data(conf_file, main_init_keywords);
 
 	/* daemonize process */
 	if (!(debug & 2))
