@@ -80,6 +80,12 @@ email_handler(vector strvec)
 	free_strvec(email_vec);
 }
 
+static void
+shutdown_script_handler (vector strvec) {
+	FREE_PTR(data->shutdown_script);
+	data->shutdown_script = set_value(strvec);
+}
+
 void
 global_init_keywords(void)
 {
@@ -92,4 +98,5 @@ global_init_keywords(void)
 	install_keyword("smtp_server", &smtpip_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
+	install_keyword("shutdown_script", &shutdown_script_handler);
 }

@@ -40,6 +40,9 @@ and
  smtp_connect_timeout 30 # integer, seconds
  router_id my_hostname   # string identifying the machine,
                          # (doesn't have to be hostname).
+
+ # Script to run on keepalived shutdown
+ shutdown_script "/bin/true arg1 arg2"
  }
 
 
