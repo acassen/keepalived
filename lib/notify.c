@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <syslog.h>
 #include <fcntl.h>
+#include <errno.h>
 #include "notify.h"
 #include "signals.h"
 #include "logger.h"
@@ -79,8 +80,16 @@ notify_exec(char *cmd)
 	closeall(0);
 
 	open("/dev/null", O_RDWR);
+
 	ret = dup(0);
+	if (ret < 0) {
+		log_message(LOG_INFO, "dup(0) error");
+	}
+
 	ret = dup(0);
+	if (ret < 0) {
+		log_message(LOG_INFO, "dup(0) error");
+	}
 
 	system_call(cmd);
 

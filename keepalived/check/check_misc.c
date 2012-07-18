@@ -153,7 +153,14 @@ misc_check_thread(thread_t * thread)
 
 	open("/dev/null", O_RDWR);
 	ret = dup(0);
+	if (ret < 0) {
+		log_message(LOG_INFO, "dup(0) error");
+	}
+
 	ret = dup(0);
+	if (ret < 0) {
+		log_message(LOG_INFO, "dup(0) error");
+	}
 
 	status = system_call(misck_checker->path);
 

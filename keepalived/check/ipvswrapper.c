@@ -751,6 +751,10 @@ modprobe_ipvs(void)
 	}
 
 	rc = waitpid(child, &status, 0);
+	if (rc < 0) {
+		log_message(LOG_INFO, "IPVS: waitpid error (%s)"
+				    , strerror(errno));
+	}
 
 	if (!WIFEXITED(status) || WEXITSTATUS(status)) {
 		return 1;

@@ -67,6 +67,9 @@ process_running(char *pid_file)
 		return 0;
 
 	ret = fscanf(pidfile, "%d", &pid);
+	if (ret == EOF && ferror(pidfile) != 0) {
+		log_message(LOG_INFO, "Error opening pid file %s", pid_file);
+	}
 	fclose(pidfile);
 
 	/* If no process is attached to pidfile, remove it */

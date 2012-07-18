@@ -122,11 +122,9 @@ clear_services(void)
 	element e;
 	list l = check_data->vs;
 	virtual_server *vs;
-	real_server *rs;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
-		rs = ELEMENT_DATA(LIST_HEAD(vs->rs));
 		if (!clear_service_vs(check_data->vs_group, vs))
 			return 0;
 	}

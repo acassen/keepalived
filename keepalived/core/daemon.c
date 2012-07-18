@@ -55,8 +55,12 @@ xdaemon(int nochdir, int noclose, int exitflag)
 	}
 
 	/* Change directory to root. */
-	if (!nochdir)
+	if (!nochdir) {
 		ret = chdir("/");
+		if (ret < 0) {
+			log_message(LOG_INFO, "xdaemon: chdir error");
+		}
+	}
 
 	/* File descriptor close. */
 	if (!noclose) {

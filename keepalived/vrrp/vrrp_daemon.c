@@ -289,6 +289,9 @@ start_vrrp_child(void)
 
 	/* change to / dir */
 	ret = chdir("/");
+	if (ret < 0) {
+		log_message(LOG_INFO, "VRRP child process: error chdir");
+	}
 
 	/* Set mask */
 	umask(0);

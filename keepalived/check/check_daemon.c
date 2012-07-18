@@ -267,6 +267,9 @@ start_check_child(void)
 
 	/* change to / dir */
 	ret = chdir("/");
+	if (ret < 0) {
+		log_message(LOG_INFO, "Healthcheck child process: error chdir");
+	}
 
 	/* Set mask */
 	umask(0);

@@ -199,7 +199,7 @@ void read_conf_file(char *conf_file)
 
 	int i;
 	for(i = 0; i < globbuf.gl_pathc; i++){
-		log_message(LOG_INFO, "Opening file '%s'.\n",globbuf.gl_pathv[i]);
+		log_message(LOG_INFO, "Opening file '%s'.\n", globbuf.gl_pathv[i]);
 		stream = fopen(globbuf.gl_pathv[i], "r");
 		if (!stream) {
 			log_message(LOG_INFO, "Configuration file '%s' open problem (%s)...\n"
@@ -211,14 +211,26 @@ void read_conf_file(char *conf_file)
 		
 		char prev_path[MAXBUF];
 		path = getcwd(prev_path, MAXBUF);
+		if (!path) {
+			log_message(LOG_INFO, "getcwd(%s) error (%s)\n"
+					    , prev_path, strerror(errno));
+		}
 
 		char *confpath = strdup(globbuf.gl_pathv[i]);
 		dirname(confpath);
 		ret = chdir(confpath);
+		if (ret < 0) {
+			log_message(LOG_INFO, "chdir(%s) error (%s)\n"
+					    , confpath, strerror(errno));
+		}
 		process_stream(current_keywords);
 		fclose(stream);
 
 		ret = chdir(prev_path);
+		if (ret < 0) {
+			log_message(LOG_INFO, "chdir(%s) error (%s)\n"
+					    , prev_path, strerror(errno));
+		}
 	}
 
 	globfree(&globbuf);
@@ -251,10 +263,19 @@ check_include(char *buf)
 		char *prev_conf_file = current_conf_file;
 		char prev_path[MAXBUF];
 		path = getcwd(prev_path, MAXBUF);
+		if (!path) {
+			log_message(LOG_INFO, "getcwd(%s) error (%s)\n"
+					    , prev_path, strerror(errno));
+		}
+
 		read_conf_file(conf_file);
 		current_stream = prev_stream;
 		current_conf_file = prev_conf_file;
 		ret = chdir(prev_path);
+		if (ret < 0) {
+			log_message(LOG_INFO, "chdir(%s) error (%s)\n"
+					    , prev_path, strerror(errno));
+		}
 		return 1;
 	}
 	free_strvec(strvec);
