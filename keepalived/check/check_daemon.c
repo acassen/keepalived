@@ -251,7 +251,7 @@ start_check_child(void)
 	}
 
 	/* Opening local CHECK syslog channel */
-	openlog(PROG_CHECK, LOG_PID | (debug & 1) ? LOG_CONS : 0, 
+	openlog(PROG_CHECK, LOG_PID | ((debug & 1) ? LOG_CONS : 0),
 		(log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
 
 	/* Child process part, write pidfile */

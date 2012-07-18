@@ -314,7 +314,7 @@ main(int argc, char **argv)
 	 */
 	parse_cmdline(argc, argv);
 
-	openlog(PROG, LOG_PID | (debug & 1) ? LOG_CONS : 0, log_facility);
+	openlog(PROG, LOG_PID | ((debug & 1) ? LOG_CONS : 0), log_facility);
 	log_message(LOG_INFO, "Starting " VERSION_STRING);
 
 	/* Check if keepalived is already running */
