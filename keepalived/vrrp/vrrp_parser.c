@@ -348,8 +348,11 @@ vrrp_auth_pass_handler(vector strvec)
 	int max_size = sizeof (vrrp->auth_data);
 	int str_len = strlen(str);
 
-	if (str_len > max_size)
+	if (str_len > max_size) {
 		str_len = max_size;
+		log_message(LOG_INFO,
+			    "Truncating auth_pass to %d characters", max_size);
+	}
 
 	memset(vrrp->auth_data, 0, max_size);
 	memcpy(vrrp->auth_data, str, str_len);

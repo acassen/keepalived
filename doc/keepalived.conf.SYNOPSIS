@@ -171,7 +171,7 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     advert_int <INTEGER>		# VRRP Advert interval (use default)
     authentication {			# Authentication block
         auth_type PASS|AH		# Simple Passwd or IPSEC AH
-        auth_pass <STRING>		# Password string
+        auth_pass <STRING>		# Password string (up to 8 characters)
     }
     virtual_ipaddress {			# VRRP IP addres block
         <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE> label <LABEL>
