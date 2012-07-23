@@ -323,6 +323,9 @@ main(int argc, char **argv)
 		goto end;
 	}
 
+	if (debug & 1)
+		enable_console_log();
+
 	/* daemonize process */
 	if (!(debug & 2))
 		xdaemon(0, 0, 0);

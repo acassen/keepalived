@@ -36,13 +36,15 @@ void
 log_message(const int facility, const char *format, ...)
 {
 	va_list args;
+	char buf[256];
 
-	va_start(args,format);
+	va_start(args, format);
+	vsnprintf(buf, sizeof(buf), format, args);
+	va_end(args);
 
 	if (log_console) {
-		vfprintf(stderr, format, args);
-		fprintf(stderr,"\n");
+		fprintf(stderr, "%s\n", buf);
 	}
 
-	vsyslog(facility, format, args);
+	syslog(facility, "%s", buf);
 }
