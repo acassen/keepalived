@@ -199,10 +199,10 @@ void read_conf_file(char *conf_file)
 
 	int i;
 	for(i = 0; i < globbuf.gl_pathc; i++){
-		log_message(LOG_INFO, "Opening file '%s'.\n",globbuf.gl_pathv[i]);
+		log_message(LOG_INFO, "Opening file '%s'.",globbuf.gl_pathv[i]);
 		stream = fopen(globbuf.gl_pathv[i], "r");
 		if (!stream) {
-			log_message(LOG_INFO, "Configuration file '%s' open problem (%s)...\n"
+			log_message(LOG_INFO, "Configuration file '%s' open problem (%s)..."
 				       , globbuf.gl_pathv[i], strerror(errno));
 			return;
 		}

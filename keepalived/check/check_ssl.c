@@ -141,7 +141,7 @@ init_ssl_ctx(void)
 		log_message(LOG_INFO, "  SSL  keyfile:%s", ssl->keyfile);
 		log_message(LOG_INFO, "  SSL password:%s", ssl->password);
 		log_message(LOG_INFO, "  SSL   cafile:%s", ssl->cafile);
-		log_message(LOG_INFO, "Terminate...\n");
+		log_message(LOG_INFO, "Terminate...");
 		clear_ssl(ssl);
 		return 0;
 	}

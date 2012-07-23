@@ -191,9 +191,9 @@ vrrp_vrid_handler(vector strvec)
 	vrrp->vrid = atoi(VECTOR_SLOT(strvec, 1));
 
 	if (VRRP_IS_BAD_VID(vrrp->vrid)) {
-		log_message(LOG_INFO, "VRRP Error : VRID not valid !\n");
+		log_message(LOG_INFO, "VRRP Error : VRID not valid !");
 		log_message(LOG_INFO,
-		       "             must be between 1 & 255. reconfigure !\n");
+		       "             must be between 1 & 255. reconfigure !");
 	} else {
 		alloc_vrrp_bucket(vrrp);
 		if (vrrp->vmac && strlen(vrrp->vmac_ifname) == 0) {
@@ -212,11 +212,11 @@ vrrp_prio_handler(vector strvec)
 	vrrp->effective_priority = vrrp->base_priority = atoi(VECTOR_SLOT(strvec, 1));
 
 	if (VRRP_IS_BAD_PRIORITY(vrrp->base_priority)) {
-		log_message(LOG_INFO, "VRRP Error : Priority not valid !\n");
+		log_message(LOG_INFO, "VRRP Error : Priority not valid !");
 		log_message(LOG_INFO,
-		       "             must be between 1 & 255. reconfigure !\n");
+		       "             must be between 1 & 255. reconfigure !");
 		log_message(LOG_INFO,
-			    "             Using default value : %d\n", VRRP_PRIO_DFL);
+			    "             Using default value : %d", VRRP_PRIO_DFL);
 		vrrp->effective_priority = vrrp->base_priority = VRRP_PRIO_DFL;
 	}
 }
@@ -227,10 +227,10 @@ vrrp_adv_handler(vector strvec)
 	vrrp->adver_int = atoi(VECTOR_SLOT(strvec, 1));
 
 	if (VRRP_IS_BAD_ADVERT_INT(vrrp->adver_int)) {
-		log_message(LOG_INFO, "VRRP Error : Advert interval not valid !\n");
+		log_message(LOG_INFO, "VRRP Error : Advert interval not valid !");
 		log_message(LOG_INFO,
-		       "             must be between less than 1sec.\n");
-		log_message(LOG_INFO, "             Using default value : 1sec\n");
+		       "             must be between less than 1sec.");
+		log_message(LOG_INFO, "             Using default value : 1sec");
 		vrrp->adver_int = 1;
 	}
 	vrrp->adver_int *= TIMER_HZ;
@@ -242,8 +242,8 @@ vrrp_debug_handler(vector strvec)
 	vrrp->debug = atoi(VECTOR_SLOT(strvec, 1));
 
 	if (VRRP_IS_BAD_DEBUG_INT(vrrp->debug)) {
-		log_message(LOG_INFO, "VRRP Error : Debug interval not valid !\n");
-		log_message(LOG_INFO, "             must be between 0-4\n");
+		log_message(LOG_INFO, "VRRP Error : Debug interval not valid !");
+		log_message(LOG_INFO, "             must be between 0-4");
 		vrrp->debug = 0;
 	}
 }
@@ -266,8 +266,8 @@ vrrp_preempt_delay_handler(vector strvec)
 	vrrp->preempt_delay = atoi(VECTOR_SLOT(strvec, 1));
 
 	if (VRRP_IS_BAD_PREEMPT_DELAY(vrrp->preempt_delay)) {
-		log_message(LOG_INFO, "VRRP Error : Preempt_delay not valid !\n");
-		log_message(LOG_INFO, "             must be between 0-%d\n",
+		log_message(LOG_INFO, "VRRP Error : Preempt_delay not valid !");
+		log_message(LOG_INFO, "             must be between 0-%d",
 		       TIMER_MAX_SEC);
 		vrrp->preempt_delay = 0;
 	}
