@@ -14,6 +14,7 @@ prefix      = @prefix@
 exec_prefix = @exec_prefix@
 sbindir     = @sbindir@
 sysconfdir  = @sysconfdir@
+datarootdir = @datarootdir@
 mandir      = @mandir@
 init_dir    = $(sysconfdir)/rc.d/init.d
 conf_dir    = $(sysconfdir)/keepalived
