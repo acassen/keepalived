@@ -194,9 +194,6 @@ reload_vrrp_thread(thread_t * thread)
 	/* set the reloading flag */
 	SET_RELOAD;
 
-	/* Close sockpool */
-	free_vrrp_sockpool(vrrp_data);
-
 	/* Signal handling */
 	signal_reset();
 	signal_handler_destroy();
@@ -224,6 +221,9 @@ reload_vrrp_thread(thread_t * thread)
 	vrrp_signal_init();
 	signal_set(SIGCHLD, thread_child_handler, master);
 	start_vrrp();
+
+	/* Close sockpool */
+	free_vrrp_sockpool(old_vrrp_data);
 
 	/* free backup data */
 	free_vrrp_data(old_vrrp_data);
