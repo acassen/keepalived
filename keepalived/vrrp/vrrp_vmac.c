@@ -31,6 +31,7 @@
 /* private matter */
 static const char *ll_kind = "macvlan";
 
+#ifdef _HAVE_VRRP_VMAC_
 /* Link layer handling */
 static int
 netlink_link_setlladdr(vrrp_rt *vrrp)
@@ -130,10 +131,12 @@ netlink_link_up(vrrp_rt *vrrp)
 
 	return status;
 }
+#endif
 
 int
 netlink_link_add_vmac(vrrp_rt *vrrp)
 {
+#ifdef _HAVE_VRRP_VMAC_
 	struct rtattr *linkinfo;
 	interface *ifp;
 	char ifname[IFNAMSIZ];
@@ -186,7 +189,7 @@ netlink_link_add_vmac(vrrp_rt *vrrp)
 	 * mode will not filter based on source MAC address.
 	 */
 	netlink_link_setmode(vrrp);
-
+#endif
 	return 1;
 }
 
@@ -194,6 +197,8 @@ int
 netlink_link_del_vmac(vrrp_rt *vrrp)
 {
 	int status = 1;
+
+#ifdef _HAVE_VRRP_VMAC_
 	struct {
 		struct nlmsghdr n;
 		struct ifinfomsg ifi;
@@ -213,6 +218,7 @@ netlink_link_del_vmac(vrrp_rt *vrrp)
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;
+#endif
 
 	return status;
 }

@@ -607,6 +607,7 @@ IPVS_SUPPORT
 VERSION_DATE
 VERSION
 DFLAGS
+VRRP_VMAC
 IPVS_SYNCD
 KERN
 EGREP
@@ -4046,6 +4047,47 @@ if test "$enable_vrrp" != "no"; then
   VRRP_SUPPORT="_WITH_VRRP_"
 fi
 
+CPPFLAGS="$CPPFLAGS -I$kernelinc"
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for kernel macvlan support" >&5
+$as_echo_n "checking for kernel macvlan support... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <bits/sockaddr.h>
+    #include <linux/if_link.h>
+    int macvlan;
+
+int
+main ()
+{
+
+    macvlan = IFLA_MACVLAN_MODE;
+    macvlan = MACVLAN_MODE_PRIVATE;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+    MACVLAN_SUPPORT=yes
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext;
+
+  if test "$MACVLAN_SUPPORT" = "yes"; then
+    VRRP_VMAC="_HAVE_VRRP_VMAC_"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  else
+    VRRP_VMAC="_WITHOUT_VRRP_VMAC_"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+  fi
+
+
+
+
 if test "${enable_debug}" = "yes"; then
   DFLAGS="-D_DEBUG_"
 
@@ -5559,6 +5601,11 @@ fi
 
 if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
   echo "Use VRRP Framework       : Yes"
+  if test "${VRRP_VMAC}" = "_HAVE_VRRP_VMAC_"; then
+    echo "Use VRRP VMAC            : Yes"
+  else
+    echo "Use VRRP VMAC            : No"
+  fi
 else
   echo "Use VRRP Framework       : No"
 fi

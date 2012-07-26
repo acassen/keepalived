@@ -171,11 +171,38 @@ if test "$enable_vrrp" != "no"; then
   VRRP_SUPPORT="_WITH_VRRP_"
 fi
 
+dnl ----[ Checks for kernel VMAC support ]----
+CPPFLAGS="$CPPFLAGS -I$kernelinc"
+AC_MSG_CHECKING([for kernel macvlan support])
+AC_TRY_COMPILE([
+    #include <bits/sockaddr.h>
+    #include <linux/if_link.h>
+    int macvlan;
+  ], [
+    macvlan = IFLA_MACVLAN_MODE;
+    macvlan = MACVLAN_MODE_PRIVATE;
+  ], [
+    MACVLAN_SUPPORT=yes
+  ], []);
+
+  if test "$MACVLAN_SUPPORT" = "yes"; then
+    VRRP_VMAC="_HAVE_VRRP_VMAC_"
+    AC_MSG_RESULT([yes])
+  else
+    VRRP_VMAC="_WITHOUT_VRRP_VMAC_"
+    AC_MSG_RESULT([no])
+  fi
+
+AC_SUBST(VRRP_VMAC)
+
+
+dnl ----[ Debug or not ? ]----
 if test "${enable_debug}" = "yes"; then
   DFLAGS="-D_DEBUG_"
   AC_SUBST(DFLAGS)
 fi
 
+dnl ----[ Profiling or not ? ]----
 if test "${enable_profile}" = "yes"; then
   CFLAGS="$CFLAGS -pg"
 fi
@@ -247,6 +274,11 @@ fi
 
 if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
   echo "Use VRRP Framework       : Yes"
+  if test "${VRRP_VMAC}" = "_HAVE_VRRP_VMAC_"; then
+    echo "Use VRRP VMAC            : Yes"
+  else
+    echo "Use VRRP VMAC            : No"
+  fi
 else
   echo "Use VRRP Framework       : No"
 fi
