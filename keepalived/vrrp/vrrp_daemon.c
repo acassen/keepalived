@@ -153,8 +153,6 @@ int reload_vrrp_thread(thread_t * thread);
 void
 sighup_vrrp(void *v, int sig)
 {
-	log_message(LOG_INFO, "Reloading VRRP child process(%d) on signal",
-		    getpid());
 	thread_add_event(master, reload_vrrp_thread, NULL, 0);
 }
 
@@ -162,7 +160,6 @@ sighup_vrrp(void *v, int sig)
 void
 sigend_vrrp(void *v, int sig)
 {
-	log_message(LOG_INFO, "Terminating VRRP child process on signal");
 	if (master)
 		thread_add_terminate_event(master);
 }

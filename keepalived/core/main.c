@@ -101,7 +101,6 @@ sigend(void *v, int sig)
 	int status;
 
 	/* register the terminate thread */
-	log_message(LOG_INFO, "Terminating on signal");
 	thread_add_terminate_event(master);
 
 	if (vrrp_child > 0) {

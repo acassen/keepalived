@@ -138,8 +138,6 @@ int reload_check_thread(thread_t *);
 void
 sighup_check(void *v, int sig)
 {
-	log_message(LOG_INFO, "Reloading Healthchecker child process(%d) on signal",
-		    getpid());
 	thread_add_event(master, reload_check_thread, NULL, 0);
 }
 
@@ -147,7 +145,6 @@ sighup_check(void *v, int sig)
 void
 sigend_check(void *v, int sig)
 {
-	log_message(LOG_INFO, "Terminating Healthchecker child process on signal");
 	if (master)
 		thread_add_terminate_event(master);
 }
