@@ -1,3 +1,18 @@
+2012-07-27  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.4 released.
+	* Please look at git repo for credits.
+	* remove CR from manpage
+	* check: fix pid display in syslog messages
+	* vrrp: better documentation of the limitation on password
+	  length
+	* cosmetics to be pleasant with GCC4
+	* Update autoconf script to properly detect VRRP VMAC
+	  support
+	* security: Fix exploitable issue in sighandler !
+	* Add datarootdir to Makefile.in files.
+	* Fix logging to console.
+	* Remove newlines from log_message calls.
+
 2012-07-13  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.3 released.
 	* Please look at git repo for credits.
