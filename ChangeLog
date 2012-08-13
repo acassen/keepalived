@@ -1,3 +1,36 @@
+2012-08-13  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.5 released.
+	* Merge SNMP support from Vincent Bernat.
+	* SNMP is not compiled nor activated by default.
+	* Updated autoconf script
+	* Created Keepalived MIB
+	* Integration of NetSNMP into main scheduling loop
+	* vrrp: Most internal data can be queried with SNMP.
+	* check: Most internal values can be queried using SNMP.
+	  The main exception is the ability to query checkers
+	  which is not present.
+	* check: SNMP support for IPVS stats. IPVS stats are
+	  exported with SNMP. A cache is used to avoid to query
+	  the kernel too much.
+	* Created core framework for SNMP trap
+	* vrrp: SNMP traps are sent when instance state changes
+	  and when sync group state changes
+	* check: SNMP traprs are sent when real server state changes
+	  and when virtual server quorum state changes
+	* vrrp: add support to write/update operations from SNMP.
+	  Write/update support is available for changing the base priority
+	  and for changing instance preemption.
+	* check: add support to write/update operations from SNMP.
+	  Write support is available for changing the weight of a real
+	  server.
+	* workaround for AgentX ping blocking Keepalived. When establishing
+	  AgentX session with the master agent, we setup low timeout and
+	  retries values. If the master agent is blocked, we will wait for
+	  less than 1 second for them and therefore, there will be no
+	  disruption for VRRP.
+	* Copyright update
+	* some cosmetics.
+	
 2012-07-27  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.4 released.
 	* Please look at git repo for credits.
