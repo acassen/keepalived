@@ -938,7 +938,7 @@ check_snmp_rs_trap(real_server *rs, virtual_server *vs)
 
 	netsnmp_variable_list *notification_vars = NULL;
 
-	if (!data->enable_traps) return;
+	if (!global_data->enable_traps) return;
 
 	if (!rs)
 		notification_oid[notification_oid_len - 1] = 2;

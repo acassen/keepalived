@@ -75,7 +75,7 @@ stop_vrrp(void)
 	pidfile_rm(vrrp_pidfile);
 
 	/* Clean data */
-	free_global_data(data);
+	free_global_data(global_data);
 	free_vrrp_sockpool(vrrp_data);
 	free_vrrp_data(vrrp_data);
 	free_vrrp_buffer();
@@ -116,7 +116,7 @@ start_vrrp(void)
 	ipvs_start();
 #endif
 	/* Parse configuration file */
-	data = alloc_global_data();
+	global_data = alloc_global_data();
 	vrrp_data = alloc_vrrp_data();
 	alloc_vrrp_buffer();
 	init_data(conf_file, vrrp_init_keywords);
@@ -147,7 +147,7 @@ start_vrrp(void)
 
 	/* Dump configuration */
 	if (debug & 4) {
-		dump_global_data(data);
+		dump_global_data(global_data);
 		dump_vrrp_data(vrrp_data);
 	}
 
@@ -203,7 +203,7 @@ reload_vrrp_thread(thread_t * thread)
 	/* Destroy master thread */
 	thread_destroy_master(master);
 	master = thread_make_master();
-	free_global_data(data);
+	free_global_data(global_data);
 	free_interface_queue();
 	free_vrrp_buffer();
 	gratuitous_arp_close();

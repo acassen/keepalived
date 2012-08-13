@@ -377,7 +377,7 @@ init_if_linkbeat(void)
 int
 if_linkbeat(const interface * ifp)
 {
-	if (!data->linkbeat_use_polling)
+	if (!global_data->linkbeat_use_polling)
 		return 1;
 
 	if (IF_MII_SUPPORTED(ifp) || IF_ETHTOOL_SUPPORTED(ifp))
@@ -407,7 +407,7 @@ init_interface_queue(void)
 void
 init_interface_linkbeat(void)
 {
-	if (data->linkbeat_use_polling) {
+	if (global_data->linkbeat_use_polling) {
 		log_message(LOG_INFO, "Using MII-BMSR NIC polling thread...");
 		init_if_linkbeat();
 	} else {

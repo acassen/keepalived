@@ -36,34 +36,34 @@
 static void
 use_polling_handler(vector strvec)
 {
-	data->linkbeat_use_polling = 1;
+	global_data->linkbeat_use_polling = 1;
 }
 static void
 routerid_handler(vector strvec)
 {
-	FREE_PTR(data->router_id);
-	data->router_id = set_value(strvec);
+	FREE_PTR(global_data->router_id);
+	global_data->router_id = set_value(strvec);
 }
 static void
 plugin_handler(vector strvec)
 {
-	data->plugin_dir = set_value(strvec);
+	global_data->plugin_dir = set_value(strvec);
 }
 static void
 emailfrom_handler(vector strvec)
 {
-	FREE_PTR(data->email_from);
-	data->email_from = set_value(strvec);
+	FREE_PTR(global_data->email_from);
+	global_data->email_from = set_value(strvec);
 }
 static void
 smtpto_handler(vector strvec)
 {
-	data->smtp_connection_to = atoi(VECTOR_SLOT(strvec, 1)) * TIMER_HZ;
+	global_data->smtp_connection_to = atoi(VECTOR_SLOT(strvec, 1)) * TIMER_HZ;
 }
 static void
 smtpip_handler(vector strvec)
 {
-	inet_stosockaddr(VECTOR_SLOT(strvec, 1), SMTP_PORT_STR, &data->smtp_server);
+	inet_stosockaddr(VECTOR_SLOT(strvec, 1), SMTP_PORT_STR, &global_data->smtp_server);
 }
 static void
 email_handler(vector strvec)
@@ -83,7 +83,7 @@ email_handler(vector strvec)
 static void
 trap_handler(vector strvec)
 {
-	data->enable_traps = 1;
+	global_data->enable_traps = 1;
 }
 #endif
 

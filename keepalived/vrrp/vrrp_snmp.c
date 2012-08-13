@@ -1076,7 +1076,7 @@ vrrp_snmp_instance_trap(vrrp_rt *vrrp)
         static unsigned long state;
 	static unsigned long istate;
 
-	if (!data->enable_traps) return;
+	if (!global_data->enable_traps) return;
 
 	/* snmpTrapOID */
 	snmp_varlist_add_variable(&notification_vars,
@@ -1132,7 +1132,7 @@ vrrp_snmp_group_trap(vrrp_sgroup *group)
 
         static unsigned long state;
 
-	if (!data->enable_traps) return;
+	if (!global_data->enable_traps) return;
 
 	/* snmpTrapOID */
 	snmp_varlist_add_variable(&notification_vars,
