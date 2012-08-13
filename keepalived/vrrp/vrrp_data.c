@@ -118,7 +118,7 @@ dump_vscript(void *data)
 	log_message(LOG_INFO, "   Interval = %d sec", vscript->interval / TIMER_HZ);
 	log_message(LOG_INFO, "   Weight = %d", vscript->weight);
 	log_message(LOG_INFO, "   Rise = %d", vscript->rise);
-	log_message(LOG_INFO, "   Full = %d", vscript->fall);
+	log_message(LOG_INFO, "   Fall = %d", vscript->fall);
 
 	switch (vscript->result) {
 	case VRRP_SCRIPT_STATUS_INIT:
