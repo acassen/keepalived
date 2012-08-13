@@ -67,7 +67,7 @@ stop_check(void)
 	pidfile_rm(checkers_pidfile);
 
 	/* Clean data */
-	free_global_data(data);
+	free_global_data(global_data);
 	free_check_data(check_data);
 #ifdef _WITH_VRRP_
 	free_interface_queue();
@@ -102,7 +102,7 @@ start_check(void)
 #endif
 
 	/* Parse configuration file */
-	data = alloc_global_data();
+	global_data = alloc_global_data();
 	check_data = alloc_check_data();
 	init_data(conf_file, check_init_keywords);
 	if (!check_data) {
@@ -131,7 +131,7 @@ start_check(void)
 
 	/* Dump configuration */
 	if (debug & 4) {
-		dump_global_data(data);
+		dump_global_data(global_data);
 		dump_check_data(check_data);
 	}
 
@@ -185,7 +185,7 @@ reload_check_thread(thread_t * thread)
 	/* Destroy master thread */
 	thread_destroy_master(master);
 	master = thread_make_master();
-	free_global_data(data);
+	free_global_data(global_data);
 	free_checkers_queue();
 #ifdef _WITH_VRRP_
 	free_interface_queue();

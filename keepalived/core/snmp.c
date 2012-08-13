@@ -110,35 +110,35 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		*var_len = sizeof(version) - 2;
 		return (u_char *)version;
 	case SNMP_ROUTERID:
-		if (!data->router_id) return NULL;
-		*var_len = strlen(data->router_id);
-		return (u_char *)data->router_id;
+		if (!global_data->router_id) return NULL;
+		*var_len = strlen(global_data->router_id);
+		return (u_char *)global_data->router_id;
 	case SNMP_MAIL_SMTPSERVERADDRESSTYPE:
-		long_ret = (data->smtp_server.ss_family == AF_INET6)?2:1;
+		long_ret = (global_data->smtp_server.ss_family == AF_INET6)?2:1;
 		return (u_char *)&long_ret;
 	case SNMP_MAIL_SMTPSERVERADDRESS:
-		if (data->smtp_server.ss_family == AF_INET6) {
-			struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&data->smtp_server;
+		if (global_data->smtp_server.ss_family == AF_INET6) {
+			struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&global_data->smtp_server;
 			*var_len = 16;
 			return (u_char *)&addr6->sin6_addr;
 		} else {
-			struct sockaddr_in *addr4 = (struct sockaddr_in *)&data->smtp_server;
+			struct sockaddr_in *addr4 = (struct sockaddr_in *)&global_data->smtp_server;
 			*var_len = 4;
 			return (u_char *)&addr4->sin_addr;
 		}
 		return NULL;
 	case SNMP_MAIL_SMTPSERVERTIMEOUT:
-		long_ret = data->smtp_connection_to / TIMER_HZ;
+		long_ret = global_data->smtp_connection_to / TIMER_HZ;
 		return (u_char *)&long_ret;
 	case SNMP_MAIL_EMAILFROM:
-		if (!data->email_from) return NULL;
-		*var_len = strlen(data->email_from);
-		return (u_char *)data->email_from;
+		if (!global_data->email_from) return NULL;
+		*var_len = strlen(global_data->email_from);
+		return (u_char *)global_data->email_from;
 	case SNMP_TRAPS:
-		long_ret = data->enable_traps?1:2;
+		long_ret = global_data->enable_traps?1:2;
 		return (u_char *)&long_ret;
 	case SNMP_LINKBEAT:
-		long_ret = data->linkbeat_use_polling?2:1;
+		long_ret = global_data->linkbeat_use_polling?2:1;
 		return (u_char *)&long_ret;
 	default:
 		break;
@@ -153,7 +153,7 @@ snmp_mail(struct variable *vp, oid *name, size_t *length,
 	char *m;
 	if ((m = (char *)snmp_header_list_table(vp, name, length, exact,
 						 var_len, write_method,
-						 data->email)) == NULL)
+						 global_data->email)) == NULL)
 		return NULL;
 
 	switch (vp->magic) {
