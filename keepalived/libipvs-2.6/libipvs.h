@@ -95,6 +95,9 @@ extern int ipvs_cmp_services(ipvs_service_entry_t *s1,
 extern void ipvs_sort_services(struct ip_vs_get_services *s,
 			       ipvs_service_cmp_t f);
 
+/* get one IPVS service */
+extern ipvs_service_entry_t *ipvs_get_service(__u32, __u16, __u16, union nf_inet_addr, __u16);
+
 /* get the destination array of the specified service */
 extern struct ip_vs_get_dests *ipvs_get_dests(ipvs_service_entry_t *svc);
 

@@ -6,15 +6,19 @@
 
 KERNEL   = @KERN@
 CC	 = @CC@
+SNMP_FLAG = @SNMP_SUPPORT@
 INCLUDES = -I../include -I../../lib
 CFLAGS	 = @CFLAGS@ @CPPFLAGS@ $(INCLUDES) \
 	   -Wall -Wunused -Wstrict-prototypes
-DEFS	 = -D$(KERNEL) -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_SUPPORT@ @DFLAGS@
+DEFS	 = -D$(KERNEL) -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_SUPPORT@ -D@SNMP_SUPPORT@ @DFLAGS@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
 OBJS = 	check_daemon.o check_data.o check_parser.o \
 	check_api.o check_tcp.o check_http.o check_ssl.o \
 	check_smtp.o check_misc.o ipwrapper.o ipvswrapper.o
+ifeq ($(SNMP_FLAG),_WITH_SNMP_)
+  OBJS += check_snmp.o
+endif
 
 HEADERS = $(OBJS:.o=.h)
 
@@ -34,7 +38,7 @@ check_daemon.o: check_daemon.c ../include/check_daemon.h \
   ../include/global_data.h ../include/ipwrapper.h ../include/ipwrapper.h \
   ../include/pidfile.h ../include/daemon.h ../../lib/list.h ../../lib/memory.h \
   ../../lib/parser.h ../../lib/signals.h ../include/vrrp_netlink.h \
-  ../include/vrrp_if.h
+  ../include/vrrp_if.h ../include/snmp.h ../include/check_snmp.h
 check_data.o: check_data.c ../include/check_data.h \
   ../include/check_api.h ../../lib/memory.h ../../lib/utils.h
 check_parser.o: check_parser.c ../include/check_parser.h \
@@ -60,6 +64,8 @@ check_misc.o: check_misc.c ../include/check_misc.h ../include/check_api.h \
   ../../lib/memory.h ../include/ipwrapper.h ../include/smtp.h \
   ../../lib/utils.h ../../lib/notify.h ../../lib/parser.h ../include/daemon.h
 ipwrapper.o: ipwrapper.c ../include/ipwrapper.h ../../lib/memory.h \
-  ../../lib/utils.h ../../lib/notify.h
+  ../../lib/utils.h ../../lib/notify.h ../include/snmp.h ../include/check_snmp.h
 ipvswrapper.o: ipvswrapper.c ../include/ipvswrapper.h ../../lib/utils.h \
   ../../lib/memory.h
+check_snmp.o: check_snmp.c ../include/check_snmp.h ../include/check_data.h \
+  ../../lib/list.h ../include/ipvswrapper.h ../include/ipwrapper.h ../include/global_data.h

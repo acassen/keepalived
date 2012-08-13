@@ -79,6 +79,13 @@ email_handler(vector strvec)
 
 	free_strvec(email_vec);
 }
+#ifdef _WITH_SNMP_
+static void
+trap_handler(vector strvec)
+{
+	data->enable_traps = 1;
+}
+#endif
 
 void
 global_init_keywords(void)
@@ -92,4 +99,7 @@ global_init_keywords(void)
 	install_keyword("smtp_server", &smtpip_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
+#ifdef _WITH_SNMP_
+	install_keyword("enable_traps", &trap_handler);
+#endif
 }

@@ -1,0 +1,2208 @@
+-- ----------------------------------------------------------------------
+-- MIB file for keepalived (http://www.keepalived.org)
+-- ----------------------------------------------------------------------
+--
+-- There are two sections in this MIB: vrrp and check.
+
+KEEPALIVED-MIB DEFINITIONS ::= BEGIN
+
+IMPORTS
+    OBJECT-TYPE, MODULE-IDENTITY,
+    Integer32, Unsigned32, Counter32, Counter64,
+    Gauge32, enterprises, NOTIFICATION-TYPE
+        FROM SNMPv2-SMI
+    OBJECT-GROUP, MODULE-COMPLIANCE, NOTIFICATION-GROUP
+    	FROM SNMPv2-CONF
+    InetAddressType, InetAddress, InetPortNumber,
+    InetAddressPrefixLength, InetScopeType
+        FROM INET-ADDRESS-MIB
+    InterfaceIndex, ifIndex
+        FROM IF-MIB
+    DisplayString, TEXTUAL-CONVENTION, TruthValue
+        FROM SNMPv2-TC;
+
+keepalived MODULE-IDENTITY
+     LAST-UPDATED "200904080000Z"
+     ORGANIZATION "Keepalived"
+     CONTACT-INFO "http://www.keepalived.org"
+     DESCRIPTION
+        "This MIB describes objects used by keepalived, both
+         for VRRP and health checker."
+
+     REVISION "200904080000Z"
+     DESCRIPTION "Initial revision"
+
+     ::= { project 5 }
+
+-- We are hosted under Debian OID. See http://dsa.debian.org/iana/
+debian			OBJECT IDENTIFIER ::= { enterprises 9586 }
+project			OBJECT IDENTIFIER ::= { debian 100 }
+
+VrrpState ::= TEXTUAL-CONVENTION
+    STATUS       current
+    DESCRIPTION
+	"Represents a VRRP state."
+    SYNTAX INTEGER {
+    	init(0),
+	backup(1),
+	master(2),
+	fault(3),
+	unknown(4)
+	}
+
+global			OBJECT IDENTIFIER ::= { keepalived 1 }
+vrrp                    OBJECT IDENTIFIER ::= { keepalived 2 }
+check                   OBJECT IDENTIFIER ::= { keepalived 3 }
+conformance		OBJECT IDENTIFIER ::= { keepalived 4 }
+
+-- ----------------------------------------------------------------------
+-- Global part
+-- ----------------------------------------------------------------------
+
+version OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+    	"Version of keepalived"
+    ::= { global 1 }
+
+routerId OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+    	"Router ID"
+    ::= { global 2 }
+
+mail	OBJECT IDENTIFIER ::= { global 3 }
+
+smtpServerAddressType OBJECT-TYPE
+    SYNTAX InetAddressType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+    	"Address type for SMTP server."
+    ::= { mail 1 }
+
+smtpServerAddress OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+    	"Address of SMTP server."
+    ::= { mail 2 }
+
+smtpServerTimeout OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+    	"SMTP server connection timeout."
+    ::= { mail 3 }
+
+emailFrom OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+    	"Email address for the From field."
+    ::= { mail 4 }
+
+emailTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF EmailEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Table of email notification addresses."
+    ::= { mail 5 }
+
+emailEntry OBJECT-TYPE
+    SYNTAX EmailEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Email address to be notified with an alert."
+    INDEX { emailIndex }
+    ::= { emailTable 1 }
+
+EmailEntry ::= SEQUENCE {
+	emailIndex Integer32,
+	emailAddress DisplayString
+}
+
+emailIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Index for the email address."
+    ::= { emailEntry 1 }
+
+emailAddress OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Email address to be notified when an alert is raised."
+    ::= { emailEntry 2 }
+
+trapEnable OBJECT-TYPE
+    SYNTAX INTEGER { enabled(1), disabled(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Indicate whether traps should be sent for various events."
+    ::= { global 4 }
+
+linkBeat OBJECT-TYPE
+    SYNTAX INTEGER { netlink(1), polling(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Indicate which method is used to check if a link is up or
+	down. netlink(1) means that the kernel will push a link state
+	change while polling(2) means that the status of the link is
+	checked periodically."
+    ::= { global 5 }
+
+-- ----------------------------------------------------------------------
+-- VRRP part
+-- ----------------------------------------------------------------------
+
+-- Sync groups
+-- see vrrp.h
+
+vrrpSyncGroupTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VrrpSyncGroupEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Table of sync groups"
+    ::= { vrrp 1 }
+
+vrrpSyncGroupEntry OBJECT-TYPE
+    SYNTAX VrrpSyncGroupEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Information describing a sync group"
+    INDEX { vrrpSyncGroupIndex }
+    ::= { vrrpSyncGroupTable 1 }
+
+VrrpSyncGroupEntry ::= SEQUENCE {
+	vrrpSyncGroupIndex Integer32,
+	vrrpSyncGroupName DisplayString,
+	vrrpSyncGroupState VrrpState,
+	vrrpSyncGroupSmtpAlert INTEGER,
+	vrrpSyncGroupNotifyExec INTEGER,
+	vrrpSyncGroupScriptMaster DisplayString,
+	vrrpSyncGroupScriptBackup DisplayString,
+	vrrpSyncGroupScriptFault DisplayString,
+	vrrpSyncGroupScript DisplayString
+}
+
+vrrpSyncGroupIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Index of the synchronisation group."
+    ::= { vrrpSyncGroupEntry 1 }
+
+vrrpSyncGroupName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Name of the synchronisation group."
+    ::= {vrrpSyncGroupEntry 2 }
+
+vrrpSyncGroupState OBJECT-TYPE
+    SYNTAX VrrpState
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current state of the synchronisation group."
+    ::= {vrrpSyncGroupEntry 3 }
+
+vrrpSyncGroupSmtpAlert OBJECT-TYPE
+    SYNTAX INTEGER { enabled(1), disabled(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Will SMTP alert be sent for this synchronisation group?"
+    ::= {vrrpSyncGroupEntry 4 }
+
+vrrpSyncGroupNotifyExec OBJECT-TYPE
+    SYNTAX INTEGER { enabled(1), disabled(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Will we execute notification script for this group?"
+    ::= {vrrpSyncGroupEntry 5 }
+
+vrrpSyncGroupScriptMaster OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Script to execute when the group becomes master."
+    ::= {vrrpSyncGroupEntry 6 }
+
+vrrpSyncGroupScriptBackup OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Script to execute when the group becomes backup."
+    ::= {vrrpSyncGroupEntry 7 }
+
+vrrpSyncGroupScriptFault OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Script to execute when the group is in fault state."
+    ::= {vrrpSyncGroupEntry 8 }
+
+vrrpSyncGroupScript OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Script to execute whenever a state change occurs."
+    ::= {vrrpSyncGroupEntry 9 }
+
+vrrpSyncGroupMemberTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VrrpSyncGroupMemberEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Table of instances contained in sync groups"
+    ::= { vrrp 2 }
+
+vrrpSyncGroupMemberEntry OBJECT-TYPE
+    SYNTAX VrrpSyncGroupMemberEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Information describing a member of a sync group"
+    INDEX { vrrpSyncGroupIndex, vrrpSyncGroupMemberInstanceIndex }
+    ::= { vrrpSyncGroupMemberTable 1 }
+
+VrrpSyncGroupMemberEntry ::= SEQUENCE {
+	vrrpSyncGroupMemberInstanceIndex Integer32,
+	vrrpSyncGroupMemberName DisplayString
+}
+
+vrrpSyncGroupMemberInstanceIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Index of an instance in a synchronisation group.
+	 There is no relation with this index and the index of the
+	 corresponding instance in vrrpInstanceTable. Use the name
+	 to find out the corresponding instance."
+    ::= { vrrpSyncGroupMemberEntry 1 }
+
+vrrpSyncGroupMemberName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Name of the instance contained in the synchronisation group."
+    ::= { vrrpSyncGroupMemberEntry 2 }
+
+-- VRRP instances
+-- see vrrp.h
+
+vrrpInstanceTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VrrpInstanceEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Table of VRRP instances"
+    ::= { vrrp 3 }
+
+vrrpInstanceEntry OBJECT-TYPE
+    SYNTAX VrrpInstanceEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Information describing a sync group"
+    INDEX { vrrpInstanceIndex }
+    ::= { vrrpInstanceTable 1 }
+
+VrrpInstanceEntry ::= SEQUENCE {
+	vrrpInstanceIndex INTEGER,
+	vrrpInstanceName DisplayString,
+	vrrpInstanceVirtualRouterId Unsigned32,
+	vrrpInstanceState VrrpState,
+	vrrpInstanceInitialState VrrpState,
+	vrrpInstanceWantedState VrrpState,
+	vrrpInstanceBasePriority Integer32,
+	vrrpInstanceEffectivePriority Integer32,
+	vrrpInstanceVipsStatus INTEGER,
+	vrrpInstancePrimaryInterface DisplayString,
+	vrrpInstanceTrackPrimaryIf INTEGER,
+	vrrpInstanceAdvertisementsInt Unsigned32,
+	vrrpInstancePreempt INTEGER,
+	vrrpInstancePreemptDelay Unsigned32,
+	vrrpInstanceAuthType INTEGER,
+	vrrpInstanceLvsSyncDaemon INTEGER,
+	vrrpInstanceLvsSyncInterface DisplayString,
+	vrrpInstanceSyncGroup DisplayString,
+	vrrpInstanceGarpDelay Unsigned32,
+	vrrpInstanceSmtpAlert INTEGER,
+	vrrpInstanceNotifyExec INTEGER,
+	vrrpInstanceScriptMaster DisplayString,
+	vrrpInstanceScriptBackup DisplayString,
+	vrrpInstanceScriptFault DisplayString,
+	vrrpInstanceScriptStop DisplayString,
+	vrrpInstanceScript DisplayString
+}
+
+vrrpInstanceIndex OBJECT-TYPE
+    SYNTAX INTEGER {
+    	static(0)
+	}
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Index of the VRRP instance.
+
+	 Instance 0 is for static IP and static routes."
+    ::= { vrrpInstanceEntry 1 }
+
+vrrpInstanceName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Name of the VRRP instance."
+    ::= { vrrpInstanceEntry 2 }
+
+vrrpInstanceVirtualRouterId OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Virtual Router ID (VRID) for this VRRP instance."
+    ::= { vrrpInstanceEntry 3 }
+
+vrrpInstanceState OBJECT-TYPE
+    SYNTAX VrrpState
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current state of this VRRP instance."
+    ::= { vrrpInstanceEntry 4 }
+
+vrrpInstanceInitialState OBJECT-TYPE
+    SYNTAX VrrpState
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Initial state of this VRRP instance."
+    ::= { vrrpInstanceEntry 5 }
+
+vrrpInstanceWantedState OBJECT-TYPE
+    SYNTAX VrrpState
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"State wanted by the operator for this VRRP instance."
+    ::= { vrrpInstanceEntry 6 }
+
+vrrpInstanceBasePriority OBJECT-TYPE
+    SYNTAX Integer32
+    MAX-ACCESS read-write
+    STATUS current
+    DESCRIPTION
+	"Base priority (as defined in the configuration file) for this
+	 VRRP instance.
+
+	 This value can be modified to force the virtual router
+	 instance to become backup or master.
+	 "
+    ::= { vrrpInstanceEntry 7 }
+
+vrrpInstanceEffectivePriority OBJECT-TYPE
+    SYNTAX Integer32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Effective priority for this VRRP instance. Status of
+	 interfaces and script results are used to compute this value
+	 from the base priority."
+    ::= { vrrpInstanceEntry 8 }
+
+vrrpInstanceVipsStatus OBJECT-TYPE
+    SYNTAX INTEGER { allSet(1), notAllSet(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Are all VIP of this VRRP instance enabled?"
+    ::= { vrrpInstanceEntry 9 }
+
+vrrpInstancePrimaryInterface OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Primary interface of this VRRP instance."
+    ::= { vrrpInstanceEntry 10 }
+
+vrrpInstanceTrackPrimaryIf OBJECT-TYPE
+    SYNTAX INTEGER { tracked(1), notTracked(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Do we track the status of the primary interface?"
+    ::= { vrrpInstanceEntry 11 }
+
+vrrpInstanceAdvertisementsInt OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Delay in seconds between two VRRP advertisements."
+    ::= { vrrpInstanceEntry 12 }
+
+vrrpInstancePreempt OBJECT-TYPE
+    SYNTAX INTEGER { preempt(1), noPreempt(2) }
+    MAX-ACCESS read-write
+    STATUS current
+    DESCRIPTION
+	"Will a higher priority advertisement preempt a lower instance?"
+    ::= { vrrpInstanceEntry 13 }
+
+vrrpInstancePreemptDelay OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Delay after startup until preemption can happen. 0 means that
+	 there is no delay."
+    ::= { vrrpInstanceEntry 14 }
+
+vrrpInstanceAuthType OBJECT-TYPE
+    SYNTAX INTEGER {
+    		none(0),
+		password(1),
+		ah(2)
+		}
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Authentication method to authenticate other peers."
+    ::= { vrrpInstanceEntry 15 }
+
+vrrpInstanceLvsSyncDaemon OBJECT-TYPE
+    SYNTAX INTEGER { enabled(1), disabled(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Is LVS sync daemon enabled for this VRRP instance?"
+    ::= { vrrpInstanceEntry 16 }
+
+vrrpInstanceLvsSyncInterface OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"If LVS sync daemon is enabled, which interface to use for syncing?"
+    ::= { vrrpInstanceEntry 17 }
+
+vrrpInstanceSyncGroup OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Name of the synchronisation group this VRRP instance belongs, if any."
+    ::= { vrrpInstanceEntry 18 }
+
+vrrpInstanceGarpDelay OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Delay to launch gratuitous ARP (GARP)."
+    ::= { vrrpInstanceEntry 19 }
+
+vrrpInstanceSmtpAlert OBJECT-TYPE
+    SYNTAX INTEGER { enabled(1), disabled(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Will SMTP alert be sent for this VRRP instance?"
+    ::= { vrrpInstanceEntry 20 }
+
+vrrpInstanceNotifyExec OBJECT-TYPE
+    SYNTAX INTEGER { enabled(1), disabled(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Will we execute notification script for this instance?"
+    ::= { vrrpInstanceEntry 21 }
+
+vrrpInstanceScriptMaster OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Script to execute when the instance becomes master."
+    ::= { vrrpInstanceEntry 22 }
+
+vrrpInstanceScriptBackup OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Script to execute when the instance becomes backup."
+    ::= { vrrpInstanceEntry 23 }
+
+vrrpInstanceScriptFault OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Script to execute when the instance is in fault state."
+    ::= { vrrpInstanceEntry 24 }
+
+vrrpInstanceScriptStop OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Script to execute when the instance is stopped."
+    ::= { vrrpInstanceEntry 25 }
+
+vrrpInstanceScript OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Script to execute whenever a state change occurs."
+    ::= { vrrpInstanceEntry 26 }
+
+vrrpTrackedInterfaceTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VrrpTrackedInterfaceEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Table of tracked interfaces for each VRRP instance."
+    ::= { vrrp 4 }
+
+vrrpTrackedInterfaceEntry OBJECT-TYPE
+    SYNTAX VrrpTrackedInterfaceEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Information describing a tracked interface"
+    INDEX { vrrpInstanceIndex, ifIndex }
+    ::= { vrrpTrackedInterfaceTable 1 }
+
+VrrpTrackedInterfaceEntry ::= SEQUENCE {
+	vrrpTrackedInterfaceName DisplayString,
+	vrrpTrackedInterfaceWeight Integer32
+}
+
+vrrpTrackedInterfaceName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Name of the tracked interface."
+    ::= { vrrpTrackedInterfaceEntry 1 }
+
+vrrpTrackedInterfaceWeight OBJECT-TYPE
+    SYNTAX Integer32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Weight of the tracked interface."
+    ::= { vrrpTrackedInterfaceEntry 2 }
+
+vrrpTrackedScriptTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VrrpTrackedScriptEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Table of tracked interfaces for each VRRP instance."
+    ::= { vrrp 5 }
+
+vrrpTrackedScriptEntry OBJECT-TYPE
+    SYNTAX VrrpTrackedScriptEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Information describing a tracked script"
+    INDEX { vrrpInstanceIndex, vrrpTrackedScriptIndex }
+    ::= { vrrpTrackedScriptTable 1 }
+
+VrrpTrackedScriptEntry ::= SEQUENCE {
+	vrrpTrackedScriptIndex Integer32,
+	vrrpTrackedScriptName DisplayString,
+	vrrpTrackedScriptWeight Integer32
+}
+
+vrrpTrackedScriptIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Index of the tracked script in the set of tracked scripts for
+	 the given VRRP instance. This index has no relation with the
+	 index of vrrpScriptTable."
+    ::= { vrrpTrackedScriptEntry 1 }
+
+vrrpTrackedScriptName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Name of the tracked interface."
+    ::= { vrrpTrackedScriptEntry 2 }
+
+vrrpTrackedScriptWeight OBJECT-TYPE
+    SYNTAX Integer32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Weight of the tracked interface."
+    ::= { vrrpTrackedScriptEntry 3 }
+
+-- IP addresses
+-- see vrrp_ipaddress.h
+
+vrrpAddressTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VrrpAddressEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Table of static and virtual addresses"
+    ::= { vrrp 6 }
+
+vrrpAddressEntry OBJECT-TYPE
+    SYNTAX VrrpAddressEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Information describing an address. This can be a static
+         address or a virtual address. In case of static address, the
+         VRRP instance index is 0."
+    INDEX { vrrpInstanceIndex, vrrpAddressIndex }
+    ::= { vrrpAddressTable 1 }
+
+VrrpAddressEntry ::= SEQUENCE {
+	vrrpAddressIndex Integer32,
+        vrrpAddressType InetAddressType,
+	vrrpAddressValue InetAddress,
+	vrrpAddressBroadcast InetAddress,
+	vrrpAddressMask InetAddressPrefixLength,
+	vrrpAddressScope InetScopeType,
+	vrrpAddressIfIndex InterfaceIndex,
+	vrrpAddressIfName DisplayString,
+	vrrpAddressIfAlias DisplayString,
+	vrrpAddressStatus INTEGER,
+	vrrpAddressAdvertising INTEGER
+}
+
+vrrpAddressIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Address index."
+    ::= { vrrpAddressEntry 1 }
+
+vrrpAddressType OBJECT-TYPE
+    SYNTAX InetAddressType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"A value that represents a type of Internet address."
+    ::= { vrrpAddressEntry 2 }
+
+vrrpAddressValue OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Actual IP address."
+    ::= { vrrpAddressEntry 3 }
+
+vrrpAddressBroadcast OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Broadcast address associated with the IP address."
+    ::= { vrrpAddressEntry 4 }
+
+vrrpAddressMask OBJECT-TYPE
+    SYNTAX InetAddressPrefixLength
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Address mask."
+    ::= { vrrpAddressEntry 5 }
+
+vrrpAddressScope OBJECT-TYPE
+    SYNTAX InetScopeType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Address scope."
+    ::= { vrrpAddressEntry 6 }
+
+vrrpAddressIfIndex OBJECT-TYPE
+    SYNTAX InterfaceIndex
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Index of the interface to which the IP address is linked to."
+    ::= { vrrpAddressEntry 7 }
+
+vrrpAddressIfName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Name of the interface to which the IP address is linked to."
+    ::= { vrrpAddressEntry 8 }
+
+vrrpAddressIfAlias OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Alias name of the interface."
+    ::= { vrrpAddressEntry 9 }
+
+vrrpAddressStatus OBJECT-TYPE
+    SYNTAX INTEGER { set(1), unset(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Is the IP address set?"
+    ::= { vrrpAddressEntry 10 }
+
+vrrpAddressAdvertising OBJECT-TYPE
+    SYNTAX INTEGER { advertised(1), notAdvertised(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Status of VRRP advertising for this IP address."
+    ::= { vrrpAddressEntry 11 }
+
+-- Routes
+-- see vrrp_iproute.h
+
+vrrpRouteTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VrrpRouteEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Table of static and virtual routes."
+    ::= { vrrp 7 }
+
+vrrpRouteEntry OBJECT-TYPE
+    SYNTAX VrrpRouteEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Information describing a route. In case of a static route,
+        the instance index is 0."
+    INDEX { vrrpInstanceIndex, vrrpRouteIndex }
+    ::= { vrrpRouteTable 1 }
+
+VrrpRouteEntry ::= SEQUENCE {
+	vrrpRouteIndex Integer32,
+        vrrpRouteAddressType InetAddressType,
+	vrrpRouteDestination InetAddress,
+	vrrpRouteDestinationMask InetAddressPrefixLength,
+	vrrpRouteGateway InetAddress,
+	vrrpRouteSecondaryGateway InetAddress,
+	vrrpRouteSource InetAddress,
+	vrrpRouteMetric Unsigned32,
+	vrrpRouteScope InetScopeType,
+	vrrpRouteType INTEGER,
+	vrrpRouteIfIndex InterfaceIndex,
+	vrrpRouteIfName DisplayString,
+	vrrpRouteRoutingTable Unsigned32,
+	vrrpRouteStatus INTEGER
+}
+
+vrrpRouteIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Route index."
+    ::= { vrrpRouteEntry 1 }
+
+vrrpRouteAddressType OBJECT-TYPE
+    SYNTAX InetAddressType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Route type of internet address."
+    ::= { vrrpRouteEntry 2 }
+
+vrrpRouteDestination OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Route destination."
+    ::= { vrrpRouteEntry 3 }
+
+vrrpRouteDestinationMask OBJECT-TYPE
+    SYNTAX InetAddressPrefixLength
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Route destination mask."
+    ::= { vrrpRouteEntry 4 }
+
+vrrpRouteGateway OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Gateway for the given destination."
+    ::= { vrrpRouteEntry 5 }
+
+vrrpRouteSecondaryGateway OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"An optional second gateway for the given destination."
+    ::= { vrrpRouteEntry 6 }
+
+vrrpRouteSource OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Which source IP address to use with this route."
+    ::= { vrrpRouteEntry 7 }
+
+vrrpRouteMetric OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Metric of this route."
+    ::= { vrrpRouteEntry 8 }
+
+vrrpRouteScope OBJECT-TYPE
+    SYNTAX InetScopeType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Scope of this route."
+    ::= { vrrpRouteEntry 9 }
+
+vrrpRouteType OBJECT-TYPE
+    SYNTAX INTEGER { normal(1), ecmp(2), blackhole(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Kind of route."
+    ::= { vrrpRouteEntry 10 }
+
+vrrpRouteIfIndex OBJECT-TYPE
+    SYNTAX InterfaceIndex
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Interface attached to this route."
+    ::= { vrrpRouteEntry 11 }
+
+vrrpRouteIfName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Name of the interface of attached to this route."
+    ::= { vrrpRouteEntry 12 }
+
+vrrpRouteRoutingTable OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Routing table where to route should be inserted."
+    ::= { vrrpRouteEntry 13 }
+
+vrrpRouteStatus OBJECT-TYPE
+    SYNTAX INTEGER { set(1), unset(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Is this route set in the kernel?"
+    ::= { vrrpRouteEntry 14 }
+
+-- VRRP scripts
+-- see vrrp_track.h
+
+vrrpScriptTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VrrpScriptEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Table of VRRP scripts"
+    ::= { vrrp 8 }
+
+vrrpScriptEntry OBJECT-TYPE
+    SYNTAX VrrpScriptEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Information describing a VRRP script"
+    INDEX { vrrpScriptIndex }
+    ::= { vrrpScriptTable 1 }
+
+VrrpScriptEntry ::= SEQUENCE {
+	vrrpScriptIndex Integer32,
+        vrrpScriptName DisplayString,
+        vrrpScriptCommand DisplayString,
+        vrrpScriptInterval Integer32,
+        vrrpScriptWeight Integer32,
+        vrrpScriptResult INTEGER,
+        vrrpScriptRise Unsigned32,
+        vrrpScriptFall Unsigned32
+}
+
+vrrpScriptIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Script index."
+    ::= { vrrpScriptEntry 1 }
+
+vrrpScriptName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Symbolic name of the script."
+    ::= { vrrpScriptEntry 2 }
+
+vrrpScriptCommand OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Command executed when running the script."
+    ::= { vrrpScriptEntry 3 }
+
+vrrpScriptInterval OBJECT-TYPE
+    SYNTAX Integer32
+    UNITS "seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Interval between two runs of the script."
+    ::= { vrrpScriptEntry 4 }
+
+vrrpScriptWeight OBJECT-TYPE
+    SYNTAX Integer32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Weight of the script if successful."
+    ::= { vrrpScriptEntry 5 }
+
+vrrpScriptResult OBJECT-TYPE
+    SYNTAX INTEGER {
+        disabled(0),
+        init(1),
+        bad(2),
+        good(3),
+        initgood(4)
+           }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current status of the script."
+    ::= { vrrpScriptEntry 6 }
+
+vrrpScriptRise OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "How many times the script should succeed before OK."
+    ::= { vrrpScriptEntry 7 }
+
+vrrpScriptFall OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "How many times the script should fail before KO."
+    ::= { vrrpScriptEntry 8 }
+
+-- Traps
+
+vrrpTrap OBJECT IDENTIFIER ::= { vrrp 9 }
+vrrpTraps OBJECT IDENTIFIER ::= { vrrpTrap 0 } -- Reverse-mappable
+vrrpTrapControl OBJECT IDENTIFIER ::= { vrrpTrap 1 }
+
+vrrpSyncGroupStateChange NOTIFICATION-TYPE
+    OBJECTS {
+    	vrrpSyncGroupName,
+	vrrpSyncGroupState
+    }
+    STATUS current
+    DESCRIPTION
+	"This trap signifies that the state of the whole vrrp sync
+	group changed."
+    ::= { vrrpTraps 1 }
+
+vrrpInstanceStateChange NOTIFICATION-TYPE
+    OBJECTS {
+    	vrrpInstanceName,
+	vrrpInstanceState,
+	vrrpInstanceInitialState
+    }
+    STATUS current
+    DESCRIPTION
+	"This trap signifies that the state of a vrrp instance changed."
+    ::= { vrrpTraps 2 }
+
+-- ----------------------------------------------------------------------
+-- Healthchecker part
+-- ----------------------------------------------------------------------
+
+-- Virtual server group
+
+virtualServerGroupTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VirtualServerGroupEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Table of virtual server groups."
+    ::= { check 1 }
+
+virtualServerGroupEntry OBJECT-TYPE
+    SYNTAX VirtualServerGroupEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Information describing a virtual server group."
+    INDEX { virtualServerGroupIndex }
+    ::= { virtualServerGroupTable 1 }
+
+VirtualServerGroupEntry ::= SEQUENCE {
+	virtualServerGroupIndex Integer32,
+	virtualServerGroupName DisplayString
+}
+
+virtualServerGroupIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Index of the virtual server group."
+    ::= { virtualServerGroupEntry 1 }
+
+virtualServerGroupName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Name of the virtual server group."
+    ::= { virtualServerGroupEntry 2 }
+
+virtualServerGroupMemberTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VirtualServerGroupMemberEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Table of members of a virtual server group."
+    ::= { check 2 }
+
+virtualServerGroupMemberEntry OBJECT-TYPE
+    SYNTAX VirtualServerGroupMemberEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Description of a member of a virtual server group."
+    INDEX { virtualServerGroupIndex, virtualServerGroupMemberIndex }
+    ::= { virtualServerGroupMemberTable 1 }
+
+VirtualServerGroupMemberEntry ::= SEQUENCE {
+	virtualServerGroupMemberIndex Integer32,
+	virtualServerGroupMemberType INTEGER,
+	virtualServerGroupMemberFwMark Unsigned32,
+	virtualServerGroupMemberAddrType InetAddressType,
+	virtualServerGroupMemberAddress InetAddress,
+	virtualServerGroupMemberAddr1 InetAddress,
+	virtualServerGroupMemberAddr2 InetAddress,
+	virtualServerGroupMemberPort InetPortNumber
+}
+
+virtualServerGroupMemberIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Index of the member into virtual server group."
+    ::= { virtualServerGroupMemberEntry 1 }
+
+virtualServerGroupMemberType OBJECT-TYPE
+    SYNTAX INTEGER { fwmark(1), ip(2), iprange(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Kind of entry: firewall mark, address with port or range of
+	 addresses with port."
+    ::= { virtualServerGroupMemberEntry 2 }
+
+virtualServerGroupMemberFwMark OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Firewall mark for this member.
+
+	 If the kind of this member is not fwmark(1), then this entry
+	 should not exist for the current row."
+    ::= { virtualServerGroupMemberEntry 3 }
+
+virtualServerGroupMemberAddrType OBJECT-TYPE
+    SYNTAX InetAddressType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Type of IP address for this member.
+
+	 If the kind of this member is neither address(2) or range(3),
+	 then this entry should not exist for the current row."
+    ::= { virtualServerGroupMemberEntry 4 }
+
+virtualServerGroupMemberAddress OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"IP address of this member.
+
+	If the kind of this member is not address(2), then this entry
+	should not exist for the current row."
+    ::= { virtualServerGroupMemberEntry 5 }
+
+virtualServerGroupMemberAddr1 OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"First IP address of the range for this member.
+
+	If the kind of this member is not range(3), then this entry
+	should not exist for the current row."
+    ::= { virtualServerGroupMemberEntry 6 }
+
+virtualServerGroupMemberAddr2 OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Second IP address of the range for this member.
+
+	If the kind of this member is not range(3), then this entry
+	should not exist for the current row."
+    ::= { virtualServerGroupMemberEntry 7 }
+
+virtualServerGroupMemberPort OBJECT-TYPE
+    SYNTAX InetPortNumber
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"V port for this member.
+
+	If the kind of this member is neither address(2) nor range(3),
+	then this entry should not exist for the current row."
+    ::= { virtualServerGroupMemberEntry 8 }
+
+-- virtual server
+
+virtualServerTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VirtualServerEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Table of virtual servers."
+    ::= { check 3 }
+
+virtualServerEntry OBJECT-TYPE
+    SYNTAX VirtualServerEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Information describing a virtual server."
+    INDEX { virtualServerIndex }
+    ::= { virtualServerTable 1 }
+
+VirtualServerEntry ::= SEQUENCE {
+	virtualServerIndex Integer32,
+	virtualServerType INTEGER,
+	virtualServerNameOfGroup DisplayString,
+	virtualServerFwMark Unsigned32,
+	virtualServerAddrType InetAddressType,
+	virtualServerAddress InetAddress,
+	virtualServerPort InetPortNumber,
+	virtualServerProtocol INTEGER,
+	virtualServerLoadBalancingAlgo INTEGER,
+	virtualServerLoadBalancingKind INTEGER,
+	virtualServerStatus INTEGER,
+	virtualServerVirtualHost DisplayString,
+	virtualServerPersist INTEGER,
+	virtualServerPersistTimeout Unsigned32,
+	virtualServerPersistGranularity InetAddress,
+	virtualServerDelayLoop Unsigned32,
+	virtualServerHaSuspend TruthValue,
+	virtualServerAlpha INTEGER,
+	virtualServerOmega INTEGER,
+	virtualServerRealServersTotal Unsigned32,
+	virtualServerRealServersUp Unsigned32,
+	virtualServerQuorum Unsigned32,
+	virtualServerQuorumStatus INTEGER,
+	virtualServerQuorumUp DisplayString,
+	virtualServerQuorumDown DisplayString,
+	virtualServerHysteresis Unsigned32,
+	virtualServerStatsConns Gauge32,
+	virtualServerStatsInPkts Counter32,
+	virtualServerStatsOutPkts Counter32,
+	virtualServerStatsInBytes Counter64,
+	virtualServerStatsOutBytes Counter64,
+	virtualServerRateCps Gauge32,
+	virtualServerRateInPPS Gauge32,
+	virtualServerRateOutPPS Gauge32,
+	virtualServerRateInBPS Gauge32,
+	virtualServerRateOutBPS Gauge32
+}
+
+virtualServerIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Index of the virtual server."
+    ::= { virtualServerEntry 1 }
+
+virtualServerType OBJECT-TYPE
+    SYNTAX INTEGER { fwmark(1), ip(2), group(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Type of virtual server. A virtual server can either be
+	defined from a firewall mark, an IP and a port
+	or from a virtual server group."
+    ::= { virtualServerEntry 2 }
+
+virtualServerNameOfGroup OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"If the virtual is defined from a group, this is the name of the group."
+    ::= { virtualServerEntry 3 }
+
+virtualServerFwMark OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"If the virtual server is defined from a firewall mark, this
+	is the value of the mark. Otherwise, this column should not
+	exist in the current row."
+    ::= { virtualServerEntry 4 }
+
+virtualServerAddrType OBJECT-TYPE
+    SYNTAX InetAddressType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"If the virtual server is defined from an IP, this
+	is the address family. Otherwise, this column should not
+	exist in the current row."
+    ::= { virtualServerEntry 5 }
+
+virtualServerAddress OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"If the virtual server is defined from an IP address, this
+	is the value of the IP. Otherwise, this column should not
+	exist in the current row."
+    ::= { virtualServerEntry 6 }
+
+virtualServerPort OBJECT-TYPE
+    SYNTAX InetPortNumber
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"If the virtual server is defined from an IP, this is
+	the value of the port to listen for requests. Otherwise, this column
+	should not exist in the current row."
+    ::= { virtualServerEntry 7 }
+
+virtualServerProtocol OBJECT-TYPE
+    SYNTAX INTEGER { tcp(1), udp(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Which transport protocol should be used for this virtual server."
+    ::= { virtualServerEntry 8 }
+
+virtualServerLoadBalancingAlgo OBJECT-TYPE
+    SYNTAX INTEGER {
+    	rr(1),
+	wrr(2),
+	lc(3),
+	wlc(4),
+	lblc(5),
+	lblcr(6),
+	dh(7),
+	sh(8),
+	sed(9),
+	nq(10),
+	unknown(99)
+    }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Which load balancing algorithm (or scheduler) should be used
+	for this virtual server."
+    ::= { virtualServerEntry 9 }
+
+virtualServerLoadBalancingKind OBJECT-TYPE
+    SYNTAX INTEGER { nat(1), dr(2), tun(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Forwarding method to use for this virtual server."
+    ::= { virtualServerEntry 10 }
+
+virtualServerStatus OBJECT-TYPE
+    SYNTAX INTEGER { alive(1), dead(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current status of this virtual server."
+    ::= { virtualServerEntry 11 }
+
+virtualServerVirtualHost OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Virtualhost of this server for HTTP like requests."
+    ::= { virtualServerEntry 12 }
+
+virtualServerPersist OBJECT-TYPE
+    SYNTAX INTEGER { enabled(1), disabled(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Is the virtual service persistence enabled?"
+    ::= { virtualServerEntry 13 }
+
+virtualServerPersistTimeout OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"If this virtual service is persistence, what is the timeout."
+    ::= { virtualServerEntry 14 }
+
+virtualServerPersistGranularity OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Netmask specifying the granularity of the persistence mechanism."
+    ::= { virtualServerEntry 15 }
+
+virtualServerDelayLoop OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Delay in seconds between two checks."
+    ::= { virtualServerEntry 16 }
+
+virtualServerHaSuspend OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"If set to true(1), checks will be suspended if the IP of the
+	virtual server is currently not set."
+    ::= { virtualServerEntry 17 }
+
+virtualServerAlpha OBJECT-TYPE
+    SYNTAX INTEGER { enabled(1), disabled(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Is alpha mode enabled?"
+    ::= { virtualServerEntry 18 }
+
+virtualServerOmega OBJECT-TYPE
+    SYNTAX INTEGER { enabled(1), disabled(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Is omega mode enabled?"
+    ::= { virtualServerEntry 19 }
+
+virtualServerRealServersTotal OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Total number of real servers for this virtual server."
+    ::= { virtualServerEntry 20 }
+
+virtualServerRealServersUp OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Real servers actually up for this virtual server."
+    ::= { virtualServerEntry 21 }
+
+virtualServerQuorum OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Quorum to get amond real servers to consider this virtual server up."
+    ::= { virtualServerEntry 22 }
+
+virtualServerQuorumStatus OBJECT-TYPE
+    SYNTAX INTEGER { met(1), notMet(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current status of the quorum for this virtual server."
+    ::= { virtualServerEntry 23 }
+
+virtualServerQuorumUp OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Command to execute when the quorum is met."
+    ::= { virtualServerEntry 24 }
+
+virtualServerQuorumDown OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Command to execute when the quorum is not met."
+    ::= { virtualServerEntry 25 }
+
+virtualServerHysteresis OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Hysteresis with respect to quorum count."
+    ::= { virtualServerEntry 26 }
+
+virtualServerStatsConns OBJECT-TYPE
+    SYNTAX Gauge32
+    UNITS "connections"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Total number of connections scheduled for this virtual server."
+    ::= { virtualServerEntry 27 }
+
+virtualServerStatsInPkts OBJECT-TYPE
+    SYNTAX Counter32
+    UNITS "packets"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Total number of incoming packets for this virtual server."
+    ::= { virtualServerEntry 28 }
+
+virtualServerStatsOutPkts OBJECT-TYPE
+    SYNTAX Counter32
+    UNITS "packets"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Total number of outgoing packets for this virtual server."
+    ::= { virtualServerEntry 29 }
+
+virtualServerStatsInBytes OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "bytes"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Total number of incoming bytes for this virtual server."
+    ::= { virtualServerEntry 30 }
+
+virtualServerStatsOutBytes OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "bytes"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Total number of outgoing bytes for this virtual server."
+    ::= { virtualServerEntry 31 }
+
+virtualServerRateCps OBJECT-TYPE
+    SYNTAX Gauge32
+    UNITS "connections/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current connection rate for this virtual server."
+    ::= { virtualServerEntry 32 }
+
+virtualServerRateInPPS OBJECT-TYPE
+    SYNTAX Gauge32
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current in packet rate for this virtual server."
+    ::= { virtualServerEntry 33 }
+
+virtualServerRateOutPPS OBJECT-TYPE
+    SYNTAX Gauge32
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current out packet rate for this virtual server."
+    ::= { virtualServerEntry 34 }
+
+virtualServerRateInBPS OBJECT-TYPE
+    SYNTAX Gauge32
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current incoming rate for this virtual server."
+    ::= { virtualServerEntry 35 }
+
+virtualServerRateOutBPS OBJECT-TYPE
+    SYNTAX Gauge32
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current outgoing rate for this virtual server."
+    ::= { virtualServerEntry 36 }
+
+
+-- real servers
+
+realServerTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF RealServerEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Table of real servers. This includes regular real servers and sorry servers."
+    ::= { check 4 }
+
+realServerEntry OBJECT-TYPE
+    SYNTAX RealServerEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Information describing a real server."
+    INDEX { virtualServerIndex, realServerIndex }
+    ::= { realServerTable 1 }
+
+RealServerEntry ::= SEQUENCE {
+	realServerIndex Integer32,
+	realServerType INTEGER,
+	realServerAddrType InetAddressType,
+	realServerAddress InetAddress,
+	realServerPort InetPortNumber,
+	realServerStatus INTEGER,
+	realServerWeight Integer32,
+	realServerUpperConnectionLimit Unsigned32,
+	realServerLowerConnectionLimit Unsigned32,
+	realServerActionWhenDown INTEGER,
+	realServerNotifyUp DisplayString,
+	realServerNotifyDown DisplayString,
+	realServerFailedChecks Unsigned32,
+	realServerStatsConns Gauge32,
+	realServerStatsActiveConns Gauge32,
+	realServerStatsInactiveConns Gauge32,
+	realServerStatsPersistentConns Gauge32,
+	realServerStatsInPkts Counter32,
+	realServerStatsOutPkts Counter32,
+	realServerStatsInBytes Counter64,
+	realServerStatsOutBytes Counter64,
+	realServerRateCps Gauge32,
+	realServerRateInPPS Gauge32,
+	realServerRateOutPPS Gauge32,
+	realServerRateInBPS Gauge32,
+	realServerRateOutBPS Gauge32
+}
+
+realServerIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+	"Index of the real server."
+    ::= { realServerEntry 1 }
+
+realServerType OBJECT-TYPE
+    SYNTAX INTEGER { regular(1), sorry(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Type of real server: either a regular real server or a sorry server."
+    ::= { realServerEntry 2 }
+
+realServerAddrType OBJECT-TYPE
+    SYNTAX InetAddressType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Address family for this real server."
+    ::= { realServerEntry 3 }
+
+realServerAddress OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"IP address of this real server."
+    ::= { realServerEntry 4 }
+
+realServerPort OBJECT-TYPE
+    SYNTAX InetPortNumber
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Port of the service."
+    ::= { realServerEntry 5 }
+
+realServerStatus OBJECT-TYPE
+    SYNTAX INTEGER { alive(1), dead(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Status of this real server."
+    ::= { realServerEntry 6 }
+
+realServerWeight OBJECT-TYPE
+    SYNTAX Integer32
+    MAX-ACCESS read-write
+    STATUS current
+    DESCRIPTION
+	"Weight of this real server.
+
+	This value can be set to 0 to disable the real server."
+    ::= { realServerEntry 7 }
+
+realServerUpperConnectionLimit OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Maximum number of connections for this real server."
+    ::= { realServerEntry 8 }
+
+realServerLowerConnectionLimit OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Minimum number of connections for this real server."
+    ::= { realServerEntry 9 }
+
+realServerActionWhenDown OBJECT-TYPE
+    SYNTAX INTEGER { remove(1), inhibit(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"What action is performed when this server is down. Its weight
+	can be set to 0 (inhibit) or it can be removed from the pool."
+    ::= { realServerEntry 10 }
+
+realServerNotifyUp OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Command to execute when this server becomes alive."
+    ::= { realServerEntry 11 }
+
+realServerNotifyDown OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Command to execute when this server becomes dead."
+    ::= { realServerEntry 12 }
+
+realServerFailedChecks OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"How many failed checks for this real server."
+    ::= { realServerEntry 13 }
+
+realServerStatsConns OBJECT-TYPE
+    SYNTAX Gauge32
+    UNITS "connections"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Total number of connections scheduled for this real server."
+    ::= { realServerEntry 14 }
+
+realServerStatsActiveConns OBJECT-TYPE
+    SYNTAX Gauge32
+    UNITS "connections"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current active connections for this real server."
+    ::= { realServerEntry 15 }
+
+realServerStatsInactiveConns OBJECT-TYPE
+    SYNTAX Gauge32
+    UNITS "connections"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current inactive connections for this real server."
+    ::= { realServerEntry 16 }
+
+realServerStatsPersistentConns OBJECT-TYPE
+    SYNTAX Gauge32
+    UNITS "connections"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current persistent connections for this real server."
+    ::= { realServerEntry 17 }
+
+realServerStatsInPkts OBJECT-TYPE
+    SYNTAX Counter32
+    UNITS "packets"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Total number of incoming packets for this real server."
+    ::= { realServerEntry 18 }
+
+realServerStatsOutPkts OBJECT-TYPE
+    SYNTAX Counter32
+    UNITS "packets"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Total number of outgoing packets for this real server."
+    ::= { realServerEntry 19 }
+
+realServerStatsInBytes OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "bytes"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Total number of incoming bytes for this real server."
+    ::= { realServerEntry 20 }
+
+realServerStatsOutBytes OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "bytes"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Total number of outgoing bytes for this real server."
+    ::= { realServerEntry 21 }
+
+realServerRateCps OBJECT-TYPE
+    SYNTAX Gauge32
+    UNITS "connections/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current connection rate for this real server."
+    ::= { realServerEntry 22 }
+
+realServerRateInPPS OBJECT-TYPE
+    SYNTAX Gauge32
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current in packet rate for this real server."
+    ::= { realServerEntry 23 }
+
+realServerRateOutPPS OBJECT-TYPE
+    SYNTAX Gauge32
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current out packet rate for this real server."
+    ::= { realServerEntry 24 }
+
+realServerRateInBPS OBJECT-TYPE
+    SYNTAX Gauge32
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current incoming rate for this real server."
+    ::= { realServerEntry 25 }
+
+realServerRateOutBPS OBJECT-TYPE
+    SYNTAX Gauge32
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"Current outgoing rate for this real server."
+    ::= { realServerEntry 26 }
+
+-- Traps
+
+checkTrap OBJECT IDENTIFIER ::= { check 5 }
+checkTraps OBJECT IDENTIFIER ::= { checkTrap 0 } -- Reverse-mappable
+checkTrapControl OBJECT IDENTIFIER ::= { checkTrap 1 }
+
+realServerStateChange NOTIFICATION-TYPE
+    OBJECTS {
+    	realServerAddrType,
+	realServerAddress,
+	realServerPort,
+	realServerStatus,
+	virtualServerType,
+	virtualServerProtocol,
+	virtualServerRealServersUp,
+	virtualServerRealServersTotal
+    }
+    STATUS current
+    DESCRIPTION
+	"This trap signifies that the state of a real server has
+	changed. Additional varbinds will be added depending on the
+	value of virtualServerType: virtualServerNameOfGroup,
+	virtualServerFwMark, virtualServerAddrType,
+	virtualServerAddress, virtualServerPort."
+    ::= { checkTraps 1 }
+
+virtualServerQuorumStateChange NOTIFICATION-TYPE
+    OBJECTS {
+	virtualServerType,
+	virtualServerProtocol,
+	virtualServerQuorumStatus,
+	virtualServerQuorum,
+	virtualServerRealServersUp,
+	virtualServerRealServersTotal
+    }
+    STATUS current
+    DESCRIPTION
+	"This trap signifies that the quorum of a virtual server has
+	changed. Additional varbinds will be added depending on the
+	value of virtualServerType: virtualServerNameOfGroup,
+	virtualServerFwMark, virtualServerAddrType,
+	virtualServerAddress, virtualServerPort."
+    ::= { checkTraps 2 }
+
+-- ----------------------------------------------------------------------
+-- Conformance
+-- ----------------------------------------------------------------------
+
+compliances  OBJECT IDENTIFIER ::= { conformance 1 }
+groups	     OBJECT IDENTIFIER ::= { conformance 2 }
+
+globalCompliances MODULE-COMPLIANCE
+    STATUS current
+    DESCRIPTION
+	"Compliance statement for global data"
+    MODULE -- this module
+    MANDATORY-GROUPS {
+    	globalGroup
+    }
+    ::= { compliances 1 }
+
+vrrpCompliances MODULE-COMPLIANCE
+    STATUS current
+    DESCRIPTION
+	"The VRRP compliance statement"
+    MODULE -- this module
+    MANDATORY-GROUPS {
+	vrrpScriptGroup,
+	vrrpSyncGroup,
+	vrrpInstanceGroup,
+	vrrpTrapsGroup
+    }
+    ::= { compliances 2 }
+
+checkCompliances MODULE-COMPLIANCE
+    STATUS current
+    DESCRIPTION
+	"The check compliance statement"
+    MODULE -- this module
+    MANDATORY-GROUPS {
+	virtualServerGroupGroup,
+	virtualServerGroup,
+	realServerGroup,
+	checkTrapsGroup
+    }
+    ::= { compliances 3 }
+
+globalGroup OBJECT-GROUP
+    OBJECTS {
+    	version,
+	routerId,
+	smtpServerAddressType,
+	smtpServerAddress,
+	smtpServerTimeout,
+	emailFrom,
+	emailAddress,
+	trapEnable,
+	linkBeat
+    }
+    STATUS current
+    DESCRIPTION
+	"Conformance group for global data."
+    ::= { groups 1 }
+
+vrrpGroups OBJECT IDENTIFIER ::= { groups 2 }
+
+vrrpSyncGroup OBJECT-GROUP
+    OBJECTS {
+	vrrpSyncGroupName,
+	vrrpSyncGroupState,
+	vrrpSyncGroupSmtpAlert,
+	vrrpSyncGroupNotifyExec,
+	vrrpSyncGroupScriptMaster,
+	vrrpSyncGroupScriptBackup,
+	vrrpSyncGroupScriptFault,
+	vrrpSyncGroupScript,
+	vrrpSyncGroupMemberName
+	}
+    STATUS current
+    DESCRIPTION
+	"Conformance group for synchronisation groups."
+    ::= { vrrpGroups 1 }
+
+vrrpInstanceGroup OBJECT-GROUP
+    OBJECTS {
+	vrrpInstanceName,
+	vrrpInstanceVirtualRouterId,
+	vrrpInstanceState,
+	vrrpInstanceInitialState,
+	vrrpInstanceWantedState,
+	vrrpInstanceBasePriority,
+	vrrpInstanceEffectivePriority,
+	vrrpInstanceVipsStatus,
+	vrrpInstancePrimaryInterface,
+	vrrpInstanceTrackPrimaryIf,
+	vrrpInstanceAdvertisementsInt,
+	vrrpInstancePreempt,
+	vrrpInstancePreemptDelay,
+	vrrpInstanceAuthType,
+	vrrpInstanceLvsSyncDaemon,
+	vrrpInstanceLvsSyncInterface,
+	vrrpInstanceSyncGroup,
+	vrrpInstanceGarpDelay,
+	vrrpInstanceSmtpAlert,
+	vrrpInstanceNotifyExec,
+	vrrpInstanceScriptMaster,
+	vrrpInstanceScriptBackup,
+	vrrpInstanceScriptFault,
+	vrrpInstanceScriptStop,
+	vrrpInstanceScript,
+	vrrpTrackedInterfaceName,
+	vrrpTrackedInterfaceWeight,
+	vrrpTrackedScriptName,
+	vrrpTrackedScriptWeight,
+        vrrpAddressType,
+	vrrpAddressValue,
+	vrrpAddressBroadcast,
+	vrrpAddressMask,
+	vrrpAddressScope,
+	vrrpAddressIfIndex,
+	vrrpAddressIfName,
+	vrrpAddressIfAlias,
+	vrrpAddressStatus,
+	vrrpAddressAdvertising,
+        vrrpRouteAddressType,
+	vrrpRouteDestination,
+	vrrpRouteDestinationMask,
+	vrrpRouteGateway,
+	vrrpRouteSecondaryGateway,
+	vrrpRouteSource,
+	vrrpRouteMetric,
+	vrrpRouteScope,
+	vrrpRouteType,
+	vrrpRouteIfIndex,
+	vrrpRouteIfName,
+	vrrpRouteRoutingTable,
+	vrrpRouteStatus
+	}
+    STATUS current
+    DESCRIPTION
+	"Conformance group for VRRP instances."
+    ::= { vrrpGroups 2 }
+
+vrrpScriptGroup OBJECT-GROUP
+    OBJECTS {
+    	vrrpScriptName,
+	vrrpScriptCommand,
+	vrrpScriptInterval,
+	vrrpScriptWeight,
+	vrrpScriptResult,
+	vrrpScriptRise,
+	vrrpScriptFall
+	}
+    STATUS current
+    DESCRIPTION
+	"Conformance group for VRRP scripts."
+    ::= { vrrpGroups 3 }
+
+vrrpTrapsGroup NOTIFICATION-GROUP
+    NOTIFICATIONS {
+    	vrrpSyncGroupStateChange,
+    	vrrpInstanceStateChange
+	}
+    STATUS current
+    DESCRIPTION
+	"Conformance group for VRRP traps."
+    ::= { vrrpGroups 4 }
+
+checkGroups OBJECT IDENTIFIER ::= { groups 3 }
+
+virtualServerGroupGroup OBJECT-GROUP
+    OBJECTS {
+	virtualServerGroupName,
+	virtualServerGroupMemberType,
+	virtualServerGroupMemberFwMark,
+	virtualServerGroupMemberAddrType,
+	virtualServerGroupMemberAddress,
+	virtualServerGroupMemberAddr1,
+	virtualServerGroupMemberAddr2,
+	virtualServerGroupMemberPort
+	}
+    STATUS current
+    DESCRIPTION
+	"Conformance group for virtual server groups."
+    ::= { checkGroups 1 }
+
+virtualServerGroup OBJECT-GROUP
+    OBJECTS {
+	virtualServerType,
+	virtualServerNameOfGroup,
+	virtualServerFwMark,
+	virtualServerAddrType,
+	virtualServerAddress,
+	virtualServerPort,
+	virtualServerProtocol,
+	virtualServerLoadBalancingAlgo,
+	virtualServerLoadBalancingKind,
+	virtualServerStatus,
+	virtualServerVirtualHost,
+	virtualServerPersist,
+	virtualServerPersistTimeout,
+	virtualServerPersistGranularity,
+	virtualServerDelayLoop,
+	virtualServerHaSuspend,
+	virtualServerAlpha,
+	virtualServerOmega,
+	virtualServerRealServersTotal,
+	virtualServerRealServersUp,
+	virtualServerQuorum,
+	virtualServerQuorumStatus,
+	virtualServerQuorumUp,
+	virtualServerQuorumDown,
+	virtualServerHysteresis,
+	virtualServerStatsConns,
+	virtualServerStatsInPkts,
+	virtualServerStatsOutPkts,
+	virtualServerStatsInBytes,
+	virtualServerStatsOutBytes,
+	virtualServerRateCps,
+	virtualServerRateInPPS,
+	virtualServerRateOutPPS,
+	virtualServerRateInBPS,
+	virtualServerRateOutBPS
+	}
+    STATUS current
+    DESCRIPTION
+	"Conformance group for virtual servers."
+    ::= { checkGroups 2 }
+
+realServerGroup OBJECT-GROUP
+    OBJECTS {
+	realServerType,
+	realServerAddrType,
+	realServerAddress,
+	realServerPort,
+	realServerStatus,
+	realServerWeight,
+	realServerUpperConnectionLimit,
+	realServerLowerConnectionLimit,
+	realServerActionWhenDown,
+	realServerNotifyUp,
+	realServerNotifyDown,
+	realServerFailedChecks,
+	realServerStatsConns,
+	realServerStatsActiveConns,
+	realServerStatsInactiveConns,
+	realServerStatsPersistentConns,
+	realServerStatsInPkts,
+	realServerStatsOutPkts,
+	realServerStatsInBytes,
+	realServerStatsOutBytes,
+	realServerRateCps,
+	realServerRateInPPS,
+	realServerRateOutPPS,
+	realServerRateInBPS,
+	realServerRateOutBPS
+	}
+    STATUS current
+    DESCRIPTION
+	"Conformance group for real servers."
+    ::= { checkGroups 3 }
+
+checkTrapsGroup NOTIFICATION-GROUP
+    NOTIFICATIONS {
+    	realServerStateChange,
+    	virtualServerQuorumStateChange
+	}
+    STATUS current
+    DESCRIPTION
+	"Conformance group for check traps."
+    ::= { checkGroups 4 }
+
+END

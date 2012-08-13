@@ -31,6 +31,8 @@ AC_ARG_WITH(kernel-dir,
 AC_ARG_WITH(kernel-version,
   [  --with-kernel-version=VER forced value for linux kernel version (VER=2.4|2.6)],
   [kernelversion="$withval"], [kernelversion=""])
+AC_ARG_ENABLE(snmp,
+  [  --enable-snmp           compile with SNMP support])
 AC_ARG_ENABLE(debug,
   [  --enable-debug          compile with debugging flags])
 AC_ARG_ENABLE(profile,
@@ -195,6 +197,41 @@ AC_TRY_COMPILE([
 
 AC_SUBST(VRRP_VMAC)
 
+dnl ----[ Checks for SNMP support ]----
+SNMP_SUPPORT="_WITHOUT_SNMP_"
+if test "$enable_snmp" = "yes"; then
+    AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], [no])
+    if test x"$NETSNMP_CONFIG" = x"no"; then
+      AC_MSG_ERROR([unable to find net-snmp-config])
+    fi
+    NETSNMP_LIBS=`${NETSNMP_CONFIG} --agent-libs`
+    #NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags`"
+    #CFLAGS="${NETSNMP_CFLAGS} $CFLAGS"
+    LIBS="${NETSNMP_LIBS} $LIBS"
+    AC_MSG_CHECKING([whether C compiler supports flag "${NETSNMP_LIBS}" from Net-SNMP])
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([
+int main(void);
+],
+[
+{
+  return 0;
+}
+])],[AC_MSG_RESULT(yes)],[
+     AC_MSG_RESULT(no)
+     AC_MSG_ERROR([incorrect CFLAGS from net-snmp-config])])
+
+   # Do we have a usable <net-snmp/agent/util_funcs.h> header?
+    AC_CHECK_HEADERS([net-snmp/agent/util_funcs.h],,,[
+@%:@include <net-snmp/net-snmp-config.h>
+@%:@include <net-snmp/net-snmp-includes.h>
+@%:@include <net-snmp/library/snmp_transport.h>
+@%:@include <net-snmp/agent/net-snmp-agent-includes.h>
+@%:@include <net-snmp/agent/snmp_vars.h>
+    ])
+    SNMP_SUPPORT="_WITH_SNMP_"
+fi
+
+AC_SUBST(SNMP_SUPPORT)
 
 dnl ----[ Debug or not ? ]----
 if test "${enable_debug}" = "yes"; then
@@ -281,6 +318,11 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
   fi
 else
   echo "Use VRRP Framework       : No"
+fi
+if test "${SNMP_SUPPORT}" = "_WITH_SNMP_"; then
+  echo "SNMP support             : Yes"
+else
+  echo "SNMP support             : No"
 fi
 if test "${DFLAGS}" = "-D_DEBUG_"; then
   echo "Use Debug flags          : Yes"

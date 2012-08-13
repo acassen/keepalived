@@ -20,3 +20,4 @@ clean:
 		rm -f *.[ao] *~ *.orig *.rej core
 
 distclean:	clean
+		rm -f Makefile

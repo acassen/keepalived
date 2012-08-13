@@ -22,6 +22,15 @@
  * Copyright (C) 2001-2011 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
+/* SNMP should be included first: it redefines "FREE" */
+#ifdef _WITH_SNMP_
+#include <net-snmp/net-snmp-config.h>
+#include <net-snmp/net-snmp-includes.h>
+#include <net-snmp/agent/net-snmp-agent-includes.h>
+#include <net-snmp/agent/snmp_vars.h>
+#undef FREE
+#endif
+
 #include <signal.h>
 #include <sys/wait.h>
 #include <sys/select.h>
@@ -500,6 +509,11 @@ thread_fetch(thread_master_t * m, thread_t * fetch)
 	fd_set exceptfd;
 	TIMEVAL timer_wait;
 	int signal_fd;
+#ifdef _WITH_SNMP_
+	TIMEVAL snmp_timer_wait;
+	int snmpblock = 0;
+	int fdsetsize;
+#endif
 
 	assert(m != NULL);
 
@@ -546,10 +560,32 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	signal_fd = signal_rfd();
 	FD_SET(signal_fd, &readfd);
 
+#ifdef _WITH_SNMP_
+	/* When SNMP is enabled, we may have to select() on additional
+	 * FD. snmp_select_info() will add them to `readfd'. The trick
+	 * with this function is its last argument. We need to set it
+	 * to 0 and we need to use the provided new timer only if it
+	 * is still set to 0. */
+	fdsetsize = FD_SETSIZE;
+	snmpblock = 0;
+	memcpy(&snmp_timer_wait, &timer_wait, sizeof(TIMEVAL));
+	snmp_select_info(&fdsetsize, &readfd, &snmp_timer_wait, &snmpblock);
+	if (snmpblock == 0)
+		memcpy(&timer_wait, &snmp_timer_wait, sizeof(TIMEVAL));
+#endif
+
 	ret = select(FD_SETSIZE, &readfd, &writefd, &exceptfd, &timer_wait);
 
 	/* we have to save errno here because the next syscalls will set it */
 	old_errno = errno;
+
+       /* Handle SNMP stuff */
+#ifdef _WITH_SNMP_
+	if (ret > 0)
+		snmp_read(&readfd);
+	else if (ret == 0)
+		snmp_timeout();
+#endif
 
 	/* handle signals synchronously, including child reaping */
 	if (FD_ISSET(signal_fd, &readfd))
@@ -648,6 +684,11 @@ retry:	/* When thread can't fetch try to find next thread again. */
 
 	/* Return one event. */
 	thread = thread_trim_head(&m->ready);
+
+#ifdef _WITH_SNMP_
+	run_alarms();
+	netsnmp_check_outstanding_agent_requests();
+#endif
 
 	/* There is no ready thread. */
 	if (!thread)

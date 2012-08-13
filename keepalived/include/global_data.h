@@ -51,6 +51,9 @@ typedef struct _conf_data {
 	struct sockaddr_storage smtp_server;
 	long smtp_connection_to;
 	list email;
+#ifdef _WITH_SNMP_
+	int enable_traps;
+#endif
 } conf_data_t;
 
 /* Global vars exported */

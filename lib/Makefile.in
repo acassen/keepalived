@@ -8,7 +8,7 @@ CC	 = @CC@
 INCLUDES = -I.
 CFLAGS	 = @CFLAGS@ $(INCLUDES) \
 	   -Wall -Wunused -Wstrict-prototypes
-DEFS	 = @DFLAGS@
+DEFS	 = @DFLAGS@ -D@SNMP_SUPPORT@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
 OBJS = 	memory.o utils.o notify.o timer.o scheduler.o \

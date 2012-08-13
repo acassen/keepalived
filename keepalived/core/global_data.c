@@ -164,4 +164,10 @@ dump_global_data(conf_data_t * global_data)
 		       data->email_from);
 		dump_list(data->email);
 	}
+#ifdef _WITH_SNMP_
+	if (data->enable_traps)
+		log_message(LOG_INFO, " SNMP Trap enabled");
+	else
+		log_message(LOG_INFO, " SNMP Trap disabled");
+#endif
 }

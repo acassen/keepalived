@@ -40,6 +40,9 @@
 #include "parser.h"
 #include "vrrp_netlink.h"
 #include "vrrp_if.h"
+#ifdef _WITH_SNMP_
+  #include "check_snmp.h"
+#endif
 
 extern char *checkers_pidfile;
 
@@ -55,6 +58,10 @@ stop_check(void)
 	if (!(debug & 16))
 		clear_services();
 	ipvs_stop();
+#ifdef _WITH_SNMP_
+	if (snmp)
+		check_snmp_agent_close();
+#endif
 
 	/* Stop daemon */
 	pidfile_rm(checkers_pidfile);
@@ -88,6 +95,10 @@ start_check(void)
 #ifdef _WITH_VRRP_
 	init_interface_queue();
 	kernel_netlink_init();
+#endif
+#ifdef _WITH_SNMP_
+	if (!reload && snmp)
+		check_snmp_agent_init();
 #endif
 
 	/* Parse configuration file */
