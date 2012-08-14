@@ -47,7 +47,7 @@ extern struct ip_vs_get_dests *ipvs_get_dests(struct ip_vs_service_user *svc);
 
 /* get ipvs service */
 extern struct ip_vs_service_user *
-ipvs_get_service(__u32 fwmark, __u16 protocol, __u32 vaddr, __u16 vport);
+ipvs_get_service(u_int32_t fwmark, u_int16_t protocol, u_int32_t vaddr, u_int16_t vport);
 
 /* get ipvs timeout */
 extern struct ip_vs_timeout_user *ipvs_get_timeouts(void);
