@@ -31,11 +31,11 @@
 #include "utils.h"
 
 /* global vars */
-conf_data_t *data = NULL;
+conf_data_t *global_data = NULL;
 
 /* Default settings */
 static void
-set_default_router_id(conf_data_t * conf_data)
+set_default_router_id(conf_data_t * data)
 {
 	char *new_id = NULL;
 	int len = 0;
@@ -45,15 +45,15 @@ set_default_router_id(conf_data_t * conf_data)
 		return;
 
 	len = strlen(new_id);
-	conf_data->router_id = MALLOC(len + 1);
-	if (!conf_data->router_id)
+	data->router_id = MALLOC(len + 1);
+	if (!data->router_id)
 		return;
 
-	memcpy(conf_data->router_id, new_id, len);
+	memcpy(data->router_id, new_id, len);
 }
 
 static void
-set_default_email_from(conf_data_t * conf_data)
+set_default_email_from(conf_data_t * data)
 {
 	struct passwd *pwd = NULL;
 	char *hostname = NULL;
@@ -68,28 +68,28 @@ set_default_email_from(conf_data_t * conf_data)
 		return;
 
 	len = strlen(hostname) + strlen(pwd->pw_name) + 2;
-	conf_data->email_from = MALLOC(len);
-	if (!conf_data->email_from)
+	data->email_from = MALLOC(len);
+	if (!data->email_from)
 		return;
 
-	snprintf(conf_data->email_from, len, "%s@%s", pwd->pw_name, hostname);
+	snprintf(data->email_from, len, "%s@%s", pwd->pw_name, hostname);
 }
 
 static void
-set_default_smtp_connection_timeout(conf_data_t * conf_data)
+set_default_smtp_connection_timeout(conf_data_t * data)
 {
-	conf_data->smtp_connection_to = DEFAULT_SMTP_CONNECTION_TIMEOUT;
+	data->smtp_connection_to = DEFAULT_SMTP_CONNECTION_TIMEOUT;
 }
 
 static void
-set_default_values(conf_data_t * conf_data)
+set_default_values(conf_data_t * data)
 {
 	/* No global data so don't default */
-	if (!conf_data)
+	if (!data)
 		return;
-	set_default_router_id(conf_data);
-	set_default_smtp_connection_timeout(conf_data);
-	set_default_email_from(conf_data);
+	set_default_router_id(data);
+	set_default_smtp_connection_timeout(data);
+	set_default_email_from(data);
 }
 
 /* email facility functions */
@@ -114,7 +114,7 @@ alloc_email(char *addr)
 	new = (char *) MALLOC(size + 1);
 	memcpy(new, addr, size + 1);
 
-	list_add(data->email, new);
+	list_add(global_data->email, new);
 }
 
 /* data facility functions */
@@ -131,7 +131,7 @@ alloc_global_data(void)
 }
 
 void
-free_global_data(conf_data_t * global_data)
+free_global_data(conf_data_t * data)
 {
 	free_list(data->email);
 	FREE_PTR(data->router_id);
@@ -141,7 +141,7 @@ free_global_data(conf_data_t * global_data)
 }
 
 void
-dump_global_data(conf_data_t * global_data)
+dump_global_data(conf_data_t * data)
 {
 	if (!data)
 		return;

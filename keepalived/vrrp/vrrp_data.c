@@ -415,46 +415,46 @@ alloc_vrrp_data(void)
 }
 
 void
-free_vrrp_data(vrrp_conf_data * vrrp_data)
+free_vrrp_data(vrrp_conf_data * data)
 {
-	free_list(vrrp_data->static_addresses);
-	free_list(vrrp_data->static_routes);
-	free_mlist(vrrp_data->vrrp_index, 255+1);
-	free_mlist(vrrp_data->vrrp_index_fd, 1024+1);
-	free_list(vrrp_data->vrrp);
-	free_list(vrrp_data->vrrp_sync_group);
-	free_list(vrrp_data->vrrp_script);
-//	free_list(vrrp_data->vrrp_socket_pool);
-	FREE(vrrp_data);
+	free_list(data->static_addresses);
+	free_list(data->static_routes);
+	free_mlist(data->vrrp_index, 255+1);
+	free_mlist(data->vrrp_index_fd, 1024+1);
+	free_list(data->vrrp);
+	free_list(data->vrrp_sync_group);
+	free_list(data->vrrp_script);
+//	free_list(data->vrrp_socket_pool);
+	FREE(data);
 }
 
 void
-free_vrrp_sockpool(vrrp_conf_data * vrrp_data)
+free_vrrp_sockpool(vrrp_conf_data * data)
 {
-	free_list(vrrp_data->vrrp_socket_pool);
+	free_list(data->vrrp_socket_pool);
 }
 
 void
-dump_vrrp_data(vrrp_conf_data * vrrp_data)
+dump_vrrp_data(vrrp_conf_data * data)
 {
-	if (!LIST_ISEMPTY(vrrp_data->static_addresses)) {
+	if (!LIST_ISEMPTY(data->static_addresses)) {
 		log_message(LOG_INFO, "------< Static Addresses >------");
-		dump_list(vrrp_data->static_addresses);
+		dump_list(data->static_addresses);
 	}
-	if (!LIST_ISEMPTY(vrrp_data->static_routes)) {
+	if (!LIST_ISEMPTY(data->static_routes)) {
 		log_message(LOG_INFO, "------< Static Routes >------");
-		dump_list(vrrp_data->static_routes);
+		dump_list(data->static_routes);
 	}
-	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
+	if (!LIST_ISEMPTY(data->vrrp)) {
 		log_message(LOG_INFO, "------< VRRP Topology >------");
-		dump_list(vrrp_data->vrrp);
+		dump_list(data->vrrp);
 	}
-	if (!LIST_ISEMPTY(vrrp_data->vrrp_sync_group)) {
+	if (!LIST_ISEMPTY(data->vrrp_sync_group)) {
 		log_message(LOG_INFO, "------< VRRP Sync groups >------");
-		dump_list(vrrp_data->vrrp_sync_group);
+		dump_list(data->vrrp_sync_group);
 	}
-	if (!LIST_ISEMPTY(vrrp_data->vrrp_script)) {
+	if (!LIST_ISEMPTY(data->vrrp_script)) {
 		log_message(LOG_INFO, "------< VRRP Scripts >------");
-		dump_list(vrrp_data->vrrp_script);
+		dump_list(data->vrrp_script);
 	}
 }

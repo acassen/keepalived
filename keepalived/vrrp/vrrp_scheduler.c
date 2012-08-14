@@ -193,7 +193,6 @@ vrrp_init_state(list l)
 		 * not running floating priorities on any VRRP instance.
 		 */
 		if (vrrp->sync && !vrrp->sync->global_tracking) {
-			element e;
 			tracked_sc *sc;
 			tracked_if *tip;
 			int warning = 0;
