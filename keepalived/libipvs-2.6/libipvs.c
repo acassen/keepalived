@@ -925,7 +925,8 @@ void ipvs_sort_dests(struct ip_vs_get_dests *d, ipvs_dest_cmp_t f)
 
 
 ipvs_service_entry_t *
-ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr addr, __u16 port)
+ipvs_get_service(u_int32_t fwmark, u_int16_t af, u_int16_t protocol, union nf_inet_addr addr,
+		 u_int16_t port)
 {
 	ipvs_service_entry_t *svc;
 	socklen_t len;

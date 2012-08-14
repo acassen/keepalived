@@ -111,8 +111,8 @@ extern void ipvs_sort_dests(struct ip_vs_get_dests *d,
 			    ipvs_dest_cmp_t f);
 
 /* get an ipvs service entry */
-extern ipvs_service_entry_t *
-ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr addr, __u16 port);
+extern ipvs_service_entry_t *ipvs_get_service(u_int32_t, u_int16_t, u_int16_t,
+					      union nf_inet_addr, u_int16_t);
 
 /* get ipvs timeout */
 extern ipvs_timeout_t *ipvs_get_timeout(void);
