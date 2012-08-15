@@ -162,7 +162,10 @@ usage(const char *prog)
 		"  %s --checkers_pid       -c    checkers pidfile\n"
 		"  %s --vrrp_pid           -r    vrrp pidfile\n",
 		prog, prog, prog, prog, prog, prog, prog, prog,
-		prog, prog, prog, prog, prog, prog, prog, prog);
+#ifdef _WITH_SNMP_
+		prog,
+#endif
+		prog, prog, prog, prog, prog, prog, prog);
 }
 
 /* Command line parser */
