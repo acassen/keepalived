@@ -762,6 +762,13 @@ vrrp_state_goto_master(vrrp_rt * vrrp)
 void
 vrrp_restore_interface(vrrp_rt * vrrp, int advF)
 {
+        /* if we stop vrrp, warn the other routers to speed up the recovery */
+	if (advF) {
+	        syslog(LOG_INFO, "VRRP_Instance(%s) sending 0 priority",
+		       vrrp->iname);
+		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
+	}
+
 	/* remove virtual routes */
 	if (!LIST_ISEMPTY(vrrp->vroutes))
 		vrrp_handle_iproutes(vrrp, IPROUTE_DEL);
@@ -782,10 +789,6 @@ vrrp_restore_interface(vrrp_rt * vrrp, int advF)
 		vrrp->vipset = 0;
 	}
 
-
-	/* if we stop vrrp, warn the other routers to speed up the recovery */
-	if (advF)
-		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 }
 
 void
@@ -1261,13 +1264,19 @@ clear_diff_vrrp(void)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
+		vrrp_rt *new_vrrp;
 
 		/*
 		 * Try to find this vrrp into the new conf data
 		 * reloaded.
 		 */
-		if (!vrrp_exist(vrrp)) {
-			vrrp_restore_interface(vrrp, 0);
+		new_vrrp = vrrp_exist(vrrp);
+		if (!new_vrrp) {
+			vrrp_restore_interface(vrrp, 1);
+
+			/* Remove VMAC if one was created */
+			if (vrrp->vmac) 
+				netlink_link_del_vmac(vrrp);
 		} else {
 			/*
 			 * If this vrrp instance exist in new
@@ -1278,6 +1287,14 @@ clear_diff_vrrp(void)
 
 			/* virtual routes diff */
 			clear_diff_vrrp_vroutes(vrrp);
+
+			/* 
+			 * Remove VMAC if it existed in old vrrp instance,
+			 * but not the new one.
+			 */
+			if (vrrp->vmac && !new_vrrp->vmac) {
+				netlink_link_del_vmac(vrrp);
+			}
 
 			/* reset the state */
 			reset_vrrp_state(vrrp);

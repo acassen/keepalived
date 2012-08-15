@@ -1,0 +1,10 @@
+*.orig
+*.o
+*.a
+Makefile
+bin/*
+config.log
+config.status
+keepalived.spec
+keepalived/include/config.h
+
