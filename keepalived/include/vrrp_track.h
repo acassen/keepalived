@@ -40,6 +40,7 @@
 
 /* VRRP script tracking defaults */
 #define VRRP_SCRIPT_DI 1       /* external script track interval (in sec) */
+#define VRRP_SCRIPT_DT 1       /* external script track timeout (in sec) */
 #define VRRP_SCRIPT_DW 0       /* external script default weight */
 
 /* VRRP script tracking results.
@@ -58,6 +59,7 @@ typedef struct _vrrp_script {
 	char *sname;		/* instance name */
 	char *script;		/* the command to be called */
 	int interval;		/* interval between script calls */
+	int timeout;		/* seconds before script timeout */
 	int weight;		/* weight associated to this script */
 	int result;		/* result of last call to this script: 0..R-1 = KO, R..R+F-1 = OK */
 	int inuse;		/* how many users have weight>0 ? */
