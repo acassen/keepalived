@@ -36,7 +36,7 @@ char *vrrp_buffer;
 
 /* Static addresses facility function */
 void
-alloc_saddress(vector strvec)
+alloc_saddress(vector_t *strvec)
 {
 	if (LIST_ISEMPTY(vrrp_data->static_addresses))
 		vrrp_data->static_addresses = alloc_list(free_ipaddress, dump_ipaddress);
@@ -45,7 +45,7 @@ alloc_saddress(vector strvec)
 
 /* Static routes facility function */
 void
-alloc_sroute(vector strvec)
+alloc_sroute(vector_t *strvec)
 {
 	if (LIST_ISEMPTY(vrrp_data->static_routes))
 		vrrp_data->static_routes = alloc_list(free_iproute, dump_iproute);
@@ -76,8 +76,8 @@ dump_vgroup(void *data)
 
 	log_message(LOG_INFO, " VRRP Sync Group = %s, %s", vgroup->gname,
 	       (vgroup->state == VRRP_STATE_MAST) ? "MASTER" : "BACKUP");
-	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
-		str = VECTOR_SLOT(vgroup->iname, i);
+	for (i = 0; i < vector_size(vgroup->iname); i++) {
+		str = vector_slot(vgroup->iname, i);
 		log_message(LOG_INFO, "   monitor = %s", str);
 	}
 	if (vgroup->global_tracking)
@@ -315,7 +315,7 @@ alloc_vrrp(char *iname)
 }
 
 void
-alloc_vrrp_track(vector strvec)
+alloc_vrrp_track(vector_t *strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -325,7 +325,7 @@ alloc_vrrp_track(vector strvec)
 }
 
 void
-alloc_vrrp_track_script(vector strvec)
+alloc_vrrp_track_script(vector_t *strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -335,7 +335,7 @@ alloc_vrrp_track_script(vector strvec)
 }
 
 void
-alloc_vrrp_vip(vector strvec)
+alloc_vrrp_vip(vector_t *strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->ifp == NULL) {
@@ -347,7 +347,7 @@ alloc_vrrp_vip(vector strvec)
 	alloc_ipaddress(vrrp->vip, strvec, vrrp->ifp);
 }
 void
-alloc_vrrp_evip(vector strvec)
+alloc_vrrp_evip(vector_t *strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -357,7 +357,7 @@ alloc_vrrp_evip(vector strvec)
 }
 
 void
-alloc_vrrp_vroute(vector strvec)
+alloc_vrrp_vroute(vector_t *strvec)
 {
 	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 

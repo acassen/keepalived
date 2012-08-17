@@ -27,6 +27,6 @@
 #include "vector.h"
 
 /* Prototypes */
-extern vector check_init_keywords(void);
+extern vector_t *check_init_keywords(void);
 
 #endif

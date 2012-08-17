@@ -114,7 +114,7 @@ smtp_alloc_host(void)
  * in the config file. 
  */
 void
-smtp_check_handler(vector strvec)
+smtp_check_handler(vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = (smtp_checker_t *)MALLOC(sizeof(smtp_checker_t));
 
@@ -164,7 +164,7 @@ smtp_check_handler(vector strvec)
  * in the config file. 
  */
 void
-smtp_host_handler(vector strvec)
+smtp_host_handler(vector_t *strvec)
 {
         smtp_checker_t *smtp_checker = CHECKER_GET();
 
@@ -184,16 +184,16 @@ smtp_host_handler(vector strvec)
 
 /* "connect_ip" keyword */
 void
-smtp_ip_handler(vector strvec)
+smtp_ip_handler(vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
 	smtp_host_t *smtp_host = LIST_TAIL_DATA(smtp_checker->host);
-	inet_stosockaddr(VECTOR_SLOT(strvec, 1), NULL, &smtp_host->dst);
+	inet_stosockaddr(vector_slot(strvec, 1), NULL, &smtp_host->dst);
 }
 
 /* "connect_port" keyword */
 void
-smtp_port_handler(vector strvec)
+smtp_port_handler(vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
 	smtp_host_t *smtp_host = LIST_TAIL_DATA(smtp_checker->host);
@@ -202,7 +202,7 @@ smtp_port_handler(vector strvec)
 
 /* "helo_name" keyword */
 void
-smtp_helo_name_handler(vector strvec)
+smtp_helo_name_handler(vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
 	smtp_checker->helo_name = CHECKER_VALUE_STRING(strvec);
@@ -210,7 +210,7 @@ smtp_helo_name_handler(vector strvec)
 
 /* "connect_timeout" keyword */
 void
-smtp_timeout_handler(vector strvec)
+smtp_timeout_handler(vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
 	smtp_checker->timeout = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
@@ -220,7 +220,7 @@ smtp_timeout_handler(vector strvec)
 
 /* "retry" keyword */
 void
-smtp_retry_handler(vector strvec)
+smtp_retry_handler(vector_t *strvec)
 {
         smtp_checker_t *smtp_checker = CHECKER_GET();
 	smtp_checker->retry = CHECKER_VALUE_INT(strvec);
@@ -228,7 +228,7 @@ smtp_retry_handler(vector strvec)
 
 /* "delay_before_retry" keyword */
 void
-smtp_db_retry_handler(vector strvec)
+smtp_db_retry_handler(vector_t *strvec)
 {
         smtp_checker_t *smtp_checker = CHECKER_GET();
 	smtp_checker->db_retry = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
@@ -236,11 +236,11 @@ smtp_db_retry_handler(vector strvec)
 
 /* "bindto" keyword */
 void
-smtp_bindto_handler(vector strvec)
+smtp_bindto_handler(vector_t *strvec)
 {
         smtp_checker_t *smtp_checker = CHECKER_GET();
 	smtp_host_t *smtp_host = LIST_TAIL_DATA(smtp_checker->host);
-	inet_stosockaddr(VECTOR_SLOT(strvec, 1), 0, &smtp_host->bindto);
+	inet_stosockaddr(vector_slot(strvec, 1), 0, &smtp_host->bindto);
 }
 
 /* Config callback installer */

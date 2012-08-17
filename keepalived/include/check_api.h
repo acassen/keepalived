@@ -47,7 +47,7 @@ extern list checkers_queue;
 #define CHECKER_ARG(X) ((X)->data)
 #define CHECKER_DATA(X) (((checker_t *)X)->data)
 #define CHECKER_GET() (CHECKER_DATA(LIST_TAIL_DATA(checkers_queue)))
-#define CHECKER_VALUE_INT(X) (atoi(VECTOR_SLOT(X,1)))
+#define CHECKER_VALUE_INT(X) (atoi(vector_slot(X,1)))
 #define CHECKER_VALUE_STRING(X) (set_value(X))
 #define CHECKER_VHOST(C) (VHOST((C)->vs))
 #define CHECKER_ENABLED(C) ((C)->enabled)

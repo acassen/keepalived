@@ -236,7 +236,7 @@ extern check_conf_data *old_check_data;
 extern SSL_DATA *alloc_ssl(void);
 extern void free_ssl(void);
 extern void alloc_vsg(char *);
-extern void alloc_vsg_entry(vector);
+extern void alloc_vsg_entry(vector_t *);
 extern void alloc_vs(char *, char *);
 extern void alloc_rs(char *, char *);
 extern void alloc_ssvr(char *, char *);

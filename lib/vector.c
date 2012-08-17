@@ -27,16 +27,16 @@
  * Initialize vector struct.
  * allocalted 'size' slot elements then return vector.
  */
-vector
+vector_t *
 vector_alloc(void)
 {
-	vector v = (vector) MALLOC(sizeof (struct _vector));
+	vector_t *v = (vector_t *) MALLOC(sizeof(vector_t));
 	return v;
 }
 
 /* allocated one slot */
 void
-vector_alloc_slot(vector v)
+vector_alloc_slot(vector_t *v)
 {
 	v->allocated += VECTOR_DEFAULT_SIZE;
 	if (v->slot)
@@ -47,7 +47,7 @@ vector_alloc_slot(vector v)
 
 /* Insert a value into a specific slot */
 void
-vector_insert_slot(vector v, int slot, void *value)
+vector_insert_slot(vector_t *v, int slot, void *value)
 {
 	int i;
 
@@ -59,14 +59,14 @@ vector_insert_slot(vector v, int slot, void *value)
 
 /* Free memory vector allocation */
 void
-vector_free(vector v)
+vector_free(vector_t *v)
 {
 	FREE(v->slot);
 	FREE(v);
 }
 
 void
-free_strvec(vector strvec)
+free_strvec(vector_t *strvec)
 {
 	int i;
 	char *str;
@@ -74,8 +74,8 @@ free_strvec(vector strvec)
 	if (!strvec)
 		return;
 
-	for (i = 0; i < VECTOR_SIZE(strvec); i++)
-		if ((str = VECTOR_SLOT(strvec, i)) != NULL)
+	for (i = 0; i < vector_size(strvec); i++)
+		if ((str = vector_slot(strvec, i)) != NULL)
 			FREE(str);
 
 	vector_free(strvec);
@@ -83,7 +83,7 @@ free_strvec(vector strvec)
 
 /* Set a vector slot value */
 void
-vector_set_slot(vector v, void *value)
+vector_set_slot(vector_t *v, void *value)
 {
 	unsigned int i = v->allocated - 1;
 
@@ -92,7 +92,7 @@ vector_set_slot(vector v, void *value)
 
 /* dump vector slots */
 void
-vector_dump(vector v)
+vector_dump(vector_t *v)
 {
 	int i;
 
@@ -100,11 +100,11 @@ vector_dump(vector v)
 
 	for (i = 0; i < v->allocated; i++)
 		if (v->slot[i] != NULL)
-			printf("  Slot [%d]: %p\n", i, VECTOR_SLOT(v, i));
+			printf("  Slot [%d]: %p\n", i, vector_slot(v, i));
 }
 
 void
-dump_strvec(vector strvec)
+dump_strvec(vector_t *strvec)
 {
 	int i;
 	char *str;
@@ -114,8 +114,8 @@ dump_strvec(vector strvec)
 
 	printf("String Vector : ");
 
-	for (i = 0; i < VECTOR_SIZE(strvec); i++) {
-		str = VECTOR_SLOT(strvec, i);
+	for (i = 0; i < vector_size(strvec); i++) {
+		str = vector_slot(strvec, i);
 		printf("[%i]=%s ", i, str);
 	}
 	printf("\n");

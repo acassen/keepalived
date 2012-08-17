@@ -79,7 +79,7 @@ typedef struct {
 extern void netlink_iplist(list, int);
 extern void free_ipaddress(void *);
 extern void dump_ipaddress(void *);
-extern void alloc_ipaddress(list, vector, interface *);
+extern void alloc_ipaddress(list, vector_t *, interface *);
 extern void clear_diff_address(list, list);
 extern void clear_diff_saddresses(void);
 

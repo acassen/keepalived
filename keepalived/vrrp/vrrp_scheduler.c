@@ -313,20 +313,20 @@ vrrp_init_script(list l)
 }
 
 /* Timer functions */
-static TIMEVAL
+static timeval_t
 vrrp_compute_timer(const int fd)
 {
 	vrrp_rt *vrrp;
 	element e;
 	list l = &vrrp_data->vrrp_index_fd[fd%1024 + 1];
-	TIMEVAL timer;
+	timeval_t timer;
 
 	/* Multiple instances on the same interface */
-	TIMER_RESET(timer);
+	timer_reset(timer);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 		if (timer_cmp(vrrp->sands, timer) < 0 ||
-		    TIMER_ISNULL(timer))
+		    timer_isnull(timer))
 			timer = timer_dup(vrrp->sands);
 	}
 
@@ -336,12 +336,12 @@ vrrp_compute_timer(const int fd)
 static long
 vrrp_timer_fd(const int fd)
 {
-	TIMEVAL timer, vrrp_timer;
+	timeval_t timer, vrrp_timer;
 	long vrrp_long;
 
 	timer = vrrp_compute_timer(fd);
 	vrrp_timer = timer_sub(timer, time_now);
-	vrrp_long = TIMER_LONG(vrrp_timer);
+	vrrp_long = timer_long(vrrp_timer);
 
 	return (vrrp_long < 0) ? TIMER_MAX_SEC : vrrp_long;
 }
@@ -352,15 +352,15 @@ vrrp_timer_vrid_timeout(const int fd)
 	vrrp_rt *vrrp;
 	element e;
 	list l = &vrrp_data->vrrp_index_fd[fd%1024 + 1];
-	TIMEVAL timer;
+	timeval_t timer;
 	int vrid = 0;
 
 	/* Multiple instances on the same interface */
-	TIMER_RESET(timer);
+	timer_reset(timer);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 		if (timer_cmp(vrrp->sands, timer) < 0 ||
-		    TIMER_ISNULL(timer)) {
+		    timer_isnull(timer)) {
 			timer = timer_dup(vrrp->sands);
 			vrid = vrrp->vrid;
 		}
@@ -373,7 +373,7 @@ static void
 vrrp_register_workers(list l)
 {
 	sock_t *sock;
-	TIMEVAL timer;
+	timeval_t timer;
 	long vrrp_timer = 0;
 	element e;
 

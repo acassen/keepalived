@@ -55,7 +55,7 @@ dump_tcp_check(void *data)
 }
 
 void
-tcp_check_handler(vector strvec)
+tcp_check_handler(vector_t *strvec)
 {
 	tcp_checker_t *tcp_chk = (tcp_checker_t *) MALLOC(sizeof (tcp_checker_t));
 
@@ -65,7 +65,7 @@ tcp_check_handler(vector strvec)
 }
 
 void
-connect_port_handler(vector strvec)
+connect_port_handler(vector_t *strvec)
 {
 	tcp_checker_t *tcp_chk = CHECKER_GET();
 
@@ -73,14 +73,14 @@ connect_port_handler(vector strvec)
 }
 
 void
-bind_handler(vector strvec)
+bind_handler(vector_t *strvec)
 {
 	tcp_checker_t *tcp_chk = CHECKER_GET();
-	inet_stosockaddr(VECTOR_SLOT(strvec, 1), 0, &tcp_chk->bindto);
+	inet_stosockaddr(vector_slot(strvec, 1), 0, &tcp_chk->bindto);
 }
 
 void
-connect_timeout_handler(vector strvec)
+connect_timeout_handler(vector_t *strvec)
 {
 	tcp_checker_t *tcp_chk = CHECKER_GET();
 	tcp_chk->connection_to = CHECKER_VALUE_INT(strvec) * TIMER_HZ;

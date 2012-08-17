@@ -35,57 +35,57 @@
 
 /* SSL handlers */
 static void
-ssl_handler(vector strvec)
+ssl_handler(vector_t *strvec)
 {
 	check_data->ssl = alloc_ssl();
 }
 static void
-sslpass_handler(vector strvec)
+sslpass_handler(vector_t *strvec)
 {
 	check_data->ssl->password = set_value(strvec);
 }
 static void
-sslca_handler(vector strvec)
+sslca_handler(vector_t *strvec)
 {
 	check_data->ssl->cafile = set_value(strvec);
 }
 static void
-sslcert_handler(vector strvec)
+sslcert_handler(vector_t *strvec)
 {
 	check_data->ssl->certfile = set_value(strvec);
 }
 static void
-sslkey_handler(vector strvec)
+sslkey_handler(vector_t *strvec)
 {
 	check_data->ssl->keyfile = set_value(strvec);
 }
 
 /* Virtual Servers handlers */
 static void
-vsg_handler(vector strvec)
+vsg_handler(vector_t *strvec)
 {
 	/* Fetch queued vsg */
-	alloc_vsg(VECTOR_SLOT(strvec, 1));
+	alloc_vsg(vector_slot(strvec, 1));
 	alloc_value_block(strvec, alloc_vsg_entry);
 }
 static void
-vs_handler(vector strvec)
+vs_handler(vector_t *strvec)
 {
-	alloc_vs(VECTOR_SLOT(strvec, 1), VECTOR_SLOT(strvec, 2));
+	alloc_vs(vector_slot(strvec, 1), vector_slot(strvec, 2));
 }
 static void
-delay_handler(vector strvec)
+delay_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->delay_loop = atoi(VECTOR_SLOT(strvec, 1)) * TIMER_HZ;
+	vs->delay_loop = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
 	if (vs->delay_loop < TIMER_HZ)
 		vs->delay_loop = TIMER_HZ;
 }
 static void
-lbalgo_handler(vector strvec)
+lbalgo_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = VECTOR_SLOT(strvec, 1);
+	char *str = vector_slot(strvec, 1);
 	int size = sizeof (vs->sched);
 	int str_len = strlen(str);
 
@@ -95,10 +95,10 @@ lbalgo_handler(vector strvec)
 	memcpy(vs->sched, str, size);
 }
 static void
-lbkind_handler(vector strvec)
+lbkind_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = VECTOR_SLOT(strvec, 1);
+	char *str = vector_slot(strvec, 1);
 
 	if (!strcmp(str, "NAT"))
 		vs->loadbalancing_kind = IP_VS_CONN_F_MASQ;
@@ -110,16 +110,16 @@ lbkind_handler(vector strvec)
 		log_message(LOG_INFO, "PARSER : unknown [%s] routing method.", str);
 }
 static void
-natmask_handler(vector strvec)
+natmask_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	inet_ston(VECTOR_SLOT(strvec, 1), &vs->nat_mask);
+	inet_ston(vector_slot(strvec, 1), &vs->nat_mask);
 }
 static void
-pto_handler(vector strvec)
+pto_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = VECTOR_SLOT(strvec, 1);
+	char *str = vector_slot(strvec, 1);
 	int size = sizeof (vs->timeout_persistence);
 	int str_len = strlen(str);
 
@@ -129,29 +129,29 @@ pto_handler(vector strvec)
 	memcpy(vs->timeout_persistence, str, size);
 }
 static void
-pgr_handler(vector strvec)
+pgr_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->addr.ss_family == AF_INET6)
-		vs->granularity_persistence = atoi(VECTOR_SLOT(strvec, 1));
+		vs->granularity_persistence = atoi(vector_slot(strvec, 1));
 	else
-		inet_ston(VECTOR_SLOT(strvec, 1), &vs->granularity_persistence);
+		inet_ston(vector_slot(strvec, 1), &vs->granularity_persistence);
 }
 static void
-proto_handler(vector strvec)
+proto_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = VECTOR_SLOT(strvec, 1);
+	char *str = vector_slot(strvec, 1);
 	vs->service_type = (!strcmp(str, "TCP")) ? IPPROTO_TCP : IPPROTO_UDP;
 }
 static void
-hasuspend_handler(vector strvec)
+hasuspend_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->ha_suspend = 1;
 }
 static void
-virtualhost_handler(vector strvec)
+virtualhost_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->virtualhost = set_value(strvec);
@@ -159,116 +159,116 @@ virtualhost_handler(vector strvec)
 
 /* Sorry Servers handlers */
 static void
-ssvr_handler(vector strvec)
+ssvr_handler(vector_t *strvec)
 {
-	alloc_ssvr(VECTOR_SLOT(strvec, 1), VECTOR_SLOT(strvec, 2));
+	alloc_ssvr(vector_slot(strvec, 1), vector_slot(strvec, 2));
 }
 
 /* Real Servers handlers */
 static void
-rs_handler(vector strvec)
+rs_handler(vector_t *strvec)
 {
-	alloc_rs(VECTOR_SLOT(strvec, 1), VECTOR_SLOT(strvec, 2));
+	alloc_rs(vector_slot(strvec, 1), vector_slot(strvec, 2));
 }
 static void
-weight_handler(vector strvec)
+weight_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server *rs = LIST_TAIL_DATA(vs->rs);
-	rs->weight = atoi(VECTOR_SLOT(strvec, 1));
+	rs->weight = atoi(vector_slot(strvec, 1));
 	rs->iweight = rs->weight;
 }
 #ifdef _KRNL_2_6_
 static void
-uthreshold_handler(vector strvec)
+uthreshold_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server *rs = LIST_TAIL_DATA(vs->rs);
-	rs->u_threshold = atoi(VECTOR_SLOT(strvec, 1));
+	rs->u_threshold = atoi(vector_slot(strvec, 1));
 }
 static void
-lthreshold_handler(vector strvec)
+lthreshold_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server *rs = LIST_TAIL_DATA(vs->rs);
-	rs->l_threshold = atoi(VECTOR_SLOT(strvec, 1));
+	rs->l_threshold = atoi(vector_slot(strvec, 1));
 }
 #endif
 static void
-inhibit_handler(vector strvec)
+inhibit_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server *rs = LIST_TAIL_DATA(vs->rs);
 	rs->inhibit = 1;
 }
 static void
-notify_up_handler(vector strvec)
+notify_up_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server *rs = LIST_TAIL_DATA(vs->rs);
 	rs->notify_up = set_value(strvec);
 }
 static void
-notify_down_handler(vector strvec)
+notify_down_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server *rs = LIST_TAIL_DATA(vs->rs);
 	rs->notify_down = set_value(strvec);
 }
 static void
-alpha_handler(vector strvec)
+alpha_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->alpha = 1;
 	vs->quorum_state = DOWN;
 }
 static void
-omega_handler(vector strvec)
+omega_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->omega = 1;
 }
 static void
-quorum_up_handler(vector strvec)
+quorum_up_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->quorum_up = set_value(strvec);
 }
 static void
-quorum_down_handler(vector strvec)
+quorum_down_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->quorum_down = set_value(strvec);
 }
 static void
-quorum_handler(vector strvec)
+quorum_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	long tmp = atol (VECTOR_SLOT(strvec, 1));
+	long tmp = atol (vector_slot(strvec, 1));
 	if (tmp < 1) {
 		log_message(LOG_ERR, "Condition not met: Quorum >= 1");
 		log_message(LOG_ERR, "Ignoring requested value %s, using 1 instead",
-		  (char *) VECTOR_SLOT(strvec, 1));
+		  (char *) vector_slot(strvec, 1));
 		tmp = 1;
 	}
 	vs->quorum = tmp;
 }
 static void
-hysteresis_handler(vector strvec)
+hysteresis_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	long tmp = atol (VECTOR_SLOT(strvec, 1));
+	long tmp = atol (vector_slot(strvec, 1));
 	if (tmp < 0 || tmp >= vs->quorum) {
 		log_message(LOG_ERR, "Condition not met: 0 <= Hysteresis <= Quorum - 1");
 		log_message(LOG_ERR, "Ignoring requested value %s, using 0 instead",
-		       (char *) VECTOR_SLOT(strvec, 1));
+		       (char *) vector_slot(strvec, 1));
 		log_message(LOG_ERR, "Hint: try defining hysteresis after quorum");
 		tmp = 0;
 	}
 	vs->hysteresis = tmp;
 }
 
-vector
+vector_t *
 check_init_keywords(void)
 {
 	/* global definitions mapping */

@@ -26,15 +26,15 @@
 #include "timer.h"
 
 /* time_now holds current time */
-TIMEVAL time_now = { tv_sec: 0, tv_usec: 0 };
+timeval_t time_now = { tv_sec: 0, tv_usec: 0 };
 
 /* set a timer to a specific value */
-TIMEVAL
-timer_dup(TIMEVAL b)
+timeval_t
+timer_dup(timeval_t b)
 {
-	TIMEVAL a;
+	timeval_t a;
 
-	TIMER_RESET(a);
+	timer_reset(a);
 	a.tv_sec = b.tv_sec;
 	a.tv_usec = b.tv_usec;
 	return a;
@@ -42,7 +42,7 @@ timer_dup(TIMEVAL b)
 
 /* timer compare */
 int
-timer_cmp(TIMEVAL a, TIMEVAL b)
+timer_cmp(timeval_t a, timeval_t b)
 {
 	if (a.tv_sec > b.tv_sec)
 		return 1;
@@ -56,12 +56,12 @@ timer_cmp(TIMEVAL a, TIMEVAL b)
 }
 
 /* timer sub */
-TIMEVAL
-timer_sub(TIMEVAL a, TIMEVAL b)
+timeval_t
+timer_sub(timeval_t a, timeval_t b)
 {
-	TIMEVAL ret;
+	timeval_t ret;
 
-	TIMER_RESET(ret);
+	timer_reset(ret);
 	ret.tv_usec = a.tv_usec - b.tv_usec;
 	ret.tv_sec = a.tv_sec - b.tv_sec;
 
@@ -74,12 +74,12 @@ timer_sub(TIMEVAL a, TIMEVAL b)
 }
 
 /* timer add */
-TIMEVAL
-timer_add_long(TIMEVAL a, long b)
+timeval_t
+timer_add_long(timeval_t a, long b)
 {
-	TIMEVAL ret;
+	timeval_t ret;
 
-	TIMER_RESET(ret);
+	timer_reset(ret);
 	ret.tv_usec = a.tv_usec + b % TIMER_HZ;
 	ret.tv_sec = a.tv_sec + b / TIMER_HZ;
 
@@ -100,11 +100,11 @@ timer_add_long(TIMEVAL a, long b)
  * normally return 0, unless <now> is NULL, in which case it will return -1 and
  * set errno to EFAULT.
  */
-int monotonic_gettimeofday(TIMEVAL *now)
+int monotonic_gettimeofday(timeval_t *now)
 {
-	static TIMEVAL mono_date;
-	static TIMEVAL drift; /* warning: signed seconds! */
-	TIMEVAL sys_date, adjusted, deadline;
+	static timeval_t mono_date;
+	static timeval_t drift; /* warning: signed seconds! */
+	timeval_t sys_date, adjusted, deadline;
 
 	if (!now) {
 		errno = EFAULT;
@@ -174,14 +174,14 @@ int monotonic_gettimeofday(TIMEVAL *now)
 }
 
 /* current time */
-TIMEVAL
+timeval_t
 timer_now(void)
 {
-	TIMEVAL curr_time;
+	timeval_t curr_time;
 	int old_errno = errno;
 
 	/* init timer */
-	TIMER_RESET(curr_time);
+	timer_reset(curr_time);
 	monotonic_gettimeofday(&curr_time);
 	errno = old_errno;
 
@@ -189,13 +189,13 @@ timer_now(void)
 }
 
 /* sets and returns current time from system time */
-TIMEVAL
+timeval_t
 set_time_now(void)
 {
 	int old_errno = errno;
 
 	/* init timer */
-	TIMER_RESET(time_now);
+	timer_reset(time_now);
 	monotonic_gettimeofday(&time_now);
 	errno = old_errno;
 
@@ -203,15 +203,15 @@ set_time_now(void)
 }
 
 /* timer sub from current time */
-TIMEVAL
-timer_sub_now(TIMEVAL a)
+timeval_t
+timer_sub_now(timeval_t a)
 {
 	return timer_sub(time_now, a);
 }
 
 /* print timer value */
 void
-timer_dump(TIMEVAL a)
+timer_dump(timeval_t a)
 {
 	unsigned long timer;
 	timer = a.tv_sec * TIMER_HZ + a.tv_usec;
@@ -219,7 +219,7 @@ timer_dump(TIMEVAL a)
 }
 
 unsigned long
-timer_tol(TIMEVAL a)
+timer_tol(timeval_t a)
 {
 	unsigned long timer;
 	timer = a.tv_sec * TIMER_HZ + a.tv_usec;

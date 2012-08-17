@@ -73,8 +73,8 @@ vrrp_sync_set_group(vrrp_sgroup *vgroup)
 	char *str;
 	int i;
 
-	for (i = 0; i < VECTOR_SIZE(vgroup->iname); i++) {
-		str = VECTOR_SLOT(vgroup->iname, i);
+	for (i = 0; i < vector_size(vgroup->iname); i++) {
+		str = vector_slot(vgroup->iname, i);
 		vrrp = vrrp_get_instance(str);
 		if (vrrp) {
 			if (LIST_ISEMPTY(vgroup->index_list))

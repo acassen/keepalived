@@ -71,7 +71,7 @@ typedef struct {		/* rfc2338.5.1 */
  */
 typedef struct _vrrp_sgroup {
 	char *gname;		/* Group name */
-	vector iname;		/* Set of VRRP instances in this group */
+	vector_t *iname;	/* Set of VRRP instances in this group */
 	list index_list;	/* List of VRRP instances */
 	int state;		/* current stable state */
 	int global_tracking;	/* Use floating priority and scripts
@@ -121,7 +121,7 @@ typedef struct _vrrp_rt {
 				 * preemption based on higher prio over lower
 				 * prio is allowed.  0 means no delay.
 				 */
-	TIMEVAL preempt_time;   /* Time after which preemption can happen */
+	timeval_t preempt_time; /* Time after which preemption can happen */
 	int state;		/* internal state (init/backup/master) */
 	int init_state;		/* the initial state of the instance */
 	int wantstate;		/* user explicitly wants a state (back/mast) */

@@ -24,27 +24,30 @@
 #define _VECTOR_H
 
 /* vector definition */
-struct _vector {
-	unsigned int allocated;
-	void **slot;
-};
-typedef struct _vector *vector;
+typedef struct _vector {
+	unsigned int	active;
+	unsigned int	allocated;
+	void		**slot;
+} vector_t;
 
+/* Some defines */
 #define VECTOR_DEFAULT_SIZE 1
-#define VECTOR_SLOT(V,E) ((V)->slot[(E)])
-#define VECTOR_SIZE(V)   ((V)->allocated)
 
+/* Some usefull macros */
+#define vector_slot(V,E) ((V)->slot[(E)])
+#define vector_size(V)   ((V)->allocated)
+#define vector_active(V) ((V)->active)
 #define vector_foreach_slot(v,p,i) \
 	for (i = 0; i < (v)->allocated && ((p) = (v)->slot[i]); i++)
 
 /* Prototypes */
-extern vector vector_alloc(void);
-extern void vector_alloc_slot(vector v);
-extern void vector_free(vector v);
-extern void free_strvec(vector strvec);
-extern void vector_set_slot(vector v, void *value);
-extern void vector_insert_slot(vector v, int slot, void *value);
-extern void vector_dump(vector v);
-extern void dump_strvec(vector strvec);
+extern vector_t *vector_alloc(void);
+extern void vector_alloc_slot(vector_t *);
+extern void vector_free(vector_t *);
+extern void free_strvec(vector_t *);
+extern void vector_set_slot(vector_t *, void *);
+extern void vector_insert_slot(vector_t *, int, void *);
+extern void vector_dump(vector_t *);
+extern void dump_strvec(vector_t *);
 
 #endif

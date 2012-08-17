@@ -174,7 +174,7 @@ dump_iproute(void *rt_data)
 	FREE(log_msg);
 }
 void
-alloc_route(list rt_list, vector strvec)
+alloc_route(list rt_list, vector_t *strvec)
 {
 	ip_route *new;
 	uint32_t ipaddr = 0;
@@ -185,41 +185,41 @@ alloc_route(list rt_list, vector strvec)
 	new = (ip_route *) MALLOC(sizeof(ip_route));
 
 	/* FMT parse */
-	while (i < VECTOR_SIZE(strvec)) {
-		str = VECTOR_SLOT(strvec, i);
+	while (i < vector_size(strvec)) {
+		str = vector_slot(strvec, i);
 
 		/* cmd parsing */
 		if (!strcmp(str, "blackhole")) {
 			new->blackhole = 1;
-			inet_ston(VECTOR_SLOT(strvec, ++i), &new->dst);
-			new->dmask = inet_stom(VECTOR_SLOT(strvec, i));
+			inet_ston(vector_slot(strvec, ++i), &new->dst);
+			new->dmask = inet_stom(vector_slot(strvec, i));
 		} else if (!strcmp(str, "via") || !strcmp(str, "gw")) {
-			inet_ston(VECTOR_SLOT(strvec, ++i), &new->gw);
+			inet_ston(vector_slot(strvec, ++i), &new->gw);
 		} else if (!strcmp(str, "or")) {
-			inet_ston(VECTOR_SLOT(strvec, ++i), &new->gw2);
+			inet_ston(vector_slot(strvec, ++i), &new->gw2);
 		} else if (!strcmp(str, "src")) {
-			inet_ston(VECTOR_SLOT(strvec, ++i), &new->src);
+			inet_ston(vector_slot(strvec, ++i), &new->src);
 		} else if (!strcmp(str, "dev") || !strcmp(str, "oif")) {
-			ifp = if_get_by_ifname(VECTOR_SLOT(strvec, ++i));
+			ifp = if_get_by_ifname(vector_slot(strvec, ++i));
 			if (!ifp) {
 				log_message(LOG_INFO, "VRRP is trying to assign VROUTE to unknown "
 				       "%s interface !!! go out and fixe your conf !!!",
-				       (char *)VECTOR_SLOT(strvec, i));
+				       (char *)vector_slot(strvec, i));
 				FREE(new);
 				return;
 			}
 			new->index = IF_INDEX(ifp);
 		} else if (!strcmp(str, "table")) {
-			new->table = atoi(VECTOR_SLOT(strvec, ++i));
+			new->table = atoi(vector_slot(strvec, ++i));
 		} else if (!strcmp(str, "metric")) {
-			new->metric = atoi(VECTOR_SLOT(strvec, ++i));
+			new->metric = atoi(vector_slot(strvec, ++i));
 		} else if (!strcmp(str, "scope")) {
-			new->scope = netlink_scope_a2n(VECTOR_SLOT(strvec, ++i));
+			new->scope = netlink_scope_a2n(vector_slot(strvec, ++i));
 		} else {
 			if (!strcmp(str, "to")) i++;
-			if (inet_ston(VECTOR_SLOT(strvec, i), &ipaddr)) {
-				inet_ston(VECTOR_SLOT(strvec, i), &new->dst);
-				new->dmask = inet_stom(VECTOR_SLOT(strvec, i));
+			if (inet_ston(vector_slot(strvec, i), &ipaddr)) {
+				inet_ston(vector_slot(strvec, i), &new->dst);
+				new->dmask = inet_stom(vector_slot(strvec, i));
 			}
 		}
 		i++;

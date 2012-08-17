@@ -104,10 +104,10 @@ alloc_http_get(char *proto)
 }
 
 void
-http_get_handler(vector strvec)
+http_get_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk;
-	char *str = VECTOR_SLOT(strvec, 0);
+	char *str = vector_slot(strvec, 0);
 
 	/* queue new checker */
 	http_get_chk = alloc_http_get(str);
@@ -117,21 +117,21 @@ http_get_handler(vector strvec)
 }
 
 void
-connect_p_handler(vector strvec)
+connect_p_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	checker_set_dst_port(&http_get_chk->dst, htons(CHECKER_VALUE_INT(strvec)));
 }
 
 void
-bindto_handler(vector strvec)
+bindto_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
-	inet_stosockaddr(VECTOR_SLOT(strvec, 1), 0, &http_get_chk->bindto);
+	inet_stosockaddr(vector_slot(strvec, 1), 0, &http_get_chk->bindto);
 }
 
 void
-connect_to_handler(vector strvec)
+connect_to_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	http_get_chk->connection_to = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
@@ -140,21 +140,21 @@ connect_to_handler(vector strvec)
 }
 
 void
-nb_get_retry_handler(vector strvec)
+nb_get_retry_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	http_get_chk->nb_get_retry = CHECKER_VALUE_INT(strvec);
 }
 
 void
-delay_before_retry_handler(vector strvec)
+delay_before_retry_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	http_get_chk->delay_before_retry = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
 }
 
 void
-url_handler(vector strvec)
+url_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *new;
@@ -166,7 +166,7 @@ url_handler(vector strvec)
 }
 
 void
-path_handler(vector strvec)
+path_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
@@ -175,7 +175,7 @@ path_handler(vector strvec)
 }
 
 void
-digest_handler(vector strvec)
+digest_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
@@ -184,7 +184,7 @@ digest_handler(vector strvec)
 }
 
 void
-status_code_handler(vector strvec)
+status_code_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
@@ -750,7 +750,7 @@ http_check_thread(thread_t * thread)
 				new_req = 0;
 
 			if (http_get_check->proto == PROTO_SSL) {
-				timeout = TIMER_LONG(thread->sands)-TIMER_LONG(time_now);
+				timeout = timer_long(thread->sands) - timer_long(time_now);
 				if (thread->type != THREAD_WRITE_TIMEOUT &&
 				    thread->type != THREAD_READ_TIMEOUT)
 					ret = ssl_connect(thread, new_req);

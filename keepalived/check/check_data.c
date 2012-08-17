@@ -128,19 +128,19 @@ alloc_vsg(char *gname)
 	list_add(check_data->vs_group, new);
 }
 void
-alloc_vsg_entry(vector strvec)
+alloc_vsg_entry(vector_t *strvec)
 {
 	virtual_server_group *vsg = LIST_TAIL_DATA(check_data->vs_group);
 	virtual_server_group_entry *new;
 
 	new = (virtual_server_group_entry *) MALLOC(sizeof (virtual_server_group_entry));
 
-	if (!strcmp(VECTOR_SLOT(strvec, 0), "fwmark")) {
-		new->vfwmark = atoi(VECTOR_SLOT(strvec, 1));
+	if (!strcmp(vector_slot(strvec, 0), "fwmark")) {
+		new->vfwmark = atoi(vector_slot(strvec, 1));
 		list_add(vsg->vfwmark, new);
 	} else {
-		new->range = inet_stor(VECTOR_SLOT(strvec, 0));
-		inet_stosockaddr(VECTOR_SLOT(strvec, 0), VECTOR_SLOT(strvec, 1), &new->addr);
+		new->range = inet_stor(vector_slot(strvec, 0));
+		inet_stosockaddr(vector_slot(strvec, 0), vector_slot(strvec, 1), &new->addr);
 		if (!new->range)
 			list_add(vsg->addr_ip, new);
 		else

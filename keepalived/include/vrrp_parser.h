@@ -27,6 +27,6 @@
 #include "vector.h"
 
 /* Prototypes */
-extern vector vrrp_init_keywords(void);
+extern vector_t *vrrp_init_keywords(void);
 
 #endif

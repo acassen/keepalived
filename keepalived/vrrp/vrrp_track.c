@@ -35,12 +35,12 @@ dump_track(void *track_data)
 	log_message(LOG_INFO, "     %s weight %d", IF_NAME(tip->ifp), tip->weight);
 }
 void
-alloc_track(list track_list, vector strvec)
+alloc_track(list track_list, vector_t *strvec)
 {
 	interface *ifp = NULL;
 	tracked_if *tip = NULL;
 	int weight = 0;
-	char *tracked = VECTOR_SLOT(strvec, 0);
+	char *tracked = vector_slot(strvec, 0);
 
 	ifp = if_get_by_ifname(tracked);
 
@@ -50,9 +50,9 @@ alloc_track(list track_list, vector strvec)
 		return;
 	}
 
-	if (VECTOR_SIZE(strvec) >= 3 &&
-	    !strcmp(VECTOR_SLOT(strvec, 1), "weight")) {
-		weight = atoi(VECTOR_SLOT(strvec, 2));
+	if (vector_size(strvec) >= 3 &&
+	    !strcmp(vector_slot(strvec, 1), "weight")) {
+		weight = atoi(vector_slot(strvec, 2));
 		if (weight < -254 || weight > 254) {
 			log_message(LOG_INFO, "     %s: weight must be between "
 					 "[-254..254] inclusive. Ignoring...", tracked);
@@ -92,12 +92,12 @@ dump_track_script(void *track_data)
 	log_message(LOG_INFO, "     %s weight %d", tsc->scr->sname, tsc->weight);
 }
 void
-alloc_track_script(list track_list, vector strvec)
+alloc_track_script(list track_list, vector_t *strvec)
 {
 	vrrp_script *vsc = NULL;
 	tracked_sc *tsc = NULL;
 	int weight = 0;
-	char *tracked = VECTOR_SLOT(strvec, 0);
+	char *tracked = vector_slot(strvec, 0);
 
 	vsc = find_script_by_name(tracked);
 
@@ -110,9 +110,9 @@ alloc_track_script(list track_list, vector strvec)
 	/* default weight */
 	weight = vsc->weight;
 
-	if (VECTOR_SIZE(strvec) >= 3 &&
-	    !strcmp(VECTOR_SLOT(strvec, 1), "weight")) {
-		weight = atoi(VECTOR_SLOT(strvec, 2));
+	if (vector_size(strvec) >= 3 &&
+	    !strcmp(vector_slot(strvec, 1), "weight")) {
+		weight = atoi(vector_slot(strvec, 2));
 		if (weight < -254 || weight > 254) {
 			weight = vsc->weight;
 			log_message(LOG_INFO, "     %s: weight must be between [-254..254]"

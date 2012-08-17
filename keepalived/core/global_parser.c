@@ -34,46 +34,46 @@
 /* data handlers */
 /* Global def handlers */
 static void
-use_polling_handler(vector strvec)
+use_polling_handler(vector_t *strvec)
 {
 	global_data->linkbeat_use_polling = 1;
 }
 static void
-routerid_handler(vector strvec)
+routerid_handler(vector_t *strvec)
 {
 	FREE_PTR(global_data->router_id);
 	global_data->router_id = set_value(strvec);
 }
 static void
-plugin_handler(vector strvec)
+plugin_handler(vector_t *strvec)
 {
 	global_data->plugin_dir = set_value(strvec);
 }
 static void
-emailfrom_handler(vector strvec)
+emailfrom_handler(vector_t *strvec)
 {
 	FREE_PTR(global_data->email_from);
 	global_data->email_from = set_value(strvec);
 }
 static void
-smtpto_handler(vector strvec)
+smtpto_handler(vector_t *strvec)
 {
-	global_data->smtp_connection_to = atoi(VECTOR_SLOT(strvec, 1)) * TIMER_HZ;
+	global_data->smtp_connection_to = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
 }
 static void
-smtpip_handler(vector strvec)
+smtpip_handler(vector_t *strvec)
 {
-	inet_stosockaddr(VECTOR_SLOT(strvec, 1), SMTP_PORT_STR, &global_data->smtp_server);
+	inet_stosockaddr(vector_slot(strvec, 1), SMTP_PORT_STR, &global_data->smtp_server);
 }
 static void
-email_handler(vector strvec)
+email_handler(vector_t *strvec)
 {
-	vector email_vec = read_value_block();
+	vector_t *email_vec = read_value_block();
 	int i;
 	char *str;
 
-	for (i = 0; i < VECTOR_SIZE(email_vec); i++) {
-		str = VECTOR_SLOT(email_vec, i);
+	for (i = 0; i < vector_size(email_vec); i++) {
+		str = vector_slot(email_vec, i);
 		alloc_email(str);
 	}
 
@@ -81,7 +81,7 @@ email_handler(vector strvec)
 }
 #ifdef _WITH_SNMP_
 static void
-trap_handler(vector strvec)
+trap_handler(vector_t *strvec)
 {
 	global_data->enable_traps = 1;
 }

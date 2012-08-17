@@ -31,8 +31,8 @@
 #include "logger.h"
 
 /* global vars */
-vector keywords;
-vector current_keywords;
+vector_t *keywords;
+vector_t *current_keywords;
 FILE *current_stream;
 char *current_conf_file;
 int reload = 0;
@@ -41,13 +41,13 @@ int reload = 0;
 static int sublevel = 0;
 
 void
-keyword_alloc(vector keywords_vec, char *string, void (*handler) (vector))
+keyword_alloc(vector_t *keywords_vec, char *string, void (*handler) (vector_t *))
 {
-	struct keyword *keyword;
+	keyword_t *keyword;
 
 	vector_alloc_slot(keywords_vec);
 
-	keyword = (struct keyword *) MALLOC(sizeof (struct keyword));
+	keyword = (keyword_t *) MALLOC(sizeof(keyword_t));
 	keyword->string = string;
 	keyword->handler = handler;
 
@@ -55,18 +55,18 @@ keyword_alloc(vector keywords_vec, char *string, void (*handler) (vector))
 }
 
 void
-keyword_alloc_sub(vector keywords_vec, char *string, void (*handler) (vector))
+keyword_alloc_sub(vector_t *keywords_vec, char *string, void (*handler) (vector_t *))
 {
 	int i = 0;
-	struct keyword *keyword;
+	keyword_t *keyword;
 
 	/* fetch last keyword */
-	keyword = VECTOR_SLOT(keywords_vec, VECTOR_SIZE(keywords_vec) - 1);
+	keyword = vector_slot(keywords_vec, vector_size(keywords_vec) - 1);
 
 	/* position to last sub level */
 	for (i = 0; i < sublevel; i++)
 		keyword =
-		    VECTOR_SLOT(keyword->sub, VECTOR_SIZE(keyword->sub) - 1);
+		    vector_slot(keyword->sub, vector_size(keyword->sub) - 1);
 
 	/* First sub level allocation */
 	if (!keyword->sub)
@@ -90,25 +90,25 @@ install_sublevel_end(void)
 }
 
 void
-install_keyword_root(char *string, void (*handler) (vector))
+install_keyword_root(char *string, void (*handler) (vector_t *))
 {
 	keyword_alloc(keywords, string, handler);
 }
 
 void
-install_keyword(char *string, void (*handler) (vector))
+install_keyword(char *string, void (*handler) (vector_t *))
 {
 	keyword_alloc_sub(keywords, string, handler);
 }
 
 void
-dump_keywords(vector keydump, int level)
+dump_keywords(vector_t *keydump, int level)
 {
 	int i, j;
-	struct keyword *keyword_vec;
+	keyword_t *keyword_vec;
 
-	for (i = 0; i < VECTOR_SIZE(keydump); i++) {
-		keyword_vec = VECTOR_SLOT(keydump, i);
+	for (i = 0; i < vector_size(keydump); i++) {
+		keyword_vec = vector_slot(keydump, i);
 		for (j = 0; j < level; j++)
 			printf("  ");
 		printf("Keyword : %s\n", keyword_vec->string);
@@ -118,13 +118,13 @@ dump_keywords(vector keydump, int level)
 }
 
 void
-free_keywords(vector keywords_vec)
+free_keywords(vector_t *keywords_vec)
 {
-	struct keyword *keyword_vec;
+	keyword_t *keyword_vec;
 	int i;
 
-	for (i = 0; i < VECTOR_SIZE(keywords_vec); i++) {
-		keyword_vec = VECTOR_SLOT(keywords_vec, i);
+	for (i = 0; i < vector_size(keywords_vec); i++) {
+		keyword_vec = vector_slot(keywords_vec, i);
 		if (keyword_vec->sub)
 			free_keywords(keyword_vec->sub);
 		FREE(keyword_vec);
@@ -132,12 +132,12 @@ free_keywords(vector keywords_vec)
 	vector_free(keywords_vec);
 }
 
-vector
+vector_t *
 alloc_strvec(char *string)
 {
 	char *cp, *start, *token;
 	int str_len;
-	vector strvec;
+	vector_t *strvec;
 
 	if (!string)
 		return NULL;
@@ -240,7 +240,7 @@ int
 check_include(char *buf)
 {
 	char *str;
-	vector strvec;
+	vector_t *strvec;
 	char *path;
 	int ret;
 
@@ -249,15 +249,15 @@ check_include(char *buf)
 	if (!strvec){
 		return 0;
 	}
-	str = VECTOR_SLOT(strvec, 0);
+	str = vector_slot(strvec, 0);
 	
 	if (!strcmp(str, EOB)) {
 		free_strvec(strvec);
 		return 0;
 	}
 
-	if(!strcmp("include", str) && VECTOR_SIZE(strvec) == 2){
-		char *conf_file = VECTOR_SLOT(strvec, 1);
+	if(!strcmp("include", str) && vector_size(strvec) == 2){
+		char *conf_file = vector_slot(strvec, 1);
 
 		FILE *prev_stream = current_stream;
 		char *prev_conf_file = current_conf_file;
@@ -302,29 +302,29 @@ read_line(char *buf, int size)
 	return (ch == EOF) ? 0 : 1;
 }
 
-vector
+vector_t *
 read_value_block(void)
 {
 	char *buf;
 	int i;
 	char *str = NULL;
 	char *dup;
-	vector vec = NULL;
-	vector elements = vector_alloc();
+	vector_t *vec = NULL;
+	vector_t *elements = vector_alloc();
 
 	buf = (char *) MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
 		vec = alloc_strvec(buf);
 		if (vec) {
-			str = VECTOR_SLOT(vec, 0);
+			str = vector_slot(vec, 0);
 			if (!strcmp(str, EOB)) {
 				free_strvec(vec);
 				break;
 			}
 
-			if (VECTOR_SIZE(vec))
-				for (i = 0; i < VECTOR_SIZE(vec); i++) {
-					str = VECTOR_SLOT(vec, i);
+			if (vector_size(vec))
+				for (i = 0; i < vector_size(vec); i++) {
+					str = vector_slot(vec, i);
 					dup = (char *) MALLOC(strlen(str) + 1);
 					memcpy(dup, str, strlen(str));
 					vector_alloc_slot(elements);
@@ -340,23 +340,23 @@ read_value_block(void)
 }
 
 void
-alloc_value_block(vector strvec, void (*alloc_func) (vector))
+alloc_value_block(vector_t *strvec, void (*alloc_func) (vector_t *))
 {
 	char *buf;
 	char *str = NULL;
-	vector vec = NULL;
+	vector_t *vec = NULL;
 
 	buf = (char *) MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
 		vec = alloc_strvec(buf);
 		if (vec) {
-			str = VECTOR_SLOT(vec, 0);
+			str = vector_slot(vec, 0);
 			if (!strcmp(str, EOB)) {
 				free_strvec(vec);
 				break;
 			}
 
-			if (VECTOR_SIZE(vec))
+			if (vector_size(vec))
 				(*alloc_func) (vec);
 
 			free_strvec(vec);
@@ -368,9 +368,9 @@ alloc_value_block(vector strvec, void (*alloc_func) (vector))
 
 
 void *
-set_value(vector strvec)
+set_value(vector_t *strvec)
 {
-	char *str = VECTOR_SLOT(strvec, 1);
+	char *str = vector_slot(strvec, 1);
 	int size = strlen(str);
 	int i = 0;
 	int len = 0;
@@ -378,8 +378,8 @@ set_value(vector strvec)
 	char *tmp;
 
 	if (*str == '"') {
-		for (i = 2; i < VECTOR_SIZE(strvec); i++) {
-			str = VECTOR_SLOT(strvec, i);
+		for (i = 2; i < vector_size(strvec); i++) {
+			str = vector_slot(strvec, i);
 			len += strlen(str);
 			if (!alloc)
 				alloc =
@@ -388,12 +388,12 @@ set_value(vector strvec)
 			else {
 				alloc =
 				    REALLOC(alloc, sizeof (char *) * (len + 1));
-				tmp = VECTOR_SLOT(strvec, i-1);
+				tmp = vector_slot(strvec, i-1);
 				if (*str != '"' && *tmp != '"')
 					strncat(alloc, " ", 1);
 			}
 
-			if (i != VECTOR_SIZE(strvec)-1)
+			if (i != vector_size(strvec)-1)
 				strncat(alloc, str, strlen(str));
 		}
 	} else {
@@ -406,14 +406,14 @@ set_value(vector strvec)
 /* recursive configuration stream handler */
 static int kw_level = 0;
 void
-process_stream(vector keywords_vec)
+process_stream(vector_t *keywords_vec)
 {
 	int i;
-	struct keyword *keyword_vec;
+	keyword_t *keyword_vec;
 	char *str;
 	char *buf;
-	vector strvec;
-	vector prev_keywords = current_keywords;
+	vector_t *strvec;
+	vector_t *prev_keywords = current_keywords;
 	current_keywords = keywords_vec;
 
 	buf = zalloc(MAXBUF);
@@ -424,15 +424,15 @@ process_stream(vector keywords_vec)
 		if (!strvec)
 			continue;
 
-		str = VECTOR_SLOT(strvec, 0);
+		str = vector_slot(strvec, 0);
 
 		if (!strcmp(str, EOB) && kw_level > 0) {
 			free_strvec(strvec);
 			break;
 		}
 
-		for (i = 0; i < VECTOR_SIZE(keywords_vec); i++) {
-			keyword_vec = VECTOR_SLOT(keywords_vec, i);
+		for (i = 0; i < vector_size(keywords_vec); i++) {
+			keyword_vec = vector_slot(keywords_vec, i);
 
 			if (!strcmp(keyword_vec->string, str)) {
 				if (keyword_vec->handler)
@@ -457,7 +457,7 @@ process_stream(vector keywords_vec)
 
 /* Data initialization */
 void
-init_data(char *conf_file, vector (*init_keywords) (void))
+init_data(char *conf_file, vector_t * (*init_keywords) (void))
 {
 	/* Init Keywords structure */
 	keywords = vector_alloc();

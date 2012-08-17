@@ -1,15 +1,1 @@
-* Insert LDAP, FTP, SSH, IMAP, POP, RADIUS checkers.
-* documentation:
-	- hackers guide
-* code cleanup:
-	- check_ssl.c audit the password_cb() call back func
-	  for buffer overflow.
-	- check smtp.c to release allocated buffer when terminate
-	  thread is registered. Occur when sigint is receive when
-	  smtp alertes have not been able to finish the whole sending
-	  sequence.
-* more choice with parameters, less hardcoded values
-* functionality:
-	- hooks in VRRP framework for external checktools.
-	  As state transition decision
-	- a VTYSH to administrate keepalived on the fly
+Whatever you want !
