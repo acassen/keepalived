@@ -40,7 +40,7 @@
 
 /* VRRP script tracking defaults */
 #define VRRP_SCRIPT_DI 1       /* external script track interval (in sec) */
-#define VRRP_SCRIPT_DT 1       /* external script track timeout (in sec) */
+#define VRRP_SCRIPT_DT 0       /* external script track timeout (in sec) */
 #define VRRP_SCRIPT_DW 0       /* external script default weight */
 
 /* VRRP script tracking results.
