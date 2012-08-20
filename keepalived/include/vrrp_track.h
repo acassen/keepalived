@@ -39,8 +39,9 @@
 #define SCRIPT_ISUP(L)	(vrrp_script_up((L)))
 
 /* VRRP script tracking defaults */
-#define VRRP_SCRIPT_DI 1       /* external script track interval (in sec) */
-#define VRRP_SCRIPT_DW 0       /* external script default weight */
+#define VRRP_SCRIPT_DI 1	/* external script track interval (in sec) */
+#define VRRP_SCRIPT_DT 0	/* external script track timeout (in sec) */
+#define VRRP_SCRIPT_DW 0	/* external script default weight */
 
 /* VRRP script tracking results.
  * The result is an integer between 0 and rise-1 to indicate a DOWN state,
@@ -57,7 +58,8 @@
 typedef struct _vrrp_script {
 	char *sname;		/* instance name */
 	char *script;		/* the command to be called */
-	int interval;		/* interval between script calls */
+	long interval;		/* interval between script calls */
+	long timeout;		/* seconds before script timeout */
 	int weight;		/* weight associated to this script */
 	int result;		/* result of last call to this script: 0..R-1 = KO, R..R+F-1 = OK */
 	int inuse;		/* how many users have weight>0 ? */

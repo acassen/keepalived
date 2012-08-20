@@ -116,6 +116,7 @@ dump_vscript(void *data)
 	log_message(LOG_INFO, " VRRP Script = %s", vscript->sname);
 	log_message(LOG_INFO, "   Command = %s", vscript->script);
 	log_message(LOG_INFO, "   Interval = %d sec", vscript->interval / TIMER_HZ);
+	log_message(LOG_INFO, "   Timeout = %d sec", vscript->timeout / TIMER_HZ);
 	log_message(LOG_INFO, "   Weight = %d", vscript->weight);
 	log_message(LOG_INFO, "   Rise = %d", vscript->rise);
 	log_message(LOG_INFO, "   Fall = %d", vscript->fall);
@@ -377,6 +378,7 @@ alloc_vrrp_script(char *sname)
 	new->sname = (char *) MALLOC(size + 1);
 	memcpy(new->sname, sname, size + 1);
 	new->interval = VRRP_SCRIPT_DI * TIMER_HZ;
+	new->timeout = VRRP_SCRIPT_DT * TIMER_HZ;
 	new->weight = VRRP_SCRIPT_DW;
 	new->result = VRRP_SCRIPT_STATUS_INIT;
 	new->inuse = 0;

@@ -426,6 +426,14 @@ vrrp_vscript_interval_handler(vector_t *strvec)
 		vscript->interval = TIMER_HZ;
 }
 static void
+vrrp_vscript_timeout_handler(vector_t *strvec)
+{
+	vrrp_script *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+	vscript->timeout = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
+	if (vscript->timeout < TIMER_HZ)
+		vscript->timeout = TIMER_HZ;
+}
+static void
 vrrp_vscript_weight_handler(vector_t *strvec)
 {
 	vrrp_script *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
@@ -502,6 +510,7 @@ vrrp_init_keywords(void)
 	install_keyword_root("vrrp_script", &vrrp_script_handler);
 	install_keyword("script", &vrrp_vscript_script_handler);
 	install_keyword("interval", &vrrp_vscript_interval_handler);
+	install_keyword("timeout", &vrrp_vscript_timeout_handler);
 	install_keyword("weight", &vrrp_vscript_weight_handler);
 	install_keyword("rise", &vrrp_vscript_rise_handler);
 	install_keyword("fall", &vrrp_vscript_fall_handler);

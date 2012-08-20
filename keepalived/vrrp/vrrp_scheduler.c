@@ -956,10 +956,9 @@ vrrp_script_thread(thread_t * thread)
 
 	/* In case of this is parent process */
 	if (pid) {
-		long timeout;
-		timeout = vscript->interval;
 		thread_add_child(thread->master, vrrp_script_child_thread,
-				 vscript, pid, timeout);
+				 vscript, pid,
+				 (vscript->timeout) ? vscript->timeout : vscript->interval);
 		return 0;
 	}
 
