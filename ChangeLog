@@ -1,3 +1,73 @@
+2012-08-20  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.6 released.
+	* Rename global config data variable 'global_data'.
+	  From Ryan O'Hara :
+	  This patch renames the global configuration data
+	  variable from 'data' to 'global_data'. Three reasons for
+	  renaming this varibale:
+	  - Fixes shadow declaration of 'data' in several locations.
+	  - Is more consistent with other global data variables
+	    (ie. vrrp_data, check_data).
+	  - Functions like free_global_data and dump_global_data were
+	    ignoring conf_data_t argument and using global variable
+	    instead.
+	* Ryan O'Hara: Fix shadow declaration of 'vrrp_data' variable.
+	* Ryan O'Hara: Fix shadow declaration of 'check_data' variable.
+	* Ryan O'Hara: Remove shadow declaration of 'element e' in
+	  vrrp_init_state.
+	* check: Avoid the use of kernel defines in libipvs userland
+	  prototypes.
+	* vrrp: Correctly handle macvlan interface when config file is
+	  re-loaded. From Bob Gilligan :
+	  Testing with the 1.2.0 branch, bring keepalived up with a
+	  vrrp_instance that is configured with use_vmac.  Then delete
+	  that vrrp_instance from the config file.  Then tell keepalived
+	  to re-read its config file with SIGHUP.  The vrrp_instance will
+	  be stopped, but the macvlan interface will remain.  The obvious
+	  fix would be to add code to call netlink_link_del_vmac() in
+	  clear_diff_vrrp().  There's one problem with that: the code
+	  needs the ifindex of the macvlan interface to delete it, but
+	  that resides in the interface structure that was freed earlier
+	  in the reload process.  My fix is to add a field to the
+	  vrrp_rt struct to remember the macvlan ifindex.  This patch
+	  addresses this problem plus two others that can occur in
+	  reloading the config file:  1) If the vrrp_instance
+	  configuration is kept, but the use_vmac entry is removed, the
+	  macvlan interface will not be deleted; 2) If a vrrp_instance
+	  with use_vmac is left unchanged, the code will attempt to
+	  re-create the macvlan interface, but this will fail and the
+	  program will end up not using the macvlan interface.
+	* vrrp: VRRP should notify other routers before it does any
+	  action that effects traffic flow. From John Southworth:
+	  Move the shutdown_vrrp_instances code to before the deletion
+	  of sock_pool. Move sending priority 0 adverts to before address
+	  removal occurs
+	* vrrp: From John Southworth: Stop timers before shutting down
+	  vrrp instances. This is to avoid a possible condition where
+	  a priority 0 advertisement is sent and before the master
+	  thread is killed another advertisement can be generated and sent.
+	* vrrp: Change when socket fd's are freed.
+	  From John Southworth:
+	  Priority 0 advertisements were not being sent as desired on
+	  config reload. This was causing long delays on manually failed
+	  over instances. The socket pool was being freed too early, as a
+	  result the file descriptor for the socket was no longer valid at
+	  the time the priority 0 advertisment was attempted.
+	* vrrp: Added a separate timeout parameter for vrrp_script checks
+	  From Jonathan Harden:
+	  I've added a timeout parameter to the vrrp check scripts which
+	  allow you to have the check timeout different to the interval.
+	  When no timeout has been specified the interval is used (which
+	  mimics the current behaviour).  To explain the reasoning: We
+	  wanted to have check scripts time out faster than our check
+	  interval. Doing the check we need to perform is a little load
+	  intensive and so we don't want to perform it every few seconds.
+	  With this patch we set an interval of 60 seconds but a timeout
+	  of 5 seconds (if the check takes more than a few seconds then
+	  the service is not working correctly).
+	* Extended vector lib for futur work
+	* some cosmetics.
+
 2012-08-13  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.5 released.
 	* Merge SNMP support from Vincent Bernat.
