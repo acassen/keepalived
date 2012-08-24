@@ -1074,10 +1074,10 @@ check_snmp_rs_trap(real_server *rs, virtual_server *vs)
 
 	/* routerId */
 	snmp_varlist_add_variable(&notification_vars,
-			routerId_oid, routerId_oid_len,
-			ASN_OCTET_STR,
-			(u_char *)global_data->router_id,
-			strlen(global_data->router_id));
+				  routerId_oid, routerId_oid_len,
+				  ASN_OCTET_STR,
+				  (u_char *)global_data->router_id,
+				  strlen(global_data->router_id));
 
 	send_v2trap(notification_vars);
 	snmp_free_varbind(notification_vars);

@@ -1109,10 +1109,10 @@ vrrp_snmp_instance_trap(vrrp_rt *vrrp)
 
 	/* routerId */
 	snmp_varlist_add_variable(&notification_vars,
-			routerId_oid, routerId_oid_len,
-			ASN_OCTET_STR,
-			(u_char *)global_data->router_id,
-			strlen(global_data->router_id));
+				  routerId_oid, routerId_oid_len,
+				  ASN_OCTET_STR,
+				  (u_char *)global_data->router_id,
+				  strlen(global_data->router_id));
 
 	log_message(LOG_INFO,
 		    "VRRP_Instance(%s): Sending SNMP notification",
@@ -1168,10 +1168,10 @@ vrrp_snmp_group_trap(vrrp_sgroup *group)
 
 	/* routerId */
 	snmp_varlist_add_variable(&notification_vars,
-			routerId_oid, routerId_oid_len,
-			ASN_OCTET_STR,
-			(u_char *)global_data->router_id,
-			strlen(global_data->router_id));
+				  routerId_oid, routerId_oid_len,
+				  ASN_OCTET_STR,
+				  (u_char *)global_data->router_id,
+				  strlen(global_data->router_id));
 
 	log_message(LOG_INFO,
 		    "VRRP_Group(%s): Sending SNMP notification",
