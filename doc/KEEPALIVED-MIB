@@ -22,13 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "200904080000Z"
+     LAST-UPDATED "201208240000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
-
+     REVISION "201208240000Z"
+     DESCRIPTION "routerId added to traps variables"
      REVISION "200904080000Z"
      DESCRIPTION "Initial revision"
 
@@ -1064,7 +1065,8 @@ vrrpTrapControl OBJECT IDENTIFIER ::= { vrrpTrap 1 }
 vrrpSyncGroupStateChange NOTIFICATION-TYPE
     OBJECTS {
     	vrrpSyncGroupName,
-	vrrpSyncGroupState
+	vrrpSyncGroupState,
+	routerId
     }
     STATUS current
     DESCRIPTION
@@ -1076,7 +1078,8 @@ vrrpInstanceStateChange NOTIFICATION-TYPE
     OBJECTS {
     	vrrpInstanceName,
 	vrrpInstanceState,
-	vrrpInstanceInitialState
+	vrrpInstanceInitialState,
+	routerId
     }
     STATUS current
     DESCRIPTION
@@ -1908,7 +1911,8 @@ realServerStateChange NOTIFICATION-TYPE
 	virtualServerType,
 	virtualServerProtocol,
 	virtualServerRealServersUp,
-	virtualServerRealServersTotal
+	virtualServerRealServersTotal,
+	routerId
     }
     STATUS current
     DESCRIPTION
@@ -1926,7 +1930,8 @@ virtualServerQuorumStateChange NOTIFICATION-TYPE
 	virtualServerQuorumStatus,
 	virtualServerQuorum,
 	virtualServerRealServersUp,
-	virtualServerRealServersTotal
+	virtualServerRealServersTotal,
+	routerId
     }
     STATUS current
     DESCRIPTION

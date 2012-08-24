@@ -1070,6 +1070,8 @@ vrrp_snmp_instance_trap(vrrp_rt *vrrp)
 	size_t state_oid_len = OID_LENGTH(state_oid);
 	oid initialstate_oid[] = { VRRP_OID, 3, 1, 5};
 	size_t initialstate_oid_len = OID_LENGTH(initialstate_oid);
+	oid routerId_oid[] = { KEEPALIVED_OID, 1, 2, 0 };
+	size_t routerId_oid_len = OID_LENGTH(routerId_oid);
 
 	netsnmp_variable_list *notification_vars = NULL;
 
@@ -1105,6 +1107,13 @@ vrrp_snmp_instance_trap(vrrp_rt *vrrp)
 				  (u_char *)&istate,
 				  sizeof(istate));
 
+	/* routerId */
+	snmp_varlist_add_variable(&notification_vars,
+			routerId_oid, routerId_oid_len,
+			ASN_OCTET_STR,
+			(u_char *)global_data->router_id,
+			strlen(global_data->router_id));
+
 	log_message(LOG_INFO,
 		    "VRRP_Instance(%s): Sending SNMP notification",
 		    vrrp->iname);
@@ -1123,10 +1132,12 @@ vrrp_snmp_group_trap(vrrp_sgroup *group)
 	size_t objid_snmptrap_len = OID_LENGTH(objid_snmptrap);
 
 	/* Other OID */
-	oid name_oid[] = { VRRP_OID, 3, 1, 2 };
+	oid name_oid[] = { VRRP_OID, 1, 1, 2 };
 	size_t name_oid_len = OID_LENGTH(name_oid);
-	oid state_oid[] = { VRRP_OID, 3, 1, 4 };
+	oid state_oid[] = { VRRP_OID, 1, 1, 3 };
 	size_t state_oid_len = OID_LENGTH(state_oid);
+	oid routerId_oid[] = { KEEPALIVED_OID, 1, 2, 0 };
+	size_t routerId_oid_len = OID_LENGTH(routerId_oid);
 
 	netsnmp_variable_list *notification_vars = NULL;
 
@@ -1140,19 +1151,27 @@ vrrp_snmp_group_trap(vrrp_sgroup *group)
 				  ASN_OBJECT_ID,
 				  (u_char *) notification_oid,
 				  notification_oid_len * sizeof(oid));
-	/* vrrpInstanceName */
+
+	/* vrrpSyncGroupName */
 	snmp_varlist_add_variable(&notification_vars,
 				  name_oid, name_oid_len,
 				  ASN_OCTET_STR,
 				  (u_char *)group->gname,
                                   strlen(group->gname));
-	/* vrrpInstanceState */
+	/* vrrpSyncGroupState */
 	state = vrrp_snmp_state(group->state);
 	snmp_varlist_add_variable(&notification_vars,
 				  state_oid, state_oid_len,
 				  ASN_INTEGER,
 				  (u_char *)&state,
 				  sizeof(state));
+
+	/* routerId */
+	snmp_varlist_add_variable(&notification_vars,
+			routerId_oid, routerId_oid_len,
+			ASN_OCTET_STR,
+			(u_char *)global_data->router_id,
+			strlen(global_data->router_id));
 
 	log_message(LOG_INFO,
 		    "VRRP_Group(%s): Sending SNMP notification",

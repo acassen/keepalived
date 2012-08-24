@@ -935,6 +935,8 @@ check_snmp_rs_trap(real_server *rs, virtual_server *vs)
 	oid quorum_oid[] = {CHECK_OID, 3, 1, 22 };
 	size_t quorum_oid_len = OID_LENGTH(quorum_oid);
 	static unsigned long quorum;
+	oid routerId_oid[] = { KEEPALIVED_OID, 1, 2, 0 };
+	size_t routerId_oid_len = OID_LENGTH(routerId_oid);
 
 	netsnmp_variable_list *notification_vars = NULL;
 
@@ -1069,6 +1071,13 @@ check_snmp_rs_trap(real_server *rs, virtual_server *vs)
 				  ASN_UNSIGNED,
 				  (u_char *)&realtotal,
 				  sizeof(realtotal));
+
+	/* routerId */
+	snmp_varlist_add_variable(&notification_vars,
+			routerId_oid, routerId_oid_len,
+			ASN_OCTET_STR,
+			(u_char *)global_data->router_id,
+			strlen(global_data->router_id));
 
 	send_v2trap(notification_vars);
 	snmp_free_varbind(notification_vars);
