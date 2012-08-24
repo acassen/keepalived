@@ -55,8 +55,7 @@ typedef unsigned int checker_id_t;
 #define KEEPALIVED_DEFAULT_DELAY	(60 * TIMER_HZ) 
 
 /* SSL specific data */
-typedef struct _ssl_data SSL_DATA;
-typedef struct _ssl_data {
+typedef struct ssl_data {
 	int enable;
 	int strong_check;
 	SSL_CTX *ctx;
@@ -65,7 +64,7 @@ typedef struct _ssl_data {
 	char *cafile;
 	char *certfile;
 	char *keyfile;
-} ssl_data;
+} ssl_data_t;
 
 /* Real Server definition */
 typedef struct _real_server {
@@ -142,7 +141,7 @@ typedef struct _virtual_server {
 
 /* Configuration data root */
 typedef struct _check_conf_data {
-	SSL_DATA *ssl;
+	ssl_data_t *ssl;
 	list vs_group;
 	list vs;
 } check_conf_data;
@@ -233,7 +232,7 @@ extern check_conf_data *check_data;
 extern check_conf_data *old_check_data;
 
 /* prototypes */
-extern SSL_DATA *alloc_ssl(void);
+extern ssl_data_t *alloc_ssl(void);
 extern void free_ssl(void);
 extern void alloc_vsg(char *);
 extern void alloc_vsg_entry(vector_t *);

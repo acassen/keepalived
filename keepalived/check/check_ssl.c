@@ -36,7 +36,7 @@
 /* SSL primitives */
 /* Free an SSL context */
 void
-clear_ssl(SSL_DATA * ssl)
+clear_ssl(ssl_data_t *ssl)
 {
 	if (ssl)
 		if (ssl->ctx)
@@ -47,7 +47,7 @@ clear_ssl(SSL_DATA * ssl)
 static int
 password_cb(char *buf, int num, int rwflag, void *userdata)
 {
-	SSL_DATA *ssl = (SSL_DATA *) userdata;
+	ssl_data_t *ssl = (ssl_data_t *) userdata;
 	unsigned int plen = strlen(ssl->password);
 
 	if (num < plen + 1)
@@ -62,7 +62,7 @@ static BIO *bio_err = 0;
 static int
 build_ssl_ctx(void)
 {
-	SSL_DATA *ssl;
+	ssl_data_t *ssl;
 
 	/* Library initialization */
 	SSL_library_init();
@@ -71,7 +71,7 @@ build_ssl_ctx(void)
 	bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
 
 	if (!check_data->ssl)
-		ssl = (SSL_DATA *) MALLOC(sizeof (ssl_data));
+		ssl = (ssl_data_t *) MALLOC(sizeof(ssl_data_t));
 	else
 		ssl = check_data->ssl;
 
@@ -134,7 +134,7 @@ build_ssl_ctx(void)
 int
 init_ssl_ctx(void)
 {
-	SSL_DATA *ssl = check_data->ssl;
+	ssl_data_t *ssl = check_data->ssl;
 
 	if (!build_ssl_ctx()) {
 		log_message(LOG_INFO, "Error Initialize SSL, ctx Instance");

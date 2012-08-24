@@ -33,16 +33,16 @@ check_conf_data *check_data = NULL;
 check_conf_data *old_check_data = NULL;
 
 /* SSL facility functions */
-SSL_DATA *
+ssl_data_t *
 alloc_ssl(void)
 {
-	SSL_DATA *ssl = (SSL_DATA *) MALLOC(sizeof (SSL_DATA));
+	ssl_data_t *ssl = (ssl_data_t *) MALLOC(sizeof(ssl_data_t));
 	return ssl;
 }
 void
 free_ssl(void)
 {
-	SSL_DATA *ssl = check_data->ssl;
+	ssl_data_t *ssl = check_data->ssl;
 
 	if (!ssl)
 		return;
@@ -55,7 +55,7 @@ free_ssl(void)
 static void
 dump_ssl(void)
 {
-	SSL_DATA *ssl = check_data->ssl;
+	ssl_data_t *ssl = check_data->ssl;
 
 	if (ssl->password)
 		log_message(LOG_INFO, " Password : %s", ssl->password);
