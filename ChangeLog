@@ -1,3 +1,16 @@
+2012-08-29  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.7 released.
+	* vrrp: fix issue in while using vrrp_script.
+	  Previous patch introduced by Ryan O'Hara about removing
+	  shadow declaration was kind of too much hunting.
+	  Removing element e in this block simply create inconsitency
+	  in upper list walk. So resurected element declaration with e2.
+	* snmp: Mikhail Gaydamaka extended MIB and both vrrp and check
+	  frameworkds to support routerId to var bind.
+	* snmp: Mikhail Gaydamaka fixed oid for vrrpSyncGroupStateChange
+	  var bind.
+	* some cosmetics again and again.
+
 2012-08-20  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.6 released.
 	* Rename global config data variable 'global_data'.
