@@ -193,13 +193,14 @@ vrrp_init_state(list l)
 		 * not running floating priorities on any VRRP instance.
 		 */
 		if (vrrp->sync && !vrrp->sync->global_tracking) {
+			element e2;
 			tracked_sc *sc;
 			tracked_if *tip;
 			int warning = 0;
 
 			if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-				for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e)) {
-					tip = ELEMENT_DATA(e);
+				for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
+					tip = ELEMENT_DATA(e2);
 					if (tip->weight) {
 						tip->weight = 0;
 						warning++;
@@ -208,9 +209,8 @@ vrrp_init_state(list l)
 			}
 
 			if (!LIST_ISEMPTY(vrrp->track_script)) {
-				for (e = LIST_HEAD(vrrp->track_script); e;
-				     ELEMENT_NEXT(e)) {
-					sc = ELEMENT_DATA(e);
+				for (e2 = LIST_HEAD(vrrp->track_script); e2; ELEMENT_NEXT(e2)) {
+					sc = ELEMENT_DATA(e2);
 					if (sc->weight) {
 						sc->scr->inuse--;
 						warning++;
