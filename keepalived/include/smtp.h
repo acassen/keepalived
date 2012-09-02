@@ -68,15 +68,15 @@ do {					\
 } while (0)
 
 /* SMTP thread arguments */
-typedef struct _smtp_thread_arg {
-	int fd;
-	int stage;
-	int email_it;
-	char *subject;
-	char *body;
-	char *buffer;
-	long buflen;
-} smtp_thread_arg;
+typedef struct _smtp {
+	int		fd;
+	int		stage;
+	int		email_it;
+	char		*subject;
+	char		*body;
+	char		*buffer;
+	long		buflen;
+} smtp_t;
 
 /* SMTP command string processing */
 #define SMTP_HELO_CMD    "HELO %s\r\n"
