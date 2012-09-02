@@ -39,30 +39,30 @@
 
 /* email link list */
 typedef struct _email {
-	char *addr;
-} email;
+	char				*addr;
+} email_t;
 
 /* Configuration data root */
-typedef struct _conf_data {
-	int linkbeat_use_polling;
-	char *router_id;
-	char *plugin_dir;
-	char *email_from;
-	struct sockaddr_storage smtp_server;
-	long smtp_connection_to;
-	list email;
+typedef struct _data {
+	int				linkbeat_use_polling;
+	char				*router_id;
+	char				*plugin_dir;
+	char				*email_from;
+	struct sockaddr_storage		smtp_server;
+	long				smtp_connection_to;
+	list				email;
 #ifdef _WITH_SNMP_
-	int enable_traps;
+	int				enable_traps;
 #endif
-} conf_data_t;
+} data_t;
 
 /* Global vars exported */
-extern conf_data_t *global_data; /* Global configuration data */
+extern data_t *global_data; /* Global configuration data */
 
 /* Prototypes */
 extern void alloc_email(char *);
-extern conf_data_t *alloc_global_data(void);
-extern void free_global_data(conf_data_t *);
-extern void dump_global_data(conf_data_t *);
+extern data_t *alloc_global_data(void);
+extern void free_global_data(data_t *);
+extern void dump_global_data(data_t *);
 
 #endif
