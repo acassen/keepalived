@@ -56,14 +56,14 @@ typedef unsigned int checker_id_t;
 
 /* SSL specific data */
 typedef struct _ssl_data {
-	int enable;
-	int strong_check;
-	SSL_CTX *ctx;
-	SSL_METHOD *meth;
-	char *password;
-	char *cafile;
-	char *certfile;
-	char *keyfile;
+	int				enable;
+	int				strong_check;
+	SSL_CTX				*ctx;
+	SSL_METHOD			*meth;
+	char				*password;
+	char				*cafile;
+	char				*certfile;
+	char				*keyfile;
 } ssl_data_t;
 
 /* Real Server definition */
@@ -140,11 +140,11 @@ typedef struct _virtual_server {
 } virtual_server_t;
 
 /* Configuration data root */
-typedef struct _check_conf_data {
-	ssl_data_t *ssl;
-	list vs_group;
-	list vs;
-} check_conf_data;
+typedef struct _check_data {
+	ssl_data_t			*ssl;
+	list				vs_group;
+	list				vs;
+} check_data_t;
 
 /* inline stuff */
 static inline int __ip6_addr_equal(const struct in6_addr *a1,
@@ -228,8 +228,8 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			 (X)->iweight   == (Y)->iweight)
 
 /* Global vars exported */
-extern check_conf_data *check_data;
-extern check_conf_data *old_check_data;
+extern check_data_t *check_data;
+extern check_data_t *old_check_data;
 
 /* prototypes */
 extern ssl_data_t *alloc_ssl(void);
@@ -242,8 +242,8 @@ extern void alloc_ssvr(char *, char *);
 extern void alloc_group(char *);
 extern void alloc_rsgroup(char *, char *);
 extern void set_rsgroup(char *);
-extern check_conf_data *alloc_check_data(void);
-extern void free_check_data(check_conf_data *);
-extern void dump_check_data(check_conf_data *);
+extern check_data_t *alloc_check_data(void);
+extern void free_check_data(check_data_t *);
+extern void dump_check_data(check_data_t *);
 
 #endif

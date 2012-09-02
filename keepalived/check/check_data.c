@@ -29,8 +29,8 @@
 #include "ipwrapper.h"
 
 /* global vars */
-check_conf_data *check_data = NULL;
-check_conf_data *old_check_data = NULL;
+check_data_t *check_data = NULL;
+check_data_t *old_check_data = NULL;
 
 /* SSL facility functions */
 ssl_data_t *
@@ -319,12 +319,12 @@ alloc_rs(char *ip, char *port)
 }
 
 /* data facility functions */
-check_conf_data *
+check_data_t *
 alloc_check_data(void)
 {
-	check_conf_data *new;
+	check_data_t *new;
 
-	new = (check_conf_data *) MALLOC(sizeof (check_conf_data));
+	new = (check_data_t *) MALLOC(sizeof(check_data_t));
 	new->vs = alloc_list(free_vs, dump_vs);
 	new->vs_group = alloc_list(free_vsg, dump_vsg);
 
@@ -332,7 +332,7 @@ alloc_check_data(void)
 }
 
 void
-free_check_data(check_conf_data *data)
+free_check_data(check_data_t *data)
 {
 	free_list(data->vs);
 	free_list(data->vs_group);
@@ -340,7 +340,7 @@ free_check_data(check_conf_data *data)
 }
 
 void
-dump_check_data(check_conf_data *data)
+dump_check_data(check_data_t *data)
 {
 	if (data->ssl) {
 		log_message(LOG_INFO, "------< SSL definitions >------");
