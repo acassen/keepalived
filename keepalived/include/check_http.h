@@ -39,38 +39,38 @@
 /* Checker argument structure  */
 /* ssl specific thread arguments defs */
 typedef struct _request {
-	char *buffer;
-	char *extracted;
-	int error;
-	int status_code;
-	int len;
-	SSL *ssl;
-	BIO *bio;
-	MD5_CTX context;
+	char				*buffer;
+	char				*extracted;
+	int				error;
+	int				status_code;
+	int				len;
+	SSL				*ssl;
+	BIO				*bio;
+	MD5_CTX				context;
 } request_t;
 
 /* http specific thread arguments defs */
-typedef struct _http_arg {
-	int retry_it;		/* current number of get retry */
-	int url_it;		/* current url checked index */
-	request_t *req;		/* GET buffer and SSL args */
-} http_arg_t ;
+typedef struct _http {
+	int				retry_it;	/* current number of get retry */
+	int				url_it;		/* current url checked index */
+	request_t			*req;		/* GET buffer and SSL args */
+} http_t ;
 
 typedef struct _url {
-	char *path;
-	char *digest;
-	int status_code;
+	char				*path;
+	char				*digest;
+	int				status_code;
 } url_t;
 
 typedef struct _http_checker {
-	int proto;
-	struct sockaddr_storage dst;
-	struct sockaddr_storage bindto;
-	long connection_to;
-	int nb_get_retry;
-	long delay_before_retry;
-	list url;
-	http_arg_t *arg;
+	int				proto;
+	struct sockaddr_storage		dst;
+	struct sockaddr_storage		bindto;
+	long				connection_to;
+	int				nb_get_retry;
+	long				delay_before_retry;
+	list				url;
+	http_t				*arg;
 } http_checker_t;
 
 /* global defs */
