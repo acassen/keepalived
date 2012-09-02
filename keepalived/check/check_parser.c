@@ -174,7 +174,7 @@ static void
 weight_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	real_server *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	rs->weight = atoi(vector_slot(strvec, 1));
 	rs->iweight = rs->weight;
 }
@@ -183,14 +183,14 @@ static void
 uthreshold_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	real_server *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	rs->u_threshold = atoi(vector_slot(strvec, 1));
 }
 static void
 lthreshold_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	real_server *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	rs->l_threshold = atoi(vector_slot(strvec, 1));
 }
 #endif
@@ -198,21 +198,21 @@ static void
 inhibit_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	real_server *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	rs->inhibit = 1;
 }
 static void
 notify_up_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	real_server *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	rs->notify_up = set_value(strvec);
 }
 static void
 notify_down_handler(vector_t *strvec)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	real_server *rs = LIST_TAIL_DATA(vs->rs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	rs->notify_down = set_value(strvec);
 }
 static void

@@ -140,7 +140,7 @@ ipvs_group_range_cmd(int cmd, virtual_server_group_entry *vsg_entry)
 
 /* set IPVS group rules */
 static int
-ipvs_group_cmd(int cmd, list vs_group, real_server * rs, char * vsgname)
+ipvs_group_cmd(int cmd, list vs_group, real_server_t * rs, char * vsgname)
 {
 	virtual_server_group *vsg = ipvs_get_group_by_name(vsgname, vs_group);
 	virtual_server_group_entry *vsg_entry;
@@ -198,7 +198,7 @@ ipvs_group_cmd(int cmd, list vs_group, real_server * rs, char * vsgname)
 
 /* Fill IPVS rule with root vs infos */
 void
-ipvs_set_rule(int cmd, virtual_server * vs, real_server * rs)
+ipvs_set_rule(int cmd, virtual_server * vs, real_server_t * rs)
 {
 	/* Clean up target rule */
 	memset(urule, 0, sizeof (struct ip_vs_rule_user));
@@ -235,7 +235,7 @@ ipvs_set_rule(int cmd, virtual_server * vs, real_server * rs)
 
 /* Set/Remove a RS from a VS */
 int
-ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
+ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server_t * rs)
 {
 	int err = 0;
 
@@ -278,7 +278,7 @@ ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
 int
 ipvs_group_remove_entry(virtual_server *vs, virtual_server_group_entry *vsge)
 {
-	real_server *rs;
+	real_server_t *rs;
 	int err = 0;
 	element e;
 	list l = vs->rs;
@@ -455,7 +455,7 @@ ipvs_group_range_cmd(int cmd, virtual_server_group_entry *vsg_entry)
 
 /* set IPVS group rules */
 static void
-ipvs_group_cmd(int cmd, list vs_group, real_server * rs, virtual_server * vs)
+ipvs_group_cmd(int cmd, list vs_group, real_server_t * rs, virtual_server * vs)
 {
 	virtual_server_group *vsg = ipvs_get_group_by_name(vs->vsgname, vs_group);
 	virtual_server_group_entry *vsg_entry;
@@ -495,7 +495,7 @@ ipvs_group_cmd(int cmd, list vs_group, real_server * rs, virtual_server * vs)
 		srule->af = AF_INET;
 		/* Need to get address family from first real server */
 		if (vs->rs && !LIST_ISEMPTY(vs->rs) &&
-		    (((real_server *)ELEMENT_DATA(LIST_HEAD(vs->rs)))->addr.ss_family == AF_INET6)) {
+		    (((real_server_t *)ELEMENT_DATA(LIST_HEAD(vs->rs)))->addr.ss_family == AF_INET6)) {
 			srule->af = AF_INET6;
 			srule->netmask = 128;
 		}
@@ -524,7 +524,7 @@ ipvs_group_cmd(int cmd, list vs_group, real_server * rs, virtual_server * vs)
 
 /* Fill IPVS rule with root vs infos */
 void
-ipvs_set_rule(int cmd, virtual_server * vs, real_server * rs)
+ipvs_set_rule(int cmd, virtual_server * vs, real_server_t * rs)
 {
 	/* Clean target rule */
 	memset(drule, 0, sizeof(ipvs_dest_t));
@@ -568,7 +568,7 @@ ipvs_set_rule(int cmd, virtual_server * vs, real_server * rs)
 
 /* Set/Remove a RS from a VS */
 int
-ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
+ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server_t * rs)
 {
 	/* Allocate the room */
 	memset(srule, 0, sizeof(ipvs_service_t));
@@ -596,7 +596,7 @@ ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
 			srule->af = AF_INET;
 			/* Need to get address family from first real server */
 			if (vs->rs && !LIST_ISEMPTY(vs->rs) &&
-			    (((real_server *)ELEMENT_DATA(LIST_HEAD(vs->rs)))->addr.ss_family == AF_INET6)) {
+			    (((real_server_t *)ELEMENT_DATA(LIST_HEAD(vs->rs)))->addr.ss_family == AF_INET6)) {
 				srule->af = AF_INET6;
 				srule->netmask = 128;
 			}
@@ -621,7 +621,7 @@ ipvs_cmd(int cmd, list vs_group, virtual_server * vs, real_server * rs)
 int
 ipvs_group_remove_entry(virtual_server *vs, virtual_server_group_entry *vsge)
 {
-	real_server *rs;
+	real_server_t *rs;
 	element e;
 	list l = vs->rs;
 
@@ -685,7 +685,7 @@ void
 ipvs_update_stats(virtual_server *vs)
 {
 	element e, ge = NULL;
-	real_server *rs;
+	real_server_t *rs;
 	virtual_server_group *vsg = NULL;
 	virtual_server_group_entry *vsg_entry = NULL;
 	uint32_t addr_ip = 0;

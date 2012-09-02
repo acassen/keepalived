@@ -36,7 +36,7 @@ long unsigned
 weigh_live_realservers(virtual_server * vs)
 {
 	element e;
-	real_server *svr;
+	real_server_t *svr;
 	long unsigned count = 0;
 
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
@@ -52,7 +52,7 @@ static int
 clear_service_rs(list vs_group, virtual_server * vs, list l)
 {
 	element e;
-	real_server *rs;
+	real_server_t *rs;
 	char rsip[INET6_ADDRSTRLEN];
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -147,7 +147,7 @@ static int
 init_service_rs(virtual_server * vs)
 {
 	element e;
-	real_server *rs;
+	real_server_t *rs;
 
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
@@ -218,7 +218,7 @@ void
 perform_quorum_state(virtual_server *vs, int add)
 {
 	element e;
-	real_server *rs;
+	real_server_t *rs;
 
 	if (LIST_ISEMPTY(vs->rs))
 		return;
@@ -324,7 +324,7 @@ update_quorum_state(virtual_server * vs)
 
 /* manipulate add/remove rs according to alive state */
 void
-perform_svr_state(int alive, virtual_server * vs, real_server * rs)
+perform_svr_state(int alive, virtual_server * vs, real_server_t * rs)
 {
 	char rsip[INET6_ADDRSTRLEN];
 
@@ -399,7 +399,7 @@ perform_svr_state(int alive, virtual_server * vs, real_server * rs)
 
 /* Store new weight in real_server struct and then update kernel. */
 void
-update_svr_wgt(int weight, virtual_server * vs, real_server * rs)
+update_svr_wgt(int weight, virtual_server * vs, real_server_t * rs)
 {
 	char rsip[INET6_ADDRSTRLEN];
 
@@ -428,7 +428,7 @@ update_svr_wgt(int weight, virtual_server * vs, real_server * rs)
 
 /* Test if realserver is marked UP for a specific checker */
 int
-svr_checker_up(checker_id_t cid, real_server *rs)
+svr_checker_up(checker_id_t cid, real_server_t *rs)
 {
 	element e;
 	list l = rs->failed_checkers;
@@ -450,7 +450,7 @@ svr_checker_up(checker_id_t cid, real_server *rs)
 
 /* Update checker's state */
 void
-update_svr_checker_state(int alive, checker_id_t cid, virtual_server *vs, real_server *rs)
+update_svr_checker_state(int alive, checker_id_t cid, virtual_server *vs, real_server_t *rs)
 {
 	element e;
 	list l = rs->failed_checkers;
@@ -594,10 +594,10 @@ vs_exist(virtual_server * old_vs)
 
 /* Check if rs is in new vs data */
 static int
-rs_exist(real_server * old_rs, list l)
+rs_exist(real_server_t * old_rs, list l)
 {
 	element e;
-	real_server *rs;
+	real_server_t *rs;
 
 	if (LIST_ISEMPTY(l))
 		return 0;
@@ -648,7 +648,7 @@ clear_diff_rs(virtual_server * old_vs)
 	element e;
 	list l = old_vs->rs;
 	list new = get_rs_list(old_vs);
-	real_server *rs;
+	real_server_t *rs;
 	char rsip[INET6_ADDRSTRLEN];
 
 	/* If old vs didn't own rs then nothing return */

@@ -259,7 +259,7 @@ alloc_ssvr(char *ip, char *port)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
 
-	vs->s_svr = (real_server *) MALLOC(sizeof (real_server));
+	vs->s_svr = (real_server_t *) MALLOC(sizeof(real_server_t));
 	vs->s_svr->weight = 1;
 	vs->s_svr->iweight = 1;
 	inet_stosockaddr(ip, port, &vs->s_svr->addr);
@@ -269,7 +269,7 @@ alloc_ssvr(char *ip, char *port)
 static void
 free_rs(void *data)
 {
-	real_server *rs = data;
+	real_server_t *rs = data;
 	FREE_PTR(rs->notify_up);
 	FREE_PTR(rs->notify_down);
 	free_list(rs->failed_checkers);
@@ -278,7 +278,7 @@ free_rs(void *data)
 static void
 dump_rs(void *data)
 {
-	real_server *rs = data;
+	real_server_t *rs = data;
 
 	log_message(LOG_INFO, "   RIP = %s, RPORT = %d, WEIGHT = %d"
 			    , inet_sockaddrtos(&rs->addr)
@@ -304,9 +304,9 @@ void
 alloc_rs(char *ip, char *port)
 {
 	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
-	real_server *new;
+	real_server_t *new;
 
-	new = (real_server *) MALLOC(sizeof (real_server));
+	new = (real_server_t *) MALLOC(sizeof(real_server_t));
 	inet_stosockaddr(ip, port, &new->addr);
 
 	new->weight = 1;

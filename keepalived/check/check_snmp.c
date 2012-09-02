@@ -366,7 +366,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret = 0;
 		if (!LIST_ISEMPTY(v->rs))
 			for (e = LIST_HEAD(v->rs); e; ELEMENT_NEXT(e))
-				if (((real_server *)ELEMENT_DATA(e))->alive)
+				if (((real_server_t *)ELEMENT_DATA(e))->alive)
 					long_ret++;
 		return (u_char*)&long_ret;
 #if defined(_KRNL_2_6_) && defined(_WITH_LVS_)
@@ -431,7 +431,7 @@ check_snmp_realserver_weight(int action,
 {
 	element e1, e2;
 	virtual_server *vs = NULL;
-	real_server *rs = NULL;
+	real_server_t *rs = NULL;
 	int ivs, irs;
 	switch (action) {
 	case RESERVE1:
@@ -490,7 +490,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
         oid *target, current[2], best[2];
         int result, target_len;
 	int curvirtual = 0, curreal;
-	real_server *e = NULL, *be = NULL;
+	real_server_t *e = NULL, *be = NULL;
 	element e1, e2 = NULL;
 	virtual_server *vs, *bvs = NULL;
 	int state;
@@ -882,7 +882,7 @@ check_snmp_agent_close()
 }
 
 void
-check_snmp_rs_trap(real_server *rs, virtual_server *vs)
+check_snmp_rs_trap(real_server_t *rs, virtual_server *vs)
 {
 	element e;
 
@@ -953,7 +953,7 @@ check_snmp_rs_trap(real_server *rs, virtual_server *vs)
 	realup = 0;
 	if (!LIST_ISEMPTY(vs->rs))
 		for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e))
-			if (((real_server *)ELEMENT_DATA(e))->alive)
+			if (((real_server_t *)ELEMENT_DATA(e))->alive)
 				realup++;
 
 	/* snmpTrapOID */

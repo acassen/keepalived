@@ -55,7 +55,7 @@ typedef unsigned int checker_id_t;
 #define KEEPALIVED_DEFAULT_DELAY	(60 * TIMER_HZ) 
 
 /* SSL specific data */
-typedef struct ssl_data {
+typedef struct _ssl_data {
 	int enable;
 	int strong_check;
 	SSL_CTX *ctx;
@@ -68,29 +68,29 @@ typedef struct ssl_data {
 
 /* Real Server definition */
 typedef struct _real_server {
-	struct sockaddr_storage	addr;
-	int weight;
-	int iweight;		/* Initial weight */
+	struct sockaddr_storage		addr;
+	int				weight;
+	int				iweight;	/* Initial weight */
 #ifdef _KRNL_2_6_
-	uint32_t u_threshold;   /* Upper connection limit. */
-	uint32_t l_threshold;   /* Lower connection limit. */
+	uint32_t			u_threshold;   /* Upper connection limit. */
+	uint32_t			l_threshold;   /* Lower connection limit. */
 #endif
-	int inhibit;		/* Set weight to 0 instead of removing
-				 * the service from IPVS topology.
-				 */
-	char *notify_up;	/* Script to launch when RS is added to LVS */
-	char *notify_down;	/* Script to launch when RS is removed from LVS */
-	int alive;
-	list failed_checkers;	/* List of failed checkers */
-	int set;		/* in the IPVS table */
+	int				inhibit;	/* Set weight to 0 instead of removing
+							 * the service from IPVS topology.
+							 */
+	char				*notify_up;	/* Script to launch when RS is added to LVS */
+	char				*notify_down;	/* Script to launch when RS is removed from LVS */
+	int				alive;
+	list				failed_checkers;/* List of failed checkers */
+	int				set;		/* in the IPVS table */
 #if defined(_WITH_SNMP_) && defined(_KRNL_2_6_) && defined(_WITH_LVS_)
 	/* Statistics */
-	uint32_t activeconns;  /* active connections */
-	uint32_t inactconns;   /* inactive connections */
-	uint32_t persistconns; /* persistent connections */
-	struct ip_vs_stats_user stats;
+	uint32_t			activeconns;	/* active connections */
+	uint32_t			inactconns;	/* inactive connections */
+	uint32_t			persistconns;	/* persistent connections */
+	struct ip_vs_stats_user		stats;
 #endif
-} real_server;
+} real_server_t;
 
 /* Virtual Server group definition */
 typedef struct _virtual_server_group_entry {
@@ -110,8 +110,8 @@ typedef struct _virtual_server_group {
 /* Virtual Server definition */
 typedef struct _virtual_server {
 	char *vsgname;
-	struct sockaddr_storage	addr;
-	real_server *s_svr;
+	struct sockaddr_storage		addr;
+	real_server_t *s_svr;
 	uint32_t vfwmark;
 	uint16_t service_type;
 	long delay_loop;

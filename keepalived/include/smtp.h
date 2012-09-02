@@ -90,6 +90,6 @@ typedef struct _smtp {
 #define SMTP_QUIT_CMD    "QUIT\r\n"
 
 /* Prototypes defs */
-extern void smtp_alert(real_server *, vrrp_rt *, vrrp_sgroup *,
+extern void smtp_alert(real_server_t *, vrrp_rt *, vrrp_sgroup *,
 		       const char *, const char *);
 #endif
