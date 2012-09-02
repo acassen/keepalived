@@ -91,9 +91,9 @@ do {						\
 /* prototypes */
 extern int ipvs_start(void);
 extern void ipvs_stop(void);
-extern virtual_server_group *ipvs_get_group_by_name(char *, list);
-extern int ipvs_group_remove_entry(virtual_server *, virtual_server_group_entry *);
-extern int ipvs_cmd(int, list, virtual_server *, real_server_t *);
+extern virtual_server_group_t *ipvs_get_group_by_name(char *, list);
+extern int ipvs_group_remove_entry(virtual_server_t *, virtual_server_group_entry_t *);
+extern int ipvs_cmd(int, list, virtual_server_t *, real_server_t *);
 extern int ipvs_syncd_cmd(int, char *, int, int);
 extern void ipvs_syncd_master(char *, int);
 extern void ipvs_syncd_backup(char *, int);
@@ -101,7 +101,7 @@ extern void ipvs_syncd_backup(char *, int);
 #ifdef _KRNL_2_6_
 /* Refresh statistics at most every 5 seconds */
 #define STATS_REFRESH 5
-extern void ipvs_update_stats(virtual_server * vs);
+extern void ipvs_update_stats(virtual_server_t * vs);
 #endif
 
 #endif

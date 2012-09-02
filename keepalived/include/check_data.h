@@ -94,50 +94,50 @@ typedef struct _real_server {
 
 /* Virtual Server group definition */
 typedef struct _virtual_server_group_entry {
-	struct sockaddr_storage	addr;
-	uint8_t range;
-	uint32_t vfwmark;
-	int alive;
-} virtual_server_group_entry;
+	struct sockaddr_storage		addr;
+	uint8_t				range;
+	uint32_t			vfwmark;
+	int				alive;
+} virtual_server_group_entry_t;
 
 typedef struct _virtual_server_group {
-	char *gname;
-	list addr_ip;
-	list range;
-	list vfwmark;
-} virtual_server_group;
+	char				*gname;
+	list				addr_ip;
+	list				range;
+	list				vfwmark;
+} virtual_server_group_t;
 
 /* Virtual Server definition */
 typedef struct _virtual_server {
-	char *vsgname;
+	char				*vsgname;
 	struct sockaddr_storage		addr;
-	real_server_t *s_svr;
-	uint32_t vfwmark;
-	uint16_t service_type;
-	long delay_loop;
-	int ha_suspend;
-	char sched[SCHED_MAX_LENGTH];
-	char timeout_persistence[MAX_TIMEOUT_LENGTH];
-	unsigned loadbalancing_kind;
-	uint32_t nat_mask;
-	uint32_t granularity_persistence;
-	char *virtualhost;
-	list rs;
-	int alive;
-	unsigned alpha;			/* Alpha mode enabled. */
-	unsigned omega;			/* Omega mode enabled. */
-	char *quorum_up;		/* A hook to call when the VS gains quorum. */
-	char * quorum_down;		/* A hook to call when the VS loses quorum. */
-	long unsigned quorum;		/* Minimum live RSs to consider VS up. */
+	real_server_t			*s_svr;
+	uint32_t			vfwmark;
+	uint16_t			service_type;
+	long				delay_loop;
+	int				ha_suspend;
+	char				sched[SCHED_MAX_LENGTH];
+	char				timeout_persistence[MAX_TIMEOUT_LENGTH];
+	unsigned			loadbalancing_kind;
+	uint32_t			nat_mask;
+	uint32_t			granularity_persistence;
+	char				*virtualhost;
+	list				rs;
+	int				alive;
+	unsigned			alpha;		/* Alpha mode enabled. */
+	unsigned			omega;		/* Omega mode enabled. */
+	char				*quorum_up;	/* A hook to call when the VS gains quorum. */
+	char				*quorum_down;	/* A hook to call when the VS loses quorum. */
+	long unsigned			quorum;		/* Minimum live RSs to consider VS up. */
 
-	long unsigned hysteresis;	/* up/down events "lag" WRT quorum. */
-	unsigned quorum_state;		/* Reflects result of the last transition done. */
+	long unsigned			hysteresis;	/* up/down events "lag" WRT quorum. */
+	unsigned			quorum_state;	/* Reflects result of the last transition done. */
 #if defined(_WITH_SNMP_) && defined(_KRNL_2_6_) && defined(_WITH_LVS_)
 	/* Statistics */
-	time_t lastupdated;
-	struct ip_vs_stats_user stats;
+	time_t				lastupdated;
+	struct ip_vs_stats_user		stats;
 #endif
-} virtual_server;
+} virtual_server_t;
 
 /* Configuration data root */
 typedef struct _check_conf_data {

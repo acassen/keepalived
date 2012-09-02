@@ -33,7 +33,7 @@ typedef struct _checker {
 	void (*dump_func) (void *);
 	int (*launch) (struct _thread *);
 	int (*plugin_launch) (void *);
-	virtual_server *vs;	/* pointer to the checker thread virtualserver */
+	virtual_server_t *vs;	/* pointer to the checker thread virtualserver */
 	real_server_t *rs;	/* pointer to the checker thread realserver */
 	void *data;
 	checker_id_t id;	/* Checker identifier */

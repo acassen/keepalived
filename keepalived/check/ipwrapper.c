@@ -33,7 +33,7 @@
 
 /* Returns the sum of all RS weight in a virtual server. */
 long unsigned
-weigh_live_realservers(virtual_server * vs)
+weigh_live_realservers(virtual_server_t * vs)
 {
 	element e;
 	real_server_t *svr;
@@ -49,7 +49,7 @@ weigh_live_realservers(virtual_server * vs)
 
 /* Remove a realserver IPVS rule */
 static int
-clear_service_rs(list vs_group, virtual_server * vs, list l)
+clear_service_rs(list vs_group, virtual_server_t * vs, list l)
 {
 	element e;
 	real_server_t *rs;
@@ -106,7 +106,7 @@ clear_service_rs(list vs_group, virtual_server * vs, list l)
 
 /* Remove a virtualserver IPVS rule */
 static int
-clear_service_vs(list vs_group, virtual_server * vs)
+clear_service_vs(list vs_group, virtual_server_t * vs)
 {
 	/* Processing real server queue */
 	if (!LIST_ISEMPTY(vs->rs)) {
@@ -132,7 +132,7 @@ clear_services(void)
 {
 	element e;
 	list l = check_data->vs;
-	virtual_server *vs;
+	virtual_server_t *vs;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
@@ -144,7 +144,7 @@ clear_services(void)
 
 /* Set a realserver IPVS rules */
 static int
-init_service_rs(virtual_server * vs)
+init_service_rs(virtual_server_t * vs)
 {
 	element e;
 	real_server_t *rs;
@@ -177,7 +177,7 @@ init_service_rs(virtual_server * vs)
 
 /* Set a virtualserver IPVS rules */
 static int
-init_service_vs(virtual_server * vs)
+init_service_vs(virtual_server_t * vs)
 {
 	/* Init the VS root */
 	if (!ISALIVE(vs) || vs->vsgname) {
@@ -203,7 +203,7 @@ init_services(void)
 {
 	element e;
 	list l = check_data->vs;
-	virtual_server *vs;
+	virtual_server_t *vs;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
@@ -215,7 +215,7 @@ init_services(void)
 
 /* add or remove _alive_ real servers from a virtual server */
 void
-perform_quorum_state(virtual_server *vs, int add)
+perform_quorum_state(virtual_server_t *vs, int add)
 {
 	element e;
 	real_server_t *rs;
@@ -240,7 +240,7 @@ perform_quorum_state(virtual_server *vs, int add)
 
 /* set quorum state depending on current weight of real servers */
 void
-update_quorum_state(virtual_server * vs)
+update_quorum_state(virtual_server_t * vs)
 {
 	char rsip[INET6_ADDRSTRLEN];
 
@@ -324,7 +324,7 @@ update_quorum_state(virtual_server * vs)
 
 /* manipulate add/remove rs according to alive state */
 void
-perform_svr_state(int alive, virtual_server * vs, real_server_t * rs)
+perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 {
 	char rsip[INET6_ADDRSTRLEN];
 
@@ -399,7 +399,7 @@ perform_svr_state(int alive, virtual_server * vs, real_server_t * rs)
 
 /* Store new weight in real_server struct and then update kernel. */
 void
-update_svr_wgt(int weight, virtual_server * vs, real_server_t * rs)
+update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs)
 {
 	char rsip[INET6_ADDRSTRLEN];
 
@@ -450,7 +450,7 @@ svr_checker_up(checker_id_t cid, real_server_t *rs)
 
 /* Update checker's state */
 void
-update_svr_checker_state(int alive, checker_id_t cid, virtual_server *vs, real_server_t *rs)
+update_svr_checker_state(int alive, checker_id_t cid, virtual_server_t *vs, real_server_t *rs)
 {
 	element e;
 	list l = rs->failed_checkers;
@@ -487,10 +487,10 @@ update_svr_checker_state(int alive, checker_id_t cid, virtual_server *vs, real_s
 
 /* Check if a vsg entry is in new data */
 static int
-vsge_exist(virtual_server_group_entry *vsg_entry, list l)
+vsge_exist(virtual_server_group_entry_t *vsg_entry, list l)
 {
 	element e;
-	virtual_server_group_entry *vsge;
+	virtual_server_group_entry_t *vsge;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vsge = ELEMENT_DATA(e);
@@ -510,9 +510,9 @@ vsge_exist(virtual_server_group_entry *vsg_entry, list l)
 
 /* Clear the diff vsge of old group */
 static int
-clear_diff_vsge(list old, list new, virtual_server * old_vs)
+clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 {
-	virtual_server_group_entry *vsge;
+	virtual_server_group_entry_t *vsge;
 	element e;
 
 	for (e = LIST_HEAD(old); e; ELEMENT_NEXT(e)) {
@@ -535,10 +535,10 @@ clear_diff_vsge(list old, list new, virtual_server * old_vs)
 
 /* Clear the diff vsg of the old vs */
 static int
-clear_diff_vsg(virtual_server * old_vs)
+clear_diff_vsg(virtual_server_t * old_vs)
 {
-	virtual_server_group *old;
-	virtual_server_group *new;
+	virtual_server_group_t *old;
+	virtual_server_group_t *new;
 
 	/* Fetch group */
 	old = ipvs_get_group_by_name(old_vs->vsgname, old_check_data->vs_group);
@@ -557,12 +557,12 @@ clear_diff_vsg(virtual_server * old_vs)
 
 /* Check if a vs exist in new data */
 static int
-vs_exist(virtual_server * old_vs)
+vs_exist(virtual_server_t * old_vs)
 {
 	element e;
 	list l = check_data->vs;
-	virtual_server *vs;
-	virtual_server_group *vsg;
+	virtual_server_t *vs;
+	virtual_server_group_t *vsg;
 
 	if (LIST_ISEMPTY(l))
 		return 0;
@@ -622,11 +622,11 @@ rs_exist(real_server_t * old_rs, list l)
 
 /* get rs list for a specific vs */
 static list
-get_rs_list(virtual_server * vs)
+get_rs_list(virtual_server_t * vs)
 {
 	element e;
 	list l = check_data->vs;
-	virtual_server *vsvr;
+	virtual_server_t *vsvr;
 
 	if (LIST_ISEMPTY(l))
 		return NULL;
@@ -643,7 +643,7 @@ get_rs_list(virtual_server * vs)
 
 /* Clear the diff rs of the old vs */
 static int
-clear_diff_rs(virtual_server * old_vs)
+clear_diff_rs(virtual_server_t * old_vs)
 {
 	element e;
 	list l = old_vs->rs;
@@ -682,7 +682,7 @@ clear_diff_services(void)
 {
 	element e;
 	list l = old_check_data->vs;
-	virtual_server *vs;
+	virtual_server_t *vs;
 
 	/* If old config didn't own vs then nothing return */
 	if (LIST_ISEMPTY(l))

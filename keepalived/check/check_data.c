@@ -73,7 +73,7 @@ dump_ssl(void)
 static void
 free_vsg(void *data)
 {
-	virtual_server_group *vsg = data;
+	virtual_server_group_t *vsg = data;
 	FREE_PTR(vsg->gname);
 	free_list(vsg->addr_ip);
 	free_list(vsg->range);
@@ -83,7 +83,7 @@ free_vsg(void *data)
 static void
 dump_vsg(void *data)
 {
-	virtual_server_group *vsg = data;
+	virtual_server_group_t *vsg = data;
 
 	log_message(LOG_INFO, " Virtual Server Group = %s", vsg->gname);
 	dump_list(vsg->addr_ip);
@@ -98,7 +98,7 @@ free_vsg_entry(void *data)
 static void
 dump_vsg_entry(void *data)
 {
-	virtual_server_group_entry *vsg_entry = data;
+	virtual_server_group_entry_t *vsg_entry = data;
 
 	if (vsg_entry->vfwmark)
 		log_message(LOG_INFO, "   FWMARK = %d", vsg_entry->vfwmark);
@@ -116,9 +116,9 @@ void
 alloc_vsg(char *gname)
 {
 	int size = strlen(gname);
-	virtual_server_group *new;
+	virtual_server_group_t *new;
 
-	new = (virtual_server_group *) MALLOC(sizeof (virtual_server_group));
+	new = (virtual_server_group_t *) MALLOC(sizeof(virtual_server_group_t));
 	new->gname = (char *) MALLOC(size + 1);
 	memcpy(new->gname, gname, size);
 	new->addr_ip = alloc_list(free_vsg_entry, dump_vsg_entry);
@@ -130,10 +130,10 @@ alloc_vsg(char *gname)
 void
 alloc_vsg_entry(vector_t *strvec)
 {
-	virtual_server_group *vsg = LIST_TAIL_DATA(check_data->vs_group);
-	virtual_server_group_entry *new;
+	virtual_server_group_t *vsg = LIST_TAIL_DATA(check_data->vs_group);
+	virtual_server_group_entry_t *new;
 
-	new = (virtual_server_group_entry *) MALLOC(sizeof (virtual_server_group_entry));
+	new = (virtual_server_group_entry_t *) MALLOC(sizeof(virtual_server_group_entry_t));
 
 	if (!strcmp(vector_slot(strvec, 0), "fwmark")) {
 		new->vfwmark = atoi(vector_slot(strvec, 1));
@@ -152,7 +152,7 @@ alloc_vsg_entry(vector_t *strvec)
 static void
 free_vs(void *data)
 {
-	virtual_server *vs = data;
+	virtual_server_t *vs = data;
 	FREE_PTR(vs->vsgname);
 	FREE_PTR(vs->virtualhost);
 	FREE_PTR(vs->s_svr);
@@ -164,7 +164,7 @@ free_vs(void *data)
 static void
 dump_vs(void *data)
 {
-	virtual_server *vs = data;
+	virtual_server_t *vs = data;
 
 	if (vs->vsgname)
 		log_message(LOG_INFO, " VS GROUP = %s", vs->vsgname);
@@ -226,9 +226,9 @@ void
 alloc_vs(char *ip, char *port)
 {
 	int size = strlen(port);
-	virtual_server *new;
+	virtual_server_t *new;
 
-	new = (virtual_server *) MALLOC(sizeof (virtual_server));
+	new = (virtual_server_t *) MALLOC(sizeof(virtual_server_t));
 
 	if (!strcmp(ip, "group")) {
 		new->vsgname = (char *) MALLOC(size + 1);
@@ -257,7 +257,7 @@ alloc_vs(char *ip, char *port)
 void
 alloc_ssvr(char *ip, char *port)
 {
-	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 
 	vs->s_svr = (real_server_t *) MALLOC(sizeof(real_server_t));
 	vs->s_svr->weight = 1;
@@ -303,7 +303,7 @@ free_failed_checkers(void *data)
 void
 alloc_rs(char *ip, char *port)
 {
-	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *new;
 
 	new = (real_server_t *) MALLOC(sizeof(real_server_t));

@@ -64,7 +64,7 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	      , int (*launch) (thread_t *)
 	      , void *data)
 {
-	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	checker_t *checker = (checker_t *) MALLOC(sizeof (checker_t));
 
@@ -96,7 +96,7 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 void
 checker_set_dst(struct sockaddr_storage *dst)
 {
-	virtual_server *vs = LIST_TAIL_DATA(check_data->vs);
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 
 	*dst = rs->addr;

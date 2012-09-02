@@ -31,9 +31,9 @@ static u_char*
 check_snmp_vsgroup(struct variable *vp, oid *name, size_t *length,
 		   int exact, size_t *var_len, WriteMethod **write_method)
 {
-	virtual_server_group *g;
+	virtual_server_group_t *g;
 
-	if ((g = (virtual_server_group *)
+	if ((g = (virtual_server_group_t *)
 	     snmp_header_list_table(vp, name, length, exact,
 				    var_len, write_method,
 				    check_data->vs_group)) == NULL)
@@ -60,8 +60,8 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
         int result, target_len;
 	int curgroup = 0, curentry;
 	element e1, e2;
-	virtual_server_group *group;
-	virtual_server_group_entry *e, *be = NULL;
+	virtual_server_group_t *group;
+	virtual_server_group_entry_t *e, *be = NULL;
 	int state;
 	list l;
 
@@ -212,10 +212,10 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 #ifdef _KRNL_2_6_
 	static U64 counter64_ret;
 #endif
-	virtual_server *v;
+	virtual_server_t *v;
 	element e;
 
-	if ((v = (virtual_server *)
+	if ((v = (virtual_server_t *)
 	     snmp_header_list_table(vp, name, length, exact,
 				    var_len, write_method,
 				    check_data->vs)) == NULL)
@@ -430,7 +430,7 @@ check_snmp_realserver_weight(int action,
 			     u_char *statP, oid *name, size_t name_len)
 {
 	element e1, e2;
-	virtual_server *vs = NULL;
+	virtual_server_t *vs = NULL;
 	real_server_t *rs = NULL;
 	int ivs, irs;
 	switch (action) {
@@ -492,7 +492,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	int curvirtual = 0, curreal;
 	real_server_t *e = NULL, *be = NULL;
 	element e1, e2 = NULL;
-	virtual_server *vs, *bvs = NULL;
+	virtual_server_t *vs, *bvs = NULL;
 	int state;
 	int type, btype;
 
@@ -882,7 +882,7 @@ check_snmp_agent_close()
 }
 
 void
-check_snmp_rs_trap(real_server_t *rs, virtual_server *vs)
+check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs)
 {
 	element e;
 
@@ -1084,7 +1084,7 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server *vs)
 }
 
 void
-check_snmp_quorum_trap(virtual_server *vs)
+check_snmp_quorum_trap(virtual_server_t *vs)
 {
 	check_snmp_rs_trap(NULL, vs);
 }
