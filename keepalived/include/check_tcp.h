@@ -33,9 +33,9 @@
 
 /* Checker argument structure  */
 typedef struct _tcp_checker {
-	struct sockaddr_storage dst;
-	struct sockaddr_storage bindto;
-	int connection_to;
+	struct sockaddr_storage		dst;
+	struct sockaddr_storage		bindto;
+	int				connection_to;
 } tcp_checker_t;
 
 /* Prototypes defs */

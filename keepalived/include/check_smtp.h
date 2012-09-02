@@ -46,30 +46,30 @@
 
 /* Per host configuration structure  */
 typedef struct _smtp_host {
-	struct sockaddr_storage dst;
-	struct sockaddr_storage bindto;
+	struct sockaddr_storage		dst;
+	struct sockaddr_storage		bindto;
 } smtp_host_t;
 
 /* Checker argument structure  */
 typedef struct _smtp_checker {
 	/* non per host config data goes here */
-	char *helo_name;
-	long timeout;
-	long db_retry;
-	int retry;
-	int attempts;
-	int  host_ctr;
-	smtp_host_t *host_ptr;
+	char				*helo_name;
+	long				timeout;
+	long				db_retry;
+	int				retry;
+	int				attempts;
+	int				host_ctr;
+	smtp_host_t			*host_ptr;
 
 	/* data buffer */
-	char buff[SMTP_BUFF_MAX];
-	int buff_ctr;
-	int (*buff_cb) (thread_t *);
+	char				buff[SMTP_BUFF_MAX];
+	int				buff_ctr;
+	int				(*buff_cb) (thread_t *);
 
-	int state;
+	int				state;
 
 	/* list holding the host config data */
-	list host;
+	list				host;
 } smtp_checker_t;
 
 /* Prototypes defs */

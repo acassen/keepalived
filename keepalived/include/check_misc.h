@@ -32,9 +32,9 @@
 
 /* Checker argument structure  */
 typedef struct _misc_checker {
-	char *path;
-	long timeout;
-	int dynamic;  /* 0: old-style, 1: exit code from checker affects weight */
+	char			*path;
+	long			timeout;
+	int			dynamic;  /* 0: old-style, 1: exit code from checker affects weight */
 } misc_checker_t;
 
 /* Prototypes defs */
