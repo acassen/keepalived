@@ -62,10 +62,10 @@ static struct ifreq ifr;
 
 /* Helper functions */
 /* Return interface from interface index */
-interface *
+interface_t *
 if_get_by_ifindex(const int ifindex)
 {
-	interface *ifp;
+	interface_t *ifp;
 	element e;
 
 	if (LIST_ISEMPTY(if_queue))
@@ -79,10 +79,10 @@ if_get_by_ifindex(const int ifindex)
 	return NULL;
 }
 
-interface *
+interface_t *
 if_get_by_ifname(const char *ifname)
 {
-	interface *ifp;
+	interface_t *ifp;
 	element e;
 
 	if (LIST_ISEMPTY(if_queue)) {
@@ -238,7 +238,7 @@ if_ethtool_probe(const char *ifname)
 }
 
 void
-if_ioctl_flags(interface * ifp)
+if_ioctl_flags(interface_t * ifp)
 {
 	int fd = socket(AF_INET, SOCK_DGRAM, 0);
 
@@ -264,7 +264,7 @@ free_if(void *data)
 void
 dump_if(void *data)
 {
-	interface *ifp = data;
+	interface_t *ifp = data;
 	char addr_str[41];
 
 	log_message(LOG_INFO, "------< NIC >------");
@@ -319,7 +319,7 @@ init_if_queue(void)
 }
 
 void
-if_add_queue(interface * ifp)
+if_add_queue(interface_t * ifp)
 {
 	list_add(if_queue, ifp);
 }
@@ -327,7 +327,7 @@ if_add_queue(interface * ifp)
 static int
 if_linkbeat_refresh_thread(thread_t * thread)
 {
-	interface *ifp = THREAD_ARG(thread);
+	interface_t *ifp = THREAD_ARG(thread);
 
 	if (IF_MII_SUPPORTED(ifp))
 		ifp->linkbeat = (if_mii_probe(ifp->ifname)) ? 1 : 0;
@@ -350,7 +350,7 @@ if_linkbeat_refresh_thread(thread_t * thread)
 static void
 init_if_linkbeat(void)
 {
-	interface *ifp;
+	interface_t *ifp;
 	element e;
 	int status;
 
@@ -375,7 +375,7 @@ init_if_linkbeat(void)
 }
 
 int
-if_linkbeat(const interface * ifp)
+if_linkbeat(const interface_t * ifp)
 {
 	if (!global_data->linkbeat_use_polling)
 		return 1;
@@ -416,7 +416,7 @@ init_interface_linkbeat(void)
 }
 
 int
-if_join_vrrp_group(sa_family_t family, int *sd, interface *ifp, int proto)
+if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp, int proto)
 {
 	struct ip_mreqn imr;
 	struct ipv6_mreq imr6;
@@ -462,7 +462,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface *ifp, int proto)
 }
 
 int
-if_leave_vrrp_group(sa_family_t family, int sd, interface *ifp)
+if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 {
 	struct ip_mreqn imr;
 	struct ipv6_mreq imr6;
@@ -506,7 +506,7 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface *ifp)
 }
 
 int
-if_setsockopt_bindtodevice(int *sd, interface *ifp)
+if_setsockopt_bindtodevice(int *sd, interface_t *ifp)
 {
 	int ret;
 
@@ -601,7 +601,7 @@ if_setsockopt_mcast_hops(sa_family_t family, int *sd)
 }
 
 int
-if_setsockopt_mcast_if(sa_family_t family, int *sd, interface *ifp)
+if_setsockopt_mcast_if(sa_family_t family, int *sd, interface_t *ifp)
 {
 	int ret;
 	unsigned int ifindex;

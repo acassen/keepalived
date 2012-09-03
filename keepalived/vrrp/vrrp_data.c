@@ -139,7 +139,7 @@ static void
 free_sock(void *sock_data)
 {
 	sock_t *sock = sock_data;
-	interface *ifp;
+	interface_t *ifp;
 	if (sock->fd_in > 0) {
 		ifp = if_get_by_ifindex(sock->ifindex);
 		if_leave_vrrp_group(sock->family, sock->fd_in, ifp);

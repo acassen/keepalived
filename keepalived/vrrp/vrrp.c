@@ -338,7 +338,7 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 		return VRRP_PACKET_KO;
 	}
 
-	/* MUST verify that the VRID is valid on the receiving interface */
+	/* MUST verify that the VRID is valid on the receiving interface_t */
 	if (vrrp->vrid != hd->vrid) {
 		log_message(LOG_INFO,
 		       "received VRID mismatch. Received %d, Expected %d",
@@ -1000,10 +1000,10 @@ chk_min_cfg(vrrp_rt * vrrp)
 int
 open_vrrp_send_socket(sa_family_t family, int proto, int idx)
 {
-	interface *ifp;
+	interface_t *ifp;
 	int fd = -1;
 
-	/* Retreive interface */
+	/* Retreive interface_t */
 	ifp = if_get_by_ifindex(idx);
 
 	/* Create and init socket descriptor */
@@ -1043,10 +1043,10 @@ open_vrrp_send_socket(sa_family_t family, int proto, int idx)
 int
 open_vrrp_socket(sa_family_t family, int proto, int idx)
 {
-	interface *ifp;
+	interface_t *ifp;
 	int fd = -1;
 
-	/* Retreive interface */
+	/* Retreive interface_t */
 	ifp = if_get_by_ifindex(idx);
 
 	/* open the socket */

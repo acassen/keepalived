@@ -47,7 +47,7 @@
 struct nl_handle nl_kernel;	/* Kernel reflection channel */
 struct nl_handle nl_cmd;	/* Command channel */
 
-/* Create a socket to netlink interface */
+/* Create a socket to netlink interface_t */
 int
 netlink_socket(struct nl_handle *nl, unsigned long groups)
 {
@@ -430,7 +430,7 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
 	struct ifinfomsg *ifi;
 	struct rtattr *tb[IFLA_MAX + 1];
-	interface *ifp;
+	interface_t *ifp;
 	int i, len;
 	char *name;
 
@@ -460,7 +460,7 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 		return 0;
 
 	/* Fill the interface structure */
-	ifp = (interface *) MALLOC(sizeof (interface));
+	ifp = (interface_t *) MALLOC(sizeof(interface_t));
 	memcpy(ifp->ifname, name, strlen(name));
 	ifp->ifindex = ifi->ifi_index;
 	ifp->flags = ifi->ifi_flags;
@@ -487,7 +487,7 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 		}
 	}
 
-	/* Queue this new interface */
+	/* Queue this new interface_t */
 	if_add_queue(ifp);
 	return 0;
 }
@@ -502,7 +502,7 @@ netlink_if_address_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
 	struct ifaddrmsg *ifa;
 	struct rtattr *tb[IFA_MAX + 1];
-	interface *ifp;
+	interface_t *ifp;
 	int len;
 	void *addr;
 
@@ -522,7 +522,7 @@ netlink_if_address_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	memset(tb, 0, sizeof (tb));
 	parse_rtattr(tb, IFA_MAX, IFA_RTA(ifa), len);
 
-	/* Fetch interface */
+	/* Fetch interface_t */
 	ifp = if_get_by_ifindex(ifa->ifa_index);
 	if (!ifp)
 		return 0;
@@ -625,7 +625,7 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
 	struct ifinfomsg *ifi;
 	struct rtattr *tb[IFLA_MAX + 1];
-	interface *ifp;
+	interface_t *ifp;
 	int len;
 
 	ifi = NLMSG_DATA(h);
@@ -646,7 +646,7 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	if (ifi->ifi_type == ARPHRD_LOOPBACK)
 		return 0;
 
-	/* find the interface */
+	/* find the interface_t */
 	ifp = if_get_by_ifindex(ifi->ifi_index);
 	if (!ifp)
 		return -1;

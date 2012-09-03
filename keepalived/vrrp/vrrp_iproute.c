@@ -178,7 +178,7 @@ alloc_route(list rt_list, vector_t *strvec)
 {
 	ip_route *new;
 	uint32_t ipaddr = 0;
-	interface *ifp;
+	interface_t *ifp;
 	char *str;
 	int i = 0;
 

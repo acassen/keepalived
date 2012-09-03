@@ -92,7 +92,7 @@ typedef struct _vrrp_rt {
 	sa_family_t family;	/* AF_INET|AF_INET6 */
 	char *iname;		/* Instance Name */
 	vrrp_sgroup *sync;	/* Sync group we belong to */
-	interface *ifp;		/* Interface we belong to */
+	interface_t *ifp;		/* Interface we belong to */
 	int dont_track_primary; /* If set ignores ifp faults */
 	int vmac;		/* If set try to set VRRP VMAC */
 	char vmac_ifname[IFNAMSIZ]; /* Name of VRRP VMAC interface */

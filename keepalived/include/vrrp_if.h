@@ -72,24 +72,24 @@ struct ethtool_value {
 
 /* Interface structure definition */
 typedef struct _interface {
-	char ifname[IF_NAMESIZ + 1];	/* Interface name */
-	unsigned int ifindex;		/* Interface index */
-	struct in_addr sin_addr;	/* IPv4 primary IPv4 address */
-	struct in6_addr sin6_addr;	/* IPv6 link address */
-	unsigned long flags;		/* flags */
-	unsigned int mtu;		/* MTU for this interface */
-	unsigned short hw_type;		/* Type of hardware address */
-	u_char hw_addr[IF_HWADDR_MAX];	/* MAC address */
-	int hw_addr_len;		/* MAC addresss length */
-	int lb_type;			/* Interface regs selection */
-	int linkbeat;			/* LinkBeat from MII BMSR req */
-} interface;
+	char			ifname[IF_NAMESIZ + 1];	/* Interface name */
+	unsigned int		ifindex;		/* Interface index */
+	struct in_addr		sin_addr;		/* IPv4 primary IPv4 address */
+	struct in6_addr		sin6_addr;		/* IPv6 link address */
+	unsigned long		flags;			/* flags */
+	unsigned int		mtu;			/* MTU for this interface_t */
+	unsigned short		hw_type;		/* Type of hardware address */
+	u_char			hw_addr[IF_HWADDR_MAX];	/* MAC address */
+	int			hw_addr_len;		/* MAC addresss length */
+	int			lb_type;		/* Interface regs selection */
+	int			linkbeat;		/* LinkBeat from MII BMSR req */
+} interface_t;
 
 /* Tracked interface structure definition */
 typedef struct _tracked_if {
-	int weight;		/* tracking weight when non-zero */
-	interface *ifp;		/* interface backpointer, cannot be NULL */
-} tracked_if;
+	int			weight;		/* tracking weight when non-zero */
+	interface_t		*ifp;		/* interface backpointer, cannot be NULL */
+} tracked_if_t;
 
 /* Macros */
 #define IF_NAME(X) ((X)->ifname)
@@ -105,24 +105,24 @@ typedef struct _tracked_if {
                     if_linkbeat(X))
 
 /* prototypes */
-extern interface *if_get_by_ifindex(const int);
-extern interface *if_get_by_ifname(const char *);
-extern int if_linkbeat(const interface *);
+extern interface_t *if_get_by_ifindex(const int);
+extern interface_t *if_get_by_ifname(const char *);
+extern int if_linkbeat(const interface_t *);
 extern int if_mii_probe(const char *);
 extern int if_ethtool_probe(const char *);
-extern void if_add_queue(interface *);
+extern void if_add_queue(interface_t *);
 extern int if_monitor_thread(thread_t *);
 extern void init_interface_queue(void);
 extern void init_interface_linkbeat(void);
 extern void free_interface_queue(void);
 extern void dump_if(void *);
-extern int if_join_vrrp_group(sa_family_t, int *, interface *, int);
-extern int if_leave_vrrp_group(sa_family_t, int, interface *);
-extern int if_setsockopt_bindtodevice(int *, interface *);
+extern int if_join_vrrp_group(sa_family_t, int *, interface_t *, int);
+extern int if_leave_vrrp_group(sa_family_t, int, interface_t *);
+extern int if_setsockopt_bindtodevice(int *, interface_t *);
 extern int if_setsockopt_hdrincl(int *);
 extern int if_setsockopt_mcast_loop(sa_family_t, int *);
 extern int if_setsockopt_mcast_hops(sa_family_t, int *);
-extern int if_setsockopt_mcast_if(sa_family_t, int *, interface *);
+extern int if_setsockopt_mcast_if(sa_family_t, int *, interface_t *);
 extern int if_setsockopt_priority(int *);
 
 #endif

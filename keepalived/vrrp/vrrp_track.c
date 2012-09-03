@@ -31,14 +31,14 @@
 void
 dump_track(void *track_data)
 {
-	tracked_if *tip = track_data;
+	tracked_if_t *tip = track_data;
 	log_message(LOG_INFO, "     %s weight %d", IF_NAME(tip->ifp), tip->weight);
 }
 void
 alloc_track(list track_list, vector_t *strvec)
 {
-	interface *ifp = NULL;
-	tracked_if *tip = NULL;
+	interface_t *ifp = NULL;
+	tracked_if_t *tip = NULL;
 	int weight = 0;
 	char *tracked = vector_slot(strvec, 0);
 
@@ -60,7 +60,7 @@ alloc_track(list track_list, vector_t *strvec)
 		}
 	}
 
-	tip         = (tracked_if *) MALLOC(sizeof (tracked_if));
+	tip         = (tracked_if_t *) MALLOC(sizeof(tracked_if_t));
 	tip->ifp    = ifp;
 	tip->weight = weight;
 
@@ -133,7 +133,7 @@ int
 vrrp_tracked_up(list l)
 {
 	element e;
-	tracked_if *tip;
+	tracked_if_t *tip;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		tip = ELEMENT_DATA(e);
@@ -149,7 +149,7 @@ void
 vrrp_log_tracked_down(list l)
 {
 	element e;
-	tracked_if *tip;
+	tracked_if_t *tip;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		tip = ELEMENT_DATA(e);
@@ -170,7 +170,7 @@ int
 vrrp_tracked_weight(list l)
 {
 	element e;
-	tracked_if *tip;
+	tracked_if_t *tip;
 	int weight = 0;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {

@@ -48,7 +48,7 @@ typedef struct {
 		struct in6_addr sin6_addr;
 	} u;
 
-	interface *ifp;		/* Interface owning IP address */
+	interface_t *ifp;	/* Interface owning IP address */
 	char *label;		/* Alias name, e.g. eth0:1 */
 	int set;		/* TRUE if addr is set */
 } ip_address;
@@ -79,7 +79,7 @@ typedef struct {
 extern void netlink_iplist(list, int);
 extern void free_ipaddress(void *);
 extern void dump_ipaddress(void *);
-extern void alloc_ipaddress(list, vector_t *, interface *);
+extern void alloc_ipaddress(list, vector_t *, interface_t *);
 extern void clear_diff_address(list, list);
 extern void clear_diff_saddresses(void);
 

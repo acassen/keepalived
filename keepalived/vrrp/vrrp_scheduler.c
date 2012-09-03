@@ -195,7 +195,7 @@ vrrp_init_state(list l)
 		if (vrrp->sync && !vrrp->sync->global_tracking) {
 			element e2;
 			tracked_sc *sc;
-			tracked_if *tip;
+			tracked_if_t *tip;
 			int warning = 0;
 
 			if (!LIST_ISEMPTY(vrrp->track_ifp)) {

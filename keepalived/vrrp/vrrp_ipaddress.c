@@ -28,7 +28,7 @@
 #include "memory.h"
 #include "utils.h"
 
-/* Add/Delete IP address to a specific interface */
+/* Add/Delete IP address to a specific interface_t */
 static int
 netlink_ipaddress(ip_address *ipaddress, int cmd)
 {
@@ -131,10 +131,10 @@ dump_ipaddress(void *if_data)
 	FREE(addr_str);
 }
 void
-alloc_ipaddress(list ip_list, vector_t *strvec, interface *ifp)
+alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 {
 	ip_address *new;
-	interface *ifp_local;
+	interface_t *ifp_local;
 	char *str, *p;
 	void *addr;
 	int i = 0, addr_idx =0;

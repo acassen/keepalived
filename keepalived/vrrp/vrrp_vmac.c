@@ -139,7 +139,7 @@ netlink_link_add_vmac(vrrp_rt *vrrp)
 {
 #ifdef _HAVE_VRRP_VMAC_
 	struct rtattr *linkinfo;
-	interface *ifp;
+	interface_t *ifp;
 	char ifname[IFNAMSIZ];
 	struct {
 		struct nlmsghdr n;

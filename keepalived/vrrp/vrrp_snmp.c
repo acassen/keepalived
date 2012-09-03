@@ -735,7 +735,7 @@ vrrp_snmp_trackedinterface(struct variable *vp, oid *name, size_t *length,
 	int curinstance;
 	element e1, e2;
 	vrrp_rt *instance;
-	tracked_if *ifp, *bifp = NULL;
+	tracked_if_t *ifp, *bifp = NULL;
 
         if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
                 memcpy(name, vp->name, sizeof(oid) * vp->namelen);
