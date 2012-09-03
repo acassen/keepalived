@@ -290,10 +290,10 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
         static unsigned long long_ret;
-	ip_route *route;
+	ip_route_t *route;
 	int state = HEADER_STATE_STATIC_ROUTE;
 
-	if ((route = (ip_route *)
+	if ((route = (ip_route_t *)
 	     vrrp_header_ar_table(vp, name, length, exact,
 				  var_len, write_method,
 				  &state)) == NULL)

@@ -34,18 +34,18 @@
 
 /* types definition */
 typedef struct _ip_route {
-	uint32_t dst;		/* RTA_DST */
-	uint8_t dmask;
-	uint32_t gw;		/* RTA_GATEWAY */
-	uint32_t gw2;		/* Will use RTA_MULTIPATH */
-	uint32_t src;		/* RTA_PREFSRC */
-	uint32_t metric;	/* RTA_PRIORITY */
-	int index;		/* RTA_OIF */
-	int blackhole;
-	int scope;
-	int table;
-	int set;
-} ip_route;
+	uint32_t		dst;		/* RTA_DST */
+	uint8_t			dmask;
+	uint32_t		gw;		/* RTA_GATEWAY */
+	uint32_t		gw2;		/* Will use RTA_MULTIPATH */
+	uint32_t		src;		/* RTA_PREFSRC */
+	uint32_t		metric;		/* RTA_PRIORITY */
+	int			index;		/* RTA_OIF */
+	int			blackhole;
+	int			scope;
+	int			table;
+	int			set;
+} ip_route_t;
 
 #define IPROUTE_DEL 0
 #define IPROUTE_ADD 1
@@ -60,7 +60,7 @@ typedef struct _ip_route {
 			 (X)->index  == (Y)->index)
 
 /* prototypes */
-extern int netlink_route_ipv4(ip_route *, int);
+extern int netlink_route_ipv4(ip_route_t *, int);
 extern void netlink_rtlist_ipv4(list, int);
 extern void free_iproute(void *);
 extern void dump_iproute(void *);

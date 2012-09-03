@@ -31,7 +31,7 @@
 
 /* Add/Delete IP route to/from a specific interface */
 int
-netlink_route_ipv4(ip_route *iproute, int cmd)
+netlink_route_ipv4(ip_route_t *iproute, int cmd)
 {
 	int status = 1;
 	struct {
@@ -98,7 +98,7 @@ netlink_route_ipv4(ip_route *iproute, int cmd)
 void
 netlink_rtlist_ipv4(list rt_list, int cmd)
 {
-	ip_route *iproute;
+	ip_route_t *iproute;
 	element e;
 
 	/* No routes to add */
@@ -126,7 +126,7 @@ free_iproute(void *rt_data)
 void
 dump_iproute(void *rt_data)
 {
-	ip_route *route = rt_data;
+	ip_route_t *route = rt_data;
 	char *log_msg = MALLOC(150);
 	char *tmp = MALLOC(30);
 
@@ -176,13 +176,13 @@ dump_iproute(void *rt_data)
 void
 alloc_route(list rt_list, vector_t *strvec)
 {
-	ip_route *new;
+	ip_route_t *new;
 	uint32_t ipaddr = 0;
 	interface_t *ifp;
 	char *str;
 	int i = 0;
 
-	new = (ip_route *) MALLOC(sizeof(ip_route));
+	new = (ip_route_t *) MALLOC(sizeof(ip_route_t));
 
 	/* FMT parse */
 	while (i < vector_size(strvec)) {
@@ -230,9 +230,9 @@ alloc_route(list rt_list, vector_t *strvec)
 
 /* Try to find a route in a list */
 int
-route_exist(list l, ip_route *iproute)
+route_exist(list l, ip_route_t *iproute)
 {
-	ip_route *ipr;
+	ip_route_t *ipr;
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -249,7 +249,7 @@ route_exist(list l, ip_route *iproute)
 void
 clear_diff_routes(list l, list n)
 {
-	ip_route *iproute;
+	ip_route_t *iproute;
 	element e;
 
 	/* No route in previous conf */
