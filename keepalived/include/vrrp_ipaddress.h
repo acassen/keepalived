@@ -37,7 +37,7 @@
 #include "vector.h"
 
 /* types definition */
-typedef struct {
+typedef struct _ip_address {
 	struct ifaddrmsg ifa;
 
 	union {
@@ -48,10 +48,10 @@ typedef struct {
 		struct in6_addr sin6_addr;
 	} u;
 
-	interface_t *ifp;	/* Interface owning IP address */
-	char *label;		/* Alias name, e.g. eth0:1 */
-	int set;		/* TRUE if addr is set */
-} ip_address;
+	interface_t		*ifp;	/* Interface owning IP address */
+	char			*label;	/* Alias name, e.g. eth0:1 */
+	int			set;	/* TRUE if addr is set */
+} ip_address_t;
 
 #define IPADDRESS_DEL 0
 #define IPADDRESS_ADD 1

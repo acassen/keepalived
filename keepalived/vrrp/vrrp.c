@@ -194,7 +194,7 @@ vrrp_in_chk_ipsecah(vrrp_rt * vrrp, char *buffer)
 
 /* check if ipaddr is present in VIP buffer */
 static int
-vrrp_in_chk_vips(vrrp_rt * vrrp, ip_address *ipaddress, unsigned char *buffer)
+vrrp_in_chk_vips(vrrp_rt * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
 {
 	int i;
 	uint32_t ipbuf;
@@ -227,7 +227,7 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 	ipsec_ah *ah;
 	vrrp_pkt *hd;
 	unsigned char *vips;
-	ip_address *ipaddress;
+	ip_address_t *ipaddress;
 	element e;
 
 	/* IPv4 related */
@@ -486,7 +486,7 @@ vrrp_build_vrrp(vrrp_rt * vrrp, int prio, char *buffer)
 	vrrp_pkt *hd = (vrrp_pkt *) buffer;
 	uint32_t *iparr;
 	element e;
-	ip_address *ip_addr;
+	ip_address_t *ip_addr;
 
 	/* Family independant */
 	hd->vers_type = (VRRP_VERSION << 4) | VRRP_PKT_ADVERT;
@@ -660,7 +660,7 @@ vrrp_check_packet(vrrp_rt * vrrp, char *buf, int buflen)
 
 /* Gratuitous ARP on each VIP */
 static void
-vrrp_send_update(vrrp_rt * vrrp, ip_address * ipaddress, int idx)
+vrrp_send_update(vrrp_rt * vrrp, ip_address_t * ipaddress, int idx)
 {
 	char *msg;
 	char addr_str[41];
@@ -685,7 +685,7 @@ void
 vrrp_send_link_update(vrrp_rt * vrrp)
 {
 	int j;
-	ip_address *ipaddress;
+	ip_address_t *ipaddress;
 	element e;
 
 	/* Only send gratuitous ARP if VIP are set */

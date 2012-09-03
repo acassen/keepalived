@@ -57,6 +57,6 @@ extern int garp_fd;
 /* prototypes */
 extern void gratuitous_arp_init(void);
 extern void gratuitous_arp_close(void);
-extern int send_gratuitous_arp(ip_address *);
+extern int send_gratuitous_arp(ip_address_t *);
 
 #endif

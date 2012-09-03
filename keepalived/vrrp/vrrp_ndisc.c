@@ -40,7 +40,7 @@ int ndisc_fd;
  *	Neighbour Advertisement sending routine.
  */
 static int
-ndisc_send_na(ip_address *ipaddress)
+ndisc_send_na(ip_address_t *ipaddress)
 {
 	struct sockaddr_ll sll;
 	int len;
@@ -116,7 +116,7 @@ ndisc_icmp6_cksum(const struct ip6hdr *ip6, const struct icmp6hdr *icp, uint32_t
  *	new information quickly.
  */
 int
-ndisc_send_unsolicited_na(ip_address *ipaddress)
+ndisc_send_unsolicited_na(ip_address_t *ipaddress)
 {
 	struct ether_header *eth = (struct ether_header *) ndisc_buffer;
 	struct ip6hdr *ip6h = (struct ip6hdr *) ((char *)eth + ETHER_HDR_LEN);

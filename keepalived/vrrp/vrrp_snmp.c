@@ -224,10 +224,10 @@ vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
         static unsigned long long_ret;
-	ip_address *addr;
+	ip_address_t *addr;
 	int state = HEADER_STATE_STATIC_ADDRESS;
 
-	if ((addr = (ip_address *)
+	if ((addr = (ip_address_t *)
 	     vrrp_header_ar_table(vp, name, length, exact,
 				  var_len, write_method,
 				  &state)) == NULL)

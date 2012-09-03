@@ -34,7 +34,7 @@ char *garp_buffer;
 int garp_fd;
 
 /* Send the gratuitous ARP message */
-static int send_arp(ip_address *ipaddress)
+static int send_arp(ip_address_t *ipaddress)
 {
 	struct sockaddr_ll sll;
 	int len;
@@ -56,7 +56,7 @@ static int send_arp(ip_address *ipaddress)
 }
 
 /* Build a gratuitous ARP message over a specific interface */
-int send_gratuitous_arp(ip_address *ipaddress)
+int send_gratuitous_arp(ip_address_t *ipaddress)
 {
 	struct ether_header *eth = (struct ether_header *) garp_buffer;
 	arphdr_t *arph		 = (arphdr_t *) (garp_buffer + ETHER_HDR_LEN);

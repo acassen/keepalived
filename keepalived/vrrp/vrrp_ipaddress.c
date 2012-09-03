@@ -30,7 +30,7 @@
 
 /* Add/Delete IP address to a specific interface_t */
 static int
-netlink_ipaddress(ip_address *ipaddress, int cmd)
+netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 {
 	int status = 1;
 	struct {
@@ -71,7 +71,7 @@ netlink_ipaddress(ip_address *ipaddress, int cmd)
 void
 netlink_iplist(list ip_list, int cmd)
 {
-	ip_address *ipaddr;
+	ip_address_t *ipaddr;
 	element e;
 
 	/* No addresses in this list */
@@ -98,7 +98,7 @@ netlink_iplist(list ip_list, int cmd)
 void
 free_ipaddress(void *if_data)
 {
-	ip_address *ipaddr = if_data;
+	ip_address_t *ipaddr = if_data;
 
 	FREE_PTR(ipaddr->label);
 	FREE(ipaddr);
@@ -106,7 +106,7 @@ free_ipaddress(void *if_data)
 void
 dump_ipaddress(void *if_data)
 {
-	ip_address *ipaddr = if_data;
+	ip_address_t *ipaddr = if_data;
 	char *broadcast = (char *) MALLOC(21);
 	char *addr_str = (char *) MALLOC(41);
 
@@ -133,13 +133,13 @@ dump_ipaddress(void *if_data)
 void
 alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 {
-	ip_address *new;
+	ip_address_t *new;
 	interface_t *ifp_local;
 	char *str, *p;
 	void *addr;
 	int i = 0, addr_idx =0;
 
-	new = (ip_address *) MALLOC(sizeof(ip_address));
+	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 	if (ifp) {
 		new->ifa.ifa_index = IF_INDEX(ifp);
 		new->ifp = ifp;
@@ -220,9 +220,9 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 
 /* Find an address in a list */
 int
-address_exist(list l, ip_address *ipaddress)
+address_exist(list l, ip_address_t *ipaddress)
 {
-	ip_address *ipaddr;
+	ip_address_t *ipaddr;
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -243,7 +243,7 @@ address_exist(list l, ip_address *ipaddress)
 void
 clear_diff_address(list l, list n)
 {
-	ip_address *ipaddr;
+	ip_address_t *ipaddr;
 	element e;
 	char *addr_str;
 	void *addr;
