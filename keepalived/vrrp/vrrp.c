@@ -1308,7 +1308,7 @@ clear_diff_script(void)
 {
 	element e;
 	list l = old_vrrp_data->vrrp_script;
-	vrrp_script *vscript, *nvscript;
+	vrrp_script_t *vscript, *nvscript;
 
 	if (LIST_ISEMPTY(l))
 		return;

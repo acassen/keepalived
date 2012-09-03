@@ -56,22 +56,22 @@
 
 /* external script we call to track local processes */
 typedef struct _vrrp_script {
-	char *sname;		/* instance name */
-	char *script;		/* the command to be called */
-	long interval;		/* interval between script calls */
-	long timeout;		/* seconds before script timeout */
-	int weight;		/* weight associated to this script */
-	int result;		/* result of last call to this script: 0..R-1 = KO, R..R+F-1 = OK */
-	int inuse;		/* how many users have weight>0 ? */
-	int rise;		/* R: how many successes before OK */
-	int fall;		/* F: how many failures before KO */
-} vrrp_script;
+	char			*sname;		/* instance name */
+	char			*script;	/* the command to be called */
+	long			interval;	/* interval between script calls */
+	long			timeout;	/* seconds before script timeout */
+	int			weight;		/* weight associated to this script */
+	int			result;		/* result of last call to this script: 0..R-1 = KO, R..R+F-1 = OK */
+	int			inuse;		/* how many users have weight>0 ? */
+	int			rise;		/* R: how many successes before OK */
+	int			fall;		/* F: how many failures before KO */
+} vrrp_script_t;
 
 /* Tracked script structure definition */
 typedef struct _tracked_sc {
-	int weight;		/* tracking weight when non-zero */
-	vrrp_script *scr;	/* script pointer, cannot be NULL */
-} tracked_sc;
+	int			weight;		/* tracking weight when non-zero */
+	vrrp_script_t		*scr;		/* script pointer, cannot be NULL */
+} tracked_sc_t;
 
 /* prototypes */
 extern void dump_track(void *);
@@ -83,6 +83,6 @@ extern void vrrp_log_tracked_down(list);
 extern int vrrp_tracked_weight(list);
 extern int vrrp_script_up(list);
 extern int vrrp_script_weight(list);
-extern vrrp_script* find_script_by_name(char *);
+extern vrrp_script_t *find_script_by_name(char *);
 
 #endif

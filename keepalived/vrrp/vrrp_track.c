@@ -67,11 +67,11 @@ alloc_track(list track_list, vector_t *strvec)
 	list_add(track_list, tip);
 }
 
-vrrp_script *
+vrrp_script_t *
 find_script_by_name(char *name)
 {
 	element e;
-	vrrp_script *scr;
+	vrrp_script_t *scr;
 
 	if (LIST_ISEMPTY(vrrp_data->vrrp_script))
 		return NULL;
@@ -88,14 +88,14 @@ find_script_by_name(char *name)
 void
 dump_track_script(void *track_data)
 {
-	tracked_sc *tsc = track_data;
+	tracked_sc_t *tsc = track_data;
 	log_message(LOG_INFO, "     %s weight %d", tsc->scr->sname, tsc->weight);
 }
 void
 alloc_track_script(list track_list, vector_t *strvec)
 {
-	vrrp_script *vsc = NULL;
-	tracked_sc *tsc = NULL;
+	vrrp_script_t *vsc = NULL;
+	tracked_sc_t *tsc = NULL;
 	int weight = 0;
 	char *tracked = vector_slot(strvec, 0);
 
@@ -121,7 +121,7 @@ alloc_track_script(list track_list, vector_t *strvec)
 		}
 	}
 
-	tsc         = (tracked_sc *) MALLOC(sizeof (tracked_sc));
+	tsc         = (tracked_sc_t *) MALLOC(sizeof(tracked_sc_t));
 	tsc->scr    = vsc;
 	tsc->weight = weight;
 	vsc->inuse++;
@@ -192,7 +192,7 @@ int
 vrrp_script_up(list l)
 {
 	element e;
-	tracked_sc *tsc;
+	tracked_sc_t *tsc;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		tsc = ELEMENT_DATA(e);
@@ -215,7 +215,7 @@ int
 vrrp_script_weight(list l)
 {
 	element e;
-	tracked_sc *tsc;
+	tracked_sc_t *tsc;
 	int weight = 0;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {

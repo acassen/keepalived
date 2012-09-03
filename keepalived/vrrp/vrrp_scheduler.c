@@ -194,7 +194,7 @@ vrrp_init_state(list l)
 		 */
 		if (vrrp->sync && !vrrp->sync->global_tracking) {
 			element e2;
-			tracked_sc *sc;
+			tracked_sc_t *sc;
 			tracked_if_t *tip;
 			int warning = 0;
 
@@ -294,7 +294,7 @@ vrrp_init_sands(list l)
 static void
 vrrp_init_script(list l)
 {
-	vrrp_script *vscript;
+	vrrp_script_t *vscript;
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -937,7 +937,7 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 static int
 vrrp_script_thread(thread_t * thread)
 {
-	vrrp_script *vscript = THREAD_ARG(thread);
+	vrrp_script_t *vscript = THREAD_ARG(thread);
 	int status, ret;
 	pid_t pid;
 
@@ -990,7 +990,7 @@ static int
 vrrp_script_child_thread(thread_t * thread)
 {
 	int wait_status;
-	vrrp_script *vscript = THREAD_ARG(thread);
+	vrrp_script_t *vscript = THREAD_ARG(thread);
 
 	if (thread->type == THREAD_CHILD_TIMEOUT) {
 		pid_t pid;

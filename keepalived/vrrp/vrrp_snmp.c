@@ -45,11 +45,11 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
         static unsigned long long_ret;
-	vrrp_script *scr;
+	vrrp_script_t *scr;
 
-	if ((scr = (vrrp_script *)snmp_header_list_table(vp, name, length, exact,
-							 var_len, write_method,
-							 vrrp_data->vrrp_script)) == NULL)
+	if ((scr = (vrrp_script_t *)snmp_header_list_table(vp, name, length, exact,
+							   var_len, write_method,
+							   vrrp_data->vrrp_script)) == NULL)
 		return NULL;
 
 	switch (vp->magic) {
@@ -818,7 +818,7 @@ vrrp_snmp_trackedscript(struct variable *vp, oid *name, size_t *length,
 	int curinstance, curscr;
 	element e1, e2;
 	vrrp_rt *instance;
-	tracked_sc *scr, *bscr = NULL;
+	tracked_sc_t *scr, *bscr = NULL;
 
         if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
                 memcpy(name, vp->name, sizeof(oid) * vp->namelen);

@@ -414,13 +414,13 @@ vrrp_script_handler(vector_t *strvec)
 static void
 vrrp_vscript_script_handler(vector_t *strvec)
 {
-	vrrp_script *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	vscript->script = set_value(strvec);
 }
 static void
 vrrp_vscript_interval_handler(vector_t *strvec)
 {
-	vrrp_script *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	vscript->interval = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
 	if (vscript->interval < TIMER_HZ)
 		vscript->interval = TIMER_HZ;
@@ -428,7 +428,7 @@ vrrp_vscript_interval_handler(vector_t *strvec)
 static void
 vrrp_vscript_timeout_handler(vector_t *strvec)
 {
-	vrrp_script *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	vscript->timeout = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
 	if (vscript->timeout < TIMER_HZ)
 		vscript->timeout = TIMER_HZ;
@@ -436,13 +436,13 @@ vrrp_vscript_timeout_handler(vector_t *strvec)
 static void
 vrrp_vscript_weight_handler(vector_t *strvec)
 {
-	vrrp_script *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	vscript->weight = atoi(vector_slot(strvec, 1));
 }
 static void
 vrrp_vscript_rise_handler(vector_t *strvec)
 {
-	vrrp_script *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	vscript->rise = atoi(vector_slot(strvec, 1));
 	if (vscript->rise < 1)
 		vscript->rise = 1;
@@ -450,7 +450,7 @@ vrrp_vscript_rise_handler(vector_t *strvec)
 static void
 vrrp_vscript_fall_handler(vector_t *strvec)
 {
-	vrrp_script *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	vscript->fall = atoi(vector_slot(strvec, 1));
 	if (vscript->fall < 1)
 		vscript->fall = 1;

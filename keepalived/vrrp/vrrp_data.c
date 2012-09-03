@@ -101,7 +101,7 @@ dump_vgroup(void *data)
 static void
 free_vscript(void *data)
 {
-	vrrp_script *vscript = data;
+	vrrp_script_t *vscript = data;
 
 	FREE(vscript->sname);
 	FREE_PTR(vscript->script);
@@ -110,7 +110,7 @@ free_vscript(void *data)
 static void
 dump_vscript(void *data)
 {
-	vrrp_script *vscript = data;
+	vrrp_script_t *vscript = data;
 	char *str;
 
 	log_message(LOG_INFO, " VRRP Script = %s", vscript->sname);
@@ -371,10 +371,10 @@ void
 alloc_vrrp_script(char *sname)
 {
 	int size = strlen(sname);
-	vrrp_script *new;
+	vrrp_script_t *new;
 
 	/* Allocate new VRRP group structure */
-	new = (vrrp_script *) MALLOC(sizeof (vrrp_script));
+	new = (vrrp_script_t *) MALLOC(sizeof(vrrp_script_t));
 	new->sname = (char *) MALLOC(size + 1);
 	memcpy(new->sname, sname, size + 1);
 	new->interval = VRRP_SCRIPT_DI * TIMER_HZ;
