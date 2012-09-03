@@ -37,19 +37,19 @@
 #include "timer.h"
 
 /* types definitions */
-struct nl_handle {
-	int fd;
-	struct sockaddr_nl snl;
-	__u32 seq;
-};
+typedef struct _nl_handle {
+	int			fd;
+	struct sockaddr_nl	snl;
+	__u32			seq;
+} nl_handle_t;
 
 /* Define types */
 #define NETLINK_TIMER (30 * TIMER_HZ)
 #define NLMSG_TAIL(nmsg) ((struct rtattr *) (((void *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len)))
 
 /* Global vars exported */
-extern struct nl_handle nl_kernel;	/* Kernel reflection channel */
-extern struct nl_handle nl_cmd;		/* Command channel */
+extern nl_handle_t nl_kernel;	/* Kernel reflection channel */
+extern nl_handle_t nl_cmd;	/* Command channel */
 
 /* prototypes */
 extern int addattr32(struct nlmsghdr *, int, int, uint32_t);
@@ -57,9 +57,9 @@ extern int addattr_l(struct nlmsghdr *, int, int, void *, int);
 extern int rta_addattr_l(struct rtattr *, int, int, const void *, int);
 extern char *netlink_scope_n2a(int);
 extern int netlink_scope_a2n(char *);
-extern int netlink_socket(struct nl_handle *, unsigned long);
-extern int netlink_close(struct nl_handle *);
-extern int netlink_talk(struct nl_handle *, struct nlmsghdr *);
+extern int netlink_socket(nl_handle_t *, unsigned long);
+extern int netlink_close(nl_handle_t *);
+extern int netlink_talk(nl_handle_t *, struct nlmsghdr *);
 extern int netlink_interface_lookup(void);
 extern int netlink_interface_refresh(void);
 extern void kernel_netlink_init(void);
