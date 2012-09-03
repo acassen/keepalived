@@ -47,7 +47,7 @@ static int send_arp(ip_address *ipaddress)
 	sll.sll_ifindex = IF_INDEX(ipaddress->ifp);
 
 	/* Send packet */
-	len = sendto(garp_fd, garp_buffer, sizeof(m_arphdr) + ETHER_HDR_LEN
+	len = sendto(garp_fd, garp_buffer, sizeof(arphdr_t) + ETHER_HDR_LEN
 		     , 0, (struct sockaddr *)&sll, sizeof(sll));
 	if (len < 0)
 		log_message(LOG_INFO, "Error sending gratuitous ARP on %s for %s",
@@ -59,7 +59,7 @@ static int send_arp(ip_address *ipaddress)
 int send_gratuitous_arp(ip_address *ipaddress)
 {
 	struct ether_header *eth = (struct ether_header *) garp_buffer;
-	m_arphdr *arph		 = (m_arphdr *) (garp_buffer + ETHER_HDR_LEN);
+	arphdr_t *arph		 = (arphdr_t *) (garp_buffer + ETHER_HDR_LEN);
 	char *hwaddr		 = (char *) IF_HWADDR(ipaddress->ifp);
 	int len;
 
@@ -83,7 +83,7 @@ int send_gratuitous_arp(ip_address *ipaddress)
 	len = send_arp(ipaddress);
 
 	/* Cleanup room for next round */
-	memset(garp_buffer, 0, sizeof(m_arphdr) + ETHER_HDR_LEN);
+	memset(garp_buffer, 0, sizeof(arphdr_t) + ETHER_HDR_LEN);
 	return len;
 }
 
@@ -94,7 +94,7 @@ int send_gratuitous_arp(ip_address *ipaddress)
 void gratuitous_arp_init(void)
 {
 	/* Initalize shared buffer */
-	garp_buffer = (char *)MALLOC(sizeof(m_arphdr) + ETHER_HDR_LEN);
+	garp_buffer = (char *)MALLOC(sizeof(arphdr_t) + ETHER_HDR_LEN);
 
 	/* Create the socket descriptor */
 	garp_fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_RARP));
