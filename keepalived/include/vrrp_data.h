@@ -40,28 +40,28 @@
  * physical interface.
  */
 typedef struct _sock {
-	sa_family_t family;
-	int proto;
-	int ifindex;
-	int fd_in;
-	int fd_out;
+	sa_family_t		family;
+	int			proto;
+	int			ifindex;
+	int			fd_in;
+	int			fd_out;
 } sock_t;
 
 /* Configuration data root */
-typedef struct _vrrp_conf_data {
-	list static_addresses;
-	list static_routes;
-	list vrrp_sync_group;
-	list vrrp;
-	list vrrp_index;
-	list vrrp_index_fd;
-	list vrrp_socket_pool;
-	list vrrp_script;
-} vrrp_conf_data;
+typedef struct _vrrp_data {
+	list			static_addresses;
+	list			static_routes;
+	list			vrrp_sync_group;
+	list			vrrp;
+	list			vrrp_index;
+	list			vrrp_index_fd;
+	list			vrrp_socket_pool;
+	list			vrrp_script;
+} vrrp_data_t;
 
 /* Global Vars exported */
-extern vrrp_conf_data *vrrp_data;
-extern vrrp_conf_data *old_vrrp_data;
+extern vrrp_data_t *vrrp_data;
+extern vrrp_data_t *old_vrrp_data;
 extern char *vrrp_buffer;
 
 /* prototypes */
@@ -77,9 +77,9 @@ extern void alloc_vrrp_evip(vector_t *);
 extern void alloc_vrrp_vroute(vector_t *);
 extern void alloc_vrrp_buffer(void);
 extern void free_vrrp_buffer(void);
-extern vrrp_conf_data *alloc_vrrp_data(void);
-extern void free_vrrp_data(vrrp_conf_data *);
-extern void dump_vrrp_data(vrrp_conf_data *);
-extern void free_vrrp_sockpool(vrrp_conf_data *);
+extern vrrp_data_t *alloc_vrrp_data(void);
+extern void free_vrrp_data(vrrp_data_t *);
+extern void dump_vrrp_data(vrrp_data_t *);
+extern void free_vrrp_sockpool(vrrp_data_t *);
 
 #endif

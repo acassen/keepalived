@@ -30,8 +30,8 @@
 #include "logger.h"
 
 /* global vars */
-vrrp_conf_data *vrrp_data = NULL;
-vrrp_conf_data *old_vrrp_data = NULL;
+vrrp_data_t *vrrp_data = NULL;
+vrrp_data_t *old_vrrp_data = NULL;
 char *vrrp_buffer;
 
 /* Static addresses facility function */
@@ -400,12 +400,12 @@ free_vrrp_buffer(void)
 	FREE(vrrp_buffer);
 }
 
-vrrp_conf_data *
+vrrp_data_t *
 alloc_vrrp_data(void)
 {
-	vrrp_conf_data *new;
+	vrrp_data_t *new;
 
-	new = (vrrp_conf_data *) MALLOC(sizeof (vrrp_conf_data));
+	new = (vrrp_data_t *) MALLOC(sizeof(vrrp_data_t));
 	new->vrrp = alloc_list(free_vrrp, dump_vrrp);
 	new->vrrp_index = alloc_mlist(NULL, NULL, 255+1);
 	new->vrrp_index_fd = alloc_mlist(NULL, NULL, 1024+1);
@@ -417,7 +417,7 @@ alloc_vrrp_data(void)
 }
 
 void
-free_vrrp_data(vrrp_conf_data * data)
+free_vrrp_data(vrrp_data_t * data)
 {
 	free_list(data->static_addresses);
 	free_list(data->static_routes);
@@ -431,13 +431,13 @@ free_vrrp_data(vrrp_conf_data * data)
 }
 
 void
-free_vrrp_sockpool(vrrp_conf_data * data)
+free_vrrp_sockpool(vrrp_data_t * data)
 {
 	free_list(data->vrrp_socket_pool);
 }
 
 void
-dump_vrrp_data(vrrp_conf_data * data)
+dump_vrrp_data(vrrp_data_t * data)
 {
 	if (!LIST_ISEMPTY(data->static_addresses)) {
 		log_message(LOG_INFO, "------< Static Addresses >------");

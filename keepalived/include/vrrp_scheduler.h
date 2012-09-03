@@ -58,7 +58,7 @@ do {						\
 } while (0)
 
 /* extern prototypes */
-extern void vrrp_dispatcher_release(vrrp_conf_data *);
+extern void vrrp_dispatcher_release(vrrp_data_t *);
 extern int vrrp_dispatcher_init(thread_t *);
 extern int vrrp_read_dispatcher_thread(thread_t *);
 
