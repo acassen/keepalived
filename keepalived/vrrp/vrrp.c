@@ -81,7 +81,7 @@ vrrp_iphdr_len(vrrp_rt * vrrp)
 int
 vrrp_ipsecah_len(void)
 {
-	return sizeof (ipsec_ah);
+	return sizeof(ipsec_ah_t);
 }
 
 /* VRRP header length */
@@ -134,7 +134,7 @@ static int
 vrrp_in_chk_ipsecah(vrrp_rt * vrrp, char *buffer)
 {
 	struct iphdr *ip = (struct iphdr *) (buffer);
-	ipsec_ah *ah = (ipsec_ah *) ((char *) ip + (ip->ihl << 2));
+	ipsec_ah_t *ah = (ipsec_ah_t *) ((char *) ip + (ip->ihl << 2));
 	unsigned char *digest;
 	uint32_t backup_auth_data[3];
 
@@ -224,7 +224,7 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 {
 	struct iphdr *ip;
 	int ihl, vrrp_pkt_len;
-	ipsec_ah *ah;
+	ipsec_ah_t *ah;
 	vrrp_pkt *hd;
 	unsigned char *vips;
 	ip_address_t *ipaddress;
@@ -237,7 +237,7 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 		ihl = ip->ihl << 2;
 
 		if (vrrp->auth_type == VRRP_AUTH_AH) {
-			ah = (ipsec_ah *) (buffer + ihl);
+			ah = (ipsec_ah_t *) (buffer + ihl);
 			hd = (vrrp_pkt *) (ah + vrrp_ipsecah_len());
 		} else {
 			hd = (vrrp_pkt *) (buffer + ihl);
@@ -401,7 +401,7 @@ vrrp_build_ipsecah(vrrp_rt * vrrp, char *buffer, int buflen)
 	ICV_mutable_fields *ip_mutable_fields;
 	unsigned char *digest;
 	struct iphdr *ip = (struct iphdr *) (buffer);
-	ipsec_ah *ah = (ipsec_ah *) (buffer + sizeof (struct iphdr));
+	ipsec_ah_t *ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));
 
 	/* alloc a temp memory space to stock the ip mutable fields */
 	ip_mutable_fields = (ICV_mutable_fields *) MALLOC(sizeof (ICV_mutable_fields));
@@ -882,7 +882,7 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 	vrrp_pkt *hd = NULL;
 	int ret = 0, proto = 0;
 	uint32_t saddr = 0;
-	ipsec_ah *ah;
+	ipsec_ah_t *ah;
 
 	/* return on link failure */
 	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT) {
@@ -907,7 +907,7 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert"
 				      ", forcing new election", vrrp->iname);
 		if (proto == IPPROTO_IPSEC_AH) {
-			ah = (ipsec_ah *) (buf + sizeof(struct iphdr));
+			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
 			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
 					      " - Increment seq"
 					    , vrrp->iname);
@@ -927,7 +927,7 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 			log_message(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert"
 					    , vrrp->iname);
 			if (proto == IPPROTO_IPSEC_AH) {
-				ah = (ipsec_ah *) (buf + sizeof(struct iphdr));
+				ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
 				log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
 						      " - Decrement seq"
 						    , vrrp->iname);

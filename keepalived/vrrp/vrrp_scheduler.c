@@ -553,13 +553,13 @@ static void
 vrrp_backup(vrrp_rt * vrrp, char *buffer, int len)
 {
 	struct iphdr *iph;
-	ipsec_ah *ah;
+	ipsec_ah_t *ah;
 
 	if (vrrp->family == AF_INET) {
 		iph = (struct iphdr *) buffer;
 
 		if (iph->protocol == IPPROTO_IPSEC_AH) {
-			ah = (ipsec_ah *) (buffer + sizeof (struct iphdr));
+			ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));
 			if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter->seq_number)
 				vrrp->ipsecah_counter->cycle = 0;
 		}
@@ -572,7 +572,7 @@ static void
 vrrp_become_master(vrrp_rt * vrrp, char *buffer, int len)
 {
 	struct iphdr *iph;
-	ipsec_ah *ah;
+	ipsec_ah_t *ah;
 
 	if (vrrp->family == AF_INET) {
 		iph = (struct iphdr *) buffer;
@@ -584,7 +584,7 @@ vrrp_become_master(vrrp_rt * vrrp, char *buffer, int len)
 		if (iph->protocol == IPPROTO_IPSEC_AH) {
 			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : seq_num sync",
 			       vrrp->iname);
-			ah = (ipsec_ah *) (buffer + sizeof (struct iphdr));
+			ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));
 			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
 			vrrp->ipsecah_counter->cycle = 0;
 		}

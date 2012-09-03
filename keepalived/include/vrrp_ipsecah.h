@@ -38,15 +38,15 @@
 				   -- rfc2402.2.2 */
 #define IPPROTO_IPSEC_AH 51	/* IP protocol number -- rfc2402.2 */
 
-typedef struct {		/* rfc2402.2 */
-	uint8_t next_header;	/* Next header field */
-	uint8_t payload_len;	/* Payload Lenght */
-	uint16_t reserved;	/* Reserved field */
-	uint32_t spi;		/* Security Parameter Index */
-	uint32_t seq_number;	/* Sequence number */
-	uint32_t auth_data[3];	/* Authentication data 128-bit MD5 digest trucated
-				   => HMAC_MD5_TRUNC*8/32 */
-} ipsec_ah;
+typedef struct _ipsec_ah {				/* rfc2402.2 */
+	uint8_t			next_header;	/* Next header field */
+	uint8_t			payload_len;	/* Payload Lenght */
+	uint16_t		reserved;	/* Reserved field */
+	uint32_t		spi;		/* Security Parameter Index */
+	uint32_t		seq_number;	/* Sequence number */
+	uint32_t		auth_data[3];	/* Authentication data 128-bit MD5 digest trucated
+						   => HMAC_MD5_TRUNC*8/32 */
+} ipsec_ah_t;
 
 typedef struct {		/* rfc2402.3.3.3.1.1.1 */
 	u_int8_t tos;
