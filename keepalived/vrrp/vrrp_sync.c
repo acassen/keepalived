@@ -32,7 +32,7 @@
 
 /* Compute the new instance sands */
 void
-vrrp_init_instance_sands(vrrp_rt * vrrp)
+vrrp_init_instance_sands(vrrp_t * vrrp)
 {
 	set_time_now();
 
@@ -50,10 +50,10 @@ vrrp_init_instance_sands(vrrp_rt * vrrp)
 }
 
 /* Instance name lookup */
-vrrp_rt *
+vrrp_t *
 vrrp_get_instance(char *iname)
 {
-	vrrp_rt *vrrp;
+	vrrp_t *vrrp;
 	list l = vrrp_data->vrrp;
 	element e;
 
@@ -67,9 +67,9 @@ vrrp_get_instance(char *iname)
 
 /* Set instances group pointer */
 void
-vrrp_sync_set_group(vrrp_sgroup *vgroup)
+vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 {
-	vrrp_rt *vrrp;
+	vrrp_t *vrrp;
 	char *str;
 	int i;
 
@@ -87,9 +87,9 @@ vrrp_sync_set_group(vrrp_sgroup *vgroup)
 
 /* All interface are UP in the same group */
 int
-vrrp_sync_group_up(vrrp_sgroup * vgroup)
+vrrp_sync_group_up(vrrp_sgroup_t * vgroup)
 {
-	vrrp_rt *vrrp;
+	vrrp_t *vrrp;
 	element e;
 	list l = vgroup->index_list;
 	int is_up = 0;
@@ -110,7 +110,7 @@ vrrp_sync_group_up(vrrp_sgroup * vgroup)
 
 /* SMTP alert group notifier */
 void
-vrrp_sync_smtp_notifier(vrrp_sgroup *vgroup)
+vrrp_sync_smtp_notifier(vrrp_sgroup_t *vgroup)
 {
 	if (vgroup->smtp_alert) {
 		if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
@@ -126,9 +126,9 @@ vrrp_sync_smtp_notifier(vrrp_sgroup *vgroup)
 
 /* Leaving fault state */
 int
-vrrp_sync_leave_fault(vrrp_rt * vrrp)
+vrrp_sync_leave_fault(vrrp_t * vrrp)
 {
-	vrrp_sgroup *vgroup = vrrp->sync;
+	vrrp_sgroup_t *vgroup = vrrp->sync;
 
 	if (vrrp_sync_group_up(vgroup)) {
 		log_message(LOG_INFO, "VRRP_Group(%s) Leaving FAULT state",
@@ -140,10 +140,10 @@ vrrp_sync_leave_fault(vrrp_rt * vrrp)
 
 /* Check transition to master state */
 int
-vrrp_sync_goto_master(vrrp_rt * vrrp)
+vrrp_sync_goto_master(vrrp_t * vrrp)
 {
-	vrrp_rt *isync;
-	vrrp_sgroup *vgroup = vrrp->sync;
+	vrrp_t *isync;
+	vrrp_sgroup_t *vgroup = vrrp->sync;
 	list l = vgroup->index_list;
 	element e;
 
@@ -165,10 +165,10 @@ vrrp_sync_goto_master(vrrp_rt * vrrp)
 }
 
 void
-vrrp_sync_master_election(vrrp_rt * vrrp)
+vrrp_sync_master_election(vrrp_t * vrrp)
 {
-	vrrp_rt *isync;
-	vrrp_sgroup *vgroup = vrrp->sync;
+	vrrp_t *isync;
+	vrrp_sgroup_t *vgroup = vrrp->sync;
 	list l = vgroup->index_list;
 	element e;
 
@@ -195,10 +195,10 @@ vrrp_sync_master_election(vrrp_rt * vrrp)
 }
 
 void
-vrrp_sync_backup(vrrp_rt * vrrp)
+vrrp_sync_backup(vrrp_t * vrrp)
 {
-	vrrp_rt *isync;
-	vrrp_sgroup *vgroup = vrrp->sync;
+	vrrp_t *isync;
+	vrrp_sgroup_t *vgroup = vrrp->sync;
 	list l = vgroup->index_list;
 	element e;
 
@@ -226,10 +226,10 @@ vrrp_sync_backup(vrrp_rt * vrrp)
 }
 
 void
-vrrp_sync_master(vrrp_rt * vrrp)
+vrrp_sync_master(vrrp_t * vrrp)
 {
-	vrrp_rt *isync;
-	vrrp_sgroup *vgroup = vrrp->sync;
+	vrrp_t *isync;
+	vrrp_sgroup_t *vgroup = vrrp->sync;
 	list l = vgroup->index_list;
 	element e;
 
@@ -261,10 +261,10 @@ vrrp_sync_master(vrrp_rt * vrrp)
 }
 
 void
-vrrp_sync_fault(vrrp_rt * vrrp)
+vrrp_sync_fault(vrrp_t * vrrp)
 {
-	vrrp_rt *isync;
-	vrrp_sgroup *vgroup = vrrp->sync;
+	vrrp_t *isync;
+	vrrp_sgroup_t *vgroup = vrrp->sync;
 	list l = vgroup->index_list;
 	element e;
 

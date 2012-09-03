@@ -36,7 +36,7 @@
 #include "vrrp_if.h"
 
 /* prototypes */
-extern int netlink_link_add_vmac(vrrp_rt *);
-extern int netlink_link_del_vmac(vrrp_rt *);
+extern int netlink_link_add_vmac(vrrp_t *);
+extern int netlink_link_del_vmac(vrrp_t *);
 
 #endif

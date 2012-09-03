@@ -536,8 +536,8 @@ smtp_connect(smtp_t * smtp)
 
 /* Main entry point */
 void
-smtp_alert(real_server_t * rs, vrrp_rt * vrrp,
-	   vrrp_sgroup * vgroup, const char *subject, const char *body)
+smtp_alert(real_server_t * rs, vrrp_t * vrrp,
+	   vrrp_sgroup_t * vgroup, const char *subject, const char *body)
 {
 	smtp_t *smtp;
 

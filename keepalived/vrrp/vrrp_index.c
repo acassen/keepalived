@@ -29,15 +29,15 @@
 
 /* VRID hash table */
 void
-alloc_vrrp_bucket(vrrp_rt *vrrp)
+alloc_vrrp_bucket(vrrp_t *vrrp)
 {
 	list_add(&vrrp_data->vrrp_index[vrrp->vrid], vrrp);
 }
 
-vrrp_rt *
+vrrp_t *
 vrrp_index_lookup(const int vrid, const int fd)
 {
-	vrrp_rt *vrrp;
+	vrrp_t *vrrp;
 	element e;
 	list l = &vrrp_data->vrrp_index[vrid];
 
@@ -71,22 +71,22 @@ vrrp_index_lookup(const int vrid, const int fd)
 
 /* FD hash table */
 void
-alloc_vrrp_fd_bucket(vrrp_rt *vrrp)
+alloc_vrrp_fd_bucket(vrrp_t *vrrp)
 {
 	/* We use a mod key plus 1 */
 	list_add(&vrrp_data->vrrp_index_fd[vrrp->fd_in%1024 + 1], vrrp);
 }
 
 void
-remove_vrrp_fd_bucket(vrrp_rt *vrrp)
+remove_vrrp_fd_bucket(vrrp_t *vrrp)
 {
 	list l = &vrrp_data->vrrp_index_fd[vrrp->fd_in%1024 + 1];
 	list_del(l, vrrp);
 }
 
-void set_vrrp_fd_bucket(int old_fd, vrrp_rt *vrrp)
+void set_vrrp_fd_bucket(int old_fd, vrrp_t *vrrp)
 {
-	vrrp_rt *vrrp_ptr;
+	vrrp_t *vrrp_ptr;
 	element e;
 	list l = &vrrp_data->vrrp_index_fd[old_fd%1024 + 1];
 

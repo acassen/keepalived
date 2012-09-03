@@ -35,7 +35,7 @@ static const char *ll_kind = "macvlan";
 #ifdef _HAVE_VRRP_VMAC_
 /* Link layer handling */
 static int
-netlink_link_setlladdr(vrrp_rt *vrrp)
+netlink_link_setlladdr(vrrp_t *vrrp)
 {
 	int status = 1;
 	u_char ll_addr[ETH_ALEN] = {0x00, 0x00, 0x5e, 0x00, 0x01, vrrp->vrid};
@@ -64,7 +64,7 @@ netlink_link_setlladdr(vrrp_rt *vrrp)
 }
 
 static int
-netlink_link_setmode(vrrp_rt *vrrp)
+netlink_link_setmode(vrrp_t *vrrp)
 {
 	int status = 1;
 	struct {
@@ -108,7 +108,7 @@ netlink_link_setmode(vrrp_rt *vrrp)
 }
 
 static int
-netlink_link_up(vrrp_rt *vrrp)
+netlink_link_up(vrrp_t *vrrp)
 {
 	int status = 1;
 	struct {
@@ -135,7 +135,7 @@ netlink_link_up(vrrp_rt *vrrp)
 #endif
 
 int
-netlink_link_add_vmac(vrrp_rt *vrrp)
+netlink_link_add_vmac(vrrp_t *vrrp)
 {
 #ifdef _HAVE_VRRP_VMAC_
 	struct rtattr *linkinfo;
@@ -208,7 +208,7 @@ netlink_link_add_vmac(vrrp_rt *vrrp)
 }
 
 int
-netlink_link_del_vmac(vrrp_rt *vrrp)
+netlink_link_del_vmac(vrrp_t *vrrp)
 {
 	int status = 1;
 

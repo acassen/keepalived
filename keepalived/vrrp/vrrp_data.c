@@ -56,7 +56,7 @@ alloc_sroute(vector_t *strvec)
 static void
 free_vgroup(void *data)
 {
-	vrrp_sgroup *vgroup = data;
+	vrrp_sgroup_t *vgroup = data;
 
 	FREE(vgroup->gname);
 	free_strvec(vgroup->iname);
@@ -70,7 +70,7 @@ free_vgroup(void *data)
 static void
 dump_vgroup(void *data)
 {
-	vrrp_sgroup *vgroup = data;
+	vrrp_sgroup_t *vgroup = data;
 	int i;
 	char *str;
 
@@ -163,7 +163,7 @@ dump_sock(void *sock_data)
 static void
 free_vrrp(void *data)
 {
-	vrrp_rt *vrrp = data;
+	vrrp_t *vrrp = data;
 	element e;
 
 	FREE(vrrp->iname);
@@ -194,7 +194,7 @@ free_vrrp(void *data)
 static void
 dump_vrrp(void *data)
 {
-	vrrp_rt *vrrp = data;
+	vrrp_t *vrrp = data;
 	char auth_data[sizeof(vrrp->auth_data) + 1];
 
 	log_message(LOG_INFO, " VRRP Instance = %s", vrrp->iname);
@@ -278,10 +278,10 @@ void
 alloc_vrrp_sync_group(char *gname)
 {
 	int size = strlen(gname);
-	vrrp_sgroup *new;
+	vrrp_sgroup_t *new;
 
 	/* Allocate new VRRP group structure */
-	new = (vrrp_sgroup *) MALLOC(sizeof (vrrp_sgroup));
+	new = (vrrp_sgroup_t *) MALLOC(sizeof(vrrp_sgroup_t));
 	new->gname = (char *) MALLOC(size + 1);
 	new->state = VRRP_STATE_INIT;
 	memcpy(new->gname, gname, size);
@@ -294,12 +294,12 @@ void
 alloc_vrrp(char *iname)
 {
 	int size = strlen(iname);
-	seq_counter *counter;
-	vrrp_rt *new;
+	seq_counter_t *counter;
+	vrrp_t *new;
 
 	/* Allocate new VRRP structure */
-	new = (vrrp_rt *) MALLOC(sizeof (vrrp_rt));
-	counter = (seq_counter *) MALLOC(sizeof (seq_counter));
+	new = (vrrp_t *) MALLOC(sizeof(vrrp_t));
+	counter = (seq_counter_t *) MALLOC(sizeof(seq_counter_t));
 
 	/* Build the structure */
 	new->ipsecah_counter = counter;
@@ -318,7 +318,7 @@ alloc_vrrp(char *iname)
 void
 alloc_vrrp_track(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	if (LIST_ISEMPTY(vrrp->track_ifp))
 		vrrp->track_ifp = alloc_list(NULL, dump_track);
@@ -328,7 +328,7 @@ alloc_vrrp_track(vector_t *strvec)
 void
 alloc_vrrp_track_script(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	if (LIST_ISEMPTY(vrrp->track_script))
 		vrrp->track_script = alloc_list(NULL, dump_track_script);
@@ -338,7 +338,7 @@ alloc_vrrp_track_script(vector_t *strvec)
 void
 alloc_vrrp_vip(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->ifp == NULL) {
 		log_message(LOG_ERR, "Configuration error: VRRP definition must belong to an interface");
 	}
@@ -350,7 +350,7 @@ alloc_vrrp_vip(vector_t *strvec)
 void
 alloc_vrrp_evip(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	if (LIST_ISEMPTY(vrrp->evip))
 		vrrp->evip = alloc_list(free_ipaddress, dump_ipaddress);
@@ -360,7 +360,7 @@ alloc_vrrp_evip(vector_t *strvec)
 void
 alloc_vrrp_vroute(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	if (LIST_ISEMPTY(vrrp->vroutes))
 		vrrp->vroutes = alloc_list(free_iproute, dump_iproute);

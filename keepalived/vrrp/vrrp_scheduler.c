@@ -65,14 +65,14 @@
  *     |               |<----------------------|               |
  *     +---------------+                       +---------------+
  */
-static void vrrp_backup(vrrp_rt *, char *, int);
-static void vrrp_leave_master(vrrp_rt *, char *, int);
-static void vrrp_leave_fault(vrrp_rt *, char *, int);
-static void vrrp_become_master(vrrp_rt *, char *, int);
+static void vrrp_backup(vrrp_t *, char *, int);
+static void vrrp_leave_master(vrrp_t *, char *, int);
+static void vrrp_leave_fault(vrrp_t *, char *, int);
+static void vrrp_become_master(vrrp_t *, char *, int);
 
-static void vrrp_goto_master(vrrp_rt *);
-static void vrrp_master(vrrp_rt *);
-static void vrrp_fault(vrrp_rt *);
+static void vrrp_goto_master(vrrp_t *);
+static void vrrp_master(vrrp_t *);
+static void vrrp_fault(vrrp_t *);
 
 static int vrrp_update_priority(thread_t * thread);
 static int vrrp_script_child_timeout_thread(thread_t * thread);
@@ -80,8 +80,8 @@ static int vrrp_script_child_thread(thread_t * thread);
 static int vrrp_script_thread(thread_t * thread);
 
 struct {
-	void (*read) (vrrp_rt *, char *, int);
-	void (*read_to) (vrrp_rt *);
+	void (*read) (vrrp_t *, char *, int);
+	void (*read_to) (vrrp_t *);
 } VRRP_FSM[VRRP_MAX_FSM_STATE + 1] =
 {
 /*    Stream Read Handlers      |    Stream Read_to handlers   *
@@ -131,7 +131,7 @@ struct {
  *            synced to FAULT state.
  */
 struct {
-	void (*handler) (vrrp_rt *);
+	void (*handler) (vrrp_t *);
 } VRRP_TSM[VRRP_MAX_TSM_STATE + 1][VRRP_MAX_TSM_STATE + 1] =
 {
   { {NULL}, {NULL},                      {NULL},             {NULL}            },
@@ -142,7 +142,7 @@ struct {
 
 /* SMTP alert notifier */
 static void
-vrrp_smtp_notifier(vrrp_rt * vrrp)
+vrrp_smtp_notifier(vrrp_t * vrrp)
 {
 	if (vrrp->smtp_alert) {
 		if (vrrp->state == VRRP_STATE_MAST)
@@ -157,7 +157,7 @@ vrrp_smtp_notifier(vrrp_rt * vrrp)
 }
 
 /* Log interface message */
-static void vrrp_log_int_down(vrrp_rt *vrrp)
+static void vrrp_log_int_down(vrrp_t *vrrp)
 {
 	if (!IF_ISUP(vrrp->ifp))
 		log_message(LOG_INFO, "Kernel is reporting: interface %s DOWN",
@@ -166,7 +166,7 @@ static void vrrp_log_int_down(vrrp_rt *vrrp)
 		vrrp_log_tracked_down(vrrp->track_ifp);
 }
 
-static void vrrp_log_int_up(vrrp_rt *vrrp)
+static void vrrp_log_int_up(vrrp_t *vrrp)
 {
 	if (IF_ISUP(vrrp->ifp))
 		log_message(LOG_INFO, "Kernel is reporting: interface %s UP",
@@ -182,8 +182,8 @@ static void vrrp_log_int_up(vrrp_rt *vrrp)
 static void
 vrrp_init_state(list l)
 {
-	vrrp_rt *vrrp;
-	vrrp_sgroup *vgroup;
+	vrrp_t *vrrp;
+	vrrp_sgroup_t *vgroup;
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -279,7 +279,7 @@ vrrp_init_state(list l)
 static void
 vrrp_init_sands(list l)
 {
-	vrrp_rt *vrrp;
+	vrrp_t *vrrp;
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -316,7 +316,7 @@ vrrp_init_script(list l)
 static timeval_t
 vrrp_compute_timer(const int fd)
 {
-	vrrp_rt *vrrp;
+	vrrp_t *vrrp;
 	element e;
 	list l = &vrrp_data->vrrp_index_fd[fd%1024 + 1];
 	timeval_t timer;
@@ -349,7 +349,7 @@ vrrp_timer_fd(const int fd)
 static int
 vrrp_timer_vrid_timeout(const int fd)
 {
-	vrrp_rt *vrrp;
+	vrrp_t *vrrp;
 	element e;
 	list l = &vrrp_data->vrrp_index_fd[fd%1024 + 1];
 	timeval_t timer;
@@ -439,7 +439,7 @@ alloc_sock(sa_family_t family, list l, int proto, int ifindex)
 static void
 vrrp_create_sockpool(list l)
 {
-	vrrp_rt *vrrp;
+	vrrp_t *vrrp;
 	list p = vrrp_data->vrrp;
 	element e;
 	int ifindex;
@@ -481,7 +481,7 @@ static void
 vrrp_set_fds(list l)
 {
 	sock_t *sock;
-	vrrp_rt *vrrp;
+	vrrp_t *vrrp;
 	list p = vrrp_data->vrrp;
 	element e_sock;
 	element e_vrrp;
@@ -550,7 +550,7 @@ vrrp_dispatcher_release(vrrp_data_t *data)
 }
 
 static void
-vrrp_backup(vrrp_rt * vrrp, char *buffer, int len)
+vrrp_backup(vrrp_t * vrrp, char *buffer, int len)
 {
 	struct iphdr *iph;
 	ipsec_ah_t *ah;
@@ -569,7 +569,7 @@ vrrp_backup(vrrp_rt * vrrp, char *buffer, int len)
 }
 
 static void
-vrrp_become_master(vrrp_rt * vrrp, char *buffer, int len)
+vrrp_become_master(vrrp_t * vrrp, char *buffer, int len)
 {
 	struct iphdr *iph;
 	ipsec_ah_t *ah;
@@ -596,7 +596,7 @@ vrrp_become_master(vrrp_rt * vrrp, char *buffer, int len)
 }
 
 static void
-vrrp_leave_master(vrrp_rt * vrrp, char *buffer, int len)
+vrrp_leave_master(vrrp_t * vrrp, char *buffer, int len)
 {
 	if (!VRRP_ISUP(vrrp)) {
 		vrrp_log_int_down(vrrp);
@@ -609,7 +609,7 @@ vrrp_leave_master(vrrp_rt * vrrp, char *buffer, int len)
 }
 
 static void
-vrrp_ah_sync(vrrp_rt *vrrp)
+vrrp_ah_sync(vrrp_t *vrrp)
 {
 	/*
 	 * Transition to BACKUP state for AH
@@ -622,7 +622,7 @@ vrrp_ah_sync(vrrp_rt *vrrp)
 }
 
 static void
-vrrp_leave_fault(vrrp_rt * vrrp, char *buffer, int len)
+vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
 {
 	if (!VRRP_ISUP(vrrp))
 		return;
@@ -667,7 +667,7 @@ vrrp_leave_fault(vrrp_rt * vrrp, char *buffer, int len)
 }
 
 static void
-vrrp_goto_master(vrrp_rt * vrrp)
+vrrp_goto_master(vrrp_t * vrrp)
 {
 	if (!VRRP_ISUP(vrrp)) {
 		vrrp_log_int_down(vrrp);
@@ -698,7 +698,7 @@ vrrp_goto_master(vrrp_rt * vrrp)
 int
 vrrp_gratuitous_arp_thread(thread_t * thread)
 {
-	vrrp_rt *vrrp = THREAD_ARG(thread);
+	vrrp_t *vrrp = THREAD_ARG(thread);
 
 	/* Simply broadcast the gratuitous ARP */
 	vrrp_send_link_update(vrrp);
@@ -712,7 +712,7 @@ vrrp_gratuitous_arp_thread(thread_t * thread)
 static int
 vrrp_update_priority(thread_t * thread)
 {
-	vrrp_rt *vrrp = THREAD_ARG(thread);
+	vrrp_t *vrrp = THREAD_ARG(thread);
 	int prio_offset, new_prio;
 
 	/* compute prio_offset right here */
@@ -746,7 +746,7 @@ vrrp_update_priority(thread_t * thread)
 }
 
 static void
-vrrp_master(vrrp_rt * vrrp)
+vrrp_master(vrrp_t * vrrp)
 {
 	/* Check if interface we are running on is UP */
 	if (vrrp->wantstate != VRRP_STATE_GOTO_FAULT) {
@@ -789,9 +789,9 @@ vrrp_master(vrrp_rt * vrrp)
 }
 
 static void
-vrrp_fault(vrrp_rt * vrrp)
+vrrp_fault(vrrp_t * vrrp)
 {
-	vrrp_sgroup *vgroup = vrrp->sync;
+	vrrp_sgroup_t *vgroup = vrrp->sync;
 
 	if (vgroup) {
 		if (!vrrp_sync_leave_fault(vrrp))
@@ -832,7 +832,7 @@ vrrp_fault(vrrp_rt * vrrp)
 static int
 vrrp_dispatcher_read_to(int fd)
 {
-	vrrp_rt *vrrp;
+	vrrp_t *vrrp;
 	int vrid = 0;
 	int prev_state = 0;
 
@@ -864,8 +864,8 @@ vrrp_dispatcher_read_to(int fd)
 static int
 vrrp_dispatcher_read(sock_t * sock)
 {
-	vrrp_rt *vrrp;
-	vrrp_pkt *hd;
+	vrrp_t *vrrp;
+	vrrphdr_t *hd;
 	int len = 0, prev_state = 0, proto = 0;
 	uint32_t saddr;
 

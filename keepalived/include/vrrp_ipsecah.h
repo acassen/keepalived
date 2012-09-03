@@ -49,15 +49,15 @@ typedef struct _ipsec_ah {				/* rfc2402.2 */
 } ipsec_ah_t;
 
 typedef struct {		/* rfc2402.3.3.3.1.1.1 */
-	u_int8_t tos;
-	u_int16_t frag_off;
-	u_int16_t check;
+	uint8_t			tos;
+	uint16_t		frag_off;
+	uint16_t		check;
 } ICV_mutable_fields;		/* We need to zero this fields to compute the ICV */
 
-typedef struct {
-	int cycle;
-	uint32_t seq_number;
-} seq_counter;
+typedef struct _seq_counter {
+	int			cycle;
+	uint32_t		seq_number;
+} seq_counter_t;
 
 extern void hmac_md5(unsigned char *, int, unsigned char *, int, unsigned char *);
 

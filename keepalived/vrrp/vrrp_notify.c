@@ -30,7 +30,7 @@
 #include "logger.h"
 
 static char *
-get_iscript(vrrp_rt * vrrp, int state)
+get_iscript(vrrp_t * vrrp, int state)
 {
 	if (!vrrp->notify_exec)
 		return NULL;
@@ -44,13 +44,13 @@ get_iscript(vrrp_rt * vrrp, int state)
 }
 
 static char *
-get_igscript(vrrp_rt * vrrp)
+get_igscript(vrrp_t * vrrp)
 {
 	return vrrp->script;
 }
 
 static char *
-get_gscript(vrrp_sgroup * vgroup, int state)
+get_gscript(vrrp_sgroup_t * vgroup, int state)
 {
 	if (!vgroup->notify_exec)
 		return NULL;
@@ -64,7 +64,7 @@ get_gscript(vrrp_sgroup * vgroup, int state)
 }
 
 static char *
-get_ggscript(vrrp_sgroup * vgroup)
+get_ggscript(vrrp_sgroup_t * vgroup)
 {
 	return vgroup->script;
 }
@@ -166,7 +166,7 @@ notify_script_exec(char* script, char *type, int state_num, char* name, int prio
 }
 
 int
-notify_instance_exec(vrrp_rt * vrrp, int state)
+notify_instance_exec(vrrp_t * vrrp, int state)
 {
 	char *script = get_iscript(vrrp, state);
 	char *gscript = get_igscript(vrrp);
@@ -189,7 +189,7 @@ notify_instance_exec(vrrp_rt * vrrp, int state)
 }
 
 int
-notify_group_exec(vrrp_sgroup * vgroup, int state)
+notify_group_exec(vrrp_sgroup_t * vgroup, int state)
 {
 	char *script = get_gscript(vgroup, state);
 	char *gscript = get_ggscript(vgroup);

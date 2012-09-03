@@ -48,7 +48,7 @@
 
 /* add/remove Virtual IP addresses */
 static int
-vrrp_handle_ipaddress(vrrp_rt * vrrp, int cmd, int type)
+vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type)
 {
 	if (debug & 32)
 		log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol %s", vrrp->iname,
@@ -60,7 +60,7 @@ vrrp_handle_ipaddress(vrrp_rt * vrrp, int cmd, int type)
 
 /* add/remove Virtual routes */
 static int
-vrrp_handle_iproutes(vrrp_rt * vrrp, int cmd)
+vrrp_handle_iproutes(vrrp_t * vrrp, int cmd)
 {
 	if (debug & 32)
 		log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol Virtual Routes",
@@ -72,9 +72,9 @@ vrrp_handle_iproutes(vrrp_rt * vrrp, int cmd)
 
 /* IP header length */
 static int
-vrrp_iphdr_len(vrrp_rt * vrrp)
+vrrp_iphdr_len(vrrp_t * vrrp)
 {
-	return sizeof (struct iphdr);
+	return sizeof(struct iphdr);
 }
 
 /* IPSEC AH header length */
@@ -86,20 +86,20 @@ vrrp_ipsecah_len(void)
 
 /* VRRP header length */
 static int
-vrrp_hd_len(vrrp_rt * vrrp)
+vrrp_hd_len(vrrp_t * vrrp)
 {
-	int len = sizeof (vrrp_pkt);
+	int len = sizeof(vrrphdr_t);
 	if (vrrp->family == AF_INET)
 		len += VRRP_AUTH_LEN + ((!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) * sizeof (uint32_t) : 0);
         return len;
 }
 
 /* VRRP header pointer from buffer */
-vrrp_pkt *
+vrrphdr_t *
 vrrp_get_header(sa_family_t family, char *buf, int *proto, uint32_t *saddr)
 {
 	struct iphdr *iph;
-	vrrp_pkt *hd = NULL;
+	vrrphdr_t *hd = NULL;
 
 	if (family == AF_INET) {
 		iph = (struct iphdr *) buf;
@@ -109,18 +109,18 @@ vrrp_get_header(sa_family_t family, char *buf, int *proto, uint32_t *saddr)
 		switch (iph->protocol) {
 		case IPPROTO_IPSEC_AH:
 			*proto = IPPROTO_IPSEC_AH;
-			hd = (vrrp_pkt *) ((char *) iph + (iph->ihl << 2) +
+			hd = (vrrphdr_t *) ((char *) iph + (iph->ihl << 2) +
 					   vrrp_ipsecah_len());
 			break;
 		case IPPROTO_VRRP:
 			*proto = IPPROTO_VRRP;
-			hd = (vrrp_pkt *) ((char *) iph + (iph->ihl << 2));
+			hd = (vrrphdr_t *) ((char *) iph + (iph->ihl << 2));
 			break;
 		}
 	} else if (family == AF_INET6) {
 		*proto = IPPROTO_VRRP;
 		*saddr = 0;
-		hd = (vrrp_pkt *) buf;
+		hd = (vrrphdr_t *) buf;
 	}
 
 	return hd;
@@ -131,7 +131,7 @@ vrrp_get_header(sa_family_t family, char *buf, int *proto, uint32_t *saddr)
  * return 0 for a valid pkt, != 0 otherwise.
  */
 static int
-vrrp_in_chk_ipsecah(vrrp_rt * vrrp, char *buffer)
+vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 {
 	struct iphdr *ip = (struct iphdr *) (buffer);
 	ipsec_ah_t *ah = (ipsec_ah_t *) ((char *) ip + (ip->ihl << 2));
@@ -194,7 +194,7 @@ vrrp_in_chk_ipsecah(vrrp_rt * vrrp, char *buffer)
 
 /* check if ipaddr is present in VIP buffer */
 static int
-vrrp_in_chk_vips(vrrp_rt * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
+vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
 {
 	int i;
 	uint32_t ipbuf;
@@ -220,12 +220,12 @@ vrrp_in_chk_vips(vrrp_rt * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
  * return 0 if the pkt is valid, != 0 otherwise.
  */
 static int
-vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
+vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 {
 	struct iphdr *ip;
-	int ihl, vrrp_pkt_len;
+	int ihl, vrrphdr_len;
 	ipsec_ah_t *ah;
-	vrrp_pkt *hd;
+	vrrphdr_t *hd;
 	unsigned char *vips;
 	ip_address_t *ipaddress;
 	element e;
@@ -238,13 +238,13 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 
 		if (vrrp->auth_type == VRRP_AUTH_AH) {
 			ah = (ipsec_ah_t *) (buffer + ihl);
-			hd = (vrrp_pkt *) (ah + vrrp_ipsecah_len());
+			hd = (vrrphdr_t *) (ah + vrrp_ipsecah_len());
 		} else {
-			hd = (vrrp_pkt *) (buffer + ihl);
+			hd = (vrrphdr_t *) (buffer + ihl);
 		}
 	
 		/* pointer to vrrp vips pkt zone */
-		vips = (unsigned char *) ((char *) hd + sizeof (vrrp_pkt));
+		vips = (unsigned char *) ((char *) hd + sizeof(vrrphdr_t));
 	
 		/* MUST verify that the IP TTL is 255 */
 		if (ip->ttl != VRRP_IP_TTL) {
@@ -257,10 +257,10 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 		 * MUST verify that the received packet length is greater than or
 		 * equal to the VRRP header
 		 */
-		if ((ntohs(ip->tot_len) - ihl) <= sizeof (vrrp_pkt)) {
+		if ((ntohs(ip->tot_len) - ihl) <= sizeof(vrrphdr_t)) {
 			log_message(LOG_INFO,
 			       "ip payload too short. %d and expect at least %d",
-			       ntohs(ip->tot_len) - ihl, sizeof (vrrp_pkt));
+			       ntohs(ip->tot_len) - ihl, sizeof(vrrphdr_t));
 			return VRRP_PACKET_KO;
 		}
 
@@ -304,12 +304,12 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 			return (vrrp_in_chk_ipsecah(vrrp, buffer));
 
 		/* Set expected vrrp packet lenght */
-		vrrp_pkt_len = sizeof(vrrp_pkt) + VRRP_AUTH_LEN + hd->naddr * sizeof(uint32_t);
+		vrrphdr_len = sizeof(vrrphdr_t) + VRRP_AUTH_LEN + hd->naddr * sizeof(uint32_t);
 
 	} else if (vrrp->family == AF_INET6) { /* IPv6 related */
 
-		hd = (vrrp_pkt *) buffer;
-		vrrp_pkt_len = sizeof(vrrp_pkt);
+		hd = (vrrphdr_t *) buffer;
+		vrrphdr_len = sizeof(vrrphdr_t);
 
 	} else {
 		return VRRP_PACKET_KO;
@@ -323,7 +323,7 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 	}
 
 	/* MUST verify the VRRP checksum */
-	if (in_csum((u_short *) hd, vrrp_pkt_len, 0)) {
+	if (in_csum((u_short *) hd, vrrphdr_len, 0)) {
 		log_message(LOG_INFO, "Invalid vrrp checksum");
 		return VRRP_PACKET_KO;
 	}
@@ -367,7 +367,7 @@ vrrp_in_chk(vrrp_rt * vrrp, char *buffer)
 
 /* build IP header */
 static void
-vrrp_build_ip(vrrp_rt * vrrp, char *buffer, int buflen)
+vrrp_build_ip(vrrp_t * vrrp, char *buffer, int buflen)
 {
 	struct iphdr *ip = (struct iphdr *) (buffer);
 
@@ -396,7 +396,7 @@ vrrp_build_ip(vrrp_rt * vrrp, char *buffer, int buflen)
 
 /* build IPSEC AH header */
 static void
-vrrp_build_ipsecah(vrrp_rt * vrrp, char *buffer, int buflen)
+vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 {
 	ICV_mutable_fields *ip_mutable_fields;
 	unsigned char *digest;
@@ -480,10 +480,10 @@ vrrp_build_ipsecah(vrrp_rt * vrrp, char *buffer, int buflen)
 
 /* build VRRP header */
 static int
-vrrp_build_vrrp(vrrp_rt * vrrp, int prio, char *buffer)
+vrrp_build_vrrp(vrrp_t * vrrp, int prio, char *buffer)
 {
 	int i = 0;
-	vrrp_pkt *hd = (vrrp_pkt *) buffer;
+	vrrphdr_t *hd = (vrrphdr_t *) buffer;
 	uint32_t *iparr;
 	element e;
 	ip_address_t *ip_addr;
@@ -526,7 +526,7 @@ vrrp_build_vrrp(vrrp_rt * vrrp, int prio, char *buffer)
 
 /* build VRRP packet */
 static void
-vrrp_build_pkt(vrrp_rt * vrrp, int prio)
+vrrp_build_pkt(vrrp_t * vrrp, int prio)
 {
 	char *bufptr;
 	int len;
@@ -566,7 +566,7 @@ vrrp_build_pkt(vrrp_rt * vrrp, int prio)
 
 /* send VRRP packet */
 static int
-vrrp_send_pkt(vrrp_rt * vrrp)
+vrrp_send_pkt(vrrp_t * vrrp)
 {
 	struct sockaddr_in6 dst6;
 	struct sockaddr_in dst4;
@@ -605,7 +605,7 @@ vrrp_send_pkt(vrrp_rt * vrrp)
 
 /* Allocate the sending buffer */
 static void
-vrrp_alloc_send_buffer(vrrp_rt * vrrp)
+vrrp_alloc_send_buffer(vrrp_t * vrrp)
 {
 	vrrp->send_buffer_size = vrrp_hd_len(vrrp);
 
@@ -620,7 +620,7 @@ vrrp_alloc_send_buffer(vrrp_rt * vrrp)
 
 /* send VRRP advertissement */
 int
-vrrp_send_adv(vrrp_rt * vrrp, int prio)
+vrrp_send_adv(vrrp_t * vrrp, int prio)
 {
 	/* alloc send buffer */
 	if (!vrrp->send_buffer)
@@ -637,7 +637,7 @@ vrrp_send_adv(vrrp_rt * vrrp, int prio)
 
 /* Received packet processing */
 int
-vrrp_check_packet(vrrp_rt * vrrp, char *buf, int buflen)
+vrrp_check_packet(vrrp_t * vrrp, char *buf, int buflen)
 {
 	int ret;
 
@@ -660,7 +660,7 @@ vrrp_check_packet(vrrp_rt * vrrp, char *buf, int buflen)
 
 /* Gratuitous ARP on each VIP */
 static void
-vrrp_send_update(vrrp_rt * vrrp, ip_address_t * ipaddress, int idx)
+vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, int idx)
 {
 	char *msg;
 	char addr_str[41];
@@ -682,7 +682,7 @@ vrrp_send_update(vrrp_rt * vrrp, ip_address_t * ipaddress, int idx)
 }
 
 void
-vrrp_send_link_update(vrrp_rt * vrrp)
+vrrp_send_link_update(vrrp_t * vrrp)
 {
 	int j;
 	ip_address_t *ipaddress;
@@ -712,7 +712,7 @@ vrrp_send_link_update(vrrp_rt * vrrp)
 
 /* becoming master */
 void
-vrrp_state_become_master(vrrp_rt * vrrp)
+vrrp_state_become_master(vrrp_t * vrrp)
 {
 	/* add the ip addresses */
 	if (!LIST_ISEMPTY(vrrp->vip))
@@ -743,7 +743,7 @@ vrrp_state_become_master(vrrp_rt * vrrp)
 }
 
 void
-vrrp_state_goto_master(vrrp_rt * vrrp)
+vrrp_state_goto_master(vrrp_t * vrrp)
 {
 	/*
 	 * Send an advertisement. To force a new master
@@ -760,7 +760,7 @@ vrrp_state_goto_master(vrrp_rt * vrrp)
 
 /* leaving master state */
 void
-vrrp_restore_interface(vrrp_rt * vrrp, int advF)
+vrrp_restore_interface(vrrp_t * vrrp, int advF)
 {
         /* if we stop vrrp, warn the other routers to speed up the recovery */
 	if (advF) {
@@ -792,7 +792,7 @@ vrrp_restore_interface(vrrp_rt * vrrp, int advF)
 }
 
 void
-vrrp_state_leave_master(vrrp_rt * vrrp)
+vrrp_state_leave_master(vrrp_t * vrrp)
 {
 	if (VRRP_VIP_ISSET(vrrp)) {
 #ifdef _HAVE_IPVS_SYNCD_
@@ -830,9 +830,9 @@ vrrp_state_leave_master(vrrp_rt * vrrp)
 
 /* BACKUP state processing */
 void
-vrrp_state_backup(vrrp_rt * vrrp, char *buf, int buflen)
+vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 {
-	vrrp_pkt *hd;
+	vrrphdr_t *hd;
 	uint32_t saddr;
 	int ret = 0, proto;
 
@@ -859,7 +859,7 @@ vrrp_state_backup(vrrp_rt * vrrp, char *buf, int buflen)
 
 /* MASTER state processing */
 int
-vrrp_state_master_tx(vrrp_rt * vrrp, const int prio)
+vrrp_state_master_tx(vrrp_t * vrrp, const int prio)
 {
 	int ret = 0;
 
@@ -877,9 +877,9 @@ vrrp_state_master_tx(vrrp_rt * vrrp, const int prio)
 }
 
 int
-vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
+vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 {
-	vrrp_pkt *hd = NULL;
+	vrrphdr_t *hd = NULL;
 	int ret = 0, proto = 0;
 	uint32_t saddr = 0;
 	ipsec_ah_t *ah;
@@ -955,9 +955,9 @@ vrrp_state_master_rx(vrrp_rt * vrrp, char *buf, int buflen)
 }
 
 int
-vrrp_state_fault_rx(vrrp_rt * vrrp, char *buf, int buflen)
+vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, int buflen)
 {
-	vrrp_pkt *hd;
+	vrrphdr_t *hd;
 	uint32_t saddr;
 	int ret = 0, proto;
 
@@ -980,7 +980,7 @@ vrrp_state_fault_rx(vrrp_rt * vrrp, char *buf, int buflen)
 
 /* check for minimum configuration requirements */
 static int
-chk_min_cfg(vrrp_rt * vrrp)
+chk_min_cfg(vrrp_t * vrrp)
 {
 	if (vrrp->vrid == 0) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) the virtual id must be set!",
@@ -1071,14 +1071,14 @@ open_vrrp_socket(sa_family_t family, int proto, int idx)
 }
 
 void
-close_vrrp_socket(vrrp_rt * vrrp)
+close_vrrp_socket(vrrp_t * vrrp)
 {
 	if_leave_vrrp_group(vrrp->family, vrrp->fd_in, vrrp->ifp);
 	close(vrrp->fd_out);
 }
 
 int
-new_vrrp_socket(vrrp_rt * vrrp)
+new_vrrp_socket(vrrp_t * vrrp)
 {
 	int old_fd = vrrp->fd_in;
 	int proto;
@@ -1103,7 +1103,7 @@ shutdown_vrrp_instances(void)
 {
 	list l = vrrp_data->vrrp;
 	element e;
-	vrrp_rt *vrrp;
+	vrrp_t *vrrp;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
@@ -1138,7 +1138,7 @@ shutdown_vrrp_instances(void)
 
 /* complete vrrp structure */
 static int
-vrrp_complete_instance(vrrp_rt * vrrp)
+vrrp_complete_instance(vrrp_t * vrrp)
 {
 	vrrp->state = VRRP_STATE_INIT;
 	if (!vrrp->adver_int)
@@ -1154,8 +1154,8 @@ vrrp_complete_init(void)
 {
 	list l;
 	element e;
-	vrrp_rt *vrrp;
-	vrrp_sgroup *sgroup;
+	vrrp_t *vrrp;
+	vrrp_sgroup_t *sgroup;
 
 	/* Complete VRRP instance initialization */
 	l = vrrp_data->vrrp;
@@ -1176,12 +1176,12 @@ vrrp_complete_init(void)
 }
 
 /* Try to find a VRRP instance */
-static vrrp_rt *
-vrrp_exist(vrrp_rt * old_vrrp)
+static vrrp_t *
+vrrp_exist(vrrp_t * old_vrrp)
 {
 	element e;
 	list l = vrrp_data->vrrp;
-	vrrp_rt *vrrp;
+	vrrp_t *vrrp;
 
 	if (LIST_ISEMPTY(l))
 		return NULL;
@@ -1197,9 +1197,9 @@ vrrp_exist(vrrp_rt * old_vrrp)
 
 /* Clear VIP|EVIP not present into the new data */
 static void
-clear_diff_vrrp_vip(vrrp_rt * old_vrrp, int type)
+clear_diff_vrrp_vip(vrrp_t * old_vrrp, int type)
 {
-	vrrp_rt *vrrp = vrrp_exist(old_vrrp);
+	vrrp_t *vrrp = vrrp_exist(old_vrrp);
 	list l = (type == VRRP_VIP_TYPE) ? old_vrrp->vip : old_vrrp->evip;
 	list n = (type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip;
 	clear_diff_address(l, n);
@@ -1207,24 +1207,24 @@ clear_diff_vrrp_vip(vrrp_rt * old_vrrp, int type)
 
 /* Clear virtual routes not present in the new data */
 static void
-clear_diff_vrrp_vroutes(vrrp_rt * old_vrrp)
+clear_diff_vrrp_vroutes(vrrp_t * old_vrrp)
 {
-	vrrp_rt *vrrp = vrrp_exist(old_vrrp);
+	vrrp_t *vrrp = vrrp_exist(old_vrrp);
 	clear_diff_routes(old_vrrp->vroutes, vrrp->vroutes);
 }
 
 /* Keep the state from before reload */
 static void
-reset_vrrp_state(vrrp_rt * old_vrrp)
+reset_vrrp_state(vrrp_t * old_vrrp)
 {
 	/* Keep VRRP state, ipsec AH seq_number */
-	vrrp_rt *vrrp = vrrp_exist(old_vrrp);
+	vrrp_t *vrrp = vrrp_exist(old_vrrp);
 	vrrp->state = old_vrrp->state;
 	vrrp->init_state = old_vrrp->state;
 	vrrp->wantstate = old_vrrp->state;
 	if (!old_vrrp->sync)
 		vrrp->effective_priority = old_vrrp->effective_priority;
-	memcpy(vrrp->ipsecah_counter, old_vrrp->ipsecah_counter, sizeof(seq_counter));
+	memcpy(vrrp->ipsecah_counter, old_vrrp->ipsecah_counter, sizeof(seq_counter_t));
 
 #ifdef _HAVE_IPVS_SYNCD_
 	if (old_vrrp->lvs_syncd_if)
@@ -1257,14 +1257,14 @@ clear_diff_vrrp(void)
 {
 	element e;
 	list l = old_vrrp_data->vrrp;
-	vrrp_rt *vrrp;
+	vrrp_t *vrrp;
 
 	if (LIST_ISEMPTY(l))
 		return;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-		vrrp_rt *new_vrrp;
+		vrrp_t *new_vrrp;
 
 		/*
 		 * Try to find this vrrp into the new conf data

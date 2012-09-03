@@ -58,47 +58,47 @@ vrrp_sync_group_handler(vector_t *strvec)
 static void
 vrrp_group_handler(vector_t *strvec)
 {
-	vrrp_sgroup *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	vgroup->iname = read_value_block();
 }
 static void
 vrrp_gnotify_backup_handler(vector_t *strvec)
 {
-	vrrp_sgroup *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	vgroup->script_backup = set_value(strvec);
 	vgroup->notify_exec = 1;
 }
 static void
 vrrp_gnotify_master_handler(vector_t *strvec)
 {
-	vrrp_sgroup *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	vgroup->script_master = set_value(strvec);
 	vgroup->notify_exec = 1;
 }
 static void
 vrrp_gnotify_fault_handler(vector_t *strvec)
 {
-	vrrp_sgroup *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	vgroup->script_fault = set_value(strvec);
 	vgroup->notify_exec = 1;
 }
 static void
 vrrp_gnotify_handler(vector_t *strvec)
 {
-	vrrp_sgroup *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	vgroup->script = set_value(strvec);
 	vgroup->notify_exec = 1;
 }
 static void
 vrrp_gsmtp_handler(vector_t *strvec)
 {
-	vrrp_sgroup *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	vgroup->smtp_alert = 1;
 }
 static void
 vrrp_gglobal_tracking_handler(vector_t *strvec)
 {
-	vrrp_sgroup *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	vgroup->global_tracking = 1;
 }
 static void
@@ -109,7 +109,7 @@ vrrp_handler(vector_t *strvec)
 static void
 vrrp_vmac_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->vmac = 1;
 	if (!vrrp->mcast_saddr)
 		vrrp->mcast_saddr  = IF_ADDR(vrrp->ifp);
@@ -131,7 +131,7 @@ vrrp_vmac_handler(vector_t *strvec)
 static void
 vrrp_native_ipv6_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->family = AF_INET6;
 
 	if (vrrp->auth_type != VRRP_AUTH_NONE)
@@ -141,8 +141,8 @@ static void
 vrrp_state_handler(vector_t *strvec)
 {
 	char *str = vector_slot(strvec, 1);
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp_sgroup *vgroup = vrrp->sync;
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_sgroup_t *vgroup = vrrp->sync;
 
 	if (!strcmp(str, "MASTER")) {
 		vrrp->wantstate = VRRP_STATE_MAST;
@@ -156,7 +156,7 @@ vrrp_state_handler(vector_t *strvec)
 static void
 vrrp_int_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *name = vector_slot(strvec, 1);
 	vrrp->ifp = if_get_by_ifname(name);
 	if (vrrp->vmac && !(vrrp->vmac & 2))
@@ -175,19 +175,19 @@ vrrp_track_scr_handler(vector_t *strvec)
 static void
 vrrp_dont_track_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->dont_track_primary = 1;
 }
 static void
 vrrp_mcastip_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	inet_ston(vector_slot(strvec, 1), &vrrp->mcast_saddr);
 }
 static void
 vrrp_vrid_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->vrid = atoi(vector_slot(strvec, 1));
 
 	if (VRRP_IS_BAD_VID(vrrp->vrid)) {
@@ -208,7 +208,7 @@ vrrp_vrid_handler(vector_t *strvec)
 static void
 vrrp_prio_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->effective_priority = vrrp->base_priority = atoi(vector_slot(strvec, 1));
 
 	if (VRRP_IS_BAD_PRIORITY(vrrp->base_priority)) {
@@ -223,7 +223,7 @@ vrrp_prio_handler(vector_t *strvec)
 static void
 vrrp_adv_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->adver_int = atoi(vector_slot(strvec, 1));
 
 	if (VRRP_IS_BAD_ADVERT_INT(vrrp->adver_int)) {
@@ -238,7 +238,7 @@ vrrp_adv_handler(vector_t *strvec)
 static void
 vrrp_debug_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->debug = atoi(vector_slot(strvec, 1));
 
 	if (VRRP_IS_BAD_DEBUG_INT(vrrp->debug)) {
@@ -250,19 +250,19 @@ vrrp_debug_handler(vector_t *strvec)
 static void
 vrrp_nopreempt_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->nopreempt = 1;
 }
 static void	/* backwards compatibility */
 vrrp_preempt_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->nopreempt = 0;
 }
 static void
 vrrp_preempt_delay_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->preempt_delay = atoi(vector_slot(strvec, 1));
 
 	if (VRRP_IS_BAD_PREEMPT_DELAY(vrrp->preempt_delay)) {
@@ -277,54 +277,54 @@ vrrp_preempt_delay_handler(vector_t *strvec)
 static void
 vrrp_notify_backup_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->script_backup = set_value(strvec);
 	vrrp->notify_exec = 1;
 }
 static void
 vrrp_notify_master_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->script_master = set_value(strvec);
 	vrrp->notify_exec = 1;
 }
 static void
 vrrp_notify_fault_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->script_fault = set_value(strvec);
 	vrrp->notify_exec = 1;
 }
 static void
 vrrp_notify_stop_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->script_stop = set_value(strvec);
 	vrrp->notify_exec = 1;
 }
 static void
 vrrp_notify_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->script = set_value(strvec);
 	vrrp->notify_exec = 1;
 }
 static void
 vrrp_smtp_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->smtp_alert = 1;
 }
 static void
 vrrp_lvs_syncd_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->lvs_syncd_if = set_value(strvec);
 }
 static void
 vrrp_garp_delay_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->garp_delay = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
 	if (vrrp->garp_delay < TIMER_HZ)
 		vrrp->garp_delay = TIMER_HZ;
@@ -332,7 +332,7 @@ vrrp_garp_delay_handler(vector_t *strvec)
 static void
 vrrp_auth_type_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *str = vector_slot(strvec, 1);
 
 	if (!strcmp(str, "AH") && vrrp->family == AF_INET)
@@ -343,7 +343,7 @@ vrrp_auth_type_handler(vector_t *strvec)
 static void
 vrrp_auth_pass_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *str = vector_slot(strvec, 1);
 	int max_size = sizeof (vrrp->auth_data);
 	int str_len = strlen(str);
@@ -360,7 +360,7 @@ vrrp_auth_pass_handler(vector_t *strvec)
 static void
 vrrp_vip_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *buf;
 	char *str = NULL;
 	vector_t *vec = NULL;
