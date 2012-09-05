@@ -121,12 +121,13 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
 }
 
 (1) The "notify" script is called AFTER the corresponding notify_* script has
-    been called, and is given exactly 3 arguments (the whole string is interpreted
+    been called, and is given exactly 4 arguments (the whole string is interpreted
     as a litteral filename so don't add parameters!):
 
     $1 = A string indicating whether it's a "GROUP" or an "INSTANCE"
     $2 = The name of said group or instance
     $3 = The state it's transitioning to ("MASTER", "BACKUP" or "FAULT")
+    $4 = The priority value
 
     $1 and $3 are ALWAYS sent in uppercase, and the possible strings sent are the
     same ones listed above ("GROUP"/"INSTANCE", "MASTER"/"BACKUP"/"FAULT").
