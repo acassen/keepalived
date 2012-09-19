@@ -298,7 +298,7 @@ extern node_type_t node_parent(node_type_t);
 extern int cmd_execute_command(vector_t *, vty_t *, cmd_element_t **, int);
 extern int cmd_execute_command_strict(vector_t *, vty_t *, cmd_element_t **);
 extern void config_replace_string(cmd_element_t *, char *, ...);
-extern void cmd_init(int);
+extern void cmd_init(void);
 extern void cmd_terminate(void);
 extern char *host_config_file(void);
 extern void host_config_set(char *);

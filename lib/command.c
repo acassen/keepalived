@@ -135,18 +135,18 @@ sort_node(void)
 	vector_t *descvec;
 	cmd_element_t *cmd_element;
 
-	for (i = 0; i < vector_active (cmdvec); i++) {
-		if ((cnode = vector_slot (cmdvec, i)) != NULL) {	
+	for (i = 0; i < vector_active(cmdvec); i++) {
+		if ((cnode = vector_slot(cmdvec, i)) != NULL) {	
 			vector_t *cmd_vector = cnode->cmd_vector;
 			qsort(cmd_vector->slot, vector_active(cmd_vector), 
 			      sizeof (void *), cmp_node);
 
-			for (j = 0; j < vector_active (cmd_vector); j++) {
-				if ((cmd_element = vector_slot (cmd_vector, j)) != NULL
-				    && vector_active (cmd_element->strvec)) {
+			for (j = 0; j < vector_active(cmd_vector); j++) {
+				if ((cmd_element = vector_slot(cmd_vector, j)) != NULL
+				    && vector_active(cmd_element->strvec)) {
 					descvec = vector_slot(cmd_element->strvec,
-							      vector_active (cmd_element->strvec) - 1);
-					qsort(descvec->slot, vector_active (descvec), 
+							      vector_active(cmd_element->strvec) - 1);
+					qsort(descvec->slot, vector_active(descvec), 
 					      sizeof (void *), cmp_desc);
 				}
 			}
@@ -2563,7 +2563,7 @@ install_default(node_type_t node)
 
 /* Initialize command interface. Install basic nodes and commands. */
 void
-cmd_init(int terminal)
+cmd_init(void)
 {
 	command_cr = strdup("<cr>");
 	desc_cr.cmd = command_cr;
@@ -2591,55 +2591,48 @@ cmd_init(int terminal)
 
 	/* Each node's basic commands. */
 	install_element(VIEW_NODE, &show_version_cmd);
-	if (terminal) {
-		install_element(VIEW_NODE, &config_list_cmd);
-		install_element(VIEW_NODE, &config_exit_cmd);
-		install_element(VIEW_NODE, &config_quit_cmd);
-		install_element(VIEW_NODE, &config_help_cmd);
-		install_element(VIEW_NODE, &config_enable_cmd);
-		install_element(VIEW_NODE, &config_terminal_length_cmd);
-		install_element(VIEW_NODE, &config_terminal_no_length_cmd);
-		install_element(VIEW_NODE, &echo_cmd);
-	}
+	install_element(VIEW_NODE, &config_list_cmd);
+	install_element(VIEW_NODE, &config_exit_cmd);
+	install_element(VIEW_NODE, &config_quit_cmd);
+	install_element(VIEW_NODE, &config_help_cmd);
+	install_element(VIEW_NODE, &config_enable_cmd);
+	install_element(VIEW_NODE, &config_terminal_length_cmd);
+	install_element(VIEW_NODE, &config_terminal_no_length_cmd);
+	install_element(VIEW_NODE, &echo_cmd);
 
-	if (terminal) {
-//		install_element(ENABLE_NODE, &config_exit_cmd);
-		install_default(ENABLE_NODE);
-		install_element(ENABLE_NODE, &config_disable_cmd);
-		install_element(ENABLE_NODE, &config_terminal_cmd);
-		install_element(ENABLE_NODE, &copy_runningconfig_startupconfig_cmd);
-	}
+//	install_element(ENABLE_NODE, &config_exit_cmd);
+	install_default(ENABLE_NODE);
+	install_element(ENABLE_NODE, &config_disable_cmd);
+	install_element(ENABLE_NODE, &config_terminal_cmd);
+	install_element(ENABLE_NODE, &copy_runningconfig_startupconfig_cmd);
 
 	install_element(ENABLE_NODE, &show_startup_config_cmd);
 	install_element(ENABLE_NODE, &show_version_cmd);
 
-	if (terminal) {
-		install_element(ENABLE_NODE, &config_terminal_length_cmd);
-		install_element(ENABLE_NODE, &config_terminal_no_length_cmd);
-		install_element(ENABLE_NODE, &echo_cmd);
+	install_element(ENABLE_NODE, &config_terminal_length_cmd);
+	install_element(ENABLE_NODE, &config_terminal_no_length_cmd);
+	install_element(ENABLE_NODE, &echo_cmd);
 
-		install_default(CONFIG_NODE);
-//		install_element(CONFIG_NODE, &config_exit_cmd);
-	}
+	install_default(CONFIG_NODE);
+//	install_element(CONFIG_NODE, &config_exit_cmd);
+
   
 	install_element(CONFIG_NODE, &hostname_cmd);
 	install_element(CONFIG_NODE, &no_hostname_cmd);
 
-	if (terminal) {
-		install_element(CONFIG_NODE, &password_cmd);
-		install_element(CONFIG_NODE, &password_text_cmd);
-		install_element(CONFIG_NODE, &enable_password_cmd);
-		install_element(CONFIG_NODE, &enable_password_text_cmd);
-		install_element(CONFIG_NODE, &no_enable_password_cmd);
+	install_element(CONFIG_NODE, &password_cmd);
+	install_element(CONFIG_NODE, &password_text_cmd);
+	install_element(CONFIG_NODE, &enable_password_cmd);
+	install_element(CONFIG_NODE, &enable_password_text_cmd);
+	install_element(CONFIG_NODE, &no_enable_password_cmd);
 
-		install_element(CONFIG_NODE, &service_password_encrypt_cmd);
-		install_element(CONFIG_NODE, &no_service_password_encrypt_cmd);
-		install_element(CONFIG_NODE, &banner_motd_default_cmd);
-		install_element(CONFIG_NODE, &banner_motd_file_cmd);
-		install_element(CONFIG_NODE, &no_banner_motd_cmd);
-		install_element(CONFIG_NODE, &service_terminal_length_cmd);
-		install_element(CONFIG_NODE, &no_service_terminal_length_cmd);
-	}
+	install_element(CONFIG_NODE, &service_password_encrypt_cmd);
+	install_element(CONFIG_NODE, &no_service_password_encrypt_cmd);
+	install_element(CONFIG_NODE, &banner_motd_default_cmd);
+	install_element(CONFIG_NODE, &banner_motd_file_cmd);
+	install_element(CONFIG_NODE, &no_banner_motd_cmd);
+	install_element(CONFIG_NODE, &service_terminal_length_cmd);
+	install_element(CONFIG_NODE, &no_service_terminal_length_cmd);
 
 	srand(time(NULL));
 }

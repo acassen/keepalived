@@ -177,6 +177,7 @@ extern char integrate_default[];
 /* Prototypes. */
 extern void vty_init(void);
 extern void vty_terminate(void);
+extern int vty_listen(struct sockaddr_storage *);
 extern void vty_reset(void);
 extern vty_t *vty_new(void);
 extern int vty_out(vty_t *, const char *, ...) PRINTF_ATTRIBUTE(2, 3);

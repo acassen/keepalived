@@ -967,8 +967,7 @@ vty_hist_add(vty_t *vty)
 	}
 
 	/* Insert history entry. */
-	if (vty->hist[vty->hindex])
-		FREE(vty->hist[vty->hindex]);
+	FREE_PTR(vty->hist[vty->hindex]);
 	vty->hist[vty->hindex] = strdup(vty->buf);
 
 	/* History index rotation. */
@@ -1428,9 +1427,8 @@ vty_accept(thread_t *thread)
 	struct sockaddr_storage sock;
 	socklen_t len;
 	int vty_sock, ret, val;
-	unsigned int on;
+	unsigned int on = 1;
 	int accept_sock = THREAD_FD(thread);
-	char ipaddr[INET6_ADDRSTRLEN];
 
 	/* Handle Read Timeout */
 	if (thread->type == THREAD_READ_TIMEOUT) {
@@ -1456,7 +1454,6 @@ vty_accept(thread_t *thread)
 	fcntl(vty_sock, F_SETFL, val | O_NONBLOCK);
 
 	/* Set NODELAY */
-	on = 1;
 	ret = setsockopt(vty_sock, IPPROTO_TCP, TCP_NODELAY, 
 			 (char *) &on, sizeof(on));
 	if (ret < 0) {
@@ -1465,10 +1462,76 @@ vty_accept(thread_t *thread)
 	}
 
 	log_message(LOG_INFO, "Vty connection from %s"
-			    , inet_sockaddrtos2(&sock, ipaddr));
+			    , inet_sockaddrtos(&sock));
 
 	vty_create(vty_sock, &sock);
 	return 0;
+}
+
+/* Start listner thread */
+int
+vty_listen(struct sockaddr_storage *addr)
+{
+	int accept_sock, ret, on = 1;
+	socklen_t len;
+	mode_t old_mask;
+
+	/* Mask */
+	old_mask = umask(0077);
+
+	/* Socket */
+	accept_sock = socket(addr->ss_family, SOCK_STREAM, 0);
+	if (accept_sock < 0) {
+		log_message(LOG_INFO, "Vty error creating listening socket on [%s]:%d (%s)"
+				    , inet_sockaddrtos(addr)
+				    , ntohs(inet_sockaddrport(addr))
+				    , strerror(errno));
+		return -1;
+	}
+
+	/* Socket tweaking */
+	ret = setsockopt(accept_sock, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on));
+	if (ret < 0) {
+		log_message(LOG_INFO, "Vty error cant do SO_REUSEADDR errno=%d (%s)"
+				    , errno
+				    , strerror(errno));
+		close(accept_sock);
+		return -1;
+	}
+
+	/* Socket bind */
+	len = sizeof(*addr);
+	ret = bind(accept_sock, (struct sockaddr *) addr, len);
+	if (ret < 0) {
+		log_message(LOG_INFO, "Vty error cant bind to [%s]:%d (%s)"
+				    , inet_sockaddrtos(addr)
+				    , ntohs(inet_sockaddrport(addr))
+				    , strerror(errno));
+		close(accept_sock);
+		return -1;
+	}
+
+	/* Socket listen */
+	ret = listen(accept_sock, 3);
+	if (ret < 0) {
+		log_message(LOG_INFO, "Vty error cant listen to [%s]:%d (%s)"
+				    , inet_sockaddrtos(addr)
+				    , ntohs(inet_sockaddrport(addr))
+				    , strerror(errno));
+		close(accept_sock);
+		return -1;
+
+	}
+
+	/* Restore old mask */
+	umask(old_mask);
+
+	log_message(LOG_INFO, "Vty start listening on [%s]:%d"
+			    , inet_sockaddrtos(addr)
+			    , ntohs(inet_sockaddrport(addr)));
+
+	vty_event(VTY_SERV, accept_sock, NULL);
+	return accept_sock;
 }
 
 /* Close vty interface.  Warning: call this only from functions that
@@ -1496,9 +1559,7 @@ vty_close(vty_t *vty)
 
 	/* Free command history. */
 	for (i = 0; i < VTY_MAXHIST; i++) {
-		if (vty->hist[i]) {
-			FREE(vty->hist[i]);
-		}
+		FREE_PTR(vty->hist[i]);
 	}
 
 	/* Unset vector. */
@@ -1508,8 +1569,7 @@ vty_close(vty_t *vty)
 	if (vty->fd > 0)
 		close(vty->fd);
 
-	if (vty->buf)
-		FREE(vty->buf);
+	FREE_PTR(vty->buf);
 
 	/* Check configure. */
 	vty_config_unlock(vty);
@@ -2046,7 +2106,7 @@ vty_init(void)
 	/* Initilize server thread vector. */
 	Vvty_serv_thread = vector_init(VECTOR_DEFAULT_SIZE);
 
-	/* Install bgp top node. */
+	/* Install basic node. */
 	install_node(&vty_node, vty_config_write);
 
 	install_element(VIEW_NODE, &config_who_cmd);
@@ -2072,8 +2132,7 @@ vty_init(void)
 void
 vty_terminate(void)
 {
-	if (vty_cwd)
-		FREE(vty_cwd);
+	FREE_PTR(vty_cwd);
 
 	if (vtyvec && Vvty_serv_thread) {
 		vty_reset();
