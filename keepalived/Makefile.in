@@ -81,7 +81,6 @@ distclean:
 	for i in $(SUBDIRS); do \
 	$(MAKE) -C $$i distclean; done
 	rm -f Makefile $(BIN)/$(EXEC)
-	rm -f include/config.h
 
 mrproper: distclean
 	rm -f config.*

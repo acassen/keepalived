@@ -28,7 +28,8 @@
 static int log_console = 0;
 
 void
-enable_console_log(void) {
+enable_console_log(void)
+{
 	log_console = 1;
 }
 

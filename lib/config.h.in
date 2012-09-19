@@ -3,9 +3,9 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        Configuration include file.
+ * Part:        Global configuration elements.
  *
- * Author:      Jacob Rief, <jacob.rief@tiscover.com>
+ * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -17,14 +17,15 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@linux-vs.org>
  */
-
 #ifndef _CONFIG_H
 #define _CONFIG_H
 
-#define LOG_FACILITY_MAX	7
-#define PROG			"Keepalived"
+#define LOG_FACILITY_MAX        7
+#define PROG                    "Keepalived"
 #define VERSION_STRING PROG" v@VERSION@ (@VERSION_DATE@)\n"
+#define COPYRIGHT_STRING	"Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>"
+
 
 #endif

@@ -10,7 +10,7 @@ dnl ----[ Process this file with autoconf to produce a configure script ]----
 AC_INIT(keepalived/core/main.c)
 VERSION=`cat VERSION`
 VERSION_DATE=`date +%m/%d,20%y`
-OUTPUT_TARGET="Makefile genhash/Makefile keepalived/core/Makefile keepalived/include/config.h keepalived.spec"
+OUTPUT_TARGET="Makefile genhash/Makefile keepalived/core/Makefile lib/config.h keepalived.spec"
 
 dnl ----[ Checks for programs ]----
 AC_PROG_CC

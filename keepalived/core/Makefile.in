@@ -31,7 +31,7 @@ distclean: clean
 	rm -f Makefile
 
 
-main.o: main.c ../include/main.h ../include/config.h ../../lib/signals.h
+main.o: main.c ../include/main.h ../../lib/config.h ../../lib/signals.h
 daemon.o: daemon.c ../include/daemon.h ../../lib/utils.h
 pidfile.o: pidfile.c ../include/pidfile.h
 layer4.o: layer4.c ../include/layer4.h ../include/check_api.h ../../lib/utils.h
@@ -43,4 +43,4 @@ global_parser.o: global_parser.c ../include/global_parser.h \
   ../include/global_data.h ../../lib/parser.h ../../lib/memory.h \
   ../../lib/utils.h
 snmp.o: snmp.c ../include/snmp.h ../../lib/logger.h ../../lib/list.h \
-  ../include/config.h ../include/global_data.h
+  ../../lib/config.h ../include/global_data.h

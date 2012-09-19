@@ -41,7 +41,7 @@ typedef struct _buffer {
 	size_t			size;	/* Size of each buffer_data chunk. */
 } buffer_t;
 
-typedef enum {
+typedef enum _buffer_status {
 	BUFFER_ERROR = -1,		/* An I/O error occurred.
 					 * The buffer should be destroyed and the
 					 * file descriptor should be closed.
@@ -72,8 +72,8 @@ extern void buffer_free(buffer_t *);
 extern void buffer_put(buffer_t *, const void *, size_t);
 extern void buffer_putc(buffer_t *, uint8_t);
 extern void buffer_putstr(buffer_t *, const char *);
-char *buffer_getstr(buffer_t *);
-int buffer_empty(buffer_t *);
+extern char *buffer_getstr(buffer_t *);
+extern int buffer_empty(buffer_t *);
 extern buffer_status_t buffer_write(buffer_t *, int fd,
                                     const void *, size_t);
 extern buffer_status_t buffer_flush_available(buffer_t *, int fd);

@@ -2181,7 +2181,7 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 VERSION=`cat VERSION`
 VERSION_DATE=`date +%m/%d,20%y`
-OUTPUT_TARGET="Makefile genhash/Makefile keepalived/core/Makefile keepalived/include/config.h keepalived.spec"
+OUTPUT_TARGET="Makefile genhash/Makefile keepalived/core/Makefile lib/config.h keepalived.spec"
 
 ac_ext=c
 ac_cpp='$CPP $CPPFLAGS'
