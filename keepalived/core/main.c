@@ -146,6 +146,7 @@ usage(const char *prog)
 		"  %s --check              -C    Only run with Health-checker subsystem.\n"
 		"  %s --dont-release-vrrp  -V    Dont remove VRRP VIPs & VROUTEs on daemon stop.\n"
 		"  %s --dont-release-ipvs  -I    Dont remove IPVS topology on daemon stop.\n"
+		"  %s --dont-respawn       -R    Dont respawn child processes.\n"
 		"  %s --dont-fork          -n    Dont fork the daemon process.\n"
 		"  %s --use-file           -f    Use the specified configuration file.\n"
 		"                                Default is /etc/keepalived/keepalived.conf.\n"
@@ -165,7 +166,7 @@ usage(const char *prog)
 #ifdef _WITH_SNMP_
 		prog,
 #endif
-		prog, prog, prog, prog, prog, prog, prog);
+		prog, prog, prog, prog, prog, prog, prog, prog);
 }
 
 /* Command line parser */
@@ -184,6 +185,7 @@ parse_cmdline(int argc, char **argv)
 		{"log-facility", 'S', POPT_ARG_STRING, &option_arg, 'S'},
 		{"dont-release-vrrp", 'V', POPT_ARG_NONE, NULL, 'V'},
 		{"dont-release-ipvs", 'I', POPT_ARG_NONE, NULL, 'I'},
+		{"dont-respawn", 'R', POPT_ARG_NONE, NULL, 'R'},
 		{"dont-fork", 'n', POPT_ARG_NONE, NULL, 'n'},
 		{"dump-conf", 'd', POPT_ARG_NONE, NULL, 'd'},
 		{"use-file", 'f', POPT_ARG_STRING, &option_arg, 'f'},
@@ -231,6 +233,9 @@ parse_cmdline(int argc, char **argv)
 		break;
 	case 'D':
 		debug |= 32;
+		break;
+	case 'R':
+		debug |= 64;
 		break;
 	case 'S':
 		log_facility = LOG_FACILITY[atoi(option_arg)].facility;
@@ -281,6 +286,9 @@ parse_cmdline(int argc, char **argv)
 			break;
 		case 'D':
 			debug |= 32;
+			break;
+		case 'R':
+			debug |= 64;
 			break;
 		case 'S':
 			log_facility = LOG_FACILITY[atoi(option_arg)].facility;
