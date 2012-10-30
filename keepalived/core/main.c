@@ -200,75 +200,18 @@ parse_cmdline(int argc, char **argv)
 		{NULL, 0, 0, NULL, 0}
 	};
 
-	context =
-	    poptGetContext(PROG, argc, (const char **) argv, options_table, 0);
-	if ((c = poptGetNextOpt(context)) < 0) {
-		return;
-	}
+	context = poptGetContext(PROG, argc, (const char **) argv, options_table, 0);
 
-	/* The first option car */
-	switch (c) {
-	case 'v':
-		fprintf(stderr, VERSION_STRING);
-		exit(0);
-		break;
-	case 'h':
-		usage(argv[0]);
-		exit(0);
-		break;
-	case 'l':
-		debug |= 1;
-		break;
-	case 'n':
-		debug |= 2;
-		break;
-	case 'd':
-		debug |= 4;
-		break;
-	case 'V':
-		debug |= 8;
-		break;
-	case 'I':
-		debug |= 16;
-		break;
-	case 'D':
-		debug |= 32;
-		break;
-	case 'R':
-		debug |= 64;
-		break;
-	case 'S':
-		log_facility = LOG_FACILITY[atoi(option_arg)].facility;
-		break;
-	case 'f':
-		conf_file = option_arg;
-		break;
-	case 'P':
-		daemon_mode |= 1;
-		break;
-	case 'C':
-		daemon_mode |= 2;
-		break;
-	case 'p':
-		main_pidfile = option_arg;
-		break;
-	case 'c':
-		checkers_pidfile = option_arg;
-		break;
-	case 'r':
-		vrrp_pidfile = option_arg;
-		break;
-#ifdef _WITH_SNMP_
-	case 'x':
-		snmp = 1;
-		break;
-#endif
-	}
-
-	/* the others */
-	/* fixme: why is this duplicated? */
 	while ((c = poptGetNextOpt(context)) >= 0) {
 		switch (c) {
+		case 'v':
+			fprintf(stderr, VERSION_STRING);
+			exit(0);
+			break;
+		case 'h':
+			usage(argv[0]);
+			exit(0);
+			break;
 		case 'l':
 			debug |= 1;
 			break;
@@ -319,10 +262,16 @@ parse_cmdline(int argc, char **argv)
 		}
 	}
 
+	if (c < -1) {
+		fprintf(stderr, "%s '%s'\n", poptStrerror(c),
+			poptBadOption(context, POPT_BADOPTION_NOALIAS));
+		poptFreeContext(context);
+		exit(1);
+	}
+
 	/* check unexpected arguments */
 	if ((option_arg = (char *) poptGetArg(context))) {
 		fprintf(stderr, "unexpected argument %s\n", option_arg);
-		return;
 	}
 
 	/* free the allocated context */
