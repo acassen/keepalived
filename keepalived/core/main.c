@@ -127,48 +127,6 @@ signal_init(void)
 	signal_ignore(SIGPIPE);
 }
 
-/* Usage function */
-static void
-usage(const char *prog)
-{
-	fprintf(stderr, VERSION_STRING);
-	fprintf(stderr,
-		"\nUsage:\n"
-		"  %s\n"
-		"  %s -n\n"
-		"  %s -f keepalived.conf\n"
-		"  %s -d\n"
-		"  %s -h\n" "  %s -v\n\n", prog, prog, prog, prog, prog, prog);
-	fprintf(stderr,
-		"Commands:\n"
-		"Either long or short options are allowed.\n"
-		"  %s --vrrp               -P    Only run with VRRP subsystem.\n"
-		"  %s --check              -C    Only run with Health-checker subsystem.\n"
-		"  %s --dont-release-vrrp  -V    Dont remove VRRP VIPs & VROUTEs on daemon stop.\n"
-		"  %s --dont-release-ipvs  -I    Dont remove IPVS topology on daemon stop.\n"
-		"  %s --dont-respawn       -R    Dont respawn child processes.\n"
-		"  %s --dont-fork          -n    Dont fork the daemon process.\n"
-		"  %s --use-file           -f    Use the specified configuration file.\n"
-		"                                Default is /etc/keepalived/keepalived.conf.\n"
-		"  %s --dump-conf          -d    Dump the configuration data.\n"
-		"  %s --log-console        -l    Log message to local console.\n"
-		"  %s --log-detail         -D    Detailed log messages.\n"
-		"  %s --log-facility       -S    0-7 Set syslog facility to LOG_LOCAL[0-7]. (default=LOG_DAEMON)\n"
-#ifdef _WITH_SNMP_
-		"  %s --snmp               -x    Enable SNMP subsystem\n"
-#endif
-		"  %s --help               -h    Display this short inlined help screen.\n"
-		"  %s --version            -v    Display the version number\n"
-		"  %s --pid                -p    pidfile\n"
-		"  %s --checkers_pid       -c    checkers pidfile\n"
-		"  %s --vrrp_pid           -r    vrrp pidfile\n",
-		prog, prog, prog, prog, prog, prog, prog, prog,
-#ifdef _WITH_SNMP_
-		prog,
-#endif
-		prog, prog, prog, prog, prog, prog, prog, prog);
-}
-
 /* Command line parser */
 static void
 parse_cmdline(int argc, char **argv)
@@ -178,26 +136,44 @@ parse_cmdline(int argc, char **argv)
 	int c;
 
 	struct poptOption options_table[] = {
-		{"version", 'v', POPT_ARG_NONE, NULL, 'v'},
-		{"help", 'h', POPT_ARG_NONE, NULL, 'h'},
-		{"log-console", 'l', POPT_ARG_NONE, NULL, 'l'},
-		{"log-detail", 'D', POPT_ARG_NONE, NULL, 'D'},
-		{"log-facility", 'S', POPT_ARG_STRING, &option_arg, 'S'},
-		{"dont-release-vrrp", 'V', POPT_ARG_NONE, NULL, 'V'},
-		{"dont-release-ipvs", 'I', POPT_ARG_NONE, NULL, 'I'},
-		{"dont-respawn", 'R', POPT_ARG_NONE, NULL, 'R'},
-		{"dont-fork", 'n', POPT_ARG_NONE, NULL, 'n'},
-		{"dump-conf", 'd', POPT_ARG_NONE, NULL, 'd'},
-		{"use-file", 'f', POPT_ARG_STRING, &option_arg, 'f'},
-		{"vrrp", 'P', POPT_ARG_NONE, NULL, 'P'},
-		{"check", 'C', POPT_ARG_NONE, NULL, 'C'},
-		{"pid", 'p', POPT_ARG_STRING, &option_arg, 'p'},
-		{"checkers_pid", 'c', POPT_ARG_STRING, &option_arg, 'c'},
-		{"vrrp_pid", 'r', POPT_ARG_STRING, &option_arg, 'r'},
+		{"use-file", 'f', POPT_ARG_STRING, &option_arg, 'f',
+		 "Use the specified configuration file", "FILE"},
+		{"vrrp", 'P', POPT_ARG_NONE, NULL, 'P',
+		 "Only run with VRRP subsystem"},
+		{"check", 'C', POPT_ARG_NONE, NULL, 'C',
+		 "Only run with Health-checker subsystem"},
+		{"log-console", 'l', POPT_ARG_NONE, NULL, 'l',
+		 "Log messages to local console"},
+		{"log-detail", 'D', POPT_ARG_NONE, NULL, 'D',
+		 "Detailed log messages"},
+		{"log-facility", 'S', POPT_ARG_STRING, &option_arg, 'S',
+		 "Set syslog facility to LOG_LOCAL[0-7]", "[0-7]"},
+		{"dont-release-vrrp", 'V', POPT_ARG_NONE, NULL, 'V',
+		 "Don't remove VRRP VIPs and VROUTEs on daemon stop"},
+		{"dont-release-ipvs", 'I', POPT_ARG_NONE, NULL, 'I',
+		 "Don't remove IPVS topology on daemon stop"},
+		{"dont-respawn", 'R', POPT_ARG_NONE, NULL, 'R',
+		 "Don't respawn child processes"},
+		{"dont-fork", 'n', POPT_ARG_NONE, NULL, 'n',
+		 "Don't fork the daemon process"},
+		{"dump-conf", 'd', POPT_ARG_NONE, NULL, 'd',
+		 "Dump the configuration data"},
+		{"pid", 'p', POPT_ARG_STRING, &option_arg, 'p',
+		 "Use specified pidfile for parent process", "FILE"},
+		{"vrrp_pid", 'r', POPT_ARG_STRING, &option_arg, 'r',
+		 "Use specified pidfile for VRRP child process", "FILE"},
+		{"checkers_pid", 'c', POPT_ARG_STRING, &option_arg, 'c',
+		 "Use specified pidfile for checkers child process", "FILE"},
 #ifdef _WITH_SNMP_
-		{"snmp", 'x', POPT_ARG_NONE, NULL, 'x'},
+		{"snmp", 'x', POPT_ARG_NONE, NULL, 'x',
+		 "Enable SNMP subsystem"},
 #endif
-		{NULL, 0, 0, NULL, 0}
+		{"version", 'v', POPT_ARG_NONE, NULL, 'v',
+		 "Display the version number"},
+		{"help", 'h', POPT_ARG_NONE, NULL, 'h',
+		 "Display this help message"},
+		/* {NULL, 0, 0, NULL, 0} */
+		POPT_TABLEEND
 	};
 
 	context = poptGetContext(PROG, argc, (const char **) argv, options_table, 0);
@@ -209,7 +185,7 @@ parse_cmdline(int argc, char **argv)
 			exit(0);
 			break;
 		case 'h':
-			usage(argv[0]);
+			poptPrintHelp(context, stderr, 0);
 			exit(0);
 			break;
 		case 'l':
@@ -271,7 +247,7 @@ parse_cmdline(int argc, char **argv)
 
 	/* check unexpected arguments */
 	if ((option_arg = (char *) poptGetArg(context))) {
-		fprintf(stderr, "unexpected argument %s\n", option_arg);
+		fprintf(stderr, "unexpected argument '%s'\n", option_arg);
 	}
 
 	/* free the allocated context */
