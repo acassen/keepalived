@@ -248,6 +248,8 @@ http_request_thread(thread_t * thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
 	char *str_request;
+	char *request_host;
+	char *request_host_port;
 	int ret = 0;
 
 	/* Handle read timeout */
@@ -258,9 +260,24 @@ http_request_thread(thread_t * thread)
 	str_request = (char *) MALLOC(GET_BUFFER_LENGTH);
 	memset(str_request, 0, GET_BUFFER_LENGTH);
 
+	if (req->vhost) {
+		/* If vhost was defined we don't need to override it's port */
+		request_host = req->vhost;
+		request_host_port = (char*) MALLOC(1);
+		*request_host_port = 0;
+	} else {
+		request_host = inet_ntop2(req->addr_ip);
+	
+		/* Allocate a buffer for the port string ( ":" [0-9][0-9][0-9][0-9][0-9] "\0" ) */
+		request_host_port = (char*) MALLOC(7);
+		snprintf(request_host_port, 7, ":%d",
+		 ntohs(req->addr_port));
+	}
+	
 	snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE,
-		 req->url, (req->vhost) ? req->vhost : inet_ntop2(req->addr_ip)
-		 , ntohs(req->addr_port));
+		 req->url, request_host, request_host_port);
+	
+	FREE(request_host_port);
 
 	/* Send the GET request to remote Web server */
 	DBG("Sending GET request [%s] on fd:%d\n", req->url, sock_obj->fd);

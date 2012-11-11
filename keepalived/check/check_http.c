@@ -635,6 +635,8 @@ http_request_thread(thread_t * thread)
 	http_t *http = HTTP_ARG(http_get_check);
 	request_t *req = HTTP_REQ(http);
 	char *vhost = CHECKER_VHOST(checker);
+	char *request_host = 0;
+	char *request_host_port = 0;
 	char *str_request;
 	url_t *fetched_url;
 	int ret = 0;
@@ -650,10 +652,26 @@ http_request_thread(thread_t * thread)
 	str_request = (char *) MALLOC(GET_BUFFER_LENGTH);
 
 	fetched_url = fetch_next_url(http_get_check);
+	
+	if (vhost) {
+		/* If vhost was defined we don't need to override it's port */
+		request_host = vhost;
+		request_host_port = (char*) MALLOC(1);
+		*request_host_port = 0;
+	} else {
+		request_host = inet_sockaddrtos(&http_get_check->dst);
+		
+		/* Allocate a buffer for the port string ( ":" [0-9][0-9][0-9][0-9][0-9] "\0" ) */
+		request_host_port = (char*) MALLOC(7);
+		snprintf(request_host_port, 7, ":%d", 
+			 ntohs(inet_sockaddrport(&http_get_check->dst)));
+	}
+	
 	snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE,
-		 fetched_url->path,
-		 (vhost) ? vhost : inet_sockaddrtos(&http_get_check->dst)
-		 , ntohs(inet_sockaddrport(&http_get_check->dst)));
+		 fetched_url->path, request_host, request_host_port);
+	
+	FREE(request_host_port);
+	
 	DBG("Processing url(%d) of [%s]:%d.",
 	    http->url_it + 1
 	    , inet_sockaddrtos(&http_get_check->dst)

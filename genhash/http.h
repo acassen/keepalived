@@ -43,7 +43,7 @@
 /* GET processing command */
 #define REQUEST_TEMPLATE "GET %s HTTP/1.0\r\n" \
 			 "User-Agent: GenHash (Linux powered)\r\n" \
-			 "Host: %s:%d\r\n\r\n"
+			 "Host: %s%s\r\n\r\n"
 
 /* Output delimiters */
 #define DELIM_BEGIN "-----------------------["
