@@ -238,7 +238,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 
 		if (vrrp->auth_type == VRRP_AUTH_AH) {
 			ah = (ipsec_ah_t *) (buffer + ihl);
-			hd = (vrrphdr_t *) (ah + vrrp_ipsecah_len());
+			hd = (vrrphdr_t *) ((char *) ah + vrrp_ipsecah_len());
 		} else {
 			hd = (vrrphdr_t *) (buffer + ihl);
 		}
