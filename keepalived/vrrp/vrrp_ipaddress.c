@@ -165,7 +165,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			ifp_local = if_get_by_ifname(vector_slot(strvec, ++i));
 			if (!ifp_local) {
 				log_message(LOG_INFO, "VRRP is trying to assign VIP to unknown %s"
-				       " interface !!! go out and fixe your conf !!!",
+				       " interface !!! go out and fix your conf !!!",
 				       (char *)vector_slot(strvec, i));
 				FREE(new);
 				return;
