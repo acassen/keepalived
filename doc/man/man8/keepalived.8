@@ -61,6 +61,15 @@ Display a short inlined help screen.
 .TP
 --version, -v    
 Display the version number.
+.TP
+--pid, -p    pidfile
+Use the specified pidfile for keepalived (default=/var/run/keepalived.pid)
+.TP
+--checkers_pid, -c checkers_pidfile
+Use the specified pidfile for the checkers process (default=/var/run/checkers.pid)
+.TP
+--vrrp_pid, -r vrrp_pidfile 
+Use the specified pidfile for the vrrp process (default=/var/run/vrrp.pid)
 
 .SH FILES
 .BR /etc/keepalived/keepalived.conf
