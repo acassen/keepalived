@@ -923,7 +923,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 	} else if (vrrp->family == AF_INET) {
 		if (hd->priority > vrrp->effective_priority ||
 		    (hd->priority == vrrp->effective_priority &&
-		     ntohl(saddr) > VRRP_PKT_SADDR(vrrp))) {
+		     ntohl(saddr) > ntohl(VRRP_PKT_SADDR(vrrp)))) {
 			log_message(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert"
 					    , vrrp->iname);
 			if (proto == IPPROTO_IPSEC_AH) {
