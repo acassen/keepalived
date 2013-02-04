@@ -827,8 +827,10 @@ ipvs_nl_dest_failure:
 	}
 
 	len = sizeof(*dk) + sizeof(struct ip_vs_dest_entry_kern) * svc->num_dests;
-	if (!(dk = malloc(len)))
+	if (!(dk = malloc(len))) {
+		free(d);
 		return NULL;
+	}
 
 	dk->fwmark = svc->fwmark;
 	dk->protocol = svc->protocol;
