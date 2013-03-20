@@ -381,6 +381,11 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 	int r, di = 0;
 	char *digest_tmp;
 	url_t *fetched_url = fetch_next_url(http_get_check);
+	enum {
+		none,
+		on_status,
+		on_digest
+	} last_success = none; /* the source of last considered success */
 
 	/* First check if remote webserver returned data */
 	if (empty_buffer)
@@ -421,13 +426,7 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 			}
 			return epilog(thread, 2, 0, 1);
 		} else {
-			if (!svr_checker_up(checker->id, checker->rs))
-				log_message(LOG_INFO,
-				       "HTTP status code success to [%s]:%d url(%d)."
-				       , inet_sockaddrtos(&http_get_check->dst)
-				       , ntohs(inet_sockaddrport(&http_get_check->dst))
-				       , http->url_it + 1);
-			return epilog(thread, 1, 1, 0) + 1;
+			last_success = on_status;
 		}
 	}
 
@@ -472,13 +471,29 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 			FREE(digest_tmp);
 			return epilog(thread, 2, 0, 1);
 		} else {
-			if (!svr_checker_up(checker->id, checker->rs))
-				log_message(LOG_INFO, "MD5 digest success to [%s]:%d url(%d)."
+			last_success = on_digest;
+			FREE(digest_tmp);
+		}
+	}
+
+	if (!svr_checker_up(checker->id, checker->rs)) {
+		switch (last_success) {
+			case none:
+				break;
+			case on_status:
+				log_message(LOG_INFO,
+				       "HTTP status code success to [%s]:%d url(%d)."
 				       , inet_sockaddrtos(&http_get_check->dst)
 				       , ntohs(inet_sockaddrport(&http_get_check->dst))
 				       , http->url_it + 1);
-			FREE(digest_tmp);
-			return epilog(thread, 1, 1, 0) + 1;
+				return epilog(thread, 1, 1, 0) + 1;
+			case on_digest:
+				if (!svr_checker_up(checker->id, checker->rs))
+					log_message(LOG_INFO, "MD5 digest success to [%s]:%d url(%d)."
+						   , inet_sockaddrtos(&http_get_check->dst)
+						   , ntohs(inet_sockaddrport(&http_get_check->dst))
+						   , http->url_it + 1);
+				return epilog(thread, 1, 1, 0) + 1;
 		}
 	}
 
