@@ -468,12 +468,12 @@ vrrp_open_sockpool(list l)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		sock = ELEMENT_DATA(e);
 		sock->fd_in = open_vrrp_socket(sock->family, sock->proto,
-						   sock->ifindex);
+						   sock->ifindex, 0);
 		if (sock->fd_in == -1)
 			sock->fd_out = -1;
 		else
 			sock->fd_out = open_vrrp_send_socket(sock->family, sock->proto,
-								 sock->ifindex);
+								 sock->ifindex, 0);
 	}
 }
 
