@@ -998,7 +998,7 @@ chk_min_cfg(vrrp_t * vrrp)
 
 /* open a VRRP sending socket */
 int
-open_vrrp_send_socket(sa_family_t family, int proto, int idx, const int unicast))
+open_vrrp_send_socket(sa_family_t family, int proto, int idx, const int unicast)
 {
 	interface_t *ifp;
 	int fd = -1;
