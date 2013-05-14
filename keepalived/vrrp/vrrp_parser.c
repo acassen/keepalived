@@ -187,13 +187,13 @@ vrrp_mcastip_handler(vector_t *strvec)
 static void
 vrrp_unicast_bind_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	inet_ston(vector_slot(strvec, 1), &vrrp->unicast_bind);
 }
 static void
 vrrp_unicast_peer_handler(vector_t *strvec)
 {
-	vrrp_rt *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	inet_ston(vector_slot(strvec, 1), &vrrp->unicast_peer);
 }
 static void
