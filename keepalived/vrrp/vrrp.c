@@ -1043,7 +1043,7 @@ open_vrrp_send_socket(sa_family_t family, int proto, int idx, const int unicast)
 
 /* open a VRRP socket and join the multicast group. */
 int
-open_vrrp_socket(sa_family_t family, int proto, int idx, const int unicast))
+open_vrrp_socket(sa_family_t family, int proto, int idx, const int unicast)
 {
 	interface_t *ifp;
 	int fd = -1;
