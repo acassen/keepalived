@@ -1091,8 +1091,8 @@ new_vrrp_socket(vrrp_t * vrrp)
 	close_vrrp_socket(vrrp);
 	remove_vrrp_fd_bucket(vrrp);
 	proto = (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH : IPPROTO_VRRP;
-	vrrp->fd_in = open_vrrp_socket(vrrp->family, proto, IF_INDEX(vrrp->ifp), !vrrp->unicast_peer));
-	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, IF_INDEX(vrrp->ifp), !vrrp->unicast_peer));
+	vrrp->fd_in = open_vrrp_socket(vrrp->family, proto, IF_INDEX(vrrp->ifp), !vrrp->unicast_peer);
+	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, IF_INDEX(vrrp->ifp), !vrrp->unicast_peer);
 	alloc_vrrp_fd_bucket(vrrp);
 
 	/* Sync the other desc */
