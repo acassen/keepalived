@@ -1,5 +1,4 @@
 
-
                            Note on using VRRP with Virtual MAC address
                           =============================================
                                        Alexandre Cassen
@@ -11,7 +10,7 @@ VRRP with VMAC address. To reach that goal Keepalived VRRP framework implements
 VMAC support by the invocation of 'use_vmac' keyword in configuration file.
 
 Internally, Keepalived code will bring up virtual interfaces, each interface
-dedicated to a specific virtual_router. Keepalived uses Liunx kernel macvlan
+dedicated to a specific virtual_router. Keepalived uses Linux kernel macvlan
 driver to defines thoses interfaces. It is then mandatory to use kernel
 compiled with macvlan support.
 
