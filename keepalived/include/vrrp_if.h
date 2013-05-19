@@ -117,7 +117,7 @@ extern void init_interface_linkbeat(void);
 extern void free_interface_queue(void);
 extern void dump_if(void *);
 extern int if_join_vrrp_group(sa_family_t, int *, interface_t *, int);
-extern int if_leave_vrrp_group(sa_family_t, int, interface_t *);
+extern int if_leave_vrrp_group(sa_family_t, int, interface_t *, int);
 extern int if_setsockopt_bindtodevice(int *, interface_t *);
 extern int if_setsockopt_hdrincl(int *);
 extern int if_setsockopt_mcast_loop(sa_family_t, int *);

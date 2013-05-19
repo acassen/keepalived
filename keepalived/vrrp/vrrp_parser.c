@@ -185,6 +185,18 @@ vrrp_mcastip_handler(vector_t *strvec)
 	inet_ston(vector_slot(strvec, 1), &vrrp->mcast_saddr);
 }
 static void
+vrrp_unicast_bind_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	inet_ston(vector_slot(strvec, 1), &vrrp->unicast_bind);
+}
+static void
+vrrp_unicast_peer_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	inet_ston(vector_slot(strvec, 1), &vrrp->unicast_peer);
+}
+static void
 vrrp_vrid_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -484,6 +496,8 @@ vrrp_init_keywords(void)
 	install_keyword("track_interface", &vrrp_track_int_handler);
 	install_keyword("track_script", &vrrp_track_scr_handler);
 	install_keyword("mcast_src_ip", &vrrp_mcastip_handler);
+	install_keyword("vrrp_unicast_bind", &vrrp_unicast_bind_handler);
+	install_keyword("vrrp_unicast_peer", &vrrp_unicast_peer_handler);
 	install_keyword("virtual_router_id", &vrrp_vrid_handler);
 	install_keyword("priority", &vrrp_prio_handler);
 	install_keyword("advert_int", &vrrp_adv_handler);

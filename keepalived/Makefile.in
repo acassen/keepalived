@@ -22,7 +22,7 @@ sysconf_dir = $(sysconfdir)/sysconfig
 
 CC = @CC@
 STRIP = @STRIP@
-LDFLAGS = @LIBS@ @LDFLAGS@ -ldl
+LDFLAGS = @LIBS@ @LDFLAGS@ -ldl -lcrypt
 SUBDIRS = core
 
 ifeq ($(IPVS_FLAG),_WITH_LVS_)

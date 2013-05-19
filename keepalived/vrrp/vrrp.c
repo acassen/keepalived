@@ -387,8 +387,8 @@ vrrp_build_ip(vrrp_t * vrrp, char *buffer, int buflen)
 	/* fill protocol type --rfc2402.2 */
 	ip->protocol =
 	    (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH : IPPROTO_VRRP;
-	ip->saddr = VRRP_PKT_SADDR(vrrp);
-	ip->daddr = htonl(INADDR_VRRP_GROUP);
+	ip->saddr = vrrp->unicast_bind ? vrrp->unicast_bind : VRRP_PKT_SADDR(vrrp);
+	ip->daddr = vrrp->unicast_peer ? vrrp->unicast_peer : htonl(INADDR_VRRP_GROUP);
 
 	/* checksum must be done last */
 	ip->check = in_csum((u_short *) ip, ip->ihl * 4, 0);
@@ -584,7 +584,7 @@ vrrp_send_pkt(vrrp_t * vrrp)
 	if (vrrp->family == AF_INET) {
 		memset(&dst4, 0, sizeof(dst4));
 		dst4.sin_family = AF_INET;
-		dst4.sin_addr.s_addr = htonl(INADDR_VRRP_GROUP);
+		dst4.sin_addr.s_addr = vrrp->unicast_peer ? vrrp->unicast_peer : htonl(INADDR_VRRP_GROUP);
 
 		msg.msg_name = &dst4;
 		msg.msg_namelen = sizeof(dst4);
@@ -998,7 +998,7 @@ chk_min_cfg(vrrp_t * vrrp)
 
 /* open a VRRP sending socket */
 int
-open_vrrp_send_socket(sa_family_t family, int proto, int idx)
+open_vrrp_send_socket(sa_family_t family, int proto, int idx, const int unicast)
 {
 	interface_t *ifp;
 	int fd = -1;
@@ -1017,7 +1017,9 @@ open_vrrp_send_socket(sa_family_t family, int proto, int idx)
 		/* Set v4 related */
 		if_setsockopt_hdrincl(&fd);
 		if_setsockopt_bindtodevice(&fd, ifp);
-		if_setsockopt_mcast_loop(family, &fd);
+		if (!unicast) {
+			if_setsockopt_mcast_loop(family, &fd);
+		}
 		if_setsockopt_priority(&fd);
 		if (fd < 0)
 			return -1;
@@ -1041,7 +1043,7 @@ open_vrrp_send_socket(sa_family_t family, int proto, int idx)
 
 /* open a VRRP socket and join the multicast group. */
 int
-open_vrrp_socket(sa_family_t family, int proto, int idx)
+open_vrrp_socket(sa_family_t family, int proto, int idx, const int unicast)
 {
 	interface_t *ifp;
 	int fd = -1;
@@ -1058,7 +1060,9 @@ open_vrrp_socket(sa_family_t family, int proto, int idx)
 	}
 
 	/* Join the VRRP MCAST group */
-	if_join_vrrp_group(family, &fd, ifp, proto);
+	if (!unicast) {
+		if_join_vrrp_group(family, &fd, ifp, proto);
+	}
 	if (fd < 0)
 		return -1;
 
@@ -1073,7 +1077,7 @@ open_vrrp_socket(sa_family_t family, int proto, int idx)
 void
 close_vrrp_socket(vrrp_t * vrrp)
 {
-	if_leave_vrrp_group(vrrp->family, vrrp->fd_in, vrrp->ifp);
+	if_leave_vrrp_group(vrrp->family, vrrp->fd_in, vrrp->ifp, !vrrp->unicast_peer);
 	close(vrrp->fd_out);
 }
 
@@ -1087,8 +1091,8 @@ new_vrrp_socket(vrrp_t * vrrp)
 	close_vrrp_socket(vrrp);
 	remove_vrrp_fd_bucket(vrrp);
 	proto = (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH : IPPROTO_VRRP;
-	vrrp->fd_in = open_vrrp_socket(vrrp->family, proto, IF_INDEX(vrrp->ifp));
-	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, IF_INDEX(vrrp->ifp));
+	vrrp->fd_in = open_vrrp_socket(vrrp->family, proto, IF_INDEX(vrrp->ifp), !vrrp->unicast_peer);
+	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, IF_INDEX(vrrp->ifp), !vrrp->unicast_peer);
 	alloc_vrrp_fd_bucket(vrrp);
 
 	/* Sync the other desc */
