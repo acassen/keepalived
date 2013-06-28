@@ -7,4 +7,8 @@ config.log
 config.status
 keepalived.spec
 keepalived/include/config.h
+lib/config.h
+*~
+*.swp
+.dir-locals.el
 
