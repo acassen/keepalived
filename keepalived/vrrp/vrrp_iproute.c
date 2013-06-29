@@ -21,6 +21,7 @@
  */
 
 /* local include */
+#include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
 #include "vrrp_netlink.h"
 #include "vrrp_if.h"
@@ -29,9 +30,27 @@
 #include "memory.h"
 #include "utils.h"
 
+void
+add_addr2req(struct nlmsghdr *n, int maxlen, int type, ip_address_t *ipaddress) {
+	if (IP_IS6(ipaddress)) {
+		addattr_l(n, maxlen, type, &ipaddress->u.sin6_addr, sizeof(ipaddress->u.sin6_addr));
+	} else {
+		addattr_l(n, maxlen, type, &ipaddress->u.sin.sin_addr, sizeof(ipaddress->u.sin.sin_addr));
+	}
+}
+
+void
+add_addr2rta(struct rtattr *rta, int maxlen, int type, ip_address_t *ipaddress) {
+	if (IP_IS6(ipaddress)) {
+		rta_addattr_l(rta, maxlen, type, &ipaddress->u.sin6_addr, sizeof(ipaddress->u.sin6_addr));
+	} else {
+		rta_addattr_l(rta, maxlen, type, &ipaddress->u.sin.sin_addr, sizeof(ipaddress->u.sin.sin_addr));
+	}
+}
+
 /* Add/Delete IP route to/from a specific interface */
 int
-netlink_route_ipv4(ip_route_t *iproute, int cmd)
+netlink_route(ip_route_t *iproute, int cmd)
 {
 	int status = 1;
 	struct {
@@ -49,7 +68,7 @@ netlink_route_ipv4(ip_route_t *iproute, int cmd)
 	req.n.nlmsg_len   = NLMSG_LENGTH(sizeof(struct rtmsg));
 	req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE;
 	req.n.nlmsg_type  = cmd ? RTM_NEWROUTE : RTM_DELROUTE;
-	req.r.rtm_family  = AF_INET;
+	req.r.rtm_family  = IP_FAMILY(&iproute->dst);
 	req.r.rtm_table   = iproute->table ? iproute->table : RT_TABLE_MAIN;
 	req.r.rtm_scope   = RT_SCOPE_NOWHERE;
 
@@ -63,29 +82,31 @@ netlink_route_ipv4(ip_route_t *iproute, int cmd)
 
 	/* Set routing entry */
 	req.r.rtm_dst_len = iproute->dmask;
-	addattr_l(&req.n, sizeof(req), RTA_DST,		&iproute->dst, 4);
-	if ((!iproute->blackhole) && (!iproute->gw2))
-		addattr_l(&req.n, sizeof(req), RTA_GATEWAY, &iproute->gw,  4);
-	if (iproute->gw2) {
+	add_addr2req(&req.n, sizeof(req), RTA_DST, &iproute->dst);
+	if ((!iproute->blackhole) && (!iproute->gw2.parsed))
+		add_addr2req(&req.n, sizeof(req), RTA_GATEWAY, &iproute->gw);
+	if (iproute->gw2.parsed) {
 		rta->rta_type = RTA_MULTIPATH;
 		rta->rta_len = RTA_LENGTH(0);
 		rtnh = RTA_DATA(rta);
+
 #define MULTIPATH_ADD_GW(x) \
 	memset(rtnh, 0, sizeof(*rtnh)); \
 	rtnh->rtnh_len = sizeof(*rtnh); \
 	if (iproute->index) rtnh->rtnh_ifindex = iproute->index; \
 	rta->rta_len += rtnh->rtnh_len;	\
-	rta_addattr_l(rta, 1024, RTA_GATEWAY, x, 4); \
-	rtnh->rtnh_len += sizeof(struct rtattr) + 4; \
+	add_addr2rta(rta, 1024, RTA_GATEWAY, x); \
+	rtnh->rtnh_len += sizeof(struct rtattr) + IP_SIZE(x);	\
 	rtnh = RTNH_NEXT(rtnh);
+
 		MULTIPATH_ADD_GW(&iproute->gw);
 		MULTIPATH_ADD_GW(&iproute->gw2);
 		addattr_l(&req.n, sizeof(req), RTA_MULTIPATH, RTA_DATA(rta), RTA_PAYLOAD(rta));
 	}
-	if ((iproute->index) && (!iproute->gw2))
+	if ((iproute->index) && (!iproute->gw2.parsed))
 		addattr32(&req.n, sizeof(req), RTA_OIF, iproute->index);
-	if (iproute->src)
-		addattr_l(&req.n, sizeof(req), RTA_PREFSRC, &iproute->src, 4);
+	if (iproute->src.parsed)
+		add_addr2req(&req.n, sizeof(req), RTA_PREFSRC, &iproute->src);
 	if (iproute->metric)
 		addattr32(&req.n, sizeof(req), RTA_PRIORITY, iproute->metric);
 
@@ -109,7 +130,7 @@ netlink_rtlist_ipv4(list rt_list, int cmd)
 		iproute = ELEMENT_DATA(e);
 		if ((cmd && !iproute->set) ||
 		    (!cmd && iproute->set)) {
-			if (netlink_route_ipv4(iproute, cmd) > 0)
+			if (netlink_route(iproute, cmd) > 0)
 				iproute->set = (cmd) ? 1 : 0;
 			else
 				iproute->set = 0;
@@ -127,49 +148,61 @@ void
 dump_iproute(void *rt_data)
 {
 	ip_route_t *route = rt_data;
-	char *log_msg = MALLOC(150);
-	char *tmp = MALLOC(30);
+	char *log_msg = MALLOC(1024);
+	char *tmp = MALLOC(INET6_ADDRSTRLEN + 30);
+	char *dst_addr = 0;
+	char *gw_addr = 0;
+	char *gw2_addr = 0;
+	char *src_addr = 0;
 
 	if (route->blackhole) {
 		strncat(log_msg, "blackhole ", 30);
 	}
-	if (route->dst) {
-		snprintf(tmp, 30, "%s/%d", inet_ntop2(route->dst), route->dmask);
-		strncat(log_msg, tmp, 30);
+	if (route->dst.parsed) {
+		dst_addr = ipaddresstos(&route->dst);
+		snprintf(tmp, INET6_ADDRSTRLEN + 30, "%s/%d", dst_addr, route->dmask);
+		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
 	}
-	if (route->gw) {
-		snprintf(tmp, 30, " gw %s", inet_ntop2(route->gw));
-		strncat(log_msg, tmp, 30);
+	if (route->gw.parsed) {
+		gw_addr = ipaddresstos(&route->gw);
+		snprintf(tmp, INET6_ADDRSTRLEN + 30, " gw %s", gw_addr);
+		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
 	}
-	if (route->gw2) {
-		snprintf(tmp, 30, " or gw %s", inet_ntop2(route->gw2));
-		strncat(log_msg, tmp, 30);
+	if (route->gw2.parsed) {
+		gw2_addr = ipaddresstos(&route->gw2);
+		snprintf(tmp, INET6_ADDRSTRLEN + 30, " or gw %s", gw2_addr);
+		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
 	}
-	if (route->src) {
-		snprintf(tmp, 30, " src %s", inet_ntop2(route->src));
-		strncat(log_msg, tmp, 30);
+	if (route->src.parsed) {
+		src_addr = ipaddresstos(&route->src);
+		snprintf(tmp, INET6_ADDRSTRLEN + 30, " src %s", src_addr);
+		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
 	}
 	if (route->index) {
-		snprintf(tmp, 30, " dev %s",
+		snprintf(tmp, INET6_ADDRSTRLEN + 30, " dev %s",
 			 IF_NAME(if_get_by_ifindex(route->index)));
-		strncat(log_msg, tmp, 30);
+		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
 	}
 	if (route->table) {
-		snprintf(tmp, 30, " table %d", route->table);
-		strncat(log_msg, tmp, 30);
+		snprintf(tmp, INET6_ADDRSTRLEN + 30, " table %d", route->table);
+		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
 	}
 	if (route->scope) {
-		snprintf(tmp, 30, " scope %s",
+		snprintf(tmp, INET6_ADDRSTRLEN + 30, " scope %s",
 			 netlink_scope_n2a(route->scope));
-		strncat(log_msg, tmp, 30);
+		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
 	}
 	if (route->metric) {
-		snprintf(tmp, 30, " metric %d", route->metric);
-		strncat(log_msg, tmp, 30);
+		snprintf(tmp, INET6_ADDRSTRLEN + 30, " metric %d", route->metric);
+		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
 	}
 
 	log_message(LOG_INFO, "     %s", log_msg);
 
+	if (dst_addr) FREE(dst_addr);
+	if (gw_addr) FREE(gw_addr);
+	if (gw2_addr) FREE(gw2_addr);
+	if (src_addr) FREE(src_addr);
 	FREE(tmp);
 	FREE(log_msg);
 }
@@ -177,12 +210,17 @@ void
 alloc_route(list rt_list, vector_t *strvec)
 {
 	ip_route_t *new;
-	uint32_t ipaddr = 0;
+	ip_address_t ipaddr;
 	interface_t *ifp;
 	char *str;
 	int i = 0;
 
 	new = (ip_route_t *) MALLOC(sizeof(ip_route_t));
+
+	new->dst.parsed = 0;
+	new->gw.parsed = 0;
+	new->gw2.parsed = 0;
+	new->src.parsed = 0;
 
 	/* FMT parse */
 	while (i < vector_size(strvec)) {
@@ -191,14 +229,14 @@ alloc_route(list rt_list, vector_t *strvec)
 		/* cmd parsing */
 		if (!strcmp(str, "blackhole")) {
 			new->blackhole = 1;
-			inet_ston(vector_slot(strvec, ++i), &new->dst);
+			parse_ipaddress(&new->dst, vector_slot(strvec, ++i));
 			new->dmask = inet_stom(vector_slot(strvec, i));
 		} else if (!strcmp(str, "via") || !strcmp(str, "gw")) {
-			inet_ston(vector_slot(strvec, ++i), &new->gw);
+			parse_ipaddress(&new->gw, vector_slot(strvec, ++i));
 		} else if (!strcmp(str, "or")) {
-			inet_ston(vector_slot(strvec, ++i), &new->gw2);
+			parse_ipaddress(&new->gw2, vector_slot(strvec, ++i));
 		} else if (!strcmp(str, "src")) {
-			inet_ston(vector_slot(strvec, ++i), &new->src);
+			parse_ipaddress(&new->src, vector_slot(strvec, ++i));
 		} else if (!strcmp(str, "dev") || !strcmp(str, "oif")) {
 			ifp = if_get_by_ifname(vector_slot(strvec, ++i));
 			if (!ifp) {
@@ -217,8 +255,8 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->scope = netlink_scope_a2n(vector_slot(strvec, ++i));
 		} else {
 			if (!strcmp(str, "to")) i++;
-			if (inet_ston(vector_slot(strvec, i), &ipaddr)) {
-				inet_ston(vector_slot(strvec, i), &new->dst);
+			if (parse_ipaddress(&ipaddr, vector_slot(strvec, i))) {
+				parse_ipaddress(&new->dst, vector_slot(strvec, i));
 				new->dmask = inet_stom(vector_slot(strvec, i));
 			}
 		}
@@ -251,6 +289,7 @@ clear_diff_routes(list l, list n)
 {
 	ip_route_t *iproute;
 	element e;
+	char *dst_addr = 0;
 
 	/* No route in previous conf */
 	if (LIST_ISEMPTY(l))
@@ -266,9 +305,11 @@ clear_diff_routes(list l, list n)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		iproute = ELEMENT_DATA(e);
 		if (!route_exist(n, iproute) && iproute->set) {
+			dst_addr = ipaddresstos(&iproute->dst);
 			log_message(LOG_INFO, "ip route %s/%d ... , no longer exist"
-			       , inet_ntop2(iproute->dst), iproute->dmask);
-			netlink_route_ipv4(iproute, IPROUTE_DEL);
+			       , dst_addr, iproute->dmask);
+			netlink_route(iproute, IPROUTE_DEL);
+			FREE(dst_addr);
 		}
 	}
 }
@@ -279,3 +320,9 @@ clear_diff_sroutes(void)
 {
 	clear_diff_routes(old_vrrp_data->static_routes, vrrp_data->static_routes);
 }
+
+/* Local Variables: */
+/* indent-tabs-mode: t */
+/* tab-width: 8 */
+/* c-basic-offset: 8 */
+/* End: */

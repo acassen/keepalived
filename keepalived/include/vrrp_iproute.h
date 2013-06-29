@@ -34,11 +34,11 @@
 
 /* types definition */
 typedef struct _ip_route {
-	uint32_t		dst;		/* RTA_DST */
+	ip_address_t		dst;		/* RTA_DST */
 	uint8_t			dmask;
-	uint32_t		gw;		/* RTA_GATEWAY */
-	uint32_t		gw2;		/* Will use RTA_MULTIPATH */
-	uint32_t		src;		/* RTA_PREFSRC */
+	ip_address_t		gw;		/* RTA_GATEWAY */
+	ip_address_t		gw2;		/* Will use RTA_MULTIPATH */
+	ip_address_t		src;		/* RTA_PREFSRC */
 	uint32_t		metric;		/* RTA_PRIORITY */
 	int			index;		/* RTA_OIF */
 	int			blackhole;
@@ -51,12 +51,12 @@ typedef struct _ip_route {
 #define IPROUTE_ADD 1
 
 /* Macro definition */
-#define ROUTE_ISEQ(X,Y)	((X)->dst    == (Y)->dst   && \
-			 (X)->dmask  == (Y)->dmask && \
-			 (X)->gw     == (Y)->gw    && \
-			 (X)->src    == (Y)->src   && \
-			 (X)->table  == (Y)->table && \
-			 (X)->scope  == (Y)->scope && \
+#define ROUTE_ISEQ(X,Y)	(IP_ISEQ(&(X)->dst, &(Y)->dst) && \
+			 (X)->dmask  == (Y)->dmask   && \
+			 IP_ISEQ(&(X)->gw, &(Y)->gw)   && \
+			 IP_ISEQ(&(X)->src, &(Y)->src) && \
+			 (X)->table  == (Y)->table   && \
+			 (X)->scope  == (Y)->scope   && \
 			 (X)->index  == (Y)->index)
 
 /* prototypes */
@@ -69,3 +69,8 @@ extern void clear_diff_routes(list, list);
 extern void clear_diff_sroutes(void);
 
 #endif
+/* Local Variables: */
+/* indent-tabs-mode: t */
+/* tab-width: 8 */
+/* c-basic-offset: 8 */
+/* End: */
