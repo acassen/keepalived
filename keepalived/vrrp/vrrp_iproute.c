@@ -117,7 +117,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 
 /* Add/Delete a list of IP routes */
 void
-netlink_rtlist_ipv4(list rt_list, int cmd)
+netlink_rtlist(list rt_list, int cmd)
 {
 	ip_route_t *iproute;
 	element e;
@@ -298,7 +298,7 @@ clear_diff_routes(list l, list n)
 	/* All Static routes removed */
 	if (LIST_ISEMPTY(n)) {
 		log_message(LOG_INFO, "Removing a VirtualRoute block");
-		netlink_rtlist_ipv4(l, IPROUTE_DEL);
+		netlink_rtlist(l, IPROUTE_DEL);
 		return;
 	}
 
