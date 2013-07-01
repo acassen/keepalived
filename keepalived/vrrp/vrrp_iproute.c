@@ -63,6 +63,9 @@ netlink_route(ip_route_t *iproute, int cmd)
 	struct rtattr *rta = (void*)buf;
 	struct rtnexthop *rtnh;
 
+	log_message(LOG_INFO, "route command: %d", cmd);
+	dump_iproute(iproute);
+
 	memset(&req, 0, sizeof (req));
 
 	req.n.nlmsg_len   = NLMSG_LENGTH(sizeof(struct rtmsg));
@@ -262,6 +265,9 @@ alloc_route(list rt_list, vector_t *strvec)
 		}
 		i++;
 	}
+
+	log_message(LOG_INFO, "new route");
+	dump_iproute(new);
 
 	list_add(rt_list, new);
 }
