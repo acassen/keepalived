@@ -38,6 +38,7 @@
 
 /* types definition */
 typedef struct _ip_address {
+	int parsed;
 	struct ifaddrmsg ifa;
 
 	union {
@@ -61,7 +62,9 @@ typedef struct _ip_address {
 #define IP_FAMILY(X)	(X)->ifa.ifa_family
 #define IP_IS6(X)	((X)->ifa.ifa_family == AF_INET6)
 
-#define IP_ISEQ(X,Y)   ((X)->u.sin.sin_addr.s_addr == (Y)->u.sin.sin_addr.s_addr	&& \
+#define IP_ISEQ(X,Y)    ((IP_FAMILY(X) == IP_FAMILY(Y)) ? (IP_IS6(X) ? IP6_ISEQ(X, Y) : IP4_ISEQ(X, Y)) : 0)
+
+#define IP4_ISEQ(X,Y)   ((X)->u.sin.sin_addr.s_addr == (Y)->u.sin.sin_addr.s_addr	&& \
 			(X)->ifa.ifa_prefixlen     == (Y)->ifa.ifa_prefixlen		&& \
 			(X)->ifa.ifa_index         == (Y)->ifa.ifa_index		&& \
 			(X)->ifa.ifa_scope         == (Y)->ifa.ifa_scope)
@@ -74,13 +77,21 @@ typedef struct _ip_address {
 			(X)->ifa.ifa_index         == (Y)->ifa.ifa_index		&& \
 			(X)->ifa.ifa_scope         == (Y)->ifa.ifa_scope)
 
+#define IP_SIZE(X)      (IP_IS6(X) ? sizeof((X)->u.sin6_addr) : sizeof((X)->u.sin.sin_addr))
 
 /* prototypes */
 extern void netlink_iplist(list, int);
 extern void free_ipaddress(void *);
+extern char * ipaddresstos(ip_address_t *);
 extern void dump_ipaddress(void *);
+extern int parse_ipaddress(ip_address_t *, char *);
 extern void alloc_ipaddress(list, vector_t *, interface_t *);
 extern void clear_diff_address(list, list);
 extern void clear_diff_saddresses(void);
 
 #endif
+/* Local Variables: */
+/* indent-tabs-mode: t */
+/* tab-width: 8 */
+/* c-basic-offset: 8 */
+/* End: */

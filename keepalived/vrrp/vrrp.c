@@ -66,7 +66,7 @@ vrrp_handle_iproutes(vrrp_t * vrrp, int cmd)
 		log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol Virtual Routes",
 		       vrrp->iname,
 		       (cmd == IPROUTE_ADD) ? "setting" : "removing");
-	netlink_rtlist_ipv4(vrrp->vroutes, cmd);
+	netlink_rtlist(vrrp->vroutes, cmd);
 	return 1;
 }
 
