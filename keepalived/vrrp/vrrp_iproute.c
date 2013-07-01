@@ -63,7 +63,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 	struct rtattr *rta = (void*)buf;
 	struct rtnexthop *rtnh;
 
-	log_message(LOG_INFO, "route command: %d", cmd);
+	log_message(LOG_DEBUG, "route command: %d", cmd);
 	dump_iproute(iproute);
 
 	memset(&req, 0, sizeof (req));
@@ -213,7 +213,6 @@ void
 alloc_route(list rt_list, vector_t *strvec)
 {
 	ip_route_t *new;
-	ip_address_t ipaddr;
 	interface_t *ifp;
 	char *str;
 	int i = 0;
@@ -229,21 +228,35 @@ alloc_route(list rt_list, vector_t *strvec)
 	while (i < vector_size(strvec)) {
 		str = vector_slot(strvec, i);
 
+		log_message(LOG_DEBUG, "parsing part of route: %s", str);
+
 		/* cmd parsing */
 		if (!strcmp(str, "blackhole")) {
 			new->blackhole = 1;
 			parse_ipaddress(&new->dst, vector_slot(strvec, ++i));
-			new->dmask = inet_stom(vector_slot(strvec, i));
+			new->dmask = new->dst.ifa.ifa_prefixlen;
 		} else if (!strcmp(str, "via") || !strcmp(str, "gw")) {
-			parse_ipaddress(&new->gw, vector_slot(strvec, ++i));
+			if (! parse_ipaddress(&new->gw, vector_slot(strvec, ++i))) {
+				log_message(LOG_ERR, "unable to parse gateway: %s", vector_slot(strvec, i));
+				FREE(new);
+				return;
+			}
 		} else if (!strcmp(str, "or")) {
-			parse_ipaddress(&new->gw2, vector_slot(strvec, ++i));
+			if (! parse_ipaddress(&new->gw2, vector_slot(strvec, ++i))) {
+				log_message(LOG_ERR, "unable to parse second gateway: %s", vector_slot(strvec, i));
+				FREE(new);
+				return;
+			}
 		} else if (!strcmp(str, "src")) {
-			parse_ipaddress(&new->src, vector_slot(strvec, ++i));
+			if (! parse_ipaddress(&new->src, vector_slot(strvec, ++i))) {
+				log_message(LOG_ERR, "unable to parse source: %s", vector_slot(strvec, i));
+				FREE(new);
+				return;
+			}
 		} else if (!strcmp(str, "dev") || !strcmp(str, "oif")) {
 			ifp = if_get_by_ifname(vector_slot(strvec, ++i));
 			if (!ifp) {
-				log_message(LOG_INFO, "VRRP is trying to assign VROUTE to unknown "
+				log_message(LOG_ERR, "VRRP is trying to assign VROUTE to unknown "
 				       "%s interface !!! go out and fixe your conf !!!",
 				       (char *)vector_slot(strvec, i));
 				FREE(new);
@@ -258,15 +271,18 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->scope = netlink_scope_a2n(vector_slot(strvec, ++i));
 		} else {
 			if (!strcmp(str, "to")) i++;
-			if (parse_ipaddress(&ipaddr, vector_slot(strvec, i))) {
-				parse_ipaddress(&new->dst, vector_slot(strvec, i));
-				new->dmask = inet_stom(vector_slot(strvec, i));
+			if ( parse_ipaddress(&new->dst, vector_slot(strvec, i))) {
+				new->dmask = new->dst.ifa.ifa_prefixlen;
+			} else {
+				log_message(LOG_ERR, "unable to parse destination: %s", vector_slot(strvec, i));
+				FREE(new);
+				return;
 			}
 		}
 		i++;
 	}
 
-	log_message(LOG_INFO, "new route");
+	log_message(LOG_DEBUG, "new route parsed");
 	dump_iproute(new);
 
 	list_add(rt_list, new);
