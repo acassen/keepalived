@@ -113,6 +113,7 @@ ipaddresstos(ip_address_t *ipaddr) {
 	} else {
 		inet_ntop(AF_INET, &ipaddr->u.sin.sin_addr, addr_str, INET_ADDRSTRLEN);
 	}
+
 	return addr_str;
 }
 void
@@ -130,14 +131,15 @@ dump_ipaddress(void *if_data)
 				 inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));
 	}
 
-	log_message(LOG_INFO, "     %s/%d%s dev %s scope %s%s%s"
+	log_message(LOG_INFO, "     %s/%d%s dev %s scope %s%s%s (OK: %d)"
 	       , addr_str
 	       , ipaddr->ifa.ifa_prefixlen
 	       , broadcast
 	       , IF_NAME(ipaddr->ifp)
 	       , netlink_scope_n2a(ipaddr->ifa.ifa_scope)
 	       , ipaddr->label ? " label " : ""
-	       , ipaddr->label ? ipaddr->label : "");
+	       , ipaddr->label ? ipaddr->label : ""
+	       , ipaddr->parsed );
 	FREE(broadcast);
 	FREE(addr_str);
 }
@@ -147,6 +149,8 @@ parse_ipaddress(ip_address_t* new, char *str)
 {
 	char *p;
 	void *addr;
+
+	log_message(LOG_DEBUG, "parsing address %s", str);
 
 	p = strchr(str, '/');
 	if (p) {
@@ -163,6 +167,11 @@ parse_ipaddress(ip_address_t* new, char *str)
 	if (!inet_pton(IP_FAMILY(new), str, addr)) {
 		new->parsed = 0;
 	}
+
+	if (p) {
+		*p = '/';
+	}
+
 	return new->parsed;
 }
 
@@ -236,6 +245,9 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		}
 		i++;
 	}
+
+	log_message(LOG_DEBUG, "new address parsed");
+	dump_ipaddress(new);
 
 	list_add(ip_list, new);
 }
