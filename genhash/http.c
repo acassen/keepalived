@@ -135,8 +135,9 @@ http_process_stream(SOCK * sock_obj, int r)
 			printf(HTTP_HEADER_HEXA);
 		if ((sock_obj->extracted = extract_html(sock_obj->buffer, sock_obj->size))) {
 			if (req->verbose)
-				http_dump_header(sock_obj->buffer,
-						 sock_obj->extracted - sock_obj->buffer);
+				http_dump_header(sock_obj->buffer + (sock_obj->size - r),
+						 (sock_obj->extracted - sock_obj->buffer)
+						 - (sock_obj->size - r));
 			r = sock_obj->size - (sock_obj->extracted - sock_obj->buffer);
 			if (r) {
 				if (req->verbose) {
@@ -150,7 +151,8 @@ http_process_stream(SOCK * sock_obj, int r)
 			sock_obj->size = r;
 		} else {
 			if (req->verbose)
-				http_dump_header(sock_obj->buffer, sock_obj->size);
+				http_dump_header(sock_obj->buffer + (sock_obj->size - r),
+						 r);
 
 			/* minimize buffer using no 2*CR/LF found yet */
 			if (sock_obj->size > 4) {
@@ -181,9 +183,14 @@ http_read_thread(thread_t * thread)
 		return epilog(thread);
 
 	/* read the HTTP stream */
-	memset(sock_obj->buffer, 0, MAX_BUFFER_LENGTH);
-	r = read(thread->u.fd, sock_obj->buffer + sock_obj->size,
-		 MAX_BUFFER_LENGTH - sock_obj->size);
+	r = MAX_BUFFER_LENGTH - sock_obj->size;
+	if (r <= 0) {
+		/* defensive check, should not occur */
+		fprintf(stderr, "HTTP socket buffer overflow (not consumed)\n");
+		r = MAX_BUFFER_LENGTH;
+	}
+	memset(sock_obj->buffer + sock_obj->size, 0, r);
+	r = read(thread->u.fd, sock_obj->buffer + sock_obj->size, r);
 
 	DBG(" [l:%d,fd:%d]\n", r, sock_obj->fd);
 
