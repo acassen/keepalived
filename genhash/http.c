@@ -54,6 +54,63 @@
  *   finalize    /     epilog
  */
 
+
+static inline MD5_CTX *
+md5context(SOCK *s) {
+	return &s->context.md5;
+}
+
+#ifdef FEAT_SHA1
+static inline SHA_CTX *
+shacontext(SOCK *s) {
+	return &s->context.sha;
+}
+#endif
+
+typedef void *(*hash_context_f)(SOCK *);
+typedef void (*hash_init_f)(void *);
+typedef void (*hash_update_f)(void *, const void *, unsigned long);
+typedef void (*hash_final_f)(unsigned char *, void *);
+
+static const struct {
+	hash_context_f context;
+	hash_init_f init;
+	hash_update_f update;
+	hash_final_f final;
+	unsigned char length;
+	const char *label;
+} hashes[hash_guard] = {
+	[hash_md5] = {
+		(hash_context_f) md5context,
+		(hash_init_f) MD5_Init,
+		(hash_update_f) MD5_Update,
+		(hash_final_f) MD5_Final,
+		MD5_DIGEST_LENGTH,
+		"MD5SUM",
+	},
+#ifdef FEAT_SHA1
+	[hash_sha1] = {
+		(hash_context_f) shacontext,
+		(hash_init_f) SHA1_Init,
+		(hash_update_f) SHA1_Update,
+		(hash_final_f) SHA1_Final,
+		SHA_DIGEST_LENGTH,
+		"SHA1SUM",
+	}
+#endif
+};
+
+#define HASH_LENGTH(sock)	(hashes[(sock)->hash].length)
+#define HASH_LABEL(sock)	(hashes[(sock)->hash].label)
+#define HASH_INIT(sock) \
+	(hashes[(sock)->hash].init(hashes[(sock)->hash].context(sock)))
+#define HASH_UPDATE(sock, buf, len) \
+	(hashes[(sock)->hash].update(hashes[(sock)->hash].context(sock),\
+				     (buf), (len)))
+#define HASH_FINAL(sock, digest) \
+	(hashes[(sock)->hash].final((digest),\
+				    hashes[(sock)->hash].context(sock)))
+
 /* free allocated pieces */
 static void
 free_all(thread_t * thread)
@@ -88,20 +145,22 @@ int
 finalize(thread_t * thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
-	unsigned char digest[16];
+
+	unsigned char digest_length = HASH_LENGTH(sock_obj);
+	unsigned char digest[digest_length];
 	int i;
 
-	/* Compute final MD5 digest */
-	MD5_Final(digest, &sock_obj->context);
+	/* Compute final hash digest */
+	HASH_FINAL(sock_obj, digest);
 	if (req->verbose) {
 		printf("\n");
-		printf(HTML_MD5);
-		dump_buffer((char *) digest, 16);
+		printf(HTML_HASH);
+		dump_buffer((char *) digest, digest_length);
 
-		printf(HTML_MD5_FINAL);
+		printf(HTML_HASH_FINAL);
 	}
-	printf("MD5SUM = ");
-	for (i = 0; i < 16; i++)
+	printf("%s = ", HASH_LABEL(sock_obj));
+	for (i = 0; i < digest_length; i++)
 		printf("%02x", digest[i]);
 	printf("\n\n");
 
@@ -145,7 +204,7 @@ http_process_stream(SOCK * sock_obj, int r)
 					dump_buffer(sock_obj->extracted, r);
 				}
 				memmove(sock_obj->buffer, sock_obj->extracted, r);
-				MD5_Update(&sock_obj->context, sock_obj->buffer, r);
+				HASH_UPDATE(sock_obj, sock_obj->buffer, r);
 				r = 0;
 			}
 			sock_obj->size = r;
@@ -164,7 +223,7 @@ http_process_stream(SOCK * sock_obj, int r)
 	} else if (sock_obj->size) {
 		if (req->verbose)
 			dump_buffer(sock_obj->buffer, r);
-		MD5_Update(&sock_obj->context, sock_obj->buffer, sock_obj->size);
+		HASH_UPDATE(sock_obj, sock_obj->buffer, sock_obj->size);
 		sock_obj->size = 0;
 	}
 
@@ -236,8 +295,9 @@ http_response_thread(thread_t * thread)
 	/* Allocate & clean the get buffer */
 	sock_obj->buffer = (char *) MALLOC(MAX_BUFFER_LENGTH);
 
-	/* Initalize the MD5 context */
-	MD5_Init(&sock_obj->context);
+	/* Initalize the hash context */
+	sock_obj->hash = req->hash;
+	HASH_INIT(sock_obj);
 
 	/* Register asynchronous http/ssl read thread */
 	if (req->ssl)

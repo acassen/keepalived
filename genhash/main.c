@@ -32,6 +32,13 @@
 /* global var */
 REQ *req = NULL;
 
+static const char *hash_ids[hash_guard] = {
+	[hash_md5] = "MD5",
+#ifdef FEAT_SHA1
+	[hash_sha1] = "SHA1",
+#endif
+};
+
 /* Terminate handler */
 void
 sigend(void *v, int sig)
@@ -55,6 +62,8 @@ signal_init(void)
 static void
 usage(const char *prog)
 {
+	enum feat_hashes i;
+
 	fprintf(stderr, VERSION_STRING);
 	fprintf(stderr,
 		"Usage:\n"
@@ -69,10 +78,15 @@ usage(const char *prog)
 		"  %s --port            -p       Use the specified remote server port.\n"
 		"  %s --url             -u       Use the specified remote server url.\n"
 		"  %s --use-virtualhost -V       Use the specified virtualhost in GET query.\n"
+		"  %s --hash            -H       Use the specified hash algorithm.\n"
 		"  %s --verbose         -v       Use verbose mode output.\n"
 		"  %s --help            -h       Display this short inlined help screen.\n"
 		"  %s --release         -r       Display the release number\n",
-		prog, prog, prog, prog, prog, prog, prog, prog);
+		prog, prog, prog, prog, prog, prog, prog, prog, prog);
+	fprintf(stderr, "\nSupported hash algorithms:\n");
+	for (i = hash_first; i < hash_guard; i++)
+		fprintf(stderr, "  %s%s\n",
+			hash_ids[i], i == hash_default ? " (default)": "");
 }
 
 /* Command line parser */
@@ -81,6 +95,7 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 {
 	poptContext context;
 	char *optarg = NULL;
+	enum feat_hashes i;
 	int c;
 
 	struct poptOption options_table[] = {
@@ -91,6 +106,7 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 		{"server", 's', POPT_ARG_STRING, &optarg, 's'},
 		{"port", 'p', POPT_ARG_STRING, &optarg, 'p'},
 		{"url", 'u', POPT_ARG_STRING, &optarg, 'u'},
+		{"hash", 'H', POPT_ARG_STRING, &optarg, 'H'},
 		{"use-virtualhost", 'V', POPT_ARG_STRING, &optarg, 'V'},
 		{NULL, 0, 0, NULL, 0}
 	};
@@ -123,6 +139,17 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 			return CMD_LINE_ERROR;
 		}
 		break;
+	case 'H':
+		for (i = hash_first; i < hash_guard; i++)
+			if (!strcasecmp(optarg, hash_ids[i])) {
+				req_obj->hash = i;
+				break;
+			}
+		if (i == hash_guard) {
+			fprintf(stderr, "unknown hash algoritm: %s\n", optarg);
+			return CMD_LINE_ERROR;
+		}
+		break;
 	case 'V':
 		req_obj->vhost = optarg;
 		break;
@@ -143,6 +170,17 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 		case 's':
 			if (!inet_ston(optarg, &req_obj->addr_ip)) {
 				fprintf(stderr, "server should be an IP, not %s\n", optarg);
+				return CMD_LINE_ERROR;
+			}
+			break;
+		case 'H':
+			for (i = hash_first; i < hash_guard; i++)
+				if (!strcasecmp(optarg, hash_ids[i])) {
+					req_obj->hash = i;
+					break;
+				}
+			if (i == hash_guard) {
+				fprintf(stderr, "unknown hash algoritm: %s\n", optarg);
 				return CMD_LINE_ERROR;
 			}
 			break;
