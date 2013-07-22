@@ -54,62 +54,34 @@
  *   finalize    /     epilog
  */
 
-
-static inline MD5_CTX *
-md5context(SOCK *s) {
-	return &s->context.md5;
-}
-
-#ifdef FEAT_SHA1
-static inline SHA_CTX *
-shacontext(SOCK *s) {
-	return &s->context.sha;
-}
-#endif
-
-typedef void *(*hash_context_f)(SOCK *);
-typedef void (*hash_init_f)(void *);
-typedef void (*hash_update_f)(void *, const void *, unsigned long);
-typedef void (*hash_final_f)(unsigned char *, void *);
-
-static const struct {
-	hash_context_f context;
-	hash_init_f init;
-	hash_update_f update;
-	hash_final_f final;
-	unsigned char length;
-	const char *label;
-} hashes[hash_guard] = {
+const hash_t hashes[hash_guard] = {
 	[hash_md5] = {
-		(hash_context_f) md5context,
 		(hash_init_f) MD5_Init,
 		(hash_update_f) MD5_Update,
 		(hash_final_f) MD5_Final,
 		MD5_DIGEST_LENGTH,
+		"MD5",
 		"MD5SUM",
 	},
 #ifdef FEAT_SHA1
 	[hash_sha1] = {
-		(hash_context_f) shacontext,
 		(hash_init_f) SHA1_Init,
 		(hash_update_f) SHA1_Update,
 		(hash_final_f) SHA1_Final,
 		SHA_DIGEST_LENGTH,
+		"SHA1",
 		"SHA1SUM",
 	}
 #endif
 };
 
-#define HASH_LENGTH(sock)	(hashes[(sock)->hash].length)
-#define HASH_LABEL(sock)	(hashes[(sock)->hash].label)
-#define HASH_INIT(sock) \
-	(hashes[(sock)->hash].init(hashes[(sock)->hash].context(sock)))
+#define HASH_LENGTH(sock)	((sock)->hash->length)
+#define HASH_LABEL(sock)	((sock)->hash->label)
+#define HASH_INIT(sock)		((sock)->hash->init(&(sock)->context))
 #define HASH_UPDATE(sock, buf, len) \
-	(hashes[(sock)->hash].update(hashes[(sock)->hash].context(sock),\
-				     (buf), (len)))
+	((sock)->hash->update(&(sock)->context, (buf), (len)))
 #define HASH_FINAL(sock, digest) \
-	(hashes[(sock)->hash].final((digest),\
-				    hashes[(sock)->hash].context(sock)))
+	((sock)->hash->final((digest), &(sock)->context))
 
 /* free allocated pieces */
 static void
@@ -296,7 +268,7 @@ http_response_thread(thread_t * thread)
 	sock_obj->buffer = (char *) MALLOC(MAX_BUFFER_LENGTH);
 
 	/* Initalize the hash context */
-	sock_obj->hash = req->hash;
+	sock_obj->hash = &hashes[req->hash];
 	HASH_INIT(sock_obj);
 
 	/* Register asynchronous http/ssl read thread */

@@ -28,34 +28,16 @@
 /* system includes */
 #include <openssl/ssl.h>
 
-#include <openssl/md5.h>
-#ifdef FEAT_SHA1
-# include <openssl/sha.h>
-#endif
-
-/* available hashes enumeration */
-enum feat_hashes {
-	hash_first,
-	hash_md5 = hash_first,
-#ifdef FEAT_SHA1
-	hash_sha1,
-#endif
-	hash_guard,
-	hash_default = hash_md5,
-};
+/* local includes */
+#include "hash.h"
 
 /* Engine socket pool element structure */
 typedef struct {
 	int fd;
 	SSL *ssl;
 	BIO *bio;
-	enum feat_hashes hash;
-	union {
-		MD5_CTX md5;
-#ifdef FEAT_SHA1
-		SHA_CTX sha;
-#endif
-	} context;
+	const hash_t *hash;
+	hash_context_t context;
 	int status;
 	int lock;
 	char *buffer;

@@ -54,6 +54,9 @@
 #define HTML_HASH          DELIM_BEGIN"    HTML hash resulting    "DELIM_END
 #define HTML_HASH_FINAL    DELIM_BEGIN" HTML hash final resulting "DELIM_END
 
+/* Globals exported */
+extern const hash_t hashes[];
+
 /* Define prototypes */
 extern int epilog(thread_t *);
 extern int finalize(thread_t *);

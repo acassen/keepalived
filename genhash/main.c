@@ -32,13 +32,6 @@
 /* global var */
 REQ *req = NULL;
 
-static const char *hash_ids[hash_guard] = {
-	[hash_md5] = "MD5",
-#ifdef FEAT_SHA1
-	[hash_sha1] = "SHA1",
-#endif
-};
-
 /* Terminate handler */
 void
 sigend(void *v, int sig)
@@ -86,7 +79,7 @@ usage(const char *prog)
 	fprintf(stderr, "\nSupported hash algorithms:\n");
 	for (i = hash_first; i < hash_guard; i++)
 		fprintf(stderr, "  %s%s\n",
-			hash_ids[i], i == hash_default ? " (default)": "");
+			hashes[i].id, i == hash_default ? " (default)": "");
 }
 
 /* Command line parser */
@@ -141,7 +134,7 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 		break;
 	case 'H':
 		for (i = hash_first; i < hash_guard; i++)
-			if (!strcasecmp(optarg, hash_ids[i])) {
+			if (!strcasecmp(optarg, hashes[i].id)) {
 				req_obj->hash = i;
 				break;
 			}
@@ -175,7 +168,7 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 			break;
 		case 'H':
 			for (i = hash_first; i < hash_guard; i++)
-				if (!strcasecmp(optarg, hash_ids[i])) {
+				if (!strcasecmp(optarg, hashes[i].id)) {
 					req_obj->hash = i;
 					break;
 				}
@@ -218,6 +211,9 @@ main(int argc, char **argv)
 
 	/* Allocate the room */
 	req = (REQ *) MALLOC(sizeof (REQ));
+
+	/* Preset (potentially) non-zero defaults */
+	req->hash = hash_default;
 
 	/* Command line parser */
 	if (!parse_cmdline(argc, argv, req)) {
