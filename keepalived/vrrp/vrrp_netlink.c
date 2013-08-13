@@ -54,7 +54,7 @@ netlink_socket(nl_handle_t *nl, unsigned long groups)
 	socklen_t addr_len;
 	int ret;
 
-	memset(nl, 0, sizeof (nl));
+	memset(nl, 0, sizeof (*nl));
 
 	nl->fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (nl->fd < 0) {
