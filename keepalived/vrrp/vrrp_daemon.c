@@ -249,8 +249,13 @@ vrrp_respawn_thread(thread_t * thread)
 	}
 
 	/* We catch a SIGCHLD, handle it */
-	log_message(LOG_ALERT, "VRRP child process(%d) died: Respawning", pid);
-	start_vrrp_child();
+	if (!(debug & 64)) {
+		log_message(LOG_ALERT, "VRRP child process(%d) died: Respawning", pid);
+		start_vrrp_child();
+	} else {
+		log_message(LOG_ALERT, "VRRP child process(%d) died: Exiting", pid);
+		raise(SIGTERM);
+	}
 	return 0;
 }
 

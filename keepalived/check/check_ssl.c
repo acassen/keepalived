@@ -86,10 +86,10 @@ build_ssl_ctx(void)
 	}
 
 	/* Load our keys and certificates */
-	if (check_data->ssl->keyfile)
+	if (check_data->ssl->certfile)
 		if (!
 		    (SSL_CTX_use_certificate_chain_file
-		     (ssl->ctx, check_data->ssl->keyfile))) {
+		     (ssl->ctx, check_data->ssl->certfile))) {
 			log_message(LOG_INFO,
 			       "SSL error : Cant load certificate file...");
 			return 0;
