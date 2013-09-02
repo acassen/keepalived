@@ -64,10 +64,11 @@ case "$1" in
         ;;
     status)
         status keepalived
+        RETVAL=$?
         ;;
     *)
         echo "Usage: $0 {start|stop|reload|restart|condrestart|status}"
-        exit 1
+        RETVAL=1
 esac
 
 exit $RETVAL
