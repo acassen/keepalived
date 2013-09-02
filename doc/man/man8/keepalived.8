@@ -1,75 +1,104 @@
-.\"
-.\" keepalived(8)
-.\"
-.\" Copyright (C) 2004 Joseph Mack
-.TH keepalived 8 "Jan 2004"
-.SH NAME
-keepalived. \- keepalive demon
-.SH SYNOPSIS
-.B "/usr/sbin/keepalived [-n] [-f keepalived.conf] [-d] [-h] [-v]"
-.SH DESCRIPTION
-The
-.B keepalived
-The keepalived server implements the vrrpd routing demon 
-which enables routing failover for a pair (or set) of routers 
-(or LVS directors) 
-and the keepalived demon which sets up and does the health checking 
-of virtual services in a Linux Virtual Servier.
-.SH OPTIONS
+.TH KEEPALIVED "8" "November 2012"
+
+.na
+.nh
+
+.SH "NAME"
+keepalived \- load\-balancing and high\-availability service
+
+.SH "SYNOPSIS"
+\fBkeepalived\fP
+[\fB\-f\fP|\fB\-\-use\-file\fP=FILE]
+[\fB\-P\fP|\fB\-\-vrrp\fP]
+[\fB\-C\fP|\fB\-\-check\fP]
+[\fB\-l\fP|\fB\-\-log\-console\fP]
+[\fB\-D\fP|\fB\-\-log\-detail\fP]
+[\fB\-S\fP|\fB\-\-log\-facility\fP={0-7}]
+[\fB\-V\fP|\fB\-\-dont\-release\-vrrp\fP]
+[\fB\-I\fP|\fB\-\-dont\-release\-ipvs\fP]
+[\fB\-R\fP|\fB\-\-dont\-respawn\fP]
+[\fB\-n\fP|\fB\-\-dont\-fork\fP]
+[\fB\-d\fP|\fB\-\-dump\-conf\fP]
+[\fB\-p\fP|\fB\-\-pid\fP=FILE]
+[\fB\-r\fP|\fB\-\-vrrp_pid\fP=FILE]
+[\fB\-c\fP|\fB\-\-checkers_pid\fP=FILE]
+[\fB\-v\fP|\fB\-\-version\fP]
+[\fB\-h\fP|\fB\-\-help\fP]
+
+.SH "DESCRIPTION"
+Keepalived provides simple and robust facilities for load\-balancing
+and high\-availability. The load\-balancing framework relies on
+well\-known and widely used Linux Virtual Server (IPVS) kernel module
+providing Layer4 load\-balancing. Keepalived implements a set of
+checkers to dynamically and adaptively maintain and manage
+load\-balanced server pool according their health. Keepalived also
+implements the VRRPv2 protocol to achieve high\-availability with
+director failover.
+
+.SH "OPTIONS"
 .TP
-.B --vrrp, -P
-Only run the VRRP subsystem.
+\fB -f, --use-file\fP=FILE
+Use the specified configuration file. The default configuration file
+is "/etc/keepalived/keepalived.conf".
 .TP
-.B --check, -C 
-Only run the healthchecker subsystem.
+\fB -P, --vrrp\fP
+Only run the VRRP subsystem. This is useful for configurations that do
+not use IPVS load balancer.
 .TP
-.B --dont-release-vrrp, -V    
-leave (don't remove) VRRP VIPs & VROUTEs on daemon stop.
+\fB -C, --check\fP
+Only run the healthcheck subsystem. This is useful for configurations
+that use the IPVS load balancer with a single director with no failover.
 .TP
---dont-release-ipvs, -I    
-Dont remove IPVS topology on daemon stop.
+\fB -l, --log-console\fP
+Log messages to the local console. The default behavior is to log
+messages to syslog.
 .TP
---dont-fork, -n
-Dont fork the daemon process.
+\fB -D, --log-detail\fP
+Detailed log messages.
 .TP
---use-file, -f keepalived.conf_file 
-Use the specified configuration file.
+\fB -S, --log-facility\fP=[0-7]
+Set syslog facility to LOG_LOCAL[0-7]. The default syslog facility is LOG_DAEMON.
 .TP
---wdog-vrrp, -R
-Define VRRP watchdog polling delay (default=5s)
+\fB -V, --dont-release-vrrp\fP
+Don't remove VRRP VIPs and VROUTEs on daemon stop. The default
+behavior is to remove all VIPs and VROUTEs when keepalived exits
 .TP
---wdog-check, -H 
-Define healthchecker's watchdog polling delay (default=5s)
+\fB -I, --dont-release-ipvs\fP
+Don't remove IPVS topology on daemon stop. The default behavior it to
+remove all entries from the IPVS virtual server table on when
+keepalived exits.
 .TP
---dump-conf, -d
+\fB -R, --dont-respawn\fP
+Don't respawn child processes. The default behavior is to restart the
+VRRP and checker processes if either process exits.
+.TP
+\fB -n, --dont-fork\fP
+Don't fork the daemon process. This option will cause keepalived to
+run in the foreground.
+.TP
+\fB -d, --dump-conf\fP
 Dump the configuration data.
 .TP
---log-console, -l
-Log messages to local console.
+\fB -p, --pid\fP=FILE
+Use specified pidfile for parent keepalived process. The default
+pidfile for keepalived is "/var/run/keepalived.pid".
 .TP
---log-detail, -D    
-Detailed log messages (the default with the rc script provided).
+\fB -r, --vrrp_pid\fP=FILE
+Use specified pidfile for VRRP child process. The default pidfile for
+the VRRP child process is "/var/run/keepalived_vrrp.pid".
 .TP
---log-facility, -S    
-0-7 Set syslog facility to LOG_LOCAL[0-7] (default=LOG_DAEMON)
+\fB -c, --checkers_pid\fP=FILE
+Use specified pidfile for checkers child process. The default pidfile
+for the checker child process is "/var/run/keepalived_checkers.pid".
 .TP
---snmp, -x
-Enable SNMP support
+\fB -v, --version\fP
+Display the version and exit.
 .TP
---help, -h
-Display a short inlined help screen.
-.TP
---version, -v    
-Display the version number.
+\fB -h, --help\fP
+Display this help message and exit.
 
-.SH FILES
-.BR /etc/keepalived/keepalived.conf
-.SH SEE ALSO
-.BR keepalived.conf(5)
-.SH AUTHORS
-.br
-Joseph Mack
-.br
-from inspection of the output of 
-.I keepalived --help 
-from keepalived-1.1.4
+.SH "SEE ALSO"
+\fBkeepalived.conf\fP(5), \fBipvsadm\fP(8)
+
+.SH "AUTHOR"
+This man page was written by Ryan O'Hara <rohara@redhat.com>

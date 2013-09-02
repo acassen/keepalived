@@ -203,7 +203,7 @@ alloc_route(list rt_list, vector_t *strvec)
 			ifp = if_get_by_ifname(vector_slot(strvec, ++i));
 			if (!ifp) {
 				log_message(LOG_INFO, "VRRP is trying to assign VROUTE to unknown "
-				       "%s interface !!! go out and fixe your conf !!!",
+				       "%s interface !!! go out and fix your conf !!!",
 				       (char *)vector_slot(strvec, i));
 				FREE(new);
 				return;

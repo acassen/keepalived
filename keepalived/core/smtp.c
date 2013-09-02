@@ -80,6 +80,7 @@ free_smtp_all(smtp_t * smtp)
 	FREE(smtp->buffer);
 	FREE(smtp->subject);
 	FREE(smtp->body);
+	FREE(smtp->email_to);
 	FREE(smtp);
 }
 
@@ -436,6 +437,43 @@ data_code(thread_t * thread, int status)
 	return 0;
 }
 
+/* 
+ * Build a comma separated string of smtp recipient email addresses
+ * for the email message To-header.
+ */
+void
+build_to_header_rcpt_addrs(smtp_t *smtp)
+{
+	char *fetched_email;
+	char *email_to_addrs;
+	int email_addrs_max;
+
+	if (smtp == NULL) return;
+	email_to_addrs = smtp->email_to;
+	smtp->email_it = 0;
+
+	email_addrs_max = (SMTP_BUFFER_MAX / SMTP_EMAIL_ADDR_MAX_LENGTH) - 1;
+
+	while ((fetched_email = fetch_next_email(smtp)) != NULL) {
+
+		/* First email address, so no need for "," */
+		if (smtp->email_it == 0) {
+			snprintf(email_to_addrs, SMTP_EMAIL_ADDR_MAX_LENGTH, "%s", fetched_email);
+		}
+		else {
+			strcat(email_to_addrs, ", ");
+			strncat(email_to_addrs, fetched_email, SMTP_EMAIL_ADDR_MAX_LENGTH);
+		}
+	
+		smtp->email_it++;
+		if (smtp->email_it >= email_addrs_max)
+			break;
+				
+	}
+
+	smtp->email_it = 0;
+}
+
 /* BODY command processing.
  * Do we need to use mutli-thread for multi-part body
  * handling ? Don t really think :)
@@ -454,7 +492,7 @@ body_cmd(thread_t * thread)
 	strftime(rfc822, sizeof(rfc822), "%a, %d %b %Y %H:%M:%S %z", gmtime(&tm));
 
 	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HEADERS_CMD,
-		 rfc822, global_data->email_from, smtp->subject);
+		 rfc822, global_data->email_from, smtp->subject, smtp->email_to);
 
 	/* send the subject field */
 	if (send(thread->u.fd, buffer, strlen(buffer), 0) == -1)
@@ -548,6 +586,7 @@ smtp_alert(real_server_t * rs, vrrp_t * vrrp,
 		smtp->subject = (char *) MALLOC(MAX_HEADERS_LENGTH);
 		smtp->body = (char *) MALLOC(MAX_BODY_LENGTH);
 		smtp->buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+		smtp->email_to = (char *) MALLOC(SMTP_BUFFER_MAX);
 
 		/* format subject if rserver is specified */
 		if (rs) {
@@ -574,6 +613,7 @@ smtp_alert(real_server_t * rs, vrrp_t * vrrp,
 			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "%s", subject);
 
 		strncpy(smtp->body, body, MAX_BODY_LENGTH);
+		build_to_header_rcpt_addrs(smtp);
 
 		smtp_connect(smtp);
 	}

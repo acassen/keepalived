@@ -85,18 +85,14 @@ if_get_by_ifname(const char *ifname)
 	interface_t *ifp;
 	element e;
 
-	if (LIST_ISEMPTY(if_queue)) {
-		log_message(LOG_ERR, "Interface queue is empty");
+	if (LIST_ISEMPTY(if_queue))
 		return NULL;
-	}
 
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
 		if (!strcmp(ifp->ifname, ifname))
 			return ifp;
 	}
-
-	log_message(LOG_ERR, "No such interface, %s", ifname);
 	return NULL;
 }
 

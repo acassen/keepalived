@@ -39,6 +39,7 @@
 #define SMTP_BUFFER_LENGTH	512
 #define SMTP_BUFFER_MAX		1024
 #define SMTP_MAX_FSM_STATE	10
+#define SMTP_EMAIL_ADDR_MAX_LENGTH	64
 
 /* SMTP command stage */
 #define HELO	4
@@ -75,6 +76,7 @@ typedef struct _smtp {
 	char		*subject;
 	char		*body;
 	char		*buffer;
+	char		*email_to;
 	long		buflen;
 } smtp_t;
 
@@ -84,7 +86,7 @@ typedef struct _smtp {
 #define SMTP_RCPT_CMD    "RCPT TO:<%s>\r\n"
 #define SMTP_DATA_CMD    "DATA\r\n"
 #define SMTP_HEADERS_CMD "Date: %s\r\nFrom: %s\r\nSubject: %s\r\n" \
-			 "X-Mailer: Keepalived\r\n\r\n"
+			 "X-Mailer: Keepalived\r\nTo: %s\r\n\r\n"
 #define SMTP_BODY_CMD    "%s\r\n"
 #define SMTP_SEND_CMD    "\r\n.\r\n"
 #define SMTP_QUIT_CMD    "QUIT\r\n"

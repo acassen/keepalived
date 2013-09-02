@@ -227,8 +227,13 @@ check_respawn_thread(thread_t * thread)
 	}
 
 	/* We catch a SIGCHLD, handle it */
-	log_message(LOG_ALERT, "Healthcheck child process(%d) died: Respawning", pid);
-	start_check_child();
+	if (!(debug & 64)) {
+		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Respawning", pid);
+		start_check_child();
+	} else {
+		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Exiting", pid);
+		raise(SIGTERM);
+	}
 	return 0;
 }
 
