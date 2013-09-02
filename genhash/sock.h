@@ -27,14 +27,17 @@
 
 /* system includes */
 #include <openssl/ssl.h>
-#include <openssl/md5.h>
+
+/* local includes */
+#include "hash.h"
 
 /* Engine socket pool element structure */
 typedef struct {
 	int fd;
 	SSL *ssl;
 	BIO *bio;
-	MD5_CTX context;
+	const hash_t *hash;
+	hash_context_t context;
 	int status;
 	int lock;
 	char *buffer;
