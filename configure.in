@@ -52,6 +52,7 @@ AC_CHECK_DECL([ETHERTYPE_IPV6],[],[CFLAGS="$CFLAGS -DETHERTYPE_IPV6=0x86dd"],
   [[@%:@include <net/ethernet.h>]])
 
 dnl ----[ Checks for libraries ]----
+AC_CHECK_LIB(crypt, crypt,,AC_MSG_ERROR([crypt() function is required]))
 AC_CHECK_LIB(crypto, MD5_Init,,AC_MSG_ERROR([OpenSSL libraries are required]))
 AC_CHECK_LIB(ssl, SSL_CTX_new,,AC_MSG_ERROR([OpenSSL libraries are required]))
 AC_CHECK_LIB(popt, poptGetContext,,AC_MSG_ERROR([Popt libraries is required]))
