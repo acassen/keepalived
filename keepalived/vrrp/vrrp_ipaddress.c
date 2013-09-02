@@ -115,7 +115,7 @@ dump_ipaddress(void *if_data)
 	} else {
 		inet_ntop(AF_INET, &ipaddr->u.sin.sin_addr, addr_str, 41);
 		if (ipaddr->u.sin.sin_brd.s_addr)
-			snprintf(broadcast, sizeof(broadcast), " brd %s",
+			snprintf(broadcast, 21, " brd %s",
 				 inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));
 	}
 
