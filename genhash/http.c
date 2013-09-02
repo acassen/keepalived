@@ -54,6 +54,35 @@
  *   finalize    /     epilog
  */
 
+const hash_t hashes[hash_guard] = {
+	[hash_md5] = {
+		(hash_init_f) MD5_Init,
+		(hash_update_f) MD5_Update,
+		(hash_final_f) MD5_Final,
+		MD5_DIGEST_LENGTH,
+		"MD5",
+		"MD5SUM",
+	},
+#ifdef FEAT_SHA1
+	[hash_sha1] = {
+		(hash_init_f) SHA1_Init,
+		(hash_update_f) SHA1_Update,
+		(hash_final_f) SHA1_Final,
+		SHA_DIGEST_LENGTH,
+		"SHA1",
+		"SHA1SUM",
+	}
+#endif
+};
+
+#define HASH_LENGTH(sock)	((sock)->hash->length)
+#define HASH_LABEL(sock)	((sock)->hash->label)
+#define HASH_INIT(sock)		((sock)->hash->init(&(sock)->context))
+#define HASH_UPDATE(sock, buf, len) \
+	((sock)->hash->update(&(sock)->context, (buf), (len)))
+#define HASH_FINAL(sock, digest) \
+	((sock)->hash->final((digest), &(sock)->context))
+
 /* free allocated pieces */
 static void
 free_all(thread_t * thread)
@@ -88,20 +117,22 @@ int
 finalize(thread_t * thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
-	unsigned char digest[16];
+
+	unsigned char digest_length = HASH_LENGTH(sock_obj);
+	unsigned char digest[digest_length];
 	int i;
 
-	/* Compute final MD5 digest */
-	MD5_Final(digest, &sock_obj->context);
+	/* Compute final hash digest */
+	HASH_FINAL(sock_obj, digest);
 	if (req->verbose) {
 		printf("\n");
-		printf(HTML_MD5);
-		dump_buffer((char *) digest, 16);
+		printf(HTML_HASH);
+		dump_buffer((char *) digest, digest_length);
 
-		printf(HTML_MD5_FINAL);
+		printf(HTML_HASH_FINAL);
 	}
-	printf("MD5SUM = ");
-	for (i = 0; i < 16; i++)
+	printf("%s = ", HASH_LABEL(sock_obj));
+	for (i = 0; i < digest_length; i++)
 		printf("%02x", digest[i]);
 	printf("\n\n");
 
@@ -135,8 +166,9 @@ http_process_stream(SOCK * sock_obj, int r)
 			printf(HTTP_HEADER_HEXA);
 		if ((sock_obj->extracted = extract_html(sock_obj->buffer, sock_obj->size))) {
 			if (req->verbose)
-				http_dump_header(sock_obj->buffer,
-						 sock_obj->extracted - sock_obj->buffer);
+				http_dump_header(sock_obj->buffer + (sock_obj->size - r),
+						 (sock_obj->extracted - sock_obj->buffer)
+						 - (sock_obj->size - r));
 			r = sock_obj->size - (sock_obj->extracted - sock_obj->buffer);
 			if (r) {
 				if (req->verbose) {
@@ -144,13 +176,14 @@ http_process_stream(SOCK * sock_obj, int r)
 					dump_buffer(sock_obj->extracted, r);
 				}
 				memmove(sock_obj->buffer, sock_obj->extracted, r);
-				MD5_Update(&sock_obj->context, sock_obj->buffer, r);
+				HASH_UPDATE(sock_obj, sock_obj->buffer, r);
 				r = 0;
 			}
 			sock_obj->size = r;
 		} else {
 			if (req->verbose)
-				http_dump_header(sock_obj->buffer, sock_obj->size);
+				http_dump_header(sock_obj->buffer + (sock_obj->size - r),
+						 r);
 
 			/* minimize buffer using no 2*CR/LF found yet */
 			if (sock_obj->size > 4) {
@@ -162,7 +195,7 @@ http_process_stream(SOCK * sock_obj, int r)
 	} else if (sock_obj->size) {
 		if (req->verbose)
 			dump_buffer(sock_obj->buffer, r);
-		MD5_Update(&sock_obj->context, sock_obj->buffer, sock_obj->size);
+		HASH_UPDATE(sock_obj, sock_obj->buffer, sock_obj->size);
 		sock_obj->size = 0;
 	}
 
@@ -181,9 +214,14 @@ http_read_thread(thread_t * thread)
 		return epilog(thread);
 
 	/* read the HTTP stream */
-	memset(sock_obj->buffer, 0, MAX_BUFFER_LENGTH);
-	r = read(thread->u.fd, sock_obj->buffer + sock_obj->size,
-		 MAX_BUFFER_LENGTH - sock_obj->size);
+	r = MAX_BUFFER_LENGTH - sock_obj->size;
+	if (r <= 0) {
+		/* defensive check, should not occur */
+		fprintf(stderr, "HTTP socket buffer overflow (not consumed)\n");
+		r = MAX_BUFFER_LENGTH;
+	}
+	memset(sock_obj->buffer + sock_obj->size, 0, r);
+	r = read(thread->u.fd, sock_obj->buffer + sock_obj->size, r);
 
 	DBG(" [l:%d,fd:%d]\n", r, sock_obj->fd);
 
@@ -229,8 +267,9 @@ http_response_thread(thread_t * thread)
 	/* Allocate & clean the get buffer */
 	sock_obj->buffer = (char *) MALLOC(MAX_BUFFER_LENGTH);
 
-	/* Initalize the MD5 context */
-	MD5_Init(&sock_obj->context);
+	/* Initalize the hash context */
+	sock_obj->hash = &hashes[req->hash];
+	HASH_INIT(sock_obj);
 
 	/* Register asynchronous http/ssl read thread */
 	if (req->ssl)

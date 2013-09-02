@@ -40,12 +40,13 @@
 #include "http.h"
 #include "ssl.h"
 #include "list.h"
+#include "sock.h"
 
 /* Build version */
 #define PROG    "genhash"
 
 #define VERSION_CODE 0x010000
-#define DATE_CODE    0x120b02
+#define DATE_CODE    0x15070d
 
 #define GETMETER_VERSION(version)	\
         (version >> 16) & 0xFF,		\
@@ -66,6 +67,7 @@ typedef struct {
 	int ssl;
 	SSL_CTX *ctx;
 	SSL_METHOD *meth;
+	enum feat_hashes hash;
 	unsigned long ref_time;
 	unsigned long response_time;
 } REQ;
