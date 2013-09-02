@@ -640,8 +640,10 @@ struct ip_vs_get_services *ipvs_get_services(void)
 		return NULL;
 	len = sizeof(*getk) +
 		sizeof(struct ip_vs_service_entry_kern) * ipvs_info.num_services;
-	if (!(getk = malloc(len)))
+	if (!(getk = malloc(len))) {
+		free(get);
 		return NULL;
+	}
 
 	ipvs_func = ipvs_get_services;
 	getk->num_services = ipvs_info.num_services;
@@ -825,8 +827,10 @@ ipvs_nl_dest_failure:
 	}
 
 	len = sizeof(*dk) + sizeof(struct ip_vs_dest_entry_kern) * svc->num_dests;
-	if (!(dk = malloc(len)))
+	if (!(dk = malloc(len))) {
+		free(d);
 		return NULL;
+	}
 
 	dk->fwmark = svc->fwmark;
 	dk->protocol = svc->protocol;
