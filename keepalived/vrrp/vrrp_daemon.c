@@ -61,7 +61,7 @@ stop_vrrp(void)
 		shutdown_vrrp_instances();
 
 	/* Clear static entries */
-	netlink_rtlist_ipv4(vrrp_data->static_routes, IPROUTE_DEL);
+	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL);
 
 	free_interface_queue();
@@ -144,7 +144,7 @@ start_vrrp(void)
 
 	/* Set static entries */
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_ADD);
-	netlink_rtlist_ipv4(vrrp_data->static_routes, IPROUTE_ADD);
+	netlink_rtlist(vrrp_data->static_routes, IPROUTE_ADD);
 
 	/* Dump configuration */
 	if (debug & 4) {

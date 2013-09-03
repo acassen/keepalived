@@ -103,40 +103,86 @@ free_ipaddress(void *if_data)
 	FREE_PTR(ipaddr->label);
 	FREE(ipaddr);
 }
+char *
+ipaddresstos(ip_address_t *ipaddress)
+{
+	char *addr_str = (char *) MALLOC(INET6_ADDRSTRLEN);
+
+	if (IP_IS6(ipaddress)) {
+		inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, INET6_ADDRSTRLEN);
+	} else {
+		inet_ntop(AF_INET, &ipaddress->u.sin.sin_addr, addr_str, INET_ADDRSTRLEN);
+	}
+
+	return addr_str;
+}
 void
 dump_ipaddress(void *if_data)
 {
 	ip_address_t *ipaddr = if_data;
-	char *broadcast = (char *) MALLOC(21);
-	char *addr_str = (char *) MALLOC(41);
+	char *broadcast = (char *) MALLOC(INET_ADDRSTRLEN + 5);
+	char *addr_str;
 
-	if (IP_IS6(ipaddr)) {
-		inet_ntop(AF_INET6, &ipaddr->u.sin6_addr, addr_str, 41);
-	} else {
-		inet_ntop(AF_INET, &ipaddr->u.sin.sin_addr, addr_str, 41);
-		if (ipaddr->u.sin.sin_brd.s_addr)
-			snprintf(broadcast, 21, " brd %s",
-				 inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));
+	addr_str = ipaddresstos(ipaddr);
+	if (!IP_IS6(ipaddr) && ipaddr->u.sin.sin_brd.s_addr) {
+		snprintf(broadcast, 21, " brd %s",
+			 inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));
 	}
 
 	log_message(LOG_INFO, "     %s/%d%s dev %s scope %s%s%s"
-	       , addr_str
-	       , ipaddr->ifa.ifa_prefixlen
-	       , broadcast
-	       , IF_NAME(ipaddr->ifp)
-	       , netlink_scope_n2a(ipaddr->ifa.ifa_scope)
-	       , ipaddr->label ? " label " : ""
-	       , ipaddr->label ? ipaddr->label : "");
+			    , addr_str
+			    , ipaddr->ifa.ifa_prefixlen
+			    , broadcast
+			    , IF_NAME(ipaddr->ifp)
+			    , netlink_scope_n2a(ipaddr->ifa.ifa_scope)
+			    , ipaddr->label ? " label " : ""
+			    , ipaddr->label ? ipaddr->label : "");
 	FREE(broadcast);
 	FREE(addr_str);
+}
+ip_address_t *
+parse_ipaddress(ip_address_t *ip_address, char *str)
+{
+	ip_address_t *new = ip_address;
+	void *addr;
+	char *p;
+
+	/* No ip address, allocate a brand new one */
+	if (!new) {
+		new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
+	}
+
+	/* Parse ip address */
+	p = strchr(str, '/');
+	if (p) {
+		new->ifa.ifa_prefixlen = atoi(p + 1);
+		*p = 0;
+	}
+
+	new->ifa.ifa_family = (strchr(str, ':')) ? AF_INET6 : AF_INET;
+	if (!new->ifa.ifa_prefixlen)
+		new->ifa.ifa_prefixlen = (IP_IS6(new)) ? 128 : 32;
+	addr = (IP_IS6(new)) ? (void *) &new->u.sin6_addr :
+			       (void *) &new->u.sin.sin_addr;
+	if (!inet_pton(IP_FAMILY(new), str, addr)) {
+		log_message(LOG_INFO, "VRRP parsed invalid IP %s. skipping IP...", str);
+		FREE(new);
+		new = NULL;
+	}
+
+	/* Restore slash */
+	if (p) {
+		*p = '/';
+	}
+
+	return new;
 }
 void
 alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 {
 	ip_address_t *new;
 	interface_t *ifp_local;
-	char *str, *p;
-	void *addr;
+	char *str;
 	int i = 0, addr_idx =0;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
@@ -191,23 +237,9 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			new->label = MALLOC(IFNAMSIZ);
 			strncpy(new->label, vector_slot(strvec, ++i), IFNAMSIZ);
 		} else {
-			p = strchr(str, '/');
-			if (p) {
-				new->ifa.ifa_prefixlen = atoi(p + 1);
-				*p = 0;
-			}
-
-			new->ifa.ifa_family = (strchr(str, ':')) ? AF_INET6 : AF_INET;
-			if (!new->ifa.ifa_prefixlen)
-				new->ifa.ifa_prefixlen = (IP_IS6(new)) ? 128 : 32;
-			addr = (IP_IS6(new)) ? (void *) &new->u.sin6_addr :
-					       (void *) &new->u.sin.sin_addr;
-			if (!inet_pton(IP_FAMILY(new), str, addr)) {
-				log_message(LOG_INFO, "VRRP is trying to assign invalid VIP %s. "
-						      "skipping VIP...", str);
-				FREE(new);
+			if (!parse_ipaddress(new, str))
 				return;
-			}
+
 			addr_idx  = i;
 		}
 		i++;
@@ -227,12 +259,9 @@ address_exist(list l, ip_address_t *ipaddress)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		ipaddr = ELEMENT_DATA(e);
-		if (IP_FAMILY(ipaddr) == IP_FAMILY(ipaddress)) {
-			if ((IP_IS6(ipaddress) && IP6_ISEQ(ipaddr, ipaddress)) ||
-			    (!IP_IS6(ipaddress) && IP_ISEQ(ipaddr, ipaddress))) {
-				ipaddr->set = ipaddress->set;
-				return 1;
-			}
+		if (IP_ISEQ(ipaddr, ipaddress)) {
+			ipaddr->set = ipaddress->set;
+			return 1;
 		}
 	}
 
