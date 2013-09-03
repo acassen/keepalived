@@ -1669,8 +1669,17 @@ vty_use_backup_config(char *fullpath)
 		return NULL;
 	}
   
-	while((c = read(sav, buffer, 512)) > 0)
+	while((c = read(sav, buffer, 512)) > 0) {
 		retval = write(tmp, buffer, c);
+		if (retval < 0) {
+			unlink(fullpath_tmp);
+			FREE(fullpath_sav);
+			FREE(fullpath_tmp);
+			close(sav);
+			close(tmp);
+			return NULL;
+		}
+	}
   
 	close(sav);
 	close(tmp);
@@ -1679,6 +1688,7 @@ vty_use_backup_config(char *fullpath)
 		unlink(fullpath_tmp);
 		FREE(fullpath_sav);
 		FREE(fullpath_tmp);
+		close(sav);
 		return NULL;
 	}
   
@@ -1706,6 +1716,11 @@ vty_read_config(char *config_file, char *config_default_dir)
 	if (config_file != NULL) {
 		if (!IS_DIRECTORY_SEP(config_file[0])) {
 			retpath = getcwd(cwd, MAXPATHLEN);
+			if (!retpath) {
+				fprintf(stderr, "%s: failed to get current working directory: %s\n"
+					      , __func__, strerror(errno));
+				exit(1);
+			}
 			tmp = MALLOC(strlen(cwd) + strlen(config_file) + 2);
 			sprintf(tmp, "%s/%s", cwd, config_file);
 			fullpath = tmp;
@@ -2069,7 +2084,11 @@ vty_save_cwd(void)
 
 	if (!c) {
 		retval = chdir(SYSCONFDIR);
+		if (!retval)
+			return;
 		retpath = getcwd(cwd, MAXPATHLEN);
+		if (!retpath)
+			return;
 	}
 
 	vty_cwd = MALLOC(strlen(cwd) + 1);
