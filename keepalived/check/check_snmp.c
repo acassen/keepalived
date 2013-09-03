@@ -333,6 +333,9 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_VSHASUSPEND:
 		long_ret = v->ha_suspend?1:2;
 		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSOPS:
+		long_ret = v->ops?1:2;
+		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSALPHA:
 		long_ret = v->alpha?1:2;
 		return (u_char*)&long_ret;
@@ -769,6 +772,8 @@ static struct variable8 check_vars[] = {
 	 check_snmp_virtualserver, 3, {3, 1, 16}},
 	{CHECK_SNMP_VSHASUSPEND, ASN_INTEGER, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 17}},
+	{CHECK_SNMP_VSOPS, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 37}},
 	{CHECK_SNMP_VSALPHA, ASN_INTEGER, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 18}},
 	{CHECK_SNMP_VSOMEGA, ASN_INTEGER, RONLY,

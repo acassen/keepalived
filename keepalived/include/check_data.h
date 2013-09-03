@@ -116,6 +116,7 @@ typedef struct _virtual_server {
 	uint16_t			service_type;
 	long				delay_loop;
 	int				ha_suspend;
+	int				ops;
 	char				sched[SCHED_MAX_LENGTH];
 	char				timeout_persistence[MAX_TIMEOUT_LENGTH];
 	unsigned			loadbalancing_kind;

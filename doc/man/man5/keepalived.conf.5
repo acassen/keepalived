@@ -294,6 +294,8 @@ A virtual_server can be a declaration of one of
 
     # LVS scheduler 
     lb_algo rr|wrr|lc|wlc|lblc|sh|dh 
+    # Enable One-Packet-Scheduling for UDP (-O in ipvsadm)
+    ops
     # LVS forwarding method
     lb_kind NAT|DR|TUN 
     # LVS persistence timeout, sec

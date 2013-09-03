@@ -274,6 +274,7 @@ virtual_server fwmark <INTEGER>    {	# VS fwmark declaration
 virtual_server group <STRING>      {	# VS group declaration
     delay_loop <INTEGER>		# delay timer for service polling
     lvs_sched rr|wrr|lc|wlc|lblc|sh|dh	# LVS scheduler used
+    ops					# Apply One-Packet-Scheduling (only for UDP)
     lvs_method NAT|DR|TUN		# LVS method used
     persistence_timeout <INTEGER>	# LVS persistence timeout
     persistence_granularity <NETMASK>	# LVS granularity mask

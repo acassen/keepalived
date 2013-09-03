@@ -543,7 +543,11 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 				    , ntohs(inet_sockaddrport(&vs->addr)));
 
 	if (srule->timeout != 0 || vs->granularity_persistence)
-		srule->flags = IP_VS_SVC_F_PERSISTENT;
+		srule->flags |= IP_VS_SVC_F_PERSISTENT;
+
+	/* Only for UDP services */
+	if (vs->ops == 1 && srule->protocol == IPPROTO_UDP)
+		srule->flags |= IP_VS_SVC_F_ONEPACKET;
 
 	if (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL)
 		if (vs->granularity_persistence)

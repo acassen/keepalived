@@ -151,6 +151,12 @@ hasuspend_handler(vector_t *strvec)
 	vs->ha_suspend = 1;
 }
 static void
+ops_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	vs->ops = 1;
+}
+static void
 virtualhost_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -294,6 +300,7 @@ check_init_keywords(void)
 	install_keyword("persistence_granularity", &pgr_handler);
 	install_keyword("protocol", &proto_handler);
 	install_keyword("ha_suspend", &hasuspend_handler);
+	install_keyword("ops", &ops_handler);
 	install_keyword("virtualhost", &virtualhost_handler);
 
 	/* Pool regression detection and handling. */

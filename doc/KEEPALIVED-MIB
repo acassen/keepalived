@@ -1271,6 +1271,7 @@ VirtualServerEntry ::= SEQUENCE {
 	virtualServerProtocol INTEGER,
 	virtualServerLoadBalancingAlgo INTEGER,
 	virtualServerLoadBalancingKind INTEGER,
+	virtualServerOPS TruthValue,
 	virtualServerStatus INTEGER,
 	virtualServerVirtualHost DisplayString,
 	virtualServerPersist INTEGER,
@@ -1623,6 +1624,13 @@ virtualServerRateOutBPS OBJECT-TYPE
 	"Current outgoing rate for this virtual server."
     ::= { virtualServerEntry 36 }
 
+virtualServerOPS OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+	"If set to true(1), One-Packet-Scheduling will be applied."
+    ::= { virtualServerEntry 37 }
 
 -- real servers
 
