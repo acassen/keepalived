@@ -43,6 +43,7 @@ typedef struct _sock {
 	sa_family_t		family;
 	int			proto;
 	int			ifindex;
+	int			unicast;
 	int			fd_in;
 	int			fd_out;
 } sock_t;
@@ -69,6 +70,7 @@ extern void alloc_saddress(vector_t *);
 extern void alloc_sroute(vector_t *);
 extern void alloc_vrrp_sync_group(char *);
 extern void alloc_vrrp(char *);
+extern void alloc_vrrp_unicast_peer(vector_t *);
 extern void alloc_vrrp_track(vector_t *);
 extern void alloc_vrrp_script(char *);
 extern void alloc_vrrp_track_script(vector_t *);

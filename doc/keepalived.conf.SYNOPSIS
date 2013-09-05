@@ -164,6 +164,10 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     dont_track_primary                  # (default unset) ignore VRRP interface faults.
                                         #  useful for cross-connect VRRP config.
     mcast_src_ip <IP ADDRESS>		# src_ip to use into the VRRP packets
+    unicast_peer {			# Do not use multicast, instead send VRRP
+      <IP ADDRESS>			#  adverts to following list of ip address
+      ...				#  in unicast design fashion
+    }
     lvs_sync_daemon_interface <STRING>	# Binding interface for lvs syncd
     garp_master_delay <INTEGER>		# delay for gratuitous ARP after MASTER
 					#  state transition

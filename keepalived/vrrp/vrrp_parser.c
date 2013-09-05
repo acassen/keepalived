@@ -129,6 +129,11 @@ vrrp_vmac_handler(vector_t *strvec)
 		netlink_link_add_vmac(vrrp);
 }
 static void
+vrrp_unicast_peer_handler(vector_t *strvec)
+{
+	alloc_value_block(strvec, alloc_vrrp_unicast_peer);
+}
+static void
 vrrp_native_ipv6_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -477,6 +482,7 @@ vrrp_init_keywords(void)
 	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler);
 	install_keyword_root("vrrp_instance", &vrrp_handler);
 	install_keyword("use_vmac", &vrrp_vmac_handler);
+	install_keyword("unicast_peer", &vrrp_unicast_peer_handler);
 	install_keyword("native_ipv6", &vrrp_native_ipv6_handler);
 	install_keyword("state", &vrrp_state_handler);
 	install_keyword("interface", &vrrp_int_handler);

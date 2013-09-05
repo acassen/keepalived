@@ -142,7 +142,11 @@ free_sock(void *sock_data)
 	interface_t *ifp;
 	if (sock->fd_in > 0) {
 		ifp = if_get_by_ifindex(sock->ifindex);
-		if_leave_vrrp_group(sock->family, sock->fd_in, ifp);
+		if (sock->unicast) {
+			close(sock->fd_in);
+		} else {
+			if_leave_vrrp_group(sock->family, sock->fd_in, ifp);
+		}
 	}
 	if (sock->fd_out > 0)
 		close(sock->fd_out);
@@ -153,11 +157,26 @@ static void
 dump_sock(void *sock_data)
 {
 	sock_t *sock = sock_data;
-	log_message(LOG_INFO, "VRRP sockpool: [ifindex(%d), proto(%d), fd(%d,%d)]"
+	log_message(LOG_INFO, "VRRP sockpool: [ifindex(%d), proto(%d), unicast(%d), fd(%d,%d)]"
 			    , sock->ifindex
 			    , sock->proto
+			    , sock->unicast
 			    , sock->fd_in
 			    , sock->fd_out);
+}
+
+static void
+free_unicast_peer(void *data)
+{
+	FREE(data);
+}
+
+static void
+dump_unicast_peer(void *data)
+{
+	struct sockaddr_storage *peer = data;
+
+	log_message(LOG_INFO, "     %s", inet_sockaddrtos(peer));
 }
 
 static void
@@ -186,6 +205,7 @@ free_vrrp(void *data)
 			FREE(ELEMENT_DATA(e));
 	free_list(vrrp->track_script);
 
+	free_list(vrrp->unicast_peer);
 	free_list(vrrp->vip);
 	free_list(vrrp->evip);
 	free_list(vrrp->vroutes);
@@ -239,9 +259,12 @@ dump_vrrp(void *data)
 		dump_list(vrrp->track_ifp);
 	}
 	if (!LIST_ISEMPTY(vrrp->track_script)) {
-		log_message(LOG_INFO, "   Tracked scripts = %d",
-		       LIST_SIZE(vrrp->track_script));
+		log_message(LOG_INFO, "   Tracked scripts = %d", LIST_SIZE(vrrp->track_script));
 		dump_list(vrrp->track_script);
+	}
+	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
+		log_message(LOG_INFO, "   Unicast Peer = %d", LIST_SIZE(vrrp->unicast_peer));
+		dump_list(vrrp->unicast_peer);
 	}
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		log_message(LOG_INFO, "   Virtual IP = %d", LIST_SIZE(vrrp->vip));
@@ -313,6 +336,28 @@ alloc_vrrp(char *iname)
 	memcpy(new->iname, iname, size);
 
 	list_add(vrrp_data->vrrp, new);
+}
+
+void
+alloc_vrrp_unicast_peer(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	struct sockaddr_storage *peer = NULL;
+	int ret;
+
+	if (LIST_ISEMPTY(vrrp->unicast_peer))
+		vrrp->unicast_peer = alloc_list(free_unicast_peer, dump_unicast_peer);
+
+	/* Allocate new unicast peer */
+	peer = (struct sockaddr_storage *) MALLOC(sizeof(struct sockaddr_storage));
+	ret = inet_stosockaddr(vector_slot(strvec, 0), 0, peer);
+	if (ret < 0) {
+		log_message(LOG_ERR, "Configuration error: malformed unicast peer address"
+				     " [%s]. Skipping...");
+		return;
+	}
+
+	list_add(vrrp->unicast_peer, peer);
 }
 
 void

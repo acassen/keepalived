@@ -144,13 +144,24 @@ which will transition together on any state change.
       ...
     }
 
-    #default IP for binding vrrpd is the primary IP 
-    #on interface. If you want to hide location of vrrpd, 
-    #use this IP as src_addr for multicast vrrp packets.
-    #(since it's multicast, vrrpd will get the reply 
-    #packet no matter what src_addr is used).
-    #optional
+    # default IP for binding vrrpd is the primary IP 
+    # on interface. If you want to hide location of vrrpd, 
+    # use this IP as src_addr for multicast vrrp packets.
+    # (since it's multicast, vrrpd will get the reply 
+    # packet no matter what src_addr is used).
+    # optional
     mcast_src_ip <IPADDR> 
+
+    # Do not send VRRP adverts over VRRP multicast group.
+    # Instead it sends adverts to the following list of
+    # ip addresses using unicast design fashion. It can
+    # be cool to use VRRP FSM and features in a networking
+    # environement where multicast is not supported !
+    # IP Addresses specified can IPv4 as well as IPv6
+    unicast_peer {
+      <IPADDR>
+      ...
+    }
 
     # Binding interface for lvs syncd
     lvs_sync_daemon_interface eth1 
