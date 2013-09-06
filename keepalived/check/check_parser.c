@@ -264,11 +264,10 @@ hysteresis_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	long tmp = atol (vector_slot(strvec, 1));
-	if (tmp < 0 || tmp >= vs->quorum) {
-		log_message(LOG_ERR, "Condition not met: 0 <= Hysteresis <= Quorum - 1");
+	if (tmp < 0) {
+		log_message(LOG_ERR, "Condition not met: 0 <= Hysteresis");
 		log_message(LOG_ERR, "Ignoring requested value %s, using 0 instead",
 		       (char *) vector_slot(strvec, 1));
-		log_message(LOG_ERR, "Hint: try defining hysteresis after quorum");
 		tmp = 0;
 	}
 	vs->hysteresis = tmp;

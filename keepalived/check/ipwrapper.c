@@ -54,6 +54,7 @@ clear_service_rs(list vs_group, virtual_server_t * vs, list l)
 	element e;
 	real_server_t *rs;
 	char rsip[INET6_ADDRSTRLEN];
+	long unsigned weight_sum;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
@@ -84,8 +85,11 @@ clear_service_rs(list vs_group, virtual_server_t * vs, list l)
 			 * we don't push in a sorry server then, hence the regression
 			 * is intended.
 			 */
-			if (vs->quorum_state == UP &&
-			    weigh_live_realservers(vs) < vs->quorum - vs->hysteresis) {
+			weight_sum = weigh_live_realservers(vs);
+			if (vs->quorum_state == UP && (
+				!weight_sum ||
+				weight_sum < vs->quorum - vs->hysteresis)
+			) {
 				vs->quorum_state = DOWN;
 				if (vs->quorum_down) {
 					log_message(LOG_INFO, "Executing [%s] for VS [%s]:%d"
@@ -243,16 +247,17 @@ void
 update_quorum_state(virtual_server_t * vs)
 {
 	char rsip[INET6_ADDRSTRLEN];
+	long unsigned weight_sum = weigh_live_realservers(vs);
 
 	/* If we have just gained quorum, it's time to consider notify_up. */
 	if (vs->quorum_state == DOWN &&
-	    weigh_live_realservers(vs) >= vs->quorum + vs->hysteresis) {
+	    weight_sum >= vs->quorum + vs->hysteresis) {
 		vs->quorum_state = UP;
 		log_message(LOG_INFO, "Gained quorum %lu+%lu=%lu <= %u for VS [%s]:%d"
 				    , vs->quorum
 				    , vs->hysteresis
 				    , vs->quorum + vs->hysteresis
-				    , weigh_live_realservers(vs)
+				    , weight_sum
 				    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
 				    , ntohs(inet_sockaddrport(&vs->addr)));
 		if (vs->s_svr && ISALIVE(vs->s_svr)) {
@@ -284,14 +289,16 @@ update_quorum_state(virtual_server_t * vs)
 	/* If we have just lost quorum for the VS, we need to consider
 	 * VS notify_down and sorry_server cases
 	 */
-	if (vs->quorum_state == UP &&
-	    weigh_live_realservers(vs) < vs->quorum - vs->hysteresis) {
+	if (vs->quorum_state == UP && (
+		!weight_sum ||
+	    weight_sum < vs->quorum - vs->hysteresis)
+	) {
 		vs->quorum_state = DOWN;
 		log_message(LOG_INFO, "Lost quorum %lu-%lu=%lu > %u for VS [%s]:%d"
 				    , vs->quorum
 				    , vs->hysteresis
 				    , vs->quorum - vs->hysteresis
-				    , weigh_live_realservers(vs)
+				    , weight_sum
 				    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
 				    , ntohs(inet_sockaddrport(&vs->addr)));
 		if (vs->quorum_down) {
