@@ -216,10 +216,9 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			 (X)->loadbalancing_kind      == (Y)->loadbalancing_kind	&&\
 			 (X)->nat_mask                == (Y)->nat_mask			&&\
 			 (X)->granularity_persistence == (Y)->granularity_persistence	&&\
-			 (  !(X)->quorum_up && !(Y)->quorum_up || \
+			 (  (!(X)->quorum_up && !(Y)->quorum_up) || \
 			    ((X)->quorum_up && (Y)->quorum_up && !strcmp ((X)->quorum_up, (Y)->quorum_up)) \
 			 ) &&\
-			 !strcmp((X)->sched, (Y)->sched)				&&\
 			 !strcmp((X)->sched, (Y)->sched)				&&\
 			 !strcmp((X)->timeout_persistence, (Y)->timeout_persistence)	&&\
 			 (((X)->vsgname && (Y)->vsgname &&				\
