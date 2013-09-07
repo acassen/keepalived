@@ -83,6 +83,7 @@ typedef struct _real_server {
 	int				alive;
 	list				failed_checkers;/* List of failed checkers */
 	int				set;		/* in the IPVS table */
+	int				reloaded;   /* active state was copied from old config while reloading */
 #if defined(_WITH_SNMP_) && defined(_KRNL_2_6_) && defined(_WITH_LVS_)
 	/* Statistics */
 	uint32_t			activeconns;	/* active connections */
@@ -133,6 +134,7 @@ typedef struct _virtual_server {
 
 	long unsigned			hysteresis;	/* up/down events "lag" WRT quorum. */
 	unsigned			quorum_state;	/* Reflects result of the last transition done. */
+	int					reloaded;   /* quorum_state was copied from old config while reloading */
 #if defined(_WITH_SNMP_) && defined(_KRNL_2_6_) && defined(_WITH_LVS_)
 	/* Statistics */
 	time_t				lastupdated;
@@ -215,6 +217,9 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			 (X)->loadbalancing_kind      == (Y)->loadbalancing_kind	&&\
 			 (X)->nat_mask                == (Y)->nat_mask			&&\
 			 (X)->granularity_persistence == (Y)->granularity_persistence	&&\
+			 (  (!(X)->quorum_up && !(Y)->quorum_up) || \
+			    ((X)->quorum_up && (Y)->quorum_up && !strcmp ((X)->quorum_up, (Y)->quorum_up)) \
+			 ) &&\
 			 !strcmp((X)->sched, (Y)->sched)				&&\
 			 !strcmp((X)->timeout_persistence, (Y)->timeout_persistence)	&&\
 			 (((X)->vsgname && (Y)->vsgname &&				\
