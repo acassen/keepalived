@@ -841,6 +841,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 		vrrp_restore_interface(vrrp, 0);
 		vrrp->state = VRRP_STATE_FAULT;
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
+		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 #ifdef _WITH_SNMP_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
