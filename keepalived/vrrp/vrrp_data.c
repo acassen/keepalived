@@ -334,6 +334,7 @@ alloc_vrrp(char *iname)
 	new->adver_int = TIMER_HZ;
 	new->iname = (char *) MALLOC(size + 1);
 	memcpy(new->iname, iname, size);
+	new->quick_sync = 0;
 
 	list_add(vrrp_data->vrrp, new);
 }
