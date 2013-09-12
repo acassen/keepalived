@@ -125,8 +125,15 @@ vrrp_vmac_handler(vector_t *strvec)
 				    , vrrp->vmac_ifname
 				    , vrrp->iname);
 	}
-	if (vrrp->ifp && !(vrrp->vmac & 2))
+	if (vrrp->ifp && !(vrrp->vmac & 2)) {
+		unsigned int base_ifindex = vrrp->ifp->base_ifindex;
 		netlink_link_add_vmac(vrrp);
+		/* restore base ifindex (deleted when adding VMAC) */
+		vrrp->ifp->base_ifindex = base_ifindex;
+        }
+
+        /* flag interface as a VMAC interface */
+        vrrp->ifp->vmac = 1;
 }
 static void
 vrrp_unicast_peer_handler(vector_t *strvec)
@@ -163,9 +170,15 @@ vrrp_int_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *name = vector_slot(strvec, 1);
+	unsigned int ifindex;
+
 	vrrp->ifp = if_get_by_ifname(name);
+	ifindex = vrrp->ifp->ifindex;
 	if (vrrp->vmac && !(vrrp->vmac & 2))
 		netlink_link_add_vmac(vrrp);
+
+	/* save base ifindex (only used for VMAC interfaces) */
+	vrrp->ifp->base_ifindex = ifindex;
 }
 static void
 vrrp_track_int_handler(vector_t *strvec)

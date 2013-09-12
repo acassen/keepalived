@@ -79,6 +79,25 @@ if_get_by_ifindex(const int ifindex)
 	return NULL;
 }
 
+/* Return interface from VMAC base interface index */
+interface_t *
+if_get_by_vmac_base_ifindex(const int ifindex)
+{
+	interface_t *ifp;
+	element e;
+
+	if (LIST_ISEMPTY(if_queue) || !ifindex)
+		return NULL;
+
+	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
+		ifp = ELEMENT_DATA(e);
+		if (ifp->vmac && ifp->base_ifindex == ifindex)
+			return ifp;
+	}
+
+	return NULL;
+}
+
 interface_t *
 if_get_by_ifname(const char *ifname)
 {
