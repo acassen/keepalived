@@ -648,6 +648,13 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	if (ifi->ifi_type == ARPHRD_LOOPBACK)
 		return 0;
 
+	/* find the VMAC interface (if any) */
+	ifp = if_get_by_vmac_base_ifindex(ifi->ifi_index);
+
+	/* if found, reflect base interface flags on VMAC interface */
+	if (ifp)
+		ifp->flags = ifi->ifi_flags;
+
 	/* find the interface_t */
 	ifp = if_get_by_ifindex(ifi->ifi_index);
 	if (!ifp)
