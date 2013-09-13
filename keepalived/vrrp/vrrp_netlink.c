@@ -456,8 +456,10 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 
 	/* Skip it if already exist */
 	ifp = if_get_by_ifname(name);
-	if (ifp)
+	if (ifp) {
+		ifp->flags = ifi->ifi_flags;
 		return 0;
+	}
 
 	/* Fill the interface structure */
 	ifp = (interface_t *) MALLOC(sizeof(interface_t));
