@@ -83,6 +83,8 @@ typedef struct _interface {
 	int			hw_addr_len;		/* MAC addresss length */
 	int			lb_type;		/* Interface regs selection */
 	int			linkbeat;		/* LinkBeat from MII BMSR req */
+	int			vmac;			/* Set if interface is a VMAC interface */
+	unsigned int		base_ifindex;		/* Base interface index (if interface is a VMAC interface) */
 } interface_t;
 
 /* Tracked interface structure definition */
@@ -106,6 +108,7 @@ typedef struct _tracked_if {
 
 /* prototypes */
 extern interface_t *if_get_by_ifindex(const int);
+extern interface_t *if_get_by_vmac_base_ifindex(const int);
 extern interface_t *if_get_by_ifname(const char *);
 extern int if_linkbeat(const interface_t *);
 extern int if_mii_probe(const char *);
