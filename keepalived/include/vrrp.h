@@ -131,6 +131,11 @@ typedef struct _vrrp_t {
 
 	int			debug;			/* Debug level 0-4 */
 
+	int			quick_sync;		/* Will be set when waiting for the other members
+							 * in the sync group to become master.
+							 * If set the next check will occur in one interval
+							 * instead of three intervals.
+							 */
 	/* State transition notification */
 	int			smtp_alert;
 	int			notify_exec;

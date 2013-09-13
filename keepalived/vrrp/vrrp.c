@@ -782,8 +782,15 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 	 * Send an advertisement. To force a new master
 	 * election.
 	 */
-        if (vrrp->sync && !vrrp_sync_goto_master(vrrp))
-	      return;
+	if (vrrp->sync && !vrrp_sync_goto_master(vrrp)) {
+		/*
+		 * Set quick sync flag to enable faster transition, i.e. check
+		 * again in the next interval instead of waiting three.
+		 */
+		vrrp->quick_sync = 1;
+		return;
+	}
+
 	vrrp_send_adv(vrrp, vrrp->effective_priority);
 
 	vrrp->state = VRRP_STATE_MAST;
@@ -851,6 +858,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 		vrrp_restore_interface(vrrp, 0);
 		vrrp->state = VRRP_STATE_FAULT;
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
+		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 #ifdef _WITH_SNMP_
 		vrrp_snmp_instance_trap(vrrp);
 #endif

@@ -862,6 +862,18 @@ vrrp_dispatcher_read_to(int fd)
 	 * compute new sands timer safely.
 	 */
 	vrrp_init_instance_sands(vrrp);
+
+	/*
+	 * If quick sync is set, refresh sands to one advert interval, i.e. the next
+	 * timeout will occur in one interval instead of three, and a check for a
+	 * possible transition check will perform more quickly.
+	 */
+	if (vrrp->quick_sync) {
+		vrrp->sands.tv_sec  = time_now.tv_sec  + vrrp->adver_int / TIMER_HZ;
+		vrrp->sands.tv_usec = time_now.tv_usec + vrrp->adver_int % TIMER_HZ;
+		vrrp->quick_sync = 0;
+        }
+
 	return vrrp->fd_in;
 }
 
