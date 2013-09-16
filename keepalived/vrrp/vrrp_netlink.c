@@ -261,7 +261,8 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				continue;
 			if (errno == EWOULDBLOCK || errno == EAGAIN)
 				break;
-			log_message(LOG_INFO, "Netlink: Received message overrun");
+			log_message(LOG_INFO, "Netlink: Received message overrun : (%s)",
+				strerror(errno));
 			continue;
 		}
 
