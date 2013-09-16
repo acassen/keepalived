@@ -53,6 +53,7 @@ netlink_socket(nl_handle_t *nl, unsigned long groups)
 {
 	socklen_t addr_len;
 	int ret;
+	int buffsize = 65536;
 
 	memset(nl, 0, sizeof (*nl));
 
@@ -101,6 +102,11 @@ netlink_socket(nl_handle_t *nl, unsigned long groups)
 	}
 
 	nl->seq = time(NULL);
+/* increase buffer sizes, increasing net.core.rmem_max and net.core.wmem_max might be neccessary */
+
+          setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUF, &buffsize, sizeof(buffsize));
+          setsockopt(nl->fd, SOL_SOCKET, SO_SNDBUF, &buffsize, sizeof(buffsize));
+
 
 	return ret;
 }
