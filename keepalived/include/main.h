@@ -26,7 +26,7 @@
 /* global includes */
 #include <sys/stat.h>
 #include <sys/wait.h>
-#include <popt.h>
+#include <getopt.h>
 
 /* local includes */
 #include "daemon.h"
