@@ -86,74 +86,31 @@ usage(const char *prog)
 static int
 parse_cmdline(int argc, char **argv, REQ * req_obj)
 {
-	poptContext context;
-	char *optarg = NULL;
-	enum feat_hashes i;
 	int c;
+	enum feat_hashes i;
 
-	struct poptOption options_table[] = {
-		{"release", 'r', POPT_ARG_NONE, NULL, 'r'},
-		{"help", 'h', POPT_ARG_NONE, NULL, 'h'},
-		{"verbose", 'v', POPT_ARG_NONE, NULL, 'v'},
-		{"use-ssl", 'S', POPT_ARG_NONE, NULL, 'S'},
-		{"server", 's', POPT_ARG_STRING, &optarg, 's'},
-		{"port", 'p', POPT_ARG_STRING, &optarg, 'p'},
-		{"url", 'u', POPT_ARG_STRING, &optarg, 'u'},
-		{"hash", 'H', POPT_ARG_STRING, &optarg, 'H'},
-		{"use-virtualhost", 'V', POPT_ARG_STRING, &optarg, 'V'},
-		{NULL, 0, 0, NULL, 0}
+	struct option long_options[] = {
+		{"release",         no_argument,       0, 'r'},
+		{"help",            no_argument,       0, 'h'},
+		{"verbose",         no_argument,       0, 'v'},
+		{"use-ssl",         no_argument,       0, 'S'},
+		{"server",          optional_argument, 0, 's'},
+		{"hash",            optional_argument, 0, 'H'},
+		{"use-virtualhost", optional_argument, 0, 'V'},
+		{"port",            optional_argument, 0, 'p'},
+		{"url",             optional_argument, 0, 'u'},
+		{0, 0, 0, 0}
 	};
 
 	/* Parse the command line arguments */
-	context =
-	    poptGetContext(PROG, argc, (const char **) argv, options_table, 0);
-	if ((c = poptGetNextOpt(context)) < 0) {
-		usage(argv[0]);
-		return CMD_LINE_ERROR;
-	}
-
-	/* The first option car */
-	switch (c) {
-	case 'r':
-		fprintf(stderr, VERSION_STRING);
-		break;
-	case 'h':
-		usage(argv[0]);
-		break;
-	case 'v':
-		req_obj->verbose = 1;
-		break;
-	case 'S':
-		req_obj->ssl = 1;
-		break;
-	case 's':
-		if (!inet_ston(optarg, &req_obj->addr_ip)) {
-			fprintf(stderr, "server should be an IP, not %s\n", optarg);
-			return CMD_LINE_ERROR;
-		}
-		break;
-	case 'H':
-		for (i = hash_first; i < hash_guard; i++)
-			if (!strcasecmp(optarg, hashes[i].id)) {
-				req_obj->hash = i;
-				break;
-			}
-		if (i == hash_guard) {
-			fprintf(stderr, "unknown hash algoritm: %s\n", optarg);
-			return CMD_LINE_ERROR;
-		}
-		break;
-	case 'V':
-		req_obj->vhost = optarg;
-		break;
-	default:
-		usage(argv[0]);
-		return CMD_LINE_ERROR;
-	}
-
-	/* the others */
-	while ((c = poptGetNextOpt(context)) >= 0) {
+	while ((c = getopt_long (argc, argv, "rhvSs:H:V:p:u:", long_options, NULL)) != EOF) {
 		switch (c) {
+		case 'r':
+			fprintf(stderr, VERSION_STRING);
+			break;
+		case 'h':
+			usage(argv[0]);
+			break;
 		case 'v':
 			req_obj->verbose = 1;
 			break;
@@ -193,13 +150,13 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 	}
 
 	/* check unexpected arguments */
-	if ((optarg = (char *) poptGetArg(context))) {
-		fprintf(stderr, "unexpected argument %s\n", optarg);
+	if (optind < argc) {
+		fprintf(stderr, "Unexpected argument(s): ");
+		while (optind < argc)
+			printf("%s ", argv[optind++]);
+		printf("\n");
 		return CMD_LINE_ERROR;
 	}
-
-	/* free the allocated context */
-	poptFreeContext(context);
 
 	return CMD_LINE_SUCCESS;
 }

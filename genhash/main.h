@@ -31,7 +31,7 @@
 #include <stdint.h>
 #include <string.h>
 #include <errno.h>
-#include <popt.h>
+#include <getopt.h>
 #include <openssl/ssl.h>
 
 /* local includes */
