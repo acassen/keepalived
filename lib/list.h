@@ -61,5 +61,7 @@ extern void list_del(list l, void *data);
 extern list alloc_mlist(void (*free_func) (void *), void (*dump_func) (void *), int size);
 extern void dump_mlist(list l, int size);
 extern void free_mlist(list l, int size);
+extern element list_iterator (list list);
+extern element list_iterate (element iter, void (*op) (void *, void *), void *arg);
 
 #endif

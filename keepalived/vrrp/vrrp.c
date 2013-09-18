@@ -46,6 +46,14 @@
 #include "utils.h"
 #include "notify.h"
 
+static void
+vrrp_record_master_details (vrrp_t * vrrp, struct iphdr *iph, vrrphdr_t *hd)
+{
+	vrrp->ms_addr = iph->saddr;
+	vrrp->ms_prio = hd->priority;
+	vrrp->ms_adver_int = hd->adver_int;
+}
+
 /* add/remove Virtual IP addresses */
 static int
 vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type)
@@ -873,6 +881,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 void
 vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 {
+	struct iphdr *iph = (struct iphdr *) buf;
 	vrrphdr_t *hd;
 	uint32_t saddr;
 	int ret = 0, proto;
@@ -886,9 +895,11 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 			            ,  vrrp->iname);
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	} else if (hd->priority == 0) {
+		vrrp_record_master_details (vrrp, iph, hd);
 		vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
 	} else if (vrrp->nopreempt || hd->priority >= vrrp->effective_priority ||
 		   timer_cmp(vrrp->preempt_time, timer_now()) > 0) {
+		vrrp_record_master_details (vrrp, iph, hd);
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	} else if (hd->priority < vrrp->effective_priority) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) forcing a new MASTER election"
@@ -908,6 +919,12 @@ vrrp_state_master_tx(vrrp_t * vrrp, const int prio)
 		log_message(LOG_INFO, "VRRP_Instance(%s) Entering MASTER STATE"
 				    , vrrp->iname);
 		vrrp_state_become_master(vrrp);
+
+		/* record master details (local) */
+		vrrp->ms_addr = vrrp->mcast_saddr;
+		vrrp->ms_prio = vrrp->base_priority;
+		vrrp->ms_adver_int = vrrp->adver_int;
+
 		ret = 1;
 	}
 
@@ -975,6 +992,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 				vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) - 1;
 				vrrp->ipsecah_counter->cycle = 0;
 			}
+			vrrp_record_master_details (vrrp, (struct iphdr *) buf, hd);
 			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 			vrrp->wantstate = VRRP_STATE_BACK;
 			vrrp->state = VRRP_STATE_BACK;
@@ -1015,6 +1033,8 @@ vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, int buflen)
 		if (!vrrp->nopreempt)
 			return 1;
 	}
+
+	vrrp_record_master_details (vrrp, (struct iphdr *) buf, hd);
 
 	return 0;
 }

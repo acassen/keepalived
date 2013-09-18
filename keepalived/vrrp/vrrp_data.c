@@ -20,6 +20,7 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "vrrp_daemon.h"
 #include "vrrp_data.h"
 #include "vrrp_index.h"
 #include "vrrp_sync.h"
@@ -504,5 +505,109 @@ dump_vrrp_data(vrrp_data_t * data)
 	if (!LIST_ISEMPTY(data->vrrp_script)) {
 		log_message(LOG_INFO, "------< VRRP Scripts >------");
 		dump_list(data->vrrp_script);
+	}
+}
+
+static void
+status_ipaddress(void *if_data, void *farg)
+{
+	FILE *fp = farg;
+	ip_address_t *ipaddr = if_data;
+	char *bcast;
+	char *addr_str;
+
+	if (!if_data || !farg)
+		return;
+
+	bcast = (char *) MALLOC(INET_ADDRSTRLEN + 5);
+	addr_str = ipaddresstos(ipaddr);
+	if (!IP_IS6(ipaddr) && ipaddr->u.sin.sin_brd.s_addr) {
+		snprintf(bcast, INET_ADDRSTRLEN + 5, " bcast %s",
+			 inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));
+	}
+
+	fprintf(fp, "%s %s\n", addr_str, bcast);
+
+	FREE(addr_str);
+	FREE(bcast);
+}
+
+static void
+status_vrrp(void *data, void *farg)
+{
+	vrrp_t *vrrp = data;
+	FILE *fp = farg;
+
+	if (!vrrp) {
+		log_message(LOG_INFO, "Failed, bad VRRP data pointer in status_vrrp()");
+		return;
+	}
+	if (!fp) {
+		log_message(LOG_INFO, "Failed, bad file pointer in status_vrrp()");
+		return;
+	}
+
+	fprintf (fp, "VRRP Instance             : %s\n", vrrp->iname);
+	fprintf (fp, "   Interface              : %s%s", IF_NAME(vrrp->ifp), vrrp->dont_track_primary ? " (interface tracking disabled)\n" : "\n");
+	fprintf (fp, "   Virtual Router ID      : %d\n", vrrp->vrid);
+	fprintf (fp, "   State                  : %s\n", vrrp->state == VRRP_STATE_BACK ? "BACKUP" : vrrp->state == VRRP_STATE_MAST ? "MASTER" : "INIT");
+	if (!LIST_ISEMPTY(vrrp->vip)) {
+		element iter;
+
+		fprintf (fp, "   Virtual IP address     : ");
+		iter = list_iterator (vrrp->vip);
+		while ((iter = list_iterate (iter, status_ipaddress, fp)))
+			fprintf (fp, "                            ");
+	}
+	fprintf (fp, "   Advertisement interval : %d sec\n", vrrp->adver_int / TIMER_HZ);
+	fprintf (fp, "   Preemption             : %s", vrrp->nopreempt ? "Disabled\n" : "Enabled, ");
+	if (!vrrp->nopreempt)
+		fprintf (fp, "delay %ld secs\n", vrrp->preempt_delay / TIMER_HZ);
+	if (vrrp->mcast_saddr)
+		fprintf (fp, "   Multicast group        : %s\n", inet_ntop2(vrrp->mcast_saddr));
+	if (vrrp->garp_delay)
+		fprintf (fp, "   Gratuitous ARP         : %d sec delay\n", vrrp->garp_delay/TIMER_HZ);
+	fprintf (fp, "   Priority               : %d\n", vrrp->base_priority);
+	fprintf (fp, "   Effective Priority     : %d\n", vrrp->effective_priority);
+	fprintf (fp, "   Authentication         : %s\n",
+		 (vrrp->auth_type == VRRP_AUTH_AH) ? "MD5" : vrrp->auth_type == VRRP_AUTH_PASS ? "PLAIN" : "NONE");
+	if (vrrp->state == VRRP_STATE_MAST) {
+		fprintf (fp, "   Master router          : %s (local)\n", inet_ntop2(VRRP_PKT_SADDR(vrrp)));
+	} else
+	if (vrrp->state == VRRP_STATE_FAULT) {
+		fprintf (fp, "   Master router          : NONE\n");
+	} else {
+		fprintf (fp, "   Master router          : %s priority %d\n", inet_ntop2(vrrp->ms_addr), vrrp->ms_prio);
+		fprintf (fp, "   Master down interval   : %.1f\n", (float)vrrp->ms_down_timer / TIMER_HZ);
+	}
+}
+
+/* Dumps status of VRRP instances to file */
+void
+status_vrrp_data(vrrp_data_t * vrrp_data_obj)
+{
+	char* tmpname = VRRP_STATUS_FILE ".tmp";
+
+	if (!vrrp_data_obj) {
+		log_message(LOG_INFO, "Failed, bad input data to status_vrrp_data()");
+		return;
+	}
+
+	if (!LIST_ISEMPTY(vrrp_data_obj->vrrp)) {
+		FILE *fp;
+		element iter;
+
+		fp = fopen (tmpname, "w");
+		if (!fp) {
+			log_message(LOG_INFO, "Failed opening %s for VRRP status.", tmpname);
+			return;
+		}
+
+		iter = list_iterator (vrrp_data_obj->vrrp);
+		while ((iter = list_iterate (iter, status_vrrp, fp)))
+			fprintf (fp, "\n");
+
+		fclose (fp);
+		rename (tmpname, VRRP_STATUS_FILE);
 	}
 }

@@ -176,6 +176,13 @@ sigend_vrrp(void *v, int sig)
 		thread_add_terminate_event(master);
 }
 
+/* Dump status handler */
+void
+sigstatus_vrrp(void *v, int sig)
+{
+	status_vrrp_data(vrrp_data);
+}
+
 /* VRRP Child signal handling */
 void
 vrrp_signal_init(void)
@@ -184,6 +191,7 @@ vrrp_signal_init(void)
 	signal_set(SIGHUP, sighup_vrrp, NULL);
 	signal_set(SIGINT, sigend_vrrp, NULL);
 	signal_set(SIGTERM, sigend_vrrp, NULL);
+	signal_set(SIGUSR1, sigstatus_vrrp, NULL);
 	signal_ignore(SIGPIPE);
 }
 

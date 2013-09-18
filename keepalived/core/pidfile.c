@@ -54,7 +54,7 @@ pidfile_rm(char *pid_file)
 	unlink(pid_file);
 }
 
-/* return the daemon running state */
+/* return the daemon pid, non-zero when running */
 int
 process_running(char *pid_file)
 {
@@ -79,15 +79,17 @@ process_running(char *pid_file)
 		return 0;
 	}
 
-	return 1;
+	return pid;
 }
 
 /* Return parent process daemon state */
 int
 keepalived_running(int mode)
 {
-	if (process_running(main_pidfile))
-		return 1;
+	int pid = process_running(main_pidfile);
+
+	if (pid)
+		return pid;
 	else if (mode & 1 || mode & 2)
 		return process_running((mode & 1) ? vrrp_pidfile :
 				       checkers_pidfile);
