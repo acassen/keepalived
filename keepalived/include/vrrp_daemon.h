@@ -31,6 +31,9 @@
 #define PROG_VRRP	"Keepalived_vrrp"
 #define WDOG_VRRP	"/tmp/.vrrp"
 
+/* Status file created by SIGUSR1 or --vrrp-status */
+#define VRRP_STATUS_FILE   "/var/lib/misc/vrrp.status"
+
 /* Prototypes */
 extern int start_vrrp_child(void);
 

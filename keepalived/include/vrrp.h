@@ -149,6 +149,11 @@ typedef struct _vrrp_t {
 	uint32_t		ms_down_timer;
 	timeval_t		sands;
 
+	/* Master router details */
+	uint32_t		ms_addr;		/* Current master IPv4 address */
+	uint8_t			ms_prio;		/* Current masters priority */
+	uint8_t			ms_adver_int;		/* Current masters advertisement interval */
+
 	/* Sending buffer */
 	char			*send_buffer;		/* Allocated send buffer */
 	int			send_buffer_size;

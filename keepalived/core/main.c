@@ -33,6 +33,7 @@ pid_t vrrp_child = -1;		/* VRRP child process ID */
 pid_t checkers_child = -1;	/* Healthcheckers child process ID */
 int daemon_mode = 0;		/* VRRP/CHECK subsystem selection */
 int linkwatch = 0;		/* Use linkwatch kernel netlink reflection */
+int vrrp_status = 0;		/* Show VRRP status. */
 char *main_pidfile = KEEPALIVED_PID_FILE;	/* overrule default pidfile */
 char *checkers_pidfile = CHECKERS_PID_FILE;	/* overrule default pidfile */
 char *vrrp_pidfile = VRRP_PID_FILE;	/* overrule default pidfile */
@@ -116,6 +117,17 @@ sigend(void *v, int sig)
 	}
 }
 
+/* SIGUSR1 handler */
+void
+sigdump(void *v, int sig)
+{
+	/* Signal child process */
+	if (vrrp_child > 0)
+		kill(vrrp_child, SIGUSR1);
+	if (checkers_child > 0)
+		kill(checkers_child, SIGUSR1);
+}
+
 /* Initialize signal handler */
 void
 signal_init(void)
@@ -124,6 +136,7 @@ signal_init(void)
 	signal_set(SIGHUP, sighup, NULL);
 	signal_set(SIGINT, sigend, NULL);
 	signal_set(SIGTERM, sigend, NULL);
+	signal_set(SIGUSR1, sigdump, NULL);
 	signal_ignore(SIGPIPE);
 }
 
@@ -132,25 +145,26 @@ static void
 usage(const char *prog)
 {
 	fprintf(stderr, "Usage: %s [OPTION...]\n", prog);
-	fprintf(stderr, "  -f, --use-file=FILE          Use the specified configuration file\n");
-	fprintf(stderr, "  -P, --vrrp                   Only run with VRRP subsystem\n");
-	fprintf(stderr, "  -C, --check                  Only run with Health-checker subsystem\n");
-	fprintf(stderr, "  -l, --log-console            Log messages to local console\n");
-	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");
-	fprintf(stderr, "  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n");
-	fprintf(stderr, "  -V, --dont-release-vrrp      Don't remove VRRP VIPs and VROUTEs on daemon stop\n");
-	fprintf(stderr, "  -I, --dont-release-ipvs      Don't remove IPVS topology on daemon stop\n");
-	fprintf(stderr, "  -R, --dont-respawn           Don't respawn child processes\n");
-	fprintf(stderr, "  -n, --dont-fork              Don't fork the daemon process\n");
-	fprintf(stderr, "  -d, --dump-conf              Dump the configuration data\n");
-	fprintf(stderr, "  -p, --pid=FILE               Use specified pidfile for parent process\n");
-	fprintf(stderr, "  -r, --vrrp_pid=FILE          Use specified pidfile for VRRP child process\n");
-	fprintf(stderr, "  -c, --checkers_pid=FILE      Use specified pidfile for checkers child process\n");
+	fprintf(stderr, "  -f, --use-file=FILE          Use the specified configuration file\n"
+			"  -P, --vrrp                   Only run with VRRP subsystem\n"
+			"  -C, --check                  Only run with Health-checker subsystem\n"
+			"  -l, --log-console            Log messages to local console\n"
+			"  -D, --log-detail             Detailed log messages\n"
+			"  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n"
+			"  -V, --dont-release-vrrp      Don't remove VRRP VIPs and VROUTEs on daemon stop\n"
+			"  -I, --dont-release-ipvs      Don't remove IPVS topology on daemon stop\n"
+			"  -R, --dont-respawn           Don't respawn child processes\n"
+			"  -n, --dont-fork              Don't fork the daemon process\n"
+			"  -d, --dump-conf              Dump the configuration data\n"
+			"  -p, --pid=FILE               Use specified pidfile for parent process\n"
+			"  -r, --vrrp_pid=FILE          Use specified pidfile for VRRP child process\n"
+			"  -c, --checkers_pid=FILE      Use specified pidfile for checkers child process\n"
+			"  -s, --vrrp-status            Show status of VRRP instances\n"
 #ifdef _WITH_SNMP_
-	fprintf(stderr, "  -x, --snmp                   Enable SNMP subsystem\n");
+			"  -x, --snmp                   Enable SNMP subsystem\n"
 #endif
-	fprintf(stderr, "  -v, --version                Display the version number\n");
-	fprintf(stderr, "  -h, --help                   Display this help message\n");
+			"  -v, --version                Display the version number\n"
+			"  -h, --help                   Display this help message\n");
 }
 
 /* Command line parser */
@@ -174,6 +188,7 @@ parse_cmdline(int argc, char **argv)
 		{"pid",               optional_argument, 0, 'p'},
 		{"vrrp_pid",          optional_argument, 0, 'r'},
 		{"checkers_pid",      optional_argument, 0, 'c'},
+		{"vrrp-status",       no_argument,       0, 's'},
  #ifdef _WITH_SNMP_
 		{"snmp",              no_argument,       0, 'x'},
  #endif
@@ -238,6 +253,9 @@ parse_cmdline(int argc, char **argv)
 		case 'r':
 			vrrp_pidfile = optarg;
 			break;
+		case 's':
+			vrrp_status = 1;
+			break;
 #ifdef _WITH_SNMP_
 		case 'x':
 			snmp = 1;
@@ -254,10 +272,41 @@ parse_cmdline(int argc, char **argv)
 	}
 }
 
+void
+show_vrrp_status (int pid)
+{
+	FILE *fp;
+
+	if (kill (pid, SIGUSR1)) {
+		fprintf(stderr, "Failed querying VRRP daemon (%d) status. Error %d - %s\n",
+			pid, errno, strerror (errno));
+		return;
+	}
+
+	/* Busy wait here for file to be written. */
+	alarm (3);
+	while (access (VRRP_STATUS_FILE, R_OK));
+
+	fp = fopen (VRRP_STATUS_FILE, "r");
+	if (fp) {
+		char buf[80];
+
+		while (fgets (buf, sizeof(buf), fp))
+			fputs (buf, stdout);
+		fclose (fp);
+		remove (VRRP_STATUS_FILE);
+	} else {
+		fprintf (stderr, "Cannot open file %s. Error %d - %s\n",
+			 VRRP_STATUS_FILE, errno, strerror (errno));
+	}
+}
+
 /* Entry point */
 int
 main(int argc, char **argv)
 {
+	int pid;
+
 	/* Init debugging level */
 	mem_allocated = 0;
 	debug = 0;
@@ -268,11 +317,19 @@ main(int argc, char **argv)
 	 */
 	parse_cmdline(argc, argv);
 
+	if (vrrp_status) {
+		pid = keepalived_running(daemon_mode);
+		if (pid)
+			show_vrrp_status (pid);
+		goto end;
+	}
+
 	openlog(PROG, LOG_PID | ((debug & 1) ? LOG_CONS : 0), log_facility);
 	log_message(LOG_INFO, "Starting " VERSION_STRING);
 
 	/* Check if keepalived is already running */
-	if (keepalived_running(daemon_mode)) {
+	pid = keepalived_running(daemon_mode);
+	if (pid) {
 		log_message(LOG_INFO, "daemon is already running");
 		goto end;
 	}

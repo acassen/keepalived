@@ -162,6 +162,15 @@ sigend_check(void *v, int sig)
 		thread_add_terminate_event(master);
 }
 
+/* Dump handler */
+void
+sigdump_check(void *v, int sig)
+{
+	log_message(LOG_INFO, "Dumping Healthchecker config on signal");
+	dump_global_data(global_data);
+	dump_check_data(check_data);
+}
+
 /* CHECK Child signal handling */
 void
 check_signal_init(void)
@@ -170,6 +179,7 @@ check_signal_init(void)
 	signal_set(SIGHUP, sighup_check, NULL);
 	signal_set(SIGINT, sigend_check, NULL);
 	signal_set(SIGTERM, sigend_check, NULL);
+	signal_set(SIGUSR1, sigdump_check, NULL);
 	signal_ignore(SIGPIPE);
 }
 

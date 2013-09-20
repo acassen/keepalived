@@ -209,3 +209,24 @@ free_mlist(list l, int size)
 		free_melement(&l[i], l->free);
 	FREE(l);
 }
+
+/* list iterator functions */
+element
+list_iterator (list l)
+{
+	if (!l)
+		return NULL;
+
+	return LIST_HEAD(l);
+}
+
+element
+list_iterate (element iter, void (*op) (void *, void *), void *arg)
+{
+	if (!iter || !op)
+		return NULL;
+
+	op (iter->data, arg);
+
+	return ELEMENT_NEXT(iter);
+}
