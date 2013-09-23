@@ -224,6 +224,19 @@ vrrp_vrid_handler(vector_t *strvec)
 	}
 }
 static void
+vrrp_version_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->version = atoi(vector_slot(strvec, 1));
+
+	if (VRRP_IS_BAD_VERSION(vrrp->version)) {
+		log_message(LOG_INFO, "VRRP Error : VRRP version not valid !\n");
+		log_message(LOG_INFO, "             must be 2 or 3. reconfigure !\n");
+		log_message(LOG_INFO, "             Using default value : ", VRRP_VERSION_DFL);
+		vrrp->version = VRRP_VERSION_DFL;
+	}
+}
+static void
 vrrp_prio_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -504,6 +517,7 @@ vrrp_init_keywords(void)
 	install_keyword("track_script", &vrrp_track_scr_handler);
 	install_keyword("mcast_src_ip", &vrrp_mcastip_handler);
 	install_keyword("virtual_router_id", &vrrp_vrid_handler);
+	install_keyword("version", &vrrp_version_handler);
 	install_keyword("priority", &vrrp_prio_handler);
 	install_keyword("advert_int", &vrrp_adv_handler);
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
