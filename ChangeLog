@@ -1,3 +1,117 @@
+2013-09-05  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.8 released.
+	* Vincent Bernat fixed issue while pinging master agent.
+	  The agent needs to be initialized to be able to change the
+	  AgentX ping interval.
+	* Revisited the whole code to use posix declaration style.
+	* fixed some typos
+	* Created CLI core framework.
+	* Ryan O'Hara added option to prevent respawn of child process.
+	  This patch adds a command-line option (--dont-respawn, -R) that
+	  will prevent the child processes from respawning. When this
+	  option is specified, if either the checker or vrrp child
+	  processes exit the parent process will raise the SIGTERM signal
+	  and exit.
+	* Ryan O'Hara removed duplicate command-line option code.
+	  patch removes unnecessary code to process command-line
+	  options. All options can be processed with a single while loop
+	  that calls poptGetNextOpt. This patch also adds code to check
+	  for errors while processing options. Note that errors encountered
+	  while processing command-line options are fatal.
+	* Ryan O'Hara add support to usage generation by popt.
+	  This patch uses the popt library to describe the command-line
+	  options and print usage to stderr. This provides a more clear,
+	  concise usage statement.
+	* Ryan O'Hara and I updated keepalived man page.
+	* Aleksei Ilin add flexible HTTP checker behaviour for HTTP GET
+	  request's port settings. VirtualServer's port being specified
+	  in HTTP GET request only if `VirtualHost` option is not defined,
+	  otherwise used `VirtualHost` option itself.
+	* Ryan O'Hara fixed pointer arithmetic for VRRP packet.
+	  When using IPSEC AH authentication, the pointer arithmetic used
+	  to get the location of the VRRP packet is incorrect. The address
+	  of the IPSEC header must be cast as (char *) in order to get
+	  correct address of the VRRP packet. Without this patch,
+	  vrrp_in_chk() will fail to verify incoming VRRP packets when
+	  IPSEC AH is enabled.
+	* Ryan O'Hara fixed issue while loading SSL certificate.
+	  This patch fixes a problem where keepalived will attempt to
+	  load an SSL keyfile as a certificate, resulting in failure to
+	  initialize SSL context.
+	* Ryan O'Hara refreshed GPLv2 license with last FSF file.
+	* junpei-yoshino fixed configure.in. Library crypt is needed.
+	* Boon Ang fixed comparison of primary IP addresses.
+	  If a router in the master state receives an advertisement
+	  with priority equal to the local priority, it must also
+	  compare the primary IP addresses (RFC 3768, section 6.4.3).
+	  The code to handle this was comparing two IP addresses with
+	  different byte-ordering, resulting in multiple routers in
+	  the master state. This patches resolves the problem by
+	  coverting the local primary IP address to network byte order
+	  for the comparison.
+	* Henrique Mecking fixed memory leak in libipvs
+	* Robert James Hernandez fixed RETVAL by setting RETVAL for
+	  status instead keeping RETVAL set to default of 0
+	* Robert James Hernandez fixed RETVAL by setting RETVAL for
+	  catch all and so that it exits like all other matches in
+	  the case
+	* Jan Pokorný fixed genhash to ensure CLRF{2} HTML body
+	  separator won't slip.
+	* Jan Pokorný extended genhash. Generalize the hash algoi
+	  parts, add SHA1.
+	  This patch adds support for hash algo suite extension
+	  with SHA1 being a first one to be available together with
+	  a default MD5.  The remaining change on the health-checker
+	  subsystem side is to make analogous modifications and to teach
+	  it to recognize the intended hash algorithm based on the length
+	  of the digest (provided that extra care is taken that no two
+	  algorithms will ever alias in this regard).  Also the test
+	  script for genhash was extended to conditionally use SHA1.
+	* Jan Pokorný cleaned up genhash code. 
+	  Access to the hash-specific context was simplified as I've
+	  now checked some C guarantees regarding union/it's members
+	  initial address vs. aligning so now extra inlined accessor
+	  function is needed.  This simplified the code a bit.
+	  Also now the hash-specific object is directly pointed to by
+	  SOCK object instead of carrying just the index to the table of
+	  hashes and doing the respective access via a global again and
+	  again.  Next, I've concentrated some hash-related declarations
+	  to the new hash.h file.  This was mostly motivated by a need to
+	  break the circular include dependency that have arisen. As a
+	  consequence, part of the recent clutter I brought in was removed
+	  again. Most of FEAT_SHA1 conditional compilation is here.
+	  Previously separated table in main carrying the hash IDs to be
+	  printed in the help screen was merged into the table carrying all
+	  the other necessary information about the particular hashes.
+	* vrrp: Remi Gacogne fixed invalid use of sizeof.
+	* Pasi Kärkkäinen Add To header for SMTP alerts.
+	* vrrp: Robert Sander add IPv6 support for virtual_routes and
+	  static_routes.
+	* Erik de Groot add support to LVS One-Packet Scheduling
+	  (known as OPS). Typically RADIUS traffic comes from a limited
+	  amount of clients and thus you have a very limited range of IP
+	  tuples in action which will never expire. Issue with Keepalived
+	  without this patch is that, although it correctly re-assigns
+	  traffic when a real server dies, it will never re-assign traffic
+	  back to the real server when it is restored. This is because
+	  LVS creates virtual connections, for each IP tuple, that will
+	  never time out as the clients keep sending traffic to the server.
+	  With this patch is is possible to enable OPS for UDP virtual
+	  servers which means LVS does not create virtual connections and
+	  takes a new loadbalancing decision for each UDP packet. The
+	  result is that a restored server now gets RADIUS traffic as
+	  soon as LVS has taken it it back into the server pool.
+	* Willy Tarreau and Ryan O'Hara add the ability to use VRRP over
+	  unicast. Unicast IP addresses may be specified for each VRRP
+	  instance with the 'unicast_peer' configuration keyword. When
+	  a VRRP instance has one or more unicast IP address defined,
+	  VRRP advertisements will be sent to each of those addresses.
+	  Unicast IP addresses may be either IPv4 or IPv6.
+	  If you are planing to use this option, ensure every ip
+	  addresses present in unicast_peer configuration block do not
+	  belong to the same router/box. Otherwise it will generate
+	  duplicate packet at reception point.
+
 2012-08-29  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.7 released.
 	* vrrp: fix issue in while using vrrp_script.

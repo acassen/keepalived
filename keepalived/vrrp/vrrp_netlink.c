@@ -102,6 +102,11 @@ netlink_socket(nl_handle_t *nl, unsigned long groups)
 
 	nl->seq = time(NULL);
 
+	/* Set default rcvbuf size */
+	if_setsockopt_rcvbuf(&nl->fd, IF_DEFAULT_BUFSIZE);
+	if (nl->fd < 0)
+		return -1;
+
 	return ret;
 }
 
@@ -261,7 +266,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				continue;
 			if (errno == EWOULDBLOCK || errno == EAGAIN)
 				break;
-			log_message(LOG_INFO, "Netlink: Received message overrun");
+			log_message(LOG_INFO, "Netlink: Received message overrun (%m)");
 			continue;
 		}
 

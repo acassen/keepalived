@@ -70,6 +70,9 @@ struct ethtool_value {
 #define LB_MII     0x2
 #define LB_ETHTOOL 0x4
 
+/* Default values */
+#define IF_DEFAULT_BUFSIZE	(65*1024)
+
 /* Interface structure definition */
 typedef struct _interface {
 	char			ifname[IF_NAMESIZ + 1];	/* Interface name */
@@ -127,5 +130,7 @@ extern int if_setsockopt_mcast_loop(sa_family_t, int *);
 extern int if_setsockopt_mcast_hops(sa_family_t, int *);
 extern int if_setsockopt_mcast_if(sa_family_t, int *, interface_t *);
 extern int if_setsockopt_priority(int *);
+extern int if_setsockopt_sndbuf(int *, int);
+extern int if_setsockopt_rcvbuf(int *, int);
 
 #endif

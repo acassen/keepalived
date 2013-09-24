@@ -637,7 +637,9 @@ if_setsockopt_mcast_if(sa_family_t family, int *sd, interface_t *ifp)
 	return *sd;
 }
 
-int if_setsockopt_priority(int *sd) {
+int
+if_setsockopt_priority(int *sd)
+{
 	int ret;
 	int priority = 6;
 
@@ -648,6 +650,44 @@ int if_setsockopt_priority(int *sd) {
 	ret = setsockopt(*sd, SOL_SOCKET, SO_PRIORITY, &priority, sizeof(priority));
 	if (ret < 0) {
 		log_message(LOG_INFO, "cant set SO_PRIORITY IP option. errno=%d (%m)", errno);
+		close(*sd);
+		*sd = -1;
+	}
+
+	return *sd;
+}
+
+int
+if_setsockopt_sndbuf(int *sd, int val)
+{
+	int ret;
+
+	if (*sd < 0)
+		return -1;
+
+	/* sndbuf option */
+        ret = setsockopt(*sd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(val));
+        if (ret < 0) {
+		log_message(LOG_INFO, "cant set SO_SNDBUF IP option. errno=%d (%m)", errno);
+		close(*sd);
+		*sd = -1;
+        }
+
+        return *sd;
+}
+
+int
+if_setsockopt_rcvbuf(int *sd, int val)
+{
+	int ret;
+
+	if (*sd < 0)
+		return -1;
+
+	/* rcvbuf option */
+	ret = setsockopt(*sd, SOL_SOCKET, SO_RCVBUF, &val, sizeof(val));
+	if (ret < 0) {
+		log_message(LOG_INFO, "cant set SO_RCVBUF IP option. errno=%d (%m)", errno);
 		close(*sd);
 		*sd = -1;
 	}
