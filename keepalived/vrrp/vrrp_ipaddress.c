@@ -58,6 +58,9 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 			cinfo.ifa_prefered = 0;
 		}
 		cinfo.ifa_valid = 0xFFFFFFFFU;
+		#ifdef IFA_F_NODAD
+			req.ifa.ifa_flags |= IFA_F_NODAD;
+		#endif
 		addattr_l(&req.n, sizeof(req), IFA_CACHEINFO, &cinfo,
 				  sizeof(cinfo));
 
