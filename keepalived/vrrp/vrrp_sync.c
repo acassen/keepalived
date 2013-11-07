@@ -41,7 +41,7 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 	    vrrp->state == VRRP_STATE_GOTO_FAULT  ||
 	    vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
 		vrrp->sands.tv_sec = time_now.tv_sec + vrrp->adver_int / TIMER_HZ;
- 		vrrp->sands.tv_usec = time_now.tv_usec;
+		vrrp->sands.tv_usec = time_now.tv_usec + vrrp->adver_int % TIMER_HZ;
 		return;
 	}
 

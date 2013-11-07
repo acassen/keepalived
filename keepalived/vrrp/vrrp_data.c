@@ -239,8 +239,7 @@ dump_vrrp(void *data)
 	log_message(LOG_INFO, "   VRRP version = %d", vrrp->version);
 	log_message(LOG_INFO, "   Virtual Router ID = %d", vrrp->vrid);
 	log_message(LOG_INFO, "   Priority = %d", vrrp->base_priority);
-	log_message(LOG_INFO, "   Advert interval = %dsec",
-	       vrrp->adver_int / TIMER_HZ);
+	log_message(LOG_INFO, "   Advert interval = %.2fsec", (float)vrrp->adver_int / TIMER_HZ);
 	if (vrrp->nopreempt)
 		log_message(LOG_INFO, "   Preempt disabled");
 	if (vrrp->preempt_delay)

@@ -1124,6 +1124,12 @@ chk_min_cfg(vrrp_t * vrrp)
 		       vrrp->iname);
 		return 0;
 	}
+	/* VRRPv2 only supports advertisment interval in sec */
+	if ((vrrp->version == VRRP_VERSION_2 && vrrp->adver_int < TIMER_HZ) ||
+	    (vrrp->version == VRRP_VERSION_2 && (vrrp->adver_int % 100))) {
+		log_message(LOG_INFO, "VRRP_Instance(%s) Advertisment interval not supported in version 2!", vrrp->iname);
+		return 0;
+	}
 
 	return 1;
 }
