@@ -89,8 +89,11 @@ static int
 vrrp_hd_len(vrrp_t * vrrp)
 {
 	int len = sizeof(vrrphdr_t);
-	if (vrrp->family == AF_INET)
-		len += VRRP_AUTH_LEN + ((!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) * sizeof (uint32_t) : 0);
+	if (vrrp->family == AF_INET) {
+		if (vrrp->version == VRRP_VERSION_2)
+			len += VRRP_AUTH_LEN;
+		len += ((!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) * sizeof (uint32_t) : 0);
+	}
         return len;
 }
 
@@ -229,6 +232,9 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 	unsigned char *vips;
 	ip_address_t *ipaddress;
 	element e;
+	ipv4phdr_t ipv4phdr;   /* FIXME: Add VRRPv3 support for IPv6 */
+	int adver_int = 0;
+	int acc_csum = 0;
 
 	/* IPv4 related */
 	if (vrrp->family == AF_INET) {
@@ -236,7 +242,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 		ip = (struct iphdr *) (buffer);
 		ihl = ip->ihl << 2;
 
-		if (vrrp->auth_type == VRRP_AUTH_AH) {
+		if (vrrp->version == VRRP_VERSION_2 && vrrp->auth_type == VRRP_AUTH_AH) {
 			ah = (ipsec_ah_t *) (buffer + ihl);
 			hd = (vrrphdr_t *) ((char *) ah + vrrp_ipsecah_len());
 		} else {
@@ -290,7 +296,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 		}
 
 		/* check the authentication if it is a passwd */
-		if (hd->auth_type == VRRP_AUTH_PASS) {
+		if (vrrp->version == VRRP_VERSION_2 && hd->v2.auth_type == VRRP_AUTH_PASS) {
 			char *pw = (char *) ip + ntohs(ip->tot_len)
 			    - sizeof (vrrp->auth_data);
 			if (memcmp(pw, vrrp->auth_data, sizeof(vrrp->auth_data)) != 0) {
@@ -300,7 +306,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 		}
 
 		/* check the authenicaion if it is ipsec ah */
-		if (hd->auth_type == VRRP_AUTH_AH)
+		if (vrrp->version == VRRP_VERSION_2 && hd->v2.auth_type == VRRP_AUTH_AH)
 			return (vrrp_in_chk_ipsecah(vrrp, buffer));
 
 		/* Set expected vrrp packet lenght */
@@ -316,14 +322,27 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 	}
 
 	/* MUST verify the VRRP version */
-	if ((hd->vers_type >> 4) != VRRP_VERSION) {
+	if ((hd->vers_type >> 4) != vrrp->version) {
 		log_message(LOG_INFO, "invalid version. %d and expect %d",
-		       (hd->vers_type >> 4), VRRP_VERSION);
+		       (hd->vers_type >> 4), vrrp->version);
 		return VRRP_PACKET_KO;
 	}
 
-	/* MUST verify the VRRP checksum */
-	if (in_csum((u_short *) hd, vrrphdr_len, 0)) {
+	/* MUST verify the VRRP checksum.
+	 * FIXME: Add VRRPv3 support for IPv6
+	 */
+	if (vrrp->family == AF_INET && vrrp->version == VRRP_VERSION_3) {
+		ip = (struct iphdr *) (buffer);
+		/* Create IPv4 pseudo-header */
+		ipv4phdr.src   = ip->saddr;
+		ipv4phdr.dst   = htonl(INADDR_VRRP_GROUP);
+		ipv4phdr.zero  = 0;
+		ipv4phdr.proto = IPPROTO_VRRP;
+		ipv4phdr.len   = htons(vrrp_hd_len(vrrp));
+
+		in_csum((u_short *) &ipv4phdr, sizeof(ipv4phdr), 0, &acc_csum);
+	}
+	if (in_csum((u_short *) hd, vrrphdr_len, acc_csum, NULL)) {
 		log_message(LOG_INFO, "Invalid vrrp checksum");
 		return VRRP_PACKET_KO;
 	}
@@ -332,9 +351,9 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 	 * MUST perform authentication specified by Auth Type 
 	 * check the authentication type
 	 */
-	if (vrrp->auth_type != hd->auth_type) {
+	if (vrrp->version == VRRP_VERSION_2 && vrrp->auth_type != hd->v2.auth_type) {
 		log_message(LOG_INFO, "receive a %d auth, expecting %d!",
-		       hd->auth_type, vrrp->auth_type);
+		       hd->v2.auth_type, vrrp->auth_type);
 		return VRRP_PACKET_KO;
 	}
 
@@ -355,9 +374,15 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 	 * MUST verify that the Adver Interval in the packet is the same as
 	 * the locally configured for this virtual router
 	 */
-	if (vrrp->adver_int / TIMER_HZ != hd->adver_int) {
+	if (vrrp->version == VRRP_VERSION_2) {
+		adver_int = hd->v2.adver_int * TIMER_HZ;
+	} else if (vrrp->version == VRRP_VERSION_3) {
+		adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
+	}
+
+	if (vrrp->adver_int != adver_int) {
 		log_message(LOG_INFO, "advertissement interval mismatch mine=%d rcved=%d",
-		       vrrp->adver_int, hd->adver_int);
+		       vrrp->adver_int, adver_int);
 		/* to prevent concurent VRID running => multiple master in 1 VRID */
 		return VRRP_PACKET_DROP;
 	}
@@ -385,12 +410,17 @@ vrrp_build_ip4(vrrp_t * vrrp, char *buffer, int buflen, uint32_t dst)
 	ip->ttl = VRRP_IP_TTL;
 
 	/* fill protocol type --rfc2402.2 */
-	ip->protocol = (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH : IPPROTO_VRRP;
+	if (vrrp->version == VRRP_VERSION_2) {
+		ip->protocol = (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH : IPPROTO_VRRP;
+	} else {
+		ip->protocol = IPPROTO_VRRP;
+	}
+
 	ip->saddr = VRRP_PKT_SADDR(vrrp);
 	ip->daddr = dst;
 
 	/* checksum must be done last */
-	ip->check = in_csum((u_short *) ip, ip->ihl * 4, 0);
+	ip->check = in_csum((u_short *) ip, ip->ihl * 4, 0, NULL);
 }
 
 /* build IPSEC AH header */
@@ -414,7 +444,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 
 	/* update ip checksum */
 	ip->check = 0;
-	ip->check = in_csum((u_short *) ip, ip->ihl * 4, 0);
+	ip->check = in_csum((u_short *) ip, ip->ihl * 4, 0, NULL);
 
 	/* backup the ip mutable fields */
 	ip_mutable_fields->tos = ip->tos;
@@ -477,9 +507,9 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 	FREE(digest);
 }
 
-/* build VRRP header */
+/* build VRRPv2 header */
 static int
-vrrp_build_vrrp(vrrp_t * vrrp, int prio, char *buffer)
+vrrp_build_vrrp_v2(vrrp_t * vrrp, int prio, char *buffer)
 {
 	int i = 0;
 	vrrphdr_t *hd = (vrrphdr_t *) buffer;
@@ -488,12 +518,12 @@ vrrp_build_vrrp(vrrp_t * vrrp, int prio, char *buffer)
 	ip_address_t *ip_addr;
 
 	/* Family independant */
-	hd->vers_type = (VRRP_VERSION << 4) | VRRP_PKT_ADVERT;
+	hd->vers_type = (VRRP_VERSION_2 << 4) | VRRP_PKT_ADVERT;
 	hd->vrid = vrrp->vrid;
 	hd->priority = prio;
 	hd->naddr = (!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) : 0;
-	hd->auth_type = vrrp->auth_type;
-	hd->adver_int = vrrp->adver_int / TIMER_HZ;
+	hd->v2.auth_type = vrrp->auth_type;
+	hd->v2.adver_int = vrrp->adver_int / TIMER_HZ;
 
 	/* Family specific */
 	if (vrrp->family == AF_INET) {
@@ -518,9 +548,70 @@ vrrp_build_vrrp(vrrp_t * vrrp, int prio, char *buffer)
 	}
 
 	/* finaly compute vrrp checksum */
-	hd->chksum = in_csum((u_short *) hd, vrrp_hd_len(vrrp), 0);
+	hd->chksum = in_csum((u_short *) hd, vrrp_hd_len(vrrp), 0, NULL);
 
 	return 0;
+}
+
+/* build VRRPv3 header */
+static int
+vrrp_build_vrrp_v3(vrrp_t * vrrp, int prio, char *buffer)
+{
+	int i = 0;
+	vrrphdr_t *hd = (vrrphdr_t *) buffer;
+	uint32_t *iparr;
+	element e;
+	ip_address_t *ip_addr;
+	ipv4phdr_t ipv4phdr;   /* FIXME: Add VRRPv3 support for IPv6 */
+	int acc_csum = 0;
+
+	/* Family independant */
+	hd->vers_type = (VRRP_VERSION_3 << 4) | VRRP_PKT_ADVERT;
+	hd->vrid = vrrp->vrid;
+	hd->priority = prio;
+	hd->naddr = (!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) : 0;
+	hd->v3.adver_int  = htons((vrrp->adver_int / TIMER_CENTI_HZ) & 0xFFF); /* zero reserved field */
+
+	/* Family specific */
+	if (vrrp->family == AF_INET) {
+		/* copy the ip addresses */
+		iparr = (uint32_t *) ((char *) hd + sizeof (*hd));
+		if (!LIST_ISEMPTY(vrrp->vip)) {
+			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
+				ip_addr = ELEMENT_DATA(e);
+				if (IP_IS6(ip_addr))
+					continue;
+				else
+					iparr[i++] = ip_addr->u.sin.sin_addr.s_addr;
+			}
+		}
+	}
+
+	/* Create IPv4 pseudo-header */
+	ipv4phdr.src   = VRRP_PKT_SADDR(vrrp);
+	ipv4phdr.dst   = htonl(INADDR_VRRP_GROUP);
+	ipv4phdr.zero  = 0;
+	ipv4phdr.proto = IPPROTO_VRRP;
+	ipv4phdr.len   = htons(vrrp_hd_len(vrrp));
+
+	/* finaly compute vrrp checksum */
+	in_csum((u_short *) &ipv4phdr, sizeof(ipv4phdr), 0, &acc_csum);
+	hd->chksum = in_csum((u_short *) hd, vrrp_hd_len(vrrp), acc_csum, NULL);
+
+	return 0;
+}
+
+/* build VRRP header */
+static int
+vrrp_build_vrrp(vrrp_t * vrrp, int prio, char *buffer)
+{
+	if (vrrp->version == VRRP_VERSION_2) {
+		return vrrp_build_vrrp_v2(vrrp, prio, buffer);
+	} else if (vrrp->version == VRRP_VERSION_3) {
+		return vrrp_build_vrrp_v3(vrrp, prio, buffer);
+	}
+
+        return 0;
 }
 
 /* build VRRP packet */
@@ -543,16 +634,16 @@ vrrp_build_pkt(vrrp_t * vrrp, int prio, struct sockaddr_storage *addr)
 		/* build the vrrp header */
 		vrrp->send_buffer += vrrp_iphdr_len(vrrp);
 
-		if (vrrp->auth_type == VRRP_AUTH_AH)
+		if (vrrp->version == VRRP_VERSION_2 && vrrp->auth_type == VRRP_AUTH_AH)
 			vrrp->send_buffer += vrrp_ipsecah_len();
 		vrrp->send_buffer_size -= vrrp_iphdr_len(vrrp);
 
-		if (vrrp->auth_type == VRRP_AUTH_AH)
+		if (vrrp->version == VRRP_VERSION_2 && vrrp->auth_type == VRRP_AUTH_AH)
 			vrrp->send_buffer_size -= vrrp_ipsecah_len();
 		vrrp_build_vrrp(vrrp, prio, vrrp->send_buffer);
 
 		/* build the IPSEC AH header */
-		if (vrrp->auth_type == VRRP_AUTH_AH) {
+		if (vrrp->version == VRRP_VERSION_2 && vrrp->auth_type == VRRP_AUTH_AH) {
 			vrrp->send_buffer_size += vrrp_iphdr_len(vrrp) + vrrp_ipsecah_len();
 			vrrp_build_ipsecah(vrrp, bufptr, VRRP_SEND_BUFFER_SIZE(vrrp));
 		}
@@ -616,7 +707,7 @@ vrrp_alloc_send_buffer(vrrp_t * vrrp)
 
 	if (vrrp->family == AF_INET) {
 		vrrp->send_buffer_size = vrrp_iphdr_len(vrrp) + vrrp_hd_len(vrrp);
-		if (vrrp->auth_type == VRRP_AUTH_AH)
+		if (vrrp->version == VRRP_VERSION_2 && vrrp->auth_type == VRRP_AUTH_AH)
 			vrrp->send_buffer_size += vrrp_ipsecah_len();
 	}
 
@@ -1033,6 +1124,12 @@ chk_min_cfg(vrrp_t * vrrp)
 		       vrrp->iname);
 		return 0;
 	}
+	/* VRRPv2 only supports advertisment interval in sec */
+	if ((vrrp->version == VRRP_VERSION_2 && vrrp->adver_int < TIMER_HZ) ||
+	    (vrrp->version == VRRP_VERSION_2 && (vrrp->adver_int % 100))) {
+		log_message(LOG_INFO, "VRRP_Instance(%s) Advertisment interval not supported in version 2!", vrrp->iname);
+		return 0;
+	}
 
 	return 1;
 }
@@ -1135,7 +1232,11 @@ new_vrrp_socket(vrrp_t * vrrp)
 	/* close the desc & open a new one */
 	close_vrrp_socket(vrrp);
 	remove_vrrp_fd_bucket(vrrp);
-	proto = (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH : IPPROTO_VRRP;
+	if (vrrp->version == VRRP_VERSION_2) {
+		proto = (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH : IPPROTO_VRRP;
+	} else {
+		proto = IPPROTO_VRRP;
+	}
 	ifindex = IF_INDEX(vrrp->ifp);
 	unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 	vrrp->fd_in = open_vrrp_socket(vrrp->family, proto, ifindex, unicast);
@@ -1196,6 +1297,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
 	if (!vrrp->effective_priority)
 		vrrp->effective_priority = VRRP_PRIO_DFL;
+	if (!vrrp->version)
+		vrrp->version = VRRP_VERSION_DFL;
 
 	return (chk_min_cfg(vrrp));
 }

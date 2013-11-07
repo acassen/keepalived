@@ -236,16 +236,16 @@ dump_vrrp(void *data)
 	if (vrrp->garp_delay)
 		log_message(LOG_INFO, "   Gratuitous ARP delay = %d",
 		       vrrp->garp_delay/TIMER_HZ);
+	log_message(LOG_INFO, "   VRRP version = %d", vrrp->version);
 	log_message(LOG_INFO, "   Virtual Router ID = %d", vrrp->vrid);
 	log_message(LOG_INFO, "   Priority = %d", vrrp->base_priority);
-	log_message(LOG_INFO, "   Advert interval = %dsec",
-	       vrrp->adver_int / TIMER_HZ);
+	log_message(LOG_INFO, "   Advert interval = %.2fsec", (float)vrrp->adver_int / TIMER_HZ);
 	if (vrrp->nopreempt)
 		log_message(LOG_INFO, "   Preempt disabled");
 	if (vrrp->preempt_delay)
 		log_message(LOG_INFO, "   Preempt delay = %ld secs",
 		       vrrp->preempt_delay / TIMER_HZ);
-	if (vrrp->auth_type) {
+	if (vrrp->version == VRRP_VERSION_2 && vrrp->auth_type) {
 		log_message(LOG_INFO, "   Authentication type = %s",
 		       (vrrp->auth_type ==
 			VRRP_AUTH_AH) ? "IPSEC_AH" : "SIMPLE_PASSWORD");

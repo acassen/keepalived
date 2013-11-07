@@ -224,6 +224,19 @@ vrrp_vrid_handler(vector_t *strvec)
 	}
 }
 static void
+vrrp_version_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->version = atoi(vector_slot(strvec, 1));
+
+	if (VRRP_IS_BAD_VERSION(vrrp->version)) {
+		log_message(LOG_INFO, "VRRP Error : VRRP version not valid !\n");
+		log_message(LOG_INFO, "             must be 2 or 3. reconfigure !\n");
+		log_message(LOG_INFO, "             Using default value : ", VRRP_VERSION_DFL);
+		vrrp->version = VRRP_VERSION_DFL;
+	}
+}
+static void
 vrrp_prio_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -242,16 +255,17 @@ static void
 vrrp_adv_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->adver_int = atoi(vector_slot(strvec, 1));
+	vrrp->adver_int = atof(vector_slot(strvec, 1)) * TIMER_HZ;
 
-	if (VRRP_IS_BAD_ADVERT_INT(vrrp->adver_int)) {
+	/* Try to check setting.
+	 * If no VRRP version set, use VRRPv3 min advert interval as min valid advert interval.
+	 */
+	if (VRRP_IS_BAD_ADVERT_INT(vrrp, vrrp->adver_int)) {
 		log_message(LOG_INFO, "VRRP Error : Advert interval not valid !");
-		log_message(LOG_INFO,
-		       "             must be between less than 1sec.");
+		log_message(LOG_INFO, "             must be >= 1sec for VRRPv2 or >= 0.01sec for VRRPv3.");
 		log_message(LOG_INFO, "             Using default value : 1sec");
-		vrrp->adver_int = 1;
+		vrrp->adver_int = TIMER_HZ;
 	}
-	vrrp->adver_int *= TIMER_HZ;
 }
 static void
 vrrp_debug_handler(vector_t *strvec)
@@ -504,6 +518,7 @@ vrrp_init_keywords(void)
 	install_keyword("track_script", &vrrp_track_scr_handler);
 	install_keyword("mcast_src_ip", &vrrp_mcastip_handler);
 	install_keyword("virtual_router_id", &vrrp_vrid_handler);
+	install_keyword("version", &vrrp_version_handler);
 	install_keyword("priority", &vrrp_prio_handler);
 	install_keyword("advert_int", &vrrp_adv_handler);
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
