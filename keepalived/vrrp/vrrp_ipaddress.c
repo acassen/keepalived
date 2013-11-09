@@ -38,6 +38,10 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		struct ifaddrmsg ifa;
 		char buf[256];
 	} req;
+	struct ifa_cacheinfo cinfo;
+	char *addr_str;
+
+	addr_str = ipaddresstos(ipaddress);
 
 	memset(&req, 0, sizeof (req));
 
@@ -47,6 +51,19 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 	req.ifa = ipaddress->ifa;
 
 	if (IP_IS6(ipaddress)) {
+		memset(&cinfo, 0, sizeof(cinfo));
+		if (ipaddress->ifa.ifa_prefixlen == 128) {
+			log_message(LOG_INFO, "Setting preferred_lft to 0, since we shouldn't use %s as a source address\n",
+				addr_str);
+			cinfo.ifa_prefered = 0;
+		}
+		cinfo.ifa_valid = 0xFFFFFFFFU;
+		#ifdef IFA_F_NODAD
+			req.ifa.ifa_flags |= IFA_F_NODAD;
+		#endif
+		addattr_l(&req.n, sizeof(req), IFA_CACHEINFO, &cinfo,
+				  sizeof(cinfo));
+
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin6_addr, sizeof(ipaddress->u.sin6_addr));
 	} else {
@@ -56,6 +73,7 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 			addattr_l(&req.n, sizeof(req), IFA_BROADCAST,
 				  &ipaddress->u.sin.sin_brd, sizeof(ipaddress->u.sin.sin_brd));
 	}
+	FREE(addr_str);
 
 	if (ipaddress->label)
 		addattr_l(&req.n, sizeof (req), IFA_LABEL,
