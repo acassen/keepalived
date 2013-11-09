@@ -605,7 +605,7 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 	}
 
 	/* Send the packet */
-	return sendmsg(vrrp->fd_out, &msg, MSG_DONTROUTE);
+	return sendmsg(vrrp->fd_out, &msg, (addr) ? 0 : MSG_DONTROUTE);
 }
 
 /* Allocate the sending buffer */
