@@ -518,6 +518,7 @@ vrrp_build_vrrp(vrrp_t * vrrp, int prio, char *buffer)
 	}
 
 	/* finaly compute vrrp checksum */
+	hd->chksum = 0;
 	hd->chksum = in_csum((u_short *) hd, vrrp_hd_len(vrrp), 0);
 
 	return 0;
@@ -605,7 +606,7 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 	}
 
 	/* Send the packet */
-	return sendmsg(vrrp->fd_out, &msg, MSG_DONTROUTE);
+	return sendmsg(vrrp->fd_out, &msg, (addr) ? 0 : MSG_DONTROUTE);
 }
 
 /* Allocate the sending buffer */
