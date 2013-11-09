@@ -32,6 +32,8 @@
 static int
 netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 {
+	struct ifa_cacheinfo cinfo;
+	char *addr_str;
 	int status = 1;
 	struct {
 		struct nlmsghdr n;
@@ -47,6 +49,35 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 	req.ifa = ipaddress->ifa;
 
 	if (IP_IS6(ipaddress)) {
+		/* Mark IPv6 address as deprecated (rfc3484) in order to prevent
+		 * using VRRP VIP as source address in healthchecking use cases.
+		 */
+		if (ipaddress->ifa.ifa_prefixlen == 128) {
+			memset(&cinfo, 0, sizeof(cinfo));
+			cinfo.ifa_prefered = 0;
+			cinfo.ifa_valid = 0xFFFFFFFFU;
+
+			addr_str = ipaddresstos(ipaddress);
+			log_message(LOG_INFO, "%s has a prefix length of 128, setting "
+					      "preferred_lft to 0\n", addr_str);
+			FREE(addr_str);
+			addattr_l(&req.n, sizeof(req), IFA_CACHEINFO, &cinfo,
+				  sizeof(cinfo));
+		}
+
+		/* Disable, per VIP, Duplicate Address Detection algorithm (DAD).
+		 * Using the nodad flag has the following benefits:
+		 *
+		 * (1) The address becomes immediately usable after they're
+		 *     configured.
+		 * (2) In the case of a temporary layer-2 / split-brain problem
+		 *     we can avoid that the active VIP transitions into the
+		 *     dadfailed phase and stays there forever - leaving us
+		 *     without service. HA/VRRP setups have their own "DAD"-like
+		 *     functionality, so it's not really needed from the IPv6 stack.
+		 */
+		req.ifa.ifa_flags |= IFA_F_NODAD;
+
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin6_addr, sizeof(ipaddress->u.sin6_addr));
 	} else {
