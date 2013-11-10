@@ -1,3 +1,84 @@
+2013-11-10  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.9 released.
+	* Alexey Andriyanov fixed inaccuracy in VS_ISEQ macro.
+	* Alexey Andriyanov fixed hysteresis which could be >= quorum now.
+	* Alexey Andriyanov extended checker framework so that status_code
+	  and digest can be set together.
+	* Alexey Andriyanov extended/fixed checker framework for better
+	  SIGHUP support.
+	* Jonas Johansson fixed VRRP sync group by sending prio 0 when
+	  entering FAULT state. This fix will send prio 0 (VRRP_PRIO_STOP)
+	  when the VRRP router transists from MASTER to FAULT state. This
+	  will make a sync group leave the MASTER state more quickly by
+	  notifying the backup router(s) instead of having them to wait
+	  for time out.
+	* Jonas Johansson extended VRRP VMAC interface flags (up/down
+	  status) to follow base interface. When using a VMAC interface,
+	  this fix will reflect the base interface flags, i.e. up/down
+	  status, to the VMAC interface. This is useful when using sync
+	  groups (in combination with VMAC) and a link for one of the
+	  members in the MASTER sync group goes down. Before this fix,
+	  this member will not detect the link fault, due to that the
+	  VMAC interface always is UP regardless of the actual status of
+	  the base interface, and the sync group will continue to be
+	  MASTER as if nothing has happend. This fix will however reflect
+	  the status of the base interface onto the VMAC interface, so if
+	  the link goes down the member will transit to FAULT state, which
+	  will make the sync group transit to BACKUP state.
+	* Jonas Johansson fixed VRRP wrong interface flags corner case.
+	  If a link event arrives between the initial scanning for
+	  interfaces and configuration file parsing, the VRRP instance
+	  will enter an unrecoverable state. This fix will update the
+	  interface flags even when the interface exists, not only for
+	  the inital scan.  Note that when all is up and running the link
+	  events will be properly handled by netlink, so this fix only
+	  fixes the special case when a link changes state during
+	  initalization/configuration.
+	* Jonas Johansson fixed VRRP to honor preempt_delay setting on
+	  startup. If the preempt_delay is set we cannot yet transition
+	  to master state. We must await the timeout of our preempt_delay.
+	  The preemption delay is used when starting up, or rebooting, a
+	  node which needs time to sort out its routing table (e.g., BGP
+	  or OSPF) before it can assume the master role.
+	* Jonas Johansson extended VRRP code for faster sync group
+	  transition.
+	* Jonas Johansson replaced popt with getopt. In a embedded
+	  environment you might not want to have to add yet another
+	  library dependency. This commit refactors parse_cmdline() to
+	  use getopt_long() instead och popt.
+	* EyckWigo proposed to increase defaut socket buf size to handle
+	  env with lot of IP addresses, Default is now set to 64K on netlink
+	  socket.
+	* Guðmundur Bjarni Ólafsson fixed VRRP unicast code to allow
+	  packet to be routed !
+	* Guðmundur Bjarni Ólafsson fixed VRRP checksum before computation.
+	  When running in unicast mode with multiple peers, the checksum
+	  was being calculated into itself for consequent peers, causing
+	  incorrect checksums.
+	* Extended VRRP framework tweaking IPv6 VIP install by disabling
+	  DAD algo and setting deprecated.
+	  Lot of discussions have been made around those 2 topics. First
+	  idea and initial patch where provided by Leo Baltus. This patch
+	  fix the use case where VRRP VIPv6 are used in conjonction of IPVS
+	  healthchecking. If deprecated flag is not set (which is the default
+	  linux behaviour), then VRRP VIP can be used as source address of
+	  healthcheking packet. Since this VIP address is also present, in
+	  most use-cases, on realserver directly so return packets never reach
+	  the healthchecker and hence no realserver was injected in IPVS table.
+	  At the same time, I decided to merge Tore Anderson  suggestion of
+	  disabling Duplicate Address Detection algorithm. Tore's arguments
+	  are nice ! Thanks Tore : Using the nodad flag has the following
+	  benefits:
+	  1) The address becomes immediately usable after they're configured.
+	  2) In the case of a temporary layer-2 / split-brain problem we can
+	     avoid that the active VIP transitions into the dadfailed phase
+	     and stays there forever - leaving us without service. HA/VRRP
+	     setups have their own "DAD"-like functionality, so it's not
+	     really needed from the IPv6 stack.
+
+	  Acknowledgements to Mark Schouten and Frank Baalbergen for pushing
+	  me by testing this features !
+
 2013-09-05  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.8 released.
 	* Vincent Bernat fixed issue while pinging master agent.
