@@ -247,7 +247,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 		vips = (unsigned char *) ((char *) hd + sizeof(vrrphdr_t));
 	
 		/* MUST verify that the IP TTL is 255 */
-		if (ip->ttl != VRRP_IP_TTL) {
+		if (LIST_ISEMPTY(vrrp->unicast_peer) && ip->ttl != VRRP_IP_TTL) {
 			log_message(LOG_INFO, "invalid ttl. %d and expect %d", ip->ttl,
 			       VRRP_IP_TTL);
 			return VRRP_PACKET_KO;
