@@ -7,22 +7,15 @@
 #define _IP_VS_H
 
 #include <netinet/in.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <linux/types.h>	/* For __beXX types in userland */
 
 #ifdef LIBIPVS_USE_NL
 #include <netlink/netlink.h>
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
 #endif
-
-/* Userland compatibility with kernel */
-#define __u32 u_int32_t
-#define __be32 u_int32_t
-#define __u16 u_int16_t
-#define __be16 u_int16_t
-#define __u64 u_int64_t
 
 #define IP_VS_VERSION_CODE	0x010201
 #define NVERSION(version)			\
@@ -36,12 +29,13 @@
 #define IP_VS_SVC_F_PERSISTENT	0x0001		/* persistent port */
 #define IP_VS_SVC_F_HASHED	0x0002		/* hashed entry */
 #define IP_VS_SVC_F_ONEPACKET	0x0004		/* one-packet scheduling */
+#define IP_VS_SVC_F_SCHED1	0x0008		/* scheduler flag 1 */
+#define IP_VS_SVC_F_SCHED2	0x0010		/* scheduler flag 2 */
+#define IP_VS_SVC_F_SCHED3	0x0020		/* scheduler flag 3 */
 
-/*
- *      Destination Server Flags
- */
-#define IP_VS_DEST_F_AVAILABLE	0x0001		/* server is available */
-#define IP_VS_DEST_F_OVERLOAD	0x0002		/* server is overloaded */
+#define IP_VS_SVC_F_SCHED_SH_FALLBACK	IP_VS_SVC_F_SCHED1 /* SH fallback */
+#define IP_VS_SVC_F_SCHED_SH_PORT	IP_VS_SVC_F_SCHED2 /* SH use port */
+
 
 /*
  *      IPVS sync daemon states
@@ -102,12 +96,13 @@
 #define IP_VS_CONN_F_SEQ_MASK	0x0600		/* in/out sequence mask */
 #define IP_VS_CONN_F_NO_CPORT	0x0800		/* no client port set yet */
 #define IP_VS_CONN_F_TEMPLATE	0x1000		/* template, not connection */
-
-/* Move it to better place one day, for now keep it unique */
-#define NFC_IPVS_PROPERTY	0x10000
+#define IP_VS_CONN_F_ONE_PACKET	0x2000		/* forward only one packet */
 
 #define IP_VS_SCHEDNAME_MAXLEN	16
+#define IP_VS_PENAME_MAXLEN	16
 #define IP_VS_IFNAME_MAXLEN	16
+
+#define IP_VS_PEDATA_MAXLEN	255
 
 union nf_inet_addr {
         __u32           all[4];
@@ -149,6 +144,7 @@ struct ip_vs_service_user {
 	__be32			netmask;	/* persistent netmask */
 	u_int16_t		af;
 	union nf_inet_addr	addr;
+	char			pe_name[IP_VS_PENAME_MAXLEN];
 };
 
 struct ip_vs_dest_kern {
@@ -255,6 +251,7 @@ struct ip_vs_service_entry {
 
 	u_int16_t		af;
 	union nf_inet_addr	addr;
+	char			pe_name[IP_VS_PENAME_MAXLEN];
 
 };
 
@@ -423,7 +420,7 @@ enum {
 	__IPVS_CMD_ATTR_MAX,
 };
 
-#define IPVS_CMD_ATTR_MAX (__IPVS_SVC_ATTR_MAX - 1)
+#define IPVS_CMD_ATTR_MAX (__IPVS_CMD_ATTR_MAX - 1)
 
 /*
  * Attributes used to describe a service
@@ -444,6 +441,9 @@ enum {
 	IPVS_SVC_ATTR_NETMASK,		/* persistent netmask */
 
 	IPVS_SVC_ATTR_STATS,		/* nested attribute for service stats */
+
+	IPVS_SVC_ATTR_PE_NAME,		/* name of scheduler */
+
 	__IPVS_SVC_ATTR_MAX,
 };
 
@@ -533,11 +533,5 @@ extern struct nla_policy ipvs_daemon_policy[IPVS_DAEMON_ATTR_MAX + 1];
 #endif
 
 /* End of Generic Netlink interface definitions */
-
-#undef __u32
-#undef __be32
-#undef __u16
-#undef __be16
-#undef __u64
 
 #endif	/* _IP_VS_H */

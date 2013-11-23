@@ -3935,6 +3935,7 @@ $as_echo "$ac_cv_lib_nl_nl_socket_modify_cb" >&6; }
 if test "x$ac_cv_lib_nl_nl_socket_modify_cb" = xyes; then :
 
     USE_NL="LIBIPVS_USE_NL"
+    CFLAGS="$CFLAGS -DFALLBACK_LIBNL1"
     LIBS="$LIBS -lnl"
 
 else

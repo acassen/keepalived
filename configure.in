@@ -58,6 +58,7 @@ AC_CHECK_LIB(ssl, SSL_CTX_new,,AC_MSG_ERROR([OpenSSL libraries are required]))
 AC_CHECK_LIB(nl, nl_socket_modify_cb,
   [
     USE_NL="LIBIPVS_USE_NL"
+    CFLAGS="$CFLAGS -DFALLBACK_LIBNL1"
     LIBS="$LIBS -lnl"
   ],
   [

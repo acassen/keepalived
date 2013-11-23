@@ -10,6 +10,9 @@
 #ifndef _LIBIPVS_H
 #define _LIBIPVS_H
 
+#include "ip_vs.h"
+
+
 #define MINIMUM_IPVS_VERSION_MAJOR      1
 #define MINIMUM_IPVS_VERSION_MINOR      1
 #define MINIMUM_IPVS_VERSION_PATCH      4
@@ -37,6 +40,7 @@ typedef struct ip_vs_timeout_user	ipvs_timeout_t;
 typedef struct ip_vs_daemon_user	ipvs_daemon_t;
 typedef struct ip_vs_service_entry	ipvs_service_entry_t;
 typedef struct ip_vs_dest_entry		ipvs_dest_entry_t;
+
 
 /* ipvs info variable */
 extern struct ip_vs_getinfo ipvs_info;
@@ -95,10 +99,6 @@ extern int ipvs_cmp_services(ipvs_service_entry_t *s1,
 extern void ipvs_sort_services(struct ip_vs_get_services *s,
 			       ipvs_service_cmp_t f);
 
-/* get one IPVS service */
-extern ipvs_service_entry_t *ipvs_get_service(u_int32_t, u_int16_t, u_int16_t,
-					      union nf_inet_addr, u_int16_t);
-
 /* get the destination array of the specified service */
 extern struct ip_vs_get_dests *ipvs_get_dests(ipvs_service_entry_t *svc);
 
@@ -109,6 +109,10 @@ extern int ipvs_cmp_dests(ipvs_dest_entry_t *d1,
 			  ipvs_dest_entry_t *d2);
 extern void ipvs_sort_dests(struct ip_vs_get_dests *d,
 			    ipvs_dest_cmp_t f);
+
+/* get an ipvs service entry */
+extern ipvs_service_entry_t *
+ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr addr, __u16 port);
 
 /* get ipvs timeout */
 extern ipvs_timeout_t *ipvs_get_timeout(void);
