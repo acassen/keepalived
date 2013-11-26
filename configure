@@ -3935,13 +3935,60 @@ $as_echo "$ac_cv_lib_nl_nl_socket_modify_cb" >&6; }
 if test "x$ac_cv_lib_nl_nl_socket_modify_cb" = xyes; then :
 
     USE_NL="LIBIPVS_USE_NL"
+    CFLAGS="$CFLAGS -DFALLBACK_LIBNL1"
     LIBS="$LIBS -lnl"
 
 else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_socket_alloc in -lnl-3" >&5
+$as_echo_n "checking for nl_socket_alloc in -lnl-3... " >&6; }
+if ${ac_cv_lib_nl_3_nl_socket_alloc+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lnl-3  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
 
-    USE_NL="LIBIPVS_DONTUSE_NL"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: keepalived will be built without libnl support." >&5
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char nl_socket_alloc ();
+int
+main ()
+{
+return nl_socket_alloc ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_nl_3_nl_socket_alloc=yes
+else
+  ac_cv_lib_nl_3_nl_socket_alloc=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_nl_3_nl_socket_alloc" >&5
+$as_echo "$ac_cv_lib_nl_3_nl_socket_alloc" >&6; }
+if test "x$ac_cv_lib_nl_3_nl_socket_alloc" = xyes; then :
+
+      USE_NL="LIBIPVS_USE_NL"
+      CFLAGS="$CFLAGS $(pkg-config --libs --cflags libnl-3.0)"
+      LIBS="$LIBS -lnl-3 -lnl-genl-3"
+
+else
+
+      USE_NL="LIBIPVS_DONTUSE_NL"
+      { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: keepalived will be built without libnl support." >&5
 $as_echo "$as_me: WARNING: keepalived will be built without libnl support." >&2;}
+
+fi
+
 
 fi
 

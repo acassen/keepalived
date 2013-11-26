@@ -1,4 +1,3 @@
-#include "ip_vs.h"
 #include "libipvs.h"
 
 #ifdef LIBIPVS_USE_NL
