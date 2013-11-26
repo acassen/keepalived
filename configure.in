@@ -65,7 +65,14 @@ AC_CHECK_LIB(nl, nl_socket_modify_cb,
     [
       USE_NL="LIBIPVS_USE_NL"
       CFLAGS="$CFLAGS $(pkg-config --libs --cflags libnl-3.0)"
-      LIBS="$LIBS -lnl-3 -lnl-genl-3"
+      LIBS="$LIBS -lnl-3"
+      AC_CHECK_LIB(nl-genl-3, genl_connect,
+       [
+         LIBS="$LIBS -lnl-3 -lnl-genl-3"
+       ],
+       [
+         AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3.])
+       ])
     ],
     [
       USE_NL="LIBIPVS_DONTUSE_NL"
