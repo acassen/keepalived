@@ -84,6 +84,11 @@ typedef struct _http_checker {
 #define REQUEST_TEMPLATE "GET %s HTTP/1.0\r\n" \
                          "User-Agent:KeepAliveClient\r\n" \
                          "Host: %s%s\r\n\r\n"
+
+#define REQUEST_TEMPLATE_IPV6 "GET %s HTTP/1.0\r\n" \
+                         "User-Agent:KeepAliveClient\r\n" \
+                         "Host: [%s]:%s\r\n\r\n"
+
 /* macro utility */
 #define HTTP_ARG(X) ((X)->arg)
 #define HTTP_REQ(X) ((X)->req)
