@@ -186,15 +186,14 @@ parse_ipaddress(ip_address_t *ip_address, char *str)
 	}
 
 	/* Parse ip address */
+	new->ifa.ifa_family = (strchr(str, ':')) ? AF_INET6 : AF_INET;
+	new->ifa.ifa_prefixlen = (IP_IS6(new)) ? 128 : 32;
 	p = strchr(str, '/');
 	if (p) {
 		new->ifa.ifa_prefixlen = atoi(p + 1);
 		*p = 0;
 	}
 
-	new->ifa.ifa_family = (strchr(str, ':')) ? AF_INET6 : AF_INET;
-	if (!new->ifa.ifa_prefixlen)
-		new->ifa.ifa_prefixlen = (IP_IS6(new)) ? 128 : 32;
 	addr = (IP_IS6(new)) ? (void *) &new->u.sin6_addr :
 			       (void *) &new->u.sin.sin_addr;
 	if (!inet_pton(IP_FAMILY(new), str, addr)) {

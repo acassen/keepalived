@@ -261,7 +261,12 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->scope = netlink_scope_a2n(vector_slot(strvec, ++i));
 		} else {
 			if (!strcmp(str, "to")) i++;
-			new->dst = parse_ipaddress(NULL, vector_slot(strvec, i));
+			if (!strcmp(str, "default"))
+				new->dst = parse_ipaddress(NULL, "0.0.0.0/0");
+			if (!strcmp(str, "default6"))
+				new->dst = parse_ipaddress(NULL, "::/0");
+			else
+				new->dst = parse_ipaddress(NULL, vector_slot(strvec, i));
 			if (new->dst) {
 				new->dmask = new->dst->ifa.ifa_prefixlen;
 			}
