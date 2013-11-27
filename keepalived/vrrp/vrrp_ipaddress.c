@@ -76,7 +76,9 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		 *     without service. HA/VRRP setups have their own "DAD"-like
 		 *     functionality, so it's not really needed from the IPv6 stack.
 		 */
-		req.ifa.ifa_flags |= IFA_F_NODAD;
+		#ifdef IFA_F_NODAD
+			req.ifa.ifa_flags |= IFA_F_NODAD;
+		#endif
 
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin6_addr, sizeof(ipaddress->u.sin6_addr));
