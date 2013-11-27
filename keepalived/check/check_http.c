@@ -649,6 +649,7 @@ http_request_thread(thread_t * thread)
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	http_t *http = HTTP_ARG(http_get_check);
 	request_t *req = HTTP_REQ(http);
+	struct sockaddr_storage *addr = &http_get_check->dst;
 	char *vhost = CHECKER_VHOST(checker);
 	char *request_host = 0;
 	char *request_host_port = 0;
@@ -681,10 +682,16 @@ http_request_thread(thread_t * thread)
 		snprintf(request_host_port, 7, ":%d", 
 			 ntohs(inet_sockaddrport(&http_get_check->dst)));
 	}
-	
-	snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE,
-		 fetched_url->path, request_host, request_host_port);
-	
+
+	if(addr->ss_family == AF_INET6 && !vhost){
+		/* if literal ipv6 address, use ipv6 template, see RFC 2732 */
+		snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE_IPV6,
+			fetched_url->path, request_host, request_host_port);
+	} else {
+		snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE,
+			fetched_url->path, request_host, request_host_port);
+	}
+
 	FREE(request_host_port);
 	
 	DBG("Processing url(%d) of [%s]:%d.",
