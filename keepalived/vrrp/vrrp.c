@@ -582,25 +582,32 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 	iov.iov_base = VRRP_SEND_BUFFER(vrrp);
 	iov.iov_len = VRRP_SEND_BUFFER_SIZE(vrrp);
 
-	/* Sending path */
-	if (vrrp->family == AF_INET) {
+	/* Unicast sending path */
+	if (addr && addr->ss_family == AF_INET) {
 		memset(&dst4, 0, sizeof(dst4));
 		dst4.sin_family = AF_INET;
-		dst4.sin_addr.s_addr = (addr) ? inet_sockaddrip4(addr) :
-						htonl(INADDR_VRRP_GROUP);
+		dst4.sin_addr.s_addr = inet_sockaddrip4(addr);
+		msg.msg_name = &dst4;
+		msg.msg_namelen = sizeof(dst4);
+	} else if (addr && addr->ss_family == AF_INET6) {
+		memset(&dst6, 0, sizeof(dst6));
+		dst6.sin6_family = AF_INET6;
+		dst6.sin6_port = htons(IPPROTO_VRRP);
+		inet_sockaddrip6(addr, &dst6.sin6_addr);
+		msg.msg_name = &dst6;
+		msg.msg_namelen = sizeof(dst6);
+	} else if (vrrp->family == AF_INET) { /* Multicast sending path */
+		memset(&dst4, 0, sizeof(dst4));
+		dst4.sin_family = AF_INET;
+		dst4.sin_addr.s_addr = htonl(INADDR_VRRP_GROUP);
 		msg.msg_name = &dst4;
 		msg.msg_namelen = sizeof(dst4);
 	} else if (vrrp->family == AF_INET6) {
 		memset(&dst6, 0, sizeof(dst6));
 		dst6.sin6_family = AF_INET6;
 		dst6.sin6_port = htons(IPPROTO_VRRP);
-		if (addr) {
-			inet_sockaddrip6(addr, &dst6.sin6_addr);
-		} else {
-			dst6.sin6_addr.s6_addr16[0] = htons(0xff02);
-			dst6.sin6_addr.s6_addr16[7] = htons(0x12);
-		}
-
+		dst6.sin6_addr.s6_addr16[0] = htons(0xff02);
+		dst6.sin6_addr.s6_addr16[7] = htons(0x12);
 		msg.msg_name = &dst6;
 		msg.msg_namelen = sizeof(dst6);
 	}
