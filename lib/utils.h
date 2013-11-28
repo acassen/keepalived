@@ -61,5 +61,6 @@ extern int inet_ston(const char *, uint32_t *);
 uint32_t inet_broadcast(uint32_t, uint32_t);
 uint32_t inet_cidrtomask(uint8_t);
 extern char *get_local_name(void);
+extern int string_equal(const char *, const char *);
 
 #endif
