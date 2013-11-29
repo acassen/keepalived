@@ -348,6 +348,12 @@ vrrp_garp_delay_handler(vector_t *strvec)
 		vrrp->garp_delay = TIMER_HZ;
 }
 static void
+vrrp_garp_refresh_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->garp_refresh = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
+}
+static void
 vrrp_auth_type_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -521,6 +527,7 @@ vrrp_init_keywords(void)
 	install_keyword("smtp_alert", &vrrp_smtp_handler);
 	install_keyword("lvs_sync_daemon_interface", &vrrp_lvs_syncd_handler);
 	install_keyword("garp_master_delay", &vrrp_garp_delay_handler);
+	install_keyword("garp_master_refresh", &vrrp_garp_refresh_handler);
 	install_keyword("authentication", NULL);
 	install_sublevel();
 	install_keyword("auth_type", &vrrp_auth_type_handler);

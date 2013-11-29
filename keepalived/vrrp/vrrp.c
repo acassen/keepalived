@@ -759,6 +759,11 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	/* remotes neighbour update */
 	vrrp_send_link_update(vrrp);
 
+	/* set refresh timer */
+	if (vrrp->garp_refresh) {
+		vrrp->garp_refresh_timer = timer_add_long(time_now, vrrp->garp_refresh);
+	}
+
 	/* Check if notify is needed */
 	notify_instance_exec(vrrp, VRRP_STATE_MAST);
 
@@ -917,6 +922,9 @@ vrrp_state_master_tx(vrrp_t * vrrp, const int prio)
 				    , vrrp->iname);
 		vrrp_state_become_master(vrrp);
 		ret = 1;
+	} else if (vrrp->garp_refresh && timer_cmp(time_now, vrrp->garp_refresh_timer) > 0) {
+		vrrp_send_link_update(vrrp);
+		vrrp->garp_refresh_timer = timer_add_long(time_now, vrrp->garp_refresh);
 	}
 
 	vrrp_send_adv(vrrp,
@@ -973,6 +981,11 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		if (hd->priority > vrrp->effective_priority ||
 		    (hd->priority == vrrp->effective_priority &&
 		     ntohl(saddr) > ntohl(VRRP_PKT_SADDR(vrrp)))) {
+			/* We send a last advert here in order to refresh remote MASTER
+			 * coming up to force link update at MASTER side.
+			 */
+			vrrp_send_adv(vrrp, vrrp->effective_priority);
+
 			log_message(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert"
 					    , vrrp->iname);
 			if (proto == IPPROTO_IPSEC_AH) {
@@ -991,6 +1004,11 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 	} else if (vrrp->family == AF_INET6) {
 		/* FIXME: compare v6 saddr to link local when prio are equal !!! */
 		if (hd->priority > vrrp->effective_priority) {
+			/* We send a last advert here in order to refresh remote MASTER
+			 * coming up to force link update at MASTER side.
+			 */
+			vrrp_send_adv(vrrp, vrrp->effective_priority);
+
 			log_message(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert"
 					    , vrrp->iname);
 			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);

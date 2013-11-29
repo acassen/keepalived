@@ -106,6 +106,8 @@ typedef struct _vrrp_t {
 							 * => eth0 for example.
 							 */
 	int			garp_delay;		/* Delay to launch gratuitous ARP */
+	int			garp_refresh;		/* Next scheduled gratuitous ARP refresh */
+	timeval_t		garp_refresh_timer;	/* Next scheduled gratuitous ARP timer */
 	int			vrid;			/* virtual id. from 1(!) to 255 */
 	int			base_priority;		/* configured priority value */
 	int			effective_priority;	/* effective priority value */
@@ -189,7 +191,7 @@ typedef struct _vrrp_t {
 #define VRRP_PACKET_NULL     3
 #define VRRP_PACKET_OTHER    4	/* Muliple VRRP on LAN, Identify "other" VRRP */
 
-/* VRRP Packet fixed lenght */
+/* VRRP Packet fixed length */
 #define VRRP_MAX_VIP		20
 #define VRRP_PACKET_TEMP_LEN	1024
 #define VRRP_AUTH_LEN		8
