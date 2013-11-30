@@ -94,11 +94,11 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 		{"help",            no_argument,       0, 'h'},
 		{"verbose",         no_argument,       0, 'v'},
 		{"use-ssl",         no_argument,       0, 'S'},
-		{"server",          optional_argument, 0, 's'},
-		{"hash",            optional_argument, 0, 'H'},
-		{"use-virtualhost", optional_argument, 0, 'V'},
-		{"port",            optional_argument, 0, 'p'},
-		{"url",             optional_argument, 0, 'u'},
+		{"server",          required_argument, 0, 's'},
+		{"hash",            required_argument, 0, 'H'},
+		{"use-virtualhost", required_argument, 0, 'V'},
+		{"port",            required_argument, 0, 'p'},
+		{"url",             required_argument, 0, 'u'},
 		{0, 0, 0, 0}
 	};
 
