@@ -229,7 +229,7 @@ http_read_thread(thread_t * thread)
 		if (r == -1) {
 			/* We have encourred a real read error */
 			DBG("Read error with server [%s]:%d: %s\n",
-			    inet_ntop2(req->addr_ip), ntohs(req->addr_port),
+			    req->ipaddress, ntohs(req->addr_port),
 			    strerror(errno));
 			return epilog(thread);
 		}
@@ -305,7 +305,7 @@ http_request_thread(thread_t * thread)
 		request_host_port = (char*) MALLOC(1);
 		*request_host_port = 0;
 	} else {
-		request_host = inet_ntop2(req->addr_ip);
+		request_host = req->ipaddress;
 	
 		/* Allocate a buffer for the port string ( ":" [0-9][0-9][0-9][0-9][0-9] "\0" ) */
 		request_host_port = (char*) MALLOC(7);
@@ -313,8 +313,18 @@ http_request_thread(thread_t * thread)
 		 ntohs(req->addr_port));
 	}
 	
-	snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE,
-		 req->url, request_host, request_host_port);
+	if(req->dst){
+		if(req->dst->ai_family == AF_INET6 && !req->vhost) {
+			snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE_IPV6,
+				req->url, request_host, request_host_port);
+		} else {
+			snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE,
+				req->url, request_host, request_host_port);
+		}
+	} else {
+		snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE,
+			req->url, request_host, request_host_port);
+	}
 	
 	FREE(request_host_port);
 
@@ -333,8 +343,8 @@ http_request_thread(thread_t * thread)
 
 	if (!ret) {
 		fprintf(stderr, "Cannot send get request to [%s]:%d.\n",
-			inet_ntop2(req->addr_ip)
-			, ntohs(req->addr_port));
+			req->ipaddress,
+			ntohs(req->addr_port));
 		return epilog(thread);
 	}
 
