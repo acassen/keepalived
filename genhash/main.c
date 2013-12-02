@@ -197,6 +197,11 @@ main(int argc, char **argv)
 
 	/* Preset (potentially) non-zero defaults */
 	req->hash = hash_default;
+	char *url_default = malloc(2);
+	url_default[0] = '/';
+	url_default[1] = '\0';
+
+	req->url = url_default;
 
 	/* Command line parser */
 	if (!parse_cmdline(argc, argv, req)) {
@@ -244,6 +249,7 @@ main(int argc, char **argv)
 			    req->url, req->response_time - req->ref_time);
 
 	/* exit cleanly */
+	FREE(url_default);
 	SSL_CTX_free(req->ctx);
 	free_sock(sock);
 	freeaddrinfo(req->dst);
