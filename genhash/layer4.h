@@ -36,6 +36,7 @@
 
 /* local includes */
 #include "scheduler.h"
+#include "main.h"
 
 enum connect_result {
 	connect_error,
@@ -46,10 +47,10 @@ enum connect_result {
 
 /* Prototypes defs */
 extern enum connect_result
- tcp_connect(int fd, uint32_t, uint16_t);
+ tcp_connect(int fd, REQ *);
 
 extern enum connect_result
- tcp_socket_state(int, thread_t *, uint32_t, uint16_t,
+ tcp_socket_state(int, thread_t *, char *, uint16_t,
 		  int (*func) (thread_t *));
 
 extern void

@@ -45,6 +45,10 @@
 			 "User-Agent: GenHash (Linux powered)\r\n" \
 			 "Host: %s%s\r\n\r\n"
 
+#define REQUEST_TEMPLATE_IPV6 "GET %s HTTP/1.0\r\n" \
+			 "User-Agent: GenHash (Linux powered)\r\n" \
+			 "Host: [%s]%s\r\n\r\n"
+
 /* Output delimiters */
 #define DELIM_BEGIN "-----------------------["
 #define DELIM_END   "]-----------------------\n"

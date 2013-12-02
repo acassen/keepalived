@@ -28,6 +28,11 @@
 #include "main.h"
 #include "utils.h"
 #include "signals.h"
+#include <sys/types.h>
+#include <stdio.h>
+#include <string.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
 /* global var */
 REQ *req = NULL;
@@ -88,6 +93,14 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 {
 	int c;
 	enum feat_hashes i;
+	struct addrinfo hint, *res = NULL;
+	int ret;
+	void *ptr;
+
+	memset(&hint, '\0', sizeof hint);
+
+	hint.ai_family = PF_UNSPEC;
+	hint.ai_flags = AI_NUMERICHOST;
 
 	struct option long_options[] = {
 		{"release",         no_argument,       0, 'r'},
@@ -118,9 +131,22 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 			req_obj->ssl = 1;
 			break;
 		case 's':
-			if (!inet_ston(optarg, &req_obj->addr_ip)) {
+			if ((ret = getaddrinfo(optarg, NULL, &hint, &res)) != 0){
 				fprintf(stderr, "server should be an IP, not %s\n", optarg);
 				return CMD_LINE_ERROR;
+			} else {
+				if(res->ai_family == AF_INET) {
+					req_obj->dst = res;
+					ptr = &((struct sockaddr_in *) res->ai_addr)->sin_addr;
+					inet_ntop (res->ai_family, ptr, req_obj->ipaddress, INET6_ADDRSTRLEN);
+				} else if (res->ai_family == AF_INET6) {
+					req_obj->dst = res;
+					ptr = &((struct sockaddr_in6 *) res->ai_addr)->sin6_addr;
+					inet_ntop (res->ai_family, ptr, req_obj->ipaddress, INET6_ADDRSTRLEN);
+				} else {
+					fprintf(stderr, "server should be an IP, not %s\n", optarg);
+					return CMD_LINE_ERROR;
+				}
 			}
 			break;
 		case 'H':
@@ -179,7 +205,8 @@ main(int argc, char **argv)
 	}
 
 	/* Check minimum configuration need */
-	if (!req->addr_ip && !req->addr_port && !req->url) {
+	if (!req->dst && !req->addr_port && !req->url) {
+		freeaddrinfo(req->dst);
 		FREE(req);
 		exit(0);
 	}
@@ -214,11 +241,12 @@ main(int argc, char **argv)
 	/* Finalize output informations */
 	if (req->verbose)
 		printf("Global response time for [%s] =%lu\n",
-		       req->url, req->response_time - req->ref_time);
+			    req->url, req->response_time - req->ref_time);
 
 	/* exit cleanly */
 	SSL_CTX_free(req->ctx);
 	free_sock(sock);
+	freeaddrinfo(req->dst);
 	FREE(req);
 	exit(0);
 }

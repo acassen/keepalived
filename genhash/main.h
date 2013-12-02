@@ -33,6 +33,9 @@
 #include <errno.h>
 #include <getopt.h>
 #include <openssl/ssl.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netdb.h>
 
 /* local includes */
 #include "memory.h"
@@ -59,7 +62,8 @@
 
 /* HTTP/HTTPS request structure */
 typedef struct {
-	uint32_t addr_ip;
+	struct addrinfo *dst;
+	char ipaddress[INET6_ADDRSTRLEN];
 	uint16_t addr_port;
 	char *url;
 	char *vhost;
