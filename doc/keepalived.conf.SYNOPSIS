@@ -164,6 +164,7 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     dont_track_primary                  # (default unset) ignore VRRP interface faults.
                                         #  useful for cross-connect VRRP config.
     mcast_src_ip <IP ADDRESS>		# src_ip to use into the VRRP packets
+    unicast_src_ip <IP ADDRESS>		# src_ip to use into the VRRP packets (alias to mcast_src_ip)
     unicast_peer {			# Do not use multicast, instead send VRRP
       <IP ADDRESS>			#  adverts to following list of ip address
       ...				#  in unicast design fashion

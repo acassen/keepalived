@@ -99,7 +99,7 @@ typedef struct _vrrp_t {
 	unsigned int		vmac_ifindex;		/* ifindex of vmac interface */
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
-	uint32_t		mcast_saddr;		/* Src IP address to use in VRRP IP header */
+	uint32_t		saddr;			/* Src IP address to use in VRRP IP header */
 	list			unicast_peer;		/* List of Unicast peer to send advert to */
 	char			*lvs_syncd_if;		/* handle LVS sync daemon state using this
 							 * instance FSM & running on specific interface
@@ -213,7 +213,7 @@ typedef struct _vrrp_t {
 #define VRRP_MIN(a, b)	((a) < (b)?(a):(b))
 #define VRRP_MAX(a, b)	((a) > (b)?(a):(b))
 
-#define VRRP_PKT_SADDR(V) (((V)->mcast_saddr) ? (V)->mcast_saddr : IF_ADDR((V)->ifp))
+#define VRRP_PKT_SADDR(V) (((V)->saddr) ? (V)->saddr : IF_ADDR((V)->ifp))
 
 #define VRRP_IF_ISUP(V)        ((IF_ISUP((V)->ifp) || (V)->dont_track_primary) & \
                                ((!LIST_ISEMPTY((V)->track_ifp)) ? TRACK_ISUP((V)->track_ifp) : 1))

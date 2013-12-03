@@ -227,9 +227,9 @@ dump_vrrp(void *data)
 	log_message(LOG_INFO, "   Runing on device = %s", IF_NAME(vrrp->ifp));
 	if (vrrp->dont_track_primary)
 		log_message(LOG_INFO, "   VRRP interface tracking disabled");
-	if (vrrp->mcast_saddr)
-		log_message(LOG_INFO, "   Using mcast src_ip = %s",
-		       inet_ntop2(vrrp->mcast_saddr));
+	if (vrrp->saddr)
+		log_message(LOG_INFO, "   Using src_ip = %s",
+		       inet_ntop2(vrrp->saddr));
 	if (vrrp->lvs_syncd_if)
 		log_message(LOG_INFO, "   Runing LVS sync daemon on interface = %s",
 		       vrrp->lvs_syncd_if);
