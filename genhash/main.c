@@ -191,29 +191,33 @@ int
 main(int argc, char **argv)
 {
 	thread_t thread;
+	char *url_default = malloc(2);
+	url_default[0] = '/';
+	url_default[1] = '\0';
 
 	/* Allocate the room */
 	req = (REQ *) MALLOC(sizeof (REQ));
 
 	/* Preset (potentially) non-zero defaults */
 	req->hash = hash_default;
-	char *url_default = malloc(2);
-	url_default[0] = '/';
-	url_default[1] = '\0';
-
-	req->url = url_default;
 
 	/* Command line parser */
 	if (!parse_cmdline(argc, argv, req)) {
+		FREE(url_default);
 		FREE(req);
 		exit(0);
 	}
 
 	/* Check minimum configuration need */
 	if (!req->dst && !req->addr_port && !req->url) {
+		FREE(url_default);
 		freeaddrinfo(req->dst);
 		FREE(req);
 		exit(0);
+	}
+
+	if(!req->url){
+		req->url = url_default;
 	}
 
 	/* Init the reference timer */
