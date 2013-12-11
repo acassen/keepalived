@@ -130,6 +130,7 @@ typedef struct _vrrp_t {
 	int			wantstate;		/* user explicitly wants a state (back/mast) */
 	int			fd_in;			/* IN socket descriptor */
 	int			fd_out;			/* OUT socket descriptor */
+	int			fd_out_base;		/* OUT base socket descriptor (for vmac) */
 
 	int			debug;			/* Debug level 0-4 */
 

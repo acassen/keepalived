@@ -43,9 +43,12 @@ typedef struct _sock {
 	sa_family_t		family;
 	int			proto;
 	int			ifindex;
+	int			base_ifindex;
 	int			unicast;
 	int			fd_in;
 	int			fd_out;
+	int			fd_out_base;
+	int			vmac;
 } sock_t;
 
 /* Configuration data root */

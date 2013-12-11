@@ -110,7 +110,7 @@ static void
 vrrp_vmac_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->vmac = 1;
+	vrrp->vmac |= 1;
 	if (!vrrp->saddr)
 		vrrp->saddr  = IF_ADDR(vrrp->ifp);
 	if (vector_size(strvec) == 2) {
@@ -134,6 +134,12 @@ vrrp_vmac_handler(vector_t *strvec)
 
         /* flag interface as a VMAC interface */
         vrrp->ifp->vmac = 1;
+}
+static void
+vrrp_vmac_xmit_base_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->vmac |= 4;
 }
 static void
 vrrp_unicast_peer_handler(vector_t *strvec)
@@ -501,6 +507,7 @@ vrrp_init_keywords(void)
 	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler);
 	install_keyword_root("vrrp_instance", &vrrp_handler);
 	install_keyword("use_vmac", &vrrp_vmac_handler);
+	install_keyword("vmac_xmit_base", &vrrp_vmac_xmit_base_handler);
 	install_keyword("unicast_peer", &vrrp_unicast_peer_handler);
 	install_keyword("native_ipv6", &vrrp_native_ipv6_handler);
 	install_keyword("state", &vrrp_state_handler);
