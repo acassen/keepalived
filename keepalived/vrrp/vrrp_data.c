@@ -357,7 +357,15 @@ alloc_vrrp_unicast_peer(vector_t *strvec)
 	ret = inet_stosockaddr(vector_slot(strvec, 0), 0, peer);
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: malformed unicast peer address"
-				     " [%s]. Skipping...");
+				     " [%s]. Skipping...", vector_slot(strvec, 0));
+		return;
+	}
+
+	if (peer->ss_family != vrrp->family) {
+		log_message(LOG_ERR, "Configuration error: VRRP instance [%s] and unicast peer address"
+				     " [%s] MUST be of the same family !!! Skipping..."
+				   , vrrp->iname, vector_slot(strvec, 0));
+		FREE(peer);
 		return;
 	}
 
