@@ -425,7 +425,8 @@ already_exist_sock(list l, sa_family_t family, int proto, int ifindex, int unica
 }
 
 void
-alloc_sock(sa_family_t family, list l, int proto, int ifindex, int unicast)
+alloc_sock(sa_family_t family, list l, int proto, int ifindex, int base_ifindex,
+int unicast, int vmac)
 {
 	sock_t *new;
 
@@ -433,7 +434,9 @@ alloc_sock(sa_family_t family, list l, int proto, int ifindex, int unicast)
 	new->family = family;
 	new->proto = proto;
 	new->ifindex = ifindex;
+	new->base_ifindex = base_ifindex;
 	new->unicast = unicast;
+	new->vmac = vmac;
 
 	list_add(l, new);
 }
@@ -457,7 +460,8 @@ vrrp_create_sockpool(list l)
 
 		/* add the vrrp element if not exist */
 		if (!already_exist_sock(l, vrrp->family, proto, ifindex, unicast))
-			alloc_sock(vrrp->family, l, proto, ifindex, unicast);
+			alloc_sock(vrrp->family, l, proto, ifindex,
+			vrrp->ifp->base_ifindex, unicast, vrrp->vmac);
 	}
 }
 
@@ -465,17 +469,24 @@ static void
 vrrp_open_sockpool(list l)
 {
 	sock_t *sock;
+	int ifindex_in;
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		sock = ELEMENT_DATA(e);
-		sock->fd_in = open_vrrp_socket(sock->family, sock->proto,
-					       sock->ifindex, sock->unicast);
+		ifindex_in = sock->vmac & 4 ? sock->base_ifindex : sock->ifindex;
+		sock->fd_in = open_vrrp_socket(sock->family, sock->proto, ifindex_in, sock->unicast);
 		if (sock->fd_in == -1)
-			sock->fd_out = -1;
-		else
+			sock->fd_out = sock->fd_out_base = -1;
+		else {
 			sock->fd_out = open_vrrp_send_socket(sock->family, sock->proto,
 							     sock->ifindex, sock->unicast);
+			if (sock->vmac & 4)
+				sock->fd_out_base = open_vrrp_send_socket(sock->family,
+									  sock->proto,
+									  sock->base_ifindex,
+									  sock->unicast);
+		}
 	}
 }
 
@@ -505,6 +516,7 @@ vrrp_set_fds(list l)
 			    (sock->unicast == unicast)) {
 				vrrp->fd_in = sock->fd_in;
 				vrrp->fd_out = sock->fd_out;
+				vrrp->fd_out_base = sock->fd_out_base;
 
 				/* append to hash index */
 				alloc_vrrp_fd_bucket(vrrp);

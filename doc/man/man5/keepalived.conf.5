@@ -133,6 +133,9 @@ which will transition together on any state change.
     # Use VRRP Virtual MAC.
     use_vmac <VMAC_INTERFACE>
 
+    # Send/Recv VRRP messages from base interface instead of VMAC interface
+    vmac_xmit_base
+
     # Ignore VRRP interface faults (default unset)
     dont_track_primary
 

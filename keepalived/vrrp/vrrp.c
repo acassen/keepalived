@@ -568,7 +568,7 @@ vrrp_build_pkt(vrrp_t * vrrp, int prio, struct sockaddr_storage *addr)
 
 /* send VRRP packet */
 static int
-vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
+vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr, char use_base)
 {
 	struct sockaddr_in6 dst6;
 	struct sockaddr_in dst4;
@@ -605,6 +605,8 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 	}
 
 	/* Send the packet */
+	if (use_base)
+		return sendmsg(vrrp->fd_out_base, &msg, (addr) ? 0 : MSG_DONTROUTE);
 	return sendmsg(vrrp->fd_out, &msg, (addr) ? 0 : MSG_DONTROUTE);
 }
 
@@ -643,7 +645,10 @@ vrrp_send_adv(vrrp_t * vrrp, int prio)
 		for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 			addr = ELEMENT_DATA(e);
 			vrrp_build_pkt(vrrp, prio, addr);
-			ret = vrrp_send_pkt(vrrp, addr);
+			if (vrrp->vmac & 4 && vrrp->ifp->vmac)
+				ret = vrrp_send_pkt(vrrp, addr, 1);
+			else
+				ret = vrrp_send_pkt(vrrp, addr, 0);
 			if (ret < 0) {
 				log_message(LOG_INFO, "VRRP_Instance(%s) Cant sent advert to %s (%m)"
 						    , vrrp->iname, inet_sockaddrtos(addr));
@@ -651,7 +656,10 @@ vrrp_send_adv(vrrp_t * vrrp, int prio)
 		}
 	} else {
 		vrrp_build_pkt(vrrp, prio, NULL);
-		vrrp_send_pkt(vrrp, NULL);
+		if (vrrp->vmac & 4 && vrrp->ifp->vmac)
+			vrrp_send_pkt(vrrp, NULL, 1);
+		else
+			vrrp_send_pkt(vrrp, NULL, 0);
 	}
 
 	/* send it */
@@ -1148,16 +1156,20 @@ int
 new_vrrp_socket(vrrp_t * vrrp)
 {
 	int old_fd = vrrp->fd_in;
-	int proto, ifindex, unicast;
+	int proto, ifindex, ifindex_in, unicast;
 
 	/* close the desc & open a new one */
 	close_vrrp_socket(vrrp);
 	remove_vrrp_fd_bucket(vrrp);
 	proto = (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH : IPPROTO_VRRP;
 	ifindex = IF_INDEX(vrrp->ifp);
+	ifindex_in = vrrp->vmac & 4 ? vrrp->ifp->base_ifindex : ifindex;
 	unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
-	vrrp->fd_in = open_vrrp_socket(vrrp->family, proto, ifindex, unicast);
+	vrrp->fd_in = open_vrrp_socket(vrrp->family, proto, ifindex_in, unicast);
 	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifindex, unicast);
+	if (vrrp->vmac & 4 && vrrp->ifp->vmac)
+		vrrp->fd_out_base = open_vrrp_send_socket(vrrp->family, proto,
+				    vrrp->ifp->base_ifindex, unicast);
 	alloc_vrrp_fd_bucket(vrrp);
 
 	/* Sync the other desc */
