@@ -570,10 +570,14 @@ vrrp_build_pkt(vrrp_t * vrrp, int prio, struct sockaddr_storage *addr)
 static int
 vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 {
+	struct sockaddr_storage *src = &vrrp->saddr;
 	struct sockaddr_in6 dst6;
+	struct in6_pktinfo *pkt;
 	struct sockaddr_in dst4;
 	struct msghdr msg;
+	struct cmsghdr *cmsg;
 	struct iovec iov;
+	char cbuf[256];
 
 	/* Build the message data */
 	memset(&msg, 0, sizeof(msg));
@@ -589,6 +593,19 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 	} else if (addr && addr->ss_family == AF_INET6) {
 		msg.msg_name = (struct sockaddr_in6 *) addr;
 		msg.msg_namelen = sizeof(struct sockaddr_in6);
+		if (src->ss_family == AF_INET6) {
+			msg.msg_control = cbuf;
+			msg.msg_controllen = CMSG_SPACE(sizeof(struct in6_pktinfo));
+
+			cmsg = CMSG_FIRSTHDR(&msg);
+			cmsg->cmsg_level = IPPROTO_IPV6;
+			cmsg->cmsg_type = IPV6_PKTINFO;
+			cmsg->cmsg_len = CMSG_LEN(sizeof(struct in6_pktinfo));
+
+			pkt = (struct in6_pktinfo *) CMSG_DATA(cmsg);
+			memset(pkt, 0, sizeof(struct in6_pktinfo));
+			pkt->ipi6_addr = ((struct sockaddr_in6 *) src)->sin6_addr;
+		}
 	} else if (vrrp->family == AF_INET) { /* Multicast sending path */
 		memset(&dst4, 0, sizeof(dst4));
 		dst4.sin_family = AF_INET;

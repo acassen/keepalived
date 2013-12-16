@@ -21,6 +21,7 @@
  */
 
 /* system includes */
+#include <unistd.h>
 #include <netpacket/packet.h>
 
 /* local includes */

@@ -26,7 +26,8 @@
 /* global includes */
 #include <stdio.h>
 #include <stdlib.h>
-#include <arpa/inet.h>
+#define __USE_GNU
+#include <netinet/in.h>
 #include <string.h>
 #include <syslog.h>
 #include <linux/if_addr.h>

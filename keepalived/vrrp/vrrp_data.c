@@ -227,9 +227,9 @@ dump_vrrp(void *data)
 	log_message(LOG_INFO, "   Runing on device = %s", IF_NAME(vrrp->ifp));
 	if (vrrp->dont_track_primary)
 		log_message(LOG_INFO, "   VRRP interface tracking disabled");
-	if (vrrp->saddr)
-		log_message(LOG_INFO, "   Using src_ip = %s",
-		       inet_ntop2(vrrp->saddr));
+	if (vrrp->saddr.ss_family)
+		log_message(LOG_INFO, "   Using src_ip = %s"
+				    , inet_sockaddrtos(&vrrp->saddr));
 	if (vrrp->lvs_syncd_if)
 		log_message(LOG_INFO, "   Runing LVS sync daemon on interface = %s",
 		       vrrp->lvs_syncd_if);
@@ -356,14 +356,16 @@ alloc_vrrp_unicast_peer(vector_t *strvec)
 	peer = (struct sockaddr_storage *) MALLOC(sizeof(struct sockaddr_storage));
 	ret = inet_stosockaddr(vector_slot(strvec, 0), 0, peer);
 	if (ret < 0) {
-		log_message(LOG_ERR, "Configuration error: malformed unicast peer address"
-				     " [%s]. Skipping...", vector_slot(strvec, 0));
+		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] malformed unicast"
+				     " peer address[%s]. Skipping..."
+				   , vrrp->iname, vector_slot(strvec, 0));
+		FREE(peer);
 		return;
 	}
 
 	if (peer->ss_family != vrrp->family) {
-		log_message(LOG_ERR, "Configuration error: VRRP instance [%s] and unicast peer address"
-				     " [%s] MUST be of the same family !!! Skipping..."
+		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] and unicast peer address"
+				     "[%s] MUST be of the same family !!! Skipping..."
 				   , vrrp->iname, vector_slot(strvec, 0));
 		FREE(peer);
 		return;

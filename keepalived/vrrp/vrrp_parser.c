@@ -111,8 +111,8 @@ vrrp_vmac_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->vmac = 1;
-	if (!vrrp->saddr)
-		vrrp->saddr  = IF_ADDR(vrrp->ifp);
+	if (!vrrp->saddr.ss_family && vrrp->family == AF_INET)
+		inet_ip4tosockaddr(IF_ADDR(vrrp->ifp), &vrrp->saddr);
 	if (vector_size(strvec) == 2) {
 		strncpy(vrrp->vmac_ifname, vector_slot(strvec, 1),
 			IFNAMSIZ - 1);
@@ -197,10 +197,26 @@ vrrp_dont_track_handler(vector_t *strvec)
 	vrrp->dont_track_primary = 1;
 }
 static void
-vrrp_mcastip_handler(vector_t *strvec)
+vrrp_srcip_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	inet_ston(vector_slot(strvec, 1), &vrrp->saddr);
+	struct sockaddr_storage *saddr = &vrrp->saddr;
+	int ret;
+
+	ret = inet_stosockaddr(vector_slot(strvec, 1), 0, saddr);
+	if (ret < 0) {
+		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] malformed unicast"
+				     " src address[%s]. Skipping..."
+				   , vrrp->iname, vector_slot(strvec, 1));
+		return;
+	}
+
+	if (saddr->ss_family != vrrp->family) {
+		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] and unicast src address"
+				     "[%s] MUST be of the same family !!! Skipping..."
+				   , vrrp->iname, vector_slot(strvec, 1));
+		memset(saddr, 0, sizeof(struct sockaddr_storage));
+	}
 }
 static void
 vrrp_vrid_handler(vector_t *strvec)
@@ -508,8 +524,8 @@ vrrp_init_keywords(void)
 	install_keyword("dont_track_primary", &vrrp_dont_track_handler);
 	install_keyword("track_interface", &vrrp_track_int_handler);
 	install_keyword("track_script", &vrrp_track_scr_handler);
-	install_keyword("mcast_src_ip", &vrrp_mcastip_handler);
-	install_keyword("unicast_src_ip", &vrrp_mcastip_handler);
+	install_keyword("mcast_src_ip", &vrrp_srcip_handler);
+	install_keyword("unicast_src_ip", &vrrp_srcip_handler);
 	install_keyword("virtual_router_id", &vrrp_vrid_handler);
 	install_keyword("priority", &vrrp_prio_handler);
 	install_keyword("advert_int", &vrrp_adv_handler);

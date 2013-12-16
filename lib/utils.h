@@ -52,6 +52,7 @@ extern char *inet_ntoa2(uint32_t, char *);
 extern uint8_t inet_stom(char *);
 extern uint8_t inet_stor(char *);
 extern int inet_stosockaddr(char *, char *, struct sockaddr_storage *);
+extern int inet_ip4tosockaddr(uint32_t, struct sockaddr_storage *);
 extern char *inet_sockaddrtos(struct sockaddr_storage *);
 extern char *inet_sockaddrtos2(struct sockaddr_storage *, char *);
 extern uint16_t inet_sockaddrport(struct sockaddr_storage *);

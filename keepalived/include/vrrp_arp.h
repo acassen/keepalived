@@ -28,7 +28,6 @@
 #include <net/if_arp.h>
 
 /* local includes */
-#include "vrrp.h"
 #include "vrrp_ipaddress.h"
 
 /* local definitions */
