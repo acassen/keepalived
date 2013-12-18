@@ -99,6 +99,7 @@ typedef struct _tracked_if {
 /* Macros */
 #define IF_NAME(X) ((X)->ifname)
 #define IF_INDEX(X) ((X)->ifindex)
+#define IF_BASE_INDEX(X) ((X)->base_ifindex)
 #define IF_ADDR(X) ((X)->sin_addr.s_addr)
 #define IF_MTU(X) ((X)->mtu)
 #define IF_HWADDR(X) ((X)->hw_addr)
