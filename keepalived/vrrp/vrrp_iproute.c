@@ -223,10 +223,11 @@ alloc_route(list rt_list, vector_t *strvec)
 {
 	ip_route_t *new;
 	interface_t *ifp;
-	char *str;
+	char *str, *tmp;
 	int i = 0;
 
 	new = (ip_route_t *) MALLOC(sizeof(ip_route_t));
+	tmp = (char *) MALLOC(10);
 
 	/* FMT parse */
 	while (i < vector_size(strvec)) {
@@ -250,6 +251,7 @@ alloc_route(list rt_list, vector_t *strvec)
 				       "%s interface !!! go out and fix your conf !!!",
 				       (char *)vector_slot(strvec, i));
 				FREE(new);
+				FREE(tmp);
 				return;
 			}
 			new->index = IF_INDEX(ifp);
@@ -261,12 +263,16 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->scope = netlink_scope_a2n(vector_slot(strvec, ++i));
 		} else {
 			if (!strcmp(str, "to")) i++;
-			if (!strcmp(str, "default"))
-				new->dst = parse_ipaddress(NULL, "0.0.0.0/0");
-			if (!strcmp(str, "default6"))
-				new->dst = parse_ipaddress(NULL, "::/0");
-			else
+			if (!strcmp(str, "default")) {
+				strcat(tmp, "0.0.0.0/0");
+				new->dst = parse_ipaddress(NULL, tmp);
+			} else if (!strcmp(str, "default6")) {
+				strcat(tmp, "::/0");
+				new->dst = parse_ipaddress(NULL, tmp);
+			} else {
 				new->dst = parse_ipaddress(NULL, vector_slot(strvec, i));
+			}
+
 			if (new->dst) {
 				new->dmask = new->dst->ifa.ifa_prefixlen;
 			}
@@ -275,6 +281,7 @@ alloc_route(list rt_list, vector_t *strvec)
 	}
 
 	list_add(rt_list, new);
+	FREE(tmp);
 }
 
 /* Try to find a route in a list */
