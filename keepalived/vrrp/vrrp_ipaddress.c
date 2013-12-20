@@ -185,6 +185,15 @@ parse_ipaddress(ip_address_t *ip_address, char *str)
 		new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 	}
 
+	/* Handle the specials */
+	if (!strcmp(str, "default")) {
+		new->ifa.ifa_family = AF_INET;
+		return new;
+	} else if (!strcmp(str, "default6")) {
+		new->ifa.ifa_family = AF_INET6;
+		return new;
+	}
+
 	/* Parse ip address */
 	new->ifa.ifa_family = (strchr(str, ':')) ? AF_INET6 : AF_INET;
 	new->ifa.ifa_prefixlen = (IP_IS6(new)) ? 128 : 32;
