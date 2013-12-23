@@ -160,6 +160,8 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	 */
 	if (reload && (ifp = if_get_by_ifname(ifname))) {
 		vrrp->ifp = ifp;
+		/* Save ifindex for use on delete */
+		vrrp->vmac_ifindex = IF_INDEX(vrrp->ifp);
 		vrrp->vmac_flags |= VRRP_VMAC_FL_UP;
 		return 1;
 	}
@@ -189,6 +191,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	if (!ifp)
 		return -1;
 	vrrp->ifp = ifp;
+	vrrp->vmac_ifindex = IF_INDEX(vrrp->ifp); /* For use on delete */
 	vrrp->vmac_flags |= VRRP_VMAC_FL_UP;
 	netlink_link_setlladdr(vrrp);
 	netlink_link_up(vrrp);
@@ -225,7 +228,7 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 	req.n.nlmsg_flags = NLM_F_REQUEST;
 	req.n.nlmsg_type = RTM_DELLINK;
 	req.ifi.ifi_family = AF_INET;
-	req.ifi.ifi_index = IF_INDEX(vrrp->ifp);
+	req.ifi.ifi_index = vrrp->vmac_ifindex;
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;
