@@ -165,7 +165,7 @@ parse_cmdline(int argc, char **argv)
 		{"check",             no_argument,       0, 'C'},
 		{"log-console",       no_argument,       0, 'l'},
 		{"log-detail",        no_argument,       0, 'D'},
-		{"log-facility",      optional_argument, 0, 'S'},
+		{"log-facility",      required_argument, 0, 'S'},
 		{"dont-release-vrrp", no_argument,       0, 'V'},
 		{"dont-release-ipvs", no_argument,       0, 'I'},
 		{"dont-respawn",      no_argument,       0, 'R'},
