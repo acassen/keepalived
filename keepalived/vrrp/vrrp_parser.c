@@ -110,7 +110,7 @@ static void
 vrrp_vmac_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->vmac = 1;
+	vrrp->vmac_flags |= VRRP_VMAC_FL_SET;
 	if (!vrrp->saddr.ss_family && vrrp->family == AF_INET)
 		inet_ip4tosockaddr(IF_ADDR(vrrp->ifp), &vrrp->saddr);
 	if (vector_size(strvec) == 2) {
@@ -125,15 +125,22 @@ vrrp_vmac_handler(vector_t *strvec)
 				    , vrrp->vmac_ifname
 				    , vrrp->iname);
 	}
-	if (vrrp->ifp && !(vrrp->vmac & 2)) {
-		unsigned int base_ifindex = vrrp->ifp->base_ifindex;
+	if (vrrp->ifp) {
+		unsigned int base_ifindex = vrrp->ifp->ifindex;
 		netlink_link_add_vmac(vrrp);
 		/* restore base ifindex (deleted when adding VMAC) */
 		vrrp->ifp->base_ifindex = base_ifindex;
-        }
+	}
 
         /* flag interface as a VMAC interface */
         vrrp->ifp->vmac = 1;
+}
+static void
+vrrp_vmac_xmit_base_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	if (vrrp->vmac_flags & VRRP_VMAC_FL_SET)
+		vrrp->vmac_flags |= VRRP_VMAC_FL_XMITBASE;
 }
 static void
 vrrp_unicast_peer_handler(vector_t *strvec)
@@ -174,7 +181,7 @@ vrrp_int_handler(vector_t *strvec)
 
 	vrrp->ifp = if_get_by_ifname(name);
 	ifindex = vrrp->ifp->ifindex;
-	if (vrrp->vmac && !(vrrp->vmac & 2))
+	if (vrrp->vmac_flags & VRRP_VMAC_FL_SET)
 		netlink_link_add_vmac(vrrp);
 
 	/* save base ifindex (only used for VMAC interfaces) */
@@ -230,7 +237,7 @@ vrrp_vrid_handler(vector_t *strvec)
 		       "             must be between 1 & 255. reconfigure !");
 	} else {
 		alloc_vrrp_bucket(vrrp);
-		if (vrrp->vmac && strlen(vrrp->vmac_ifname) == 0) {
+		if (vrrp->vmac_flags & VRRP_VMAC_FL_SET && strlen(vrrp->vmac_ifname) == 0) {
 			snprintf(vrrp->vmac_ifname, IFNAMSIZ, "vrrp.%d"
 						  , vrrp->vrid);
 			log_message(LOG_INFO, "vmac_ifname=%s for vrrp_instace %s"
@@ -517,6 +524,7 @@ vrrp_init_keywords(void)
 	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler);
 	install_keyword_root("vrrp_instance", &vrrp_handler);
 	install_keyword("use_vmac", &vrrp_vmac_handler);
+	install_keyword("vmac_xmit_base", &vrrp_vmac_xmit_base_handler);
 	install_keyword("unicast_peer", &vrrp_unicast_peer_handler);
 	install_keyword("native_ipv6", &vrrp_native_ipv6_handler);
 	install_keyword("state", &vrrp_state_handler);

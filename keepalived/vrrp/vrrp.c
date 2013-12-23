@@ -1171,7 +1171,8 @@ new_vrrp_socket(vrrp_t * vrrp)
 	close_vrrp_socket(vrrp);
 	remove_vrrp_fd_bucket(vrrp);
 	proto = (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH : IPPROTO_VRRP;
-	ifindex = IF_INDEX(vrrp->ifp);
+	ifindex = (vrrp->vmac_flags & VRRP_VMAC_FL_XMITBASE) ? IF_BASE_INDEX(vrrp->ifp) :
+							       IF_INDEX(vrrp->ifp);
 	unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 	vrrp->fd_in = open_vrrp_socket(vrrp->family, proto, ifindex, unicast);
 	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifindex, unicast);
@@ -1199,7 +1200,7 @@ shutdown_vrrp_instances(void)
 			vrrp_restore_interface(vrrp, 1);
 
 		/* Remove VMAC */
-		if (vrrp->vmac)
+		if (vrrp->vmac_flags & VRRP_VMAC_FL_SET)
 			netlink_link_del_vmac(vrrp);
 
 		/* Run stop script */
@@ -1361,7 +1362,7 @@ clear_diff_vrrp(void)
 			vrrp_restore_interface(vrrp, 1);
 
 			/* Remove VMAC if one was created */
-			if (vrrp->vmac) 
+			if (vrrp->vmac_flags & VRRP_VMAC_FL_SET) 
 				netlink_link_del_vmac(vrrp);
 		} else {
 			/*
@@ -1378,7 +1379,8 @@ clear_diff_vrrp(void)
 			 * Remove VMAC if it existed in old vrrp instance,
 			 * but not the new one.
 			 */
-			if (vrrp->vmac && !new_vrrp->vmac) {
+			if (vrrp->vmac_flags & VRRP_VMAC_FL_SET &&
+			    !(new_vrrp->vmac_flags & VRRP_VMAC_FL_SET)) {
 				netlink_link_del_vmac(vrrp);
 			}
 

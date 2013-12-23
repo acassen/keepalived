@@ -23,6 +23,7 @@
 #include "vrrp_scheduler.h"
 #include "vrrp_ipsecah.h"
 #include "vrrp_if.h"
+#include "vrrp_vmac.h"
 #include "vrrp.h"
 #include "vrrp_sync.h"
 #include "vrrp_notify.h"
@@ -448,7 +449,8 @@ vrrp_create_sockpool(list l)
 
 	for (e = LIST_HEAD(p); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-		ifindex = IF_INDEX(vrrp->ifp);
+		ifindex = (vrrp->vmac_flags & VRRP_VMAC_FL_XMITBASE) ? IF_BASE_INDEX(vrrp->ifp) :
+								       IF_INDEX(vrrp->ifp);
 		unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			proto = IPPROTO_IPSEC_AH;
@@ -493,7 +495,8 @@ vrrp_set_fds(list l)
 		sock = ELEMENT_DATA(e_sock);
 		for (e_vrrp = LIST_HEAD(p); e_vrrp; ELEMENT_NEXT(e_vrrp)) {
 			vrrp = ELEMENT_DATA(e_vrrp);
-			ifindex = IF_INDEX(vrrp->ifp);
+			ifindex = (vrrp->vmac_flags & VRRP_VMAC_FL_XMITBASE) ? IF_BASE_INDEX(vrrp->ifp) :
+									       IF_INDEX(vrrp->ifp);
 			unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 			if (vrrp->auth_type == VRRP_AUTH_AH)
 				proto = IPPROTO_IPSEC_AH;

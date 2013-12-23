@@ -24,6 +24,7 @@
 #include "vrrp_index.h"
 #include "vrrp_sync.h"
 #include "vrrp_if.h"
+#include "vrrp_vmac.h"
 #include "vrrp.h"
 #include "memory.h"
 #include "utils.h"
@@ -298,6 +299,10 @@ dump_vrrp(void *data)
 		       vrrp->script);
 	if (vrrp->smtp_alert)
 		log_message(LOG_INFO, "   Using smtp notification");
+	if (vrrp->vmac_flags & VRRP_VMAC_FL_SET)
+		log_message(LOG_INFO, "   Using VRRP VMAC (flags:%s|%s)"
+				    , (vrrp->vmac_flags & VRRP_VMAC_FL_UP) ? "UP" : "DOWN"
+				    , (vrrp->vmac_flags & VRRP_VMAC_FL_XMITBASE) ? "xmit_base" : "xmit");
 }
 
 void

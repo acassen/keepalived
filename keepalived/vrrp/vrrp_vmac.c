@@ -147,7 +147,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		char buf[256];
 	} req;
 
-	if (!vrrp->ifp)
+	if (!vrrp->ifp || vrrp->vmac_flags & VRRP_VMAC_FL_UP)
 		return -1;
 
 	memset(&req, 0, sizeof (req));
@@ -160,7 +160,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	 */
 	if (reload && (ifp = if_get_by_ifname(ifname))) {
 		vrrp->ifp = ifp;
-		vrrp->vmac |= 2;
+		vrrp->vmac_flags |= VRRP_VMAC_FL_UP;
 		return 1;
 	}
 	
@@ -189,7 +189,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	if (!ifp)
 		return -1;
 	vrrp->ifp = ifp;
-	vrrp->vmac |= 2;
+	vrrp->vmac_flags |= VRRP_VMAC_FL_UP;
 	netlink_link_setlladdr(vrrp);
 	netlink_link_up(vrrp);
 

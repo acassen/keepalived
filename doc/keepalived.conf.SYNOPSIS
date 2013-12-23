@@ -146,6 +146,8 @@ Important: for a SYNC group to run reliably, it is vital that all instances in
 
 vrrp_instance <STRING> {		# VRRP instance declaration
     use_vmac				# Use VRRP Virtual MAC
+    vmac_xmit_base			# Send/Recv VRRP messages from base
+					#  interface instead of VMAC interface
     native_ipv6				# Force instance to use IPv6
 					#  when using mixed IPv4&IPv6 conf
     state MASTER|BACKUP			# Start-up default state

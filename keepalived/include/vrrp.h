@@ -94,7 +94,7 @@ typedef struct _vrrp_t {
 	vrrp_sgroup_t		*sync;			/* Sync group we belong to */
 	interface_t		*ifp;			/* Interface we belong to */
 	int			dont_track_primary;	/* If set ignores ifp faults */
-	int			vmac;			/* If set try to set VRRP VMAC */
+	int			vmac_flags;		/* VRRP VMAC flags */
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
