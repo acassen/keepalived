@@ -160,7 +160,7 @@ parse_cmdline(int argc, char **argv)
 	int c;
 
 	struct option long_options[] = {
-		{"use-file",          optional_argument, 0, 'f'},
+		{"use-file",          required_argument, 0, 'f'},
 		{"vrrp",              no_argument,       0, 'P'},
 		{"check",             no_argument,       0, 'C'},
 		{"log-console",       no_argument,       0, 'l'},
@@ -171,9 +171,9 @@ parse_cmdline(int argc, char **argv)
 		{"dont-respawn",      no_argument,       0, 'R'},
 		{"dont-fork",         no_argument,       0, 'n'},
 		{"dump-conf",         no_argument,       0, 'd'},
-		{"pid",               optional_argument, 0, 'p'},
-		{"vrrp_pid",          optional_argument, 0, 'r'},
-		{"checkers_pid",      optional_argument, 0, 'c'},
+		{"pid",               required_argument, 0, 'p'},
+		{"vrrp_pid",          required_argument, 0, 'r'},
+		{"checkers_pid",      required_argument, 0, 'c'},
  #ifdef _WITH_SNMP_
 		{"snmp",              no_argument,       0, 'x'},
  #endif
@@ -183,9 +183,9 @@ parse_cmdline(int argc, char **argv)
 	};
 
 #ifdef _WITH_SNMP_
-	while ((c = getopt_long (argc, argv, "vhlndVIDRS:f:PCp:c:r:x", long_options, NULL)) != EOF) {
+	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:PCp:c:r:x", long_options, NULL)) != EOF) {
 #else
-	while ((c = getopt_long (argc, argv, "vhlndVIDRS:f:PCp:c:r:", long_options, NULL)) != EOF) {
+	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:PCp:c:r:", long_options, NULL)) != EOF) {
 #endif
 		switch (c) {
 		case 'v':
