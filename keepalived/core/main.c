@@ -243,6 +243,9 @@ parse_cmdline(int argc, char **argv)
 			snmp = 1;
 			break;
 #endif
+		default:
+			exit(0);
+			break;
 		}
 	}
 
