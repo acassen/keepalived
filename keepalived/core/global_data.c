@@ -76,6 +76,15 @@ set_default_email_from(data_t * data)
 }
 
 static void
+set_default_mcast_group(data_t * data)
+{
+	if (inet_pton(AF_INET, "224.0.0.12", &data->mcast_group4) <= 0)
+		log_message(LOG_ERR, "can not parse 'AF_INET:224.0.0.12' to binary");
+	if (inet_pton(AF_INET6, "ff02::12", &data->mcast_group6) <= 0)
+		log_message(LOG_ERR, "can not parse 'AF_INET6:ff02::12' to binary");
+}
+
+static void
 set_default_smtp_connection_timeout(data_t * data)
 {
 	data->smtp_connection_to = DEFAULT_SMTP_CONNECTION_TIMEOUT;
@@ -90,6 +99,7 @@ set_default_values(data_t * data)
 	set_default_router_id(data);
 	set_default_smtp_connection_timeout(data);
 	set_default_email_from(data);
+	set_default_mcast_group(data);
 }
 
 /* email facility functions */
@@ -143,6 +153,7 @@ free_global_data(data_t * data)
 void
 dump_global_data(data_t * data)
 {
+	char out[INET_ADDRSTRLEN];
 	if (!data)
 		return;
 
@@ -164,6 +175,10 @@ dump_global_data(data_t * data)
 		       data->email_from);
 		dump_list(data->email);
 	}
+	log_message(LOG_INFO, " Multicast Group ipv4 = %s",
+		inet_ntop(AF_INET, &data->mcast_group4, out, sizeof(out)));
+	log_message(LOG_INFO, " Multicast Group ipv6 = %s",
+		inet_ntop(AF_INET6, &data->mcast_group6, out, sizeof(out)));
 #ifdef _WITH_SNMP_
 	if (data->enable_traps)
 		log_message(LOG_INFO, " SNMP Trap enabled");

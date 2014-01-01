@@ -51,7 +51,6 @@ typedef struct _vrrphdr {			/* rfc2338.5.1 */
 } vrrphdr_t;
 
 /* protocol constants */
-#define INADDR_VRRP_GROUP	0xe0000012	/* multicast addr - rfc2338.5.2.2 */
 #define VRRP_IP_TTL		255		/* in and out pkt ttl -- rfc2338.5.2.3 */
 #define IPPROTO_VRRP		112		/* IP protocol number -- rfc2338.5.2.4 */
 #define VRRP_VERSION		2		/* current version -- rfc2338.5.3.1 */

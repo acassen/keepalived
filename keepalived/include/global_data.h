@@ -44,15 +44,17 @@ typedef struct _email {
 
 /* Configuration data root */
 typedef struct _data {
-	int				linkbeat_use_polling;
+	int					linkbeat_use_polling;
 	char				*router_id;
 	char				*plugin_dir;
 	char				*email_from;
 	struct sockaddr_storage		smtp_server;
-	long				smtp_connection_to;
-	list				email;
+	long 				smtp_connection_to;
+	list 				email;
+	struct in_addr 		mcast_group4;
+	struct in6_addr 	mcast_group6;
 #ifdef _WITH_SNMP_
-	int				enable_traps;
+	int					enable_traps;
 #endif
 } data_t;
 

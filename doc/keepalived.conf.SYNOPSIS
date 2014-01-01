@@ -32,6 +32,8 @@ global_defs {				# Block identification
     smtp_connect_timeout <INTEGER>	   # Number of seconds timeout connect
  					   #  remote SMTP server
     router_id <STRING>			   # String identifying router
+    mcast_group4 <IPV4 ADDRESS>   # optional, default 224.0.0.18
+    mcast_group6 <IPV6 ADDRESS>   # optional, default ff02::12
 }
 
 linkbeat_use_polling	# Use media link failure detection polling fashion

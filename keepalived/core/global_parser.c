@@ -29,6 +29,7 @@
 #include "parser.h"
 #include "memory.h"
 #include "smtp.h"
+#include "logger.h"
 #include "utils.h"
 
 /* data handlers */
@@ -79,6 +80,26 @@ email_handler(vector_t *strvec)
 
 	free_strvec(email_vec);
 }
+static void
+mcast_group4(vector_t *strvec)
+{
+	char *str = vector_slot(strvec, 1);
+	struct in_addr tmp;
+	if (inet_pton(AF_INET, str, &tmp) <= 0)
+		log_message(LOG_ERR, "can not parse 'AF_INET:%s' to binary", str);
+	else
+		global_data->mcast_group4 = tmp;
+}
+static void
+mcast_group6(vector_t *strvec)
+{
+	char *str = vector_slot(strvec, 1);
+	struct in6_addr tmp;
+	if (inet_pton(AF_INET6, str, &tmp) <= 0)
+		log_message(LOG_ERR, "can not parse 'AF_INET6:%s' to binary", str);
+	else
+		global_data->mcast_group6 = tmp;
+}
 #ifdef _WITH_SNMP_
 static void
 trap_handler(vector_t *strvec)
@@ -99,6 +120,8 @@ global_init_keywords(void)
 	install_keyword("smtp_server", &smtpip_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
+	install_keyword("mcast_group4", &mcast_group4);
+	install_keyword("mcast_group6", &mcast_group6);
 #ifdef _WITH_SNMP_
 	install_keyword("enable_traps", &trap_handler);
 #endif
