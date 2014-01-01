@@ -240,7 +240,7 @@ vrrp_vrid_handler(vector_t *strvec)
 		if (vrrp->vmac_flags & VRRP_VMAC_FL_SET && strlen(vrrp->vmac_ifname) == 0) {
 			snprintf(vrrp->vmac_ifname, IFNAMSIZ, "vrrp.%d"
 						  , vrrp->vrid);
-			log_message(LOG_INFO, "vmac_ifname=%s for vrrp_instace %s"
+			log_message(LOG_INFO, "vmac_ifname=%s for vrrp_instance %s"
 					    , vrrp->vmac_ifname
 					    , vrrp->iname);
 		}
