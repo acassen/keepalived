@@ -228,8 +228,9 @@ vrrp_vrid_handler(vector_t *strvec)
 		       "             must be between 1 & 255. reconfigure !");
 	} else {
 		alloc_vrrp_bucket(vrrp);
-		if (vrrp->vmac_flags & VRRP_VMAC_FL_SET && strlen(vrrp->vmac_ifname) == 0) {
-			snprintf(vrrp->vmac_ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
+		if (vrrp->vmac_flags & VRRP_VMAC_FL_SET) {
+			if (strlen(vrrp->vmac_ifname) == 0)
+				snprintf(vrrp->vmac_ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
 			netlink_link_add_vmac(vrrp);
 		}
 	}
