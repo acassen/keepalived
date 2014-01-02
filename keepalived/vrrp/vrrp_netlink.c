@@ -470,6 +470,7 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	ifp = (interface_t *) MALLOC(sizeof(interface_t));
 	memcpy(ifp->ifname, name, strlen(name));
 	ifp->ifindex = ifi->ifi_index;
+	ifp->base_ifindex = ifi->ifi_index;
 	ifp->flags = ifi->ifi_flags;
 	ifp->mtu = *(int *) RTA_DATA(tb[IFLA_MTU]);
 	ifp->hw_type = ifi->ifi_type;

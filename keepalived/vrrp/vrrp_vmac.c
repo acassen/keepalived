@@ -139,6 +139,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 {
 #ifdef _HAVE_VRRP_VMAC_
 	struct rtattr *linkinfo;
+	unsigned int base_ifindex;
 	interface_t *ifp;
 	char ifname[IFNAMSIZ];
 	struct {
@@ -147,7 +148,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		char buf[256];
 	} req;
 
-	if (!vrrp->ifp || vrrp->vmac_flags & VRRP_VMAC_FL_UP)
+	if (!vrrp->ifp || vrrp->vmac_flags & VRRP_VMAC_FL_UP || !vrrp->vrid)
 		return -1;
 
 	memset(&req, 0, sizeof (req));
@@ -179,8 +180,14 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	addattr_l(&req.n, sizeof(req), IFLA_LINK, &IF_INDEX(vrrp->ifp), sizeof(uint32_t));
 	addattr_l(&req.n, sizeof(req), IFLA_IFNAME, ifname, strlen(ifname));
 
-	if (netlink_talk(&nl_cmd, &req.n) < 0)
+	if (netlink_talk(&nl_cmd, &req.n) < 0) {
+		log_message(LOG_INFO, "vmac: Error creating VMAC interface %s for vrrp_instance %s!!!"
+				    , ifname, vrrp->iname);
 		return -1;
+	}
+
+	log_message(LOG_INFO, "vmac: Success creating VMAC interface %s for vrrp_instance %s"
+			    , ifname, vrrp->iname);
 
 	/*
 	 * Update interface queue and vrrp instance interface binding.
@@ -190,7 +197,10 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	ifp = if_get_by_ifname(ifname);
 	if (!ifp)
 		return -1;
+	base_ifindex = vrrp->ifp->ifindex;
 	vrrp->ifp = ifp;
+	vrrp->ifp->base_ifindex = base_ifindex;
+	vrrp->ifp->vmac = 1;
 	vrrp->vmac_ifindex = IF_INDEX(vrrp->ifp); /* For use on delete */
 	vrrp->vmac_flags |= VRRP_VMAC_FL_UP;
 	netlink_link_setlladdr(vrrp);
@@ -230,8 +240,14 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 	req.ifi.ifi_family = AF_INET;
 	req.ifi.ifi_index = vrrp->vmac_ifindex;
 
-	if (netlink_talk(&nl_cmd, &req.n) < 0)
+	if (netlink_talk(&nl_cmd, &req.n) < 0) {
+		log_message(LOG_INFO, "vmac: Error removing VMAC interface %s for vrrp_instance %s!!!"
+				    , ifname, vrrp->iname);
 		status = -1;
+	}
+
+	log_message(LOG_INFO, "vmac: Success removing VMAC interface %s for vrrp_instance %s"
+			    , ifname, vrrp->iname);
 #endif
 
 	return status;

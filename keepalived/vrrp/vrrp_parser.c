@@ -118,22 +118,11 @@ vrrp_vmac_handler(vector_t *strvec)
 			IFNAMSIZ - 1);
 	} else if (vrrp->vrid) {
 		snprintf(vrrp->vmac_ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
+	} else {
+		return;
 	}
 
-	if (strlen(vrrp->vmac_ifname)) {
-		log_message(LOG_INFO, "vmac_ifname=%s for vrrp_instace %s"
-				    , vrrp->vmac_ifname
-				    , vrrp->iname);
-	}
-	if (vrrp->ifp) {
-		unsigned int base_ifindex = vrrp->ifp->ifindex;
-		netlink_link_add_vmac(vrrp);
-		/* restore base ifindex (deleted when adding VMAC) */
-		vrrp->ifp->base_ifindex = base_ifindex;
-	}
-
-        /* flag interface as a VMAC interface */
-        vrrp->ifp->vmac = 1;
+	netlink_link_add_vmac(vrrp);
 }
 static void
 vrrp_vmac_xmit_base_handler(vector_t *strvec)
@@ -177,15 +166,17 @@ vrrp_int_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *name = vector_slot(strvec, 1);
-	unsigned int ifindex;
 
 	vrrp->ifp = if_get_by_ifname(name);
-	ifindex = vrrp->ifp->ifindex;
-	if (vrrp->vmac_flags & VRRP_VMAC_FL_SET)
-		netlink_link_add_vmac(vrrp);
+	if (!vrrp->ifp) {
+		log_message(LOG_INFO, "Cant find interface %s for vrrp_instance %s !!!"
+				    , name, vrrp->iname);
+		return;
+	}
 
-	/* save base ifindex (only used for VMAC interfaces) */
-	vrrp->ifp->base_ifindex = ifindex;
+	if (vrrp->vmac_flags & VRRP_VMAC_FL_SET) {
+		netlink_link_add_vmac(vrrp);
+	}
 }
 static void
 vrrp_track_int_handler(vector_t *strvec)
@@ -238,11 +229,8 @@ vrrp_vrid_handler(vector_t *strvec)
 	} else {
 		alloc_vrrp_bucket(vrrp);
 		if (vrrp->vmac_flags & VRRP_VMAC_FL_SET && strlen(vrrp->vmac_ifname) == 0) {
-			snprintf(vrrp->vmac_ifname, IFNAMSIZ, "vrrp.%d"
-						  , vrrp->vrid);
-			log_message(LOG_INFO, "vmac_ifname=%s for vrrp_instace %s"
-					    , vrrp->vmac_ifname
-					    , vrrp->iname);
+			snprintf(vrrp->vmac_ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
+			netlink_link_add_vmac(vrrp);
 		}
 	}
 }
