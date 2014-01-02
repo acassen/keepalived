@@ -82,6 +82,13 @@ set_default_smtp_connection_timeout(data_t * data)
 }
 
 static void
+set_default_mcast_group(data_t * data)
+{
+	inet_stosockaddr("224.0.0.12", 0, &data->vrrp_mcast_group4);
+	inet_stosockaddr("ff02::12", 0, &data->vrrp_mcast_group6);
+}
+
+static void
 set_default_values(data_t * data)
 {
 	/* No global data so don't default */
@@ -90,6 +97,7 @@ set_default_values(data_t * data)
 	set_default_router_id(data);
 	set_default_smtp_connection_timeout(data);
 	set_default_email_from(data);
+	set_default_mcast_group(data);
 }
 
 /* email facility functions */
@@ -157,12 +165,20 @@ dump_global_data(data_t * data)
 	if (data->smtp_server.ss_family)
 		log_message(LOG_INFO, " Smtp server = %s", inet_sockaddrtos(&data->smtp_server));
 	if (data->smtp_connection_to)
-		log_message(LOG_INFO, " Smtp server connection timeout = %lu",
-		       data->smtp_connection_to / TIMER_HZ);
+		log_message(LOG_INFO, " Smtp server connection timeout = %lu"
+				    , data->smtp_connection_to / TIMER_HZ);
 	if (data->email_from) {
-		log_message(LOG_INFO, " Email notification from = %s",
-		       data->email_from);
+		log_message(LOG_INFO, " Email notification from = %s"
+				    , data->email_from);
 		dump_list(data->email);
+	}
+	if (data->vrrp_mcast_group4.ss_family) {
+		log_message(LOG_INFO, " VRRP IPv4 mcast group = %s"
+				    , inet_sockaddrtos(&data->vrrp_mcast_group4));
+	}
+	if (data->vrrp_mcast_group6.ss_family) {
+		log_message(LOG_INFO, " VRRP IPv6 mcast group = %s"
+				    , inet_sockaddrtos(&data->vrrp_mcast_group4));
 	}
 #ifdef _WITH_SNMP_
 	if (data->enable_traps)

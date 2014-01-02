@@ -538,7 +538,8 @@ vrrp_build_pkt(vrrp_t * vrrp, int prio, struct sockaddr_storage *addr)
 
 	if (vrrp->family == AF_INET) {
 		/* build the ip header */
-		dst = (addr) ? inet_sockaddrip4(addr) : htonl(INADDR_VRRP_GROUP);
+		dst = (addr) ? inet_sockaddrip4(addr) : 
+			       ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr.s_addr;
 		vrrp_build_ip4(vrrp, bufptr, len, dst);
 
 		/* build the vrrp header */
@@ -609,14 +610,13 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 	} else if (vrrp->family == AF_INET) { /* Multicast sending path */
 		memset(&dst4, 0, sizeof(dst4));
 		dst4.sin_family = AF_INET;
-		dst4.sin_addr.s_addr = htonl(INADDR_VRRP_GROUP);
+		dst4.sin_addr = ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr;
 		msg.msg_name = &dst4;
 		msg.msg_namelen = sizeof(dst4);
 	} else if (vrrp->family == AF_INET6) {
 		memset(&dst6, 0, sizeof(dst6));
 		dst6.sin6_family = AF_INET6;
-		dst6.sin6_addr.s6_addr16[0] = htons(0xff02);
-		dst6.sin6_addr.s6_addr16[7] = htons(0x12);
+		dst6.sin6_addr = ((struct sockaddr_in6 *) &global_data->vrrp_mcast_group6)->sin6_addr;
 		msg.msg_name = &dst6;
 		msg.msg_namelen = sizeof(dst6);
 	}

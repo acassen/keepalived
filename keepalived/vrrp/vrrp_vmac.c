@@ -242,12 +242,12 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0) {
 		log_message(LOG_INFO, "vmac: Error removing VMAC interface %s for vrrp_instance %s!!!"
-				    , ifname, vrrp->iname);
+				    , vrrp->vmac_ifname, vrrp->iname);
 		status = -1;
 	}
 
 	log_message(LOG_INFO, "vmac: Success removing VMAC interface %s for vrrp_instance %s"
-			    , ifname, vrrp->iname);
+			    , vrrp->vmac_ifname, vrrp->iname);
 #endif
 
 	return status;
