@@ -1,3 +1,145 @@
+2014-01-02  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.10 released.
+	* Jonas Johansson removed unused option character in getopt
+	  optstring.
+	* vrrp: disable TTL sanity check for unicast use-case.
+	  In order to protect against any packet injection, VRRP provides
+	  sanity check over IP header TTL. This TTL MUST be equal to
+	  255 and means both sender and receiver are attached on the same
+	  ethernet segment. Now with unicast extension this protection MUST
+	  be disabled since VRRP adverts will mostly traverse different
+	  network segments.
+	  !!! WARNING !!! When using VRRP in unicast use-case in order to
+	  protect against any packet injection the best practice is to use
+	  IPSEC-AH auth method otherwise you are exposed to potential
+	  attackers !
+	* Christian Albrecht fixed minor typo in man page
+	* Pim van den Berg work on libipvs-2.6 to sync with libipvs from
+	  ipvsadm 1.27
+	* Pim van den Berg work add support to libnk >= 3. This address
+	  following considerations :
+	  http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=688164
+	  http://article.gmane.org/gmane.linux.keepalived.devel/3522
+	* Pim van den Berg extended libipvs adding nlerr2syserr function
+	  to translate libnl 3 errors to sys errors. In libnl 3 the return
+	  codes have changed. nlerr2syserr translates the libnl 3 errors to
+	  sys errors.
+	* ipvs: if libnl-3 is installed then check for libnl-gen-3. It is
+	  mandatory to use generic netlink facilities in new libipvs. This
+	  test is just here to ensure every needed libs are installed !
+	* Frank Baalbergen (I suppose github frankbb is you ?) fix
+	  http checker. literal ipv6 addresses should be enclosed by
+	  brackets.
+	* vrrp: Frank Baalbergen add check on IFA_F_NODAD support.
+	* vrrp: fix unicast handling address selection. SjonHortensius
+	  reported issue while testing unicast_peer. It wouldn't work
+	  without adding the native_ipv6 flag. Removed this dependency !
+	  since it not correlated with VRRP protocol version used.
+	* vrrp: extend ip parser to support default and default6.
+	  When you are using virtual_routes you may want to use default
+	  or default6 while configuring routes. Extended parser
+	  accordingly !
+	* vrrp: take care of label while comparing IP addresses.
+	  Label was not taken into account while comparing 2 IP
+	  addresses, this can lead to a non deletion while stopping
+	  daemon and some configuration changes have been done while
+	  deamon running. This issue was reported by Stepan Rogov.
+	* vrrp: fix/extend gratuitous ARP handling.
+	  multiple people reported issues where MASTER didnt recover
+	  properly after outage due to no gratuitous ARP sent. VRRP
+	  is a protocol designed to be used between node plugged on
+	  the same layer2 in order to guarantee link failure is directly
+	  linked to a protocol FSM handling (FAULT transition). With
+	  current virtualization env quite every think can be virtualized
+	  from host (VM) to network (vswitch). In some cases those
+	  virtualized env offer a virtualized layer2 on which VRRP is
+	  plugged and sometime forwarding or routing over this virtual
+	  path can be broken.
+	  I extended gratuitous ARP handling in 2 ways :
+	  1) When a MASTER receive a higher prio advert it sends a last
+	     advert before transiting to BACKUP state. The immediate
+	     effect at remote MASTER side is to sollicite a gratuitous
+	     ARP broadcast.
+	  2) Add an optional support to periodic gratuitous ARP sending
+	     while in MASTER state. By default it is disabled but one
+	     can activate this feature by configuring keyword
+	     "garp_master_refresh" in seconds in vrrp_instance block
+	     (refer to keepalived.conf.SYNOPSIS).
+	* Frank Baalbergen fixed genhash. genhash can throw a
+	  segmentation fault when not providing an argument
+	* Frank Baalbergen extended genhash code to support IPv6
+	* Frank Baalbergen extended genhash code to make url default
+	  value /, same as curl/wget
+	* Frank Baalbergen extended genhash code to only use default
+	  url when url is empty
+	* vrrp: Create configuration alias for unicast_src_ip keyword.
+	  Add a new keyword more generic to specify VRRP packet source
+	  IP address. This new keyword is "unicast_src_ip" and have
+	  exactly the same scope as "mcast_src_ip".
+	* vrrp: unicast_peer addresses and VRRP instance MUST be of
+	  the same family. VRRP low-level framework create socket
+	  pool based on VRRP instance family. If you are using
+	  unicast_peer, it is mandatory to use addresses of same family
+	  as VRRP instance. You cant mix IPv4 and IPv6 addresses inside
+	  same unicast_peer block.  If you need to make it that way, you
+	  MUST create a VRRP instance per family, eg: one with native_ipv6
+	  for v6 unicast_peer and another for v4 unicast_peer.
+	* vrrp: extended unicast code to support IPv6 unicast_src_ip.
+	  Add support to unicast IPv6 address for
+	  {unicast,mcast}_src_ip keyword. vrrp instance saddr is now a
+	  sockaddr_storage and src IPv6 address is set using cmsg ancillary
+	  data pktinfo. TSource IP address selection is now generic and
+	  can be IPv4 or IPv6.
+	* vrrp: fix vrrp socket sync while leaving FAULT state.
+	  Well, this is a very, VERY old bug here. while leaving FAULT
+	  state VRRP framework refresh instance socket fd_in & fd_out
+	  and synchronize all VRRP instance bound to the same socket.
+	  The patch refresh socket, it also refresh fd hashing ! which
+	  better for later fault handling :)
+	* vrrp: Frank Baalbergen fix log-facility handling. log-facility
+	  should be a required_argument
+	* vrrp: Support xmit VRRP packets from base VMAC interface.
+	  Here is a merge of patch from Oliver Smith. Thanks for your
+	  job and idea in here Oliver. Comments from Olivier :
+
+	  This provides a new option to use in conjunction with the VMAC
+	  functionality which will result in VRRP advertisements being
+	  sent and received over the underlying interface (and therefore
+	  having the source MAC of that interface rather than the VMAC
+	  device).
+
+	  With this new functionality enabled, VRRP messages will not
+	  affect the switch MAC address table since the non-unique VMAC
+	  address is now used only for sending a gratuitous ARP, thereby
+	  ensuring that in conditions of VRRP message loss, a probing
+	  partner will not inadvertently take over traffic.
+
+	  This also resolves issues where VRRP messages are not
+	  successfully being seen on the VMAC interface as with the
+	  new option, the underlying interface is also used to listen out
+	  for VRRP messages.
+	* getopt: Make some arguments required
+	* vrrp: Frank Baalbergen add default case in getopt_long.
+	  when starting keepalived with an option without an argument
+	  that requires an argument keepalived should not be started.
+	* vrrp: VMAC code cleanup and extensions.
+	  Remastered VMAC code. Interface base_ifindex is set by default
+	  to interface ifindex during netlink probe. VMAC interface
+	  base_ifindex is now set during VMAC allocation uppon success
+	  interface creation. Detect if virtual_router_id is declared
+	  after use_mvac keyword is invoked. Add some more log while
+	  setting up and removing VMAC interface.
+	* vrrp: IPv4 & IPv6 multicast group tweaking.
+	  Meno Abels extended vrrp framework to support customized
+	  multicast addresses. The address could be set for ipv4 and
+	  ipv6 in the global_defs config section using the keywords
+	  vrrp_mcast_group4 and vrrp_mcast_group6.
+
+	  There are some stupid switches which does a special processing
+	  to 224.0.0.0/8 multicast packets which causes packets drop from
+	  queue overflows in environments which creates 100 and more
+	  multicast control plane packets a second.
+
 2013-11-10  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.9 released.
 	* Alexey Andriyanov fixed inaccuracy in VS_ISEQ macro.
