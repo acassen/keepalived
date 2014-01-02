@@ -24,14 +24,16 @@ This block is divided in 2 sub-block :
 global_defs {				# Block identification
     notification_email {		# Email to send alertes to
        <EMAIL ADDRESS>			# Standard email address
-      <EMAIL ADDRESS>
-      ...
+       <EMAIL ADDRESS>
+       ...
     }
     notification_email_from <EMAIL ADDRESS> # Email From dealing with SMTP proto
     smtp_server <IP ADDRESS>		   # SMTP server IP address
     smtp_connect_timeout <INTEGER>	   # Number of seconds timeout connect
  					   #  remote SMTP server
     router_id <STRING>			   # String identifying router
+    vrrp_mcast_group4 <IPv4 ADDRESS>	   # optional, default 224.0.0.18
+    vrrp_mcast_group6 <IPv6 ADDRESS>	   # optional, default ff02::12
 }
 
 linkbeat_use_polling	# Use media link failure detection polling fashion

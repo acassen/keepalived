@@ -84,7 +84,7 @@ set_default_smtp_connection_timeout(data_t * data)
 static void
 set_default_mcast_group(data_t * data)
 {
-	inet_stosockaddr("224.0.0.12", 0, &data->vrrp_mcast_group4);
+	inet_stosockaddr("224.0.0.18", 0, &data->vrrp_mcast_group4);
 	inet_stosockaddr("ff02::12", 0, &data->vrrp_mcast_group6);
 }
 

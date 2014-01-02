@@ -36,11 +36,13 @@ and
         }
  # From: from address that will be in header
  notification_email_from admin@example.com 
- smtp_server 127.0.0.1   # IP
- smtp_connect_timeout 30 # integer, seconds
- router_id my_hostname   # string identifying the machine,
-                         # (doesn't have to be hostname).
- enable_traps            # enable SNMP traps
+ smtp_server 127.0.0.1        # IP
+ smtp_connect_timeout 30      # integer, seconds
+ router_id my_hostname        # string identifying the machine,
+                              # (doesn't have to be hostname).
+ vrrp_mcast_group4 224.0.0.18 # optional, default 224.0.0.18
+ vrrp_mcast_group6 ff02::12   # optional, default ff02::12
+ enable_traps                 # enable SNMP traps
  }
 
 
