@@ -54,6 +54,7 @@ static int family, try_nl = 1;
 	CHECK_IPV4(s, ret);					\
 	CHECK_PE(s, ret);
 
+#ifdef LIBIPVS_USE_NL
 #ifndef FALLBACK_LIBNL1
 static int nlerr2syserr(int err)
 {
@@ -79,7 +80,6 @@ static int nlerr2syserr(int err)
 }
 #endif
 
-#ifdef LIBIPVS_USE_NL
 struct nl_msg *ipvs_nl_message(int cmd, int flags)
 {
 	struct nl_msg *msg;
