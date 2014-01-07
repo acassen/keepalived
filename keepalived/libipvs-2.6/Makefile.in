@@ -1,7 +1,7 @@
 # Makefile for libipvs
 
 CC		= @CC@
-CFLAGS		= @CFLAGS@ @CPPFLAGS@ @INCLUDE_NL@ -D@USE_NL@ -Wall -Wunused
+CFLAGS		= @CFLAGS@ @CPPFLAGS@ -D@USE_NL@ -Wall -Wunused
 
 export OBJS += libipvs.a
 

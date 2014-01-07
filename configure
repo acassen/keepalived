@@ -622,7 +622,6 @@ ac_includes_default="\
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
 VRRP_SUPPORT
-INCLUDE_NL
 USE_NL
 IPVS_SUPPORT
 VERSION_DATE
@@ -3975,9 +3974,8 @@ $as_echo "$ac_cv_lib_nl_genl_3_genl_connect" >&6; }
 if test "x$ac_cv_lib_nl_genl_3_genl_connect" = xyes; then :
 
         USE_NL="LIBIPVS_USE_NL"
-        CFLAGS="$CFLAGS $(pkg-config libnl-genl-3.0)"
+        CFLAGS="$CFLAGS $(pkg-config --cflags libnl-genl-3.0)"
 	LIBS="$LIBS $(pkg-config --libs libnl-genl-3.0)"
-	INCLUDE_NL="-I/usr/include/libnl3"
 
 else
 
@@ -4029,7 +4027,6 @@ if test "x$ac_cv_lib_nl_nl_socket_modify_cb" = xyes; then :
         USE_NL="LIBIPVS_USE_NL"
         CFLAGS="$CFLAGS -DFALLBACK_LIBNL1"
         LIBS="$LIBS $(pkg-config --libs libnl-1)"
-	INCLUDE_NL=""
 
 else
 
@@ -4458,7 +4455,6 @@ fi
 if test "${enable_profile}" = "yes"; then
   CFLAGS="$CFLAGS -pg"
 fi
-
 
 
 

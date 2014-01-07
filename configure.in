@@ -61,9 +61,8 @@ AC_CHECK_LIB(nl-3, nl_socket_alloc,
     AC_CHECK_LIB(nl-genl-3, genl_connect,
       [
         USE_NL="LIBIPVS_USE_NL"
-        CFLAGS="$CFLAGS $(pkg-config libnl-genl-3.0)"
+        CFLAGS="$CFLAGS $(pkg-config --cflags libnl-genl-3.0)"
 	LIBS="$LIBS $(pkg-config --libs libnl-genl-3.0)"
-	INCLUDE_NL="-I/usr/include/libnl3"
       ],
       [
         AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3.])
@@ -75,7 +74,6 @@ AC_CHECK_LIB(nl-3, nl_socket_alloc,
         USE_NL="LIBIPVS_USE_NL"
         CFLAGS="$CFLAGS -DFALLBACK_LIBNL1"
         LIBS="$LIBS $(pkg-config --libs libnl-1)"
-	INCLUDE_NL=""
       ],
       [                                                                                           
         USE_NL="LIBIPVS_DONTUSE_NL"
@@ -279,7 +277,6 @@ AC_SUBST(VERSION)
 AC_SUBST(VERSION_DATE)
 AC_SUBST(IPVS_SUPPORT)
 AC_SUBST(USE_NL)
-AC_SUBST(INCLUDE_NL)
 AC_SUBST(VRRP_SUPPORT)
 
 dnl ----[ Checks for typedefs, structures, and compiler characteristics ]----
