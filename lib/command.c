@@ -35,7 +35,7 @@
 #include "timer.h"
 
 /* Command vector which includes some level of command lists. Normally
- * each daemon maintains each own cmdvec. */
+ * each daemon maintains its own cmdvec. */
 vector_t *cmdvec = NULL;
 
 desc_t desc_cr;
@@ -156,7 +156,9 @@ sort_node(void)
 
 /* Breaking up string into each command piece. I assume given
  * character is separated by a space character. Return value is a
- * vector which includes char ** data element. */
+ * vector which includes char ** data element. It supports
+ * quoted string as a single slot and commented string at
+ * the end of parsed string */
 vector_t *
 cmd_make_strvec(const char *string)
 {
@@ -187,20 +189,30 @@ cmd_make_strvec(const char *string)
 	/* Copy each command piece and set into vector. */
 	while (1) {
 		start = cp;
-		while (!(isspace((int) *cp) || *cp == '\r' || *cp == '\n') &&
+		if (*cp == '"') {
+			cp++;
+			token = MALLOC(2);
+			*(token) = '"';
+			*(token + 1) = '\0';
+		} else {
+			while (!(isspace((int) *cp) || *cp == '\r' || *cp == '\n') &&
+			       *cp != '\0' && *cp != '"')
+				cp++;
+			strlen = cp - start;
+			token = (char *) MALLOC(strlen + 1);
+			memcpy(token, start, strlen);
+			*(token + strlen) = '\0';
+		}
+
+		/* Alloc & set the slot */
+		vector_alloc_slot(strvec);
+		vector_set_slot(strvec, token);
+
+		while ((isspace((int) *cp) || *cp == '\n' || *cp == '\r') &&
 		       *cp != '\0')
 			cp++;
-		strlen = cp - start;
-		token = (char *) MALLOC(strlen + 1);
-		memcpy(token, start, strlen);
-		*(token + strlen) = '\0';
-		vector_set(strvec, token);
 
-		while ((isspace ((int) *cp) || *cp == '\n' || *cp == '\r') &&
-		       *cp != '\0')
-			cp++;
-
-		if (*cp == '\0')
+		if (*cp == '\0' || *cp == '!' || *cp == '#')
 			return strvec;
 	}
 }

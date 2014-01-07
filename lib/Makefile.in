@@ -42,6 +42,6 @@ logger.o: logger.c logger.h
 list_head.o: list_head.c list_head.h
 buffer.o: buffer.c buffer.h memory.h
 command.o: command.c command.h vector.h memory.h vty.h timer.h \
-	config.h
+	config.h logger.h
 vty.o: vty.c vty.h scheduler.h timer.h utils.h command.h logger.h \
 	memory.h
