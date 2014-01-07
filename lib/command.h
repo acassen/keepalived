@@ -64,6 +64,7 @@ typedef enum _node_type {
 
 	VTY_NODE,					/* Vty node. */
 
+	GLOBAL_NODE,					/* Global daemon commands. */
 	CHECK_NODE,					/* Checker framework commands. */
 	VRRP_NODE,					/* VRRP framework commands. */
 } node_type_t;
@@ -118,8 +119,7 @@ typedef struct _desc {
  */
 
 enum {
-	CMD_ATTR_DEPRECATED = 1,
-	CMD_ATTR_HIDDEN,
+	CMD_ATTR_HIDDEN = 1,
 };
 
 #define CMD_SUCCESS		0
@@ -187,9 +187,6 @@ enum {
 #define DEFUN_HIDDEN(funcname, cmdname, cmdstr, helpstr)			\
 	DEFUN_ATTR (funcname, cmdname, cmdstr, helpstr, CMD_ATTR_HIDDEN)
 
-#define DEFUN_DEPRECATED(funcname, cmdname, cmdstr, helpstr)			\
-	DEFUN_ATTR (funcname, cmdname, cmdstr, helpstr, CMD_ATTR_DEPRECATED)
-
 /* DEFUN_NOSH for commands that vtysh should ignore */
 #define DEFUN_NOSH(funcname, cmdname, cmdstr, helpstr)				\
 	DEFUN(funcname, cmdname, cmdstr, helpstr)
@@ -213,9 +210,6 @@ enum {
 #define DEFUNSH_HIDDEN(daemon, funcname, cmdname, cmdstr, helpstr)		\
 	DEFUNSH_ATTR (daemon, funcname, cmdname, cmdstr, helpstr, CMD_ATTR_HIDDEN)
 
-#define DEFUNSH_DEPRECATED(daemon, funcname, cmdname, cmdstr, helpstr)		\
-	DEFUNSH_ATTR (daemon, funcname, cmdname, cmdstr, helpstr, CMD_ATTR_DEPRECATED)
-
 /* ALIAS macro which define existing command's alias. */
 #define ALIAS(funcname, cmdname, cmdstr, helpstr)				\
 	DEFUN_CMD_ELEMENT(funcname, cmdname, cmdstr, helpstr, 0, 0)
@@ -226,27 +220,21 @@ enum {
 #define ALIAS_HIDDEN(funcname, cmdname, cmdstr, helpstr)			\
 	DEFUN_CMD_ELEMENT(funcname, cmdname, cmdstr, helpstr, CMD_ATTR_HIDDEN, 0)
 
-#define ALIAS_DEPRECATED(funcname, cmdname, cmdstr, helpstr)			\
-	DEFUN_CMD_ELEMENT(funcname, cmdname, cmdstr, helpstr, CMD_ATTR_DEPRECATED, 0)
-
 #define ALIAS_SH(daemon, funcname, cmdname, cmdstr, helpstr)			\
 	DEFUN_CMD_ELEMENT(funcname, cmdname, cmdstr, helpstr, 0, daemon)
 
 #define ALIAS_SH_HIDDEN(daemon, funcname, cmdname, cmdstr, helpstr)		\
 	DEFUN_CMD_ELEMENT(funcname, cmdname, cmdstr, helpstr, CMD_ATTR_HIDDEN, daemon)
 
-#define ALIAS_SH_DEPRECATED(daemon, funcname, cmdname, cmdstr, helpstr)		\
-	DEFUN_CMD_ELEMENT(funcname, cmdname, cmdstr, helpstr, CMD_ATTR_DEPRECATED, daemon)
-
 #define CMD_OPTION(S)	((S[0]) == '[')
 #define CMD_VARIABLE(S)	(((S[0]) >= 'A' && (S[0]) <= 'Z') || ((S[0]) == '<'))
 #define CMD_VARARG(S)	((S[0]) == '.')
 #define CMD_RANGE(S)	((S[0] == '<'))
 
-#define CMD_IPV4(S)		((strcmp ((S), "A.B.C.D") == 0))
-#define CMD_IPV4_PREFIX(S)	((strcmp ((S), "A.B.C.D/M") == 0))
-#define CMD_IPV6(S)		((strcmp ((S), "X:X::X:X") == 0))
-#define CMD_IPV6_PREFIX(S)	((strcmp ((S), "X:X::X:X/M") == 0))
+#define CMD_IPV4(S)		((strcmp((S), "A.B.C.D") == 0))
+#define CMD_IPV4_PREFIX(S)	((strcmp((S), "A.B.C.D/M") == 0))
+#define CMD_IPV6(S)		((strcmp((S), "X:X::X:X") == 0))
+#define CMD_IPV6_PREFIX(S)	((strcmp((S), "X:X::X:X/M") == 0))
 
 /* Common descriptions. */
 #define SHOW_STR "Show running system information\n"
