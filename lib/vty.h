@@ -181,7 +181,7 @@ extern int vty_listen(struct sockaddr_storage *);
 extern void vty_reset(void);
 extern vty_t *vty_new(void);
 extern int vty_out(vty_t *, const char *, ...) PRINTF_ATTRIBUTE(2, 3);
-extern void vty_read_config(char *, char *);
+extern int vty_read_config(char *, char *);
 extern void vty_time_print(vty_t *, int);
 extern void vty_serv_sock(const char *, unsigned short, const char *);
 extern void vty_close(vty_t *);
