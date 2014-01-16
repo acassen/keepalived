@@ -76,6 +76,7 @@ vty_out(vty_t *vty, const char *format, ...)
 	int len = 0;
 	int size = 1024;
 	char buf[1024];
+	char *tmp = NULL;
 	char *p = NULL;
 
 	if (vty_shell (vty)) {
@@ -96,9 +97,12 @@ vty_out(vty_t *vty, const char *format, ...)
 			else
 				size = size * 2;
 
-			p = REALLOC(p, size);
-			if (! p)
+			tmp = REALLOC(p, size);
+			if (! tmp) {
+				FREE(p);
 				return -1;
+			}
+			p = tmp;
 
 			va_start(args, format);
 			len = vsnprintf(p, size, format, args);
@@ -1689,7 +1693,6 @@ vty_use_backup_config(char *fullpath)
 		unlink(fullpath_tmp);
 		FREE(fullpath_sav);
 		FREE(fullpath_tmp);
-		close(sav);
 		return NULL;
 	}
   
@@ -1741,6 +1744,7 @@ vty_read_config(char *config_file, char *config_default_dir)
 			} else {
 				log_message(LOG_ERR, "can't open configuration file [%s]\n"
 						   , config_file);
+				FREE_PTR(tmp);
 				return -1;
 			}
 		}

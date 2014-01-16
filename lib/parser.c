@@ -276,6 +276,7 @@ check_include(char *buf)
 			log_message(LOG_INFO, "chdir(%s) error (%s)\n"
 					    , prev_path, strerror(errno));
 		}
+		free_strvec(strvec);
 		return 1;
 	}
 	free_strvec(strvec);
@@ -382,12 +383,9 @@ set_value(vector_t *strvec)
 			str = vector_slot(strvec, i);
 			len += strlen(str);
 			if (!alloc)
-				alloc =
-				    (char *) MALLOC(sizeof (char *) *
-						    (len + 1));
+				alloc = (char *) MALLOC(len + 1);
 			else {
-				alloc =
-				    REALLOC(alloc, sizeof (char *) * (len + 1));
+				alloc = (char *) REALLOC(alloc, (len + 1));
 				tmp = vector_slot(strvec, i-1);
 				if (*str != '"' && *tmp != '"')
 					strncat(alloc, " ", 1);
@@ -397,7 +395,7 @@ set_value(vector_t *strvec)
 				strncat(alloc, str, strlen(str));
 		}
 	} else {
-		alloc = MALLOC(sizeof (char *) * (size + 1));
+		alloc = (char *) MALLOC(size + 1);
 		memcpy(alloc, str, size);
 	}
 	return alloc;
