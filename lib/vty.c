@@ -1741,6 +1741,7 @@ vty_read_config(char *config_file, char *config_default_dir)
 			} else {
 				log_message(LOG_ERR, "can't open configuration file [%s]\n"
 						   , config_file);
+				FREE_PTR(tmp);
 				return -1;
 			}
 		}
