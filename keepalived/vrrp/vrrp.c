@@ -166,7 +166,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	 * then compute a ICV to compare with the one present in AH pkt.
 	 * alloc a temp memory space to stock the ip mutable fields
 	 */
-	digest = (unsigned char *) MALLOC(16 * sizeof (unsigned char *));
+	digest = (unsigned char *) MALLOC(16); /*MD5_DIGEST_LENGTH */
 
 	/* zero the ip mutable fields */
 	ip->tos = 0;
@@ -463,7 +463,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 	   => No padding needed.
 	   -- rfc2402.3.3.3.1.1.1 & rfc2401.5
 	 */
-	digest = (unsigned char *) MALLOC(16 * sizeof (unsigned char *));
+	digest = (unsigned char *) MALLOC(16); /*MD5_DIGEST_LENGTH */
 	hmac_md5((unsigned char *) buffer, buflen, vrrp->auth_data, sizeof (vrrp->auth_data)
 		 , digest);
 	memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
