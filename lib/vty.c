@@ -1693,7 +1693,6 @@ vty_use_backup_config(char *fullpath)
 		unlink(fullpath_tmp);
 		FREE(fullpath_sav);
 		FREE(fullpath_tmp);
-		close(sav);
 		return NULL;
 	}
   
