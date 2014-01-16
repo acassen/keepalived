@@ -276,6 +276,7 @@ check_include(char *buf)
 			log_message(LOG_INFO, "chdir(%s) error (%s)\n"
 					    , prev_path, strerror(errno));
 		}
+		free_strvec(strvec);
 		return 1;
 	}
 	free_strvec(strvec);
