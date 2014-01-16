@@ -76,6 +76,7 @@ vty_out(vty_t *vty, const char *format, ...)
 	int len = 0;
 	int size = 1024;
 	char buf[1024];
+	char *tmp = NULL;
 	char *p = NULL;
 
 	if (vty_shell (vty)) {
@@ -96,9 +97,12 @@ vty_out(vty_t *vty, const char *format, ...)
 			else
 				size = size * 2;
 
-			p = REALLOC(p, size);
-			if (! p)
+			tmp = REALLOC(p, size);
+			if (! tmp) {
+				FREE(p);
 				return -1;
+			}
+			p = tmp;
 
 			va_start(args, format);
 			len = vsnprintf(p, size, format, args);
