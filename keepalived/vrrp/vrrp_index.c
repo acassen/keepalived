@@ -91,6 +91,7 @@ void set_vrrp_fd_bucket(int old_fd, vrrp_t *vrrp)
 	element next;
 	list l = &vrrp_data->vrrp_index_fd[old_fd%1024 + 1];
 
+	/* Release old stalled entries */
 	for (e = LIST_HEAD(l); e; e = next) {
 		next = e->next;
 		vrrp_ptr =  ELEMENT_DATA(e);
@@ -106,14 +107,21 @@ void set_vrrp_fd_bucket(int old_fd, vrrp_t *vrrp)
 				l->tail = e->prev;
 			l->count--;
 			FREE(e);
+		}
+	}
+	if (LIST_ISEMPTY(l))
+		l->head = l->tail = NULL;
 
+	/* Hash refreshed entries */
+	l = vrrp_data->vrrp;
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vrrp_ptr = ELEMENT_DATA(e);
+
+		if (vrrp_ptr->fd_in == old_fd) {
 			/* Update new hash */
 			vrrp_ptr->fd_in = vrrp->fd_in;
 			vrrp_ptr->fd_out = vrrp->fd_out;
 			alloc_vrrp_fd_bucket(vrrp_ptr);
 		}
 	}
-
-	if (LIST_ISEMPTY(l))
-		l->head = l->tail = NULL;
 }
