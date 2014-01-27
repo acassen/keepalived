@@ -1153,7 +1153,7 @@ open_vrrp_socket(sa_family_t family, int proto, int idx, int unicast)
 void
 close_vrrp_socket(vrrp_t * vrrp)
 {
-	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
+	if (LIST_ISEMPTY(vrrp->unicast_peer)) {
 		if_leave_vrrp_group(vrrp->family, vrrp->fd_in, vrrp->ifp);
 	} else {
 		close(vrrp->fd_in);
