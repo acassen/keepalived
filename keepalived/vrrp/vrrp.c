@@ -1262,6 +1262,25 @@ vrrp_complete_init(void)
 	return 1;
 }
 
+int
+vrrp_ipvs_needed(void)
+{
+	vrrp_t *vrrp;
+	element e;
+
+	if (!vrrp_data)
+		return 0;
+
+	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+		if (vrrp->lvs_syncd_if) {
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
 /* Try to find a VRRP instance */
 static vrrp_t *
 vrrp_exist(vrrp_t * old_vrrp)

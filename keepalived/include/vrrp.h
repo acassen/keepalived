@@ -238,6 +238,7 @@ extern void vrrp_state_goto_master(vrrp_t *);
 extern void vrrp_state_leave_master(vrrp_t *);
 extern int vrrp_ipsecah_len(void);
 extern int vrrp_complete_init(void);
+extern int vrrp_ipvs_needed(void);
 extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);
 extern void clear_diff_script(void);

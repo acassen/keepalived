@@ -75,16 +75,18 @@ stop_vrrp(void)
 	/* Stop daemon */
 	pidfile_rm(vrrp_pidfile);
 
+#ifdef _WITH_LVS_
+	if (vrrp_ipvs_needed()) {
+		/* Clean ipvs related */
+		ipvs_stop();
+	}
+#endif
+
 	/* Clean data */
 	free_global_data(global_data);
 	free_vrrp_sockpool(vrrp_data);
 	free_vrrp_data(vrrp_data);
 	free_vrrp_buffer();
-
-#ifdef _WITH_LVS_
-	/* Clean ipvs related */
-	ipvs_stop();
-#endif
 
 #ifdef _DEBUG_
 	keepalived_free_final("VRRP Child process");
@@ -112,10 +114,6 @@ start_vrrp(void)
 		vrrp_snmp_agent_init();
 #endif
 
-#ifdef _WITH_LVS_
-	/* Initialize ipvs related */
-	ipvs_start();
-#endif
 	/* Parse configuration file */
 	global_data = alloc_global_data();
 	vrrp_data = alloc_vrrp_data();
@@ -126,6 +124,13 @@ start_vrrp(void)
 		return;
 	}
 
+#ifdef _WITH_LVS_
+	if (vrrp_ipvs_needed()) {
+		/* Initialize ipvs related */
+		ipvs_start();
+	}
+#endif
+
 	if (reload) {
 		clear_diff_saddresses();
 		clear_diff_sroutes();
@@ -135,7 +140,9 @@ start_vrrp(void)
 
 	/* Complete VRRP initialization */
 	if (!vrrp_complete_init()) {
-		stop_vrrp();
+		if (vrrp_ipvs_needed()) {
+			stop_vrrp();
+		}
 		return;
 	}
 
@@ -207,14 +214,16 @@ reload_vrrp_thread(thread_t * thread)
 	gratuitous_arp_close();
 	ndisc_close();
 
+#ifdef _WITH_LVS_
+	if (vrrp_ipvs_needed()) {
+		/* Clean ipvs related */
+		ipvs_stop();
+	}
+#endif
+
 	/* Save previous conf data */
 	old_vrrp_data = vrrp_data;
 	vrrp_data = NULL;
-
-#ifdef _WITH_LVS_
-	/* Clean ipvs related */
-	ipvs_stop();
-#endif
 
 	/* Reload the conf */
 	mem_allocated = 0;
