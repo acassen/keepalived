@@ -1,3 +1,60 @@
+2014-01-28  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.11 released.
+	* ipvs: make nlerr2syserr libnl dependent. nlerr2syserr()
+	  is only used when libnl is present... simply reflect this in
+	  libipvs.
+	* Fix libnl/libnl-3 logic in configure script.
+	  This patch causes the configure script to prefer libnl-3 over
+	  libnl(1). The configure script will first check for libnl-3 and
+	  libnl-genl-3. If both are found, use them. If not, check for
+	  libnl(1). This is useful when building on systems that have both
+	  libnl-3 and libnl(1) installed. It also fixes some redundant
+	  libraries in LIBS.
+	* libipvs: libnl-3 include fix.
+	* lib: extend command lib string parser.
+	  Extend cmd_make_strvec to support quoted string as a single slot
+	  and commented string at the end of parsed string.
+	* lib: cosmetics at command.c.
+	  Extend command framework to support logger and remove some dead
+	  code. some cosmetics too.
+	* lib: extend vty to support logger.
+	* autoconf: better libnl3 detection.
+	* Fix memory allocation in parser. The set_value function was
+	  incorrectly using sizeof (char *) when allocation and reallocating
+	  memory.
+	* Fix memory allocation for MD5 digest.
+	  The vrrp_in_chk_ipsecah and vrrp_build_ipsecah functions were
+	  incorrectly using sizeof (unsigned char *) when allocating memory
+	  for the MD5 digest.
+	* Fix memory leak in vty_read_config. If vty_use_backup_config
+	  returns NULL, free any memory that has been allocated before
+	  returning.
+	* Fix memory leak in check_include. The check_include function
+	  should always free the allocated strvec.
+	* Check content length before allocating memory.
+	  Since extract_content_length should return 0 if CONTENT_LENGTH is
+	  not found in the buffer, this check should be done before
+	  allocating memory. This avoids unnecessary malloc/free calls and
+	  fixes a potential memory leak.
+	* Free memory if realloc fails in vty_out. If realloc returns NULL,
+	  free the original memory before returning.
+	* Remove redundant close from vty_use_backup_config. The sav file
+	  descriptor is closed after read, so there is no need to close it
+	  again is chmod operation fails.
+	* Remove unnecessary netlink rtattr structures.
+	  Both netlink_link_setmode and netlink_link_add_vmac have rtattr
+	  structures that are no needed. The addattr_l function will handle
+	  adding the rtattr to the message. Also, this patch removes
+	  incorrect void pointer arithmetic when setting rta_len.
+	* vrrp: dont try to leave mcast group in unicast mode.
+	* vrrp: Release and refresh properly fd hash index.
+	  Rehashing into the same loop as releasing is not really the best
+	  idea... Reworked a little previous patch to properly release hash
+	  entries related to the same instance and then hash it back on new
+	  fd.
+	* vrrp: use configuration mcast group for leave message.
+	* vrrp: dont try to load ip_vs module when not needed.
+
 2014-01-02  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.10 released.
 	* Jonas Johansson removed unused option character in getopt
