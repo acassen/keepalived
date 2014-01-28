@@ -34,12 +34,12 @@ int extract_content_length(char *buffer, int size)
 	int inc = 0;
 	int i;
 
-	/* Allocate the room */
-	buf_len = (char *)MALLOC(40);
-
 	/* Pattern not found */
 	if (!clen)
 		return 0;
+
+	/* Allocate the room */
+	buf_len = (char *)MALLOC(40);
 
 	/* Content-Length extraction */
 	while (*(clen++) != ':');
