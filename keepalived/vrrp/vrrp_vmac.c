@@ -72,6 +72,8 @@ netlink_link_setmode(vrrp_t *vrrp)
 		struct ifinfomsg ifi;
 		char buf[256];
 	} req;
+	struct rtattr *linkinfo;
+	struct rtattr *data;
 
 	memset(&req, 0, sizeof (req));
 
@@ -81,8 +83,10 @@ netlink_link_setmode(vrrp_t *vrrp)
 	req.ifi.ifi_family = AF_INET;
 	req.ifi.ifi_index = IF_INDEX(vrrp->ifp);
 
+	linkinfo = NLMSG_TAIL(&req.n);
 	addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
 	addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (void *) ll_kind, strlen(ll_kind));
+	data = NLMSG_TAIL(&req.n);
 	addattr_l(&req.n, sizeof(req), IFLA_INFO_DATA, NULL, 0);
 
 	/*
@@ -91,6 +95,8 @@ netlink_link_setmode(vrrp_t *vrrp)
 	 */
 	addattr32(&req.n, sizeof(req), IFLA_MACVLAN_MODE,
 		  MACVLAN_MODE_PRIVATE);
+	data->rta_len = (void *)NLMSG_TAIL(&req.n) - (void *)data;
+	linkinfo->rta_len = (void *)NLMSG_TAIL(&req.n) - (void *)linkinfo;
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;
@@ -129,6 +135,7 @@ int
 netlink_link_add_vmac(vrrp_t *vrrp)
 {
 #ifdef _HAVE_VRRP_VMAC_
+	struct rtattr *linkinfo;
 	unsigned int base_ifindex;
 	interface_t *ifp;
 	char ifname[IFNAMSIZ];
@@ -163,8 +170,10 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	req.ifi.ifi_family = AF_INET;
 
 	/* macvlan settings */
+	linkinfo = NLMSG_TAIL(&req.n);
 	addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
 	addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (void *)ll_kind, strlen(ll_kind));
+	linkinfo->rta_len = (void *)NLMSG_TAIL(&req.n) - (void *)linkinfo;
 	addattr_l(&req.n, sizeof(req), IFLA_LINK, &IF_INDEX(vrrp->ifp), sizeof(uint32_t));
 	addattr_l(&req.n, sizeof(req), IFLA_IFNAME, ifname, strlen(ifname));
 
