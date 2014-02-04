@@ -385,7 +385,7 @@ set_value(vector_t *strvec)
 			if (!alloc)
 				alloc = (char *) MALLOC(len + 1);
 			else {
-				alloc = (char *) REALLOC(alloc, (len + 1));
+				alloc = (char *) REALLOC(alloc, 2 * (len + 1));
 				tmp = vector_slot(strvec, i-1);
 				if (*str != '"' && *tmp != '"')
 					strncat(alloc, " ", 1);
