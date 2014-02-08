@@ -1,3 +1,7 @@
+2014-02-08  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.12 released.
+	* lib: Fix reallocation issue introduced in last merge.
+
 2014-01-28  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.11 released.
 	* ipvs: make nlerr2syserr libnl dependent. nlerr2syserr()
