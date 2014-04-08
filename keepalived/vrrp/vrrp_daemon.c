@@ -127,7 +127,10 @@ start_vrrp(void)
 #ifdef _WITH_LVS_
 	if (vrrp_ipvs_needed()) {
 		/* Initialize ipvs related */
-		ipvs_start();
+		if (ipvs_start() != IPVS_SUCCESS) {
+			stop_vrrp();
+			return;
+		}
 	}
 #endif
 
