@@ -275,7 +275,8 @@ update_quorum_state(virtual_server_t * vs)
 				    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
 				    , ntohs(inet_sockaddrport(&vs->addr)));
 		if (vs->s_svr && ISALIVE(vs->s_svr)) {
-			log_message(LOG_INFO, "Removing sorry server [%s]:%d from VS [%s]:%d"
+			log_message(LOG_INFO, "%s sorry server [%s]:%d from VS [%s]:%d"
+					    , (vs->s_svr->inhibit ? "Disabling" : "Removing")
 					    , inet_sockaddrtos2(&vs->s_svr->addr, rsip)
 					    , ntohs(inet_sockaddrport(&vs->s_svr->addr))
 					    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
@@ -323,7 +324,8 @@ update_quorum_state(virtual_server_t * vs)
 			notify_exec(vs->quorum_down);
 		}
 		if (vs->s_svr) {
-			log_message(LOG_INFO, "Adding sorry server [%s]:%d to VS [%s]:%d"
+			log_message(LOG_INFO, "%s sorry server [%s]:%d to VS [%s]:%d"
+					    , (vs->s_svr->inhibit ? "Enabling" : "Adding")
 					    , inet_sockaddrtos2(&vs->s_svr->addr, rsip)
 					    , ntohs(inet_sockaddrport(&vs->s_svr->addr))
 					    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)

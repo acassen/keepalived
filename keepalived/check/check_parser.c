@@ -169,6 +169,16 @@ ssvr_handler(vector_t *strvec)
 {
 	alloc_ssvr(vector_slot(strvec, 1), vector_slot(strvec, 2));
 }
+static void
+ssvri_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	if (vs->s_svr) {
+		vs->s_svr->inhibit = 1;
+	} else {
+		log_message(LOG_ERR, "Ignoring sorry_server_inhibit used before or without sorry_server");
+	}
+}
 
 /* Real Servers handlers */
 static void
@@ -312,6 +322,7 @@ check_init_keywords(void)
 
 	/* Real server mapping */
 	install_keyword("sorry_server", &ssvr_handler);
+	install_keyword("sorry_server_inhibit", &ssvri_handler);
 	install_keyword("real_server", &rs_handler);
 	install_sublevel();
 	install_keyword("weight", &weight_handler);

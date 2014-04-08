@@ -363,6 +363,9 @@ A virtual_server can be a declaration of one of
 
     # RS to add when all realservers are down
     sorry_server <IPADDR> <PORT>
+    # applies inhibit_on_failure behaviour to the
+    # preceding sorry_server directive
+    sorry_server_inhibit
     
     # one entry for each realserver 	
     real_server <IPADDR> <PORT> 
