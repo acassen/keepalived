@@ -244,6 +244,7 @@ ssl_read_thread(thread_t * thread)
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	http_t *http = HTTP_ARG(http_get_check);
 	request_t *req = HTTP_REQ(http);
+	unsigned timeout = checker->co->connection_to;
 	unsigned char digest[16];
 	int r = 0;
 	int val;
@@ -269,7 +270,7 @@ ssl_read_thread(thread_t * thread)
 	if (req->error == SSL_ERROR_WANT_READ) {
 		 /* async read unfinished */ 
 		thread_add_read(thread->master, ssl_read_thread, checker,
-				thread->u.fd, http_get_check->connection_to);
+				thread->u.fd, timeout);
 	} else if (r > 0 && req->error == 0) {
 		/* Handle response stream */
 		http_process_response(req, r);
@@ -279,7 +280,7 @@ ssl_read_thread(thread_t * thread)
 		 * Register itself to not perturbe global I/O multiplexer.
 		 */
 		thread_add_read(thread->master, ssl_read_thread, checker,
-				thread->u.fd, http_get_check->connection_to);
+				thread->u.fd, timeout);
 	} else if (req->error) {
 
 		/* All the SSL streal has been parsed */

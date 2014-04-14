@@ -22,16 +22,17 @@
  */
 
 #include "layer4.h"
-#include "check_api.h"
 #include "utils.h"
 
 enum connect_result
-tcp_bind_connect(int fd, struct sockaddr_storage *addr, struct sockaddr_storage *bind_addr)
+tcp_bind_connect(int fd, conn_opts_t *co)
 {
 	struct linger li = { 0 };
 	socklen_t addrlen;
 	int ret;
 	int val;
+	struct sockaddr_storage *addr = &co->dst;
+	struct sockaddr_storage *bind_addr = &co->bindto;
 
 	/* free the tcp port after closing the socket descriptor */
 	li.l_onoff = 1;
@@ -43,7 +44,7 @@ tcp_bind_connect(int fd, struct sockaddr_storage *addr, struct sockaddr_storage 
 	fcntl(fd, F_SETFL, val | O_NONBLOCK);
 
 	/* Bind socket */
-	if (bind_addr && ((struct sockaddr *) bind_addr)->sa_family != AF_UNSPEC) {
+	if (((struct sockaddr *) bind_addr)->sa_family != AF_UNSPEC) {
 		addrlen = sizeof(*bind_addr);
 		if (bind(fd, (struct sockaddr *) bind_addr, addrlen) != 0)
 			return connect_error;
@@ -73,7 +74,10 @@ tcp_bind_connect(int fd, struct sockaddr_storage *addr, struct sockaddr_storage 
 enum connect_result
 tcp_connect(int fd, struct sockaddr_storage *addr)
 {
-	return tcp_bind_connect(fd, addr, NULL);
+	conn_opts_t co;
+	memset(&co, 0, sizeof(co));
+	co.dst = *addr;
+	return tcp_bind_connect(fd, &co);
 }
 
 enum connect_result

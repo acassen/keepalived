@@ -31,6 +31,7 @@
 #include "check_data.h"
 #include "scheduler.h"
 #include "list.h"
+#include "check_api.h"
 
 #define SMTP_BUFF_MAX		512
 
@@ -45,10 +46,7 @@
 #define SMTP_DEFAULT_PORT	25
 
 /* Per host configuration structure  */
-typedef struct _smtp_host {
-	struct sockaddr_storage		dst;
-	struct sockaddr_storage		bindto;
-} smtp_host_t;
+typedef conn_opts_t smtp_host_t;
 
 /* Checker argument structure  */
 typedef struct _smtp_checker {

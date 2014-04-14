@@ -34,6 +34,7 @@
 
 /* local includes */
 #include "scheduler.h"
+#include "check_api.h"
 
 enum connect_result {
 	connect_error,
@@ -44,7 +45,7 @@ enum connect_result {
 
 /* Prototypes defs */
 extern enum connect_result
- tcp_bind_connect(int, struct sockaddr_storage *, struct sockaddr_storage *);
+ tcp_bind_connect(int, conn_opts_t *);
 
 extern enum connect_result
  tcp_connect(int, struct sockaddr_storage *);

@@ -67,7 +67,7 @@ misc_check_handler(vector_t *strvec)
 
 	/* queue new checker */
 	queue_checker(free_misc_check, dump_misc_check, misc_check_thread,
-		      misck_checker);
+		      misck_checker, NULL);
 }
 
 void
