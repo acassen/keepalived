@@ -92,6 +92,7 @@ typedef struct _http_checker {
 /* macro utility */
 #define HTTP_ARG(X) ((X)->arg)
 #define HTTP_REQ(X) ((X)->req)
+#define FMT_HTTP_RS(C) (inet_sockaddrtopair (&((http_checker_t *)CHECKER_ARG(C))->dst))
 
 /* Define prototypes */
 extern void install_http_check_keyword(void);

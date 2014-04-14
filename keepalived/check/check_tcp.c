@@ -101,11 +101,9 @@ int
 tcp_check_thread(thread_t * thread)
 {
 	checker_t *checker;
-	tcp_checker_t *tcp_check;
 	int status;
 
 	checker = THREAD_ARG(thread);
-	tcp_check = CHECKER_ARG(checker);
 
 	status = tcp_socket_state(thread->u.fd, thread, tcp_check_thread);
 
@@ -116,9 +114,8 @@ tcp_check_thread(thread_t * thread)
 		close(thread->u.fd);
 
 		if (!svr_checker_up(checker->id, checker->rs)) {
-			log_message(LOG_INFO, "TCP connection to [%s]:%d success."
-					    , inet_sockaddrtos(&tcp_check->dst)
-					    , ntohs(inet_sockaddrport(&tcp_check->dst)));
+			log_message(LOG_INFO, "TCP connection to %s success."
+					, FMT_TCP_RS(checker));
 			smtp_alert(checker->rs, NULL, NULL,
 				   "UP",
 				   "=> TCP CHECK succeed on service <=");
@@ -130,9 +127,8 @@ tcp_check_thread(thread_t * thread)
 	} else {
 
 		if (svr_checker_up(checker->id, checker->rs)) {
-			log_message(LOG_INFO, "TCP connection to [%s]:%d failed !!!"
-					    , inet_sockaddrtos(&tcp_check->dst)
-					    , ntohs(inet_sockaddrport(&tcp_check->dst)));
+			log_message(LOG_INFO, "TCP connection to %s failed !!!"
+					, FMT_TCP_RS(checker));
 			smtp_alert(checker->rs, NULL, NULL,
 				   "DOWN",
 				   "=> TCP CHECK failed on service <=");

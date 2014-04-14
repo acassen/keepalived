@@ -210,9 +210,8 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 	urule->protocol = vs->service_type;
 
 	if (!parse_timeout(vs->timeout_persistence, &urule->timeout))
-		log_message(LOG_INFO, "IPVS : Virtual service [%s]:%d illegal timeout."
-				    , inet_ntop2(inet_sockaddrip4(&vs->addr))
-				    , ntohs(inet_sockaddrport(&vs->addr)));
+		log_message(LOG_INFO, "IPVS : Virtual service %s illegal timeout."
+					, FMT_VS(vs));
 
 	if (urule->timeout != 0 || vs->granularity_persistence)
 		urule->vs_flags = IP_VS_SVC_F_PERSISTENT;
@@ -538,9 +537,8 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 	srule->protocol = vs->service_type;
 
 	if (!parse_timeout(vs->timeout_persistence, &srule->timeout))
-		log_message(LOG_INFO, "IPVS : Virtual service [%s]:%d illegal timeout."
-				    , inet_ntop2(inet_sockaddrip4(&vs->addr))
-				    , ntohs(inet_sockaddrport(&vs->addr)));
+		log_message(LOG_INFO, "IPVS : Virtual service %s illegal timeout."
+				    , FMT_VS(vs));
 
 	if (srule->timeout != 0 || vs->granularity_persistence)
 		srule->flags |= IP_VS_SVC_F_PERSISTENT;

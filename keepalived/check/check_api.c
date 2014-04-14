@@ -52,9 +52,7 @@ static void
 dump_checker(void *data)
 {
 	checker_t *checker = data;
-	log_message(LOG_INFO, " [%s]:%d"
-			    , inet_sockaddrtos(&checker->rs->addr)
-			    , ntohs(inet_sockaddrport(&checker->rs->addr)));
+	log_message(LOG_INFO, " %s", FMT_CHK(checker));
 	(*checker->dump_func) (checker);
 }
 
@@ -149,9 +147,8 @@ register_checkers_thread(void)
 
 	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 		checker = ELEMENT_DATA(e);
-		log_message(LOG_INFO, "Activating healthchecker for service [%s]:%d"
-				    , inet_sockaddrtos(&checker->rs->addr)
-				    , ntohs(inet_sockaddrport(&checker->rs->addr)));
+		log_message(LOG_INFO, "Activating healthchecker for service %s"
+				    , FMT_CHK(checker));
 		CHECKER_ENABLE(checker);
 		if (checker->launch)
 			thread_add_timer(master, checker->launch, checker,
@@ -194,13 +191,11 @@ update_checker_activity(sa_family_t family, void *address, int enable)
 			if (inaddr_equal(family, addr, address) &&
 			    CHECKER_HA_SUSPEND(checker)) {
 				if (!CHECKER_ENABLED(checker) && enable)
-					log_message(LOG_INFO, "Activating healthchecker for service [%s]:%d"
-							    , inet_sockaddrtos(&checker->rs->addr)
-							    , ntohs(inet_sockaddrport(&checker->rs->addr)));
+					log_message(LOG_INFO, "Activating healthchecker for service %s"
+							    , FMT_CHK(checker));
 				if (CHECKER_ENABLED(checker) && !enable)
-					log_message(LOG_INFO, "Suspending healthchecker for service [%s]:%d"
-							    , inet_sockaddrtos(&checker->rs->addr)
-							    , ntohs(inet_sockaddrport(&checker->rs->addr)));
+					log_message(LOG_INFO, "Suspending healthchecker for service %s"
+							    , FMT_CHK(checker));
 				checker->enabled = enable;
 			}
 		}

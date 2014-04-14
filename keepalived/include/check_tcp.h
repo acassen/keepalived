@@ -38,6 +38,9 @@ typedef struct _tcp_checker {
 	int				connection_to;
 } tcp_checker_t;
 
+/* macro utility */
+#define FMT_TCP_RS(C) (inet_sockaddrtopair (&((tcp_checker_t *)CHECKER_ARG(C))->dst))
+
 /* Prototypes defs */
 extern void install_tcp_check_keyword(void);
 

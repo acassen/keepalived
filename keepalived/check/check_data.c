@@ -214,9 +214,8 @@ dump_vs(void *data)
 	}
 
 	if (vs->s_svr) {
-		log_message(LOG_INFO, "   sorry server = [%s]:%d"
-				    , inet_sockaddrtos(&vs->s_svr->addr)
-				    , ntohs(inet_sockaddrport(&vs->s_svr->addr)));
+		log_message(LOG_INFO, "   sorry server = %s"
+				    , FMT_RS(vs->s_svr));
 	}
 	if (!LIST_ISEMPTY(vs->rs))
 		dump_list(vs->rs);
@@ -355,4 +354,26 @@ dump_check_data(check_data_t *data)
 		dump_list(data->vs);
 	}
 	dump_checkers_queue();
+}
+
+char *
+format_vs (virtual_server_t *vs)
+{
+	static char addr_str[INET6_ADDRSTRLEN + 1];
+	/* alloc large buffer because of unknown length of vs->vsgname */
+	static char ret[512];
+
+	if (vs->vsgname)
+		snprintf (ret, sizeof (ret) - 1, "[%s]:%d"
+			, vs->vsgname
+			, ntohs(inet_sockaddrport(&vs->addr)));
+	else if (vs->vfwmark)
+		snprintf (ret, sizeof (ret) - 1, "FWM %d", vs->vfwmark);
+	else {
+		inet_sockaddrtos2(&vs->addr, addr_str);
+		snprintf(ret, sizeof(ret) - 1, "[%s]:%d"
+			, addr_str
+			, ntohs(inet_sockaddrport(&vs->addr)));
+	}
+	return ret;
 }

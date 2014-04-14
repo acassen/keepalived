@@ -56,17 +56,14 @@ clear_service_rs(list vs_group, virtual_server_t * vs, list l)
 {
 	element e;
 	real_server_t *rs;
-	char rsip[INET6_ADDRSTRLEN];
 	long unsigned weight_sum;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
 		if (ISALIVE(rs)) {
-			log_message(LOG_INFO, "Removing service [%s]:%d from VS [%s]:%d"
-					    , inet_sockaddrtos2(&rs->addr, rsip)
-					    , ntohs(inet_sockaddrport(&rs->addr))
-					    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
-					    , ntohs(inet_sockaddrport(&vs->addr)));
+			log_message(LOG_INFO, "Removing service %s from VS %s"
+						, FMT_RS(rs)
+						, FMT_VS(vs));
 			if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs_group, vs, rs))
 				return 0;
 			UNSET_ALIVE(rs);
@@ -77,12 +74,10 @@ clear_service_rs(list vs_group, virtual_server_t * vs, list l)
 			 * all the way down the exit, as necessary.
 			 */
 			if (rs->notify_down) {
-				log_message(LOG_INFO, "Executing [%s] for service [%s]:%d in VS [%s]:%d"
+				log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
 						    , rs->notify_down
-						    , inet_sockaddrtos2(&rs->addr, rsip)
-						    , ntohs(inet_sockaddrport(&rs->addr))
-						    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
-						    , ntohs(inet_sockaddrport(&vs->addr)));
+						    , FMT_RS(rs)
+						    , FMT_VS(vs));
 				notify_exec(rs->notify_down);
 			}
 #ifdef _WITH_SNMP_
@@ -100,10 +95,9 @@ clear_service_rs(list vs_group, virtual_server_t * vs, list l)
 			) {
 				vs->quorum_state = DOWN;
 				if (vs->quorum_down) {
-					log_message(LOG_INFO, "Executing [%s] for VS [%s]:%d"
+					log_message(LOG_INFO, "Executing [%s] for VS %s"
 							    , vs->quorum_down
-							    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
-							    , ntohs(inet_sockaddrport(&vs->addr)));
+							    , FMT_VS(vs));
 					notify_exec(vs->quorum_down);
 				}
 #ifdef _WITH_SNMP_
@@ -241,10 +235,9 @@ perform_quorum_state(virtual_server_t *vs, int add)
 	if (LIST_ISEMPTY(vs->rs))
 		return;
 
-	log_message(LOG_INFO, "%s the pool for VS [%s]:%d"
+	log_message(LOG_INFO, "%s the pool for VS %s"
 			    , add?"Adding alive servers to":"Removing alive servers from"
-			    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
-			    , ntohs(inet_sockaddrport(&vs->addr)));
+			    , FMT_VS(vs));
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
 		if (!ISALIVE(rs)) /* We only handle alive servers */
@@ -260,26 +253,22 @@ perform_quorum_state(virtual_server_t *vs, int add)
 static void
 update_quorum_state(virtual_server_t * vs)
 {
-	char rsip[INET6_ADDRSTRLEN];
 	long unsigned weight_sum = weigh_live_realservers(vs);
 
 	/* If we have just gained quorum, it's time to consider notify_up. */
 	if (vs->quorum_state == DOWN &&
 	    weight_sum >= vs->quorum + vs->hysteresis) {
 		vs->quorum_state = UP;
-		log_message(LOG_INFO, "Gained quorum %lu+%lu=%lu <= %u for VS [%s]:%d"
+		log_message(LOG_INFO, "Gained quorum %lu+%lu=%lu <= %u for VS %s"
 				    , vs->quorum
 				    , vs->hysteresis
 				    , vs->quorum + vs->hysteresis
 				    , weight_sum
-				    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
-				    , ntohs(inet_sockaddrport(&vs->addr)));
+				    , FMT_VS(vs));
 		if (vs->s_svr && ISALIVE(vs->s_svr)) {
-			log_message(LOG_INFO, "Removing sorry server [%s]:%d from VS [%s]:%d"
-					    , inet_sockaddrtos2(&vs->s_svr->addr, rsip)
-					    , ntohs(inet_sockaddrport(&vs->s_svr->addr))
-					    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
-					    , ntohs(inet_sockaddrport(&vs->addr)));
+			log_message(LOG_INFO, "Removing sorry server %s from VS %s"
+					    , FMT_RS(vs->s_svr)
+					    , FMT_VS(vs));
 
 			ipvs_cmd(LVS_CMD_DEL_DEST, check_data->vs_group, vs, vs->s_svr);
 			vs->s_svr->alive = 0;
@@ -288,10 +277,9 @@ update_quorum_state(virtual_server_t * vs)
 			perform_quorum_state(vs, 1);
 		}
 		if (vs->quorum_up) {
-			log_message(LOG_INFO, "Executing [%s] for VS [%s]:%d"
+			log_message(LOG_INFO, "Executing [%s] for VS %s"
 					    , vs->quorum_up
-					    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
-					    , ntohs(inet_sockaddrport(&vs->addr)));
+					    , FMT_VS(vs));
 			notify_exec(vs->quorum_up);
 		}
 #ifdef _WITH_SNMP_
@@ -308,26 +296,22 @@ update_quorum_state(virtual_server_t * vs)
 	    weight_sum < vs->quorum - vs->hysteresis)
 	) {
 		vs->quorum_state = DOWN;
-		log_message(LOG_INFO, "Lost quorum %lu-%lu=%lu > %u for VS [%s]:%d"
+		log_message(LOG_INFO, "Lost quorum %lu-%lu=%lu > %u for VS %s"
 				    , vs->quorum
 				    , vs->hysteresis
 				    , vs->quorum - vs->hysteresis
 				    , weight_sum
-				    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
-				    , ntohs(inet_sockaddrport(&vs->addr)));
+				    , FMT_VS(vs));
 		if (vs->quorum_down) {
-			log_message(LOG_INFO, "Executing [%s] for VS [%s]:%d"
+			log_message(LOG_INFO, "Executing [%s] for VS %s"
 					    , vs->quorum_down
-					    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
-					    , ntohs(inet_sockaddrport(&vs->addr)));
+					    , FMT_VS(vs));
 			notify_exec(vs->quorum_down);
 		}
 		if (vs->s_svr) {
-			log_message(LOG_INFO, "Adding sorry server [%s]:%d to VS [%s]:%d"
-					    , inet_sockaddrtos2(&vs->s_svr->addr, rsip)
-					    , ntohs(inet_sockaddrport(&vs->s_svr->addr))
-					    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
-					    , ntohs(inet_sockaddrport(&vs->addr)));
+			log_message(LOG_INFO, "Adding sorry server %s to VS %s"
+					    , FMT_RS(vs->s_svr)
+					    , FMT_VS(vs));
 
 			/* the sorry server is now up in the pool, we flag it alive */
 			ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, vs->s_svr);
@@ -347,8 +331,6 @@ update_quorum_state(virtual_server_t * vs)
 void
 perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 {
-	char rsip[INET6_ADDRSTRLEN];
-
 	/*
 	 * | ISALIVE(rs) | alive | context
 	 * | 0           | 0     | first check failed under alpha mode, unreachable here
@@ -357,24 +339,20 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 	 * | 1           | 1     | first check succeeded w/o alpha mode, unreachable here
 	 */
 	if (!ISALIVE(rs) && alive) {
-		log_message(LOG_INFO, "%s service [%s]:%d to VS [%s]:%d"
+		log_message(LOG_INFO, "%s service %s to VS %s"
 				    , (rs->inhibit) ? "Enabling" : "Adding"
-				    , inet_sockaddrtos2(&rs->addr, rsip)
-				    , ntohs(inet_sockaddrport(&rs->addr))
-				    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
-				    , ntohs(inet_sockaddrport(&vs->addr)));
+				    , FMT_RS(rs)
+				    , FMT_VS(vs));
 		/* Add only if we have quorum or no sorry server */
 		if (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)) {
 			ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, rs);
 		}
 		rs->alive = alive;
 		if (rs->notify_up) {
-			log_message(LOG_INFO, "Executing [%s] for service [%s]:%d in VS [%s]:%d"
+			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
 					    , rs->notify_up
-					    , inet_sockaddrtos2(&rs->addr, rsip)
-					    , ntohs(inet_sockaddrport(&rs->addr))
-					    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
-					    , ntohs(inet_sockaddrport(&vs->addr)));
+					    , FMT_RS(rs)
+					    , FMT_VS(vs));
 			notify_exec(rs->notify_up);
 		}
 #ifdef _WITH_SNMP_
@@ -386,12 +364,10 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 	}
 
 	if (ISALIVE(rs) && !alive) {
-		log_message(LOG_INFO, "%s service [%s]:%d from VS [%s]:%d"
+		log_message(LOG_INFO, "%s service %s from VS %s"
 				    , (rs->inhibit) ? "Disabling" : "Removing"
-				    , inet_sockaddrtos2(&rs->addr, rsip)
-				    , ntohs(inet_sockaddrport(&rs->addr))
-				    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
-				    , ntohs(inet_sockaddrport(&vs->addr)));
+				    , FMT_RS(rs)
+				    , FMT_VS(vs));
 
 		/* server is down, it is removed from the LVS realserver pool
 		 * Remove only if we have quorum or no sorry server
@@ -401,12 +377,10 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 		}
 		rs->alive = alive;
 		if (rs->notify_down) {
-			log_message(LOG_INFO, "Executing [%s] for service [%s]:%d in VS [%s]:%d"
+			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
 					    , rs->notify_down
-					    , inet_sockaddrtos2(&rs->addr, rsip)
-					    , ntohs(inet_sockaddrport(&rs->addr))
-					    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
-					    , ntohs(inet_sockaddrport(&vs->addr)));
+					    , FMT_RS(rs)
+					    , FMT_VS(vs));
 			notify_exec(rs->notify_down);
 		}
 #ifdef _WITH_SNMP_
@@ -422,17 +396,13 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 void
 update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs)
 {
-	char rsip[INET6_ADDRSTRLEN];
-
 	if (weight != rs->weight) {
-		log_message(LOG_INFO, "Changing weight from %d to %d for %s service [%s]:%d of VS [%s]:%d"
+		log_message(LOG_INFO, "Changing weight from %d to %d for %s service %s of VS %s"
 				    , rs->weight
 				    , weight
 				    , ISALIVE(rs) ? "active" : "inactive"
-				    , inet_sockaddrtos2(&rs->addr, rsip)
-				    , ntohs(inet_sockaddrport(&rs->addr))
-				    , (vs->vsgname) ? vs->vsgname : inet_sockaddrtos(&vs->addr)
-				    , ntohs(inet_sockaddrport(&vs->addr)));
+				    , FMT_RS(rs)
+				    , FMT_VS(vs));
 		rs->weight = weight;
 		/*
 		 * Have weight change take effect now only if rs is in
@@ -681,9 +651,8 @@ clear_diff_rs(list old_vs_group, virtual_server_t * old_vs)
 		rs = ELEMENT_DATA(e);
 		if (!rs_exist(rs, new)) {
 			/* Reset inhibit flag to delete inhibit entries */
-			log_message(LOG_INFO, "service [%s]:%d no longer exist"
-					    , inet_sockaddrtos(&rs->addr)
-					    , ntohs(inet_sockaddrport(&rs->addr)));
+			log_message(LOG_INFO, "service %s no longer exist"
+					    , FMT_RS(rs));
 			rs->inhibit = 0;
 			list_add (rs_to_remove, rs);
 		}
@@ -719,9 +688,8 @@ clear_diff_services(void)
 				log_message(LOG_INFO, "Removing Virtual Server Group [%s]"
 						    , vs->vsgname);
 			else
-				log_message(LOG_INFO, "Removing Virtual Server [%s]:%d"
-						    , inet_sockaddrtos(&vs->addr)
-						    , ntohs(inet_sockaddrport(&vs->addr)));
+				log_message(LOG_INFO, "Removing Virtual Server %s"
+						    , FMT_VS(vs));
 
 			/* Clear VS entry */
 			if (!clear_service_vs(old_check_data->vs_group, vs))
