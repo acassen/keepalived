@@ -400,23 +400,54 @@ A virtual_server can be a declaration of one of
                  # eg status_code 200
                  status_code <INT>     
                } 
-               #IP, tcp port for service on realserver 
-               connect_port <PORT> 
-               bindto <IPADDR>
-               # Timeout connection, sec
-               connect_timeout <INT> 
                # number of get retry
                nb_get_retry <INT> 
                # delay before retry
                delay_before_retry <INT>
+
+               # ======== generic connection options
+               # Optional IP address to connect to.
+               # The default is real server's IP
+               connect_ip <IP ADDRESS>
+               # Optional port to connect to if not
+               # The default is real server's port
+               connect_port <PORT>
+               # Optional interface to use to
+               # originate the connection
+               bindto <IP ADDRESS>
+               # Optional source port to
+               # originate the connection from
+               bind_port <PORT>
+               # Optional connection timeout in seconds.
+               # The default is 5 seconds
+               connect_timeout <INTEGER>
+               # Optional fwmark to mark all outgoing
+               # checker pakets with
+               fwmark <INTEGER>
            } #HTTP_GET|SSL_GET
    
            #TCP healthchecker (bind to IP port)
            TCP_CHECK 
            { 
+               # ======== generic connection options
+               # Optional IP address to connect to.
+               # The default is real server's IP
+               connect_ip <IP ADDRESS>
+               # Optional port to connect to if not
+               # The default is real server's port
                connect_port <PORT>
-               bindto <IPADDR>
-               connect_timeout <INT> 
+               # Optional interface to use to
+               # originate the connection
+               bindto <IP ADDRESS>
+               # Optional source port to
+               # originate the connection from
+               bind_port <PORT>
+               # Optional connection timeout in seconds.
+               # The default is 5 seconds
+               connect_timeout <INTEGER>
+               # Optional fwmark to mark all outgoing
+               # checker pakets with
+               fwmark <INTEGER>
            } #TCP_CHECK
 
            # SMTP healthchecker
@@ -427,7 +458,9 @@ A virtual_server can be a declaration of one of
                # the ip address of the real server will
                # be checked.
                host {
-                 # IP address to connect to
+                 # ======== generic connection options
+                 # Optional IP address to connect to.
+                 # The default is real server's IP
                  connect_ip <IP ADDRESS>
                  # Optional port to connect to if not
                  # the default of 25
@@ -435,9 +468,18 @@ A virtual_server can be a declaration of one of
                  # Optional interface to use to
                  # originate the connection
                  bindto <IP ADDRESS>
+                 # Optional source port to
+                 # originate the connection from
+                 bind_port <PORT>
+                 # Optional per-host connection timeout.
+                 # Default is outer-scope connect_timeout
+                 connect_timeout <INTEGER>
+                 # Optional fwmark to mark all outgoing
+                 # checker pakets with
+                 fwmark <INTEGER>
               }
               # Connection and read/write timeout
-              # in seconds
+              # in seconds. The default is 5 seconds
               connect_timeout <INTEGER>
               # Number of times to retry a failed check
               retry <INTEGER>
