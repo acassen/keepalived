@@ -9,7 +9,7 @@ SNMP_FLAG = @SNMP_SUPPORT@
 INCLUDES = -I../include -I../../lib
 CFLAGS	 = @CFLAGS@ @CPPFLAGS@ $(INCLUDES) \
 	   -Wall -Wunused -Wstrict-prototypes
-DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@VRRP_SUPPORT@ -D@SNMP_SUPPORT@ @DFLAGS@
+DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@VRRP_SUPPORT@ -D@SNMP_SUPPORT@ -D@SO_MARK_SUPPORT@ @DFLAGS@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
 OBJS = 	main.o daemon.o pidfile.o layer4.o smtp.o \

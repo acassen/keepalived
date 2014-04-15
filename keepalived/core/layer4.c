@@ -44,12 +44,14 @@ tcp_bind_connect(int fd, conn_opts_t *co)
 	val = fcntl(fd, F_GETFL, 0);
 	fcntl(fd, F_SETFL, val | O_NONBLOCK);
 
+#ifdef _WITH_SO_MARK_
 	if (co->fwmark) {
 		if (setsockopt (fd, SOL_SOCKET, SO_MARK, &co->fwmark, sizeof (co->fwmark)) < 0) {
 			log_message(LOG_ERR, "Error setting fwmark %d to socket: %s", co->fwmark, strerror(errno));
 			return connect_error;
 		}
 	}
+#endif
 
 	/* Bind socket */
 	if (((struct sockaddr *) bind_addr)->sa_family != AF_UNSPEC) {

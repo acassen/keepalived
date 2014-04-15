@@ -173,6 +173,7 @@ co_timeout_handler(vector_t *strvec)
 		co->connection_to = TIMER_HZ;
 }
 
+#ifdef _WITH_SO_MARK_
 /* "fwmark" keyword */
 static void
 co_fwmark_handler(vector_t *strvec)
@@ -180,6 +181,7 @@ co_fwmark_handler(vector_t *strvec)
 	conn_opts_t *co = CHECKER_GET_CO();
 	co->fwmark = CHECKER_VALUE_INT(strvec);
 }
+#endif
 
 void
 install_connect_keywords(void)
@@ -189,7 +191,9 @@ install_connect_keywords(void)
 	install_keyword("bindto", &co_srcip_handler);
 	install_keyword("bind_port", &co_srcport_handler);
 	install_keyword("connect_timeout", &co_timeout_handler);
+#ifdef _WITH_SO_MARK_
 	install_keyword("fwmark", &co_fwmark_handler);
+#endif
 }
 
 /* dump the checkers_queue */
