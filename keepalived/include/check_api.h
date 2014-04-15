@@ -32,6 +32,7 @@ typedef struct _conn_opts {
 	struct sockaddr_storage		dst;
 	struct sockaddr_storage		bindto;
 	unsigned int			connection_to; /* connection time-out */
+	unsigned int			fwmark; /* to mark packets going out of the socket using SO_MARK */
 } conn_opts_t;
 
 /* Checkers structure definition */
