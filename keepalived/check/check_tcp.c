@@ -60,6 +60,7 @@ install_tcp_check_keyword(void)
 	install_keyword("TCP_CHECK", &tcp_check_handler);
 	install_sublevel();
 	install_connect_keywords();
+	install_keyword("warmup", &warmup_handler);
 	install_sublevel_end();
 }
 

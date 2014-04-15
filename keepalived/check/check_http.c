@@ -170,6 +170,7 @@ install_http_check_keyword(void)
 	install_keyword("HTTP_GET", &http_get_handler);
 	install_sublevel();
 	install_connect_keywords();
+	install_keyword("warmup", &warmup_handler);
 	install_keyword("nb_get_retry", &nb_get_retry_handler);
 	install_keyword("delay_before_retry", &delay_before_retry_handler);
 	install_keyword("url", &url_handler);
@@ -188,6 +189,7 @@ install_ssl_check_keyword(void)
 	install_keyword("SSL_GET", &http_get_handler);
 	install_sublevel();
 	install_connect_keywords();
+	install_keyword("warmup", &warmup_handler);
 	install_keyword("nb_get_retry", &nb_get_retry_handler);
 	install_keyword("delay_before_retry", &delay_before_retry_handler);
 	install_keyword("url", &url_handler);

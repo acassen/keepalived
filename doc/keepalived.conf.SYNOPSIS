@@ -356,6 +356,7 @@ virtual_server group <STRING>      {	# VS group declaration
             fwmark <INTEGER>        # fwmark to set on socket (SO_MARK)
             nb_get_retry <INTEGER>  # number of get retry
             delay_before_retry <INTEGER> # delay before retry
+            warmup <INTEGER>        # random delay for maximum N seconds
         }
     }
 
@@ -372,6 +373,7 @@ virtual_server group <STRING>      {	# VS group declaration
             bind_port <PORT>        # TCP port to bind to
             connect_timeout <INTEGER>   # Timeout connection
             fwmark <INTEGER>        # fwmark to set on socket (SO_MARK)
+            warmup <INTEGER>        # random delay for maximum N seconds
         }
     }
 
@@ -389,7 +391,6 @@ virtual_server group <STRING>      {	# VS group declaration
                 bind_port <PORT>        # TCP port to bind to
                 connect_timeout <INTEGER>   # Timeout connection
                 fwmark <INTEGER>        # fwmark to set on socket (SO_MARK)
-
             }
             host {
                 connect_ip <IP ADDRESS> # IP address to connect
@@ -401,6 +402,7 @@ virtual_server group <STRING>      {	# VS group declaration
             }
             ...
             connect_timeout <INTEGER>  # Connection and read/write timeout
+            warmup <INTEGER>        # random delay for maximum N seconds
             retry <INTEGER>             # Number of times to retry a failed check
             delay_before_retry <INTEGER> # Delay in seconds before retrying
             helo_name <STRING>|<QUOTED-STRING> # Host to use for the HELO request
@@ -416,6 +418,7 @@ virtual_server group <STRING>      {	# VS group declaration
         MISC_CHECK {				# MISC healthchecker
             misc_path <STRING>|<QUOTED-STRING>	# External system script or program
             misc_timeout <INTEGER>		# Script execution timeout
+            warmup <INTEGER>        # random delay for maximum N seconds
 
             # If set, exit code from healthchecker is used
             # to dynamically adjust the weight as follows:

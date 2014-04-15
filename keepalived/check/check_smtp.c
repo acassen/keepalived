@@ -231,6 +231,7 @@ install_smtp_check_keyword(void)
 	Used as default value for per-host timeout */
  	install_keyword("connect_timeout", &smtp_timeout_handler);
 
+	install_keyword("warmup", &warmup_handler);
 	install_keyword("delay_before_retry", &smtp_db_retry_handler);
 	install_keyword("retry", &smtp_retry_handler);
 	install_keyword("host", &smtp_host_handler);

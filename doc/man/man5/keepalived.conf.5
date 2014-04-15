@@ -424,6 +424,13 @@ A virtual_server can be a declaration of one of
                # Optional fwmark to mark all outgoing
                # checker pakets with
                fwmark <INTEGER>
+
+               # Optional random delay to begin initial check for
+               # maximum N seconds.
+               # Useful to scatter multiple simultaneous
+               # checks to the same RS. Enabled by default, with
+               # the maximum at delay_loop. Specify 0 to disable
+               warmup <INT>
            } #HTTP_GET|SSL_GET
    
            #TCP healthchecker (bind to IP port)
@@ -448,6 +455,13 @@ A virtual_server can be a declaration of one of
                # Optional fwmark to mark all outgoing
                # checker pakets with
                fwmark <INTEGER>
+
+               # Optional random delay to begin initial check for
+               # maximum N seconds.
+               # Useful to scatter multiple simultaneous
+               # checks to the same RS. Enabled by default, with
+               # the maximum at delay_loop. Specify 0 to disable
+               warmup <INT>
            } #TCP_CHECK
 
            # SMTP healthchecker
@@ -487,6 +501,13 @@ A virtual_server can be a declaration of one of
               delay_before_retry <INTEGER>
               # Optional string to use for the smtp HELO request
               helo_name <STRING>|<QUOTED-STRING>
+
+              # Optional random delay to begin initial check for
+              # maximum N seconds.
+              # Useful to scatter multiple simultaneous
+              # checks to the same RS. Enabled by default, with
+              # the maximum at delay_loop. Specify 0 to disable
+              warmup <INT>
            } #SMTP_CHECK
 
            #MISC healthchecker, run a program
@@ -496,6 +517,13 @@ A virtual_server can be a declaration of one of
                misc_path <STRING>|<QUOTED-STRING>
                # Script execution timeout
                misc_timeout <INT>
+
+               # Optional random delay to begin initial check for
+               # maximum N seconds.
+               # Useful to scatter multiple simultaneous
+               # checks to the same RS. Enabled by default, with
+               # the maximum at delay_loop. Specify 0 to disable
+               warmup <INT>
 
                # If set, exit code from healthchecker is used
                # to dynamically adjust the weight as follows:

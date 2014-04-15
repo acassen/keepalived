@@ -91,6 +91,7 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	checker->co = co;
 	checker->id = ncheckers++;
 	checker->enabled = (vs->vfwmark) ? 1 : 0;
+	checker->warmup = vs->delay_loop;
 #ifdef _WITHOUT_VRRP_
 	checker->enabled = 1;
 #endif
@@ -196,6 +197,13 @@ install_connect_keywords(void)
 #endif
 }
 
+/* "warmup" keyword */
+void warmup_handler(vector_t *strvec)
+{
+	checker_t *checker = CHECKER_GET_CURRENT();
+	checker->warmup = (long)CHECKER_VALUE_INT (strvec) * TIMER_HZ;
+}
+
 /* dump the checkers_queue */
 void
 dump_checkers_queue(void)
@@ -228,6 +236,7 @@ register_checkers_thread(void)
 {
 	checker_t *checker;
 	element e;
+	long warmup;
 
 	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 		checker = ELEMENT_DATA(e);
@@ -235,8 +244,17 @@ register_checkers_thread(void)
 				    , FMT_CHK(checker));
 		CHECKER_ENABLE(checker);
 		if (checker->launch)
+		{
+			/* wait for a random timeout to begin checker thread.
+			   It helps avoiding multiple simultaneous checks to
+			   the same RS.
+			*/
+			warmup = checker->warmup;
+			if (warmup)
+				warmup = warmup * rand() / RAND_MAX;
 			thread_add_timer(master, checker->launch, checker,
-					 BOOTSTRAP_DELAY);
+					 BOOTSTRAP_DELAY + warmup);
+		}
 	}
 }
 
