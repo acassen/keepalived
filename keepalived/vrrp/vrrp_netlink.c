@@ -666,8 +666,13 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	if (!ifp)
 		return -1;
 
-	/* Update flags */
-	ifp->flags = ifi->ifi_flags;
+	/*
+	 * Update flags.
+	 * VMAC interfaces should never update it own flags, only be reflected
+	 * by the base interface flags, see above.
+	 */
+	if (!ifp->vmac)
+		ifp->flags = ifi->ifi_flags;
 
 	return 0;
 }
