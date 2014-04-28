@@ -90,7 +90,10 @@ static void
 start_check(void)
 {
 	/* Initialize sub-system */
-	ipvs_start();
+	if (ipvs_start() != IPVS_SUCCESS) {
+		stop_check();
+		return;
+	}
 	init_checkers_queue();
 #ifdef _WITH_VRRP_
 	init_interface_queue();
