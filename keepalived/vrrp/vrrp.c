@@ -787,19 +787,9 @@ vrrp_state_become_master(vrrp_t * vrrp)
 #endif
 }
 
-/* If the preempt_delay is set we cannot yet transition to master state.  We
- * must await the timeout of our preempt_delay.  The preemption delay is used
- * when starting up, or rebooting, a node which needs time to sort out its
- * routing table (e.g., BGP or OSPF) before it can assume the master role.
- */
 void
 vrrp_state_goto_master(vrrp_t * vrrp)
 {
-	if (timer_cmp(vrrp->preempt_time, timer_now()) > 0) {
-		vrrp->ms_down_timer = timer_tol(timer_sub(vrrp->preempt_time, timer_now()));
-		return;
-	}
-
 	/*
 	 * Send an advertisement. To force a new master
 	 * election.
