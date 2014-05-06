@@ -242,6 +242,25 @@ netlink_scope_a2n(char *scope)
 	return -1;
 }
 
+/*
+ * Reflect base interface flags on VMAC interface.
+ * VMAC interfaces should never update it own flags, only be reflected
+ * by the base interface flags.
+ */
+static void
+vmac_reflect_flags(struct ifinfomsg *ifi)
+{
+	interface_t *ifp;
+
+	/* find the VMAC interface (if any) */
+	ifp = if_get_by_vmac_base_ifindex(ifi->ifi_index);
+
+	/* if found, reflect base interface flags on VMAC interface */
+	if (ifp) {
+		ifp->flags = ifi->ifi_flags;
+	}
+}
+
 /* Our netlink parser */
 static int
 netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
@@ -462,7 +481,10 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	/* Skip it if already exist */
 	ifp = if_get_by_ifname(name);
 	if (ifp) {
-		ifp->flags = ifi->ifi_flags;
+		if (!ifp->vmac) {
+			vmac_reflect_flags(ifi);
+			ifp->flags = ifi->ifi_flags;
+		}
 		return 0;
 	}
 
@@ -470,10 +492,14 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	ifp = (interface_t *) MALLOC(sizeof(interface_t));
 	memcpy(ifp->ifname, name, strlen(name));
 	ifp->ifindex = ifi->ifi_index;
-	ifp->base_ifindex = ifi->ifi_index;
-	ifp->flags = ifi->ifi_flags;
 	ifp->mtu = *(int *) RTA_DATA(tb[IFLA_MTU]);
 	ifp->hw_type = ifi->ifi_type;
+
+	if (!ifp->vmac) {
+		vmac_reflect_flags(ifi);
+		ifp->flags = ifi->ifi_flags;
+		ifp->base_ifindex = ifi->ifi_index;
+	}
 
 	if (tb[IFLA_ADDRESS]) {
 		int hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
@@ -654,13 +680,6 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	if (ifi->ifi_type == ARPHRD_LOOPBACK)
 		return 0;
 
-	/* find the VMAC interface (if any) */
-	ifp = if_get_by_vmac_base_ifindex(ifi->ifi_index);
-
-	/* if found, reflect base interface flags on VMAC interface */
-	if (ifp)
-		ifp->flags = ifi->ifi_flags;
-
 	/* find the interface_t */
 	ifp = if_get_by_ifindex(ifi->ifi_index);
 	if (!ifp)
@@ -669,10 +688,12 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	/*
 	 * Update flags.
 	 * VMAC interfaces should never update it own flags, only be reflected
-	 * by the base interface flags, see above.
+	 * by the base interface flags.
 	 */
-	if (!ifp->vmac)
+	if (!ifp->vmac) {
+		vmac_reflect_flags(ifi);
 		ifp->flags = ifi->ifi_flags;
+	}
 
 	return 0;
 }
