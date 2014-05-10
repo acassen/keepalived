@@ -324,6 +324,9 @@ virtual_server group <STRING>      {	# VS group declaration
 
     sorry_server <IP ADDRESS> <PORT>	# RS to add to LVS topology when all
 					#   realserver are down
+    sorry_server_inhibit		# applies inhibit_on_failure behaviour
+					# to the preceding sorry_server
+					# directive
 
     real_server <IP ADDRESS> <PORT> {	# RS declaration
         weight <INTEGER>		# weight to use (default: 1)

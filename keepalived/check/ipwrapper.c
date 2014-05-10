@@ -266,7 +266,8 @@ update_quorum_state(virtual_server_t * vs)
 				    , weight_sum
 				    , FMT_VS(vs));
 		if (vs->s_svr && ISALIVE(vs->s_svr)) {
-			log_message(LOG_INFO, "Removing sorry server %s from VS %s"
+			log_message(LOG_INFO, "%s sorry server %s from VS %s"
+					    , (vs->s_svr->inhibit ? "Disabling" : "Removing")
 					    , FMT_RS(vs->s_svr)
 					    , FMT_VS(vs));
 
@@ -309,7 +310,8 @@ update_quorum_state(virtual_server_t * vs)
 			notify_exec(vs->quorum_down);
 		}
 		if (vs->s_svr) {
-			log_message(LOG_INFO, "Adding sorry server %s to VS %s"
+			log_message(LOG_INFO, "%s sorry server %s to VS %s"
+					    , (vs->s_svr->inhibit ? "Enabling" : "Adding")
 					    , FMT_RS(vs->s_svr)
 					    , FMT_VS(vs));
 

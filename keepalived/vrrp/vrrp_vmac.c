@@ -157,6 +157,10 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	 * by a previous instance.
 	 */
 	if (reload && (ifp = if_get_by_ifname(ifname))) {
+		/* (re)set VMAC properties (if deleted on reload) */
+		ifp->base_ifindex = vrrp->ifp->ifindex;
+		ifp->vmac = 1;
+		ifp->flags = vrrp->ifp->flags; /* Copy base interface flags */
 		vrrp->ifp = ifp;
 		/* Save ifindex for use on delete */
 		vrrp->vmac_ifindex = IF_INDEX(vrrp->ifp);
@@ -195,6 +199,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	if (!ifp)
 		return -1;
 	base_ifindex = vrrp->ifp->ifindex;
+	ifp->flags = vrrp->ifp->flags; /* Copy base interface flags */
 	vrrp->ifp = ifp;
 	vrrp->ifp->base_ifindex = base_ifindex;
 	vrrp->ifp->vmac = 1;
