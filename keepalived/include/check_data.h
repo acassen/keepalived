@@ -210,6 +210,8 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 #define SET_ALIVE(S)	((S)->alive = 1)
 #define UNSET_ALIVE(S)	((S)->alive = 0)
 #define VHOST(V)	((V)->virtualhost)
+#define FMT_RS(R) (inet_sockaddrtopair (&(R)->addr))
+#define FMT_VS(V) (format_vs((V)))
 
 #define VS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&&\
 			 (X)->vfwmark                 == (Y)->vfwmark			&&\
@@ -251,5 +253,6 @@ extern void set_rsgroup(char *);
 extern check_data_t *alloc_check_data(void);
 extern void free_check_data(check_data_t *);
 extern void dump_check_data(check_data_t *);
+extern char *format_vs (virtual_server_t *);
 
 #endif

@@ -68,11 +68,7 @@ free_smtp_check(void *data)
 void
 smtp_dump_host(void *data)
 {
-        smtp_host_t *smtp_host = data;
-        log_message(LOG_INFO, "   Checked ip = %s", inet_sockaddrtos(&smtp_host->dst));
-        log_message(LOG_INFO, "           port = %d", ntohs(inet_sockaddrport(&smtp_host->dst)));
-	if (smtp_host->bindto.ss_family)
-        	log_message(LOG_INFO, "           bindto = %s", inet_sockaddrtos(&smtp_host->bindto));
+	dump_conn_opts (data);
 }
 
 /* 
@@ -96,6 +92,7 @@ smtp_host_t *
 smtp_alloc_host(void)
 {
 	smtp_host_t *new;
+	smtp_checker_t *smtp_checker = CHECKER_GET();
 
 	/* Allocate the new host data structure */
 	new = (smtp_host_t *)MALLOC(sizeof(smtp_host_t));
@@ -106,6 +103,7 @@ smtp_alloc_host(void)
 	 */
 	checker_set_dst(&new->dst);
 	checker_set_dst_port(&new->dst, htons(SMTP_DEFAULT_PORT));
+	new->connection_to = smtp_checker->timeout;
 	return new;
 }
 
@@ -136,10 +134,10 @@ smtp_check_handler(vector_t *strvec)
 	 *
 	 * queue_checker(void (*free) (void *), void (*dump) (void *),
 	 *               int (*launch) (thread_t *),
-	 *               void *data)
+	 *               void *data, conn_opts_t *)
 	 */
 	queue_checker(free_smtp_check, dump_smtp_check, smtp_connect_thread,
-		      smtp_checker);
+		      smtp_checker, NULL);
 
 	/* 
 	 * Last, allocate/setup the list that will hold all the per host 
@@ -182,24 +180,6 @@ smtp_host_handler(vector_t *strvec)
         list_add(smtp_checker->host, smtp_alloc_host());
 }
 
-/* "connect_ip" keyword */
-void
-smtp_ip_handler(vector_t *strvec)
-{
-	smtp_checker_t *smtp_checker = CHECKER_GET();
-	smtp_host_t *smtp_host = LIST_TAIL_DATA(smtp_checker->host);
-	inet_stosockaddr(vector_slot(strvec, 1), NULL, &smtp_host->dst);
-}
-
-/* "connect_port" keyword */
-void
-smtp_port_handler(vector_t *strvec)
-{
-	smtp_checker_t *smtp_checker = CHECKER_GET();
-	smtp_host_t *smtp_host = LIST_TAIL_DATA(smtp_checker->host);
-	checker_set_dst_port(&smtp_host->dst, htons(CHECKER_VALUE_INT(strvec)));
-}
-
 /* "helo_name" keyword */
 void
 smtp_helo_name_handler(vector_t *strvec)
@@ -234,15 +214,6 @@ smtp_db_retry_handler(vector_t *strvec)
 	smtp_checker->db_retry = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
 }
 
-/* "bindto" keyword */
-void
-smtp_bindto_handler(vector_t *strvec)
-{
-        smtp_checker_t *smtp_checker = CHECKER_GET();
-	smtp_host_t *smtp_host = LIST_TAIL_DATA(smtp_checker->host);
-	inet_stosockaddr(vector_slot(strvec, 1), 0, &smtp_host->bindto);
-}
-
 /* Config callback installer */
 void
 install_smtp_check_keyword(void)
@@ -255,14 +226,17 @@ install_smtp_check_keyword(void)
 	install_keyword("SMTP_CHECK", &smtp_check_handler);
 	install_sublevel();
 	install_keyword("helo_name", &smtp_helo_name_handler);
+
+	/* This is kept for backward compatibility.
+	Used as default value for per-host timeout */
  	install_keyword("connect_timeout", &smtp_timeout_handler);
+
+	install_keyword("warmup", &warmup_handler);
 	install_keyword("delay_before_retry", &smtp_db_retry_handler);
 	install_keyword("retry", &smtp_retry_handler);
 	install_keyword("host", &smtp_host_handler);
 	install_sublevel();
-	install_keyword("connect_ip", &smtp_ip_handler);
-	install_keyword("connect_port", &smtp_port_handler);
-	install_keyword("bindto", &smtp_bindto_handler);
+	install_connect_keywords();
 	install_sublevel_end();
 	install_sublevel_end();
 }
@@ -384,18 +358,16 @@ smtp_get_line_cb(thread_t *thread)
 
         /* Handle read timeout */
         if (thread->type == THREAD_READ_TIMEOUT) {
-		smtp_final(thread, 1, "Read timeout from server [%s]:%d"
-				    , inet_sockaddrtos(&smtp_host->dst)
-				    , ntohs(inet_sockaddrport(&smtp_host->dst)));
+		smtp_final(thread, 1, "Read timeout from server %s"
+				    , FMT_SMTP_RS(smtp_host));
 		return 0;
 	}
 
 	/* wrap the buffer, if full, by clearing it */
 	if (SMTP_BUFF_MAX - smtp_checker->buff_ctr <= 0) {
-		log_message(LOG_INFO, "SMTP_CHECK Buffer overflow reading from server [%s]:%d. "
+		log_message(LOG_INFO, "SMTP_CHECK Buffer overflow reading from server %s. "
 				      "Increase SMTP_BUFF_MAX in smtp_check.h"
-				    , inet_sockaddrtos(&smtp_host->dst)
-				    , ntohs(inet_sockaddrport(&smtp_host->dst)));
+				    , FMT_SMTP_RS(smtp_host));
 		smtp_clear_buff(thread);
 	}
 
@@ -409,7 +381,7 @@ smtp_get_line_cb(thread_t *thread)
 
 	if (r == -1 && (errno == EAGAIN || errno == EINTR)) {
 		thread_add_read(thread->master, smtp_get_line_cb, checker,
-				thread->u.fd, smtp_checker->timeout);
+				thread->u.fd, smtp_host->connection_to);
         	fcntl(thread->u.fd, F_SETFL, f);
 		return 0;
 	} else if (r > 0)
@@ -422,10 +394,9 @@ smtp_get_line_cb(thread_t *thread)
 	for (x = 0; x < SMTP_BUFF_MAX; x++) {
 		if (smtp_checker->buff[x] == '\n') {
 			smtp_checker->buff[SMTP_BUFF_MAX - 1] = '\0';
-			
-			DBG("SMTP_CHECK [%s]:%d < %s"
-			    , inet_sockaddrtos(&smtp_host->dst)
-			    , ntohs(inet_sockaddrport(&smtp_host->dst))
+
+			DBG("SMTP_CHECK %s < %s"
+			    , FMT_SMTP_RS(smtp_host)
 			    , smtp_checker->buff);
 
 			(smtp_checker->buff_cb)(thread);
@@ -439,9 +410,8 @@ smtp_get_line_cb(thread_t *thread)
 	 * some sort of error, notify smtp_final()
 	 */
 	if (r <= 0) {
-		smtp_final(thread, 1, "Read failure from server [%s]:%d"
-				     , inet_sockaddrtos(&smtp_host->dst)
-				     , ntohs(inet_sockaddrport(&smtp_host->dst)));
+		smtp_final(thread, 1, "Read failure from server %s"
+				     , FMT_SMTP_RS(smtp_host));
 		return 0;
 	}
 
@@ -451,7 +421,7 @@ smtp_get_line_cb(thread_t *thread)
 	 * another round.
 	 */
 	thread_add_read(thread->master, smtp_get_line_cb, checker,
-			thread->u.fd, smtp_checker->timeout);
+			thread->u.fd, smtp_host->connection_to);
 	return 0;
 }
 
@@ -469,6 +439,7 @@ smtp_get_line(thread_t *thread, int (*callback) (thread_t *))
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
+	smtp_host_t *smtp_host = smtp_checker->host_ptr;
 
 	/* clear the buffer */
 	smtp_clear_buff(thread);
@@ -478,7 +449,7 @@ smtp_get_line(thread_t *thread, int (*callback) (thread_t *))
 
 	/* schedule the I/O with our helper function  */
 	thread_add_read(thread->master, smtp_get_line_cb, checker,
-		thread->u.fd, smtp_checker->timeout);
+		thread->u.fd, smtp_host->connection_to);
 	return;
 }
 
@@ -499,9 +470,8 @@ smtp_put_line_cb(thread_t *thread)
 
         /* Handle read timeout */
         if (thread->type == THREAD_WRITE_TIMEOUT) {
-		smtp_final(thread, 1, "Write timeout to server [%s]:%d"
-				     , inet_sockaddrtos(&smtp_host->dst)
-				     , ntohs(inet_sockaddrport(&smtp_host->dst)));
+		smtp_final(thread, 1, "Write timeout to server %s"
+				     , FMT_SMTP_RS(smtp_host));
 		return 0;
 	}
 
@@ -514,7 +484,7 @@ smtp_put_line_cb(thread_t *thread)
 
 	if (w == -1 && (errno == EAGAIN || errno == EINTR)) {
 		thread_add_write(thread->master, smtp_put_line_cb, checker,
-				 thread->u.fd, smtp_checker->timeout);
+				 thread->u.fd, smtp_host->connection_to);
         	fcntl(thread->u.fd, F_SETFL, f);
 		return 0;
 	}
@@ -522,9 +492,8 @@ smtp_put_line_cb(thread_t *thread)
         /* restore descriptor flags */
         fcntl(thread->u.fd, F_SETFL, f);
 
-	DBG("SMTP_CHECK [%s]:%d > %s"
-	    , inet_sockaddrtos(&smtp_host->dst)
-	    , ntohs(inet_sockaddrport(&smtp_host->dst))
+	DBG("SMTP_CHECK %s > %s"
+	    , FMT_SMTP_RS(smtp_host)
 	    , smtp_checker->buff);
 
 	/*
@@ -532,9 +501,8 @@ smtp_put_line_cb(thread_t *thread)
 	 * some sort of error, notify smtp_final()
 	 */
 	if (w <= 0) {
-		smtp_final(thread, 1, "Write failure to server [%s]:%d"
-				     , inet_sockaddrtos(&smtp_host->dst)
-				     , ntohs(inet_sockaddrport(&smtp_host->dst)));
+		smtp_final(thread, 1, "Write failure to server %s"
+				     , FMT_SMTP_RS(smtp_host));
 		return 0;
 	}
 
@@ -552,6 +520,7 @@ smtp_put_line(thread_t *thread, int (*callback) (thread_t *))
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
+	smtp_host_t *smtp_host = smtp_checker->host_ptr;
 
 	smtp_checker->buff[SMTP_BUFF_MAX - 1] = '\0';
 	smtp_checker->buff_ctr = strlen(smtp_checker->buff);
@@ -561,7 +530,7 @@ smtp_put_line(thread_t *thread, int (*callback) (thread_t *))
 
 	/* schedule the I/O with our helper function  */
 	thread_add_write(thread->master, smtp_put_line_cb, checker,
-			 thread->u.fd, smtp_checker->timeout);
+			 thread->u.fd, smtp_host->connection_to);
 	return;
 }
 
@@ -620,9 +589,8 @@ smtp_engine_thread(thread_t *thread)
 		case SMTP_HAVE_BANNER:
 			/* Check for "220 some.mailserver.com" in the greeting */
 			if (smtp_get_status(thread) != 220) {
-				smtp_final(thread, 1, "Bad greeting banner from server [%s]:%d"
-						     , inet_sockaddrtos(&smtp_host->dst)
-						     , ntohs(inet_sockaddrport(&smtp_host->dst)));
+				smtp_final(thread, 1, "Bad greeting banner from server %s"
+						     , FMT_SMTP_RS(smtp_host));
 
 				return 0;
 			}
@@ -649,9 +617,8 @@ smtp_engine_thread(thread_t *thread)
 		case SMTP_RECV_HELO:
 			/* Check for "250 Please to meet you..." */
 			if (smtp_get_status(thread) != 250) {
-				smtp_final(thread, 1, "Bad HELO response from server [%s]:%d"
-						     , inet_sockaddrtos(&smtp_host->dst)
-						     , ntohs(inet_sockaddrport(&smtp_host->dst)));
+				smtp_final(thread, 1, "Bad HELO response from server %s"
+						     , FMT_SMTP_RS(smtp_host));
 
 				return 0;
 			}
@@ -696,23 +663,20 @@ smtp_check_thread(thread_t *thread)
 	status = tcp_socket_state(thread->u.fd, thread, smtp_check_thread);
 	switch (status) {
 		case connect_error:
-			smtp_final(thread, 1, "Error connecting to server [%s]:%d"
-					     , inet_sockaddrtos(&smtp_host->dst)
-					     , ntohs(inet_sockaddrport(&smtp_host->dst)));
+			smtp_final(thread, 1, "Error connecting to server %s"
+					     , FMT_SMTP_RS(smtp_host));
 			return 0;
 			break;
 
 		case connect_timeout:
-			smtp_final(thread, 1, "Connection timeout to server [%s]:%d"
-					     , inet_sockaddrtos(&smtp_host->dst)
-					     , ntohs(inet_sockaddrport(&smtp_host->dst)));
+			smtp_final(thread, 1, "Connection timeout to server %s"
+					     , FMT_SMTP_RS(smtp_host));
 			return 0;
 			break;
 
 		case connect_success:
-			DBG("SMTP_CHECK Remote SMTP server [%s]:%d connected"
-			    , inet_sockaddrtos(&smtp_host->dst)
-			    , ntohs(inet_sockaddrport(&smtp_host->dst)));
+			DBG("SMTP_CHECK Remote SMTP server %s connected"
+			    , FMT_SMTP_RS(smtp_host));
 
 			/* Enter the engine at SMTP_START */
 			smtp_checker->state = SMTP_START;
@@ -722,9 +686,8 @@ smtp_check_thread(thread_t *thread)
 	}
 
 	/* we shouldn't be here */		
-	smtp_final(thread, 1, "Unknown connection error to server [%s]:%d"
-			     , inet_sockaddrtos(&smtp_host->dst)
-			     , ntohs(inet_sockaddrport(&smtp_host->dst)));
+	smtp_final(thread, 1, "Unknown connection error to server %s"
+			     , FMT_SMTP_RS(smtp_host));
 	return 0;
 }
 
@@ -792,9 +755,8 @@ smtp_connect_thread(thread_t *thread)
 	 */
 	if ((smtp_checker->host_ptr = list_element(smtp_checker->host, smtp_checker->host_ctr)) == NULL) {
 		if (!svr_checker_up(checker->id, checker->rs)) {
-			log_message(LOG_INFO, "Remote SMTP server [%s]:%d succeed on service."
-					    , inet_sockaddrtos(&checker->rs->addr)
-					    , ntohs(inet_sockaddrport(&checker->rs->addr)));
+			log_message(LOG_INFO, "Remote SMTP server %s succeed on service."
+					    , FMT_CHK(checker));
 
 			smtp_alert(checker->rs, NULL, NULL, "UP",
 				   "=> CHECK succeed on service <=");
@@ -819,10 +781,10 @@ smtp_connect_thread(thread_t *thread)
 		return 0;
 	}
 
-	status = tcp_bind_connect(sd, &smtp_host->dst, &smtp_host->bindto);
+	status = tcp_bind_connect(sd, smtp_host);
 
 	/* handle tcp connection status & register callback the next setp in the process */
-	if(tcp_connection_state(sd, status, thread, smtp_check_thread, smtp_checker->timeout)) {
+	if(tcp_connection_state(sd, status, thread, smtp_check_thread, smtp_host->connection_to)) {
 		close(sd);
 		log_message(LOG_INFO, "SMTP_CHECK socket bind failed. Rescheduling.");
 		thread_add_timer(thread->master, smtp_connect_thread, checker,

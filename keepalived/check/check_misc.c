@@ -67,7 +67,7 @@ misc_check_handler(vector_t *strvec)
 
 	/* queue new checker */
 	queue_checker(free_misc_check, dump_misc_check, misc_check_thread,
-		      misck_checker);
+		      misck_checker, NULL);
 }
 
 void
@@ -99,6 +99,7 @@ install_misc_check_keyword(void)
 	install_keyword("misc_path", &misc_path_handler);
 	install_keyword("misc_timeout", &misc_timeout_handler);
 	install_keyword("misc_dynamic", &misc_dynamic_handler);
+	install_keyword("warmup", &warmup_handler);
 	install_sublevel_end();
 }
 

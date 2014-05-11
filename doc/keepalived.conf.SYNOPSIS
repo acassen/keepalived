@@ -351,11 +351,15 @@ virtual_server group <STRING>      {	# VS group declaration
               status_code <INTEGER>
             }
             ...
-            connect_port <PORT>		# TCP port to connect
-            bindto <IP ADDRESS>		# IP address to bind to
-            connect_timeout <INTEGER>	# Timeout connection
-            nb_get_retry <INTEGER>	# number of get retry
+            connect_ip <IP ADDRESS> # IP address to connect
+            connect_port <PORT>     # TCP port to connect
+            bindto <IP ADDRESS>     # IP address to bind to
+            bind_port <PORT>        # TCP port to bind to
+            connect_timeout <INTEGER>   # Timeout connection
+            fwmark <INTEGER>        # fwmark to set on socket (SO_MARK)
+            nb_get_retry <INTEGER>  # number of get retry
             delay_before_retry <INTEGER> # delay before retry
+            warmup <INTEGER>        # random delay for maximum N seconds
         }
     }
 
@@ -366,9 +370,13 @@ virtual_server group <STRING>      {	# VS group declaration
         notify_down <STRING>|<QUOTED-STRING> # Idem
 
         TCP_CHECK {			# TCP healthchecker
-            connect_port <PORT>		# TCP port to connect
-            bindto <IP ADDRESS>		# IP address to bind to
-            connect_timeout <INTEGER>	# Timeout connection
+            connect_ip <IP ADDRESS> # IP address to connect
+            connect_port <PORT>     # TCP port to connect
+            bindto <IP ADDRESS>     # IP address to bind to
+            bind_port <PORT>        # TCP port to bind to
+            connect_timeout <INTEGER>   # Timeout connection
+            fwmark <INTEGER>        # fwmark to set on socket (SO_MARK)
+            warmup <INTEGER>        # random delay for maximum N seconds
         }
     }
 
@@ -380,18 +388,24 @@ virtual_server group <STRING>      {	# VS group declaration
 
         SMTP_CHECK {                   # SMTP healthchecker
             host {                      # Optional additional host/port to check
-                connect_ip <IP ADDRESS> # IP address to connect to
-                connect_port <PORT>     # Port to connect to
+                connect_ip <IP ADDRESS> # IP address to connect
+                connect_port <PORT>     # TCP port to connect
                 bindto <IP ADDRESS>     # IP address to bind to
-
+                bind_port <PORT>        # TCP port to bind to
+                connect_timeout <INTEGER>   # Timeout connection
+                fwmark <INTEGER>        # fwmark to set on socket (SO_MARK)
             }
             host {
-                connect_ip <IP ADDRESS>
-                connect_port <PORT>
-                bindto <IP ADDRESS>
+                connect_ip <IP ADDRESS> # IP address to connect
+                connect_port <PORT>     # TCP port to connect
+                bindto <IP ADDRESS>     # IP address to bind to
+                bind_port <PORT>        # TCP port to bind to
+                connect_timeout <INTEGER>   # Timeout connection
+                fwmark <INTEGER>        # fwmark to set on socket (SO_MARK)
             }
             ...
             connect_timeout <INTEGER>  # Connection and read/write timeout
+            warmup <INTEGER>        # random delay for maximum N seconds
             retry <INTEGER>             # Number of times to retry a failed check
             delay_before_retry <INTEGER> # Delay in seconds before retrying
             helo_name <STRING>|<QUOTED-STRING> # Host to use for the HELO request
@@ -407,6 +421,7 @@ virtual_server group <STRING>      {	# VS group declaration
         MISC_CHECK {				# MISC healthchecker
             misc_path <STRING>|<QUOTED-STRING>	# External system script or program
             misc_timeout <INTEGER>		# Script execution timeout
+            warmup <INTEGER>        # random delay for maximum N seconds
 
             # If set, exit code from healthchecker is used
             # to dynamically adjust the weight as follows:

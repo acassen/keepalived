@@ -403,23 +403,68 @@ A virtual_server can be a declaration of one of
                  # eg status_code 200
                  status_code <INT>     
                } 
-               #IP, tcp port for service on realserver 
-               connect_port <PORT> 
-               bindto <IPADDR>
-               # Timeout connection, sec
-               connect_timeout <INT> 
                # number of get retry
                nb_get_retry <INT> 
                # delay before retry
                delay_before_retry <INT>
+
+               # ======== generic connection options
+               # Optional IP address to connect to.
+               # The default is real server's IP
+               connect_ip <IP ADDRESS>
+               # Optional port to connect to if not
+               # The default is real server's port
+               connect_port <PORT>
+               # Optional interface to use to
+               # originate the connection
+               bindto <IP ADDRESS>
+               # Optional source port to
+               # originate the connection from
+               bind_port <PORT>
+               # Optional connection timeout in seconds.
+               # The default is 5 seconds
+               connect_timeout <INTEGER>
+               # Optional fwmark to mark all outgoing
+               # checker pakets with
+               fwmark <INTEGER>
+
+               # Optional random delay to begin initial check for
+               # maximum N seconds.
+               # Useful to scatter multiple simultaneous
+               # checks to the same RS. Enabled by default, with
+               # the maximum at delay_loop. Specify 0 to disable
+               warmup <INT>
            } #HTTP_GET|SSL_GET
    
            #TCP healthchecker (bind to IP port)
            TCP_CHECK 
            { 
+               # ======== generic connection options
+               # Optional IP address to connect to.
+               # The default is real server's IP
+               connect_ip <IP ADDRESS>
+               # Optional port to connect to if not
+               # The default is real server's port
                connect_port <PORT>
-               bindto <IPADDR>
-               connect_timeout <INT> 
+               # Optional interface to use to
+               # originate the connection
+               bindto <IP ADDRESS>
+               # Optional source port to
+               # originate the connection from
+               bind_port <PORT>
+               # Optional connection timeout in seconds.
+               # The default is 5 seconds
+               connect_timeout <INTEGER>
+               # Optional fwmark to mark all outgoing
+               # checker pakets with
+               fwmark <INTEGER>
+
+               # Optional random delay to begin initial check for
+               # maximum N seconds.
+               # Useful to scatter multiple simultaneous
+               # checks to the same RS. Enabled by default, with
+               # the maximum at delay_loop. Specify 0 to disable
+               warmup <INT>
            } #TCP_CHECK
 
            # SMTP healthchecker
@@ -430,7 +475,9 @@ A virtual_server can be a declaration of one of
                # the ip address of the real server will
                # be checked.
                host {
-                 # IP address to connect to
+                 # ======== generic connection options
+                 # Optional IP address to connect to.
+                 # The default is real server's IP
                  connect_ip <IP ADDRESS>
                  # Optional port to connect to if not
                  # the default of 25
@@ -438,9 +485,18 @@ A virtual_server can be a declaration of one of
                  # Optional interface to use to
                  # originate the connection
                  bindto <IP ADDRESS>
+                 # Optional source port to
+                 # originate the connection from
+                 bind_port <PORT>
+                 # Optional per-host connection timeout.
+                 # Default is outer-scope connect_timeout
+                 connect_timeout <INTEGER>
+                 # Optional fwmark to mark all outgoing
+                 # checker pakets with
+                 fwmark <INTEGER>
               }
               # Connection and read/write timeout
-              # in seconds
+              # in seconds. The default is 5 seconds
               connect_timeout <INTEGER>
               # Number of times to retry a failed check
               retry <INTEGER>
@@ -448,6 +504,13 @@ A virtual_server can be a declaration of one of
               delay_before_retry <INTEGER>
               # Optional string to use for the smtp HELO request
               helo_name <STRING>|<QUOTED-STRING>
+
+              # Optional random delay to begin initial check for
+              # maximum N seconds.
+              # Useful to scatter multiple simultaneous
+              # checks to the same RS. Enabled by default, with
+              # the maximum at delay_loop. Specify 0 to disable
+              warmup <INT>
            } #SMTP_CHECK
 
            #MISC healthchecker, run a program
@@ -457,6 +520,13 @@ A virtual_server can be a declaration of one of
                misc_path <STRING>|<QUOTED-STRING>
                # Script execution timeout
                misc_timeout <INT>
+
+               # Optional random delay to begin initial check for
+               # maximum N seconds.
+               # Useful to scatter multiple simultaneous
+               # checks to the same RS. Enabled by default, with
+               # the maximum at delay_loop. Specify 0 to disable
+               warmup <INT>
 
                # If set, exit code from healthchecker is used
                # to dynamically adjust the weight as follows:

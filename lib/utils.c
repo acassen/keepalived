@@ -252,6 +252,19 @@ inet_sockaddrport(struct sockaddr_storage *addr)
 	return port;
 }
 
+char *
+inet_sockaddrtopair(struct sockaddr_storage *addr)
+{
+	static char addr_str[INET6_ADDRSTRLEN + 1];
+	static char ret[sizeof(addr_str) + 16];
+
+	inet_sockaddrtos2(addr, addr_str);
+	snprintf(ret, sizeof(ret) - 1, "[%s]:%d"
+		, addr_str
+		, ntohs(inet_sockaddrport(addr)));
+	return ret;
+}
+
 uint32_t
 inet_sockaddrip4(struct sockaddr_storage *addr)
 {

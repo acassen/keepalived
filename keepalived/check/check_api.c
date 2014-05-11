@@ -52,21 +52,35 @@ static void
 dump_checker(void *data)
 {
 	checker_t *checker = data;
-	log_message(LOG_INFO, " [%s]:%d"
-			    , inet_sockaddrtos(&checker->rs->addr)
-			    , ntohs(inet_sockaddrport(&checker->rs->addr)));
+	log_message(LOG_INFO, " %s", FMT_CHK(checker));
 	(*checker->dump_func) (checker);
+}
+
+void
+dump_conn_opts (conn_opts_t *conn)
+{
+	log_message(LOG_INFO, "   Connection dest = %s", inet_sockaddrtopair(&conn->dst));
+	if (conn->bindto.ss_family)
+		log_message(LOG_INFO, "   Bind to = %s", inet_sockaddrtopair(&conn->bindto));
+	log_message(LOG_INFO, "   Connection timeout = %d", conn->connection_to/TIMER_HZ);
 }
 
 /* Queue a checker into the checkers_queue */
 void
 queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	      , int (*launch) (thread_t *)
-	      , void *data)
+	      , void *data
+	      , conn_opts_t *co)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	checker_t *checker = (checker_t *) MALLOC(sizeof (checker_t));
+
+	/* Set default dst = RS, timeout = 5 */
+	if (co) {
+		co->dst = rs->addr;
+		co->connection_to = 5 * TIMER_HZ;
+	}
 
 	checker->free_func = free_func;
 	checker->dump_func = dump_func;
@@ -74,8 +88,10 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	checker->vs = vs;
 	checker->rs = rs;
 	checker->data = data;
+	checker->co = co;
 	checker->id = ncheckers++;
 	checker->enabled = (vs->vfwmark) ? 1 : 0;
+	checker->warmup = vs->delay_loop;
 #ifdef _WITHOUT_VRRP_
 	checker->enabled = 1;
 #endif
@@ -114,6 +130,80 @@ checker_set_dst_port(struct sockaddr_storage *dst, uint16_t port)
 	}
 }
 
+/* "connect_ip" keyword */
+static void
+co_ip_handler(vector_t *strvec)
+{
+	conn_opts_t *co = CHECKER_GET_CO();
+	inet_stosockaddr(vector_slot(strvec, 1), 0, &co->dst);
+}
+
+/* "connect_port" keyword */
+static void
+co_port_handler(vector_t *strvec)
+{
+	conn_opts_t *co = CHECKER_GET_CO();
+	checker_set_dst_port(&co->dst, htons(CHECKER_VALUE_INT(strvec)));
+}
+
+/* "bindto" keyword */
+static void
+co_srcip_handler(vector_t *strvec)
+{
+	conn_opts_t *co = CHECKER_GET_CO();
+	inet_stosockaddr(vector_slot(strvec, 1), 0, &co->bindto);
+}
+
+/* "bind_port" keyword */
+static void
+co_srcport_handler(vector_t *strvec)
+{
+	conn_opts_t *co = CHECKER_GET_CO();
+	checker_set_dst_port(&co->bindto, htons(CHECKER_VALUE_INT(strvec)));
+}
+
+/* "connect_timeout" keyword */
+static void
+co_timeout_handler(vector_t *strvec)
+{
+	conn_opts_t *co = CHECKER_GET_CO();
+	co->connection_to = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
+
+	/* do not allow 0 timeout */
+	if (! co->connection_to)
+		co->connection_to = TIMER_HZ;
+}
+
+#ifdef _WITH_SO_MARK_
+/* "fwmark" keyword */
+static void
+co_fwmark_handler(vector_t *strvec)
+{
+	conn_opts_t *co = CHECKER_GET_CO();
+	co->fwmark = CHECKER_VALUE_INT(strvec);
+}
+#endif
+
+void
+install_connect_keywords(void)
+{
+	install_keyword("connect_ip", &co_ip_handler);
+	install_keyword("connect_port", &co_port_handler);
+	install_keyword("bindto", &co_srcip_handler);
+	install_keyword("bind_port", &co_srcport_handler);
+	install_keyword("connect_timeout", &co_timeout_handler);
+#ifdef _WITH_SO_MARK_
+	install_keyword("fwmark", &co_fwmark_handler);
+#endif
+}
+
+/* "warmup" keyword */
+void warmup_handler(vector_t *strvec)
+{
+	checker_t *checker = CHECKER_GET_CURRENT();
+	checker->warmup = (long)CHECKER_VALUE_INT (strvec) * TIMER_HZ;
+}
+
 /* dump the checkers_queue */
 void
 dump_checkers_queue(void)
@@ -146,16 +236,25 @@ register_checkers_thread(void)
 {
 	checker_t *checker;
 	element e;
+	long warmup;
 
 	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 		checker = ELEMENT_DATA(e);
-		log_message(LOG_INFO, "Activating healthchecker for service [%s]:%d"
-				    , inet_sockaddrtos(&checker->rs->addr)
-				    , ntohs(inet_sockaddrport(&checker->rs->addr)));
+		log_message(LOG_INFO, "Activating healthchecker for service %s"
+				    , FMT_CHK(checker));
 		CHECKER_ENABLE(checker);
 		if (checker->launch)
+		{
+			/* wait for a random timeout to begin checker thread.
+			   It helps avoiding multiple simultaneous checks to
+			   the same RS.
+			*/
+			warmup = checker->warmup;
+			if (warmup)
+				warmup = warmup * rand() / RAND_MAX;
 			thread_add_timer(master, checker->launch, checker,
-					 BOOTSTRAP_DELAY);
+					 BOOTSTRAP_DELAY + warmup);
+		}
 	}
 }
 
@@ -194,13 +293,11 @@ update_checker_activity(sa_family_t family, void *address, int enable)
 			if (inaddr_equal(family, addr, address) &&
 			    CHECKER_HA_SUSPEND(checker)) {
 				if (!CHECKER_ENABLED(checker) && enable)
-					log_message(LOG_INFO, "Activating healthchecker for service [%s]:%d"
-							    , inet_sockaddrtos(&checker->rs->addr)
-							    , ntohs(inet_sockaddrport(&checker->rs->addr)));
+					log_message(LOG_INFO, "Activating healthchecker for service %s"
+							    , FMT_CHK(checker));
 				if (CHECKER_ENABLED(checker) && !enable)
-					log_message(LOG_INFO, "Suspending healthchecker for service [%s]:%d"
-							    , inet_sockaddrtos(&checker->rs->addr)
-							    , ntohs(inet_sockaddrport(&checker->rs->addr)));
+					log_message(LOG_INFO, "Suspending healthchecker for service %s"
+							    , FMT_CHK(checker));
 				checker->enabled = enable;
 			}
 		}

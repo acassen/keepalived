@@ -627,6 +627,7 @@ IPVS_SUPPORT
 VERSION_DATE
 VERSION
 DFLAGS
+SO_MARK_SUPPORT
 SHA1_SUPPORT
 SNMP_SUPPORT
 NETSNMP_CONFIG
@@ -693,6 +694,7 @@ enable_lvs
 enable_vrrp
 with_kernel_dir
 with_kernel_version
+enable_fwmark
 enable_snmp
 enable_sha1
 enable_debug
@@ -1317,6 +1319,7 @@ Optional Features:
   --disable-lvs-syncd     do not use LVS synchronization daemon
   --disable-lvs           do not use the LVS framework
   --disable-vrrp          do not use the VRRP framework
+  --disable-fwmark        compile without SO_MARK support
   --enable-snmp           compile with SNMP support
   --enable-sha1           compile with SHA1 support
   --enable-debug          compile with debugging flags
@@ -3256,6 +3259,11 @@ else
   kernelversion=""
 fi
 
+# Check whether --enable-fwmark was given.
+if test "${enable_fwmark+set}" = set; then :
+  enableval=$enable_fwmark;
+fi
+
 # Check whether --enable-snmp was given.
 if test "${enable_snmp+set}" = set; then :
   enableval=$enable_snmp;
@@ -4444,6 +4452,24 @@ fi
 
   SHA1_SUPPORT="_WITH_SHA1_"
 fi
+
+
+
+if test "${enable_fwmark}" = "no"; then
+  SO_MARK_SUPPORT="_WITHOUT_SO_MARK_"
+else
+  ac_fn_c_check_decl "$LINENO" "SO_MARK" "ac_cv_have_decl_SO_MARK" "#include <sys/socket.h>
+
+"
+if test "x$ac_cv_have_decl_SO_MARK" = xyes; then :
+
+else
+  as_fn_error $? "No SO_MARK declaration in headers" "$LINENO" 5
+fi
+
+  SO_MARK_SUPPORT="_WITH_SO_MARK_"
+fi
+
 
 
 
@@ -5945,6 +5971,12 @@ if test "${IPVS_SUPPORT}" = "_WITH_LVS_"; then
 else
   echo "Use IPVS Framework       : No"
   echo "IPVS sync daemon support : No"
+fi
+
+if test "${SO_MARK_SUPPORT}" = "_WITH_SO_MARK_"; then
+  echo "fwmark socket support    : Yes"
+else
+  echo "fwmark socket support    : No"
 fi
 
 if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
