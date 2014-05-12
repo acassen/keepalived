@@ -112,7 +112,7 @@ extern thread_t *thread_add_write(thread_master_t *, int (*func) (thread_t *), v
 extern thread_t *thread_add_timer(thread_master_t *, int (*func) (thread_t *), void *, long);
 extern thread_t *thread_add_child(thread_master_t *, int (*func) (thread_t *), void *, pid_t, long);
 extern thread_t *thread_add_event(thread_master_t *, int (*func) (thread_t *), void *, int);
-extern void thread_cancel(thread_t *);
+extern int thread_cancel(thread_t *);
 extern void thread_cancel_event(thread_master_t *, void *);
 extern thread_t *thread_fetch(thread_master_t *, thread_t *);
 extern void thread_child_handler(void *, int);

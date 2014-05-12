@@ -41,6 +41,7 @@ typedef struct _nl_handle {
 	int			fd;
 	struct sockaddr_nl	snl;
 	__u32			seq;
+	thread_t		*thread;
 } nl_handle_t;
 
 /* Define types */

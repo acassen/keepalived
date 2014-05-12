@@ -392,9 +392,12 @@ thread_add_terminate_event(thread_master_t * m)
 }
 
 /* Cancel thread from scheduler. */
-void
+int
 thread_cancel(thread_t * thread)
 {
+	if (!thread)
+		return -1;
+
 	switch (thread->type) {
 	case THREAD_READ:
 		assert(FD_ISSET(thread->u.fd, &thread->master->readfd));
@@ -429,6 +432,7 @@ thread_cancel(thread_t * thread)
 
 	thread->type = THREAD_UNUSED;
 	thread_add_unuse(thread->master, thread);
+	return 0;
 }
 
 /* Delete all events which has argument value arg. */

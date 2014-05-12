@@ -408,7 +408,6 @@ free_interface_queue(void)
 	if (!LIST_ISEMPTY(if_queue))
 		free_list(if_queue);
 	if_queue = NULL;
-	kernel_netlink_close();
 }
 
 void
@@ -478,7 +477,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp, int proto)
 int
 if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 {
-	struct ip_mreqn imr;
+	struct ip_mreq imr;
 	struct ipv6_mreq imr6;
 	int ret = 0;
 
@@ -489,12 +488,10 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 	/* Leaving the VRRP multicast group */
 	if (family == AF_INET) {
 		memset(&imr, 0, sizeof(imr));
-		/* FIXME: change this to use struct ip_mreq */
 		imr.imr_multiaddr = ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr;
-		imr.imr_address.s_addr = IF_ADDR(ifp);
-		imr.imr_ifindex = IF_INDEX(ifp);
+		imr.imr_interface.s_addr = IF_ADDR(ifp);
 		ret = setsockopt(sd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-				 (char *) &imr, sizeof (struct ip_mreqn));
+				 (char *) &imr, sizeof(struct ip_mreq));
 	} else {
 		memset(&imr6, 0, sizeof(imr6));
 		imr6.ipv6mr_multiaddr = ((struct sockaddr_in6 *) &global_data->vrrp_mcast_group6)->sin6_addr;

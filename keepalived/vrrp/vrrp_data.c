@@ -141,6 +141,11 @@ free_sock(void *sock_data)
 {
 	sock_t *sock = sock_data;
 	interface_t *ifp;
+
+	/* First of all cancel pending thread */
+	thread_cancel(sock->thread);
+
+	/* Close related socket */
 	if (sock->fd_in > 0) {
 		ifp = if_get_by_ifindex(sock->ifindex);
 		if (sock->unicast) {
@@ -490,14 +495,7 @@ free_vrrp_data(vrrp_data_t * data)
 	free_list(data->vrrp);
 	free_list(data->vrrp_sync_group);
 	free_list(data->vrrp_script);
-//	free_list(data->vrrp_socket_pool);
 	FREE(data);
-}
-
-void
-free_vrrp_sockpool(vrrp_data_t * data)
-{
-	free_list(data->vrrp_socket_pool);
 }
 
 void

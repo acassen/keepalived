@@ -114,6 +114,8 @@ netlink_socket(nl_handle_t *nl, unsigned long groups)
 int
 netlink_close(nl_handle_t *nl)
 {
+	/* First of all release pending thread */
+	thread_cancel(nl->thread);
 	close(nl->fd);
 	return 0;
 }
@@ -723,10 +725,12 @@ netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 int
 kernel_netlink(thread_t * thread)
 {
+	nl_handle_t *nl = THREAD_ARG(thread);
+
 	if (thread->type != THREAD_READ_TIMEOUT)
-		netlink_parse_info(netlink_broadcast_filter, &nl_kernel, NULL);
-	thread_add_read(master, kernel_netlink, NULL, nl_kernel.fd,
-			NETLINK_TIMER);
+		netlink_parse_info(netlink_broadcast_filter, nl, NULL);
+	nl->thread = thread_add_read(master, kernel_netlink, nl, nl->fd,
+				      NETLINK_TIMER);
 	return 0;
 }
 
@@ -748,8 +752,8 @@ kernel_netlink_init(void)
 
 	if (nl_kernel.fd > 0) {
 		log_message(LOG_INFO, "Registering Kernel netlink reflector");
-		thread_add_read(master, kernel_netlink, NULL, nl_kernel.fd,
-				NETLINK_TIMER);
+		nl_kernel.thread = thread_add_read(master, kernel_netlink, &nl_kernel, nl_kernel.fd,
+						   NETLINK_TIMER);
 	} else
 		log_message(LOG_INFO, "Error while registering Kernel netlink reflector channel");
 

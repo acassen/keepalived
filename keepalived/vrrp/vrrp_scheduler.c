@@ -399,11 +399,11 @@ vrrp_register_workers(list l)
 
 		/* Register a timer thread if interface is shut */
 		if (sock->fd_in == -1)
-			thread_add_timer(master, vrrp_read_dispatcher_thread,
-					 sock, vrrp_timer);
+			sock->thread = thread_add_timer(master, vrrp_read_dispatcher_thread,
+							sock, vrrp_timer);
 		else
-			thread_add_read(master, vrrp_read_dispatcher_thread,
-					sock, sock->fd_in, vrrp_timer);
+			sock->thread = thread_add_read(master, vrrp_read_dispatcher_thread,
+						       sock, sock->fd_in, vrrp_timer);
 	}
 }
 
@@ -943,11 +943,11 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 	/* register next dispatcher thread */
 	vrrp_timer = vrrp_timer_fd(fd);
 	if (fd == -1)
-		thread_add_timer(thread->master, vrrp_read_dispatcher_thread,
-				 sock, vrrp_timer);
+		sock->thread = thread_add_timer(thread->master, vrrp_read_dispatcher_thread,
+						sock, vrrp_timer);
 	else
-		thread_add_read(thread->master, vrrp_read_dispatcher_thread,
-				sock, fd, vrrp_timer);
+		sock->thread = thread_add_read(thread->master, vrrp_read_dispatcher_thread,
+					       sock, fd, vrrp_timer);
 
 	return 0;
 }

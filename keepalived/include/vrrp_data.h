@@ -33,6 +33,7 @@
 /* local includes */
 #include "list.h"
 #include "vector.h"
+#include "scheduler.h"
 
 /*
  * Our instance dispatcher use a socket pool.
@@ -46,6 +47,7 @@ typedef struct _sock {
 	int			unicast;
 	int			fd_in;
 	int			fd_out;
+	thread_t		*thread;
 } sock_t;
 
 /* Configuration data root */
@@ -82,6 +84,5 @@ extern void free_vrrp_buffer(void);
 extern vrrp_data_t *alloc_vrrp_data(void);
 extern void free_vrrp_data(vrrp_data_t *);
 extern void dump_vrrp_data(vrrp_data_t *);
-extern void free_vrrp_sockpool(vrrp_data_t *);
 
 #endif

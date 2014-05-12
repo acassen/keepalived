@@ -53,9 +53,7 @@ extern char *vrrp_pidfile;
 static void
 stop_vrrp(void)
 {
-	/* Destroy master thread */
 	signal_handler_destroy();
-	thread_destroy_master(master);
 
 	if (!(debug & 8))
 		shutdown_vrrp_instances();
@@ -64,9 +62,6 @@ stop_vrrp(void)
 	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL);
 
-	free_interface_queue();
-	gratuitous_arp_close();
-	ndisc_close();
 #ifdef _WITH_SNMP_
 	if (snmp)
 		vrrp_snmp_agent_close();
@@ -84,9 +79,14 @@ stop_vrrp(void)
 
 	/* Clean data */
 	free_global_data(global_data);
-	free_vrrp_sockpool(vrrp_data);
+	vrrp_dispatcher_release(vrrp_data);
 	free_vrrp_data(vrrp_data);
 	free_vrrp_buffer();
+	free_interface_queue();
+	kernel_netlink_close();
+	thread_destroy_master(master);
+	gratuitous_arp_close();
+	ndisc_close();
 
 #ifdef _DEBUG_
 	keepalived_free_final("VRRP Child process");
@@ -209,6 +209,8 @@ reload_vrrp_thread(thread_t * thread)
 	signal_handler_destroy();
 
 	/* Destroy master thread */
+	vrrp_dispatcher_release(vrrp_data);
+	kernel_netlink_close();
 	thread_destroy_master(master);
 	master = thread_make_master();
 	free_global_data(global_data);
@@ -233,9 +235,6 @@ reload_vrrp_thread(thread_t * thread)
 	vrrp_signal_init();
 	signal_set(SIGCHLD, thread_child_handler, master);
 	start_vrrp();
-
-	/* Close sockpool */
-	free_vrrp_sockpool(old_vrrp_data);
 
 	/* free backup data */
 	free_vrrp_data(old_vrrp_data);
