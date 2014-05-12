@@ -78,7 +78,7 @@ typedef struct _ip_address {
 			 (X)->ifa.ifa_scope         == (Y)->ifa.ifa_scope		&& \
 			 string_equal((X)->label, (Y)->label))
 
-#define IP_ISEQ(X,Y)    ((IP_FAMILY(X) == IP_FAMILY(Y)) ? (IP_IS6(X) ? IP6_ISEQ(X, Y) : IP4_ISEQ(X, Y)) : 0)
+#define IP_ISEQ(X,Y)    (((X) && (Y)) ? ((IP_FAMILY(X) == IP_FAMILY(Y)) ? (IP_IS6(X) ? IP6_ISEQ(X, Y) : IP4_ISEQ(X, Y)) : 0) : (((!(X) && (Y))||((X) && !(Y))) ? 0 : 1))
 
 /* prototypes */
 extern void netlink_iplist(list, int);
