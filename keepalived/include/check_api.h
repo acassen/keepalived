@@ -49,7 +49,7 @@ typedef struct _checker {
 	checker_id_t			id;	/* Checker identifier */
 	int				enabled;/* Activation flag */
 	conn_opts_t			*co; /* connection options */
-	unsigned int			warmup;	/* max random timeout to start checker */
+	long				warmup;	/* max random timeout to start checker */
 } checker_t;
 
 /* Checkers queue */
