@@ -1,3 +1,125 @@
+2014-05-13  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.13 released.
+	* vrrp : Use the standard unsigned int types. This fixes
+	  building with musl libc, which does not expose the internal
+	  __uint* defines. (Natanael Copa)
+	* check : Fix template issue in IPv6 host header.
+	  (Jan Hugo Prins)
+	* ipvs : ipvs_syncd_cmd uses memset() to zero the daemonrule
+	  buffer before populating it and sending it up. daemonrule is
+	  malloc()ed by ipvs_start(). ipvs_start() can bail early if it
+	  can't communicate with ipvs. Neither place which call
+	  ipvs_start() check the return value, allowing them to walk
+	  straight into a NULL pointer deref. (jsgh)
+	* check : Without inhibit_on_failure on a real_server, when the
+	  server is marked down existing TCP connections to it are simply
+	  blackholed. Hence inhibit_on_failure: by setting the weight to
+	  zero no new connections are sent to that server, but because the
+	  server isn't completely removed from the table existing
+	  connections are allowed to continue. The same problem exists
+	  with sorry_server. When a real_server comes back up the
+	  sorry_server is removed from the pool and existing connections
+	  are blackholed. Instead of continued service, which may usually
+	  be a fast response indicating overload, the client must engage
+	  in a lengthy wait for the connection to time out. It would be
+	  better in many cases to allow the sorry_server connections to
+	  complete naturally. Luckily the code is structured well enough
+	  that all is required to get this behaviour is to set the inhibit
+	  member of the sorry_server structure, which is mostly just a
+	  change to the config file parser. (jsgh)
+	* check : unify logging of RS and VS. This fixes the bug of
+	  displaying a FWM service as [x.x.x.x]:0, where x.x.x.x is the
+	  first RS of that service. (Alexey Andriyanov)
+	* check : unify connection options among checkers.
+	  All the remote checkers (TCP, HTTP/SSL, SMTP) now have the
+	  same set of connection options:
+	    . connect_ip (new to TCP, HTTP)
+	    . connect_port
+	    . bindto
+	    . bind_port (new)
+	    . connect_timeout (new to SMTP)
+	  All of them are optional with reasonable defaults. The patch
+	  is designed for simplicity in adding a new option. Since the
+	  connect_ip could be inequal to the RS address and, worse, the
+	  same for all RSes, the endpoint is now logged as [RS]:rport,
+	  not the [connect_ip]:connect_port. (Alexey Andriyanov)
+	* check : fwmark connection option. (Alexey Andriyanov)
+	* check : make SO_MARK a compile-time option.
+	  (Alexey Andriyanov)
+	* check : documentation for generic connection opts.
+	  (Alexey Andriyanov)
+	* check : random delay before doing the first check.
+	  every RS check is registered with a random delay between 0
+	  and vs->delay_loop seconds. It helps avoiding multiple
+	  simultaneous checks to the same RS server.  (Alexey Andriyanov)
+	* vrrp : Fix sync of interface status flag when using VMAC
+	  interface. There is a chance that the VMAC interface status
+	  flags (up/down) could be different from the base interface flags.
+	  This patch will only change the VMAC interface status flags when
+	  the base interface is changed. (Jonas Johansson)
+	* vrrp : Let only base interface change the VMAC interface status
+	  flags. The interface status flags for a VMAC interface shall
+	  only be changed by the base interface, never by reading the
+	  actual VMAC interface flags. (Jonas Johansson)
+	* vrrp : Fix initial interface status flag value for VMAC
+	  interface. In commit a05a503, "vrrp: Fix sync of interface
+	  status flag when using VMAC interface", no inital value for the
+	  VMAC interface status flag was set. Due to that the VMAC interface
+	  flags shall follow the base interface, the base interface status
+	  flags value shall be copied to the VMAC interface status flags
+	  after the VMAC interface has been created. (Jonas Johansson)
+	* vrrp : Proper restore of VMAC interface properties on SIGHUP.
+	  On SIGHUP the VMAC flag and base ifindex for a VMAC interface was
+	  lost. (Jonas Johansson)
+	* vrrp : Revert "Honor preempt_delay setting on startup.".
+	  This commit resulted in two individual bugs:
+
+	  1) A keepalived instance coming on-line would not transition to
+	     MASTER state until the preempt_delay duration had passed, even
+	     though there was no already existing VRRP speaker in MASTER
+	     state on the link. In other words, it changed the semantics of
+	     preempt_delay from a delay that only took place before
+	     *preemption* of another VRRP speaker, to a delay that
+	     unconditionally took place after Keepalived came online. The
+	     keepalived.conf manual page has always documented the former
+	     meaning, which is also IMHO the only one that you would
+	     intuitively expect.
+
+	  2) The preempt_delay was applied when a Keepalived process was
+	     reloading its configuration following the recipt of SIGHUP.
+	     If the Keepalived instance was in MASTER state before the
+	     reload, it would cease transmitting VRRP hellos for the
+	     duration of preempt_delay, but *not* actually remove the
+	     virtual addresses from the network interfaces. This in turn
+	     resulted in any backup VRRP speakers on the links transition
+	     to the MASTER state while preempt_delay was still in effect
+	     on the original MASTER that was reloaded, thus creating a
+	     service-impacting split-brain scenario where the virtual
+	     addresses are present and active on multiple VRRP speakers
+	     simultaneously.
+
+	  (Tore Anderson)
+	* vrrp : fix ip_address comparison. Extend IP_ISEQ() macro to
+	  take care of NULL addresses. This issue end on SEGV while
+	  using virtual_route. thanks to Tore Anderson for reporting.
+	* vrrp : fix double close issue (DROP_MEMBERSHIP & netlink
+	  channel). This is a old pending 'bug', not arming at all
+	  but just frustrating to see again and again this log message :
+
+	  "cant do IP_DROP_MEMBERSHIP errno=Bad file descriptor (9)"
+
+	  What the hell ! it was due to a double close during reload &
+	  stop procedure. VRRP fd are stored in a socket pool and use
+	  the I/O MUX to handle VRRP traffic. While reloading or stopping
+	  the daemon the I/O MUX was released first and secondly socket
+	  pool.  The issue spotted here, in thread_destroy_master() all
+	  pending thread are canceled and read/write fds related are
+	  close(). Well OK a close on a mcast socket perform kernel side
+	  the DROP_MEMBERSHIP when needed, but it is much more clean to
+	  perform proper operations userspace ! This patch sequencely
+	  cancel pending thread, release socket pool and finally
+	  destroy master thread. Same 'issue' appear in netlink channel.
+
 2014-02-08  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.12 released.
 	* lib: Fix reallocation issue introduced in last merge.
