@@ -485,11 +485,13 @@ body_cmd(thread_t * thread)
 	char *buffer;
 	char rfc822[80];
 	time_t tm;
+	struct tm *t;
 
 	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
 
 	time(&tm);
-	strftime(rfc822, sizeof(rfc822), "%a, %d %b %Y %H:%M:%S %z", gmtime(&tm));
+	t = localtime(&tm);
+	strftime(rfc822, sizeof(rfc822), "%a, %d %b %Y %H:%M:%S %z", t);
 
 	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HEADERS_CMD,
 		 rfc822, global_data->email_from, smtp->subject, smtp->email_to);
