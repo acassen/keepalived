@@ -64,7 +64,7 @@ smtpto_handler(vector_t *strvec)
 static void
 smtpip_handler(vector_t *strvec)
 {
-	inet_stosockaddr(vector_slot(strvec, 1), SMTP_PORT_STR, &global_data->smtp_server);
+	inet_stosockaddr(vector_slot(strvec, 1), STR(SMTP_PORT), &global_data->smtp_server);
 }
 static void
 email_handler(vector_t *strvec)
@@ -89,7 +89,7 @@ vrrp_mcast_group4_handler(vector_t *strvec)
 	ret = inet_stosockaddr(vector_slot(strvec, 1), 0, mcast);
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: Cant parse vrrp_mcast_group4 [%s]. Skipping"
-				   , vector_slot(strvec, 1));
+				   , FMT_STR_VSLOT(strvec, 1));
 	}
 }
 static void
@@ -101,7 +101,7 @@ vrrp_mcast_group6_handler(vector_t *strvec)
 	ret = inet_stosockaddr(vector_slot(strvec, 1), 0, mcast);
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: Cant parse vrrp_mcast_group6 [%s]. Skipping"
-				   , vector_slot(strvec, 1));
+				   , FMT_STR_VSLOT(strvec, 1));
 	}
 }
 #ifdef _WITH_SNMP_

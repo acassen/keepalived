@@ -34,7 +34,6 @@
 #include "vrrp.h"
 
 /* global defs */
-#define SMTP_PORT_STR		"25"
 #define SMTP_PORT		25
 #define SMTP_BUFFER_LENGTH	512
 #define SMTP_BUFFER_MAX		1024
@@ -90,6 +89,8 @@ typedef struct _smtp {
 #define SMTP_BODY_CMD    "%s\r\n"
 #define SMTP_SEND_CMD    "\r\n.\r\n"
 #define SMTP_QUIT_CMD    "QUIT\r\n"
+
+#define FMT_SMTP_HOST()	inet_sockaddrtopair(&global_data->smtp_server)
 
 /* Prototypes defs */
 extern void smtp_alert(real_server_t *, vrrp_t *, vrrp_sgroup_t *,

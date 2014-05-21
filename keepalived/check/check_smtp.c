@@ -265,13 +265,14 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		/* Always syslog the error when the real server is up */
                 if (svr_checker_up(checker->id, checker->rs)) {
 			if (format != NULL) {
-				memcpy(error_buff, "SMTP_CHECK ", 11);
-				va_start(varg_list, format);
-				vsnprintf(error_buff + 11, 512 - 11, format, varg_list);
-				va_end(varg_list);
-				error_buff[512 - 1] = '\0';
+				/* prepend format with the "SMTP_CHECK " string */
+				error_buff[0] = '\0';
+				strncat(error_buff, "SMTP_CHECK ", sizeof(error_buff) - 1);
+				strncat(error_buff, format, sizeof(error_buff) - 11 - 1);
 
-				log_message(LOG_INFO, error_buff);
+				va_start(varg_list, format);
+				log_message(LOG_INFO, error_buff, varg_list);
+				va_end(varg_list);
 			} else {
 				log_message(LOG_INFO, "SMTP_CHECK Unknown error");
 			}

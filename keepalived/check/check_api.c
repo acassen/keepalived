@@ -62,6 +62,8 @@ dump_conn_opts (conn_opts_t *conn)
 	log_message(LOG_INFO, "   Connection dest = %s", inet_sockaddrtopair(&conn->dst));
 	if (conn->bindto.ss_family)
 		log_message(LOG_INFO, "   Bind to = %s", inet_sockaddrtopair(&conn->bindto));
+	if (conn->fwmark != 0)
+		log_message(LOG_INFO, "   Connection mark = %u", conn->fwmark);
 	log_message(LOG_INFO, "   Connection timeout = %d", conn->connection_to/TIMER_HZ);
 }
 

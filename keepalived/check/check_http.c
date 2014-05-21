@@ -258,7 +258,8 @@ epilog(thread_t * thread, int method, int t, int c)
 	if (http->retry_it > http_get_check->nb_get_retry-1) {
 		if (svr_checker_up(checker->id, checker->rs)) {
 			log_message(LOG_INFO, "Check on service %s failed after %d retry."
-			       , FMT_HTTP_RS(checker));
+			       , FMT_HTTP_RS(checker)
+			       , http->retry_it);
 			smtp_alert(checker->rs, NULL, NULL,
 				   "DOWN",
 				   "=> CHECK failed on service"

@@ -23,7 +23,15 @@
 #ifndef _LOGGER_H
 #define _LOGGER_H
 
+#include <stdio.h>
+
 void enable_console_log(void);
-void log_message(int priority, char* format, ...);
+void log_message(int priority, const char* format, ...);
+
+/* wrapper around the real log_message() to emit -Wformat= warnings */
+#define log_message(priority, format, ...) do {\
+	if (0) fprintf (NULL, format, ##__VA_ARGS__); \
+	(log_message) (priority, format, ##__VA_ARGS__); \
+} while (0)
 
 #endif

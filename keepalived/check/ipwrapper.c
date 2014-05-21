@@ -259,7 +259,7 @@ update_quorum_state(virtual_server_t * vs)
 	if (vs->quorum_state == DOWN &&
 	    weight_sum >= vs->quorum + vs->hysteresis) {
 		vs->quorum_state = UP;
-		log_message(LOG_INFO, "Gained quorum %lu+%lu=%lu <= %u for VS %s"
+		log_message(LOG_INFO, "Gained quorum %lu+%lu=%lu <= %lu for VS %s"
 				    , vs->quorum
 				    , vs->hysteresis
 				    , vs->quorum + vs->hysteresis
@@ -297,7 +297,7 @@ update_quorum_state(virtual_server_t * vs)
 	    weight_sum < vs->quorum - vs->hysteresis)
 	) {
 		vs->quorum_state = DOWN;
-		log_message(LOG_INFO, "Lost quorum %lu-%lu=%lu > %u for VS %s"
+		log_message(LOG_INFO, "Lost quorum %lu-%lu=%lu > %lu for VS %s"
 				    , vs->quorum
 				    , vs->hysteresis
 				    , vs->quorum - vs->hysteresis
@@ -511,9 +511,8 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 	for (e = LIST_HEAD(old); e; ELEMENT_NEXT(e)) {
 		vsge = ELEMENT_DATA(e);
 		if (!vsge_exist(vsge, new)) {
-			log_message(LOG_INFO, "VS [[%s]:%d:%d:%d] in group %s no longer exist" 
-					    , inet_sockaddrtos(&vsge->addr)
-					    , ntohs(inet_sockaddrport(&vsge->addr))
+			log_message(LOG_INFO, "VS [%s:%d:%u] in group %s no longer exist"
+					    , inet_sockaddrtopair(&vsge->addr)
 					    , vsge->range
 					    , vsge->vfwmark
 					    , old_vs->vsgname);

@@ -1486,9 +1486,8 @@ vty_listen(struct sockaddr_storage *addr)
 	/* Socket */
 	accept_sock = socket(addr->ss_family, SOCK_STREAM, 0);
 	if (accept_sock < 0) {
-		log_message(LOG_INFO, "Vty error creating listening socket on [%s]:%d (%s)"
-				    , inet_sockaddrtos(addr)
-				    , ntohs(inet_sockaddrport(addr))
+		log_message(LOG_INFO, "Vty error creating listening socket on %s (%s)"
+				    , inet_sockaddrtopair(addr)
 				    , strerror(errno));
 		return -1;
 	}
@@ -1507,9 +1506,8 @@ vty_listen(struct sockaddr_storage *addr)
 	len = sizeof(*addr);
 	ret = bind(accept_sock, (struct sockaddr *) addr, len);
 	if (ret < 0) {
-		log_message(LOG_INFO, "Vty error cant bind to [%s]:%d (%s)"
-				    , inet_sockaddrtos(addr)
-				    , ntohs(inet_sockaddrport(addr))
+		log_message(LOG_INFO, "Vty error cant bind to %s (%s)"
+				    , inet_sockaddrtopair(addr)
 				    , strerror(errno));
 		close(accept_sock);
 		return -1;
@@ -1518,9 +1516,8 @@ vty_listen(struct sockaddr_storage *addr)
 	/* Socket listen */
 	ret = listen(accept_sock, 3);
 	if (ret < 0) {
-		log_message(LOG_INFO, "Vty error cant listen to [%s]:%d (%s)"
-				    , inet_sockaddrtos(addr)
-				    , ntohs(inet_sockaddrport(addr))
+		log_message(LOG_INFO, "Vty error cant listen to %s (%s)"
+				    , inet_sockaddrtopair(addr)
 				    , strerror(errno));
 		close(accept_sock);
 		return -1;
@@ -1530,9 +1527,8 @@ vty_listen(struct sockaddr_storage *addr)
 	/* Restore old mask */
 	umask(old_mask);
 
-	log_message(LOG_INFO, "Vty start listening on [%s]:%d"
-			    , inet_sockaddrtos(addr)
-			    , ntohs(inet_sockaddrport(addr)));
+	log_message(LOG_INFO, "Vty start listening on %s"
+			    , inet_sockaddrtopair(addr));
 
 	vty_event(VTY_SERV, accept_sock, NULL);
 	return accept_sock;

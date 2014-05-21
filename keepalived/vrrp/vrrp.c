@@ -259,7 +259,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 		 */
 		if ((ntohs(ip->tot_len) - ihl) <= sizeof(vrrphdr_t)) {
 			log_message(LOG_INFO,
-			       "ip payload too short. %d and expect at least %d",
+			       "ip payload too short. %d and expect at least %lu",
 			       ntohs(ip->tot_len) - ihl, sizeof(vrrphdr_t));
 			return VRRP_PACKET_KO;
 		}

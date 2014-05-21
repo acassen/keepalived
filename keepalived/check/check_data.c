@@ -101,7 +101,7 @@ dump_vsg_entry(void *data)
 	virtual_server_group_entry_t *vsg_entry = data;
 
 	if (vsg_entry->vfwmark)
-		log_message(LOG_INFO, "   FWMARK = %d", vsg_entry->vfwmark);
+		log_message(LOG_INFO, "   FWMARK = %u", vsg_entry->vfwmark);
 	else if (vsg_entry->range)
 		log_message(LOG_INFO, "   VIP Range = %s-%d, VPORT = %d"
 				    , inet_sockaddrtos(&vsg_entry->addr)
@@ -169,7 +169,7 @@ dump_vs(void *data)
 	if (vs->vsgname)
 		log_message(LOG_INFO, " VS GROUP = %s", vs->vsgname);
 	else if (vs->vfwmark)
-		log_message(LOG_INFO, " VS FWMARK = %d", vs->vfwmark);
+		log_message(LOG_INFO, " VS FWMARK = %u", vs->vfwmark);
 	else
 		log_message(LOG_INFO, " VIP = %s, VPORT = %d"
 				    , inet_sockaddrtos(&vs->addr), ntohs(inet_sockaddrport(&vs->addr)));
@@ -359,7 +359,6 @@ dump_check_data(check_data_t *data)
 char *
 format_vs (virtual_server_t *vs)
 {
-	static char addr_str[INET6_ADDRSTRLEN + 1];
 	/* alloc large buffer because of unknown length of vs->vsgname */
 	static char ret[512];
 
@@ -368,12 +367,10 @@ format_vs (virtual_server_t *vs)
 			, vs->vsgname
 			, ntohs(inet_sockaddrport(&vs->addr)));
 	else if (vs->vfwmark)
-		snprintf (ret, sizeof (ret) - 1, "FWM %d", vs->vfwmark);
-	else {
-		inet_sockaddrtos2(&vs->addr, addr_str);
-		snprintf(ret, sizeof(ret) - 1, "[%s]:%d"
-			, addr_str
-			, ntohs(inet_sockaddrport(&vs->addr)));
-	}
+		snprintf (ret, sizeof (ret) - 1, "FWM %u", vs->vfwmark);
+	else
+		snprintf(ret, sizeof(ret) - 1, "%s"
+			, inet_sockaddrtopair(&vs->addr));
+
 	return ret;
 }
