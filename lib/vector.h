@@ -39,6 +39,7 @@ typedef struct _vector {
 #define vector_active(V) ((V)->active)
 #define vector_foreach_slot(v,p,i) \
 	for (i = 0; i < (v)->allocated && ((p) = (v)->slot[i]); i++)
+#define FMT_STR_VSLOT(V,E) ((char*)vector_slot(V,E))
 
 /* Prototypes */
 extern vector_t *vector_alloc(void);

@@ -205,14 +205,14 @@ vrrp_srcip_handler(vector_t *strvec)
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] malformed unicast"
 				     " src address[%s]. Skipping..."
-				   , vrrp->iname, vector_slot(strvec, 1));
+				   , vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 
 	if (saddr->ss_family != vrrp->family) {
 		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] and unicast src address"
 				     "[%s] MUST be of the same family !!! Skipping..."
-				   , vrrp->iname, vector_slot(strvec, 1));
+				   , vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 		memset(saddr, 0, sizeof(struct sockaddr_storage));
 	}
 }

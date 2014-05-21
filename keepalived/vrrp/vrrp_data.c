@@ -116,8 +116,8 @@ dump_vscript(void *data)
 
 	log_message(LOG_INFO, " VRRP Script = %s", vscript->sname);
 	log_message(LOG_INFO, "   Command = %s", vscript->script);
-	log_message(LOG_INFO, "   Interval = %d sec", vscript->interval / TIMER_HZ);
-	log_message(LOG_INFO, "   Timeout = %d sec", vscript->timeout / TIMER_HZ);
+	log_message(LOG_INFO, "   Interval = %d sec", (int)(vscript->interval / TIMER_HZ));
+	log_message(LOG_INFO, "   Timeout = %d sec", (int)(vscript->timeout / TIMER_HZ));
 	log_message(LOG_INFO, "   Weight = %d", vscript->weight);
 	log_message(LOG_INFO, "   Rise = %d", vscript->rise);
 	log_message(LOG_INFO, "   Fall = %d", vscript->fall);
@@ -368,7 +368,7 @@ alloc_vrrp_unicast_peer(vector_t *strvec)
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] malformed unicast"
 				     " peer address[%s]. Skipping..."
-				   , vrrp->iname, vector_slot(strvec, 0));
+				   , vrrp->iname, FMT_STR_VSLOT(strvec, 0));
 		FREE(peer);
 		return;
 	}
@@ -376,7 +376,7 @@ alloc_vrrp_unicast_peer(vector_t *strvec)
 	if (peer->ss_family != vrrp->family) {
 		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] and unicast peer address"
 				     "[%s] MUST be of the same family !!! Skipping..."
-				   , vrrp->iname, vector_slot(strvec, 0));
+				   , vrrp->iname, FMT_STR_VSLOT(strvec, 0));
 		FREE(peer);
 		return;
 	}
