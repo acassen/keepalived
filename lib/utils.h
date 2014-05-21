@@ -41,6 +41,8 @@
 #define DBG(fmt, msg...)
 #endif
 
+#define STR(x)  #x
+
 /* global vars exported */
 extern int debug;
 

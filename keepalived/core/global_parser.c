@@ -64,7 +64,7 @@ smtpto_handler(vector_t *strvec)
 static void
 smtpip_handler(vector_t *strvec)
 {
-	inet_stosockaddr(vector_slot(strvec, 1), SMTP_PORT_STR, &global_data->smtp_server);
+	inet_stosockaddr(vector_slot(strvec, 1), STR(SMTP_PORT), &global_data->smtp_server);
 }
 static void
 email_handler(vector_t *strvec)

@@ -359,7 +359,6 @@ dump_check_data(check_data_t *data)
 char *
 format_vs (virtual_server_t *vs)
 {
-	static char addr_str[INET6_ADDRSTRLEN + 1];
 	/* alloc large buffer because of unknown length of vs->vsgname */
 	static char ret[512];
 
@@ -369,11 +368,9 @@ format_vs (virtual_server_t *vs)
 			, ntohs(inet_sockaddrport(&vs->addr)));
 	else if (vs->vfwmark)
 		snprintf (ret, sizeof (ret) - 1, "FWM %u", vs->vfwmark);
-	else {
-		inet_sockaddrtos2(&vs->addr, addr_str);
-		snprintf(ret, sizeof(ret) - 1, "[%s]:%d"
-			, addr_str
-			, ntohs(inet_sockaddrport(&vs->addr)));
-	}
+	else
+		snprintf(ret, sizeof(ret) - 1, "%s"
+			, inet_sockaddrtopair(&vs->addr));
+
 	return ret;
 }
