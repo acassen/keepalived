@@ -31,8 +31,8 @@ unsigned long mem_allocated;	/* Total memory used in Bytes */
 void *
 xalloc(unsigned long size)
 {
-	void *mem;
-	if ((mem = malloc(size)))
+	void *mem = malloc(size);
+	if (mem)
 		mem_allocated += size;
 	return mem;
 }
@@ -40,20 +40,18 @@ xalloc(unsigned long size)
 void *
 zalloc(unsigned long size)
 {
-	void *mem;
-	if ((mem = malloc(size))) {
+	void *mem = xalloc(size);
+	if (mem)
 		memset(mem, 0, size);
-		mem_allocated += size;
-	}
 	return mem;
 }
 
 void
 xfree(void *p)
 {
+	// XXX sizeof p is the size of the pointer, not the pointed
 	mem_allocated -= sizeof (p);
 	free(p);
-	p = NULL;
 }
 
 /* KeepAlived memory management. in debug mode,
