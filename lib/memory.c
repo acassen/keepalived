@@ -25,6 +25,8 @@
 #include "memory.h"
 #include "utils.h"
 
+#include <stdio.h>
+
 /* Global var */
 unsigned long mem_allocated;	/* Total memory used in Bytes */
 
@@ -32,8 +34,14 @@ void *
 xalloc(unsigned long size)
 {
 	void *mem = malloc(size);
-	if (mem)
-		mem_allocated += size;
+
+	if (NULL == mem) {
+
+		perror("KeepAlived");
+		exit(EXIT_FAILURE);
+	}
+
+	mem_allocated += size;
 	return mem;
 }
 
@@ -96,9 +104,9 @@ static int f = 0;		/* Free list pointer */
 char *
 keepalived_malloc(unsigned long size, char *file, char *function, int line)
 {
-	void *buf;
+	void *buf = NULL;
 	int i = 0;
-	long check;
+	long check = 0;
 
 	buf = zalloc(size + sizeof (long));
 
@@ -137,7 +145,7 @@ int
 keepalived_free(void *buffer, char *file, char *function, int line)
 {
 	int i = 0;
-	void *buf;
+	void *buf = NULL;
 
 	/* If nullpointer remember */
 	if (buffer == NULL) {
@@ -311,8 +319,8 @@ keepalived_realloc(void *buffer, unsigned long size, char *file, char *function,
 		   int line)
 {
 	int i = 0;
-	void *buf, *buf2;
-	long check;
+	void *buf = NULL, *buf2 = NULL;
+	long check = 0;
 
 	if (buffer == NULL) {
 		printf("realloc %p %s, %3d %s\n", buffer, file, line, function);
