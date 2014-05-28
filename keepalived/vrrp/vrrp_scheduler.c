@@ -430,7 +430,7 @@ alloc_sock(sa_family_t family, list l, int proto, int ifindex, int unicast)
 {
 	sock_t *new;
 
-	new = (sock_t *) MALLOC(sizeof (sock_t));
+	new = MALLOC(sizeof *new);
 	new->family = family;
 	new->proto = proto;
 	new->ifindex = ifindex;

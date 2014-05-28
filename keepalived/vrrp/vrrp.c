@@ -165,6 +165,10 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	 * then compute a ICV to compare with the one present in AH pkt.
 	 * alloc a temp memory space to stock the ip mutable fields
 	 */
+<<<<<<< HEAD
+=======
+	digest = MALLOC(16); /*MD5_DIGEST_LENGTH */
+>>>>>>> Cleanup MALLOC and use infer object size to get allocated instead of type
 
 	/* zero the ip mutable fields */
 	ip->tos = 0;
@@ -404,7 +408,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 	ipsec_ah_t *ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));
 
 	/* alloc a temp memory space to stock the ip mutable fields */
-	ip_mutable_fields = (ICV_mutable_fields *) MALLOC(sizeof (ICV_mutable_fields));
+	ip_mutable_fields = MALLOC(sizeof *ip_mutable_fields);
 
 	/* fill in next header filed --rfc2402.2.1 */
 	ah->next_header = IPPROTO_VRRP;
@@ -467,7 +471,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 	   => No padding needed.
 	   -- rfc2402.3.3.3.1.1.1 & rfc2401.5
 	 */
-	digest = (unsigned char *) MALLOC(16); /*MD5_DIGEST_LENGTH */
+	digest = MALLOC(16); /*MD5_DIGEST_LENGTH */
 	hmac_md5((unsigned char *) buffer, buflen, vrrp->auth_data, sizeof (vrrp->auth_data)
 		 , digest);
 	memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);

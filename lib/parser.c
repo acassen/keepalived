@@ -47,7 +47,7 @@ keyword_alloc(vector_t *keywords_vec, char *string, void (*handler) (vector_t *)
 
 	vector_alloc_slot(keywords_vec);
 
-	keyword = (keyword_t *) MALLOC(sizeof(keyword_t));
+	keyword = MALLOC(sizeof *keyword);
 	keyword->string = string;
 	keyword->handler = handler;
 
@@ -313,7 +313,7 @@ read_value_block(void)
 	vector_t *vec = NULL;
 	vector_t *elements = vector_alloc();
 
-	buf = (char *) MALLOC(MAXBUF);
+	buf = MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
 		vec = alloc_strvec(buf);
 		if (vec) {
@@ -326,7 +326,7 @@ read_value_block(void)
 			if (vector_size(vec))
 				for (i = 0; i < vector_size(vec); i++) {
 					str = vector_slot(vec, i);
-					dup = (char *) MALLOC(strlen(str) + 1);
+					dup = MALLOC(strlen(str) + 1);
 					memcpy(dup, str, strlen(str));
 					vector_alloc_slot(elements);
 					vector_set_slot(elements, dup);
@@ -347,7 +347,7 @@ alloc_value_block(vector_t *strvec, void (*alloc_func) (vector_t *))
 	char *str = NULL;
 	vector_t *vec = NULL;
 
-	buf = (char *) MALLOC(MAXBUF);
+	buf = MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
 		vec = alloc_strvec(buf);
 		if (vec) {
@@ -383,7 +383,7 @@ set_value(vector_t *strvec)
 			str = vector_slot(strvec, i);
 			len += strlen(str);
 			if (!alloc)
-				alloc = (char *) MALLOC(len + 1);
+				alloc = MALLOC(len + 1);
 			else {
 				alloc = (char *) REALLOC(alloc, 2 * (len + 1));
 				tmp = vector_slot(strvec, i-1);
@@ -395,7 +395,7 @@ set_value(vector_t *strvec)
 				strncat(alloc, str, strlen(str));
 		}
 	} else {
-		alloc = (char *) MALLOC(size + 1);
+		alloc = MALLOC(size + 1);
 		memcpy(alloc, str, size);
 	}
 	return alloc;

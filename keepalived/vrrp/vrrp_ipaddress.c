@@ -139,7 +139,7 @@ free_ipaddress(void *if_data)
 char *
 ipaddresstos(ip_address_t *ipaddress)
 {
-	char *addr_str = (char *) MALLOC(INET6_ADDRSTRLEN);
+	char *addr_str = MALLOC(INET6_ADDRSTRLEN);
 
 	if (IP_IS6(ipaddress)) {
 		inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, INET6_ADDRSTRLEN);
@@ -153,7 +153,7 @@ void
 dump_ipaddress(void *if_data)
 {
 	ip_address_t *ipaddr = if_data;
-	char *broadcast = (char *) MALLOC(INET_ADDRSTRLEN + 5);
+	char *broadcast = MALLOC(INET_ADDRSTRLEN + 5);
 	char *addr_str;
 
 	addr_str = ipaddresstos(ipaddr);
@@ -182,7 +182,7 @@ parse_ipaddress(ip_address_t *ip_address, char *str)
 
 	/* No ip address, allocate a brand new one */
 	if (!new) {
-		new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
+		new = MALLOC(sizeof *new);
 	}
 
 	/* Handle the specials */
@@ -226,7 +226,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	char *str;
 	int i = 0, addr_idx =0;
 
-	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
+	new = MALLOC(sizeof *new);
 	if (ifp) {
 		new->ifa.ifa_index = IF_INDEX(ifp);
 		new->ifp = ifp;
@@ -329,7 +329,8 @@ clear_diff_address(list l, list n)
 		return;
 	}
 
-	addr_str = (char *) MALLOC(41);
+	// XXX Magic value
+	addr_str = MALLOC(41);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		ipaddr = ELEMENT_DATA(e);
 

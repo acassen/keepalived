@@ -38,7 +38,7 @@ buffer_new(size_t size)
 {
 	buffer_t *b;
 
-	b = (buffer_t *) MALLOC(sizeof(buffer_t));
+	b = MALLOC(sizeof *b);
 
 	if (size) {
 		b->size = size;
@@ -77,7 +77,7 @@ buffer_getstr(buffer_t *b)
 	for (data = b->head; data; data = data->next)
 		totlen += data->cp - data->sp;
 
-	if (!(s = (char *) MALLOC(totlen+1)))
+	if (!(s = MALLOC(totlen+1)))
 		return NULL;
 
 	p = s;
@@ -119,7 +119,7 @@ buffer_add(buffer_t *b)
 {
 	buffer_data_t *d;
 
-	d = (buffer_data_t *) MALLOC(offsetof(buffer_data_t, data[b->size]));
+	d = MALLOC(offsetof(buffer_data_t, data[b->size]));
 	d->cp = d->sp = 0;
 	d->next = NULL;
 
@@ -240,7 +240,7 @@ buffer_flush_window(buffer_t *b, int fd, int width, int height,
 		iov = small_iov;
 	} else {
 		iov_alloc = ((height*(width+2))/b->size)+10;
-		iov = (struct iovec *) MALLOC(iov_alloc*sizeof(*iov));
+		iov = MALLOC(iov_alloc*sizeof(*iov));
 	}
 	iov_index = 0;
 

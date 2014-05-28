@@ -131,7 +131,7 @@ alloc_global_data(void)
 {
 	data_t *new;
 
-	new = (data_t *) MALLOC(sizeof(data_t));
+	new = MALLOC(sizeof *new);
 	new->email = alloc_list(free_email, dump_email);
 
 	set_default_values(new);

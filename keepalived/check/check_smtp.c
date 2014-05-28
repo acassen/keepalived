@@ -95,7 +95,7 @@ smtp_alloc_host(void)
 	smtp_checker_t *smtp_checker = CHECKER_GET();
 
 	/* Allocate the new host data structure */
-	new = (smtp_host_t *)MALLOC(sizeof(smtp_host_t));
+	new = MALLOC(sizeof *new);
 
 	/* 
 	 * By default we set the ip to connect to as the same ip as the current real server
@@ -114,13 +114,13 @@ smtp_alloc_host(void)
 void
 smtp_check_handler(vector_t *strvec)
 {
-	smtp_checker_t *smtp_checker = (smtp_checker_t *)MALLOC(sizeof(smtp_checker_t));
+	smtp_checker_t *smtp_checker = MALLOC(sizeof *smtp_checker);
 
 	/* 
 	 * Set something sane for the default HELO banner
 	 * May be overridden by a "helo_name" keyword later.
 	 */
-	smtp_checker->helo_name = (char *)MALLOC(strlen(SMTP_DEFAULT_HELO) + 1);
+	smtp_checker->helo_name = MALLOC(strlen(SMTP_DEFAULT_HELO) + 1);
 	memcpy(smtp_checker->helo_name, SMTP_DEFAULT_HELO, strlen(SMTP_DEFAULT_HELO) + 1);
 
 	/* some other sane values */

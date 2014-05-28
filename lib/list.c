@@ -33,7 +33,7 @@ alloc_list(void (*free_func) (void *), void (*dump_func) (void *))
 static element
 alloc_element(void)
 {
-	element new = (element) MALLOC(sizeof (struct _element));
+	element new = MALLOC(sizeof *new);
 	return new;
 }
 
@@ -164,7 +164,7 @@ free_list_element(list l, element e)
 list
 alloc_mlist(void (*free_func) (void *), void (*dump_func) (void *), int size)
 {
-	list new = (list) MALLOC(size * sizeof (struct _list));
+	list new = MALLOC(size * sizeof *new);
 	new->free = free_func;
 	new->dump = dump_func;
 	return new;

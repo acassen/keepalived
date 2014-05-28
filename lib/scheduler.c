@@ -50,7 +50,7 @@ thread_make_master(void)
 {
 	thread_master_t *new;
 
-	new = (thread_master_t *) MALLOC(sizeof (thread_master_t));
+	new = MALLOC(sizeof *new);
 	return new;
 }
 
@@ -225,7 +225,7 @@ thread_new(thread_master_t * m)
 		return new;
 	}
 
-	new = (thread_t *) MALLOC(sizeof (thread_t));
+	new = MALLOC(sizeof *new);
 	m->alloc++;
 	return new;
 }

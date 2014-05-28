@@ -60,7 +60,7 @@ alloc_track(list track_list, vector_t *strvec)
 		}
 	}
 
-	tip         = (tracked_if_t *) MALLOC(sizeof(tracked_if_t));
+	tip         = MALLOC(sizeof *tip);
 	tip->ifp    = ifp;
 	tip->weight = weight;
 
@@ -121,7 +121,7 @@ alloc_track_script(list track_list, vector_t *strvec)
 		}
 	}
 
-	tsc         = (tracked_sc_t *) MALLOC(sizeof(tracked_sc_t));
+	tsc         = MALLOC(sizeof *tsc);
 	tsc->scr    = vsc;
 	tsc->weight = weight;
 	vsc->inuse++;

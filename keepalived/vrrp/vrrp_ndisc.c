@@ -183,7 +183,7 @@ void
 ndisc_init(void)
 {
 	/* Initalize shared buffer */
-	ndisc_buffer = (char *) MALLOC(ETHER_HDR_LEN + sizeof(struct ip6hdr) +
+	ndisc_buffer = MALLOC(ETHER_HDR_LEN + sizeof(struct ip6hdr) +
 				       sizeof(struct ndhdr) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
 
 	/* Create the socket descriptor */

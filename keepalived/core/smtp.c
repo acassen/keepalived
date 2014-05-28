@@ -304,7 +304,7 @@ helo_cmd(thread_t * thread)
 	smtp_t *smtp = THREAD_ARG(thread);
 	char *buffer;
 
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+	buffer = MALLOC(SMTP_BUFFER_MAX);
 	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HELO_CMD, get_local_name());
 	if (send(thread->u.fd, buffer, strlen(buffer), 0) == -1)
 		smtp->stage = ERROR;
@@ -337,7 +337,7 @@ mail_cmd(thread_t * thread)
 	smtp_t *smtp = THREAD_ARG(thread);
 	char *buffer;
 
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+	buffer = MALLOC(SMTP_BUFFER_MAX);
 	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_MAIL_CMD, global_data->email_from);
 	if (send(thread->u.fd, buffer, strlen(buffer), 0) == -1)
 		smtp->stage = ERROR;
@@ -371,7 +371,7 @@ rcpt_cmd(thread_t * thread)
 	char *buffer;
 	char *fetched_email;
 
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+	buffer = MALLOC(SMTP_BUFFER_MAX);
 	/* We send RCPT TO command multiple time to add all our email receivers.
 	 * --rfc821.3.1
 	 */
@@ -486,7 +486,7 @@ body_cmd(thread_t * thread)
 	time_t tm;
 	struct tm *t;
 
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+	buffer = MALLOC(SMTP_BUFFER_MAX);
 
 	time(&tm);
 	t = localtime(&tm);
@@ -583,11 +583,11 @@ smtp_alert(real_server_t * rs, vrrp_t * vrrp,
 	/* Only send mail if email specified */
 	if (!LIST_ISEMPTY(global_data->email) && global_data->smtp_server.ss_family != 0) {
 		/* allocate & initialize smtp argument data structure */
-		smtp = (smtp_t *) MALLOC(sizeof(smtp_t));
-		smtp->subject = (char *) MALLOC(MAX_HEADERS_LENGTH);
-		smtp->body = (char *) MALLOC(MAX_BODY_LENGTH);
-		smtp->buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
-		smtp->email_to = (char *) MALLOC(SMTP_BUFFER_MAX);
+		smtp = MALLOC(sizeof *smtp);
+		smtp->subject = MALLOC(MAX_HEADERS_LENGTH);
+		smtp->body = MALLOC(MAX_BODY_LENGTH);
+		smtp->buffer = MALLOC(SMTP_BUFFER_MAX);
+		smtp->email_to = MALLOC(SMTP_BUFFER_MAX);
 
 		/* format subject if rserver is specified */
 		if (rs) {
