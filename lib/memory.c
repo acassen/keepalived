@@ -58,17 +58,17 @@ xfree(void *p)
  * help finding eventual memory leak.
  * Allocation memory types manipulated are :
  *
- * +type+--------meaning--------+
- * ! 0  ! Free slot             !
- * ! 1  ! Overrun               !
- * ! 2  ! free null             !
- * ! 3  ! realloc null          !
- * ! 4  ! Not previus allocated !
- * ! 8  ! Last free list        !
- * ! 9  ! Allocated             !
- * +----+-----------------------+
+ * +type+--------meaning-----------+
+ * ! 0  ! Free slot                !
+ * ! 1  ! Overrun                  !
+ * ! 2  ! free null                !
+ * ! 3  ! realloc null             !
+ * ! 4  ! Not previously allocated !
+ * ! 8  ! Last free list           !
+ * ! 9  ! Allocated                !
+ * +----+--------------------------+
  *
- * global variabel debug bit 9 ( 512 ) used to
+ * global variable debug bit 9 ( 512 ) used to
  * flag some memory error.
  *
  */
