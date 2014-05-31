@@ -363,7 +363,7 @@ static void
 vrrp_garp_refresh_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->garp_refresh = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
+	vrrp->garp_refresh.tv_sec = atoi(vector_slot(strvec, 1));
 }
 static void
 vrrp_auth_type_handler(vector_t *strvec)

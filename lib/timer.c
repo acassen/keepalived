@@ -75,6 +75,23 @@ timer_sub(timeval_t a, timeval_t b)
 
 /* timer add */
 timeval_t
+timer_add(timeval_t a, timeval_t b)
+{
+	timeval_t ret;
+
+	timer_reset(ret);
+	ret.tv_usec = a.tv_usec + b.tv_usec;
+	ret.tv_sec = a.tv_sec + b.tv_sec;
+
+	if (ret.tv_usec >= TIMER_HZ) {
+		ret.tv_sec++;
+		ret.tv_usec -= TIMER_HZ;
+	}
+
+	return ret;
+}
+
+timeval_t
 timer_add_long(timeval_t a, long b)
 {
 	timeval_t ret;
@@ -209,6 +226,17 @@ timer_sub_now(timeval_t a)
 	return timer_sub(time_now, a);
 }
 
+/* timer add to current time */
+timeval_t
+timer_add_now(timeval_t a)
+{
+	/* Init current time if needed */
+	if (timer_isnull(time_now))
+		set_time_now();
+
+	return timer_add(time_now, a);
+}
+
 /* print timer value */
 void
 timer_dump(timeval_t a)
@@ -225,4 +253,3 @@ timer_tol(timeval_t a)
 	timer = a.tv_sec * TIMER_HZ + a.tv_usec;
 	return timer;
 }
-

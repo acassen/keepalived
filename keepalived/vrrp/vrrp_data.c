@@ -242,9 +242,9 @@ dump_vrrp(void *data)
 	if (vrrp->garp_delay)
 		log_message(LOG_INFO, "   Gratuitous ARP delay = %d",
 		       vrrp->garp_delay/TIMER_HZ);
-	if (vrrp->garp_refresh)
-		log_message(LOG_INFO, "   Gratuitous ARP refresh timer = %d",
-		       vrrp->garp_refresh/TIMER_HZ);
+	if (!timer_isnull(vrrp->garp_refresh))
+		log_message(LOG_INFO, "   Gratuitous ARP refresh timer = %lu",
+		       vrrp->garp_refresh.tv_sec);
 	log_message(LOG_INFO, "   Virtual Router ID = %d", vrrp->vrid);
 	log_message(LOG_INFO, "   Priority = %d", vrrp->base_priority);
 	log_message(LOG_INFO, "   Advert interval = %dsec",

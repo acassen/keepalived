@@ -769,8 +769,8 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	vrrp_send_link_update(vrrp);
 
 	/* set refresh timer */
-	if (vrrp->garp_refresh) {
-		vrrp->garp_refresh_timer = timer_add_long(time_now, vrrp->garp_refresh);
+	if (!timer_isnull(vrrp->garp_refresh)) {
+		vrrp->garp_refresh_timer = timer_add_now(vrrp->garp_refresh);
 	}
 
 	/* Check if notify is needed */
@@ -921,9 +921,10 @@ vrrp_state_master_tx(vrrp_t * vrrp, const int prio)
 				    , vrrp->iname);
 		vrrp_state_become_master(vrrp);
 		ret = 1;
-	} else if (vrrp->garp_refresh && timer_cmp(time_now, vrrp->garp_refresh_timer) > 0) {
+	} else if (!timer_isnull(vrrp->garp_refresh) &&
+		   timer_cmp(time_now, vrrp->garp_refresh_timer) > 0) {
 		vrrp_send_link_update(vrrp);
-		vrrp->garp_refresh_timer = timer_add_long(time_now, vrrp->garp_refresh);
+		vrrp->garp_refresh_timer = timer_add_now(vrrp->garp_refresh);
 	}
 
 	vrrp_send_adv(vrrp,

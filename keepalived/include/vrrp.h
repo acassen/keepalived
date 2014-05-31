@@ -106,7 +106,7 @@ typedef struct _vrrp_t {
 							 * => eth0 for example.
 							 */
 	int			garp_delay;		/* Delay to launch gratuitous ARP */
-	int			garp_refresh;		/* Next scheduled gratuitous ARP refresh */
+	timeval_t		garp_refresh;		/* Next scheduled gratuitous ARP refresh */
 	timeval_t		garp_refresh_timer;	/* Next scheduled gratuitous ARP timer */
 	int			vrid;			/* virtual id. from 1(!) to 255 */
 	int			base_priority;		/* configured priority value */
