@@ -135,7 +135,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 {
 	struct iphdr *ip = (struct iphdr *) (buffer);
 	ipsec_ah_t *ah = (ipsec_ah_t *) ((char *) ip + (ip->ihl << 2));
-	unsigned char *digest;
+	unsigned char digest[16]; /*MD5_DIGEST_LENGTH */
 	uint32_t backup_auth_data[3];
 
 	/* first verify that the SPI value is equal to src IP */
@@ -166,7 +166,6 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	 * then compute a ICV to compare with the one present in AH pkt.
 	 * alloc a temp memory space to stock the ip mutable fields
 	 */
-	digest = (unsigned char *) MALLOC(16); /*MD5_DIGEST_LENGTH */
 
 	/* zero the ip mutable fields */
 	ip->tos = 0;
@@ -188,7 +187,6 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 		return 1;
 	}
 
-	FREE(digest);
 	return 0;
 }
 
@@ -272,6 +270,14 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 			if (hd->naddr != LIST_SIZE(vrrp->vip)) {
 				log_message(LOG_INFO,
 				       "receive an invalid ip number count associated with VRID!");
+				return VRRP_PACKET_KO;
+			}
+
+			if ((ntohs(ip->tot_len) - ihl - sizeof(vrrphdr_t)) < hd->naddr * sizeof(uint32_t)) {
+				log_message(LOG_INFO,
+				       "not enough vips in payload: %lu and expect at least %d",
+				       (ntohs(ip->tot_len) - ihl - sizeof(vrrphdr_t)) / sizeof(uint32_t),
+				       hd->naddr);
 				return VRRP_PACKET_KO;
 			}
 
