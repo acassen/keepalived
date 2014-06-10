@@ -273,6 +273,14 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 				return VRRP_PACKET_KO;
 			}
 
+			if ((ntohs(ip->tot_len) - ihl - sizeof(vrrphdr_t)) < hd->naddr * sizeof(uint32_t)) {
+				log_message(LOG_INFO,
+				       "not enough vips in payload: %lu and expect at least %d",
+				       (ntohs(ip->tot_len) - ihl - sizeof(vrrphdr_t)) / sizeof(uint32_t),
+				       hd->naddr);
+				return VRRP_PACKET_KO;
+			}
+
 			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 				ipaddress = ELEMENT_DATA(e);
 				if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
