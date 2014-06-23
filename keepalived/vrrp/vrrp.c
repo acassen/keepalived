@@ -170,6 +170,8 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	ip->tos = 0;
 	ip->frag_off = 0;
 	ip->check = 0;
+	if (!LIST_ISEMPTY(vrrp->unicast_peer))
+		ip->ttl = 0;
 	memcpy(backup_auth_data, ah->auth_data, sizeof (ah->auth_data));
 	memset(ah->auth_data, 0, sizeof (ah->auth_data));
 	memset(digest, 0, 16);
@@ -300,7 +302,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 
 		/* check the authenicaion if it is ipsec ah */
 		if (hd->auth_type == VRRP_AUTH_AH)
-			return (vrrp_in_chk_ipsecah(vrrp, buffer));
+			return vrrp_in_chk_ipsecah(vrrp, buffer);
 
 		/* Set expected vrrp packet lenght */
 		vrrphdr_len = sizeof(vrrphdr_t) + VRRP_AUTH_LEN + hd->naddr * sizeof(uint32_t);
@@ -417,6 +419,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 
 	/* backup the ip mutable fields */
 	ip_mutable_fields->tos = ip->tos;
+	ip_mutable_fields->ttl = ip->ttl;
 	ip_mutable_fields->frag_off = ip->frag_off;
 	ip_mutable_fields->check = ip->check;
 
@@ -424,6 +427,8 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 	ip->tos = 0;
 	ip->frag_off = 0;
 	ip->check = 0;
+	if (!LIST_ISEMPTY(vrrp->unicast_peer))
+		ip->ttl = 0;
 
 	/* fill in the Payload len field */
 	ah->payload_len = IPSEC_AH_PLEN;
@@ -471,6 +476,8 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 	ip->tos = ip_mutable_fields->tos;
 	ip->frag_off = ip_mutable_fields->frag_off;
 	ip->check = ip_mutable_fields->check;
+	if (!LIST_ISEMPTY(vrrp->unicast_peer))
+		ip->ttl = ip_mutable_fields->ttl;
 
 	FREE(ip_mutable_fields);
 	FREE(digest);

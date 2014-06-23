@@ -50,6 +50,7 @@ typedef struct _ipsec_ah {				/* rfc2402.2 */
 
 typedef struct {		/* rfc2402.3.3.3.1.1.1 */
 	uint8_t			tos;
+	uint8_t			ttl;
 	uint16_t		frag_off;
 	uint16_t		check;
 } ICV_mutable_fields;		/* We need to zero this fields to compute the ICV */
