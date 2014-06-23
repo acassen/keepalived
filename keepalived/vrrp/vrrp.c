@@ -135,14 +135,13 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 {
 	struct iphdr *ip = (struct iphdr *) (buffer);
 	ipsec_ah_t *ah = (ipsec_ah_t *) ((char *) ip + (ip->ihl << 2));
-	unsigned char *digest;
+	unsigned char digest[16]; /*MD5_DIGEST_LENGTH */
 	uint32_t backup_auth_data[3];
 
 	/* first verify that the SPI value is equal to src IP */
 	if (ah->spi != ip->saddr) {
-		log_message(LOG_INFO,
-		       "IPSEC AH : invalid IPSEC SPI value. %d and expect %d",
-		       ip->saddr, ah->spi);
+		log_message(LOG_INFO, "IPSEC AH : invalid IPSEC SPI value. %d and expect %d",
+			    ip->saddr, ah->spi);
 		return 1;
 	}
 
@@ -155,10 +154,10 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter->seq_number || vrrp->sync) {
 		vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number);
 	} else {
-		log_message(LOG_INFO,
-		       "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
-		       " already proceeded. Packet dropped. Local(%d)", vrrp->iname
-		       , ntohl(ah->seq_number), vrrp->ipsecah_counter->seq_number);
+		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
+				      " already proceeded. Packet dropped. Local(%d)",
+			    vrrp->iname, ntohl(ah->seq_number),
+			    vrrp->ipsecah_counter->seq_number);
 		return 1;
 	}
 
@@ -166,7 +165,6 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	 * then compute a ICV to compare with the one present in AH pkt.
 	 * alloc a temp memory space to stock the ip mutable fields
 	 */
-	digest = (unsigned char *) MALLOC(16); /*MD5_DIGEST_LENGTH */
 
 	/* zero the ip mutable fields */
 	ip->tos = 0;
@@ -174,6 +172,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	ip->check = 0;
 	memcpy(backup_auth_data, ah->auth_data, sizeof (ah->auth_data));
 	memset(ah->auth_data, 0, sizeof (ah->auth_data));
+	memset(digest, 0, 16);
 
 	/* Compute the ICV */
 	hmac_md5((unsigned char *) buffer,
@@ -183,12 +182,12 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 
 	if (memcmp(backup_auth_data, digest, HMAC_MD5_TRUNC) != 0) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : invalid"
-		       " IPSEC HMAC-MD5 value. Due to fields mutation"
-		       " or bad password !", vrrp->iname);
+				      " IPSEC HMAC-MD5 value. Due to fields mutation"
+				      " or bad password !",
+			    vrrp->iname);
 		return 1;
 	}
 
-	FREE(digest);
 	return 0;
 }
 
