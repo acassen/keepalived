@@ -32,13 +32,10 @@
  */
 int extract_status_code(char *buffer, int size)
 {
-	char *buf_code;
+	char buf_code[] = "\0\0\0";
 	char *begin;
 	char *end = buffer + size;
 	int inc = 0;
-
-	/* Allocate the room */
-	buf_code = (char *)MALLOC(10);
 
 	/* Status-Code extraction */
 	while (buffer < end && *buffer++ != ' ') ;
@@ -47,7 +44,6 @@ int extract_status_code(char *buffer, int size)
 		inc++;
 	strncat(buf_code, begin, inc);
 	inc = atoi(buf_code);
-	FREE(buf_code);
 	return inc;
 }
 
