@@ -471,37 +471,49 @@ data_code(thread_t * thread, int status)
 void
 build_to_header_rcpt_addrs(smtp_t *smtp)
 {
-	char *fetched_email;
 	char *email_to_addrs;
-	int email_addrs_max;
 
 	if (smtp == NULL) return;
 	email_to_addrs = smtp->email_to;
+
+	int bytes_available = SMTP_BUFFER_MAX - 1;
 	smtp->email_it = 0;
 
-	email_addrs_max = (SMTP_BUFFER_MAX / SMTP_EMAIL_ADDR_MAX_LENGTH) - 1;
+	while (1) {
 
-	while ((fetched_email = fetch_next_email(smtp)) != NULL) {
+		char * fetched_email = fetch_next_email(smtp);
+		if(fetched_email != NULL)
+			break;
 
-		/* First email address, so no need for "," */
+		int bytes_not_written = 0;
+		int bytes_to_write = strlen(fetched_email);
+
 		if (smtp->email_it == 0) {
-			// XXX
-			snprintf(email_to_addrs, SMTP_EMAIL_ADDR_MAX_LENGTH, "%s", fetched_email);
+
+			if (bytes_available < bytes_to_write)
+				break;
 		}
 		else {
-			// XXX
-			strcat(email_to_addrs, ", ");
-			// XXX
-			strncat(email_to_addrs, fetched_email, SMTP_EMAIL_ADDR_MAX_LENGTH);
-		}
-	
-		smtp->email_it++;
-		if (smtp->email_it >= email_addrs_max)
-			break;
-				
-	}
 
-	smtp->email_it = 0;
+			if (bytes_available < 2 + bytes_to_write)
+				break;
+
+			/* Prepend with a comma and space to all non-first email addresses */
+			strcat(email_to_addrs, ", ");
+			email_to_addrs += 2;
+			bytes_available -= 2;
+		}
+
+		bytes_not_written = snprintf(email_to_addrs, bytes_to_write, "%s", fetched_email);
+		if (bytes_not_written > 0) {
+
+			// XXX Inconsistent state, no choice but to break here and do nothing
+			break;
+		}
+
+		email_to_addrs += bytes_to_write;
+		++smtp->email_it;
+	}
 }
 
 /* BODY command processing.
@@ -590,9 +602,11 @@ static int
 quit_cmd(thread_t * thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
+	int bytes_written = 0, bytes_to_write = 0;
 
-	// XXX
-	if (send(thread->u.fd, SMTP_QUIT_CMD, strlen(SMTP_QUIT_CMD), 0) == -1)
+	bytes_to_write = strlen(SMTP_QUIT_CMD);
+	bytes_written = send(thread->u.fd, SMTP_QUIT_CMD, bytes_to_write, 0);
+	if (-1 == bytes_written || bytes_written != bytes_to_write)
 		smtp->stage = ERROR;
 	else
 		smtp->stage++;
