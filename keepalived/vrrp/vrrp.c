@@ -163,12 +163,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 
 	/*
 	 * then compute a ICV to compare with the one present in AH pkt.
-	 * alloc a temp memory space to stock the ip mutable fields
 	 */
-<<<<<<< HEAD
-=======
-	digest = MALLOC(16); /*MD5_DIGEST_LENGTH */
->>>>>>> Cleanup MALLOC and use infer object size to get allocated instead of type
 
 	/* zero the ip mutable fields */
 	ip->tos = 0;
@@ -184,7 +179,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	hmac_md5((unsigned char *) buffer,
 		 vrrp_iphdr_len(vrrp) + vrrp_ipsecah_len() + vrrp_hd_len(vrrp)
 		 , vrrp->auth_data, sizeof (vrrp->auth_data)
-		 , digest);
+		 , (unsigned char *) digest);
 
 	if (memcmp(backup_auth_data, digest, HMAC_MD5_TRUNC) != 0) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : invalid"
@@ -403,7 +398,7 @@ static void
 vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 {
 	ICV_mutable_fields *ip_mutable_fields;
-	unsigned char *digest;
+	unsigned char *digest[16]; /*MD5_DIGEST_LENGTH */
 	struct iphdr *ip = (struct iphdr *) (buffer);
 	ipsec_ah_t *ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));
 
@@ -471,9 +466,8 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 	   => No padding needed.
 	   -- rfc2402.3.3.3.1.1.1 & rfc2401.5
 	 */
-	digest = MALLOC(16); /*MD5_DIGEST_LENGTH */
 	hmac_md5((unsigned char *) buffer, buflen, vrrp->auth_data, sizeof (vrrp->auth_data)
-		 , digest);
+		 , (unsigned char *) digest);
 	memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
 
 	/* Restore the ip mutable fields */
@@ -484,7 +478,6 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 		ip->ttl = ip_mutable_fields->ttl;
 
 	FREE(ip_mutable_fields);
-	FREE(digest);
 }
 
 /* build VRRP header */

@@ -96,8 +96,8 @@ vector_ensure(vector_t *v, unsigned int num)
 	if (v->allocated > num)
 		return;
 
-	v->slot = REALLOC(v->slot, sizeof *v->slot * (v->allocated * 2));
-	memset(&v->slot[v->allocated], 0, sizeof (void *) * v->allocated);
+	v->slot = REALLOC(v->slot, sizeof *v->slot * v->allocated * 2);
+	memset(&v->slot[v->allocated], 0, sizeof *v->slot * v->allocated);
 	v->allocated *= 2;
 
 	if (v->allocated <= num)
