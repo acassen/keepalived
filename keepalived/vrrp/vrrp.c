@@ -179,7 +179,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	hmac_md5((unsigned char *) buffer,
 		 vrrp_iphdr_len(vrrp) + vrrp_ipsecah_len() + vrrp_hd_len(vrrp)
 		 , vrrp->auth_data, sizeof (vrrp->auth_data)
-		 , (unsigned char *) digest);
+		 , digest);
 
 	if (memcmp(backup_auth_data, digest, HMAC_MD5_TRUNC) != 0) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : invalid"
@@ -398,7 +398,7 @@ static void
 vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 {
 	ICV_mutable_fields *ip_mutable_fields;
-	unsigned char *digest[16]; /*MD5_DIGEST_LENGTH */
+	unsigned char digest[16]; /*MD5_DIGEST_LENGTH */
 	struct iphdr *ip = (struct iphdr *) (buffer);
 	ipsec_ah_t *ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));
 
@@ -467,7 +467,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 	   -- rfc2402.3.3.3.1.1.1 & rfc2401.5
 	 */
 	hmac_md5((unsigned char *) buffer, buflen, vrrp->auth_data, sizeof (vrrp->auth_data)
-		 , (unsigned char *) digest);
+		 , digest);
 	memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
 
 	/* Restore the ip mutable fields */
