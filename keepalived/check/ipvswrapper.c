@@ -70,7 +70,7 @@ ipvs_start(void)
 	}
 
 	/* Allocate global user rules */
-	urule = (struct ip_vs_rule_user *) MALLOC(sizeof (struct ip_vs_rule_user));
+	urule = MALLOC(sizeof *urule);
 	return IPVS_SUCCESS;
 }
 
@@ -344,9 +344,9 @@ ipvs_start(void)
 	}
 
 	/* Allocate global user rules */
-	srule = (ipvs_service_t *) MALLOC(sizeof(ipvs_service_t));
-	drule = (ipvs_dest_t *) MALLOC(sizeof(ipvs_dest_t));
-	daemonrule = (ipvs_daemon_t *) MALLOC(sizeof(ipvs_daemon_t));
+	srule = MALLOC(sizeof *srule);
+	drule = MALLOC(sizeof *drule);
+	daemonrule = MALLOC(sizeof *daemonrule);
 	return IPVS_SUCCESS;
 }
 

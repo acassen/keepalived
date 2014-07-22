@@ -88,8 +88,8 @@ alloc_http_get(char *proto)
 {
 	http_checker_t *http_get_chk;
 
-	http_get_chk = (http_checker_t *) MALLOC(sizeof (http_checker_t));
-	http_get_chk->arg = (http_t *) MALLOC(sizeof (http_t));
+	http_get_chk = MALLOC(sizeof *http_get_chk);
+	http_get_chk->arg = MALLOC(sizeof *http_get_chk->arg);
 	http_get_chk->proto =
 	    (!strcmp(proto, "HTTP_GET")) ? PROTO_HTTP : PROTO_SSL;
 	http_get_chk->url = alloc_list(free_url, dump_url);
@@ -132,7 +132,7 @@ url_handler(vector_t *strvec)
 	url_t *new;
 
 	/* allocate the new URL */
-	new = (url_t *) MALLOC(sizeof (url_t));
+	new = MALLOC(sizeof *new);
 
 	list_add(http_get_chk->url, new);
 }
@@ -399,8 +399,8 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 	/* Continue with MD5SUM */
 	if (fetched_url->digest) {
 		/* Compute MD5SUM */
-		digest_tmp = (char *) MALLOC(MD5_BUFFER_LENGTH + 1);
-		for (di = 0; di < 16; di++)
+		digest_tmp = MALLOC(MD5_BUFFER_LENGTH + 1);
+		for (di = 0; di < MD5_BUFFER_LENGTH / 2; di++)
 			sprintf(digest_tmp + 2 * di, "%02x", digest[di]);
 
 		r = strcmp(fetched_url->digest, digest_tmp);
@@ -587,7 +587,7 @@ http_response_thread(thread_t * thread)
 				      " : recevice data <=\n\n", "WEB read");
 
 	/* Allocate & clean the get buffer */
-	req->buffer = (char *) MALLOC(MAX_BUFFER_LENGTH);
+	req->buffer = MALLOC(MAX_BUFFER_LENGTH);
 	req->extracted = NULL;
 	req->len = 0;
 	req->error = 0;
@@ -628,20 +628,20 @@ http_request_thread(thread_t * thread)
 				      "Web read, timeout");
 
 	/* Allocate & clean the GET string */
-	str_request = (char *) MALLOC(GET_BUFFER_LENGTH);
+	str_request = MALLOC(GET_BUFFER_LENGTH);
 
 	fetched_url = fetch_next_url(http_get_check);
 
 	if (vhost) {
 		/* If vhost was defined we don't need to override it's port */
 		request_host = vhost;
-		request_host_port = (char*) MALLOC(1);
+		request_host_port = MALLOC(1);
 		*request_host_port = 0;
 	} else {
 		request_host = inet_sockaddrtos(addr);
 
 		/* Allocate a buffer for the port string ( ":" [0-9][0-9][0-9][0-9][0-9] "\0" ) */
-		request_host_port = (char*) MALLOC(7);
+		request_host_port = MALLOC(7);
 		snprintf(request_host_port, 7, ":%d", 
 			 ntohs(inet_sockaddrport(addr)));
 	}
@@ -744,7 +744,7 @@ http_check_thread(thread_t * thread)
 
 	case connect_success:{
 			if (!http->req) {
-				http->req = (request_t *) MALLOC(sizeof (request_t));
+				http->req = MALLOC(sizeof *http->req);
 				new_req = 1;
 			} else
 				new_req = 0;

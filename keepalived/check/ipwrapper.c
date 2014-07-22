@@ -470,7 +470,7 @@ update_svr_checker_state(int alive, checker_id_t cid, virtual_server_t *vs, real
 	}
 	/* Handle not alive state */
 	else {
-		id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
+		id = MALLOC(sizeof *id);
 		*id = cid;
 		list_add(l, id);
 		if (LIST_SIZE(l) == 1)

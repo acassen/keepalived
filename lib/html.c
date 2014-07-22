@@ -25,34 +25,6 @@
 #include "html.h"
 #include "memory.h"
 
-/* Return the http header content length */
-int extract_content_length(char *buffer, int size)
-{
-	char *clen = strstr(buffer, CONTENT_LENGTH);
-	char *content_buffer = NULL;
-	char *buf_len;
-	int inc = 0;
-	int i;
-
-	/* Pattern not found */
-	if (!clen)
-		return 0;
-
-	/* Allocate the room */
-	buf_len = (char *)MALLOC(40);
-
-	/* Content-Length extraction */
-	while (*(clen++) != ':');
-	content_buffer = clen;
-	while (*(clen++) != '\r' && *clen != '\n')
-		inc++;
-	for (i = 0; i < inc; i++)
-		strncat(buf_len, content_buffer+i, 1);
-	i = atoi(buf_len);
-	FREE(buf_len);
-	return i;
-}
-
 /*
  * Return the http header error code. According
  * to rfc2616.6.1 status code is between HTTP_Version
@@ -60,13 +32,10 @@ int extract_content_length(char *buffer, int size)
  */
 int extract_status_code(char *buffer, int size)
 {
-	char *buf_code;
+	char buf_code[] = "\0\0\0";
 	char *begin;
 	char *end = buffer + size;
 	int inc = 0;
-
-	/* Allocate the room */
-	buf_code = (char *)MALLOC(10);
 
 	/* Status-Code extraction */
 	while (buffer < end && *buffer++ != ' ') ;
@@ -75,7 +44,6 @@ int extract_status_code(char *buffer, int size)
 		inc++;
 	strncat(buf_code, begin, inc);
 	inc = atoi(buf_code);
-	FREE(buf_code);
 	return inc;
 }
 

@@ -302,13 +302,21 @@ static int
 helo_cmd(thread_t * thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
-	char *buffer;
+	int bytes_written = 0, bytes_not_written = 0, bytes_to_write = 0;
+	char buffer[SMTP_BUFFER_MAX];
+	buffer[0] = '\0';
 
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
-	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HELO_CMD, get_local_name());
-	if (send(thread->u.fd, buffer, strlen(buffer), 0) == -1)
+	bytes_not_written = snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HELO_CMD, get_local_name());
+	if (0 < bytes_not_written) {
+		// HELO CMD is too big and has been truncated
 		smtp->stage = ERROR;
-	FREE(buffer);
+		return 0;
+	}
+
+	bytes_to_write = strlen(buffer);
+	bytes_written = send(thread->u.fd, buffer, bytes_to_write, 0);
+	if (-1 == bytes_written || bytes_written != bytes_to_write)
+		smtp->stage = ERROR;
 
 	return 0;
 }
@@ -335,13 +343,21 @@ static int
 mail_cmd(thread_t * thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
-	char *buffer;
+	int bytes_written = 0, bytes_not_written = 0, bytes_to_write = 0;
+	char buffer[SMTP_BUFFER_MAX];
+	buffer[0] = '\0';
 
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
-	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_MAIL_CMD, global_data->email_from);
-	if (send(thread->u.fd, buffer, strlen(buffer), 0) == -1)
+	bytes_not_written = snprintf(buffer, SMTP_BUFFER_MAX, SMTP_MAIL_CMD, global_data->email_from);
+	if (0 < bytes_not_written) {
+		// MAIL CMD is too big and has been truncated
 		smtp->stage = ERROR;
-	FREE(buffer);
+		return 0;
+	}
+
+	bytes_to_write = strlen(buffer);
+	bytes_written = send(thread->u.fd, buffer, bytes_to_write, 0);
+	if (-1 == bytes_written || bytes_written != bytes_to_write)
+		smtp->stage = ERROR;
 
 	return 0;
 }
@@ -368,19 +384,29 @@ static int
 rcpt_cmd(thread_t * thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
-	char *buffer;
 	char *fetched_email;
+	int bytes_written = 0, bytes_not_written = 0, bytes_to_write = 0;
+	char buffer[SMTP_BUFFER_MAX];
+	buffer[0] = '\0';
 
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
 	/* We send RCPT TO command multiple time to add all our email receivers.
 	 * --rfc821.3.1
 	 */
 	fetched_email = fetch_next_email(smtp);
 
-	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_RCPT_CMD, fetched_email);
-	if (send(thread->u.fd, buffer, strlen(buffer), 0) == -1)
+	bytes_not_written = snprintf(buffer, SMTP_BUFFER_MAX, SMTP_RCPT_CMD, fetched_email);
+	if (0 < bytes_not_written) {
+		// RCPT CMD is too big and has been truncated
 		smtp->stage = ERROR;
-	FREE(buffer);
+		return 0;
+	}
+
+	bytes_to_write = strlen(buffer);
+	bytes_written = send(thread->u.fd, buffer, bytes_to_write, 0);
+	if (-1 == bytes_written || bytes_written != bytes_to_write) {
+		smtp->stage = ERROR;
+		return 0;
+	}
 
 	return 0;
 }
@@ -414,7 +440,9 @@ data_cmd(thread_t * thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 
-	if (send(thread->u.fd, SMTP_DATA_CMD, strlen(SMTP_DATA_CMD), 0) == -1)
+	int bytes_to_write = strlen(SMTP_DATA_CMD);
+	int bytes_written = send(thread->u.fd, SMTP_DATA_CMD, bytes_to_write, 0);
+	if (-1 == bytes_written || bytes_written != bytes_to_write)
 		smtp->stage = ERROR;
 	return 0;
 }
@@ -443,34 +471,49 @@ data_code(thread_t * thread, int status)
 void
 build_to_header_rcpt_addrs(smtp_t *smtp)
 {
-	char *fetched_email;
 	char *email_to_addrs;
-	int email_addrs_max;
 
 	if (smtp == NULL) return;
 	email_to_addrs = smtp->email_to;
+
+	int bytes_available = SMTP_BUFFER_MAX - 1;
 	smtp->email_it = 0;
 
-	email_addrs_max = (SMTP_BUFFER_MAX / SMTP_EMAIL_ADDR_MAX_LENGTH) - 1;
+	while (1) {
 
-	while ((fetched_email = fetch_next_email(smtp)) != NULL) {
+		char * fetched_email = fetch_next_email(smtp);
+		if(fetched_email != NULL)
+			break;
 
-		/* First email address, so no need for "," */
+		int bytes_not_written = 0;
+		int bytes_to_write = strlen(fetched_email);
+
 		if (smtp->email_it == 0) {
-			snprintf(email_to_addrs, SMTP_EMAIL_ADDR_MAX_LENGTH, "%s", fetched_email);
+
+			if (bytes_available < bytes_to_write)
+				break;
 		}
 		else {
-			strcat(email_to_addrs, ", ");
-			strncat(email_to_addrs, fetched_email, SMTP_EMAIL_ADDR_MAX_LENGTH);
-		}
-	
-		smtp->email_it++;
-		if (smtp->email_it >= email_addrs_max)
-			break;
-				
-	}
 
-	smtp->email_it = 0;
+			if (bytes_available < 2 + bytes_to_write)
+				break;
+
+			/* Prepend with a comma and space to all non-first email addresses */
+			strcat(email_to_addrs, ", ");
+			email_to_addrs += 2;
+			bytes_available -= 2;
+		}
+
+		bytes_not_written = snprintf(email_to_addrs, bytes_to_write, "%s", fetched_email);
+		if (bytes_not_written > 0) {
+
+			// XXX Inconsistent state, no choice but to break here and do nothing
+			break;
+		}
+
+		email_to_addrs += bytes_to_write;
+		++smtp->email_it;
+	}
 }
 
 /* BODY command processing.
@@ -481,38 +524,60 @@ static int
 body_cmd(thread_t * thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
-	char *buffer;
+	int bytes_written = 0, bytes_not_written = 0, bytes_to_write = 0;
+	char buffer[SMTP_BUFFER_MAX];
+	buffer[0] = '\0';
 	char rfc822[80];
 	time_t tm;
-	struct tm *t;
-
-	buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
+	struct tm *t = NULL;
 
 	time(&tm);
 	t = localtime(&tm);
 	strftime(rfc822, sizeof(rfc822), "%a, %d %b %Y %H:%M:%S %z", t);
 
-	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HEADERS_CMD,
+	bytes_not_written = snprintf(buffer, SMTP_BUFFER_MAX, SMTP_HEADERS_CMD,
 		 rfc822, global_data->email_from, smtp->subject, smtp->email_to);
+	if (0 < bytes_not_written) {
+		// HEADERS CMD is too big and has been truncated
+		smtp->stage = ERROR;
+		return 0;
+	}
 
 	/* send the subject field */
-	if (send(thread->u.fd, buffer, strlen(buffer), 0) == -1)
+	bytes_to_write = strlen(buffer);
+	bytes_written = send(thread->u.fd, buffer, bytes_to_write, 0);
+	if (-1 == bytes_written || bytes_written != bytes_to_write) {
 		smtp->stage = ERROR;
+		return 0;
+	}
 
-	memset(buffer, 0, SMTP_BUFFER_MAX);
-	snprintf(buffer, SMTP_BUFFER_MAX, SMTP_BODY_CMD, smtp->body);
+	buffer[0] = '\0';
+	bytes_not_written = snprintf(buffer, SMTP_BUFFER_MAX, SMTP_BODY_CMD, smtp->body);
+	if (0 < bytes_not_written) {
+		// BODY CMD is too big and has been truncated
+		smtp->stage = ERROR;
+		return 0;
+	}
 
 	/* send the the body field */
-	if (send(thread->u.fd, buffer, strlen(buffer), 0) == -1)
+	bytes_to_write = strlen(buffer);
+	bytes_written = send(thread->u.fd, buffer, bytes_to_write, 0);
+	if (-1 == bytes_written || bytes_written != bytes_to_write) {
 		smtp->stage = ERROR;
+		return 0;
+	}
 
 	/* send the sending dot */
-	if (send(thread->u.fd, SMTP_SEND_CMD, strlen(SMTP_SEND_CMD), 0) == -1)
+	bytes_to_write = strlen(SMTP_SEND_CMD);
+	bytes_written = send(thread->u.fd, SMTP_SEND_CMD, bytes_to_write, 0);
+	if (-1 == bytes_written || bytes_written != bytes_to_write) {
 		smtp->stage = ERROR;
+		return 0;
+	}
 
-	FREE(buffer);
 	return 0;
 }
+
 static int
 body_code(thread_t * thread, int status)
 {
@@ -537,8 +602,11 @@ static int
 quit_cmd(thread_t * thread)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
+	int bytes_written = 0, bytes_to_write = 0;
 
-	if (send(thread->u.fd, SMTP_QUIT_CMD, strlen(SMTP_QUIT_CMD), 0) == -1)
+	bytes_to_write = strlen(SMTP_QUIT_CMD);
+	bytes_written = send(thread->u.fd, SMTP_QUIT_CMD, bytes_to_write, 0);
+	if (-1 == bytes_written || bytes_written != bytes_to_write)
 		smtp->stage = ERROR;
 	else
 		smtp->stage++;
@@ -578,39 +646,45 @@ void
 smtp_alert(real_server_t * rs, vrrp_t * vrrp,
 	   vrrp_sgroup_t * vgroup, const char *subject, const char *body)
 {
-	smtp_t *smtp;
+	smtp_t *smtp = NULL;
 
 	/* Only send mail if email specified */
 	if (!LIST_ISEMPTY(global_data->email) && global_data->smtp_server.ss_family != 0) {
+		int bytes_not_written = 0;
 		/* allocate & initialize smtp argument data structure */
-		smtp = (smtp_t *) MALLOC(sizeof(smtp_t));
-		smtp->subject = (char *) MALLOC(MAX_HEADERS_LENGTH);
-		smtp->body = (char *) MALLOC(MAX_BODY_LENGTH);
-		smtp->buffer = (char *) MALLOC(SMTP_BUFFER_MAX);
-		smtp->email_to = (char *) MALLOC(SMTP_BUFFER_MAX);
+		smtp = MALLOC(sizeof *smtp);
+		smtp->subject = MALLOC(MAX_HEADERS_LENGTH);
+		smtp->body = MALLOC(MAX_BODY_LENGTH);
+		smtp->buffer = MALLOC(SMTP_BUFFER_MAX);
+		smtp->email_to = MALLOC(SMTP_BUFFER_MAX);
 
 		/* format subject if rserver is specified */
 		if (rs) {
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s - %s"
+			bytes_not_written = snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s - %s"
 					      , global_data->router_id
 					      , FMT_RS(rs)
 					      , subject);
 		} else if (vrrp)
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Instance %s - %s"
+			bytes_not_written = snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Instance %s - %s"
 					      , global_data->router_id
 					      , vrrp->iname
 					      , subject);
 		else if (vgroup)
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Group %s - %s"
+			bytes_not_written = snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Group %s - %s"
 					      , global_data->router_id
 					      , vgroup->gname
 					      , subject);
 		else if (global_data->router_id)
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] %s"
+			bytes_not_written = snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] %s"
 					      , global_data->router_id
 					      , subject);
 		else
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "%s", subject);
+			bytes_not_written = snprintf(smtp->subject, MAX_HEADERS_LENGTH, "%s", subject);
+
+		if (0 < bytes_not_written) {
+			// Something is too big and has been truncated
+			smtp->stage = ERROR;
+		}
 
 		strncpy(smtp->body, body, MAX_BODY_LENGTH);
 		build_to_header_rcpt_addrs(smtp);

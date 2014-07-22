@@ -30,7 +30,7 @@
 vector_t *
 vector_alloc(void)
 {
-	vector_t *v = (vector_t *) MALLOC(sizeof(vector_t));
+	vector_t *v = MALLOC(sizeof *v);
 	return v;
 }
 
@@ -45,7 +45,7 @@ vector_init(unsigned int size)
 
 	v->allocated = size;
 	v->active = 0;
-	v->slot = (void *) MALLOC(sizeof(void *) * size);
+	v->slot = MALLOC(sizeof *v->slot * size);
 	return v;
 }
 
@@ -57,7 +57,7 @@ vector_alloc_slot(vector_t *v)
 	if (v->slot)
 		v->slot = REALLOC(v->slot, sizeof (void *) * v->allocated);
 	else
-		v->slot = (void *) MALLOC(sizeof (void *) * v->allocated);
+		v->slot = MALLOC(sizeof *v->slot * v->allocated);
 }
 
 /* Insert a value into a specific slot */
@@ -82,8 +82,8 @@ vector_copy(vector_t *v)
 	new->active = v->active;
 	new->allocated = v->allocated;
 
-	size = sizeof(void *) * (v->allocated);
-	new->slot = (void *) MALLOC(size);
+	size = sizeof *new->slot * (v->allocated);
+	new->slot = MALLOC(size);
 	memcpy(new->slot, v->slot, size);
 
 	return new;
@@ -96,8 +96,8 @@ vector_ensure(vector_t *v, unsigned int num)
 	if (v->allocated > num)
 		return;
 
-	v->slot = REALLOC(v->slot, sizeof(void *) * (v->allocated * 2));
-	memset(&v->slot[v->allocated], 0, sizeof (void *) * v->allocated);
+	v->slot = REALLOC(v->slot, sizeof *v->slot * v->allocated * 2);
+	memset(&v->slot[v->allocated], 0, sizeof *v->slot * v->allocated);
 	v->allocated *= 2;
 
 	if (v->allocated <= num)

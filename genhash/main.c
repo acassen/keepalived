@@ -191,12 +191,12 @@ int
 main(int argc, char **argv)
 {
 	thread_t thread;
-	char *url_default = malloc(2);
+	char *url_default = MALLOC(2);
 	url_default[0] = '/';
 	url_default[1] = '\0';
 
 	/* Allocate the room */
-	req = (REQ *) MALLOC(sizeof (REQ));
+	req = (REQ *) MALLOC(sizeof *req);
 
 	/* Preset (potentially) non-zero defaults */
 	req->hash = hash_default;

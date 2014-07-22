@@ -71,7 +71,7 @@ build_ssl_ctx(void)
 	bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
 
 	if (!check_data->ssl)
-		ssl = (ssl_data_t *) MALLOC(sizeof(ssl_data_t));
+		ssl = MALLOC(sizeof *ssl);
 	else
 		ssl = check_data->ssl;
 

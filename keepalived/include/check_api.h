@@ -69,7 +69,7 @@ extern list checkers_queue;
 #define CHECKER_ENABLE(C)  ((C)->enabled = 1)
 #define CHECKER_DISABLE(C) ((C)->enabled = 0)
 #define CHECKER_HA_SUSPEND(C) ((C)->vs->ha_suspend)
-#define CHECKER_NEW_CO() ((conn_opts_t *) MALLOC(sizeof (conn_opts_t)))
+#define CHECKER_NEW_CO() (MALLOC(sizeof (conn_opts_t)))
 #define FMT_CHK(C) FMT_RS((C)->rs)
 
 /* Prototypes definition */

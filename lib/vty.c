@@ -226,10 +226,10 @@ vty_do_window_size(vty_t *vty)
 vty_t *
 vty_new(void)
 {
-	vty_t *new = (vty_t *) MALLOC(sizeof(vty_t));
+	vty_t *new = MALLOC(sizeof *new);
 
 	new->obuf = buffer_new(0);	/* Use default buffer size. */
-	new->buf = (char *) MALLOC(VTY_BUFSIZ);
+	new->buf = MALLOC(VTY_BUFSIZ);
 	new->max = VTY_BUFSIZ;
 
 	return new;
@@ -789,7 +789,7 @@ vty_describe_fold(vty_t *vty, int cmd_width, unsigned int desc_width, desc_t *de
 		return;
 	}
 
-	buf = (char *) MALLOC(strlen (desc->str) + 1);
+	buf = MALLOC(strlen (desc->str) + 1);
 
 	for (p = desc->str; strlen (p) > desc_width; p += pos + 1) {
 		for (pos = desc_width; pos > 0; pos--)

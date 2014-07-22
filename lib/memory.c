@@ -25,52 +25,58 @@
 #include "memory.h"
 #include "utils.h"
 
+#include <stdio.h>
+
 /* Global var */
 unsigned long mem_allocated;	/* Total memory used in Bytes */
 
 void *
 xalloc(unsigned long size)
 {
-	void *mem;
-	if ((mem = malloc(size)))
-		mem_allocated += size;
+	void *mem = malloc(size);
+
+	if (NULL == mem) {
+
+		perror("KeepAlived");
+		exit(EXIT_FAILURE);
+	}
+
+	mem_allocated += size;
 	return mem;
 }
 
 void *
 zalloc(unsigned long size)
 {
-	void *mem;
-	if ((mem = malloc(size))) {
+	void *mem = xalloc(size);
+	if (mem)
 		memset(mem, 0, size);
-		mem_allocated += size;
-	}
 	return mem;
 }
 
 void
 xfree(void *p)
 {
+	// XXX sizeof p is the size of the pointer, not the pointed
 	mem_allocated -= sizeof (p);
 	free(p);
-	p = NULL;
 }
 
 /* KeepAlived memory management. in debug mode,
  * help finding eventual memory leak.
  * Allocation memory types manipulated are :
  *
- * +type+--------meaning--------+
- * ! 0  ! Free slot             !
- * ! 1  ! Overrun               !
- * ! 2  ! free null             !
- * ! 3  ! realloc null          !
- * ! 4  ! Not previus allocated !
- * ! 8  ! Last free list        !
- * ! 9  ! Allocated             !
- * +----+-----------------------+
+ * +type+--------meaning-----------+
+ * ! 0  ! Free slot                !
+ * ! 1  ! Overrun                  !
+ * ! 2  ! free null                !
+ * ! 3  ! realloc null             !
+ * ! 4  ! Not previously allocated !
+ * ! 8  ! Last free list           !
+ * ! 9  ! Allocated                !
+ * +----+--------------------------+
  *
- * global variabel debug bit 9 ( 512 ) used to
+ * global variable debug bit 9 ( 512 ) used to
  * flag some memory error.
  *
  */
@@ -98,9 +104,9 @@ static int f = 0;		/* Free list pointer */
 char *
 keepalived_malloc(unsigned long size, char *file, char *function, int line)
 {
-	void *buf;
+	void *buf = NULL;
 	int i = 0;
-	long check;
+	long check = 0;
 
 	buf = zalloc(size + sizeof (long));
 
@@ -139,7 +145,7 @@ int
 keepalived_free(void *buffer, char *file, char *function, int line)
 {
 	int i = 0;
-	void *buf;
+	void *buf = NULL;
 
 	/* If nullpointer remember */
 	if (buffer == NULL) {
@@ -313,8 +319,8 @@ keepalived_realloc(void *buffer, unsigned long size, char *file, char *function,
 		   int line)
 {
 	int i = 0;
-	void *buf, *buf2;
-	long check;
+	void *buf = NULL, *buf2 = NULL;
+	long check = 0;
 
 	if (buffer == NULL) {
 		printf("realloc %p %s, %3d %s\n", buffer, file, line, function);

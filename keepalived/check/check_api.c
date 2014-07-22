@@ -76,7 +76,7 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	checker_t *checker = (checker_t *) MALLOC(sizeof (checker_t));
+	checker_t *checker = MALLOC(sizeof *checker);
 
 	/* Set default dst = RS, timeout = 5 */
 	if (co) {
@@ -104,7 +104,7 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	/* In Alpha mode also mark the check as failed. */
 	if (vs->alpha) {
 		list fc = rs->failed_checkers;
-		checker_id_t *id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
+		checker_id_t *id = MALLOC(sizeof *id);
 		*id = checker->id;
 		list_add (fc, id);
 	}

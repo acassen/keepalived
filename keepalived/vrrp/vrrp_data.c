@@ -319,8 +319,8 @@ alloc_vrrp_sync_group(char *gname)
 	vrrp_sgroup_t *new;
 
 	/* Allocate new VRRP group structure */
-	new = (vrrp_sgroup_t *) MALLOC(sizeof(vrrp_sgroup_t));
-	new->gname = (char *) MALLOC(size + 1);
+	new = MALLOC(sizeof *new);
+	new->gname = MALLOC(size + 1);
 	new->state = VRRP_STATE_INIT;
 	memcpy(new->gname, gname, size);
 	new->global_tracking = 0;
@@ -336,8 +336,8 @@ alloc_vrrp(char *iname)
 	vrrp_t *new;
 
 	/* Allocate new VRRP structure */
-	new = (vrrp_t *) MALLOC(sizeof(vrrp_t));
-	counter = (seq_counter_t *) MALLOC(sizeof(seq_counter_t));
+	new = MALLOC(sizeof *new);
+	counter = MALLOC(sizeof *counter);
 
 	/* Build the structure */
 	new->ipsecah_counter = counter;
@@ -347,7 +347,7 @@ alloc_vrrp(char *iname)
 	new->wantstate = VRRP_STATE_BACK;
 	new->init_state = VRRP_STATE_BACK;
 	new->adver_int = TIMER_HZ;
-	new->iname = (char *) MALLOC(size + 1);
+	new->iname = MALLOC(size + 1);
 	memcpy(new->iname, iname, size);
 	new->quick_sync = 0;
 	new->garp_rep = VRRP_GARP_REP;
@@ -367,7 +367,7 @@ alloc_vrrp_unicast_peer(vector_t *strvec)
 		vrrp->unicast_peer = alloc_list(free_unicast_peer, dump_unicast_peer);
 
 	/* Allocate new unicast peer */
-	peer = (struct sockaddr_storage *) MALLOC(sizeof(struct sockaddr_storage));
+	peer = MALLOC(sizeof *peer);
 	ret = inet_stosockaddr(vector_slot(strvec, 0), 0, peer);
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] malformed unicast"
@@ -447,8 +447,8 @@ alloc_vrrp_script(char *sname)
 	vrrp_script_t *new;
 
 	/* Allocate new VRRP group structure */
-	new = (vrrp_script_t *) MALLOC(sizeof(vrrp_script_t));
-	new->sname = (char *) MALLOC(size + 1);
+	new = MALLOC(sizeof *new);
+	new->sname = MALLOC(size + 1);
 	memcpy(new->sname, sname, size + 1);
 	new->interval = VRRP_SCRIPT_DI * TIMER_HZ;
 	new->timeout = VRRP_SCRIPT_DT * TIMER_HZ;
@@ -464,7 +464,7 @@ alloc_vrrp_script(char *sname)
 void
 alloc_vrrp_buffer(void)
 {
-	vrrp_buffer = (char *) MALLOC(VRRP_PACKET_TEMP_LEN);
+	vrrp_buffer = MALLOC(VRRP_PACKET_TEMP_LEN);
 }
 
 void
@@ -478,7 +478,7 @@ alloc_vrrp_data(void)
 {
 	vrrp_data_t *new;
 
-	new = (vrrp_data_t *) MALLOC(sizeof(vrrp_data_t));
+	new = MALLOC(sizeof *new);
 	new->vrrp = alloc_list(free_vrrp, dump_vrrp);
 	new->vrrp_index = alloc_mlist(NULL, NULL, 255+1);
 	new->vrrp_index_fd = alloc_mlist(NULL, NULL, 1024+1);

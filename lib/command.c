@@ -89,7 +89,7 @@ argv_concat(const char **argv, int argc, int shift)
 		len += strlen(argv[i])+1;
 	if (!len)
 		return NULL;
-	p = str = (char *) MALLOC(len);
+	p = str = MALLOC(len);
 	for (i = shift; i < argc; i++) {
 		memcpy(p, argv[i], (arglen = strlen(argv[i])));
 		p += arglen;
@@ -200,7 +200,7 @@ cmd_make_strvec(const char *string)
 			       *cp != '\0' && *cp != '"')
 				cp++;
 			strlen = cp - start;
-			token = (char *) MALLOC(strlen + 1);
+			token = MALLOC(strlen + 1);
 			memcpy(token, start, strlen);
 			*(token + strlen) = '\0';
 		}
@@ -264,7 +264,7 @@ cmd_desc_str(const char **string)
 		cp++;
 
 	strlen = cp - start;
-	token = (char *) MALLOC(strlen + 1);
+	token = MALLOC(strlen + 1);
 	memcpy(token, start, strlen);
 	*(token + strlen) = '\0';
 
@@ -336,11 +336,11 @@ cmd_make_descvec(const char *string, const char *descstr)
 
 		len = cp - sp;
 
-		token = (char *) MALLOC(len + 1);
+		token = MALLOC(len + 1);
 		memcpy (token, sp, len);
 		*(token + len) = '\0';
 
-		desc = (desc_t *) MALLOC(sizeof(desc_t));
+		desc = MALLOC(sizeof *desc);
 		desc->cmd = token;
 		desc->str = cmd_desc_str(&dp);
 

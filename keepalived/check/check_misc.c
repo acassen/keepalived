@@ -63,7 +63,7 @@ dump_misc_check(void *data)
 void
 misc_check_handler(vector_t *strvec)
 {
-	misc_checker_t *misck_checker = (misc_checker_t *) MALLOC(sizeof (misc_checker_t));
+	misc_checker_t *misck_checker = MALLOC(sizeof *misck_checker);
 
 	/* queue new checker */
 	queue_checker(free_misc_check, dump_misc_check, misc_check_thread,

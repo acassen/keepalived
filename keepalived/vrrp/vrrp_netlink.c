@@ -491,7 +491,7 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	}
 
 	/* Fill the interface structure */
-	ifp = (interface_t *) MALLOC(sizeof(interface_t));
+	ifp = MALLOC(sizeof *ifp);
 	memcpy(ifp->ifname, name, strlen(name));
 	ifp->ifindex = ifi->ifi_index;
 	ifp->mtu = *(int *) RTA_DATA(tb[IFLA_MTU]);

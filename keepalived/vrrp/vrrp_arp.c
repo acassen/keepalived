@@ -95,7 +95,7 @@ int send_gratuitous_arp(ip_address_t *ipaddress)
 void gratuitous_arp_init(void)
 {
 	/* Initalize shared buffer */
-	garp_buffer = (char *)MALLOC(sizeof(arphdr_t) + ETHER_HDR_LEN);
+	garp_buffer = MALLOC(sizeof(arphdr_t) + ETHER_HDR_LEN);
 
 	/* Create the socket descriptor */
 	garp_fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_RARP));

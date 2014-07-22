@@ -226,7 +226,7 @@ alloc_route(list rt_list, vector_t *strvec)
 	char *str;
 	int i = 0;
 
-	new = (ip_route_t *) MALLOC(sizeof(ip_route_t));
+	new = MALLOC(sizeof *new);
 
 	/* FMT parse */
 	while (i < vector_size(strvec)) {

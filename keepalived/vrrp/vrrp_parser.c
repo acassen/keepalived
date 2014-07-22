@@ -413,12 +413,11 @@ static void
 vrrp_vip_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	char *buf;
+	char buf[MAXBUF];
 	char *str = NULL;
 	vector_t *vec = NULL;
 	int nbvip = 0;
 
-	buf = (char *) MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
 		vec = alloc_strvec(buf);
 		if (vec) {
@@ -444,9 +443,7 @@ vrrp_vip_handler(vector_t *strvec)
 
 			free_strvec(vec);
 		}
-		memset(buf, 0, MAXBUF);
 	}
-	FREE(buf);
 }
 static void
 vrrp_evip_handler(vector_t *strvec)
