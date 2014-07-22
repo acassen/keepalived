@@ -51,6 +51,7 @@ vrrp_instance instance1 {
 	interface eth0
 	virtual_router_id 250
 	use_vmac
+        vmac_xmit_base         # Transmit VRRP adverts over physical interface
 	priority 150
 	advert_int 1
 	virtual_ipaddress {
@@ -66,6 +67,7 @@ vrrp250).
 you then need to configure interface with :
 net.ipv4.conf.vrrp.250.arp_filter = 0
 net.ipv4.conf.vrrp.250.accept_local = 1 (this is needed for the address owner case)
+net.ipv4.conf.vrrp.250.rp_filter = 0
 
 you can create notify_master script to automate this configuration step for you :
 
