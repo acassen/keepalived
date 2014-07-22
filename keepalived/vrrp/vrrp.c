@@ -728,7 +728,7 @@ vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, int idx)
 }
 
 void
-vrrp_send_link_update(vrrp_t * vrrp)
+vrrp_send_link_update(vrrp_t * vrrp, int rep)
 {
 	int j;
 	ip_address_t *ipaddress;
@@ -739,7 +739,7 @@ vrrp_send_link_update(vrrp_t * vrrp)
 		return;
 
 	/* send gratuitous arp for each virtual ip */
-	for (j = 0; j < 5; j++) {
+	for (j = 0; j < rep; j++) {
 		if (!LIST_ISEMPTY(vrrp->vip)) {
 			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 				ipaddress = ELEMENT_DATA(e);
@@ -772,7 +772,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 		vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
 
 	/* remotes neighbour update */
-	vrrp_send_link_update(vrrp);
+	vrrp_send_link_update(vrrp, vrrp->garp_rep);
 
 	/* set refresh timer */
 	if (!timer_isnull(vrrp->garp_refresh)) {
@@ -929,7 +929,7 @@ vrrp_state_master_tx(vrrp_t * vrrp, const int prio)
 		ret = 1;
 	} else if (!timer_isnull(vrrp->garp_refresh) &&
 		   timer_cmp(time_now, vrrp->garp_refresh_timer) > 0) {
-		vrrp_send_link_update(vrrp);
+		vrrp_send_link_update(vrrp, vrrp->garp_refresh_rep);
 		vrrp->garp_refresh_timer = timer_add_now(vrrp->garp_refresh);
 	}
 
@@ -978,7 +978,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 			vrrp->ipsecah_counter->cycle = 0;
 		}
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
-		vrrp_send_link_update(vrrp);
+		vrrp_send_link_update(vrrp, vrrp->garp_rep);
 		return 0;
 	} else if (hd->priority == 0) {
 		vrrp_send_adv(vrrp, vrrp->effective_priority);

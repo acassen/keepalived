@@ -366,6 +366,22 @@ vrrp_garp_refresh_handler(vector_t *strvec)
 	vrrp->garp_refresh.tv_sec = atoi(vector_slot(strvec, 1));
 }
 static void
+vrrp_garp_rep_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->garp_rep = atoi(vector_slot(strvec, 1));
+	if (vrrp->garp_rep < 1)
+		vrrp->garp_rep = 1;
+}
+static void
+vrrp_garp_refresh_rep_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->garp_refresh_rep = atoi(vector_slot(strvec, 1));
+	if (vrrp->garp_refresh_rep < 1)
+		vrrp->garp_refresh_rep = 1;
+}
+static void
 vrrp_auth_type_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -542,6 +558,8 @@ vrrp_init_keywords(void)
 	install_keyword("lvs_sync_daemon_interface", &vrrp_lvs_syncd_handler);
 	install_keyword("garp_master_delay", &vrrp_garp_delay_handler);
 	install_keyword("garp_master_refresh", &vrrp_garp_refresh_handler);
+	install_keyword("garp_master_repeat", &vrrp_garp_rep_handler);
+	install_keyword("garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
 	install_keyword("authentication", NULL);
 	install_sublevel();
 	install_keyword("auth_type", &vrrp_auth_type_handler);

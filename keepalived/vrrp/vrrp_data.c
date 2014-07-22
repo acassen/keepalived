@@ -245,6 +245,8 @@ dump_vrrp(void *data)
 	if (!timer_isnull(vrrp->garp_refresh))
 		log_message(LOG_INFO, "   Gratuitous ARP refresh timer = %lu",
 		       vrrp->garp_refresh.tv_sec);
+	log_message(LOG_INFO, "   Gratuitous ARP repeat = %d", vrrp->garp_rep);
+	log_message(LOG_INFO, "   Gratuitous ARP refresh repeat = %d", vrrp->garp_refresh_rep);
 	log_message(LOG_INFO, "   Virtual Router ID = %d", vrrp->vrid);
 	log_message(LOG_INFO, "   Priority = %d", vrrp->base_priority);
 	log_message(LOG_INFO, "   Advert interval = %dsec",
@@ -348,6 +350,8 @@ alloc_vrrp(char *iname)
 	new->iname = (char *) MALLOC(size + 1);
 	memcpy(new->iname, iname, size);
 	new->quick_sync = 0;
+	new->garp_rep = VRRP_GARP_REP;
+	new->garp_refresh_rep = VRRP_GARP_REFRESH_REP;
 
 	list_add(vrrp_data->vrrp, new);
 }

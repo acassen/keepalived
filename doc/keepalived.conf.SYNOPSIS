@@ -176,8 +176,13 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     lvs_sync_daemon_interface <STRING>	# Binding interface for lvs syncd
     garp_master_delay <INTEGER>		# delay for gratuitous ARP after MASTER
 					#  state transition
+    garp_master_repeat <INTEGER>        # how often the gratuitous ARP after MASTER
+                                        #  state transition should be repeated?
     garp_master_refresh <INTEGER>	# Periodic delay in seconds sending
 					#  gratuitous ARP while in MASTER state
+    garp_master_refresh_repeat <INTEGER># how often the periodically repeated gratuitous ARP
+                                        #  should be repeated?
+                                        #  Default: once (per period)
     virtual_router_id <INTEGER-0..255>	# VRRP VRID
     priority <INTEGER-0..255>		# VRRP PRIO
     advert_int <INTEGER>		# VRRP Advert interval (use default)
