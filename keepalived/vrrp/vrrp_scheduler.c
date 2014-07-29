@@ -230,8 +230,7 @@ vrrp_init_state(list l)
 					 vrrp, vrrp->adver_int);
 		}
 
-		if (vrrp->base_priority == VRRP_PRIO_OWNER ||
-		    vrrp->wantstate == VRRP_STATE_MAST) {
+		if (vrrp->wantstate == VRRP_STATE_MAST) {
 #ifdef _HAVE_IPVS_SYNCD_
 			/* Check if sync daemon handling is needed */
 			if (vrrp->lvs_syncd_if)
