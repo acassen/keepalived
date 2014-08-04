@@ -352,6 +352,7 @@ alloc_vrrp(char *iname)
 	new->quick_sync = 0;
 	new->garp_rep = VRRP_GARP_REP;
 	new->garp_refresh_rep = VRRP_GARP_REFRESH_REP;
+	new->garp_refresh_lowinc = 0;
 
 	list_add(vrrp_data->vrrp, new);
 }

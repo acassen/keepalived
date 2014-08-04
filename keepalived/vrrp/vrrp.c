@@ -965,7 +965,11 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		       "VRRP_Instance(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
 		return 0;
-	} else if (hd->priority < vrrp->effective_priority) {
+	/* MASTER should maintain own state in case of incoming lower prio updates */
+	} else if (hd->priority < vrrp->effective_priority ||
+		    (vrrp->garp_refresh_lowinc &&
+		     hd->priority == vrrp->effective_priority &&
+		      ntohl(saddr) < ntohl(VRRP_PKT_SADDR(vrrp)))) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert"
 				      ", forcing new election", vrrp->iname);
