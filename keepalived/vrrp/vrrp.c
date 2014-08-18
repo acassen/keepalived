@@ -965,25 +965,6 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		       "VRRP_Instance(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
 		return 0;
-	/* MASTER should maintain own state in case of incoming lower prio updates */
-	} else if (hd->priority < vrrp->effective_priority ||
-		    (vrrp->garp_refresh_lowinc &&
-		     hd->priority == vrrp->effective_priority &&
-		      ntohl(saddr) < ntohl(VRRP_PKT_SADDR(vrrp)))) {
-		/* We receive a lower prio adv we just refresh remote ARP cache */
-		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert"
-				      ", forcing new election", vrrp->iname);
-		if (proto == IPPROTO_IPSEC_AH) {
-			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
-			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
-					      " - Increment seq"
-					    , vrrp->iname);
-			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
-			vrrp->ipsecah_counter->cycle = 0;
-		}
-		vrrp_send_adv(vrrp, vrrp->effective_priority);
-		vrrp_send_link_update(vrrp, vrrp->garp_rep);
-		return 0;
 	} else if (hd->priority == 0) {
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 		return 0;
@@ -1010,6 +991,24 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 			vrrp->wantstate = VRRP_STATE_BACK;
 			vrrp->state = VRRP_STATE_BACK;
 			return 1;
+		/* MASTER should maintain own state in case of incoming lower prio updates */
+		} else if (hd->priority < vrrp->effective_priority ||
+			   (hd->priority == vrrp->effective_priority &&
+			    ntohl(saddr) < ntohl(VRRP_PKT_SADDR(vrrp)))) {
+			/* We receive a lower prio adv we just refresh remote ARP cache */
+			log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert"
+					      ", forcing new election", vrrp->iname);
+			if (proto == IPPROTO_IPSEC_AH) {
+				ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
+				log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
+						      " - Increment seq"
+						    , vrrp->iname);
+				vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
+				vrrp->ipsecah_counter->cycle = 0;
+			}
+			vrrp_send_adv(vrrp, vrrp->effective_priority);
+			vrrp_send_link_update(vrrp, vrrp->garp_rep);
+			return 0;
 		}
 	} else if (vrrp->family == AF_INET6) {
 		/* FIXME: compare v6 saddr to link local when prio are equal !!! */

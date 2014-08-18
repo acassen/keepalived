@@ -174,8 +174,6 @@ typedef struct _vrrp_t {
 
 	/* IPSEC AH counter def --rfc2402.3.3.2 */
 	seq_counter_t		*ipsecah_counter;
-
-	int			garp_refresh_lowinc;	/* true to refresh gratuitous ARP when low prio advert received */
 } vrrp_t;
 
 /* VRRP state machine -- rfc2338.6.4 */
