@@ -572,7 +572,20 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, int len)
 		}
 	}
 
-	vrrp_state_backup(vrrp, buffer, len);
+	if (!VRRP_ISUP(vrrp)) {
+		vrrp_log_int_down(vrrp);
+		log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state",
+		       vrrp->iname);
+		if (vrrp->state != VRRP_STATE_FAULT) {
+			notify_instance_exec(vrrp, VRRP_STATE_FAULT);
+			vrrp->state = VRRP_STATE_FAULT;
+#ifdef _WITH_SNMP_
+			vrrp_snmp_instance_trap(vrrp);
+#endif
+		}
+	} else {
+		vrrp_state_backup(vrrp, buffer, len);
+	}
 }
 
 static void
