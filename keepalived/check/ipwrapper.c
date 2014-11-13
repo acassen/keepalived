@@ -157,22 +157,23 @@ init_service_rs(virtual_server_t * vs)
 
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
+		/* Do not re-add failed RS instantly on reload */
+		if (rs->reloaded) {
+			/* force re-adding of the rs into vs_group:
+			 * we may have new vsg entries */
+			if (vs->vsgname)
+				UNSET_ALIVE(rs);
+			continue;
+		}
 		/* In alpha mode, be pessimistic (or realistic?) and don't
 		 * add real servers into the VS pool. They will get there
 		 * later upon healthchecks recovery (if ever).
 		 */
 		if (vs->alpha) {
-			if (! rs->reloaded)
-				UNSET_ALIVE(rs);
+			UNSET_ALIVE(rs);
 			continue;
 		}
 		if (!ISALIVE(rs)) {
-			if (!ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, rs))
-				return 0;
-			else
-				SET_ALIVE(rs);
-		} else if (vs->vsgname) {
-			UNSET_ALIVE(rs);
 			if (!ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, rs))
 				return 0;
 			SET_ALIVE(rs);
