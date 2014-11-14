@@ -9,19 +9,13 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <linux/types.h>	/* For __beXX types in userland */
 
 #ifdef LIBIPVS_USE_NL
 #include <netlink/netlink.h>
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
 #endif
-
-/* Userland compatibility with kernel */
-#define __u32 u_int32_t
-#define __be32 u_int32_t
-#define __u16 u_int16_t
-#define __be16 u_int16_t
-#define __u64 u_int64_t
 
 #define IP_VS_VERSION_CODE	0x010201
 #define NVERSION(version)			\
@@ -476,6 +470,9 @@ enum {
 	IPVS_DEST_ATTR_PERSIST_CONNS,	/* persistent connections */
 
 	IPVS_DEST_ATTR_STATS,		/* nested attribute for dest stats */
+
+	IPVS_DEST_ATTR_ADDR_FAMILY,	/* Address family of address */
+
 	__IPVS_DEST_ATTR_MAX,
 };
 
@@ -539,11 +536,5 @@ extern struct nla_policy ipvs_daemon_policy[IPVS_DAEMON_ATTR_MAX + 1];
 #endif
 
 /* End of Generic Netlink interface definitions */
-
-#undef __u32
-#undef __be32
-#undef __u16
-#undef __be16
-#undef __u64
 
 #endif	/* _IP_VS_H */
