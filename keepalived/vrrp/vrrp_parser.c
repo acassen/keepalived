@@ -111,8 +111,14 @@ vrrp_vmac_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->vmac_flags |= VRRP_VMAC_FL_SET;
-	if (!vrrp->saddr.ss_family && vrrp->family == AF_INET)
-		inet_ip4tosockaddr(IF_ADDR(vrrp->ifp), &vrrp->saddr);
+	if (!vrrp->saddr.ss_family && vrrp->family == AF_INET) {
+		if(vrrp->ifp == NULL) {
+			log_message(LOG_INFO, "Please define interface keyword before use_vmac keyword");
+			return;
+		} else {
+			inet_ip4tosockaddr(IF_ADDR(vrrp->ifp), &vrrp->saddr);
+		}
+	}
 	if (vector_size(strvec) == 2) {
 		strncpy(vrrp->vmac_ifname, vector_slot(strvec, 1),
 			IFNAMSIZ - 1);
