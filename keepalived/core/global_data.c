@@ -53,6 +53,12 @@ set_default_router_id(data_t * data)
 }
 
 static void
+set_default_arp_sleep(data_t * data)
+{
+	data->arp_sleep = 0;
+}
+
+static void
 set_default_email_from(data_t * data)
 {
 	struct passwd *pwd = NULL;
@@ -95,6 +101,7 @@ set_default_values(data_t * data)
 	if (!data)
 		return;
 	set_default_router_id(data);
+	set_default_arp_sleep(data);
 	set_default_smtp_connection_timeout(data);
 	set_default_email_from(data);
 	set_default_mcast_group(data);
@@ -160,6 +167,8 @@ dump_global_data(data_t * data)
 	}
 	if (data->router_id)
 		log_message(LOG_INFO, " Router ID = %s", data->router_id);
+	if (data->arp_sleep)
+		log_message(LOG_INFO, " Arp sleep = %d", data->arp_sleep);
 	if (data->plugin_dir)
 		log_message(LOG_INFO, " Plugin dir = %s", data->plugin_dir);
 	if (data->smtp_server.ss_family)

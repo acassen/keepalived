@@ -46,6 +46,7 @@ typedef struct _email {
 typedef struct _data {
 	int				linkbeat_use_polling;
 	char				*router_id;
+	int				arp_sleep;
 	char				*plugin_dir;
 	char				*email_from;
 	struct sockaddr_storage		smtp_server;

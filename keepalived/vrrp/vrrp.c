@@ -744,6 +744,7 @@ vrrp_send_link_update(vrrp_t * vrrp, int rep)
 			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 				ipaddress = ELEMENT_DATA(e);
 				vrrp_send_update(vrrp, ipaddress, j);
+				usleep(global_data->arp_sleep);
 			}
 		}
 
@@ -751,6 +752,7 @@ vrrp_send_link_update(vrrp_t * vrrp, int rep)
 			for (e = LIST_HEAD(vrrp->evip); e; ELEMENT_NEXT(e)) {
 				ipaddress = ELEMENT_DATA(e);
 				vrrp_send_update(vrrp, ipaddress, j);
+				usleep(global_data->arp_sleep);
 			}
 		}
 	}
