@@ -29,80 +29,9 @@
 #include "utils.h"
 #include "parser.h"
 
+#ifdef _HAVE_VRRP_VMAC_
 /* private matter */
 static const char *ll_kind = "macvlan";
-
-#ifdef _HAVE_VRRP_VMAC_
-/* Link layer handling */
-static int
-netlink_link_setlladdr(vrrp_t *vrrp)
-{
-	int status = 1;
-	u_char ll_addr[ETH_ALEN] = {0x00, 0x00, 0x5e, 0x00, 0x01, vrrp->vrid};
-	struct {
-		struct nlmsghdr n;
-		struct ifinfomsg ifi;
-		char buf[256];
-	} req;
-
-	memset(&req, 0, sizeof (req));
-	
-	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
-	req.n.nlmsg_flags = NLM_F_REQUEST;
-	req.n.nlmsg_type = RTM_NEWLINK;
-	req.ifi.ifi_family = AF_INET;
-	req.ifi.ifi_index = IF_INDEX(vrrp->ifp);
-
-	addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, ll_addr, ETH_ALEN);
-
-	if (netlink_talk(&nl_cmd, &req.n) < 0)
-		status = -1;
-	else
-		memcpy(vrrp->ifp->hw_addr, ll_addr, ETH_ALEN);
-
-	return status;
-}
-
-static int
-netlink_link_setmode(vrrp_t *vrrp)
-{
-	int status = 1;
-	struct {
-		struct nlmsghdr n;
-		struct ifinfomsg ifi;
-		char buf[256];
-	} req;
-	struct rtattr *linkinfo;
-	struct rtattr *data;
-
-	memset(&req, 0, sizeof (req));
-
-	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
-	req.n.nlmsg_flags = NLM_F_REQUEST;
-	req.n.nlmsg_type = RTM_NEWLINK;
-	req.ifi.ifi_family = AF_INET;
-	req.ifi.ifi_index = IF_INDEX(vrrp->ifp);
-
-	linkinfo = NLMSG_TAIL(&req.n);
-	addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
-	addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (void *) ll_kind, strlen(ll_kind));
-	data = NLMSG_TAIL(&req.n);
-	addattr_l(&req.n, sizeof(req), IFLA_INFO_DATA, NULL, 0);
-
-	/*
-	 * In private mode, macvlan will receive frames with same MAC addr
-	 * as configured on the interface.
-	 */
-	addattr32(&req.n, sizeof(req), IFLA_MACVLAN_MODE,
-		  MACVLAN_MODE_PRIVATE);
-	data->rta_len = (void *)NLMSG_TAIL(&req.n) - (void *)data;
-	linkinfo->rta_len = (void *)NLMSG_TAIL(&req.n) - (void *)linkinfo;
-
-	if (netlink_talk(&nl_cmd, &req.n) < 0)
-		status = -1;
-
-	return status;
-}
 
 static int
 netlink_link_up(vrrp_t *vrrp)
@@ -136,9 +65,11 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 {
 #ifdef _HAVE_VRRP_VMAC_
 	struct rtattr *linkinfo;
+	struct rtattr *data;
 	unsigned int base_ifindex;
 	interface_t *ifp;
 	char ifname[IFNAMSIZ];
+	u_char ll_addr[ETH_ALEN] = {0x00, 0x00, 0x5e, 0x00, 0x01, vrrp->vrid};
 	struct {
 		struct nlmsghdr n;
 		struct ifinfomsg ifi;
@@ -177,15 +108,27 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	linkinfo = NLMSG_TAIL(&req.n);
 	addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
 	addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (void *)ll_kind, strlen(ll_kind));
+	data = NLMSG_TAIL(&req.n);
+	addattr_l(&req.n, sizeof(req), IFLA_INFO_DATA, NULL, 0);
+
+	/*
+	 * In private mode, macvlan will receive frames with same MAC addr
+	 * as configured on the interface.
+	 */
+	addattr32(&req.n, sizeof(req), IFLA_MACVLAN_MODE,
+		  MACVLAN_MODE_PRIVATE);
+	data->rta_len = (void *)NLMSG_TAIL(&req.n) - (void *)data;
 	linkinfo->rta_len = (void *)NLMSG_TAIL(&req.n) - (void *)linkinfo;
 	addattr_l(&req.n, sizeof(req), IFLA_LINK, &IF_INDEX(vrrp->ifp), sizeof(uint32_t));
 	addattr_l(&req.n, sizeof(req), IFLA_IFNAME, ifname, strlen(ifname));
+	addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, ll_addr, ETH_ALEN);
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0) {
 		log_message(LOG_INFO, "vmac: Error creating VMAC interface %s for vrrp_instance %s!!!"
 				    , ifname, vrrp->iname);
 		return -1;
 	}
+	memcpy(vrrp->ifp->hw_addr, ll_addr, ETH_ALEN);
 
 	log_message(LOG_INFO, "vmac: Success creating VMAC interface %s for vrrp_instance %s"
 			    , ifname, vrrp->iname);
@@ -205,16 +148,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	vrrp->ifp->vmac = 1;
 	vrrp->vmac_ifindex = IF_INDEX(vrrp->ifp); /* For use on delete */
 	vrrp->vmac_flags |= VRRP_VMAC_FL_UP;
-	netlink_link_setlladdr(vrrp);
 	netlink_link_up(vrrp);
-
-	/*
-	 * By default MACVLAN interface are in VEPA mode which filters
-	 * out received packets whose MAC source address matches that
-	 * of the MACVLAN interface. Setting MACVLAN interface in private
-	 * mode will not filter based on source MAC address.
-	 */
-	netlink_link_setmode(vrrp);
 #endif
 	return 1;
 }
