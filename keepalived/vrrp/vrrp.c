@@ -966,6 +966,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		       vrrp->iname);
 		return 0;
 	} else if (hd->priority < vrrp->effective_priority) {
+LOWPRIO_ADVERT:;
 		/* We receive a lower prio adv we just refresh remote ARP cache */
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert"
 				      ", forcing new election", vrrp->iname);
@@ -1006,6 +1007,11 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 			vrrp->wantstate = VRRP_STATE_BACK;
 			vrrp->state = VRRP_STATE_BACK;
 			return 1;
+		/* MASTER should maintain own state in case of incoming lower prio updates */
+		} else if (hd->priority < vrrp->effective_priority ||
+			   (hd->priority == vrrp->effective_priority &&
+			    ntohl(saddr) < ntohl(VRRP_PKT_SADDR(vrrp)))) {
+			goto LOWPRIO_ADVERT;
 		}
 	} else if (vrrp->family == AF_INET6) {
 		/* FIXME: compare v6 saddr to link local when prio are equal !!! */
