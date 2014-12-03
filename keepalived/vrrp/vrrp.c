@@ -744,7 +744,6 @@ vrrp_send_link_update(vrrp_t * vrrp, int rep)
 			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 				ipaddress = ELEMENT_DATA(e);
 				vrrp_send_update(vrrp, ipaddress, j);
-				usleep(global_data->arp_sleep);
 			}
 		}
 
@@ -752,7 +751,6 @@ vrrp_send_link_update(vrrp_t * vrrp, int rep)
 			for (e = LIST_HEAD(vrrp->evip); e; ELEMENT_NEXT(e)) {
 				ipaddress = ELEMENT_DATA(e);
 				vrrp_send_update(vrrp, ipaddress, j);
-				usleep(global_data->arp_sleep);
 			}
 		}
 	}
@@ -829,6 +827,9 @@ vrrp_restore_interface(vrrp_t * vrrp, int advF)
 		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 	}
 
+	/* empty the delayed arp list */
+	vrrp_remove_delayed_arp(vrrp);
+
 	/* remove virtual routes */
 	if (!LIST_ISEMPTY(vrrp->vroutes))
 		vrrp_handle_iproutes(vrrp, IPROUTE_DEL);
@@ -849,6 +850,29 @@ vrrp_restore_interface(vrrp_t * vrrp, int advF)
 		vrrp->vipset = 0;
 	}
 
+}
+
+void
+vrrp_remove_delayed_arp(vrrp_t * vrrp)
+{
+	ip_address_t *ipaddress;
+	element e;
+
+	if (!LIST_ISEMPTY(vrrp->vip)) {
+		for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
+			ipaddress = ELEMENT_DATA(e);
+			if (!LIST_ISEMPTY(arp_list))
+				list_del(arp_list, ipaddress);
+		}
+	}
+
+	if (!LIST_ISEMPTY(vrrp->evip)) {
+		for (e = LIST_HEAD(vrrp->evip); e; ELEMENT_NEXT(e)) {
+			ipaddress = ELEMENT_DATA(e);
+			if (!LIST_ISEMPTY(arp_list))
+				list_del(arp_list, ipaddress);
+		}
+	}
 }
 
 void
