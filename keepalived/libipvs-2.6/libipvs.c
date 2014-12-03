@@ -378,6 +378,7 @@ static int ipvs_nl_fill_dest_attr(struct nl_msg *msg, ipvs_dest_t *dst)
 	if (!nl_dest)
 		return -1;
 
+	NLA_PUT_U16(msg, IPVS_DEST_ATTR_ADDR_FAMILY, dst->af);
 	NLA_PUT(msg, IPVS_DEST_ATTR_ADDR, sizeof(dst->addr), &(dst->addr));
 	NLA_PUT_U16(msg, IPVS_DEST_ATTR_PORT, dst->port);
 	NLA_PUT_U32(msg, IPVS_DEST_ATTR_FWD_METHOD, dst->conn_flags & IP_VS_CONN_F_FWD_MASK);
@@ -779,6 +780,7 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 	struct nlmsghdr *nlh = nlmsg_hdr(msg);
 	struct nlattr *attrs[IPVS_CMD_ATTR_MAX + 1];
 	struct nlattr *dest_attrs[IPVS_DEST_ATTR_MAX + 1];
+	struct nlattr *attr_addr_family = NULL;
 	struct ip_vs_get_dests **dp = (struct ip_vs_get_dests **)arg;
 	struct ip_vs_get_dests *d = (struct ip_vs_get_dests *)*dp;
 	int i = d->num_dests;
@@ -816,7 +818,11 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 	d->entrytable[i].activeconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS]);
 	d->entrytable[i].inactconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_INACT_CONNS]);
 	d->entrytable[i].persistconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]);
-	d->entrytable[i].af = d->af;
+	attr_addr_family = dest_attrs[IPVS_DEST_ATTR_ADDR_FAMILY];
+	if (attr_addr_family)
+		d->entrytable[i].af = nla_get_u16(attr_addr_family);
+	else
+		d->entrytable[i].af = d->af;
 
 	if (ipvs_parse_stats(&(d->entrytable[i].stats),
 			     dest_attrs[IPVS_DEST_ATTR_STATS]) != 0)
@@ -953,8 +959,7 @@ void ipvs_sort_dests(struct ip_vs_get_dests *d, ipvs_dest_cmp_t f)
 
 
 ipvs_service_entry_t *
-ipvs_get_service(u_int32_t fwmark, u_int16_t af, u_int16_t protocol, union nf_inet_addr addr,
-		 u_int16_t port)
+ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr addr, __u16 port)
 {
 	ipvs_service_entry_t *svc;
 	socklen_t len;
@@ -971,6 +976,7 @@ ipvs_get_service(u_int32_t fwmark, u_int16_t af, u_int16_t protocol, union nf_in
 		if (!svc)
 			return NULL;
 
+		memset(&tsvc, 0, sizeof(tsvc));
 		tsvc.fwmark = fwmark;
 		tsvc.af = af;
 		tsvc.protocol= protocol;
