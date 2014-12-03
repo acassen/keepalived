@@ -263,7 +263,7 @@ update_quorum_state(virtual_server_t * vs)
 	if (vs->quorum_state == DOWN &&
 	    weight_sum >= up_threshold) {
 		vs->quorum_state = UP;
-		log_message(LOG_INFO, "Gained quorum %lu+%lu=%ls <= %lu for VS %s"
+		log_message(LOG_INFO, "Gained quorum %lu+%lu=%li <= %lu for VS %s"
 				    , vs->quorum
 				    , vs->hysteresis
 				    , up_threshold
@@ -301,7 +301,7 @@ update_quorum_state(virtual_server_t * vs)
 	    weight_sum < down_threshold)
 	) {
 		vs->quorum_state = DOWN;
-		log_message(LOG_INFO, "Lost quorum %lu-%lu=%ls > %lu for VS %s"
+		log_message(LOG_INFO, "Lost quorum %lu-%lu=%li > %lu for VS %s"
 				    , vs->quorum
 				    , vs->hysteresis
 				    , down_threshold
