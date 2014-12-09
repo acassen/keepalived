@@ -954,7 +954,7 @@ vrrp_saddr_cmp(struct sockaddr_storage *addr, vrrp_t *vrrp)
 
 	/* Simple sanity */
 	if (vrrp->saddr.ss_family && addr->ss_family != vrrp->saddr.ss_family)
-		return -1;
+		return 0;
 
 	/* Configured source IP address */
 	if (vrrp->saddr.ss_family)
@@ -997,7 +997,12 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		       "VRRP_Instance(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
 		return 0;
-	} else if (hd->priority < vrrp->effective_priority) {
+	} else if (hd->priority == 0) {
+		vrrp_send_adv(vrrp, vrrp->effective_priority);
+		return 0;
+	} else if (hd->priority < vrrp->effective_priority ||
+		   (hd->priority == vrrp->effective_priority &&
+		    vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp) < 0)) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert"
 				      ", forcing new election", vrrp->iname);
@@ -1011,9 +1016,6 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		}
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 		vrrp_send_link_update(vrrp, vrrp->garp_rep);
-		return 0;
-	} else if (hd->priority == 0) {
-		vrrp_send_adv(vrrp, vrrp->effective_priority);
 		return 0;
 	} else if (hd->priority > vrrp->effective_priority ||
 		    (hd->priority == vrrp->effective_priority &&
