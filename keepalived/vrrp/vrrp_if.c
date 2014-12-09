@@ -414,8 +414,8 @@ void
 init_interface_queue(void)
 {
 	init_if_queue();
-//	dump_list(if_queue);
 	netlink_interface_lookup();
+//	dump_list(if_queue);
 }
 
 void

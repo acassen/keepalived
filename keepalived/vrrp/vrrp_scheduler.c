@@ -898,17 +898,20 @@ vrrp_dispatcher_read(sock_t * sock)
 	vrrp_t *vrrp;
 	vrrphdr_t *hd;
 	int len = 0, prev_state = 0, proto = 0;
-	uint32_t saddr;
+        struct sockaddr_storage src_addr;
+        socklen_t src_addr_len = sizeof(src_addr);
 
 	/* Clean the read buffer */
 	memset(vrrp_buffer, 0, VRRP_PACKET_TEMP_LEN);
 
 	/* read & affect received buffer */
-	len = read(sock->fd_in, vrrp_buffer, VRRP_PACKET_TEMP_LEN);
-	hd = vrrp_get_header(sock->family, vrrp_buffer, &proto, &saddr);
+	len = recvfrom(sock->fd_in, vrrp_buffer, VRRP_PACKET_TEMP_LEN, 0,
+		       (struct sockaddr *) &src_addr, &src_addr_len);
+	hd = vrrp_get_header(sock->family, vrrp_buffer, &proto);
 
 	/* Searching for matching instance */
 	vrrp = vrrp_index_lookup(hd->vrid, sock->fd_in);
+	vrrp->pkt_saddr = src_addr;
 
 	/* If no instance found => ignore the advert */
 	if (!vrrp)

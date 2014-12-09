@@ -284,6 +284,72 @@ inet_sockaddrip6(struct sockaddr_storage *addr, struct in6_addr *ip6)
 	return 0;
 }
 
+/* IPv6 address compare */
+int
+inet_inaddrcmp(int family, void *a, void *b)
+{
+	if (family == AF_INET) {
+		if (ntohl(*((const uint32_t *) a)) >
+		    ntohl(*((const uint32_t *) b)))
+			return 1;
+		if (ntohl(*((const uint32_t *) a)) <
+		    ntohl(*((const uint32_t *) b)))
+			return -1;
+		return 0;
+	}
+
+	if (family == AF_INET6) {
+		if (ntohl(((const uint32_t *) (a))[0]) >
+		    ntohl(((const uint32_t *) (b))[0]))
+			return 1;
+		if (ntohl(((const uint32_t *) (a))[0]) <
+		    ntohl(((const uint32_t *) (b))[0]))
+			return -1;
+
+		if (ntohl(((const uint32_t *) (a))[1]) >
+		    ntohl(((const uint32_t *) (b))[1]))
+			return 1;
+		if (ntohl(((const uint32_t *) (a))[1]) <
+		    ntohl(((const uint32_t *) (b))[1]))
+			return -1;
+
+		if (ntohl(((const uint32_t *) (a))[2]) >
+		    ntohl(((const uint32_t *) (b))[2]))
+			return 1;
+		if (ntohl(((const uint32_t *) (a))[2]) <
+		    ntohl(((const uint32_t *) (b))[2]))
+			return -1;
+
+		if (ntohl(((const uint32_t *) (a))[3]) >
+		    ntohl(((const uint32_t *) (b))[3]))
+			return 1;
+		if (ntohl(((const uint32_t *) (a))[3]) <
+		    ntohl(((const uint32_t *) (b))[3]))
+			return -1;
+
+		return 0;
+	}
+
+	return -2;
+}
+
+int
+inet_sockaddrcmp(struct sockaddr_storage *a, struct sockaddr_storage *b)
+{
+	if (a->ss_family != b->ss_family)
+		return -2;
+
+	if (a->ss_family == AF_INET)
+		return inet_inaddrcmp(a->ss_family,
+				      &((struct sockaddr_in *) a)->sin_addr,
+				      &((struct sockaddr_in *) b)->sin_addr);
+	if (a->ss_family == AF_INET6)
+		return inet_inaddrcmp(a->ss_family,
+				      &((struct sockaddr_in6 *) a)->sin6_addr,
+				      &((struct sockaddr_in6 *) b)->sin6_addr);
+	return 0;
+}
+
 
 /*
  * IP string to network representation

@@ -61,6 +61,8 @@ extern char *inet_sockaddrtopair(struct sockaddr_storage *addr);
 extern uint16_t inet_sockaddrport(struct sockaddr_storage *);
 extern uint32_t inet_sockaddrip4(struct sockaddr_storage *);
 extern int inet_sockaddrip6(struct sockaddr_storage *, struct in6_addr *);
+extern int inet_inaddrcmp(int, void *, void *);
+extern int inet_sockaddrcmp(struct sockaddr_storage *, struct sockaddr_storage *);
 extern int inet_ston(const char *, uint32_t *);
 uint32_t inet_broadcast(uint32_t, uint32_t);
 uint32_t inet_cidrtomask(uint8_t);

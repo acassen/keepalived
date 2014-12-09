@@ -96,14 +96,13 @@ vrrp_hd_len(vrrp_t * vrrp)
 
 /* VRRP header pointer from buffer */
 vrrphdr_t *
-vrrp_get_header(sa_family_t family, char *buf, int *proto, uint32_t *saddr)
+vrrp_get_header(sa_family_t family, char *buf, int *proto)
 {
 	struct iphdr *iph;
 	vrrphdr_t *hd = NULL;
 
 	if (family == AF_INET) {
 		iph = (struct iphdr *) buf;
-		*saddr = iph->saddr;
 
 		/* Fill the VRRP header */
 		switch (iph->protocol) {
@@ -119,7 +118,6 @@ vrrp_get_header(sa_family_t family, char *buf, int *proto, uint32_t *saddr)
 		}
 	} else if (family == AF_INET6) {
 		*proto = IPPROTO_VRRP;
-		*saddr = 0;
 		hd = (vrrphdr_t *) buf;
 	}
 
@@ -903,11 +901,10 @@ void
 vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 {
 	vrrphdr_t *hd;
-	uint32_t saddr;
 	int ret = 0, proto;
 
 	/* Process the incoming packet */
-	hd = vrrp_get_header(vrrp->family, buf, &proto, &saddr);
+	hd = vrrp_get_header(vrrp->family, buf, &proto);
 	ret = vrrp_check_packet(vrrp, buf, buflen);
 
 	if (ret == VRRP_PACKET_KO || ret == VRRP_PACKET_NULL) {
@@ -950,12 +947,36 @@ vrrp_state_master_tx(vrrp_t * vrrp, const int prio)
 	return ret;
 }
 
+static int
+vrrp_saddr_cmp(struct sockaddr_storage *addr, vrrp_t *vrrp)
+{
+	interface_t *ifp = vrrp->ifp;
+
+	/* Simple sanity */
+	if (vrrp->saddr.ss_family && addr->ss_family != vrrp->saddr.ss_family)
+		return -1;
+
+	/* Configured source IP address */
+	if (vrrp->saddr.ss_family)
+		return inet_sockaddrcmp(addr, &vrrp->saddr);
+
+	/* Default interface source IP address */
+	if (addr->ss_family == AF_INET)
+		return inet_inaddrcmp(addr->ss_family,
+				      &((struct sockaddr_in *) addr)->sin_addr,
+				      &ifp->sin_addr);
+	if (addr->ss_family == AF_INET6)
+		return inet_inaddrcmp(addr->ss_family,
+				      &((struct sockaddr_in6 *) addr)->sin6_addr,
+				      &ifp->sin6_addr);
+	return 0;
+}
+
 int
 vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 {
 	vrrphdr_t *hd = NULL;
 	int ret = 0, proto = 0;
-	uint32_t saddr = 0;
 	ipsec_ah_t *ah;
 
 	/* return on link failure */
@@ -967,7 +988,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 	}
 
 	/* Process the incoming packet */
-	hd = vrrp_get_header(vrrp->family, buf, &proto, &saddr);
+	hd = vrrp_get_header(vrrp->family, buf, &proto);
 	ret = vrrp_check_packet(vrrp, buf, buflen);
 
 	if (ret == VRRP_PACKET_KO ||
@@ -994,45 +1015,28 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 	} else if (hd->priority == 0) {
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 		return 0;
-	} else if (vrrp->family == AF_INET) {
-		if (hd->priority > vrrp->effective_priority ||
+	} else if (hd->priority > vrrp->effective_priority ||
 		    (hd->priority == vrrp->effective_priority &&
-		     ntohl(saddr) > ntohl(VRRP_PKT_SADDR(vrrp)))) {
-			/* We send a last advert here in order to refresh remote MASTER
-			 * coming up to force link update at MASTER side.
-			 */
-			vrrp_send_adv(vrrp, vrrp->effective_priority);
+		     vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp) > 0)) {
+		/* We send a last advert here in order to refresh remote MASTER
+		 * coming up to force link update at MASTER side.
+		 */
+		vrrp_send_adv(vrrp, vrrp->effective_priority);
 
-			log_message(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert"
+		log_message(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert"
+				    , vrrp->iname);
+		if (proto == IPPROTO_IPSEC_AH) {
+			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
+			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
+					      " - Decrement seq"
 					    , vrrp->iname);
-			if (proto == IPPROTO_IPSEC_AH) {
-				ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
-				log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
-						      " - Decrement seq"
-						    , vrrp->iname);
-				vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) - 1;
-				vrrp->ipsecah_counter->cycle = 0;
-			}
-			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
-			vrrp->wantstate = VRRP_STATE_BACK;
-			vrrp->state = VRRP_STATE_BACK;
-			return 1;
+			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) - 1;
+			vrrp->ipsecah_counter->cycle = 0;
 		}
-	} else if (vrrp->family == AF_INET6) {
-		/* FIXME: compare v6 saddr to link local when prio are equal !!! */
-		if (hd->priority > vrrp->effective_priority) {
-			/* We send a last advert here in order to refresh remote MASTER
-			 * coming up to force link update at MASTER side.
-			 */
-			vrrp_send_adv(vrrp, vrrp->effective_priority);
-
-			log_message(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert"
-					    , vrrp->iname);
-			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
-			vrrp->wantstate = VRRP_STATE_BACK;
-			vrrp->state = VRRP_STATE_BACK;
-			return 1;
-		}
+		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->wantstate = VRRP_STATE_BACK;
+		vrrp->state = VRRP_STATE_BACK;
+		return 1;
 	}
 
 	return 0;
@@ -1042,11 +1046,10 @@ int
 vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, int buflen)
 {
 	vrrphdr_t *hd;
-	uint32_t saddr;
 	int ret = 0, proto;
 
 	/* Process the incoming packet */
-	hd = vrrp_get_header(vrrp->family, buf, &proto, &saddr);
+	hd = vrrp_get_header(vrrp->family, buf, &proto);
 	ret = vrrp_check_packet(vrrp, buf, buflen);
 
 	if (ret == VRRP_PACKET_KO || ret == VRRP_PACKET_NULL || ret == VRRP_PACKET_DROP) {
