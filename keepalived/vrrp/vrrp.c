@@ -1000,7 +1000,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 	} else if (hd->priority == 0) {
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 		return 0;
-	} else if (hd->priority < vrrp->effective_priority
+	} else if (hd->priority < vrrp->effective_priority ||
 		   (hd->priority == vrrp->effective_priority &&
 		    vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp) < 0)) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
