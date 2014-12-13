@@ -22,17 +22,23 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+/* system includes */
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#include "include/main.h"
-#include "utils.h"
-#include "signals.h"
 #include <sys/types.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <netdb.h>
+
+/* keepalived includes */
+#include "utils.h"
+#include "signals.h"
+
+/* genhash includes */
+#include "include/main.h"
+
 
 /* global var */
 REQ *req = NULL;

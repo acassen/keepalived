@@ -22,15 +22,20 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+/* system includes */
 #include <errno.h>
 #include <openssl/err.h>
+
+/* keepalived includes */
 #include "memory.h"
-#include "include/http.h"
-#include "include/layer4.h"
-#include "include/main.h"
 #include "utils.h"
 #include "html.h"
 #include "timer.h"
+
+/* genhash includes */
+#include "include/http.h"
+#include "include/layer4.h"
+#include "include/main.h"
 
 /* 
  * The global design of this checker is the following :
