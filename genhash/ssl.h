@@ -25,6 +25,7 @@
 #ifndef _SSL_H
 #define _SSL_H
 
+/* global includes */
 #include <openssl/ssl.h>
 
 /* Prototypes */
