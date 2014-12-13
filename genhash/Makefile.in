@@ -53,13 +53,13 @@ mrproper: clean distclean
 
 # Code dependencies
 
-main.o: main.c main.h ../lib/utils.h sock.h ../lib/timer.h \
-	http.h ssl.h ../lib/scheduler.h ../lib/memory.h
-sock.o: sock.c sock.h ../lib/utils.h layer4.h ssl.h main.h \
+main.o: main.c include/main.h ../lib/utils.h include/sock.h ../lib/timer.h \
+	include/http.h include/ssl.h ../lib/scheduler.h ../lib/memory.h
+sock.o: sock.c include/sock.h ../lib/utils.h include/layer4.h include/ssl.h include/main.h \
 	../lib/memory.h
-layer4.o: layer4.c layer4.h ../lib/scheduler.h ../lib/utils.h \
-	main.h ssl.h
-http.o: http.c http.h sock.h ../lib/scheduler.h ../lib/utils.h \
-	layer4.h main.h ../lib/html.h ../lib/timer.h ../lib/scheduler.h \
+layer4.o: layer4.c include/layer4.h ../lib/scheduler.h ../lib/utils.h \
+	include/main.h include/ssl.h
+http.o: http.c include/http.h include/sock.h ../lib/scheduler.h ../lib/utils.h \
+	include/layer4.h include/main.h ../lib/html.h ../lib/timer.h ../lib/scheduler.h \
 	../lib/memory.h
-ssl.o: ssl.c ssl.h http.h main.h ../lib/utils.h ../lib/html.h
+ssl.o: ssl.c include/ssl.h include/http.h include/main.h ../lib/utils.h ../lib/html.h

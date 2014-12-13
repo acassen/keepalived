@@ -23,10 +23,10 @@
  */
 
 #include <openssl/err.h>
-#include "main.h"
-#include "sock.h"
-#include "http.h"
-#include "ssl.h"
+#include "include/main.h"
+#include "include/sock.h"
+#include "include/http.h"
+#include "include/ssl.h"
 #include "utils.h"
 #include "html.h"
 

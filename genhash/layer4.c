@@ -22,12 +22,12 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#include "layer4.h"
+#include "include/layer4.h"
 #include "utils.h"
-#include "main.h"
-#include "sock.h"
-#include "http.h"
-#include "ssl.h"
+#include "include/main.h"
+#include "include/sock.h"
+#include "include/http.h"
+#include "include/ssl.h"
 
 enum connect_result
 tcp_connect(int fd, REQ * req_obj)

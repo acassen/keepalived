@@ -25,7 +25,7 @@
 #include <signal.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#include "main.h"
+#include "include/main.h"
 #include "utils.h"
 #include "signals.h"
 #include <sys/types.h>

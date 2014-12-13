@@ -25,9 +25,9 @@
 #include <errno.h>
 #include <openssl/err.h>
 #include "memory.h"
-#include "http.h"
-#include "layer4.h"
-#include "main.h"
+#include "include/http.h"
+#include "include/layer4.h"
+#include "include/main.h"
 #include "utils.h"
 #include "html.h"
 #include "timer.h"
