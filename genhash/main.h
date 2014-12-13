@@ -62,18 +62,18 @@
 
 /* HTTP/HTTPS request structure */
 typedef struct {
-	struct addrinfo *dst;
-	char ipaddress[INET6_ADDRSTRLEN];
-	uint16_t addr_port;
-	char *url;
-	char *vhost;
-	int verbose;
-	int ssl;
-	SSL_CTX *ctx;
-	SSL_METHOD *meth;
-	enum feat_hashes hash;
-	unsigned long ref_time;
-	unsigned long response_time;
+	struct		addrinfo *dst;
+	char		ipaddress[INET6_ADDRSTRLEN];
+	uint16_t	addr_port;
+	char		*url;
+	char		*vhost;
+	int		verbose;
+	int		ssl;
+	SSL_CTX		*ctx;
+	SSL_METHOD	*meth;
+	enum		feat_hashes hash;
+	unsigned long	ref_time;
+	unsigned long	response_time;
 } REQ;
 
 /* Global variables */
@@ -81,7 +81,7 @@ extern thread_master_t *master;
 extern REQ *req;		/* Cmd line arguments */
 
 /* Data buffer length description */
-#define BUFSIZE             1024
+#define BUFSIZE          1024
 
 /* Command line error handling */
 #define CMD_LINE_ERROR   0

@@ -25,9 +25,10 @@
 #ifndef _HASH_H
 #define _HASH_H
 
+/* system includes */
 #include <openssl/md5.h>
 #ifdef FEAT_SHA1
-# include <openssl/sha.h>
+#include <openssl/sha.h>
 #endif
 
 /* available hashes enumeration */
@@ -42,14 +43,14 @@ enum feat_hashes {
 };
 
 typedef union {
-	MD5_CTX md5;
+	MD5_CTX         	md5;
 #ifdef FEAT_SHA1
-	SHA_CTX sha;
+	SHA_CTX         	sha;
 #endif
 	/* this is due to poor C standard/draft wording (wrapped):
 	   https://groups.google.com/forum/#!msg/comp.lang.c/
 	   1kQMGXhgn4I/0VBEYG_ji44J */
-	char *dummy;
+	char            	*dummy;
 } hash_context_t;
 
 typedef void (*hash_init_f)(hash_context_t *);
@@ -57,12 +58,12 @@ typedef void (*hash_update_f)(hash_context_t *, const void *, unsigned long);
 typedef void (*hash_final_f)(unsigned char *, hash_context_t *);
 
 typedef struct {
-	hash_init_f init;
-	hash_update_f update;
-	hash_final_f final;
-	unsigned char length;  /* length of the digest */
-	const char *id;  /* command-line handing + help*/
-	const char *label;  /* final output */
+	hash_init_f		init;
+	hash_update_f		update;
+	hash_final_f		final;
+	unsigned char		length;		/* length of the digest */
+	const char		*id;		/* command-line handing + help */
+	const char		*label;		/* final output */
 } hash_t;
 
 #endif

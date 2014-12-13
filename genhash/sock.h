@@ -33,17 +33,17 @@
 
 /* Engine socket pool element structure */
 typedef struct {
-	int fd;
-	SSL *ssl;
-	BIO *bio;
-	const hash_t *hash;
-	hash_context_t context;
-	int status;
-	int lock;
-	char *buffer;
-	char *extracted;
-	int size;
-	int total_size;
+	int		fd;
+	SSL		*ssl;
+	BIO		*bio;
+	const		hash_t		*hash;
+	hash_context_t	context;
+	int		status;
+	int		lock;
+	char		*buffer;
+	char		*extracted;
+	int		size;
+	int		total_size;
 } SOCK;
 
 /* global vars exported */
