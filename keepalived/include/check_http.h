@@ -79,11 +79,11 @@ typedef struct _http_checker {
 
 /* GET processing command */
 #define REQUEST_TEMPLATE "GET %s HTTP/1.0\r\n" \
-                         "User-Agent:KeepAliveClient\r\n" \
+                         "User-Agent: KeepAliveClient\r\n" \
                          "Host: %s%s\r\n\r\n"
 
 #define REQUEST_TEMPLATE_IPV6 "GET %s HTTP/1.0\r\n" \
-                         "User-Agent:KeepAliveClient\r\n" \
+                         "User-Agent: KeepAliveClient\r\n" \
                          "Host: [%s]%s\r\n\r\n"
 
 /* macro utility */
