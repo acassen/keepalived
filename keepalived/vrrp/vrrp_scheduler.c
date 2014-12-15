@@ -408,7 +408,8 @@ vrrp_register_workers(list l)
 
 /* VRRP dispatcher functions */
 static int
-already_exist_sock(list l, sa_family_t family, int proto, int ifindex, int unicast)
+already_exist_sock(list l, sa_family_t family, int proto, int ifindex, int unicast,
+		   struct sockaddr_storage *addr)
 {
 	sock_t *sock;
 	element e;
@@ -418,19 +419,21 @@ already_exist_sock(list l, sa_family_t family, int proto, int ifindex, int unica
 		if ((sock->family == family)	&&
 		    (sock->proto == proto)	&&
 		    (sock->ifindex == ifindex)	&&
-		    (sock->unicast == unicast))
+		    (sock->unicast == unicast)	&&
+		    (inet_sockaddrcmp(&sock->saddr, addr) == 0))
 			return 1;
 	}
 	return 0;
 }
 
 void
-alloc_sock(sa_family_t family, list l, int proto, int ifindex, int unicast)
+alloc_sock(sa_family_t family, list l, int proto, int ifindex, int unicast, struct sockaddr_storage *addr)
 {
 	sock_t *new;
 
 	new = (sock_t *) MALLOC(sizeof (sock_t));
 	new->family = family;
+	new->saddr = *addr;
 	new->proto = proto;
 	new->ifindex = ifindex;
 	new->unicast = unicast;
@@ -457,8 +460,8 @@ vrrp_create_sockpool(list l)
 			proto = IPPROTO_VRRP;
 
 		/* add the vrrp element if not exist */
-		if (!already_exist_sock(l, vrrp->family, proto, ifindex, unicast))
-			alloc_sock(vrrp->family, l, proto, ifindex, unicast);
+		if (!already_exist_sock(l, vrrp->family, proto, ifindex, unicast, &vrrp->saddr))
+			alloc_sock(vrrp->family, l, proto, ifindex, unicast, &vrrp->saddr);
 	}
 }
 
@@ -476,7 +479,8 @@ vrrp_open_sockpool(list l)
 			sock->fd_out = -1;
 		else
 			sock->fd_out = open_vrrp_send_socket(sock->family, sock->proto,
-							     sock->ifindex, sock->unicast);
+							     sock->ifindex, sock->unicast,
+							     &sock->saddr);
 	}
 }
 

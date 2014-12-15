@@ -513,6 +513,24 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 }
 
 int
+if_bind_socket(int *sd, struct sockaddr_storage *addr)
+{
+	socklen_t addrlen = (addr->ss_family == AF_INET6) ? sizeof(struct sockaddr_in6) :
+							    sizeof(struct sockaddr_in);
+	int ret;
+
+	ret = bind(*sd, (struct sockaddr *) addr, addrlen);
+	if (ret < 0) {
+		log_message(LOG_INFO, "cant bind socket to addr [%s]. errno=%d",
+			    inet_sockaddrtos(addr), errno);
+		close(*sd);
+		*sd = -1;
+	}
+
+	return *sd;
+}
+
+int
 if_setsockopt_bindtodevice(int *sd, interface_t *ifp)
 {
 	int ret;
@@ -570,7 +588,7 @@ if_setsockopt_mcast_loop(sa_family_t family, int *sd)
 	if (*sd < 0)
 		return -1;
 
-	/* Include IP header into RAW protocol packet */
+	/* Set Multicast loop */
 	if (family == AF_INET)
 		ret = setsockopt(*sd, IPPROTO_IP, IP_MULTICAST_LOOP, &loop, sizeof(loop));
 	else
@@ -596,7 +614,7 @@ if_setsockopt_mcast_hops(sa_family_t family, int *sd)
 	if (*sd < 0 || family == AF_INET)
 		return -1;
 
-	/* Include IP header into RAW protocol packet */
+	/* Set HOP limit */
 	ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_HOPS, &hops, sizeof(hops));
 	if (ret < 0) {
 		log_message(LOG_INFO, "cant set IPV6_MULTICAST_HOPS IP option. errno=%d (%m)", errno);
@@ -617,7 +635,7 @@ if_setsockopt_mcast_if(sa_family_t family, int *sd, interface_t *ifp)
 	if (*sd < 0 || family == AF_INET)
 		return -1;
 
-	/* Include IP header into RAW protocol packet */
+	/* Set interface for sending outbound datagrams */
 	ifindex = IF_INDEX(ifp);
 	ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifindex, sizeof(ifindex));
 	if (ret < 0) {

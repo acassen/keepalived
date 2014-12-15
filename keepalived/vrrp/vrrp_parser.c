@@ -110,13 +110,17 @@ static void
 vrrp_vmac_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	interface_t *ifp = vrrp->ifp;
 	vrrp->vmac_flags |= VRRP_VMAC_FL_SET;
-	if (!vrrp->saddr.ss_family && vrrp->family == AF_INET) {
+	if (!vrrp->saddr.ss_family) {
 		if(vrrp->ifp == NULL) {
 			log_message(LOG_INFO, "Please define interface keyword before use_vmac keyword");
 			return;
 		} else {
-			inet_ip4tosockaddr(IF_ADDR(vrrp->ifp), &vrrp->saddr);
+			if (vrrp->family == AF_INET)
+				inet_ip4tosockaddr(&ifp->sin_addr, &vrrp->saddr);
+			else if (vrrp->family == AF_INET6)
+				inet_ip6tosockaddr(&ifp->sin6_addr, &vrrp->saddr);
 		}
 	}
 	if (vector_size(strvec) == 2) {

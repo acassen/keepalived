@@ -200,11 +200,21 @@ inet_stosockaddr(char *ip, char *port, struct sockaddr_storage *addr)
 
 /* IPv4 to sockaddr_storage */
 int
-inet_ip4tosockaddr(uint32_t addr_ip, struct sockaddr_storage *addr)
+inet_ip4tosockaddr(struct in_addr *sin_addr, struct sockaddr_storage *addr)
 {
 	struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
 	addr4->sin_family = AF_INET;
-	addr4->sin_addr.s_addr = addr_ip;
+	addr4->sin_addr = *sin_addr;
+	return 0;
+}
+
+/* IPv6 to sockaddr_storage */
+int
+inet_ip6tosockaddr(struct in6_addr *sin_addr, struct sockaddr_storage *addr)
+{
+	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
+	addr6->sin6_family = AF_INET6;
+	addr6->sin6_addr = *sin_addr;
 	return 0;
 }
 

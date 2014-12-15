@@ -229,7 +229,7 @@ typedef struct _vrrp_t {
 
 /* prototypes */
 extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, int *);
-extern int open_vrrp_send_socket(sa_family_t, int, int, int);
+extern int open_vrrp_send_socket(sa_family_t, int, int, int, struct sockaddr_storage *);
 extern int open_vrrp_socket(sa_family_t, int, int, int);
 extern int new_vrrp_socket(vrrp_t *);
 extern void close_vrrp_socket(vrrp_t *);
