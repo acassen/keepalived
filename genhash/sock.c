@@ -22,14 +22,19 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+/* system includes */
 #include <string.h>
+
+/* keepalived includes */
 #include "memory.h"
 #include "utils.h"
 #include "list.h"
-#include "sock.h"
-#include "layer4.h"
-#include "ssl.h"
-#include "main.h"
+
+/* genhash includes */
+#include "include/sock.h"
+#include "include/layer4.h"
+#include "include/ssl.h"
+#include "include/main.h"
 
 /* global var */
 SOCK *sock = NULL;

@@ -22,13 +22,18 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+/* system includes */
 #include <openssl/err.h>
-#include "main.h"
-#include "sock.h"
-#include "http.h"
-#include "ssl.h"
+
+/* keepalived includes */
 #include "utils.h"
 #include "html.h"
+
+/* genhash includes */
+#include "include/main.h"
+#include "include/sock.h"
+#include "include/http.h"
+#include "include/ssl.h"
 
 /* extern variables */
 extern REQ *req;
