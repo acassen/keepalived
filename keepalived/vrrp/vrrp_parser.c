@@ -111,16 +111,21 @@ vrrp_vmac_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	interface_t *ifp = vrrp->ifp;
+	struct sockaddr_storage *saddr = &vrrp->saddr;
+
 	vrrp->vmac_flags |= VRRP_VMAC_FL_SET;
 	if (!vrrp->saddr.ss_family) {
-		if(vrrp->ifp == NULL) {
+		if (!ifp) {
 			log_message(LOG_INFO, "Please define interface keyword before use_vmac keyword");
 			return;
 		} else {
-			if (vrrp->family == AF_INET)
-				inet_ip4tosockaddr(&ifp->sin_addr, &vrrp->saddr);
-			else if (vrrp->family == AF_INET6)
-				inet_ip6tosockaddr(&ifp->sin6_addr, &vrrp->saddr);
+			if (vrrp->family == AF_INET) {
+				inet_ip4tosockaddr(&ifp->sin_addr, saddr);
+			} else if (vrrp->family == AF_INET6) {
+				inet_ip6tosockaddr(&ifp->sin6_addr, saddr);
+				/* IPv6 use-case: Binding to link-local address requires an interface */
+				inet_ip6scopeid(IF_INDEX(ifp), saddr);
+			}
 		}
 	}
 	if (vector_size(strvec) == 2) {
@@ -151,6 +156,9 @@ vrrp_native_ipv6_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->family = AF_INET6;
+
+	if (vrrp->vmac_flags & VRRP_VMAC_FL_SET)
+		log_message(LOG_INFO, "You should declare native_ipv6 before use_vmac!");
 
 	if (vrrp->auth_type != VRRP_AUTH_NONE)
 		vrrp->auth_type = VRRP_AUTH_NONE;
@@ -208,6 +216,7 @@ static void
 vrrp_srcip_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	interface_t *ifp = vrrp->ifp;
 	struct sockaddr_storage *saddr = &vrrp->saddr;
 	int ret;
 
@@ -224,6 +233,16 @@ vrrp_srcip_handler(vector_t *strvec)
 				     "[%s] MUST be of the same family !!! Skipping..."
 				   , vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 		memset(saddr, 0, sizeof(struct sockaddr_storage));
+	}
+
+	/* IPv6 use-case: Binding to link-local address requires an interface.
+	 * Just specify scope_id for all address types */
+	if (saddr->ss_family == AF_INET6) {
+		if (!ifp) {
+			log_message(LOG_INFO, "Please define interface keyword before mcast_src_ip keyword");
+			return;
+		}
+		inet_ip6scopeid(IF_INDEX(ifp), saddr);
 	}
 }
 static void

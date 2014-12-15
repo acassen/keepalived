@@ -218,6 +218,14 @@ inet_ip6tosockaddr(struct in6_addr *sin_addr, struct sockaddr_storage *addr)
 	return 0;
 }
 
+int
+inet_ip6scopeid(uint32_t scope_id, struct sockaddr_storage *addr)
+{
+	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
+	addr6->sin6_scope_id = scope_id;
+	return 0;
+}
+
 /* IP network to string representation */
 char *
 inet_sockaddrtos2(struct sockaddr_storage *addr, char *addr_str)
