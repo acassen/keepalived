@@ -592,6 +592,7 @@ vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storag
 	pkt = (struct in6_pktinfo *) CMSG_DATA(cmsg);
 	memset(pkt, 0, sizeof(struct in6_pktinfo));
 	pkt->ipi6_addr = ((struct sockaddr_in6 *) src)->sin6_addr;
+	pkt->ipi6_ifindex = ((struct sockaddr_in6 *) src)->sin6_scope_id;
 
 	return 0;
 }
@@ -633,6 +634,7 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 		dst6.sin6_addr = ((struct sockaddr_in6 *) &global_data->vrrp_mcast_group6)->sin6_addr;
 		msg.msg_name = &dst6;
 		msg.msg_namelen = sizeof(dst6);
+		vrrp_build_ancillary_data(&msg, cbuf, src);
 	}
 
 	/* Send the packet */
@@ -1095,7 +1097,7 @@ chk_min_cfg(vrrp_t * vrrp)
 
 /* open a VRRP sending socket */
 int
-open_vrrp_send_socket(sa_family_t family, int proto, int idx, int unicast, struct sockaddr_storage *addr)
+open_vrrp_send_socket(sa_family_t family, int proto, int idx, int unicast)
 {
 	interface_t *ifp;
 	int fd = -1;
@@ -1125,8 +1127,6 @@ open_vrrp_send_socket(sa_family_t family, int proto, int idx, int unicast, struc
 			if_setsockopt_mcast_hops(family, &fd);
 			if_setsockopt_mcast_if(family, &fd, ifp);
 			if_setsockopt_mcast_loop(family, &fd);
-			if (addr->ss_family)
-				if_bind_socket(&fd, addr);
 		}
 		if_setsockopt_priority(&fd);
 		if (fd < 0)
@@ -1198,7 +1198,7 @@ new_vrrp_socket(vrrp_t * vrrp)
 							       IF_INDEX(vrrp->ifp);
 	unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 	vrrp->fd_in = open_vrrp_socket(vrrp->family, proto, ifindex, unicast);
-	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifindex, unicast, &vrrp->saddr);
+	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifindex, unicast);
 	alloc_vrrp_fd_bucket(vrrp);
 
 	/* Sync the other desc */

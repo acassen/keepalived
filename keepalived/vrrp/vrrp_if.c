@@ -513,24 +513,6 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 }
 
 int
-if_bind_socket(int *sd, struct sockaddr_storage *addr)
-{
-	socklen_t addrlen = (addr->ss_family == AF_INET6) ? sizeof(struct sockaddr_in6) :
-							    sizeof(struct sockaddr_in);
-	int ret;
-
-	ret = bind(*sd, (struct sockaddr *) addr, addrlen);
-	if (ret < 0) {
-		log_message(LOG_INFO, "cant bind socket to addr [%s]. errno=%d",
-			    inet_sockaddrtos(addr), errno);
-		close(*sd);
-		*sd = -1;
-	}
-
-	return *sd;
-}
-
-int
 if_setsockopt_bindtodevice(int *sd, interface_t *ifp)
 {
 	int ret;
