@@ -1,3 +1,113 @@
+2014-12-16  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.14 released.
+	* The "Date:" mail header is now localtime.
+	* bugfix: fwmark field was formatted as signed int
+	* dump_conn_opts: fwmark was not displayed.
+	* log_message: emit -Wformat= compiler warnings.
+	  There could be (and actually are) situations when the format
+	  string and the arguments list passed to the log_message() are
+	  inconsistent or mistyped. The compiler did not show any warnings
+	  because the vsnprintf was called indirectly.
+	* Further unification of IP endpoints logging.
+	  This change tries to keep usage of the standard "[%s]:%d" format
+	  string to a minimum. Instead, use inet_sockaddrtopair wherever
+	  possible.
+	* Add SNMP subsystem option to man page.
+	  The keepalived(8) man page did not mention the -x option to
+	  enable the SNMP subsystem. This patch adds the -x (and --smmp)
+	  options to the keepalived(8) man page, as described in the
+	  keepalived help message.
+	* vrrp: fix gratuitous ARP refresh timer handling.
+	  Previous code was using an 'int' to store parsed timer value.
+	  This value was then expanded to TIMER_HZ which can lead to a
+	  wrapping issue if requested timer is longer than local machine
+	  'int' representation. This patch reworked the code to use
+	  timeval_t instead and perfrom regular timeval operations.
+	* vrrp: Fix a memory leak while dropping incoming IPSEC-AH
+	  authenticated advert. Digest was allocated in previous code
+	  without freeing it on HMAC-MD5 missmatch.
+	* vrrp: Extend IPSEC-AH auth to support unicast.
+	  If you plane to use IPSEC-AH auth in unicast mode (which THE best
+	  idea), then IP header TTL MUST be zeroed since it is mutable field
+	  on transit.
+	* vrrp: Update VRRP VMAC doc.
+	  Add vmac_xmit_base in configuration example and force rp_filter=0
+	  on macvlan interface.
+	* vrrp: make gratuitous ARP repeat count configurable.
+	  . garp_master_repeat : Gratuitous ARP count sent on the wire
+				 after MASTER state transition.
+	  . garp_master_refresh_repeat : Gratuitous ARP count sent on the
+				         wire when garp_refresh_timer fir
+	* vrrp: fix preempt and state BACKUP when prio 255.
+	  This makes it so that keepalived will respect various settings that
+	  should prevent it from assuming the MASTER role for a vrrp_instance
+	  unconditionally and immediately, even if the priority of the
+	  vrrp_instance in question is set to 255 (VRRP_PRIO_OWNER). These
+	  settings include:
+	  ---- conf ----
+	  state BACKUP
+	  preempt_delay <N>
+	  nopreempt
+	* vrrp: in backup state notify when vrrp is not up and move to FAULT
+	  state.
+	* ipvs: failed RS was flapping on config reload.
+	  The RS disabled by health-checker was turned on w/o health-checking
+	  by SIGHUP handler in the init_service_rs() subroutine.
+	  This did not happen with alpha mode set.
+	* libipvs: allow IPv4 RS in IPv6 VS and vice versa.
+	  This change syncronizes local copy of libipvs with the upstream
+	  (kernel/ipvsadm/ipvsadm.git) to the date. IPVS in Linux 3.18 will
+	  include the feature of mixing of tunneled RS families in single VS.
+	  The compatibility with older kernel versions is kept.
+	* libipvs: minor bugfix with retreiving dest af.
+	  This change needs to be sent to the ipvsadm upstream, too.
+	  This clarifies the previous commit, so there is no need to mention
+	  it in the changelog.
+	* vrrp: check if interface is known when using use_vmac.
+	  vrrp->ifp is NULL when use_vmac keyword is defined before the
+	  interface keyword. This would result in a segfault
+	* vrrp: simplify macvlan creation.
+	  Create the macvlan interface in one netlink command rather than
+	  three (creation of the macvlan in netlink_link_add_vmac function,
+	  set of the mac address in the netlink_link_setlladdr function, set
+	  macvlan mode in the netlink_link_setmode function).
+	  This simplification:
+	  1. avoids potential issues if the firt netlink command passes butcw
+	      not the next ones
+	  2. reduces number of netlink messages (light optimization)
+	* ipvs: bugfix quorum state was flapping when Q < H.
+	  When a service had quorum < hysteresis, the lower threshold of RS
+	  weights was calculated incorrecly. Unsigned arythmetics was used, so
+	  errors like this appeared in log: Keepalived_healthcheckers[2535]:
+	  Lost quorum 1-2=18446744073709551615 > 10 for VS
+	  The up -> down quorum state transition was happening every time when
+	  alive RS set was changed. This bug was in place since
+	  keepalived-1.2.9
+	* vrrp: add support to IPv6 mcast src address specification.
+	  For some reason (well... which one ?), previous code didnt support
+	  specification of multicast source address in IPv6 mode. If you are
+	  using 'native_ipv6' and want to specify IPv6 mcast source ip address
+	  then you can use 'mcast_src_ip' keyword with IPv6 address.
+	* vrrp: Add support to IPv6 src_address discrimination in master
+	  rx state.
+	  Previous code didnt support IPv6 address discrimination while in
+	  MASTER state receiving same prio advert. This patch extend previous
+	  code to support IP address comparison agnostic.
+	* vrrp: IPv6 mcast src_addr handling and VMAC fix.
+	  Properly bind socket for v6 use-case when mcasr_src_ip is in use or
+	  when VMAC is used. This patch fix VRRP VMAC in native_ipv6 mode,
+	  previous code just use the vmac interface link-local IP Address as
+	  src_ip leading to a corner case (to keep polite).
+	* vrrp: in IPv6 scope_id is mandatory to bind link-local address.
+	  In IPv6 use-case, source IP address is set binding sokect to
+	  socaddr_in6. Linux Kernel requires interface to bind link-local
+	  address.
+	* vrrp: fix nopreempt mode in master_rx.
+	  While receiving lower prio advert, preempt election according to
+	  nopreempt keyword. By default preempt is on as requested by RFC.
+	* exit on malloc failure.
+	* genhash: code cleanup.
+
 2014-05-13  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.13 released.
 	* vrrp : Use the standard unsigned int types. This fixes
