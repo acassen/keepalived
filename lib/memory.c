@@ -31,20 +31,29 @@ unsigned long mem_allocated;	/* Total memory used in Bytes */
 void *
 xalloc(unsigned long size)
 {
-	void *mem;
-	if ((mem = malloc(size)))
-		mem_allocated += size;
+	void *mem = malloc(size);
+
+	if (mem == NULL) {
+		perror("Keepalived");
+		exit(EXIT_FAILURE);
+	}
+
+	mem_allocated += size;
 	return mem;
 }
 
 void *
 zalloc(unsigned long size)
 {
-	void *mem;
-	if ((mem = malloc(size))) {
-		memset(mem, 0, size);
-		mem_allocated += size;
+	void *mem = malloc(size);
+
+	if (mem == NULL) {
+		perror("Keepalived");
+		exit(EXIT_FAILURE);
 	}
+
+	memset(mem, 0, size);
+	mem_allocated += size;
 	return mem;
 }
 
