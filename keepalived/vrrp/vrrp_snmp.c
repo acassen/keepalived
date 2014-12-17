@@ -541,7 +541,7 @@ vrrp_snmp_instance_priority(int action,
 		/* Commit: change values. There is no way to fail. */
 		log_message(LOG_INFO,
 			    "VRRP_Instance(%s) base priority changed from"
-			    " %d to %d via SNMP.",
+			    " %d to %ld via SNMP.",
 			    vrrp->iname, vrrp->base_priority, (long)(*var_val));
 		vrrp->base_priority = (long)(*var_val);
 		/* If we the instance is not part of a sync group, the
