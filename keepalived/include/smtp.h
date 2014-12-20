@@ -34,7 +34,7 @@
 #include "vrrp.h"
 
 /* global defs */
-#define SMTP_PORT		25
+#define SMTP_PORT_STR		"25"
 #define SMTP_BUFFER_LENGTH	512
 #define SMTP_BUFFER_MAX		1024
 #define SMTP_MAX_FSM_STATE	10
