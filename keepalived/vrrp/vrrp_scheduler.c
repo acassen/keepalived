@@ -911,11 +911,12 @@ vrrp_dispatcher_read(sock_t * sock)
 
 	/* Searching for matching instance */
 	vrrp = vrrp_index_lookup(hd->vrid, sock->fd_in);
-	vrrp->pkt_saddr = src_addr;
 
 	/* If no instance found => ignore the advert */
 	if (!vrrp)
 		return sock->fd_in;
+
+	vrrp->pkt_saddr = src_addr;
 
 	/* Run the FSM handler */
 	prev_state = vrrp->state;
