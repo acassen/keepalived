@@ -1,3 +1,14 @@
+2014-12-21  Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.15 released.
+	* vrrp: Use ancillary data on sending path for IPv6
+	  mcast_src_ip. Well, previous code used bind() to specify
+	  IPv6 src address. Ancillary data is a much more cleaner
+	  and efficient way...
+	* ipvs: Fix format of long int in log_message call.
+	* ipvs: fix building with fwmark disabled.
+	* vrrp: Pointer dereference before NULL check.
+	* STR(SMTP_PORT) returns "SMTP_PORT", not "25".
+
 2014-12-16  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.14 released.
 	* The "Date:" mail header is now localtime.
