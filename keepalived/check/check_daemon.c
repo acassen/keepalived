@@ -122,6 +122,12 @@ start_check(void)
 		return;
 	}
 
+	/* fill 'vsg' members of the virtual_server_t structure.
+	 * We must do that after parsing config, because
+	 * vs and vsg declarations may appear in any order
+	 */
+	link_vsg_to_vs();
+
 	/* Processing differential configuration parsing */
 	if (reload)
 		clear_diff_services();

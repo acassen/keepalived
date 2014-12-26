@@ -687,3 +687,16 @@ clear_diff_services(void)
 
 	return 1;
 }
+
+void
+link_vsg_to_vs(void)
+{
+	element e;
+	virtual_server_t *vs;
+
+	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
+		vs = ELEMENT_DATA(e);
+		if (vs->vsgname)
+			vs->vsg = ipvs_get_group_by_name(vs->vsgname, check_data->vs_group);
+	}
+}
