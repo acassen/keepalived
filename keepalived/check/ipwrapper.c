@@ -296,9 +296,8 @@ update_quorum_state(virtual_server_t * vs)
 	/* If we have just lost quorum for the VS, we need to consider
 	 * VS notify_down and sorry_server cases
 	 */
-	if (vs->quorum_state == UP && (
-		!weight_sum ||
-	    weight_sum < down_threshold)
+	if (vs->quorum_state == UP &&
+	    (!weight_sum || weight_sum < down_threshold)
 	) {
 		vs->quorum_state = DOWN;
 		log_message(LOG_INFO, "Lost quorum %lu-%lu=%li > %lu for VS %s"
