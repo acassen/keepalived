@@ -190,12 +190,12 @@ reload_check_thread(thread_t * thread)
 	signal_handler_destroy();
 
 	/* Destroy master thread */
-	kernel_netlink_close();
 	thread_destroy_master(master);
 	master = thread_make_master();
 	free_global_data(global_data);
 	free_checkers_queue();
 #ifdef _WITH_VRRP_
+	kernel_netlink_close();
 	free_interface_queue();
 #endif
 	free_ssl();
