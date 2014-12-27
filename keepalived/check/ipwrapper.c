@@ -170,11 +170,8 @@ init_service_rs(virtual_server_t * vs)
 		 * add real servers into the VS pool. They will get there
 		 * later upon healthchecks recovery (if ever).
 		 */
-		if (vs->alpha) {
-			UNSET_ALIVE(rs);
-			continue;
-		}
-		if (!ISALIVE(rs)) {
+
+		if (!vs->alpha && !ISALIVE(rs)) {
 			if (!ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, rs))
 				return 0;
 			SET_ALIVE(rs);
@@ -197,12 +194,8 @@ init_service_vs(virtual_server_t * vs)
 	}
 
 	/* Processing real server queue */
-	if (!LIST_ISEMPTY(vs->rs)) {
-		if (vs->alpha && ! vs->reloaded)
-			vs->quorum_state = DOWN;
-		if (!init_service_rs(vs))
-			return 0;
-	}
+	if (!init_service_rs(vs))
+		return 0;
 
 	/* if the service was reloaded, we may have got/lost quorum due to quorum setting changed */
 	if (vs->reloaded)
@@ -557,93 +550,45 @@ vs_exist(virtual_server_t * old_vs)
 	element e;
 	list l = check_data->vs;
 	virtual_server_t *vs;
-	virtual_server_group_t *vsg;
 
 	if (LIST_ISEMPTY(l))
 		return NULL;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
-		if (VS_ISEQ(old_vs, vs)) {
-			/* Check if group exist */
-			if (vs->vsgname) {
-				vsg = ipvs_get_group_by_name(old_vs->vsgname,
-							    check_data->vs_group);
-				if (!vsg)
-					return NULL;
-				else
-					if (!clear_diff_vsg(old_vs))
-						return NULL;
-			}
-
-			/*
-			 * Exist so set alive.
-			 */
-			SET_ALIVE(vs);
+		if (VS_ISEQ(old_vs, vs))
 			return vs;
-		}
 	}
 
 	return NULL;
 }
 
 /* Check if rs is in new vs data */
-static int
+static real_server_t *
 rs_exist(real_server_t * old_rs, list l)
 {
 	element e;
 	real_server_t *rs;
 
 	if (LIST_ISEMPTY(l))
-		return 0;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		rs = ELEMENT_DATA(e);
-		if (RS_ISEQ(rs, old_rs)) {
-			/*
-			 * We reflect the previous alive
-			 * flag value to not try to set
-			 * already set IPVS rule.
-			 */
-			rs->alive = old_rs->alive;
-			rs->set = old_rs->set;
-			rs->weight = old_rs->weight;
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-/* get rs list for a specific vs */
-static list
-get_rs_list(virtual_server_t * vs)
-{
-	element e;
-	list l = check_data->vs;
-	virtual_server_t *vsvr;
-
-	if (LIST_ISEMPTY(l))
 		return NULL;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vsvr = ELEMENT_DATA(e);
-		if (VS_ISEQ(vs, vsvr))
-			return vsvr->rs;
+		rs = ELEMENT_DATA(e);
+		if (RS_ISEQ(rs, old_rs))
+			return rs;
 	}
 
-	/* most of the time never reached */
 	return NULL;
 }
 
 /* Clear the diff rs of the old vs */
 static int
-clear_diff_rs(list old_vs_group, virtual_server_t * old_vs)
+clear_diff_rs(list old_vs_group, virtual_server_t * old_vs, list new_rs_list)
 {
 	element e;
 	list l = old_vs->rs;
-	list new = get_rs_list(old_vs);
-	real_server_t *rs;
+	real_server_t *rs, *new_rs;
 
 	/* If old vs didn't own rs then nothing return */
 	if (LIST_ISEMPTY(l))
@@ -653,12 +598,27 @@ clear_diff_rs(list old_vs_group, virtual_server_t * old_vs)
 	list rs_to_remove = alloc_list (NULL, NULL);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
-		if (!rs_exist(rs, new)) {
+		new_rs = rs_exist(rs, new_rs_list);
+		if (!new_rs) {
 			/* Reset inhibit flag to delete inhibit entries */
 			log_message(LOG_INFO, "service %s no longer exist"
 					    , FMT_RS(rs));
 			rs->inhibit = 0;
 			list_add (rs_to_remove, rs);
+		} else {
+			/*
+			 * We reflect the previous alive
+			 * flag value to not try to set
+			 * already set IPVS rule.
+			 */
+			new_rs->alive = rs->alive;
+			new_rs->set = rs->set;
+			new_rs->weight = rs->weight;
+			new_rs->reloaded = 1;
+			if (new_rs->alive) {
+				/* clear failed_checkers list */
+				free_list_elements(new_rs->failed_checkers);
+			}
 		}
 	}
 	int ret = clear_service_rs (old_vs_group, old_vs, rs_to_remove);
@@ -667,13 +627,14 @@ clear_diff_rs(list old_vs_group, virtual_server_t * old_vs)
 	return ret;
 }
 
-/* When reloading configuration, remove negative diff entries */
+/* When reloading configuration, remove negative diff entries
+ * and copy status of existing entries to the new ones */
 int
 clear_diff_services(void)
 {
 	element e;
 	list l = old_check_data->vs;
-	virtual_server_t *vs;
+	virtual_server_t *vs, *new_vs;
 
 	/* If old config didn't own vs then nothing return */
 	if (LIST_ISEMPTY(l))
@@ -687,7 +648,8 @@ clear_diff_services(void)
 		 * Try to find this vs into the new conf data
 		 * reloaded.
 		 */
-		if (!vs_exist(vs)) {
+		new_vs = vs_exist(vs);
+		if (!new_vs) {
 			if (vs->vsgname)
 				log_message(LOG_INFO, "Removing Virtual Server Group [%s]"
 						    , vs->vsgname);
@@ -699,11 +661,19 @@ clear_diff_services(void)
 			if (!clear_service_vs(old_check_data->vs_group, vs))
 				return 0;
 		} else {
+			/* copy status fields from old VS */
+			SET_ALIVE(new_vs);
+			new_vs->quorum_state = vs->quorum_state;
+			new_vs->reloaded = 1;
+
+			if (vs->vsgname)
+				clear_diff_vsg(vs);
+
 			/* If vs exist, perform rs pool diff */
 			/* omega = 0 must not prevent the notifiers from being called,
 			   because the VS still exists in new configuration */
 			vs->omega = 1;
-			if (!clear_diff_rs(old_check_data->vs_group, vs))
+			if (!clear_diff_rs(old_check_data->vs_group, vs, new_vs->rs))
 				return 0;
 			if (vs->s_svr)
 				if (ISALIVE(vs->s_svr))
@@ -716,53 +686,4 @@ clear_diff_services(void)
 	}
 
 	return 1;
-}
-
-/* When reloading configuration, copy still alive RS/VS alive/set attributes into corresponding new config items */
-int
-copy_srv_states (void)
-{
-	element e;
-	list l = old_check_data->vs;
-	virtual_server_t *old_vs, *new_vs;
-
-	/* If old config didn't own vs then nothing return */
-	if (LIST_ISEMPTY(l))
-		return 1;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		old_vs = ELEMENT_DATA(e);
-		new_vs = vs_exist (old_vs);
-		if (new_vs) {
-			/* copy quorum_state field of VS */
-			new_vs->quorum_state = old_vs->quorum_state;
-			new_vs->reloaded = 1;
-
-			list old_rsl = old_vs->rs;
-			list new_rsl = new_vs->rs;
-			if (LIST_ISEMPTY(old_rsl) || LIST_ISEMPTY (new_rsl))
-				continue;
-			element oe, ne;
-			real_server_t *old_rs, *new_rs;
-			/* iterate over equal rs */
-			for (oe = LIST_HEAD(old_rsl); oe; ELEMENT_NEXT (oe)) {
-				old_rs = ELEMENT_DATA(oe);
-				for (ne = LIST_HEAD(new_rsl); ne; ELEMENT_NEXT(ne)) {
-					new_rs = ELEMENT_DATA(ne);
-					if (RS_ISEQ (old_rs, new_rs)) {
-						/* copy alive, set fields of RS */
-						new_rs->alive = old_rs->alive;
-						new_rs->set = old_rs->set;
-						new_rs->reloaded = 1;
-						if (new_rs->alive) {
-							/* clear failed_checkers list */
-							free_list_elements(new_rs->failed_checkers);
-						}
-						break;
-					}
-				}
-			}
-		}
-	}
-	return 0;
 }

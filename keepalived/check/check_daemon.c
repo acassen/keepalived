@@ -123,10 +123,8 @@ start_check(void)
 	}
 
 	/* Processing differential configuration parsing */
-	if (reload) {
+	if (reload)
 		clear_diff_services();
-		copy_srv_states();
-	}
 
 	/* Initialize IPVS topology */
 	if (!init_services()) {

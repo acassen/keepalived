@@ -56,6 +56,5 @@ extern void update_svr_checker_state(int, checker_id_t, virtual_server_t *, real
 extern int init_services(void);
 extern int clear_services(void);
 extern int clear_diff_services(void);
-extern int copy_srv_states(void);
 
 #endif
