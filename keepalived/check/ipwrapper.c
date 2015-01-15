@@ -159,13 +159,8 @@ init_service_rs(virtual_server_t * vs)
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
 		/* Do not re-add failed RS instantly on reload */
-		if (rs->reloaded) {
-			/* force re-adding of the rs into vs_group:
-			 * we may have new vsg entries */
-			if (vs->vsgname)
-				UNSET_ALIVE(rs);
+		if (rs->reloaded)
 			continue;
-		}
 		/* In alpha mode, be pessimistic (or realistic?) and don't
 		 * add real servers into the VS pool. They will get there
 		 * later upon healthchecks recovery (if ever).
@@ -178,6 +173,38 @@ init_service_rs(virtual_server_t * vs)
 	}
 
 	return 1;
+}
+
+static void
+sync_service_vsg(virtual_server_t * vs)
+{
+	virtual_server_group_t *vsg;
+	virtual_server_group_entry_t *vsge;
+	list *l;
+	element e;
+
+	vsg = vs->vsg;
+	list ll[] = {
+		vsg->addr_ip,
+		vsg->vfwmark,
+		vsg->range,
+		NULL,
+	};
+
+	for (l = ll; *l; l++)
+		for (e = LIST_HEAD(*l); e; ELEMENT_NEXT(e)) {
+			vsge = ELEMENT_DATA(e);
+			if (vs->reloaded && !vsge->reloaded) {
+				log_message(LOG_INFO, "VS [%s:%d:%u] added into group %s"
+						    , inet_sockaddrtopair(&vsge->addr)
+						    , vsge->range
+						    , vsge->vfwmark
+						    , vs->vsgname);
+				/* add all reloaded and alive/inhibit-set dests
+				 * to the newly created vsg item */
+				ipvs_group_sync_entry(vs, vsge);
+			}
+		}
 }
 
 /* Set a virtualserver IPVS rules */
@@ -196,9 +223,14 @@ init_service_vs(virtual_server_t * vs)
 	if (!init_service_rs(vs))
 		return 0;
 
-	/* if the service was reloaded, we may have got/lost quorum due to quorum setting changed */
-	if (vs->reloaded)
+	if (vs->reloaded) {
+		if (vs->vsgname)
+			/* add reloaded dests into new vsg entries */
+			sync_service_vsg(vs);
+
+		/* we may have got/lost quorum due to quorum setting changed */
 		update_quorum_state(vs);
+	}
 
 	return 1;
 }
@@ -474,7 +506,7 @@ update_svr_checker_state(int alive, checker_id_t cid, virtual_server_t *vs, real
 }
 
 /* Check if a vsg entry is in new data */
-static int
+static virtual_server_group_entry_t *
 vsge_exist(virtual_server_group_entry_t *vsg_entry, list l)
 {
 	element e;
@@ -482,30 +514,28 @@ vsge_exist(virtual_server_group_entry_t *vsg_entry, list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vsge = ELEMENT_DATA(e);
-		if (VSGE_ISEQ(vsg_entry, vsge)) {
-			/*
-			 * If vsge exist this entry
-			 * is alive since only rs entries
-			 * are changing from alive state.
-			 */
-			SET_ALIVE(vsge);
-			return 1;
-		}
+		if (VSGE_ISEQ(vsg_entry, vsge))
+			return vsge;
 	}
 
-	return 0;
+	return NULL;
 }
 
 /* Clear the diff vsge of old group */
 static int
 clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 {
-	virtual_server_group_entry_t *vsge;
+	virtual_server_group_entry_t *vsge, *new_vsge;
 	element e;
 
 	for (e = LIST_HEAD(old); e; ELEMENT_NEXT(e)) {
 		vsge = ELEMENT_DATA(e);
-		if (!vsge_exist(vsge, new)) {
+		new_vsge = vsge_exist(vsge, new);
+		if (new_vsge) {
+			new_vsge->alive = vsge->alive;
+			new_vsge->reloaded = 1;
+		}
+		else {
 			log_message(LOG_INFO, "VS [%s:%d:%u] in group %s no longer exist"
 					    , inet_sockaddrtopair(&vsge->addr)
 					    , vsge->range

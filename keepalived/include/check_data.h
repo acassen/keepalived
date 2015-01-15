@@ -99,6 +99,7 @@ typedef struct _virtual_server_group_entry {
 	uint8_t				range;
 	uint32_t			vfwmark;
 	int				alive;
+	int				reloaded;
 } virtual_server_group_entry_t;
 
 typedef struct _virtual_server_group {
