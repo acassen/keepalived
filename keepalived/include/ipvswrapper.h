@@ -93,7 +93,7 @@ extern int ipvs_start(void);
 extern void ipvs_stop(void);
 extern virtual_server_group_t *ipvs_get_group_by_name(char *, list);
 extern int ipvs_group_remove_entry(virtual_server_t *, virtual_server_group_entry_t *);
-extern int ipvs_cmd(int, list, virtual_server_t *, real_server_t *);
+extern int ipvs_cmd(int, virtual_server_t *, real_server_t *);
 extern int ipvs_syncd_cmd(int, char *, int, int);
 extern void ipvs_syncd_master(char *, int);
 extern void ipvs_syncd_backup(char *, int);

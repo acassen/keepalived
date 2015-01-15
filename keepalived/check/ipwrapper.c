@@ -52,7 +52,7 @@ weigh_live_realservers(virtual_server_t * vs)
 
 /* Remove a realserver IPVS rule */
 static int
-clear_service_rs(list vs_group, virtual_server_t * vs, list l)
+clear_service_rs(virtual_server_t * vs, list l)
 {
 	element e;
 	real_server_t *rs;
@@ -65,7 +65,7 @@ clear_service_rs(list vs_group, virtual_server_t * vs, list l)
 			log_message(LOG_INFO, "Removing service %s from VS %s"
 						, FMT_RS(rs)
 						, FMT_VS(vs));
-			if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs_group, vs, rs))
+			if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs))
 				return 0;
 			UNSET_ALIVE(rs);
 			if (!vs->omega)
@@ -113,20 +113,20 @@ clear_service_rs(list vs_group, virtual_server_t * vs, list l)
 
 /* Remove a virtualserver IPVS rule */
 static int
-clear_service_vs(list vs_group, virtual_server_t * vs)
+clear_service_vs(virtual_server_t * vs)
 {
 	/* Processing real server queue */
 	if (!LIST_ISEMPTY(vs->rs)) {
 		if (vs->s_svr) {
 			if (ISALIVE(vs->s_svr))
-				if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs_group, vs, vs->s_svr))
+				if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr))
 					return 0;
-		} else if (!clear_service_rs(vs_group, vs, vs->rs))
+		} else if (!clear_service_rs(vs, vs->rs))
 			return 0;
 		/* The above will handle Omega case for VS as well. */
 	}
 
-	if (!ipvs_cmd(LVS_CMD_DEL, vs_group, vs, NULL))
+	if (!ipvs_cmd(LVS_CMD_DEL, vs, NULL))
 		return 0;
 
 	UNSET_ALIVE(vs);
@@ -143,7 +143,7 @@ clear_services(void)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
-		if (!clear_service_vs(check_data->vs_group, vs))
+		if (!clear_service_vs(vs))
 			return 0;
 	}
 	return 1;
@@ -170,9 +170,8 @@ init_service_rs(virtual_server_t * vs)
 		 * add real servers into the VS pool. They will get there
 		 * later upon healthchecks recovery (if ever).
 		 */
-
 		if (!vs->alpha && !ISALIVE(rs)) {
-			if (!ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, rs))
+			if (!ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs))
 				return 0;
 			SET_ALIVE(rs);
 		}
@@ -187,7 +186,7 @@ init_service_vs(virtual_server_t * vs)
 {
 	/* Init the VS root */
 	if (!ISALIVE(vs) || vs->vsgname) {
-		if (!ipvs_cmd(LVS_CMD_ADD, check_data->vs_group, vs, NULL))
+		if (!ipvs_cmd(LVS_CMD_ADD, vs, NULL))
 			return 0;
 		else
 			SET_ALIVE(vs);
@@ -239,7 +238,7 @@ perform_quorum_state(virtual_server_t *vs, int add)
 			continue;
 		if (add)
 			rs->alive = 0;
-		ipvs_cmd(add?LVS_CMD_ADD_DEST:LVS_CMD_DEL_DEST, check_data->vs_group, vs, rs);
+		ipvs_cmd(add?LVS_CMD_ADD_DEST:LVS_CMD_DEL_DEST, vs, rs);
 		rs->alive = 1;
 	}
 }
@@ -268,7 +267,7 @@ update_quorum_state(virtual_server_t * vs)
 					    , FMT_RS(vs->s_svr)
 					    , FMT_VS(vs));
 
-			ipvs_cmd(LVS_CMD_DEL_DEST, check_data->vs_group, vs, vs->s_svr);
+			ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
 			vs->s_svr->alive = 0;
 
 			/* Adding back alive real servers */
@@ -312,7 +311,7 @@ update_quorum_state(virtual_server_t * vs)
 					    , FMT_VS(vs));
 
 			/* the sorry server is now up in the pool, we flag it alive */
-			ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, vs->s_svr);
+			ipvs_cmd(LVS_CMD_ADD_DEST, vs, vs->s_svr);
 			vs->s_svr->alive = 1;
 
 			/* Remove remaining alive real servers */
@@ -343,7 +342,7 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 				    , FMT_VS(vs));
 		/* Add only if we have quorum or no sorry server */
 		if (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)) {
-			ipvs_cmd(LVS_CMD_ADD_DEST, check_data->vs_group, vs, rs);
+			ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
 		}
 		rs->alive = alive;
 		if (rs->notify_up) {
@@ -371,7 +370,7 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 		 * Remove only if we have quorum or no sorry server
 		 */
 		if (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)) {
-			ipvs_cmd(LVS_CMD_DEL_DEST, check_data->vs_group, vs, rs);
+			ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs);
 		}
 		rs->alive = alive;
 		if (rs->notify_down) {
@@ -410,7 +409,7 @@ update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs)
 		 */
 		if (rs->set && ISALIVE(rs) &&
 		    (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)))
-			ipvs_cmd(LVS_CMD_EDIT_DEST, check_data->vs_group, vs, rs);
+			ipvs_cmd(LVS_CMD_EDIT_DEST, vs, rs);
 		update_quorum_state(vs);
 	}
 }
@@ -523,14 +522,10 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 
 /* Clear the diff vsg of the old vs */
 static int
-clear_diff_vsg(virtual_server_t * old_vs)
+clear_diff_vsg(virtual_server_t * old_vs, virtual_server_t * new_vs)
 {
-	virtual_server_group_t *old;
-	virtual_server_group_t *new;
-
-	/* Fetch group */
-	old = ipvs_get_group_by_name(old_vs->vsgname, old_check_data->vs_group);
-	new = ipvs_get_group_by_name(old_vs->vsgname, check_data->vs_group);
+	virtual_server_group_t *old = old_vs->vsg;
+	virtual_server_group_t *new = new_vs->vsg;
 
 	/* Diff the group entries */
 	if (!clear_diff_vsge(old->addr_ip, new->addr_ip, old_vs))
@@ -584,7 +579,7 @@ rs_exist(real_server_t * old_rs, list l)
 
 /* Clear the diff rs of the old vs */
 static int
-clear_diff_rs(list old_vs_group, virtual_server_t * old_vs, list new_rs_list)
+clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 {
 	element e;
 	list l = old_vs->rs;
@@ -621,7 +616,7 @@ clear_diff_rs(list old_vs_group, virtual_server_t * old_vs, list new_rs_list)
 			}
 		}
 	}
-	int ret = clear_service_rs (old_vs_group, old_vs, rs_to_remove);
+	int ret = clear_service_rs (old_vs, rs_to_remove);
 	free_list (rs_to_remove);
 
 	return ret;
@@ -658,7 +653,7 @@ clear_diff_services(void)
 						    , FMT_VS(vs));
 
 			/* Clear VS entry */
-			if (!clear_service_vs(old_check_data->vs_group, vs))
+			if (!clear_service_vs(vs))
 				return 0;
 		} else {
 			/* copy status fields from old VS */
@@ -667,18 +662,17 @@ clear_diff_services(void)
 			new_vs->reloaded = 1;
 
 			if (vs->vsgname)
-				clear_diff_vsg(vs);
+				clear_diff_vsg(vs, new_vs);
 
 			/* If vs exist, perform rs pool diff */
 			/* omega = 0 must not prevent the notifiers from being called,
 			   because the VS still exists in new configuration */
 			vs->omega = 1;
-			if (!clear_diff_rs(old_check_data->vs_group, vs, new_vs->rs))
+			if (!clear_diff_rs(vs, new_vs->rs))
 				return 0;
 			if (vs->s_svr)
 				if (ISALIVE(vs->s_svr))
 					if (!ipvs_cmd(LVS_CMD_DEL_DEST
-						      , check_data->vs_group
 						      , vs
 						      , vs->s_svr))
 						return 0;

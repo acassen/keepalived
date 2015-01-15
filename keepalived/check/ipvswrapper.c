@@ -140,9 +140,9 @@ ipvs_group_range_cmd(int cmd, virtual_server_group_entry_t *vsg_entry)
 
 /* set IPVS group rules */
 static int
-ipvs_group_cmd(int cmd, list vs_group, real_server_t * rs, char * vsgname)
+ipvs_group_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 {
-	virtual_server_group_t *vsg = ipvs_get_group_by_name(vsgname, vs_group);
+	virtual_server_group_t *vsg = vs->vsg;
 	virtual_server_group_entry_t *vsg_entry;
 	list l;
 	element e;
@@ -234,7 +234,7 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 
 /* Set/Remove a RS from a VS */
 int
-ipvs_cmd(int cmd, list vs_group, virtual_server_t * vs, real_server_t * rs)
+ipvs_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 {
 	int err = 0;
 
@@ -257,7 +257,7 @@ ipvs_cmd(int cmd, list vs_group, virtual_server_t * vs, real_server_t * rs)
 
 	/* Set vs rule and send to kernel */
 	if (vs->vsgname) {
-		err = ipvs_group_cmd(cmd, vs_group, rs, vs->vsgname);
+		err = ipvs_group_cmd(cmd, vs, rs);
 	} else {
 		if (vs->vfwmark) {
 			urule->vfwmark = vs->vfwmark;
@@ -454,9 +454,9 @@ ipvs_group_range_cmd(int cmd, virtual_server_group_entry_t *vsg_entry)
 
 /* set IPVS group rules */
 static void
-ipvs_group_cmd(int cmd, list vs_group, real_server_t * rs, virtual_server_t * vs)
+ipvs_group_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 {
-	virtual_server_group_t *vsg = ipvs_get_group_by_name(vs->vsgname, vs_group);
+	virtual_server_group_t *vsg = vs->vsg;
 	virtual_server_group_entry_t *vsg_entry;
 	list l;
 	element e;
@@ -570,7 +570,7 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 
 /* Set/Remove a RS from a VS */
 int
-ipvs_cmd(int cmd, list vs_group, virtual_server_t * vs, real_server_t * rs)
+ipvs_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 {
 	/* Allocate the room */
 	memset(srule, 0, sizeof(ipvs_service_t));
@@ -592,7 +592,7 @@ ipvs_cmd(int cmd, list vs_group, virtual_server_t * vs, real_server_t * rs)
 
 	/* Set vs rule and send to kernel */
 	if (vs->vsgname) {
-		ipvs_group_cmd(cmd, vs_group, rs, vs);
+		ipvs_group_cmd(cmd, vs, rs);
 	} else {
 		if (vs->vfwmark) {
 			srule->af = AF_INET;
