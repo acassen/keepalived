@@ -439,16 +439,23 @@ inet_cidrtomask(uint8_t cidr)
 char *
 get_local_name(void)
 {
-	struct hostent *host;
 	struct utsname name;
+	struct addrinfo hints, *res = NULL;
+	char *canonname;
+
+	memset(&hints, '\0', sizeof hints);
+	hints.ai_flags = AI_CANONNAME;
 
 	if (uname(&name) < 0)
 		return NULL;
 
-	if (!(host = gethostbyname(name.nodename)))
+	if (getaddrinfo(name.nodename, NULL, &hints, &res) != 0)
 		return NULL;
 
-	return host->h_name;
+	canonname = res->ai_canonname;
+	freeaddrinfo(res);
+
+	return canonname;
 }
 
 /* String compare with NULL string handling */
