@@ -83,7 +83,7 @@ typedef struct _real_server {
 	int				alive;
 	list				failed_checkers;/* List of failed checkers */
 	int				set;		/* in the IPVS table */
-	int				reloaded;   /* active state was copied from old config while reloading */
+	int				reloaded;	/* active state was copied from old config while reloading */
 #if defined(_WITH_SNMP_) && defined(_KRNL_2_6_) && defined(_WITH_LVS_)
 	/* Statistics */
 	uint32_t			activeconns;	/* active connections */
@@ -99,6 +99,7 @@ typedef struct _virtual_server_group_entry {
 	uint8_t				range;
 	uint32_t			vfwmark;
 	int				alive;
+	int				reloaded;
 } virtual_server_group_entry_t;
 
 typedef struct _virtual_server_group {
@@ -111,6 +112,7 @@ typedef struct _virtual_server_group {
 /* Virtual Server definition */
 typedef struct _virtual_server {
 	char				*vsgname;
+	virtual_server_group_t		*vsg;
 	struct sockaddr_storage		addr;
 	real_server_t			*s_svr;
 	uint32_t			vfwmark;
@@ -134,7 +136,7 @@ typedef struct _virtual_server {
 
 	long unsigned			hysteresis;	/* up/down events "lag" WRT quorum. */
 	unsigned			quorum_state;	/* Reflects result of the last transition done. */
-	int					reloaded;   /* quorum_state was copied from old config while reloading */
+	int				reloaded;	/* quorum_state was copied from old config while reloading */
 #if defined(_WITH_SNMP_) && defined(_KRNL_2_6_) && defined(_WITH_LVS_)
 	/* Statistics */
 	time_t				lastupdated;

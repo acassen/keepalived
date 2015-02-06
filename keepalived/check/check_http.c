@@ -312,12 +312,12 @@ timeout_epilog(thread_t * thread, char *smtp_msg, char *debug_msg)
 {
 	checker_t *checker = THREAD_ARG(thread);
 
-	log_message(LOG_INFO, "Timeout %s server %s."
-			    , debug_msg
-			    , FMT_HTTP_RS(checker));
 
 	/* check if server is currently alive */
 	if (svr_checker_up(checker->id, checker->rs)) {
+		log_message(LOG_INFO, "Timeout %s server %s."
+				    , debug_msg
+				    , FMT_HTTP_RS(checker));
 		smtp_alert(checker->rs, NULL, NULL,
 			   "DOWN", smtp_msg);
 		update_svr_checker_state(DOWN, checker->id
