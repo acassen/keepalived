@@ -166,6 +166,7 @@ tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
 	switch (status) {
 	case connect_error:
 		close(fd);
+		thread_add_terminate_event(thread->master);
 		break;
 
 	case connect_success:
