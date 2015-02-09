@@ -14,7 +14,7 @@ datarootdir = @datarootdir@
 CC = @CC@
 STRIP = @STRIP@
 INCLUDES = -I../lib
-CFLAGS = @CFLAGS@ @CPPFLAGS@ $(INCLUDES) \
+CFLAGS = @CFLAGS@ -D@SO_MARK_SUPPORT@ @CPPFLAGS@ $(INCLUDES) \
 	 -Wall -Wunused -Wstrict-prototypes
 LDFLAGS = @LIBS@ @LDFLAGS@
 

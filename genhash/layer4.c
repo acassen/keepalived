@@ -48,6 +48,15 @@ tcp_connect(int fd, REQ * req_obj)
 	setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *) &li,
 		   sizeof (struct linger));
 
+#ifdef _WITH_SO_MARK_
+	if (req->mark) {
+		if (setsockopt (fd, SOL_SOCKET, SO_MARK, &req->mark, sizeof req->mark)) {
+			fprintf(stderr, "Error setting fwmark %u to socket: %s\n",
+					req->mark, strerror(errno));
+			return connect_error;
+		}
+	}
+#endif
 	/* Make socket non-block. */
 	val = fcntl(fd, F_GETFL, 0);
 	fcntl(fd, F_SETFL, val | O_NONBLOCK);
@@ -157,6 +166,7 @@ tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
 	switch (status) {
 	case connect_error:
 		close(fd);
+		thread_add_terminate_event(thread->master);
 		break;
 
 	case connect_success:

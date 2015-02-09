@@ -85,8 +85,9 @@ usage(const char *prog)
 		"  %s --hash            -H       Use the specified hash algorithm.\n"
 		"  %s --verbose         -v       Use verbose mode output.\n"
 		"  %s --help            -h       Display this short inlined help screen.\n"
-		"  %s --release         -r       Display the release number\n",
-		prog, prog, prog, prog, prog, prog, prog, prog, prog);
+		"  %s --release         -r       Display the release number.\n"
+		"  %s --fwmark          -m       Use the specified FW mark.\n",
+		prog, prog, prog, prog, prog, prog, prog, prog, prog, prog);
 	fprintf(stderr, "\nSupported hash algorithms:\n");
 	for (i = hash_first; i < hash_guard; i++)
 		fprintf(stderr, "  %s%s\n",
@@ -118,11 +119,12 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 		{"use-virtualhost", required_argument, 0, 'V'},
 		{"port",            required_argument, 0, 'p'},
 		{"url",             required_argument, 0, 'u'},
+		{"fwmark",          required_argument, 0, 'm'},
 		{0, 0, 0, 0}
 	};
 
 	/* Parse the command line arguments */
-	while ((c = getopt_long (argc, argv, "rhvSs:H:V:p:u:", long_options, NULL)) != EOF) {
+	while ((c = getopt_long (argc, argv, "rhvSs:H:V:p:u:m:", long_options, NULL)) != EOF) {
 		switch (c) {
 		case 'r':
 			fprintf(stderr, VERSION_STRING);
@@ -174,6 +176,14 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 			break;
 		case 'u':
 			req_obj->url = optarg;
+			break;
+		case 'm':
+#ifdef _WITH_SO_MARK_
+			req_obj->mark = atoi(optarg);
+#else
+			fprintf(stderr, "genhash built without fwmark support\n");
+			return CMD_LINE_ERROR;
+#endif
 			break;
 		default:
 			usage(argv[0]);
