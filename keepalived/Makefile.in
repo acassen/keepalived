@@ -87,11 +87,11 @@ mrproper: distclean
 
 uninstall:
 	rm -f $(DESTDIR)$(sbindir)/$(EXEC)
-	rm -f $(DESTDIR)$(init_dir)/keepalived.init
+	rm -f $(DESTDIR)$(init_dir)/keepalived
 	rm -f $(DESTDIR)$(sysconf_dir)/keepalived
 	rm -rf $(DESTDIR)$(sysconfdir)/keepalived
-	rm -f $(DESTDIR)$(mandir)/man/man5/keepalived.conf.5
-	rm -f $(DESTDIR)$(mandir)/man/man8/keepalived.8
+	rm -f $(DESTDIR)$(mandir)/man5/keepalived.conf.5
+	rm -f $(DESTDIR)$(mandir)/man8/keepalived.8
 
 install:
 	install -d $(DESTDIR)$(sbindir)
@@ -99,7 +99,7 @@ install:
 	install -d $(DESTDIR)$(init_dir)
 	install -m 755 etc/init.d/keepalived.init $(DESTDIR)$(init_dir)/keepalived
 	install -d $(DESTDIR)$(sysconf_dir)
-	install -m 755 etc/init.d/keepalived.sysconfig $(DESTDIR)$(sysconf_dir)/keepalived
+	install -m 644 etc/init.d/keepalived.sysconfig $(DESTDIR)$(sysconf_dir)/keepalived
 	install -d $(DESTDIR)$(sysconfdir)/keepalived/samples
 	install -m 644 etc/keepalived/keepalived.conf $(DESTDIR)$(sysconfdir)/keepalived/
 	install -m 644 ../doc/samples/* $(DESTDIR)$(sysconfdir)/keepalived/samples/
