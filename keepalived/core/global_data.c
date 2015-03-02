@@ -178,7 +178,7 @@ dump_global_data(data_t * data)
 	}
 	if (data->vrrp_mcast_group6.ss_family) {
 		log_message(LOG_INFO, " VRRP IPv6 mcast group = %s"
-				    , inet_sockaddrtos(&data->vrrp_mcast_group4));
+				    , inet_sockaddrtos(&data->vrrp_mcast_group6));
 	}
 #ifdef _WITH_SNMP_
 	if (data->enable_traps)
