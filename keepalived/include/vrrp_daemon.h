@@ -27,6 +27,11 @@
 #include <stdlib.h>
 #include <signal.h>
 
+#ifdef VRRP_COUNTER
+#include <zmq.h>
+#include <pthread.h>
+#endif
+
 /* Daemon define */
 #define PROG_VRRP	"Keepalived_vrrp"
 #define WDOG_VRRP	"/tmp/.vrrp"

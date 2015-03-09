@@ -46,6 +46,13 @@
 #include "utils.h"
 #include "notify.h"
 
+#ifdef VRRP_COUNTER
+/* zmq IPC global variables declaration */
+static void *g_zmq_context = VRRP_INVALID_ZMQ_CONTEXT;
+static void *g_zmq_responder_socket = VRRP_INVALID_ZMQ_SOCKET;
+static vrrp_stats_t glob_count_info;
+#endif
+
 /* add/remove Virtual IP addresses */
 static int
 vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type)
@@ -214,6 +221,59 @@ vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
 	return 0;
 }
 
+#ifdef VRRP_COUNTER
+/* api to the increment specific counter */
+static int
+vrrp_counter_field_increment_set(vrrp_t *vrrp, counter_fields_t cntr_field)
+{
+	int err = 0;
+
+	switch(cntr_field) {
+	case TRANSITION_TO_MASTER:
+		vrrp->extended_detail_info.counter_info.transition_to_master++;
+		break;
+	case ADVERTISEMENT_RECEIVED:
+		vrrp->extended_detail_info.counter_info.advertise_rcvd++;
+		break;
+	case ADVERTISEMENT_INTERVAL_ERRORS:
+		vrrp->extended_detail_info.counter_info.advt_intvl_err++;
+		break;
+	case AUTHENTICATION_FAILURES:
+		vrrp->extended_detail_info.counter_info.auth_failures++;
+		break;
+	case TTL_ERRORS:
+		vrrp->extended_detail_info.counter_info.ttl_errors++;
+		break;
+	case PRIORITY_ZERO_PKTS_RECEIVED:
+		vrrp->extended_detail_info.counter_info.priority_zero_pkts_rcvd++;
+		break;
+	case PRIORITY_ZERO_PKTS_SENT:
+		vrrp->extended_detail_info.counter_info.priority_zero_pkts_sent++;
+		break;
+	case INVALID_TYPE_PKTS_RECEIVED:
+		vrrp->extended_detail_info.counter_info.invalid_type_pkts_rcvd++;
+		break;
+	case STATS_ADDRESS_LIST_ERRORS:
+		vrrp->extended_detail_info.counter_info.stats_address_list_errors++;
+		break;
+	case INVALID_AUTH_TYPE:
+		vrrp->extended_detail_info.counter_info.invalid_auth_type++;
+		break;
+	case AUTH_TYPE_MISMATCH:
+		vrrp->extended_detail_info.counter_info.auth_type_mismatch++;
+		break;
+	case PACKET_LENGTH_ERROR:
+		vrrp->extended_detail_info.counter_info.packet_length_error++;
+		break;
+	default:
+		log_message(LOG_ERR, "invalid vrrp counter field: %d", cntr_field);
+		err = 1;
+		break;
+	}
+	return err;
+}
+#endif
+
 /*
  * VRRP incoming packet check.
  * return 0 if the pkt is valid, != 0 otherwise.
@@ -245,10 +305,22 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 		/* pointer to vrrp vips pkt zone */
 		vips = (unsigned char *) ((char *) hd + sizeof(vrrphdr_t));
 	
+
+#ifdef VRRP_COUNTER
+		/* increment counter for zero pkt received */
+		if(hd->priority == 0){
+			vrrp_counter_field_increment_set(vrrp, PRIORITY_ZERO_PKTS_RECEIVED);
+		}
+#endif
+
 		/* MUST verify that the IP TTL is 255 */
 		if (LIST_ISEMPTY(vrrp->unicast_peer) && ip->ttl != VRRP_IP_TTL) {
 			log_message(LOG_INFO, "invalid ttl. %d and expect %d", ip->ttl,
 			       VRRP_IP_TTL);
+#ifdef VRRP_COUNTER
+			/* increment counter for bad ttl */
+			vrrp_counter_field_increment_set(vrrp, TTL_ERRORS);
+#endif
 			return VRRP_PACKET_KO;
 		}
 	
@@ -260,6 +332,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 			log_message(LOG_INFO,
 			       "ip payload too short. %d and expect at least %lu",
 			       ntohs(ip->tot_len) - ihl, sizeof(vrrphdr_t));
+#ifdef VRRP_COUNTER
+			/* increment counter for too short packet */
+			vrrp_counter_field_increment_set(vrrp, PACKET_LENGTH_ERROR);
+#endif
 			return VRRP_PACKET_KO;
 		}
 
@@ -271,6 +347,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 			if (hd->naddr != LIST_SIZE(vrrp->vip)) {
 				log_message(LOG_INFO,
 				       "receive an invalid ip number count associated with VRID!");
+#ifdef VRRP_COUNTER
+				/* increment counter for address list errors */
+				vrrp_counter_field_increment_set(vrrp, STATS_ADDRESS_LIST_ERRORS);
+#endif
 				return VRRP_PACKET_KO;
 			}
 
@@ -283,6 +363,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 					log_message(LOG_INFO,
 					       "one or more VIP associated with"
 					       " VRID mismatch actual MASTER advert");
+#ifdef VRRP_COUNTER
+					/* increment counter for address list errors */
+					vrrp_counter_field_increment_set(vrrp, STATS_ADDRESS_LIST_ERRORS);
+#endif
 					return VRRP_PACKET_KO;
 				}
 			}
@@ -294,6 +378,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 			    - sizeof (vrrp->auth_data);
 			if (memcmp(pw, vrrp->auth_data, sizeof(vrrp->auth_data)) != 0) {
 				log_message(LOG_INFO, "receive an invalid passwd!");
+#ifdef VRRP_COUNTER
+				/* increment counter for authentication failures */
+				vrrp_counter_field_increment_set(vrrp, AUTHENTICATION_FAILURES);
+#endif
 				return VRRP_PACKET_KO;
 			}
 		}
@@ -318,6 +406,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 	if ((hd->vers_type >> 4) != VRRP_VERSION) {
 		log_message(LOG_INFO, "invalid version. %d and expect %d",
 		       (hd->vers_type >> 4), VRRP_VERSION);
+#ifdef VRRP_COUNTER
+		/* increment counter for invalid packet type received */
+		vrrp_counter_field_increment_set(vrrp, INVALID_TYPE_PKTS_RECEIVED);
+#endif
 		return VRRP_PACKET_KO;
 	}
 
@@ -327,13 +419,32 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 		return VRRP_PACKET_KO;
 	}
 
+#ifdef VRRP_COUNTER
 	/*
-	 * MUST perform authentication specified by Auth Type 
+	 * MUST check the invalid authentication type
+	 */
+	if ((vrrp->auth_type != VRRP_AUTH_NONE) &&
+		(vrrp->auth_type != VRRP_AUTH_PASS) &&
+		(vrrp->auth_type != VRRP_AUTH_AH)) {
+		log_message(LOG_INFO, "Invalid auth type %d!",
+			vrrp->auth_type);
+		/* increment counter for invalid auth type received */
+		vrrp_counter_field_increment_set(vrrp, INVALID_AUTH_TYPE);
+		return VRRP_PACKET_KO;
+        }
+#endif
+
+	/*
+	 * MUST perform authentication specified by Auth Type
 	 * check the authentication type
 	 */
 	if (vrrp->auth_type != hd->auth_type) {
 		log_message(LOG_INFO, "receive a %d auth, expecting %d!",
 		       hd->auth_type, vrrp->auth_type);
+#ifdef VRRP_COUNTER
+		/* increment counter for invalid auth type received */
+		vrrp_counter_field_increment_set(vrrp, AUTH_TYPE_MISMATCH);
+#endif
 		return VRRP_PACKET_KO;
 	}
 
@@ -357,9 +468,22 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 	if (vrrp->adver_int / TIMER_HZ != hd->adver_int) {
 		log_message(LOG_INFO, "advertissement interval mismatch mine=%d rcved=%d",
 		       vrrp->adver_int, hd->adver_int);
+#ifdef VRRP_COUNTER
+		/* increment counter for invalid auth type received */
+		vrrp_counter_field_increment_set(vrrp, ADVERTISEMENT_INTERVAL_ERRORS);
+#endif
 		/* to prevent concurent VRID running => multiple master in 1 VRID */
 		return VRRP_PACKET_DROP;
 	}
+
+#ifdef VRRP_COUNTER
+	/* master router details info */
+	if(vrrp->state != VRRP_STATE_MAST){
+		vrrp->extended_detail_info.master_info.master_adv_intvl = hd->adver_int;
+		vrrp->extended_detail_info.master_info.master_priority= hd->priority;
+		vrrp->extended_detail_info.master_info.master_ifp.sin_addr.s_addr= ip->saddr;
+	}
+#endif
 
 	return VRRP_PACKET_OK;
 }
@@ -697,6 +821,11 @@ vrrp_check_packet(vrrp_t * vrrp, char *buf, int buflen)
 {
 	int ret;
 
+#ifdef VRRP_COUNTER
+	/* increment counter for advertisements received */
+	vrrp_counter_field_increment_set(vrrp, ADVERTISEMENT_RECEIVED);
+#endif
+
 	if (buflen > 0) {
 		ret = vrrp_in_chk(vrrp, buf);
 
@@ -792,6 +921,11 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	/* Check if notify is needed */
 	notify_instance_exec(vrrp, VRRP_STATE_MAST);
 
+#ifdef VRRP_COUNTER
+	/* increment counter for transition to master state */
+	vrrp_counter_field_increment_set(vrrp, TRANSITION_TO_MASTER);
+#endif
+
 #ifdef _WITH_SNMP_
 	vrrp_snmp_instance_trap(vrrp);
 #endif
@@ -825,6 +959,12 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 	vrrp->state = VRRP_STATE_MAST;
 	log_message(LOG_INFO, "VRRP_Instance(%s) Transition to MASTER STATE"
 			    , vrrp->iname);
+
+#ifdef VRRP_COUNTER
+	vrrp->extended_detail_info.master_info.master_adv_intvl = (vrrp->adver_int/TIMER_HZ);
+	vrrp->extended_detail_info.master_info.master_priority= vrrp->base_priority;
+	vrrp->extended_detail_info.master_info.master_ifp.sin_addr.s_addr= vrrp->ifp->sin_addr.s_addr;
+#endif
 }
 
 /* leaving master state */
@@ -836,6 +976,10 @@ vrrp_restore_interface(vrrp_t * vrrp, int advF)
 	        syslog(LOG_INFO, "VRRP_Instance(%s) sending 0 priority",
 		       vrrp->iname);
 		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
+#ifdef VRRP_COUNTER
+		/* increment counter for sending zero priority */
+		vrrp_counter_field_increment_set(vrrp, PRIORITY_ZERO_PKTS_SENT);
+#endif
 	}
 
 	/* remove virtual routes */
@@ -888,6 +1032,10 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 		vrrp->state = VRRP_STATE_FAULT;
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
+#ifdef VRRP_COUNTER
+		/* increment counter for sending zero priority */
+		vrrp_counter_field_increment_set(vrrp, PRIORITY_ZERO_PKTS_SENT);
+#endif
 #ifdef _WITH_SNMP_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
@@ -1455,3 +1603,619 @@ clear_diff_script(void)
 		}
 	}
 }
+
+#ifdef VRRP_COUNTER
+/* tokenize the zmq ipc data for vrrp counters */
+static int
+vrrp_get_vrrp_token(char *buff_string, char vrrp_token[][VRRP_IPC_TOKEN_LEN], char vrrp_delimiter)
+{
+	int index = 0;
+	unsigned int offset = 0;
+	char flag = 0;
+	int count = 0;
+	int buff_string_len = strlen(buff_string);
+
+	for (offset = 0; offset <= buff_string_len; offset++) {
+		if (buff_string[offset] != vrrp_delimiter &&
+			buff_string[offset] != '\t' &&
+			buff_string[offset] != '\n' &&
+			buff_string[offset] != '\0') {
+			if (index < VRRP_IPC_TOKEN_LEN) {
+				vrrp_token[count][index] = buff_string[offset];
+				index++;
+				flag = 1;
+				continue;
+			}
+		}
+
+		if ((flag) && (count < VRRP_MAX_IPC_TOKEN)) {
+			vrrp_token[count][index] = '\0';
+			count++;
+			index = 0;
+			flag = 0;
+		}
+	}
+
+	return (count - 1);
+}
+
+/* validation check vrrp database in keepalived */
+static int
+validate_vrrp_record_info(void)
+{
+        list            vrrp_list;
+
+        /* get the vrrp instance list */
+        if (vrrp_data != NULL) {
+                vrrp_list = vrrp_data->vrrp;
+        } else {
+                log_message(LOG_NOTICE, "vrrp_data is null");
+                return 1;
+        }
+
+        /* check if list is empty */
+        if (LIST_ISEMPTY(vrrp_list)) {
+                log_message(LOG_NOTICE, "vrrp instance list in vrrp_data is empty");
+                return 1;
+        }
+
+	return 0;
+}
+
+/* fetch counters for specific vrrp instance */
+static int
+vrrp_get_vrrp_counters_stats_info(int instance_id, vrrp_stats_t **counter_details_info)
+{
+	element     	vrrp_element;
+	list        	vrrp_list;
+	vrrp_t      	*vrrp = NULL;
+
+	/* validate vrrp database in keepalived */
+	if (validate_vrrp_record_info() != 0) {
+		return 1;
+	}
+
+	/* assign vrrp instance list */
+	vrrp_list = vrrp_data->vrrp;
+
+	/* traverse the vrrp list and fetch counters */
+	for (vrrp_element = LIST_HEAD(vrrp_list); vrrp_element; ELEMENT_NEXT(vrrp_element)) {
+		vrrp = ELEMENT_DATA(vrrp_element);
+		if(vrrp->vrid == instance_id) {
+			*counter_details_info = &(vrrp->extended_detail_info.counter_info);
+			break;
+		}
+	}
+	return 0;
+}
+
+/* fetch master router's info for specific vrrp instance */
+static int
+vrrp_master_detail_stats_info_get(int instance_id, master_details_info_t **master_details_info)
+{
+	element     	vrrp_element;
+	list        	vrrp_list;
+	vrrp_t      	*vrrp = NULL;
+
+	/* validate vrrp database in keepalived */
+	if (validate_vrrp_record_info() != 0) {
+		return 1;
+	}
+
+        /* assign vrrp instance list */
+        vrrp_list = vrrp_data->vrrp;
+
+	/* traverse vrrp list and fetch master detail info */
+	for (vrrp_element = LIST_HEAD(vrrp_list); vrrp_element; ELEMENT_NEXT(vrrp_element)) {
+		vrrp = ELEMENT_DATA(vrrp_element);
+		if(vrrp->vrid == instance_id){
+			*master_details_info = &(vrrp->extended_detail_info.master_info);
+		}
+	}
+
+	return 0;
+}
+
+/* fetch counters for all vrrp instances */
+static int
+vrrp_get_global_counters_stats(int *vrrp_inst, int *vrrp_count)
+{
+	element     vrrp_element;
+	list        vrrp_list;
+	vrrp_t      *vrrp = NULL;
+	int         index = 0;
+
+	/* memset the global counter struct */
+	memset(&glob_count_info, 0, sizeof(vrrp_stats_t));
+
+	/* validate vrrp database in keepalived */
+	if (validate_vrrp_record_info() != 0) {
+		return 1;
+	}
+
+        /* assign vrrp instance list */
+        vrrp_list = vrrp_data->vrrp;
+
+	/* traverse vrrp list and global counters info */
+	for (vrrp_element = LIST_HEAD(vrrp_list); vrrp_element; ELEMENT_NEXT(vrrp_element)) {
+		/* Identifying the vrrp instance */
+		vrrp = ELEMENT_DATA(vrrp_element);
+
+		for (index=0; index < *vrrp_count; index++) {
+			if (vrrp_inst[index] == vrrp->vrid) {
+			/* Adding individual counters for all configured VRRP instances */
+				glob_count_info.advertise_rcvd += vrrp->extended_detail_info.counter_info.advertise_rcvd;
+				glob_count_info.advt_intvl_err += vrrp->extended_detail_info.counter_info.advt_intvl_err;
+				glob_count_info.auth_failures += vrrp->extended_detail_info.counter_info.auth_failures;
+				glob_count_info.auth_type_mismatch += vrrp->extended_detail_info.counter_info.auth_type_mismatch;
+				glob_count_info.invalid_auth_type += vrrp->extended_detail_info.counter_info.invalid_auth_type;
+				glob_count_info.invalid_type_pkts_rcvd += vrrp->extended_detail_info.counter_info.invalid_type_pkts_rcvd;
+				glob_count_info.packet_length_error += vrrp->extended_detail_info.counter_info.packet_length_error;
+				glob_count_info.priority_zero_pkts_rcvd += vrrp->extended_detail_info.counter_info.priority_zero_pkts_rcvd;
+				glob_count_info.priority_zero_pkts_sent += vrrp->extended_detail_info.counter_info.priority_zero_pkts_sent;
+				glob_count_info.stats_address_list_errors += vrrp->extended_detail_info.counter_info.stats_address_list_errors;
+				glob_count_info.transition_to_master += vrrp->extended_detail_info.counter_info.transition_to_master;
+				glob_count_info.ttl_errors += vrrp->extended_detail_info.counter_info.ttl_errors;
+
+				break;
+			}
+		}
+	}
+
+	return 0;
+}
+
+/* clear counters for all vrrp instances */
+static int
+vrrp_clear_global_counter(void)
+{
+	element     vrrp_element;
+	list        vrrp_list;
+	vrrp_t      *vrrp = NULL;
+
+	/* validate vrrp database in keepalived */
+	if (validate_vrrp_record_info() != 0) {
+		return 1;
+	}
+
+        /* assign vrrp instance list */
+        vrrp_list = vrrp_data->vrrp;
+
+	/* resetting vrrp instance counters */
+	for (vrrp_element = LIST_HEAD(vrrp_list); vrrp_element; ELEMENT_NEXT(vrrp_element)) {
+		vrrp = ELEMENT_DATA(vrrp_element);
+		memset(&(vrrp->extended_detail_info.counter_info), 0, sizeof(vrrp_stats_t));
+	}
+
+	/* resetting global vrrp counters */
+	memset(&glob_count_info, 0, sizeof(vrrp_stats_t));
+
+	return 0;
+}
+ 
+/* get vrrp global counters and send through ipc data */
+static int
+vrrp_get_and_send_global_counters(int *vrrp_inst, int *vrrp_count)
+{
+	zmq_msg_t	    	input_buffer;
+	char	     		zmq_buf[VRRP_MAX_COUNTER_STR] = {'\0'};
+	int 			ret_code =0, vrrp_id = VRRP_INVALID_ID;
+
+	/* calculating global counter */
+	if (vrrp_get_global_counters_stats(vrrp_inst, vrrp_count) != 0) {
+		/* build the buffer with null string in case of error */
+		log_message(LOG_ERR, "fetch vrrp global counters failed");
+		sprintf(zmq_buf, "%d,%s", vrrp_id, VRRP_COUNTER_NULL_STRING);
+	} else {
+		/* build the buffer with global counter values */
+		sprintf(zmq_buf, "%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu",
+					vrrp_id,
+					glob_count_info.invalid_type_pkts_rcvd,
+					glob_count_info.packet_length_error,
+					glob_count_info.transition_to_master,
+					glob_count_info.advertise_rcvd,
+					glob_count_info.ttl_errors,
+					glob_count_info.auth_failures,
+					glob_count_info.invalid_auth_type,
+					glob_count_info.auth_type_mismatch,
+					glob_count_info.advt_intvl_err,
+					glob_count_info.stats_address_list_errors,
+					glob_count_info.priority_zero_pkts_rcvd,
+					glob_count_info.priority_zero_pkts_sent);
+	}
+
+	/* init zmq buffer */
+	ret_code = zmq_msg_init_size(&input_buffer, KA_VRRP_MAX_SEND_IPC_BUF);
+	if (ret_code) {
+		log_message(LOG_ERR, "fatal : zmq buffer init failed with ret code %d", ret_code);
+		ret_code = zmq_msg_close(&input_buffer);
+		if (ret_code) {
+			log_message(LOG_ERR, "fatal : zmq buffer close failed with ret code %d", ret_code);
+		}
+		return 1;
+	}
+
+	/* copy ipc data to zmq buffer */
+	memcpy((char *)zmq_msg_data(&input_buffer), zmq_buf, KA_VRRP_MAX_SEND_IPC_BUF);
+	log_message(LOG_INFO, "zmq buffer %s", (char *)zmq_msg_data(&input_buffer));
+
+	/* sending ipc data to zmq */
+	ret_code = zmq_msg_send(&input_buffer, g_zmq_responder_socket, 0);
+	if (ret_code) {
+		log_message(LOG_ERR, "fatal : zmq ipc message sending failed");
+		ret_code = zmq_msg_close(&input_buffer);
+		if (ret_code) {
+			log_message(LOG_ERR, "fatal : zmq buffer close failed with ret code %d", ret_code);
+		}
+		return 1;
+	}
+
+	/* close and free zmq buffer */
+	ret_code = zmq_msg_close(&input_buffer);
+	if (ret_code) {
+		log_message(LOG_ERR, "fatal : zmq buffer close failed with ret code %d", ret_code);
+	}
+
+	return 0;
+}
+
+/* get specific vrrp counters and send through ipc data */
+static int
+vrrp_get_and_send_vrrp_counters(int vrrp_id)
+{
+	vrrp_stats_t    	*counter_stat_info=NULL;
+	zmq_msg_t	     	input_buffer;
+	char	        	zmq_buf[VRRP_MAX_COUNTER_STR] = {'\0'};
+	int 			ret_code = 0;
+ 
+	/* calculating vrrp counters */
+	if (vrrp_get_vrrp_counters_stats_info(vrrp_id, &counter_stat_info) != 0) {
+		/* build the buffer with null string in case of error */
+		log_message(LOG_ERR, "fetch specific vrrp counters failed");
+		sprintf(zmq_buf, "%d,%s", vrrp_id, VRRP_COUNTER_NULL_STRING);
+	} else {
+		/* building ipc data */
+		if (counter_stat_info != NULL) {
+		sprintf(zmq_buf, "%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu",
+					vrrp_id,
+					counter_stat_info->invalid_type_pkts_rcvd,
+					counter_stat_info->packet_length_error,
+					counter_stat_info->transition_to_master,
+					counter_stat_info->advertise_rcvd,
+					counter_stat_info->ttl_errors,
+					counter_stat_info->auth_failures,
+					counter_stat_info->invalid_auth_type,
+					counter_stat_info->auth_type_mismatch,
+					counter_stat_info->advt_intvl_err,
+					counter_stat_info->stats_address_list_errors,
+					counter_stat_info->priority_zero_pkts_rcvd,
+					counter_stat_info->priority_zero_pkts_sent);
+		} else {
+			/* build the buffer with null string in case of error */
+			sprintf(zmq_buf, "%d,%s", vrrp_id, VRRP_COUNTER_NULL_STRING);
+		}
+	}
+
+	/* init zmq buffer */
+	ret_code = zmq_msg_init_size(&input_buffer, KA_VRRP_MAX_SEND_IPC_BUF);
+	if (ret_code) {
+		log_message(LOG_ERR, "fatal : zmq buffer init failed with ret code %d", ret_code);
+		ret_code = zmq_msg_close(&input_buffer);
+		if (ret_code) {
+			log_message(LOG_ERR, "fatal : zmq buffer close failed with ret code %d", ret_code);
+		}
+		return 1;
+	}
+ 
+	/* copy ipc data to zmq buffer */
+	memcpy((char *)zmq_msg_data(&input_buffer), zmq_buf, KA_VRRP_MAX_SEND_IPC_BUF);
+	log_message(LOG_INFO, "zmq buffer %s", (char *)zmq_msg_data(&input_buffer));
+ 
+	/* sending info to zmq */
+	ret_code = zmq_msg_send(&input_buffer, g_zmq_responder_socket, 0);
+	if (ret_code) {
+		log_message(LOG_ERR, "fatal : zmq ipc message send failed with ret code %d", ret_code);
+		ret_code = zmq_msg_close(&input_buffer);
+		if (ret_code) {
+			log_message(LOG_ERR, "fatal : zmq buffer close failed with ret code %d", ret_code);
+		}
+		return 1;
+	}
+ 
+	/* close and free zmq buffer */
+	ret_code = zmq_msg_close(&input_buffer);
+	if (ret_code) {
+		log_message(LOG_ERR, "fatal : zmq buffer close failed with ret code %d", ret_code);
+	}
+
+	return 0;
+}
+
+/* get vrrp master router detail info and send through ipc data */
+static int
+vrrp_get_master_detail_info(int vrrp_id)
+{
+	master_details_info_t    	*master_detail_info=NULL;
+	zmq_msg_t			input_buffer;
+	char	     			zmq_buf[VRRP_MAX_COUNTER_STR] = {'\0'};
+	int				ret_code = 0;
+
+	/* calling global counter function */
+	if (vrrp_master_detail_stats_info_get(vrrp_id, &master_detail_info) != 0) {
+		/* build the buffer with null string in case of error */
+		log_message(LOG_ERR, "fetch specific vrrp master detail info failed");
+		sprintf(zmq_buf, "%d,%d,%d,%d,%d",
+				vrrp_id,
+				VRRP_KA_MSG_MASTER_DETAILS_INFO,
+				0, 0, 0);
+	} else {
+		/* building ipc data */
+		if (master_detail_info != NULL) {
+			sprintf(zmq_buf, "%d,%d,%d,%d,%d",
+				vrrp_id,
+				VRRP_KA_MSG_MASTER_DETAILS_INFO,
+				master_detail_info->master_priority,
+				master_detail_info->master_ifp.sin_addr.s_addr,
+				master_detail_info->master_adv_intvl);
+		} else {
+			/* build the buffer with null string in case of error */
+				sprintf(zmq_buf, "%d,%d,%d,%d,%d",
+				vrrp_id,
+				VRRP_KA_MSG_MASTER_DETAILS_INFO,
+				0, 0, 0);
+		}
+	}
+
+	/* init zmq buffer */
+	ret_code = zmq_msg_init_size(&input_buffer, KA_VRRP_MAX_SEND_IPC_BUF);
+	if (ret_code) {
+		log_message(LOG_ERR, "zmq buffer init failed with ret code %d", ret_code);
+		ret_code = zmq_msg_close(&input_buffer);
+		if (ret_code) {
+			log_message(LOG_ERR, "fatal : zmq buffer close failed with ret code %d", ret_code);
+		}
+		return 1;
+	}
+
+	/* copy ipc data to zmq buffer */
+	memcpy((char *)zmq_msg_data(&input_buffer), zmq_buf, KA_VRRP_MAX_SEND_IPC_BUF);
+	log_message(LOG_INFO, "zmq buffer %s", (char *)zmq_msg_data(&input_buffer));
+
+	/* sending info to zmq */
+	ret_code = zmq_msg_send(&input_buffer, g_zmq_responder_socket, 0);
+	if (ret_code) {
+		log_message(LOG_ERR, "zmq ipc message send failed with ret code %d", ret_code);
+		ret_code = zmq_msg_close(&input_buffer);
+		if (ret_code) {
+			log_message(LOG_ERR, "fatal : zmq buffer close failed with ret code %d", ret_code);
+		}
+		return 1;
+	}
+
+	/* close and free zmq buffer */
+	ret_code = zmq_msg_close(&input_buffer);
+	if (ret_code) {
+		log_message(LOG_ERR, "zmq buffer close failed with ret code %d", ret_code);
+	}
+
+	return 0;
+}
+
+/* clear vrrp counters and send the msg through ipc data */
+static int
+vrrp_clear_global_counter_info(void)
+{
+	zmq_msg_t       		input_buffer;
+	char             		zmq_buf[VRRP_MAX_COUNTER_STR] = {'\0'};
+	int 	       			vrrp_id = 0;
+	int 		    		ret_code = 0;
+
+	/* clear counter function */
+	ret_code = vrrp_clear_global_counter();
+	if (ret_code) {
+		log_message(LOG_ERR, "clear vrrp counters failed with ret code %d", ret_code);
+	}
+
+	/* making identifier for clearing counters */
+	vrrp_id = VRRP_INVALID_ID + VRRP_KA_MSG_CLEAR_STATISTICS;
+
+	/* build ipc data */
+	sprintf(zmq_buf, "%d,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu,%lu",
+			vrrp_id,
+			glob_count_info.invalid_type_pkts_rcvd,
+			glob_count_info.packet_length_error,
+			glob_count_info.transition_to_master,
+			glob_count_info.advertise_rcvd,
+			glob_count_info.ttl_errors,
+			glob_count_info.auth_failures,
+			glob_count_info.invalid_auth_type,
+			glob_count_info.auth_type_mismatch,
+			glob_count_info.advt_intvl_err,
+			glob_count_info.stats_address_list_errors,
+			glob_count_info.priority_zero_pkts_rcvd,
+			glob_count_info.priority_zero_pkts_sent);
+
+	/* init zmq buffer */
+	ret_code = zmq_msg_init_size(&input_buffer, KA_VRRP_MAX_SEND_IPC_BUF);
+	if (ret_code) {
+		log_message(LOG_ERR, "zmq buffer init failed with ret code %d", ret_code);
+		ret_code = zmq_msg_close(&input_buffer);
+		if (ret_code) {
+			log_message(LOG_ERR, "fatal : zmq buffer close failed with ret code %d", ret_code);
+		}
+		return 1;
+	}
+
+	/* copy ipc data to zmq buffer */
+	memcpy((char *)zmq_msg_data(&input_buffer), zmq_buf, KA_VRRP_MAX_SEND_IPC_BUF);
+	log_message(LOG_INFO, "zmq buffer %s", (char *)zmq_msg_data(&input_buffer));
+
+	/* sending info to zmq */
+	ret_code = zmq_msg_send(&input_buffer, g_zmq_responder_socket, 0);
+	if (ret_code) {
+		log_message(LOG_ERR, "zmq ipc message send failed with ret code %d", ret_code);
+		ret_code = zmq_msg_close(&input_buffer);
+		if (ret_code) {
+			log_message(LOG_ERR, "fatal : zmq buffer close failed with ret code %d", ret_code);
+		}
+		return 1;
+	}
+
+	/* close and free zmq buffer */
+	ret_code = zmq_msg_close(&input_buffer);
+	if (ret_code) {
+		log_message(LOG_ERR, "zmq buffer close failed with ret code %d", ret_code);
+	}
+
+	return 0;
+}
+
+/* api handler to process zmq ipc request and send response */
+static int
+vrrp_zmq_get_req_send_resp(void)
+{
+	zmq_msg_t           input_buffer;
+	char                buf[KA_VRRP_MAX_RECV_IPC_BUF] = {'\0'};
+	int                 vrrp_id = 0, vrrp_flag = 0, ret_code = 0;
+	int                 token_count=0, vrrp_count=0;
+	char                vrrp_token[VRRP_MAX_IPC_TOKEN][VRRP_IPC_TOKEN_LEN];
+	int                 vrrp_inst[VRRP_MAX_INSTANCE_ID], index=0;
+
+	/* memset the local ipc buffers */
+	memset(vrrp_inst, 0, VRRP_MAX_INSTANCE_ID);
+
+	/* init the zmq msg buffer */
+	ret_code = zmq_msg_init_size(&input_buffer, KA_VRRP_MAX_RECV_IPC_BUF);
+	if (ret_code) {
+		log_message(LOG_ERR, "fatal : zmq buffer init failed with ret code %d", ret_code);
+		ret_code = zmq_msg_close(&input_buffer);
+		if (ret_code) {
+			log_message(LOG_ERR, "fatal : zmq buffer close failed with ret code %d", ret_code);
+		}
+		return 1;
+	}
+
+	/* recv the data over zeromq ipc */
+	ret_code = zmq_msg_recv(&input_buffer, g_zmq_responder_socket, 0);
+	if (ret_code) {
+		log_message(LOG_ERR, "fatal : zmq message recv failed with ret code %d", ret_code);
+		ret_code = zmq_msg_close(&input_buffer);
+		if (ret_code) {
+			log_message(LOG_ERR, "fatal : zmq buffer close failed with ret code %d", ret_code);
+		}
+		return 1;
+	}
+
+	log_message(LOG_INFO, "zmq recv buffer : %s", (char *)zmq_msg_data(&input_buffer));
+
+	/* copy the zmq buffer to local */
+	memcpy(buf, (char *)zmq_msg_data(&input_buffer), KA_VRRP_MAX_RECV_IPC_BUF);
+
+	/* close the resp socket */
+	ret_code = zmq_msg_close(&input_buffer);
+	if (ret_code) {
+		log_message(LOG_ERR, "zmq buffer close failed with ret code %d", ret_code);
+	}
+
+	/* get the number of token in ipc string */
+	token_count = vrrp_get_vrrp_token(buf, vrrp_token, ':');
+	if (token_count == 0) {
+		log_message(LOG_INFO, "zmq ipc token count is 0");
+	}
+
+	/* converting to integer */
+	vrrp_id = atoi(vrrp_token[1]);
+	vrrp_flag = atoi(vrrp_token[0]);
+	log_message(LOG_INFO, "zmq recv info: vrrp id: %d, vrrp flag: %d", vrrp_id, vrrp_flag);
+
+	/* check the vrrp request type */
+	if ((vrrp_id == VRRP_INVALID_ID) && (vrrp_flag == VRRP_KA_MSG_GET_ALL_GLOBAL_COUNTER)) {
+		/* tokenize vrrp instances ID from list if count is greater than 0 */
+		vrrp_count = atoi(vrrp_token[2]);
+		if (vrrp_count != 0) {
+			for (index=0;index < vrrp_count; index++) {
+				vrrp_inst[index] = atoi(vrrp_token[index+3]);
+			}
+		}
+
+		/* get global vrrp counters */
+		vrrp_get_and_send_global_counters(vrrp_inst, &vrrp_count);
+	}
+
+	/* clearing global and vrrp counters */
+	else if ((vrrp_id == VRRP_INVALID_ID) && (vrrp_flag == VRRP_KA_MSG_CLEAR_STATISTICS)) {
+		/* clear counters API */
+		vrrp_clear_global_counter_info();
+	}
+	else if (!VRRP_IS_BAD_VID(vrrp_id)) {
+		/* check the vrrp request type */
+		if (vrrp_flag == VRRP_KA_MSG_MASTER_DETAILS_INFO) {
+			/* Get API for master vrrp detail */
+			vrrp_get_master_detail_info(vrrp_id);
+		} else if (vrrp_flag == VRRP_KA_MSG_GET_INSTANCE_COUNTER) {
+			/* Get API for vrrp specific counters */
+			vrrp_get_and_send_vrrp_counters(vrrp_id);
+		} else {
+			log_message(LOG_ERR, "zmq recv: invalid vrrp request type %d", vrrp_flag);
+		}
+	} else {
+		log_message(LOG_ERR, "zmq recv: invalid vrrp id %d", vrrp_id);
+	}
+	
+	return 0;
+}
+
+/* entry function for zmq keepalived thread */
+void *
+keepalive_zmq_main(void *value)
+{
+	int ret_code = 0;
+	int err = 0;
+
+	/* creating new zeromq context */
+	g_zmq_context = zmq_ctx_new();
+	if (g_zmq_context == NULL) {
+		log_message(LOG_ERR, "fatal error: zmq context is NULL with errno: %d", zmq_errno());
+		return NULL;
+	}
+
+	/* creating zeromq socket */
+	g_zmq_responder_socket = zmq_socket(g_zmq_context, ZMQ_REP);
+	if (g_zmq_responder_socket == NULL){
+		/* destroy the zmq context */
+		err = zmq_ctx_destroy(g_zmq_context);
+		if (err) {
+			log_message(LOG_ERR, "fatal error: failed to destroy the zmq context errno: %d", zmq_errno());
+		}
+
+		log_message(LOG_ERR, "fatal error: zmq responder socket is NULL with errno: %d", zmq_errno());
+		return NULL;
+	}
+
+	/* bind the socket on the namespace file */
+	ret_code = zmq_bind(g_zmq_responder_socket, VRRP_IPC_NAMESPACE);
+	if (ret_code) {
+		/* close the zmq socket */
+		err = zmq_close(g_zmq_responder_socket);
+		if (err) {
+			log_message(LOG_ERR, "fatal error: failed to close the zmq socket errno: %d", zmq_errno());
+		}
+
+		/* destroy the zmq context */
+		err = zmq_ctx_destroy(g_zmq_context);
+		if (err) {
+			log_message(LOG_ERR, "fatal error: failed to destroy the zmq context errno: %d", zmq_errno());
+		}
+
+		log_message(LOG_ERR, "fatal error: zmq bind failed with ret code: %d, errno: %d", ret_code, zmq_errno());
+		return NULL;
+	}
+
+	/* while loop for recv/send of ipc data,
+	 * the while should not break */
+	while(1) {
+		vrrp_zmq_get_req_send_resp();
+	}
+}
+
+#endif
