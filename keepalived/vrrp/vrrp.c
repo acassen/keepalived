@@ -819,8 +819,7 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 		return;
 	}
 
-	if (!vrrp->nopreempt)
-		vrrp_send_adv(vrrp, vrrp->effective_priority);
+	vrrp_send_adv(vrrp, vrrp->effective_priority);
 
 	vrrp->state = VRRP_STATE_MAST;
 	log_message(LOG_INFO, "VRRP_Instance(%s) Transition to MASTER STATE"
@@ -999,19 +998,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		       "VRRP_Instance(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
 		return 0;
-	} else if (hd->priority == 0) {
-		vrrp_send_adv(vrrp, vrrp->effective_priority);
-		return 0;
-	} else if (hd->priority < vrrp->effective_priority ||
-		   (hd->priority == vrrp->effective_priority &&
-		    vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp) < 0)) {
-		/* In nopreempt mode, just switch to BACKUP */
-		if (vrrp->nopreempt) {
-			log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert"
-					      " in nopreempt mode", vrrp->iname);
-			goto backup;
-		}
-
+	} else if (hd->priority < vrrp->effective_priority) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert"
 				      ", forcing new election", vrrp->iname);
@@ -1025,6 +1012,9 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		}
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 		vrrp_send_link_update(vrrp, vrrp->garp_rep);
+		return 0;
+	} else if (hd->priority == 0) {
+		vrrp_send_adv(vrrp, vrrp->effective_priority);
 		return 0;
 	} else if (hd->priority > vrrp->effective_priority ||
 		   (hd->priority == vrrp->effective_priority &&
@@ -1044,7 +1034,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) - 1;
 			vrrp->ipsecah_counter->cycle = 0;
 		}
-  backup:
+
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		vrrp->wantstate = VRRP_STATE_BACK;
 		vrrp->state = VRRP_STATE_BACK;
