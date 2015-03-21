@@ -175,6 +175,11 @@ smtp_read_thread(thread_t * thread)
 				    , FMT_SMTP_HOST());
 		SMTP_FSM_READ(QUIT, thread, 0);
 		return 0;
+	} else if (rcv_buffer_size == 0) {
+		log_message(LOG_INFO, "Remote SMTP server %s has closed the connection."
+				    , FMT_SMTP_HOST());
+		SMTP_FSM_READ(QUIT, thread, 0);
+		return 0;
 	}
 
 	/* received data overflow buffer size ? */
