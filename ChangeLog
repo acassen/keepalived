@@ -1,3 +1,62 @@
+2015-03-31 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.16 released.
+	* Properly close netlink channel to avoid fd leak.
+	* Use getaddrinfo instead of gethostbyname to workaround
+	  glibc gethostbyname function buffer overflow.
+	* ipvs: log http timeout only when server goes down
+	  All other calls to log_message() when a check fails are
+	  performed when a server changes its state.
+	  The http timeout log message is the only exception.
+	* ipvs: properly fix bug when Q < H.
+	  The commit a77c2c7 has not fixed the issue.
+	  Log messages became accurate, but unsigned comparison
+	  was still in use.
+	* ipvs: HUP processing refactored.
+	  copy_srv_states is removed: we can copy states with
+	  existing clear_diff_*functions, as long as
+	  clear_diff_services is called before the init_services.
+	  vs_exist, rs_exist: remove side-effects from these functions.
+	  Now they do only search and return pointers.
+	  get_rs_list removed: the new rs list is now passed to
+	  clear_diff_rs.
+	  init_service_vs: quorum_state assignment is not needed
+	  here. It is already assigned either by vs constructor, or
+	  by alpha handler, or by clear_diff_services.
+	* ipvs: refactoring link vsg structure to vs.
+	  this adds a pointer to virtual_server_group_t into
+	  the virtual_server_t structure and fills these pointers
+	  after config load.
+	  This change will allow to access vsg items of a vs easily,
+	  without iterating and name compare.
+	* ipvs: refactoring use links to vs->vsg links.
+	  ipvs_cmd: removed vs_group list parameter. Link to vsg
+	  is obtained via vs->vsg. These functions are also modified
+	  in the same way: ipvs_group_cmd, clear_service_rs,
+	  clear_service_vs, clear_diff_rs.
+	  clear_diff_vsg: new_vs is passed as a param, vsg pointers
+	  are retrieved w/o iterating.
+	* ipvs: fix problems with config reload.
+	  The commit 7bf6fc contained a bad trying to fix the issue
+	  when an alive RS does not appear in a new VSG entry on reload.
+	  It has not fixed the original issue and added a new one:
+	  vs_groups lose quorum on config reload.
+	  This commit fixes the issue properly, and also the case when
+	  RS in VSG is in inhibit mode.
+	  The reloaded flag is added to the virtual_server_group_entry_t.
+	  ipvs_group_sync_entry: add alive destinations to the newly
+	  created vsge.  It is aware of inhibit-on-failure destinations.
+	  sync_service_vsg: calls the former for each created vsg entry
+	  vsge_exist: changed just as other *_exist routines.
+	* genhash: add support of fwmark in genhash
+	* genhash: terminate thread if connect_error
+	* Fixed filenames and paths so that make uninstall removes
+	  initscript and man pages. Changed perms for keepalived.sysconfig
+	  from 755 to 644
+	* Fix a typo in dump_global-data().
+	* vrrp: revert previous buggy preempt extension.
+	* smtp: fix infinite loop when the smtp server unexpectedly
+	  closes the connection.
+
 2014-12-21  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.15 released.
 	* vrrp: Use ancillary data on sending path for IPv6
