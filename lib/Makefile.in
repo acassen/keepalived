@@ -29,7 +29,7 @@ distclean: clean
 	rm -f Makefile
 
 memory.o: memory.c memory.h utils.h
-utils.o: utils.c utils.h
+utils.o: utils.c utils.h memory.h
 notify.o: notify.c notify.h
 timer.o: timer.c timer.h
 scheduler.o: scheduler.c scheduler.h memory.h utils.h

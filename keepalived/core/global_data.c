@@ -38,18 +38,12 @@ static void
 set_default_router_id(data_t * data)
 {
 	char *new_id = NULL;
-	int len = 0;
 
 	new_id = get_local_name();
 	if (!new_id || !new_id[0])
 		return;
 
-	len = strlen(new_id);
-	data->router_id = MALLOC(len + 1);
-	if (!data->router_id)
-		return;
-
-	memcpy(data->router_id, new_id, len);
+	data->router_id = new_id;
 }
 
 static void
@@ -65,14 +59,16 @@ set_default_email_from(data_t * data)
 
 	pwd = getpwuid(getuid());
 	if (!pwd)
-		return;
+		goto end;
 
 	len = strlen(hostname) + strlen(pwd->pw_name) + 2;
 	data->email_from = MALLOC(len);
 	if (!data->email_from)
-		return;
+		goto end;
 
 	snprintf(data->email_from, len, "%s@%s", pwd->pw_name, hostname);
+  end:
+	FREE(hostname);
 }
 
 static void

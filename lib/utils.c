@@ -20,6 +20,7 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
+#include "memory.h"
 #include "utils.h"
 
 /* global vars */
@@ -441,9 +442,10 @@ get_local_name(void)
 {
 	struct utsname name;
 	struct addrinfo hints, *res = NULL;
-	char *canonname;
+	char *canonname = NULL;
+	int len = 0;
 
-	memset(&hints, '\0', sizeof hints);
+	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_flags = AI_CANONNAME;
 
 	if (uname(&name) < 0)
@@ -452,7 +454,14 @@ get_local_name(void)
 	if (getaddrinfo(name.nodename, NULL, &hints, &res) != 0)
 		return NULL;
 
-	canonname = res->ai_canonname;
+	if (res && res->ai_canonname) {
+		len = strlen(res->ai_canonname);
+		canonname = MALLOC(len + 1);
+		if (canonname) {
+			memcpy(canonname, res->ai_canonname, len);
+		}
+	}
+
 	freeaddrinfo(res);
 
 	return canonname;
