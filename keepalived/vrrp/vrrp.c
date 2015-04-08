@@ -798,6 +798,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 
 #ifdef _WITH_SNMP_
 	vrrp_snmp_instance_trap(vrrp);
+	vrrp_rfc_snmp_new_master_trap(vrrp);
 #endif
 
 #ifdef _HAVE_IPVS_SYNCD_

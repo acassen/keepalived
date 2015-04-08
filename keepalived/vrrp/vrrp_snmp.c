@@ -897,6 +897,7 @@ vrrp_snmp_trackedscript(struct variable *vp, oid *name, size_t *length,
 	return NULL;
 }
 
+static oid vrrp_rfc_oid[] = {VRRP_RFC_OID};
 static oid vrrp_oid[] = {VRRP_OID};
 static struct variable8 vrrp_vars[] = {
 	/* vrrpSyncGroupTable */
@@ -1051,6 +1052,43 @@ void
 vrrp_snmp_agent_close()
 {
 	snmp_agent_close(vrrp_oid, OID_LENGTH(vrrp_oid), "VRRP");
+}
+
+vrrp_rfc_snmp_new_master_trap(vrrp_t *vrrp)
+{
+
+	/* OID of the notification vrrpTrapNewMaster */
+	oid notification_oid[] = { VRRP_RFC_TRAP_OID, 1 };
+	size_t notification_oid_len = OID_LENGTH(notification_oid);
+	/* OID for snmpTrapOID.0 */
+	oid objid_snmptrap[] = { SNMPTRAP_OID };
+	size_t objid_snmptrap_len = OID_LENGTH(objid_snmptrap);
+	/* OID for trap data vrrpOperMasterIPAddr */
+	oid masterip_oid[] = { VRRP_RFC_OID, 1, 3, 1, 7 };
+	size_t masterip_oid_len = OID_LENGTH(masterip_oid);
+
+	netsnmp_variable_list *notification_vars = NULL;
+
+	if (!global_data->enable_traps) return;
+
+	/* snmpTrapOID */
+	snmp_varlist_add_variable(&notification_vars,
+				  objid_snmptrap, objid_snmptrap_len,
+				  ASN_OBJECT_ID,
+				  (u_char *) notification_oid,
+				  notification_oid_len * sizeof(oid));
+	/* vrrpInstanceName */
+	snmp_varlist_add_variable(&notification_vars,
+				  masterip_oid, masterip_oid_len,
+				  ASN_IPADDRESS,
+				  (u_char *)&vrrp->saddr,
+				  sizeof(vrrp->saddr));
+	log_message(LOG_INFO,
+		    "VRRP_Instance(%s): Sending SNMP notification",
+		    vrrp->iname);
+	send_v2trap(notification_vars);
+	snmp_free_varbind(notification_vars);
+
 }
 
 void

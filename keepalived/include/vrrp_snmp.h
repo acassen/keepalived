@@ -28,6 +28,8 @@
 
 /* VRRP SNMP defines */
 #define VRRP_OID KEEPALIVED_OID, 2
+#define VRRP_RFC_OID 1, 3, 6, 1, 2, 1, 68
+#define VRRP_RFC_TRAP_OID VRRP_RFC_OID, 0
 
 #define VRRP_SNMP_SCRIPT_NAME 3
 #define VRRP_SNMP_SCRIPT_COMMAND 4
@@ -112,5 +114,5 @@ extern void vrrp_snmp_agent_init(void);
 extern void vrrp_snmp_agent_close(void);
 extern void vrrp_snmp_instance_trap(vrrp_t *);
 extern void vrrp_snmp_group_trap(vrrp_sgroup_t *);
-
+extern void vrrp_rfc_snmp_new_master_trap(vrrp_t *);
 #endif
