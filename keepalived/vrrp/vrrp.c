@@ -301,8 +301,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 		}
 
 		/* check the authenicaion if it is ipsec ah */
-		if (hd->auth_type == VRRP_AUTH_AH)
-			return vrrp_in_chk_ipsecah(vrrp, buffer);
+		if (hd->auth_type == VRRP_AUTH_AH) {
+			if (vrrp_in_chk_ipsecah(vrrp, buffer))
+				return VRRP_PACKET_KO;
+		}
 
 		/* Set expected vrrp packet lenght */
 		vrrphdr_len = sizeof(vrrphdr_t) + VRRP_AUTH_LEN + hd->naddr * sizeof(uint32_t);
