@@ -6,10 +6,10 @@
 .SH DESCRIPTION
 .B keepalived.conf
 is the configuration file which describes all the keepalived keywords.
-keywords are placed in hierachies of blocks (and subblocks), 
-each layer being delimited by '{' and '}' pairs. 
+keywords are placed in hierarchies of blocks (and subblocks),
+each layer being delimited by '{' and '}' pairs.
 .PP
-Comments start with '#' or '!' to the end of the line and can start 
+Comments start with '#' or '!' to the end of the line and can start
 anywhere in a line.
 .SH TOP HIERACHY
 .PP
@@ -20,7 +20,7 @@ anywhere in a line.
 .B LVS CONFIGURATION
 .PP
 .SH GLOBAL CONFIGURATION
-contains subblocks of 
+contains subblocks of
 .B Global definitions
 and
 .B Static routes
@@ -28,14 +28,14 @@ and
 .SH Global definitions
 .PP
  global_defs           # Block id
- { 
+ {
  notification_email    # To:
         {
-        admin@example1.com 
+        admin@example1.com
         ...
         }
  # From: from address that will be in header
- notification_email_from admin@example.com 
+ notification_email_from admin@example.com
  smtp_server 127.0.0.1        # IP
  smtp_connect_timeout 30      # integer, seconds
  router_id my_hostname        # string identifying the machine,
@@ -50,7 +50,7 @@ and
 .PP
 keepalived can configure static addresses and routes. These addresses are
 .B NOT
-moved by vrrpd, they stay on the machine. 
+moved by vrrpd, they stay on the machine.
 If you already have IPs and routes on your machines and
 your machines can ping each other, you don't need this section.
 .PP
@@ -69,7 +69,7 @@ The syntax is the same as for virtual addresses and virtual routes.
  }
 .PP
 .SH VRRPD CONFIGURATION
-contains subblocks of 
+contains subblocks of
 .B VRRP synchronization group(s)
 and
 .B VRRP instance(s)
@@ -77,54 +77,54 @@ and
 .SH VRRP synchronization group(s)
 .PP
  #string, name of group of IPs that failover together
- vrrp_sync_group VG_1 { 
+ vrrp_sync_group VG_1 {
     group {
-      inside_network   # name of vrrp_instance (below) 
-      outside_network  # One for each moveable IP. 
-      ... 
+      inside_network   # name of vrrp_instance (below)
+      outside_network  # One for each movable IP.
+      ...
     }
-    
+
     # notify scripts and alerts are optional
     #
     # filenames of scripts to run on transitions
-    # can be unquoted (if just filename) 
+    # can be unquoted (if just filename)
     # or quoted (if has parameters)
     # to MASTER transition
-    notify_master /path/to_master.sh 
+    notify_master /path/to_master.sh
     # to BACKUP transition
-    notify_backup /path/to_backup.sh 
-    # FAULT transition 
-    notify_fault "/path/fault.sh VG_1" 
+    notify_backup /path/to_backup.sh
+    # FAULT transition
+    notify_fault "/path/fault.sh VG_1"
 
     # for ANY state transition.
-    # "notify" script is called AFTER the 
-    # notify_* script(s) and is executed 
+    # "notify" script is called AFTER the
+    # notify_* script(s) and is executed
     # with 3 arguments provided by keepalived
     # (ie don't include parameters in the notify line).
     # arguments
     # $1 = "GROUP"|"INSTANCE"
     # $2 = name of group or instance
-    # $3 = target state of transition 
+    # $3 = target state of transition
     #     ("MASTER"|"BACKUP"|"FAULT")
-    notify /path/notify.sh 
+    notify /path/notify.sh
 
-    # Send email notifcation during state transition, 
+    # Send email notification during state transition,
     # using addresses in global_defs above.
     smtp_alert
  }
 
 .SH VRRP instance(s)
 .PP
-describes the moveable IP for each instance of a group in vrrp_sync_group.
-Here are described two IPs (on inside_network and on outside_network), 
+describes the movable IP for each instance of a group in vrrp_sync_group.
+Here are described two IPs (on inside_network and on outside_network),
 on machine "my_hostname", which belong to the group VG_1 and
 which will transition together on any state change.
 .PP
  #You will need to write another block for outside_network.
  vrrp_instance inside_network {
     # Initial state, MASTER|BACKUP
-    # As soon as the other machine(s) come up, 
-    # an election will be held and the machine 
+    # As soon as the other machine(s) come up,
+    # an election will be held and the machine
     # with the highest "priority" will become MASTER.
     # So the entry here doesn't matter a whole lot.
     state MASTER
@@ -142,28 +142,28 @@ which will transition together on any state change.
     # Ignore VRRP interface faults (default unset)
     dont_track_primary
 
-    # optional, monitor these as well. 
+    # optional, monitor these as well.
     # go to FAULT state if any of these go down.
     track_interface {
-      eth0 
-      eth1 
+      eth0
+      eth1
       ...
     }
 
-    # default IP for binding vrrpd is the primary IP 
-    # on interface. If you want to hide location of vrrpd, 
+    # default IP for binding vrrpd is the primary IP
+    # on interface. If you want to hide location of vrrpd,
     # use this IP as src_addr for multicast or unicast vrrp
-    # packets. (since it's multicast, vrrpd will get the reply 
+    # packets. (since it's multicast, vrrpd will get the reply
     # packet no matter what src_addr is used).
     # optional
-    mcast_src_ip <IPADDR> 
-    unicast_src_ip <IPADDR> 
+    mcast_src_ip <IPADDR>
+    unicast_src_ip <IPADDR>
 
     # Do not send VRRP adverts over VRRP multicast group.
     # Instead it sends adverts to the following list of
     # ip addresses using unicast design fashion. It can
     # be cool to use VRRP FSM and features in a networking
-    # environement where multicast is not supported !
+    # environment where multicast is not supported !
     # IP Addresses specified can IPv4 as well as IPv6
     unicast_peer {
       <IPADDR>
@@ -171,12 +171,12 @@ which will transition together on any state change.
     }
 
     # Binding interface for lvs syncd
-    lvs_sync_daemon_interface eth1 
+    lvs_sync_daemon_interface eth1
 
     # delay for gratuitous ARP after transition to MASTER
-    garp_master_delay 10 # secs, default 5 
+    garp_master_delay 10 # secs, default 5
 
-    # arbitary unique number 0..255
+    # arbitrary unique number 0..255
     # used to differentiate multiple instances of vrrpd
     # running on the same NIC (and hence same socket).
     virtual_router_id 51
@@ -189,7 +189,7 @@ which will transition together on any state change.
     advert_int 1
     authentication {     # Authentication block
         # PASS||AH
-        # PASS - Simple Passwd (suggested) 
+        # PASS - Simple password (suggested)
         # AH - IPSEC (not recommended))
         auth_type PASS
         # Password for accessing vrrpd.
@@ -200,7 +200,7 @@ which will transition together on any state change.
 
     #addresses add|del on change to MASTER, to BACKUP.
     #With the same entries on other machines,
-    #the opposite transition will be occuring.
+    #the opposite transition will be occurring.
     virtual_ipaddress {
         <IPADDR>/<MASK> brd <IPADDR> dev <STRING> scope <SCOPE> label <LABEL>
         192.168.200.17/24 dev eth1
@@ -209,13 +209,13 @@ which will transition together on any state change.
 
     #VRRP IP excluded from VRRP
     #optional.
-    #For cases with large numbers (eg 200) of IPs 
-    #on the same interface. To decrease the number 
-    #of packets sent in adverts, you can exclude 
+    #For cases with large numbers (eg 200) of IPs
+    #on the same interface. To decrease the number
+    #of packets sent in adverts, you can exclude
     #most IPs from adverts.
     #The IPs are add|del as for virtual_ipaddress.
-    virtual_ipaddress_excluded { 
-     <IPADDR>/<MASK> brd <IPADDR> dev <STRING> scope <SCOPE> 
+    virtual_ipaddress_excluded {
+     <IPADDR>/<MASK> brd <IPADDR> dev <STRING> scope <SCOPE>
      <IPADDR>/<MASK> brd <IPADDR> dev <STRING> scope <SCOPE>
         ...
     }
@@ -252,38 +252,38 @@ which will transition together on any state change.
     # notify scripts, alert as above
     notify_master <STRING>|<QUOTED-STRING>
     notify_backup <STRING>|<QUOTED-STRING>
-    notify_fault <STRING>|<QUOTED-STRING> 
-    notify <STRING>|<QUOTED-STRING> 
-    smtp_alert 
+    notify_fault <STRING>|<QUOTED-STRING>
+    notify <STRING>|<QUOTED-STRING>
+    smtp_alert
  }
 
 .SH LVS CONFIGURATION
-contains subblocks of 
+contains subblocks of
 .B Virtual server group(s)
 and
 .B Virtual server(s)
 .PP
-The subblocks contain arguments for 
-.I ipvsadm(8). 
-A knowlege of 
+The subblocks contain arguments for
+.I ipvsadm(8).
+A knowlege of
 .I ipvsadm(8)
 will be helpful here.
 .PP
 .SH Virtual server group(s)
 .PP
  # optional
- # this groups allows a service on a real_server 
- # to belong to multiple virtual services 
+ # this groups allows a service on a real_server
+ # to belong to multiple virtual services
  # and to be only health checked once.
  # Only for very large LVSs.
  virtual_server_group <STRING> {
         #VIP port
-        <IPADDR> <PORT> 
+        <IPADDR> <PORT>
         <IPADDR> <PORT>
         ...
         #
-        # <IPADDR RANGE> has the form 
-        # XXX.YYY.ZZZ.WWW-VVV eg 192.168.200.1-10 
+        # <IPADDR RANGE> has the form
+        # XXX.YYY.ZZZ.WWW-VVV eg 192.168.200.1-10
         # range includes both .1 and .10 address
         <IPADDR RANGE> <PORT># VIP range VPORT
         <IPADDR RANGE> <PORT>
@@ -295,8 +295,8 @@ will be helpful here.
 
 .SH Virtual server(s)
 .PP
-A virtual_server can be a declaration of one of 
-.TP 
+A virtual_server can be a declaration of one of
+.TP
 .B vip vport (IPADDR PORT pair)
 .TP
 .B fwmark <INT>
@@ -309,27 +309,27 @@ A virtual_server can be a declaration of one of
     virtual_server group string
     {
     # delay timer for service polling
-    delay_loop <INT> 
+    delay_loop <INT>
 
-    # LVS scheduler 
-    lb_algo rr|wrr|lc|wlc|lblc|sh|dh 
+    # LVS scheduler
+    lb_algo rr|wrr|lc|wlc|lblc|sh|dh
     # Enable One-Packet-Scheduling for UDP (-O in ipvsadm)
     ops
     # LVS forwarding method
-    lb_kind NAT|DR|TUN 
+    lb_kind NAT|DR|TUN
     # LVS persistence timeout, sec
-    persistence_timeout <INT> 
+    persistence_timeout <INT>
     # LVS granularity mask (-M in ipvsadm)
-    persistence_granularity <NETMASK> 
+    persistence_granularity <NETMASK>
     # Only TCP is implemented
-    protocol TCP 
-    # If VS IP address is not set, 
+    protocol TCP
+    # If VS IP address is not set,
     # suspend healthchecker's activity
     ha_suspend
-    
+
     # VirtualHost string for HTTP_GET or SSL_GET
     # eg virtualhost www.firewall.loc
-    virtualhost <STRING>                
+    virtualhost <STRING>
 
     # Assume silently all RSs down and healthchecks
     # failed on start. This helps preventing false
@@ -366,34 +366,34 @@ A virtual_server can be a declaration of one of
     # applies inhibit_on_failure behaviour to the
     # preceding sorry_server directive
     sorry_server_inhibit
-    
-    # one entry for each realserver 	
-    real_server <IPADDR> <PORT> 
+
+    # one entry for each realserver
+    real_server <IPADDR> <PORT>
        {
            # relative weight to use, default: 1
-           weight <INT> 
+           weight <INT>
            # Set weight to 0
            # when healthchecker detects failure
-           inhibit_on_failure 
-                
+           inhibit_on_failure
+
            # Script to launch when healthchecker
            # considers service as up.
-           notify_up <STRING>|<QUOTED-STRING> 
+           notify_up <STRING>|<QUOTED-STRING>
            # Script to launch when healthchecker
            # considers service as down.
-           notify_down <STRING>|<QUOTED-STRING> 
-   
+           notify_down <STRING>|<QUOTED-STRING>
+
            # pick one healthchecker
            # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|MISC_CHECK
-   
+
            # HTTP and SSL healthcheckers
-           HTTP_GET|SSL_GET 
-           {              
+           HTTP_GET|SSL_GET
+           {
                # A url to test
                # can have multiple entries here
                url {
                  #eg path / , or path /mrtg2/
-                 path <STRING> 
+                 path <STRING>
                  # healthcheck needs status_code
                  # or status_code and digest
                  # Digest computed with genhash
@@ -401,10 +401,10 @@ A virtual_server can be a declaration of one of
                  digest <STRING>
                  # status code returned in the HTTP header
                  # eg status_code 200
-                 status_code <INT>     
-               } 
+                 status_code <INT>
+               }
                # number of get retry
-               nb_get_retry <INT> 
+               nb_get_retry <INT>
                # delay before retry
                delay_before_retry <INT>
 
@@ -435,10 +435,10 @@ A virtual_server can be a declaration of one of
                # the maximum at delay_loop. Specify 0 to disable
                warmup <INT>
            } #HTTP_GET|SSL_GET
-   
+
            #TCP healthchecker (bind to IP port)
-           TCP_CHECK 
-           { 
+           TCP_CHECK
+           {
                # ======== generic connection options
                # Optional IP address to connect to.
                # The default is real server's IP
@@ -514,7 +514,7 @@ A virtual_server can be a declaration of one of
            } #SMTP_CHECK
 
            #MISC healthchecker, run a program
-           MISC_CHECK 
+           MISC_CHECK
            {
                # External system script or program
                misc_path <STRING>|<QUOTED-STRING>
@@ -543,13 +543,13 @@ A virtual_server can be a declaration of one of
     } # virtual service
 
 
-.SH AUTHOR 
+.SH AUTHOR
 .br
-Joseph Mack. 
+Joseph Mack.
 .br
 Information derived from doc/keepalived.conf.SYNOPSIS,
-doc/samples/keepalived.conf.* and Changelog by Alexandre Cassen 
-for keepalived-1.1.4, 
+doc/samples/keepalived.conf.* and Changelog by Alexandre Cassen
+for keepalived-1.1.4,
 and from HOWTOs by Adam Fletcher and Vince Worthington.
 .SH "SEE ALSO"
 ipvsadm(8), ip --help.

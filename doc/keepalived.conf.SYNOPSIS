@@ -22,7 +22,7 @@ This block is divided in 2 sub-block :
 	The configuration block looks like :
 
 global_defs {				# Block identification
-    notification_email {		# Email to send alertes to
+    notification_email {		# Email address to send alerts to
        <EMAIL ADDRESS>			# Standard email address
        <EMAIL ADDRESS>
        ...
@@ -119,7 +119,7 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
     notify_backup <STRING>|<QUOTED-STRING> # Script to run during BACKUP transit
     notify_fault <STRING>|<QUOTED-STRING>  # Script to run during FAULT transit
     notify <STRING>|<QUOTED-STRING>	   # Script to run during ANY state transit (1)
-    smtp_alert		 # Send email notif during state transit
+    smtp_alert		 # Send email notification during state transit
 }
 
 (1) The "notify" script is called AFTER the corresponding notify_* script has
@@ -187,7 +187,7 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     priority <INTEGER-0..255>		# VRRP PRIO
     advert_int <INTEGER>		# VRRP Advert interval (use default)
     authentication {			# Authentication block
-        auth_type PASS|AH		# Simple Passwd or IPSEC AH
+        auth_type PASS|AH		# Simple password or IPSEC AH
         auth_pass <STRING>		# Password string (up to 8 characters)
     }
     virtual_ipaddress {			# VRRP IP addres block
@@ -257,7 +257,7 @@ This block is divided in 2 sub-block :
 	* Virtual server
 
 	3.1. Virtual server group
-	
+
 	The configuration block looks like :
 
 virtual_server_group <STRING> {
@@ -277,7 +277,7 @@ Note:	<IP ADDRESS RANGE> has the form of : XXX.YYY.ZZZ.WWW-VVV, define
 	one to VVV. Example : 192.168.200.1-10 means .1 to .10 IP addresses.
 
 	3.2. Virtual server
-	
+
 	The configuration block looks like :
 
 	A virtual_server can be either :
@@ -340,10 +340,10 @@ virtual_server group <STRING>      {	# VS group declaration
         notify_up <STRING>|<QUOTED-STRING> # Script to launch when
 					   #  healthchecker consider service
 					   #  as up.
-        notify_down <STRING>|<QUOTED-STRING> # Script to launch when 
+        notify_down <STRING>|<QUOTED-STRING> # Script to launch when
 					     #  healthchecker consider service
 					     #  as down.
-	
+
         HTTP_GET|SSL_GET {		# HTTP and SSL healthcheckers
             url {			# A set of url to test
               path <STRING>		# Path

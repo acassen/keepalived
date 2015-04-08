@@ -50,7 +50,7 @@ virtual_server 192.168.200.100 25 {
 ! traffic to some additional subnets. We do not
 ! want to dispatch traffic unless all the interfaces
 ! appear to be up. Note: The main ip of the real
-! server that we are dipatching traffic to must
+! server that we are dispatching traffic to must
 ! explicitly be checked by a host directive.
 
     real_server 172.16.1.11 25 {

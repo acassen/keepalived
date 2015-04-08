@@ -1,6 +1,6 @@
 ! Configuration File for keepalived
 ! extra script call demonstration
-! scripts are supported in Instance and groupes
+! scripts are supported in Instance and groups
 ! declarations.
 
 vrrp_sync_group G1 {
