@@ -925,6 +925,26 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 	} else if (vrrp->nopreempt || hd->priority >= vrrp->effective_priority ||
 		   timer_cmp(vrrp->preempt_time, timer_now()) > 0) {
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		if (vrrp->preempt_delay) {
+			if (hd->priority > vrrp->effective_priority) {
+				vrrp->preempt_time = timer_add_long(timer_now(),
+							vrrp->preempt_delay);
+				if (vrrp->preempt_delay_active) {
+					log_message(LOG_INFO,
+						"%s(%s) reset preempt delay",
+						"VRRP_Instance", vrrp->iname);
+					vrrp->preempt_delay_active = 0;
+		        	}
+			} else {
+				if (!vrrp->preempt_delay_active) {
+					log_message(LOG_INFO,
+						"%s(%s) start preempt delay(%d)",
+						"VRRP_Instance", vrrp->iname,
+						vrrp->preempt_delay / TIMER_HZ);
+					vrrp->preempt_delay_active = 1;
+				}
+			}
+		}
 	} else if (hd->priority < vrrp->effective_priority) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) forcing a new MASTER election"
 				    , vrrp->iname);
