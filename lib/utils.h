@@ -51,6 +51,7 @@
 #define DBG_OPT_DONT_RELEASE_IPVS 0x010
 #define DBG_OPT_LOG_DETAIL        0x020
 #define DBG_OPT_DONT_RESPAWN      0x040
+#define DBG_OPT_RELEASE_VIPS      0x080
 
 /* Literal bitmask constant for other debug options */
 #define DBG_OPT_MEM_ERR_DETECT    0x200

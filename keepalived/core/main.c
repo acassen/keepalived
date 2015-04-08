@@ -138,6 +138,7 @@ usage(const char *prog)
 	fprintf(stderr, "  -l, --log-console            Log messages to local console\n");
 	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");
 	fprintf(stderr, "  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n");
+	fprintf(stderr, "  -X, --release-vips           Drop VIP on transition from signal.\n");
 	fprintf(stderr, "  -V, --dont-release-vrrp      Don't remove VRRP VIPs and VROUTEs on daemon stop\n");
 	fprintf(stderr, "  -I, --dont-release-ipvs      Don't remove IPVS topology on daemon stop\n");
 	fprintf(stderr, "  -R, --dont-respawn           Don't respawn child processes\n");
@@ -166,6 +167,7 @@ parse_cmdline(int argc, char **argv)
 		{"log-console",       no_argument,       0, 'l'},
 		{"log-detail",        no_argument,       0, 'D'},
 		{"log-facility",      required_argument, 0, 'S'},
+		{"release-vips",      no_argument,       0, 'X'},
 		{"dont-release-vrrp", no_argument,       0, 'V'},
 		{"dont-release-ipvs", no_argument,       0, 'I'},
 		{"dont-respawn",      no_argument,       0, 'R'},
@@ -216,6 +218,9 @@ parse_cmdline(int argc, char **argv)
 			break;
 		case 'R':
 			debug |= DBG_OPT_DONT_RESPAWN;
+			break;
+		case 'X':
+		        debug |= DBG_OPT_RELEASE_VIPS;
 			break;
 		case 'S':
 			log_facility = LOG_FACILITY[atoi(optarg)].facility;

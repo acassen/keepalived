@@ -847,8 +847,15 @@ vrrp_restore_interface(vrrp_t * vrrp, int advF)
 	 * If started with "--dont-release-vrrp"
 	 * (debug & DBG_OPT_DONT_RELEASE_VRRP) then try to remove
 	 * addresses even if we didn't add them during this run.
+	 *
+	 * If "--release-vips" (debug & CLI_OPT_RELEASE_VIPS) is set then try
+	 * to release any virtual addresses.  kill -1 tells keepalived to reread
+	 * its config.  If a config change (such as lower priority) causes a
+	 * state transition to backup then keepalived doesn't remove the
+	 * VIPs.  Then we have duplicate IP addresses on both master/backup.
 	 */
-	if (debug & DBG_OPT_DONT_RELEASE_VRRP || VRRP_VIP_ISSET(vrrp)) {
+	if (debug & DBG_OPT_DONT_RELEASE_VRRP || VRRP_VIP_ISSET(vrrp) ||
+	    debug & DBG_OPT_RELEASE_VIPS) {
 		if (!LIST_ISEMPTY(vrrp->vip))
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL,
 					      VRRP_VIP_TYPE);
