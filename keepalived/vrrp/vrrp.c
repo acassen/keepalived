@@ -149,11 +149,13 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	 * sender counter.
 	 */
 	vrrp->ipsecah_counter->seq_number++;
-	if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter->seq_number || vrrp->sync) {
+	if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter->seq_number ||
+	    vrrp->sync || (vrrp->vmac_flags & VRRP_VMAC_FL_SET)) {
 		vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number);
 	} else {
-		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
-				      " already proceeded. Packet dropped. Local(%d)",
+		log_message(LOG_INFO,
+			    "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
+			    " already proceeded. Packet dropped. Local(%d)",
 			    vrrp->iname, ntohl(ah->seq_number),
 			    vrrp->ipsecah_counter->seq_number);
 		return 1;
