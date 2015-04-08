@@ -34,12 +34,23 @@ clean:
 	$(MAKE) -C keepalived clean
 	$(MAKE) -C genhash clean
 
+id: ID
+ 		
+ID: 
+	find . -name "*.[chCH]" -print | xargs mkid -fID 
+
+tags: TAGS
+
+TAGS:
+	find . -name "*.[chCH]" -print | etags -
+
 distclean:
 	$(MAKE) -C lib distclean
 	$(MAKE) -C keepalived distclean
 	$(MAKE) -C genhash distclean
 	rm -f Makefile
 	rm -f keepalived.spec
+	rm -f TAGS ID
 
 mrproper: distclean
 	rm -f config.*
