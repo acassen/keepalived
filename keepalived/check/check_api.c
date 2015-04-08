@@ -273,7 +273,7 @@ update_checker_activity(sa_family_t family, void *address, int enable)
 	void *addr;
 
 	/* Display netlink operation */
-	if (debug & 32) {
+	if (debug & DBG_OPT_LOG_DETAIL) {
 		inet_ntop(family, address, addr_str, sizeof(addr_str));
 		log_message(LOG_INFO, "Netlink reflector reports IP %s %s"
 				    , addr_str, (enable) ? "added" : "removed");

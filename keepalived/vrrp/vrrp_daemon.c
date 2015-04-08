@@ -55,7 +55,7 @@ stop_vrrp(void)
 {
 	signal_handler_destroy();
 
-	if (!(debug & 8))
+	if (!(debug & DBG_OPT_DONT_RELEASE_VRRP))
 		shutdown_vrrp_instances();
 
 	/* Clear static entries */
@@ -157,7 +157,7 @@ start_vrrp(void)
 	netlink_rtlist(vrrp_data->static_routes, IPROUTE_ADD);
 
 	/* Dump configuration */
-	if (debug & 4) {
+	if (debug & DBG_OPT_DUMP_CONF) {
 		dump_global_data(global_data);
 		dump_vrrp_data(vrrp_data);
 	}
@@ -260,7 +260,7 @@ vrrp_respawn_thread(thread_t * thread)
 	}
 
 	/* We catch a SIGCHLD, handle it */
-	if (!(debug & 64)) {
+	if (!(debug & DBG_OPT_DONT_RESPAWN)) {
 		log_message(LOG_ALERT, "VRRP child process(%d) died: Respawning", pid);
 		start_vrrp_child();
 	} else {
@@ -297,7 +297,8 @@ start_vrrp_child(void)
 	}
 
 	/* Opening local VRRP syslog channel */
-	openlog(PROG_VRRP, LOG_PID | ((debug & 1) ? LOG_CONS : 0),
+	openlog(PROG_VRRP,
+		LOG_PID | ((debug & DBG_OPT_LOG_CONSOLE) ? LOG_CONS : 0),
 		(log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
 
 	/* Child process part, write pidfile */

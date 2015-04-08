@@ -197,25 +197,25 @@ parse_cmdline(int argc, char **argv)
 			exit(0);
 			break;
 		case 'l':
-			debug |= 1;
+			debug |= DBG_OPT_LOG_CONSOLE;
 			break;
 		case 'n':
-			debug |= 2;
+			debug |= DBG_OPT_DONT_FORK;
 			break;
 		case 'd':
-			debug |= 4;
+			debug |= DBG_OPT_DUMP_CONF;
 			break;
 		case 'V':
-			debug |= 8;
+		 	debug |= DBG_OPT_DONT_RELEASE_VRRP;
 			break;
 		case 'I':
-			debug |= 16;
+			debug |= DBG_OPT_DONT_RELEASE_IPVS;
 			break;
 		case 'D':
-			debug |= 32;
+			debug |= DBG_OPT_LOG_DETAIL;
 			break;
 		case 'R':
-			debug |= 64;
+			debug |= DBG_OPT_DONT_RESPAWN;
 			break;
 		case 'S':
 			log_facility = LOG_FACILITY[atoi(optarg)].facility;
@@ -271,7 +271,8 @@ main(int argc, char **argv)
 	 */
 	parse_cmdline(argc, argv);
 
-	openlog(PROG, LOG_PID | ((debug & 1) ? LOG_CONS : 0), log_facility);
+	openlog(PROG, LOG_PID | ((debug & DBG_OPT_LOG_CONSOLE) ? LOG_CONS : 0),
+		log_facility);
 	log_message(LOG_INFO, "Starting " VERSION_STRING);
 
 	/* Check if keepalived is already running */
@@ -280,11 +281,11 @@ main(int argc, char **argv)
 		goto end;
 	}
 
-	if (debug & 1)
+	if (debug & DBG_OPT_LOG_CONSOLE)
 		enable_console_log();
 
 	/* daemonize process */
-	if (!(debug & 2))
+	if (!(debug & DBG_OPT_DONT_FORK))
 		xdaemon(0, 0, 0);
 
 	/* write the father's pidfile */

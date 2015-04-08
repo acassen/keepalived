@@ -112,13 +112,15 @@ netlink_iplist(list ip_list, int cmd)
 		return;
 
 	/*
-	 * If "--dont-release-vrrp" (debug & 8) is set then try to release
-	 * addresses that may be there, even if we didn't set them.
+	 * If "--dont-release-vrrp" (debug & DBG_OPT_DONT_RELEASE_VRRP) is set
+	 * then try to release addresses that may be there, even if we didn't
+	 * set them.
 	 */
 	for (e = LIST_HEAD(ip_list); e; ELEMENT_NEXT(e)) {
 		ipaddr = ELEMENT_DATA(e);
 		if ((cmd && !ipaddr->set) ||
-		    (!cmd && (ipaddr->set || debug & 8))) {
+		    (!cmd &&
+		     (ipaddr->set || debug & DBG_OPT_DONT_RELEASE_VRRP))) {
 			if (netlink_ipaddress(ipaddr, cmd) > 0)
 				ipaddr->set = (cmd) ? 1 : 0;
 			else

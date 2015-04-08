@@ -55,7 +55,7 @@ stop_check(void)
 	thread_destroy_master(master);
 	free_checkers_queue();
 	free_ssl();
-	if (!(debug & 16))
+	if (!(debug & DBG_OPT_DONT_RELEASE_IPVS))
 		clear_services();
 	ipvs_stop();
 #ifdef _WITH_SNMP_
@@ -139,7 +139,7 @@ start_check(void)
 	}
 
 	/* Dump configuration */
-	if (debug & 4) {
+	if (debug & DBG_OPT_DUMP_CONF) {
 		dump_global_data(global_data);
 		dump_check_data(check_data);
 	}
@@ -241,7 +241,7 @@ check_respawn_thread(thread_t * thread)
 	}
 
 	/* We catch a SIGCHLD, handle it */
-	if (!(debug & 64)) {
+	if (!(debug & DBG_OPT_DONT_RESPAWN)) {
 		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Respawning", pid);
 		start_check_child();
 	} else {
@@ -278,7 +278,8 @@ start_check_child(void)
 	}
 
 	/* Opening local CHECK syslog channel */
-	openlog(PROG_CHECK, LOG_PID | ((debug & 1) ? LOG_CONS : 0),
+	openlog(PROG_CHECK,
+		LOG_PID | ((debug & DBG_OPT_LOG_CONSOLE) ? LOG_CONS : 0),
 		(log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
 
 	/* Child process part, write pidfile */

@@ -545,7 +545,7 @@ vrrp_dispatcher_init(thread_t * thread)
 	vrrp_register_workers(vrrp_data->vrrp_socket_pool);
 
 	/* Dump socket pool */
-	if (debug & 32)
+	if (debug & DBG_OPT_LOG_DETAIL)
 		dump_list(vrrp_data->vrrp_socket_pool);
 	return 1;
 }

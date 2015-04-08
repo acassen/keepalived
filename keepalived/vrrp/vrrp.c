@@ -50,7 +50,7 @@
 static int
 vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type)
 {
-	if (debug & 32)
+	if (debug & DBG_OPT_LOG_DETAIL)
 		log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol %s", vrrp->iname,
 		       (cmd == IPADDRESS_ADD) ? "setting" : "removing",
 		       (type == VRRP_VIP_TYPE) ? "VIPs." : "E-VIPs.");
@@ -62,7 +62,7 @@ vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type)
 static int
 vrrp_handle_iproutes(vrrp_t * vrrp, int cmd)
 {
-	if (debug & 32)
+	if (debug & DBG_OPT_LOG_DETAIL)
 		log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol Virtual Routes",
 		       vrrp->iname,
 		       (cmd == IPROUTE_ADD) ? "setting" : "removing");
@@ -731,7 +731,7 @@ vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, int idx)
 		ndisc_send_unsolicited_na(ipaddress);
 	}
 
-	if (0 == idx && debug & 32) {
+	if (0 == idx && debug & DBG_OPT_LOG_DETAIL) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) Sending %s on %s for %s",
 			    vrrp->iname, msg, IF_NAME(ipaddress->ifp), addr_str);
 	}
@@ -844,10 +844,11 @@ vrrp_restore_interface(vrrp_t * vrrp, int advF)
 	/*
 	 * Remove the ip addresses.
 	 *
-	 * If started with "--dont-release-vrrp" (debug & 8) then try to remove
+	 * If started with "--dont-release-vrrp"
+	 * (debug & DBG_OPT_DONT_RELEASE_VRRP) then try to remove
 	 * addresses even if we didn't add them during this run.
 	 */
-	if (debug & 8 || VRRP_VIP_ISSET(vrrp)) {
+	if (debug & DBG_OPT_DONT_RELEASE_VRRP || VRRP_VIP_ISSET(vrrp)) {
 		if (!LIST_ISEMPTY(vrrp->vip))
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL,
 					      VRRP_VIP_TYPE);

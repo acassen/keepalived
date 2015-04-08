@@ -43,6 +43,18 @@
 
 #define STR(x)  #x
 
+/* Literal bitmask constants for CLI debug options */
+#define DBG_OPT_LOG_CONSOLE       0x001
+#define DBG_OPT_DONT_FORK         0x002
+#define DBG_OPT_DUMP_CONF         0x004
+#define DBG_OPT_DONT_RELEASE_VRRP 0x008
+#define DBG_OPT_DONT_RELEASE_IPVS 0x010
+#define DBG_OPT_LOG_DETAIL        0x020
+#define DBG_OPT_DONT_RESPAWN      0x040
+
+/* Literal bitmask constant for other debug options */
+#define DBG_OPT_MEM_ERR_DETECT    0x200
+
 /* global vars exported */
 extern int debug;
 
