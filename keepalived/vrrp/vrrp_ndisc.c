@@ -85,8 +85,8 @@ ndisc_icmp6_cksum(const struct ip6hdr *ip6, const struct icmp6hdr *icp, uint32_t
 
 	/* pseudo-header */
 	memset(&phu, 0, sizeof(phu));
-	phu.ph.ph_src = ip6->saddr;
-	phu.ph.ph_dst = ip6->daddr;
+	memcpy(&phu.ph.ph_src, &ip6->saddr, sizeof(struct in6_addr));
+	memcpy(&phu.ph.ph_dst, &ip6->daddr, sizeof(struct in6_addr));
 	phu.ph.ph_len = htonl(len);
 	phu.ph.ph_nxt = IPPROTO_ICMPV6;
 
@@ -142,7 +142,7 @@ ndisc_send_unsolicited_na(ip_address_t *ipaddress)
 	ip6h->payload_len = htons(sizeof(struct ndhdr) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
 	ip6h->nexthdr = NEXTHDR_ICMP;
 	ip6h->hop_limit = NDISC_HOPLIMIT;
-	ip6h->saddr = ipaddress->u.sin6_addr;
+	memcpy(&ip6h->saddr, &ipaddress->u.sin6_addr, sizeof(struct in6_addr));
 	ip6h->daddr.s6_addr16[0] = htons(0xff02);
 	ip6h->daddr.s6_addr16[7] = htons(1);
 
