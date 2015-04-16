@@ -96,6 +96,7 @@ smtp_alloc_host(void)
 
 	/* Allocate the new host data structure */
 	new = (smtp_host_t *)MALLOC(sizeof(smtp_host_t));
+	CHECKER_GET_CO() = new;
 
 	/* 
 	 * By default we set the ip to connect to as the same ip as the current real server
