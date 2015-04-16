@@ -103,7 +103,6 @@ smtp_alloc_host(void)
 	 * in the rs config. This might be overridden later on by a "connect_ip" keyword.
 	 */
 	checker_set_dst(&new->dst);
-	checker_set_dst_port(&new->dst, htons(SMTP_DEFAULT_PORT));
 	new->connection_to = smtp_checker->timeout;
 	return new;
 }

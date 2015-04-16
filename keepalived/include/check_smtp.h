@@ -43,7 +43,6 @@
 #define SMTP_RECV_QUIT		6
 
 #define SMTP_DEFAULT_HELO	"smtpchecker.keepalived.org"
-#define SMTP_DEFAULT_PORT	25
 
 /* Per host configuration structure  */
 typedef conn_opts_t smtp_host_t;
