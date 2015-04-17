@@ -51,12 +51,12 @@ typedef conn_opts_t smtp_host_t;
 typedef struct _smtp_checker {
 	/* non per host config data goes here */
 	char				*helo_name;
-	long				timeout;
 	long				db_retry;
 	int				retry;
 	int				attempts;
 	int				host_ctr;
 	smtp_host_t			*host_ptr;
+	conn_opts_t			*default_co;
 
 	/* data buffer */
 	char				buff[SMTP_BUFF_MAX];
