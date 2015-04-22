@@ -112,8 +112,8 @@ typedef struct _tracked_if {
 
 /* prototypes */
 extern interface_t *if_get_by_ifindex(const int);
-extern interface_t *if_get_by_vmac_base_ifindex(const int);
 extern interface_t *if_get_by_ifname(const char *);
+extern void if_vmac_reflect_flags(const int, const unsigned long);
 extern int if_linkbeat(const interface_t *);
 extern int if_mii_probe(const char *);
 extern int if_ethtool_probe(const char *);
