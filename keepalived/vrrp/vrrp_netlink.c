@@ -244,25 +244,6 @@ netlink_scope_a2n(char *scope)
 	return -1;
 }
 
-/*
- * Reflect base interface flags on VMAC interface.
- * VMAC interfaces should never update it own flags, only be reflected
- * by the base interface flags.
- */
-static void
-vmac_reflect_flags(struct ifinfomsg *ifi)
-{
-	interface_t *ifp;
-
-	/* find the VMAC interface (if any) */
-	ifp = if_get_by_vmac_base_ifindex(ifi->ifi_index);
-
-	/* if found, reflect base interface flags on VMAC interface */
-	if (ifp) {
-		ifp->flags = ifi->ifi_flags;
-	}
-}
-
 /* Our netlink parser */
 static int
 netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
@@ -484,7 +465,7 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	ifp = if_get_by_ifname(name);
 	if (ifp) {
 		if (!ifp->vmac) {
-			vmac_reflect_flags(ifi);
+			if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);
 			ifp->flags = ifi->ifi_flags;
 		}
 		return 0;
@@ -498,7 +479,7 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	ifp->hw_type = ifi->ifi_type;
 
 	if (!ifp->vmac) {
-		vmac_reflect_flags(ifi);
+		if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);
 		ifp->flags = ifi->ifi_flags;
 		ifp->base_ifindex = ifi->ifi_index;
 	}
@@ -693,7 +674,7 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	 * by the base interface flags.
 	 */
 	if (!ifp->vmac) {
-		vmac_reflect_flags(ifi);
+		if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);
 		ifp->flags = ifi->ifi_flags;
 	}
 
