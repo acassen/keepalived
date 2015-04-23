@@ -44,6 +44,7 @@ typedef struct _keyword {
 	char *string;
 	void (*handler) (vector_t *);
 	vector_t *sub;
+	void (*sub_close_handler) (void);
 } keyword_t;
 
 /* Reloading helpers */
@@ -62,6 +63,7 @@ extern void keyword_alloc_sub(vector_t *, char *, void (*handler) (vector_t *));
 extern void install_keyword_root(char *, void (*handler) (vector_t *));
 extern void install_sublevel(void);
 extern void install_sublevel_end(void);
+extern void install_sublevel_end_handler(void (*handler) (void));
 extern void install_keyword(char *, void (*handler) (vector_t *));
 extern void dump_keywords(vector_t *, int);
 extern void free_keywords(vector_t *);
