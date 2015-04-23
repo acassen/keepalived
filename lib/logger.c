@@ -20,9 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
-#include <syslog.h>
 #include <stdio.h>
-#include <stdarg.h>
+#include "logger.h"
 
 /* Boolean flag - send messages to console as well as syslog */
 static int log_console = 0;
@@ -34,18 +33,25 @@ enable_console_log(void)
 }
 
 void
-log_message(const int facility, const char *format, ...)
+vlog_message(const int facility, const char* format, va_list args)
 {
-	va_list args;
 	char buf[256];
 
-	va_start(args, format);
 	vsnprintf(buf, sizeof(buf), format, args);
-	va_end(args);
 
 	if (log_console) {
 		fprintf(stderr, "%s\n", buf);
 	}
 
 	syslog(facility, "%s", buf);
+}
+
+void
+log_message(const int facility, const char *format, ...)
+{
+	va_list args;
+
+	va_start(args, format);
+	vlog_message(facility, format, args);
+	va_end(args);
 }
