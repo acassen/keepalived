@@ -33,6 +33,8 @@
 #include "daemon.h"
 
 int smtp_connect_thread(thread_t *);
+int smtp_final(thread_t *thread, int error, const char *format, ...)
+	 __attribute__ ((format (printf, 3, 4)));
 
 /* module variables */
 static smtp_host_t *default_host = NULL;
@@ -271,7 +273,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 				strncat(error_buff, format, sizeof(error_buff) - 11 - 1);
 
 				va_start(varg_list, format);
-				log_message(LOG_INFO, error_buff, varg_list);
+				vlog_message(LOG_INFO, error_buff, varg_list);
 				va_end(varg_list);
 			} else {
 				log_message(LOG_INFO, "SMTP_CHECK Unknown error");
