@@ -36,6 +36,7 @@
 #include "daemon.h"
 #include "logger.h"
 #include "signals.h"
+#include "bitops.h"
 #ifdef _WITH_LVS_
   #include "ipvswrapper.h"
 #endif
@@ -55,7 +56,7 @@ stop_vrrp(void)
 {
 	signal_handler_destroy();
 
-	if (!(debug & DBG_OPT_DONT_RELEASE_VRRP))
+	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
 		shutdown_vrrp_instances();
 
 	/* Clear static entries */
@@ -157,7 +158,7 @@ start_vrrp(void)
 	netlink_rtlist(vrrp_data->static_routes, IPROUTE_ADD);
 
 	/* Dump configuration */
-	if (debug & DBG_OPT_DUMP_CONF) {
+	if (__test_bit(DUMP_CONF_BIT, &debug)) {
 		dump_global_data(global_data);
 		dump_vrrp_data(vrrp_data);
 	}
@@ -260,7 +261,7 @@ vrrp_respawn_thread(thread_t * thread)
 	}
 
 	/* We catch a SIGCHLD, handle it */
-	if (!(debug & DBG_OPT_DONT_RESPAWN)) {
+	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
 		log_message(LOG_ALERT, "VRRP child process(%d) died: Respawning", pid);
 		start_vrrp_child();
 	} else {
@@ -297,9 +298,8 @@ start_vrrp_child(void)
 	}
 
 	/* Opening local VRRP syslog channel */
-	openlog(PROG_VRRP,
-		LOG_PID | ((debug & DBG_OPT_LOG_CONSOLE) ? LOG_CONS : 0),
-		(log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
+	openlog(PROG_VRRP, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
+			 , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(vrrp_pidfile, getpid())) {

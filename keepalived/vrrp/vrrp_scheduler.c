@@ -38,6 +38,7 @@
 #include "main.h"
 #include "smtp.h"
 #include "signals.h"
+#include "bitops.h"
 #ifdef _WITH_SNMP_
 #include "vrrp_snmp.h"
 #endif
@@ -545,7 +546,7 @@ vrrp_dispatcher_init(thread_t * thread)
 	vrrp_register_workers(vrrp_data->vrrp_socket_pool);
 
 	/* Dump socket pool */
-	if (debug & DBG_OPT_LOG_DETAIL)
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
 		dump_list(vrrp_data->vrrp_socket_pool);
 	return 1;
 }

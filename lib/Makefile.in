@@ -28,7 +28,7 @@ distclean: clean
 	rm -f config.h
 	rm -f Makefile
 
-memory.o: memory.c memory.h utils.h
+memory.o: memory.c memory.h utils.h bitops.h
 utils.o: utils.c utils.h memory.h
 notify.o: notify.c notify.h
 timer.o: timer.c timer.h

@@ -38,6 +38,7 @@
 #include "main.h"
 #include "memory.h"
 #include "parser.h"
+#include "bitops.h"
 #include "vrrp_netlink.h"
 #include "vrrp_if.h"
 #ifdef _WITH_SNMP_
@@ -55,7 +56,7 @@ stop_check(void)
 	thread_destroy_master(master);
 	free_checkers_queue();
 	free_ssl();
-	if (!(debug & DBG_OPT_DONT_RELEASE_IPVS))
+	if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug))
 		clear_services();
 	ipvs_stop();
 #ifdef _WITH_SNMP_
@@ -139,7 +140,7 @@ start_check(void)
 	}
 
 	/* Dump configuration */
-	if (debug & DBG_OPT_DUMP_CONF) {
+	if (__test_bit(DUMP_CONF_BIT, &debug)) {
 		dump_global_data(global_data);
 		dump_check_data(check_data);
 	}
@@ -241,7 +242,7 @@ check_respawn_thread(thread_t * thread)
 	}
 
 	/* We catch a SIGCHLD, handle it */
-	if (!(debug & DBG_OPT_DONT_RESPAWN)) {
+	if (!__test_bit(DONT_RESPAWN_BIT, &debug)) {
 		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Respawning", pid);
 		start_check_child();
 	} else {
@@ -278,9 +279,8 @@ start_check_child(void)
 	}
 
 	/* Opening local CHECK syslog channel */
-	openlog(PROG_CHECK,
-		LOG_PID | ((debug & DBG_OPT_LOG_CONSOLE) ? LOG_CONS : 0),
-		(log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
+	openlog(PROG_CHECK, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
+			  , (log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(checkers_pidfile, getpid())) {

@@ -24,7 +24,7 @@
 #include "utils.h"
 
 /* global vars */
-int debug = 0;
+unsigned long debug = 0;
 
 /* Display a buffer into a HEXA formated output */
 void

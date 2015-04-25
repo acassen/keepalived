@@ -24,6 +24,7 @@
 
 #include "memory.h"
 #include "utils.h"
+#include "bitops.h"
 
 /* Global var */
 unsigned long mem_allocated;	/* Total memory used in Bytes */
@@ -162,11 +163,11 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 		alloc_list[i].func = function;
 		alloc_list[i].line = line;
 		alloc_list[i].type = 2;
-		if (debug & DBG_OPT_LOG_CONSOLE)
+		if (__test_bit(LOG_CONSOLE_BIT, &debug))
 			printf("free NULL in %s, %3d, %s\n", file,
 			       line, function);
 
-		debug |= DBG_OPT_MEM_ERR_DETECT;    /* Memory Error detect */
+		__set_bit(MEM_ERR_DETECT_BIT, &debug);	/* Memory Error detect */
 
 		return n;
 	} else
@@ -181,7 +182,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 				alloc_list[i].type = 0;	/* Release */
 			else {
 				alloc_list[i].type = 1;	/* Overrun */
-				if (debug & DBG_OPT_LOG_CONSOLE) {
+				if (__test_bit(LOG_CONSOLE_BIT, &debug)) {
 					printf("free corrupt, buffer overrun [%3d:%3d], %p, %4ld at %s, %3d, %s\n",
 					       i, number_alloc_list,
 					       buf, alloc_list[i].size, file,
@@ -192,7 +193,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 					dump_buffer((char *) &alloc_list[i].csum,
 						    sizeof(long));
 
-					debug |= DBG_OPT_MEM_ERR_DETECT;
+					__set_bit(MEM_ERR_DETECT_BIT, &debug);
 				}
 			}
 			break;
@@ -213,7 +214,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 		alloc_list[i].func = function;
 		alloc_list[i].line = line;
 		alloc_list[i].type = 4;
-		debug |= DBG_OPT_MEM_ERR_DETECT;
+		__set_bit(MEM_ERR_DETECT_BIT, &debug);
 
 		return n;
 	}
@@ -221,7 +222,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 	if (buffer != NULL)
 		xfree(buffer);
 
-	if (debug & DBG_OPT_LOG_CONSOLE)
+	if (__test_bit(LOG_CONSOLE_BIT, &debug))
 		printf("free  [%3d:%3d], %p, %4ld at %s, %3d, %s\n",
 		       i, number_alloc_list, buf,
 		       alloc_list[i].size, file, line, function);
@@ -363,7 +364,7 @@ keepalived_realloc(void *buffer, unsigned long size, char *file, char *function,
 		alloc_list[i].func = function;
 		alloc_list[i].line = line;
 		alloc_list[i].type = 9;
-		debug |= DBG_OPT_MEM_ERR_DETECT;  /* Memory Error detect */
+		__set_bit(MEM_ERR_DETECT_BIT, &debug);	/* Memory Error detect */
 		return NULL;
 	}
 
@@ -371,7 +372,7 @@ keepalived_realloc(void *buffer, unsigned long size, char *file, char *function,
 
 	if (*(long *) (buf2) != alloc_list[i].csum) {
 		alloc_list[i].type = 1;
-		debug |= DBG_OPT_MEM_ERR_DETECT;  /* Memory Error detect */
+		__set_bit(MEM_ERR_DETECT_BIT, &debug);	/* Memory Error detect */
 	}
 	buf = realloc(buffer, size + sizeof (long));
 
@@ -379,7 +380,7 @@ keepalived_realloc(void *buffer, unsigned long size, char *file, char *function,
 	*(long *) ((char *) buf + size) = check;
 	alloc_list[i].csum = check;
 
-	if (debug & DBG_OPT_LOG_CONSOLE)
+	if (__test_bit(LOG_CONSOLE_BIT, &debug))
 		printf("realloc [%3d:%3d] %p, %4ld %s %d %s -> %p %4ld %s %d %s\n",
 		       i, number_alloc_list, alloc_list[i].ptr,
 		       alloc_list[i].size, file, line, function, buf, size,

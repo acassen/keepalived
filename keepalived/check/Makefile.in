@@ -36,7 +36,7 @@ check_daemon.o: check_daemon.c ../include/check_daemon.h \
   ../include/check_parser.h ../include/check_data.h ../include/check_api.h \
   ../include/global_data.h ../include/ipwrapper.h ../include/ipwrapper.h \
   ../include/pidfile.h ../include/daemon.h ../../lib/list.h ../../lib/memory.h \
-  ../../lib/parser.h ../../lib/signals.h ../include/vrrp_netlink.h \
+  ../../lib/parser.h ../../lib/signals.h ../../lib/bitops.h ../include/vrrp_netlink.h \
   ../include/vrrp_if.h ../include/snmp.h ../include/check_snmp.h
 check_data.o: check_data.c ../include/check_data.h \
   ../include/check_api.h ../../lib/memory.h ../../lib/utils.h
@@ -45,7 +45,7 @@ check_parser.o: check_parser.c ../include/check_parser.h \
   ../include/global_parser.h ../../lib/parser.h ../../lib/memory.h \
   ../../lib/utils.h
 check_api.o: check_api.c ../include/check_api.h ../../lib/parser.h \
-  ../../lib/memory.h ../../lib/utils.h ../include/check_misc.h \
+  ../../lib/memory.h ../../lib/utils.h ../../lib/bitops.h ../include/check_misc.h \
   ../include/check_tcp.h ../include/check_http.h ../include/check_ssl.h
 check_tcp.o: check_tcp.c ../include/check_tcp.h ../include/check_api.h \
   ../../lib/memory.h ../include/ipwrapper.h ../include/layer4.h \

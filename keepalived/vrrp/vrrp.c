@@ -45,12 +45,13 @@
 #include "main.h"
 #include "utils.h"
 #include "notify.h"
+#include "bitops.h"
 
 /* add/remove Virtual IP addresses */
 static int
 vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type)
 {
-	if (debug & DBG_OPT_LOG_DETAIL)
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
 		log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol %s", vrrp->iname,
 		       (cmd == IPADDRESS_ADD) ? "setting" : "removing",
 		       (type == VRRP_VIP_TYPE) ? "VIPs." : "E-VIPs.");
@@ -62,7 +63,7 @@ vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type)
 static int
 vrrp_handle_iproutes(vrrp_t * vrrp, int cmd)
 {
-	if (debug & DBG_OPT_LOG_DETAIL)
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
 		log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol Virtual Routes",
 		       vrrp->iname,
 		       (cmd == IPROUTE_ADD) ? "setting" : "removing");
@@ -735,7 +736,7 @@ vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, int idx)
 		ndisc_send_unsolicited_na(ipaddress);
 	}
 
-	if (0 == idx && debug & DBG_OPT_LOG_DETAIL) {
+	if (idx == 0 && __test_bit(LOG_DETAIL_BIT, &debug)) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) Sending %s on %s for %s",
 			    vrrp->iname, msg, IF_NAME(ipaddress->ifp), addr_str);
 	}
@@ -849,24 +850,21 @@ vrrp_restore_interface(vrrp_t * vrrp, int advF)
 	/*
 	 * Remove the ip addresses.
 	 *
-	 * If started with "--dont-release-vrrp"
-	 * (debug & DBG_OPT_DONT_RELEASE_VRRP) then try to remove
+	 * If started with "--dont-release-vrrp" then try to remove
 	 * addresses even if we didn't add them during this run.
 	 *
-	 * If "--release-vips" (debug & CLI_OPT_RELEASE_VIPS) is set then try
-	 * to release any virtual addresses.  kill -1 tells keepalived to reread
-	 * its config.  If a config change (such as lower priority) causes a
-	 * state transition to backup then keepalived doesn't remove the
-	 * VIPs.  Then we have duplicate IP addresses on both master/backup.
+	 * If "--release-vips" is set then try to release any virtual addresses.
+	 * kill -1 tells keepalived to reread its config.  If a config change
+	 * (such as lower priority) causes astate transition to backup then
+	 * keepalived doesn't remove the VIPs.  Then we have duplicate IP addresses
+	 * on both master/backup.
 	 */
-	if (debug & DBG_OPT_DONT_RELEASE_VRRP || VRRP_VIP_ISSET(vrrp) ||
-	    debug & DBG_OPT_RELEASE_VIPS) {
+	if (__test_bit(DONT_RELEASE_VRRP_BIT, &debug) || VRRP_VIP_ISSET(vrrp) ||
+	    __test_bit(RELEASE_VIPS_BIT, &debug)) {
 		if (!LIST_ISEMPTY(vrrp->vip))
-			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL,
-					      VRRP_VIP_TYPE);
+			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL, VRRP_VIP_TYPE);
 		if (!LIST_ISEMPTY(vrrp->evip))
-			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL,
-					      VRRP_EVIP_TYPE);
+			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL, VRRP_EVIP_TYPE);
 		vrrp->vipset = 0;
 	}
 

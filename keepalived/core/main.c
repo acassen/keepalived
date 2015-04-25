@@ -24,6 +24,7 @@
 #include "config.h"
 #include "signals.h"
 #include "pidfile.h"
+#include "bitops.h"
 #include "logger.h"
 
 /* global var */
@@ -199,28 +200,28 @@ parse_cmdline(int argc, char **argv)
 			exit(0);
 			break;
 		case 'l':
-			debug |= DBG_OPT_LOG_CONSOLE;
+			__set_bit(LOG_CONSOLE_BIT, &debug);
 			break;
 		case 'n':
-			debug |= DBG_OPT_DONT_FORK;
+			__set_bit(DONT_FORK_BIT, &debug);
 			break;
 		case 'd':
-			debug |= DBG_OPT_DUMP_CONF;
+			__set_bit(DUMP_CONF_BIT, &debug);
 			break;
 		case 'V':
-		 	debug |= DBG_OPT_DONT_RELEASE_VRRP;
+			__set_bit(DONT_RELEASE_VRRP_BIT, &debug);
 			break;
 		case 'I':
-			debug |= DBG_OPT_DONT_RELEASE_IPVS;
+			__set_bit(DONT_RELEASE_IPVS_BIT, &debug);
 			break;
 		case 'D':
-			debug |= DBG_OPT_LOG_DETAIL;
+			__set_bit(LOG_DETAIL_BIT, &debug);
 			break;
 		case 'R':
-			debug |= DBG_OPT_DONT_RESPAWN;
+			__set_bit(DONT_RESPAWN_BIT, &debug);
 			break;
 		case 'X':
-		        debug |= DBG_OPT_RELEASE_VIPS;
+			__set_bit(RELEASE_VIPS_BIT, &debug);
 			break;
 		case 'S':
 			log_facility = LOG_FACILITY[atoi(optarg)].facility;
@@ -276,8 +277,8 @@ main(int argc, char **argv)
 	 */
 	parse_cmdline(argc, argv);
 
-	openlog(PROG, LOG_PID | ((debug & DBG_OPT_LOG_CONSOLE) ? LOG_CONS : 0),
-		log_facility);
+	openlog(PROG, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
+		    , log_facility);
 	log_message(LOG_INFO, "Starting " VERSION_STRING);
 
 	/* Check if keepalived is already running */
@@ -286,11 +287,11 @@ main(int argc, char **argv)
 		goto end;
 	}
 
-	if (debug & DBG_OPT_LOG_CONSOLE)
+	if (__test_bit(LOG_CONSOLE_BIT, &debug))
 		enable_console_log();
 
 	/* daemonize process */
-	if (!(debug & DBG_OPT_DONT_FORK))
+	if (!__test_bit(DONT_FORK_BIT, &debug))
 		xdaemon(0, 0, 0);
 
 	/* write the father's pidfile */

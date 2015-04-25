@@ -28,6 +28,7 @@
 #include "memory.h"
 #include "utils.h"
 #include "logger.h"
+#include "bitops.h"
 #include "global_data.h"
 #include "check_misc.h"
 #include "check_smtp.h"
@@ -273,7 +274,7 @@ update_checker_activity(sa_family_t family, void *address, int enable)
 	void *addr;
 
 	/* Display netlink operation */
-	if (debug & DBG_OPT_LOG_DETAIL) {
+	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
 		inet_ntop(family, address, addr_str, sizeof(addr_str));
 		log_message(LOG_INFO, "Netlink reflector reports IP %s %s"
 				    , addr_str, (enable) ? "added" : "removed");
