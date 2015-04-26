@@ -1190,7 +1190,7 @@ static struct variable8 vrrp_vars[] = {
 };
 
 void
-vrrp_snmp_agent_init()
+vrrp_snmp_agent_init(void)
 {
 	snmp_agent_init(vrrp_oid, OID_LENGTH(vrrp_oid), "KEEPALIVED-VRRP",
 			(struct variable *)vrrp_vars,
@@ -1204,12 +1204,13 @@ vrrp_snmp_agent_init()
 }
 
 void
-vrrp_snmp_agent_close()
+vrrp_snmp_agent_close(void)
 {
 	snmp_agent_close(vrrp_oid, OID_LENGTH(vrrp_oid), "KEEPALIVED-VRRP");
 	snmp_agent_close(vrrp_rfc_oid, OID_LENGTH(vrrp_rfc_oid), "VRRP");
 }
 
+void
 vrrp_rfc_snmp_new_master_trap(vrrp_t *vrrp)
 {
 
@@ -1239,13 +1240,11 @@ vrrp_rfc_snmp_new_master_trap(vrrp_t *vrrp)
 				  ASN_IPADDRESS,
 				  (u_char *)&vrrp->saddr,
 				  sizeof(vrrp->saddr));
-	log_message(LOG_INFO,
-		    "VRRP_Instance(%s): Sending SNMP notification",
-		    " vrrpTrapNewMaster",
-		    vrrp->iname);
+	log_message(LOG_INFO, "VRRP_Instance(%s): Sending SNMP notification"
+			      " vrrpTrapNewMaster"
+			    , vrrp->iname);
 	send_v2trap(notification_vars);
 	snmp_free_varbind(notification_vars);
-
 }
 
 void
