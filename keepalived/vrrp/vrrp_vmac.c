@@ -88,18 +88,51 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	 * Check to see if this vmac interface was created 
 	 * by a previous instance.
 	 */
-	if (reload && (ifp = if_get_by_ifname(ifname))) {
-		/* (re)set VMAC properties (if deleted on reload) */
-		ifp->base_ifindex = vrrp->ifp->ifindex;
-		ifp->vmac = 1;
-		ifp->flags = vrrp->ifp->flags; /* Copy base interface flags */
-		vrrp->ifp = ifp;
-		/* Save ifindex for use on delete */
-		vrrp->vmac_ifindex = IF_INDEX(vrrp->ifp);
-		__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
-		return 1;
+	if ((ifp = if_get_by_ifname(ifname))) {
+		/* Check to see whether this interface has correct vmac ? */
+		if (memcmp((const void *) ifp->hw_addr,
+			   (const void *) ll_addr, ETH_ALEN) == 0) {
+
+			/* We have found a VIF and the vmac matches */
+			log_message(LOG_INFO, "vmac: Matching interface VMAC found on interfaces %s for "
+					      "vrrp_instance %s!!!"
+					    , vrrp->vmac_ifname, vrrp->iname);
+
+			/* (re)set VMAC properties (if deleted on reload) */
+			ifp->base_ifindex = vrrp->ifp->ifindex;
+			ifp->vmac = 1;
+			ifp->flags = vrrp->ifp->flags; /* Copy base interface flags */
+			vrrp->ifp = ifp;
+			/* Save ifindex for use on delete */
+			vrrp->vmac_ifindex = IF_INDEX(ifp);
+			__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
+			return 1;
+		} else {
+			/* We have found a VIF but the vmac do not match */
+			log_message(LOG_INFO, "vmac: Removing old VMAC interface %s due to conflicting "
+					      "interface VMAC for vrrp_instance %s!!!"
+					    , vrrp->vmac_ifname, vrrp->iname);
+
+			/* Request that NETLINK remove the VIF interface first */
+			memset(&req, 0, sizeof (req));
+			req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
+			req.n.nlmsg_flags = NLM_F_REQUEST;
+			req.n.nlmsg_type = RTM_DELLINK;
+			req.ifi.ifi_family = AF_INET;
+			req.ifi.ifi_index = IF_INDEX(ifp);
+
+			if (netlink_talk(&nl_cmd, &req.n) < 0) {
+				log_message(LOG_INFO, "vmac: Error removing VMAC interface %s for "
+						      "vrrp_instance %s!!!"
+						    , vrrp->vmac_ifname, vrrp->iname);
+				return -1;
+			}
+
+			/* Interface successfully removed, now recreate */
+		}
 	}
-	
+
+	/* Request that NETLINK create the VIF interface */
 	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
 	req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL;
 	req.n.nlmsg_type = RTM_NEWLINK;
