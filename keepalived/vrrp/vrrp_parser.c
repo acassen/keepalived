@@ -34,6 +34,7 @@
 #include "logger.h"
 #include "parser.h"
 #include "memory.h"
+#include "bitops.h"
 
 /* Static addresses handler */
 static void
@@ -113,7 +114,7 @@ vrrp_vmac_handler(vector_t *strvec)
 	interface_t *ifp = vrrp->ifp;
 	struct sockaddr_storage *saddr = &vrrp->saddr;
 
-	vrrp->vmac_flags |= VRRP_VMAC_FL_SET;
+	__set_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
 	if (!vrrp->saddr.ss_family) {
 		if (!ifp) {
 			log_message(LOG_INFO, "Please define interface keyword before use_vmac keyword");
@@ -143,8 +144,8 @@ static void
 vrrp_vmac_xmit_base_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	if (vrrp->vmac_flags & VRRP_VMAC_FL_SET)
-		vrrp->vmac_flags |= VRRP_VMAC_FL_XMITBASE;
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+		__set_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
 }
 static void
 vrrp_unicast_peer_handler(vector_t *strvec)
@@ -157,7 +158,7 @@ vrrp_native_ipv6_handler(vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->family = AF_INET6;
 
-	if (vrrp->vmac_flags & VRRP_VMAC_FL_SET)
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 		log_message(LOG_INFO, "You should declare native_ipv6 before use_vmac!");
 
 	if (vrrp->auth_type != VRRP_AUTH_NONE)
@@ -192,9 +193,8 @@ vrrp_int_handler(vector_t *strvec)
 		return;
 	}
 
-	if (vrrp->vmac_flags & VRRP_VMAC_FL_SET) {
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 		netlink_link_add_vmac(vrrp);
-	}
 }
 static void
 vrrp_track_int_handler(vector_t *strvec)
@@ -257,7 +257,7 @@ vrrp_vrid_handler(vector_t *strvec)
 		       "             must be between 1 & 255. reconfigure !");
 	} else {
 		alloc_vrrp_bucket(vrrp);
-		if (vrrp->vmac_flags & VRRP_VMAC_FL_SET) {
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
 			if (strlen(vrrp->vmac_ifname) == 0)
 				snprintf(vrrp->vmac_ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
 			netlink_link_add_vmac(vrrp);

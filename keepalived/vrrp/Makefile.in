@@ -40,11 +40,11 @@ vrrp_daemon.o: vrrp_daemon.c ../include/vrrp_daemon.h ../include/vrrp_scheduler.
   ../../lib/signals.h ../../lib/bitops.h ../include/snmp.h ../include/vrrp_snmp.h
 vrrp_data.o: vrrp_data.c ../include/vrrp_data.h \
   ../include/vrrp_sync.h ../include/vrrp_if.h ../include/vrrp_vmac.h ../include/vrrp_index.h \
-  ../include/vrrp.h ../../lib/memory.h ../../lib/utils.h ../../lib/notify.h
+  ../include/vrrp.h ../../lib/memory.h ../../lib/utils.h ../../lib/notify.h ../../lib/bitops.h
 vrrp_parser.o: vrrp_parser.c ../include/vrrp_parser.h \
   ../include/vrrp_data.h ../include/vrrp_sync.h ../include/vrrp_index.h \
   ../include/vrrp.h ../include/global_data.h ../include/global_parser.h \
-  ../../lib/parser.h ../../lib/memory.h
+  ../../lib/parser.h ../../lib/memory.h ../../lib/bitops.h
 vrrp.o: vrrp.c ../include/vrrp.h ../include/vrrp_scheduler.h \
   ../include/vrrp_notify.h ../include/ipvswrapper.h ../../lib/memory.h \
   ../../lib/list.h ../include/vrrp_data.h ../include/vrrp_sync.h ../include/vrrp_index.h \
@@ -79,7 +79,8 @@ vrrp_ipsecah.o: vrrp_ipsecah.c ../include/vrrp_ipsecah.h
 vrrp_ndisc.o: vrrp_ndisc.c ../include/vrrp_ndisc.h ../include/vrrp_ipaddress.h \
   ../../lib/utils.h ../../lib/memory.h
 vrrp_vmac.o: vrrp_vmac.c ../include/vrrp_vmac.h ../include/vrrp_netlink.h \
-  ../include/vrrp_data.h ../../lib/logger.h ../../lib/memory.h ../../lib/utils.h
+  ../include/vrrp_data.h ../../lib/logger.h ../../lib/memory.h ../../lib/utils.h \
+  ../../lib/bitops.h
 vrrp_snmp.o: vrrp_snmp.c ../include/vrrp_snmp.h ../include/vrrp_track.h \
   ../include/vrrp_data.h ../include/vrrp_ipaddress.h ../include/vrrp_iproute.h \
   ../include/vrrp.h ../../lib/vector.h ../../lib/list.h ../include/snmp.h \

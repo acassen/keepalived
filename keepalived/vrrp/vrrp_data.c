@@ -29,6 +29,7 @@
 #include "memory.h"
 #include "utils.h"
 #include "logger.h"
+#include "bitops.h"
 
 /* global vars */
 vrrp_data_t *vrrp_data = NULL;
@@ -306,10 +307,10 @@ dump_vrrp(void *data)
 		       vrrp->script);
 	if (vrrp->smtp_alert)
 		log_message(LOG_INFO, "   Using smtp notification");
-	if (vrrp->vmac_flags & VRRP_VMAC_FL_SET)
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 		log_message(LOG_INFO, "   Using VRRP VMAC (flags:%s|%s)"
-				    , (vrrp->vmac_flags & VRRP_VMAC_FL_UP) ? "UP" : "DOWN"
-				    , (vrrp->vmac_flags & VRRP_VMAC_FL_XMITBASE) ? "xmit_base" : "xmit");
+				    , (__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags)) ? "UP" : "DOWN"
+				    , (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? "xmit_base" : "xmit");
 }
 
 void

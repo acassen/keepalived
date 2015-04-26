@@ -151,14 +151,13 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	 */
 	vrrp->ipsecah_counter->seq_number++;
 	if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter->seq_number ||
-	    vrrp->sync || (vrrp->vmac_flags & VRRP_VMAC_FL_SET)) {
+	    vrrp->sync || __test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
 		vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number);
 	} else {
-		log_message(LOG_INFO,
-			    "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
-			    " already proceeded. Packet dropped. Local(%d)",
-			    vrrp->iname, ntohl(ah->seq_number),
-			    vrrp->ipsecah_counter->seq_number);
+		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
+				      " already proceeded. Packet dropped. Local(%d)"
+				    , vrrp->iname, ntohl(ah->seq_number)
+				    , vrrp->ipsecah_counter->seq_number);
 		return 1;
 	}
 
@@ -1215,8 +1214,8 @@ new_vrrp_socket(vrrp_t * vrrp)
 	close_vrrp_socket(vrrp);
 	remove_vrrp_fd_bucket(vrrp);
 	proto = (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH : IPPROTO_VRRP;
-	ifindex = (vrrp->vmac_flags & VRRP_VMAC_FL_XMITBASE) ? IF_BASE_INDEX(vrrp->ifp) :
-							       IF_INDEX(vrrp->ifp);
+	ifindex = (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
+									    IF_INDEX(vrrp->ifp);
 	unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 	vrrp->fd_in = open_vrrp_socket(vrrp->family, proto, ifindex, unicast);
 	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifindex, unicast);
@@ -1244,7 +1243,7 @@ shutdown_vrrp_instances(void)
 			vrrp_restore_interface(vrrp, 1);
 
 		/* Remove VMAC */
-		if (vrrp->vmac_flags & VRRP_VMAC_FL_SET)
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 			netlink_link_del_vmac(vrrp);
 
 		/* Run stop script */
@@ -1425,7 +1424,7 @@ clear_diff_vrrp(void)
 			vrrp_restore_interface(vrrp, 1);
 
 			/* Remove VMAC if one was created */
-			if (vrrp->vmac_flags & VRRP_VMAC_FL_SET) 
+			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) 
 				netlink_link_del_vmac(vrrp);
 		} else {
 			/*
@@ -1442,8 +1441,8 @@ clear_diff_vrrp(void)
 			 * Remove VMAC if it existed in old vrrp instance,
 			 * but not the new one.
 			 */
-			if (vrrp->vmac_flags & VRRP_VMAC_FL_SET &&
-			    !(new_vrrp->vmac_flags & VRRP_VMAC_FL_SET)) {
+			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+			    !__test_bit(VRRP_VMAC_BIT, &new_vrrp->vmac_flags)) {
 				netlink_link_del_vmac(vrrp);
 			}
 

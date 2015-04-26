@@ -28,6 +28,7 @@
 #include "memory.h"
 #include "utils.h"
 #include "parser.h"
+#include "bitops.h"
 
 #ifdef _HAVE_VRRP_VMAC_
 /* private matter */
@@ -76,7 +77,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		char buf[256];
 	} req;
 
-	if (!vrrp->ifp || vrrp->vmac_flags & VRRP_VMAC_FL_UP || !vrrp->vrid)
+	if (!vrrp->ifp || __test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) || !vrrp->vrid)
 		return -1;
 
 	memset(&req, 0, sizeof (req));
@@ -95,7 +96,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		vrrp->ifp = ifp;
 		/* Save ifindex for use on delete */
 		vrrp->vmac_ifindex = IF_INDEX(vrrp->ifp);
-		vrrp->vmac_flags |= VRRP_VMAC_FL_UP;
+		__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
 		return 1;
 	}
 	
@@ -147,7 +148,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	vrrp->ifp->base_ifindex = base_ifindex;
 	vrrp->ifp->vmac = 1;
 	vrrp->vmac_ifindex = IF_INDEX(vrrp->ifp); /* For use on delete */
-	vrrp->vmac_flags |= VRRP_VMAC_FL_UP;
+	__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
 	netlink_link_up(vrrp);
 #endif
 	return 1;

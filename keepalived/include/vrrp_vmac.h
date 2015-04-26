@@ -36,9 +36,11 @@
 #include "vrrp_if.h"
 
 /* Defines */
-#define VRRP_VMAC_FL_SET	(1 << 0)
-#define VRRP_VMAC_FL_UP		(1 << 1)
-#define VRRP_VMAC_FL_XMITBASE	(1 << 2)
+enum vrrp_vmac_bits {
+	VRRP_VMAC_BIT = 0,
+	VRRP_VMAC_UP_BIT = 1,
+	VRRP_VMAC_XMITBASE_BIT = 2,
+};
 
 /* prototypes */
 extern int netlink_link_add_vmac(vrrp_t *);

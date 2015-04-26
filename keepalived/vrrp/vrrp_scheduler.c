@@ -449,8 +449,8 @@ vrrp_create_sockpool(list l)
 
 	for (e = LIST_HEAD(p); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-		ifindex = (vrrp->vmac_flags & VRRP_VMAC_FL_XMITBASE) ? IF_BASE_INDEX(vrrp->ifp) :
-								       IF_INDEX(vrrp->ifp);
+		ifindex = (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
+										    IF_INDEX(vrrp->ifp);
 		unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			proto = IPPROTO_IPSEC_AH;
@@ -495,8 +495,8 @@ vrrp_set_fds(list l)
 		sock = ELEMENT_DATA(e_sock);
 		for (e_vrrp = LIST_HEAD(p); e_vrrp; ELEMENT_NEXT(e_vrrp)) {
 			vrrp = ELEMENT_DATA(e_vrrp);
-			ifindex = (vrrp->vmac_flags & VRRP_VMAC_FL_XMITBASE) ? IF_BASE_INDEX(vrrp->ifp) :
-									       IF_INDEX(vrrp->ifp);
+			ifindex = (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
+											    IF_INDEX(vrrp->ifp);
 			unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 			if (vrrp->auth_type == VRRP_AUTH_AH)
 				proto = IPPROTO_IPSEC_AH;
