@@ -38,7 +38,6 @@
 #define SMTP_BUFFER_LENGTH	512
 #define SMTP_BUFFER_MAX		1024
 #define SMTP_MAX_FSM_STATE	10
-#define SMTP_EMAIL_ADDR_MAX_LENGTH	64
 
 /* SMTP command stage */
 #define HELO	4

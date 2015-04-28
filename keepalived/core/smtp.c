@@ -453,29 +453,43 @@ build_to_header_rcpt_addrs(smtp_t *smtp)
 {
 	char *fetched_email;
 	char *email_to_addrs;
-	int email_addrs_max;
+	int bytes_available = SMTP_BUFFER_MAX - 1;
+	int bytes_not_written, bytes_to_write;
 
-	if (smtp == NULL) return;
+	if (smtp == NULL)
+		return;
+
 	email_to_addrs = smtp->email_to;
 	smtp->email_it = 0;
 
-	email_addrs_max = (SMTP_BUFFER_MAX / SMTP_EMAIL_ADDR_MAX_LENGTH) - 1;
-
-	while ((fetched_email = fetch_next_email(smtp)) != NULL) {
-
-		/* First email address, so no need for "," */
-		if (smtp->email_it == 0) {
-			snprintf(email_to_addrs, SMTP_EMAIL_ADDR_MAX_LENGTH, "%s", fetched_email);
-		}
-		else {
-			strcat(email_to_addrs, ", ");
-			strncat(email_to_addrs, fetched_email, SMTP_EMAIL_ADDR_MAX_LENGTH);
-		}
-	
-		smtp->email_it++;
-		if (smtp->email_it >= email_addrs_max)
+	while (1) {
+		fetched_email = fetch_next_email(smtp);
+		if (fetched_email != NULL)
 			break;
-				
+
+		bytes_not_written = 0;
+		bytes_to_write = strlen(fetched_email);
+		if (smtp->email_it == 0) {
+			if (bytes_available < bytes_to_write)
+				break;
+		} else {
+			if (bytes_available < 2 + bytes_to_write)
+				break;
+
+			/* Prepend with a comma and space to all non-first email addresses */
+			strcat(email_to_addrs, ", ");
+			email_to_addrs += 2;
+			bytes_available -= 2;
+		}
+
+		bytes_not_written = snprintf(email_to_addrs, bytes_to_write, "%s", fetched_email);
+		if (bytes_not_written > 0) {
+			/* Inconsistent state, no choice but to break here and do nothing */
+			break;
+		}
+
+		email_to_addrs += bytes_to_write;
+		smtp->email_it++;
 	}
 
 	smtp->email_it = 0;
