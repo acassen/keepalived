@@ -146,7 +146,7 @@ int
 keepalived_free(void *buffer, char *file, char *function, int line)
 {
 	int i = 0;
-	void *buf;
+	void *buf = buffer;
 
 	/* If nullpointer remember */
 	if (buffer == NULL) {
@@ -167,8 +167,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 		__set_bit(MEM_ERR_DETECT_BIT, &debug);	/* Memory Error detect */
 
 		return n;
-	} else
-		buf = buffer;
+	}
 
 	while (i < number_alloc_list) {
 		if (alloc_list[i].type == 9 && alloc_list[i].ptr == buf) {
@@ -320,7 +319,7 @@ keepalived_realloc(void *buffer, unsigned long size, char *file, char *function,
 		   int line)
 {
 	int i = 0;
-	void *buf, *buf2;
+	void *buf = buffer, *buf2;
 	long check;
 
 	if (buffer == NULL) {
@@ -337,8 +336,6 @@ keepalived_realloc(void *buffer, unsigned long size, char *file, char *function,
 		alloc_list[i].type = 3;
 		return keepalived_malloc(size, file, function, line);
 	}
-
-	buf = buffer;
 
 	while (i < number_alloc_list) {
 		if (alloc_list[i].ptr == buf) {
