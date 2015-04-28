@@ -46,21 +46,18 @@ xalloc(unsigned long size)
 void *
 zalloc(unsigned long size)
 {
-	void *mem = malloc(size);
+	void *mem = xalloc(size);
 
-	if (mem == NULL) {
-		perror("Keepalived");
-		exit(EXIT_FAILURE);
-	}
+	if (mem)
+		memset(mem, 0, size);
 
-	memset(mem, 0, size);
-	mem_allocated += size;
 	return mem;
 }
 
 void
 xfree(void *p)
 {
+	// XXX sizeof p is the size of the pointer, not the pointed
 	mem_allocated -= sizeof (p);
 	free(p);
 	p = NULL;
