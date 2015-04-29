@@ -57,8 +57,7 @@ zalloc(unsigned long size)
 void
 xfree(void *p)
 {
-	// XXX sizeof p is the size of the pointer, not the pointed
-	mem_allocated -= sizeof (p);
+	/* sizeof p is the size of the pointer, not the pointed */
 	free(p);
 	p = NULL;
 }
@@ -171,12 +170,10 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 
 	while (i < number_alloc_list) {
 		if (alloc_list[i].type == 9 && alloc_list[i].ptr == buf) {
-			if (*
-			    ((long *) ((char *) alloc_list[i].ptr +
-				       alloc_list[i].size)) ==
-			    alloc_list[i].csum)
+			if (*((long *) ((char *) alloc_list[i].ptr + alloc_list[i].size)) == alloc_list[i].csum) {
 				alloc_list[i].type = 0;	/* Release */
-			else {
+				mem_allocated -= alloc_list[i].size;
+			} else {
 				alloc_list[i].type = 1;	/* Overrun */
 				if (__test_bit(LOG_CONSOLE_BIT, &debug)) {
 					printf("free corrupt, buffer overrun [%3d:%3d], %p, %4ld at %s, %3d, %s\n",
