@@ -50,6 +50,11 @@
 
 extern char *vrrp_pidfile;
 
+/* vrrp counter global variables */
+#ifdef VRRP_COUNTER
+static pthread_t keepalive_zmq_main_thread;
+#endif
+
 /* Daemon stop sequence */
 static void
 stop_vrrp(void)
@@ -277,7 +282,7 @@ start_vrrp_child(void)
 {
 #ifndef _DEBUG_
 	pid_t pid;
-	int ret;
+	int ret, ret_code = 0;
 
 	/* Initialize child process */
 	pid = fork();
@@ -331,6 +336,13 @@ start_vrrp_child(void)
 	/* Signal handling initialization */
 	vrrp_signal_init();
 
+#ifdef VRRP_COUNTER
+	ret_code = pthread_create(&keepalive_zmq_main_thread, NULL, keepalive_zmq_main, NULL);
+	if (ret_code != 0) {
+	    log_message(LOG_ERR, "fatal error, keepalive_zmq_main_thread failed");
+	}
+#endif
+ 
 	/* Start VRRP daemon */
 	start_vrrp();
 
