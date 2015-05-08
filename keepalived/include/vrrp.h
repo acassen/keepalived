@@ -43,18 +43,34 @@ typedef struct _vrrphdr {			/* rfc2338.5.1 */
 	uint8_t			vrid;		/* virtual router id */
 	uint8_t			priority;	/* router priority */
 	uint8_t			naddr;		/* address counter */
+	union {
+		struct {
 	uint8_t			auth_type;	/* authentification type */
-	uint8_t			adver_int;	/* advertissement interval(in sec) */
+			uint8_t adver_int;	/* advertisement interval (in sec) */
+		} v2;
+		struct {
+			uint16_t adver_int;	/* advertisement interval (in centi-sec (100ms)) */
+		} v3;
+	};
 	uint16_t		chksum;		/* checksum (ip-like one) */
 	/* here <naddr> ip addresses */
 	/* here authentification infos */
 } vrrphdr_t;
 
+typedef struct {
+	uint32_t src;
+	uint32_t dst;
+	uint8_t  zero;
+	uint8_t  proto;
+	uint16_t len;
+} ipv4_phdr_t;
+
 /* protocol constants */
 #define INADDR_VRRP_GROUP	0xe0000012	/* multicast addr - rfc2338.5.2.2 */
 #define VRRP_IP_TTL		255		/* in and out pkt ttl -- rfc2338.5.2.3 */
 #define IPPROTO_VRRP		112		/* IP protocol number -- rfc2338.5.2.4 */
-#define VRRP_VERSION		2		/* current version -- rfc2338.5.3.1 */
+#define VRRP_VERSION_2		2		/* VRRP version 2 -- rfc2338.5.3.1 */
+#define VRRP_VERSION_3		3		/* VRRP version 3 -- rfc5798.5.2.1 */
 #define VRRP_PKT_ADVERT		1		/* packet type -- rfc2338.5.3.2 */
 #define VRRP_PRIO_OWNER		255		/* priority of the ip owner -- rfc2338.5.3.4 */
 #define VRRP_PRIO_DFL		100		/* default priority -- rfc2338.5.3.4 */
@@ -116,6 +132,7 @@ typedef struct _vrrp_t {
 	sa_family_t		family;			/* AF_INET|AF_INET6 */
 	char			*iname;			/* Instance Name */
 	vrrp_sgroup_t		*sync;			/* Sync group we belong to */
+	char			base_iface[IFNAMSIZ];	/* base interface name */
 	vrrp_stats		*stats;			/* Statistics */
 	interface_t		*ifp;			/* Interface we belong to */
 	int			dont_track_primary;	/* If set ignores ifp faults */
@@ -170,6 +187,9 @@ typedef struct _vrrp_t {
 							 * If set the next check will occur in one interval
 							 * instead of three intervals.
 							 */
+
+	int version;            /* VRRP version (2 or 3) */
+
 	/* State transition notification */
 	int			smtp_alert;
 	int			notify_exec;
@@ -186,7 +206,7 @@ typedef struct _vrrp_t {
 	char			*send_buffer;		/* Allocated send buffer */
 	int			send_buffer_size;
 
-	/* Authentication data */
+	/* Authentication data (only valid for VRRPv2) */
 	int			auth_type;		/* authentification type. VRRP_AUTH_* */
 	uint8_t			auth_data[8];		/* authentification data */
 
@@ -199,7 +219,7 @@ typedef struct _vrrp_t {
 	 */
 	int			ip_id;
 
-	/* IPSEC AH counter def --rfc2402.3.3.2 */
+	/* IPSEC AH counter def (only valid for VRRPv2) --rfc2402.3.3.2 */
 	seq_counter_t		*ipsecah_counter;
 	list			script;
 	list			pscript[2]; /*

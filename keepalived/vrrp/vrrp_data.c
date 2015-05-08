@@ -231,6 +231,7 @@ dump_vrrp(void *data)
 	char auth_data[sizeof(vrrp->auth_data) + 1];
 
 	log_message(LOG_INFO, " VRRP Instance = %s", vrrp->iname);
+	log_message(LOG_INFO, "   Using VRRPv%d", vrrp->version);
 	if (vrrp->family == AF_INET6)
 		log_message(LOG_INFO, "   Using Native IPv6");
 	if (vrrp->init_state == VRRP_STATE_BACK)
@@ -263,15 +264,17 @@ dump_vrrp(void *data)
 	if (vrrp->preempt_delay)
 		log_message(LOG_INFO, "   Preempt delay = %ld secs",
 		       vrrp->preempt_delay / TIMER_HZ);
-	if (vrrp->auth_type) {
-		log_message(LOG_INFO, "   Authentication type = %s",
-		       (vrrp->auth_type ==
-			VRRP_AUTH_AH) ? "IPSEC_AH" : "SIMPLE_PASSWORD");
-		if (vrrp->auth_type != VRRP_AUTH_AH) {
-			/* vrrp->auth_data is not \0 terminated */
-			memcpy(auth_data, vrrp->auth_data, sizeof(vrrp->auth_data));
-			auth_data[sizeof(vrrp->auth_data)] = '\0';
-			log_message(LOG_INFO, "   Password = %s", auth_data);
+	if (vrrp->version == VRRP_VERSION_2) {
+		if (vrrp->auth_type) {
+			log_message(LOG_INFO, "   Authentication type = %s",
+				    (vrrp->auth_type ==
+				     VRRP_AUTH_AH) ? "IPSEC_AH" : "SIMPLE_PASSWORD");
+			if (vrrp->auth_type != VRRP_AUTH_AH) {
+				/* vrrp->auth_data is not \0 terminated */
+				memcpy(auth_data, vrrp->auth_data, sizeof(vrrp->auth_data));
+				auth_data[sizeof(vrrp->auth_data)] = '\0';
+				log_message(LOG_INFO, "   Password = %s", auth_data);
+			}
 		}
 	}
 	if (!LIST_ISEMPTY(vrrp->track_ifp)) {

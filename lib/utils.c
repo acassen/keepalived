@@ -71,7 +71,7 @@ dump_buffer(char *buff, int count)
 
 /* Compute a checksum */
 u_short
-in_csum(u_short * addr, int len, u_short csum)
+in_csum(u_short *addr, int len, int csum, int *acc)
 {
 	register int nleft = len;
 	const u_short *w = addr;
@@ -92,6 +92,9 @@ in_csum(u_short * addr, int len, u_short csum)
 	/* mop up an odd byte, if necessary */
 	if (nleft == 1)
 		sum += htons(*(u_char *) w << 8);
+
+	if (acc)
+		*acc = sum;
 
 	/*
 	 * add back carry outs from top 16 bits to low 16 bits

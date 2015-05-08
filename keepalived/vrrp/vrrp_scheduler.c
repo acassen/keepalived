@@ -454,7 +454,7 @@ vrrp_create_sockpool(list l)
 		ifindex = (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
 										    IF_INDEX(vrrp->ifp);
 		unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
-		if (vrrp->auth_type == VRRP_AUTH_AH)
+		if (vrrp->version == VRRP_VERSION_2 && vrrp->auth_type == VRRP_AUTH_AH)
 			proto = IPPROTO_IPSEC_AH;
 		else
 			proto = IPPROTO_VRRP;
@@ -500,7 +500,7 @@ vrrp_set_fds(list l)
 			ifindex = (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
 											    IF_INDEX(vrrp->ifp);
 			unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
-			if (vrrp->auth_type == VRRP_AUTH_AH)
+			if (vrrp->version == VRRP_VERSION_2 && vrrp->auth_type == VRRP_AUTH_AH)
 				proto = IPPROTO_IPSEC_AH;
 			else
 				proto = IPPROTO_VRRP;
@@ -604,7 +604,7 @@ vrrp_become_master(vrrp_t * vrrp, char *buffer, int len)
 		 * If we are in IPSEC AH mode, we must be sync
 		 * with the remote IPSEC AH VRRP instance counter.
 		 */
-		if (iph->protocol == IPPROTO_IPSEC_AH) {
+		if (vrrp->version == VRRP_VERSION_2 && iph->protocol == IPPROTO_IPSEC_AH) {
 			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : seq_num sync",
 			       vrrp->iname);
 			ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));
@@ -717,7 +717,7 @@ vrrp_goto_master(vrrp_t * vrrp)
 		vrrp->last_transition = timer_now();
 	} else {
 		/* If becoming MASTER in IPSEC AH AUTH, we reset the anti-replay */
-		if (vrrp->ipsecah_counter->cycle) {
+		if (vrrp->version == VRRP_VERSION_2 && vrrp->ipsecah_counter->cycle) {
 			vrrp->ipsecah_counter->cycle = 0;
 			vrrp->ipsecah_counter->seq_number = 0;
 		}
@@ -800,7 +800,7 @@ vrrp_master(vrrp_t * vrrp)
 	/* Then perform the state transition */
 	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT ||
 	    vrrp->wantstate == VRRP_STATE_BACK ||
-	    vrrp->ipsecah_counter->cycle) {
+	    (vrrp->version == VRRP_VERSION_2 && vrrp->ipsecah_counter->cycle)) {
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 
 		/* handle backup state transition */
@@ -853,7 +853,7 @@ vrrp_fault(vrrp_t * vrrp)
 	 * VRRP MASTER send its advert for the concerned
 	 * instance.
 	 */
-	if (vrrp->auth_type == VRRP_AUTH_AH) {
+	if (vrrp->version == VRRP_VERSION_2 && vrrp->auth_type == VRRP_AUTH_AH) {
 		vrrp_ah_sync(vrrp);
 	} else {
 		/* Otherwise, we transit to init state */

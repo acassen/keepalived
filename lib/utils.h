@@ -48,7 +48,7 @@ extern unsigned long debug;
 
 /* Prototypes defs */
 extern void dump_buffer(char *, int);
-extern u_short in_csum(u_short *, int, u_short);
+extern u_short in_csum(u_short *, int, int, int *);
 extern char *inet_ntop2(uint32_t);
 extern char *inet_ntoa2(uint32_t, char *);
 extern uint8_t inet_stom(char *);
