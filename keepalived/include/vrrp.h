@@ -167,6 +167,10 @@ typedef struct _vrrp_t {
 							 */
 	list			vroutes;		/* list of virtual routes */
 	int			adver_int;		/* delay between advertisements(in sec) */
+	bool			accept;			/* Allow the non-master owner to process
+							 * the packets destined to VIP.
+							 */
+	bool			iptable_rules_set;	/* Iptable drop rules set to VIP list ? */
 	int			nopreempt;		/* true if higher prio does not preempt lower */
 	long			preempt_delay;		/* Seconds*TIMER_HZ after startup until
 							 * preemption based on higher prio over lower

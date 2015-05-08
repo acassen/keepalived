@@ -112,6 +112,7 @@ typedef struct _tracked_if {
 
 /* prototypes */
 extern interface_t *if_get_by_ifindex(const int);
+extern interface_t *base_if_get_by_ifindex(const int);
 extern interface_t *if_get_by_ifname(const char *);
 extern void if_vmac_reflect_flags(const int, const unsigned long);
 extern int if_linkbeat(const interface_t *);

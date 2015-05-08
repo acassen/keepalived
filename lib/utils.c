@@ -20,7 +20,10 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
+#include <sys/wait.h>
 #include "memory.h"
+#include <unistd.h>
+#include <fcntl.h>
 #include "utils.h"
 
 /* global vars */
@@ -484,4 +487,38 @@ string_equal(const char *str1, const char *str2)
 	}
 
 	return (*str1 == 0 && *str2 == 0);
+}
+
+int
+fork_exec(char **argv)
+{
+	pid_t pid;
+	int fd;
+	int status;
+
+	pid = fork();
+	if (pid < 0)
+		return -1;
+
+	/* Child */
+	if (pid == 0) {
+		fd = open("/dev/null", O_RDWR, 0);
+		if (fd != -1) {
+			dup2(fd, STDIN_FILENO);
+			dup2(fd, STDOUT_FILENO);
+			dup2(fd, STDERR_FILENO);
+			if (fd > 2)
+				close(fd);
+		}
+		execvp(*argv, argv);
+		exit(EXIT_FAILURE);
+	} else {
+		/* Parent */
+		while (waitpid(pid, &status, 0) != pid);
+
+		if (WEXITSTATUS(status) != EXIT_SUCCESS)
+			return -1;
+	}
+
+	return 0;
 }

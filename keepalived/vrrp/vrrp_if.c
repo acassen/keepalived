@@ -79,6 +79,15 @@ if_get_by_ifindex(const int ifindex)
 	return NULL;
 }
 
+/* Return base interface from interface index incase of VMAC */
+interface_t *
+base_if_get_by_ifindex(const int ifindex)
+{
+	interface_t *ifp = if_get_by_ifindex(ifindex);
+
+	return (ifp && ifp->vmac) ? if_get_by_ifindex(ifp->base_ifindex) : ifp;
+}
+
 interface_t *
 if_get_by_ifname(const char *ifname)
 {

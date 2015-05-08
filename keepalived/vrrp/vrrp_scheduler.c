@@ -506,6 +506,7 @@ vrrp_set_fds(list l)
 				proto = IPPROTO_VRRP;
 
 			if ((sock->ifindex == ifindex)	&&
+                (sock->family == vrrp->family) &&
 			    (sock->proto == proto)	&&
 			    (sock->unicast == unicast)) {
 				vrrp->fd_in = sock->fd_in;

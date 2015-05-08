@@ -549,6 +549,14 @@ vrrp_version_handler(vector_t *strvec)
 	vrrp->version = version;
 }
 
+static void
+vrrp_accept_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	vrrp->accept = true;
+}
+
 vector_t *
 vrrp_init_keywords(void)
 {
@@ -587,6 +595,7 @@ vrrp_init_keywords(void)
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
 	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
+	install_keyword("accept", &vrrp_accept_handler);
 	install_keyword("preempt", &vrrp_preempt_handler);
 	install_keyword("nopreempt", &vrrp_nopreempt_handler);
 	install_keyword("preempt_delay", &vrrp_preempt_delay_handler);

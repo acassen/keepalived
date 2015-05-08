@@ -261,6 +261,7 @@ dump_vrrp(void *data)
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
 		(vrrp->adver_int * 1000 / TIMER_HZ),
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
+	log_message(LOG_INFO, "   Accept %s", ((vrrp->accept) ? "enabled" : "disabled"));
 	if (vrrp->nopreempt)
 		log_message(LOG_INFO, "   Preempt disabled");
 	if (vrrp->preempt_delay)
@@ -362,6 +363,7 @@ alloc_vrrp(char *iname)
 	new->family = AF_INET;
 	new->wantstate = VRRP_STATE_BACK;
 	new->init_state = VRRP_STATE_BACK;
+	new->version = VRRP_VERSION_2;
 	new->master_priority = 0;
 	new->last_transition = timer_now();
 	new->adver_int = TIMER_HZ;
