@@ -200,6 +200,7 @@ free_vrrp(void *data)
 	FREE_PTR(vrrp->script_fault);
 	FREE_PTR(vrrp->script_stop);
 	FREE_PTR(vrrp->script);
+	FREE_PTR(vrrp->stats);
 	FREE(vrrp->ipsecah_counter);
 
 	if (!LIST_ISEMPTY(vrrp->track_ifp))
@@ -347,8 +348,10 @@ alloc_vrrp(char *iname)
 	new->family = AF_INET;
 	new->wantstate = VRRP_STATE_BACK;
 	new->init_state = VRRP_STATE_BACK;
+	new->last_transition = timer_now();
 	new->adver_int = TIMER_HZ;
 	new->iname = (char *) MALLOC(size + 1);
+	new->stats = alloc_vrrp_stats();
 	memcpy(new->iname, iname, size);
 	new->quick_sync = 0;
 	new->garp_rep = VRRP_GARP_REP;
@@ -356,6 +359,29 @@ alloc_vrrp(char *iname)
 
 	list_add(vrrp_data->vrrp, new);
 }
+
+vrrp_stats *
+alloc_vrrp_stats(void)
+{
+    vrrp_stats *new;
+    new = (vrrp_stats *) MALLOC(sizeof (vrrp_stats));
+    new->become_master = 0;
+    new->release_master = 0;
+    new->invalid_authtype = 0;
+    new->authtype_mismatch = 0;
+    new->packet_len_err = 0;
+    new->advert_rcvd = 0;
+    new->advert_sent = 0;
+    new->advert_interval_err = 0;
+    new->auth_failure = 0;
+    new->ip_ttl_err = 0;
+    new->pri_zero_rcvd = 0;
+    new->pri_zero_sent = 0;
+    new->invalid_type_rcvd = 0;
+    new->addr_list_err = 0;
+    return new;
+}
+
 
 void
 alloc_vrrp_unicast_peer(vector_t *strvec)

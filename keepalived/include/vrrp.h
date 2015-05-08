@@ -89,11 +89,34 @@ typedef struct _vrrp_sgroup {
 	int			smtp_alert;
 } vrrp_sgroup_t;
 
+/* Statistics */
+typedef struct _vrrp_stats {
+	int		advert_rcvd;
+	int		advert_sent;
+
+	int		become_master;
+	int		release_master;
+
+	int		packet_len_err;
+	int		advert_interval_err;
+	int		ip_ttl_err;
+	int		invalid_type_rcvd;
+	int		addr_list_err;
+
+	int		invalid_authtype;
+	int		authtype_mismatch;
+	int		auth_failure;
+
+	int		pri_zero_rcvd;
+	int		pri_zero_sent;
+} vrrp_stats;
+
 /* parameters per virtual router -- rfc2338.6.1.2 */
 typedef struct _vrrp_t {
 	sa_family_t		family;			/* AF_INET|AF_INET6 */
 	char			*iname;			/* Instance Name */
 	vrrp_sgroup_t		*sync;			/* Sync group we belong to */
+	vrrp_stats		*stats;			/* Statistics */
 	interface_t		*ifp;			/* Interface we belong to */
 	int			dont_track_primary;	/* If set ignores ifp faults */
 	unsigned long		vmac_flags;		/* VRRP VMAC flags */
@@ -104,6 +127,8 @@ typedef struct _vrrp_t {
 	struct sockaddr_storage	saddr;			/* Src IP address to use in VRRP IP header */
 	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
 	list			unicast_peer;		/* List of Unicast peer to send advert to */
+	struct sockaddr_storage master_saddr;		/* Store last heard Master address */
+	timeval_t		last_transition;	/* Store transition time */
 	char			*lvs_syncd_if;		/* handle LVS sync daemon state using this
 							 * instance FSM & running on specific interface
 							 * => eth0 for example.

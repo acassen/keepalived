@@ -261,6 +261,7 @@ vrrp_init_state(list l)
 #ifdef _WITH_SNMP_
 			vrrp_snmp_instance_trap(vrrp);
 #endif
+			vrrp->last_transition = timer_now();
 
 			/* Init group if needed  */
 			if ((vgroup = vrrp->sync)) {
@@ -681,6 +682,7 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
 #ifdef _WITH_SNMP_
 				vrrp_snmp_instance_trap(vrrp);
 #endif
+				vrrp->last_transition = timer_now();
 			}
 		} else {
 			log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
@@ -691,6 +693,7 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
 #ifdef _WITH_SNMP_
 			vrrp_snmp_instance_trap(vrrp);
 #endif
+			vrrp->last_transition = timer_now();
 		}
 	}
 }
@@ -710,6 +713,7 @@ vrrp_goto_master(vrrp_t * vrrp)
 #ifdef _WITH_SNMP_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
+		vrrp->last_transition = timer_now();
 	} else {
 		/* If becoming MASTER in IPSEC AH AUTH, we reset the anti-replay */
 		if (vrrp->ipsecah_counter->cycle) {
@@ -858,6 +862,7 @@ vrrp_fault(vrrp_t * vrrp)
 #ifdef _WITH_SNMP_
 			vrrp_snmp_instance_trap(vrrp);
 #endif
+			vrrp->last_transition = timer_now();
 		} else {
 			vrrp_goto_master(vrrp);
 		}
