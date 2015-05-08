@@ -1432,6 +1432,9 @@ reset_vrrp_state(vrrp_t * old_vrrp)
 	vrrp->wantstate = old_vrrp->state;
 	if (!old_vrrp->sync)
 		vrrp->effective_priority = old_vrrp->effective_priority;
+	/* Save old stats */
+	memcpy(vrrp->stats, old_vrrp->stats, sizeof(vrrp_stats));
+
 	memcpy(vrrp->ipsecah_counter, old_vrrp->ipsecah_counter, sizeof(seq_counter_t));
 
 #ifdef _HAVE_IPVS_SYNCD_
