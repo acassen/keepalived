@@ -166,6 +166,7 @@ snmp_mail(struct variable *vp, oid *name, size_t *length,
         return NULL;
 }
 
+static const char global_name[] = "Keepalived";
 static oid global_oid[] = GLOBAL_OID;
 static struct variable8 global_vars[] = {
 	/* version */
@@ -202,9 +203,21 @@ snmp_setup_session_cb(int majorID, int minorID,
 	return 0;
 }
 
+void snmp_register_mib(oid *myoid, int len, const char *name,
+		       struct variable *variables, int varsize, int varlen)
+{
+	char name_buf[80];
+
+	if (register_mib(name, (struct variable *) variables, varsize,
+			 varlen, myoid, len) != MIB_REGISTERED_OK)
+		log_message(LOG_WARNING, "Unable to register %s MIB", name);
+
+	snprintf(name_buf, sizeof(name_buf), "The MIB module for %s", name);
+	register_sysORTable(myoid, OID_LENGTH(myoid) - 1, name_buf);
+}
+
 void
-snmp_agent_init(oid *myoid, int len, char *name, struct variable *variables,
-		int varsize, int varlen)
+snmp_agent_init(void)
 {
 	log_message(LOG_INFO, "Starting SNMP subagent");
 	netsnmp_enable_subagent();
@@ -227,30 +240,31 @@ snmp_agent_init(oid *myoid, int len, char *name, struct variable *variables,
 	snmp_register_callback(SNMP_CALLBACK_LIBRARY,
 			       SNMP_CALLBACK_SESSION_INIT,
 			       snmp_setup_session_cb, NULL);
-
-	init_agent(name);
+	/*
+	 * We need to tell the local SNMP library how to connect to AgentX
+	 * "tcp:localhost:705" is the default setting
+	 */
+	netsnmp_ds_set_string(NETSNMP_DS_APPLICATION_ID,
+			      NETSNMP_DS_AGENT_X_SOCKET, "tcp:localhost:705");
 	/*
 	 * Ping AgentX less often than every 15 seconds: pinging can
 	 * block keepalived. We check every 2 minutes.
 	 */
 	netsnmp_ds_set_int(NETSNMP_DS_APPLICATION_ID,
 			   NETSNMP_DS_AGENT_AGENTX_PING_INTERVAL, 120);
-	if (register_mib(name, (struct variable *) variables, varsize,
-			 varlen, myoid, len) != MIB_REGISTERED_OK)
-		log_message(LOG_WARNING, "Unable to register MIB");
-	register_mib("Keepalived", (struct variable *) global_vars,
-		     sizeof(struct variable8),
-		     sizeof(global_vars)/sizeof(struct variable8),
-		     global_oid, OID_LENGTH(global_oid));
-	init_snmp(name);
 
-	register_sysORTable(global_oid, OID_LENGTH(global_oid) - 1,
-			    "The MIB module for Keepalived");
+	init_agent(global_name);
+	snmp_register_mib(global_oid, OID_LENGTH(global_oid), global_name,
+			  (struct variable *)global_vars,
+			  sizeof(struct variable8),
+			  sizeof(global_vars)/sizeof(struct variable8));
+	init_snmp(global_name);
 }
 
 void
 snmp_agent_close(oid *myoid, int len, char *name)
 {
 	unregister_sysORTable(myoid, len);
-	snmp_shutdown(name);
+	unregister_sysORTable(global_oid, OID_LENGTH(global_oid));
+	snmp_shutdown(global_name);
 }

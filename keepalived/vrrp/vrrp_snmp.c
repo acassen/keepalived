@@ -1192,15 +1192,15 @@ static struct variable8 vrrp_vars[] = {
 void
 vrrp_snmp_agent_init(void)
 {
-	snmp_agent_init(vrrp_oid, OID_LENGTH(vrrp_oid), "KEEPALIVED-VRRP",
-			(struct variable *)vrrp_vars,
-			sizeof(struct variable8),
-			sizeof(vrrp_vars)/sizeof(struct variable8));
-        snmp_agent_init(vrrp_rfc_oid, OID_LENGTH(vrrp_oid), "VRRP",
-			(struct variable *)vrrp_rfc_vars,
-			sizeof(struct variable8),
-			sizeof(vrrp_rfc_vars)/sizeof(struct variable8));
-
+	snmp_agent_init();
+	snmp_register_mib(vrrp_oid, OID_LENGTH(vrrp_oid), "KEEPALIVED-VRRP",
+			  (struct variable *)vrrp_vars,
+			  sizeof(struct variable8),
+			  sizeof(vrrp_vars)/sizeof(struct variable8));
+	snmp_register_mib(vrrp_rfc_oid, OID_LENGTH(vrrp_rfc_oid), "VRRP",
+			  (struct variable *)vrrp_rfc_vars,
+			  sizeof(struct variable8),
+			  sizeof(vrrp_rfc_vars)/sizeof(struct variable8));
 }
 
 void
