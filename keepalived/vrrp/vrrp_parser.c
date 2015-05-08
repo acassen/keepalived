@@ -283,16 +283,16 @@ static void
 vrrp_adv_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->adver_int = atoi(vector_slot(strvec, 1));
+	vrrp->adver_int = atof(vector_slot(strvec, 1)) * 100; /* multiply with 100 to get decimal value */
 
+	/* Simple check. Note that using VRRPv2 with 0.01s advert interval will not report an error */
 	if (VRRP_IS_BAD_ADVERT_INT(vrrp->adver_int)) {
 		log_message(LOG_INFO, "VRRP Error : Advert interval not valid !");
-		log_message(LOG_INFO,
-		       "             must be between less than 1sec.");
+		log_message(LOG_INFO, "             must be >=1sec for VRRPv2 or >=0.01sec for VRRPv3.\n");
 		log_message(LOG_INFO, "             Using default value : 1sec");
-		vrrp->adver_int = 1;
+		vrrp->adver_int = 100;
 	}
-	vrrp->adver_int *= TIMER_HZ;
+	vrrp->adver_int *= TIMER_HZ / 100.0;
 }
 static void
 vrrp_debug_handler(vector_t *strvec)
@@ -364,9 +364,7 @@ vrrp_notify_stop_handler(vector_t *strvec)
 static void
 vrrp_notify_handler(vector_t *strvec)
 {
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->script = set_value(strvec);
-	vrrp->notify_exec = 1;
+    alloc_value_block(strvec, alloc_vrrp_notify_script);
 }
 static void
 vrrp_smtp_handler(vector_t *strvec)
@@ -537,6 +535,28 @@ vrrp_vscript_fall_handler(vector_t *strvec)
 		vscript->fall = 1;
 }
 
+static void
+vrrp_version_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	uint8_t version = atoi(vector_slot(strvec, 1));
+	if (VRRP_IS_BAD_VERSION(version)) {
+		log_message(LOG_INFO, "VRRP Error : Version not valid !\n");
+		log_message(LOG_INFO, "             must be between either 2 or 3. reconfigure !\n");
+		return;
+	}
+	vrrp->version = version;
+}
+
+static void
+vrrp_accept_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	vrrp->accept = true;
+}
+
 vector_t *
 vrrp_init_keywords(void)
 {
@@ -569,11 +589,13 @@ vrrp_init_keywords(void)
 	install_keyword("mcast_src_ip", &vrrp_srcip_handler);
 	install_keyword("unicast_src_ip", &vrrp_srcip_handler);
 	install_keyword("virtual_router_id", &vrrp_vrid_handler);
+	install_keyword("version", &vrrp_version_handler);
 	install_keyword("priority", &vrrp_prio_handler);
 	install_keyword("advert_int", &vrrp_adv_handler);
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
 	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
+	install_keyword("accept", &vrrp_accept_handler);
 	install_keyword("preempt", &vrrp_preempt_handler);
 	install_keyword("nopreempt", &vrrp_nopreempt_handler);
 	install_keyword("preempt_delay", &vrrp_preempt_delay_handler);

@@ -56,9 +56,10 @@ extern unsigned long snmp_scope(int scope);
 extern void* snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
 				    int exact, size_t *var_len, WriteMethod **write_method,
 				    list dlist);
-extern void snmp_agent_init(oid *myoid, int len,
-			    char *name, struct variable *variables,
-			    int varsize, int varlen);
+extern void snmp_agent_init(void);
+extern void snmp_register_mib(oid *myoid, int len,
+			      const char *name, struct variable *variables,
+			      int varsize, int varlen);
 extern void snmp_agent_close(oid *myoid, int len, char *name);
 
 #endif

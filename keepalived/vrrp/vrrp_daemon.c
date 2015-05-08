@@ -31,6 +31,7 @@
 #include "vrrp_parser.h"
 #include "vrrp_data.h"
 #include "vrrp.h"
+#include "vrrp_print.h"
 #include "global_data.h"
 #include "pidfile.h"
 #include "daemon.h"
@@ -178,6 +179,23 @@ sighup_vrrp(void *v, int sig)
 {
 	thread_add_event(master, reload_vrrp_thread, NULL, 0);
 }
+int print_vrrp_data(thread_t * thread);
+void
+sigusr1_vrrp(void *v, int sig)
+{
+	log_message(LOG_INFO, "Printing VRRP data for process(%d) on signal",
+		    getpid());
+	thread_add_event(master, print_vrrp_data, NULL, 0);
+}
+
+int print_vrrp_stats(thread_t * thread);
+void
+sigusr2_vrrp(void *v, int sig)
+{
+	log_message(LOG_INFO, "Printing VRRP stats for process(%d) on signal",
+		    getpid());
+	thread_add_event(master, print_vrrp_stats, NULL, 0);
+}
 
 /* Terminate handler */
 void
@@ -195,6 +213,8 @@ vrrp_signal_init(void)
 	signal_set(SIGHUP, sighup_vrrp, NULL);
 	signal_set(SIGINT, sigend_vrrp, NULL);
 	signal_set(SIGTERM, sigend_vrrp, NULL);
+	signal_set(SIGUSR1, sigusr1_vrrp, NULL);
+	signal_set(SIGUSR2, sigusr2_vrrp, NULL);
 	signal_ignore(SIGPIPE);
 }
 
@@ -243,6 +263,21 @@ reload_vrrp_thread(thread_t * thread)
 
 	return 0;
 }
+
+int
+print_vrrp_data(thread_t * thread)
+{
+	vrrp_print_data();
+	return 0;
+}
+
+int
+print_vrrp_stats(thread_t * thread)
+{
+	vrrp_print_stats();
+	return 0;
+}
+
 
 /* VRRP Child respawning thread */
 int

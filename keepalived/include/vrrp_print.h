@@ -4,9 +4,9 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Part:        vrrp_notify.c include file.
+ * Part:        vrrp_print.c program include file.
  *
- * Author:      Alexandre Cassen, <acassen@linux-vs.org>
+ * Author:      John Southworth, <john.southworth@vyatta.com>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,24 +18,19 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2012 John Southworth, <john.southworth@vyatta.com>
  */
 
-#ifndef _VRRP_NOTIFY_H
-#define _VRRP_NOTIFY_H
-
-/* local include */
+#include <stdio.h>
 #include "vrrp.h"
 
-extern int notify_instance_exec(vrrp_t *, int);
-extern int notify_instance_exec_init(vrrp_t *, int);
-extern int notify_group_exec(vrrp_sgroup_t *, int);
-extern void alloc_notify_script(list, vector_t *);
-extern void dump_notify_script(void *);
-
-/* Notify script structure definition */
-typedef struct _notify_sc {
-    char         *sname;
-} notify_sc_t;
-
-#endif
+extern void vrrp_print_list (FILE *f, list l, void (*fptr)(FILE*, void*));
+extern void vrrp_print_data(void);
+extern void vrrp_print_stats(void);
+extern void vrrp_print(FILE *file, void *d);
+extern void vgroup_print(FILE *file, void *d);
+extern void vscript_print(FILE *file, void *d);
+extern void nscript_print(FILE *file, void *d);
+extern void address_print(FILE *file, void *d);
+extern void route_print(FILE *file, void *d);
+extern void if_print(FILE *file, void *d);

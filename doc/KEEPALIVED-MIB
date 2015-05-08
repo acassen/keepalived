@@ -363,7 +363,8 @@ VrrpInstanceEntry ::= SEQUENCE {
 	vrrpInstanceScriptBackup DisplayString,
 	vrrpInstanceScriptFault DisplayString,
 	vrrpInstanceScriptStop DisplayString,
-	vrrpInstanceScript DisplayString
+	vrrpInstanceScript DisplayString,
+	vrrpInstanceAccept INTEGER
 }
 
 vrrpInstanceIndex OBJECT-TYPE
@@ -471,7 +472,7 @@ vrrpInstanceAdvertisementsInt OBJECT-TYPE
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION
-	"Delay in seconds between two VRRP advertisements."
+	"Delay in seconds between two VRRP advertisements and it is in centiseconds between two VRRPV3 advertisements"
     ::= { vrrpInstanceEntry 12 }
 
 vrrpInstancePreempt OBJECT-TYPE
@@ -501,7 +502,7 @@ vrrpInstanceAuthType OBJECT-TYPE
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION
-	"Authentication method to authenticate other peers."
+	"VRRPv2 supports authentication method to authenticate other peers. VRRPv3 does not support authentication"
     ::= { vrrpInstanceEntry 15 }
 
 vrrpInstanceLvsSyncDaemon OBJECT-TYPE
@@ -592,6 +593,14 @@ vrrpInstanceScript OBJECT-TYPE
     DESCRIPTION
 	"Script to execute whenever a state change occurs."
     ::= { vrrpInstanceEntry 26 }
+
+vrrpInstanceAccept OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-write
+    STATUS current
+    DESCRIPTION
+	"Accept allow the non-master owner to process the packets destined to VIP and it is supported for only VRRPv3."
+    ::= { vrrpInstanceEntry 27 }
 
 vrrpTrackedInterfaceTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpTrackedInterfaceEntry
@@ -2056,6 +2065,7 @@ vrrpInstanceGroup OBJECT-GROUP
 	vrrpInstanceScriptFault,
 	vrrpInstanceScriptStop,
 	vrrpInstanceScript,
+        vrrpInstanceAccept,
 	vrrpTrackedInterfaceName,
 	vrrpTrackedInterfaceWeight,
 	vrrpTrackedScriptName,

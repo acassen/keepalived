@@ -34,6 +34,7 @@
 #include "list.h"
 #include "vector.h"
 #include "scheduler.h"
+#include "vrrp.h"
 
 /*
  * Our instance dispatcher use a socket pool.
@@ -73,10 +74,12 @@ extern void alloc_saddress(vector_t *);
 extern void alloc_sroute(vector_t *);
 extern void alloc_vrrp_sync_group(char *);
 extern void alloc_vrrp(char *);
+extern vrrp_stats *alloc_vrrp_stats(void);
 extern void alloc_vrrp_unicast_peer(vector_t *);
 extern void alloc_vrrp_track(vector_t *);
 extern void alloc_vrrp_script(char *);
 extern void alloc_vrrp_track_script(vector_t *);
+extern void alloc_vrrp_notify_script(vector_t *);
 extern void alloc_vrrp_vip(vector_t *);
 extern void alloc_vrrp_evip(vector_t *);
 extern void alloc_vrrp_vroute(vector_t *);

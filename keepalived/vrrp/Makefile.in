@@ -12,7 +12,7 @@ CFLAGS	 = @CFLAGS@ @CPPFLAGS@ $(INCLUDES) \
 DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_VMAC@ -D@SNMP_SUPPORT@ @DFLAGS@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
-OBJS = 	vrrp_daemon.o vrrp_data.o vrrp_parser.o \
+OBJS = 	vrrp_daemon.o vrrp_print.o vrrp_data.o vrrp_parser.o \
 	vrrp.o vrrp_notify.o vrrp_scheduler.o vrrp_sync.o vrrp_index.o \
 	vrrp_netlink.o vrrp_arp.o vrrp_if.o vrrp_track.o vrrp_ipaddress.o \
 	vrrp_iproute.o vrrp_ipsecah.o vrrp_ndisc.o vrrp_vmac.o
@@ -37,7 +37,8 @@ vrrp_daemon.o: vrrp_daemon.c ../include/vrrp_daemon.h ../include/vrrp_scheduler.
   ../include/vrrp_iproute.h ../include/vrrp_parser.h ../include/vrrp_data.h \
   ../include/vrrp.h ../include/global_data.h ../include/pidfile.h ../include/daemon.h \
   ../include/ipvswrapper.h ../../lib/list.h ../../lib/memory.h ../../lib/parser.h \
-  ../../lib/signals.h ../../lib/bitops.h ../include/snmp.h ../include/vrrp_snmp.h
+  ../../lib/signals.h ../../lib/bitops.h ../include/snmp.h ../include/vrrp_snmp.h ../include/vrrp_print.h
+vrrp_print.o: vrrp_print.c ../include/vrrp_print.h ../include/vrrp.h
 vrrp_data.o: vrrp_data.c ../include/vrrp_data.h \
   ../include/vrrp_sync.h ../include/vrrp_if.h ../include/vrrp_vmac.h ../include/vrrp_index.h \
   ../include/vrrp.h ../../lib/memory.h ../../lib/utils.h ../../lib/notify.h ../../lib/bitops.h

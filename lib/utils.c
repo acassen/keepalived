@@ -20,7 +20,10 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
+#include <sys/wait.h>
 #include "memory.h"
+#include <unistd.h>
+#include <fcntl.h>
 #include "utils.h"
 
 /* global vars */
@@ -71,7 +74,7 @@ dump_buffer(char *buff, int count)
 
 /* Compute a checksum */
 u_short
-in_csum(u_short * addr, int len, u_short csum)
+in_csum(u_short *addr, int len, int csum, int *acc)
 {
 	register int nleft = len;
 	const u_short *w = addr;
@@ -92,6 +95,9 @@ in_csum(u_short * addr, int len, u_short csum)
 	/* mop up an odd byte, if necessary */
 	if (nleft == 1)
 		sum += htons(*(u_char *) w << 8);
+
+	if (acc)
+		*acc = sum;
 
 	/*
 	 * add back carry outs from top 16 bits to low 16 bits
@@ -481,4 +487,38 @@ string_equal(const char *str1, const char *str2)
 	}
 
 	return (*str1 == 0 && *str2 == 0);
+}
+
+int
+fork_exec(char **argv)
+{
+	pid_t pid;
+	int fd;
+	int status;
+
+	pid = fork();
+	if (pid < 0)
+		return -1;
+
+	/* Child */
+	if (pid == 0) {
+		fd = open("/dev/null", O_RDWR, 0);
+		if (fd != -1) {
+			dup2(fd, STDIN_FILENO);
+			dup2(fd, STDOUT_FILENO);
+			dup2(fd, STDERR_FILENO);
+			if (fd > 2)
+				close(fd);
+		}
+		execvp(*argv, argv);
+		exit(EXIT_FAILURE);
+	} else {
+		/* Parent */
+		while (waitpid(pid, &status, 0) != pid);
+
+		if (WEXITSTATUS(status) != EXIT_SUCCESS)
+			return -1;
+	}
+
+	return 0;
 }

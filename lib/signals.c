@@ -43,6 +43,10 @@ void (*signal_SIGTERM_handler) (void *, int sig);
 void *signal_SIGTERM_v;
 void (*signal_SIGCHLD_handler) (void *, int sig);
 void *signal_SIGCHLD_v;
+void (*signal_SIGUSR1_handler) (void *, int sig);
+void *signal_SIGUSR1_v;
+void (*signal_SIGUSR2_handler) (void *, int sig);
+void *signal_SIGUSR2_v;
 
 static int signal_pipe[2] = { -1, -1 };
 
@@ -106,6 +110,14 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 		signal_SIGCHLD_handler = func;
 		signal_SIGCHLD_v = v;
 		break;
+	case SIGUSR1:
+		signal_SIGUSR1_handler = func;
+		signal_SIGUSR1_v = v;
+		break;
+	case SIGUSR2:
+		signal_SIGUSR2_handler = func;
+		signal_SIGUSR2_v = v;
+		break;
 	}
 
 	if (ret < 0)
@@ -135,6 +147,8 @@ signal_handler_init(void)
 	signal_SIGINT_handler = NULL;
 	signal_SIGTERM_handler = NULL;
 	signal_SIGCHLD_handler = NULL;
+	signal_SIGUSR1_handler = NULL;
+	signal_SIGUSR2_handler = NULL;
 }
 
 void
@@ -151,12 +165,16 @@ signal_wait_handlers(void)
 	sigaction(SIGINT, &sig, NULL);
 	sigaction(SIGTERM, &sig, NULL);
 	sigaction(SIGCHLD, &sig, NULL);
+	sigaction(SIGUSR1, &sig, NULL);
+	sigaction(SIGUSR2, &sig, NULL);
 
 	/* reset */
 	signal_SIGHUP_v = NULL;
 	signal_SIGINT_v = NULL;
 	signal_SIGTERM_v = NULL;
 	signal_SIGCHLD_v = NULL;
+	signal_SIGUSR1_v = NULL;
+	signal_SIGUSR2_v = NULL;
 }
 
 void signal_reset(void)
@@ -166,6 +184,8 @@ void signal_reset(void)
 	signal_SIGINT_handler = NULL;
 	signal_SIGTERM_handler = NULL;
 	signal_SIGCHLD_handler = NULL;
+	signal_SIGUSR1_handler = NULL;
+	signal_SIGUSR2_handler = NULL;
 }
 
 void
@@ -207,6 +227,14 @@ signal_run_callback(void)
 		case SIGCHLD:	
 			if (signal_SIGCHLD_handler)
 				signal_SIGCHLD_handler(signal_SIGCHLD_v, SIGCHLD);
+			break;
+		case SIGUSR1:
+			if (signal_SIGUSR1_handler)
+				signal_SIGUSR1_handler(signal_SIGUSR1_v, SIGUSR1);
+			break;
+		case SIGUSR2:
+			if (signal_SIGUSR2_handler)
+				signal_SIGUSR2_handler(signal_SIGUSR2_v, SIGUSR2);
 			break;
 		default:
 			break;

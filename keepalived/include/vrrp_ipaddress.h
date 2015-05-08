@@ -31,11 +31,13 @@
 #include <string.h>
 #include <syslog.h>
 #include <linux/if_addr.h>
+#include <stdbool.h>
 
 /* local includes */
 #include "vrrp_if.h"
 #include "list.h"
 #include "vector.h"
+#include "utils.h"
 
 /* types definition */
 typedef struct _ip_address {
@@ -49,9 +51,12 @@ typedef struct _ip_address {
 		struct in6_addr sin6_addr;
 	} u;
 
-	interface_t		*ifp;	/* Interface owning IP address */
-	char			*label;	/* Alias name, e.g. eth0:1 */
-	int			set;	/* TRUE if addr is set */
+	interface_t		*ifp;			/* Interface owning IP address */
+	char			*label;			/* Alias name, e.g. eth0:1 */
+	int			set;			/* TRUE if addr is set */
+	bool			iptable_rule_set;	/* TRUE if iptable drop rule
+							 * set to addr
+							 */
 } ip_address_t;
 
 #define IPADDRESS_DEL 0
@@ -61,6 +66,7 @@ typedef struct _ip_address {
 /* Macro definition */
 #define IP_FAMILY(X)	(X)->ifa.ifa_family
 #define IP_IS6(X)	((X)->ifa.ifa_family == AF_INET6)
+#define IP_IS4(X)	((X)->ifa.ifa_family == AF_INET)
 #define IP_SIZE(X)      (IP_IS6(X) ? sizeof((X)->u.sin6_addr) : sizeof((X)->u.sin.sin_addr))
 
 #define IP4_ISEQ(X,Y)   ((X)->u.sin.sin_addr.s_addr == (Y)->u.sin.sin_addr.s_addr	&& \
@@ -82,6 +88,7 @@ typedef struct _ip_address {
 
 /* prototypes */
 extern void netlink_iplist(list, int);
+extern void handle_iptable_rule_to_iplist(list, int, char *);
 extern void free_ipaddress(void *);
 extern char *ipaddresstos(ip_address_t *);
 extern void dump_ipaddress(void *);

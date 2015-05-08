@@ -22,6 +22,7 @@
 
 /* system include */
 #include <ctype.h>
+#include <stdbool.h>
 
 /* local include */
 #include "vrrp_notify.h"
@@ -41,12 +42,6 @@ get_iscript(vrrp_t * vrrp, int state)
 	if (state == VRRP_STATE_FAULT)
 		return vrrp->script_fault;
 	return NULL;
-}
-
-static char *
-get_igscript(vrrp_t * vrrp)
-{
-	return vrrp->script;
 }
 
 static char *
@@ -165,12 +160,83 @@ notify_script_exec(char* script, char *type, int state_num, char* name, int prio
 	return 1;
 }
 
+/* This function acts as a proxy, temporarily changing each VRRP's notify
+ * list. It should be called when we are in the init state. We get to this
+ * stage if our daemon has just been initialized, or if we perform a reload
+ * on the daemon. In the latter situation, this causes us to leave and then
+ * re-enter the state we just left. We do not want to notify when we go
+ * from, for example, master->master.
+ *
+ * This function prevents the above from happening by comparing our current
+ * configured notify script list with the previous scripts we had configured.
+ * We create a new list that contains scripts that are in our current
+ * configuration AND were not in our configuration before reload.
+ * We then update our vrrp instance to point to this list temporarily before
+ * calling notify_instance_exec(...). After this call has returned, we then
+ * update our vrrp reference to point back to the original, currently configured
+ * list.
+ */
+int
+notify_instance_exec_init(vrrp_t * vrrp, int state)
+{
+	bool match = false;
+	char *cur_script, *prev_script;
+	element e_cur, e_prev = NULL;
+	int ret;
+	list l_temp = alloc_list(NULL, dump_notify_script);
+	list l_orig = vrrp->script;
+	notify_sc_t *nsc_cur, *nsc_prev = NULL;
+
+	/* The algorithm here is essentially:
+	 * for each element in our currently configured list
+	 * 		if this element did not exist in our previous configuration
+	 * 			add this element to our temporary list
+	 *
+	 * NOTE: this loop can be optimised if scripts are stored in an
+	 * alphabetical order. The inner loop can be exited early if
+	 * strcmp returns > 0.
+	 */
+	if (!LIST_ISEMPTY(vrrp->script) && !LIST_ISEMPTY(vrrp->pscript[0])) {
+		for (e_cur = LIST_HEAD(vrrp->script); e_cur; ELEMENT_NEXT(e_cur)) {
+			nsc_cur = e_cur->data;
+			cur_script = nsc_cur->sname;
+			for (e_prev = LIST_HEAD(vrrp->pscript[0]); e_prev; ELEMENT_NEXT(e_prev)) {
+				nsc_prev = e_prev->data;
+				prev_script = nsc_prev->sname;
+				if (strcmp(cur_script, prev_script) == 0) {
+					match = true;
+					break;
+				}
+			}
+			if (match == false)
+				list_add(l_temp, nsc_cur);
+			match = false;
+		}
+		/* Change our reference to temp list. This means the call to
+		 * notify_instance_exec(...) will only invoke the scripts that we
+		 * have not previously been configured with.
+		 */
+		vrrp->script = l_temp;
+	}
+	ret = notify_instance_exec(vrrp, state);
+
+	/* Reset our reference back to our original list containing all our
+	 * configured scripts. This means subsequent state changes will cause
+	 * all of our configured scripts to be executed
+	 */
+	vrrp->script = l_orig;
+
+	free_list(l_temp);
+	return ret;
+}
+
 int
 notify_instance_exec(vrrp_t * vrrp, int state)
 {
 	char *script = get_iscript(vrrp, state);
-	char *gscript = get_igscript(vrrp);
 	int ret = 0;
+    element e;
+    notify_sc_t *nsc;
 
 	/* Launch the notify_* script */
 	if (script && script_open(script)) {
@@ -179,12 +245,16 @@ notify_instance_exec(vrrp_t * vrrp, int state)
 	}
 
 	/* Launch the generic notify script */
-	if (gscript && script_open_litteral(gscript)) {
-		notify_script_exec(gscript, "INSTANCE", state, vrrp->iname,
-				   vrrp->effective_priority);
-		ret = 1;
-	}
-
+    if (!LIST_ISEMPTY(vrrp->script)) {
+        for (e = LIST_HEAD(vrrp->script); e; ELEMENT_NEXT(e)) {
+            nsc = ELEMENT_DATA(e);
+            if (nsc->sname && script_open_litteral(nsc->sname)) {
+                notify_script_exec(nsc->sname, "INSTANCE", state, vrrp->iname,
+                   vrrp->effective_priority);
+                ret = 1;
+            }
+        }
+    }
 	return ret;
 }
 
@@ -208,4 +278,22 @@ notify_group_exec(vrrp_sgroup_t * vgroup, int state)
 	}
 
 	return ret;
+}
+
+/* Notify script dump */
+void
+dump_notify_script(void *data)
+{
+    notify_sc_t *nsc = data;
+    log_message(LOG_INFO, "      %s", nsc->sname);
+}
+
+void
+alloc_notify_script(list notify_list, vector_t *strvec)
+{
+    notify_sc_t *nsc = NULL;
+    nsc = (notify_sc_t *) MALLOC(sizeof(notify_sc_t));
+    nsc->sname = (char *)MALLOC(strlen(vector_slot(strvec, 0)) + 1);
+    strncpy(nsc->sname, vector_slot(strvec, 0), strlen(vector_slot(strvec, 0)) + 1);
+    list_add(notify_list, nsc);
 }
