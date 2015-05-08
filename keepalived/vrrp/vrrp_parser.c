@@ -283,16 +283,16 @@ static void
 vrrp_adv_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->adver_int = atoi(vector_slot(strvec, 1));
+	vrrp->adver_int = atof(vector_slot(strvec, 1)) * 100; /* multiply with 100 to get decimal value */
 
+	/* Simple check. Note that using VRRPv2 with 0.01s advert interval will not report an error */
 	if (VRRP_IS_BAD_ADVERT_INT(vrrp->adver_int)) {
 		log_message(LOG_INFO, "VRRP Error : Advert interval not valid !");
-		log_message(LOG_INFO,
-		       "             must be between less than 1sec.");
+		log_message(LOG_INFO, "             must be >=1sec for VRRPv2 or >=0.01sec for VRRPv3.\n");
 		log_message(LOG_INFO, "             Using default value : 1sec");
-		vrrp->adver_int = 1;
+		vrrp->adver_int = 100;
 	}
-	vrrp->adver_int *= TIMER_HZ;
+	vrrp->adver_int *= TIMER_HZ / 100.0;
 }
 static void
 vrrp_debug_handler(vector_t *strvec)

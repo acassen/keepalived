@@ -257,8 +257,10 @@ dump_vrrp(void *data)
 	log_message(LOG_INFO, "   Gratuitous ARP refresh repeat = %d", vrrp->garp_refresh_rep);
 	log_message(LOG_INFO, "   Virtual Router ID = %d", vrrp->vrid);
 	log_message(LOG_INFO, "   Priority = %d", vrrp->base_priority);
-	log_message(LOG_INFO, "   Advert interval = %dsec",
-	       vrrp->adver_int / TIMER_HZ);
+	log_message(LOG_INFO, "   Advert interval = %d %s\n",
+		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
+		(vrrp->adver_int * 1000 / TIMER_HZ),
+		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
 	if (vrrp->nopreempt)
 		log_message(LOG_INFO, "   Preempt disabled");
 	if (vrrp->preempt_delay)

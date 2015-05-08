@@ -629,7 +629,7 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, int prio, char *buffer)
 	hd->vrid = vrrp->vrid;
 	hd->priority = prio;
 	hd->naddr = (!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) : 0;
-	hd->v3.adver_int  = htons((vrrp->adver_int / TIMER_HZ) & 0x7f); /* zero reserved field */
+	hd->v3.adver_int  = htons((vrrp->adver_int / TIMER_CENTI_HZ) & 0x0FFF); /* interval in centiseconds, reserved bits zero */
 
 	/* Family specific */
 	if (vrrp->family == AF_INET) {
@@ -1262,6 +1262,13 @@ chk_min_cfg(vrrp_t * vrrp)
 	if (!vrrp->ifp) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) Unknown interface !",
 		       vrrp->iname);
+		return 0;
+	}
+
+	if ((vrrp->version == VRRP_VERSION_2 && vrrp->adver_int < TIMER_HZ) ||
+	    (vrrp->version == VRRP_VERSION_2 && (vrrp->adver_int % 100))) {
+		log_message(LOG_INFO, "VRRP_Instance(%s): sub-second advertisement interval not supported in version 2!",
+			    vrrp->iname);
 		return 0;
 	}
 

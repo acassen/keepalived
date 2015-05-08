@@ -260,7 +260,7 @@ typedef struct _vrrp_t {
 
 /* VRRP macro */
 #define VRRP_IS_BAD_VERSION(id)         ((id) < 2 || (id) > 3)
-#define VRRP_IS_BAD_VID(id)		((id)<1 || (id)>255)	/* rfc2338.6.1.vrid */
+#define VRRP_IS_BAD_VID(id)		((id) < 1 || (id) > 255)	/* rfc2338.6.1.vrid */
 #define VRRP_IS_BAD_PRIORITY(p)		((p)<1 || (p)>255)	/* rfc2338.6.1.prio */
 #define VRRP_IS_BAD_ADVERT_INT(d) 	((d)<1)
 #define VRRP_IS_BAD_DEBUG_INT(d)	((d)<0 || (d)>4)
@@ -268,7 +268,7 @@ typedef struct _vrrp_t {
 #define VRRP_SEND_BUFFER(V)		((V)->send_buffer)
 #define VRRP_SEND_BUFFER_SIZE(V)	((V)->send_buffer_size)
 
-#define VRRP_TIMER_SKEW(svr)	((256-(svr)->base_priority)*TIMER_HZ/256)
+#define VRRP_TIMER_SKEW(svr)	((svr)->version == VRRP_VERSION_3 ? (((256-(svr)->base_priority) * (svr)->adver_int)/256) : ((256-(svr)->base_priority) * TIMER_HZ/256))
 #define VRRP_VIP_ISSET(V)	((V)->vipset)
 
 #define VRRP_MIN(a, b)	((a) < (b)?(a):(b))
