@@ -166,7 +166,11 @@ typedef struct _vrrp_t {
 							 * VRRP adverts
 							 */
 	list			vroutes;		/* list of virtual routes */
-	int			adver_int;		/* delay between advertisements(in sec) */
+	int			adver_int;		/* locally configured delay between advertisements*/
+	int			master_adver_int; /* In v3, when we become BACKUP, we use the MASTER's
+								   * adver_int. If we become MASTER again, we use the
+								   * value we were originally configured with.
+								   */
 	bool			accept;			/* Allow the non-master owner to process
 							 * the packets destined to VIP.
 							 */

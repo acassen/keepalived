@@ -492,14 +492,14 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 			return VRRP_PACKET_DROP;
 		}
 	}
-	if (vrrp->version == VRRP_VERSION_3) {
+	/* In v3 we do not drop the packet. Instead, when we are in BACKUP
+	 * state, we set our advertisement interval to match the MASTER's.
+	 */
+	if (vrrp->version == VRRP_VERSION_3 && vrrp->state == VRRP_STATE_BACK) {
 		adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_HZ / 100;
-		if (vrrp->adver_int != adver_int) {
-			log_message(LOG_INFO, "advertisement interval mismatch mine=%d milli-sec rcved=%d milli-sec",
+		if (vrrp->master_adver_int != adver_int)
+			log_message(LOG_INFO, "advertisement interval mismatch: mine=%d milli-sec, rcved=%d milli-sec",
 				(vrrp->adver_int * 1000) / TIMER_HZ, (adver_int * 1000) / TIMER_HZ);
-			/* to prevent concurent VRID running => multiple master in 1 VRID */
-			return VRRP_PACKET_DROP;
-		}
  	}
 
 	if (hd->priority == 0)
@@ -1013,6 +1013,10 @@ vrrp_state_become_master(vrrp_t * vrrp)
 {
 	++vrrp->stats->become_master;
 
+	if (vrrp->version == VRRP_VERSION_3)
+		log_message(LOG_INFO, "VRRP_Instance(%s) using locally configured advertisement interval (%d milli-sec)",
+					vrrp->iname, (vrrp->adver_int * 1000) / TIMER_HZ);
+
 	/* add the ip addresses */
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
@@ -1163,7 +1167,7 @@ void
 vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 {
 	vrrphdr_t *hd;
-	int ret = 0, proto;
+	int ret = 0, master_adver_int, proto;
 
 	/* Process the incoming packet */
 	hd = vrrp_get_header(vrrp->family, buf, &proto);
@@ -1172,12 +1176,29 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 	if (ret == VRRP_PACKET_KO || ret == VRRP_PACKET_NULL) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) ignoring received advertisment..."
 			            ,  vrrp->iname);
-		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		if (vrrp->version == VRRP_VERSION_3)
+			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+		else
+			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	} else if (hd->priority == 0) {
 		vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
 	} else if (vrrp->nopreempt || hd->priority >= vrrp->effective_priority ||
 		   timer_cmp(vrrp->preempt_time, timer_now()) > 0) {
-		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		if (vrrp->version == VRRP_VERSION_3) {
+			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_HZ / 100;
+			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
+		 	 * in the ADVERTISEMENT
+			 */
+			if (vrrp->master_adver_int != master_adver_int) {
+				vrrp->master_adver_int = master_adver_int;
+				log_message(LOG_INFO, "VRRP_Instance(%s) advertisement interval updated to %d milli-sec",
+							vrrp->iname, (vrrp->master_adver_int * 1000) / TIMER_HZ);
+			}
+			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+		}
+		else {
+			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		}
 		vrrp->master_saddr = vrrp->pkt_saddr;
 		vrrp->master_priority = hd->priority;
 		if (vrrp->preempt_delay) {
@@ -1545,6 +1566,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	vrrp->state = VRRP_STATE_INIT;
 	if (!vrrp->adver_int)
 		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
+	vrrp->master_adver_int = vrrp->adver_int;
 	if (!vrrp->effective_priority)
 		vrrp->effective_priority = VRRP_PRIO_DFL;
 
