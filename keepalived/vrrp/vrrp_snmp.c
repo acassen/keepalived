@@ -77,7 +77,6 @@
 #define VRRP_RFC_SNMP_GRP_TRAP            44
 #define VRRP_RFC_SNMP_GRP_NOTIF           45
 
-
 /* Convert VRRP state to SNMP state */
 static unsigned long
 vrrp_snmp_state(int state)
@@ -560,6 +559,57 @@ _get_instance(oid *name, size_t name_len)
 }
 
 static int
+vrrp_snmp_instance_accept(int action,
+			  u_char *var_val, u_char var_val_type,
+			  size_t var_val_len, u_char *statP,
+			  oid *name, size_t name_len)
+{
+	vrrp_t *vrrp = NULL;
+
+	switch (action) {
+	case RESERVE1:
+		/* Check that the proposed value is acceptable */
+		if (var_val_type != ASN_INTEGER)
+			return SNMP_ERR_WRONGTYPE;
+		if (var_val_len > sizeof(long))
+			return SNMP_ERR_WRONGLENGTH;
+		switch ((long)(*var_val)) {
+		case 1:		/* enable accept */
+		case 2:         /* disable accept */
+			break;
+		default:
+			return SNMP_ERR_WRONGVALUE;
+		}
+		break;
+	case RESERVE2:	/* Check that we can find the instance.*/
+	case COMMIT:
+		/* Find the instance */
+		vrrp = _get_instance(name, name_len);
+		if (!vrrp)
+			return SNMP_ERR_NOSUCHNAME;
+		if (action == RESERVE2)
+			break;
+		/* Commit: change values. There is no way to fail. */
+		switch ((long)(*var_val)) {
+		case 1:
+			log_message(LOG_INFO,
+				    "VRRP_Instance(%s) accept mode enabled with SNMP",
+				     vrrp->iname);
+			vrrp->accept = 0;
+			break;
+		case 2:
+			log_message(LOG_INFO,
+				    "VRRP_Instance(%s) accept mode disabled with SNMP",
+				    vrrp->iname);
+			vrrp->accept = 1;
+			break;
+			}
+		break;
+		}
+	return SNMP_ERR_NOERROR;
+}
+
+static int
 vrrp_snmp_instance_priority(int action,
 			    u_char *var_val, u_char var_val_type, size_t var_val_len,
 			    u_char *statP, oid *name, size_t name_len)
@@ -693,7 +743,9 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		long_ret = rt->track_ifp?1:2;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_ADVERTISEMENTSINT:
-		long_ret = rt->adver_int / TIMER_HZ;
+		long_ret = (rt->version == VRRP_VERSION_2) ?
+			    rt->adver_int / TIMER_HZ :
+			    (rt->adver_int * 100) / TIMER_HZ;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_PREEMPT:
 		long_ret = rt->nopreempt?2:1;
@@ -703,8 +755,11 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		long_ret = rt->preempt_delay / TIMER_HZ;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_AUTHTYPE:
-		long_ret = rt->auth_type;
+		long_ret = 0;
+		if (rt->version == VRRP_VERSION_2)
+			long_ret = rt->auth_type;
 		return (u_char *)&long_ret;
+
 	case VRRP_SNMP_INSTANCE_USELVSSYNCDAEMON:
 		long_ret = (rt->lvs_syncd_if)?1:2;
 		return (u_char *)&long_ret;
@@ -759,6 +814,13 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 			return (u_char *) NULL;
 		}
 		break;
+	case VRRP_SNMP_INSTANCE_ACCEPT:
+		long_ret = 0;
+		if (rt->version == VRRP_VERSION_3) {
+			long_ret = rt->accept ? 1:2;
+			*write_method = vrrp_snmp_instance_accept;
+		}
+		return (u_char *)&long_ret;
 	default:
 		return NULL;
         }
@@ -1121,6 +1183,8 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_instance, 3, {3, 1, 25}},
 	{VRRP_SNMP_INSTANCE_SCRIPT, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_instance, 3, {3, 1, 26}},
+	{VRRP_SNMP_INSTANCE_ACCEPT, ASN_INTEGER, RWRITE,
+	 vrrp_snmp_instance, 3, {3, 1, 27} },
 	/* vrrpTrackedInterfaceTable */
 	{VRRP_SNMP_TRACKEDINTERFACE_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_trackedinterface, 3, {4, 1, 1}},
