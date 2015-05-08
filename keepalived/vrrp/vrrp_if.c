@@ -572,6 +572,26 @@ if_setsockopt_hdrincl(int *sd)
 }
 
 int
+if_setsockopt_ipv6_checksum(int *sd)
+{
+	int ret;
+	int offset = 6;
+
+	if (!sd && *sd < 0)
+		return -1;
+
+	ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_CHECKSUM, &offset, sizeof(offset));
+	if (ret < 0) {
+		log_message(LOG_INFO, "cant set IPV6_CHECKSUM IP option. errno=%d (%m)", errno);
+		close(*sd);
+		*sd = -1;
+	}
+
+	return *sd;
+}
+
+
+int
 if_setsockopt_mcast_loop(sa_family_t family, int *sd)
 {
 	int ret;

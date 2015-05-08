@@ -66,6 +66,7 @@ typedef struct _ip_address {
 /* Macro definition */
 #define IP_FAMILY(X)	(X)->ifa.ifa_family
 #define IP_IS6(X)	((X)->ifa.ifa_family == AF_INET6)
+#define IP_IS4(X)	((X)->ifa.ifa_family == AF_INET)
 #define IP_SIZE(X)      (IP_IS6(X) ? sizeof((X)->u.sin6_addr) : sizeof((X)->u.sin.sin_addr))
 
 #define IP4_ISEQ(X,Y)   ((X)->u.sin.sin_addr.s_addr == (Y)->u.sin.sin_addr.s_addr	&& \
