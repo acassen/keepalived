@@ -102,6 +102,7 @@ vrrp_print(FILE *file, void *data)
 	vrrp_t *vrrp = data;
 	char auth_data[sizeof(vrrp->auth_data) + 1];
 	fprintf(file, " VRRP Instance = %s\n", vrrp->iname);
+	fprintf(file, " VRRP Version = %d\n", vrrp->version);
 	if (vrrp->family == AF_INET6)
 		fprintf(file, "   Using Native IPv6\n");
 	if (vrrp->state == VRRP_STATE_BACK) {
@@ -122,6 +123,7 @@ vrrp_print(FILE *file, void *data)
 	fprintf(file, "   Listening device = %s\n", IF_NAME(vrrp->ifp));
 	if (vrrp->dont_track_primary)
 		fprintf(file, "   VRRP interface tracking disabled\n");
+	fprintf(file, "   Using src_ip = %s\n", inet_sockaddrtos(&vrrp->saddr));
 	if (vrrp->lvs_syncd_if)
 		fprintf(file, "   Runing LVS sync daemon on interface = %s\n",
 		       vrrp->lvs_syncd_if);
@@ -130,8 +132,11 @@ vrrp_print(FILE *file, void *data)
 		       vrrp->garp_delay/TIMER_HZ);
 	fprintf(file, "   Virtual Router ID = %d\n", vrrp->vrid);
 	fprintf(file, "   Priority = %d\n", vrrp->base_priority);
-	fprintf(file, "   Advert interval = %d sec\n",
-	       vrrp->adver_int / TIMER_HZ);
+	fprintf(file, "   Advert interval = %d %s\n",
+		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
+		(vrrp->adver_int * 1000 / TIMER_HZ),
+		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
+	fprintf(file, "   Accept = %s\n", ((vrrp->accept) ? "enabled" : "disabled"));
 	if (vrrp->nopreempt)
 		fprintf(file, "   Preempt = disabled\n");
 	else
@@ -345,8 +350,10 @@ route_print(FILE *file, void *data)
 void
 if_print(FILE *file, void * data)
 {
-	interface_t *ifp = data;
+	tracked_if_t *tip = data;
+	interface_t *ifp = tip->ifp;
 	char addr_str[41];
+	int weight = tip->weight;
 
 	fprintf(file, "------< NIC >------\n");
 	fprintf(file, " Name = %s\n", ifp->ifname);
@@ -370,6 +377,9 @@ if_print(FILE *file, void * data)
 
 	if (!(ifp->flags & IFF_UP) && !(ifp->flags & IFF_RUNNING))
 		fprintf(file, " is DOWN\n");
+
+	if (weight)
+		fprintf(file, " weight = %d\n", weight);
 
 	fprintf(file, " MTU = %d\n", ifp->mtu);
 
