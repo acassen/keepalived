@@ -143,10 +143,12 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   Authentication type = %s\n",
 		       (vrrp->auth_type ==
 			VRRP_AUTH_AH) ? "IPSEC_AH" : "SIMPLE_PASSWORD");
-		/* vrrp->auth_data is not \0 terminated */
-		memcpy(auth_data, vrrp->auth_data, sizeof(vrrp->auth_data));
-		auth_data[sizeof(vrrp->auth_data)] = '\0';
-		fprintf(file, "   Password = %s\n", auth_data);
+		if (vrrp->auth_type != VRRP_AUTH_AH) {
+			/* vrrp->auth_data is not \0 terminated */
+			memcpy(auth_data, vrrp->auth_data, sizeof(vrrp->auth_data));
+			auth_data[sizeof(vrrp->auth_data)] = '\0';
+			fprintf(file, "   Password = %s\n", auth_data);
+		}
 	}
 	else
 		fprintf(file, "   Authentication type = none\n");

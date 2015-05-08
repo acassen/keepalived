@@ -267,10 +267,12 @@ dump_vrrp(void *data)
 		log_message(LOG_INFO, "   Authentication type = %s",
 		       (vrrp->auth_type ==
 			VRRP_AUTH_AH) ? "IPSEC_AH" : "SIMPLE_PASSWORD");
-		/* vrrp->auth_data is not \0 terminated */
-		memcpy(auth_data, vrrp->auth_data, sizeof(vrrp->auth_data));
-		auth_data[sizeof(vrrp->auth_data)] = '\0';
-		log_message(LOG_INFO, "   Password = %s", auth_data);
+		if (vrrp->auth_type != VRRP_AUTH_AH) {
+			/* vrrp->auth_data is not \0 terminated */
+			memcpy(auth_data, vrrp->auth_data, sizeof(vrrp->auth_data));
+			auth_data[sizeof(vrrp->auth_data)] = '\0';
+			log_message(LOG_INFO, "   Password = %s", auth_data);
+		}
 	}
 	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
 		log_message(LOG_INFO, "   Tracked interfaces = %d", LIST_SIZE(vrrp->track_ifp));
