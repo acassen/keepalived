@@ -107,6 +107,8 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   State = BACKUP\n");
 		fprintf(file, "   Master router = %s\n",
 			inet_sockaddrtos(&vrrp->master_saddr));
+		fprintf(file, "   Master priority = %d\n",
+			vrrp->master_priority);
 	}
 	else if (vrrp->state == VRRP_STATE_FAULT)
 		fprintf(file, "   State = FAULT\n");
