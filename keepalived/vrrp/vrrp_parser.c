@@ -535,6 +535,20 @@ vrrp_vscript_fall_handler(vector_t *strvec)
 		vscript->fall = 1;
 }
 
+static void
+vrrp_version_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	uint8_t version = atoi(vector_slot(strvec, 1));
+	if (VRRP_IS_BAD_VERSION(version)) {
+		log_message(LOG_INFO, "VRRP Error : Version not valid !\n");
+		log_message(LOG_INFO, "             must be between either 2 or 3. reconfigure !\n");
+		return;
+	}
+	vrrp->version = version;
+}
+
 vector_t *
 vrrp_init_keywords(void)
 {
@@ -567,6 +581,7 @@ vrrp_init_keywords(void)
 	install_keyword("mcast_src_ip", &vrrp_srcip_handler);
 	install_keyword("unicast_src_ip", &vrrp_srcip_handler);
 	install_keyword("virtual_router_id", &vrrp_vrid_handler);
+	install_keyword("version", &vrrp_version_handler);
 	install_keyword("priority", &vrrp_prio_handler);
 	install_keyword("advert_int", &vrrp_adv_handler);
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);

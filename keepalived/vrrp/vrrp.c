@@ -1430,11 +1430,13 @@ static int
 vrrp_complete_instance(vrrp_t * vrrp)
 {
 	vrrp->state = VRRP_STATE_INIT;
-	vrrp->version = VRRP_VERSION_2;
 	if (!vrrp->adver_int)
 		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
 	if (!vrrp->effective_priority)
 		vrrp->effective_priority = VRRP_PRIO_DFL;
+
+	if (!vrrp->version)
+		vrrp->version = VRRP_VERSION_2;
 
 	return (chk_min_cfg(vrrp));
 }

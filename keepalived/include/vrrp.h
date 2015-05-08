@@ -259,6 +259,7 @@ typedef struct _vrrp_t {
 #define VRRP_EVIP_TYPE		(1 << 1)
 
 /* VRRP macro */
+#define VRRP_IS_BAD_VERSION(id)         ((id) < 2 || (id) > 3)
 #define VRRP_IS_BAD_VID(id)		((id)<1 || (id)>255)	/* rfc2338.6.1.vrid */
 #define VRRP_IS_BAD_PRIORITY(p)		((p)<1 || (p)>255)	/* rfc2338.6.1.prio */
 #define VRRP_IS_BAD_ADVERT_INT(d) 	((d)<1)
