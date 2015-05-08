@@ -30,6 +30,7 @@
 #include "utils.h"
 #include "logger.h"
 #include "bitops.h"
+#include "vrrp_notify.h"
 
 /* global vars */
 vrrp_data_t *vrrp_data = NULL;
@@ -199,7 +200,6 @@ free_vrrp(void *data)
 	FREE_PTR(vrrp->script_master);
 	FREE_PTR(vrrp->script_fault);
 	FREE_PTR(vrrp->script_stop);
-	FREE_PTR(vrrp->script);
 	FREE_PTR(vrrp->stats);
 	FREE(vrrp->ipsecah_counter);
 
@@ -212,6 +212,11 @@ free_vrrp(void *data)
 		for (e = LIST_HEAD(vrrp->track_script); e; ELEMENT_NEXT(e))
 			FREE(ELEMENT_DATA(e));
 	free_list(vrrp->track_script);
+
+    if (!LIST_ISEMPTY(vrrp->script))
+        for (e = LIST_HEAD(vrrp->script); e; ELEMENT_NEXT(e))
+            FREE(ELEMENT_DATA(e));
+    free_list(vrrp->script);
 
 	free_list(vrrp->unicast_peer);
 	free_list(vrrp->vip);
@@ -303,9 +308,11 @@ dump_vrrp(void *data)
 	if (vrrp->script_stop)
 		log_message(LOG_INFO, "   Stop state transition script = %s",
 		       vrrp->script_stop);
-	if (vrrp->script)
-		log_message(LOG_INFO, "   Generic state transition script = '%s'",
-		       vrrp->script);
+    if (!LIST_ISEMPTY(vrrp->script)) {
+        log_message(LOG_INFO, "   Generic state transition scripts = %d\n",
+               LIST_SIZE(vrrp->script));
+        dump_list(vrrp->script);
+    }
 	if (vrrp->smtp_alert)
 		log_message(LOG_INFO, "   Using smtp notification");
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
@@ -434,6 +441,16 @@ alloc_vrrp_track_script(vector_t *strvec)
 	if (LIST_ISEMPTY(vrrp->track_script))
 		vrrp->track_script = alloc_list(NULL, dump_track_script);
 	alloc_track_script(vrrp->track_script, strvec);
+}
+
+void
+alloc_vrrp_notify_script(vector_t *strvec)
+{
+    vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+    if (LIST_ISEMPTY(vrrp->script))
+        vrrp->script = alloc_list(NULL, dump_notify_script);
+    alloc_notify_script(vrrp->script, strvec);
 }
 
 void

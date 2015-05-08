@@ -177,7 +177,6 @@ typedef struct _vrrp_t {
 	char			*script_master;
 	char			*script_fault;
 	char			*script_stop;
-	char			*script;
 
 	/* rfc2336.6.2 */
 	uint32_t		ms_down_timer;
@@ -202,6 +201,7 @@ typedef struct _vrrp_t {
 
 	/* IPSEC AH counter def --rfc2402.3.3.2 */
 	seq_counter_t		*ipsecah_counter;
+	list			script;
 } vrrp_t;
 
 /* VRRP state machine -- rfc2338.6.4 */

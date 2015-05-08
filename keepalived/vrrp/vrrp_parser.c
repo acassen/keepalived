@@ -364,9 +364,7 @@ vrrp_notify_stop_handler(vector_t *strvec)
 static void
 vrrp_notify_handler(vector_t *strvec)
 {
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->script = set_value(strvec);
-	vrrp->notify_exec = 1;
+    alloc_value_block(strvec, alloc_vrrp_notify_script);
 }
 static void
 vrrp_smtp_handler(vector_t *strvec)

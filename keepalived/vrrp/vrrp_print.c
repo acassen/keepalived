@@ -27,6 +27,7 @@
 #include "vrrp_print.h"
 #include "vrrp_iproute.h"
 #include "vrrp_netlink.h"
+#include "vrrp_notify.h"
 
 void
 vrrp_print_list(FILE *file, list l, void (*fptr)(FILE*, void*))
@@ -185,9 +186,11 @@ vrrp_print(FILE *file, void *data)
 	if (vrrp->script_stop)
 		fprintf(file, "   Stop state transition script = %s\n",
 		       vrrp->script_stop);
-	if (vrrp->script)
-		fprintf(file, "   Generic state transition script = '%s'\n",
-		       vrrp->script);
+    if (!LIST_ISEMPTY(vrrp->script)) {
+        fprintf(file, "   Generic state transition scripts = %d\n",
+               LIST_SIZE(vrrp->script));
+        vrrp_print_list(file, vrrp->script, &nscript_print);
+    }
 	if (vrrp->smtp_alert)
 			fprintf(file, "   Using smtp notification\n");
 
@@ -247,6 +250,13 @@ vscript_print(FILE *file, void *data)
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
 	fprintf(file, "   Status = %s\n", str);
+}
+
+void
+nscript_print(FILE *file, void *data)
+{
+    notify_sc_t *nsc = data;
+    fprintf(file, " VRRP notify Script = %s\n", nsc->sname);
 }
 
 void

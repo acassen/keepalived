@@ -755,8 +755,8 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPT:
 		if (rt->script) {
-			*var_len = strlen(rt->script);
-			return (u_char *)rt->script;
+			*var_len = 0;
+			return (u_char *) NULL;
 		}
 		break;
 	default:

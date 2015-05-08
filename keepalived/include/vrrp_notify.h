@@ -29,5 +29,12 @@
 
 extern int notify_instance_exec(vrrp_t *, int);
 extern int notify_group_exec(vrrp_sgroup_t *, int);
+extern void alloc_notify_script(list, vector_t *);
+extern void dump_notify_script(void *);
+
+/* Notify script structure definition */
+typedef struct _notify_sc {
+    char         *sname;
+} notify_sc_t;
 
 #endif

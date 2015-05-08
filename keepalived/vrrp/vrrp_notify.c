@@ -44,12 +44,6 @@ get_iscript(vrrp_t * vrrp, int state)
 }
 
 static char *
-get_igscript(vrrp_t * vrrp)
-{
-	return vrrp->script;
-}
-
-static char *
 get_gscript(vrrp_sgroup_t * vgroup, int state)
 {
 	if (!vgroup->notify_exec)
@@ -169,8 +163,9 @@ int
 notify_instance_exec(vrrp_t * vrrp, int state)
 {
 	char *script = get_iscript(vrrp, state);
-	char *gscript = get_igscript(vrrp);
 	int ret = 0;
+    element e;
+    notify_sc_t *nsc;
 
 	/* Launch the notify_* script */
 	if (script && script_open(script)) {
@@ -179,12 +174,16 @@ notify_instance_exec(vrrp_t * vrrp, int state)
 	}
 
 	/* Launch the generic notify script */
-	if (gscript && script_open_litteral(gscript)) {
-		notify_script_exec(gscript, "INSTANCE", state, vrrp->iname,
-				   vrrp->effective_priority);
-		ret = 1;
-	}
-
+    if (!LIST_ISEMPTY(vrrp->script)) {
+        for (e = LIST_HEAD(vrrp->script); e; ELEMENT_NEXT(e)) {
+            nsc = ELEMENT_DATA(e);
+            if (nsc->sname && script_open_litteral(nsc->sname)) {
+                notify_script_exec(nsc->sname, "INSTANCE", state, vrrp->iname,
+                   vrrp->effective_priority);
+                ret = 1;
+            }
+        }
+    }
 	return ret;
 }
 
@@ -208,4 +207,22 @@ notify_group_exec(vrrp_sgroup_t * vgroup, int state)
 	}
 
 	return ret;
+}
+
+/* Notify script dump */
+void
+dump_notify_script(void *data)
+{
+    notify_sc_t *nsc = data;
+    log_message(LOG_INFO, "      %s", nsc->sname);
+}
+
+void
+alloc_notify_script(list notify_list, vector_t *strvec)
+{
+    notify_sc_t *nsc = NULL;
+    nsc = (notify_sc_t *) MALLOC(sizeof(notify_sc_t));
+    nsc->sname = (char *)MALLOC(strlen(vector_slot(strvec, 0)) + 1);
+    strncpy(nsc->sname, vector_slot(strvec, 0), strlen(vector_slot(strvec, 0)) + 1);
+    list_add(notify_list, nsc);
 }
