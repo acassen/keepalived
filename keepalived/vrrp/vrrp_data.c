@@ -348,6 +348,7 @@ alloc_vrrp(char *iname)
 	new->family = AF_INET;
 	new->wantstate = VRRP_STATE_BACK;
 	new->init_state = VRRP_STATE_BACK;
+	new->master_priority = 0;
 	new->last_transition = timer_now();
 	new->adver_int = TIMER_HZ;
 	new->iname = (char *) MALLOC(size + 1);

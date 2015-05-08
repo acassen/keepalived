@@ -128,6 +128,7 @@ typedef struct _vrrp_t {
 	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
 	list			unicast_peer;		/* List of Unicast peer to send advert to */
 	struct sockaddr_storage master_saddr;		/* Store last heard Master address */
+	uint8_t			master_priority;	/* Store last heard priority */
 	timeval_t		last_transition;	/* Store transition time */
 	char			*lvs_syncd_if;		/* handle LVS sync daemon state using this
 							 * instance FSM & running on specific interface
