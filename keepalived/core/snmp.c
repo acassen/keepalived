@@ -192,9 +192,11 @@ snmp_setup_session_cb(int majorID, int minorID,
 	netsnmp_session *sess = serverarg;
 	if (serverarg == NULL)
 		return 0;
-	/* Because ping are done synchronously, we do everything to
-	   avoid to block too long. Better disconnect from the master
-	   agent than waiting for him... */
+	/*
+	 * Because ping are done synchronously, we do everything to
+	 * avoid to block too long. Better disconnect from the master
+	 * agent than waiting for him...
+	 */
 	sess->timeout = ONE_SEC / 3;
 	sess->retries = 0;
 	return 0;
@@ -218,15 +220,19 @@ snmp_agent_init(oid *myoid, int len, char *name, struct variable *variables,
 	    NETSNMP_DS_LIB_DONT_PERSIST_STATE, TRUE);
 	/* Do not load any MIB */
 	setenv("MIBS", "", 1);
-	/* We also register a callback to modify default timeout and
-	   retries value. */
+	/*
+	 * We also register a callback to modify default timeout and
+	 * retries value.
+	 */
 	snmp_register_callback(SNMP_CALLBACK_LIBRARY,
 			       SNMP_CALLBACK_SESSION_INIT,
 			       snmp_setup_session_cb, NULL);
 
 	init_agent(name);
-	/* Ping AgentX less often than every 15 seconds: pinging can
-	   block keepalived. We check every 2 minutes. */
+	/*
+	 * Ping AgentX less often than every 15 seconds: pinging can
+	 * block keepalived. We check every 2 minutes.
+	 */
 	netsnmp_ds_set_int(NETSNMP_DS_APPLICATION_ID,
 			   NETSNMP_DS_AGENT_AGENTX_PING_INTERVAL, 120);
 	if (register_mib(name, (struct variable *) variables, varsize,
