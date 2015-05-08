@@ -28,6 +28,7 @@
 #include "vrrp.h"
 
 extern int notify_instance_exec(vrrp_t *, int);
+extern int notify_instance_exec_init(vrrp_t *, int);
 extern int notify_group_exec(vrrp_sgroup_t *, int);
 extern void alloc_notify_script(list, vector_t *);
 extern void dump_notify_script(void *);

@@ -240,6 +240,7 @@ vrrp_init_state(list l)
 					       vrrp->vrid);
 #endif
 			vrrp->state = VRRP_STATE_GOTO_MASTER;
+			notify_instance_exec_init(vrrp, VRRP_STATE_MAST);
 		} else {
 			vrrp->ms_down_timer = 3 * vrrp->adver_int
 			    + VRRP_TIMER_SKEW(vrrp);
@@ -257,7 +258,7 @@ vrrp_init_state(list l)
 			vrrp_restore_interface(vrrp, 0);
 			vrrp->state = VRRP_STATE_BACK;
 			vrrp_smtp_notifier(vrrp);
-			notify_instance_exec(vrrp, VRRP_STATE_BACK);
+			notify_instance_exec_init(vrrp, VRRP_STATE_BACK);
 #ifdef _WITH_SNMP_
 			vrrp_snmp_instance_trap(vrrp);
 #endif
