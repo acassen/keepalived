@@ -219,7 +219,7 @@ AC_SUBST(VRRP_VMAC)
 
 dnl ----[ Checks for SNMP support ]----
 SNMP_SUPPORT="_WITHOUT_SNMP_"
-if test "$enable_snmp" != "no"; then
+if test "$enable_snmp" = "yes"; then
 
   AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], [no])
   if test x"$NETSNMP_CONFIG" = x"no"; then
