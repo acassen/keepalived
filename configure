@@ -1748,60 +1748,6 @@ fi
 
 } # ac_fn_c_try_link
 
-# ac_fn_c_check_type LINENO TYPE VAR INCLUDES
-# -------------------------------------------
-# Tests whether TYPE exists after having included INCLUDES, setting cache
-# variable VAR accordingly.
-ac_fn_c_check_type ()
-{
-  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $2" >&5
-$as_echo_n "checking for $2... " >&6; }
-if eval \${$3+:} false; then :
-  $as_echo_n "(cached) " >&6
-else
-  eval "$3=no"
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-$4
-int
-main ()
-{
-if (sizeof ($2))
-	 return 0;
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-$4
-int
-main ()
-{
-if (sizeof (($2)))
-	    return 0;
-  ;
-  return 0;
-}
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-
-else
-  eval "$3=yes"
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
-eval ac_res=\$$3
-	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
-$as_echo "$ac_res" >&6; }
-  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
-
-} # ac_fn_c_check_type
-
 # ac_fn_c_check_func LINENO FUNC VAR
 # ----------------------------------
 # Tests whether FUNC exists, setting the cache variable VAR accordingly
@@ -1868,6 +1814,60 @@ $as_echo "$ac_res" >&6; }
   eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
 
 } # ac_fn_c_check_func
+
+# ac_fn_c_check_type LINENO TYPE VAR INCLUDES
+# -------------------------------------------
+# Tests whether TYPE exists after having included INCLUDES, setting cache
+# variable VAR accordingly.
+ac_fn_c_check_type ()
+{
+  as_lineno=${as_lineno-"$1"} as_lineno_stack=as_lineno_stack=$as_lineno_stack
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $2" >&5
+$as_echo_n "checking for $2... " >&6; }
+if eval \${$3+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  eval "$3=no"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$4
+int
+main ()
+{
+if (sizeof ($2))
+	 return 0;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+$4
+int
+main ()
+{
+if (sizeof (($2)))
+	    return 0;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+else
+  eval "$3=yes"
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+fi
+eval ac_res=\$$3
+	       { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_res" >&5
+$as_echo "$ac_res" >&6; }
+  eval $as_lineno_stack; ${as_lineno_stack:+:} unset as_lineno
+
+} # ac_fn_c_check_type
 cat >config.log <<_ACEOF
 This file contains any messages produced by compilers while
 running configure, to aid debugging if configure makes a mistake.
@@ -4225,7 +4225,8 @@ $as_echo "no" >&6; }
 
 SNMP_SUPPORT="_WITHOUT_SNMP_"
 if test "$enable_snmp" = "yes"; then
-    if test -n "$ac_tool_prefix"; then
+
+  if test -n "$ac_tool_prefix"; then
   # Extract the first word of "${ac_tool_prefix}net-snmp-config", so it can be a program name with args.
 set dummy ${ac_tool_prefix}net-snmp-config; ac_word=$2
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
@@ -4323,16 +4324,17 @@ else
   NETSNMP_CONFIG="$ac_cv_path_NETSNMP_CONFIG"
 fi
 
-    if test x"$NETSNMP_CONFIG" = x"no"; then
-      as_fn_error $? "unable to find net-snmp-config" "$LINENO" 5
-    fi
-    NETSNMP_LIBS=`${NETSNMP_CONFIG} --agent-libs`
-    #NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags`"
-    #CFLAGS="${NETSNMP_CFLAGS} $CFLAGS"
-    LIBS="${NETSNMP_LIBS} $LIBS"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether C compiler supports flag \"${NETSNMP_LIBS}\" from Net-SNMP" >&5
-$as_echo_n "checking whether C compiler supports flag \"${NETSNMP_LIBS}\" from Net-SNMP... " >&6; }
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+  if test x"$NETSNMP_CONFIG" = x"no"; then
+    as_fn_error $? "*** unable to find net-snmp-config" "$LINENO" 5
+  fi
+  NETSNMP_LIBS=`${NETSNMP_CONFIG} --agent-libs`
+  NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags` -DNETSNMP_NO_INLINE"
+
+  CFLAGS="$CFLAGS ${NETSNMP_CFLAGS}"
+  LIBS="$LIBS ${NETSNMP_LIBS}"
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether C compiler supports flag \"${NETSNMP_CFLAGS} ${NETSNMP_LIBS}\" from Net-SNMP" >&5
+$as_echo_n "checking whether C compiler supports flag \"${NETSNMP_CFLAGS} ${NETSNMP_LIBS}\" from Net-SNMP... " >&6; }
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
 int main(void);
@@ -4356,13 +4358,29 @@ else
 
      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
-     as_fn_error $? "incorrect CFLAGS from net-snmp-config" "$LINENO" 5
+     as_fn_error $? "*** incorrect CFLAGS from net-snmp-config" "$LINENO" 5
 fi
 rm -f core conftest.err conftest.$ac_objext \
     conftest$ac_exeext conftest.$ac_ext
 
-   # Do we have a usable <net-snmp/agent/util_funcs.h> header?
-    for ac_header in net-snmp/agent/util_funcs.h
+  # Do we have subagent support?
+  for ac_func in netsnmp_enable_subagent
+do :
+  ac_fn_c_check_func "$LINENO" "netsnmp_enable_subagent" "ac_cv_func_netsnmp_enable_subagent"
+if test "x$ac_cv_func_netsnmp_enable_subagent" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_NETSNMP_ENABLE_SUBAGENT 1
+_ACEOF
+ :
+else
+  as_fn_error $? "*** no subagent support in net-snmp" "$LINENO" 5
+fi
+done
+
+
+  # Do we have a usable <net-snmp/agent/util_funcs.h> header?
+  # Some ancien distributions may miss this header.
+  for ac_header in net-snmp/agent/util_funcs.h
 do :
   ac_fn_c_check_header_compile "$LINENO" "net-snmp/agent/util_funcs.h" "ac_cv_header_net_snmp_agent_util_funcs_h" "
 #include <net-snmp/net-snmp-config.h>
@@ -4381,7 +4399,8 @@ fi
 
 done
 
-    SNMP_SUPPORT="_WITH_SNMP_"
+
+  SNMP_SUPPORT="_WITH_SNMP_"
 fi
 
 
