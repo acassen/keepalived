@@ -219,10 +219,44 @@ AC_SUBST(VRRP_VMAC)
 
 dnl ----[ Checks for SNMP support ]----
 SNMP_SUPPORT="_WITHOUT_SNMP_"
-if test "$enable_snmp" != "no"; then
-    AC_CHECK_LIB([netsnmp], [netsnmp_register_callback],,AC_MSG_ERROR([No NetSNMP library found]))
-    LIBS="-lnetsnmpmibs -lnetsnmpagent -lnetsnmphelpers $LIBS"
-    SNMP_SUPPORT="_WITH_SNMP_"
+if test "$enable_snmp" = "yes"; then
+
+  AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], [no])
+  if test x"$NETSNMP_CONFIG" = x"no"; then
+    AC_MSG_ERROR([*** unable to find net-snmp-config])
+  fi
+  NETSNMP_LIBS=`${NETSNMP_CONFIG} --agent-libs`
+  NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags` -DNETSNMP_NO_INLINE"
+
+  CFLAGS="$CFLAGS ${NETSNMP_CFLAGS}"
+  LIBS="$LIBS ${NETSNMP_LIBS}"
+  AC_MSG_CHECKING([whether C compiler supports flag "${NETSNMP_CFLAGS} ${NETSNMP_LIBS}" from Net-SNMP])
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([
+int main(void);
+],
+[
+{
+  return 0;
+}
+])],[AC_MSG_RESULT(yes)],[
+     AC_MSG_RESULT(no)
+     AC_MSG_ERROR([*** incorrect CFLAGS from net-snmp-config])])
+
+  # Do we have subagent support?
+  AC_CHECK_FUNCS([netsnmp_enable_subagent], [:],
+      [AC_MSG_ERROR([*** no subagent support in net-snmp])])
+
+  # Do we have a usable <net-snmp/agent/util_funcs.h> header?
+  # Some ancien distributions may miss this header.
+  AC_CHECK_HEADERS([net-snmp/agent/util_funcs.h],,,[
+@%:@include <net-snmp/net-snmp-config.h>
+@%:@include <net-snmp/net-snmp-includes.h>
+@%:@include <net-snmp/library/snmp_transport.h>
+@%:@include <net-snmp/agent/net-snmp-agent-includes.h>
+@%:@include <net-snmp/agent/snmp_vars.h>
+  ])
+
+  SNMP_SUPPORT="_WITH_SNMP_"
 fi
 
 AC_SUBST(SNMP_SUPPORT)
