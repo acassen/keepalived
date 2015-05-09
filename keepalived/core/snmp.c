@@ -241,12 +241,6 @@ snmp_agent_init(void)
 			       SNMP_CALLBACK_SESSION_INIT,
 			       snmp_setup_session_cb, NULL);
 	/*
-	 * We need to tell the local SNMP library how to connect to AgentX
-	 * "tcp:localhost:705" is the default setting
-	 */
-	netsnmp_ds_set_string(NETSNMP_DS_APPLICATION_ID,
-			      NETSNMP_DS_AGENT_X_SOCKET, "tcp:localhost:705");
-	/*
 	 * Ping AgentX less often than every 15 seconds: pinging can
 	 * block keepalived. We check every 2 minutes.
 	 */
