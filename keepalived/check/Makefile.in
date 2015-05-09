@@ -1,3 +1,4 @@
+
 # Makefile
 #
 # Keepalived OpenSource project.
@@ -7,7 +8,7 @@
 CC	 = @CC@
 SNMP_FLAG = @SNMP_SUPPORT@
 INCLUDES = -I../include -I../../lib
-CFLAGS	 = @CFLAGS@ @CPPFLAGS@ $(INCLUDES) \
+CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 	   -Wall -Wunused -Wstrict-prototypes
 DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_SUPPORT@ -D@SNMP_SUPPORT@ -D@SO_MARK_SUPPORT@ @DFLAGS@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)

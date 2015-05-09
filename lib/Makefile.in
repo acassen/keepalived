@@ -6,7 +6,7 @@
 
 CC	 = @CC@
 INCLUDES = -I.
-CFLAGS	 = @CFLAGS@ $(INCLUDES) \
+CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 	   -Wall -Wunused -Wstrict-prototypes
 DEFS	 = @DFLAGS@ -D@SNMP_SUPPORT@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
