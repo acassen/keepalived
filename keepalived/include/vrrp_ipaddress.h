@@ -26,7 +26,9 @@
 /* global includes */
 #include <stdio.h>
 #include <stdlib.h>
-#define __USE_GNU
+#ifndef _USE_GNU
+#define __USE_GNU 1
+#endif
 #include <netinet/in.h>
 #include <string.h>
 #include <syslog.h>

@@ -7,7 +7,7 @@
 CC	 = @CC@
 SNMP_FLAG = @SNMP_SUPPORT@
 INCLUDES = -I../include -I../../lib
-CFLAGS	 = @CFLAGS@ @CPPFLAGS@ $(INCLUDES) \
+CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 	   -Wall -Wunused -Wstrict-prototypes
 DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_VMAC@ -D@SNMP_SUPPORT@ @DFLAGS@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
