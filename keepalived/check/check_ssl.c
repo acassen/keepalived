@@ -244,6 +244,7 @@ ssl_read_thread(thread_t * thread)
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	http_t *http = HTTP_ARG(http_get_check);
 	request_t *req = HTTP_REQ(http);
+	url_t *url = list_element(http_get_check->url, http->url_it);
 	unsigned timeout = checker->co->connection_to;
 	unsigned char digest[16];
 	int r = 0;
@@ -272,7 +273,7 @@ ssl_read_thread(thread_t * thread)
 				thread->u.fd, timeout);
 	} else if (r > 0 && req->error == 0) {
 		/* Handle response stream */
-		http_process_response(req, r);
+		http_process_response(req, r, (url->digest != NULL));
 
 		/*
 		 * Register next ssl stream reader.
@@ -283,7 +284,8 @@ ssl_read_thread(thread_t * thread)
 	} else if (req->error) {
 
 		/* All the SSL streal has been parsed */
-		MD5_Final(digest, &req->context);
+		if (url->digest)
+			MD5_Final(digest, &req->context);
 		SSL_set_quiet_shutdown(req->ssl, 1);
 
 		r = (req->error == SSL_ERROR_ZERO_RETURN) ? SSL_shutdown(req->ssl) : 0;

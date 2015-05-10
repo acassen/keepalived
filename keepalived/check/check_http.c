@@ -425,7 +425,7 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 
 /* Handle response stream performing MD5 updates */
 int
-http_process_response(request_t *req, int r)
+http_process_response(request_t *req, int r, int do_md5)
 {
 	req->len += r;
 	if (!req->extracted) {
@@ -433,12 +433,9 @@ http_process_response(request_t *req, int r)
 		     extract_html(req->buffer, req->len))) {
 			req->status_code = extract_status_code(req->buffer, req->len);
 			r = req->len - (req->extracted - req->buffer);
-			if (r) {
-				memmove(req->buffer, req->extracted, r);
-				MD5_Update(&req->context, req->buffer, r);
-				r = 0;
-			}
-			req->len = r;
+			if (r && do_md5)
+				MD5_Update(&req->context, req->extracted, r);
+			req->len = 0;
 		}
 	} else if (req->len) {
 		MD5_Update(&req->context, req->buffer,
@@ -457,6 +454,7 @@ http_read_thread(thread_t * thread)
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	http_t *http = HTTP_ARG(http_get_check);
 	request_t *req = HTTP_REQ(http);
+	url_t *url = list_element(http_get_check->url, http->url_it);
 	unsigned timeout = checker->co->connection_to;
 	unsigned char digest[16];
 	int r = 0;
@@ -490,7 +488,8 @@ http_read_thread(thread_t * thread)
 	if (r == -1 || r == 0) {	/* -1:error , 0:EOF */
 
 		/* All the HTTP stream has been parsed */
-		MD5_Final(digest, &req->context);
+		if (url->digest)
+			MD5_Final(digest, &req->context);
 
 		if (r == -1) {
 			/* We have encourred a real read error */
@@ -503,7 +502,7 @@ http_read_thread(thread_t * thread)
 	} else {
 
 		/* Handle response stream */
-		http_process_response(req, r);
+		http_process_response(req, r, (url->digest != NULL));
 
 		/*
 		 * Register next http stream reader.
@@ -527,6 +526,7 @@ http_response_thread(thread_t * thread)
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	http_t *http = HTTP_ARG(http_get_check);
 	request_t *req = HTTP_REQ(http);
+	url_t *url = list_element(http_get_check->url, http->url_it);
 	unsigned timeout = checker->co->connection_to;
 
 	/* Handle read timeout */
@@ -538,7 +538,8 @@ http_response_thread(thread_t * thread)
 	req->extracted = NULL;
 	req->len = 0;
 	req->error = 0;
-	MD5_Init(&req->context);
+	if (url->digest)
+		MD5_Init(&req->context);
 
 	/* Register asynchronous http/ssl read thread */
 	if (http_get_check->proto == PROTO_SSL)
