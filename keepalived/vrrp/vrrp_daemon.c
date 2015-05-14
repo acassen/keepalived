@@ -125,6 +125,7 @@ start_vrrp(void)
 		stop_vrrp();
 		return;
 	}
+	init_global_data(global_data);
 
 #ifdef _WITH_LVS_
 	if (vrrp_ipvs_needed()) {

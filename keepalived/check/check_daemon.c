@@ -113,6 +113,7 @@ start_check(void)
 		stop_check();
 		return;
 	}
+	init_global_data(global_data);
 
 	/* Post initializations */
 	log_message(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);

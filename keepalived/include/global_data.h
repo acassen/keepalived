@@ -64,6 +64,7 @@ extern data_t *global_data; /* Global configuration data */
 /* Prototypes */
 extern void alloc_email(char *);
 extern data_t *alloc_global_data(void);
+extern void init_global_data(data_t *);
 extern void free_global_data(data_t *);
 extern void dump_global_data(data_t *);
 
