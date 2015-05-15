@@ -39,6 +39,7 @@ char *checkers_pidfile = CHECKERS_PID_FILE;	/* overrule default pidfile */
 char *vrrp_pidfile = VRRP_PID_FILE;	/* overrule default pidfile */
 #ifdef _WITH_SNMP_
 int snmp = 0;			/* Enable SNMP support */
+const char *snmp_socket = NULL;	/* Socket to use for SNMP agent */
 #endif
 
 /* Log facility table */
@@ -150,6 +151,7 @@ usage(const char *prog)
 	fprintf(stderr, "  -c, --checkers_pid=FILE      Use specified pidfile for checkers child process\n");
 #ifdef _WITH_SNMP_
 	fprintf(stderr, "  -x, --snmp                   Enable SNMP subsystem\n");
+	fprintf(stderr, "  -A, --snmp-agent-socket=FILE Use the specified socket for master agent\n");
 #endif
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
@@ -179,6 +181,7 @@ parse_cmdline(int argc, char **argv)
 		{"checkers_pid",      required_argument, 0, 'c'},
  #ifdef _WITH_SNMP_
 		{"snmp",              no_argument,       0, 'x'},
+		{"snmp-agent-socket", required_argument, 0, 'A'},
  #endif
 		{"version",           no_argument,       0, 'v'},
 		{"help",              no_argument,       0, 'h'},
@@ -186,7 +189,7 @@ parse_cmdline(int argc, char **argv)
 	};
 
 #ifdef _WITH_SNMP_
-	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:PCp:c:r:x", long_options, NULL)) != EOF) {
+	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:PCp:c:r:xA:", long_options, NULL)) != EOF) {
 #else
 	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:PCp:c:r:", long_options, NULL)) != EOF) {
 #endif
@@ -247,6 +250,9 @@ parse_cmdline(int argc, char **argv)
 #ifdef _WITH_SNMP_
 		case 'x':
 			snmp = 1;
+			break;
+		case 'A':
+			snmp_socket = optarg;
 			break;
 #endif
 		default:

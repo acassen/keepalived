@@ -48,6 +48,7 @@ extern int daemon_mode;		/* VRRP/CHECK subsystem selection */
 extern int linkwatch;		/* Use linkwatch kernel netlink reflection */
 #ifdef _WITH_SNMP_
 extern int snmp;		/* Enable SNMP support */
+extern const char *snmp_socket; /* Socket to use for SNMP agent */
 #endif
 
 #endif
