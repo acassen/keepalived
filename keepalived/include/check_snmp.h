@@ -125,7 +125,7 @@ do {									\
 
 
 /* Prototypes */
-extern void check_snmp_agent_init(void);
+extern void check_snmp_agent_init(const char *);
 extern void check_snmp_agent_close(void);
 extern void check_snmp_rs_trap(real_server_t *, virtual_server_t *);
 extern void check_snmp_quorum_trap(virtual_server_t *);

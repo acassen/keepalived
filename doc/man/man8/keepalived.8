@@ -22,6 +22,8 @@ keepalived \- load\-balancing and high\-availability service
 [\fB\-p\fP|\fB\-\-pid\fP=FILE]
 [\fB\-r\fP|\fB\-\-vrrp_pid\fP=FILE]
 [\fB\-c\fP|\fB\-\-checkers_pid\fP=FILE]
+[\fB\-x\fP|\fB\-\-snmp\fP]
+[\fB\-A\fP|\fB\-\-snmp-agent-socket\fP=FILE]
 [\fB\-v\fP|\fB\-\-version\fP]
 [\fB\-h\fP|\fB\-\-help\fP]
 
@@ -93,6 +95,9 @@ for the checker child process is "/var/run/keepalived_checkers.pid".
 .TP
 \fB -x, --snmp\fP
 Enable SNMP subsystem.
+.TP
+\fB -A, --snmp-agent-socket\fP=FILE
+Use the specified socket for connection to SNMP master agent.
 .TP
 \fB -v, --version\fP
 Display the version and exit.

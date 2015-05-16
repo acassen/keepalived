@@ -113,7 +113,7 @@ start_vrrp(void)
 	ndisc_init();
 #ifdef _WITH_SNMP_
 	if (!reload && snmp)
-		vrrp_snmp_agent_init();
+		vrrp_snmp_agent_init(snmp_socket);
 #endif
 
 	/* Parse configuration file */

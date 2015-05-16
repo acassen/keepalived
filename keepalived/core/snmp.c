@@ -217,7 +217,7 @@ void snmp_register_mib(oid *myoid, int len, const char *name,
 }
 
 void
-snmp_agent_init(void)
+snmp_agent_init(const char *snmp_socket)
 {
 	log_message(LOG_INFO, "Starting SNMP subagent");
 	netsnmp_enable_subagent();
@@ -240,6 +240,12 @@ snmp_agent_init(void)
 	snmp_register_callback(SNMP_CALLBACK_LIBRARY,
 			       SNMP_CALLBACK_SESSION_INIT,
 			       snmp_setup_session_cb, NULL);
+	/* Specify the socket to master agent, if provided */
+	if (snmp_socket != NULL) {
+		netsnmp_ds_set_string(NETSNMP_DS_APPLICATION_ID,
+				      NETSNMP_DS_AGENT_X_SOCKET,
+				      snmp_socket);
+	}
 	/*
 	 * Ping AgentX less often than every 15 seconds: pinging can
 	 * block keepalived. We check every 2 minutes.

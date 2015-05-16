@@ -1254,9 +1254,9 @@ static struct variable8 vrrp_vars[] = {
 };
 
 void
-vrrp_snmp_agent_init(void)
+vrrp_snmp_agent_init(const char *snmp_socket)
 {
-	snmp_agent_init();
+	snmp_agent_init(snmp_socket);
 	snmp_register_mib(vrrp_oid, OID_LENGTH(vrrp_oid), "KEEPALIVED-VRRP",
 			  (struct variable *)vrrp_vars,
 			  sizeof(struct variable8),

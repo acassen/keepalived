@@ -872,9 +872,9 @@ static struct variable8 check_vars[] = {
 };
 
 void
-check_snmp_agent_init()
+check_snmp_agent_init(const char *snmp_socket)
 {
-	snmp_agent_init();
+	snmp_agent_init(snmp_socket);
 	snmp_register_mib(check_oid, OID_LENGTH(check_oid), "Healthchecker",
 			  (struct variable *)check_vars,
 			  sizeof(struct variable8),

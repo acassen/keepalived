@@ -102,7 +102,7 @@ start_check(void)
 #endif
 #ifdef _WITH_SNMP_
 	if (!reload && snmp)
-		check_snmp_agent_init();
+		check_snmp_agent_init(snmp_socket);
 #endif
 
 	/* Parse configuration file */
