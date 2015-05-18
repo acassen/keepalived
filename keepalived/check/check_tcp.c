@@ -37,21 +37,52 @@ void
 free_tcp_check(void *data)
 {
 	FREE(CHECKER_CO(data));
+	FREE(CHECKER_DATA(data));
 	FREE(data);
 }
 
 void
 dump_tcp_check(void *data)
 {
+	tcp_check_t *tcp_check = CHECKER_DATA(data);
+
 	log_message(LOG_INFO, "   Keepalive method = TCP_CHECK");
-	dump_conn_opts (CHECKER_GET_CO());
+	dump_conn_opts (CHECKER_CO(data));
+	if (tcp_check->n_retry) {
+		log_message(LOG_INFO, "     Retry count = %d"
+			    , tcp_check->n_retry);
+		log_message(LOG_INFO, "     Retry delay = %ld"
+			    , tcp_check->delay_before_retry / TIMER_HZ);
+	}
 }
 
 void
 tcp_check_handler(vector_t *strvec)
 {
+	tcp_check_t *tcp_check;
+
+	tcp_check = MALLOC(sizeof (tcp_check_t));
+	tcp_check->n_retry = 1;
+	tcp_check->delay_before_retry = 1 * TIMER_HZ;
+
 	/* queue new checker */
-	queue_checker(free_tcp_check, dump_tcp_check, tcp_connect_thread, NULL, CHECKER_NEW_CO());
+	queue_checker(free_tcp_check, dump_tcp_check, tcp_connect_thread
+		      ,tcp_check, CHECKER_NEW_CO());
+}
+
+void
+tcp_retry_handler(vector_t *strvec)
+{
+	tcp_check_t *tcp_check = CHECKER_GET();
+	tcp_check->n_retry = CHECKER_VALUE_INT(strvec);
+}
+
+void
+tcp_delay_before_retry_handler(vector_t *strvec)
+{
+	tcp_check_t *tcp_check = CHECKER_GET();
+	tcp_check->delay_before_retry =
+		(long)CHECKER_VALUE_INT(strvec) * TIMER_HZ;
 }
 
 void
@@ -59,9 +90,57 @@ install_tcp_check_keyword(void)
 {
 	install_keyword("TCP_CHECK", &tcp_check_handler);
 	install_sublevel();
+	install_keyword("retry", &tcp_retry_handler);
+	install_keyword("delay_before_retry", &tcp_delay_before_retry_handler);
 	install_connect_keywords();
 	install_keyword("warmup", &warmup_handler);
 	install_sublevel_end();
+}
+
+void
+tcp_eplilog(thread_t * thread, int is_success)
+{
+	checker_t *checker;
+	tcp_check_t *tcp_check;
+	long delay;
+
+	checker = THREAD_ARG(thread);
+	tcp_check = CHECKER_ARG(checker);
+
+	if (is_success || tcp_check->retry_it > tcp_check->n_retry - 1) {
+		delay = checker->vs->delay_loop;
+		tcp_check->retry_it = 0;
+
+		if (is_success && !svr_checker_up(checker->id, checker->rs)) {
+			log_message(LOG_INFO, "TCP connection to %s success."
+					, FMT_TCP_RS(checker));
+			smtp_alert(checker->rs, NULL, NULL,
+				   "UP",
+				   "=> TCP CHECK succeed on service <=");
+			update_svr_checker_state(UP, checker->id
+						   , checker->vs
+						   , checker->rs);
+		} else if (! is_success
+			   && svr_checker_up(checker->id, checker->rs)) {
+			if (tcp_check->n_retry)
+				log_message(LOG_INFO
+				    , "Check on service %s failed after %d retry."
+				    , FMT_TCP_RS(checker)
+				    , tcp_check->n_retry);
+			smtp_alert(checker->rs, NULL, NULL,
+				   "DOWN",
+				   "=> TCP CHECK failed on service <=");
+			update_svr_checker_state(DOWN, checker->id
+						     , checker->vs
+						     , checker->rs);
+		}
+	} else {
+		delay = tcp_check->delay_before_retry;
+		++tcp_check->retry_it;
+	}
+
+	/* Register next timer checker */
+	thread_add_timer(thread->master, tcp_connect_thread, checker, delay);
 }
 
 int
@@ -71,45 +150,32 @@ tcp_check_thread(thread_t * thread)
 	int status;
 
 	checker = THREAD_ARG(thread);
-
 	status = tcp_socket_state(thread->u.fd, thread, tcp_check_thread);
 
-	/* If status = connect_success, TCP connection to remote host is established.
+	/* If status = connect_in_progress, next thread is already registered.
+	 * If it is connect_success, the fd is still open.
 	 * Otherwise we have a real connection error or connection timeout.
 	 */
-	if (status == connect_success) {
+	switch(status) {
+	case connect_in_progress:
+		break;
+	case connect_success:
 		close(thread->u.fd);
-
-		if (!svr_checker_up(checker->id, checker->rs)) {
-			log_message(LOG_INFO, "TCP connection to %s success."
+		tcp_eplilog(thread, 1);
+		break;
+	case connect_timeout:
+		if (svr_checker_up(checker->id, checker->rs))
+			log_message(LOG_INFO, "TCP connection to %s timeout."
 					, FMT_TCP_RS(checker));
-			smtp_alert(checker->rs, NULL, NULL,
-				   "UP",
-				   "=> TCP CHECK succeed on service <=");
-			update_svr_checker_state(UP, checker->id
-						   , checker->vs
-						   , checker->rs);
-		}
-
-	} else {
-
-		if (svr_checker_up(checker->id, checker->rs)) {
-			log_message(LOG_INFO, "TCP connection to %s failed !!!"
+		tcp_eplilog(thread, 0);
+		break;
+	default:
+		if (svr_checker_up(checker->id, checker->rs))
+			log_message(LOG_INFO, "TCP connection to %s failed."
 					, FMT_TCP_RS(checker));
-			smtp_alert(checker->rs, NULL, NULL,
-				   "DOWN",
-				   "=> TCP CHECK failed on service <=");
-			update_svr_checker_state(DOWN, checker->id
-						     , checker->vs
-						     , checker->rs);
-		}
-
+		tcp_eplilog(thread, 0);
 	}
 
-	/* Register next timer checker */
-	if (status != connect_in_progress)
-		thread_add_timer(thread->master, tcp_connect_thread, checker,
-				 checker->vs->delay_loop);
 	return 0;
 }
 
