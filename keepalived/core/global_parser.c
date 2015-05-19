@@ -46,6 +46,11 @@ routerid_handler(vector_t *strvec)
 	global_data->router_id = set_value(strvec);
 }
 static void
+arpsleep_handler(vector_t *strvec)
+{
+	global_data->arp_sleep = atoi(vector_slot(strvec, 1));
+}
+static void
 plugin_handler(vector_t *strvec)
 {
 	global_data->plugin_dir = set_value(strvec);
@@ -119,6 +124,7 @@ global_init_keywords(void)
 	install_keyword_root("linkbeat_use_polling", use_polling_handler);
 	install_keyword_root("global_defs", NULL);
 	install_keyword("router_id", &routerid_handler);
+	install_keyword("arp_sleep", &arpsleep_handler);
 	install_keyword("plugin_dir", &plugin_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);
 	install_keyword("smtp_server", &smtpip_handler);

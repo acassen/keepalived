@@ -32,6 +32,7 @@ global_defs {				# Block identification
     smtp_connect_timeout <INTEGER>	   # Number of seconds timeout connect
  					   #  remote SMTP server
     router_id <STRING>			   # String identifying router
+    arp_sleep <INTEGER>                    # Sleep between Gratuitous ARP (in ms)
     vrrp_mcast_group4 <IPv4 ADDRESS>	   # optional, default 224.0.0.18
     vrrp_mcast_group6 <IPv6 ADDRESS>	   # optional, default ff02::12
 }

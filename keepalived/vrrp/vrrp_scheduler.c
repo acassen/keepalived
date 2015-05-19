@@ -30,6 +30,7 @@
 #include "vrrp_netlink.h"
 #include "vrrp_data.h"
 #include "vrrp_index.h"
+#include "vrrp_arp.h"
 #include "ipvswrapper.h"
 #include "memory.h"
 #include "notify.h"
@@ -80,6 +81,8 @@ static int vrrp_update_priority(thread_t * thread);
 static int vrrp_script_child_timeout_thread(thread_t * thread);
 static int vrrp_script_child_thread(thread_t * thread);
 static int vrrp_script_thread(thread_t * thread);
+
+static int vrrp_arp_thread(thread_t * thread);
 
 struct {
 	void (*read) (vrrp_t *, char *, int);
@@ -392,6 +395,12 @@ vrrp_register_workers(list l)
 	/* Init VRRP tracking scripts */
 	if (!LIST_ISEMPTY(vrrp_data->vrrp_script))
 		vrrp_init_script(vrrp_data->vrrp_script);
+
+	/* Init delayed ARP thread */
+	if (global_data->arp_sleep > 0) {
+		arp_list = alloc_list(free_ipaddress, dump_ipaddress);
+		thread_add_event(master, vrrp_arp_thread, arp_list, global_data->arp_sleep);
+	}
 
 	/* Register VRRP workers threads */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -1119,4 +1128,27 @@ vrrp_script_child_timeout_thread(thread_t * thread)
 	waitpid(pid, NULL, 0);
 
 	return 0;
+}
+
+/* Delayed ARP thread */
+static int
+vrrp_arp_thread(thread_t * thread)
+{
+	list arp_list = THREAD_ARG(thread);
+	element e;
+	ip_address_t *ipaddress;
+	int len = 0;
+
+	/* Register next timer tracker */
+	thread_add_timer(thread->master, vrrp_arp_thread, arp_list,
+			 global_data->arp_sleep);
+
+	e = LIST_HEAD(arp_list);
+	if (e) {
+		ipaddress = ELEMENT_DATA(e);
+		list_del(arp_list, ipaddress);
+		len = send_gratuitous_arp_direct(ipaddress);
+	}
+
+	return len;
 }

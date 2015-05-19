@@ -28,11 +28,13 @@
 #include "logger.h"
 #include "memory.h"
 #include "utils.h"
+#include "global_data.h"
 #include "vrrp_arp.h"
 
 /* global vars */
 char *garp_buffer;
 int garp_fd;
+list arp_list;
 
 /* Send the gratuitous ARP message */
 static int send_arp(ip_address_t *ipaddress)
@@ -47,6 +49,10 @@ static int send_arp(ip_address_t *ipaddress)
 	sll.sll_halen = ETHERNET_HW_LEN;
 	sll.sll_ifindex = IF_INDEX(ipaddress->ifp);
 
+	if (debug & 32)
+		log_message(LOG_INFO, "Sending gratuitous ARP on %s for %s",
+			    IF_NAME(ipaddress->ifp), inet_ntop2(ipaddress->u.sin.sin_addr.s_addr));
+
 	/* Send packet */
 	len = sendto(garp_fd, garp_buffer, sizeof(arphdr_t) + ETHER_HDR_LEN
 		     , 0, (struct sockaddr *)&sll, sizeof(sll));
@@ -56,8 +62,17 @@ static int send_arp(ip_address_t *ipaddress)
 	return len;
 }
 
-/* Build a gratuitous ARP message over a specific interface */
 int send_gratuitous_arp(ip_address_t *ipaddress)
+{
+	if (global_data->arp_sleep > 0)
+		list_add(arp_list, ipaddress);
+	else
+		send_gratuitous_arp_direct(ipaddress);
+	return 0;
+}
+
+/* Build a gratuitous ARP message over a specific interface */
+int send_gratuitous_arp_direct(ip_address_t *ipaddress)
 {
 	struct ether_header *eth = (struct ether_header *) garp_buffer;
 	arphdr_t *arph		 = (arphdr_t *) (garp_buffer + ETHER_HDR_LEN);
