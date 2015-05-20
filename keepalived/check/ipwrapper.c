@@ -551,8 +551,7 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 					    , vsge->vfwmark
 					    , old_vs->vsgname);
 
-			if (!ipvs_group_remove_entry(old_vs, vsge))
-				return 0;
+			ipvs_group_remove_entry(old_vs, vsge);
 		}
 	}
 

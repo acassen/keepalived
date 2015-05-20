@@ -106,7 +106,7 @@ ipvs_talk(int cmd)
 	return result;
 }
 
-int
+void
 ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid)
 {
 #ifdef _HAVE_IPVS_SYNCD_
@@ -120,11 +120,10 @@ ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid)
 		strncpy(urule->mcast_ifn, ifname, IP_VS_IFNAME_MAXLEN);
 
 	/* Talk to the IPVS channel */
-	return ipvs_talk(cmd);
+	ipvs_talk(cmd);
 
 #else
 	log_message(LOG_INFO, "IPVS : Sync daemon not supported");
-	return IPVS_ERROR;
 #endif
 }
 
@@ -288,11 +287,10 @@ ipvs_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 
 
 /* add alive destinations to the newly created vsge */
-int
+void
 ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 {
 	real_server_t *rs;
-	int err = 0;
 	element e;
 	list l = vs->rs;
 
@@ -323,20 +321,17 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 				urule->vport = inet_sockaddrport(&vsge->addr);
 
 				/* Talk to the IPVS channel */
-				err = ipvs_talk(IP_VS_SO_SET_ADDDEST);
+				ipvs_talk(IP_VS_SO_SET_ADDDEST);
 			}
 		}
 	}
-
-	return IPVS_SUCCESS;
 }
 
 /* Remove a specific vs group entry */
-int
+void
 ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 {
 	real_server_t *rs;
-	int err = 0;
 	element e;
 	list l = vs->rs;
 
@@ -367,18 +362,17 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 				urule->vport = inet_sockaddrport(&vsge->addr);
 
 				/* Talk to the IPVS channel */
-				err = ipvs_talk(IP_VS_SO_SET_DELDEST);
+				ipvs_talk(IP_VS_SO_SET_DELDEST);
 			}
 		}
 	}
 
 	/* Remove VS entry */
 	if (vsge->range)
-		err = ipvs_group_range_cmd(IP_VS_SO_SET_DEL, vsge);
+		ipvs_group_range_cmd(IP_VS_SO_SET_DEL, vsge);
 	else
-		err = ipvs_talk(IP_VS_SO_SET_DEL);
+		ipvs_talk(IP_VS_SO_SET_DEL);
 	UNSET_ALIVE(vsge);
-	return err;
 }
 
 #else					/* KERNEL 2.6 IPVS handling */
@@ -473,7 +467,7 @@ ipvs_talk(int cmd)
 	return result;
 }
 
-int
+void
 ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid)
 {
 	memset(daemonrule, 0, sizeof(ipvs_daemon_t));
@@ -486,7 +480,6 @@ ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid)
 
 	/* Talk to the IPVS channel */
 	ipvs_talk(cmd);
-	return IPVS_SUCCESS;
 }
 
 /* IPVS group range rule */
@@ -700,7 +693,7 @@ ipvs_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 }
 
 /* add alive destinations to the newly created vsge */
-int
+void
 ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 {
 	real_server_t *rs;
@@ -749,12 +742,10 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 			}
 		}
 	}
-
-	return IPVS_SUCCESS;
 }
 
 /* Remove a specific vs group entry */
-int
+void
 ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 {
 	real_server_t *rs;
@@ -810,8 +801,6 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 	else
 		ipvs_talk(IP_VS_SO_SET_DEL);
 	UNSET_ALIVE(vsge);
-
-	return IPVS_SUCCESS;
 }
 
 #ifdef _WITH_SNMP_
