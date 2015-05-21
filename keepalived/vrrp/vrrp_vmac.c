@@ -102,7 +102,6 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			ifp->base_ifindex = vrrp->ifp->ifindex;
 			ifp->vmac = 1;
 			ifp->flags = vrrp->ifp->flags; /* Copy base interface flags */
-			vrrp->ifp = ifp;
 			/* Save ifindex for use on delete */
 			vrrp->vmac_ifindex = IF_INDEX(ifp);
 			__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
