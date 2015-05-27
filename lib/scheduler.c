@@ -618,7 +618,8 @@ retry:	/* When thread can't fetch try to find next thread again. */
 			thread_list_delete(&m->child, t);
 			thread_list_add(&m->ready, t);
 			t->type = THREAD_CHILD_TIMEOUT;
-		}
+		} else
+			break;
 	}
 
 	/* Read thead. */
@@ -683,7 +684,8 @@ retry:	/* When thread can't fetch try to find next thread again. */
 			thread_list_delete(&m->timer, t);
 			thread_list_add(&m->ready, t);
 			t->type = THREAD_READY;
-		}
+		} else
+			break;
 	}
 
 	/* Return one event. */
