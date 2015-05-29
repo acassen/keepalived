@@ -84,18 +84,6 @@ set_default_mcast_group(data_t * data)
 	inet_stosockaddr("ff02::12", 0, &data->vrrp_mcast_group6);
 }
 
-static void
-set_default_values(data_t * data)
-{
-	/* No global data so don't default */
-	if (!data)
-		return;
-	set_default_router_id(data);
-	set_default_smtp_connection_timeout(data);
-	set_default_email_from(data);
-	set_default_mcast_group(data);
-}
-
 /* email facility functions */
 static void
 free_email(void *data)
@@ -130,8 +118,26 @@ alloc_global_data(void)
 	new = (data_t *) MALLOC(sizeof(data_t));
 	new->email = alloc_list(free_email, dump_email);
 
-	set_default_values(new);
+	set_default_mcast_group(new);
+
 	return new;
+}
+
+void
+init_global_data(data_t * data)
+{
+	if (!data->router_id) {
+		set_default_router_id(data);
+	}
+
+	if (data->smtp_server.ss_family) {
+		if (!data->smtp_connection_to) {
+			set_default_smtp_connection_timeout(data);
+		}
+		if (!data->email_from) {
+			set_default_email_from(data);
+		}
+	}
 }
 
 void
