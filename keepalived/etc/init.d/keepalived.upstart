@@ -1,0 +1,7 @@
+description "Keepalive Daemon (LVS and VRRP)"
+author "Cameron Norman <camerontnorman@gmail.com>"
+
+start on runlevel [2345]
+stop on runlevel [016]
+
+exec keepalived -n

@@ -17,6 +17,7 @@ sysconfdir  = @sysconfdir@
 datarootdir = @datarootdir@
 mandir      = @mandir@
 init_dir    = $(sysconfdir)/rc.d/init.d
+upstart_dir = $(sysconfdir)/init
 conf_dir    = $(sysconfdir)/keepalived
 sysconf_dir = $(sysconfdir)/sysconfig
 
@@ -89,6 +90,7 @@ uninstall:
 	rm -f $(DESTDIR)$(sbindir)/$(EXEC)
 	rm -f $(DESTDIR)$(init_dir)/keepalived
 	rm -f $(DESTDIR)$(sysconf_dir)/keepalived
+	rm -f $(DESTDIR)$(upstart_dir)/keepalived.conf
 	rm -rf $(DESTDIR)$(sysconfdir)/keepalived
 	rm -f $(DESTDIR)$(mandir)/man5/keepalived.conf.5
 	rm -f $(DESTDIR)$(mandir)/man8/keepalived.8
@@ -100,6 +102,8 @@ install:
 	install -m 755 etc/init.d/keepalived.init $(DESTDIR)$(init_dir)/keepalived
 	install -d $(DESTDIR)$(sysconf_dir)
 	install -m 644 etc/init.d/keepalived.sysconfig $(DESTDIR)$(sysconf_dir)/keepalived
+	install -d $(DESTDIR)$(upstart_dir)
+	install -m 644 etc/init.d/keepalived.upstart $(DESTDIR)$(upstart_dir)/keepalived.conf
 	install -d $(DESTDIR)$(sysconfdir)/keepalived/samples
 	install -m 644 etc/keepalived/keepalived.conf $(DESTDIR)$(sysconfdir)/keepalived/
 	install -m 644 ../doc/samples/* $(DESTDIR)$(sysconfdir)/keepalived/samples/
