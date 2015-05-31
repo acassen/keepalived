@@ -1,3 +1,205 @@
+2015-05-31 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.17 released.
+	* zalloc use xalloc for consistency.
+	* memory: fix wrong size calculation in zfree.
+	* Fix keepalived snmp configuration.
+	* Change comments to match kernel style.
+	* smtp: Fix wrong algorithm in RCPT-TO building.
+	* vrrp: ICMPv6 : modify the way we copy the src address into the IPv6
+	  header, in order to not overwrite the header' and the 'hop limit' fields
+	* vrrp: sync status flag (up/down) for _all_ VMAC interfaces.
+	  When using VMAC and running multiple instances on the same interface,
+	  only one of the VMAC interfaces will get its status flag synched.
+	  This commit will update the status flag for _all_ VMAC interfaces attached
+	  to a base interface.
+	* ipvs: fix segfault crash when parsing SMTP_CHECK config
+	* ipvs: SMTP_CHECK now respects configured RS port. Before that it always
+	  used the default port 25.
+	* ipvs: config parser: handler for the end of block. new function
+	  install_sublevel_end_handler(handler).
+	* ipvs: new log function vlog_message taking varg_list. log_message now
+	  uses format gcc attribute, not the macro wrapper.
+	* ipvs: bug: check_smtp was logging "#30" instead of RS address do not do
+	  nested va_start/va_end calls in smtp_final.
+	* ipvs: clarify snmp_check config syntax. Now host{} section is optional,
+	  and all the standard connection options are available in the SNMP_CHECK{}
+	  level, too. If one or many host section persist, those base-level options
+	  are used to specify default values that can be overriden in a host section.
+	* vrrp: Use literal constants for bit flags Use literal constants for bit
+	  flags of the "debug" global variable Change from using numeric constants
+	  to literal constants for the bit flags of the "debug" global variable.
+	* vrrp: Backup obtains VIP resulting in a duplicate IP. VRRP backup obtains
+	  VIP resulting in a duplicate IP situation. When a priority change to the
+	  configuration of a Master router drops its priority to below that of a
+	  backup router, the VIP is not released on the Master router leading to
+	  a duplicate IP situation.
+	* vrrp: Make preempt_delay work more than once.
+	* vrrp: Changes needed to support AH auth in VMAC mode. Note according to
+	  the RFC this is not a requirement, but we think that our customers will
+	  expect it to work. The RFC actually discourages its use because it adds
+	  little to no additional security.  We are still able to interoperate in
+	  RFC mode by not enabling authentication.
+	* vrrp: Check VRRP header in the IP auth header is correct. In the middle
+	  of vrrp_in_chk, the existing VRRP packet parsing code does
+	  "return vrrp_in_chk_ipsecah(vrrp, buffer);" if the VRRP version is two,
+	  and the authentication type is IP sec authentication, to check whether
+	  or not the IP sec authentication header is valid.  However the "instant"
+	  returns means that is the IP sec authentication header is valid, then
+	  the remaining parts of the VRRP packet (VRRP version, VRRP checksum,
+	  VRID, number of VIPs, advertise-interval) are not parsed or validated.
+	* vrrp: Add support for SNMP trap: vrrpTrapNewMaster.
+	* vrrp: Add skeleton code for VRRP-MIB.
+	* vrrp: Check existing VIF and recreate if VMACs are wrong. Although under
+	  normal circumstances we will cleanup VIF interfaces when shutdown, there
+	  are various scenarios were this is not the case. To make the code more
+	  robust, keepalived now performs a check for matching VIF interfaces at
+	  restart, and if the configuration of the VIF matches the current
+	  keepalived configuration it will reuse the VIF. However, should the
+	  configuration be different, keepalived will remove the existing
+	  interface, and then recreate a new VIF interface with the appropriate
+	  configuration. This fix resolves the continuous crash scenario that can
+	  occur when keepalived fails to configure the VIF because one already
+	  exists. It prevents keepalived from reusing a previous VIF interface
+	  which does not completely match it configuration criteria.`
+	* vrrp: fix snmp code (cosmetic)
+	* vrrp: Fix the keepalived mib and agentx warnings. During Keepalived
+	  startup, about twenty "duplicate registration" and a couple of "Failed
+	  to connect to the agentx master agent" warning messages were issued.
+	  Pairs of the "Failed to connect" warning messages were logged every two
+	  minutes. The "duplicate registration" warnings happened because VRRP
+	  called snmp_agent_init twice, once for the keepalived-vrrp MIB, and once
+	  for the rfc2787-vrrp MIB, however each call to snmp_agent_init also
+	  tried to register the keepalived-global MIB (which holds data like
+	  Keepalived version number, SMTP server details, and a "from" email
+	  address).  It was the second attempt to register this keepalived-global
+	  MIB that generated the "duplicate registration" warning. The registration
+	  of the keepalived-global MIB is now only done once under the control of
+	  a static variable.   init_agent is also called just once under the control
+	  of the same static variable to prevent it logging a warning message. The
+	  "Failed to connect" warnings occur because Keepalived does not know how
+	  to connect to the SNMP AgentX master server.  By default the Agent X
+	  master server is listening for MIB registrations on a local TCP socket
+	  with a port number of 705.
+	* vrrp: Fix VRRP preemption taking too long. VRRP preemption may not work
+	  correctly due to group expiry timers being incorrectly manipulated while
+	  running down the MDT. Also, preemption can be disrupted if the VRRP group
+	  receives an advertisement while running down it's timer.
+	* vrrp: Initial Implementation of VRRP statistics.
+	  . Add VRRP counters, This is needed by the VRRP-MIB, and will provide
+	    better insight into the operation of VRRP for users.
+	  . Add SIGUSR1 and SIGUSR2 handlers
+	    - SIGUSR1 allows users to dump current state of VRRP instacnes to
+	      /tmp/keepalived.data
+	    - SIGUSR2 allows users to dump VRRP counters to /tmp/keepalived.stats
+	* vrrp: Copy old VRRP stats on reload.
+	* vrrp: Seperate printing functions from vrrp_daemon.c. Seperate state
+	  printing code from vrrp_daemon.c so that the code is better organized.
+	* vrrp: Track master router priority in VRRP.
+	* vrrp: Added 'Master priority' output to show vrrp detail.
+	* vrrp: Enhance keepalived vrrp to configure mltp-scripts. Currently,
+	  keepalived vrrp only allows to configure single notification script.
+	  This is a limitation ans should be extended so that keepalived vrrp can
+	  notify multiple scripts about vrrp state changes.
+	* vrrp: Don't display ipsec ah password in log files. When authentication
+	  type is selected as ipsec ah, password should not be displayed in the
+	  log files.
+	* vrrp: Fix notify upon reload. When a notify script is configured after
+	  Keepalived has been started, if other notify scripts are already
+	  configured, these scripts get reinvoked even if the state has not
+	  changed. This occurs when in backup state. When in master state, no
+	  notifications are sent out at all if a new notify script is configured.
+	  For the backup case, this problem occurs when the daemon is reloaded.
+	  This causes vrrp to leave the state it's currently in, go to the init
+	  state and from there, go back to backup. However, this transition
+	  causes the notify scripts to be invoked, causing a redundant
+	  notification to be sent. For the master case, there is no call to
+	  notify_instance_exec(), hence why no notifications are seen at all.
+	  The solution is to add a new field to the vrrp struct that stores the
+	  notify scripts that were configured before reload. A new function has
+	  been added to take advantage of this new field. Instead of calling
+	  notify_instance_exec() when we are in the init state, we now call
+	  notify_instance_exec_init(). This is a proxy function that modifies
+	  the 'script' member of a vrrp structure to point to a new list
+	  containing only scripts that have not previously been configured,
+	  thereby preventing the sending of notifications that have already been
+	  sent. This new list is created by utilising the new vrrp struct field.
+	  Inside this new function, notify_instance_exec() is called using the
+	  modified VRRP instance. When this call returns, the member is reset
+	  back to its original value.
+	* vrrp: Keepalived extension to support VRRP version 3. Updated vrrp_header
+	  and _vrrp_t struct to support version 3 params. Support to build vrrp_v3
+	  packet.
+	* vrrp: Keepalived extension to support VRRP version 3 (2).
+	* vrrp: Keepalived extension to support VRRP version 3 (3). Timer changes
+	  to support centi-sec.
+	* vrrp: Keepalived extension to support accept mode for v3.
+	* vrrp: Fix up limitations of keepalived VRRPv3. The current Keepalived is
+	  supporting IPv6 but it is not fully functional and it is not as per
+	  RFC5798.  Following are the issues identified and changes done:
+	    - IPv6 address population.
+	    - Correction of Checksum in case of IPv6.
+	    - Getting source address from received advertisements.
+	    - Populating source address in sent VRRP advertisements.
+	* vrrp: Improve display output for VRRPv3.
+	    - Changed data-type of mcast_saddr to sockaddr_storage to support IPv6
+	      also.
+	    - Added new parameters version, accept, weight updated advertisement
+	      interval for operational command show output.
+	* vrrp: MIB enhancements for accept-mode.
+	* vrrp: Fix mismatched advertisement interval. In VRRP version 3, all
+	  BACKUP routers must set their advertisement intervals to match the current
+	  MASTER's. Although not explicitly stated in RCF5798, when the MASTER falls
+	  over or forfeits its MASTER status, the new MASTER should not continue to
+	  use the old MASTER's advertisement interval value and should instead use
+	  its locally configured value. To achieve this, a new field has been added
+	  to the VRRP structure that stores the most recent advertisement interval
+	  of the current MASTER. We track changes to the current MASTER's interval
+	  and update this new variable accordingly. The value is only updated when
+	  we are in BACKUP state and reconfiguring the local advertisement interval
+	  has no effect on it.
+	* vrrp: snmp: don't hardcode AgentX socket location. The default location
+	  should be `/var/agentx/master` (as per RFC2741 and this is also the
+	  default for NetSNMP, including on Debian-based distributions). This
+	  default location is set at configure-time for NetSNMP and subagent will
+	  use it automatically (it is also available through `net-snmp-config.h`).
+	  A useful feature would be to have a flag to change that if the user
+	  change this settings in the master agent. This commit just reverts this
+	  change to let SNMP subsystem work as expected for most users.
+	* vrrp: snmp: restore use of net-snmp-config to build SNMP support. With
+	  a lazy linker, `libnetsnmpmibs` may require some additional libraries
+	  to be linked (like `libsensors`). Therefore, only rely on
+	  `net-snmp-config` to get the appropriate flags.
+	  Also add some additional tests:
+	    - check that we can build a simple executable (NetSNMP can be quite
+	      broken and in this case, the error during compilation is not crystal
+	      clear, checking that in configure is more informative)
+	    - check if we subagent support is compiled in (This is optional and
+	      again, the error is not crystal clear during compilation).
+	    - check that net-snmp/agent/util_funcs.h is present (Due to a flaw in
+	      NetSNMP build process, this header was not installed for quite a long
+	      time, notably on RHEL derivatives; code to handle its absence was
+	      already present in Keepalived).
+	* vrrp: snmp: don't enable SNMP support automatically.
+	  Most users won't use it and it would fail if NetSNMP is not installed,
+	  unless a user add `--disable-snmp` to configure command line.
+	* build: move custom include directives (`-I`) first. Some libraries,
+	  notably NetSNMP, may pollute CFLAGS by adding stuff like
+	  `-I/usr/lib/x86_64-linux-gnu/perl/5.20/CORE` in CFLAGS. Instead of
+	  trying to not use CFLAGS from NetSNMP at all (some of those bits are
+	  important as they influence some NetSNMP headers), we ensure that the
+	  bogus include flags are after our own include flags.
+	* global: Set global data default values after parsing config file.
+	  This patch will defer setting the global data default values until
+	  after the config file has been parsed. This will potentially avoid two
+	  calls to getaddrinfo. For example, if the router_id and/or email_from
+	  parameters are set in the config file, there is no need to call
+	  getaddrinfo twice in order to set a default value. Instead, this patch
+	  will check to see if they values are unset after parsing the config
+	  file. Note that email_from and smtp_connection_to are only set to a
+	  default value if they are unitialized and smtp_server is specified.
+	* doc: add -x/--snmp flag to keepalived manual page.
+	* snmp: add -A/--snmp-agent-socket to specify AgentX socket.
+
 2015-03-31 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.16 released.
 	* Properly close netlink channel to avoid fd leak.
