@@ -218,6 +218,100 @@ dump_iproute(void *rt_data)
 	FREE(tmp);
 	FREE(log_msg);
 }
+
+#define NAME_MAX_LEN 512
+struct rt_tables {
+	int id;
+	char name[NAME_MAX_LEN];
+	struct rt_tables *next;
+};
+static int init_rt_tables = 1;
+static struct rt_tables *rt_tables = NULL;
+
+static int
+fread_id_name(FILE *fp, int *id, char *namebuf)
+{
+	char buf[NAME_MAX_LEN];
+
+	while (fgets(buf, sizeof(buf), fp)) {
+		char *p = buf;
+
+		while (*p == ' ' || *p == '\t')
+			p++;
+
+		if (*p == '#' || *p == '\n' || *p == 0)
+			continue;
+
+		if (sscanf(p, "0x%x %s\n", id, namebuf) != 2 &&
+				sscanf(p, "0x%x %s #", id, namebuf) != 2 &&
+				sscanf(p, "%d %s\n", id, namebuf) != 2 &&
+				sscanf(p, "%d %s #", id, namebuf) != 2) {
+			strcpy(namebuf, p);
+			return -1;
+		}
+		if (*id < 0 || *id > 255) {
+			strcpy(namebuf, p);
+			return -1;
+		}
+		return 1;
+	}
+	return 0;
+}
+static void
+read_rt_tables(void)
+{
+	char *file = "/etc/iproute2/rt_tables";
+	FILE *fp;
+	int id;
+	char namebuf[NAME_MAX_LEN] = {0};
+	int ret;
+	struct rt_tables *prt;
+
+	fp = fopen (file, "r");
+	if (!fp)
+		return;
+
+	while ((ret = fread_id_name(fp, &id, &namebuf[0]))) {
+		if (ret == -1) {
+			fprintf(stderr, "Database %s is corrupted at %s\n",
+					file, namebuf);
+			while (rt_tables != NULL) {
+				prt = rt_tables;
+				rt_tables = prt->next;
+				free (prt);
+			}
+			fclose(fp);
+			return;
+		}
+		prt = malloc (sizeof (*prt));
+		prt->id = id;
+		strcpy (prt->name, namebuf);
+		prt->next = rt_tables;
+		rt_tables = prt;
+	}
+	fclose(fp);
+}
+static int
+lookup_rt_table (char *str)
+{
+	struct rt_tables *prt;
+	char *cp;
+	int ret;
+
+	if (init_rt_tables) {
+		read_rt_tables();
+		init_rt_tables = 0;
+	}
+
+	for (prt = rt_tables; prt != NULL; prt = prt->next) {
+		if (strcmp (str, prt->name) == 0) return prt->id;
+	}
+
+	ret = strtol (str, &cp, 10);
+	if (cp == str) return -1;
+
+	return ret;
+}
 void
 alloc_route(list rt_list, vector_t *strvec)
 {
@@ -254,7 +348,14 @@ alloc_route(list rt_list, vector_t *strvec)
 			}
 			new->index = IF_INDEX(ifp);
 		} else if (!strcmp(str, "table")) {
-			new->table = atoi(vector_slot(strvec, ++i));
+			new->table = lookup_rt_table(vector_slot(strvec, ++i));
+			if (new->table < 0) {
+				log_message(LOG_INFO, "VRRP is trying to assign VROUTE to unknown "
+				       "%s table !!! go out and fix your conf !!!",
+				       (char *)vector_slot(strvec, i));
+				FREE(new);
+				return;
+			}
 		} else if (!strcmp(str, "metric")) {
 			new->metric = atoi(vector_slot(strvec, ++i));
 		} else if (!strcmp(str, "scope")) {
