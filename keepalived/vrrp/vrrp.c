@@ -449,7 +449,12 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 			}
 		}
 		/* Kernel takes care of checksum mismatch incase of IPv6. */
-	}
+	} else {
+            if (in_csum((u_short *) hd, vrrphdr_len, 0, NULL)){
+                log_message(LOG_INFO, "Invalid VRRPv2 checksum");
+                return VRRP_PACKET_KO;
+            }
+        }
 
 	/* Check that auth type of packet is one of the supported auth types */
 	if (vrrp->version == VRRP_VERSION_2 &&
