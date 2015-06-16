@@ -89,6 +89,7 @@ stop_vrrp(void)
 	thread_destroy_master(master);
 	gratuitous_arp_close();
 	ndisc_close();
+	free_rt_tables();
 
 #ifdef _DEBUG_
 	keepalived_free_final("VRRP Child process");
@@ -117,6 +118,7 @@ start_vrrp(void)
 #endif
 
 	/* Parse configuration file */
+	load_rt_tables();
 	global_data = alloc_global_data();
 	vrrp_data = alloc_vrrp_data();
 	alloc_vrrp_buffer();
@@ -240,7 +242,6 @@ reload_vrrp_thread(thread_t * thread)
 	free_vrrp_buffer();
 	gratuitous_arp_close();
 	ndisc_close();
-
 #ifdef _WITH_LVS_
 	if (vrrp_ipvs_needed()) {
 		/* Clean ipvs related */
