@@ -79,7 +79,6 @@ extern void alloc_vrrp_unicast_peer(vector_t *);
 extern void alloc_vrrp_track(vector_t *);
 extern void alloc_vrrp_script(char *);
 extern void alloc_vrrp_track_script(vector_t *);
-extern void alloc_vrrp_notify_script(vector_t *);
 extern void alloc_vrrp_vip(vector_t *);
 extern void alloc_vrrp_evip(vector_t *);
 extern void alloc_vrrp_vroute(vector_t *);
