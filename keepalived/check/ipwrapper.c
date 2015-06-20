@@ -155,9 +155,13 @@ init_service_rs(virtual_server_t * vs)
 
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
-		/* Do not re-add failed RS instantly on reload */
-		if (rs->reloaded)
+
+		if (rs->reloaded) {
+			if (rs->iweight != rs->pweight)
+				update_svr_wgt(rs->iweight, vs, rs, 0);
+			/* Do not re-add failed RS instantly on reload */
 			continue;
+		}
 		/* In alpha mode, be pessimistic (or realistic?) and don't
 		 * add real servers into the VS pool. They will get there
 		 * later upon healthchecks recovery (if ever).
@@ -420,7 +424,8 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 
 /* Store new weight in real_server struct and then update kernel. */
 void
-update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs)
+update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
+		, int update_quorum)
 {
 	if (weight != rs->weight) {
 		log_message(LOG_INFO, "Changing weight from %d to %d for %s service %s of VS %s"
@@ -439,7 +444,8 @@ update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs)
 		if (rs->set && ISALIVE(rs) &&
 		    (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)))
 			ipvs_cmd(LVS_CMD_EDIT_DEST, vs, rs);
-		update_quorum_state(vs);
+		if (update_quorum)
+			update_quorum_state(vs);
 	}
 }
 
@@ -647,6 +653,7 @@ clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 			new_rs->alive = rs->alive;
 			new_rs->set = rs->set;
 			new_rs->weight = rs->weight;
+			new_rs->pweight = rs->iweight;
 			new_rs->reloaded = 1;
 			if (new_rs->alive) {
 				/* clear failed_checkers list */
