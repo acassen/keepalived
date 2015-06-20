@@ -36,25 +36,11 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 {
 	set_time_now();
 
-	/*
-	 * When in MASTER state the expiry time for the group controls when
-	 * advertisements are transmitted.
-	 * As such, sets the expiry to one advertisement interval from now
-	 */
-	if (vrrp->state == VRRP_STATE_MAST) {
+	if (vrrp->state == VRRP_STATE_MAST	  ||
+	    vrrp->state == VRRP_STATE_GOTO_MASTER ||
+	    vrrp->state == VRRP_STATE_GOTO_FAULT  ||
+	    vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
 		vrrp->sands = timer_add_long(time_now, vrrp->adver_int);
-		return;
-	}
-
-	/*
-	 * When not in MASTER state, but transitioning to MASTER state (e.g.
-	 * wantstate is GOTO_MASTER, which occurs when a preemptable packet is
-	 * received), the timer should not be updated to allow the Master Down
-	 * Timer to expire.
-	 */
-	if (vrrp->state == VRRP_STATE_GOTO_MASTER ||
-		vrrp->state == VRRP_STATE_GOTO_FAULT  ||
-		vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
 		return;
 	}
 

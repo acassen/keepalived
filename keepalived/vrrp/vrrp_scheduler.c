@@ -629,14 +629,6 @@ vrrp_leave_master(vrrp_t * vrrp, char *buffer, int len)
 	} else if (vrrp_state_master_rx(vrrp, buffer, len)) {
 		vrrp_state_leave_master(vrrp);
 		vrrp_smtp_notifier(vrrp);
-	} else {
-		/*
-		 * If we're up, and the packet we received is preemptible
-		 * assert that we are the correct MASTER and immediately
-		 * transmit an advertisement to quell the operation of the
-		 * erroneous, lower-priority MASTER
-		 */
-		vrrp_master(vrrp);
 	}
 }
 
@@ -726,13 +718,6 @@ vrrp_goto_master(vrrp_t * vrrp)
 		/* handle master state transition */
 		vrrp->wantstate = VRRP_STATE_MAST;
 		vrrp_state_goto_master(vrrp);
-
-		/*
-		 * Immediately send a VRRP advertisement to the multicast
-		 * address to assert that we are now operating as the session
-		 * MASTER
-		 */
-		vrrp_master(vrrp);
 	}
 }
 
