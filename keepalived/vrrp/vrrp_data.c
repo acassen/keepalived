@@ -213,10 +213,10 @@ free_vrrp(void *data)
 			FREE(ELEMENT_DATA(e));
 	free_list(vrrp->track_script);
 
-	if (!LIST_ISEMPTY(vrrp->pscript[1]))
-		for (e = LIST_HEAD(vrrp->pscript[1]); e; ELEMENT_NEXT(e))
+	if (!LIST_ISEMPTY(vrrp->script))
+		for (e = LIST_HEAD(vrrp->script); e; ELEMENT_NEXT(e))
 			FREE(ELEMENT_DATA(e));
-	free_list(vrrp->pscript[1]);
+	free_list(vrrp->script);
 
 	free_list(vrrp->unicast_peer);
 	free_list(vrrp->vip);

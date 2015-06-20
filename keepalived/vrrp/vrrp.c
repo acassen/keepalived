@@ -1763,14 +1763,6 @@ clear_diff_vrrp(void)
 				netlink_link_del_vmac(vrrp);
 			}
 
-			/* Obtain reference to list of scripts used before reload
-			 * to enable a comparison later on to avoid making redundant
-			 * notifications.
-			 */
-			new_vrrp->pscript[1] = vrrp->pscript[0];
-			new_vrrp->pscript[0] = vrrp->script;
-			vrrp->script = NULL;
-
 			/* reset the state */
 			reset_vrrp_state(vrrp);
 		}

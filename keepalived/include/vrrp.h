@@ -230,14 +230,6 @@ typedef struct _vrrp_t {
 	/* IPSEC AH counter def (only valid for VRRPv2) --rfc2402.3.3.2 */
 	seq_counter_t		*ipsecah_counter;
 	list			script;
-	list			pscript[2]; /*
-								* previous scripts:
-								* [0] contains pointer to list of scripts
-								* configured before reload.
-								* [1] contains pointer to list of scripts
-								* configured two reloads ago. The list
-								* pointed to here gets freed during reload.
-								*/
 } vrrp_t;
 
 /* VRRP state machine -- rfc2338.6.4 */
