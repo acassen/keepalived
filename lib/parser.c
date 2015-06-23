@@ -239,6 +239,7 @@ void read_conf_file(char *conf_file)
 			log_message(LOG_INFO, "chdir(%s) error (%s)"
 					    , confpath, strerror(errno));
 		}
+		free(confpath);
 		process_stream(current_keywords);
 		fclose(stream);
 
@@ -306,7 +307,7 @@ read_line(char *buf, int size)
 
 	do {
 		int count = 0;
-		memset(buf, 0, MAXBUF);
+		memset(buf, 0, size);
 		while ((ch = fgetc(current_stream)) != EOF && (int) ch != '\n'
 			   && (int) ch != '\r') {
 			if (count < size)
