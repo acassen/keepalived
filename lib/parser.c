@@ -239,6 +239,7 @@ void read_conf_file(char *conf_file)
 			log_message(LOG_INFO, "chdir(%s) error (%s)"
 					    , confpath, strerror(errno));
 		}
+		free(confpath);
 		process_stream(current_keywords);
 		fclose(stream);
 
