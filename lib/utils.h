@@ -31,6 +31,7 @@
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
 #include <sys/param.h>
+#include <sys/types.h>
 #include <sys/utsname.h>
 #include <netdb.h>
 
