@@ -307,7 +307,7 @@ read_line(char *buf, int size)
 
 	do {
 		int count = 0;
-		memset(buf, 0, MAXBUF);
+		memset(buf, 0, size);
 		while ((ch = fgetc(current_stream)) != EOF && (int) ch != '\n'
 			   && (int) ch != '\r') {
 			if (count < size)
