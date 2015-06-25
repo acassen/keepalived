@@ -54,14 +54,6 @@ zalloc(unsigned long size)
 	return mem;
 }
 
-void
-xfree(void *p)
-{
-	/* sizeof p is the size of the pointer, not the pointed */
-	free(p);
-	p = NULL;
-}
-
 /* KeepAlived memory management. in debug mode,
  * help finding eventual memory leak.
  * Allocation memory types manipulated are :
@@ -213,7 +205,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 	}
 
 	if (buffer != NULL)
-		xfree(buffer);
+		free(buffer);
 
 	if (__test_bit(LOG_CONSOLE_BIT, &debug))
 		printf("free  [%3d:%3d], %p, %4ld at %s, %3d, %s\n",

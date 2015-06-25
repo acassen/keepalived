@@ -35,7 +35,6 @@
 extern unsigned long mem_allocated;
 extern void *xalloc(unsigned long size);
 extern void *zalloc(unsigned long size);
-extern void xfree(void *p);
 
 /* Global alloc macro */
 #define ALLOC(n) (xalloc(n))
@@ -61,7 +60,7 @@ extern void keepalived_free_final(char *);
 #else
 
 #define MALLOC(n)    (zalloc(n))
-#define FREE(p)      (xfree(p))
+#define FREE(p)      (free(p))
 #define REALLOC(p,n) (realloc((p),(n)))
 
 #endif
