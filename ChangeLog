@@ -1,3 +1,13 @@
+2015-06-30 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.18 released.
+	* some cosmetics changes (in memory and parser).
+	* remove dead/not used code.
+	* revert notify script brought by last release.
+	* revert VRRP preemption speed up extension.
+	* vrrp: ix vrrp removes incorrect IPv4 address when VIPs
+	  are removed.
+	* vrrp: Re-enable VRRPv2 checksum on inbound pkts.
+
 2015-05-31 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.17 released.
 	* zalloc use xalloc for consistency.
