@@ -62,9 +62,11 @@ uninstall:
 install:
 	$(MAKE) -C keepalived install
 	$(MAKE) -C genhash install
-	mkdir -p $(DESTDIR)/usr/share/snmp/mibs/
-	cp -f doc/VRRP-MIB $(DESTDIR)/usr/share/snmp/mibs/
-	cp -f doc/KEEPALIVED-MIB $(DESTDIR)/usr/share/snmp/mibs/
+ifeq (@SNMP_SUPPORT@, _WITH_SNMP_)
+        mkdir -p $(DESTDIR)/usr/share/snmp/mibs/
+        cp -f doc/VRRP-MIB $(DESTDIR)/usr/share/snmp/mibs/
+        cp -f doc/KEEPALIVED-MIB $(DESTDIR)/usr/share/snmp/mibs/
+endif
 
 tarball: mrproper
 	mkdir keepalived-@VERSION@
