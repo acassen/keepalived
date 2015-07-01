@@ -63,9 +63,9 @@ install:
 	$(MAKE) -C keepalived install
 	$(MAKE) -C genhash install
 ifeq (@SNMP_SUPPORT@, _WITH_SNMP_)
-        mkdir -p $(DESTDIR)/usr/share/snmp/mibs/
-        cp -f doc/VRRP-MIB $(DESTDIR)/usr/share/snmp/mibs/
-        cp -f doc/KEEPALIVED-MIB $(DESTDIR)/usr/share/snmp/mibs/
+	mkdir -p $(DESTDIR)/usr/share/snmp/mibs/
+	cp -f doc/VRRP-MIB $(DESTDIR)/usr/share/snmp/mibs/
+	cp -f doc/KEEPALIVED-MIB $(DESTDIR)/usr/share/snmp/mibs/
 endif
 
 tarball: mrproper
