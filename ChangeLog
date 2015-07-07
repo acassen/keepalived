@@ -1,3 +1,17 @@
+2015-07-07 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.19 released.
+	* vrrp: fix checksum computation in vrrp v2 for socket family AF_INET
+	  One of difference between VRRPv2 and VRRPv3 is the way checksum is
+	  computed. In VRRPv2 no accumulation is specified in RFC while in VRRPv3
+	  it uses regular accumulator with upper pseudo header. This fix restore
+	  compliant VRRPv2 for AF_INET vrrp instance. Since IPv6 socket are using
+	  IPV6_CHECKSUM option this means that checksum for VRRPv6 instance runing
+	  in native_ipv6 mode are broken. But since this is a end to end sanity
+	  check and both side are operating the same way this OK, no "compliant
+	  with VRRPv3 RFC", but anyway using native IPv6 on VRRPv2 is not really
+	  compliant too ;)
+	* Some cosmetics at Makefile stuff.
+
 2015-06-30 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.18 released.
 	* some cosmetics changes (in memory and parser).
