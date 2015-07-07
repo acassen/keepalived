@@ -444,16 +444,19 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 
 			in_csum((u_short *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
 			if (in_csum((u_short *) hd, vrrphdr_len, acc_csum, NULL)) {
-				log_message(LOG_INFO, "Invalid vrrp checksum");
+				log_message(LOG_INFO, "Invalid VRRPv3 checksum");
 				return VRRP_PACKET_KO;
 			}
 		}
 		/* Kernel takes care of checksum mismatch incase of IPv6. */
 	} else {
-            if (in_csum((u_short *) hd, vrrphdr_len, 0, NULL)){
-                log_message(LOG_INFO, "Invalid VRRPv2 checksum");
-                return VRRP_PACKET_KO;
-            }
+		if (vrrp->family == AF_INET) {
+			if (in_csum((u_short *) hd, vrrphdr_len, 0, NULL)){
+				log_message(LOG_INFO, "Invalid VRRPv2 checksum");
+				return VRRP_PACKET_KO;
+			}
+		}
+		/* Kernel takes care of checksum mismatch incase of IPv6. */
         }
 
 	/* Check that auth type of packet is one of the supported auth types */
