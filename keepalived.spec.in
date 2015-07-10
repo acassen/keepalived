@@ -4,9 +4,12 @@
 # Ugly, but we need headers from a kernel to rebuild against
 %define kernel %(rpm -q kernel-devel --qf '%{RPMTAG_VERSION}-%{RPMTAG_RELEASE}\\n' 2>/dev/null | head -1)
 
+# read in the version from the VERSION file
+%define version %(cat ./VERSION)
+
 Summary: HA monitor built upon LVS, VRRP and services poller
 Name: keepalived
-Version: @VERSION@
+Version: %{version}
 Release: 5
 License: GPL
 Group: Applications/System
