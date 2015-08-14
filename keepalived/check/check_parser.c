@@ -74,6 +74,24 @@ vs_handler(vector_t *strvec)
 	alloc_vs(vector_slot(strvec, 1), vector_slot(strvec, 2));
 }
 static void
+vs_end_handler(void)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	if (! vs->af)
+		vs->af = AF_INET;
+}
+static void
+ip_family_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	if (vs->af)
+		return;
+	if (0 == strcmp(vector_slot(strvec, 1), "inet"))
+		vs->af = AF_INET;
+	else if (0 == strcmp(vector_slot(strvec, 1), "inet6"))
+		vs->af = AF_INET6;
+}
+static void
 delay_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -299,6 +317,7 @@ check_init_keywords(void)
 	/* Virtual server mapping */
 	install_keyword_root("virtual_server_group", &vsg_handler);
 	install_keyword_root("virtual_server", &vs_handler);
+	install_keyword("ip_family", &ip_family_handler);
 	install_keyword("delay_loop", &delay_handler);
 	install_keyword("lb_algo", &lbalgo_handler);
 	install_keyword("lvs_sched", &lbalgo_handler);
@@ -333,6 +352,8 @@ check_init_keywords(void)
 	install_keyword("inhibit_on_failure", &inhibit_handler);
 	install_keyword("notify_up", &notify_up_handler);
 	install_keyword("notify_down", &notify_down_handler);
+
+	install_sublevel_end_handler(&vs_end_handler);
 
 	/* Checkers mapping */
 	install_checkers_keyword();

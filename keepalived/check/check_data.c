@@ -236,6 +236,7 @@ alloc_vs(char *ip, char *port)
 		new->vfwmark = atoi(port);
 	} else {
 		inet_stosockaddr(ip, port, &new->addr);
+		new->af = new->addr.ss_family;
 	}
 
 	new->delay_loop = KEEPALIVED_DEFAULT_DELAY;
@@ -262,6 +263,9 @@ alloc_ssvr(char *ip, char *port)
 	vs->s_svr->weight = 1;
 	vs->s_svr->iweight = 1;
 	inet_stosockaddr(ip, port, &vs->s_svr->addr);
+
+	if (! vs->af)
+		vs->af = vs->s_svr->addr.ss_family;
 }
 
 /* Real server facility functions */
@@ -315,6 +319,9 @@ alloc_rs(char *ip, char *port)
 	if (LIST_ISEMPTY(vs->rs))
 		vs->rs = alloc_list(free_rs, dump_rs);
 	list_add(vs->rs, new);
+
+	if (! vs->af)
+		vs->af = new->addr.ss_family;
 }
 
 /* data facility functions */

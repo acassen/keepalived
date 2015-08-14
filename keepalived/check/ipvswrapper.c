@@ -559,13 +559,9 @@ ipvs_group_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 	srule->port = 0;
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vsg_entry = ELEMENT_DATA(e);
-		srule->af = AF_INET;
-		/* Need to get address family from first real server */
-		if (vs->rs && !LIST_ISEMPTY(vs->rs) &&
-		    (((real_server_t *)ELEMENT_DATA(LIST_HEAD(vs->rs)))->addr.ss_family == AF_INET6)) {
-			srule->af = AF_INET6;
+		srule->af = vs->af;
+		if (vs->af == AF_INET6)
 			srule->netmask = 128;
-		}
 		srule->fwmark = vsg_entry->vfwmark;
 
 		/* Talk to the IPVS channel */
@@ -667,18 +663,13 @@ ipvs_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 	if (vs->vsgname) {
 		err = ipvs_group_cmd(cmd, vs, rs);
 	} else {
+		srule->af = vs->af;
 		if (vs->vfwmark) {
-			srule->af = AF_INET;
-			/* Need to get address family from first real server */
-			if (vs->rs && !LIST_ISEMPTY(vs->rs) &&
-			    (((real_server_t *)ELEMENT_DATA(LIST_HEAD(vs->rs)))->addr.ss_family == AF_INET6)) {
-				srule->af = AF_INET6;
+			if (vs->af == AF_INET6)
 				srule->netmask = 128;
-			}
 			srule->fwmark = vs->vfwmark;
 		} else {
-			srule->af = vs->addr.ss_family;
-			if (vs->addr.ss_family == AF_INET6)
+			if (vs->af == AF_INET6)
 				inet_sockaddrip6(&vs->addr, &srule->addr.in6);
 			else
 				srule->addr.ip = inet_sockaddrip4(&vs->addr);

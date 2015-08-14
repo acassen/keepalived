@@ -118,6 +118,7 @@ typedef struct _virtual_server {
 	struct sockaddr_storage		addr;
 	real_server_t			*s_svr;
 	uint32_t			vfwmark;
+	uint16_t			af;
 	uint16_t			service_type;
 	long				delay_loop;
 	int				ha_suspend;
@@ -219,6 +220,7 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 
 #define VS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&&\
 			 (X)->vfwmark                 == (Y)->vfwmark			&&\
+			 (X)->af                      == (Y)->af                        &&\
 			 (X)->service_type            == (Y)->service_type		&&\
 			 (X)->loadbalancing_kind      == (Y)->loadbalancing_kind	&&\
 			 (X)->nat_mask                == (Y)->nat_mask			&&\
