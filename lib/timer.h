@@ -33,7 +33,7 @@ extern timeval_t time_now;
 /* Some defines */
 #define TIME_MAX_FORWARD_US	2000000
 #define TIMER_HZ		1000000
-#define TIMER_CENTI_HZ          10000
+#define TIMER_CENTI_HZ		10000
 #define TIMER_MAX_SEC		1000
 
 /* Some usefull macros */
@@ -41,6 +41,12 @@ extern timeval_t time_now;
 #define timer_long(T) ((T).tv_sec * TIMER_HZ + (T).tv_usec)
 #define timer_isnull(T) ((T).tv_sec == 0 && (T).tv_usec == 0)
 #define timer_reset(T) (memset(&(T), 0, sizeof(timeval_t)))
+/* call this instead of timer_reset() when you intend to set
+ * all the fields of timeval manually afterwards. */
+#define timer_reset_lazy(T) do { \
+	if ( sizeof((T)) != sizeof((T).tv_sec) + sizeof((T).tv_usec) ) \
+		timer_reset((T)); \
+	} while (0)
 
 /* prototypes */
 extern timeval_t timer_now(void);

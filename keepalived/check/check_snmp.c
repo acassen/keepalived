@@ -476,7 +476,7 @@ check_snmp_realserver_weight(int action,
 		if (action == RESERVE2)
 			break;
 		/* Commit: change values. There is no way to fail. */
-		update_svr_wgt((long)(*var_val), vs, rs);
+		update_svr_wgt((long)(*var_val), vs, rs, 1);
 		break;
 	}
 	return SNMP_ERR_NOERROR;

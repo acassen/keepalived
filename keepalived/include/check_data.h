@@ -71,6 +71,8 @@ typedef struct _real_server {
 	struct sockaddr_storage		addr;
 	int				weight;
 	int				iweight;	/* Initial weight */
+	int 				pweight;	/* previous weight
+							 * used for reloading */
 #ifdef _KRNL_2_6_
 	uint32_t			u_threshold;   /* Upper connection limit. */
 	uint32_t			l_threshold;   /* Lower connection limit. */
@@ -116,6 +118,7 @@ typedef struct _virtual_server {
 	struct sockaddr_storage		addr;
 	real_server_t			*s_svr;
 	uint32_t			vfwmark;
+	uint16_t			af;
 	uint16_t			service_type;
 	long				delay_loop;
 	int				ha_suspend;
@@ -217,6 +220,7 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 
 #define VS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&&\
 			 (X)->vfwmark                 == (Y)->vfwmark			&&\
+			 (X)->af                      == (Y)->af                        &&\
 			 (X)->service_type            == (Y)->service_type		&&\
 			 (X)->loadbalancing_kind      == (Y)->loadbalancing_kind	&&\
 			 (X)->nat_mask                == (Y)->nat_mask			&&\
@@ -234,8 +238,7 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			 (X)->range     == (Y)->range &&		\
 			 (X)->vfwmark   == (Y)->vfwmark)
 
-#define RS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr) &&	\
-			 (X)->iweight   == (Y)->iweight)
+#define RS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr))
 
 /* Global vars exported */
 extern check_data_t *check_data;

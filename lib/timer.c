@@ -34,7 +34,7 @@ timer_dup(timeval_t b)
 {
 	timeval_t a;
 
-	timer_reset(a);
+	timer_reset_lazy(a);
 	a.tv_sec = b.tv_sec;
 	a.tv_usec = b.tv_usec;
 	return a;
@@ -44,15 +44,10 @@ timer_dup(timeval_t b)
 int
 timer_cmp(timeval_t a, timeval_t b)
 {
-	if (a.tv_sec > b.tv_sec)
-		return 1;
-	if (a.tv_sec < b.tv_sec)
-		return -1;
-	if (a.tv_usec > b.tv_usec)
-		return 1;
-	if (a.tv_usec < b.tv_usec)
-		return -1;
-	return 0;
+	int ret = a.tv_sec - b.tv_sec;
+	if (! ret)
+		return a.tv_usec - b.tv_usec;
+	return ret;
 }
 
 /* timer sub */
@@ -61,7 +56,7 @@ timer_sub(timeval_t a, timeval_t b)
 {
 	timeval_t ret;
 
-	timer_reset(ret);
+	timer_reset_lazy(ret);
 	ret.tv_usec = a.tv_usec - b.tv_usec;
 	ret.tv_sec = a.tv_sec - b.tv_sec;
 
@@ -79,7 +74,7 @@ timer_add(timeval_t a, timeval_t b)
 {
 	timeval_t ret;
 
-	timer_reset(ret);
+	timer_reset_lazy(ret);
 	ret.tv_usec = a.tv_usec + b.tv_usec;
 	ret.tv_sec = a.tv_sec + b.tv_sec;
 
@@ -96,7 +91,7 @@ timer_add_long(timeval_t a, long b)
 {
 	timeval_t ret;
 
-	timer_reset(ret);
+	timer_reset_lazy(ret);
 	ret.tv_usec = a.tv_usec + b % TIMER_HZ;
 	ret.tv_sec = a.tv_sec + b / TIMER_HZ;
 
@@ -128,43 +123,30 @@ int monotonic_gettimeofday(timeval_t *now)
 		return -1;
 	}
 
+	timer_reset_lazy(*now);
+
 	gettimeofday(&sys_date, NULL);
 
 	/* on first call, we set mono_date to system date */
 	if (mono_date.tv_sec == 0) {
 		mono_date = sys_date;
-		drift.tv_sec = drift.tv_usec = 0;
+		timer_reset(drift);
 		*now = mono_date;
 		return 0;
 	}
 
 	/* compute new adjusted time by adding the drift offset */
-	adjusted.tv_sec  = sys_date.tv_sec  + drift.tv_sec;
-	adjusted.tv_usec = sys_date.tv_usec + drift.tv_usec;
-	if (adjusted.tv_usec >= TIMER_HZ) {
-		adjusted.tv_usec -= TIMER_HZ;
-		adjusted.tv_sec++;
-	}
+	adjusted = timer_add(sys_date, drift);
 
 	/* check for jumps in the past, and bound to last date */
-	if (adjusted.tv_sec  <  mono_date.tv_sec ||
-	    (adjusted.tv_sec  == mono_date.tv_sec &&
-	     adjusted.tv_usec <  mono_date.tv_usec))
+	if (timer_cmp(adjusted, mono_date) < 0)
 		goto fixup;
 
 	/* check for jumps too far in the future, and bound them to
 	 * TIME_MAX_FORWARD_US microseconds.
 	 */
-	deadline.tv_sec  = mono_date.tv_sec  + TIME_MAX_FORWARD_US / TIMER_HZ;
-	deadline.tv_usec = mono_date.tv_usec + TIME_MAX_FORWARD_US % TIMER_HZ;
-	if (deadline.tv_usec >= TIMER_HZ) {
-		deadline.tv_usec -= TIMER_HZ;
-		deadline.tv_sec++;
-	}
-
-	if (adjusted.tv_sec  >  deadline.tv_sec ||
-	    (adjusted.tv_sec  == deadline.tv_sec &&
-	     adjusted.tv_usec >= deadline.tv_usec)) {
+	deadline = timer_add_long(mono_date, TIME_MAX_FORWARD_US);
+	if (timer_cmp (adjusted, deadline) >= 0) {
 		mono_date = deadline;
 		goto fixup;
 	}
@@ -180,12 +162,7 @@ int monotonic_gettimeofday(timeval_t *now)
 	 * play with negative carries in all computations, we take
 	 * care of always having the microseconds positive.
 	 */
-	drift.tv_sec  = mono_date.tv_sec  - sys_date.tv_sec;
-	drift.tv_usec = mono_date.tv_usec - sys_date.tv_usec;
-	if (drift.tv_usec < 0) {
-		drift.tv_usec += TIMER_HZ;
-		drift.tv_sec--;
-	}
+	drift = timer_sub(mono_date, sys_date);
 	*now = mono_date;
 	return 0;
 }
@@ -198,9 +175,10 @@ timer_now(void)
 	int old_errno = errno;
 
 	/* init timer */
-	timer_reset(curr_time);
-	monotonic_gettimeofday(&curr_time);
-	errno = old_errno;
+	if (monotonic_gettimeofday(&curr_time)) {
+		timer_reset(curr_time);
+		errno = old_errno;
+	}
 
 	return curr_time;
 }
@@ -212,9 +190,10 @@ set_time_now(void)
 	int old_errno = errno;
 
 	/* init timer */
-	timer_reset(time_now);
-	monotonic_gettimeofday(&time_now);
-	errno = old_errno;
+	if (monotonic_gettimeofday(&time_now)) {
+		timer_reset(time_now);
+		errno = old_errno;
+	}
 
 	return time_now;
 }

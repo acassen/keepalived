@@ -65,8 +65,7 @@ clear_service_rs(virtual_server_t * vs, list l)
 			log_message(LOG_INFO, "Removing service %s from VS %s"
 						, FMT_RS(rs)
 						, FMT_VS(vs));
-			if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs))
-				return 0;
+			ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs);
 			UNSET_ALIVE(rs);
 			if (!vs->omega)
 				continue;
@@ -119,15 +118,13 @@ clear_service_vs(virtual_server_t * vs)
 	if (!LIST_ISEMPTY(vs->rs)) {
 		if (vs->s_svr) {
 			if (ISALIVE(vs->s_svr))
-				if (!ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr))
-					return 0;
+				ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
 		} else if (!clear_service_rs(vs, vs->rs))
 			return 0;
 		/* The above will handle Omega case for VS as well. */
 	}
 
-	if (!ipvs_cmd(LVS_CMD_DEL, vs, NULL))
-		return 0;
+	ipvs_cmd(LVS_CMD_DEL, vs, NULL);
 
 	UNSET_ALIVE(vs);
 	return 1;
@@ -158,16 +155,19 @@ init_service_rs(virtual_server_t * vs)
 
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
-		/* Do not re-add failed RS instantly on reload */
-		if (rs->reloaded)
+
+		if (rs->reloaded) {
+			if (rs->iweight != rs->pweight)
+				update_svr_wgt(rs->iweight, vs, rs, 0);
+			/* Do not re-add failed RS instantly on reload */
 			continue;
+		}
 		/* In alpha mode, be pessimistic (or realistic?) and don't
 		 * add real servers into the VS pool. They will get there
 		 * later upon healthchecks recovery (if ever).
 		 */
 		if (!vs->alpha && !ISALIVE(rs)) {
-			if (!ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs))
-				return 0;
+			ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
 			SET_ALIVE(rs);
 		}
 	}
@@ -213,10 +213,8 @@ init_service_vs(virtual_server_t * vs)
 {
 	/* Init the VS root */
 	if (!ISALIVE(vs) || vs->vsgname) {
-		if (!ipvs_cmd(LVS_CMD_ADD, vs, NULL))
-			return 0;
-		else
-			SET_ALIVE(vs);
+		ipvs_cmd(LVS_CMD_ADD, vs, NULL);
+		SET_ALIVE(vs);
 	}
 
 	/* Processing real server queue */
@@ -357,7 +355,7 @@ update_quorum_state(virtual_server_t * vs)
 }
 
 /* manipulate add/remove rs according to alive state */
-void
+int
 perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 {
 	/*
@@ -374,7 +372,8 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 				    , FMT_VS(vs));
 		/* Add only if we have quorum or no sorry server */
 		if (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)) {
-			ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
+			if (ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs))
+				return -1;
 		}
 		rs->alive = alive;
 		if (rs->notify_up) {
@@ -402,7 +401,8 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 		 * Remove only if we have quorum or no sorry server
 		 */
 		if (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)) {
-			ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs);
+			if (ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs))
+				return -1;
 		}
 		rs->alive = alive;
 		if (rs->notify_down) {
@@ -419,11 +419,13 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 		/* We may have lost quorum */
 		update_quorum_state(vs);
 	}
+	return 0;
 }
 
 /* Store new weight in real_server struct and then update kernel. */
 void
-update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs)
+update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
+		, int update_quorum)
 {
 	if (weight != rs->weight) {
 		log_message(LOG_INFO, "Changing weight from %d to %d for %s service %s of VS %s"
@@ -442,7 +444,8 @@ update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs)
 		if (rs->set && ISALIVE(rs) &&
 		    (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)))
 			ipvs_cmd(LVS_CMD_EDIT_DEST, vs, rs);
-		update_quorum_state(vs);
+		if (update_quorum)
+			update_quorum_state(vs);
 	}
 }
 
@@ -481,27 +484,39 @@ update_svr_checker_state(int alive, checker_id_t cid, virtual_server_t *vs, real
 	 * things out itself.
 	 */
 	if (alive) {
-		/* Remove the succeeded check from failed_checkers list. */
 		for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 			id = ELEMENT_DATA(e);
-			if (*id == cid) {
-				free_list_element(l, e);
-				/* If we don't break, the next iteration will trigger
-				 * a SIGSEGV.
-				 */
+			if (*id == cid)
 				break;
-			}
 		}
-		if (LIST_SIZE(l) == 0)
-			perform_svr_state(alive, vs, rs);
+
+		/* call the UP handler unless any more failed checks found */
+		if (LIST_SIZE(l) == 0 || (LIST_SIZE(l) == 1 && e)) {
+			if (perform_svr_state(alive, vs, rs))
+				return;
+		}
+
+		/* Remove the succeeded check from failed_checkers */
+		if (e)
+			free_list_element(l, e);
 	}
 	/* Handle not alive state */
 	else {
+		if (LIST_SIZE(l) == 0) {
+			if (perform_svr_state(alive, vs, rs))
+				return;
+		} else {
+			/* do not add failed check into list twice */
+			for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+				id = ELEMENT_DATA(e);
+				if (*id == cid)
+					return;
+			}
+		}
+
 		id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
 		*id = cid;
 		list_add(l, id);
-		if (LIST_SIZE(l) == 1)
-			perform_svr_state(alive, vs, rs);
 	}
 }
 
@@ -542,8 +557,7 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 					    , vsge->vfwmark
 					    , old_vs->vsgname);
 
-			if (!ipvs_group_remove_entry(old_vs, vsge))
-				return 0;
+			ipvs_group_remove_entry(old_vs, vsge);
 		}
 	}
 
@@ -639,6 +653,7 @@ clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 			new_rs->alive = rs->alive;
 			new_rs->set = rs->set;
 			new_rs->weight = rs->weight;
+			new_rs->pweight = rs->iweight;
 			new_rs->reloaded = 1;
 			if (new_rs->alive) {
 				/* clear failed_checkers list */
@@ -700,12 +715,10 @@ clear_diff_services(void)
 			vs->omega = 1;
 			if (!clear_diff_rs(vs, new_vs->rs))
 				return 0;
-			if (vs->s_svr)
-				if (ISALIVE(vs->s_svr))
-					if (!ipvs_cmd(LVS_CMD_DEL_DEST
-						      , vs
-						      , vs->s_svr))
-						return 0;
+			if (vs->s_svr && ISALIVE(vs->s_svr))
+				ipvs_cmd(LVS_CMD_DEL_DEST
+					      , vs
+					      , vs->s_svr);
 		}
 	}
 

@@ -244,6 +244,7 @@ ssl_read_thread(thread_t * thread)
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	http_t *http = HTTP_ARG(http_get_check);
 	request_t *req = HTTP_REQ(http);
+	url_t *url = list_element(http_get_check->url, http->url_it);
 	unsigned timeout = checker->co->connection_to;
 	unsigned char digest[16];
 	int r = 0;
@@ -251,8 +252,7 @@ ssl_read_thread(thread_t * thread)
 
 	/* Handle read timeout */
 	if (thread->type == THREAD_READ_TIMEOUT && !req->extracted)
-		return timeout_epilog(thread, "=> SSL CHECK failed on service"
-				      " : recevice data <=\n\n", "SSL read");
+		return timeout_epilog(thread, "Timeout SSL read");
 
 	/* Set descriptor non blocking */
 	val = fcntl(thread->u.fd, F_GETFL, 0);
@@ -273,7 +273,7 @@ ssl_read_thread(thread_t * thread)
 				thread->u.fd, timeout);
 	} else if (r > 0 && req->error == 0) {
 		/* Handle response stream */
-		http_process_response(req, r);
+		http_process_response(req, r, (url->digest != NULL));
 
 		/*
 		 * Register next ssl stream reader.
@@ -284,23 +284,14 @@ ssl_read_thread(thread_t * thread)
 	} else if (req->error) {
 
 		/* All the SSL streal has been parsed */
-		MD5_Final(digest, &req->context);
+		if (url->digest)
+			MD5_Final(digest, &req->context);
 		SSL_set_quiet_shutdown(req->ssl, 1);
 
 		r = (req->error == SSL_ERROR_ZERO_RETURN) ? SSL_shutdown(req->ssl) : 0;
 
 		if (r && !req->extracted) {
-			/* check if server is currently alive */
-			if (svr_checker_up(checker->id, checker->rs)) {
-				smtp_alert(checker->rs, NULL, NULL,
-					   "DOWN",
-					   "=> SSL CHECK failed on service"
-					   " : cannot receive data <=\n\n");
-				update_svr_checker_state(DOWN, checker->id
-							     , checker->vs
-							     , checker->rs);
-			}
-			return epilog(thread, 1, 0, 0);
+			return timeout_epilog(thread, "SSL read error from");
 		}
 
 		/* Handle response stream */

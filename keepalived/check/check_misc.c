@@ -220,7 +220,8 @@ misc_check_child_thread(thread_t * thread)
 			 * Catch legacy case of status being 0 but misc_dynamic being set.
 			 */
 			if (misck_checker->dynamic == 1 && status != 0)
-				update_svr_wgt(status - 2, checker->vs, checker->rs);
+				update_svr_wgt(status - 2, checker->vs,
+					       checker->rs, 1);
 
 			/* everything is good */
 			if (!svr_checker_up(checker->id, checker->rs)) {

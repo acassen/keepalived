@@ -358,6 +358,9 @@ A virtual_server can be a declaration of one of
     # Script to launch when quorum is lost.
     quorum_down <STRING>|<QUOTED-STRING>
 
+    # IP family for a fwmark service (optional)
+    ip_family inet|inet6
+
 
     # setup realserver(s)
 
@@ -465,6 +468,11 @@ A virtual_server can be a declaration of one of
                # checks to the same RS. Enabled by default, with
                # the maximum at delay_loop. Specify 0 to disable
                warmup <INT>
+               # Retry count to make additional checks if check
+               # of an alive server fails. Default: 1
+               retry <INT>
+               # Delay in seconds before retrying. Default: 1
+               delay_before_retry <INT>
            } #TCP_CHECK
 
            # SMTP healthchecker
