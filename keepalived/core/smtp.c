@@ -464,7 +464,7 @@ build_to_header_rcpt_addrs(smtp_t *smtp)
 
 	while (1) {
 		fetched_email = fetch_next_email(smtp);
-		if (fetched_email != NULL)
+		if (fetched_email == NULL)
 			break;
 
 		bytes_not_written = 0;
@@ -477,18 +477,19 @@ build_to_header_rcpt_addrs(smtp_t *smtp)
 				break;
 
 			/* Prepend with a comma and space to all non-first email addresses */
-			strcat(email_to_addrs, ", ");
-			email_to_addrs += 2;
+			*email_to_addrs++ = ',';
+			*email_to_addrs++ = ' ';
 			bytes_available -= 2;
 		}
 
-		bytes_not_written = snprintf(email_to_addrs, bytes_to_write, "%s", fetched_email);
+		bytes_not_written = snprintf(email_to_addrs, bytes_to_write + 1, "%s", fetched_email) - bytes_to_write;;
 		if (bytes_not_written > 0) {
 			/* Inconsistent state, no choice but to break here and do nothing */
 			break;
 		}
 
 		email_to_addrs += bytes_to_write;
+		bytes_available -= bytes_to_write;
 		smtp->email_it++;
 	}
 
