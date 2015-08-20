@@ -62,9 +62,13 @@ smtpto_handler(vector_t *strvec)
 	global_data->smtp_connection_to = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
 }
 static void
-smtpip_handler(vector_t *strvec)
+smtpserver_handler(vector_t *strvec)
 {
-	inet_stosockaddr(vector_slot(strvec, 1), SMTP_PORT_STR, &global_data->smtp_server);
+	int ret;
+	ret = inet_stosockaddr(vector_slot(strvec, 1), SMTP_PORT_STR, &global_data->smtp_server);
+	if (ret < 0) {
+		domain_stosockaddr(vector_slot(strvec, 1), SMTP_PORT_STR, &global_data->smtp_server);
+	}
 }
 static void
 email_handler(vector_t *strvec)
@@ -121,7 +125,7 @@ global_init_keywords(void)
 	install_keyword("router_id", &routerid_handler);
 	install_keyword("plugin_dir", &plugin_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);
-	install_keyword("smtp_server", &smtpip_handler);
+	install_keyword("smtp_server", &smtpserver_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
 	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler);

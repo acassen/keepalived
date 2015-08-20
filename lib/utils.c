@@ -165,6 +165,34 @@ inet_stor(char *addr)
 	return 0;
 }
 
+/* Domain to sockaddr_storage */
+int
+domain_stosockaddr(char *domain, char *port, struct sockaddr_storage *addr)
+{
+	struct addrinfo *res = NULL;
+
+	if (getaddrinfo(domain, NULL, NULL, &res) != 0 || !res)
+		return -1;
+
+	addr->ss_family = res->ai_family;
+
+	if (addr->ss_family == AF_INET6) {
+		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
+		*addr6 = *(struct sockaddr_in6 *) res->ai_addr;
+		if (port)
+			addr6->sin6_port = htons(atoi(port));
+	} else {
+		struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
+		*addr4 = *(struct sockaddr_in *) res->ai_addr;
+		if (port)
+			addr4->sin_port = htons(atoi(port));
+	}
+
+	freeaddrinfo(res);
+
+	return 0;
+}
+
 /* IP string to sockaddr_storage */
 int
 inet_stosockaddr(char *ip, char *port, struct sockaddr_storage *addr)
