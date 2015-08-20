@@ -169,24 +169,23 @@ inet_stor(char *addr)
 int
 domain_stosockaddr(char *domain, char *port, struct sockaddr_storage *addr)
 {
-	struct hostent *h = gethostbyname(domain);
+	struct addrinfo *res = NULL;
 
-	if (!h  || !(h->h_addr_list[0]))
+	if (getaddrinfo(domain, NULL, NULL, &res) != 0 || !res)
 		return -1;
 
-	addr->ss_family = h->h_addrtype;
+	addr->ss_family = res->ai_family;
 
 	if (addr->ss_family == AF_INET6) {
 		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
+		*addr6 = *(struct sockaddr_in6 *) res->ai_addr;
 		if (port)
 			addr6->sin6_port = htons(atoi(port));
-
-		addr6->sin6_addr = *(struct in6_addr *) h->h_addr_list[0];
 	} else {
 		struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
+		*addr4 = *(struct sockaddr_in *) res->ai_addr;
 		if (port)
 			addr4->sin_port = htons(atoi(port));
-		addr4->sin_addr = *(struct in_addr *) h->h_addr_list[0];
 	}
 
 	return 0;
