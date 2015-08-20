@@ -188,6 +188,8 @@ domain_stosockaddr(char *domain, char *port, struct sockaddr_storage *addr)
 			addr4->sin_port = htons(atoi(port));
 	}
 
+	freeaddrinfo(res);
+
 	return 0;
 }
 
