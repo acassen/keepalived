@@ -165,6 +165,33 @@ inet_stor(char *addr)
 	return 0;
 }
 
+/* Domain to sockaddr_storage */
+int
+domain_stosockaddr(char *domain, char *port, struct sockaddr_storage *addr)
+{
+	struct hostent *h = gethostbyname(domain);
+
+	if (!h  || !(h->h_addr_list[0]))
+		return -1;
+
+	addr->ss_family = h->h_addrtype;
+
+	if (addr->ss_family == AF_INET6) {
+		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
+		if (port)
+			addr6->sin6_port = htons(atoi(port));
+
+		addr6->sin6_addr = *(struct in6_addr *) h->h_addr_list[0];
+	} else {
+		struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
+		if (port)
+			addr4->sin_port = htons(atoi(port));
+		addr4->sin_addr = *(struct in_addr *) h->h_addr_list[0];
+	}
+
+	return 0;
+}
+
 /* IP string to sockaddr_storage */
 int
 inet_stosockaddr(char *ip, char *port, struct sockaddr_storage *addr)

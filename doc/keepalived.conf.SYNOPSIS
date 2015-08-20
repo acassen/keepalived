@@ -28,7 +28,7 @@ global_defs {				# Block identification
        ...
     }
     notification_email_from <EMAIL ADDRESS> # Email From dealing with SMTP proto
-    smtp_server <IP ADDRESS>		   # SMTP server IP address
+    smtp_server <ADDRESS>		   # SMTP server IP address or damain name
     smtp_connect_timeout <INTEGER>	   # Number of seconds timeout connect
  					   #  remote SMTP server
     router_id <STRING>			   # String identifying router

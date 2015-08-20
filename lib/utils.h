@@ -54,6 +54,7 @@ extern char *inet_ntop2(uint32_t);
 extern char *inet_ntoa2(uint32_t, char *);
 extern uint8_t inet_stom(char *);
 extern uint8_t inet_stor(char *);
+extern int domain_stosockaddr(char *, char *, struct sockaddr_storage *);
 extern int inet_stosockaddr(char *, char *, struct sockaddr_storage *);
 extern int inet_ip4tosockaddr(struct in_addr *, struct sockaddr_storage *);
 extern int inet_ip6tosockaddr(struct in6_addr *, struct sockaddr_storage *);
