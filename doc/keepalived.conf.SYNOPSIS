@@ -89,6 +89,7 @@ This block is divided in 3 sub-block :
 vrrp_script <STRING> {          # VRRP script declaration
     script <QUOTED_STRING>      # script to run periodically
     interval <INTEGER>          # run the script this every seconds
+    timeout <INTEGER>           # script considered failed after 'timeout' seconds
     weight <INTEGER:-254..254>  # adjust priority by this weight
     fall <INTEGER>              # required number of failures for KO switch
     rise <INTEGER>              # required number of successes for OK switch
