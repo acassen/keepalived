@@ -348,23 +348,52 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 		long_ret = 1;	/* IPv4 only */
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ROUTE_DESTINATION:
-		*var_len = 4;
-		return (u_char *)&route->dst;
+		if (route->dst) {
+			if (route->dst->ifa.ifa_family == AF_INET6) {
+				*var_len = 16;
+				return (u_char *)&route->dst->u.sin6_addr;
+			} else {
+				*var_len = 4;
+				return (u_char *)&route->dst->u.sin.sin_addr;
+			}
+		}
+		break;
 	case VRRP_SNMP_ROUTE_DESTINATIONMASK:
 		long_ret = route->dmask;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ROUTE_GATEWAY:
-		*var_len = 4;
-		return (u_char *)&route->gw;
+		if (route->gw) {
+			if (route->gw->ifa.ifa_family == AF_INET6) {
+				*var_len = 16;
+				return (u_char *)&route->gw->u.sin6_addr;
+			} else {
+				*var_len = 4;
+				return (u_char *)&route->gw->u.sin.sin_addr;
+			}
+		}
+		break;
 	case VRRP_SNMP_ROUTE_SECONDARYGATEWAY:
 		if (route->gw2) {
-			*var_len = 4;
-			return (u_char *)&route->gw2;
+			if (route->gw2->ifa.ifa_family == AF_INET6) {
+				*var_len = 16;
+				return (u_char *)&route->gw2->u.sin6_addr;
+			} else {
+				*var_len = 4;
+				return (u_char *)&route->gw2->u.sin.sin_addr;
+			}
 		}
 		break;
 	case VRRP_SNMP_ROUTE_SOURCE:
-		*var_len = 4;
-		return (u_char *)&route->src;
+		if (route->src) {
+			if (route->src->ifa.ifa_family == AF_INET6) {
+				*var_len = 16;
+				return (u_char *)&route->src->u.sin6_addr;
+			} else {
+				*var_len = 4;
+				return (u_char *)&route->src->u.sin.sin_addr;
+			}
+		}
+		break;
 	case VRRP_SNMP_ROUTE_METRIC:
 		long_ret = route->metric;
 		return (u_char *)&long_ret;
