@@ -30,6 +30,7 @@
 /* local include */
 #include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
+#include "vrrp_iprule.h"
 #include "vrrp_ipsecah.h"
 #include "vrrp_if.h"
 #include "vrrp_track.h"
@@ -166,6 +167,7 @@ typedef struct _vrrp_t {
 							 * VRRP adverts
 							 */
 	list			vroutes;		/* list of virtual routes */
+	list			vrules;			/* list of virtual rules */
 	int			adver_int;		/* locally configured delay between advertisements*/
 	int			master_adver_int; /* In v3, when we become BACKUP, we use the MASTER's
 								   * adver_int. If we become MASTER again, we use the

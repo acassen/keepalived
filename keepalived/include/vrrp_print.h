@@ -32,4 +32,5 @@ extern void vgroup_print(FILE *file, void *d);
 extern void vscript_print(FILE *file, void *d);
 extern void address_print(FILE *file, void *d);
 extern void route_print(FILE *file, void *d);
+extern void rule_print(FILE *file, void *d);
 extern void if_print(FILE *file, void *d);

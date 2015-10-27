@@ -71,6 +71,18 @@ vrrp_handle_iproutes(vrrp_t * vrrp, int cmd)
 	return 1;
 }
 
+/* add/remove Virtual rules */
+static int
+vrrp_handle_iprules(vrrp_t * vrrp, int cmd)
+{
+	if (__test_bit(LOG_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol Virtual Rules",
+		       vrrp->iname,
+		       (cmd == IPRULE_ADD) ? "setting" : "removing");
+	netlink_rulelist(vrrp->vrules, cmd);
+	return 1;
+}
+
 /* add/remove iptable drop rules based on accept mode */
 static void
 vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd)
@@ -1038,6 +1050,10 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	if (!LIST_ISEMPTY(vrrp->vroutes))
 		vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
 
+	/* add virtual rules */
+	if (!LIST_ISEMPTY(vrrp->vrules))
+		vrrp_handle_iprules(vrrp, IPRULE_ADD);
+
 	/* remotes neighbour update */
 	vrrp_send_link_update(vrrp, vrrp->garp_rep);
 
@@ -1104,6 +1120,10 @@ vrrp_restore_interface(vrrp_t * vrrp, int advF)
 	/* remove virtual routes */
 	if (!LIST_ISEMPTY(vrrp->vroutes))
 		vrrp_handle_iproutes(vrrp, IPROUTE_DEL);
+
+	/* remove virtual rules */
+	if (!LIST_ISEMPTY(vrrp->vrules))
+		vrrp_handle_iprules(vrrp, IPRULE_DEL);
 
 	/*
 	 * Remove the ip addresses.
@@ -1539,7 +1559,7 @@ shutdown_vrrp_instances(void)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-		/* Remove VIPs/VROUTEs */
+		/* Remove VIPs/VROUTEs/VRULEs */
 		if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_restore_interface(vrrp, 1);
 
@@ -1677,6 +1697,14 @@ clear_diff_vrrp_vroutes(vrrp_t * old_vrrp)
 	clear_diff_routes(old_vrrp->vroutes, vrrp->vroutes);
 }
 
+/* Clear virtual rules not present in the new data */
+static void
+clear_diff_vrrp_vrules(vrrp_t * old_vrrp)
+{
+	vrrp_t *vrrp = vrrp_exist(old_vrrp);
+	clear_diff_rules(old_vrrp->vrules, vrrp->vrules);
+}
+
 /* Keep the state from before reload */
 static void
 reset_vrrp_state(vrrp_t * old_vrrp)
@@ -1717,6 +1745,8 @@ reset_vrrp_state(vrrp_t * old_vrrp)
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
 		if (!LIST_ISEMPTY(vrrp->vroutes))
 			vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
+		if (!LIST_ISEMPTY(vrrp->vrules))
+			vrrp_handle_iprules(vrrp, IPRULE_ADD);
 	}
 }
 
@@ -1756,6 +1786,9 @@ clear_diff_vrrp(void)
 
 			/* virtual routes diff */
 			clear_diff_vrrp_vroutes(vrrp);
+
+			/* virtual rules diff */
+			clear_diff_vrrp_vrules(vrrp);
 
 			/* 
 			 * Remove VMAC if it existed in old vrrp instance,

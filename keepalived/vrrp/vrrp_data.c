@@ -54,6 +54,15 @@ alloc_sroute(vector_t *strvec)
 	alloc_route(vrrp_data->static_routes, strvec);
 }
 
+/* Static rules facility function */
+void
+alloc_srule(vector_t *strvec)
+{
+	if (LIST_ISEMPTY(vrrp_data->static_rules))
+		vrrp_data->static_rules = alloc_list(free_iprule, dump_iprule);
+	alloc_rule(vrrp_data->static_rules, strvec);
+}
+
 /* VRRP facility functions */
 static void
 free_vgroup(void *data)
@@ -217,6 +226,7 @@ free_vrrp(void *data)
 	free_list(vrrp->vip);
 	free_list(vrrp->evip);
 	free_list(vrrp->vroutes);
+	free_list(vrrp->vrules);
 	FREE(vrrp);
 }
 static void
@@ -298,6 +308,10 @@ dump_vrrp(void *data)
 	if (!LIST_ISEMPTY(vrrp->vroutes)) {
 		log_message(LOG_INFO, "   Virtual Routes = %d", LIST_SIZE(vrrp->vroutes));
 		dump_list(vrrp->vroutes);
+	}
+	if (!LIST_ISEMPTY(vrrp->vrules)) {
+		log_message(LOG_INFO, "   Virtual Rules = %d", LIST_SIZE(vrrp->vrules));
+		dump_list(vrrp->vrules);
 	}
 	if (vrrp->script_backup)
 		log_message(LOG_INFO, "   Backup state transition script = %s", vrrp->script_backup);
@@ -473,6 +487,16 @@ alloc_vrrp_vroute(vector_t *strvec)
 }
 
 void
+alloc_vrrp_vrule(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	if (LIST_ISEMPTY(vrrp->vrules))
+		vrrp->vrules = alloc_list(free_iprule, dump_iprule);
+	alloc_rule(vrrp->vrules, strvec);
+}
+
+void
 alloc_vrrp_script(char *sname)
 {
 	int size = strlen(sname);
@@ -526,6 +550,7 @@ free_vrrp_data(vrrp_data_t * data)
 {
 	free_list(data->static_addresses);
 	free_list(data->static_routes);
+	free_list(data->static_rules);
 	free_mlist(data->vrrp_index, 255+1);
 	free_mlist(data->vrrp_index_fd, 1024+1);
 	free_list(data->vrrp);
@@ -544,6 +569,10 @@ dump_vrrp_data(vrrp_data_t * data)
 	if (!LIST_ISEMPTY(data->static_routes)) {
 		log_message(LOG_INFO, "------< Static Routes >------");
 		dump_list(data->static_routes);
+	}
+	if (!LIST_ISEMPTY(data->static_rules)) {
+		log_message(LOG_INFO, "------< Static Rules >------");
+		dump_list(data->static_rules);
 	}
 	if (!LIST_ISEMPTY(data->vrrp)) {
 		log_message(LOG_INFO, "------< VRRP Topology >------");

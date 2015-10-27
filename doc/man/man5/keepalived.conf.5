@@ -21,9 +21,10 @@ anywhere in a line.
 .PP
 .SH GLOBAL CONFIGURATION
 contains subblocks of
-.B Global definitions
+.B Global definitions,
+.B Static routes,
 and
-.B Static routes
+.B Static rules
 .PP
 .SH Global definitions
 .PP
@@ -46,9 +47,9 @@ and
  }
 
 
-.SH Static routes/addresses
+.SH Static routes/addresses/rules
 .PP
-keepalived can configure static addresses and routes. These addresses are
+keepalived can configure static addresses, routes, and rules. These addresses are
 .B NOT
 moved by vrrpd, they stay on the machine.
 If you already have IPs and routes on your machines and
@@ -65,6 +66,13 @@ The syntax is the same as for virtual addresses and virtual routes.
  static_routes
  {
  192.168.2.0/24 via 192.168.1.100 dev eth0
+ ...
+ }
+.PP
+ static_rules
+ {
+ from 192.168.2.0/24 table 1
+ to 192.168.2.0/24 table 1
  ...
  }
 .PP
@@ -228,6 +236,11 @@ which will transition together on any state change.
         192.168.112.0/24 via 192.168.100.254
 	192.168.113.0/24 via 192.168.200.254 or 192.168.100.254 dev eth1
 	blackhole 192.168.114.0/24
+    }
+    # rules add|del when changing to MASTER, to BACKUP
+    static_rules {
+        from 192.168.2.0/24 table 1
+        to 192.168.2.0/24 table 1
     }
 
     # VRRP will normally preempt a lower priority

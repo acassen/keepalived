@@ -26,6 +26,7 @@
 #include "vrrp_data.h"
 #include "vrrp_print.h"
 #include "vrrp_iproute.h"
+#include "vrrp_iprule.h"
 #include "vrrp_netlink.h"
 
 void
@@ -180,6 +181,10 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   Virtual Routes = %d\n", LIST_SIZE(vrrp->vroutes));
 		vrrp_print_list(file, vrrp->vroutes, &route_print);
 	}
+	if (!LIST_ISEMPTY(vrrp->vrules)) {
+		fprintf(file, "   Virtual Rules = %d\n", LIST_SIZE(vrrp->vrules));
+		vrrp_print_list(file, vrrp->vrules, &rule_print);
+	}
 	if (vrrp->script_backup)
 		fprintf(file, "   Backup state transition script = %s\n",
 		       vrrp->script_backup);
@@ -326,6 +331,33 @@ route_print(FILE *file, void *data)
 	}
 	if (route->metric) {
 		snprintf(tmp, 30, " metric %d", route->metric);
+		strncat(msg, tmp, 30);
+	}
+
+	fprintf(file, "     %s\n", msg);
+
+	FREE(tmp);
+	FREE(msg);
+
+}
+
+void
+rule_print(FILE *file, void *data)
+{
+	ip_rule_t *rule = data;
+	char *msg = MALLOC(150);
+	char *tmp = MALLOC(30);
+
+	if (rule->dir) {
+		snprintf(tmp, 30, "%s ", rule->dir);
+		strncat(msg, tmp, 30);
+	}
+	if (rule->addr) {
+		snprintf(tmp, 30, "%s", ipaddresstos(rule->addr));
+		strncat(msg, tmp, 30);
+	}
+	if (rule->table) {
+		snprintf(tmp, 30, " table %d", rule->table);
 		strncat(msg, tmp, 30);
 	}
 
