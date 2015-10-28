@@ -26,6 +26,7 @@
 #include "vrrp_track.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
+#include "vrrp_iprule.h"
 #include "config.h"
 #include "vector.h"
 #include "list.h"
@@ -218,6 +219,26 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 			l2 = ((vrrp_t *)ELEMENT_DATA(e1))->vroutes;
 			current[1] = 0;
 			nextstate = HEADER_STATE_VIRTUAL_ROUTE;
+			break;
+		case HEADER_STATE_STATIC_RULE:
+			/* Try static routes */
+			l2 = vrrp_data->static_rules;
+			current[1] = 0;
+			nextstate = HEADER_STATE_VIRTUAL_RULE;
+			break;
+		case HEADER_STATE_VIRTUAL_RULE:
+			/* Try virtual rules */
+			if (LIST_ISEMPTY(vrrp_data->vrrp) ||
+			    ((e1 != NULL) && (ELEMENT_NEXT(e1), !e1))) {
+				nextstate = HEADER_STATE_END;
+				continue;
+			}
+			curinstance++;
+			if (e1 == NULL)
+				e1 = LIST_HEAD(vrrp_data->vrrp);
+			l2 = ((vrrp_t *)ELEMENT_DATA(e1))->vrules;
+			current[1] = 0;
+			nextstate = HEADER_STATE_VIRTUAL_RULE;
 			break;
 		default:
 			return NULL; /* Big problem! */
@@ -429,6 +450,56 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 	   next one. */
 	if (!exact && (name[*length-1] < MAX_SUBID))
 		return vrrp_snmp_route(vp, name, length,
+				       exact, var_len, write_method);
+        return NULL;
+}
+
+static u_char*
+vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
+		 int exact, size_t *var_len, WriteMethod **write_method)
+{
+	static unsigned long long_ret;
+	ip_rule_t *rule;
+	int state = HEADER_STATE_STATIC_RULE;
+
+	if ((rule = (ip_rule_t *)
+	     vrrp_header_ar_table(vp, name, length, exact,
+				  var_len, write_method,
+				  &state)) == NULL)
+		return NULL;
+
+	switch (vp->magic) {
+	case VRRP_SNMP_RULE_DIRECTION:
+		*var_len = strlen(rule->dir);
+		return (u_char *)rule->dir;
+	case VRRP_SNMP_RULE_ADDRESSTYPE:
+		long_ret = (rule->addr->ifa.ifa_family == AF_INET6)?2:1;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_ADDRESS:
+		if (rule->addr->ifa.ifa_family == AF_INET6) {
+			*var_len = 16;
+			return (u_char *)&rule->addr->u.sin6_addr;
+		} else {
+			*var_len = 4;
+			return (u_char *)&rule->addr->u.sin.sin_addr;
+		}
+		break;
+	case VRRP_SNMP_RULE_ADDRESSMASK:
+		long_ret = rule->mask;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_ROUTINGTABLE:
+		long_ret = rule->table;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_ISSET:
+		long_ret = (rule->set)?1:2;
+		return (u_char *)&long_ret;
+	default:
+		return NULL;
+        }
+	/* If we are here, we asked for a non existent data. Try the
+	   next one. */
+	if (!exact && (name[*length-1] < MAX_SUBID))
+		return vrrp_snmp_rule(vp, name, length,
 				       exact, var_len, write_method);
         return NULL;
 }
@@ -1272,14 +1343,27 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_route, 3, {7, 1, 13}},
 	{VRRP_SNMP_ROUTE_ISSET, ASN_INTEGER, RONLY,
 	 vrrp_snmp_route, 3, {7, 1, 14}},
+	 /* vrrpRuleTable */
+	{VRRP_SNMP_RULE_DIRECTION, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 2}},
+	{VRRP_SNMP_RULE_ADDRESSTYPE, ASN_INTEGER, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 3}},
+	{VRRP_SNMP_RULE_ADDRESS, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 4}},
+	{VRRP_SNMP_RULE_ADDRESSMASK, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 5}},
+	{VRRP_SNMP_RULE_ROUTINGTABLE, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 6}},
+	{VRRP_SNMP_RULE_ISSET, ASN_INTEGER, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 7}},
 	/* vrrpScriptTable */
-	{VRRP_SNMP_SCRIPT_NAME, ASN_OCTET_STR, RONLY, vrrp_snmp_script, 3, {8, 1, 2}},
-	{VRRP_SNMP_SCRIPT_COMMAND, ASN_OCTET_STR, RONLY, vrrp_snmp_script, 3, {8, 1, 3}},
-	{VRRP_SNMP_SCRIPT_INTERVAL, ASN_INTEGER, RONLY, vrrp_snmp_script, 3, {8, 1, 4}},
-	{VRRP_SNMP_SCRIPT_WEIGHT, ASN_INTEGER, RONLY, vrrp_snmp_script, 3, {8, 1, 5}},
-	{VRRP_SNMP_SCRIPT_RESULT, ASN_INTEGER, RONLY, vrrp_snmp_script, 3, {8, 1, 6}},
-	{VRRP_SNMP_SCRIPT_RISE, ASN_UNSIGNED, RONLY, vrrp_snmp_script, 3, {8, 1, 7}},
-	{VRRP_SNMP_SCRIPT_FALL, ASN_UNSIGNED, RONLY, vrrp_snmp_script, 3, {8, 1, 8}},
+	{VRRP_SNMP_SCRIPT_NAME, ASN_OCTET_STR, RONLY, vrrp_snmp_script, 3, {9, 1, 2}},
+	{VRRP_SNMP_SCRIPT_COMMAND, ASN_OCTET_STR, RONLY, vrrp_snmp_script, 3, {9, 1, 3}},
+	{VRRP_SNMP_SCRIPT_INTERVAL, ASN_INTEGER, RONLY, vrrp_snmp_script, 3, {9, 1, 4}},
+	{VRRP_SNMP_SCRIPT_WEIGHT, ASN_INTEGER, RONLY, vrrp_snmp_script, 3, {9, 1, 5}},
+	{VRRP_SNMP_SCRIPT_RESULT, ASN_INTEGER, RONLY, vrrp_snmp_script, 3, {9, 1, 6}},
+	{VRRP_SNMP_SCRIPT_RISE, ASN_UNSIGNED, RONLY, vrrp_snmp_script, 3, {9, 1, 7}},
+	{VRRP_SNMP_SCRIPT_FALL, ASN_UNSIGNED, RONLY, vrrp_snmp_script, 3, {9, 1, 8}},
 };
 
 void
@@ -1344,7 +1428,7 @@ void
 vrrp_snmp_instance_trap(vrrp_t *vrrp)
 {
 	/* OID of the notification */
-	oid notification_oid[] = { VRRP_OID, 9, 0, 2 };
+	oid notification_oid[] = { VRRP_OID, 10, 0, 2 };
 	size_t notification_oid_len = OID_LENGTH(notification_oid);
 	/* OID for snmpTrapOID.0 */
 	oid objid_snmptrap[] = { SNMPTRAP_OID };
@@ -1412,7 +1496,7 @@ void
 vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 {
 	/* OID of the notification */
-	oid notification_oid[] = { VRRP_OID, 9, 0, 1 };
+	oid notification_oid[] = { VRRP_OID, 10, 0, 1 };
 	size_t notification_oid_len = OID_LENGTH(notification_oid);
 	/* OID for snmpTrapOID.0 */
 	oid objid_snmptrap[] = { SNMPTRAP_OID };

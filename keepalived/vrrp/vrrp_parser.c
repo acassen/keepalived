@@ -50,6 +50,13 @@ static_routes_handler(vector_t *strvec)
 	alloc_value_block(strvec, alloc_sroute);
 }
 
+/* Static rules handler */
+static void
+static_rules_handler(vector_t *strvec)
+{
+	alloc_value_block(strvec, alloc_srule);
+}
+
 /* VRRP handlers */
 static void
 vrrp_sync_group_handler(vector_t *strvec)
@@ -488,6 +495,11 @@ vrrp_vroutes_handler(vector_t *strvec)
 	alloc_value_block(strvec, alloc_vrrp_vroute);
 }
 static void
+vrrp_vrules_handler(vector_t *strvec)
+{
+	alloc_value_block(strvec, alloc_vrrp_vrule);
+}
+static void
 vrrp_script_handler(vector_t *strvec)
 {
 	alloc_vrrp_script(vector_slot(strvec, 1));
@@ -568,6 +580,7 @@ vrrp_init_keywords(void)
 	/* Static routes mapping */
 	install_keyword_root("static_ipaddress", &static_addresses_handler);
 	install_keyword_root("static_routes", &static_routes_handler);
+	install_keyword_root("static_rules", &static_rules_handler);
 
 	/* VRRP Instance mapping */
 	install_keyword_root("vrrp_sync_group", &vrrp_sync_group_handler);
@@ -597,6 +610,7 @@ vrrp_init_keywords(void)
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
 	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
+	install_keyword("virtual_rules", &vrrp_vrules_handler);
 	install_keyword("accept", &vrrp_accept_handler);
 	install_keyword("preempt", &vrrp_preempt_handler);
 	install_keyword("nopreempt", &vrrp_nopreempt_handler);

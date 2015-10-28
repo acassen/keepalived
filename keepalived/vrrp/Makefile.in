@@ -15,7 +15,7 @@ COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 OBJS = 	vrrp_daemon.o vrrp_print.o vrrp_data.o vrrp_parser.o \
 	vrrp.o vrrp_notify.o vrrp_scheduler.o vrrp_sync.o vrrp_index.o \
 	vrrp_netlink.o vrrp_arp.o vrrp_if.o vrrp_track.o vrrp_ipaddress.o \
-	vrrp_iproute.o vrrp_ipsecah.o vrrp_ndisc.o vrrp_vmac.o
+	vrrp_iproute.o vrrp_iprule.o vrrp_ipsecah.o vrrp_ndisc.o vrrp_vmac.o
 ifeq ($(SNMP_FLAG),_WITH_SNMP_)
   OBJS += vrrp_snmp.o
 endif
@@ -34,7 +34,7 @@ distclean: clean
 
 vrrp_daemon.o: vrrp_daemon.c ../include/vrrp_daemon.h ../include/vrrp_scheduler.h \
   ../include/vrrp_if.h ../include/vrrp_arp.h ../include/vrrp_netlink.h ../include/vrrp_iproute.h \
-  ../include/vrrp_iproute.h ../include/vrrp_parser.h ../include/vrrp_data.h \
+  ../include/vrrp_iproute.h ../include/vrrp_iprule.h ../include/vrrp_parser.h ../include/vrrp_data.h \
   ../include/vrrp.h ../include/global_data.h ../include/pidfile.h ../include/daemon.h \
   ../include/ipvswrapper.h ../../lib/list.h ../../lib/memory.h ../../lib/parser.h \
   ../../lib/signals.h ../../lib/bitops.h ../include/snmp.h ../include/vrrp_snmp.h ../include/vrrp_print.h
@@ -76,6 +76,8 @@ vrrp_ipaddress.o: vrrp_ipaddress.c ../include/vrrp_ipaddress.h ../include/vrrp_n
   ../../lib/bitops.h
 vrrp_iproute.o: vrrp_iproute.c ../include/vrrp_iproute.h ../include/vrrp_netlink.h \
   ../include/vrrp_if.h  ../include/vrrp_data.h ../../lib/memory.h ../../lib/utils.h
+vrrp_iprule.o: vrrp_iprule.c ../include/vrrp_iprule.h ../include/vrrp_netlink.h \
+  ../include/vrrp_if.h  ../include/vrrp_data.h ../../lib/memory.h ../../lib/utils.h
 vrrp_ipsecah.o: vrrp_ipsecah.c ../include/vrrp_ipsecah.h
 vrrp_ndisc.o: vrrp_ndisc.c ../include/vrrp_ndisc.h ../include/vrrp_ipaddress.h \
   ../../lib/utils.h ../../lib/memory.h
@@ -84,5 +86,5 @@ vrrp_vmac.o: vrrp_vmac.c ../include/vrrp_vmac.h ../include/vrrp_netlink.h \
   ../../lib/bitops.h
 vrrp_snmp.o: vrrp_snmp.c ../include/vrrp_snmp.h ../include/vrrp_track.h \
   ../include/vrrp_data.h ../include/vrrp_ipaddress.h ../include/vrrp_iproute.h \
-  ../include/vrrp.h ../../lib/vector.h ../../lib/list.h ../include/snmp.h \
+  ../include/vrrp_iprule.h ../include/vrrp.h ../../lib/vector.h ../../lib/list.h ../include/snmp.h \
   ../include/global_data.h ../../lib/logger.h

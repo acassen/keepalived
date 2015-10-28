@@ -56,6 +56,7 @@ typedef struct _sock {
 typedef struct _vrrp_data {
 	list			static_addresses;
 	list			static_routes;
+	list			static_rules;
 	list			vrrp_sync_group;
 	list			vrrp;
 	list			vrrp_index;
@@ -72,6 +73,7 @@ extern char *vrrp_buffer;
 /* prototypes */
 extern void alloc_saddress(vector_t *);
 extern void alloc_sroute(vector_t *);
+extern void alloc_srule(vector_t *);
 extern void alloc_vrrp_sync_group(char *);
 extern void alloc_vrrp(char *);
 extern vrrp_stats *alloc_vrrp_stats(void);
@@ -82,6 +84,7 @@ extern void alloc_vrrp_track_script(vector_t *);
 extern void alloc_vrrp_vip(vector_t *);
 extern void alloc_vrrp_evip(vector_t *);
 extern void alloc_vrrp_vroute(vector_t *);
+extern void alloc_vrrp_vrule(vector_t *);
 extern void alloc_vrrp_buffer(void);
 extern void free_vrrp_buffer(void);
 extern vrrp_data_t *alloc_vrrp_data(void);

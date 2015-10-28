@@ -28,6 +28,7 @@
 #include "vrrp_netlink.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
+#include "vrrp_iprule.h"
 #include "vrrp_parser.h"
 #include "vrrp_data.h"
 #include "vrrp.h"
@@ -55,13 +56,12 @@ extern char *vrrp_pidfile;
 static void
 stop_vrrp(void)
 {
-	signal_handler_destroy();
-
 	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
 		shutdown_vrrp_instances();
 
 	/* Clear static entries */
 	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
+	netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL);
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL);
 
 #ifdef _WITH_SNMP_
@@ -89,6 +89,8 @@ stop_vrrp(void)
 	thread_destroy_master(master);
 	gratuitous_arp_close();
 	ndisc_close();
+
+	signal_handler_destroy();
 
 #ifdef _DEBUG_
 	keepalived_free_final("VRRP Child process");
@@ -139,6 +141,7 @@ start_vrrp(void)
 
 	if (reload) {
 		clear_diff_saddresses();
+		clear_diff_srules();
 		clear_diff_sroutes();
 		clear_diff_vrrp();
 		clear_diff_script();
@@ -157,6 +160,7 @@ start_vrrp(void)
 
 	/* Set static entries */
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_ADD);
+	netlink_rulelist(vrrp_data->static_rules, IPRULE_ADD);
 	netlink_rtlist(vrrp_data->static_routes, IPROUTE_ADD);
 
 	/* Dump configuration */

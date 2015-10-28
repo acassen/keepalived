@@ -959,6 +959,93 @@ vrrpRouteStatus OBJECT-TYPE
         "Is this route set in the kernel?"
     ::= { vrrpRouteEntry 14 }
 
+-- Rules
+-- see vrrp_iprule.h
+
+vrrpRuleTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VrrpRuleEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Table of static and virtual rules."
+    ::= { vrrp 8 }
+
+vrrpRuleEntry OBJECT-TYPE
+    SYNTAX VrrpRuleEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Information describing a rule. In case of a static rule,
+        the instance index is 0."
+    INDEX { vrrpInstanceIndex, vrrpRuleIndex }
+    ::= { vrrpRuleTable 1 }
+
+VrrpRuleEntry ::= SEQUENCE {
+    vrrpRuleIndex Integer32,
+    vrrpRuleDirection DisplayString,
+    vrrpRuleAddressType InetAddressType,
+    vrrpRuleAddress InetAddress,
+    vrrpRuleAddressMask InetAddressPrefixLength,
+    vrrpRuleRoutingTable Unsigned32,
+    vrrpRuleStatus INTEGER
+}
+
+vrrpRuleIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Rule index."
+    ::= { vrrpRuleEntry 1 }
+
+vrrpRuleDirection OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Traffic direction for this rule."
+    ::= { vrrpRuleEntry 2 }
+
+vrrpRuleAddressType OBJECT-TYPE
+    SYNTAX InetAddressType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule type of internet address."
+    ::= { vrrpRuleEntry 3 }
+
+vrrpRuleAddress OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule network address."
+    ::= { vrrpRuleEntry 4 }
+
+vrrpRuleAddressMask OBJECT-TYPE
+    SYNTAX InetAddressPrefixLength
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule network mask."
+    ::= { vrrpRuleEntry 5 }
+
+vrrpRuleRoutingTable OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Routing table where the rule should be inserted."
+    ::= { vrrpRuleEntry 6 }
+
+vrrpRuleStatus OBJECT-TYPE
+    SYNTAX INTEGER { set(1), unset(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Is this rule set in the kernel?"
+    ::= { vrrpRuleEntry 7 }
+
 -- VRRP scripts
 -- see vrrp_track.h
 
@@ -968,7 +1055,7 @@ vrrpScriptTable OBJECT-TYPE
     STATUS current
     DESCRIPTION
         "Table of VRRP scripts"
-    ::= { vrrp 8 }
+    ::= { vrrp 9 }
 
 vrrpScriptEntry OBJECT-TYPE
     SYNTAX VrrpScriptEntry
@@ -1063,7 +1150,7 @@ vrrpScriptFall OBJECT-TYPE
 
 -- Traps
 
-vrrpTrap OBJECT IDENTIFIER ::= { vrrp 9 }
+vrrpTrap OBJECT IDENTIFIER ::= { vrrp 10 }
 vrrpTraps OBJECT IDENTIFIER ::= { vrrpTrap 0 } -- Reverse-mappable
 vrrpTrapControl OBJECT IDENTIFIER ::= { vrrpTrap 1 }
 
@@ -2088,7 +2175,13 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpRouteIfIndex,
     vrrpRouteIfName,
     vrrpRouteRoutingTable,
-    vrrpRouteStatus
+    vrrpRouteStatus,
+    vrrpRuleDirection,
+    vrrpRuleAddressType,
+    vrrpRuleAddress,
+    vrrpRuleAddressMask,
+    vrrpRuleRoutingTable,
+    vrrpRuleStatus
     }
     STATUS current
     DESCRIPTION

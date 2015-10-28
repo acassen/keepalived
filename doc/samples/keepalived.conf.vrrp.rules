@@ -1,0 +1,26 @@
+! Configuration File for keepalived
+
+global_defs {
+   router_id LVS_DEVEL
+}
+
+static_rules {
+    from 192.168.100.0/24 table 1
+    to 192.168.100./24 table 1
+}
+
+vrrp_instance VI_1 {
+    state MASTER
+    interface eth0
+    virtual_router_id 51
+    priority 100
+    virtual_ipaddress {
+        192.168.200.16
+        192.168.200.17 dev eth1
+        192.168.200.18 dev eth2
+    }
+    virtual_rules {
+        from 192.168.200.0/24 table 2
+        to 192.168.200./24 table 2
+    }
+}
