@@ -488,7 +488,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp, int proto)
 int
 if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 {
-	struct ip_mreq imr;
+	struct ip_mreqn imr;
 	struct ipv6_mreq imr6;
 	int ret = 0;
 
@@ -500,9 +500,9 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 	if (family == AF_INET) {
 		memset(&imr, 0, sizeof(imr));
 		imr.imr_multiaddr = ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr;
-		imr.imr_interface.s_addr = IF_ADDR(ifp);
+		imr.imr_ifindex = IF_INDEX(ifp);
 		ret = setsockopt(sd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-				 (char *) &imr, sizeof(struct ip_mreq));
+				 (char *) &imr, sizeof(imr));
 	} else {
 		memset(&imr6, 0, sizeof(imr6));
 		imr6.ipv6mr_multiaddr = ((struct sockaddr_in6 *) &global_data->vrrp_mcast_group6)->sin6_addr;
