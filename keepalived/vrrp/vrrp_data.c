@@ -326,9 +326,10 @@ dump_vrrp(void *data)
 	if (vrrp->smtp_alert)
 		log_message(LOG_INFO, "   Using smtp notification");
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-		log_message(LOG_INFO, "   Using VRRP VMAC (flags:%s|%s)"
+		log_message(LOG_INFO, "   Using VRRP VMAC (flags:%s|%s), vmac ifindex %d"
 				    , (__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags)) ? "UP" : "DOWN"
-				    , (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? "xmit_base" : "xmit");
+				    , (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? "xmit_base" : "xmit"
+				    , vrrp->ifp->base_ifindex);
 }
 
 void
