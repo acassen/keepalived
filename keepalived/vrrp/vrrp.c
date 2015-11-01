@@ -1451,6 +1451,7 @@ open_vrrp_send_socket(sa_family_t family, int proto, int idx, int unicast)
 
 	if (family == AF_INET) {
 		/* Set v4 related */
+		if_setsockopt_mcast_all(family, &fd);
 		if_setsockopt_hdrincl(&fd);
 		if (unicast)
 			if_setsockopt_bindtodevice(&fd, ifp);
@@ -1467,7 +1468,6 @@ open_vrrp_send_socket(sa_family_t family, int proto, int idx, int unicast)
 	}
 
 	if_setsockopt_priority(&fd);
-
 	if (fd < 0)
 		return -1;
 
@@ -1492,6 +1492,10 @@ open_vrrp_socket(sa_family_t family, int proto, int idx,
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", err);
 		return -1;
 	}
+
+	/* Ensure no unwanted multicast packets are queued to this interface */
+	if (family == AF_INET)
+		if_setsockopt_mcast_all(family, &fd);
 
 	/* Join the VRRP MCAST group */
 	if (!unicast) {

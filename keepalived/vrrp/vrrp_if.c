@@ -592,6 +592,31 @@ if_setsockopt_ipv6_checksum(int *sd)
 
 
 int
+if_setsockopt_mcast_all(sa_family_t family, int *sd)
+{
+	int ret;
+	unsigned char no = 0;
+
+	if (*sd < 0)
+		return -1;
+
+	if (family == AF_INET6)
+		return *sd;
+
+	/* Don't accept multicast packets we haven't requested */
+	ret = setsockopt(*sd, IPPROTO_IP, IP_MULTICAST_ALL, &no, sizeof(no));
+
+	if (ret < 0) {
+		log_message(LOG_INFO, "cant set IP_MULTICAST_ALL IP option. errno=%d (%m)",
+			    errno);
+		close(*sd);
+		*sd = -1;
+	}
+
+	return *sd;
+}
+
+int
 if_setsockopt_mcast_loop(sa_family_t family, int *sd)
 {
 	int ret;
