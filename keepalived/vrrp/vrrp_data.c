@@ -243,14 +243,14 @@ dump_vrrp(void *data)
 		log_message(LOG_INFO, "   Want State = BACKUP");
 	else
 		log_message(LOG_INFO, "   Want State = MASTER");
-	log_message(LOG_INFO, "   Runing on device = %s", IF_NAME(vrrp->ifp));
+	log_message(LOG_INFO, "   Running on device = %s", IF_NAME(vrrp->ifp));
 	if (vrrp->dont_track_primary)
 		log_message(LOG_INFO, "   VRRP interface tracking disabled");
 	if (vrrp->saddr.ss_family)
 		log_message(LOG_INFO, "   Using src_ip = %s"
 				    , inet_sockaddrtos(&vrrp->saddr));
 	if (vrrp->lvs_syncd_if)
-		log_message(LOG_INFO, "   Runing LVS sync daemon on interface = %s",
+		log_message(LOG_INFO, "   Running LVS sync daemon on interface = %s",
 		       vrrp->lvs_syncd_if);
 	if (vrrp->garp_delay)
 		log_message(LOG_INFO, "   Gratuitous ARP delay = %d",
