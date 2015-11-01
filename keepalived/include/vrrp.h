@@ -209,7 +209,7 @@ typedef struct _vrrp_t {
 	char			*script_stop;
 	char			*script;
 
-	/* rfc2336.6.2 */
+	/* rfc2338.6.2 */
 	uint32_t		ms_down_timer;
 	timeval_t		sands;
 
