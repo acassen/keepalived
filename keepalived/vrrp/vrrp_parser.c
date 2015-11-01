@@ -308,7 +308,7 @@ vrrp_debug_handler(vector_t *strvec)
 	vrrp->debug = atoi(vector_slot(strvec, 1));
 
 	if (VRRP_IS_BAD_DEBUG_INT(vrrp->debug)) {
-		log_message(LOG_INFO, "VRRP Error : Debug interval not valid !");
+		log_message(LOG_INFO, "VRRP Error : Debug value not valid !");
 		log_message(LOG_INFO, "             must be between 0-4");
 		vrrp->debug = 0;
 	}
