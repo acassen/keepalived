@@ -644,15 +644,22 @@ if_setsockopt_mcast_if(sa_family_t family, int *sd, interface_t *ifp)
 	int ret;
 	unsigned int ifindex;
 
-	/* Not applicable for IPv4 */
-	if (*sd < 0 || family == AF_INET)
+	if (*sd < 0)
 		return -1;
 
 	/* Set interface for sending outbound datagrams */
 	ifindex = IF_INDEX(ifp);
-	ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifindex, sizeof(ifindex));
+	if ( family == AF_INET)
+	{
+		struct ip_mreqn imr ;
+		imr.imr_ifindex = IF_INDEX(ifp);
+		ret = setsockopt(*sd, IPPROTO_IP, IP_MULTICAST_IF, &imr, sizeof(imr));
+	}
+	else
+		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifindex, sizeof(ifindex));
+
 	if (ret < 0) {
-		log_message(LOG_INFO, "cant set IPV6_MULTICAST_IF IP option. errno=%d (%m)", errno);
+		log_message(LOG_INFO, "cant set IP%s_MULTICAST_IF IP option. errno=%d (%m)", (family == AF_INET) ? "" : "V6", errno);
 		close(*sd);
 		*sd = -1;
 	}

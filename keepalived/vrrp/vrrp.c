@@ -1446,9 +1446,12 @@ open_vrrp_send_socket(sa_family_t family, int proto, int idx, int unicast)
 	if (family == AF_INET) {
 		/* Set v4 related */
 		if_setsockopt_hdrincl(&fd);
-		if_setsockopt_bindtodevice(&fd, ifp);
-		if (!unicast)
+		if (unicast)
+			if_setsockopt_bindtodevice(&fd, ifp);
+		else {
+			if_setsockopt_mcast_if(family, &fd, ifp);
 			if_setsockopt_mcast_loop(family, &fd);
+		}
 		if_setsockopt_priority(&fd);
 		if (fd < 0)
 			return -1;
@@ -1496,13 +1499,14 @@ open_vrrp_socket(sa_family_t family, int proto, int idx,
 	if (!unicast) {
 		if_join_vrrp_group(family, &fd, ifp, proto);
 	}
+	else if (family == AF_INET) {
+		/* Bind inbound stream */
+		if_setsockopt_bindtodevice(&fd, ifp);
+	}
 	if (fd < 0)
 		return -1;
 
-	if (family == AF_INET) {
-		/* Bind inbound stream */
-		if_setsockopt_bindtodevice(&fd, ifp);
-	} else if (family == AF_INET6) {
+	if (family == AF_INET6) {
 		/* Let kernel calculate checksum. */
 		if_setsockopt_ipv6_checksum(&fd);
 	}
