@@ -459,7 +459,6 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp, int proto)
 	if (family == AF_INET) {
 		memset(&imr, 0, sizeof(imr));
 		imr.imr_multiaddr = ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr;
-		imr.imr_address.s_addr = IF_ADDR(ifp);
 		imr.imr_ifindex = IF_INDEX(ifp);
 
 		/* -> Need to handle multicast convergance after takeover.
