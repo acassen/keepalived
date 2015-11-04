@@ -234,8 +234,9 @@ which will transition together on any state change.
         192.168.110.0/24 via 192.168.200.254 dev eth1
         192.168.111.0/24 dev eth2
         192.168.112.0/24 via 192.168.100.254
-	192.168.113.0/24 via 192.168.200.254 or 192.168.100.254 dev eth1
-	blackhole 192.168.114.0/24
+	    192.168.113.0/24 via 192.168.200.254 or 192.168.100.254 dev eth1
+	    blackhole 192.168.114.0/24
+        0.0.0.0/0 gw 192.168.0.1 table 100  # To set a default gateway into table 100.
     }
     # rules add|del when changing to MASTER, to BACKUP
     static_rules {
