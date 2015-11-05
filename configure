@@ -4124,7 +4124,7 @@ else
     #elif defined(LINUX_VERSION_CODE)
       fprintf (fp, "%d.%d.%d\n", LINUX_VERSION_CODE >> 16, (LINUX_VERSION_CODE >> 8) & 0xFF, LINUX_VERSION_CODE & 0xFF);
     #else
-      fprintf (fp, "0.0.0\n"); /* Let's fail gently */
+      fprintf (fp, "0.0.0\n"); /* Let''s fail gently */
     #endif
       fclose (fp);
       return 0;
