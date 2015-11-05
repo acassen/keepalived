@@ -11,4 +11,4 @@ lib/config.h
 *~
 *.swp
 .dir-locals.el
-
+autom4te.cache
