@@ -31,7 +31,7 @@
 #include <arpa/inet.h>
 #include <asm/types.h>
 
-#include <net/if.h>
+#include <linux/if.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>

@@ -634,6 +634,7 @@ NETSNMP_CONFIG
 VRRP_VMAC
 IPVS_SYNCD
 KERN
+USE_NL3
 EGREP
 GREP
 CPP
@@ -3905,6 +3906,7 @@ else
 fi
 
 
+USE_NL3="_WITHOUT_LIBNL_"
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_socket_alloc in -lnl-3" >&5
 $as_echo_n "checking for nl_socket_alloc in -lnl-3... " >&6; }
 if ${ac_cv_lib_nl_3_nl_socket_alloc+:} false; then :
@@ -3991,6 +3993,50 @@ else
 
 fi
 
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_rtgen_request in -lnl-route-3" >&5
+$as_echo_n "checking for nl_rtgen_request in -lnl-route-3... " >&6; }
+if ${ac_cv_lib_nl_route_3_nl_rtgen_request+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lnl-route-3  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char nl_rtgen_request ();
+int
+main ()
+{
+return nl_rtgen_request ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_nl_route_3_nl_rtgen_request=yes
+else
+  ac_cv_lib_nl_route_3_nl_rtgen_request=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_nl_route_3_nl_rtgen_request" >&5
+$as_echo "$ac_cv_lib_nl_route_3_nl_rtgen_request" >&6; }
+if test "x$ac_cv_lib_nl_route_3_nl_rtgen_request" = xyes; then :
+
+        USE_NL3="_HAVE_LIBNL3_"
+        CFLAGS="$CFLAGS $(pkg-config --cflags libnl-route-3.0)"
+        LIBS="$LIBS $(pkg-config --libs libnl-route-3.0)"
+
+fi
+
 
 else
 
@@ -4033,6 +4079,7 @@ $as_echo "$ac_cv_lib_nl_nl_socket_modify_cb" >&6; }
 if test "x$ac_cv_lib_nl_nl_socket_modify_cb" = xyes; then :
 
         USE_NL="LIBIPVS_USE_NL"
+        USE_NL3="_HAVE_LIBNL1_"
         CFLAGS="$CFLAGS -DFALLBACK_LIBNL1"
         LIBS="$LIBS $(pkg-config --libs libnl-1)"
 
@@ -4046,6 +4093,8 @@ fi
 
 
 fi
+
+
 
 
 CPPFLAGS="$CPPFLAGS -I$kernelinc"
@@ -6022,4 +6071,11 @@ if test "${DFLAGS}" = "-D_DEBUG_"; then
   echo "Use Debug flags          : Yes"
 else
   echo "Use Debug flags          : No"
+fi
+if test "${USE_NL3}" = "_HAVE_LIBNL3_"; then
+  echo "libnl version            : 3"
+elif test "${USE_NL3}" = "_HAVE_LIBNL1_"; then
+  echo "libnl version            : 1"
+else
+  echo "libnl version            : None"
 fi
