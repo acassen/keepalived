@@ -150,20 +150,13 @@ static void
 free_sock(void *sock_data)
 {
 	sock_t *sock = sock_data;
-	interface_t *ifp;
 
 	/* First of all cancel pending thread */
 	thread_cancel(sock->thread);
 
 	/* Close related socket */
-	if (sock->fd_in > 0) {
-		ifp = if_get_by_ifindex(sock->ifindex);
-		if (sock->unicast) {
-			close(sock->fd_in);
-		} else {
-			if_leave_vrrp_group(sock->family, sock->fd_in, ifp);
-		}
-	}
+	if (sock->fd_in > 0)
+		close(sock->fd_in);
 	if (sock->fd_out > 0)
 		close(sock->fd_out);
 	FREE(sock_data);

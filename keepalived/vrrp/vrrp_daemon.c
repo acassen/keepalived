@@ -85,6 +85,12 @@ stop_vrrp(void)
 	free_global_data(global_data);
 	vrrp_dispatcher_release(vrrp_data);
 
+	/* This is not nice, but it significantly increases the chances
+	 * of an IGMP leave group being sent for some reason.
+	 * Since we are about to exit, it doesn't affect anything else
+	 * running. */
+	sleep ( 1 );
+
 	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
 		shutdown_vrrp_instances();
 

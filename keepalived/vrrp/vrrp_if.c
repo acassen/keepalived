@@ -513,12 +513,9 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 	if (ret < 0) {
 		log_message(LOG_INFO, "cant do IP%s_DROP_MEMBERSHIP errno=%s (%d)",
 			    (family == AF_INET) ? "" : "V6", strerror(errno), errno);
-		close(sd);
 		return -1;
 	}
 
-	/* Finally close the desc */
-	close(sd);
 	return 0;
 }
 

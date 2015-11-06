@@ -1111,10 +1111,10 @@ vrrp_restore_interface(vrrp_t * vrrp, int advF)
 {
         /* if we stop vrrp, warn the other routers to speed up the recovery */
 	if (advF) {
-	        syslog(LOG_INFO, "VRRP_Instance(%s) sending 0 priority",
-		       vrrp->iname);
 		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 		++vrrp->stats->pri_zero_sent;
+	        syslog(LOG_INFO, "VRRP_Instance(%s) sent 0 priority",
+		       vrrp->iname);
 	}
 
 	/* remove virtual routes */
@@ -1519,11 +1519,10 @@ open_vrrp_socket(sa_family_t family, int proto, int idx,
 void
 close_vrrp_socket(vrrp_t * vrrp)
 {
-	if (LIST_ISEMPTY(vrrp->unicast_peer)) {
+	if (LIST_ISEMPTY(vrrp->unicast_peer))
 		if_leave_vrrp_group(vrrp->family, vrrp->fd_in, vrrp->ifp);
-	} else {
-		close(vrrp->fd_in);
-	}
+
+	close(vrrp->fd_in);
 	close(vrrp->fd_out);
 }
 
