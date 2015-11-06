@@ -948,7 +948,7 @@ vrrp_send_adv(vrrp_t * vrrp, int prio)
 	}
 
 	++vrrp->stats->advert_sent;
-	/* send it */
+	/* sent it */
 	return 0;
 }
 
