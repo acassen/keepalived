@@ -56,8 +56,10 @@ extern char *vrrp_pidfile;
 static void
 stop_vrrp(void)
 {
-	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
-		shutdown_vrrp_instances();
+	/* Ensure any interfaces are in backup mode,
+	 * sending a priority 0 vrrp message
+	 */
+	restore_vrrp_interfaces();
 
 	/* Clear static entries */
 	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
@@ -82,6 +84,10 @@ stop_vrrp(void)
 	/* Clean data */
 	free_global_data(global_data);
 	vrrp_dispatcher_release(vrrp_data);
+
+	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
+		shutdown_vrrp_instances();
+
 	free_vrrp_data(vrrp_data);
 	free_vrrp_buffer();
 	free_interface_queue();

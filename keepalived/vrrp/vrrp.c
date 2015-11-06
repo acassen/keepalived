@@ -1552,6 +1552,25 @@ new_vrrp_socket(vrrp_t * vrrp)
 	return vrrp->fd_in;
 }
 
+/* handle terminate state phase 1 */
+void
+restore_vrrp_interfaces(void)
+{
+	list l = vrrp_data->vrrp;
+	element e;
+	vrrp_t *vrrp;
+
+	/* Ensure any interfaces are in backup mode,
+	 * sending a priority 0 vrrp message
+	 */
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+		/* Remove VIPs/VROUTEs/VRULEs */
+		if (vrrp->state == VRRP_STATE_MAST)
+			vrrp_restore_interface(vrrp, 1);
+	}
+}
+
 /* handle terminate state */
 void
 shutdown_vrrp_instances(void)
@@ -1562,10 +1581,6 @@ shutdown_vrrp_instances(void)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-
-		/* Remove VIPs/VROUTEs/VRULEs */
-		if (vrrp->state == VRRP_STATE_MAST)
-			vrrp_restore_interface(vrrp, 1);
 
 		/* Remove VMAC */
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
