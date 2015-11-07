@@ -664,10 +664,10 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	if (ifi->ifi_type == ARPHRD_LOOPBACK)
 		return 0;
 
-	/* find the interface_t */
+	/* find the interface_t. Ignore it if we don't know about the interface */
 	ifp = if_get_by_ifindex(ifi->ifi_index);
 	if (!ifp)
-		return -1;
+		return 0;
 
 	/*
 	 * Update flags.
