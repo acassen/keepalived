@@ -43,6 +43,19 @@ and
                               # (doesn't have to be hostname).
  vrrp_mcast_group4 224.0.0.18 # optional, default 224.0.0.18
  vrrp_mcast_group6 ff02::12   # optional, default ff02::12
+
+ # delay for second set of gratuitous ARPs after transition to MASTER
+ vrrp_garp_master_delay 10    # secs, default 5, 0 for no second set
+
+ # number of gratuitous ARP messages to send at a time after transition to MASTER
+ vrrp_garp_master_repeat 1    # default 5
+
+ # minimum time interval for refreshing gratuitous ARPs while MASTER
+ vrrp_garp_master_refresh 60  # secs, default 0 (no refreshing)
+
+ # number of gratuitous ARP messages to send at a time while MASTER
+ vrrp_garp_master_refresh_repeat 2 # default 1
+
  enable_traps                 # enable SNMP traps
  }
 
@@ -181,8 +194,11 @@ which will transition together on any state change.
     # Binding interface for lvs syncd
     lvs_sync_daemon_interface eth1
 
-    # delay for gratuitous ARP after transition to MASTER
-    garp_master_delay 10 # secs, default 5
+    # interface specific settings, same as global parameters; default to global parameters
+    garp_master_delay 10
+    garp_master_repeat 1
+    garp_master_refresh 60
+    garp_master_refresh_repeat 2
 
     # arbitrary unique number 0..255
     # used to differentiate multiple instances of vrrpd

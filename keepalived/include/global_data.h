@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <sys/socket.h>
 
 /* local includes */
 #include "list.h"
@@ -53,6 +54,10 @@ typedef struct _data {
 	list				email;
 	struct sockaddr_storage		vrrp_mcast_group4;
 	struct sockaddr_storage		vrrp_mcast_group6;
+	int				vrrp_garp_delay;
+	timeval_t			vrrp_garp_refresh;
+	int				vrrp_garp_rep;
+	int				vrrp_garp_refresh_rep;
 #ifdef _WITH_SNMP_
 	int				enable_traps;
 #endif

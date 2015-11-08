@@ -108,6 +108,30 @@ vrrp_mcast_group6_handler(vector_t *strvec)
 				   , FMT_STR_VSLOT(strvec, 1));
 	}
 }
+static void
+vrrp_garp_delay_handler(vector_t *strvec)
+{
+	global_data->vrrp_garp_delay = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
+}
+static void
+vrrp_garp_refresh_handler(vector_t *strvec)
+{
+	global_data->vrrp_garp_refresh.tv_sec = atoi(vector_slot(strvec, 1));
+}
+static void
+vrrp_garp_rep_handler(vector_t *strvec)
+{
+	global_data->vrrp_garp_rep = atoi(vector_slot(strvec, 1));
+	if ( global_data->vrrp_garp_rep < 1 )
+		global_data->vrrp_garp_rep = 1;
+}
+static void
+vrrp_garp_refresh_rep_handler(vector_t *strvec)
+{
+	global_data->vrrp_garp_refresh_rep = atoi(vector_slot(strvec, 1));
+	if ( global_data->vrrp_garp_refresh_rep < 1 )
+		global_data->vrrp_garp_refresh_rep = 1;
+}
 #ifdef _WITH_SNMP_
 static void
 trap_handler(vector_t *strvec)
@@ -130,6 +154,10 @@ global_init_keywords(void)
 	install_keyword("notification_email", &email_handler);
 	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler);
 	install_keyword("vrrp_mcast_group6", &vrrp_mcast_group6_handler);
+	install_keyword("vrrp_garp_master_delay", &vrrp_garp_delay_handler);
+	install_keyword("vrrp_garp_master_repeat", &vrrp_garp_rep_handler);
+	install_keyword("vrrp_garp_master_refresh", &vrrp_garp_refresh_handler);
+	install_keyword("vrrp_garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
 #ifdef _WITH_SNMP_
 	install_keyword("enable_traps", &trap_handler);
 #endif

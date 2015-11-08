@@ -805,10 +805,9 @@ vrrp_master(vrrp_t * vrrp)
 		 * register a gratuitous arp thread delayed to 5 secs.
 		 */
 		if (vrrp_state_master_tx(vrrp, 0)) {
-			thread_add_timer(master, vrrp_gratuitous_arp_thread,
-					 vrrp,
-					 (vrrp->garp_delay) ?
-						vrrp->garp_delay : VRRP_GARP_DELAY);
+			if (vrrp->garp_delay)
+				thread_add_timer(master, vrrp_gratuitous_arp_thread,
+						 vrrp, vrrp->garp_delay);
 			vrrp_smtp_notifier(vrrp);
 		}
 	}

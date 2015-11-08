@@ -29,6 +29,7 @@
 #include "list.h"
 #include "logger.h"
 #include "utils.h"
+#include "vrrp.h"
 
 /* global vars */
 data_t *global_data = NULL;
@@ -84,6 +85,14 @@ set_default_mcast_group(data_t * data)
 	inet_stosockaddr("ff02::12", 0, &data->vrrp_mcast_group6);
 }
 
+static void
+set_vrrp_defaults(data_t * data)
+{
+	data->vrrp_garp_rep = VRRP_GARP_REP;
+	data->vrrp_garp_refresh_rep = VRRP_GARP_REFRESH_REP;
+	data->vrrp_garp_delay = VRRP_GARP_DELAY;
+}
+
 /* email facility functions */
 static void
 free_email(void *data)
@@ -119,6 +128,7 @@ alloc_global_data(void)
 	new->email = alloc_list(free_email, dump_email);
 
 	set_default_mcast_group(new);
+	set_vrrp_defaults(new);
 
 	return new;
 }
@@ -182,6 +192,14 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO, " VRRP IPv6 mcast group = %s"
 				    , inet_sockaddrtos(&data->vrrp_mcast_group6));
 	}
+	if (data->vrrp_garp_delay)
+		log_message(LOG_INFO, " Gratuitous ARP delay = %d",
+		       data->vrrp_garp_delay/TIMER_HZ);
+	if (!timer_isnull(data->vrrp_garp_refresh))
+		log_message(LOG_INFO, " Gratuitous ARP refresh timer = %lu",
+		       data->vrrp_garp_refresh.tv_sec);
+	log_message(LOG_INFO, " Gratuitous ARP repeat = %d", data->vrrp_garp_rep);
+	log_message(LOG_INFO, " Gratuitous ARP refresh repeat = %d", data->vrrp_garp_refresh_rep);
 #ifdef _WITH_SNMP_
 	if (data->enable_traps)
 		log_message(LOG_INFO, " SNMP Trap enabled");
