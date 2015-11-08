@@ -209,7 +209,7 @@ typedef struct _vrrp_t {
 	char			*script_stop;
 	char			*script;
 
-	/* rfc2336.6.2 */
+	/* rfc2338.6.2 */
 	uint32_t		ms_down_timer;
 	timeval_t		sands;
 
@@ -303,6 +303,7 @@ extern void vrrp_state_leave_master(vrrp_t *);
 extern int vrrp_ipsecah_len(void);
 extern int vrrp_complete_init(void);
 extern int vrrp_ipvs_needed(void);
+extern void restore_vrrp_interfaces(void);
 extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);
 extern void clear_diff_script(void);

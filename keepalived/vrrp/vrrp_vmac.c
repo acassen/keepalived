@@ -20,15 +20,16 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+/* global include */
+//#include <limits.h>
+
 /* local include */
 #include "vrrp_vmac.h"
 #include "vrrp_netlink.h"
 #include "vrrp_data.h"
 #include "logger.h"
-#include "memory.h"
-#include "utils.h"
-#include "parser.h"
 #include "bitops.h"
+#include "vrrp_if_config.h"
 
 #ifdef _HAVE_VRRP_VMAC_
 /* private matter */
@@ -69,6 +70,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	struct rtattr *data;
 	unsigned int base_ifindex;
 	interface_t *ifp;
+	interface_t *base_ifp;
 	char ifname[IFNAMSIZ];
 	u_char ll_addr[ETH_ALEN] = {0x00, 0x00, 0x5e, 0x00, 0x01, vrrp->vrid};
 	struct {
@@ -175,6 +177,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	ifp = if_get_by_ifname(ifname);
 	if (!ifp)
 		return -1;
+	base_ifp = vrrp->ifp;
 	base_ifindex = vrrp->ifp->ifindex;
 	ifp->flags = vrrp->ifp->flags; /* Copy base interface flags */
 	vrrp->ifp = ifp;
@@ -183,6 +186,11 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	vrrp->vmac_ifindex = IF_INDEX(vrrp->ifp); /* For use on delete */
 	__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
 	netlink_link_up(vrrp);
+
+	if (vrrp->family == AF_INET) {
+		/* Set the necessary kernel parameters to make macvlans work for us */
+		set_interface_parameters(ifp, base_ifp);
+	}
 #endif
 	return 1;
 }
@@ -193,6 +201,7 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 	int status = 1;
 
 #ifdef _HAVE_VRRP_VMAC_
+	interface_t *base_ifp ;
 	struct {
 		struct nlmsghdr n;
 		struct ifinfomsg ifi;
@@ -201,6 +210,10 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 
 	if (!vrrp->ifp)
 		return -1;
+
+	/* Reset arp_ignore and arp_filter on the base interface if necessary */
+	base_ifp = if_get_by_ifindex(vrrp->ifp->base_ifindex);
+	reset_interface_parameters(base_ifp);
 
 	memset(&req, 0, sizeof (req));
 
@@ -213,7 +226,7 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 	if (netlink_talk(&nl_cmd, &req.n) < 0) {
 		log_message(LOG_INFO, "vmac: Error removing VMAC interface %s for vrrp_instance %s!!!"
 				    , vrrp->vmac_ifname, vrrp->iname);
-		status = -1;
+		return -1;
 	}
 
 	log_message(LOG_INFO, "vmac: Success removing VMAC interface %s for vrrp_instance %s"

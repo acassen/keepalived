@@ -459,7 +459,6 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp, int proto)
 	if (family == AF_INET) {
 		memset(&imr, 0, sizeof(imr));
 		imr.imr_multiaddr = ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr;
-		imr.imr_address.s_addr = IF_ADDR(ifp);
 		imr.imr_ifindex = IF_INDEX(ifp);
 
 		/* -> Need to handle multicast convergance after takeover.
@@ -488,7 +487,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp, int proto)
 int
 if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 {
-	struct ip_mreq imr;
+	struct ip_mreqn imr;
 	struct ipv6_mreq imr6;
 	int ret = 0;
 
@@ -500,9 +499,9 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 	if (family == AF_INET) {
 		memset(&imr, 0, sizeof(imr));
 		imr.imr_multiaddr = ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr;
-		imr.imr_interface.s_addr = IF_ADDR(ifp);
+		imr.imr_ifindex = IF_INDEX(ifp);
 		ret = setsockopt(sd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
-				 (char *) &imr, sizeof(struct ip_mreq));
+				 (char *) &imr, sizeof(imr));
 	} else {
 		memset(&imr6, 0, sizeof(imr6));
 		imr6.ipv6mr_multiaddr = ((struct sockaddr_in6 *) &global_data->vrrp_mcast_group6)->sin6_addr;
@@ -514,12 +513,9 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 	if (ret < 0) {
 		log_message(LOG_INFO, "cant do IP%s_DROP_MEMBERSHIP errno=%s (%d)",
 			    (family == AF_INET) ? "" : "V6", strerror(errno), errno);
-		close(sd);
 		return -1;
 	}
 
-	/* Finally close the desc */
-	close(sd);
 	return 0;
 }
 
@@ -592,6 +588,31 @@ if_setsockopt_ipv6_checksum(int *sd)
 
 
 int
+if_setsockopt_mcast_all(sa_family_t family, int *sd)
+{
+	int ret;
+	unsigned char no = 0;
+
+	if (*sd < 0)
+		return -1;
+
+	if (family == AF_INET6)
+		return *sd;
+
+	/* Don't accept multicast packets we haven't requested */
+	ret = setsockopt(*sd, IPPROTO_IP, IP_MULTICAST_ALL, &no, sizeof(no));
+
+	if (ret < 0) {
+		log_message(LOG_INFO, "cant set IP_MULTICAST_ALL IP option. errno=%d (%m)",
+			    errno);
+		close(*sd);
+		*sd = -1;
+	}
+
+	return *sd;
+}
+
+int
 if_setsockopt_mcast_loop(sa_family_t family, int *sd)
 {
 	int ret;
@@ -644,15 +665,22 @@ if_setsockopt_mcast_if(sa_family_t family, int *sd, interface_t *ifp)
 	int ret;
 	unsigned int ifindex;
 
-	/* Not applicable for IPv4 */
-	if (*sd < 0 || family == AF_INET)
+	if (*sd < 0)
 		return -1;
 
 	/* Set interface for sending outbound datagrams */
 	ifindex = IF_INDEX(ifp);
-	ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifindex, sizeof(ifindex));
+	if ( family == AF_INET)
+	{
+		struct ip_mreqn imr ;
+		imr.imr_ifindex = IF_INDEX(ifp);
+		ret = setsockopt(*sd, IPPROTO_IP, IP_MULTICAST_IF, &imr, sizeof(imr));
+	}
+	else
+		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifindex, sizeof(ifindex));
+
 	if (ret < 0) {
-		log_message(LOG_INFO, "cant set IPV6_MULTICAST_IF IP option. errno=%d (%m)", errno);
+		log_message(LOG_INFO, "cant set IP%s_MULTICAST_IF IP option. errno=%d (%m)", (family == AF_INET) ? "" : "V6", errno);
 		close(*sd);
 		*sd = -1;
 	}

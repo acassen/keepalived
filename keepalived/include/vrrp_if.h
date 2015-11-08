@@ -24,7 +24,9 @@
 #define _VRRP_IF_H
 
 /* global includes */
-#include <net/if.h>
+#include <sys/socket.h>
+#include <linux/if.h>
+#include <netinet/in.h>
 
 /* needed to get correct values for SIOC* */
 #include <linux/sockios.h>
@@ -88,6 +90,9 @@ typedef struct _interface {
 	int			linkbeat;		/* LinkBeat from MII BMSR req */
 	int			vmac;			/* Set if interface is a VMAC interface */
 	unsigned int		base_ifindex;		/* Base interface index (if interface is a VMAC interface) */
+	int			reset_arp_config;	/* Count of how many vrrps have changed arp parameters on interface */
+	uint32_t		reset_arp_ignore_value;	/* Original value of arp_ignore to be restored */
+	uint32_t		reset_arp_filter_value;	/* Original value of arp_filter to be restored */
 } interface_t;
 
 /* Tracked interface structure definition */
@@ -130,6 +135,7 @@ extern int if_leave_vrrp_group(sa_family_t, int, interface_t *);
 extern int if_setsockopt_bindtodevice(int *, interface_t *);
 extern int if_setsockopt_hdrincl(int *);
 extern int if_setsockopt_ipv6_checksum(int *);
+extern int if_setsockopt_mcast_all(sa_family_t, int *);
 extern int if_setsockopt_mcast_loop(sa_family_t, int *);
 extern int if_setsockopt_mcast_hops(sa_family_t, int *);
 extern int if_setsockopt_mcast_if(sa_family_t, int *, interface_t *);

@@ -328,8 +328,6 @@ int
 timeout_epilog(thread_t * thread, char *debug_msg)
 {
 	checker_t *checker = THREAD_ARG(thread);
-	http_checker_t *http_get_check = CHECKER_ARG(checker);
-	http_t *http = HTTP_ARG(http_get_check);
 
 	/* check if server is currently alive */
 	if (svr_checker_up(checker->id, checker->rs)) {

@@ -58,6 +58,7 @@ AC_CHECK_LIB(crypt, crypt,,AC_MSG_ERROR([crypt() function is required]))
 AC_CHECK_LIB(crypto, MD5_Init,,AC_MSG_ERROR([OpenSSL libraries are required]))
 AC_CHECK_LIB(ssl, SSL_CTX_new,,AC_MSG_ERROR([OpenSSL libraries are required]))
 
+USE_NL3="_WITHOUT_LIBNL_"
 AC_CHECK_LIB(nl-3, nl_socket_alloc,
   [
     AC_CHECK_LIB(nl-genl-3, genl_connect,
@@ -69,11 +70,18 @@ AC_CHECK_LIB(nl-3, nl_socket_alloc,
       [
         AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3.])
       ])
+    AC_CHECK_LIB(nl-route-3, nl_rtgen_request,
+      [
+        USE_NL3="_HAVE_LIBNL3_"
+        CFLAGS="$CFLAGS $(pkg-config --cflags libnl-route-3.0)"
+        LIBS="$LIBS $(pkg-config --libs libnl-route-3.0)"
+      ])
   ],
   [
     AC_CHECK_LIB(nl, nl_socket_modify_cb,
       [
         USE_NL="LIBIPVS_USE_NL"
+        USE_NL3="_HAVE_LIBNL1_"
         CFLAGS="$CFLAGS -DFALLBACK_LIBNL1"
         LIBS="$LIBS $(pkg-config --libs libnl-1)"
       ],
@@ -82,6 +90,8 @@ AC_CHECK_LIB(nl-3, nl_socket_alloc,
         AC_MSG_WARN([keepalived will be built without libnl support.])
       ])
   ])
+
+AC_SUBST(USE_NL3)
 
 dnl ----[ Kernel version check ]----
 CPPFLAGS="$CPPFLAGS -I$kernelinc"
@@ -101,7 +111,7 @@ AC_TRY_RUN([
     #elif defined(LINUX_VERSION_CODE)
       fprintf (fp, "%d.%d.%d\n", LINUX_VERSION_CODE >> 16, (LINUX_VERSION_CODE >> 8) & 0xFF, LINUX_VERSION_CODE & 0xFF);
     #else
-      fprintf (fp, "0.0.0\n"); /* Let's fail gently */
+      fprintf (fp, "0.0.0\n"); /* Let''s fail gently */
     #endif
       fclose (fp); 
       return 0;
@@ -391,5 +401,12 @@ if test "${DFLAGS}" = "-D_DEBUG_"; then
   echo "Use Debug flags          : Yes"
 else
   echo "Use Debug flags          : No"
+fi
+if test "${USE_NL3}" = "_HAVE_LIBNL3_"; then
+  echo "libnl version            : 3"
+elif test "${USE_NL3}" = "_HAVE_LIBNL1_"; then
+  echo "libnl version            : 1"
+else
+  echo "libnl version            : None"
 fi
 dnl ----[ end configure ]---

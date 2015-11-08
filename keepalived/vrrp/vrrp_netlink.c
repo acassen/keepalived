@@ -477,6 +477,7 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	ifp->ifindex = ifi->ifi_index;
 	ifp->mtu = *(int *) RTA_DATA(tb[IFLA_MTU]);
 	ifp->hw_type = ifi->ifi_type;
+	ifp->reset_arp_config = 0;
 
 	if (!ifp->vmac) {
 		if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);

@@ -2,23 +2,27 @@
 #
 # Keepalived OpenSource project.
 #
-# Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
+# Copyright (C) 2001-2015 Alexandre Cassen, <acassen@gmail.com>
 
 CC	 = @CC@
 SNMP_FLAG = @SNMP_SUPPORT@
+NL3_FLAG = @USE_NL3@
 INCLUDES = -I../include -I../../lib
 CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 	   -Wall -Wunused -Wstrict-prototypes
-DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_VMAC@ -D@SNMP_SUPPORT@ @DFLAGS@
+DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_VMAC@ -D@SNMP_SUPPORT@ -D@USE_NL3@ @DFLAGS@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
 OBJS = 	vrrp_daemon.o vrrp_print.o vrrp_data.o vrrp_parser.o \
 	vrrp.o vrrp_notify.o vrrp_scheduler.o vrrp_sync.o vrrp_index.o \
 	vrrp_netlink.o vrrp_arp.o vrrp_if.o vrrp_track.o vrrp_ipaddress.o \
-	vrrp_iproute.o vrrp_iprule.o vrrp_ipsecah.o vrrp_ndisc.o vrrp_vmac.o
+	vrrp_iproute.o vrrp_iprule.o vrrp_ipsecah.o vrrp_ndisc.o vrrp_vmac.o \
+	vrrp_if_config.o
+
 ifeq ($(SNMP_FLAG),_WITH_SNMP_)
   OBJS += vrrp_snmp.o
 endif
+
 HEADERS = $(OBJS:.o=.h)
 
 .c.o:
@@ -83,8 +87,9 @@ vrrp_ndisc.o: vrrp_ndisc.c ../include/vrrp_ndisc.h ../include/vrrp_ipaddress.h \
   ../../lib/utils.h ../../lib/memory.h
 vrrp_vmac.o: vrrp_vmac.c ../include/vrrp_vmac.h ../include/vrrp_netlink.h \
   ../include/vrrp_data.h ../../lib/logger.h ../../lib/memory.h ../../lib/utils.h \
-  ../../lib/bitops.h
+  ../../lib/bitops.h ../include/vrrp_if_config.h
 vrrp_snmp.o: vrrp_snmp.c ../include/vrrp_snmp.h ../include/vrrp_track.h \
   ../include/vrrp_data.h ../include/vrrp_ipaddress.h ../include/vrrp_iproute.h \
   ../include/vrrp_iprule.h ../include/vrrp.h ../../lib/vector.h ../../lib/list.h ../include/snmp.h \
   ../include/global_data.h ../../lib/logger.h
+vrrp_if_config.o: vrrp_if_config.c ../include/vrrp_if_config.h ../../lib/logger.h
