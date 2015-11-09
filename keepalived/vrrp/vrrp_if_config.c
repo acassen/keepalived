@@ -132,7 +132,7 @@ err:
 		rtnl_link_put(new_state);
 
 exit:
-	nl_close ( sk ) ;
+	nl_socket_free(sk);
 
 	return res;
 }
@@ -180,7 +180,7 @@ err:
 		rtnl_link_put(new_state);
 
 exit:
-	nl_close(sk);
+	nl_socket_free(sk);
 
 	return res;
 }
