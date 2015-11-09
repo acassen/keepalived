@@ -32,14 +32,20 @@
 #include <asm/types.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+#ifdef _HAVE_LIBNL3_
+#include <netlink/netlink.h>
+#endif
 
 /* local includes */
 #include "timer.h"
 
 /* types definitions */
 typedef struct _nl_handle {
+#ifdef _HAVE_LIBNL3_
+	struct nl_sock*		sk;
+#endif
 	int			fd;
-	struct sockaddr_nl	snl;
+	uint32_t		nl_pid;
 	__u32			seq;
 	thread_t		*thread;
 } nl_handle_t;
@@ -58,7 +64,7 @@ extern int addattr_l(struct nlmsghdr *, int, int, void *, int);
 extern int rta_addattr_l(struct rtattr *, int, int, const void *, int);
 extern char *netlink_scope_n2a(int);
 extern int netlink_scope_a2n(char *);
-extern int netlink_socket(nl_handle_t *, unsigned long);
+extern int netlink_socket(nl_handle_t *, uint32_t, int flags);
 extern int netlink_close(nl_handle_t *);
 extern int netlink_talk(nl_handle_t *, struct nlmsghdr *);
 extern int netlink_interface_lookup(void);

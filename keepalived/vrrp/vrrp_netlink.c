@@ -33,6 +33,9 @@
 #include <errno.h>
 #include <time.h>
 #include <sys/uio.h>
+#ifdef _HAVE_LIBNL3_
+#include <netlink/netlink.h>
+#endif
 
 /* local include */
 #include "check_api.h"
@@ -42,6 +45,7 @@
 #include "memory.h"
 #include "scheduler.h"
 #include "utils.h"
+#include "bitops.h"
 
 /* Global vars */
 nl_handle_t nl_kernel;	/* Kernel reflection channel */
@@ -49,34 +53,57 @@ nl_handle_t nl_cmd;	/* Command channel */
 
 /* Create a socket to netlink interface_t */
 int
-netlink_socket(nl_handle_t *nl, unsigned long groups)
+netlink_socket(nl_handle_t *nl, uint32_t groups, int flags)
 {
-	socklen_t addr_len;
 	int ret;
 
 	memset(nl, 0, sizeof (*nl));
 
-	nl->fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+#ifdef _HAVE_LIBNL3_
+	/* We need to keep libnl3 in step with our netlink socket creation.  */
+	nl->sk = nl_socket_alloc();
+	if ( nl->sk == NULL ) {
+		log_message(LOG_INFO, "Netlink: Cannot allocate netlink socket" );
+		return -1;
+	}
+
+	nl_join_groups(nl->sk, groups);		/* Note: this function is deprecated */
+	ret = nl_connect(nl->sk, NETLINK_ROUTE);
+	if (ret != 0) {
+		log_message(LOG_INFO, "Netlink: Cannot open netlink socket : (%d)", ret);
+		return -1;
+	}
+
+	if (flags & SOCK_NONBLOCK) {
+		if ((ret = nl_socket_set_nonblocking(nl->sk))) {
+			log_message(LOG_INFO, "Netlink: Cannot set netlink socket non-blocking : (%d)", ret);
+			return -1;
+		}
+	}
+
+	if ((ret = nl_socket_set_buffer_size(nl->sk, IF_DEFAULT_BUFSIZE, 0))) {
+		log_message(LOG_INFO, "Netlink: Cannot set netlink buffer size : (%d)", ret);
+		return -1;
+	}
+
+	nl->nl_pid = nl_socket_get_local_port(nl->sk);
+
+	nl->fd = nl_socket_get_fd(nl->sk);
+#else
+	socklen_t addr_len;
+	struct sockaddr_nl snl;
+
+	nl->fd = socket(AF_NETLINK, SOCK_RAW | flags, NETLINK_ROUTE);
 	if (nl->fd < 0) {
 		log_message(LOG_INFO, "Netlink: Cannot open netlink socket : (%s)",
 		       strerror(errno));
 		return -1;
 	}
+	memset(&snl, 0, sizeof (snl));
+	snl.nl_family = AF_NETLINK;
+	snl.nl_groups = groups;
 
-	ret = fcntl(nl->fd, F_SETFL, O_NONBLOCK);
-	if (ret < 0) {
-		log_message(LOG_INFO,
-		       "Netlink: Cannot set netlink socket flags : (%s)",
-		       strerror(errno));
-		close(nl->fd);
-		return -1;
-	}
-
-	memset(&nl->snl, 0, sizeof (nl->snl));
-	nl->snl.nl_family = AF_NETLINK;
-	nl->snl.nl_groups = groups;
-
-	ret = bind(nl->fd, (struct sockaddr *) &nl->snl, sizeof (nl->snl));
+	ret = bind(nl->fd, (struct sockaddr *) &snl, sizeof (snl));
 	if (ret < 0) {
 		log_message(LOG_INFO, "Netlink: Cannot bind netlink socket : (%s)",
 		       strerror(errno));
@@ -84,26 +111,31 @@ netlink_socket(nl_handle_t *nl, unsigned long groups)
 		return -1;
 	}
 
-	addr_len = sizeof (nl->snl);
-	ret = getsockname(nl->fd, (struct sockaddr *) &nl->snl, &addr_len);
-	if (ret < 0 || addr_len != sizeof (nl->snl)) {
+	addr_len = sizeof (snl);
+	ret = getsockname(nl->fd, (struct sockaddr *) &snl, &addr_len);
+	if (ret < 0 || addr_len != sizeof (snl)) {
 		log_message(LOG_INFO, "Netlink: Cannot getsockname : (%s)",
 		       strerror(errno));
 		close(nl->fd);
 		return -1;
 	}
 
-	if (nl->snl.nl_family != AF_NETLINK) {
+	if (snl.nl_family != AF_NETLINK) {
 		log_message(LOG_INFO, "Netlink: Wrong address family %d",
-		       nl->snl.nl_family);
+		       snl.nl_family);
 		close(nl->fd);
 		return -1;
 	}
 
-	nl->seq = time(NULL);
+	/* Save the socket id for checking message source later */
+	nl->nl_pid = snl.nl_pid;
 
 	/* Set default rcvbuf size */
 	if_setsockopt_rcvbuf(&nl->fd, IF_DEFAULT_BUFSIZE);
+#endif
+
+	nl->seq = time(NULL);
+
 	if (nl->fd < 0)
 		return -1;
 
@@ -116,7 +148,11 @@ netlink_close(nl_handle_t *nl)
 {
 	/* First of all release pending thread */
 	thread_cancel(nl->thread);
+#ifdef _HAVE_LIBNL3_
+	nl_socket_free(nl->sk);
+#else
 	close(nl->fd);
+#endif
 	return 0;
 }
 
@@ -142,12 +178,22 @@ netlink_set_block(nl_handle_t *nl, int *flags)
 int
 netlink_set_nonblock(nl_handle_t *nl, int *flags)
 {
+#ifdef _HAVE_LIBNL3_
+	int ret;
+
+	if ((ret = nl_socket_set_nonblocking(nl->sk)) < 0 ) {
+		log_message(LOG_INFO, "Netlink: Cannot set nonblocking : (%s)",
+			strerror(ret));
+		return -1;
+	}
+#else
 	*flags |= O_NONBLOCK;
 	if (fcntl(nl->fd, F_SETFL, *flags) < 0) {
 		log_message(LOG_INFO, "Netlink: Cannot F_SETFL socket : (%s)",
 		       strerror(errno));
 		return -1;
 	}
+#endif
 	return 0;
 }
 
@@ -325,7 +371,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			}
 
 			/* Skip unsolicited messages from cmd channel */
-			if (nl != &nl_cmd && h->nlmsg_pid == nl_cmd.snl.nl_pid)
+			if (nl != &nl_cmd && h->nlmsg_pid == nl_cmd.nl_pid)
 				continue;
 
 			error = (*filter) (&snl, h);
@@ -578,16 +624,9 @@ netlink_interface_lookup(void)
 {
 	nl_handle_t nlh;
 	int status = 0;
-	int ret, flags;
 
-	if (netlink_socket(&nlh, 0) < 0)
+	if (netlink_socket(&nlh, 0, 0) < 0)
 		return -1;
-
-	/* Set blocking flag */
-	ret = netlink_set_block(&nlh, &flags);
-	if (ret < 0)
-		log_message(LOG_INFO, "Netlink: Warning, couldn't set "
-		       "blocking flag to netlink socket...");
 
 	/* Interface lookup */
 	if (netlink_request(&nlh, AF_PACKET, RTM_GETLINK) < 0) {
@@ -607,16 +646,9 @@ netlink_address_lookup(void)
 {
 	nl_handle_t nlh;
 	int status = 0;
-	int ret, flags;
 
-	if (netlink_socket(&nlh, 0) < 0)
+	if (netlink_socket(&nlh, 0, 0) < 0)
 		return -1;
-
-	/* Set blocking flag */
-	ret = netlink_set_block(&nlh, &flags);
-	if (ret < 0)
-		log_message(LOG_INFO, "Netlink: Warning, couldn't set "
-		       "blocking flag to netlink socket...");
 
 	/* IPv4 Address lookup */
 	if (netlink_request(&nlh, AF_INET, RTM_GETADDR) < 0) {
@@ -664,10 +696,14 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	if (ifi->ifi_type == ARPHRD_LOOPBACK)
 		return 0;
 
-	/* find the interface_t */
+	/* find the interface_t. Ignore it if we don't know about the interface */
 	ifp = if_get_by_ifindex(ifi->ifi_index);
-	if (!ifp)
-		return -1;
+	if (!ifp) {
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "Unknown interface %s %s", (char *)tb[IFLA_IFNAME],
+					(h->nlmsg_type == RTM_NEWLINK ) ? "added" : "deleted" );
+		return 0;
+	}
 
 	/*
 	 * Update flags.
@@ -730,7 +766,7 @@ kernel_netlink_init(void)
 	 * netlink broadcast messages.
 	 */
 	groups = RTMGRP_LINK | RTMGRP_IPV4_IFADDR | RTMGRP_IPV6_IFADDR;
-	netlink_socket(&nl_kernel, groups);
+	netlink_socket(&nl_kernel, groups, SOCK_NONBLOCK);
 
 	if (nl_kernel.fd > 0) {
 		log_message(LOG_INFO, "Registering Kernel netlink reflector");
@@ -740,7 +776,7 @@ kernel_netlink_init(void)
 		log_message(LOG_INFO, "Error while registering Kernel netlink reflector channel");
 
 	/* Prepare netlink command channel. */
-	netlink_socket(&nl_cmd, 0);
+	netlink_socket(&nl_cmd, 0, SOCK_NONBLOCK);
 	if (nl_cmd.fd > 0)
 		log_message(LOG_INFO, "Registering Kernel netlink command channel");
 	else
