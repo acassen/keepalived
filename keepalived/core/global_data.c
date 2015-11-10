@@ -155,7 +155,6 @@ free_global_data(data_t * data)
 {
 	free_list(data->email);
 	FREE_PTR(data->router_id);
-	FREE_PTR(data->plugin_dir);
 	FREE_PTR(data->email_from);
 	FREE(data);
 }
@@ -172,8 +171,6 @@ dump_global_data(data_t * data)
 	}
 	if (data->router_id)
 		log_message(LOG_INFO, " Router ID = %s", data->router_id);
-	if (data->plugin_dir)
-		log_message(LOG_INFO, " Plugin dir = %s", data->plugin_dir);
 	if (data->smtp_server.ss_family)
 		log_message(LOG_INFO, " Smtp server = %s", inet_sockaddrtos(&data->smtp_server));
 	if (data->smtp_connection_to)

@@ -46,11 +46,6 @@ routerid_handler(vector_t *strvec)
 	global_data->router_id = set_value(strvec);
 }
 static void
-plugin_handler(vector_t *strvec)
-{
-	global_data->plugin_dir = set_value(strvec);
-}
-static void
 emailfrom_handler(vector_t *strvec)
 {
 	FREE_PTR(global_data->email_from);
@@ -147,7 +142,6 @@ global_init_keywords(void)
 	install_keyword_root("linkbeat_use_polling", use_polling_handler);
 	install_keyword_root("global_defs", NULL);
 	install_keyword("router_id", &routerid_handler);
-	install_keyword("plugin_dir", &plugin_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);
 	install_keyword("smtp_server", &smtpserver_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);

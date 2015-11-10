@@ -36,7 +36,6 @@
 /* constants */
 #define DEFAULT_SMTP_SERVER 0x7f000001
 #define DEFAULT_SMTP_CONNECTION_TIMEOUT (30 * TIMER_HZ)
-#define DEFAULT_PLUGIN_DIR "/etc/keepalived/plugins"
 
 /* email link list */
 typedef struct _email {
@@ -47,7 +46,6 @@ typedef struct _email {
 typedef struct _data {
 	int				linkbeat_use_polling;
 	char				*router_id;
-	char				*plugin_dir;
 	char				*email_from;
 	struct sockaddr_storage		smtp_server;
 	long				smtp_connection_to;
