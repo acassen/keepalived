@@ -44,6 +44,7 @@ global_defs {				# Block identification
     vrrp_garp_master_refresh_repeat <INTEGER> # how many gratuitous ARP messages shoule be sent
 					   #  at each periodic repeat
 					   #  Default: once (per period)
+    vrrp_version <INTEGER:2..3>            # Default VRRP version (default 2)
 }
 
 linkbeat_use_polling	# Use media link failure detection polling fashion
@@ -159,6 +160,7 @@ Important: for a SYNC group to run reliably, it is vital that all instances in
 
 vrrp_instance <STRING> {		# VRRP instance declaration
     use_vmac				# Use VRRP Virtual MAC
+    version <INTEGER:2..3>              # VRRP version to use
     vmac_xmit_base			# Send/Recv VRRP messages from base
 					#  interface instead of VMAC interface
     native_ipv6				# Force instance to use IPv6

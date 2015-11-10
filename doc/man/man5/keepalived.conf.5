@@ -56,6 +56,9 @@ and
  # number of gratuitous ARP messages to send at a time while MASTER
  vrrp_garp_master_refresh_repeat 2 # default 1
 
+ # Set the default VRRP version to use
+ vrrp_version <2 or 3>        # default version 2
+
  enable_traps                 # enable SNMP traps
  }
 
@@ -192,7 +195,8 @@ which will transition together on any state change.
     mcast_src_ip <IPADDR>
     unicast_src_ip <IPADDR>
 
-    version <2 or 3>		# VRRP version to run on interface (default 2)
+    version <2 or 3>		# VRRP version to run on interface
+                                #  default is global parameter vrrp_version.
 
     # Do not send VRRP adverts over VRRP multicast group.
     # Instead it sends adverts to the following list of

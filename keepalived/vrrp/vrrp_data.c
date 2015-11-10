@@ -360,7 +360,7 @@ alloc_vrrp(char *iname)
 	new->family = AF_INET;
 	new->wantstate = VRRP_STATE_BACK;
 	new->init_state = VRRP_STATE_BACK;
-	new->version = VRRP_VERSION_2;
+	new->version = global_data->vrrp_version;
 	new->master_priority = 0;
 	new->last_transition = timer_now();
 	new->adver_int = TIMER_HZ;

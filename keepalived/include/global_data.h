@@ -56,6 +56,7 @@ typedef struct _data {
 	timeval_t			vrrp_garp_refresh;
 	int				vrrp_garp_rep;
 	int				vrrp_garp_refresh_rep;
+	int				vrrp_version;            /* VRRP version (2 or 3) */
 #ifdef _WITH_SNMP_
 	int				enable_traps;
 #endif
