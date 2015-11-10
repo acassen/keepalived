@@ -33,9 +33,7 @@
 #include <errno.h>
 #include <time.h>
 #include <sys/uio.h>
-#ifdef _HAVE_LIBNL3_
-#include <netlink/netlink.h>
-#endif
+#include <stdarg.h>
 
 /* local include */
 #include "check_api.h"
@@ -53,9 +51,10 @@ nl_handle_t nl_cmd;	/* Command channel */
 
 /* Create a socket to netlink interface_t */
 int
-netlink_socket(nl_handle_t *nl, uint32_t groups, int flags)
+netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 {
 	int ret;
+	va_list gp;
 
 	memset(nl, 0, sizeof (*nl));
 
@@ -67,12 +66,30 @@ netlink_socket(nl_handle_t *nl, uint32_t groups, int flags)
 		return -1;
 	}
 
-	nl_join_groups(nl->sk, groups);		/* Note: this function is deprecated */
 	ret = nl_connect(nl->sk, NETLINK_ROUTE);
 	if (ret != 0) {
 		log_message(LOG_INFO, "Netlink: Cannot open netlink socket : (%d)", ret);
 		return -1;
 	}
+
+	/* Unfortunately we can't call nl_socket_add_memberships() with variadic arguments
+	 * from a variadic argument list passed to us
+	 */
+	va_start(gp, group);
+	while (group != 0) {
+		if (group < 0) {
+			va_end(gp);
+			return -1;
+		}
+
+		if ((ret = nl_socket_add_membership(nl->sk, group))) {
+			log_message(LOG_INFO, "Netlink: Cannot add socket membership 0x%x : (%d)", group, ret);
+			return -1;
+		}
+
+		group = va_arg(gp,int);
+	}
+	va_end(gp);
 
 	if (flags & SOCK_NONBLOCK) {
 		if ((ret = nl_socket_set_nonblocking(nl->sk))) {
@@ -99,9 +116,9 @@ netlink_socket(nl_handle_t *nl, uint32_t groups, int flags)
 		       strerror(errno));
 		return -1;
 	}
+
 	memset(&snl, 0, sizeof (snl));
 	snl.nl_family = AF_NETLINK;
-	snl.nl_groups = groups;
 
 	ret = bind(nl->fd, (struct sockaddr *) &snl, sizeof (snl));
 	if (ret < 0) {
@@ -110,6 +127,26 @@ netlink_socket(nl_handle_t *nl, uint32_t groups, int flags)
 		close(nl->fd);
 		return -1;
 	}
+
+	/* Join the requested groups */
+	va_start(gp, group);
+	while (group != 0) {
+		if (group < 0) {
+			va_end(gp);
+			return -1;
+		}
+
+		ret = setsockopt(nl->fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &group, sizeof(group));
+		if (ret < 0) {
+			log_message(LOG_INFO, "Netlink: Cannot add membership on netlink socket : (%s)",
+			       strerror(errno));
+			va_end(gp);
+			return -1;
+		}
+
+		group = va_arg(gp,int);
+	}
+	va_end(gp);
 
 	addr_len = sizeof (snl);
 	ret = getsockname(nl->fd, (struct sockaddr *) &snl, &addr_len);
@@ -127,7 +164,7 @@ netlink_socket(nl_handle_t *nl, uint32_t groups, int flags)
 		return -1;
 	}
 
-	/* Save the socket id for checking message source later */
+	/* Save the port id for checking message source later */
 	nl->nl_pid = snl.nl_pid;
 
 	/* Set default rcvbuf size */
@@ -755,8 +792,6 @@ kernel_netlink(thread_t * thread)
 void
 kernel_netlink_init(void)
 {
-	unsigned long groups;
-
 	/* Start with a netlink address lookup */
 	netlink_address_lookup();
 
@@ -765,8 +800,7 @@ kernel_netlink_init(void)
 	 * subscribtion. We subscribe to LINK and ADDR
 	 * netlink broadcast messages.
 	 */
-	groups = RTMGRP_LINK | RTMGRP_IPV4_IFADDR | RTMGRP_IPV6_IFADDR;
-	netlink_socket(&nl_kernel, groups, SOCK_NONBLOCK);
+	netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
 
 	if (nl_kernel.fd > 0) {
 		log_message(LOG_INFO, "Registering Kernel netlink reflector");
@@ -776,7 +810,7 @@ kernel_netlink_init(void)
 		log_message(LOG_INFO, "Error while registering Kernel netlink reflector channel");
 
 	/* Prepare netlink command channel. */
-	netlink_socket(&nl_cmd, 0, SOCK_NONBLOCK);
+	netlink_socket(&nl_cmd, SOCK_NONBLOCK, 0);
 	if (nl_cmd.fd > 0)
 		log_message(LOG_INFO, "Registering Kernel netlink command channel");
 	else

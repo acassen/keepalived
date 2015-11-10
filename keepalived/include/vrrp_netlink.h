@@ -34,6 +34,10 @@
 #include <linux/rtnetlink.h>
 #ifdef _HAVE_LIBNL3_
 #include <netlink/netlink.h>
+#include <libnfnetlink/libnfnetlink.h>
+#endif
+#ifdef _HAVE_LIBNL1_
+#include <libnfnetlink/libnfnetlink.h>
 #endif
 
 /* local includes */
@@ -52,7 +56,12 @@ typedef struct _nl_handle {
 
 /* Define types */
 #define NETLINK_TIMER (30 * TIMER_HZ)
+#ifndef _HAVE_LIBNL3_
+#ifndef _HAVE_LIBNL1_
 #define NLMSG_TAIL(nmsg) ((struct rtattr *) (((void *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len)))
+#define SOL_NETLINK 270
+#endif
+#endif
 
 /* Global vars exported */
 extern nl_handle_t nl_kernel;	/* Kernel reflection channel */
@@ -64,7 +73,7 @@ extern int addattr_l(struct nlmsghdr *, int, int, void *, int);
 extern int rta_addattr_l(struct rtattr *, int, int, const void *, int);
 extern char *netlink_scope_n2a(int);
 extern int netlink_scope_a2n(char *);
-extern int netlink_socket(nl_handle_t *, uint32_t, int flags);
+extern int netlink_socket(nl_handle_t *, int, int, ...);
 extern int netlink_close(nl_handle_t *);
 extern int netlink_talk(nl_handle_t *, struct nlmsghdr *);
 extern int netlink_interface_lookup(void);
