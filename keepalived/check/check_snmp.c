@@ -280,17 +280,6 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret = 0;
 		switch (v->loadbalancing_kind) {
 #ifdef _WITH_LVS_
-#ifdef _KRNL_2_2_
-		case 0:
-			long_ret = 1;
-			break;
-		case IP_MASQ_F_VS_DROUTE:
-			long_ret = 2;
-			break;
-		case IP_MASQ_F_VS_TUNNEL:
-			long_ret = 3;
-			break;
-#else
 		case IP_VS_CONN_F_MASQ:
 			long_ret = 1;
 			break;
@@ -300,7 +289,6 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		case IP_VS_CONN_F_TUNNEL:
 			long_ret = 3;
 			break;
-#endif
 #endif
 		}
 		if (!long_ret) break;
