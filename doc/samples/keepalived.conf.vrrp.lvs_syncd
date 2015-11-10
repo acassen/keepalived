@@ -51,7 +51,6 @@ virtual_server 192.168.200.19 80 {
     delay_loop 20
     lb_algo rr
     lb_kind NAT
-    nat_mask 255.255.255.0
     persistence_timeout 50
     protocol TCP
 

@@ -128,12 +128,6 @@ lbkind_handler(vector_t *strvec)
 		log_message(LOG_INFO, "PARSER : unknown [%s] routing method.", str);
 }
 static void
-natmask_handler(vector_t *strvec)
-{
-	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	inet_ston(vector_slot(strvec, 1), &vs->nat_mask);
-}
-static void
 pto_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -323,7 +317,6 @@ check_init_keywords(void)
 	install_keyword("lvs_sched", &lbalgo_handler);
 	install_keyword("lb_kind", &lbkind_handler);
 	install_keyword("lvs_method", &lbkind_handler);
-	install_keyword("nat_mask", &natmask_handler);
 	install_keyword("persistence_timeout", &pto_handler);
 	install_keyword("persistence_granularity", &pgr_handler);
 	install_keyword("protocol", &proto_handler);
