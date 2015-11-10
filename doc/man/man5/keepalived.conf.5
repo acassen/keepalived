@@ -57,8 +57,10 @@ and
  vrrp_garp_master_refresh_repeat 2 # default 1
 
  enable_traps                 # enable SNMP traps
+ plugin_dir                   # UNIMPLEMENTED
  }
 
+ linkbeat_use_polling         # Poll to detect media link failure otherwise attempt to use ETHTOOL or MII interface
 
 .SH Static routes/addresses/rules
 .PP
@@ -132,6 +134,8 @@ and
     # Send email notification during state transition,
     # using addresses in global_defs above.
     smtp_alert
+
+    global_tracking	# All VRRP share same tracking conf
  }
 
 .SH VRRP instance(s)
@@ -160,6 +164,8 @@ which will transition together on any state change.
     # VMAC interface
     vmac_xmit_base
 
+    native_ipv6		# force instance to use IPv6 (when mixed IPv4 and IPv6 config).
+
     # Ignore VRRP interface faults (default unset)
     dont_track_primary
 
@@ -168,7 +174,14 @@ which will transition together on any state change.
     track_interface {
       eth0
       eth1
+      eth2 weight <-254..254>
       ...
+    }
+
+    # add a tracking script to the interface
+    track_script {
+        <SCRIPT_PATH>
+        <SCRIPT_PATH> weight <-254..254>
     }
 
     # default IP for binding vrrpd is the primary IP
@@ -179,6 +192,8 @@ which will transition together on any state change.
     # optional
     mcast_src_ip <IPADDR>
     unicast_src_ip <IPADDR>
+
+    version <2 or 3>		# VRRP version to run on interface (default 2)
 
     # Do not send VRRP adverts over VRRP multicast group.
     # Instead it sends adverts to the following list of
@@ -250,10 +265,19 @@ which will transition together on any state change.
         192.168.110.0/24 via 192.168.200.254 dev eth1
         192.168.111.0/24 dev eth2
         192.168.112.0/24 via 192.168.100.254
-	    192.168.113.0/24 via 192.168.200.254 or 192.168.100.254 dev eth1
-	    blackhole 192.168.114.0/24
+        192.168.113.0/24 via 192.168.200.254 or 192.168.100.254 dev eth1
+        blackhole 192.168.114.0/24
         0.0.0.0/0 gw 192.168.0.1 table 100  # To set a default gateway into table 100.
     }
+
+    # rules add|del when changing to MASTER, to BACKUP
+    virtual_rules {
+        from 192.168.2.0/24 table 1
+        to 192.168.2.0/24 table 1
+    }
+
+    accept	# Allow the non-master owner to process the packets destined to VIP
+
     # rules add|del when changing to MASTER, to BACKUP
     static_rules {
         from 192.168.2.0/24 table 1
@@ -268,6 +292,7 @@ which will transition together on any state change.
     # NOTE: For this to work, the initial state of this
     # entry must be BACKUP.
     nopreempt
+    preempt		# for backwards compatibility
 
     # Seconds after startup until preemption
     # (if not disabled by "nopreempt").
@@ -283,9 +308,31 @@ which will transition together on any state change.
     notify_master <STRING>|<QUOTED-STRING>
     notify_backup <STRING>|<QUOTED-STRING>
     notify_fault <STRING>|<QUOTED-STRING>
+    notify_stop <STRING>|<QUOTED_STRING>	# run when stopping vrrp
     notify <STRING>|<QUOTED-STRING>
     smtp_alert
  }
+
+# Adds a script to be executed periodically. Its exit code will be
+# recorded for all VRRP instances which are monitoring it with
+# non-zero weight.
+vrrp_script <SCRIPT_NAME> {
+	script <QUOTED_STRING>	# path of script to execute
+	interval <INTEGER>	# seconds between script invocations, default 1 second
+	timeout	<INTEGER>	# seconds after which script is considered to have failed
+	weight<INTEGER:-254..254> # adjust priority by this weight, default 2
+	rise <INTEGER>		# required number of successes for OK transition
+	fall <INTEGER>		# required number of successes for KO transition
+}
+
+# Parameters used for SSL GET check.
+# If none of the parameters are specified, the SSL context will be auto generated
+SSL {
+	password <STRING>	# password
+	ca <STRING>		# ca file
+	certificate <STRING>	# certificate file
+	key <STRING>		# key file
+}
 
 .SH LVS CONFIGURATION
 contains subblocks of
@@ -357,6 +404,9 @@ A virtual_server can be a declaration of one of
     # suspend healthchecker's activity
     ha_suspend
 
+    lvs_sched	# synonym for lb_algo
+    lvs_method	# synonym for lb_kind
+
     # VirtualHost string for HTTP_GET or SSL_GET
     # eg virtualhost www.firewall.loc
     virtualhost <STRING>
@@ -415,6 +465,9 @@ A virtual_server can be a declaration of one of
            # Script to launch when healthchecker
            # considers service as down.
            notify_down <STRING>|<QUOTED-STRING>
+
+	   uthreshold <INTEGER>	# maximum number of connections to server
+	   lthreshold <INTEGER>	# minimum number of connections to server
 
            # pick one healthchecker
            # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|MISC_CHECK
