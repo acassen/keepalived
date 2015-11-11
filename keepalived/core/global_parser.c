@@ -46,11 +46,6 @@ routerid_handler(vector_t *strvec)
 	global_data->router_id = set_value(strvec);
 }
 static void
-plugin_handler(vector_t *strvec)
-{
-	global_data->plugin_dir = set_value(strvec);
-}
-static void
 emailfrom_handler(vector_t *strvec)
 {
 	FREE_PTR(global_data->email_from);
@@ -108,6 +103,41 @@ vrrp_mcast_group6_handler(vector_t *strvec)
 				   , FMT_STR_VSLOT(strvec, 1));
 	}
 }
+static void
+vrrp_garp_delay_handler(vector_t *strvec)
+{
+	global_data->vrrp_garp_delay = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
+}
+static void
+vrrp_garp_refresh_handler(vector_t *strvec)
+{
+	global_data->vrrp_garp_refresh.tv_sec = atoi(vector_slot(strvec, 1));
+}
+static void
+vrrp_garp_rep_handler(vector_t *strvec)
+{
+	global_data->vrrp_garp_rep = atoi(vector_slot(strvec, 1));
+	if ( global_data->vrrp_garp_rep < 1 )
+		global_data->vrrp_garp_rep = 1;
+}
+static void
+vrrp_garp_refresh_rep_handler(vector_t *strvec)
+{
+	global_data->vrrp_garp_refresh_rep = atoi(vector_slot(strvec, 1));
+	if ( global_data->vrrp_garp_refresh_rep < 1 )
+		global_data->vrrp_garp_refresh_rep = 1;
+}
+static void
+vrrp_version_handler(vector_t *strvec)
+{
+	uint8_t version = atoi(vector_slot(strvec, 1));
+	if (VRRP_IS_BAD_VERSION(version)) {
+		log_message(LOG_INFO, "VRRP Error : Version not valid !\n");
+		log_message(LOG_INFO, "             must be between either 2 or 3. reconfigure !\n");
+		return;
+	}
+	global_data->vrrp_version = version;
+}
 #ifdef _WITH_SNMP_
 static void
 trap_handler(vector_t *strvec)
@@ -123,13 +153,17 @@ global_init_keywords(void)
 	install_keyword_root("linkbeat_use_polling", use_polling_handler);
 	install_keyword_root("global_defs", NULL);
 	install_keyword("router_id", &routerid_handler);
-	install_keyword("plugin_dir", &plugin_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);
 	install_keyword("smtp_server", &smtpserver_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
 	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler);
 	install_keyword("vrrp_mcast_group6", &vrrp_mcast_group6_handler);
+	install_keyword("vrrp_garp_master_delay", &vrrp_garp_delay_handler);
+	install_keyword("vrrp_garp_master_repeat", &vrrp_garp_rep_handler);
+	install_keyword("vrrp_garp_master_refresh", &vrrp_garp_refresh_handler);
+	install_keyword("vrrp_garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
+	install_keyword("vrrp_version", &vrrp_version_handler);
 #ifdef _WITH_SNMP_
 	install_keyword("enable_traps", &trap_handler);
 #endif

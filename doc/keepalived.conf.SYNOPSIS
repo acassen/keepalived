@@ -34,6 +34,17 @@ global_defs {				# Block identification
     router_id <STRING>			   # String identifying router
     vrrp_mcast_group4 <IPv4 ADDRESS>	   # optional, default 224.0.0.18
     vrrp_mcast_group6 <IPv6 ADDRESS>	   # optional, default ff02::12
+    vrrp_garp_master_delay <INTEGER>	   # delay in seconds for second set of gratuitous ARP
+					   #  messages after MASTER state transition, default 5
+    vrrp_garp_master_repeat <INTEGER>	   # how many gratuitous ARP messages after MASTER
+					   #  state transition should be sent, default 5
+    vrrp_garp_master_refresh <INTEGER>	   # Periodic delay in seconds sending
+					   #  gratuitous ARP while in MASTER state
+					   #  Default: 0 (no refreshing)
+    vrrp_garp_master_refresh_repeat <INTEGER> # how many gratuitous ARP messages shoule be sent
+					   #  at each periodic repeat
+					   #  Default: once (per period)
+    vrrp_version <INTEGER:2..3>            # Default VRRP version (default 2)
 }
 
 linkbeat_use_polling	# Use media link failure detection polling fashion
@@ -149,6 +160,7 @@ Important: for a SYNC group to run reliably, it is vital that all instances in
 
 vrrp_instance <STRING> {		# VRRP instance declaration
     use_vmac				# Use VRRP Virtual MAC
+    version <INTEGER:2..3>              # VRRP version to use
     vmac_xmit_base			# Send/Recv VRRP messages from base
 					#  interface instead of VMAC interface
     native_ipv6				# Force instance to use IPv6
@@ -175,15 +187,14 @@ vrrp_instance <STRING> {		# VRRP instance declaration
       ...				#  in unicast design fashion
     }
     lvs_sync_daemon_interface <STRING>	# Binding interface for lvs syncd
-    garp_master_delay <INTEGER>		# delay for gratuitous ARP after MASTER
-					#  state transition
-    garp_master_repeat <INTEGER>        # how often the gratuitous ARP after MASTER
-                                        #  state transition should be repeated?
-    garp_master_refresh <INTEGER>	# Periodic delay in seconds sending
-					#  gratuitous ARP while in MASTER state
-    garp_master_refresh_repeat <INTEGER># how often the periodically repeated gratuitous ARP
-                                        #  should be repeated?
-                                        #  Default: once (per period)
+
+    # The following garp parameters take their defaults from the global config for vrrp_garp_master_...
+    # See their descriptions for the meaning of the parameters.
+    garp_master_delay <INTEGER>
+    garp_master_repeat <INTEGER>
+    garp_master_refresh <INTEGER>
+    garp_master_refresh_repeat <INTEGER>
+
     virtual_router_id <INTEGER-0..255>	# VRRP VRID
     priority <INTEGER-0..255>		# VRRP PRIO
     advert_int <INTEGER>		# VRRP Advert interval (use default)

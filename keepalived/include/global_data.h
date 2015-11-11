@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <sys/socket.h>
 
 /* local includes */
 #include "list.h"
@@ -35,7 +36,6 @@
 /* constants */
 #define DEFAULT_SMTP_SERVER 0x7f000001
 #define DEFAULT_SMTP_CONNECTION_TIMEOUT (30 * TIMER_HZ)
-#define DEFAULT_PLUGIN_DIR "/etc/keepalived/plugins"
 
 /* email link list */
 typedef struct _email {
@@ -46,13 +46,17 @@ typedef struct _email {
 typedef struct _data {
 	int				linkbeat_use_polling;
 	char				*router_id;
-	char				*plugin_dir;
 	char				*email_from;
 	struct sockaddr_storage		smtp_server;
 	long				smtp_connection_to;
 	list				email;
 	struct sockaddr_storage		vrrp_mcast_group4;
 	struct sockaddr_storage		vrrp_mcast_group6;
+	int				vrrp_garp_delay;
+	timeval_t			vrrp_garp_refresh;
+	int				vrrp_garp_rep;
+	int				vrrp_garp_refresh_rep;
+	int				vrrp_version;            /* VRRP version (2 or 3) */
 #ifdef _WITH_SNMP_
 	int				enable_traps;
 #endif

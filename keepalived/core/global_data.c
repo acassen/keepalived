@@ -29,6 +29,7 @@
 #include "list.h"
 #include "logger.h"
 #include "utils.h"
+#include "vrrp.h"
 
 /* global vars */
 data_t *global_data = NULL;
@@ -84,6 +85,15 @@ set_default_mcast_group(data_t * data)
 	inet_stosockaddr("ff02::12", 0, &data->vrrp_mcast_group6);
 }
 
+static void
+set_vrrp_defaults(data_t * data)
+{
+	data->vrrp_garp_rep = VRRP_GARP_REP;
+	data->vrrp_garp_refresh_rep = VRRP_GARP_REFRESH_REP;
+	data->vrrp_garp_delay = VRRP_GARP_DELAY;
+	data->vrrp_version = VRRP_VERSION_2;
+}
+
 /* email facility functions */
 static void
 free_email(void *data)
@@ -119,6 +129,7 @@ alloc_global_data(void)
 	new->email = alloc_list(free_email, dump_email);
 
 	set_default_mcast_group(new);
+	set_vrrp_defaults(new);
 
 	return new;
 }
@@ -145,7 +156,6 @@ free_global_data(data_t * data)
 {
 	free_list(data->email);
 	FREE_PTR(data->router_id);
-	FREE_PTR(data->plugin_dir);
 	FREE_PTR(data->email_from);
 	FREE(data);
 }
@@ -162,8 +172,6 @@ dump_global_data(data_t * data)
 	}
 	if (data->router_id)
 		log_message(LOG_INFO, " Router ID = %s", data->router_id);
-	if (data->plugin_dir)
-		log_message(LOG_INFO, " Plugin dir = %s", data->plugin_dir);
 	if (data->smtp_server.ss_family)
 		log_message(LOG_INFO, " Smtp server = %s", inet_sockaddrtos(&data->smtp_server));
 	if (data->smtp_connection_to)
@@ -182,6 +190,15 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO, " VRRP IPv6 mcast group = %s"
 				    , inet_sockaddrtos(&data->vrrp_mcast_group6));
 	}
+	if (data->vrrp_garp_delay)
+		log_message(LOG_INFO, " Gratuitous ARP delay = %d",
+		       data->vrrp_garp_delay/TIMER_HZ);
+	if (!timer_isnull(data->vrrp_garp_refresh))
+		log_message(LOG_INFO, " Gratuitous ARP refresh timer = %lu",
+		       data->vrrp_garp_refresh.tv_sec);
+	log_message(LOG_INFO, " Gratuitous ARP repeat = %d", data->vrrp_garp_rep);
+	log_message(LOG_INFO, " Gratuitous ARP refresh repeat = %d", data->vrrp_garp_refresh_rep);
+	log_message(LOG_INFO, " VRRP default protocol version = %d", data->vrrp_version);
 #ifdef _WITH_SNMP_
 	if (data->enable_traps)
 		log_message(LOG_INFO, " SNMP Trap enabled");

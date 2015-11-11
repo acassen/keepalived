@@ -272,7 +272,9 @@ vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
 
 /*
  * VRRP incoming packet check.
- * return 0 if the pkt is valid, != 0 otherwise.
+ * return VRRP_PACKET_OK if the pkt is valid, or
+ * 	  VRRP_PACKET_KO if packet invalid or
+ * 	  VRRP_PACKET_DROP if packet not relevant to us
  */
 static int
 vrrp_in_chk(vrrp_t * vrrp, char *buffer)
@@ -984,11 +986,11 @@ vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, int idx)
 
 	if (!IP_IS6(ipaddress)) {
 		msg = "gratuitous ARPs";
-		inet_ntop(AF_INET, &ipaddress->u.sin.sin_addr, addr_str, 41);
+		inet_ntop(AF_INET, &ipaddress->u.sin.sin_addr, addr_str, sizeof(addr_str));
 		send_gratuitous_arp(ipaddress);
 	} else {
 		msg = "Unsolicited Neighbour Adverts";
-		inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, 41);
+		inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, sizeof(addr_str));
 		ndisc_send_unsolicited_na(ipaddress);
 	}
 
@@ -1308,8 +1310,8 @@ vrrp_saddr_cmp(struct sockaddr_storage *addr, vrrp_t *vrrp)
 int
 vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 {
-	vrrphdr_t *hd = NULL;
-	int ret = 0, proto = 0;
+	vrrphdr_t *hd;
+	int ret, proto = 0;
 	ipsec_ah_t *ah;
 
 	/* return on link failure */

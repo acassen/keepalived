@@ -34,8 +34,8 @@ well\-known and widely used Linux Virtual Server (IPVS) kernel module
 providing Layer4 load\-balancing. Keepalived implements a set of
 checkers to dynamically and adaptively maintain and manage
 load\-balanced server pool according their health. Keepalived also
-implements the VRRPv2 protocol to achieve high\-availability with
-director failover.
+implements the VRRPv2 and VRRPv3 protocols to achieve high\-availability
+with director failover.
 
 .SH "OPTIONS"
 .TP
@@ -60,6 +60,9 @@ Detailed log messages.
 .TP
 \fB -S, --log-facility\fP=[0-7]
 Set syslog facility to LOG_LOCAL[0-7]. The default syslog facility is LOG_DAEMON.
+.TP
+\fB -X, --release-vips\fP
+Drop VIP on transition from signal.
 .TP
 \fB -V, --dont-release-vrrp\fP
 Don't remove VRRP VIPs and VROUTEs on daemon stop. The default
@@ -104,6 +107,44 @@ Display the version and exit.
 .TP
 \fB -h, --help\fP
 Display this help message and exit.
+
+.SH SIGNALS
+.B keepalived
+reacts to a set of signals.  You may easily send a signal to
+the parent
+.B keepalived
+process using the following:
+.IP
+.nf
+kill -SIGNAL $(cat /var/run/keepalived.pid)
+.fi
+.PP
+Note that -SIGNAL must be replaced with the actual signal
+you are trying to send, e.g. with HUP. So it then becomes:
+.IP
+.nf
+kill -HUP $(cat /var/run/keepalived.pid)
+.fi
+.PP
+.TP
+.B HUP
+This causes
+.B keepalived
+to close down all interfaces, reload its configuration, and start up the
+new configuration.
+.TP
+.B TERM, INT
+.B keepalived
+will die.
+.TP
+.B USR1
+Write configuration data to
+.B /tmp/keepalived.data
+.TP
+.B USR2
+Write statistics info to
+.B /tmp/keepalived.stats
+.LP
 
 .SH "SEE ALSO"
 \fBkeepalived.conf\fP(5), \fBipvsadm\fP(8)

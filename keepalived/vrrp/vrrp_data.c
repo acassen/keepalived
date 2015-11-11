@@ -20,6 +20,7 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "global_data.h"
 #include "vrrp_data.h"
 #include "vrrp_index.h"
 #include "vrrp_sync.h"
@@ -359,7 +360,7 @@ alloc_vrrp(char *iname)
 	new->family = AF_INET;
 	new->wantstate = VRRP_STATE_BACK;
 	new->init_state = VRRP_STATE_BACK;
-	new->version = VRRP_VERSION_2;
+	new->version = global_data->vrrp_version;
 	new->master_priority = 0;
 	new->last_transition = timer_now();
 	new->adver_int = TIMER_HZ;
@@ -367,8 +368,9 @@ alloc_vrrp(char *iname)
 	new->stats = alloc_vrrp_stats();
 	memcpy(new->iname, iname, size);
 	new->quick_sync = 0;
-	new->garp_rep = VRRP_GARP_REP;
-	new->garp_refresh_rep = VRRP_GARP_REFRESH_REP;
+	new->garp_rep = global_data->vrrp_garp_rep;
+	new->garp_refresh_rep = global_data->vrrp_garp_refresh_rep;
+	new->garp_delay = global_data->vrrp_garp_delay;
 
 	list_add(vrrp_data->vrrp, new);
 }

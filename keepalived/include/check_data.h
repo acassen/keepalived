@@ -126,7 +126,6 @@ typedef struct _virtual_server {
 	char				sched[SCHED_MAX_LENGTH];
 	char				timeout_persistence[MAX_TIMEOUT_LENGTH];
 	unsigned			loadbalancing_kind;
-	uint32_t			nat_mask;
 	uint32_t			granularity_persistence;
 	char				*virtualhost;
 	list				rs;
@@ -223,7 +222,6 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			 (X)->af                      == (Y)->af                        &&\
 			 (X)->service_type            == (Y)->service_type		&&\
 			 (X)->loadbalancing_kind      == (Y)->loadbalancing_kind	&&\
-			 (X)->nat_mask                == (Y)->nat_mask			&&\
 			 (X)->granularity_persistence == (Y)->granularity_persistence	&&\
 			 (  (!(X)->quorum_up && !(Y)->quorum_up) || \
 			    ((X)->quorum_up && (Y)->quorum_up && !strcmp ((X)->quorum_up, (Y)->quorum_up)) \
