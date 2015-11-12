@@ -156,7 +156,7 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 void *
 signal_ignore(int signo)
 {
-	return signal_set(signo, NULL, NULL);
+	return signal_set(signo, (void*)SIG_IGN, NULL);
 }
 
 /* Handlers intialization */
