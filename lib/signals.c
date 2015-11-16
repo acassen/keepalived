@@ -156,7 +156,7 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 	if (func != NULL)
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
 
-	return (void*)osig.sa_handler;
+	return ((osig.sa_flags & SA_SIGINFO) ? (void*)osig.sa_sigaction : (void*)osig.sa_handler);
 }
 
 /* Signal Ignore */
