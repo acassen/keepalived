@@ -137,6 +137,9 @@ signal_ignore(int signo)
 void
 signal_handler_init(void)
 {
+	sigset_t sset;
+	int sig;
+	struct sigaction act;
 	int n = pipe(signal_pipe);
 	assert(!n);
 
@@ -149,6 +152,22 @@ signal_handler_init(void)
 	signal_SIGCHLD_handler = NULL;
 	signal_SIGUSR1_handler = NULL;
 	signal_SIGUSR2_handler = NULL;
+
+	/* Ignore all signals by default (except essential ones) */
+	sigfillset(&sset);
+	sigdelset(&sset, SIGILL);
+	sigdelset(&sset, SIGFPE);
+	sigdelset(&sset, SIGSEGV);
+	sigdelset(&sset, SIGBUS);
+	sigdelset(&sset, SIGKILL);
+	sigdelset(&sset, SIGSTOP);
+	act.sa_handler = SIG_IGN;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+	for (sig = 1; sig <= SIGRTMAX; sig++) {
+		if (sigismember(&sset, sig))
+			sigaction(sig, &act, NULL);
+	}
 }
 
 void
