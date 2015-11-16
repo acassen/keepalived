@@ -89,7 +89,7 @@ start_keepalived(void)
 }
 
 /* SIGHUP/USR1/USR2 handler */
-void
+static void
 propogate_signal(void *v, int sig)
 {
 	/* Signal child process */
@@ -100,7 +100,7 @@ propogate_signal(void *v, int sig)
 }
 
 /* Terminate handler */
-void
+static void
 sigend(void *v, int sig)
 {
 	int status;

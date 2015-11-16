@@ -51,6 +51,7 @@ void *signal_SIGUSR2_v;
 static int signal_pipe[2] = { -1, -1 };
 
 /* Local signal test */
+/* Currently unused
 int
 signal_pending(void)
 {
@@ -65,9 +66,10 @@ signal_pending(void)
 
 	return rc>0?1:0;
 }
+*/
 
 /* Signal flag */
-void
+static void
 signal_handler(int sig)
 {
 	if (write(signal_pipe[1], &sig, sizeof(int)) != sizeof(int)) {
@@ -196,52 +198,34 @@ signal_handler_init(void)
 	}
 }
 
-void
-signal_wait_handlers(void)
+static void
+signal_handlers_clear(void *state)
 {
-	struct sigaction sig;
-
-	sig.sa_handler = SIG_DFL;
-	sigemptyset(&sig.sa_mask);
-	sig.sa_flags = 0;
-
 	/* Ensure no more pending signals */
-	sigaction(SIGHUP, &sig, NULL);
-	sigaction(SIGINT, &sig, NULL);
-	sigaction(SIGTERM, &sig, NULL);
-	sigaction(SIGCHLD, &sig, NULL);
-	sigaction(SIGUSR1, &sig, NULL);
-	sigaction(SIGUSR2, &sig, NULL);
+	signal_set(SIGHUP, state, NULL);
+	signal_set(SIGINT, state, NULL);
+	signal_set(SIGTERM, state, NULL);
+	signal_set(SIGCHLD, state, NULL);
+	signal_set(SIGUSR1, state, NULL);
+	signal_set(SIGUSR2, state, NULL);
 
-	/* reset */
-	signal_SIGHUP_v = NULL;
-	signal_SIGINT_v = NULL;
-	signal_SIGTERM_v = NULL;
-	signal_SIGCHLD_v = NULL;
-	signal_SIGUSR1_v = NULL;
-	signal_SIGUSR2_v = NULL;
 }
 
-void signal_reset(void)
+void
+signal_handler_reset(void)
 {
-	signal_wait_handlers();
-	signal_SIGHUP_handler = NULL;
-	signal_SIGINT_handler = NULL;
-	signal_SIGTERM_handler = NULL;
-	signal_SIGCHLD_handler = NULL;
-	signal_SIGUSR1_handler = NULL;
-	signal_SIGUSR2_handler = NULL;
+	signal_handlers_clear(SIG_DFL);
 }
 
 void
 signal_handler_destroy(void)
 {
-	signal_wait_handlers();
+	signal_handlers_clear(SIG_IGN);
 	close(signal_pipe[1]);
 	close(signal_pipe[0]);
 	signal_pipe[1] = -1;
 	signal_pipe[0] = -1;
-}	
+}
 
 int
 signal_rfd(void)

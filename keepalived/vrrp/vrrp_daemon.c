@@ -243,8 +243,7 @@ reload_vrrp_thread(thread_t * thread)
 	SET_RELOAD;
 
 	/* Signal handling */
-	signal_reset();
-	signal_handler_destroy();
+	signal_handler_reset();
 
 	/* Destroy master thread */
 	vrrp_dispatcher_release(vrrp_data);
@@ -349,6 +348,8 @@ start_vrrp_child(void)
 		return 0;
 	}
 
+	signal_handler_destroy();
+
 	/* Opening local VRRP syslog channel */
 	openlog(PROG_VRRP, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
 			 , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
@@ -361,7 +362,6 @@ start_vrrp_child(void)
 	}
 
 	/* Create the new master thread */
-	signal_handler_destroy();
 	thread_destroy_master(master);
 	master = thread_make_master();
 
