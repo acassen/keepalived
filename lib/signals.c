@@ -81,15 +81,37 @@ void *
 signal_set(int signo, void (*func) (void *, int), void *v)
 {
 	int ret;
+	sigset_t sset;
 	struct sigaction sig;
 	struct sigaction osig;
 
-	sig.sa_handler = signal_handler;
+	assert(func != NULL);
+
+	if (func == (void*)SIG_IGN || func == (void*)SIG_DFL) {
+		sig.sa_handler = (void*)func;
+
+		/* We are no longer handling the signal, so
+		 * clear our handlers
+		 */
+		func = NULL;
+		v = NULL;
+	}
+	else
+		sig.sa_handler = signal_handler;
 	sigemptyset(&sig.sa_mask);
 	sig.sa_flags = 0;
 #ifdef SA_RESTART
 	sig.sa_flags |= SA_RESTART;
 #endif				/* SA_RESTART */
+
+	/* Block the signal we are about to configure, to avoid
+	 * any race conditions while setting the handler and
+	 * parameter */
+	if (func != NULL) {
+		sigemptyset(&sset);
+		sigaddset(&sset, signo);
+		sigprocmask(SIG_BLOCK, &sset, NULL);
+	}
 
 	ret = sigaction(signo, &sig, &osig);
 
@@ -122,8 +144,12 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 
 	if (ret < 0)
 		return (SIG_ERR);
-	else
-		return (osig.sa_handler);
+
+	/* Release the signal */
+	if (func != NULL)
+		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+
+	return (void*)osig.sa_handler;
 }
 
 /* Signal Ignore */
