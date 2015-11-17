@@ -76,7 +76,7 @@ notify_exec(char *cmd)
 	if (pid)
 		return 0;
 
-	signal_handler_destroy();
+	signal_handler_notify();
 	closeall(0);
 
 	open("/dev/null", O_RDWR);

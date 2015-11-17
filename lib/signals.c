@@ -50,6 +50,11 @@ void *signal_SIGUSR2_v;
 
 static int signal_pipe[2] = { -1, -1 };
 
+/* Remember our initial signal disposition */
+int initialised_default_signals;
+sigset_t ign_sig;
+sigset_t dfl_sig;
+
 /* Local signal test */
 /* Currently unused
 int
@@ -167,7 +172,7 @@ signal_handler_init(void)
 {
 	sigset_t sset;
 	int sig;
-	struct sigaction act;
+	struct sigaction act, oact;
 	int n = pipe(signal_pipe);
 	assert(!n);
 
@@ -181,20 +186,40 @@ signal_handler_init(void)
 	signal_SIGUSR1_handler = NULL;
 	signal_SIGUSR2_handler = NULL;
 
-	/* Ignore all signals by default (except essential ones) */
-	sigfillset(&sset);
-	sigdelset(&sset, SIGILL);
-	sigdelset(&sset, SIGFPE);
-	sigdelset(&sset, SIGSEGV);
-	sigdelset(&sset, SIGBUS);
-	sigdelset(&sset, SIGKILL);
-	sigdelset(&sset, SIGSTOP);
-	act.sa_handler = SIG_IGN;
-	sigemptyset(&act.sa_mask);
-	act.sa_flags = 0;
-	for (sig = 1; sig <= SIGRTMAX; sig++) {
-		if (sigismember(&sset, sig))
-			sigaction(sig, &act, NULL);
+	if (!initialised_default_signals) {
+		/* Ignore all signals set to default (except essential ones) */
+		sigfillset(&sset);
+		sigdelset(&sset, SIGILL);
+		sigdelset(&sset, SIGFPE);
+		sigdelset(&sset, SIGSEGV);
+		sigdelset(&sset, SIGBUS);
+		sigdelset(&sset, SIGKILL);
+		sigdelset(&sset, SIGSTOP);
+
+		act.sa_handler = SIG_IGN;
+		sigemptyset(&act.sa_mask);
+		act.sa_flags = 0;
+
+		sigemptyset(&ign_sig);
+		sigemptyset(&dfl_sig);
+
+		for (sig = 1; sig <= SIGRTMAX; sig++) {
+			if (sigismember(&sset, sig)){
+				sigaction(sig, NULL, &oact);
+
+				/* Remember the original disposition, and ignore
+				 * any default action signals
+				 */
+				if ( oact.sa_handler == SIG_IGN)
+					sigaddset(&ign_sig, sig);
+				else if ( oact.sa_handler == SIG_DFL) {
+					sigaction(sig, &act, NULL);
+					sigaddset(&dfl_sig, sig);
+				}
+			}
+		}
+
+		initialised_default_signals = 1;
 	}
 }
 
@@ -221,6 +246,34 @@ void
 signal_handler_destroy(void)
 {
 	signal_handlers_clear(SIG_IGN);
+	close(signal_pipe[1]);
+	close(signal_pipe[0]);
+	signal_pipe[1] = -1;
+	signal_pipe[0] = -1;
+}
+
+/* Called prior to exec'ing a notify script. The script can reasonably
+ * expect to have the standard signal disposition */
+void
+signal_handler_notify(void)
+{
+	struct sigaction ign, dfl;
+	int sig;
+
+	ign.sa_handler = SIG_IGN;
+	ign.sa_flags = 0;
+	sigemptyset(&ign.sa_mask);
+	dfl.sa_handler = SIG_DFL;
+	dfl.sa_flags = 0;
+	sigemptyset(&dfl.sa_mask);
+
+	for (sig = 1; sig <= SIGRTMAX; sig++) {
+		if (sigismember(&ign_sig, sig))
+			sigaction(sig, &ign, NULL);
+		else if (sigismember(&dfl_sig, sig))
+			sigaction(sig, &dfl, NULL);
+	}
+
 	close(signal_pipe[1]);
 	close(signal_pipe[0]);
 	signal_pipe[1] = -1;
