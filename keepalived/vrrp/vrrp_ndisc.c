@@ -148,6 +148,7 @@ ndisc_send_unsolicited_na(ip_address_t *ipaddress)
 
 	/* ICMPv6 Header */
 	icmp6h->icmp6_type = NDISC_NEIGHBOUR_ADVERTISEMENT;
+	icmp6h->icmp6_router = 1;
 
 	/* Override flag is set to indicate that the advertisement
 	 * should override an existing cache entry and update the
