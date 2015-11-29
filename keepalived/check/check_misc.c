@@ -149,7 +149,7 @@ misc_check_thread(thread_t * thread)
 	}
 
 	/* Child part */
-	signal_handler_destroy();
+	signal_handler_notify();
 	closeall(0);
 
 	open("/dev/null", O_RDWR);
