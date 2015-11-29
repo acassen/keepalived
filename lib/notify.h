@@ -23,8 +23,10 @@
 #ifndef _NOTIFY_H
 #define _NOTIFY_H
 
+#include "scheduler.h"
+
 /* system includes */
-extern int system_call(char *cmdline);
+extern int system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, long timer, const char* script);
 extern void closeall(int fd);
 extern int notify_exec(char *cmd);
 

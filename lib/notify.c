@@ -30,8 +30,8 @@
 #include "logger.h"
 
 /* perform a system call */
-int
-system_call(char *cmdline)
+static int
+system_call(const char *cmdline)
 {
 	int retval;
 
@@ -94,4 +94,49 @@ notify_exec(char *cmd)
 	system_call(cmd);
 
 	exit(0);
+}
+
+int
+system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, long timer, const char* script)
+{
+	int status, ret;
+	pid_t pid;
+
+	/* Daemonization to not degrade our scheduling timer */
+	pid = fork();
+
+	/* In case of fork is error. */
+	if (pid < 0) {
+		log_message(LOG_INFO, "Failed fork process");
+		return -1;
+	}
+
+	/* In case of this is parent process */
+	if (pid) {
+		thread_add_child(m, func, arg, pid, timer);
+		return 0;
+	}
+
+	/* Child part */
+	signal_handler_notify();
+	closeall(0);
+	open("/dev/null", O_RDWR);
+	ret = dup(0);
+	if (ret < 0) {
+		log_message(LOG_INFO, "dup(0) error");
+	}
+
+	ret = dup(0);
+	if (ret < 0) {
+		log_message(LOG_INFO, "dup(0) error");
+	}
+
+	status = system_call(script);
+
+	if (status < 0 || !WIFEXITED(status))
+		status = 0; /* Script errors aren't server errors */
+	else
+		status = WEXITSTATUS(status);
+
+	exit(status);
 }
