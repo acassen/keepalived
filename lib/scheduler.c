@@ -719,7 +719,7 @@ thread_child_handler(void * v, int sig)
 	 */
 	thread_t *thread;
 	pid_t pid;
-	int status = 77;
+	int status;
 	while ((pid = waitpid(-1, &status, WNOHANG))) {
 		if (pid == -1) {
 			if (errno == ECHILD)
@@ -734,9 +734,9 @@ thread_child_handler(void * v, int sig)
 				thread = t->next;
 				if (pid == t->u.c.pid) {
 					thread_list_delete(&m->child, t);
-					thread_list_add(&m->ready, t);
 					t->u.c.status = status;
 					t->type = THREAD_READY;
+					thread_list_add(&m->ready, t);
 					break;
 				}
 			}
