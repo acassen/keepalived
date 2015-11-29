@@ -271,7 +271,6 @@ misc_check_child_timeout_thread(thread_t * thread)
 	}
 
 	log_message(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
-	waitpid(pid, NULL, 0);
 
 	return 0;
 }
