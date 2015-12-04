@@ -38,7 +38,6 @@
 /* local include */
 #include "check_api.h"
 #include "vrrp_netlink.h"
-#include "vrrp_if.h"
 #include "logger.h"
 #include "memory.h"
 #include "scheduler.h"
@@ -514,6 +513,48 @@ netlink_request(nl_handle_t *nl, int family, int type)
 	return 0;
 }
 
+int
+netlink_populate_intf_struct(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg *ifi) {
+	char *name;
+	int i;
+
+	name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
+	/* Fill the interface structure */
+	memcpy(ifp->ifname, name, strlen(name));
+	ifp->ifindex = ifi->ifi_index;
+	ifp->mtu = *(int *) RTA_DATA(tb[IFLA_MTU]);
+	ifp->hw_type = ifi->ifi_type;
+
+	if (!ifp->vmac) {
+		if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);
+		ifp->flags = ifi->ifi_flags;
+		ifp->base_ifindex = ifi->ifi_index;
+	}
+
+	if (tb[IFLA_ADDRESS]) {
+		int hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
+
+		if (hw_addr_len > IF_HWADDR_MAX) {
+			log_message(LOG_ERR, "MAC address for %s is too large: %d",
+				name, hw_addr_len);
+			return -1;
+		}
+		else {
+			ifp->hw_addr_len = hw_addr_len;
+			memcpy(ifp->hw_addr, RTA_DATA(tb[IFLA_ADDRESS]),
+				hw_addr_len);
+			for (i = 0; i < hw_addr_len; i++)
+				if (ifp->hw_addr[i] != 0)
+					break;
+			if (i == hw_addr_len)
+				ifp->hw_addr_len = 0;
+			else
+				ifp->hw_addr_len = hw_addr_len;
+		}
+	}
+	return 1;
+}
+
 /* Netlink interface link lookup filter */
 static int
 netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
@@ -521,7 +562,7 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	struct ifinfomsg *ifi;
 	struct rtattr *tb[IFLA_MAX + 1];
 	interface_t *ifp;
-	int i, len;
+	int len, status;
 	char *name;
 
 	ifi = NLMSG_DATA(h);
@@ -556,38 +597,10 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 
 	/* Fill the interface structure */
 	ifp = (interface_t *) MALLOC(sizeof(interface_t));
-	memcpy(ifp->ifname, name, strlen(name));
-	ifp->ifindex = ifi->ifi_index;
-	ifp->mtu = *(int *) RTA_DATA(tb[IFLA_MTU]);
-	ifp->hw_type = ifi->ifi_type;
-	ifp->reset_arp_config = 0;
 
-	if (!ifp->vmac) {
-		if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);
-		ifp->flags = ifi->ifi_flags;
-		ifp->base_ifindex = ifi->ifi_index;
-	}
-
-	if (tb[IFLA_ADDRESS]) {
-		int hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
-
-		if (hw_addr_len > IF_HWADDR_MAX)
-			log_message(LOG_ERR, "MAC address for %s is too large: %d",
-			       name, hw_addr_len);
-		else {
-			ifp->hw_addr_len = hw_addr_len;
-			memcpy(ifp->hw_addr, RTA_DATA(tb[IFLA_ADDRESS]),
-			       hw_addr_len);
-			for (i = 0; i < hw_addr_len; i++)
-				if (ifp->hw_addr[i] != 0)
-					break;
-			if (i == hw_addr_len)
-				ifp->hw_addr_len = 0;
-			else
-				ifp->hw_addr_len = hw_addr_len;
-		}
-	}
-
+        status = netlink_populate_intf_struct(ifp, tb, ifi);
+        if (status < 0)
+            return -1;
 	/* Queue this new interface_t */
 	if_add_queue(ifp);
 	return 0;
@@ -713,7 +726,7 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	struct ifinfomsg *ifi;
 	struct rtattr *tb[IFLA_MAX + 1];
 	interface_t *ifp;
-	int len;
+	int len, status;
 
 	ifi = NLMSG_DATA(h);
 	if (!(h->nlmsg_type == RTM_NEWLINK || h->nlmsg_type == RTM_DELLINK))
@@ -733,13 +746,34 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	if (ifi->ifi_type == ARPHRD_LOOPBACK)
 		return 0;
 
-	/* find the interface_t. Ignore it if we don't know about the interface */
+	/* find the interface_t. If the interface doesn't exist in the interface
+         * list and this is a new interface add it to the interface list.
+         * If an interface with the same name exists overwrite the older
+         * structure and fill it with the new interface information.
+         */
 	ifp = if_get_by_ifindex(ifi->ifi_index);
 	if (!ifp) {
-		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "Unknown interface %s %s", (char *)tb[IFLA_IFNAME],
-					(h->nlmsg_type == RTM_NEWLINK ) ? "added" : "deleted" );
-		return 0;
+                if (h->nlmsg_type == RTM_NEWLINK) {
+                    char *name;
+                    if (tb[IFLA_IFNAME] == NULL)
+                            return -1;
+                    name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
+                    ifp = if_get_by_ifname(name);
+                    if (!ifp) {
+                            ifp = (interface_t *) MALLOC(sizeof(interface_t));
+                            if_add_queue(ifp);
+                    } else {
+                            memset(ifp, 0, sizeof(interface_t));
+                    }
+                    status = netlink_populate_intf_struct(ifp, tb, ifi);
+                    if (status < 0)
+                            return -1;
+
+                } else {
+                    if (__test_bit(LOG_DETAIL_BIT, &debug))
+                            log_message(LOG_INFO, "Unknown interface %s deleted", (char *)tb[IFLA_IFNAME]);
+                    return 0;
+                }
 	}
 
 	/*
