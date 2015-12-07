@@ -514,7 +514,8 @@ netlink_request(nl_handle_t *nl, int family, int type)
 }
 
 int
-netlink_populate_intf_struct(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg *ifi) {
+netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg *ifi)
+{
 	char *name;
 	int i;
 
@@ -598,9 +599,11 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	/* Fill the interface structure */
 	ifp = (interface_t *) MALLOC(sizeof(interface_t));
 
-        status = netlink_populate_intf_struct(ifp, tb, ifi);
-        if (status < 0)
+        status = netlink_if_link_populate(ifp, tb, ifi);
+        if (status < 0) {
+            FREE(ifp);
             return -1;
+        }
 	/* Queue this new interface_t */
 	if_add_queue(ifp);
 	return 0;
@@ -765,7 +768,7 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
                     } else {
                             memset(ifp, 0, sizeof(interface_t));
                     }
-                    status = netlink_populate_intf_struct(ifp, tb, ifi);
+                    status = netlink_if_link_populate(ifp, tb, ifi);
                     if (status < 0)
                             return -1;
 

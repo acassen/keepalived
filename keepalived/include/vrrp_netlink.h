@@ -81,6 +81,6 @@ extern int netlink_interface_lookup(void);
 extern int netlink_interface_refresh(void);
 extern void kernel_netlink_init(void);
 extern void kernel_netlink_close(void);
-extern int netlink_populate_intf_struct(interface_t *, struct rtattr*[], struct ifinfomsg *);
+extern int netlink_if_link_populate(interface_t *, struct rtattr*[], struct ifinfomsg *);
 
 #endif
