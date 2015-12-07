@@ -42,6 +42,7 @@
 
 /* local includes */
 #include "timer.h"
+#include "vrrp_if.h"
 
 /* types definitions */
 typedef struct _nl_handle {
@@ -80,5 +81,6 @@ extern int netlink_interface_lookup(void);
 extern int netlink_interface_refresh(void);
 extern void kernel_netlink_init(void);
 extern void kernel_netlink_close(void);
+extern int netlink_if_link_populate(interface_t *, struct rtattr*[], struct ifinfomsg *);
 
 #endif
