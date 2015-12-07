@@ -42,6 +42,9 @@ weigh_live_realservers(virtual_server_t * vs)
 	real_server_t *svr;
 	long count = 0;
 
+        if (LIST_ISEMPTY(vs->rs))
+                return count;
+
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		svr = ELEMENT_DATA(e);
 		if (ISALIVE(svr))
@@ -152,6 +155,12 @@ init_service_rs(virtual_server_t * vs)
 {
 	element e;
 	real_server_t *rs;
+
+        if (LIST_ISEMPTY(vs->rs)) {
+		log_message(LOG_WARNING, "VS [%s] has no configured RS! Skipping RS activation."
+				       , FMT_VS(vs));
+                return 1;
+	}
 
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
