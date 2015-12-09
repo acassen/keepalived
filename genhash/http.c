@@ -318,18 +318,9 @@ http_request_thread(thread_t * thread)
 		 ntohs(req->addr_port));
 	}
 	
-	if(req->dst){
-		if(req->dst->ai_family == AF_INET6 && !req->vhost) {
-			snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE_IPV6,
-				req->url, request_host, request_host_port);
-		} else {
-			snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE,
-				req->url, request_host, request_host_port);
-		}
-	} else {
-		snprintf(str_request, GET_BUFFER_LENGTH, REQUEST_TEMPLATE,
-			req->url, request_host, request_host_port);
-	}
+	snprintf(str_request, GET_BUFFER_LENGTH,
+		 (req->dst && req->dst->ai_family == AF_INET6 && !req->vhost) ? REQUEST_TEMPLATE_IPV6 : REQUEST_TEMPLATE,
+		  req->url, request_host, request_host_port);
 	
 	FREE(request_host_port);
 

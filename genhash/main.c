@@ -146,7 +146,7 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 				if(res->ai_family == AF_INET) {
 					req_obj->dst = res;
 					ptr = &((struct sockaddr_in *) res->ai_addr)->sin_addr;
-					inet_ntop (res->ai_family, ptr, req_obj->ipaddress, INET6_ADDRSTRLEN);
+					inet_ntop (res->ai_family, ptr, req_obj->ipaddress, INET_ADDRSTRLEN);
 				} else if (res->ai_family == AF_INET6) {
 					req_obj->dst = res;
 					ptr = &((struct sockaddr_in6 *) res->ai_addr)->sin6_addr;
