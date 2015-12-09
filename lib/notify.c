@@ -28,6 +28,7 @@
 #include "notify.h"
 #include "signals.h"
 #include "logger.h"
+#include "utils.h"
 
 /* perform a system call */
 static int
@@ -57,12 +58,21 @@ closeall(int fd)
 		close(fd++);
 }
 
+static void
+script_setup(void)
+{
+	closeall(0);
+
+	signal_handler_script();
+
+	set_std_fd(false);
+}
+
 /* Execute external script/program */
 int
 notify_exec(char *cmd)
 {
 	pid_t pid;
-	int ret;
 
 	pid = fork();
 
@@ -76,20 +86,7 @@ notify_exec(char *cmd)
 	if (pid)
 		return 0;
 
-	signal_handler_script();
-	closeall(0);
-
-	open("/dev/null", O_RDWR);
-
-	ret = dup(0);
-	if (ret < 0) {
-		log_message(LOG_INFO, "dup(0) error");
-	}
-
-	ret = dup(0);
-	if (ret < 0) {
-		log_message(LOG_INFO, "dup(0) error");
-	}
+	script_setup();
 
 	system_call(cmd);
 
@@ -99,7 +96,7 @@ notify_exec(char *cmd)
 int
 system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, long timer, const char* script)
 {
-	int status, ret;
+	int status;
 	pid_t pid;
 
 	/* Daemonization to not degrade our scheduling timer */
@@ -118,25 +115,12 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, lon
 	}
 
 	/* Child part */
-	signal_handler_script();
-	closeall(0);
-	open("/dev/null", O_RDWR);
-	ret = dup(0);
-	if (ret < 0) {
-		log_message(LOG_INFO, "dup(0) error");
-	}
-
-	ret = dup(0);
-	if (ret < 0) {
-		log_message(LOG_INFO, "dup(0) error");
-	}
+	script_setup();
 
 	status = system_call(script);
 
 	if (status < 0 || !WIFEXITED(status))
-		status = 0; /* Script errors aren't server errors */
-	else
-		status = WEXITSTATUS(status);
+		exit(0); /* Script errors aren't server errors */
 
-	exit(status);
+	exit(WEXITSTATUS(status));
 }
