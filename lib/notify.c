@@ -49,20 +49,9 @@ system_call(const char *cmdline)
 	return retval;
 }
 
-/* Close all FDs >= a specified value */
-void
-closeall(int fd)
-{
-	int fdlimit = sysconf(_SC_OPEN_MAX);
-	while (fd < fdlimit)
-		close(fd++);
-}
-
 static void
 script_setup(void)
 {
-	closeall(0);
-
 	signal_handler_script();
 
 	set_std_fd(false);

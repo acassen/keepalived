@@ -244,18 +244,18 @@ tcp_connect_thread(thread_t * thread)
 
 	if(req->dst){
 		if(req->dst->ai_family == AF_INET6) {
-			if ((sock_obj->fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+			if ((sock_obj->fd = socket(AF_INET6, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
 				DBG("WEB connection fail to create socket.\n");
 				return 0;
 			}
 		} else {
-			if ((sock_obj->fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+			if ((sock_obj->fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
 				DBG("WEB connection fail to create socket.\n");
 				return 0;
 			}
 		}
 	} else {
-		if ((sock_obj->fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+		if ((sock_obj->fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
 			DBG("WEB connection fail to create socket.\n");
 			return 0;
 		}

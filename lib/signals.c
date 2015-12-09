@@ -173,11 +173,20 @@ signal_handler_init(void)
 	sigset_t sset;
 	int sig;
 	struct sigaction act, oact;
-	int n = pipe(signal_pipe);
-	assert(!n);
+	int n;
+
+#ifdef HAVE_PIPE2
+	n = pipe2(signal_pipe, O_CLOEXEC | O_NONBLOCK);
+#else
+	n = pipe(signal_pipe);
 
 	fcntl(signal_pipe[0], F_SETFL, O_NONBLOCK | fcntl(signal_pipe[0], F_GETFL));
 	fcntl(signal_pipe[1], F_SETFL, O_NONBLOCK | fcntl(signal_pipe[1], F_GETFL));
+
+	fcntl(signal_pipe[0], F_SETFD, FD_CLOEXEC | fcntl(signal_pipe[0], F_GETFD));
+	fcntl(signal_pipe[1], F_SETFD, FD_CLOEXEC | fcntl(signal_pipe[1], F_GETFD));
+#endif
+	assert(!n);
 
 	signal_SIGHUP_handler = NULL;
 	signal_SIGINT_handler = NULL;
@@ -273,11 +282,6 @@ signal_handler_script(void)
 		else if (sigismember(&dfl_sig, sig))
 			sigaction(sig, &dfl, NULL);
 	}
-
-	close(signal_pipe[1]);
-	close(signal_pipe[0]);
-	signal_pipe[1] = -1;
-	signal_pipe[0] = -1;
 }
 
 int

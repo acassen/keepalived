@@ -770,7 +770,7 @@ smtp_connect_thread(thread_t *thread)
 	smtp_host = smtp_checker->host_ptr;
 
 	/* Create the socket, failling here should be an oddity */
-	if ((sd = socket(smtp_host->dst.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+	if ((sd = socket(smtp_host->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
 		log_message(LOG_INFO, "SMTP_CHECK connection failed to create socket. Rescheduling.");
 		thread_add_timer(thread->master, smtp_connect_thread, checker,
 				 checker->vs->delay_loop);

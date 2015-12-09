@@ -188,7 +188,7 @@ ndisc_init(void)
 				       sizeof(struct ndhdr) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
 
 	/* Create the socket descriptor */
-	ndisc_fd = socket(PF_PACKET, SOCK_RAW, htons(ETH_P_IPV6));
+	ndisc_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC, htons(ETH_P_IPV6));
 }
 
 void

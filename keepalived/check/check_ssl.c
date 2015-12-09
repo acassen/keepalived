@@ -199,8 +199,11 @@ ssl_connect(thread_t * thread, int new_req)
 
 	/* First round, create SSL context */
 	if (new_req) {
+		int bio_fd;
 		req->ssl = SSL_new(check_data->ssl->ctx);
 		req->bio = BIO_new_socket(thread->u.fd, BIO_NOCLOSE);
+		BIO_get_fd(req->bio, &bio_fd);
+		fcntl(bio_fd, F_SETFD, fcntl(bio_fd, F_GETFD) | FD_CLOEXEC);
 		SSL_set_bio(req->ssl, req->bio, req->bio);
 	}
 

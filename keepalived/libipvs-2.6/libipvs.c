@@ -168,7 +168,7 @@ int ipvs_init(void)
 #endif
 
 	len = sizeof(ipvs_info);
-	if ((sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) == -1)
+	if ((sockfd = socket(AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW)) == -1)
 		return -1;
 
 	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,

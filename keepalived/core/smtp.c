@@ -584,7 +584,7 @@ smtp_connect(smtp_t * smtp)
 {
 	enum connect_result status;
 
-	if ((smtp->fd = socket(global_data->smtp_server.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+	if ((smtp->fd = socket(global_data->smtp_server.ss_family, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
 		DBG("SMTP connect fail to create socket.");
 		free_smtp_all(smtp);
 		return;

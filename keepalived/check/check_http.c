@@ -753,7 +753,7 @@ http_connect_thread(thread_t * thread)
 		return epilog(thread, 1, 1, 0) + 1;
 
 	/* Create the socket */
-	if ((fd = socket(co->dst.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+	if ((fd = socket(co->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
 		log_message(LOG_INFO, "WEB connection fail to create socket. Rescheduling.");
 		thread_add_timer(thread->master, http_connect_thread, checker,
 				checker->vs->delay_loop);

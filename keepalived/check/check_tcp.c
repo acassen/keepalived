@@ -197,7 +197,7 @@ tcp_connect_thread(thread_t * thread)
 		return 0;
 	}
 
-	if ((fd = socket(co->dst.ss_family, SOCK_STREAM, IPPROTO_TCP)) == -1) {
+	if ((fd = socket(co->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
 		log_message(LOG_INFO, "TCP connect fail to create socket. Rescheduling.");
 		thread_add_timer(thread->master, tcp_connect_thread, checker,
 				checker->vs->delay_loop);

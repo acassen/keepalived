@@ -105,11 +105,14 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 	nl->nl_pid = nl_socket_get_local_port(nl->sk);
 
 	nl->fd = nl_socket_get_fd(nl->sk);
+
+	/* Set CLOEXEC */
+	fcntl(nl->fd, F_SETFD, fcntl(nl->fd, F_GETFD) | FD_CLOEXEC);
 #else
 	socklen_t addr_len;
 	struct sockaddr_nl snl;
 
-	nl->fd = socket(AF_NETLINK, SOCK_RAW | flags, NETLINK_ROUTE);
+	nl->fd = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC | flags, NETLINK_ROUTE);
 	if (nl->fd < 0) {
 		log_message(LOG_INFO, "Netlink: Cannot open netlink socket : (%s)",
 		       strerror(errno));
