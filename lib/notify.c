@@ -76,7 +76,7 @@ notify_exec(char *cmd)
 	if (pid)
 		return 0;
 
-	signal_handler_notify();
+	signal_handler_script();
 	closeall(0);
 
 	open("/dev/null", O_RDWR);
@@ -118,7 +118,7 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, lon
 	}
 
 	/* Child part */
-	signal_handler_notify();
+	signal_handler_script();
 	closeall(0);
 	open("/dev/null", O_RDWR);
 	ret = dup(0);

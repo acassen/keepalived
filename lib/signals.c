@@ -252,10 +252,10 @@ signal_handler_destroy(void)
 	signal_pipe[0] = -1;
 }
 
-/* Called prior to exec'ing a notify script. The script can reasonably
+/* Called prior to exec'ing a script. The script can reasonably
  * expect to have the standard signal disposition */
 void
-signal_handler_notify(void)
+signal_handler_script(void)
 {
 	struct sigaction ign, dfl;
 	int sig;

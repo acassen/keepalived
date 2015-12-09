@@ -25,6 +25,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include "utils.h"
+#include "signals.h"
 
 /* global vars */
 unsigned long debug = 0;
@@ -538,6 +539,9 @@ fork_exec(char **argv)
 			if (fd > 2)
 				close(fd);
 		}
+
+		signal_handler_script();
+
 		execvp(*argv, argv);
 		exit(EXIT_FAILURE);
 	} else {
