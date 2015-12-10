@@ -25,6 +25,8 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include "utils.h"
+#include "signals.h"
+#include "bitops.h"
 
 /* global vars */
 unsigned long debug = 0;
@@ -517,11 +519,27 @@ string_equal(const char *str1, const char *str2)
 	return (*str1 == 0 && *str2 == 0);
 }
 
+void
+set_std_fd(int force)
+{
+	int fd;
+
+	if (force || __test_bit(DONT_FORK_BIT, &debug)) {
+		fd = open("/dev/null", O_RDWR);
+		if (fd != -1) {
+			dup2(fd, STDIN_FILENO);
+			dup2(fd, STDOUT_FILENO);
+			dup2(fd, STDERR_FILENO);
+			if (fd > 2)
+				close(fd);
+		}
+	}
+}
+
 int
 fork_exec(char **argv)
 {
 	pid_t pid;
-	int fd;
 	int status;
 
 	pid = fork();
@@ -530,14 +548,10 @@ fork_exec(char **argv)
 
 	/* Child */
 	if (pid == 0) {
-		fd = open("/dev/null", O_RDWR, 0);
-		if (fd != -1) {
-			dup2(fd, STDIN_FILENO);
-			dup2(fd, STDOUT_FILENO);
-			dup2(fd, STDERR_FILENO);
-			if (fd > 2)
-				close(fd);
-		}
+		set_std_fd(false);
+
+		signal_handler_script();
+
 		execvp(*argv, argv);
 		exit(EXIT_FAILURE);
 	} else {

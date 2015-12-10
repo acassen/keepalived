@@ -35,7 +35,7 @@ int ipvs_init(void)
 	socklen_t len;
 
 	len = sizeof(ipvs_info);
-	if ((sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW)) == -1)
+	if ((sockfd = socket(AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW)) == -1)
 		return -1;
 
 	ipvs_cmd = GET_CMD(IP_VS_SO_GET_INFO);

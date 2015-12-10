@@ -979,52 +979,15 @@ static int
 vrrp_script_thread(thread_t * thread)
 {
 	vrrp_script_t *vscript = THREAD_ARG(thread);
-	int status, ret;
-	pid_t pid;
 
 	/* Register next timer tracker */
 	thread_add_timer(thread->master, vrrp_script_thread, vscript,
 			 vscript->interval);
 
-	/* Daemonization to not degrade our scheduling timer */
-	pid = fork();
-
-	/* In case of fork is error. */
-	if (pid < 0) {
-		log_message(LOG_INFO, "Failed fork process");
-		return -1;
-	}
-
-	/* In case of this is parent process */
-	if (pid) {
-		thread_add_child(thread->master, vrrp_script_child_thread,
-				 vscript, pid,
-				 (vscript->timeout) ? vscript->timeout : vscript->interval);
-		return 0;
-	}
-
-	/* Child part */
-	signal_handler_destroy();
-	closeall(0);
-	open("/dev/null", O_RDWR);
-	ret = dup(0);
-	if (ret < 0) {
-		log_message(LOG_INFO, "dup(0) error");
-	}
-
-	ret = dup(0);
-	if (ret < 0) {
-		log_message(LOG_INFO, "dup(0) error");
-	}
-
-	status = system_call(vscript->script);
-
-	if (status < 0 || !WIFEXITED(status))
-		status = 0; /* Script errors aren't server errors */
-	else
-		status = WEXITSTATUS(status);
-
-	exit(status);
+        /* Execute the script in a child process. Parent returns, child doesn't */
+	return system_call_script(thread->master, vrrp_script_child_thread,
+				  vscript, (vscript->timeout) ? vscript->timeout : vscript->interval,
+				  vscript->script);
 }
 
 static int
@@ -1099,7 +1062,6 @@ vrrp_script_child_timeout_thread(thread_t * thread)
 	}
 
 	log_message(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
-	waitpid(pid, NULL, 0);
 
 	return 0;
 }

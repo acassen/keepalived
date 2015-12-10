@@ -25,14 +25,14 @@
 #define _SIGNALS_H
 
 /* Prototypes */
-extern int signal_pending(void);
+/* Currently unused extern int signal_pending(void); */
 extern void *signal_set(int signo, void (*func) (void *, int), void *);
 extern void *signal_ignore(int signo);
 extern void signal_handler_init(void);
 extern void signal_handler_destroy(void);
-extern void signal_reset(void);
+extern void signal_handler_reset(void);
+extern void signal_handler_script(void);
 extern void signal_run_callback(void);
-extern void signal_wait_handlers(void);
 
 extern int signal_rfd(void);
 

@@ -88,19 +88,19 @@ start_keepalived(void)
 #endif
 }
 
-/* SIGHUP handler */
-void
-sighup(void *v, int sig)
+/* SIGHUP/USR1/USR2 handler */
+static void
+propogate_signal(void *v, int sig)
 {
 	/* Signal child process */
 	if (vrrp_child > 0)
-		kill(vrrp_child, SIGHUP);
-	if (checkers_child > 0)
-		kill(checkers_child, SIGHUP);
+		kill(vrrp_child, sig);
+	if (checkers_child > 0 && sig == SIGHUP)
+		kill(checkers_child, sig);
 }
 
 /* Terminate handler */
-void
+static void
 sigend(void *v, int sig)
 {
 	int status;
@@ -123,7 +123,9 @@ void
 signal_init(void)
 {
 	signal_handler_init();
-	signal_set(SIGHUP, sighup, NULL);
+	signal_set(SIGHUP, propogate_signal, NULL);
+	signal_set(SIGUSR1, propogate_signal, NULL);
+	signal_set(SIGUSR2, propogate_signal, NULL);
 	signal_set(SIGINT, sigend, NULL);
 	signal_set(SIGTERM, sigend, NULL);
 	signal_ignore(SIGPIPE);

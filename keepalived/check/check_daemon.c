@@ -192,8 +192,7 @@ reload_check_thread(thread_t * thread)
 	log_message(LOG_INFO, "Got SIGHUP, reloading checker configuration");
 
 	/* Signals handling */
-	signal_reset();
-	signal_handler_destroy();
+	signal_handler_reset();
 
 	/* Destroy master thread */
 #ifdef _WITH_VRRP_

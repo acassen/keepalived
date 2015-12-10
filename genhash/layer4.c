@@ -61,26 +61,15 @@ tcp_connect(int fd, REQ * req_obj)
 	val = fcntl(fd, F_GETFL, 0);
 	fcntl(fd, F_SETFL, val | O_NONBLOCK);
 
-	if(req_obj->dst){
-		if(req_obj->dst->ai_family == AF_INET6) {
-			long_inet = sizeof (struct sockaddr_in6);
-			memset(&adr_serv6, 0, long_inet);
-			adr_serv6.sin6_family = req_obj->dst->ai_family;
-			adr_serv6.sin6_port = req_obj->addr_port;
-			inet_pton(AF_INET6, req_obj->ipaddress, &adr_serv6.sin6_addr);
+	if(req_obj->dst && req_obj->dst->ai_family == AF_INET6) {
+		long_inet = sizeof (struct sockaddr_in6);
+		memset(&adr_serv6, 0, long_inet);
+		adr_serv6.sin6_family = AF_INET6;
+		adr_serv6.sin6_port = req_obj->addr_port;
+		inet_pton(AF_INET6, req_obj->ipaddress, &adr_serv6.sin6_addr);
 
-			/* Call connect function. */
-			ret = connect(fd, (struct sockaddr *) &adr_serv6, long_inet);
-		} else {
-			long_inet = sizeof (struct sockaddr_in);
-			memset(&adr_serv, 0, long_inet);
-			adr_serv.sin_family = req_obj->dst->ai_family;
-			adr_serv.sin_port = req_obj->addr_port;
-			inet_pton(AF_INET, req_obj->ipaddress, &adr_serv.sin_addr);
-
-			/* Call connect function. */
-			ret = connect(fd, (struct sockaddr *) &adr_serv, long_inet);
-		}
+		/* Call connect function. */
+		ret = connect(fd, (struct sockaddr *) &adr_serv6, long_inet);
 	} else {
 		long_inet = sizeof (struct sockaddr_in);
 		memset(&adr_serv, 0, long_inet);
@@ -242,23 +231,10 @@ tcp_connect_thread(thread_t * thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
 
-	if(req->dst){
-		if(req->dst->ai_family == AF_INET6) {
-			if ((sock_obj->fd = socket(AF_INET6, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-				DBG("WEB connection fail to create socket.\n");
-				return 0;
-			}
-		} else {
-			if ((sock_obj->fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-				DBG("WEB connection fail to create socket.\n");
-				return 0;
-			}
-		}
-	} else {
-		if ((sock_obj->fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP)) == -1) {
-			DBG("WEB connection fail to create socket.\n");
-			return 0;
-		}
+	if ((sock_obj->fd = socket((req->dst && req->dst->ai_family == AF_INET6) ? AF_INET6 : AF_INET,
+				   SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
+		DBG("WEB connection fail to create socket.\n");
+		return 0;
 	}
 
 	sock->status = tcp_connect(sock_obj->fd, req);

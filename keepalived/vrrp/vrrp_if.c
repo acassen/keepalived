@@ -201,7 +201,7 @@ if_mii_probe(const char *ifname)
 {
 	uint16_t *data = (uint16_t *) (&ifr.ifr_data);
 	int phy_id;
-	int fd = socket(AF_INET, SOCK_DGRAM, 0);
+	int fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 	int status = 0;
 
 	if (fd < 0)
@@ -250,7 +250,7 @@ if_ethtool_status(const int fd)
 int
 if_ethtool_probe(const char *ifname)
 {
-	int fd = socket(AF_INET, SOCK_DGRAM, 0);
+	int fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 	int status = 0;
 
 	if (fd < 0)
@@ -266,7 +266,7 @@ if_ethtool_probe(const char *ifname)
 void
 if_ioctl_flags(interface_t * ifp)
 {
-	int fd = socket(AF_INET, SOCK_DGRAM, 0);
+	int fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 
 	if (fd < 0)
 		return;

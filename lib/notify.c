@@ -28,10 +28,11 @@
 #include "notify.h"
 #include "signals.h"
 #include "logger.h"
+#include "utils.h"
 
 /* perform a system call */
-int
-system_call(char *cmdline)
+static int
+system_call(const char *cmdline)
 {
 	int retval;
 
@@ -48,13 +49,12 @@ system_call(char *cmdline)
 	return retval;
 }
 
-/* Close all FDs >= a specified value */
-void
-closeall(int fd)
+static void
+script_setup(void)
 {
-	int fdlimit = sysconf(_SC_OPEN_MAX);
-	while (fd < fdlimit)
-		close(fd++);
+	signal_handler_script();
+
+	set_std_fd(false);
 }
 
 /* Execute external script/program */
@@ -62,7 +62,6 @@ int
 notify_exec(char *cmd)
 {
 	pid_t pid;
-	int ret;
 
 	pid = fork();
 
@@ -76,22 +75,41 @@ notify_exec(char *cmd)
 	if (pid)
 		return 0;
 
-	signal_handler_destroy();
-	closeall(0);
-
-	open("/dev/null", O_RDWR);
-
-	ret = dup(0);
-	if (ret < 0) {
-		log_message(LOG_INFO, "dup(0) error");
-	}
-
-	ret = dup(0);
-	if (ret < 0) {
-		log_message(LOG_INFO, "dup(0) error");
-	}
+	script_setup();
 
 	system_call(cmd);
 
 	exit(0);
+}
+
+int
+system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, long timer, const char* script)
+{
+	int status;
+	pid_t pid;
+
+	/* Daemonization to not degrade our scheduling timer */
+	pid = fork();
+
+	/* In case of fork is error. */
+	if (pid < 0) {
+		log_message(LOG_INFO, "Failed fork process");
+		return -1;
+	}
+
+	/* In case of this is parent process */
+	if (pid) {
+		thread_add_child(m, func, arg, pid, timer);
+		return 0;
+	}
+
+	/* Child part */
+	script_setup();
+
+	status = system_call(script);
+
+	if (status < 0 || !WIFEXITED(status))
+		exit(0); /* Script errors aren't server errors */
+
+	exit(WEXITSTATUS(status));
 }

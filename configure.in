@@ -321,7 +321,7 @@ dnl ----[ Checks for library functions ]----
 AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MEMCMP
 AC_TYPE_SIGNAL
-AC_CHECK_FUNCS(gettimeofday select socket strerror strtol uname)
+AC_CHECK_FUNCS(gettimeofday select socket strerror strtol uname pipe2)
 
 dnl ----[ Process output target ]----
 OUTPUT_TARGET="$OUTPUT_TARGET keepalived/Makefile lib/Makefile"
