@@ -92,8 +92,6 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 	struct sigaction sig;
 	struct sigaction osig;
 
-	assert(func != NULL);
-
 	if (func == (void*)SIG_IGN || func == (void*)SIG_DFL) {
 		sig.sa_handler = (void*)func;
 
@@ -242,7 +240,6 @@ signal_handlers_clear(void *state)
 	signal_set(SIGCHLD, state, NULL);
 	signal_set(SIGUSR1, state, NULL);
 	signal_set(SIGUSR2, state, NULL);
-
 }
 
 void

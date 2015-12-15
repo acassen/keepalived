@@ -25,6 +25,7 @@
 #include <syslog.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <signal.h>
 #include "notify.h"
 #include "signals.h"
 #include "logger.h"
@@ -35,6 +36,9 @@ static int
 system_call(const char *cmdline)
 {
 	int retval;
+
+	/* system() fails if SIGCHLD is set to SIG_IGN */
+	signal_set(SIGCHLD, (void*)SIG_DFL, NULL);
 
 	retval = system(cmdline);
 
