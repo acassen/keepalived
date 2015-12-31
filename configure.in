@@ -50,6 +50,8 @@ dnl [do we really need this ?] AC_CHECK_HEADERS(linux/netlink.h linux/rtnetlink.
 AC_CHECK_HEADERS(openssl/ssl.h openssl/md5.h openssl/err.h,,AC_MSG_ERROR([
   !!! OpenSSL is not properly installed on your system. !!!
   !!! Can not include OpenSSL headers files.            !!!]))
+AC_CHECK_HEADERS(libnfnetlink/libnfnetlink.h,,AC_MSG_ERROR([
+  !!! Please install libnfnetlink headers.              !!!]))
 AC_CHECK_DECL([ETHERTYPE_IPV6],[],[CFLAGS="$CFLAGS -DETHERTYPE_IPV6=0x86dd"],
   [[@%:@include <net/ethernet.h>]])
 
