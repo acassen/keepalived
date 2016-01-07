@@ -1187,7 +1187,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 	}
 
 	/* Set the down timer */
-	vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+	vrrp->ms_down_timer = vrrp->adver_count * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	++vrrp->stats->release_master;
 	vrrp->last_transition = timer_now();
 }
@@ -1207,9 +1207,9 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 		log_message(LOG_INFO, "VRRP_Instance(%s) ignoring received advertisment..."
 			            ,  vrrp->iname);
 		if (vrrp->version == VRRP_VERSION_3)
-			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+			vrrp->ms_down_timer = vrrp->adver_count * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 		else
-			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+			vrrp->ms_down_timer = vrrp->adver_count * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	} else if (hd->priority == 0) {
 		vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
 	} else if (vrrp->nopreempt || hd->priority >= vrrp->effective_priority ||
@@ -1224,10 +1224,10 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 				log_message(LOG_INFO, "VRRP_Instance(%s) advertisement interval updated to %d milli-sec",
 							vrrp->iname, (vrrp->master_adver_int * 1000) / TIMER_HZ);
 			}
-			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+			vrrp->ms_down_timer = vrrp->adver_count * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 		}
 		else {
-			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+			vrrp->ms_down_timer = vrrp->adver_count * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		}
 		vrrp->master_saddr = vrrp->pkt_saddr;
 		vrrp->master_priority = hd->priority;
@@ -1316,7 +1316,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 
 	/* return on link failure */
 	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT) {
-		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->ms_down_timer = vrrp->adver_count * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		vrrp->state = VRRP_STATE_FAULT;
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 		vrrp->last_transition = timer_now();
@@ -1370,7 +1370,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 			vrrp->ipsecah_counter->cycle = 0;
 		}
 
-		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->ms_down_timer = vrrp->adver_count * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		vrrp->master_priority = hd->priority;
 		vrrp->wantstate = VRRP_STATE_BACK;
 		vrrp->state = VRRP_STATE_BACK;

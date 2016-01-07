@@ -241,7 +241,7 @@ vrrp_init_state(list l)
 #endif
 			vrrp->state = VRRP_STATE_GOTO_MASTER;
 		} else {
-			vrrp->ms_down_timer = 3 * vrrp->adver_int
+			vrrp->ms_down_timer = vrrp->adver_count * vrrp->adver_int
 			    + VRRP_TIMER_SKEW(vrrp);
 #ifdef _HAVE_IPVS_SYNCD_
 			/* Check if sync daemon handling is needed */
@@ -701,7 +701,7 @@ vrrp_goto_master(vrrp_t * vrrp)
 		if (vrrp->state != VRRP_STATE_FAULT)
 			notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 		vrrp->state = VRRP_STATE_FAULT;
-		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->ms_down_timer = vrrp->adver_count * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 #ifdef _WITH_SNMP_
 		vrrp_snmp_instance_trap(vrrp);
@@ -786,7 +786,7 @@ vrrp_master(vrrp_t * vrrp)
 	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT ||
 	    vrrp->wantstate == VRRP_STATE_BACK ||
 	    (vrrp->version == VRRP_VERSION_2 && vrrp->ipsecah_counter->cycle)) {
-		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->ms_down_timer = vrrp->adver_count * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 
 		/* handle backup state transition */
 		vrrp_state_leave_master(vrrp);

@@ -168,11 +168,12 @@ typedef struct _vrrp_t {
 							 */
 	list			vroutes;		/* list of virtual routes */
 	list			vrules;			/* list of virtual rules */
-	int			adver_int;		/* locally configured delay between advertisements*/
-	int			master_adver_int; /* In v3, when we become BACKUP, we use the MASTER's
+	int			adver_int;		/* locally configured delay between advertisements */
+	int			master_adver_int;       /* In v3, when we become BACKUP, we use the MASTER's
 								   * adver_int. If we become MASTER again, we use the
 								   * value we were originally configured with.
 								   */
+	int			adver_count;		/* locally configured count of advertisments before switch */
 	bool			accept;			/* Allow the non-master owner to process
 							 * the packets destined to VIP.
 							 */
@@ -265,6 +266,7 @@ typedef struct _vrrp_t {
 #define VRRP_IS_BAD_VID(id)		((id) < 1 || (id) > 255)	/* rfc2338.6.1.vrid */
 #define VRRP_IS_BAD_PRIORITY(p)		((p)<1 || (p)>255)	/* rfc2338.6.1.prio */
 #define VRRP_IS_BAD_ADVERT_INT(d) 	((d)<1)
+#define VRRP_IS_BAD_ADVERT_COUNT(d) 	((d)<1)
 #define VRRP_IS_BAD_DEBUG_INT(d)	((d)<0 || (d)>4)
 #define VRRP_IS_BAD_PREEMPT_DELAY(d)	((d)<0 || (d)>TIMER_MAX_SEC)
 #define VRRP_SEND_BUFFER(V)		((V)->send_buffer)
