@@ -301,6 +301,22 @@ vrrp_adv_handler(vector_t *strvec)
 	}
 	vrrp->adver_int *= TIMER_HZ / 100.0;
 }
+
+static void
+vrrp_adv_count_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->adver_count = atoi(vector_slot(strvec, 1));
+
+	/* Simple check. Note that using VRRPv2 with 0.01s advert interval will not report an error */
+	if (VRRP_IS_BAD_ADVERT_COUNT(vrrp->adver_count)) {
+		log_message(LOG_INFO, "VRRP Error : Advert count not valid !");
+		log_message(LOG_INFO, "             must be >= 1\n");
+		log_message(LOG_INFO, "             Using default value : 3");
+		vrrp->adver_count = 3;
+	}
+}
+
 static void
 vrrp_debug_handler(vector_t *strvec)
 {
@@ -607,6 +623,7 @@ vrrp_init_keywords(void)
 	install_keyword("version", &vrrp_version_handler);
 	install_keyword("priority", &vrrp_prio_handler);
 	install_keyword("advert_int", &vrrp_adv_handler);
+	install_keyword("advert_count", &vrrp_adv_count_handler);
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
 	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
