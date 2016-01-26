@@ -133,7 +133,6 @@ start_vrrp(void)
 	/* Parse configuration file */
 	global_data = alloc_global_data();
 	vrrp_data = alloc_vrrp_data();
-	alloc_vrrp_buffer();
 	init_data(conf_file, vrrp_init_keywords);
 	if (!vrrp_data) {
 		stop_vrrp();

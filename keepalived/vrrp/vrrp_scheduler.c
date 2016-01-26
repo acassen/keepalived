@@ -908,10 +908,10 @@ vrrp_dispatcher_read(sock_t * sock)
         socklen_t src_addr_len = sizeof(src_addr);
 
 	/* Clean the read buffer */
-	memset(vrrp_buffer, 0, VRRP_PACKET_TEMP_LEN);
+	memset(vrrp_buffer, 0, vrrp_buffer_len);
 
 	/* read & affect received buffer */
-	len = recvfrom(sock->fd_in, vrrp_buffer, VRRP_PACKET_TEMP_LEN, 0,
+	len = recvfrom(sock->fd_in, vrrp_buffer, vrrp_buffer_len, 0,
 		       (struct sockaddr *) &src_addr, &src_addr_len);
 	hd = vrrp_get_header(sock->family, vrrp_buffer, &proto);
 

@@ -36,6 +36,7 @@
 vrrp_data_t *vrrp_data = NULL;
 vrrp_data_t *old_vrrp_data = NULL;
 char *vrrp_buffer;
+size_t vrrp_buffer_len;
 
 /* Static addresses facility function */
 void
@@ -517,15 +518,18 @@ alloc_vrrp_script(char *sname)
 
 /* data facility functions */
 void
-alloc_vrrp_buffer(void)
+alloc_vrrp_buffer(size_t len)
 {
-	vrrp_buffer = (char *) MALLOC(VRRP_PACKET_TEMP_LEN);
+	vrrp_buffer = (char *) MALLOC(len);
+	vrrp_buffer_len = (vrrp_buffer) ? len : 0;
 }
 
 void
 free_vrrp_buffer(void)
 {
 	FREE(vrrp_buffer);
+	vrrp_buffer = NULL;
+	vrrp_buffer_len = 0;
 }
 
 vrrp_data_t *

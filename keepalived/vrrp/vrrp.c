@@ -1884,6 +1884,7 @@ vrrp_complete_init(void)
 	vrrp_t *vrrp_o;
 	unsigned int ifindex;
 	unsigned int ifindex_o;
+	size_t max_mtu_len = 0;
 
 	/* Complete VRRP instance initialization */
 	l = vrrp_data->vrrp;
@@ -1891,6 +1892,9 @@ vrrp_complete_init(void)
 		vrrp = ELEMENT_DATA(e);
 		if (!vrrp_complete_instance(vrrp))
 			return 0;
+
+		if (vrrp->ifp->mtu > max_mtu_len)
+			max_mtu_len = vrrp->ifp->mtu;
 	}
 
 	/* Make sure don't have same vrid on same interface with same address family */
@@ -1933,6 +1937,8 @@ vrrp_complete_init(void)
 		if (LIST_ISEMPTY(sgroup->index_list) || LIST_SIZE(sgroup->index_list) <= 1)
 			free_list_element(vrrp_data->vrrp_sync_group, e);
 	}
+
+	alloc_vrrp_buffer(max_mtu_len);
 
 	return 1;
 }

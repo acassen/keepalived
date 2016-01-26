@@ -258,7 +258,6 @@ typedef struct _vrrp_t {
 
 /* VRRP Packet fixed length */
 #define VRRP_MAX_VIP		20
-#define VRRP_PACKET_TEMP_LEN	1024
 #define VRRP_AUTH_LEN		8
 #define VRRP_VIP_TYPE		(1 << 0)
 #define VRRP_EVIP_TYPE		(1 << 1)
