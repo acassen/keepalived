@@ -367,6 +367,23 @@ vrrp_skip_check_adv_addr_handler(vector_t *strvec)
 	}
 }
 static void
+vrrp_strict_mode_handler(vector_t *strvec)
+{
+	int res;
+
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(vector_slot(strvec, 1));
+		if (res >= 0)
+			vrrp->strict_mode = res;
+		else
+			log_message(LOG_INFO, "(%s): invalid strict_mode %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+	} else {
+		/* Defaults to true */
+		vrrp->strict_mode = true;
+	}
+}
+static void
 vrrp_nopreempt_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -679,6 +696,7 @@ vrrp_init_keywords(void)
 	install_keyword("virtual_rules", &vrrp_vrules_handler);
 	install_keyword("accept", &vrrp_accept_handler);
 	install_keyword("skip_check_adv_addr", &vrrp_skip_check_adv_addr_handler);
+	install_keyword("strict_mode", &vrrp_strict_mode_handler);
 	install_keyword("preempt", &vrrp_preempt_handler);
 	install_keyword("nopreempt", &vrrp_nopreempt_handler);
 	install_keyword("preempt_delay", &vrrp_preempt_delay_handler);

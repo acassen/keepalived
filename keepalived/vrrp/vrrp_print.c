@@ -131,6 +131,8 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   VRRP interface tracking disabled\n");
 	if (vrrp->skip_check_adv_addr)
 		fprintf(file, "   Skip checking advert IP addresses\n");
+	if (vrrp->strict_mode)
+		fprintf(file, "   Enforcing VRRP compliance\n");
 	fprintf(file, "   Using src_ip = %s\n", inet_sockaddrtos(&vrrp->saddr));
 	if (vrrp->lvs_syncd_if)
 		fprintf(file, "   Runing LVS sync daemon on interface = %s\n",

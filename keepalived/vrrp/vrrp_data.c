@@ -243,6 +243,8 @@ dump_vrrp(void *data)
 		log_message(LOG_INFO, "   VRRP interface tracking disabled");
 	if (vrrp->skip_check_adv_addr)
 		log_message(LOG_INFO, "   Skip checking advert IP addresses");
+	if (vrrp->strict_mode)
+		log_message(LOG_INFO, "   Enforcing strict VRRP compliance");
 	if (vrrp->saddr.ss_family)
 		log_message(LOG_INFO, "   Using src_ip = %s"
 				    , inet_sockaddrtos(&vrrp->saddr));
@@ -376,6 +378,7 @@ alloc_vrrp(char *iname)
 	new->garp_refresh_rep = global_data->vrrp_garp_refresh_rep;
 	new->garp_delay = global_data->vrrp_garp_delay;
 	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
+	new->strict_mode = global_data->vrrp_strict;
 
 	list_add(vrrp_data->vrrp, new);
 }

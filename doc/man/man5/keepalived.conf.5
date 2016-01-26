@@ -86,6 +86,12 @@ and
  # from the same master router as the previous advert received.
  vrrp_skip_check_adv_addr     # Default - don't skip
 
+ # Enforce strict VRRP protocol compliance. This will prohibit:
+ #   0 VIPs
+ #   unicast peers
+ #   IPv6 addresses in VRRP version 2
+ vrrp_strict
+
  enable_traps                 # enable SNMP traps
  }
 
@@ -331,6 +337,11 @@ which will transition together on any state change.
     # See description of global vrrp_skip_check_adv_addr, which
     # sets the default value. Defaults to vrrp_skip_check_adv_addr
     skip_check_adv_addr [on|off|true|false|yes|no]	# Default on if no word specified
+
+    # See description of global vrrp_strict
+    # If vrrp_strict is not specified, it takes the value of vrrp_strict
+    # If strict_mode without a parameter is specified, it defaults to on
+    strict_mode [on|off|true|false|yes|no]
 
     # Seconds after startup until preemption
     # (if not disabled by "nopreempt").
