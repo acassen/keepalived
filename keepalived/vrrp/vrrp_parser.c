@@ -473,11 +473,13 @@ vrrp_vip_handler(vector_t *strvec)
 				if (nbvip > VRRP_MAX_VIP) {
 					log_message(LOG_INFO,
 					       "VRRP_Instance(%s) "
-					       "trunc to the first %d VIPs.",
+					       "more than %d VIPs: extra added the excluded vip block.",
 					       vrrp->iname, VRRP_MAX_VIP);
 					log_message(LOG_INFO,
-					       "  => Declare others VIPs into"
+					       "  => Declare extra VIPs into"
 					       " the excluded vip block");
+
+					alloc_vrrp_evip(vec);
 				} else
 					alloc_vrrp_vip(vec);
 			}
