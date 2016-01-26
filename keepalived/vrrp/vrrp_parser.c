@@ -454,6 +454,10 @@ vrrp_vip_handler(vector_t *strvec)
 	vector_t *vec = NULL;
 	int nbvip = 0;
 
+	/* Check if some VIPs have already been configured on this interface */
+	if (!LIST_ISEMPTY(vrrp->vip))
+		nbvip = LIST_SIZE(vrrp->vip);
+
 	buf = (char *) MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
 		vec = alloc_strvec(buf);
