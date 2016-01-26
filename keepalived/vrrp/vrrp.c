@@ -1038,20 +1038,22 @@ vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, int idx)
 	char addr_str[INET6_ADDRSTRLEN];
 	bool router;
 
-	if (!IP_IS6(ipaddress)) {
-		msg = "gratuitous ARPs";
-		inet_ntop(AF_INET, &ipaddress->u.sin.sin_addr, addr_str, sizeof(addr_str));
-
+	if (!IP_IS6(ipaddress))
 		send_gratuitous_arp(ipaddress);
-	} else {
-		msg = "Unsolicited Neighbour Adverts";
-		inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, sizeof(addr_str));
-
+	else {
 		router = get_ipv6_forwarding((vrrp->ifp->vmac) ? if_get_by_ifindex(vrrp->ifp->base_ifindex) : vrrp->ifp);
 		ndisc_send_unsolicited_na(ipaddress, router);
 	}
 
 	if (idx == 0 && __test_bit(LOG_DETAIL_BIT, &debug)) {
+		if (!IP_IS6(ipaddress)) {
+			msg = "gratuitous ARPs";
+			inet_ntop(AF_INET, &ipaddress->u.sin.sin_addr, addr_str, sizeof(addr_str));
+		} else {
+			msg = "Unsolicited Neighbour Adverts";
+			inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, sizeof(addr_str));
+		}
+
 		log_message(LOG_INFO, "VRRP_Instance(%s) Sending %s on %s for %s",
 			    vrrp->iname, msg, IF_NAME(ipaddress->ifp), addr_str);
 	}
