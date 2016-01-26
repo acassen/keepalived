@@ -128,6 +128,18 @@ vrrp_garp_refresh_rep_handler(vector_t *strvec)
 		global_data->vrrp_garp_refresh_rep = 1;
 }
 static void
+vrrp_iptables_handler(vector_t *strvec)
+{
+	global_data->vrrp_iptables_inchain[0] = '\0';
+	if (vector_size(strvec) >= 2) {
+		if (strlen(vector_slot(strvec,1)) >= sizeof(global_data->vrrp_iptables_inchain)-1) {
+			log_message(LOG_INFO, "VRRP Error : iptables in chain name too long - ignored\n");
+			return;
+		}
+		strcpy(global_data->vrrp_iptables_inchain, vector_slot(strvec,1));
+	}
+}
+static void
 vrrp_version_handler(vector_t *strvec)
 {
 	uint8_t version = atoi(vector_slot(strvec, 1));
@@ -164,6 +176,7 @@ global_init_keywords(void)
 	install_keyword("vrrp_garp_master_refresh", &vrrp_garp_refresh_handler);
 	install_keyword("vrrp_garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
 	install_keyword("vrrp_version", &vrrp_version_handler);
+	install_keyword("vrrp_iptables", &vrrp_iptables_handler);
 #ifdef _WITH_SNMP_
 	install_keyword("enable_traps", &trap_handler);
 #endif

@@ -28,6 +28,7 @@
 #include "memory.h"
 #include "utils.h"
 #include "bitops.h"
+#include "global_data.h"
 
 /* Add/Delete IP address to a specific interface_t */
 static int
@@ -138,9 +139,12 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 	char  *argv[14];
 	unsigned int i = 0;
 
+	if (global_data->vrrp_iptables_inchain[0] == '\0')
+		return;
+
 	argv[i++] = "ip6tables";
 	argv[i++] = cmd ? "-A" : "-D";
-	argv[i++] = "INPUT";
+	argv[i++] = global_data->vrrp_iptables_inchain;
 	argv[i++] = "-i";
 	argv[i++] = ifname;
 	argv[i++] = "-d";
@@ -166,6 +170,9 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname)
 	char  *argv[10];
 	unsigned int i = 0;
 
+	if (global_data->vrrp_iptables_inchain[0] == '\0')
+		return;
+
 	if (IP_IS6(ipaddress)) {
 		handle_iptable_rule_to_NA(ipaddress, cmd, ifname);
 		argv[i++] = "ip6tables";
@@ -174,7 +181,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname)
 	}
 
 	argv[i++] = cmd ? "-A" : "-D";
-	argv[i++] = "INPUT";
+	argv[i++] = global_data->vrrp_iptables_inchain;
 	argv[i++] = "-i";
 	argv[i++] = ifname;
 	argv[i++] = "-d";
