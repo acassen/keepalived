@@ -1651,6 +1651,35 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && !vrrp->vmac_ifname[0])
 		snprintf(vrrp->vmac_ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
 
+	/* Make sure we have an IP address as needed */
+	if (vrrp->saddr.ss_family == AF_UNSPEC) {
+		int addr_missing = 0;
+
+		/* Check the physical interface has a suitable address we can use.
+		 * We don't need an IPv6 address on the underlying interface if it is
+		 * a VMAC since we can create our own. */
+		if (vrrp->family == AF_INET) {
+			if (!vrrp->ifp->sin_addr.s_addr)
+				addr_missing = 1;
+		} else if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
+			if (!vrrp->ifp->sin6_addr.s6_addr32[0])
+				addr_missing = 1;
+		}
+
+		if (addr_missing) {
+			log_message(LOG_INFO, "(%s): Cannot find an IP address to use for interface", vrrp->iname);
+			return 0;
+		}
+
+		if (vrrp->family == AF_INET) {
+			inet_ip4tosockaddr(&vrrp->ifp->sin_addr, &vrrp->saddr);
+		} else if (vrrp->family == AF_INET6) {
+			inet_ip6tosockaddr(&vrrp->ifp->sin6_addr, &vrrp->saddr);
+			/* IPv6 use-case: Binding to link-local address requires an interface */
+			inet_ip6scopeid(IF_INDEX(vrrp->ifp), &vrrp->saddr);
+		}
+	}
+
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 	{
 		/* We need to know if we need to allow IPv6 just for eVIPs */
