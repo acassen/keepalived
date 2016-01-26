@@ -93,6 +93,13 @@ static void
 vrrp_group_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+
+	if (vgroup->iname) {
+		log_message(LOG_INFO, "Group list already specified for sync group %s", vgroup->gname);
+		skip_block();
+		return;
+	}
+
 	vgroup->iname = read_value_block(strvec);
 }
 static void
