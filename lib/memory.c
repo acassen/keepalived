@@ -26,8 +26,10 @@
 #include "utils.h"
 #include "bitops.h"
 
+#ifdef _DEBUG_
 /* Global var */
 unsigned long mem_allocated;	/* Total memory used in Bytes */
+#endif
 
 void *
 xalloc(unsigned long size)
@@ -39,7 +41,10 @@ xalloc(unsigned long size)
 		exit(EXIT_FAILURE);
 	}
 
+#ifdef _DEBUG_
 	mem_allocated += size;
+#endif
+
 	return mem;
 }
 

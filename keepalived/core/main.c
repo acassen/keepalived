@@ -276,7 +276,6 @@ int
 main(int argc, char **argv)
 {
 	/* Init debugging level */
-	mem_allocated = 0;
 	debug = 0;
 
 	/*
