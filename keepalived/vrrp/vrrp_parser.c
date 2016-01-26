@@ -507,12 +507,7 @@ vrrp_vip_handler(vector_t *strvec)
 	char *buf;
 	char *str = NULL;
 	vector_t *vec = NULL;
-	int nbvip = 0;
 	int address_family;
-
-	/* Check if some VIPs have already been configured on this interface */
-	if (!LIST_ISEMPTY(vrrp->vip))
-		nbvip = LIST_SIZE(vrrp->vip);
 
 	buf = (char *) MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
@@ -526,24 +521,9 @@ vrrp_vip_handler(vector_t *strvec)
 			}
 
 			if (vector_size(vec)) {
-				nbvip++;
-				if (nbvip > VRRP_MAX_VIP) {
-					log_message(LOG_INFO,
-					       "VRRP_Instance(%s) "
-					       "more than %d VIPs: extra added the excluded vip block.",
-					       vrrp->iname, VRRP_MAX_VIP);
-					log_message(LOG_INFO,
-					       "  => Declare extra VIPs into"
-					       " the excluded vip block");
-
-					alloc_vrrp_evip(vec);
-					if (!LIST_ISEMPTY(vrrp->evip))
-						address_family = IP_FAMILY((ip_address_t*)LIST_TAIL_DATA(vrrp->evip));
-				} else {
-					alloc_vrrp_vip(vec);
-					if (!LIST_ISEMPTY(vrrp->vip))
-						address_family = IP_FAMILY((ip_address_t*)LIST_TAIL_DATA(vrrp->vip));
-				}
+				alloc_vrrp_vip(vec);
+				if (!LIST_ISEMPTY(vrrp->vip))
+					address_family = IP_FAMILY((ip_address_t*)LIST_TAIL_DATA(vrrp->vip));
 			}
 
 			if (address_family != AF_UNSPEC) {
@@ -551,10 +531,7 @@ vrrp_vip_handler(vector_t *strvec)
 					vrrp->family = address_family;
 				else if (address_family != vrrp->family) {
 					log_message(LOG_INFO, "(%s): address family must match VRRP instance [%s] - ignoring", vrrp->iname, buf);
-					if (nbvip > VRRP_MAX_VIP)
-						free_list_element(vrrp->evip, LIST_TAIL_DATA(vrrp->evip));
-					else
-						free_list_element(vrrp->vip, LIST_TAIL_DATA(vrrp->vip));
+					free_list_element(vrrp->vip, LIST_TAIL_DATA(vrrp->vip));
 				}
 			}
 

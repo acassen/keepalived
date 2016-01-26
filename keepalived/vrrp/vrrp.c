@@ -50,6 +50,9 @@
 #include "notify.h"
 #include "bitops.h"
 
+#include <net/ethernet.h>
+#include <netinet/ip6.h>
+
 /* add/remove Virtual IP addresses */
 static int
 vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type)
@@ -1654,6 +1657,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	element e;
 	vrrp_t *vrrp_o;
 	ip_address_t *vip;
+	int hdr_len;
+	int max_addr;
+	int i;
+	element next;
 
 	if (vrrp->accept) {
 		if (vrrp->version == VRRP_VERSION_2)
@@ -1694,6 +1701,37 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (vrrp->family == AF_INET6 && LIST_ISEMPTY(vrrp->unicast_peer) &&
 		  !IN6_IS_ADDR_LINKLOCAL(&((ip_address_t *)LIST_HEAD(vrrp->vip)->data)->u.sin6_addr)) {
 		log_message(LOG_INFO, "(%s): the first IPv6 VIP address must be link local", vrrp->iname);
+	}
+
+	/* Check we can fit the VIPs into a packet */
+	if (vrrp->family == AF_INET) {
+		hdr_len = sizeof(struct ether_header) + sizeof(struct iphdr) + sizeof(vrrphdr_t);
+
+		if (vrrp->version == VRRP_VERSION_2) {
+			hdr_len += VRRP_AUTH_LEN;
+
+			if (vrrp->auth_type == VRRP_AUTH_AH)
+				hdr_len += vrrp_ipsecah_len();
+		}
+
+		max_addr = (vrrp->ifp->mtu - hdr_len) / sizeof(struct in_addr);
+	} else {
+		hdr_len = sizeof(struct ether_header) + sizeof(struct ip6_hdr) + sizeof(vrrphdr_t);
+		max_addr = (vrrp->ifp->mtu - hdr_len) / sizeof(struct in6_addr);
+	}
+	if (LIST_SIZE(vrrp->vip) > max_addr) {
+		log_message(LOG_INFO, "(%s): Number of VIPs (%d) exceeds space available in packet (max %d addresses) - excess moved to eVIPs",
+				vrrp->iname, LIST_SIZE(vrrp->vip), max_addr);
+		for (i = 0, e = LIST_HEAD(vrrp->vip); e; i++, e = next) {
+			next = e->next;
+			if (i < max_addr)
+				continue;
+			vip = ELEMENT_DATA(e);
+			list_del(vrrp->vip, vip);
+			if (!LIST_EXISTS(vrrp->evip))
+				vrrp->evip = alloc_list(free_ipaddress, dump_ipaddress);
+			list_add(vrrp->evip, vip);
+		}
 	}
 
 	if (vrrp->base_priority == 0) {
