@@ -229,6 +229,33 @@ AC_TRY_COMPILE([
 
 AC_SUBST(VRRP_VMAC)
 
+if test "${VRRP_VMAC}" = "_HAVE_VRRP_VMAC_"; then
+  dnl ----[ Checks for kernel INET6_ADDR_GEN_MODE support ]----
+  CPPFLAGS="$CPPFLAGS -I$kernelinc"
+  AC_MSG_CHECKING([for kernel inet6_addr_gen_mode support])
+  AC_TRY_COMPILE([
+      #include <linux/if_link.h>
+      int gen_mode;
+    ], [
+      gen_mode = IFLA_INET6_ADDR_GEN_MODE;
+      gen_mode++;
+    ], [
+      GEN_MODE_SUPPORT=yes
+    ], []);
+
+    if test "$GEN_MODE_SUPPORT" = "yes"; then
+      ADDR_GEN_MODE="_HAVE_ADDR_GEN_MODE_"
+      AC_MSG_RESULT([yes])
+    else
+      ADDR_GEN_MODE="_WITHOUT_ADDR_GEN_MODE_"
+      AC_MSG_RESULT([no])
+    fi
+else
+  ADDR_GEN_MODE="_WITHOUT_ADDR_GEN_MODE_"
+fi
+
+AC_SUBST(ADDR_GEN_MODE)
+
 dnl ----[ Checks for SNMP support ]----
 SNMP_SUPPORT="_WITHOUT_SNMP_"
 if test "$enable_snmp" = "yes"; then

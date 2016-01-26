@@ -10,7 +10,7 @@ NL3_FLAG = @USE_NL3@
 INCLUDES = -I../include -I../../lib
 CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 	   -Wall -Wunused -Wstrict-prototypes
-DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_VMAC@ -D@SNMP_SUPPORT@ -D@USE_NL3@ @DFLAGS@
+DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_VMAC@ -D@ADDR_GEN_MODE@ -D@SNMP_SUPPORT@ -D@USE_NL3@ @DFLAGS@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
 OBJS = 	vrrp_daemon.o vrrp_print.o vrrp_data.o vrrp_parser.o \

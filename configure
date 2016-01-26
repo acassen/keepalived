@@ -631,6 +631,7 @@ SO_MARK_SUPPORT
 SHA1_SUPPORT
 SNMP_SUPPORT
 NETSNMP_CONFIG
+ADDR_GEN_MODE
 VRRP_VMAC
 IPVS_SYNCD
 KERN
@@ -4286,6 +4287,46 @@ $as_echo "no" >&6; }
   fi
 
 
+
+if test "${VRRP_VMAC}" = "_HAVE_VRRP_VMAC_"; then
+    CPPFLAGS="$CPPFLAGS -I$kernelinc"
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for kernel inet6_addr_gen_mode support" >&5
+$as_echo_n "checking for kernel inet6_addr_gen_mode support... " >&6; }
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+      #include <linux/if_link.h>
+      int gen_mode;
+
+int
+main ()
+{
+
+      gen_mode = IFLA_INET6_ADDR_GEN_MODE;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+      GEN_MODE_SUPPORT=yes
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext;
+
+    if test "$GEN_MODE_SUPPORT" = "yes"; then
+      ADDR_GEN_MODE="_HAVE_ADDR_GEN_MODE_"
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+    else
+      ADDR_GEN_MODE="_WITHOUT_ADDR_GEN_MODE_"
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+    fi
+
+
+fi
 
 SNMP_SUPPORT="_WITHOUT_SNMP_"
 if test "$enable_snmp" = "yes"; then
