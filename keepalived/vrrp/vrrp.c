@@ -1255,7 +1255,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 	} else if (vrrp->nopreempt || hd->priority >= vrrp->effective_priority ||
 		   timer_cmp(vrrp->preempt_time, timer_now()) > 0) {
 		if (vrrp->version == VRRP_VERSION_3) {
-			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_HZ / 100;
+			master_adver_int = ((ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_HZ) / 100;
 			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
 		 	 * in the ADVERTISEMENT
 			 */
