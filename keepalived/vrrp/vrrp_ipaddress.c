@@ -381,21 +381,31 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 
+	/* We expect the address first */
+	if (!parse_ipaddress(new, vector_slot(strvec,0), false)) {
+		FREE(new);
+		return;
+	}
+
+	addr_idx = i++;
+
 	/* FMT parse */
 	while (i < vector_size(strvec)) {
 		str = vector_slot(strvec, i);
 
 		/* cmd parsing */
 		param_avail = (vector_size(strvec) >= i+2);
+
+		/* All keywords require a following word, so check if one is there */
+		if (!param_avail) {
+			log_message(LOG_INFO, "No %s parameter specified for %s", str, FMT_STR_VSLOT(strvec, addr_idx));
+			break;
+		}
 		if (!strcmp(str, "dev")) {
 			if (new->ifp) {
 				log_message(LOG_INFO, "Cannot specify static ipaddress device more than once for %s", FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
 				return;
-			}
-			if (!param_avail) {
-				log_message(LOG_INFO, "No device specified for %s", FMT_STR_VSLOT(strvec, addr_idx));
-				break;
 			}
 			ifp_local = if_get_by_ifname(vector_slot(strvec, ++i));
 			if (!ifp_local) {
@@ -409,55 +419,31 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			new->ifa.ifa_index = IF_INDEX(ifp_local);
 			new->ifp = ifp_local;
 		} else if (!strcmp(str, "scope")) {
-			if (!param_avail) {
-				log_message(LOG_INFO, "No scope specified for %s", FMT_STR_VSLOT(strvec, addr_idx));
-				break;
-			}
 			scope = netlink_scope_a2n(vector_slot(strvec, ++i));
 			if (scope == -1)
 				log_message(LOG_INFO, "Invalid scope '%s' specified for %s - ignoring", FMT_STR_VSLOT(strvec,i), FMT_STR_VSLOT(strvec, addr_idx));
 			else
 				new->ifa.ifa_scope = netlink_scope_a2n(vector_slot(strvec, ++i));
 		} else if (!strcmp(str, "broadcast") || !strcmp(str, "brd")) {
-			if (!param_avail) {
-				log_message(LOG_INFO, "No broadcast address specified for %s", FMT_STR_VSLOT(strvec, addr_idx));
-				break;
-			}
 			if (IP_IS6(new)) {
 				log_message(LOG_INFO, "VRRP is trying to assign a broadcast %s to the IPv6 address %s !!?? "
 						      "WTF... skipping VIP..."
 						    , FMT_STR_VSLOT(strvec, i), FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
 				return;
-			} else if (!inet_pton(AF_INET, vector_slot(strvec, ++i), &new->u.sin.sin_brd)) {
+			}
+			if (!inet_pton(AF_INET, vector_slot(strvec, ++i), &new->u.sin.sin_brd)) {
 				log_message(LOG_INFO, "VRRP is trying to assign invalid broadcast %s. "
 						      "skipping VIP...", FMT_STR_VSLOT(strvec, i));
 				FREE(new);
 				return;
 			}
 		} else if (!strcmp(str, "label")) {
-			if (!param_avail) {
-				log_message(LOG_INFO, "No label specified for %s", FMT_STR_VSLOT(strvec, addr_idx));
-				break;
-			}
 			new->label = MALLOC(IFNAMSIZ);
 			strncpy(new->label, vector_slot(strvec, ++i), IFNAMSIZ);
-		} else {
-			if (!parse_ipaddress(new, str, false)) {
-				FREE(new);
-				return;
-			}
-
-			addr_idx  = i;
-		}
+		} else
+			log_message(LOG_INFO, "Unknown configuration entry '%s' for ip address - ignoring", str);
 		i++;
-	}
-
-	if (new->ifa.ifa_family == AF_UNSPEC) {
-		log_message(LOG_INFO, "Address missing in configuration entry");
-
-		FREE(new);
-		return;
 	}
 
 	if (!ifp && !new->ifp) {
