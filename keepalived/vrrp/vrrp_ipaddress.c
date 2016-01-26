@@ -385,6 +385,11 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 
 		/* cmd parsing */
 		if (!strcmp(str, "dev")) {
+			if (new->ifp) {
+				log_message(LOG_INFO, "Cannot specify static ipaddress device more than once for %s", FMT_STR_VSLOT(strvec, addr_idx));
+				FREE(new);
+				return;
+			}
 			ifp_local = if_get_by_ifname(vector_slot(strvec, ++i));
 			if (!ifp_local) {
 				log_message(LOG_INFO, "VRRP is trying to assign VIP to unknown %s"
@@ -424,6 +429,13 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		i++;
 	}
 
+	if (new->ifa.ifa_family == AF_UNSPEC) {
+		log_message(LOG_INFO, "Address missing in configuration entry");
+
+		FREE(new);
+		return;
+	}
+
 	if (!ifp && !new->ifp) {
 		ifp_local = if_get_by_ifname(DFLT_INT);
 		if (!ifp_local) {
@@ -435,6 +447,18 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		}
 		new->ifa.ifa_index = IF_INDEX(ifp_local);
 		new->ifp = ifp_local;
+	}
+
+	if (new->ifa.ifa_family == AF_INET6) {
+		if (new->ifa.ifa_scope) {
+			log_message(LOG_INFO, "Cannot specify scope for IPv6 addresses (%s) - ignoring scope", FMT_STR_VSLOT(strvec, addr_idx));
+			new->ifa.ifa_scope = 0;
+		}
+		if (new->label) {
+			log_message(LOG_INFO, "Cannot specify label for IPv6 addresses (%s) - ignoring label", FMT_STR_VSLOT(strvec, addr_idx));
+			FREE(new->label);
+			new->label = NULL;
+		}
 	}
 
 	list_add(ip_list, new);
