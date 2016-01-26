@@ -950,7 +950,7 @@ vrrp_send_adv(vrrp_t * vrrp, int prio)
 			vrrp_build_pkt(vrrp, prio, addr);
 			ret = vrrp_send_pkt(vrrp, addr);
 			if (ret < 0) {
-				log_message(LOG_INFO, "VRRP_Instance(%s) Cant sent advert to %s (%m)"
+				log_message(LOG_INFO, "VRRP_Instance(%s) Cant send advert to %s (%m)"
 						    , vrrp->iname, inet_sockaddrtos(addr));
 			}
 		}
