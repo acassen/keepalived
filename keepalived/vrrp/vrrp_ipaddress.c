@@ -54,53 +54,55 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 	req.ifa = ipaddress->ifa;
 
 	if (IP_IS6(ipaddress)) {
-		/* Mark IPv6 address as deprecated (rfc3484) in order to prevent
-		 * using VRRP VIP as source address in healthchecking use cases.
-		 */
-		if (ipaddress->ifa.ifa_prefixlen == 128) {
-			memset(&cinfo, 0, sizeof(cinfo));
-			cinfo.ifa_prefered = 0;
-			cinfo.ifa_valid = INFINITY_LIFE_TIME;
+		if (cmd == IPADDRESS_ADD) {
+			/* Mark IPv6 address as deprecated (rfc3484) in order to prevent
+			 * using VRRP VIP as source address in healthchecking use cases.
+			 */
+			if (ipaddress->ifa.ifa_prefixlen == 128) {
+				memset(&cinfo, 0, sizeof(cinfo));
+				cinfo.ifa_prefered = 0;
+				cinfo.ifa_valid = INFINITY_LIFE_TIME;
 
-			addr_str = ipaddresstos(ipaddress);
-			log_message(LOG_INFO, "%s has a prefix length of 128, setting "
-					      "preferred_lft to 0\n", addr_str);
-			FREE(addr_str);
-			addattr_l(&req.n, sizeof(req), IFA_CACHEINFO, &cinfo,
-				  sizeof(cinfo));
-		}
+				addr_str = ipaddresstos(ipaddress);
+				log_message(LOG_INFO, "%s has a prefix length of 128, setting "
+						      "preferred_lft to 0\n", addr_str);
+				FREE(addr_str);
+				addattr_l(&req.n, sizeof(req), IFA_CACHEINFO, &cinfo,
+					  sizeof(cinfo));
+			}
 
-		/* Disable, per VIP, Duplicate Address Detection algorithm (DAD).
-		 * Using the nodad flag has the following benefits:
-		 *
-		 * (1) The address becomes immediately usable after they're
-		 *     configured.
-		 * (2) In the case of a temporary layer-2 / split-brain problem
-		 *     we can avoid that the active VIP transitions into the
-		 *     dadfailed phase and stays there forever - leaving us
-		 *     without service. HA/VRRP setups have their own "DAD"-like
-		 *     functionality, so it's not really needed from the IPv6 stack.
-		 */
+			/* Disable, per VIP, Duplicate Address Detection algorithm (DAD).
+			 * Using the nodad flag has the following benefits:
+			 *
+			 * (1) The address becomes immediately usable after they're
+			 *     configured.
+			 * (2) In the case of a temporary layer-2 / split-brain problem
+			 *     we can avoid that the active VIP transitions into the
+			 *     dadfailed phase and stays there forever - leaving us
+			 *     without service. HA/VRRP setups have their own "DAD"-like
+			 *     functionality, so it's not really needed from the IPv6 stack.
+			 */
 #ifdef IFA_F_NODAD
-		req.ifa.ifa_flags |= IFA_F_NODAD;
+			req.ifa.ifa_flags |= IFA_F_NODAD;
 #endif
+		}
 
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin6_addr, sizeof(ipaddress->u.sin6_addr));
 	} else {
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin.sin_addr, sizeof(ipaddress->u.sin.sin_addr));
-		if (cmd == IPADDRESS_DEL)
-			addattr_l(&req.n, sizeof(req), IFA_ADDRESS,
-			  &ipaddress->u.sin.sin_addr, sizeof(ipaddress->u.sin.sin_addr));
-		if (ipaddress->u.sin.sin_brd.s_addr)
-			addattr_l(&req.n, sizeof(req), IFA_BROADCAST,
-				  &ipaddress->u.sin.sin_brd, sizeof(ipaddress->u.sin.sin_brd));
+
+		if (cmd == IPADDRESS_ADD)
+			if (ipaddress->u.sin.sin_brd.s_addr)
+				addattr_l(&req.n, sizeof(req), IFA_BROADCAST,
+					  &ipaddress->u.sin.sin_brd, sizeof(ipaddress->u.sin.sin_brd));
 	}
 
-	if (ipaddress->label)
-		addattr_l(&req.n, sizeof (req), IFA_LABEL,
-			  ipaddress->label, strlen(ipaddress->label) + 1);
+	if (cmd == IPADDRESS_ADD)
+		if (ipaddress->label)
+			addattr_l(&req.n, sizeof (req), IFA_LABEL,
+				  ipaddress->label, strlen(ipaddress->label) + 1);
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;
