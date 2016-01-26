@@ -268,15 +268,15 @@ void
 address_print(FILE *file, void *data)
 {
 	ip_address_t *ipaddr = data;
-	char *broadcast = (char *) MALLOC(21);
-	char *addr_str = (char *) MALLOC(41);
+	char broadcast[INET_ADDRSTRLEN + 5] = "";	/* allow for " brd " */
+	char addr_str[INET6_ADDRSTRLEN] = "";
 
 	if (IP_IS6(ipaddr)) {
-		inet_ntop(AF_INET6, &ipaddr->u.sin6_addr, addr_str, 41);
+		inet_ntop(AF_INET6, &ipaddr->u.sin6_addr, addr_str, sizeof(addr_str));
 	} else {
-		inet_ntop(AF_INET, &ipaddr->u.sin.sin_addr, addr_str, 41);
+		inet_ntop(AF_INET, &ipaddr->u.sin.sin_addr, addr_str, sizeof(addr_str));
 	if (ipaddr->u.sin.sin_brd.s_addr)
-		snprintf(broadcast, 20, " brd %s",
+		snprintf(broadcast, sizeof(broadcast) - 1, " brd %s",
 			 inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));
 	}
 
@@ -288,88 +288,52 @@ address_print(FILE *file, void *data)
 		, netlink_scope_n2a(ipaddr->ifa.ifa_scope)
 		, ipaddr->label ? " label " : ""
 		, ipaddr->label ? ipaddr->label : "");
-	FREE(broadcast);
-	FREE(addr_str);
 }
 
 void
 route_print(FILE *file, void *data)
 {
 	ip_route_t *route = data;
-	char *msg = MALLOC(150);
-	char *tmp = MALLOC(30);
 
-	if (route->blackhole) {
-		strncat(msg, "blackhole ", 30);
-	}
-	if (route->dst) {
-		snprintf(tmp, 30, "%s/%d", ipaddresstos(route->dst),
-			route->dmask);
-		strncat(msg, tmp, 30);
-	}
-	if (route->gw) {
-		snprintf(tmp, 30, " gw %s", ipaddresstos(route->gw));
-		strncat(msg, tmp, 30);
-	}
-	if (route->gw2) {
-		snprintf(tmp, 30, " or gw %s", ipaddresstos(route->gw2));
-		strncat(msg, tmp, 30);
-	}
-	if (route->src) {
-		snprintf(tmp, 30, " src %s", ipaddresstos(route->src));
-		strncat(msg, tmp, 30);
-	}
-	if (route->index) {
-		snprintf(tmp, 30, " dev %s",
-		  IF_NAME(if_get_by_ifindex(route->index)));
-		strncat(msg, tmp, 30);
-	}
-	if (route->table) {
-		snprintf(tmp, 30, " table %d", route->table);
-		strncat(msg, tmp, 30);
-	}
-	if (route->scope) {
-		snprintf(tmp, 30, " scope %s",
-		  netlink_scope_n2a(route->scope));
-		strncat(msg, tmp, 30);
-	}
-	if (route->metric) {
-		snprintf(tmp, 30, " metric %d", route->metric);
-		strncat(msg, tmp, 30);
-	}
+	fprintf(file, "     ");
 
-	fprintf(file, "     %s\n", msg);
+	if (route->blackhole)
+		fprintf(file, "blackhole ");
+	if (route->dst)
+		fprintf(file, "%s/%d", ipaddresstos(route->dst), route->dmask);
+	if (route->gw)
+		fprintf(file, " gw %s", ipaddresstos(route->gw));
+	if (route->gw2)
+		fprintf(file, " or gw %s", ipaddresstos(route->gw2));
+	if (route->src)
+		fprintf(file, " src %s", ipaddresstos(route->src));
+	if (route->index)
+		fprintf(file, " dev %s", IF_NAME(if_get_by_ifindex(route->index)));
+	if (route->table)
+		fprintf(file, " table %d", route->table);
+	if (route->scope)
+		fprintf(file, " scope %s", netlink_scope_n2a(route->scope));
+	if (route->metric)
+		fprintf(file, " metric %d", route->metric);
 
-	FREE(tmp);
-	FREE(msg);
-
+	fprintf(file, "\n");
 }
 
 void
 rule_print(FILE *file, void *data)
 {
 	ip_rule_t *rule = data;
-	char *msg = MALLOC(150);
-	char *tmp = MALLOC(30);
 
-	if (rule->dir) {
-		snprintf(tmp, 30, "%s ", (rule->dir == VRRP_RULE_FROM) ? "from" : "to");
-		strncat(msg, tmp, 30);
-	}
-	if (rule->addr) {
-		snprintf(tmp, 30, "%s", ipaddresstos(rule->addr));
-		strncat(msg, tmp, 30);
-	}
-	if (rule->table) {
-		snprintf(tmp, 30, " table %d", rule->table);
-		strncat(msg, tmp, 30);
-	}
+	fprintf(file, "     ");
 
-	fprintf(file, "     %s\n", msg);
+	if (rule->dir)
+		fprintf(file, "%s ", (rule->dir == VRRP_RULE_FROM) ? "from" : "to");
+	if (rule->addr)
+		fprintf(file, "%s", ipaddresstos(rule->addr));
+	if (rule->table)
+		fprintf(file, " table %d", rule->table);
 
-	FREE(tmp);
-	FREE(msg);
-
+	fprintf(file, "\n");
 }
 
 void
@@ -377,7 +341,7 @@ if_print(FILE *file, void * data)
 {
 	tracked_if_t *tip = data;
 	interface_t *ifp = tip->ifp;
-	char addr_str[41];
+	char addr_str[INET6_ADDRSTRLEN];
 	int weight = tip->weight;
 
 	fprintf(file, "------< NIC >------\n");
@@ -428,4 +392,3 @@ if_print(FILE *file, void * data)
 	else
 	        fprintf(file, " Enabling NIC ioctl refresh polling\n");
 }
-
