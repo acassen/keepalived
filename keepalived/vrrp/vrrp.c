@@ -36,6 +36,7 @@
 #include "vrrp_sync.h"
 #include "vrrp_index.h"
 #include "vrrp_vmac.h"
+#include "vrrp_if_config.h"
 #ifdef _WITH_SNMP_
 #include "vrrp_snmp.h"
 #endif
@@ -961,15 +962,19 @@ vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, int idx)
 {
 	char *msg;
 	char addr_str[41];
+	bool router;
 
 	if (!IP_IS6(ipaddress)) {
 		msg = "gratuitous ARPs";
 		inet_ntop(AF_INET, &ipaddress->u.sin.sin_addr, addr_str, sizeof(addr_str));
+
 		send_gratuitous_arp(ipaddress);
 	} else {
 		msg = "Unsolicited Neighbour Adverts";
 		inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, sizeof(addr_str));
-		ndisc_send_unsolicited_na(ipaddress);
+
+		router = get_ipv6_forwarding((vrrp->ifp->vmac) ? if_get_by_ifindex(vrrp->ifp->base_ifindex) : vrrp->ifp);
+		ndisc_send_unsolicited_na(ipaddress, router);
 	}
 
 	if (idx == 0 && __test_bit(LOG_DETAIL_BIT, &debug)) {

@@ -50,7 +50,7 @@
 #endif
 #include <limits.h>
 #include <unistd.h>
-
+			# include "logger.h"
 #ifdef _HAVE_LIBNL3_
 static int
 netlink3_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
@@ -243,7 +243,6 @@ set_sysctl(const char* prefix, const char* iface, const char* parameter, int val
 	return 0;
 }
 
-#ifndef _HAVE_LIBNL3_
 static int
 get_sysctl(const char* prefix, const char* iface, const char* parameter)
 {
@@ -272,6 +271,7 @@ get_sysctl(const char* prefix, const char* iface, const char* parameter)
 	return buf[0] - '0';
 }
 
+#ifndef _HAVE_LIBNL3_
 void
 set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 {
@@ -305,4 +305,9 @@ void link_disable_ipv6(const interface_t* ifp)
 {
 	/* libnl3, nor the kernel, support setting IPv6 options */
 	set_sysctl("net/ipv6/conf", ifp->ifname, "disable_ipv6", 1);
+}
+
+int get_ipv6_forwarding(const interface_t* ifp)
+{
+	return get_sysctl("net/ipv6/conf", ifp->ifname, "forwarding");
 }

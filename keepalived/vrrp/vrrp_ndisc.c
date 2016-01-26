@@ -116,7 +116,7 @@ ndisc_icmp6_cksum(const struct ip6hdr *ip6, const struct icmp6hdr *icp, uint32_t
  *	new information quickly.
  */
 int
-ndisc_send_unsolicited_na(ip_address_t *ipaddress)
+ndisc_send_unsolicited_na(ip_address_t *ipaddress, int router)
 {
 	struct ether_header *eth = (struct ether_header *) ndisc_buffer;
 	struct ip6hdr *ip6h = (struct ip6hdr *) ((char *)eth + ETHER_HDR_LEN);
@@ -148,7 +148,7 @@ ndisc_send_unsolicited_na(ip_address_t *ipaddress)
 
 	/* ICMPv6 Header */
 	icmp6h->icmp6_type = NDISC_NEIGHBOUR_ADVERTISEMENT;
-	icmp6h->icmp6_router = 1;
+	icmp6h->icmp6_router = router;
 
 	/* Override flag is set to indicate that the advertisement
 	 * should override an existing cache entry and update the
