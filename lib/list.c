@@ -152,15 +152,15 @@ free_list(list l)
 void
 free_list_element(list l, element e)
 {
-	if (!e)
+	if (!l || !e)
 		return;
 	if (l->head == e)
-		l->head = (e->next == e) ? NULL : e->next;
-	if (l->tail == e)
-		l->tail = (e->prev == e) ? NULL : e->prev;
-	if (e->prev)
+		l->head = e->next;
+	else
 		e->prev->next = e->next;
-	if (e->next)
+	if (l->tail == e)
+		l->tail = e->prev;
+	else
 		e->next->prev = e->prev;
 	if (l->free)
 		(*l->free) (e->data);
