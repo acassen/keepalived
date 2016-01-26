@@ -43,6 +43,7 @@ list_add(list l, void *data)
 	element e = alloc_element();
 
 	e->prev = l->tail;
+	/* e->next = NULL;	// MALLOC sets this NULL */
 	e->data = data;
 
 	if (l->head == NULL)
@@ -84,9 +85,13 @@ list_element(list l, int num)
 	int i = 0;
 
 	/* fetch element number num */
-	for (i = 0; i < num; i++)
-		if (e)
-			ELEMENT_NEXT(e);
+	for (i = 0; i < num; i++) {
+		if (!e)
+			return NULL;
+
+		ELEMENT_NEXT(e);
+	}
+
 	if (e)
 		return ELEMENT_DATA(e);
 	return NULL;
