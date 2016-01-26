@@ -1674,7 +1674,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				if (!strcmp(vrrp_o->vmac_ifname, ifname))
 					break;
 			}
-
 			/* If there is no VMAC with the name and no existing
 			 * interface with the name, we can use it */
 			if (!e && !if_get_by_ifname(ifname))
@@ -1691,6 +1690,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			}
 			else
 				num++;
+
 			snprintf(ifname, IFNAMSIZ, "vrrp%d.%d", num, vrrp->vrid);
 		}
 
@@ -1784,6 +1784,7 @@ vrrp_complete_init(void)
 	vrrp_sgroup_t *sgroup;
 	list l_o;
 	element e_o;
+	element next;
 	vrrp_t *vrrp_o;
 	unsigned int ifindex;
 	unsigned int ifindex_o;
@@ -1827,11 +1828,14 @@ vrrp_complete_init(void)
 		}
 	}
 
-	/* Build synchronization group index */
-	l = vrrp_data->vrrp_sync_group;
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+	/* Build synchronization group index, and remove any
+	 * empty groups, or groups with only one member */
+	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; e = next) {
+		next = e->next;
 		sgroup = ELEMENT_DATA(e);
 		vrrp_sync_set_group(sgroup);
+		if (LIST_ISEMPTY(sgroup->index_list) || LIST_SIZE(sgroup->index_list) <= 1)
+			free_list_element(vrrp_data->vrrp_sync_group, e);
 	}
 
 	return 1;
