@@ -208,7 +208,7 @@ which will transition together on any state change.
     interface eth0
 
     # Use VRRP Virtual MAC.
-    use_vmac <VMAC_INTERFACE>
+    use_vmac [<VMAC_INTERFACE>]
 
     # Send/Recv VRRP messages from base interface instead of
     # VMAC interface
@@ -315,7 +315,7 @@ which will transition together on any state change.
     }
     # routes add|del when changing to MASTER, to BACKUP
     virtual_routes {
-        # src <IPADDR> [to] <IPADDR>/<MASK> via|gw <IPADDR> [or <IPADDR>] dev <STRING> scope <SCOPE> tab
+        # src <IPADDR> [to] <IPADDR>/<MASK> via|gw <IPADDR> [or <IPADDR>] dev <STRING> scope <SCOPE> table <TABLE>
         src 192.168.100.1 to 192.168.109.0/24 via 192.168.200.254 dev eth1
         192.168.110.0/24 via 192.168.200.254 dev eth1
         192.168.111.0/24 dev eth2
@@ -372,7 +372,7 @@ which will transition together on any state change.
     notify_master <STRING>|<QUOTED-STRING>
     notify_backup <STRING>|<QUOTED-STRING>
     notify_fault <STRING>|<QUOTED-STRING>
-    notify_stop <STRING>|<QUOTED_STRING>	# run when stopping vrrp
+    notify_stop <STRING>|<QUOTED-STRING>	# run when stopping vrrp
     notify <STRING>|<QUOTED-STRING>
     smtp_alert
  }
