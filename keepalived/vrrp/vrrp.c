@@ -1646,6 +1646,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (!chk_min_cfg(vrrp))
 		return 0;
 
+	/* If the addresses are IPv6, then the first one must be link local */
+	if (vrrp->family == AF_INET6 && LIST_ISEMPTY(vrrp->unicast_peer) &&
+		  !IN6_IS_ADDR_LINKLOCAL(&((ip_address_t *)LIST_HEAD(vrrp->vip)->data)->u.sin6_addr)) {
+		log_message(LOG_INFO, "(%s): the first IPv6 VIP address must be link local", vrrp->iname);
+	}
+
 	if (vrrp->base_priority == 0) {
 		if (vrrp->init_state == VRRP_STATE_MAST)
 			vrrp->base_priority = VRRP_PRIO_OWNER;
