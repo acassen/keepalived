@@ -291,13 +291,13 @@ void
 dump_if(void *data)
 {
 	interface_t *ifp = data;
-	char addr_str[41];
+	char addr_str[INET6_ADDRSTRLEN];
 
 	log_message(LOG_INFO, "------< NIC >------");
 	log_message(LOG_INFO, " Name = %s", ifp->ifname);
 	log_message(LOG_INFO, " index = %d", ifp->ifindex);
 	log_message(LOG_INFO, " IPv4 address = %s", inet_ntop2(ifp->sin_addr.s_addr));
-	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, 41);
+	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 	log_message(LOG_INFO, " IPv6 address = %s", addr_str);
 
 	/* FIXME: Harcoded for ethernet */

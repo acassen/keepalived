@@ -517,14 +517,14 @@ clear_diff_address(list l, list n)
 		return;
 	}
 
-	addr_str = (char *) MALLOC(41);
+	addr_str = (char *) MALLOC(INET6_ADDRSTRLEN);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		ipaddr = ELEMENT_DATA(e);
 
 		if (!address_exist(n, ipaddr) && ipaddr->set) {
 			addr = (IP_IS6(ipaddr)) ? (void *) &ipaddr->u.sin6_addr :
 						  (void *) &ipaddr->u.sin.sin_addr;
-			inet_ntop(IP_FAMILY(ipaddr), addr, addr_str, 41);
+			inet_ntop(IP_FAMILY(ipaddr), addr, addr_str, INET6_ADDRSTRLEN);
 
 			log_message(LOG_INFO, "ip address %s/%d dev %s, no longer exist"
 					    , addr_str

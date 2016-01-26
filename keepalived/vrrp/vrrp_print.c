@@ -349,7 +349,7 @@ if_print(FILE *file, void * data)
 	fprintf(file, " index = %d\n", ifp->ifindex);
 	fprintf(file, " IPv4 address = %s\n",
 		inet_ntop2(ifp->sin_addr.s_addr));
-	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, 41);
+	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 	fprintf(file, " IPv6 address = %s\n", addr_str);
 
 	/* FIXME: Harcoded for ethernet */

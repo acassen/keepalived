@@ -1035,7 +1035,7 @@ static void
 vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, int idx)
 {
 	char *msg;
-	char addr_str[41];
+	char addr_str[INET6_ADDRSTRLEN];
 	bool router;
 
 	if (!IP_IS6(ipaddress)) {
