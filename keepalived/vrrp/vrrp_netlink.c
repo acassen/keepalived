@@ -300,15 +300,15 @@ parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, int len)
 char *
 netlink_scope_n2a(int scope)
 {
-	if (scope == 0)
+	if (scope == RT_SCOPE_UNIVERSE)
 		return "global";
-	if (scope == 255)
+	if (scope == RT_SCOPE_NOWHERE)
 		return "nowhere";
-	if (scope == 254)
+	if (scope == RT_SCOPE_HOST)
 		return "host";
-	if (scope == 253)
+	if (scope == RT_SCOPE_LINK)
 		return "link";
-	if (scope == 200)
+	if (scope == RT_SCOPE_SITE)
 		return "site";
 	return "unknown";
 }
@@ -317,15 +317,15 @@ int
 netlink_scope_a2n(char *scope)
 {
 	if (!strcmp(scope, "global"))
-		return 0;
+		return RT_SCOPE_UNIVERSE;
 	if (!strcmp(scope, "nowhere"))
-		return 255;
+		return RT_SCOPE_NOWHERE;
 	if (!strcmp(scope, "host"))
-		return 254;
+		return RT_SCOPE_HOST;
 	if (!strcmp(scope, "link"))
-		return 253;
+		return RT_SCOPE_LINK;
 	if (!strcmp(scope, "site"))
-		return 200;
+		return RT_SCOPE_SITE;
 	return -1;
 }
 
