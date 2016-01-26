@@ -333,12 +333,6 @@ which will transition together on any state change.
 
     accept	# Allow the non-master owner to process the packets destined to VIP
 
-    # rules add|del when changing to MASTER, to BACKUP
-    static_rules {
-        from 192.168.2.0/24 table 1
-        to 192.168.2.0/24 table 1
-    }
-
     # VRRP will normally preempt a lower priority
     # machine when a higher priority machine comes
     # online.  "nopreempt" allows the lower priority
