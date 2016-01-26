@@ -112,7 +112,33 @@ vrrp_gglobal_tracking_handler(vector_t *strvec)
 static void
 vrrp_handler(vector_t *strvec)
 {
-	alloc_vrrp(vector_slot(strvec, 1));
+	list l;
+	element e;
+	vrrp_t *vrrp;
+	char *iname;
+
+	if (vector_count(strvec) != 2) {
+		log_message(LOG_INFO, "vrrp_instance must have a name");
+		skip_block();
+		return;
+	}
+
+	iname = vector_slot(strvec,1);
+
+	/* Make sure the vrrp instance doesn't already exist */
+	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
+		l = vrrp_data->vrrp;
+		for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+			vrrp = ELEMENT_DATA(e);
+			if (!strcmp(iname,vrrp->iname)) {
+				log_message(LOG_INFO, "vrrp instance %s already defined", iname );
+				skip_block();
+				return;
+			}
+		}
+	}
+
+	alloc_vrrp(iname);
 }
 static void
 vrrp_vmac_handler(vector_t *strvec)
