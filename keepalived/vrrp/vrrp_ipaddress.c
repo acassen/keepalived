@@ -291,7 +291,8 @@ parse_ipaddress(ip_address_t *ip_address, char *str)
 			       (void *) &new->u.sin.sin_addr;
 	if (!inet_pton(IP_FAMILY(new), str, addr)) {
 		log_message(LOG_INFO, "VRRP parsed invalid IP %s. skipping IP...", str);
-		FREE(new);
+		if (!ip_address)
+			FREE(new);
 		new = NULL;
 	}
 
@@ -362,8 +363,10 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			new->label = MALLOC(IFNAMSIZ);
 			strncpy(new->label, vector_slot(strvec, ++i), IFNAMSIZ);
 		} else {
-			if (!parse_ipaddress(new, str))
+			if (!parse_ipaddress(new, str)) {
+				FREE(new);
 				return;
+			}
 
 			addr_idx  = i;
 		}
