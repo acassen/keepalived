@@ -29,6 +29,8 @@
 #include "vrrp_iprule.h"
 #include "vrrp_netlink.h"
 
+#include <time.h>
+
 void
 vrrp_print_list(FILE *file, list l, void (*fptr)(FILE*, void*))
 {
@@ -101,6 +103,8 @@ vrrp_print(FILE *file, void *data)
 {
 	vrrp_t *vrrp = data;
 	char auth_data[sizeof(vrrp->auth_data) + 1];
+	char time_str[26];
+
 	fprintf(file, " VRRP Instance = %s\n", vrrp->iname);
 	fprintf(file, " VRRP Version = %d\n", vrrp->version);
 	if (vrrp->family == AF_INET6)
@@ -118,8 +122,10 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   State = MASTER\n");
 	else
 		fprintf(file, "   State = %d\n", vrrp->state);
-	fprintf(file, "   Last transition = %ld\n",
-		vrrp->last_transition.tv_sec);
+	ctime_r(&vrrp->last_transition.tv_sec, time_str);
+	time_str[sizeof(time_str)-2] = '\0';	/* Remove '\n' char */
+	fprintf(file, "   Last transition = %ld (%s)\n",
+		vrrp->last_transition.tv_sec, time_str);
 	fprintf(file, "   Listening device = %s\n", IF_NAME(vrrp->ifp));
 	if (vrrp->dont_track_primary)
 		fprintf(file, "   VRRP interface tracking disabled\n");
