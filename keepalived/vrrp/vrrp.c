@@ -1680,6 +1680,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
+	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
+	    !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
+		log_message(LOG_INFO, "(%s): vmac_xmit_base is only valid with a vmac", vrrp->iname);
+		__clear_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
+	}
+
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 	{
 		/* We need to know if we need to allow IPv6 just for eVIPs */
