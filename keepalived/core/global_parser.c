@@ -68,7 +68,7 @@ smtpserver_handler(vector_t *strvec)
 static void
 email_handler(vector_t *strvec)
 {
-	vector_t *email_vec = read_value_block();
+	vector_t *email_vec = read_value_block(strvec);
 	int i;
 	char *str;
 

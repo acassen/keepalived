@@ -36,6 +36,7 @@
 
 /* Global definitions */
 #define CONF "/etc/keepalived/keepalived.conf"
+#define BOB  "{"
 #define EOB  "}"
 #define MAXBUF	1024
 
@@ -69,11 +70,10 @@ extern void dump_keywords(vector_t *, int);
 extern void free_keywords(vector_t *);
 extern vector_t *alloc_strvec(char *);
 extern int read_line(char *, int);
-extern vector_t *read_value_block(void);
+extern vector_t *read_value_block(vector_t *);
 extern void alloc_value_block(vector_t *, void (*alloc_func) (vector_t *));
 extern void *set_value(vector_t *);
 extern void skip_block(void);
-extern void process_stream(vector_t *);
 extern void init_data(char *, vector_t * (*init_keywords) (void));
 
 #endif
