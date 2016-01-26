@@ -443,6 +443,8 @@ vrrp_auth_type_handler(vector_t *strvec)
 		vrrp->auth_type = VRRP_AUTH_AH;
 	else if (!strcmp(str, "PASS"))
 		vrrp->auth_type = VRRP_AUTH_PASS;
+	else
+		log_message(LOG_INFO, "(%s): unknown authentication type '%s'", vrrp->iname, str);
 }
 static void
 vrrp_auth_pass_handler(vector_t *strvec)
