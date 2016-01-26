@@ -141,6 +141,7 @@ free_list(list l)
 		return;
 	free_element(l);
 	FREE(l);
+	l = NULL;
 }
 
 void
