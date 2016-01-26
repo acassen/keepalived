@@ -1603,6 +1603,16 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	element e;
 	ip_address_t *vip;
 
+	if (vrrp->accept) {
+		if (vrrp->version == VRRP_VERSION_2)
+		{
+			log_message(LOG_INFO,"(%s): cannot set accept mode for VRRP version 2", vrrp->iname);
+			vrrp->accept = false;
+		}
+		else
+			vrrp->version = VRRP_VERSION_3;
+	}
+
 	if (vrrp->version == 0) {
 		if (vrrp->family == AF_INET6)
 			vrrp->version = VRRP_VERSION_3;
