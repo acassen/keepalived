@@ -61,7 +61,33 @@ static_rules_handler(vector_t *strvec)
 static void
 vrrp_sync_group_handler(vector_t *strvec)
 {
-	alloc_vrrp_sync_group(vector_slot(strvec, 1));
+	list l;
+	element e;
+	vrrp_sgroup_t *sg;
+	char* gname;
+
+	if (vector_count(strvec) != 2) {
+		log_message(LOG_INFO, "vrrp_sync_group must have a name - skipping");
+		skip_block();
+		return;
+	}
+
+	gname = vector_slot(strvec, 1);
+
+	/* check group doesn't already exist */
+	if (!LIST_ISEMPTY(vrrp_data->vrrp_sync_group)) {
+		l = vrrp_data->vrrp_sync_group;
+		for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+			sg = ELEMENT_DATA(e);
+			if (!strcmp(gname,sg->gname)) {
+				log_message(LOG_INFO, "vrrp sync group %s already defined", gname);
+				skip_block();
+				return;
+			}
+		}
+	}
+
+	alloc_vrrp_sync_group(gname);
 }
 static void
 vrrp_group_handler(vector_t *strvec)
