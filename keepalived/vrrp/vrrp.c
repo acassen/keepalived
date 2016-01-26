@@ -1613,6 +1613,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vrrp->version = VRRP_VERSION_3;
 	}
 
+	if (LIST_ISEMPTY(vrrp->vip) && (vrrp->version == VRRP_VERSION_3 || vrrp->family == AF_INET6)) {
+		log_message(LOG_INFO, "(%s): No VIP specified; at least one is required", vrrp->iname);
+		return 0;
+	}
+
 	if (vrrp->version == 0) {
 		if (vrrp->family == AF_INET6)
 			vrrp->version = VRRP_VERSION_3;
