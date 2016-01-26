@@ -30,6 +30,9 @@
 #include "bitops.h"
 #include "global_data.h"
 
+
+#define INFINITY_LIFE_TIME      0xFFFFFFFF
+
 /* Add/Delete IP address to a specific interface_t */
 static int
 netlink_ipaddress(ip_address_t *ipaddress, int cmd)
@@ -57,7 +60,7 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		if (ipaddress->ifa.ifa_prefixlen == 128) {
 			memset(&cinfo, 0, sizeof(cinfo));
 			cinfo.ifa_prefered = 0;
-			cinfo.ifa_valid = 0xFFFFFFFFU;
+			cinfo.ifa_valid = INFINITY_LIFE_TIME;
 
 			addr_str = ipaddresstos(ipaddress);
 			log_message(LOG_INFO, "%s has a prefix length of 128, setting "
@@ -160,6 +163,35 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 	if (fork_exec(argv) < 0)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to accept NAs sent"
 				     "to vip %s\n", (cmd) ? "set" : "remove",
+				     ipaddresstos(ipaddress));
+
+	argv[10] = "135";
+
+	if (fork_exec(argv) < 0)
+		log_message(LOG_ERR, "Failed to %s ip6table rule to accept NSs sent"
+				     "to vip %s\n", (cmd) ? "set" : "remove",
+				     ipaddresstos(ipaddress));
+
+	if (global_data->vrrp_iptables_outchain[0] == '\0')
+		return;
+
+	argv[2] = global_data->vrrp_iptables_outchain;
+	argv[3] = "-o";
+	argv[5] = "-s";
+
+	/* Allow NSs to be sent - this should only happen if the underlying interface
+	   doesn't have an IPv6 address */
+	if (fork_exec(argv) < 0)
+		log_message(LOG_ERR, "Failed to %s ip6table rule to allow NSs to be"
+				     "sent from vip %s\n", (cmd) ? "set" : "remove",
+				     ipaddresstos(ipaddress));
+
+	argv[10] = "136";
+
+	/* Allow NAs to be sent in reply to an NS */
+	if (fork_exec(argv) < 0)
+		log_message(LOG_ERR, "Failed to %s ip6table rule to allow NAs to be"
+				     "sent from vip %s\n", (cmd) ? "set" : "remove",
 				     ipaddresstos(ipaddress));
 }
 
