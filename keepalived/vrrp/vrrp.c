@@ -357,7 +357,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, int buflen)
 			 */
 			if (hd->naddr != LIST_SIZE(vrrp->vip)) {
 				log_message(LOG_INFO,
-				       "receive an invalid ip number count associated with VRID!");
+				       "(%s): received an invalid ip number count associated with VRID!", vrrp->iname);
 				++vrrp->stats->addr_list_err;
 				return VRRP_PACKET_KO;
 			}
@@ -365,12 +365,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, int buflen)
 			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 				ipaddress = ELEMENT_DATA(e);
 				if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
-					log_message(LOG_INFO, "ip address associated with VRID"
-					       " not present in received packet : %s",
+					log_message(LOG_INFO, "(%s): ip address associated with VRID %d"
+					       " not present in MASTER advert : %s",
+					       vrrp->iname, vrrp->vrid,
 					       inet_ntop2(ipaddress->u.sin.sin_addr.s_addr));
-					log_message(LOG_INFO,
-					       "one or more VIP associated with"
-					       " VRID mismatch actual MASTER advert");
 					++vrrp->stats->addr_list_err;
 					return VRRP_PACKET_KO;
 				}
@@ -382,7 +380,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, int buflen)
 			char *pw = (char *) ip + ntohs(ip->tot_len)
 			    - sizeof (vrrp->auth_data);
 			if (memcmp(pw, vrrp->auth_data, sizeof(vrrp->auth_data)) != 0) {
-				log_message(LOG_INFO, "receive an invalid passwd!");
+				log_message(LOG_INFO, "(%s): received an invalid passwd!", vrrp->iname);
 				++vrrp->stats->auth_failure;
 				return VRRP_PACKET_KO;
 			}
@@ -459,12 +457,11 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, int buflen)
 			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 				ipaddress = ELEMENT_DATA(e);
 				if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
-					log_message(LOG_INFO, "ip address associated with VRID "
-						    " not present in received packet : %s",
+					log_message(LOG_INFO, "(%s) ip address associated with VRID %d"
+						    " not present in MASTER advert : %s",
+						    vrrp->iname, vrrp->vrid,
 						    inet_ntop(AF_INET6, &ipaddress->u.sin6_addr,
 						    addr_str, sizeof(addr_str)));
-					log_message(LOG_INFO, "one or more VIP associated with"
-						    " VRID mismatch actual MASTER advert");
 					++vrrp->stats->addr_list_err;
 					return VRRP_PACKET_KO;
 				}
