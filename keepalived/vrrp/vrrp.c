@@ -85,17 +85,17 @@ vrrp_handle_iprules(vrrp_t * vrrp, int cmd)
 
 /* add/remove iptable drop rules based on accept mode */
 static void
-vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd)
+vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, int type)
 {
 	if ((vrrp->version == VRRP_VERSION_3) &&
 	    (vrrp->base_priority != VRRP_PRIO_OWNER) &&
 	    !vrrp->accept) {
 		if (debug & 32)
-			log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol %s", vrrp->iname,
-				(cmd == IPADDRESS_ADD) ? "setting" : "removing", " iptable drop rule to VIP");
+			log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol %s %s", vrrp->iname,
+				(cmd == IPADDRESS_ADD) ? "setting" : "removing", "iptable drop rule to", (type == VRRP_VIP_TYPE) ? "VIP" : "E-VIP");
 
 		/* As accept is false, add iptable rule to drop packets destinated to VIP */
-		handle_iptable_rule_to_iplist(vrrp->vip, cmd, IF_NAME(vrrp->ifp));
+		handle_iptable_rule_to_iplist((type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip, cmd, IF_NAME(vrrp->ifp));
 		vrrp->iptable_rules_set = (cmd == IPADDRESS_ADD) ? true : false;
 	}
 }
@@ -1042,10 +1042,12 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	/* add the ip addresses */
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
-		vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD);
+		vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
 	}
-	if (!LIST_ISEMPTY(vrrp->evip))
+	if (!LIST_ISEMPTY(vrrp->evip)) {
 		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
+		vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
+	}
 	vrrp->vipset = 1;
 
 	/* add virtual routes */
@@ -1143,10 +1145,12 @@ vrrp_restore_interface(vrrp_t * vrrp, int advF)
 	    __test_bit(RELEASE_VIPS_BIT, &debug)) {
 		if (!LIST_ISEMPTY(vrrp->vip)) {
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL, VRRP_VIP_TYPE);
-			vrrp_handle_accept_mode(vrrp, IPADDRESS_DEL);
+			vrrp_handle_accept_mode(vrrp, IPADDRESS_DEL, VRRP_VIP_TYPE);
 		}
-		if (!LIST_ISEMPTY(vrrp->evip))
+		if (!LIST_ISEMPTY(vrrp->evip)) {
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL, VRRP_EVIP_TYPE);
+			vrrp_handle_accept_mode(vrrp, IPADDRESS_DEL, VRRP_EVIP_TYPE);
+		}
 		vrrp->vipset = 0;
 	}
 
@@ -1701,7 +1705,7 @@ clear_diff_vrrp_vip(vrrp_t * old_vrrp, int type)
 	clear_diff_address(l, n);
 
 	/* Clear iptable rule to VIP if needed. */
-	if ((type == VRRP_VIP_TYPE) && !LIST_ISEMPTY(n) && old_vrrp->iptable_rules_set) {
+	if (!LIST_ISEMPTY(n) && old_vrrp->iptable_rules_set) {
 		if ((vrrp->version == VRRP_VERSION_2) || vrrp->accept ||
 		    (vrrp->base_priority == VRRP_PRIO_OWNER)) {
 			handle_iptable_rule_to_iplist(n, IPADDRESS_DEL, IF_NAME(vrrp->ifp));
@@ -1761,10 +1765,12 @@ reset_vrrp_state(vrrp_t * old_vrrp)
 	if (vrrp->vipset) {
 		if (!LIST_ISEMPTY(vrrp->vip)) {
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
-			vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD);
+			vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
 		}
-		if (!LIST_ISEMPTY(vrrp->evip))
+		if (!LIST_ISEMPTY(vrrp->evip)) {
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
+			vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
+		}
 		if (!LIST_ISEMPTY(vrrp->vroutes))
 			vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
 		if (!LIST_ISEMPTY(vrrp->vrules))
