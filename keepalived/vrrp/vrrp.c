@@ -1603,6 +1603,21 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	element e;
 	ip_address_t *vip;
 
+	if (vrrp->version == 0) {
+		if (vrrp->family == AF_INET6)
+			vrrp->version = VRRP_VERSION_3;
+		else
+			vrrp->version = global_data->vrrp_version;
+	}
+
+	if (vrrp->version == VRRP_VERSION_3 && vrrp->auth_type != VRRP_AUTH_NONE) {
+		log_message(LOG_INFO, "(%s): VRRP version 3 does not support authentication. Ignoring.", vrrp->iname);
+		vrrp->auth_type = VRRP_AUTH_NONE;
+	}
+
+	if (!chk_min_cfg(vrrp))
+		return 0;
+
 	vrrp->state = VRRP_STATE_INIT;
 	if (!vrrp->adver_int)
 		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
@@ -1610,8 +1625,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (!vrrp->effective_priority)
 		vrrp->effective_priority = VRRP_PRIO_DFL;
 
-	if (!vrrp->version)
-		vrrp->version = VRRP_VERSION_2;
+	/* Set a default interface name for the vmac if needed */
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && !vrrp->vmac_ifname[0])
+		snprintf(vrrp->vmac_ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
 
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 	{
@@ -1625,9 +1641,34 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				}
 			}
 		}
+
+		/* Create the interface */
+		netlink_link_add_vmac(vrrp);
+
+		/* set scopeid of source address if IPv6 */
+		if (vrrp->saddr.ss_family == AF_INET6)
+			inet_ip6scopeid(vrrp->vmac_ifindex, &vrrp->saddr);
 	}
 
-	return (chk_min_cfg(vrrp));
+	/* Spin through all our addresses, setting ifindex and ifp */
+	for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
+		vip = ELEMENT_DATA(e);
+		if (!vip->ifa.ifa_index) {
+			vip->ifa.ifa_index = vrrp->ifp->ifindex;
+			vip->ifp = vrrp->ifp;
+		}
+	}
+	if (!LIST_ISEMPTY(vrrp->evip)) {
+		for (e = LIST_HEAD(vrrp->evip); e; ELEMENT_NEXT(e)) {
+			vip = ELEMENT_DATA(e);
+			if (!vip->ifa.ifa_index) {
+				vip->ifa.ifa_index = vrrp->ifp->ifindex;
+				vip->ifp = vrrp->ifp;
+			}
+		}
+	}
+
+	return 1;
 }
 
 int

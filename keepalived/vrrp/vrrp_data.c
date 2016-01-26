@@ -357,16 +357,17 @@ alloc_vrrp(char *iname)
 	new->ipsecah_counter = counter;
 
 	/* Set default values */
-	new->family = AF_INET;
+	new->family = AF_UNSPEC;
+	new->saddr.ss_family = AF_UNSPEC;
 	new->wantstate = VRRP_STATE_BACK;
 	new->init_state = VRRP_STATE_BACK;
-	new->version = global_data->vrrp_version;
+	new->version = 0;
 	new->master_priority = 0;
 	new->last_transition = timer_now();
-	new->adver_int = TIMER_HZ;
+	new->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
 	new->iname = (char *) MALLOC(size + 1);
-	new->stats = alloc_vrrp_stats();
 	memcpy(new->iname, iname, size);
+	new->stats = alloc_vrrp_stats();
 	new->quick_sync = 0;
 	new->garp_rep = global_data->vrrp_garp_rep;
 	new->garp_refresh_rep = global_data->vrrp_garp_refresh_rep;
@@ -419,7 +420,9 @@ alloc_vrrp_unicast_peer(vector_t *strvec)
 		return;
 	}
 
-	if (peer->ss_family != vrrp->family) {
+	if (!vrrp->family)
+		vrrp->family = peer->ss_family;
+	else if (peer->ss_family != vrrp->family) {
 		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] and unicast peer address"
 				     "[%s] MUST be of the same family !!! Skipping..."
 				   , vrrp->iname, FMT_STR_VSLOT(strvec, 0));
@@ -454,9 +457,6 @@ void
 alloc_vrrp_vip(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	if (vrrp->ifp == NULL) {
-		log_message(LOG_ERR, "Configuration error: VRRP definition must belong to an interface");
-	}
 
 	if (!LIST_EXISTS(vrrp->vip))
 		vrrp->vip = alloc_list(free_ipaddress, dump_ipaddress);
