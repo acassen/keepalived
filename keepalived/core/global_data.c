@@ -93,6 +93,7 @@ set_vrrp_defaults(data_t * data)
 	data->vrrp_garp_delay = VRRP_GARP_DELAY;
 	data->vrrp_version = VRRP_VERSION_2;
 	strcpy(data->vrrp_iptables_inchain, "INPUT");
+	data->vrrp_check_unicast_src = 0;
 }
 
 /* email facility functions */
@@ -204,6 +205,7 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO," Iptables input chain = %s", data->vrrp_iptables_inchain);
 	if (data->vrrp_iptables_outchain[0])
 		log_message(LOG_INFO," Iptables output chain = %s", data->vrrp_iptables_outchain);
+	log_message(LOG_INFO, " VRRP check unicast_src = %d", data->vrrp_check_unicast_src);
 #ifdef _WITH_SNMP_
 	if (data->enable_traps)
 		log_message(LOG_INFO, " SNMP Trap enabled");

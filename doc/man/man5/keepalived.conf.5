@@ -77,6 +77,10 @@ and
  # or not to add any iptables rules:
  vrrp_iptables
 
+ # The following enables checking that when in unicast mode, the source
+ # address of a VRRP packet is one of our unicast peers
+ vrrp_check_unicast_src
+
  enable_traps                 # enable SNMP traps
  }
 

@@ -65,6 +65,7 @@ typedef struct _data {
 	int				vrrp_version;            /* VRRP version (2 or 3) */
 	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];
 	char				vrrp_iptables_outchain[XT_EXTENSION_MAXNAMELEN];
+	char				vrrp_check_unicast_src;
 #ifdef _WITH_SNMP_
 	int				enable_traps;
 #endif

@@ -158,6 +158,11 @@ vrrp_version_handler(vector_t *strvec)
 	}
 	global_data->vrrp_version = version;
 }
+static void
+vrrp_check_unicast_src_handler(vector_t *strvec)
+{
+	global_data->vrrp_check_unicast_src = 1;
+}
 #ifdef _WITH_SNMP_
 static void
 trap_handler(vector_t *strvec)
@@ -185,6 +190,7 @@ global_init_keywords(void)
 	install_keyword("vrrp_garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
 	install_keyword("vrrp_version", &vrrp_version_handler);
 	install_keyword("vrrp_iptables", &vrrp_iptables_handler);
+	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler);
 #ifdef _WITH_SNMP_
 	install_keyword("enable_traps", &trap_handler);
 #endif

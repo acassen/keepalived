@@ -281,6 +281,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, int buflen)
 	ipv4_phdr_t ipv4_phdr;
 	int acc_csum = 0;
 	ip = NULL;
+	struct sockaddr_storage *up_addr;
 
 	/* IPv4 related */
 	if (vrrp->family == AF_INET) {
@@ -398,6 +399,20 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, int buflen)
 			if (vrrp_in_chk_ipsecah(vrrp, buffer))
 				return VRRP_PACKET_KO;
 		}
+
+		// check a unicast source address is in the unicast_peer list
+		if (global_data->vrrp_check_unicast_src && !LIST_ISEMPTY(vrrp->unicast_peer)) {
+			for (e = LIST_HEAD(vrrp->unicast_peer); e; ELEMENT_NEXT(e)) {
+				up_addr = ELEMENT_DATA(e);
+				if (((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr.s_addr == ((struct sockaddr_in *)up_addr)->sin_addr.s_addr)
+					break;
+			}
+			if (!e) {
+				log_message(LOG_INFO, "(%s): unicast source address %s not a unicast peer",
+					vrrp->iname, inet_ntop2(((struct sockaddr_in*)&vrrp->pkt_saddr)->sin_addr.s_addr));
+				return VRRP_PACKET_KO;
+			}
+		}
 	} else if (vrrp->family == AF_INET6) { /* IPv6 related */
 
 		/*
@@ -459,6 +474,21 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, int buflen)
 					++vrrp->stats->addr_list_err;
 					return VRRP_PACKET_KO;
 				}
+			}
+		}
+
+		/* check a unicast source address is in the unicast_peer list */
+		if (global_data->vrrp_check_unicast_src && !LIST_ISEMPTY(vrrp->unicast_peer)) {
+			for (e = LIST_HEAD(vrrp->unicast_peer); e; ELEMENT_NEXT(e)) {
+				up_addr = ELEMENT_DATA(e);
+				if (IN6_ARE_ADDR_EQUAL(&((struct sockaddr_in6 *)&vrrp->pkt_saddr)->sin6_addr, &((struct sockaddr_in6 *)up_addr)->sin6_addr))
+					break;
+			}
+			if (!e) {
+				log_message(LOG_INFO, "(%s): unicast source address %s not a unicast peer",
+					vrrp->iname, inet_ntop(AF_INET6, &((struct sockaddr_in6 *)&vrrp->pkt_saddr)->sin6_addr,
+						    addr_str, sizeof(addr_str)));
+				return VRRP_PACKET_KO;
 			}
 		}
 	} else {

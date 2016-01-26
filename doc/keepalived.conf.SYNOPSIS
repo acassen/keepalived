@@ -48,6 +48,8 @@ global_defs {				# Block identification
     vrrp_iptables [keepalived_in [keepalived_out]]     # default INPUT
 					   # Specifies the iptables chains to add entries to
 					   # If no table names are specied, no entries are added
+    vrrp_check_unicast_src		   # Check source address of a unicast packet is a
+					   # unicast peer
 }
 
 linkbeat_use_polling	# Use media link failure detection polling fashion
