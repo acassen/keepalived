@@ -237,21 +237,15 @@ static int
 vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
 {
 	int i;
-	struct in_addr ipbuf;
-	struct in6_addr ip6buf;
 
 	if (vrrp->family == AF_INET) {
 		for (i = 0; i < LIST_SIZE(vrrp->vip); i++) {
-			bcopy(buffer + i * sizeof(struct in_addr), &ipbuf,
-			      sizeof(struct in_addr));
-			if (ipaddress->u.sin.sin_addr.s_addr == ipbuf.s_addr)
+			if (!memcmp(&ipaddress->u.sin.sin_addr.s_addr, buffer + i * sizeof(struct in_addr), sizeof (struct in_addr)))
 				return 1;
 		}
 	} else if (vrrp->family == AF_INET6) {
 		for (i = 0; i < LIST_SIZE(vrrp->vip); i++) {
-			bcopy(buffer + i * sizeof(struct in6_addr), &ip6buf,
-			      sizeof(struct in6_addr));
-			if (IN6_ARE_ADDR_EQUAL(&ipaddress->u.sin6_addr, &ip6buf))
+			if (!memcmp(&ipaddress->u.sin6_addr, buffer + i * sizeof(struct in6_addr), sizeof (struct in6_addr)))
 				return 1;
 		}
 	}
