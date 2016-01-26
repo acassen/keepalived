@@ -376,6 +376,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	interface_t *ifp_local;
 	char *str;
 	int i = 0, addr_idx =0;
+	int param_avail;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 
@@ -384,17 +385,23 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		str = vector_slot(strvec, i);
 
 		/* cmd parsing */
+		param_avail = (vector_size(strvec) >= i+2);
 		if (!strcmp(str, "dev")) {
 			if (new->ifp) {
 				log_message(LOG_INFO, "Cannot specify static ipaddress device more than once for %s", FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
 				return;
 			}
+			if (!param_avail) {
+				log_message(LOG_INFO, "No device specified for %s", FMT_STR_VSLOT(strvec, addr_idx));
+				break;
+			}
 			ifp_local = if_get_by_ifname(vector_slot(strvec, ++i));
 			if (!ifp_local) {
-				log_message(LOG_INFO, "VRRP is trying to assign VIP to unknown %s"
+				log_message(LOG_INFO, "VRRP is trying to assign ip address %s to unknown %s"
 				       " interface !!! go out and fix your conf !!!",
-				       (char *)vector_slot(strvec, i));
+				       FMT_STR_VSLOT(strvec, addr_idx),
+				       FMT_STR_VSLOT(strvec, i));
 				FREE(new);
 				return;
 			}
@@ -403,6 +410,10 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		} else if (!strcmp(str, "scope")) {
 			new->ifa.ifa_scope = netlink_scope_a2n(vector_slot(strvec, ++i));
 		} else if (!strcmp(str, "broadcast") || !strcmp(str, "brd")) {
+			if (!param_avail) {
+				log_message(LOG_INFO, "No broadcast address specified for %s", FMT_STR_VSLOT(strvec, addr_idx));
+				break;
+			}
 			if (IP_IS6(new)) {
 				log_message(LOG_INFO, "VRRP is trying to assign a broadcast %s to the IPv6 address %s !!?? "
 						      "WTF... skipping VIP..."
@@ -416,6 +427,10 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 				return;
 			}
 		} else if (!strcmp(str, "label")) {
+			if (!param_avail) {
+				log_message(LOG_INFO, "No label specified for %s", FMT_STR_VSLOT(strvec, addr_idx));
+				break;
+			}
 			new->label = MALLOC(IFNAMSIZ);
 			strncpy(new->label, vector_slot(strvec, ++i), IFNAMSIZ);
 		} else {
