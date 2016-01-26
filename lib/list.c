@@ -191,7 +191,7 @@ dump_mlist(list l, int size)
 	}
 }
 
-void
+static void
 free_melement(list l, void (*free_func) (void *))
 {
 	element e;
