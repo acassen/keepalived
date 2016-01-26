@@ -266,10 +266,11 @@ vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
  * 	  VRRP_PACKET_DROP if packet not relevant to us
  */
 static int
-vrrp_in_chk(vrrp_t * vrrp, char *buffer)
+vrrp_in_chk(vrrp_t * vrrp, char *buffer, int buflen)
 {
 	struct iphdr *ip;
-	int ihl, vrrphdr_len;
+	int ihl;
+	size_t vrrphdr_len;
 	int adver_int = 0;
 	ipsec_ah_t *ah;
 	vrrphdr_t *hd;
@@ -285,19 +286,29 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 	if (vrrp->family == AF_INET) {
 
 		ip = (struct iphdr *) (buffer);
+
+		/*
+		 * MUST verify that the received packet length is not shorter than
+		 * the VRRP header
+		 */
+		if (buflen < sizeof(struct iphdr) + sizeof(vrrphdr_t)) {
+			log_message(LOG_INFO,
+			       "ip/vrrp header too short. %d and expect at least %zu",
+			      buflen, sizeof(struct iphdr) + sizeof(vrrphdr_t));
+			++vrrp->stats->packet_len_err;
+			return VRRP_PACKET_KO;
+		}
+
 		ihl = ip->ihl << 2;
 
-		if (vrrp->version == VRRP_VERSION_2 &&
-		    vrrp->auth_type == VRRP_AUTH_AH) {
-			ah = (ipsec_ah_t *) (buffer + ihl);
-			hd = (vrrphdr_t *) ((char *) ah + vrrp_ipsecah_len());
-		} else {
-			hd = (vrrphdr_t *) (buffer + ihl);
+		if ((ntohs(ip->tot_len) - ihl) < sizeof(vrrphdr_t)) {
+			log_message(LOG_INFO,
+			       "vrrp header too short. %d and expect at least %zu",
+			       ntohs(ip->tot_len) - ihl, sizeof(vrrphdr_t));
+			++vrrp->stats->packet_len_err;
+			return VRRP_PACKET_KO;
 		}
-	
-		/* pointer to vrrp vips pkt zone */
-		vips = (unsigned char *) ((char *) hd + sizeof(vrrphdr_t));
-	
+
 		/* MUST verify that the IP TTL is 255 */
 		if (LIST_ISEMPTY(vrrp->unicast_peer) && ip->ttl != VRRP_IP_TTL) {
 			log_message(LOG_INFO, "invalid ttl. %d and expect %d", ip->ttl,
@@ -306,20 +317,43 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 			return VRRP_PACKET_KO;
 		}
 
+		if (vrrp->version == VRRP_VERSION_2 &&
+		    vrrp->auth_type == VRRP_AUTH_AH) {
+			ah = (ipsec_ah_t *) (buffer + ihl);
+			hd = (vrrphdr_t *) ((char *) ah + vrrp_ipsecah_len());
+		} else {
+			hd = (vrrphdr_t *) (buffer + ihl);
+		}
+
+		/* Set expected vrrp packet length */
+		vrrphdr_len = sizeof(vrrphdr_t) + hd->naddr * sizeof(struct in_addr);
+		if (vrrp->version == VRRP_VERSION_2)
+			vrrphdr_len += VRRP_AUTH_LEN;
+
 		/*
-		 * MUST verify that the received packet length is greater than or
-		 * equal to the VRRP header
+		 * MUST verify that the received packet contains the complete VRRP
+		 * packet including IP Address(es)
 		 */
-		if ((ntohs(ip->tot_len) - ihl) <= sizeof(vrrphdr_t)) {
+		if ((ntohs(ip->tot_len) - ihl) < vrrphdr_len) {
 			log_message(LOG_INFO,
 			       "ip payload too short. %d and expect at least %zu",
-			       ntohs(ip->tot_len) - ihl, sizeof(vrrphdr_t));
+			       ntohs(ip->tot_len) - ihl, vrrphdr_len);
+			++vrrp->stats->packet_len_err;
+			return VRRP_PACKET_KO;
+		}
+		if (buflen < (char*)hd - buffer + sizeof(vrrphdr_len)) {
+			log_message(LOG_INFO,
+			       "received data too short. %d and expect at least %zu",
+			       buflen, (char*)hd - buffer + sizeof(vrrphdr_len));
 			++vrrp->stats->packet_len_err;
 			return VRRP_PACKET_KO;
 		}
 
 		/* Correct type, version, and length. Count as VRRP advertisement */
 		++vrrp->stats->advert_rcvd;
+
+		/* pointer to vrrp vips pkt zone */
+		vips = (unsigned char *) ((char *) hd + sizeof(vrrphdr_t));
 
 		if (!LIST_ISEMPTY(vrrp->vip)) {
 			/*
@@ -364,20 +398,42 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 			if (vrrp_in_chk_ipsecah(vrrp, buffer))
 				return VRRP_PACKET_KO;
 		}
-
-		/* Set expected vrrp packet lenght */
-		vrrphdr_len = sizeof(vrrphdr_t) + VRRP_AUTH_LEN + hd->naddr * sizeof(uint32_t);
-
 	} else if (vrrp->family == AF_INET6) { /* IPv6 related */
 
-		hd = (vrrphdr_t *) buffer;
-		vrrphdr_len = sizeof(vrrphdr_t);
+		/*
+		 * MUST verify that the received packet length is greater than or
+		 * equal to the VRRP header
+		 */
+		if (buflen < sizeof(vrrphdr_t)) {
+			log_message(LOG_INFO,
+			       "vrrp header too short. %d and expect at least %zu",
+			      buflen, sizeof(vrrphdr_t));
+			++vrrp->stats->packet_len_err;
+			return VRRP_PACKET_KO;
+		}
 
-		/* pointer to vrrp vips pkt zone */
-		vips = (unsigned char *) ((char *) hd + sizeof(vrrphdr_t));
+		hd = (vrrphdr_t *) buffer;
+
+		/* Set expected vrrp packet length */
+		vrrphdr_len = sizeof(vrrphdr_t) + hd->naddr * sizeof(struct in6_addr);
+
+		/*
+		 * MUST verify that the received packet contains the complete VRRP
+		 * packet including IP Address(es)
+		 */
+		if (buflen < vrrphdr_len) {
+			log_message(LOG_INFO,
+			       "vrrp payload too short. %d and expect at least %zu",
+			       buflen, vrrphdr_len);
+			++vrrp->stats->packet_len_err;
+			return VRRP_PACKET_KO;
+		}
 
 		/* Correct type, version, and length. Count as VRRP advertisement */
 		++vrrp->stats->advert_rcvd;
+
+		/* pointer to vrrp vips pkt zone */
+		vips = (unsigned char *) ((char *) hd + sizeof(vrrphdr_t));
 
 		if (!LIST_ISEMPTY(vrrp->vip)) {
 			/*
@@ -405,9 +461,6 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 				}
 			}
 		}
-
-		/* Set expected vrrp packet lenght */
-		vrrphdr_len = sizeof(vrrphdr_t) + hd->naddr * sizeof(struct in6_addr);
 	} else {
 		return VRRP_PACKET_KO;
 	}
@@ -489,7 +542,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 	}
 
 	if (LIST_ISEMPTY(vrrp->vip) && hd->naddr > 0) {
-		log_message(LOG_INFO, "receive an invalid ip number count associated with VRID!");
+		log_message(LOG_INFO, "received an invalid ip number count associated with VRID %s!", vrrp->iname);
 		++vrrp->stats->addr_list_err;
 		return VRRP_PACKET_KO;
 	}
@@ -940,7 +993,7 @@ vrrp_check_packet(vrrp_t * vrrp, char *buf, int buflen)
 	int ret;
 
 	if (buflen > 0) {
-		ret = vrrp_in_chk(vrrp, buf);
+		ret = vrrp_in_chk(vrrp, buf, buflen);
 
 		if (ret == VRRP_PACKET_DROP) {
 			log_message(LOG_INFO, "Sync instance needed on %s !!!",
