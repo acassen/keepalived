@@ -1405,9 +1405,14 @@ chk_min_cfg(vrrp_t * vrrp)
 		return 0;
 	}
 
-	if ((vrrp->version == VRRP_VERSION_2 && vrrp->adver_int < TIMER_HZ) ||
-	    (vrrp->version == VRRP_VERSION_2 && (vrrp->adver_int % 100))) {
-		log_message(LOG_INFO, "VRRP_Instance(%s): sub-second advertisement interval not supported in version 2!",
+	if (vrrp->version == VRRP_VERSION_2 && vrrp->adver_int % TIMER_HZ) {
+		log_message(LOG_INFO, "VRRP_Instance(%s): non-integer interval not supported in version 2!",
+			    vrrp->iname);
+		return 0;
+	}
+	if ((vrrp->version == VRRP_VERSION_2 && vrrp->adver_int >= (1<<8) * TIMER_HZ) ||
+	    (vrrp->version == VRRP_VERSION_3 && vrrp->adver_int >= (1<<12) * TIMER_CENTI_HZ)) {
+		log_message(LOG_INFO, "VRRP_Instance(%s): advertisement interval too large",
 			    vrrp->iname);
 		return 0;
 	}
