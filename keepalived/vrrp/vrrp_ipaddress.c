@@ -375,7 +375,8 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	ip_address_t *new;
 	interface_t *ifp_local;
 	char *str;
-	int i = 0, addr_idx =0;
+	int i = 0, addr_idx = 0;
+	int scope;
 	int param_avail;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
@@ -408,7 +409,15 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			new->ifa.ifa_index = IF_INDEX(ifp_local);
 			new->ifp = ifp_local;
 		} else if (!strcmp(str, "scope")) {
-			new->ifa.ifa_scope = netlink_scope_a2n(vector_slot(strvec, ++i));
+			if (!param_avail) {
+				log_message(LOG_INFO, "No scope specified for %s", FMT_STR_VSLOT(strvec, addr_idx));
+				break;
+			}
+			scope = netlink_scope_a2n(vector_slot(strvec, ++i));
+			if (scope == -1)
+				log_message(LOG_INFO, "Invalid scope '%s' specified for %s - ignoring", FMT_STR_VSLOT(strvec,i), FMT_STR_VSLOT(strvec, addr_idx));
+			else
+				new->ifa.ifa_scope = netlink_scope_a2n(vector_slot(strvec, ++i));
 		} else if (!strcmp(str, "broadcast") || !strcmp(str, "brd")) {
 			if (!param_avail) {
 				log_message(LOG_INFO, "No broadcast address specified for %s", FMT_STR_VSLOT(strvec, addr_idx));
