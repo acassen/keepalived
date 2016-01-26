@@ -45,6 +45,9 @@ global_defs {				# Block identification
 					   #  at each periodic repeat
 					   #  Default: once (per period)
     vrrp_version <INTEGER:2..3>            # Default VRRP version (default 2)
+    vrrp_iptables [keepalived_in [keepalived_out]]     # default INPUT
+					   # Specifies the iptables chains to add entries to
+					   # If no table names are specied, no entries are added
 }
 
 linkbeat_use_polling	# Use media link failure detection polling fashion

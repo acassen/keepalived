@@ -196,6 +196,18 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname)
 				     ipaddresstos(ipaddress));
 	else
 		ipaddress->iptable_rule_set = (cmd) ? true : false;
+
+	if (global_data->vrrp_iptables_outchain[0] == '\0')
+		return;
+
+	argv[2] = global_data->vrrp_iptables_outchain ;
+	argv[3] = "-o";
+	argv[5] = "-s";
+
+	if (fork_exec(argv) < 0)
+		log_message(LOG_ERR, "Failed to %s iptable drop rule"
+				     " from vip %s\n", (cmd) ? "set" : "remove",
+				     ipaddresstos(ipaddress));
 }
 
 /* add/remove iptable drop rules to iplist */

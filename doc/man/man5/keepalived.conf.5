@@ -64,7 +64,16 @@ and
  # Note: it is necessary for the specified chain to exist in
  # the iptables and/or ip6tables configuration, and for the chain
  # to be called from an appropriate point in the iptables configuration.
+ # It will probably be necessary to have this filtering after accepting
+ # any ESTABLISHED,RELATED packets, due to IPv4 might select the VIP as
+ # the source address for outgoing connections.
  vrrp_iptables keepalived     # default INPUT
+
+ # or for outbound filtering as well
+ # Note, outbound filtering won't work with IPv4, since the VIP can be selected as the source address
+ # for an outgoing connection. With IPv6 this is unlikely since the addresses are deprecated.
+ vrrp_iptables keepalived_in keepalived_out
+
  # or not to add any iptables rules:
  vrrp_iptables
 

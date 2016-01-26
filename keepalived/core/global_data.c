@@ -202,6 +202,8 @@ dump_global_data(data_t * data)
 	log_message(LOG_INFO, " VRRP default protocol version = %d", data->vrrp_version);
 	if (data->vrrp_iptables_inchain[0])
 		log_message(LOG_INFO," Iptables input chain = %s", data->vrrp_iptables_inchain);
+	if (data->vrrp_iptables_outchain[0])
+		log_message(LOG_INFO," Iptables output chain = %s", data->vrrp_iptables_outchain);
 #ifdef _WITH_SNMP_
 	if (data->enable_traps)
 		log_message(LOG_INFO, " SNMP Trap enabled");
