@@ -274,6 +274,10 @@ which will transition together on any state change.
     #of packets sent in adverts, you can exclude
     #most IPs from adverts.
     #The IPs are add|del as for virtual_ipaddress.
+    # Can also be used if want to be able to add a
+    # mixture of IPv4 and IPv6 addresses, since all
+    # addresses in virtual_ipaddress must be of the
+    # same family.
     virtual_ipaddress_excluded {
      <IPADDR>/<MASK> brd <IPADDR> dev <STRING> scope <SCOPE>
      <IPADDR>/<MASK> brd <IPADDR> dev <STRING> scope <SCOPE>

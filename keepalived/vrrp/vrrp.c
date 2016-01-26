@@ -240,12 +240,6 @@ vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
 	struct in6_addr ip6buf;
 
 	if (vrrp->family == AF_INET) {
-		/* Just skip IPv6 address, when we are using a mixed v4/v6 vips
-		 * set inside the same VRRP instance.
-		 */
-		if (IP_IS6(ipaddress))
-			return 1;
-
 		for (i = 0; i < LIST_SIZE(vrrp->vip); i++) {
 			bcopy(buffer + i * sizeof(uint32_t), &ipbuf,
 			      sizeof(uint32_t));
@@ -253,12 +247,6 @@ vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
 				return 1;
 		}
 	} else if (vrrp->family == AF_INET6) {
-		/* Just skip IPv4 address, when we are using a mixed v4/v6 vips
-		 * set inside the same VRRP instance.
-		 */
-		if (IP_IS4(ipaddress))
-			return 1;
-
 		for (i = 0; i < LIST_SIZE(vrrp->vip); i++) {
 			bcopy(buffer + i * sizeof(struct in6_addr), &ip6buf,
 			      sizeof(struct in6_addr));
@@ -470,6 +458,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer)
 				return VRRP_PACKET_KO;
 			}
 		}
+		else {
+			log_message(LOG_INFO, "Invalid VRRPv2 packet on an IPv6 interface");
+			return VRRP_PACKET_KO;
+		}
 		/* Kernel takes care of checksum mismatch incase of IPv6. */
         }
 
@@ -676,10 +668,7 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, int prio, char *buffer)
 		if (!LIST_ISEMPTY(vrrp->vip)) {
 			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 				ip_addr = ELEMENT_DATA(e);
-				if (IP_IS6(ip_addr))
-					continue;
-				else
-					iparr[i++] = ip_addr->u.sin.sin_addr.s_addr;
+				iparr[i++] = ip_addr->u.sin.sin_addr.s_addr;
 			}
 		}
 
@@ -698,14 +687,10 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, int prio, char *buffer)
 		if (!LIST_ISEMPTY(vrrp->vip)) {
 			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 				ip_addr = ELEMENT_DATA(e);
-				if (!IP_IS6(ip_addr))
-					continue;
-				else {
-					iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[0];
-					iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[1];
-					iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[2];
-					iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[3];
-				}
+				iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[0];
+				iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[1];
+				iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[2];
+				iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[3];
 			}
 		}
 		/* Kernel will update checksum field. let it be 0 now. */
@@ -741,10 +726,7 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, int prio, char *buffer)
 		if (!LIST_ISEMPTY(vrrp->vip)) {
 			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 				ip_addr = ELEMENT_DATA(e);
-				if (IP_IS6(ip_addr))
-					continue;
-				else
-					iparr[i++] = ip_addr->u.sin.sin_addr.s_addr;
+				iparr[i++] = ip_addr->u.sin.sin_addr.s_addr;
 			}
 		}
 
@@ -763,14 +745,10 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, int prio, char *buffer)
 		if (!LIST_ISEMPTY(vrrp->vip)) {
 			for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 				ip_addr = ELEMENT_DATA(e);
-				if (!IP_IS6(ip_addr))
-					continue;
-				else {
-					iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[0];
-					iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[1];
-					iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[2];
-					iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[3];
-				}
+				iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[0];
+				iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[1];
+				iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[2];
+				iparr[i++] = ip_addr->u.sin6_addr.s6_addr32[3];
 			}
 		}
 		/* Kernel will update checksum field. let it be 0 now. */
