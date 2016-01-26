@@ -34,7 +34,7 @@
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
 
 /* Add/Delete IP address to a specific interface_t */
-static int
+int
 netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 {
 	struct ifa_cacheinfo cinfo;
@@ -50,7 +50,7 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 
 	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifaddrmsg));
 	req.n.nlmsg_flags = NLM_F_REQUEST;
-	req.n.nlmsg_type = cmd ? RTM_NEWADDR : RTM_DELADDR;
+	req.n.nlmsg_type = (cmd == IPADDRESS_DEL) ? RTM_DELADDR : RTM_NEWADDR;
 	req.ifa = ipaddress->ifa;
 
 	if (IP_IS6(ipaddress)) {
@@ -81,9 +81,9 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		 *     without service. HA/VRRP setups have their own "DAD"-like
 		 *     functionality, so it's not really needed from the IPv6 stack.
 		 */
-		#ifdef IFA_F_NODAD
-			req.ifa.ifa_flags |= IFA_F_NODAD;
-		#endif
+#ifdef IFA_F_NODAD
+		req.ifa.ifa_flags |= IFA_F_NODAD;
+#endif
 
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin6_addr, sizeof(ipaddress->u.sin6_addr));
@@ -129,7 +129,7 @@ netlink_iplist(list ip_list, int cmd)
 		    (!cmd &&
 		     (ipaddr->set || __test_bit(DONT_RELEASE_VRRP_BIT, &debug)))) {
 			if (netlink_ipaddress(ipaddr, cmd) > 0)
-				ipaddr->set = (cmd) ? 1 : 0;
+				ipaddr->set = !(cmd == IPADDRESS_DEL);
 			else
 				ipaddr->set = 0;
 		}

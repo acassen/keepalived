@@ -89,6 +89,7 @@ typedef struct _ip_address {
 #define IP_ISEQ(X,Y)    (((X) && (Y)) ? ((IP_FAMILY(X) == IP_FAMILY(Y)) ? (IP_IS6(X) ? IP6_ISEQ(X, Y) : IP4_ISEQ(X, Y)) : 0) : (((!(X) && (Y))||((X) && !(Y))) ? 0 : 1))
 
 /* prototypes */
+extern int netlink_ipaddress(ip_address_t *, int);
 extern void netlink_iplist(list, int);
 extern void handle_iptable_rule_to_iplist(list, int, char *);
 extern void free_ipaddress(void *);

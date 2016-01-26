@@ -30,6 +30,7 @@
 #include "logger.h"
 #include "bitops.h"
 #include "vrrp_if_config.h"
+#include "vrrp_ipaddress.h"
 
 #ifdef _HAVE_VRRP_VMAC_
 /* private matter */
@@ -81,6 +82,9 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 	if (!vrrp->ifp || __test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) || !vrrp->vrid)
 		return -1;
+
+	if (vrrp->family == AF_INET6)
+		ll_addr[4] = 0x02;
 
 	memset(&req, 0, sizeof (req));
 	memset(ifname, 0, IFNAMSIZ);
@@ -190,6 +194,28 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	if (vrrp->family == AF_INET) {
 		/* Set the necessary kernel parameters to make macvlans work for us */
 		set_interface_parameters(ifp, base_ifp);
+	}
+	else {
+		// Add link-local address from underlying interface to vmac if there is one
+		if (base_ifp->sin6_addr.s6_addr32[0]) {
+			struct sockaddr_storage *saddr = &vrrp->saddr;
+			ip_address_t ipaddress;
+
+			memset(&ipaddress, 0, sizeof(ipaddress));
+
+			ipaddress.ifp = ifp;
+			memcpy(&ipaddress.u.sin6_addr, &base_ifp->sin6_addr, sizeof(ipaddress.u.sin6_addr));
+			ipaddress.ifa.ifa_family = AF_INET6;
+			ipaddress.ifa.ifa_prefixlen = 64;
+			ipaddress.ifa.ifa_index = vrrp->vmac_ifindex;
+
+			if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1)
+				log_message(LOG_INFO, "Adding link-local address to vmac failed");
+
+			// Save the address as source for vrrp packets
+			inet_ip6tosockaddr(&base_ifp->sin6_addr, saddr);
+			inet_ip6scopeid(IF_INDEX(ifp), saddr);
+		}
 	}
 #endif
 	return 1;
