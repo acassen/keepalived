@@ -114,7 +114,7 @@ vrrp_iphdr_len(vrrp_t * vrrp)
 }
 
 /* IPSEC AH header length */
-int
+static int
 vrrp_ipsecah_len(void)
 {
 	return sizeof(ipsec_ah_t);

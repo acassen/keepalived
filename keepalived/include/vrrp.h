@@ -302,7 +302,6 @@ extern int vrrp_state_master_tx(vrrp_t *, const int);
 extern void vrrp_state_backup(vrrp_t *, char *, int);
 extern void vrrp_state_goto_master(vrrp_t *);
 extern void vrrp_state_leave_master(vrrp_t *);
-extern int vrrp_ipsecah_len(void);
 extern int vrrp_complete_init(void);
 extern int vrrp_ipvs_needed(void);
 extern void restore_vrrp_interfaces(void);
