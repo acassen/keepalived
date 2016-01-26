@@ -181,19 +181,25 @@ alloc_strvec(char *string)
 
 	while (1) {
 		start = cp;
+
+		/* Save a quoted string without the "s as a single string */
 		if (*cp == '"') {
+			start++;
+			if (!(cp = strchr(start, '"'))) {
+				log_message(LOG_INFO, "Unmatched quote: '%s'", string);
+				return strvec;
+			}
+			str_len = cp - start;
 			cp++;
-			token = MALLOC(2);
-			*(token) = '"';
-			*(token + 1) = '\0';
 		} else {
-			while (!isspace((int) *cp) && *cp != '\0' && *cp != '"')
+			while (!isspace((int) *cp) && *cp != '\0' && *cp != '"'
+						   && *cp != '!' && *cp != '#')
 				cp++;
 			str_len = cp - start;
-			token = MALLOC(str_len + 1);
-			memcpy(token, start, str_len);
-			*(token + str_len) = '\0';
 		}
+		token = MALLOC(str_len + 1);
+		memcpy(token, start, str_len);
+		token[str_len] = '\0';
 
 		/* Alloc & set the slot */
 		vector_alloc_slot(strvec);
@@ -416,31 +422,11 @@ set_value(vector_t *strvec)
 {
 	char *str = vector_slot(strvec, 1);
 	int size = strlen(str);
-	int i = 0;
-	int len = 0;
-	char *alloc = NULL;
-	char *tmp;
+	char *alloc;
 
-	if (*str == '"') {
-		for (i = 2; i < vector_size(strvec); i++) {
-			str = vector_slot(strvec, i);
-			len += strlen(str);
-			if (!alloc)
-				alloc = (char *) MALLOC(len + 1);
-			else {
-				alloc = (char *) REALLOC(alloc, 2 * (len + 1));
-				tmp = vector_slot(strvec, i-1);
-				if (*str != '"' && *tmp != '"')
-					strncat(alloc, " ", 1);
-			}
+	alloc = (char *) MALLOC(size + 1);
+	memcpy(alloc, str, size);
 
-			if (i != vector_size(strvec)-1)
-				strncat(alloc, str, strlen(str));
-		}
-	} else {
-		alloc = (char *) MALLOC(size + 1);
-		memcpy(alloc, str, size);
-	}
 	return alloc;
 }
 
