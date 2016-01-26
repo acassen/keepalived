@@ -108,7 +108,7 @@ dump_list(list l)
 }
 
 static void
-free_element(list l)
+free_elements(list l)
 {
 	element e;
 	element next;
@@ -120,21 +120,17 @@ free_element(list l)
 		l->count--;
 		FREE(e);
 	}
+#if 0
+	if (l->count)
+		log_message(LOG_INFO, "free_elements left %d elements on the list", l->count);
+#endif
 }
 
 void
 free_list_elements(list l)
 {
-	element e;
-	element next;
-	
-	for (e = LIST_HEAD(l); e; e = next) {
-		next = e->next;
-		if (l->free)
-			(*l->free) (e->data);
-		l->count--;
-		FREE(e);
-	}
+	free_elements(l);
+
 	l->head = NULL;
 	l->tail = NULL;
 }
@@ -144,7 +140,7 @@ free_list(list l)
 {
 	if (!l)
 		return;
-	free_element(l);
+	free_elements(l);
 	FREE(l);
 	l = NULL;
 }
