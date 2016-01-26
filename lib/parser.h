@@ -72,6 +72,7 @@ extern int read_line(char *, int);
 extern vector_t *read_value_block(void);
 extern void alloc_value_block(vector_t *, void (*alloc_func) (vector_t *));
 extern void *set_value(vector_t *);
+extern void skip_block(void);
 extern void process_stream(vector_t *);
 extern void init_data(char *, vector_t * (*init_keywords) (void));
 

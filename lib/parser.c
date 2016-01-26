@@ -39,6 +39,8 @@ int reload = 0;
 
 /* local vars */
 static int sublevel = 0;
+static int skip_sublevel = 0;
+
 
 void
 keyword_alloc(vector_t *keywords_vec, char *string, void (*handler) (vector_t *))
@@ -418,6 +420,12 @@ set_value(vector_t *strvec)
 	return alloc;
 }
 
+void skip_block(void)
+{
+	/* Don't process the rest of the configuration block */
+	skip_sublevel = 1;
+}
+
 /* recursive configuration stream handler */
 static int kw_level = 0;
 void
@@ -443,7 +451,13 @@ process_stream(vector_t *keywords_vec)
 
 		if (!strcmp(str, EOB) && kw_level > 0) {
 			free_strvec(strvec);
+			skip_sublevel = 0;
 			break;
+		}
+
+		if (skip_sublevel) {
+			free_strvec(strvec);
+			continue;
 		}
 
 		for (i = 0; i < vector_size(keywords_vec); i++) {
