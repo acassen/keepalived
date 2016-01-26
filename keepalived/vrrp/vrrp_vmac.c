@@ -217,7 +217,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		if (!vrrp->evip_add_ipv6)
 			link_disable_ipv6(ifp);
 	}
-	else {
+	if (vrrp->family == AF_INET6 || vrrp->evip_add_ipv6) {
 		// We don't want a link-local address auto assigned - see RFC5798 paragraph 7.4.
 		// If we have a sufficiently recent kernel, we can stop a link local address
 		// based on the MAC address being automatically assigned. If not, then we have
@@ -245,31 +245,36 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			log_message(LOG_INFO, "vmac: Error setting ADDR_GEN_MODE to NONE");
 #endif
 
-		/* Add link-local address from underlying interface to vmac if there is one,
-		 * otherwise construct a link-local address based on underlying interface's
-		 * MAC address.
-		 * This is so that VRRP advertisements will be sent from a non-VIP address, but
-		 * using the VRRP MAC address */
-		struct sockaddr_storage *saddr = &vrrp->saddr;
-		ip_address_t ipaddress;
+		if (vrrp->family == AF_INET6) {
+			/* Add link-local address. If a source address has been specified, use it,
+			 * else use link-local address from underlying interface to vmac if there is one,
+			 * otherwise construct a link-local address based on underlying interface's
+			 * MAC address.
+			 * This is so that VRRP advertisements will be sent from a non-VIP address, but
+			 * using the VRRP MAC address */
+			ip_address_t ipaddress;
 
-		memset(&ipaddress, 0, sizeof(ipaddress));
+			memset(&ipaddress, 0, sizeof(ipaddress));
 
-		ipaddress.ifp = ifp;
-		if (base_ifp->sin6_addr.s6_addr32[0])
-			memcpy(&ipaddress.u.sin6_addr, &base_ifp->sin6_addr, sizeof(ipaddress.u.sin6_addr));
-		else
-			make_link_local_address(&ipaddress.u.sin6_addr, base_ifp->hw_addr);
-		ipaddress.ifa.ifa_family = AF_INET6;
-		ipaddress.ifa.ifa_prefixlen = 64;
-		ipaddress.ifa.ifa_index = vrrp->vmac_ifindex;
+			ipaddress.ifp = ifp;
+			if (vrrp->saddr.ss_family == AF_INET6)
+				ipaddress.u.sin6_addr = ((struct sockaddr_in6*)&vrrp->saddr)->sin6_addr;
+			else if (base_ifp->sin6_addr.s6_addr32[0])
+				ipaddress.u.sin6_addr = base_ifp->sin6_addr;
+			else
+				make_link_local_address(&ipaddress.u.sin6_addr, base_ifp->hw_addr);
+			ipaddress.ifa.ifa_family = AF_INET6;
+			ipaddress.ifa.ifa_prefixlen = 64;
+			ipaddress.ifa.ifa_index = vrrp->vmac_ifindex;
 
-		if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1)
-			log_message(LOG_INFO, "Adding link-local address to vmac failed");
+			if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1)
+				log_message(LOG_INFO, "Adding link-local address to vmac failed");
 
-		// Save the address as source for vrrp packets
-		inet_ip6tosockaddr(&base_ifp->sin6_addr, saddr);
-		inet_ip6scopeid(IF_INDEX(ifp), saddr);
+			/* Save the address as source for vrrp packets */
+			if (vrrp->saddr.ss_family == AF_UNSPEC)
+				inet_ip6tosockaddr(&ipaddress.u.sin6_addr, &vrrp->saddr);
+			inet_ip6scopeid(vrrp->vmac_ifindex, &vrrp->saddr);
+		}
 	}
 
 	/* bring it UP ! */
@@ -277,18 +282,18 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	netlink_link_up(vrrp);
 
 #ifndef _HAVE_ADDR_GEN_MODE_
-	if(vrrp->family == AF_INET6 ) {
+	if (vrrp->family == AF_INET6 || vrrp->evip_add_ipv6) {
 		/* Delete the automatically created link-local address based on the
 		 * MAC address if we weren't able to configure the interface not to
 		 * create the address (see above).
 		 * This isn't ideal, since the invalid address will exist momentarily,
-		 * but is there any better way to do it? */
+		 * but is there any better way to do it? probably not otherwise
+		 * ADDR_GEN_MODE woulddn't have been added to the kernel. */
 		ip_address_t ipaddress;
 
 		memset(&ipaddress, 0, sizeof(ipaddress));
 
-		ipaddress.ifp = ifp;
-		memcpy(&ipaddress.u.sin6_addr, &base_ifp->sin6_addr, sizeof(ipaddress.u.sin6_addr));
+		ipaddress.u.sin6_addr = base_ifp->sin6_addr;
 		make_link_local_address(&ipaddress.u.sin6_addr, ll_addr);
 		ipaddress.ifa.ifa_family = AF_INET6;
 		ipaddress.ifa.ifa_prefixlen = 64;
