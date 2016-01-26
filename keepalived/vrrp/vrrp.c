@@ -1777,6 +1777,11 @@ vrrp_complete_init(void)
 	element e;
 	vrrp_t *vrrp;
 	vrrp_sgroup_t *sgroup;
+	list l_o;
+	element e_o;
+	vrrp_t *vrrp_o;
+	unsigned int ifindex;
+	unsigned int ifindex_o;
 
 	/* Complete VRRP instance initialization */
 	l = vrrp_data->vrrp;
@@ -1784,6 +1789,37 @@ vrrp_complete_init(void)
 		vrrp = ELEMENT_DATA(e);
 		if (!vrrp_complete_instance(vrrp))
 			return 0;
+	}
+
+	/* Make sure don't have same vrid on same interface with same address family */
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+		l_o = &vrrp_data->vrrp_index[vrrp->vrid];
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+			ifindex = vrrp->ifp->base_ifindex;
+		else
+			ifindex = vrrp->ifp->ifindex;
+
+		/* Check if any other entries with same vrid conflict */
+		if (!LIST_ISEMPTY(l_o) && LIST_SIZE(l_o) > 1) {
+			/* Can't have same vrid with same family an interface */
+			for (e_o = LIST_HEAD(l_o); e_o; ELEMENT_NEXT(e_o)) {
+				vrrp_o = ELEMENT_DATA(e_o);
+				if (vrrp_o != vrrp &&
+				    vrrp_o->family == vrrp->family) {
+					if (__test_bit(VRRP_VMAC_BIT, &vrrp_o->vmac_flags))
+						ifindex_o = vrrp_o->ifp->base_ifindex;
+					else
+						ifindex_o = vrrp_o->ifp->ifindex;
+
+					if (ifindex == ifindex_o)
+					{
+						log_message(LOG_INFO, "VRID %d is duplicated on interface %s", vrrp->vrid, if_get_by_ifindex(ifindex)->ifname);
+						return 0;
+					}
+				}
+			}
+		}
 	}
 
 	/* Build synchronization group index */
