@@ -529,6 +529,9 @@ process_stream(vector_t *keywords_vec, int need_bob)
 			}
 		}
 
+		if (i >= vector_size(keywords_vec))
+			log_message(LOG_INFO, "Unknown keyword '%s'", str );
+
 		free_strvec(strvec);
 	}
 
