@@ -1600,7 +1600,10 @@ shutdown_vrrp_instances(void)
 static int
 vrrp_complete_instance(vrrp_t * vrrp)
 {
+	char ifname[IFNAMSIZ];
+	list l;
 	element e;
+	vrrp_t *vrrp_o;
 	ip_address_t *vip;
 
 	if (vrrp->accept) {
@@ -1653,8 +1656,42 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	vrrp->master_adver_int = vrrp->adver_int;
 
 	/* Set a default interface name for the vmac if needed */
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && !vrrp->vmac_ifname[0])
-		snprintf(vrrp->vmac_ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && !vrrp->vmac_ifname[0]) {
+		/* The same vrid can be used for both IPv4 and IPv6, and also on multiple underlying
+		 * interfaces. */
+		int num=0;
+		snprintf(ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
+
+		while (true) {
+			l = vrrp_data->vrrp;
+			for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+				vrrp_o = ELEMENT_DATA(e);
+				if (!strcmp(vrrp_o->vmac_ifname, ifname))
+					break;
+			}
+
+			/* If there is no VMAC with the name and no existing
+			 * interface with the name, we can use it */
+			if (!e && !if_get_by_ifname(ifname))
+				break;
+
+			/* For IPv6 try vrrp6 as second attempt */
+			if (vrrp->family == AF_INET6) {
+				if (num == 0)
+					num = 6;
+				else if (num == 6)
+					num = 1;
+				else if (++num == 6)
+					num++;
+			}
+			else
+				num++;
+			snprintf(ifname, IFNAMSIZ, "vrrp%d.%d", num, vrrp->vrid);
+		}
+
+		/* We've found a unique name */
+		strncpy(vrrp->vmac_ifname, ifname, IFNAMSIZ);
+	}
 
 	/* Make sure we have an IP address as needed */
 	if (vrrp->saddr.ss_family == AF_UNSPEC) {
