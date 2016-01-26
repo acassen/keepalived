@@ -232,6 +232,8 @@ vrrp_state_handler(vector_t *strvec)
 		vrrp->wantstate = VRRP_STATE_MAST;
 		vrrp->init_state = VRRP_STATE_MAST;
 	}
+	else if (strcmp(str, "BACKUP"))
+		log_message(LOG_INFO,"(%s): unknown state '%s', defaulting to BACKUP", vrrp->iname, str);
 
 	/* set eventual sync group */
 	if (vgroup)
@@ -311,22 +313,21 @@ static void
 vrrp_prio_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->effective_priority = vrrp->base_priority = atoi(vector_slot(strvec, 1));
+	vrrp->base_priority = atoi(vector_slot(strvec, 1));
 
 	if (VRRP_IS_BAD_PRIORITY(vrrp->base_priority)) {
-		log_message(LOG_INFO, "VRRP Error : Priority not valid !");
-		log_message(LOG_INFO,
-		       "             must be between 1 & 255. reconfigure !");
-		log_message(LOG_INFO,
-			    "             Using default value : %d\n", VRRP_PRIO_DFL);
-		vrrp->effective_priority = vrrp->base_priority = VRRP_PRIO_DFL;
+		log_message(LOG_INFO, "(%s): Priority not valid! must be between 1 & 255. Reconfigure !", vrrp->iname);
+		log_message(LOG_INFO, "%*sUsing default value : %d", (int)strlen(vrrp->iname) + 4, "", VRRP_PRIO_DFL);
+
+		vrrp->base_priority = VRRP_PRIO_DFL;
 	}
+	vrrp->effective_priority = vrrp->base_priority;
 }
 static void
 vrrp_adv_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->adver_int = atof(vector_slot(strvec, 1)) * 100; /* multiply with 100 to get decimal value */
+	vrrp->adver_int = atof(vector_slot(strvec, 1)) * 100; /* multiply by 100 to get integer value */
 
 	/* Simple check - just positive */
 	if (VRRP_IS_BAD_ADVERT_INT(vrrp->adver_int)) {
@@ -335,7 +336,7 @@ vrrp_adv_handler(vector_t *strvec)
 		log_message(LOG_INFO, "%*sUsing default value : 1sec", (int)strlen(vrrp->iname) + 4, "");
 		vrrp->adver_int = VRRP_ADVER_DFL * 100;
 	}
-	vrrp->adver_int *= TIMER_HZ / 100.0;
+	vrrp->adver_int *= TIMER_CENTI_HZ;
 }
 static void
 vrrp_debug_handler(vector_t *strvec)
@@ -344,8 +345,7 @@ vrrp_debug_handler(vector_t *strvec)
 	vrrp->debug = atoi(vector_slot(strvec, 1));
 
 	if (VRRP_IS_BAD_DEBUG_INT(vrrp->debug)) {
-		log_message(LOG_INFO, "VRRP Error : Debug value not valid !");
-		log_message(LOG_INFO, "             must be between 0-4");
+		log_message(LOG_INFO, "(%s): Debug value not valid! must be between 0-4", vrrp->iname);
 		vrrp->debug = 0;
 	}
 }
@@ -402,9 +402,7 @@ vrrp_preempt_delay_handler(vector_t *strvec)
 	vrrp->preempt_delay = atoi(vector_slot(strvec, 1));
 
 	if (VRRP_IS_BAD_PREEMPT_DELAY(vrrp->preempt_delay)) {
-		log_message(LOG_INFO, "VRRP Error : Preempt_delay not valid !");
-		log_message(LOG_INFO, "             must be between 0-%d",
-		       TIMER_MAX_SEC);
+		log_message(LOG_INFO, "(%s): Preempt_delay not valid! must be between 0-%d", vrrp->iname, TIMER_MAX_SEC);
 		vrrp->preempt_delay = 0;
 	}
 	vrrp->preempt_delay *= TIMER_HZ;

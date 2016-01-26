@@ -203,7 +203,7 @@ vector_unset(vector_t *v, unsigned int i)
 	}
 }
 
-/* Count the number of not emplty slot. */
+/* Count the number of not empty slot. */
 unsigned int
 vector_count(vector_t *v)
 {

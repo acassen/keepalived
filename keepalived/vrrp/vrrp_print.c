@@ -292,12 +292,13 @@ address_print(FILE *file, void *data)
 			 inet_ntop2(ipaddr->u.sin.sin_brd.s_addr));
 	}
 
-	fprintf(file, "     %s/%d%s dev %s scope %s%s%s\n"
+	fprintf(file, "     %s/%d%s dev %s%s%s%s%s\n"
 		, addr_str
 		, ipaddr->ifa.ifa_prefixlen
 		, broadcast
 		, IF_NAME(ipaddr->ifp)
-		, netlink_scope_n2a(ipaddr->ifa.ifa_scope)
+		, IP_IS4(ipaddr) ? " scope " : ""
+		, IP_IS4(ipaddr) ? netlink_scope_n2a(ipaddr->ifa.ifa_scope) : ""
 		, ipaddr->label ? " label " : ""
 		, ipaddr->label ? ipaddr->label : "");
 }

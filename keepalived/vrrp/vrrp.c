@@ -978,7 +978,7 @@ vrrp_check_packet(vrrp_t * vrrp, char *buf, int buflen, bool check_vip_addr)
 			       IF_NAME(vrrp->ifp));
 		}
 
-		if (ret == VRRP_PACKET_KO)
+		else if (ret == VRRP_PACKET_KO)
 			log_message(LOG_INFO, "bogus VRRP packet received on %s !!!",
 			       IF_NAME(vrrp->ifp));
 		return ret;
