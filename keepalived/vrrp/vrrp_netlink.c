@@ -240,15 +240,15 @@ netlink_set_nonblock(nl_handle_t *nl, int *flags)
 int
 addattr32(struct nlmsghdr *n, int maxlen, int type, uint32_t data)
 {
-	int len = RTA_LENGTH(4);
+	int len = RTA_LENGTH(sizeof(data));
 	struct rtattr *rta;
-	if (NLMSG_ALIGN(n->nlmsg_len) + len > maxlen)
+	if (n->nlmsg_len + NLMSG_ALIGN(len) > maxlen)
 		return -1;
-	rta = (struct rtattr*)(((char*)n) + NLMSG_ALIGN(n->nlmsg_len));
+	rta = (struct rtattr*)(((char*)n) + n->nlmsg_len);
 	rta->rta_type = type;
 	rta->rta_len = len;
-	memcpy(RTA_DATA(rta), &data, 4);
-	n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + len;
+	memcpy(RTA_DATA(rta), &data, sizeof(data));
+	n->nlmsg_len += NLMSG_ALIGN(len);
 	return 0;
 }
 
@@ -258,14 +258,14 @@ addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data, int alen)
 	int len = RTA_LENGTH(alen);
 	struct rtattr *rta;
 
-	if (NLMSG_ALIGN(n->nlmsg_len) + len > maxlen)
+	if (n->nlmsg_len + NLMSG_ALIGN(len) > maxlen)
 		return -1;
 
-	rta = (struct rtattr *) (((char *) n) + NLMSG_ALIGN(n->nlmsg_len));
+	rta = (struct rtattr *) (((char *) n) + n->nlmsg_len);
 	rta->rta_type = type;
 	rta->rta_len = len;
 	memcpy(RTA_DATA(rta), data, alen);
-	n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + len;
+	n->nlmsg_len += NLMSG_ALIGN(len);
 
 	return 0;
 }
