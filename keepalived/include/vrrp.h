@@ -137,6 +137,8 @@ typedef struct _vrrp_t {
 	vrrp_stats		*stats;			/* Statistics */
 	interface_t		*ifp;			/* Interface we belong to */
 	int			dont_track_primary;	/* If set ignores ifp faults */
+	bool			skip_check_adv_addr;	/* If set, don't check the VIPs in subsequent
+							 * adverts from the same master */
 	unsigned long		vmac_flags;		/* VRRP VMAC flags */
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
 	unsigned int		vmac_ifindex;		/* ifindex of vmac interface */

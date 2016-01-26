@@ -260,7 +260,7 @@ vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
  * 	  VRRP_PACKET_DROP if packet not relevant to us
  */
 static int
-vrrp_in_chk(vrrp_t * vrrp, char *buffer, int buflen)
+vrrp_in_chk(vrrp_t * vrrp, char *buffer, int buflen, bool check_vip_addr)
 {
 	struct iphdr *ip;
 	int ihl;
@@ -350,7 +350,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, int buflen)
 		/* pointer to vrrp vips pkt zone */
 		vips = (unsigned char *) ((char *) hd + sizeof(vrrphdr_t));
 
-		if (!LIST_ISEMPTY(vrrp->vip)) {
+		if (check_vip_addr && !LIST_ISEMPTY(vrrp->vip)) {
 			/*
 			 * MAY verify that the IP address(es) associated with the
 			 * VRID are valid
@@ -442,7 +442,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, int buflen)
 		/* pointer to vrrp vips pkt zone */
 		vips = (unsigned char *) ((char *) hd + sizeof(vrrphdr_t));
 
-		if (!LIST_ISEMPTY(vrrp->vip)) {
+		if (check_vip_addr && !LIST_ISEMPTY(vrrp->vip)) {
 			/*
 			 * MAY verify that the IP address(es) associated with the
 			 * VRID are valid
@@ -1009,12 +1009,12 @@ vrrp_send_adv(vrrp_t * vrrp, int prio)
 
 /* Received packet processing */
 int
-vrrp_check_packet(vrrp_t * vrrp, char *buf, int buflen)
+vrrp_check_packet(vrrp_t * vrrp, char *buf, int buflen, bool check_vip_addr)
 {
 	int ret;
 
 	if (buflen > 0) {
-		ret = vrrp_in_chk(vrrp, buf, buflen);
+		ret = vrrp_in_chk(vrrp, buf, buflen, check_vip_addr);
 
 		if (ret == VRRP_PACKET_DROP) {
 			log_message(LOG_INFO, "Sync instance needed on %s !!!",
@@ -1261,10 +1261,24 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 {
 	vrrphdr_t *hd;
 	int ret = 0, master_adver_int, proto;
+	bool check_addr = false;
 
 	/* Process the incoming packet */
 	hd = vrrp_get_header(vrrp->family, buf, &proto);
-	ret = vrrp_check_packet(vrrp, buf, buflen);
+	if (!vrrp->skip_check_adv_addr ||
+	    vrrp->master_saddr.ss_family != vrrp->pkt_saddr.ss_family)
+		check_addr = true;
+	else {
+		/* Check if the addresses are different */
+		if (vrrp->pkt_saddr.ss_family == AF_INET) {
+			if (((struct sockaddr_in*)&vrrp->pkt_saddr)->sin_addr.s_addr != ((struct sockaddr_in*)&vrrp->master_saddr)->sin_addr.s_addr)
+				check_addr = true ;
+		} else {
+			if (!IN6_ARE_ADDR_EQUAL(&((struct sockaddr_in6*)&vrrp->pkt_saddr)->sin6_addr, &((struct sockaddr_in6*)&vrrp->master_saddr)->sin6_addr))
+				check_addr = true;
+		}
+	}
+	ret = vrrp_check_packet(vrrp, buf, buflen, check_addr);
 
 	if (ret == VRRP_PACKET_KO || ret == VRRP_PACKET_NULL) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) ignoring received advertisment..."
@@ -1388,7 +1402,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 
 	/* Process the incoming packet */
 	hd = vrrp_get_header(vrrp->family, buf, &proto);
-	ret = vrrp_check_packet(vrrp, buf, buflen);
+	ret = vrrp_check_packet(vrrp, buf, buflen, true);
 
 	if (ret == VRRP_PACKET_KO ||
 	    ret == VRRP_PACKET_NULL || ret == VRRP_PACKET_DROP) {
@@ -1451,7 +1465,7 @@ vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, int buflen)
 
 	/* Process the incoming packet */
 	hd = vrrp_get_header(vrrp->family, buf, &proto);
-	ret = vrrp_check_packet(vrrp, buf, buflen);
+	ret = vrrp_check_packet(vrrp, buf, buflen, true);
 
 	if (ret == VRRP_PACKET_KO || ret == VRRP_PACKET_NULL || ret == VRRP_PACKET_DROP) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) Dropping received VRRP packet..."

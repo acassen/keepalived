@@ -81,6 +81,11 @@ and
  # address of a VRRP packet is one of our unicast peers
  vrrp_check_unicast_src
 
+ # Checking all the addresses in a received VRRP advert can be time consuming.
+ # Setting this flag means the check won't be carried out if the advert is
+ # from the same master router as the previous advert received.
+ vrrp_skip_check_adv_addr     # Default - don't skip
+
  enable_traps                 # enable SNMP traps
  }
 
@@ -322,6 +327,10 @@ which will transition together on any state change.
     # entry must be BACKUP.
     nopreempt
     preempt		# for backwards compatibility
+
+    # See description of global vrrp_skip_check_adv_addr, which
+    # sets the default value. Defaults to vrrp_skip_check_adv_addr
+    skip_check_adv_addr [on|off|true|false|yes|no]	# Default on if no word specified
 
     # Seconds after startup until preemption
     # (if not disabled by "nopreempt").

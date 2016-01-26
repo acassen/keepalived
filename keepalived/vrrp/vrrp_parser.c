@@ -36,6 +36,17 @@
 #include "memory.h"
 #include "bitops.h"
 
+/* Checks for on/true/yes or off/false/no */
+static int
+check_true_false(char *str)
+{
+	if (!strcmp(str, "true") || !strcmp(str, "on") || !strcmp(str, "yes"))
+		return true;
+	if (!strcmp(str, "false") || !strcmp(str, "off") || !strcmp(str, "no"))
+		return false;
+
+	return -1;	/* error */
+}
 /* Static addresses handler */
 static void
 static_addresses_handler(vector_t *strvec)
@@ -336,6 +347,23 @@ vrrp_debug_handler(vector_t *strvec)
 		log_message(LOG_INFO, "VRRP Error : Debug value not valid !");
 		log_message(LOG_INFO, "             must be between 0-4");
 		vrrp->debug = 0;
+	}
+}
+static void
+vrrp_skip_check_adv_addr_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	int res;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(vector_slot(strvec, 1));
+		if (res >= 0)
+			vrrp->skip_check_adv_addr = res;
+		else
+			log_message(LOG_INFO, "(%s): invalid skip_check_adv_addr %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+	} else {
+		/* Defaults to true */
+		vrrp->skip_check_adv_addr = true;
 	}
 }
 static void
@@ -673,6 +701,7 @@ vrrp_init_keywords(void)
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
 	install_keyword("virtual_rules", &vrrp_vrules_handler);
 	install_keyword("accept", &vrrp_accept_handler);
+	install_keyword("skip_check_adv_addr", &vrrp_skip_check_adv_addr_handler);
 	install_keyword("preempt", &vrrp_preempt_handler);
 	install_keyword("nopreempt", &vrrp_nopreempt_handler);
 	install_keyword("preempt_delay", &vrrp_preempt_delay_handler);

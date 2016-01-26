@@ -123,6 +123,8 @@ vrrp_print(FILE *file, void *data)
 	fprintf(file, "   Listening device = %s\n", IF_NAME(vrrp->ifp));
 	if (vrrp->dont_track_primary)
 		fprintf(file, "   VRRP interface tracking disabled\n");
+	if (vrrp->skip_check_adv_addr)
+		fprintf(file, "   Skip checking advert IP addresses\n");
 	fprintf(file, "   Using src_ip = %s\n", inet_sockaddrtos(&vrrp->saddr));
 	if (vrrp->lvs_syncd_if)
 		fprintf(file, "   Runing LVS sync daemon on interface = %s\n",

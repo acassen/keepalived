@@ -163,6 +163,11 @@ vrrp_check_unicast_src_handler(vector_t *strvec)
 {
 	global_data->vrrp_check_unicast_src = 1;
 }
+static void
+vrrp_check_adv_addr_handler(vector_t *strvec)
+{
+	global_data->vrrp_skip_check_adv_addr = 1;
+}
 #ifdef _WITH_SNMP_
 static void
 trap_handler(vector_t *strvec)
@@ -191,6 +196,7 @@ global_init_keywords(void)
 	install_keyword("vrrp_version", &vrrp_version_handler);
 	install_keyword("vrrp_iptables", &vrrp_iptables_handler);
 	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler);
+	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler);
 #ifdef _WITH_SNMP_
 	install_keyword("enable_traps", &trap_handler);
 #endif
