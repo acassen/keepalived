@@ -1662,6 +1662,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	int i;
 	element next;
 
+	if (vrrp->family == AF_INET6) {
+		if (vrrp->version == VRRP_VERSION_2 && vrrp->strict_mode) {
+			log_message(LOG_INFO,"(%s): cannot use IPv6 with VRRP version 2; setting version 3", vrrp->iname);
+			vrrp->version = VRRP_VERSION_3;
+		}
+		else if (!vrrp->version)
+			vrrp->version = VRRP_VERSION_3;
+	}
+
 	if (vrrp->accept) {
 		if (vrrp->version == VRRP_VERSION_2)
 		{
@@ -1672,16 +1681,16 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vrrp->version = VRRP_VERSION_3;
 	}
 
-	if (LIST_ISEMPTY(vrrp->vip) && (vrrp->version == VRRP_VERSION_3 || vrrp->family == AF_INET6)) {
-		log_message(LOG_INFO, "(%s): No VIP specified; at least one is required", vrrp->iname);
-		return 0;
-	}
-
 	if (vrrp->version == 0) {
 		if (vrrp->family == AF_INET6)
 			vrrp->version = VRRP_VERSION_3;
 		else
 			vrrp->version = global_data->vrrp_version;
+	}
+
+	if (LIST_ISEMPTY(vrrp->vip) && (vrrp->version == VRRP_VERSION_3 || vrrp->family == AF_INET6 || vrrp->strict_mode)) {
+		log_message(LOG_INFO, "(%s): No VIP specified; at least one is required", vrrp->iname);
+		return 0;
 	}
 
 	if (vrrp->version == VRRP_VERSION_3 && vrrp->auth_type != VRRP_AUTH_NONE) {
@@ -1696,6 +1705,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	if (!chk_min_cfg(vrrp))
 		return 0;
+
+	/* unicast peers aren't allowed in strict mode */
+	if (vrrp->strict_mode && !LIST_ISEMPTY(vrrp->unicast_peer)) {
+		log_message(LOG_INFO, "(%s): Unicast peers are not supported in strict mode", vrrp->iname);
+		return 0;
+	}
 
 	/* If the addresses are IPv6, then the first one must be link local */
 	if (vrrp->family == AF_INET6 && LIST_ISEMPTY(vrrp->unicast_peer) &&
@@ -1741,6 +1756,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vrrp->base_priority = VRRP_PRIO_DFL;
 
 		vrrp->effective_priority = vrrp->base_priority;
+	}
+	else if (vrrp->strict_mode && (vrrp->init_state == VRRP_STATE_MAST) && (vrrp->base_priority != VRRP_PRIO_OWNER)) {
+		log_message(LOG_INFO,"(%s): Cannot start in MASTER state if not address owner", vrrp->iname);
+		vrrp->init_state = VRRP_STATE_BACK;
+		vrrp->wantstate = VRRP_STATE_BACK;
 	}
 
 	vrrp->state = VRRP_STATE_INIT;
