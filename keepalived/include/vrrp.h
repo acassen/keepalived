@@ -166,13 +166,14 @@ typedef struct _vrrp_t {
 							 * Those VIPs will not be presents into the
 							 * VRRP adverts
 							 */
+	bool			evip_add_ipv6;		/* Enable IPv6 for eVIPs if this is an IPv4 instance */
 	list			vroutes;		/* list of virtual routes */
 	list			vrules;			/* list of virtual rules */
 	int			adver_int;		/* locally configured delay between advertisements*/
-	int			master_adver_int; /* In v3, when we become BACKUP, we use the MASTER's
-								   * adver_int. If we become MASTER again, we use the
-								   * value we were originally configured with.
-								   */
+	int			master_adver_int; 	/* In v3, when we become BACKUP, we use the MASTER's
+							 * adver_int. If we become MASTER again, we use the
+							 * value we were originally configured with.
+							 */
 	bool			accept;			/* Allow the non-master owner to process
 							 * the packets destined to VIP.
 							 */

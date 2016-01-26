@@ -1617,6 +1617,9 @@ shutdown_vrrp_instances(void)
 static int
 vrrp_complete_instance(vrrp_t * vrrp)
 {
+	element e;
+	ip_address_t *vip;
+
 	vrrp->state = VRRP_STATE_INIT;
 	if (!vrrp->adver_int)
 		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
@@ -1626,6 +1629,20 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	if (!vrrp->version)
 		vrrp->version = VRRP_VERSION_2;
+
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+	{
+		/* We need to know if we need to allow IPv6 just for eVIPs */
+		if (vrrp->family == AF_INET && !LIST_ISEMPTY(vrrp->evip)) {
+			for (e = LIST_HEAD(vrrp->evip); e; ELEMENT_NEXT(e)) {
+				vip = ELEMENT_DATA(e);
+				if (vip->ifa.ifa_family == AF_INET6) {
+					vrrp->evip_add_ipv6 = true;
+					break;
+				}
+			}
+		}
+	}
 
 	return (chk_min_cfg(vrrp));
 }

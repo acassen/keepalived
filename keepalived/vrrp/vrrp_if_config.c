@@ -47,10 +47,9 @@
 #include "vrrp_if.h"
 #include "logger.h"
 
-#else
+#endif
 #include <limits.h>
 #include <unistd.h>
-#endif
 
 #ifdef _HAVE_LIBNL3_
 static int
@@ -201,7 +200,7 @@ reset_interface_parameters(interface_t *base_ifp)
 	}
 }
 
-#else
+#endif
 
 /* Sysctl get and set functions */
 static void
@@ -213,34 +212,6 @@ make_sysctl_filename(char *dest, const char* prefix, const char* iface, const ch
 	strcat(dest, iface);
 	strcat(dest, "/");
 	strcat(dest, parameter);
-}
-
-static int
-get_sysctl(const char* prefix, const char* iface, const char* parameter)
-{
-	char *filename;
-	char buf[1];
-	int fd;
-	int len;
-
-	/* Make the filename */
-	filename = MALLOC(PATH_MAX);
-	make_sysctl_filename(filename, prefix, iface, parameter);
-
-	fd = open(filename, O_RDONLY);
-	FREE(filename);
-	if (fd<0)
-		return -1;
-
-	len = read(fd, &buf, 1);
-	close(fd);
-
-	/* We only read integers 0-9 */
-	if (len <= 0)
-		return -1;
-
-	/* Return the value of the string read */
-	return buf[0] - '0';
 }
 
 static int
@@ -257,7 +228,7 @@ set_sysctl(const char* prefix, const char* iface, const char* parameter, int val
 
 	fd = open(filename, O_WRONLY);
 	FREE(filename);
-	if (fd <0)
+	if (fd < 0)
 		return -1;
 
 	/* We only write integers 0-9 */
@@ -270,6 +241,35 @@ set_sysctl(const char* prefix, const char* iface, const char* parameter, int val
 
 	/* Success */
 	return 0;
+}
+
+#ifndef _HAVE_LIBNL3_
+static int
+get_sysctl(const char* prefix, const char* iface, const char* parameter)
+{
+	char *filename;
+	char buf[1];
+	int fd;
+	int len;
+
+	/* Make the filename */
+	filename = MALLOC(PATH_MAX);
+	make_sysctl_filename(filename, prefix, iface, parameter);
+
+	fd = open(filename, O_RDONLY);
+	FREE(filename);
+	if (fd < 0)
+		return -1;
+
+	len = read(fd, &buf, 1);
+	close(fd);
+
+	/* We only read integers 0-9 */
+	if (len <= 0)
+		return -1;
+
+	/* Return the value of the string read */
+	return buf[0] - '0';
 }
 
 void
@@ -300,3 +300,9 @@ void reset_interface_parameters(interface_t *base_ifp)
 	}
 }
 #endif
+
+void link_disable_ipv6(const interface_t* ifp)
+{
+	/* libnl3, nor the kernel, support setting IPv6 options */
+	set_sysctl("net/ipv6/conf", ifp->ifname, "disable_ipv6", 1);
+}

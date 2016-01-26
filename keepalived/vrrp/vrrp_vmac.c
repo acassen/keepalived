@@ -194,6 +194,11 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	if (vrrp->family == AF_INET) {
 		/* Set the necessary kernel parameters to make macvlans work for us */
 		set_interface_parameters(ifp, base_ifp);
+
+		/* We don't want IPv6 running on the interface unless we have some IPv6
+		 * eVIPs, so disable it if not needed */
+		if (!vrrp->evip_add_ipv6)
+			link_disable_ipv6(ifp);
 	}
 	else {
 		// Add link-local address from underlying interface to vmac if there is one
