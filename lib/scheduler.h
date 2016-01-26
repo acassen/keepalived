@@ -27,7 +27,6 @@
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/wait.h>
-#include <assert.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <syslog.h>

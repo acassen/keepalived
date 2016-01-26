@@ -22,6 +22,10 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
+#ifdef _DEBUG_
+#include <assert.h>
+#endif
+
 #include "memory.h"
 #include "utils.h"
 #include "bitops.h"

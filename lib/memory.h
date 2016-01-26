@@ -29,7 +29,6 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 /* extern types */
 extern void *xalloc(unsigned long size);
