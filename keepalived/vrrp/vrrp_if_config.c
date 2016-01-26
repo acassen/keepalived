@@ -80,6 +80,7 @@ netlink3_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 	if (rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_ARP_IGNORE, 1) ||
 	    rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_ACCEPT_LOCAL, 1) ||
 	    rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_RP_FILTER, 0) ||
+	    rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_PROMOTE_SECONDARIES, 1) ||
 	    rtnl_link_change (sk, link, new_state, 0))
 		goto err;
 
@@ -278,6 +279,8 @@ set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 	set_sysctl("net/ipv4/conf", ifp->ifname, "arp_ignore", 1);
 	set_sysctl("net/ipv4/conf", ifp->ifname, "accept_local", 1);
 	set_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter", 0);
+
+	set_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries", 1);
 
 	if (base_ifp->reset_arp_config)
 		base_ifp->reset_arp_config++;

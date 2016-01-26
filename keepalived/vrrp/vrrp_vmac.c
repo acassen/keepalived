@@ -326,7 +326,9 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 
 	/* Reset arp_ignore and arp_filter on the base interface if necessary */
 	base_ifp = if_get_by_ifindex(vrrp->ifp->base_ifindex);
-	reset_interface_parameters(base_ifp);
+
+	if (vrrp->family == AF_INET)
+		reset_interface_parameters(base_ifp);
 
 	memset(&req, 0, sizeof (req));
 

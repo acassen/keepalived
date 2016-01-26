@@ -329,6 +329,68 @@ netlink_scope_a2n(char *scope)
 	return -1;
 }
 
+/*
+ * Netlink interface address lookup filter
+ * We need to handle multiple primary address and
+ * multiple secondary address to the same interface.
+ */
+static int
+netlink_if_address_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
+{
+	struct ifaddrmsg *ifa;
+	struct rtattr *tb[IFA_MAX + 1];
+	interface_t *ifp;
+	int len;
+	void *addr;
+
+	ifa = NLMSG_DATA(h);
+
+	/* Only IPV4 are valid us */
+	if (ifa->ifa_family != AF_INET && ifa->ifa_family != AF_INET6)
+		return 0;
+
+	if (h->nlmsg_type != RTM_NEWADDR && h->nlmsg_type != RTM_DELADDR)
+		return 0;
+
+	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifaddrmsg));
+	if (len < 0)
+		return -1;
+
+	memset(tb, 0, sizeof (tb));
+	parse_rtattr(tb, IFA_MAX, IFA_RTA(ifa), len);
+
+	/* Fetch interface_t */
+	ifp = if_get_by_ifindex(ifa->ifa_index);
+	if (!ifp)
+		return 0;
+	if (tb[IFA_LOCAL] == NULL)
+		tb[IFA_LOCAL] = tb[IFA_ADDRESS];
+	if (tb[IFA_ADDRESS] == NULL)
+		tb[IFA_ADDRESS] = tb[IFA_LOCAL];
+
+	/* local interface address */
+	addr = (tb[IFA_LOCAL] ? RTA_DATA(tb[IFA_LOCAL]) : NULL);
+
+	if (addr == NULL)
+		return -1;
+
+	/* If no address is set on interface then set the first time */
+	if (ifa->ifa_family == AF_INET) {
+		if (!ifp->sin_addr.s_addr)
+			ifp->sin_addr = *(struct in_addr *) addr;
+	} else {
+		if (!ifp->sin6_addr.s6_addr16[0] && ifa->ifa_scope == RT_SCOPE_LINK)
+			ifp->sin6_addr = *(struct in6_addr *) addr;
+	}
+
+#ifdef _WITH_LVS_
+	/* Refresh checkers state */
+	update_checker_activity(ifa->ifa_family, addr,
+				(h->nlmsg_type == RTM_NEWADDR) ? 1 : 0);
+#endif
+	return 0;
+}
+
 /* Our netlink parser */
 static int
 netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
@@ -399,6 +461,18 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				    ((n->nlmsg_type == RTM_NEWROUTE) ||
 				     (n->nlmsg_type == RTM_NEWADDR)))
 					return 0;
+
+				/* If have more than one IPv4 address in the same CIDR
+				 * and the "primary" address is removed, unless promote_secondaries
+				 * is configured on the interface, all the "secondary" addresses
+				 * in the same CIDR are deleted */
+				if (n && err->error == -EADDRNOTAVAIL &&
+				    n->nlmsg_type == RTM_DELADDR) {
+					netlink_if_address_filter(NULL, n);
+					if (!(h->nlmsg_flags & NLM_F_MULTI))
+						return 0;
+					continue;
+				}
 
 				log_message(LOG_INFO,
 				       "Netlink: error: %s, type=(%u), seq=%u, pid=%d",
@@ -609,68 +683,6 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
         }
 	/* Queue this new interface_t */
 	if_add_queue(ifp);
-	return 0;
-}
-
-/*
- * Netlink interface address lookup filter
- * We need to handle multiple primary address and
- * multiple secondary address to the same interface.
- */
-static int
-netlink_if_address_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
-{
-	struct ifaddrmsg *ifa;
-	struct rtattr *tb[IFA_MAX + 1];
-	interface_t *ifp;
-	int len;
-	void *addr;
-
-	ifa = NLMSG_DATA(h);
-
-	/* Only IPV4 are valid us */
-	if (ifa->ifa_family != AF_INET && ifa->ifa_family != AF_INET6)
-		return 0;
-
-	if (h->nlmsg_type != RTM_NEWADDR && h->nlmsg_type != RTM_DELADDR)
-		return 0;
-
-	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifaddrmsg));
-	if (len < 0)
-		return -1;
-
-	memset(tb, 0, sizeof (tb));
-	parse_rtattr(tb, IFA_MAX, IFA_RTA(ifa), len);
-
-	/* Fetch interface_t */
-	ifp = if_get_by_ifindex(ifa->ifa_index);
-	if (!ifp)
-		return 0;
-	if (tb[IFA_LOCAL] == NULL)
-		tb[IFA_LOCAL] = tb[IFA_ADDRESS];
-	if (tb[IFA_ADDRESS] == NULL)
-		tb[IFA_ADDRESS] = tb[IFA_LOCAL];
-
-	/* local interface address */
-	addr = (tb[IFA_LOCAL] ? RTA_DATA(tb[IFA_LOCAL]) : NULL);
-
-	if (addr == NULL)
-		return -1;
-
-	/* If no address is set on interface then set the first time */
-	if (ifa->ifa_family == AF_INET) {
-		if (!ifp->sin_addr.s_addr)
-			ifp->sin_addr = *(struct in_addr *) addr;
-	} else {
-		if (!ifp->sin6_addr.s6_addr16[0] && ifa->ifa_scope == RT_SCOPE_LINK)
-			ifp->sin6_addr = *(struct in6_addr *) addr;
-	}
-
-#ifdef _WITH_LVS_
-	/* Refresh checkers state */
-	update_checker_activity(ifa->ifa_family, addr,
-				(h->nlmsg_type == RTM_NEWADDR) ? 1 : 0);
-#endif
 	return 0;
 }
 
