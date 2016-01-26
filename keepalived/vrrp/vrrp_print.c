@@ -353,7 +353,7 @@ rule_print(FILE *file, void *data)
 	char *tmp = MALLOC(30);
 
 	if (rule->dir) {
-		snprintf(tmp, 30, "%s ", rule->dir);
+		snprintf(tmp, 30, "%s ", (rule->dir == VRRP_RULE_FROM) ? "from" : "to");
 		strncat(msg, tmp, 30);
 	}
 	if (rule->addr) {
