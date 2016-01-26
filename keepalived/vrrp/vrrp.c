@@ -1703,6 +1703,13 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
 
+	if (!vrrp->strict_mode) {
+		/* The following can only happen if we are not in strict mode */
+		if (vrrp->version == VRRP_VERSION_2 && vrrp->family == AF_INET6 && vrrp->auth_type == VRRP_AUTH_AH)
+			log_message(LOG_INFO, "(%s): Cannot use AH authentication with VRRPv2 and IPv6 - ignoring", vrrp->iname);
+			vrrp->auth_type = VRRP_AUTH_NONE;
+	}
+
 	if (!chk_min_cfg(vrrp))
 		return 0;
 
