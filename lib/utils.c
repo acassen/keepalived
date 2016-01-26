@@ -205,17 +205,10 @@ inet_stosockaddr(char *ip, char *port, struct sockaddr_storage *addr)
 	addr->ss_family = (strchr(ip, ':')) ? AF_INET6 : AF_INET;
 
 	/* remove range and mask stuff */
-	if (strstr(ip, "-")) {
-		while (*cp != '-' && *cp != '\0')
-			cp++;
-		if (*cp == '-')
-			*cp = 0;
-	} else if (strstr(ip, "/")) {
-		while (*cp != '/' && *cp != '\0')
-			cp++;
-		if (*cp == '/')
-			*cp = 0;
-	}
+	if ((cp = strchr(ip, '-')))
+		*cp = 0;
+	else if ((cp = strchr(ip, '/')))
+		*cp = 0;
 
 	if (addr->ss_family == AF_INET6) {
 		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
