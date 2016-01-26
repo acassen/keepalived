@@ -177,7 +177,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 {
 	struct iphdr *ip = (struct iphdr *) (buffer);
 	ipsec_ah_t *ah = (ipsec_ah_t *) ((char *) ip + (ip->ihl << 2));
-	unsigned char digest[16]; /*MD5_DIGEST_LENGTH */
+	unsigned char digest[MD5_DIGEST_LENGTH];
 	uint32_t backup_auth_data[3];
 
 	/* first verify that the SPI value is equal to src IP */

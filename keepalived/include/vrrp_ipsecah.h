@@ -28,6 +28,7 @@
 #include <sys/types.h>
 #include <string.h>
 #include <stdint.h>
+#include <openssl/md5.h>
 
 /* Predefined values */
 #define HMAC_MD5_TRUNC 0x0C	/* MD5 digest truncate value : 96-bit
