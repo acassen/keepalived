@@ -1625,6 +1625,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
 
+	if (vrrp->auth_type != VRRP_AUTH_NONE && !vrrp->auth_data[0]) {
+		log_message(LOG_INFO, "(%s): Authentication specified but no password given. Ignoring", vrrp->iname);
+		vrrp->auth_type = VRRP_AUTH_NONE;
+	}
+
 	if (!chk_min_cfg(vrrp))
 		return 0;
 
