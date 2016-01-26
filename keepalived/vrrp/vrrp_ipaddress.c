@@ -359,27 +359,23 @@ parse_ipaddress(ip_address_t *ip_address, char *str)
 void
 alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 {
+/* The way this works is slightly strange.
+ *
+ * If !ifp, then this is being called for a static address, in which
+ * case either dev DEVNAME must be specified, or we will attempt to
+ * add the address to DFTL_INT.
+ * Otherwise, we are being called for a VIP/eVIP. We don't set the
+ * interface for the address unless dev DEVNAME is specified, in case
+ * a VMAC is added later. When the complete configuration is checked,
+ * if the ifindex is 0, then it will be set to the interface of the
+ * vrrp_instance (VMAC or physical interface).
+ */
 	ip_address_t *new;
 	interface_t *ifp_local;
 	char *str;
 	int i = 0, addr_idx =0;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
-	if (ifp) {
-		new->ifa.ifa_index = IF_INDEX(ifp);
-		new->ifp = ifp;
-	} else {
-		ifp_local = if_get_by_ifname(DFLT_INT);
-		if (!ifp_local) {
-			log_message(LOG_INFO, "Default interface " DFLT_INT
-				    " does not exist and no interface specified. "
-				    "Skip VRRP address.");
-			FREE(new);
-			return;
-		}
-		new->ifa.ifa_index = IF_INDEX(ifp_local);
-		new->ifp = ifp_local;
-	}
 
 	/* FMT parse */
 	while (i < vector_size(strvec)) {
@@ -426,10 +422,21 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		i++;
 	}
 
+	if (!ifp && !new->ifp) {
+		ifp_local = if_get_by_ifname(DFLT_INT);
+		if (!ifp_local) {
+			log_message(LOG_INFO, "Default interface " DFLT_INT
+				    " does not exist and no interface specified. "
+				    "Skipping static address %s.", FMT_STR_VSLOT(strvec, addr_idx));
+			FREE(new);
+			return;
+		}
+		new->ifa.ifa_index = IF_INDEX(ifp_local);
+		new->ifp = ifp_local;
+	}
+
 	list_add(ip_list, new);
 }
-
-
 
 /* Find an address in a list */
 int
