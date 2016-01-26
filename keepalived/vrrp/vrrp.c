@@ -1628,12 +1628,19 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (!chk_min_cfg(vrrp))
 		return 0;
 
+	if (vrrp->base_priority == 0) {
+		if (vrrp->init_state == VRRP_STATE_MAST)
+			vrrp->base_priority = VRRP_PRIO_OWNER;
+		else
+			vrrp->base_priority = VRRP_PRIO_DFL;
+
+		vrrp->effective_priority = vrrp->base_priority;
+	}
+
 	vrrp->state = VRRP_STATE_INIT;
 	if (!vrrp->adver_int)
 		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
 	vrrp->master_adver_int = vrrp->adver_int;
-	if (!vrrp->effective_priority)
-		vrrp->effective_priority = VRRP_PRIO_DFL;
 
 	/* Set a default interface name for the vmac if needed */
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && !vrrp->vmac_ifname[0])
