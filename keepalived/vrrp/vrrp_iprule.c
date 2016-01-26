@@ -164,11 +164,11 @@ alloc_rule(list rule_list, vector_t *strvec)
 
 		if (!strcmp(str, "from")) {
 			new->dir  = "from";
-			new->addr = parse_ipaddress(NULL, vector_slot(strvec, ++i));
+			new->addr = parse_ipaddress(NULL, vector_slot(strvec, ++i),false);
 			new->mask = new->addr->ifa.ifa_prefixlen;
 		} else if (!strcmp(str, "to")) {
 			new->dir  = "to";
-			new->addr = parse_ipaddress(NULL, vector_slot(strvec, ++i));
+			new->addr = parse_ipaddress(NULL, vector_slot(strvec, ++i),false);
 			new->mask = new->addr->ifa.ifa_prefixlen;			
 		} else if (!strcmp(str, "table")) {
 			new->table = atoi(vector_slot(strvec, ++i));

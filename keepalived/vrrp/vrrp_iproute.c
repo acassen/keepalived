@@ -235,14 +235,14 @@ alloc_route(list rt_list, vector_t *strvec)
 		/* cmd parsing */
 		if (!strcmp(str, "blackhole")) {
 			new->blackhole = 1;
-			new->dst = parse_ipaddress(NULL, vector_slot(strvec, ++i));
+			new->dst = parse_ipaddress(NULL, vector_slot(strvec, ++i), true);
 			new->dmask = new->dst->ifa.ifa_prefixlen;
 		} else if (!strcmp(str, "via") || !strcmp(str, "gw")) {
-			new->gw = parse_ipaddress(NULL, vector_slot(strvec, ++i));
+			new->gw = parse_ipaddress(NULL, vector_slot(strvec, ++i), false);
 		} else if (!strcmp(str, "or")) {
-			new->gw2 = parse_ipaddress(NULL, vector_slot(strvec, ++i));
+			new->gw2 = parse_ipaddress(NULL, vector_slot(strvec, ++i), false);
 		} else if (!strcmp(str, "src")) {
-			new->src = parse_ipaddress(NULL, vector_slot(strvec, ++i));
+			new->src = parse_ipaddress(NULL, vector_slot(strvec, ++i), false);
 		} else if (!strcmp(str, "dev") || !strcmp(str, "oif")) {
 			ifp = if_get_by_ifname(vector_slot(strvec, ++i));
 			if (!ifp) {
@@ -262,7 +262,7 @@ alloc_route(list rt_list, vector_t *strvec)
 		} else {
 			if (!strcmp(str, "to")) i++;
 
-			new->dst = parse_ipaddress(NULL, vector_slot(strvec, i));
+			new->dst = parse_ipaddress(NULL, vector_slot(strvec, i), true);
 			if (new->dst) {
 				new->dmask = new->dst->ifa.ifa_prefixlen;
 			}

@@ -95,7 +95,7 @@ extern void handle_iptable_rule_to_iplist(list, int, char *);
 extern void free_ipaddress(void *);
 extern char *ipaddresstos(ip_address_t *);
 extern void dump_ipaddress(void *);
-extern ip_address_t *parse_ipaddress(ip_address_t *, char *);
+extern ip_address_t *parse_ipaddress(ip_address_t *, char *, int);
 extern void alloc_ipaddress(list, vector_t *, interface_t *);
 extern void clear_diff_address(list, list);
 extern void clear_diff_saddresses(void);

@@ -311,7 +311,7 @@ dump_ipaddress(void *if_data)
 	FREE(addr_str);
 }
 ip_address_t *
-parse_ipaddress(ip_address_t *ip_address, char *str)
+parse_ipaddress(ip_address_t *ip_address, char *str, int allow_default)
 {
 	ip_address_t *new = ip_address;
 	void *addr;
@@ -323,12 +323,14 @@ parse_ipaddress(ip_address_t *ip_address, char *str)
 	}
 
 	/* Handle the specials */
-	if (!strcmp(str, "default")) {
-		new->ifa.ifa_family = AF_INET;
-		return new;
-	} else if (!strcmp(str, "default6")) {
-		new->ifa.ifa_family = AF_INET6;
-		return new;
+	if (allow_default) {
+		if (!strcmp(str, "default")) {
+			new->ifa.ifa_family = AF_INET;
+			return new;
+		} else if (!strcmp(str, "default6")) {
+			new->ifa.ifa_family = AF_INET6;
+			return new;
+		}
 	}
 
 	/* Parse ip address */
@@ -412,7 +414,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			new->label = MALLOC(IFNAMSIZ);
 			strncpy(new->label, vector_slot(strvec, ++i), IFNAMSIZ);
 		} else {
-			if (!parse_ipaddress(new, str)) {
+			if (!parse_ipaddress(new, str, false)) {
 				FREE(new);
 				return;
 			}
