@@ -229,8 +229,10 @@ inet_stosockaddr(char *ip, char *port, struct sockaddr_storage *addr)
 		addr_ip = &addr4->sin_addr;
 	}
 
-	if (!inet_pton(addr->ss_family, ip, addr_ip))
+	if (!inet_pton(addr->ss_family, ip, addr_ip)) {
+		addr->ss_family = AF_UNSPEC;
 		return -1;
+	}
 
 	return 0;
 }
