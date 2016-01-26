@@ -485,6 +485,7 @@ vrrp_garp_refresh_rep_handler(vector_t *strvec)
 	if (vrrp->garp_refresh_rep < 1)
 		vrrp->garp_refresh_rep = 1;
 }
+#if defined _WITH_VRRP_AUTH_
 static void
 vrrp_auth_type_handler(vector_t *strvec)
 {
@@ -515,6 +516,7 @@ vrrp_auth_pass_handler(vector_t *strvec)
 	memset(vrrp->auth_data, 0, max_size);
 	memcpy(vrrp->auth_data, str, str_len);
 }
+#endif
 static void
 vrrp_vip_handler(vector_t *strvec)
 {
@@ -710,11 +712,13 @@ vrrp_init_keywords(void)
 	install_keyword("garp_master_refresh", &vrrp_garp_refresh_handler);
 	install_keyword("garp_master_repeat", &vrrp_garp_rep_handler);
 	install_keyword("garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
+#if defined _WITH_VRRP_AUTH_
 	install_keyword("authentication", NULL);
 	install_sublevel();
 	install_keyword("auth_type", &vrrp_auth_type_handler);
 	install_keyword("auth_pass", &vrrp_auth_pass_handler);
 	install_sublevel_end();
+#endif
 	install_keyword_root("vrrp_script", &vrrp_script_handler);
 	install_keyword("script", &vrrp_vscript_script_handler);
 	install_keyword("interval", &vrrp_vscript_interval_handler);

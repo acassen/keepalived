@@ -102,7 +102,9 @@ void
 vrrp_print(FILE *file, void *data)
 {
 	vrrp_t *vrrp = data;
+#ifdef _WITH_VRRP_AUTH_
 	char auth_data[sizeof(vrrp->auth_data) + 1];
+#endif
 	char time_str[26];
 
 	fprintf(file, " VRRP Instance = %s\n", vrrp->iname);
@@ -158,6 +160,7 @@ vrrp_print(FILE *file, void *data)
 	if (vrrp->preempt_delay)
 		fprintf(file, "   Preempt delay = %ld secs\n",
 		       vrrp->preempt_delay / TIMER_HZ);
+#if defined _WITH_VRRP_AUTH_
 	if (vrrp->auth_type) {
 		fprintf(file, "   Authentication type = %s\n",
 		       (vrrp->auth_type ==
@@ -171,6 +174,7 @@ vrrp_print(FILE *file, void *data)
 	}
 	else
 		fprintf(file, "   Authentication type = none\n");
+#endif
 
 	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
 		fprintf(file, "   Tracked interfaces = %d\n",

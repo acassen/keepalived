@@ -228,7 +228,9 @@ static void
 dump_vrrp(void *data)
 {
 	vrrp_t *vrrp = data;
+#ifdef _WITH_VRRP_AUTH_
 	char auth_data[sizeof(vrrp->auth_data) + 1];
+#endif
 
 	log_message(LOG_INFO, " VRRP Instance = %s", vrrp->iname);
 	log_message(LOG_INFO, "   Using VRRPv%d", vrrp->version);
@@ -271,6 +273,7 @@ dump_vrrp(void *data)
 	if (vrrp->preempt_delay)
 		log_message(LOG_INFO, "   Preempt delay = %ld secs",
 		       vrrp->preempt_delay / TIMER_HZ);
+#if defined _WITH_VRRP_AUTH_
 	if (vrrp->version == VRRP_VERSION_2) {
 		if (vrrp->auth_type) {
 			log_message(LOG_INFO, "   Authentication type = %s",
@@ -284,6 +287,7 @@ dump_vrrp(void *data)
 			}
 		}
 	}
+#endif
 	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
 		log_message(LOG_INFO, "   Tracked interfaces = %d", LIST_SIZE(vrrp->track_ifp));
 		dump_list(vrrp->track_ifp);

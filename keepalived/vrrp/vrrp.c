@@ -113,12 +113,14 @@ vrrp_iphdr_len(vrrp_t * vrrp)
 	return sizeof(struct iphdr);
 }
 
+#ifdef _WITH_VRRP_AUTH_
 /* IPSEC AH header length */
 static int
 vrrp_ipsecah_len(void)
 {
 	return sizeof(ipsec_ah_t);
 }
+#endif
 
 /* VRRP header length */
 static int
@@ -149,16 +151,17 @@ vrrp_get_header(sa_family_t family, char *buf, int *proto)
 		iph = (struct iphdr *) buf;
 
 		/* Fill the VRRP header */
-		switch (iph->protocol) {
-		case IPPROTO_IPSEC_AH:
+#ifdef _WITH_VRRP_AUTH_
+		if (iph->protocol == IPPROTO_IPSEC_AH) {
 			*proto = IPPROTO_IPSEC_AH;
 			hd = (vrrphdr_t *) ((char *) iph + (iph->ihl << 2) +
 					   vrrp_ipsecah_len());
-			break;
-		case IPPROTO_VRRP:
+		}
+		else
+#endif
+		{
 			*proto = IPPROTO_VRRP;
 			hd = (vrrphdr_t *) ((char *) iph + (iph->ihl << 2));
-			break;
 		}
 	} else if (family == AF_INET6) {
 		*proto = IPPROTO_VRRP;
@@ -168,6 +171,7 @@ vrrp_get_header(sa_family_t family, char *buf, int *proto)
 	return hd;
 }
 
+#ifdef _WITH_VRRP_AUTH_
 /*
  * IPSEC AH incoming packet check.
  * return 0 for a valid pkt, != 0 otherwise.
@@ -238,6 +242,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 
 	return 0;
 }
+#endif
 
 /* check if ipaddr is present in VIP buffer */
 static int
@@ -273,7 +278,9 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 	int ihl;
 	size_t vrrppkt_len;
 	int adver_int = 0;
+#ifdef _WITH_VRRP_AUTH_
 	ipsec_ah_t *ah;
+#endif
 	vrrphdr_t *hd;
 	unsigned char *vips;
 	ip_address_t *ipaddress;
@@ -289,8 +296,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 	if (vrrp->family == AF_INET) {
 		/* To begin with, we just concern ourselves with the protocol headers */
 		expected_len = vrrp_iphdr_len(vrrp) + sizeof(vrrphdr_t);
+#ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			expected_len += vrrp_ipsecah_len();
+#endif
 
 		/*
 		 * MUST verify that the received packet length is not shorter than
@@ -307,12 +316,13 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 		ip = (struct iphdr *) (buffer);
 		ihl = ip->ihl << 2;
 
+#ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH) {
 			ah = (ipsec_ah_t *) (buffer + ihl);
 			hd = (vrrphdr_t *) ((char *) ah + vrrp_ipsecah_len());
-		} else {
+		} else
+#endif
 			hd = (vrrphdr_t *) (buffer + ihl);
-		}
 
 		/* Now calculate expected_len to include everything */
 		expected_len += vrrp_pkt_len(vrrp) - sizeof(vrrphdr_t);
@@ -370,14 +380,17 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 
 	/* Check that auth type of packet is one of the supported auth types */
 	if (vrrp->version == VRRP_VERSION_2 &&
+#ifdef _WITH_VRRP_AUTH_
 		hd->v2.auth_type != VRRP_AUTH_AH &&
 		hd->v2.auth_type != VRRP_AUTH_PASS &&
+#endif
 		hd->v2.auth_type != VRRP_AUTH_NONE) {
 		log_message(LOG_INFO, "(%s): Invalid auth type: %d", vrrp->iname, hd->v2.auth_type);
 		++vrrp->stats->invalid_authtype;
 		return VRRP_PACKET_KO;
 	}
 
+#ifdef _WITH_VRRP_AUTH_
 	/*
 	 * MUST perform authentication specified by Auth Type 
 	 * check the authentication type
@@ -408,6 +421,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 				return VRRP_PACKET_KO;
 		}
 	}
+#endif
 
 	if ((LIST_ISEMPTY(vrrp->vip) && hd->naddr > 0) ||
 	    (LIST_SIZE(vrrp->vip) != hd->naddr)) {
@@ -590,7 +604,11 @@ vrrp_build_ip4(vrrp_t * vrrp, char *buffer, int buflen, uint32_t dst)
 	ip->ttl = VRRP_IP_TTL;
 
 	/* fill protocol type --rfc2402.2 */
+#ifdef _WITH_VRRP_AUTH_
 	ip->protocol = (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH : IPPROTO_VRRP;
+#else
+	ip->protocol = IPPROTO_VRRP;
+#endif
 
 	ip->saddr = VRRP_PKT_SADDR(vrrp);
 	ip->daddr = dst;
@@ -599,6 +617,7 @@ vrrp_build_ip4(vrrp_t * vrrp, char *buffer, int buflen, uint32_t dst)
 	ip->check = in_csum((u_short *) ip, ip->ihl * 4, 0, NULL);
 }
 
+#ifdef _WITH_VRRP_AUTH_
 /* build IPSEC AH header */
 static void
 vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
@@ -678,6 +697,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 	ip->check = ip_mutable_fields.check;
 	ip->ttl = ip_mutable_fields.ttl;
 }
+#endif
 
 /* build VRRPv2 header */
 static int
@@ -695,7 +715,11 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, int prio, char *buffer)
 	hd->vrid = vrrp->vrid;
 	hd->priority = prio;
 	hd->naddr = (!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) : 0;
+#ifdef _HAVE_VRRP_DATA_
 	hd->v2.auth_type = vrrp->auth_type;
+#else
+	hd->v2.auth_type = VRRP_AUTH_NONE;
+#endif
 	hd->v2.adver_int = vrrp->adver_int / TIMER_HZ;
 
 	/* Family specific */
@@ -709,12 +733,14 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, int prio, char *buffer)
 			}
 		}
 
+#ifdef _WITH_VRRP_AUTH_
 		/* copy the passwd if the authentication is VRRP_AH_PASS */
 		if (vrrp->auth_type == VRRP_AUTH_PASS) {
 			int vip_count = (!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) : 0;
 			char *pw = (char *) hd + sizeof (*hd) + vip_count * 4;
 			memcpy(pw, vrrp->auth_data, sizeof (vrrp->auth_data));
 		}
+#endif
 
 		/* finaly compute vrrp checksum */
 		hd->chksum = 0;
@@ -821,19 +847,25 @@ vrrp_build_pkt(vrrp_t * vrrp, int prio, struct sockaddr_storage *addr)
 		/* build the vrrp header */
 		vrrp->send_buffer += vrrp_iphdr_len(vrrp);
 
+#ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			vrrp->send_buffer += vrrp_ipsecah_len();
+#endif
 		vrrp->send_buffer_size -= vrrp_iphdr_len(vrrp);
 
+#ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			vrrp->send_buffer_size -= vrrp_ipsecah_len();
+#endif
 		vrrp_build_vrrp(vrrp, prio, vrrp->send_buffer);
 
+#ifdef _WITH_VRRP_AUTH_
 		/* build the IPSEC AH header */
 		if (vrrp->auth_type == VRRP_AUTH_AH) {
 			vrrp->send_buffer_size += vrrp_iphdr_len(vrrp) + vrrp_ipsecah_len();
 			vrrp_build_ipsecah(vrrp, bufptr, VRRP_SEND_BUFFER_SIZE(vrrp));
 		}
+#endif
 	} else if (vrrp->family == AF_INET6) {
 		vrrp_build_vrrp(vrrp, prio, VRRP_SEND_BUFFER(vrrp));
 	}
@@ -921,8 +953,10 @@ vrrp_alloc_send_buffer(vrrp_t * vrrp)
 
 	if (vrrp->family == AF_INET) {
 		vrrp->send_buffer_size += vrrp_iphdr_len(vrrp);
+#ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			vrrp->send_buffer_size += vrrp_ipsecah_len();
+#endif
 	}
 
 	vrrp->send_buffer = MALLOC(VRRP_SEND_BUFFER_SIZE(vrrp));
@@ -1576,10 +1610,12 @@ new_vrrp_socket(vrrp_t * vrrp)
 	/* close the desc & open a new one */
 	close_vrrp_socket(vrrp);
 	remove_vrrp_fd_bucket(vrrp);
+#ifdef _WITH_VRRP_AUTH_
 	if (vrrp->version == VRRP_VERSION_2)
-		proto = (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH :
+		proto =(vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH :
 				IPPROTO_VRRP;
 	else
+#endif
 		proto = IPPROTO_VRRP;
 	ifindex = (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
 									    IF_INDEX(vrrp->ifp);
@@ -1693,6 +1729,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		return 0;
 	}
 
+#ifdef _WITH_VRRP_AUTH_
 	if (vrrp->version == VRRP_VERSION_3 && vrrp->auth_type != VRRP_AUTH_NONE) {
 		log_message(LOG_INFO, "(%s): VRRP version 3 does not support authentication. Ignoring.", vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
@@ -1709,6 +1746,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			log_message(LOG_INFO, "(%s): Cannot use AH authentication with VRRPv2 and IPv6 - ignoring", vrrp->iname);
 			vrrp->auth_type = VRRP_AUTH_NONE;
 	}
+#endif
 
 	if (!chk_min_cfg(vrrp))
 		return 0;
@@ -1732,8 +1770,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		if (vrrp->version == VRRP_VERSION_2) {
 			hdr_len += VRRP_AUTH_LEN;
 
+#ifdef _WITH_VRRP_AUTH_
 			if (vrrp->auth_type == VRRP_AUTH_AH)
 				hdr_len += vrrp_ipsecah_len();
+#endif
 		}
 
 		max_addr = (vrrp->ifp->mtu - hdr_len) / sizeof(struct in_addr);

@@ -77,8 +77,10 @@ typedef struct {
 #define VRRP_PRIO_DFL		100		/* default priority -- rfc2338.5.3.4 */
 #define VRRP_PRIO_STOP		0		/* priority to stop -- rfc2338.5.3.4 */
 #define VRRP_AUTH_NONE		0		/* no authentification -- rfc2338.5.3.6 */
+#ifdef _WITH_VRRP_AUTH_
 #define VRRP_AUTH_PASS		1		/* password authentification -- rfc2338.5.3.6 */
 #define VRRP_AUTH_AH		2		/* AH(IPSec) authentification - rfc2338.5.3.6 */
+#endif
 #define VRRP_ADVER_DFL		1		/* advert. interval (in sec) -- rfc2338.5.3.7 */
 #define VRRP_GARP_DELAY 	(5 * TIMER_HZ)	/* Default delay to launch gratuitous arp */
 #define VRRP_GARP_REP		5		/* Default repeat value for MASTER state gratuitous arp */
@@ -221,9 +223,11 @@ typedef struct _vrrp_t {
 	char			*send_buffer;		/* Allocated send buffer */
 	int			send_buffer_size;
 
+#if defined _WITH_VRRP_AUTH_
 	/* Authentication data (only valid for VRRPv2) */
 	int			auth_type;		/* authentification type. VRRP_AUTH_* */
 	uint8_t			auth_data[8];		/* authentification data */
+#endif
 
 	/*
 	 * To have my own ip_id creates collision with kernel ip->id

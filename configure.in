@@ -37,6 +37,8 @@ AC_ARG_ENABLE(snmp,
   [  --enable-snmp           compile with SNMP support])
 AC_ARG_ENABLE(sha1,
   [  --enable-sha1           compile with SHA1 support])
+AC_ARG_ENABLE(vrrp-auth,
+  [  --disable-vrrp-auth     compile without VRRP authentication])
 AC_ARG_ENABLE(debug,
   [  --enable-debug          compile with debugging flags])
 AC_ARG_ENABLE(profile,
@@ -57,7 +59,9 @@ AC_CHECK_DECL([ETHERTYPE_IPV6],[],[CFLAGS="$CFLAGS -DETHERTYPE_IPV6=0x86dd"],
 
 dnl ----[ Checks for libraries ]----
 AC_CHECK_LIB(crypt, crypt,,AC_MSG_ERROR([crypt() function is required]))
-AC_CHECK_LIB(crypto, MD5_Init,,AC_MSG_ERROR([OpenSSL libraries are required]))
+if test "${enable-vrrp-auth}" != "no"; then
+  AC_CHECK_LIB(crypto, MD5_Init,,AC_MSG_ERROR([OpenSSL libraries are required]))
+fi
 AC_CHECK_LIB(ssl, SSL_CTX_new,,AC_MSG_ERROR([OpenSSL libraries are required]))
 
 USE_NL3="_WITHOUT_LIBNL_"
@@ -330,6 +334,17 @@ if test "${enable_debug}" = "yes"; then
   AC_SUBST(DFLAGS)
 fi
 
+dnl ----[ check for VRRP authentication support ]----
+VRRP_AUTH_SUPPORT="_WITHOUT_VRRP_AUTH_"
+if test "$enable_vrrp" != "no"; then
+  if test "${enable_vrrp_auth}" != "no"; then
+    VRRP_AUTH_SUPPORT="_WITH_VRRP_AUTH_"
+  fi
+fi
+
+AC_SUBST(VRRP_AUTH_SUPPORT)
+
+
 dnl ----[ Profiling or not ? ]----
 if test "${enable_profile}" = "yes"; then
   CFLAGS="$CFLAGS -pg"
@@ -412,6 +427,11 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
     echo "Use VRRP VMAC            : Yes"
   else
     echo "Use VRRP VMAC            : No"
+  fi
+  if test "${VRRP_AUTH_SUPPORT}" = "_WITH_VRRP_AUTH_"; then
+    echo "Use VRRP authentication  : Yes"
+  else
+    echo "Use VRRP authentication  : No"
   fi
 else
   echo "Use VRRP Framework       : No"
