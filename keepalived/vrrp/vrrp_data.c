@@ -41,7 +41,7 @@ char *vrrp_buffer;
 void
 alloc_saddress(vector_t *strvec)
 {
-	if (LIST_ISEMPTY(vrrp_data->static_addresses))
+	if (!LIST_EXISTS(vrrp_data->static_addresses))
 		vrrp_data->static_addresses = alloc_list(free_ipaddress, dump_ipaddress);
 	alloc_ipaddress(vrrp_data->static_addresses, strvec, NULL);
 }
@@ -50,7 +50,7 @@ alloc_saddress(vector_t *strvec)
 void
 alloc_sroute(vector_t *strvec)
 {
-	if (LIST_ISEMPTY(vrrp_data->static_routes))
+	if (!LIST_EXISTS(vrrp_data->static_routes))
 		vrrp_data->static_routes = alloc_list(free_iproute, dump_iproute);
 	alloc_route(vrrp_data->static_routes, strvec);
 }
@@ -59,7 +59,7 @@ alloc_sroute(vector_t *strvec)
 void
 alloc_srule(vector_t *strvec)
 {
-	if (LIST_ISEMPTY(vrrp_data->static_rules))
+	if (!LIST_EXISTS(vrrp_data->static_rules))
 		vrrp_data->static_rules = alloc_list(free_iprule, dump_iprule);
 	alloc_rule(vrrp_data->static_rules, strvec);
 }
@@ -405,7 +405,7 @@ alloc_vrrp_unicast_peer(vector_t *strvec)
 	struct sockaddr_storage *peer = NULL;
 	int ret;
 
-	if (LIST_ISEMPTY(vrrp->unicast_peer))
+	if (!LIST_EXISTS(vrrp->unicast_peer))
 		vrrp->unicast_peer = alloc_list(free_unicast_peer, dump_unicast_peer);
 
 	/* Allocate new unicast peer */
@@ -435,7 +435,7 @@ alloc_vrrp_track(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
-	if (LIST_ISEMPTY(vrrp->track_ifp))
+	if (!LIST_EXISTS(vrrp->track_ifp))
 		vrrp->track_ifp = alloc_list(NULL, dump_track);
 	alloc_track(vrrp->track_ifp, strvec);
 }
@@ -445,7 +445,7 @@ alloc_vrrp_track_script(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
-	if (LIST_ISEMPTY(vrrp->track_script))
+	if (!LIST_EXISTS(vrrp->track_script))
 		vrrp->track_script = alloc_list(NULL, dump_track_script);
 	alloc_track_script(vrrp->track_script, strvec);
 }
@@ -458,7 +458,7 @@ alloc_vrrp_vip(vector_t *strvec)
 		log_message(LOG_ERR, "Configuration error: VRRP definition must belong to an interface");
 	}
 
-	if (LIST_ISEMPTY(vrrp->vip))
+	if (!LIST_EXISTS(vrrp->vip))
 		vrrp->vip = alloc_list(free_ipaddress, dump_ipaddress);
 	alloc_ipaddress(vrrp->vip, strvec, vrrp->ifp);
 }
@@ -467,7 +467,7 @@ alloc_vrrp_evip(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
-	if (LIST_ISEMPTY(vrrp->evip))
+	if (!LIST_EXISTS(vrrp->evip))
 		vrrp->evip = alloc_list(free_ipaddress, dump_ipaddress);
 	alloc_ipaddress(vrrp->evip, strvec, vrrp->ifp);
 }
@@ -477,7 +477,7 @@ alloc_vrrp_vroute(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
-	if (LIST_ISEMPTY(vrrp->vroutes))
+	if (!LIST_EXISTS(vrrp->vroutes))
 		vrrp->vroutes = alloc_list(free_iproute, dump_iproute);
 	alloc_route(vrrp->vroutes, strvec);
 }
@@ -487,7 +487,7 @@ alloc_vrrp_vrule(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
-	if (LIST_ISEMPTY(vrrp->vrules))
+	if (!LIST_EXISTS(vrrp->vrules))
 		vrrp->vrules = alloc_list(free_iprule, dump_iprule);
 	alloc_rule(vrrp->vrules, strvec);
 }

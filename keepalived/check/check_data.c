@@ -316,7 +316,7 @@ alloc_rs(char *ip, char *port)
 	new->iweight = 1;
 	new->failed_checkers = alloc_list(free_failed_checkers, NULL);
 
-	if (LIST_ISEMPTY(vs->rs))
+	if (!LIST_EXISTS(vs->rs))
 		vs->rs = alloc_list(free_rs, dump_rs);
 	list_add(vs->rs, new);
 

@@ -125,6 +125,8 @@ free_list_elements(list l)
 	
 	for (e = LIST_HEAD(l); e; e = next) {
 		next = e->next;
+		if (l->free)
+			(*l->free) (e->data);
 		l->count--;
 		FREE(e);
 	}
