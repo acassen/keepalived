@@ -143,6 +143,7 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 {
 	char  *argv[14];
 	unsigned int i = 0;
+	int if_specifier = -1;
 
 	if (global_data->vrrp_iptables_inchain[0] == '\0')
 		return;
@@ -150,10 +151,13 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 	argv[i++] = "ip6tables";
 	argv[i++] = cmd ? "-A" : "-D";
 	argv[i++] = global_data->vrrp_iptables_inchain;
-	argv[i++] = "-i";
-	argv[i++] = ifname;
 	argv[i++] = "-d";
 	argv[i++] = ipaddresstos(ipaddress);
+	if (IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr)) {
+		if_specifier = i;
+		argv[i++] = "-i";
+		argv[i++] = ifname;
+	}
 	argv[i++] = "-p";
 	argv[i++] = "icmpv6";
 	argv[i++] = "--icmpv6-type";
@@ -178,8 +182,9 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 		return;
 
 	argv[2] = global_data->vrrp_iptables_outchain;
-	argv[3] = "-o";
-	argv[5] = "-s";
+	argv[3] = "-s";
+	if (if_specifier != -1)
+		argv[5] = "-o";
 
 	/* Allow NSs to be sent - this should only happen if the underlying interface
 	   doesn't have an IPv6 address */
@@ -203,6 +208,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname)
 {
 	char  *argv[10];
 	unsigned int i = 0;
+	int if_specifier = -1;
 
 	if (global_data->vrrp_iptables_inchain[0] == '\0')
 		return;
@@ -216,10 +222,13 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname)
 
 	argv[i++] = cmd ? "-A" : "-D";
 	argv[i++] = global_data->vrrp_iptables_inchain;
-	argv[i++] = "-i";
-	argv[i++] = ifname;
 	argv[i++] = "-d";
 	argv[i++] = ipaddresstos(ipaddress);
+	if (IP_IS6(ipaddress) && IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr)) {
+		if_specifier = i;
+		argv[i++] = "-i";
+		argv[i++] = ifname;
+	}
 	argv[i++] = "-j";
 	argv[i++] = "DROP";
 	argv[i] = '\0';
@@ -235,8 +244,9 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname)
 		return;
 
 	argv[2] = global_data->vrrp_iptables_outchain ;
-	argv[3] = "-o";
-	argv[5] = "-s";
+	argv[3] = "-s";
+	if (if_specifier >= 0)
+		argv[if_specifier] = "-o";
 
 	if (fork_exec(argv) < 0)
 		log_message(LOG_ERR, "Failed to %s iptable drop rule"
