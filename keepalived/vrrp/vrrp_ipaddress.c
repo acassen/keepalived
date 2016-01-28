@@ -28,7 +28,6 @@
 #include "memory.h"
 #include "utils.h"
 #include "bitops.h"
-#include "global_data.h"
 
 /* Add/Delete IP address to a specific interface_t */
 static int
@@ -139,12 +138,9 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 	char  *argv[14];
 	unsigned int i = 0;
 
-	if (global_data->vrrp_iptables_inchain[0] == '\0')
-		return;
-
 	argv[i++] = "ip6tables";
 	argv[i++] = cmd ? "-A" : "-D";
-	argv[i++] = global_data->vrrp_iptables_inchain;
+	argv[i++] = "INPUT";
 	argv[i++] = "-i";
 	argv[i++] = ifname;
 	argv[i++] = "-d";
@@ -170,9 +166,6 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname)
 	char  *argv[10];
 	unsigned int i = 0;
 
-	if (global_data->vrrp_iptables_inchain[0] == '\0')
-		return;
-
 	if (IP_IS6(ipaddress)) {
 		handle_iptable_rule_to_NA(ipaddress, cmd, ifname);
 		argv[i++] = "ip6tables";
@@ -181,7 +174,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname)
 	}
 
 	argv[i++] = cmd ? "-A" : "-D";
-	argv[i++] = global_data->vrrp_iptables_inchain;
+	argv[i++] = "INPUT";
 	argv[i++] = "-i";
 	argv[i++] = ifname;
 	argv[i++] = "-d";
@@ -196,18 +189,6 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname)
 				     ipaddresstos(ipaddress));
 	else
 		ipaddress->iptable_rule_set = (cmd) ? true : false;
-
-	if (global_data->vrrp_iptables_outchain[0] == '\0')
-		return;
-
-	argv[2] = global_data->vrrp_iptables_outchain ;
-	argv[3] = "-o";
-	argv[5] = "-s";
-
-	if (fork_exec(argv) < 0)
-		log_message(LOG_ERR, "Failed to %s iptable drop rule"
-				     " from vip %s\n", (cmd) ? "set" : "remove",
-				     ipaddresstos(ipaddress));
 }
 
 /* add/remove iptable drop rules to iplist */

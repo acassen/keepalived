@@ -45,7 +45,7 @@ AC_ARG_ENABLE(profile,
 dnl ----[ Checks for header files ]----
 AC_HEADER_STDC
 AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(fcntl.h syslog.h unistd.h sys/ioctl.h sys/time.h linux/netfilter/x_tables.h)
+AC_CHECK_HEADERS(fcntl.h syslog.h unistd.h sys/ioctl.h sys/time.h)
 dnl [do we really need this ?] AC_CHECK_HEADERS(linux/netlink.h linux/rtnetlink.h)
 AC_CHECK_HEADERS(openssl/ssl.h openssl/md5.h openssl/err.h,,AC_MSG_ERROR([
   !!! OpenSSL is not properly installed on your system. !!!

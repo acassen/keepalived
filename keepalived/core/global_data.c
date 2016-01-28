@@ -92,7 +92,6 @@ set_vrrp_defaults(data_t * data)
 	data->vrrp_garp_refresh_rep = VRRP_GARP_REFRESH_REP;
 	data->vrrp_garp_delay = VRRP_GARP_DELAY;
 	data->vrrp_version = VRRP_VERSION_2;
-	strcpy(data->vrrp_iptables_inchain, "INPUT");
 }
 
 /* email facility functions */
@@ -200,10 +199,6 @@ dump_global_data(data_t * data)
 	log_message(LOG_INFO, " Gratuitous ARP repeat = %d", data->vrrp_garp_rep);
 	log_message(LOG_INFO, " Gratuitous ARP refresh repeat = %d", data->vrrp_garp_refresh_rep);
 	log_message(LOG_INFO, " VRRP default protocol version = %d", data->vrrp_version);
-	if (data->vrrp_iptables_inchain[0])
-		log_message(LOG_INFO," Iptables input chain = %s", data->vrrp_iptables_inchain);
-	if (data->vrrp_iptables_outchain[0])
-		log_message(LOG_INFO," Iptables output chain = %s", data->vrrp_iptables_outchain);
 #ifdef _WITH_SNMP_
 	if (data->enable_traps)
 		log_message(LOG_INFO, " SNMP Trap enabled");
