@@ -77,8 +77,10 @@ typedef struct {
 #define VRRP_PRIO_DFL		100		/* default priority -- rfc2338.5.3.4 */
 #define VRRP_PRIO_STOP		0		/* priority to stop -- rfc2338.5.3.4 */
 #define VRRP_AUTH_NONE		0		/* no authentification -- rfc2338.5.3.6 */
+#ifdef _WITH_VRRP_AUTH_
 #define VRRP_AUTH_PASS		1		/* password authentification -- rfc2338.5.3.6 */
 #define VRRP_AUTH_AH		2		/* AH(IPSec) authentification - rfc2338.5.3.6 */
+#endif
 #define VRRP_ADVER_DFL		1		/* advert. interval (in sec) -- rfc2338.5.3.7 */
 #define VRRP_GARP_DELAY 	(5 * TIMER_HZ)	/* Default delay to launch gratuitous arp */
 #define VRRP_GARP_REP		5		/* Default repeat value for MASTER state gratuitous arp */
@@ -137,6 +139,9 @@ typedef struct _vrrp_t {
 	vrrp_stats		*stats;			/* Statistics */
 	interface_t		*ifp;			/* Interface we belong to */
 	int			dont_track_primary;	/* If set ignores ifp faults */
+	bool			skip_check_adv_addr;	/* If set, don't check the VIPs in subsequent
+							 * adverts from the same master */
+	bool			strict_mode;		/* Enforces strict VRRP compliance */
 	unsigned long		vmac_flags;		/* VRRP VMAC flags */
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
 	unsigned int		vmac_ifindex;		/* ifindex of vmac interface */
@@ -166,13 +171,14 @@ typedef struct _vrrp_t {
 							 * Those VIPs will not be presents into the
 							 * VRRP adverts
 							 */
+	bool			evip_add_ipv6;		/* Enable IPv6 for eVIPs if this is an IPv4 instance */
 	list			vroutes;		/* list of virtual routes */
 	list			vrules;			/* list of virtual rules */
 	int			adver_int;		/* locally configured delay between advertisements*/
-	int			master_adver_int; /* In v3, when we become BACKUP, we use the MASTER's
-								   * adver_int. If we become MASTER again, we use the
-								   * value we were originally configured with.
-								   */
+	int			master_adver_int; 	/* In v3, when we become BACKUP, we use the MASTER's
+							 * adver_int. If we become MASTER again, we use the
+							 * value we were originally configured with.
+							 */
 	bool			accept;			/* Allow the non-master owner to process
 							 * the packets destined to VIP.
 							 */
@@ -217,9 +223,11 @@ typedef struct _vrrp_t {
 	char			*send_buffer;		/* Allocated send buffer */
 	int			send_buffer_size;
 
+#if defined _WITH_VRRP_AUTH_
 	/* Authentication data (only valid for VRRPv2) */
 	int			auth_type;		/* authentification type. VRRP_AUTH_* */
 	uint8_t			auth_data[8];		/* authentification data */
+#endif
 
 	/*
 	 * To have my own ip_id creates collision with kernel ip->id
@@ -254,8 +262,6 @@ typedef struct _vrrp_t {
 #define VRRP_PACKET_OTHER    4	/* Muliple VRRP on LAN, Identify "other" VRRP */
 
 /* VRRP Packet fixed length */
-#define VRRP_MAX_VIP		20
-#define VRRP_PACKET_TEMP_LEN	1024
 #define VRRP_AUTH_LEN		8
 #define VRRP_VIP_TYPE		(1 << 0)
 #define VRRP_EVIP_TYPE		(1 << 1)
@@ -300,7 +306,6 @@ extern int vrrp_state_master_tx(vrrp_t *, const int);
 extern void vrrp_state_backup(vrrp_t *, char *, int);
 extern void vrrp_state_goto_master(vrrp_t *);
 extern void vrrp_state_leave_master(vrrp_t *);
-extern int vrrp_ipsecah_len(void);
 extern int vrrp_complete_init(void);
 extern int vrrp_ipvs_needed(void);
 extern void restore_vrrp_interfaces(void);

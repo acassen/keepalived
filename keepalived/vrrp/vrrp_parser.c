@@ -36,6 +36,17 @@
 #include "memory.h"
 #include "bitops.h"
 
+/* Checks for on/true/yes or off/false/no */
+static int
+check_true_false(char *str)
+{
+	if (!strcmp(str, "true") || !strcmp(str, "on") || !strcmp(str, "yes"))
+		return true;
+	if (!strcmp(str, "false") || !strcmp(str, "off") || !strcmp(str, "no"))
+		return false;
+
+	return -1;	/* error */
+}
 /* Static addresses handler */
 static void
 static_addresses_handler(vector_t *strvec)
@@ -61,13 +72,46 @@ static_rules_handler(vector_t *strvec)
 static void
 vrrp_sync_group_handler(vector_t *strvec)
 {
-	alloc_vrrp_sync_group(vector_slot(strvec, 1));
+	list l;
+	element e;
+	vrrp_sgroup_t *sg;
+	char* gname;
+
+	if (vector_count(strvec) != 2) {
+		log_message(LOG_INFO, "vrrp_sync_group must have a name - skipping");
+		skip_block();
+		return;
+	}
+
+	gname = vector_slot(strvec, 1);
+
+	/* check group doesn't already exist */
+	if (!LIST_ISEMPTY(vrrp_data->vrrp_sync_group)) {
+		l = vrrp_data->vrrp_sync_group;
+		for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+			sg = ELEMENT_DATA(e);
+			if (!strcmp(gname,sg->gname)) {
+				log_message(LOG_INFO, "vrrp sync group %s already defined", gname);
+				skip_block();
+				return;
+			}
+		}
+	}
+
+	alloc_vrrp_sync_group(gname);
 }
 static void
 vrrp_group_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
-	vgroup->iname = read_value_block();
+
+	if (vgroup->iname) {
+		log_message(LOG_INFO, "Group list already specified for sync group %s", vgroup->gname);
+		skip_block();
+		return;
+	}
+
+	vgroup->iname = read_value_block(strvec);
 }
 static void
 vrrp_gnotify_backup_handler(vector_t *strvec)
@@ -112,48 +156,53 @@ vrrp_gglobal_tracking_handler(vector_t *strvec)
 static void
 vrrp_handler(vector_t *strvec)
 {
-	alloc_vrrp(vector_slot(strvec, 1));
+	list l;
+	element e;
+	vrrp_t *vrrp;
+	char *iname;
+
+	if (vector_count(strvec) != 2) {
+		log_message(LOG_INFO, "vrrp_instance must have a name");
+		skip_block();
+		return;
+	}
+
+	iname = vector_slot(strvec,1);
+
+	/* Make sure the vrrp instance doesn't already exist */
+	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
+		l = vrrp_data->vrrp;
+		for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+			vrrp = ELEMENT_DATA(e);
+			if (!strcmp(iname,vrrp->iname)) {
+				log_message(LOG_INFO, "vrrp instance %s already defined", iname );
+				skip_block();
+				return;
+			}
+		}
+	}
+
+	alloc_vrrp(iname);
 }
+#ifdef _HAVE_VRRP_VMAC_
 static void
 vrrp_vmac_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	interface_t *ifp = vrrp->ifp;
-	struct sockaddr_storage *saddr = &vrrp->saddr;
 
 	__set_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
-	if (!vrrp->saddr.ss_family) {
-		if (!ifp) {
-			log_message(LOG_INFO, "Please define interface keyword before use_vmac keyword");
-			return;
-		} else {
-			if (vrrp->family == AF_INET) {
-				inet_ip4tosockaddr(&ifp->sin_addr, saddr);
-			} else if (vrrp->family == AF_INET6) {
-				inet_ip6tosockaddr(&ifp->sin6_addr, saddr);
-				/* IPv6 use-case: Binding to link-local address requires an interface */
-				inet_ip6scopeid(IF_INDEX(ifp), saddr);
-			}
-		}
-	}
-	if (vector_size(strvec) == 2) {
-		strncpy(vrrp->vmac_ifname, vector_slot(strvec, 1),
-			IFNAMSIZ - 1);
-	} else if (vrrp->vrid) {
-		snprintf(vrrp->vmac_ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
-	} else {
-		return;
-	}
 
-	netlink_link_add_vmac(vrrp);
+	if (vector_size(strvec) >= 2)
+		strncpy(vrrp->vmac_ifname, vector_slot(strvec, 1), IFNAMSIZ - 1);
 }
 static void
 vrrp_vmac_xmit_base_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-		__set_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
+
+	__set_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
 }
+#endif
 static void
 vrrp_unicast_peer_handler(vector_t *strvec)
 {
@@ -163,13 +212,14 @@ static void
 vrrp_native_ipv6_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	if (vrrp->family == AF_INET) {
+		log_message(LOG_INFO,"(%s): Cannot specify native_ipv6 with IPv4 addresses", vrrp->iname);
+		return;
+	}
+
 	vrrp->family = AF_INET6;
-
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-		log_message(LOG_INFO, "You should declare native_ipv6 before use_vmac!");
-
-	if (vrrp->auth_type != VRRP_AUTH_NONE)
-		vrrp->auth_type = VRRP_AUTH_NONE;
+	vrrp->version = VRRP_VERSION_3;
 }
 static void
 vrrp_state_handler(vector_t *strvec)
@@ -182,6 +232,8 @@ vrrp_state_handler(vector_t *strvec)
 		vrrp->wantstate = VRRP_STATE_MAST;
 		vrrp->init_state = VRRP_STATE_MAST;
 	}
+	else if (strcmp(str, "BACKUP"))
+		log_message(LOG_INFO,"(%s): unknown state '%s', defaulting to BACKUP", vrrp->iname, str);
 
 	/* set eventual sync group */
 	if (vgroup)
@@ -199,9 +251,6 @@ vrrp_int_handler(vector_t *strvec)
 				    , name, vrrp->iname);
 		return;
 	}
-
-	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-		netlink_link_add_vmac(vrrp);
 }
 static void
 vrrp_track_int_handler(vector_t *strvec)
@@ -223,7 +272,6 @@ static void
 vrrp_srcip_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	interface_t *ifp = vrrp->ifp;
 	struct sockaddr_storage *saddr = &vrrp->saddr;
 	int ret;
 
@@ -235,21 +283,13 @@ vrrp_srcip_handler(vector_t *strvec)
 		return;
 	}
 
-	if (saddr->ss_family != vrrp->family) {
+	if (vrrp->family == AF_UNSPEC)
+		vrrp->family = saddr->ss_family;
+	else if (saddr->ss_family != vrrp->family) {
 		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] and unicast src address"
 				     "[%s] MUST be of the same family !!! Skipping..."
 				   , vrrp->iname, FMT_STR_VSLOT(strvec, 1));
-		memset(saddr, 0, sizeof(struct sockaddr_storage));
-	}
-
-	/* IPv6 use-case: Binding to link-local address requires an interface.
-	 * Just specify scope_id for all address types */
-	if (saddr->ss_family == AF_INET6) {
-		if (!ifp) {
-			log_message(LOG_INFO, "Please define interface keyword before mcast_src_ip keyword");
-			return;
-		}
-		inet_ip6scopeid(IF_INDEX(ifp), saddr);
+		saddr->ss_family = AF_UNSPEC;
 	}
 }
 static void
@@ -262,44 +302,41 @@ vrrp_vrid_handler(vector_t *strvec)
 		log_message(LOG_INFO, "VRRP Error : VRID not valid !");
 		log_message(LOG_INFO,
 		       "             must be between 1 & 255. reconfigure !");
-	} else {
-		alloc_vrrp_bucket(vrrp);
-		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
-			if (strlen(vrrp->vmac_ifname) == 0)
-				snprintf(vrrp->vmac_ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
-			netlink_link_add_vmac(vrrp);
-		}
+
+		vrrp->vrid = 0;
+		return;
 	}
+
+	alloc_vrrp_bucket(vrrp);
 }
 static void
 vrrp_prio_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->effective_priority = vrrp->base_priority = atoi(vector_slot(strvec, 1));
+	vrrp->base_priority = atoi(vector_slot(strvec, 1));
 
 	if (VRRP_IS_BAD_PRIORITY(vrrp->base_priority)) {
-		log_message(LOG_INFO, "VRRP Error : Priority not valid !");
-		log_message(LOG_INFO,
-		       "             must be between 1 & 255. reconfigure !");
-		log_message(LOG_INFO,
-			    "             Using default value : %d\n", VRRP_PRIO_DFL);
-		vrrp->effective_priority = vrrp->base_priority = VRRP_PRIO_DFL;
+		log_message(LOG_INFO, "(%s): Priority not valid! must be between 1 & 255. Reconfigure !", vrrp->iname);
+		log_message(LOG_INFO, "%*sUsing default value : %d", (int)strlen(vrrp->iname) + 4, "", VRRP_PRIO_DFL);
+
+		vrrp->base_priority = VRRP_PRIO_DFL;
 	}
+	vrrp->effective_priority = vrrp->base_priority;
 }
 static void
 vrrp_adv_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->adver_int = atof(vector_slot(strvec, 1)) * 100; /* multiply with 100 to get decimal value */
+	vrrp->adver_int = atof(vector_slot(strvec, 1)) * 100; /* multiply by 100 to get integer value */
 
-	/* Simple check. Note that using VRRPv2 with 0.01s advert interval will not report an error */
+	/* Simple check - just positive */
 	if (VRRP_IS_BAD_ADVERT_INT(vrrp->adver_int)) {
-		log_message(LOG_INFO, "VRRP Error : Advert interval not valid !");
-		log_message(LOG_INFO, "             must be >=1sec for VRRPv2 or >=0.01sec for VRRPv3.\n");
-		log_message(LOG_INFO, "             Using default value : 1sec");
-		vrrp->adver_int = 100;
+		log_message(LOG_INFO, "(%s): Advert interval not valid !", vrrp->iname);
+		log_message(LOG_INFO, "%*smust be >=1sec for VRRPv2 or >=0.01sec for VRRPv3.", (int)strlen(vrrp->iname) + 4, "");
+		log_message(LOG_INFO, "%*sUsing default value : 1sec", (int)strlen(vrrp->iname) + 4, "");
+		vrrp->adver_int = VRRP_ADVER_DFL * 100;
 	}
-	vrrp->adver_int *= TIMER_HZ / 100.0;
+	vrrp->adver_int *= TIMER_CENTI_HZ;
 }
 static void
 vrrp_debug_handler(vector_t *strvec)
@@ -308,9 +345,42 @@ vrrp_debug_handler(vector_t *strvec)
 	vrrp->debug = atoi(vector_slot(strvec, 1));
 
 	if (VRRP_IS_BAD_DEBUG_INT(vrrp->debug)) {
-		log_message(LOG_INFO, "VRRP Error : Debug value not valid !");
-		log_message(LOG_INFO, "             must be between 0-4");
+		log_message(LOG_INFO, "(%s): Debug value not valid! must be between 0-4", vrrp->iname);
 		vrrp->debug = 0;
+	}
+}
+static void
+vrrp_skip_check_adv_addr_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	int res;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(vector_slot(strvec, 1));
+		if (res >= 0)
+			vrrp->skip_check_adv_addr = res;
+		else
+			log_message(LOG_INFO, "(%s): invalid skip_check_adv_addr %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+	} else {
+		/* Defaults to true */
+		vrrp->skip_check_adv_addr = true;
+	}
+}
+static void
+vrrp_strict_mode_handler(vector_t *strvec)
+{
+	int res;
+
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(vector_slot(strvec, 1));
+		if (res >= 0)
+			vrrp->strict_mode = res;
+		else
+			log_message(LOG_INFO, "(%s): invalid strict_mode %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+	} else {
+		/* Defaults to true */
+		vrrp->strict_mode = true;
 	}
 }
 static void
@@ -332,9 +402,7 @@ vrrp_preempt_delay_handler(vector_t *strvec)
 	vrrp->preempt_delay = atoi(vector_slot(strvec, 1));
 
 	if (VRRP_IS_BAD_PREEMPT_DELAY(vrrp->preempt_delay)) {
-		log_message(LOG_INFO, "VRRP Error : Preempt_delay not valid !");
-		log_message(LOG_INFO, "             must be between 0-%d",
-		       TIMER_MAX_SEC);
+		log_message(LOG_INFO, "(%s): Preempt_delay not valid! must be between 0-%d", vrrp->iname, TIMER_MAX_SEC);
 		vrrp->preempt_delay = 0;
 	}
 	vrrp->preempt_delay *= TIMER_HZ;
@@ -417,16 +485,19 @@ vrrp_garp_refresh_rep_handler(vector_t *strvec)
 	if (vrrp->garp_refresh_rep < 1)
 		vrrp->garp_refresh_rep = 1;
 }
+#if defined _WITH_VRRP_AUTH_
 static void
 vrrp_auth_type_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *str = vector_slot(strvec, 1);
 
-	if (!strcmp(str, "AH") && vrrp->family == AF_INET)
+	if (!strcmp(str, "AH"))
 		vrrp->auth_type = VRRP_AUTH_AH;
-	else if (!strcmp(str, "PASS") && vrrp->family == AF_INET)
+	else if (!strcmp(str, "PASS"))
 		vrrp->auth_type = VRRP_AUTH_PASS;
+	else
+		log_message(LOG_INFO, "(%s): unknown authentication type '%s'", vrrp->iname, str);
 }
 static void
 vrrp_auth_pass_handler(vector_t *strvec)
@@ -445,6 +516,7 @@ vrrp_auth_pass_handler(vector_t *strvec)
 	memset(vrrp->auth_data, 0, max_size);
 	memcpy(vrrp->auth_data, str, str_len);
 }
+#endif
 static void
 vrrp_vip_handler(vector_t *strvec)
 {
@@ -452,10 +524,11 @@ vrrp_vip_handler(vector_t *strvec)
 	char *buf;
 	char *str = NULL;
 	vector_t *vec = NULL;
-	int nbvip = 0;
+	int address_family;
 
 	buf = (char *) MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
+		address_family = AF_UNSPEC;
 		vec = alloc_strvec(buf);
 		if (vec) {
 			str = vector_slot(vec, 0);
@@ -465,17 +538,18 @@ vrrp_vip_handler(vector_t *strvec)
 			}
 
 			if (vector_size(vec)) {
-				nbvip++;
-				if (nbvip > VRRP_MAX_VIP) {
-					log_message(LOG_INFO,
-					       "VRRP_Instance(%s) "
-					       "trunc to the first %d VIPs.",
-					       vrrp->iname, VRRP_MAX_VIP);
-					log_message(LOG_INFO,
-					       "  => Declare others VIPs into"
-					       " the excluded vip block");
-				} else
-					alloc_vrrp_vip(vec);
+				alloc_vrrp_vip(vec);
+				if (!LIST_ISEMPTY(vrrp->vip))
+					address_family = IP_FAMILY((ip_address_t*)LIST_TAIL_DATA(vrrp->vip));
+			}
+
+			if (address_family != AF_UNSPEC) {
+				if (vrrp->family == AF_UNSPEC)
+					vrrp->family = address_family;
+				else if (address_family != vrrp->family) {
+					log_message(LOG_INFO, "(%s): address family must match VRRP instance [%s] - ignoring", vrrp->iname, buf);
+					free_list_element(vrrp->vip, LIST_TAIL_DATA(vrrp->vip));
+				}
 			}
 
 			free_strvec(vec);
@@ -560,6 +634,13 @@ vrrp_version_handler(vector_t *strvec)
 		log_message(LOG_INFO, "             must be between either 2 or 3. reconfigure !\n");
 		return;
 	}
+
+	if ((vrrp->version && vrrp->version != version) ||
+	    (version == VRRP_VERSION_2 && vrrp->family == AF_INET6)) {
+		log_message(LOG_INFO, "(%s): vrrp_version conflicts with configured or deduced version; ignoring.", vrrp->iname);
+		return;
+	}
+
 	vrrp->version = version;
 }
 
@@ -592,8 +673,10 @@ vrrp_init_keywords(void)
 	install_keyword("smtp_alert", &vrrp_gsmtp_handler);
 	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler);
 	install_keyword_root("vrrp_instance", &vrrp_handler);
+#ifdef _HAVE_VRRP_VMAC_
 	install_keyword("use_vmac", &vrrp_vmac_handler);
 	install_keyword("vmac_xmit_base", &vrrp_vmac_xmit_base_handler);
+#endif
 	install_keyword("unicast_peer", &vrrp_unicast_peer_handler);
 	install_keyword("native_ipv6", &vrrp_native_ipv6_handler);
 	install_keyword("state", &vrrp_state_handler);
@@ -612,6 +695,8 @@ vrrp_init_keywords(void)
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
 	install_keyword("virtual_rules", &vrrp_vrules_handler);
 	install_keyword("accept", &vrrp_accept_handler);
+	install_keyword("skip_check_adv_addr", &vrrp_skip_check_adv_addr_handler);
+	install_keyword("strict_mode", &vrrp_strict_mode_handler);
 	install_keyword("preempt", &vrrp_preempt_handler);
 	install_keyword("nopreempt", &vrrp_nopreempt_handler);
 	install_keyword("preempt_delay", &vrrp_preempt_delay_handler);
@@ -627,11 +712,13 @@ vrrp_init_keywords(void)
 	install_keyword("garp_master_refresh", &vrrp_garp_refresh_handler);
 	install_keyword("garp_master_repeat", &vrrp_garp_rep_handler);
 	install_keyword("garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
+#if defined _WITH_VRRP_AUTH_
 	install_keyword("authentication", NULL);
 	install_sublevel();
 	install_keyword("auth_type", &vrrp_auth_type_handler);
 	install_keyword("auth_pass", &vrrp_auth_pass_handler);
 	install_sublevel_end();
+#endif
 	install_keyword_root("vrrp_script", &vrrp_script_handler);
 	install_keyword("script", &vrrp_vscript_script_handler);
 	install_keyword("interval", &vrrp_vscript_interval_handler);

@@ -31,6 +31,10 @@
 #undef FREE
 #endif
 
+#ifndef _DEBUG_
+#define NDEBUG
+#endif
+#include <assert.h>
 #include <signal.h>
 #include <sys/wait.h>
 #include <sys/select.h>

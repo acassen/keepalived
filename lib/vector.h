@@ -33,8 +33,9 @@ typedef struct _vector {
 /* Some defines */
 #define VECTOR_DEFAULT_SIZE 1
 
-/* Some usefull macros */
+/* Some useful macros */
 #define vector_slot(V,E) ((V)->slot[(E)])
+//#define vector_slot(V,E) (vector_lookup(V,E))
 #define vector_size(V)   ((V)->allocated)
 #define vector_active(V) ((V)->active)
 #define vector_foreach_slot(v,p,i) \

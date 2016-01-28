@@ -43,6 +43,7 @@ list_add(list l, void *data)
 	element e = alloc_element();
 
 	e->prev = l->tail;
+	/* e->next = NULL;	// MALLOC sets this NULL */
 	e->data = data;
 
 	if (l->head == NULL)
@@ -84,9 +85,13 @@ list_element(list l, int num)
 	int i = 0;
 
 	/* fetch element number num */
-	for (i = 0; i < num; i++)
-		if (e)
-			ELEMENT_NEXT(e);
+	for (i = 0; i < num; i++) {
+		if (!e)
+			return NULL;
+
+		ELEMENT_NEXT(e);
+	}
+
 	if (e)
 		return ELEMENT_DATA(e);
 	return NULL;
@@ -103,7 +108,7 @@ dump_list(list l)
 }
 
 static void
-free_element(list l)
+free_elements(list l)
 {
 	element e;
 	element next;
@@ -115,21 +120,17 @@ free_element(list l)
 		l->count--;
 		FREE(e);
 	}
+#if 0
+	if (l->count)
+		log_message(LOG_INFO, "free_elements left %d elements on the list", l->count);
+#endif
 }
 
 void
 free_list_elements(list l)
 {
-	element e;
-	element next;
-	
-	for (e = LIST_HEAD(l); e; e = next) {
-		next = e->next;
-		if (l->free)
-			(*l->free) (e->data);
-		l->count--;
-		FREE(e);
-	}
+	free_elements(l);
+
 	l->head = NULL;
 	l->tail = NULL;
 }
@@ -139,22 +140,23 @@ free_list(list l)
 {
 	if (!l)
 		return;
-	free_element(l);
+	free_elements(l);
 	FREE(l);
+	l = NULL;
 }
 
 void
 free_list_element(list l, element e)
 {
-	if (!e)
+	if (!l || !e)
 		return;
 	if (l->head == e)
-		l->head = (e->next == e) ? NULL : e->next;
-	if (l->tail == e)
-		l->tail = (e->prev == e) ? NULL : e->prev;
-	if (e->prev)
+		l->head = e->next;
+	else
 		e->prev->next = e->next;
-	if (e->next)
+	if (l->tail == e)
+		l->tail = e->prev;
+	else
 		e->next->prev = e->prev;
 	if (l->free)
 		(*l->free) (e->data);
@@ -185,7 +187,7 @@ dump_mlist(list l, int size)
 	}
 }
 
-void
+static void
 free_melement(list l, void (*free_func) (void *))
 {
 	element e;

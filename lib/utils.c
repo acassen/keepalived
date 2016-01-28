@@ -205,17 +205,10 @@ inet_stosockaddr(char *ip, char *port, struct sockaddr_storage *addr)
 	addr->ss_family = (strchr(ip, ':')) ? AF_INET6 : AF_INET;
 
 	/* remove range and mask stuff */
-	if (strstr(ip, "-")) {
-		while (*cp != '-' && *cp != '\0')
-			cp++;
-		if (*cp == '-')
-			*cp = 0;
-	} else if (strstr(ip, "/")) {
-		while (*cp != '/' && *cp != '\0')
-			cp++;
-		if (*cp == '/')
-			*cp = 0;
-	}
+	if ((cp = strchr(ip, '-')))
+		*cp = 0;
+	else if ((cp = strchr(ip, '/')))
+		*cp = 0;
 
 	if (addr->ss_family == AF_INET6) {
 		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
@@ -229,38 +222,37 @@ inet_stosockaddr(char *ip, char *port, struct sockaddr_storage *addr)
 		addr_ip = &addr4->sin_addr;
 	}
 
-	if (!inet_pton(addr->ss_family, ip, addr_ip))
+	if (!inet_pton(addr->ss_family, ip, addr_ip)) {
+		addr->ss_family = AF_UNSPEC;
 		return -1;
+	}
 
 	return 0;
 }
 
 /* IPv4 to sockaddr_storage */
-int
+void
 inet_ip4tosockaddr(struct in_addr *sin_addr, struct sockaddr_storage *addr)
 {
 	struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
 	addr4->sin_family = AF_INET;
 	addr4->sin_addr = *sin_addr;
-	return 0;
 }
 
 /* IPv6 to sockaddr_storage */
-int
+void
 inet_ip6tosockaddr(struct in6_addr *sin_addr, struct sockaddr_storage *addr)
 {
 	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
 	addr6->sin6_family = AF_INET6;
 	addr6->sin6_addr = *sin_addr;
-	return 0;
 }
 
-int
+void
 inet_ip6scopeid(uint32_t scope_id, struct sockaddr_storage *addr)
 {
 	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
 	addr6->sin6_scope_id = scope_id;
-	return 0;
 }
 
 /* IP network to string representation */

@@ -86,7 +86,7 @@ struct nd_opt_hdr {
 /* prototypes */
 extern void ndisc_init(void);
 extern void ndisc_close(void);
-extern int ndisc_send_unsolicited_na(ip_address_t *);
+extern int ndisc_send_unsolicited_na(ip_address_t *, int);
 
 #endif
 

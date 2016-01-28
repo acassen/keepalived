@@ -28,11 +28,15 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
+#ifndef _DEBUG_
+#define NDEBUG
+#endif
 #include <assert.h>
 #include <syslog.h>
 
 #include "signals.h"
 #include "utils.h"
+#include "logger.h"
 
 /* Local Vars */
 void (*signal_SIGHUP_handler) (void *, int sig);
@@ -80,6 +84,8 @@ signal_handler(int sig)
 	if (write(signal_pipe[1], &sig, sizeof(int)) != sizeof(int)) {
 		DBG("signal_pipe write error %s", strerror(errno));
 		assert(0);
+
+		log_message(LOG_INFO, "BUG - write to signal_pipe[1] error %s - please report", strerror(errno));
 	}
 }	
 
@@ -177,14 +183,19 @@ signal_handler_init(void)
 	n = pipe2(signal_pipe, O_CLOEXEC | O_NONBLOCK);
 #else
 	n = pipe(signal_pipe);
+#endif
 
+	assert(!n);
+	if (n)
+		log_message(LOG_INFO, "BUG - pipe in signal_handler_init failed (%s), please report", strerror(errno));
+
+#ifndef HAVE_PIPE2
 	fcntl(signal_pipe[0], F_SETFL, O_NONBLOCK | fcntl(signal_pipe[0], F_GETFL));
 	fcntl(signal_pipe[1], F_SETFL, O_NONBLOCK | fcntl(signal_pipe[1], F_GETFL));
 
 	fcntl(signal_pipe[0], F_SETFD, FD_CLOEXEC | fcntl(signal_pipe[0], F_GETFD));
 	fcntl(signal_pipe[1], F_SETFD, FD_CLOEXEC | fcntl(signal_pipe[1], F_GETFD));
 #endif
-	assert(!n);
 
 	signal_SIGHUP_handler = NULL;
 	signal_SIGINT_handler = NULL;

@@ -101,7 +101,7 @@ alloc_track_script(list track_list, vector_t *strvec)
 
 	vsc = find_script_by_name(tracked);
 
-	/* Ignoring if no interface found */
+	/* Ignoring if no script found */
 	if (!vsc) {
 		log_message(LOG_INFO, "     %s no match, ignoring...", tracked);
 		return;

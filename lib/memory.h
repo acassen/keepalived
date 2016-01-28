@@ -29,10 +29,8 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <assert.h>
 
 /* extern types */
-extern unsigned long mem_allocated;
 extern void *xalloc(unsigned long size);
 extern void *zalloc(unsigned long size);
 
@@ -50,6 +48,8 @@ extern void *zalloc(unsigned long size);
                       (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
 #define REALLOC(b,n) ( keepalived_realloc((b), (n), \
                       (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
+
+extern unsigned long mem_allocated;
 
 /* Memory debug prototypes defs */
 extern char *keepalived_malloc(unsigned long, char *, char *, int);

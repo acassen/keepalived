@@ -80,10 +80,10 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 	}
 	
 	/* Set rule entry */
-	if (strcmp(iprule->dir, "from") == 0) {
+	if (iprule->dir == VRRP_RULE_FROM) {
 		req.r.rtm_src_len = iprule->mask;
 		add_addr2req(&req.n, sizeof(req), FRA_SRC, iprule->addr);
-	} else if (strcmp(iprule->dir, "to") == 0) {
+	} else if (iprule->dir == VRRP_RULE_TO) {
 		req.r.rtm_dst_len = iprule->mask;
 		add_addr2req(&req.n, sizeof(req), FRA_DST, iprule->addr);
 	}
@@ -130,7 +130,7 @@ dump_iprule(void *rule_data)
 	char *tmp_str;
 
 	if (rule->dir) {
-		snprintf(tmp, INET6_ADDRSTRLEN + 30, "%s ", rule->dir);
+		snprintf(tmp, INET6_ADDRSTRLEN + 30, "%s ", (rule->dir == VRRP_RULE_FROM) ? "from" : "to");
 		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
 	}
 	if (rule->addr) {
@@ -163,12 +163,12 @@ alloc_rule(list rule_list, vector_t *strvec)
 		str = vector_slot(strvec, i);
 
 		if (!strcmp(str, "from")) {
-			new->dir  = "from";
-			new->addr = parse_ipaddress(NULL, vector_slot(strvec, ++i));
+			new->dir  = VRRP_RULE_FROM;
+			new->addr = parse_ipaddress(NULL, vector_slot(strvec, ++i),false);
 			new->mask = new->addr->ifa.ifa_prefixlen;
 		} else if (!strcmp(str, "to")) {
-			new->dir  = "to";
-			new->addr = parse_ipaddress(NULL, vector_slot(strvec, ++i));
+			new->dir  = VRRP_RULE_TO;
+			new->addr = parse_ipaddress(NULL, vector_slot(strvec, ++i),false);
 			new->mask = new->addr->ifa.ifa_prefixlen;			
 		} else if (!strcmp(str, "table")) {
 			new->table = atoi(vector_slot(strvec, ++i));

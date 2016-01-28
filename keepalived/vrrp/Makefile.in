@@ -6,18 +6,23 @@
 
 CC	 = @CC@
 SNMP_FLAG = @SNMP_SUPPORT@
+VRRP_AUTH_FLAG = @VRRP_AUTH_SUPPORT@
 NL3_FLAG = @USE_NL3@
 INCLUDES = -I../include -I../../lib
 CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 	   -Wall -Wunused -Wstrict-prototypes
-DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_VMAC@ -D@SNMP_SUPPORT@ -D@USE_NL3@ @DFLAGS@
+DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_VMAC@ -D@ADDR_GEN_MODE@ -D@SNMP_SUPPORT@ -D@USE_NL3@ @DFLAGS@ -D@VRRP_AUTH_SUPPORT@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
 OBJS = 	vrrp_daemon.o vrrp_print.o vrrp_data.o vrrp_parser.o \
 	vrrp.o vrrp_notify.o vrrp_scheduler.o vrrp_sync.o vrrp_index.o \
 	vrrp_netlink.o vrrp_arp.o vrrp_if.o vrrp_track.o vrrp_ipaddress.o \
-	vrrp_iproute.o vrrp_iprule.o vrrp_ipsecah.o vrrp_ndisc.o vrrp_vmac.o \
+	vrrp_iproute.o vrrp_iprule.o vrrp_ndisc.o vrrp_vmac.o \
 	vrrp_if_config.o
+
+ifeq ($(VRRP_AUTH_FLAG),_WITH_VRRP_AUTH_)
+  OBJS += vrrp_ipsecah.o
+endif
 
 ifeq ($(SNMP_FLAG),_WITH_SNMP_)
   OBJS += vrrp_snmp.o

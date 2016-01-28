@@ -626,11 +626,13 @@ USE_NL
 IPVS_SUPPORT
 VERSION_DATE
 VERSION
+VRRP_AUTH_SUPPORT
 DFLAGS
 SO_MARK_SUPPORT
 SHA1_SUPPORT
 SNMP_SUPPORT
 NETSNMP_CONFIG
+ADDR_GEN_MODE
 VRRP_VMAC
 IPVS_SYNCD
 KERN
@@ -698,6 +700,7 @@ with_kernel_version
 enable_fwmark
 enable_snmp
 enable_sha1
+enable_vrrp_auth
 enable_debug
 enable_profile
 '
@@ -1323,6 +1326,7 @@ Optional Features:
   --disable-fwmark        compile without SO_MARK support
   --enable-snmp           compile with SNMP support
   --enable-sha1           compile with SHA1 support
+  --disable-vrrp-auth     compile without VRRP authentication
   --enable-debug          compile with debugging flags
   --enable-profile        compile with profiling flags
 
@@ -3275,6 +3279,11 @@ if test "${enable_sha1+set}" = set; then :
   enableval=$enable_sha1;
 fi
 
+# Check whether --enable-vrrp-auth was given.
+if test "${enable_vrrp_auth+set}" = set; then :
+  enableval=$enable_vrrp_auth;
+fi
+
 # Check whether --enable-debug was given.
 if test "${enable_debug+set}" = set; then :
   enableval=$enable_debug;
@@ -3725,7 +3734,7 @@ fi
 done
 
 
-for ac_header in fcntl.h syslog.h unistd.h sys/ioctl.h sys/time.h
+for ac_header in fcntl.h syslog.h unistd.h sys/ioctl.h sys/time.h linux/netfilter/x_tables.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -3826,7 +3835,8 @@ else
   as_fn_error $? "crypt() function is required" "$LINENO" 5
 fi
 
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for MD5_Init in -lcrypto" >&5
+if test "${enable-vrrp-auth}" != "no"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for MD5_Init in -lcrypto" >&5
 $as_echo_n "checking for MD5_Init in -lcrypto... " >&6; }
 if ${ac_cv_lib_crypto_MD5_Init+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -3873,6 +3883,7 @@ else
   as_fn_error $? "OpenSSL libraries are required" "$LINENO" 5
 fi
 
+fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL_CTX_new in -lssl" >&5
 $as_echo_n "checking for SSL_CTX_new in -lssl... " >&6; }
 if ${ac_cv_lib_ssl_SSL_CTX_new+:} false; then :
@@ -4287,6 +4298,49 @@ $as_echo "no" >&6; }
 
 
 
+if test "${VRRP_VMAC}" = "_HAVE_VRRP_VMAC_"; then
+    CPPFLAGS="$CPPFLAGS -I$kernelinc"
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for kernel inet6_addr_gen_mode support" >&5
+$as_echo_n "checking for kernel inet6_addr_gen_mode support... " >&6; }
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+      #include <linux/if_link.h>
+      int gen_mode;
+
+int
+main ()
+{
+
+      gen_mode = IFLA_INET6_ADDR_GEN_MODE;
+      gen_mode++;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+      GEN_MODE_SUPPORT=yes
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext;
+
+    if test "$GEN_MODE_SUPPORT" = "yes"; then
+      ADDR_GEN_MODE="_HAVE_ADDR_GEN_MODE_"
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+    else
+      ADDR_GEN_MODE="_WITHOUT_ADDR_GEN_MODE_"
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+    fi
+else
+  ADDR_GEN_MODE="_WITHOUT_ADDR_GEN_MODE_"
+fi
+
+
+
 SNMP_SUPPORT="_WITHOUT_SNMP_"
 if test "$enable_snmp" = "yes"; then
 
@@ -4560,6 +4614,16 @@ if test "${enable_debug}" = "yes"; then
   DFLAGS="-D_DEBUG_"
 
 fi
+
+VRRP_AUTH_SUPPORT="_WITHOUT_VRRP_AUTH_"
+if test "$enable_vrrp" != "no"; then
+  if test "${enable_vrrp_auth}" != "no"; then
+    VRRP_AUTH_SUPPORT="_WITH_VRRP_AUTH_"
+  fi
+fi
+
+
+
 
 if test "${enable_profile}" = "yes"; then
   CFLAGS="$CFLAGS -pg"
@@ -6068,6 +6132,11 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
     echo "Use VRRP VMAC            : Yes"
   else
     echo "Use VRRP VMAC            : No"
+  fi
+  if test "${VRRP_AUTH_SUPPORT}" = "_WITH_VRRP_AUTH_"; then
+    echo "Use VRRP authentication  : Yes"
+  else
+    echo "Use VRRP authentication  : No"
   fi
 else
   echo "Use VRRP Framework       : No"

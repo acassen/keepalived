@@ -39,6 +39,10 @@ int reload = 0;
 
 /* local vars */
 static int sublevel = 0;
+static int skip_sublevel = 0;
+
+/* Forward references */
+static void process_stream(vector_t *, int);
 
 void
 keyword_alloc(vector_t *keywords_vec, char *string, void (*handler) (vector_t *))
@@ -177,19 +181,25 @@ alloc_strvec(char *string)
 
 	while (1) {
 		start = cp;
+
+		/* Save a quoted string without the "s as a single string */
 		if (*cp == '"') {
+			start++;
+			if (!(cp = strchr(start, '"'))) {
+				log_message(LOG_INFO, "Unmatched quote: '%s'", string);
+				return strvec;
+			}
+			str_len = cp - start;
 			cp++;
-			token = MALLOC(2);
-			*(token) = '"';
-			*(token + 1) = '\0';
 		} else {
-			while (!isspace((int) *cp) && *cp != '\0' && *cp != '"')
+			while (!isspace((int) *cp) && *cp != '\0' && *cp != '"'
+						   && *cp != '!' && *cp != '#')
 				cp++;
 			str_len = cp - start;
-			token = MALLOC(str_len + 1);
-			memcpy(token, start, str_len);
-			*(token + str_len) = '\0';
 		}
+		token = MALLOC(str_len + 1);
+		memcpy(token, start, str_len);
+		token[str_len] = '\0';
 
 		/* Alloc & set the slot */
 		vector_alloc_slot(strvec);
@@ -240,7 +250,7 @@ void read_conf_file(char *conf_file)
 					    , confpath, strerror(errno));
 		}
 		free(confpath);
-		process_stream(current_keywords);
+		process_stream(current_keywords, 0);
 		fclose(stream);
 
 		ret = chdir(prev_path);
@@ -321,36 +331,58 @@ read_line(char *buf, int size)
 }
 
 vector_t *
-read_value_block(void)
+read_value_block(vector_t *strvec)
 {
 	char *buf;
-	int i;
+	int word;
 	char *str = NULL;
 	char *dup;
 	vector_t *vec = NULL;
 	vector_t *elements = vector_alloc();
+	int first = 1;
+	int need_bob = 1;
+	int got_eob = 0;
 
 	buf = (char *) MALLOC(MAXBUF);
-	while (read_line(buf, MAXBUF)) {
-		vec = alloc_strvec(buf);
+	while (first || read_line(buf, MAXBUF)) {
+		if (first && vector_size(strvec) > 1) {
+			vec = strvec;
+			word = 1;
+		}
+		else {
+			vec = alloc_strvec(buf);
+			word = 0;
+		}
 		if (vec) {
-			str = vector_slot(vec, 0);
-			if (!strcmp(str, EOB)) {
-				free_strvec(vec);
-				break;
+			str = vector_slot(vec, word);
+			if (need_bob) {
+				if (!strcmp(str, BOB))
+					word++;
+				else
+					log_message(LOG_INFO, "'{' missing at beginning of block %s", FMT_STR_VSLOT(strvec,0));
+				need_bob = 0;
 			}
 
-			if (vector_size(vec))
-				for (i = 0; i < vector_size(vec); i++) {
-					str = vector_slot(vec, i);
-					dup = (char *) MALLOC(strlen(str) + 1);
-					memcpy(dup, str, strlen(str));
-					vector_alloc_slot(elements);
-					vector_set_slot(elements, dup);
+			for (; word < vector_size(vec); word++) {
+				str = vector_slot(vec, word);
+				if (!strcmp(str, EOB)) {
+					if (word != vector_size(vec) - 1)
+						log_message(LOG_INFO, "Extra characters after '}' - \"%s\"", buf);
+					got_eob = 1;
+					break;
 				}
-			free_strvec(vec);
+				dup = (char *) MALLOC(strlen(str) + 1);
+				memcpy(dup, str, strlen(str));
+				vector_alloc_slot(elements);
+				vector_set_slot(elements, dup);
+			}
+			if (vec != strvec)
+				free_strvec(vec);
+			if (got_eob)
+				break;
 		}
 		memset(buf, 0, MAXBUF);
+		first = 0;
 	}
 
 	FREE(buf);
@@ -390,38 +422,24 @@ set_value(vector_t *strvec)
 {
 	char *str = vector_slot(strvec, 1);
 	int size = strlen(str);
-	int i = 0;
-	int len = 0;
-	char *alloc = NULL;
-	char *tmp;
+	char *alloc;
 
-	if (*str == '"') {
-		for (i = 2; i < vector_size(strvec); i++) {
-			str = vector_slot(strvec, i);
-			len += strlen(str);
-			if (!alloc)
-				alloc = (char *) MALLOC(len + 1);
-			else {
-				alloc = (char *) REALLOC(alloc, 2 * (len + 1));
-				tmp = vector_slot(strvec, i-1);
-				if (*str != '"' && *tmp != '"')
-					strncat(alloc, " ", 1);
-			}
+	alloc = (char *) MALLOC(size + 1);
+	memcpy(alloc, str, size);
 
-			if (i != vector_size(strvec)-1)
-				strncat(alloc, str, strlen(str));
-		}
-	} else {
-		alloc = (char *) MALLOC(size + 1);
-		memcpy(alloc, str, size);
-	}
 	return alloc;
+}
+
+void skip_block(void)
+{
+	/* Don't process the rest of the configuration block */
+	skip_sublevel = 1;
 }
 
 /* recursive configuration stream handler */
 static int kw_level = 0;
-void
-process_stream(vector_t *keywords_vec)
+static void
+process_stream(vector_t *keywords_vec, int need_bob)
 {
 	int i;
 	keyword_t *keyword_vec;
@@ -430,6 +448,7 @@ process_stream(vector_t *keywords_vec)
 	vector_t *strvec;
 	vector_t *prev_keywords = current_keywords;
 	current_keywords = keywords_vec;
+	int bob_needed = 0;
 
 	buf = zalloc(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
@@ -441,21 +460,53 @@ process_stream(vector_t *keywords_vec)
 
 		str = vector_slot(strvec, 0);
 
+		if (need_bob) {
+			need_bob = 0;
+			if (!strcmp(str, BOB) && kw_level > 0) {
+				free_strvec(strvec);
+				continue;
+			}
+			log_message(LOG_INFO, "Missing '{' at beginning of configuration block");
+		}
+		else if (!strcmp(str, BOB)) {
+			log_message(LOG_INFO, "Unexpected '{' - ignoring");
+			free_strvec(strvec);
+			continue;
+		}
+
 		if (!strcmp(str, EOB) && kw_level > 0) {
 			free_strvec(strvec);
+			skip_sublevel = 0;
 			break;
+		}
+
+		if (skip_sublevel) {
+			free_strvec(strvec);
+			continue;
 		}
 
 		for (i = 0; i < vector_size(keywords_vec); i++) {
 			keyword_vec = vector_slot(keywords_vec, i);
 
 			if (!strcmp(keyword_vec->string, str)) {
+				if (keyword_vec->sub) {
+					/* Remove a trailing '{' */
+					char *bob = vector_slot(strvec, vector_size(strvec)-1) ;
+					if (!strcmp(bob, BOB)) {
+						vector_unset(strvec, vector_size(strvec)-1);
+						FREE(bob);
+						bob_needed = 0;
+					}
+					else
+						bob_needed = 1;
+				}
+
 				if (keyword_vec->handler)
 					(*keyword_vec->handler) (strvec);
 
 				if (keyword_vec->sub) {
 					kw_level++;
-					process_stream(keyword_vec->sub);
+					process_stream(keyword_vec->sub, bob_needed);
 					kw_level--;
 					if (keyword_vec->sub_close_handler)
 						(*keyword_vec->sub_close_handler) ();
@@ -463,6 +514,9 @@ process_stream(vector_t *keywords_vec)
 				break;
 			}
 		}
+
+		if (i >= vector_size(keywords_vec))
+			log_message(LOG_INFO, "Unknown keyword '%s'", str );
 
 		free_strvec(strvec);
 	}

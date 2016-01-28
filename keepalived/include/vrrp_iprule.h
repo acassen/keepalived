@@ -35,18 +35,21 @@
 
  /* types definition */
 typedef struct _ip_rule {
-	char			*dir;
+	uint8_t		dir;
 	ip_address_t	*addr;
-	uint8_t			mask;
-	int				table;
-	int				set;
+	uint8_t		mask;
+	int		table;
+	int		set;
 } ip_rule_t;
 
 #define IPRULE_DEL 0
 #define IPRULE_ADD 1
 
+#define VRRP_RULE_FROM	1
+#define VRRP_RULE_TO	2
+
 /* Macro definition */
-#define RULE_ISEQ(X,Y) (string_equal((X)->dir, (Y)->dir)	&& \
+#define RULE_ISEQ(X,Y) ((X)->dir == (Y)->dir	&& \
 						IP_ISEQ((X)->addr, (Y)->addr)		&& \
 						(X)->mask  == (Y)->mask				&& \
 						(X)->table  == (Y)->table)

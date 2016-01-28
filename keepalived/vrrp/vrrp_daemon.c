@@ -133,7 +133,6 @@ start_vrrp(void)
 	/* Parse configuration file */
 	global_data = alloc_global_data();
 	vrrp_data = alloc_vrrp_data();
-	alloc_vrrp_buffer();
 	init_data(conf_file, vrrp_init_keywords);
 	if (!vrrp_data) {
 		stop_vrrp();
@@ -168,7 +167,9 @@ start_vrrp(void)
 	}
 
 	/* Post initializations */
+#ifdef _DEBUG_
 	log_message(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
+#endif
 
 	/* Set static entries */
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_ADD);
@@ -268,7 +269,9 @@ reload_vrrp_thread(thread_t * thread)
 	vrrp_data = NULL;
 
 	/* Reload the conf */
+#ifdef _DEBUG_
 	mem_allocated = 0;
+#endif
 	vrrp_signal_init();
 	signal_set(SIGCHLD, thread_child_handler, master);
 	start_vrrp();

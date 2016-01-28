@@ -453,9 +453,11 @@ vrrp_create_sockpool(list l)
 		ifindex = (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
 										    IF_INDEX(vrrp->ifp);
 		unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
+#if defined _WITH_VRRP_AUTH_
 		if (vrrp->version == VRRP_VERSION_2 && vrrp->auth_type == VRRP_AUTH_AH)
 			proto = IPPROTO_IPSEC_AH;
 		else
+#endif
 			proto = IPPROTO_VRRP;
 
 		/* add the vrrp element if not exist */
@@ -499,9 +501,11 @@ vrrp_set_fds(list l)
 			ifindex = (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
 											    IF_INDEX(vrrp->ifp);
 			unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
+#if defined _WITH_VRRP_AUTH_
 			if (vrrp->version == VRRP_VERSION_2 && vrrp->auth_type == VRRP_AUTH_AH)
 				proto = IPPROTO_IPSEC_AH;
 			else
+#endif
 				proto = IPPROTO_VRRP;
 
 			if ((sock->ifindex == ifindex)	&&
@@ -708,11 +712,13 @@ vrrp_goto_master(vrrp_t * vrrp)
 #endif
 		vrrp->last_transition = timer_now();
 	} else {
+#if defined _WITH_VRRP_AUTH_
 		/* If becoming MASTER in IPSEC AH AUTH, we reset the anti-replay */
 		if (vrrp->version == VRRP_VERSION_2 && vrrp->ipsecah_counter->cycle) {
 			vrrp->ipsecah_counter->cycle = 0;
 			vrrp->ipsecah_counter->seq_number = 0;
 		}
+#endif
 
 		/* handle master state transition */
 		vrrp->wantstate = VRRP_STATE_MAST;
@@ -830,6 +836,7 @@ vrrp_fault(vrrp_t * vrrp)
 	if (new_vrrp_socket(vrrp) < 0)
 		return;
 
+#if defined _WITH_VRRP_AUTH_
 	/*
 	 * We force the IPSEC AH seq_number sync
 	 * to be done in read advert handler.
@@ -839,7 +846,9 @@ vrrp_fault(vrrp_t * vrrp)
 	 */
 	if (vrrp->version == VRRP_VERSION_2 && vrrp->auth_type == VRRP_AUTH_AH) {
 		vrrp_ah_sync(vrrp);
-	} else {
+	} else
+#endif
+	{
 		/* Otherwise, we transit to init state */
 		if (vrrp->init_state == VRRP_STATE_BACK) {
 			vrrp->state = VRRP_STATE_BACK;
@@ -908,10 +917,10 @@ vrrp_dispatcher_read(sock_t * sock)
         socklen_t src_addr_len = sizeof(src_addr);
 
 	/* Clean the read buffer */
-	memset(vrrp_buffer, 0, VRRP_PACKET_TEMP_LEN);
+	memset(vrrp_buffer, 0, vrrp_buffer_len);
 
 	/* read & affect received buffer */
-	len = recvfrom(sock->fd_in, vrrp_buffer, VRRP_PACKET_TEMP_LEN, 0,
+	len = recvfrom(sock->fd_in, vrrp_buffer, vrrp_buffer_len, 0,
 		       (struct sockaddr *) &src_addr, &src_addr_len);
 	hd = vrrp_get_header(sock->family, vrrp_buffer, &proto);
 

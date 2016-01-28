@@ -116,7 +116,9 @@ start_check(void)
 	init_global_data(global_data);
 
 	/* Post initializations */
+#ifdef _DEBUG_
 	log_message(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
+#endif
 
 	/* SSL load static data & initialize common ctx context */
 	if (!init_ssl_ctx()) {
@@ -213,7 +215,9 @@ reload_check_thread(thread_t * thread)
 	check_data = NULL;
 
 	/* Reload the conf */
+#ifdef _DEBUG_
 	mem_allocated = 0;
+#endif
 	check_signal_init();
 	signal_set(SIGCHLD, thread_child_handler, master);
 	start_check();

@@ -68,7 +68,7 @@ smtpserver_handler(vector_t *strvec)
 static void
 email_handler(vector_t *strvec)
 {
-	vector_t *email_vec = read_value_block();
+	vector_t *email_vec = read_value_block(strvec);
 	int i;
 	char *str;
 
@@ -128,6 +128,26 @@ vrrp_garp_refresh_rep_handler(vector_t *strvec)
 		global_data->vrrp_garp_refresh_rep = 1;
 }
 static void
+vrrp_iptables_handler(vector_t *strvec)
+{
+	global_data->vrrp_iptables_inchain[0] = '\0';
+	global_data->vrrp_iptables_outchain[0] = '\0';
+	if (vector_size(strvec) >= 2) {
+		if (strlen(vector_slot(strvec,1)) >= sizeof(global_data->vrrp_iptables_inchain)-1) {
+			log_message(LOG_INFO, "VRRP Error : iptables in chain name too long - ignored\n");
+			return;
+		}
+		strcpy(global_data->vrrp_iptables_inchain, vector_slot(strvec,1));
+	}
+	if (vector_size(strvec) >= 3) {
+		if (strlen(vector_slot(strvec,2)) >= sizeof(global_data->vrrp_iptables_outchain)-1) {
+			log_message(LOG_INFO, "VRRP Error : iptables out chain name too long - ignored\n");
+			return;
+		}
+		strcpy(global_data->vrrp_iptables_outchain, vector_slot(strvec,2));
+	}
+}
+static void
 vrrp_version_handler(vector_t *strvec)
 {
 	uint8_t version = atoi(vector_slot(strvec, 1));
@@ -137,6 +157,21 @@ vrrp_version_handler(vector_t *strvec)
 		return;
 	}
 	global_data->vrrp_version = version;
+}
+static void
+vrrp_check_unicast_src_handler(vector_t *strvec)
+{
+	global_data->vrrp_check_unicast_src = 1;
+}
+static void
+vrrp_check_adv_addr_handler(vector_t *strvec)
+{
+	global_data->vrrp_skip_check_adv_addr = 1;
+}
+static void
+vrrp_strict_handler(vector_t *strvec)
+{
+	global_data->vrrp_strict = 1;
 }
 #ifdef _WITH_SNMP_
 static void
@@ -164,6 +199,10 @@ global_init_keywords(void)
 	install_keyword("vrrp_garp_master_refresh", &vrrp_garp_refresh_handler);
 	install_keyword("vrrp_garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
 	install_keyword("vrrp_version", &vrrp_version_handler);
+	install_keyword("vrrp_iptables", &vrrp_iptables_handler);
+	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler);
+	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler);
+	install_keyword("vrrp_strict", &vrrp_strict_handler);
 #ifdef _WITH_SNMP_
 	install_keyword("enable_traps", &trap_handler);
 #endif

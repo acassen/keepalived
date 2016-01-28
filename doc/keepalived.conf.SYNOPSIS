@@ -45,6 +45,15 @@ global_defs {				# Block identification
 					   #  at each periodic repeat
 					   #  Default: once (per period)
     vrrp_version <INTEGER:2..3>            # Default VRRP version (default 2)
+    vrrp_iptables [keepalived_in [keepalived_out]]     # default INPUT
+					   # Specifies the iptables chains to add entries to
+					   # If no table names are specied, no entries are added
+    vrrp_check_unicast_src		   # Check source address of a unicast packet is a
+					   # unicast peer
+    vrrp_strict				   # Enforce strict VRRP protocol compliance. This will prohibit:
+					   #   0 VIPs
+					   #   unicast peers
+					   #   IPv6 addresses in VRRP version 2
 }
 
 linkbeat_use_polling	# Use media link failure detection polling fashion
@@ -222,6 +231,9 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     nopreempt					# Override VRRP RFC preemption default
     preempt_delay				# Seconds after startup until
 						#  preemption. 0 (default) to 1,000
+    strict_mode [on|off|true|false|yes|no]      # See description of global vrrp_strict
+					        # If vrrp_strict is not specified, it takes the value of vrrp_strict
+					        # If strict_mode without a parameter is specified, it defaults to on
     debug					# Debug level
     notify_master <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
     notify_backup <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group

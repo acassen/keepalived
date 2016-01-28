@@ -36,6 +36,7 @@
 vrrp_data_t *vrrp_data = NULL;
 vrrp_data_t *old_vrrp_data = NULL;
 char *vrrp_buffer;
+size_t vrrp_buffer_len;
 
 /* Static addresses facility function */
 void
@@ -227,7 +228,9 @@ static void
 dump_vrrp(void *data)
 {
 	vrrp_t *vrrp = data;
+#ifdef _WITH_VRRP_AUTH_
 	char auth_data[sizeof(vrrp->auth_data) + 1];
+#endif
 
 	log_message(LOG_INFO, " VRRP Instance = %s", vrrp->iname);
 	log_message(LOG_INFO, "   Using VRRPv%d", vrrp->version);
@@ -240,6 +243,10 @@ dump_vrrp(void *data)
 	log_message(LOG_INFO, "   Running on device = %s", IF_NAME(vrrp->ifp));
 	if (vrrp->dont_track_primary)
 		log_message(LOG_INFO, "   VRRP interface tracking disabled");
+	if (vrrp->skip_check_adv_addr)
+		log_message(LOG_INFO, "   Skip checking advert IP addresses");
+	if (vrrp->strict_mode)
+		log_message(LOG_INFO, "   Enforcing strict VRRP compliance");
 	if (vrrp->saddr.ss_family)
 		log_message(LOG_INFO, "   Using src_ip = %s"
 				    , inet_sockaddrtos(&vrrp->saddr));
@@ -258,7 +265,7 @@ dump_vrrp(void *data)
 	log_message(LOG_INFO, "   Priority = %d", vrrp->base_priority);
 	log_message(LOG_INFO, "   Advert interval = %d %s\n",
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
-		(vrrp->adver_int * 1000 / TIMER_HZ),
+		((vrrp->adver_int * 1000) / TIMER_HZ),
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
 	log_message(LOG_INFO, "   Accept %s", ((vrrp->accept) ? "enabled" : "disabled"));
 	if (vrrp->nopreempt)
@@ -266,6 +273,7 @@ dump_vrrp(void *data)
 	if (vrrp->preempt_delay)
 		log_message(LOG_INFO, "   Preempt delay = %ld secs",
 		       vrrp->preempt_delay / TIMER_HZ);
+#if defined _WITH_VRRP_AUTH_
 	if (vrrp->version == VRRP_VERSION_2) {
 		if (vrrp->auth_type) {
 			log_message(LOG_INFO, "   Authentication type = %s",
@@ -279,6 +287,7 @@ dump_vrrp(void *data)
 			}
 		}
 	}
+#endif
 	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
 		log_message(LOG_INFO, "   Tracked interfaces = %d", LIST_SIZE(vrrp->track_ifp));
 		dump_list(vrrp->track_ifp);
@@ -357,20 +366,23 @@ alloc_vrrp(char *iname)
 	new->ipsecah_counter = counter;
 
 	/* Set default values */
-	new->family = AF_INET;
+	new->family = AF_UNSPEC;
+	new->saddr.ss_family = AF_UNSPEC;
 	new->wantstate = VRRP_STATE_BACK;
 	new->init_state = VRRP_STATE_BACK;
-	new->version = global_data->vrrp_version;
+	new->version = 0;
 	new->master_priority = 0;
 	new->last_transition = timer_now();
-	new->adver_int = TIMER_HZ;
+	new->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
 	new->iname = (char *) MALLOC(size + 1);
-	new->stats = alloc_vrrp_stats();
 	memcpy(new->iname, iname, size);
+	new->stats = alloc_vrrp_stats();
 	new->quick_sync = 0;
 	new->garp_rep = global_data->vrrp_garp_rep;
 	new->garp_refresh_rep = global_data->vrrp_garp_refresh_rep;
 	new->garp_delay = global_data->vrrp_garp_delay;
+	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
+	new->strict_mode = global_data->vrrp_strict;
 
 	list_add(vrrp_data->vrrp, new);
 }
@@ -419,7 +431,9 @@ alloc_vrrp_unicast_peer(vector_t *strvec)
 		return;
 	}
 
-	if (peer->ss_family != vrrp->family) {
+	if (!vrrp->family)
+		vrrp->family = peer->ss_family;
+	else if (peer->ss_family != vrrp->family) {
 		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] and unicast peer address"
 				     "[%s] MUST be of the same family !!! Skipping..."
 				   , vrrp->iname, FMT_STR_VSLOT(strvec, 0));
@@ -454,9 +468,6 @@ void
 alloc_vrrp_vip(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	if (vrrp->ifp == NULL) {
-		log_message(LOG_ERR, "Configuration error: VRRP definition must belong to an interface");
-	}
 
 	if (!LIST_EXISTS(vrrp->vip))
 		vrrp->vip = alloc_list(free_ipaddress, dump_ipaddress);
@@ -514,15 +525,18 @@ alloc_vrrp_script(char *sname)
 
 /* data facility functions */
 void
-alloc_vrrp_buffer(void)
+alloc_vrrp_buffer(size_t len)
 {
-	vrrp_buffer = (char *) MALLOC(VRRP_PACKET_TEMP_LEN);
+	vrrp_buffer = (char *) MALLOC(len);
+	vrrp_buffer_len = (vrrp_buffer) ? len : 0;
 }
 
 void
 free_vrrp_buffer(void)
 {
 	FREE(vrrp_buffer);
+	vrrp_buffer = NULL;
+	vrrp_buffer_len = 0;
 }
 
 vrrp_data_t *
