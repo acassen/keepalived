@@ -29,6 +29,12 @@
 #include <stdint.h>
 #include <sys/socket.h>
 
+#ifdef HAVE_LINUX_NETFILTER_X_TABLES_H
+#include <linux/netfilter/x_tables.h>
+#else
+#define	XT_EXTENSION_MAXNAMELEN 29
+#endif
+
 /* local includes */
 #include "list.h"
 #include "timer.h"
@@ -57,6 +63,8 @@ typedef struct _data {
 	int				vrrp_garp_rep;
 	int				vrrp_garp_refresh_rep;
 	int				vrrp_version;            /* VRRP version (2 or 3) */
+	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];
+	char				vrrp_iptables_outchain[XT_EXTENSION_MAXNAMELEN];
 #ifdef _WITH_SNMP_
 	int				enable_traps;
 #endif
