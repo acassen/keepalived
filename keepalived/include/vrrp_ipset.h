@@ -1,12 +1,11 @@
-/* 
+/*
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
- * 
- * Part:        signals.c include file.
- *  
- * Author:      Kevin Lindsay, <kevinl@netnation.com>
- *              Alexandre Cassen, <acassen@linux-vs.org>
+ *
+ * Part:        vrrp_ipset.c include file.
+ *
+ * Author:      Quentin Armitage, <quentin@armitage.org.uk>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,23 +17,20 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _SIGNALS_H
-#define _SIGNALS_H
+#ifndef _VRRP_IPSET_H
+#define _VRRP_IPSET_H
 
-/* Prototypes */
-/* Currently unused extern int signal_pending(void); */
-extern void *signal_set(int signo, void (*func) (void *, int), void *);
-extern void *signal_ignore(int signo);
-extern void signal_handler_init(void);
-extern void signal_handler_destroy(void);
-extern void signal_handler_reset(void);
-extern void signal_handler_script(void);
-extern void signal_run_callback(void);
+#include <libipset/session.h>
+#include "vrrp_ipaddress.h"
 
-extern int signal_rfd(void);
-extern void signal_pipe_close(int);
+int add_ipsets(void);
+int remove_ipsets(void);
+bool has_ipset_setname(struct ipset_session*, const char *);
+struct ipset_session* ipset_session_start(void);
+void ipset_session_end(struct ipset_session*);
+void ipset_entry(struct ipset_session*, int cmd, const ip_address_t*, const char*);
 
 #endif

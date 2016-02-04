@@ -27,6 +27,7 @@
 #include "vrrp_ndisc.h"
 #include "vrrp_netlink.h"
 #include "vrrp_ipaddress.h"
+#include "vrrp_iptables.h"
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
 #include "vrrp_parser.h"
@@ -60,6 +61,10 @@ stop_vrrp(void)
 	 * sending a priority 0 vrrp message
 	 */
 	restore_vrrp_interfaces();
+
+#ifdef _HAVE_LIBIPTC_
+	iptables_fini();
+#endif
 
 	/* Clear static entries */
 	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
@@ -165,6 +170,10 @@ start_vrrp(void)
 		}
 		return;
 	}
+
+#ifdef _HAVE_LIBIPTC_
+	iptables_init();
+#endif
 
 	/* Post initializations */
 #ifdef _DEBUG_

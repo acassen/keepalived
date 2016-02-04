@@ -335,3 +335,11 @@ signal_run_callback(void)
 		}	
 	}
 }
+
+void signal_pipe_close(int min_fd)
+{
+	if (signal_pipe[0] && signal_pipe[0] >= min_fd)
+		close(signal_pipe[0]);
+	if (signal_pipe[1] && signal_pipe[1] >= min_fd)
+		close(signal_pipe[1]);
+}

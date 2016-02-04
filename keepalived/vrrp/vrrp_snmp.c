@@ -695,13 +695,16 @@ vrrp_snmp_instance_accept(int action,
 			log_message(LOG_INFO,
 				    "VRRP_Instance(%s) accept mode enabled with SNMP",
 				     vrrp->iname);
-			vrrp->accept = 0;
+//TODO - accept should be set to 1, also below to 0 - FIXED - see RFC6527
+//What do we do about adding/removing blocks?
+//Ensure all complies with RFC6527
+			vrrp->accept = 1;
 			break;
 		case 2:
 			log_message(LOG_INFO,
 				    "VRRP_Instance(%s) accept mode disabled with SNMP",
 				    vrrp->iname);
-			vrrp->accept = 1;
+			vrrp->accept = 0;
 			break;
 			}
 		break;
@@ -745,6 +748,7 @@ vrrp_snmp_instance_priority(int action,
 		   base priority. */
 		if (vrrp->sync)
 			vrrp->effective_priority = vrrp->base_priority;
+//TODO - could affect accept
 		break;
 	}
 	return SNMP_ERR_NOERROR;

@@ -74,6 +74,8 @@ uint32_t inet_cidrtomask(uint8_t);
 extern char *get_local_name(void);
 extern int string_equal(const char *, const char *);
 extern void set_std_fd(int);
+#ifndef _HAVE_LIBIPTC_
 extern int fork_exec(char **argv);
+#endif
 
 #endif

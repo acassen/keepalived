@@ -522,24 +522,34 @@ set_std_fd(int force)
 			dup2(fd, STDIN_FILENO);
 			dup2(fd, STDOUT_FILENO);
 			dup2(fd, STDERR_FILENO);
-			if (fd > 2)
+			if (fd > STDERR_FILENO)
 				close(fd);
 		}
 	}
+
+	signal_pipe_close(STDERR_FILENO+1);
 }
 
+#ifndef _HAVE_LIBIPTC_
 int
 fork_exec(char **argv)
 {
 	pid_t pid;
 	int status;
+	struct sigaction act, old_act;
+	int res = 0;
+
+	act.sa_handler = SIG_DFL;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+
+	sigaction(SIGCHLD, &act, &old_act);
 
 	pid = fork();
 	if (pid < 0)
-		return -1;
-
-	/* Child */
-	if (pid == 0) {
+		res = -1;
+	else if (pid == 0) {
+		/* Child */
 		set_std_fd(false);
 
 		signal_handler_script();
@@ -550,9 +560,12 @@ fork_exec(char **argv)
 		/* Parent */
 		while (waitpid(pid, &status, 0) != pid);
 
-		if (WEXITSTATUS(status) != EXIT_SUCCESS)
-			return -1;
+		if (!WIFEXITED(status) || WEXITSTATUS(status) != EXIT_SUCCESS)
+			res = -1;
 	}
 
-	return 0;
+	sigaction(SIGCHLD, &old_act, NULL);
+
+	return res;
 }
+#endif

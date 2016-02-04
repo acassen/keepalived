@@ -1,12 +1,11 @@
-/* 
+/*
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
- * 
- * Part:        signals.c include file.
- *  
- * Author:      Kevin Lindsay, <kevinl@netnation.com>
- *              Alexandre Cassen, <acassen@linux-vs.org>
+ *
+ * Part:        vrrp_iptables.c include file.
+ *
+ * Author:      Quentin Armitage, <quentin@armitage.org.uk>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,23 +17,29 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _SIGNALS_H
-#define _SIGNALS_H
+#ifndef _VRRP_IPTABLES_H
+#define _VRRP_IPTABLES_H
 
-/* Prototypes */
-/* Currently unused extern int signal_pending(void); */
-extern void *signal_set(int signo, void (*func) (void *, int), void *);
-extern void *signal_ignore(int signo);
-extern void signal_handler_init(void);
-extern void signal_handler_destroy(void);
-extern void signal_handler_reset(void);
-extern void signal_handler_script(void);
-extern void signal_run_callback(void);
+#ifdef _HAVE_LIBIPTC_
+int load_mod_xt_set(void);
+#endif
 
-extern int signal_rfd(void);
-extern void signal_pipe_close(int);
+#include <libiptc/libxtc.h>
+
+#include "vrrp_ipaddress.h"
+
+struct ipt_handle;
+
+#define	IPTABLES_MAX_TRIES	3	/* How may times to try adding/deleting when get EAGAIN */
+
+
+void iptables_init(void);
+void iptables_fini(void);
+struct ipt_handle *iptables_open(void);
+int iptables_close(struct ipt_handle *h);
+void handle_iptable_rule_to_vip(ip_address_t *, int, char *, struct ipt_handle *);
 
 #endif

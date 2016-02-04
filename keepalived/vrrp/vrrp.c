@@ -39,6 +39,9 @@
 #include "vrrp_index.h"
 #include "vrrp_vmac.h"
 #include "vrrp_if_config.h"
+#ifdef _HAVE_LIBIPTC_
+#include "vrrp_iptables.h"
+#endif
 #ifdef _WITH_SNMP_
 #include "vrrp_snmp.h"
 #endif
@@ -91,18 +94,35 @@ vrrp_handle_iprules(vrrp_t * vrrp, int cmd)
 
 /* add/remove iptable drop rules based on accept mode */
 static void
-vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, int type)
+vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd)
 {
+#ifdef _HAVE_LIBIPTC_
+	int tries = 0;
+	int res = 0;
+#endif
+	struct ipt_handle *h = NULL;
+
 	if ((vrrp->version == VRRP_VERSION_3) &&
 	    (vrrp->base_priority != VRRP_PRIO_OWNER) &&
 	    !vrrp->accept) {
-		if (debug & 32)
-			log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol %s %s", vrrp->iname,
-				(cmd == IPADDRESS_ADD) ? "setting" : "removing", "iptable drop rule to", (type == VRRP_VIP_TYPE) ? "VIP" : "E-VIP");
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol %s", vrrp->iname,
+				(cmd == IPADDRESS_ADD) ? "setting" : "removing", "iptable drop rule");
 
-		/* As accept is false, add iptable rule to drop packets destinated to VIP */
-		handle_iptable_rule_to_iplist((type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip, cmd, IF_NAME(vrrp->ifp));
-		vrrp->iptable_rules_set = (cmd == IPADDRESS_ADD) ? true : false;
+#ifdef _HAVE_LIBIPTC_
+		do {
+			h = iptables_open();
+#endif
+			/* As accept is false, add iptable rule to drop packets destinated to VIPs and eVIPs */
+			if (!LIST_ISEMPTY(vrrp->vip))
+				handle_iptable_rule_to_iplist(h, vrrp->vip, cmd, IF_NAME(vrrp->ifp));
+			if (!LIST_ISEMPTY(vrrp->evip))
+				handle_iptable_rule_to_iplist(h, vrrp->evip, cmd, IF_NAME(vrrp->ifp));
+#ifdef _HAVE_LIBIPTC_
+			res = iptables_close(h);
+		} while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
+#endif
+		vrrp->iptable_rules_set = (cmd == IPADDRESS_ADD);
 	}
 }
 
@@ -1090,14 +1110,11 @@ vrrp_state_become_master(vrrp_t * vrrp)
 					vrrp->iname, (vrrp->adver_int * 1000) / TIMER_HZ);
 
 	/* add the ip addresses */
-	if (!LIST_ISEMPTY(vrrp->vip)) {
+	if (!LIST_ISEMPTY(vrrp->vip))
 		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
-		vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
-	}
-	if (!LIST_ISEMPTY(vrrp->evip)) {
+	if (!LIST_ISEMPTY(vrrp->evip))
 		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
-		vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
-	}
+	vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD);
 	vrrp->vipset = 1;
 
 	/* add virtual routes */
@@ -1193,14 +1210,11 @@ vrrp_restore_interface(vrrp_t * vrrp, int advF)
 	 */
 	if (__test_bit(DONT_RELEASE_VRRP_BIT, &debug) || VRRP_VIP_ISSET(vrrp) ||
 	    __test_bit(RELEASE_VIPS_BIT, &debug)) {
-		if (!LIST_ISEMPTY(vrrp->vip)) {
+		if (!LIST_ISEMPTY(vrrp->vip))
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL, VRRP_VIP_TYPE);
-			vrrp_handle_accept_mode(vrrp, IPADDRESS_DEL, VRRP_VIP_TYPE);
-		}
-		if (!LIST_ISEMPTY(vrrp->evip)) {
+		if (!LIST_ISEMPTY(vrrp->evip))
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL, VRRP_EVIP_TYPE);
-			vrrp_handle_accept_mode(vrrp, IPADDRESS_DEL, VRRP_EVIP_TYPE);
-		}
+		vrrp_handle_accept_mode(vrrp, IPADDRESS_DEL);
 		vrrp->vipset = 0;
 	}
 
@@ -1909,12 +1923,25 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			inet_ip6scopeid(vrrp->vmac_ifindex, &vrrp->saddr);
 	}
 
-	/* Spin through all our addresses, setting ifindex and ifp */
-	for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
-		vip = ELEMENT_DATA(e);
-		if (!vip->ifa.ifa_index) {
-			vip->ifa.ifa_index = vrrp->ifp->ifindex;
-			vip->ifp = vrrp->ifp;
+	/* Spin through all our addresses, setting ifindex and ifp.
+	   We also need to know what addresses we might block */
+	if ((vrrp->version == VRRP_VERSION_3) &&
+	    (vrrp->base_priority != VRRP_PRIO_OWNER) &&
+	    !vrrp->accept) {
+//TODO = we have a problem since SNMP may change accept mode
+//can it also chenge priority?
+		if (vrrp->saddr.ss_family == AF_INET)
+			global_data->block_ipv4 = true;
+		else
+			global_data->block_ipv6 = true;
+	}
+	if (!LIST_ISEMPTY(vrrp->vip)) {
+		for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
+			vip = ELEMENT_DATA(e);
+			if (!vip->ifa.ifa_index) {
+				vip->ifa.ifa_index = vrrp->ifp->ifindex;
+				vip->ifp = vrrp->ifp;
+			}
 		}
 	}
 	if (!LIST_ISEMPTY(vrrp->evip)) {
@@ -1923,6 +1950,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			if (!vip->ifa.ifa_index) {
 				vip->ifa.ifa_index = vrrp->ifp->ifindex;
 				vip->ifp = vrrp->ifp;
+			}
+
+			if ((vrrp->version == VRRP_VERSION_3) &&
+			    (vrrp->base_priority != VRRP_PRIO_OWNER) &&
+			    !vrrp->accept) {
+				if (vip->ifa.ifa_family == AF_INET)
+					global_data->block_ipv4 = true;
+				else
+					global_data->block_ipv6 = true;
 			}
 		}
 	}
@@ -1987,6 +2023,10 @@ vrrp_complete_init(void)
 		}
 	}
 
+#ifdef _HAVE_LIBIPTC
+	check_iptables_exist();
+#endif
+
 	/* Build synchronization group index, and remove any
 	 * empty groups, or groups with only one member */
 	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; e = next) {
@@ -2043,22 +2083,47 @@ vrrp_exist(vrrp_t * old_vrrp)
 
 /* Clear VIP|EVIP not present into the new data */
 static void
-clear_diff_vrrp_vip(vrrp_t * old_vrrp, int type)
+clear_diff_vrrp_vip_list(vrrp_t *vrrp, struct ipt_handle* h, list l, list n)
 {
-	vrrp_t *vrrp = vrrp_exist(old_vrrp);
-	list l = (type == VRRP_VIP_TYPE) ? old_vrrp->vip : old_vrrp->evip;
-	list n = (type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip;
-	clear_diff_address(l, n);
+	clear_diff_address(h, l, n);
+
+	if (LIST_ISEMPTY(n))
+		return;
 
 	/* Clear iptable rule to VIP if needed. */
-	if (!LIST_ISEMPTY(n) && old_vrrp->iptable_rules_set) {
-		if ((vrrp->version == VRRP_VERSION_2) || vrrp->accept ||
-		    (vrrp->base_priority == VRRP_PRIO_OWNER)) {
-			handle_iptable_rule_to_iplist(n, IPADDRESS_DEL, IF_NAME(vrrp->ifp));
-			vrrp->iptable_rules_set = false;
-		} else
-			vrrp->iptable_rules_set = true;
-	}
+	if ((vrrp->version == VRRP_VERSION_2) || vrrp->accept ||
+	    (vrrp->base_priority == VRRP_PRIO_OWNER)) {
+		handle_iptable_rule_to_iplist(h, n, IPADDRESS_DEL, IF_NAME(vrrp->ifp));
+// TODO = is this really false.
+		vrrp->iptable_rules_set = false;
+	} else
+		vrrp->iptable_rules_set = true;
+}
+
+static void
+clear_diff_vrrp_vip(vrrp_t * old_vrrp, int type)
+{
+#ifdef _HAVE_LIBIPTC_
+	int tries = 0;
+	int res = 0;
+#endif
+	struct ipt_handle *h = NULL;
+
+	vrrp_t *vrrp = vrrp_exist(old_vrrp);
+
+	if (!old_vrrp->iptable_rules_set)
+		return;
+
+#ifdef _HAVE_LIBIPTC_
+	do {
+		h = iptables_open();
+#endif
+		clear_diff_vrrp_vip_list(vrrp, h, old_vrrp->vip, vrrp->vip);
+		clear_diff_vrrp_vip_list(vrrp, h, old_vrrp->evip, vrrp->evip);
+#ifdef _HAVE_LIBIPTC_
+		res = iptables_close(h);
+	} while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
+#endif
 }
 
 /* Clear virtual routes not present in the new data */
@@ -2109,14 +2174,11 @@ reset_vrrp_state(vrrp_t * old_vrrp)
 	/* Remember if we had vips up and add new ones if needed */
 	vrrp->vipset = old_vrrp->vipset;
 	if (vrrp->vipset) {
-		if (!LIST_ISEMPTY(vrrp->vip)) {
+		if (!LIST_ISEMPTY(vrrp->vip))
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
-			vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
-		}
-		if (!LIST_ISEMPTY(vrrp->evip)) {
+		if (!LIST_ISEMPTY(vrrp->evip))
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
-			vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
-		}
+		vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD);
 		if (!LIST_ISEMPTY(vrrp->vroutes))
 			vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
 		if (!LIST_ISEMPTY(vrrp->vrules))
