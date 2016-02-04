@@ -638,6 +638,8 @@ IPVS_SYNCD
 KERN
 USE_LIBIPSET
 USE_LIBIPTC
+IPV4_DEVCONF
+IF_H_LINK_H_COLLISION
 USE_NL3
 EGREP
 GREP
@@ -4139,6 +4141,85 @@ fi
 
 
 
+IF_H_LINK_H_COLLISION="_WITHOUT_IF_H_LINK_H_COLLISION_"
+if test "${USE_NL3}" = "_HAVE_LIBNL3_"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for linux/if.h and netlink/route/link.h namespace collision" >&5
+$as_echo_n "checking for linux/if.h and netlink/route/link.h namespace collision... " >&6; }
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+      #include <net/if.h>
+      #include <netlink/route/link.h>
+
+int
+main ()
+{
+
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+else
+
+      IF_H_LINK_H_COLLISION=_HAVE_IF_H_LINK_H_COLLISION_
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext;
+  if test "$IF_H_LINK_H_COLLISION" = "_HAVE_IF_H_LINK_H_COLLISION_"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+  fi
+fi
+
+
+
+IPV4_DEVCONF="_WITHOUT_IPV4_DEVCONF_"
+if test "${USE_NL3}" = "_HAVE_LIBNL3_"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for IPV4_DEVCONF defines" >&5
+$as_echo_n "checking for IPV4_DEVCONF defines... " >&6; }
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+      #include <linux/ip.h>
+      int devconf;
+
+int
+main ()
+{
+
+      devconf = IPV4_DEVCONF_ARP_IGNORE;
+      devconf = IPV4_DEVCONF_ACCEPT_LOCAL;
+      devconf = IPV4_DEVCONF_RP_FILTER;
+      devconf = IPV4_DEVCONF_ARPFILTER;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+      IPV4_DEVCONF_SUPPORT=yes
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext;
+  if test "$IPV4_DEVCONF_SUPPORT" = "yes"; then
+    IPV4_DEVCONF="_HAVE_IPV4_DEVCONF_"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  else
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+  fi
+fi
+
+
+
 USE_LIBIPTC=_WITHOUT_LIBIPTC_
 if test "${enable_libiptc}" != "no"; then
   SAV_LIBS=$LIBS
@@ -6284,6 +6365,11 @@ elif test "${USE_NL3}" = "_HAVE_LIBNL1_"; then
   echo "libnl version            : 1"
 else
   echo "libnl version            : None"
+fi
+if test "${IPV4_DEVCONF}" = "_HAVE_IPV4_DEVCONF_"; then
+  echo "Use IPv4 devconf         : Yes"
+else
+  echo "Use IPv4 devconf         : No"
 fi
 if test "${USE_LIBIPTC}" = "_HAVE_LIBIPTC_"; then
   echo "Use libiptc              : Yes"
