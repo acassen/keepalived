@@ -103,6 +103,26 @@ AC_CHECK_LIB(nl-3, nl_socket_alloc,
 
 AC_SUBST(USE_NL3)
 
+dnl ----[Check if have linux/if.h and netlink/route/link.h namespace collision]----
+IF_H_LINK_H_COLLISION="_WITHOUT_IF_H_LINK_H_COLLISION_"
+if test "${USE_NL3}" = "_HAVE_LIBNL3_"; then
+  AC_MSG_CHECKING([for linux/if.h and netlink/route/link.h namespace collision])
+  AC_TRY_COMPILE([
+      #include <net/if.h>
+      #include <netlink/route/link.h>
+    ], [
+    ], [], [
+      IF_H_LINK_H_COLLISION=_HAVE_IF_H_LINK_H_COLLISION_
+    ]);
+  if test "$IF_H_LINK_H_COLLISION" = "_HAVE_IF_H_LINK_H_COLLISION_"; then
+    AC_MSG_RESULT([yes])
+  else
+    AC_MSG_RESULT([no])
+  fi
+fi
+
+AC_SUBST(IF_H_LINK_H_COLLISION)
+
 dnl ----[Check for iptables libraries]----
 USE_LIBIPTC=_WITHOUT_LIBIPTC_
 if test "${enable_libiptc}" != "no"; then
