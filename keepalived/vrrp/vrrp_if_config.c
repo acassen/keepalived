@@ -37,7 +37,7 @@
 #include "vrrp_if_config.h"
 #include "memory.h"
 
-#ifdef _HAVE_LIBNL3_
+#if defined(_HAVE_LIBNL3_) && defined(_HAVE_IPV4_DEVCONF_)
 
 #ifdef _HAVE_IF_H_LINK_H_COLLISION_
 /* The following is a horrible workaround. There was a longstanding problem with symbol
@@ -64,7 +64,8 @@
 
 #include <limits.h>
 #include <unistd.h>
-#ifdef _HAVE_LIBNL3_
+
+#if defined(_HAVE_LIBNL3_) && defined(_HAVE_IPV4_DEVCONF_)
 static int
 netlink3_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 {
@@ -285,7 +286,7 @@ get_sysctl(const char* prefix, const char* iface, const char* parameter)
 	return buf[0] - '0';
 }
 
-#ifndef _HAVE_LIBNL3_
+#if !(defined(_HAVE_LIBNL3_) && defined(_HAVE_IPV4_DEVCONF_))
 void
 set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 {

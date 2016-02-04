@@ -123,6 +123,31 @@ fi
 
 AC_SUBST(IF_H_LINK_H_COLLISION)
 
+dnl ----[Check have IPV4_DEVCONF defines]----
+IPV4_DEVCONF="_WITHOUT_IPV4_DEVCONF_"
+if test "${USE_NL3}" = "_HAVE_LIBNL3_"; then
+  AC_MSG_CHECKING([for IPV4_DEVCONF defines])
+  AC_TRY_COMPILE([
+      #include <linux/ip.h>
+      int devconf;
+    ], [
+      devconf = IPV4_DEVCONF_ARP_IGNORE;
+      devconf = IPV4_DEVCONF_ACCEPT_LOCAL;
+      devconf = IPV4_DEVCONF_RP_FILTER;
+      devconf = IPV4_DEVCONF_ARPFILTER;
+    ], [
+      IPV4_DEVCONF_SUPPORT=yes
+    ], []);
+  if test "$IPV4_DEVCONF_SUPPORT" = "yes"; then
+    IPV4_DEVCONF="_HAVE_IPV4_DEVCONF_"
+    AC_MSG_RESULT([yes])
+  else
+    AC_MSG_RESULT([no])
+  fi
+fi
+
+AC_SUBST(IPV4_DEVCONF)
+
 dnl ----[Check for iptables libraries]----
 USE_LIBIPTC=_WITHOUT_LIBIPTC_
 if test "${enable_libiptc}" != "no"; then
@@ -514,6 +539,11 @@ elif test "${USE_NL3}" = "_HAVE_LIBNL1_"; then
   echo "libnl version            : 1"
 else
   echo "libnl version            : None"
+fi
+if test "${IPV4_DEVCONF}" = "_HAVE_IPV4_DEVCONF_"; then
+  echo "Use IPv4 devconf         : Yes"
+else
+  echo "Use IPv4 devconf         : No"
 fi
 if test "${USE_LIBIPTC}" = "_HAVE_LIBIPTC_"; then
   echo "Use libiptc              : Yes"
