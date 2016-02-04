@@ -1110,9 +1110,16 @@ modprobe_ipvs(void)
 	int status;
 	int rc;
 	char *modprobe = get_modprobe();
+	struct sigaction act, old_act;
 
 	if (modprobe)
 		argv[0] = modprobe;
+
+	act.sa_handler = SIG_DFL;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+
+	sigaction ( SIGCHLD, &act, &old_act);
 
 	if (!(child = fork())) {
 		execv(argv[0], argv);
@@ -1120,6 +1127,9 @@ modprobe_ipvs(void)
 	}
 
 	rc = waitpid(child, &status, 0);
+
+	sigaction ( SIGCHLD, &old_act, NULL);
+
 	if (rc < 0) {
 		log_message(LOG_INFO, "IPVS: waitpid error (%s)"
 				    , strerror(errno));
