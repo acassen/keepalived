@@ -25,7 +25,7 @@
 
 /* global includes */
 #include <sys/socket.h>
-#include <linux/if.h>
+#include <net/if.h>
 #include <netinet/in.h>
 
 /* needed to get correct values for SIOC* */

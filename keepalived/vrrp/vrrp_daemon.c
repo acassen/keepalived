@@ -27,6 +27,7 @@
 #include "vrrp_ndisc.h"
 #include "vrrp_netlink.h"
 #include "vrrp_ipaddress.h"
+#include "vrrp_iptables.h"
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
 #include "vrrp_parser.h"
@@ -61,6 +62,7 @@ stop_vrrp(void)
 	 */
 	restore_vrrp_interfaces();
 
+//	restore_ipset() ;	// TODO
 	/* Clear static entries */
 	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
 	netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL);
@@ -157,6 +159,7 @@ start_vrrp(void)
 		clear_diff_vrrp();
 		clear_diff_script();
 	}
+// else ipset_init(); TODO
 
 	/* Complete VRRP initialization */
 	if (!vrrp_complete_init()) {

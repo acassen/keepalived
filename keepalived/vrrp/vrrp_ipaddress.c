@@ -22,6 +22,9 @@
 
 /* local include */
 #include "vrrp_ipaddress.h"
+#ifdef _HAVE_LIBIPTC_
+#include "vrrp_iptables.h"
+#endif
 #include "vrrp_netlink.h"
 #include "vrrp_data.h"
 #include "logger.h"
@@ -138,12 +141,72 @@ netlink_iplist(list ip_list, int cmd)
 	}
 }
 
+#ifdef _HAVE_LIBIPTC_
+static void
+handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname, void *h)
+{
+	if (global_data->vrrp_iptables_inchain[0] == '\0')
+		return;
+
+	iptables_entry(h, global_data->vrrp_iptables_inchain, -1,
+			XTC_LABEL_ACCEPT, NULL, ipaddress,
+			ifname, NULL,
+			IPPROTO_ICMPV6, 135, cmd);
+	iptables_entry(h, global_data->vrrp_iptables_inchain, -1,
+			XTC_LABEL_ACCEPT, NULL, ipaddress,
+			ifname, NULL,
+			IPPROTO_ICMPV6, 136, cmd);
+
+	if (global_data->vrrp_iptables_outchain[0] == '\0')
+		return;
+
+	iptables_entry(h, global_data->vrrp_iptables_outchain, -1,
+			XTC_LABEL_ACCEPT, ipaddress, NULL,
+			NULL, ifname,
+			IPPROTO_ICMPV6, 135, cmd);
+	iptables_entry(h, global_data->vrrp_iptables_outchain, -1,
+			XTC_LABEL_ACCEPT, ipaddress, NULL,
+			NULL, ifname,
+			IPPROTO_ICMPV6, 136, cmd);
+}
+static void
+handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void *h)
+{
+	char *my_ifname = NULL;
+
+	if (global_data->vrrp_iptables_inchain[0] == '\0')
+		return;
+
+	if (IP_IS6(ipaddress)) {
+		if (IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr))
+			my_ifname = ifname;
+
+		handle_iptable_rule_to_NA(ipaddress, cmd, my_ifname, h);
+	}
+
+	iptables_entry(h, global_data->vrrp_iptables_inchain, -1,
+			XTC_LABEL_DROP, NULL, ipaddress,
+			my_ifname, NULL,
+			IPPROTO_NONE, 0, cmd);
+
+	ipaddress->iptable_rule_set = (cmd != IPADDRESS_DEL) ? true : false;
+
+	if (global_data->vrrp_iptables_outchain[0] == '\0')
+		return;
+
+	iptables_entry(h, global_data->vrrp_iptables_outchain, -1,
+			XTC_LABEL_DROP, ipaddress, NULL,
+			NULL, my_ifname,
+			IPPROTO_NONE, 0, cmd);
+}
+#else
 static void
 handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 {
 	char  *argv[14];
 	unsigned int i = 0;
 	int if_specifier = -1;
+	int type_specifier ;
 
 	if (global_data->vrrp_iptables_inchain[0] == '\0')
 		return;
@@ -161,6 +224,7 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 	argv[i++] = "-p";
 	argv[i++] = "icmpv6";
 	argv[i++] = "--icmpv6-type";
+	type_specifier = i;
 	argv[i++] = "136";
 	argv[i++] = "-j";
 	argv[i++] = "ACCEPT";
@@ -168,14 +232,14 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 
 	if (fork_exec(argv) < 0)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to accept NAs sent"
-				     "to vip %s\n", (cmd) ? "set" : "remove",
+				     " to vip %s\n", (cmd) ? "set" : "remove",
 				     ipaddresstos(ipaddress));
 
-	argv[10] = "135";
+	argv[type_specifier] = "135";
 
 	if (fork_exec(argv) < 0)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to accept NSs sent"
-				     "to vip %s\n", (cmd) ? "set" : "remove",
+				     " to vip %s\n", (cmd) ? "set" : "remove",
 				     ipaddresstos(ipaddress));
 
 	if (global_data->vrrp_iptables_outchain[0] == '\0')
@@ -183,28 +247,28 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 
 	argv[2] = global_data->vrrp_iptables_outchain;
 	argv[3] = "-s";
-	if (if_specifier != -1)
-		argv[5] = "-o";
+	if (if_specifier >= 0)
+		argv[if_specifier] = "-o";
 
 	/* Allow NSs to be sent - this should only happen if the underlying interface
 	   doesn't have an IPv6 address */
 	if (fork_exec(argv) < 0)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to allow NSs to be"
-				     "sent from vip %s\n", (cmd) ? "set" : "remove",
+				     " sent from vip %s\n", (cmd) ? "set" : "remove",
 				     ipaddresstos(ipaddress));
 
-	argv[10] = "136";
+	argv[type_specifier] = "136";
 
 	/* Allow NAs to be sent in reply to an NS */
 	if (fork_exec(argv) < 0)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to allow NAs to be"
-				     "sent from vip %s\n", (cmd) ? "set" : "remove",
+				     " sent from vip %s\n", (cmd) ? "set" : "remove",
 				     ipaddresstos(ipaddress));
 }
 
 /* add/remove iptable drop rule to VIP */
 static void
-handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname)
+handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void *unused)
 {
 	char  *argv[10];
 	unsigned int i = 0;
@@ -238,7 +302,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname)
 				     " to vip %s\n", (cmd) ? "set" : "remove",
 				     ipaddresstos(ipaddress));
 	else
-		ipaddress->iptable_rule_set = (cmd) ? true : false;
+		ipaddress->iptable_rule_set = (cmd != IPADDRESS_DEL) ? true : false;
 
 	if (global_data->vrrp_iptables_outchain[0] == '\0')
 		return;
@@ -253,10 +317,11 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname)
 				     " from vip %s\n", (cmd) ? "set" : "remove",
 				     ipaddresstos(ipaddress));
 }
+#endif
 
 /* add/remove iptable drop rules to iplist */
 void
-handle_iptable_rule_to_iplist(list ip_list, int cmd, char *ifname)
+handle_iptable_rule_to_iplist(struct ipt_handle *h, list ip_list, int cmd, char *ifname)
 {
 	ip_address_t *ipaddr;
 	element e;
@@ -267,9 +332,8 @@ handle_iptable_rule_to_iplist(list ip_list, int cmd, char *ifname)
 
 	for (e = LIST_HEAD(ip_list); e; ELEMENT_NEXT(e)) {
 		ipaddr = ELEMENT_DATA(e);
-		if ((cmd && !ipaddr->iptable_rule_set) ||
-		    (!cmd && ipaddr->iptable_rule_set)) {
-			handle_iptable_rule_to_vip(ipaddr, cmd, ifname);
+		if ((cmd == IPADDRESS_DEL) == ipaddr->iptable_rule_set) {
+			handle_iptable_rule_to_vip(ipaddr, cmd, ifname, h);
 		}
 	}
 }
@@ -505,7 +569,7 @@ address_exist(list l, ip_address_t *ipaddress)
 
 /* Clear diff addresses */
 void
-clear_diff_address(list l, list n)
+clear_diff_address(struct ipt_handle *h, list l, list n)
 {
 	ip_address_t *ipaddr;
 	element e;
@@ -521,9 +585,9 @@ clear_diff_address(list l, list n)
 	iface_name = IF_NAME(base_if_get_by_ifindex(ipaddr->ifa.ifa_index));
 	/* All addresses removed */
 	if (LIST_ISEMPTY(n)) {
-		log_message(LOG_INFO, "Removing a VIP|E-VIP block");
+		log_message(LOG_INFO, "Removing a VIP and e-VIP block");
 		netlink_iplist(l, IPADDRESS_DEL);
-		handle_iptable_rule_to_iplist(l, IPADDRESS_DEL, iface_name);
+		handle_iptable_rule_to_iplist(h, l, IPADDRESS_DEL, iface_name);
 		return;
 	}
 
@@ -541,10 +605,16 @@ clear_diff_address(list l, list n)
 					    , ipaddr->ifa.ifa_prefixlen
 					    , IF_NAME(if_get_by_ifindex(ipaddr->ifa.ifa_index)));
 			netlink_ipaddress(ipaddr, IPADDRESS_DEL);
-			if (ipaddr->iptable_rule_set)
-				handle_iptable_rule_to_vip(ipaddr, IPADDRESS_DEL, iface_name);
+			if (ipaddr->iptable_rule_set
+#ifdef _HAVE_LIBIPTC_
+						     && h
+#endif
+							 )
+
+				handle_iptable_rule_to_vip(ipaddr, IPADDRESS_DEL, iface_name,h);
 		}
 	}
+
 	FREE(addr_str);
 }
 
@@ -552,5 +622,5 @@ clear_diff_address(list l, list n)
 void
 clear_diff_saddresses(void)
 {
-	clear_diff_address(old_vrrp_data->static_addresses, vrrp_data->static_addresses);
+	clear_diff_address(NULL, old_vrrp_data->static_addresses, vrrp_data->static_addresses);
 }

@@ -636,6 +636,7 @@ ADDR_GEN_MODE
 VRRP_VMAC
 IPVS_SYNCD
 KERN
+USE_LIBIPTC
 USE_NL3
 EGREP
 GREP
@@ -701,6 +702,7 @@ enable_fwmark
 enable_snmp
 enable_sha1
 enable_vrrp_auth
+enable_libiptc
 enable_debug
 enable_profile
 '
@@ -1327,6 +1329,7 @@ Optional Features:
   --enable-snmp           compile with SNMP support
   --enable-sha1           compile with SHA1 support
   --disable-vrrp-auth     compile without VRRP authentication
+  --disable-libiptc       compile without libiptc
   --enable-debug          compile with debugging flags
   --enable-profile        compile with profiling flags
 
@@ -3284,6 +3287,11 @@ if test "${enable_vrrp_auth+set}" = set; then :
   enableval=$enable_vrrp_auth;
 fi
 
+# Check whether --enable-libiptc was given.
+if test "${enable_libiptc+set}" = set; then :
+  enableval=$enable_libiptc;
+fi
+
 # Check whether --enable-debug was given.
 if test "${enable_debug+set}" = set; then :
   enableval=$enable_debug;
@@ -4120,6 +4128,58 @@ fi
 
 fi
 
+
+
+
+USE_LIBIPTC=_WITHOUT_LIBIPTC_
+if test "${enable_libiptc}" != "no"; then
+  SAV_LIBS=$LIBS
+  LIBS="$LIBS $(pkg-config --libs --static libiptc)"
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for iptc_init in -liptc" >&5
+$as_echo_n "checking for iptc_init in -liptc... " >&6; }
+if ${ac_cv_lib_iptc_iptc_init+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-liptc  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char iptc_init ();
+int
+main ()
+{
+return iptc_init ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_iptc_iptc_init=yes
+else
+  ac_cv_lib_iptc_iptc_init=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_iptc_iptc_init" >&5
+$as_echo "$ac_cv_lib_iptc_iptc_init" >&6; }
+if test "x$ac_cv_lib_iptc_iptc_init" = xyes; then :
+
+      USE_LIBIPTC=_HAVE_LIBIPTC_
+      SAV_LIBS=$LIBS
+
+fi
+
+  LIBS=$SAV_LIBS
+fi
 
 
 
@@ -6162,4 +6222,9 @@ elif test "${USE_NL3}" = "_HAVE_LIBNL1_"; then
   echo "libnl version            : 1"
 else
   echo "libnl version            : None"
+fi
+if test "${USE_LIBIPTC}" = "_HAVE_LIBIPTC_"; then
+  echo "Use libiptc              : Yes"
+else
+  echo "Use libiptc              : No"
 fi
