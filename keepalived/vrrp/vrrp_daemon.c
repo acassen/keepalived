@@ -62,7 +62,10 @@ stop_vrrp(void)
 	 */
 	restore_vrrp_interfaces();
 
-//	restore_ipset() ;	// TODO
+#ifdef _HAVE_LIBIPTC_
+	iptables_fini();
+#endif
+
 	/* Clear static entries */
 	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
 	netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL);
@@ -159,7 +162,6 @@ start_vrrp(void)
 		clear_diff_vrrp();
 		clear_diff_script();
 	}
-// else ipset_init(); TODO
 
 	/* Complete VRRP initialization */
 	if (!vrrp_complete_init()) {
@@ -168,6 +170,10 @@ start_vrrp(void)
 		}
 		return;
 	}
+
+#ifdef _HAVE_LIBIPTC_
+	iptables_init();
+#endif
 
 	/* Post initializations */
 #ifdef _DEBUG_

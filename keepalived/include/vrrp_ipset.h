@@ -3,7 +3,7 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        vrrp_iptables.c include file.
+ * Part:        vrrp_ipset.c include file.
  *
  * Author:      Quentin Armitage, <quentin@armitage.org.uk>
  *
@@ -20,26 +20,17 @@
  * Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _VRRP_IPTABLES_H
-#define _VRRP_IPTABLES_H
+#ifndef _VRRP_IPSET_H
+#define _VRRP_IPSET_H
 
-#ifdef _HAVE_LIBIPTC_
-int load_mod_xt_set(void);
-#endif
-
-#include <libiptc/libxtc.h>
-
+#include <libipset/session.h>
 #include "vrrp_ipaddress.h"
 
-struct ipt_handle;
-
-#define	IPTABLES_MAX_TRIES	3	/* How may times to try adding/deleting when get EAGAIN */
-
-
-void iptables_init(void);
-void iptables_fini(void);
-struct ipt_handle *iptables_open(void);
-int iptables_close(struct ipt_handle *h);
-void handle_iptable_rule_to_vip(ip_address_t *, int, char *, struct ipt_handle *);
+int add_ipsets(void);
+int remove_ipsets(void);
+bool has_ipset_setname(struct ipset_session*, const char *);
+struct ipset_session* ipset_session_start(void);
+void ipset_session_end(struct ipset_session*);
+void ipset_entry(struct ipset_session*, int cmd, const ip_address_t*, const char*);
 
 #endif

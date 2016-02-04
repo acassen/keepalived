@@ -68,7 +68,7 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 
 				addr_str = ipaddresstos(ipaddress);
 				log_message(LOG_INFO, "%s has a prefix length of 128, setting "
-						      "preferred_lft to 0\n", addr_str);
+						      "preferred_lft to 0", addr_str);
 				FREE(addr_str);
 				addattr_l(&req.n, sizeof(req), IFA_CACHEINFO, &cinfo,
 					  sizeof(cinfo));
@@ -141,65 +141,7 @@ netlink_iplist(list ip_list, int cmd)
 	}
 }
 
-#ifdef _HAVE_LIBIPTC_
-static void
-handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname, void *h)
-{
-	if (global_data->vrrp_iptables_inchain[0] == '\0')
-		return;
-
-	iptables_entry(h, global_data->vrrp_iptables_inchain, -1,
-			XTC_LABEL_ACCEPT, NULL, ipaddress,
-			ifname, NULL,
-			IPPROTO_ICMPV6, 135, cmd);
-	iptables_entry(h, global_data->vrrp_iptables_inchain, -1,
-			XTC_LABEL_ACCEPT, NULL, ipaddress,
-			ifname, NULL,
-			IPPROTO_ICMPV6, 136, cmd);
-
-	if (global_data->vrrp_iptables_outchain[0] == '\0')
-		return;
-
-	iptables_entry(h, global_data->vrrp_iptables_outchain, -1,
-			XTC_LABEL_ACCEPT, ipaddress, NULL,
-			NULL, ifname,
-			IPPROTO_ICMPV6, 135, cmd);
-	iptables_entry(h, global_data->vrrp_iptables_outchain, -1,
-			XTC_LABEL_ACCEPT, ipaddress, NULL,
-			NULL, ifname,
-			IPPROTO_ICMPV6, 136, cmd);
-}
-static void
-handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void *h)
-{
-	char *my_ifname = NULL;
-
-	if (global_data->vrrp_iptables_inchain[0] == '\0')
-		return;
-
-	if (IP_IS6(ipaddress)) {
-		if (IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr))
-			my_ifname = ifname;
-
-		handle_iptable_rule_to_NA(ipaddress, cmd, my_ifname, h);
-	}
-
-	iptables_entry(h, global_data->vrrp_iptables_inchain, -1,
-			XTC_LABEL_DROP, NULL, ipaddress,
-			my_ifname, NULL,
-			IPPROTO_NONE, 0, cmd);
-
-	ipaddress->iptable_rule_set = (cmd != IPADDRESS_DEL) ? true : false;
-
-	if (global_data->vrrp_iptables_outchain[0] == '\0')
-		return;
-
-	iptables_entry(h, global_data->vrrp_iptables_outchain, -1,
-			XTC_LABEL_DROP, ipaddress, NULL,
-			NULL, my_ifname,
-			IPPROTO_NONE, 0, cmd);
-}
-#else
+#ifndef _HAVE_LIBIPTC_
 static void
 handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 {
@@ -232,14 +174,14 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 
 	if (fork_exec(argv) < 0)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to accept NAs sent"
-				     " to vip %s\n", (cmd) ? "set" : "remove",
+				     " to vip %s", (cmd) ? "set" : "remove",
 				     ipaddresstos(ipaddress));
 
 	argv[type_specifier] = "135";
 
 	if (fork_exec(argv) < 0)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to accept NSs sent"
-				     " to vip %s\n", (cmd) ? "set" : "remove",
+				     " to vip %s", (cmd) ? "set" : "remove",
 				     ipaddresstos(ipaddress));
 
 	if (global_data->vrrp_iptables_outchain[0] == '\0')
@@ -254,7 +196,7 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 	   doesn't have an IPv6 address */
 	if (fork_exec(argv) < 0)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to allow NSs to be"
-				     " sent from vip %s\n", (cmd) ? "set" : "remove",
+				     " sent from vip %s", (cmd) ? "set" : "remove",
 				     ipaddresstos(ipaddress));
 
 	argv[type_specifier] = "136";
@@ -262,7 +204,7 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 	/* Allow NAs to be sent in reply to an NS */
 	if (fork_exec(argv) < 0)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to allow NAs to be"
-				     " sent from vip %s\n", (cmd) ? "set" : "remove",
+				     " sent from vip %s", (cmd) ? "set" : "remove",
 				     ipaddresstos(ipaddress));
 }
 
@@ -299,7 +241,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void 
 
 	if (fork_exec(argv) < 0)
 		log_message(LOG_ERR, "Failed to %s iptable drop rule"
-				     " to vip %s\n", (cmd) ? "set" : "remove",
+				     " to vip %s", (cmd) ? "set" : "remove",
 				     ipaddresstos(ipaddress));
 	else
 		ipaddress->iptable_rule_set = (cmd != IPADDRESS_DEL) ? true : false;
@@ -314,7 +256,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void 
 
 	if (fork_exec(argv) < 0)
 		log_message(LOG_ERR, "Failed to %s iptable drop rule"
-				     " from vip %s\n", (cmd) ? "set" : "remove",
+				     " from vip %s", (cmd) ? "set" : "remove",
 				     ipaddresstos(ipaddress));
 }
 #endif

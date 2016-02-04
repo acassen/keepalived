@@ -38,316 +38,287 @@
  *   some documentation
 */
 
-#include <xtables.h>
 #include <libiptc/libiptc.h>
-#include <libiptc/libip6tc.h>
-#include <libiptc/libxtc.h>
-#include <linux/netfilter_ipv6/ip6_tables.h>
-#include <stdio.h>
-#include <errno.h>
-#include <stdlib.h>
-
-#include <linux/if_addr.h>
-#include <netinet/in.h>
-#include <net/if.h>
 
 #include "vrrp_iptables.h"
-#include "vrrp_ipaddress.h"
+#include "vrrp_iptables_calls.h"
+#include "vrrp_ipset.h"
 #include "logger.h"
 #include "memory.h"
+#include "global_data.h"
+
+#ifdef _HAVE_LIBIPSET_
+#include <xtables.h>
+#include "vrrp_ipset.h"
+#endif
 
 struct ipt_handle {
 	struct iptc_handle *h4;
 	struct ip6tc_handle *h6;
+	bool updated_v4;
+	bool updated_v6;
+#ifdef _HAVE_LIBIPSET_
+	struct ipset_session* session;
+#endif
 } ;
 
-/* Initializes a new iptables instance and returns an iptables resource associated with the new iptables table */
-static struct iptc_handle* ip4tables_open ( const char* tablename )
+/* If the chains don't exist, we can't use iptables */
+static bool use_iptables = true;
+
+#ifdef _HAVE_LIBIPSET_
+static
+void add_del_sets(int cmd)
 {
-	struct iptc_handle *h ;
+	if (cmd == IPADDRESS_ADD) {
+		if (!add_ipsets())
+			global_data->using_ipsets = false;
+		return;
+	}
 
-	if ( !( h = iptc_init ( tablename ) ) )
-		return NULL ;
-
-	return h ;
+	remove_ipsets();
 }
 
-/*
-   close handle */
-static int ip4tables_close ( struct iptc_handle* handle )
+static
+void add_del_rules(int cmd)
 {
-	int res;
-	int sav_errno ;
+	struct iptc_handle *h4;
+	struct ip6tc_handle *h6;
 
-	if ( ( res = iptc_commit ( handle ) ) != 1 )
-	{
-		sav_errno = errno ;
-		log_message(LOG_INFO, "iptc_commit returned %d: %s\n", res, iptc_strerror (sav_errno) );
+	if (global_data->block_ipv4 &&
+	    (global_data->vrrp_iptables_inchain[0] ||
+	     global_data->vrrp_iptables_outchain[0])) {
+		h4 = ip4tables_open("filter");
+
+		if (global_data->vrrp_iptables_inchain[0])
+			ip4tables_add_rules(h4, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_DROP, global_data->vrrp_ipset_address, IPPROTO_NONE, 0, cmd) ;
+		if (global_data->vrrp_iptables_outchain[0])
+			ip4tables_add_rules(h4, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address, IPPROTO_NONE, 0, cmd) ;
+		ip4tables_close(h4, true);
 	}
 
-	iptc_free ( handle ) ;
+	if (global_data->block_ipv6 &&
+	    (global_data->vrrp_iptables_inchain[0] ||
+	     global_data->vrrp_iptables_outchain[0])) {
+		h6 = ip6tables_open("filter");
 
-	if ( res == 1 )
-		return 0 ;
-	else
-		return ( sav_errno ) ;
-}
-
-static int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name, int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint16_t type, int cmd)
-{
-	int size;
-	struct ipt_entry *fw;
-	struct xt_entry_target *target;
-	struct xt_entry_match *match ;
-	ipt_chainlabel chain;
-	int res;
-	int sav_errno;
-
-	/* Add an entry */
-
-	memset (chain, 0, sizeof (chain));
-
-	size = XT_ALIGN (sizeof (struct ipt_entry)) +
-			XT_ALIGN ( sizeof ( struct xt_entry_match ) ) +
-			XT_ALIGN (sizeof (struct xt_entry_target) + 1);
-
-	if ( protocol == IPPROTO_ICMP )
-		size += XT_ALIGN ( sizeof(struct xt_entry_match) ) + XT_ALIGN ( sizeof(struct ipt_icmp) ) ;
-
-	fw = (struct ipt_entry*)malloc(size);
-	memset (fw, 0, size);
-
-	fw->target_offset = XT_ALIGN ( sizeof ( struct ipt_entry ) ) ;
-
-	if ( src_ip_address && src_ip_address->ifa.ifa_family != AF_UNSPEC )
-	{
-		memcpy(&fw->ip.src, &src_ip_address->u.sin.sin_addr, sizeof ( src_ip_address->u.sin.sin_addr ) );
-		memset ( &fw->ip.smsk, 0xff, sizeof(fw->ip.smsk));
-	}
-
-	if ( dst_ip_address && dst_ip_address->ifa.ifa_family != AF_UNSPEC )
-	{
-		memcpy(&fw->ip.dst, &dst_ip_address->u.sin.sin_addr, sizeof ( dst_ip_address->u.sin.sin_addr ) );
-		memset ( &fw->ip.dmsk, 0xff, sizeof(fw->ip.dmsk));
-	}
-
-	if ( in_iface )
-		strcpy ( fw->ip.iniface, in_iface ) ;
-	if ( out_iface )
-		strcpy ( fw->ip.outiface, out_iface ) ;
-
-	if ( protocol != IPPROTO_NONE ) {
-		fw->ip.proto = protocol ;
-
-//		fw->ip.flags |= IP6T_F_PROTO ;		// IPv6 only
-
-		if ( protocol == IPPROTO_ICMP )
-		{
-			match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
-			match->u.match_size = XT_ALIGN ( sizeof (struct xt_entry_match) ) + XT_ALIGN ( sizeof (struct ipt_icmp) ) ;
-			match->u.user.revision = 0;
-			fw->target_offset += match->u.match_size ;
-			strcpy ( match->u.user.name, "icmpv" ) ;
-
-			struct ipt_icmp *icmpinfo = (struct ipt_icmp *) match->data;
-			icmpinfo->type = type ;	// type to match
-			icmpinfo->code[0] = 0 ;	// code lower
-			icmpinfo->code[1] = 0xff ;		// code upper
-			icmpinfo->invflags = 0 ;	// don't invert
+		if (global_data->vrrp_iptables_inchain[0]) {
+			ip6tables_add_rules ( h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_TWO, IPSET_DIM_TWO_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 135, cmd) ;
+			ip6tables_add_rules ( h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_TWO, IPSET_DIM_TWO_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 136, cmd) ;
+			ip6tables_add_rules ( h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_TWO, IPSET_DIM_TWO_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address_iface6, IPPROTO_NONE, 0, cmd) ;
+			ip6tables_add_rules ( h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 135, cmd) ;
+			ip6tables_add_rules ( h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 136, cmd) ;
+			ip6tables_add_rules ( h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_DROP, global_data->vrrp_ipset_address6, IPPROTO_NONE, 0, cmd) ;
 		}
-	}
 
-// target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
-	fw->next_offset = size;
-	target = ipt_get_target ( fw ) ;
-	target->u.user.target_size = XT_ALIGN (sizeof (struct xt_entry_target) + 1);
-	strcpy (target->u.user.name, target_name );
-//	fw->ip.flags |= IPT_F_GOTO;
-	strcpy (chain, chain_name);
-	// Use iptc_append_entry to add to the chain
-	if (cmd == IPADDRESS_DEL) {
-		unsigned char matchmask[fw->next_offset];
-		memset(matchmask, 0xff, fw->next_offset);
-		res = iptc_delete_entry(chain, fw, matchmask, handle);
-	}
-	else if ( rulenum == -1 )
-		res = iptc_append_entry (chain, fw, handle ) ;
-	else
-		res = iptc_insert_entry (chain, fw, rulenum, handle ) ;
-
-	sav_errno = errno ;
-
-	if (res!= 1)
-	{
-		log_message(LOG_INFO, "ip4tables_process_entry returned %d: %s\n", res, iptc_strerror (sav_errno) ) ;
-		log_message(LOG_INFO, "\tChain %s \n", chain_name ) ;
-
-		return sav_errno ;
-	}
-
-	return 0 ;
-}
-
-/* Initializes a new iptables instance and returns an iptables resource associated with the new iptables table */
-static struct ip6tc_handle* ip6tables_open ( const char* tablename )
-{
-	struct ip6tc_handle *h ;
-
-	if ( !( h = ip6tc_init ( tablename ) ) )
-		return NULL ;
-
-	return h ;
-}
-
-static int ip6tables_close ( struct ip6tc_handle* handle )
-{
-	int res;
-	int sav_errno ;
-
-	if ( ( res = ip6tc_commit ( handle ) ) != 1 )
-	{
-		sav_errno = errno ;
-		log_message(LOG_INFO, "iptc_commit returned %d: %s\n", res, ip6tc_strerror (sav_errno) );
-	}
-
-	ip6tc_free ( handle ) ;
-
-	if ( res == 1 )
-		return 0 ;
-	else
-		return ( sav_errno ) ;
-}
-
-static int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name, int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint16_t type, int cmd)
-{
-	int size;
-	struct ip6t_entry *fw;
-	struct xt_entry_target *target;
-	struct xt_entry_match *match ;
-	ip6t_chainlabel chain;
-	int res;
-	int sav_errno;
-
-	/* Add an entry */
-
-	memset (chain, 0, sizeof (chain));
-
-	size = XT_ALIGN (sizeof (struct ip6t_entry)) +
-			XT_ALIGN ( sizeof ( struct xt_entry_match ) ) +
-			XT_ALIGN (sizeof (struct xt_entry_target) + 1);
-
-	if ( protocol == IPPROTO_ICMPV6 )
-		size += XT_ALIGN ( sizeof(struct xt_entry_match) ) + XT_ALIGN ( sizeof(struct ip6t_icmp) ) ;
-
-	fw = (struct ip6t_entry*)malloc(size);
-	memset (fw, 0, size);
-
-	fw->target_offset = XT_ALIGN ( sizeof ( struct ip6t_entry ) ) ;
-
-	if ( src_ip_address && src_ip_address->ifa.ifa_family != AF_UNSPEC ) {
-		memcpy(&fw->ipv6.src, &src_ip_address->u.sin6_addr, sizeof ( src_ip_address->u.sin6_addr ) );
-		memset ( &fw->ipv6.smsk, 0xff, sizeof(fw->ipv6.smsk));
-	}
-
-	if ( dst_ip_address && dst_ip_address->ifa.ifa_family != AF_UNSPEC ) {
-		memcpy(&fw->ipv6.dst, &dst_ip_address->u.sin6_addr, sizeof ( dst_ip_address->u.sin6_addr ) );
-		memset ( &fw->ipv6.dmsk, 0xff, sizeof(fw->ipv6.smsk));
-	}
-
-	if ( in_iface )
-		strcpy ( fw->ipv6.iniface, in_iface ) ;
-	if ( out_iface )
-		strcpy ( fw->ipv6.outiface, out_iface ) ;
-
-	if ( protocol != IPPROTO_NONE ) {
-		fw->ipv6.proto = protocol ;
-
-		fw->ipv6.flags |= IP6T_F_PROTO ;		// IPv6 only
-
-		if ( protocol == IPPROTO_ICMPV6 )
-		{
-			match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
-			match->u.match_size = XT_ALIGN ( sizeof (struct xt_entry_match) ) + XT_ALIGN ( sizeof (struct ip6t_icmp) ) ;
-			match->u.user.revision = 0;
-			fw->target_offset += match->u.match_size ;
-			strcpy ( match->u.user.name, "icmp6" ) ;
-
-			struct ip6t_icmp *icmpinfo = (struct ip6t_icmp *) match->data;
-			icmpinfo->type = type ;		// type to match
-			icmpinfo->code[0] = 0 ;		// code lower
-			icmpinfo->code[1] = 0xff ;	// code upper
-			icmpinfo->invflags = 0 ;	// don't invert
+		if (global_data->vrrp_iptables_outchain[0]) {
+			ip6tables_add_rules ( h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_TWO, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 135, cmd) ;
+			ip6tables_add_rules ( h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_TWO, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 136, cmd) ;
+			ip6tables_add_rules ( h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_TWO, IPSET_DIM_ONE_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address_iface6, IPPROTO_NONE, 0, cmd) ;
+			ip6tables_add_rules ( h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 135, cmd) ;
+			ip6tables_add_rules ( h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 136, cmd) ;
+			ip6tables_add_rules ( h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address6, IPPROTO_NONE, 0, cmd) ;
 		}
+
+		ip6tables_close(h6, true);
 	}
-
-// target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
-	fw->next_offset = size;
-	target = ip6t_get_target ( fw ) ;
-	target->u.user.target_size = XT_ALIGN (sizeof (struct xt_entry_target) + 1);
-	strcpy (target->u.user.name, target_name );
-//	fw->ip.flags |= IPT_F_GOTO;
-	strcpy (chain, chain_name);
-
-	// Use iptc_append_entry to add to the chain
-	if (cmd == IPADDRESS_DEL) {
-		unsigned char matchmask[fw->next_offset];
-		memset(matchmask, 0xff, fw->next_offset);
-		res = ip6tc_delete_entry ( chain, fw, matchmask, handle);
-	}
-	else if ( rulenum == -1 )
-		res = ip6tc_append_entry (chain, fw, handle ) ;
-	else
-		res = ip6tc_insert_entry (chain, fw, rulenum, handle ) ;
-
-	sav_errno = errno ;
-
-	if (res != 1)
-	{
-		log_message(LOG_INFO, "ip6tables_process_entry returned %d: %s\n", res, ip6tc_strerror (sav_errno) ) ;
-		log_message(LOG_INFO, "\tChain %s \n", chain_name ) ;
-
-		return sav_errno ;
-	}
-
-	return 0 ;
 }
+#endif
 
-struct ipt_handle *iptables_open()
+struct ipt_handle* iptables_open()
 {
 	struct ipt_handle *h = MALLOC(sizeof(struct ipt_handle));
 
 	return h;
 }
 
-int iptables_close(struct ipt_handle *h)
+int iptables_close(struct ipt_handle* h)
 {
 	int res = 0;
 
 	if (h->h4)
-		res = ip4tables_close(h->h4);
+		res = ip4tables_close(h->h4, h->updated_v4);
 	if (h->h6)
-		res = ip6tables_close(h->h6);
+		res += ip6tables_close(h->h6, h->updated_v6);
+
+#ifdef _HAVBE_LIBIPSET_
+	if (h->session)
+		ipset_session_end(h->session);
+#endif
 
 	FREE(h);
 
 	return res;
 }
 
-int iptables_entry( struct ipt_handle* h, const char* chain_name, int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint16_t type, int cmd)
+static int check_chains_exist(void)
 {
+	struct iptc_handle *h4;
+	struct ip6tc_handle *h6;
+	bool status = true;
+
+	if (global_data->block_ipv4) {
+		h4 = ip4tables_open("filter");
+
+		if (global_data->vrrp_iptables_inchain[0] &&
+		    !ip4tables_is_chain(h4, global_data->vrrp_iptables_inchain)) {
+			log_message(LOG_INFO, "iptables chain %s doesn't exist", global_data->vrrp_iptables_inchain);
+			status = false;
+		}
+		if (global_data->vrrp_iptables_outchain[0] &&
+		    !ip4tables_is_chain(h4, global_data->vrrp_iptables_outchain)) {
+			log_message(LOG_INFO, "iptables chain %s doesn't exist", global_data->vrrp_iptables_outchain);
+			status = false;
+		}
+
+		ip4tables_close(h4, false);
+	}
+
+	if (global_data->block_ipv6) {
+		h6 = ip6tables_open("filter");
+
+		if (global_data->vrrp_iptables_inchain[0] &&
+		    !ip6tables_is_chain(h6, global_data->vrrp_iptables_inchain)) {
+			log_message(LOG_INFO, "ip6tables chain %s doesn't exist", global_data->vrrp_iptables_inchain);
+			status = false;
+		}
+		if (global_data->vrrp_iptables_outchain[0] &&
+		    !ip6tables_is_chain(h6, global_data->vrrp_iptables_outchain)) {
+			log_message(LOG_INFO, "ip6tables chain %s doesn't exist", global_data->vrrp_iptables_outchain);
+			status = false;
+		}
+
+		ip6tables_close(h6, false);
+	}
+
+	return status;
+}
+
+static int iptables_entry(struct ipt_handle* h, const char* chain_name, int rulenum, char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint16_t type, int cmd)
+{
+	int res;
+
 	if ((src_ip_address && src_ip_address->ifa.ifa_family == AF_INET) ||
 	    (dst_ip_address && dst_ip_address->ifa.ifa_family == AF_INET )) {
 		if (!h->h4)
 			h->h4 = ip4tables_open ("filter");
-		return ip4tables_process_entry( h->h4, chain_name, rulenum, target_name, src_ip_address, dst_ip_address, in_iface, out_iface, protocol, type, cmd);
+
+		res = ip4tables_process_entry( h->h4, chain_name, rulenum, target_name, src_ip_address, dst_ip_address, in_iface, out_iface, protocol, type, cmd);
+		if (!res)
+			h->updated_v4 = true ;
+		return res;
 	}
 	else if ((src_ip_address && src_ip_address->ifa.ifa_family == AF_INET6) ||
 		 (dst_ip_address && dst_ip_address->ifa.ifa_family == AF_INET6)) {
 		if (!h->h6)
 			h->h6 = ip6tables_open ("filter");
 
-		return ip6tables_process_entry( h->h6, chain_name, rulenum, target_name, src_ip_address, dst_ip_address, in_iface, out_iface, protocol, type, cmd);
+		res = ip6tables_process_entry( h->h6, chain_name, rulenum, target_name, src_ip_address, dst_ip_address, in_iface, out_iface, protocol, type, cmd);
+		if (!res)
+			h->updated_v6 = true;
+		return res;
 	}
 
 	return 0;
+}
+
+static void
+handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname, void *h)
+{
+	if (global_data->vrrp_iptables_inchain[0] == '\0')
+		return;
+
+	iptables_entry(h, global_data->vrrp_iptables_inchain, -1,
+			XTC_LABEL_ACCEPT, NULL, ipaddress,
+			ifname, NULL,
+			IPPROTO_ICMPV6, 135, cmd);
+	iptables_entry(h, global_data->vrrp_iptables_inchain, -1,
+			XTC_LABEL_ACCEPT, NULL, ipaddress,
+			ifname, NULL,
+			IPPROTO_ICMPV6, 136, cmd);
+
+	if (global_data->vrrp_iptables_outchain[0] == '\0')
+		return;
+
+	iptables_entry(h, global_data->vrrp_iptables_outchain, -1,
+			XTC_LABEL_ACCEPT, ipaddress, NULL,
+			NULL, ifname,
+			IPPROTO_ICMPV6, 135, cmd);
+	iptables_entry(h, global_data->vrrp_iptables_outchain, -1,
+			XTC_LABEL_ACCEPT, ipaddress, NULL,
+			NULL, ifname,
+			IPPROTO_ICMPV6, 136, cmd);
+}
+
+void
+handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, struct ipt_handle *h)
+{
+	char *my_ifname = NULL;
+
+	if (!use_iptables)
+		return;
+
+	if (global_data->vrrp_iptables_inchain[0] == '\0')
+		return;
+
+#ifdef _HAVE_LIBIPSET_
+	if (global_data->using_ipsets)
+	{
+		if (!h->session)
+			h->session = ipset_session_start();
+
+		ipset_entry(h->session, cmd, ipaddress, ifname);
+
+		return;
+	}
+#endif
+
+	if (IP_IS6(ipaddress)) {
+		if (IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr))
+			my_ifname = ifname;
+
+		handle_iptable_rule_to_NA(ipaddress, cmd, my_ifname, h);
+	}
+
+	iptables_entry(h, global_data->vrrp_iptables_inchain, -1,
+			XTC_LABEL_DROP, NULL, ipaddress,
+			my_ifname, NULL,
+			IPPROTO_NONE, 0, cmd);
+
+	ipaddress->iptable_rule_set = (cmd != IPADDRESS_DEL) ? true : false;
+
+	if (global_data->vrrp_iptables_outchain[0] == '\0')
+		return;
+
+	iptables_entry(h, global_data->vrrp_iptables_outchain, -1,
+			XTC_LABEL_DROP, ipaddress, NULL,
+			NULL, my_ifname,
+			IPPROTO_NONE, 0, cmd);
+}
+
+void iptables_init()
+{
+	if (!check_chains_exist()) {
+		use_iptables = false;
+#ifdef _HAVE_LIBIPSET_
+		global_data->using_ipsets = false;
+#endif
+
+		return;
+	}
+#ifdef _HAVE_LIBIPSET_
+	if (global_data->using_ipsets)
+		add_del_sets(IPADDRESS_ADD);
+	if (global_data->using_ipsets)
+		add_del_rules(IPADDRESS_ADD);
+#endif
+}
+
+void iptables_fini()
+{
+#ifdef _HAVE_LIBIPSET_
+	if (global_data->using_ipsets) {
+		add_del_rules(IPADDRESS_DEL);
+		add_del_sets(IPADDRESS_DEL);
+	}
+#endif
 }

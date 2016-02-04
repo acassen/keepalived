@@ -105,7 +105,7 @@ vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd)
 	if ((vrrp->version == VRRP_VERSION_3) &&
 	    (vrrp->base_priority != VRRP_PRIO_OWNER) &&
 	    !vrrp->accept) {
-		if (debug & 32)
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol %s", vrrp->iname,
 				(cmd == IPADDRESS_ADD) ? "setting" : "removing", "iptable drop rule");
 
@@ -1923,12 +1923,25 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			inet_ip6scopeid(vrrp->vmac_ifindex, &vrrp->saddr);
 	}
 
-	/* Spin through all our addresses, setting ifindex and ifp */
-	for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
-		vip = ELEMENT_DATA(e);
-		if (!vip->ifa.ifa_index) {
-			vip->ifa.ifa_index = vrrp->ifp->ifindex;
-			vip->ifp = vrrp->ifp;
+	/* Spin through all our addresses, setting ifindex and ifp.
+	   We also need to know what addresses we might block */
+	if ((vrrp->version == VRRP_VERSION_3) &&
+	    (vrrp->base_priority != VRRP_PRIO_OWNER) &&
+	    !vrrp->accept) {
+//TODO = we have a problem since SNMP may change accept mode
+//can it also chenge priority?
+		if (vrrp->saddr.ss_family == AF_INET)
+			global_data->block_ipv4 = true;
+		else
+			global_data->block_ipv6 = true;
+	}
+	if (!LIST_ISEMPTY(vrrp->vip)) {
+		for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
+			vip = ELEMENT_DATA(e);
+			if (!vip->ifa.ifa_index) {
+				vip->ifa.ifa_index = vrrp->ifp->ifindex;
+				vip->ifp = vrrp->ifp;
+			}
 		}
 	}
 	if (!LIST_ISEMPTY(vrrp->evip)) {
@@ -1937,6 +1950,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			if (!vip->ifa.ifa_index) {
 				vip->ifa.ifa_index = vrrp->ifp->ifindex;
 				vip->ifp = vrrp->ifp;
+			}
+
+			if ((vrrp->version == VRRP_VERSION_3) &&
+			    (vrrp->base_priority != VRRP_PRIO_OWNER) &&
+			    !vrrp->accept) {
+				if (vip->ifa.ifa_family == AF_INET)
+					global_data->block_ipv4 = true;
+				else
+					global_data->block_ipv6 = true;
 			}
 		}
 	}
@@ -2000,6 +2022,10 @@ vrrp_complete_init(void)
 			}
 		}
 	}
+
+#ifdef _HAVE_LIBIPTC
+	check_iptables_exist();
+#endif
 
 	/* Build synchronization group index, and remove any
 	 * empty groups, or groups with only one member */

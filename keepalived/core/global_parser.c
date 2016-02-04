@@ -147,6 +147,60 @@ vrrp_iptables_handler(vector_t *strvec)
 		strcpy(global_data->vrrp_iptables_outchain, vector_slot(strvec,2));
 	}
 }
+#ifdef _HAVE_LIBIPSET_
+static void
+vrrp_ipsets_handler(vector_t *strvec)
+{
+	size_t len;
+
+	if (vector_size(strvec) >= 2) {
+		if (strlen(vector_slot(strvec,1)) >= sizeof(global_data->vrrp_ipset_address)-1) {
+			log_message(LOG_INFO, "VRRP Error : ipset address name too long - ignored\n");
+			return;
+		}
+		strcpy(global_data->vrrp_ipset_address, vector_slot(strvec,1));
+	}
+	else {
+		global_data->using_ipsets = false;
+		return;
+	}
+
+	if (vector_size(strvec) >= 3) {
+		if (strlen(vector_slot(strvec,2)) >= sizeof(global_data->vrrp_ipset_address6)-1) {
+			log_message(LOG_INFO, "VRRP Error : ipset IPv6 address name too long - ignored\n");
+			return;
+		}
+		strcpy(global_data->vrrp_ipset_address6, vector_slot(strvec,2));
+	}
+	else {
+		/* No second set specified, copy first name and add "_if" */
+		strcpy(global_data->vrrp_ipset_address6, global_data->vrrp_ipset_address);
+		if (strlen(global_data->vrrp_ipset_address6) < sizeof(global_data->vrrp_ipset_address6) - 2)
+			strcat(global_data->vrrp_ipset_address6, "6");
+		else
+			strcpy(global_data->vrrp_ipset_address_iface6 + sizeof(global_data->vrrp_ipset_address_iface6) - 2, "6");
+
+	}
+	if (vector_size(strvec) >= 4) {
+		if (strlen(vector_slot(strvec,3)) >= sizeof(global_data->vrrp_ipset_address_iface6)-1) {
+			log_message(LOG_INFO, "VRRP Error : ipset IPv6 address_iface name too long - ignored\n");
+			return;
+		}
+		strcpy(global_data->vrrp_ipset_address_iface6, vector_slot(strvec,3));
+	}
+	else {
+		/* No third set specified, copy second name and add "_if" */
+		strcpy(global_data->vrrp_ipset_address_iface6, global_data->vrrp_ipset_address6);
+		len = strlen(global_data->vrrp_ipset_address_iface6);
+		if (global_data->vrrp_ipset_address_iface6[len-1] == '6')
+			global_data->vrrp_ipset_address_iface6[--len] = '\0';
+		if (len < sizeof(global_data->vrrp_ipset_address_iface6) - 5)
+			strcat(global_data->vrrp_ipset_address6, "_if6");
+		else
+			strcpy(global_data->vrrp_ipset_address6 + sizeof(global_data->vrrp_ipset_address6) - 5, "_if6");
+	}
+}
+#endif
 static void
 vrrp_version_handler(vector_t *strvec)
 {
@@ -200,6 +254,9 @@ global_init_keywords(void)
 	install_keyword("vrrp_garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
 	install_keyword("vrrp_version", &vrrp_version_handler);
 	install_keyword("vrrp_iptables", &vrrp_iptables_handler);
+#ifdef _HAVE_LIBIPSET_
+	install_keyword("vrrp_ipsets", &vrrp_ipsets_handler);
+#endif
 	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler);
 	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler);
 	install_keyword("vrrp_strict", &vrrp_strict_handler);

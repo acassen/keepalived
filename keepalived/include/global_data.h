@@ -35,6 +35,10 @@
 #define	XT_EXTENSION_MAXNAMELEN 29
 #endif
 
+#ifdef _HAVE_LIBIPSET_
+#include <libipset/linux_ip_set.h>
+#endif
+
 /* local includes */
 #include "list.h"
 #include "timer.h"
@@ -65,6 +69,14 @@ typedef struct _data {
 	int				vrrp_version;            /* VRRP version (2 or 3) */
 	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];
 	char				vrrp_iptables_outchain[XT_EXTENSION_MAXNAMELEN];
+	int				block_ipv4;
+	int				block_ipv6;
+#ifdef _HAVE_LIBIPSET_
+	int				using_ipsets;
+	char				vrrp_ipset_address[IPSET_MAXNAMELEN];
+	char				vrrp_ipset_address6[IPSET_MAXNAMELEN];
+	char				vrrp_ipset_address_iface6[IPSET_MAXNAMELEN];
+#endif
 	char				vrrp_check_unicast_src;
 	char				vrrp_skip_check_adv_addr;
 	char				vrrp_strict;

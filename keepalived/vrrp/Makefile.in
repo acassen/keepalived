@@ -8,11 +8,12 @@ CC	 = @CC@
 SNMP_FLAG = @SNMP_SUPPORT@
 VRRP_AUTH_FLAG = @VRRP_AUTH_SUPPORT@
 LIBIPTC_FLAG = @USE_LIBIPTC@
+LIBIPSET_FLAG = @USE_LIBIPSET@
 NL3_FLAG = @USE_NL3@
 INCLUDES = -I../include -I../../lib
 CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 	   -Wall -Wunused -Wstrict-prototypes
-DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_VMAC@ -D@ADDR_GEN_MODE@ -D@SNMP_SUPPORT@ -D@USE_NL3@ @DFLAGS@ -D@VRRP_AUTH_SUPPORT@ -D@USE_LIBIPTC@
+DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_VMAC@ -D@ADDR_GEN_MODE@ -D@SNMP_SUPPORT@ -D@USE_NL3@ @DFLAGS@ -D@VRRP_AUTH_SUPPORT@ -D@USE_LIBIPTC@ -D@USE_LIBIPSET@
 COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
 
 OBJS = 	vrrp_daemon.o vrrp_print.o vrrp_data.o vrrp_parser.o \
@@ -26,7 +27,11 @@ ifeq ($(VRRP_AUTH_FLAG),_WITH_VRRP_AUTH_)
 endif
 
 ifeq ($(LIBIPTC_FLAG),_HAVE_LIBIPTC_)
-  OBJS += vrrp_iptables.o
+  OBJS += vrrp_iptables.o vrrp_iptables_calls.o
+endif
+
+ifeq ($(LIBIPSET_FLAG),_HAVE_LIBIPSET_)
+  OBJS += vrrp_ipset.o
 endif
 
 ifeq ($(SNMP_FLAG),_WITH_SNMP_)

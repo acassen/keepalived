@@ -93,6 +93,14 @@ set_vrrp_defaults(data_t * data)
 	data->vrrp_garp_delay = VRRP_GARP_DELAY;
 	data->vrrp_version = VRRP_VERSION_2;
 	strcpy(data->vrrp_iptables_inchain, "INPUT");
+	data->block_ipv4 = 0;
+	data->block_ipv6 = 0;
+#ifdef _HAVE_LIBIPSET_
+	data->using_ipsets = 1;
+	strcpy(data->vrrp_ipset_address, "keepalived");
+	strcpy(data->vrrp_ipset_address6, "keepalived6");
+	strcpy(data->vrrp_ipset_address_iface6, "keepalived_if6");
+#endif
 	data->vrrp_check_unicast_src = 0;
 	data->vrrp_skip_check_adv_addr = 0;
 	data->vrrp_strict = 0;
@@ -207,6 +215,16 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO," Iptables input chain = %s", data->vrrp_iptables_inchain);
 	if (data->vrrp_iptables_outchain[0])
 		log_message(LOG_INFO," Iptables output chain = %s", data->vrrp_iptables_outchain);
+#ifdef _HAVE_LIBIPSET_
+	log_message(LOG_INFO, " Using ipsets = %d", data->using_ipsets);
+	if (data->vrrp_ipset_address[0])
+		log_message(LOG_INFO," ipset IPv4 address set = %s", data->vrrp_ipset_address);
+	if (data->vrrp_ipset_address6[0])
+		log_message(LOG_INFO," ipset IPv6 address set = %s", data->vrrp_ipset_address6);
+	if (data->vrrp_ipset_address_iface6[0])
+		log_message(LOG_INFO," ipset IPv6 address,iface set = %s", data->vrrp_ipset_address_iface6);
+#endif
+
 	log_message(LOG_INFO, " VRRP check unicast_src = %d", data->vrrp_check_unicast_src);
 	log_message(LOG_INFO, " VRRP skip check advert addresses = %d", data->vrrp_skip_check_adv_addr);
 	log_message(LOG_INFO, " VRRP strict mode = %d", data->vrrp_strict);

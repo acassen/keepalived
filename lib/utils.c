@@ -528,6 +528,7 @@ set_std_fd(int force)
 	}
 }
 
+#ifndef _HAVE_LIBIPTC_
 int
 fork_exec(char **argv)
 {
@@ -556,3 +557,4 @@ fork_exec(char **argv)
 
 	return 0;
 }
+#endif
