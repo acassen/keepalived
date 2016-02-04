@@ -35,5 +35,6 @@ extern void signal_handler_script(void);
 extern void signal_run_callback(void);
 
 extern int signal_rfd(void);
+extern void signal_pipe_close(int);
 
 #endif
