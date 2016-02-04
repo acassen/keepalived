@@ -42,7 +42,9 @@
 
 #include "vrrp_iptables.h"
 #include "vrrp_iptables_calls.h"
+#ifdef _HAVE_LIBIPSET_
 #include "vrrp_ipset.h"
+#endif
 #include "logger.h"
 #include "memory.h"
 #include "global_data.h"
