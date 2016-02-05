@@ -25,9 +25,9 @@
 
 #ifdef _HAVE_LIBIPTC_
 int load_mod_xt_set(void);
+#include <libiptc/libxtc.h>
 #endif
 
-#include <libiptc/libxtc.h>
 
 #include "vrrp_ipaddress.h"
 
