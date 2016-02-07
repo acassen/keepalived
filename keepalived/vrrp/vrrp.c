@@ -1721,6 +1721,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vrrp->version = VRRP_VERSION_3;
 	}
 
+	/* Default to IPv4. This can only happen if no VIPs are specified. */
+	if (vrrp->family == AF_UNSPEC)
+		vrrp->family = AF_INET;
+
 	if (vrrp->accept) {
 		if (vrrp->version == VRRP_VERSION_2)
 		{
@@ -1795,7 +1799,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		hdr_len = sizeof(struct ether_header) + sizeof(struct ip6_hdr) + sizeof(vrrphdr_t);
 		max_addr = (vrrp->ifp->mtu - hdr_len) / sizeof(struct in6_addr);
 	}
-	if (LIST_SIZE(vrrp->vip) > max_addr) {
+	if (!LIST_ISEMPTY(vrrp->vip) && LIST_SIZE(vrrp->vip) > max_addr) {
 		log_message(LOG_INFO, "(%s): Number of VIPs (%d) exceeds space available in packet (max %d addresses) - excess moved to eVIPs",
 				vrrp->iname, LIST_SIZE(vrrp->vip), max_addr);
 		for (i = 0, e = LIST_HEAD(vrrp->vip); e; i++, e = next) {
