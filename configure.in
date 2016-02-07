@@ -56,8 +56,6 @@ dnl [do we really need this ?] AC_CHECK_HEADERS(linux/netlink.h linux/rtnetlink.
 AC_CHECK_HEADERS(openssl/ssl.h openssl/md5.h openssl/err.h,,AC_MSG_ERROR([
   !!! OpenSSL is not properly installed on your system. !!!
   !!! Can not include OpenSSL headers files.            !!!]))
-AC_CHECK_HEADERS(libnfnetlink/libnfnetlink.h,,AC_MSG_ERROR([
-  !!! Please install libnfnetlink headers.              !!!]))
 AC_CHECK_DECL([ETHERTYPE_IPV6],[],[CFLAGS="$CFLAGS -DETHERTYPE_IPV6=0x86dd"],
   [[@%:@include <net/ethernet.h>]])
 
@@ -102,6 +100,11 @@ AC_CHECK_LIB(nl-3, nl_socket_alloc,
   ])
 
 AC_SUBST(USE_NL3)
+
+if test "$USE_NL3" != "_WITHOUT_LIBNL_"; then
+  AC_CHECK_HEADERS(libnfnetlink/libnfnetlink.h,,AC_MSG_ERROR([
+    !!! Please install libnfnetlink headers.              !!!]))
+fi
 
 dnl ----[Check if have linux/if.h and netlink/route/link.h namespace collision]----
 IF_H_LINK_H_COLLISION="_WITHOUT_IF_H_LINK_H_COLLISION_"

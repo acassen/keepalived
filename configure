@@ -3782,21 +3782,6 @@ fi
 
 done
 
-for ac_header in libnfnetlink/libnfnetlink.h
-do :
-  ac_fn_c_check_header_mongrel "$LINENO" "libnfnetlink/libnfnetlink.h" "ac_cv_header_libnfnetlink_libnfnetlink_h" "$ac_includes_default"
-if test "x$ac_cv_header_libnfnetlink_libnfnetlink_h" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBNFNETLINK_LIBNFNETLINK_H 1
-_ACEOF
-
-else
-  as_fn_error $? "
-  !!! Please install libnfnetlink headers.              !!!" "$LINENO" 5
-fi
-
-done
-
 ac_fn_c_check_decl "$LINENO" "ETHERTYPE_IPV6" "ac_cv_have_decl_ETHERTYPE_IPV6" "#include <net/ethernet.h>
 "
 if test "x$ac_cv_have_decl_ETHERTYPE_IPV6" = xyes; then :
@@ -4140,6 +4125,24 @@ fi
 
 
 
+
+if test "$USE_NL3" != "_WITHOUT_LIBNL_"; then
+  for ac_header in libnfnetlink/libnfnetlink.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "libnfnetlink/libnfnetlink.h" "ac_cv_header_libnfnetlink_libnfnetlink_h" "$ac_includes_default"
+if test "x$ac_cv_header_libnfnetlink_libnfnetlink_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBNFNETLINK_LIBNFNETLINK_H 1
+_ACEOF
+
+else
+  as_fn_error $? "
+    !!! Please install libnfnetlink headers.              !!!" "$LINENO" 5
+fi
+
+done
+
+fi
 
 IF_H_LINK_H_COLLISION="_WITHOUT_IF_H_LINK_H_COLLISION_"
 if test "${USE_NL3}" = "_HAVE_LIBNL3_"; then
