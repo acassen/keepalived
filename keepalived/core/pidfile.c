@@ -25,9 +25,7 @@
 #include <fcntl.h>
 #include "logger.h"
 #include "pidfile.h"
-extern char *main_pidfile;
-extern char *checkers_pidfile;
-extern char *vrrp_pidfile;
+#include "main.h"
 
 /* Create the runnnig daemon pidfile */
 int
@@ -88,12 +86,9 @@ keepalived_running(int mode)
 {
 	if (process_running(main_pidfile))
 		return 1;
-	else if (mode & 1 || mode & 2)
-		return process_running((mode & 1) ? vrrp_pidfile :
-				       checkers_pidfile);
-
-	if (process_running(vrrp_pidfile) ||
-	    process_running(checkers_pidfile))
+	if ((mode & DAEMON_VRRP) && process_running(vrrp_pidfile))
+		return 1;
+	if ((mode & DAEMON_CHECKERS) && process_running(checkers_pidfile))
 		return 1;
 	return 0;
 }

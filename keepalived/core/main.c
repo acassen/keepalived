@@ -28,18 +28,18 @@
 #include "logger.h"
 
 /* global var */
-char *conf_file = NULL;		/* Configuration file */
-int log_facility = LOG_DAEMON;	/* Optional logging facilities */
-pid_t vrrp_child = -1;		/* VRRP child process ID */
-pid_t checkers_child = -1;	/* Healthcheckers child process ID */
-int daemon_mode = 0;		/* VRRP/CHECK subsystem selection */
-int linkwatch = 0;		/* Use linkwatch kernel netlink reflection */
-char *main_pidfile = KEEPALIVED_PID_FILE;	/* overrule default pidfile */
-char *checkers_pidfile = CHECKERS_PID_FILE;	/* overrule default pidfile */
-char *vrrp_pidfile = VRRP_PID_FILE;	/* overrule default pidfile */
+char *conf_file = NULL;					/* Configuration file */
+int log_facility = LOG_DAEMON;				/* Optional logging facilities */
+pid_t vrrp_child = -1;					/* VRRP child process ID */
+pid_t checkers_child = -1;				/* Healthcheckers child process ID */
+int daemon_mode = DAEMON_VRRP | DAEMON_CHECKERS;	/* VRRP/CHECK subsystem selection */
+int linkwatch = 0;					/* Use linkwatch kernel netlink reflection */
+char *main_pidfile = KEEPALIVED_PID_FILE;		/* overrule default pidfile */
+char *checkers_pidfile = CHECKERS_PID_FILE;		/* overrule default pidfile */
+char *vrrp_pidfile = VRRP_PID_FILE;			/* overrule default pidfile */
 #ifdef _WITH_SNMP_
-int snmp = 0;			/* Enable SNMP support */
-const char *snmp_socket = NULL;	/* Socket to use for SNMP agent */
+int snmp = 0;						/* Enable SNMP support */
+const char *snmp_socket = NULL;				/* Socket to use for SNMP agent */
 #endif
 
 /* Log facility table */
@@ -61,10 +61,10 @@ stop_keepalived(void)
 
 	pidfile_rm(main_pidfile);
 
-	if (daemon_mode & 1 || !daemon_mode)
+	if (daemon_mode & DAEMON_VRRP)
 		pidfile_rm(vrrp_pidfile);
 
-	if (daemon_mode & 2 || !daemon_mode)
+	if (daemon_mode & DAEMON_CHECKERS)
 		pidfile_rm(checkers_pidfile);
 
 #ifdef _DEBUG_
@@ -78,12 +78,12 @@ start_keepalived(void)
 {
 #ifdef _WITH_LVS_
 	/* start healthchecker child */
-	if (daemon_mode & 2 || !daemon_mode)
+	if (daemon_mode & DAEMON_CHECKERS)
 		start_check_child();
 #endif
 #ifdef _WITH_VRRP_
 	/* start vrrp child */
-	if (daemon_mode & 1 || !daemon_mode)
+	if (daemon_mode & DAEMON_VRRP)
 		start_vrrp_child();
 #endif
 }
@@ -235,10 +235,10 @@ parse_cmdline(int argc, char **argv)
 			conf_file = optarg;
 			break;
 		case 'P':
-			daemon_mode |= 1;
+			daemon_mode = DAEMON_VRRP;
 			break;
 		case 'C':
-			daemon_mode |= 2;
+			daemon_mode = DAEMON_CHECKERS;
 			break;
 		case 'p':
 			main_pidfile = optarg;

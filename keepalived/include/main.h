@@ -39,6 +39,10 @@
 #include "check_daemon.h"
 #include "global_data.h"
 
+/* State flags */
+#define	DAEMON_VRRP	0x01
+#define	DAEMON_CHECKERS	0x02
+
 /* Global vars exported */
 extern char *conf_file;		/* Configuration file */
 extern int log_facility;	/* Optional logging facilities */
@@ -46,6 +50,9 @@ extern pid_t vrrp_child;	/* VRRP child process ID */
 extern pid_t checkers_child;	/* Healthcheckers child process ID */
 extern int daemon_mode;		/* VRRP/CHECK subsystem selection */
 extern int linkwatch;		/* Use linkwatch kernel netlink reflection */
+extern char *main_pidfile;	/* overrule default pidfile */
+extern char *checkers_pidfile;	/* overrule default pidfile */
+extern char *vrrp_pidfile;	/* overrule default pidfile */
 #ifdef _WITH_SNMP_
 extern int snmp;		/* Enable SNMP support */
 extern const char *snmp_socket; /* Socket to use for SNMP agent */
