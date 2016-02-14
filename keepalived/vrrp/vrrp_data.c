@@ -265,7 +265,7 @@ dump_vrrp(void *data)
 	log_message(LOG_INFO, "   Priority = %d", vrrp->base_priority);
 	log_message(LOG_INFO, "   Advert interval = %d %s",
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
-		((vrrp->adver_int * 1000) / TIMER_HZ),
+		(vrrp->adver_int / (TIMER_HZ / 1000)),
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
 	log_message(LOG_INFO, "   Accept %s", ((vrrp->accept) ? "enabled" : "disabled"));
 	if (vrrp->nopreempt)

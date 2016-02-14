@@ -849,7 +849,7 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_INSTANCE_ADVERTISEMENTSINT:
 		long_ret = (rt->version == VRRP_VERSION_2) ?
 			    rt->adver_int / TIMER_HZ :
-			    (rt->adver_int * 100) / TIMER_HZ;
+			    rt->adver_int / TIMER_CENTI_HZ;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_PREEMPT:
 		long_ret = rt->nopreempt?2:1;
