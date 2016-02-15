@@ -23,8 +23,10 @@
 #ifndef _BITOPS_H
 #define _BITOPS_H
 
+#include <limits.h>
+
 /* Defines */
-#define BIT_PER_LONG	32
+#define BIT_PER_LONG	(CHAR_BIT * sizeof(unsigned long))
 #define BIT_MASK(idx)	(1UL << ((idx) % BIT_PER_LONG))
 #define BIT_WORD(idx)	((idx) / BIT_PER_LONG)
 

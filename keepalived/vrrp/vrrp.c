@@ -471,7 +471,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 		adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
 		if (vrrp->master_adver_int != adver_int)
 			log_message(LOG_INFO, "(%s): advertisement interval changed: mine=%d milli-sec, rcved=%d milli-sec",
-				vrrp->iname, (vrrp->adver_int * 1000) / TIMER_HZ, (adver_int * 1000) / TIMER_HZ);
+				vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), adver_int / (TIMER_HZ / 1000));
  	}
 
 	if (vrrp->family == AF_INET && ntohs(ip->tot_len) != buflen) {
@@ -1107,7 +1107,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 
 	if (vrrp->version == VRRP_VERSION_3)
 		log_message(LOG_INFO, "VRRP_Instance(%s) using locally configured advertisement interval (%d milli-sec)",
-					vrrp->iname, (vrrp->adver_int * 1000) / TIMER_HZ);
+					vrrp->iname, vrrp->adver_int / (TIMER_HZ / 1000));
 
 	/* add the ip addresses */
 	if (!LIST_ISEMPTY(vrrp->vip))
@@ -1297,14 +1297,14 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 	} else if (vrrp->nopreempt || hd->priority >= vrrp->effective_priority ||
 		   timer_cmp(vrrp->preempt_time, timer_now()) > 0) {
 		if (vrrp->version == VRRP_VERSION_3) {
-			master_adver_int = ((ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_HZ) / 100;
+			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
 			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
 		 	 * in the ADVERTISEMENT
 			 */
 			if (vrrp->master_adver_int != master_adver_int) {
 				vrrp->master_adver_int = master_adver_int;
 				log_message(LOG_INFO, "VRRP_Instance(%s) advertisement interval updated to %d milli-sec",
-							vrrp->iname, (vrrp->master_adver_int * 1000) / TIMER_HZ);
+							vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000));
 			}
 			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 		}

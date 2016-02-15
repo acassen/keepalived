@@ -44,6 +44,8 @@
 #include "utils.h"
 #include "signals.h"
 #include "logger.h"
+#include "bitops.h"
+
 
 /* global vars */
 thread_master_t *master = NULL;
@@ -780,8 +782,10 @@ launch_scheduler(void)
 	while (thread_fetch(master, &thread)) {
 		/* Run until error, used for debuging only */
 #ifdef _DEBUG_
-		if ((debug & 520) == 520) {
-			debug &= ~520;
+		if (__test_bit(MEM_ERR_DETECT_BIT, &debug) &&
+		    __test_bit(DONT_RELEASE_VRRP_BIT, &debug)) {
+			__clear_bit(MEM_ERR_DETECT_BIT, &debug);
+			__clear_bit(DONT_RELEASE_VRRP_BIT, &debug);
 			thread_add_terminate_event(master);
 		}
 #endif

@@ -150,7 +150,7 @@ vrrp_print(FILE *file, void *data)
 	fprintf(file, "   Priority = %d\n", vrrp->base_priority);
 	fprintf(file, "   Advert interval = %d %s\n",
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
-		(vrrp->adver_int * 1000 / TIMER_HZ),
+		(vrrp->adver_int / (TIMER_HZ / 1000)),
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
 	fprintf(file, "   Accept = %s\n", ((vrrp->accept) ? "enabled" : "disabled"));
 	if (vrrp->nopreempt)

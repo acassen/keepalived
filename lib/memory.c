@@ -133,7 +133,7 @@ keepalived_malloc(unsigned long size, char *file, char *function, int line)
 	alloc_list[i].csum = check;
 	alloc_list[i].type = 9;
 
-	if (debug & 1)
+	if (__test_bit(DONT_FORK_BIT, &debug))
 		printf("zalloc[%3d:%3d], %p, %4ld at %s, %3d, %s\n",
 		       i, number_alloc_list, buf, size, file, line,
 		       function);

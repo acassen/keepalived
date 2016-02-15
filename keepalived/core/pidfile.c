@@ -25,9 +25,7 @@
 #include <fcntl.h>
 #include "logger.h"
 #include "pidfile.h"
-extern char *main_pidfile;
-extern char *checkers_pidfile;
-extern char *vrrp_pidfile;
+#include "main.h"
 
 /* Create the runnnig daemon pidfile */
 int
@@ -67,10 +65,15 @@ process_running(char *pid_file)
 		return 0;
 
 	ret = fscanf(pidfile, "%d", &pid);
-	if (ret == EOF && ferror(pidfile) != 0) {
-		log_message(LOG_INFO, "Error opening pid file %s", pid_file);
+	if (ret != 1) {
+		log_message(LOG_INFO, "Error reading pid file %s", pid_file);
+		pid = 0;
 	}
 	fclose(pidfile);
+
+	/* What should we return - we don't know if it is running or not. */
+	if (!pid)
+		return 1;
 
 	/* If no process is attached to pidfile, remove it */
 	if (kill(pid, 0)) {
@@ -88,12 +91,9 @@ keepalived_running(int mode)
 {
 	if (process_running(main_pidfile))
 		return 1;
-	else if (mode & 1 || mode & 2)
-		return process_running((mode & 1) ? vrrp_pidfile :
-				       checkers_pidfile);
-
-	if (process_running(vrrp_pidfile) ||
-	    process_running(checkers_pidfile))
+	if ((mode & DAEMON_VRRP) && process_running(vrrp_pidfile))
+		return 1;
+	if ((mode & DAEMON_CHECKERS) && process_running(checkers_pidfile))
 		return 1;
 	return 0;
 }
