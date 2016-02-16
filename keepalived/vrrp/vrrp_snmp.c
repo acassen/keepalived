@@ -461,6 +461,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 	static unsigned long long_ret;
 	ip_rule_t *rule;
 	int state = HEADER_STATE_STATIC_RULE;
+	char *dir_str;
 
 	if ((rule = (ip_rule_t *)
 	     vrrp_header_ar_table(vp, name, length, exact,
@@ -470,8 +471,9 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 
 	switch (vp->magic) {
 	case VRRP_SNMP_RULE_DIRECTION:
-		*var_len = strlen(rule->dir);
-		return (u_char *)rule->dir;
+		dir_str = rule->dir == VRRP_RULE_FROM ? "from" : "to";
+		*var_len = strlen(dir_str);
+		return (u_char *)dir_str;
 	case VRRP_SNMP_RULE_ADDRESSTYPE:
 		long_ret = (rule->addr->ifa.ifa_family == AF_INET6)?2:1;
 		return (u_char *)&long_ret;
