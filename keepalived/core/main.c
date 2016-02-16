@@ -32,7 +32,6 @@ char *conf_file = NULL;					/* Configuration file */
 int log_facility = LOG_DAEMON;				/* Optional logging facilities */
 pid_t vrrp_child = -1;					/* VRRP child process ID */
 pid_t checkers_child = -1;				/* Healthcheckers child process ID */
-int daemon_mode = DAEMON_VRRP | DAEMON_CHECKERS;	/* VRRP/CHECK subsystem selection */
 int linkwatch = 0;					/* Use linkwatch kernel netlink reflection */
 char *main_pidfile = KEEPALIVED_PID_FILE;		/* overrule default pidfile */
 char *checkers_pidfile = CHECKERS_PID_FILE;		/* overrule default pidfile */
@@ -41,6 +40,9 @@ char *vrrp_pidfile = VRRP_PID_FILE;			/* overrule default pidfile */
 int snmp = 0;						/* Enable SNMP support */
 const char *snmp_socket = NULL;				/* Socket to use for SNMP agent */
 #endif
+
+/* local var */
+static unsigned long daemon_mode = 0;			/* VRRP/CHECK subsystem selection */
 
 /* Log facility table */
 static struct {
@@ -61,10 +63,10 @@ stop_keepalived(void)
 
 	pidfile_rm(main_pidfile);
 
-	if (daemon_mode & DAEMON_VRRP)
+	if (__test_bit(DAEMON_VRRP, &daemon_mode))
 		pidfile_rm(vrrp_pidfile);
 
-	if (daemon_mode & DAEMON_CHECKERS)
+	if (__test_bit(DAEMON_CHECKERS, &daemon_mode))
 		pidfile_rm(checkers_pidfile);
 
 #ifdef _DEBUG_
@@ -78,12 +80,12 @@ start_keepalived(void)
 {
 #ifdef _WITH_LVS_
 	/* start healthchecker child */
-	if (daemon_mode & DAEMON_CHECKERS)
+	if (__test_bit(DAEMON_CHECKERS, &daemon_mode))
 		start_check_child();
 #endif
 #ifdef _WITH_VRRP_
 	/* start vrrp child */
-	if (daemon_mode & DAEMON_VRRP)
+	if (__test_bit(DAEMON_VRRP, &daemon_mode))
 		start_vrrp_child();
 #endif
 }
@@ -235,10 +237,12 @@ parse_cmdline(int argc, char **argv)
 			conf_file = optarg;
 			break;
 		case 'P':
-			daemon_mode = DAEMON_VRRP;
+			daemon_mode = 0;
+			__set_bit(DAEMON_VRRP, &daemon_mode);
 			break;
 		case 'C':
-			daemon_mode = DAEMON_CHECKERS;
+			daemon_mode = 0;
+			__set_bit(DAEMON_CHECKERS, &daemon_mode);
 			break;
 		case 'p':
 			main_pidfile = optarg;
@@ -277,6 +281,10 @@ main(int argc, char **argv)
 {
 	/* Init debugging level */
 	debug = 0;
+
+	/* Initialise daemon_mode */
+	__set_bit(DAEMON_VRRP, &daemon_mode);
+	__set_bit(DAEMON_CHECKERS, &daemon_mode);
 
 	/*
 	 * Parse command line and set debug level.

@@ -26,6 +26,7 @@
 #include "logger.h"
 #include "pidfile.h"
 #include "main.h"
+#include "bitops.h"
 
 /* Create the runnnig daemon pidfile */
 int
@@ -87,13 +88,13 @@ process_running(char *pid_file)
 
 /* Return parent process daemon state */
 int
-keepalived_running(int mode)
+keepalived_running(unsigned long mode)
 {
 	if (process_running(main_pidfile))
 		return 1;
-	if ((mode & DAEMON_VRRP) && process_running(vrrp_pidfile))
+	if (__test_bit(DAEMON_VRRP, &mode) && process_running(vrrp_pidfile))
 		return 1;
-	if ((mode & DAEMON_CHECKERS) && process_running(checkers_pidfile))
+	if (__test_bit(DAEMON_CHECKERS, &mode) && process_running(checkers_pidfile))
 		return 1;
 	return 0;
 }

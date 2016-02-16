@@ -38,6 +38,6 @@
 /* Prototypes */
 extern int pidfile_write(char *, int);
 extern void pidfile_rm(char *);
-extern int keepalived_running(int);
+extern int keepalived_running(unsigned long);
 
 #endif
