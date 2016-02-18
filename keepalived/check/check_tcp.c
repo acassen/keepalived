@@ -47,7 +47,7 @@ dump_tcp_check(void *data)
 	tcp_check_t *tcp_check = CHECKER_DATA(data);
 
 	log_message(LOG_INFO, "   Keepalive method = TCP_CHECK");
-	dump_conn_opts (CHECKER_CO(data));
+	dump_conn_opts(CHECKER_CO(data));
 	if (tcp_check->n_retry) {
 		log_message(LOG_INFO, "     Retry count = %d"
 			    , tcp_check->n_retry);
