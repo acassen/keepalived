@@ -73,7 +73,7 @@ extern list checkers_queue;
 
 /* Prototypes definition */
 extern void init_checkers_queue(void);
-extern void dump_conn_opts (conn_opts_t *);
+extern void dump_conn_opts(void *);
 extern void queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 			  , int (*launch) (thread_t *)
 			  , void *
