@@ -61,16 +61,6 @@ free_smtp_check(void *data)
 	FREE(data);
 }
 
-/*
- * Used as a callback from dump_list() to print out all
- * the list elements in smtp_checker->host.
- */
-void
-smtp_dump_host(void *data)
-{
-	dump_conn_opts (data);
-}
-
 /* 
  * Callback for whenever we've been requested to dump our
  * configuration.
@@ -150,7 +140,7 @@ smtp_check_handler(vector_t *strvec)
 	 * be used instead of the default, but all the uninitialized options
 	 * of those hosts will be set to the default's values.
 	 */
-	smtp_checker->host = alloc_list(smtp_free_host, smtp_dump_host);
+	smtp_checker->host = alloc_list(smtp_free_host, dump_conn_opts);
 }
 
 void smtp_check_end_handler(void)

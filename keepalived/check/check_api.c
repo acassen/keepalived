@@ -58,8 +58,9 @@ dump_checker(void *data)
 }
 
 void
-dump_conn_opts (conn_opts_t *conn)
+dump_conn_opts(void *data)
 {
+	conn_opts_t *conn = data;
 	log_message(LOG_INFO, "   Connection dest = %s", inet_sockaddrtopair(&conn->dst));
 	if (conn->bindto.ss_family)
 		log_message(LOG_INFO, "   Bind to = %s", inet_sockaddrtopair(&conn->bindto));
