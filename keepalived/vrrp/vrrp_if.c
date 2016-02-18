@@ -590,6 +590,12 @@ if_setsockopt_ipv6_checksum(int *sd)
 int
 if_setsockopt_mcast_all(sa_family_t family, int *sd)
 {
+#ifndef IP_MULTICAST_ALL
+	/* IP_MULTICAST_ALL sockopt is available since Linux 2.6.31.
+	 * It seems reasonable to just skip the calls to if_setsockopt_mcast_all
+	 * if there is no support for that feature in header files */
+	return -1;
+#else
 	int ret;
 	unsigned char no = 0;
 
@@ -610,6 +616,7 @@ if_setsockopt_mcast_all(sa_family_t family, int *sd)
 	}
 
 	return *sd;
+#endif
 }
 
 int

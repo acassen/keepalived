@@ -21,6 +21,11 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#ifndef O_CLOEXEC
+#define _GNU_SOURCE /* to make O_CLOEXEC available */
+#include <fcntl.h>
+#endif
+
 #include "ipvswrapper.h"
 #include "check_data.h"
 #include "list.h"
