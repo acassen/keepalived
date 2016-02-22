@@ -1398,7 +1398,6 @@ vrrp_snmp_agent_close(void)
 void
 vrrp_rfc_snmp_new_master_trap(vrrp_t *vrrp)
 {
-
 	/* OID of the notification vrrpTrapNewMaster */
 	oid notification_oid[] = { VRRP_RFC_TRAP_OID, 1 };
 	size_t notification_oid_len = OID_LENGTH(notification_oid);
@@ -1413,6 +1412,10 @@ vrrp_rfc_snmp_new_master_trap(vrrp_t *vrrp)
 
 	if (!global_data->enable_traps) return;
 
+	if (vrrp->version != VRRP_VERSION_2 ||
+	    vrrp->family == AF_INET6)
+		return;
+
 	/* snmpTrapOID */
 	snmp_varlist_add_variable(&notification_vars,
 				  objid_snmptrap, objid_snmptrap_len,
@@ -1423,8 +1426,8 @@ vrrp_rfc_snmp_new_master_trap(vrrp_t *vrrp)
 	snmp_varlist_add_variable(&notification_vars,
 				  masterip_oid, masterip_oid_len,
 				  ASN_IPADDRESS,
-				  (u_char *)&vrrp->saddr,
-				  sizeof(vrrp->saddr));
+				  (u_char *)&((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr,
+				  sizeof(((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr));
 	log_message(LOG_INFO, "VRRP_Instance(%s): Sending SNMP notification"
 			      " vrrpTrapNewMaster"
 			    , vrrp->iname);
