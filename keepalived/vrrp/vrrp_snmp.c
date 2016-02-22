@@ -863,7 +863,9 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_INSTANCE_AUTHTYPE:
 		long_ret = 0;
 		if (rt->version == VRRP_VERSION_2)
+#ifdef _WITH_VRRP_AUTH_
 			long_ret = rt->auth_type;
+#endif
 		return (u_char *)&long_ret;
 
 	case VRRP_SNMP_INSTANCE_USELVSSYNCDAEMON:

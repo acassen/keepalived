@@ -735,7 +735,7 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, int prio, char *buffer)
 	hd->vrid = vrrp->vrid;
 	hd->priority = prio;
 	hd->naddr = (!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) : 0;
-#ifdef _HAVE_VRRP_DATA_
+#ifdef _WITH_VRRP_AUTH_
 	hd->v2.auth_type = vrrp->auth_type;
 #else
 	hd->v2.auth_type = VRRP_AUTH_NONE;
@@ -1760,9 +1760,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	if (!vrrp->strict_mode) {
 		/* The following can only happen if we are not in strict mode */
-		if (vrrp->version == VRRP_VERSION_2 && vrrp->family == AF_INET6 && vrrp->auth_type == VRRP_AUTH_AH)
+		if (vrrp->version == VRRP_VERSION_2 && vrrp->family == AF_INET6 && vrrp->auth_type == VRRP_AUTH_AH) {
 			log_message(LOG_INFO, "(%s): Cannot use AH authentication with VRRPv2 and IPv6 - ignoring", vrrp->iname);
 			vrrp->auth_type = VRRP_AUTH_NONE;
+		}
 	}
 #endif
 
