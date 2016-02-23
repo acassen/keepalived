@@ -192,11 +192,11 @@ parse_cmdline(int argc, char **argv)
 		{0, 0, 0, 0}
 	};
 
+	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:PCp:c:r:"
 #ifdef _WITH_SNMP_
-	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:PCp:c:r:xA:", long_options, NULL)) != EOF) {
-#else
-	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:PCp:c:r:", long_options, NULL)) != EOF) {
+								   "xA:"
 #endif
+									, long_options, NULL)) != EOF) {
 		switch (c) {
 		case 'v':
 			fprintf(stderr, VERSION_STRING);
