@@ -291,7 +291,7 @@ check_include(char *buf)
 		char prev_path[MAXBUF];
 		path = getcwd(prev_path, MAXBUF);
 		if (!path) {
-			log_message(LOG_INFO, "getcwd(%s) error (%s)\n"
+			log_message(LOG_INFO, "getcwd(%s) error (%s)"
 					    , prev_path, strerror(errno));
 		}
 
@@ -300,7 +300,7 @@ check_include(char *buf)
 		current_conf_file = prev_conf_file;
 		ret = chdir(prev_path);
 		if (ret < 0) {
-			log_message(LOG_INFO, "chdir(%s) error (%s)\n"
+			log_message(LOG_INFO, "chdir(%s) error (%s)"
 					    , prev_path, strerror(errno));
 		}
 		free_strvec(strvec);

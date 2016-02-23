@@ -134,14 +134,14 @@ vrrp_iptables_handler(vector_t *strvec)
 	global_data->vrrp_iptables_outchain[0] = '\0';
 	if (vector_size(strvec) >= 2) {
 		if (strlen(vector_slot(strvec,1)) >= sizeof(global_data->vrrp_iptables_inchain)-1) {
-			log_message(LOG_INFO, "VRRP Error : iptables in chain name too long - ignored\n");
+			log_message(LOG_INFO, "VRRP Error : iptables in chain name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_iptables_inchain, vector_slot(strvec,1));
 	}
 	if (vector_size(strvec) >= 3) {
 		if (strlen(vector_slot(strvec,2)) >= sizeof(global_data->vrrp_iptables_outchain)-1) {
-			log_message(LOG_INFO, "VRRP Error : iptables out chain name too long - ignored\n");
+			log_message(LOG_INFO, "VRRP Error : iptables out chain name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_iptables_outchain, vector_slot(strvec,2));
@@ -155,7 +155,7 @@ vrrp_ipsets_handler(vector_t *strvec)
 
 	if (vector_size(strvec) >= 2) {
 		if (strlen(vector_slot(strvec,1)) >= sizeof(global_data->vrrp_ipset_address)-1) {
-			log_message(LOG_INFO, "VRRP Error : ipset address name too long - ignored\n");
+			log_message(LOG_INFO, "VRRP Error : ipset address name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_ipset_address, vector_slot(strvec,1));
@@ -167,7 +167,7 @@ vrrp_ipsets_handler(vector_t *strvec)
 
 	if (vector_size(strvec) >= 3) {
 		if (strlen(vector_slot(strvec,2)) >= sizeof(global_data->vrrp_ipset_address6)-1) {
-			log_message(LOG_INFO, "VRRP Error : ipset IPv6 address name too long - ignored\n");
+			log_message(LOG_INFO, "VRRP Error : ipset IPv6 address name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_ipset_address6, vector_slot(strvec,2));
@@ -183,7 +183,7 @@ vrrp_ipsets_handler(vector_t *strvec)
 	}
 	if (vector_size(strvec) >= 4) {
 		if (strlen(vector_slot(strvec,3)) >= sizeof(global_data->vrrp_ipset_address_iface6)-1) {
-			log_message(LOG_INFO, "VRRP Error : ipset IPv6 address_iface name too long - ignored\n");
+			log_message(LOG_INFO, "VRRP Error : ipset IPv6 address_iface name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_ipset_address_iface6, vector_slot(strvec,3));
@@ -206,8 +206,8 @@ vrrp_version_handler(vector_t *strvec)
 {
 	uint8_t version = atoi(vector_slot(strvec, 1));
 	if (VRRP_IS_BAD_VERSION(version)) {
-		log_message(LOG_INFO, "VRRP Error : Version not valid !\n");
-		log_message(LOG_INFO, "             must be between either 2 or 3. reconfigure !\n");
+		log_message(LOG_INFO, "VRRP Error : Version not valid !");
+		log_message(LOG_INFO, "             must be between either 2 or 3. reconfigure !");
 		return;
 	}
 	global_data->vrrp_version = version;

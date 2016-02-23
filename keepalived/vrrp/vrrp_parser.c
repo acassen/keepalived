@@ -630,8 +630,8 @@ vrrp_version_handler(vector_t *strvec)
 
 	uint8_t version = atoi(vector_slot(strvec, 1));
 	if (VRRP_IS_BAD_VERSION(version)) {
-		log_message(LOG_INFO, "VRRP Error : Version not valid !\n");
-		log_message(LOG_INFO, "             must be between either 2 or 3. reconfigure !\n");
+		log_message(LOG_INFO, "VRRP Error : Version not valid !");
+		log_message(LOG_INFO, "             must be between either 2 or 3. reconfigure !");
 		return;
 	}
 
