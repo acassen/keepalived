@@ -30,6 +30,7 @@
 #include <stdint.h>
 #include <syslog.h>
 #include <ctype.h>
+#include <stdbool.h>
 
 /* local includes */
 #include "vector.h"
@@ -46,6 +47,7 @@ typedef struct _keyword {
 	void (*handler) (vector_t *);
 	vector_t *sub;
 	void (*sub_close_handler) (void);
+	bool active;
 } keyword_t;
 
 /* Reloading helpers */
@@ -59,13 +61,13 @@ extern FILE *current_stream;
 extern int reload;
 
 /* Prototypes */
-extern void keyword_alloc(vector_t *, char *, void (*handler) (vector_t *));
-extern void keyword_alloc_sub(vector_t *, char *, void (*handler) (vector_t *));
-extern void install_keyword_root(char *, void (*handler) (vector_t *));
+//extern void keyword_alloc(vector_t *, char *, void (*handler) (vector_t *), bool);
+//extern void keyword_alloc_sub(vector_t *, char *, void (*handler) (vector_t *), bool);
+extern void install_keyword_root(char *, void (*handler) (vector_t *), bool);
 extern void install_sublevel(void);
 extern void install_sublevel_end(void);
-extern void install_sublevel_end_handler(void (*handler) (void));
-extern void install_keyword(char *, void (*handler) (vector_t *));
+extern void install_sublevel_end_handler(void (*handler) (void), bool);
+extern void install_keyword(char *, void (*handler) (vector_t *), bool);
 extern void free_keywords(vector_t *);
 extern vector_t *alloc_strvec(char *);
 extern int read_line(char *, int);

@@ -46,8 +46,8 @@ static int skip_sublevel = 0;
 /* Forward references */
 static void process_stream(vector_t *, int);
 
-void
-keyword_alloc(vector_t *keywords_vec, char *string, void (*handler) (vector_t *))
+static void
+keyword_alloc(vector_t *keywords_vec, char *string, void (*handler) (vector_t *), bool active)
 {
 	keyword_t *keyword;
 
@@ -55,13 +55,14 @@ keyword_alloc(vector_t *keywords_vec, char *string, void (*handler) (vector_t *)
 
 	keyword = (keyword_t *) MALLOC(sizeof(keyword_t));
 	keyword->string = string;
-	keyword->handler = handler;
+	keyword->handler = (active) ? handler : NULL;
+	keyword->active = active;
 
 	vector_set_slot(keywords_vec, keyword);
 }
 
-void
-keyword_alloc_sub(vector_t *keywords_vec, char *string, void (*handler) (vector_t *))
+static void
+keyword_alloc_sub(vector_t *keywords_vec, char *string, void (*handler) (vector_t *), bool active)
 {
 	int i = 0;
 	keyword_t *keyword;
@@ -79,7 +80,7 @@ keyword_alloc_sub(vector_t *keywords_vec, char *string, void (*handler) (vector_
 		keyword->sub = vector_alloc();
 
 	/* add new sub keyword */
-	keyword_alloc(keyword->sub, string, handler);
+	keyword_alloc(keyword->sub, string, handler, active);
 }
 
 /* Exported helpers */
@@ -96,19 +97,19 @@ install_sublevel_end(void)
 }
 
 void
-install_keyword_root(char *string, void (*handler) (vector_t *))
+install_keyword_root(char *string, void (*handler) (vector_t *), bool active)
 {
-	keyword_alloc(keywords, string, handler);
+	keyword_alloc(keywords, string, handler, active);
 }
 
 void
-install_keyword(char *string, void (*handler) (vector_t *))
+install_keyword(char *string, void (*handler) (vector_t *), bool active)
 {
-	keyword_alloc_sub(keywords, string, handler);
+	keyword_alloc_sub(keywords, string, handler, active);
 }
 
 void
-install_sublevel_end_handler(void (*handler) (void))
+install_sublevel_end_handler(void (*handler) (void), bool active)
 {
 	int i = 0;
 	keyword_t *keyword;
@@ -120,7 +121,7 @@ install_sublevel_end_handler(void (*handler) (void))
 	for (i = 0; i < sublevel; i++)
 		keyword =
 		    vector_slot(keyword->sub, vector_size(keyword->sub) - 1);
-	keyword->sub_close_handler = handler;
+	keyword->sub_close_handler = (active) ? handler: NULL;
 }
 
 #if DUMP_KEYWORDS
@@ -138,7 +139,7 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 
 	for (i = 0; i < vector_size(keydump); i++) {
 		keyword_vec = vector_slot(keydump, i);
-		fprintf(fp, "%*sKeyword : %s\n", level * 2, "", keyword_vec->string);
+		fprintf(fp, "%*sKeyword : %s (%s)\n", level * 2, "", keyword_vec->string, keyword_vec->active ? "active": "disabled");
 		if (keyword_vec->sub)
 			dump_keywords(keyword_vec->sub, level + 1, fp);
 	}
@@ -228,7 +229,7 @@ void read_conf_file(char *conf_file)
 	FILE *stream;
 	char *path;
 	int ret;
-
+sleep(2);
 	glob_t globbuf;
 
 	globbuf.gl_offs = 0;
@@ -473,27 +474,37 @@ process_stream(vector_t *keywords_vec, int need_bob)
 
 		if (need_bob) {
 			need_bob = 0;
-			if (!strcmp(str, BOB) && kw_level > 0) {
-				free_strvec(strvec);
-				continue;
-			}
-			log_message(LOG_INFO, "Missing '{' at beginning of configuration block");
+			if (!strcmp(str, BOB) && kw_level > 0)
+				str[0] = 0;
+			else
+				log_message(LOG_INFO, "Missing '{' at beginning of configuration block");
 		}
-		else if (!strcmp(str, BOB)) {
+		else if (!skip_sublevel && !strcmp(str, BOB)) {
 			log_message(LOG_INFO, "Unexpected '{' - ignoring");
 			free_strvec(strvec);
 			continue;
 		}
 
-		if (!strcmp(str, EOB) && kw_level > 0) {
+		if (skip_sublevel) {
+			for (i = 0; i < vector_size(strvec); i++) {
+				str = vector_slot(strvec,i);
+				if (!strcmp(str,BOB))
+					skip_sublevel++;
+				else if (!strcmp(str,EOB)) {
+					if (--skip_sublevel == 0)
+						break;
+				}
+			}
 			free_strvec(strvec);
-			skip_sublevel = 0;
-			break;
+
+			if (!skip_sublevel)
+				break;
+			continue;
 		}
 
-		if (skip_sublevel) {
+		if (!strcmp(str, EOB) && kw_level > 0) {
 			free_strvec(strvec);
-			continue;
+			break;
 		}
 
 		for (i = 0; i < vector_size(keywords_vec); i++) {
@@ -512,14 +523,17 @@ process_stream(vector_t *keywords_vec, int need_bob)
 						bob_needed = 1;
 				}
 
-				if (keyword_vec->handler)
+				if (keyword_vec->active && keyword_vec->handler)
 					(*keyword_vec->handler) (strvec);
 
 				if (keyword_vec->sub) {
+					if (!keyword_vec->active)
+						skip_block();
+
 					kw_level++;
 					process_stream(keyword_vec->sub, bob_needed);
 					kw_level--;
-					if (keyword_vec->sub_close_handler)
+					if (keyword_vec->active && keyword_vec->sub_close_handler)
 						(*keyword_vec->sub_close_handler) ();
 				}
 				break;

@@ -31,6 +31,7 @@
 #include "vrrp.h"
 #include "global_data.h"
 #include "global_parser.h"
+#include "check_parser.h"
 #include "logger.h"
 #include "parser.h"
 #include "memory.h"
@@ -652,80 +653,87 @@ vrrp_accept_handler(vector_t *strvec)
 	vrrp->accept = true;
 }
 
+void
+init_vrrp_keywords(bool active)
+{
+	/* Static routes mapping */
+	install_keyword_root("static_ipaddress", &static_addresses_handler, active);
+	install_keyword_root("static_routes", &static_routes_handler, active);
+	install_keyword_root("static_rules", &static_rules_handler, active);
+
+	/* VRRP Instance mapping */
+	install_keyword_root("vrrp_sync_group", &vrrp_sync_group_handler, active);
+	install_keyword("group", &vrrp_group_handler, active);
+	install_keyword("notify_backup", &vrrp_gnotify_backup_handler, active);
+	install_keyword("notify_master", &vrrp_gnotify_master_handler, active);
+	install_keyword("notify_fault", &vrrp_gnotify_fault_handler, active);
+	install_keyword("notify", &vrrp_gnotify_handler, active);
+	install_keyword("smtp_alert", &vrrp_gsmtp_handler, active);
+	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler, active);
+	install_keyword_root("vrrp_instance", &vrrp_handler, active);
+#ifdef _HAVE_VRRP_VMAC_
+	install_keyword("use_vmac", &vrrp_vmac_handler, active);
+	install_keyword("vmac_xmit_base", &vrrp_vmac_xmit_base_handler, active);
+#endif
+	install_keyword("unicast_peer", &vrrp_unicast_peer_handler, active);
+	install_keyword("native_ipv6", &vrrp_native_ipv6_handler, active);
+	install_keyword("state", &vrrp_state_handler, active);
+	install_keyword("interface", &vrrp_int_handler, active);
+	install_keyword("dont_track_primary", &vrrp_dont_track_handler, active);
+	install_keyword("track_interface", &vrrp_track_int_handler, active);
+	install_keyword("track_script", &vrrp_track_scr_handler, active);
+	install_keyword("mcast_src_ip", &vrrp_srcip_handler, active);
+	install_keyword("unicast_src_ip", &vrrp_srcip_handler, active);
+	install_keyword("virtual_router_id", &vrrp_vrid_handler, active);
+	install_keyword("version", &vrrp_version_handler, active);
+	install_keyword("priority", &vrrp_prio_handler, active);
+	install_keyword("advert_int", &vrrp_adv_handler, active);
+	install_keyword("virtual_ipaddress", &vrrp_vip_handler, active);
+	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler, active);
+	install_keyword("virtual_routes", &vrrp_vroutes_handler, active);
+	install_keyword("virtual_rules", &vrrp_vrules_handler, active);
+	install_keyword("accept", &vrrp_accept_handler, active);
+	install_keyword("skip_check_adv_addr", &vrrp_skip_check_adv_addr_handler, active);
+	install_keyword("strict_mode", &vrrp_strict_mode_handler, active);
+	install_keyword("preempt", &vrrp_preempt_handler, active);
+	install_keyword("nopreempt", &vrrp_nopreempt_handler, active);
+	install_keyword("preempt_delay", &vrrp_preempt_delay_handler, active);
+	install_keyword("debug", &vrrp_debug_handler, active);
+	install_keyword("notify_backup", &vrrp_notify_backup_handler, active);
+	install_keyword("notify_master", &vrrp_notify_master_handler, active);
+	install_keyword("notify_fault", &vrrp_notify_fault_handler, active);
+	install_keyword("notify_stop", &vrrp_notify_stop_handler, active);
+	install_keyword("notify", &vrrp_notify_handler, active);
+	install_keyword("smtp_alert", &vrrp_smtp_handler, active);
+	install_keyword("lvs_sync_daemon_interface", &vrrp_lvs_syncd_handler, active);
+	install_keyword("garp_master_delay", &vrrp_garp_delay_handler, active);
+	install_keyword("garp_master_refresh", &vrrp_garp_refresh_handler, active);
+	install_keyword("garp_master_repeat", &vrrp_garp_rep_handler, active);
+	install_keyword("garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler, active);
+#if defined _WITH_VRRP_AUTH_
+	install_keyword("authentication", NULL, active);
+	install_sublevel();
+	install_keyword("auth_type", &vrrp_auth_type_handler, active);
+	install_keyword("auth_pass", &vrrp_auth_pass_handler, active);
+	install_sublevel_end();
+#endif
+	install_keyword_root("vrrp_script", &vrrp_script_handler, active);
+	install_keyword("script", &vrrp_vscript_script_handler, active);
+	install_keyword("interval", &vrrp_vscript_interval_handler, active);
+	install_keyword("timeout", &vrrp_vscript_timeout_handler, active);
+	install_keyword("weight", &vrrp_vscript_weight_handler, active);
+	install_keyword("rise", &vrrp_vscript_rise_handler, active);
+	install_keyword("fall", &vrrp_vscript_fall_handler, active);
+}
+
 vector_t *
 vrrp_init_keywords(void)
 {
 	/* global definitions mapping */
 	global_init_keywords();
 
-	/* Static routes mapping */
-	install_keyword_root("static_ipaddress", &static_addresses_handler);
-	install_keyword_root("static_routes", &static_routes_handler);
-	install_keyword_root("static_rules", &static_rules_handler);
-
-	/* VRRP Instance mapping */
-	install_keyword_root("vrrp_sync_group", &vrrp_sync_group_handler);
-	install_keyword("group", &vrrp_group_handler);
-	install_keyword("notify_backup", &vrrp_gnotify_backup_handler);
-	install_keyword("notify_master", &vrrp_gnotify_master_handler);
-	install_keyword("notify_fault", &vrrp_gnotify_fault_handler);
-	install_keyword("notify", &vrrp_gnotify_handler);
-	install_keyword("smtp_alert", &vrrp_gsmtp_handler);
-	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler);
-	install_keyword_root("vrrp_instance", &vrrp_handler);
-#ifdef _HAVE_VRRP_VMAC_
-	install_keyword("use_vmac", &vrrp_vmac_handler);
-	install_keyword("vmac_xmit_base", &vrrp_vmac_xmit_base_handler);
-#endif
-	install_keyword("unicast_peer", &vrrp_unicast_peer_handler);
-	install_keyword("native_ipv6", &vrrp_native_ipv6_handler);
-	install_keyword("state", &vrrp_state_handler);
-	install_keyword("interface", &vrrp_int_handler);
-	install_keyword("dont_track_primary", &vrrp_dont_track_handler);
-	install_keyword("track_interface", &vrrp_track_int_handler);
-	install_keyword("track_script", &vrrp_track_scr_handler);
-	install_keyword("mcast_src_ip", &vrrp_srcip_handler);
-	install_keyword("unicast_src_ip", &vrrp_srcip_handler);
-	install_keyword("virtual_router_id", &vrrp_vrid_handler);
-	install_keyword("version", &vrrp_version_handler);
-	install_keyword("priority", &vrrp_prio_handler);
-	install_keyword("advert_int", &vrrp_adv_handler);
-	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
-	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
-	install_keyword("virtual_routes", &vrrp_vroutes_handler);
-	install_keyword("virtual_rules", &vrrp_vrules_handler);
-	install_keyword("accept", &vrrp_accept_handler);
-	install_keyword("skip_check_adv_addr", &vrrp_skip_check_adv_addr_handler);
-	install_keyword("strict_mode", &vrrp_strict_mode_handler);
-	install_keyword("preempt", &vrrp_preempt_handler);
-	install_keyword("nopreempt", &vrrp_nopreempt_handler);
-	install_keyword("preempt_delay", &vrrp_preempt_delay_handler);
-	install_keyword("debug", &vrrp_debug_handler);
-	install_keyword("notify_backup", &vrrp_notify_backup_handler);
-	install_keyword("notify_master", &vrrp_notify_master_handler);
-	install_keyword("notify_fault", &vrrp_notify_fault_handler);
-	install_keyword("notify_stop", &vrrp_notify_stop_handler);
-	install_keyword("notify", &vrrp_notify_handler);
-	install_keyword("smtp_alert", &vrrp_smtp_handler);
-	install_keyword("lvs_sync_daemon_interface", &vrrp_lvs_syncd_handler);
-	install_keyword("garp_master_delay", &vrrp_garp_delay_handler);
-	install_keyword("garp_master_refresh", &vrrp_garp_refresh_handler);
-	install_keyword("garp_master_repeat", &vrrp_garp_rep_handler);
-	install_keyword("garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
-#if defined _WITH_VRRP_AUTH_
-	install_keyword("authentication", NULL);
-	install_sublevel();
-	install_keyword("auth_type", &vrrp_auth_type_handler);
-	install_keyword("auth_pass", &vrrp_auth_pass_handler);
-	install_sublevel_end();
-#endif
-	install_keyword_root("vrrp_script", &vrrp_script_handler);
-	install_keyword("script", &vrrp_vscript_script_handler);
-	install_keyword("interval", &vrrp_vscript_interval_handler);
-	install_keyword("timeout", &vrrp_vscript_timeout_handler);
-	install_keyword("weight", &vrrp_vscript_weight_handler);
-	install_keyword("rise", &vrrp_vscript_rise_handler);
-	install_keyword("fall", &vrrp_vscript_fall_handler);
+	init_vrrp_keywords(true);
+	init_check_keywords(false);
 
 	return keywords;
 }

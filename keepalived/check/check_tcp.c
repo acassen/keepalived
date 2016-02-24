@@ -86,14 +86,14 @@ tcp_delay_before_retry_handler(vector_t *strvec)
 }
 
 void
-install_tcp_check_keyword(void)
+install_tcp_check_keyword(bool active)
 {
-	install_keyword("TCP_CHECK", &tcp_check_handler);
+	install_keyword("TCP_CHECK", &tcp_check_handler, active);
 	install_sublevel();
-	install_keyword("retry", &tcp_retry_handler);
-	install_keyword("delay_before_retry", &tcp_delay_before_retry_handler);
-	install_connect_keywords();
-	install_keyword("warmup", &warmup_handler);
+	install_keyword("retry", &tcp_retry_handler, active);
+	install_keyword("delay_before_retry", &tcp_delay_before_retry_handler, active);
+	install_connect_keywords(active);
+	install_keyword("warmup", &warmup_handler, active);
 	install_sublevel_end();
 }
 

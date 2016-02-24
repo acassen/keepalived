@@ -23,10 +23,14 @@
 #ifndef _CHECK_PARSER_H
 #define _CHECK_PARSER_H
 
+/* Global include */
+#include <stdbool.h>
+
 /* local include */
 #include "vector.h"
 
 /* Prototypes */
 extern vector_t *check_init_keywords(void);
+extern void init_check_keywords(bool);
 
 #endif
