@@ -100,10 +100,6 @@ start_check(void)
 	init_interface_queue();
 	kernel_netlink_init();
 #endif
-#ifdef _WITH_SNMP_
-	if (!reload && snmp)
-		check_snmp_agent_init(snmp_socket);
-#endif
 
 	/* Parse configuration file */
 	global_data = alloc_global_data();
@@ -118,6 +114,11 @@ start_check(void)
 	/* Post initializations */
 #ifdef _DEBUG_
 	log_message(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
+#endif
+
+#ifdef _WITH_SNMP_
+	if (!reload && snmp)
+		check_snmp_agent_init(snmp_socket);
 #endif
 
 	/* SSL load static data & initialize common ctx context */

@@ -130,10 +130,6 @@ start_vrrp(void)
 	kernel_netlink_init();
 	gratuitous_arp_init();
 	ndisc_init();
-#ifdef _WITH_SNMP_
-	if (!reload && snmp)
-		vrrp_snmp_agent_init(snmp_socket);
-#endif
 
 	/* Parse configuration file */
 	global_data = alloc_global_data();
@@ -144,6 +140,11 @@ start_vrrp(void)
 		return;
 	}
 	init_global_data(global_data);
+
+#ifdef _WITH_SNMP_
+	if (!reload && snmp)
+		vrrp_snmp_agent_init(snmp_socket);
+#endif
 
 #ifdef _WITH_LVS_
 	if (vrrp_ipvs_needed()) {
