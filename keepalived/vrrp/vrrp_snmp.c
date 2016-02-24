@@ -128,7 +128,7 @@
 
 
 /* RFC SNMP defines */
-#define VRRP_RFC_OID 1, 3, 6, 1, 2, 1, 68
+#define VRRP_RFC_OID SNMP_OID_MIB2, 68
 #define VRRP_RFC_TRAP_OID VRRP_RFC_OID, 0
 
 /* Magic for RFC MIB functions */
