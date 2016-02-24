@@ -213,7 +213,7 @@ void snmp_register_mib(oid *myoid, int len, const char *name,
 		log_message(LOG_WARNING, "Unable to register %s MIB", name);
 
 	snprintf(name_buf, sizeof(name_buf), "The MIB module for %s", name);
-	register_sysORTable(myoid, OID_LENGTH(myoid) - 1, name_buf);
+	register_sysORTable(myoid, len, name_buf);
 }
 
 void
