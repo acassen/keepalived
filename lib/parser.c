@@ -30,6 +30,8 @@
 #include "memory.h"
 #include "logger.h"
 
+#define DUMP_KEYWORDS	0
+
 /* global vars */
 vector_t *keywords;
 vector_t *current_keywords;
@@ -121,21 +123,30 @@ install_sublevel_end_handler(void (*handler) (void))
 	keyword->sub_close_handler = handler;
 }
 
-void
-dump_keywords(vector_t *keydump, int level)
+#if DUMP_KEYWORDS
+static void
+dump_keywords(vector_t *keydump, int level, FILE *fp)
 {
-	int i, j;
+	int i;
 	keyword_t *keyword_vec;
+	char file_name[21];
+
+	if (!level) {
+		sprintf(file_name, "/tmp/keywords.%d", getpid());
+		fp = fopen(file_name, "w");
+	}
 
 	for (i = 0; i < vector_size(keydump); i++) {
 		keyword_vec = vector_slot(keydump, i);
-		for (j = 0; j < level; j++)
-			printf("  ");
-		printf("Keyword : %s\n", keyword_vec->string);
+		fprintf(fp, "%*sKeyword : %s\n", level * 2, "", keyword_vec->string);
 		if (keyword_vec->sub)
-			dump_keywords(keyword_vec->sub, level + 1);
+			dump_keywords(keyword_vec->sub, level + 1, fp);
 	}
+
+	if (!level)
+		fclose(fp);
 }
+#endif
 
 void
 free_keywords(vector_t *keywords_vec)
@@ -534,10 +545,10 @@ init_data(char *conf_file, vector_t * (*init_keywords) (void))
 	keywords = vector_alloc();
 	(*init_keywords) ();
 
-#if 0
+#if DUMP_KEYWORDS
 	/* Dump configuration */
 	vector_dump(keywords);
-	dump_keywords(keywords, 0);
+	dump_keywords(keywords, 0, NULL);
 #endif
 
 	/* Stream handling */

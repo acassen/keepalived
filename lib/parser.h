@@ -66,7 +66,6 @@ extern void install_sublevel(void);
 extern void install_sublevel_end(void);
 extern void install_sublevel_end_handler(void (*handler) (void));
 extern void install_keyword(char *, void (*handler) (vector_t *));
-extern void dump_keywords(vector_t *, int);
 extern void free_keywords(vector_t *);
 extern vector_t *alloc_strvec(char *);
 extern int read_line(char *, int);
