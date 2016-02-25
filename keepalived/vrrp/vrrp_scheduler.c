@@ -635,6 +635,7 @@ vrrp_leave_master(vrrp_t * vrrp, char *buffer, int len)
 	}
 }
 
+#ifdef _WITH_VRRP_AUTH_
 static void
 vrrp_ah_sync(vrrp_t *vrrp)
 {
@@ -647,6 +648,7 @@ vrrp_ah_sync(vrrp_t *vrrp)
 	vrrp->wantstate = VRRP_STATE_BACK;
 	vrrp_state_leave_master(vrrp);
 }
+#endif
 
 static void
 vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
