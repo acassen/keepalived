@@ -67,7 +67,11 @@ ifeq (@SNMP_SUPPORT@, _WITH_SNMP_)
 ifeq (@SNMP_RFC_SUPPORT@, _WITH_SNMP_RFC_)
 	cp -f doc/VRRP-MIB $(DESTDIR)/usr/share/snmp/mibs/
 endif
+ifeq (@SNMP_KEEPALIVED_SUPPORT@, _WITH_SNMP_KEEPALIVED_)
 	cp -f doc/KEEPALIVED-MIB $(DESTDIR)/usr/share/snmp/mibs/
+else ifeq (@SNMP_CHECKER_SUPPORT@, _WITH_SNMP_CHECKER_)
+	cp -f doc/KEEPALIVED-MIB $(DESTDIR)/usr/share/snmp/mibs/
+endif
 endif
 
 tarball: mrproper

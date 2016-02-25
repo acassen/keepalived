@@ -633,7 +633,9 @@ VRRP_AUTH_SUPPORT
 DFLAGS
 SO_MARK_SUPPORT
 SHA1_SUPPORT
+SNMP_CHECKER_SUPPORT
 SNMP_RFC_SUPPORT
+SNMP_KEEPALIVED_SUPPORT
 SNMP_SUPPORT
 NETSNMP_CONFIG
 ADDR_GEN_MODE
@@ -707,6 +709,8 @@ with_kernel_dir
 with_kernel_version
 enable_fwmark
 enable_snmp
+enable_snmp_keepalived
+enable_snmp_checker
 enable_snmp_rfc
 enable_sha1
 enable_vrrp_auth
@@ -1336,6 +1340,8 @@ Optional Features:
   --disable-vrrp          do not use the VRRP framework
   --disable-fwmark        compile without SO_MARK support
   --enable-snmp           compile with SNMP support
+  --enable-snmp-keepalived compile with SNMP keepalived support
+  --enable-snmp-checker   compile with SNMP checker support
   --enable-snmp-rfc       compile with SNMP RFC2787 support
   --enable-sha1           compile with SHA1 support
   --disable-vrrp-auth     compile without VRRP authentication
@@ -3289,6 +3295,16 @@ if test "${enable_snmp+set}" = set; then :
   enableval=$enable_snmp;
 fi
 
+# Check whether --enable-snmp-keepalived was given.
+if test "${enable_snmp_keepalived+set}" = set; then :
+  enableval=$enable_snmp_keepalived;
+fi
+
+# Check whether --enable-snmp-checker was given.
+if test "${enable_snmp_checker+set}" = set; then :
+  enableval=$enable_snmp_checker;
+fi
+
 # Check whether --enable-snmp-rfc was given.
 if test "${enable_snmp_rfc+set}" = set; then :
   enableval=$enable_snmp_rfc;
@@ -4558,8 +4574,10 @@ fi
 
 
 SNMP_SUPPORT="_WITHOUT_SNMP_"
+SNMP_KEEPALIVED_SUPPORT="_WITHOUT_SNMP_KEEPALIVED_"
 SNMP_RFC_SUPPORT="_WITHOUT_SNMP_RFC_"
-if test "$enable_snmp" = "yes" -o "$enable_snmp_rfc" = "yes"; then
+SNMP_CHECKER_SUPPORT="_WITHOUT_SNMP_CHECKER_"
+if test "$enable_snmp" = "yes" -o "$enable_snmp_rfc" = "yes" -o "$enable_snmp_keepalived" = "yes" -o "$enable_snmp_checker" = "yes"; then
 
   if test -n "$ac_tool_prefix"; then
   # Extract the first word of "${ac_tool_prefix}net-snmp-config", so it can be a program name with args.
@@ -4739,7 +4757,19 @@ done
   if test "$enable_snmp_rfc" = "yes"; then
     SNMP_RFC_SUPPORT="_WITH_SNMP_RFC_"
   fi
+  if test "$enable_snmp_keepalived" = "yes"; then
+    SNMP_KEEPALIVED_SUPPORT="_WITH_SNMP_KEEPALIVED_"
+  fi
+  if test "$enable_snmp_checker" = "yes"; then
+    SNMP_CHECKER_SUPPORT="_WITH_SNMP_CHECKER_"
+  fi
+  if test "$enable_snmp" = "yes"; then
+    SNMP_KEEPALIVED_SUPPORT="_WITH_SNMP_KEEPALIVED_"
+    SNMP_CHECKER_SUPPORT="_WITH_SNMP_CHECKER_"
+  fi
 fi
+
+
 
 
 
@@ -4857,7 +4887,7 @@ fi
 
 
 
-APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} ${DFLAGS}"
+APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} ${DFLAGS}"
 BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
 
 
@@ -6368,10 +6398,15 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
 else
   echo "Use VRRP Framework       : No"
 fi
-if test "${SNMP_SUPPORT}" = "_WITH_SNMP_"; then
-  echo "SNMP support             : Yes"
+if test "${SNMP_KEEPALIVED_SUPPORT}" = "_WITH_SNMP_KEEPALIVED_"; then
+  echo "SNMP keepalived support  : Yes"
 else
-  echo "SNMP support             : No"
+  echo "SNMP keepalived support  : No"
+fi
+if test "${SNMP_CHECKER_SUPPORT}" = "_WITH_SNMP_CHECKER_"; then
+  echo "SNMP checker support     : Yes"
+else
+  echo "SNMP checker support     : No"
 fi
 if test "${SNMP_RFC_SUPPORT}" = "_WITH_SNMP_RFC_"; then
   echo "SNMP RFC support         : Yes"

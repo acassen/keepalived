@@ -1161,7 +1161,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	/* Check if notify is needed */
 	notify_instance_exec(vrrp, VRRP_STATE_MAST);
 
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 	vrrp_snmp_instance_trap(vrrp);
 #ifdef _WITH_SNMP_RFC_
 	vrrp_rfc_snmp_new_master_trap(vrrp);
@@ -1265,7 +1265,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 		vrrp_restore_interface(vrrp, 0);
 		vrrp->state = vrrp->wantstate;
 		notify_instance_exec(vrrp, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
 		break;
@@ -1275,7 +1275,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 		vrrp->state = VRRP_STATE_FAULT;
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
 		break;

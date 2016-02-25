@@ -227,7 +227,7 @@ vrrp_strict_handler(vector_t *strvec)
 {
 	global_data->vrrp_strict = 1;
 }
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 static void
 trap_handler(vector_t *strvec)
 {
@@ -260,7 +260,7 @@ global_init_keywords(void)
 	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler, true);
 	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler, true);
 	install_keyword("vrrp_strict", &vrrp_strict_handler, true);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 	install_keyword("enable_traps", &trap_handler, true);
 #endif
 }

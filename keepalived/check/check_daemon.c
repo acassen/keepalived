@@ -41,7 +41,7 @@
 #include "bitops.h"
 #include "vrrp_netlink.h"
 #include "vrrp_if.h"
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_CHECKER_
   #include "check_snmp.h"
 #endif
 
@@ -59,7 +59,7 @@ stop_check(void)
 	if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug))
 		clear_services();
 	ipvs_stop();
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_CHECKER_
 	if (snmp)
 		check_snmp_agent_close();
 #endif
@@ -116,8 +116,8 @@ start_check(void)
 	log_message(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
 #endif
 
-#ifdef _WITH_SNMP_
-	if (!reload && snmp)
+#ifdef _WITH_SNMP_CHECKER
+	if (!reload && global_data->enable_snmp_checker)
 		check_snmp_agent_init(snmp_socket);
 #endif
 

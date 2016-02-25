@@ -245,7 +245,7 @@ vrrp_sync_backup(vrrp_t * vrrp)
 	vgroup->state = VRRP_STATE_BACK;
 	vrrp_sync_smtp_notifier(vgroup);
 	notify_group_exec(vgroup, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 	vrrp_snmp_group_trap(vgroup);
 #endif
 }
@@ -280,7 +280,7 @@ vrrp_sync_master(vrrp_t * vrrp)
 	vgroup->state = VRRP_STATE_MAST;
 	vrrp_sync_smtp_notifier(vgroup);
 	notify_group_exec(vgroup, VRRP_STATE_MAST);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 	vrrp_snmp_group_trap(vgroup);
 #endif
 }
@@ -318,7 +318,7 @@ vrrp_sync_fault(vrrp_t * vrrp)
 	}
 	vgroup->state = VRRP_STATE_FAULT;
 	notify_group_exec(vgroup, VRRP_STATE_FAULT);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 	vrrp_snmp_group_trap(vgroup);
 #endif
 }
