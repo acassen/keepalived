@@ -30,6 +30,7 @@
 #include "logger.h"
 #include "utils.h"
 #include "vrrp.h"
+#include "main.h"
 
 /* global vars */
 data_t *global_data = NULL;
@@ -143,6 +144,25 @@ alloc_global_data(void)
 	set_default_mcast_group(new);
 	set_vrrp_defaults(new);
 
+#ifdef _WITH_SNMP_
+	if (snmp) {
+#ifdef _WITH_SNMP_KEEPALIVED_
+		new->enable_snmp_keepalived = true;
+#endif
+#ifdef _WITH_SNMP_RFC_
+		new->enable_snmp_rfc = true;
+#endif
+#ifdef _WITH_SNMP_CHECKER_
+		new->enable_snmp_checker = true;
+#endif
+	}
+
+	if (snmp_socket) {
+		new->snmp_socket = MALLOC(strlen(snmp_socket + 1));
+		strcpy(new->snmp_socket, snmp_socket);
+	}
+#endif
+
 	return new;
 }
 
@@ -169,6 +189,9 @@ free_global_data(data_t * data)
 	free_list(data->email);
 	FREE_PTR(data->router_id);
 	FREE_PTR(data->email_from);
+#ifdef _WITH_SNMP_
+	FREE_PTR(data->snmp_socket);
+#endif
 	FREE(data);
 }
 

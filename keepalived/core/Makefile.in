@@ -37,7 +37,7 @@ layer4.o: layer4.c ../include/layer4.h ../include/check_api.h ../../lib/utils.h
 smtp.o: smtp.c ../include/smtp.h ../include/global_data.h ../../lib/memory.h \
   ../../lib/list.h ../../lib/utils.h
 global_data.o: global_data.c ../include/global_data.h ../../lib/memory.h \
-  ../../lib/list.h ../../lib/utils.h
+  ../../lib/list.h ../../lib/utils.h ../include/main.h
 global_parser.o: global_parser.c ../include/global_parser.h \
   ../include/global_data.h ../../lib/parser.h ../../lib/memory.h \
   ../../lib/utils.h

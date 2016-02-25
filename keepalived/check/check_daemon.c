@@ -60,7 +60,7 @@ stop_check(void)
 		clear_services();
 	ipvs_stop();
 #ifdef _WITH_SNMP_CHECKER_
-	if (snmp)
+	if (global_data->enable_snmp_checker)
 		check_snmp_agent_close();
 #endif
 
@@ -116,9 +116,9 @@ start_check(void)
 	log_message(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
 #endif
 
-#ifdef _WITH_SNMP_CHECKER
+#ifdef _WITH_SNMP_CHECKER_
 	if (!reload && global_data->enable_snmp_checker)
-		check_snmp_agent_init(snmp_socket);
+		check_snmp_agent_init(global_data->snmp_socket);
 #endif
 
 	/* SSL load static data & initialize common ctx context */

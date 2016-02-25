@@ -227,12 +227,59 @@ vrrp_strict_handler(vector_t *strvec)
 {
 	global_data->vrrp_strict = 1;
 }
-#ifdef _WITH_SNMP_KEEPALIVED_
+#ifdef _WITH_SNMP_
+static void
+snmp_socket_handler(vector_t *strvec)
+{
+	if (vector_size(strvec) > 2) {
+		log_message(LOG_INFO, "Too many parameters specified for snmp_socket - ignoring");
+		return;
+	}
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "SNMP error : snmp socket name missing");
+		return;
+	}
+
+	if (strlen(vector_slot(strvec,1)) > PATH_MAX - 1) {
+		log_message(LOG_INFO, "SNMP error : snmp socket name too long - ignored");
+		return;
+	}
+
+	if (global_data->snmp_socket) {
+		log_message(LOG_INFO, "SNMP socket already set to %s - ignoring", global_data->snmp_socket);
+		return;
+	}
+
+	global_data->snmp_socket = MALLOC(strlen(vector_slot(strvec, 1) + 1));
+	strcpy(global_data->snmp_socket, vector_slot(strvec,1));
+}
 static void
 trap_handler(vector_t *strvec)
 {
-	global_data->enable_traps = 1;
+	global_data->enable_traps = true;
 }
+#ifdef _WITH_SNMP_KEEPALIVED_
+static void
+snmp_keepalived_handler(vector_t *strvec)
+{
+	global_data->enable_snmp_keepalived = true;
+}
+#endif
+#ifdef _WITH_SNMP_RFC_
+static void
+snmp_rfc_handler(vector_t *strvec)
+{
+	global_data->enable_snmp_rfc = true;
+}
+#endif
+#ifdef _WITH_SNMP_CHECKER_
+static void
+snmp_checker_handler(vector_t *strvec)
+{
+	global_data->enable_snmp_checker = true;
+}
+#endif
 #endif
 
 void
@@ -260,7 +307,17 @@ global_init_keywords(void)
 	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler, true);
 	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler, true);
 	install_keyword("vrrp_strict", &vrrp_strict_handler, true);
-#ifdef _WITH_SNMP_KEEPALIVED_
+#ifdef _WITH_SNMP_
+	install_keyword("snmp_socket", &snmp_socket_handler, true);
 	install_keyword("enable_traps", &trap_handler, true);
+#ifdef _WITH_SNMP_KEEPALIVED_
+	install_keyword("enable_snmp_keepalived", &snmp_keepalived_handler, true);
+#endif
+#ifdef _WITH_SNMP_RFC_
+	install_keyword("enable_snmp_rfc", &snmp_rfc_handler, true);
+#endif
+#ifdef _WITH_SNMP_CHECKER_
+	install_keyword("enable_snmp_checker", &snmp_checker_handler, true);
+#endif
 #endif
 }

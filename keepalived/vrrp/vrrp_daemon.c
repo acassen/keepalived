@@ -72,7 +72,7 @@ stop_vrrp(void)
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL);
 
 #ifdef _WITH_SNMP_
-	if (snmp)
+	if (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfc)
 		vrrp_snmp_agent_close();
 #endif
 
@@ -142,8 +142,8 @@ start_vrrp(void)
 	init_global_data(global_data);
 
 #ifdef _WITH_SNMP_
-	if (!reload && snmp) {
-		vrrp_snmp_agent_init(snmp_socket);
+	if (!reload && (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfc)) {
+		vrrp_snmp_agent_init(global_data->snmp_socket);
 #ifdef _WITH_SNMP_RFC_
 		vrrp_start_time = timer_now();
 #endif
