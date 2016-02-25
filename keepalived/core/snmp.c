@@ -107,7 +107,7 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 	
 	switch (vp->magic) {
 	case SNMP_KEEPALIVEDVERSION:
-		*var_len = sizeof(version) - 2;
+		*var_len = sizeof(version) - 1;
 		return (u_char *)version;
 	case SNMP_ROUTERID:
 		if (!global_data->router_id) return NULL;

@@ -621,10 +621,12 @@ ac_includes_default="\
 
 ac_subst_vars='LTLIBOBJS
 LIBOBJS
+BUILD_OPTS
 APP_DEFS
 VRRP_SUPPORT
 USE_NL
 IPVS_SUPPORT
+VERSION_YEAR
 VERSION_DATE
 VERSION
 VRRP_AUTH_SUPPORT
@@ -2235,7 +2237,8 @@ ac_compiler_gnu=$ac_cv_c_compiler_gnu
 
 
 VERSION=`cat VERSION`
-VERSION_DATE=`date +%m/%d,20%y`
+VERSION_DATE=`date +%m/%d,%Y`
+VERSION_YEAR=`date +%Y`
 OUTPUT_TARGET="Makefile genhash/Makefile keepalived/core/Makefile lib/config.h keepalived.spec"
 
 ac_ext=c
@@ -4840,7 +4843,10 @@ fi
 
 
 
+
 APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} ${DFLAGS}"
+BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
+
 
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for an ANSI C-conforming const" >&5

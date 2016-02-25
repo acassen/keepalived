@@ -199,7 +199,9 @@ parse_cmdline(int argc, char **argv)
 									, long_options, NULL)) != EOF) {
 		switch (c) {
 		case 'v':
-			fprintf(stderr, VERSION_STRING);
+			fprintf(stderr, "%s\n", VERSION_STRING);
+			fprintf(stderr, "%s\n", COPYRIGHT_STRING);
+			fprintf(stderr, "Build options: %s\n", BUILD_OPTIONS);
 			exit(0);
 			break;
 		case 'h':
