@@ -26,7 +26,7 @@
 
 #include "vrrp_ipaddress.h"
 
-#ifdef _HAVE_LIBIPSETS_
+#ifdef _HAVE_LIBIPSET_
 int load_mod_xt_set(void);
 #endif
 

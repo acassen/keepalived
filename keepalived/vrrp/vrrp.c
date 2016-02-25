@@ -2028,9 +2028,6 @@ vrrp_complete_init(void)
 		}
 	}
 
-#ifdef _HAVE_LIBIPTC
-	check_iptables_exist();
-#endif
 
 	/* Build synchronization group index, and remove any
 	 * empty groups, or groups with only one member */

@@ -142,7 +142,7 @@ int iptables_close(struct ipt_handle* h)
 	if (h->h6)
 		res += ip6tables_close(h->h6, h->updated_v6);
 
-#ifdef _HAVBE_LIBIPSET_
+#ifdef _HAVE_LIBIPSET_
 	if (h->session)
 		ipset_session_end(h->session);
 #endif
