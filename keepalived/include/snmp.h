@@ -60,6 +60,7 @@ extern void snmp_agent_init(const char *snmp_socket);
 extern void snmp_register_mib(oid *myoid, int len,
 			      const char *name, struct variable *variables,
 			      int varsize, int varlen);
-extern void snmp_agent_close(oid *myoid, int len, char *name);
+extern void snmp_unregister_mib(oid *myoid, int len);
+extern void snmp_agent_close(void);
 
 #endif

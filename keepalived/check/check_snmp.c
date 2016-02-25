@@ -972,7 +972,8 @@ check_snmp_agent_init(const char *snmp_socket)
 void
 check_snmp_agent_close()
 {
-	snmp_agent_close(check_oid, OID_LENGTH(check_oid), "Healthchecker");
+	snmp_unregister_mib(check_oid, OID_LENGTH(check_oid));
+	snmp_agent_close();
 }
 
 void

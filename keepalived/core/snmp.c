@@ -217,6 +217,12 @@ void snmp_register_mib(oid *myoid, int len, const char *name,
 }
 
 void
+snmp_unregister_mib(oid *myoid, int len)
+{
+	unregister_sysORTable(myoid, len);
+}
+
+void
 snmp_agent_init(const char *snmp_socket)
 {
 	log_message(LOG_INFO, "Starting SNMP subagent");
@@ -262,9 +268,8 @@ snmp_agent_init(const char *snmp_socket)
 }
 
 void
-snmp_agent_close(oid *myoid, int len, char *name)
+snmp_agent_close()
 {
-	unregister_sysORTable(myoid, len);
-	unregister_sysORTable(global_oid, OID_LENGTH(global_oid));
+	snmp_unregister_mib(global_oid, OID_LENGTH(global_oid));
 	snmp_shutdown(global_name);
 }

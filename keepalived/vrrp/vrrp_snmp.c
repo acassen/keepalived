@@ -1489,8 +1489,9 @@ vrrp_snmp_agent_init(const char *snmp_socket)
 void
 vrrp_snmp_agent_close(void)
 {
-	snmp_agent_close(vrrp_oid, OID_LENGTH(vrrp_oid), "KEEPALIVED-VRRP");
-	snmp_agent_close(vrrp_rfc_oid, OID_LENGTH(vrrp_rfc_oid), "VRRP");
+	snmp_unregister_mib(vrrp_oid, OID_LENGTH(vrrp_oid));
+	snmp_unregister_mib(vrrp_rfc_oid, OID_LENGTH(vrrp_rfc_oid));
+	snmp_agent_close();
 }
 
 void
