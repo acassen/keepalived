@@ -32,6 +32,8 @@
 #include "list.h"
 #include "logger.h"
 #include "global_data.h"
+#include "bitops.h"
+#include "main.h"
 
 #include "snmp.h"
 
@@ -1475,7 +1477,8 @@ static struct variable8 vrrp_vars[] = {
 void
 vrrp_snmp_agent_init(const char *snmp_socket)
 {
-	snmp_agent_init(snmp_socket);
+	/* We let the check process handle the global OID if it is running and with snmp */
+	snmp_agent_init(snmp_socket, !__test_bit(DAEMON_CHECKERS, &daemon_mode));
 	snmp_register_mib(vrrp_oid, OID_LENGTH(vrrp_oid), "KEEPALIVED-VRRP",
 			  (struct variable *)vrrp_vars,
 			  sizeof(struct variable8),
@@ -1491,7 +1494,7 @@ vrrp_snmp_agent_close(void)
 {
 	snmp_unregister_mib(vrrp_oid, OID_LENGTH(vrrp_oid));
 	snmp_unregister_mib(vrrp_rfc_oid, OID_LENGTH(vrrp_rfc_oid));
-	snmp_agent_close();
+	snmp_agent_close(!__test_bit(DAEMON_CHECKERS, &daemon_mode));
 }
 
 void

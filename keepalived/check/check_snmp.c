@@ -962,7 +962,8 @@ static struct variable8 check_vars[] = {
 void
 check_snmp_agent_init(const char *snmp_socket)
 {
-	snmp_agent_init(snmp_socket);
+	/* We handle the global oid if we are running SNMP */
+	snmp_agent_init(snmp_socket, true);
 	snmp_register_mib(check_oid, OID_LENGTH(check_oid), "Healthchecker",
 			  (struct variable *)check_vars,
 			  sizeof(struct variable8),
@@ -973,7 +974,7 @@ void
 check_snmp_agent_close()
 {
 	snmp_unregister_mib(check_oid, OID_LENGTH(check_oid));
-	snmp_agent_close();
+	snmp_agent_close(true);
 }
 
 void

@@ -223,7 +223,7 @@ snmp_unregister_mib(oid *myoid, int len)
 }
 
 void
-snmp_agent_init(const char *snmp_socket)
+snmp_agent_init(const char *snmp_socket, bool base_mib)
 {
 	log_message(LOG_INFO, "Starting SNMP subagent");
 	netsnmp_enable_subagent();
@@ -260,16 +260,18 @@ snmp_agent_init(const char *snmp_socket)
 			   NETSNMP_DS_AGENT_AGENTX_PING_INTERVAL, 120);
 
 	init_agent(global_name);
-	snmp_register_mib(global_oid, OID_LENGTH(global_oid), global_name,
-			  (struct variable *)global_vars,
-			  sizeof(struct variable8),
-			  sizeof(global_vars)/sizeof(struct variable8));
+	if (base_mib)
+		snmp_register_mib(global_oid, OID_LENGTH(global_oid), global_name,
+				  (struct variable *)global_vars,
+				  sizeof(struct variable8),
+				  sizeof(global_vars)/sizeof(struct variable8));
 	init_snmp(global_name);
 }
 
 void
-snmp_agent_close()
+snmp_agent_close(bool base_mib)
 {
-	snmp_unregister_mib(global_oid, OID_LENGTH(global_oid));
+	if (base_mib)
+		snmp_unregister_mib(global_oid, OID_LENGTH(global_oid));
 	snmp_shutdown(global_name);
 }

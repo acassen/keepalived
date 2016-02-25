@@ -36,13 +36,11 @@ int linkwatch = 0;					/* Use linkwatch kernel netlink reflection */
 char *main_pidfile = KEEPALIVED_PID_FILE;		/* overrule default pidfile */
 char *checkers_pidfile = CHECKERS_PID_FILE;		/* overrule default pidfile */
 char *vrrp_pidfile = VRRP_PID_FILE;			/* overrule default pidfile */
+unsigned long daemon_mode = 0;				/* VRRP/CHECK subsystem selection */
 #ifdef _WITH_SNMP_
 int snmp = 0;						/* Enable SNMP support */
 const char *snmp_socket = NULL;				/* Socket to use for SNMP agent */
 #endif
-
-/* local var */
-static unsigned long daemon_mode = 0;			/* VRRP/CHECK subsystem selection */
 
 /* Log facility table */
 static struct {

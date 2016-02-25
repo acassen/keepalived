@@ -46,6 +46,7 @@ enum daemon_bits {
 };
 
 /* Global vars exported */
+extern unsigned long daemon_mode; /* Which child processes are run */
 extern char *conf_file;		/* Configuration file */
 extern int log_facility;	/* Optional logging facilities */
 extern pid_t vrrp_child;	/* VRRP child process ID */
