@@ -142,8 +142,12 @@ start_vrrp(void)
 	init_global_data(global_data);
 
 #ifdef _WITH_SNMP_
-	if (!reload && snmp)
+	if (!reload && snmp) {
 		vrrp_snmp_agent_init(snmp_socket);
+#ifdef _WITH_SNMP_RFC_
+		vrrp_start_time = timer_now();
+#endif
+	}
 #endif
 
 #ifdef _WITH_LVS_

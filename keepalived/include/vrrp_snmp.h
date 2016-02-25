@@ -24,10 +24,30 @@
 #ifndef _VRRP_SNMP_H
 #define _VRRP_SNMP_H
 
+#ifdef _WITH_SNMP_RFC_
+
+#include "timer.h"
+
+enum rfc_trap_auth_error_type {
+	invalidAuthType = 1,
+#ifdef _WITH_VRRP_AUTH_
+	authTypeMismatch,
+	authFailure
+#endif
+};
+
+/* Global vars */
+extern timeval_t vrrp_start_time;
+#endif
+
 /* Prototypes */
 extern void vrrp_snmp_agent_init(const char *);
 extern void vrrp_snmp_agent_close(void);
 extern void vrrp_snmp_instance_trap(vrrp_t *);
 extern void vrrp_snmp_group_trap(vrrp_sgroup_t *);
+#ifdef _WITH_SNMP_RFC_
 extern void vrrp_rfc_snmp_new_master_trap(vrrp_t *);
+extern void vrrp_rfc_snmp_auth_err_trap(vrrp_t *, struct in_addr, enum rfc_trap_auth_error_type);
+#endif
+
 #endif

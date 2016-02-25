@@ -275,6 +275,9 @@ vrrp_init_state(list l)
 				}
 			}
 		}
+#ifdef _WITH_SNMP_RFC_
+		vrrp->stats->uptime = timer_now();
+#endif
 	}
 }
 
@@ -663,12 +666,18 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
 				       "VRRP_Instance(%s) prio is higher than received advert",
 				       vrrp->iname);
 				vrrp_become_master(vrrp, buffer, len);
+#ifdef _WITH_SNMP_RFC_
+				vrrp->stats->uptime = timer_now();
+#endif
 			}
 		} else {
 			log_message(LOG_INFO,
 			       "VRRP_Instance(%s) prio is higher than received advert",
 			       vrrp->iname);
 			vrrp_become_master(vrrp, buffer, len);
+#ifdef _WITH_SNMP_RFC_
+			vrrp->stats->uptime = timer_now();
+#endif
 		}
 	} else {
 		if (vrrp->sync) {
@@ -682,6 +691,9 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
 				vrrp_snmp_instance_trap(vrrp);
 #endif
 				vrrp->last_transition = timer_now();
+#ifdef _WITH_SNMP_RFC_
+				vrrp->stats->uptime = vrrp->last_transition;
+#endif
 			}
 		} else {
 			log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
@@ -693,6 +705,9 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
 			vrrp_snmp_instance_trap(vrrp);
 #endif
 			vrrp->last_transition = timer_now();
+#ifdef _WITH_SNMP_RFC_
+			vrrp->stats->uptime = vrrp->last_transition;
+#endif
 		}
 	}
 }
@@ -863,6 +878,9 @@ vrrp_fault(vrrp_t * vrrp)
 			vrrp_goto_master(vrrp);
 		}
 	}
+#ifdef _WITH_SNMP_RFC_
+	vrrp->stats->uptime = timer_now();
+#endif
 }
 
 /* Handle dispatcher read timeout */

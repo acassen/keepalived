@@ -64,7 +64,9 @@ install:
 	$(MAKE) -C genhash install
 ifeq (@SNMP_SUPPORT@, _WITH_SNMP_)
 	mkdir -p $(DESTDIR)/usr/share/snmp/mibs/
+ifeq (@SNMP_RFC_SUPPORT@, _WITH_SNMP_RFC_)
 	cp -f doc/VRRP-MIB $(DESTDIR)/usr/share/snmp/mibs/
+endif
 	cp -f doc/KEEPALIVED-MIB $(DESTDIR)/usr/share/snmp/mibs/
 endif
 

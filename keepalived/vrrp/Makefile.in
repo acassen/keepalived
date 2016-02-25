@@ -6,6 +6,7 @@
 
 CC	 = @CC@
 SNMP_FLAG = @SNMP_SUPPORT@
+SNMP_RFC_FLAG = @SNMP_RFC_SUPPORT@
 VRRP_AUTH_FLAG = @VRRP_AUTH_SUPPORT@
 LIBIPTC_FLAG = @USE_LIBIPTC@
 LIBIPSET_FLAG = @USE_LIBIPSET@
@@ -35,6 +36,10 @@ endif
 
 ifeq ($(SNMP_FLAG),_WITH_SNMP_)
   OBJS += vrrp_snmp.o
+else
+  ifeq ($(SNMP_RFC_FLAG),_WITH_SNMP_RFC_)
+    OBJS += vrrp_snmp.o
+  endif
 endif
 
 HEADERS = $(OBJS:.o=.h)
