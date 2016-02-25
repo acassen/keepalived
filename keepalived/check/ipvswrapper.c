@@ -22,7 +22,9 @@
  */
 
 #ifndef O_CLOEXEC
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE /* to make O_CLOEXEC available */
+#endif
 #include <fcntl.h>
 #endif
 
