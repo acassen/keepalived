@@ -1558,14 +1558,14 @@ vrrp_snmp_rfc_state(int state)
 }
 
 static bool
-suitable_for_rfc2787(vrrp_t* vrrp, int version)
+suitable_for_rfc2787(vrrp_t* vrrp)
 {
-	/* We mustn't return any VRRP instances that don't match version */
-	if (vrrp->version != version)
+	/* We mustn't return any VRRP instances that aren't version 2 */
+	if (vrrp->version != VRRP_VERSION_2)
 		return false;
 
 	/* We have to skip VRRPv2 with IPv6 since it won't be understood */
-	if (version == VRRP_VERSION_2 && vrrp->family == AF_INET6)
+	if (vrrp->family == AF_INET6)
 		return false;
 
 	/* We are expected to have at least one VIP */
@@ -1577,7 +1577,7 @@ suitable_for_rfc2787(vrrp_t* vrrp, int version)
 
 static ip_address_t*
 vrrp_rfc_header_ar_table(struct variable *vp, oid *name, size_t *length,
-		     int exact, size_t *var_len, WriteMethod **write_method, int version)
+		     int exact, size_t *var_len, WriteMethod **write_method)
 {
 	element e, e2;
 	ip_address_t *vip;
@@ -1621,7 +1621,7 @@ vrrp_rfc_header_ar_table(struct variable *vp, oid *name, size_t *length,
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		scr = (vrrp_t *)ELEMENT_DATA(e);
 
-		if (!suitable_for_rfc2787(scr, version))
+		if (!suitable_for_rfc2787(scr))
 			continue;
 
 		current[0] = IF_BASE_INDEX(scr->ifp);
@@ -1725,7 +1725,7 @@ vrrp_rfc_snmp_node_info(struct variable *vp, oid *name, size_t *length,
 
 static vrrp_t*
 snmp_rfc_header_list_table(struct variable *vp, oid *name, size_t *length,
-		  int exact, size_t *var_len, WriteMethod **write_method, int version)
+		  int exact, size_t *var_len, WriteMethod **write_method)
 {
 	element e;
 	vrrp_t *bel = NULL, *scr;
@@ -1754,7 +1754,7 @@ snmp_rfc_header_list_table(struct variable *vp, oid *name, size_t *length,
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		scr = (vrrp_t *)ELEMENT_DATA(e);
 
-		if (!suitable_for_rfc2787(scr, version))
+		if (!suitable_for_rfc2787(scr))
 			continue;
 
 		if (target_len && (IF_BASE_INDEX(scr->ifp) < target[0]))
@@ -1800,17 +1800,10 @@ vrrp_rfc_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	timeval_t uptime;
 
 	if ((rt = snmp_rfc_header_list_table(vp, name, length, exact,
-					     var_len, write_method,
-					     VRRP_VERSION_2)) == NULL)
+					     var_len, write_method)) == NULL)
 		return NULL;
 
 	switch (vp->magic) {
-	case VRRP_RFC_SNMP_OPER_IF_IDX:
-		if (__test_bit(VRRP_VMAC_BIT, &rt->vmac_flags))
-			long_ret = rt->ifp->base_ifindex;
-		else
-			long_ret = rt->ifp->ifindex;
-		return (u_char*)&long_ret;
 	case VRRP_RFC_SNMP_OPER_VRID:
 		long_ret = rt->vrid;
 		return (u_char*)&long_ret;
@@ -1897,8 +1890,7 @@ vrrp_rfc_snmp_assoiptable(struct variable *vp, oid *name, size_t *length,
 		return NULL;
 	}
 	if ((addr = vrrp_rfc_header_ar_table(vp, name, length, exact,
-				  var_len, write_method,
-				  VRRP_VERSION_2)) == NULL)
+				  var_len, write_method)) == NULL)
 		return NULL;
 
 	switch (vp->magic) {
@@ -1926,7 +1918,6 @@ vrrp_rfc_snmp_stats(struct variable *vp, oid *name, size_t *length,
 	static unsigned long long_ret = 0;
 	element e;
 	vrrp_t *vrrp;
-	int version = VRRP_VERSION_2;
 
 	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
@@ -1943,7 +1934,7 @@ vrrp_rfc_snmp_stats(struct variable *vp, oid *name, size_t *length,
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-		if (!suitable_for_rfc2787(vrrp, version))
+		if (!suitable_for_rfc2787(vrrp))
 			continue;
 
 		switch (vp->magic) {
@@ -1969,8 +1960,7 @@ vrrp_rfc_snmp_statstable(struct variable *vp, oid *name, size_t *length,
 	vrrp_t *rt;
 
 	if ((rt = snmp_rfc_header_list_table(vp, name, length, exact,
-					     var_len, write_method,
-					     VRRP_VERSION_2)) == NULL)
+					     var_len, write_method)) == NULL)
 		return NULL;
 
 	switch (vp->magic) {
@@ -2028,8 +2018,6 @@ static struct variable8 vrrp_rfc_vars[] = {
 	{ VRRP_RFC_SNMP_NOTIF_CNTL, ASN_INTEGER, RONLY,
 	  vrrp_rfc_snmp_node_info, 2, {1, 2}},
 	/* vrrpOperTable */
-	{ VRRP_RFC_SNMP_OPER_IF_IDX, ASN_INTEGER, RONLY,
-	  vrrp_rfc_snmp_opertable, 3, {1, 3, 1}},
 	{ VRRP_RFC_SNMP_OPER_VRID, ASN_INTEGER, RONLY,
 	  vrrp_rfc_snmp_opertable, 4, {1, 3, 1, 1}},
 	{ VRRP_RFC_SNMP_OPER_VMAC, ASN_OCTET_STR, RONLY,
@@ -2117,7 +2105,7 @@ vrrp_rfc_snmp_new_master_trap(vrrp_t *vrrp)
 	if (!global_data->enable_traps)
 		return;
 
-	if (!suitable_for_rfc2787(vrrp, VRRP_VERSION_2))
+	if (!suitable_for_rfc2787(vrrp))
 		return;
 
 	/* snmpTrapOID */
@@ -2160,7 +2148,7 @@ vrrp_rfc_snmp_auth_err_trap(vrrp_t *vrrp, struct in_addr src, enum rfc_trap_auth
 	if (!global_data->enable_traps)
 		return;
 
-	if (!suitable_for_rfc2787(vrrp, VRRP_VERSION_2))
+	if (!suitable_for_rfc2787(vrrp))
 		return;
 
 	/* snmpTrapOID */
