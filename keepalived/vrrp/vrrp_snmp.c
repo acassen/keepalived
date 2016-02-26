@@ -1436,7 +1436,8 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 	static unsigned long state;
 	static unsigned long istate;
 
-	if (!global_data->enable_traps) return;
+	if (!global_data->enable_traps)
+		return;
 
 	/* snmpTrapOID */
 	snmp_varlist_add_variable(&notification_vars,
@@ -1501,7 +1502,8 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 
 	static unsigned long state;
 
-	if (!global_data->enable_traps) return;
+	if (!global_data->enable_traps)
+		return;
 
 	/* snmpTrapOID */
 	snmp_varlist_add_variable(&notification_vars,
@@ -2112,7 +2114,8 @@ vrrp_rfc_snmp_new_master_trap(vrrp_t *vrrp)
 
 	netsnmp_variable_list *notification_vars = NULL;
 
-	if (!global_data->enable_traps) return;
+	if (!global_data->enable_traps)
+		return;
 
 	if (!suitable_for_rfc2787(vrrp, VRRP_VERSION_2))
 		return;
@@ -2154,7 +2157,8 @@ vrrp_rfc_snmp_auth_err_trap(vrrp_t *vrrp, struct in_addr src, enum rfc_trap_auth
 
 	netsnmp_variable_list *notification_vars = NULL;
 
-	if (!global_data->enable_traps) return;
+	if (!global_data->enable_traps)
+		return;
 
 	if (!suitable_for_rfc2787(vrrp, VRRP_VERSION_2))
 		return;
