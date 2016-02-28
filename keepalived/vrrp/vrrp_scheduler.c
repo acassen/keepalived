@@ -660,17 +660,7 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
 		return;
 
 	if (vrrp_state_fault_rx(vrrp, buffer, len)) {
-		if (vrrp->sync) {
-			if (vrrp_sync_leave_fault(vrrp)) {
-				log_message(LOG_INFO,
-				       "VRRP_Instance(%s) prio is higher than received advert",
-				       vrrp->iname);
-				vrrp_become_master(vrrp, buffer, len);
-#ifdef _WITH_SNMP_RFC_
-				vrrp->stats->uptime = timer_now();
-#endif
-			}
-		} else {
+		if (!vrrp->sync || vrrp_sync_leave_fault(vrrp)) {
 			log_message(LOG_INFO,
 			       "VRRP_Instance(%s) prio is higher than received advert",
 			       vrrp->iname);
@@ -680,22 +670,7 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
 #endif
 		}
 	} else {
-		if (vrrp->sync) {
-			if (vrrp_sync_leave_fault(vrrp)) {
-				log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
-				       vrrp->iname);
-				vrrp->state = VRRP_STATE_BACK;
-				vrrp_smtp_notifier(vrrp);
-				notify_instance_exec(vrrp, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_KEEPALIVED_
-				vrrp_snmp_instance_trap(vrrp);
-#endif
-				vrrp->last_transition = timer_now();
-#ifdef _WITH_SNMP_RFC_
-				vrrp->stats->uptime = vrrp->last_transition;
-#endif
-			}
-		} else {
+		if (!vrrp->sync || vrrp_sync_leave_fault(vrrp)) {
 			log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
 			       vrrp->iname);
 			vrrp->state = VRRP_STATE_BACK;
