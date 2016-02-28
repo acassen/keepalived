@@ -784,8 +784,8 @@ vrrp_update_priority(thread_t * thread)
 		new_prio = vrrp->base_priority + prio_offset;
 		if (new_prio < 1)
 			new_prio = 1;
-		else if (new_prio > 254)
-			new_prio = 254;
+		else if (new_prio >= VRRP_PRIO_OWNER)
+			new_prio = VRRP_PRIO_OWNER - 1;
 		vrrp->effective_priority = new_prio;
 	}
 
