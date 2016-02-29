@@ -67,5 +67,7 @@ extern void dump_iproute(void *);
 extern void alloc_route(list, vector_t *);
 extern void clear_diff_routes(list, list);
 extern void clear_diff_sroutes(void);
+extern void load_rt_tables(void);
+extern void free_rt_tables(void);
 
 #endif
