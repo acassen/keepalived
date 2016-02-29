@@ -9,8 +9,7 @@ SNMP_FLAG = @SNMP_SUPPORT@
 INCLUDES = -I../include -I../../lib
 CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 	   -Wall -Wunused -Wstrict-prototypes
-DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@VRRP_SUPPORT@ -D@SNMP_SUPPORT@ -D@SO_MARK_SUPPORT@ -D@USE_LIBIPSET@ @DFLAGS@
-COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
+COMPILE	 = $(CC) $(CFLAGS) @APP_DEFS@
 
 OBJS = 	main.o daemon.o pidfile.o layer4.o smtp.o \
 	global_data.o global_parser.o
@@ -38,7 +37,7 @@ layer4.o: layer4.c ../include/layer4.h ../include/check_api.h ../../lib/utils.h
 smtp.o: smtp.c ../include/smtp.h ../include/global_data.h ../../lib/memory.h \
   ../../lib/list.h ../../lib/utils.h
 global_data.o: global_data.c ../include/global_data.h ../../lib/memory.h \
-  ../../lib/list.h ../../lib/utils.h
+  ../../lib/list.h ../../lib/utils.h ../include/main.h
 global_parser.o: global_parser.c ../include/global_parser.h \
   ../include/global_data.h ../../lib/parser.h ../../lib/memory.h \
   ../../lib/utils.h

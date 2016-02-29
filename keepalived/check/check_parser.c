@@ -32,6 +32,7 @@
 #include "memory.h"
 #include "utils.h"
 #include "ipwrapper.h"
+#include "vrrp_parser.h"
 
 /* SSL handlers */
 static void
@@ -310,63 +311,69 @@ hysteresis_handler(vector_t *strvec)
 	vs->hysteresis = tmp;
 }
 
+void
+init_check_keywords(bool active)
+{
+	/* SSL mapping */
+	install_keyword_root("SSL", &ssl_handler, active);
+	install_keyword("password", &sslpass_handler, active);
+	install_keyword("ca", &sslca_handler, active);
+	install_keyword("certificate", &sslcert_handler, active);
+	install_keyword("key", &sslkey_handler, active);
+
+	/* Virtual server mapping */
+	install_keyword_root("virtual_server_group", &vsg_handler, active);
+	install_keyword_root("virtual_server", &vs_handler, active);
+	install_keyword("ip_family", &ip_family_handler, active);
+	install_keyword("delay_loop", &delay_handler, active);
+	install_keyword("lb_algo", &lbalgo_handler, active);
+	install_keyword("lvs_sched", &lbalgo_handler, active);
+	install_keyword("lb_kind", &lbkind_handler, active);
+	install_keyword("lvs_method", &lbkind_handler, active);
+	install_keyword("persistence_engine", &pengine_handler, active);
+	install_keyword("persistence_timeout", &pto_handler, active);
+	install_keyword("persistence_granularity", &pgr_handler, active);
+	install_keyword("protocol", &proto_handler, active);
+	install_keyword("ha_suspend", &hasuspend_handler, active);
+	install_keyword("ops", &ops_handler, active);
+	install_keyword("virtualhost", &virtualhost_handler, active);
+
+	/* Pool regression detection and handling. */
+	install_keyword("alpha", &alpha_handler, active);
+	install_keyword("omega", &omega_handler, active);
+	install_keyword("quorum_up", &quorum_up_handler, active);
+	install_keyword("quorum_down", &quorum_down_handler, active);
+	install_keyword("quorum", &quorum_handler, active);
+	install_keyword("hysteresis", &hysteresis_handler, active);
+
+	/* Real server mapping */
+	install_keyword("sorry_server", &ssvr_handler, active);
+	install_keyword("sorry_server_inhibit", &ssvri_handler, active);
+	install_keyword("real_server", &rs_handler, active);
+	install_sublevel();
+	install_keyword("weight", &weight_handler, active);
+#ifdef _KRNL_2_6_
+	install_keyword("uthreshold", &uthreshold_handler, active);
+	install_keyword("lthreshold", &lthreshold_handler, active);
+#endif
+	install_keyword("inhibit_on_failure", &inhibit_handler, active);
+	install_keyword("notify_up", &notify_up_handler, active);
+	install_keyword("notify_down", &notify_down_handler, active);
+
+	install_sublevel_end_handler(&vs_end_handler, active);
+
+	/* Checkers mapping */
+	install_checkers_keyword(active);
+	install_sublevel_end();
+}
+
 vector_t *
 check_init_keywords(void)
 {
 	/* global definitions mapping */
 	global_init_keywords();
 
-	/* SSL mapping */
-	install_keyword_root("SSL", &ssl_handler);
-	install_keyword("password", &sslpass_handler);
-	install_keyword("ca", &sslca_handler);
-	install_keyword("certificate", &sslcert_handler);
-	install_keyword("key", &sslkey_handler);
-
-	/* Virtual server mapping */
-	install_keyword_root("virtual_server_group", &vsg_handler);
-	install_keyword_root("virtual_server", &vs_handler);
-	install_keyword("ip_family", &ip_family_handler);
-	install_keyword("delay_loop", &delay_handler);
-	install_keyword("lb_algo", &lbalgo_handler);
-	install_keyword("lvs_sched", &lbalgo_handler);
-	install_keyword("lb_kind", &lbkind_handler);
-	install_keyword("lvs_method", &lbkind_handler);
-	install_keyword("persistence_engine", &pengine_handler);
-	install_keyword("persistence_timeout", &pto_handler);
-	install_keyword("persistence_granularity", &pgr_handler);
-	install_keyword("protocol", &proto_handler);
-	install_keyword("ha_suspend", &hasuspend_handler);
-	install_keyword("ops", &ops_handler);
-	install_keyword("virtualhost", &virtualhost_handler);
-
-	/* Pool regression detection and handling. */
-	install_keyword("alpha", &alpha_handler);
-	install_keyword("omega", &omega_handler);
-	install_keyword("quorum_up", &quorum_up_handler);
-	install_keyword("quorum_down", &quorum_down_handler);
-	install_keyword("quorum", &quorum_handler);
-	install_keyword("hysteresis", &hysteresis_handler);
-
-	/* Real server mapping */
-	install_keyword("sorry_server", &ssvr_handler);
-	install_keyword("sorry_server_inhibit", &ssvri_handler);
-	install_keyword("real_server", &rs_handler);
-	install_sublevel();
-	install_keyword("weight", &weight_handler);
-#ifdef _KRNL_2_6_
-	install_keyword("uthreshold", &uthreshold_handler);
-	install_keyword("lthreshold", &lthreshold_handler);
-#endif
-	install_keyword("inhibit_on_failure", &inhibit_handler);
-	install_keyword("notify_up", &notify_up_handler);
-	install_keyword("notify_down", &notify_down_handler);
-
-	install_sublevel_end_handler(&vs_end_handler);
-
-	/* Checkers mapping */
-	install_checkers_keyword();
-	install_sublevel_end();
-
+	init_check_keywords(true);
+	init_vrrp_keywords(false);
 	return keywords;
 }

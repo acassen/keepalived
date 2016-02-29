@@ -258,7 +258,7 @@ vrrp_init_state(list l)
 			vrrp->state = VRRP_STATE_BACK;
 			vrrp_smtp_notifier(vrrp);
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 			vrrp_snmp_instance_trap(vrrp);
 #endif
 			vrrp->last_transition = timer_now();
@@ -269,12 +269,15 @@ vrrp_init_state(list l)
 					vgroup->state = VRRP_STATE_BACK;
 					vrrp_sync_smtp_notifier(vgroup);
 					notify_group_exec(vgroup, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 					vrrp_snmp_group_trap(vgroup);
 #endif
 				}
 			}
 		}
+#ifdef _WITH_SNMP_RFC_
+		vrrp->stats->uptime = timer_now();
+#endif
 	}
 }
 
@@ -586,7 +589,7 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, int len)
 		if (vrrp->state != VRRP_STATE_FAULT) {
 			notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 			vrrp->state = VRRP_STATE_FAULT;
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 			vrrp_snmp_instance_trap(vrrp);
 #endif
 		}
@@ -635,6 +638,7 @@ vrrp_leave_master(vrrp_t * vrrp, char *buffer, int len)
 	}
 }
 
+#ifdef _WITH_VRRP_AUTH_
 static void
 vrrp_ah_sync(vrrp_t *vrrp)
 {
@@ -647,6 +651,7 @@ vrrp_ah_sync(vrrp_t *vrrp)
 	vrrp->wantstate = VRRP_STATE_BACK;
 	vrrp_state_leave_master(vrrp);
 }
+#endif
 
 static void
 vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
@@ -661,12 +666,18 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
 				       "VRRP_Instance(%s) prio is higher than received advert",
 				       vrrp->iname);
 				vrrp_become_master(vrrp, buffer, len);
+#ifdef _WITH_SNMP_RFC_
+				vrrp->stats->uptime = timer_now();
+#endif
 			}
 		} else {
 			log_message(LOG_INFO,
 			       "VRRP_Instance(%s) prio is higher than received advert",
 			       vrrp->iname);
 			vrrp_become_master(vrrp, buffer, len);
+#ifdef _WITH_SNMP_RFC_
+			vrrp->stats->uptime = timer_now();
+#endif
 		}
 	} else {
 		if (vrrp->sync) {
@@ -676,10 +687,13 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
 				vrrp->state = VRRP_STATE_BACK;
 				vrrp_smtp_notifier(vrrp);
 				notify_instance_exec(vrrp, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 				vrrp_snmp_instance_trap(vrrp);
 #endif
 				vrrp->last_transition = timer_now();
+#ifdef _WITH_SNMP_RFC_
+				vrrp->stats->uptime = vrrp->last_transition;
+#endif
 			}
 		} else {
 			log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
@@ -687,10 +701,13 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
 			vrrp->state = VRRP_STATE_BACK;
 			vrrp_smtp_notifier(vrrp);
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 			vrrp_snmp_instance_trap(vrrp);
 #endif
 			vrrp->last_transition = timer_now();
+#ifdef _WITH_SNMP_RFC_
+			vrrp->stats->uptime = vrrp->last_transition;
+#endif
 		}
 	}
 }
@@ -707,7 +724,7 @@ vrrp_goto_master(vrrp_t * vrrp)
 		vrrp->state = VRRP_STATE_FAULT;
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
 		vrrp->last_transition = timer_now();
@@ -853,7 +870,7 @@ vrrp_fault(vrrp_t * vrrp)
 		if (vrrp->init_state == VRRP_STATE_BACK) {
 			vrrp->state = VRRP_STATE_BACK;
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 			vrrp_snmp_instance_trap(vrrp);
 #endif
 			vrrp->last_transition = timer_now();
@@ -861,6 +878,9 @@ vrrp_fault(vrrp_t * vrrp)
 			vrrp_goto_master(vrrp);
 		}
 	}
+#ifdef _WITH_SNMP_RFC_
+	vrrp->stats->uptime = timer_now();
+#endif
 }
 
 /* Handle dispatcher read timeout */

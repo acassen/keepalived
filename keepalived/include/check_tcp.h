@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <netdb.h>
 #include <arpa/inet.h>
+#include <stdbool.h>
 
 /* local includes */
 #include "scheduler.h"
@@ -41,6 +42,6 @@ typedef struct _tcp_check {
 #define FMT_TCP_RS(C) FMT_CHK(C)
 
 /* Prototypes defs */
-extern void install_tcp_check_keyword(void);
+extern void install_tcp_check_keyword(bool);
 
 #endif

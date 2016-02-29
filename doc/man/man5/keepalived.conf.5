@@ -102,6 +102,12 @@ and
  #   IPv6 addresses in VRRP version 2
  vrrp_strict
 
+ # If keepalived has been build with SNMP support, the following keywords are available
+ # Note: keepalived, checker and rfc support can be individually enabled/disabled
+ snmp_socket 1.2.3.4:161      # specify socket to use for connecting to SNMP master agent
+ enable_snmp_keepalived       # enable SNMP handling of vrrp element of KEEPALIVED MIB
+ enable_snmp_checker          # enable SNMP handling of checker element of KEEPALIVED MIB
+ enable_snmp_rfc              # enable SNMP handling of RFC2787 VRRP MIB
  enable_traps                 # enable SNMP traps
  }
 

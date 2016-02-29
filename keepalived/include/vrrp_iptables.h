@@ -24,11 +24,10 @@
 #define _VRRP_IPTABLES_H
 
 #ifdef _HAVE_LIBIPTC_
-int load_mod_xt_set(void);
 #include <libiptc/libxtc.h>
 #endif
 
-
+#include "vrrp_iptables_calls.h"
 #include "vrrp_ipaddress.h"
 
 struct ipt_handle;

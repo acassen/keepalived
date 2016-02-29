@@ -82,6 +82,10 @@ typedef struct _data {
 	char				vrrp_strict;
 #ifdef _WITH_SNMP_
 	int				enable_traps;
+	char				*snmp_socket;
+	int				enable_snmp_keepalived;
+	int				enable_snmp_rfc;
+	int				enable_snmp_checker;
 #endif
 } data_t;
 

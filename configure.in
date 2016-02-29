@@ -9,7 +9,8 @@
 dnl ----[ Process this file with autoconf to produce a configure script ]----
 AC_INIT(keepalived/core/main.c)
 VERSION=`cat VERSION`
-VERSION_DATE=`date +%m/%d,20%y`
+VERSION_DATE=`date +%m/%d,%Y`
+VERSION_YEAR=`date +%Y`
 OUTPUT_TARGET="Makefile genhash/Makefile keepalived/core/Makefile lib/config.h keepalived.spec"
 
 dnl ----[ Checks for programs ]----
@@ -35,6 +36,12 @@ AC_ARG_ENABLE(fwmark,
   [  --disable-fwmark        compile without SO_MARK support])
 AC_ARG_ENABLE(snmp,
   [  --enable-snmp           compile with SNMP support])
+AC_ARG_ENABLE(snmp-keepalived,
+  [  --enable-snmp-keepalived compile with SNMP keepalived support])
+AC_ARG_ENABLE(snmp-checker,
+  [  --enable-snmp-checker   compile with SNMP checker support])
+AC_ARG_ENABLE(snmp-rfc,
+  [  --enable-snmp-rfc       compile with SNMP RFC2787 support])
 AC_ARG_ENABLE(sha1,
   [  --enable-sha1           compile with SHA1 support])
 AC_ARG_ENABLE(vrrp-auth,
@@ -345,7 +352,10 @@ AC_SUBST(ADDR_GEN_MODE)
 
 dnl ----[ Checks for SNMP support ]----
 SNMP_SUPPORT="_WITHOUT_SNMP_"
-if test "$enable_snmp" = "yes"; then
+SNMP_KEEPALIVED_SUPPORT="_WITHOUT_SNMP_KEEPALIVED_"
+SNMP_RFC_SUPPORT="_WITHOUT_SNMP_RFC_"
+SNMP_CHECKER_SUPPORT="_WITHOUT_SNMP_CHECKER_"
+if test "$enable_snmp" = "yes" -o "$enable_snmp_rfc" = "yes" -o "$enable_snmp_keepalived" = "yes" -o "$enable_snmp_checker" = "yes"; then
 
   AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], [no])
   if test x"$NETSNMP_CONFIG" = x"no"; then
@@ -383,9 +393,25 @@ int main(void);
   ])
 
   SNMP_SUPPORT="_WITH_SNMP_"
+  if test "$enable_snmp_rfc" = "yes"; then
+    SNMP_RFC_SUPPORT="_WITH_SNMP_RFC_"
+  fi
+  if test "$enable_snmp_keepalived" = "yes"; then
+    SNMP_KEEPALIVED_SUPPORT="_WITH_SNMP_KEEPALIVED_"
+  fi
+  if test "$enable_snmp_checker" = "yes"; then
+    SNMP_CHECKER_SUPPORT="_WITH_SNMP_CHECKER_"
+  fi
+  if test "$enable_snmp" = "yes"; then
+    SNMP_KEEPALIVED_SUPPORT="_WITH_SNMP_KEEPALIVED_"
+    SNMP_CHECKER_SUPPORT="_WITH_SNMP_CHECKER_"
+  fi
 fi
 
 AC_SUBST(SNMP_SUPPORT)
+AC_SUBST(SNMP_KEEPALIVED_SUPPORT)
+AC_SUBST(SNMP_RFC_SUPPORT)
+AC_SUBST(SNMP_CHECKER_SUPPORT)
 
 dnl ----[ SHA1 or not ? ]----
 SHA1_SUPPORT="_WITHOUT_SHA1_"
@@ -435,9 +461,15 @@ fi
 
 AC_SUBST(VERSION)
 AC_SUBST(VERSION_DATE)
+AC_SUBST(VERSION_YEAR)
 AC_SUBST(IPVS_SUPPORT)
 AC_SUBST(USE_NL)
 AC_SUBST(VRRP_SUPPORT)
+
+APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} ${DFLAGS}"
+BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
+AC_SUBST(APP_DEFS)
+AC_SUBST(BUILD_OPTS)
 
 dnl ----[ Checks for typedefs, structures, and compiler characteristics ]----
 AC_C_CONST
@@ -519,10 +551,20 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
 else
   echo "Use VRRP Framework       : No"
 fi
-if test "${SNMP_SUPPORT}" = "_WITH_SNMP_"; then
-  echo "SNMP support             : Yes"
+if test "${SNMP_KEEPALIVED_SUPPORT}" = "_WITH_SNMP_KEEPALIVED_"; then
+  echo "SNMP keepalived support  : Yes"
 else
-  echo "SNMP support             : No"
+  echo "SNMP keepalived support  : No"
+fi
+if test "${SNMP_CHECKER_SUPPORT}" = "_WITH_SNMP_CHECKER_"; then
+  echo "SNMP checker support     : Yes"
+else
+  echo "SNMP checker support     : No"
+fi
+if test "${SNMP_RFC_SUPPORT}" = "_WITH_SNMP_RFC_"; then
+  echo "SNMP RFC support         : Yes"
+else
+  echo "SNMP RFC support         : No"
 fi
 if test "${SHA1_SUPPORT}" = "_WITH_SHA1_"; then
   echo "SHA1 support             : Yes"

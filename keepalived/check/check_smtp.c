@@ -194,21 +194,21 @@ smtp_db_retry_handler(vector_t *strvec)
 
 /* Config callback installer */
 void
-install_smtp_check_keyword(void)
+install_smtp_check_keyword(bool active)
 {
         /* 
          * Notify the config log parser that we need to be notified via
 	 * callbacks when the following keywords are encountered in the
 	 * keepalive.conf file.
          */
-	install_keyword("SMTP_CHECK", &smtp_check_handler);
+	install_keyword("SMTP_CHECK", &smtp_check_handler, active);
 	install_sublevel();
-	install_keyword("helo_name", &smtp_helo_name_handler);
+	install_keyword("helo_name", &smtp_helo_name_handler, active);
 
-	install_keyword("warmup", &warmup_handler);
-	install_keyword("delay_before_retry", &smtp_db_retry_handler);
-	install_keyword("retry", &smtp_retry_handler);
-	install_connect_keywords();
+	install_keyword("warmup", &warmup_handler, active);
+	install_keyword("delay_before_retry", &smtp_db_retry_handler, active);
+	install_keyword("retry", &smtp_retry_handler, active);
+	install_connect_keywords(active);
 
 	/*
 	 * The host list feature is deprecated. It makes config fussy by
@@ -217,12 +217,12 @@ install_smtp_check_keyword(void)
 	 * So these keywords below are kept for compatibility with users'
 	 * existing configs.
 	 */
-	install_keyword("host", &smtp_host_handler);
+	install_keyword("host", &smtp_host_handler, active);
 	install_sublevel();
-	install_connect_keywords();
+	install_connect_keywords(active);
 	install_sublevel_end();
 
-	install_sublevel_end_handler(&smtp_check_end_handler);
+	install_sublevel_end_handler(&smtp_check_end_handler, active);
 	install_sublevel_end();
 }
 

@@ -22,7 +22,9 @@
  */
 
 #ifndef O_CLOEXEC
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE /* to make O_CLOEXEC available */
+#endif
 #include <fcntl.h>
 #endif
 
@@ -801,7 +803,7 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 	UNSET_ALIVE(vsge);
 }
 
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_CHECKER_
 /* Update statistics for a given virtual server. This includes
    statistics of real servers. The update is only done if we need
    refreshing. */
@@ -1019,7 +1021,7 @@ ipvs_update_stats(virtual_server_t *vs)
 		FREE(serv);
 	}
 }
-#endif /* _WITH_SNMP_ */
+#endif /* _WITH_SNMP_CHECKER_ */
 
 #endif
 

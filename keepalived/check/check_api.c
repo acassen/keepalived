@@ -191,15 +191,15 @@ co_fwmark_handler(vector_t *strvec)
 #endif
 
 void
-install_connect_keywords(void)
+install_connect_keywords(bool active)
 {
-	install_keyword("connect_ip", &co_ip_handler);
-	install_keyword("connect_port", &co_port_handler);
-	install_keyword("bindto", &co_srcip_handler);
-	install_keyword("bind_port", &co_srcport_handler);
-	install_keyword("connect_timeout", &co_timeout_handler);
+	install_keyword("connect_ip", &co_ip_handler, active);
+	install_keyword("connect_port", &co_port_handler, active);
+	install_keyword("bindto", &co_srcip_handler, active);
+	install_keyword("bind_port", &co_srcport_handler, active);
+	install_keyword("connect_timeout", &co_timeout_handler, active);
 #ifdef _WITH_SO_MARK_
-	install_keyword("fwmark", &co_fwmark_handler);
+	install_keyword("fwmark", &co_fwmark_handler, active);
 #endif
 }
 
@@ -312,11 +312,11 @@ update_checker_activity(sa_family_t family, void *address, int enable)
 
 /* Install checkers keywords */
 void
-install_checkers_keyword(void)
+install_checkers_keyword(bool active)
 {
-	install_misc_check_keyword();
-	install_smtp_check_keyword();
-	install_tcp_check_keyword();
-	install_http_check_keyword();
-	install_ssl_check_keyword();
+	install_misc_check_keyword(active);
+	install_smtp_check_keyword(active);
+	install_tcp_check_keyword(active);
+	install_http_check_keyword(active);
+	install_ssl_check_keyword(active);
 }
