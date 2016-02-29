@@ -1433,9 +1433,6 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 
 	netsnmp_variable_list *notification_vars = NULL;
 
-	static unsigned long state;
-	static unsigned long istate;
-
 	if (!global_data->enable_traps || !global_data->enable_snmp_keepalived)
 		return;
 
@@ -1452,19 +1449,17 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 				  (u_char *)vrrp->iname,
 				  strlen(vrrp->iname));
 	/* vrrpInstanceState */
-	state = vrrp_snmp_state(vrrp->state);
 	snmp_varlist_add_variable(&notification_vars,
 				  state_oid, state_oid_len,
 				  ASN_INTEGER,
-				  (u_char *)&state,
-				  sizeof(state));
+				  (u_char *)&vrrp->state,
+				  sizeof(vrrp->state));
 	/* vrrpInstanceInitialState */
-	istate = vrrp_snmp_state(vrrp->init_state);
 	snmp_varlist_add_variable(&notification_vars,
 				  initialstate_oid, initialstate_oid_len,
 				  ASN_INTEGER,
-				  (u_char *)&istate,
-				  sizeof(istate));
+				  (u_char *)&vrrp->init_state,
+				  sizeof(vrrp->init_state));
 
 	/* routerId */
 	snmp_varlist_add_variable(&notification_vars,
@@ -1500,8 +1495,6 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 
 	netsnmp_variable_list *notification_vars = NULL;
 
-	static unsigned long state;
-
 	if (!global_data->enable_traps || !global_data->enable_snmp_keepalived)
 		return;
 
@@ -1519,12 +1512,11 @@ vrrp_snmp_group_trap(vrrp_sgroup_t *group)
 				  (u_char *)group->gname,
 				  strlen(group->gname));
 	/* vrrpSyncGroupState */
-	state = vrrp_snmp_state(group->state);
 	snmp_varlist_add_variable(&notification_vars,
 				  state_oid, state_oid_len,
 				  ASN_INTEGER,
-				  (u_char *)&state,
-				  sizeof(state));
+				  (u_char *)&group->state,
+				  sizeof(group->state));
 
 	/* routerId */
 	snmp_varlist_add_variable(&notification_vars,
