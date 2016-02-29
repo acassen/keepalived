@@ -92,14 +92,14 @@ misc_dynamic_handler(vector_t *strvec)
 }
 
 void
-install_misc_check_keyword(void)
+install_misc_check_keyword(bool active)
 {
-	install_keyword("MISC_CHECK", &misc_check_handler);
+	install_keyword("MISC_CHECK", &misc_check_handler, active);
 	install_sublevel();
-	install_keyword("misc_path", &misc_path_handler);
-	install_keyword("misc_timeout", &misc_timeout_handler);
-	install_keyword("misc_dynamic", &misc_dynamic_handler);
-	install_keyword("warmup", &warmup_handler);
+	install_keyword("misc_path", &misc_path_handler, active);
+	install_keyword("misc_timeout", &misc_timeout_handler, active);
+	install_keyword("misc_dynamic", &misc_dynamic_handler, active);
+	install_keyword("warmup", &warmup_handler, active);
 	install_sublevel_end();
 }
 

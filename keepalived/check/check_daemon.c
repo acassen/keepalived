@@ -41,7 +41,7 @@
 #include "bitops.h"
 #include "vrrp_netlink.h"
 #include "vrrp_if.h"
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_CHECKER_
   #include "check_snmp.h"
 #endif
 
@@ -59,8 +59,8 @@ stop_check(void)
 	if (!__test_bit(DONT_RELEASE_IPVS_BIT, &debug))
 		clear_services();
 	ipvs_stop();
-#ifdef _WITH_SNMP_
-	if (snmp)
+#ifdef _WITH_SNMP_CHECKER_
+	if (global_data->enable_snmp_checker)
 		check_snmp_agent_close();
 #endif
 
@@ -100,10 +100,6 @@ start_check(void)
 	init_interface_queue();
 	kernel_netlink_init();
 #endif
-#ifdef _WITH_SNMP_
-	if (!reload && snmp)
-		check_snmp_agent_init(snmp_socket);
-#endif
 
 	/* Parse configuration file */
 	global_data = alloc_global_data();
@@ -118,6 +114,11 @@ start_check(void)
 	/* Post initializations */
 #ifdef _DEBUG_
 	log_message(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
+#endif
+
+#ifdef _WITH_SNMP_CHECKER_
+	if (!reload && global_data->enable_snmp_checker)
+		check_snmp_agent_init(global_data->snmp_socket);
 #endif
 
 	/* SSL load static data & initialize common ctx context */

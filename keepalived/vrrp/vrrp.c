@@ -379,6 +379,9 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 	if ((hd->vers_type >> 4) != vrrp->version) {
 		log_message(LOG_INFO, "(%s): invalid version. %d and expect %d",
 		       vrrp->iname, (hd->vers_type >> 4), vrrp->version);
+#ifdef _WITH_SNMP_RFC_
+		vrrp->stats->vers_err++;
+#endif
 		return VRRP_PACKET_KO;
 	}
 
@@ -395,6 +398,9 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 		log_message(LOG_INFO,
 		       "(%s): received VRID mismatch. Received %d, Expected %d",
 		       vrrp->iname, hd->vrid, vrrp->vrid);
+#ifdef _WITH_SNMP_RFC_
+		vrrp->stats->vrid_err++;
+#endif
 		return VRRP_PACKET_DROP;
 	}
 
@@ -407,6 +413,9 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 		hd->v2.auth_type != VRRP_AUTH_NONE) {
 		log_message(LOG_INFO, "(%s): Invalid auth type: %d", vrrp->iname, hd->v2.auth_type);
 		++vrrp->stats->invalid_authtype;
+#ifdef _WITH_SNMP_RFC_
+		vrrp_rfc_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, invalidAuthType);
+#endif
 		return VRRP_PACKET_KO;
 	}
 
@@ -420,6 +429,9 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 		log_message(LOG_INFO, "(%s): received a %d auth, expecting %d!",
 		       vrrp->iname, hd->v2.auth_type, vrrp->auth_type);
 		++vrrp->stats->authtype_mismatch;
+#ifdef _WITH_SNMP_RFC_
+		vrrp_rfc_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authTypeMismatch);
+#endif
 		return VRRP_PACKET_KO;
 	}
 
@@ -431,14 +443,21 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 			if (memcmp(pw, vrrp->auth_data, sizeof(vrrp->auth_data)) != 0) {
 				log_message(LOG_INFO, "(%s): received an invalid passwd!", vrrp->iname);
 				++vrrp->stats->auth_failure;
+#ifdef _WITH_SNMP_RFC_
+				vrrp_rfc_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authFailure);
+#endif
 				return VRRP_PACKET_KO;
 			}
 		}
 
 		/* check the authenicaion if it is ipsec ah */
 		else if (hd->v2.auth_type == VRRP_AUTH_AH) {
-			if (vrrp_in_chk_ipsecah(vrrp, buffer))
+			if (vrrp_in_chk_ipsecah(vrrp, buffer)) {
+#ifdef _WITH_SNMP_RFC_
+				vrrp_rfc_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authFailure);
+#endif
 				return VRRP_PACKET_KO;
+			}
 		}
 	}
 #endif
@@ -504,12 +523,18 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 			in_csum((u_short *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
 			if (in_csum((u_short *) hd, vrrppkt_len, acc_csum, NULL)) {
 				log_message(LOG_INFO, "(%s): Invalid VRRPv3 checksum", vrrp->iname);
+#ifdef _WITH_SNMP_RFC_
+				vrrp->stats->chk_err++;
+#endif
 				return VRRP_PACKET_KO;
 			}
 		} else {
 			vrrppkt_len += VRRP_AUTH_LEN;
 			if (in_csum((u_short *) hd, vrrppkt_len, 0, NULL)) {
 				log_message(LOG_INFO, "(%s): Invalid VRRPv2 checksum", vrrp->iname);
+#ifdef _WITH_SNMP_RFC_
+				vrrp->stats->chk_err++;
+#endif
 				return VRRP_PACKET_KO;
 			}
 		}
@@ -1136,9 +1161,11 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	/* Check if notify is needed */
 	notify_instance_exec(vrrp, VRRP_STATE_MAST);
 
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 	vrrp_snmp_instance_trap(vrrp);
+#ifdef _WITH_SNMP_RFC_
 	vrrp_rfc_snmp_new_master_trap(vrrp);
+#endif
 #endif
 
 #ifdef _HAVE_IPVS_SYNCD_
@@ -1238,7 +1265,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 		vrrp_restore_interface(vrrp, 0);
 		vrrp->state = vrrp->wantstate;
 		notify_instance_exec(vrrp, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
 		break;
@@ -1248,7 +1275,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 		vrrp->state = VRRP_STATE_FAULT;
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
 		break;
@@ -1934,7 +1961,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	    (vrrp->base_priority != VRRP_PRIO_OWNER) &&
 	    !vrrp->accept) {
 //TODO = we have a problem since SNMP may change accept mode
-//can it also chenge priority?
+//it can also change priority
 		if (vrrp->saddr.ss_family == AF_INET)
 			global_data->block_ipv4 = true;
 		else
@@ -2028,9 +2055,6 @@ vrrp_complete_init(void)
 		}
 	}
 
-#ifdef _HAVE_LIBIPTC
-	check_iptables_exist();
-#endif
 
 	/* Build synchronization group index, and remove any
 	 * empty groups, or groups with only one member */

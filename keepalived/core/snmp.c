@@ -107,7 +107,7 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 	
 	switch (vp->magic) {
 	case SNMP_KEEPALIVEDVERSION:
-		*var_len = sizeof(version) - 2;
+		*var_len = sizeof(version) - 1;
 		return (u_char *)version;
 	case SNMP_ROUTERID:
 		if (!global_data->router_id) return NULL;
@@ -213,11 +213,17 @@ void snmp_register_mib(oid *myoid, int len, const char *name,
 		log_message(LOG_WARNING, "Unable to register %s MIB", name);
 
 	snprintf(name_buf, sizeof(name_buf), "The MIB module for %s", name);
-	register_sysORTable(myoid, OID_LENGTH(myoid) - 1, name_buf);
+	register_sysORTable(myoid, len, name_buf);
 }
 
 void
-snmp_agent_init(const char *snmp_socket)
+snmp_unregister_mib(oid *myoid, int len)
+{
+	unregister_sysORTable(myoid, len);
+}
+
+void
+snmp_agent_init(const char *snmp_socket, bool base_mib)
 {
 	log_message(LOG_INFO, "Starting SNMP subagent");
 	netsnmp_enable_subagent();
@@ -254,17 +260,18 @@ snmp_agent_init(const char *snmp_socket)
 			   NETSNMP_DS_AGENT_AGENTX_PING_INTERVAL, 120);
 
 	init_agent(global_name);
-	snmp_register_mib(global_oid, OID_LENGTH(global_oid), global_name,
-			  (struct variable *)global_vars,
-			  sizeof(struct variable8),
-			  sizeof(global_vars)/sizeof(struct variable8));
+	if (base_mib)
+		snmp_register_mib(global_oid, OID_LENGTH(global_oid), global_name,
+				  (struct variable *)global_vars,
+				  sizeof(struct variable8),
+				  sizeof(global_vars)/sizeof(struct variable8));
 	init_snmp(global_name);
 }
 
 void
-snmp_agent_close(oid *myoid, int len, char *name)
+snmp_agent_close(bool base_mib)
 {
-	unregister_sysORTable(myoid, len);
-	unregister_sysORTable(global_oid, OID_LENGTH(global_oid));
+	if (base_mib)
+		snmp_unregister_mib(global_oid, OID_LENGTH(global_oid));
 	snmp_shutdown(global_name);
 }

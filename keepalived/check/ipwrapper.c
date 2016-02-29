@@ -27,7 +27,7 @@
 #include "utils.h"
 #include "notify.h"
 #include "main.h"
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_CHECKER_
   #include "check_snmp.h"
 #endif
 
@@ -83,7 +83,7 @@ clear_service_rs(virtual_server_t * vs, list l)
 						    , FMT_VS(vs));
 				notify_exec(rs->notify_down);
 			}
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_CHECKER_
 			check_snmp_rs_trap(rs, vs);
 #endif
 
@@ -103,7 +103,7 @@ clear_service_rs(virtual_server_t * vs, list l)
 							    , FMT_VS(vs));
 					notify_exec(vs->quorum_down);
 				}
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_CHECKER_
 				check_snmp_quorum_trap(vs);
 #endif
 			}
@@ -318,7 +318,7 @@ update_quorum_state(virtual_server_t * vs)
 					    , FMT_VS(vs));
 			notify_exec(vs->quorum_up);
 		}
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_CHECKER_
                check_snmp_quorum_trap(vs);
 #endif
 		return;
@@ -356,7 +356,7 @@ update_quorum_state(virtual_server_t * vs)
 			/* Remove remaining alive real servers */
 			perform_quorum_state(vs, 0);
 		}
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_CHECKER_
 		check_snmp_quorum_trap(vs);
 #endif
 		return;
@@ -392,7 +392,7 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 					    , FMT_VS(vs));
 			notify_exec(rs->notify_up);
 		}
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_CHECKER_
 		check_snmp_rs_trap(rs, vs);
 #endif
 
@@ -421,7 +421,7 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 					    , FMT_VS(vs));
 			notify_exec(rs->notify_down);
 		}
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_CHECKER_
 		check_snmp_rs_trap(rs, vs);
 #endif
 

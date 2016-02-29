@@ -134,14 +134,14 @@ vrrp_iptables_handler(vector_t *strvec)
 	global_data->vrrp_iptables_outchain[0] = '\0';
 	if (vector_size(strvec) >= 2) {
 		if (strlen(vector_slot(strvec,1)) >= sizeof(global_data->vrrp_iptables_inchain)-1) {
-			log_message(LOG_INFO, "VRRP Error : iptables in chain name too long - ignored\n");
+			log_message(LOG_INFO, "VRRP Error : iptables in chain name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_iptables_inchain, vector_slot(strvec,1));
 	}
 	if (vector_size(strvec) >= 3) {
 		if (strlen(vector_slot(strvec,2)) >= sizeof(global_data->vrrp_iptables_outchain)-1) {
-			log_message(LOG_INFO, "VRRP Error : iptables out chain name too long - ignored\n");
+			log_message(LOG_INFO, "VRRP Error : iptables out chain name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_iptables_outchain, vector_slot(strvec,2));
@@ -155,7 +155,7 @@ vrrp_ipsets_handler(vector_t *strvec)
 
 	if (vector_size(strvec) >= 2) {
 		if (strlen(vector_slot(strvec,1)) >= sizeof(global_data->vrrp_ipset_address)-1) {
-			log_message(LOG_INFO, "VRRP Error : ipset address name too long - ignored\n");
+			log_message(LOG_INFO, "VRRP Error : ipset address name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_ipset_address, vector_slot(strvec,1));
@@ -167,7 +167,7 @@ vrrp_ipsets_handler(vector_t *strvec)
 
 	if (vector_size(strvec) >= 3) {
 		if (strlen(vector_slot(strvec,2)) >= sizeof(global_data->vrrp_ipset_address6)-1) {
-			log_message(LOG_INFO, "VRRP Error : ipset IPv6 address name too long - ignored\n");
+			log_message(LOG_INFO, "VRRP Error : ipset IPv6 address name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_ipset_address6, vector_slot(strvec,2));
@@ -183,7 +183,7 @@ vrrp_ipsets_handler(vector_t *strvec)
 	}
 	if (vector_size(strvec) >= 4) {
 		if (strlen(vector_slot(strvec,3)) >= sizeof(global_data->vrrp_ipset_address_iface6)-1) {
-			log_message(LOG_INFO, "VRRP Error : ipset IPv6 address_iface name too long - ignored\n");
+			log_message(LOG_INFO, "VRRP Error : ipset IPv6 address_iface name too long - ignored");
 			return;
 		}
 		strcpy(global_data->vrrp_ipset_address_iface6, vector_slot(strvec,3));
@@ -206,8 +206,8 @@ vrrp_version_handler(vector_t *strvec)
 {
 	uint8_t version = atoi(vector_slot(strvec, 1));
 	if (VRRP_IS_BAD_VERSION(version)) {
-		log_message(LOG_INFO, "VRRP Error : Version not valid !\n");
-		log_message(LOG_INFO, "             must be between either 2 or 3. reconfigure !\n");
+		log_message(LOG_INFO, "VRRP Error : Version not valid !");
+		log_message(LOG_INFO, "             must be between either 2 or 3. reconfigure !");
 		return;
 	}
 	global_data->vrrp_version = version;
@@ -229,38 +229,95 @@ vrrp_strict_handler(vector_t *strvec)
 }
 #ifdef _WITH_SNMP_
 static void
+snmp_socket_handler(vector_t *strvec)
+{
+	if (vector_size(strvec) > 2) {
+		log_message(LOG_INFO, "Too many parameters specified for snmp_socket - ignoring");
+		return;
+	}
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "SNMP error : snmp socket name missing");
+		return;
+	}
+
+	if (strlen(vector_slot(strvec,1)) > PATH_MAX - 1) {
+		log_message(LOG_INFO, "SNMP error : snmp socket name too long - ignored");
+		return;
+	}
+
+	if (global_data->snmp_socket) {
+		log_message(LOG_INFO, "SNMP socket already set to %s - ignoring", global_data->snmp_socket);
+		return;
+	}
+
+	global_data->snmp_socket = MALLOC(strlen(vector_slot(strvec, 1) + 1));
+	strcpy(global_data->snmp_socket, vector_slot(strvec,1));
+}
+static void
 trap_handler(vector_t *strvec)
 {
-	global_data->enable_traps = 1;
+	global_data->enable_traps = true;
 }
+#ifdef _WITH_SNMP_KEEPALIVED_
+static void
+snmp_keepalived_handler(vector_t *strvec)
+{
+	global_data->enable_snmp_keepalived = true;
+}
+#endif
+#ifdef _WITH_SNMP_RFC_
+static void
+snmp_rfc_handler(vector_t *strvec)
+{
+	global_data->enable_snmp_rfc = true;
+}
+#endif
+#ifdef _WITH_SNMP_CHECKER_
+static void
+snmp_checker_handler(vector_t *strvec)
+{
+	global_data->enable_snmp_checker = true;
+}
+#endif
 #endif
 
 void
 global_init_keywords(void)
 {
 	/* global definitions mapping */
-	install_keyword_root("linkbeat_use_polling", use_polling_handler);
-	install_keyword_root("global_defs", NULL);
-	install_keyword("router_id", &routerid_handler);
-	install_keyword("notification_email_from", &emailfrom_handler);
-	install_keyword("smtp_server", &smtpserver_handler);
-	install_keyword("smtp_connect_timeout", &smtpto_handler);
-	install_keyword("notification_email", &email_handler);
-	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler);
-	install_keyword("vrrp_mcast_group6", &vrrp_mcast_group6_handler);
-	install_keyword("vrrp_garp_master_delay", &vrrp_garp_delay_handler);
-	install_keyword("vrrp_garp_master_repeat", &vrrp_garp_rep_handler);
-	install_keyword("vrrp_garp_master_refresh", &vrrp_garp_refresh_handler);
-	install_keyword("vrrp_garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
-	install_keyword("vrrp_version", &vrrp_version_handler);
-	install_keyword("vrrp_iptables", &vrrp_iptables_handler);
+	install_keyword_root("linkbeat_use_polling", use_polling_handler, true);
+	install_keyword_root("global_defs", NULL, true);
+	install_keyword("router_id", &routerid_handler, true);
+	install_keyword("notification_email_from", &emailfrom_handler, true);
+	install_keyword("smtp_server", &smtpserver_handler, true);
+	install_keyword("smtp_connect_timeout", &smtpto_handler, true);
+	install_keyword("notification_email", &email_handler, true);
+	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler, true);
+	install_keyword("vrrp_mcast_group6", &vrrp_mcast_group6_handler, true);
+	install_keyword("vrrp_garp_master_delay", &vrrp_garp_delay_handler, true);
+	install_keyword("vrrp_garp_master_repeat", &vrrp_garp_rep_handler, true);
+	install_keyword("vrrp_garp_master_refresh", &vrrp_garp_refresh_handler, true);
+	install_keyword("vrrp_garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler, true);
+	install_keyword("vrrp_version", &vrrp_version_handler, true);
+	install_keyword("vrrp_iptables", &vrrp_iptables_handler, true);
 #ifdef _HAVE_LIBIPSET_
-	install_keyword("vrrp_ipsets", &vrrp_ipsets_handler);
+	install_keyword("vrrp_ipsets", &vrrp_ipsets_handler, true);
 #endif
-	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler);
-	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler);
-	install_keyword("vrrp_strict", &vrrp_strict_handler);
+	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler, true);
+	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler, true);
+	install_keyword("vrrp_strict", &vrrp_strict_handler, true);
 #ifdef _WITH_SNMP_
-	install_keyword("enable_traps", &trap_handler);
+	install_keyword("snmp_socket", &snmp_socket_handler, true);
+	install_keyword("enable_traps", &trap_handler, true);
+#ifdef _WITH_SNMP_KEEPALIVED_
+	install_keyword("enable_snmp_keepalived", &snmp_keepalived_handler, true);
+#endif
+#ifdef _WITH_SNMP_RFC_
+	install_keyword("enable_snmp_rfc", &snmp_rfc_handler, true);
+#endif
+#ifdef _WITH_SNMP_CHECKER_
+	install_keyword("enable_snmp_checker", &snmp_checker_handler, true);
+#endif
 #endif
 }

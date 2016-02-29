@@ -26,6 +26,7 @@
 
 /* system includes */
 #include <stdlib.h>
+#include <stdbool.h>
 
 /* local includes */
 #include "scheduler.h"
@@ -38,6 +39,6 @@ typedef struct _misc_checker {
 } misc_checker_t;
 
 /* Prototypes defs */
-extern void install_misc_check_keyword(void);
+extern void install_misc_check_keyword(bool);
 
 #endif

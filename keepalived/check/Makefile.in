@@ -6,17 +6,16 @@
 # Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
 
 CC	 = @CC@
-SNMP_FLAG = @SNMP_SUPPORT@
+SNMP_CHECKER_FLAG = @SNMP_CHECKER_SUPPORT@
 INCLUDES = -I../include -I../../lib
 CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 	   -Wall -Wunused -Wstrict-prototypes
-DEFS	 = -D@KERN@ -D@IPVS_SUPPORT@ -D@IPVS_SYNCD@ -D@VRRP_SUPPORT@ -D@SNMP_SUPPORT@ -D@SO_MARK_SUPPORT@ @DFLAGS@
-COMPILE	 = $(CC) $(CFLAGS) $(DEFS)
+COMPILE	 = $(CC) $(CFLAGS) @APP_DEFS@
 
 OBJS = 	check_daemon.o check_data.o check_parser.o \
 	check_api.o check_tcp.o check_http.o check_ssl.o \
 	check_smtp.o check_misc.o ipwrapper.o ipvswrapper.o
-ifeq ($(SNMP_FLAG),_WITH_SNMP_)
+ifeq ($(SNMP_CHECKER_FLAG),_WITH_SNMP_CHECKER_)
   OBJS += check_snmp.o
 endif
 

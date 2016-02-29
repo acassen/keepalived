@@ -110,24 +110,31 @@ typedef struct _vrrp_sgroup {
 
 /* Statistics */
 typedef struct _vrrp_stats {
-	int		advert_rcvd;
-	int		advert_sent;
+	uint32_t	advert_rcvd;
+	uint32_t	advert_sent;
 
-	int		become_master;
-	int		release_master;
+	uint32_t	become_master;
+	uint32_t	release_master;
 
-	int		packet_len_err;
-	int		advert_interval_err;
-	int		ip_ttl_err;
-	int		invalid_type_rcvd;
-	int		addr_list_err;
+	uint32_t	packet_len_err;
+	uint32_t	advert_interval_err;
+	uint32_t	ip_ttl_err;
+	uint32_t	invalid_type_rcvd;
+	uint32_t	addr_list_err;
 
-	int		invalid_authtype;
-	int		authtype_mismatch;
-	int		auth_failure;
+	uint32_t	invalid_authtype;
+	uint32_t	authtype_mismatch;
+	uint32_t	auth_failure;
 
-	int		pri_zero_rcvd;
-	int		pri_zero_sent;
+	uint32_t	pri_zero_rcvd;
+	uint32_t	pri_zero_sent;
+
+#ifdef _WITH_SNMP_RFC_
+	uint32_t	chk_err;
+	uint32_t	vers_err;
+	uint32_t	vrid_err;
+	timeval_t	uptime;
+#endif
 } vrrp_stats;
 
 /* parameters per virtual router -- rfc2338.6.1.2 */

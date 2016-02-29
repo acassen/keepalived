@@ -27,6 +27,9 @@
 #include "check_data.h"
 #include "scheduler.h"
 
+/* global includes */
+#include <stdbool.h>
+
 /* connection options structure definition */
 typedef struct _conn_opts {
 	struct sockaddr_storage		dst;
@@ -81,8 +84,8 @@ extern void queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 extern void dump_checkers_queue(void);
 extern void free_checkers_queue(void);
 extern void register_checkers_thread(void);
-extern void install_checkers_keyword(void);
-extern void install_connect_keywords(void);
+extern void install_checkers_keyword(bool);
+extern void install_connect_keywords(bool);
 extern void warmup_handler(vector_t *);
 extern void update_checker_activity(sa_family_t, void *, int);
 extern void checker_set_dst(struct sockaddr_storage *);

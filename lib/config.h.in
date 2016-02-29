@@ -24,8 +24,8 @@
 
 #define LOG_FACILITY_MAX        7
 #define PROG                    "Keepalived"
-#define VERSION_STRING PROG" v@VERSION@ (@VERSION_DATE@)\n"
-#define COPYRIGHT_STRING	"Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>"
-
+#define VERSION_STRING PROG" v@VERSION@ (@VERSION_DATE@)"
+#define COPYRIGHT_STRING	"Copyright (C) 2001-@VERSION_YEAR@ Alexandre Cassen, <acassen@gmail.com>"
+#define	BUILD_OPTIONS		"@BUILD_OPTS@"
 
 #endif

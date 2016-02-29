@@ -36,13 +36,11 @@ int linkwatch = 0;					/* Use linkwatch kernel netlink reflection */
 char *main_pidfile = KEEPALIVED_PID_FILE;		/* overrule default pidfile */
 char *checkers_pidfile = CHECKERS_PID_FILE;		/* overrule default pidfile */
 char *vrrp_pidfile = VRRP_PID_FILE;			/* overrule default pidfile */
+unsigned long daemon_mode = 0;				/* VRRP/CHECK subsystem selection */
 #ifdef _WITH_SNMP_
 int snmp = 0;						/* Enable SNMP support */
 const char *snmp_socket = NULL;				/* Socket to use for SNMP agent */
 #endif
-
-/* local var */
-static unsigned long daemon_mode = 0;			/* VRRP/CHECK subsystem selection */
 
 /* Log facility table */
 static struct {
@@ -192,14 +190,16 @@ parse_cmdline(int argc, char **argv)
 		{0, 0, 0, 0}
 	};
 
+	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:PCp:c:r:"
 #ifdef _WITH_SNMP_
-	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:PCp:c:r:xA:", long_options, NULL)) != EOF) {
-#else
-	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:PCp:c:r:", long_options, NULL)) != EOF) {
+								   "xA:"
 #endif
+									, long_options, NULL)) != EOF) {
 		switch (c) {
 		case 'v':
-			fprintf(stderr, VERSION_STRING);
+			fprintf(stderr, "%s\n", VERSION_STRING);
+			fprintf(stderr, "%s\n", COPYRIGHT_STRING);
+			fprintf(stderr, "Build options: %s\n", BUILD_OPTIONS);
 			exit(0);
 			break;
 		case 'h':
