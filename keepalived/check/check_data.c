@@ -185,8 +185,12 @@ dump_vs(void *data)
 	if (vs->granularity_persistence)
 		log_message(LOG_INFO, "   persistence granularity = %s",
 		       inet_ntop2(vs->granularity_persistence));
-	log_message(LOG_INFO, "   protocol = %s",
-	       (vs->service_type == IPPROTO_TCP) ? "TCP" : "UDP");
+    if (vs->service_type == IPPROTO_TCP)
+	    log_message(LOG_INFO, "   protocol = TCP");
+    if (vs->service_type == IPPROTO_UDP)
+	    log_message(LOG_INFO, "   protocol = UDP");
+    if (vs->service_type == IPPROTO_SCTP)
+	    log_message(LOG_INFO, "   protocol = SCTP");
 	log_message(LOG_INFO, "   alpha is %s, omega is %s",
 		    vs->alpha ? "ON" : "OFF", vs->omega ? "ON" : "OFF");
 	log_message(LOG_INFO, "   quorum = %lu, hysteresis = %lu", vs->quorum, vs->hysteresis);
