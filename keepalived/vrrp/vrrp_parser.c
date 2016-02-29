@@ -31,6 +31,7 @@
 #include "vrrp.h"
 #include "global_data.h"
 #include "global_parser.h"
+#include "check_parser.h"
 #include "logger.h"
 #include "parser.h"
 #include "memory.h"
@@ -652,19 +653,16 @@ vrrp_accept_handler(vector_t *strvec)
 	vrrp->accept = true;
 }
 
-vector_t *
-vrrp_init_keywords(void)
+void
+init_vrrp_keywords(bool active)
 {
-	/* global definitions mapping */
-	global_init_keywords();
-
 	/* Static routes mapping */
-	install_keyword_root("static_ipaddress", &static_addresses_handler);
-	install_keyword_root("static_routes", &static_routes_handler);
-	install_keyword_root("static_rules", &static_rules_handler);
+	install_keyword_root("static_ipaddress", &static_addresses_handler, active);
+	install_keyword_root("static_routes", &static_routes_handler, active);
+	install_keyword_root("static_rules", &static_rules_handler, active);
 
 	/* VRRP Instance mapping */
-	install_keyword_root("vrrp_sync_group", &vrrp_sync_group_handler);
+	install_keyword_root("vrrp_sync_group", &vrrp_sync_group_handler, active);
 	install_keyword("group", &vrrp_group_handler);
 	install_keyword("notify_backup", &vrrp_gnotify_backup_handler);
 	install_keyword("notify_master", &vrrp_gnotify_master_handler);
@@ -672,7 +670,7 @@ vrrp_init_keywords(void)
 	install_keyword("notify", &vrrp_gnotify_handler);
 	install_keyword("smtp_alert", &vrrp_gsmtp_handler);
 	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler);
-	install_keyword_root("vrrp_instance", &vrrp_handler);
+	install_keyword_root("vrrp_instance", &vrrp_handler, active);
 #ifdef _HAVE_VRRP_VMAC_
 	install_keyword("use_vmac", &vrrp_vmac_handler);
 	install_keyword("vmac_xmit_base", &vrrp_vmac_xmit_base_handler);
@@ -719,13 +717,23 @@ vrrp_init_keywords(void)
 	install_keyword("auth_pass", &vrrp_auth_pass_handler);
 	install_sublevel_end();
 #endif
-	install_keyword_root("vrrp_script", &vrrp_script_handler);
+	install_keyword_root("vrrp_script", &vrrp_script_handler, active);
 	install_keyword("script", &vrrp_vscript_script_handler);
 	install_keyword("interval", &vrrp_vscript_interval_handler);
 	install_keyword("timeout", &vrrp_vscript_timeout_handler);
 	install_keyword("weight", &vrrp_vscript_weight_handler);
 	install_keyword("rise", &vrrp_vscript_rise_handler);
 	install_keyword("fall", &vrrp_vscript_fall_handler);
+}
+
+vector_t *
+vrrp_init_keywords(void)
+{
+	/* global definitions mapping */
+	global_init_keywords();
+
+	init_vrrp_keywords(true);
+	init_check_keywords(false);
 
 	return keywords;
 }

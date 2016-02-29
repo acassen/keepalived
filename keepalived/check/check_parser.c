@@ -32,6 +32,7 @@
 #include "memory.h"
 #include "utils.h"
 #include "ipwrapper.h"
+#include "vrrp_parser.h"
 
 /* SSL handlers */
 static void
@@ -295,22 +296,19 @@ hysteresis_handler(vector_t *strvec)
 	vs->hysteresis = tmp;
 }
 
-vector_t *
-check_init_keywords(void)
+void
+init_check_keywords(bool active)
 {
-	/* global definitions mapping */
-	global_init_keywords();
-
 	/* SSL mapping */
-	install_keyword_root("SSL", &ssl_handler);
+	install_keyword_root("SSL", &ssl_handler, active);
 	install_keyword("password", &sslpass_handler);
 	install_keyword("ca", &sslca_handler);
 	install_keyword("certificate", &sslcert_handler);
 	install_keyword("key", &sslkey_handler);
 
 	/* Virtual server mapping */
-	install_keyword_root("virtual_server_group", &vsg_handler);
-	install_keyword_root("virtual_server", &vs_handler);
+	install_keyword_root("virtual_server_group", &vsg_handler, active);
+	install_keyword_root("virtual_server", &vs_handler, active);
 	install_keyword("ip_family", &ip_family_handler);
 	install_keyword("delay_loop", &delay_handler);
 	install_keyword("lb_algo", &lbalgo_handler);
@@ -351,6 +349,15 @@ check_init_keywords(void)
 	/* Checkers mapping */
 	install_checkers_keyword();
 	install_sublevel_end();
+}
 
+vector_t *
+check_init_keywords(void)
+{
+	/* global definitions mapping */
+	global_init_keywords();
+
+	init_check_keywords(true);
+	init_vrrp_keywords(false);
 	return keywords;
 }
