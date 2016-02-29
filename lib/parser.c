@@ -229,7 +229,6 @@ void read_conf_file(char *conf_file)
 	FILE *stream;
 	char *path;
 	int ret;
-sleep(2);
 	glob_t globbuf;
 
 	globbuf.gl_offs = 0;
