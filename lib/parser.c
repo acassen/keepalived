@@ -62,7 +62,7 @@ keyword_alloc(vector_t *keywords_vec, char *string, void (*handler) (vector_t *)
 }
 
 static void
-keyword_alloc_sub(vector_t *keywords_vec, char *string, void (*handler) (vector_t *), bool active)
+keyword_alloc_sub(vector_t *keywords_vec, char *string, void (*handler) (vector_t *))
 {
 	int i = 0;
 	keyword_t *keyword;
@@ -80,7 +80,7 @@ keyword_alloc_sub(vector_t *keywords_vec, char *string, void (*handler) (vector_
 		keyword->sub = vector_alloc();
 
 	/* add new sub keyword */
-	keyword_alloc(keyword->sub, string, handler, active);
+	keyword_alloc(keyword->sub, string, handler, true);
 }
 
 /* Exported helpers */
@@ -103,13 +103,13 @@ install_keyword_root(char *string, void (*handler) (vector_t *), bool active)
 }
 
 void
-install_keyword(char *string, void (*handler) (vector_t *), bool active)
+install_keyword(char *string, void (*handler) (vector_t *))
 {
-	keyword_alloc_sub(keywords, string, handler, active);
+	keyword_alloc_sub(keywords, string, handler);
 }
 
 void
-install_sublevel_end_handler(void (*handler) (void), bool active)
+install_sublevel_end_handler(void (*handler) (void))
 {
 	int i = 0;
 	keyword_t *keyword;
@@ -121,7 +121,7 @@ install_sublevel_end_handler(void (*handler) (void), bool active)
 	for (i = 0; i < sublevel; i++)
 		keyword =
 		    vector_slot(keyword->sub, vector_size(keyword->sub) - 1);
-	keyword->sub_close_handler = (active) ? handler: NULL;
+	keyword->sub_close_handler = handler;
 }
 
 #if DUMP_KEYWORDS
@@ -229,7 +229,6 @@ void read_conf_file(char *conf_file)
 	FILE *stream;
 	char *path;
 	int ret;
-sleep(2);
 	glob_t globbuf;
 
 	globbuf.gl_offs = 0;

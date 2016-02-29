@@ -288,36 +288,36 @@ global_init_keywords(void)
 	/* global definitions mapping */
 	install_keyword_root("linkbeat_use_polling", use_polling_handler, true);
 	install_keyword_root("global_defs", NULL, true);
-	install_keyword("router_id", &routerid_handler, true);
-	install_keyword("notification_email_from", &emailfrom_handler, true);
-	install_keyword("smtp_server", &smtpserver_handler, true);
-	install_keyword("smtp_connect_timeout", &smtpto_handler, true);
-	install_keyword("notification_email", &email_handler, true);
-	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler, true);
-	install_keyword("vrrp_mcast_group6", &vrrp_mcast_group6_handler, true);
-	install_keyword("vrrp_garp_master_delay", &vrrp_garp_delay_handler, true);
-	install_keyword("vrrp_garp_master_repeat", &vrrp_garp_rep_handler, true);
-	install_keyword("vrrp_garp_master_refresh", &vrrp_garp_refresh_handler, true);
-	install_keyword("vrrp_garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler, true);
-	install_keyword("vrrp_version", &vrrp_version_handler, true);
-	install_keyword("vrrp_iptables", &vrrp_iptables_handler, true);
+	install_keyword("router_id", &routerid_handler);
+	install_keyword("notification_email_from", &emailfrom_handler);
+	install_keyword("smtp_server", &smtpserver_handler);
+	install_keyword("smtp_connect_timeout", &smtpto_handler);
+	install_keyword("notification_email", &email_handler);
+	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler);
+	install_keyword("vrrp_mcast_group6", &vrrp_mcast_group6_handler);
+	install_keyword("vrrp_garp_master_delay", &vrrp_garp_delay_handler);
+	install_keyword("vrrp_garp_master_repeat", &vrrp_garp_rep_handler);
+	install_keyword("vrrp_garp_master_refresh", &vrrp_garp_refresh_handler);
+	install_keyword("vrrp_garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
+	install_keyword("vrrp_version", &vrrp_version_handler);
+	install_keyword("vrrp_iptables", &vrrp_iptables_handler);
 #ifdef _HAVE_LIBIPSET_
-	install_keyword("vrrp_ipsets", &vrrp_ipsets_handler, true);
+	install_keyword("vrrp_ipsets", &vrrp_ipsets_handler);
 #endif
-	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler, true);
-	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler, true);
-	install_keyword("vrrp_strict", &vrrp_strict_handler, true);
+	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler);
+	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler);
+	install_keyword("vrrp_strict", &vrrp_strict_handler);
 #ifdef _WITH_SNMP_
-	install_keyword("snmp_socket", &snmp_socket_handler, true);
-	install_keyword("enable_traps", &trap_handler, true);
+	install_keyword("snmp_socket", &snmp_socket_handler);
+	install_keyword("enable_traps", &trap_handler);
 #ifdef _WITH_SNMP_KEEPALIVED_
-	install_keyword("enable_snmp_keepalived", &snmp_keepalived_handler, true);
+	install_keyword("enable_snmp_keepalived", &snmp_keepalived_handler);
 #endif
 #ifdef _WITH_SNMP_RFC_
-	install_keyword("enable_snmp_rfc", &snmp_rfc_handler, true);
+	install_keyword("enable_snmp_rfc", &snmp_rfc_handler);
 #endif
 #ifdef _WITH_SNMP_CHECKER_
-	install_keyword("enable_snmp_checker", &snmp_checker_handler, true);
+	install_keyword("enable_snmp_checker", &snmp_checker_handler);
 #endif
 #endif
 }
