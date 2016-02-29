@@ -2181,7 +2181,7 @@ void
 vrrp_snmp_agent_init(const char *snmp_socket)
 {
 	/* We let the check process handle the global OID if it is running and with snmp */
-	snmp_agent_init(snmp_socket, !__test_bit(DAEMON_CHECKERS, &daemon_mode) || !global_data->enable_snmp_checker);
+	snmp_agent_init(snmp_socket, global_data->enable_snmp_keepalived && (!__test_bit(DAEMON_CHECKERS, &daemon_mode) || !global_data->enable_snmp_checker));
 
 #ifdef _WITH_SNMP_KEEPALIVED_
 	snmp_register_mib(vrrp_oid, OID_LENGTH(vrrp_oid), "KEEPALIVED-VRRP",
