@@ -141,6 +141,16 @@ pto_handler(vector_t *strvec)
 	memcpy(vs->timeout_persistence, str, size);
 }
 static void
+pengine_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	char *str = vector_slot(strvec, 1);
+	int size = sizeof (vs->pe_name);
+
+	strncpy(vs->pe_name, str, size - 1);
+	vs->pe_name[size - 1] = '\0';
+}
+static void
 pgr_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -154,7 +164,12 @@ proto_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = vector_slot(strvec, 1);
-	vs->service_type = (!strcmp(str, "TCP")) ? IPPROTO_TCP : IPPROTO_UDP;
+    if (!strcmp(str, "TCP"))
+        vs->service_type = IPPROTO_TCP;
+    else if (!strcmp(str, "SCTP"))
+        vs->service_type = IPPROTO_SCTP;
+    else
+        vs->service_type = IPPROTO_UDP;
 }
 static void
 hasuspend_handler(vector_t *strvec)
@@ -317,6 +332,7 @@ check_init_keywords(void)
 	install_keyword("lvs_sched", &lbalgo_handler);
 	install_keyword("lb_kind", &lbkind_handler);
 	install_keyword("lvs_method", &lbkind_handler);
+	install_keyword("persistence_engine", &pengine_handler);
 	install_keyword("persistence_timeout", &pto_handler);
 	install_keyword("persistence_granularity", &pgr_handler);
 	install_keyword("protocol", &proto_handler);
