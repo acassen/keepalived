@@ -625,6 +625,8 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 		if (vs->granularity_persistence)
 			srule->netmask = vs->granularity_persistence;
 
+	strcpy(srule->pe_name, vs->pe_name);
+
 	/* SVR specific */
 	if (rs) {
 		if (cmd == IP_VS_SO_SET_ADDDEST || cmd == IP_VS_SO_SET_DELDEST ||
