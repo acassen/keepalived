@@ -165,38 +165,38 @@ status_code_handler(vector_t *strvec)
 }
 
 void
-install_http_check_keyword(bool active)
+install_http_check_keyword(void)
 {
-	install_keyword("HTTP_GET", &http_get_handler, active);
+	install_keyword("HTTP_GET", &http_get_handler);
 	install_sublevel();
-	install_connect_keywords(active);
-	install_keyword("warmup", &warmup_handler, active);
-	install_keyword("nb_get_retry", &nb_get_retry_handler, active);
-	install_keyword("delay_before_retry", &delay_before_retry_handler, active);
-	install_keyword("url", &url_handler, active);
+	install_connect_keywords();
+	install_keyword("warmup", &warmup_handler);
+	install_keyword("nb_get_retry", &nb_get_retry_handler);
+	install_keyword("delay_before_retry", &delay_before_retry_handler);
+	install_keyword("url", &url_handler);
 	install_sublevel();
-	install_keyword("path", &path_handler, active);
-	install_keyword("digest", &digest_handler, active);
-	install_keyword("status_code", &status_code_handler, active);
+	install_keyword("path", &path_handler);
+	install_keyword("digest", &digest_handler);
+	install_keyword("status_code", &status_code_handler);
 	install_sublevel_end();
 	install_sublevel_end();
 }
 
 /* a little code duplication :/ */
 void
-install_ssl_check_keyword(bool active)
+install_ssl_check_keyword(void)
 {
-	install_keyword("SSL_GET", &http_get_handler, active);
+	install_keyword("SSL_GET", &http_get_handler);
 	install_sublevel();
-	install_connect_keywords(active);
-	install_keyword("warmup", &warmup_handler, active);
-	install_keyword("nb_get_retry", &nb_get_retry_handler, active);
-	install_keyword("delay_before_retry", &delay_before_retry_handler, active);
-	install_keyword("url", &url_handler, active);
+	install_connect_keywords();
+	install_keyword("warmup", &warmup_handler);
+	install_keyword("nb_get_retry", &nb_get_retry_handler);
+	install_keyword("delay_before_retry", &delay_before_retry_handler);
+	install_keyword("url", &url_handler);
 	install_sublevel();
-	install_keyword("path", &path_handler, active);
-	install_keyword("digest", &digest_handler, active);
-	install_keyword("status_code", &status_code_handler, active);
+	install_keyword("path", &path_handler);
+	install_keyword("digest", &digest_handler);
+	install_keyword("status_code", &status_code_handler);
 	install_sublevel_end();
 	install_sublevel_end();
 }

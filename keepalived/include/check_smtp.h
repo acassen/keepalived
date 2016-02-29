@@ -73,6 +73,6 @@ typedef struct _smtp_checker {
 #define FMT_SMTP_RS(H) (inet_sockaddrtopair (&(H)->dst))
 
 /* Prototypes defs */
-extern void install_smtp_check_keyword(bool);
+extern void install_smtp_check_keyword(void);
 
 #endif

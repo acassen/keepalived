@@ -28,7 +28,7 @@
 #include "check_http.h"
 
 /* Prototypes */
-extern void install_ssl_check_keyword(bool);
+extern void install_ssl_check_keyword(void);
 extern int init_ssl_ctx(void);
 extern void clear_ssl(ssl_data_t *);
 extern int ssl_connect(thread_t *, int);
