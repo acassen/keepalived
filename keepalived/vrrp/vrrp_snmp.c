@@ -2170,7 +2170,7 @@ vrrp_rfc_snmp_auth_err_trap(vrrp_t *vrrp, struct in_addr src, enum rfc_trap_auth
 #endif
 
 static bool
-vrrp_handles_global_oid()
+vrrp_handles_global_oid(void)
 {
 	if (global_data->enable_snmp_keepalived) {
 		if (!__test_bit(DAEMON_CHECKERS, &daemon_mode) || !global_data->enable_snmp_checker)
