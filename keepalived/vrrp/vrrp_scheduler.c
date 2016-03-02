@@ -231,7 +231,8 @@ vrrp_init_state(list l)
 					 vrrp, vrrp->adver_int);
 		}
 
-		if (vrrp->wantstate == VRRP_STATE_MAST) {
+		if (vrrp->wantstate == VRRP_STATE_MAST ||
+		    vrrp->base_priority == VRRP_PRIO_OWNER) {
 #ifdef _HAVE_IPVS_SYNCD_
 			/* Check if sync daemon handling is needed */
 			if (vrrp->lvs_syncd_if)
@@ -842,7 +843,8 @@ vrrp_fault(vrrp_t * vrrp)
 #endif
 	{
 		/* Otherwise, we transit to init state */
-		if (vrrp->init_state == VRRP_STATE_BACK) {
+		if (vrrp->init_state == VRRP_STATE_BACK &&
+		    vrrp->base_priority != VRRP_PRIO_OWNER) {
 			vrrp->state = VRRP_STATE_BACK;
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);
 #ifdef _WITH_SNMP_KEEPALIVED_
