@@ -231,13 +231,17 @@ vrrp_init_state(list l)
 					 vrrp, vrrp->adver_int);
 		}
 
-		if (vrrp->wantstate == VRRP_STATE_MAST) {
+		if (vrrp->wantstate == VRRP_STATE_MAST ||
+		    vrrp->base_priority == VRRP_PRIO_OWNER) {
 #ifdef _HAVE_IPVS_SYNCD_
 			/* Check if sync daemon handling is needed */
 			if (vrrp->lvs_syncd_if)
 				ipvs_syncd_cmd(IPVS_STARTDAEMON,
 					       vrrp->lvs_syncd_if, IPVS_MASTER,
 					       vrrp->vrid);
+#endif
+#ifdef _WITH_SNMP_RFCV3_
+			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
 			vrrp->state = VRRP_STATE_GOTO_MASTER;
 		} else {
@@ -660,42 +664,20 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
 		return;
 
 	if (vrrp_state_fault_rx(vrrp, buffer, len)) {
-		if (vrrp->sync) {
-			if (vrrp_sync_leave_fault(vrrp)) {
-				log_message(LOG_INFO,
-				       "VRRP_Instance(%s) prio is higher than received advert",
-				       vrrp->iname);
-				vrrp_become_master(vrrp, buffer, len);
-#ifdef _WITH_SNMP_RFC_
-				vrrp->stats->uptime = timer_now();
-#endif
-			}
-		} else {
+		if (!vrrp->sync || vrrp_sync_leave_fault(vrrp)) {
 			log_message(LOG_INFO,
 			       "VRRP_Instance(%s) prio is higher than received advert",
 			       vrrp->iname);
 			vrrp_become_master(vrrp, buffer, len);
 #ifdef _WITH_SNMP_RFC_
+#ifdef _WITH_SNMP_RFCV3_
+			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+#endif
 			vrrp->stats->uptime = timer_now();
 #endif
 		}
 	} else {
-		if (vrrp->sync) {
-			if (vrrp_sync_leave_fault(vrrp)) {
-				log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
-				       vrrp->iname);
-				vrrp->state = VRRP_STATE_BACK;
-				vrrp_smtp_notifier(vrrp);
-				notify_instance_exec(vrrp, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_KEEPALIVED_
-				vrrp_snmp_instance_trap(vrrp);
-#endif
-				vrrp->last_transition = timer_now();
-#ifdef _WITH_SNMP_RFC_
-				vrrp->stats->uptime = vrrp->last_transition;
-#endif
-			}
-		} else {
+		if (!vrrp->sync || vrrp_sync_leave_fault(vrrp)) {
 			log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
 			       vrrp->iname);
 			vrrp->state = VRRP_STATE_BACK;
@@ -737,6 +719,11 @@ vrrp_goto_master(vrrp_t * vrrp)
 		}
 #endif
 
+#ifdef _WITH_SNMP_RFCV3_
+		if ((vrrp->version == VRRP_VERSION_2 && vrrp->ms_down_timer >= 3 * vrrp->adver_int) ||
+		    (vrrp->version == VRRP_VERSION_3 && vrrp->ms_down_timer >= 3 * vrrp->master_adver_int))
+			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
+#endif
 		/* handle master state transition */
 		vrrp->wantstate = VRRP_STATE_MAST;
 		vrrp_state_goto_master(vrrp);
@@ -784,8 +771,8 @@ vrrp_update_priority(thread_t * thread)
 		new_prio = vrrp->base_priority + prio_offset;
 		if (new_prio < 1)
 			new_prio = 1;
-		else if (new_prio > 254)
-			new_prio = 254;
+		else if (new_prio >= VRRP_PRIO_OWNER)
+			new_prio = VRRP_PRIO_OWNER - 1;
 		vrrp->effective_priority = new_prio;
 	}
 
@@ -825,7 +812,7 @@ vrrp_master(vrrp_t * vrrp)
 		 * Send the VRRP advert.
 		 * If we catch the master transition
 		 * <=> vrrp_state_master_tx(...) = 1
-		 * register a gratuitous arp thread delayed to 5 secs.
+		 * register a gratuitous arp thread delayed to garp_delay secs.
 		 */
 		if (vrrp_state_master_tx(vrrp, 0)) {
 			if (vrrp->garp_delay)
@@ -867,7 +854,8 @@ vrrp_fault(vrrp_t * vrrp)
 #endif
 	{
 		/* Otherwise, we transit to init state */
-		if (vrrp->init_state == VRRP_STATE_BACK) {
+		if (vrrp->init_state == VRRP_STATE_BACK &&
+		    vrrp->base_priority != VRRP_PRIO_OWNER) {
 			vrrp->state = VRRP_STATE_BACK;
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);
 #ifdef _WITH_SNMP_KEEPALIVED_
@@ -875,6 +863,9 @@ vrrp_fault(vrrp_t * vrrp)
 #endif
 			vrrp->last_transition = timer_now();
 		} else {
+#ifdef _WITH_SNMP_RFCV3_
+			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+#endif
 			vrrp_goto_master(vrrp);
 		}
 	}

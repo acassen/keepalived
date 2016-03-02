@@ -352,6 +352,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 			log_message(LOG_INFO, "(%s): invalid ttl. %d and expect %d",
 				vrrp->iname, ip->ttl, VRRP_IP_TTL);
 			++vrrp->stats->ip_ttl_err;
+#ifdef _WITH_SNMP_RFCV3_
+			vrrp->stats->proto_err_reason = ipTtlError;
+			vrrp_rfcv3_snmp_proto_err_notify(vrrp);
+#endif
 			return VRRP_PACKET_KO;
 		}
 	} else if (vrrp->family == AF_INET6) {
@@ -381,6 +385,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 		       vrrp->iname, (hd->vers_type >> 4), vrrp->version);
 #ifdef _WITH_SNMP_RFC_
 		vrrp->stats->vers_err++;
+#ifdef _WITH_SNMP_RFCV3_
+		vrrp->stats->proto_err_reason = versionError;
+		vrrp_rfcv3_snmp_proto_err_notify(vrrp);
+#endif
 #endif
 		return VRRP_PACKET_KO;
 	}
@@ -400,6 +408,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 		       vrrp->iname, hd->vrid, vrrp->vrid);
 #ifdef _WITH_SNMP_RFC_
 		vrrp->stats->vrid_err++;
+#ifdef _WITH_SNMP_RFCV3_
+		vrrp->stats->proto_err_reason = vrIdError;
+		vrrp_rfcv3_snmp_proto_err_notify(vrrp);
+#endif
 #endif
 		return VRRP_PACKET_DROP;
 	}
@@ -413,8 +425,8 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 		hd->v2.auth_type != VRRP_AUTH_NONE) {
 		log_message(LOG_INFO, "(%s): Invalid auth type: %d", vrrp->iname, hd->v2.auth_type);
 		++vrrp->stats->invalid_authtype;
-#ifdef _WITH_SNMP_RFC_
-		vrrp_rfc_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, invalidAuthType);
+#ifdef _WITH_SNMP_RFCV2_
+		vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, invalidAuthType);
 #endif
 		return VRRP_PACKET_KO;
 	}
@@ -429,8 +441,8 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 		log_message(LOG_INFO, "(%s): received a %d auth, expecting %d!",
 		       vrrp->iname, hd->v2.auth_type, vrrp->auth_type);
 		++vrrp->stats->authtype_mismatch;
-#ifdef _WITH_SNMP_RFC_
-		vrrp_rfc_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authTypeMismatch);
+#ifdef _WITH_SNMP_RFCV2_
+		vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authTypeMismatch);
 #endif
 		return VRRP_PACKET_KO;
 	}
@@ -443,8 +455,8 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 			if (memcmp(pw, vrrp->auth_data, sizeof(vrrp->auth_data)) != 0) {
 				log_message(LOG_INFO, "(%s): received an invalid passwd!", vrrp->iname);
 				++vrrp->stats->auth_failure;
-#ifdef _WITH_SNMP_RFC_
-				vrrp_rfc_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authFailure);
+#ifdef _WITH_SNMP_RFCV2_
+				vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authFailure);
 #endif
 				return VRRP_PACKET_KO;
 			}
@@ -453,8 +465,8 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 		/* check the authenicaion if it is ipsec ah */
 		else if (hd->v2.auth_type == VRRP_AUTH_AH) {
 			if (vrrp_in_chk_ipsecah(vrrp, buffer)) {
-#ifdef _WITH_SNMP_RFC_
-				vrrp_rfc_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authFailure);
+#ifdef _WITH_SNMP_RFCV2_
+				vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authFailure);
 #endif
 				return VRRP_PACKET_KO;
 			}
@@ -525,6 +537,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 				log_message(LOG_INFO, "(%s): Invalid VRRPv3 checksum", vrrp->iname);
 #ifdef _WITH_SNMP_RFC_
 				vrrp->stats->chk_err++;
+#ifdef _WITH_SNMP_RFCV3_
+				vrrp->stats->proto_err_reason = checksumError;
+				vrrp_rfcv3_snmp_proto_err_notify(vrrp);
+#endif
 #endif
 				return VRRP_PACKET_KO;
 			}
@@ -534,6 +550,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 				log_message(LOG_INFO, "(%s): Invalid VRRPv2 checksum", vrrp->iname);
 #ifdef _WITH_SNMP_RFC_
 				vrrp->stats->chk_err++;
+#ifdef _WITH_SNMP_RFCV3_
+				vrrp->stats->proto_err_reason = checksumError;
+				vrrp_rfcv3_snmp_proto_err_notify(vrrp);
+#endif
 #endif
 				return VRRP_PACKET_KO;
 			}
@@ -1163,9 +1183,12 @@ vrrp_state_become_master(vrrp_t * vrrp)
 
 #ifdef _WITH_SNMP_KEEPALIVED_
 	vrrp_snmp_instance_trap(vrrp);
-#ifdef _WITH_SNMP_RFC_
-	vrrp_rfc_snmp_new_master_trap(vrrp);
 #endif
+#ifdef _WITH_SNMP_RFCV2_
+	vrrp_rfcv2_snmp_new_master_trap(vrrp);
+#endif
+#ifdef _WITH_SNMP_RFCV3_
+	vrrp_rfcv3_snmp_new_master_notify(vrrp);
 #endif
 
 #ifdef _HAVE_IPVS_SYNCD_
@@ -1321,6 +1344,9 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	} else if (hd->priority == 0) {
 		vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
+#ifdef _WITH_SNMP_RFCV3_
+		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PRIORITY;
+#endif
 	} else if (vrrp->nopreempt || hd->priority >= vrrp->effective_priority ||
 		   timer_cmp(vrrp->preempt_time, timer_now()) > 0) {
 		if (vrrp->version == VRRP_VERSION_3) {
@@ -1365,6 +1391,9 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 				    , vrrp->iname);
 		vrrp->wantstate = VRRP_STATE_GOTO_MASTER;
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
+#ifdef _WITH_SNMP_RFCV3_
+		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+#endif
 	}
 }
 
