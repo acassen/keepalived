@@ -32,7 +32,9 @@
 #include "memory.h"
 #include "utils.h"
 #include "ipwrapper.h"
+#if defined _WITH_VRRP_
 #include "vrrp_parser.h"
+#endif
 
 /* SSL handlers */
 static void
@@ -374,6 +376,8 @@ check_init_keywords(void)
 	global_init_keywords();
 
 	init_check_keywords(true);
+#ifdef _WITH_VRRP_
 	init_vrrp_keywords(false);
+#endif
 	return keywords;
 }
