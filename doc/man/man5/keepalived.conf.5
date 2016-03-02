@@ -456,12 +456,14 @@ A virtual_server can be a declaration of one of
     ops
     # LVS forwarding method
     lb_kind NAT|DR|TUN
+    # LVS persistence engine name
+    persistence_engine <STRING>
     # LVS persistence timeout, sec
     persistence_timeout <INT>
     # LVS granularity mask (-M in ipvsadm)
     persistence_granularity <NETMASK>
-    # Only TCP is implemented
-    protocol TCP
+    # L4 protocol
+    protocol TCP|UDP|SCTP
     # If VS IP address is not set,
     # suspend healthchecker's activity
     ha_suspend
