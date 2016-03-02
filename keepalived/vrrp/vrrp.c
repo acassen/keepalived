@@ -1827,8 +1827,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		hdr_len = sizeof(struct ether_header) + sizeof(struct ip6_hdr) + sizeof(vrrphdr_t);
 		max_addr = (vrrp->ifp->mtu - hdr_len) / sizeof(struct in6_addr);
 	}
+
+	/* Count IP addrs field is 8 bits wide, giving a maximum address count of 255 */
+	if (max_addr > VRRP_MAX_ADDR)
+		max_addr = VRRP_MAX_ADDR;
+
+	/* Move any extra addresses to be evips. We won't advertise them, but at least we can respond to them */
 	if (!LIST_ISEMPTY(vrrp->vip) && LIST_SIZE(vrrp->vip) > max_addr) {
-		log_message(LOG_INFO, "(%s): Number of VIPs (%d) exceeds space available in packet (max %d addresses) - excess moved to eVIPs",
+		log_message(LOG_INFO, "(%s): Number of VIPs (%d) exceeds maximum/space available in packet (max %d addresses) - excess moved to eVIPs",
 				vrrp->iname, LIST_SIZE(vrrp->vip), max_addr);
 		for (i = 0, e = LIST_HEAD(vrrp->vip); e; i++, e = next) {
 			next = e->next;
@@ -1856,6 +1862,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->wantstate = VRRP_STATE_BACK;
 	}
 	else if (vrrp->base_priority == VRRP_PRIO_OWNER && !vrrp->nopreempt) {
+		/* Act as though state MASTER had been specified, to speed transition to master state */
 		vrrp->init_state = VRRP_STATE_MAST;
 		vrrp->wantstate = VRRP_STATE_MAST;
 	}
