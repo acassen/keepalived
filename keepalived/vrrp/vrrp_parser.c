@@ -31,7 +31,9 @@
 #include "vrrp.h"
 #include "global_data.h"
 #include "global_parser.h"
+#ifdef _WITH_LVS_
 #include "check_parser.h"
+#endif
 #include "logger.h"
 #include "parser.h"
 #include "memory.h"
@@ -733,7 +735,9 @@ vrrp_init_keywords(void)
 	global_init_keywords();
 
 	init_vrrp_keywords(true);
+#ifdef _WITH_LVS_
 	init_check_keywords(false);
+#endif
 
 	return keywords;
 }
