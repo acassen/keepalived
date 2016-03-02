@@ -2169,11 +2169,25 @@ vrrp_rfc_snmp_auth_err_trap(vrrp_t *vrrp, struct in_addr src, enum rfc_trap_auth
 }
 #endif
 
+static bool
+vrrp_handles_global_oid()
+{
+	if (global_data->enable_snmp_keepalived) {
+		if (!__test_bit(DAEMON_CHECKERS, &daemon_mode) || !global_data->enable_snmp_checker)
+			return true;
+#ifndef _WITH_LVS_
+		return true;
+#endif
+	}
+
+	return false;
+}
+
 void
 vrrp_snmp_agent_init(const char *snmp_socket)
 {
 	/* We let the check process handle the global OID if it is running and with snmp */
-	snmp_agent_init(snmp_socket, global_data->enable_snmp_keepalived && (!__test_bit(DAEMON_CHECKERS, &daemon_mode) || !global_data->enable_snmp_checker));
+	snmp_agent_init(snmp_socket, vrrp_handles_global_oid());
 
 #ifdef _WITH_SNMP_KEEPALIVED_
 	snmp_register_mib(vrrp_oid, OID_LENGTH(vrrp_oid), "KEEPALIVED-VRRP",
@@ -2198,5 +2212,5 @@ vrrp_snmp_agent_close(void)
 #ifdef _WITH_SNMP_RFC_
 	snmp_unregister_mib(vrrp_rfc_oid, OID_LENGTH(vrrp_rfc_oid));
 #endif
-	snmp_agent_close(!__test_bit(DAEMON_CHECKERS, &daemon_mode) || !global_data->enable_snmp_checker);
+	snmp_agent_close(vrrp_handles_global_oid());
 }
