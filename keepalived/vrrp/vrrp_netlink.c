@@ -773,8 +773,6 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	if (!ifp) {
                 if (h->nlmsg_type == RTM_NEWLINK) {
                     char *name;
-                    if (tb[IFLA_IFNAME] == NULL)
-                            return -1;
                     name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
                     ifp = if_get_by_ifname(name);
                     if (!ifp) {
