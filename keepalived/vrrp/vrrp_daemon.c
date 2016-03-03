@@ -192,8 +192,13 @@ start_vrrp(void)
 
 	/* Dump configuration */
 	if (__test_bit(DUMP_CONF_BIT, &debug)) {
+		list ifl;
+
 		dump_global_data(global_data);
 		dump_vrrp_data(vrrp_data);
+		ifl = get_if_list();
+		if (!LIST_ISEMPTY(ifl))
+			dump_list(ifl);
 	}
 
 	/* Initialize linkbeat */
