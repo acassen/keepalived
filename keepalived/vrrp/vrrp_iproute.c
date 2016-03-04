@@ -164,58 +164,32 @@ dump_iproute(void *rt_data)
 {
 	ip_route_t *route = rt_data;
 	char *log_msg = MALLOC(1024);
-	char *tmp = MALLOC(INET6_ADDRSTRLEN + 30);
-	char *tmp_str;
+	char *op = log_msg;
 
 	if (route->blackhole) {
 		strncat(log_msg, "blackhole ", 30);
 	}
-	if (route->dst) {
-		tmp_str = ipaddresstos(route->dst);
-		snprintf(tmp, INET6_ADDRSTRLEN + 30, "%s/%d", tmp_str, route->dmask);
-		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
-		FREE(tmp_str);
-	}
-	if (route->gw) {
-		tmp_str = ipaddresstos(route->gw);
-		snprintf(tmp, INET6_ADDRSTRLEN + 30, " gw %s", tmp_str);
-		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
-		FREE(tmp_str);
-	}
-	if (route->gw2) {
-		tmp_str = ipaddresstos(route->gw2);
-		snprintf(tmp, INET6_ADDRSTRLEN + 30, " or gw %s", tmp_str);
-		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
-		FREE(tmp_str);
-	}
-	if (route->src) {
-		tmp_str = ipaddresstos(route->src);
-		snprintf(tmp, INET6_ADDRSTRLEN + 30, " src %s", tmp_str);
-		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
-		FREE(tmp_str);
-	}
-	if (route->index) {
-		snprintf(tmp, INET6_ADDRSTRLEN + 30, " dev %s",
+	if (route->dst)
+		op += snprintf(op, log_msg + 1024 - op, "%s/%d", ipaddresstos(NULL, route->dst), route->dmask);
+	if (route->gw)
+		op += snprintf(op, log_msg + 1024 - op, " gw %s", ipaddresstos(NULL, route->gw));
+	if (route->gw2)
+		op += snprintf(op, log_msg + 1024 - op, " or gw %s", ipaddresstos(NULL, route->gw2));
+	if (route->src)
+		op += snprintf(op, log_msg + 1024 - op, " src %s", ipaddresstos(NULL, route->src));
+	if (route->index)
+		op += snprintf(op, log_msg + 1024 - op, " dev %s",
 			 IF_NAME(if_get_by_ifindex(route->index)));
-		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
-	}
-	if (route->table) {
-		snprintf(tmp, INET6_ADDRSTRLEN + 30, " table %d", route->table);
-		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
-	}
-	if (route->scope) {
-		snprintf(tmp, INET6_ADDRSTRLEN + 30, " scope %s",
+	if (route->table)
+		op += snprintf(op, log_msg + 1024 - op, " table %d", route->table);
+	if (route->scope)
+		op += snprintf(op, log_msg + 1024 - op, " scope %s",
 			 netlink_scope_n2a(route->scope));
-		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
-	}
-	if (route->metric) {
-		snprintf(tmp, INET6_ADDRSTRLEN + 30, " metric %d", route->metric);
-		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
-	}
+	if (route->metric)
+		op += snprintf(op, log_msg + 1024 - op, " metric %d", route->metric);
 
 	log_message(LOG_INFO, "     %s", log_msg);
 
-	FREE(tmp);
 	FREE(log_msg);
 }
 void
@@ -295,7 +269,6 @@ void
 clear_diff_routes(list l, list n)
 {
 	ip_route_t *iproute;
-	char *tmp_str;
 	element e;
 
 	/* No route in previous conf */
@@ -312,10 +285,8 @@ clear_diff_routes(list l, list n)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		iproute = ELEMENT_DATA(e);
 		if (!route_exist(n, iproute) && iproute->set) {
-			tmp_str = ipaddresstos(iproute->dst);
 			log_message(LOG_INFO, "ip route %s/%d ... , no longer exist"
-					    , tmp_str, iproute->dmask);
-			FREE(tmp_str);
+					    , ipaddresstos(NULL, iproute->dst), iproute->dmask);
 			netlink_route(iproute, IPROUTE_DEL);
 		}
 	}

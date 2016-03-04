@@ -126,27 +126,17 @@ dump_iprule(void *rule_data)
 {
 	ip_rule_t *rule = rule_data;
 	char *log_msg = MALLOC(1024);
-	char *tmp = MALLOC(INET6_ADDRSTRLEN + 30);
-	char *tmp_str;
+	char *op = log_msg;
 
-	if (rule->dir) {
-		snprintf(tmp, INET6_ADDRSTRLEN + 30, "%s ", (rule->dir == VRRP_RULE_FROM) ? "from" : "to");
-		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
-	}
-	if (rule->addr) {
-		tmp_str = ipaddresstos(rule->addr);
-		snprintf(tmp, INET6_ADDRSTRLEN + 30, "%s/%d", tmp_str, rule->mask);
-		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
-		FREE(tmp_str);
-	}
-	if (rule->table) {
-		snprintf(tmp, INET6_ADDRSTRLEN + 30, " table %d", rule->table);
-		strncat(log_msg, tmp, INET6_ADDRSTRLEN + 30);
-	}
+	if (rule->dir)
+		op += snprintf(op, log_msg + 1024 - op, "%s ", (rule->dir == VRRP_RULE_FROM) ? "from" : "to");
+	if (rule->addr)
+		op += snprintf(op, log_msg + 1024 - op, "%s/%d", ipaddresstos(NULL, rule->addr), rule->mask);
+	if (rule->table)
+		op += snprintf(op, log_msg + 1024 - op, " table %d", rule->table);
 
 	log_message(LOG_INFO, "     %s", log_msg);
 
-	FREE(tmp);
 	FREE(log_msg);
 }
 void
@@ -201,7 +191,6 @@ void
 clear_diff_rules(list l, list n)
 {
 	ip_rule_t *iprule;
-	char *tmp_str;
 	element e;
 
 	/* No rule in previous conf */
@@ -218,10 +207,8 @@ clear_diff_rules(list l, list n)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		iprule = ELEMENT_DATA(e);
 		if (!rule_exist(n, iprule) && iprule->set) {
-			tmp_str = ipaddresstos(iprule->addr);
 			log_message(LOG_INFO, "ip rule %s/%d ... , no longer exist"
-					    , tmp_str, iprule->mask);
-			FREE(tmp_str);
+					    , ipaddresstos(NULL, iprule->addr), iprule->mask);
 			netlink_rule(iprule, IPRULE_DEL);
 		}
 	}

@@ -317,13 +317,13 @@ route_print(FILE *file, void *data)
 	if (route->blackhole)
 		fprintf(file, "blackhole ");
 	if (route->dst)
-		fprintf(file, "%s/%d", ipaddresstos(route->dst), route->dmask);
+		fprintf(file, "%s/%d", ipaddresstos(NULL, route->dst), route->dmask);
 	if (route->gw)
-		fprintf(file, " gw %s", ipaddresstos(route->gw));
+		fprintf(file, " gw %s", ipaddresstos(NULL, route->gw));
 	if (route->gw2)
-		fprintf(file, " or gw %s", ipaddresstos(route->gw2));
+		fprintf(file, " or gw %s", ipaddresstos(NULL, route->gw2));
 	if (route->src)
-		fprintf(file, " src %s", ipaddresstos(route->src));
+		fprintf(file, " src %s", ipaddresstos(NULL, route->src));
 	if (route->index)
 		fprintf(file, " dev %s", IF_NAME(if_get_by_ifindex(route->index)));
 	if (route->table)
@@ -346,7 +346,7 @@ rule_print(FILE *file, void *data)
 	if (rule->dir)
 		fprintf(file, "%s ", (rule->dir == VRRP_RULE_FROM) ? "from" : "to");
 	if (rule->addr)
-		fprintf(file, "%s", ipaddresstos(rule->addr));
+		fprintf(file, "%s", ipaddresstos(NULL, rule->addr));
 	if (rule->table)
 		fprintf(file, " table %d", rule->table);
 
