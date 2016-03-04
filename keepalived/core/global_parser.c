@@ -173,13 +173,10 @@ vrrp_ipsets_handler(vector_t *strvec)
 		strcpy(global_data->vrrp_ipset_address6, vector_slot(strvec,2));
 	}
 	else {
-		/* No second set specified, copy first name and add "_if" */
+		/* No second set specified, copy first name and add "6" */
 		strcpy(global_data->vrrp_ipset_address6, global_data->vrrp_ipset_address);
-		if (strlen(global_data->vrrp_ipset_address6) < sizeof(global_data->vrrp_ipset_address6) - 2)
-			strcat(global_data->vrrp_ipset_address6, "6");
-		else
-			strcpy(global_data->vrrp_ipset_address_iface6 + sizeof(global_data->vrrp_ipset_address_iface6) - 2, "6");
-
+		global_data->vrrp_ipset_address6[sizeof(global_data->vrrp_ipset_address6) - 2] = '\0';
+		strcat(global_data->vrrp_ipset_address6, "6");
 	}
 	if (vector_size(strvec) >= 4) {
 		if (strlen(vector_slot(strvec,3)) >= sizeof(global_data->vrrp_ipset_address_iface6)-1) {
@@ -189,15 +186,13 @@ vrrp_ipsets_handler(vector_t *strvec)
 		strcpy(global_data->vrrp_ipset_address_iface6, vector_slot(strvec,3));
 	}
 	else {
-		/* No third set specified, copy second name and add "_if" */
+		/* No third set specified, copy second name and add "_if6" */
 		strcpy(global_data->vrrp_ipset_address_iface6, global_data->vrrp_ipset_address6);
 		len = strlen(global_data->vrrp_ipset_address_iface6);
 		if (global_data->vrrp_ipset_address_iface6[len-1] == '6')
 			global_data->vrrp_ipset_address_iface6[--len] = '\0';
-		if (len < sizeof(global_data->vrrp_ipset_address_iface6) - 5)
-			strcat(global_data->vrrp_ipset_address6, "_if6");
-		else
-			strcpy(global_data->vrrp_ipset_address6 + sizeof(global_data->vrrp_ipset_address6) - 5, "_if6");
+		global_data->vrrp_ipset_address_iface6[sizeof(global_data->vrrp_ipset_address_iface6) - 5] = '\0';
+		strcat(global_data->vrrp_ipset_address_iface6, "_if6");
 	}
 }
 #endif
