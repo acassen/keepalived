@@ -238,6 +238,10 @@ vrrp_instance <STRING> {		# VRRP instance declaration
         ...
 	blackhole <IP ADDRESS>[/<MASK>]
     }
+    virtual_rules {			# VRRP virtual rules
+	from|to <IP ADDRESS>/<MASK> table <TABLE-ID>
+    }
+
     nopreempt					# Override VRRP RFC preemption default
     preempt_delay				# Seconds after startup until
 						#  preemption. 0 (default) to 1,000
