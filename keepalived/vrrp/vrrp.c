@@ -1135,11 +1135,11 @@ vrrp_state_become_master(vrrp_t * vrrp)
 					vrrp->iname, vrrp->adver_int / (TIMER_HZ / 1000));
 
 	/* add the ip addresses */
+	vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD);
 	if (!LIST_ISEMPTY(vrrp->vip))
 		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
 	if (!LIST_ISEMPTY(vrrp->evip))
 		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
-	vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD);
 	vrrp->vipset = 1;
 
 	/* add virtual routes */
@@ -2137,7 +2137,6 @@ clear_diff_vrrp_vip_list(vrrp_t *vrrp, struct ipt_handle* h, list l, list n)
 	if ((vrrp->version == VRRP_VERSION_2) || vrrp->accept ||
 	    (vrrp->base_priority == VRRP_PRIO_OWNER)) {
 		handle_iptable_rule_to_iplist(h, n, IPADDRESS_DEL, IF_NAME(vrrp->ifp));
-// TODO = is this really false.
 		vrrp->iptable_rules_set = false;
 	} else
 		vrrp->iptable_rules_set = true;
@@ -2217,11 +2216,11 @@ reset_vrrp_state(vrrp_t * old_vrrp)
 	/* Remember if we had vips up and add new ones if needed */
 	vrrp->vipset = old_vrrp->vipset;
 	if (vrrp->vipset) {
+		vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD);
 		if (!LIST_ISEMPTY(vrrp->vip))
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
 		if (!LIST_ISEMPTY(vrrp->evip))
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
-		vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD);
 		if (!LIST_ISEMPTY(vrrp->vroutes))
 			vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
 		if (!LIST_ISEMPTY(vrrp->vrules))
