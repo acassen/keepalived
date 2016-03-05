@@ -239,6 +239,9 @@ vrrp_init_state(list l)
 					       vrrp->lvs_syncd_if, IPVS_MASTER,
 					       vrrp->vrid);
 #endif
+#ifdef _WITH_SNMP_RFCV3_
+			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+#endif
 			vrrp->state = VRRP_STATE_GOTO_MASTER;
 		} else {
 			vrrp->ms_down_timer = 3 * vrrp->adver_int
@@ -666,6 +669,9 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
 			       vrrp->iname);
 			vrrp_become_master(vrrp, buffer, len);
 #ifdef _WITH_SNMP_RFC_
+#ifdef _WITH_SNMP_RFCV3_
+			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+#endif
 			vrrp->stats->uptime = timer_now();
 #endif
 		}
@@ -712,6 +718,11 @@ vrrp_goto_master(vrrp_t * vrrp)
 		}
 #endif
 
+#ifdef _WITH_SNMP_RFCV3_
+		if ((vrrp->version == VRRP_VERSION_2 && vrrp->ms_down_timer >= 3 * vrrp->adver_int) ||
+		    (vrrp->version == VRRP_VERSION_3 && vrrp->ms_down_timer >= 3 * vrrp->master_adver_int))
+			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
+#endif
 		/* handle master state transition */
 		vrrp->wantstate = VRRP_STATE_MAST;
 		vrrp_state_goto_master(vrrp);
@@ -800,7 +811,7 @@ vrrp_master(vrrp_t * vrrp)
 		 * Send the VRRP advert.
 		 * If we catch the master transition
 		 * <=> vrrp_state_master_tx(...) = 1
-		 * register a gratuitous arp thread delayed to 5 secs.
+		 * register a gratuitous arp thread delayed to garp_delay secs.
 		 */
 		if (vrrp_state_master_tx(vrrp, 0)) {
 			if (vrrp->garp_delay)
@@ -850,6 +861,9 @@ vrrp_fault(vrrp_t * vrrp)
 #endif
 			vrrp->last_transition = timer_now();
 		} else {
+#ifdef _WITH_SNMP_RFCV3_
+			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+#endif
 			vrrp_goto_master(vrrp);
 		}
 	}

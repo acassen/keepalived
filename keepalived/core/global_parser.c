@@ -265,7 +265,22 @@ snmp_keepalived_handler(vector_t *strvec)
 static void
 snmp_rfc_handler(vector_t *strvec)
 {
-	global_data->enable_snmp_rfc = true;
+	global_data->enable_snmp_rfcv2 = true;
+	global_data->enable_snmp_rfcv3 = true;
+}
+#endif
+#ifdef _WITH_SNMP_RFCV2_
+static void
+snmp_rfcv2_handler(vector_t *strvec)
+{
+	global_data->enable_snmp_rfcv2 = true;
+}
+#endif
+#ifdef _WITH_SNMP_RFCV3_
+static void
+snmp_rfcv3_handler(vector_t *strvec)
+{
+	global_data->enable_snmp_rfcv3 = true;
 }
 #endif
 #ifdef _WITH_SNMP_CHECKER_
@@ -310,6 +325,12 @@ global_init_keywords(void)
 #endif
 #ifdef _WITH_SNMP_RFC_
 	install_keyword("enable_snmp_rfc", &snmp_rfc_handler);
+#endif
+#ifdef _WITH_SNMP_RFCV2_
+	install_keyword("enable_snmp_rfcv2", &snmp_rfcv2_handler);
+#endif
+#ifdef _WITH_SNMP_RFCV3_
+	install_keyword("enable_snmp_rfcv3", &snmp_rfcv3_handler);
 #endif
 #ifdef _WITH_SNMP_CHECKER_
 	install_keyword("enable_snmp_checker", &snmp_checker_handler);

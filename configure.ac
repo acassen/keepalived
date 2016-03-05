@@ -41,7 +41,11 @@ AC_ARG_ENABLE(snmp-keepalived,
 AC_ARG_ENABLE(snmp-checker,
   [  --enable-snmp-checker   compile with SNMP checker support])
 AC_ARG_ENABLE(snmp-rfc,
-  [  --enable-snmp-rfc       compile with SNMP RFC2787 support])
+  [  --enable-snmp-rfc       compile with SNMP RFC2787 (VRRPv2) and SNMP RFC6527 (VRRPv3) support])
+AC_ARG_ENABLE(snmp-rfcv2,
+  [  --enable-snmp-rfcv2     compile with SNMP RFC2787 (VRRPv2) support])
+AC_ARG_ENABLE(snmp-rfcv3,
+  [  --enable-snmp-rfcv3     compile with SNMP RFC6257 (VRRPv3) support])
 AC_ARG_ENABLE(sha1,
   [  --enable-sha1           compile with SHA1 support])
 AC_ARG_ENABLE(vrrp-auth,
@@ -354,9 +358,16 @@ dnl ----[ Checks for SNMP support ]----
 SNMP_SUPPORT="_WITHOUT_SNMP_"
 SNMP_KEEPALIVED_SUPPORT="_WITHOUT_SNMP_KEEPALIVED_"
 SNMP_RFC_SUPPORT="_WITHOUT_SNMP_RFC_"
+SNMP_RFCV2_SUPPORT="_WITHOUT_SNMP_RFCV2_"
+SNMP_RFCV3_SUPPORT="_WITHOUT_SNMP_RFCV3_"
 SNMP_CHECKER_SUPPORT="_WITHOUT_SNMP_CHECKER_"
-if test "$enable_snmp" = "yes" -o "$enable_snmp_rfc" = "yes" -o "$enable_snmp_keepalived" = "yes" -o "$enable_snmp_checker" = "yes"; then
 
+if test "$enable_snmp" = "yes" -o \
+	"$enable_snmp_rfc" = "yes" -o \
+	"$enable_snmp_rfcv2" = "yes" -o \
+	"$enable_snmp_rfcv3" = "yes" -o \
+	"$enable_snmp_keepalived" = "yes" -o \
+	"$enable_snmp_checker" = "yes" ; then
   AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], [no])
   if test x"$NETSNMP_CONFIG" = x"no"; then
     AC_MSG_ERROR([*** unable to find net-snmp-config])
@@ -394,24 +405,40 @@ int main(void);
 
   SNMP_SUPPORT="_WITH_SNMP_"
   if test "$enable_snmp_rfc" = "yes"; then
-    SNMP_RFC_SUPPORT="_WITH_SNMP_RFC_"
+    SNMP_RFCV2_SUPPORT="_WITH_SNMP_RFCV2_"
+    SNMP_RFCV3_SUPPORT="_WITH_SNMP_RFCV3_"
+  else
+    if test "$enable_snmp_rfcv2" = "yes"; then
+      SNMP_RFCV2_SUPPORT="_WITH_SNMP_RFCV2_"
+    fi
+    if test "$enable_snmp_rfcv3" = "yes"; then
+      SNMP_RFCV3_SUPPORT="_WITH_SNMP_RFCV3_"
+    fi
   fi
-  if test "$enable_snmp_keepalived" = "yes"; then
-    SNMP_KEEPALIVED_SUPPORT="_WITH_SNMP_KEEPALIVED_"
+  if test "${SNMP_RFCV2_SUPPORT}" = "_WITH_SNMP_RFCV2_" -o \
+          "${SNMP_RFCV3_SUPPORT}" = "_WITH_SNMP_RFCV3_"; then
+      SNMP_RFC_SUPPORT="_WITH_SNMP_RFC_"
   fi
-  if test "$enable_snmp_checker" = "yes"; then
-    SNMP_CHECKER_SUPPORT="_WITH_SNMP_CHECKER_"
-  fi
+
   if test "$enable_snmp" = "yes"; then
     SNMP_KEEPALIVED_SUPPORT="_WITH_SNMP_KEEPALIVED_"
     SNMP_CHECKER_SUPPORT="_WITH_SNMP_CHECKER_"
+  else
+    if test "$enable_snmp_keepalived" = "yes"; then
+      SNMP_KEEPALIVED_SUPPORT="_WITH_SNMP_KEEPALIVED_"
+    fi
+    if test "$enable_snmp_checker" = "yes"; then
+      SNMP_CHECKER_SUPPORT="_WITH_SNMP_CHECKER_"
+    fi
   fi
 fi
 
 AC_SUBST(SNMP_SUPPORT)
 AC_SUBST(SNMP_KEEPALIVED_SUPPORT)
-AC_SUBST(SNMP_RFC_SUPPORT)
 AC_SUBST(SNMP_CHECKER_SUPPORT)
+AC_SUBST(SNMP_RFC_SUPPORT)
+AC_SUBST(SNMP_RFCV2_SUPPORT)
+AC_SUBST(SNMP_RFCV3_SUPPORT)
 
 dnl ----[ SHA1 or not ? ]----
 SHA1_SUPPORT="_WITHOUT_SHA1_"
@@ -466,7 +493,7 @@ AC_SUBST(IPVS_SUPPORT)
 AC_SUBST(USE_NL)
 AC_SUBST(VRRP_SUPPORT)
 
-APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} ${DFLAGS}"
+APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} ${DFLAGS}"
 BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
 AC_SUBST(APP_DEFS)
 AC_SUBST(BUILD_OPTS)
@@ -561,10 +588,15 @@ if test "${SNMP_CHECKER_SUPPORT}" = "_WITH_SNMP_CHECKER_"; then
 else
   echo "SNMP checker support     : No"
 fi
-if test "${SNMP_RFC_SUPPORT}" = "_WITH_SNMP_RFC_"; then
-  echo "SNMP RFC support         : Yes"
+if test "${SNMP_RFCV2_SUPPORT}" = "_WITH_SNMP_RFCV2_"; then
+  echo "SNMP RFCv2 support       : Yes"
 else
-  echo "SNMP RFC support         : No"
+  echo "SNMP RFCv2 support       : No"
+fi
+if test "${SNMP_RFCV3_SUPPORT}" = "_WITH_SNMP_RFCV3_"; then
+  echo "SNMP RFCv3 support       : Yes"
+else
+  echo "SNMP RFCv3 support       : No"
 fi
 if test "${SHA1_SUPPORT}" = "_WITH_SHA1_"; then
   echo "SHA1 support             : Yes"

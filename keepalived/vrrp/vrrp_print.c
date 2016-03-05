@@ -56,6 +56,11 @@ vrrp_print_data(void)
 	fclose(file);
 }
 
+#if __WORDSIZE == 64
+#define u64	"%lu"
+#else	/* __WORDSIZE == 32 */
+#define u64	"%llu"
+#endif
 void
 vrrp_print_stats(void)
 {
@@ -70,19 +75,19 @@ vrrp_print_stats(void)
 		vrrp = ELEMENT_DATA(e);
 		fprintf(file, "VRRP Instance: %s\n", vrrp->iname);
 		fprintf(file, "  Advertisements:\n");
-		fprintf(file, "    Received: %d\n", vrrp->stats->advert_rcvd);
+		fprintf(file, "    Received: " u64 "\n", vrrp->stats->advert_rcvd);
 		fprintf(file, "    Sent: %d\n", vrrp->stats->advert_sent);
 		fprintf(file, "  Became master: %d\n", vrrp->stats->become_master);
 		fprintf(file, "  Released master: %d\n",
 			vrrp->stats->release_master);
 		fprintf(file, "  Packet Errors:\n");
-		fprintf(file, "    Length: %d\n", vrrp->stats->packet_len_err);
-		fprintf(file, "    TTL: %d\n", vrrp->stats->ip_ttl_err);
-		fprintf(file, "    Invalid Type: %d\n",
+		fprintf(file, "    Length: " u64 "\n", vrrp->stats->packet_len_err);
+		fprintf(file, "    TTL: " u64 "\n", vrrp->stats->ip_ttl_err);
+		fprintf(file, "    Invalid Type: " u64 "\n",
 			vrrp->stats->invalid_type_rcvd);
-		fprintf(file, "    Advertisement Interval: %d\n",
+		fprintf(file, "    Advertisement Interval: " u64 "\n",
 			vrrp->stats->advert_interval_err);
-		fprintf(file, "    Address List: %d\n",
+		fprintf(file, "    Address List: " u64 "\n",
 			vrrp->stats->addr_list_err);
 		fprintf(file, "  Authentication Errors:\n");
 		fprintf(file, "    Invalid Type: %d\n",
@@ -92,8 +97,8 @@ vrrp_print_stats(void)
 		fprintf(file, "    Failure: %d\n",
 			vrrp->stats->auth_failure);
 		fprintf(file, "  Priority Zero:\n");
-		fprintf(file, "    Received: %d\n", vrrp->stats->pri_zero_rcvd);
-		fprintf(file, "    Sent: %d\n", vrrp->stats->pri_zero_sent);
+		fprintf(file, "    Received: " u64 "\n", vrrp->stats->pri_zero_rcvd);
+		fprintf(file, "    Sent: " u64 "\n", vrrp->stats->pri_zero_sent);
 	}
 	fclose(file);
 }

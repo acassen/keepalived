@@ -149,8 +149,11 @@ alloc_global_data(void)
 #ifdef _WITH_SNMP_KEEPALIVED_
 		new->enable_snmp_keepalived = true;
 #endif
-#ifdef _WITH_SNMP_RFC_
-		new->enable_snmp_rfc = true;
+#ifdef _WITH_SNMP_RFCV2_
+		new->enable_snmp_rfcv2 = true;
+#endif
+#ifdef _WITH_SNMP_RFCV3_
+		new->enable_snmp_rfcv3 = true;
 #endif
 #ifdef _WITH_SNMP_CHECKER_
 		new->enable_snmp_checker = true;
@@ -251,10 +254,20 @@ dump_global_data(data_t * data)
 	log_message(LOG_INFO, " VRRP check unicast_src = %d", data->vrrp_check_unicast_src);
 	log_message(LOG_INFO, " VRRP skip check advert addresses = %d", data->vrrp_skip_check_adv_addr);
 	log_message(LOG_INFO, " VRRP strict mode = %d", data->vrrp_strict);
+#ifdef _WITH_SNMP_KEEPALIVED_
+	log_message(LOG_INFO, " SNMP keepalived %s", data->enable_snmp_keepalived ? "enabled" : "disabled");
+#endif
+#ifdef _WITH_SNMP_CHECKER_
+	log_message(LOG_INFO, " SNMP checker %s", data->enable_snmp_checker ? "enabled" : "disabled");
+#endif
+#ifdef _WITH_SNMP_RFCV2_
+	log_message(LOG_INFO, " SNMP RFCv2 %s", data->enable_snmp_rfcv2 ? "enabled" : "disabled");
+#endif
+#ifdef _WITH_SNMP_RFCV3_
+	log_message(LOG_INFO, " SNMP RFCv3 %s", data->enable_snmp_rfcv3 ? "enabled" : "disabled");
+#endif
 #ifdef _WITH_SNMP_
-	if (data->enable_traps)
-		log_message(LOG_INFO, " SNMP Trap enabled");
-	else
-		log_message(LOG_INFO, " SNMP Trap disabled");
+	log_message(LOG_INFO, " SNMP traps %s", data->enable_traps ? "enabled" : "disabled");
+	log_message(LOG_INFO, " SNMP socket = %s", data->snmp_socket ? data->snmp_socket : "default (127.0.0.1:161)");
 #endif
 }

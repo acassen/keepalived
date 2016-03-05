@@ -26,15 +26,36 @@
 
 #ifdef _WITH_SNMP_RFC_
 #include "timer.h"
+#endif
 
-enum rfc_trap_auth_error_type {
+#ifdef _WITH_SNMP_RFCV2_
+enum rfcv2_trap_auth_error_type {
 	invalidAuthType = 1,
 #ifdef _WITH_VRRP_AUTH_
 	authTypeMismatch,
 	authFailure
 #endif
 };
+#endif
 
+#ifdef _WITH_SNMP_RFCV3_
+enum rfcv3_notify_proto_error_type {
+	noError = 0,
+	ipTtlError,
+	versionError,
+	checksumError,
+	vrIdError
+};
+
+enum rfcv3_master_reason_type {
+	VRRPV3_MASTER_REASON_NOT_MASTER = 0,
+	VRRPV3_MASTER_REASON_PRIORITY,
+	VRRPV3_MASTER_REASON_PREEMPTED,
+	VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE
+};
+#endif
+
+#ifdef _WITH_SNMP_RFC_
 /* Global vars */
 extern timeval_t vrrp_start_time;
 #endif
@@ -48,9 +69,13 @@ extern void vrrp_snmp_instance_trap(vrrp_t *);
 extern void vrrp_snmp_group_trap(vrrp_sgroup_t *);
 #endif
 
-#ifdef _WITH_SNMP_RFC_
-extern void vrrp_rfc_snmp_new_master_trap(vrrp_t *);
-extern void vrrp_rfc_snmp_auth_err_trap(vrrp_t *, struct in_addr, enum rfc_trap_auth_error_type);
+#ifdef _WITH_SNMP_RFCV2_
+extern void vrrp_rfcv2_snmp_new_master_trap(vrrp_t *);
+extern void vrrp_rfcv2_snmp_auth_err_trap(vrrp_t *, struct in_addr, enum rfcv2_trap_auth_error_type);
+#endif
+#ifdef _WITH_SNMP_RFCV3_
+extern void vrrp_rfcv3_snmp_new_master_notify(vrrp_t *);
+extern void vrrp_rfcv3_snmp_proto_err_notify(vrrp_t *);
 #endif
 
 #endif
