@@ -43,14 +43,14 @@ enum feat_hashes {
 };
 
 typedef union {
-	MD5_CTX         	md5;
+	MD5_CTX			md5;
 #ifdef FEAT_SHA1
-	SHA_CTX         	sha;
+	SHA_CTX			sha;
 #endif
 	/* this is due to poor C standard/draft wording (wrapped):
 	   https://groups.google.com/forum/#!msg/comp.lang.c/
 	   1kQMGXhgn4I/0VBEYG_ji44J */
-	char            	*dummy;
+	char			*dummy;
 } hash_context_t;
 
 typedef void (*hash_init_f)(hash_context_t *);

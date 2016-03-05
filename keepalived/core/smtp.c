@@ -444,7 +444,7 @@ data_code(thread_t * thread, int status)
 	return 0;
 }
 
-/* 
+/*
  * Build a comma separated string of smtp recipient email addresses
  * for the email message To-header.
  */

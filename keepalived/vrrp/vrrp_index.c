@@ -58,7 +58,7 @@ vrrp_index_lookup(const int vrid, const int fd)
 	 * List collision on the vrid bucket. The same
 	 * vrid is used on a different interface. We perform
 	 * a fd lookup as collisions solver.
-	 */ 
+	 */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp =  ELEMENT_DATA(e);
 		if (vrrp->fd_in == fd)

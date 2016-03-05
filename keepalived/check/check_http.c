@@ -201,16 +201,16 @@ install_ssl_check_keyword(void)
 	install_sublevel_end();
 }
 
-/* 
+/*
  * The global design of this checker is the following :
- * 
+ *
  * - All the actions are done asynchronously.
  * - All the actions handle timeout connection.
  * - All the actions handle error from low layer to upper
  *   layers.
- * 
+ *
  * The global synopsis of the inter-thread-call is :
- *     
+ *
  *     http_connect_thread (handle layer4 connect)
  *            v
  *     http_check_thread (handle SSL connect)
@@ -270,7 +270,7 @@ epilog(thread_t * thread, int method, int t, int c)
 	}
 	/*
 	 * The get retry implementation mean that we retry performing
-	 * a GET on the same url until the remote web server return 
+	 * a GET on the same url until the remote web server return
 	 * html buffer. This is sometime needed with some applications
 	 * servers.
 	 */
@@ -586,7 +586,7 @@ http_request_thread(thread_t * thread)
 
 		/* Allocate a buffer for the port string ( ":" [0-9][0-9][0-9][0-9][0-9] "\0" ) */
 		request_host_port = (char*) MALLOC(7);
-		snprintf(request_host_port, 7, ":%d", 
+		snprintf(request_host_port, 7, ":%d",
 			 ntohs(inet_sockaddrport(addr)));
 	}
 

@@ -78,7 +78,7 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 		req.r.rtm_protocol = RTPROT_BOOT;
 		req.r.rtm_type     = RTN_UNICAST;
 	}
-	
+
 	/* Set rule entry */
 	if (iprule->dir == VRRP_RULE_FROM) {
 		req.r.rtm_src_len = iprule->mask;
@@ -159,7 +159,7 @@ alloc_rule(list rule_list, vector_t *strvec)
 		} else if (!strcmp(str, "to")) {
 			new->dir  = VRRP_RULE_TO;
 			new->addr = parse_ipaddress(NULL, vector_slot(strvec, ++i),false);
-			new->mask = new->addr->ifa.ifa_prefixlen;			
+			new->mask = new->addr->ifa.ifa_prefixlen;
 		} else if (!strcmp(str, "table")) {
 			new->table = atoi(vector_slot(strvec, ++i));
 		}
@@ -177,7 +177,7 @@ rule_exist(list l, ip_rule_t *iprule)
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		ipr = ELEMENT_DATA(e); 
+		ipr = ELEMENT_DATA(e);
 		if (RULE_ISEQ(ipr, iprule)) {
 			ipr->set = iprule->set;
 			return 1;

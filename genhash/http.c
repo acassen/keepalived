@@ -37,16 +37,16 @@
 #include "include/layer4.h"
 #include "include/main.h"
 
-/* 
+/*
  * The global design of this checker is the following :
- * 
+ *
  * - All the actions are done asynchronously.
  * - All the actions handle timeout connection.
  * - All the actions handle error from low layer to upper
  *   layers.
- * 
+ *
  * The global synopsis of the inter-thread-call is :
- *     
+ *
  *     http_request_thread (send SSL GET request)
  *            v
  *     http_response_thread (initialize read stream step)
@@ -311,17 +311,17 @@ http_request_thread(thread_t * thread)
 		*request_host_port = 0;
 	} else {
 		request_host = req->ipaddress;
-	
+
 		/* Allocate a buffer for the port string ( ":" [0-9][0-9][0-9][0-9][0-9] "\0" ) */
 		request_host_port = (char*) MALLOC(7);
 		snprintf(request_host_port, 7, ":%d",
 		 ntohs(req->addr_port));
 	}
-	
+
 	snprintf(str_request, GET_BUFFER_LENGTH,
 		 (req->dst && req->dst->ai_family == AF_INET6 && !req->vhost) ? REQUEST_TEMPLATE_IPV6 : REQUEST_TEMPLATE,
 		  req->url, request_host, request_host_port);
-	
+
 	FREE(request_host_port);
 
 	/* Send the GET request to remote Web server */

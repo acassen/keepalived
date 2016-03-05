@@ -105,11 +105,11 @@
 #define IP_VS_PEDATA_MAXLEN	255
 
 union nf_inet_addr {
-        __u32           all[4];
-        __be32          ip;
-        __be32          ip6[4];
-        struct in_addr  in;
-        struct in6_addr in6;
+	__u32           all[4];
+	__be32          ip;
+	__be32          ip6[4];
+	struct in_addr  in;
+	struct in6_addr in6;
 };
 
 /*
@@ -182,11 +182,11 @@ struct ip_vs_dest_user {
  */
 struct ip_vs_stats_user
 {
-	__u32                   conns;          /* connections scheduled */
-	__u32                   inpkts;         /* incoming packets */
-	__u32                   outpkts;        /* outgoing packets */
-	__u64                   inbytes;        /* incoming bytes */
-	__u64                   outbytes;       /* outgoing bytes */
+	__u32			conns;		/* connections scheduled */
+	__u32			inpkts;		/* incoming packets */
+	__u32			outpkts;	/* outgoing packets */
+	__u64			inbytes;	/* incoming bytes */
+	__u64			outbytes;	/* outgoing bytes */
 
 	__u32			cps;		/* current connection rate */
 	__u32			inpps;		/* current in packet rate */
@@ -219,7 +219,7 @@ struct ip_vs_service_entry_kern {
 
 	/* service options */
 	char			sched_name[IP_VS_SCHEDNAME_MAXLEN];
-	unsigned		flags;          /* virtual service flags */
+	unsigned		flags;		/* virtual service flags */
 	unsigned		timeout;	/* persistent timeout */
 	__be32			netmask;	/* persistent netmask */
 
@@ -239,7 +239,7 @@ struct ip_vs_service_entry {
 
 	/* service options */
 	char			sched_name[IP_VS_SCHEDNAME_MAXLEN];
-	unsigned		flags;          /* virtual service flags */
+	unsigned		flags;		/* virtual service flags */
 	unsigned		timeout;	/* persistent timeout */
 	__be32			netmask;	/* persistent netmask */
 

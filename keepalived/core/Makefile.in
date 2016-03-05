@@ -11,7 +11,7 @@ CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 	   -Wall -Wunused -Wstrict-prototypes
 COMPILE	 = $(CC) $(CFLAGS) @APP_DEFS@
 
-OBJS = 	main.o daemon.o pidfile.o layer4.o smtp.o \
+OBJS =	main.o daemon.o pidfile.o layer4.o smtp.o \
 	global_data.o global_parser.o
 ifeq ($(SNMP_FLAG),_WITH_SNMP_)
   OBJS += snmp.o

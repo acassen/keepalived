@@ -78,7 +78,7 @@ AC_CHECK_LIB(nl-3, nl_socket_alloc,
       [
         USE_NL="LIBIPVS_USE_NL"
         CFLAGS="$CFLAGS $(pkg-config --cflags libnl-genl-3.0)"
-	LIBS="$LIBS $(pkg-config --libs libnl-genl-3.0)"
+        LIBS="$LIBS $(pkg-config --libs libnl-genl-3.0)"
       ],
       [
         AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3.])
@@ -98,7 +98,7 @@ AC_CHECK_LIB(nl-3, nl_socket_alloc,
         CFLAGS="$CFLAGS -DFALLBACK_LIBNL1"
         LIBS="$LIBS $(pkg-config --libs libnl-1)"
       ],
-      [                                                                                           
+      [
         USE_NL="LIBIPVS_DONTUSE_NL"
         AC_MSG_WARN([keepalived will be built without libnl support.])
       ])
@@ -209,9 +209,9 @@ AC_TRY_RUN([
     #else
       fprintf (fp, "0.0.0\n"); /* Let''s fail gently */
     #endif
-      fclose (fp); 
+      fclose (fp);
       return 0;
-    } 
+    }
   ], [
     LINUX_MAJOR=`cat linuxinfo | cut -d'.' -f1`
     LINUX_MINOR=`cat linuxinfo | cut -d'.' -f2`
@@ -262,7 +262,7 @@ if test "$enable_lvs" != "no"; then
         AC_MSG_WARN([keepalived will be built without LVS support.])
       ])
   fi
-fi  
+fi
 
 if test "$IPVS_SUPPORT" = "_WITHOUT_LVS_" -a "$enable_vrrp" = "no"; then
   AC_MSG_ERROR([keepalived MUST be compiled at least with LVS or VRRP framework])

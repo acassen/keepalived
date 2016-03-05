@@ -4040,7 +4040,7 @@ if test "x$ac_cv_lib_nl_genl_3_genl_connect" = xyes; then :
 
         USE_NL="LIBIPVS_USE_NL"
         CFLAGS="$CFLAGS $(pkg-config --cflags libnl-genl-3.0)"
-	LIBS="$LIBS $(pkg-config --libs libnl-genl-3.0)"
+        LIBS="$LIBS $(pkg-config --libs libnl-genl-3.0)"
 
 else
 

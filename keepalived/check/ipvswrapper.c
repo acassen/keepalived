@@ -1,13 +1,13 @@
-/* 
+/*
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
- * 
+ *
  * Part:        IPVS Kernel wrapper. Use setsockopt call to add/remove
  *              server to/from the loadbalanced server pool.
- *  
+ *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
- *              
+ *
  *               This program is distributed in the hope that it will be useful,
  *               but WITHOUT ANY WARRANTY; without even the implied warranty of
  *               MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -71,7 +71,7 @@ ipvs_start(void)
 		if (modprobe_ipvs() || ipvs_init()) {
 			log_message(LOG_INFO,
 			       "IPVS : Can't initialize ipvs: %s",
-		 	       ipvs_strerror(errno));
+			       ipvs_strerror(errno));
 			return IPVS_ERROR;
 		}
 	}
@@ -637,7 +637,7 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 			else
 				drule->addr.ip = inet_sockaddrip4(&rs->addr);
 			drule->port = inet_sockaddrport(&rs->addr);
-			drule->weight = rs->weight;	
+			drule->weight = rs->weight;
 			drule->u_threshold = rs->u_threshold;
 			drule->l_threshold = rs->l_threshold;
 		}

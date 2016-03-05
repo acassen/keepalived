@@ -4,8 +4,8 @@
  *              a loadbalanced server pool using multi-layer checks.
  *
  * Part:        iptables manipulation directly without invoking iptables program.
- * 		This will use ipsets if they are available, in preference to
- * 		multiple entries in iptables.
+ *		This will use ipsets if they are available, in preference to
+ *		multiple entries in iptables.
  *
  * Author:      Quentin Armitage, <quentin@armitage.org.uk>
  *

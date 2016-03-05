@@ -10,7 +10,7 @@ CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 	   -Wall -Wunused -Wstrict-prototypes
 COMPILE	 = $(CC) $(CFLAGS) @APP_DEFS@
 
-OBJS = 	memory.o utils.o notify.o timer.o scheduler.o \
+OBJS =	memory.o utils.o notify.o timer.o scheduler.o \
 	vector.o list.o html.o parser.o signals.o logger.o
 HEADERS = $(OBJS:.o=.h)
 

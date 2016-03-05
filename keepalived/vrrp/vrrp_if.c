@@ -489,7 +489,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp, int proto)
 			    (family == AF_INET) ? "" : "V6", strerror(errno), errno);
 		close(*sd);
 		*sd = -1;
-        }
+	}
 
 	return *sd;
 }
@@ -734,14 +734,14 @@ if_setsockopt_sndbuf(int *sd, int val)
 		return -1;
 
 	/* sndbuf option */
-        ret = setsockopt(*sd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(val));
-        if (ret < 0) {
+	ret = setsockopt(*sd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(val));
+	if (ret < 0) {
 		log_message(LOG_INFO, "cant set SO_SNDBUF IP option. errno=%d (%m)", errno);
 		close(*sd);
 		*sd = -1;
-        }
+	}
 
-        return *sd;
+	return *sd;
 }
 
 int

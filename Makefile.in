@@ -35,9 +35,9 @@ clean:
 	$(MAKE) -C genhash clean
 
 id: ID
- 		
-ID: 
-	find . -name "*.[chCH]" -print | xargs mkid -fID 
+
+ID:
+	find . -name "*.[chCH]" -print | xargs mkid -fID
 
 tags: TAGS
 

@@ -145,8 +145,8 @@ check_snmp_vsgroup(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)g->gname;
 	default:
 		break;
-        }
-        return NULL;
+	}
+	return NULL;
 }
 
 static u_char*
@@ -156,8 +156,8 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 	static unsigned long long_ret;
 	static uint32_t ip;
 	static struct in6_addr ip6;
-        oid *target, current[2], best[2];
-        int result, target_len;
+	oid *target, current[2], best[2];
+	int result, target_len;
 	int curgroup = 0, curentry;
 	element e1, e2;
 	virtual_server_group_t *group;
@@ -166,10 +166,10 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 	list l;
 
 
-        if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
-                memcpy(name, vp->name, sizeof(oid) * vp->namelen);
-                *length = vp->namelen;
-        }
+	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
+		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
+		*length = vp->namelen;
+	}
 
 	*write_method = 0;
 	*var_len = sizeof(long);
@@ -180,9 +180,9 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 	/* We search the best match: equal if exact, the lower OID in
 	   the set of the OID strictly superior to the target
 	   otherwise. */
-        best[0] = best[1] = MAX_SUBID; /* Our best match */
-        target = &name[vp->namelen];   /* Our target match */
-        target_len = *length - vp->namelen;
+	best[0] = best[1] = MAX_SUBID; /* Our best match */
+	target = &name[vp->namelen];   /* Our target match */
+	target_len = *length - vp->namelen;
 	for (e1 = LIST_HEAD(check_data->vs_group); e1; ELEMENT_NEXT(e1)) {
 		group = ELEMENT_DATA(e1);
 		curgroup++;
@@ -244,8 +244,8 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 		return NULL;
  vsgmember_be_found:
 	/* Let's use our best match */
-        memcpy(target, best, sizeof(oid) * 2);
-        *length = vp->namelen + 2;
+	memcpy(target, best, sizeof(oid) * 2);
+	*length = vp->namelen + 2;
  vsgmember_found:
 	switch (vp->magic) {
 	case CHECK_SNMP_VSGROUPMEMBERTYPE:
@@ -301,7 +301,7 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 	if (!exact && (name[*length-1] < MAX_SUBID))
 		return check_snmp_vsgroupmember(vp, name, length,
 						exact, var_len, write_method);
-        return NULL;
+	return NULL;
 }
 
 static u_char*
@@ -508,11 +508,11 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 #endif
 	default:
 		return NULL;
-        }
+	}
 	if (!exact && (name[*length-1] < MAX_SUBID))
 		return check_snmp_virtualserver(vp, name, length,
 						exact, var_len, write_method);
-        return NULL;
+	return NULL;
 }
 
 static int
@@ -578,8 +578,8 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 #ifdef _KRNL_2_6_
 	static U64 counter64_ret;
 #endif
-        oid *target, current[2], best[2];
-        int result, target_len;
+	oid *target, current[2], best[2];
+	int result, target_len;
 	int curvirtual = 0, curreal;
 	real_server_t *e = NULL, *be = NULL;
 	element e1, e2 = NULL;
@@ -587,10 +587,10 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	int state;
 	int type, btype;
 
-        if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
-                memcpy(name, vp->name, sizeof(oid) * vp->namelen);
-                *length = vp->namelen;
-        }
+	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
+		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
+		*length = vp->namelen;
+	}
 
 	*write_method = 0;
 	*var_len = sizeof(long);
@@ -601,9 +601,9 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	/* We search the best match: equal if exact, the lower OID in
 	   the set of the OID strictly superior to the target
 	   otherwise. */
-        best[0] = best[1] = MAX_SUBID; /* Our best match */
-        target = &name[vp->namelen];   /* Our target match */
-        target_len = *length - vp->namelen;
+	best[0] = best[1] = MAX_SUBID; /* Our best match */
+	target = &name[vp->namelen];   /* Our target match */
+	target_len = *length - vp->namelen;
 	for (e1 = LIST_HEAD(check_data->vs); e1; ELEMENT_NEXT(e1)) {
 		vs = ELEMENT_DATA(e1);
 		curvirtual++;
@@ -680,8 +680,8 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		return NULL;
  real_be_found:
 	/* Let's use our best match */
-        memcpy(target, best, sizeof(oid) * 2);
-        *length = vp->namelen + 2;
+	memcpy(target, best, sizeof(oid) * 2);
+	*length = vp->namelen + 2;
  real_found:
 	switch (vp->magic) {
 	case CHECK_SNMP_RSTYPE:
@@ -804,7 +804,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	if (!exact && (name[*length-1] < MAX_SUBID))
 		return check_snmp_realserver(vp, name, length,
 					     exact, var_len, write_method);
-        return NULL;
+	return NULL;
 }
 
 static oid check_oid[] = {CHECK_OID};

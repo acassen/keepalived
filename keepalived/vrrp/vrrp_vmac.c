@@ -67,7 +67,7 @@ netlink_link_up(vrrp_t *vrrp)
 	} req;
 
 	memset(&req, 0, sizeof (req));
-	
+
 	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
 	req.n.nlmsg_flags = NLM_F_REQUEST;
 	req.n.nlmsg_type = RTM_NEWLINK;
@@ -111,8 +111,8 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	memset(ifname, 0, IFNAMSIZ);
 	strncpy(ifname, vrrp->vmac_ifname, IFNAMSIZ - 1);
 
-	/* 
-	 * Check to see if this vmac interface was created 
+	/*
+	 * Check to see if this vmac interface was created
 	 * by a previous instance.
 	 */
 	if ((ifp = if_get_by_ifname(ifname))) {

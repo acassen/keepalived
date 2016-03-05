@@ -53,7 +53,7 @@ vrrp_print_data(void)
 		fprintf(file, "------< VRRP Sync groups >------\n");
 		vrrp_print_list(file, vrrp_data->vrrp_sync_group, &vgroup_print);
 	}
-        fclose(file);
+	fclose(file);
 }
 
 void
@@ -230,7 +230,7 @@ vgroup_print(FILE *file, void *data)
 
 	vrrp_sgroup_t *vgroup = data;
 	fprintf(file, " VRRP Sync Group = %s, %s\n", vgroup->gname,
-       		(vgroup->state == VRRP_STATE_MAST) ? "MASTER" : "BACKUP");
+		(vgroup->state == VRRP_STATE_MAST) ? "MASTER" : "BACKUP");
 	for (i = 0; i < vector_size(vgroup->iname); i++) {
 		str = vector_slot(vgroup->iname, i);
 		fprintf(file, "   monitor = %s\n", str);
@@ -403,9 +403,9 @@ if_print(FILE *file, void * data)
 
 	/* MII channel supported ? */
 	if (IF_MII_SUPPORTED(ifp))
-	        fprintf(file, " NIC support MII regs\n");
+		fprintf(file, " NIC support MII regs\n");
 	else if (IF_ETHTOOL_SUPPORTED(ifp))
-	        fprintf(file, " NIC support EHTTOOL GLINK interface\n");
+		fprintf(file, " NIC support EHTTOOL GLINK interface\n");
 	else
-	        fprintf(file, " Enabling NIC ioctl refresh polling\n");
+		fprintf(file, " Enabling NIC ioctl refresh polling\n");
 }

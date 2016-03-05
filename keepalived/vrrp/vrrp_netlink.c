@@ -716,11 +716,11 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	/* Fill the interface structure */
 	ifp = (interface_t *) MALLOC(sizeof(interface_t));
 
-        status = netlink_if_link_populate(ifp, tb, ifi);
-        if (status < 0) {
-            FREE(ifp);
-            return -1;
-        }
+	status = netlink_if_link_populate(ifp, tb, ifi);
+	if (status < 0) {
+		FREE(ifp);
+		return -1;
+	}
 	/* Queue this new interface_t */
 	if_add_queue(ifp);
 	return 0;
@@ -805,31 +805,31 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 		return 0;
 
 	/* find the interface_t. If the interface doesn't exist in the interface
-         * list and this is a new interface add it to the interface list.
-         * If an interface with the same name exists overwrite the older
-         * structure and fill it with the new interface information.
-         */
+	 * list and this is a new interface add it to the interface list.
+	 * If an interface with the same name exists overwrite the older
+	 * structure and fill it with the new interface information.
+	 */
 	ifp = if_get_by_ifindex(ifi->ifi_index);
 	if (!ifp) {
-                if (h->nlmsg_type == RTM_NEWLINK) {
-                    char *name;
-                    name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
-                    ifp = if_get_by_ifname(name);
-                    if (!ifp) {
-                            ifp = (interface_t *) MALLOC(sizeof(interface_t));
-                            if_add_queue(ifp);
-                    } else {
-                            memset(ifp, 0, sizeof(interface_t));
-                    }
-                    status = netlink_if_link_populate(ifp, tb, ifi);
-                    if (status < 0)
-                            return -1;
+		if (h->nlmsg_type == RTM_NEWLINK) {
+			char *name;
+			name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
+			ifp = if_get_by_ifname(name);
+			if (!ifp) {
+				ifp = (interface_t *) MALLOC(sizeof(interface_t));
+				if_add_queue(ifp);
+			} else {
+				memset(ifp, 0, sizeof(interface_t));
+			}
+			status = netlink_if_link_populate(ifp, tb, ifi);
+			if (status < 0)
+				return -1;
 
-                } else {
-                    if (__test_bit(LOG_DETAIL_BIT, &debug))
-                            log_message(LOG_INFO, "Unknown interface %s deleted", (char *)tb[IFLA_IFNAME]);
-                    return 0;
-                }
+			} else {
+				if (__test_bit(LOG_DETAIL_BIT, &debug))
+					log_message(LOG_INFO, "Unknown interface %s deleted", (char *)tb[IFLA_IFNAME]);
+			return 0;
+		}
 	}
 
 	/*

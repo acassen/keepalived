@@ -11,7 +11,7 @@
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
  *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *              See the GNU General Public License for more details.
- *              
+ *
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
@@ -52,12 +52,12 @@ typedef struct _ip_route {
 
 /* Macro definition */
 #define ROUTE_ISEQ(X,Y) (IP_ISEQ((X)->dst, (Y)->dst)	&& \
-                         (X)->dmask  == (Y)->dmask	&& \
-                         IP_ISEQ((X)->gw, (Y)->gw)	&& \
-                         IP_ISEQ((X)->src, (Y)->src)	&& \
-                         (X)->table  == (Y)->table	&& \
-                         (X)->scope  == (Y)->scope	&& \
-                         (X)->index  == (Y)->index)
+			 (X)->dmask  == (Y)->dmask	&& \
+			 IP_ISEQ((X)->gw, (Y)->gw)	&& \
+			 IP_ISEQ((X)->src, (Y)->src)	&& \
+			 (X)->table  == (Y)->table	&& \
+			 (X)->scope  == (Y)->scope	&& \
+			 (X)->index  == (Y)->index)
 
 /* prototypes */
 extern int netlink_route(ip_route_t *, int);

@@ -10,9 +10,9 @@
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
- *              This program is distributed in the hope that it will be useful, 
- *              but WITHOUT ANY WARRANTY; without even the implied warranty of 
- *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+ *              This program is distributed in the hope that it will be useful,
+ *              but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *              See the GNU General Public License for more details.
  *
  *              This program is free software; you can redistribute it and/or
@@ -211,7 +211,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 
 	/*
 	 * then proceed with the sequence number to prevent against replay attack.
-	 * For inbound processing, we increment seq_number counter to audit 
+	 * For inbound processing, we increment seq_number counter to audit
 	 * sender counter.
 	 */
 	vrrp->ipsecah_counter->seq_number++;
@@ -285,8 +285,8 @@ vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
 /*
  * VRRP incoming packet check.
  * return VRRP_PACKET_OK if the pkt is valid, or
- * 	  VRRP_PACKET_KO if packet invalid or
- * 	  VRRP_PACKET_DROP if packet not relevant to us
+ *	  VRRP_PACKET_KO if packet invalid or
+ *	  VRRP_PACKET_DROP if packet not relevant to us
  */
 static int
 vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
@@ -418,7 +418,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 
 #ifdef _WITH_VRRP_AUTH_
 	/*
-	 * MUST perform authentication specified by Auth Type 
+	 * MUST perform authentication specified by Auth Type
 	 * check the authentication type
 	 */
 	if (vrrp->version == VRRP_VERSION_2 &&
@@ -488,7 +488,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 		if (vrrp->master_adver_int != adver_int)
 			log_message(LOG_INFO, "(%s): advertisement interval changed: mine=%d milli-sec, rcved=%d milli-sec",
 				vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), adver_int / (TIMER_HZ / 1000));
- 	}
+	}
 
 	if (vrrp->family == AF_INET && ntohs(ip->tot_len) != buflen) {
 		log_message(LOG_INFO,
@@ -535,7 +535,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 				return VRRP_PACKET_KO;
 			}
 		}
-        }
+	}
 
 	/* Correct type, version, and length. Count as VRRP advertisement */
 	++vrrp->stats->advert_rcvd;
@@ -697,7 +697,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 
 	/* The SPI value is filled with the ip header source address.
 	   SPI uniquely identify the Security Association (SA). This value
-	   is chosen by the recipient itself when setting up the SA. In a 
+	   is chosen by the recipient itself when setting up the SA. In a
 	   multicast environment, this becomes unfeasible.
 
 	   If left to the sender, the choice of the SPI value should be done
@@ -714,7 +714,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, int buflen)
 	   Cycled assumed if 0xFFFFFFFD reached. So the MASTER state is free for another srv.
 	   Here can result a flapping MASTER state owner when max seq_number value reached.
 	   => Much work needed here.
-	   In the current implementation if counter has cycled, we stop sending adverts and 
+	   In the current implementation if counter has cycled, we stop sending adverts and
 	   become BACKUP. If all the master are down we reset the counter for becoming MASTER.
 	 */
 	if (vrrp->ipsecah_counter->seq_number > 0xFFFFFFFD) {
@@ -882,7 +882,7 @@ vrrp_build_pkt(vrrp_t * vrrp, int prio, struct sockaddr_storage *addr)
 
 	if (vrrp->family == AF_INET) {
 		/* build the ip header */
-		dst = (addr) ? inet_sockaddrip4(addr) : 
+		dst = (addr) ? inet_sockaddrip4(addr) :
 			       ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr.s_addr;
 		vrrp_build_ip4(vrrp, bufptr, len, dst);
 
@@ -1204,11 +1204,11 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 void
 vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 {
-        /* if we stop vrrp, warn the other routers to speed up the recovery */
+	/* if we stop vrrp, warn the other routers to speed up the recovery */
 	if (advF) {
 		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 		++vrrp->stats->pri_zero_sent;
-	        syslog(LOG_INFO, "VRRP_Instance(%s) sent 0 priority",
+		syslog(LOG_INFO, "VRRP_Instance(%s) sent 0 priority",
 		       vrrp->iname);
 	}
 
@@ -1312,7 +1312,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 
 	if (ret == VRRP_PACKET_KO || ret == VRRP_PACKET_NULL) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) ignoring received advertisment..."
-			            ,  vrrp->iname);
+				    ,  vrrp->iname);
 		if (vrrp->version == VRRP_VERSION_3)
 			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 		else
@@ -1324,7 +1324,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 		if (vrrp->version == VRRP_VERSION_3) {
 			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
 			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
-		 	 * in the ADVERTISEMENT
+			 * in the ADVERTISEMENT
 			 */
 			if (vrrp->master_adver_int != master_adver_int) {
 				vrrp->master_adver_int = master_adver_int;
@@ -1347,7 +1347,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 						"%s(%s) reset preempt delay",
 						"VRRP_Instance", vrrp->iname);
 					vrrp->preempt_delay_active = 0;
-		        	}
+				}
 			} else {
 				if (!vrrp->preempt_delay_active) {
 					log_message(LOG_INFO,
@@ -2302,7 +2302,7 @@ clear_diff_vrrp(void)
 			vrrp_restore_interface(vrrp, true, false);
 
 			/* Remove VMAC if one was created */
-			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) 
+			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 				netlink_link_del_vmac(vrrp);
 		} else {
 			/*
@@ -2318,7 +2318,7 @@ clear_diff_vrrp(void)
 			/* virtual rules diff */
 			clear_diff_vrrp_vrules(vrrp);
 
-			/* 
+			/*
 			 * Remove VMAC if it existed in old vrrp instance,
 			 * but not the new one.
 			 */

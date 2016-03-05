@@ -255,7 +255,7 @@ route_exist(list l, ip_route_t *iproute)
 	element e;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		ipr = ELEMENT_DATA(e); 
+		ipr = ELEMENT_DATA(e);
 		if (ROUTE_ISEQ(ipr, iproute)) {
 			ipr->set = iproute->set;
 			return 1;

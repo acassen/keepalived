@@ -88,7 +88,7 @@ struct {
 {
 /*    Stream Read Handlers      |    Stream Read_to handlers   *
  *------------------------------+------------------------------*/
-	{NULL, 				NULL},
+	{NULL,				NULL},
 	{vrrp_backup,			vrrp_goto_master},	/*  BACKUP          */
 	{vrrp_leave_master,		vrrp_master},		/*  MASTER          */
 	{vrrp_leave_fault,		vrrp_fault},		/*  FAULT           */
@@ -126,7 +126,7 @@ struct {
  * FSM since it will speed up convergence to init state.
  * Additionnaly, we have implemented some other handlers into the matrix
  * in order to speed up group synchronization takeover. For instance
- * transitions : 
+ * transitions :
  *    o B->B: To catch wantstate MASTER transition to force sync group
  *            to this transition state too.
  *    o F->F: To speed up FAULT state transition if group is not already
@@ -512,7 +512,7 @@ vrrp_set_fds(list l)
 				proto = IPPROTO_VRRP;
 
 			if ((sock->ifindex == ifindex)	&&
-                (sock->family == vrrp->family) &&
+		(sock->family == vrrp->family) &&
 			    (sock->proto == proto)	&&
 			    (sock->unicast == unicast)) {
 				vrrp->fd_in = sock->fd_in;
@@ -896,7 +896,7 @@ vrrp_dispatcher_read_to(int fd)
 	if (vrrp->quick_sync) {
 		vrrp->sands = timer_add_long(time_now, vrrp->adver_int);
 		vrrp->quick_sync = 0;
-        }
+	}
 
 	return vrrp->fd_in;
 }
@@ -908,8 +908,8 @@ vrrp_dispatcher_read(sock_t * sock)
 	vrrp_t *vrrp;
 	vrrphdr_t *hd;
 	int len = 0, prev_state = 0, proto = 0;
-        struct sockaddr_storage src_addr;
-        socklen_t src_addr_len = sizeof(src_addr);
+	struct sockaddr_storage src_addr;
+	socklen_t src_addr_len = sizeof(src_addr);
 
 	/* Clean the read buffer */
 	memset(vrrp_buffer, 0, vrrp_buffer_len);
@@ -988,7 +988,7 @@ vrrp_script_thread(thread_t * thread)
 	thread_add_timer(thread->master, vrrp_script_thread, vscript,
 			 vscript->interval);
 
-        /* Execute the script in a child process. Parent returns, child doesn't */
+	/* Execute the script in a child process. Parent returns, child doesn't */
 	return system_call_script(thread->master, vrrp_script_child_thread,
 				  vscript, (vscript->timeout) ? vscript->timeout : vscript->interval,
 				  vscript->script);

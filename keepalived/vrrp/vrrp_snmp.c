@@ -446,7 +446,7 @@ vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
 	switch (vp->magic) {
 	case VRRP_SNMP_ADDRESS_ADDRESSTYPE:
 		long_ret = (addr->ifa.ifa_family == AF_INET6)?2:1;
-		return (u_char *)&long_ret;		
+		return (u_char *)&long_ret;
 	case VRRP_SNMP_ADDRESS_VALUE:
 		if (addr->ifa.ifa_family == AF_INET6) {
 			*var_len = 16;
@@ -822,7 +822,7 @@ vrrp_snmp_instance_accept(int action,
 			return SNMP_ERR_WRONGLENGTH;
 		switch ((long)(*var_val)) {
 		case 1:		/* enable accept */
-		case 2:         /* disable accept */
+		case 2:		/* disable accept */
 			break;
 		default:
 			return SNMP_ERR_WRONGVALUE;
