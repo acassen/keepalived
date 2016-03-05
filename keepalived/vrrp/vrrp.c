@@ -1855,6 +1855,13 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->init_state = VRRP_STATE_BACK;
 		vrrp->wantstate = VRRP_STATE_BACK;
 	}
+	else if (vrrp->base_priority == VRRP_PRIO_OWNER && !vrrp->nopreempt) {
+		vrrp->init_state = VRRP_STATE_MAST;
+		vrrp->wantstate = VRRP_STATE_MAST;
+	}
+
+	if (vrrp->nopreempt && vrrp->init_state == VRRP_STATE_MAST)
+		log_message(LOG_INFO, "(%s): Warning - nopreempt will not work with initial state MASTER", vrrp->iname);
 
 	vrrp->state = VRRP_STATE_INIT;
 	if (!vrrp->adver_int)
