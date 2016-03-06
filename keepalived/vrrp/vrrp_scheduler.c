@@ -254,7 +254,7 @@ vrrp_init_state(list l)
 			       vrrp->iname);
 
 			/* Set BACKUP state */
-			vrrp_restore_interface(vrrp, 0);
+			vrrp_restore_interface(vrrp, 0, false);
 			vrrp->state = VRRP_STATE_BACK;
 			vrrp_smtp_notifier(vrrp);
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);

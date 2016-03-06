@@ -46,6 +46,9 @@
 #ifdef _WITH_SNMP_
   #include "vrrp_snmp.h"
 #endif
+#ifdef _HAVE_LIBIPSET_
+  #include "vrrp_ipset.h"
+#endif
 #include "list.h"
 #include "main.h"
 #include "memory.h"
@@ -131,8 +134,13 @@ start_vrrp(void)
 	gratuitous_arp_init();
 	ndisc_init();
 
-	/* Parse configuration file */
 	global_data = alloc_global_data();
+
+#ifdef _HAVE_LIBIPTC_
+	iptables_init();
+#endif
+
+	/* Parse configuration file */
 	vrrp_data = alloc_vrrp_data();
 	init_data(conf_file, vrrp_init_keywords);
 	if (!vrrp_data) {
@@ -177,7 +185,7 @@ start_vrrp(void)
 	}
 
 #ifdef _HAVE_LIBIPTC_
-	iptables_init();
+	iptables_startup();
 #endif
 
 	/* Post initializations */

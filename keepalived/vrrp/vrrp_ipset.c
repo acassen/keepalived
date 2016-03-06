@@ -74,7 +74,7 @@ do_ipset_cmd(struct ipset_session* session, enum ipset_cmd cmd, const char *setn
 	uint8_t family;
 	int r;
 
-	r = ipset_session_data_set(session, IPSET_SETNAME, setname);
+	ipset_session_data_set(session, IPSET_SETNAME, setname);
 
 	type = ipset_type_get(session, cmd);
 	if (type == NULL) {
@@ -101,7 +101,7 @@ ipset_create(struct ipset_session* session, const char *setname, const char *typ
 	const struct ipset_type *type;
 	int r;
 
-	r = ipset_session_data_set(session, IPSET_SETNAME, setname);
+	ipset_session_data_set(session, IPSET_SETNAME, setname);
 
 	ipset_session_data_set(session, IPSET_OPT_TYPENAME, typename);
 
@@ -121,7 +121,7 @@ ipset_destroy(struct ipset_session* session, const char *setname)
 {
 	int r;
 
-	r = ipset_session_data_set(session, IPSET_SETNAME, setname);
+	ipset_session_data_set(session, IPSET_SETNAME, setname);
 
 	r = ipset_cmd1(session, IPSET_CMD_DESTROY, 0);
 	return r == 0;
@@ -157,7 +157,7 @@ static int create_sets(const char* addr4, const char* addr6, const char* addr_if
 	return true;
 }
 
-static int ipset_init(void)
+bool ipset_init(void)
 {
 	if (libipset_handle)
 		return true;
@@ -180,6 +180,9 @@ static int ipset_init(void)
 	ipset_load_types_addr = dlsym(libipset_handle,"ipset_load_types");
 
 	ipset_load_types();
+
+	if (!load_mod_xt_set())
+		return false;
 
 	return true;
 }
@@ -205,12 +208,6 @@ int remove_ipsets(void)
 
 int add_ipsets(void)
 {
-	if (!ipset_init())
-		return false;
-
-	if (!load_mod_xt_set())
-		return false;
-
 	return create_sets(global_data->vrrp_ipset_address, global_data->vrrp_ipset_address6, global_data->vrrp_ipset_address_iface6);
 }
 

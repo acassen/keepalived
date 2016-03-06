@@ -218,7 +218,7 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 	/* Allow NAs to be sent in reply to an NS */
 	if (fork_exec(argv) < 0)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to allow NAs to be"
-				     " sent from vip %s", (cmd) ? "set" : "remove",, addr_str);
+				     " sent from vip %s", (cmd) ? "set" : "remove", addr_str);
 }
 
 /* add/remove iptable drop rule to VIP */
@@ -259,7 +259,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void 
 		log_message(LOG_ERR, "Failed to %s iptable drop rule"
 				     " to vip %s", (cmd) ? "set" : "remove", addr_str);
 	else
-		ipaddress->iptable_rule_set = (cmd != IPADDRESS_DEL) ? true : false;
+		ipaddress->iptable_rule_set = (cmd != IPADDRESS_DEL);
 
 	if (global_data->vrrp_iptables_outchain[0] == '\0')
 		return;
@@ -277,7 +277,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void 
 
 /* add/remove iptable drop rules to iplist */
 void
-handle_iptable_rule_to_iplist(struct ipt_handle *h, list ip_list, int cmd, char *ifname)
+handle_iptable_rule_to_iplist(struct ipt_handle *h, list ip_list, int cmd, char *ifname, bool force)
 {
 	ip_address_t *ipaddr;
 	element e;
@@ -288,9 +288,9 @@ handle_iptable_rule_to_iplist(struct ipt_handle *h, list ip_list, int cmd, char 
 
 	for (e = LIST_HEAD(ip_list); e; ELEMENT_NEXT(e)) {
 		ipaddr = ELEMENT_DATA(e);
-		if ((cmd == IPADDRESS_DEL) == ipaddr->iptable_rule_set) {
+		if ((cmd == IPADDRESS_DEL) == ipaddr->iptable_rule_set ||
+		    force)
 			handle_iptable_rule_to_vip(ipaddr, cmd, ifname, h);
-		}
 	}
 }
 
@@ -527,7 +527,7 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 	if (LIST_ISEMPTY(n)) {
 		log_message(LOG_INFO, "Removing a VIP and e-VIP block");
 		netlink_iplist(l, IPADDRESS_DEL);
-		handle_iptable_rule_to_iplist(h, l, IPADDRESS_DEL, iface_name);
+		handle_iptable_rule_to_iplist(h, l, IPADDRESS_DEL, iface_name, false);
 		return;
 	}
 
