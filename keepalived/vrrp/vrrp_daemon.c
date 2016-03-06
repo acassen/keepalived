@@ -46,6 +46,9 @@
 #ifdef _WITH_SNMP_
   #include "vrrp_snmp.h"
 #endif
+#ifdef _HAVE_LIBIPSET_
+  #include "vrrp_ipset.h"
+#endif
 #include "list.h"
 #include "main.h"
 #include "memory.h"
@@ -72,7 +75,7 @@ stop_vrrp(void)
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL);
 
 #ifdef _WITH_SNMP_
-	if (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfc)
+	if (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)
 		vrrp_snmp_agent_close();
 #endif
 
@@ -131,8 +134,13 @@ start_vrrp(void)
 	gratuitous_arp_init();
 	ndisc_init();
 
-	/* Parse configuration file */
 	global_data = alloc_global_data();
+
+#ifdef _HAVE_LIBIPTC_
+	iptables_init();
+#endif
+
+	/* Parse configuration file */
 	vrrp_data = alloc_vrrp_data();
 	init_data(conf_file, vrrp_init_keywords);
 	if (!vrrp_data) {
@@ -142,7 +150,7 @@ start_vrrp(void)
 	init_global_data(global_data);
 
 #ifdef _WITH_SNMP_
-	if (!reload && (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfc)) {
+	if (!reload && (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {
 		vrrp_snmp_agent_init(global_data->snmp_socket);
 #ifdef _WITH_SNMP_RFC_
 		vrrp_start_time = timer_now();
@@ -177,7 +185,7 @@ start_vrrp(void)
 	}
 
 #ifdef _HAVE_LIBIPTC_
-	iptables_init();
+	iptables_startup();
 #endif
 
 	/* Post initializations */
@@ -192,8 +200,13 @@ start_vrrp(void)
 
 	/* Dump configuration */
 	if (__test_bit(DUMP_CONF_BIT, &debug)) {
+		list ifl;
+
 		dump_global_data(global_data);
 		dump_vrrp_data(vrrp_data);
+		ifl = get_if_list();
+		if (!LIST_ISEMPTY(ifl))
+			dump_list(ifl);
 	}
 
 	/* Initialize linkbeat */

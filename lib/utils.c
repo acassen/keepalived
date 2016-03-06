@@ -295,7 +295,7 @@ inet_sockaddrport(struct sockaddr_storage *addr)
 		struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
 		port = addr4->sin_port;
 	}
-	
+
 	return port;
 }
 
@@ -317,7 +317,7 @@ inet_sockaddrip4(struct sockaddr_storage *addr)
 {
 	if (addr->ss_family != AF_INET)
 		return -1;
-	
+
 	return ((struct sockaddr_in *) addr)->sin_addr.s_addr;
 }
 
@@ -326,7 +326,7 @@ inet_sockaddrip6(struct sockaddr_storage *addr, struct in6_addr *ip6)
 {
 	if (addr->ss_family != AF_INET6)
 		return -1;
-	
+
 	*ip6 = ((struct sockaddr_in6 *) addr)->sin6_addr;
 	return 0;
 }

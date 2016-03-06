@@ -11,7 +11,7 @@
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
  *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *              See the GNU General Public License for more details.
- *              
+ *
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
@@ -27,18 +27,18 @@
 #include <linux/icmpv6.h>
 
 /* local definitions */
-#define ETHERNET_HW_LEN 6
+#define ETHERNET_HW_LEN	6
 #define NEXTHDR_ICMP	58
 #define NDISC_HOPLIMIT	255
 
 /*
  *	ICMPv6 codes for Neighbour Discovery messages
  */
-#define NDISC_ROUTER_SOLICITATION       133
-#define NDISC_ROUTER_ADVERTISEMENT      134
-#define NDISC_NEIGHBOUR_SOLICITATION    135
-#define NDISC_NEIGHBOUR_ADVERTISEMENT   136
-#define NDISC_REDIRECT                  137
+#define NDISC_ROUTER_SOLICITATION	133
+#define NDISC_ROUTER_ADVERTISEMENT	134
+#define NDISC_NEIGHBOUR_SOLICITATION	135
+#define NDISC_NEIGHBOUR_ADVERTISEMENT	136
+#define NDISC_REDIRECT			137
 
 /*
  *	Neighbour Discovery option codes
@@ -69,7 +69,7 @@ struct ip6hdr {
 };
 
 /*
- *	NDISC Neighbour Advertisement related	
+ *	NDISC Neighbour Advertisement related
  */
 struct ndhdr {
 	struct icmp6hdr		icmph;

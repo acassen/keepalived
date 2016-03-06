@@ -11,7 +11,7 @@
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
  *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *              See the GNU General Public License for more details.
- *              
+ *
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
@@ -55,8 +55,8 @@
 #define ETHTOOL_GLINK   0x0000000a
 /* for passing single values */
 struct ethtool_value {
-        uint32_t   cmd;
-        uint32_t   data;
+	uint32_t   cmd;
+	uint32_t   data;
 };
 #endif
 #define LINK_UP   1
@@ -113,13 +113,14 @@ typedef struct _tracked_if {
 #define IF_ETHTOOL_SUPPORTED(X) ((X)->lb_type & LB_ETHTOOL)
 #define IF_LINKBEAT(X) ((X)->linkbeat)
 #define IF_ISUP(X) (((X)->flags & IFF_UP)      && \
-                    ((X)->flags & IFF_RUNNING) && \
-                    if_linkbeat(X))
+		    ((X)->flags & IFF_RUNNING) && \
+		    if_linkbeat(X))
 
 /* prototypes */
 extern interface_t *if_get_by_ifindex(const int);
 extern interface_t *base_if_get_by_ifindex(const int);
 extern interface_t *if_get_by_ifname(const char *);
+extern list get_if_list(void);
 extern void if_vmac_reflect_flags(const int, const unsigned long);
 extern int if_linkbeat(const interface_t *);
 extern int if_mii_probe(const char *);

@@ -12,7 +12,7 @@ CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 	   -Wall -Wunused -Wstrict-prototypes
 COMPILE	 = $(CC) $(CFLAGS) @APP_DEFS@
 
-OBJS = 	check_daemon.o check_data.o check_parser.o \
+OBJS =	check_daemon.o check_data.o check_parser.o \
 	check_api.o check_tcp.o check_http.o check_ssl.o \
 	check_smtp.o check_misc.o ipwrapper.o ipvswrapper.o
 ifeq ($(SNMP_CHECKER_FLAG),_WITH_SNMP_CHECKER_)

@@ -8,9 +8,9 @@
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
- *              This program is distributed in the hope that it will be useful, 
- *              but WITHOUT ANY WARRANTY; without even the implied warranty of 
- *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  
+ *              This program is distributed in the hope that it will be useful,
+ *              but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *              See the GNU General Public License for more details.
  *
  *              This program is free software; you can redistribute it and/or
@@ -76,13 +76,14 @@ typedef struct {
 #define VRRP_PRIO_OWNER		255		/* priority of the ip owner -- rfc2338.5.3.4 */
 #define VRRP_PRIO_DFL		100		/* default priority -- rfc2338.5.3.4 */
 #define VRRP_PRIO_STOP		0		/* priority to stop -- rfc2338.5.3.4 */
+#define VRRP_MAX_ADDR		((2^8)-1)	/* count addr field is 8 bits wide */
 #define VRRP_AUTH_NONE		0		/* no authentification -- rfc2338.5.3.6 */
 #ifdef _WITH_VRRP_AUTH_
 #define VRRP_AUTH_PASS		1		/* password authentification -- rfc2338.5.3.6 */
 #define VRRP_AUTH_AH		2		/* AH(IPSec) authentification - rfc2338.5.3.6 */
 #endif
 #define VRRP_ADVER_DFL		1		/* advert. interval (in sec) -- rfc2338.5.3.7 */
-#define VRRP_GARP_DELAY 	(5 * TIMER_HZ)	/* Default delay to launch gratuitous arp */
+#define VRRP_GARP_DELAY		(5 * TIMER_HZ)	/* Default delay to launch gratuitous arp */
 #define VRRP_GARP_REP		5		/* Default repeat value for MASTER state gratuitous arp */
 #define VRRP_GARP_REFRESH_REP	1		/* Default repeat value for refresh gratuitous arp */
 
@@ -110,30 +111,34 @@ typedef struct _vrrp_sgroup {
 
 /* Statistics */
 typedef struct _vrrp_stats {
-	uint32_t	advert_rcvd;
+	uint64_t	advert_rcvd;
 	uint32_t	advert_sent;
 
 	uint32_t	become_master;
 	uint32_t	release_master;
 
-	uint32_t	packet_len_err;
-	uint32_t	advert_interval_err;
-	uint32_t	ip_ttl_err;
-	uint32_t	invalid_type_rcvd;
-	uint32_t	addr_list_err;
+	uint64_t	packet_len_err;
+	uint64_t	advert_interval_err;
+	uint64_t	ip_ttl_err;
+	uint64_t	invalid_type_rcvd;
+	uint64_t	addr_list_err;
 
 	uint32_t	invalid_authtype;
 	uint32_t	authtype_mismatch;
 	uint32_t	auth_failure;
 
-	uint32_t	pri_zero_rcvd;
-	uint32_t	pri_zero_sent;
+	uint64_t	pri_zero_rcvd;
+	uint64_t	pri_zero_sent;
 
 #ifdef _WITH_SNMP_RFC_
 	uint32_t	chk_err;
 	uint32_t	vers_err;
 	uint32_t	vrid_err;
 	timeval_t	uptime;
+#ifdef _WITH_SNMP_RFCV3_
+	int		master_reason;
+	int		proto_err_reason;
+#endif
 #endif
 } vrrp_stats;
 
@@ -182,7 +187,7 @@ typedef struct _vrrp_t {
 	list			vroutes;		/* list of virtual routes */
 	list			vrules;			/* list of virtual rules */
 	int			adver_int;		/* locally configured delay between advertisements*/
-	int			master_adver_int; 	/* In v3, when we become BACKUP, we use the MASTER's
+	int			master_adver_int;	/* In v3, when we become BACKUP, we use the MASTER's
 							 * adver_int. If we become MASTER again, we use the
 							 * value we were originally configured with.
 							 */
@@ -196,7 +201,7 @@ typedef struct _vrrp_t {
 							 * prio is allowed.  0 means no delay.
 							 */
 	timeval_t		preempt_time;		/* Time after which preemption can happen */
-	int 			preempt_delay_active;
+	int			preempt_delay_active;
 	int			state;			/* internal state (init/backup/master) */
 	int			init_state;		/* the initial state of the instance */
 	int			wantstate;		/* user explicitly wants a state (back/mast) */
@@ -211,7 +216,7 @@ typedef struct _vrrp_t {
 							 * instead of three intervals.
 							 */
 
-	int version;            /* VRRP version (2 or 3) */
+	int version;		/* VRRP version (2 or 3) */
 
 	/* State transition notification */
 	int			smtp_alert;
@@ -255,8 +260,8 @@ typedef struct _vrrp_t {
 #define VRRP_STATE_MAST			2	/* rfc2338.6.4.3 */
 #define VRRP_STATE_FAULT		3	/* internal */
 #define VRRP_STATE_GOTO_MASTER		4	/* internal */
-#define VRRP_STATE_GOTO_FAULT 		98	/* internal */
-#define VRRP_DISPATCHER 		99	/* internal */
+#define VRRP_STATE_GOTO_FAULT		98	/* internal */
+#define VRRP_DISPATCHER			99	/* internal */
 #define VRRP_MCAST_RETRY		10	/* internal */
 #define VRRP_MAX_FSM_STATE		4	/* internal */
 
@@ -273,10 +278,10 @@ typedef struct _vrrp_t {
 #define VRRP_EVIP_TYPE		(1 << 1)
 
 /* VRRP macro */
-#define VRRP_IS_BAD_VERSION(id)         ((id) < 2 || (id) > 3)
+#define VRRP_IS_BAD_VERSION(id)		((id) < 2 || (id) > 3)
 #define VRRP_IS_BAD_VID(id)		((id) < 1 || (id) > 255)	/* rfc2338.6.1.vrid */
 #define VRRP_IS_BAD_PRIORITY(p)		((p)<1 || (p)>255)	/* rfc2338.6.1.prio */
-#define VRRP_IS_BAD_ADVERT_INT(d) 	((d)<1)
+#define VRRP_IS_BAD_ADVERT_INT(d)	((d)<1)
 #define VRRP_IS_BAD_DEBUG_INT(d)	((d)<0 || (d)>4)
 #define VRRP_IS_BAD_PREEMPT_DELAY(d)	((d)<0 || (d)>TIMER_MAX_SEC)
 #define VRRP_SEND_BUFFER(V)		((V)->send_buffer)
@@ -291,12 +296,12 @@ typedef struct _vrrp_t {
 #define VRRP_PKT_SADDR(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in *) &(V)->saddr)->sin_addr.s_addr : IF_ADDR((V)->ifp))
 #define VRRP_PKT_SADDR6(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in6 *) &(V)->saddr)->sin6_addr : IF_ADDR6((V)->ifp))
 
-#define VRRP_IF_ISUP(V)        ((IF_ISUP((V)->ifp) || (V)->dont_track_primary) & \
-                               ((!LIST_ISEMPTY((V)->track_ifp)) ? TRACK_ISUP((V)->track_ifp) : 1))
+#define VRRP_IF_ISUP(V)		((IF_ISUP((V)->ifp) || (V)->dont_track_primary) & \
+				((!LIST_ISEMPTY((V)->track_ifp)) ? TRACK_ISUP((V)->track_ifp) : 1))
 
-#define VRRP_SCRIPT_ISUP(V)    ((!LIST_ISEMPTY((V)->track_script)) ? SCRIPT_ISUP((V)->track_script) : 1)
+#define VRRP_SCRIPT_ISUP(V)	((!LIST_ISEMPTY((V)->track_script)) ? SCRIPT_ISUP((V)->track_script) : 1)
 
-#define VRRP_ISUP(V)           (VRRP_IF_ISUP(V) && VRRP_SCRIPT_ISUP(V))
+#define VRRP_ISUP(V)		(VRRP_IF_ISUP(V) && VRRP_SCRIPT_ISUP(V))
 
 /* prototypes */
 extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, int *);
@@ -318,6 +323,6 @@ extern void restore_vrrp_interfaces(void);
 extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);
 extern void clear_diff_script(void);
-extern void vrrp_restore_interface(vrrp_t *, int);
+extern void vrrp_restore_interface(vrrp_t *, bool, bool);
 
 #endif

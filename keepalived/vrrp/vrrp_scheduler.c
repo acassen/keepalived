@@ -88,7 +88,7 @@ struct {
 {
 /*    Stream Read Handlers      |    Stream Read_to handlers   *
  *------------------------------+------------------------------*/
-	{NULL, 				NULL},
+	{NULL,				NULL},
 	{vrrp_backup,			vrrp_goto_master},	/*  BACKUP          */
 	{vrrp_leave_master,		vrrp_master},		/*  MASTER          */
 	{vrrp_leave_fault,		vrrp_fault},		/*  FAULT           */
@@ -126,7 +126,7 @@ struct {
  * FSM since it will speed up convergence to init state.
  * Additionnaly, we have implemented some other handlers into the matrix
  * in order to speed up group synchronization takeover. For instance
- * transitions : 
+ * transitions :
  *    o B->B: To catch wantstate MASTER transition to force sync group
  *            to this transition state too.
  *    o F->F: To speed up FAULT state transition if group is not already
@@ -239,6 +239,9 @@ vrrp_init_state(list l)
 					       vrrp->lvs_syncd_if, IPVS_MASTER,
 					       vrrp->vrid);
 #endif
+#ifdef _WITH_SNMP_RFCV3_
+			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+#endif
 			vrrp->state = VRRP_STATE_GOTO_MASTER;
 		} else {
 			vrrp->ms_down_timer = 3 * vrrp->adver_int
@@ -254,7 +257,7 @@ vrrp_init_state(list l)
 			       vrrp->iname);
 
 			/* Set BACKUP state */
-			vrrp_restore_interface(vrrp, 0);
+			vrrp_restore_interface(vrrp, 0, false);
 			vrrp->state = VRRP_STATE_BACK;
 			vrrp_smtp_notifier(vrrp);
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);
@@ -512,7 +515,7 @@ vrrp_set_fds(list l)
 				proto = IPPROTO_VRRP;
 
 			if ((sock->ifindex == ifindex)	&&
-                (sock->family == vrrp->family) &&
+		(sock->family == vrrp->family) &&
 			    (sock->proto == proto)	&&
 			    (sock->unicast == unicast)) {
 				vrrp->fd_in = sock->fd_in;
@@ -660,42 +663,20 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
 		return;
 
 	if (vrrp_state_fault_rx(vrrp, buffer, len)) {
-		if (vrrp->sync) {
-			if (vrrp_sync_leave_fault(vrrp)) {
-				log_message(LOG_INFO,
-				       "VRRP_Instance(%s) prio is higher than received advert",
-				       vrrp->iname);
-				vrrp_become_master(vrrp, buffer, len);
-#ifdef _WITH_SNMP_RFC_
-				vrrp->stats->uptime = timer_now();
-#endif
-			}
-		} else {
+		if (!vrrp->sync || vrrp_sync_leave_fault(vrrp)) {
 			log_message(LOG_INFO,
 			       "VRRP_Instance(%s) prio is higher than received advert",
 			       vrrp->iname);
 			vrrp_become_master(vrrp, buffer, len);
 #ifdef _WITH_SNMP_RFC_
+#ifdef _WITH_SNMP_RFCV3_
+			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+#endif
 			vrrp->stats->uptime = timer_now();
 #endif
 		}
 	} else {
-		if (vrrp->sync) {
-			if (vrrp_sync_leave_fault(vrrp)) {
-				log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
-				       vrrp->iname);
-				vrrp->state = VRRP_STATE_BACK;
-				vrrp_smtp_notifier(vrrp);
-				notify_instance_exec(vrrp, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_KEEPALIVED_
-				vrrp_snmp_instance_trap(vrrp);
-#endif
-				vrrp->last_transition = timer_now();
-#ifdef _WITH_SNMP_RFC_
-				vrrp->stats->uptime = vrrp->last_transition;
-#endif
-			}
-		} else {
+		if (!vrrp->sync || vrrp_sync_leave_fault(vrrp)) {
 			log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
 			       vrrp->iname);
 			vrrp->state = VRRP_STATE_BACK;
@@ -737,6 +718,11 @@ vrrp_goto_master(vrrp_t * vrrp)
 		}
 #endif
 
+#ifdef _WITH_SNMP_RFCV3_
+		if ((vrrp->version == VRRP_VERSION_2 && vrrp->ms_down_timer >= 3 * vrrp->adver_int) ||
+		    (vrrp->version == VRRP_VERSION_3 && vrrp->ms_down_timer >= 3 * vrrp->master_adver_int))
+			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
+#endif
 		/* handle master state transition */
 		vrrp->wantstate = VRRP_STATE_MAST;
 		vrrp_state_goto_master(vrrp);
@@ -784,8 +770,8 @@ vrrp_update_priority(thread_t * thread)
 		new_prio = vrrp->base_priority + prio_offset;
 		if (new_prio < 1)
 			new_prio = 1;
-		else if (new_prio > 254)
-			new_prio = 254;
+		else if (new_prio >= VRRP_PRIO_OWNER)
+			new_prio = VRRP_PRIO_OWNER - 1;
 		vrrp->effective_priority = new_prio;
 	}
 
@@ -825,7 +811,7 @@ vrrp_master(vrrp_t * vrrp)
 		 * Send the VRRP advert.
 		 * If we catch the master transition
 		 * <=> vrrp_state_master_tx(...) = 1
-		 * register a gratuitous arp thread delayed to 5 secs.
+		 * register a gratuitous arp thread delayed to garp_delay secs.
 		 */
 		if (vrrp_state_master_tx(vrrp, 0)) {
 			if (vrrp->garp_delay)
@@ -875,6 +861,9 @@ vrrp_fault(vrrp_t * vrrp)
 #endif
 			vrrp->last_transition = timer_now();
 		} else {
+#ifdef _WITH_SNMP_RFCV3_
+			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+#endif
 			vrrp_goto_master(vrrp);
 		}
 	}
@@ -921,7 +910,7 @@ vrrp_dispatcher_read_to(int fd)
 	if (vrrp->quick_sync) {
 		vrrp->sands = timer_add_long(time_now, vrrp->adver_int);
 		vrrp->quick_sync = 0;
-        }
+	}
 
 	return vrrp->fd_in;
 }
@@ -933,8 +922,8 @@ vrrp_dispatcher_read(sock_t * sock)
 	vrrp_t *vrrp;
 	vrrphdr_t *hd;
 	int len = 0, prev_state = 0, proto = 0;
-        struct sockaddr_storage src_addr;
-        socklen_t src_addr_len = sizeof(src_addr);
+	struct sockaddr_storage src_addr;
+	socklen_t src_addr_len = sizeof(src_addr);
 
 	/* Clean the read buffer */
 	memset(vrrp_buffer, 0, vrrp_buffer_len);
@@ -1013,7 +1002,7 @@ vrrp_script_thread(thread_t * thread)
 	thread_add_timer(thread->master, vrrp_script_thread, vscript,
 			 vscript->interval);
 
-        /* Execute the script in a child process. Parent returns, child doesn't */
+	/* Execute the script in a child process. Parent returns, child doesn't */
 	return system_call_script(thread->master, vrrp_script_child_thread,
 				  vscript, (vscript->timeout) ? vscript->timeout : vscript->interval,
 				  vscript->script);

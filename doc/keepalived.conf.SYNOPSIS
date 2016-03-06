@@ -59,10 +59,12 @@ global_defs {				# Block identification
 					   #   the following keywords are available
 					   # Note: keepalived, checker and rfc support can be
 					   #   individually enabled/disabled
-    snmp_socket 1.2.3.4:161		   # specify socket to use for connecting to SNMP master agent
+    snmp_socket <ADDRESS>:<PORT>	   # specify socket to use for connecting to SNMP master agent (default 127.0.0.1:161)
     enable_snmp_keepalived		   # enable SNMP handling of vrrp element of KEEPALIVED MIB
     enable_snmp_checker			   # enable SNMP handling of checker element of KEEPALIVED MIB
-    enable_snmp_rfc			   # enable SNMP handling of RFC2787 VRRP MIB
+    enable_snmp_rfc			   # enable SNMP handling of RFC2787 and RFC6527 VRRP MIBs
+    enable_snmp_rfcv2			   # enable SNMP handling of RFC2787 VRRPv2 MIB
+    enable_snmp_rfcv3			   # enable SNMP handling of RFC6527 VRRPv3 MIB
     enable_traps			   # enable SNMP trap generation
 }
 
@@ -238,6 +240,10 @@ vrrp_instance <STRING> {		# VRRP instance declaration
         ...
 	blackhole <IP ADDRESS>[/<MASK>]
     }
+    virtual_rules {			# VRRP virtual rules
+	from|to <IP ADDRESS>/<MASK> table <TABLE-ID>
+    }
+
     nopreempt					# Override VRRP RFC preemption default
     preempt_delay				# Seconds after startup until
 						#  preemption. 0 (default) to 1,000

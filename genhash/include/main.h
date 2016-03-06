@@ -52,13 +52,13 @@
 #define DATE_CODE    0x15070d
 
 #define GETMETER_VERSION(version)	\
-        (version >> 16) & 0xFF,		\
-        (version >> 8) & 0xFF,		\
-        version & 0xFF
+	(version >> 16) & 0xFF,		\
+	(version >> 8) & 0xFF,		\
+	version & 0xFF
 
 #define VERSION_STRING PROG" v%d.%d.%d (%.2d/%.2d, 20%.2d)\n",	\
-                GETMETER_VERSION(VERSION_CODE),			\
-                GETMETER_VERSION(DATE_CODE)
+		GETMETER_VERSION(VERSION_CODE),			\
+		GETMETER_VERSION(DATE_CODE)
 
 /* HTTP/HTTPS request structure */
 typedef struct {
@@ -82,7 +82,7 @@ extern thread_master_t *master;
 extern REQ *req;		/* Cmd line arguments */
 
 /* Data buffer length description */
-#define BUFSIZE          1024
+#define BUFSIZE		1024
 
 /* Command line error handling */
 #define CMD_LINE_ERROR   0

@@ -4,7 +4,7 @@
 #
 # Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
 
-TARFILES = AUTHOR bin ChangeLog configure configure.in CONTRIBUTORS COPYING \
+TARFILES = AUTHOR bin ChangeLog configure configure.ac CONTRIBUTORS COPYING \
 	   doc genhash INSTALL install-sh keepalived keepalived.spec.in lib Makefile.in \
 	   README TODO VERSION
 
@@ -35,9 +35,9 @@ clean:
 	$(MAKE) -C genhash clean
 
 id: ID
- 		
-ID: 
-	find . -name "*.[chCH]" -print | xargs mkid -fID 
+
+ID:
+	find . -name "*.[chCH]" -print | xargs mkid -fID
 
 tags: TAGS
 
@@ -64,8 +64,14 @@ install:
 	$(MAKE) -C genhash install
 ifeq (@SNMP_SUPPORT@, _WITH_SNMP_)
 	mkdir -p $(DESTDIR)/usr/share/snmp/mibs/
-ifeq (@SNMP_RFC_SUPPORT@, _WITH_SNMP_RFC_)
+ifeq (@SNMP_RFC2_SUPPORT@, _WITH_SNMP_RFC2_)
 	cp -f doc/VRRP-MIB $(DESTDIR)/usr/share/snmp/mibs/
+endif
+ifeq (@SNMP_RFC3_SUPPORT@, _WITH_SNMP_RFC3_)
+	cp -f doc/VRRPv3-MIB $(DESTDIR)/usr/share/snmp/mibs/
+endif
+ifeq (@SNMP_RFCV3_SUPPORT@, _WITH_SNMP_RFCV3_)
+	cp -f doc/VRRPv3-MIB $(DESTDIR)/usr/share/snmp/mibs/
 endif
 ifeq (@SNMP_KEEPALIVED_SUPPORT@, _WITH_SNMP_KEEPALIVED_)
 	cp -f doc/KEEPALIVED-MIB $(DESTDIR)/usr/share/snmp/mibs/

@@ -4,8 +4,8 @@
  *              a loadbalanced server pool using multi-layer checks.
  *
  * Part:        iptables manipulation directly without invoking iptables program.
- * 		This will use ipsets if they are available, in preference to
- * 		multiple entries in iptables.
+ *		This will use ipsets if they are available, in preference to
+ *		multiple entries in iptables.
  *
  * Author:      Quentin Armitage, <quentin@armitage.org.uk>
  *
@@ -71,17 +71,17 @@ static bool use_iptables = true;
 static
 void add_del_sets(int cmd)
 {
-	if (cmd == IPADDRESS_ADD) {
-		if (!add_ipsets())
-			global_data->using_ipsets = false;
+	if (!global_data->using_ipsets)
 		return;
-	}
 
-	remove_ipsets();
+	if (cmd == IPADDRESS_ADD)
+		add_ipsets();
+	else
+		remove_ipsets();
 }
 
 static
-void add_del_rules(int cmd)
+void add_del_rules(int cmd, bool ignore_errors)
 {
 	struct iptc_handle *h4;
 	struct ip6tc_handle *h6;
@@ -92,9 +92,9 @@ void add_del_rules(int cmd)
 		h4 = ip4tables_open("filter");
 
 		if (global_data->vrrp_iptables_inchain[0])
-			ip4tables_add_rules(h4, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_DROP, global_data->vrrp_ipset_address, IPPROTO_NONE, 0, cmd) ;
+			ip4tables_add_rules(h4, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_DROP, global_data->vrrp_ipset_address, IPPROTO_NONE, 0, cmd, ignore_errors);
 		if (global_data->vrrp_iptables_outchain[0])
-			ip4tables_add_rules(h4, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address, IPPROTO_NONE, 0, cmd) ;
+			ip4tables_add_rules(h4, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address, IPPROTO_NONE, 0, cmd, ignore_errors);
 		ip4tables_close(h4, true);
 	}
 
@@ -104,21 +104,21 @@ void add_del_rules(int cmd)
 		h6 = ip6tables_open("filter");
 
 		if (global_data->vrrp_iptables_inchain[0]) {
-			ip6tables_add_rules ( h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_TWO, IPSET_DIM_TWO_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 135, cmd) ;
-			ip6tables_add_rules ( h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_TWO, IPSET_DIM_TWO_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 136, cmd) ;
-			ip6tables_add_rules ( h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_TWO, IPSET_DIM_TWO_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address_iface6, IPPROTO_NONE, 0, cmd) ;
-			ip6tables_add_rules ( h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 135, cmd) ;
-			ip6tables_add_rules ( h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 136, cmd) ;
-			ip6tables_add_rules ( h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_DROP, global_data->vrrp_ipset_address6, IPPROTO_NONE, 0, cmd) ;
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_TWO, IPSET_DIM_TWO_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 135, cmd, ignore_errors);
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_TWO, IPSET_DIM_TWO_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 136, cmd, ignore_errors);
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_TWO, IPSET_DIM_TWO_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address_iface6, IPPROTO_NONE, 0, cmd, ignore_errors);
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 135, cmd, ignore_errors);
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 136, cmd, ignore_errors);
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_DROP, global_data->vrrp_ipset_address6, IPPROTO_NONE, 0, cmd, ignore_errors);
 		}
 
 		if (global_data->vrrp_iptables_outchain[0]) {
-			ip6tables_add_rules ( h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_TWO, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 135, cmd) ;
-			ip6tables_add_rules ( h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_TWO, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 136, cmd) ;
-			ip6tables_add_rules ( h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_TWO, IPSET_DIM_ONE_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address_iface6, IPPROTO_NONE, 0, cmd) ;
-			ip6tables_add_rules ( h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 135, cmd) ;
-			ip6tables_add_rules ( h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 136, cmd) ;
-			ip6tables_add_rules ( h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address6, IPPROTO_NONE, 0, cmd) ;
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_TWO, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 135, cmd, ignore_errors);
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_TWO, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 136, cmd, ignore_errors);
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_TWO, IPSET_DIM_ONE_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address_iface6, IPPROTO_NONE, 0, cmd, ignore_errors);
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 135, cmd, ignore_errors);
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 136, cmd, ignore_errors);
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address6, IPPROTO_NONE, 0, cmd, ignore_errors);
 		}
 
 		ip6tables_close(h6, true);
@@ -269,6 +269,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, struc
 			h->session = ipset_session_start();
 
 		ipset_entry(h->session, cmd, ipaddress, ifname);
+		ipaddress->iptable_rule_set = (cmd != IPADDRESS_DEL);
 
 		return;
 	}
@@ -286,7 +287,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, struc
 			my_ifname, NULL,
 			IPPROTO_NONE, 0, cmd);
 
-	ipaddress->iptable_rule_set = (cmd != IPADDRESS_DEL) ? true : false;
+	ipaddress->iptable_rule_set = (cmd != IPADDRESS_DEL);
 
 	if (global_data->vrrp_iptables_outchain[0] == '\0')
 		return;
@@ -297,30 +298,58 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, struc
 			IPPROTO_NONE, 0, cmd);
 }
 
-void iptables_init()
+static void
+iptables_remove_structure(bool ignore_errors)
+{
+#ifdef _HAVE_LIBIPSET_
+	if (global_data->using_ipsets) {
+		add_del_rules(IPADDRESS_DEL, ignore_errors);
+		add_del_sets(IPADDRESS_DEL);
+	}
+#endif
+}
+
+void
+iptables_startup(void)
 {
 	if (!check_chains_exist()) {
 		use_iptables = false;
 #ifdef _HAVE_LIBIPSET_
 		global_data->using_ipsets = false;
 #endif
-
-		return;
 	}
+
 #ifdef _HAVE_LIBIPSET_
-	if (global_data->using_ipsets)
+	if (global_data->using_ipsets) {
 		add_del_sets(IPADDRESS_ADD);
-	if (global_data->using_ipsets)
-		add_del_rules(IPADDRESS_ADD);
+		add_del_rules(IPADDRESS_ADD, false);
+	}
 #endif
 }
 
-void iptables_fini()
+void
+iptables_cleanup(void)
+{
+	iptables_remove_structure(true);
+}
+
+bool
+iptables_init(void)
 {
 #ifdef _HAVE_LIBIPSET_
-	if (global_data->using_ipsets) {
-		add_del_rules(IPADDRESS_DEL);
-		add_del_sets(IPADDRESS_DEL);
+	if (!ipset_init()) {
+		log_message(LOG_INFO, "Unable to initialise ipsets");
+		global_data->using_ipsets = false;
+
+		return false;
 	}
 #endif
+
+	return true;
+}
+
+void
+iptables_fini(void)
+{
+	iptables_remove_structure(false);
 }

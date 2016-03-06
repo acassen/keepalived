@@ -43,11 +43,11 @@ extern void *zalloc(unsigned long size);
 #define MAX_ALLOC_LIST 2048
 
 #define MALLOC(n)    ( keepalived_malloc((n), \
-                      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
+		      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
 #define FREE(b)      ( keepalived_free((b), \
-                      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
+		      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
 #define REALLOC(b,n) ( keepalived_realloc((b), (n), \
-                      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
+		      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
 
 extern unsigned long mem_allocated;
 

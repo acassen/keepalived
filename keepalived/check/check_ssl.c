@@ -271,7 +271,7 @@ ssl_read_thread(thread_t * thread)
 	req->error = SSL_get_error(req->ssl, r);
 
 	if (req->error == SSL_ERROR_WANT_READ) {
-		 /* async read unfinished */ 
+		 /* async read unfinished */
 		thread_add_read(thread->master, ssl_read_thread, checker,
 				thread->u.fd, timeout);
 	} else if (r > 0 && req->error == 0) {

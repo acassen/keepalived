@@ -1,13 +1,13 @@
-/* 
+/*
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
- * 
+ *
  * Part:        Signals framework.
- *  
+ *
  * Author:      Kevin Lindsay, <kevinl@netnation.com>
  *              Alexandre Cassen, <acassen@linux-vs.org>
- *              
+ *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
  *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -87,7 +87,7 @@ signal_handler(int sig)
 
 		log_message(LOG_INFO, "BUG - write to signal_pipe[1] error %s - please report", strerror(errno));
 	}
-}	
+}
 
 /* Signal wrapper */
 void *
@@ -317,8 +317,8 @@ signal_run_callback(void)
 		case SIGTERM:
 			if (signal_SIGTERM_handler)
 				signal_SIGTERM_handler(signal_SIGTERM_v, SIGTERM);
-			break;	
-		case SIGCHLD:	
+			break;
+		case SIGCHLD:
 			if (signal_SIGCHLD_handler)
 				signal_SIGCHLD_handler(signal_SIGCHLD_v, SIGCHLD);
 			break;
@@ -332,7 +332,7 @@ signal_run_callback(void)
 			break;
 		default:
 			break;
-		}	
+		}
 	}
 }
 

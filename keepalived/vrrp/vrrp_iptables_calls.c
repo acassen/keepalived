@@ -349,7 +349,7 @@ get_version(unsigned int* version)
 
 static void
 get_set_byname_only(const char *setname, struct xt_set_info *info,
-		    int sockfd, unsigned int version)
+		    int sockfd, unsigned int version, bool ignore_errors)
 {
 	struct ip_set_req_get_set req = { .version = version };
 	socklen_t size = sizeof(struct ip_set_req_get_set);
@@ -359,23 +359,28 @@ get_set_byname_only(const char *setname, struct xt_set_info *info,
 	strncpy(req.set.name, setname, IPSET_MAXNAMELEN);
 	req.set.name[IPSET_MAXNAMELEN - 1] = '\0';
 	res = getsockopt(sockfd, SOL_IP, SO_IP_SET, &req, &size);
-	close(sockfd);
 
-	if (res != 0)
-		log_message(LOG_INFO, "Problem when communicating with ipset, errno=%d.",
-			errno);
-	if (size != sizeof(struct ip_set_req_get_set))
-		log_message(LOG_INFO, "Incorrect return size from kernel during ipset lookup, "
-			"(want %zu, got %zu)",
-			sizeof(struct ip_set_req_get_set), (size_t)size);
-	if (req.set.index == IPSET_INVALID_ID)
-		log_message(LOG_INFO, "Set %s doesn't exist.", setname);
-
-	info->index = req.set.index;
+	if (res != 0) {
+		if (!ignore_errors)
+			log_message(LOG_INFO, "Problem when communicating with ipset, errno=%d.",
+				errno);
+	}
+	else if (size != sizeof(struct ip_set_req_get_set)) {
+		if (!ignore_errors)
+			log_message(LOG_INFO, "Incorrect return size from kernel during ipset lookup, "
+				"(want %zu, got %zu)",
+				sizeof(struct ip_set_req_get_set), (size_t)size);
+	}
+	else if (req.set.index == IPSET_INVALID_ID) {
+		if (!ignore_errors)
+			log_message(LOG_INFO, "Set %s doesn't exist.", setname);
+	}
+	else
+		info->index = req.set.index;
 }
 
 static void
-get_set_byname(const char *setname, struct xt_set_info *info, int family)
+get_set_byname(const char *setname, struct xt_set_info *info, int family, bool ignore_errors)
 {
 #if defined IP_SET_OP_GET_FNAME
 	struct ip_set_req_get_set_family req;
@@ -384,6 +389,8 @@ get_set_byname(const char *setname, struct xt_set_info *info, int family)
 #endif
 	int sockfd;
 	unsigned int version;
+
+	info->index = IPSET_INVALID_ID;
 
 	sockfd = get_version(&version);
 #if defined IP_SET_OP_GET_FNAME
@@ -395,33 +402,46 @@ get_set_byname(const char *setname, struct xt_set_info *info, int family)
 
 	if (res != 0 && errno == EBADMSG)
 #endif
+	{
 		/* Backward compatibility */
-		return get_set_byname_only(setname, info, sockfd, version);
+		get_set_byname_only(setname, info, sockfd, version, ignore_errors);
+
+		close(sockfd);
+		return;
+	}
 
 #if defined IP_SET_OP_GET_FNAME
 	close(sockfd);
-	if (res != 0)
-		log_message(LOG_INFO, "Problem when communicating with ipset, errno=%d.",
-			errno);
-	if (size != sizeof(struct ip_set_req_get_set_family))
-		log_message(LOG_INFO, "Incorrect return size from kernel during ipset lookup, "
-			"(want %zu, got %zu)",
-			sizeof(struct ip_set_req_get_set_family),
-			(size_t)size);
-	if (req.set.index == IPSET_INVALID_ID)
-		log_message(LOG_INFO, "Set %s doesn't exist.", setname);
-	if (!(req.family == family ||
-	      req.family == NFPROTO_UNSPEC))
-		log_message(LOG_INFO, "The protocol family of set %s is %s, "
-			      "which is not applicable.",
-			      setname,
-			      req.family == NFPROTO_IPV4 ? "IPv4" : "IPv6");
-
-	info->index = req.set.index;
+	if (res != 0) {
+		if (!ignore_errors)
+			log_message(LOG_INFO, "Problem when communicating with ipset, errno=%d.",
+				errno);
+	}
+	else if (size != sizeof(struct ip_set_req_get_set_family)) {
+		if (!ignore_errors)
+			log_message(LOG_INFO, "Incorrect return size from kernel during ipset lookup, "
+				"(want %zu, got %zu)",
+				sizeof(struct ip_set_req_get_set_family),
+				(size_t)size);
+	}
+	else if (req.set.index == IPSET_INVALID_ID) {
+		if (!ignore_errors)
+			log_message(LOG_INFO, "Set %s doesn't exist.", setname);
+	}
+	else if (!(req.family == family ||
+	      req.family == NFPROTO_UNSPEC)) {
+		if (!ignore_errors)
+			log_message(LOG_INFO, "The protocol family of set %s is %s, "
+				      "which is not applicable.",
+				      setname,
+				      req.family == NFPROTO_IPV4 ? "IPv4" : "IPv6");
+	}
+	else
+		info->index = req.set.index;
 #endif
 }
 
-int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int rulenum, int dim, int src_dst, const char* target_name, const char* set_name, uint16_t protocol, int param, int cmd)
+int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int rulenum, int dim, int src_dst, const char* target_name, const char* set_name, uint16_t protocol, int param, int cmd, bool ignore_errors)
 {
 	int size;
 	struct ipt_entry *fw;
@@ -458,7 +478,10 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 	strcpy(match->u.user.name, "set");
 
 	setinfo = (struct xt_set_info_match_v1 *)match->data;
-	get_set_byname (set_name, &setinfo->match_set, NFPROTO_IPV4);
+	get_set_byname(set_name, &setinfo->match_set, NFPROTO_IPV4, ignore_errors);
+	if (setinfo->match_set.index == IPSET_INVALID_ID)
+		return -1;
+
 	setinfo->match_set.dim = dim;
 	setinfo->match_set.flags = src_dst;
 
@@ -506,7 +529,8 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 
 	if (res!= 1)
 	{
-		log_message(LOG_INFO, "iptc_insert_entry for chain %s returned %d: %s", chain, res, iptc_strerror(sav_errno)) ;
+		if (!ignore_errors)
+			log_message(LOG_INFO, "iptc_insert_entry for chain %s returned %d: %s", chain, res, iptc_strerror(sav_errno)) ;
 
 		return sav_errno;
 	}
@@ -514,7 +538,7 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 	return 0;
 }
 
-int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int rulenum, int dim, int src_dst, const char* target_name, const char* set_name, uint16_t protocol, int param, int cmd)
+int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int rulenum, int dim, int src_dst, const char* target_name, const char* set_name, uint16_t protocol, int param, int cmd, bool ignore_errors)
 {
 	int size;
 	struct ip6t_entry *fw;
@@ -551,7 +575,10 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 	strcpy(match->u.user.name, "set");
 
 	setinfo = (struct xt_set_info_match_v1 *)match->data;
-	get_set_byname (set_name, &setinfo->match_set, NFPROTO_IPV6);
+	get_set_byname (set_name, &setinfo->match_set, NFPROTO_IPV6, ignore_errors);
+	if (setinfo->match_set.index == IPSET_INVALID_ID)
+		return -1;
+
 	setinfo->match_set.dim = dim;
 	setinfo->match_set.flags = src_dst;
 
@@ -599,7 +626,8 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 
 	if (res!= 1)
 	{
-		log_message(LOG_INFO, "iptc_insert_entry for chain %s returned %d: %s", chain, res, ip6tc_strerror(sav_errno)) ;
+		if (!ignore_errors)
+			log_message(LOG_INFO, "ip6tc_insert_entry for chain %s returned %d: %s", chain, res, ip6tc_strerror(sav_errno)) ;
 
 		return sav_errno;
 	}

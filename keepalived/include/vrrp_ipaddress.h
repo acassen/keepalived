@@ -11,7 +11,7 @@
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
  *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *              See the GNU General Public License for more details.
- *              
+ *
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
@@ -91,11 +91,11 @@ typedef struct _ip_address {
 struct ipt_handle;	// AAGH - TODO
 
 /* prototypes */
+extern char *ipaddresstos(char *, ip_address_t *);
 extern int netlink_ipaddress(ip_address_t *, int);
 extern void netlink_iplist(list, int);
-extern void handle_iptable_rule_to_iplist(struct ipt_handle *, list, int, char *);
+extern void handle_iptable_rule_to_iplist(struct ipt_handle *, list, int, char *, bool force);
 extern void free_ipaddress(void *);
-extern char *ipaddresstos(ip_address_t *);
 extern void dump_ipaddress(void *);
 extern ip_address_t *parse_ipaddress(ip_address_t *, char *, int);
 extern void alloc_ipaddress(list, vector_t *, interface_t *);

@@ -1,14 +1,14 @@
-/* 
+/*
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
- * 
+ *
  * Part:        Configuration file parser/reader. Place into the dynamic
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
- *  
+ *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
- *              
+ *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
  *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -245,7 +245,7 @@ void read_conf_file(char *conf_file)
 		}
 		current_stream = stream;
 		current_conf_file = globbuf.gl_pathv[i];
-		
+
 		char prev_path[MAXBUF];
 		path = getcwd(prev_path, MAXBUF);
 		if (!path) {
@@ -288,7 +288,7 @@ check_include(char *buf)
 		return 0;
 	}
 	str = vector_slot(strvec, 0);
-	
+
 	if (!strcmp(str, EOB)) {
 		free_strvec(strvec);
 		return 0;

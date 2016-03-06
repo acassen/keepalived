@@ -42,8 +42,8 @@ weigh_live_realservers(virtual_server_t * vs)
 	real_server_t *svr;
 	long count = 0;
 
-        if (LIST_ISEMPTY(vs->rs))
-                return count;
+	if (LIST_ISEMPTY(vs->rs))
+		return count;
 
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		svr = ELEMENT_DATA(e);
@@ -156,10 +156,10 @@ init_service_rs(virtual_server_t * vs)
 	element e;
 	real_server_t *rs;
 
-        if (LIST_ISEMPTY(vs->rs)) {
+	if (LIST_ISEMPTY(vs->rs)) {
 		log_message(LOG_WARNING, "VS [%s] has no configured RS! Skipping RS activation."
 				       , FMT_VS(vs));
-                return 1;
+		return 1;
 	}
 
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
@@ -319,7 +319,7 @@ update_quorum_state(virtual_server_t * vs)
 			notify_exec(vs->quorum_up);
 		}
 #ifdef _WITH_SNMP_CHECKER_
-               check_snmp_quorum_trap(vs);
+	       check_snmp_quorum_trap(vs);
 #endif
 		return;
 	}

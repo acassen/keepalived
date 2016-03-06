@@ -1,14 +1,14 @@
-/* 
+/*
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
- * 
+ *
  * Part:        Configuration file parser/reader. Place into the dynamic
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
- *  
+ *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
- *              
+ *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
  *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -32,7 +32,9 @@
 #include "memory.h"
 #include "utils.h"
 #include "ipwrapper.h"
+#if defined _WITH_VRRP_
 #include "vrrp_parser.h"
+#endif
 
 /* SSL handlers */
 static void
@@ -166,11 +168,11 @@ proto_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = vector_slot(strvec, 1);
     if (!strcmp(str, "TCP"))
-        vs->service_type = IPPROTO_TCP;
+	vs->service_type = IPPROTO_TCP;
     else if (!strcmp(str, "SCTP"))
-        vs->service_type = IPPROTO_SCTP;
+	vs->service_type = IPPROTO_SCTP;
     else
-        vs->service_type = IPPROTO_UDP;
+	vs->service_type = IPPROTO_UDP;
 }
 static void
 hasuspend_handler(vector_t *strvec)
@@ -374,6 +376,8 @@ check_init_keywords(void)
 	global_init_keywords();
 
 	init_check_keywords(true);
+#ifdef _WITH_VRRP_
 	init_vrrp_keywords(false);
+#endif
 	return keywords;
 }

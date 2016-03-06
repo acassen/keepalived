@@ -44,7 +44,7 @@ int smtp_final(thread_t *thread, int error, const char *format, ...)
 void
 smtp_free_host(void *data)
 {
-        FREE(data);
+	FREE(data);
 }
 
 /* Used as a callback from the checker api, queue_checker(),
@@ -53,7 +53,7 @@ smtp_free_host(void *data)
 void
 free_smtp_check(void *data)
 {
-  	smtp_checker_t *smtp_checker = CHECKER_DATA(data);
+	smtp_checker_t *smtp_checker = CHECKER_DATA(data);
 	free_list(smtp_checker->host);
 	FREE(smtp_checker->helo_name);
 	FREE(smtp_checker->default_co);
@@ -61,7 +61,7 @@ free_smtp_check(void *data)
 	FREE(data);
 }
 
-/* 
+/*
  * Callback for whenever we've been requested to dump our
  * configuration.
  */
@@ -95,16 +95,16 @@ smtp_alloc_host(void)
 	return new;
 }
 
-/* 
+/*
  * Callback for whenever an SMTP_CHECK keyword is encountered
- * in the config file. 
+ * in the config file.
  */
 void
 smtp_check_handler(vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = (smtp_checker_t *)MALLOC(sizeof(smtp_checker_t));
 
-	/* 
+	/*
 	 * Set something sane for the default HELO banner
 	 * May be overridden by a "helo_name" keyword later.
 	 */
@@ -155,17 +155,17 @@ void smtp_check_end_handler(void)
 		list_add(smtp_checker->host, smtp_alloc_host());
 }
 
-/* 
+/*
  * Callback for whenever the "host" keyword is encountered
- * in the config file. 
+ * in the config file.
  */
 void
 smtp_host_handler(vector_t *strvec)
 {
-        smtp_checker_t *smtp_checker = CHECKER_GET();
+	smtp_checker_t *smtp_checker = CHECKER_GET();
 
-        /* add an empty host to the list, smtp_checker->host */
-        list_add(smtp_checker->host, smtp_alloc_host());
+	/* add an empty host to the list, smtp_checker->host */
+	list_add(smtp_checker->host, smtp_alloc_host());
 }
 
 /* "helo_name" keyword */
@@ -180,7 +180,7 @@ smtp_helo_name_handler(vector_t *strvec)
 void
 smtp_retry_handler(vector_t *strvec)
 {
-        smtp_checker_t *smtp_checker = CHECKER_GET();
+	smtp_checker_t *smtp_checker = CHECKER_GET();
 	smtp_checker->retry = CHECKER_VALUE_INT(strvec);
 }
 
@@ -188,7 +188,7 @@ smtp_retry_handler(vector_t *strvec)
 void
 smtp_db_retry_handler(vector_t *strvec)
 {
-        smtp_checker_t *smtp_checker = CHECKER_GET();
+	smtp_checker_t *smtp_checker = CHECKER_GET();
 	smtp_checker->db_retry = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
 }
 
@@ -196,11 +196,11 @@ smtp_db_retry_handler(vector_t *strvec)
 void
 install_smtp_check_keyword(void)
 {
-        /* 
-         * Notify the config log parser that we need to be notified via
+	/*
+	 * Notify the config log parser that we need to be notified via
 	 * callbacks when the following keywords are encountered in the
 	 * keepalive.conf file.
-         */
+	 */
 	install_keyword("SMTP_CHECK", &smtp_check_handler);
 	install_sublevel();
 	install_keyword("helo_name", &smtp_helo_name_handler);
@@ -227,7 +227,7 @@ install_smtp_check_keyword(void)
 }
 
 /*
- * Final handler. Determines if we need a retry or not. 
+ * Final handler. Determines if we need a retry or not.
  * Also has to make a decision if we need to bring the resulting
  * service down in case of error.
  */
@@ -245,10 +245,10 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 
 	/* If we're here, an attempt HAS been made already for the current host */
 	smtp_checker->attempts++;
-	
+
 	if (error) {
 		/* Always syslog the error when the real server is up */
-                if (svr_checker_up(checker->id, checker->rs)) {
+		if (svr_checker_up(checker->id, checker->rs)) {
 			if (format != NULL) {
 				/* prepend format with the "SMTP_CHECK " string */
 				error_buff[0] = '\0';
@@ -280,7 +280,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		 * be noted that smtp_alert makes a copy of the string arguments, so
 		 * we don't have to keep them statically allocated.
 		 */
-                if (svr_checker_up(checker->id, checker->rs)) {
+		if (svr_checker_up(checker->id, checker->rs)) {
 			if (format != NULL) {
 				snprintf(smtp_buff, 542, "=> CHECK failed on service : %s <=",
 					 error_buff + 11);
@@ -301,7 +301,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		thread_add_timer(thread->master, smtp_connect_thread, checker, checker->vs->delay_loop);
 
 		return 0;
-	}	
+	}
 
 	/*
 	 * Ok this host was successful, increment to the next host in the list
@@ -316,14 +316,14 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 	return 0;
 }
 
-/* 
+/*
  * Zeros out the rx/tx buffer
  */
 void
 smtp_clear_buff(thread_t *thread)
 {
-        checker_t *checker = THREAD_ARG(thread);
-        smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
+	checker_t *checker = THREAD_ARG(thread);
+	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
 	memset(smtp_checker->buff, 0, SMTP_BUFF_MAX);
 	smtp_checker->buff_ctr = 0;
 }
@@ -342,8 +342,8 @@ smtp_get_line_cb(thread_t *thread)
 	smtp_host_t *smtp_host = smtp_checker->host_ptr;
 	int f, r, x;
 
-        /* Handle read timeout */
-        if (thread->type == THREAD_READ_TIMEOUT) {
+	/* Handle read timeout */
+	if (thread->type == THREAD_READ_TIMEOUT) {
 		smtp_final(thread, 1, "Read timeout from server %s"
 				    , FMT_SMTP_RS(smtp_host));
 		return 0;
@@ -368,13 +368,13 @@ smtp_get_line_cb(thread_t *thread)
 	if (r == -1 && (errno == EAGAIN || errno == EINTR)) {
 		thread_add_read(thread->master, smtp_get_line_cb, checker,
 				thread->u.fd, smtp_host->connection_to);
-        	fcntl(thread->u.fd, F_SETFL, f);
+		fcntl(thread->u.fd, F_SETFL, f);
 		return 0;
 	} else if (r > 0)
 		smtp_checker->buff_ctr += r;
 
-        /* restore descriptor flags */
-        fcntl(thread->u.fd, F_SETFL, f);
+	/* restore descriptor flags */
+	fcntl(thread->u.fd, F_SETFL, f);
 
 	/* check if we have a newline, if so, callback */
 	for (x = 0; x < SMTP_BUFF_MAX; x++) {
@@ -411,7 +411,7 @@ smtp_get_line_cb(thread_t *thread)
 	return 0;
 }
 
-/* 
+/*
  * Ok a caller has asked us to asyncronously schedule a single line
  * to be received from the server. They have also passed us a call back
  * function that we'll call once we have the newline. If something bad
@@ -443,7 +443,7 @@ smtp_get_line(thread_t *thread, int (*callback) (thread_t *))
  * The scheduler function that puts the data out on the wire.
  * All our data will fit into one packet, so we only check if
  * the current write would block or not. If it wants to block,
- * we'll return to the scheduler and try again later. 
+ * we'll return to the scheduler and try again later.
  */
 int
 smtp_put_line_cb(thread_t *thread)
@@ -454,29 +454,29 @@ smtp_put_line_cb(thread_t *thread)
 	int f, w;
 
 
-        /* Handle read timeout */
-        if (thread->type == THREAD_WRITE_TIMEOUT) {
+	/* Handle read timeout */
+	if (thread->type == THREAD_WRITE_TIMEOUT) {
 		smtp_final(thread, 1, "Write timeout to server %s"
 				     , FMT_SMTP_RS(smtp_host));
 		return 0;
 	}
 
 	/* Set descriptor non blocking */
-        f = fcntl(thread->u.fd, F_GETFL, 0);
-        fcntl(thread->u.fd, F_SETFL, f | O_NONBLOCK);
+	f = fcntl(thread->u.fd, F_GETFL, 0);
+	fcntl(thread->u.fd, F_SETFL, f | O_NONBLOCK);
 
-        /* write the data */
-        w = write(thread->u.fd, smtp_checker->buff, smtp_checker->buff_ctr);
+	/* write the data */
+	w = write(thread->u.fd, smtp_checker->buff, smtp_checker->buff_ctr);
 
 	if (w == -1 && (errno == EAGAIN || errno == EINTR)) {
 		thread_add_write(thread->master, smtp_put_line_cb, checker,
 				 thread->u.fd, smtp_host->connection_to);
-        	fcntl(thread->u.fd, F_SETFL, f);
+		fcntl(thread->u.fd, F_SETFL, f);
 		return 0;
 	}
 
-        /* restore descriptor flags */
-        fcntl(thread->u.fd, F_SETFL, f);
+	/* restore descriptor flags */
+	fcntl(thread->u.fd, F_SETFL, f);
 
 	DBG("SMTP_CHECK %s > %s"
 	    , FMT_SMTP_RS(smtp_host)
@@ -497,7 +497,7 @@ smtp_put_line_cb(thread_t *thread)
 	return 0;
 }
 
-/* 
+/*
  * This is the same as smtp_get_line() except that we're sending a
  * line of data instead of receiving one.
  */
@@ -532,10 +532,10 @@ smtp_get_status(thread_t *thread)
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
 	char *buff = smtp_checker->buff;
 
-	/* First make sure they're all digits */	
+	/* First make sure they're all digits */
 	if (isdigit(buff[0]) && isdigit(buff[1]) &&
 	    isdigit(buff[2])) {
-		/* Truncate the string and convert */	
+		/* Truncate the string and convert */
 		buff[3] = '\0';
 		return atoi(buff);
 	}
@@ -543,11 +543,11 @@ smtp_get_status(thread_t *thread)
 	return -1;
 }
 
-/* 
- * We have a connected socket and are ready to begin 
- * the conversation. This function schedules itself to 
- * be called via callbacks and tracking state in 
- * smtp_checker->state. Upon first calling, smtp_checker->state 
+/*
+ * We have a connected socket and are ready to begin
+ * the conversation. This function schedules itself to
+ * be called via callbacks and tracking state in
+ * smtp_checker->state. Upon first calling, smtp_checker->state
  * should be set to SMTP_START.
  */
 int
@@ -633,8 +633,8 @@ smtp_engine_thread(thread_t *thread)
 	smtp_final(thread, 1, "Unknown smtp engine state encountered");
 	return 0;
 }
-		
-/* 
+
+/*
  * Second step in the process. Here we'll see if the connection
  * to the host we're checking was successful or not.
  */
@@ -671,19 +671,19 @@ smtp_check_thread(thread_t *thread)
 			break;
 	}
 
-	/* we shouldn't be here */		
+	/* we shouldn't be here */
 	smtp_final(thread, 1, "Unknown connection error to server %s"
 			     , FMT_SMTP_RS(smtp_host));
 	return 0;
 }
 
-/* 
+/*
  * This is the main thread, where all the action starts.
  * When the check daemon comes up, it goes down the checkers_queue
  * and launches a thread for each checker that got registered.
  * This is the callback/event function for that initial thread.
  *
- * It should be noted that we ARE responsible for sceduling 
+ * It should be noted that we ARE responsible for sceduling
  * ourselves to run again. It doesn't have to be right here,
  * but eventually has to happen.
  */
@@ -702,22 +702,22 @@ smtp_connect_thread(thread_t *thread)
 	 * for sceduling many types of events. thread->arg in this
 	 * case points to a checker structure. The checker
 	 * structure holds data about the vs and rs configurations
-	 * as well as the delay loop, etc. Each real server 
-         * defined in the keepalived.conf will more than likely have
+	 * as well as the delay loop, etc. Each real server
+	 * defined in the keepalived.conf will more than likely have
 	 * a checker structure assigned to it. Each checker structure
-         * has a data element that is meant to hold per checker 
+	 * has a data element that is meant to hold per checker
 	 * configurations. So thread->arg(checker)->data points to
- 	 * a smtp_checker structure. In the smtp_checker structure
+	 * a smtp_checker structure. In the smtp_checker structure
 	 * we hold global configuration data for the smtp check.
 	 * Smtp_checker has a list of per host (smtp_host) configuration
 	 * data in smtp_checker->host.
 	 *
 	 * So this whole thing looks like this:
 	 * thread->arg(checker)->data(smtp_checker)->host(smtp_host)
-	 * 
+	 *
 	 * To make life simple, we'll break the structures out so
 	 * that "checker" always points to the current checker structure,
-	 * "smtp_checker" points to the current smtp_checker structure, 
+	 * "smtp_checker" points to the current smtp_checker structure,
 	 * and "smtp_host" points to the current smtp_host structure.
 	 */
 
@@ -733,7 +733,7 @@ smtp_connect_thread(thread_t *thread)
 	}
 
 	/*
-	 * Set the internal host pointer to the host that well be 
+	 * Set the internal host pointer to the host that well be
 	 * working on. If it's NULL, we've successfully tested all hosts.
 	 * We'll bring the service up (if it's not already), reset the host list,
 	 * and insert the delay loop. When we get scheduled again the host list
@@ -776,6 +776,6 @@ smtp_connect_thread(thread_t *thread)
 		thread_add_timer(thread->master, smtp_connect_thread, checker,
 			checker->vs->delay_loop);
 	}
- 
+
 	return 0;
 }

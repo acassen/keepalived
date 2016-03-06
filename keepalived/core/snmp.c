@@ -104,7 +104,7 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 
 	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
-	
+
 	switch (vp->magic) {
 	case SNMP_KEEPALIVEDVERSION:
 		*var_len = sizeof(version) - 1;
@@ -162,8 +162,8 @@ snmp_mail(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)m;
 	default:
 		break;
-        }
-        return NULL;
+	}
+	return NULL;
 }
 
 static const char global_name[] = "Keepalived";

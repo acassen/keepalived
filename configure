@@ -633,8 +633,10 @@ VRRP_AUTH_SUPPORT
 DFLAGS
 SO_MARK_SUPPORT
 SHA1_SUPPORT
-SNMP_CHECKER_SUPPORT
+SNMP_RFCV3_SUPPORT
+SNMP_RFCV2_SUPPORT
 SNMP_RFC_SUPPORT
+SNMP_CHECKER_SUPPORT
 SNMP_KEEPALIVED_SUPPORT
 SNMP_SUPPORT
 NETSNMP_CONFIG
@@ -712,6 +714,8 @@ enable_snmp
 enable_snmp_keepalived
 enable_snmp_checker
 enable_snmp_rfc
+enable_snmp_rfcv2
+enable_snmp_rfcv3
 enable_sha1
 enable_vrrp_auth
 enable_libiptc
@@ -1342,7 +1346,9 @@ Optional Features:
   --enable-snmp           compile with SNMP support
   --enable-snmp-keepalived compile with SNMP keepalived support
   --enable-snmp-checker   compile with SNMP checker support
-  --enable-snmp-rfc       compile with SNMP RFC2787 support
+  --enable-snmp-rfc       compile with SNMP RFC2787 (VRRPv2) and SNMP RFC6527 (VRRPv3) support
+  --enable-snmp-rfcv2     compile with SNMP RFC2787 (VRRPv2) support
+  --enable-snmp-rfcv3     compile with SNMP RFC6257 (VRRPv3) support
   --enable-sha1           compile with SHA1 support
   --disable-vrrp-auth     compile without VRRP authentication
   --disable-libiptc       compile without libiptc
@@ -3310,6 +3316,16 @@ if test "${enable_snmp_rfc+set}" = set; then :
   enableval=$enable_snmp_rfc;
 fi
 
+# Check whether --enable-snmp-rfcv2 was given.
+if test "${enable_snmp_rfcv2+set}" = set; then :
+  enableval=$enable_snmp_rfcv2;
+fi
+
+# Check whether --enable-snmp-rfcv3 was given.
+if test "${enable_snmp_rfcv3+set}" = set; then :
+  enableval=$enable_snmp_rfcv3;
+fi
+
 # Check whether --enable-sha1 was given.
 if test "${enable_sha1+set}" = set; then :
   enableval=$enable_sha1;
@@ -4040,7 +4056,7 @@ if test "x$ac_cv_lib_nl_genl_3_genl_connect" = xyes; then :
 
         USE_NL="LIBIPVS_USE_NL"
         CFLAGS="$CFLAGS $(pkg-config --cflags libnl-genl-3.0)"
-	LIBS="$LIBS $(pkg-config --libs libnl-genl-3.0)"
+        LIBS="$LIBS $(pkg-config --libs libnl-genl-3.0)"
 
 else
 
@@ -4576,9 +4592,16 @@ fi
 SNMP_SUPPORT="_WITHOUT_SNMP_"
 SNMP_KEEPALIVED_SUPPORT="_WITHOUT_SNMP_KEEPALIVED_"
 SNMP_RFC_SUPPORT="_WITHOUT_SNMP_RFC_"
+SNMP_RFCV2_SUPPORT="_WITHOUT_SNMP_RFCV2_"
+SNMP_RFCV3_SUPPORT="_WITHOUT_SNMP_RFCV3_"
 SNMP_CHECKER_SUPPORT="_WITHOUT_SNMP_CHECKER_"
-if test "$enable_snmp" = "yes" -o "$enable_snmp_rfc" = "yes" -o "$enable_snmp_keepalived" = "yes" -o "$enable_snmp_checker" = "yes"; then
 
+if test "$enable_snmp" = "yes" -o \
+	"$enable_snmp_rfc" = "yes" -o \
+	"$enable_snmp_rfcv2" = "yes" -o \
+	"$enable_snmp_rfcv3" = "yes" -o \
+	"$enable_snmp_keepalived" = "yes" -o \
+	"$enable_snmp_checker" = "yes" ; then
   if test -n "$ac_tool_prefix"; then
   # Extract the first word of "${ac_tool_prefix}net-snmp-config", so it can be a program name with args.
 set dummy ${ac_tool_prefix}net-snmp-config; ac_word=$2
@@ -4755,19 +4778,35 @@ done
 
   SNMP_SUPPORT="_WITH_SNMP_"
   if test "$enable_snmp_rfc" = "yes"; then
-    SNMP_RFC_SUPPORT="_WITH_SNMP_RFC_"
+    SNMP_RFCV2_SUPPORT="_WITH_SNMP_RFCV2_"
+    SNMP_RFCV3_SUPPORT="_WITH_SNMP_RFCV3_"
+  else
+    if test "$enable_snmp_rfcv2" = "yes"; then
+      SNMP_RFCV2_SUPPORT="_WITH_SNMP_RFCV2_"
+    fi
+    if test "$enable_snmp_rfcv3" = "yes"; then
+      SNMP_RFCV3_SUPPORT="_WITH_SNMP_RFCV3_"
+    fi
   fi
-  if test "$enable_snmp_keepalived" = "yes"; then
-    SNMP_KEEPALIVED_SUPPORT="_WITH_SNMP_KEEPALIVED_"
+  if test "${SNMP_RFCV2_SUPPORT}" = "_WITH_SNMP_RFCV2_" -o \
+          "${SNMP_RFCV3_SUPPORT}" = "_WITH_SNMP_RFCV3_"; then
+      SNMP_RFC_SUPPORT="_WITH_SNMP_RFC_"
   fi
-  if test "$enable_snmp_checker" = "yes"; then
-    SNMP_CHECKER_SUPPORT="_WITH_SNMP_CHECKER_"
-  fi
+
   if test "$enable_snmp" = "yes"; then
     SNMP_KEEPALIVED_SUPPORT="_WITH_SNMP_KEEPALIVED_"
     SNMP_CHECKER_SUPPORT="_WITH_SNMP_CHECKER_"
+  else
+    if test "$enable_snmp_keepalived" = "yes"; then
+      SNMP_KEEPALIVED_SUPPORT="_WITH_SNMP_KEEPALIVED_"
+    fi
+    if test "$enable_snmp_checker" = "yes"; then
+      SNMP_CHECKER_SUPPORT="_WITH_SNMP_CHECKER_"
+    fi
   fi
 fi
+
+
 
 
 
@@ -4887,7 +4926,7 @@ fi
 
 
 
-APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} ${DFLAGS}"
+APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} ${DFLAGS}"
 BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
 
 
@@ -6408,10 +6447,15 @@ if test "${SNMP_CHECKER_SUPPORT}" = "_WITH_SNMP_CHECKER_"; then
 else
   echo "SNMP checker support     : No"
 fi
-if test "${SNMP_RFC_SUPPORT}" = "_WITH_SNMP_RFC_"; then
-  echo "SNMP RFC support         : Yes"
+if test "${SNMP_RFCV2_SUPPORT}" = "_WITH_SNMP_RFCV2_"; then
+  echo "SNMP RFCv2 support       : Yes"
 else
-  echo "SNMP RFC support         : No"
+  echo "SNMP RFCv2 support       : No"
+fi
+if test "${SNMP_RFCV3_SUPPORT}" = "_WITH_SNMP_RFCV3_"; then
+  echo "SNMP RFCv3 support       : Yes"
+else
+  echo "SNMP RFCv3 support       : No"
 fi
 if test "${SHA1_SUPPORT}" = "_WITH_SHA1_"; then
   echo "SHA1 support             : Yes"

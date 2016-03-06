@@ -177,13 +177,13 @@ vrrp_sync_goto_master(vrrp_t * vrrp)
 	if (GROUP_STATE(vgroup) == VRRP_STATE_GOTO_MASTER)
 		return 1;
 
-        /* Only sync to master if everyone wants to 
+	/* Only sync to master if everyone wants to
 	 * i.e. prefer backup state to avoid thrashing */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		isync = ELEMENT_DATA(e);
-		if (isync != vrrp && (isync->wantstate != VRRP_STATE_GOTO_MASTER && 
-		                      isync->wantstate != VRRP_STATE_MAST)) {
-			return 0;	
+		if (isync != vrrp && (isync->wantstate != VRRP_STATE_GOTO_MASTER &&
+				      isync->wantstate != VRRP_STATE_MAST)) {
+			return 0;
 		}
 	}
 	return 1;

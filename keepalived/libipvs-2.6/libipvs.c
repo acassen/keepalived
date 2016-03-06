@@ -33,9 +33,9 @@ struct ip_vs_getinfo ipvs_info;
 
 #ifdef LIBIPVS_USE_NL
 #ifdef FALLBACK_LIBNL1
-#define nl_sock         nl_handle
-#define nl_socket_alloc nl_handle_alloc
-#define nl_socket_free  nl_handle_destroy
+#define nl_sock		nl_handle
+#define nl_socket_alloc	nl_handle_alloc
+#define nl_socket_free	nl_handle_destroy
 #endif
 static struct nl_sock *sock = NULL;
 static int family, try_nl = 1;
@@ -59,23 +59,23 @@ static int family, try_nl = 1;
 static int nlerr2syserr(int err)
 {
 	switch (abs(err)) {
-	case NLE_BAD_SOCK:       return EBADF;
-	case NLE_EXIST:          return EEXIST;
-	case NLE_NOADDR:         return EADDRNOTAVAIL;
-	case NLE_OBJ_NOTFOUND:   return ENOENT;
-	case NLE_INTR:           return EINTR;
-	case NLE_AGAIN:          return EAGAIN;
-	case NLE_INVAL:          return EINVAL;
-	case NLE_NOACCESS:       return EACCES;
-	case NLE_NOMEM:          return ENOMEM;
-	case NLE_AF_NOSUPPORT:   return EAFNOSUPPORT;
+	case NLE_BAD_SOCK:	 return EBADF;
+	case NLE_EXIST:		 return EEXIST;
+	case NLE_NOADDR:	 return EADDRNOTAVAIL;
+	case NLE_OBJ_NOTFOUND:	 return ENOENT;
+	case NLE_INTR:		 return EINTR;
+	case NLE_AGAIN:		 return EAGAIN;
+	case NLE_INVAL:		 return EINVAL;
+	case NLE_NOACCESS:	 return EACCES;
+	case NLE_NOMEM:		 return ENOMEM;
+	case NLE_AF_NOSUPPORT:	 return EAFNOSUPPORT;
 	case NLE_PROTO_MISMATCH: return EPROTONOSUPPORT;
-	case NLE_OPNOTSUPP:      return EOPNOTSUPP;
-	case NLE_PERM:           return EPERM;
-	case NLE_BUSY:           return EBUSY;
-	case NLE_RANGE:          return ERANGE;
-	case NLE_NODEV:          return ENODEV;
-	default:                 return err;
+	case NLE_OPNOTSUPP:	 return EOPNOTSUPP;
+	case NLE_PERM:		 return EPERM;
+	case NLE_BUSY:		 return EBUSY;
+	case NLE_RANGE:		 return ERANGE;
+	case NLE_NODEV:		 return ENODEV;
+	default:		 return err;
 	}
 }
 #endif

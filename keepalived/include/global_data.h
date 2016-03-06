@@ -84,7 +84,8 @@ typedef struct _data {
 	int				enable_traps;
 	char				*snmp_socket;
 	int				enable_snmp_keepalived;
-	int				enable_snmp_rfc;
+	int				enable_snmp_rfcv2;
+	int				enable_snmp_rfcv3;
 	int				enable_snmp_checker;
 #endif
 } data_t;

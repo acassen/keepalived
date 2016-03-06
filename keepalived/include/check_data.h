@@ -52,7 +52,7 @@ typedef unsigned int checker_id_t;
 
 /* Daemon dynamic data structure definition */
 #define MAX_TIMEOUT_LENGTH		5
-#define KEEPALIVED_DEFAULT_DELAY	(60 * TIMER_HZ) 
+#define KEEPALIVED_DEFAULT_DELAY	(60 * TIMER_HZ)
 
 /* SSL specific data */
 typedef struct _ssl_data {
@@ -71,7 +71,7 @@ typedef struct _real_server {
 	struct sockaddr_storage		addr;
 	int				weight;
 	int				iweight;	/* Initial weight */
-	int 				pweight;	/* previous weight
+	int				pweight;	/* previous weight
 							 * used for reloading */
 #ifdef _KRNL_2_6_
 	uint32_t			u_threshold;   /* Upper connection limit. */
@@ -125,7 +125,9 @@ typedef struct _virtual_server {
 	int				ops;
 	char				sched[SCHED_MAX_LENGTH];
 	char				timeout_persistence[MAX_TIMEOUT_LENGTH];
+#ifdef _WITH_LVS_
 	char				pe_name[IP_VS_PENAME_MAXLEN];
+#endif
 	unsigned			loadbalancing_kind;
 	uint32_t			granularity_persistence;
 	char				*virtualhost;
@@ -230,7 +232,7 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			 !strcmp((X)->sched, (Y)->sched)				&&\
 			 !strcmp((X)->timeout_persistence, (Y)->timeout_persistence)	&&\
 			 (((X)->vsgname && (Y)->vsgname &&				\
-			   !strcmp((X)->vsgname, (Y)->vsgname)) || 			\
+			   !strcmp((X)->vsgname, (Y)->vsgname)) ||			\
 			  (!(X)->vsgname && !(Y)->vsgname)))
 
 #define VSGE_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr) &&	\

@@ -4,14 +4,14 @@
  *              a loadbalanced server pool using multi-layer checks.
  *
  * Part:        vrrp_scheduler.c include file.
- * 
+ *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
- *              
+ *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
  *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *              See the GNU General Public License for more details.
- *              
+ *
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
@@ -42,16 +42,16 @@ do {						\
     (*(VRRP_FSM[(V)->state].read_to)) (V);	\
 } while (0)
 
-#define VRRP_FSM_READ(V, B, L)		 	\
+#define VRRP_FSM_READ(V, B, L)			\
 do {						\
-  if ((*(VRRP_FSM[(V)->state].read)))	 	\
+  if ((*(VRRP_FSM[(V)->state].read)))		\
     (*(VRRP_FSM[(V)->state].read)) (V, B, L);	\
 } while (0)
 
 /* VRRP TSM Macro */
 #define VRRP_TSM_HANDLE(S,V)			\
 do {						\
-  if ((V)->sync && 				\
+  if ((V)->sync &&				\
       S != VRRP_STATE_GOTO_MASTER)		\
     if ((*(VRRP_TSM[S][(V)->state].handler)))	\
       (*(VRRP_TSM[S][(V)->state].handler)) (V);	\

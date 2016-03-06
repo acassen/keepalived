@@ -1,14 +1,14 @@
-/* 
+/*
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
- * 
+ *
  * Part:        Configuration file parser/reader. Place into the dynamic
  *              data structure representation the conf file representing
  *              the loadbalanced server pool.
- *  
+ *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
- *              
+ *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
  *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
@@ -173,13 +173,10 @@ vrrp_ipsets_handler(vector_t *strvec)
 		strcpy(global_data->vrrp_ipset_address6, vector_slot(strvec,2));
 	}
 	else {
-		/* No second set specified, copy first name and add "_if" */
+		/* No second set specified, copy first name and add "6" */
 		strcpy(global_data->vrrp_ipset_address6, global_data->vrrp_ipset_address);
-		if (strlen(global_data->vrrp_ipset_address6) < sizeof(global_data->vrrp_ipset_address6) - 2)
-			strcat(global_data->vrrp_ipset_address6, "6");
-		else
-			strcpy(global_data->vrrp_ipset_address_iface6 + sizeof(global_data->vrrp_ipset_address_iface6) - 2, "6");
-
+		global_data->vrrp_ipset_address6[sizeof(global_data->vrrp_ipset_address6) - 2] = '\0';
+		strcat(global_data->vrrp_ipset_address6, "6");
 	}
 	if (vector_size(strvec) >= 4) {
 		if (strlen(vector_slot(strvec,3)) >= sizeof(global_data->vrrp_ipset_address_iface6)-1) {
@@ -189,15 +186,13 @@ vrrp_ipsets_handler(vector_t *strvec)
 		strcpy(global_data->vrrp_ipset_address_iface6, vector_slot(strvec,3));
 	}
 	else {
-		/* No third set specified, copy second name and add "_if" */
+		/* No third set specified, copy second name and add "_if6" */
 		strcpy(global_data->vrrp_ipset_address_iface6, global_data->vrrp_ipset_address6);
 		len = strlen(global_data->vrrp_ipset_address_iface6);
 		if (global_data->vrrp_ipset_address_iface6[len-1] == '6')
 			global_data->vrrp_ipset_address_iface6[--len] = '\0';
-		if (len < sizeof(global_data->vrrp_ipset_address_iface6) - 5)
-			strcat(global_data->vrrp_ipset_address6, "_if6");
-		else
-			strcpy(global_data->vrrp_ipset_address6 + sizeof(global_data->vrrp_ipset_address6) - 5, "_if6");
+		global_data->vrrp_ipset_address_iface6[sizeof(global_data->vrrp_ipset_address_iface6) - 5] = '\0';
+		strcat(global_data->vrrp_ipset_address_iface6, "_if6");
 	}
 }
 #endif
@@ -270,7 +265,22 @@ snmp_keepalived_handler(vector_t *strvec)
 static void
 snmp_rfc_handler(vector_t *strvec)
 {
-	global_data->enable_snmp_rfc = true;
+	global_data->enable_snmp_rfcv2 = true;
+	global_data->enable_snmp_rfcv3 = true;
+}
+#endif
+#ifdef _WITH_SNMP_RFCV2_
+static void
+snmp_rfcv2_handler(vector_t *strvec)
+{
+	global_data->enable_snmp_rfcv2 = true;
+}
+#endif
+#ifdef _WITH_SNMP_RFCV3_
+static void
+snmp_rfcv3_handler(vector_t *strvec)
+{
+	global_data->enable_snmp_rfcv3 = true;
 }
 #endif
 #ifdef _WITH_SNMP_CHECKER_
@@ -315,6 +325,12 @@ global_init_keywords(void)
 #endif
 #ifdef _WITH_SNMP_RFC_
 	install_keyword("enable_snmp_rfc", &snmp_rfc_handler);
+#endif
+#ifdef _WITH_SNMP_RFCV2_
+	install_keyword("enable_snmp_rfcv2", &snmp_rfcv2_handler);
+#endif
+#ifdef _WITH_SNMP_RFCV3_
+	install_keyword("enable_snmp_rfcv3", &snmp_rfcv3_handler);
 #endif
 #ifdef _WITH_SNMP_CHECKER_
 	install_keyword("enable_snmp_checker", &snmp_checker_handler);

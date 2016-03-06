@@ -105,6 +105,13 @@ if_get_by_ifname(const char *ifname)
 	return NULL;
 }
 
+/* Return the interface list itself */
+list
+get_if_list(void)
+{
+	return if_queue;
+}
+
 /*
  * Reflect base interface flags on VMAC interfaces.
  * VMAC interfaces should never update it own flags, only be reflected
@@ -290,7 +297,7 @@ free_if(void *data)
 void
 dump_if(void *data)
 {
-	interface_t *ifp = data;
+	interface_t *ifp = data, *ifp_u;
 	char addr_str[INET6_ADDRSTRLEN];
 
 	log_message(LOG_INFO, "------< NIC >------");
@@ -300,7 +307,7 @@ dump_if(void *data)
 	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 	log_message(LOG_INFO, " IPv6 address = %s", addr_str);
 
-	/* FIXME: Harcoded for ethernet */
+	/* FIXME: Hardcoded for ethernet */
 	if (ifp->hw_type == ARPHRD_ETHER)
 		log_message(LOG_INFO, " MAC = %.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
 		       ifp->hw_addr[0], ifp->hw_addr[1], ifp->hw_addr[2]
@@ -328,6 +335,9 @@ dump_if(void *data)
 		log_message(LOG_INFO, " HW Type = UNKNOWN");
 		break;
 	}
+
+	if (ifp->vmac && (ifp_u = if_get_by_ifindex(ifp->base_ifindex)))
+		log_message(LOG_INFO, " VMAC underlying interface = %s", ifp_u->ifname);
 
 	/* MII channel supported ? */
 	if (IF_MII_SUPPORTED(ifp))
@@ -479,7 +489,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp, int proto)
 			    (family == AF_INET) ? "" : "V6", strerror(errno), errno);
 		close(*sd);
 		*sd = -1;
-        }
+	}
 
 	return *sd;
 }
@@ -724,14 +734,14 @@ if_setsockopt_sndbuf(int *sd, int val)
 		return -1;
 
 	/* sndbuf option */
-        ret = setsockopt(*sd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(val));
-        if (ret < 0) {
+	ret = setsockopt(*sd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(val));
+	if (ret < 0) {
 		log_message(LOG_INFO, "cant set SO_SNDBUF IP option. errno=%d (%m)", errno);
 		close(*sd);
 		*sd = -1;
-        }
+	}
 
-        return *sd;
+	return *sd;
 }
 
 int

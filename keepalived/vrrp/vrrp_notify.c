@@ -128,7 +128,7 @@ notify_script_exec(char* script, char *type, int state_num, char* name, int prio
 	 * Thus, the length of the buffer will be:
 	 *
 	 *     ( strlen(script) + 3 ) + ( strlen(type) + 1 ) + ( strlen(name) + 1 ) +
-	 *      ( strlen(state) + 2 ) + ( strlen(prio) + 1 ) + 1 
+	 *      ( strlen(state) + 2 ) + ( strlen(prio) + 1 ) + 1
 	 *
 	 * Note that the prio will be indicated as zero for a group.
 	 *

@@ -11,7 +11,7 @@
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
  *              MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
  *              See the GNU General Public License for more details.
- *              
+ *
  *              This program is free software; you can redistribute it and/or
  *              modify it under the terms of the GNU General Public License
  *              as published by the Free Software Foundation; either version
@@ -41,6 +41,9 @@ enum vrrp_vmac_bits {
 	VRRP_VMAC_UP_BIT = 1,
 	VRRP_VMAC_XMITBASE_BIT = 2,
 };
+
+extern const char * const macvlan_ll_kind;
+extern u_char ll_addr[ETH_ALEN];
 
 /* prototypes */
 extern int netlink_link_add_vmac(vrrp_t *);

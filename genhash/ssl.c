@@ -156,7 +156,7 @@ ssl_read_thread(thread_t * thread)
 	 * I/O multiplexer thread framework because it enter
 	 * a synchronous read process for each GET reply.
 	 * Sound a little nasty !.
-	 * 
+	 *
 	 * Why OpenSSL doesn t handle underlying fd. This
 	 * break the I/O (select()) approach !...
 	 * If you read this and know the answer, please reply

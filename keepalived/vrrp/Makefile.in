@@ -6,8 +6,6 @@
 
 CC	 = @CC@
 SNMP_FLAG = @SNMP_SUPPORT@
-SNMP_RFC_FLAG = @SNMP_RFC_SUPPORT@
-SNMP_KEEPALIVED_FLAG = @SNMP_KEEPALIVED_SUPPORT@
 VRRP_AUTH_FLAG = @VRRP_AUTH_SUPPORT@
 LIBIPTC_FLAG = @USE_LIBIPTC@
 LIBIPSET_FLAG = @USE_LIBIPSET@
@@ -17,7 +15,7 @@ CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 	   -Wall -Wunused -Wstrict-prototypes
 COMPILE	 = $(CC) $(CFLAGS) @APP_DEFS@
 
-OBJS = 	vrrp_daemon.o vrrp_print.o vrrp_data.o vrrp_parser.o \
+OBJS =	vrrp_daemon.o vrrp_print.o vrrp_data.o vrrp_parser.o \
 	vrrp.o vrrp_notify.o vrrp_scheduler.o vrrp_sync.o vrrp_index.o \
 	vrrp_netlink.o vrrp_arp.o vrrp_if.o vrrp_track.o vrrp_ipaddress.o \
 	vrrp_iproute.o vrrp_iprule.o vrrp_ndisc.o vrrp_vmac.o \

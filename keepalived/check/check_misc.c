@@ -173,7 +173,7 @@ misc_check_child_thread(thread_t * thread)
 		int status;
 		status = WEXITSTATUS(wait_status);
 		if (status == 0 ||
-                    (misck_checker->dynamic == 1 && status >= 2 && status <= 255)) {
+		    (misck_checker->dynamic == 1 && status >= 2 && status <= 255)) {
 			/*
 			 * The actual weight set when using misc_dynamic is two less than
 			 * the exit status returned.  Effective range is 0..253.

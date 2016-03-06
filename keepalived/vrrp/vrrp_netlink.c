@@ -38,6 +38,7 @@
 /* local include */
 #include "check_api.h"
 #include "vrrp_netlink.h"
+#include "vrrp_vmac.h"
 #include "logger.h"
 #include "memory.h"
 #include "scheduler.h"
@@ -295,6 +296,12 @@ parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, int len)
 			tb[rta->rta_type] = rta;
 		rta = RTA_NEXT(rta, len);
 	}
+}
+
+static void
+parse_rtattr_nested(struct rtattr **tb, int max, struct rtattr *rta)
+{
+        parse_rtattr(tb, max, RTA_DATA(rta), RTA_PAYLOAD(rta));
 }
 
 char *
@@ -595,6 +602,9 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 {
 	char *name;
 	int i;
+	struct rtattr* linkinfo[IFLA_INFO_MAX+1];
+	struct rtattr* linkattr[IFLA_MACVLAN_MAX+1];
+	interface_t *ifp_base;
 
 	name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
 	/* Fill the interface structure */
@@ -602,12 +612,6 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	ifp->ifindex = ifi->ifi_index;
 	ifp->mtu = *(int *) RTA_DATA(tb[IFLA_MTU]);
 	ifp->hw_type = ifi->ifi_type;
-
-	if (!ifp->vmac) {
-		if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);
-		ifp->flags = ifi->ifi_flags;
-		ifp->base_ifindex = ifi->ifi_index;
-	}
 
 	if (tb[IFLA_ADDRESS]) {
 		int hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
@@ -630,6 +634,42 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 				ifp->hw_addr_len = hw_addr_len;
 		}
 	}
+
+	/* See if this interface is a MACVLAN of ours */
+	if (tb[IFLA_LINKINFO] && tb[IFLA_LINK]){
+		/* If appears that the value of *(int*)RTA_DATA(tb[IFLA_LINKINFO]) is 0x1000c
+		 *   for macvlan.  0x10000 for nested data, or'ed with 0x0c for macvlan;
+		 *   other values are 0x09 for vlan, 0x0b for bridge, 0x08 for tun, -1 for no
+		 *   underlying interface.
+		 *
+		 * I can't find where in the kernel these values are set or defined, so use
+		 * the string as below.
+		 */
+		parse_rtattr_nested(linkinfo, IFLA_INFO_MAX, tb[IFLA_LINKINFO]);
+
+		if (linkinfo[IFLA_INFO_KIND] &&
+		    RTA_PAYLOAD(linkinfo[IFLA_INFO_KIND]) >= strlen(macvlan_ll_kind) &&
+		    !strncmp(macvlan_ll_kind, RTA_DATA(linkinfo[IFLA_INFO_KIND]), strlen(macvlan_ll_kind)) &&
+		    linkinfo[IFLA_INFO_DATA]) {
+			parse_rtattr_nested(linkattr, IFLA_MACVLAN_MAX, linkinfo[IFLA_INFO_DATA]);
+
+			if (linkattr[IFLA_MACVLAN_MODE] &&
+			    *(int*)RTA_DATA(linkattr[IFLA_MACVLAN_MODE]) == MACVLAN_MODE_PRIVATE) {
+				ifp->base_ifindex = *(int*)RTA_DATA(tb[IFLA_LINK]);
+				ifp->vmac = true;
+			}
+		}
+	}
+
+	if (!ifp->vmac) {
+		if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);
+		ifp->flags = ifi->ifi_flags;
+		ifp->base_ifindex = ifi->ifi_index;
+	} else {
+		if ((ifp_base = if_get_by_ifindex(ifp->base_ifindex)))
+			ifp->flags = ifp_base->flags;
+	}
+
 	return 1;
 }
 
@@ -676,11 +716,11 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	/* Fill the interface structure */
 	ifp = (interface_t *) MALLOC(sizeof(interface_t));
 
-        status = netlink_if_link_populate(ifp, tb, ifi);
-        if (status < 0) {
-            FREE(ifp);
-            return -1;
-        }
+	status = netlink_if_link_populate(ifp, tb, ifi);
+	if (status < 0) {
+		FREE(ifp);
+		return -1;
+	}
 	/* Queue this new interface_t */
 	if_add_queue(ifp);
 	return 0;
@@ -765,33 +805,31 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 		return 0;
 
 	/* find the interface_t. If the interface doesn't exist in the interface
-         * list and this is a new interface add it to the interface list.
-         * If an interface with the same name exists overwrite the older
-         * structure and fill it with the new interface information.
-         */
+	 * list and this is a new interface add it to the interface list.
+	 * If an interface with the same name exists overwrite the older
+	 * structure and fill it with the new interface information.
+	 */
 	ifp = if_get_by_ifindex(ifi->ifi_index);
 	if (!ifp) {
-                if (h->nlmsg_type == RTM_NEWLINK) {
-                    char *name;
-                    if (tb[IFLA_IFNAME] == NULL)
-                            return -1;
-                    name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
-                    ifp = if_get_by_ifname(name);
-                    if (!ifp) {
-                            ifp = (interface_t *) MALLOC(sizeof(interface_t));
-                            if_add_queue(ifp);
-                    } else {
-                            memset(ifp, 0, sizeof(interface_t));
-                    }
-                    status = netlink_if_link_populate(ifp, tb, ifi);
-                    if (status < 0)
-                            return -1;
+		if (h->nlmsg_type == RTM_NEWLINK) {
+			char *name;
+			name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
+			ifp = if_get_by_ifname(name);
+			if (!ifp) {
+				ifp = (interface_t *) MALLOC(sizeof(interface_t));
+				if_add_queue(ifp);
+			} else {
+				memset(ifp, 0, sizeof(interface_t));
+			}
+			status = netlink_if_link_populate(ifp, tb, ifi);
+			if (status < 0)
+				return -1;
 
-                } else {
-                    if (__test_bit(LOG_DETAIL_BIT, &debug))
-                            log_message(LOG_INFO, "Unknown interface %s deleted", (char *)tb[IFLA_IFNAME]);
-                    return 0;
-                }
+			} else {
+				if (__test_bit(LOG_DETAIL_BIT, &debug))
+					log_message(LOG_INFO, "Unknown interface %s deleted", (char *)tb[IFLA_IFNAME]);
+			return 0;
+		}
 	}
 
 	/*

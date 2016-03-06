@@ -32,11 +32,13 @@
 
 struct ipt_handle;
 
-#define	IPTABLES_MAX_TRIES	3	/* How may times to try adding/deleting when get EAGAIN */
+#define	IPTABLES_MAX_TRIES	3	/* How many times to try adding/deleting when get EAGAIN */
 
 
-void iptables_init(void);
+bool iptables_init(void);
 void iptables_fini(void);
+void iptables_startup(void);
+void iptables_cleanup(void);
 struct ipt_handle *iptables_open(void);
 int iptables_close(struct ipt_handle *h);
 void handle_iptable_rule_to_vip(ip_address_t *, int, char *, struct ipt_handle *);
