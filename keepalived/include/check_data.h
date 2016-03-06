@@ -125,7 +125,9 @@ typedef struct _virtual_server {
 	int				ops;
 	char				sched[SCHED_MAX_LENGTH];
 	char				timeout_persistence[MAX_TIMEOUT_LENGTH];
+#ifdef _WITH_LVS_
 	char				pe_name[IP_VS_PENAME_MAXLEN];
+#endif
 	unsigned			loadbalancing_kind;
 	uint32_t			granularity_persistence;
 	char				*virtualhost;
