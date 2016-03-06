@@ -42,6 +42,9 @@ enum vrrp_vmac_bits {
 	VRRP_VMAC_XMITBASE_BIT = 2,
 };
 
+extern const char * const macvlan_ll_kind;
+extern u_char ll_addr[ETH_ALEN];
+
 /* prototypes */
 extern int netlink_link_add_vmac(vrrp_t *);
 extern int netlink_link_del_vmac(vrrp_t *);

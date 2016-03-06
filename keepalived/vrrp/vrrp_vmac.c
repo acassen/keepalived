@@ -36,8 +36,8 @@
 #include "vrrp_ipaddress.h"
 
 #ifdef _HAVE_VRRP_VMAC_
-/* private matter */
-static const char *ll_kind = "macvlan";
+const char * const macvlan_ll_kind = "macvlan";
+u_char ll_addr[ETH_ALEN] = {0x00, 0x00, 0x5e, 0x00, 0x01, 0x00};
 
 static void
 make_link_local_address(struct in6_addr* l3_addr, const u_char* ll_addr)
@@ -93,7 +93,6 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	interface_t *ifp;
 	interface_t *base_ifp;
 	char ifname[IFNAMSIZ];
-	u_char ll_addr[ETH_ALEN] = {0x00, 0x00, 0x5e, 0x00, 0x01, vrrp->vrid};
 	struct {
 		struct nlmsghdr n;
 		struct ifinfomsg ifi;
@@ -106,6 +105,8 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	if (vrrp->family == AF_INET6)
 		ll_addr[4] = 0x02;
 
+	ll_addr[ETH_ALEN-1] = vrrp->vrid;
+
 	memset(&req, 0, sizeof (req));
 	memset(ifname, 0, IFNAMSIZ);
 	strncpy(ifname, vrrp->vmac_ifname, IFNAMSIZ - 1);
@@ -115,28 +116,12 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	 * by a previous instance.
 	 */
 	if ((ifp = if_get_by_ifname(ifname))) {
-		/* Check to see whether this interface has correct vmac ? */
+		/* Check to see whether this interface has wrong mac ? */
 		if (memcmp((const void *) ifp->hw_addr,
-			   (const void *) ll_addr, ETH_ALEN) == 0) {
-
-			/* We have found a VIF and the vmac matches */
-			log_message(LOG_INFO, "vmac: Matching interface VMAC found on interfaces %s for "
-					      "vrrp_instance %s!!!"
-					    , vrrp->vmac_ifname, vrrp->iname);
-
-			/* (re)set VMAC properties (if deleted on reload) */
-			ifp->base_ifindex = vrrp->ifp->ifindex;
-			ifp->vmac = 1;
-			ifp->flags = vrrp->ifp->flags; /* Copy base interface flags */
-			vrrp->ifp = ifp;
-			/* Save ifindex for use on delete */
-			vrrp->vmac_ifindex = IF_INDEX(ifp);
-			__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
-			return 1;
-		} else {
+			   (const void *) ll_addr, ETH_ALEN) != 0) {
 			/* We have found a VIF but the vmac do not match */
 			log_message(LOG_INFO, "vmac: Removing old VMAC interface %s due to conflicting "
-					      "interface VMAC for vrrp_instance %s!!!"
+					      "interface MAC for vrrp_instance %s!!!"
 					    , vrrp->vmac_ifname, vrrp->iname);
 
 			/* Request that NETLINK remove the VIF interface first */
@@ -167,7 +152,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	/* macvlan settings */
 	linkinfo = NLMSG_TAIL(&req.n);
 	addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
-	addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (void *)ll_kind, strlen(ll_kind));
+	addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (void *)macvlan_ll_kind, strlen(macvlan_ll_kind));
 	data = NLMSG_TAIL(&req.n);
 	addattr_l(&req.n, sizeof(req), IFLA_INFO_DATA, NULL, 0);
 

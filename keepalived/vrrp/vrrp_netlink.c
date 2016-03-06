@@ -38,6 +38,7 @@
 /* local include */
 #include "check_api.h"
 #include "vrrp_netlink.h"
+#include "vrrp_vmac.h"
 #include "logger.h"
 #include "memory.h"
 #include "scheduler.h"
@@ -295,6 +296,12 @@ parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, int len)
 			tb[rta->rta_type] = rta;
 		rta = RTA_NEXT(rta, len);
 	}
+}
+
+static void
+parse_rtattr_nested(struct rtattr **tb, int max, struct rtattr *rta)
+{
+        parse_rtattr(tb, max, RTA_DATA(rta), RTA_PAYLOAD(rta));
 }
 
 char *
@@ -595,6 +602,9 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 {
 	char *name;
 	int i;
+	struct rtattr* linkinfo[IFLA_INFO_MAX+1];
+	struct rtattr* linkattr[IFLA_MACVLAN_MAX+1];
+	interface_t *ifp_base;
 
 	name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
 	/* Fill the interface structure */
@@ -602,12 +612,6 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	ifp->ifindex = ifi->ifi_index;
 	ifp->mtu = *(int *) RTA_DATA(tb[IFLA_MTU]);
 	ifp->hw_type = ifi->ifi_type;
-
-	if (!ifp->vmac) {
-		if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);
-		ifp->flags = ifi->ifi_flags;
-		ifp->base_ifindex = ifi->ifi_index;
-	}
 
 	if (tb[IFLA_ADDRESS]) {
 		int hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
@@ -630,6 +634,42 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 				ifp->hw_addr_len = hw_addr_len;
 		}
 	}
+
+	/* See if this interface is a MACVLAN of ours */
+	if (tb[IFLA_LINKINFO] && tb[IFLA_LINK]){
+		/* If appears that the value of *(int*)RTA_DATA(tb[IFLA_LINKINFO]) is 0x1000c
+		 *   for macvlan.  0x10000 for nested data, or'ed with 0x0c for macvlan;
+		 *   other values are 0x09 for vlan, 0x0b for bridge, 0x08 for tun, -1 for no
+		 *   underlying interface.
+		 *
+		 * I can't find where in the kernel these values are set or defined, so use
+		 * the string as below.
+		 */
+		parse_rtattr_nested(linkinfo, IFLA_INFO_MAX, tb[IFLA_LINKINFO]);
+
+		if (linkinfo[IFLA_INFO_KIND] &&
+		    RTA_PAYLOAD(linkinfo[IFLA_INFO_KIND]) >= strlen(macvlan_ll_kind) &&
+		    !strncmp(macvlan_ll_kind, RTA_DATA(linkinfo[IFLA_INFO_KIND]), strlen(macvlan_ll_kind)) &&
+		    linkinfo[IFLA_INFO_DATA]) {
+			parse_rtattr_nested(linkattr, IFLA_MACVLAN_MAX, linkinfo[IFLA_INFO_DATA]);
+
+			if (linkattr[IFLA_MACVLAN_MODE] &&
+			    *(int*)RTA_DATA(linkattr[IFLA_MACVLAN_MODE]) == MACVLAN_MODE_PRIVATE) {
+				ifp->base_ifindex = *(int*)RTA_DATA(tb[IFLA_LINK]);
+				ifp->vmac = true;
+			}
+		}
+	}
+
+	if (!ifp->vmac) {
+		if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);
+		ifp->flags = ifi->ifi_flags;
+		ifp->base_ifindex = ifi->ifi_index;
+	} else {
+		if ((ifp_base = if_get_by_ifindex(ifp->base_ifindex)))
+			ifp->flags = ifp_base->flags;
+	}
+
 	return 1;
 }
 

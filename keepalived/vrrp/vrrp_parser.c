@@ -190,11 +190,20 @@ static void
 vrrp_vmac_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	interface_t *ifp;
 
 	__set_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
 
-	if (vector_size(strvec) >= 2)
+	if (vector_size(strvec) >= 2) {
 		strncpy(vrrp->vmac_ifname, vector_slot(strvec, 1), IFNAMSIZ - 1);
+
+		/* Check if the interface exists and is a macvlan we can use */
+		if ((ifp = if_get_by_ifname(vrrp->vmac_ifname)) &&
+		    !ifp->vmac) {
+			log_message(LOG_INFO, "(%s): interface %s already exists and is not a private macvlan; ignoring vmac if_name", vrrp->iname, vrrp->vmac_ifname);
+			vrrp->vmac_ifname[0] = '\0';
+		}
+	}
 }
 static void
 vrrp_vmac_xmit_base_handler(vector_t *strvec)
