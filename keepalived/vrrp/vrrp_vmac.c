@@ -104,6 +104,8 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 	if (vrrp->family == AF_INET6)
 		ll_addr[4] = 0x02;
+	else
+		ll_addr[4] = 0x01;
 
 	ll_addr[ETH_ALEN-1] = vrrp->vrid;
 
