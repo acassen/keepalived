@@ -24,6 +24,7 @@ CC = @CC@
 STRIP = @STRIP@
 LDFLAGS = @LIBS@ @LDFLAGS@ -ldl
 SUBDIRS = core
+LIBSUBDIRS =
 
 ifeq ($(IPVS_FLAG),_WITH_LVS_)
   SUBDIRS += check
@@ -35,50 +36,50 @@ endif
 
 ifeq ($(IPVS_FLAG),_WITH_LVS_)
   ifeq ($(KERNEL),_KRNL_2_4_)
-    SUBDIRS += libipvs-2.4
+    LIBSUBDIRS = libipvs-2.4
   else
-    SUBDIRS += libipvs-2.6
+    LIBSUBDIRS = libipvs-2.6
   endif
 endif
 
 all:
 	@set -e; \
-	for i in $(SUBDIRS); do \
+	for i in $(SUBDIRS) $(LIBSUBDIRS); do \
 	$(MAKE) -C $$i || exit 1; done && \
 	echo "Building $(BIN)/$(EXEC)" && \
-	$(CC) -o $(BIN)/$(EXEC) `find $(SUBDIRS) ../lib -name '*.[oa]'` $(LDFLAGS)
+	$(CC) -o $(BIN)/$(EXEC) `find $(SUBDIRS) ../lib -name '*.o'` `find $(LIBSUBDIRS) -name '*.a'` $(LDFLAGS)
 	$(STRIP) $(BIN)/$(EXEC)
 	@echo ""
 	@echo "Make complete"
 
 debug:
 	@set -e; \
-	for i in $(SUBDIRS); do \
+	for i in $(SUBDIRS) $(LIBSUBDIRS); do \
 	$(MAKE) -C $$i || exit 1; done && \
 	echo "Building $(BIN)/$(EXEC)" && \
-	$(CC) -o $(BIN)/$(EXEC) `find $(SUBDIRS) ../lib -name '*.[oa]'` $(LDFLAGS) -ggdb
+	$(CC) -o $(BIN)/$(EXEC) `find $(SUBDIRS) ../lib -name '*.o'` `find $(LIBSUBDIRS) -name '*.a'` $(LDFLAGS) -ggdb
 	@echo ""
 	@echo "Make complete"
 
 profile:
 	@set -e; \
-	for i in $(SUBDIRS); do \
+	for i in $(SUBDIRS) $(LIBSUBDIRS); do \
 	$(MAKE) -C $$i || exit 1; done && \
 	echo "Building $(BIN)/$(EXEC)" && \
-	$(CC) -o $(BIN)/$(EXEC) `find $(SUBDIRS) ../lib -name '*.[oa]'` $(LDFLAGS) -pg
+	$(CC) -o $(BIN)/$(EXEC) `find $(SUBDIRS) ../lib -name '*.o'` `find $(LIBSUBDIRS) -name '*.a'` $(LDFLAGS) -pg
 	@echo ""
 	@echo "Make complete"
 
 clean:
 	@set -e; \
-	for i in $(SUBDIRS); do \
+	for i in $(SUBDIRS) $(LIBSUBDIRS); do \
 	$(MAKE) -C $$i clean; done
 	@echo ""
 	@echo "Make complete"
 
 distclean:
 	@set -e; \
-	for i in $(SUBDIRS); do \
+	for i in $(SUBDIRS) $(LIBSUBDIRS); do \
 	$(MAKE) -C $$i distclean; done
 	rm -f Makefile $(BIN)/$(EXEC)
 
