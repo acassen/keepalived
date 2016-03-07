@@ -69,7 +69,12 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 	req.n.nlmsg_flags  = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL;
 	req.n.nlmsg_type   = cmd ? RTM_NEWRULE : RTM_DELRULE;
 	req.r.rtm_family   = IP_FAMILY(iprule->addr);
-	req.r.rtm_table    = iprule->table ? iprule->table : RT_TABLE_MAIN;
+	if (iprule->table < 256)
+		req.r.rtm_table = iprule->table ? iprule->table : RT_TABLE_MAIN;
+	else {
+		req.r.rtm_table = RT_TABLE_UNSPEC;
+		addattr32(&req.n, sizeof(req), FRA_TABLE, iprule->table);
+	}
 	req.r.rtm_type     = RTN_UNSPEC;
 	req.r.rtm_scope    = RT_SCOPE_UNIVERSE;
 	req.r.rtm_flags    = 0;

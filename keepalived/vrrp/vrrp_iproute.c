@@ -85,8 +85,13 @@ netlink_route(ip_route_t *iproute, int cmd)
 	req.n.nlmsg_len   = NLMSG_LENGTH(sizeof(struct rtmsg));
 	req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE;
 	req.n.nlmsg_type  = cmd ? RTM_NEWROUTE : RTM_DELROUTE;
-	req.r.rtm_family  = IP_FAMILY(iproute->dst);;
-	req.r.rtm_table   = iproute->table ? iproute->table : RT_TABLE_MAIN;
+	req.r.rtm_family  = IP_FAMILY(iproute->dst);
+	if (iproute->table < 256)
+		req.r.rtm_table   = iproute->table ? iproute->table : RT_TABLE_MAIN;
+	else {
+		req.r.rtm_table = RT_TABLE_UNSPEC;
+		addattr32(&req.n, sizeof(req), RTA_TABLE, iproute->table);
+	}
 	req.r.rtm_scope   = RT_SCOPE_NOWHERE;
 
 	if (cmd) {
