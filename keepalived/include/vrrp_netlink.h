@@ -67,6 +67,7 @@ typedef struct _nl_handle {
 /* Global vars exported */
 extern nl_handle_t nl_kernel;	/* Kernel reflection channel */
 extern nl_handle_t nl_cmd;	/* Command channel */
+extern int netlink_error_ignore; /* If we get this error, ignore it */
 
 /* prototypes */
 extern int addattr32(struct nlmsghdr *, int, int, uint32_t);

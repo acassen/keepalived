@@ -48,6 +48,7 @@
 /* Global vars */
 nl_handle_t nl_kernel;	/* Kernel reflection channel */
 nl_handle_t nl_cmd;	/* Command channel */
+int netlink_error_ignore; /* If we get this error, ignore it */
 
 /* Create a socket to netlink interface_t */
 int
@@ -480,12 +481,12 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 						return 0;
 					continue;
 				}
-
-				log_message(LOG_INFO,
-				       "Netlink: error: %s, type=(%u), seq=%u, pid=%d",
-				       strerror(-err->error),
-				       err->msg.nlmsg_type,
-				       err->msg.nlmsg_seq, err->msg.nlmsg_pid);
+				if (netlink_error_ignore != -err->error)
+					log_message(LOG_INFO,
+					       "Netlink: error: %s, type=(%u), seq=%u, pid=%d",
+					       strerror(-err->error),
+					       err->msg.nlmsg_type,
+					       err->msg.nlmsg_seq, err->msg.nlmsg_pid);
 
 				return -1;
 			}

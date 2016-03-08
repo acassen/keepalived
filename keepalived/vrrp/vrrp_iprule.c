@@ -99,7 +99,7 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 }
 
 void
-netlink_rulelist(list rule_list, int cmd)
+netlink_rulelist(list rule_list, int cmd, bool force)
 {
 	ip_rule_t *iprule;
 	element e;
@@ -108,9 +108,16 @@ netlink_rulelist(list rule_list, int cmd)
 	if (LIST_ISEMPTY(rule_list))
 		return;
 
+	/* If force is set, we try to remove all the rules, but the
+	 * rule might not exist. That's not an error, so indicate not
+	 * to report such a situation */
+	if (force && cmd == IPRULE_DEL)
+	         netlink_error_ignore = ENOENT;
+
 	for (e = LIST_HEAD(rule_list); e; ELEMENT_NEXT(e)) {
 		iprule = ELEMENT_DATA(e);
-		if ((cmd && !iprule->set) ||
+		if (force ||
+		    (cmd && !iprule->set) ||
 		    (!cmd && iprule->set)) {
 			if (netlink_rule(iprule, cmd) > 0)
 				iprule->set = (cmd) ? 1 : 0;
@@ -118,6 +125,8 @@ netlink_rulelist(list rule_list, int cmd)
 				iprule->set = 0;
 		}
 	}
+
+	netlink_error_ignore = 0;
 }
 
 /* Rule dump/allocation */
@@ -205,7 +214,7 @@ clear_diff_rules(list l, list n)
 	/* All Static rules removed */
 	if (LIST_ISEMPTY(n)) {
 		log_message(LOG_INFO, "Removing a VirtualRule block");
-		netlink_rulelist(l, IPRULE_DEL);
+		netlink_rulelist(l, IPRULE_DEL, false);
 		return;
 	}
 

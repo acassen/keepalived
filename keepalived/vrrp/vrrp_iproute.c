@@ -130,6 +130,8 @@ netlink_route(ip_route_t *iproute, int cmd)
 	if (iproute->metric)
 		addattr32(&req.n, sizeof(req), RTA_PRIORITY, iproute->metric);
 
+	/* This returns ESRCH if the address of via address doesn't exist */
+	/* ENETDOWN if dev p33p1.40 for example is down */
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;
 	return status;

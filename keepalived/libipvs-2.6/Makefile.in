@@ -11,7 +11,6 @@ all:		$(STATIC_LIB)
 
 $(STATIC_LIB):	libipvs.o ip_vs_nl_policy.o
 		ar rv $@ $^
-		rm $^
 
 %.o:		%.c
 		$(CC) $(CFLAGS) -c -o $@ $<

@@ -80,13 +80,13 @@ vrrp_handle_iproutes(vrrp_t * vrrp, int cmd)
 
 /* add/remove Virtual rules */
 static void
-vrrp_handle_iprules(vrrp_t * vrrp, int cmd)
+vrrp_handle_iprules(vrrp_t * vrrp, int cmd, bool force)
 {
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
 		log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol Virtual Rules",
 		       vrrp->iname,
 		       (cmd == IPRULE_ADD) ? "setting" : "removing");
-	netlink_rulelist(vrrp->vrules, cmd);
+	netlink_rulelist(vrrp->vrules, cmd, force);
 }
 
 /* add/remove iptable drop rules based on accept mode */
@@ -1165,7 +1165,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 
 	/* add virtual rules */
 	if (!LIST_ISEMPTY(vrrp->vrules))
-		vrrp_handle_iprules(vrrp, IPRULE_ADD);
+		vrrp_handle_iprules(vrrp, IPRULE_ADD, false);
 
 	/* remotes neighbour update */
 	vrrp_send_link_update(vrrp, vrrp->garp_rep);
@@ -1235,13 +1235,13 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 		       vrrp->iname);
 	}
 
+	/* remove virtual rules */
+	if (!LIST_ISEMPTY(vrrp->vrules))
+		vrrp_handle_iprules(vrrp, IPRULE_DEL, force);
+
 	/* remove virtual routes */
 	if (!LIST_ISEMPTY(vrrp->vroutes))
 		vrrp_handle_iproutes(vrrp, IPROUTE_DEL);
-
-	/* remove virtual rules */
-	if (!LIST_ISEMPTY(vrrp->vrules))
-		vrrp_handle_iprules(vrrp, IPRULE_DEL);
 
 	/*
 	 * Remove the ip addresses.
@@ -2080,6 +2080,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	if (interface_already_existed) {
+// TODO - consider reload
 		vrrp->vipset = true;	/* Set to force address removal */
 		vrrp_restore_interface(vrrp, false, true);
 	}
@@ -2303,7 +2304,7 @@ reset_vrrp_state(vrrp_t * old_vrrp)
 		if (!LIST_ISEMPTY(vrrp->vroutes))
 			vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
 		if (!LIST_ISEMPTY(vrrp->vrules))
-			vrrp_handle_iprules(vrrp, IPRULE_ADD);
+			vrrp_handle_iprules(vrrp, IPRULE_ADD, false);
 	}
 }
 
