@@ -71,7 +71,7 @@ stop_vrrp(void)
 
 	/* Clear static entries */
 	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
-	netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL);
+	netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL, false);
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL);
 
 #ifdef _WITH_SNMP_
@@ -175,6 +175,14 @@ start_vrrp(void)
 		clear_diff_vrrp();
 		clear_diff_script();
 	}
+	else {
+		/* Clear leftover static entries */
+		netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL);
+		netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
+		netlink_error_ignore = ENOENT;
+		netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL, true);
+		netlink_error_ignore = 0;
+	}
 
 	/* Complete VRRP initialization */
 	if (!vrrp_complete_init()) {
@@ -194,9 +202,11 @@ start_vrrp(void)
 #endif
 
 	/* Set static entries */
-	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_ADD);
-	netlink_rulelist(vrrp_data->static_rules, IPRULE_ADD);
-	netlink_rtlist(vrrp_data->static_routes, IPROUTE_ADD);
+	if (!reload) {
+		netlink_iplist(vrrp_data->static_addresses, IPADDRESS_ADD);
+		netlink_rulelist(vrrp_data->static_rules, IPRULE_ADD, false);
+		netlink_rtlist(vrrp_data->static_routes, IPROUTE_ADD);
+	}
 
 	/* Dump configuration */
 	if (__test_bit(DUMP_CONF_BIT, &debug)) {
