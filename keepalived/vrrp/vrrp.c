@@ -1235,13 +1235,13 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 		       vrrp->iname);
 	}
 
-	/* remove virtual routes */
-	if (!LIST_ISEMPTY(vrrp->vroutes))
-		vrrp_handle_iproutes(vrrp, IPROUTE_DEL);
-
 	/* remove virtual rules */
 	if (!LIST_ISEMPTY(vrrp->vrules))
 		vrrp_handle_iprules(vrrp, IPRULE_DEL, force);
+
+	/* remove virtual routes */
+	if (!LIST_ISEMPTY(vrrp->vroutes))
+		vrrp_handle_iproutes(vrrp, IPROUTE_DEL);
 
 	/*
 	 * Remove the ip addresses.
@@ -2080,6 +2080,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	if (interface_already_existed) {
+// TODO - consider reload
 		vrrp->vipset = true;	/* Set to force address removal */
 		vrrp_restore_interface(vrrp, false, true);
 	}

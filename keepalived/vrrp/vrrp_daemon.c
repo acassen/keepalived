@@ -70,8 +70,8 @@ stop_vrrp(void)
 #endif
 
 	/* Clear static entries */
-	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
 	netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL, false);
+	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL);
 
 #ifdef _WITH_SNMP_
@@ -204,8 +204,8 @@ start_vrrp(void)
 	/* Set static entries */
 	if (!reload) {
 		netlink_iplist(vrrp_data->static_addresses, IPADDRESS_ADD);
-		netlink_rulelist(vrrp_data->static_rules, IPRULE_ADD, false);
 		netlink_rtlist(vrrp_data->static_routes, IPROUTE_ADD);
+		netlink_rulelist(vrrp_data->static_rules, IPRULE_ADD, false);
 	}
 
 	/* Dump configuration */
