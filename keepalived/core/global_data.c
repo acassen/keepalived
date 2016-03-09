@@ -37,11 +37,8 @@ data_t *global_data = NULL;
 
 /* Default settings */
 static void
-set_default_router_id(data_t * data)
+set_default_router_id(data_t *data, char *new_id)
 {
-	char *new_id = NULL;
-
-	new_id = get_local_name();
 	if (!new_id || !new_id[0])
 		return;
 
@@ -49,28 +46,24 @@ set_default_router_id(data_t * data)
 }
 
 static void
-set_default_email_from(data_t * data)
+set_default_email_from(data_t * data, const char *hostname)
 {
 	struct passwd *pwd = NULL;
-	char *hostname = NULL;
 	int len = 0;
 
-	hostname = get_local_name();
 	if (!hostname || !hostname[0])
 		return;
 
 	pwd = getpwuid(getuid());
 	if (!pwd)
-		goto end;
+		return;
 
 	len = strlen(hostname) + strlen(pwd->pw_name) + 2;
 	data->email_from = MALLOC(len);
 	if (!data->email_from)
-		goto end;
+		return;
 
 	snprintf(data->email_from, len, "%s@%s", pwd->pw_name, hostname);
-  end:
-	FREE(hostname);
 }
 
 static void
@@ -172,18 +165,32 @@ alloc_global_data(void)
 void
 init_global_data(data_t * data)
 {
-	if (!data->router_id) {
-		set_default_router_id(data);
-	}
+	char* local_name = NULL;
+
+	if (!data->router_id ||
+	    (data->smtp_server.ss_family &&
+	     (!data->smtp_helo_name ||
+	      !data->email_from)))
+		local_name = get_local_name();
+
+	if (!data->router_id)
+		set_default_router_id(data, local_name);
 
 	if (data->smtp_server.ss_family) {
-		if (!data->smtp_connection_to) {
+		if (!data->smtp_connection_to)
 			set_default_smtp_connection_timeout(data);
-		}
-		if (!data->email_from) {
-			set_default_email_from(data);
+
+		if (local_name) {
+			if (!data->email_from)
+				set_default_email_from(data, local_name);
+
+			if (!data->smtp_helo_name) {
+				data->smtp_helo_name = local_name;
+				local_name = NULL;	/* We have taken over the pointer */
+			}
 		}
 	}
+	FREE_PTR(local_name);
 }
 
 void
@@ -192,6 +199,7 @@ free_global_data(data_t * data)
 	free_list(data->email);
 	FREE_PTR(data->router_id);
 	FREE_PTR(data->email_from);
+	FREE_PTR(data->smtp_helo_name);
 #ifdef _WITH_SNMP_
 	FREE_PTR(data->snmp_socket);
 #endif
@@ -212,6 +220,8 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO, " Router ID = %s", data->router_id);
 	if (data->smtp_server.ss_family)
 		log_message(LOG_INFO, " Smtp server = %s", inet_sockaddrtos(&data->smtp_server));
+	if (data->smtp_helo_name)
+		log_message(LOG_INFO, " Smtp HELO name = %s" , data->smtp_helo_name);
 	if (data->smtp_connection_to)
 		log_message(LOG_INFO, " Smtp server connection timeout = %lu"
 				    , data->smtp_connection_to / TIMER_HZ);
