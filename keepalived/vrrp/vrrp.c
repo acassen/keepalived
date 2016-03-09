@@ -373,6 +373,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 		/* Set expected vrrp packet length */
 		expected_len = sizeof(vrrphdr_t) + (LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip)) * sizeof(struct in6_addr);
 	} else {
+		log_message(LOG_INFO, "(%s): configured address family is %d, which is neither AF_INET or AF_INET6. This is probably a bug - please report");
 		return VRRP_PACKET_KO;
 	}
 
@@ -1061,7 +1062,7 @@ vrrp_send_adv(vrrp_t * vrrp, int prio)
 }
 
 /* Received packet processing */
-int
+static int
 vrrp_check_packet(vrrp_t * vrrp, char *buf, int buflen, bool check_vip_addr)
 {
 	int ret;
