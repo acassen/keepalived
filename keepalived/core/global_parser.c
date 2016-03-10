@@ -73,7 +73,7 @@ smtphelo_handler(vector_t *strvec)
 	if (vector_size(strvec) < 2)
 		return;
 
-	helo_name = malloc(strlen(vector_slot(strvec, 1)) + 1);
+	helo_name = MALLOC(strlen(vector_slot(strvec, 1)) + 1);
 	if (!helo_name)
 		return;
 
