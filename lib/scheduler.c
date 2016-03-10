@@ -50,6 +50,38 @@
 /* global vars */
 thread_master_t *master = NULL;
 
+void
+report_child_status(int status, pid_t pid, const char *prog_name)
+{
+	const char *prog_id;
+	char pid_buf[10];	/* "pid 32767" + '\0' */
+
+	if (prog_name)
+		prog_id = prog_name;
+	else {
+		snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
+		prog_id = pid_buf;
+	}
+
+	if (WIFEXITED(status)) {
+		if (WEXITSTATUS(status) != 0)
+			log_message(LOG_INFO, "%s exited with status %d", prog_id, WEXITSTATUS(status));
+		return;
+	}
+	if (WIFSIGNALED(status)) {
+		if (WTERMSIG(status) == SIGSEGV) {
+			log_message(LOG_INFO, "%s exited due to segmentation fault (SIGSEGV).", prog_id);
+			log_message(LOG_INFO, "  Please report a bug at %s", "https://github.com/acassen/keepalived/issues");
+			log_message(LOG_INFO, "  %s", "and include this log from when keepalived started, what happened");
+			log_message(LOG_INFO, "  %s", "immediately before the crash, and your configuration file.");
+		}
+		else
+			log_message(LOG_INFO, "%s exited due to signal %d", prog_id, WTERMSIG(status));
+
+		return;
+	}
+}
+
 /* Make thread master. */
 thread_master_t *
 thread_make_master(void)
@@ -733,6 +765,8 @@ thread_child_handler(void * v, int sig)
 			DBG("waitpid error: %s", strerror(errno));
 			assert(0);
 		} else {
+			report_child_status(status, pid, NULL);
+
 			thread = m->child.head;
 			while (thread) {
 				thread_t *t;

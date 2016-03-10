@@ -103,6 +103,7 @@ typedef struct _thread_master {
 extern thread_master_t *master;
 
 /* Prototypes. */
+extern void report_child_status(int, pid_t, const char *);
 extern thread_master_t *thread_make_master(void);
 extern thread_t *thread_add_terminate_event(thread_master_t *);
 extern void thread_destroy_master(thread_master_t *);
