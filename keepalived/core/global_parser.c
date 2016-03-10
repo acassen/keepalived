@@ -66,6 +66,21 @@ smtpserver_handler(vector_t *strvec)
 	}
 }
 static void
+smtphelo_handler(vector_t *strvec)
+{
+	char *helo_name;
+
+	if (vector_size(strvec) < 2)
+		return;
+
+	helo_name = malloc(strlen(vector_slot(strvec, 1)) + 1);
+	if (!helo_name)
+		return;
+
+	strcpy(helo_name, vector_slot(strvec, 1));
+	global_data->smtp_helo_name = helo_name;
+}
+static void
 email_handler(vector_t *strvec)
 {
 	vector_t *email_vec = read_value_block(strvec);
@@ -301,6 +316,7 @@ global_init_keywords(void)
 	install_keyword("router_id", &routerid_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);
 	install_keyword("smtp_server", &smtpserver_handler);
+	install_keyword("smtp_helo_name", &smtphelo_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
 	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler);

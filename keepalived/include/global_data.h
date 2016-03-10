@@ -58,6 +58,7 @@ typedef struct _data {
 	char				*router_id;
 	char				*email_from;
 	struct sockaddr_storage		smtp_server;
+	char				*smtp_helo_name;
 	long				smtp_connection_to;
 	list				email;
 	struct sockaddr_storage		vrrp_mcast_group4;
