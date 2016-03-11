@@ -308,6 +308,9 @@ which will transition together on any state change.
 
     # VRRP Advert interval, secs (use default)
     advert_int 1
+
+    # Note: authentication was removed from the VRRPv2 specification by RFC3768 in 2004.
+    #   Use of this option is non-compliant and can cause problems; avoid using if possible.
     authentication {     # Authentication block
         # PASS||AH
         # PASS - Simple password (suggested)
