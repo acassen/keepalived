@@ -255,8 +255,11 @@ parse_cmdline(int argc, char **argv)
 									, long_options, NULL)) != EOF) {
 		switch (c) {
 		case 'v':
-			fprintf(stderr, "%s\n", VERSION_STRING);
-			fprintf(stderr, "%s\n", COPYRIGHT_STRING);
+			fprintf(stderr, "%s", VERSION_STRING);
+#ifdef GIT_COMMIT
+			fprintf(stderr, ", git commit %s", GIT_COMMIT);
+#endif
+			fprintf(stderr, "\n\n%s\n\n", COPYRIGHT_STRING);
 			fprintf(stderr, "Build options: %s\n", BUILD_OPTIONS);
 			exit(0);
 			break;
@@ -352,7 +355,11 @@ main(int argc, char **argv)
 
 	openlog(PROG, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
 		    , log_facility);
-	log_message(LOG_INFO, "Starting " VERSION_STRING);
+#ifdef GIT_COMMIT
+	log_message(LOG_INFO, "Starting %s, git commit %s", VERSION_STRING, GIT_COMMIT);
+#else
+	log_message(LOG_INFO, "Starting %s", VERSION_STRING);
+#endif
 
 	/* Check if keepalived is already running */
 	if (keepalived_running(daemon_mode)) {
@@ -395,7 +402,11 @@ main(int argc, char **argv)
 	 * finally return from system
 	 */
 end:
+#ifdef GIT_COMMIT
+	log_message(LOG_INFO, "Stopped %s, git commit %s", VERSION_STRING, GIT_COMMIT);
+#else
 	log_message(LOG_INFO, "Stopped %s", VERSION_STRING);
+#endif
 
 	closelog();
 	exit(0);

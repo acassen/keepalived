@@ -24,7 +24,7 @@ HEADERS = $(OBJS:.o=.h)
 all:	$(OBJS)
 
 clean:
-	rm -f *.a *.o *~
+	rm -f *.[ao] *~ *.orig *.rej core
 
 distclean: clean
 	rm -f Makefile

@@ -121,9 +121,9 @@ stop_vrrp(void)
 	 * Reached when terminate signal catched.
 	 * finally return to parent process.
 	 */
-	closelog();
-
 	log_message(LOG_INFO, "Stopped");
+
+	closelog();
 
 	exit(0);
 }

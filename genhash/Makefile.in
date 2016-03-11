@@ -33,7 +33,7 @@ $(BIN)/$(EXEC): $(LIB_OBJS) $(OBJS)
 	$(CC) -o $(BIN)/$(EXEC) $(LIB_OBJS) $(OBJS) $(LDFLAGS)
 
 clean:
-	rm -f core *.o
+	rm -f *.[ao] *~ *.orig *.rej core
 
 distclean: clean
 	rm -f Makefile $(BIN)/$(EXEC)
@@ -48,7 +48,9 @@ install:
 	install -d $(DESTDIR)$(mandir)/man1
 	install -m 644 ../doc/man/man1/genhash.1 $(DESTDIR)$(mandir)/man1
 
-mrproper: clean distclean
+tarclean: distclean
+
+mrproper: tarclean
 	rm -f config.*
 
 # Code dependencies
