@@ -12,7 +12,7 @@ CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 COMPILE	 = $(CC) $(CFLAGS) @APP_DEFS@
 
 OBJS =	main.o daemon.o pidfile.o layer4.o smtp.o \
-	global_data.o global_parser.o
+	global_data.o global_parser.o process.o
 ifeq ($(SNMP_FLAG),_WITH_SNMP_)
   OBJS += snmp.o
 endif
@@ -43,3 +43,4 @@ global_parser.o: global_parser.c ../include/global_parser.h \
   ../../lib/utils.h
 snmp.o: snmp.c ../include/snmp.h ../../lib/logger.h ../../lib/list.h \
   ../../lib/config.h ../include/global_data.h
+process.o: process.c ../include/process.h
