@@ -83,7 +83,9 @@ distclean:
 	$(MAKE) -C $$i distclean; done
 	rm -f Makefile $(BIN)/$(EXEC)
 
-mrproper: distclean
+tarclean: distclean
+
+mrproper: tarclean
 	rm -f config.*
 
 uninstall:

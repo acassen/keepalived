@@ -82,6 +82,8 @@ stop_check(void)
 	 * Reached when terminate signal catched.
 	 * finally return to parent process.
 	 */
+	log_message(LOG_INFO, "Stopped");
+
 	closelog();
 	exit(0);
 }

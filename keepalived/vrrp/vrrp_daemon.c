@@ -90,7 +90,6 @@ stop_vrrp(void)
 #endif
 
 	/* Clean data */
-	free_global_data(global_data);
 	vrrp_dispatcher_release(vrrp_data);
 
 	/* This is not nice, but it significantly increases the chances
@@ -102,13 +101,15 @@ stop_vrrp(void)
 	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
 		shutdown_vrrp_instances();
 
-	free_vrrp_data(vrrp_data);
-	free_vrrp_buffer();
-	free_interface_queue();
 	kernel_netlink_close();
 	thread_destroy_master(master);
 	gratuitous_arp_close();
 	ndisc_close();
+
+	free_global_data(global_data);
+	free_vrrp_data(vrrp_data);
+	free_vrrp_buffer();
+	free_interface_queue();
 
 	signal_handler_destroy();
 
@@ -120,7 +121,10 @@ stop_vrrp(void)
 	 * Reached when terminate signal catched.
 	 * finally return to parent process.
 	 */
+	log_message(LOG_INFO, "Stopped");
+
 	closelog();
+
 	exit(0);
 }
 

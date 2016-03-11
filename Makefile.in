@@ -29,11 +29,6 @@ profile:
 	@echo ""
 	@echo "Make complete"
 
-clean:
-	$(MAKE) -C lib clean
-	$(MAKE) -C keepalived clean
-	$(MAKE) -C genhash clean
-
 id: ID
 
 ID:
@@ -44,16 +39,42 @@ tags: TAGS
 TAGS:
 	find . -name "*.[chCH]" -print | etags -
 
-distclean:
+clean_sub:
+	$(MAKE) -C lib clean
+	$(MAKE) -C keepalived clean
+	$(MAKE) -C genhash clean
+
+clean_me:
+	rm -f *.[ao] *~ *.orig *.rej core
+
+clean: clean_sub clean_me
+
+distclean_sub:
 	$(MAKE) -C lib distclean
 	$(MAKE) -C keepalived distclean
 	$(MAKE) -C genhash distclean
+
+distclean_me: clean_me
 	rm -f Makefile
 	rm -f keepalived.spec
 	rm -f TAGS ID
 
-mrproper: distclean
+distclean: distclean_me distclean_sub
+
+tarclean_sub:
+	$(MAKE) -C lib tarclean
+	$(MAKE) -C keepalived tarclean
+	$(MAKE) -C genhash tarclean
+
+tarclean_me: distclean_me
 	rm -f config.*
+
+tarclean: tarclean_me tarclean_sub
+
+mrproper: tarclean_me
+	$(MAKE) -C lib mrproper
+	$(MAKE) -C keepalived mrproper
+	$(MAKE) -C genhash mrproper
 
 uninstall:
 	$(MAKE) -C keepalived uninstall
@@ -80,7 +101,7 @@ else ifeq (@SNMP_CHECKER_SUPPORT@, _WITH_SNMP_CHECKER_)
 endif
 endif
 
-tarball: mrproper
+tarball: tarclean
 	mkdir keepalived-@VERSION@
 	cp -a $(TARFILES) keepalived-@VERSION@
 	tar --exclude .git -czf $(TARBALL) keepalived-@VERSION@

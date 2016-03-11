@@ -28,4 +28,6 @@
 #define COPYRIGHT_STRING	"Copyright (C) 2001-@VERSION_YEAR@ Alexandre Cassen, <acassen@gmail.com>"
 #define	BUILD_OPTIONS		"@BUILD_OPTS@"
 
+#include "git-commit.h"
+
 #endif

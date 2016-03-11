@@ -12,7 +12,7 @@ libipvs.a: libipvs.a(libipvs.o)
 libipvsc.o: libipvs.h
 
 clean:
-	rm -f *.a *.o *~
+	rm -f *.[ao] *~ *.orig *.rej core
 
 distclean: clean
 	rm -f Makefile

@@ -14,17 +14,37 @@ OBJS =	memory.o utils.o notify.o timer.o scheduler.o \
 	vector.o list.o html.o parser.o signals.o logger.o
 HEADERS = $(OBJS:.o=.h)
 
+GIT_COMMIT_FILE = git-commit.h
+
 .c.o:
 	$(COMPILE) -c $<
 
 all:	$(OBJS)
+	@[[ ! -f $(GIT_COMMIT_FILE) ]] && >$(GIT_COMMIT_FILE); \
+	if [[ -x $$(type -p git) ]]; then \
+		git rev-parse --is-inside-work-tree >/dev/null; \
+		if [[ $$? -eq 0 && $$(git describe --tags) =~ -[1-9][0-9]*-g[0-9a-f]{7}$$ ]]; then \
+			echo "#define GIT_COMMIT \"$$(git describe --tags)\"" >$(GIT_COMMIT_FILE).new; \
+			diff -q $(GIT_COMMIT_FILE) $(GIT_COMMIT_FILE).new 2>/dev/null >/dev/null; \
+			if [[ $$? -eq 0 ]]; then \
+				rm $(GIT_COMMIT_FILE).new; \
+			else \
+				mv $(GIT_COMMIT_FILE).new $(GIT_COMMIT_FILE); \
+			fi; \
+		fi; \
+	fi
 
 clean:
-	rm -f *.a *.o *~
+	rm -f *.[ao] *~ *.orig *.rej core
 
 distclean: clean
 	rm -f config.h
 	rm -f Makefile
+
+tarclean: distclean
+
+mrproper: tarclean
+	rm -f $(GIT_COMMIT_FILE) $(GIT_COMMIT_FILE).new
 
 memory.o: memory.c memory.h utils.h bitops.h
 utils.o: utils.c utils.h memory.h
