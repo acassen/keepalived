@@ -39,6 +39,7 @@
 #include "daemon.h"
 #include "logger.h"
 #include "signals.h"
+#include "process.h"
 #include "bitops.h"
 #ifdef _WITH_LVS_
   #include "ipvswrapper.h"
@@ -152,6 +153,13 @@ start_vrrp(void)
 		return;
 	}
 	init_global_data(global_data);
+
+	/* Set the process priority and non swappable if configured */
+	if (global_data->vrrp_process_priority)
+		set_process_priority(global_data->vrrp_process_priority);
+
+	if (global_data->vrrp_no_swap)
+		set_process_dont_swap(4096);	/* guess a stack size to reserve */
 
 #ifdef _WITH_SNMP_
 	if (!reload && (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {

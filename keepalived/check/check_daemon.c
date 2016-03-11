@@ -33,6 +33,7 @@
 #include "pidfile.h"
 #include "daemon.h"
 #include "signals.h"
+#include "process.h"
 #include "logger.h"
 #include "list.h"
 #include "main.h"
@@ -134,6 +135,13 @@ start_check(void)
 	 * vs and vsg declarations may appear in any order
 	 */
 	link_vsg_to_vs();
+
+	/* Set the process priority and non swappable if configured */
+	if (global_data->checker_process_priority)
+		set_process_priority(global_data->checker_process_priority);
+
+	if (global_data->checker_no_swap)
+		set_process_dont_swap(4096);	/* guess a stack size to reserve */
 
 	/* Processing differential configuration parsing */
 	if (reload)

@@ -28,6 +28,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <sys/socket.h>
+#include <stdbool.h>
 
 #ifdef HAVE_LINUX_NETFILTER_X_TABLES_H
 #include <linux/netfilter/x_tables.h>
@@ -81,6 +82,10 @@ typedef struct _data {
 	char				vrrp_check_unicast_src;
 	char				vrrp_skip_check_adv_addr;
 	char				vrrp_strict;
+	char				vrrp_process_priority;
+	char				checker_process_priority;
+	bool				vrrp_no_swap;
+	bool				checker_no_swap;
 #ifdef _WITH_SNMP_
 	int				enable_traps;
 	char				*snmp_socket;

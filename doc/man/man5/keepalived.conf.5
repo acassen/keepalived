@@ -105,6 +105,16 @@ and
  #   IPv6 addresses in VRRP version 2
  vrrp_strict
 
+ # The following 4 options can be used if vrrp or checker processes
+ #   are timing out. This can be seen by a backup vrrp instance becoming
+ #   master even when the master is still running, due to the master or
+ #   backup systems being busy, they are not processing the vrrp packets.
+ vrrp_priority <-20 to 19>    # Set the vrrp child process priority
+			      #   Negative values increase priority.
+ checker_priority <-20 to 19> # Set the checker child process priority
+ vrrp_no_swap                 # Set the vrrp child process non swappable
+ checker_no_swap              # Set the checker child process non swappable
+
  # If keepalived has been build with SNMP support, the following keywords are available
  # Note: keepalived, checker and rfc support can be individually enabled/disabled
  snmp_socket 1.2.3.4:161      # specify socket to use for connecting to SNMP master agent (default 127.0.0.1:161)
@@ -298,6 +308,9 @@ which will transition together on any state change.
 
     # VRRP Advert interval, secs (use default)
     advert_int 1
+
+    # Note: authentication was removed from the VRRPv2 specification by RFC3768 in 2004.
+    #   Use of this option is non-compliant and can cause problems; avoid using if possible.
     authentication {     # Authentication block
         # PASS||AH
         # PASS - Simple password (suggested)

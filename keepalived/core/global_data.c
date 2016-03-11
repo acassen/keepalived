@@ -253,7 +253,7 @@ dump_global_data(data_t * data)
 	if (data->vrrp_iptables_outchain[0])
 		log_message(LOG_INFO," Iptables output chain = %s", data->vrrp_iptables_outchain);
 #ifdef _HAVE_LIBIPSET_
-	log_message(LOG_INFO, " Using ipsets = %d", data->using_ipsets);
+	log_message(LOG_INFO, " Using ipsets = %s", data->using_ipsets ? "true" : "false");
 	if (data->vrrp_ipset_address[0])
 		log_message(LOG_INFO," ipset IPv4 address set = %s", data->vrrp_ipset_address);
 	if (data->vrrp_ipset_address6[0])
@@ -262,9 +262,13 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO," ipset IPv6 address,iface set = %s", data->vrrp_ipset_address_iface6);
 #endif
 
-	log_message(LOG_INFO, " VRRP check unicast_src = %d", data->vrrp_check_unicast_src);
-	log_message(LOG_INFO, " VRRP skip check advert addresses = %d", data->vrrp_skip_check_adv_addr);
-	log_message(LOG_INFO, " VRRP strict mode = %d", data->vrrp_strict);
+	log_message(LOG_INFO, " VRRP check unicast_src = %s", data->vrrp_check_unicast_src ? "true" : "false");
+	log_message(LOG_INFO, " VRRP skip check advert addresses = %s", data->vrrp_skip_check_adv_addr ? "true" : "false");
+	log_message(LOG_INFO, " VRRP strict mode = %s", data->vrrp_strict ? "true" : "false");
+	log_message(LOG_INFO, " VRRP process priority = %d", data->vrrp_process_priority);
+	log_message(LOG_INFO, " Checker process priority = %d", data->checker_process_priority);
+	log_message(LOG_INFO, " VRRP don't swap = %s", data->vrrp_no_swap ? "true" : "false");
+	log_message(LOG_INFO, " Checker don't swap = %s", data->checker_no_swap ? "true" : "false");
 #ifdef _WITH_SNMP_KEEPALIVED_
 	log_message(LOG_INFO, " SNMP keepalived %s", data->enable_snmp_keepalived ? "enabled" : "disabled");
 #endif

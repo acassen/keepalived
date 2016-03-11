@@ -237,6 +237,52 @@ vrrp_strict_handler(vector_t *strvec)
 {
 	global_data->vrrp_strict = 1;
 }
+static void
+vrrp_prio_handler(vector_t *strvec)
+{
+	int priority;
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "No vrrp process priority specified");
+		return;
+	}
+
+	priority = atoi(vector_slot(strvec, 1));
+	if (priority < -20 || priority > 19) {
+		log_message(LOG_INFO, "Invalid vrrp process priority specified");
+		return;
+	}
+
+	global_data->vrrp_process_priority = priority;
+}
+static void
+checker_prio_handler(vector_t *strvec)
+{
+	int priority;
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "No checker process priority specified");
+		return;
+	}
+
+	priority = atoi(vector_slot(strvec, 1));
+	if (priority < -20 || priority > 19) {
+		log_message(LOG_INFO, "Invalid checker process priority specified");
+		return;
+	}
+
+	global_data->checker_process_priority = priority;
+}
+static void
+vrrp_no_swap_handler(vector_t *strvec)
+{
+	global_data->vrrp_no_swap = true;
+}
+static void
+checker_no_swap_handler(vector_t *strvec)
+{
+	global_data->checker_no_swap = true;
+}
 #ifdef _WITH_SNMP_
 static void
 snmp_socket_handler(vector_t *strvec)
@@ -333,6 +379,10 @@ global_init_keywords(void)
 	install_keyword("vrrp_check_unicast_src", &vrrp_check_unicast_src_handler);
 	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler);
 	install_keyword("vrrp_strict", &vrrp_strict_handler);
+	install_keyword("vrrp_priority", &vrrp_prio_handler);
+	install_keyword("checker_priority", &checker_prio_handler);
+	install_keyword("vrrp_no_swap", &vrrp_no_swap_handler);
+	install_keyword("checker_no_swap", &checker_no_swap_handler);
 #ifdef _WITH_SNMP_
 	install_keyword("snmp_socket", &snmp_socket_handler);
 	install_keyword("enable_traps", &trap_handler);

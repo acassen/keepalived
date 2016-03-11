@@ -57,6 +57,14 @@ global_defs {				# Block identification
 					   #   0 VIPs
 					   #   unicast peers
 					   #   IPv6 addresses in VRRP version 2
+					   # The following 4 options can be used if vrrp or checker processes
+					   #   are timing out. This can be seen by a backup vrrp instance becoming
+					   #   master even when the master is still running, due to the master or
+					   #   backup systems being busy, they are not processing the vrrp packets.
+    vrrp_priority <INTEGER:-20..19>	   # Set the vrrp child process priority (negative values increase priority)
+    checker_priority <INTEGER:-20..19>	   # Set the checker child process priority
+    vrrp_no_swap			   # Set the vrrp child process non swappable
+    checker_no_swap			   # Set the checker child process non swappable
 					   #
 					   # If keepalived has been build with SNMP support,
 					   #   the following keywords are available
@@ -222,6 +230,9 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     virtual_router_id <INTEGER-0..255>	# VRRP VRID
     priority <INTEGER-0..255>		# VRRP PRIO
     advert_int <INTEGER>		# VRRP Advert interval (use default)
+
+    # Note: authentication was removed from the VRRPv2 specification by RFC3768 in 2004.
+    #   Use of this option is non-compliant and can cause problems; avoid using if possible.
     authentication {			# Authentication block
         auth_type PASS|AH		# Simple password or IPSEC AH
         auth_pass <STRING>		# Password string (up to 8 characters)
