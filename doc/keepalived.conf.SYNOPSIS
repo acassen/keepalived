@@ -232,7 +232,8 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     advert_int <INTEGER>		# VRRP Advert interval (use default)
 
     # Note: authentication was removed from the VRRPv2 specification by RFC3768 in 2004.
-    #   Use of this option is non-compliant and can cause problems; avoid using if possible.
+    #   Use of this option is non-compliant and can cause problems; avoid using if possible,
+    #   except when using unicast, when it can be helpful.
     authentication {			# Authentication block
         auth_type PASS|AH		# Simple password or IPSEC AH
         auth_pass <STRING>		# Password string (up to 8 characters)
