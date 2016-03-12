@@ -55,8 +55,6 @@
 #include "memory.h"
 #include "parser.h"
 
-extern char *vrrp_pidfile;
-
 /* Daemon stop sequence */
 static void
 stop_vrrp(void)
