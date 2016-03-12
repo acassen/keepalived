@@ -55,8 +55,6 @@
 #include "memory.h"
 #include "parser.h"
 
-extern char *vrrp_pidfile;
-
 /* Daemon stop sequence */
 static void
 stop_vrrp(void)
@@ -292,9 +290,6 @@ reload_vrrp_thread(thread_t * thread)
 	/* set the reloading flag */
 	SET_RELOAD;
 
-	/* Signal handling */
-	signal_handler_reset();
-
 	/* Destroy master thread */
 	vrrp_dispatcher_release(vrrp_data);
 	kernel_netlink_close();
@@ -321,8 +316,6 @@ reload_vrrp_thread(thread_t * thread)
 #ifdef _DEBUG_
 	mem_allocated = 0;
 #endif
-	vrrp_signal_init();
-	signal_set(SIGCHLD, thread_child_handler, master);
 	start_vrrp();
 
 	/* free backup data */

@@ -46,8 +46,6 @@
   #include "check_snmp.h"
 #endif
 
-extern char *checkers_pidfile;
-
 /* Daemon stop sequence */
 static void
 stop_check(void)
