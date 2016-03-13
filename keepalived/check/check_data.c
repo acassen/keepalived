@@ -175,22 +175,27 @@ dump_vs(void *data)
 				    , inet_sockaddrtos(&vs->addr), ntohs(inet_sockaddrport(&vs->addr)));
 	if (vs->virtualhost)
 		log_message(LOG_INFO, "   VirtualHost = %s", vs->virtualhost);
+	if (vs->af != AF_UNSPEC)
+		log_message(LOG_INFO, "   Address family = inet%s", vs->af == AF_INET ? "" : "6");
 	log_message(LOG_INFO, "   delay_loop = %lu, lb_algo = %s",
 	       (vs->delay_loop >= TIMER_MAX_SEC) ? vs->delay_loop/TIMER_HZ :
 						   vs->delay_loop,
 	       vs->sched);
+	log_message(LOG_INFO, "   One packet scheduling = %sabled%s", vs->ops ? "en" : "dis", (vs->ops && vs->service_type != IPPROTO_UDP) ? " (inactive due to not UDP)" : "");
 	if (atoi(vs->timeout_persistence) > 0)
 		log_message(LOG_INFO, "   persistence timeout = %s",
 		       vs->timeout_persistence);
 	if (vs->granularity_persistence)
 		log_message(LOG_INFO, "   persistence granularity = %s",
 		       inet_ntop2(vs->granularity_persistence));
-    if (vs->service_type == IPPROTO_TCP)
-	    log_message(LOG_INFO, "   protocol = TCP");
-    if (vs->service_type == IPPROTO_UDP)
-	    log_message(LOG_INFO, "   protocol = UDP");
-    if (vs->service_type == IPPROTO_SCTP)
-	    log_message(LOG_INFO, "   protocol = SCTP");
+	if (vs->service_type == IPPROTO_TCP)
+		log_message(LOG_INFO, "   protocol = TCP");
+	else if (vs->service_type == IPPROTO_UDP)
+		log_message(LOG_INFO, "   protocol = UDP");
+	else if (vs->service_type == IPPROTO_SCTP)
+		log_message(LOG_INFO, "   protocol = SCTP");
+	else
+		log_message(LOG_INFO, "   protocol = %d", vs->service_type);
 	log_message(LOG_INFO, "   alpha is %s, omega is %s",
 		    vs->alpha ? "ON" : "OFF", vs->omega ? "ON" : "OFF");
 	log_message(LOG_INFO, "   quorum = %lu, hysteresis = %lu", vs->quorum, vs->hysteresis);
@@ -203,8 +208,8 @@ dump_vs(void *data)
 	if (vs->ha_suspend)
 		log_message(LOG_INFO, "   Using HA suspend");
 
-	switch (vs->loadbalancing_kind) {
 #ifdef _WITH_LVS_
+	switch (vs->loadbalancing_kind) {
 	case IP_VS_CONN_F_MASQ:
 		log_message(LOG_INFO, "   lb_kind = NAT");
 		break;
@@ -214,8 +219,8 @@ dump_vs(void *data)
 	case IP_VS_CONN_F_TUNNEL:
 		log_message(LOG_INFO, "   lb_kind = TUN");
 		break;
-#endif
 	}
+#endif
 
 	if (vs->s_svr) {
 		log_message(LOG_INFO, "   sorry server = %s"

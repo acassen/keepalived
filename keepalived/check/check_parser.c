@@ -93,6 +93,8 @@ ip_family_handler(vector_t *strvec)
 		vs->af = AF_INET;
 	else if (0 == strcmp(vector_slot(strvec, 1), "inet6"))
 		vs->af = AF_INET6;
+	else
+		log_message(LOG_INFO, "unknown address family %s", vector_slot(strvec, 1));
 }
 static void
 delay_handler(vector_t *strvec)
@@ -167,12 +169,14 @@ proto_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = vector_slot(strvec, 1);
-    if (!strcmp(str, "TCP"))
-	vs->service_type = IPPROTO_TCP;
-    else if (!strcmp(str, "SCTP"))
-	vs->service_type = IPPROTO_SCTP;
-    else
-	vs->service_type = IPPROTO_UDP;
+	if (!strcmp(str, "TCP"))
+		vs->service_type = IPPROTO_TCP;
+	else if (!strcmp(str, "SCTP"))
+		vs->service_type = IPPROTO_SCTP;
+	else if (!strcmp(str, "UDP"))
+		vs->service_type = IPPROTO_UDP;
+	else
+		log_message(LOG_INFO, "Unknown protocol %s - ignoring", str);
 }
 static void
 hasuspend_handler(vector_t *strvec)

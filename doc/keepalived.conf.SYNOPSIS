@@ -343,6 +343,7 @@ Note:	<IP ADDRESS RANGE> has the form of : XXX.YYY.ZZZ.WWW-VVV, define
 virtual_server <IP ADDRESS> <PORT> {	# VS IP/PORT declaration
 virtual_server fwmark <INTEGER>    {	# VS fwmark declaration
 virtual_server group <STRING>      {	# VS group declaration
+    ip_family inet|inet6		# Address family
     delay_loop <INTEGER>		# delay timer for service polling
     lvs_sched rr|wrr|lc|wlc|lblc|sh|dh	# LVS scheduler used
     ops					# Apply One-Packet-Scheduling (only for UDP)
