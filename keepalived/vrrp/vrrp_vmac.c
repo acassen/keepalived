@@ -175,7 +175,6 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 				    , ifname, vrrp->iname);
 		return -1;
 	}
-	memcpy(vrrp->ifp->hw_addr, ll_addr, ETH_ALEN);
 
 	log_message(LOG_INFO, "vmac: Success creating VMAC interface %s for vrrp_instance %s"
 			    , ifname, vrrp->iname);

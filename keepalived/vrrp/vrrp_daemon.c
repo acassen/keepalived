@@ -81,13 +81,6 @@ stop_vrrp(void)
 	/* Stop daemon */
 	pidfile_rm(vrrp_pidfile);
 
-#ifdef _WITH_LVS_
-	if (vrrp_ipvs_needed()) {
-		/* Clean ipvs related */
-		ipvs_stop();
-	}
-#endif
-
 	/* Clean data */
 	vrrp_dispatcher_release(vrrp_data);
 
@@ -99,6 +92,13 @@ stop_vrrp(void)
 
 	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
 		shutdown_vrrp_instances();
+
+#ifdef _WITH_LVS_
+	if (vrrp_ipvs_needed()) {
+		/* Clean ipvs related */
+		ipvs_stop();
+	}
+#endif
 
 	kernel_netlink_close();
 	thread_destroy_master(master);
