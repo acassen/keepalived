@@ -598,7 +598,7 @@ netlink_request(nl_handle_t *nl, int family, int type)
 	return 0;
 }
 
-int
+static int
 netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg *ifi)
 {
 	char *name;
