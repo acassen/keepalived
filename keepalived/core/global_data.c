@@ -204,6 +204,8 @@ free_global_data(data_t * data)
 #ifdef _WITH_SNMP_
 	FREE_PTR(data->snmp_socket);
 #endif
+	FREE_PTR(data->lvs_syncd_if);
+	FREE_PTR(data->lvs_syncd_vrrp_name);
 	FREE(data);
 }
 
@@ -231,6 +233,12 @@ dump_global_data(data_t * data)
 				    , data->email_from);
 		dump_list(data->email);
 	}
+	if (data->lvs_syncd_vrrp)
+		log_message(LOG_INFO, " LVS syncd vrrp instance = %s"
+				    , data->lvs_syncd_vrrp->iname);
+	if (data->lvs_syncd_if)
+		log_message(LOG_INFO, " LVS syncd interface = %s"
+				    , data->lvs_syncd_if);
 	if (data->vrrp_mcast_group4.ss_family) {
 		log_message(LOG_INFO, " VRRP IPv4 mcast group = %s"
 				    , inet_sockaddrtos(&data->vrrp_mcast_group4));

@@ -295,6 +295,14 @@ reload_vrrp_thread(thread_t * thread)
 	kernel_netlink_close();
 	thread_destroy_master(master);
 	master = thread_make_master();
+#ifdef _HAVE_IPVS_SYNCD_
+	/* TODO - Note: this didn't work if we found ipvs_syndc on vrrp before on old_vrrp */
+	if (global_data->lvs_syncd_if)
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL,
+		       (global_data->lvs_syncd_vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
+										 IPVS_BACKUP,
+		       global_data->lvs_syncd_vrrp->vrid);
+#endif
 	free_global_data(global_data);
 	free_interface_queue();
 	free_vrrp_buffer();
@@ -317,6 +325,14 @@ reload_vrrp_thread(thread_t * thread)
 	mem_allocated = 0;
 #endif
 	start_vrrp();
+
+#ifdef _HAVE_IPVS_SYNCD_
+	if (global_data->lvs_syncd_if)
+		ipvs_syncd_cmd(IPVS_STARTDAEMON, NULL,
+			       (global_data->lvs_syncd_vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
+											 IPVS_BACKUP,
+			       global_data->lvs_syncd_vrrp->vrid);
+#endif
 
 	/* free backup data */
 	free_vrrp_data(old_vrrp_data);

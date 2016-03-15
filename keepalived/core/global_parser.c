@@ -95,6 +95,26 @@ email_handler(vector_t *strvec)
 	free_strvec(email_vec);
 }
 static void
+lvs_syncd_handler(vector_t *strvec)
+{
+	if (global_data->lvs_syncd_if) {
+		log_message(LOG_INFO, "lvs_sync_daemon has already been specified as %s %s - ignoring", global_data->lvs_syncd_if, global_data->lvs_syncd_vrrp_name);
+		return;
+	}
+
+	if (vector_size(strvec) != 3) {
+		log_message(LOG_INFO, "lvs_sync_daemon requires interface and VRRP instance");
+		return;
+	}
+
+	global_data->lvs_syncd_if = set_value(strvec);
+
+	global_data->lvs_syncd_vrrp_name = MALLOC(strlen(vector_slot(strvec, 2)) + 1);
+	if (!global_data->lvs_syncd_vrrp_name)
+		return;
+	strcpy(global_data->lvs_syncd_vrrp_name, vector_slot(strvec, 2));
+}
+static void
 vrrp_mcast_group4_handler(vector_t *strvec)
 {
 	struct sockaddr_storage *mcast = &global_data->vrrp_mcast_group4;
@@ -365,6 +385,7 @@ global_init_keywords(void)
 	install_keyword("smtp_helo_name", &smtphelo_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
+	install_keyword("lvs_sync_daemon", &lvs_syncd_handler);
 	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler);
 	install_keyword("vrrp_mcast_group6", &vrrp_mcast_group6_handler);
 	install_keyword("vrrp_garp_master_delay", &vrrp_garp_delay_handler);

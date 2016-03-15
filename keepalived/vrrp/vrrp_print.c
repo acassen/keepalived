@@ -141,9 +141,6 @@ vrrp_print(FILE *file, void *data)
 	if (vrrp->strict_mode)
 		fprintf(file, "   Enforcing VRRP compliance\n");
 	fprintf(file, "   Using src_ip = %s\n", inet_sockaddrtos(&vrrp->saddr));
-	if (vrrp->lvs_syncd_if)
-		fprintf(file, "   Runing LVS sync daemon on interface = %s\n",
-		       vrrp->lvs_syncd_if);
 	if (vrrp->garp_delay)
 		fprintf(file, "   Gratuitous ARP delay = %d\n",
 		       vrrp->garp_delay/TIMER_HZ);

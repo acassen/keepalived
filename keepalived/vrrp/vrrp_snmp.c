@@ -1118,12 +1118,12 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 
 	case VRRP_SNMP_INSTANCE_USELVSSYNCDAEMON:
-		long_ret = (rt->lvs_syncd_if)?1:2;
+		long_ret = (global_data->lvs_syncd_vrrp == rt)?1:2;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_LVSSYNCINTERFACE:
-		if (rt->lvs_syncd_if) {
-			*var_len = strlen(rt->lvs_syncd_if);
-			return (u_char *)rt->lvs_syncd_if;
+		if (global_data->lvs_syncd_vrrp == rt) {
+			*var_len = strlen(global_data->lvs_syncd_if);
+			return (u_char *)global_data->lvs_syncd_if;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SYNCGROUP:

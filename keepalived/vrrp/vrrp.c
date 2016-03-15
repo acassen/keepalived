@@ -1191,8 +1191,8 @@ vrrp_state_become_master(vrrp_t * vrrp)
 
 #ifdef _HAVE_IPVS_SYNCD_
 	/* Check if sync daemon handling is needed */
-	if (vrrp->lvs_syncd_if)
-		ipvs_syncd_master(vrrp->lvs_syncd_if, vrrp->vrid);
+	if (global_data->lvs_syncd_vrrp == vrrp)
+		ipvs_syncd_master(global_data->lvs_syncd_if, vrrp->vrid);
 #endif
 	vrrp->last_transition = timer_now();
 }
@@ -1275,8 +1275,8 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 	if (VRRP_VIP_ISSET(vrrp)) {
 #ifdef _HAVE_IPVS_SYNCD_
 		/* Check if sync daemon handling is needed */
-		if (vrrp->lvs_syncd_if)
-			ipvs_syncd_backup(vrrp->lvs_syncd_if, vrrp->vrid);
+		if (global_data->lvs_syncd_vrrp == vrrp)
+			ipvs_syncd_backup(global_data->lvs_syncd_if, vrrp->vrid);
 #endif
 	}
 
@@ -1744,7 +1744,7 @@ shutdown_vrrp_instances(void)
 		 * stop stalled syncd thread according to last
 		 * VRRP instance state.
 		 */
-		if (vrrp->lvs_syncd_if)
+		if (global_data->lvs_syncd_vrrp == vrrp)
 			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL,
 				       (vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
 									  IPVS_BACKUP,
@@ -2161,6 +2161,27 @@ vrrp_complete_init(void)
 			free_list_element(vrrp_data->vrrp_sync_group, e);
 	}
 
+	/* Set up the lvs_syncd vrrp */
+	if (global_data->lvs_syncd_vrrp_name)  {
+		for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+			vrrp = ELEMENT_DATA(e);
+			if (!strcmp(global_data->lvs_syncd_vrrp_name, vrrp->iname)) {
+				global_data->lvs_syncd_vrrp = vrrp;
+
+				break;
+			}
+		}
+
+		if (!global_data->lvs_syncd_vrrp) {
+			log_message(LOG_INFO, "Unable to find vrrp instance %s for lvs_syncd - clearing lvs_syncd config", global_data->lvs_syncd_vrrp_name);
+			FREE(global_data->lvs_syncd_if);
+			global_data->lvs_syncd_if = NULL;
+		}
+
+		FREE(global_data->lvs_syncd_vrrp_name);
+		global_data->lvs_syncd_vrrp_name = NULL;
+	}
+
 	alloc_vrrp_buffer(max_mtu_len);
 
 	return 1;
@@ -2169,20 +2190,7 @@ vrrp_complete_init(void)
 int
 vrrp_ipvs_needed(void)
 {
-	vrrp_t *vrrp;
-	element e;
-
-	if (!vrrp_data)
-		return 0;
-
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-		if (vrrp->lvs_syncd_if) {
-			return 1;
-		}
-	}
-
-	return 0;
+	return !!(global_data->lvs_syncd_if);
 }
 
 /* Try to find a VRRP instance */
@@ -2280,19 +2288,6 @@ reset_vrrp_state(vrrp_t * old_vrrp)
 	memcpy(vrrp->stats, old_vrrp->stats, sizeof(vrrp_stats));
 
 	memcpy(vrrp->ipsecah_counter, old_vrrp->ipsecah_counter, sizeof(seq_counter_t));
-
-#ifdef _HAVE_IPVS_SYNCD_
-	if (old_vrrp->lvs_syncd_if)
-		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL,
-			       (old_vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
-								      IPVS_BACKUP,
-			       old_vrrp->vrid);
-	if (vrrp->lvs_syncd_if)
-		ipvs_syncd_cmd(IPVS_STARTDAEMON, NULL,
-			       (vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
-								  IPVS_BACKUP,
-			       vrrp->vrid);
-#endif
 
 	/* Remember if we had vips up and add new ones if needed */
 	vrrp->vipset = old_vrrp->vipset;

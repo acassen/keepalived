@@ -825,10 +825,9 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 			status = netlink_if_link_populate(ifp, tb, ifi);
 			if (status < 0)
 				return -1;
-
-			} else {
-				if (__test_bit(LOG_DETAIL_BIT, &debug))
-					log_message(LOG_INFO, "Unknown interface %s deleted", (char *)tb[IFLA_IFNAME]);
+		} else {
+			if (__test_bit(LOG_DETAIL_BIT, &debug))
+				log_message(LOG_INFO, "Unknown interface %s deleted", (char *)tb[IFLA_IFNAME]);
 			return 0;
 		}
 	}

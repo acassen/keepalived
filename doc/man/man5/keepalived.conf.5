@@ -50,6 +50,8 @@ and
  vrrp_mcast_group4 224.0.0.18 # optional, default 224.0.0.18
  vrrp_mcast_group6 ff02::12   # optional, default ff02::12
 
+ lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE> # Binding interface and vrrp instance for lvs syncd
+
  # delay for second set of gratuitous ARPs after transition to MASTER
  vrrp_garp_master_delay 10    # secs, default 5, 0 for no second set
 
@@ -287,9 +289,6 @@ which will transition together on any state change.
       <IPADDR>
       ...
     }
-
-    # Binding interface for lvs syncd
-    lvs_sync_daemon_interface eth1
 
     # interface specific settings, same as global parameters; default to global parameters
     garp_master_delay 10

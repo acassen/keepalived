@@ -43,6 +43,7 @@
 /* local includes */
 #include "list.h"
 #include "timer.h"
+#include "vrrp.h"
 
 /* constants */
 #define DEFAULT_SMTP_SERVER 0x7f000001
@@ -64,11 +65,15 @@ typedef struct _data {
 	list				email;
 	struct sockaddr_storage		vrrp_mcast_group4;
 	struct sockaddr_storage		vrrp_mcast_group6;
+	char				*lvs_syncd_if;	  /* handle LVS sync daemon state using this */
+	vrrp_t				*lvs_syncd_vrrp;  /* instance FSM & running on specific interface
+							   * => eth0 for example. */
+	char				*lvs_syncd_vrrp_name; /* Only used during configuration */
 	int				vrrp_garp_delay;
 	timeval_t			vrrp_garp_refresh;
 	int				vrrp_garp_rep;
 	int				vrrp_garp_refresh_rep;
-	int				vrrp_version;            /* VRRP version (2 or 3) */
+	int				vrrp_version;	/* VRRP version (2 or 3) */
 	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];
 	char				vrrp_iptables_outchain[XT_EXTENSION_MAXNAMELEN];
 	int				block_ipv4;
