@@ -30,6 +30,7 @@
 #include <sys/param.h>
 #include <arpa/inet.h>
 #include <asm/types.h>
+#include <stdbool.h>
 
 #include <net/if.h>
 #include <netinet/ip_icmp.h>
@@ -63,6 +64,7 @@
 #ifdef _HAVE_IPVS_SYNCD_
 #define IPVS_STARTDAEMON	IP_VS_SO_SET_STARTDAEMON
 #define IPVS_STOPDAEMON		IP_VS_SO_SET_STOPDAEMON
+#define IPVS_FLUSH		IP_VS_SO_SET_FLUSH
 #define IPVS_MASTER		IP_VS_STATE_MASTER
 #define IPVS_BACKUP		IP_VS_STATE_BACKUP
 #else
@@ -70,6 +72,7 @@
 #define IPVS_STOPDAEMON		2
 #define IPVS_MASTER		3
 #define IPVS_BACKUP		4
+#define IPVS_FLUSH		5
 #endif
 
 /* Macro */
@@ -91,11 +94,12 @@ do {						\
 /* prototypes */
 extern int ipvs_start(void);
 extern void ipvs_stop(void);
+extern void ipvs_flush_cmd(void);
 extern virtual_server_group_t *ipvs_get_group_by_name(char *, list);
 extern void ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge);
 extern void ipvs_group_remove_entry(virtual_server_t *, virtual_server_group_entry_t *);
 extern int ipvs_cmd(int, virtual_server_t *, real_server_t *);
-extern void ipvs_syncd_cmd(int, char *, int, int);
+extern void ipvs_syncd_cmd(int, char *, int, int, bool);
 extern void ipvs_syncd_master(char *, int);
 extern void ipvs_syncd_backup(char *, int);
 

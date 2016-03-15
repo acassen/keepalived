@@ -90,7 +90,7 @@ ipvs_stop(void)
 }
 
 static int
-ipvs_talk(int cmd)
+ipvs_talk(int cmd, bool ignore_error)
 {
 	int result;
 	if (result = ipvs_command(cmd, urule))
@@ -99,7 +99,9 @@ ipvs_talk(int cmd)
 			cmd = IP_VS_SO_SET_ADDDEST;
 			result = ipvs_command(cmd, urule);
 		}
-	if (result) {
+	if (ignore_error)
+		result = 0;
+	else if (result) {
 		log_message(LOG_INFO, "IPVS : %s", ipvs_strerror(errno));
 		if (errno == EEXIST &&
 			(cmd == IP_VS_SO_SET_ADD || IP_VS_SO_SET_ADDDEST)
@@ -114,7 +116,7 @@ ipvs_talk(int cmd)
 }
 
 void
-ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid)
+ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid, bool ignore_error)
 {
 #ifdef _HAVE_IPVS_SYNCD_
 
@@ -127,7 +129,7 @@ ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid)
 		strncpy(urule->mcast_ifn, ifname, IP_VS_IFNAME_MAXLEN);
 
 	/* Talk to the IPVS channel */
-	ipvs_talk(cmd);
+	ipvs_talk(cmd, ignore_error);
 
 #else
 	log_message(LOG_INFO, "IPVS : Sync daemon not supported");
@@ -148,7 +150,7 @@ ipvs_group_range_cmd(int cmd, virtual_server_group_entry_t *vsg_entry)
 		urule->vport = inet_sockaddrport(&vsg_entry->addr);
 
 		/* Talk to the IPVS channel */
-		if (ipvs_talk(cmd))
+		if (ipvs_talk(cmd, false))
 			return -1;
 	}
 
@@ -176,7 +178,7 @@ ipvs_group_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 
 		/* Talk to the IPVS channel */
 		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
-			if (ipvs_talk(cmd))
+			if (ipvs_talk(cmd, false))
 				return -1;
 			IPVS_SET_ALIVE(cmd, vsg_entry);
 		}
@@ -192,7 +194,7 @@ ipvs_group_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 
 		/* Talk to the IPVS channel */
 		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
-			if (ipvs_talk(cmd))
+			if (ipvs_talk(cmd, false))
 				return -1;
 			IPVS_SET_ALIVE(cmd, vsg_entry);
 		}
@@ -286,7 +288,7 @@ ipvs_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 		}
 
 		/* Talk to the IPVS channel */
-		err = ipvs_talk(cmd);
+		err = ipvs_talk(cmd, false);
 	}
 
 	return err;
@@ -328,7 +330,7 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 				urule->vport = inet_sockaddrport(&vsge->addr);
 
 				/* Talk to the IPVS channel */
-				ipvs_talk(IP_VS_SO_SET_ADDDEST);
+				ipvs_talk(IP_VS_SO_SET_ADDDEST, false);
 			}
 		}
 	}
@@ -369,7 +371,7 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 				urule->vport = inet_sockaddrport(&vsge->addr);
 
 				/* Talk to the IPVS channel */
-				ipvs_talk(IP_VS_SO_SET_DELDEST);
+				ipvs_talk(IP_VS_SO_SET_DELDEST, false);
 			}
 		}
 	}
@@ -378,7 +380,7 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 	if (vsge->range)
 		ipvs_group_range_cmd(IP_VS_SO_SET_DEL, vsge);
 	else
-		ipvs_talk(IP_VS_SO_SET_DEL);
+		ipvs_talk(IP_VS_SO_SET_DEL, false);
 	UNSET_ALIVE(vsge);
 }
 
@@ -422,7 +424,7 @@ ipvs_stop(void)
 
 /* Send user rules to IPVS module */
 static int
-ipvs_talk(int cmd)
+ipvs_talk(int cmd, bool ignore_error)
 {
 	int result = -1;
 
@@ -432,6 +434,9 @@ ipvs_talk(int cmd)
 			break;
 		case IP_VS_SO_SET_STOPDAEMON:
 			result = ipvs_stop_daemon(daemonrule);
+			break;
+		case IP_VS_SO_SET_FLUSH:
+			result = ipvs_flush();
 			break;
 		case IP_VS_SO_SET_ADD:
 			result = ipvs_add_service(srule);
@@ -460,7 +465,9 @@ ipvs_talk(int cmd)
 			break;
 	}
 
-	if (result) {
+	if (ignore_error)
+		result = 0;
+	else if (result) {
 		log_message(LOG_INFO, "IPVS: %s", ipvs_strerror(errno));
 		if (errno == EEXIST &&
 			(cmd == IP_VS_SO_SET_ADD || IP_VS_SO_SET_ADDDEST)
@@ -475,7 +482,7 @@ ipvs_talk(int cmd)
 }
 
 void
-ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid)
+ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid, bool ignore_error)
 {
 	memset(daemonrule, 0, sizeof(ipvs_daemon_t));
 
@@ -486,7 +493,13 @@ ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid)
 		strncpy(daemonrule->mcast_ifn, ifname, IP_VS_IFNAME_MAXLEN);
 
 	/* Talk to the IPVS channel */
-	ipvs_talk(cmd);
+	ipvs_talk(cmd, ignore_error);
+}
+
+void
+ipvs_flush_cmd(void)
+{
+        ipvs_talk(IP_VS_SO_SET_FLUSH, false);
 }
 
 /* IPVS group range rule */
@@ -519,7 +532,7 @@ ipvs_group_range_cmd(int cmd, virtual_server_group_entry_t *vsg_entry)
 		srule->port = inet_sockaddrport(&vsg_entry->addr);
 
 		/* Talk to the IPVS channel */
-		if (ipvs_talk(cmd))
+		if (ipvs_talk(cmd, false))
 			return -1;
 	}
 
@@ -553,7 +566,7 @@ ipvs_group_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 
 		/* Talk to the IPVS channel */
 		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
-			if (ipvs_talk(cmd))
+			if (ipvs_talk(cmd, false))
 				return -1;
 			IPVS_SET_ALIVE(cmd, vsg_entry);
 		}
@@ -573,7 +586,7 @@ ipvs_group_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 
 		/* Talk to the IPVS channel */
 		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
-			if (ipvs_talk(cmd))
+			if (ipvs_talk(cmd, false))
 				return -1;
 			IPVS_SET_ALIVE(cmd, vsg_entry);
 		}
@@ -686,7 +699,7 @@ ipvs_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 		}
 
 		/* Talk to the IPVS channel */
-		err = ipvs_talk(cmd);
+		err = ipvs_talk(cmd, false);
 	}
 
 	return err;
@@ -738,7 +751,7 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 				drule->l_threshold = rs->l_threshold;
 
 				/* Talk to the IPVS channel */
-				ipvs_talk(IP_VS_SO_SET_ADDDEST);
+				ipvs_talk(IP_VS_SO_SET_ADDDEST, false);
 			}
 		}
 	}
@@ -790,7 +803,7 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 				drule->l_threshold = rs->l_threshold;
 
 				/* Talk to the IPVS channel */
-				ipvs_talk(IP_VS_SO_SET_DELDEST);
+				ipvs_talk(IP_VS_SO_SET_DELDEST, false);
 			}
 		}
 	}
@@ -799,7 +812,7 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 	if (vsge->range)
 		ipvs_group_range_cmd(IP_VS_SO_SET_DEL, vsge);
 	else
-		ipvs_talk(IP_VS_SO_SET_DEL);
+		ipvs_talk(IP_VS_SO_SET_DEL, false);
 	UNSET_ALIVE(vsge);
 }
 
@@ -1031,15 +1044,15 @@ ipvs_update_stats(virtual_server_t *vs)
 void
 ipvs_syncd_master(char *ifname, int syncid)
 {
-	ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_BACKUP, syncid);
-	ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_MASTER, syncid);
+	ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_BACKUP, syncid, false);
+	ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_MASTER, syncid, false);
 }
 
 void
 ipvs_syncd_backup(char *ifname, int syncid)
 {
-	ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_MASTER, syncid);
-	ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_BACKUP, syncid);
+	ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_MASTER, syncid, false);
+	ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_BACKUP, syncid, false);
 }
 
 /*

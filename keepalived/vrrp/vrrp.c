@@ -1748,7 +1748,7 @@ shutdown_vrrp_instances(void)
 			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL,
 				       (vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
 									  IPVS_BACKUP,
-				       vrrp->vrid);
+				       vrrp->vrid, false);
 #endif
 	}
 }

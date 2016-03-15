@@ -180,8 +180,8 @@ start_vrrp(void)
 		/* If we are managing the sync daemon, then stop any
 		 * instances of it that may have been running if
 		 * we terminated abnormally */
-		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_MASTER, 0);
-		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_BACKUP, 0);
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_MASTER, 0, true);
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_BACKUP, 0, true);
 #endif
 	}
 #endif
@@ -309,7 +309,7 @@ reload_vrrp_thread(thread_t * thread)
 		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL,
 		       (global_data->lvs_syncd_vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
 										 IPVS_BACKUP,
-		       global_data->lvs_syncd_vrrp->vrid);
+		       global_data->lvs_syncd_vrrp->vrid, false);
 #endif
 	free_global_data(global_data);
 	free_interface_queue();
@@ -339,7 +339,7 @@ reload_vrrp_thread(thread_t * thread)
 		ipvs_syncd_cmd(IPVS_STARTDAEMON, NULL,
 			       (global_data->lvs_syncd_vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
 											 IPVS_BACKUP,
-			       global_data->lvs_syncd_vrrp->vrid);
+			       global_data->lvs_syncd_vrrp->vrid, false);
 #endif
 
 	/* free backup data */

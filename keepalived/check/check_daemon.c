@@ -96,6 +96,11 @@ start_check(void)
 		stop_check();
 		return;
 	}
+
+	/* Remove any entries left over from previous invocation */
+	if (!reload)
+		ipvs_flush_cmd();
+
 	init_checkers_queue();
 #ifdef _WITH_VRRP_
 	init_interface_queue();
