@@ -175,6 +175,14 @@ start_vrrp(void)
 			stop_vrrp();
 			return;
 		}
+
+#ifdef _HAVE_IPVS_SYNCD_
+		/* If we are managing the sync daemon, then stop any
+		 * instances of it that may have been running if
+		 * we terminated abnormally */
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_MASTER, 0);
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_BACKUP, 0);
+#endif
 	}
 #endif
 
