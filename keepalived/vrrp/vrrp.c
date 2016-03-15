@@ -2232,15 +2232,13 @@ clear_diff_vrrp_vip_list(vrrp_t *vrrp, struct ipt_handle* h, list l, list n)
 }
 
 static void
-clear_diff_vrrp_vip(vrrp_t * old_vrrp, int type)
+clear_diff_vrrp_vip(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
 #ifdef _HAVE_LIBIPTC_
 	int tries = 0;
 	int res = 0;
 #endif
 	struct ipt_handle *h = NULL;
-
-	vrrp_t *vrrp = vrrp_exist(old_vrrp);
 
 	if (!old_vrrp->iptable_rules_set)
 		return;
@@ -2259,26 +2257,23 @@ clear_diff_vrrp_vip(vrrp_t * old_vrrp, int type)
 
 /* Clear virtual routes not present in the new data */
 static void
-clear_diff_vrrp_vroutes(vrrp_t * old_vrrp)
+clear_diff_vrrp_vroutes(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
-	vrrp_t *vrrp = vrrp_exist(old_vrrp);
 	clear_diff_routes(old_vrrp->vroutes, vrrp->vroutes);
 }
 
 /* Clear virtual rules not present in the new data */
 static void
-clear_diff_vrrp_vrules(vrrp_t * old_vrrp)
+clear_diff_vrrp_vrules(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
-	vrrp_t *vrrp = vrrp_exist(old_vrrp);
 	clear_diff_rules(old_vrrp->vrules, vrrp->vrules);
 }
 
 /* Keep the state from before reload */
 static void
-reset_vrrp_state(vrrp_t * old_vrrp)
+reset_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
 	/* Keep VRRP state, ipsec AH seq_number */
-	vrrp_t *vrrp = vrrp_exist(old_vrrp);
 	vrrp->state = old_vrrp->state;
 	vrrp->init_state = old_vrrp->state;
 	vrrp->wantstate = old_vrrp->state;
@@ -2335,14 +2330,13 @@ clear_diff_vrrp(void)
 			 * If this vrrp instance exist in new
 			 * data, then perform a VIP|EVIP diff.
 			 */
-			clear_diff_vrrp_vip(vrrp, VRRP_VIP_TYPE);
-			clear_diff_vrrp_vip(vrrp, VRRP_EVIP_TYPE);
+			clear_diff_vrrp_vip(vrrp, new_vrrp);
 
 			/* virtual routes diff */
-			clear_diff_vrrp_vroutes(vrrp);
+			clear_diff_vrrp_vroutes(vrrp, new_vrrp);
 
 			/* virtual rules diff */
-			clear_diff_vrrp_vrules(vrrp);
+			clear_diff_vrrp_vrules(vrrp, new_vrrp);
 
 			/*
 			 * Remove VMAC if it existed in old vrrp instance,
@@ -2354,7 +2348,7 @@ clear_diff_vrrp(void)
 			}
 
 			/* reset the state */
-			reset_vrrp_state(vrrp);
+			reset_vrrp_state(vrrp, new_vrrp);
 		}
 	}
 }
