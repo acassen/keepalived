@@ -14,6 +14,9 @@ anywhere in a line.
 .PP
 Keyword 'include' allows inclusion of other configuration files from within
 the main configuration file.
+.SH PARAMETER SYNTAX
+.B <BOOL>
+is one of on|off|true|false|yes|no
 .SH TOP HIERACHY
 .PP
 .B GLOBAL CONFIGURATION
@@ -71,6 +74,10 @@ and
 
  # number of gratuitous ARP messages to send at a time while MASTER
  vrrp_garp_master_refresh_repeat 2 # default 1
+
+ # If a lower priority advert is received, don't don't send another advert. This causes
+ # adherence to the RFCs (defaults to global vrrp_lower_priority_no_advert).
+ vrrp_lower_prio_no_advert [<BOOL>]
 
  # Set the default VRRP version to use
  vrrp_version <2 or 3>        # default version 2
@@ -305,6 +312,7 @@ which will transition together on any state change.
     garp_lower_prio_repeat 1
     garp_master_refresh 60
     garp_master_refresh_repeat 2
+    lower_prio_no_advert [<BOOL>]
 
     # arbitrary unique number 0..255
     # used to differentiate multiple instances of vrrpd

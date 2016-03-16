@@ -73,6 +73,9 @@ typedef struct _data {
 	timeval_t			vrrp_garp_refresh;
 	int				vrrp_garp_rep;
 	int				vrrp_garp_refresh_rep;
+	int				vrrp_garp_lower_prio_delay;
+	int				vrrp_garp_lower_prio_rep;
+	bool				vrrp_lower_prio_no_advert;
 	int				vrrp_version;	/* VRRP version (2 or 3) */
 	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];
 	char				vrrp_iptables_outchain[XT_EXTENSION_MAXNAMELEN];
@@ -84,9 +87,9 @@ typedef struct _data {
 	char				vrrp_ipset_address6[IPSET_MAXNAMELEN];
 	char				vrrp_ipset_address_iface6[IPSET_MAXNAMELEN];
 #endif
-	char				vrrp_check_unicast_src;
-	char				vrrp_skip_check_adv_addr;
-	char				vrrp_strict;
+	bool				vrrp_check_unicast_src;
+	bool				vrrp_skip_check_adv_addr;
+	bool				vrrp_strict;
 	char				vrrp_process_priority;
 	char				checker_process_priority;
 	bool				vrrp_no_swap;

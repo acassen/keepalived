@@ -141,13 +141,15 @@ vrrp_print(FILE *file, void *data)
 	if (vrrp->strict_mode)
 		fprintf(file, "   Enforcing VRRP compliance\n");
 	fprintf(file, "   Using src_ip = %s\n", inet_sockaddrtos(&vrrp->saddr));
-	if (vrrp->garp_delay)
-		fprintf(file, "   Gratuitous ARP delay = %d\n",
+	fprintf(file, "   Gratuitous ARP delay = %d\n",
 		       vrrp->garp_delay/TIMER_HZ);
-	fprintf(file, "   Gratuitous ARP refresh = %lu\n",
-	       vrrp->garp_refresh.tv_sec/TIMER_HZ);
 	fprintf(file, "   Gratuitous ARP repeat = %d\n", vrrp->garp_rep);
+	fprintf(file, "   Gratuitous ARP refresh = %lu\n",
+		       vrrp->garp_refresh.tv_sec/TIMER_HZ);
 	fprintf(file, "   Gratuitous ARP refresh repeat = %d\n", vrrp->garp_refresh_rep);
+	fprintf(file, "   Gratuitous ARP lower priority delay = %d", vrrp->garp_lower_prio_delay / TIMER_HZ);
+	fprintf(file, "   Gratuitous ARP lower priority repeat = %d", vrrp->garp_lower_prio_rep);
+	fprintf(file, "   Send advert after receive lower priority advert = %s", vrrp->lower_prio_no_advert ? "false" : "true");
 	fprintf(file, "   Virtual Router ID = %d\n", vrrp->vrid);
 	fprintf(file, "   Priority = %d\n", vrrp->base_priority);
 	fprintf(file, "   Advert interval = %d %s\n",

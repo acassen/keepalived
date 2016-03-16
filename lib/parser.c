@@ -444,6 +444,18 @@ set_value(vector_t *strvec)
 	return alloc;
 }
 
+/* Checks for on/true/yes or off/false/no */
+int
+check_true_false(char *str)
+{
+	if (!strcmp(str, "true") || !strcmp(str, "on") || !strcmp(str, "yes"))
+		return true;
+	if (!strcmp(str, "false") || !strcmp(str, "off") || !strcmp(str, "no"))
+		return false;
+
+	return -1;	/* error */
+}
+
 void skip_block(void)
 {
 	/* Don't process the rest of the configuration block */
