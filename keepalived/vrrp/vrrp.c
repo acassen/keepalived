@@ -1192,7 +1192,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 #ifdef _HAVE_IPVS_SYNCD_
 	/* Check if sync daemon handling is needed */
 	if (global_data->lvs_syncd_vrrp == vrrp)
-		ipvs_syncd_master(global_data->lvs_syncd_if, vrrp->vrid);
+		ipvs_syncd_master(global_data->lvs_syncd_if, global_data->lvs_syncd_syncid);
 #endif
 	vrrp->last_transition = timer_now();
 }
@@ -1276,7 +1276,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 #ifdef _HAVE_IPVS_SYNCD_
 		/* Check if sync daemon handling is needed */
 		if (global_data->lvs_syncd_vrrp == vrrp)
-			ipvs_syncd_backup(global_data->lvs_syncd_if, vrrp->vrid);
+			ipvs_syncd_backup(global_data->lvs_syncd_if, global_data->lvs_syncd_syncid);
 #endif
 	}
 
@@ -1748,7 +1748,8 @@ shutdown_vrrp_instances(void)
 			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL,
 				       (vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
 									  IPVS_BACKUP,
-				       vrrp->vrid, false);
+				       global_data->lvs_syncd_syncid,
+				       false);
 #endif
 	}
 }
@@ -2162,7 +2163,7 @@ vrrp_complete_init(void)
 	}
 
 	/* Set up the lvs_syncd vrrp */
-	if (global_data->lvs_syncd_vrrp_name)  {
+	if (global_data->lvs_syncd_vrrp_name) {
 		for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 			vrrp = ELEMENT_DATA(e);
 			if (!strcmp(global_data->lvs_syncd_vrrp_name, vrrp->iname)) {
@@ -2181,6 +2182,10 @@ vrrp_complete_init(void)
 		FREE(global_data->lvs_syncd_vrrp_name);
 		global_data->lvs_syncd_vrrp_name = NULL;
 	}
+
+	/* If no sycnid configured, use vrid */
+	if (global_data->lvs_syncd_vrrp && global_data->lvs_syncd_syncid == -1)
+		global_data->lvs_syncd_syncid = global_data->lvs_syncd_vrrp->vrid;
 
 	alloc_vrrp_buffer(max_mtu_len);
 

@@ -239,7 +239,8 @@ vrrp_init_state(list l)
 				ipvs_syncd_cmd(IPVS_STARTDAEMON,
 					       global_data->lvs_syncd_if,
 					       IPVS_MASTER,
-					       global_data->lvs_syncd_vrrp->vrid, false);
+					       global_data->lvs_syncd_syncid,
+					       false);
 #endif
 #ifdef _WITH_SNMP_RFCV3_
 			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
@@ -255,7 +256,8 @@ vrrp_init_state(list l)
 				ipvs_syncd_cmd(IPVS_STARTDAEMON,
 					       global_data->lvs_syncd_if,
 					       IPVS_BACKUP,
-					       global_data->lvs_syncd_vrrp->vrid, false);
+					       global_data->lvs_syncd_syncid,
+					       false);
 #endif
 			log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
 			       vrrp->iname);

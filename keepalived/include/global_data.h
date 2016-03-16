@@ -65,9 +65,9 @@ typedef struct _data {
 	list				email;
 	struct sockaddr_storage		vrrp_mcast_group4;
 	struct sockaddr_storage		vrrp_mcast_group6;
-	char				*lvs_syncd_if;	  /* handle LVS sync daemon state using this */
-	vrrp_t				*lvs_syncd_vrrp;  /* instance FSM & running on specific interface
-							   * => eth0 for example. */
+	char				*lvs_syncd_if;		/* handle LVS sync daemon state using this */
+	vrrp_t				*lvs_syncd_vrrp;	/* instance FSM & running on specific interface */
+	int				lvs_syncd_syncid;	/* => eth0 for example. */
 	char				*lvs_syncd_vrrp_name; /* Only used during configuration */
 	int				vrrp_garp_delay;
 	timeval_t			vrrp_garp_refresh;

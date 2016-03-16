@@ -309,7 +309,7 @@ reload_vrrp_thread(thread_t * thread)
 		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL,
 		       (global_data->lvs_syncd_vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
 										 IPVS_BACKUP,
-		       global_data->lvs_syncd_vrrp->vrid, false);
+		       global_data->lvs_syncd_syncid, false);
 #endif
 	free_global_data(global_data);
 	free_interface_queue();
@@ -339,7 +339,7 @@ reload_vrrp_thread(thread_t * thread)
 		ipvs_syncd_cmd(IPVS_STARTDAEMON, NULL,
 			       (global_data->lvs_syncd_vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
 											 IPVS_BACKUP,
-			       global_data->lvs_syncd_vrrp->vrid, false);
+			       global_data->lvs_syncd_syncid, false);
 #endif
 
 	/* free backup data */

@@ -37,7 +37,9 @@ global_defs {				# Block identification
     router_id <STRING>			   # String identifying router
     vrrp_mcast_group4 <IPv4 ADDRESS>	   # optional, default 224.0.0.18
     vrrp_mcast_group6 <IPv6 ADDRESS>	   # optional, default ff02::12
-    lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE>	# Binding interface and vrrp instance for lvs syncd
+    lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE>	[<SYNC_ID>]
+					   # Binding interface, vrrp instance and optional
+					   #  syncid (0 to 255) for lvs syncd
     vrrp_garp_master_delay <INTEGER>	   # delay in seconds for second set of gratuitous ARP
 					   #  messages after MASTER state transition, default 5
     vrrp_garp_master_repeat <INTEGER>	   # how many gratuitous ARP messages after MASTER
