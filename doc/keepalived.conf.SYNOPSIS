@@ -10,6 +10,10 @@ file is compounded by three configurations parts :
 There is 2 valid comment valid string : # or ! If you want to add comment
 in you configuration file use this char.
 
+0.1. Parameter syntax
+
+<BOOL> is one of on|off|true|false|yes|no
+
 1. Globals configurations
 
 This block is divided in 2 sub-block :
@@ -44,12 +48,19 @@ global_defs {				# Block identification
 					   #  messages after MASTER state transition, default 5
     vrrp_garp_master_repeat <INTEGER>	   # how many gratuitous ARP messages after MASTER
 					   #  state transition should be sent, default 5
+    vrrp_garp_lower_prio_delay <INTEGER>   # delay for second set of gratuitous ARPs after lower
+					   #  priority advert received when MASTER
+    vrrp_garp_lower_prio_repeat <INTEGER>  # number of gratuitous ARP messages to send at a time
+					   #  after lower priority advert received when MASTER
     vrrp_garp_master_refresh <INTEGER>	   # Periodic delay in seconds sending
 					   #  gratuitous ARP while in MASTER state
 					   #  Default: 0 (no refreshing)
     vrrp_garp_master_refresh_repeat <INTEGER> # how many gratuitous ARP messages shoule be sent
 					   #  at each periodic repeat
 					   #  Default: once (per period)
+    vrrp_lower_prio_no_advert [<BOOL>]     # If a lower priority advert is received, just discard
+					   # it and don't send another advert. This causes adherence
+					   # to the RFCs.
     vrrp_version <INTEGER:2..3>            # Default VRRP version (default 2)
     vrrp_iptables [keepalived_in [keepalived_out]]     # default INPUT
 					   # Specifies the iptables chains to add entries to
@@ -60,6 +71,8 @@ global_defs {				# Block identification
 					   #   0 VIPs
 					   #   unicast peers
 					   #   IPv6 addresses in VRRP version 2
+					   # Sets:
+					   #   vrrp_lower_priority_dont_send_advert
 					   # The following 4 options can be used if vrrp or checker processes
 					   #   are timing out. This can be seen by a backup vrrp instance becoming
 					   #   master even when the master is still running, due to the master or
@@ -222,16 +235,23 @@ vrrp_instance <STRING> {		# VRRP instance declaration
       ...				#  in unicast design fashion
     }
 
-    # The following garp parameters take their defaults from the global config for vrrp_garp_master_...
+    # The following garp parameters take their defaults from the global config for vrrp_garp_...
     # See their descriptions for the meaning of the parameters.
     garp_master_delay <INTEGER>
     garp_master_repeat <INTEGER>
+    garp_lower_priority_delay <INTEGER>
+    garp_lower_priority_repeat <INTEGER>
     garp_master_refresh <INTEGER>
     garp_master_refresh_repeat <INTEGER>
 
     virtual_router_id <INTEGER-0..255>	# VRRP VRID
     priority <INTEGER-0..255>		# VRRP PRIO
     advert_int <INTEGER>		# VRRP Advert interval (use default)
+
+    lower_prio_no_advert		# If a lower priority advert is received, don't
+					# don't send another advert. This causes adherence
+					# to the RFCs (defaults to global
+					# vrrp_lower_priority_dont_send_advert).
 
     # Note: authentication was removed from the VRRPv2 specification by RFC3768 in 2004.
     #   Use of this option is non-compliant and can cause problems; avoid using if possible,
@@ -264,9 +284,9 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     nopreempt					# Override VRRP RFC preemption default
     preempt_delay				# Seconds after startup until
 						#  preemption. 0 (default) to 1,000
-    strict_mode [on|off|true|false|yes|no]      # See description of global vrrp_strict
-					        # If vrrp_strict is not specified, it takes the value of vrrp_strict
-					        # If strict_mode without a parameter is specified, it defaults to on
+    strict_mode [<BOOL]				# See description of global vrrp_strict
+						# If vrrp_strict is not specified, it takes the value of vrrp_strict
+						# If strict_mode without a parameter is specified, it defaults to on
     debug					# Debug level
     notify_master <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
     notify_backup <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
@@ -506,4 +526,3 @@ virtual_server group <STRING>      {	# VS group declaration
         }
     }
 }
-

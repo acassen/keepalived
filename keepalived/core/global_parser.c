@@ -153,23 +153,51 @@ vrrp_garp_delay_handler(vector_t *strvec)
 	global_data->vrrp_garp_delay = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
 }
 static void
+vrrp_garp_rep_handler(vector_t *strvec)
+{
+	global_data->vrrp_garp_rep = atoi(vector_slot(strvec, 1));
+	if (global_data->vrrp_garp_rep < 1)
+		global_data->vrrp_garp_rep = 1;
+}
+static void
 vrrp_garp_refresh_handler(vector_t *strvec)
 {
 	global_data->vrrp_garp_refresh.tv_sec = atoi(vector_slot(strvec, 1));
 }
 static void
-vrrp_garp_rep_handler(vector_t *strvec)
-{
-	global_data->vrrp_garp_rep = atoi(vector_slot(strvec, 1));
-	if ( global_data->vrrp_garp_rep < 1 )
-		global_data->vrrp_garp_rep = 1;
-}
-static void
 vrrp_garp_refresh_rep_handler(vector_t *strvec)
 {
 	global_data->vrrp_garp_refresh_rep = atoi(vector_slot(strvec, 1));
-	if ( global_data->vrrp_garp_refresh_rep < 1 )
+	if (global_data->vrrp_garp_refresh_rep < 1)
 		global_data->vrrp_garp_refresh_rep = 1;
+}
+static void
+vrrp_garp_lower_prio_delay_handler(vector_t *strvec)
+{
+	global_data->vrrp_garp_lower_prio_delay = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
+}
+static void
+vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
+{
+	global_data->vrrp_garp_lower_prio_rep = atoi(vector_slot(strvec, 1));
+	/* Allow 0 GARP messages to be sent */
+	if (global_data->vrrp_garp_lower_prio_rep < 0)
+		global_data->vrrp_garp_lower_prio_rep = 0;
+}
+static void
+vrrp_lower_prio_no_advert_handler(vector_t *strvec)
+{
+	int res;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(vector_slot(strvec,1));
+		if (res < 0)
+			log_message(LOG_INFO, "Invalid value for vrrp_lower_prio_no_advert specified");
+		else
+			global_data->vrrp_lower_prio_no_advert = res;
+	}
+	else
+		global_data->vrrp_lower_prio_no_advert = true;
 }
 static void
 vrrp_iptables_handler(vector_t *strvec)
@@ -401,6 +429,9 @@ global_init_keywords(void)
 	install_keyword("vrrp_garp_master_repeat", &vrrp_garp_rep_handler);
 	install_keyword("vrrp_garp_master_refresh", &vrrp_garp_refresh_handler);
 	install_keyword("vrrp_garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
+	install_keyword("vrrp_garp_lower_prio_delay", &vrrp_garp_lower_prio_delay_handler);
+	install_keyword("vrrp_garp_lower_prio_repeat", &vrrp_garp_lower_prio_rep_handler);
+	install_keyword("vrrp_lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
 	install_keyword("vrrp_version", &vrrp_version_handler);
 	install_keyword("vrrp_iptables", &vrrp_iptables_handler);
 #ifdef _HAVE_LIBIPSET_

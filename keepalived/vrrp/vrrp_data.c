@@ -242,21 +242,20 @@ dump_vrrp(void *data)
 	log_message(LOG_INFO, "   Running on device = %s", IF_NAME(vrrp->ifp));
 	if (vrrp->dont_track_primary)
 		log_message(LOG_INFO, "   VRRP interface tracking disabled");
-	if (vrrp->skip_check_adv_addr)
-		log_message(LOG_INFO, "   Skip checking advert IP addresses");
-	if (vrrp->strict_mode)
-		log_message(LOG_INFO, "   Enforcing strict VRRP compliance");
+	log_message(LOG_INFO, "   Skip checking advert IP addresses = %s", vrrp->skip_check_adv_addr ? "yes" : "no");
+	log_message(LOG_INFO, "   Enforcing strict VRRP compliance = %s", vrrp->strict_mode ? "yes" : "no");
 	if (vrrp->saddr.ss_family)
 		log_message(LOG_INFO, "   Using src_ip = %s"
 				    , inet_sockaddrtos(&vrrp->saddr));
-	if (vrrp->garp_delay)
-		log_message(LOG_INFO, "   Gratuitous ARP delay = %d",
+	log_message(LOG_INFO, "   Gratuitous ARP delay = %d",
 		       vrrp->garp_delay/TIMER_HZ);
-	if (!timer_isnull(vrrp->garp_refresh))
-		log_message(LOG_INFO, "   Gratuitous ARP refresh timer = %lu",
-		       vrrp->garp_refresh.tv_sec);
 	log_message(LOG_INFO, "   Gratuitous ARP repeat = %d", vrrp->garp_rep);
+	log_message(LOG_INFO, "   Gratuitous ARP refresh timer = %lu",
+		       vrrp->garp_refresh.tv_sec);
 	log_message(LOG_INFO, "   Gratuitous ARP refresh repeat = %d", vrrp->garp_refresh_rep);
+	log_message(LOG_INFO, "   Gratuitous ARP lower priority delay = %d", vrrp->garp_lower_prio_delay / TIMER_HZ);
+	log_message(LOG_INFO, "   Gratuitous ARP lower priority repeat = %d", vrrp->garp_lower_prio_rep);
+	log_message(LOG_INFO, "   Send advert after receive lower priority advert = %s", vrrp->lower_prio_no_advert ? "false" : "true");
 	log_message(LOG_INFO, "   Virtual Router ID = %d", vrrp->vrid);
 	log_message(LOG_INFO, "   Priority = %d", vrrp->base_priority);
 	log_message(LOG_INFO, "   Advert interval = %d %s",
@@ -377,6 +376,10 @@ alloc_vrrp(char *iname)
 	new->garp_rep = global_data->vrrp_garp_rep;
 	new->garp_refresh_rep = global_data->vrrp_garp_refresh_rep;
 	new->garp_delay = global_data->vrrp_garp_delay;
+        new->garp_lower_prio_delay = -1;
+        new->garp_lower_prio_rep = -1;
+        new->lower_prio_no_advert = -1;
+
 	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
 	new->strict_mode = global_data->vrrp_strict;
 

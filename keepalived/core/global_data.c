@@ -86,6 +86,9 @@ set_vrrp_defaults(data_t * data)
 	data->vrrp_garp_rep = VRRP_GARP_REP;
 	data->vrrp_garp_refresh_rep = VRRP_GARP_REFRESH_REP;
 	data->vrrp_garp_delay = VRRP_GARP_DELAY;
+	data->vrrp_garp_lower_prio_delay = -1;
+	data->vrrp_garp_lower_prio_rep = -1;
+	data->vrrp_lower_prio_no_advert = false;
 	data->vrrp_version = VRRP_VERSION_2;
 	strcpy(data->vrrp_iptables_inchain, "INPUT");
 	data->block_ipv4 = 0;
@@ -96,9 +99,9 @@ set_vrrp_defaults(data_t * data)
 	strcpy(data->vrrp_ipset_address6, "keepalived6");
 	strcpy(data->vrrp_ipset_address_iface6, "keepalived_if6");
 #endif
-	data->vrrp_check_unicast_src = 0;
-	data->vrrp_skip_check_adv_addr = 0;
-	data->vrrp_strict = 0;
+	data->vrrp_check_unicast_src = false;
+	data->vrrp_skip_check_adv_addr = false;
+	data->vrrp_strict = false;
 }
 
 /* email facility functions */
@@ -251,14 +254,15 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO, " VRRP IPv6 mcast group = %s"
 				    , inet_sockaddrtos(&data->vrrp_mcast_group6));
 	}
-	if (data->vrrp_garp_delay)
-		log_message(LOG_INFO, " Gratuitous ARP delay = %d",
+	log_message(LOG_INFO, " Gratuitous ARP delay = %d",
 		       data->vrrp_garp_delay/TIMER_HZ);
-	if (!timer_isnull(data->vrrp_garp_refresh))
-		log_message(LOG_INFO, " Gratuitous ARP refresh timer = %lu",
-		       data->vrrp_garp_refresh.tv_sec);
 	log_message(LOG_INFO, " Gratuitous ARP repeat = %d", data->vrrp_garp_rep);
+	log_message(LOG_INFO, " Gratuitous ARP refresh timer = %lu",
+		       data->vrrp_garp_refresh.tv_sec);
 	log_message(LOG_INFO, " Gratuitous ARP refresh repeat = %d", data->vrrp_garp_refresh_rep);
+	log_message(LOG_INFO, " Gratuitous ARP lower priority delay = %d", data->vrrp_garp_lower_prio_delay / TIMER_HZ);
+	log_message(LOG_INFO, " Gratuitous ARP lower priority repeat = %d", data->vrrp_garp_lower_prio_rep);
+	log_message(LOG_INFO, " Send advert after receive lower priority advert = %s", data->vrrp_lower_prio_no_advert ? "false" : "true");
 	log_message(LOG_INFO, " VRRP default protocol version = %d", data->vrrp_version);
 	if (data->vrrp_iptables_inchain[0])
 		log_message(LOG_INFO," Iptables input chain = %s", data->vrrp_iptables_inchain);

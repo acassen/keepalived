@@ -1482,8 +1482,14 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
 			vrrp->ipsecah_counter->cycle = 0;
 		}
-		vrrp_send_adv(vrrp, vrrp->effective_priority);
-		vrrp_send_link_update(vrrp, vrrp->garp_rep);
+		if (!vrrp->lower_prio_no_advert)
+			vrrp_send_adv(vrrp, vrrp->effective_priority);
+		if (vrrp->garp_lower_prio_rep) {
+			vrrp_send_link_update(vrrp, vrrp->garp_lower_prio_rep);
+			if (vrrp->garp_lower_prio_delay)
+				thread_add_timer(master, vrrp_lower_prio_gratuitous_arp_thread,
+						 vrrp, vrrp->garp_lower_prio_delay);
+		}
 		return 0;
 	} else if (hd->priority == 0) {
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
@@ -1769,6 +1775,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	interface_t *ifp;
 	bool interface_already_existed = false;
 
+	if (vrrp->strict_mode == -1)
+		vrrp->strict_mode = global_data->vrrp_strict;
+
 	if (vrrp->family == AF_INET6) {
 		if (vrrp->version == VRRP_VERSION_2 && vrrp->strict_mode) {
 			log_message(LOG_INFO,"(%s): cannot use IPv6 with VRRP version 2; setting version 3", vrrp->iname);
@@ -1904,6 +1913,13 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (!vrrp->adver_int)
 		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
 	vrrp->master_adver_int = vrrp->adver_int;
+
+	if (vrrp->garp_lower_prio_rep == -1)
+		vrrp->garp_lower_prio_rep = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_rep;
+	if (vrrp->garp_lower_prio_delay == -1)
+		vrrp->garp_lower_prio_delay = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_delay;
+	if (vrrp->lower_prio_no_advert == -1)
+		vrrp->lower_prio_no_advert = vrrp->strict_mode ? true : global_data->vrrp_lower_prio_no_advert;
 
 	/* Set a default interface name for the vmac if needed */
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
@@ -2104,6 +2120,12 @@ vrrp_complete_init(void)
 	unsigned int ifindex;
 	unsigned int ifindex_o;
 	size_t max_mtu_len = 0;
+
+	/* Set defaults of not specified, depending on strict mode */
+	if (global_data->vrrp_garp_lower_prio_rep == -1)
+		global_data->vrrp_garp_lower_prio_rep = global_data->vrrp_garp_rep;
+	if (global_data->vrrp_garp_lower_prio_delay == -1)
+		global_data->vrrp_garp_lower_prio_delay = global_data->vrrp_garp_delay;
 
 	/* Complete VRRP instance initialization */
 	l = vrrp_data->vrrp;

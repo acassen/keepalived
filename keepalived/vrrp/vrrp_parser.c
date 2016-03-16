@@ -39,17 +39,6 @@
 #include "memory.h"
 #include "bitops.h"
 
-/* Checks for on/true/yes or off/false/no */
-static int
-check_true_false(char *str)
-{
-	if (!strcmp(str, "true") || !strcmp(str, "on") || !strcmp(str, "yes"))
-		return true;
-	if (!strcmp(str, "false") || !strcmp(str, "off") || !strcmp(str, "no"))
-		return false;
-
-	return -1;	/* error */
-}
 /* Static addresses handler */
 static void
 static_addresses_handler(vector_t *strvec)
@@ -507,6 +496,42 @@ vrrp_garp_refresh_rep_handler(vector_t *strvec)
 	if (vrrp->garp_refresh_rep < 1)
 		vrrp->garp_refresh_rep = 1;
 }
+
+
+static void
+vrrp_garp_lower_prio_delay_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->garp_lower_prio_delay = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
+}
+static void
+vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->garp_lower_prio_rep = atoi(vector_slot(strvec, 1));
+	/* Allow 0 GARP messages to be sent */
+	if ( vrrp->garp_lower_prio_rep < 0 )
+		vrrp->garp_lower_prio_rep = 0;
+}
+static void
+vrrp_lower_prio_no_advert_handler(vector_t *strvec)
+{
+	int res;
+
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(vector_slot(strvec, 1));
+		if (res >= 0)
+			vrrp->lower_prio_no_advert = res;
+		else
+			log_message(LOG_INFO, "(%s): invalid lower_prio_no_advert %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+	} else {
+		/* Defaults to true */
+		vrrp->lower_prio_no_advert = true;
+	}
+}
+
+
 #if defined _WITH_VRRP_AUTH_
 static void
 vrrp_auth_type_handler(vector_t *strvec)
@@ -731,6 +756,9 @@ init_vrrp_keywords(bool active)
 	install_keyword("garp_master_refresh", &vrrp_garp_refresh_handler);
 	install_keyword("garp_master_repeat", &vrrp_garp_rep_handler);
 	install_keyword("garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
+	install_keyword("garp_lower_prio_delay", &vrrp_garp_lower_prio_delay_handler);
+	install_keyword("garp_lower_prio_repeat", &vrrp_garp_lower_prio_rep_handler);
+	install_keyword("lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
 #if defined _WITH_VRRP_AUTH_
 	install_keyword("authentication", NULL);
 	install_sublevel();

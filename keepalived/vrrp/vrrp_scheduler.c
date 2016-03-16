@@ -736,13 +736,25 @@ vrrp_goto_master(vrrp_t * vrrp)
 }
 
 /* Delayed gratuitous ARP thread */
-int
+static int
 vrrp_gratuitous_arp_thread(thread_t * thread)
 {
 	vrrp_t *vrrp = THREAD_ARG(thread);
 
 	/* Simply broadcast the gratuitous ARP */
 	vrrp_send_link_update(vrrp, vrrp->garp_rep);
+
+	return 0;
+}
+
+/* Delayed gratuitous ARP thread after receiving a lower priority advert */
+int
+vrrp_lower_prio_gratuitous_arp_thread(thread_t * thread)
+{
+	vrrp_t *vrrp = THREAD_ARG(thread);
+
+	/* Simply broadcast the gratuitous ARP */
+	vrrp_send_link_update(vrrp, vrrp->garp_lower_prio_rep);
 
 	return 0;
 }
