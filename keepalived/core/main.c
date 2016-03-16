@@ -340,6 +340,8 @@ parse_cmdline(int argc, char **argv)
 int
 main(int argc, char **argv)
 {
+	int report_stopped = true;
+
 	/* Init debugging level */
 	debug = 0;
 
@@ -364,6 +366,7 @@ main(int argc, char **argv)
 	/* Check if keepalived is already running */
 	if (keepalived_running(daemon_mode)) {
 		log_message(LOG_INFO, "daemon is already running");
+		report_stopped = false;
 		goto end;
 	}
 
@@ -402,11 +405,13 @@ main(int argc, char **argv)
 	 * finally return from system
 	 */
 end:
+	if (report_stopped) {
 #ifdef GIT_COMMIT
-	log_message(LOG_INFO, "Stopped %s, git commit %s", VERSION_STRING, GIT_COMMIT);
+		log_message(LOG_INFO, "Stopped %s, git commit %s", VERSION_STRING, GIT_COMMIT);
 #else
-	log_message(LOG_INFO, "Stopped %s", VERSION_STRING);
+		log_message(LOG_INFO, "Stopped %s", VERSION_STRING);
 #endif
+	}
 
 	closelog();
 	exit(0);
