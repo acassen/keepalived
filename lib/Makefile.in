@@ -11,7 +11,8 @@ CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 COMPILE	 = $(CC) $(CFLAGS) @APP_DEFS@
 
 OBJS =	memory.o utils.o notify.o timer.o scheduler.o \
-	vector.o list.o html.o parser.o signals.o logger.o
+	vector.o list.o html.o parser.o signals.o logger.o \
+	rttables.o
 HEADERS = $(OBJS:.o=.h)
 
 GIT_COMMIT_FILE = git-commit.h
@@ -54,6 +55,7 @@ scheduler.o: scheduler.c scheduler.h memory.h utils.h
 vector.o: vector.c vector.h memory.h
 list.o: list.c list.h memory.h
 html.o: html.c html.h memory.h
-parser.o: parser.c parser.h memory.h
+parser.o: parser.c parser.h memory.h rttables.h
 signals.o: signals.c signals.h
 logger.o: logger.c logger.h
+rttables.o: rttables.c rttables.h

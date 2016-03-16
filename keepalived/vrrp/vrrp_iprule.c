@@ -33,6 +33,7 @@
 #include "logger.h"
 #include "memory.h"
 #include "utils.h"
+#include "rttables.h"
 
 /* Utility functions */
 static int
@@ -159,6 +160,7 @@ alloc_rule(list rule_list, vector_t *strvec)
 	ip_rule_t *new;
 	char *str;
 	int i = 0;
+	unsigned int table_id;
 
 	new  = (ip_rule_t *) MALLOC(sizeof(ip_rule_t));
 
@@ -175,7 +177,10 @@ alloc_rule(list rule_list, vector_t *strvec)
 			new->addr = parse_ipaddress(NULL, vector_slot(strvec, ++i),false);
 			new->mask = new->addr->ifa.ifa_prefixlen;
 		} else if (!strcmp(str, "table")) {
-			new->table = atoi(vector_slot(strvec, ++i));
+			if (!find_rttables_table(vector_slot(strvec, ++i), &table_id))
+				log_message(LOG_INFO, "Routing table %s not found for rule", FMT_STR_VSLOT(strvec, i));
+			else
+				new->table = table_id;
 		}
 		i++;
 	}

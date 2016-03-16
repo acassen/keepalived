@@ -93,9 +93,11 @@ vrrp_ipaddress.o: vrrp_ipaddress.c ../include/vrrp_ipaddress.h ../include/vrrp_n
   ../include/vrrp_if.h  ../include/vrrp_data.h ../../lib/memory.h ../../lib/utils.h \
   ../../lib/bitops.h ../include/vrrp_iptables.h
 vrrp_iproute.o: vrrp_iproute.c ../include/vrrp_iproute.h ../include/vrrp_netlink.h \
-  ../include/vrrp_if.h  ../include/vrrp_data.h ../../lib/memory.h ../../lib/utils.h
+  ../include/vrrp_if.h  ../include/vrrp_data.h ../../lib/memory.h ../../lib/utils.h \
+  ../../lib/rttables.h
 vrrp_iprule.o: vrrp_iprule.c ../include/vrrp_iprule.h ../include/vrrp_netlink.h \
-  ../include/vrrp_if.h  ../include/vrrp_data.h ../../lib/memory.h ../../lib/utils.h
+  ../include/vrrp_if.h  ../include/vrrp_data.h ../../lib/memory.h ../../lib/utils.h \
+  ../../lib/rttables.h
 vrrp_ipsecah.o: vrrp_ipsecah.c ../include/vrrp_ipsecah.h
 vrrp_ndisc.o: vrrp_ndisc.c ../include/vrrp_ndisc.h ../include/vrrp_ipaddress.h \
   ../../lib/utils.h ../../lib/memory.h
