@@ -1484,6 +1484,9 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		}
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 		vrrp_send_link_update(vrrp, vrrp->garp_rep);
+		if (vrrp->garp_delay)
+			thread_add_timer(master, vrrp_gratuitous_arp_thread,
+					 vrrp, vrrp->garp_delay);
 		return 0;
 	} else if (hd->priority == 0) {
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
