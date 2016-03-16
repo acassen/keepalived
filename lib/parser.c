@@ -436,6 +436,9 @@ set_value(vector_t *strvec)
 	char *alloc;
 
 	alloc = (char *) MALLOC(size + 1);
+	if (!alloc)
+		return NULL;
+
 	memcpy(alloc, str, size);
 
 	return alloc;

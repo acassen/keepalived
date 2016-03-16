@@ -1191,8 +1191,8 @@ vrrp_state_become_master(vrrp_t * vrrp)
 
 #ifdef _HAVE_IPVS_SYNCD_
 	/* Check if sync daemon handling is needed */
-	if (vrrp->lvs_syncd_if)
-		ipvs_syncd_master(vrrp->lvs_syncd_if, vrrp->vrid);
+	if (global_data->lvs_syncd_vrrp == vrrp)
+		ipvs_syncd_master(global_data->lvs_syncd_if, global_data->lvs_syncd_syncid);
 #endif
 	vrrp->last_transition = timer_now();
 }
@@ -1275,8 +1275,8 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 	if (VRRP_VIP_ISSET(vrrp)) {
 #ifdef _HAVE_IPVS_SYNCD_
 		/* Check if sync daemon handling is needed */
-		if (vrrp->lvs_syncd_if)
-			ipvs_syncd_backup(vrrp->lvs_syncd_if, vrrp->vrid);
+		if (global_data->lvs_syncd_vrrp == vrrp)
+			ipvs_syncd_backup(global_data->lvs_syncd_if, global_data->lvs_syncd_syncid);
 #endif
 	}
 
@@ -1744,11 +1744,12 @@ shutdown_vrrp_instances(void)
 		 * stop stalled syncd thread according to last
 		 * VRRP instance state.
 		 */
-		if (vrrp->lvs_syncd_if)
+		if (global_data->lvs_syncd_vrrp == vrrp)
 			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL,
 				       (vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
 									  IPVS_BACKUP,
-				       vrrp->vrid);
+				       global_data->lvs_syncd_syncid,
+				       false);
 #endif
 	}
 }
@@ -2161,6 +2162,31 @@ vrrp_complete_init(void)
 			free_list_element(vrrp_data->vrrp_sync_group, e);
 	}
 
+	/* Set up the lvs_syncd vrrp */
+	if (global_data->lvs_syncd_vrrp_name) {
+		for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+			vrrp = ELEMENT_DATA(e);
+			if (!strcmp(global_data->lvs_syncd_vrrp_name, vrrp->iname)) {
+				global_data->lvs_syncd_vrrp = vrrp;
+
+				break;
+			}
+		}
+
+		if (!global_data->lvs_syncd_vrrp) {
+			log_message(LOG_INFO, "Unable to find vrrp instance %s for lvs_syncd - clearing lvs_syncd config", global_data->lvs_syncd_vrrp_name);
+			FREE(global_data->lvs_syncd_if);
+			global_data->lvs_syncd_if = NULL;
+		}
+
+		FREE(global_data->lvs_syncd_vrrp_name);
+		global_data->lvs_syncd_vrrp_name = NULL;
+	}
+
+	/* If no sycnid configured, use vrid */
+	if (global_data->lvs_syncd_vrrp && global_data->lvs_syncd_syncid == -1)
+		global_data->lvs_syncd_syncid = global_data->lvs_syncd_vrrp->vrid;
+
 	alloc_vrrp_buffer(max_mtu_len);
 
 	return 1;
@@ -2169,20 +2195,7 @@ vrrp_complete_init(void)
 int
 vrrp_ipvs_needed(void)
 {
-	vrrp_t *vrrp;
-	element e;
-
-	if (!vrrp_data)
-		return 0;
-
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-		if (vrrp->lvs_syncd_if) {
-			return 1;
-		}
-	}
-
-	return 0;
+	return !!(global_data->lvs_syncd_if);
 }
 
 /* Try to find a VRRP instance */
@@ -2224,15 +2237,13 @@ clear_diff_vrrp_vip_list(vrrp_t *vrrp, struct ipt_handle* h, list l, list n)
 }
 
 static void
-clear_diff_vrrp_vip(vrrp_t * old_vrrp, int type)
+clear_diff_vrrp_vip(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
 #ifdef _HAVE_LIBIPTC_
 	int tries = 0;
 	int res = 0;
 #endif
 	struct ipt_handle *h = NULL;
-
-	vrrp_t *vrrp = vrrp_exist(old_vrrp);
 
 	if (!old_vrrp->iptable_rules_set)
 		return;
@@ -2251,26 +2262,23 @@ clear_diff_vrrp_vip(vrrp_t * old_vrrp, int type)
 
 /* Clear virtual routes not present in the new data */
 static void
-clear_diff_vrrp_vroutes(vrrp_t * old_vrrp)
+clear_diff_vrrp_vroutes(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
-	vrrp_t *vrrp = vrrp_exist(old_vrrp);
 	clear_diff_routes(old_vrrp->vroutes, vrrp->vroutes);
 }
 
 /* Clear virtual rules not present in the new data */
 static void
-clear_diff_vrrp_vrules(vrrp_t * old_vrrp)
+clear_diff_vrrp_vrules(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
-	vrrp_t *vrrp = vrrp_exist(old_vrrp);
 	clear_diff_rules(old_vrrp->vrules, vrrp->vrules);
 }
 
 /* Keep the state from before reload */
 static void
-reset_vrrp_state(vrrp_t * old_vrrp)
+reset_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
 	/* Keep VRRP state, ipsec AH seq_number */
-	vrrp_t *vrrp = vrrp_exist(old_vrrp);
 	vrrp->state = old_vrrp->state;
 	vrrp->init_state = old_vrrp->state;
 	vrrp->wantstate = old_vrrp->state;
@@ -2280,19 +2288,6 @@ reset_vrrp_state(vrrp_t * old_vrrp)
 	memcpy(vrrp->stats, old_vrrp->stats, sizeof(vrrp_stats));
 
 	memcpy(vrrp->ipsecah_counter, old_vrrp->ipsecah_counter, sizeof(seq_counter_t));
-
-#ifdef _HAVE_IPVS_SYNCD_
-	if (old_vrrp->lvs_syncd_if)
-		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL,
-			       (old_vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
-								      IPVS_BACKUP,
-			       old_vrrp->vrid);
-	if (vrrp->lvs_syncd_if)
-		ipvs_syncd_cmd(IPVS_STARTDAEMON, NULL,
-			       (vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
-								  IPVS_BACKUP,
-			       vrrp->vrid);
-#endif
 
 	/* Remember if we had vips up and add new ones if needed */
 	vrrp->vipset = old_vrrp->vipset;
@@ -2340,14 +2335,13 @@ clear_diff_vrrp(void)
 			 * If this vrrp instance exist in new
 			 * data, then perform a VIP|EVIP diff.
 			 */
-			clear_diff_vrrp_vip(vrrp, VRRP_VIP_TYPE);
-			clear_diff_vrrp_vip(vrrp, VRRP_EVIP_TYPE);
+			clear_diff_vrrp_vip(vrrp, new_vrrp);
 
 			/* virtual routes diff */
-			clear_diff_vrrp_vroutes(vrrp);
+			clear_diff_vrrp_vroutes(vrrp, new_vrrp);
 
 			/* virtual rules diff */
-			clear_diff_vrrp_vrules(vrrp);
+			clear_diff_vrrp_vrules(vrrp, new_vrrp);
 
 			/*
 			 * Remove VMAC if it existed in old vrrp instance,
@@ -2359,7 +2353,7 @@ clear_diff_vrrp(void)
 			}
 
 			/* reset the state */
-			reset_vrrp_state(vrrp);
+			reset_vrrp_state(vrrp, new_vrrp);
 		}
 	}
 }

@@ -50,6 +50,10 @@ and
  vrrp_mcast_group4 224.0.0.18 # optional, default 224.0.0.18
  vrrp_mcast_group6 ff02::12   # optional, default ff02::12
 
+ lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE> [<SYNC_ID>]
+                              # Binding interface, vrrp instance and optional
+                              #  syncid for lvs syncd
+
  # delay for second set of gratuitous ARPs after transition to MASTER
  vrrp_garp_master_delay 10    # secs, default 5, 0 for no second set
 
@@ -110,7 +114,7 @@ and
  #   master even when the master is still running, due to the master or
  #   backup systems being busy, they are not processing the vrrp packets.
  vrrp_priority <-20 to 19>    # Set the vrrp child process priority
-			      #   Negative values increase priority.
+                              #   Negative values increase priority.
  checker_priority <-20 to 19> # Set the checker child process priority
  vrrp_no_swap                 # Set the vrrp child process non swappable
  checker_no_swap              # Set the checker child process non swappable
@@ -170,12 +174,12 @@ and
  # recorded for all VRRP instances which are monitoring it with
  # non-zero weight.
  vrrp_script <SCRIPT_NAME> {
-    script <STRING>|<QUOTED-STRING>	# path of script to execute
-    interval <INTEGER>	# seconds between script invocations, default 1 second
-    timeout <INTEGER>	# seconds after which script is considered to have failed
-    weight <INTEGER:-254..254>	# adjust priority by this weight, default 2
-    rise <INTEGER>		# required number of successes for OK transition
-    fall <INTEGER>		# required number of successes for KO transition
+    script <STRING>|<QUOTED-STRING> # path of script to execute
+    interval <INTEGER>  # seconds between script invocations, default 1 second
+    timeout <INTEGER>   # seconds after which script is considered to have failed
+    weight <INTEGER:-254..254>  # adjust priority by this weight, default 2
+    rise <INTEGER>              # required number of successes for OK transition
+    fall <INTEGER>              # required number of successes for KO transition
  }
 .PP
 .SH VRRP synchronization group(s)
@@ -216,7 +220,7 @@ and
     # using addresses in global_defs above.
     smtp_alert
 
-    global_tracking	# All VRRP share same tracking conf
+    global_tracking     # All VRRP share same tracking conf
  }
 
 .SH VRRP instance(s)
@@ -245,7 +249,7 @@ which will transition together on any state change.
     # VMAC interface
     vmac_xmit_base
 
-    native_ipv6		# force instance to use IPv6 (when mixed IPv4 and IPv6 config).
+    native_ipv6         # force instance to use IPv6 (when mixed IPv4 and IPv6 config).
 
     # Ignore VRRP interface faults (default unset)
     dont_track_primary
@@ -274,7 +278,7 @@ which will transition together on any state change.
     mcast_src_ip <IPADDR>
     unicast_src_ip <IPADDR>
 
-    version <2 or 3>		# VRRP version to run on interface
+    version <2 or 3>            # VRRP version to run on interface
                                 #  default is global parameter vrrp_version.
 
     # Do not send VRRP adverts over VRRP multicast group.
@@ -287,9 +291,6 @@ which will transition together on any state change.
       <IPADDR>
       ...
     }
-
-    # Binding interface for lvs syncd
-    lvs_sync_daemon_interface eth1
 
     # interface specific settings, same as global parameters; default to global parameters
     garp_master_delay 10
@@ -366,7 +367,7 @@ which will transition together on any state change.
         to 192.168.2.0/24 table 1
     }
 
-    accept	# Allow the non-master owner to process the packets destined to VIP
+    accept    # Allow the non-master owner to process the packets destined to VIP
 
     # VRRP will normally preempt a lower priority
     # machine when a higher priority machine comes
@@ -376,11 +377,11 @@ which will transition together on any state change.
     # NOTE: For this to work, the initial state of this
     # entry must be BACKUP.
     nopreempt
-    preempt		# for backwards compatibility
+    preempt             # for backwards compatibility
 
     # See description of global vrrp_skip_check_adv_addr, which
     # sets the default value. Defaults to vrrp_skip_check_adv_addr
-    skip_check_adv_addr [on|off|true|false|yes|no]	# Default on if no word specified
+    skip_check_adv_addr [on|off|true|false|yes|no]      # Default on if no word specified
 
     # See description of global vrrp_strict
     # If vrrp_strict is not specified, it takes the value of vrrp_strict
@@ -401,7 +402,7 @@ which will transition together on any state change.
     notify_master <STRING>|<QUOTED-STRING>
     notify_backup <STRING>|<QUOTED-STRING>
     notify_fault <STRING>|<QUOTED-STRING>
-    notify_stop <STRING>|<QUOTED-STRING>	# run when stopping vrrp
+    notify_stop <STRING>|<QUOTED-STRING>      # run when stopping vrrp
     notify <STRING>|<QUOTED-STRING>
     smtp_alert
  }
@@ -409,10 +410,10 @@ which will transition together on any state change.
  # Parameters used for SSL GET check.
  # If none of the parameters are specified, the SSL context will be auto generated
  SSL {
-    password <STRING>	# password
-    ca <STRING>		# ca file
-    certificate <STRING>	# certificate file
-    key <STRING>		# key file
+    password <STRING>   # password
+    ca <STRING>         # ca file
+    certificate <STRING>  # certificate file
+    key <STRING>        # key file
  }
 
 .SH LVS CONFIGURATION
@@ -487,8 +488,8 @@ A virtual_server can be a declaration of one of
     # suspend healthchecker's activity
     ha_suspend
 
-    lvs_sched	# synonym for lb_algo
-    lvs_method	# synonym for lb_kind
+    lvs_sched   # synonym for lb_algo
+    lvs_method  # synonym for lb_kind
 
     # VirtualHost string for HTTP_GET or SSL_GET
     # eg virtualhost www.firewall.loc
@@ -549,8 +550,8 @@ A virtual_server can be a declaration of one of
            # considers service as down.
            notify_down <STRING>|<QUOTED-STRING>
 
-           uthreshold <INTEGER>	# maximum number of connections to server
-           lthreshold <INTEGER>	# minimum number of connections to server
+           uthreshold <INTEGER> # maximum number of connections to server
+           lthreshold <INTEGER> # minimum number of connections to server
 
            # pick one healthchecker
            # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|MISC_CHECK

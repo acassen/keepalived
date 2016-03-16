@@ -153,6 +153,7 @@ alloc_global_data(void)
 		new->enable_snmp_checker = true;
 #endif
 	}
+	new->lvs_syncd_syncid = -1;
 
 	if (snmp_socket) {
 		new->snmp_socket = MALLOC(strlen(snmp_socket + 1));
@@ -204,6 +205,8 @@ free_global_data(data_t * data)
 #ifdef _WITH_SNMP_
 	FREE_PTR(data->snmp_socket);
 #endif
+	FREE_PTR(data->lvs_syncd_if);
+	FREE_PTR(data->lvs_syncd_vrrp_name);
 	FREE(data);
 }
 
@@ -230,6 +233,15 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO, " Email notification from = %s"
 				    , data->email_from);
 		dump_list(data->email);
+	}
+	if (data->lvs_syncd_vrrp) {
+		log_message(LOG_INFO, " LVS syncd vrrp instance = %s"
+				    , data->lvs_syncd_vrrp->iname);
+		if (data->lvs_syncd_if)
+			log_message(LOG_INFO, " LVS syncd interface = %s"
+				    , data->lvs_syncd_if);
+		log_message(LOG_INFO, " LVS syncd syncid = %d"
+				    , data->lvs_syncd_syncid);
 	}
 	if (data->vrrp_mcast_group4.ss_family) {
 		log_message(LOG_INFO, " VRRP IPv4 mcast group = %s"

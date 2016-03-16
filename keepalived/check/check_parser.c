@@ -94,7 +94,7 @@ ip_family_handler(vector_t *strvec)
 	else if (0 == strcmp(vector_slot(strvec, 1), "inet6"))
 		vs->af = AF_INET6;
 	else
-		log_message(LOG_INFO, "unknown address family %s", vector_slot(strvec, 1));
+		log_message(LOG_INFO, "unknown address family %s", (char *)vector_slot(strvec, 1));
 }
 static void
 delay_handler(vector_t *strvec)

@@ -198,7 +198,6 @@ free_vrrp(void *data)
 
 	FREE(vrrp->iname);
 	FREE_PTR(vrrp->send_buffer);
-	FREE_PTR(vrrp->lvs_syncd_if);
 	FREE_PTR(vrrp->script_backup);
 	FREE_PTR(vrrp->script_master);
 	FREE_PTR(vrrp->script_fault);
@@ -250,9 +249,6 @@ dump_vrrp(void *data)
 	if (vrrp->saddr.ss_family)
 		log_message(LOG_INFO, "   Using src_ip = %s"
 				    , inet_sockaddrtos(&vrrp->saddr));
-	if (vrrp->lvs_syncd_if)
-		log_message(LOG_INFO, "   Running LVS sync daemon on interface = %s",
-		       vrrp->lvs_syncd_if);
 	if (vrrp->garp_delay)
 		log_message(LOG_INFO, "   Gratuitous ARP delay = %d",
 		       vrrp->garp_delay/TIMER_HZ);

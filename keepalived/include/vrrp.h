@@ -165,10 +165,6 @@ typedef struct _vrrp_t {
 	struct sockaddr_storage master_saddr;		/* Store last heard Master address */
 	uint8_t			master_priority;	/* Store last heard priority */
 	timeval_t		last_transition;	/* Store transition time */
-	char			*lvs_syncd_if;		/* handle LVS sync daemon state using this
-							 * instance FSM & running on specific interface
-							 * => eth0 for example.
-							 */
 	int			garp_delay;		/* Delay to launch gratuitous ARP */
 	timeval_t		garp_refresh;		/* Next scheduled gratuitous ARP refresh */
 	timeval_t		garp_refresh_timer;	/* Next scheduled gratuitous ARP timer */
