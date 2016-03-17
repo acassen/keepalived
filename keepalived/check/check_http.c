@@ -38,8 +38,8 @@ void
 free_url(void *data)
 {
 	url_t *url = data;
-	FREE(url->path);
-	FREE(url->digest);
+	FREE_PTR(url->path);
+	FREE_PTR(url->digest);
 	FREE(url);
 }
 
@@ -62,9 +62,9 @@ free_http_get_check(void *data)
 	http_checker_t *http_get_chk = CHECKER_DATA(data);
 
 	free_list(http_get_chk->url);
-	FREE(http_get_chk->arg);
-	FREE(http_get_chk);
-	FREE(CHECKER_CO(data));
+	FREE_PTR(http_get_chk->arg);
+	FREE_PTR(http_get_chk);
+	FREE_PTR(CHECKER_CO(data));
 	FREE(data);
 }
 
@@ -312,8 +312,7 @@ epilog(thread_t * thread, int method, int t, int c)
 	if (req) {
 		if (req->ssl)
 			SSL_free(req->ssl);
-		if (req->buffer)
-			FREE(req->buffer);
+		FREE_PTR(req->buffer);
 		FREE(req);
 		http->req = NULL;
 		close(thread->u.fd);
@@ -389,14 +388,12 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 			sprintf(digest_tmp + 2 * di, "%02x", digest[di]);
 
 		r = strcmp(fetched_url->digest, digest_tmp);
+		FREE(digest_tmp);
 
-		if (r) {
-			FREE(digest_tmp);
+		if (r)
 			return timeout_epilog(thread, "MD5 digest error to");
-		} else {
+		else
 			last_success = on_digest;
-			FREE(digest_tmp);
-		}
 	}
 
 	if (!svr_checker_up(checker->id, checker->rs)) {

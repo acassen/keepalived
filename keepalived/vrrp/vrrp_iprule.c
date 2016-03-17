@@ -134,6 +134,9 @@ netlink_rulelist(list rule_list, int cmd, bool force)
 void
 free_iprule(void *rule_data)
 {
+	ip_rule_t *rule = rule_data;
+
+	FREE_PTR(rule->addr);
 	FREE(rule_data);
 }
 void

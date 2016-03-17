@@ -165,6 +165,12 @@ netlink_rtlist(list rt_list, int cmd)
 void
 free_iproute(void *rt_data)
 {
+	ip_route_t *route = rt_data;
+
+	FREE_PTR(route->dst);
+	FREE_PTR(route->src);
+	FREE_PTR(route->gw);
+	FREE_PTR(route->gw2);
 	FREE(rt_data);
 }
 void
