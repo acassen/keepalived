@@ -48,6 +48,7 @@ free_rt_entry(void *e)
 
 	if (rte->name)
 		FREE(rte->name);
+	FREE(rte);
 }
 
 static void
@@ -101,7 +102,7 @@ read_rttables(void)
 		rte->id = strtoul(FMT_STR_VSLOT(strvec, 0), NULL, 0);
 		rte->name = MALLOC(strlen(FMT_STR_VSLOT(strvec, 1)) + 1);
 		if (!rte->name) {
-			free(rte);
+			FREE(rte);
 			goto err;
 		}
 
