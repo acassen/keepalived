@@ -29,6 +29,7 @@
 #include "parser.h"
 #include "memory.h"
 #include "logger.h"
+#include "rttables.h"
 
 #define DUMP_KEYWORDS	0
 
@@ -583,4 +584,5 @@ init_data(char *conf_file, vector_t * (*init_keywords) (void))
 	current_keywords = keywords;
 	read_conf_file((conf_file) ? conf_file : CONF);
 	free_keywords(keywords);
+	clear_rttables();
 }

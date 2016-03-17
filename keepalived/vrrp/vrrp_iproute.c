@@ -29,6 +29,7 @@
 #include "logger.h"
 #include "memory.h"
 #include "utils.h"
+#include "rttables.h"
 
 /* Utility functions */
 static int
@@ -164,6 +165,12 @@ netlink_rtlist(list rt_list, int cmd)
 void
 free_iproute(void *rt_data)
 {
+	ip_route_t *route = rt_data;
+
+	FREE_PTR(route->dst);
+	FREE_PTR(route->src);
+	FREE_PTR(route->gw);
+	FREE_PTR(route->gw2);
 	FREE(rt_data);
 }
 void
@@ -206,6 +213,7 @@ alloc_route(list rt_list, vector_t *strvec)
 	interface_t *ifp;
 	char *str;
 	int i = 0;
+	unsigned int table_id;
 
 	new = (ip_route_t *) MALLOC(sizeof(ip_route_t));
 
@@ -235,7 +243,10 @@ alloc_route(list rt_list, vector_t *strvec)
 			}
 			new->index = IF_INDEX(ifp);
 		} else if (!strcmp(str, "table")) {
-			new->table = atoi(vector_slot(strvec, ++i));
+			if (!find_rttables_table(vector_slot(strvec, ++i), &table_id))
+				log_message(LOG_INFO, "Routing table %s not found for route", vector_slot(strvec, i));
+			else
+				new->table = table_id;
 		} else if (!strcmp(str, "metric")) {
 			new->metric = atoi(vector_slot(strvec, ++i));
 		} else if (!strcmp(str, "scope")) {

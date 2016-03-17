@@ -28,6 +28,7 @@
 #include <signal.h>
 
 #include "vrrp_iptables_calls.h"
+#include "memory.h"
 #include "logger.h"
 
 /* We sometimes get a resource_busy on iptc_commit. This appears to happen
@@ -99,7 +100,7 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 	if ( protocol == IPPROTO_ICMP )
 		size += XT_ALIGN ( sizeof(struct xt_entry_match) ) + XT_ALIGN ( sizeof(struct ipt_icmp) ) ;
 
-	fw = (struct ipt_entry*)malloc(size);
+	fw = (struct ipt_entry*)MALLOC(size);
 	memset (fw, 0, size);
 
 	fw->target_offset = XT_ALIGN ( sizeof ( struct ipt_entry ) ) ;
@@ -230,7 +231,7 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 	if ( protocol == IPPROTO_ICMPV6 )
 		size += XT_ALIGN ( sizeof(struct xt_entry_match) ) + XT_ALIGN ( sizeof(struct ip6t_icmp) ) ;
 
-	fw = (struct ip6t_entry*)malloc(size);
+	fw = (struct ip6t_entry*)MALLOC(size);
 	memset (fw, 0, size);
 
 	fw->target_offset = XT_ALIGN ( sizeof ( struct ip6t_entry ) ) ;
@@ -465,7 +466,7 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 	if (protocol == IPPROTO_ICMP)
 		size += XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ipt_icmp));
 
-	fw = (struct ipt_entry*)malloc(size);
+	fw = (struct ipt_entry*)MALLOC(size);
 	memset(fw, 0, size);
 
 	fw->target_offset = XT_ALIGN(sizeof(struct ipt_entry));
@@ -479,8 +480,10 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 
 	setinfo = (struct xt_set_info_match_v1 *)match->data;
 	get_set_byname(set_name, &setinfo->match_set, NFPROTO_IPV4, ignore_errors);
-	if (setinfo->match_set.index == IPSET_INVALID_ID)
+	if (setinfo->match_set.index == IPSET_INVALID_ID) {
+		FREE(fw);
 		return -1;
+	}
 
 	setinfo->match_set.dim = dim;
 	setinfo->match_set.flags = src_dst;
@@ -527,6 +530,8 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 
 	sav_errno = errno;
 
+	FREE(fw);
+
 	if (res!= 1)
 	{
 		if (!ignore_errors)
@@ -562,7 +567,7 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 	if (protocol == IPPROTO_ICMPV6)
 		size += XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ip6t_icmp));
 
-	fw = (struct ip6t_entry*)malloc(size);
+	fw = (struct ip6t_entry*)MALLOC(size);
 	memset(fw, 0, size);
 
 	fw->target_offset = XT_ALIGN(sizeof(struct ip6t_entry));
@@ -576,8 +581,10 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 
 	setinfo = (struct xt_set_info_match_v1 *)match->data;
 	get_set_byname (set_name, &setinfo->match_set, NFPROTO_IPV6, ignore_errors);
-	if (setinfo->match_set.index == IPSET_INVALID_ID)
+	if (setinfo->match_set.index == IPSET_INVALID_ID) {
+		FREE(fw);
 		return -1;
+	}
 
 	setinfo->match_set.dim = dim;
 	setinfo->match_set.flags = src_dst;
@@ -623,6 +630,8 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 		res = ip6tc_insert_entry(chain, fw, rulenum, handle) ;
 
 	sav_errno = errno;
+
+	FREE(fw);
 
 	if (res!= 1)
 	{

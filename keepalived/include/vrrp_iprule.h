@@ -38,7 +38,7 @@ typedef struct _ip_rule {
 	uint8_t		dir;
 	ip_address_t	*addr;
 	uint8_t		mask;
-	int		table;
+	unsigned int	table;
 	int		set;
 } ip_rule_t;
 

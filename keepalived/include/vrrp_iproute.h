@@ -43,7 +43,7 @@ typedef struct _ip_route {
 	int			index;		/* RTA_OIF */
 	int			blackhole;
 	int			scope;
-	int			table;
+	unsigned int		table;
 	int			set;
 } ip_route_t;
 
