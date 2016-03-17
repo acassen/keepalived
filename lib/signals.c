@@ -39,25 +39,24 @@
 #include "logger.h"
 
 /* Local Vars */
-void (*signal_SIGHUP_handler) (void *, int sig);
-void *signal_SIGHUP_v;
-void (*signal_SIGINT_handler) (void *, int sig);
-void *signal_SIGINT_v;
-void (*signal_SIGTERM_handler) (void *, int sig);
-void *signal_SIGTERM_v;
-void (*signal_SIGCHLD_handler) (void *, int sig);
-void *signal_SIGCHLD_v;
-void (*signal_SIGUSR1_handler) (void *, int sig);
-void *signal_SIGUSR1_v;
-void (*signal_SIGUSR2_handler) (void *, int sig);
-void *signal_SIGUSR2_v;
+static void (*signal_SIGHUP_handler) (void *, int sig);
+static void *signal_SIGHUP_v;
+static void (*signal_SIGINT_handler) (void *, int sig);
+static void *signal_SIGINT_v;
+static void (*signal_SIGTERM_handler) (void *, int sig);
+static void *signal_SIGTERM_v;
+static void (*signal_SIGCHLD_handler) (void *, int sig);
+static void *signal_SIGCHLD_v;
+static void (*signal_SIGUSR1_handler) (void *, int sig);
+static void *signal_SIGUSR1_v;
+static void (*signal_SIGUSR2_handler) (void *, int sig);
+static void *signal_SIGUSR2_v;
 
 static int signal_pipe[2] = { -1, -1 };
 
 /* Remember our initial signal disposition */
-int initialised_default_signals;
-sigset_t ign_sig;
-sigset_t dfl_sig;
+static sigset_t ign_sig;
+static sigset_t dfl_sig;
 
 /* Local signal test */
 /* Currently unused
@@ -204,40 +203,36 @@ signal_handler_init(void)
 	signal_SIGUSR1_handler = NULL;
 	signal_SIGUSR2_handler = NULL;
 
-	if (!initialised_default_signals) {
-		/* Ignore all signals set to default (except essential ones) */
-		sigfillset(&sset);
-		sigdelset(&sset, SIGILL);
-		sigdelset(&sset, SIGFPE);
-		sigdelset(&sset, SIGSEGV);
-		sigdelset(&sset, SIGBUS);
-		sigdelset(&sset, SIGKILL);
-		sigdelset(&sset, SIGSTOP);
+	/* Ignore all signals set to default (except essential ones) */
+	sigfillset(&sset);
+	sigdelset(&sset, SIGILL);
+	sigdelset(&sset, SIGFPE);
+	sigdelset(&sset, SIGSEGV);
+	sigdelset(&sset, SIGBUS);
+	sigdelset(&sset, SIGKILL);
+	sigdelset(&sset, SIGSTOP);
 
-		act.sa_handler = SIG_IGN;
-		sigemptyset(&act.sa_mask);
-		act.sa_flags = 0;
+	act.sa_handler = SIG_IGN;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
 
-		sigemptyset(&ign_sig);
-		sigemptyset(&dfl_sig);
+	sigemptyset(&ign_sig);
+	sigemptyset(&dfl_sig);
 
-		for (sig = 1; sig <= SIGRTMAX; sig++) {
-			if (sigismember(&sset, sig)){
-				sigaction(sig, NULL, &oact);
+	for (sig = 1; sig <= SIGRTMAX; sig++) {
+		if (sigismember(&sset, sig)){
+			sigaction(sig, NULL, &oact);
 
-				/* Remember the original disposition, and ignore
-				 * any default action signals
-				 */
-				if ( oact.sa_handler == SIG_IGN)
-					sigaddset(&ign_sig, sig);
-				else if ( oact.sa_handler == SIG_DFL) {
-					sigaction(sig, &act, NULL);
-					sigaddset(&dfl_sig, sig);
-				}
+			/* Remember the original disposition, and ignore
+			 * any default action signals
+			 */
+			if (oact.sa_handler == SIG_IGN)
+				sigaddset(&ign_sig, sig);
+			else {
+				sigaction(sig, &act, NULL);
+				sigaddset(&dfl_sig, sig);
 			}
 		}
-
-		initialised_default_signals = 1;
 	}
 }
 
