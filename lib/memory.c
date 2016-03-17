@@ -102,7 +102,7 @@ static int number_alloc_list = 0;
 static int n = 0;		/* Alloc list pointer */
 static int f = 0;		/* Free list pointer */
 
-char *
+void *
 keepalived_malloc(unsigned long size, char *file, char *function, int line)
 {
 	void *buf;

@@ -52,7 +52,7 @@ extern void *zalloc(unsigned long size);
 extern unsigned long mem_allocated;
 
 /* Memory debug prototypes defs */
-extern char *keepalived_malloc(unsigned long, char *, char *, int);
+extern void *keepalived_malloc(unsigned long, char *, char *, int);
 extern int keepalived_free(void *, char *, char *, int);
 extern void *keepalived_realloc(void *, unsigned long, char *, char *, int);
 extern void keepalived_free_final(char *);
