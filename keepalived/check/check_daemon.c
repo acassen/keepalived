@@ -207,9 +207,6 @@ reload_check_thread(thread_t * thread)
 
 	log_message(LOG_INFO, "Got SIGHUP, reloading checker configuration");
 
-	/* Signals handling */
-	signal_handler_reset();
-
 	/* Destroy master thread */
 #ifdef _WITH_VRRP_
 	kernel_netlink_close();
@@ -232,8 +229,6 @@ reload_check_thread(thread_t * thread)
 #ifdef _DEBUG_
 	mem_allocated = 0;
 #endif
-	check_signal_init();
-	signal_set(SIGCHLD, thread_child_handler, master);
 	start_check();
 
 	/* free backup data */
