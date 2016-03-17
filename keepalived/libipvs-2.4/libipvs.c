@@ -21,6 +21,7 @@
 #include <sys/socket.h>
 
 #include "libipvs.h"
+#include "memory.h"
 
 #define SET_CMD(cmd)	(cmd - IP_VS_BASE_CTL)
 #define GET_CMD(cmd)	(cmd - IP_VS_BASE_CTL + 128)
@@ -79,14 +80,14 @@ struct ip_vs_get_services *ipvs_get_services(void)
 
 	len = sizeof(*get) +
 		sizeof(struct ip_vs_service_user)*ipvs_info.num_services;
-	if (!(get = malloc(len)))
+	if (!(get = MALLOC(len)))
 		return NULL;
 
 	ipvs_cmd = GET_CMD(IP_VS_SO_GET_SERVICES);
 	get->num_services = ipvs_info.num_services;
 	if (getsockopt(sockfd, IPPROTO_IP,
 		       IP_VS_SO_GET_SERVICES, get, &len) < 0) {
-		free(get);
+		FREE(get);
 		return NULL;
 	}
 	return get;
@@ -99,7 +100,7 @@ struct ip_vs_get_dests *ipvs_get_dests(struct ip_vs_service_user *svc)
 	socklen_t len;
 
 	len = sizeof(*d) + sizeof(struct ip_vs_dest_user)*svc->num_dests;
-	if (!(d = malloc(len)))
+	if (!(d = MALLOC(len)))
 		return NULL;
 
 	ipvs_cmd = GET_CMD(IP_VS_SO_GET_DESTS);
@@ -111,7 +112,7 @@ struct ip_vs_get_dests *ipvs_get_dests(struct ip_vs_service_user *svc)
 
 	if (getsockopt(sockfd, IPPROTO_IP,
 		       IP_VS_SO_GET_DESTS, d, &len) < 0) {
-		free(d);
+		FREE(d);
 		return NULL;
 	}
 	return d;
@@ -124,7 +125,7 @@ ipvs_get_service(u_int32_t fwmark, u_int16_t protocol, u_int32_t vaddr, u_int16_
 	socklen_t len;
 
 	len = sizeof(*svc);
-	if (!(svc = malloc(len)))
+	if (!(svc = MALLOC(len)))
 		return NULL;
 
 	ipvs_cmd = GET_CMD(IP_VS_SO_GET_SERVICE);
@@ -134,7 +135,7 @@ ipvs_get_service(u_int32_t fwmark, u_int16_t protocol, u_int32_t vaddr, u_int16_
 	svc->port = vport;
 	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_SERVICE,
 		       (char *)svc, &len)) {
-		free(svc);
+		FREE(svc);
 		return NULL;
 	}
 	return svc;
@@ -147,13 +148,13 @@ struct ip_vs_timeout_user *ipvs_get_timeouts(void)
 	socklen_t len;
 
 	len = sizeof(*u);
-	if (!(u = malloc(len)))
+	if (!(u = MALLOC(len)))
 		return NULL;
 
 	ipvs_cmd = GET_CMD(IP_VS_SO_GET_TIMEOUTS);
 	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_TIMEOUTS,
 		       (char *)u, &len)) {
-		free(u);
+		FREE(u);
 		return NULL;
 	}
 	return u;
@@ -166,13 +167,13 @@ struct ip_vs_daemon_user *ipvs_get_daemon(void)
 	socklen_t len;
 
 	len = sizeof(*u);
-	if (!(u = malloc(len)))
+	if (!(u = MALLOC(len)))
 		return NULL;
 
 	ipvs_cmd = GET_CMD(IP_VS_SO_GET_DAEMON);
 	if (getsockopt(sockfd, IPPROTO_IP,
 		       IP_VS_SO_GET_DAEMON, (char *)u, &len)) {
-		free(u);
+		FREE(u);
 		return NULL;
 	}
 	return u;

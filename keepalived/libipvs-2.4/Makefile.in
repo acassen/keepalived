@@ -1,7 +1,8 @@
 # Makefile to make libipvsc.
 
-CC	= @CC@
-CFLAGS	= @CFLAGS@ @CPPFLAGS@ @APP_DEFS@ -Wall -Wunused
+CC		= @CC@
+INCLUDES	= -I../../lib
+CFLAGS		= $(INCLUDES) @CFLAGS@ @CPPFLAGS@ @APP_DEFS@ -Wall -Wunused
 
 export OBJS += libipvs.a
 

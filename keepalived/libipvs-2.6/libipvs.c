@@ -21,6 +21,7 @@
 #include <arpa/inet.h>
 
 #include "libipvs.h"
+#include "memory.h"
 
 typedef struct ipvs_servicedest_s {
 	struct ip_vs_service_kern	svc;
@@ -692,7 +693,7 @@ struct ip_vs_get_services *ipvs_get_services(void)
 		struct nl_msg *msg;
 		len = sizeof(*get) +
 			sizeof(ipvs_service_entry_t);
-		if (!(get = malloc(len)))
+		if (!(get = MALLOC(len)))
 			return NULL;
 		get->num_services = 0;
 
@@ -700,19 +701,19 @@ struct ip_vs_get_services *ipvs_get_services(void)
 		if (msg && (ipvs_nl_send_message(msg, ipvs_services_parse_cb, &get) == 0))
 			return get;
 
-		free(get);
+		FREE(get);
 		return NULL;
 	}
 #endif
 
 	len = sizeof(*get) +
 		sizeof(ipvs_service_entry_t) * ipvs_info.num_services;
-	if (!(get = malloc(len)))
+	if (!(get = MALLOC(len)))
 		return NULL;
 	len = sizeof(*getk) +
 		sizeof(struct ip_vs_service_entry_kern) * ipvs_info.num_services;
-	if (!(getk = malloc(len))) {
-		free(get);
+	if (!(getk = MALLOC(len))) {
+		FREE(get);
 		return NULL;
 	}
 
@@ -720,8 +721,8 @@ struct ip_vs_get_services *ipvs_get_services(void)
 	getk->num_services = ipvs_info.num_services;
 	if (getsockopt(sockfd, IPPROTO_IP,
 		       IP_VS_SO_GET_SERVICES, getk, &len) < 0) {
-		free(get);
-		free(getk);
+		FREE(get);
+		FREE(getk);
 		return NULL;
 	}
 	memcpy(get, getk, sizeof(struct ip_vs_get_services));
@@ -731,7 +732,7 @@ struct ip_vs_get_services *ipvs_get_services(void)
 		get->entrytable[i].af = AF_INET;
 		get->entrytable[i].addr.ip = get->entrytable[i].__addr_v4;
 	}
-	free(getk);
+	FREE(getk);
 	return get;
 }
 
@@ -845,7 +846,7 @@ struct ip_vs_get_dests *ipvs_get_dests(ipvs_service_entry_t *svc)
 	int i;
 
 	len = sizeof(*d) + sizeof(ipvs_dest_entry_t) * svc->num_dests;
-	if (!(d = malloc(len)))
+	if (!(d = MALLOC(len)))
 		return NULL;
 
 	ipvs_func = ipvs_get_dests;
@@ -891,20 +892,20 @@ struct ip_vs_get_dests *ipvs_get_dests(ipvs_service_entry_t *svc)
 nla_put_failure:
 		nlmsg_free(msg);
 ipvs_nl_dest_failure:
-		free(d);
+		FREE(d);
 		return NULL;
 	}
 #endif
 
 	if (svc->af != AF_INET) {
-	  errno = EAFNOSUPPORT;
-	  free(d);
-	  return NULL;
+		errno = EAFNOSUPPORT;
+		FREE(d);
+		return NULL;
 	}
 
 	len = sizeof(*dk) + sizeof(struct ip_vs_dest_entry_kern) * svc->num_dests;
-	if (!(dk = malloc(len))) {
-		free(d);
+	if (!(dk = MALLOC(len))) {
+		FREE(d);
 		return NULL;
 	}
 
@@ -916,8 +917,8 @@ ipvs_nl_dest_failure:
 
 	if (getsockopt(sockfd, IPPROTO_IP,
 		       IP_VS_SO_GET_DESTS, dk, &len) < 0) {
-		free(d);
-		free(dk);
+		FREE(d);
+		FREE(dk);
 		return NULL;
 	}
 	memcpy(d, dk, sizeof(struct ip_vs_get_dests_kern));
@@ -929,7 +930,7 @@ ipvs_nl_dest_failure:
 		d->entrytable[i].af = AF_INET;
 		d->entrytable[i].addr.ip = d->entrytable[i].__addr_v4;
 	}
-	free(dk);
+	FREE(dk);
 	return d;
 }
 
@@ -972,7 +973,7 @@ ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr addr
 		struct nl_msg *msg;
 		ipvs_service_t tsvc;
 
-		svc = malloc(sizeof(*svc));
+		svc = MALLOC(sizeof(*svc));
 		if (!svc)
 			return NULL;
 
@@ -983,7 +984,7 @@ ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr addr
 		tsvc.addr = addr;
 		tsvc.port = port;
 
-		if (!(get = malloc(sizeof(*get) + sizeof(ipvs_service_entry_t))))
+		if (!(get = MALLOC(sizeof(*get) + sizeof(ipvs_service_entry_t))))
 			goto ipvs_get_service_err2;
 
 		get->num_services = 0;
@@ -996,15 +997,15 @@ ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr addr
 			goto ipvs_get_service_err;
 
 		memcpy(svc, &(get->entrytable[0]), sizeof(*svc));
-		free(get);
+		FREE(get);
 		return svc;
 
 nla_put_failure:
 		nlmsg_free(msg);
 ipvs_get_service_err:
-		free(get);
+		FREE(get);
 ipvs_get_service_err2:
-		free(svc);
+		FREE(svc);
 		return NULL;
 	}
 #endif
@@ -1023,7 +1024,7 @@ ipvs_get_service_err2:
 	CHECK_COMPAT_SVC(svc, NULL);
 	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_SERVICE,
 		       (char *)svc, &len)) {
-		free(svc);
+		FREE(svc);
 		return NULL;
 	}
 	svc->af = AF_INET;
@@ -1031,7 +1032,7 @@ ipvs_get_service_err2:
 	svc->pe_name[0] = '\0';
 	return svc;
 out_err:
-	free(svc);
+	FREE(svc);
 	return NULL;
 }
 
@@ -1062,7 +1063,7 @@ ipvs_timeout_t *ipvs_get_timeout(void)
 	socklen_t len;
 
 	len = sizeof(*u);
-	if (!(u = malloc(len)))
+	if (!(u = MALLOC(len)))
 		return NULL;
 
 	ipvs_func = ipvs_get_timeout;
@@ -1074,13 +1075,13 @@ ipvs_timeout_t *ipvs_get_timeout(void)
 		if (msg && (ipvs_nl_send_message(msg, ipvs_timeout_parse_cb, u) == 0))
 			return u;
 
-		free(u);
+		FREE(u);
 		return NULL;
 	}
 #endif
 	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_TIMEOUT,
 		       (char *)u, &len)) {
-		free(u);
+		FREE(u);
 		return NULL;
 	}
 	return u;
@@ -1129,7 +1130,7 @@ ipvs_daemon_t *ipvs_get_daemon(void)
 	/* note that we need to get the info about two possible
 	   daemons, master and backup. */
 	len = sizeof(*u) * 2;
-	if (!(u = malloc(len)))
+	if (!(u = MALLOC(len)))
 		return NULL;
 
 	ipvs_func = ipvs_get_daemon;
@@ -1141,12 +1142,12 @@ ipvs_daemon_t *ipvs_get_daemon(void)
 		if (msg && (ipvs_nl_send_message(msg, ipvs_daemon_parse_cb, u) == 0))
 			return u;
 
-		free(u);
+		FREE(u);
 		return NULL;
 	}
 #endif
 	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_DAEMON, (char *)u, &len)) {
-		free(u);
+		FREE(u);
 		return NULL;
 	}
 	return u;
