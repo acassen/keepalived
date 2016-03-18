@@ -134,8 +134,10 @@ err:
 void
 clear_rttables(void)
 {
-	free_list(rt_list);
-	rt_list = NULL;
+	if (rt_list) {
+		free_list(rt_list);
+		rt_list = NULL;
+	}
 }
 
 bool
