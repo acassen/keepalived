@@ -381,7 +381,7 @@ alloc_vrrp(char *iname)
         new->lower_prio_no_advert = -1;
 
 	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
-	new->strict_mode = global_data->vrrp_strict;
+	new->strict_mode = -1;
 
 	list_add(vrrp_data->vrrp, new);
 }
