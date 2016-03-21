@@ -20,7 +20,9 @@ GIT_COMMIT_FILE = git-commit.h
 .c.o:
 	$(COMPILE) -c $<
 
-all:	$(OBJS)
+all:	$(OBJS) $(GIT_COMMIT_FILE)
+
+$(GIT_COMMIT_FILE):
 	@if [ ! -f $(GIT_COMMIT_FILE) ]; then \
 		>$(GIT_COMMIT_FILE); \
 	fi; \
