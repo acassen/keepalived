@@ -437,7 +437,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			if (scope == -1)
 				log_message(LOG_INFO, "Invalid scope '%s' specified for %s - ignoring", FMT_STR_VSLOT(strvec,i), FMT_STR_VSLOT(strvec, addr_idx));
 			else
-				new->ifa.ifa_scope = netlink_scope_a2n(vector_slot(strvec, ++i));
+				new->ifa.ifa_scope = scope;
 		} else if (!strcmp(str, "broadcast") || !strcmp(str, "brd")) {
 			if (IP_IS6(new)) {
 				log_message(LOG_INFO, "VRRP is trying to assign a broadcast %s to the IPv6 address %s !!?? "
