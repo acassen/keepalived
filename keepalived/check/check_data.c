@@ -46,6 +46,7 @@ free_ssl(void)
 
 	if (!ssl)
 		return;
+	clear_ssl(ssl);
 	FREE_PTR(ssl->password);
 	FREE_PTR(ssl->cafile);
 	FREE_PTR(ssl->certfile);
