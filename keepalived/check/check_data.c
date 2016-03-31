@@ -23,6 +23,7 @@
 #include <netdb.h>
 #include "check_data.h"
 #include "check_api.h"
+#include "check_ssl.h"
 #include "logger.h"
 #include "memory.h"
 #include "utils.h"
@@ -46,6 +47,7 @@ free_ssl(void)
 
 	if (!ssl)
 		return;
+	clear_ssl(ssl);
 	FREE_PTR(ssl->password);
 	FREE_PTR(ssl->cafile);
 	FREE_PTR(ssl->certfile);
