@@ -244,7 +244,8 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->index = IF_INDEX(ifp);
 		} else if (!strcmp(str, "table")) {
 			if (!find_rttables_table(vector_slot(strvec, ++i), &table_id))
-				log_message(LOG_INFO, "Routing table %s not found for route", vector_slot(strvec, i));
+				log_message(LOG_INFO, "Routing table %s not found for route"
+						    , (char *)vector_slot(strvec, i));
 			else
 				new->table = table_id;
 		} else if (!strcmp(str, "metric")) {
