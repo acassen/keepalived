@@ -2109,10 +2109,19 @@ vrrp_complete_instance(vrrp_t * vrrp)
 int
 vrrp_complete_init(void)
 {
-	list l;
-	element e;
+	/*
+	 * l - List of VRRP instances to complete
+	 * ol- List of VRRP sync-groups to restore state
+	 * sl- List of VRRP instances within a sync-group
+	 *
+	 * e - Element equal to a specific VRRP instance
+	 * eo- Element equal to a specific group within old global group list
+	 * se- Element equal to a specific VRRP instance within sync group
+	 */
+	list l, ol, sl;
+	element e, oe, se;
 	vrrp_t *vrrp;
-	vrrp_sgroup_t *sgroup;
+	vrrp_sgroup_t *sgroup, *old_sgroup;
 	list l_o;
 	element e_o;
 	element next;
@@ -2180,8 +2189,89 @@ vrrp_complete_init(void)
 		next = e->next;
 		sgroup = ELEMENT_DATA(e);
 		vrrp_sync_set_group(sgroup);
-		if (LIST_ISEMPTY(sgroup->index_list) || LIST_SIZE(sgroup->index_list) <= 1)
+		if (LIST_ISEMPTY(sgroup->index_list) ||
+			LIST_SIZE(sgroup->index_list) <= 1) {
 			free_list_element(vrrp_data->vrrp_sync_group, e);
+			continue;
+		}
+
+		if (reload) {
+			ol = old_vrrp_data->vrrp_sync_group;
+			for (oe = LIST_HEAD(ol); oe; ELEMENT_NEXT(oe)) {
+				old_sgroup = ELEMENT_DATA(oe);
+				log_message(LOG_INFO,
+					"VRRP_Group(%s) - Found saved old sync-group called %s",
+					GROUP_NAME(sgroup), GROUP_NAME(old_sgroup));
+
+				if (strcmp(old_sgroup->gname, sgroup->gname) == 0) {
+					/* Old Sync group matches current Sync group */
+
+					/* Check for instances that have been removed from the
+					 * sync-group. If this is the case, and the sync-group
+					 * was previously in the MASTER state, then we should
+					 * fall-back to BACKUP, to allow a new MASTER
+					 * for any removed instances.
+					 */
+					if (LIST_SIZE(sgroup->index_list) <
+						LIST_SIZE(old_sgroup->index_list)) {
+						sgroup->state = VRRP_STATE_BACK;
+						log_message(LOG_INFO,
+							"VRRP_Group(%s) Detected instance removed from sync-group, forcing BACKUP",
+							GROUP_NAME(sgroup));
+					} else {
+						sgroup->state = old_sgroup->state;
+					}
+
+					log_message(LOG_INFO,
+						"VRRP_Group(%s) Restoring saved sync State : %d",
+						GROUP_NAME(sgroup), sgroup->state);
+
+					sl = sgroup->index_list;
+					for (se = LIST_HEAD(sl); se; ELEMENT_NEXT(se)) {
+						vrrp = ELEMENT_DATA(se);
+						log_message(LOG_INFO,
+							"VRRP_Instance(%s) used for VRRP_Group(%s) refresh sync",
+							vrrp->iname, GROUP_NAME(sgroup));
+
+						switch (sgroup->state) {
+						case VRRP_STATE_INIT:
+							/* Do nothing */
+							break;
+
+						case VRRP_STATE_BACK:
+							if (vrrp->state != VRRP_STATE_BACK) {
+								vrrp->wantstate = VRRP_STATE_BACK;
+							}
+							break;
+
+						case VRRP_STATE_MAST:
+							if (vrrp->state != VRRP_STATE_MAST) {
+								vrrp->wantstate = VRRP_STATE_MAST;
+							}
+							break;
+
+						case VRRP_STATE_FAULT:
+							if (vrrp->state != VRRP_STATE_FAULT) {
+								if (vrrp->state == VRRP_STATE_MAST)
+									vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
+								if (vrrp->state == VRRP_STATE_BACK)
+									vrrp->state = VRRP_STATE_FAULT;
+							}
+							break;
+
+						default:
+							/* Do nothing */
+							break;
+						}
+					}
+
+					notify_group_exec(sgroup, sgroup->state);
+#ifdef _WITH_SNMP_
+					vrrp_snmp_group_trap(sgroup);
+#endif
+				}
+			}
+		}
 	}
 
 	/* Set up the lvs_syncd vrrp */
