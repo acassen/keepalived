@@ -679,6 +679,8 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 		else long_ret = 1;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ROUTE_IFINDEX:
+		if (!route->oif)
+			break;
 		long_ret = route->index;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ROUTE_IFNAME:
