@@ -124,7 +124,7 @@ static void
 dump_vscript(void *data)
 {
 	vrrp_script_t *vscript = data;
-	char *str;
+	const char *str;
 
 	log_message(LOG_INFO, " VRRP Script = %s", vscript->sname);
 	log_message(LOG_INFO, "   Command = %s", vscript->script);
