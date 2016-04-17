@@ -187,7 +187,7 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 	argv[i++] = "136";
 	argv[i++] = "-j";
 	argv[i++] = "ACCEPT";
-	argv[i] = '\0';
+	argv[i] = NULL;
 
 	if (fork_exec(argv) < 0)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to accept NAs sent"
@@ -253,7 +253,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void 
 	}
 	argv[i++] = "-j";
 	argv[i++] = "DROP";
-	argv[i] = '\0';
+	argv[i] = NULL;
 
 	if (fork_exec(argv) < 0)
 		log_message(LOG_ERR, "Failed to %s iptable drop rule"
