@@ -252,12 +252,6 @@ signal_handlers_clear(void *state)
 }
 
 void
-signal_handler_reset(void)
-{
-	signal_handlers_clear(SIG_DFL);
-}
-
-void
 signal_handler_destroy(void)
 {
 	signal_handlers_clear(SIG_IGN);
