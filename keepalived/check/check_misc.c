@@ -35,12 +35,12 @@
 #include "daemon.h"
 #include "signals.h"
 
-int misc_check_thread(thread_t *);
-int misc_check_child_thread(thread_t *);
-int misc_check_child_timeout_thread(thread_t *);
+static int misc_check_thread(thread_t *);
+static int misc_check_child_thread(thread_t *);
+static int misc_check_child_timeout_thread(thread_t *);
 
 /* Configuration stream handling */
-void
+static void
 free_misc_check(void *data)
 {
 	misc_checker_t *misck_checker = CHECKER_DATA(data);
@@ -50,7 +50,7 @@ free_misc_check(void *data)
 	FREE(data);
 }
 
-void
+static void
 dump_misc_check(void *data)
 {
 	misc_checker_t *misck_checker = CHECKER_DATA(data);
@@ -60,7 +60,7 @@ dump_misc_check(void *data)
 	log_message(LOG_INFO, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
 }
 
-void
+static void
 misc_check_handler(vector_t *strvec)
 {
 	misc_checker_t *misck_checker = (misc_checker_t *) MALLOC(sizeof (misc_checker_t));
@@ -70,21 +70,21 @@ misc_check_handler(vector_t *strvec)
 		      misck_checker, NULL);
 }
 
-void
+static void
 misc_path_handler(vector_t *strvec)
 {
 	misc_checker_t *misck_checker = CHECKER_GET();
 	misck_checker->path = CHECKER_VALUE_STRING(strvec);
 }
 
-void
+static void
 misc_timeout_handler(vector_t *strvec)
 {
 	misc_checker_t *misck_checker = CHECKER_GET();
 	misck_checker->timeout = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
 }
 
-void
+static void
 misc_dynamic_handler(vector_t *strvec)
 {
 	misc_checker_t *misck_checker = CHECKER_GET();
@@ -103,7 +103,7 @@ install_misc_check_keyword(void)
 	install_sublevel_end();
 }
 
-int
+static int
 misc_check_thread(thread_t * thread)
 {
 	checker_t *checker;
@@ -133,7 +133,7 @@ misc_check_thread(thread_t * thread)
 				  misck_checker->path);
 }
 
-int
+static int
 misc_check_child_thread(thread_t * thread)
 {
 	int wait_status;
@@ -213,7 +213,7 @@ misc_check_child_thread(thread_t * thread)
 	return 0;
 }
 
-int
+static int
 misc_check_child_timeout_thread(thread_t * thread)
 {
 	pid_t pid;

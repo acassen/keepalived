@@ -114,17 +114,7 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	}
 }
 
-/* Set dst */
-void
-checker_set_dst(struct sockaddr_storage *dst)
-{
-	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-
-	*dst = rs->addr;
-}
-
-void
+static void
 checker_set_dst_port(struct sockaddr_storage *dst, uint16_t port)
 {
 	if (dst->ss_family == AF_INET6) {
