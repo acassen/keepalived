@@ -225,7 +225,7 @@ alloc_strvec(char *string)
 	}
 }
 
-void read_conf_file(char *conf_file)
+void read_conf_file(const char *conf_file)
 {
 	FILE *stream;
 	char *path;
@@ -568,7 +568,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 
 /* Data initialization */
 void
-init_data(char *conf_file, vector_t * (*init_keywords) (void))
+init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 {
 	/* Init Keywords structure */
 	keywords = vector_alloc();
