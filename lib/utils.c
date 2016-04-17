@@ -254,7 +254,7 @@ inet_ip6scopeid(uint32_t scope_id, struct sockaddr_storage *addr)
 }
 
 /* IP network to string representation */
-char *
+static char *
 inet_sockaddrtos2(struct sockaddr_storage *addr, char *addr_str)
 {
 	void *addr_ip;
