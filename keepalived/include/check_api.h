@@ -85,7 +85,5 @@ extern void install_checkers_keyword(void);
 extern void install_connect_keywords(void);
 extern void warmup_handler(vector_t *);
 extern void update_checker_activity(sa_family_t, void *, int);
-extern void checker_set_dst(struct sockaddr_storage *);
-extern void checker_set_dst_port(struct sockaddr_storage *, uint16_t);
 
 #endif

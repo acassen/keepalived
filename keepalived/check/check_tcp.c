@@ -30,10 +30,10 @@
 #include "utils.h"
 #include "parser.h"
 
-int tcp_connect_thread(thread_t *);
+static int tcp_connect_thread(thread_t *);
 
 /* Configuration stream handling */
-void
+static void
 free_tcp_check(void *data)
 {
 	FREE(CHECKER_CO(data));
@@ -41,7 +41,7 @@ free_tcp_check(void *data)
 	FREE(data);
 }
 
-void
+static void
 dump_tcp_check(void *data)
 {
 	tcp_check_t *tcp_check = CHECKER_DATA(data);
@@ -56,7 +56,7 @@ dump_tcp_check(void *data)
 	}
 }
 
-void
+static void
 tcp_check_handler(vector_t *strvec)
 {
 	tcp_check_t *tcp_check;
@@ -70,14 +70,14 @@ tcp_check_handler(vector_t *strvec)
 		      ,tcp_check, CHECKER_NEW_CO());
 }
 
-void
+static void
 tcp_retry_handler(vector_t *strvec)
 {
 	tcp_check_t *tcp_check = CHECKER_GET();
 	tcp_check->n_retry = CHECKER_VALUE_INT(strvec);
 }
 
-void
+static void
 tcp_delay_before_retry_handler(vector_t *strvec)
 {
 	tcp_check_t *tcp_check = CHECKER_GET();
@@ -97,8 +97,8 @@ install_tcp_check_keyword(void)
 	install_sublevel_end();
 }
 
-void
-tcp_eplilog(thread_t * thread, int is_success)
+static void
+tcp_epilog(thread_t * thread, int is_success)
 {
 	checker_t *checker;
 	tcp_check_t *tcp_check;
@@ -143,7 +143,7 @@ tcp_eplilog(thread_t * thread, int is_success)
 	thread_add_timer(thread->master, tcp_connect_thread, checker, delay);
 }
 
-int
+static int
 tcp_check_thread(thread_t * thread)
 {
 	checker_t *checker;
@@ -161,25 +161,25 @@ tcp_check_thread(thread_t * thread)
 		break;
 	case connect_success:
 		close(thread->u.fd);
-		tcp_eplilog(thread, 1);
+		tcp_epilog(thread, 1);
 		break;
 	case connect_timeout:
 		if (svr_checker_up(checker->id, checker->rs))
 			log_message(LOG_INFO, "TCP connection to %s timeout."
 					, FMT_TCP_RS(checker));
-		tcp_eplilog(thread, 0);
+		tcp_epilog(thread, 0);
 		break;
 	default:
 		if (svr_checker_up(checker->id, checker->rs))
 			log_message(LOG_INFO, "TCP connection to %s failed."
 					, FMT_TCP_RS(checker));
-		tcp_eplilog(thread, 0);
+		tcp_epilog(thread, 0);
 	}
 
 	return 0;
 }
 
-int
+static int
 tcp_connect_thread(thread_t * thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
