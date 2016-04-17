@@ -16,7 +16,6 @@ Libraries dependency
   In order to compile Keepalived needs the following libraries :
 
   * OpenSSL, <www.openssl.org>
-  * popt
 
 Installation
 ============
