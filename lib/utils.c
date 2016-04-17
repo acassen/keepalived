@@ -122,36 +122,6 @@ inet_ntop2(uint32_t ip)
 	return buf;
 }
 
-/*
- * IP network to ascii representation. To use
- * for multiple IP address convertion into the same call.
- */
-char *
-inet_ntoa2(uint32_t ip, char *buf)
-{
-	unsigned char *bytep;
-
-	bytep = (unsigned char *) &(ip);
-	sprintf(buf, "%d.%d.%d.%d", bytep[0], bytep[1], bytep[2], bytep[3]);
-	return buf;
-}
-
-/* IP string to network mask representation. CIDR notation. */
-uint8_t
-inet_stom(const char *addr)
-{
-	uint8_t mask = 32;
-	const char *cp = addr;
-
-	if (!strstr(addr, "/"))
-		return mask;
-	while (*cp != '/' && *cp != '\0')
-		cp++;
-	if (*cp == '/')
-		return atoi(++cp);
-	return mask;
-}
-
 /* IP string to network range representation. */
 uint8_t
 inet_stor(const char *addr)
@@ -439,29 +409,6 @@ inet_ston(const char *addr, uint32_t * dst)
 
 	memcpy(dst, tmp, INADDRSZ);
 	return 1;
-}
-
-/*
- * Return broadcast address from network and netmask.
- */
-uint32_t
-inet_broadcast(uint32_t network, uint32_t netmask)
-{
-	return 0xffffffff - netmask + network;
-}
-
-/*
- * Convert CIDR netmask notation to long notation.
- */
-uint32_t
-inet_cidrtomask(uint8_t cidr)
-{
-	uint32_t mask = 0;
-	int b;
-
-	for (b = 0; b < cidr; b++)
-		mask |= (1 << (31 - b));
-	return ntohl(mask);
 }
 
 /* Getting localhost official canonical name */
