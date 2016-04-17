@@ -445,7 +445,7 @@ data_code(thread_t * thread, int status)
  * Build a comma separated string of smtp recipient email addresses
  * for the email message To-header.
  */
-void
+static void
 build_to_header_rcpt_addrs(smtp_t *smtp)
 {
 	char *fetched_email;

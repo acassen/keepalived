@@ -176,7 +176,7 @@ sigend(void *v, int sig)
 }
 
 /* Initialize signal handler */
-void
+static void
 signal_init(void)
 {
 	signal_handler_init();
