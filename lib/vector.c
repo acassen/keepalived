@@ -46,7 +46,7 @@ vector_alloc_slot(vector_t *v)
 }
 
 /* Check assigned index, and if it runs short double index pointer */
-void
+static void
 vector_ensure(vector_t *v, unsigned int num)
 {
 	if (v->allocated > num)
@@ -64,7 +64,7 @@ vector_ensure(vector_t *v, unsigned int num)
  * the slot's index memory is assigned, please call vector_ensure()
  * after calling this function.
  */
-int
+static int
 vector_empty_slot(vector_t *v)
 {
 	unsigned int i;
