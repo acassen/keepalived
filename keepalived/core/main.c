@@ -34,7 +34,6 @@ char *conf_file = NULL;					/* Configuration file */
 int log_facility = LOG_DAEMON;				/* Optional logging facilities */
 pid_t vrrp_child = -1;					/* VRRP child process ID */
 pid_t checkers_child = -1;				/* Healthcheckers child process ID */
-int linkwatch = 0;					/* Use linkwatch kernel netlink reflection */
 const char *main_pidfile = KEEPALIVED_PID_FILE;		/* overrule default pidfile */
 const char *checkers_pidfile = CHECKERS_PID_FILE;	/* overrule default pidfile */
 const char *vrrp_pidfile = VRRP_PID_FILE;		/* overrule default pidfile */
