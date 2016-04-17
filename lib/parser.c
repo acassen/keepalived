@@ -48,7 +48,7 @@ static int skip_sublevel = 0;
 static void process_stream(vector_t *, int);
 
 static void
-keyword_alloc(vector_t *keywords_vec, char *string, void (*handler) (vector_t *), bool active)
+keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (vector_t *), bool active)
 {
 	keyword_t *keyword;
 
@@ -63,7 +63,7 @@ keyword_alloc(vector_t *keywords_vec, char *string, void (*handler) (vector_t *)
 }
 
 static void
-keyword_alloc_sub(vector_t *keywords_vec, char *string, void (*handler) (vector_t *))
+keyword_alloc_sub(vector_t *keywords_vec, const char *string, void (*handler) (vector_t *))
 {
 	int i = 0;
 	keyword_t *keyword;
@@ -98,13 +98,13 @@ install_sublevel_end(void)
 }
 
 void
-install_keyword_root(char *string, void (*handler) (vector_t *), bool active)
+install_keyword_root(const char *string, void (*handler) (vector_t *), bool active)
 {
 	keyword_alloc(keywords, string, handler, active);
 }
 
 void
-install_keyword(char *string, void (*handler) (vector_t *))
+install_keyword(const char *string, void (*handler) (vector_t *))
 {
 	keyword_alloc_sub(keywords, string, handler);
 }
