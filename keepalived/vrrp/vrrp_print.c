@@ -31,7 +31,17 @@
 
 #include <time.h>
 
-void
+/* Forward declarations */
+static void address_print(FILE *file, void *d);
+static void if_print(FILE *file, void *d);
+static void route_print(FILE *file, void *d);
+static void rule_print(FILE *file, void *d);
+static void vgroup_print(FILE *file, void *d);
+static void vrrp_print(FILE *file, void *d);
+static void vscript_print(FILE *file, void *d);
+
+
+static void
 vrrp_print_list(FILE *file, list l, void (*fptr)(FILE*, void*))
 {
 	element e;
@@ -103,7 +113,7 @@ vrrp_print_stats(void)
 	fclose(file);
 }
 
-void
+static void
 vrrp_print(FILE *file, void *data)
 {
 	vrrp_t *vrrp = data;
@@ -226,7 +236,7 @@ vrrp_print(FILE *file, void *data)
 			fprintf(file, "   Using smtp notification\n");
 }
 
-void
+static void
 vgroup_print(FILE *file, void *data)
 {
 	unsigned int i;
@@ -256,7 +266,7 @@ vgroup_print(FILE *file, void *data)
 
 }
 
-void
+static void
 vscript_print(FILE *file, void *data)
 {
 	tracked_sc_t *tsc = data;
@@ -284,7 +294,7 @@ vscript_print(FILE *file, void *data)
 	fprintf(file, "   Interface weight %d\n", tsc->weight);
 }
 
-void
+static void
 address_print(FILE *file, void *data)
 {
 	ip_address_t *ipaddr = data;
@@ -311,7 +321,7 @@ address_print(FILE *file, void *data)
 		, ipaddr->label ? ipaddr->label : "");
 }
 
-void
+static void
 route_print(FILE *file, void *data)
 {
 	ip_route_t *route = data;
@@ -340,7 +350,7 @@ route_print(FILE *file, void *data)
 	fprintf(file, "\n");
 }
 
-void
+static void
 rule_print(FILE *file, void *data)
 {
 	ip_rule_t *rule = data;
@@ -357,7 +367,7 @@ rule_print(FILE *file, void *data)
 	fprintf(file, "\n");
 }
 
-void
+static void
 if_print(FILE *file, void * data)
 {
 	tracked_if_t *tip = data;

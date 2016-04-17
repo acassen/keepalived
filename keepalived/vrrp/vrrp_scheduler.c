@@ -81,7 +81,9 @@ static int vrrp_script_child_timeout_thread(thread_t * thread);
 static int vrrp_script_child_thread(thread_t * thread);
 static int vrrp_script_thread(thread_t * thread);
 
-struct {
+static int vrrp_read_dispatcher_thread(thread_t *);
+
+static struct {
 	void (*read) (vrrp_t *, char *, int);
 	void (*read_to) (vrrp_t *);
 } VRRP_FSM[VRRP_MAX_FSM_STATE + 1] =
@@ -132,7 +134,7 @@ struct {
  *    o F->F: To speed up FAULT state transition if group is not already
  *            synced to FAULT state.
  */
-struct {
+static struct {
 	void (*handler) (vrrp_t *);
 } VRRP_TSM[VRRP_MAX_TSM_STATE + 1][VRRP_MAX_TSM_STATE + 1] =
 {
@@ -438,7 +440,7 @@ already_exist_sock(list l, sa_family_t family, int proto, int ifindex, int unica
 	return 0;
 }
 
-void
+static void
 alloc_sock(sa_family_t family, list l, int proto, int ifindex, int unicast)
 {
 	sock_t *new;
@@ -982,7 +984,7 @@ vrrp_dispatcher_read(sock_t * sock)
 }
 
 /* Our read packet dispatcher */
-int
+static int
 vrrp_read_dispatcher_thread(thread_t * thread)
 {
 	long vrrp_timer = 0;

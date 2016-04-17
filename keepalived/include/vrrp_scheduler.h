@@ -60,7 +60,6 @@ do {						\
 /* extern prototypes */
 extern void vrrp_dispatcher_release(vrrp_data_t *);
 extern int vrrp_dispatcher_init(thread_t *);
-extern int vrrp_read_dispatcher_thread(thread_t *);
 extern int vrrp_lower_prio_gratuitous_arp_thread(thread_t *);
 
 #endif

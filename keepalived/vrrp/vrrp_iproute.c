@@ -67,7 +67,7 @@ add_addr2rta(struct rtattr *rta, int maxlen, int type, ip_address_t *ip_address)
 }
 
 /* Add/Delete IP route to/from a specific interface */
-int
+static int
 netlink_route(ip_route_t *iproute, int cmd)
 {
 	int status = 1;
@@ -267,7 +267,7 @@ alloc_route(list rt_list, vector_t *strvec)
 }
 
 /* Try to find a route in a list */
-int
+static int
 route_exist(list l, ip_route_t *iproute)
 {
 	ip_route_t *ipr;
