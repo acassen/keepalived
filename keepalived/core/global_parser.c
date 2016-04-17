@@ -84,7 +84,7 @@ static void
 email_handler(vector_t *strvec)
 {
 	vector_t *email_vec = read_value_block(strvec);
-	int i;
+	unsigned int i;
 	char *str;
 
 	for (i = 0; i < vector_size(email_vec); i++) {

@@ -129,7 +129,7 @@ install_sublevel_end_handler(void (*handler) (void))
 static void
 dump_keywords(vector_t *keydump, int level, FILE *fp)
 {
-	int i;
+	unsigned int i;
 	keyword_t *keyword_vec;
 	char file_name[21];
 
@@ -154,7 +154,7 @@ void
 free_keywords(vector_t *keywords_vec)
 {
 	keyword_t *keyword_vec;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < vector_size(keywords_vec); i++) {
 		keyword_vec = vector_slot(keywords_vec, i);
@@ -346,7 +346,7 @@ vector_t *
 read_value_block(vector_t *strvec)
 {
 	char *buf;
-	int word;
+	unsigned int word;
 	char *str = NULL;
 	char *dup;
 	vector_t *vec = NULL;
@@ -468,7 +468,7 @@ static int kw_level = 0;
 static void
 process_stream(vector_t *keywords_vec, int need_bob)
 {
-	int i;
+	unsigned int i;
 	keyword_t *keyword_vec;
 	char *str;
 	char *buf;

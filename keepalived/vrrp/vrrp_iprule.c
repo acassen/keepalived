@@ -162,7 +162,7 @@ alloc_rule(list rule_list, vector_t *strvec)
 {
 	ip_rule_t *new;
 	char *str;
-	int i = 0;
+	unsigned int i = 0;
 	unsigned int table_id;
 
 	new  = (ip_rule_t *) MALLOC(sizeof(ip_rule_t));

@@ -389,7 +389,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	ip_address_t *new;
 	interface_t *ifp_local;
 	char *str;
-	int i = 0, addr_idx = 0;
+	unsigned int i = 0, addr_idx = 0;
 	int scope;
 	int param_avail;
 

@@ -212,7 +212,7 @@ alloc_route(list rt_list, vector_t *strvec)
 	ip_route_t *new;
 	interface_t *ifp;
 	char *str;
-	int i = 0;
+	unsigned int i = 0;
 	unsigned int table_id;
 
 	new = (ip_route_t *) MALLOC(sizeof(ip_route_t));
