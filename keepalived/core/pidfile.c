@@ -54,7 +54,7 @@ pidfile_rm(const char *pid_file)
 }
 
 /* return the daemon running state */
-int
+static int
 process_running(const char *pid_file)
 {
 	FILE *pidfile = fopen(pid_file, "r");
