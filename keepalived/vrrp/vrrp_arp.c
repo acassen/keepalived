@@ -30,9 +30,9 @@
 #include "utils.h"
 #include "vrrp_arp.h"
 
-/* global vars */
-char *garp_buffer;
-int garp_fd;
+/* static vars */
+static char *garp_buffer;
+static int garp_fd;
 
 /* Send the gratuitous ARP message */
 static int send_arp(ip_address_t *ipaddress)
