@@ -73,7 +73,7 @@ extern int netlink_error_ignore; /* If we get this error, ignore it */
 extern int addattr32(struct nlmsghdr *, int, int, uint32_t);
 extern int addattr_l(struct nlmsghdr *, int, int, void *, int);
 extern int rta_addattr_l(struct rtattr *, int, int, const void *, int);
-extern char *netlink_scope_n2a(int);
+extern const char *netlink_scope_n2a(int);
 extern int netlink_scope_a2n(char *);
 extern int netlink_socket(nl_handle_t *, int, int, ...);
 extern int netlink_close(nl_handle_t *);
