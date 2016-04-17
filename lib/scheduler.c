@@ -473,27 +473,6 @@ thread_cancel(thread_t * thread)
 	return 0;
 }
 
-/* Delete all events which has argument value arg. */
-void
-thread_cancel_event(thread_master_t * m, void *arg)
-{
-	thread_t *thread;
-
-	thread = m->event.head;
-	while (thread) {
-		thread_t *t;
-
-		t = thread;
-		thread = t->next;
-
-		if (t->arg == arg) {
-			thread_list_delete(&m->event, t);
-			t->type = THREAD_UNUSED;
-			thread_add_unuse(m, t);
-		}
-	}
-}
-
 /* Update timer value */
 static void
 thread_update_timer(thread_list_t *list, timeval_t *timer_min)
