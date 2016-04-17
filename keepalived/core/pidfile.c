@@ -30,7 +30,7 @@
 
 /* Create the runnnig daemon pidfile */
 int
-pidfile_write(char *pid_file, int pid)
+pidfile_write(const char *pid_file, int pid)
 {
 	FILE *pidfile = NULL;
 	int pidfd = creat(pid_file, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
@@ -48,14 +48,14 @@ pidfile_write(char *pid_file, int pid)
 
 /* Remove the running daemon pidfile */
 void
-pidfile_rm(char *pid_file)
+pidfile_rm(const char *pid_file)
 {
 	unlink(pid_file);
 }
 
 /* return the daemon running state */
 int
-process_running(char *pid_file)
+process_running(const char *pid_file)
 {
 	FILE *pidfile = fopen(pid_file, "r");
 	pid_t pid;
