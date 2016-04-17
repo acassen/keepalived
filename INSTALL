@@ -1,14 +1,12 @@
-Kernel needing
+Kernel needs
 ==============
 
   Compile a kernel with the following options :
 
   Kernel/User netlink socket
-  Network firewalls (for Kernel 2.2)
   LinuxVirtualServer
 
-  Keepalived support all LVS code : including IPVS code for kernel 2.2
-  and kernel 2.4
+  Keepalived supports all LVS code, including IPVS code for kernel 2.4.
 
 Libraries dependency
 ====================
