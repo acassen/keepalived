@@ -229,7 +229,7 @@ vrrp_print(FILE *file, void *data)
 void
 vgroup_print(FILE *file, void *data)
 {
-	int i;
+	unsigned int i;
 	char *str;
 
 	vrrp_sgroup_t *vgroup = data;
