@@ -470,11 +470,11 @@ ipvs_talk(int cmd, bool ignore_error)
 	else if (result) {
 		log_message(LOG_INFO, "IPVS: %s", ipvs_strerror(errno));
 		if (errno == EEXIST &&
-			(cmd == IP_VS_SO_SET_ADD || IP_VS_SO_SET_ADDDEST)
+			(cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_ADDDEST)
 		)
 			result = 0;
 		else if (errno == ENOENT &&
-			(cmd == IP_VS_SO_SET_DEL || IP_VS_SO_SET_DELDEST)
+			(cmd == IP_VS_SO_SET_DEL || cmd == IP_VS_SO_SET_DELDEST)
 		)
 			result = 0;
 	}

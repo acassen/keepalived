@@ -113,9 +113,9 @@ script_open(char *script)
 }
 
 static int
-notify_script_exec(char* script, char *type, int state_num, char* name, int prio)
+notify_script_exec(char* script, const char *type, int state_num, char* name, int prio)
 {
-	char *state = "{UNKNOWN}";
+	const char *state = "{UNKNOWN}";
 	char *command_line = NULL;
 	int size = 0;
 

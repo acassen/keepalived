@@ -48,7 +48,7 @@ static int skip_sublevel = 0;
 static void process_stream(vector_t *, int);
 
 static void
-keyword_alloc(vector_t *keywords_vec, char *string, void (*handler) (vector_t *), bool active)
+keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (vector_t *), bool active)
 {
 	keyword_t *keyword;
 
@@ -63,7 +63,7 @@ keyword_alloc(vector_t *keywords_vec, char *string, void (*handler) (vector_t *)
 }
 
 static void
-keyword_alloc_sub(vector_t *keywords_vec, char *string, void (*handler) (vector_t *))
+keyword_alloc_sub(vector_t *keywords_vec, const char *string, void (*handler) (vector_t *))
 {
 	int i = 0;
 	keyword_t *keyword;
@@ -98,13 +98,13 @@ install_sublevel_end(void)
 }
 
 void
-install_keyword_root(char *string, void (*handler) (vector_t *), bool active)
+install_keyword_root(const char *string, void (*handler) (vector_t *), bool active)
 {
 	keyword_alloc(keywords, string, handler, active);
 }
 
 void
-install_keyword(char *string, void (*handler) (vector_t *))
+install_keyword(const char *string, void (*handler) (vector_t *))
 {
 	keyword_alloc_sub(keywords, string, handler);
 }
@@ -129,7 +129,7 @@ install_sublevel_end_handler(void (*handler) (void))
 static void
 dump_keywords(vector_t *keydump, int level, FILE *fp)
 {
-	int i;
+	unsigned int i;
 	keyword_t *keyword_vec;
 	char file_name[21];
 
@@ -154,7 +154,7 @@ void
 free_keywords(vector_t *keywords_vec)
 {
 	keyword_t *keyword_vec;
-	int i;
+	unsigned int i;
 
 	for (i = 0; i < vector_size(keywords_vec); i++) {
 		keyword_vec = vector_slot(keywords_vec, i);
@@ -225,7 +225,7 @@ alloc_strvec(char *string)
 	}
 }
 
-void read_conf_file(char *conf_file)
+void read_conf_file(const char *conf_file)
 {
 	FILE *stream;
 	char *path;
@@ -346,7 +346,7 @@ vector_t *
 read_value_block(vector_t *strvec)
 {
 	char *buf;
-	int word;
+	unsigned int word;
 	char *str = NULL;
 	char *dup;
 	vector_t *vec = NULL;
@@ -468,7 +468,7 @@ static int kw_level = 0;
 static void
 process_stream(vector_t *keywords_vec, int need_bob)
 {
-	int i;
+	unsigned int i;
 	keyword_t *keyword_vec;
 	char *str;
 	char *buf;
@@ -568,7 +568,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 
 /* Data initialization */
 void
-init_data(char *conf_file, vector_t * (*init_keywords) (void))
+init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 {
 	/* Init Keywords structure */
 	keywords = vector_alloc();

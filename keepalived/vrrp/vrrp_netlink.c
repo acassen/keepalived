@@ -305,7 +305,7 @@ parse_rtattr_nested(struct rtattr **tb, int max, struct rtattr *rta)
         parse_rtattr(tb, max, RTA_DATA(rta), RTA_PAYLOAD(rta));
 }
 
-char *
+const char *
 netlink_scope_n2a(int scope)
 {
 	if (scope == RT_SCOPE_UNIVERSE)

@@ -138,10 +138,10 @@ inet_ntoa2(uint32_t ip, char *buf)
 
 /* IP string to network mask representation. CIDR notation. */
 uint8_t
-inet_stom(char *addr)
+inet_stom(const char *addr)
 {
 	uint8_t mask = 32;
-	char *cp = addr;
+	const char *cp = addr;
 
 	if (!strstr(addr, "/"))
 		return mask;
@@ -154,9 +154,9 @@ inet_stom(char *addr)
 
 /* IP string to network range representation. */
 uint8_t
-inet_stor(char *addr)
+inet_stor(const char *addr)
 {
-	char *cp = addr;
+	const char *cp = addr;
 
 	if (!strstr(addr, "-"))
 		return 0;
@@ -169,7 +169,7 @@ inet_stor(char *addr)
 
 /* Domain to sockaddr_storage */
 int
-domain_stosockaddr(char *domain, char *port, struct sockaddr_storage *addr)
+domain_stosockaddr(const char *domain, const char *port, struct sockaddr_storage *addr)
 {
 	struct addrinfo *res = NULL;
 
@@ -197,7 +197,7 @@ domain_stosockaddr(char *domain, char *port, struct sockaddr_storage *addr)
 
 /* IP string to sockaddr_storage */
 int
-inet_stosockaddr(char *ip, char *port, struct sockaddr_storage *addr)
+inet_stosockaddr(char *ip, const char *port, struct sockaddr_storage *addr)
 {
 	void *addr_ip;
 	char *cp = ip;

@@ -336,7 +336,7 @@ epilog(thread_t * thread, int method, int t, int c)
 }
 
 int
-timeout_epilog(thread_t * thread, char *debug_msg)
+timeout_epilog(thread_t * thread, const char *debug_msg)
 {
 	checker_t *checker = THREAD_ARG(thread);
 
