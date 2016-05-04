@@ -43,7 +43,7 @@
 
 /* ketword definition */
 typedef struct _keyword {
-	char *string;
+	const char *string;
 	void (*handler) (vector_t *);
 	vector_t *sub;
 	void (*sub_close_handler) (void);
@@ -61,11 +61,11 @@ extern FILE *current_stream;
 extern int reload;
 
 /* Prototypes */
-extern void install_keyword_root(char *, void (*handler) (vector_t *), bool);
+extern void install_keyword_root(const char *, void (*handler) (vector_t *), bool);
 extern void install_sublevel(void);
 extern void install_sublevel_end(void);
 extern void install_sublevel_end_handler(void (*handler) (void));
-extern void install_keyword(char *, void (*handler) (vector_t *));
+extern void install_keyword(const char *, void (*handler) (vector_t *));
 extern void free_keywords(vector_t *);
 extern vector_t *alloc_strvec(char *);
 extern int read_line(char *, int);
@@ -74,6 +74,6 @@ extern void alloc_value_block(vector_t *, void (*alloc_func) (vector_t *));
 extern void *set_value(vector_t *);
 extern int check_true_false(char *);
 extern void skip_block(void);
-extern void init_data(char *, vector_t * (*init_keywords) (void));
+extern void init_data(const char *, vector_t * (*init_keywords) (void));
 
 #endif

@@ -1,22 +1,19 @@
-Kernel needing
+Kernel needs
 ==============
 
   Compile a kernel with the following options :
 
   Kernel/User netlink socket
-  Network firewalls (for Kernel 2.2)
   LinuxVirtualServer
 
-  Keepalived support all LVS code : including IPVS code for kernel 2.2
-  and kernel 2.4
+  Keepalived supports all LVS code, including IPVS code for kernel 2.4.
 
-Libraries dependency
+Library dependencies
 ====================
 
   In order to compile Keepalived needs the following libraries :
 
   * OpenSSL, <www.openssl.org>
-  * popt
 
 Installation
 ============
@@ -32,20 +29,20 @@ Installation
                  configure HTTP GET check and SSL GET check in
                  order to compute MD5SUM digest etalon.
      * /etc/keepalived/keepalived.conf
-  6. link keepalived.init into your runlevel directory. On redhat systems :
+  6. link keepalived.init into your runlevel directory. On Red Hat systems :
      ln -s /etc/rc.d/init.d/keepalived.init /etc/rc.d/rc3.d/S99keepalived
 
-  By default configure script use /usr/local as base directory. You can change
-  this value to your own by passing --prefix value to configure script
+  By default the configure script uses /usr/local as base directory. You can
+  change this value to your own by passing it the --prefix value.
 
   eg: './configure --prefix=/usr/'
 
 Configuration
 =============
 
-  Just take a look to the /etc/keepalived/keepalived.conf file installed.
-  It will give you all the informations needed. If you want more informations
-  considering keepalived, please refer to the keepalived homepage into the
+  Just take a look at the /etc/keepalived/keepalived.conf file installed.
+  It will give you all the information needed. If you want more information
+  about keepalived, please refer to the keepalived homepage into the
   documentation section.
 
   http://www.keepalived.org

@@ -62,9 +62,9 @@ vector_alloc_slot(vector_t *v)
 
 /* Insert a value into a specific slot */
 void
-vector_insert_slot(vector_t *v, int index, void *value)
+vector_insert_slot(vector_t *v, unsigned int index, void *value)
 {
-	int i;
+	unsigned int i;
 
 	vector_alloc_slot(v);
 	for (i = (v->allocated / VECTOR_DEFAULT_SIZE) - 2; i >= index; i--)
@@ -249,7 +249,7 @@ vector_free(vector_t *v)
 void
 vector_dump(vector_t *v)
 {
-	int i;
+	unsigned int i;
 
 	printf("Vector Size : %d, active %d\n", v->allocated, v->active);
 
@@ -264,7 +264,7 @@ vector_dump(vector_t *v)
 void
 free_strvec(vector_t *strvec)
 {
-	int i;
+	unsigned int i;
 	char *str;
 
 	if (!strvec)
@@ -282,7 +282,7 @@ free_strvec(vector_t *strvec)
 void
 dump_strvec(vector_t *strvec)
 {
-	int i;
+	unsigned int i;
 	char *str;
 
 	if (!strvec)

@@ -229,7 +229,7 @@ vrrp_print(FILE *file, void *data)
 void
 vgroup_print(FILE *file, void *data)
 {
-	int i;
+	unsigned int i;
 	char *str;
 
 	vrrp_sgroup_t *vgroup = data;
@@ -261,7 +261,7 @@ vscript_print(FILE *file, void *data)
 {
 	tracked_sc_t *tsc = data;
 	vrrp_script_t *vscript = tsc->scr;
-	char *str;
+	const char *str;
 
 	fprintf(file, " VRRP Script = %s\n", vscript->sname);
 	fprintf(file, "   Command = %s\n", vscript->script);

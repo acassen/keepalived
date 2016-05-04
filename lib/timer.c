@@ -26,7 +26,7 @@
 #include "timer.h"
 
 /* time_now holds current time */
-timeval_t time_now = { tv_sec: 0, tv_usec: 0 };
+timeval_t time_now;
 
 /* set a timer to a specific value */
 timeval_t

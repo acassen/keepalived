@@ -46,7 +46,7 @@ typedef struct _vector {
 extern vector_t *vector_alloc(void);
 extern vector_t *vector_init(unsigned int);
 extern void vector_alloc_slot(vector_t *);
-extern void vector_insert_slot(vector_t *, int, void *);
+extern void vector_insert_slot(vector_t *, unsigned int, void *);
 extern vector_t *vector_copy(vector_t *);
 extern void vector_ensure(vector_t *, unsigned int);
 extern int vector_empty_slot(vector_t *);
