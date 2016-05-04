@@ -22,7 +22,7 @@ GIT_COMMIT_FILE = git-commit.h
 
 all:	$(OBJS) $(GIT_COMMIT_FILE)
 
-$(GIT_COMMIT_FILE):
+$(GIT_COMMIT_FILE): FORCE
 	@if [ ! -f $(GIT_COMMIT_FILE) ]; then \
 		>$(GIT_COMMIT_FILE); \
 	fi; \
@@ -42,6 +42,8 @@ $(GIT_COMMIT_FILE):
 			fi; \
 		fi; \
 	fi
+
+FORCE:
 
 clean:
 	rm -f *.[ao] *~ *.orig *.rej core
