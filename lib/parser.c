@@ -275,6 +275,33 @@ void read_conf_file(const char *conf_file)
 	globfree(&globbuf);
 }
 
+bool check_conf_file(const char *conf_file)
+{
+	glob_t globbuf;
+	int i;
+	bool ret = true;
+
+	globbuf.gl_offs = 0;
+	glob(conf_file, 0, NULL, &globbuf);
+
+	if (globbuf.gl_pathc == 0) {
+		log_message(LOG_INFO, "Unable to find configuration file %s", conf_file);
+		ret = false;
+	} else {
+		for (i = 0; i < globbuf.gl_pathc; i++) {
+			if (access(globbuf.gl_pathv[i], R_OK)) {
+				log_message(LOG_INFO, "Unable to read configuration file %s", globbuf.gl_pathv[i]);
+				ret = false;
+				break;
+			}
+		}
+	}
+
+	globfree(&globbuf);
+
+	return ret;
+}
+
 int
 check_include(char *buf)
 {
