@@ -174,19 +174,6 @@ alloc_mlist(void (*free_func) (void *), void (*dump_func) (void *), int size)
 	return new;
 }
 
-void
-dump_mlist(list l, int size)
-{
-	element e;
-	int i;
-
-	for (i = 0; i < size; i++) {
-		for (e = LIST_HEAD(&l[i]); e; ELEMENT_NEXT(e))
-			if (l->dump)
-				(*l->dump) (e->data);
-	}
-}
-
 static void
 free_melement(list l, void (*free_func) (void *))
 {

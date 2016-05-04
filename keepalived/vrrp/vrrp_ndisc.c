@@ -32,9 +32,9 @@
 #include "vrrp_ipaddress.h"
 #include "vrrp_ndisc.h"
 
-/* global vars */
-char *ndisc_buffer;
-int ndisc_fd;
+/* static vars */
+static char *ndisc_buffer;
+static int ndisc_fd;
 
 /*
  *	Neighbour Advertisement sending routine.

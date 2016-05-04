@@ -1143,7 +1143,7 @@ vrrp_send_link_update(vrrp_t * vrrp, int rep)
 }
 
 /* becoming master */
-void
+static void
 vrrp_state_become_master(vrrp_t * vrrp)
 {
 	++vrrp->stats->become_master;
@@ -1419,7 +1419,7 @@ vrrp_state_master_tx(vrrp_t * vrrp, const int prio)
 	return ret;
 }
 
-int
+static int
 vrrp_saddr_cmp(struct sockaddr_storage *addr, vrrp_t *vrrp)
 {
 	interface_t *ifp = vrrp->ifp;
@@ -1666,7 +1666,7 @@ open_vrrp_socket(sa_family_t family, int proto, int idx,
 	return fd;
 }
 
-void
+static void
 close_vrrp_socket(vrrp_t * vrrp)
 {
 	if (LIST_ISEMPTY(vrrp->unicast_peer))

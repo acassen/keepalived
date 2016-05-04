@@ -31,10 +31,10 @@
 #include "utils.h"
 #include "html.h"
 
-int http_connect_thread(thread_t *);
+static int http_connect_thread(thread_t *);
 
 /* Configuration stream handling */
-void
+static void
 free_url(void *data)
 {
 	url_t *url = data;
@@ -43,7 +43,7 @@ free_url(void *data)
 	FREE(url);
 }
 
-void
+static void
 dump_url(void *data)
 {
 	url_t *url = data;
@@ -68,7 +68,7 @@ free_http_request(request_t *req)
 	FREE(req);
 }
 
-void
+static void
 free_http_get_check(void *data)
 {
 	http_checker_t *http_get_chk = CHECKER_DATA(data);
@@ -83,7 +83,7 @@ free_http_get_check(void *data)
 	FREE(data);
 }
 
-void
+static void
 dump_http_get_check(void *data)
 {
 	http_checker_t *http_get_chk = CHECKER_DATA(data);
@@ -114,7 +114,7 @@ alloc_http_get(char *proto)
 	return http_get_chk;
 }
 
-void
+static void
 http_get_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk;
@@ -126,21 +126,21 @@ http_get_handler(vector_t *strvec)
 		      http_connect_thread, http_get_chk, CHECKER_NEW_CO());
 }
 
-void
+static void
 nb_get_retry_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	http_get_chk->nb_get_retry = CHECKER_VALUE_INT(strvec);
 }
 
-void
+static void
 delay_before_retry_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	http_get_chk->delay_before_retry = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
 }
 
-void
+static void
 url_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
@@ -152,7 +152,7 @@ url_handler(vector_t *strvec)
 	list_add(http_get_chk->url, new);
 }
 
-void
+static void
 path_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
@@ -161,7 +161,7 @@ path_handler(vector_t *strvec)
 	url->path = CHECKER_VALUE_STRING(strvec);
 }
 
-void
+static void
 digest_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
@@ -170,7 +170,7 @@ digest_handler(vector_t *strvec)
 	url->digest = CHECKER_VALUE_STRING(strvec);
 }
 
-void
+static void
 status_code_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
@@ -250,7 +250,7 @@ install_ssl_check_keyword(void)
  * method == 1 => register a new checker thread
  * method == 2 => register a retry on url checker thread
  */
-int
+static int
 epilog(thread_t * thread, int method, int t, int c)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -353,7 +353,7 @@ timeout_epilog(thread_t * thread, const char *debug_msg)
 }
 
 /* return the url pointer of the current url iterator  */
-url_t *
+static url_t *
 fetch_next_url(http_checker_t * http_get_check)
 {
 	http_t *http = HTTP_ARG(http_get_check);
@@ -454,7 +454,7 @@ http_process_response(request_t *req, int r, int do_md5)
 }
 
 /* Asynchronous HTTP stream reader */
-int
+static int
 http_read_thread(thread_t * thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -526,7 +526,7 @@ http_read_thread(thread_t * thread)
  * Read get result from the remote web server.
  * Apply trigger check to this result.
  */
-int
+static int
 http_response_thread(thread_t * thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -559,7 +559,7 @@ http_response_thread(thread_t * thread)
 }
 
 /* remote Web server is connected, send it the get url query.  */
-int
+static int
 http_request_thread(thread_t * thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -736,7 +736,7 @@ http_check_thread(thread_t * thread)
 	return 0;
 }
 
-int
+static int
 http_connect_thread(thread_t * thread)
 {
 	checker_t *checker = THREAD_ARG(thread);

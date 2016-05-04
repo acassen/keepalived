@@ -32,7 +32,7 @@
 #include "include/http.h"
 #include "include/ssl.h"
 
-enum connect_result
+static enum connect_result
 tcp_connect(int fd, REQ * req_obj)
 {
 	struct linger li = { 0 };
@@ -98,7 +98,7 @@ tcp_connect(int fd, REQ * req_obj)
 	return connect_in_progress;
 }
 
-enum connect_result
+static enum connect_result
 tcp_socket_state(int fd, thread_t * thread, char *ipaddress, uint16_t addr_port,
 		 int (*func) (thread_t *))
 {
@@ -147,7 +147,7 @@ tcp_socket_state(int fd, thread_t * thread, char *ipaddress, uint16_t addr_port,
 	return connect_success;
 }
 
-void
+static void
 tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
 		     int (*func) (thread_t *)
 		     , long timeout)
@@ -174,7 +174,7 @@ tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
 	}
 }
 
-int
+static int
 tcp_check_thread(thread_t * thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);

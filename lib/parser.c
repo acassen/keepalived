@@ -35,12 +35,12 @@
 
 /* global vars */
 vector_t *keywords;
-vector_t *current_keywords;
-FILE *current_stream;
-char *current_conf_file;
 int reload = 0;
 
 /* local vars */
+static char *current_conf_file;
+static vector_t *current_keywords;
+static FILE *current_stream;
 static int sublevel = 0;
 static int skip_sublevel = 0;
 
@@ -150,7 +150,7 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 }
 #endif
 
-void
+static void
 free_keywords(vector_t *keywords_vec)
 {
 	keyword_t *keyword_vec;
@@ -225,7 +225,8 @@ alloc_strvec(char *string)
 	}
 }
 
-void read_conf_file(const char *conf_file)
+static void
+read_conf_file(const char *conf_file)
 {
 	FILE *stream;
 	char *path;
@@ -275,7 +276,7 @@ void read_conf_file(const char *conf_file)
 	globfree(&globbuf);
 }
 
-int
+static int
 check_include(char *buf)
 {
 	char *str;

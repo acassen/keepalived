@@ -57,7 +57,6 @@ typedef struct _keyword {
 
 /* global vars exported */
 extern vector_t *keywords;
-extern FILE *current_stream;
 extern int reload;
 
 /* Prototypes */
@@ -66,7 +65,6 @@ extern void install_sublevel(void);
 extern void install_sublevel_end(void);
 extern void install_sublevel_end_handler(void (*handler) (void));
 extern void install_keyword(const char *, void (*handler) (vector_t *));
-extern void free_keywords(vector_t *);
 extern vector_t *alloc_strvec(char *);
 extern int read_line(char *, int);
 extern vector_t *read_value_block(vector_t *);

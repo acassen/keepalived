@@ -46,18 +46,6 @@ enum connect_result {
 };
 
 /* Prototypes defs */
-extern enum connect_result
- tcp_connect(int fd, REQ *);
-
-extern enum connect_result
- tcp_socket_state(int, thread_t *, char *, uint16_t,
-		  int (*func) (thread_t *));
-
-extern void
- tcp_connection_state(int, enum connect_result
-		      , thread_t *, int (*func) (thread_t *)
-		      , long);
-
 extern int tcp_connect_thread(thread_t *);
 
 #endif

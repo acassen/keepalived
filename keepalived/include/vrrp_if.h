@@ -123,14 +123,11 @@ extern interface_t *if_get_by_ifname(const char *);
 extern list get_if_list(void);
 extern void if_vmac_reflect_flags(const int, const unsigned long);
 extern int if_linkbeat(const interface_t *);
-extern int if_mii_probe(const char *);
-extern int if_ethtool_probe(const char *);
 extern void if_add_queue(interface_t *);
 extern int if_monitor_thread(thread_t *);
 extern void init_interface_queue(void);
 extern void init_interface_linkbeat(void);
 extern void free_interface_queue(void);
-extern void dump_if(void *);
 extern int if_join_vrrp_group(sa_family_t, int *, interface_t *, int);
 extern int if_leave_vrrp_group(sa_family_t, int, interface_t *);
 extern int if_setsockopt_bindtodevice(int *, interface_t *);
@@ -141,7 +138,6 @@ extern int if_setsockopt_mcast_loop(sa_family_t, int *);
 extern int if_setsockopt_mcast_hops(sa_family_t, int *);
 extern int if_setsockopt_mcast_if(sa_family_t, int *, interface_t *);
 extern int if_setsockopt_priority(int *);
-extern int if_setsockopt_sndbuf(int *, int);
 extern int if_setsockopt_rcvbuf(int *, int);
 
 #endif

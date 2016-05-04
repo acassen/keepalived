@@ -34,21 +34,6 @@ vector_alloc(void)
 	return v;
 }
 
-vector_t *
-vector_init(unsigned int size)
-{
-	vector_t *v = vector_alloc();
-
-	/* allocate at least one slot */
-	if (size == 0)
-		size = 1;
-
-	v->allocated = size;
-	v->active = 0;
-	v->slot = (void *) MALLOC(sizeof(void *) * size);
-	return v;
-}
-
 /* allocated one slot */
 void
 vector_alloc_slot(vector_t *v)
@@ -60,41 +45,8 @@ vector_alloc_slot(vector_t *v)
 		v->slot = (void *) MALLOC(sizeof (void *) * v->allocated);
 }
 
-/* Insert a value into a specific slot */
-void
-vector_insert_slot(vector_t *v, unsigned int index, void *value)
-{
-	unsigned int i;
-
-	vector_alloc_slot(v);
-	for (i = (v->allocated / VECTOR_DEFAULT_SIZE) - 2; i >= index; i--)
-		v->slot[i + 1] = v->slot[i];
-	v->slot[index] = value;
-	if (v->active >= index + 1)
-		v->active++;
-	else
-		v->active = index + 1;
-}
-
-/* Copy / dup a vector */
-vector_t *
-vector_copy(vector_t *v)
-{
-	unsigned int size;
-	vector_t *new = vector_alloc();
-
-	new->active = v->active;
-	new->allocated = v->allocated;
-
-	size = sizeof(void *) * (v->allocated);
-	new->slot = (void *) MALLOC(size);
-	memcpy(new->slot, v->slot, size);
-
-	return new;
-}
-
 /* Check assigned index, and if it runs short double index pointer */
-void
+static void
 vector_ensure(vector_t *v, unsigned int num)
 {
 	if (v->allocated > num)
@@ -112,7 +64,7 @@ vector_ensure(vector_t *v, unsigned int num)
  * the slot's index memory is assigned, please call vector_ensure()
  * after calling this function.
  */
-int
+static int
 vector_empty_slot(vector_t *v)
 {
 	unsigned int i;
@@ -156,34 +108,12 @@ vector_set_slot(vector_t *v, void *value)
 	v->active = v->allocated;
 }
 
-/* Set value to specified index slot. */
-int
-vector_set_index(vector_t *v, unsigned int i, void *val)
-{
-	vector_ensure(v, i);
-
-	v->slot[i] = val;
-
-	if (v->active <= i)
-		v->active = i + 1;
-
-	return i;
-}
-
 /* Look up vector.  */
 void *
 vector_lookup(vector_t *v, unsigned int i)
 {
 	if (i >= v->active)
 		return NULL;
-	return v->slot[i];
-}
-
-/* Lookup vector, ensure it. */
-void *
-vector_lookup_ensure(vector_t *v, unsigned int i)
-{
-	vector_ensure(v, i);
 	return v->slot[i];
 }
 
@@ -217,25 +147,6 @@ vector_count(vector_t *v)
 	}
 
 	return count;
-}
-
-/* Free memory vector allocation */
-void
-vector_only_wrapper_free(vector_t *v)
-{
-	FREE(v);
-}
-
-void
-vector_only_slot_free(void *slot)
-{
-	FREE(slot);
-}
-
-void
-vector_only_index_free(void *slot)
-{
-	vector_only_slot_free(slot);
 }
 
 void
@@ -279,20 +190,3 @@ free_strvec(vector_t *strvec)
 	vector_free(strvec);
 }
 
-void
-dump_strvec(vector_t *strvec)
-{
-	unsigned int i;
-	char *str;
-
-	if (!strvec)
-		return;
-
-	printf("String Vector : ");
-
-	for (i = 0; i < vector_size(strvec); i++) {
-		str = vector_slot(strvec, i);
-		printf("[%i]=%s ", i, str);
-	}
-	printf("\n");
-}
