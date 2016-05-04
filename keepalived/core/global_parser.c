@@ -59,11 +59,15 @@ smtpto_handler(vector_t *strvec)
 static void
 smtpserver_handler(vector_t *strvec)
 {
-	int ret;
-	ret = inet_stosockaddr(vector_slot(strvec, 1), SMTP_PORT_STR, &global_data->smtp_server);
-	if (ret < 0) {
+	int ret = -1;
+
+	/* It can't be an IP address if it contains '-' or '/', and 
+	   inet_stosockaddr() modifies the string if it contains either of them */
+	if (!strpbrk(vector_slot(strvec, 1), "-/"))
+		ret = inet_stosockaddr(vector_slot(strvec, 1), SMTP_PORT_STR, &global_data->smtp_server);
+
+	if (ret < 0)
 		domain_stosockaddr(vector_slot(strvec, 1), SMTP_PORT_STR, &global_data->smtp_server);
-	}
 }
 static void
 smtphelo_handler(vector_t *strvec)
