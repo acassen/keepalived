@@ -594,8 +594,8 @@ vrrp_vip_handler(vector_t *strvec)
 				if (vrrp->family == AF_UNSPEC)
 					vrrp->family = address_family;
 				else if (address_family != vrrp->family) {
-					log_message(LOG_INFO, "(%s): address family must match VRRP instance [%s] - ignoring", vrrp->iname, buf);
-					free_list_element(vrrp->vip, LIST_TAIL_DATA(vrrp->vip));
+					log_message(LOG_INFO, "(%s): address family must match VRRP instance [%s] - ignoring", vrrp->iname, str);
+					free_list_element(vrrp->vip, vrrp->vip->tail);
 				}
 			}
 
