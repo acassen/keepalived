@@ -244,8 +244,8 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     garp_master_refresh <INTEGER>
     garp_master_refresh_repeat <INTEGER>
 
-    virtual_router_id <INTEGER-0..255>	# VRRP VRID
-    priority <INTEGER-0..255>		# VRRP PRIO
+    virtual_router_id <INTEGER-1..255>	# VRRP VRID
+    priority <INTEGER-1..255>		# VRRP PRIO
     advert_int <INTEGER>		# VRRP Advert interval (use default)
 
     lower_prio_no_advert		# If a lower priority advert is received, don't
