@@ -23,7 +23,9 @@
 #include <xtables.h>
 #include <libiptc/libiptc.h>
 #include <libiptc/libip6tc.h>
+#ifdef _HAVE_LIBIPSET_
 #include <linux/netfilter/xt_set.h>
+#endif
 #include <unistd.h>
 #include <signal.h>
 

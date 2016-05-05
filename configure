@@ -4360,8 +4360,36 @@ fi
 $as_echo "$ac_cv_lib_ipset_ipset_session_init" >&6; }
 if test "x$ac_cv_lib_ipset_ipset_session_init" = xyes; then :
 
-        USE_LIBIPSET="_HAVE_LIBIPSET_"
-        SAV_LIBS=$LIBS
+	cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+	    #include <linux/netfilter/xt_set.h>
+	    ip_set_id_t id;
+
+int
+main ()
+{
+
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+	    IPSET_HEADERS_OK=yes
+
+else
+
+	    IPSET_HEADERS_OK=no
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext;
+
+	if test "$IPSET_HEADERS_OK" = "yes"; then
+          USE_LIBIPSET="_HAVE_LIBIPSET_"
+          SAV_LIBS=$LIBS
+	fi
 
 fi
 

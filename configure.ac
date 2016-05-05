@@ -183,8 +183,20 @@ if test "${USE_LIBIPTC}" = "_HAVE_LIBIPTC_"; then
     LIBS="$LIBS -lipset -lxtables"
     AC_CHECK_LIB(ipset, ipset_session_init,
       [
-        USE_LIBIPSET="_HAVE_LIBIPSET_"
-        SAV_LIBS=$LIBS
+	AC_TRY_COMPILE([
+	    #include <linux/netfilter/xt_set.h>
+	    ip_set_id_t id;
+	  ], [
+	  ], [
+	    IPSET_HEADERS_OK=yes
+	  ], [
+	    IPSET_HEADERS_OK=no
+	  ]);
+
+	if test "$IPSET_HEADERS_OK" = "yes"; then
+          USE_LIBIPSET="_HAVE_LIBIPSET_"
+          SAV_LIBS=$LIBS
+	fi
       ],
       [])
     LIBS=$SAV_LIBS
