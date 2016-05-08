@@ -4540,7 +4540,7 @@ $as_echo_n "checking for kernel macvlan support... " >&6; }
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-    #include <bits/sockaddr.h>
+    #include <sys/socket.h>
     #include <linux/if_link.h>
     int macvlan;
 
