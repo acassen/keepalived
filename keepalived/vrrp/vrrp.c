@@ -1485,8 +1485,8 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		return 0;
 	} else if (hd->priority < vrrp->effective_priority) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
-		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert"
-				      ", forcing new election", vrrp->iname);
+		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert %d"
+				      ", forcing new election", vrrp->iname, hd->priority);
 		if (proto == IPPROTO_IPSEC_AH) {
 			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
 			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
@@ -1512,8 +1512,8 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		 */
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 
-		log_message(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert"
-				    , vrrp->iname);
+		log_message(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert %d"
+				    , vrrp->iname, hd->priority);
 		if (proto == IPPROTO_IPSEC_AH) {
 			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
 			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"

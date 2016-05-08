@@ -767,6 +767,20 @@ vrrp_lower_prio_gratuitous_arp_thread(thread_t * thread)
 	return 0;
 }
 
+/* Set effective priorty, issue message on changes */
+static void
+vrrp_set_effective_priority(vrrp_t *vrrp, int new_prio)
+{
+	if (vrrp->effective_priority == new_prio)
+		return;
+
+	log_message(LOG_INFO, "VRRP_Instance(%s) Effective priority = %d",
+		    vrrp->iname, new_prio);
+
+	vrrp->effective_priority = new_prio;
+}
+
+
 /* Update VRRP effective priority based on multiple checkers.
  * This is a thread which is executed every adver_int.
  */
@@ -789,7 +803,7 @@ vrrp_update_priority(thread_t * thread)
 
 	if (vrrp->base_priority == VRRP_PRIO_OWNER) {
 		/* we will not run a PRIO_OWNER into a non-PRIO_OWNER */
-		vrrp->effective_priority = VRRP_PRIO_OWNER;
+		vrrp_set_effective_priority(vrrp, VRRP_PRIO_OWNER);
 	} else {
 		/* WARNING! we must compute new_prio on a signed int in order
 		   to detect overflows and avoid wrapping. */
@@ -798,7 +812,7 @@ vrrp_update_priority(thread_t * thread)
 			new_prio = 1;
 		else if (new_prio >= VRRP_PRIO_OWNER)
 			new_prio = VRRP_PRIO_OWNER - 1;
-		vrrp->effective_priority = new_prio;
+		vrrp_set_effective_priority(vrrp, new_prio);
 	}
 
 	/* Register next priority update thread */
