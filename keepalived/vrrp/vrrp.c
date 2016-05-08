@@ -1480,6 +1480,9 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		       "VRRP_Instance(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
 		return 0;
+	} else if (hd->priority == 0) {
+		vrrp_send_adv(vrrp, vrrp->effective_priority);
+		return 0;
 	} else if (hd->priority < vrrp->effective_priority) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert"
@@ -1500,9 +1503,6 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 				thread_add_timer(master, vrrp_lower_prio_gratuitous_arp_thread,
 						 vrrp, vrrp->garp_lower_prio_delay);
 		}
-		return 0;
-	} else if (hd->priority == 0) {
-		vrrp_send_adv(vrrp, vrrp->effective_priority);
 		return 0;
 	} else if (hd->priority > vrrp->effective_priority ||
 		   (hd->priority == vrrp->effective_priority &&
