@@ -319,7 +319,7 @@ dnl ----[ Checks for kernel VMAC support ]----
 CPPFLAGS="$CPPFLAGS -I$kernelinc"
 AC_MSG_CHECKING([for kernel macvlan support])
 AC_TRY_COMPILE([
-    #include <bits/sockaddr.h>
+    #include <sys/socket.h>
     #include <linux/if_link.h>
     int macvlan;
   ], [
