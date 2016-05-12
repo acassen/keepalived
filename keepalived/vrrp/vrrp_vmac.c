@@ -35,7 +35,6 @@
 #include "vrrp_if_config.h"
 #include "vrrp_ipaddress.h"
 
-#ifdef _HAVE_VRRP_VMAC_
 const char * const macvlan_ll_kind = "macvlan";
 u_char ll_addr[ETH_ALEN] = {0x00, 0x00, 0x5e, 0x00, 0x01, 0x00};
 
@@ -81,12 +80,10 @@ netlink_link_up(vrrp_t *vrrp)
 
 	return status;
 }
-#endif
 
 int
 netlink_link_add_vmac(vrrp_t *vrrp)
 {
-#ifdef _HAVE_VRRP_VMAC_
 	struct rtattr *linkinfo;
 	struct rtattr *data;
 	unsigned int base_ifindex;
@@ -289,7 +286,6 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			log_message(LOG_INFO, "Deleting auto link-local address from vmac failed");
 	}
 #endif
-#endif
 
 	return 1;
 }
@@ -299,7 +295,6 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 {
 	int status = 1;
 
-#ifdef _HAVE_VRRP_VMAC_
 	interface_t *base_ifp ;
 	struct {
 		struct nlmsghdr n;
@@ -332,7 +327,6 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 
 	log_message(LOG_INFO, "vmac: Success removing VMAC interface %s for vrrp_instance %s"
 			    , vrrp->vmac_ifname, vrrp->iname);
-#endif
 
 	return status;
 }

@@ -76,7 +76,9 @@
 #include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
+#ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
+#endif
 #include "config.h"
 #include "vector.h"
 #include "list.h"
@@ -1932,9 +1934,11 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFC_SNMP_OPER_MIP:
 		return (u_char*)&((struct sockaddr_in *)&rt->master_saddr)->sin_addr.s_addr;
 	case VRRP_RFC_SNMP_OPER_PIP:
+#ifdef _HAVE_VRRP_VMAC_
 		if (rt->ifp->vmac)
 			ifp = if_get_by_ifindex(rt->ifp->base_ifindex);
 		else
+#endif
 			ifp = rt->ifp;
 		return (u_char*)&ifp->sin_addr;
 	case VRRP_RFC_SNMP_OPER_AUTH_TYPE:
@@ -2600,9 +2604,11 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 		}
 		/* Fall through. If we are master, we want to return the Primary IP address */
 	case VRRP_RFCv3_SNMP_OPER_PIP:
+#ifdef _HAVE_VRRP_VMAC_
 		if (rt->ifp->vmac)
 			ifp = if_get_by_ifindex(rt->ifp->base_ifindex);
 		else
+#endif
 			ifp = rt->ifp;
 		if (rt->family == AF_INET) {
 			*var_len = sizeof(struct in_addr);

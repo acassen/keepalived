@@ -38,7 +38,9 @@
 /* local include */
 #include "check_api.h"
 #include "vrrp_netlink.h"
+#ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
+#endif
 #include "logger.h"
 #include "memory.h"
 #include "scheduler.h"
@@ -299,11 +301,13 @@ parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, int len)
 	}
 }
 
+#ifdef _HAVE_VRRP_VMAC_
 static void
 parse_rtattr_nested(struct rtattr **tb, int max, struct rtattr *rta)
 {
         parse_rtattr(tb, max, RTA_DATA(rta), RTA_PAYLOAD(rta));
 }
+#endif
 
 const char *
 netlink_scope_n2a(int scope)
@@ -603,9 +607,11 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 {
 	char *name;
 	int i;
+#ifdef _HAVE_VRRP_VMAC_
 	struct rtattr* linkinfo[IFLA_INFO_MAX+1];
 	struct rtattr* linkattr[IFLA_MACVLAN_MAX+1];
 	interface_t *ifp_base;
+#endif
 
 	name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
 	/* Fill the interface structure */
@@ -636,6 +642,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 		}
 	}
 
+#ifdef _HAVE_VRRP_VMAC_
 	/* See if this interface is a MACVLAN of ours */
 	if (tb[IFLA_LINKINFO] && tb[IFLA_LINK]){
 		/* If appears that the value of *(int*)RTA_DATA(tb[IFLA_LINKINFO]) is 0x1000c
@@ -662,14 +669,24 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 		}
 	}
 
-	if (!ifp->vmac) {
+	if (!ifp->vmac)
+#endif
+	{
+#ifdef _HAVE_VRRP_VMAC_
 		if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);
+#endif
 		ifp->flags = ifi->ifi_flags;
+#ifdef _HAVE_VRRP_VMAC_
+log_message(LOG_INFO, "Setting base index for %s to ifi_index %d", name, ifi->ifi_index);
 		ifp->base_ifindex = ifi->ifi_index;
-	} else {
+#endif
+	}
+#ifdef _HAVE_VRRP_VMAC_
+	else {
 		if ((ifp_base = if_get_by_ifindex(ifp->base_ifindex)))
 			ifp->flags = ifp_base->flags;
 	}
+#endif
 
 	return 1;
 }
@@ -707,8 +724,13 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	/* Skip it if already exist */
 	ifp = if_get_by_ifname(name);
 	if (ifp) {
-		if (!ifp->vmac) {
+#ifdef _HAVE_VRRP_VMAC_
+		if (!ifp->vmac)
+#endif
+		{
+#ifdef _HAVE_VRRP_VMAC_
 			if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);
+#endif
 			ifp->flags = ifi->ifi_flags;
 		}
 		return 0;
@@ -837,8 +859,13 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	 * VMAC interfaces should never update it own flags, only be reflected
 	 * by the base interface flags.
 	 */
-	if (!ifp->vmac) {
+#ifdef _HAVE_VRRP_VMAC_
+	if (!ifp->vmac)
+#endif
+	{
+#ifdef _HAVE_VRRP_VMAC_
 		if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);
+#endif
 		ifp->flags = ifi->ifi_flags;
 	}
 

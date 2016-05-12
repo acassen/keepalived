@@ -88,8 +88,11 @@ typedef struct _interface {
 	int			hw_addr_len;		/* MAC addresss length */
 	int			lb_type;		/* Interface regs selection */
 	int			linkbeat;		/* LinkBeat from MII BMSR req */
+#ifdef _HAVE_VRRP_VMAC_
 	int			vmac;			/* Set if interface is a VMAC interface */
-	unsigned int		base_ifindex;		/* Base interface index (if interface is a VMAC interface) */
+	unsigned int		base_ifindex;		/* Base interface index (if interface is a VMAC interface),
+							   otherwise the physical interface (i.e. ifindex) */
+#endif
 	int			reset_arp_config;	/* Count of how many vrrps have changed arp parameters on interface */
 	uint32_t		reset_arp_ignore_value;	/* Original value of arp_ignore to be restored */
 	uint32_t		reset_arp_filter_value;	/* Original value of arp_filter to be restored */
@@ -121,7 +124,9 @@ extern interface_t *if_get_by_ifindex(const int);
 extern interface_t *base_if_get_by_ifindex(const int);
 extern interface_t *if_get_by_ifname(const char *);
 extern list get_if_list(void);
+#ifdef _HAVE_VRRP_VMAC_
 extern void if_vmac_reflect_flags(const int, const unsigned long);
+#endif
 extern int if_linkbeat(const interface_t *);
 extern int if_mii_probe(const char *);
 extern int if_ethtool_probe(const char *);

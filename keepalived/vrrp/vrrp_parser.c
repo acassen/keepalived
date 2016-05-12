@@ -27,7 +27,9 @@
 #include "vrrp_sync.h"
 #include "vrrp_index.h"
 #include "vrrp_if.h"
+#ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
+#endif
 #include "vrrp.h"
 #include "global_data.h"
 #include "global_parser.h"

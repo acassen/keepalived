@@ -85,7 +85,11 @@ base_if_get_by_ifindex(const int ifindex)
 {
 	interface_t *ifp = if_get_by_ifindex(ifindex);
 
+#ifdef _HAVE_VRRP_VMAC_
 	return (ifp && ifp->vmac) ? if_get_by_ifindex(ifp->base_ifindex) : ifp;
+#else
+	return ifp;
+#endif
 }
 
 interface_t *
@@ -112,6 +116,7 @@ get_if_list(void)
 	return if_queue;
 }
 
+#ifdef _HAVE_VRRP_VMAC_
 /*
  * Reflect base interface flags on VMAC interfaces.
  * VMAC interfaces should never update it own flags, only be reflected
@@ -132,6 +137,7 @@ if_vmac_reflect_flags(const int ifindex, const unsigned long flags)
 			ifp->flags = flags;
 	}
 }
+#endif
 
 /* MII Transceiver Registers poller functions */
 static int
@@ -297,7 +303,10 @@ free_if(void *data)
 void
 dump_if(void *data)
 {
-	interface_t *ifp = data, *ifp_u;
+	interface_t *ifp = data;
+#ifdef _HAVE_VRRP_VMAC_
+	interface_t *ifp_u;
+#endif
 	char addr_str[INET6_ADDRSTRLEN];
 
 	log_message(LOG_INFO, "------< NIC >------");
@@ -336,8 +345,10 @@ dump_if(void *data)
 		break;
 	}
 
+#ifdef _HAVE_VRRP_VMAC_
 	if (ifp->vmac && (ifp_u = if_get_by_ifindex(ifp->base_ifindex)))
 		log_message(LOG_INFO, " VMAC underlying interface = %s", ifp_u->ifname);
+#endif
 
 	/* MII channel supported ? */
 	if (IF_MII_SUPPORTED(ifp))

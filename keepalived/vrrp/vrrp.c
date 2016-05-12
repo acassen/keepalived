@@ -37,7 +37,9 @@
 #include "vrrp_data.h"
 #include "vrrp_sync.h"
 #include "vrrp_index.h"
+#ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
+#endif
 #include "vrrp_if_config.h"
 #ifdef _HAVE_LIBIPTC_
 #include "vrrp_iptables.h"
@@ -216,7 +218,11 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	 */
 	vrrp->ipsecah_counter->seq_number++;
 	if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter->seq_number ||
-	    vrrp->sync || __test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
+	    vrrp->sync
+#ifdef _HAVE_VRRP_VMAC_
+	    || __test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
+#endif
+							) {
 		vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number);
 	} else {
 		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
@@ -1095,7 +1101,11 @@ vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, int idx)
 	if (!IP_IS6(ipaddress))
 		send_gratuitous_arp(ipaddress);
 	else {
-		router = get_ipv6_forwarding((vrrp->ifp->vmac) ? if_get_by_ifindex(vrrp->ifp->base_ifindex) : vrrp->ifp);
+		router = get_ipv6_forwarding(
+#ifdef _HAVE_VRRP_VMAC_
+					     (vrrp->ifp->vmac) ? if_get_by_ifindex(vrrp->ifp->base_ifindex) :
+#endif
+					     vrrp->ifp);
 		ndisc_send_unsolicited_na(ipaddress, router);
 	}
 
@@ -1692,7 +1702,10 @@ new_vrrp_socket(vrrp_t * vrrp)
 	else
 #endif
 		proto = IPPROTO_VRRP;
-	ifindex = (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
+	ifindex =
+#ifdef _HAVE_VRRP_VMAC_
+		 (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
+#endif
 									    IF_INDEX(vrrp->ifp);
 	unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 	vrrp->fd_in = open_vrrp_socket(vrrp->family, proto, ifindex, unicast);
@@ -1735,9 +1748,11 @@ shutdown_vrrp_instances(void)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
+#ifdef _HAVE_VRRP_VMAC_
 		/* Remove VMAC */
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 			netlink_link_del_vmac(vrrp);
+#endif
 
 		/* Run stop script */
 		if (vrrp->script_stop)
@@ -1764,15 +1779,17 @@ shutdown_vrrp_instances(void)
 static int
 vrrp_complete_instance(vrrp_t * vrrp)
 {
+#ifdef _HAVE_VRRP_VMAC_
 	char ifname[IFNAMSIZ];
-	element e;
 	vrrp_t *vrrp_o;
+	interface_t *ifp;
+#endif
+	element e;
 	ip_address_t *vip;
 	int hdr_len;
 	int max_addr;
 	int i;
 	element next;
-	interface_t *ifp;
 	bool interface_already_existed = false;
 
 	if (vrrp->strict_mode == -1)
@@ -1921,6 +1938,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (vrrp->lower_prio_no_advert == -1)
 		vrrp->lower_prio_no_advert = vrrp->strict_mode ? true : global_data->vrrp_lower_prio_no_advert;
 
+#ifdef _HAVE_VRRP_VMAC_
 	/* Set a default interface name for the vmac if needed */
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
 		/* The same vrid can be used for both IPv4 and IPv6, and also on multiple underlying
@@ -1993,7 +2011,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			strncpy(vrrp->vmac_ifname, ifname, IFNAMSIZ);
 		}
 	}
-	else if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
+	else
+#endif
+	{
 		/* We are using a "physical" interface, so it may have configuration on it
 		 * left over from a previous run. */
 		interface_already_existed = true;
@@ -2001,22 +2021,30 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Make sure we have an IP address as needed */
 	if (vrrp->saddr.ss_family == AF_UNSPEC) {
-		int addr_missing = 0;
+		bool addr_missing = false;
 
 		/* Check the physical interface has a suitable address we can use.
 		 * We don't need an IPv6 address on the underlying interface if it is
 		 * a VMAC since we can create our own. */
-		interface_t *base_ifp = if_get_by_ifindex(vrrp->ifp->base_ifindex);
+		interface_t *base_ifp =
+#ifdef _HAVE_VRRP_VMAC_
+					if_get_by_ifindex(vrrp->ifp->base_ifindex);
+#else
+					vrrp->ifp;
+#endif
 		if (vrrp->family == AF_INET) {
 			if (!base_ifp->sin_addr.s_addr)
-				addr_missing = 1;
-		} else if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
-			if (!base_ifp->sin6_addr.s6_addr32[0])
-				addr_missing = 1;
+				addr_missing = true;
 		}
+#ifdef _HAVE_VRRP_VMAC_
+		else if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
+			if (!base_ifp->sin6_addr.s6_addr32[0])
+				addr_missing = true;
+		}
+#endif
 
 		if (addr_missing) {
-			log_message(LOG_INFO, "(%s): Cannot find an IP address to use for interface", vrrp->iname);
+			log_message(LOG_INFO, "(%s): Cannot find an IP address to use for interface %s", vrrp->iname, base_ifp->ifname);
 			return 0;
 		}
 
@@ -2029,6 +2057,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
+#ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
 	    !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
 		log_message(LOG_INFO, "(%s): vmac_xmit_base is only valid with a vmac", vrrp->iname);
@@ -2056,6 +2085,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		if (vrrp->saddr.ss_family == AF_INET6)
 			inet_ip6scopeid(vrrp->vmac_ifindex, &vrrp->saddr);
 	}
+#endif
 
 	/* Spin through all our addresses, setting ifindex and ifp.
 	   We also need to know what addresses we might block */
@@ -2156,9 +2186,11 @@ vrrp_complete_init(void)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 		l_o = &vrrp_data->vrrp_index[vrrp->vrid];
+#ifdef _HAVE_VRRP_VMAC_
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 			ifindex = vrrp->ifp->base_ifindex;
 		else
+#endif
 			ifindex = vrrp->ifp->ifindex;
 
 		/* Check if any other entries with same vrid conflict */
@@ -2168,9 +2200,11 @@ vrrp_complete_init(void)
 				vrrp_o = ELEMENT_DATA(e_o);
 				if (vrrp_o != vrrp &&
 				    vrrp_o->family == vrrp->family) {
+#ifdef _HAVE_VRRP_VMAC_
 					if (__test_bit(VRRP_VMAC_BIT, &vrrp_o->vmac_flags))
 						ifindex_o = vrrp_o->ifp->base_ifindex;
 					else
+#endif
 						ifindex_o = vrrp_o->ifp->ifindex;
 
 					if (ifindex == ifindex_o)
@@ -2439,9 +2473,11 @@ clear_diff_vrrp(void)
 		if (!new_vrrp) {
 			vrrp_restore_interface(vrrp, true, false);
 
+#ifdef _HAVE_VRRP_VMAC_
 			/* Remove VMAC if one was created */
 			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 				netlink_link_del_vmac(vrrp);
+#endif
 		} else {
 			/*
 			 * If this vrrp instance exist in new
@@ -2455,6 +2491,7 @@ clear_diff_vrrp(void)
 			/* virtual rules diff */
 			clear_diff_vrrp_vrules(vrrp, new_vrrp);
 
+#ifdef _HAVE_VRRP_VMAC_
 			/*
 			 * Remove VMAC if it existed in old vrrp instance,
 			 * but not the new one.
@@ -2463,6 +2500,7 @@ clear_diff_vrrp(void)
 			    !__test_bit(VRRP_VMAC_BIT, &new_vrrp->vmac_flags)) {
 				netlink_link_del_vmac(vrrp);
 			}
+#endif
 
 			/* reset the state */
 			reset_vrrp_state(vrrp, new_vrrp);
