@@ -23,7 +23,9 @@
 #include "vrrp_scheduler.h"
 #include "vrrp_ipsecah.h"
 #include "vrrp_if.h"
+#ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
+#endif
 #include "vrrp.h"
 #include "vrrp_sync.h"
 #include "vrrp_notify.h"
@@ -462,7 +464,10 @@ vrrp_create_sockpool(list l)
 
 	for (e = LIST_HEAD(p); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-		ifindex = (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
+		ifindex =
+#ifdef _HAVE_VRRP_VMAC_
+			  (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
+#endif
 										    IF_INDEX(vrrp->ifp);
 		unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 #if defined _WITH_VRRP_AUTH_
@@ -510,7 +515,10 @@ vrrp_set_fds(list l)
 		sock = ELEMENT_DATA(e_sock);
 		for (e_vrrp = LIST_HEAD(p); e_vrrp; ELEMENT_NEXT(e_vrrp)) {
 			vrrp = ELEMENT_DATA(e_vrrp);
-			ifindex = (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
+			ifindex =
+#ifdef _HAVE_VRRP_VMAC_
+				  (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
+#endif
 											    IF_INDEX(vrrp->ifp);
 			unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 #if defined _WITH_VRRP_AUTH_

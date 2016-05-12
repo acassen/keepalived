@@ -25,7 +25,9 @@
 #include "vrrp_index.h"
 #include "vrrp_sync.h"
 #include "vrrp_if.h"
+#ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
+#endif
 #include "vrrp.h"
 #include "memory.h"
 #include "utils.h"
@@ -323,11 +325,13 @@ dump_vrrp(void *data)
 		log_message(LOG_INFO, "   Generic state transition script = '%s'", vrrp->script);
 	if (vrrp->smtp_alert)
 		log_message(LOG_INFO, "   Using smtp notification");
+#ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 		log_message(LOG_INFO, "   Using VRRP VMAC (flags:%s|%s), vmac ifindex %d"
 				    , (__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags)) ? "UP" : "DOWN"
 				    , (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? "xmit_base" : "xmit"
 				    , vrrp->ifp->base_ifindex);
+#endif
 }
 
 void
