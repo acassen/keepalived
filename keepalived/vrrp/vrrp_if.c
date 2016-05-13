@@ -700,7 +700,9 @@ if_setsockopt_mcast_if(sa_family_t family, int *sd, interface_t *ifp)
 	ifindex = IF_INDEX(ifp);
 	if ( family == AF_INET)
 	{
-		struct ip_mreqn imr ;
+		struct ip_mreqn imr;
+
+		memset(&imr, 0, sizeof(imr));
 		imr.imr_ifindex = IF_INDEX(ifp);
 		ret = setsockopt(*sd, IPPROTO_IP, IP_MULTICAST_IF, &imr, sizeof(imr));
 	}
