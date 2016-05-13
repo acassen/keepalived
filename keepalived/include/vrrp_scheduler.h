@@ -38,8 +38,8 @@
 /* VRRP FSM Macro */
 #define VRRP_FSM_READ_TO(V)			\
 do {						\
-  if ((*(VRRP_FSM[(V)->state].read_to)))	\
-    (*(VRRP_FSM[(V)->state].read_to)) (V);	\
+  if ((*(VRRP_FSM[(V)->state].read_timeout)))	\
+    (*(VRRP_FSM[(V)->state].read_timeout)) (V);	\
 } while (0)
 
 #define VRRP_FSM_READ(V, B, L)			\
