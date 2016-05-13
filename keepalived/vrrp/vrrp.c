@@ -1657,14 +1657,19 @@ open_vrrp_socket(sa_family_t family, int proto, int idx,
 	if (family == AF_INET)
 		if_setsockopt_mcast_all(family, &fd);
 
-	/* Join the VRRP MCAST group */
 	if (!unicast) {
+		/* Join the VRRP multicast group */
 		if_join_vrrp_group(family, &fd, ifp, proto);
 	}
-	else if (family == AF_INET) {
-		/* Bind inbound stream */
-		if_setsockopt_bindtodevice(&fd, ifp);
-	}
+
+	/* Need to bind read socket so only process packets for interface we're
+	 * interested in.
+	 *
+	 * This is applicable for both unicast and multicast operation as well as
+	 * IPv4 and IPv6.
+	 */
+	if_setsockopt_bindtodevice(&fd, ifp);
+
 	if (fd < 0)
 		return -1;
 
