@@ -1636,7 +1636,7 @@ open_vrrp_send_socket(sa_family_t family, int proto, int idx, int unicast)
 
 /* open a VRRP socket and join the multicast group. */
 int
-open_vrrp_socket(sa_family_t family, int proto, int idx,
+open_vrrp_read_socket(sa_family_t family, int proto, int idx,
 		 int unicast)
 {
 	interface_t *ifp;
@@ -1708,7 +1708,7 @@ new_vrrp_socket(vrrp_t * vrrp)
 #endif
 									    IF_INDEX(vrrp->ifp);
 	unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
-	vrrp->fd_in = open_vrrp_socket(vrrp->family, proto, ifindex, unicast);
+	vrrp->fd_in = open_vrrp_read_socket(vrrp->family, proto, ifindex, unicast);
 	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifindex, unicast);
 	alloc_vrrp_fd_bucket(vrrp);
 
