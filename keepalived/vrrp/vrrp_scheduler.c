@@ -85,7 +85,7 @@ static int vrrp_script_thread(thread_t * thread);
 
 struct {
 	void (*read) (vrrp_t *, char *, int);
-	void (*read_to) (vrrp_t *);
+	void (*read_timeout) (vrrp_t *);
 } VRRP_FSM[VRRP_MAX_FSM_STATE + 1] =
 {
 /*    Stream Read Handlers      |    Stream Read_to handlers   *
@@ -900,7 +900,7 @@ vrrp_fault(vrrp_t * vrrp)
 
 /* Handle dispatcher read timeout */
 static int
-vrrp_dispatcher_read_to(int fd)
+vrrp_dispatcher_read_timeout(int fd)
 {
 	vrrp_t *vrrp;
 	int vrid = 0;
@@ -1002,7 +1002,7 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 
 	/* Dispatcher state handler */
 	if (thread->type == THREAD_READ_TIMEOUT || sock->fd_in == -1)
-		fd = vrrp_dispatcher_read_to(sock->fd_in);
+		fd = vrrp_dispatcher_read_timeout(sock->fd_in);
 	else
 		fd = vrrp_dispatcher_read(sock);
 
