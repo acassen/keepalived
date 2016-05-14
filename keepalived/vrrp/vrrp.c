@@ -479,9 +479,9 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 #endif
 
 	if ((LIST_ISEMPTY(vrrp->vip) && hd->naddr > 0) ||
-	    (LIST_SIZE(vrrp->vip) != hd->naddr)) {
+	    (!LIST_ISEMPTY(vrrp->vip) && LIST_SIZE(vrrp->vip) != hd->naddr)) {
 		log_message(LOG_INFO, "(%s): received an invalid ip number count %d, expected %d!",
-			vrrp->iname, LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip), hd->naddr);
+			vrrp->iname, hd->naddr, LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip));
 		++vrrp->stats->addr_list_err;
 		return VRRP_PACKET_KO;
 	}
