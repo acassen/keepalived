@@ -29,8 +29,6 @@
 
 /* local include */
 #include "vrrp_ipaddress.h"
-#include "vrrp_iproute.h"
-#include "vrrp_iprule.h"
 #include "vrrp_ipsecah.h"
 #include "vrrp_if.h"
 #include "vrrp_track.h"

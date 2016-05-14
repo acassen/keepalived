@@ -25,8 +25,10 @@
 #include "vrrp.h"
 #include "vrrp_data.h"
 #include "vrrp_print.h"
+#ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
+#endif
 #include "vrrp_netlink.h"
 
 #include <time.h>
@@ -125,6 +127,7 @@ address_print(FILE *file, void *data)
 		, ipaddr->label ? ipaddr->label : "");
 }
 
+#ifdef _HAVE_FIB_ROUTING_
 static void
 route_print(FILE *file, void *data)
 {
@@ -170,6 +173,7 @@ rule_print(FILE *file, void *data)
 
 	fprintf(file, "\n");
 }
+#endif
 
 static void
 if_print(FILE *file, void * data)
@@ -324,6 +328,7 @@ vrrp_print(FILE *file, void *data)
 			LIST_SIZE(vrrp->evip));
 		vrrp_print_list(file, vrrp->evip, &address_print);
 	}
+#ifdef _HAVE_FIB_ROUTING_
 	if (!LIST_ISEMPTY(vrrp->vroutes)) {
 		fprintf(file, "   Virtual Routes = %d\n", LIST_SIZE(vrrp->vroutes));
 		vrrp_print_list(file, vrrp->vroutes, &route_print);
@@ -332,6 +337,7 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   Virtual Rules = %d\n", LIST_SIZE(vrrp->vrules));
 		vrrp_print_list(file, vrrp->vrules, &rule_print);
 	}
+#endif
 	if (vrrp->script_backup)
 		fprintf(file, "   Backup state transition script = %s\n",
 		       vrrp->script_backup);

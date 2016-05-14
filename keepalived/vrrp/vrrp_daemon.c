@@ -28,8 +28,10 @@
 #include "vrrp_netlink.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_iptables.h"
-#include "vrrp_iproute.h"
+#ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iprule.h"
+#include "vrrp_iproute.h"
+#endif
 #include "vrrp_parser.h"
 #include "vrrp_data.h"
 #include "vrrp.h"
@@ -76,8 +78,10 @@ stop_vrrp(void)
 #endif
 
 	/* Clear static entries */
+#ifdef _HAVE_FIB_ROUTING_
 	netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL, false);
 	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
+#endif
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL);
 
 #ifdef _WITH_SNMP_
@@ -195,18 +199,22 @@ start_vrrp(void)
 
 	if (reload) {
 		clear_diff_saddresses();
+#ifdef _HAVE_FIB_ROUTING_
 		clear_diff_srules();
 		clear_diff_sroutes();
+#endif
 		clear_diff_vrrp();
 		clear_diff_script();
 	}
 	else {
 		/* Clear leftover static entries */
 		netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL);
+#ifdef _HAVE_FIB_ROUTING_
 		netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
 		netlink_error_ignore = ENOENT;
 		netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL, true);
 		netlink_error_ignore = 0;
+#endif
 	}
 
 	/* Complete VRRP initialization */
@@ -229,8 +237,10 @@ start_vrrp(void)
 	/* Set static entries */
 	if (!reload) {
 		netlink_iplist(vrrp_data->static_addresses, IPADDRESS_ADD);
+#ifdef _HAVE_FIB_ROUTING_
 		netlink_rtlist(vrrp_data->static_routes, IPROUTE_ADD);
 		netlink_rulelist(vrrp_data->static_rules, IPRULE_ADD, false);
+#endif
 	}
 
 	/* Dump configuration */

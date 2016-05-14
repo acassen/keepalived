@@ -33,6 +33,10 @@
 #include "utils.h"
 #include "logger.h"
 #include "bitops.h"
+#ifdef _HAVE_FIB_ROUTING_
+#include "vrrp_iprule.h"
+#include "vrrp_iproute.h"
+#endif
 
 /* global vars */
 vrrp_data_t *vrrp_data = NULL;
@@ -49,6 +53,7 @@ alloc_saddress(vector_t *strvec)
 	alloc_ipaddress(vrrp_data->static_addresses, strvec, NULL);
 }
 
+#ifdef _HAVE_FIB_ROUTING_
 /* Static routes facility function */
 void
 alloc_sroute(vector_t *strvec)
@@ -66,6 +71,7 @@ alloc_srule(vector_t *strvec)
 		vrrp_data->static_rules = alloc_list(free_iprule, dump_iprule);
 	alloc_rule(vrrp_data->static_rules, strvec);
 }
+#endif
 
 /* VRRP facility functions */
 static void
@@ -486,6 +492,7 @@ alloc_vrrp_evip(vector_t *strvec)
 	alloc_ipaddress(vrrp->evip, strvec, vrrp->ifp);
 }
 
+#ifdef _HAVE_FIB_ROUTING_
 void
 alloc_vrrp_vroute(vector_t *strvec)
 {
@@ -505,6 +512,7 @@ alloc_vrrp_vrule(vector_t *strvec)
 		vrrp->vrules = alloc_list(free_iprule, dump_iprule);
 	alloc_rule(vrrp->vrules, strvec);
 }
+#endif
 
 void
 alloc_vrrp_script(char *sname)
