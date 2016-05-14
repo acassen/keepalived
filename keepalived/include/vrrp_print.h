@@ -22,15 +22,6 @@
  */
 
 #include <stdio.h>
-#include "vrrp.h"
 
-extern void vrrp_print_list (FILE *f, list l, void (*fptr)(FILE*, void*));
 extern void vrrp_print_data(void);
 extern void vrrp_print_stats(void);
-extern void vrrp_print(FILE *file, void *d);
-extern void vgroup_print(FILE *file, void *d);
-extern void vscript_print(FILE *file, void *d);
-extern void address_print(FILE *file, void *d);
-extern void route_print(FILE *file, void *d);
-extern void rule_print(FILE *file, void *d);
-extern void if_print(FILE *file, void *d);
