@@ -135,6 +135,25 @@ fi
 
 AC_SUBST(IF_H_LINK_H_COLLISION)
 
+dnl ----[Check if have linux/if.h and net/if.h namespace collision]----
+# Linux 4.5 caused <libiptc/libiptc.h> to indirectly include <net/if.h> and <linux/if.h>
+# which causes a namespace collision
+LINUX_NET_IF_H_COLLISION="_WITHOUT_LINUX_NET_IF_H_COLLISION_"
+AC_MSG_CHECKING([for libiptc/libiptc.h linux/if.h and net/if.h namespace collision])
+AC_TRY_COMPILE([
+    #include <libiptc/libiptc.h>
+  ], [
+  ], [], [
+    LINUX_NET_IF_H_COLLISION=_HAVE_LINUX_NET_IF_H_COLLISION_
+  ]);
+if test "$LINUX_NET_IF_H_COLLISION" = "_HAVE_LINUX_NET_IF_H_COLLISION_"; then
+  AC_MSG_RESULT([yes])
+else
+  AC_MSG_RESULT([no])
+fi
+
+AC_SUBST(LINUX_NET_IF_H_COLLISION)
+
 dnl ----[Check have IPV4_DEVCONF defines]----
 IPV4_DEVCONF="_WITHOUT_IPV4_DEVCONF_"
 if test "${USE_NL3}" = "_HAVE_LIBNL3_"; then
@@ -505,7 +524,7 @@ AC_SUBST(IPVS_SUPPORT)
 AC_SUBST(USE_NL)
 AC_SUBST(VRRP_SUPPORT)
 
-APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} ${DFLAGS}"
+APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} ${DFLAGS}"
 BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
 AC_SUBST(APP_DEFS)
 AC_SUBST(BUILD_OPTS)

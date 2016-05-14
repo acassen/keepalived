@@ -647,6 +647,7 @@ KERN
 USE_LIBIPSET
 USE_LIBIPTC
 IPV4_DEVCONF
+LINUX_NET_IF_H_COLLISION
 IF_H_LINK_H_COLLISION
 USE_NL3
 EGREP
@@ -4224,6 +4225,43 @@ fi
 
 
 
+# Linux 4.5 caused <libiptc/libiptc.h> to indirectly include <net/if.h> and <linux/if.h>
+# which causes a namespace collision
+LINUX_NET_IF_H_COLLISION="_WITHOUT_LINUX_NET_IF_H_COLLISION_"
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for libiptc/libiptc.h linux/if.h and net/if.h namespace collision" >&5
+$as_echo_n "checking for libiptc/libiptc.h linux/if.h and net/if.h namespace collision... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <libiptc/libiptc.h>
+
+int
+main ()
+{
+
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+else
+
+    LINUX_NET_IF_H_COLLISION=_HAVE_LINUX_NET_IF_H_COLLISION_
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext;
+if test "$LINUX_NET_IF_H_COLLISION" = "_HAVE_LINUX_NET_IF_H_COLLISION_"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+
 IPV4_DEVCONF="_WITHOUT_IPV4_DEVCONF_"
 if test "${USE_NL3}" = "_HAVE_LIBNL3_"; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for IPV4_DEVCONF defines" >&5
@@ -4954,7 +4992,7 @@ fi
 
 
 
-APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} ${DFLAGS}"
+APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} ${DFLAGS}"
 BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
 
 
