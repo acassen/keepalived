@@ -29,6 +29,10 @@
 #include "smtp.h"
 #include "utils.h"
 #include "parser.h"
+#ifndef _HAVE_SOCK_CLOEXEC_
+#include "old_socket.h"
+#include "string.h"
+#endif
 
 static int tcp_connect_thread(thread_t *);
 
@@ -204,6 +208,11 @@ tcp_connect_thread(thread_t * thread)
 
 		return 0;
 	}
+
+#ifndef _HAVE_SOCK_CLOEXEC_
+	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
+		log_message(LOG_INFO, "Unable to set CLOEXEC on tcp_connect socket - %s (%d)", strerror(errno), errno);
+#endif
 
 	status = tcp_bind_connect(fd, co);
 

@@ -29,6 +29,9 @@
 #include "memory.h"
 #include "utils.h"
 #include "vrrp_arp.h"
+#ifndef _HAVE_SOCK_CLOEXEC_
+#include "old_socket.h"
+#endif
 
 /* static vars */
 static char *garp_buffer;
@@ -102,8 +105,15 @@ void gratuitous_arp_init(void)
 
 	if (garp_fd > 0)
 		log_message(LOG_INFO, "Registering gratuitous ARP shared channel");
-	else
+	else {
 		log_message(LOG_INFO, "Error while registering gratuitous ARP shared channel");
+		return;
+	}
+
+#ifndef _HAVE_SOCK_CLOEXEC_
+	if (set_sock_flags(garp_fd, F_SETFD, FD_CLOEXEC))
+		log_message(LOG_INFO, "Unable to set CLOEXEC on gratuitous ARP socket");
+#endif
 }
 void gratuitous_arp_close(void)
 {

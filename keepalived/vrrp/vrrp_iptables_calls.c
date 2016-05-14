@@ -44,6 +44,9 @@
 #include "vrrp_iptables_calls.h"
 #include "memory.h"
 #include "logger.h"
+#ifndef _HAVE_SOCK_CLOEXEC_
+#include "old_socket.h"
+#endif
 
 /* We sometimes get a resource_busy on iptc_commit. This appears to happen
  * when someone else is also updating it.
@@ -340,17 +343,19 @@ int load_mod_xt_set(void)
 static int
 get_version(unsigned int* version)
 {
-	int res, sockfd = socket(AF_INET, SOCK_RAW, IPPROTO_RAW);
+	int res, sockfd = socket(AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW);
 	struct ip_set_req_version req_version;
 	socklen_t size = sizeof(req_version);
 
 	if (sockfd < 0)
 		log_message(LOG_INFO, "Can't open socket to ipset.");
 
+#ifndef _HAVE_SOCK_CLOEXEC_
 	if (fcntl(sockfd, F_SETFD, FD_CLOEXEC) == -1) {
 		log_message(LOG_INFO, "Could not set close on exec: %s",
 			      strerror(errno));
 	}
+#endif
 
 	req_version.op = IP_SET_OP_VERSION;
 	res = getsockopt(sockfd, SOL_IP, SO_IP_SET, &req_version, &size);

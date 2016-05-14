@@ -22,6 +22,9 @@
 
 #include "libipvs.h"
 #include "memory.h"
+#ifndef _HAVE_SOCK_CLOEXEC_
+#include "old_socket.h"
+#endif
 
 #define SET_CMD(cmd)	(cmd - IP_VS_BASE_CTL)
 #define GET_CMD(cmd)	(cmd - IP_VS_BASE_CTL + 128)
@@ -38,6 +41,11 @@ int ipvs_init(void)
 	len = sizeof(ipvs_info);
 	if ((sockfd = socket(AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW)) == -1)
 		return -1;
+
+#ifndef _HAVE_SOCK_CLOEXEC_
+	if (set_sock_flags(sockfd, F_SETFD, FD_CLOEXEC))
+		log_message(LOG_INFO, "Unable to set CLOEXEC on ipvs socket - %s (%d)", strerror(errno), errno);
+#endif
 
 	ipvs_cmd = GET_CMD(IP_VS_SO_GET_INFO);
 	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,

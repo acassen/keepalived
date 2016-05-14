@@ -31,6 +31,9 @@
 #include "utils.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_ndisc.h"
+#ifndef _HAVE_SOCK_CLOEXEC_
+#include "old_socket.h"
+#endif
 
 /* static vars */
 static char *ndisc_buffer;
@@ -189,6 +192,9 @@ ndisc_init(void)
 
 	/* Create the socket descriptor */
 	ndisc_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC, htons(ETH_P_IPV6));
+#ifndef _HAVE_SOCK_CLOEXEC_
+	set_sock_flags(ndisc_fd, F_SETFD, FD_CLOEXEC);
+#endif
 }
 
 void

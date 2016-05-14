@@ -642,6 +642,8 @@ SNMP_SUPPORT
 NETSNMP_CONFIG
 ADDR_GEN_MODE
 VRRP_VMAC
+SOCK_CLOEXEC_SUPPORT
+SOCK_NONBLOCK_SUPPORT
 IPVS_SYNCD
 KERN
 USE_LIBIPSET
@@ -4572,6 +4574,82 @@ if test "$enable_vrrp" != "no"; then
   VRRP_SUPPORT="_WITH_VRRP_"
 fi
 
+# Introduced in Linux 2.6.23
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for SOCK_NONBLOCK support" >&5
+$as_echo_n "checking for SOCK_NONBLOCK support... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <sys/socket.h>
+    int flags;
+
+int
+main ()
+{
+
+    flags = SOCK_NONBLOCK;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+    SOCK_NONBLOCK_SUPPORT=yes
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext;
+
+  if test "$SOCK_NONBLOCK_SUPPORT" = "yes"; then
+    SOCK_NONBLOCK_SUPPORT="_HAVE_SOCK_NONBLOCK_"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  else
+    SOCK_NONBLOCK_SUPPORT="_WITHOUT_SOCK_NONBLOCK_"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+  fi
+
+
+
+# Introduced in Linux 2.6.23
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for SOCK_CLOEXEC support" >&5
+$as_echo_n "checking for SOCK_CLOEXEC support... " >&6; }
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <sys/socket.h>
+    int flags;
+
+int
+main ()
+{
+
+    flags = SOCK_CLOEXEC;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+    SOCK_CLOEXEC_SUPPORT=yes
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext;
+
+  if test "$SOCK_CLOEXEC_SUPPORT" = "yes"; then
+    SOCK_CLOEXEC_SUPPORT="_HAVE_SOCK_CLOEXEC_"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+  else
+    SOCK_CLOEXEC_SUPPORT="_WITHOUT_SOCK_CLOEXEC_"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+  fi
+
+
+
 CPPFLAGS="$CPPFLAGS -I$kernelinc"
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for kernel macvlan support" >&5
 $as_echo_n "checking for kernel macvlan support... " >&6; }
@@ -4992,7 +5070,7 @@ fi
 
 
 
-APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} ${DFLAGS}"
+APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} ${DFLAGS}"
 BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
 
 

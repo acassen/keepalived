@@ -31,6 +31,10 @@
 #include "utils.h"
 #include "parser.h"
 #include "daemon.h"
+#ifndef _HAVE_SOCK_CLOEXEC_
+#include "old_socket.h"
+#include "string.h"
+#endif
 
 static int smtp_connect_thread(thread_t *);
 static int smtp_final(thread_t *thread, int error, const char *format, ...)
@@ -767,6 +771,10 @@ smtp_connect_thread(thread_t *thread)
 				 checker->vs->delay_loop);
 		return 0;
 	}
+#ifndef _HAVE_SOCK_CLOEXEC_
+	if (set_sock_flags(sd, F_SETFD, FD_CLOEXEC))
+		log_message(LOG_INFO, "Unable to set CLOEXEC on smtp socket - %s (%d)", strerror(errno), errno);
+#endif
 
 	status = tcp_bind_connect(sd, smtp_host);
 

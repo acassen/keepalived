@@ -334,6 +334,50 @@ if test "$enable_vrrp" != "no"; then
   VRRP_SUPPORT="_WITH_VRRP_"
 fi
 
+dnl ----[ Checks for glibc SOCK_NONBLOCK support ]----
+# Introduced in Linux 2.6.23
+AC_MSG_CHECKING([for SOCK_NONBLOCK support])
+AC_TRY_COMPILE([
+    #include <sys/socket.h>
+    int flags;
+  ], [
+    flags = SOCK_NONBLOCK;
+  ], [
+    SOCK_NONBLOCK_SUPPORT=yes
+  ], []);
+
+  if test "$SOCK_NONBLOCK_SUPPORT" = "yes"; then
+    SOCK_NONBLOCK_SUPPORT="_HAVE_SOCK_NONBLOCK_"
+    AC_MSG_RESULT([yes])
+  else
+    SOCK_NONBLOCK_SUPPORT="_WITHOUT_SOCK_NONBLOCK_"
+    AC_MSG_RESULT([no])
+  fi
+
+AC_SUBST(SOCK_NONBLOCK_SUPPORT)
+
+dnl ----[ Checks for glibc SOCK_CLOEXEC support ]----
+# Introduced in Linux 2.6.23
+AC_MSG_CHECKING([for SOCK_CLOEXEC support])
+AC_TRY_COMPILE([
+    #include <sys/socket.h>
+    int flags;
+  ], [
+    flags = SOCK_CLOEXEC;
+  ], [
+    SOCK_CLOEXEC_SUPPORT=yes
+  ], []);
+
+  if test "$SOCK_CLOEXEC_SUPPORT" = "yes"; then
+    SOCK_CLOEXEC_SUPPORT="_HAVE_SOCK_CLOEXEC_"
+    AC_MSG_RESULT([yes])
+  else
+    SOCK_CLOEXEC_SUPPORT="_WITHOUT_SOCK_CLOEXEC_"
+    AC_MSG_RESULT([no])
+  fi
+
+AC_SUBST(SOCK_CLOEXEC_SUPPORT)
+
 dnl ----[ Checks for kernel VMAC support ]----
 CPPFLAGS="$CPPFLAGS -I$kernelinc"
 AC_MSG_CHECKING([for kernel macvlan support])
@@ -524,7 +568,7 @@ AC_SUBST(IPVS_SUPPORT)
 AC_SUBST(USE_NL)
 AC_SUBST(VRRP_SUPPORT)
 
-APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} ${DFLAGS}"
+APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} ${DFLAGS}"
 BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
 AC_SUBST(APP_DEFS)
 AC_SUBST(BUILD_OPTS)

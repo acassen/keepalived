@@ -54,6 +54,9 @@
 #include "utils.h"
 #include "notify.h"
 #include "bitops.h"
+#ifndef _HAVE_SOCK_CLOEXEC_
+#include "old_socket.h"
+#endif
 
 #include <net/ethernet.h>
 #include <netinet/ip6.h>
@@ -1608,6 +1611,9 @@ open_vrrp_send_socket(sa_family_t family, int proto, int idx, int unicast)
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", errno);
 		return -1;
 	}
+#ifndef _HAVE_SOCK_CLOEXEC_
+	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
+#endif
 
 	if (family == AF_INET) {
 		/* Set v4 related */
@@ -1652,6 +1658,9 @@ open_vrrp_read_socket(sa_family_t family, int proto, int idx,
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", err);
 		return -1;
 	}
+#ifndef _HAVE_SOCK_CLOEXEC_
+	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
+#endif
 
 	/* Ensure no unwanted multicast packets are queued to this interface */
 	if (family == AF_INET)
