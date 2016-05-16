@@ -416,8 +416,12 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 		char buf[4096];
 		struct iovec iov = { buf, sizeof buf };
 		struct sockaddr_nl snl;
-		struct msghdr msg =
-		    { (void *) &snl, sizeof snl, &iov, 1, NULL, 0, 0 };
+		struct msghdr msg = {
+			.msg_name = &snl,
+			.msg_namelen = sizeof(snl),
+			.msg_iov = &iov,
+			.msg_iovlen = 1,
+		};
 		struct nlmsghdr *h;
 
 		status = recvmsg(nl->fd, &msg, 0);
@@ -538,7 +542,12 @@ netlink_talk(nl_handle_t *nl, struct nlmsghdr *n)
 	int ret, flags;
 	struct sockaddr_nl snl;
 	struct iovec iov = { (void *) n, n->nlmsg_len };
-	struct msghdr msg = { (void *) &snl, sizeof snl, &iov, 1, NULL, 0, 0 };
+	struct msghdr msg = {
+		.msg_name = &snl,
+		.msg_namelen = sizeof(snl),
+		.msg_iov = &iov,
+		.msg_iovlen = 1,
+	};
 
 	memset(&snl, 0, sizeof snl);
 	snl.nl_family = AF_NETLINK;
