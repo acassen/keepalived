@@ -26,6 +26,8 @@
 #include <unistd.h>
 #include <libgen.h>
 #include <errno.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include "parser.h"
 #include "memory.h"
 #include "logger.h"
@@ -136,6 +138,8 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 	if (!level) {
 		sprintf(file_name, "/tmp/keywords.%d", getpid());
 		fp = fopen(file_name, "w");
+		if (!fp)
+			return;
 	}
 
 	for (i = 0; i < vector_size(keydump); i++) {
@@ -231,19 +235,35 @@ void read_conf_file(const char *conf_file)
 	char *path;
 	int ret;
 	glob_t globbuf;
+	int	res;
+	struct stat stb;
 
 	globbuf.gl_offs = 0;
-	glob(conf_file, 0, NULL, &globbuf);
+	res = glob(conf_file, 0, NULL, &globbuf);
+
+	if (res) {
+		log_message(LOG_INFO, "Unable to find config file(s) '%s'.", conf_file);
+		return;
+	}
 
 	int i;
 	for(i = 0; i < globbuf.gl_pathc; i++){
 		log_message(LOG_INFO, "Opening file '%s'.", globbuf.gl_pathv[i]);
 		stream = fopen(globbuf.gl_pathv[i], "r");
 		if (!stream) {
-			log_message(LOG_INFO, "Configuration file '%s' open problem (%s)..."
+			log_message(LOG_INFO, "Configuration file '%s' open problem (%s) - skipping"
 				       , globbuf.gl_pathv[i], strerror(errno));
-			return;
+			continue;
 		}
+
+		/* Make sure what we have opened is a regular file, and not for example a directory */
+		if (fstat(fileno(stream), &stb) ||
+		    !S_ISREG(stb.st_mode)) {
+			log_message(LOG_INFO, "Configuration file '%s' is not a regular file - skipping", globbuf.gl_pathv[i]);
+			fclose(stream);
+			continue;
+		}
+
 		current_stream = stream;
 		current_conf_file = globbuf.gl_pathv[i];
 
@@ -280,9 +300,15 @@ bool check_conf_file(const char *conf_file)
 	glob_t globbuf;
 	int i;
 	bool ret = true;
+	int res;
+	struct stat stb;
 
 	globbuf.gl_offs = 0;
-	glob(conf_file, 0, NULL, &globbuf);
+	res = glob(conf_file, 0, NULL, &globbuf);
+	if (res) {
+		log_message(LOG_INFO, "Unable to find configuration file %s (glob returned %d)", conf_file, res);
+		return false;
+	}
 
 	if (globbuf.gl_pathc == 0) {
 		log_message(LOG_INFO, "Unable to find configuration file %s", conf_file);
@@ -291,6 +317,14 @@ bool check_conf_file(const char *conf_file)
 		for (i = 0; i < globbuf.gl_pathc; i++) {
 			if (access(globbuf.gl_pathv[i], R_OK)) {
 				log_message(LOG_INFO, "Unable to read configuration file %s", globbuf.gl_pathv[i]);
+				ret = false;
+				break;
+			}
+
+			/* Make sure that the file is a regular file, and not for example a directory */
+			if (stat(globbuf.gl_pathv[i], &stb) ||
+			    !S_ISREG(stb.st_mode)) {
+				log_message(LOG_INFO, "Configuration file '%s' is not a regular file", globbuf.gl_pathv[i]);
 				ret = false;
 				break;
 			}
@@ -609,7 +643,7 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 
 	/* Stream handling */
 	current_keywords = keywords;
-	read_conf_file((conf_file) ? conf_file : CONF);
+	read_conf_file(conf_file);
 	free_keywords(keywords);
 	clear_rttables();
 }
