@@ -28,7 +28,7 @@
 enum connect_result
 tcp_bind_connect(int fd, conn_opts_t *co)
 {
-	struct linger li = { 0 };
+	struct linger li;
 	socklen_t addrlen;
 	int ret;
 	int val;
