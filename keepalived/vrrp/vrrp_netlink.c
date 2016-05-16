@@ -421,6 +421,9 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			.msg_namelen = sizeof(snl),
 			.msg_iov = &iov,
 			.msg_iovlen = 1,
+			.msg_control = NULL,
+			.msg_controllen = 0,
+			.msg_flags = 0
 		};
 		struct nlmsghdr *h;
 
@@ -547,6 +550,9 @@ netlink_talk(nl_handle_t *nl, struct nlmsghdr *n)
 		.msg_namelen = sizeof(snl),
 		.msg_iov = &iov,
 		.msg_iovlen = 1,
+		.msg_control = NULL,
+		.msg_controllen = 0,
+		.msg_flags = 0
 	};
 
 	memset(&snl, 0, sizeof snl);
