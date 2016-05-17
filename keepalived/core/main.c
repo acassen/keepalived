@@ -108,7 +108,10 @@ sigend(void *v, int sig)
 	int ret;
 	int wait_count = 0;
 	sigset_t old_set, child_wait;
-	struct timespec timeout = { CHILD_WAIT_SECS, 0 };
+	struct timespec timeout = {
+		.tv_sec = CHILD_WAIT_SECS,
+		.tv_nsec = 0
+	};
 	struct timeval start_time, now;
 
 	/* register the terminate thread */

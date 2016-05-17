@@ -65,7 +65,10 @@ signal_pending(void)
 {
 	fd_set readset;
 	int rc;
-	struct timeval timeout = { 0, 0 };
+	struct timeval timeout = {
+		.tv_sec = 0,
+		.tv_usec = 0
+	};
 
 	FD_ZERO(&readset);
 	FD_SET(signal_pipe[0], &readset);

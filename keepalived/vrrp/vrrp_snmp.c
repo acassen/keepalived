@@ -1002,7 +1002,7 @@ vrrp_snmp_instance_priority(int action,
 		   thread. Otherwise, we should set it equal to the
 		   base priority. */
 		if (vrrp->sync)
-			vrrp->effective_priority = vrrp->base_priority;
+			vrrp_set_effective_priority(vrrp, vrrp->base_priority);
 //TODO - could affect accept
 		break;
 	}

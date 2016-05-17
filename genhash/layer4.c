@@ -35,7 +35,7 @@
 enum connect_result
 tcp_connect(int fd, REQ * req_obj)
 {
-	struct linger li = { 0 };
+	struct linger li;
 	int long_inet;
 	struct sockaddr_in adr_serv;
 	struct sockaddr_in6 adr_serv6;
@@ -45,8 +45,7 @@ tcp_connect(int fd, REQ * req_obj)
 	/* free the tcp port after closing the socket descriptor */
 	li.l_onoff = 1;
 	li.l_linger = 0;
-	setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *) &li,
-		   sizeof (struct linger));
+	setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *) &li, sizeof (struct linger));
 
 #ifdef _WITH_SO_MARK_
 	if (req->mark) {
