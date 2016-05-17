@@ -25,33 +25,27 @@
 #include "html.h"
 #include "memory.h"
 
+#ifdef _INCLUDE_UNUSED_CODE_
+
+/* HTTP header tag */
+#define CONTENT_LENGTH	"Content-Length:"
+
 /* Return the http header content length */
 int extract_content_length(char *buffer, int size)
 {
 	char *clen = strstr(buffer, CONTENT_LENGTH);
-	char *content_buffer = NULL;
-	char *buf_len;
-	int inc = 0;
-	int i;
 
 	/* Pattern not found */
 	if (!clen)
 		return 0;
 
-	/* Allocate the room */
-	buf_len = (char *)MALLOC(40);
-
 	/* Content-Length extraction */
-	while (*(clen++) != ':');
-	content_buffer = clen;
-	while (*(clen++) != '\r' && *clen != '\n')
-		inc++;
-	for (i = 0; i < inc; i++)
-		strncat(buf_len, content_buffer+i, 1);
-	i = atoi(buf_len);
-	FREE(buf_len);
-	return i;
+	if (!(clen = strchr(clen, ':')))
+		return 0;
+
+	return atoi(clen+1);
 }
+#endif
 
 /*
  * Return the http header error code. According
