@@ -87,6 +87,7 @@
 #include "global_data.h"
 #include "bitops.h"
 #include "main.h"
+#include "vrrp_scheduler.h"
 
 #include "snmp.h"
 
