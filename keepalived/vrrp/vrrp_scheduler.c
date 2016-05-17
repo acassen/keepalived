@@ -768,7 +768,7 @@ vrrp_lower_prio_gratuitous_arp_thread(thread_t * thread)
 }
 
 /* Set effective priorty, issue message on changes */
-static void
+void
 vrrp_set_effective_priority(vrrp_t *vrrp, int new_prio)
 {
 	if (vrrp->effective_priority == new_prio)
