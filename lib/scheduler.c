@@ -473,6 +473,7 @@ thread_cancel(thread_t * thread)
 	return 0;
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 /* Delete all events which has argument value arg. */
 void
 thread_cancel_event(thread_master_t * m, void *arg)
@@ -493,6 +494,7 @@ thread_cancel_event(thread_master_t * m, void *arg)
 		}
 	}
 }
+#endif
 
 /* Update timer value */
 static void
