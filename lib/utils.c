@@ -122,6 +122,7 @@ inet_ntop2(uint32_t ip)
 	return buf;
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 /*
  * IP network to ascii representation. To use
  * for multiple IP address convertion into the same call.
@@ -143,14 +144,11 @@ inet_stom(const char *addr)
 	uint8_t mask = 32;
 	const char *cp = addr;
 
-	if (!strstr(addr, "/"))
+	if (!(cp = strchr(addr, '/')))
 		return mask;
-	while (*cp != '/' && *cp != '\0')
-		cp++;
-	if (*cp == '/')
-		return atoi(++cp);
-	return mask;
+	return atoi(cp+1);
 }
+#endif
 
 /* IP string to network range representation. */
 uint8_t
@@ -441,6 +439,7 @@ inet_ston(const char *addr, uint32_t * dst)
 	return 1;
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 /*
  * Return broadcast address from network and netmask.
  */
@@ -463,6 +462,7 @@ inet_cidrtomask(uint8_t cidr)
 		mask |= (1 << (31 - b));
 	return ntohl(mask);
 }
+#endif
 
 /* Getting localhost official canonical name */
 char *
