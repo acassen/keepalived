@@ -174,6 +174,7 @@ alloc_mlist(void (*free_func) (void *), void (*dump_func) (void *), int size)
 	return new;
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 void
 dump_mlist(list l, int size)
 {
@@ -186,6 +187,7 @@ dump_mlist(list l, int size)
 				(*l->dump) (e->data);
 	}
 }
+#endif
 
 static void
 free_melement(list l, void (*free_func) (void *))
