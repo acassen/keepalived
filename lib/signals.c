@@ -58,8 +58,8 @@ static int signal_pipe[2] = { -1, -1 };
 static sigset_t ign_sig;
 static sigset_t dfl_sig;
 
+#ifdef _INCLUDE_UNUSED_CODE_
 /* Local signal test */
-/* Currently unused
 int
 signal_pending(void)
 {
@@ -77,7 +77,7 @@ signal_pending(void)
 
 	return rc>0?1:0;
 }
-*/
+#endif
 
 /* Signal flag */
 static void
