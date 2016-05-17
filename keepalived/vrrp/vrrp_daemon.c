@@ -55,6 +55,13 @@
 #include "memory.h"
 #include "parser.h"
 
+/* Forward declarations */
+static int print_vrrp_data(thread_t * thread);
+static int print_vrrp_stats(thread_t * thread);
+static int reload_vrrp_thread(thread_t * thread);
+
+
+
 /* Daemon stop sequence */
 static void
 stop_vrrp(void)
@@ -245,15 +252,13 @@ start_vrrp(void)
 			 VRRP_DISPATCHER);
 }
 
-/* Reload handler */
-int reload_vrrp_thread(thread_t * thread);
-void
+static void
 sighup_vrrp(void *v, int sig)
 {
 	thread_add_event(master, reload_vrrp_thread, NULL, 0);
 }
-int print_vrrp_data(thread_t * thread);
-void
+
+static void
 sigusr1_vrrp(void *v, int sig)
 {
 	log_message(LOG_INFO, "Printing VRRP data for process(%d) on signal",
@@ -261,8 +266,7 @@ sigusr1_vrrp(void *v, int sig)
 	thread_add_event(master, print_vrrp_data, NULL, 0);
 }
 
-int print_vrrp_stats(thread_t * thread);
-void
+static void
 sigusr2_vrrp(void *v, int sig)
 {
 	log_message(LOG_INFO, "Printing VRRP stats for process(%d) on signal",
@@ -271,7 +275,7 @@ sigusr2_vrrp(void *v, int sig)
 }
 
 /* Terminate handler */
-void
+static void
 sigend_vrrp(void *v, int sig)
 {
 	if (master)
@@ -279,7 +283,7 @@ sigend_vrrp(void *v, int sig)
 }
 
 /* VRRP Child signal handling */
-void
+static void
 vrrp_signal_init(void)
 {
 	signal_handler_init();
@@ -292,7 +296,7 @@ vrrp_signal_init(void)
 }
 
 /* Reload thread */
-int
+static int
 reload_vrrp_thread(thread_t * thread)
 {
 	/* set the reloading flag */
@@ -349,14 +353,14 @@ reload_vrrp_thread(thread_t * thread)
 	return 0;
 }
 
-int
+static int
 print_vrrp_data(thread_t * thread)
 {
 	vrrp_print_data();
 	return 0;
 }
 
-int
+static int
 print_vrrp_stats(thread_t * thread)
 {
 	vrrp_print_stats();
@@ -365,7 +369,7 @@ print_vrrp_stats(thread_t * thread)
 
 
 /* VRRP Child respawning thread */
-int
+static int
 vrrp_respawn_thread(thread_t * thread)
 {
 	pid_t pid;

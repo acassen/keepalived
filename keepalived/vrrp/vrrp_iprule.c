@@ -54,7 +54,7 @@ add_addr2req(struct nlmsghdr *n, int maxlen, int type, ip_address_t *ip_address)
 }
 
 /* Add/Delete IP rule to/from a specific IP/network */
-int
+static int
 netlink_rule(ip_rule_t *iprule, int cmd)
 {
 	int status = 1;
@@ -192,7 +192,7 @@ alloc_rule(list rule_list, vector_t *strvec)
 }
 
 /* Try to find a rule in a list */
-int
+static int
 rule_exist(list l, ip_rule_t *iprule)
 {
 	ip_rule_t *ipr;

@@ -55,7 +55,6 @@ typedef struct _ip_rule {
 						(X)->table  == (Y)->table)
 
 /* prototypes */
-extern int netlink_rule(ip_rule_t *, int);
 extern void netlink_rulelist(list, int, bool);
 extern void free_iprule(void *);
 extern void dump_iprule(void *);

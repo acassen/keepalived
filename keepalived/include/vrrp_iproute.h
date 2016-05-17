@@ -60,7 +60,6 @@ typedef struct _ip_route {
 			 (X)->index  == (Y)->index)
 
 /* prototypes */
-extern int netlink_route(ip_route_t *, int);
 extern void netlink_rtlist(list, int);
 extern void free_iproute(void *);
 extern void dump_iproute(void *);

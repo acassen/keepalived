@@ -55,7 +55,7 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 }
 
 /* Instance name lookup */
-vrrp_t *
+static vrrp_t *
 vrrp_get_instance(char *iname)
 {
 	vrrp_t *vrrp;
@@ -111,7 +111,7 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 }
 
 /* All interface are UP in the same group */
-int
+static int
 vrrp_sync_group_up(vrrp_sgroup_t * vgroup)
 {
 	vrrp_t *vrrp;
