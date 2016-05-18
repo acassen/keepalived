@@ -24,6 +24,9 @@
 #ifndef O_CLOEXEC
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE /* to make O_CLOEXEC available */
+#ifndef O_CLOEXEC
+#define O_CLOEXEC 0	/* It doesn't really matter if O_CLOEXEC isn't set here */
+#endif
 #endif
 #include <fcntl.h>
 #endif
