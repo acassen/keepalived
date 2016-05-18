@@ -172,15 +172,16 @@ start_check(void)
 }
 
 /* Reload handler */
-int reload_check_thread(thread_t *);
-void
+static int reload_check_thread(thread_t *);
+
+static void
 sighup_check(void *v, int sig)
 {
 	thread_add_event(master, reload_check_thread, NULL, 0);
 }
 
 /* Terminate handler */
-void
+static void
 sigend_check(void *v, int sig)
 {
 	if (master)
@@ -188,7 +189,7 @@ sigend_check(void *v, int sig)
 }
 
 /* CHECK Child signal handling */
-void
+static void
 check_signal_init(void)
 {
 	signal_handler_init();
@@ -199,7 +200,7 @@ check_signal_init(void)
 }
 
 /* Reload thread */
-int
+static int
 reload_check_thread(thread_t * thread)
 {
 	/* set the reloading flag */
@@ -239,7 +240,7 @@ reload_check_thread(thread_t * thread)
 }
 
 /* CHECK Child respawning thread */
-int
+static int
 check_respawn_thread(thread_t * thread)
 {
 	pid_t pid;

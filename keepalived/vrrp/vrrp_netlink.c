@@ -48,12 +48,14 @@
 #include "bitops.h"
 
 /* Global vars */
-nl_handle_t nl_kernel;	/* Kernel reflection channel */
 nl_handle_t nl_cmd;	/* Command channel */
 int netlink_error_ignore; /* If we get this error, ignore it */
 
+/* Static vars */
+static nl_handle_t nl_kernel;	/* Kernel reflection channel */
+
 /* Create a socket to netlink interface_t */
-int
+static int
 netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 {
 	int ret;
@@ -186,7 +188,7 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 }
 
 /* Close a netlink socket */
-int
+static int
 netlink_close(nl_handle_t *nl)
 {
 	/* First of all release pending thread */
@@ -200,7 +202,7 @@ netlink_close(nl_handle_t *nl)
 }
 
 /* Set netlink socket channel as blocking */
-int
+static int
 netlink_set_block(nl_handle_t *nl, int *flags)
 {
 	if ((*flags = fcntl(nl->fd, F_GETFL, 0)) < 0) {
@@ -218,7 +220,7 @@ netlink_set_block(nl_handle_t *nl, int *flags)
 }
 
 /* Set netlink socket channel as non-blocking */
-int
+static int
 netlink_set_nonblock(nl_handle_t *nl, int *flags)
 {
 #ifdef _HAVE_LIBNL3_
@@ -915,7 +917,7 @@ netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	return 0;
 }
 
-int
+static int
 kernel_netlink(thread_t * thread)
 {
 	nl_handle_t *nl = THREAD_ARG(thread);

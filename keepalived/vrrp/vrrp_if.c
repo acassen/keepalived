@@ -209,7 +209,7 @@ if_mii_status(const int fd)
 		return LINK_DOWN;
 }
 
-int
+static int
 if_mii_probe(const char *ifname)
 {
 	uint16_t *data = (uint16_t *) (&ifr.ifr_data);
@@ -260,7 +260,7 @@ if_ethtool_status(const int fd)
 		return -1;
 }
 
-int
+static int
 if_ethtool_probe(const char *ifname)
 {
 	int fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
@@ -276,7 +276,7 @@ if_ethtool_probe(const char *ifname)
 	return status;
 }
 
-void
+static void
 if_ioctl_flags(interface_t * ifp)
 {
 	int fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
@@ -300,7 +300,7 @@ free_if(void *data)
 	FREE(data);
 }
 
-void
+static void
 dump_if(void *data)
 {
 	interface_t *ifp = data;
@@ -731,25 +731,6 @@ if_setsockopt_priority(int *sd)
 	ret = setsockopt(*sd, SOL_SOCKET, SO_PRIORITY, &priority, sizeof(priority));
 	if (ret < 0) {
 		log_message(LOG_INFO, "cant set SO_PRIORITY IP option. errno=%d (%m)", errno);
-		close(*sd);
-		*sd = -1;
-	}
-
-	return *sd;
-}
-
-int
-if_setsockopt_sndbuf(int *sd, int val)
-{
-	int ret;
-
-	if (*sd < 0)
-		return -1;
-
-	/* sndbuf option */
-	ret = setsockopt(*sd, SOL_SOCKET, SO_SNDBUF, &val, sizeof(val));
-	if (ret < 0) {
-		log_message(LOG_INFO, "cant set SO_SNDBUF IP option. errno=%d (%m)", errno);
 		close(*sd);
 		*sd = -1;
 	}

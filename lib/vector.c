@@ -34,6 +34,7 @@ vector_alloc(void)
 	return v;
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 vector_t *
 vector_init(unsigned int size)
 {
@@ -48,6 +49,7 @@ vector_init(unsigned int size)
 	v->slot = (void *) MALLOC(sizeof(void *) * size);
 	return v;
 }
+#endif
 
 /* allocated one slot */
 void
@@ -60,6 +62,7 @@ vector_alloc_slot(vector_t *v)
 		v->slot = (void *) MALLOC(sizeof (void *) * v->allocated);
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 /* Insert a value into a specific slot */
 void
 vector_insert_slot(vector_t *v, unsigned int index, void *value)
@@ -92,9 +95,10 @@ vector_copy(vector_t *v)
 
 	return new;
 }
+#endif
 
 /* Check assigned index, and if it runs short double index pointer */
-void
+static void
 vector_ensure(vector_t *v, unsigned int num)
 {
 	if (v->allocated > num)
@@ -112,7 +116,7 @@ vector_ensure(vector_t *v, unsigned int num)
  * the slot's index memory is assigned, please call vector_ensure()
  * after calling this function.
  */
-int
+static int
 vector_empty_slot(vector_t *v)
 {
 	unsigned int i;
@@ -156,6 +160,7 @@ vector_set_slot(vector_t *v, void *value)
 	v->active = v->allocated;
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 /* Set value to specified index slot. */
 int
 vector_set_index(vector_t *v, unsigned int i, void *val)
@@ -169,6 +174,7 @@ vector_set_index(vector_t *v, unsigned int i, void *val)
 
 	return i;
 }
+#endif
 
 /* Look up vector.  */
 void *
@@ -179,6 +185,7 @@ vector_lookup(vector_t *v, unsigned int i)
 	return v->slot[i];
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 /* Lookup vector, ensure it. */
 void *
 vector_lookup_ensure(vector_t *v, unsigned int i)
@@ -186,6 +193,7 @@ vector_lookup_ensure(vector_t *v, unsigned int i)
 	vector_ensure(v, i);
 	return v->slot[i];
 }
+#endif
 
 /* Unset value at specified index slot. */
 void
@@ -219,6 +227,7 @@ vector_count(vector_t *v)
 	return count;
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 /* Free memory vector allocation */
 void
 vector_only_wrapper_free(vector_t *v)
@@ -237,6 +246,7 @@ vector_only_index_free(void *slot)
 {
 	vector_only_slot_free(slot);
 }
+#endif
 
 void
 vector_free(vector_t *v)
@@ -279,6 +289,7 @@ free_strvec(vector_t *strvec)
 	vector_free(strvec);
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 void
 dump_strvec(vector_t *strvec)
 {
@@ -296,3 +307,4 @@ dump_strvec(vector_t *strvec)
 	}
 	printf("\n");
 }
+#endif

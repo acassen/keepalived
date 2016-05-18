@@ -107,7 +107,7 @@ thread_list_add(thread_list_t * list, thread_t * thread)
 }
 
 /* Add a new thread to the list. */
-void
+static void
 thread_list_add_before(thread_list_t * list, thread_t * point, thread_t * thread)
 {
 	thread->next = point;
@@ -121,7 +121,7 @@ thread_list_add_before(thread_list_t * list, thread_t * point, thread_t * thread
 }
 
 /* Add a thread in the list sorted by timeval */
-void
+static void
 thread_list_add_timeval(thread_list_t * list, thread_t * thread)
 {
 	thread_t *tt;
@@ -138,7 +138,7 @@ thread_list_add_timeval(thread_list_t * list, thread_t * thread)
 }
 
 /* Delete a thread from the list. */
-thread_t *
+static thread_t *
 thread_list_delete(thread_list_t * list, thread_t * thread)
 {
 	if (thread->next)
@@ -242,7 +242,7 @@ thread_destroy_master(thread_master_t * m)
 }
 
 /* Delete top of the list and return it. */
-thread_t *
+static thread_t *
 thread_trim_head(thread_list_t * list)
 {
 	if (list->head)
@@ -251,7 +251,7 @@ thread_trim_head(thread_list_t * list)
 }
 
 /* Make new thread. */
-thread_t *
+static thread_t *
 thread_new(thread_master_t * m)
 {
 	thread_t *new;
@@ -473,6 +473,7 @@ thread_cancel(thread_t * thread)
 	return 0;
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 /* Delete all events which has argument value arg. */
 void
 thread_cancel_event(thread_master_t * m, void *arg)
@@ -493,6 +494,7 @@ thread_cancel_event(thread_master_t * m, void *arg)
 		}
 	}
 }
+#endif
 
 /* Update timer value */
 static void
@@ -746,7 +748,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 }
 
 /* Synchronous signal handler to reap child processes */
-void
+static void
 thread_child_handler(void * v, int sig)
 {
 	thread_master_t * m = v;
@@ -786,7 +788,7 @@ thread_child_handler(void * v, int sig)
 
 
 /* Make unique thread id for non pthread version of thread manager. */
-unsigned long int
+static unsigned long
 thread_get_id(void)
 {
 	static unsigned long int counter = 0;

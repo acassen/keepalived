@@ -218,7 +218,7 @@ ipvs_group_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 }
 
 /* Fill IPVS rule with root vs infos */
-void
+static void
 ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 {
 	/* Clean up target rule */
@@ -609,7 +609,7 @@ ipvs_group_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 }
 
 /* Fill IPVS rule with root vs infos */
-void
+static void
 ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 {
 	/* Clean target rule */

@@ -32,8 +32,8 @@
 #include "parser.h"
 #include "daemon.h"
 
-int smtp_connect_thread(thread_t *);
-int smtp_final(thread_t *thread, int error, const char *format, ...)
+static int smtp_connect_thread(thread_t *);
+static int smtp_final(thread_t *thread, int error, const char *format, ...)
 	 __attribute__ ((format (printf, 3, 4)));
 
 /*
@@ -41,7 +41,7 @@ int smtp_final(thread_t *thread, int error, const char *format, ...)
  * the list elements in smtp_checker->host before we
  * free smtp_checker itself.
  */
-void
+static void
 smtp_free_host(void *data)
 {
 	FREE(data);
@@ -50,7 +50,7 @@ smtp_free_host(void *data)
 /* Used as a callback from the checker api, queue_checker(),
  * to free up a checker entry and all its associated data.
  */
-void
+static void
 free_smtp_check(void *data)
 {
 	smtp_checker_t *smtp_checker = CHECKER_DATA(data);
@@ -65,7 +65,7 @@ free_smtp_check(void *data)
  * Callback for whenever we've been requested to dump our
  * configuration.
  */
-void
+static void
 dump_smtp_check(void *data)
 {
 	smtp_checker_t *smtp_checker = CHECKER_DATA(data);
@@ -77,7 +77,7 @@ dump_smtp_check(void *data)
 }
 
 /* Allocates a default host structure */
-smtp_host_t *
+static smtp_host_t *
 smtp_alloc_host(void)
 {
 	smtp_host_t *new;
@@ -99,7 +99,7 @@ smtp_alloc_host(void)
  * Callback for whenever an SMTP_CHECK keyword is encountered
  * in the config file.
  */
-void
+static void
 smtp_check_handler(vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = (smtp_checker_t *)MALLOC(sizeof(smtp_checker_t));
@@ -143,7 +143,8 @@ smtp_check_handler(vector_t *strvec)
 	smtp_checker->host = alloc_list(smtp_free_host, dump_conn_opts);
 }
 
-void smtp_check_end_handler(void)
+static void
+smtp_check_end_handler(void)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
 
@@ -159,7 +160,7 @@ void smtp_check_end_handler(void)
  * Callback for whenever the "host" keyword is encountered
  * in the config file.
  */
-void
+static void
 smtp_host_handler(vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
@@ -169,7 +170,7 @@ smtp_host_handler(vector_t *strvec)
 }
 
 /* "helo_name" keyword */
-void
+static void
 smtp_helo_name_handler(vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
@@ -177,7 +178,7 @@ smtp_helo_name_handler(vector_t *strvec)
 }
 
 /* "retry" keyword */
-void
+static void
 smtp_retry_handler(vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
@@ -185,7 +186,7 @@ smtp_retry_handler(vector_t *strvec)
 }
 
 /* "delay_before_retry" keyword */
-void
+static void
 smtp_db_retry_handler(vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
@@ -231,7 +232,7 @@ install_smtp_check_keyword(void)
  * Also has to make a decision if we need to bring the resulting
  * service down in case of error.
  */
-int
+static int
 smtp_final(thread_t *thread, int error, const char *format, ...)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -319,7 +320,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 /*
  * Zeros out the rx/tx buffer
  */
-void
+static void
 smtp_clear_buff(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -334,7 +335,7 @@ smtp_clear_buff(thread_t *thread)
  * single packet, but we don't care. We are only looking at the
  * SMTP response codes at the beginning anyway.
  */
-int
+static int
 smtp_get_line_cb(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -420,7 +421,7 @@ smtp_get_line_cb(thread_t *thread)
  * function smtp_get_line_cb is what does the dirty work since the
  * sceduler can only accept a single *thread argument.
  */
-void
+static void
 smtp_get_line(thread_t *thread, int (*callback) (thread_t *))
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -445,7 +446,7 @@ smtp_get_line(thread_t *thread, int (*callback) (thread_t *))
  * the current write would block or not. If it wants to block,
  * we'll return to the scheduler and try again later.
  */
-int
+static int
 smtp_put_line_cb(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -501,7 +502,7 @@ smtp_put_line_cb(thread_t *thread)
  * This is the same as smtp_get_line() except that we're sending a
  * line of data instead of receiving one.
  */
-void
+static void
 smtp_put_line(thread_t *thread, int (*callback) (thread_t *))
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -525,7 +526,7 @@ smtp_put_line(thread_t *thread, int (*callback) (thread_t *))
  * buffer and return it as an integer. If it's not legible,
  * return -1.
  */
-int
+static int
 smtp_get_status(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -550,7 +551,7 @@ smtp_get_status(thread_t *thread)
  * smtp_checker->state. Upon first calling, smtp_checker->state
  * should be set to SMTP_START.
  */
-int
+static int
 smtp_engine_thread(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -638,7 +639,7 @@ smtp_engine_thread(thread_t *thread)
  * Second step in the process. Here we'll see if the connection
  * to the host we're checking was successful or not.
  */
-int
+static int
 smtp_check_thread(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
@@ -687,7 +688,7 @@ smtp_check_thread(thread_t *thread)
  * ourselves to run again. It doesn't have to be right here,
  * but eventually has to happen.
  */
-int
+static int
 smtp_connect_thread(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);

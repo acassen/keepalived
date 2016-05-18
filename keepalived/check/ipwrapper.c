@@ -259,7 +259,7 @@ init_services(void)
 }
 
 /* add or remove _alive_ real servers from a virtual server */
-void
+static void
 perform_quorum_state(virtual_server_t *vs, int add)
 {
 	element e;
@@ -364,7 +364,7 @@ update_quorum_state(virtual_server_t * vs)
 }
 
 /* manipulate add/remove rs according to alive state */
-int
+static int
 perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 {
 	/*

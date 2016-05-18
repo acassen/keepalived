@@ -489,7 +489,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 }
 
 /* Find an address in a list */
-int
+static int
 address_exist(list l, ip_address_t *ipaddress)
 {
 	ip_address_t *ipaddr;

@@ -44,7 +44,7 @@
 REQ *req = NULL;
 
 /* Terminate handler */
-void
+static void
 sigend(void *v, int sig)
 {
 	/* register the terminate thread */
@@ -52,7 +52,7 @@ sigend(void *v, int sig)
 }
 
 /* Initialize signal handler */
-void
+static void
 signal_init(void)
 {
 	signal_handler_init();

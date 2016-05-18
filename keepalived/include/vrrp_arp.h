@@ -49,10 +49,6 @@ typedef struct _arphdr {
 	unsigned char		__ar_tip[4];		/* Target IP address.  */
 } arphdr_t;
 
-/* Global vars exported */
-extern char *garp_buffer;
-extern int garp_fd;
-
 /* prototypes */
 extern void gratuitous_arp_init(void);
 extern void gratuitous_arp_close(void);

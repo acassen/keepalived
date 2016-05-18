@@ -310,7 +310,6 @@ extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, int *);
 extern int open_vrrp_send_socket(sa_family_t, int, int, int);
 extern int open_vrrp_read_socket(sa_family_t, int, int, int);
 extern int new_vrrp_socket(vrrp_t *);
-extern void close_vrrp_socket(vrrp_t *);
 extern void vrrp_send_link_update(vrrp_t *, int);
 extern int vrrp_send_adv(vrrp_t *, int);
 extern int vrrp_state_fault_rx(vrrp_t *, char *, int);
