@@ -549,13 +549,23 @@ fi
 AC_SUBST(SHA1_SUPPORT)
 
 dnl ----[ check for SO_MARK support ]----
-if test "${enable_fwmark}" = "no"; then
-  SO_MARK_SUPPORT="_WITHOUT_SO_MARK_"
-else
-  AC_CHECK_DECL(SO_MARK,,AC_MSG_ERROR([No SO_MARK declaration in headers]),
-    #include <sys/socket.h>
-  )
-  SO_MARK_SUPPORT="_WITH_SO_MARK_"
+SO_MARK_SUPPORT="_WITHOUT_SO_MARK_"
+if test "${enable_fwmark}" != "no"; then
+  AC_MSG_CHECKING([for SO_MARK support])
+  AC_TRY_COMPILE([
+      #include <sys/socket.h>
+      int flag;
+    ], [
+      flag = SO_MARK;
+    ], [
+      SO_MARK_SUPPORT="_WITH_SO_MARK_"
+    ], [
+    ]);
+  if test "$SO_MARK_SUPPORT" = "_WITH_SO_MARK_"; then
+    AC_MSG_RESULT([yes])
+  else
+    AC_MSG_RESULT([no])
+  fi
 fi
 
 AC_SUBST(SO_MARK_SUPPORT)
