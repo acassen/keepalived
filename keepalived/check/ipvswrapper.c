@@ -1103,24 +1103,30 @@ get_modprobe(void)
 	char *ret;
 	int count;
 
-	procfile = open("/proc/sys/kernel/modprobe", O_RDONLY | O_CLOEXEC);
-	if (procfile < 0)
+	ret = MALLOC(PATH_MAX);
+	if (!ret)
 		return NULL;
 
-	ret = MALLOC(PATH_MAX);
-	if (ret) {
-		count = read(procfile, ret, PATH_MAX);
-		close(procfile);
-		if (count > 0 && count < PATH_MAX)
-		{
-			if (ret[count - 1] == '\n')
-				ret[count - 1] = '\0';
-			else
-				ret[count] = '\0';
-			return ret;
-		}
+	procfile = open("/proc/sys/kernel/modprobe", O_RDONLY | O_CLOEXEC);
+	if (procfile < 0) {
+		FREE(ret);
+		return NULL;
 	}
+
+	count = read(procfile, ret, PATH_MAX);
+	close(procfile);
+
+	if (count > 0 && count < PATH_MAX)
+	{
+		if (ret[count - 1] == '\n')
+			ret[count - 1] = '\0';
+		else
+			ret[count] = '\0';
+		return ret;
+	}
+
 	FREE(ret);
+
 	return NULL;
 }
 
