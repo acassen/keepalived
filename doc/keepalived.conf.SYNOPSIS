@@ -287,7 +287,7 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     strict_mode [<BOOL>]			# See description of global vrrp_strict
 						# If vrrp_strict is not specified, it takes the value of vrrp_strict
 						# If strict_mode without a parameter is specified, it defaults to on
-    debug					# Debug level
+    debug <LEVEL>				# Debug level. LEVEL is a number in the range 0 to 4.
     notify_master <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
     notify_backup <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
     notify_fault <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
