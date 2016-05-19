@@ -46,6 +46,9 @@
 #include "scheduler.h"
 #include "utils.h"
 #include "bitops.h"
+#ifndef _HAVE_SOCK_NONBLOCK
+#include "old_socket.h"
+#endif
 
 /* Global vars */
 nl_handle_t nl_cmd;	/* Command channel */
@@ -117,6 +120,10 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 #else
 	socklen_t addr_len;
 	struct sockaddr_nl snl;
+#ifndef _HAVE_SOCK_NONBLOCK_
+	int sock_flags = flags;
+	flags &= ~SOCK_NONBLOCK;
+#endif
 
 	nl->fd = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC | flags, NETLINK_ROUTE);
 	if (nl->fd < 0) {
@@ -124,6 +131,12 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 		       strerror(errno));
 		return -1;
 	}
+
+#ifndef _HAVE_SOCK_NONBLOCK_
+	if ((sock_flags & SOCK_NONBLOCK) &&
+	    set_sock_flags(nl->fd, F_SETFL, O_NONBLOCK))
+		return -1;
+#endif
 
 	memset(&snl, 0, sizeof (snl));
 	snl.nl_family = AF_NETLINK;

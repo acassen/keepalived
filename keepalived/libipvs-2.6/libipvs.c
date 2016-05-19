@@ -22,6 +22,9 @@
 
 #include "libipvs.h"
 #include "memory.h"
+#ifndef _HAVE_SOCK_CLOEXEC_
+#include "old_socket.h"
+#endif
 
 typedef struct ipvs_servicedest_s {
 	struct ip_vs_service_kern	svc;
@@ -171,6 +174,11 @@ int ipvs_init(void)
 	len = sizeof(ipvs_info);
 	if ((sockfd = socket(AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW)) == -1)
 		return -1;
+
+#ifndef _HAVE_SOCK_CLOEXEC_
+	if (set_sock_flags(sockfd, F_SETFD, FD_CLOEXEC))
+		return -1;
+#endif
 
 	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,
 		       (char *)&ipvs_info, &len))

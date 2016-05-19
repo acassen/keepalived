@@ -5,6 +5,7 @@
 # Copyright (C) 2001-2011 Alexandre Cassen, <acassen@linux-vs.org>
 
 CC	 = @CC@
+SOCK_NONBLOCK_FLAG = @SOCK_NONBLOCK_SUPPORT@
 INCLUDES = -I.
 CFLAGS	 = $(INCLUDES) @CFLAGS@ @CPPFLAGS@ \
 	   -Wall -Wunused -Wstrict-prototypes
@@ -13,6 +14,11 @@ COMPILE	 = $(CC) $(CFLAGS) @APP_DEFS@
 OBJS =	memory.o utils.o notify.o timer.o scheduler.o \
 	vector.o list.o html.o parser.o signals.o logger.o \
 	rttables.o
+
+ifeq ($(SOCK_NONBLOCK_FLAG),_WITHOUT_SOCK_NONBLOCK_)
+  OBJS += old_socket.o
+endif
+
 HEADERS = $(OBJS:.o=.h)
 
 GIT_COMMIT_FILE = git-commit.h

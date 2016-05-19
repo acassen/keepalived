@@ -32,6 +32,9 @@
 #include "list.h"
 #include "logger.h"
 #include "utils.h"
+#ifndef _HAVE_SOCK_CLOEXEC_
+#include "old_socket.h"
+#endif
 
 /* SMTP FSM definition */
 static int connection_error(thread_t *);
@@ -586,6 +589,11 @@ smtp_connect(smtp_t * smtp)
 		free_smtp_all(smtp);
 		return;
 	}
+
+#ifndef _HAVE_SOCK_CLOEXEC_
+	if (set_sock_flags(smtp->fd, F_SETFD, FD_CLOEXEC))
+		log_message(LOG_INFO, "Unable to set CLOEXEC on smtp_connect socket - %s (%d)", strerror(errno), errno);
+#endif
 
 	status = tcp_connect(smtp->fd, &global_data->smtp_server);
 

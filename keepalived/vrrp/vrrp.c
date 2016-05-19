@@ -54,6 +54,13 @@
 #include "utils.h"
 #include "notify.h"
 #include "bitops.h"
+#ifndef _HAVE_SOCK_CLOEXEC_
+#include "old_socket.h"
+#endif
+#ifdef _HAVE_FIB_ROUTING_
+#include "vrrp_iprule.h"
+#include "vrrp_iproute.h"
+#endif
 
 #include <net/ethernet.h>
 #include <netinet/ip6.h>
@@ -69,6 +76,7 @@ vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type)
 	netlink_iplist((type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip, cmd);
 }
 
+#ifdef _HAVE_FIB_ROUTING_
 /* add/remove Virtual routes */
 static void
 vrrp_handle_iproutes(vrrp_t * vrrp, int cmd)
@@ -90,6 +98,7 @@ vrrp_handle_iprules(vrrp_t * vrrp, int cmd, bool force)
 		       (cmd == IPRULE_ADD) ? "setting" : "removing");
 	netlink_rulelist(vrrp->vrules, cmd, force);
 }
+#endif
 
 /* add/remove iptable drop rules based on accept mode */
 static void
@@ -1170,6 +1179,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
 	vrrp->vipset = 1;
 
+#ifdef _HAVE_FIB_ROUTING_
 	/* add virtual routes */
 	if (!LIST_ISEMPTY(vrrp->vroutes))
 		vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
@@ -1177,6 +1187,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	/* add virtual rules */
 	if (!LIST_ISEMPTY(vrrp->vrules))
 		vrrp_handle_iprules(vrrp, IPRULE_ADD, false);
+#endif
 
 	/* remotes neighbour update */
 	vrrp_send_link_update(vrrp, vrrp->garp_rep);
@@ -1246,6 +1257,7 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 		       vrrp->iname);
 	}
 
+#ifdef _HAVE_FIB_ROUTING_
 	/* remove virtual rules */
 	if (!LIST_ISEMPTY(vrrp->vrules))
 		vrrp_handle_iprules(vrrp, IPRULE_DEL, force);
@@ -1253,6 +1265,7 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 	/* remove virtual routes */
 	if (!LIST_ISEMPTY(vrrp->vroutes))
 		vrrp_handle_iproutes(vrrp, IPROUTE_DEL);
+#endif
 
 	/*
 	 * Remove the ip addresses.
@@ -1608,6 +1621,9 @@ open_vrrp_send_socket(sa_family_t family, int proto, int idx, int unicast)
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", errno);
 		return -1;
 	}
+#ifndef _HAVE_SOCK_CLOEXEC_
+	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
+#endif
 
 	if (family == AF_INET) {
 		/* Set v4 related */
@@ -1652,6 +1668,9 @@ open_vrrp_read_socket(sa_family_t family, int proto, int idx,
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", err);
 		return -1;
 	}
+#ifndef _HAVE_SOCK_CLOEXEC_
+	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
+#endif
 
 	/* Ensure no unwanted multicast packets are queued to this interface */
 	if (family == AF_INET)
@@ -2411,6 +2430,7 @@ clear_diff_vrrp_vip(vrrp_t *old_vrrp, vrrp_t *vrrp)
 #endif
 }
 
+#ifdef _HAVE_FIB_ROUTING_
 /* Clear virtual routes not present in the new data */
 static void
 clear_diff_vrrp_vroutes(vrrp_t *old_vrrp, vrrp_t *vrrp)
@@ -2424,6 +2444,7 @@ clear_diff_vrrp_vrules(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
 	clear_diff_rules(old_vrrp->vrules, vrrp->vrules);
 }
+#endif
 
 /* Keep the state from before reload */
 static void
@@ -2448,10 +2469,12 @@ reset_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
 		if (!LIST_ISEMPTY(vrrp->evip))
 			vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
+#ifdef _HAVE_FIB_ROUTING_
 		if (!LIST_ISEMPTY(vrrp->vroutes))
 			vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
 		if (!LIST_ISEMPTY(vrrp->vrules))
 			vrrp_handle_iprules(vrrp, IPRULE_ADD, false);
+#endif
 	}
 }
 
@@ -2490,11 +2513,13 @@ clear_diff_vrrp(void)
 			 */
 			clear_diff_vrrp_vip(vrrp, new_vrrp);
 
+#ifdef _HAVE_FIB_ROUTING_
 			/* virtual routes diff */
 			clear_diff_vrrp_vroutes(vrrp, new_vrrp);
 
 			/* virtual rules diff */
 			clear_diff_vrrp_vrules(vrrp, new_vrrp);
+#endif
 
 #ifdef _HAVE_VRRP_VMAC_
 			/*

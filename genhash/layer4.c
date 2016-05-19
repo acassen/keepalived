@@ -231,10 +231,18 @@ tcp_connect_thread(thread_t * thread)
 	SOCK *sock_obj = THREAD_ARG(thread);
 
 	if ((sock_obj->fd = socket((req->dst && req->dst->ai_family == AF_INET6) ? AF_INET6 : AF_INET,
-				   SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
+				   SOCK_STREAM
+#ifdef SOCK_CLOEXEC
+					       | SOCK_CLOEXEC
+#endif
+							     , IPPROTO_TCP)) == -1) {
 		DBG("WEB connection fail to create socket.\n");
 		return 0;
 	}
+
+#ifndef SOCK_CLOEXEC
+	fcntl(sock_obj->fd, F_SETFD, fcntl(sock_obj->fd, F_GETFD) | FD_CLOEXEC);
+#endif
 
 	sock->status = tcp_connect(sock_obj->fd, req);
 

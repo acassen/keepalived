@@ -8,6 +8,7 @@ CC	 = @CC@
 SNMP_FLAG = @SNMP_SUPPORT@
 VRRP_AUTH_FLAG = @VRRP_AUTH_SUPPORT@
 VRRP_VMAC_FLAG = @VRRP_VMAC@
+FIB_ROUTING_FLAG = @FIB_ROUTING_SUPPORT@
 LIBIPTC_FLAG = @USE_LIBIPTC@
 LIBIPSET_FLAG = @USE_LIBIPSET@
 NL3_FLAG = @USE_NL3@
@@ -19,7 +20,7 @@ COMPILE	 = $(CC) $(CFLAGS) @APP_DEFS@
 OBJS =	vrrp_daemon.o vrrp_print.o vrrp_data.o vrrp_parser.o \
 	vrrp.o vrrp_notify.o vrrp_scheduler.o vrrp_sync.o vrrp_index.o \
 	vrrp_netlink.o vrrp_arp.o vrrp_if.o vrrp_track.o vrrp_ipaddress.o \
-	vrrp_iproute.o vrrp_iprule.o vrrp_ndisc.o vrrp_if_config.o
+	vrrp_ndisc.o vrrp_if_config.o
 
 ifeq ($(VRRP_VMAC_FLAG),_HAVE_VRRP_VMAC_)
   OBJS += vrrp_vmac.o
@@ -27,6 +28,10 @@ endif
 
 ifeq ($(VRRP_AUTH_FLAG),_WITH_VRRP_AUTH_)
   OBJS += vrrp_ipsecah.o
+endif
+
+ifeq ($(FIB_ROUTING_FLAG),_HAVE_FIB_ROUTING_)
+  OBJS += vrrp_iproute.o vrrp_iprule.o
 endif
 
 ifeq ($(LIBIPTC_FLAG),_HAVE_LIBIPTC_)

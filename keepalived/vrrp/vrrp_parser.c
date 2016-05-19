@@ -48,6 +48,7 @@ static_addresses_handler(vector_t *strvec)
 	alloc_value_block(strvec, alloc_saddress);
 }
 
+#ifdef _HAVE_FIB_ROUTING_
 /* Static routes handler */
 static void
 static_routes_handler(vector_t *strvec)
@@ -61,6 +62,7 @@ static_rules_handler(vector_t *strvec)
 {
 	alloc_value_block(strvec, alloc_srule);
 }
+#endif
 
 /* VRRP handlers */
 static void
@@ -612,6 +614,7 @@ vrrp_evip_handler(vector_t *strvec)
 {
 	alloc_value_block(strvec, alloc_vrrp_evip);
 }
+#ifdef _HAVE_FIB_ROUTING_
 static void
 vrrp_vroutes_handler(vector_t *strvec)
 {
@@ -622,6 +625,7 @@ vrrp_vrules_handler(vector_t *strvec)
 {
 	alloc_value_block(strvec, alloc_vrrp_vrule);
 }
+#endif
 static void
 vrrp_script_handler(vector_t *strvec)
 {
@@ -706,8 +710,10 @@ init_vrrp_keywords(bool active)
 {
 	/* Static routes mapping */
 	install_keyword_root("static_ipaddress", &static_addresses_handler, active);
+#ifdef _HAVE_FIB_ROUTING_
 	install_keyword_root("static_routes", &static_routes_handler, active);
 	install_keyword_root("static_rules", &static_rules_handler, active);
+#endif
 
 	/* VRRP Instance mapping */
 	install_keyword_root("vrrp_sync_group", &vrrp_sync_group_handler, active);
@@ -738,8 +744,10 @@ init_vrrp_keywords(bool active)
 	install_keyword("advert_int", &vrrp_adv_handler);
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
 	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
+#ifdef _HAVE_FIB_ROUTING_
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
 	install_keyword("virtual_rules", &vrrp_vrules_handler);
+#endif
 	install_keyword("accept", &vrrp_accept_handler);
 	install_keyword("skip_check_adv_addr", &vrrp_skip_check_adv_addr_handler);
 	install_keyword("strict_mode", &vrrp_strict_mode_handler);
