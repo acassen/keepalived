@@ -33,7 +33,9 @@ global_defs {				# Block identification
     }
     notification_email_from <EMAIL ADDRESS> # Email From dealing with SMTP proto
 					   #   defaults to keepalived@<local host name>
-    smtp_server <ADDRESS>|<DOMAIN_NAME>	   # SMTP server IP address or domain name
+    smtp_server <ADDRESS>|<DOMAIN_NAME>	[<PORT>]
+					   # SMTP server IP address or domain name
+					   #  with optional port number (defaults to 25)
     smtp_helo_name <HOST_NAME>		   # name to use in HELO messages
 					   #  defaults to local host name
     smtp_connect_timeout <INTEGER>	   # Number of seconds timeout connect

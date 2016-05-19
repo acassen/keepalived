@@ -43,7 +43,9 @@ and
         }
  # From: from address that will be in the header (default keepalived@<local host name>)
  notification_email_from admin@example.com
- smtp_server 127.0.0.1        # IP address or domain name
+ smtp_server 127.0.0.1 [<PORT>]
+                              # IP address or domain name
+                              #  with optional port number (default 25)
  smtp_helo_name <HOST_NAME>   # name to use in HELO messages
                               #  defaults to local host name
  smtp_connect_timeout 30      # integer, seconds
