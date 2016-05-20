@@ -137,7 +137,8 @@ AC_SUBST(IF_H_LINK_H_COLLISION)
 
 dnl ----[Check if have linux/if.h and net/if.h namespace collision]----
 # Linux 4.5 caused <libiptc/libiptc.h> to indirectly include <net/if.h> and <linux/if.h>
-# which causes a namespace collision
+# which causes a namespace collision.
+# This issue was resolved in Linux 4.5.5 and 4.6
 LINUX_NET_IF_H_COLLISION="_WITHOUT_LINUX_NET_IF_H_COLLISION_"
 AC_MSG_CHECKING([for libiptc/libiptc.h linux/if.h and net/if.h namespace collision])
 AC_TRY_COMPILE([
