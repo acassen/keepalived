@@ -37,9 +37,6 @@
   #elif _KRNL_2_6_
     #include "../libipvs-2.6/ip_vs.h"
   #endif
-  #define SCHED_MAX_LENGTH IP_VS_SCHEDNAME_MAXLEN
-#else
-  #define SCHED_MAX_LENGTH   1
 #endif
 
 /* local includes */
@@ -123,13 +120,13 @@ typedef struct _virtual_server {
 	long				delay_loop;
 	int				ha_suspend;
 	int				ops;
-	char				sched[SCHED_MAX_LENGTH];
-	char				timeout_persistence[MAX_TIMEOUT_LENGTH];
 #ifdef _WITH_LVS_
+	char				sched[IP_VS_SCHEDNAME_MAXLEN];
+	char				timeout_persistence[MAX_TIMEOUT_LENGTH];
 	char				pe_name[IP_VS_PENAME_MAXLEN];
-#endif
 	unsigned			loadbalancing_kind;
 	uint32_t			granularity_persistence;
+#endif
 	char				*virtualhost;
 	list				rs;
 	int				alive;

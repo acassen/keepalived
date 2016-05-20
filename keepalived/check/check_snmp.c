@@ -354,32 +354,35 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret = (v->service_type == IPPROTO_TCP)?1:2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSLOADBALANCINGALGO:
-		if (strncmp(v->sched, "rr", SCHED_MAX_LENGTH) == 0)
+#ifdef _WITH_LVS_
+		if (!strcmp(v->sched, "rr"))
 			long_ret = 1;
-		else if (strncmp(v->sched, "wrr", SCHED_MAX_LENGTH) == 0)
+		else if (!strcmp(v->sched, "wrr"))
 			long_ret = 2;
-		else if (strncmp(v->sched, "lc", SCHED_MAX_LENGTH) == 0)
+		else if (!strcmp(v->sched, "lc"))
 			long_ret = 3;
-		else if (strncmp(v->sched, "wlc", SCHED_MAX_LENGTH) == 0)
+		else if (!strcmp(v->sched, "wlc"))
 			long_ret = 4;
-		else if (strncmp(v->sched, "lblc", SCHED_MAX_LENGTH) == 0)
+		else if (!strcmp(v->sched, "lblc"))
 			long_ret = 5;
-		else if (strncmp(v->sched, "lblcr", SCHED_MAX_LENGTH) == 0)
+		else if (!strcmp(v->sched, "lblcr"))
 			long_ret = 6;
-		else if (strncmp(v->sched, "dh", SCHED_MAX_LENGTH) == 0)
+		else if (!strcmp(v->sched, "dh"))
 			long_ret = 7;
-		else if (strncmp(v->sched, "sh", SCHED_MAX_LENGTH) == 0)
+		else if (!strcmp(v->sched, "sh"))
 			long_ret = 8;
-		else if (strncmp(v->sched, "sed", SCHED_MAX_LENGTH) == 0)
+		else if (!strcmp(v->sched, "sed"))
 			long_ret = 9;
-		else if (strncmp(v->sched, "nq", SCHED_MAX_LENGTH) == 0)
+		else if (!strcmp(v->sched, "nq"))
 			long_ret = 10;
-		else long_ret = 99;
+		else
+#endif
+			long_ret = 99;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSLOADBALANCINGKIND:
 		long_ret = 0;
-		switch (v->loadbalancing_kind) {
 #ifdef _WITH_LVS_
+		switch (v->loadbalancing_kind) {
 		case IP_VS_CONN_F_MASQ:
 			long_ret = 1;
 			break;
@@ -389,8 +392,8 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		case IP_VS_CONN_F_TUNNEL:
 			long_ret = 3;
 			break;
-#endif
 		}
+#endif
 		if (!long_ret) break;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSSTATUS:
