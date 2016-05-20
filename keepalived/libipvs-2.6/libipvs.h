@@ -51,9 +51,6 @@ extern int ipvs_init(void);
 /* get ipvs info separately */
 extern int ipvs_getinfo(void);
 
-/* get the version number */
-extern unsigned int ipvs_version(void);
-
 /* flush all the rules */
 extern int ipvs_flush(void);
 

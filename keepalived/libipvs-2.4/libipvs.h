@@ -33,9 +33,6 @@ extern int ipvs_init(void);
 /* get ipvs info separately */
 extern int ipvs_getinfo(void);
 
-/* get the version number */
-extern unsigned int ipvs_version(void);
-
 /* set command */
 extern int ipvs_command(int cmd, struct ip_vs_rule_user *urule);
 

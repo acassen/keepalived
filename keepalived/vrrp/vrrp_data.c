@@ -356,6 +356,28 @@ alloc_vrrp_sync_group(char *gname)
 	list_add(vrrp_data->vrrp_sync_group, new);
 }
 
+vrrp_stats *
+alloc_vrrp_stats(void)
+{
+    vrrp_stats *new;
+    new = (vrrp_stats *) MALLOC(sizeof (vrrp_stats));
+    new->become_master = 0;
+    new->release_master = 0;
+    new->invalid_authtype = 0;
+    new->authtype_mismatch = 0;
+    new->packet_len_err = 0;
+    new->advert_rcvd = 0;
+    new->advert_sent = 0;
+    new->advert_interval_err = 0;
+    new->auth_failure = 0;
+    new->ip_ttl_err = 0;
+    new->pri_zero_rcvd = 0;
+    new->pri_zero_sent = 0;
+    new->invalid_type_rcvd = 0;
+    new->addr_list_err = 0;
+    return new;
+}
+
 void
 alloc_vrrp(char *iname)
 {
@@ -395,29 +417,6 @@ alloc_vrrp(char *iname)
 
 	list_add(vrrp_data->vrrp, new);
 }
-
-vrrp_stats *
-alloc_vrrp_stats(void)
-{
-    vrrp_stats *new;
-    new = (vrrp_stats *) MALLOC(sizeof (vrrp_stats));
-    new->become_master = 0;
-    new->release_master = 0;
-    new->invalid_authtype = 0;
-    new->authtype_mismatch = 0;
-    new->packet_len_err = 0;
-    new->advert_rcvd = 0;
-    new->advert_sent = 0;
-    new->advert_interval_err = 0;
-    new->auth_failure = 0;
-    new->ip_ttl_err = 0;
-    new->pri_zero_rcvd = 0;
-    new->pri_zero_sent = 0;
-    new->invalid_type_rcvd = 0;
-    new->addr_list_err = 0;
-    return new;
-}
-
 
 void
 alloc_vrrp_unicast_peer(vector_t *strvec)

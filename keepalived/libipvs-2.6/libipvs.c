@@ -229,10 +229,12 @@ int ipvs_getinfo(void)
 }
 
 
+#ifdef _INCLUDE_UNUSED_CODE_
 unsigned int ipvs_version(void)
 {
 	return ipvs_info.version;
 }
+#endif
 
 
 int ipvs_flush(void)
