@@ -60,14 +60,19 @@ static void
 smtpserver_handler(vector_t *strvec)
 {
 	int ret = -1;
+	char *port_str = SMTP_PORT_STR;
+
+	/* Has a port number been specified? */
+	if (vector_size(strvec) >= 3)
+		port_str = vector_slot(strvec,2);
 
 	/* It can't be an IP address if it contains '-' or '/', and 
 	   inet_stosockaddr() modifies the string if it contains either of them */
 	if (!strpbrk(vector_slot(strvec, 1), "-/"))
-		ret = inet_stosockaddr(vector_slot(strvec, 1), SMTP_PORT_STR, &global_data->smtp_server);
+		ret = inet_stosockaddr(vector_slot(strvec, 1), port_str, &global_data->smtp_server);
 
 	if (ret < 0)
-		domain_stosockaddr(vector_slot(strvec, 1), SMTP_PORT_STR, &global_data->smtp_server);
+		domain_stosockaddr(vector_slot(strvec, 1), port_str, &global_data->smtp_server);
 }
 static void
 smtphelo_handler(vector_t *strvec)
