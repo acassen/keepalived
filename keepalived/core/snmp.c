@@ -25,6 +25,8 @@
 #include "config.h"
 #include "global_data.h"
 
+#include <net-snmp/agent/agent_sysORTable.h>
+
 static int
 snmp_keepalived_log(int major, int minor, void *serverarg, void *clientarg)
 {

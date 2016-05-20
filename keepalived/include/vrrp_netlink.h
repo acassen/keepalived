@@ -76,7 +76,6 @@ extern const char *netlink_scope_n2a(int);
 extern int netlink_scope_a2n(char *);
 extern int netlink_talk(nl_handle_t *, struct nlmsghdr *);
 extern int netlink_interface_lookup(void);
-extern int netlink_interface_refresh(void);
 extern void kernel_netlink_init(void);
 extern void kernel_netlink_close(void);
 

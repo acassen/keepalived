@@ -95,7 +95,6 @@ vector_copy(vector_t *v)
 
 	return new;
 }
-#endif
 
 /* Check assigned index, and if it runs short double index pointer */
 static void
@@ -149,6 +148,7 @@ vector_set(vector_t *v, void *val)
 
 	return i;
 }
+#endif
 
 /* Set a vector slot value */
 void
@@ -174,7 +174,6 @@ vector_set_index(vector_t *v, unsigned int i, void *val)
 
 	return i;
 }
-#endif
 
 /* Look up vector.  */
 void *
@@ -185,7 +184,6 @@ vector_lookup(vector_t *v, unsigned int i)
 	return v->slot[i];
 }
 
-#ifdef _INCLUDE_UNUSED_CODE_
 /* Lookup vector, ensure it. */
 void *
 vector_lookup_ensure(vector_t *v, unsigned int i)

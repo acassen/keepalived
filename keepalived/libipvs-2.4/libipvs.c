@@ -81,6 +81,7 @@ int ipvs_command(int cmd, struct ip_vs_rule_user *urule)
 }
 
 
+#ifdef _INCLUDE_UNUSED_CODE_
 struct ip_vs_get_services *ipvs_get_services(void)
 {
 	struct ip_vs_get_services *get;
@@ -100,6 +101,7 @@ struct ip_vs_get_services *ipvs_get_services(void)
 	}
 	return get;
 }
+#endif
 
 
 struct ip_vs_get_dests *ipvs_get_dests(struct ip_vs_service_user *svc)
@@ -150,6 +152,7 @@ ipvs_get_service(u_int32_t fwmark, u_int16_t protocol, u_int32_t vaddr, u_int16_
 }
 
 
+#ifdef _INCLUDE_UNUSED_CODE_
 struct ip_vs_timeout_user *ipvs_get_timeouts(void)
 {
 	struct ip_vs_timeout_user *u;
@@ -186,7 +189,7 @@ struct ip_vs_daemon_user *ipvs_get_daemon(void)
 	}
 	return u;
 }
-
+#endif
 
 void ipvs_close(void)
 {

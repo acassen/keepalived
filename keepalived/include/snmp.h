@@ -48,10 +48,6 @@ int header_generic(struct variable *, oid *, size_t *, int,
 #define SNMPTRAP_OID 1, 3, 6, 1, 6, 3, 1, 1, 4, 1, 0
 #define GLOBAL_OID {KEEPALIVED_OID, 1}
 
-/* For net-snmp */
-extern int register_sysORTable(oid *, size_t, const char *);
-extern int unregister_sysORTable(oid *, size_t);
-
 extern unsigned long snmp_scope(int scope);
 extern void* snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
 				    int exact, size_t *var_len, WriteMethod **write_method,
