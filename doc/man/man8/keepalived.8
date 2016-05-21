@@ -109,7 +109,9 @@ Override the RLIMIT_CORE hard and soft limits to enable keepalived to
 produce a coredump in the event of a segfault or other failure.
 This is most useful if keepalived has been built with 'make debug'.
 Core dumps will be created in /, unless keepalived is run with the 
---dont-fork option.
+--dont-fork option, in which case they will be created in the directory
+from which keepalived was run, or they will be created in the directory
+of a configuraton file if the fault occurs while reading the file.
 .TP
 \fB -M, --core-dump-pattern\fP[=PATTERN]
 Sets option --core-dump, and also updates /proc/sys/kernel/core_pattern
@@ -117,7 +119,7 @@ to the pattern specified, or 'core' if none specified.
 Provided the parent process doesn't terminate abnormally, it will restore
 /proc/sys/kernel/core_pattern to its original value on exit.
 
-\fBNote:\fP This fill also affect any other process producing a core dump.
+\fBNote:\fP This will also affect any other process producing a core dump while keepalived is running.
 .TP
 \fB -v, --version\fP
 Display the version and exit.
