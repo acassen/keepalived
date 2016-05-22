@@ -224,8 +224,10 @@ dump_global_data(data_t * data)
 
 	if (data->router_id)
 		log_message(LOG_INFO, " Router ID = %s", data->router_id);
-	if (data->smtp_server.ss_family)
+	if (data->smtp_server.ss_family) {
 		log_message(LOG_INFO, " Smtp server = %s", inet_sockaddrtos(&data->smtp_server));
+		log_message(LOG_INFO, " Smtp server port = %u", inet_sockaddrport(&data->smtp_server));
+	}
 	if (data->smtp_helo_name)
 		log_message(LOG_INFO, " Smtp HELO name = %s" , data->smtp_helo_name);
 	if (data->smtp_connection_to)
