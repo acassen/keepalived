@@ -41,6 +41,8 @@ global_defs {				# Block identification
     smtp_connect_timeout <INTEGER>	   # Number of seconds timeout connect
  					   #  remote SMTP server
     router_id <STRING>			   # String identifying router
+    vrrp_garp_interval <INTEGER>           # Interval between Gratuitous ARP (in ms)
+    vrrp_gna_interval <INTEGER>            # Interval between Gratuitous NA (in ms)
     vrrp_mcast_group4 <IPv4 ADDRESS>	   # optional, default 224.0.0.18
     vrrp_mcast_group6 <IPv6 ADDRESS>	   # optional, default ff02::12
     lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE>	[<SYNC_ID>]
@@ -245,6 +247,8 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     garp_lower_priority_repeat <INTEGER>
     garp_master_refresh <INTEGER>
     garp_master_refresh_repeat <INTEGER>
+    garp_interval <INTEGER>
+    gna_interval <INTEGER>
 
     virtual_router_id <INTEGER-1..255>	# VRRP VRID
     priority <INTEGER-1..255>		# VRRP PRIO

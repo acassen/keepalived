@@ -359,23 +359,23 @@ alloc_vrrp_sync_group(char *gname)
 vrrp_stats *
 alloc_vrrp_stats(void)
 {
-    vrrp_stats *new;
-    new = (vrrp_stats *) MALLOC(sizeof (vrrp_stats));
-    new->become_master = 0;
-    new->release_master = 0;
-    new->invalid_authtype = 0;
-    new->authtype_mismatch = 0;
-    new->packet_len_err = 0;
-    new->advert_rcvd = 0;
-    new->advert_sent = 0;
-    new->advert_interval_err = 0;
-    new->auth_failure = 0;
-    new->ip_ttl_err = 0;
-    new->pri_zero_rcvd = 0;
-    new->pri_zero_sent = 0;
-    new->invalid_type_rcvd = 0;
-    new->addr_list_err = 0;
-    return new;
+	vrrp_stats *new;
+	new = (vrrp_stats *) MALLOC(sizeof (vrrp_stats));
+	new->become_master = 0;
+	new->release_master = 0;
+	new->invalid_authtype = 0;
+	new->authtype_mismatch = 0;
+	new->packet_len_err = 0;
+	new->advert_rcvd = 0;
+	new->advert_sent = 0;
+	new->advert_interval_err = 0;
+	new->auth_failure = 0;
+	new->ip_ttl_err = 0;
+	new->pri_zero_rcvd = 0;
+	new->pri_zero_sent = 0;
+	new->invalid_type_rcvd = 0;
+	new->addr_list_err = 0;
+	return new;
 }
 
 void
@@ -408,9 +408,11 @@ alloc_vrrp(char *iname)
 	new->garp_rep = global_data->vrrp_garp_rep;
 	new->garp_refresh_rep = global_data->vrrp_garp_refresh_rep;
 	new->garp_delay = global_data->vrrp_garp_delay;
-        new->garp_lower_prio_delay = -1;
-        new->garp_lower_prio_rep = -1;
-        new->lower_prio_no_advert = -1;
+	new->garp_lower_prio_delay = -1;
+	new->garp_lower_prio_rep = -1;
+	new->garp_interval = -1;
+	new->gna_interval = -1;
+	new->lower_prio_no_advert = -1;
 
 	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
 	new->strict_mode = -1;

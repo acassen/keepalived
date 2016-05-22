@@ -518,6 +518,18 @@ vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
 		vrrp->garp_lower_prio_rep = 0;
 }
 static void
+vrrp_garp_interval_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->garp_interval = atoi(vector_slot(strvec, 1));
+}
+static void
+vrrp_gna_interval_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	vrrp->gna_interval = atoi(vector_slot(strvec, 1));
+}
+static void
 vrrp_lower_prio_no_advert_handler(vector_t *strvec)
 {
 	int res;
@@ -768,6 +780,8 @@ init_vrrp_keywords(bool active)
 	install_keyword("garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
 	install_keyword("garp_lower_prio_delay", &vrrp_garp_lower_prio_delay_handler);
 	install_keyword("garp_lower_prio_repeat", &vrrp_garp_lower_prio_rep_handler);
+	install_keyword("garp_interval", &vrrp_garp_interval_handler);
+	install_keyword("gna_interval", &vrrp_gna_interval_handler);
 	install_keyword("lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
 #if defined _WITH_VRRP_AUTH_
 	install_keyword("authentication", NULL);

@@ -77,8 +77,14 @@ and
  # number of gratuitous ARP messages to send at a time while MASTER
  vrrp_garp_master_refresh_repeat 2 # default 1
 
+ # Delay in ms between gratuitous ARP messages sent on an interface
+ vrrp_garp_interval 100                # integer, ms. Default 0.
+
+ # Delay in ms between gratuitous NA messages sent on an interface
+ vrrp_gna_interval 100                # integer, ms. Default 0.
+
  # If a lower priority advert is received, don't send another advert. This causes
- # adherence to the RFCs (defaults to global vrrp_lower_priority_no_advert).
+ # adherence to the RFCs. Defaults to false, unless strict_mode is set.
  vrrp_lower_prio_no_advert [<BOOL>]
 
  # Set the default VRRP version to use
@@ -314,6 +320,9 @@ which will transition together on any state change.
     garp_lower_prio_repeat 1
     garp_master_refresh 60
     garp_master_refresh_repeat 2
+    garp_interval 100
+    gna_interval 100
+
     lower_prio_no_advert [<BOOL>]
 
     # arbitrary unique number from 0 to 255

@@ -195,6 +195,7 @@ init_global_data(data_t * data)
 			}
 		}
 	}
+
 	FREE_PTR(local_name);
 }
 
@@ -219,10 +220,8 @@ dump_global_data(data_t * data)
 	if (!data)
 		return;
 
-	if (data->router_id ||
-	    data->smtp_server.ss_family || data->smtp_connection_to || data->email_from) {
-		log_message(LOG_INFO, "------< Global definitions >------");
-	}
+	log_message(LOG_INFO, "------< Global definitions >------");
+
 	if (data->router_id)
 		log_message(LOG_INFO, " Router ID = %s", data->router_id);
 	if (data->smtp_server.ss_family)
@@ -263,6 +262,8 @@ dump_global_data(data_t * data)
 	log_message(LOG_INFO, " Gratuitous ARP lower priority delay = %d", data->vrrp_garp_lower_prio_delay / TIMER_HZ);
 	log_message(LOG_INFO, " Gratuitous ARP lower priority repeat = %d", data->vrrp_garp_lower_prio_rep);
 	log_message(LOG_INFO, " Send advert after receive lower priority advert = %s", data->vrrp_lower_prio_no_advert ? "false" : "true");
+	log_message(LOG_INFO, " Gratuitous ARP interval = %d", data->vrrp_garp_interval);
+	log_message(LOG_INFO, " Gratuitous NA interval = %d", data->vrrp_gna_interval);
 	log_message(LOG_INFO, " VRRP default protocol version = %d", data->vrrp_version);
 	if (data->vrrp_iptables_inchain[0])
 		log_message(LOG_INFO," Iptables input chain = %s", data->vrrp_iptables_inchain);

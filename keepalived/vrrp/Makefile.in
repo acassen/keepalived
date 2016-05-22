@@ -77,14 +77,15 @@ vrrp.o: vrrp.c ../include/vrrp.h ../include/vrrp_scheduler.h \
   ../include/vrrp_notify.h ../include/ipvswrapper.h ../../lib/memory.h \
   ../../lib/list.h ../include/vrrp_data.h ../include/vrrp_sync.h ../include/vrrp_index.h \
   ../include/vrrp_arp.h ../../lib/utils.h ../include/vrrp_vmac.h ../include/snmp.h \
-  ../include/vrrp_snmp.h ../../lib/bitops.h
+  ../include/vrrp_snmp.h ../../lib/bitops.h ../include/vrrp_if.h ../inclide/vrrp_vmac.h
 vrrp_notify.o: vrrp_notify.c ../include/vrrp_notify.h ../../lib/memory.h \
   ../../lib/notify.h
 vrrp_scheduler.o: vrrp_scheduler.c ../include/vrrp_scheduler.h \
   ../include/vrrp_ipsecah.h ../include/vrrp_if.h ../include/vrrp_vmac.h ../include/vrrp.h \
   ../include/vrrp_sync.h ../include/vrrp_notify.h ../include/ipvswrapper.h \
   ../../lib/memory.h ../../lib/list.h ../include/vrrp_data.h ../include/vrrp_index.h \
-  ../include/smtp.h ../../lib/notify.h ../../lib/bitops.h ../include/snmp.h ../include/vrrp_snmp.h
+  ../include/smtp.h ../../lib/notify.h ../../lib/bitops.h ../include/snmp.h ../include/vrrp_snmp.h \
+  ../include/vrrp_arp.h ../include/vrrp_ndisc.h ../include/vrrp_if.h
 vrrp_sync.o: vrrp_sync.c ../include/vrrp_sync.h ../include/vrrp_if.h \
   ../include/vrrp_notify.h ../include/vrrp_data.h
 vrrp_index.o: vrrp_index.c ../include/vrrp_index.h ../include/vrrp.h \
@@ -92,7 +93,7 @@ vrrp_index.o: vrrp_index.c ../include/vrrp_index.h ../include/vrrp.h \
 vrrp_netlink.o: vrrp_netlink.c ../include/vrrp_netlink.h ../include/check_api.h \
   ../include/vrrp_if.h ../../lib/memory.h ../../lib/scheduler.h \
   ../../lib/utils.h
-vrrp_arp.o: vrrp_arp.c ../include/vrrp_arp.h
+vrrp_arp.o: vrrp_arp.c ../include/vrrp_arp.h ../../lib/bitops.h ../include/vrrp_scheduler.h ../../lib/old_socket.h
 vrrp_track.o: vrrp_track.c ../include/vrrp_track.h ../include/vrrp_if.h \
   ../include/vrrp_data.h ../../lib/memory.h
 vrrp_if.o: vrrp_if.c ../include/vrrp_if.h ../include/vrrp_netlink.h \
@@ -109,7 +110,7 @@ vrrp_iprule.o: vrrp_iprule.c ../include/vrrp_iprule.h ../include/vrrp_netlink.h 
   ../../lib/rttables.h
 vrrp_ipsecah.o: vrrp_ipsecah.c ../include/vrrp_ipsecah.h
 vrrp_ndisc.o: vrrp_ndisc.c ../include/vrrp_ndisc.h ../include/vrrp_ipaddress.h \
-  ../../lib/utils.h ../../lib/memory.h
+  ../../lib/utils.h ../../lib/memory.h ../include/vrrp_if_config.h ../include/vrrp_scheduler.h
 vrrp_vmac.o: vrrp_vmac.c ../include/vrrp_vmac.h ../include/vrrp_netlink.h \
   ../include/vrrp_data.h ../../lib/logger.h ../../lib/memory.h ../../lib/utils.h \
   ../../lib/bitops.h ../include/vrrp_if_config.h
@@ -120,3 +121,7 @@ vrrp_snmp.o: vrrp_snmp.c ../include/vrrp_snmp.h ../include/vrrp_track.h \
   ../../lib/logger.h
 vrrp_if_config.o: vrrp_if_config.c ../include/vrrp_if_config.h ../../lib/logger.h
 vrrp_iptables.o: vrrp_iptables.c ../include/vrrp_iptables.h ../include/vrrp_ipaddress.h
+
+../include/vrrp_arp.h: ../../lib/scheduler.h ../include/vrrp.h
+../include/vrrp_ndisc.h: ../include/vrrp.h
+../include/vrrp_scheduler.h: ../../lib/list.h ../include/vrrp_data.h

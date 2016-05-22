@@ -95,6 +95,17 @@ base_if_get_by_ifindex(const int ifindex)
 #endif
 }
 
+/* Return base interface from interface index incase of VMAC */
+interface_t *
+base_if_get_by_ifp(interface_t *ifp)
+{
+#ifdef _HAVE_VRRP_VMAC_
+	return (ifp && ifp->vmac) ? if_get_by_ifindex(ifp->base_ifindex) : ifp;
+#else
+	return ifp;
+#endif
+}
+
 interface_t *
 if_get_by_ifname(const char *ifname)
 {
