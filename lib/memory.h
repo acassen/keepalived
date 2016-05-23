@@ -66,6 +66,6 @@ extern void keepalived_free_final(char *);
 #endif
 
 /* Common defines */
-#define FREE_PTR(P) if((P)) FREE((P));
+#define FREE_PTR(P) if((P)) FREE((P)), (P) = NULL;
 
 #endif
