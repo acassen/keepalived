@@ -1604,18 +1604,6 @@ chk_min_cfg(vrrp_t * vrrp)
 		return 0;
 	}
 
-	if (vrrp->version == VRRP_VERSION_2 && vrrp->adver_int % TIMER_HZ) {
-		log_message(LOG_INFO, "VRRP_Instance(%s): non-integer interval not supported in version 2!",
-			    vrrp->iname);
-		return 0;
-	}
-	if ((vrrp->version == VRRP_VERSION_2 && vrrp->adver_int >= (1<<8) * TIMER_HZ) ||
-	    (vrrp->version == VRRP_VERSION_3 && vrrp->adver_int >= (1<<12) * TIMER_CENTI_HZ)) {
-		log_message(LOG_INFO, "VRRP_Instance(%s): advertisement interval too large",
-			    vrrp->iname);
-		return 0;
-	}
-
 	return 1;
 }
 
@@ -1972,9 +1960,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		log_message(LOG_INFO, "(%s): Warning - nopreempt will not work with initial state MASTER", vrrp->iname);
 
 	vrrp->state = VRRP_STATE_INIT;
-	if (!vrrp->adver_int)
-		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
-	vrrp->master_adver_int = vrrp->adver_int;
 
 	if (vrrp->garp_lower_prio_rep == -1)
 		vrrp->garp_lower_prio_rep = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_rep;
@@ -1982,6 +1967,38 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->garp_lower_prio_delay = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_delay;
 	if (vrrp->lower_prio_no_advert == -1)
 		vrrp->lower_prio_no_advert = vrrp->strict_mode ? true : global_data->vrrp_lower_prio_no_advert;
+
+	/* Check that the advertisement interval is valid */
+	if (!vrrp->adver_int)
+		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
+	if (vrrp->version == VRRP_VERSION_2) {
+		if (vrrp->adver_int >= (1<<8) * TIMER_HZ) {
+			log_message(LOG_INFO, "(%s): VRRPv2 advertisement interval %.2fs is out of range. Must be less than %ds. Setting to %ds",
+					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ, 1<<8, (1<<8) - 1);
+			vrrp->adver_int = ((1<<8) - 1) * TIMER_HZ;
+		}
+		else if (vrrp->adver_int % TIMER_HZ) {
+			log_message(LOG_INFO, "(%s): VRRPv2 advertisement interval %fs must be an integer - rounding",
+					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ);
+			vrrp->adver_int = vrrp->adver_int + (TIMER_HZ / 2);
+			vrrp->adver_int -= vrrp->adver_int % TIMER_HZ;
+		}
+	}
+	else
+	{
+		if (vrrp->adver_int >= (1<<12) * TIMER_CENTI_HZ) {
+			log_message(LOG_INFO, "(%s): VRRPv3 advertisement interval %.2fs is out of range. Must be less than %.2fs. Setting to %.2fs",
+					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ, (float)(1<<12) / 100, (float)((1<<12) - 1) / 100);
+			vrrp->adver_int = ((1<<12) - 1) * TIMER_CENTI_HZ;
+		}
+		else if (vrrp->adver_int % TIMER_CENTI_HZ) {
+			log_message(LOG_INFO, "(%s): VRRPv3 advertisement interval %fs must be in units of 10ms - rounding",
+					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ);
+			vrrp->adver_int = vrrp->adver_int + (TIMER_CENTI_HZ / 2);
+			vrrp->adver_int -= vrrp->adver_int % TIMER_CENTI_HZ;
+		}
+	}
+	vrrp->master_adver_int = vrrp->adver_int;
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* Set a default interface name for the vmac if needed */

@@ -332,16 +332,13 @@ static void
 vrrp_adv_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->adver_int = atof(vector_slot(strvec, 1)) * 100; /* multiply by 100 to get integer value */
+	int adver_int = atof(vector_slot(strvec, 1)) * TIMER_HZ;
 
 	/* Simple check - just positive */
-	if (VRRP_IS_BAD_ADVERT_INT(vrrp->adver_int)) {
-		log_message(LOG_INFO, "(%s): Advert interval not valid !", vrrp->iname);
-		log_message(LOG_INFO, "%*smust be >=1sec for VRRPv2 or >=0.01sec for VRRPv3.", (int)strlen(vrrp->iname) + 4, "");
-		log_message(LOG_INFO, "%*sUsing default value : 1sec", (int)strlen(vrrp->iname) + 4, "");
-		vrrp->adver_int = VRRP_ADVER_DFL * 100;
-	}
-	vrrp->adver_int *= TIMER_CENTI_HZ;
+	if (adver_int <= 0)
+		log_message(LOG_INFO, "(%s): Advert interval (%s) not valid! Must be > 0 - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+	else
+		vrrp->adver_int = adver_int;
 }
 static void
 vrrp_debug_handler(vector_t *strvec)

@@ -400,7 +400,6 @@ alloc_vrrp(char *iname)
 	new->version = 0;
 	new->master_priority = 0;
 	new->last_transition = timer_now();
-	new->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
 	new->iname = (char *) MALLOC(size + 1);
 	memcpy(new->iname, iname, size);
 	new->stats = alloc_vrrp_stats();
