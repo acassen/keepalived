@@ -221,8 +221,7 @@ init_checkers_queue(void)
 void
 free_checkers_queue(void)
 {
-	free_list(checkers_queue);
-	checkers_queue = NULL;
+	free_list(&checkers_queue);
 	ncheckers = 0;
 }
 

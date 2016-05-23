@@ -136,13 +136,18 @@ free_list_elements(list l)
 }
 
 void
-free_list(list l)
+free_list(list *lp)
 {
+	list l = *lp;
+
 	if (!l)
 		return;
+
+	/* Remove the caller's reference to the list */
+	*lp = NULL;
+
 	free_elements(l);
 	FREE(l);
-	l = NULL;
 }
 
 void

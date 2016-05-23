@@ -52,7 +52,7 @@ struct _list {
 
 /* Prototypes */
 extern list alloc_list(void (*free_func) (void *), void (*dump_func) (void *));
-extern void free_list(list l);
+extern void free_list(list *);
 extern void free_list_elements(list l);
 extern void free_list_element(list l, element e);
 extern void *list_element(list l, int num);

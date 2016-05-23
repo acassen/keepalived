@@ -202,7 +202,7 @@ init_global_data(data_t * data)
 void
 free_global_data(data_t * data)
 {
-	free_list(data->email);
+	free_list(&data->email);
 	FREE_PTR(data->router_id);
 	FREE_PTR(data->email_from);
 	FREE_PTR(data->smtp_helo_name);

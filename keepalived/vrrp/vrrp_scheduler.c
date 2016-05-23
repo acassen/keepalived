@@ -589,7 +589,7 @@ vrrp_dispatcher_init(thread_t * thread)
 void
 vrrp_dispatcher_release(vrrp_data_t *data)
 {
-	free_list(data->vrrp_socket_pool);
+	free_list(&data->vrrp_socket_pool);
 }
 
 static void

@@ -58,7 +58,7 @@ static void
 free_smtp_check(void *data)
 {
 	smtp_checker_t *smtp_checker = CHECKER_DATA(data);
-	free_list(smtp_checker->host);
+	free_list(&smtp_checker->host);
 	FREE(smtp_checker->helo_name);
 	FREE(smtp_checker->default_co);
 	FREE(smtp_checker);
