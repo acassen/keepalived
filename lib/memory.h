@@ -45,7 +45,8 @@ extern void *zalloc(unsigned long size);
 #define MALLOC(n)    ( keepalived_malloc((n), \
 		      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
 #define FREE(b)      ( keepalived_free((b), \
-		      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
+		      (__FILE__), (char *)(__FUNCTION__), (__LINE__)), \
+		       (b) = NULL )
 #define REALLOC(b,n) ( keepalived_realloc((b), (n), \
 		      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
 
@@ -60,12 +61,12 @@ extern void keepalived_free_final(char *);
 #else
 
 #define MALLOC(n)    (zalloc(n))
-#define FREE(p)      (free(p))
+#define FREE(p)      (free(p), (p) = NULL)
 #define REALLOC(p,n) (realloc((p),(n)))
 
 #endif
 
 /* Common defines */
-#define FREE_PTR(P) if((P)) FREE((P)), (P) = NULL;
+#define FREE_PTR(P) if((P)) FREE((P));
 
 #endif
