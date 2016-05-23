@@ -194,6 +194,20 @@ vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
 		global_data->vrrp_garp_lower_prio_rep = 0;
 }
 static void
+vrrp_garp_interval_handler(vector_t *strvec)
+{
+	global_data->vrrp_garp_interval = atof(vector_slot(strvec, 1)) * 1000000;
+	if (global_data->vrrp_garp_interval >= 1000000)
+		log_message(LOG_INFO, "The vrrp_garp_interval is very large - %s seconds", FMT_STR_VSLOT(strvec, 1));
+}
+static void
+vrrp_gna_interval_handler(vector_t *strvec)
+{
+	global_data->vrrp_gna_interval = atof(vector_slot(strvec, 1)) * 1000000;
+	if (global_data->vrrp_gna_interval >= 1000000)
+		log_message(LOG_INFO, "The vrrp_gna_interval is very large - %s seconds", FMT_STR_VSLOT(strvec, 1));
+}
+static void
 vrrp_lower_prio_no_advert_handler(vector_t *strvec)
 {
 	int res;
@@ -440,6 +454,8 @@ global_init_keywords(void)
 	install_keyword("vrrp_garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
 	install_keyword("vrrp_garp_lower_prio_delay", &vrrp_garp_lower_prio_delay_handler);
 	install_keyword("vrrp_garp_lower_prio_repeat", &vrrp_garp_lower_prio_rep_handler);
+	install_keyword("vrrp_garp_interval", &vrrp_garp_interval_handler);
+	install_keyword("vrrp_gna_interval", &vrrp_gna_interval_handler);
 	install_keyword("vrrp_lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
 	install_keyword("vrrp_version", &vrrp_version_handler);
 	install_keyword("vrrp_iptables", &vrrp_iptables_handler);

@@ -37,6 +37,7 @@
 #include "vrrp_data.h"
 #include "vrrp_sync.h"
 #include "vrrp_index.h"
+#include "vrrp_if.h"
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
 #endif
@@ -1105,18 +1106,11 @@ vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, int idx)
 {
 	char *msg;
 	char addr_str[INET6_ADDRSTRLEN];
-	bool router;
 
 	if (!IP_IS6(ipaddress))
-		send_gratuitous_arp(ipaddress);
-	else {
-		router = get_ipv6_forwarding(
-#ifdef _HAVE_VRRP_VMAC_
-					     (vrrp->ifp->vmac) ? if_get_by_ifindex(vrrp->ifp->base_ifindex) :
-#endif
-					     vrrp->ifp);
-		ndisc_send_unsolicited_na(ipaddress, router);
-	}
+		send_gratuitous_arp(vrrp, ipaddress);
+	else
+		ndisc_send_unsolicited_na(vrrp, ipaddress);
 
 	if (idx == 0 && __test_bit(LOG_DETAIL_BIT, &debug)) {
 		if (!IP_IS6(ipaddress)) {
@@ -1127,7 +1121,7 @@ vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, int idx)
 			inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, sizeof(addr_str));
 		}
 
-		log_message(LOG_INFO, "VRRP_Instance(%s) Sending %s on %s for %s",
+		log_message(LOG_INFO, "VRRP_Instance(%s) Sending/queueing %s on %s for %s",
 			    vrrp->iname, msg, IF_NAME(ipaddress->ifp), addr_str);
 	}
 }
@@ -1159,6 +1153,29 @@ vrrp_send_link_update(vrrp_t * vrrp, int rep)
 			}
 		}
 	}
+}
+
+static void
+vrrp_remove_delayed_arp(vrrp_t *vrrp)
+{
+	ip_address_t *ipaddress;
+	element e;
+
+	if (!LIST_ISEMPTY(vrrp->vip)) {
+		for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
+			ipaddress = ELEMENT_DATA(e);
+			ipaddress->garp_gna_pending = false;
+		}
+	}
+
+	if (!LIST_ISEMPTY(vrrp->evip)) {
+		for (e = LIST_HEAD(vrrp->evip); e; ELEMENT_NEXT(e)) {
+			ipaddress = ELEMENT_DATA(e);
+			ipaddress->garp_gna_pending = false;
+		}
+	}
+	vrrp->garp_pending = false;
+	vrrp->gna_pending = false;
 }
 
 /* becoming master */
@@ -1266,6 +1283,9 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 	if (!LIST_ISEMPTY(vrrp->vroutes))
 		vrrp_handle_iproutes(vrrp, IPROUTE_DEL);
 #endif
+
+	/* empty the delayed arp list */
+	vrrp_remove_delayed_arp(vrrp);
 
 	/*
 	 * Remove the ip addresses.
@@ -1808,6 +1828,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	vrrp_t *vrrp_o;
 	interface_t *ifp;
 #endif
+	interface_t *base_ifp;
 	element e;
 	ip_address_t *vip;
 	int hdr_len;
@@ -2043,19 +2064,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		interface_already_existed = true;
 	}
 
+	base_ifp = base_if_get_by_ifp(vrrp->ifp);
+
 	/* Make sure we have an IP address as needed */
 	if (vrrp->saddr.ss_family == AF_UNSPEC) {
-		bool addr_missing = false;
-
 		/* Check the physical interface has a suitable address we can use.
 		 * We don't need an IPv6 address on the underlying interface if it is
 		 * a VMAC since we can create our own. */
-		interface_t *base_ifp =
-#ifdef _HAVE_VRRP_VMAC_
-					if_get_by_ifindex(vrrp->ifp->base_ifindex);
-#else
-					vrrp->ifp;
-#endif
+		bool addr_missing = false;
+
 		if (vrrp->family == AF_INET) {
 			if (!base_ifp->sin_addr.s_addr)
 				addr_missing = true;
@@ -2200,6 +2217,10 @@ vrrp_complete_init(void)
 		if (vrrp->ifp->mtu > max_mtu_len)
 			max_mtu_len = vrrp->ifp->mtu;
 	}
+
+	/* If we have a global garp_delay add it to any interfaces without a garp_delay */
+	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
+		set_default_garp_delay();
 
 #ifdef _HAVE_LIBIPTC_
 	/* Make sure we don't have any old iptables/ipsets settings left around */

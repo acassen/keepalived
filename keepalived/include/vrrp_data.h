@@ -63,6 +63,7 @@ typedef struct _vrrp_data {
 	list			vrrp_index_fd;
 	list			vrrp_socket_pool;
 	list			vrrp_script;
+	list			vrrp_switch;
 } vrrp_data_t;
 
 /* Global Vars exported */
@@ -77,7 +78,6 @@ extern void alloc_sroute(vector_t *);
 extern void alloc_srule(vector_t *);
 extern void alloc_vrrp_sync_group(char *);
 extern void alloc_vrrp(char *);
-extern vrrp_stats *alloc_vrrp_stats(void);
 extern void alloc_vrrp_unicast_peer(vector_t *);
 extern void alloc_vrrp_track(vector_t *);
 extern void alloc_vrrp_script(char *);

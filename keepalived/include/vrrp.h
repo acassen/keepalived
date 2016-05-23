@@ -170,9 +170,11 @@ typedef struct _vrrp_t {
 	timeval_t		garp_refresh_timer;	/* Next scheduled gratuitous ARP timer */
 	int			garp_rep;		/* gratuitous ARP repeat value */
 	int			garp_refresh_rep;	/* refresh gratuitous ARP repeat value */
-        int			garp_lower_prio_delay;	/* Delay to second set or ARP messages */
-        int			garp_lower_prio_rep;	/* Number of ARP messages to send at a time */
-        int			lower_prio_no_advert;	/* Don't send advert after lower prio
+	int			garp_lower_prio_delay;	/* Delay to second set or ARP messages */
+	bool			garp_pending;		/* Are there gratuitous ARP messages still to be sent */
+	bool			gna_pending;		/* Are there gratuitous NA messages still to be sent */
+	int			garp_lower_prio_rep;	/* Number of ARP messages to send at a time */
+	int			lower_prio_no_advert;	/* Don't send advert after lower prio
 							 * advert received */
 	int			vrid;			/* virtual id. from 1(!) to 255 */
 	int			base_priority;		/* configured priority value */
@@ -323,5 +325,6 @@ extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);
 extern void clear_diff_script(void);
 extern void vrrp_restore_interface(vrrp_t *, bool, bool);
+extern void vrrp_remove_delayed_arp_na(vrrp_t *);
 
 #endif

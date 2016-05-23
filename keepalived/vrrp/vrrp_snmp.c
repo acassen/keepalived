@@ -605,6 +605,7 @@ vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
 	return NULL;
 }
 
+#ifdef _HAVE_FIB_ROUTING_
 static u_char*
 vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
@@ -762,6 +763,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 				       exact, var_len, write_method);
 	return NULL;
 }
+#endif
 
 static u_char*
 vrrp_snmp_syncgroup(struct variable *vp, oid *name, size_t *length,
@@ -1474,6 +1476,7 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_address, 3, {6, 1, 10}},
 	{VRRP_SNMP_ADDRESS_ISADVERTISED, ASN_INTEGER, RONLY,
 	 vrrp_snmp_address, 3, {6, 1, 11}},
+#ifdef _HAVE_FIB_ROUTING_
 	/* vrrpRouteTable */
 	{VRRP_SNMP_ROUTE_ADDRESSTYPE, ASN_INTEGER, RONLY,
 	 vrrp_snmp_route, 3, {7, 1, 2}},
@@ -1514,6 +1517,7 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_rule, 3, {8, 1, 6}},
 	{VRRP_SNMP_RULE_ISSET, ASN_INTEGER, RONLY,
 	 vrrp_snmp_rule, 3, {8, 1, 7}},
+#endif
 	/* vrrpScriptTable */
 	{VRRP_SNMP_SCRIPT_NAME, ASN_OCTET_STR, RONLY, vrrp_snmp_script, 3, {9, 1, 2}},
 	{VRRP_SNMP_SCRIPT_COMMAND, ASN_OCTET_STR, RONLY, vrrp_snmp_script, 3, {9, 1, 3}},

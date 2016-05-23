@@ -30,10 +30,13 @@
 #include "memory.h"
 #include "utils.h"
 #include "vrrp_ipaddress.h"
+#include "vrrp_if_config.h"
+#include "vrrp_scheduler.h"
 #include "vrrp_ndisc.h"
 #ifndef _HAVE_SOCK_CLOEXEC_
 #include "old_socket.h"
 #endif
+#include "bitops.h"
 
 /* static vars */
 static char *ndisc_buffer;
@@ -47,6 +50,7 @@ ndisc_send_na(ip_address_t *ipaddress)
 {
 	struct sockaddr_ll sll;
 	int len;
+	char addr_str[INET6_ADDRSTRLEN] = "";
 
 	/* Build the dst device */
 	memset(&sll, 0, sizeof (sll));
@@ -55,14 +59,25 @@ ndisc_send_na(ip_address_t *ipaddress)
 	sll.sll_halen = ETHERNET_HW_LEN;
 	sll.sll_ifindex = IF_INDEX(ipaddress->ifp);
 
+	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+		inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, sizeof(addr_str));
+		log_message(LOG_INFO, "Sending unsolicited Neighbour Advert on %s for %s",
+			    IF_NAME(ipaddress->ifp), addr_str);
+	
+	}
+
 	/* Send packet */
 	len = sendto(ndisc_fd, ndisc_buffer,
 		     ETHER_HDR_LEN + sizeof(struct ip6hdr) + sizeof(struct ndhdr) +
 		     sizeof(struct nd_opt_hdr) + ETH_ALEN, 0,
 		     (struct sockaddr *) &sll, sizeof (sll));
-	if (len < 0)
-		log_message(LOG_INFO, "VRRP: Error sending ndisc unsolicited neighbour advert on %s",
-			    IF_NAME(ipaddress->ifp));
+	if (len < 0) {
+		if (!addr_str[0])
+			inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, sizeof(addr_str));
+		log_message(LOG_INFO, "VRRP: Error sending ndisc unsolicited neighbour advert on %s for %s",
+			    IF_NAME(ipaddress->ifp), addr_str);
+	}
+
 	return len;
 }
 
@@ -119,7 +134,7 @@ ndisc_icmp6_cksum(const struct ip6hdr *ip6, const struct icmp6hdr *icp, uint32_t
  *	new information quickly.
  */
 int
-ndisc_send_unsolicited_na(ip_address_t *ipaddress, int router)
+ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 {
 	struct ether_header *eth = (struct ether_header *) ndisc_buffer;
 	struct ip6hdr *ip6h = (struct ip6hdr *) ((char *)eth + ETHER_HDR_LEN);
@@ -129,6 +144,9 @@ ndisc_send_unsolicited_na(ip_address_t *ipaddress, int router)
 	char *nd_opt_lladdr = (char *) ((char *)nd_opt_h + sizeof(struct nd_opt_hdr));
 	char *lladdr = (char *) IF_HWADDR(ipaddress->ifp);
 	int len;
+	bool router;
+
+	router = get_ipv6_forwarding(ifp);
 
 	/* Ethernet header:
 	 * Destination ethernet address MUST use specific address Mapping
@@ -176,9 +194,49 @@ ndisc_send_unsolicited_na(ip_address_t *ipaddress, int router)
 	memset(ndisc_buffer, 0, ETHER_HDR_LEN + sizeof(struct ip6hdr) +
 	       sizeof(struct ndhdr) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
 
+	/* If we have to delay between sending NAs, note the next time we can */
+	if (ifp->garp_delay && ifp->garp_delay->have_gna_interval)
+		ifp->garp_delay->gna_next_time = timer_add_now(ifp->garp_delay->gna_interval);
+
 	return len;
 }
 
+static void
+queue_ndisc(vrrp_t *vrrp, interface_t *ifp, ip_address_t *ipaddress)
+{
+        timeval_t next_time = timer_add_now(ifp->garp_delay->gna_interval);
+
+	vrrp->gna_pending = true;
+	ipaddress->garp_gna_pending = true;
+
+	/* Do we need to schedule/reschedule the garp thread? */
+	if (!garp_thread || timer_cmp(next_time, garp_next_time) < 0) {
+		if (garp_thread)
+			thread_cancel(garp_thread);
+
+		garp_next_time = next_time;
+
+		garp_thread = thread_add_timer(master, vrrp_arp_thread, NULL, -timer_long(timer_sub_now(garp_next_time)));
+	}
+}
+
+void
+ndisc_send_unsolicited_na(vrrp_t *vrrp, ip_address_t *ipaddress)
+{
+	interface_t *ifp = IF_BASE_IFP(ipaddress->ifp);
+
+	set_time_now();
+
+	/* Do we need to delay sending the ndisc? */
+	if (ifp->garp_delay && ifp->garp_delay->have_gna_interval && ifp->garp_delay->gna_next_time.tv_sec) {
+		if (timer_cmp(time_now, ifp->garp_delay->gna_next_time) < 0) {
+			queue_ndisc(vrrp, ifp, ipaddress);
+			return;
+		}
+	}
+
+	ndisc_send_unsolicited_na_immediate(ifp, ipaddress);
+}
 
 /*
  *	Neighbour Discovery init/close

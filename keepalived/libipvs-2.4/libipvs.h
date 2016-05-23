@@ -33,14 +33,8 @@ extern int ipvs_init(void);
 /* get ipvs info separately */
 extern int ipvs_getinfo(void);
 
-/* get the version number */
-extern unsigned int ipvs_version(void);
-
 /* set command */
 extern int ipvs_command(int cmd, struct ip_vs_rule_user *urule);
-
-/* get all the ipvs services */
-extern struct ip_vs_get_services *ipvs_get_services(void);
 
 /* get the destination array of the specified service */
 extern struct ip_vs_get_dests *ipvs_get_dests(struct ip_vs_service_user *svc);
@@ -48,12 +42,6 @@ extern struct ip_vs_get_dests *ipvs_get_dests(struct ip_vs_service_user *svc);
 /* get ipvs service */
 extern struct ip_vs_service_user *
 ipvs_get_service(u_int32_t fwmark, u_int16_t protocol, u_int32_t vaddr, u_int16_t vport);
-
-/* get ipvs timeout */
-extern struct ip_vs_timeout_user *ipvs_get_timeouts(void);
-
-/* get ipvs daemon information */
-extern struct ip_vs_daemon_user *ipvs_get_daemon(void);
 
 /* close the socket */
 extern void ipvs_close(void);

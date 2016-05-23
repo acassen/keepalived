@@ -41,6 +41,10 @@ global_defs {				# Block identification
     smtp_connect_timeout <INTEGER>	   # Number of seconds timeout connect
  					   #  remote SMTP server
     router_id <STRING>			   # String identifying router
+    vrrp_garp_interval <DECIMAL>           # Sets the default interval between Gratuitous ARP
+					   #   (in seconds, resolution microseconds)
+    vrrp_gna_interval <DECIMAL>            # Sets the default interval between unsolicited NA
+					   #   (in seconds, resolution microseconds)
     vrrp_mcast_group4 <IPv4 ADDRESS>	   # optional, default 224.0.0.18
     vrrp_mcast_group6 <IPv6 ADDRESS>	   # optional, default ff02::12
     lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE>	[<SYNC_ID>]
@@ -141,6 +145,7 @@ This block is divided in 3 sub-block :
 
 	* VRRP scripts
 	* VRRP synchronization group
+	* VRRP gratuitous ARP/NA intervals
 	* VRRP instance
 
 	2.1. VRRP scripts
@@ -197,14 +202,43 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
     same ones listed above ("GROUP"/"INSTANCE", "MASTER"/"BACKUP"/"FAULT").
 
 Important: for a SYNC group to run reliably, it is vital that all instances in
-           the group are MASTER or that they are all either BACKUP or FAULT. A
-           situation with half instances having higher priority on machine A
-           half others with higher priority on machine B will lead to constant
-           re-elections. For this reason, when instances are grouped, their
-           tracking weights are automatically set to zero, in order to avoid
-           inconsistent priorities across instances.
+	   the group are MASTER or that they are all either BACKUP or FAULT. A
+	   situation with half instances having higher priority on machine A
+	   half others with higher priority on machine B will lead to constant
+	   re-elections. For this reason, when instances are grouped, their
+	   tracking weights are automatically set to zero, in order to avoid
+	   inconsistent priorities across instances.
 
-	2.3. VRRP instance
+	2.3. VRRP gratuitous ARP/NA intervals
+
+	This section allows the setting of delays between sending gratuitous ARPs
+	and unsolicited neighbour advertisements. This is intended for when an
+	upstream switch is unable to handle being flooded with ARPs/NAs.
+
+	Use interface when the limits apply on the single physical interface.
+	Use interfaces when a group of interfaces are linked to the same switch
+	and the limits apply to the switch as a whole.
+
+	Note: Only one of interface or interfaces should be used per block.
+
+garp_group {
+    garp_interval <DECIMAL>		   # Sets the interval between Gratuitous ARP
+					   #   (in seconds, resolution microseconds)
+    gna_interval <DECIMAL>		   # Sets the default interval between unsolicited NA
+					   #   (in seconds, resolution microseconds)
+    interface <STRING>			   # The physical interface to which the intervals apply
+    interfaces {			   # A list of interfaces accross which the delays are
+	<STRING>			   #   aggregated.
+	<STRING>
+	...
+    }
+}
+
+	If the global vrrp_garp_interval and/or vrrp_gna_interval are set, any
+	interfaces that aren't specified in a garp_group will inherit the global
+	settings.
+
+	2.4. VRRP instance
 
 	The configuration block looks like :
 

@@ -524,7 +524,7 @@ thread_compute_timer(thread_master_t * m, timeval_t * timer_wait)
 	thread_update_timer(&m->read, &timer_min);
 	thread_update_timer(&m->child, &timer_min);
 
-	/* Take care about monothonic clock */
+	/* Take care about monotonic clock */
 	if (!timer_isnull(timer_min)) {
 		timer_min = timer_sub(timer_min, time_now);
 		if (timer_min.tv_sec < 0) {

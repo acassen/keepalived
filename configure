@@ -4229,7 +4229,8 @@ fi
 
 
 # Linux 4.5 caused <libiptc/libiptc.h> to indirectly include <net/if.h> and <linux/if.h>
-# which causes a namespace collision
+# which causes a namespace collision.
+# This issue was resolved in Linux 4.5.5 and 4.6
 LINUX_NET_IF_H_COLLISION="_WITHOUT_LINUX_NET_IF_H_COLLISION_"
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libiptc/libiptc.h linux/if.h and net/if.h namespace collision" >&5
 $as_echo_n "checking for libiptc/libiptc.h linux/if.h and net/if.h namespace collision... " >&6; }

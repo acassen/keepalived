@@ -26,6 +26,9 @@
 /* system includes */
 #include <linux/icmpv6.h>
 
+/* local includes */
+#include "vrrp.h"
+
 /* local definitions */
 #define ETHERNET_HW_LEN	6
 #define NEXTHDR_ICMP	58
@@ -86,7 +89,8 @@ struct nd_opt_hdr {
 /* prototypes */
 extern void ndisc_init(void);
 extern void ndisc_close(void);
-extern int ndisc_send_unsolicited_na(ip_address_t *, int);
+extern void ndisc_send_unsolicited_na(vrrp_t *, ip_address_t *);
+extern int ndisc_send_unsolicited_na_immediate(interface_t *, ip_address_t *);
 
 #endif
 

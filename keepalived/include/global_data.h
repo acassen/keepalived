@@ -75,6 +75,8 @@ typedef struct _data {
 	int				vrrp_garp_refresh_rep;
 	int				vrrp_garp_lower_prio_delay;
 	int				vrrp_garp_lower_prio_rep;
+	int				vrrp_garp_interval;
+	int				vrrp_gna_interval;
 	bool				vrrp_lower_prio_no_advert;
 	int				vrrp_version;	/* VRRP version (2 or 3) */
 	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];

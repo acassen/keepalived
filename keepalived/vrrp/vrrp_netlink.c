@@ -713,7 +713,6 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 #endif
 		ifp->flags = ifi->ifi_flags;
 #ifdef _HAVE_VRRP_VMAC_
-log_message(LOG_INFO, "Setting base index for %s to ifi_index %d", name, ifi->ifi_index);
 		ifp->base_ifindex = ifi->ifi_index;
 #endif
 	}

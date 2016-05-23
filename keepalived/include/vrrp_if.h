@@ -27,6 +27,7 @@
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <stdbool.h>
 
 /* needed to get correct values for SIOC* */
 #include <linux/sockios.h>
@@ -75,6 +76,17 @@ struct ethtool_value {
 /* Default values */
 #define IF_DEFAULT_BUFSIZE	(65*1024)
 
+/* Structure for delayed sending of gratuitous ARP/NA messages */
+typedef struct _garp_delay {
+	timeval_t		garp_interval;		/* Delay between sending gratuitous ARP messages on an interface */
+	bool			have_garp_interval;	/* True if delay */
+	timeval_t		gna_interval;		/* Delay between sending gratuitous NA messages on an interface */
+	bool			have_gna_interval;	/* True if delay */
+	timeval_t		garp_next_time;		/* Time when next gratuitous ARP message can be sent */
+	timeval_t		gna_next_time;		/* Time when next gratuitous NA message can be sent */
+	int			aggregation_group;	/* Index of multi-interface group */
+} garp_delay_t;
+
 /* Interface structure definition */
 typedef struct _interface {
 	char			ifname[IF_NAMESIZ + 1];	/* Interface name */
@@ -93,10 +105,13 @@ typedef struct _interface {
 	unsigned int		base_ifindex;		/* Base interface index (if interface is a VMAC interface),
 							   otherwise the physical interface (i.e. ifindex) */
 #endif
+	garp_delay_t		*garp_delay;		/* Delays for sending gratuitous ARP/NA */
 	int			reset_arp_config;	/* Count of how many vrrps have changed arp parameters on interface */
 	uint32_t		reset_arp_ignore_value;	/* Original value of arp_ignore to be restored */
 	uint32_t		reset_arp_filter_value;	/* Original value of arp_filter to be restored */
 } interface_t;
+
+#define GARP_DELAY_PTR(X) ((X)->switch_delay ? (X)->switch_delay : &((X)->if_delay))
 
 /* Tracked interface structure definition */
 typedef struct _tracked_if {
@@ -107,7 +122,13 @@ typedef struct _tracked_if {
 /* Macros */
 #define IF_NAME(X) ((X)->ifname)
 #define IF_INDEX(X) ((X)->ifindex)
+#ifdef _HAVE_VRRP_VMAC_
 #define IF_BASE_INDEX(X) ((X)->base_ifindex)
+#define IF_BASE_IFP(X) (((X)->ifindex == (X)->base_ifindex) ? X : if_get_by_ifindex((X)->base_ifindex))
+#else
+#define IF_BASE_INDEX(X) ((X)->ifindex)
+#define IF_BASE_IFP(X) (X)
+#endif
 #define IF_ADDR(X) ((X)->sin_addr.s_addr)
 #define IF_ADDR6(X)	((X)->sin6_addr)
 #define IF_MTU(X) ((X)->mtu)
@@ -119,15 +140,21 @@ typedef struct _tracked_if {
 		    ((X)->flags & IFF_RUNNING) && \
 		    if_linkbeat(X))
 
+/* Global data */
+list garp_delay;
+
 /* prototypes */
 extern interface_t *if_get_by_ifindex(const int);
 extern interface_t *base_if_get_by_ifindex(const int);
+extern interface_t *base_if_get_by_ifp(interface_t *);
 extern interface_t *if_get_by_ifname(const char *);
 extern list get_if_list(void);
 #ifdef _HAVE_VRRP_VMAC_
 extern void if_vmac_reflect_flags(const int, const unsigned long);
 #endif
 extern int if_linkbeat(const interface_t *);
+extern void alloc_garp_delay(void);
+extern void set_default_garp_delay(void);
 extern void if_add_queue(interface_t *);
 extern int if_monitor_thread(thread_t *);
 extern void init_interface_queue(void);

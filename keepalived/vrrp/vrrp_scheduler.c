@@ -32,6 +32,9 @@
 #include "vrrp_netlink.h"
 #include "vrrp_data.h"
 #include "vrrp_index.h"
+#include "vrrp_arp.h"
+#include "vrrp_ndisc.h"
+#include "vrrp_if.h"
 #include "ipvswrapper.h"
 #include "memory.h"
 #include "notify.h"
@@ -44,6 +47,10 @@
 #ifdef _WITH_SNMP_
 #include "vrrp_snmp.h"
 #endif
+
+/* global vars */
+timeval_t garp_next_time;
+thread_t *garp_thread;
 
 /* VRRP FSM (Finite State Machine) design.
  *
@@ -1122,6 +1129,99 @@ vrrp_script_child_timeout_thread(thread_t * thread)
 	}
 
 	log_message(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
+
+	return 0;
+}
+
+/* Delayed ARP/NA thread */
+int
+vrrp_arp_thread(thread_t *thread)
+{
+	element e, a;
+	list l;
+	ip_address_t *ipaddress;
+	timeval_t next_time = {
+		.tv_sec = INT_MAX	/* We're never going to delay this long - I hope! */
+	};
+	interface_t *ifp;
+	vrrp_t *vrrp;
+	enum {
+		VIP,
+		EVIP
+	} i;
+
+	set_time_now();
+
+	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+
+		if (!vrrp->garp_pending && !vrrp->gna_pending)
+			continue;
+
+		vrrp->garp_pending = false;
+		vrrp->gna_pending = false;
+
+		if (vrrp->state != VRRP_STATE_MAST ||
+		    !vrrp->vipset)
+			continue;
+
+		for (i = VIP; i <= EVIP; i++) {
+			l = (i == VIP) ? vrrp->vip : vrrp->evip;
+
+			if (!LIST_ISEMPTY(l)) {
+				for (a = LIST_HEAD(l); a; ELEMENT_NEXT(a)) {
+					ipaddress = ELEMENT_DATA(a);
+					if (!ipaddress->garp_gna_pending)
+						continue;
+					if (!ipaddress->set) {
+						ipaddress->garp_gna_pending = false;
+						continue;
+					}
+
+					ifp = IF_BASE_IFP(ipaddress->ifp);
+
+					/* This should never happen */
+					if (!ifp->garp_delay) {
+						ipaddress->garp_gna_pending = false;
+						continue;
+					}
+
+					if (!IP_IS6(ipaddress)) {
+						if (timer_cmp(time_now, ifp->garp_delay->garp_next_time) >= 0) {
+							send_gratuitous_arp_immediate(ifp, ipaddress);
+							ipaddress->garp_gna_pending = false;
+						}
+						else {
+							vrrp->garp_pending = true;
+							if (timer_cmp(ifp->garp_delay->garp_next_time, next_time) < 0)
+								next_time = ifp->garp_delay->garp_next_time;
+						}
+					}
+					else {
+						if (timer_cmp(time_now, ifp->garp_delay->gna_next_time) >= 0) {
+							ndisc_send_unsolicited_na_immediate(ifp, ipaddress);
+							ipaddress->garp_gna_pending = false;
+						}
+						else {
+							vrrp->gna_pending = true;
+							if (timer_cmp(ifp->garp_delay->gna_next_time, next_time) < 0)
+								next_time = ifp->garp_delay->gna_next_time;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	if (next_time.tv_sec != INT_MAX) {
+		/* Register next timer tracker */
+		garp_next_time = next_time;
+
+		garp_thread = thread_add_timer(thread->master, vrrp_arp_thread, NULL,
+						 -timer_long(timer_sub_now(next_time)));
+	}
+	else
+		garp_thread = NULL;
 
 	return 0;
 }

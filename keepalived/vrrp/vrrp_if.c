@@ -59,9 +59,12 @@ typedef uint8_t u8;
 #include "utils.h"
 #include "logger.h"
 
-/* Global vars */
+/* Local vars */
 static list if_queue;
 static struct ifreq ifr;
+
+/* Global vars */
+list garp_delay;
 
 /* Helper functions */
 /* Return interface from interface index */
@@ -88,6 +91,17 @@ base_if_get_by_ifindex(const int ifindex)
 {
 	interface_t *ifp = if_get_by_ifindex(ifindex);
 
+#ifdef _HAVE_VRRP_VMAC_
+	return (ifp && ifp->vmac) ? if_get_by_ifindex(ifp->base_ifindex) : ifp;
+#else
+	return ifp;
+#endif
+}
+
+/* Return base interface from interface index incase of VMAC */
+interface_t *
+base_if_get_by_ifp(interface_t *ifp)
+{
 #ifdef _HAVE_VRRP_VMAC_
 	return (ifp && ifp->vmac) ? if_get_by_ifindex(ifp->base_ifindex) : ifp;
 #else
@@ -321,6 +335,51 @@ free_if(void *data)
 	FREE(data);
 }
 
+/* garp_delay facility function */
+void
+alloc_garp_delay(void)
+{
+	if (!LIST_EXISTS(garp_delay))
+		garp_delay = alloc_list(NULL, NULL);
+
+	list_add(garp_delay, MALLOC(sizeof(garp_delay_t)));
+}
+	
+void
+set_default_garp_delay(void)
+{
+	garp_delay_t default_delay;
+	element e;
+	interface_t *ifp;
+	garp_delay_t *delay;
+
+	if (global_data->vrrp_garp_interval) {
+		default_delay.garp_interval.tv_sec = global_data->vrrp_garp_interval / 1000000;
+		default_delay.garp_interval.tv_usec = global_data->vrrp_garp_interval % 1000000;
+		default_delay.have_garp_interval = true;
+	}
+	if (global_data->vrrp_gna_interval) {
+		default_delay.gna_interval.tv_sec = global_data->vrrp_gna_interval / 1000000;
+		default_delay.gna_interval.tv_usec = global_data->vrrp_gna_interval % 1000000;
+		default_delay.have_gna_interval = true;
+	}
+
+	/* Allocate a delay structure to each physical inteface that doesn't have one */
+	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
+		ifp = ELEMENT_DATA(e);
+		if (!ifp->garp_delay
+#ifdef _HAVE_VRRP_VMAC_
+				     && !ifp->vmac)
+#endif
+		{
+			alloc_garp_delay();
+			delay = LIST_TAIL_DATA(garp_delay);
+			*delay = default_delay;
+			ifp->garp_delay = delay;
+		}
+	}
+}
+
 static void
 dump_if(void *data)
 {
@@ -378,6 +437,20 @@ dump_if(void *data)
 		log_message(LOG_INFO, " NIC support EHTTOOL GLINK interface");
 	else
 		log_message(LOG_INFO, " Enabling NIC ioctl refresh polling");
+
+	if (ifp->garp_delay) {
+		if (ifp->garp_delay->have_garp_interval)
+			log_message(LOG_INFO, " Gratuitous ARP interval %ldms",
+				    ifp->garp_delay->garp_interval.tv_sec * 100 +
+				     ifp->garp_delay->garp_interval.tv_usec / (TIMER_HZ / 100));
+
+		if (ifp->garp_delay->have_gna_interval)
+			log_message(LOG_INFO, " Gratuitous NA interval %ldms",
+				    ifp->garp_delay->gna_interval.tv_sec * 100 +
+				     ifp->garp_delay->gna_interval.tv_usec / (TIMER_HZ / 100));
+		if (ifp->garp_delay->aggregation_group)
+			log_message(LOG_INFO, " Gratuitous ARP aggregation group %d", ifp->garp_delay->aggregation_group);
+	}
 }
 
 static void
@@ -460,6 +533,8 @@ free_interface_queue(void)
 {
 	if (!LIST_ISEMPTY(if_queue))
 		free_list(if_queue);
+	if (!LIST_ISEMPTY(garp_delay))
+		free_list(garp_delay);
 	if_queue = NULL;
 }
 

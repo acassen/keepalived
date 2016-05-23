@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201510270000Z"
+     LAST-UPDATED "201605221540Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     LAST-UPDATED "201605221540Z"
+     DESCRIPTION "smtpServerPort added"
      REVISION "201510270000Z"
      DESCRIPTION "routerId added to traps variables"
      REVISION "200904080000Z"
@@ -118,6 +120,14 @@ emailTable OBJECT-TYPE
     DESCRIPTION
         "Table of email notification addresses."
     ::= { mail 5 }
+
+smtpServerPort OBJECT-TYPE
+    SYNTAX InetPortNumber
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Port of SMTP server."
+    ::= { mail 6 }
 
 emailEntry OBJECT-TYPE
     SYNTAX EmailEntry
@@ -2094,6 +2104,7 @@ globalGroup OBJECT-GROUP
     smtpServerTimeout,
     emailFrom,
     emailAddress,
+    smtpServerPort,
     trapEnable,
     linkBeat
     }

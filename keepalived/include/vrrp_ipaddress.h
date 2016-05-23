@@ -57,8 +57,8 @@ typedef struct _ip_address {
 	char			*label;			/* Alias name, e.g. eth0:1 */
 	int			set;			/* TRUE if addr is set */
 	bool			iptable_rule_set;	/* TRUE if iptable drop rule
-							 * set to addr
-							 */
+							 * set to addr */
+	bool			garp_gna_pending;	/* Is a gratuitous ARP/NA message still to be sent */
 } ip_address_t;
 
 #define IPADDRESS_DEL 0

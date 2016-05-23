@@ -51,9 +51,6 @@ extern int ipvs_init(void);
 /* get ipvs info separately */
 extern int ipvs_getinfo(void);
 
-/* get the version number */
-extern unsigned int ipvs_version(void);
-
 /* flush all the rules */
 extern int ipvs_flush(void);
 
@@ -78,9 +75,6 @@ extern int ipvs_update_dest(ipvs_service_t *svc, ipvs_dest_t *dest);
 /* remove a destination server from a service */
 extern int ipvs_del_dest(ipvs_service_t *svc, ipvs_dest_t *dest);
 
-/* set timeout */
-extern int ipvs_set_timeout(ipvs_timeout_t *to);
-
 /* start a connection synchronizaiton daemon (master/backup) */
 extern int ipvs_start_daemon(ipvs_daemon_t *dm);
 
@@ -88,37 +82,24 @@ extern int ipvs_start_daemon(ipvs_daemon_t *dm);
 extern int ipvs_stop_daemon(ipvs_daemon_t *dm);
 
 
-/* get all the ipvs services */
-extern struct ip_vs_get_services *ipvs_get_services(void);
-
 /* sort the service entries */
+#ifdef _INCLUDE_UNUSED_CODE_
 typedef int (*ipvs_service_cmp_t)(ipvs_service_entry_t *,
 				  ipvs_service_entry_t *);
-extern int ipvs_cmp_services(ipvs_service_entry_t *s1,
-			     ipvs_service_entry_t *s2);
-extern void ipvs_sort_services(struct ip_vs_get_services *s,
-			       ipvs_service_cmp_t f);
+#endif
 
 /* get the destination array of the specified service */
 extern struct ip_vs_get_dests *ipvs_get_dests(ipvs_service_entry_t *svc);
 
 /* sort the destination entries */
+#ifdef _INCLUDE_UNUSED_CODE_
 typedef int (*ipvs_dest_cmp_t)(ipvs_dest_entry_t *,
 			       ipvs_dest_entry_t *);
-extern int ipvs_cmp_dests(ipvs_dest_entry_t *d1,
-			  ipvs_dest_entry_t *d2);
-extern void ipvs_sort_dests(struct ip_vs_get_dests *d,
-			    ipvs_dest_cmp_t f);
+#endif
 
 /* get an ipvs service entry */
 extern ipvs_service_entry_t *
 ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr addr, __u16 port);
-
-/* get ipvs timeout */
-extern ipvs_timeout_t *ipvs_get_timeout(void);
-
-/* get ipvs daemon information */
-extern ipvs_daemon_t *ipvs_get_daemon(void);
 
 /* close the socket */
 extern void ipvs_close(void);

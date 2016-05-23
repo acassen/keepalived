@@ -45,9 +45,7 @@ typedef struct _vector {
 /* Prototypes */
 extern vector_t *vector_alloc(void);
 extern void vector_alloc_slot(vector_t *);
-extern int vector_set(vector_t *, void *);
 extern void vector_set_slot(vector_t *, void *);
-extern void *vector_lookup(vector_t *, unsigned int);
 extern void vector_unset(vector_t *, unsigned int);
 extern unsigned int vector_count(vector_t *);
 extern void vector_free(vector_t *);
