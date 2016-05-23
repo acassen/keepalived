@@ -531,11 +531,10 @@ if_linkbeat(const interface_t * ifp)
 void
 free_interface_queue(void)
 {
-	if (!LIST_ISEMPTY(if_queue))
-		free_list(if_queue);
-	if (!LIST_ISEMPTY(garp_delay))
-		free_list(garp_delay);
+	free_list(if_queue);
 	if_queue = NULL;
+	free_list(garp_delay);
+	garp_delay = NULL;
 }
 
 void
