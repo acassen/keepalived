@@ -1179,26 +1179,33 @@ vrrp_arp_thread(thread_t *thread)
 					}
 
 					ifp = IF_BASE_IFP(ipaddress->ifp);
+
+					/* This should never happen */
+					if (!ifp->garp_delay) {
+						ipaddress->garp_gna_pending = false;
+						continue;
+					}
+
 					if (!IP_IS6(ipaddress)) {
-						if (timer_cmp(time_now, ifp->garp_next_time) >= 0) {
+						if (timer_cmp(time_now, ifp->garp_delay->garp_next_time) >= 0) {
 							send_gratuitous_arp_immediate(ifp, ipaddress);
 							ipaddress->garp_gna_pending = false;
 						}
 						else {
 							vrrp->garp_pending = true;
-							if (timer_cmp(ifp->garp_next_time, next_time) < 0)
-								next_time = ifp->garp_next_time;
+							if (timer_cmp(ifp->garp_delay->garp_next_time, next_time) < 0)
+								next_time = ifp->garp_delay->garp_next_time;
 						}
 					}
 					else {
-						if (timer_cmp(time_now, ifp->gna_next_time) >= 0) {
+						if (timer_cmp(time_now, ifp->garp_delay->gna_next_time) >= 0) {
 							ndisc_send_unsolicited_na_immediate(ifp, ipaddress);
 							ipaddress->garp_gna_pending = false;
 						}
 						else {
 							vrrp->gna_pending = true;
-							if (timer_cmp(ifp->gna_next_time, next_time) < 0)
-								next_time = ifp->gna_next_time;
+							if (timer_cmp(ifp->garp_delay->gna_next_time, next_time) < 0)
+								next_time = ifp->garp_delay->gna_next_time;
 						}
 					}
 				}
@@ -1211,7 +1218,7 @@ vrrp_arp_thread(thread_t *thread)
 		garp_next_time = next_time;
 
 		garp_thread = thread_add_timer(thread->master, vrrp_arp_thread, NULL,
-			 timer_long(timer_sub_now(next_time)));
+						 -timer_long(timer_sub_now(next_time)));
 	}
 	else
 		garp_thread = NULL;

@@ -171,8 +171,6 @@ typedef struct _vrrp_t {
 	int			garp_rep;		/* gratuitous ARP repeat value */
 	int			garp_refresh_rep;	/* refresh gratuitous ARP repeat value */
 	int			garp_lower_prio_delay;	/* Delay to second set or ARP messages */
-	int			garp_interval;		/* Delay between sending gratuitous ARP messages on an interface */
-	int			gna_interval;		/* Delay between sending gratuitous NA messages on an interface */
 	bool			garp_pending;		/* Are there gratuitous ARP messages still to be sent */
 	bool			gna_pending;		/* Are there gratuitous NA messages still to be sent */
 	int			garp_lower_prio_rep;	/* Number of ARP messages to send at a time */

@@ -501,7 +501,6 @@ vrrp_garp_refresh_rep_handler(vector_t *strvec)
 		vrrp->garp_refresh_rep = 1;
 }
 
-
 static void
 vrrp_garp_lower_prio_delay_handler(vector_t *strvec)
 {
@@ -516,18 +515,6 @@ vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
 	/* Allow 0 GARP messages to be sent */
 	if ( vrrp->garp_lower_prio_rep < 0 )
 		vrrp->garp_lower_prio_rep = 0;
-}
-static void
-vrrp_garp_interval_handler(vector_t *strvec)
-{
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->garp_interval = atoi(vector_slot(strvec, 1));
-}
-static void
-vrrp_gna_interval_handler(vector_t *strvec)
-{
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->gna_interval = atoi(vector_slot(strvec, 1));
 }
 static void
 vrrp_lower_prio_no_advert_handler(vector_t *strvec)
@@ -717,6 +704,101 @@ vrrp_accept_handler(vector_t *strvec)
 	vrrp->accept = true;
 }
 
+static void
+garp_group_handler(vector_t *strvec)
+{
+	alloc_garp_delay();
+}
+static void
+garp_group_garp_interval_handler(vector_t *strvec)
+{
+	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
+
+	delay->garp_interval.tv_usec = atof(vector_slot(strvec, 1)) * 1000000;
+	delay->garp_interval.tv_sec = delay->garp_interval.tv_usec / 1000000;
+	delay->garp_interval.tv_usec %= 1000000;
+	delay->have_garp_interval = true;
+
+	if (delay->garp_interval.tv_sec >= 1)
+		log_message(LOG_INFO, "The garp_interval is very large - %s seconds", FMT_STR_VSLOT(strvec,1));
+}
+static void
+garp_group_gna_interval_handler(vector_t *strvec)
+{
+	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
+
+	delay->gna_interval.tv_usec = atof(vector_slot(strvec, 1)) * 1000000;
+	delay->gna_interval.tv_sec = delay->gna_interval.tv_usec / 1000000;
+	delay->gna_interval.tv_usec %= 1000000;
+	delay->have_gna_interval = true;
+
+	if (delay->gna_interval.tv_sec >= 1)
+		log_message(LOG_INFO, "The gna_interval is very large - %s seconds", FMT_STR_VSLOT(strvec,1));
+}
+static void
+garp_group_interface_handler(vector_t *strvec)
+{
+	interface_t *ifp = if_get_by_ifname(vector_slot(strvec, 1));
+	if (!ifp) {
+		log_message(LOG_INFO, "Unknown interface %s specified for garp_group - ignoring", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	if (ifp->garp_delay) {
+		log_message(LOG_INFO, "garp_group already specified for %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+#ifdef _HAVE_VRRP_VMAC_
+	if (ifp->vmac) {
+		log_message(LOG_INFO, "Cannot specify garp_delay on a vmac (%s) - ignoring", ifp->ifname);
+		return;
+	}
+#endif
+	ifp->garp_delay = LIST_TAIL_DATA(garp_delay);
+}
+static void
+garp_group_interfaces_handler(vector_t *strvec)
+{
+	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
+	interface_t *ifp;
+        vector_t *interface_vec = read_value_block(strvec);
+	int i;
+	garp_delay_t *gd;
+	element e;
+
+	/* First set the next aggregation group number */
+	delay->aggregation_group = 1;
+	for (e = LIST_HEAD(garp_delay); e; ELEMENT_NEXT(e)) {
+		gd = ELEMENT_DATA(e);
+		if (gd->aggregation_group && gd != delay)
+			delay->aggregation_group++;
+	}
+
+        for (i = 0; i < vector_size(interface_vec); i++) {
+		ifp = if_get_by_ifname(vector_slot(interface_vec, i));
+		if (!ifp) {
+			log_message(LOG_INFO, "Unknown interface %s specified for garp_group - ignoring", FMT_STR_VSLOT(interface_vec, i));
+			continue;
+		}
+
+		if (ifp->garp_delay) {
+			log_message(LOG_INFO, "garp_group already specified for %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+			continue;
+		}
+
+#ifdef _HAVE_VRRP_VMAC_
+		if (ifp->vmac) {
+			log_message(LOG_INFO, "Cannot specify garp_delay on a vmac (%s) - ignoring", ifp->ifname);
+			continue;
+		}
+#endif
+		ifp->garp_delay = delay;
+	}
+
+        free_strvec(interface_vec);
+}
+
 void
 init_vrrp_keywords(bool active)
 {
@@ -736,6 +818,13 @@ init_vrrp_keywords(bool active)
 	install_keyword("notify", &vrrp_gnotify_handler);
 	install_keyword("smtp_alert", &vrrp_gsmtp_handler);
 	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler);
+
+	install_keyword_root("garp_group", &garp_group_handler, active);
+	install_keyword("garp_interval", &garp_group_garp_interval_handler);
+	install_keyword("gna_interval", &garp_group_gna_interval_handler);
+	install_keyword("interface", &garp_group_interface_handler);
+	install_keyword("interfaces", &garp_group_interfaces_handler);
+
 	install_keyword_root("vrrp_instance", &vrrp_handler, active);
 #ifdef _HAVE_VRRP_VMAC_
 	install_keyword("use_vmac", &vrrp_vmac_handler);
@@ -780,8 +869,6 @@ init_vrrp_keywords(bool active)
 	install_keyword("garp_master_refresh_repeat", &vrrp_garp_refresh_rep_handler);
 	install_keyword("garp_lower_prio_delay", &vrrp_garp_lower_prio_delay_handler);
 	install_keyword("garp_lower_prio_repeat", &vrrp_garp_lower_prio_rep_handler);
-	install_keyword("garp_interval", &vrrp_garp_interval_handler);
-	install_keyword("gna_interval", &vrrp_gna_interval_handler);
 	install_keyword("lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
 #if defined _WITH_VRRP_AUTH_
 	install_keyword("authentication", NULL);

@@ -410,8 +410,6 @@ alloc_vrrp(char *iname)
 	new->garp_delay = global_data->vrrp_garp_delay;
 	new->garp_lower_prio_delay = -1;
 	new->garp_lower_prio_rep = -1;
-	new->garp_interval = -1;
-	new->gna_interval = -1;
 	new->lower_prio_no_advert = -1;
 
 	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;

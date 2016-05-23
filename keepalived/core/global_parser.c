@@ -196,12 +196,16 @@ vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
 static void
 vrrp_garp_interval_handler(vector_t *strvec)
 {
-	global_data->vrrp_garp_interval = atoi(vector_slot(strvec, 1));
+	global_data->vrrp_garp_interval = atof(vector_slot(strvec, 1)) * 1000000;
+	if (global_data->vrrp_garp_interval >= 1000000)
+		log_message(LOG_INFO, "The vrrp_garp_interval is very large - %s seconds", FMT_STR_VSLOT(strvec, 1));
 }
 static void
 vrrp_gna_interval_handler(vector_t *strvec)
 {
-	global_data->vrrp_gna_interval = atoi(vector_slot(strvec, 1));
+	global_data->vrrp_gna_interval = atof(vector_slot(strvec, 1)) * 1000000;
+	if (global_data->vrrp_gna_interval >= 1000000)
+		log_message(LOG_INFO, "The vrrp_gna_interval is very large - %s seconds", FMT_STR_VSLOT(strvec, 1));
 }
 static void
 vrrp_lower_prio_no_advert_handler(vector_t *strvec)

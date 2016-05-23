@@ -78,10 +78,10 @@ and
  vrrp_garp_master_refresh_repeat 2 # default 1
 
  # Delay in ms between gratuitous ARP messages sent on an interface
- vrrp_garp_interval 100                # integer, ms. Default 0.
+ vrrp_garp_interval 0.001          # decimal, seconds (resolution usecs). Default 0.
 
- # Delay in ms between gratuitous NA messages sent on an interface
- vrrp_gna_interval 100                # integer, ms. Default 0.
+ # Delay in ms between unsolicited NA messages sent on an interface
+ vrrp_gna_interval 0.000001        # decimal, seconds (resolution usecs). Default 0.
 
  # If a lower priority advert is received, don't send another advert. This causes
  # adherence to the RFCs. Defaults to false, unless strict_mode is set.
@@ -185,7 +185,8 @@ The syntax is the same as for virtual addresses and virtual routes.
 .SH VRRPD CONFIGURATION
 contains subblocks of
 .B VRRP script(s),
-.B VRRP synchronization group(s)
+.B VRRP synchronization group(s),
+.B VRRP gratuitous ARP and unsolicited neighbour advert delay group(s)
 and
 .B VRRP instance(s)
 .PP
@@ -244,6 +245,36 @@ and
     global_tracking     # All VRRP share the same tracking config
  }
 
+.SH VRRP gratuitous ARP and unsolicited neighbour advert delay group(s)
+.PP
+specifies the setting of delays between sending gratuitous ARPs
+and unsolicited neighbour advertisements. This is intended for when an
+upstream switch is unable to handle being flooded with ARPs/NAs.
+
+Use interface when the limits apply on the single physical interface.
+Use interfaces when a group of interfaces are linked to the same switch
+and the limits apply to the switch as a whole.
+
+.BNote.B: Only one of interface or interfaces should be used per block.
+
+If the global vrrp_garp_interval and/or vrrp_gna_interval are set, any 
+interfaces that aren't specified in a garp_group will inherit the global
+settings.
+.PP
+garp_group {
+    # Sets the interval between Gratuitous ARP (in seconds, resolution microseconds)
+    garp_interval <DECIMAL>
+    # Sets the default interval between unsolicited NA (in seconds, resolution microseconds)
+    gna_interval <DECIMAL>
+    # The physical interface to which the intervals apply
+    interface <STRING>
+    # A list of interfaces accross which the delays are aggregated.
+    interfaces {
+        <STRING>
+        <STRING>
+        ...
+        }
+    }
 .SH VRRP instance(s)
 .PP
 describes the movable IP for each instance of a group in vrrp_sync_group.

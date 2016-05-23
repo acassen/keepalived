@@ -1121,7 +1121,7 @@ vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, int idx)
 			inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, sizeof(addr_str));
 		}
 
-		log_message(LOG_INFO, "VRRP_Instance(%s) Sending %s on %s for %s",
+		log_message(LOG_INFO, "VRRP_Instance(%s) Sending/queueing %s on %s for %s",
 			    vrrp->iname, msg, IF_NAME(ipaddress->ifp), addr_str);
 	}
 }
@@ -1982,10 +1982,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->garp_lower_prio_delay = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_delay;
 	if (vrrp->lower_prio_no_advert == -1)
 		vrrp->lower_prio_no_advert = vrrp->strict_mode ? true : global_data->vrrp_lower_prio_no_advert;
-	if (vrrp->garp_interval == -1)
-		vrrp->garp_interval = global_data->vrrp_garp_interval;
-	if (vrrp->gna_interval == -1)
-		vrrp->gna_interval = global_data->vrrp_gna_interval;
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* Set a default interface name for the vmac if needed */
@@ -2172,35 +2168,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
-	/* Set any specified garp/ndisc interval on the base interface */
-	if (vrrp->garp_interval) {
-		timeval_t interval;
-		interval.tv_sec = vrrp->garp_interval / 100;
-		interval.tv_usec = (vrrp->garp_interval % 100) * (TIMER_HZ / 100);
-
-		if (base_ifp->have_garp_interval && timer_cmp(interval, base_ifp->garp_interval))
-			log_message(LOG_INFO, "(%s): garp interval %d doesn't match interval %ld already set on %s - ignoring", vrrp->iname, vrrp->garp_interval,
-					base_ifp->garp_interval.tv_sec * 100 + base_ifp->garp_interval.tv_usec / (TIMER_HZ / 100), base_ifp->ifname);
-		else {
-			base_ifp->garp_interval = interval;
-			base_ifp->have_garp_interval = true;
-		}
-	}
-
-	if (vrrp->gna_interval) {
-		timeval_t interval;
-		interval.tv_sec = vrrp->gna_interval / 100;
-		interval.tv_usec = (vrrp->gna_interval % 100) * (TIMER_HZ / 100);
-
-		if (base_ifp->have_gna_interval && timer_cmp(interval, base_ifp->gna_interval))
-			log_message(LOG_INFO, "(%s): gna interval %d doesn't match interval %ld already set on %s - ignoring", vrrp->iname, vrrp->gna_interval,
-					base_ifp->gna_interval.tv_sec * 100 + base_ifp->gna_interval.tv_usec / (TIMER_HZ / 100), base_ifp->ifname);
-		else {
-			base_ifp->gna_interval = interval;
-			base_ifp->have_gna_interval = true;
-		}
-	}
-
 	if (interface_already_existed) {
 // TODO - consider reload
 		vrrp->vipset = true;	/* Set to force address removal */
@@ -2250,6 +2217,10 @@ vrrp_complete_init(void)
 		if (vrrp->ifp->mtu > max_mtu_len)
 			max_mtu_len = vrrp->ifp->mtu;
 	}
+
+	/* If we have a global garp_delay add it to any interfaces without a garp_delay */
+	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
+		set_default_garp_delay();
 
 #ifdef _HAVE_LIBIPTC_
 	/* Make sure we don't have any old iptables/ipsets settings left around */

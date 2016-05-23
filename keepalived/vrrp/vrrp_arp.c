@@ -93,8 +93,8 @@ int send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	len = send_arp(ipaddress);
 
 	/* If we have to delay between sending garps, note the next time we can */
-	if (ifp->have_garp_interval)
-		ifp->garp_next_time = timer_add_now(ifp->garp_interval);
+	if (ifp->garp_delay && ifp->garp_delay->have_garp_interval)
+		ifp->garp_delay->garp_next_time = timer_add_now(ifp->garp_delay->garp_interval);
 
 	/* Cleanup room for next round */
 	memset(garp_buffer, 0, sizeof(arphdr_t) + ETHER_HDR_LEN);
@@ -103,7 +103,7 @@ int send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 
 static void queue_garp(vrrp_t *vrrp, interface_t *ifp, ip_address_t *ipaddress)
 {
-	timeval_t next_time = timer_add_now(ifp->garp_interval);
+	timeval_t next_time = timer_add_now(ifp->garp_delay->garp_interval);
 
 	vrrp->garp_pending = true;
 	ipaddress->garp_gna_pending = true;
@@ -115,7 +115,7 @@ static void queue_garp(vrrp_t *vrrp, interface_t *ifp, ip_address_t *ipaddress)
 
 		garp_next_time = next_time;
 
-		garp_thread = thread_add_timer(master, vrrp_arp_thread, NULL, timer_long(timer_sub_now(garp_next_time)));
+		garp_thread = thread_add_timer(master, vrrp_arp_thread, NULL, -timer_long(timer_sub_now(garp_next_time)));
 	}
 }
 
@@ -123,10 +123,13 @@ void send_gratuitous_arp(vrrp_t *vrrp, ip_address_t *ipaddress)
 {
 	interface_t *ifp = IF_BASE_IFP(ipaddress->ifp);
 
+	set_time_now();
+
 	/* Do we need to delay sending the garp? */
-	if (ifp->have_garp_interval && ifp->garp_next_time.tv_sec) {
-		set_time_now();
-		if (timer_cmp(time_now, ifp->garp_next_time) < 0) {
+	if (ifp->garp_delay &&
+	    ifp->garp_delay->have_garp_interval &&
+	    ifp->garp_delay->garp_next_time.tv_sec) {
+		if (timer_cmp(time_now, ifp->garp_delay->garp_next_time) < 0) {
 			queue_garp(vrrp, ifp, ipaddress);
 			return;
 		}
