@@ -81,7 +81,7 @@ free_vgroup(void *data)
 
 	FREE(vgroup->gname);
 	free_strvec(vgroup->iname);
-	free_list(vgroup->index_list);
+	free_list(&vgroup->index_list);
 	FREE_PTR(vgroup->script_backup);
 	FREE_PTR(vgroup->script_master);
 	FREE_PTR(vgroup->script_fault);
@@ -217,18 +217,18 @@ free_vrrp(void *data)
 	if (!LIST_ISEMPTY(vrrp->track_ifp))
 		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e))
 			FREE(ELEMENT_DATA(e));
-	free_list(vrrp->track_ifp);
+	free_list(&vrrp->track_ifp);
 
 	if (!LIST_ISEMPTY(vrrp->track_script))
 		for (e = LIST_HEAD(vrrp->track_script); e; ELEMENT_NEXT(e))
 			FREE(ELEMENT_DATA(e));
-	free_list(vrrp->track_script);
+	free_list(&vrrp->track_script);
 
-	free_list(vrrp->unicast_peer);
-	free_list(vrrp->vip);
-	free_list(vrrp->evip);
-	free_list(vrrp->vroutes);
-	free_list(vrrp->vrules);
+	free_list(&vrrp->unicast_peer);
+	free_list(&vrrp->vip);
+	free_list(&vrrp->evip);
+	free_list(&vrrp->vroutes);
+	free_list(&vrrp->vrules);
 	FREE(vrrp);
 }
 static void
@@ -400,7 +400,6 @@ alloc_vrrp(char *iname)
 	new->version = 0;
 	new->master_priority = 0;
 	new->last_transition = timer_now();
-	new->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
 	new->iname = (char *) MALLOC(size + 1);
 	memcpy(new->iname, iname, size);
 	new->stats = alloc_vrrp_stats();
@@ -568,14 +567,14 @@ alloc_vrrp_data(void)
 void
 free_vrrp_data(vrrp_data_t * data)
 {
-	free_list(data->static_addresses);
-	free_list(data->static_routes);
-	free_list(data->static_rules);
+	free_list(&data->static_addresses);
+	free_list(&data->static_routes);
+	free_list(&data->static_rules);
 	free_mlist(data->vrrp_index, 255+1);
 	free_mlist(data->vrrp_index_fd, 1024+1);
-	free_list(data->vrrp);
-	free_list(data->vrrp_sync_group);
-	free_list(data->vrrp_script);
+	free_list(&data->vrrp);
+	free_list(&data->vrrp_sync_group);
+	free_list(&data->vrrp_script);
 	FREE(data);
 }
 

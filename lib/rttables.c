@@ -123,10 +123,7 @@ err:
 	if (!strvec)
 		free_strvec(strvec);
 
-	if (rt_list) {
-		free_list(rt_list);
-		rt_list = NULL;
-	}
+	free_list(&rt_list);
 
 	return false;
 }
@@ -134,10 +131,7 @@ err:
 void
 clear_rttables(void)
 {
-	if (rt_list) {
-		free_list(rt_list);
-		rt_list = NULL;
-	}
+	free_list(&rt_list);
 }
 
 bool

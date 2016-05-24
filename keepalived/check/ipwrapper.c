@@ -671,7 +671,7 @@ clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 		}
 	}
 	int ret = clear_service_rs (old_vs, rs_to_remove);
-	free_list (rs_to_remove);
+	free_list(&rs_to_remove);
 
 	return ret;
 }

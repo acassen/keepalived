@@ -77,9 +77,9 @@ free_vsg(void *data)
 {
 	virtual_server_group_t *vsg = data;
 	FREE_PTR(vsg->gname);
-	free_list(vsg->addr_ip);
-	free_list(vsg->range);
-	free_list(vsg->vfwmark);
+	free_list(&vsg->addr_ip);
+	free_list(&vsg->range);
+	free_list(&vsg->vfwmark);
 	FREE(vsg);
 }
 static void
@@ -158,7 +158,7 @@ free_vs(void *data)
 	FREE_PTR(vs->vsgname);
 	FREE_PTR(vs->virtualhost);
 	FREE_PTR(vs->s_svr);
-	free_list(vs->rs);
+	free_list(&vs->rs);
 	FREE_PTR(vs->quorum_up);
 	FREE_PTR(vs->quorum_down);
 	FREE(vs);
@@ -286,7 +286,7 @@ free_rs(void *data)
 	real_server_t *rs = data;
 	FREE_PTR(rs->notify_up);
 	FREE_PTR(rs->notify_down);
-	free_list(rs->failed_checkers);
+	free_list(&rs->failed_checkers);
 	FREE(rs);
 }
 static void
@@ -351,8 +351,8 @@ alloc_check_data(void)
 void
 free_check_data(check_data_t *data)
 {
-	free_list(data->vs);
-	free_list(data->vs_group);
+	free_list(&data->vs);
+	free_list(&data->vs_group);
 	FREE(data);
 }
 

@@ -79,7 +79,7 @@ free_http_get_check(void *data)
 	http_t *http = HTTP_ARG(http_get_chk);
 	request_t *req = HTTP_REQ(http);
 
-	free_list(http_get_chk->url);
+	free_list(&http_get_chk->url);
 	free_http_request(req);
 	FREE(http);
 	FREE_PTR(http_get_chk);
