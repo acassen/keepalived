@@ -370,6 +370,8 @@ set_default_garp_delay(void)
 		if (!ifp->garp_delay
 #ifdef _HAVE_VRRP_VMAC_
 				     && !ifp->vmac)
+#else
+)
 #endif
 		{
 			alloc_garp_delay();
