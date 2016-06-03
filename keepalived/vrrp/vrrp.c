@@ -1516,10 +1516,14 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		       "VRRP_Instance(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
 		return 0;
-	} else if (hd->priority == 0) {
+	}
+
+	if (hd->priority == 0) {
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 		return 0;
-	} else if (hd->priority < vrrp->effective_priority) {
+	}
+
+	if (hd->priority < vrrp->effective_priority) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert %d"
 				      ", forcing new election", vrrp->iname, hd->priority);
@@ -1540,7 +1544,20 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 						 vrrp, vrrp->garp_lower_prio_delay);
 		}
 		return 0;
-	} else if (hd->priority > vrrp->effective_priority ||
+	}
+
+	/* If we are configured as the address owner (priority == 255), and we receive an advertisement 
+	 * from another system indicating it is also the address owner, then there is a clear conflict.
+	 * Report a configuration error, and drop our priority as a workaround. */
+	if (hd->priority == VRRP_PRIO_OWNER &&
+	    vrrp->effective_priority == VRRP_PRIO_OWNER) {
+		log_message(LOG_INFO, "(%s): CONFIGURATION ERROR: local instance and a remote instance are both configured as address owner, please fix - reducing local priority", vrrp->iname);
+		vrrp->effective_priority--;
+		if (vrrp->base_priority > 1)
+			vrrp->base_priority--;
+	}
+
+	if (hd->priority > vrrp->effective_priority ||
 		   (hd->priority == vrrp->effective_priority &&
 		    vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp) > 0)) {
 
