@@ -1493,6 +1493,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 	vrrphdr_t *hd;
 	int ret, proto = 0;
 	ipsec_ah_t *ah;
+	int master_adver_int;
 
 	/* return on link failure */
 	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT) {
@@ -1556,7 +1557,20 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 			vrrp->ipsecah_counter->cycle = 0;
 		}
 
-		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		if (vrrp->version == VRRP_VERSION_3) {
+			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
+			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
+			 * in the ADVERTISEMENT
+			 */
+			if (vrrp->master_adver_int != master_adver_int) {
+				vrrp->master_adver_int = master_adver_int;
+				log_message(LOG_INFO, "VRRP_Instance(%s) advertisement interval updated to %d milli-sec from higher priority master",
+							vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000));
+			}
+			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+		}
+		else
+			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		vrrp->master_priority = hd->priority;
 		vrrp->wantstate = VRRP_STATE_BACK;
 		vrrp->state = VRRP_STATE_BACK;
