@@ -2362,7 +2362,7 @@ vrrp_complete_init(void)
 					}
 
 					notify_group_exec(sgroup, sgroup->state);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 					vrrp_snmp_group_trap(sgroup);
 #endif
 				}
