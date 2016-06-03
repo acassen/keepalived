@@ -909,10 +909,12 @@ vrrp_fault(vrrp_t * vrrp)
 			vrrp_snmp_instance_trap(vrrp);
 #endif
 			vrrp->last_transition = timer_now();
+			log_message(LOG_INFO, "VRRP_Instance(%s): Entering BACKUP STATE", vrrp->iname);
 		} else {
 #ifdef _WITH_SNMP_RFCV3_
 			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
+			log_message(LOG_INFO, "VRRP_Instance(%s): Transition to MASTER STATE", vrrp->iname);
 			vrrp_goto_master(vrrp);
 		}
 	}
