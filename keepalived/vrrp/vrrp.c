@@ -1330,6 +1330,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 		vrrp_restore_interface(vrrp, false, false);
 		vrrp->state = vrrp->wantstate;
 		notify_instance_exec(vrrp, VRRP_STATE_BACK);
+		vrrp->preempt_time.tv_sec = 0;
 #ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
@@ -1389,8 +1390,11 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 #ifdef _WITH_SNMP_RFCV3_
 		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PRIORITY;
 #endif
-	} else if (vrrp->nopreempt || hd->priority >= vrrp->effective_priority ||
-		   timer_cmp(vrrp->preempt_time, timer_now()) > 0) {
+	} else if (vrrp->nopreempt ||
+		   hd->priority >= vrrp->effective_priority ||
+		   (vrrp->preempt_delay &&
+		    (!vrrp->preempt_time.tv_sec ||
+		     timer_cmp(vrrp->preempt_time, timer_now()) > 0))) {
 		if (vrrp->version == VRRP_VERSION_3) {
 			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
 			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
@@ -1408,29 +1412,27 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 		}
 		vrrp->master_saddr = vrrp->pkt_saddr;
 		vrrp->master_priority = hd->priority;
+
 		if (vrrp->preempt_delay) {
 			if (hd->priority > vrrp->effective_priority) {
-				vrrp->preempt_time = timer_add_long(timer_now(),
-							vrrp->preempt_delay);
-				if (vrrp->preempt_delay_active) {
+				if (vrrp->preempt_time.tv_sec) {
 					log_message(LOG_INFO,
 						"%s(%s) reset preempt delay",
 						"VRRP_Instance", vrrp->iname);
-					vrrp->preempt_delay_active = 0;
+					vrrp->preempt_time.tv_sec = 0;
 				}
 			} else {
-				if (!vrrp->preempt_delay_active) {
+				if (!vrrp->preempt_time.tv_sec) {
 					log_message(LOG_INFO,
 						"%s(%s) start preempt delay(%ld)",
 						"VRRP_Instance", vrrp->iname,
 						vrrp->preempt_delay / TIMER_HZ);
-					vrrp->preempt_delay_active = 1;
+					vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
 				}
 			}
 		}
-	} else if (hd->priority < vrrp->effective_priority) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) forcing a new MASTER election"
-				    , vrrp->iname);
+	} else {
+		log_message(LOG_INFO, "VRRP_Instance(%s) forcing a new MASTER election" , vrrp->iname);
 		vrrp->wantstate = VRRP_STATE_GOTO_MASTER;
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 #ifdef _WITH_SNMP_RFCV3_
