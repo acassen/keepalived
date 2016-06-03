@@ -1967,6 +1967,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	if (vrrp->nopreempt && vrrp->init_state == VRRP_STATE_MAST)
 		log_message(LOG_INFO, "(%s): Warning - nopreempt will not work with initial state MASTER", vrrp->iname);
+	if (vrrp->strict_mode && vrrp->preempt_delay) {
+		log_message(LOG_INFO, "(%s): preempt_delay is incompatible with strict mode - resetting", vrrp->iname);
+		vrrp->preempt_delay = 0;
+	}
+	if (vrrp->nopreempt && vrrp->preempt_delay) {
+		log_message(LOG_INFO, "(%s): preempt_delay is incompatible with nopreempt mode - resetting", vrrp->iname);
+		vrrp->preempt_delay = 0;
+	}
 
 	vrrp->state = VRRP_STATE_INIT;
 
