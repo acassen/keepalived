@@ -1541,10 +1541,6 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 	} else if (hd->priority > vrrp->effective_priority ||
 		   (hd->priority == vrrp->effective_priority &&
 		    vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp) > 0)) {
-		/* We send a last advert here in order to refresh remote MASTER
-		 * coming up to force link update at MASTER side.
-		 */
-		vrrp_send_adv(vrrp, vrrp->effective_priority);
 
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert %d"
 				    , vrrp->iname, hd->priority);
