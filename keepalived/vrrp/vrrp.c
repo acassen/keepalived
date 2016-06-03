@@ -1590,8 +1590,7 @@ vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, int buflen)
 		log_message(LOG_INFO, "VRRP_Instance(%s) Dropping received VRRP packet..."
 				    , vrrp->iname);
 		return 0;
-	} else if (vrrp->effective_priority > hd->priority ||
-		   hd->priority == VRRP_PRIO_OWNER) {
+	} else if (vrrp->effective_priority > hd->priority) {
 		if (!vrrp->nopreempt)
 			return 1;
 	}
