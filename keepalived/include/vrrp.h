@@ -74,7 +74,7 @@ typedef struct {
 #define VRRP_PRIO_OWNER		255		/* priority of the ip owner -- rfc2338.5.3.4 */
 #define VRRP_PRIO_DFL		100		/* default priority -- rfc2338.5.3.4 */
 #define VRRP_PRIO_STOP		0		/* priority to stop -- rfc2338.5.3.4 */
-#define VRRP_MAX_ADDR		((2^8)-1)	/* count addr field is 8 bits wide */
+#define VRRP_MAX_ADDR		0xFF		/* count addr field is 8 bits wide */
 #define VRRP_AUTH_NONE		0		/* no authentification -- rfc2338.5.3.6 */
 #ifdef _WITH_VRRP_AUTH_
 #define VRRP_AUTH_PASS		1		/* password authentification -- rfc2338.5.3.6 */
