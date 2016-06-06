@@ -1053,6 +1053,7 @@ out_err:
 	return NULL;
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 #ifdef LIBIPVS_USE_NL
 static int ipvs_timeout_parse_cb(struct nl_msg *msg, void *arg)
 {
@@ -1074,7 +1075,6 @@ static int ipvs_timeout_parse_cb(struct nl_msg *msg, void *arg)
 }
 #endif
 
-#ifdef _INCLUDE_UNUSED_CODE_
 ipvs_timeout_t *ipvs_get_timeout(void)
 {
 	ipvs_timeout_t *u;
@@ -1106,6 +1106,7 @@ ipvs_timeout_t *ipvs_get_timeout(void)
 }
 #endif
 
+#ifdef _INCLUDE_UNUSED_CODE_
 #ifdef LIBIPVS_USE_NL
 static int ipvs_daemon_parse_cb(struct nl_msg *msg, void *arg)
 {
@@ -1141,7 +1142,6 @@ static int ipvs_daemon_parse_cb(struct nl_msg *msg, void *arg)
 }
 #endif
 
-#ifdef _INCLUDE_UNUSED_CODE_
 ipvs_daemon_t *ipvs_get_daemon(void)
 {
 	ipvs_daemon_t *u;
