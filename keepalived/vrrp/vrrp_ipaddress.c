@@ -110,10 +110,16 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin.sin_addr, sizeof(ipaddress->u.sin.sin_addr));
 
-		if (cmd == IPADDRESS_ADD)
+		if (cmd == IPADDRESS_ADD) {
 			if (ipaddress->u.sin.sin_brd.s_addr)
 				addattr_l(&req.n, sizeof(req), IFA_BROADCAST,
 					  &ipaddress->u.sin.sin_brd, sizeof(ipaddress->u.sin.sin_brd));
+		}
+		else {
+			/* IPADDRESS_DEL */
+			addattr_l(&req.n, sizeof(req), IFA_ADDRESS.
+				  &ipaddress->u.sin.sin_addr, sizeof(ipaddress->u.sin.sin_addr));
+		}
 	}
 
 	if (cmd == IPADDRESS_ADD)
