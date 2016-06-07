@@ -310,7 +310,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 {
 	static unsigned long long_ret;
 #ifdef _KRNL_2_6_
-	static U64 counter64_ret;
+	static struct counter64 counter64_ret;
 #endif
 	virtual_server_t *v;
 	element e;
@@ -480,13 +480,13 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		ipvs_update_stats(v);
 		counter64_ret.low = v->stats.inbytes & 0xffffffff;
 		counter64_ret.high = v->stats.inbytes >> 32;
-		*var_len = sizeof(U64);
+		*var_len = sizeof(struct counter64);
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_VSSTATSOUTBYTES:
 		ipvs_update_stats(v);
 		counter64_ret.low = v->stats.outbytes & 0xffffffff;
 		counter64_ret.high = v->stats.outbytes >> 32;
-		*var_len = sizeof(U64);
+		*var_len = sizeof(struct counter64);
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_VSRATECPS:
 		ipvs_update_stats(v);
@@ -579,7 +579,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 {
 	static unsigned long long_ret;
 #ifdef _KRNL_2_6_
-	static U64 counter64_ret;
+	static struct counter64 counter64_ret;
 #endif
 	oid *target, current[2], best[2];
 	int result, target_len;
@@ -770,13 +770,13 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		ipvs_update_stats(bvs);
 		counter64_ret.low = be->stats.inbytes & 0xffffffff;
 		counter64_ret.high = be->stats.inbytes >> 32;
-		*var_len = sizeof(U64);
+		*var_len = sizeof(struct counter64);
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_RSSTATSOUTBYTES:
 		ipvs_update_stats(bvs);
 		counter64_ret.low = be->stats.outbytes & 0xffffffff;
 		counter64_ret.high = be->stats.outbytes >> 32;
-		*var_len = sizeof(U64);
+		*var_len = sizeof(struct counter64);
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_RSRATECPS:
 		ipvs_update_stats(bvs);
