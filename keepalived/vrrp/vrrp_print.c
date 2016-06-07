@@ -30,8 +30,10 @@
 #include "vrrp_iprule.h"
 #endif
 #include "vrrp_netlink.h"
+#include "logger.h"
 
 #include <time.h>
+#include <errno.h>
 
 static void
 vrrp_print_list(FILE *file, list l, void (*fptr)(FILE*, void*))
@@ -363,6 +365,12 @@ vrrp_print_data(void)
 	FILE *file;
 	file = fopen ("/tmp/keepalived.data","w");
 
+	if (!file) {
+		log_message(LOG_INFO, "Can't open /tmp/keepalived.data (%d: %s)",
+			errno, strerror(errno));
+		return;
+	}
+
 	fprintf(file, "------< VRRP Topology >------\n");
 	vrrp_print_list(file, vrrp_data->vrrp, &vrrp_print);
 
@@ -383,6 +391,12 @@ vrrp_print_stats(void)
 {
 	FILE *file;
 	file = fopen ("/tmp/keepalived.stats","w");
+
+	if (!file) {
+		log_message(LOG_INFO, "Can't open /tmp/keepalived.stats (%d: %s)",
+			errno, strerror(errno));
+		return;
+	}
 
 	list l = vrrp_data->vrrp;
 	element e;
