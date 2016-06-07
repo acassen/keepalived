@@ -150,8 +150,8 @@ netlink_iplist(list ip_list, int cmd)
 	 */
 	for (e = LIST_HEAD(ip_list); e; ELEMENT_NEXT(e)) {
 		ipaddr = ELEMENT_DATA(e);
-		if ((cmd && !ipaddr->set) ||
-		    (!cmd &&
+		if ((cmd == IPADDRESS_ADD && !ipaddr->set) ||
+		    (cmd == IPADDRESS_DEL &&
 		     (ipaddr->set || __test_bit(DONT_RELEASE_VRRP_BIT, &debug)))) {
 			if (netlink_ipaddress(ipaddr, cmd) > 0)
 				ipaddr->set = !(cmd == IPADDRESS_DEL);
