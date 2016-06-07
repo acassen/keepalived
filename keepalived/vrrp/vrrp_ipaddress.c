@@ -117,7 +117,7 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		}
 		else {
 			/* IPADDRESS_DEL */
-			addattr_l(&req.n, sizeof(req), IFA_ADDRESS.
+			addattr_l(&req.n, sizeof(req), IFA_ADDRESS,
 				  &ipaddress->u.sin.sin_addr, sizeof(ipaddress->u.sin.sin_addr));
 		}
 	}
