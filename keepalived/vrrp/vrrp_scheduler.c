@@ -40,6 +40,7 @@
 #include "notify.h"
 #include "list.h"
 #include "logger.h"
+#include "timer.h"
 #include "main.h"
 #include "smtp.h"
 #include "signals.h"
@@ -685,7 +686,7 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
 	if (!VRRP_ISUP(vrrp))
 		return;
 
-	if (vrrp_state_fault_rx(vrrp, buffer, len)) {
+	if (vrrp_state_fault_rx(vrrp, buffer, len) == VRRP_STATE_MAST) {
 		if (!vrrp->sync || vrrp_sync_leave_fault(vrrp)) {
 			log_message(LOG_INFO,
 			       "VRRP_Instance(%s) prio is higher than received advert",
@@ -905,14 +906,18 @@ vrrp_fault(vrrp_t * vrrp)
 		if (vrrp->init_state == VRRP_STATE_BACK) {
 			vrrp->state = VRRP_STATE_BACK;
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);
+			if (vrrp->preempt_delay)
+				vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
 #ifdef _WITH_SNMP_KEEPALIVED_
 			vrrp_snmp_instance_trap(vrrp);
 #endif
 			vrrp->last_transition = timer_now();
+			log_message(LOG_INFO, "VRRP_Instance(%s): Entering BACKUP STATE", vrrp->iname);
 		} else {
 #ifdef _WITH_SNMP_RFCV3_
 			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
+			log_message(LOG_INFO, "VRRP_Instance(%s): Transition to MASTER STATE", vrrp->iname);
 			vrrp_goto_master(vrrp);
 		}
 	}

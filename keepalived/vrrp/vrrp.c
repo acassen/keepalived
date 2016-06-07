@@ -1330,6 +1330,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 		vrrp_restore_interface(vrrp, false, false);
 		vrrp->state = vrrp->wantstate;
 		notify_instance_exec(vrrp, VRRP_STATE_BACK);
+		vrrp->preempt_time.tv_sec = 0;
 #ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
@@ -1389,8 +1390,11 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 #ifdef _WITH_SNMP_RFCV3_
 		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PRIORITY;
 #endif
-	} else if (vrrp->nopreempt || hd->priority >= vrrp->effective_priority ||
-		   timer_cmp(vrrp->preempt_time, timer_now()) > 0) {
+	} else if (vrrp->nopreempt ||
+		   hd->priority >= vrrp->effective_priority ||
+		   (vrrp->preempt_delay &&
+		    (!vrrp->preempt_time.tv_sec ||
+		     timer_cmp(vrrp->preempt_time, timer_now()) > 0))) {
 		if (vrrp->version == VRRP_VERSION_3) {
 			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
 			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
@@ -1408,29 +1412,27 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 		}
 		vrrp->master_saddr = vrrp->pkt_saddr;
 		vrrp->master_priority = hd->priority;
+
 		if (vrrp->preempt_delay) {
 			if (hd->priority > vrrp->effective_priority) {
-				vrrp->preempt_time = timer_add_long(timer_now(),
-							vrrp->preempt_delay);
-				if (vrrp->preempt_delay_active) {
+				if (vrrp->preempt_time.tv_sec) {
 					log_message(LOG_INFO,
 						"%s(%s) reset preempt delay",
 						"VRRP_Instance", vrrp->iname);
-					vrrp->preempt_delay_active = 0;
+					vrrp->preempt_time.tv_sec = 0;
 				}
 			} else {
-				if (!vrrp->preempt_delay_active) {
+				if (!vrrp->preempt_time.tv_sec) {
 					log_message(LOG_INFO,
 						"%s(%s) start preempt delay(%ld)",
 						"VRRP_Instance", vrrp->iname,
 						vrrp->preempt_delay / TIMER_HZ);
-					vrrp->preempt_delay_active = 1;
+					vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
 				}
 			}
 		}
-	} else if (hd->priority < vrrp->effective_priority) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) forcing a new MASTER election"
-				    , vrrp->iname);
+	} else {
+		log_message(LOG_INFO, "VRRP_Instance(%s) forcing a new MASTER election" , vrrp->iname);
 		vrrp->wantstate = VRRP_STATE_GOTO_MASTER;
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 #ifdef _WITH_SNMP_RFCV3_
@@ -1493,6 +1495,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 	vrrphdr_t *hd;
 	int ret, proto = 0;
 	ipsec_ah_t *ah;
+	int master_adver_int;
 
 	/* return on link failure */
 	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT) {
@@ -1513,10 +1516,14 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		       "VRRP_Instance(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
 		return 0;
-	} else if (hd->priority == 0) {
+	}
+
+	if (hd->priority == 0) {
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 		return 0;
-	} else if (hd->priority < vrrp->effective_priority) {
+	}
+
+	if (hd->priority < vrrp->effective_priority) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert %d"
 				      ", forcing new election", vrrp->iname, hd->priority);
@@ -1537,13 +1544,22 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 						 vrrp, vrrp->garp_lower_prio_delay);
 		}
 		return 0;
-	} else if (hd->priority > vrrp->effective_priority ||
+	}
+
+	/* If we are configured as the address owner (priority == 255), and we receive an advertisement 
+	 * from another system indicating it is also the address owner, then there is a clear conflict.
+	 * Report a configuration error, and drop our priority as a workaround. */
+	if (hd->priority == VRRP_PRIO_OWNER &&
+	    vrrp->effective_priority == VRRP_PRIO_OWNER) {
+		log_message(LOG_INFO, "(%s): CONFIGURATION ERROR: local instance and a remote instance are both configured as address owner, please fix - reducing local priority", vrrp->iname);
+		vrrp->effective_priority--;
+		if (vrrp->base_priority > 1)
+			vrrp->base_priority--;
+	}
+
+	if (hd->priority > vrrp->effective_priority ||
 		   (hd->priority == vrrp->effective_priority &&
 		    vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp) > 0)) {
-		/* We send a last advert here in order to refresh remote MASTER
-		 * coming up to force link update at MASTER side.
-		 */
-		vrrp_send_adv(vrrp, vrrp->effective_priority);
 
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert %d"
 				    , vrrp->iname, hd->priority);
@@ -1556,7 +1572,20 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 			vrrp->ipsecah_counter->cycle = 0;
 		}
 
-		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		if (vrrp->version == VRRP_VERSION_3) {
+			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
+			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
+			 * in the ADVERTISEMENT
+			 */
+			if (vrrp->master_adver_int != master_adver_int) {
+				vrrp->master_adver_int = master_adver_int;
+				log_message(LOG_INFO, "VRRP_Instance(%s) advertisement interval updated to %d milli-sec from higher priority master",
+							vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000));
+			}
+			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+		}
+		else
+			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		vrrp->master_priority = hd->priority;
 		vrrp->wantstate = VRRP_STATE_BACK;
 		vrrp->state = VRRP_STATE_BACK;
@@ -1580,8 +1609,7 @@ vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, int buflen)
 		log_message(LOG_INFO, "VRRP_Instance(%s) Dropping received VRRP packet..."
 				    , vrrp->iname);
 		return 0;
-	} else if (vrrp->effective_priority > hd->priority ||
-		   hd->priority == VRRP_PRIO_OWNER) {
+	} else if (vrrp->effective_priority > hd->priority) {
 		if (!vrrp->nopreempt)
 			return 1;
 	}
@@ -1958,6 +1986,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	if (vrrp->nopreempt && vrrp->init_state == VRRP_STATE_MAST)
 		log_message(LOG_INFO, "(%s): Warning - nopreempt will not work with initial state MASTER", vrrp->iname);
+	if (vrrp->strict_mode && vrrp->preempt_delay) {
+		log_message(LOG_INFO, "(%s): preempt_delay is incompatible with strict mode - resetting", vrrp->iname);
+		vrrp->preempt_delay = 0;
+	}
+	if (vrrp->nopreempt && vrrp->preempt_delay) {
+		log_message(LOG_INFO, "(%s): preempt_delay is incompatible with nopreempt mode - resetting", vrrp->iname);
+		vrrp->preempt_delay = 0;
+	}
 
 	vrrp->state = VRRP_STATE_INIT;
 
@@ -2362,7 +2398,7 @@ vrrp_complete_init(void)
 					}
 
 					notify_group_exec(sgroup, sgroup->state);
-#ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_KEEPALIVED_
 					vrrp_snmp_group_trap(sgroup);
 #endif
 				}
