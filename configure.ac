@@ -80,7 +80,7 @@ AC_CHECK_LIB(nl-3, nl_socket_alloc,
   [
     AC_CHECK_LIB(nl-genl-3, genl_connect,
       [
-        USE_NL="LIBIPVS_USE_NL"
+        IPVS_USE_NL="LIBIPVS_USE_NL"
         CFLAGS="$CFLAGS $(pkg-config --cflags libnl-genl-3.0)"
         LIBS="$LIBS $(pkg-config --libs libnl-genl-3.0)"
       ],
@@ -97,13 +97,13 @@ AC_CHECK_LIB(nl-3, nl_socket_alloc,
   [
     AC_CHECK_LIB(nl, nl_socket_modify_cb,
       [
-        USE_NL="LIBIPVS_USE_NL"
+        IPVS_USE_NL="LIBIPVS_USE_NL"
         USE_NL3="_HAVE_LIBNL1_"
         CFLAGS="$CFLAGS -DFALLBACK_LIBNL1"
         LIBS="$LIBS $(pkg-config --libs libnl-1)"
       ],
       [
-        USE_NL="LIBIPVS_DONTUSE_NL"
+        IPVS_USE_NL="LIBIPVS_DONTUSE_NL"
         AC_MSG_WARN([keepalived will be built without libnl support.])
       ])
   ])
@@ -598,10 +598,10 @@ AC_SUBST(VERSION)
 AC_SUBST(VERSION_DATE)
 AC_SUBST(VERSION_YEAR)
 AC_SUBST(IPVS_SUPPORT)
-AC_SUBST(USE_NL)
+AC_SUBST(IPVS_USE_NL)
 AC_SUBST(VRRP_SUPPORT)
 
-APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} ${DFLAGS}"
+APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} ${DFLAGS}"
 BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
 AC_SUBST(APP_DEFS)
 AC_SUBST(BUILD_OPTS)
@@ -655,7 +655,7 @@ if test "${IPVS_SUPPORT}" = "_WITH_LVS_"; then
   elif test "${IPVS_SYNCD}" = "_WITHOUT_IPVS_SYNCD_"; then
     echo "IPVS sync daemon support : No"
   fi
-  if test "${USE_NL}" = "LIBIPVS_USE_NL"; then
+  if test "${IPVS_USE_NL}" = "LIBIPVS_USE_NL"; then
     echo "IPVS use libnl           : Yes"
   else
     echo "IPVS use libnl           : No"
