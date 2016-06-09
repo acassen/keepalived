@@ -333,45 +333,27 @@ inet_sockaddrip6(struct sockaddr_storage *addr, struct in6_addr *ip6)
 int
 inet_inaddrcmp(int family, void *a, void *b)
 {
+	int64_t addr_diff;
+
 	if (family == AF_INET) {
-		if (ntohl(*((const uint32_t *) a)) >
-		    ntohl(*((const uint32_t *) b)))
+		addr_diff = (int64_t)ntohl(*((const uint32_t *) a)) - (int64_t)ntohl(*((const uint32_t *) b));
+		if (addr_diff > 0)
 			return 1;
-		if (ntohl(*((const uint32_t *) a)) <
-		    ntohl(*((const uint32_t *) b)))
+		if (addr_diff < 0)
 			return -1;
 		return 0;
 	}
 
 	if (family == AF_INET6) {
-		if (ntohl(((const uint32_t *) (a))[0]) >
-		    ntohl(((const uint32_t *) (b))[0]))
-			return 1;
-		if (ntohl(((const uint32_t *) (a))[0]) <
-		    ntohl(((const uint32_t *) (b))[0]))
-			return -1;
+		int i;
 
-		if (ntohl(((const uint32_t *) (a))[1]) >
-		    ntohl(((const uint32_t *) (b))[1]))
-			return 1;
-		if (ntohl(((const uint32_t *) (a))[1]) <
-		    ntohl(((const uint32_t *) (b))[1]))
-			return -1;
-
-		if (ntohl(((const uint32_t *) (a))[2]) >
-		    ntohl(((const uint32_t *) (b))[2]))
-			return 1;
-		if (ntohl(((const uint32_t *) (a))[2]) <
-		    ntohl(((const uint32_t *) (b))[2]))
-			return -1;
-
-		if (ntohl(((const uint32_t *) (a))[3]) >
-		    ntohl(((const uint32_t *) (b))[3]))
-			return 1;
-		if (ntohl(((const uint32_t *) (a))[3]) <
-		    ntohl(((const uint32_t *) (b))[3]))
-			return -1;
-
+		for (i = 0; i < 4; i++ ) {
+			addr_diff = (int64_t)ntohl(((const uint32_t *) (a))[i]) - (int64_t)ntohl(((const uint32_t *) (b))[i]);
+			if (addr_diff > 0)
+				return 1;
+			if (addr_diff < 0)
+				return -1;
+		}
 		return 0;
 	}
 

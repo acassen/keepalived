@@ -1496,6 +1496,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 	int ret, proto = 0;
 	ipsec_ah_t *ah;
 	int master_adver_int;
+	int addr_cmp;
 
 	/* return on link failure */
 	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT) {
@@ -1523,7 +1524,17 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		return 0;
 	}
 
-	if (hd->priority < vrrp->effective_priority) {
+	if (hd->priority == vrrp->effective_priority) {
+		addr_cmp = vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp);
+		if (addr_cmp == 0)
+			log_message(LOG_INFO, "(%s): WARNING - advert received from remote host with our IP address.", vrrp->iname);
+	}
+ 	else
+		addr_cmp = 0; 	/* Avoid compiler warning */
+
+	if (hd->priority < vrrp->effective_priority ||
+		   (hd->priority == vrrp->effective_priority &&
+		    addr_cmp < 0)) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert %d"
 				      ", forcing new election", vrrp->iname, hd->priority);
@@ -1559,7 +1570,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 
 	if (hd->priority > vrrp->effective_priority ||
 		   (hd->priority == vrrp->effective_priority &&
-		    vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp) > 0)) {
+		    addr_cmp > 0)) {
 
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert %d"
 				    , vrrp->iname, hd->priority);
