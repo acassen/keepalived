@@ -1523,7 +1523,9 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		return 0;
 	}
 
-	if (hd->priority < vrrp->effective_priority) {
+	if (hd->priority < vrrp->effective_priority ||
+		   (hd->priority == vrrp->effective_priority &&
+		    vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp) < 0)) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert %d"
 				      ", forcing new election", vrrp->iname, hd->priority);
