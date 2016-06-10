@@ -247,7 +247,8 @@ vrrp_init_state(list l)
 			|| vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
 #ifdef _HAVE_IPVS_SYNCD_
 			/* Check if sync daemon handling is needed */
-			if (global_data->lvs_syncd_if)
+			if (global_data->lvs_syncd_if &&
+			    global_data->lvs_syncd_vrrp == vrrp)
 				ipvs_syncd_cmd(IPVS_STARTDAEMON,
 					       global_data->lvs_syncd_if,
 					       IPVS_MASTER,
