@@ -1,3 +1,78 @@
+2016-06-14 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.22 released.
+	* vrrp: Fix build without VRRP VMAC.
+	* Fix compilation with RFC SNMP without Keepalived SNMP.
+	* vrrp: Update master_adver_int when receive higher priority advert
+	  when master.
+	  If VRRPv3 is being used, and a higher priority advert is received when
+	  in master mode, the master_adver_int needs to be updated when transitioning
+	  backup mode. If this isn't done, and our advert interval is less than a third
+	  of the new masters, we will time out and re-enter master mode, send an advert
+	  to which the other master will resond with a higher priority advert, causing
+	  us to go back into backup mode, until our timer expires again, and this will
+	  continue indefinitely.
+	* vrrp: Don't send advert after receiving higher priority advert.
+	  If a master receives a higher priority advert, there is no need
+	  to send another advert, since the sender of the higher priority
+	  advert is already a master. Further, any other instance in backup
+	  mode will process our subsequent advert, and then consider the
+	  wrong system to be master, until it receives another advert from
+	  the real master.
+	  With VRRPv3, if the other master has an advert interval more than
+	  three times our advert interval, backup routers will be using our
+	  advert interval after we've sent our subsequent advert, and will
+	  then timeout before the new master sends another advert, prompting
+	  (one of) the backup routers to become a master, which will prompt
+	  the higher priority master to send an advert, the ex-backup router
+	  will then send another advert and we could end up in an endless cycle.
+	* vrrp: Fix receiving advert from address owner when in fault state.
+	* vrrp: When transitioning from fault state, log state change.
+	* vrrp: Fix preempt delay when transitioning from fault state.
+	  There were two ways of leaving fault state, either by receiving a packet
+	  on the instance, or by a netlink message indication that the interface is
+	  up again. In neither case was preempt_delay considered in the code.
+	  This commit changes the way vrrp->preempt_time is used. preempt_time is now
+	  only used once a higher priority advert is received, rather than being updated
+	  every time a lower priority advert is received. vrrp->preempt_time is now also
+	  set when transitioning out of fault state. vrrp->preempt_time.tv_sec == 0 now
+	  indicates the timer is not running.
+	* vrrp: Detect and report duplicate address owners.
+	  If more than one system is configured as an address owner (priority
+	  == 255), this would be a configuration error, and could cause
+	  unexpected behaviour. This commit ensures that the problem is
+	  reported, and sets the local instance not to be the addess owner,
+	  as a temporary workaround for the problem.
+	* vrrp: Fix maximum number of VIPs allowe.
+	* ipvs: Fix IPVS with IPv6 addresses.
+	* ipvs: Don't overwrite errno by another syscall before checking errno.
+	* ipvs: ipvswrapper.c: fix comparison.
+	* Enable compilation with development net-snmp headers.
+	* vrrp: Fix IPv4 vIP removal when addr matches pre-existing interface addr.
+	  For IPv4 vIPs keepalived adds a /32 to the underlying interface. If
+	  this address matches an address already configured, e.g. a /24, when
+	  this vIP is eventually removed due to a configuration change or
+	  keepalived shutdown, the original address matching the vIP, outside
+	  of keepalived's control, is removed instead. This behaviour is
+	  incorrect. The /32 added by keepalived should be the address being
+	  removed. Keepalived should not be touching any addresses it does not
+	  create.
+	* vrrp: Check for errors when opening VRRP data and stats files.
+	  This fixes crashes when running keepalived under SELinux enforcing mode,
+	  which does not allow keepalived proccess to write to /tmp by default.
+	* vrrp: Don't assume IPADDRESS_DEL == 0 and IPADDRESS_ADD != 0.
+	* vrrp: Fix compilation failure.
+	* vrrp: Fix transition to backup when receive equal priority advert from
+	  higher address.
+	  When a vrrp instance in master mode received an advert from another master
+	  that had equal priority, it wasn't comparing the addresses to determine
+	  whether it should treat the advert as higher priority, and hence the
+	  instance should fall back into backup state.
+	  When checking whether the advert is from a lower priority master, it now
+	  checks if the priorities are equal and then compares the addresses.
+	* vrrp: Optimise address comparision when receive advert in master mode.
+	* Optimise inet_inaddr_cmp.
+
+
 2016-05-26 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.21 released.
 	* Install VRRP-MIB when applicable.
