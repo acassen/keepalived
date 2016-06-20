@@ -385,7 +385,7 @@ AC_SUBST(SOCK_CLOEXEC_SUPPORT)
 
 dnl ----[ Checks for FIB routing support ]----
 # Introduced in Linux 2.6.19
-AC_MSG_CHECKING([for SOCK_CLOEXEC support])
+AC_MSG_CHECKING([for FIB routing support])
 AC_TRY_COMPILE([
     #include <linux/fib_rules.h>
     int type;

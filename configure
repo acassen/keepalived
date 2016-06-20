@@ -4669,8 +4669,8 @@ $as_echo "no" >&6; }
 
 
 # Introduced in Linux 2.6.19
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for SOCK_CLOEXEC support" >&5
-$as_echo_n "checking for SOCK_CLOEXEC support... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for FIB routing support" >&5
+$as_echo_n "checking for FIB routing support... " >&6; }
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
