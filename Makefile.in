@@ -102,7 +102,7 @@ tarball: tarclean
 	make -C lib git-commit.h
 	mkdir keepalived-@VERSION@
 	cp -a $(TARFILES) keepalived-@VERSION@
-	tar --exclude .git -czf $(TARBALL) keepalived-@VERSION@
+	tar --exclude .git --exclude .gitignore --exclude .gitkeep -czf $(TARBALL) keepalived-@VERSION@
 	rm -rf keepalived-@VERSION@
 
 rpm:
