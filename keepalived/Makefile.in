@@ -14,6 +14,7 @@ prefix      = @prefix@
 exec_prefix = @exec_prefix@
 sbindir     = @sbindir@
 sysconfdir  = @sysconfdir@
+systemddir  = @libdir@/systemd/system
 datarootdir = @datarootdir@
 mandir      = @mandir@
 init_dir    = $(sysconfdir)/rc.d/init.d
@@ -103,6 +104,8 @@ install:
 	install -m 755 etc/init.d/keepalived.init $(DESTDIR)$(init_dir)/keepalived
 	install -d $(DESTDIR)$(sysconf_dir)
 	install -m 644 etc/init.d/keepalived.sysconfig $(DESTDIR)$(sysconf_dir)/keepalived
+	install -d $(DESTDIR)$(systemddir)
+	install -m 644 keepalived.service $(DESTDIR)$(systemddir)
 	install -d $(DESTDIR)$(sysconfdir)/keepalived/samples
 	install -m 644 etc/keepalived/keepalived.conf $(DESTDIR)$(sysconfdir)/keepalived/
 	install -m 644 ../doc/samples/* $(DESTDIR)$(sysconfdir)/keepalived/samples/
