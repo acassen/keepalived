@@ -112,7 +112,7 @@ start_check(void)
 	init_global_data(global_data);
 
 	/* Post initializations */
-#ifdef _DEBUG_
+#ifdef _MEM_CHECK_
 	log_message(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
 #endif
 
@@ -224,7 +224,7 @@ reload_check_thread(thread_t * thread)
 	check_data = NULL;
 
 	/* Reload the conf */
-#ifdef _DEBUG_
+#ifdef _MEM_CHECK_
 	mem_allocated = 0;
 #endif
 	start_check();
@@ -237,6 +237,7 @@ reload_check_thread(thread_t * thread)
 }
 
 /* CHECK Child respawning thread */
+#ifndef _DEBUG_
 static int
 check_respawn_thread(thread_t * thread)
 {
@@ -262,6 +263,7 @@ check_respawn_thread(thread_t * thread)
 	}
 	return 0;
 }
+#endif
 
 /* Register CHECK thread */
 int

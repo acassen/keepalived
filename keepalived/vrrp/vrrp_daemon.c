@@ -231,7 +231,7 @@ start_vrrp(void)
 #endif
 
 	/* Post initializations */
-#ifdef _DEBUG_
+#ifdef _MEM_CHECK_
 	log_message(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
 #endif
 
@@ -343,7 +343,7 @@ reload_vrrp_thread(thread_t * thread)
 	reset_interface_queue();
 
 	/* Reload the conf */
-#ifdef _DEBUG_
+#ifdef _MEM_CHECK_
 	mem_allocated = 0;
 #endif
 	start_vrrp();
@@ -380,6 +380,7 @@ print_vrrp_stats(thread_t * thread)
 
 
 /* VRRP Child respawning thread */
+#ifndef _DEBUG_
 static int
 vrrp_respawn_thread(thread_t * thread)
 {
@@ -405,6 +406,7 @@ vrrp_respawn_thread(thread_t * thread)
 	}
 	return 0;
 }
+#endif
 
 /* Register VRRP thread */
 int
