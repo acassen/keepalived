@@ -84,17 +84,17 @@ install:
 	$(MAKE) -C keepalived install
 	$(MAKE) -C genhash install
 ifeq (@SNMP_SUPPORT@, _WITH_SNMP_)
-	mkdir -p $(DESTDIR)/usr/share/snmp/mibs/
+	mkdir -p $(DESTDIR)/usr/local/share/snmp/mibs/
 ifeq (@SNMP_RFCV2_SUPPORT@, _WITH_SNMP_RFCV2_)
-	cp -f doc/VRRP-MIB $(DESTDIR)/usr/share/snmp/mibs/
+	cp -f doc/VRRP-MIB $(DESTDIR)/usr/local/share/snmp/mibs/
 endif
 ifeq (@SNMP_RFCV3_SUPPORT@, _WITH_SNMP_RFCV3_)
-	cp -f doc/VRRPv3-MIB $(DESTDIR)/usr/share/snmp/mibs/
+	cp -f doc/VRRPv3-MIB $(DESTDIR)/usr/local/share/snmp/mibs/
 endif
 ifeq (@SNMP_KEEPALIVED_SUPPORT@, _WITH_SNMP_KEEPALIVED_)
-	cp -f doc/KEEPALIVED-MIB $(DESTDIR)/usr/share/snmp/mibs/
+	cp -f doc/KEEPALIVED-MIB $(DESTDIR)/usr/local/share/snmp/mibs/
 else ifeq (@SNMP_CHECKER_SUPPORT@, _WITH_SNMP_CHECKER_)
-	cp -f doc/KEEPALIVED-MIB $(DESTDIR)/usr/share/snmp/mibs/
+	cp -f doc/KEEPALIVED-MIB $(DESTDIR)/usr/local/share/snmp/mibs/
 endif
 endif
 
