@@ -23,10 +23,6 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#include <ctype.h>
-#include <sys/uio.h>
-#include <openssl/md5.h>
-
 /* local include */
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
@@ -63,7 +59,6 @@
 #include "vrrp_iproute.h"
 #endif
 
-#include <net/ethernet.h>
 #include <netinet/ip6.h>
 
 /* add/remove Virtual IP addresses */
