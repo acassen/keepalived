@@ -28,8 +28,6 @@
 #include "check_ssl.h"
 #include "check_api.h"
 #include "global_data.h"
-#include "ipwrapper.h"
-#include "ipvswrapper.h"
 #include "pidfile.h"
 #include "daemon.h"
 #include "signals.h"
