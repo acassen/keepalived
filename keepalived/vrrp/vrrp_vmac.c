@@ -308,7 +308,10 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 	/* Reset arp_ignore and arp_filter on the base interface if necessary */
 	base_ifp = if_get_by_ifindex(vrrp->ifp->base_ifindex);
 
-	if (vrrp->family == AF_INET)
+	if (!base_ifp)
+		log_message(LOG_INFO, "(%s) No interface found for ifindex %d (%s), probably due to corruption.",
+			    vrrp->iname, vrrp->ifp->base_ifindex, vrrp->ifp->ifname);
+	else if (vrrp->family == AF_INET)
 		reset_interface_parameters(base_ifp);
 
 	memset(&req, 0, sizeof (req));
