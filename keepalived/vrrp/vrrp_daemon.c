@@ -326,7 +326,6 @@ reload_vrrp_thread(thread_t * thread)
 		       global_data->lvs_syncd_syncid, false);
 #endif
 	free_global_data(global_data);
-	free_interface_queue();
 	free_vrrp_buffer();
 	gratuitous_arp_close();
 	ndisc_close();
@@ -341,6 +340,7 @@ reload_vrrp_thread(thread_t * thread)
 	/* Save previous conf data */
 	old_vrrp_data = vrrp_data;
 	vrrp_data = NULL;
+	reset_interface_queue();
 
 	/* Reload the conf */
 #ifdef _DEBUG_
@@ -358,6 +358,7 @@ reload_vrrp_thread(thread_t * thread)
 
 	/* free backup data */
 	free_vrrp_data(old_vrrp_data);
+	free_old_interface_queue();
 	UNSET_RELOAD;
 
 	return 0;

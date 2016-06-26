@@ -63,6 +63,9 @@ typedef uint8_t u8;
 static list if_queue;
 static struct ifreq ifr;
 
+static list old_if_queue;
+static list old_garp_delay;
+
 /* Global vars */
 list garp_delay;
 
@@ -131,6 +134,16 @@ list
 get_if_list(void)
 {
 	return if_queue;
+}
+
+void
+reset_interface_queue(void)
+{
+	old_if_queue = if_queue;
+	old_garp_delay = garp_delay;
+
+	if_queue = NULL;
+	garp_delay = NULL;
 }
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -535,6 +548,13 @@ free_interface_queue(void)
 {
 	free_list(&if_queue);
 	free_list(&garp_delay);
+}
+
+void
+free_old_interface_queue(void)
+{
+	free_list(&old_if_queue);
+	free_list(&old_garp_delay);
 }
 
 void
