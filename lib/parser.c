@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 #include "parser.h"
 #include "memory.h"
 #include "logger.h"
@@ -390,21 +391,24 @@ check_include(char *buf)
 int
 read_line(char *buf, int size)
 {
-	int ch;
+	size_t len ;
+	bool eof = false;
 
 	do {
-		int count = 0;
-		memset(buf, 0, size);
-		while ((ch = fgetc(current_stream)) != EOF && (int) ch != '\n'
-			   && (int) ch != '\r') {
-			if (count < size)
-				buf[count] = (int) ch;
-			else
-				break;
-			count++;
+		if (fgets(buf, size, current_stream)) {
+			for (len = strlen(buf) - 1; len >= 0; len--) {
+				if (buf[len] != '\r' && buf[len] != '\n')
+					break;
+				buf[len] = '\0';
+			}
+		}
+		else
+		{
+			eof = true;
+			buf[0] = '\0';
 		}
 	} while (check_include(buf) == 1);
-	return (ch == EOF) ? 0 : 1;
+	return (eof) ? 0 : 1;
 }
 
 vector_t *
