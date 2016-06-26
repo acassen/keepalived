@@ -542,10 +542,10 @@ process_stream(vector_t *keywords_vec, int need_bob)
 	current_keywords = keywords_vec;
 	int bob_needed = 0;
 
-	buf = zalloc(MAXBUF);
+	buf = MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
 		strvec = alloc_strvec(buf);
-		memset(buf,0, MAXBUF);
+		memset(buf, 0, MAXBUF);
 
 		if (!strvec)
 			continue;
@@ -627,7 +627,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 	}
 
 	current_keywords = prev_keywords;
-	free(buf);
+	FREE(buf);
 	return;
 }
 

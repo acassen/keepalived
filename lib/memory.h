@@ -27,9 +27,6 @@
 /* system includes */
 #include <stdlib.h>
 
-/* extern types */
-extern void *zalloc(unsigned long size);
-
 /* Local defines */
 #ifdef _MEM_CHECK_
 
@@ -53,6 +50,8 @@ extern void keepalived_free_final(char *);
 extern void mem_log_init(const char *);
 
 #else
+
+extern void *zalloc(unsigned long size);
 
 #define MALLOC(n)    (zalloc(n))
 #define FREE(p)      (free(p), (p) = NULL)
