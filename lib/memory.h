@@ -43,7 +43,7 @@ extern void *zalloc(unsigned long size);
 #define REALLOC(b,n) ( keepalived_realloc((b), (n), \
 		      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )
 
-extern unsigned long mem_allocated;
+extern size_t mem_allocated;
 
 /* Memory debug prototypes defs */
 extern void *keepalived_malloc(unsigned long, char *, char *, int);
