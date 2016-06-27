@@ -149,6 +149,7 @@ extern interface_t *base_if_get_by_ifindex(const int);
 extern interface_t *base_if_get_by_ifp(interface_t *);
 extern interface_t *if_get_by_ifname(const char *);
 extern list get_if_list(void);
+extern void reset_interface_queue(void);
 #ifdef _HAVE_VRRP_VMAC_
 extern void if_vmac_reflect_flags(const int, const unsigned long);
 #endif
@@ -160,6 +161,7 @@ extern int if_monitor_thread(thread_t *);
 extern void init_interface_queue(void);
 extern void init_interface_linkbeat(void);
 extern void free_interface_queue(void);
+extern void free_old_interface_queue(void);
 extern int if_join_vrrp_group(sa_family_t, int *, interface_t *, int);
 extern int if_leave_vrrp_group(sa_family_t, int, interface_t *);
 extern int if_setsockopt_bindtodevice(int *, interface_t *);

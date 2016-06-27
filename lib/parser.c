@@ -28,6 +28,7 @@
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <stdbool.h>
 #include "parser.h"
 #include "memory.h"
 #include "logger.h"
@@ -137,10 +138,13 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 
 	if (!level) {
 		sprintf(file_name, "/tmp/keywords.%d", getpid());
+		snprintf(file_name, sizeof(file_name), "/tmp/keywords.%d", getpid());
 		fp = fopen(file_name, "w");
 		if (!fp)
 			return;
 	}
+
+	vector_dump(fp, keywords);
 
 	for (i = 0; i < vector_size(keydump); i++) {
 		keyword_vec = vector_slot(keydump, i);
@@ -387,21 +391,24 @@ check_include(char *buf)
 int
 read_line(char *buf, int size)
 {
-	int ch;
+	size_t len ;
+	bool eof = false;
 
 	do {
-		int count = 0;
-		memset(buf, 0, size);
-		while ((ch = fgetc(current_stream)) != EOF && (int) ch != '\n'
-			   && (int) ch != '\r') {
-			if (count < size)
-				buf[count] = (int) ch;
-			else
-				break;
-			count++;
+		if (fgets(buf, size, current_stream)) {
+			for (len = strlen(buf) - 1; len >= 0; len--) {
+				if (buf[len] != '\r' && buf[len] != '\n')
+					break;
+				buf[len] = '\0';
+			}
+		}
+		else
+		{
+			eof = true;
+			buf[0] = '\0';
 		}
 	} while (check_include(buf) == 1);
-	return (ch == EOF) ? 0 : 1;
+	return (eof) ? 0 : 1;
 }
 
 vector_t *
@@ -539,10 +546,10 @@ process_stream(vector_t *keywords_vec, int need_bob)
 	current_keywords = keywords_vec;
 	int bob_needed = 0;
 
-	buf = zalloc(MAXBUF);
+	buf = MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
 		strvec = alloc_strvec(buf);
-		memset(buf,0, MAXBUF);
+		memset(buf, 0, MAXBUF);
 
 		if (!strvec)
 			continue;
@@ -624,7 +631,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 	}
 
 	current_keywords = prev_keywords;
-	free(buf);
+	FREE(buf);
 	return;
 }
 
@@ -638,7 +645,6 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 
 #if DUMP_KEYWORDS
 	/* Dump configuration */
-	vector_dump(keywords);
 	dump_keywords(keywords, 0, NULL);
 #endif
 

@@ -33,7 +33,7 @@ unsigned long debug = 0;
 
 /* Display a buffer into a HEXA formated output */
 void
-dump_buffer(char *buff, int count)
+dump_buffer(char *buff, int count, FILE* fp)
 {
 	int i, j, c;
 	int printnext = 1;
@@ -46,28 +46,28 @@ dump_buffer(char *buff, int count)
 	for (i = 0; i < c; i++) {
 		if (printnext) {
 			printnext--;
-			printf("%.4x ", i & 0xffff);
+			fprintf(fp, "%.4x ", i & 0xffff);
 		}
 		if (i < count)
-			printf("%3.2x", buff[i] & 0xff);
+			fprintf(fp, "%3.2x", buff[i] & 0xff);
 		else
-			printf("   ");
+			fprintf(fp, "   ");
 		if (!((i + 1) % 8)) {
 			if ((i + 1) % 16)
-				printf(" -");
+				fprintf(fp, " -");
 			else {
-				printf("   ");
+				fprintf(fp, "   ");
 				for (j = i - 15; j <= i; j++)
 					if (j < count) {
 						if ((buff[j] & 0xff) >= 0x20
 						    && (buff[j] & 0xff) <= 0x7e)
-							printf("%c",
+							fprintf(fp, "%c",
 							       buff[j] & 0xff);
 						else
-							printf(".");
+							fprintf(fp, ".");
 					} else
-						printf(" ");
-				printf("\n");
+						fprintf(fp, " ");
+				fprintf(fp, "\n");
 				printnext = 1;
 			}
 		}

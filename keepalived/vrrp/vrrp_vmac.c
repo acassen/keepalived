@@ -306,10 +306,14 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 		return -1;
 
 	/* Reset arp_ignore and arp_filter on the base interface if necessary */
-	base_ifp = if_get_by_ifindex(vrrp->ifp->base_ifindex);
+	if (vrrp->family == AF_INET) {
+		base_ifp = if_get_by_ifindex(vrrp->ifp->base_ifindex);
 
-	if (vrrp->family == AF_INET)
-		reset_interface_parameters(base_ifp);
+		if (base_ifp)
+			reset_interface_parameters(base_ifp);
+		else
+			log_message(LOG_INFO, "Unable to find base interface for vrrp instance %s", vrrp->iname);
+	}
 
 	memset(&req, 0, sizeof (req));
 

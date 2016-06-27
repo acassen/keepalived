@@ -54,6 +54,10 @@ AC_ARG_ENABLE(libiptc,
   [  --disable-libiptc       compile without libiptc])
 AC_ARG_ENABLE(libipset,
   [  --disable-libipset      compile without libipset])
+AC_ARG_ENABLE(mem-check,
+  [  --enable-mem-check      compile with memory alloc checking])
+AC_ARG_ENABLE(mem-check-log,
+  [  --enable-mem-check-log  compile with memory alloc checking writing to syslog])
 AC_ARG_ENABLE(debug,
   [  --enable-debug          compile with debugging flags])
 AC_ARG_ENABLE(profile,
@@ -578,6 +582,19 @@ if test "${enable_debug}" = "yes"; then
   AC_SUBST(DFLAGS)
 fi
 
+dnl ----[ Memory alloc check or not ? ]----
+MEM_CHECK_LOG=_NO_MEM_CHECK_LOG_
+if test "${enable_mem_check}" = "yes"; then
+  MEM_CHECK=_MEM_CHECK_
+  if test "${enable_mem_check_log}" = "yes"; then
+    MEM_CHECK_LOG=_MEM_CHECK_LOG_
+  fi
+else
+  MEM_CHECK=_NO_MEM_CHECK_
+fi
+AC_SUBST(MEM_CHECK)
+AC_SUBST(MEM_CHECK_LOG)
+
 dnl ----[ check for VRRP authentication support ]----
 VRRP_AUTH_SUPPORT="_WITHOUT_VRRP_AUTH_"
 if test "$enable_vrrp" != "no"; then
@@ -601,7 +618,7 @@ AC_SUBST(IPVS_SUPPORT)
 AC_SUBST(IPVS_USE_NL)
 AC_SUBST(VRRP_SUPPORT)
 
-APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} ${DFLAGS}"
+APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} -D${MEM_CHECK} -D${MEM_CHECK_LOG} ${DFLAGS}"
 BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
 AC_SUBST(APP_DEFS)
 AC_SUBST(BUILD_OPTS)
@@ -715,6 +732,16 @@ if test "${DFLAGS}" = "-D_DEBUG_"; then
   echo "Use Debug flags          : Yes"
 else
   echo "Use Debug flags          : No"
+fi
+if test "${MEM_CHECK}" = "_MEM_CHECK_"; then
+  echo "Memory alloc check       : Yes"
+  if test "${MEM_CHECK_LOG}" = "_MEM_CHECK_LOG_"; then
+    echo "Memory alloc check log   : Yes"
+  else
+    echo "Memory alloc check log   : No"
+  fi
+else
+  echo "Memory alloc check       : No"
 fi
 if test "${USE_NL3}" = "_HAVE_LIBNL3_"; then
   echo "libnl version            : 3"

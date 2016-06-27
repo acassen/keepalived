@@ -66,6 +66,9 @@ enum global_bits {
 	DONT_RESPAWN_BIT = 6,
 	RELEASE_VIPS_BIT = 7,
 	MEM_ERR_DETECT_BIT = 8,
+#ifdef _MEM_CHECK_LOG_
+	MEM_CHECK_LOG_BIT = 9,
+#endif
 };
 
 #endif

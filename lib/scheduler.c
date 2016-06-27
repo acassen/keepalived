@@ -221,6 +221,7 @@ thread_cleanup_master(thread_master_t * m)
 	thread_destroy_list(m, m->read);
 	thread_destroy_list(m, m->write);
 	thread_destroy_list(m, m->timer);
+	thread_destroy_list(m, m->child);
 	thread_destroy_list(m, m->event);
 	thread_destroy_list(m, m->ready);
 

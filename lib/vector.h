@@ -23,6 +23,8 @@
 #ifndef _VECTOR_H
 #define _VECTOR_H
 
+#include <stdio.h>
+
 /* vector definition */
 typedef struct _vector {
 	unsigned int	active;
@@ -49,7 +51,7 @@ extern void vector_set_slot(vector_t *, void *);
 extern void vector_unset(vector_t *, unsigned int);
 extern unsigned int vector_count(vector_t *);
 extern void vector_free(vector_t *);
-extern void vector_dump(vector_t *);
+extern void vector_dump(FILE *fp, vector_t *);
 extern void free_strvec(vector_t *);
 
 #endif

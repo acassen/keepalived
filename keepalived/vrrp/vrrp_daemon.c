@@ -123,7 +123,7 @@ stop_vrrp(void)
 
 	signal_handler_destroy();
 
-#ifdef _DEBUG_
+#ifdef _MEM_CHECK_
 	keepalived_free_final("VRRP Child process");
 #endif
 
@@ -326,7 +326,6 @@ reload_vrrp_thread(thread_t * thread)
 		       global_data->lvs_syncd_syncid, false);
 #endif
 	free_global_data(global_data);
-	free_interface_queue();
 	free_vrrp_buffer();
 	gratuitous_arp_close();
 	ndisc_close();
@@ -341,6 +340,7 @@ reload_vrrp_thread(thread_t * thread)
 	/* Save previous conf data */
 	old_vrrp_data = vrrp_data;
 	vrrp_data = NULL;
+	reset_interface_queue();
 
 	/* Reload the conf */
 #ifdef _DEBUG_
@@ -358,6 +358,7 @@ reload_vrrp_thread(thread_t * thread)
 
 	/* free backup data */
 	free_vrrp_data(old_vrrp_data);
+	free_old_interface_queue();
 	UNSET_RELOAD;
 
 	return 0;
@@ -436,6 +437,10 @@ start_vrrp_child(void)
 	/* Opening local VRRP syslog channel */
 	openlog(PROG_VRRP, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
 			 , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
+
+#ifdef _MEM_CHECK_
+	mem_log_init(PROG_VRRP);
+#endif
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(vrrp_pidfile, getpid())) {
