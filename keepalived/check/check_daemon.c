@@ -71,7 +71,7 @@ stop_check(void)
 	free_interface_queue();
 #endif
 
-#ifdef _DEBUG_
+#ifdef _MEM_CHECK_
 	keepalived_free_final("Healthcheck child process");
 #endif
 
@@ -293,6 +293,10 @@ start_check_child(void)
 	/* Opening local CHECK syslog channel */
 	openlog(PROG_CHECK, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
 			  , (log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
+
+#ifdef _MEM_CHECK_
+        mem_log_init(PROG_CHECK);
+#endif
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(checkers_pidfile, getpid())) {

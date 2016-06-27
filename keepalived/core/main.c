@@ -75,7 +75,7 @@ stop_keepalived(void)
 	if (__test_bit(DAEMON_CHECKERS, &daemon_mode))
 		pidfile_rm(checkers_pidfile);
 
-#ifdef _DEBUG_
+#ifdef _MEM_CHECK_
 	keepalived_free_final("Parent process");
 #endif
 }
@@ -289,6 +289,9 @@ usage(const char *prog)
 #endif
 	fprintf(stderr, "  -m, --core-dump              Produce core dump if terminate abnormally\n");
 	fprintf(stderr, "  -M, --core-dump-pattern=PATN Also set /proc/sys/kernel/core_pattern to PATN (default 'core')\n");
+#ifdef _MEM_CHECK_LOG_
+	fprintf(stderr, "  -L, --mem-check-log          Log malloc/frees to syslog\n");
+#endif
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -321,6 +324,9 @@ parse_cmdline(int argc, char **argv)
  #endif
 		{"core-dump",         no_argument,       0, 'm'},
 		{"core-dump-pattern", optional_argument, 0, 'M'},
+#ifdef _MEM_CHECK_LOG_
+		{"mem-check-log",     no_argument,       0, 'm'},
+#endif
 		{"version",           no_argument,       0, 'v'},
 		{"help",              no_argument,       0, 'h'},
 		{0, 0, 0, 0}
@@ -407,6 +413,11 @@ parse_cmdline(int argc, char **argv)
 		case 'm':
 			create_core_dump = true;
 			break;
+#ifdef _MEM_CHECK_LOG_
+		case 'L':
+			__set_bit(MEM_CHECK_LOG_BIT, &debug);
+			break;
+#endif
 		default:
 			exit(0);
 			break;
@@ -446,6 +457,10 @@ main(int argc, char **argv)
 	log_message(LOG_INFO, "Starting %s, git commit %s", VERSION_STRING, GIT_COMMIT);
 #else
 	log_message(LOG_INFO, "Starting %s", VERSION_STRING);
+#endif
+
+#ifdef _MEM_CHECK_
+	mem_log_init(PROG);
 #endif
 
 	/* Handle any core file requirements */

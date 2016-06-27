@@ -137,10 +137,13 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 
 	if (!level) {
 		sprintf(file_name, "/tmp/keywords.%d", getpid());
+		snprintf(file_name, sizeof(file_name), "/tmp/keywords.%d", getpid());
 		fp = fopen(file_name, "w");
 		if (!fp)
 			return;
 	}
+
+	vector_dump(fp, keywords);
 
 	for (i = 0; i < vector_size(keydump); i++) {
 		keyword_vec = vector_slot(keydump, i);
@@ -638,7 +641,6 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 
 #if DUMP_KEYWORDS
 	/* Dump configuration */
-	vector_dump(keywords);
 	dump_keywords(keywords, 0, NULL);
 #endif
 

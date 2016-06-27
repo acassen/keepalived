@@ -255,15 +255,15 @@ vector_free(vector_t *v)
 
 /* dump vector slots */
 void
-vector_dump(vector_t *v)
+vector_dump(FILE *fp, vector_t *v)
 {
 	unsigned int i;
 
-	printf("Vector Size : %d, active %d\n", v->allocated, v->active);
+	fprintf(fp, "Vector Size : %d, active %d\n", v->allocated, v->active);
 
 	for (i = 0; i < v->allocated; i++) {
 		if (v->slot[i] != NULL) {
-			printf("  Slot [%d]: %p\n", i, vector_slot(v, i));
+			fprintf(fp, "  Slot [%d]: %p\n", i, vector_slot(v, i));
 		}
 	}
 }

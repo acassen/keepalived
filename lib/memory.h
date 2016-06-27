@@ -25,20 +25,13 @@
 #define _MEMORY_H
 
 /* system includes */
-#include <stdio.h>
-#include <stdint.h>
 #include <stdlib.h>
-#include <string.h>
 
 /* extern types */
-extern void *xalloc(unsigned long size);
 extern void *zalloc(unsigned long size);
 
-/* Global alloc macro */
-#define ALLOC(n) (xalloc(n))
-
 /* Local defines */
-#ifdef _DEBUG_
+#ifdef _MEM_CHECK_
 
 #define MAX_ALLOC_LIST 2048
 
@@ -57,6 +50,7 @@ extern void *keepalived_malloc(unsigned long, char *, char *, int);
 extern int keepalived_free(void *, char *, char *, int);
 extern void *keepalived_realloc(void *, unsigned long, char *, char *, int);
 extern void keepalived_free_final(char *);
+extern void mem_log_init(const char *);
 
 #else
 

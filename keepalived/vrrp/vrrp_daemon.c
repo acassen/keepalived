@@ -123,7 +123,7 @@ stop_vrrp(void)
 
 	signal_handler_destroy();
 
-#ifdef _DEBUG_
+#ifdef _MEM_CHECK_
 	keepalived_free_final("VRRP Child process");
 #endif
 
@@ -436,6 +436,10 @@ start_vrrp_child(void)
 	/* Opening local VRRP syslog channel */
 	openlog(PROG_VRRP, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
 			 , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
+
+#ifdef _MEM_CHECK_
+	mem_log_init(PROG_VRRP);
+#endif
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(vrrp_pidfile, getpid())) {

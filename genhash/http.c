@@ -132,7 +132,7 @@ finalize(thread_t * thread)
 	if (req->verbose) {
 		printf("\n");
 		printf(HTML_HASH);
-		dump_buffer((char *) digest, digest_length);
+		dump_buffer((char *) digest, digest_length, stdout);
 
 		printf(HTML_HASH_FINAL);
 	}
@@ -152,7 +152,7 @@ http_dump_header(char *buffer, int size)
 {
 	int r;
 
-	dump_buffer(buffer, size);
+	dump_buffer(buffer, size, stdout);
 	printf(HTTP_HEADER_ASCII);
 	for (r = 0; r < size; r++)
 		printf("%c", buffer[r]);
@@ -178,7 +178,7 @@ http_process_stream(SOCK * sock_obj, int r)
 			if (r) {
 				if (req->verbose) {
 					printf(HTML_HEADER_HEXA);
-					dump_buffer(sock_obj->extracted, r);
+					dump_buffer(sock_obj->extracted, r, stdout);
 				}
 				memmove(sock_obj->buffer, sock_obj->extracted, r);
 				HASH_UPDATE(sock_obj, sock_obj->buffer, r);
@@ -199,7 +199,7 @@ http_process_stream(SOCK * sock_obj, int r)
 		}
 	} else if (sock_obj->size) {
 		if (req->verbose)
-			dump_buffer(sock_obj->buffer, r);
+			dump_buffer(sock_obj->buffer, r, stdout);
 		HASH_UPDATE(sock_obj, sock_obj->buffer, sock_obj->size);
 		sock_obj->size = 0;
 	}
