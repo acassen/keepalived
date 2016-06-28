@@ -210,8 +210,7 @@ reload_check_thread(thread_t * thread)
 #ifdef _WITH_VRRP_
 	kernel_netlink_close();
 #endif
-	thread_destroy_master(master);
-	master = thread_make_master();
+	thread_cleanup_master(master);
 	free_global_data(global_data);
 	free_checkers_queue();
 #ifdef _WITH_VRRP_
@@ -306,7 +305,7 @@ start_check_child(void)
 
 	/* Create the new master thread */
 	signal_handler_destroy();
-	thread_destroy_master(master);
+	thread_destroy_master(master);	/* This destroys any residual settings from the parent */
 	master = thread_make_master();
 
 	/* change to / dir */

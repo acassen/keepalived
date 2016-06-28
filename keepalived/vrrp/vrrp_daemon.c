@@ -111,6 +111,9 @@ stop_vrrp(void)
 	}
 #endif
 
+	/* We mustn't receive a SIGCHLD after master is destroyed */
+	signal_handler_destroy();
+
 	kernel_netlink_close();
 	thread_destroy_master(master);
 	gratuitous_arp_close();
@@ -120,8 +123,6 @@ stop_vrrp(void)
 	free_vrrp_data(vrrp_data);
 	free_vrrp_buffer();
 	free_interface_queue();
-
-	signal_handler_destroy();
 
 #ifdef _MEM_CHECK_
 	keepalived_free_final("VRRP Child process");
@@ -315,8 +316,7 @@ reload_vrrp_thread(thread_t * thread)
 	/* Destroy master thread */
 	vrrp_dispatcher_release(vrrp_data);
 	kernel_netlink_close();
-	thread_destroy_master(master);
-	master = thread_make_master();
+	thread_cleanup_master(master);
 #ifdef _HAVE_IPVS_SYNCD_
 	/* TODO - Note: this didn't work if we found ipvs_syndc on vrrp before on old_vrrp */
 	if (global_data->lvs_syncd_if)
@@ -450,7 +450,7 @@ start_vrrp_child(void)
 	}
 
 	/* Create the new master thread */
-	thread_destroy_master(master);
+	thread_destroy_master(master);	/* This destroys any residual settings from the parent */
 	master = thread_make_master();
 
 	/* change to / dir */

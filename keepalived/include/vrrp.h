@@ -145,7 +145,6 @@ typedef struct _vrrp_t {
 	sa_family_t		family;			/* AF_INET|AF_INET6 */
 	char			*iname;			/* Instance Name */
 	vrrp_sgroup_t		*sync;			/* Sync group we belong to */
-	char			base_iface[IFNAMSIZ];	/* base interface name */
 	vrrp_stats		*stats;			/* Statistics */
 	interface_t		*ifp;			/* Interface we belong to */
 	int			dont_track_primary;	/* If set ignores ifp faults */

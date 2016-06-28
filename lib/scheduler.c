@@ -214,7 +214,7 @@ thread_destroy_list(thread_master_t * m, thread_list_t thread_list)
 }
 
 /* Cleanup master */
-static void
+void
 thread_cleanup_master(thread_master_t * m)
 {
 	/* Unuse current thread lists */
@@ -232,6 +232,8 @@ thread_cleanup_master(thread_master_t * m)
 
 	/* Clean garbage */
 	thread_clean_unuse(m);
+
+	memset(m, 0, sizeof(*m));
 }
 
 /* Stop thread scheduler. */

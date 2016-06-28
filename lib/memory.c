@@ -25,9 +25,7 @@
 #ifdef _MEM_CHECK_
 #include <assert.h>
 #include <unistd.h>
-#endif
-
-#ifdef _DEBUG_
+#include <fcntl.h>
 #include <stdio.h>
 #endif
 
@@ -438,8 +436,19 @@ mem_log_init(const char* prog_name)
 		log_message(LOG_INFO, "Unable to open %s for appending", log_name);
 		log_op = stderr;
 	}
-	else
+	else {
+		int fd = fileno(log_op);
+
+		/* We don't want any children to inherit the log file */
+		fcntl(fd, F_SETFD, fcntl(fd, F_GETFD) | FD_CLOEXEC);
+
+		/* Make the log output line buffered. This was to ensure that
+		 * children didn't inherit the buffer, but the CLOEXEC above
+		 * should resolve that. */
+		setlinebuf(log_op);
+
 		fprintf(log_op, "\n");
+	}
 
 	free(log_name);
 }

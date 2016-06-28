@@ -325,16 +325,16 @@ parse_cmdline(int argc, char **argv)
 		{"core-dump",         no_argument,       0, 'm'},
 		{"core-dump-pattern", optional_argument, 0, 'M'},
 #ifdef _MEM_CHECK_LOG_
-		{"mem-check-log",     no_argument,       0, 'm'},
+		{"mem-check-log",     no_argument,       0, 'L'},
 #endif
 		{"version",           no_argument,       0, 'v'},
 		{"help",              no_argument,       0, 'h'},
 		{0, 0, 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:PCp:c:r:mM"
+	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:PCp:c:r:mML"
 #ifdef _WITH_SNMP_
-								   "xA:"
+					    "xA:"
 #endif
 									, long_options, NULL)) != EOF) {
 		switch (c) {
