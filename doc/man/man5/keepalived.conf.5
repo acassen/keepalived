@@ -58,6 +58,7 @@ and
  lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE> [<SYNC_ID>]
                               # Binding interface, vrrp instance and optional
                               #  syncid for lvs syncd
+ lvs_flush                    # flush any existing LVS configuration at startup
 
  # delay for second set of gratuitous ARPs after transition to MASTER
  vrrp_garp_master_delay 10    # seconds, default 5, 0 for no second set

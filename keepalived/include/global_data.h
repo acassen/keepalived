@@ -68,7 +68,8 @@ typedef struct _data {
 	char				*lvs_syncd_if;		/* handle LVS sync daemon state using this */
 	vrrp_t				*lvs_syncd_vrrp;	/* instance FSM & running on specific interface */
 	int				lvs_syncd_syncid;	/* => eth0 for example. */
-	char				*lvs_syncd_vrrp_name; /* Only used during configuration */
+	char				*lvs_syncd_vrrp_name;	/* Only used during configuration */
+	bool				lvs_flush;		/* flush any residual LVS config at startup */
 	int				vrrp_garp_delay;
 	timeval_t			vrrp_garp_refresh;
 	int				vrrp_garp_rep;
