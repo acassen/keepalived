@@ -95,10 +95,6 @@ start_check(void)
 		return;
 	}
 
-	/* Remove any entries left over from previous invocation */
-	if (!reload)
-		ipvs_flush_cmd();
-
 	init_checkers_queue();
 #ifdef _WITH_VRRP_
 	init_interface_queue();
@@ -119,6 +115,10 @@ start_check(void)
 #ifdef _DEBUG_
 	log_message(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
 #endif
+
+	/* Remove any entries left over from previous invocation */
+	if (!reload && global_data->lvs_flush)
+		ipvs_flush_cmd();
 
 #ifdef _WITH_SNMP_CHECKER_
 	if (!reload && global_data->enable_snmp_checker)

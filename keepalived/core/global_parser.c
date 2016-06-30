@@ -133,6 +133,11 @@ lvs_syncd_handler(vector_t *strvec)
 	}
 }
 static void
+lvs_flush_handler(vector_t *strvec)
+{
+	global_data->lvs_flush = true;
+}
+static void
 vrrp_mcast_group4_handler(vector_t *strvec)
 {
 	struct sockaddr_storage *mcast = &global_data->vrrp_mcast_group4;
@@ -446,6 +451,7 @@ global_init_keywords(void)
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
 	install_keyword("lvs_sync_daemon", &lvs_syncd_handler);
+	install_keyword("lvs_flush", &lvs_flush_handler);
 	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler);
 	install_keyword("vrrp_mcast_group6", &vrrp_mcast_group6_handler);
 	install_keyword("vrrp_garp_master_delay", &vrrp_garp_delay_handler);

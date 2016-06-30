@@ -96,6 +96,7 @@ snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
 #define SNMP_MAIL_EMAILADDRESS 7
 #define SNMP_TRAPS 8
 #define SNMP_LINKBEAT 9
+#define SNMP_LVSFLUSH 10
 
 static u_char*
 snmp_scalar(struct variable *vp, oid *name, size_t *length,
@@ -142,6 +143,9 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 	case SNMP_LINKBEAT:
 		long_ret = global_data->linkbeat_use_polling?2:1;
 		return (u_char *)&long_ret;
+	case SNMP_LVSFLUSH:
+		long_ret = global_data->lvs_flush?1:2;
+		return (u_char *)&long_ret;
 	default:
 		break;
 	}
@@ -186,6 +190,8 @@ static struct variable8 global_vars[] = {
 	{SNMP_TRAPS, ASN_INTEGER, RONLY, snmp_scalar, 1, {4}},
 	/* linkBeat */
 	{SNMP_LINKBEAT, ASN_INTEGER, RONLY, snmp_scalar, 1, {5}},
+	/* lvsFlush */
+	{SNMP_LVSFLUSH, ASN_INTEGER, RONLY, snmp_scalar, 1, {6}},
 };
 
 static int

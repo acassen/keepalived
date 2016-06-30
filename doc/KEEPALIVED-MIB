@@ -22,15 +22,17 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201606030000Z"
+     LAST-UPDATED "201606290000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
-     REVISION-UPDATED "201606030000Z"
+     REVISION "201606290000Z"
+     DESCRIPTION "add lvs_flush"
+     REVISION "201606030000Z"
      DESCRIPTION "update comment for vrrpInstancePreemptDelay"
-     REVISION-UPDATED "201605221540Z"
+     REVISION "201605221540Z"
      DESCRIPTION "smtpServerPort added"
      REVISION "201510270000Z"
      DESCRIPTION "routerId added to traps variables"
@@ -179,6 +181,14 @@ linkBeat OBJECT-TYPE
         change while polling(2) means that the status of the link is
         checked periodically."
     ::= { global 5 }
+
+lvsFlush OBJECT-TYPE
+    SYNTAX INTEGER { enabled(1), disabled(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Indicate whether LVS config is flushed at startup."
+    ::= { global 6 }
 
 -- ----------------------------------------------------------------------
 -- VRRP part
@@ -2108,7 +2118,8 @@ globalGroup OBJECT-GROUP
     emailAddress,
     smtpServerPort,
     trapEnable,
-    linkBeat
+    linkBeat,
+    lvsFlush
     }
     STATUS current
     DESCRIPTION

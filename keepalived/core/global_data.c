@@ -247,6 +247,7 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO, " LVS syncd syncid = %d"
 				    , data->lvs_syncd_syncid);
 	}
+	log_message(LOG_INFO, "LVS flush = %s", data->lvs_flush ? "true" : "false");
 	if (data->vrrp_mcast_group4.ss_family) {
 		log_message(LOG_INFO, " VRRP IPv4 mcast group = %s"
 				    , inet_sockaddrtos(&data->vrrp_mcast_group4));
