@@ -378,10 +378,11 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 	char *digest_tmp;
 	url_t *fetched_url = fetch_next_url(http_get_check);
 	enum {
-		none,
-		on_status,
-		on_digest
-	} last_success = none; /* the source of last considered success */
+		NONE,
+		ON_SUCCESS,
+		ON_STATUS,
+		ON_DIGEST
+	} last_success = NONE; /* the source of last considered success */
 
 	/* First check if remote webserver returned data */
 	if (empty_buffer)
@@ -389,12 +390,13 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 
 	/* Next check the HTTP status code */
 	if (fetched_url->status_code) {
-		if (req->status_code != fetched_url->status_code) {
+		if (req->status_code != fetched_url->status_code)
 			return timeout_epilog(thread, "HTTP status code error to");
-		} else {
-			last_success = on_status;
-		}
+
+		last_success = ON_STATUS;
 	}
+	else if (req->status_code >= 200 && req->status_code <= 299)
+		last_success = ON_SUCCESS;
 
 	/* Continue with MD5SUM */
 	if (fetched_url->digest) {
@@ -408,21 +410,26 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 
 		if (r)
 			return timeout_epilog(thread, "MD5 digest error to");
-		else
-			last_success = on_digest;
+		last_success = ON_DIGEST;
 	}
 
 	if (!svr_checker_up(checker->id, checker->rs)) {
 		switch (last_success) {
-			case none:
+			case NONE:
 				break;
-			case on_status:
+			case ON_SUCCESS:
+				log_message(LOG_INFO,
+				       "HTTP success to %s url(%d)."
+				       , FMT_HTTP_RS(checker)
+				       , http->url_it + 1);
+				return epilog(thread, 1, 1, 0) + 1;
+			case ON_STATUS:
 				log_message(LOG_INFO,
 				       "HTTP status code success to %s url(%d)."
 				       , FMT_HTTP_RS(checker)
 				       , http->url_it + 1);
 				return epilog(thread, 1, 1, 0) + 1;
-			case on_digest:
+			case ON_DIGEST:
 				log_message(LOG_INFO,
 					"MD5 digest success to %s url(%d)."
 					, FMT_HTTP_RS(checker)
