@@ -46,7 +46,7 @@
 #include "scheduler.h"
 #include "utils.h"
 #include "bitops.h"
-#ifndef _HAVE_SOCK_NONBLOCK
+#ifndef _HAVE_SOCK_NONBLOCK_
 #include "old_socket.h"
 #endif
 
