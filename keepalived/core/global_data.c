@@ -212,8 +212,10 @@ free_global_data(data_t * data)
 #ifdef _WITH_SNMP_
 	FREE_PTR(data->snmp_socket);
 #endif
+#ifdef _HAVE_IPVS_SYNCD_
 	FREE_PTR(data->lvs_syncd.ifname);
 	FREE_PTR(data->lvs_syncd.vrrp_name);
+#endif
 	FREE(data);
 }
 
@@ -241,12 +243,14 @@ dump_global_data(data_t * data)
 				    , data->email_from);
 		dump_list(data->email);
 	}
+#ifdef _WITH_LVS_
 	if (data->lvs_tcp_timeout)
 		log_message(LOG_INFO, " LVS TCP timeout = %d", data->lvs_tcp_timeout);
 	if (data->lvs_tcpfin_timeout)
 		log_message(LOG_INFO, " LVS TCP FIN timeout = %d", data->lvs_tcpfin_timeout);
 	if (data->lvs_udp_timeout)
 		log_message(LOG_INFO, " LVS TCP timeout = %d", data->lvs_udp_timeout);
+#ifdef _HAVE_IPVS_SYNCD_
 	if (data->lvs_syncd.vrrp) {
 		log_message(LOG_INFO, " LVS syncd vrrp instance = %s"
 				    , data->lvs_syncd.vrrp->iname);
@@ -266,7 +270,9 @@ dump_global_data(data_t * data)
 			log_message(LOG_INFO, " LVS syncd mcast ttl = %d", data->lvs_syncd.mcast_ttl);
 #endif
 	}
+#endif
 	log_message(LOG_INFO, "LVS flush = %s", data->lvs_flush ? "true" : "false");
+#endif
 	if (data->vrrp_mcast_group4.ss_family) {
 		log_message(LOG_INFO, " VRRP IPv4 mcast group = %s"
 				    , inet_sockaddrtos(&data->vrrp_mcast_group4));

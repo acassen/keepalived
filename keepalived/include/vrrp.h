@@ -317,7 +317,9 @@ extern void vrrp_state_backup(vrrp_t *, char *, int);
 extern void vrrp_state_goto_master(vrrp_t *);
 extern void vrrp_state_leave_master(vrrp_t *);
 extern int vrrp_complete_init(void);
+#ifdef _WITH_LVS_
 extern int vrrp_ipvs_needed(void);
+#endif
 extern void restore_vrrp_interfaces(void);
 extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);

@@ -2410,6 +2410,7 @@ vrrp_complete_init(void)
 		}
 	}
 
+#ifdef _HAVE_IPVS_SYNCD_
 	/* Set up the lvs_syncd vrrp */
 	if (global_data->lvs_syncd.vrrp_name) {
 		for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
@@ -2436,17 +2437,24 @@ vrrp_complete_init(void)
 		FREE_PTR(global_data->lvs_syncd.vrrp_name);
 		global_data->lvs_syncd.vrrp_name = NULL;
 	}
+#endif
 
 	alloc_vrrp_buffer(max_mtu_len);
 
 	return 1;
 }
 
+#ifdef _WITH_LVS_
 int
 vrrp_ipvs_needed(void)
 {
+#ifdef _HAVE_IPVS_SYNCD_
 	return !!(global_data->lvs_syncd.ifname);
+#else
+	return false;
+#endif
 }
+#endif
 
 /* Try to find a VRRP instance */
 static vrrp_t *

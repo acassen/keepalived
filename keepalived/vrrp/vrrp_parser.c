@@ -451,6 +451,7 @@ vrrp_smtp_handler(vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->smtp_alert = 1;
 }
+#ifdef _HAVE_IPVS_SYNCD_
 static void
 vrrp_lvs_syncd_handler(vector_t *strvec)
 {
@@ -467,6 +468,7 @@ vrrp_lvs_syncd_handler(vector_t *strvec)
 	global_data->lvs_syncd.ifname = set_value(strvec);
 	global_data->lvs_syncd.vrrp = vrrp;
 }
+#endif
 static void
 vrrp_garp_delay_handler(vector_t *strvec)
 {
@@ -859,7 +861,9 @@ init_vrrp_keywords(bool active)
 	install_keyword("notify_stop", &vrrp_notify_stop_handler);
 	install_keyword("notify", &vrrp_notify_handler);
 	install_keyword("smtp_alert", &vrrp_smtp_handler);
+#ifdef _HAVE_IPVS_SYNCD_
 	install_keyword("lvs_sync_daemon_interface", &vrrp_lvs_syncd_handler);
+#endif
 	install_keyword("garp_master_delay", &vrrp_garp_delay_handler);
 	install_keyword("garp_master_refresh", &vrrp_garp_refresh_handler);
 	install_keyword("garp_master_repeat", &vrrp_garp_rep_handler);

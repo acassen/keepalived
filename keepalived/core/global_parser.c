@@ -106,6 +106,7 @@ email_handler(vector_t *strvec)
 
 	free_strvec(email_vec);
 }
+#ifdef _WITH_LVS_
 static void
 lvs_timeouts(vector_t *strvec)
 {
@@ -161,6 +162,7 @@ lvs_timeouts(vector_t *strvec)
 		log_message(LOG_INFO, "Unknown option %s specified for lvs_timeouts", FMT_STR_VSLOT(strvec, i));
 	}
 }
+#ifdef _HAVE_IPVS_SYNCD_
 static void
 lvs_syncd_handler(vector_t *strvec)
 {
@@ -274,11 +276,13 @@ lvs_syncd_handler(vector_t *strvec)
 		log_message(LOG_INFO, "Unknown option %s specified for lvs_sync_daemon", FMT_STR_VSLOT(strvec, i));
 	}
 }
+#endif
 static void
 lvs_flush_handler(vector_t *strvec)
 {
 	global_data->lvs_flush = true;
 }
+#endif
 static void
 vrrp_mcast_group4_handler(vector_t *strvec)
 {
@@ -592,9 +596,13 @@ global_init_keywords(void)
 	install_keyword("smtp_helo_name", &smtphelo_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
-	install_keyword("lvs_sync_daemon", &lvs_syncd_handler);
+#ifdef _WITH_LVS_
 	install_keyword("lvs_timeouts", &lvs_timeouts);
 	install_keyword("lvs_flush", &lvs_flush_handler);
+#ifdef _HAVE_IPVS_SYNCD_
+	install_keyword("lvs_sync_daemon", &lvs_syncd_handler);
+#endif
+#endif
 	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler);
 	install_keyword("vrrp_mcast_group6", &vrrp_mcast_group6_handler);
 	install_keyword("vrrp_garp_master_delay", &vrrp_garp_delay_handler);

@@ -228,9 +228,10 @@ start_vrrp(void)
 
 	/* Complete VRRP initialization */
 	if (!vrrp_complete_init()) {
-		if (vrrp_ipvs_needed()) {
+#ifdef _WITH_LVS_
+		if (vrrp_ipvs_needed())
 			stop_vrrp();
-		}
+#endif
 		return;
 	}
 
