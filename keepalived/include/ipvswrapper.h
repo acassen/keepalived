@@ -45,6 +45,9 @@
 #elif _KRNL_2_6_
   #include "../libipvs-2.6/ip_vs.h"
   #include "../libipvs-2.6/libipvs.h"
+#ifdef _HAVE_IPVS_SYNCD_
+#include "vrrp.h"
+#endif
 #endif
 //  #include <net/ip_vs.h>
 #endif
@@ -91,6 +94,21 @@ do {						\
 		UNSET_ALIVE((V));		\
 } while (0)
 
+#ifdef _HAVE_IPVS_SYNCD_
+struct lvs_syncd_config {
+	char				*ifname;	/* handle LVS sync daemon state using this */
+	vrrp_t				*vrrp;		/* instance FSM & running on specific interface */
+	int				syncid;		/* 0 .. 255 */
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+	int				sync_maxlen;
+	struct sockaddr_storage		mcast_group;
+	int				mcast_port;
+	int				mcast_ttl;
+#endif
+	char				*vrrp_name;	/* used during configuration and SNMP */
+};
+#endif
+
 /* prototypes */
 extern int ipvs_start(void);
 extern void ipvs_stop(void);
@@ -99,9 +117,9 @@ extern virtual_server_group_t *ipvs_get_group_by_name(char *, list);
 extern void ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge);
 extern void ipvs_group_remove_entry(virtual_server_t *, virtual_server_group_entry_t *);
 extern int ipvs_cmd(int, virtual_server_t *, real_server_t *);
-extern void ipvs_syncd_cmd(int, char *, int, int, bool);
-extern void ipvs_syncd_master(char *, int);
-extern void ipvs_syncd_backup(char *, int);
+extern void ipvs_syncd_cmd(int, const struct lvs_syncd_config *, int, bool, bool);
+extern void ipvs_syncd_master(const struct lvs_syncd_config *);
+extern void ipvs_syncd_backup(const struct lvs_syncd_config *);
 
 #ifdef _KRNL_2_6_
 /* Refresh statistics at most every 5 seconds */

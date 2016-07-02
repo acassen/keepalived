@@ -29,9 +29,10 @@
  */
 
 #include <unistd.h>
+#define LIBIPSET_NFPROTO_H
+#define LIBIPSET_NF_INET_ADDR_H
 #include <libipset/types.h>
-#include <libipset/session.h>
-#include <libipset/data.h>
+//#include <libipset/data.h>
 #include <stdint.h>
 #include <dlfcn.h>
 

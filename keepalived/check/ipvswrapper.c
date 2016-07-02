@@ -117,7 +117,7 @@ ipvs_talk(int cmd, bool ignore_error)
 }
 
 void
-ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid, bool ignore_error)
+ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool ignore_interface, bool ignore_error)
 {
 #ifdef _HAVE_IPVS_SYNCD_
 
@@ -125,9 +125,13 @@ ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid, bool ignore_error)
 
 	/* prepare user rule */
 	urule->state = state;
-	urule->syncid = syncid;
-	if (ifname != NULL)
-		strncpy(urule->mcast_ifn, ifname, IP_VS_IFNAME_MAXLEN);
+	if (config) {
+		urule->syncid = config->syncid;
+		if (!ignore_interface)
+			strncpy(urule->mcast_ifn, config->ifname, IP_VS_IFNAME_MAXLEN);
+	}
+	else
+		urule->syncid = 0;
 
 	/* Talk to the IPVS channel */
 	ipvs_talk(cmd, ignore_error);
@@ -480,16 +484,37 @@ ipvs_talk(int cmd, bool ignore_error)
 	return result;
 }
 
+/* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
-ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid, bool ignore_error)
+ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool ignore_interface, bool ignore_error)
 {
 	memset(daemonrule, 0, sizeof(ipvs_daemon_t));
 
 	/* prepare user rule */
 	daemonrule->state = state;
-	daemonrule->syncid = syncid;
-	if (ifname != NULL)
-		strncpy(daemonrule->mcast_ifn, ifname, IP_VS_IFNAME_MAXLEN);
+	if (config) {
+		daemonrule->syncid = config->syncid;
+		if (!ignore_interface)
+			strncpy(daemonrule->mcast_ifn, config->ifname, IP_VS_IFNAME_MAXLEN);
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+		if (cmd == IPVS_STARTDAEMON) {
+			if (config->sync_maxlen)
+				daemonrule->sync_maxlen = config->sync_maxlen;
+			if (config->mcast_port)
+				daemonrule->mcast_port = config->mcast_port;
+			if (config->mcast_ttl)
+				daemonrule->mcast_ttl = config->mcast_ttl;
+			if (config->mcast_group.ss_family == AF_INET) {
+				daemonrule->mcast_af = AF_INET;
+				daemonrule->mcast_group.ip = ((struct sockaddr_in *)&config->mcast_group)->sin_addr.s_addr;
+			}
+			else if (config->mcast_group.ss_family == AF_INET6) {
+				daemonrule->mcast_af = AF_INET6;
+				memcpy(&daemonrule->mcast_group.in6, &((struct sockaddr_in6 *)&config->mcast_group)->sin6_addr, sizeof(daemonrule->mcast_group.in6));
+			}
+		}
+#endif
+	}
 
 	/* Talk to the IPVS channel */
 	ipvs_talk(cmd, ignore_error);
@@ -1040,18 +1065,20 @@ ipvs_update_stats(virtual_server_t *vs)
 /*
  * Common IPVS functions
  */
+/* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
-ipvs_syncd_master(char *ifname, int syncid)
+ipvs_syncd_master(const struct lvs_syncd_config *config)
 {
-	ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_BACKUP, syncid, false);
-	ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_MASTER, syncid, false);
+	ipvs_syncd_cmd(IPVS_STOPDAEMON, config, IPVS_BACKUP, false, false);
+	ipvs_syncd_cmd(IPVS_STARTDAEMON, config, IPVS_MASTER, false, false);
 }
 
+/* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
-ipvs_syncd_backup(char *ifname, int syncid)
+ipvs_syncd_backup(const struct lvs_syncd_config *config)
 {
-	ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_MASTER, syncid, false);
-	ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_BACKUP, syncid, false);
+	ipvs_syncd_cmd(IPVS_STOPDAEMON, config, IPVS_MASTER, false, false);
+	ipvs_syncd_cmd(IPVS_STARTDAEMON, config, IPVS_BACKUP, false, false);
 }
 
 /*

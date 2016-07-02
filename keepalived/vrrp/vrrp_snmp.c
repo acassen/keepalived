@@ -52,8 +52,10 @@
      MIBS="+KEEPALIVED-MIB:VRRP-MIB:VRRPV3-MIB" snmptrapd -f -M "+$HOME/.snmp/mibs" -Lo
 
  * Enable SNMP in config file, by adding some or all of the following, depending on which configure options were chosen
+     enable_snmp	(enables enable_snmp_keepalived and enable_snmp_checker)
      enable_snmp_keepalived
      enable_snmp_checker
+     enable_snmp_rfc	(enables enable_snmp_rfcv2 enable_snmp_rfcv3)
      enable_snmp_rfcv2
      enable_snmp_rfcv3
      enable_snmp_traps
@@ -1127,12 +1129,12 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 
 	case VRRP_SNMP_INSTANCE_USELVSSYNCDAEMON:
-		long_ret = (global_data->lvs_syncd_vrrp == rt)?1:2;
+		long_ret = (global_data->lvs_syncd.vrrp == rt)?1:2;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_LVSSYNCINTERFACE:
-		if (global_data->lvs_syncd_vrrp == rt) {
-			*var_len = strlen(global_data->lvs_syncd_if);
-			return (u_char *)global_data->lvs_syncd_if;
+		if (global_data->lvs_syncd.vrrp == rt) {
+			*var_len = strlen(global_data->lvs_syncd.ifname);
+			return (u_char *)global_data->lvs_syncd.ifname;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SYNCGROUP:

@@ -23,6 +23,7 @@
 #ifndef _VRRP_IPSET_H
 #define _VRRP_IPSET_H
 
+#define LIBIPSET_NFPROTO_H
 #include <libipset/session.h>
 #include "vrrp_ipaddress.h"
 

@@ -457,15 +457,15 @@ vrrp_lvs_syncd_handler(vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	log_message(LOG_INFO, "(%s): Specifying lvs_sync_daemon_interface against a vrrp is deprecated.", vrrp->iname);  /* Deprecated after v1.2.19 */
-	log_message(LOG_INFO, "      %*sPlease use global lvs_sync_daemon_interface and lvs_sync_daemon_vrrp", (int)strlen(vrrp->iname) - 2, "");
+	log_message(LOG_INFO, "      %*sPlease use global lvs_sync_daemon", (int)strlen(vrrp->iname) - 2, "");
 
-	if (global_data->lvs_syncd_if) {
-		log_message(LOG_INFO, "(%s): lvs_sync_daemon_interface has already been specified as %s - ignoring", vrrp->iname, global_data->lvs_syncd_if);
+	if (global_data->lvs_syncd.ifname) {
+		log_message(LOG_INFO, "(%s): lvs_sync_daemon_interface has already been specified as %s - ignoring", vrrp->iname, global_data->lvs_syncd.ifname);
 		return;
 	}
 
-	global_data->lvs_syncd_if = set_value(strvec);
-	global_data->lvs_syncd_vrrp = vrrp;
+	global_data->lvs_syncd.ifname = set_value(strvec);
+	global_data->lvs_syncd.vrrp = vrrp;
 }
 static void
 vrrp_garp_delay_handler(vector_t *strvec)

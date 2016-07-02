@@ -156,7 +156,10 @@ alloc_global_data(void)
 		new->enable_snmp_checker = true;
 #endif
 	}
-	new->lvs_syncd_syncid = -1;
+	new->lvs_syncd.syncid = -1;
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+	new->lvs_syncd.mcast_group.ss_family = AF_UNSPEC;
+#endif
 
 	if (snmp_socket) {
 		new->snmp_socket = MALLOC(strlen(snmp_socket + 1));
@@ -209,8 +212,8 @@ free_global_data(data_t * data)
 #ifdef _WITH_SNMP_
 	FREE_PTR(data->snmp_socket);
 #endif
-	FREE_PTR(data->lvs_syncd_if);
-	FREE_PTR(data->lvs_syncd_vrrp_name);
+	FREE_PTR(data->lvs_syncd.ifname);
+	FREE_PTR(data->lvs_syncd.vrrp_name);
 	FREE(data);
 }
 
@@ -238,14 +241,24 @@ dump_global_data(data_t * data)
 				    , data->email_from);
 		dump_list(data->email);
 	}
-	if (data->lvs_syncd_vrrp) {
+	if (data->lvs_syncd.vrrp) {
 		log_message(LOG_INFO, " LVS syncd vrrp instance = %s"
-				    , data->lvs_syncd_vrrp->iname);
-		if (data->lvs_syncd_if)
+				    , data->lvs_syncd.vrrp->iname);
+		if (data->lvs_syncd.ifname)
 			log_message(LOG_INFO, " LVS syncd interface = %s"
-				    , data->lvs_syncd_if);
+				    , data->lvs_syncd.ifname);
 		log_message(LOG_INFO, " LVS syncd syncid = %d"
-				    , data->lvs_syncd_syncid);
+				    , data->lvs_syncd.syncid);
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+		if (data->lvs_syncd.sync_maxlen)
+			log_message(LOG_INFO, " LVS syncd maxlen = %d", data->lvs_syncd.sync_maxlen);
+		if (data->lvs_syncd.mcast_group.ss_family != AF_UNSPEC)
+			log_message(LOG_INFO, " LVS mcast group %s", inet_sockaddrtos(&data->lvs_syncd.mcast_group));
+		if (data->lvs_syncd.mcast_port)
+			log_message(LOG_INFO, " LVS syncd mcast port = %d", data->lvs_syncd.mcast_port);
+		if (data->lvs_syncd.mcast_ttl)
+			log_message(LOG_INFO, " LVS syncd mcast ttl = %d", data->lvs_syncd.mcast_ttl);
+#endif
 	}
 	log_message(LOG_INFO, "LVS flush = %s", data->lvs_flush ? "true" : "false");
 	if (data->vrrp_mcast_group4.ss_family) {

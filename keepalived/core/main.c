@@ -32,7 +32,7 @@
 #define CHILD_WAIT_SECS	5
 
 /* global var */
-char *conf_file = CONF;					/* Configuration file */
+char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
 int log_facility = LOG_DAEMON;				/* Optional logging facilities */
 pid_t vrrp_child = -1;					/* VRRP child process ID */
 pid_t checkers_child = -1;				/* Healthcheckers child process ID */

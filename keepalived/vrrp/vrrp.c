@@ -1224,8 +1224,8 @@ vrrp_state_become_master(vrrp_t * vrrp)
 
 #ifdef _HAVE_IPVS_SYNCD_
 	/* Check if sync daemon handling is needed */
-	if (global_data->lvs_syncd_vrrp == vrrp)
-		ipvs_syncd_master(global_data->lvs_syncd_if, global_data->lvs_syncd_syncid);
+	if (global_data->lvs_syncd.vrrp == vrrp)
+		ipvs_syncd_master(&global_data->lvs_syncd);
 #endif
 	vrrp->last_transition = timer_now();
 }
@@ -1313,8 +1313,8 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 	if (VRRP_VIP_ISSET(vrrp)) {
 #ifdef _HAVE_IPVS_SYNCD_
 		/* Check if sync daemon handling is needed */
-		if (global_data->lvs_syncd_vrrp == vrrp)
-			ipvs_syncd_backup(global_data->lvs_syncd_if, global_data->lvs_syncd_syncid);
+		if (global_data->lvs_syncd.vrrp == vrrp)
+			ipvs_syncd_backup(&global_data->lvs_syncd);
 #endif
 	}
 
@@ -1831,12 +1831,10 @@ shutdown_vrrp_instances(void)
 		 * stop stalled syncd thread according to last
 		 * VRRP instance state.
 		 */
-		if (global_data->lvs_syncd_vrrp == vrrp)
-			ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL,
-				       (vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
-									  IPVS_BACKUP,
-				       global_data->lvs_syncd_syncid,
-				       false);
+		if (global_data->lvs_syncd.vrrp == vrrp)
+			ipvs_syncd_cmd(IPVS_STOPDAEMON, &global_data->lvs_syncd,
+				       (vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER: IPVS_BACKUP,
+				       true, false);
 #endif
 	}
 }
@@ -2413,29 +2411,31 @@ vrrp_complete_init(void)
 	}
 
 	/* Set up the lvs_syncd vrrp */
-	if (global_data->lvs_syncd_vrrp_name) {
+	if (global_data->lvs_syncd.vrrp_name) {
 		for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 			vrrp = ELEMENT_DATA(e);
-			if (!strcmp(global_data->lvs_syncd_vrrp_name, vrrp->iname)) {
-				global_data->lvs_syncd_vrrp = vrrp;
+			if (!strcmp(global_data->lvs_syncd.vrrp_name, vrrp->iname)) {
+				global_data->lvs_syncd.vrrp = vrrp;
 
 				break;
 			}
 		}
 
-		if (!global_data->lvs_syncd_vrrp) {
-			log_message(LOG_INFO, "Unable to find vrrp instance %s for lvs_syncd - clearing lvs_syncd config", global_data->lvs_syncd_vrrp_name);
-			FREE(global_data->lvs_syncd_if);
-			global_data->lvs_syncd_if = NULL;
+		if (!global_data->lvs_syncd.vrrp) {
+			log_message(LOG_INFO, "Unable to find vrrp instance %s for lvs_syncd - clearing lvs_syncd config", global_data->lvs_syncd.vrrp_name);
+			FREE_PTR(global_data->lvs_syncd.ifname);
+			global_data->lvs_syncd.ifname = NULL;
+			global_data->lvs_syncd.syncid = -1;
+		}
+		else if (global_data->lvs_syncd.syncid == -1) {
+			/* If no syncid configured, use vrid */
+			global_data->lvs_syncd.syncid = global_data->lvs_syncd.vrrp->vrid;
 		}
 
-		FREE(global_data->lvs_syncd_vrrp_name);
-		global_data->lvs_syncd_vrrp_name = NULL;
+		/* vrrp_name is no longer used */
+		FREE_PTR(global_data->lvs_syncd.vrrp_name);
+		global_data->lvs_syncd.vrrp_name = NULL;
 	}
-
-	/* If no sycnid configured, use vrid */
-	if (global_data->lvs_syncd_vrrp && global_data->lvs_syncd_syncid == -1)
-		global_data->lvs_syncd_syncid = global_data->lvs_syncd_vrrp->vrid;
 
 	alloc_vrrp_buffer(max_mtu_len);
 
@@ -2445,7 +2445,7 @@ vrrp_complete_init(void)
 int
 vrrp_ipvs_needed(void)
 {
-	return !!(global_data->lvs_syncd_if);
+	return !!(global_data->lvs_syncd.ifname);
 }
 
 /* Try to find a VRRP instance */

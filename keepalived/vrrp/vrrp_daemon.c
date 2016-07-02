@@ -192,8 +192,8 @@ start_vrrp(void)
 		/* If we are managing the sync daemon, then stop any
 		 * instances of it that may have been running if
 		 * we terminated abnormally */
-		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_MASTER, 0, true);
-		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_BACKUP, 0, true);
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_MASTER, true, true);
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_BACKUP, true, true);
 #endif
 	}
 #endif
@@ -319,11 +319,11 @@ reload_vrrp_thread(thread_t * thread)
 	thread_cleanup_master(master);
 #ifdef _HAVE_IPVS_SYNCD_
 	/* TODO - Note: this didn't work if we found ipvs_syndc on vrrp before on old_vrrp */
-	if (global_data->lvs_syncd_if)
-		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL,
-		       (global_data->lvs_syncd_vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
+	if (global_data->lvs_syncd.ifname)
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, &global_data->lvs_syncd,
+		       (global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
 										 IPVS_BACKUP,
-		       global_data->lvs_syncd_syncid, false);
+		       true, false);
 #endif
 	free_global_data(global_data);
 	free_vrrp_buffer();
@@ -349,11 +349,11 @@ reload_vrrp_thread(thread_t * thread)
 	start_vrrp();
 
 #ifdef _HAVE_IPVS_SYNCD_
-	if (global_data->lvs_syncd_if)
-		ipvs_syncd_cmd(IPVS_STARTDAEMON, NULL,
-			       (global_data->lvs_syncd_vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
+	if (global_data->lvs_syncd.ifname)
+		ipvs_syncd_cmd(IPVS_STARTDAEMON, &global_data->lvs_syncd,
+			       (global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
 											 IPVS_BACKUP,
-			       global_data->lvs_syncd_syncid, false);
+			       true, false);
 #endif
 
 	/* free backup data */
