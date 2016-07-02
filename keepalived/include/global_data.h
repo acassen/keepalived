@@ -69,6 +69,9 @@ typedef struct _data {
 	list				email;
 	struct sockaddr_storage		vrrp_mcast_group4;
 	struct sockaddr_storage		vrrp_mcast_group6;
+	int				lvs_tcp_timeout;
+	int				lvs_tcpfin_timeout;
+	int				lvs_udp_timeout;
 #ifdef _HAVE_IPVS_SYNCD_
 	struct lvs_syncd_config		lvs_syncd;
 #endif

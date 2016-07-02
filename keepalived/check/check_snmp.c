@@ -128,6 +128,12 @@ enum check_snmp_lvs_sync_daemon {
 };
 #endif
 
+enum check_snmp_lvs_timeouts {
+	CHECK_SNMP_LVSTIMEOUTTCP,
+	CHECK_SNMP_LVSTIMEOUTTCPFIN,
+	CHECK_SNMP_LVSTIMEOUTUDP,
+};
+
 /* Macro */
 #define RETURN_IP46ADDRESS(entity)					\
 do {									\
@@ -894,6 +900,35 @@ check_snmp_lvs_sync_daemon(struct variable *vp, oid *name, size_t *length,
 }
 #endif
 
+static u_char*
+check_snmp_lvs_timeouts(struct variable *vp, oid *name, size_t *length,
+				 int exact, size_t *var_len, WriteMethod **write_method)
+{
+	static unsigned long long_ret;
+
+	if (header_generic(vp, name, length, exact, var_len, write_method))
+		return NULL;
+
+	switch (vp->magic) {
+	case CHECK_SNMP_LVSTIMEOUTTCP:
+		if (!global_data->lvs_tcp_timeout)
+			return NULL;
+		long_ret = global_data->lvs_tcp_timeout;
+		return (u_char *)&long_ret;
+	case CHECK_SNMP_LVSTIMEOUTTCPFIN:
+		if (!global_data->lvs_tcpfin_timeout)
+			return NULL;
+		long_ret = global_data->lvs_tcpfin_timeout;
+		return (u_char *)&long_ret;
+	case CHECK_SNMP_LVSTIMEOUTUDP:
+		if (!global_data->lvs_udp_timeout)
+			return NULL;
+		long_ret = global_data->lvs_udp_timeout;
+		return (u_char *)&long_ret;
+	}
+	return NULL;
+}
+
 static oid check_oid[] = {CHECK_OID};
 static struct variable8 check_vars[] = {
 	/* virtualServerGroupTable */
@@ -1067,6 +1102,13 @@ static struct variable8 check_vars[] = {
 	 check_snmp_lvs_sync_daemon, 2, {6, 9}},
 #endif
 #endif
+	/* LVS timeouts */
+	{CHECK_SNMP_LVSTIMEOUTTCP, ASN_INTEGER, RONLY,
+	 check_snmp_lvs_timeouts, 2, {7, 1}},
+	{CHECK_SNMP_LVSTIMEOUTTCPFIN, ASN_INTEGER, RONLY,
+	 check_snmp_lvs_timeouts, 2, {7, 2}},
+	{CHECK_SNMP_LVSTIMEOUTUDP, ASN_INTEGER, RONLY,
+	 check_snmp_lvs_timeouts, 2, {7, 3}},
 };
 
 void

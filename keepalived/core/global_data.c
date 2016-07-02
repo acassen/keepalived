@@ -241,6 +241,12 @@ dump_global_data(data_t * data)
 				    , data->email_from);
 		dump_list(data->email);
 	}
+	if (data->lvs_tcp_timeout)
+		log_message(LOG_INFO, " LVS TCP timeout = %d", data->lvs_tcp_timeout);
+	if (data->lvs_tcpfin_timeout)
+		log_message(LOG_INFO, " LVS TCP FIN timeout = %d", data->lvs_tcpfin_timeout);
+	if (data->lvs_udp_timeout)
+		log_message(LOG_INFO, " LVS TCP timeout = %d", data->lvs_udp_timeout);
 	if (data->lvs_syncd.vrrp) {
 		log_message(LOG_INFO, " LVS syncd vrrp instance = %s"
 				    , data->lvs_syncd.vrrp->iname);

@@ -188,6 +188,14 @@ start_vrrp(void)
 			return;
 		}
 
+#ifdef _KRNL_2_6_
+		/* Set LVS timeouts */
+		if (global_data->lvs_tcp_timeout ||
+		    global_data->lvs_tcpfin_timeout ||
+		    global_data->lvs_udp_timeout)
+			ipvs_set_timeouts(global_data->lvs_tcp_timeout, global_data->lvs_tcpfin_timeout, global_data->lvs_udp_timeout);
+#endif
+
 #ifdef _HAVE_IPVS_SYNCD_
 		/* If we are managing the sync daemon, then stop any
 		 * instances of it that may have been running if

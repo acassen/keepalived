@@ -500,8 +500,6 @@ out_err:
 }
 
 
-#ifdef _INCLUDE_UNUSED_CODE_
-static
 int ipvs_set_timeout(ipvs_timeout_t *to)
 {
 	ipvs_func = ipvs_set_timeout;
@@ -509,9 +507,13 @@ int ipvs_set_timeout(ipvs_timeout_t *to)
 	if (try_nl) {
 		struct nl_msg *msg = ipvs_nl_message(IPVS_CMD_SET_TIMEOUT, 0);
 		if (!msg) return -1;
-		NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP, to->tcp_timeout);
-		NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP_FIN, to->tcp_fin_timeout);
-		NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_UDP, to->udp_timeout);
+
+		if (to->tcp_timeout)
+			NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP, to->tcp_timeout);
+		if (to->tcp_fin_timeout)
+			NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP_FIN, to->tcp_fin_timeout);
+		if (to->udp_timeout)
+			NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_UDP, to->udp_timeout);
 		return ipvs_nl_send_message(msg, ipvs_nl_noop_cb, NULL);
 
 nla_put_failure:
@@ -522,7 +524,6 @@ nla_put_failure:
 	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_TIMEOUT, (char *)to,
 			  sizeof(*to));
 }
-#endif
 
 
 int ipvs_start_daemon(ipvs_daemon_t *dm)

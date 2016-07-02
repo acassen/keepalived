@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201607020000Z"
+     LAST-UPDATED "201607021200Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201607021200Z"
+     DESCRIPTION "add lvs timeout parameters"
      REVISION "201607020000Z"
      DESCRIPTION
 	"added LVS sync daemon parameters and deprecated
@@ -2103,6 +2105,32 @@ lvsSyncDaemonMcastGroupAddrValue OBJECT-TYPE
 	 Only available on Linux >= 4.3."
     ::= { lvsSyncDaemon 9 }
 
+lvsTimeouts    OBJECT IDENTIFIER ::= { check 7 }
+
+lvsTimeoutTcp OBJECT-TYPE
+    SYNTAX Integer32 (1..2678400)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "LVS TCP timeout"
+    ::= { lvsTimeouts 1 }
+
+lvsTimeoutTcpFin OBJECT-TYPE
+    SYNTAX Integer32 (1..2678400)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "LVS TCP FIN timeout"
+    ::= { lvsTimeouts 2 }
+
+lvsTimeoutUdp OBJECT-TYPE
+    SYNTAX Integer32 (1..2678400)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "LVS UDP timeout"
+    ::= { lvsTimeouts 3 }
+
 -- Traps
 
 checkTrap OBJECT IDENTIFIER ::= { check 5 }
@@ -2189,7 +2217,8 @@ checkCompliances MODULE-COMPLIANCE
     virtualServerGroup,
     realServerGroup,
     checkTrapsGroup,
-    lvsSyncDaemonGroup
+    lvsSyncDaemonGroup,
+    lvsTimeoutsGroup
     }
     ::= { compliances 3 }
 
@@ -2465,5 +2494,16 @@ lvsSyncDaemonGroup OBJECT-GROUP
     DESCRIPTION
 	"Conformance group for LVS sync daemon."
     ::= { checkGroups 5 }
+
+lvsTimeoutsGroup OBJECT-GROUP
+    OBJECTS {
+    lvsTimeoutTcp,
+    lvsTimeoutTcpFin,
+    lvsTimeoutUdp
+    }
+    STATUS current
+    DESCRIPTION
+	"Conformance group for LVS timeouts."
+    ::= { checkGroups 6 }
 
 END

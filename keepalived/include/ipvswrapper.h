@@ -112,6 +112,7 @@ struct lvs_syncd_config {
 /* prototypes */
 extern int ipvs_start(void);
 extern void ipvs_stop(void);
+extern void ipvs_set_timeouts(int, int, int);
 extern void ipvs_flush_cmd(void);
 extern virtual_server_group_t *ipvs_get_group_by_name(char *, list);
 extern void ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge);

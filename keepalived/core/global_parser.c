@@ -33,6 +33,8 @@
 #include "utils.h"
 #include "logger.h"
 
+#define LVS_MAX_TIMEOUT		(86400*31)	/* 31 days */
+
 /* data handlers */
 /* Global def handlers */
 static void
@@ -105,6 +107,61 @@ email_handler(vector_t *strvec)
 	free_strvec(email_vec);
 }
 static void
+lvs_timeouts(vector_t *strvec)
+{
+	int val;
+	int i;
+	char *endptr;
+
+	if (vector_size(strvec) < 3) {
+		log_message(LOG_INFO, "lvs_timeouts requires at least one option");
+		return;
+	}
+
+	for (i = 1; i < vector_size(strvec); i++) {
+		if (!strcmp(vector_slot(strvec, i), "tcp")) {
+			if (i == vector_size(strvec) - 1) {
+				log_message(LOG_INFO, "No value specified for lvs_timout tcp - ignoring");
+				continue;
+			}
+			val = strtol(vector_slot(strvec, i+1), &endptr, 10);
+			if (*endptr != '\0' || val < 0 || val > LVS_MAX_TIMEOUT)
+				log_message(LOG_INFO, "Invalid lvs_timeout tcp (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+			else
+				global_data->lvs_tcp_timeout = val;
+			i++;	/* skip over value */
+			continue;
+		}
+		if (!strcmp(vector_slot(strvec, i), "tcpfin")) {
+			if (i == vector_size(strvec) - 1) {
+				log_message(LOG_INFO, "No value specified for lvs_timeout tcpfin - ignoring");
+				continue;
+			}
+			val = strtol(vector_slot(strvec, i+1), &endptr, 10);
+			if (*endptr != '\0' || val < 1 || val > LVS_MAX_TIMEOUT)
+				log_message(LOG_INFO, "Invalid lvs_timeout tcpfin (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+			else
+				global_data->lvs_tcpfin_timeout = val;
+			i++;	/* skip over value */
+			continue;
+		}
+		if (!strcmp(vector_slot(strvec, i), "udp")) {
+			if (i == vector_size(strvec) - 1) {
+				log_message(LOG_INFO, "No value specified for lvs_timeout udp - ignoring");
+				continue;
+			}
+			val = strtol(vector_slot(strvec, i+1), &endptr, 10);
+			if (*endptr != '\0' || val < 1 || val > LVS_MAX_TIMEOUT)
+				log_message(LOG_INFO, "Invalid lvs_timeout udp (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+			else
+				global_data->lvs_udp_timeout = val;
+			i++;	/* skip over value */
+			continue;
+		}
+		log_message(LOG_INFO, "Unknown option %s specified for lvs_timeouts", FMT_STR_VSLOT(strvec, i));
+	}
+}
+static void
 lvs_syncd_handler(vector_t *strvec)
 {
 	int val;
@@ -141,7 +198,7 @@ lvs_syncd_handler(vector_t *strvec)
 	else
 		i = 3;
 
-	for ( ; i < vector_size(strvec); i++ ) {
+	for ( ; i < vector_size(strvec); i++) {
 		if (!strcmp(vector_slot(strvec, i), "id")) {
 			if (i == vector_size(strvec) - 1) {
 				log_message(LOG_INFO, "No value specified for lvs_sync_daemon id, defaulting to vrid");
@@ -536,6 +593,7 @@ global_init_keywords(void)
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
 	install_keyword("lvs_sync_daemon", &lvs_syncd_handler);
+	install_keyword("lvs_timeouts", &lvs_timeouts);
 	install_keyword("lvs_flush", &lvs_flush_handler);
 	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler);
 	install_keyword("vrrp_mcast_group6", &vrrp_mcast_group6_handler);
