@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201607021200Z"
+     LAST-UPDATED "201607030000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201607030000Z"
+     DESCRIPTION "change vrrpRuleIndex to unsigned"
      REVISION "201607021200Z"
      DESCRIPTION "add lvs timeout parameters"
      REVISION "201607020000Z"
@@ -1011,7 +1013,7 @@ vrrpRuleEntry OBJECT-TYPE
     ::= { vrrpRuleTable 1 }
 
 VrrpRuleEntry ::= SEQUENCE {
-    vrrpRuleIndex Integer32,
+    vrrpRuleIndex Unsigned32,
     vrrpRuleDirection DisplayString,
     vrrpRuleAddressType InetAddressType,
     vrrpRuleAddress InetAddress,
@@ -1021,7 +1023,7 @@ VrrpRuleEntry ::= SEQUENCE {
 }
 
 vrrpRuleIndex OBJECT-TYPE
-    SYNTAX Integer32 (1..2147483647)
+    SYNTAX Unsigned32 (1..4294967295)
     MAX-ACCESS not-accessible
     STATUS current
     DESCRIPTION
