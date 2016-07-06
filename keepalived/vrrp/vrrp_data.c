@@ -405,6 +405,7 @@ alloc_vrrp(char *iname)
 	new->stats = alloc_vrrp_stats();
 	new->quick_sync = 0;
 	new->garp_rep = global_data->vrrp_garp_rep;
+	new->garp_refresh = global_data->vrrp_garp_refresh;
 	new->garp_refresh_rep = global_data->vrrp_garp_refresh_rep;
 	new->garp_delay = global_data->vrrp_garp_delay;
 	new->garp_lower_prio_delay = -1;
