@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <stdbool.h>
 
 /* local includes */
 #include "list.h"
@@ -44,7 +45,7 @@ typedef struct _ip_route {
 	int			blackhole;
 	int			scope;
 	unsigned int		table;
-	int			set;
+	bool			set;
 } ip_route_t;
 
 #define IPROUTE_DEL 0

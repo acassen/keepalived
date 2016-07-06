@@ -86,7 +86,9 @@ netlink_route(ip_route_t *iproute, int cmd)
 	req.n.nlmsg_len   = NLMSG_LENGTH(sizeof(struct rtmsg));
 	req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE;
 	req.n.nlmsg_type  = cmd ? RTM_NEWROUTE : RTM_DELROUTE;
-	req.r.rtm_family  = IP_FAMILY(iproute->dst);
+	req.r.rtm_family  = (iproute->dst) ? IP_FAMILY(iproute->dst) :
+			    (iproute->src) ? IP_FAMILY(iproute->src) :
+			    AF_INET;
 	if (iproute->table < 256)
 		req.r.rtm_table   = iproute->table ? iproute->table : RT_TABLE_MAIN;
 	else {
@@ -95,7 +97,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 	}
 	req.r.rtm_scope   = RT_SCOPE_NOWHERE;
 
-	if (cmd) {
+	if (cmd == IPROUTE_ADD) {
 		req.r.rtm_protocol = RTPROT_BOOT;
 		req.r.rtm_scope = iproute->scope;
 		req.r.rtm_type = RTN_UNICAST;
@@ -104,11 +106,13 @@ netlink_route(ip_route_t *iproute, int cmd)
 		req.r.rtm_type = RTN_BLACKHOLE;
 
 	/* Set routing entry */
-	req.r.rtm_dst_len = iproute->dmask;
-	add_addr2req(&req.n, sizeof(req), RTA_DST, iproute->dst);
+	if (iproute->dst) {
+		req.r.rtm_dst_len = iproute->dmask;
+		add_addr2req(&req.n, sizeof(req), RTA_DST, iproute->dst);
+	}
 	if ((!iproute->blackhole) && (!iproute->gw2))
 		add_addr2req(&req.n, sizeof(req), RTA_GATEWAY, iproute->gw);
-	if (iproute->gw2) {
+	if (iproute->gw && iproute->gw2) {
 		rta->rta_type = RTA_MULTIPATH;
 		rta->rta_len = RTA_LENGTH(0);
 		rtnh = RTA_DATA(rta);
@@ -151,12 +155,12 @@ netlink_rtlist(list rt_list, int cmd)
 
 	for (e = LIST_HEAD(rt_list); e; ELEMENT_NEXT(e)) {
 		iproute = ELEMENT_DATA(e);
-		if ((cmd && !iproute->set) ||
-		    (!cmd && iproute->set)) {
+		if ((cmd == IPROUTE_ADD && !iproute->set) ||
+		    (cmd == IPROUTE_DEL && iproute->set)) {
 			if (netlink_route(iproute, cmd) > 0)
-				iproute->set = (cmd) ? 1 : 0;
+				iproute->set = (cmd == IPROUTE_ADD);
 			else
-				iproute->set = 0;
+				iproute->set = false;
 		}
 	}
 }
@@ -263,7 +267,23 @@ alloc_route(list rt_list, vector_t *strvec)
 		i++;
 	}
 
+	if (new->blackhole && new->gw) {
+		log_message(LOG_INFO, "route: blackhole and gw are incompatible");
+		goto err;
+	}
+	if (new->gw2 && !new->gw) {
+		log_message(LOG_INFO, "route: or route requires first route");
+		goto err;
+	}
+
+	if (!new->table)
+		new->table = RT_TABLE_MAIN;
+
 	list_add(rt_list, new);
+	return;
+
+err:
+	FREE(new);
 }
 
 /* Try to find a route in a list */
