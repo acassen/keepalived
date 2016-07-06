@@ -236,13 +236,13 @@ start_vrrp(void)
 #endif
 
 	/* Set static entries */
-	if (!reload) {
-		netlink_iplist(vrrp_data->static_addresses, IPADDRESS_ADD);
+	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_ADD);
 #ifdef _HAVE_FIB_ROUTING_
+	if (!reload) {
 		netlink_rtlist(vrrp_data->static_routes, IPROUTE_ADD);
 		netlink_rulelist(vrrp_data->static_rules, IPRULE_ADD, false);
-#endif
 	}
+#endif
 
 	/* Dump configuration */
 	if (__test_bit(DUMP_CONF_BIT, &debug)) {
