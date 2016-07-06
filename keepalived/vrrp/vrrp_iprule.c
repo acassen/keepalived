@@ -118,12 +118,12 @@ netlink_rulelist(list rule_list, int cmd, bool force)
 	for (e = LIST_HEAD(rule_list); e; ELEMENT_NEXT(e)) {
 		iprule = ELEMENT_DATA(e);
 		if (force ||
-		    (cmd && !iprule->set) ||
-		    (!cmd && iprule->set)) {
+		    (cmd == IPRULE_ADD && !iprule->set) ||
+		    (cmd == IPRULE_DEL&& iprule->set)) {
 			if (netlink_rule(iprule, cmd) > 0)
-				iprule->set = (cmd) ? 1 : 0;
+				iprule->set = (cmd == IPRULE_ADD);
 			else
-				iprule->set = 0;
+				iprule->set = false;
 		}
 	}
 
