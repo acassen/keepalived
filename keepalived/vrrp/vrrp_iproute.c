@@ -151,12 +151,12 @@ netlink_rtlist(list rt_list, int cmd)
 
 	for (e = LIST_HEAD(rt_list); e; ELEMENT_NEXT(e)) {
 		iproute = ELEMENT_DATA(e);
-		if ((cmd && !iproute->set) ||
-		    (!cmd && iproute->set)) {
+		if ((cmd == IPROUTE_ADD && !iproute->set) ||
+		    (cmd == IPROUTE_DEL && iproute->set)) {
 			if (netlink_route(iproute, cmd) > 0)
-				iproute->set = (cmd) ? 1 : 0;
+				iproute->set = (cmd == IPROUTE_ADD);
 			else
-				iproute->set = 0;
+				iproute->set = false;
 		}
 	}
 }

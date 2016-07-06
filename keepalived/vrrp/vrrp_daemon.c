@@ -238,10 +238,8 @@ start_vrrp(void)
 	/* Set static entries */
 	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_ADD);
 #ifdef _HAVE_FIB_ROUTING_
-	if (!reload) {
-		netlink_rtlist(vrrp_data->static_routes, IPROUTE_ADD);
-		netlink_rulelist(vrrp_data->static_rules, IPRULE_ADD, false);
-	}
+	netlink_rtlist(vrrp_data->static_routes, IPROUTE_ADD);
+	netlink_rulelist(vrrp_data->static_rules, IPRULE_ADD, false);
 #endif
 
 	/* Dump configuration */
