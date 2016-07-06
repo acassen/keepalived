@@ -84,6 +84,7 @@ static void
 set_vrrp_defaults(data_t * data)
 {
 	data->vrrp_garp_rep = VRRP_GARP_REP;
+	data->vrrp_garp_refresh.tv_sec = VRRP_GARP_REFRESH;
 	data->vrrp_garp_refresh_rep = VRRP_GARP_REFRESH_REP;
 	data->vrrp_garp_delay = VRRP_GARP_DELAY;
 	data->vrrp_garp_lower_prio_delay = -1;
