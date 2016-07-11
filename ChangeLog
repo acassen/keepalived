@@ -1,3 +1,84 @@
+2016-07-11 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.23 released.
+	* Make malloc/free diagnostics a separate configure option.
+	  The commit adds the configure --enable-mem-check option which
+	  allows the MALLOC/FREE diagnostics to be enabled without
+	  the --enable-debug option. This means that the mem-check
+	  diagnostics can be used when running keepalived in it's normal mode
+	  with forking children for vrrp and checkers.
+	  The mem-check diagnostics are written to
+	  /tmp/Keepalived_{,vrrp,healthcheckers}_mem.PID.log
+	  The --mem-check-log configure option enables command line option
+	  -L which also writes zalloc/free details to the syslog.
+	* Fix compilation error on 32-bit systems with mem-check enabled.
+	* Replace one zalloc() and one free() call with MALLOC() and FREE().
+	  This ensures that the mem-check diagnostics cover all mallocs/frees.
+	*  Fix report of malloc'd memory not being freed.
+	* Streamline read_line().
+	* Resolve a segfault when reloading with vmacs.
+	  The vrrp_t entries on the vrrp_data list have pointers to an
+	  interface_t for each vrrp instance. When reloading, the
+	  interface_t items where freed, but a pointer to the old list
+	  of vrrp_t items is held in old_vrrp_data. After the new
+	  configuration is processed, clear_diff_vrrp() is called. clear_diff_vrrp()
+	  uses the interface_t pointers from the old vrrp_t entries, but the
+	  memory pointed to by the interface_t pointers has already been freed,
+	  and probably reallocated for a different use.
+	  This commit delays freeing the old interface_t items until after
+	  clear_diff_vrrp() has completed, so the interface_t pointers remain valid.
+	* Check valid interface pointer before calling reset_interface_parameters().
+	  Before resetting the settings on the base interface of a vmac, check that
+	  the interface_t pointer is valid.
+	* Fix new --mem-check-log option.
+	* Don't write parent's memory logging into children's log file.
+	  When running with mem-check output to files, the buffer from the
+	  parent process was also being written into the children's log
+	  files. The commit sets the CLOEXEC flag on the log files, and
+	  also sets the log files to be line buffered.
+	* Fix segfault or infinite loop in thread_child_handler() after reloading.
+	  When the checker and vrrp child processes start up, memory for a
+	  thread_master_t is malloc'd and saved in master. Subsequently,
+	  launch_scheduler() is called, and that sets the parameter to be passed
+	  to the SIGCHLD handler - thread_child_handler() to the value of master,
+	  pointing to a thread_master_t.
+	  If keepalived is signalled to reload, the child processes free all
+	  malloc'd memory, and a new thread_master_t is malloc'd and saved in
+	  master. If this is not the same address as the previous thread_master_t,
+	  then the value being passed to the SIGCHLD handler is a pointer to the
+	  old thread_master_t, whereas everything else is using the new thread_master_t.
+	  If the memory used for the old thread_master_t is then returned in a subsequent
+	  malloc() call, a subsequent SIGCHLD will invoke thread_child_handler() with
+	  a pointer to memory that has now been overwritten for some other purpose, hence
+	  causing either a segfault or an infinite loop.
+	  A further consequence is that new child processes will be added to the new
+	  thread_master_t, but when thread_child_hander() is called after a child
+	  terminates, it won't find the child since it is still looking at the old
+	  thread_master_t.
+	  This commit modifies the behaviour of a reload by not releasing the old
+	  thread_master_t and then malloc'ing a new one, but rather it just reinitialises
+	  the original thread_master_t and continues using it.
+	* Remove base_iface from struct _vrrp_ - it wasn't used.
+	* Add configuration option to flush LVS configuration.
+	  This commit adds a global configuration option lvs_flush to flush
+	  the LVS configuration, and if not set, the configuration won't be
+	  flushed.
+	* Add back real server when return from failure with HTTP_CHECK.
+	  If status_code wasn't specified for a url entry in the configuration
+	  then a real server would never be returned to service following a
+	  failure.
+	  The commit makes keepalived return a real server to service if no
+	  status_code is specified if the HTTP status code returned from the
+	  service is a success code (i.e. 2xx).
+	* Avoid duplication of keyword installation in check_http.c.
+	* Fix adding new static ip addresses after reload.
+	  Commit f23ab52, when stopping duplicate static ip routes and rules
+	  being added after a reload also stopped new static ip addresses being
+	  added. The commit reinstates adding new static ip addresses.
+	* Fix adding static iprule/routes after a reload.
+	* Stop segfault when configure a route with no destination address.
+	* Fix unused global vrrp_garp_master_refresh.
+	* fix healthchecker reload when some healthchecks are failed.
+
 2016-06-14 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.22 released.
 	* vrrp: Fix build without VRRP VMAC.
