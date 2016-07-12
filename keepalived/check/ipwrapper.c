@@ -667,6 +667,22 @@ clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 			if (new_rs->alive) {
 				/* clear failed_checkers list */
 				free_list_elements(new_rs->failed_checkers);
+			} else {
+				/*
+				 * if not alive, we must copy the failed checker list
+				 * If we do not, the new RS is in a state where it’s reported
+				 * as down with no check failed. As a result, the server will never
+				 * be put up back when it’s alive again in check_tcp.c#83 because
+				 * of the check that put a rs up only if it was not previously up
+				 * based on the failed_checkers list
+				 */
+				element hc_e;
+				list hc_l = rs->failed_checkers;
+				list new_hc_l = new_rs->failed_checkers;
+				for (hc_e = LIST_HEAD(hc_l); hc_e; ELEMENT_NEXT(hc_e)) {
+					list_add(new_hc_l, ELEMENT_DATA(hc_e));
+					ELEMENT_DATA(hc_e) = NULL;
+				}
 			}
 		}
 	}
