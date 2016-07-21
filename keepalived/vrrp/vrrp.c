@@ -2500,7 +2500,7 @@ clear_diff_vrrp_vip(vrrp_t *old_vrrp, vrrp_t *vrrp)
 #endif
 	struct ipt_handle *h = NULL;
 
-	if (!old_vrrp->iptable_rules_set)
+	if (!old_vrrp->vipset)
 		return;
 
 #ifdef _HAVE_LIBIPTC_
