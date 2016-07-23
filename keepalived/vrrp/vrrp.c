@@ -1036,7 +1036,7 @@ vrrp_alloc_send_buffer(vrrp_t * vrrp)
 	vrrp->send_buffer = MALLOC(VRRP_SEND_BUFFER_SIZE(vrrp));
 }
 
-/* send VRRP advertissement */
+/* send VRRP advertisement */
 int
 vrrp_send_adv(vrrp_t * vrrp, int prio)
 {
@@ -1686,7 +1686,12 @@ open_vrrp_send_socket(sa_family_t family, int proto, int idx, int unicast)
 	}
 
 	if_setsockopt_priority(&fd);
-	if (fd < 0)
+
+    /* set tos to internet network control */
+	int tos = 0xc0; // 192, which translates to DCSP value 48, or cs6
+	setsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos));
+
+    if (fd < 0)
 		return -1;
 
 	return fd;
@@ -2503,7 +2508,7 @@ clear_diff_vrrp_vip(vrrp_t *old_vrrp, vrrp_t *vrrp)
 #endif
 	struct ipt_handle *h = NULL;
 
-	if (!old_vrrp->iptable_rules_set)
+	if (!old_vrrp->vipset)
 		return;
 
 #ifdef _HAVE_LIBIPTC_

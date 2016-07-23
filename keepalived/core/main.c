@@ -457,6 +457,10 @@ main(int argc, char **argv)
 
 	openlog(PROG, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
 		    , log_facility);
+
+	if (__test_bit(LOG_CONSOLE_BIT, &debug))
+		enable_console_log();
+
 #ifdef GIT_COMMIT
 	log_message(LOG_INFO, "Starting %s, git commit %s", VERSION_STRING, GIT_COMMIT);
 #else
@@ -476,9 +480,6 @@ main(int argc, char **argv)
 		report_stopped = false;
 		goto end;
 	}
-
-	if (__test_bit(LOG_CONSOLE_BIT, &debug))
-		enable_console_log();
 
 	/* daemonize process */
 	if (!__test_bit(DONT_FORK_BIT, &debug))
