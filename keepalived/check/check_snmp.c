@@ -112,6 +112,28 @@
 #define STATE_RS_REGULAR_NEXT 3
 #define STATE_RS_END 4
 
+#ifdef _HAVE_IPVS_SYNCD_
+enum check_snmp_lvs_sync_daemon {
+	CHECK_SNMP_LVSSYNCDAEMONENABLED,
+	CHECK_SNMP_LVSSYNCDAEMONINTERFACE,
+	CHECK_SNMP_LVSSYNCDAEMONVRRPINSTANCE,
+	CHECK_SNMP_LVSSYNCDAEMONSYNCID,
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+	CHECK_SNMP_LVSSYNCDAEMONMAXLEN,
+	CHECK_SNMP_LVSSYNCDAEMONPORT,
+	CHECK_SNMP_LVSSYNCDAEMONTTL,
+	CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRTYPE,
+	CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRVALUE,
+#endif
+};
+#endif
+
+enum check_snmp_lvs_timeouts {
+	CHECK_SNMP_LVSTIMEOUTTCP,
+	CHECK_SNMP_LVSTIMEOUTTCPFIN,
+	CHECK_SNMP_LVSTIMEOUTUDP,
+};
+
 /* Macro */
 #define RETURN_IP46ADDRESS(entity)					\
 do {									\
@@ -810,6 +832,103 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	return NULL;
 }
 
+#ifdef _HAVE_IPVS_SYNCD_
+static u_char*
+check_snmp_lvs_sync_daemon(struct variable *vp, oid *name, size_t *length,
+				 int exact, size_t *var_len, WriteMethod **write_method)
+{
+	static unsigned long long_ret;
+
+	if (header_generic(vp, name, length, exact, var_len, write_method))
+		return NULL;
+
+	switch (vp->magic) {
+	case CHECK_SNMP_LVSSYNCDAEMONENABLED:
+		long_ret = global_data->lvs_syncd.syncid != -1 ? 1 : 2;
+		return (u_char *)&long_ret;
+	case CHECK_SNMP_LVSSYNCDAEMONINTERFACE:
+		if (global_data->lvs_syncd.syncid == -1)
+			return NULL;
+		*var_len = strlen(global_data->lvs_syncd.ifname);
+		return (u_char *)global_data->lvs_syncd.ifname;
+	case CHECK_SNMP_LVSSYNCDAEMONVRRPINSTANCE:
+		if (global_data->lvs_syncd.syncid == -1)
+			return NULL;
+		*var_len = strlen(global_data->lvs_syncd.vrrp_name);
+		return (u_char *)global_data->lvs_syncd.vrrp_name;
+	case CHECK_SNMP_LVSSYNCDAEMONSYNCID:
+		if (global_data->lvs_syncd.syncid == -1)
+			return NULL;
+		long_ret = global_data->lvs_syncd.syncid;
+		return (u_char *)&long_ret;
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+	case CHECK_SNMP_LVSSYNCDAEMONMAXLEN:
+		if (global_data->lvs_syncd.syncid == -1)
+			return NULL;
+		long_ret = global_data->lvs_syncd.sync_maxlen;
+		return (u_char *)&long_ret;
+	case CHECK_SNMP_LVSSYNCDAEMONPORT:
+		if (global_data->lvs_syncd.syncid == -1)
+			return NULL;
+		long_ret = global_data->lvs_syncd.mcast_port;
+		return (u_char *)&long_ret;
+	case CHECK_SNMP_LVSSYNCDAEMONTTL:
+		if (global_data->lvs_syncd.syncid == -1)
+			return NULL;
+		long_ret = global_data->lvs_syncd.mcast_ttl;
+		return (u_char *)&long_ret;
+	case CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRTYPE:
+		if (global_data->lvs_syncd.syncid == -1)
+			return NULL;
+		long_ret = (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6) ? 2:1;
+		return (u_char *)&long_ret;
+	case CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRVALUE:
+		if (global_data->lvs_syncd.syncid == -1)
+			return NULL;
+		if (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6) {
+			struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&global_data->lvs_syncd.mcast_group;
+			*var_len = 16;
+			return (u_char *)&addr6->sin6_addr;
+		} else {
+			struct sockaddr_in *addr4 = (struct sockaddr_in *)&global_data->lvs_syncd.mcast_group;
+			*var_len = 4;
+			return (u_char *)&addr4->sin_addr;
+		}
+#endif
+	}
+	return NULL;
+}
+#endif
+
+static u_char*
+check_snmp_lvs_timeouts(struct variable *vp, oid *name, size_t *length,
+				 int exact, size_t *var_len, WriteMethod **write_method)
+{
+	static unsigned long long_ret;
+
+	if (header_generic(vp, name, length, exact, var_len, write_method))
+		return NULL;
+
+	switch (vp->magic) {
+	case CHECK_SNMP_LVSTIMEOUTTCP:
+		if (!global_data->lvs_tcp_timeout)
+			return NULL;
+		long_ret = global_data->lvs_tcp_timeout;
+		return (u_char *)&long_ret;
+	case CHECK_SNMP_LVSTIMEOUTTCPFIN:
+		if (!global_data->lvs_tcpfin_timeout)
+			return NULL;
+		long_ret = global_data->lvs_tcpfin_timeout;
+		return (u_char *)&long_ret;
+	case CHECK_SNMP_LVSTIMEOUTUDP:
+		if (!global_data->lvs_udp_timeout)
+			return NULL;
+		long_ret = global_data->lvs_udp_timeout;
+		return (u_char *)&long_ret;
+	}
+	return NULL;
+}
+
 static oid check_oid[] = {CHECK_OID};
 static struct variable8 check_vars[] = {
 	/* virtualServerGroupTable */
@@ -960,6 +1079,36 @@ static struct variable8 check_vars[] = {
 	{CHECK_SNMP_RSRATEOUTBPS, ASN_GAUGE, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 26}},
 #endif
+#ifdef _HAVE_IPVS_SYNCD_
+	/* LVS sync daemon configuration */
+	{CHECK_SNMP_LVSSYNCDAEMONENABLED, ASN_INTEGER, RONLY,
+	 check_snmp_lvs_sync_daemon, 2, {6, 1}},
+	{CHECK_SNMP_LVSSYNCDAEMONINTERFACE, ASN_OCTET_STR, RONLY,
+	 check_snmp_lvs_sync_daemon, 2, {6, 2}},
+	{CHECK_SNMP_LVSSYNCDAEMONVRRPINSTANCE, ASN_OCTET_STR, RONLY,
+	 check_snmp_lvs_sync_daemon, 2, {6, 3}},
+	{CHECK_SNMP_LVSSYNCDAEMONSYNCID, ASN_INTEGER, RONLY,
+	 check_snmp_lvs_sync_daemon, 2, {6, 4}},
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+	{CHECK_SNMP_LVSSYNCDAEMONMAXLEN, ASN_INTEGER, RONLY,
+	 check_snmp_lvs_sync_daemon, 2, {6, 5}},
+	{CHECK_SNMP_LVSSYNCDAEMONPORT, ASN_INTEGER, RONLY,
+	 check_snmp_lvs_sync_daemon, 2, {6, 6}},
+	{CHECK_SNMP_LVSSYNCDAEMONTTL, ASN_INTEGER, RONLY,
+	 check_snmp_lvs_sync_daemon, 2, {6, 7}},
+	{CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRTYPE, ASN_INTEGER, RONLY,
+	 check_snmp_lvs_sync_daemon, 2, {6, 8}},
+	{CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRVALUE, ASN_OCTET_STR, RONLY,
+	 check_snmp_lvs_sync_daemon, 2, {6, 9}},
+#endif
+#endif
+	/* LVS timeouts */
+	{CHECK_SNMP_LVSTIMEOUTTCP, ASN_INTEGER, RONLY,
+	 check_snmp_lvs_timeouts, 2, {7, 1}},
+	{CHECK_SNMP_LVSTIMEOUTTCPFIN, ASN_INTEGER, RONLY,
+	 check_snmp_lvs_timeouts, 2, {7, 2}},
+	{CHECK_SNMP_LVSTIMEOUTUDP, ASN_INTEGER, RONLY,
+	 check_snmp_lvs_timeouts, 2, {7, 3}},
 };
 
 void

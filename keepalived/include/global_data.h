@@ -44,6 +44,10 @@
 #include "list.h"
 #include "timer.h"
 #include "vrrp.h"
+#ifdef _HAVE_IPVS_SYNCD_
+#include "ipvswrapper.h"
+#endif
+
 
 /* constants */
 #define DEFAULT_SMTP_SERVER 0x7f000001
@@ -65,10 +69,12 @@ typedef struct _data {
 	list				email;
 	struct sockaddr_storage		vrrp_mcast_group4;
 	struct sockaddr_storage		vrrp_mcast_group6;
-	char				*lvs_syncd_if;		/* handle LVS sync daemon state using this */
-	vrrp_t				*lvs_syncd_vrrp;	/* instance FSM & running on specific interface */
-	int				lvs_syncd_syncid;	/* => eth0 for example. */
-	char				*lvs_syncd_vrrp_name;	/* Only used during configuration */
+	int				lvs_tcp_timeout;
+	int				lvs_tcpfin_timeout;
+	int				lvs_udp_timeout;
+#ifdef _HAVE_IPVS_SYNCD_
+	struct lvs_syncd_config		lvs_syncd;
+#endif
 	bool				lvs_flush;		/* flush any residual LVS config at startup */
 	int				vrrp_garp_delay;
 	timeval_t			vrrp_garp_refresh;

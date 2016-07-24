@@ -38,11 +38,123 @@
 #include "memory.h"
 #include "logger.h"
 
-/* local helpers functions */
-static int parse_timeout(char *, unsigned *);
-static int string_to_number(const char *, int, int);
-static int modprobe_ipvs(void);
+/*
+ * Utility functions coming from Wensong code
+ */
 
+static int
+string_to_number(const char *s, int min, int max)
+{
+	int number;
+	char *end;
+
+	number = (int) strtol(s, &end, 10);
+	if (*end == '\0' && end != s) {
+		/*
+		 * We parsed a number, let's see if we want this.
+		 * If max <= min then ignore ranges
+		 */
+		if (max <= min || (min <= number && number <= max))
+			return number;
+		else
+			return -1;
+	} else
+		return -1;
+}
+
+static int
+parse_timeout(char *buf, unsigned *timeout)
+{
+	int i;
+
+	if (buf == NULL) {
+		*timeout = IP_VS_TEMPLATE_TIMEOUT;
+		return 1;
+	}
+
+	if ((i = string_to_number(buf, 0, 86400 * 31)) == -1)
+		return 0;
+
+	*timeout = i * (IP_VS_TEMPLATE_TIMEOUT / (6*60));
+	return 1;
+}
+
+static char*
+get_modprobe(void)
+{
+	int procfile;
+	char *ret;
+	int count;
+
+	ret = MALLOC(PATH_MAX);
+	if (!ret)
+		return NULL;
+
+	procfile = open("/proc/sys/kernel/modprobe", O_RDONLY | O_CLOEXEC);
+	if (procfile < 0) {
+		FREE(ret);
+		return NULL;
+	}
+
+	count = read(procfile, ret, PATH_MAX);
+	close(procfile);
+
+	if (count > 0 && count < PATH_MAX)
+	{
+		if (ret[count - 1] == '\n')
+			ret[count - 1] = '\0';
+		else
+			ret[count] = '\0';
+		return ret;
+	}
+
+	FREE(ret);
+
+	return NULL;
+}
+
+static int
+modprobe_ipvs(void)
+{
+	char *argv[] = { "/sbin/modprobe", "-s", "--", "ip_vs", NULL };
+	int child;
+	int status;
+	int rc;
+	char *modprobe = get_modprobe();
+	struct sigaction act, old_act;
+
+	if (modprobe)
+		argv[0] = modprobe;
+
+	act.sa_handler = SIG_DFL;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+
+	sigaction ( SIGCHLD, &act, &old_act);
+
+	if (!(child = fork())) {
+		execv(argv[0], argv);
+		exit(1);
+	}
+
+	rc = waitpid(child, &status, 0);
+
+	sigaction ( SIGCHLD, &old_act, NULL);
+
+	if (rc < 0) {
+		log_message(LOG_INFO, "IPVS: waitpid error (%s)"
+				    , strerror(errno));
+	}
+
+	if (modprobe)
+		FREE(modprobe);
+
+	if (!WIFEXITED(status) || WEXITSTATUS(status)) {
+		return 1;
+	}
+
+	return 0;
+}
 /* fetch virtual server group from group name */
 virtual_server_group_t *
 ipvs_get_group_by_name(char *gname, list l)
@@ -92,6 +204,12 @@ ipvs_stop(void)
 	ipvs_close();
 }
 
+void
+ipvs_set_timeouts(int tcp_timeout, int tcpfin_timeout, int udp_timeout)
+{
+	return;
+}
+
 static int
 ipvs_talk(int cmd, bool ignore_error)
 {
@@ -117,7 +235,7 @@ ipvs_talk(int cmd, bool ignore_error)
 }
 
 void
-ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid, bool ignore_error)
+ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool ignore_interface, bool ignore_error)
 {
 #ifdef _HAVE_IPVS_SYNCD_
 
@@ -125,9 +243,13 @@ ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid, bool ignore_error)
 
 	/* prepare user rule */
 	urule->state = state;
-	urule->syncid = syncid;
-	if (ifname != NULL)
-		strncpy(urule->mcast_ifn, ifname, IP_VS_IFNAME_MAXLEN);
+	if (config) {
+		urule->syncid = config->syncid;
+		if (!ignore_interface)
+			strncpy(urule->mcast_ifn, config->ifname, IP_VS_IFNAME_MAXLEN);
+	}
+	else
+		urule->syncid = 0;
 
 	/* Talk to the IPVS channel */
 	ipvs_talk(cmd, ignore_error);
@@ -423,6 +545,21 @@ ipvs_stop(void)
 	ipvs_close();
 }
 
+void
+ipvs_set_timeouts(int tcp_timeout, int tcpfin_timeout, int udp_timeout)
+{
+	ipvs_timeout_t to;
+
+	if (!tcp_timeout && !tcpfin_timeout && !udp_timeout)
+		return;
+
+	to.tcp_timeout = tcp_timeout;
+	to.tcp_fin_timeout = tcpfin_timeout;
+	to.udp_timeout = udp_timeout;
+
+	ipvs_set_timeout(&to);
+}
+
 /* Send user rules to IPVS module */
 static int
 ipvs_talk(int cmd, bool ignore_error)
@@ -480,26 +617,51 @@ ipvs_talk(int cmd, bool ignore_error)
 	return result;
 }
 
+#ifdef _WITH_LVS_
+#ifdef _HAVE_IPVS_SYNCD_
+/* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
-ipvs_syncd_cmd(int cmd, char *ifname, int state, int syncid, bool ignore_error)
+ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool ignore_interface, bool ignore_error)
 {
 	memset(daemonrule, 0, sizeof(ipvs_daemon_t));
 
 	/* prepare user rule */
 	daemonrule->state = state;
-	daemonrule->syncid = syncid;
-	if (ifname != NULL)
-		strncpy(daemonrule->mcast_ifn, ifname, IP_VS_IFNAME_MAXLEN);
+	if (config) {
+		daemonrule->syncid = config->syncid;
+		if (!ignore_interface)
+			strncpy(daemonrule->mcast_ifn, config->ifname, IP_VS_IFNAME_MAXLEN);
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+		if (cmd == IPVS_STARTDAEMON) {
+			if (config->sync_maxlen)
+				daemonrule->sync_maxlen = config->sync_maxlen;
+			if (config->mcast_port)
+				daemonrule->mcast_port = config->mcast_port;
+			if (config->mcast_ttl)
+				daemonrule->mcast_ttl = config->mcast_ttl;
+			if (config->mcast_group.ss_family == AF_INET) {
+				daemonrule->mcast_af = AF_INET;
+				daemonrule->mcast_group.ip = ((struct sockaddr_in *)&config->mcast_group)->sin_addr.s_addr;
+			}
+			else if (config->mcast_group.ss_family == AF_INET6) {
+				daemonrule->mcast_af = AF_INET6;
+				memcpy(&daemonrule->mcast_group.in6, &((struct sockaddr_in6 *)&config->mcast_group)->sin6_addr, sizeof(daemonrule->mcast_group.in6));
+			}
+		}
+#endif
+	}
 
 	/* Talk to the IPVS channel */
 	ipvs_talk(cmd, ignore_error);
 }
+#endif
 
 void
 ipvs_flush_cmd(void)
 {
         ipvs_talk(IP_VS_SO_SET_FLUSH, false);
 }
+#endif
 
 /* IPVS group range rule */
 static int
@@ -1040,134 +1202,20 @@ ipvs_update_stats(virtual_server_t *vs)
 /*
  * Common IPVS functions
  */
+#ifdef _HAVE_IPVS_SYNCD_
+/* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
-ipvs_syncd_master(char *ifname, int syncid)
+ipvs_syncd_master(const struct lvs_syncd_config *config)
 {
-	ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_BACKUP, syncid, false);
-	ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_MASTER, syncid, false);
+	ipvs_syncd_cmd(IPVS_STOPDAEMON, config, IPVS_BACKUP, false, false);
+	ipvs_syncd_cmd(IPVS_STARTDAEMON, config, IPVS_MASTER, false, false);
 }
 
+/* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
-ipvs_syncd_backup(char *ifname, int syncid)
+ipvs_syncd_backup(const struct lvs_syncd_config *config)
 {
-	ipvs_syncd_cmd(IPVS_STOPDAEMON, ifname, IPVS_MASTER, syncid, false);
-	ipvs_syncd_cmd(IPVS_STARTDAEMON, ifname, IPVS_BACKUP, syncid, false);
+	ipvs_syncd_cmd(IPVS_STOPDAEMON, config, IPVS_MASTER, false, false);
+	ipvs_syncd_cmd(IPVS_STARTDAEMON, config, IPVS_BACKUP, false, false);
 }
-
-/*
- * Utility functions coming from Wensong code
- */
-
-static int
-parse_timeout(char *buf, unsigned *timeout)
-{
-	int i;
-
-	if (buf == NULL) {
-		*timeout = IP_VS_TEMPLATE_TIMEOUT;
-		return 1;
-	}
-
-	if ((i = string_to_number(buf, 0, 86400 * 31)) == -1)
-		return 0;
-
-	*timeout = i * (IP_VS_TEMPLATE_TIMEOUT / (6*60));
-	return 1;
-}
-
-static int
-string_to_number(const char *s, int min, int max)
-{
-	int number;
-	char *end;
-
-	number = (int) strtol(s, &end, 10);
-	if (*end == '\0' && end != s) {
-		/*
-		 * We parsed a number, let's see if we want this.
-		 * If max <= min then ignore ranges
-		 */
-		if (max <= min || (min <= number && number <= max))
-			return number;
-		else
-			return -1;
-	} else
-		return -1;
-}
-
-static char*
-get_modprobe(void)
-{
-	int procfile;
-	char *ret;
-	int count;
-
-	ret = MALLOC(PATH_MAX);
-	if (!ret)
-		return NULL;
-
-	procfile = open("/proc/sys/kernel/modprobe", O_RDONLY | O_CLOEXEC);
-	if (procfile < 0) {
-		FREE(ret);
-		return NULL;
-	}
-
-	count = read(procfile, ret, PATH_MAX);
-	close(procfile);
-
-	if (count > 0 && count < PATH_MAX)
-	{
-		if (ret[count - 1] == '\n')
-			ret[count - 1] = '\0';
-		else
-			ret[count] = '\0';
-		return ret;
-	}
-
-	FREE(ret);
-
-	return NULL;
-}
-
-static int
-modprobe_ipvs(void)
-{
-	char *argv[] = { "/sbin/modprobe", "-s", "--", "ip_vs", NULL };
-	int child;
-	int status;
-	int rc;
-	char *modprobe = get_modprobe();
-	struct sigaction act, old_act;
-
-	if (modprobe)
-		argv[0] = modprobe;
-
-	act.sa_handler = SIG_DFL;
-	sigemptyset(&act.sa_mask);
-	act.sa_flags = 0;
-
-	sigaction ( SIGCHLD, &act, &old_act);
-
-	if (!(child = fork())) {
-		execv(argv[0], argv);
-		exit(1);
-	}
-
-	rc = waitpid(child, &status, 0);
-
-	sigaction ( SIGCHLD, &old_act, NULL);
-
-	if (rc < 0) {
-		log_message(LOG_INFO, "IPVS: waitpid error (%s)"
-				    , strerror(errno));
-	}
-
-	if (modprobe)
-		FREE(modprobe);
-
-	if (!WIFEXITED(status) || WEXITSTATUS(status)) {
-		return 1;
-	}
-
-	return 0;
-}
+#endif

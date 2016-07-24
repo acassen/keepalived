@@ -66,6 +66,14 @@ struct nla_policy ipvs_daemon_policy[IPVS_DAEMON_ATTR_MAX + 1] = {
 	[IPVS_DAEMON_ATTR_MCAST_IFN]	= { .type = NLA_STRING,
 					    .maxlen = IP_VS_IFNAME_MAXLEN },
 	[IPVS_DAEMON_ATTR_SYNC_ID]	= { .type = NLA_U32 },
-};
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+	[IPVS_DAEMON_ATTR_SYNC_MAXLEN]	= { .type = NLA_U16 },
+	[IPVS_DAEMON_ATTR_MCAST_GROUP]	= { .type = NLA_U32 },
+	[IPVS_DAEMON_ATTR_MCAST_GROUP6]	= { .type = NLA_UNSPEC,
+					    .maxlen = sizeof(struct in6_addr) },
+	[IPVS_DAEMON_ATTR_MCAST_PORT]	= { .type = NLA_U16 },
+	[IPVS_DAEMON_ATTR_MCAST_TTL]	= { .type = NLA_U8 },
+#endif
+	};
 
 #endif /* LIBIPVS_USE_NL */

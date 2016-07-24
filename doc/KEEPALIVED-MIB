@@ -22,12 +22,18 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201606290000Z"
+     LAST-UPDATED "201607021200Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201607021200Z"
+     DESCRIPTION "add lvs timeout parameters"
+     REVISION "201607020000Z"
+     DESCRIPTION
+	"added LVS sync daemon parameters and deprecated
+	 LVS sync daemon objects within VRRP instance"
      REVISION "201606290000Z"
      DESCRIPTION "add lvs_flush"
      REVISION "201606030000Z"
@@ -526,17 +532,19 @@ vrrpInstanceAuthType OBJECT-TYPE
 vrrpInstanceLvsSyncDaemon OBJECT-TYPE
     SYNTAX INTEGER { enabled(1), disabled(2) }
     MAX-ACCESS read-only
-    STATUS current
+    STATUS deprecated
     DESCRIPTION
-        "Is LVS sync daemon enabled for this VRRP instance?"
+        "Is LVS sync daemon enabled for this VRRP instance?
+	 Deprecated in favour of lvsSyncDaemonEnabled."
     ::= { vrrpInstanceEntry 16 }
 
 vrrpInstanceLvsSyncInterface OBJECT-TYPE
     SYNTAX DisplayString
     MAX-ACCESS read-only
-    STATUS current
+    STATUS deprecated
     DESCRIPTION
-        "If LVS sync daemon is enabled, which interface to use for syncing?"
+        "If LVS sync daemon is enabled, which interface to use for syncing?
+	 Deprecated in favour of lvsSyncDaemonInterface."
     ::= { vrrpInstanceEntry 17 }
 
 vrrpInstanceSyncGroup OBJECT-TYPE
@@ -2018,6 +2026,111 @@ realServerRateOutBPS OBJECT-TYPE
         "Current outgoing rate for this real server."
     ::= { realServerEntry 26 }
 
+lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
+
+lvsSyncDaemonEnabled OBJECT-TYPE
+    SYNTAX INTEGER { enabled(1), disabled(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Is LVS sync daemon enabled?"
+    ::= { lvsSyncDaemon 1 }
+
+lvsSyncDaemonInterface OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If LVS sync daemon is enabled, which interface to use for syncing?"
+    ::= { lvsSyncDaemon 2 }
+
+lvsSyncDaemonVrrpInstance OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If LVS sync daemon is enabled, which VRRP instance is it tracking?"
+    ::= { lvsSyncDaemon 3 }
+
+lvsSyncDaemonSyncId OBJECT-TYPE
+    SYNTAX Integer32 (0..255)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "LVS sync daemon id?"
+    ::= { lvsSyncDaemon 4 }
+
+lvsSyncDaemonMaxLen OBJECT-TYPE
+    SYNTAX Integer32 (0..65517)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "LVS sync daemon payload maximum length, 0 means default setting.
+	 Only available on Linux >= 4.3."
+    ::= { lvsSyncDaemon 5 }
+
+lvsSyncDaemonPort OBJECT-TYPE
+    SYNTAX Integer32 (0..65535)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "LVS sync daemon UDP port, 0 means default setting.
+	 Only available on Linux >= 4.3."
+    ::= { lvsSyncDaemon 6 }
+
+lvsSyncDaemonTTL OBJECT-TYPE
+    SYNTAX Integer32 (0..255)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "LVS sync daemon packet TTL, 0 means default setting.
+	 Only available on Linux >= 4.3."
+    ::= { lvsSyncDaemon 7 }
+
+lvsSyncDaemonMcastGroupAddrType OBJECT-TYPE
+    SYNTAX InetAddressType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "LVS sync daemon multicast group address type.
+	 Only available on Linux >= 4.3."
+    ::= { lvsSyncDaemon 8 }
+
+lvsSyncDaemonMcastGroupAddrValue OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "LVS sync daemon multicast group IP address.
+	 Only available on Linux >= 4.3."
+    ::= { lvsSyncDaemon 9 }
+
+lvsTimeouts    OBJECT IDENTIFIER ::= { check 7 }
+
+lvsTimeoutTcp OBJECT-TYPE
+    SYNTAX Integer32 (1..2678400)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "LVS TCP timeout"
+    ::= { lvsTimeouts 1 }
+
+lvsTimeoutTcpFin OBJECT-TYPE
+    SYNTAX Integer32 (1..2678400)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "LVS TCP FIN timeout"
+    ::= { lvsTimeouts 2 }
+
+lvsTimeoutUdp OBJECT-TYPE
+    SYNTAX Integer32 (1..2678400)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "LVS UDP timeout"
+    ::= { lvsTimeouts 3 }
+
 -- Traps
 
 checkTrap OBJECT IDENTIFIER ::= { check 5 }
@@ -2103,9 +2216,23 @@ checkCompliances MODULE-COMPLIANCE
     virtualServerGroupGroup,
     virtualServerGroup,
     realServerGroup,
-    checkTrapsGroup
+    checkTrapsGroup,
+    lvsSyncDaemonGroup,
+    lvsTimeoutsGroup
     }
     ::= { compliances 3 }
+
+vrrpLvsSyncGroupCompliances MODULE-COMPLIANCE
+    STATUS deprecated
+    DESCRIPTION
+	"The compliance statement for LVS sync group associated
+	 with a VRRP instance. This is deprecated in favour of
+	 lvsSyncDaemonGroup."
+    MODULE -- this module
+    MANDATORY-GROUPS {
+    vrrpLvsSyncGroup
+    }
+    ::= { compliances 4 }
 
 globalGroup OBJECT-GROUP
     OBJECTS {
@@ -2161,8 +2288,6 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpInstancePreempt,
     vrrpInstancePreemptDelay,
     vrrpInstanceAuthType,
-    vrrpInstanceLvsSyncDaemon,
-    vrrpInstanceLvsSyncInterface,
     vrrpInstanceSyncGroup,
     vrrpInstanceGarpDelay,
     vrrpInstanceSmtpAlert,
@@ -2236,6 +2361,17 @@ vrrpTrapsGroup NOTIFICATION-GROUP
     DESCRIPTION
         "Conformance group for VRRP traps."
     ::= { vrrpGroups 4 }
+
+vrrpLvsSyncGroup OBJECT-GROUP
+    OBJECTS {
+    vrrpInstanceLvsSyncDaemon,
+    vrrpInstanceLvsSyncInterface
+    }
+    STATUS deprecated
+    DESCRIPTION
+	"The deprecated LVS sync daemon configuration
+	 objects associated with a VRRP instance."
+    ::= { vrrpGroups 5 }
 
 checkGroups OBJECT IDENTIFIER ::= { groups 3 }
 
@@ -2341,5 +2477,33 @@ checkTrapsGroup NOTIFICATION-GROUP
     DESCRIPTION
         "Conformance group for check traps."
     ::= { checkGroups 4 }
+
+lvsSyncDaemonGroup OBJECT-GROUP
+    OBJECTS {
+    lvsSyncDaemonEnabled,
+    lvsSyncDaemonInterface,
+    lvsSyncDaemonVrrpInstance,
+    lvsSyncDaemonSyncId,
+    lvsSyncDaemonMaxLen,
+    lvsSyncDaemonPort,
+    lvsSyncDaemonTTL,
+    lvsSyncDaemonMcastGroupAddrType,
+    lvsSyncDaemonMcastGroupAddrValue
+    }
+    STATUS current
+    DESCRIPTION
+	"Conformance group for LVS sync daemon."
+    ::= { checkGroups 5 }
+
+lvsTimeoutsGroup OBJECT-GROUP
+    OBJECTS {
+    lvsTimeoutTcp,
+    lvsTimeoutTcpFin,
+    lvsTimeoutUdp
+    }
+    STATUS current
+    DESCRIPTION
+	"Conformance group for LVS timeouts."
+    ::= { checkGroups 6 }
 
 END

@@ -188,12 +188,20 @@ start_vrrp(void)
 			return;
 		}
 
+#ifdef _KRNL_2_6_
+		/* Set LVS timeouts */
+		if (global_data->lvs_tcp_timeout ||
+		    global_data->lvs_tcpfin_timeout ||
+		    global_data->lvs_udp_timeout)
+			ipvs_set_timeouts(global_data->lvs_tcp_timeout, global_data->lvs_tcpfin_timeout, global_data->lvs_udp_timeout);
+#endif
+
 #ifdef _HAVE_IPVS_SYNCD_
 		/* If we are managing the sync daemon, then stop any
 		 * instances of it that may have been running if
 		 * we terminated abnormally */
-		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_MASTER, 0, true);
-		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_BACKUP, 0, true);
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_MASTER, true, true);
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_BACKUP, true, true);
 #endif
 	}
 #endif
@@ -220,9 +228,10 @@ start_vrrp(void)
 
 	/* Complete VRRP initialization */
 	if (!vrrp_complete_init()) {
-		if (vrrp_ipvs_needed()) {
+#ifdef _WITH_LVS_
+		if (vrrp_ipvs_needed())
 			stop_vrrp();
-		}
+#endif
 		return;
 	}
 
@@ -231,7 +240,7 @@ start_vrrp(void)
 #endif
 
 	/* Post initializations */
-#ifdef _DEBUG_
+#ifdef _MEM_CHECK_
 	log_message(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
 #endif
 
@@ -317,11 +326,11 @@ reload_vrrp_thread(thread_t * thread)
 	thread_cleanup_master(master);
 #ifdef _HAVE_IPVS_SYNCD_
 	/* TODO - Note: this didn't work if we found ipvs_syndc on vrrp before on old_vrrp */
-	if (global_data->lvs_syncd_if)
-		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL,
-		       (global_data->lvs_syncd_vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
+	if (global_data->lvs_syncd.ifname)
+		ipvs_syncd_cmd(IPVS_STOPDAEMON, &global_data->lvs_syncd,
+		       (global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
 										 IPVS_BACKUP,
-		       global_data->lvs_syncd_syncid, false);
+		       true, false);
 #endif
 	free_global_data(global_data);
 	free_vrrp_buffer();
@@ -341,17 +350,17 @@ reload_vrrp_thread(thread_t * thread)
 	reset_interface_queue();
 
 	/* Reload the conf */
-#ifdef _DEBUG_
+#ifdef _MEM_CHECK_
 	mem_allocated = 0;
 #endif
 	start_vrrp();
 
 #ifdef _HAVE_IPVS_SYNCD_
-	if (global_data->lvs_syncd_if)
-		ipvs_syncd_cmd(IPVS_STARTDAEMON, NULL,
-			       (global_data->lvs_syncd_vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
+	if (global_data->lvs_syncd.ifname)
+		ipvs_syncd_cmd(IPVS_STARTDAEMON, &global_data->lvs_syncd,
+			       (global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
 											 IPVS_BACKUP,
-			       global_data->lvs_syncd_syncid, false);
+			       true, false);
 #endif
 
 	/* free backup data */
@@ -378,6 +387,7 @@ print_vrrp_stats(thread_t * thread)
 
 
 /* VRRP Child respawning thread */
+#ifndef _DEBUG_
 static int
 vrrp_respawn_thread(thread_t * thread)
 {
@@ -403,6 +413,7 @@ vrrp_respawn_thread(thread_t * thread)
 	}
 	return 0;
 }
+#endif
 
 /* Register VRRP thread */
 int

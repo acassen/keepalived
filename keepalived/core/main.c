@@ -32,7 +32,7 @@
 #define CHILD_WAIT_SECS	5
 
 /* global var */
-char *conf_file = CONF;					/* Configuration file */
+char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
 int log_facility = LOG_DAEMON;				/* Optional logging facilities */
 pid_t vrrp_child = -1;					/* VRRP child process ID */
 pid_t checkers_child = -1;				/* Healthcheckers child process ID */
@@ -63,6 +63,7 @@ static char *orig_core_dump_pattern = NULL;
 static void
 stop_keepalived(void)
 {
+#ifndef _DEBUG_
 	/* Just cleanup memory & exit */
 	signal_handler_destroy();
 	thread_destroy_master(master);
@@ -74,6 +75,7 @@ stop_keepalived(void)
 
 	if (__test_bit(DAEMON_CHECKERS, &daemon_mode))
 		pidfile_rm(checkers_pidfile);
+#endif
 
 #ifdef _MEM_CHECK_
 	keepalived_free_final("Parent process");
@@ -97,6 +99,7 @@ start_keepalived(void)
 }
 
 /* SIGHUP/USR1/USR2 handler */
+#ifndef _DEBUG_
 static void
 propogate_signal(void *v, int sig)
 {
@@ -198,6 +201,7 @@ signal_init(void)
 	signal_set(SIGTERM, sigend, NULL);
 	signal_ignore(SIGPIPE);
 }
+#endif
 
 /* To create a core file when abrt is running (a RedHat distribution),
  * and keepalived isn't installed from an RPM package, edit the file
@@ -509,10 +513,10 @@ main(int argc, char **argv)
 #ifndef _DEBUG_
 	/* Launch the scheduling I/O multiplexer */
 	launch_scheduler();
+#endif
 
 	/* Finish daemon process */
 	stop_keepalived();
-#endif
 
 	/*
 	 * Reached when terminate signal catched.

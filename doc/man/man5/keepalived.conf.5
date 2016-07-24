@@ -55,9 +55,15 @@ and
  vrrp_mcast_group4 224.0.0.18 # optional, default 224.0.0.18
  vrrp_mcast_group6 ff02::12   # optional, default ff02::12
 
- lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE> [<SYNC_ID>]
+ lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE> [id <SYNC_ID>] [maxlen <LEN>] [port <PORT>] [ttl <TTL>] [group <IP ADDR>]
                               # Binding interface, vrrp instance and optional
                               #  syncid for lvs syncd
+                              #  syncid (0 to 255) for lvs syncd
+                              #  maxlen (1..65507) maximum packet length
+                              #  port (1..65535) UDP port number to use
+                              #  ttl (1..255)
+                              #  group - multicast group address (IPv4 or IPv6)
+                              # NOTE: maxlen, port, ttl and group are only available on Linux 4.3 or later.
  lvs_flush                    # flush any existing LVS configuration at startup
 
  # delay for second set of gratuitous ARPs after transition to MASTER

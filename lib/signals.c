@@ -21,6 +21,7 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
+#define _GNU_SOURCE
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>
@@ -181,7 +182,7 @@ signal_handler_init(void)
 	struct sigaction act, oact;
 	int n;
 
-#ifdef HAVE_PIPE2
+#ifdef _HAVE_PIPE2_
 	n = pipe2(signal_pipe, O_CLOEXEC | O_NONBLOCK);
 #else
 	n = pipe(signal_pipe);
@@ -191,7 +192,7 @@ signal_handler_init(void)
 	if (n)
 		log_message(LOG_INFO, "BUG - pipe in signal_handler_init failed (%s), please report", strerror(errno));
 
-#ifndef HAVE_PIPE2
+#ifndef _HAVE_PIPE2_
 	fcntl(signal_pipe[0], F_SETFL, O_NONBLOCK | fcntl(signal_pipe[0], F_GETFL));
 	fcntl(signal_pipe[1], F_SETFL, O_NONBLOCK | fcntl(signal_pipe[1], F_GETFL));
 

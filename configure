@@ -620,9 +620,10 @@ ac_includes_default="\
 #endif"
 
 ac_subst_vars='LTLIBOBJS
-LIBOBJS
 BUILD_OPTS
 APP_DEFS
+PIPE2_SUPPORT
+LIBOBJS
 VRRP_SUPPORT
 IPVS_USE_NL
 IPVS_SUPPORT
@@ -647,6 +648,7 @@ VRRP_VMAC
 FIB_ROUTING_SUPPORT
 SOCK_CLOEXEC_SUPPORT
 SOCK_NONBLOCK_SUPPORT
+IPVS_SYNCD_ATTRIBUTES
 IPVS_SYNCD
 KERN
 USE_LIBIPSET
@@ -4561,6 +4563,7 @@ if test "$IPVS_SUPPORT" = "_WITHOUT_LVS_" -a "$enable_vrrp" = "no"; then
 fi
 
 IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+IPVS_SYNCD_ATTRIBUTES="_WITHOUT_IPVS_SYNCD_ATTRIBUTES_"
 if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for IPVS syncd support" >&5
 $as_echo_n "checking for IPVS syncd support... " >&6; }
@@ -4583,7 +4586,47 @@ $as_echo "yes" >&6; }
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
   fi
+
+  if test "$IPVS_SYNCD" = "_HAVE_IPVS_SYNCD_"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for IPVS syncd attributes" >&5
+$as_echo_n "checking for IPVS syncd attributes... " >&6; }
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+        #include <linux/ip_vs.h>
+        int value;
+
+int
+main ()
+{
+
+        value = IPVS_DAEMON_ATTR_SYNC_MAXLEN;
+        value = IPVS_DAEMON_ATTR_MCAST_GROUP;
+        value = IPVS_DAEMON_ATTR_MCAST_GROUP6;
+        value = IPVS_DAEMON_ATTR_MCAST_PORT;
+        value = IPVS_DAEMON_ATTR_MCAST_TTL;
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+        IPVS_SYNCD_ATTRIBUTES=yes
+
 fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext;
+    if test "$IPVS_SYNCD_ATTRIBUTES" = "yes"; then
+      IPVS_SYNCD_ATTRIBUTES="_HAVE_IPVS_SYNCD_ATTRIBUTES_"
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+    else
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+    fi
+  fi
+fi
+
 
 
 
@@ -4669,8 +4712,8 @@ $as_echo "no" >&6; }
 
 
 # Introduced in Linux 2.6.19
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for SOCK_CLOEXEC support" >&5
-$as_echo_n "checking for SOCK_CLOEXEC support... " >&6; }
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for FIB routing support" >&5
+$as_echo_n "checking for FIB routing support... " >&6; }
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -5158,11 +5201,6 @@ fi
 
 
 
-APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} -D${MEM_CHECK} -D${MEM_CHECK_LOG} ${DFLAGS}"
-BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
-
-
-
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for an ANSI C-conforming const" >&5
 $as_echo_n "checking for an ANSI C-conforming const... " >&6; }
 if ${ac_cv_c_const+:} false; then :
@@ -5428,7 +5466,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 
-for ac_func in gettimeofday select socket strerror strtol uname pipe2
+for ac_func in gettimeofday select socket strerror strtol uname
 do :
   as_ac_var=`$as_echo "ac_cv_func_$ac_func" | $as_tr_sh`
 ac_fn_c_check_func "$LINENO" "$ac_func" "$as_ac_var"
@@ -5439,6 +5477,19 @@ _ACEOF
 
 fi
 done
+
+ac_fn_c_check_func "$LINENO" "pipe2" "ac_cv_func_pipe2"
+if test "x$ac_cv_func_pipe2" = xyes; then :
+  PIPE2_SUPPORT=_HAVE_PIPE2_
+else
+  PIPE2_SUPPORT=_WITHOUT_PIPE2_
+fi
+
+
+
+APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${IPVS_SYNCD_ATTRIBUTES} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} -D${MEM_CHECK} -D${MEM_CHECK_LOG} -D${PIPE2_SUPPORT} ${DFLAGS}"
+BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
+
 
 
 OUTPUT_TARGET="$OUTPUT_TARGET keepalived/Makefile lib/Makefile"

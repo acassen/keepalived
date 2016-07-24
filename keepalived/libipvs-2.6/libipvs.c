@@ -500,8 +500,6 @@ out_err:
 }
 
 
-#ifdef _INCLUDE_UNUSED_CODE_
-static
 int ipvs_set_timeout(ipvs_timeout_t *to)
 {
 	ipvs_func = ipvs_set_timeout;
@@ -509,9 +507,13 @@ int ipvs_set_timeout(ipvs_timeout_t *to)
 	if (try_nl) {
 		struct nl_msg *msg = ipvs_nl_message(IPVS_CMD_SET_TIMEOUT, 0);
 		if (!msg) return -1;
-		NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP, to->tcp_timeout);
-		NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP_FIN, to->tcp_fin_timeout);
-		NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_UDP, to->udp_timeout);
+
+		if (to->tcp_timeout)
+			NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP, to->tcp_timeout);
+		if (to->tcp_fin_timeout)
+			NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP_FIN, to->tcp_fin_timeout);
+		if (to->udp_timeout)
+			NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_UDP, to->udp_timeout);
 		return ipvs_nl_send_message(msg, ipvs_nl_noop_cb, NULL);
 
 nla_put_failure:
@@ -522,11 +524,12 @@ nla_put_failure:
 	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_TIMEOUT, (char *)to,
 			  sizeof(*to));
 }
-#endif
 
 
 int ipvs_start_daemon(ipvs_daemon_t *dm)
 {
+	struct ip_vs_daemon_kern dmk;
+
 	ipvs_func = ipvs_start_daemon;
 #ifdef LIBIPVS_USE_NL
 	if (try_nl) {
@@ -541,6 +544,18 @@ int ipvs_start_daemon(ipvs_daemon_t *dm)
 		NLA_PUT_U32(msg, IPVS_DAEMON_ATTR_STATE, dm->state);
 		NLA_PUT_STRING(msg, IPVS_DAEMON_ATTR_MCAST_IFN, dm->mcast_ifn);
 		NLA_PUT_U32(msg, IPVS_DAEMON_ATTR_SYNC_ID, dm->syncid);
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+		if (dm->sync_maxlen)
+			NLA_PUT_U16(msg, IPVS_DAEMON_ATTR_SYNC_MAXLEN, dm->sync_maxlen);
+		if (dm->mcast_port)
+			NLA_PUT_U16(msg, IPVS_DAEMON_ATTR_MCAST_PORT, dm->mcast_port);
+		if (dm->mcast_ttl)
+			NLA_PUT_U8(msg, IPVS_DAEMON_ATTR_MCAST_TTL, dm->mcast_ttl);
+		if (dm->mcast_af == AF_INET6)
+			NLA_PUT(msg, IPVS_DAEMON_ATTR_MCAST_GROUP6, sizeof(dm->mcast_group.in6), &dm->mcast_group.in6);
+		else if (dm->mcast_af == AF_INET)
+			NLA_PUT_U32(msg, IPVS_DAEMON_ATTR_MCAST_GROUP, dm->mcast_group.ip);
+#endif
 
 		nla_nest_end(msg, nl_daemon);
 
@@ -551,13 +566,19 @@ nla_put_failure:
 		return -1;
 	}
 #endif
+	memset(&dmk, 0, sizeof(dmk));
+	dmk.state = dm->state;
+	strcpy(dmk.mcast_ifn, dm->mcast_ifn);
+	dmk.syncid = dm->syncid;
 	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STARTDAEMON,
-			  (char *)dm, sizeof(*dm));
+			  (char *)&dmk, sizeof(dmk));
 }
 
 
 int ipvs_stop_daemon(ipvs_daemon_t *dm)
 {
+	struct ip_vs_daemon_kern dmk;
+
 	ipvs_func = ipvs_stop_daemon;
 #ifdef LIBIPVS_USE_NL
 	if (try_nl) {
@@ -582,8 +603,10 @@ nla_put_failure:
 		return -1;
 	}
 #endif
+	memset(&dmk, 0, sizeof(dmk));
+	dmk.state = dm->state;
 	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STOPDAEMON,
-			  (char *)dm, sizeof(*dm));
+			  (char *)&dmk, sizeof(dmk));
 }
 
 #ifdef LIBIPVS_USE_NL
@@ -1114,6 +1137,9 @@ static int ipvs_daemon_parse_cb(struct nl_msg *msg, void *arg)
 	struct nlattr *attrs[IPVS_CMD_ATTR_MAX + 1];
 	struct nlattr *daemon_attrs[IPVS_DAEMON_ATTR_MAX + 1];
 	ipvs_daemon_t *u = (ipvs_daemon_t *)arg;
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+	struct nladdr *a;
+#endif
 	int i = 0;
 
 	/* We may get two daemons.  If we've already got one, this is the second */
@@ -1138,14 +1164,43 @@ static int ipvs_daemon_parse_cb(struct nl_msg *msg, void *arg)
 		IP_VS_IFNAME_MAXLEN);
 	u[i].syncid = nla_get_u32(daemon_attrs[IPVS_DAEMON_ATTR_SYNC_ID]);
 
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+	a = daemon_attrs[IPVS_DAEMON_ATTR_SYNC_MAXLEN];
+	if (a)
+		u[i].sync_maxlen = nla_get_u16(a);
+
+	a = daemon_attrs[IPVS_DAEMON_ATTR_MCAST_PORT];
+	if (a)
+		u[i].mcast_port = nla_get_u16(a);
+
+	a = daemon_attrs[IPVS_DAEMON_ATTR_MCAST_TTL];
+	if (a)
+		u[i].mcast_ttl = nla_get_u8(a);
+
+	a = daemon_attrs[IPVS_DAEMON_ATTR_MCAST_GROUP];
+	if (a) {
+		u[i].mcast_af = AF_INET;
+		u[i].mcast_group.ip = nla_get_u32(a);
+	} else {
+		a = daemon_attrs[IPVS_DAEMON_ATTR_MCAST_GROUP6];
+		if (a) {
+		u[i].mcast_af = AF_INET6;
+		memcpy(&u[i].mcast_group.in6, nla_data(a),
+		sizeof(u[i].mcast_group.in6));
+		}
+	}
+#endif
+
 	return NL_OK;
 }
 #endif
 
 ipvs_daemon_t *ipvs_get_daemon(void)
 {
+	struct ip_vs_daemon_kern dmk[2];
 	ipvs_daemon_t *u;
 	socklen_t len;
+	int i;
 
 	/* note that we need to get the info about two possible
 	   daemons, master and backup. */
@@ -1157,7 +1212,7 @@ ipvs_daemon_t *ipvs_get_daemon(void)
 #ifdef LIBIPVS_USE_NL
 	if (try_nl) {
 		struct nl_msg *msg;
-		memset(u, 0, len);
+
 		msg = ipvs_nl_message(IPVS_CMD_GET_DAEMON, NLM_F_DUMP);
 		if (msg && (ipvs_nl_send_message(msg, ipvs_daemon_parse_cb, u) == 0))
 			return u;
@@ -1166,9 +1221,14 @@ ipvs_daemon_t *ipvs_get_daemon(void)
 		return NULL;
 	}
 #endif
-	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_DAEMON, (char *)u, &len)) {
+	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_DAEMON, (char *)dmk, &len)) {
 		FREE(u);
 		return NULL;
+	}
+	for (i = 0; i < 2; i++) {
+		u[i].state = dmk[i].state;
+		strncpy(u[i].mcast_ifn, dmk[i].mcast_ifn, IP_VS_IFNAME_MAXLEN);
+		u[i].syncid = dmk[i].syncid;
 	}
 	return u;
 }

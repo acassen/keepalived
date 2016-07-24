@@ -23,6 +23,7 @@
  */
 
 #include <netdb.h>
+#include <stdlib.h>
 #include "global_parser.h"
 #include "global_data.h"
 #include "check_data.h"
@@ -31,6 +32,8 @@
 #include "smtp.h"
 #include "utils.h"
 #include "logger.h"
+
+#define LVS_MAX_TIMEOUT		(86400*31)	/* 31 days */
 
 /* data handlers */
 /* Global def handlers */
@@ -103,40 +106,183 @@ email_handler(vector_t *strvec)
 
 	free_strvec(email_vec);
 }
+#ifdef _WITH_LVS_
+static void
+lvs_timeouts(vector_t *strvec)
+{
+	int val;
+	int i;
+	char *endptr;
+
+	if (vector_size(strvec) < 3) {
+		log_message(LOG_INFO, "lvs_timeouts requires at least one option");
+		return;
+	}
+
+	for (i = 1; i < vector_size(strvec); i++) {
+		if (!strcmp(vector_slot(strvec, i), "tcp")) {
+			if (i == vector_size(strvec) - 1) {
+				log_message(LOG_INFO, "No value specified for lvs_timout tcp - ignoring");
+				continue;
+			}
+			val = strtol(vector_slot(strvec, i+1), &endptr, 10);
+			if (*endptr != '\0' || val < 0 || val > LVS_MAX_TIMEOUT)
+				log_message(LOG_INFO, "Invalid lvs_timeout tcp (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+			else
+				global_data->lvs_tcp_timeout = val;
+			i++;	/* skip over value */
+			continue;
+		}
+		if (!strcmp(vector_slot(strvec, i), "tcpfin")) {
+			if (i == vector_size(strvec) - 1) {
+				log_message(LOG_INFO, "No value specified for lvs_timeout tcpfin - ignoring");
+				continue;
+			}
+			val = strtol(vector_slot(strvec, i+1), &endptr, 10);
+			if (*endptr != '\0' || val < 1 || val > LVS_MAX_TIMEOUT)
+				log_message(LOG_INFO, "Invalid lvs_timeout tcpfin (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+			else
+				global_data->lvs_tcpfin_timeout = val;
+			i++;	/* skip over value */
+			continue;
+		}
+		if (!strcmp(vector_slot(strvec, i), "udp")) {
+			if (i == vector_size(strvec) - 1) {
+				log_message(LOG_INFO, "No value specified for lvs_timeout udp - ignoring");
+				continue;
+			}
+			val = strtol(vector_slot(strvec, i+1), &endptr, 10);
+			if (*endptr != '\0' || val < 1 || val > LVS_MAX_TIMEOUT)
+				log_message(LOG_INFO, "Invalid lvs_timeout udp (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+			else
+				global_data->lvs_udp_timeout = val;
+			i++;	/* skip over value */
+			continue;
+		}
+		log_message(LOG_INFO, "Unknown option %s specified for lvs_timeouts", FMT_STR_VSLOT(strvec, i));
+	}
+}
+#ifdef _HAVE_IPVS_SYNCD_
 static void
 lvs_syncd_handler(vector_t *strvec)
 {
-	int syncid;
+	int val;
+	int i;
+	char *endptr;
 
-	if (global_data->lvs_syncd_if) {
-		log_message(LOG_INFO, "lvs_sync_daemon has already been specified as %s %s - ignoring", global_data->lvs_syncd_if, global_data->lvs_syncd_vrrp_name);
+	if (global_data->lvs_syncd.ifname) {
+		log_message(LOG_INFO, "lvs_sync_daemon has already been specified as %s %s - ignoring", global_data->lvs_syncd.ifname, global_data->lvs_syncd.vrrp_name);
 		return;
 	}
 
-	if (vector_size(strvec) < 3 || vector_size(strvec) > 4) {
-		log_message(LOG_INFO, "lvs_sync_daemon requires interface, VRRP instance and optional syncid");
+	if (vector_size(strvec) < 3) {
+		log_message(LOG_INFO, "lvs_sync_daemon requires interface, VRRP instance");
 		return;
 	}
 
-	global_data->lvs_syncd_if = set_value(strvec);
+	global_data->lvs_syncd.ifname = set_value(strvec);
 
-	global_data->lvs_syncd_vrrp_name = MALLOC(strlen(vector_slot(strvec, 2)) + 1);
-	if (!global_data->lvs_syncd_vrrp_name)
+	global_data->lvs_syncd.vrrp_name = MALLOC(strlen(vector_slot(strvec, 2)) + 1);
+	if (!global_data->lvs_syncd.vrrp_name)
 		return;
-	strcpy(global_data->lvs_syncd_vrrp_name, vector_slot(strvec, 2));
-	if (vector_size(strvec) >= 4) {
-		syncid = atoi(vector_slot(strvec,3));
-		if (syncid < 0 || syncid > 255)
-			log_message(LOG_INFO, "Invalid syncid - defaulting to vrid");
+	strcpy(global_data->lvs_syncd.vrrp_name, vector_slot(strvec, 2));
+
+	/* This is maintained for backwards compatibility, prior to adding "id" option */
+	if (vector_size(strvec) >= 4 && isdigit(FMT_STR_VSLOT(strvec, 3)[0])) {
+		log_message(LOG_INFO, "Please use keyword \"id\" before lvs_sync_daemon syncid value");
+		val = strtol(vector_slot(strvec,3), &endptr, 10);
+		if (*endptr || val < 0 || val > 255)
+			log_message(LOG_INFO, "Invalid syncid (%s) - defaulting to vrid", FMT_STR_VSLOT(strvec, 3));
 		else
-			global_data->lvs_syncd_syncid = syncid;
+			global_data->lvs_syncd.syncid = val;
+		i = 4;
+	}
+	else
+		i = 3;
+
+	for ( ; i < vector_size(strvec); i++) {
+		if (!strcmp(vector_slot(strvec, i), "id")) {
+			if (i == vector_size(strvec) - 1) {
+				log_message(LOG_INFO, "No value specified for lvs_sync_daemon id, defaulting to vrid");
+				continue;
+			}
+			val = strtol(vector_slot(strvec, i+1), &endptr, 10);
+			if (*endptr != '\0' || val < 0 || val > 255)
+				log_message(LOG_INFO, "Invalid syncid (%s) - defaulting to vrid", FMT_STR_VSLOT(strvec, i+1));
+			else
+				global_data->lvs_syncd.syncid = val;
+			i++;	/* skip over value */
+			continue;
+		}
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+		if (!strcmp(vector_slot(strvec, i), "maxlen")) {
+			if (i == vector_size(strvec) - 1) {
+				log_message(LOG_INFO, "No value specified for lvs_sync_daemon maxlen - ignoring");
+				continue;
+			}
+			val = strtol(vector_slot(strvec, i+1), &endptr, 10);
+			if (*endptr != '\0' || val < 1 || val > 65535 - 20 - 8)
+				log_message(LOG_INFO, "Invalid lvs_sync_daemon maxlen (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+			else
+				global_data->lvs_syncd.sync_maxlen = val;
+			i++;	/* skip over value */
+			continue;
+		}
+		if (!strcmp(vector_slot(strvec, i), "port")) {
+			if (i == vector_size(strvec) - 1) {
+				log_message(LOG_INFO, "No value specified for lvs_sync_daemon port - ignoring");
+				continue;
+			}
+			val = strtol(vector_slot(strvec, i+1), &endptr, 10);
+			if (*endptr != '\0' || val < 1 || val > 65535)
+				log_message(LOG_INFO, "Invalid lvs_sync_daemon port (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+			else
+				global_data->lvs_syncd.mcast_port = val;
+			i++;	/* skip over value */
+			continue;
+		}
+		if (!strcmp(vector_slot(strvec, i), "ttl")) {
+			if (i == vector_size(strvec) - 1) {
+				log_message(LOG_INFO, "No value specified for lvs_sync_daemon ttl - ignoring");
+				continue;
+			}
+			val = strtol(vector_slot(strvec, i+1), &endptr, 10);
+			if (*endptr != '\0' || val < 1 || val > 255)
+				log_message(LOG_INFO, "Invalid lvs_sync_daemon ttl (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+			else
+				global_data->lvs_syncd.mcast_ttl = val;
+			i++;	/* skip over value */
+			continue;
+		}
+		if (!strcmp(vector_slot(strvec, i), "group")) {
+			if (i == vector_size(strvec) - 1) {
+				log_message(LOG_INFO, "No value specified for lvs_sync_daemon group - ignoring");
+				continue;
+			}
+
+			if (inet_stosockaddr(vector_slot(strvec, i+1), NULL, &global_data->lvs_syncd.mcast_group) < 0)
+				log_message(LOG_INFO, "Invalid lvs_sync_daemon group (%s) - ignoring", FMT_STR_VSLOT(strvec, i+1));
+
+			if ((global_data->lvs_syncd.mcast_group.ss_family == AF_INET  && !IN_MULTICAST(htonl(((struct sockaddr_in *)&global_data->lvs_syncd.mcast_group)->sin_addr.s_addr))) ||
+			    (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6 && !IN6_IS_ADDR_MULTICAST(&((struct sockaddr_in6 *)&global_data->lvs_syncd.mcast_group)->sin6_addr))) {
+				log_message(LOG_INFO, "lvs_sync_daemon group address %s is not multicast - ignoring", FMT_STR_VSLOT(strvec, i+1));
+				global_data->lvs_syncd.mcast_group.ss_family = AF_UNSPEC;
+			}
+
+			i++;	/* skip over value */
+			continue;
+		}
+#endif
+		log_message(LOG_INFO, "Unknown option %s specified for lvs_sync_daemon", FMT_STR_VSLOT(strvec, i));
 	}
 }
+#endif
 static void
 lvs_flush_handler(vector_t *strvec)
 {
 	global_data->lvs_flush = true;
 }
+#endif
 static void
 vrrp_mcast_group4_handler(vector_t *strvec)
 {
@@ -450,8 +596,13 @@ global_init_keywords(void)
 	install_keyword("smtp_helo_name", &smtphelo_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
-	install_keyword("lvs_sync_daemon", &lvs_syncd_handler);
+#ifdef _WITH_LVS_
+	install_keyword("lvs_timeouts", &lvs_timeouts);
 	install_keyword("lvs_flush", &lvs_flush_handler);
+#ifdef _HAVE_IPVS_SYNCD_
+	install_keyword("lvs_sync_daemon", &lvs_syncd_handler);
+#endif
+#endif
 	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler);
 	install_keyword("vrrp_mcast_group6", &vrrp_mcast_group6_handler);
 	install_keyword("vrrp_garp_master_delay", &vrrp_garp_delay_handler);

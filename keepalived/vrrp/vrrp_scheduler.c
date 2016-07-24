@@ -247,11 +247,12 @@ vrrp_init_state(list l)
 			|| vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
 #ifdef _HAVE_IPVS_SYNCD_
 			/* Check if sync daemon handling is needed */
-			if (global_data->lvs_syncd_if)
+			if (global_data->lvs_syncd.ifname &&
+			    global_data->lvs_syncd.vrrp == vrrp)
 				ipvs_syncd_cmd(IPVS_STARTDAEMON,
-					       global_data->lvs_syncd_if,
+					       &global_data->lvs_syncd,
 					       IPVS_MASTER,
-					       global_data->lvs_syncd_syncid,
+					       false,
 					       false);
 #endif
 #ifdef _WITH_SNMP_RFCV3_
@@ -263,12 +264,12 @@ vrrp_init_state(list l)
 			    + VRRP_TIMER_SKEW(vrrp);
 #ifdef _HAVE_IPVS_SYNCD_
 			/* Check if sync daemon handling is needed */
-			if (global_data->lvs_syncd_if &&
-			    global_data->lvs_syncd_vrrp == vrrp)
+			if (global_data->lvs_syncd.ifname &&
+			    global_data->lvs_syncd.vrrp == vrrp)
 				ipvs_syncd_cmd(IPVS_STARTDAEMON,
-					       global_data->lvs_syncd_if,
+					       &global_data->lvs_syncd,
 					       IPVS_BACKUP,
-					       global_data->lvs_syncd_syncid,
+					       false,
 					       false);
 #endif
 			log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",

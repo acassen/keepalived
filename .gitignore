@@ -3,6 +3,7 @@
 *.a
 Makefile
 bin/*
+config.cache
 config.log
 config.status
 keepalived.spec
@@ -14,3 +15,4 @@ lib/config.h
 autom4te.cache
 doc/build
 !doc/Makefile
+keepalived-*.tar.gz
