@@ -171,7 +171,7 @@ extern int if_setsockopt_mcast_all(sa_family_t, int *);
 extern int if_setsockopt_mcast_loop(sa_family_t, int *);
 extern int if_setsockopt_mcast_hops(sa_family_t, int *);
 extern int if_setsockopt_mcast_if(sa_family_t, int *, interface_t *);
-extern int if_setsockopt_priority(int *);
+extern int if_setsockopt_priority(int *, int);
 extern int if_setsockopt_rcvbuf(int *, int);
 
 #endif
