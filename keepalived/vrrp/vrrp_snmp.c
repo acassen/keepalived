@@ -71,6 +71,13 @@
  *
  */
 
+#ifdef _HAVE_RTA_PREF_
+#include <linux/icmpv6.h>
+#endif
+#ifdef _HAVE_RTA_ENCAP_
+#include <linux/lwtunnel.h>
+#endif
+
 #include "vrrp.h"
 #include "vrrp_snmp.h"
 #include "vrrp_data.h"
@@ -79,8 +86,8 @@
 #ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
-#include "vrrp_scheduler.h"
 #endif
+#include "vrrp_scheduler.h"
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
 #endif
@@ -91,6 +98,7 @@
 #include "global_data.h"
 #include "bitops.h"
 #include "main.h"
+#include "rttables.h"
 
 #include "snmp.h"
 
@@ -115,19 +123,6 @@
 #define VRRP_SNMP_ADDRESS_IFALIAS 16
 #define VRRP_SNMP_ADDRESS_ISSET 17
 #define VRRP_SNMP_ADDRESS_ISADVERTISED 18
-#define VRRP_SNMP_ROUTE_ADDRESSTYPE 19
-#define VRRP_SNMP_ROUTE_DESTINATION 20
-#define VRRP_SNMP_ROUTE_DESTINATIONMASK 21
-#define VRRP_SNMP_ROUTE_GATEWAY 22
-#define VRRP_SNMP_ROUTE_SECONDARYGATEWAY 23
-#define VRRP_SNMP_ROUTE_SOURCE 24
-#define VRRP_SNMP_ROUTE_METRIC 25
-#define VRRP_SNMP_ROUTE_SCOPE 26
-#define VRRP_SNMP_ROUTE_TYPE 27
-#define VRRP_SNMP_ROUTE_IFINDEX 28
-#define VRRP_SNMP_ROUTE_IFNAME 29
-#define VRRP_SNMP_ROUTE_ROUTINGTABLE 30
-#define VRRP_SNMP_ROUTE_ISSET 31
 #define VRRP_SNMP_SYNCGROUP_NAME 33
 #define VRRP_SNMP_SYNCGROUP_STATE 34
 #define VRRP_SNMP_SYNCGROUP_SMTPALERT 35
@@ -168,22 +163,127 @@
 #define VRRP_SNMP_TRACKEDINTERFACE_WEIGHT 72
 #define VRRP_SNMP_TRACKEDSCRIPT_NAME 74
 #define VRRP_SNMP_TRACKEDSCRIPT_WEIGHT 75
-#define VRRP_SNMP_RULE_DIRECTION 77
-#define VRRP_SNMP_RULE_ADDRESSTYPE 78
-#define VRRP_SNMP_RULE_ADDRESS 79
-#define VRRP_SNMP_RULE_ADDRESSMASK 80
-#define VRRP_SNMP_RULE_ROUTINGTABLE 81
-#define VRRP_SNMP_RULE_ISSET 82
 
+#ifdef _HAVE_FIB_ROUTING_
+enum snmp_rule_magic {
+	VRRP_SNMP_RULE_DIRECTION = 2,
+	VRRP_SNMP_RULE_ADDRESSTYPE,
+	VRRP_SNMP_RULE_ADDRESS,
+	VRRP_SNMP_RULE_ADDRESSMASK,
+	VRRP_SNMP_RULE_ROUTINGTABLE,
+	VRRP_SNMP_RULE_ISSET,
+	VRRP_SNMP_RULE_INVERT,
+	VRRP_SNMP_RULE_DESTINATIONADDRESSTYPE,
+	VRRP_SNMP_RULE_DESTINATIONADDRESS,
+	VRRP_SNMP_RULE_DESTINATIONADDRESSMASK,
+	VRRP_SNMP_RULE_SOURCEADDRESSTYPE,
+	VRRP_SNMP_RULE_SOURCEADDRESS,
+	VRRP_SNMP_RULE_SOURCEADDRESSMASK,
+	VRRP_SNMP_RULE_TOS,
+	VRRP_SNMP_RULE_FWMARK,
+	VRRP_SNMP_RULE_FWMASK,
+	VRRP_SNMP_RULE_REALM_DST,
+	VRRP_SNMP_RULE_REALM_SRC,
+	VRRP_SNMP_RULE_ININTERFACE,
+	VRRP_SNMP_RULE_OUTINTERFACE,
+	VRRP_SNMP_RULE_TARGET,
+	VRRP_SNMP_RULE_ACTION,
+	VRRP_SNMP_RULE_TABLE_NO,
+	VRRP_SNMP_RULE_PREFERENCE,
+	VRRP_SNMP_RULE_SUPPRESSPREFIXLEN,
+	VRRP_SNMP_RULE_SUPPRESSGROUP,
+	VRRP_SNMP_RULE_TUNNELID_HIGH,
+	VRRP_SNMP_RULE_TUNNELID_LOW,
+};
+
+enum snmp_route_magic {
+	VRRP_SNMP_ROUTE_ADDRESSTYPE = 2,
+	VRRP_SNMP_ROUTE_DESTINATION,
+	VRRP_SNMP_ROUTE_DESTINATIONMASK,
+	VRRP_SNMP_ROUTE_GATEWAY,
+	VRRP_SNMP_ROUTE_SECONDARYGATEWAY,
+	VRRP_SNMP_ROUTE_SOURCE,
+	VRRP_SNMP_ROUTE_METRIC,
+	VRRP_SNMP_ROUTE_SCOPE,
+	VRRP_SNMP_ROUTE_TYPE,
+	VRRP_SNMP_ROUTE_IFINDEX,
+	VRRP_SNMP_ROUTE_IFNAME,
+	VRRP_SNMP_ROUTE_ROUTINGTABLE,
+	VRRP_SNMP_ROUTE_ISSET,
+	VRRP_SNMP_ROUTE_FROM_ADDRESS,
+	VRRP_SNMP_ROUTE_FROM_ADDRESS_MASK,
+	VRRP_SNMP_ROUTE_TOS,
+	VRRP_SNMP_ROUTE_PROTOCOL,
+	VRRP_SNMP_ROUTE_ECN,
+	VRRP_SNMP_ROUTE_QUICK_ACK,
+	VRRP_SNMP_ROUTE_EXPIRES,
+	VRRP_SNMP_ROUTE_MTU,
+	VRRP_SNMP_ROUTE_MTU_LOCK,
+	VRRP_SNMP_ROUTE_HOP_LIMIT,
+	VRRP_SNMP_ROUTE_ADVMSS,
+	VRRP_SNMP_ROUTE_ADVMSS_LOCK,
+	VRRP_SNMP_ROUTE_RTT,
+	VRRP_SNMP_ROUTE_RTT_LOCK,
+	VRRP_SNMP_ROUTE_RTTVAR,
+	VRRP_SNMP_ROUTE_RTTVAR_LOCK,
+	VRRP_SNMP_ROUTE_REORDERING,
+	VRRP_SNMP_ROUTE_REORDERING_LOCK,
+	VRRP_SNMP_ROUTE_WINDOW,
+	VRRP_SNMP_ROUTE_CWND,
+	VRRP_SNMP_ROUTE_CWND_LOCK,
+	VRRP_SNMP_ROUTE_SSTHRESH,
+	VRRP_SNMP_ROUTE_SSTHRESH_LOCK,
+	VRRP_SNMP_ROUTE_RTOMIN,
+	VRRP_SNMP_ROUTE_RTOMIN_LOCK,
+	VRRP_SNMP_ROUTE_INIT_CWND,
+	VRRP_SNMP_ROUTE_INIT_RWND,
+	VRRP_SNMP_ROUTE_CONG_CTL,
+	VRRP_SNMP_ROUTE_PREF,
+	VRRP_SNMP_ROUTE_REALM_DST,
+	VRRP_SNMP_ROUTE_REALM_SRC,
+	VRRP_SNMP_ROUTE_ENCAP_TYPE,
+	VRRP_SNMP_ROUTE_ENCAP_MPLS_LABELS,
+	VRRP_SNMP_ROUTE_ENCAP_ID,
+	VRRP_SNMP_ROUTE_ENCAP_DST_ADDRESS,
+	VRRP_SNMP_ROUTE_ENCAP_SRC_ADDRESS,
+	VRRP_SNMP_ROUTE_ENCAP_TOS,
+	VRRP_SNMP_ROUTE_ENCAP_TTL,
+	VRRP_SNMP_ROUTE_ENCAP_FLAGS,
+	VRRP_SNMP_ROUTE_ENCAP_ILA_LOCATOR,
+};
+
+enum snmp_next_hop_magic {
+	VRRP_SNMP_ROUTE_NEXT_HOP_ADDRESS_TYPE = 2,
+	VRRP_SNMP_ROUTE_NEXT_HOP_ADDRESS,
+	VRRP_SNMP_ROUTE_NEXT_HOP_IF_INDEX,
+	VRRP_SNMP_ROUTE_NEXT_HOP_IF_NAME,
+	VRRP_SNMP_ROUTE_NEXT_HOP_WEIGHT,
+	VRRP_SNMP_ROUTE_NEXT_HOP_ONLINK,
+	VRRP_SNMP_ROUTE_NEXT_HOP_REALM_DST,
+	VRRP_SNMP_ROUTE_NEXT_HOP_REALM_SRC,
+	VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_TYPE,
+	VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_MPLS_LABELS,
+	VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_ID,
+	VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_DST_ADDRESS,
+	VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_SRC_ADDRESS,
+	VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_TOS,
+	VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_TTL,
+	VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_FLAGS,
+	VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_ILA_LOCATOR,
+};
+#endif
 
 #define HEADER_STATE_STATIC_ADDRESS 1
 #define HEADER_STATE_VIRTUAL_ADDRESS 2
 #define HEADER_STATE_EXCLUDED_VIRTUAL_ADDRESS 3
+#ifdef _HAVE_FIB_ROUTING_
 #define HEADER_STATE_STATIC_ROUTE 4
 #define HEADER_STATE_VIRTUAL_ROUTE 5
 #define HEADER_STATE_STATIC_RULE 6
 #define HEADER_STATE_VIRTUAL_RULE 7
-#define HEADER_STATE_END 10
+#define HEADER_STATE_NEXT_HOP 11
+#endif
+#define HEADER_STATE_END 12
 
 #endif
 
@@ -316,6 +416,15 @@ timeval_t vrrp_start_time;
 #endif
 
 
+/* For some reason net-snmp doesn't use a uint64_t for 64 bit counters, but rather uses
+ * a struct, with the high word at the lower address, so we need to assign values according. */
+static void inline
+set_counter64 (struct counter64 *c64, uint64_t val)
+{
+	c64->high = val >> 32;
+	c64->low = val & 0xffffffff;
+}
+
 #ifdef _FOR_DEBUGGING_
 static void
 sprint_oid(char *str, oid* oid, int len)
@@ -392,8 +501,8 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 }
 
 /* Header function using a FSM. `state' is the initial state, either
-   HEADER_STATE_STATIC_ADDRESS or HEADER_STATE_STATIC_ROUTE. We return
-   the matching address or route. */
+   HEADER_STATE_STATIC_ADDRESS, HEADER_STATE_STATIC_ROUTE or
+   HEADER_STATE_STATIC_RULE. We return the matching address, route or rule. */
 static void*
 vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 		     int exact, size_t *var_len, WriteMethod **write_method,
@@ -413,7 +522,7 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 	}
 
 	*write_method = 0;
-	*var_len = sizeof(long);
+	*var_len = sizeof(unsigned long);
 
 	/* We search the best match: equal if exact, the lower OID in
 	   the set of the OID strictly superior to the target
@@ -457,6 +566,7 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 			l2 = ((vrrp_t *)ELEMENT_DATA(e1))->evip;
 			nextstate = HEADER_STATE_VIRTUAL_ADDRESS;
 			break;
+#ifdef _HAVE_FIB_ROUTING_
 		case HEADER_STATE_STATIC_ROUTE:
 			/* Try static routes */
 			l2 = vrrp_data->static_routes;
@@ -497,6 +607,7 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 			current[1] = 0;
 			nextstate = HEADER_STATE_VIRTUAL_RULE;
 			break;
+#endif
 		default:
 			return NULL; /* Big problem! */
 		}
@@ -538,8 +649,77 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 	/* Let's use our best match */
 	memcpy(target, best, sizeof(oid) * 2);
 	*length = vp->namelen + 2;
+
 	return bel;
 }
+
+#ifdef _HAVE_FIB_ROUTING_
+#define MAX_PTR ((void*)((char *)NULL - 1))
+static nexthop_t*
+vrrp_header_nh_table(struct variable *vp, oid *name, size_t *length,
+		     int exact, size_t *var_len, WriteMethod **write_method,
+		     int *state)
+{
+	oid *target;
+	int result, target_len;
+	element e1, e2, e3;
+	list l2, l3;
+	oid curinstance[3];
+	bool same;
+
+	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
+		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
+		*length = vp->namelen;
+	}
+
+	*write_method = 0;
+	*var_len = sizeof(unsigned long);
+
+	/* We search the best match: equal if exact, the lower OID in
+	   the set of the OID strictly superior to the target
+	   otherwise. */
+	target = &name[vp->namelen];   /* Our target match */
+	target_len = *length - vp->namelen;
+	if (exact && !target_len)
+		return NULL;
+
+	for (e1 = MAX_PTR, curinstance[0] = 0; e1; e1 = ((e1 == MAX_PTR) ? (LIST_ISEMPTY(vrrp_data->vrrp) ? NULL : LIST_HEAD(vrrp_data->vrrp)) : e1->next), curinstance[0]++) {
+		if (exact && curinstance[0] > target[0])
+			return NULL;
+		if (target_len && curinstance[0] < target[0])
+			continue;
+		same = (target_len && curinstance[0] == target[0]);
+		l2 = (e1 == MAX_PTR) ? vrrp_data->static_routes : ((vrrp_t *)ELEMENT_DATA(e1))->vroutes;
+		if (LIST_ISEMPTY(l2))
+			continue;
+		for (e2 = LIST_HEAD(l2), curinstance[1] = 1; e2; ELEMENT_NEXT(e2), curinstance[1]++) {
+			if (exact && curinstance[1] > target[1])
+				return NULL;
+			if (same && curinstance[1] < target[1])
+				continue;
+			same = (same && curinstance[1] == target[1]);
+			l3 = ((ip_route_t *)ELEMENT_DATA(e2))->nhs;
+			if (LIST_ISEMPTY(l3))
+				continue;
+			for (e3 = LIST_HEAD(l3), curinstance[2] = 1; e3; ELEMENT_NEXT(e3), curinstance[2]++) {
+				if (exact && target_len && curinstance[2] > target[2])
+					return NULL;
+				if (same && curinstance[2] < target[2])
+					continue;
+
+				if (target_len && !exact && curinstance[0] == target[0] && curinstance[1] == target[1] && curinstance[2] == target[2])
+					continue;
+
+				memcpy(target, curinstance, sizeof(oid) * 3);
+				*length = vp->namelen + 3;
+
+				return ELEMENT_DATA(e3);
+			}
+		}
+	}
+	return NULL;
+}
+#endif
 
 static u_char*
 vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
@@ -624,55 +804,64 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 
 	switch (vp->magic) {
 	case VRRP_SNMP_ROUTE_ADDRESSTYPE:
-		long_ret = 1;	/* IPv4 only */
+		long_ret = AF_INET;	/* IPv4 only */
+		if (route->dst)
+			long_ret = route->dst->ifa.ifa_family;
+		else if (route->src)
+			long_ret = route->src->ifa.ifa_family;
+		else if (route->pref_src)
+			long_ret = route->pref_src->ifa.ifa_family;
+		if (long_ret == AF_INET6)
+			long_ret = 2;
+		else
+			long_ret = 1;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ROUTE_DESTINATION:
-		if (route->dst) {
-			if (route->dst->ifa.ifa_family == AF_INET6) {
-				*var_len = 16;
-				return (u_char *)&route->dst->u.sin6_addr;
-			} else {
-				*var_len = 4;
-				return (u_char *)&route->dst->u.sin.sin_addr;
-			}
+		if (!route->dst)
+			break;
+		if (route->dst->ifa.ifa_family == AF_INET6) {
+			*var_len = 16;
+			return (u_char *)&route->dst->u.sin6_addr;
 		}
-		break;
+		*var_len = 4;
+		return (u_char *)&route->dst->u.sin.sin_addr;
 	case VRRP_SNMP_ROUTE_DESTINATIONMASK:
-		long_ret = route->dmask;
+		if (!route->dst)
+			break;
+		long_ret = route->dst->ifa.ifa_prefixlen;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ROUTE_GATEWAY:
-		if (route->gw) {
-			if (route->gw->ifa.ifa_family == AF_INET6) {
-				*var_len = 16;
-				return (u_char *)&route->gw->u.sin6_addr;
-			} else {
-				*var_len = 4;
-				return (u_char *)&route->gw->u.sin.sin_addr;
-			}
+		if (!route->via)
+			break;
+		if (route->via->ifa.ifa_family == AF_INET6) {
+			*var_len = 16;
+			return (u_char *)&route->via->u.sin6_addr;
 		}
-		break;
+		*var_len = 4;
+		return (u_char *)&route->via->u.sin.sin_addr;
 	case VRRP_SNMP_ROUTE_SECONDARYGATEWAY:
-		if (route->gw2) {
-			if (route->gw2->ifa.ifa_family == AF_INET6) {
-				*var_len = 16;
-				return (u_char *)&route->gw2->u.sin6_addr;
-			} else {
-				*var_len = 4;
-				return (u_char *)&route->gw2->u.sin.sin_addr;
-			}
+		if (LIST_ISEMPTY(route->nhs) || LIST_SIZE(route->nhs) != 1)
+			break;
+		nexthop_t *gw2 = LIST_HEAD(route->nhs)->data;
+#ifdef _HAVE_RTA_ENCAP_
+		if (gw2->encap.type != LWTUNNEL_ENCAP_NONE)
+			break;
+#endif
+		if (gw2->addr->ifa.ifa_family == AF_INET6) {
+			*var_len = 16;
+			return (u_char *)&gw2->addr->u.sin6_addr;
 		}
-		break;
+		*var_len = 4;
+		return (u_char *)&gw2->addr->u.sin.sin_addr;
 	case VRRP_SNMP_ROUTE_SOURCE:
-		if (route->src) {
-			if (route->src->ifa.ifa_family == AF_INET6) {
-				*var_len = 16;
-				return (u_char *)&route->src->u.sin6_addr;
-			} else {
-				*var_len = 4;
-				return (u_char *)&route->src->u.sin.sin_addr;
-			}
+		if (!route->pref_src)
+			break;
+		if (route->pref_src->ifa.ifa_family == AF_INET6) {
+			*var_len = 16;
+			return (u_char *)&route->pref_src->u.sin6_addr;
 		}
-		break;
+		*var_len = 4;
+		return (u_char *)&route->pref_src->u.sin.sin_addr;
 	case VRRP_SNMP_ROUTE_METRIC:
 		long_ret = route->metric;
 		return (u_char *)&long_ret;
@@ -680,36 +869,405 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 		long_ret = snmp_scope(route->scope);
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ROUTE_TYPE:
-		if (route->blackhole)
-			long_ret = 3;
-		else if (route->gw2)
+		if (!LIST_ISEMPTY(route->nhs))
 			long_ret = 2;
-		else long_ret = 1;
+		else if (route->type == RTN_BLACKHOLE)
+			long_ret = 3;
+		else if (route->type == RTN_ANYCAST)
+			long_ret = 4;
+		else if (route->type == RTN_MULTICAST)
+			long_ret = 5;
+		else if (route->type == RTN_BROADCAST)
+			long_ret = 6;
+		else if (route->type == RTN_UNREACHABLE)
+			long_ret = 7;
+		else if (route->type == RTN_PROHIBIT)
+			long_ret = 8;
+		else if (route->type == RTN_THROW)
+			long_ret = 9;
+		else if (route->type == RTN_NAT)
+			long_ret = 10;
+		else if (route->type == RTN_XRESOLVE)
+			long_ret = 11;
+		else
+			long_ret = 1;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ROUTE_IFINDEX:
-		if (!route->index)
+		if (!route->oif)
 			break;
-		long_ret = route->index;
+		long_ret = route->oif->ifindex;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ROUTE_IFNAME:
-		if (route->index) {
-			*var_len = strlen(IF_NAME(if_get_by_ifindex(route->index)));
-			return (u_char *)&IF_NAME(if_get_by_ifindex(route->index));
-		}
-		break;
+		if (!route->oif)
+			break;
+		*var_len = strlen(IF_NAME(route->oif));
+		return (u_char *)&IF_NAME(route->oif);
 	case VRRP_SNMP_ROUTE_ROUTINGTABLE:
 		long_ret = route->table;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ROUTE_ISSET:
 		long_ret = (route->set)?1:2;
 		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_FROM_ADDRESS:
+		if (!route->src)
+			break;
+		if (route->src->ifa.ifa_family == AF_INET6) {
+			*var_len = 16;
+			return (u_char *)&route->src->u.sin6_addr;
+		} else {
+			*var_len = 4;
+			return (u_char *)&route->src->u.sin.sin_addr;
+		}
+	case VRRP_SNMP_ROUTE_FROM_ADDRESS_MASK:
+		if (!route->src)
+			break;
+		long_ret = route->src->ifa.ifa_prefixlen;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_TOS:
+		if (!(route->mask & IPROUTE_BIT_DSFIELD))
+			break;
+		long_ret = route->tos;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_PROTOCOL:
+		if (!(route->mask & IPROUTE_BIT_PROTOCOL))
+			break;
+		long_ret = route->protocol + 1;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_ECN:
+#ifndef RTAX_FEATURES
+		break;
+#else
+		long_ret = 2 - !!(route->features & RTAX_FEATURE_ECN);
+		return (u_char *)&long_ret;
+#endif
+	case VRRP_SNMP_ROUTE_QUICK_ACK:
+		long_ret = 2 - !!(route->mask & IPROUTE_BIT_QUICKACK);
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_EXPIRES:
+#ifndef _HAVE_RTA_EXPIRES_
+		break;
+#else
+		if (!(route->mask & IPROUTE_BIT_EXPIRES))
+			break;
+		long_ret = route->expires;
+		return (u_char *)&long_ret;
+#endif
+	case VRRP_SNMP_ROUTE_MTU:
+		if (!(route->mask & IPROUTE_BIT_MTU))
+			break;
+		long_ret = route->mtu;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_MTU_LOCK:
+		if (!(route->mask & IPROUTE_BIT_MTU))
+			break;
+		long_ret = 2 - !!(route->lock & (1<<RTAX_MTU));
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_HOP_LIMIT:
+		if (!(route->mask & IPROUTE_BIT_HOPLIMIT))
+			break;
+		long_ret = route->hoplimit;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_ADVMSS:
+		if (!(route->mask & IPROUTE_BIT_HOPLIMIT))
+			break;
+		long_ret = route->advmss;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_ADVMSS_LOCK:
+		if (!(route->mask & IPROUTE_BIT_ADVMSS))
+			break;
+		long_ret = 2 - !!(route->lock & (1<<RTAX_ADVMSS));
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_RTT:
+		if (!(route->mask & IPROUTE_BIT_RTT))
+			break;
+		long_ret = route->rtt / 8;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_RTT_LOCK:
+		if (!(route->mask & IPROUTE_BIT_RTT))
+			break;
+		long_ret = 2 - !!(route->lock & (1<<RTAX_RTT));
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_RTTVAR:
+		if (!(route->mask & IPROUTE_BIT_RTTVAR))
+			break;
+		long_ret = route->rttvar / 4;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_RTTVAR_LOCK:
+		if (!(route->mask & IPROUTE_BIT_RTTVAR))
+			break;
+		long_ret = 2 - !!(route->lock & (1<<RTAX_RTTVAR));
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_REORDERING:
+		if (!(route->mask & IPROUTE_BIT_REORDERING))
+			break;
+		long_ret = route->reordering;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_REORDERING_LOCK:
+		if (!(route->mask & IPROUTE_BIT_REORDERING))
+			break;
+		long_ret = 2 - !!(route->lock & (1<<RTAX_REORDERING));
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_WINDOW:
+		if (!(route->mask & IPROUTE_BIT_WINDOW))
+			break;
+		long_ret = route->window;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_CWND:
+		if (!(route->mask & IPROUTE_BIT_CWND))
+			break;
+		long_ret = route->cwnd;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_CWND_LOCK:
+		if (!(route->mask & IPROUTE_BIT_CWND))
+			break;
+		long_ret = 2 - !!(route->lock & (1<<RTAX_CWND));
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_SSTHRESH:
+		if (!(route->mask & IPROUTE_BIT_SSTHRESH))
+			break;
+		long_ret = route->ssthresh;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_SSTHRESH_LOCK:
+		if (!(route->mask & IPROUTE_BIT_SSTHRESH))
+			break;
+		long_ret = 2 - !!(route->lock & (1<<RTAX_SSTHRESH));
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_RTOMIN:
+		if (!(route->mask & IPROUTE_BIT_RTO_MIN))
+			break;
+		long_ret = route->rto_min;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_RTOMIN_LOCK:
+		if (!(route->mask & IPROUTE_BIT_RTO_MIN))
+			break;
+		long_ret = 2 - !!(route->lock & (1<<RTAX_RTO_MIN));
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_INIT_CWND:
+		if (!(route->mask & IPROUTE_BIT_INITCWND))
+			break;
+		long_ret = route->initcwnd;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_INIT_RWND:
+		if (!(route->mask & IPROUTE_BIT_INITRWND))
+			break;
+		long_ret = route->initrwnd;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_CONG_CTL:
+#ifndef RTAX_CC_ALGO
+		break;
+#else
+		if (!route->congctl)
+			break;
+		*var_len = strlen(route->congctl);
+		return (u_char *)route->congctl;
+#endif
+	case VRRP_SNMP_ROUTE_PREF:
+#ifndef _HAVE_RTA_PREF_
+		break;
+#else
+		if (!(route->mask & IPROUTE_BIT_PREF))
+			break;
+		long_ret = 
+			route->pref == ICMPV6_ROUTER_PREF_LOW ? 1 :
+                        route->pref == ICMPV6_ROUTER_PREF_MEDIUM ? 2 :
+                        route->pref == ICMPV6_ROUTER_PREF_HIGH ? 3 : 0;
+		return (u_char *)&long_ret;
+#endif
+	case VRRP_SNMP_ROUTE_REALM_DST:
+		if (!route->realms)
+			break;
+		long_ret = route->realms & 0xFFFF;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_REALM_SRC:
+		if (!(route->realms & 0xFFFF0000))
+			break;
+		long_ret = route->realms >> 16;
+		return (u_char *)&long_ret;
 	default:
 		return NULL;
 	}
+
 	/* If we are here, we asked for a non existent data. Try the
 	   next one. */
 	if (!exact && (name[*length-1] < MAX_SUBID))
 		return vrrp_snmp_route(vp, name, length,
+				       exact, var_len, write_method);
+	return NULL;
+}
+
+static u_char*
+vrrp_snmp_encap(struct variable *vp, oid *name, size_t *length,
+		 int exact, size_t *var_len, WriteMethod **write_method)
+{
+#ifndef _HAVE_RTA_ENCAP_
+	return NULL;
+#else
+	static unsigned long long_ret;
+	static char labels[11*MAX_MPLS_LABELS];
+	char *op;
+	ip_route_t *route;
+	nexthop_t *nh;
+	encap_t *encap;
+	int state = HEADER_STATE_STATIC_ROUTE;
+	int i;
+	static struct counter64 c64;
+
+	if (vp->name[vp->namelen - 3] == 7) {
+		if ((route = (ip_route_t *)vrrp_header_ar_table(vp, name, length, exact,
+					  var_len, write_method,
+					  &state)) == NULL)
+			return NULL;
+		encap = &route->encap;
+	}
+	else {
+		if ((nh = vrrp_header_nh_table(vp, name, length, exact,
+					  var_len, write_method,
+					  &state)) == NULL)
+			return NULL;
+		encap = &nh->encap;
+	}
+
+// TODO - enable this to work for main route or next hop - following in a separate function callable by both
+	if (encap->type != LWTUNNEL_ENCAP_NONE) {
+		if (vp->magic == VRRP_SNMP_ROUTE_ENCAP_TYPE) {
+			long_ret = encap->type + 1;
+			return (u_char *)&long_ret;
+		}
+
+		if (encap->type == LWTUNNEL_ENCAP_MPLS) {
+			if (vp->magic == VRRP_SNMP_ROUTE_ENCAP_MPLS_LABELS) {
+				op = labels;
+				for (i = 0; i < encap->mpls.num_labels; i++)
+					op += snprintf(op, labels + sizeof(labels) - op, "%s%u", i ? "/" : "", encap->mpls.addr[i].entry);
+				*var_len = strlen(labels);
+				return (u_char *)labels;
+			}
+		}
+		else if (encap->type == LWTUNNEL_ENCAP_IP ||
+			 encap->type == LWTUNNEL_ENCAP_IP6) {
+			switch(vp->magic) {
+			case VRRP_SNMP_ROUTE_ENCAP_ID:
+				if (!(encap->flags & IPROUTE_BIT_ENCAP_ID))
+					break;
+				*var_len = sizeof(c64);
+				set_counter64 (&c64, encap->ip.id);
+				return (u_char *)&c64;
+			case VRRP_SNMP_ROUTE_ENCAP_DST_ADDRESS:
+				if (!encap->ip.dst)
+					break;
+				if (encap->ip.dst->ifa.ifa_family == AF_INET6) {
+					*var_len = sizeof(encap->ip.dst->u.sin6_addr);
+					return (u_char *)&encap->ip.dst->u.sin6_addr;
+				}
+				*var_len = sizeof(encap->ip.dst->u.sin.sin_addr.s_addr);
+				return (u_char *)&encap->ip.dst->u.sin.sin_addr.s_addr;
+			case VRRP_SNMP_ROUTE_ENCAP_SRC_ADDRESS:
+				if (!encap->ip.src)
+					break;
+				if (encap->ip.src->ifa.ifa_family == AF_INET6) {
+					*var_len = sizeof(encap->ip.src->u.sin6_addr);
+					return (u_char *)&encap->ip.src->u.sin6_addr;
+				}
+				*var_len = sizeof(encap->ip.src->u.sin.sin_addr.s_addr);
+				return (u_char *)&encap->ip.src->u.sin.sin_addr.s_addr;
+			case VRRP_SNMP_ROUTE_ENCAP_TOS:
+				if (!(encap->flags & IPROUTE_BIT_ENCAP_DSFIELD))
+					break;
+				long_ret = encap->ip.tos;
+				return (u_char *)&long_ret;
+			case VRRP_SNMP_ROUTE_ENCAP_TTL:
+				if (!(encap->flags & IPROUTE_BIT_ENCAP_TTL))
+					break;
+				long_ret = encap->ip.ttl;
+				return (u_char *)&long_ret;
+			case VRRP_SNMP_ROUTE_ENCAP_FLAGS:
+				if (!(encap->flags & IPROUTE_BIT_ENCAP_FLAGS))
+					break;
+				long_ret = encap->ip.flags;
+				return (u_char *)&long_ret;
+			}
+		}
+		else if (encap->type == LWTUNNEL_ENCAP_ILA) {
+			if (vp->magic == VRRP_SNMP_ROUTE_ENCAP_ILA_LOCATOR) {
+				*var_len = sizeof(c64);
+				set_counter64 (&c64, encap->ila.locator);
+				return (u_char *)&c64;
+			}
+		}
+	}
+
+	/* If we are here, we asked for a non existent data. Try the
+	   next one. */
+	if (!exact && (name[*length-1] < MAX_SUBID))
+		return vrrp_snmp_encap(vp, name, length,
+				       exact, var_len, write_method);
+	return NULL;
+#endif
+}
+
+static u_char*
+vrrp_snmp_next_hop(struct variable *vp, oid *name, size_t *length,
+		 int exact, size_t *var_len, WriteMethod **write_method)
+{
+	static unsigned long long_ret;
+	nexthop_t *nh;
+	int state = HEADER_STATE_NEXT_HOP;
+
+	if ((nh = vrrp_header_nh_table(vp, name, length, exact,
+				  var_len, write_method,
+				  &state)) == NULL)
+		return NULL;
+
+	switch (vp->magic) {
+	case VRRP_SNMP_ROUTE_NEXT_HOP_ADDRESS_TYPE:
+		if (!nh->addr)
+			break;
+		long_ret = (nh->addr->ifa.ifa_family == AF_INET6) ? 2 : 1;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_NEXT_HOP_ADDRESS:
+		if (!nh->addr)
+			break;
+		if (nh->addr->ifa.ifa_family == AF_INET6) {
+			*var_len = 16;
+			return (u_char *)&nh->addr->u.sin6_addr;
+		}
+		*var_len = 4;
+		return (u_char *)&nh->addr->u.sin.sin_addr;
+	case VRRP_SNMP_ROUTE_NEXT_HOP_IF_INDEX:
+		if (!nh->ifp)
+			break;
+		long_ret = nh->ifp->ifindex;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_NEXT_HOP_IF_NAME:
+		if (!nh->ifp)
+			break;
+		*var_len = strlen(nh->ifp->ifname);
+		return (u_char *)&nh->ifp->ifname;
+	case VRRP_SNMP_ROUTE_NEXT_HOP_WEIGHT:
+		 if (!(nh->mask & IPROUTE_BIT_WEIGHT))
+			break;
+		long_ret = nh->weight + 1;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_NEXT_HOP_ONLINK:
+		long_ret = 2 - !!(nh->flags & RTNH_F_ONLINK);
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_ROUTE_NEXT_HOP_REALM_DST:
+		if (!nh->realms)
+			break;
+		long_ret = nh->realms & 0xFFFF;
+	case VRRP_SNMP_ROUTE_NEXT_HOP_REALM_SRC:
+		if (!(nh->realms & 0xFFFF0000))
+			break;
+		long_ret = nh->realms >> 16;
+		return (u_char *)&long_ret;
+	default:
+		break;
+	}
+
+	/* If we are here, we asked for a non existent data. Try the
+	   next one. */
+	if (!exact && (name[*length-1] < MAX_SUBID))
+		return vrrp_snmp_next_hop(vp, name, length,
 				       exact, var_len, write_method);
 	return NULL;
 }
@@ -721,7 +1279,8 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 	static unsigned long long_ret;
 	ip_rule_t *rule;
 	int state = HEADER_STATE_STATIC_RULE;
-	char *dir_str;
+	const char *str;
+	ip_address_t *addr;
 
 	if ((rule = (ip_rule_t *)
 	     vrrp_header_ar_table(vp, name, length, exact,
@@ -730,30 +1289,170 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 		return NULL;
 
 	switch (vp->magic) {
-	case VRRP_SNMP_RULE_DIRECTION:
-		dir_str = rule->dir == VRRP_RULE_FROM ? "from" : "to";
-		*var_len = strlen(dir_str);
-		return (u_char *)dir_str;
-	case VRRP_SNMP_RULE_ADDRESSTYPE:
-		long_ret = (rule->addr->ifa.ifa_family == AF_INET6)?2:1;
+	case VRRP_SNMP_RULE_DIRECTION:	/* obsolete */
+		str = rule->to_addr ? rule->from_addr ? "both" : "to" : rule->from_addr ? "from" : "";
+		*var_len = strlen(str);
+		return (u_char *)str;
+	case VRRP_SNMP_RULE_ADDRESSTYPE:	/* obsolete */
+		addr = rule->to_addr ? rule->to_addr : rule->from_addr;
+		if (!addr)
+			break;
+		long_ret = addr->ifa.ifa_family == AF_INET6 ? 2 : 1;
 		return (u_char *)&long_ret;
-	case VRRP_SNMP_RULE_ADDRESS:
-		if (rule->addr->ifa.ifa_family == AF_INET6) {
-			*var_len = 16;
-			return (u_char *)&rule->addr->u.sin6_addr;
-		} else {
-			*var_len = 4;
-			return (u_char *)&rule->addr->u.sin.sin_addr;
+	case VRRP_SNMP_RULE_ADDRESS:	/* obsolete */
+		addr = rule->to_addr ? rule->to_addr : rule->from_addr;
+		if (!addr)
+			break;
+		if (addr->ifa.ifa_family == AF_INET6) {
+			*var_len = sizeof(addr->u.sin6_addr);
+			return (u_char *)&addr->u.sin6_addr;
 		}
-		break;
-	case VRRP_SNMP_RULE_ADDRESSMASK:
-		long_ret = rule->mask;
+		*var_len = sizeof(addr->u.sin.sin_addr);
+		return (u_char *)&addr->u.sin.sin_addr;
+	case VRRP_SNMP_RULE_ADDRESSMASK:	/* obsolete */
+		addr = rule->to_addr ? rule->to_addr : rule->from_addr;
+		if (!addr)
+			break;
+		long_ret = addr->ifa.ifa_prefixlen;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_RULE_ROUTINGTABLE:
+		if (rule->action != FR_ACT_TO_TBL)
+			break;
 		long_ret = rule->table;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_RULE_ISSET:
 		long_ret = (rule->set)?1:2;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_INVERT:
+		long_ret = 2 - rule->invert;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_DESTINATIONADDRESSTYPE:
+		if (!rule->to_addr)
+			break;
+		long_ret = (rule->to_addr->ifa.ifa_family == AF_INET6) ? 2 : 1;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_DESTINATIONADDRESS:
+		if (!rule->to_addr)
+			break;
+		if (rule->to_addr->ifa.ifa_family == AF_INET6) {
+			*var_len = sizeof(rule->to_addr->u.sin6_addr);
+			return (u_char *)&rule->to_addr->u.sin6_addr;
+		}
+		*var_len = sizeof(rule->to_addr->u.sin.sin_addr);
+		return (u_char *)&rule->to_addr->u.sin.sin_addr;
+	case VRRP_SNMP_RULE_DESTINATIONADDRESSMASK:
+		if (!rule->to_addr)
+			break;
+		long_ret = rule->to_addr->ifa.ifa_prefixlen;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_SOURCEADDRESSTYPE:
+		if (!rule->from_addr)
+			break;
+		long_ret = (rule->from_addr->ifa.ifa_family == AF_INET6) ? 2 : 1;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_SOURCEADDRESS:
+		if (!rule->from_addr)
+			break;
+		if (rule->from_addr->ifa.ifa_family == AF_INET6) {
+			*var_len = sizeof(rule->from_addr->u.sin6_addr);
+			return (u_char *)&rule->from_addr->u.sin6_addr;
+		}
+		*var_len = sizeof(rule->from_addr->u.sin.sin_addr);
+		return (u_char *)&rule->from_addr->u.sin.sin_addr;
+	case VRRP_SNMP_RULE_SOURCEADDRESSMASK:
+		if (!rule->from_addr)
+			break;
+		long_ret = rule->from_addr->ifa.ifa_prefixlen;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_TOS:
+		if (rule->mask & IPRULE_BIT_DSFIELD)
+			long_ret = rule->tos;
+		else
+			break;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_FWMARK:
+		if (rule->mask & IPRULE_BIT_FWMARK)
+			long_ret = rule->fwmark;
+		else
+			break;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_FWMASK:
+		if (rule->mask & IPRULE_BIT_FWMASK)
+			long_ret = rule->fwmask;
+		else
+			break;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_REALM_DST:
+		if (!rule->realms)
+			break;
+		long_ret = rule->realms & 0xFFFF;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_REALM_SRC:
+		if (!(rule->realms & 0xFFFF0000))
+			break;
+		long_ret = rule->realms >> 16;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_ININTERFACE:
+		if (!rule->iif)
+			break;
+		*var_len = strlen(rule->iif->ifname);
+		return (u_char *)rule->iif->ifname;
+	case VRRP_SNMP_RULE_OUTINTERFACE:
+		if (!rule->oif)
+			break;
+		*var_len = strlen(rule->oif->ifname);
+		return (u_char *)rule->oif->ifname;
+	case VRRP_SNMP_RULE_TARGET:
+		if (!(rule->action == FR_ACT_GOTO))
+			break;
+		long_ret = rule->goto_target;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_ACTION:
+		long_ret = rule->action;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_TABLE_NO:
+		if (rule->action != FR_ACT_TO_TBL)
+			break;
+		long_ret = rule->table;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_RULE_PREFERENCE:
+		if (!rule->priority)
+			break;
+		long_ret = rule->priority;
+		return (u_char *)&long_ret;
+#ifdef _HAVE_FRA_SUPPRESS_PREFIXLEN_
+	case VRRP_SNMP_RULE_SUPPRESSPREFIXLEN:
+		if (rule->mask & IPRULE_BIT_SUP_PREFIXLEN)
+			long_ret = rule->suppress_prefix_len;
+		else
+#endif
+			break;
+		return (u_char *)&long_ret;
+#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+	case VRRP_SNMP_RULE_SUPPRESSGROUP:
+		if (rule->mask & IPRULE_BIT_SUP_GROUP) {
+			str = get_rttables_group(rule->suppress_group);
+			*var_len = strlen(str);
+		}
+		else
+#endif
+			break;
+		return (u_char *)str;
+#ifdef _HAVE_FRA_TUN_ID_
+	case VRRP_SNMP_RULE_TUNNELID_HIGH:
+		if (rule->tunnel_id)
+			long_ret = rule->tunnel_id >> 32;
+		else
+#endif
+			break;
+		return (u_char *)&long_ret;
+#ifdef _HAVE_FRA_TUN_ID_
+	case VRRP_SNMP_RULE_TUNNELID_LOW:
+		if (rule->tunnel_id)
+			long_ret = rule->tunnel_id & 0xffffffff;
+		else
+#endif
+			break;
 		return (u_char *)&long_ret;
 	default:
 		return NULL;
@@ -765,7 +1464,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 				       exact, var_len, write_method);
 	return NULL;
 }
-#endif
+#endif	// _HAVE_FIB_ROUTING_
 
 static u_char*
 vrrp_snmp_syncgroup(struct variable *vp, oid *name, size_t *length,
@@ -959,7 +1658,7 @@ vrrp_snmp_instance_accept(int action,
 				    "VRRP_Instance(%s) accept mode enabled with SNMP",
 				     vrrp->iname);
 // TODO - What do we do about adding/removing iptables blocks?
-// RFC6527 requires the instance to be down to change this
+// RFC6527 requires the instance to be down to change this - can't find now where it says that
 			vrrp->accept = 1;
 			break;
 		case 2:
@@ -1478,6 +2177,7 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_address, 3, {6, 1, 10}},
 	{VRRP_SNMP_ADDRESS_ISADVERTISED, ASN_INTEGER, RONLY,
 	 vrrp_snmp_address, 3, {6, 1, 11}},
+
 #ifdef _HAVE_FIB_ROUTING_
 	/* vrrpRouteTable */
 	{VRRP_SNMP_ROUTE_ADDRESSTYPE, ASN_INTEGER, RONLY,
@@ -1506,6 +2206,87 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_route, 3, {7, 1, 13}},
 	{VRRP_SNMP_ROUTE_ISSET, ASN_INTEGER, RONLY,
 	 vrrp_snmp_route, 3, {7, 1, 14}},
+	{VRRP_SNMP_ROUTE_FROM_ADDRESS, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 15}},
+	{VRRP_SNMP_ROUTE_FROM_ADDRESS_MASK, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 16}},
+	{VRRP_SNMP_ROUTE_TOS, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 17}},
+	{VRRP_SNMP_ROUTE_PROTOCOL, ASN_INTEGER, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 18}},
+	{VRRP_SNMP_ROUTE_ECN, ASN_INTEGER, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 19}},
+	{VRRP_SNMP_ROUTE_QUICK_ACK, ASN_INTEGER, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 20}},
+	{VRRP_SNMP_ROUTE_EXPIRES, ASN_INTEGER, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 21}},
+	{VRRP_SNMP_ROUTE_MTU, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 22}},
+	{VRRP_SNMP_ROUTE_MTU_LOCK, ASN_INTEGER, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 23}},
+	{VRRP_SNMP_ROUTE_HOP_LIMIT, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 24}},
+	{VRRP_SNMP_ROUTE_ADVMSS, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 25}},
+	{VRRP_SNMP_ROUTE_ADVMSS_LOCK, ASN_INTEGER, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 26}},
+	{VRRP_SNMP_ROUTE_RTT, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 27}},
+	{VRRP_SNMP_ROUTE_RTT_LOCK, ASN_INTEGER, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 28}},
+	{VRRP_SNMP_ROUTE_RTTVAR, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 29}},
+	{VRRP_SNMP_ROUTE_RTTVAR_LOCK, ASN_INTEGER, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 30}},
+	{VRRP_SNMP_ROUTE_REORDERING, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 31}},
+	{VRRP_SNMP_ROUTE_REORDERING_LOCK, ASN_INTEGER, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 32}},
+	{VRRP_SNMP_ROUTE_WINDOW, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 33}},
+	{VRRP_SNMP_ROUTE_CWND, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 34}},
+	{VRRP_SNMP_ROUTE_CWND_LOCK, ASN_INTEGER, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 35}},
+	{VRRP_SNMP_ROUTE_SSTHRESH, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 36}},
+	{VRRP_SNMP_ROUTE_SSTHRESH_LOCK, ASN_INTEGER, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 37}},
+	{VRRP_SNMP_ROUTE_RTOMIN, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 38}},
+	{VRRP_SNMP_ROUTE_RTOMIN_LOCK, ASN_INTEGER, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 39}},
+	{VRRP_SNMP_ROUTE_INIT_CWND, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 40}},
+	{VRRP_SNMP_ROUTE_INIT_RWND, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 41}},
+	{VRRP_SNMP_ROUTE_CONG_CTL, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 42}},
+	{VRRP_SNMP_ROUTE_PREF, ASN_INTEGER, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 43}},
+	{VRRP_SNMP_ROUTE_REALM_DST, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 44}},
+	{VRRP_SNMP_ROUTE_REALM_SRC, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_route, 3, {7, 1, 45}},
+	{VRRP_SNMP_ROUTE_ENCAP_TYPE, ASN_INTEGER, RONLY,
+	 vrrp_snmp_encap, 3, {7, 1, 46}},
+	{VRRP_SNMP_ROUTE_ENCAP_MPLS_LABELS, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_encap, 3, {7, 1, 47}},
+	{VRRP_SNMP_ROUTE_ENCAP_ID, ASN_COUNTER64, RONLY,
+	 vrrp_snmp_encap, 3, {7, 1, 48}},
+	{VRRP_SNMP_ROUTE_ENCAP_DST_ADDRESS, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_encap, 3, {7, 1, 49}},
+	{VRRP_SNMP_ROUTE_ENCAP_SRC_ADDRESS, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_encap, 3, {7, 1, 50}},
+	{VRRP_SNMP_ROUTE_ENCAP_TOS, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_encap, 3, {7, 1, 51}},
+	{VRRP_SNMP_ROUTE_ENCAP_TTL, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_encap, 3, {7, 1, 52}},
+	{VRRP_SNMP_ROUTE_ENCAP_FLAGS, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_encap, 3, {7, 1, 53}},
+	{VRRP_SNMP_ROUTE_ENCAP_ILA_LOCATOR, ASN_COUNTER64, RONLY,
+	 vrrp_snmp_encap, 3, {7, 1, 54}},
+
 	 /* vrrpRuleTable */
 	{VRRP_SNMP_RULE_DIRECTION, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_rule, 3, {8, 1, 2}},
@@ -1519,7 +2300,52 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_rule, 3, {8, 1, 6}},
 	{VRRP_SNMP_RULE_ISSET, ASN_INTEGER, RONLY,
 	 vrrp_snmp_rule, 3, {8, 1, 7}},
+	{VRRP_SNMP_RULE_INVERT, ASN_INTEGER, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 8}},
+	{VRRP_SNMP_RULE_DESTINATIONADDRESSTYPE, ASN_INTEGER, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 9}},
+	{VRRP_SNMP_RULE_DESTINATIONADDRESS, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 10}},
+	{VRRP_SNMP_RULE_DESTINATIONADDRESSMASK, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 11}},
+	{VRRP_SNMP_RULE_SOURCEADDRESSTYPE, ASN_INTEGER, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 12}},
+	{VRRP_SNMP_RULE_SOURCEADDRESS, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 13}},
+	{VRRP_SNMP_RULE_SOURCEADDRESSMASK, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 14}},
+	{VRRP_SNMP_RULE_TOS, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 15}},
+	{VRRP_SNMP_RULE_FWMARK, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 16}},
+	{VRRP_SNMP_RULE_FWMASK, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 17}},
+	{VRRP_SNMP_RULE_REALM_DST, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 18}},
+	{VRRP_SNMP_RULE_REALM_SRC, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 19}},
+	{VRRP_SNMP_RULE_ININTERFACE, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 20}},
+	{VRRP_SNMP_RULE_OUTINTERFACE, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 21}},
+	{VRRP_SNMP_RULE_TARGET, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 22}},
+	{VRRP_SNMP_RULE_ACTION, ASN_INTEGER, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 23}},
+	{VRRP_SNMP_RULE_TABLE_NO, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 24}},
+	{VRRP_SNMP_RULE_PREFERENCE, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 25}},
+	{VRRP_SNMP_RULE_SUPPRESSPREFIXLEN, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 26}},
+	{VRRP_SNMP_RULE_SUPPRESSGROUP, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 27}},
+	{VRRP_SNMP_RULE_TUNNELID_HIGH, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 28}},
+	{VRRP_SNMP_RULE_TUNNELID_LOW, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 29}},
 #endif
+
 	/* vrrpScriptTable */
 	{VRRP_SNMP_SCRIPT_NAME, ASN_OCTET_STR, RONLY, vrrp_snmp_script, 3, {9, 1, 2}},
 	{VRRP_SNMP_SCRIPT_COMMAND, ASN_OCTET_STR, RONLY, vrrp_snmp_script, 3, {9, 1, 3}},
@@ -1528,8 +2354,45 @@ static struct variable8 vrrp_vars[] = {
 	{VRRP_SNMP_SCRIPT_RESULT, ASN_INTEGER, RONLY, vrrp_snmp_script, 3, {9, 1, 6}},
 	{VRRP_SNMP_SCRIPT_RISE, ASN_UNSIGNED, RONLY, vrrp_snmp_script, 3, {9, 1, 7}},
 	{VRRP_SNMP_SCRIPT_FALL, ASN_UNSIGNED, RONLY, vrrp_snmp_script, 3, {9, 1, 8}},
-};
 
+#ifdef _HAVE_FIB_ROUTING_
+	/* vrrpRouteNextHopTable */
+	{VRRP_SNMP_ROUTE_NEXT_HOP_ADDRESS_TYPE, ASN_INTEGER, RONLY,
+	 vrrp_snmp_next_hop, 3, {11, 1, 2}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_ADDRESS, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_next_hop, 3, {11, 1, 3}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_IF_INDEX, ASN_INTEGER, RONLY,
+	 vrrp_snmp_next_hop, 3, {11, 1, 4}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_IF_NAME, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_next_hop, 3, {11, 1, 5}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_WEIGHT, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_next_hop, 3, {11, 1, 6}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_ONLINK, ASN_INTEGER, RONLY,
+	 vrrp_snmp_next_hop, 3, {11, 1, 7}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_REALM_DST, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_next_hop, 3, {11, 1, 8}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_REALM_SRC, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_next_hop, 3, {11, 1, 9}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_TYPE, ASN_INTEGER, RONLY,
+	 vrrp_snmp_encap, 3, {11, 1, 10}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_MPLS_LABELS, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_encap, 3, {11, 1, 11}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_ID, ASN_COUNTER64, RONLY,
+	 vrrp_snmp_encap, 3, {11, 1, 12}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_DST_ADDRESS, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_encap, 3, {11, 1, 13}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_SRC_ADDRESS, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_encap, 3, {11, 1, 14}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_TOS, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_encap, 3, {11, 1, 15}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_TTL, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_encap, 3, {11, 1, 16}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_FLAGS, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_encap, 3, {11, 1, 17}},
+	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_ILA_LOCATOR, ASN_COUNTER64, RONLY,
+	 vrrp_snmp_encap, 3, {11, 1, 18}},
+#endif
+};
 
 void
 vrrp_snmp_instance_trap(vrrp_t *vrrp)
@@ -2297,15 +3160,6 @@ vrrp_rfcv2_snmp_auth_err_trap(vrrp_t *vrrp, struct in_addr src, enum rfcv2_trap_
 
 /* Enable returning detail of VRRP version 2 instances as well as version 3 instances */
 #define SNMP_REPLY_V3_FOR_V2
-
-/* For some reason net-snmp doesn't use a uint64_t for 64 bit counters, but rather uses
- * a struct, with the high word at the lower address, so we need to assign values according. */
-static void inline
-set_counter64 (struct counter64 *c64, uint64_t val)
-{
-	c64->high = val >> 32;
-	c64->low = val & 0xffffffff;
-}
 
 static bool
 suitable_for_rfc6527(vrrp_t* vrrp)

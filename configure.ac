@@ -119,6 +119,38 @@ if test "$USE_NL3" != "_WITHOUT_LIBNL_"; then
     !!! Please install libnfnetlink headers.              !!!]))
 fi
 
+for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF RTA_VIA FRA_OIFNAME FRA_SUPPRESS_PREFIXLEN FRA_SUPPRESS_IFGROUP FRA_TUN_ID; do
+  eval ${flag}="_WITHOUT_${flag}_"
+  if test "${IPVS_USE_NL}" = "LIBIPVS_USE_NL"; then
+    AC_MSG_CHECKING([for $flag])
+    AC_TRY_COMPILE([
+        #include <linux/rtnetlink.h>
+        #include <sys/socket.h>
+        #include <linux/fib_rules.h>
+      ], [
+	int flag = ${flag};
+      ], [
+	eval ${flag}_SUPPORT="yes"
+	], []);
+    eval SUPPORT=\$${flag}_SUPPORT
+    if test "${SUPPORT}" = "yes"; then
+      eval ${flag}="_HAVE_${flag}_"
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no])
+    fi
+  fi
+done
+AC_SUBST(RTA_ENCAP)
+AC_SUBST(RTA_EXPIRES)
+AC_SUBST(RTA_NEWDST)
+AC_SUBST(RTA_PREF)
+AC_SUBST(RTA_VIA)
+AC_SUBST(FRA_OIFNAME)
+AC_SUBST(FRA_SUPPRESS_PREFIXLEN)
+AC_SUBST(FRA_SUPPRESS_IFGROUP)
+AC_SUBST(FRA_TUN_ID)
+
 dnl ----[Check if have linux/if.h and netlink/route/link.h namespace collision]----
 IF_H_LINK_H_COLLISION="_WITHOUT_IF_H_LINK_H_COLLISION_"
 if test "${USE_NL3}" = "_HAVE_LIBNL3_"; then
@@ -411,6 +443,7 @@ dnl ----[ Checks for FIB routing support ]----
 # Introduced in Linux 2.6.19
 AC_MSG_CHECKING([for FIB routing support])
 AC_TRY_COMPILE([
+    #include <sys/socket.h>
     #include <linux/fib_rules.h>
     int type;
   ], [
@@ -655,7 +688,7 @@ AC_CHECK_FUNCS(gettimeofday select socket strerror strtol uname)
 AC_CHECK_FUNC([pipe2], [PIPE2_SUPPORT=_HAVE_PIPE2_], [PIPE2_SUPPORT=_WITHOUT_PIPE2_])
 AC_SUBST([PIPE2_SUPPORT])
 
-APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${IPVS_SYNCD_ATTRIBUTES} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} -D${MEM_CHECK} -D${MEM_CHECK_LOG} -D${PIPE2_SUPPORT} ${DFLAGS}"
+APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${IPVS_SYNCD_ATTRIBUTES} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} -D${MEM_CHECK} -D${MEM_CHECK_LOG} -D${PIPE2_SUPPORT} -D${RTA_ENCAP} -D${RTA_EXPIRES} -D${RTA_NEWDST} -D${RTA_PREF} -D${RTA_VIA} -D${FRA_OIFNAME} -D${FRA_SUPPRESS_PREFIXLEN} -D${FRA_SUPPRESS_IFGROUP} -D${FRA_TUN_ID} ${DFLAGS}"
 BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
 AC_SUBST(APP_DEFS)
 AC_SUBST(BUILD_OPTS)

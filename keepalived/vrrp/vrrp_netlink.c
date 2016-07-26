@@ -257,53 +257,168 @@ netlink_set_nonblock(nl_handle_t *nl, int *flags)
 
 /* iproute2 utility function */
 int
-addattr32(struct nlmsghdr *n, int maxlen, int type, uint32_t data)
+addattr_l(struct nlmsghdr *n, size_t maxlen, int type, void *data, size_t alen)
 {
-	int len = RTA_LENGTH(sizeof(data));
-	struct rtattr *rta;
-	if (n->nlmsg_len + NLMSG_ALIGN(len) > maxlen)
-		return -1;
-	rta = (struct rtattr*)(((char*)n) + n->nlmsg_len);
-	rta->rta_type = type;
-	rta->rta_len = len;
-	memcpy(RTA_DATA(rta), &data, sizeof(data));
-	n->nlmsg_len += NLMSG_ALIGN(len);
-	return 0;
-}
-
-int
-addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data, int alen)
-{
-	int len = RTA_LENGTH(alen);
+	size_t len = RTA_LENGTH(alen);
+	size_t align_len = NLMSG_ALIGN(len);
 	struct rtattr *rta;
 
-	if (n->nlmsg_len + NLMSG_ALIGN(len) > maxlen)
+	if (n->nlmsg_len + align_len > maxlen)
 		return -1;
 
 	rta = (struct rtattr *) (((char *) n) + n->nlmsg_len);
 	rta->rta_type = type;
 	rta->rta_len = len;
 	memcpy(RTA_DATA(rta), data, alen);
-	n->nlmsg_len += NLMSG_ALIGN(len);
+	n->nlmsg_len += align_len;
 
 	return 0;
 }
 
-int rta_addattr_l(struct rtattr *rta, int maxlen, int type,
-		  const void *data, int alen)
+int
+addattr8(struct nlmsghdr *n, size_t maxlen, int type, uint8_t data)
+{
+	return addattr_l(n, maxlen, type, &data, sizeof data);
+}
+
+int
+addattr32(struct nlmsghdr *n, size_t maxlen, int type, uint32_t data)
+{
+	return addattr_l(n, maxlen, type, &data, sizeof data);
+}
+
+int
+addattr64(struct nlmsghdr *n, size_t maxlen, int type, uint64_t data)
+{
+	return addattr_l(n, maxlen, type, &data, sizeof(data));
+}
+
+int
+addattr_l2(struct nlmsghdr *n, size_t maxlen, int type, void *data, size_t alen, void *data2, size_t alen2)
+{
+	size_t len = RTA_LENGTH(alen + alen2);
+	size_t align_len = NLMSG_ALIGN(len);
+	struct rtattr *rta;
+
+	if (n->nlmsg_len + align_len > maxlen)
+		return -1;
+
+	rta = (struct rtattr *) (((char *) n) + n->nlmsg_len);
+	rta->rta_type = type;
+	rta->rta_len = len;
+	memcpy(RTA_DATA(rta), data, alen);
+	memcpy(RTA_DATA(rta) + alen, data2, alen2);
+	n->nlmsg_len += align_len;
+
+	return 0;
+}
+
+int
+addraw_l(struct nlmsghdr *n, size_t maxlen, const void *data, size_t len)
+{
+	size_t align_len = NLMSG_ALIGN(len);
+
+	if (n->nlmsg_len + align_len > maxlen)
+		return -1;
+
+	memcpy(NLMSG_TAIL(n), data, len);
+	memset((void *) NLMSG_TAIL(n) + len, 0, align_len - len);
+	n->nlmsg_len += align_len;
+	return 0;
+}
+
+size_t
+rta_addattr_l(struct rtattr *rta, size_t maxlen, int type,
+		  const void *data, size_t alen)
 {
 	struct rtattr *subrta;
-	int len = RTA_LENGTH(alen);
+	size_t len = RTA_LENGTH(alen);
+	size_t align_len = RTA_ALIGN(len);
 
-	if (RTA_ALIGN(rta->rta_len) + RTA_ALIGN(len) > maxlen) {
-		return -1;
-	}
-	subrta = (struct rtattr*)(((char*)rta) + RTA_ALIGN(rta->rta_len));
+	if (rta->rta_len + align_len > maxlen)
+		return 0;
+
+	subrta = (struct rtattr*)(((char*)rta) + rta->rta_len);
 	subrta->rta_type = type;
 	subrta->rta_len = len;
 	memcpy(RTA_DATA(subrta), data, alen);
-	rta->rta_len = NLMSG_ALIGN(rta->rta_len) + RTA_ALIGN(len);
-	return 0;
+	rta->rta_len += align_len;
+	return align_len;
+}
+
+size_t
+rta_addattr_l2(struct rtattr *rta, size_t maxlen, int type,
+		  const void *data, size_t alen,
+		  const void *data2, size_t alen2)
+{
+	struct rtattr *subrta;
+	size_t len = RTA_LENGTH(alen + alen2);
+	size_t align_len = RTA_ALIGN(len);
+
+	if (rta->rta_len + align_len > maxlen)
+		return 0;
+
+	subrta = (struct rtattr*)(((char*)rta) + rta->rta_len);
+	subrta->rta_type = type;
+	subrta->rta_len = len;
+	memcpy(RTA_DATA(subrta), data, alen);
+	memcpy(RTA_DATA(subrta) + alen, data2, alen2);
+	rta->rta_len += align_len;
+	return align_len;
+}
+
+size_t
+rta_addattr64(struct rtattr *rta, size_t maxlen, int type, uint64_t data)
+{
+	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
+}
+
+size_t
+rta_addattr32(struct rtattr *rta, size_t maxlen, int type, uint32_t data)
+{
+	struct rtattr *subrta;
+	size_t len = RTA_LENGTH(sizeof data);
+	size_t align_len = RTA_ALIGN(len);
+
+	if (rta->rta_len + align_len > maxlen)
+		return 0;
+
+	subrta = (struct rtattr*)(((char*)rta) + rta->rta_len);
+	subrta->rta_type = type;
+	subrta->rta_len = len;
+	memcpy(RTA_DATA(subrta), &data, sizeof data);
+	rta->rta_len += align_len;
+	return align_len;
+}
+
+size_t
+rta_addattr16(struct rtattr *rta, size_t maxlen, int type, uint16_t data)
+{
+	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
+}
+
+size_t
+rta_addattr8(struct rtattr *rta, size_t maxlen, int type, uint8_t data)
+{
+	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
+}
+
+struct rtattr *
+rta_nest(struct rtattr *rta, size_t maxlen, int type)
+{
+	struct rtattr *nest = RTA_TAIL(rta);
+
+	rta_addattr_l(rta, maxlen, type, NULL, 0);
+
+	return nest;
+}
+
+size_t
+rta_nest_end(struct rtattr *rta, struct rtattr *nest)
+{
+	nest->rta_len = (int)((void *)RTA_TAIL(rta) - (void *)nest);
+
+	return rta->rta_len;
 }
 
 static void
@@ -323,38 +438,6 @@ parse_rtattr_nested(struct rtattr **tb, int max, struct rtattr *rta)
         parse_rtattr(tb, max, RTA_DATA(rta), RTA_PAYLOAD(rta));
 }
 #endif
-
-const char *
-netlink_scope_n2a(int scope)
-{
-	if (scope == RT_SCOPE_UNIVERSE)
-		return "global";
-	if (scope == RT_SCOPE_NOWHERE)
-		return "nowhere";
-	if (scope == RT_SCOPE_HOST)
-		return "host";
-	if (scope == RT_SCOPE_LINK)
-		return "link";
-	if (scope == RT_SCOPE_SITE)
-		return "site";
-	return "unknown";
-}
-
-int
-netlink_scope_a2n(char *scope)
-{
-	if (!strcmp(scope, "global"))
-		return RT_SCOPE_UNIVERSE;
-	if (!strcmp(scope, "nowhere"))
-		return RT_SCOPE_NOWHERE;
-	if (!strcmp(scope, "host"))
-		return RT_SCOPE_HOST;
-	if (!strcmp(scope, "link"))
-		return RT_SCOPE_LINK;
-	if (!strcmp(scope, "site"))
-		return RT_SCOPE_SITE;
-	return -1;
-}
 
 /*
  * Netlink interface address lookup filter

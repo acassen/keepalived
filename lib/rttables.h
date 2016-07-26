@@ -24,7 +24,16 @@
 #ifndef _READ_RTTABLES_H
 #define _READ_RTTABLES_H
 
-extern void clear_rttables(void);
-extern bool find_rttables_table(const char *, unsigned int *);
+extern void clear_rt_names(void);
+extern bool find_rttables_table(const char *, uint32_t *);
+extern bool find_rttables_dsfield(const char *, uint32_t*);
+extern bool find_rttables_realms(const char *, uint32_t *);
+extern bool find_rttables_group(const char *, uint32_t *);
+extern bool find_rttables_proto(const char *, uint32_t *);
+extern bool find_rttables_scope(const char *, uint32_t *);
+extern bool find_rttables_rtntype(const char *, uint8_t *);
+extern const char *get_rttables_scope(uint32_t);
+extern const char *get_rttables_group(uint32_t);
+extern const char *get_rttables_rtntype(uint8_t);
 
 #endif

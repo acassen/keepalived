@@ -23,6 +23,7 @@
 /* global includes */
 #include <sys/socket.h>
 #include <linux/fib_rules.h>
+#include <inttypes.h>
 
 /* local include */
 #include "vrrp_ipaddress.h"
@@ -34,6 +35,9 @@
 #include "memory.h"
 #include "utils.h"
 #include "rttables.h"
+#include "vrrp_ip_rule_route_parser.h"
+
+#define htonll(x) ((1==htonl(1)) ? (x) : ((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
 
 /* Utility functions */
 static int
@@ -45,12 +49,52 @@ add_addr2req(struct nlmsghdr *n, int maxlen, int type, ip_address_t *ip_address)
 	if (!ip_address)
 		return -1;
 
-	addr = (IP_IS6(ip_address)) ? (void *) &ip_address->u.sin6_addr :
-				     (void *) &ip_address->u.sin.sin_addr;
-	alen = (IP_IS6(ip_address)) ? sizeof(ip_address->u.sin6_addr) :
-				     sizeof(ip_address->u.sin.sin_addr);
+	if (IP_IS6(ip_address)) {
+		addr = (void *) &ip_address->u.sin6_addr;
+		alen = sizeof(ip_address->u.sin6_addr);
+	}
+	else {
+		addr = (void *) &ip_address->u.sin.sin_addr;
+		alen = sizeof(ip_address->u.sin.sin_addr);
+	}
 
 	return addattr_l(n, maxlen, type, addr, alen);
+}
+
+static inline bool
+rule_is_equal(const ip_rule_t *x, const ip_rule_t *y)
+{
+	if (x->mask != y->mask ||
+	    x->invert != y->invert ||
+	    !IP_ISEQ(x->from_addr, y->from_addr) ||
+	    !IP_ISEQ(x->to_addr, y->to_addr) ||
+	    x->priority != y->priority ||
+	    x->tos != y->tos ||
+	    x->fwmark != y->fwmark ||
+	    x->fwmask != y->fwmask ||
+	    x->realms != y->realms ||
+#ifdef _HAVE_FRA_SUPPRESS_PREFIXLEN_
+	    x->suppress_prefix_len != y->suppress_prefix_len ||
+#endif
+#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+	    x->suppress_group != y->suppress_group ||
+#endif
+#ifdef _HAVE_FRA_TUN_ID_
+	    x->tunnel_id != y->tunnel_id ||
+#endif
+	    !(x->iif) != !(y->iif) ||
+	    !(x->oif) != !(y->oif) ||
+	    x->goto_target != y->goto_target ||
+	    x->table != y->table ||
+	    x->action != y->action)
+		return false;
+
+	if (x->iif && x->iif->ifindex != y->iif->ifindex)
+		return false;
+	if (x->oif && x->oif->ifindex != y->oif->ifindex)
+		return false;
+
+	return true;
 }
 
 /* Add/Delete IP rule to/from a specific IP/network */
@@ -60,42 +104,103 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 	int status = 1;
 	struct {
 		struct nlmsghdr n;
-		struct rtmsg r;
+		struct fib_rule_hdr frh;
 		char buf[1024];
 	} req;
 
 	memset(&req, 0, sizeof (req));
 
-	req.n.nlmsg_len    = NLMSG_LENGTH(sizeof(struct rtmsg));
-	req.n.nlmsg_flags  = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL;
-	req.n.nlmsg_type   = cmd ? RTM_NEWRULE : RTM_DELRULE;
-	req.r.rtm_family   = IP_FAMILY(iprule->addr);
-	if (iprule->table < 256)
-		req.r.rtm_table = iprule->table ? iprule->table : RT_TABLE_MAIN;
-	else {
-		req.r.rtm_table = RT_TABLE_UNSPEC;
-		addattr32(&req.n, sizeof(req), FRA_TABLE, iprule->table);
-	}
-	req.r.rtm_type     = RTN_UNSPEC;
-	req.r.rtm_scope    = RT_SCOPE_UNIVERSE;
-	req.r.rtm_flags    = 0;
+	req.n.nlmsg_len = NLMSG_LENGTH(sizeof(struct rtmsg));
+	req.n.nlmsg_flags = NLM_F_REQUEST;
 
-	if (cmd) {
-		req.r.rtm_protocol = RTPROT_BOOT;
-		req.r.rtm_type     = RTN_UNICAST;
+	if (cmd != IPRULE_DEL) {
+		req.n.nlmsg_flags |= NLM_F_CREATE | NLM_F_EXCL;
+		req.n.nlmsg_type = RTM_NEWRULE;
+		req.frh.action = FR_ACT_UNSPEC;
 	}
+	else {
+		req.frh.action = FR_ACT_UNSPEC;
+		req.n.nlmsg_type = RTM_DELRULE;
+	}
+	req.frh.table = RT_TABLE_UNSPEC;
+	req.frh.flags = 0;
+
+	if (iprule->from_addr)
+		req.frh.family = IP_FAMILY(iprule->from_addr);
+	else if (iprule->to_addr)
+		req.frh.family = IP_FAMILY(iprule->to_addr);
+	else
+		req.frh.family = AF_INET;
+
+	if (iprule->action == FR_ACT_TO_TBL) {
+		if (iprule->table < 256)	// "Table" or "lookup"
+			req.frh.table = iprule->table ? iprule->table : RT_TABLE_MAIN;
+		else {
+			req.frh.table = RT_TABLE_UNSPEC;
+			addattr32(&req.n, sizeof(req), FRA_TABLE, iprule->table);
+		}
+	}
+
+	if (iprule->invert)
+		req.frh.flags |= FIB_RULE_INVERT;	// "not"
 
 	/* Set rule entry */
-	if (iprule->dir == VRRP_RULE_FROM) {
-		req.r.rtm_src_len = iprule->mask;
-		add_addr2req(&req.n, sizeof(req), FRA_SRC, iprule->addr);
-	} else if (iprule->dir == VRRP_RULE_TO) {
-		req.r.rtm_dst_len = iprule->mask;
-		add_addr2req(&req.n, sizeof(req), FRA_DST, iprule->addr);
+	if (iprule->from_addr) {	// can be "default"/"any"/"all" - and to addr => bytelen == bitlen == 0
+		add_addr2req(&req.n, sizeof(req), FRA_SRC, iprule->from_addr);
+		req.frh.src_len = iprule->from_addr->ifa.ifa_prefixlen;
 	}
+	if (iprule->to_addr) {
+		add_addr2req(&req.n, sizeof(req), FRA_DST, iprule->to_addr);
+		req.frh.dst_len = iprule->to_addr->ifa.ifa_prefixlen;
+	}
+
+	if (iprule->mask & IPRULE_BIT_PRIORITY)	// "priority/order/preference"
+		addattr32(&req.n, sizeof(req), FRA_PRIORITY, iprule->priority);
+
+	if (iprule->mask & IPRULE_BIT_DSFIELD)	// "tos/dsfield"
+		req.frh.tos = iprule->tos;	// Hex value - 0xnn <= 255, or name from rt_dsfield
+
+	if (iprule->mask & IPRULE_BIT_FWMARK)	// "fwmark"
+		addattr32(&req.n, sizeof(req), FRA_FWMARK, iprule->fwmark);
+
+	if (iprule->mask & IPRULE_BIT_FWMASK)	// "fwmark number followed by /nn"
+		addattr32(&req.n, sizeof(req), FRA_FWMASK, iprule->fwmask);
+
+	if (iprule->realms)	// "realms u16[/u16] using rt_realms. after / is 16 msb (src), pre slash is 16 lsb (dest)"
+		addattr32(&req.n, sizeof(req), FRA_FLOW, iprule->realms);
+
+#ifdef _HAVE_FRA_SUPPRESS_PREFIXLEN_
+	if (iprule->mask & IPRULE_BIT_SUP_PREFIXLEN)	// "suppress_prefixlength" - only valid if table !=0
+		addattr32(&req.n, sizeof(req), FRA_SUPPRESS_PREFIXLEN, iprule->suppress_prefix_len);
+#endif
+
+#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+	if (iprule->mask & IPRULE_BIT_SUP_GROUP)	// "suppress_ifgroup" or "sup_group" int32 - only valid if table !=0
+		addattr32(&req.n, sizeof(req), FRA_SUPPRESS_IFGROUP, iprule->suppress_group);
+#endif
+
+	if (iprule->iif)	// "dev/iif"
+		addattr_l(&req.n, sizeof(req), FRA_IFNAME, iprule->iif, strlen(iprule->iif->ifname)+1);
+
+#ifdef _HAVE_FRA_OIFNAME_
+	if (iprule->oif)	// "oif"
+		addattr_l(&req.n, sizeof(req), FRA_OIFNAME, iprule->oif, strlen(iprule->oif->ifname)+1);
+#endif
+
+#ifdef _HAVE_FRA_TUN_ID_
+	if (iprule->tunnel_id)
+		addattr64(&req.n, sizeof(req), FRA_TUN_ID, htonll(iprule->tunnel_id));
+#endif
+	if (iprule->action == FR_ACT_GOTO) {	// "goto"
+		addattr32(&req.n, sizeof(req), FRA_GOTO, iprule->goto_target);
+		req.frh.action = FR_ACT_GOTO;
+	}
+
+	req.frh.action = iprule->action;
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;
+
 	return status;
 }
 
@@ -119,7 +224,7 @@ netlink_rulelist(list rule_list, int cmd, bool force)
 		iprule = ELEMENT_DATA(e);
 		if (force ||
 		    (cmd == IPRULE_ADD && !iprule->set) ||
-		    (cmd == IPRULE_DEL&& iprule->set)) {
+		    (cmd == IPRULE_DEL && iprule->set)) {
 			if (netlink_rule(iprule, cmd) > 0)
 				iprule->set = (cmd == IPRULE_ADD);
 			else
@@ -136,59 +241,372 @@ free_iprule(void *rule_data)
 {
 	ip_rule_t *rule = rule_data;
 
-	FREE_PTR(rule->addr);
+	FREE_PTR(rule->from_addr);
+	FREE_PTR(rule->to_addr);
 	FREE(rule_data);
 }
+
+void
+format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
+{
+	char *op = buf;
+	char *buf_end = buf + buf_len;
+
+	if (rule->invert)
+		op += snprintf(op, buf_end - op, " not");
+
+	if (rule->from_addr) {
+		op += snprintf(op, buf_end - op, "from %s", ipaddresstos(NULL, rule->from_addr));
+		if ((rule->from_addr->ifa.ifa_family == AF_INET && rule->from_addr->ifa.ifa_prefixlen != 32 ) ||
+		    (rule->from_addr->ifa.ifa_family == AF_INET6 && rule->from_addr->ifa.ifa_prefixlen != 128 ))
+			op += snprintf(op, buf_end - op, "/%d", rule->from_addr->ifa.ifa_prefixlen);
+	}
+	else
+		op += snprintf(op, buf_end - op, "from all" );
+
+	if (rule->to_addr) {
+		op += snprintf(op, buf_end - op, " to %s", ipaddresstos(NULL, rule->to_addr));
+		if ((rule->to_addr->ifa.ifa_family == AF_INET && rule->to_addr->ifa.ifa_prefixlen != 32 ) ||
+		    (rule->to_addr->ifa.ifa_family == AF_INET6 && rule->to_addr->ifa.ifa_prefixlen != 128 ))
+			op += snprintf(op, buf_end - op, "/%d", rule->to_addr->ifa.ifa_prefixlen);
+	}
+
+	if (rule->mask & IPRULE_BIT_PRIORITY)
+		op += snprintf(op, buf_end - op, " priority %u", rule->priority);
+
+	if (rule->mask & IPRULE_BIT_DSFIELD)
+		op += snprintf(op, buf_end - op, " tos 0x%x", rule->tos);
+
+	if (rule->mask & (IPRULE_BIT_FWMARK | IPRULE_BIT_FWMASK)) {
+		op += snprintf(op, buf_end - op, " fwmark 0x%x", rule->fwmark);
+
+		if (rule->mask & IPRULE_BIT_FWMASK && rule->fwmask != 0xffffffff)
+			op += snprintf(op, buf_end - op, "/0x%x", rule->fwmask);
+	}
+
+	if (rule->iif)
+#ifdef _HAVE_FRA_OIFNAME_
+		op += snprintf(op, buf_end - op, " iif %s", rule->iif->ifname);
+#else
+		op += snprintf(op, buf_end - op, " dev %s", rule->iif->ifname);
+#endif
+
+#ifdef _HAVE_FRA_OIFNAME_
+	if (rule->oif)
+		op += snprintf(op, buf_end - op, " oif %s", rule->oif->ifname);
+#endif
+
+#ifdef _HAVE_FRA_SUPPRESS_PREFIXLEN_
+	if (rule->mask & IPRULE_BIT_SUP_PREFIXLEN)
+		op += snprintf(op, buf_end - op, " suppress_prefixlen %d", rule->suppress_prefix_len);
+#endif
+
+#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+	if (rule->mask & IPRULE_BIT_SUP_GROUP)
+		op += snprintf(op, buf_end - op, " suppress_ifgroup %d", rule->suppress_group);
+#endif
+
+#ifdef _HAVE_FRA_TUN_ID_
+	if (rule->tunnel_id)
+		op += snprintf(op, buf_end - op, " tunnel-id %" PRIu64, rule->tunnel_id);
+#endif
+
+	if (rule->realms)
+		op += snprintf(op, buf_end - op, " realms %d/%d", rule->realms >> 16, rule->realms & 0xffff);
+
+	if (rule->action == FR_ACT_TO_TBL)
+		op += snprintf(op, buf_end - op, " lookup %u", rule->table);
+	else if (rule->action == FR_ACT_GOTO)
+		op += snprintf(op, buf_end - op, " goto %u", rule->goto_target);
+	else if (rule->action == FR_ACT_NOP)
+		op += snprintf(op, buf_end - op, " nop");
+	else
+		op += snprintf(op, buf_end - op, " type %s", get_rttables_rtntype(rule->action));
+}
+
 void
 dump_iprule(void *rule_data)
 {
 	ip_rule_t *rule = rule_data;
-	char *log_msg = MALLOC(1024);
-	char *op = log_msg;
+	char *buf = MALLOC(RULE_BUF_SIZE);
 
-	if (rule->dir)
-		op += snprintf(op, log_msg + 1024 - op, "%s ", (rule->dir == VRRP_RULE_FROM) ? "from" : "to");
-	if (rule->addr)
-		op += snprintf(op, log_msg + 1024 - op, "%s/%d", ipaddresstos(NULL, rule->addr), rule->mask);
-	if (rule->table)
-		op += snprintf(op, log_msg + 1024 - op, " table %d", rule->table);
+	format_iprule(rule, buf, RULE_BUF_SIZE);
 
-	log_message(LOG_INFO, "     %s", log_msg);
+	log_message(LOG_INFO, "     %s", buf);
 
-	FREE(log_msg);
+	FREE(buf);
 }
+
 void
 alloc_rule(list rule_list, vector_t *strvec)
 {
 	ip_rule_t *new;
 	char *str;
 	unsigned int i = 0;
-	unsigned int table_id;
+	unsigned int val, val1;
+	int family = AF_UNSPEC;
+#ifdef _HAVE_FRA_SUPPRESS_PREFIXLEN_
+	int sval;
+#endif
+	interface_t *ifp;
+	char *end;
+	bool table_option = false;
 
-	new  = (ip_rule_t *) MALLOC(sizeof(ip_rule_t));
+	new = (ip_rule_t *)MALLOC(sizeof(ip_rule_t));
+	if (!new) {
+		log_message(LOG_INFO, "Unable to allocate new rule");
+		goto err;
+	}
+
+	new->action = FR_ACT_UNSPEC;
 
 	/* FMT parse */
 	while (i < vector_size(strvec)) {
 		str = vector_slot(strvec, i);
 
 		if (!strcmp(str, "from")) {
-			new->dir  = VRRP_RULE_FROM;
-			new->addr = parse_ipaddress(NULL, vector_slot(strvec, ++i),false);
-			new->mask = new->addr->ifa.ifa_prefixlen;
-		} else if (!strcmp(str, "to")) {
-			new->dir  = VRRP_RULE_TO;
-			new->addr = parse_ipaddress(NULL, vector_slot(strvec, ++i),false);
-			new->mask = new->addr->ifa.ifa_prefixlen;
-		} else if (!strcmp(str, "table")) {
-			if (!find_rttables_table(vector_slot(strvec, ++i), &table_id))
+			if (new->from_addr)
+				FREE(new->from_addr);
+			new->from_addr = parse_ipaddress(NULL, vector_slot(strvec, ++i), false);
+			if (!new->from_addr) {
+				log_message(LOG_INFO, "Invalid rule from address %s", FMT_STR_VSLOT(strvec, i));
+				goto err;
+			}
+			if (family == AF_UNSPEC)
+				family = new->from_addr->ifa.ifa_family;
+			else if (new->from_addr->ifa.ifa_family != family)
+			{
+				log_message(LOG_INFO, "rule specification has mixed IPv4 and IPv6");
+				goto err;
+			}
+		}
+		else if (!strcmp(str, "to")) {
+			if (new->to_addr)
+				FREE(new->to_addr);
+			new->to_addr = parse_ipaddress(NULL, vector_slot(strvec, ++i), false);
+			if (!new->to_addr) {
+				log_message(LOG_INFO, "Invalid rule to address %s", FMT_STR_VSLOT(strvec, i));
+				goto err;
+			}
+			if (family == AF_UNSPEC)
+				family = new->to_addr->ifa.ifa_family;
+			else if (new->to_addr->ifa.ifa_family != family)
+			{
+				log_message(LOG_INFO, "rule specification has mixed IPv4 and IPv6");
+				goto err;
+			}
+		}
+		else if (!strcmp(str, "table") ||
+			 !strcmp(str, "lookup")) {
+			if (!find_rttables_table(vector_slot(strvec, ++i), &val)) {
 				log_message(LOG_INFO, "Routing table %s not found for rule", FMT_STR_VSLOT(strvec, i));
+				goto err;
+			}
+			if (val == 0) {
+				log_message(LOG_INFO, "Table 0 is not valid");
+				goto err;
+			}
+			new->table = val;
+			if (new->action != FR_ACT_UNSPEC) {
+				log_message(LOG_INFO, "Cannot specify more than one of table/nop/goto/blackhole/prohibit/unreachable for rule");
+				goto err;
+			}
+			new->action = FR_ACT_TO_TBL;
+		}
+		else if (!strcmp(str,"not"))
+			new->invert = true;
+		else if (!strcmp(str, "preference") ||
+			 !strcmp(str, "order") ||
+			 !strcmp(str, "priority")) {
+			str = vector_slot(strvec, ++i);
+			val = strtoul(str, &end, 0);
+			if (*end || val > UINT32_MAX) {
+				log_message(LOG_INFO, "Invalid rule preference %s specified", str);
+				goto err;
+			}
+
+			new->priority = val;
+			new->mask |= IPRULE_BIT_PRIORITY;
+		}
+		else if (!strcmp(str, "tos") || !strcmp(str, "dsfield")) {
+			if (!find_rttables_dsfield(vector_slot(strvec, ++i), &val)) {
+				log_message(LOG_INFO, "TOS value %s is invalid", FMT_STR_VSLOT(strvec, i));
+				goto err;
+			}
+
+			new->tos = val;
+			new->mask |= IPRULE_BIT_DSFIELD;
+		}
+		else if (!strcmp(str, "fwmark")) {
+			str = vector_slot(strvec, ++i);
+			if (str[0] == '-')
+				goto fwmark_err;
+			val = strtoul(str, &end, 0);
+
+			if (*end == '/') {
+				if (end[1] == '-')
+					goto fwmark_err;
+					
+				val1 = strtoul(end+1, &end, 0);
+				if (val1 > UINT32_MAX)
+					goto fwmark_err;
+				new->mask |= IPRULE_BIT_FWMASK;
+			}
 			else
-				new->table = table_id;
+				val1 = 0;
+
+			if (*end)
+				goto fwmark_err;
+
+			new->fwmark = val;
+			new->fwmask = val1;
+			new->mask |= IPRULE_BIT_FWMARK;
+
+			if (true) {
+			} else {
+fwmark_err:
+				log_message(LOG_INFO, "Invalid rule fwmark %s specified", str);
+				new->mask &= ~IPRULE_BIT_FWMASK;
+				goto err;
+			}
+		}
+		else if (!strcmp(str, "realms")) {
+			str = vector_slot(strvec, ++i);
+			if (get_realms(&val, str)) {
+				log_message(LOG_INFO, "invalid realms %s for rule", FMT_STR_VSLOT(strvec, i));
+				goto err;
+			}
+
+			new->realms = val;
+			table_option = true;
+			if (family == AF_UNSPEC)
+				family = AF_INET;
+			else if (family != AF_INET) {
+				log_message(LOG_INFO, "realms is only valid for IPv4");
+				goto err;
+			}
+		}
+#ifdef _HAVE_FRA_SUPPRESS_PREFIXLEN_
+		else if (!strcmp(str, "suppress_prefixlength") || !strcmp(str, "sup_pl")) {
+			str = vector_slot(strvec, ++i);
+			sval = strtol(str, &end, 0);
+			if (*end || sval < 0 || sval > INT32_MAX) {
+				log_message(LOG_INFO, "Invalid suppress_prefixlength %s specified", str);
+				goto err;
+			}
+			new->suppress_prefix_len = sval;
+			new->mask |= IPRULE_BIT_SUP_PREFIXLEN;
+			table_option = true;
+		}
+#endif
+#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+		else if (!strcmp(str, "suppress_ifgroup") || !strcmp(str, "sup_group")) {
+			if (!find_rttables_group(vector_slot(strvec, ++i), &val)) {
+				log_message(LOG_INFO, "suppress_group %s is invalid", FMT_STR_VSLOT(strvec, i));
+				goto err;
+			}
+			new->suppress_group = val;
+			new->mask |= IPRULE_BIT_SUP_GROUP;
+			table_option = true;
+		}
+#endif
+		else if (!strcmp(str, "dev") || !strcmp(str, "iif")) {
+			str = vector_slot(strvec, ++i);
+			ifp = if_get_by_ifname(str);
+			if (!ifp) {
+				log_message(LOG_INFO, "Unknown interface %s for rule",  str);
+				goto err;
+			}
+			new->iif = ifp;
+		}
+#ifdef _HAVE_FRA_OIFNAME_
+		else if (!strcmp(str, "oif")) {
+			str = vector_slot(strvec, ++i);
+			ifp = if_get_by_ifname(str);
+			if (!ifp) {
+				log_message(LOG_INFO, "Unknown interface %s for rule",  str);
+				goto err;
+			}
+			new->oif = ifp;
+		}
+#endif
+#ifdef _HAVE_FRA_TUN_ID_
+		else if (!strcmp(str, "tunnel-id")) {
+			uint64_t val64;
+			val64 = strtoull(vector_slot(strvec, ++i), &end, 0);
+			if (*end) {
+				log_message(LOG_INFO, "Invalid tunnel-id %s specified", str);
+				goto err;
+			}
+			new->tunnel_id = val64;
+		}
+#endif
+		else {
+			uint8_t action = FR_ACT_UNSPEC;
+
+			if (!strcmp(str, "type"))
+				str = vector_slot(strvec, ++i);
+
+			if (!strcmp(str, "goto")) {
+				val = strtoul(vector_slot(strvec, ++i), &end, 0);
+				if (*end || val > UINT32_MAX) {
+					log_message(LOG_INFO, "Invalid target %s specified", str);
+					goto err;
+				}
+				new->goto_target = val;
+				action = FR_ACT_GOTO;
+			}
+			else if (!strcmp(str, "nop")) {
+				action = FR_ACT_NOP;
+			}
+			else if (find_rttables_rtntype(str, &action)) {
+				if (action == RTN_BLACKHOLE)
+					action = FR_ACT_BLACKHOLE;
+				else if (action == RTN_UNREACHABLE)
+					action = FR_ACT_UNREACHABLE;
+				else if (action == RTN_PROHIBIT)
+					action = FR_ACT_PROHIBIT;
+				else {
+					log_message(LOG_INFO, "Invalid rule action %s", str);
+					goto err;
+				}
+			}
+			else {
+				log_message(LOG_INFO, "Unknown rule option %s", str);
+				goto err;
+			}
+			if (new->action != FR_ACT_UNSPEC) {
+				log_message(LOG_INFO, "Cannot specify more than one of table/nop/goto/blackhole/prohibit/unreachable for rule");
+				goto err;
+			}
+			new->action = action;
 		}
 		i++;
 	}
 
+	if (new->action == FR_ACT_GOTO &&
+	    new->mask & IPRULE_BIT_PRIORITY &&
+	    new->priority >= new->goto_target)
+	{
+		log_message(LOG_INFO, "Invalid rule - preference %u >= goto target %u", new->priority, new->goto_target);
+		goto err;
+	}
+
+	if (new->action == FR_ACT_UNSPEC) {
+		log_message(LOG_INFO, "No action specified for rule - ignoring");
+		goto err;
+	}
+
+	if (new->action != FR_ACT_TO_TBL && table_option) {
+		log_message(LOG_INFO, "suppressor/realm specified for non table action - skipping");
+		goto err;
+	}
+
 	list_add(rule_list, new);
+	return;
+
+err:
+	FREE_PTR(new);
 }
 
 /* Try to find a rule in a list */
@@ -200,7 +618,7 @@ rule_exist(list l, ip_rule_t *iprule)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		ipr = ELEMENT_DATA(e);
-		if (RULE_ISEQ(ipr, iprule)) {
+		if (rule_is_equal(ipr, iprule)) {
 			ipr->set = iprule->set;
 			return 1;
 		}
@@ -230,7 +648,7 @@ clear_diff_rules(list l, list n)
 		iprule = ELEMENT_DATA(e);
 		if (!rule_exist(n, iprule) && iprule->set) {
 			log_message(LOG_INFO, "ip rule %s/%d ... , no longer exist"
-					    , ipaddresstos(NULL, iprule->addr), iprule->mask);
+					    , ipaddresstos(NULL, iprule->from_addr), iprule->from_addr->ifa.ifa_prefixlen);
 			netlink_rule(iprule, IPRULE_DEL);
 		}
 	}

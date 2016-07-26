@@ -652,5 +652,5 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 	current_keywords = keywords;
 	read_conf_file(conf_file);
 	free_keywords(keywords);
-	clear_rttables();
+	clear_rt_names();
 }
