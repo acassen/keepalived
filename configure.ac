@@ -50,6 +50,8 @@ AC_ARG_ENABLE(sha1,
   [  --enable-sha1           compile with SHA1 support])
 AC_ARG_ENABLE(vrrp-auth,
   [  --disable-vrrp-auth     compile without VRRP authentication])
+AC_ARG_ENABLE(routes,
+  [  --disable-routes        compile without ip rules/routes])
 AC_ARG_ENABLE(libiptc,
   [  --disable-libiptc       compile without libiptc])
 AC_ARG_ENABLE(libipset,
@@ -439,26 +441,26 @@ AC_TRY_COMPILE([
 
 AC_SUBST(SOCK_CLOEXEC_SUPPORT)
 
-dnl ----[ Checks for FIB routing support ]----
-# Introduced in Linux 2.6.19
-AC_MSG_CHECKING([for FIB routing support])
-AC_TRY_COMPILE([
-    #include <sys/socket.h>
-    #include <linux/fib_rules.h>
-    int type;
-  ], [
-    type = FRA_SRC;
-  ], [
-    FIB_ROUTING_SUPPORT=yes
-  ], []);
-
-  if test "$FIB_ROUTING_SUPPORT" = "yes"; then
-    FIB_ROUTING_SUPPORT="_HAVE_FIB_ROUTING_"
-    AC_MSG_RESULT([yes])
-  else
-    FIB_ROUTING_SUPPORT="_WITHOUT_FIB_ROUTING_"
-    AC_MSG_RESULT([no])
+FIB_ROUTING_SUPPORT="_WITHOUT_FIB_ROUTING_"
+if test ${VRRP_SUPPORT} = "_WITH_VRRP_"; then
+  dnl ----[ Checks for FIB routing support ]----
+  if test "${enable_routes}" != "no"; then
+    # Introduced in Linux 2.6.19
+    AC_MSG_CHECKING([for FIB routing support])
+    AC_TRY_COMPILE([
+        #include <sys/socket.h>
+        #include <linux/fib_rules.h>
+        int type;
+      ], [
+        type = FRA_SRC;
+      ], [
+        FIB_ROUTING_SUPPORT="_HAVE_FIB_ROUTING_"
+        AC_MSG_RESULT([yes])
+      ], [
+        AC_MSG_RESULT([no])
+      ]);
   fi
+fi
 
 AC_SUBST(FIB_ROUTING_SUPPORT)
 
@@ -758,6 +760,11 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
     echo "Use VRRP authentication  : Yes"
   else
     echo "Use VRRP authentication  : No"
+  fi
+  if test ${FIB_ROUTING_SUPPORT} = "_HAVE_FIB_ROUTING_"; then
+    echo "With ip rules/routes     : Yes"
+  else
+    echo "With ip rules/routes     : No"
   fi
 else
   echo "Use VRRP Framework       : No"
