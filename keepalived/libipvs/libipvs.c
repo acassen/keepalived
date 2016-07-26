@@ -103,7 +103,7 @@ static int ipvs_nl_noop_cb(struct nl_msg *msg, void *arg)
 	return NL_OK;
 }
 
-int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func, void *arg)
+static int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func, void *arg)
 {
 	int err = EINVAL;
 
@@ -207,7 +207,7 @@ static int ipvs_getinfo_parse_cb(struct nl_msg *msg, void *arg)
 }
 #endif
 
-int ipvs_getinfo(void)
+static int ipvs_getinfo(void)
 {
 	socklen_t len;
 

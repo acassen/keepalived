@@ -51,9 +51,6 @@ extern int ipvs_init(void);
 /* Set timeout parameters */
 extern int ipvs_set_timeout(ipvs_timeout_t *to);
 
-/* get ipvs info separately */
-extern int ipvs_getinfo(void);
-
 /* flush all the rules */
 extern int ipvs_flush(void);
 
