@@ -1685,13 +1685,9 @@ open_vrrp_send_socket(sa_family_t family, int proto, int idx, int unicast)
 		if_setsockopt_mcast_loop(family, &fd);
 	}
 
-	if_setsockopt_priority(&fd);
+	if_setsockopt_priority(&fd, family);
 
-    /* set tos to internet network control */
-	int tos = 0xc0; // 192, which translates to DCSP value 48, or cs6
-	setsockopt(fd, IPPROTO_IPV6, IPV6_TCLASS, &tos, sizeof(tos));
-
-    if (fd < 0)
+	if (fd < 0)
 		return -1;
 
 	return fd;

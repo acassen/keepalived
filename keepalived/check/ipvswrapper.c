@@ -49,17 +49,17 @@ string_to_number(const char *s, int min, int max)
 	char *end;
 
 	number = (int) strtol(s, &end, 10);
-	if (*end == '\0' && end != s) {
-		/*
-		 * We parsed a number, let's see if we want this.
-		 * If max <= min then ignore ranges
-		 */
-		if (max <= min || (min <= number && number <= max))
-			return number;
-		else
-			return -1;
-	} else
+	if (*end || end == s)
 		return -1;
+
+	/*
+	 * We parsed a number, let's see if we want this.
+	 * If max <= min then ignore ranges
+	 */
+	if (max <= min || (min <= number && number <= max))
+		return number;
+
+	return -1;
 }
 
 static int

@@ -43,6 +43,7 @@
 #include "signals.h"
 #include "process.h"
 #include "bitops.h"
+#include "rttables.h"
 #ifdef _WITH_LVS_
   #include "ipvswrapper.h"
 #endif
@@ -260,6 +261,8 @@ start_vrrp(void)
 		ifl = get_if_list();
 		if (!LIST_ISEMPTY(ifl))
 			dump_list(ifl);
+
+		clear_rt_names();
 	}
 
 	/* Initialize linkbeat */
@@ -325,7 +328,6 @@ reload_vrrp_thread(thread_t * thread)
 	kernel_netlink_close();
 	thread_cleanup_master(master);
 #ifdef _HAVE_IPVS_SYNCD_
-	/* TODO - Note: this didn't work if we found ipvs_syndc on vrrp before on old_vrrp */
 	if (global_data->lvs_syncd.ifname)
 		ipvs_syncd_cmd(IPVS_STOPDAEMON, &global_data->lvs_syncd,
 		       (global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:

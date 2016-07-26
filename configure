@@ -656,6 +656,15 @@ USE_LIBIPTC
 IPV4_DEVCONF
 LINUX_NET_IF_H_COLLISION
 IF_H_LINK_H_COLLISION
+FRA_TUN_ID
+FRA_SUPPRESS_IFGROUP
+FRA_SUPPRESS_PREFIXLEN
+FRA_OIFNAME
+RTA_VIA
+RTA_PREF
+RTA_NEWDST
+RTA_EXPIRES
+RTA_ENCAP
 USE_NL3
 EGREP
 GREP
@@ -726,6 +735,7 @@ enable_snmp_rfcv2
 enable_snmp_rfcv3
 enable_sha1
 enable_vrrp_auth
+enable_routes
 enable_libiptc
 enable_libipset
 enable_mem_check
@@ -1361,6 +1371,7 @@ Optional Features:
   --enable-snmp-rfcv3     compile with SNMP RFC6257 (VRRPv3) support
   --enable-sha1           compile with SHA1 support
   --disable-vrrp-auth     compile without VRRP authentication
+  --disable-routes        compile without ip rules/routes
   --disable-libiptc       compile without libiptc
   --disable-libipset      compile without libipset
   --enable-mem-check      compile with memory alloc checking
@@ -3348,6 +3359,11 @@ if test "${enable_vrrp_auth+set}" = set; then :
   enableval=$enable_vrrp_auth;
 fi
 
+# Check whether --enable-routes was given.
+if test "${enable_routes+set}" = set; then :
+  enableval=$enable_routes;
+fi
+
 # Check whether --enable-libiptc was given.
 if test "${enable_libiptc+set}" = set; then :
   enableval=$enable_libiptc;
@@ -4208,6 +4224,55 @@ done
 
 fi
 
+for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF RTA_VIA FRA_OIFNAME FRA_SUPPRESS_PREFIXLEN FRA_SUPPRESS_IFGROUP FRA_TUN_ID; do
+  eval ${flag}="_WITHOUT_${flag}_"
+  if test "${IPVS_USE_NL}" = "LIBIPVS_USE_NL"; then
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for $flag" >&5
+$as_echo_n "checking for $flag... " >&6; }
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+        #include <linux/rtnetlink.h>
+        #include <sys/socket.h>
+        #include <linux/fib_rules.h>
+
+int
+main ()
+{
+
+	int flag = ${flag};
+
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+	eval ${flag}_SUPPORT="yes"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext;
+    eval SUPPORT=\$${flag}_SUPPORT
+    if test "${SUPPORT}" = "yes"; then
+      eval ${flag}="_HAVE_${flag}_"
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+    else
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+    fi
+  fi
+done
+
+
+
+
+
+
+
+
+
+
 IF_H_LINK_H_COLLISION="_WITHOUT_IF_H_LINK_H_COLLISION_"
 if test "${USE_NL3}" = "_HAVE_LIBNL3_"; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for linux/if.h and netlink/route/link.h namespace collision" >&5
@@ -4711,20 +4776,24 @@ $as_echo "no" >&6; }
 
 
 
-# Introduced in Linux 2.6.19
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for FIB routing support" >&5
+FIB_ROUTING_SUPPORT="_WITHOUT_FIB_ROUTING_"
+if test ${VRRP_SUPPORT} = "_WITH_VRRP_"; then
+    if test "${enable_routes}" != "no"; then
+    # Introduced in Linux 2.6.19
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for FIB routing support" >&5
 $as_echo_n "checking for FIB routing support... " >&6; }
-cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-    #include <linux/fib_rules.h>
-    int type;
+        #include <sys/socket.h>
+        #include <linux/fib_rules.h>
+        int type;
 
 int
 main ()
 {
 
-    type = FRA_SRC;
+        type = FRA_SRC;
 
   ;
   return 0;
@@ -4732,20 +4801,19 @@ main ()
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-    FIB_ROUTING_SUPPORT=yes
+        FIB_ROUTING_SUPPORT="_HAVE_FIB_ROUTING_"
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+else
+
+        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext;
-
-  if test "$FIB_ROUTING_SUPPORT" = "yes"; then
-    FIB_ROUTING_SUPPORT="_HAVE_FIB_ROUTING_"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-  else
-    FIB_ROUTING_SUPPORT="_WITHOUT_FIB_ROUTING_"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
   fi
+fi
 
 
 
@@ -5487,7 +5555,7 @@ fi
 
 
 
-APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${IPVS_SYNCD_ATTRIBUTES} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} -D${MEM_CHECK} -D${MEM_CHECK_LOG} -D${PIPE2_SUPPORT} ${DFLAGS}"
+APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${IPVS_SYNCD_ATTRIBUTES} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} -D${MEM_CHECK} -D${MEM_CHECK_LOG} -D${PIPE2_SUPPORT} -D${RTA_ENCAP} -D${RTA_EXPIRES} -D${RTA_NEWDST} -D${RTA_PREF} -D${RTA_VIA} -D${FRA_OIFNAME} -D${FRA_SUPPRESS_PREFIXLEN} -D${FRA_SUPPRESS_IFGROUP} -D${FRA_TUN_ID} ${DFLAGS}"
 BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
 
 
@@ -6716,6 +6784,11 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
     echo "Use VRRP authentication  : Yes"
   else
     echo "Use VRRP authentication  : No"
+  fi
+  if test ${FIB_ROUTING_SUPPORT} = "_HAVE_FIB_ROUTING_"; then
+    echo "With ip rules/routes     : Yes"
+  else
+    echo "With ip rules/routes     : No"
   fi
 else
   echo "Use VRRP Framework       : No"

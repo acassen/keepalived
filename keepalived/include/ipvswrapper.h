@@ -33,7 +33,7 @@
 #include <stdbool.h>
 
 #include <net/if.h>
-#include <netinet/ip_icmp.h>
+//#include <netinet/ip_icmp.h>
 #include <netinet/udp.h>
 #include <netinet/tcp.h>
 #include <sys/wait.h>

@@ -22,12 +22,16 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201607021200Z"
+     LAST-UPDATED "201607100000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201607100000Z"
+     DESCRIPTION "enhanced virtual rules and routes"
+     REVISION "201607030000Z"
+     DESCRIPTION "change vrrpRuleIndex to unsigned"
      REVISION "201607021200Z"
      DESCRIPTION "add lvs timeout parameters"
      REVISION "201607020000Z"
@@ -62,6 +66,52 @@ VrrpState ::= TEXTUAL-CONVENTION
     fault(3),
     unknown(4)
     }
+
+RouteType ::= TEXTUAL-CONVENTION
+    STATUS	current
+    DESCRIPTION
+	"Type of route"
+    SYNTAX	INTEGER { unicast(1),
+			  ecmp(2),
+		          blackhole(3),
+		          anycast(4),
+		          multicast(5),
+		          broadcast(6),
+		          unreachable(7),
+		          prohibit(8),
+			  throw(9),
+		          nat(10),
+		          xresolve(11) }
+
+RuleAction ::= TEXTUAL-CONVENTION
+    STATUS	current
+    DESCRIPTION
+	"Action of rule"
+    SYNTAX	INTEGER { table(1),
+			  goto(2),
+			  nop(3),
+		          blackhole(6),
+		          unreachable(7),
+		          prohibit(8) }
+
+Realm ::= TEXTUAL-CONVENTION
+    DISPLAY-HINT "d"
+    STATUS	current
+    DESCRIPTION
+	"Route realm."
+    SYNTAX	Unsigned32 (1..65535)
+
+PrefType ::= TEXTUAL-CONVENTION
+    STATUS	current
+    DESCRIPTION
+	"Preference type of route"
+    SYNTAX	INTEGER { low(1), medium(2), high(3) }
+
+EncapType ::= TEXTUAL-CONVENTION
+    STATUS	current
+    DESCRIPTION
+	"Encapsulation type of route"
+    SYNTAX INTEGER { mpls(1), ip(2), ila(3), ip6(4) }
 
 global          OBJECT IDENTIFIER ::= { keepalived 1 }
 vrrp            OBJECT IDENTIFIER ::= { keepalived 2 }
@@ -874,7 +924,47 @@ VrrpRouteEntry ::= SEQUENCE {
     vrrpRouteIfIndex InterfaceIndex,
     vrrpRouteIfName DisplayString,
     vrrpRouteRoutingTable Unsigned32,
-    vrrpRouteStatus INTEGER
+    vrrpRouteStatus INTEGER,
+    vrrpRouteFromAddress InetAddress,
+    vrrpRouteFromAddressMask InetAddressPrefixLength,
+    vrrpRouteTos Unsigned32,
+    vrrpRouteProtocol INTEGER,
+    vrrpRouteECN TruthValue,
+    vrrpRouteQuickAck TruthValue,
+    vrrpRouteExpires Integer32,
+    vrrpRouteMTU Unsigned32,
+    vrrpRouteMTULock TruthValue,
+    vrrpRouteHopLimit Unsigned32,
+    vrrpRouteAdvmss Unsigned32,
+    vrrpRouteAdvmssLock TruthValue,
+    vrrpRouteRTT Unsigned32,
+    vrrpRouteRTTLock TruthValue,
+    vrrpRouteRTTvar Unsigned32,
+    vrrpRouteRTTvarLock TruthValue,
+    vrrpRouteReordering Unsigned32,
+    vrrpRouteReorderingLock TruthValue,
+    vrrpRouteWindow Unsigned32,
+    vrrpRouteCwnd Unsigned32,
+    vrrpRouteCwndLock TruthValue,
+    vrrpRouteSSthresh Unsigned32,
+    vrrpRouteSSthreshLock TruthValue,
+    vrrpRouteRTOMin Unsigned32,
+    vrrpRouteRTOMinLock TruthValue,
+    vrrpRouteInitCwnd Unsigned32,
+    vrrpRouteInitRwnd Unsigned32,
+    vrrpRouteCongCtl DisplayString,
+    vrrpRoutePref PrefType,
+    vrrpRouteRealmDst Realm,
+    vrrpRouteRealmSrc Realm,
+    vrrpRouteEncapType EncapType,
+    vrrpRouteEncapMplsLabels DisplayString,
+    vrrpRouteEncapId Counter64,
+    vrrpRouteEncapDstAddress InetAddress,
+    vrrpRouteEncapSrcAddress InetAddress,
+    vrrpRouteEncapTOS Unsigned32,
+    vrrpRouteEncapTTL Unsigned32,
+    vrrpRouteEncapFlags Unsigned32,
+    vrrpRouteEncapIlaLocator Counter64
 }
 
 vrrpRouteIndex OBJECT-TYPE
@@ -950,7 +1040,7 @@ vrrpRouteScope OBJECT-TYPE
     ::= { vrrpRouteEntry 9 }
 
 vrrpRouteType OBJECT-TYPE
-    SYNTAX INTEGER { normal(1), ecmp(2), blackhole(3) }
+    SYNTAX RouteType
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION
@@ -989,6 +1079,514 @@ vrrpRouteStatus OBJECT-TYPE
         "Is this route set in the kernel?"
     ::= { vrrpRouteEntry 14 }
 
+vrrpRouteFromAddress OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Source address to use for the route."
+    ::= { vrrpRouteEntry 15 }
+
+vrrpRouteFromAddressMask OBJECT-TYPE
+    SYNTAX InetAddressPrefixLength
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Source address mask."
+    ::= { vrrpRouteEntry 16 }
+
+vrrpRouteTos OBJECT-TYPE
+    SYNTAX Unsigned32 (0..255)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Route TOS value to match."
+    ::= { vrrpRouteEntry 17 }
+
+vrrpRouteProtocol OBJECT-TYPE
+    SYNTAX INTEGER { unspec(1), redirect(2), kernel(3), boot(4), static(5), gated(9), ra(10), mrt(11),
+		      zebra(12), bird(13), dnrouted(14), xorp(15), ntk(16), dhcp(17) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Route protocol identifier"
+    ::= { vrrpRouteEntry 18 }
+
+vrrpRouteECN OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Explicit congestion notification enabled on route."
+    ::= { vrrpRouteEntry 19 }
+
+vrrpRouteQuickAck OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Quick ack enabled on route."
+    ::= { vrrpRouteEntry 20 }
+
+vrrpRouteExpires OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Lifetime of route."
+    ::= { vrrpRouteEntry 21 }
+
+vrrpRouteMTU OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "MTU for route."
+    ::= { vrrpRouteEntry 22 }
+
+vrrpRouteMTULock OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Is MTU locked?"
+    ::= { vrrpRouteEntry 23 }
+
+vrrpRouteHopLimit OBJECT-TYPE
+    SYNTAX Unsigned32 (1..256)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Hoplimit for route."
+    ::= { vrrpRouteEntry 24 }
+
+vrrpRouteAdvmss OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Advertised MSS for route."
+    ::= { vrrpRouteEntry 25 }
+
+vrrpRouteAdvmssLock OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Is advertised MSS locked?"
+    ::= { vrrpRouteEntry 26 }
+
+vrrpRouteRTT OBJECT-TYPE
+    SYNTAX Unsigned32 (1..536870)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Retransmission timer in msec for route."
+    ::= { vrrpRouteEntry 27 }
+
+vrrpRouteRTTLock OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Is retransmission timer locked?"
+    ::= { vrrpRouteEntry 28 }
+
+vrrpRouteRTTvar OBJECT-TYPE
+    SYNTAX Unsigned32 (1..1073741)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Retransmission timer var in msec for route."
+    ::= { vrrpRouteEntry 29 }
+
+vrrpRouteRTTvarLock OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Is retransmission timer var locked?"
+    ::= { vrrpRouteEntry 30 }
+
+vrrpRouteReordering OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Reordeering for route."
+    ::= { vrrpRouteEntry 31 }
+
+vrrpRouteReorderingLock OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Is reordering value locked?"
+    ::= { vrrpRouteEntry 32 }
+
+vrrpRouteWindow OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Window for route."
+    ::= { vrrpRouteEntry 33 }
+
+vrrpRouteCwnd OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Congestion window for route."
+    ::= { vrrpRouteEntry 34 }
+
+vrrpRouteCwndLock OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Is congestion window value locked?"
+    ::= { vrrpRouteEntry 35 }
+
+vrrpRouteSSthresh OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "SS threshold window for route."
+    ::= { vrrpRouteEntry 36 }
+
+vrrpRouteSSthreshLock OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Is SS threshold value locked?"
+    ::= { vrrpRouteEntry 37 }
+
+vrrpRouteRTOMin OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Minimum RTO value (ms) for route."
+    ::= { vrrpRouteEntry 38 }
+
+vrrpRouteRTOMinLock OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Is minimum RTO value value locked?"
+    ::= { vrrpRouteEntry 39 }
+
+vrrpRouteInitCwnd OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Initial congestion window for route."
+    ::= { vrrpRouteEntry 40 }
+
+vrrpRouteInitRwnd OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Initian R window for route."
+    ::= { vrrpRouteEntry 41 }
+
+vrrpRouteCongCtl OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Congestion control algorithm for route."
+    ::= { vrrpRouteEntry 42 }
+
+vrrpRoutePref OBJECT-TYPE
+    SYNTAX PrefType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Preference type for IPv6 route"
+    ::= { vrrpRouteEntry 43 }
+
+vrrpRouteRealmDst OBJECT-TYPE
+    SYNTAX Realm
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Realms for route."
+    ::= { vrrpRouteEntry 44 }
+
+vrrpRouteRealmSrc OBJECT-TYPE
+    SYNTAX Realm
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Realms for route."
+    ::= { vrrpRouteEntry 45 }
+
+vrrpRouteEncapType OBJECT-TYPE
+    SYNTAX EncapType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Encapsulation type."
+    ::= { vrrpRouteEntry 46 }
+
+vrrpRouteEncapMplsLabels OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "MPLS labels for MPLS encapsulation."
+    ::= { vrrpRouteEntry 47 }
+
+vrrpRouteEncapId OBJECT-TYPE
+    SYNTAX Counter64
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Tunnel ID for IP/IPv6 tunnels."
+    ::= { vrrpRouteEntry 48 }
+
+vrrpRouteEncapDstAddress OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Destination address for IP/IPv6 encapsulation."
+    ::= { vrrpRouteEntry 49 }
+
+vrrpRouteEncapSrcAddress OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Source address for IP/IPv6 encapsulation."
+    ::= { vrrpRouteEntry 50 }
+
+vrrpRouteEncapTOS OBJECT-TYPE
+    SYNTAX Unsigned32 (0..255)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Route next hop TOS/dsfield for IP/IPv6 encapsulation."
+    ::= { vrrpRouteEntry 51 }
+
+vrrpRouteEncapTTL OBJECT-TYPE
+    SYNTAX Unsigned32 (1..255)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Next hop time to live/hopcount for IP/IPv6 encapsulation."
+    ::= { vrrpRouteEntry 52 }
+
+vrrpRouteEncapFlags OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Flags for this IP/IPv6 encapsulation."
+    ::= { vrrpRouteEntry 53 }
+
+vrrpRouteEncapIlaLocator OBJECT-TYPE
+    SYNTAX Counter64
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "ILA locator for this encapsulation."
+    ::= { vrrpRouteEntry 54 }
+
+-- Route next hops
+-- see vrrp_iproute.h
+
+vrrpRouteNextHopTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VrrpRouteNextHopEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Table of next hops for static and virtual routes."
+    ::= { vrrp 11 }
+
+vrrpRouteNextHopEntry OBJECT-TYPE
+    SYNTAX VrrpRouteNextHopEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Information describing a route next hop. This can be for a static
+         route or a virtual route. In case of a static route, the
+         VRRP instance index is 0."
+    INDEX { vrrpInstanceIndex, vrrpRouteIndex, vrrpRouteNextHopIndex }
+    ::= { vrrpRouteNextHopTable 1 }
+
+VrrpRouteNextHopEntry ::= SEQUENCE {
+    vrrpRouteNextHopIndex Integer32,
+    vrrpRouteNextHopAddressType InetAddressType,
+    vrrpRouteNextHopAddress InetAddress,
+    vrrpRouteNextHopIfIndex InterfaceIndex,
+    vrrpRouteNextHopIfName DisplayString,
+    vrrpRouteNextHopWeight Unsigned32,
+    vrrpRouteNextHopOnlink TruthValue,
+    vrrpRouteNextHopRealmDst Realm,
+    vrrpRouteNextHopRealmSrc Realm,
+    vrrpRouteNextHopEncapType EncapType,
+    vrrpRouteNextHopEncapMplsLabels DisplayString,
+    vrrpRouteNextHopEncapId Counter64,
+    vrrpRouteNextHopEncapDstAddress InetAddress,
+    vrrpRouteNextHopEncapSrcAddress InetAddress,
+    vrrpRouteNextHopEncapTOS Unsigned32,
+    vrrpRouteNextHopEncapTTL Unsigned32,
+    vrrpRouteNextHopEncapFlags Unsigned32,
+    vrrpRouteNextHopEncapIlaLocator Counter64
+}
+
+vrrpRouteNextHopIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Route next hop index."
+    ::= { vrrpRouteNextHopEntry 1 }
+
+vrrpRouteNextHopAddressType OBJECT-TYPE
+    SYNTAX InetAddressType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Route next hop internet address type."
+    ::= { vrrpRouteNextHopEntry 2 }
+
+vrrpRouteNextHopAddress OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Route next hop address."
+    ::= { vrrpRouteNextHopEntry 3 }
+
+vrrpRouteNextHopIfIndex OBJECT-TYPE
+    SYNTAX InterfaceIndex
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Interface for this next hop."
+    ::= { vrrpRouteNextHopEntry 4 }
+
+vrrpRouteNextHopIfName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Name of the interface for this next hop."
+    ::= { vrrpRouteNextHopEntry 5 }
+
+vrrpRouteNextHopWeight OBJECT-TYPE
+    SYNTAX Unsigned32 (1..256)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Route next hop weight."
+    ::= { vrrpRouteNextHopEntry 6 }
+
+vrrpRouteNextHopOnlink OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Next hop address is specified to be onlink."
+    ::= { vrrpRouteNextHopEntry 7 }
+
+vrrpRouteNextHopRealmDst OBJECT-TYPE
+    SYNTAX Realm
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Destination realm for this next hop."
+    ::= { vrrpRouteNextHopEntry 8 }
+
+vrrpRouteNextHopRealmSrc OBJECT-TYPE
+    SYNTAX Realm
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Source realms for this next hop."
+    ::= { vrrpRouteNextHopEntry 9 }
+
+vrrpRouteNextHopEncapType OBJECT-TYPE
+    SYNTAX EncapType
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Encapsulation type."
+    ::= { vrrpRouteNextHopEntry 10 }
+
+vrrpRouteNextHopEncapMplsLabels OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "MPLS labels for MPLS encapsulation."
+    ::= { vrrpRouteNextHopEntry 11 }
+
+vrrpRouteNextHopEncapId OBJECT-TYPE
+    SYNTAX Counter64
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Tunnel ID for IP/IPv6 tunnels."
+    ::= { vrrpRouteNextHopEntry 12 }
+
+vrrpRouteNextHopEncapDstAddress OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Destination address for IP/IPv6 encapsulation."
+    ::= { vrrpRouteNextHopEntry 13 }
+
+vrrpRouteNextHopEncapSrcAddress OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Source address for IP/IPv6 encapsulation."
+    ::= { vrrpRouteNextHopEntry 14 }
+
+vrrpRouteNextHopEncapTOS OBJECT-TYPE
+    SYNTAX Unsigned32 (0..255)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Route next hop TOS/dsfield for IP/IPv6 encapsulation."
+    ::= { vrrpRouteNextHopEntry 15 }
+
+vrrpRouteNextHopEncapTTL OBJECT-TYPE
+    SYNTAX Unsigned32 (1..255)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Next hop time to live/hopcount for IP/IPv6 encapsulation."
+    ::= { vrrpRouteNextHopEntry 16 }
+
+vrrpRouteNextHopEncapFlags OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Flags for this IP/IPv6 encapsulation."
+    ::= { vrrpRouteNextHopEntry 17 }
+
+vrrpRouteNextHopEncapIlaLocator OBJECT-TYPE
+    SYNTAX Counter64
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "ILA locator for this encapsulation."
+    ::= { vrrpRouteNextHopEntry 18 }
+
 -- Rules
 -- see vrrp_iprule.h
 
@@ -1011,17 +1609,39 @@ vrrpRuleEntry OBJECT-TYPE
     ::= { vrrpRuleTable 1 }
 
 VrrpRuleEntry ::= SEQUENCE {
-    vrrpRuleIndex Integer32,
+    vrrpRuleIndex Unsigned32,
     vrrpRuleDirection DisplayString,
     vrrpRuleAddressType InetAddressType,
     vrrpRuleAddress InetAddress,
     vrrpRuleAddressMask InetAddressPrefixLength,
     vrrpRuleRoutingTable Unsigned32,
-    vrrpRuleStatus INTEGER
+    vrrpRuleStatus INTEGER,
+    vrrpRuleInvert TruthValue,
+    vrrpRuleDestinationAddressType InetAddressType,
+    vrrpRuleDestinationAddress InetAddress,
+    vrrpRuleDestinationAddressMask InetAddressPrefixLength,
+    vrrpRuleSourceAddressType InetAddressType,
+    vrrpRuleSourceAddress InetAddress,
+    vrrpRuleSourceAddressMask InetAddressPrefixLength,
+    vrrpRuleTos Unsigned32,
+    vrrpRuleFwmark Unsigned32,
+    vrrpRuleFwmask Unsigned32,
+    vrrpRuleRealmDst Realm,
+    vrrpRuleRealmSrc Realm,
+    vrrpRuleInInterface DisplayString,
+    vrrpRuleOutInterface DisplayString,
+    vrrpRuleTarget Unsigned32,
+    vrrpRuleAction RuleAction,
+    vrrpRuleTableNo Unsigned32,
+    vrrpRulePreference Unsigned32,
+    vrrpRuleSuppressPrefixLen Unsigned32,
+    vrrpRuleSuppressGroup DisplayString,
+    vrrpRuleTunnelIdHigh Unsigned32,
+    vrrpRuleTunnelIdLow Unsigned32
 }
 
 vrrpRuleIndex OBJECT-TYPE
-    SYNTAX Integer32 (1..2147483647)
+    SYNTAX Unsigned32 (1..4294967295)
     MAX-ACCESS not-accessible
     STATUS current
     DESCRIPTION
@@ -1031,7 +1651,7 @@ vrrpRuleIndex OBJECT-TYPE
 vrrpRuleDirection OBJECT-TYPE
     SYNTAX DisplayString
     MAX-ACCESS read-only
-    STATUS current
+    STATUS obsolete
     DESCRIPTION
         "Traffic direction for this rule."
     ::= { vrrpRuleEntry 2 }
@@ -1039,7 +1659,7 @@ vrrpRuleDirection OBJECT-TYPE
 vrrpRuleAddressType OBJECT-TYPE
     SYNTAX InetAddressType
     MAX-ACCESS read-only
-    STATUS current
+    STATUS obsolete
     DESCRIPTION
         "Rule type of internet address."
     ::= { vrrpRuleEntry 3 }
@@ -1047,7 +1667,7 @@ vrrpRuleAddressType OBJECT-TYPE
 vrrpRuleAddress OBJECT-TYPE
     SYNTAX InetAddress
     MAX-ACCESS read-only
-    STATUS current
+    STATUS obsolete
     DESCRIPTION
         "Rule network address."
     ::= { vrrpRuleEntry 4 }
@@ -1055,7 +1675,7 @@ vrrpRuleAddress OBJECT-TYPE
 vrrpRuleAddressMask OBJECT-TYPE
     SYNTAX InetAddressPrefixLength
     MAX-ACCESS read-only
-    STATUS current
+    STATUS obsolete
     DESCRIPTION
         "Rule network mask."
     ::= { vrrpRuleEntry 5 }
@@ -1075,6 +1695,182 @@ vrrpRuleStatus OBJECT-TYPE
     DESCRIPTION
         "Is this rule set in the kernel?"
     ::= { vrrpRuleEntry 7 }
+
+vrrpRuleInvert OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Invert rule matching sense."
+    ::= { vrrpRuleEntry 8 }
+
+vrrpRuleDestinationAddressType OBJECT-TYPE
+    SYNTAX InetAddressType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Family of rule destination internet address."
+    ::= { vrrpRuleEntry 9 }
+
+vrrpRuleDestinationAddress OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule destination network address."
+    ::= { vrrpRuleEntry 10 }
+
+vrrpRuleDestinationAddressMask OBJECT-TYPE
+    SYNTAX InetAddressPrefixLength
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule destination address network mask."
+    ::= { vrrpRuleEntry 11 }
+
+vrrpRuleSourceAddressType OBJECT-TYPE
+    SYNTAX InetAddressType
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Family of rule source internet address."
+    ::= { vrrpRuleEntry 12 }
+
+vrrpRuleSourceAddress OBJECT-TYPE
+    SYNTAX InetAddress
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule source network address."
+    ::= { vrrpRuleEntry 13 }
+
+vrrpRuleSourceAddressMask OBJECT-TYPE
+    SYNTAX InetAddressPrefixLength
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule source address network mask."
+    ::= { vrrpRuleEntry 14 }
+
+vrrpRuleTos OBJECT-TYPE
+    SYNTAX Unsigned32 (0..255)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule TOS value to match."
+    ::= { vrrpRuleEntry 15 }
+
+vrrpRuleFwmark OBJECT-TYPE
+    SYNTAX Unsigned32 (0..4294967295)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule fwmark value to match."
+    ::= { vrrpRuleEntry 16 }
+
+vrrpRuleFwmask OBJECT-TYPE
+    SYNTAX Unsigned32 (0..4294967295)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule fwmask value to match the fwmark."
+    ::= { vrrpRuleEntry 17 }
+
+vrrpRuleRealmDst OBJECT-TYPE
+    SYNTAX Realm
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Destination realm to select if the rule matched."
+    ::= { vrrpRuleEntry 18 }
+
+vrrpRuleRealmSrc OBJECT-TYPE
+    SYNTAX Realm
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Source realm to select if the rule matched."
+    ::= { vrrpRuleEntry 19 }
+
+vrrpRuleInInterface OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule incoming interface to match."
+    ::= { vrrpRuleEntry 20 }
+
+vrrpRuleOutInterface OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule outgoing interface to match."
+    ::= { vrrpRuleEntry 21 }
+
+vrrpRuleTarget OBJECT-TYPE
+    SYNTAX Unsigned32 (0..4294967295)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule goto target."
+    ::= { vrrpRuleEntry 22 }
+
+vrrpRuleAction OBJECT-TYPE
+    SYNTAX RuleAction
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule type."
+    ::= { vrrpRuleEntry 23 }
+
+vrrpRuleTableNo OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Routing table."
+    ::= { vrrpRuleEntry 24 }
+
+vrrpRulePreference OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Routing table."
+    ::= { vrrpRuleEntry 25 }
+
+vrrpRuleSuppressPrefixLen OBJECT-TYPE
+    SYNTAX Unsigned32 (0..128)
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule suppress match prefix length."
+    ::= { vrrpRuleEntry 26 }
+
+vrrpRuleSuppressGroup OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule suppress match interface group."
+    ::= { vrrpRuleEntry 27 }
+
+vrrpRuleTunnelIdHigh OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule tunnel-id low 32 bits."
+    ::= { vrrpRuleEntry 28 }
+
+vrrpRuleTunnelIdLow OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule tunnel-id high 32 bits."
+    ::= { vrrpRuleEntry 29 }
 
 -- VRRP scripts
 -- see vrrp_track.h
@@ -2325,12 +3121,86 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpRouteIfName,
     vrrpRouteRoutingTable,
     vrrpRouteStatus,
-    vrrpRuleDirection,
-    vrrpRuleAddressType,
-    vrrpRuleAddress,
-    vrrpRuleAddressMask,
+    vrrpRouteFromAddress,
+    vrrpRouteFromAddressMask,
+    vrrpRouteTos,
+    vrrpRouteProtocol,
+    vrrpRouteECN,
+    vrrpRouteQuickAck,
+    vrrpRouteExpires,
+    vrrpRouteMTU,
+    vrrpRouteMTULock,
+    vrrpRouteHopLimit,
+    vrrpRouteAdvmss,
+    vrrpRouteAdvmssLock,
+    vrrpRouteRTT,
+    vrrpRouteRTTLock,
+    vrrpRouteRTTvar,
+    vrrpRouteRTTvarLock,
+    vrrpRouteReordering,
+    vrrpRouteReorderingLock,
+    vrrpRouteWindow,
+    vrrpRouteCwnd,
+    vrrpRouteCwndLock,
+    vrrpRouteSSthresh,
+    vrrpRouteSSthreshLock,
+    vrrpRouteRTOMin,
+    vrrpRouteRTOMinLock,
+    vrrpRouteInitCwnd,
+    vrrpRouteInitRwnd,
+    vrrpRouteCongCtl,
+    vrrpRoutePref,
+    vrrpRouteRealmDst,
+    vrrpRouteRealmSrc,
+    vrrpRouteEncapType,
+    vrrpRouteEncapMplsLabels,
+    vrrpRouteEncapId,
+    vrrpRouteEncapDstAddress,
+    vrrpRouteEncapSrcAddress,
+    vrrpRouteEncapTOS,
+    vrrpRouteEncapTTL,
+    vrrpRouteEncapFlags,
+    vrrpRouteEncapIlaLocator,
+    vrrpRouteNextHopAddressType,
+    vrrpRouteNextHopAddress,
+    vrrpRouteNextHopIfIndex,
+    vrrpRouteNextHopIfName,
+    vrrpRouteNextHopWeight,
+    vrrpRouteNextHopOnlink,
+    vrrpRouteNextHopRealmDst,
+    vrrpRouteNextHopRealmSrc,
+    vrrpRouteNextHopEncapMplsLabels,
+    vrrpRouteNextHopEncapId,
+    vrrpRouteNextHopEncapDstAddress,
+    vrrpRouteNextHopEncapSrcAddress,
+    vrrpRouteNextHopEncapTOS,
+    vrrpRouteNextHopEncapTTL,
+    vrrpRouteNextHopEncapFlags,
+    vrrpRouteNextHopEncapIlaLocator,
     vrrpRuleRoutingTable,
-    vrrpRuleStatus
+    vrrpRuleStatus,
+    vrrpRuleInvert,
+    vrrpRuleDestinationAddressType,
+    vrrpRuleDestinationAddress,
+    vrrpRuleDestinationAddressMask,
+    vrrpRuleSourceAddressType,
+    vrrpRuleSourceAddress,
+    vrrpRuleSourceAddressMask,
+    vrrpRuleTos,
+    vrrpRuleFwmark,
+    vrrpRuleFwmask,
+    vrrpRuleRealmDst,
+    vrrpRuleRealmSrc,
+    vrrpRuleInInterface,
+    vrrpRuleOutInterface,
+    vrrpRuleTarget,
+    vrrpRuleAction,
+    vrrpRuleTableNo,
+    vrrpRulePreference,
+    vrrpRuleSuppressPrefixLen,
+    vrrpRuleSuppressGroup,
+    vrrpRuleTunnelIdHigh,
+    vrrpRuleTunnelIdLow
     }
     STATUS current
     DESCRIPTION
@@ -2372,6 +3242,17 @@ vrrpLvsSyncGroup OBJECT-GROUP
 	"The deprecated LVS sync daemon configuration
 	 objects associated with a VRRP instance."
     ::= { vrrpGroups 5 }
+
+vrrpObsoleteInstanceGroup OBJECT-GROUP
+    OBJECTS {
+    vrrpRuleDirection,
+    vrrpRuleAddressType,
+    vrrpRuleAddress,
+    vrrpRuleAddressMask }
+    STATUS obsolete
+    DESCRIPTION
+        "Obsolete group for VRRP instances."
+    ::= { vrrpGroups 6 }
 
 checkGroups OBJECT IDENTIFIER ::= { groups 3 }
 

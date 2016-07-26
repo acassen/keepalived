@@ -30,10 +30,12 @@
 #include "vrrp_iprule.h"
 #endif
 #include "vrrp_netlink.h"
+#include "rttables.h"
 #include "logger.h"
 
 #include <time.h>
 #include <errno.h>
+#include <inttypes.h>
 
 static void
 vrrp_print_list(FILE *file, list l, void (*fptr)(FILE*, void*))
@@ -124,7 +126,7 @@ address_print(FILE *file, void *data)
 		, broadcast
 		, IF_NAME(ipaddr->ifp)
 		, IP_IS4(ipaddr) ? " scope " : ""
-		, IP_IS4(ipaddr) ? netlink_scope_n2a(ipaddr->ifa.ifa_scope) : ""
+		, IP_IS4(ipaddr) ? get_rttables_scope(ipaddr->ifa.ifa_scope) : ""
 		, ipaddr->label ? " label " : ""
 		, ipaddr->label ? ipaddr->label : "");
 }
@@ -134,46 +136,27 @@ static void
 route_print(FILE *file, void *data)
 {
 	ip_route_t *route = data;
+	char *buf = MALLOC(ROUTE_BUF_SIZE);
 
-	fprintf(file, "     ");
+	format_iproute(route, buf, ROUTE_BUF_SIZE);
 
-	if (route->blackhole)
-		fprintf(file, "blackhole ");
-	if (route->dst)
-		fprintf(file, "%s/%d", ipaddresstos(NULL, route->dst), route->dmask);
-	if (route->gw)
-		fprintf(file, " gw %s", ipaddresstos(NULL, route->gw));
-	if (route->gw2)
-		fprintf(file, " or gw %s", ipaddresstos(NULL, route->gw2));
-	if (route->src)
-		fprintf(file, " src %s", ipaddresstos(NULL, route->src));
-	if (route->index)
-		fprintf(file, " dev %s", IF_NAME(if_get_by_ifindex(route->index)));
-	if (route->table)
-		fprintf(file, " table %d", route->table);
-	if (route->scope)
-		fprintf(file, " scope %s", netlink_scope_n2a(route->scope));
-	if (route->metric)
-		fprintf(file, " metric %d", route->metric);
+	fprintf(file, "     %s\n", buf);
 
-	fprintf(file, "\n");
+	FREE(buf);
+
 }
 
 static void
 rule_print(FILE *file, void *data)
 {
 	ip_rule_t *rule = data;
+	char *buf = MALLOC(RULE_BUF_SIZE);
 
-	fprintf(file, "     ");
+	format_iprule(rule, buf, RULE_BUF_SIZE);
 
-	if (rule->dir)
-		fprintf(file, "%s ", (rule->dir == VRRP_RULE_FROM) ? "from" : "to");
-	if (rule->addr)
-		fprintf(file, "%s", ipaddresstos(NULL, rule->addr));
-	if (rule->table)
-		fprintf(file, " table %d", rule->table);
+	fprintf(file, "    %s\n", buf);
 
-	fprintf(file, "\n");
+	FREE(buf);
 }
 #endif
 
@@ -379,13 +362,10 @@ vrrp_print_data(void)
 		vrrp_print_list(file, vrrp_data->vrrp_sync_group, &vgroup_print);
 	}
 	fclose(file);
+
+	clear_rt_names();
 }
 
-#if __WORDSIZE == 64
-#define u64	"%lu"
-#else	/* __WORDSIZE == 32 */
-#define u64	"%llu"
-#endif
 void
 vrrp_print_stats(void)
 {
@@ -406,19 +386,19 @@ vrrp_print_stats(void)
 		vrrp = ELEMENT_DATA(e);
 		fprintf(file, "VRRP Instance: %s\n", vrrp->iname);
 		fprintf(file, "  Advertisements:\n");
-		fprintf(file, "    Received: " u64 "\n", vrrp->stats->advert_rcvd);
+		fprintf(file, "    Received: %" PRIu64 "\n", vrrp->stats->advert_rcvd);
 		fprintf(file, "    Sent: %d\n", vrrp->stats->advert_sent);
 		fprintf(file, "  Became master: %d\n", vrrp->stats->become_master);
 		fprintf(file, "  Released master: %d\n",
 			vrrp->stats->release_master);
 		fprintf(file, "  Packet Errors:\n");
-		fprintf(file, "    Length: " u64 "\n", vrrp->stats->packet_len_err);
-		fprintf(file, "    TTL: " u64 "\n", vrrp->stats->ip_ttl_err);
-		fprintf(file, "    Invalid Type: " u64 "\n",
+		fprintf(file, "    Length: %" PRIu64 "\n", vrrp->stats->packet_len_err);
+		fprintf(file, "    TTL: %" PRIu64 "\n", vrrp->stats->ip_ttl_err);
+		fprintf(file, "    Invalid Type: %" PRIu64 "\n",
 			vrrp->stats->invalid_type_rcvd);
-		fprintf(file, "    Advertisement Interval: " u64 "\n",
+		fprintf(file, "    Advertisement Interval: %" PRIu64 "\n",
 			vrrp->stats->advert_interval_err);
-		fprintf(file, "    Address List: " u64 "\n",
+		fprintf(file, "    Address List: %" PRIu64 "\n",
 			vrrp->stats->addr_list_err);
 		fprintf(file, "  Authentication Errors:\n");
 		fprintf(file, "    Invalid Type: %d\n",
@@ -428,8 +408,8 @@ vrrp_print_stats(void)
 		fprintf(file, "    Failure: %d\n",
 			vrrp->stats->auth_failure);
 		fprintf(file, "  Priority Zero:\n");
-		fprintf(file, "    Received: " u64 "\n", vrrp->stats->pri_zero_rcvd);
-		fprintf(file, "    Sent: " u64 "\n", vrrp->stats->pri_zero_sent);
+		fprintf(file, "    Received: %" PRIu64 "\n", vrrp->stats->pri_zero_rcvd);
+		fprintf(file, "    Sent: %" PRIu64 "\n", vrrp->stats->pri_zero_sent);
 	}
 	fclose(file);
 }

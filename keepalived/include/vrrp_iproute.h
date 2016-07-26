@@ -27,42 +27,204 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
+#include <linux/rtnetlink.h>
+#ifdef _HAVE_RTA_ENCAP_
+#include <linux/mpls.h>
+#endif
 #include <stdbool.h>
 
 /* local includes */
 #include "list.h"
 #include "vector.h"
+#include "vrrp_ipaddress.h"
+#include "vrrp_if.h"
+
+/* Buffer sizes for printing */
+#define	ROUTE_BUF_SIZE		1024
 
 /* types definition */
+#ifdef _HAVE_RTA_ENCAP_	/* introduced Linux 4.3 */
+enum iproute_encap {
+	IPROUTE_ENCAP_ID,
+	IPROUTE_ENCAP_DSFIELD,
+	IPROUTE_ENCAP_HOPLIMIT,
+	IPROUTE_ENCAP_TTL = IPROUTE_ENCAP_HOPLIMIT,
+	IPROUTE_ENCAP_FLAGS,
+};
+#define	IPROUTE_BIT_ENCAP_ID		(1<<IPROUTE_ENCAP_ID)
+#define	IPROUTE_BIT_ENCAP_DSFIELD	(1<<IPROUTE_ENCAP_DSFIELD)
+#define	IPROUTE_BIT_ENCAP_HOPLIMIT	(1<<IPROUTE_ENCAP_HOPLIMIT)
+#define	IPROUTE_BIT_ENCAP_TTL		(1<<IPROUTE_ENCAP_TTL)
+#define	IPROUTE_BIT_ENCAP_FLAGS		(1<<IPROUTE_ENCAP_FLAGS)
+
+#define MAX_MPLS_LABELS	2
+typedef struct mpls_label mpls_labels[MAX_MPLS_LABELS];
+
+typedef struct _encap_mpls {
+	mpls_labels	addr;
+	size_t		num_labels;
+} encap_mpls_t;
+
+typedef struct _encap_ip {
+	uint64_t	id;
+	ip_address_t	*dst;
+	ip_address_t	*src;
+	uint32_t	tos;
+	uint16_t	flags;
+	uint8_t		ttl;
+} encap_ip_t;
+
+typedef struct _encap_ila {
+	uint64_t	locator;
+} encap_ila_t;
+
+typedef struct _encap_ip6 {
+	uint64_t	id;
+	ip_address_t	*dst;
+	ip_address_t	*src;
+	uint32_t	tc;
+	uint16_t	flags;
+	uint8_t		hoplimit;
+} encap_ip6_t;
+
+typedef struct _encap {
+	int		type;
+	uint32_t	flags;
+	union {
+		encap_mpls_t	mpls;
+		encap_ip_t	ip;
+		encap_ila_t	ila;
+		encap_ip6_t	ip6;
+	};
+} encap_t;
+#endif
+
+typedef struct _nexthop {
+	uint32_t mask;
+	ip_address_t *addr;
+	interface_t *ifp;
+	uint8_t weight;
+	uint32_t flags;
+	uint32_t realms;
+#ifdef _HAVE_RTA_ENCAP_
+	encap_t encap;
+#endif
+//#ifdef _HAVE_RTA_NEWDST_
+//	ip_address_t *as_to;
+//#endif
+} nexthop_t;
+
+enum ip_route {
+	IPROUTE_DSFIELD = 0,
+	IPROUTE_TYPE,
+	IPROUTE_PROTOCOL,
+	IPROUTE_SCOPE,
+	IPROUTE_METRIC,
+	IPROUTE_WEIGHT,
+	IPROUTE_EXPIRES,
+	IPROUTE_MTU,
+	IPROUTE_HOPLIMIT,
+	IPROUTE_ADVMSS,
+	IPROUTE_RTT,
+	IPROUTE_RTTVAR,
+	IPROUTE_REORDERING,
+	IPROUTE_WINDOW,
+	IPROUTE_CWND,
+	IPROUTE_SSTHRESH,
+	IPROUTE_RTO_MIN,
+	IPROUTE_INITCWND,
+	IPROUTE_INITRWND,
+	IPROUTE_QUICKACK,
+	IPROUTE_PREF,
+};
+
+#define	IPROUTE_BIT_DSFIELD	(1<<IPROUTE_DSFIELD)
+#define	IPROUTE_BIT_TYPE	(1<<IPROUTE_TYPE)
+#define	IPROUTE_BIT_PROTOCOL	(1<<IPROUTE_PROTOCOL)
+#define	IPROUTE_BIT_SCOPE	(1<<IPROUTE_SCOPE)
+#define	IPROUTE_BIT_METRIC	(1<<IPROUTE_METRIC)
+#define	IPROUTE_BIT_WEIGHT	(1<<IPROUTE_WEIGHT)
+#define	IPROUTE_BIT_EXPIRES	(1<<IPROUTE_EXPIRES)
+#define	IPROUTE_BIT_MTU		(1<<IPROUTE_MTU)
+#define	IPROUTE_BIT_HOPLIMIT	(1<<IPROUTE_HOPLIMIT)
+#define	IPROUTE_BIT_ADVMSS	(1<<IPROUTE_ADVMSS)
+#define	IPROUTE_BIT_RTT		(1<<IPROUTE_RTT)
+#define	IPROUTE_BIT_RTTVAR	(1<<IPROUTE_RTTVAR)
+#define	IPROUTE_BIT_REORDERING	(1<<IPROUTE_REORDERING)
+#define	IPROUTE_BIT_WINDOW	(1<<IPROUTE_WINDOW)
+#define	IPROUTE_BIT_CWND	(1<<IPROUTE_CWND)
+#define	IPROUTE_BIT_SSTHRESH	(1<<IPROUTE_SSTHRESH)
+#define	IPROUTE_BIT_RTO_MIN	(1<<IPROUTE_RTO_MIN)
+#define	IPROUTE_BIT_INITCWND	(1<<IPROUTE_INITCWND)
+#define	IPROUTE_BIT_INITRWND	(1<<IPROUTE_INITRWND)
+#define	IPROUTE_BIT_QUICKACK	(1<<IPROUTE_QUICKACK)
+#define	IPROUTE_BIT_PREF	(1<<IPROUTE_PREF)
+
 typedef struct _ip_route {
-	ip_address_t		*dst;		/* RTA_DST */
-	uint8_t			dmask;
-	ip_address_t		*gw;		/* RTA_GATEWAY */
-	ip_address_t		*gw2;		/* Will use RTA_MULTIPATH */
-	ip_address_t		*src;		/* RTA_PREFSRC */
-	uint32_t		metric;		/* RTA_PRIORITY */
-	int			index;		/* RTA_OIF */
-	int			blackhole;
-	int			scope;
-	unsigned int		table;
+	ip_address_t		*dst;
+	ip_address_t		*src;
+	ip_address_t		*pref_src;
+	uint8_t			family;
+	uint8_t			tos;
+	uint32_t		table;
+	uint8_t			protocol;
+	uint8_t			scope;
+	uint32_t		metric;
+	ip_address_t		*via;
+	interface_t		*oif;
+	uint32_t		flags;
+#ifdef RTAX_FEATURES
+	uint32_t		features;
+#endif
+#ifdef RTAX_QUICKACK
+	bool			quickack;
+#endif
+#ifdef _HAVE_RTA_EXPIRES_
+	uint32_t		expires;
+#endif
+	uint32_t		lock;
+	uint32_t		mtu;
+	uint8_t			hoplimit;
+	uint32_t		advmss;
+//#ifdef _HAVE_RTA_NEWDST_
+//	ip_address_t		*as_to;
+//#endif
+	uint32_t		rtt;
+	uint32_t		rttvar;
+	uint32_t		reordering;
+	uint32_t		window;
+	uint32_t		cwnd;
+	uint32_t		ssthresh;
+	uint32_t		rto_min;
+	uint32_t		initcwnd;
+#ifdef RTAX_INITRWND
+	uint32_t		initrwnd;
+#endif
+#ifdef RTAX_CC_ALGO
+	char			*congctl;
+#endif
+#ifdef _HAVE_RTA_PREF_
+	uint8_t			pref;
+#endif
+	uint8_t			type;
+
+	uint32_t		realms;
+#ifdef _HAVE_RTA_ENCAP_
+	encap_t			encap;
+#endif
+	list			nhs;
+	uint32_t		mask;
 	bool			set;
 } ip_route_t;
 
-#define IPROUTE_DEL 0
-#define IPROUTE_ADD 1
-
-/* Macro definition */
-#define ROUTE_ISEQ(X,Y) (IP_ISEQ((X)->dst, (Y)->dst)	&& \
-			 (X)->dmask  == (Y)->dmask	&& \
-			 IP_ISEQ((X)->gw, (Y)->gw)	&& \
-			 IP_ISEQ((X)->src, (Y)->src)	&& \
-			 (X)->table  == (Y)->table	&& \
-			 (X)->scope  == (Y)->scope	&& \
-			 (X)->index  == (Y)->index)
+#define IPROUTE_DEL 	0
+#define IPROUTE_ADD 	1
+#define IPROUTE_REPLACE 2
 
 /* prototypes */
 extern void netlink_rtlist(list, int);
 extern void free_iproute(void *);
+extern void format_iproute(ip_route_t *, char *, size_t);
 extern void dump_iproute(void *);
 extern void alloc_route(list, vector_t *);
 extern void clear_diff_routes(list, list);

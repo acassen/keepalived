@@ -167,8 +167,9 @@ Keepalived can configure static addresses, routes, and rules. These addresses ar
 moved by vrrpd, they stay on the machine.
 If you already have IPs and routes on your machines and
 your machines can ping each other, you don't need this section.
+The syntax for rules and routes is that same as for ip rule add/ip route add.
 .PP
-The syntax is the same as for virtual addresses and virtual routes.
+The syntax is the same for virtual addresses and virtual routes.
 .PP
  static_ipaddress
  {
@@ -179,6 +180,9 @@ The syntax is the same as for virtual addresses and virtual routes.
  static_routes
  {
  192.168.2.0/24 via 192.168.1.100 dev eth0
+ 192.168.100.0/24 table 6909 nexthop via 192.168.101.1 dev wlan0 onlink weight 1 nexthop via 192.168.101.2 dev wlan0 onlink weight 2
+ 192.168.200.0/24 dev p33p1.2 table 6909 tos 0x04 protocol bird scope link priority 12 mtu 1000 hoplimit 100 advmss 101 rtt 102 rttvar 103 reordering 104 window 105 cwnd 106 ssthresh lock 107 realms PQA/0x14 rto_min 108 initcwnd 109 initrwnd 110 features ecn
+ 2001:470:69e9:1:2::4 dev p33p1.2 table 6909 tos 0x04 protocol bird scope link priority 12 mtu 1000 hoplimit 100 advmss 101 rtt 102 rttvar 103 reordering 104 window 105 cwnd 106 ssthresh lock 107 rto_min 108 initcwnd 109 initrwnd 110 features ecn
  ...
  }
 .PP
@@ -186,6 +190,8 @@ The syntax is the same as for virtual addresses and virtual routes.
  {
  from 192.168.2.0/24 table 1
  to 192.168.2.0/24 table 1
+ from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1 oif wlan0 tos 22 fwmark 24/12 preference 39 realms 30/20 goto 40
+ to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908
  ...
  }
 .PP
@@ -414,7 +420,8 @@ which will transition together on any state change.
      <IPADDR>/<MASK> brd <IPADDR> dev <STRING> scope <SCOPE>
         ...
     }
-    # routes add|del when changing to MASTER, to BACKUP
+    # routes add|del when changing to MASTER, to BACKUP.
+    # See static_routes for more details
     virtual_routes {
         # src <IPADDR> [to] <IPADDR>/<MASK> via|gw <IPADDR> [or <IPADDR>] dev <STRING> scope <SCOPE> table <TABLE>
         src 192.168.100.1 to 192.168.109.0/24 via 192.168.200.254 dev eth1
@@ -427,6 +434,7 @@ which will transition together on any state change.
     }
 
     # rules add|del when changing to MASTER, to BACKUP
+    # See static_rules for more details
     virtual_rules {
         from 192.168.2.0/24 table 1
         to 192.168.2.0/24 table 1

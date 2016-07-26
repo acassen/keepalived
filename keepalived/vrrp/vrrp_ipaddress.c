@@ -32,6 +32,7 @@
 #include "utils.h"
 #include "bitops.h"
 #include "global_data.h"
+#include "rttables.h"
 
 
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
@@ -326,7 +327,7 @@ dump_ipaddress(void *if_data)
 			    , ipaddr->ifa.ifa_prefixlen
 			    , broadcast
 			    , IF_NAME(ipaddr->ifp)
-			    , netlink_scope_n2a(ipaddr->ifa.ifa_scope)
+			    , get_rttables_scope(ipaddr->ifa.ifa_scope)
 			    , ipaddr->label ? " label " : ""
 			    , ipaddr->label ? ipaddr->label : "");
 }
@@ -396,7 +397,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	interface_t *ifp_local;
 	char *str;
 	unsigned int i = 0, addr_idx = 0;
-	int scope;
+	uint32_t scope;
 	int param_avail;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
@@ -439,7 +440,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			new->ifa.ifa_index = IF_INDEX(ifp_local);
 			new->ifp = ifp_local;
 		} else if (!strcmp(str, "scope")) {
-			scope = netlink_scope_a2n(vector_slot(strvec, ++i));
+			find_rttables_scope(vector_slot(strvec, ++i), &scope);
 			if (scope == -1)
 				log_message(LOG_INFO, "Invalid scope '%s' specified for %s - ignoring", FMT_STR_VSLOT(strvec,i), FMT_STR_VSLOT(strvec, addr_idx));
 			else

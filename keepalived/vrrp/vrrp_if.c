@@ -39,6 +39,7 @@ typedef uint8_t u8;
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
 #endif
+#include <linux/ip.h>
 #include <stdlib.h>
 #include <stdio.h>
 #ifdef _KRNL_2_4_
@@ -834,18 +835,27 @@ if_setsockopt_mcast_if(sa_family_t family, int *sd, interface_t *ifp)
 }
 
 int
-if_setsockopt_priority(int *sd)
+if_setsockopt_priority(int *sd, int family)
 {
 	int ret;
-	int priority = 6;
+	int val;
 
 	if (*sd < 0)
 		return -1;
 
-	/* Set SO_PRIORITY for VRRP traffic */
-	ret = setsockopt(*sd, SOL_SOCKET, SO_PRIORITY, &priority, sizeof(priority));
+	/* Set PRIORITY for VRRP traffic */
+	if (family == AF_INET) {
+		val = IPTOS_PREC_INTERNETCONTROL;
+		ret = setsockopt(*sd, IPPROTO_IP, IP_TOS, &val, sizeof(val));
+	}
+	else {
+		/* set tos to internet network control */
+		val = 0xc0;	/* 192, which translates to DCSP value 48, or cs6 */
+		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_TCLASS, &val, sizeof(val));
+	}
+
 	if (ret < 0) {
-		log_message(LOG_INFO, "cant set SO_PRIORITY IP option. errno=%d (%m)", errno);
+		log_message(LOG_INFO, "can't set %s option. errno=%d (%m)", (family == AF_INET) ? "IP_TOS" : "IPV6_TCLASS",  errno);
 		close(*sd);
 		*sd = -1;
 	}

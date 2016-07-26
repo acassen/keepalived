@@ -35,7 +35,7 @@ enable_console_log(void)
 void
 vlog_message(const int facility, const char* format, va_list args)
 {
-	char buf[256];
+	char buf[MAX_LOG_MSG+1];
 
 	vsnprintf(buf, sizeof(buf), format, args);
 

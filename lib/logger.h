@@ -26,6 +26,8 @@
 #include <stdarg.h>
 #include <syslog.h>
 
+#define	MAX_LOG_MSG	255
+
 void enable_console_log(void);
 void vlog_message(const int facility, const char* format, va_list args);
 void log_message(int priority, const char* format, ...)

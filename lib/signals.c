@@ -21,7 +21,9 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <signal.h>
 #include <string.h>
 #include <unistd.h>

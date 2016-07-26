@@ -16,9 +16,11 @@ in you configuration file use this char.
 
 1. Globals configurations
 
-This block is divided in 2 sub-block :
+This block is divided in 4 sub-blocks :
 
 	* Global definitions
+	* Static addresses
+	* Static rules
 	* Static routes
 
 	1.1. Global definitions
@@ -126,24 +128,24 @@ SCOPE can take the following values :
 	* nowhere
 	* global
 
-	1.3. Static routes
+	1.3 Static rules
+
+static_rules {							# block identification
+								# The syntax is that same as for ip rule add, without "ip rule add" with the addition of tunnel-id option, e.g.
+	from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1 oif wlan0 tos 22 fwmark 24/12 preference 39 realms 30/20 goto 40
+	to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908
+}
+
+	1.4. Static routes
 
 	The configuration block looks like :
 
 static_routes {							# block identification
-    src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # to is optional
-    src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # to is optional
-    src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> or <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # will use multipath route
-    blackhole <IP ADDRESS>[/<MASK>]
-    ...
+								# The syntax is the same as ip route add, without "ip route add" e.g.
+	192.168.100.0/24 table 6909 nexthop via 192.168.101.1 dev wlan0 onlink weight 1 nexthop via 192.168.101.2 dev wlan0 onlink weight 2
+	192.168.200.0/24 dev p33p1.2 table 6909 tos 0x04 protocol bird scope link priority 12 mtu 1000 hoplimit 100 advmss 101 rtt 102 rttvar 103 reordering 104 window 105 cwnd 106 ssthresh lock 107 realms PQA/0x14 rto_min 108 initcwnd 109 initrwnd 110 features ecn
+	2001:470:69e9:1:2::4 dev p33p1.2 table 6909 tos 0x04 protocol bird scope link priority 12 mtu 1000 hoplimit 100 advmss 101 rtt 102 rttvar 103 reordering 104 window 105 cwnd 106 ssthresh lock 107 rto_min 108 initcwnd 109 initrwnd 110 features ecn
 }
-
-SCOPE can take the following values :
-	* site
-	* link
-	* host
-	* nowhere
-	* global
 
 2. VRRP configuration
 
@@ -313,14 +315,10 @@ vrrp_instance <STRING> {		# VRRP instance declaration
         ...
     }
     virtual_routes {			# VRRP virtual routes
-    	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> metric <METRIC> # to is optional
-    	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> metric <METRIC> # to is optional
-    	src <IP ADDRESS> [to] <IP ADDRESS>/<MASK> via|gw <IP ADDRESS> or <IP ADDRESS> dev <STRING> scope <SCOPE> table <TABLE-ID> # will use multipath route
-        ...
-	blackhole <IP ADDRESS>[/<MASK>]
+					# The syntax is the same as static_routes
     }
     virtual_rules {			# VRRP virtual rules
-	from|to <IP ADDRESS>/<MASK> table <TABLE-ID>
+					# The syntax is the same as static_rules
     }
 
     nopreempt					# Override VRRP RFC preemption default

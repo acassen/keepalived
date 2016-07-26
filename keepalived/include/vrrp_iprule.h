@@ -28,18 +28,50 @@
 #include <stdlib.h>
 #include <arpa/inet.h>
 #include <stdbool.h>
+#include <linux/fib_rules.h>
 
 /* local includes */
 #include "list.h"
 #include "vector.h"
 #include "utils.h"
 
+/* print buffer sizes */
+#define	RULE_BUF_SIZE	256
+
+enum iprule_param_mask {
+	IPRULE_BIT_PRIORITY = 0x01,
+	IPRULE_BIT_DSFIELD = 0x02,
+	IPRULE_BIT_FWMARK = 0x04,
+	IPRULE_BIT_FWMASK = 0x08,
+	IPRULE_BIT_SUP_PREFIXLEN = 0x10,
+	IPRULE_BIT_SUP_GROUP = 0x20,
+} ;
+
  /* types definition */
 typedef struct _ip_rule {
-	uint8_t		dir;
-	ip_address_t	*addr;
-	uint8_t		mask;
-	unsigned int	table;
+	uint32_t	mask;
+	bool		invert;
+	ip_address_t	*from_addr;
+	ip_address_t	*to_addr;
+	uint32_t	priority;
+	uint8_t		tos;
+	uint32_t	fwmark;
+	uint32_t	fwmask;
+	uint32_t	realms;
+#ifdef _HAVE_FRA_SUPPRESS_PREFIXLEN_
+	int32_t		suppress_prefix_len;
+#endif
+#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+	uint32_t	suppress_group;
+#endif
+	interface_t	*iif;
+	interface_t	*oif;
+	uint32_t	goto_target;
+	uint32_t	table;
+	uint8_t		action;
+#ifdef _HAVE_FRA_TUN_ID_
+	uint64_t	tunnel_id;
+#endif
 	bool		set;
 } ip_rule_t;
 
@@ -49,15 +81,10 @@ typedef struct _ip_rule {
 #define VRRP_RULE_FROM	1
 #define VRRP_RULE_TO	2
 
-/* Macro definition */
-#define RULE_ISEQ(X,Y) ((X)->dir == (Y)->dir	&& \
-						IP_ISEQ((X)->addr, (Y)->addr)		&& \
-						(X)->mask  == (Y)->mask				&& \
-						(X)->table  == (Y)->table)
-
 /* prototypes */
 extern void netlink_rulelist(list, int, bool);
 extern void free_iprule(void *);
+extern void format_iprule(ip_rule_t *, char *, size_t);
 extern void dump_iprule(void *);
 extern void alloc_rule(list, vector_t *);
 extern void clear_diff_rules(list, list);
