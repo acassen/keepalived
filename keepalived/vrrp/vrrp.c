@@ -2446,7 +2446,7 @@ vrrp_complete_init(void)
 }
 
 #ifdef _WITH_LVS_
-int
+bool
 vrrp_ipvs_needed(void)
 {
 #ifdef _HAVE_IPVS_SYNCD_

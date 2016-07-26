@@ -67,7 +67,7 @@ static int reload_vrrp_thread(thread_t * thread);
 
 /* Daemon stop sequence */
 static void
-stop_vrrp(void)
+stop_vrrp(int status)
 {
 	/* Ensure any interfaces are in backup mode,
 	 * sending a priority 0 vrrp message
@@ -100,7 +100,7 @@ stop_vrrp(void)
 	 * of an IGMP leave group being sent for some reason.
 	 * Since we are about to exit, it doesn't affect anything else
 	 * running. */
-	sleep ( 1 );
+	sleep(1);
 
 	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
 		shutdown_vrrp_instances();
@@ -137,7 +137,7 @@ stop_vrrp(void)
 
 	closelog();
 
-	exit(0);
+	exit(status);
 }
 
 /* Daemon init sequence */
@@ -160,7 +160,7 @@ start_vrrp(void)
 	vrrp_data = alloc_vrrp_data();
 	init_data(conf_file, vrrp_init_keywords);
 	if (!vrrp_data) {
-		stop_vrrp();
+		stop_vrrp(KEEPALIVED_EXIT_FATAL);
 		return;
 	}
 	init_global_data(global_data);
@@ -185,7 +185,7 @@ start_vrrp(void)
 	if (vrrp_ipvs_needed()) {
 		/* Initialize ipvs related */
 		if (ipvs_start() != IPVS_SUCCESS) {
-			stop_vrrp();
+			stop_vrrp(KEEPALIVED_EXIT_FATAL);
 			return;
 		}
 
@@ -229,10 +229,7 @@ start_vrrp(void)
 
 	/* Complete VRRP initialization */
 	if (!vrrp_complete_init()) {
-#ifdef _WITH_LVS_
-		if (vrrp_ipvs_needed())
-			stop_vrrp();
-#endif
+		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
 		return;
 	}
 
@@ -489,6 +486,8 @@ start_vrrp_child(void)
 	launch_scheduler();
 
 	/* Finish VRRP daemon process */
-	stop_vrrp();
-	exit(0);
+	stop_vrrp(EXIT_SUCCESS);
+
+	/* unreachable */
+	exit(EXIT_SUCCESS);
 }
