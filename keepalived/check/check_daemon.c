@@ -46,7 +46,7 @@
 
 /* Daemon stop sequence */
 static void
-stop_check(void)
+stop_check(int status)
 {
 	/* Destroy master thread */
 	signal_handler_destroy();
@@ -82,7 +82,7 @@ stop_check(void)
 	log_message(LOG_INFO, "Stopped");
 
 	closelog();
-	exit(0);
+	exit(status);
 }
 
 /* Daemon init sequence */
@@ -91,7 +91,7 @@ start_check(void)
 {
 	/* Initialize sub-system */
 	if (ipvs_start() != IPVS_SUCCESS) {
-		stop_check();
+		stop_check(KEEPALIVED_EXIT_FATAL);
 		return;
 	}
 
@@ -104,11 +104,11 @@ start_check(void)
 	/* Parse configuration file */
 	global_data = alloc_global_data();
 	check_data = alloc_check_data();
+	if (!check_data)
+		stop_check(KEEPALIVED_EXIT_FATAL);
+
 	init_data(conf_file, check_init_keywords);
-	if (!check_data) {
-		stop_check();
-		return;
-	}
+
 	init_global_data(global_data);
 
 	/* Post initializations */
@@ -126,10 +126,8 @@ start_check(void)
 #endif
 
 	/* SSL load static data & initialize common ctx context */
-	if (!init_ssl_ctx()) {
-		stop_check();
-		return;
-	}
+	if (!init_ssl_ctx())
+		stop_check(KEEPALIVED_EXIT_FATAL);
 
 	/* fill 'vsg' members of the virtual_server_t structure.
 	 * We must do that after parsing config, because
@@ -149,10 +147,8 @@ start_check(void)
 		clear_diff_services();
 
 	/* Initialize IPVS topology */
-	if (!init_services()) {
-		stop_check();
-		return;
-	}
+	if (!init_services())
+		stop_check(KEEPALIVED_EXIT_FATAL);
 
 	/* Dump configuration */
 	if (__test_bit(DUMP_CONF_BIT, &debug)) {
@@ -302,7 +298,7 @@ start_check_child(void)
 	/* Child process part, write pidfile */
 	if (!pidfile_write(checkers_pidfile, getpid())) {
 		log_message(LOG_INFO, "Healthcheck child process: cannot write pidfile");
-		exit(0);
+		exit(KEEPALIVED_EXIT_FATAL);
 	}
 
 	/* Create the new master thread */
@@ -335,6 +331,8 @@ start_check_child(void)
 	launch_scheduler();
 
 	/* Finish healthchecker daemon process */
-	stop_check();
-	exit(0);
+	stop_check(EXIT_SUCCESS);
+
+	/* unreachable */
+	exit(EXIT_SUCCESS);
 }

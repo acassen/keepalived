@@ -41,7 +41,9 @@
 #define	RT_REALMS_FILE	IPROUTE2_DIR "rt_realms"
 #define	RT_SCOPES_FILE	IPROUTE2_DIR "rt_scopes"
 #define	RT_PROTOS_FILE	IPROUTE2_DIR "rt_protos"
+#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
 #define	RT_GROUPS_FILE	IPROUTE2_DIR "group"
+#endif
 
 struct rt_entry {
 	unsigned int id;
@@ -107,7 +109,9 @@ static rt_entry_t rttable_default[] = {
 
 static list rt_tables;
 static list rt_dsfields;
+#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
 static list rt_groups;
+#endif
 static list rt_realms;
 static list rt_protos;
 static list rt_scopes;
@@ -201,7 +205,9 @@ clear_rt_names(void)
 {
 	free_list(&rt_tables);
 	free_list(&rt_dsfields);
+#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
 	free_list(&rt_groups);
+#endif
 	free_list(&rt_realms);
 	free_list(&rt_protos);
 	free_list(&rt_scopes);
@@ -297,11 +303,13 @@ find_rttables_dsfield(const char *name, uint32_t *id)
 	return find_entry(name, id, &rt_dsfields, RT_DSFIELD_FILE, NULL, 255);
 }
 
+#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
 bool
 find_rttables_group(const char *name, uint32_t *id)
 {
 	return find_entry(name, id, &rt_groups, RT_GROUPS_FILE, NULL, INT32_MAX);
 }
+#endif
 
 bool
 find_rttables_realms(const char *name, uint32_t *id)
@@ -370,11 +378,13 @@ get_rttables_scope(uint32_t id)
 	return get_entry(id, &rt_scopes, RT_SCOPES_FILE, rtscope_default, 255);
 }
 
+#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
 const char *
 get_rttables_group(uint32_t id)
 {
-	return get_entry(id, &rt_groups, RT_GROUPS_FILE, NULL, 255);
+	return get_entry(id, &rt_groups, RT_GROUPS_FILE, NULL, INT32_MAX);
 }
+#endif
 
 const char *
 get_rttables_rtntype(uint8_t val)

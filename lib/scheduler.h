@@ -30,6 +30,8 @@
 #include <fcntl.h>
 #include <errno.h>
 #include <syslog.h>
+#include <stdbool.h>
+
 #include "timer.h"
 
 /* Thread itself. */
@@ -59,7 +61,7 @@ typedef struct _thread_list {
 	int count;
 } thread_list_t;
 
-/* Master of the theads. */
+/* Master of the threads. */
 typedef struct _thread_master {
 	thread_list_t read;
 	thread_list_t write;
@@ -99,11 +101,15 @@ typedef struct _thread_master {
 #define THREAD_CHILD_PID(X) ((X)->u.c.pid)
 #define THREAD_CHILD_STATUS(X) ((X)->u.c.status)
 
+/* Exit codes */
+#define KEEPALIVED_EXIT_FATAL	(EXIT_FAILURE+1)
+#define KEEPALIVED_EXIT_CONFIG	(EXIT_FAILURE+2)
+
 /* global vars exported */
 extern thread_master_t *master;
 
 /* Prototypes. */
-extern void report_child_status(int, pid_t, const char *);
+extern bool report_child_status(int, pid_t, const char *);
 extern thread_master_t *thread_make_master(void);
 extern thread_t *thread_add_terminate_event(thread_master_t *);
 extern void thread_cleanup_master(thread_master_t *);

@@ -35,20 +35,12 @@ ifeq ($(VRRP_FLAG),_WITH_VRRP_)
   SUBDIRS += vrrp
 endif
 
-ifeq ($(IPVS_FLAG),_WITH_LVS_)
-  ifeq ($(KERNEL),_KRNL_2_4_)
-    LIBSUBDIRS = libipvs-2.4
-  else
-    LIBSUBDIRS = libipvs-2.6
-  endif
-endif
-
 all:
 	@set -e; \
 	for i in $(SUBDIRS) $(LIBSUBDIRS); do \
 	$(MAKE) -C $$i || exit 1; done && \
 	echo "Building $(BIN)/$(EXEC)" && \
-	$(CC) -o $(BIN)/$(EXEC) `find $(SUBDIRS) ../lib -name '*.o'` `find $(LIBSUBDIRS) -name '*.a'` $(LDFLAGS)
+	$(CC) -o $(BIN)/$(EXEC) `find $(SUBDIRS) ../lib -name '*.o'` $(LDFLAGS)
 	$(STRIP) $(BIN)/$(EXEC)
 	@echo ""
 	@echo "Make complete"

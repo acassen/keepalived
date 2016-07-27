@@ -39,17 +39,15 @@
 #include <sys/wait.h>
 
 #ifdef _WITH_LVS_
-#ifdef _KRNL_2_4_
-  #include "../libipvs-2.4/libipvs.h"
+  #include "libipvs.h"
+#ifdef _WITHOUT_LINUX_IP_VS_H_
   #include <net/ip_vs.h>
-#elif _KRNL_2_6_
-  #include "../libipvs-2.6/ip_vs.h"
-  #include "../libipvs-2.6/libipvs.h"
+#else
+  #include "ip_vs.h"
+#endif
 #ifdef _HAVE_IPVS_SYNCD_
-#include "vrrp.h"
+  #include "vrrp.h"
 #endif
-#endif
-//  #include <net/ip_vs.h>
 #endif
 
 #ifndef IP_VS_TEMPLATE_TIMEOUT
@@ -124,10 +122,8 @@ extern void ipvs_syncd_master(const struct lvs_syncd_config *);
 extern void ipvs_syncd_backup(const struct lvs_syncd_config *);
 #endif
 
-#ifdef _KRNL_2_6_
 /* Refresh statistics at most every 5 seconds */
 #define STATS_REFRESH 5
 extern void ipvs_update_stats(virtual_server_t * vs);
-#endif
 
 #endif

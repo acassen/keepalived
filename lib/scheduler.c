@@ -50,11 +50,13 @@
 /* global vars */
 thread_master_t *master = NULL;
 
-void
+/* report_child_status returns true if the exit is a hard error, so unable to continue */
+bool
 report_child_status(int status, pid_t pid, const char *prog_name)
 {
 	const char *prog_id;
 	char pid_buf[10];	/* "pid 32767" + '\0' */
+	int exit_status ;
 
 	if (prog_name)
 		prog_id = prog_name;
@@ -64,9 +66,16 @@ report_child_status(int status, pid_t pid, const char *prog_name)
 	}
 
 	if (WIFEXITED(status)) {
-		if (WEXITSTATUS(status) != 0)
-			log_message(LOG_INFO, "%s exited with status %d", prog_id, WEXITSTATUS(status));
-		return;
+		exit_status = WEXITSTATUS(status);
+		if (exit_status == KEEPALIVED_EXIT_FATAL ||
+		    exit_status == KEEPALIVED_EXIT_CONFIG) {
+			log_message(LOG_INFO, "%s exited with permanent error %s. Terminating", prog_id, exit_status == KEEPALIVED_EXIT_CONFIG ? "CONFIG" : "FATAL" );
+			return true;
+		}
+
+		if (exit_status != EXIT_SUCCESS)
+			log_message(LOG_INFO, "%s exited with status %d", prog_id, status);
+		return false;
 	}
 	if (WIFSIGNALED(status)) {
 		if (WTERMSIG(status) == SIGSEGV) {
@@ -78,8 +87,10 @@ report_child_status(int status, pid_t pid, const char *prog_name)
 		else
 			log_message(LOG_INFO, "%s exited due to signal %d", prog_id, WTERMSIG(status));
 
-		return;
+		return false;
 	}
+
+	return false;
 }
 
 /* Make thread master. */
@@ -763,6 +774,8 @@ thread_child_handler(void * v, int sig)
 	thread_t *thread;
 	pid_t pid;
 	int status;
+	bool respawn;
+
 	while ((pid = waitpid(-1, &status, WNOHANG))) {
 		if (pid == -1) {
 			if (errno == ECHILD)
@@ -770,7 +783,7 @@ thread_child_handler(void * v, int sig)
 			DBG("waitpid error: %s", strerror(errno));
 			assert(0);
 		} else {
-			report_child_status(status, pid, NULL);
+			respawn = !report_child_status(status, pid, NULL);
 
 			thread = m->child.head;
 			while (thread) {
@@ -780,8 +793,15 @@ thread_child_handler(void * v, int sig)
 				if (pid == t->u.c.pid) {
 					thread_list_delete(&m->child, t);
 					t->u.c.status = status;
-					t->type = THREAD_READY;
-					thread_list_add(&m->ready, t);
+					if (respawn) {
+						t->type = THREAD_READY;
+						thread_list_add(&m->ready, t);
+					}
+					else {
+						/* The child had a permanant error, so no point in respawning */
+						raise(SIGTERM);
+					}
+
 					break;
 				}
 			}

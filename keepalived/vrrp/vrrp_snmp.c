@@ -1636,6 +1636,7 @@ vrrp_snmp_instance_accept(int action,
 		if (var_val_len > sizeof(long))
 			return SNMP_ERR_WRONGLENGTH;
 		switch ((long)(*var_val)) {
+// TODO - We must check that we are not address owner (especially if disabling)
 		case 1:		/* enable accept */
 		case 2:		/* disable accept */
 			break;

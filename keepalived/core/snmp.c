@@ -97,6 +97,7 @@ snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
 #define SNMP_TRAPS 8
 #define SNMP_LINKBEAT 9
 #define SNMP_LVSFLUSH 10
+#define SNMP_IPVS_64BIT_STATS 11
 
 static u_char*
 snmp_scalar(struct variable *vp, oid *name, size_t *length,
@@ -146,6 +147,13 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 	case SNMP_LVSFLUSH:
 		long_ret = global_data->lvs_flush?1:2;
 		return (u_char *)&long_ret;
+	case SNMP_IPVS_64BIT_STATS:
+#ifdef _WITH_LVS_64BIT_STATS_
+		long_ret = 1;
+#else
+		long_ret = 2;
+#endif
+		return (u_char *)&long_ret;
 	default:
 		break;
 	}
@@ -192,6 +200,11 @@ static struct variable8 global_vars[] = {
 	{SNMP_LINKBEAT, ASN_INTEGER, RONLY, snmp_scalar, 1, {5}},
 	/* lvsFlush */
 	{SNMP_LVSFLUSH, ASN_INTEGER, RONLY, snmp_scalar, 1, {6}},
+#ifdef _WITH_LVS_64BIT_STATS_
+	/* LVS 64-bit stats */
+	{SNMP_IPVS_64BIT_STATS, ASN_INTEGER, RONLY, snmp_scalar, 1, {7}},
+#endif
+
 };
 
 static int
