@@ -39,11 +39,11 @@
 #include <sys/wait.h>
 
 #ifdef _WITH_LVS_
-  #include "../libipvs/libipvs.h"
+  #include "libipvs.h"
 #ifdef _WITHOUT_LINUX_IP_VS_H_
   #include <net/ip_vs.h>
 #else
-  #include "../libipvs/ip_vs.h"
+  #include "ip_vs.h"
 #endif
 #ifdef _HAVE_IPVS_SYNCD_
   #include "vrrp.h"

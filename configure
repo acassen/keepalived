@@ -4512,8 +4512,9 @@ fi
 fi
 
 
-IPVS_SYNCD_ATTRIBUTES="_WITHOUT_IPVS_SYNCD_ATTRIBUTES_"
+IPVS_SUPPORT="_WITHOUT_LVS_"
 IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+IPVS_SYNCD_ATTRIBUTES="_WITHOUT_IPVS_SYNCD_ATTRIBUTES_"
 if test "$enable_lvs" != "no"; then
   IPVS_SUPPORT="_WITH_LVS_"
 
@@ -4557,11 +4558,8 @@ $as_echo "yes" >&6; }
 $as_echo "no" >&6; }
     fi
   fi
-else
-  IPVS_SUPPORT="_WITHOUT_LVS_"
-  if test "$enable_vrrp" = "no"; then
-    as_fn_error $? "keepalived MUST be compiled at least with LVS or VRRP framework" "$LINENO" 5
-  fi
+elif test "$enable_vrrp" = "no"; then
+  as_fn_error $? "keepalived MUST be compiled at least with LVS or VRRP framework" "$LINENO" 5
 fi
 
 
@@ -5437,7 +5435,7 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
   OUTPUT_TARGET="$OUTPUT_TARGET keepalived/vrrp/Makefile"
 fi
 if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
-  OUTPUT_TARGET="$OUTPUT_TARGET keepalived/check/Makefile keepalived/libipvs/Makefile"
+  OUTPUT_TARGET="$OUTPUT_TARGET keepalived/check/Makefile"
 fi
 ac_config_files="$ac_config_files $OUTPUT_TARGET"
 

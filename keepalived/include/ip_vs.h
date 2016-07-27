@@ -3,8 +3,8 @@
  *      data structure and functionality definitions
  */
 
-#ifndef _IP_VS_H
-#define _IP_VS_H
+#ifndef KEEPALIVED_IP_VS_H
+#define KEEPALIVED_IP_VS_H
 
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -574,4 +574,4 @@ extern struct nla_policy ipvs_daemon_policy[IPVS_DAEMON_ATTR_MAX + 1];
 
 /* End of Generic Netlink interface definitions */
 
-#endif	/* _IP_VS_H */
+#endif	/* KEEPALIVED_IP_VS_H */

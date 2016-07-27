@@ -35,7 +35,7 @@
   #ifdef _WITHOUT_LINUX_IP_VS_H
     #include <net/ip_vs.h>
   #else
-    #include "../libipvs/ip_vs.h"
+    #include "ip_vs.h"
   #endif
 #endif
 

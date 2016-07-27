@@ -260,8 +260,9 @@ fi
 AC_SUBST(USE_LIBIPSET)
 
 dnl ----[ Checks for LVS and VRRP support ]----
-IPVS_SYNCD_ATTRIBUTES="_WITHOUT_IPVS_SYNCD_ATTRIBUTES_"
+IPVS_SUPPORT="_WITHOUT_LVS_"
 IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+IPVS_SYNCD_ATTRIBUTES="_WITHOUT_IPVS_SYNCD_ATTRIBUTES_"
 if test "$enable_lvs" != "no"; then
   IPVS_SUPPORT="_WITH_LVS_"
 
@@ -289,11 +290,8 @@ if test "$enable_lvs" != "no"; then
       AC_MSG_RESULT([no])
     fi
   fi
-else
-  IPVS_SUPPORT="_WITHOUT_LVS_"
-  if test "$enable_vrrp" = "no"; then
-    AC_MSG_ERROR([keepalived MUST be compiled at least with LVS or VRRP framework])
-  fi
+elif test "$enable_vrrp" = "no"; then
+  AC_MSG_ERROR([keepalived MUST be compiled at least with LVS or VRRP framework])
 fi
 AC_SUBST(IPVS_SUPPORT)
 AC_SUBST(IPVS_SYNCD)
@@ -609,7 +607,7 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
   OUTPUT_TARGET="$OUTPUT_TARGET keepalived/vrrp/Makefile"
 fi
 if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
-  OUTPUT_TARGET="$OUTPUT_TARGET keepalived/check/Makefile keepalived/libipvs/Makefile"
+  OUTPUT_TARGET="$OUTPUT_TARGET keepalived/check/Makefile"
 fi
 AC_OUTPUT($OUTPUT_TARGET)
 

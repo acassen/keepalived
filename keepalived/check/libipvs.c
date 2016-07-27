@@ -154,6 +154,47 @@ fail_genl:
 }
 #endif
 
+#ifdef LIBIPVS_USE_NL
+static int ipvs_getinfo_parse_cb(struct nl_msg *msg, void *arg)
+{
+	struct nlmsghdr *nlh = nlmsg_hdr(msg);
+	struct nlattr *attrs[IPVS_INFO_ATTR_MAX + 1];
+
+	if (genlmsg_parse(nlh, 0, attrs, IPVS_INFO_ATTR_MAX, ipvs_info_policy) != 0)
+		return -1;
+
+	if (!(attrs[IPVS_INFO_ATTR_VERSION] &&
+	      attrs[IPVS_INFO_ATTR_CONN_TAB_SIZE]))
+		return -1;
+
+	ipvs_info.version = nla_get_u32(attrs[IPVS_INFO_ATTR_VERSION]);
+	ipvs_info.size = nla_get_u32(attrs[IPVS_INFO_ATTR_CONN_TAB_SIZE]);
+
+	return NL_OK;
+}
+
+static int ipvs_getinfo(void)
+{
+	socklen_t len;
+
+#ifdef LIBIPVS_USE_NL
+	if (try_nl) {
+		struct nl_msg *msg;
+		msg = ipvs_nl_message(IPVS_CMD_GET_INFO, 0);
+		if (msg)
+			return ipvs_nl_send_message(msg, ipvs_getinfo_parse_cb,
+						    NULL);
+		return -1;
+	}
+#endif
+
+	ipvs_func = ipvs_getinfo;
+	len = sizeof(ipvs_info);
+	return getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,
+			  (char *)&ipvs_info, &len);
+}
+#endif
+
 int ipvs_init(void)
 {
 	socklen_t len;
@@ -185,47 +226,6 @@ int ipvs_init(void)
 		return -1;
 
 	return 0;
-}
-
-#ifdef LIBIPVS_USE_NL
-static int ipvs_getinfo_parse_cb(struct nl_msg *msg, void *arg)
-{
-	struct nlmsghdr *nlh = nlmsg_hdr(msg);
-	struct nlattr *attrs[IPVS_INFO_ATTR_MAX + 1];
-
-	if (genlmsg_parse(nlh, 0, attrs, IPVS_INFO_ATTR_MAX, ipvs_info_policy) != 0)
-		return -1;
-
-	if (!(attrs[IPVS_INFO_ATTR_VERSION] &&
-	      attrs[IPVS_INFO_ATTR_CONN_TAB_SIZE]))
-		return -1;
-
-	ipvs_info.version = nla_get_u32(attrs[IPVS_INFO_ATTR_VERSION]);
-	ipvs_info.size = nla_get_u32(attrs[IPVS_INFO_ATTR_CONN_TAB_SIZE]);
-
-	return NL_OK;
-}
-#endif
-
-static int ipvs_getinfo(void)
-{
-	socklen_t len;
-
-#ifdef LIBIPVS_USE_NL
-	if (try_nl) {
-		struct nl_msg *msg;
-		msg = ipvs_nl_message(IPVS_CMD_GET_INFO, 0);
-		if (msg)
-			return ipvs_nl_send_message(msg, ipvs_getinfo_parse_cb,
-						    NULL);
-		return -1;
-	}
-#endif
-
-	ipvs_func = ipvs_getinfo;
-	len = sizeof(ipvs_info);
-	return getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,
-			  (char *)&ipvs_info, &len);
 }
 
 
@@ -1127,9 +1127,7 @@ ipvs_timeout_t *ipvs_get_timeout(void)
 	}
 	return u;
 }
-#endif
 
-#ifdef _INCLUDE_UNUSED_CODE_
 #ifdef LIBIPVS_USE_NL
 static int ipvs_daemon_parse_cb(struct nl_msg *msg, void *arg)
 {
