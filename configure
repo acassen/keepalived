@@ -626,7 +626,6 @@ PIPE2_SUPPORT
 LIBOBJS
 VRRP_SUPPORT
 IPVS_USE_NL
-IPVS_SUPPORT
 VERSION_YEAR
 VERSION_DATE
 VERSION
@@ -650,7 +649,7 @@ SOCK_CLOEXEC_SUPPORT
 SOCK_NONBLOCK_SUPPORT
 IPVS_SYNCD_ATTRIBUTES
 IPVS_SYNCD
-KERN
+IPVS_SUPPORT
 USE_LIBIPSET
 USE_LIBIPTC
 IPV4_DEVCONF
@@ -725,7 +724,6 @@ enable_lvs_syncd
 enable_lvs
 enable_vrrp
 with_kernel_dir
-with_kernel_version
 enable_fwmark
 enable_snmp
 enable_snmp_keepalived
@@ -1383,7 +1381,6 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-kernel-dir=DIR   path to linux kernel source directory
-  --with-kernel-version=VER forced value for linux kernel version (VER=2.4|2.6)
 
 Some influential environment variables:
   CC          C compiler command
@@ -3306,14 +3303,6 @@ else
   kernelinc="/usr/src/linux/include" kernelpath="/usr/src/linux"
 fi
 
-
-# Check whether --with-kernel-version was given.
-if test "${with_kernel_version+set}" = set; then :
-  withval=$with_kernel_version; kernelversion="$withval"
-else
-  kernelversion=""
-fi
-
 # Check whether --enable-fwmark was given.
 if test "${enable_fwmark+set}" = set; then :
   enableval=$enable_fwmark;
@@ -4523,136 +4512,14 @@ fi
 fi
 
 
-
-CPPFLAGS="$CPPFLAGS -I$kernelinc"
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for kernel version" >&5
-$as_echo_n "checking for kernel version... " >&6; }
-if test "$cross_compiling" = yes; then :
-
-    LINUX_MAJOR="0"
-    LINUX_MINOR="0"
-    LINUX_PATCH="0"
-
-else
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-    #include <stdlib.h>
-    #include <stdio.h>
-    #include <linux/version.h>
-    #if !defined(UTS_RELEASE) && !defined(LINUX_VERSION_CODE)
-    #include <linux/utsrelease.h>
-    #endif
-    int main (void) {
-      FILE *fp = fopen ("linuxinfo", "w");
-      if (!fp) return 1;
-    #if defined(UTS_RELEASE)
-      fprintf (fp, "%s\n", UTS_RELEASE);
-    #elif defined(LINUX_VERSION_CODE)
-      fprintf (fp, "%d.%d.%d\n", LINUX_VERSION_CODE >> 16, (LINUX_VERSION_CODE >> 8) & 0xFF, LINUX_VERSION_CODE & 0xFF);
-    #else
-      fprintf (fp, "0.0.0\n"); /* Let''s fail gently */
-    #endif
-      fclose (fp);
-      return 0;
-    }
-
-_ACEOF
-if ac_fn_c_try_run "$LINENO"; then :
-
-    LINUX_MAJOR=`cat linuxinfo | cut -d'.' -f1`
-    LINUX_MINOR=`cat linuxinfo | cut -d'.' -f2`
-    LINUX_PATCH=`cat linuxinfo | cut -d'.' -f3`
-
-else
-
-    LINUX_MAJOR="0"
-    LINUX_MINOR="0"
-    LINUX_PATCH="0"
-
-fi
-rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
-  conftest.$ac_objext conftest.beam conftest.$ac_ext
-fi
-
-  rm -f linuxinfo
-
-  if test "$kernelversion" = "2.4"; then
-    KERN="_KRNL_2_4_"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: 2.4" >&5
-$as_echo "2.4" >&6; }
-  elif test "$kernelversion" = "2.6"; then
-    KERN="_KRNL_2_6_"
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: 2.6" >&5
-$as_echo "2.6" >&6; }
-  else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: $LINUX_MAJOR.$LINUX_MINOR.$LINUX_PATCH" >&5
-$as_echo "$LINUX_MAJOR.$LINUX_MINOR.$LINUX_PATCH" >&6; }
-    if test "$LINUX_MAJOR" = "2" && test "$LINUX_MINOR" = "6"; then
-      KERN="_KRNL_2_6_"
-    elif test "$LINUX_MAJOR" = "2" && test "$LINUX_MINOR" = "4"; then
-      KERN="_KRNL_2_4_"
-    else
-      KERN="_KRNL_2_6_"
-    fi
-    if test "$LINUX_MAJOR" = "0" -a "$LINUX_MINOR" = "0" -a "$LINUX_PATCH" = "0"; then
-      { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Cannot determine Linux Kernel version." >&5
-$as_echo "$as_me: WARNING: Cannot determine Linux Kernel version." >&2;}
-    fi
-  fi
-
-
-
-IPVS_SUPPORT="_WITHOUT_LVS_"
-if test "$enable_lvs" != "no"; then
-  if test "$KERN" = "_KRNL_2_6_"; then
-    IPVS_SUPPORT="_WITH_LVS_"
-  else
-    ac_fn_c_check_header_mongrel "$LINENO" "net/ip_vs.h" "ac_cv_header_net_ip_vs_h" "$ac_includes_default"
-if test "x$ac_cv_header_net_ip_vs_h" = xyes; then :
-  IPVS_SUPPORT="_WITH_LVS_"
-else
-
-        IPVS_SUPPORT="_WITHOUT_LVS_"
-        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: keepalived will be built without LVS support." >&5
-$as_echo "$as_me: WARNING: keepalived will be built without LVS support." >&2;}
-
-fi
-
-
-  fi
-fi
-
-if test "$IPVS_SUPPORT" = "_WITHOUT_LVS_" -a "$enable_vrrp" = "no"; then
-  as_fn_error $? "keepalived MUST be compiled at least with LVS or VRRP framework" "$LINENO" 5
-fi
-
-IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
 IPVS_SYNCD_ATTRIBUTES="_WITHOUT_IPVS_SYNCD_ATTRIBUTES_"
-if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for IPVS syncd support" >&5
-$as_echo_n "checking for IPVS syncd support... " >&6; }
-  if test "$KERN" = "_KRNL_2_6_"; then
+IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+if test "$enable_lvs" != "no"; then
+  IPVS_SUPPORT="_WITH_LVS_"
+
+    if test "$enable_lvs_syncd" != "no"; then
     IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
-  elif test "_KRNL_2_4_"; then
-    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
-  else
-    IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
-  fi
 
-  if test "${IPVS_SUPPORT}" = "_WITHOUT_LVS_" -o "$enable_lvs_syncd" = "no"; then
-    IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
-  fi
-
-  if test "$IPVS_SYNCD" = "_HAVE_IPVS_SYNCD_"; then
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-  else
-    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-  fi
-
-  if test "$IPVS_SYNCD" = "_HAVE_IPVS_SYNCD_"; then
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for IPVS syncd attributes" >&5
 $as_echo_n "checking for IPVS syncd attributes... " >&6; }
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -4689,6 +4556,11 @@ $as_echo "yes" >&6; }
       { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
     fi
+  fi
+else
+  IPVS_SUPPORT="_WITHOUT_LVS_"
+  if test "$enable_vrrp" = "no"; then
+    as_fn_error $? "keepalived MUST be compiled at least with LVS or VRRP framework" "$LINENO" 5
   fi
 fi
 
@@ -5555,7 +5427,7 @@ fi
 
 
 
-APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${IPVS_SYNCD_ATTRIBUTES} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} -D${MEM_CHECK} -D${MEM_CHECK_LOG} -D${PIPE2_SUPPORT} -D${RTA_ENCAP} -D${RTA_EXPIRES} -D${RTA_NEWDST} -D${RTA_PREF} -D${RTA_VIA} -D${FRA_OIFNAME} -D${FRA_SUPPRESS_PREFIXLEN} -D${FRA_SUPPRESS_IFGROUP} -D${FRA_TUN_ID} ${DFLAGS}"
+APP_DEFS="-D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${IPVS_SYNCD_ATTRIBUTES} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} -D${MEM_CHECK} -D${MEM_CHECK_LOG} -D${PIPE2_SUPPORT} -D${RTA_ENCAP} -D${RTA_EXPIRES} -D${RTA_NEWDST} -D${RTA_PREF} -D${RTA_VIA} -D${FRA_OIFNAME} -D${FRA_SUPPRESS_PREFIXLEN} -D${FRA_SUPPRESS_IFGROUP} -D${FRA_TUN_ID} ${DFLAGS}"
 BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
 
 
@@ -5565,12 +5437,7 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
   OUTPUT_TARGET="$OUTPUT_TARGET keepalived/vrrp/Makefile"
 fi
 if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
-  OUTPUT_TARGET="$OUTPUT_TARGET keepalived/check/Makefile"
-  if test "$KERN" = "_KRNL_2_6_"; then
-    OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs-2.6/Makefile"
-  elif test "$KERN" = "_KRNL_2_4_"; then
-    OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs-2.4/Makefile"
-  fi
+  OUTPUT_TARGET="$OUTPUT_TARGET keepalived/check/Makefile keepalived/libipvs/Makefile"
 fi
 ac_config_files="$ac_config_files $OUTPUT_TARGET"
 

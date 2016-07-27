@@ -228,7 +228,6 @@ weight_handler(vector_t *strvec)
 	rs->weight = atoi(vector_slot(strvec, 1));
 	rs->iweight = rs->weight;
 }
-#ifdef _KRNL_2_6_
 static void
 uthreshold_handler(vector_t *strvec)
 {
@@ -243,7 +242,6 @@ lthreshold_handler(vector_t *strvec)
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	rs->l_threshold = atoi(vector_slot(strvec, 1));
 }
-#endif
 static void
 inhibit_handler(vector_t *strvec)
 {
@@ -358,10 +356,8 @@ init_check_keywords(bool active)
 	install_keyword("real_server", &rs_handler);
 	install_sublevel();
 	install_keyword("weight", &weight_handler);
-#ifdef _KRNL_2_6_
 	install_keyword("uthreshold", &uthreshold_handler);
 	install_keyword("lthreshold", &lthreshold_handler);
-#endif
 	install_keyword("inhibit_on_failure", &inhibit_handler);
 	install_keyword("notify_up", &notify_up_handler);
 	install_keyword("notify_down", &notify_down_handler);

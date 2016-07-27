@@ -42,9 +42,7 @@ typedef uint8_t u8;
 #include <linux/ip.h>
 #include <stdlib.h>
 #include <stdio.h>
-#ifdef _KRNL_2_4_
-#include <linux/ethtool.h>
-#endif
+//#include <linux/ethtool.h>
 #ifndef _HAVE_SOCK_CLOEXEC_
 #include "old_socket.h"
 #endif

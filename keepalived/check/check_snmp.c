@@ -331,9 +331,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 			 int exact, size_t *var_len, WriteMethod **write_method)
 {
 	static unsigned long long_ret;
-#ifdef _KRNL_2_6_
 	static struct counter64 counter64_ret;
-#endif
 	virtual_server_t *v;
 	element e;
 
@@ -485,7 +483,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 				if (((real_server_t *)ELEMENT_DATA(e))->alive)
 					long_ret++;
 		return (u_char*)&long_ret;
-#if defined(_KRNL_2_6_) && defined(_WITH_LVS_)
+#ifdef _WITH_LVS_
 	case CHECK_SNMP_VSSTATSCONNS:
 		ipvs_update_stats(v);
 		long_ret = v->stats.conns;
@@ -600,9 +598,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		      int exact, size_t *var_len, WriteMethod **write_method)
 {
 	static unsigned long long_ret;
-#ifdef _KRNL_2_6_
 	static struct counter64 counter64_ret;
-#endif
 	oid *target, current[2], best[2];
 	int result, target_len;
 	int curvirtual = 0, curreal;
@@ -730,7 +726,6 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		long_ret = be->weight;
 		*write_method = check_snmp_realserver_weight;
 		return (u_char*)&long_ret;
-#ifdef _KRNL_2_6_
 	case CHECK_SNMP_RSUPPERCONNECTIONLIMIT:
 		if (btype == STATE_RS_SORRY) break;
 		if (!be->u_threshold) break;
@@ -741,7 +736,6 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		if (!be->l_threshold) break;
 		long_ret = be->l_threshold;
 		return (u_char*)&long_ret;
-#endif
 	case CHECK_SNMP_RSACTIONWHENDOWN:
 		if (btype == STATE_RS_SORRY) break;
 		long_ret = be->inhibit?2:1;
@@ -763,7 +757,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		else
 			long_ret = LIST_SIZE(be->failed_checkers);
 		return (u_char*)&long_ret;
-#if defined(_KRNL_2_6_) && defined(_WITH_LVS_)
+#ifdef _WITH_LVS_
 	case CHECK_SNMP_RSSTATSCONNS:
 		ipvs_update_stats(bvs);
 		long_ret = be->stats.conns;
@@ -1002,7 +996,7 @@ static struct variable8 check_vars[] = {
 	 check_snmp_virtualserver, 3, {3, 1, 25}},
 	{CHECK_SNMP_VSHYSTERESIS, ASN_UNSIGNED, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 26}},
-#if defined(_KRNL_2_6_) && defined(_WITH_LVS_)
+#ifdef _WITH_LVS_
 	{CHECK_SNMP_VSSTATSCONNS, ASN_GAUGE, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 27}},
 	{CHECK_SNMP_VSSTATSINPKTS, ASN_COUNTER, RONLY,
@@ -1037,12 +1031,10 @@ static struct variable8 check_vars[] = {
 	 check_snmp_realserver, 3, {4, 1, 6}},
 	{CHECK_SNMP_RSWEIGHT, ASN_INTEGER, RWRITE,
 	 check_snmp_realserver, 3, {4, 1, 7}},
-#ifdef _KRNL_2_6_
 	{CHECK_SNMP_RSUPPERCONNECTIONLIMIT, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 8}},
 	{CHECK_SNMP_RSLOWERCONNECTIONLIMIT, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 9}},
-#endif
 	{CHECK_SNMP_RSACTIONWHENDOWN, ASN_INTEGER, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 10}},
 	{CHECK_SNMP_RSNOTIFYUP, ASN_OCTET_STR, RONLY,
@@ -1051,7 +1043,7 @@ static struct variable8 check_vars[] = {
 	 check_snmp_realserver, 3, {4, 1, 12}},
 	{CHECK_SNMP_RSFAILEDCHECKS, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 13}},
-#if defined(_KRNL_2_6_) && defined(_WITH_LVS_)
+#ifdef _WITH_LVS_
 	{CHECK_SNMP_RSSTATSCONNS, ASN_GAUGE, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 14}},
 	{CHECK_SNMP_RSSTATSACTIVECONNS, ASN_GAUGE, RONLY,

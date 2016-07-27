@@ -29,9 +29,6 @@ AC_ARG_WITH(kernel-dir,
   [  --with-kernel-dir=DIR   path to linux kernel source directory],
   [kernelinc="$withval/include" kernelpath="$withval"],
   [kernelinc="/usr/src/linux/include" kernelpath="/usr/src/linux"])
-AC_ARG_WITH(kernel-version,
-  [  --with-kernel-version=VER forced value for linux kernel version (VER=2.4|2.6)],
-  [kernelversion="$withval"], [kernelversion=""])
 AC_ARG_ENABLE(fwmark,
   [  --disable-fwmark        compile without SO_MARK support])
 AC_ARG_ENABLE(snmp,
@@ -260,112 +257,18 @@ if test "${USE_LIBIPTC}" = "_HAVE_LIBIPTC_"; then
     LIBS=$SAV_LIBS
   fi
 fi
-
 AC_SUBST(USE_LIBIPSET)
 
-dnl ----[ Kernel version check ]----
-CPPFLAGS="$CPPFLAGS -I$kernelinc"
-AC_MSG_CHECKING([for kernel version])
-AC_TRY_RUN([
-    #include <stdlib.h>
-    #include <stdio.h>
-    #include <linux/version.h>
-    #if !defined(UTS_RELEASE) && !defined(LINUX_VERSION_CODE)
-    #include <linux/utsrelease.h>
-    #endif
-    int main (void) {
-      FILE *fp = fopen ("linuxinfo", "w");
-      if (!fp) return 1;
-    #if defined(UTS_RELEASE)
-      fprintf (fp, "%s\n", UTS_RELEASE);
-    #elif defined(LINUX_VERSION_CODE)
-      fprintf (fp, "%d.%d.%d\n", LINUX_VERSION_CODE >> 16, (LINUX_VERSION_CODE >> 8) & 0xFF, LINUX_VERSION_CODE & 0xFF);
-    #else
-      fprintf (fp, "0.0.0\n"); /* Let''s fail gently */
-    #endif
-      fclose (fp);
-      return 0;
-    }
-  ], [
-    LINUX_MAJOR=`cat linuxinfo | cut -d'.' -f1`
-    LINUX_MINOR=`cat linuxinfo | cut -d'.' -f2`
-    LINUX_PATCH=`cat linuxinfo | cut -d'.' -f3`
-  ], [
-    LINUX_MAJOR="0"
-    LINUX_MINOR="0"
-    LINUX_PATCH="0"
-  ], [
-    LINUX_MAJOR="0"
-    LINUX_MINOR="0"
-    LINUX_PATCH="0"
-  ])
-  rm -f linuxinfo
-
-  if test "$kernelversion" = "2.4"; then
-    KERN="_KRNL_2_4_"
-    AC_MSG_RESULT([2.4])
-  elif test "$kernelversion" = "2.6"; then
-    KERN="_KRNL_2_6_"
-    AC_MSG_RESULT([2.6])
-  else
-    AC_MSG_RESULT([$LINUX_MAJOR.$LINUX_MINOR.$LINUX_PATCH])
-    if test "$LINUX_MAJOR" = "2" && test "$LINUX_MINOR" = "6"; then
-      KERN="_KRNL_2_6_"
-    elif test "$LINUX_MAJOR" = "2" && test "$LINUX_MINOR" = "4"; then
-      KERN="_KRNL_2_4_"
-    else
-      KERN="_KRNL_2_6_"
-    fi
-    if test "$LINUX_MAJOR" = "0" -a "$LINUX_MINOR" = "0" -a "$LINUX_PATCH" = "0"; then
-      AC_MSG_WARN([Cannot determine Linux Kernel version.])
-    fi
-  fi
-
-AC_SUBST(KERN)
-
 dnl ----[ Checks for LVS and VRRP support ]----
-IPVS_SUPPORT="_WITHOUT_LVS_"
-if test "$enable_lvs" != "no"; then
-  if test "$KERN" = "_KRNL_2_6_"; then
-    IPVS_SUPPORT="_WITH_LVS_"
-  else
-    AC_CHECK_HEADER([net/ip_vs.h],
-      [IPVS_SUPPORT="_WITH_LVS_"],
-      [
-        IPVS_SUPPORT="_WITHOUT_LVS_"
-        AC_MSG_WARN([keepalived will be built without LVS support.])
-      ])
-  fi
-fi
-
-if test "$IPVS_SUPPORT" = "_WITHOUT_LVS_" -a "$enable_vrrp" = "no"; then
-  AC_MSG_ERROR([keepalived MUST be compiled at least with LVS or VRRP framework])
-fi
-
-dnl ----[ IPVS syncd support probe ]---
-IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
 IPVS_SYNCD_ATTRIBUTES="_WITHOUT_IPVS_SYNCD_ATTRIBUTES_"
-if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
-  AC_MSG_CHECKING([for IPVS syncd support])
-  if test "$KERN" = "_KRNL_2_6_"; then
+IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
+if test "$enable_lvs" != "no"; then
+  IPVS_SUPPORT="_WITH_LVS_"
+
+  dnl ----[ IPVS syncd support probe ]---
+  if test "$enable_lvs_syncd" != "no"; then
     IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
-  elif test "_KRNL_2_4_"; then
-    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
-  else
-    IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
-  fi
 
-  if test "${IPVS_SUPPORT}" = "_WITHOUT_LVS_" -o "$enable_lvs_syncd" = "no"; then
-    IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
-  fi
-
-  if test "$IPVS_SYNCD" = "_HAVE_IPVS_SYNCD_"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-  fi
-
-  if test "$IPVS_SYNCD" = "_HAVE_IPVS_SYNCD_"; then
     AC_MSG_CHECKING([for IPVS syncd attributes])
     AC_TRY_COMPILE([
         #include <linux/ip_vs.h>
@@ -386,8 +289,13 @@ if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
       AC_MSG_RESULT([no])
     fi
   fi
+else
+  IPVS_SUPPORT="_WITHOUT_LVS_"
+  if test "$enable_vrrp" = "no"; then
+    AC_MSG_ERROR([keepalived MUST be compiled at least with LVS or VRRP framework])
+  fi
 fi
-
+AC_SUBST(IPVS_SUPPORT)
 AC_SUBST(IPVS_SYNCD)
 AC_SUBST(IPVS_SYNCD_ATTRIBUTES)
 
@@ -690,7 +598,7 @@ AC_CHECK_FUNCS(gettimeofday select socket strerror strtol uname)
 AC_CHECK_FUNC([pipe2], [PIPE2_SUPPORT=_HAVE_PIPE2_], [PIPE2_SUPPORT=_WITHOUT_PIPE2_])
 AC_SUBST([PIPE2_SUPPORT])
 
-APP_DEFS="-D${KERN} -D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${IPVS_SYNCD_ATTRIBUTES} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} -D${MEM_CHECK} -D${MEM_CHECK_LOG} -D${PIPE2_SUPPORT} -D${RTA_ENCAP} -D${RTA_EXPIRES} -D${RTA_NEWDST} -D${RTA_PREF} -D${RTA_VIA} -D${FRA_OIFNAME} -D${FRA_SUPPRESS_PREFIXLEN} -D${FRA_SUPPRESS_IFGROUP} -D${FRA_TUN_ID} ${DFLAGS}"
+APP_DEFS="-D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${IPVS_SYNCD_ATTRIBUTES} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} -D${MEM_CHECK} -D${MEM_CHECK_LOG} -D${PIPE2_SUPPORT} -D${RTA_ENCAP} -D${RTA_EXPIRES} -D${RTA_NEWDST} -D${RTA_PREF} -D${RTA_VIA} -D${FRA_OIFNAME} -D${FRA_SUPPRESS_PREFIXLEN} -D${FRA_SUPPRESS_IFGROUP} -D${FRA_TUN_ID} ${DFLAGS}"
 BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
 AC_SUBST(APP_DEFS)
 AC_SUBST(BUILD_OPTS)
@@ -701,12 +609,7 @@ if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
   OUTPUT_TARGET="$OUTPUT_TARGET keepalived/vrrp/Makefile"
 fi
 if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
-  OUTPUT_TARGET="$OUTPUT_TARGET keepalived/check/Makefile"
-  if test "$KERN" = "_KRNL_2_6_"; then
-    OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs-2.6/Makefile"
-  elif test "$KERN" = "_KRNL_2_4_"; then
-    OUTPUT_TARGET="$OUTPUT_TARGET keepalived/libipvs-2.4/Makefile"
-  fi
+  OUTPUT_TARGET="$OUTPUT_TARGET keepalived/check/Makefile keepalived/libipvs/Makefile"
 fi
 AC_OUTPUT($OUTPUT_TARGET)
 

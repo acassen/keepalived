@@ -36,11 +36,7 @@ ifeq ($(VRRP_FLAG),_WITH_VRRP_)
 endif
 
 ifeq ($(IPVS_FLAG),_WITH_LVS_)
-  ifeq ($(KERNEL),_KRNL_2_4_)
-    LIBSUBDIRS = libipvs-2.4
-  else
-    LIBSUBDIRS = libipvs-2.6
-  endif
+  LIBSUBDIRS = libipvs
 endif
 
 all:
