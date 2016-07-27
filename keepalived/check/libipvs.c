@@ -20,15 +20,22 @@
 #include <sys/socket.h>
 #include <arpa/inet.h>
 
+#ifdef LIBIPVS_USE_NL
+#include <netlink/netlink.h>
+#include <netlink/genl/genl.h>
+#include <netlink/genl/ctrl.h>
+#endif
+
 #include "libipvs.h"
+
 #include "memory.h"
 #ifndef _HAVE_SOCK_CLOEXEC_
 #include "old_socket.h"
 #endif
 
 typedef struct ipvs_servicedest_s {
-	struct ip_vs_service_kern	svc;
-	struct ip_vs_dest_kern		dest;
+	struct ip_vs_service_user	svc;
+	struct ip_vs_dest_user		dest;
 } ipvs_servicedest_t;
 
 static int sockfd = -1;
@@ -43,11 +50,83 @@ struct ip_vs_getinfo ipvs_info;
 #endif
 static struct nl_sock *sock = NULL;
 static int family, try_nl = 1;
+
+/* Policy definitions */
+static struct nla_policy ipvs_cmd_policy[IPVS_CMD_ATTR_MAX + 1] = {
+	[IPVS_CMD_ATTR_SERVICE]		= { .type = NLA_NESTED },
+	[IPVS_CMD_ATTR_DEST]		= { .type = NLA_NESTED },
+	[IPVS_CMD_ATTR_DAEMON]		= { .type = NLA_NESTED },
+	[IPVS_CMD_ATTR_TIMEOUT_TCP]	= { .type = NLA_U32 },
+	[IPVS_CMD_ATTR_TIMEOUT_TCP_FIN]	= { .type = NLA_U32 },
+	[IPVS_CMD_ATTR_TIMEOUT_UDP]	= { .type = NLA_U32 },
+};
+
+static struct nla_policy ipvs_service_policy[IPVS_SVC_ATTR_MAX + 1] = {
+	[IPVS_SVC_ATTR_AF]		= { .type = NLA_U16 },
+	[IPVS_SVC_ATTR_PROTOCOL]	= { .type = NLA_U16 },
+	[IPVS_SVC_ATTR_ADDR]		= { .type = NLA_UNSPEC,
+					    .maxlen = sizeof(struct in6_addr) },
+	[IPVS_SVC_ATTR_PORT]		= { .type = NLA_U16 },
+	[IPVS_SVC_ATTR_FWMARK]		= { .type = NLA_U32 },
+	[IPVS_SVC_ATTR_SCHED_NAME]	= { .type = NLA_STRING,
+					    .maxlen = IP_VS_SCHEDNAME_MAXLEN },
+	[IPVS_SVC_ATTR_FLAGS]		= { .type = NLA_UNSPEC,
+					    .minlen = sizeof(struct ip_vs_flags),
+					    .maxlen = sizeof(struct ip_vs_flags) },
+	[IPVS_SVC_ATTR_TIMEOUT]		= { .type = NLA_U32 },
+	[IPVS_SVC_ATTR_NETMASK]		= { .type = NLA_U32 },
+	[IPVS_SVC_ATTR_STATS]		= { .type = NLA_NESTED },
+};
+
+static struct nla_policy ipvs_dest_policy[IPVS_DEST_ATTR_MAX + 1] = {
+	[IPVS_DEST_ATTR_ADDR]		= { .type = NLA_UNSPEC,
+					    .maxlen = sizeof(struct in6_addr) },
+	[IPVS_DEST_ATTR_PORT]		= { .type = NLA_U16 },
+	[IPVS_DEST_ATTR_FWD_METHOD]	= { .type = NLA_U32 },
+	[IPVS_DEST_ATTR_WEIGHT]		= { .type = NLA_U32 },
+	[IPVS_DEST_ATTR_U_THRESH]	= { .type = NLA_U32 },
+	[IPVS_DEST_ATTR_L_THRESH]	= { .type = NLA_U32 },
+	[IPVS_DEST_ATTR_ACTIVE_CONNS]	= { .type = NLA_U32 },
+	[IPVS_DEST_ATTR_INACT_CONNS]	= { .type = NLA_U32 },
+	[IPVS_DEST_ATTR_PERSIST_CONNS]	= { .type = NLA_U32 },
+	[IPVS_DEST_ATTR_STATS]		= { .type = NLA_NESTED },
+#ifdef IPVS_DEST_ATTR_ADDR_FAMILY
+	[IPVS_DEST_ATTR_ADDR_FAMILY]	= { .type = NLA_U16 },
+#endif
+};
+
+static struct nla_policy ipvs_stats_policy[IPVS_STATS_ATTR_MAX + 1] = {
+	[IPVS_STATS_ATTR_CONNS]		= { .type = NLA_U32 },
+	[IPVS_STATS_ATTR_INPKTS]	= { .type = NLA_U32 },
+	[IPVS_STATS_ATTR_OUTPKTS]	= { .type = NLA_U32 },
+	[IPVS_STATS_ATTR_INBYTES]	= { .type = NLA_U64 },
+	[IPVS_STATS_ATTR_OUTBYTES]	= { .type = NLA_U64 },
+	[IPVS_STATS_ATTR_CPS]		= { .type = NLA_U32 },
+	[IPVS_STATS_ATTR_INPPS]		= { .type = NLA_U32 },
+	[IPVS_STATS_ATTR_OUTPPS]	= { .type = NLA_U32 },
+	[IPVS_STATS_ATTR_INBPS]		= { .type = NLA_U32 },
+	[IPVS_STATS_ATTR_OUTBPS]	= { .type = NLA_U32 },
+};
+
+static struct nla_policy ipvs_info_policy[IPVS_INFO_ATTR_MAX + 1] = {
+	[IPVS_INFO_ATTR_VERSION]	= { .type = NLA_U32 },
+	[IPVS_INFO_ATTR_CONN_TAB_SIZE]	= { .type = NLA_U32 },
+};
+
+#ifdef _INCLUDE_UNUSED_CODE_
+static struct nla_policy ipvs_daemon_policy[IPVS_DAEMON_ATTR_MAX + 1] = {
+	[IPVS_DAEMON_ATTR_STATE]	= { .type = NLA_U32 },
+	[IPVS_DAEMON_ATTR_MCAST_IFN]	= { .type = NLA_STRING,
+					    .maxlen = IP_VS_IFNAME_MAXLEN },
+	[IPVS_DAEMON_ATTR_SYNC_ID]	= { .type = NLA_U32 },
+};
+#endif
+
 #endif
 
 #define CHECK_IPV4(s, ret) if (s->af && s->af != AF_INET)	\
 	{ errno = EAFNOSUPPORT; goto out_err; }			\
-	s->__addr_v4 = s->addr.ip;				\
+	s->user.addr = s->nf_addr.ip;				\
 
 #define CHECK_PE(s, ret) if (s->pe_name[0])			\
 	{ errno = EAFNOSUPPORT; goto out_err; }
@@ -84,7 +163,7 @@ static int nlerr2syserr(int err)
 }
 #endif
 
-struct nl_msg *ipvs_nl_message(int cmd, int flags)
+static struct nl_msg *ipvs_nl_message(int cmd, int flags)
 {
 	struct nl_msg *msg;
 
@@ -177,6 +256,8 @@ static int ipvs_getinfo(void)
 {
 	socklen_t len;
 
+	ipvs_func = ipvs_getinfo;
+
 #ifdef LIBIPVS_USE_NL
 	if (try_nl) {
 		struct nl_msg *msg;
@@ -188,7 +269,6 @@ static int ipvs_getinfo(void)
 	}
 #endif
 
-	ipvs_func = ipvs_getinfo;
 	len = sizeof(ipvs_info);
 	return getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,
 			  (char *)&ipvs_info, &len);
@@ -228,7 +308,6 @@ int ipvs_init(void)
 	return 0;
 }
 
-
 #ifdef _INCLUDE_UNUSED_CODE_
 unsigned int ipvs_version(void)
 {
@@ -255,7 +334,7 @@ int ipvs_flush(void)
 static int ipvs_nl_fill_service_attr(struct nl_msg *msg, ipvs_service_t *svc)
 {
 	struct nlattr *nl_service;
-	struct ip_vs_flags flags = { .flags = svc->flags,
+	struct ip_vs_flags flags = { .flags = svc->user.flags,
 				     .mask = ~0 };
 
 	nl_service = nla_nest_start(msg, IPVS_CMD_ATTR_SERVICE);
@@ -264,20 +343,20 @@ static int ipvs_nl_fill_service_attr(struct nl_msg *msg, ipvs_service_t *svc)
 
 	NLA_PUT_U16(msg, IPVS_SVC_ATTR_AF, svc->af);
 
-	if (svc->fwmark) {
-		NLA_PUT_U32(msg, IPVS_SVC_ATTR_FWMARK, svc->fwmark);
+	if (svc->user.fwmark) {
+		NLA_PUT_U32(msg, IPVS_SVC_ATTR_FWMARK, svc->user.fwmark);
 	} else {
-		NLA_PUT_U16(msg, IPVS_SVC_ATTR_PROTOCOL, svc->protocol);
-		NLA_PUT(msg, IPVS_SVC_ATTR_ADDR, sizeof(svc->addr), &(svc->addr));
-		NLA_PUT_U16(msg, IPVS_SVC_ATTR_PORT, svc->port);
+		NLA_PUT_U16(msg, IPVS_SVC_ATTR_PROTOCOL, svc->user.protocol);
+		NLA_PUT(msg, IPVS_SVC_ATTR_ADDR, sizeof(svc->nf_addr), &(svc->nf_addr));
+		NLA_PUT_U16(msg, IPVS_SVC_ATTR_PORT, svc->user.port);
 	}
 
-	NLA_PUT_STRING(msg, IPVS_SVC_ATTR_SCHED_NAME, svc->sched_name);
+	NLA_PUT_STRING(msg, IPVS_SVC_ATTR_SCHED_NAME, svc->user.sched_name);
 	if (svc->pe_name[0])
 		NLA_PUT_STRING(msg, IPVS_SVC_ATTR_PE_NAME, svc->pe_name);
 	NLA_PUT(msg, IPVS_SVC_ATTR_FLAGS, sizeof(flags), &flags);
-	NLA_PUT_U32(msg, IPVS_SVC_ATTR_TIMEOUT, svc->timeout);
-	NLA_PUT_U32(msg, IPVS_SVC_ATTR_NETMASK, svc->netmask);
+	NLA_PUT_U32(msg, IPVS_SVC_ATTR_TIMEOUT, svc->user.timeout);
+	NLA_PUT_U32(msg, IPVS_SVC_ATTR_NETMASK, svc->user.netmask);
 
 	nla_nest_end(msg, nl_service);
 	return 0;
@@ -304,7 +383,7 @@ int ipvs_add_service(ipvs_service_t *svc)
 
 	CHECK_COMPAT_SVC(svc, -1);
 	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_ADD, (char *)svc,
-			  sizeof(struct ip_vs_service_kern));
+			  sizeof(struct ip_vs_service_user));
 out_err:
 	return -1;
 }
@@ -326,7 +405,7 @@ int ipvs_update_service(ipvs_service_t *svc)
 #endif
 	CHECK_COMPAT_SVC(svc, -1);
 	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_EDIT, (char *)svc,
-			  sizeof(struct ip_vs_service_kern));
+			  sizeof(struct ip_vs_service_user));
 out_err:
 	return -1;
 }
@@ -348,7 +427,7 @@ int ipvs_del_service(ipvs_service_t *svc)
 #endif
 	CHECK_COMPAT_SVC(svc, -1);
 	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_DEL, (char *)svc,
-			  sizeof(struct ip_vs_service_kern));
+			  sizeof(struct ip_vs_service_user));
 out_err:
 	return -1;
 }
@@ -362,9 +441,9 @@ int ipvs_zero_service(ipvs_service_t *svc)
 		struct nl_msg *msg = ipvs_nl_message(IPVS_CMD_ZERO, 0);
 		if (!msg) return -1;
 
-		if (svc->fwmark
-		    || memcmp(&in6addr_any, &svc->addr.in6, sizeof(struct in6_addr))
-		    || svc->port) {
+		if (svc->user.fwmark
+		    || memcmp(&in6addr_any, &svc->nf_addr.in6, sizeof(struct in6_addr))
+		    || svc->user.port) {
 			if (ipvs_nl_fill_service_attr(msg, svc)) {
 				nlmsg_free(msg);
 				return -1;
@@ -375,7 +454,7 @@ int ipvs_zero_service(ipvs_service_t *svc)
 #endif
 	CHECK_COMPAT_SVC(svc, -1);
 	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_ZERO, (char *)svc,
-			  sizeof(struct ip_vs_service_kern));
+			  sizeof(struct ip_vs_service_user));
 out_err:
 	return -1;
 }
@@ -389,13 +468,15 @@ static int ipvs_nl_fill_dest_attr(struct nl_msg *msg, ipvs_dest_t *dst)
 	if (!nl_dest)
 		return -1;
 
+#ifdef IPVS_DEST_ATTR_ADDR_FAMILY
 	NLA_PUT_U16(msg, IPVS_DEST_ATTR_ADDR_FAMILY, dst->af);
-	NLA_PUT(msg, IPVS_DEST_ATTR_ADDR, sizeof(dst->addr), &(dst->addr));
-	NLA_PUT_U16(msg, IPVS_DEST_ATTR_PORT, dst->port);
-	NLA_PUT_U32(msg, IPVS_DEST_ATTR_FWD_METHOD, dst->conn_flags & IP_VS_CONN_F_FWD_MASK);
-	NLA_PUT_U32(msg, IPVS_DEST_ATTR_WEIGHT, dst->weight);
-	NLA_PUT_U32(msg, IPVS_DEST_ATTR_U_THRESH, dst->u_threshold);
-	NLA_PUT_U32(msg, IPVS_DEST_ATTR_L_THRESH, dst->l_threshold);
+#endif
+	NLA_PUT(msg, IPVS_DEST_ATTR_ADDR, sizeof(dst->nf_addr), &(dst->nf_addr));
+	NLA_PUT_U16(msg, IPVS_DEST_ATTR_PORT, dst->user.port);
+	NLA_PUT_U32(msg, IPVS_DEST_ATTR_FWD_METHOD, dst->user.conn_flags & IP_VS_CONN_F_FWD_MASK);
+	NLA_PUT_U32(msg, IPVS_DEST_ATTR_WEIGHT, dst->user.weight);
+	NLA_PUT_U32(msg, IPVS_DEST_ATTR_U_THRESH, dst->user.u_threshold);
+	NLA_PUT_U32(msg, IPVS_DEST_ATTR_L_THRESH, dst->user.l_threshold);
 
 	nla_nest_end(msg, nl_dest);
 	return 0;
@@ -409,8 +490,9 @@ int ipvs_add_dest(ipvs_service_t *svc, ipvs_dest_t *dest)
 {
 	ipvs_servicedest_t svcdest;
 
-#ifdef LIBIPVS_USE_NL
 	ipvs_func = ipvs_add_dest;
+
+#ifdef LIBIPVS_USE_NL
 	if (try_nl) {
 		struct nl_msg *msg = ipvs_nl_message(IPVS_CMD_NEW_DEST, 0);
 		if (!msg) return -1;
@@ -505,7 +587,7 @@ int ipvs_set_timeout(ipvs_timeout_t *to)
 	ipvs_func = ipvs_set_timeout;
 #ifdef LIBIPVS_USE_NL
 	if (try_nl) {
-		struct nl_msg *msg = ipvs_nl_message(IPVS_CMD_SET_TIMEOUT, 0);
+		struct nl_msg *msg = ipvs_nl_message(IPVS_CMD_SET_CONFIG, 0);
 		if (!msg) return -1;
 
 		if (to->tcp_timeout)
@@ -609,6 +691,7 @@ nla_put_failure:
 			  (char *)&dmk, sizeof(dmk));
 }
 
+#ifdef _WITH_SNMP_CHECKER_
 #ifdef LIBIPVS_USE_NL
 static int ipvs_parse_stats(struct ip_vs_stats_user *stats, struct nlattr *nla)
 {
@@ -649,10 +732,10 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 	struct nlmsghdr *nlh = nlmsg_hdr(msg);
 	struct nlattr *attrs[IPVS_CMD_ATTR_MAX + 1];
 	struct nlattr *svc_attrs[IPVS_SVC_ATTR_MAX + 1];
-	struct ip_vs_get_services **getp = (struct ip_vs_get_services **)arg;
-	struct ip_vs_get_services *get = (struct ip_vs_get_services *)*getp;
+	struct ip_vs_get_services_app **getp = (struct ip_vs_get_services_app **)arg;
+	struct ip_vs_get_services_app *get = (struct ip_vs_get_services_app *)*getp;
 	struct ip_vs_flags flags;
-	int i = get->num_services;
+	int i = get->user.num_services;
 
 	if (genlmsg_parse(nlh, 0, attrs, IPVS_CMD_ATTR_MAX, ipvs_cmd_policy) != 0)
 		return -1;
@@ -663,7 +746,7 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 	if (nla_parse_nested(svc_attrs, IPVS_SVC_ATTR_MAX, attrs[IPVS_CMD_ATTR_SERVICE], ipvs_service_policy))
 		return -1;
 
-	memset(&(get->entrytable[i]), 0, sizeof(get->entrytable[i]));
+	memset(&(get->user.entrytable[i]), 0, sizeof(get->user.entrytable[i]));
 
 	if (!(svc_attrs[IPVS_SVC_ATTR_AF] &&
 	      (svc_attrs[IPVS_SVC_ATTR_FWMARK] ||
@@ -676,52 +759,54 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 	      svc_attrs[IPVS_SVC_ATTR_FLAGS]))
 		return -1;
 
-	get->entrytable[i].af = nla_get_u16(svc_attrs[IPVS_SVC_ATTR_AF]);
+	get->user.entrytable[i].af = nla_get_u16(svc_attrs[IPVS_SVC_ATTR_AF]);
 
 	if (svc_attrs[IPVS_SVC_ATTR_FWMARK])
-		get->entrytable[i].fwmark = nla_get_u32(svc_attrs[IPVS_SVC_ATTR_FWMARK]);
+		get->user.entrytable[i].user.fwmark = nla_get_u32(svc_attrs[IPVS_SVC_ATTR_FWMARK]);
 	else {
-		get->entrytable[i].protocol = nla_get_u16(svc_attrs[IPVS_SVC_ATTR_PROTOCOL]);
-		memcpy(&(get->entrytable[i].addr), nla_data(svc_attrs[IPVS_SVC_ATTR_ADDR]),
-		       sizeof(get->entrytable[i].addr));
-		get->entrytable[i].port = nla_get_u16(svc_attrs[IPVS_SVC_ATTR_PORT]);
+		get->user.entrytable[i].user.protocol = nla_get_u16(svc_attrs[IPVS_SVC_ATTR_PROTOCOL]);
+		memcpy(&(get->user.entrytable[i].nf_addr), nla_data(svc_attrs[IPVS_SVC_ATTR_ADDR]),
+		       sizeof(get->user.entrytable[i].nf_addr));
+		get->user.entrytable[i].user.port = nla_get_u16(svc_attrs[IPVS_SVC_ATTR_PORT]);
 	}
 
-	strncpy(get->entrytable[i].sched_name,
+	strncpy(get->user.entrytable[i].user.sched_name,
 		nla_get_string(svc_attrs[IPVS_SVC_ATTR_SCHED_NAME]),
 		IP_VS_SCHEDNAME_MAXLEN);
 
 	if (svc_attrs[IPVS_SVC_ATTR_PE_NAME])
-		strncpy(get->entrytable[i].pe_name,
+		strncpy(get->user.entrytable[i].pe_name,
 			nla_get_string(svc_attrs[IPVS_SVC_ATTR_PE_NAME]),
 			IP_VS_PENAME_MAXLEN);
 
-	get->entrytable[i].netmask = nla_get_u32(svc_attrs[IPVS_SVC_ATTR_NETMASK]);
-	get->entrytable[i].timeout = nla_get_u32(svc_attrs[IPVS_SVC_ATTR_TIMEOUT]);
+	get->user.entrytable[i].user.netmask = nla_get_u32(svc_attrs[IPVS_SVC_ATTR_NETMASK]);
+	get->user.entrytable[i].user.timeout = nla_get_u32(svc_attrs[IPVS_SVC_ATTR_TIMEOUT]);
 	nla_memcpy(&flags, svc_attrs[IPVS_SVC_ATTR_FLAGS], sizeof(flags));
-	get->entrytable[i].flags = flags.flags & flags.mask;
+	get->user.entrytable[i].user.flags = flags.flags & flags.mask;
 
-	if (ipvs_parse_stats(&(get->entrytable[i].stats),
+	if (ipvs_parse_stats(&(get->user.entrytable[i].user.stats),
 			     svc_attrs[IPVS_SVC_ATTR_STATS]) != 0)
 		return -1;
 
-	get->entrytable[i].num_dests = 0;
+	get->user.entrytable[i].user.num_dests = 0;
 
 	i++;
 
-	get->num_services = i;
+	get->user.num_services = i;
 	get = realloc(get, sizeof(*get)
-	      + sizeof(ipvs_service_entry_t) * (get->num_services + 1));
+	      + sizeof(ipvs_service_entry_t) * (get->user.num_services + 1));
 	*getp = get;
 	return 0;
 }
 #endif
+#endif
 
+#ifdef _INCLUDE_UNUSED_CODE_
 static
-struct ip_vs_get_services *ipvs_get_services(void)
+struct ip_vs_get_services_app *ipvs_get_services(void)
 {
-	struct ip_vs_get_services *get;
-	struct ip_vs_get_services_kern *getk;
+	struct ip_vs_get_services_app *get;
+	struct ip_vs_get_services *getk;
 	socklen_t len;
 	int i;
 
@@ -732,7 +817,7 @@ struct ip_vs_get_services *ipvs_get_services(void)
 			sizeof(ipvs_service_entry_t);
 		if (!(get = MALLOC(len)))
 			return NULL;
-		get->num_services = 0;
+		get->user.num_services = 0;
 
 		msg = ipvs_nl_message(IPVS_CMD_GET_SERVICE, NLM_F_DUMP);
 		if (msg && (ipvs_nl_send_message(msg, ipvs_services_parse_cb, &get) == 0))
@@ -748,7 +833,7 @@ struct ip_vs_get_services *ipvs_get_services(void)
 	if (!(get = MALLOC(len)))
 		return NULL;
 	len = sizeof(*getk) +
-		sizeof(struct ip_vs_service_entry_kern) * ipvs_info.num_services;
+		sizeof(struct ip_vs_service_entry) * ipvs_info.num_services;
 	if (!(getk = MALLOC(len))) {
 		FREE(get);
 		return NULL;
@@ -764,25 +849,25 @@ struct ip_vs_get_services *ipvs_get_services(void)
 	}
 	memcpy(get, getk, sizeof(struct ip_vs_get_services));
 	for (i = 0; i < getk->num_services; i++) {
-		memcpy(&get->entrytable[i], &getk->entrytable[i],
-		       sizeof(struct ip_vs_service_entry_kern));
-		get->entrytable[i].af = AF_INET;
-		get->entrytable[i].addr.ip = get->entrytable[i].__addr_v4;
+		memcpy(&get->user.entrytable[i], &getk->entrytable[i],
+		       sizeof(struct ip_vs_service_entry));
+		get->user.entrytable[i].af = AF_INET;
+		get->user.entrytable[i].nf_addr.ip = get->user.entrytable[i].user.addr;
 	}
 	FREE(getk);
 	return get;
 }
-
-
-typedef int (*qsort_cmp_t)(const void *, const void *);
+#endif
 
 #ifdef _INCLUDE_UNUSED_CODE_
+typedef int (*qsort_cmp_t)(const void *, const void *);
+
 int
 ipvs_cmp_services(ipvs_service_entry_t *s1, ipvs_service_entry_t *s2)
 {
 	int r, i;
 
-	r = s1->fwmark - s2->fwmark;
+	r = s1->user.fwmark - s2->user.fwmark;
 	if (r != 0)
 		return r;
 
@@ -790,39 +875,42 @@ ipvs_cmp_services(ipvs_service_entry_t *s1, ipvs_service_entry_t *s2)
 	if (r != 0)
 		return r;
 
-	r = s1->protocol - s2->protocol;
+	r = s1->user.protocol - s2->user.protocol;
 	if (r != 0)
 		return r;
 
 	if (s1->af == AF_INET6)
 		for (i = 0; !r && (i < 4); i++)
-			r = ntohl(s1->addr.in6.s6_addr32[i]) - ntohl(s2->addr.in6.s6_addr32[i]);
+			r = ntohl(s1->nf_addr.in6.s6_addr32[i]) - ntohl(s2->nf_addr.in6.s6_addr32[i]);
 	else
-		r = ntohl(s1->addr.ip) - ntohl(s2->addr.ip);
+		r = ntohl(s1->nf_addr.ip) - ntohl(s2->nf_addr.ip);
 	if (r != 0)
 		return r;
 
-	return ntohs(s1->port) - ntohs(s2->port);
+	return ntohs(s1->user.port) - ntohs(s2->user.port);
 }
 
 void
-ipvs_sort_services(struct ip_vs_get_services *s, ipvs_service_cmp_t f)
+ipvs_sort_services(struct ip_vs_get_services_app *s, ipvs_service_cmp_t f)
 {
-	qsort(s->entrytable, s->num_services,
+	qsort(s->user.entrytable, s->user.num_services,
 	      sizeof(ipvs_service_entry_t), (qsort_cmp_t)f);
 }
 #endif
 
+#ifdef _WITH_SNMP_CHECKER_
 #ifdef LIBIPVS_USE_NL
 static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 {
 	struct nlmsghdr *nlh = nlmsg_hdr(msg);
 	struct nlattr *attrs[IPVS_CMD_ATTR_MAX + 1];
 	struct nlattr *dest_attrs[IPVS_DEST_ATTR_MAX + 1];
+#ifdef IPVS_DEST_ATTR_ADDR_FAMILY
 	struct nlattr *attr_addr_family = NULL;
-	struct ip_vs_get_dests **dp = (struct ip_vs_get_dests **)arg;
-	struct ip_vs_get_dests *d = (struct ip_vs_get_dests *)*dp;
-	int i = d->num_dests;
+#endif
+	struct ip_vs_get_dests_app **dp = (struct ip_vs_get_dests_app **)arg;
+	struct ip_vs_get_dests_app *d = (struct ip_vs_get_dests_app *)*dp;
+	int i = d->user.num_dests;
 
 	if (genlmsg_parse(nlh, 0, attrs, IPVS_CMD_ATTR_MAX, ipvs_cmd_policy) != 0)
 		return -1;
@@ -833,7 +921,7 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 	if (nla_parse_nested(dest_attrs, IPVS_DEST_ATTR_MAX, attrs[IPVS_CMD_ATTR_DEST], ipvs_dest_policy))
 		return -1;
 
-	memset(&(d->entrytable[i]), 0, sizeof(d->entrytable[i]));
+	memset(&(d->user.entrytable[i]), 0, sizeof(d->user.entrytable[i]));
 
 	if (!(dest_attrs[IPVS_DEST_ATTR_ADDR] &&
 	      dest_attrs[IPVS_DEST_ATTR_PORT] &&
@@ -846,44 +934,46 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 	      dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]))
 		return -1;
 
-	memcpy(&(d->entrytable[i].addr),
+	memcpy(&(d->user.entrytable[i].nf_addr),
 	       nla_data(dest_attrs[IPVS_DEST_ATTR_ADDR]),
-	       sizeof(d->entrytable[i].addr));
-	d->entrytable[i].port = nla_get_u16(dest_attrs[IPVS_DEST_ATTR_PORT]);
-	d->entrytable[i].conn_flags = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_FWD_METHOD]);
-	d->entrytable[i].weight = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_WEIGHT]);
-	d->entrytable[i].u_threshold = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_U_THRESH]);
-	d->entrytable[i].l_threshold = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_L_THRESH]);
-	d->entrytable[i].activeconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS]);
-	d->entrytable[i].inactconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_INACT_CONNS]);
-	d->entrytable[i].persistconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]);
+	       sizeof(d->user.entrytable[i].nf_addr));
+	d->user.entrytable[i].user.port = nla_get_u16(dest_attrs[IPVS_DEST_ATTR_PORT]);
+	d->user.entrytable[i].user.conn_flags = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_FWD_METHOD]);
+	d->user.entrytable[i].user.weight = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_WEIGHT]);
+	d->user.entrytable[i].user.u_threshold = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_U_THRESH]);
+	d->user.entrytable[i].user.l_threshold = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_L_THRESH]);
+	d->user.entrytable[i].user.activeconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS]);
+	d->user.entrytable[i].user.inactconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_INACT_CONNS]);
+	d->user.entrytable[i].user.persistconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]);
+#ifdef IPVS_DEST_ATTR_ADDR_FAMILY
 	attr_addr_family = dest_attrs[IPVS_DEST_ATTR_ADDR_FAMILY];
 	if (attr_addr_family)
 		d->entrytable[i].af = nla_get_u16(attr_addr_family);
 	else
-		d->entrytable[i].af = d->af;
+#endif
+		d->user.entrytable[i].af = d->af;
 
-	if (ipvs_parse_stats(&(d->entrytable[i].stats),
+	if (ipvs_parse_stats(&(d->user.entrytable[i].user.stats),
 			     dest_attrs[IPVS_DEST_ATTR_STATS]) != 0)
 		return -1;
 
 	i++;
 
-	d->num_dests = i;
-	d = realloc(d, sizeof(*d) + sizeof(ipvs_dest_entry_t) * (d->num_dests + 1));
+	d->user.num_dests = i;
+	d = realloc(d, sizeof(*d) + sizeof(ipvs_dest_entry_t) * (d->user.num_dests + 1));
 	*dp = d;
 	return 0;
 }
 #endif
 
-struct ip_vs_get_dests *ipvs_get_dests(ipvs_service_entry_t *svc)
+struct ip_vs_get_dests_app *ipvs_get_dests(ipvs_service_entry_t *svc)
 {
-	struct ip_vs_get_dests *d;
-	struct ip_vs_get_dests_kern *dk;
+	struct ip_vs_get_dests_app *d;
+	struct ip_vs_get_dests *dk;
 	socklen_t len;
 	int i;
 
-	len = sizeof(*d) + sizeof(ipvs_dest_entry_t) * svc->num_dests;
+	len = sizeof(*d) + sizeof(ipvs_dest_entry_t) * svc->user.num_dests;
 	if (!(d = MALLOC(len)))
 		return NULL;
 
@@ -893,13 +983,13 @@ struct ip_vs_get_dests *ipvs_get_dests(ipvs_service_entry_t *svc)
 	if (try_nl) {
 		struct nl_msg *msg;
 		struct nlattr *nl_service;
-		if (svc->num_dests == 0)
+		if (svc->user.num_dests == 0)
 			d = realloc(d,sizeof(*d) + sizeof(ipvs_dest_entry_t));
-		d->fwmark = svc->fwmark;
-		d->protocol = svc->protocol;
-		d->addr = svc->addr;
-		d->port = svc->port;
-		d->num_dests = svc->num_dests;
+		d->user.fwmark = svc->user.fwmark;
+		d->user.protocol = svc->user.protocol;
+		d->nf_addr = svc->nf_addr;
+		d->user.port = svc->user.port;
+		d->user.num_dests = svc->user.num_dests;
 		d->af = svc->af;
 
 		msg = ipvs_nl_message(IPVS_CMD_GET_DEST, NLM_F_DUMP);
@@ -912,13 +1002,13 @@ struct ip_vs_get_dests *ipvs_get_dests(ipvs_service_entry_t *svc)
 
 		NLA_PUT_U16(msg, IPVS_SVC_ATTR_AF, svc->af);
 
-		if (svc->fwmark) {
-			NLA_PUT_U32(msg, IPVS_SVC_ATTR_FWMARK, svc->fwmark);
+		if (svc->user.fwmark) {
+			NLA_PUT_U32(msg, IPVS_SVC_ATTR_FWMARK, svc->user.fwmark);
 		} else {
-			NLA_PUT_U16(msg, IPVS_SVC_ATTR_PROTOCOL, svc->protocol);
-			NLA_PUT(msg, IPVS_SVC_ATTR_ADDR, sizeof(svc->addr),
-				&svc->addr);
-			NLA_PUT_U16(msg, IPVS_SVC_ATTR_PORT, svc->port);
+			NLA_PUT_U16(msg, IPVS_SVC_ATTR_PROTOCOL, svc->user.protocol);
+			NLA_PUT(msg, IPVS_SVC_ATTR_ADDR, sizeof(svc->nf_addr),
+				&svc->nf_addr);
+			NLA_PUT_U16(msg, IPVS_SVC_ATTR_PORT, svc->user.port);
 		}
 
 		nla_nest_end(msg, nl_service);
@@ -941,17 +1031,17 @@ ipvs_nl_dest_failure:
 		return NULL;
 	}
 
-	len = sizeof(*dk) + sizeof(struct ip_vs_dest_entry_kern) * svc->num_dests;
+	len = sizeof(*dk) + sizeof(struct ip_vs_dest_entry) * svc->user.num_dests;
 	if (!(dk = MALLOC(len))) {
 		FREE(d);
 		return NULL;
 	}
 
-	dk->fwmark = svc->fwmark;
-	dk->protocol = svc->protocol;
-	dk->addr = svc->addr.ip;
-	dk->port = svc->port;
-	dk->num_dests = svc->num_dests;
+	dk->fwmark = svc->user.fwmark;
+	dk->protocol = svc->user.protocol;
+	dk->addr = svc->nf_addr.ip;
+	dk->port = svc->user.port;
+	dk->num_dests = svc->user.num_dests;
 
 	if (getsockopt(sockfd, IPPROTO_IP,
 		       IP_VS_SO_GET_DESTS, dk, &len) < 0) {
@@ -959,19 +1049,19 @@ ipvs_nl_dest_failure:
 		FREE(dk);
 		return NULL;
 	}
-	memcpy(d, dk, sizeof(struct ip_vs_get_dests_kern));
+	memcpy(d, dk, sizeof(struct ip_vs_get_dests));
 	d->af = AF_INET;
-	d->addr.ip = d->__addr_v4;
+	d->nf_addr.ip = d->user.addr;
 	for (i = 0; i < dk->num_dests; i++) {
-		memcpy(&d->entrytable[i], &dk->entrytable[i],
-		       sizeof(struct ip_vs_dest_entry_kern));
-		d->entrytable[i].af = AF_INET;
-		d->entrytable[i].addr.ip = d->entrytable[i].__addr_v4;
+		memcpy(&d->user.entrytable[i], &dk->entrytable[i],
+		       sizeof(struct ip_vs_dest_entry));
+		d->user.entrytable[i].af = AF_INET;
+		d->user.entrytable[i].nf_addr.ip = d->user.entrytable[i].user.addr;
 	}
 	FREE(dk);
 	return d;
 }
-
+#endif
 
 #ifdef _INCLUDE_UNUSED_CODE_
 int ipvs_cmp_dests(ipvs_dest_entry_t *d1, ipvs_dest_entry_t *d2)
@@ -980,25 +1070,26 @@ int ipvs_cmp_dests(ipvs_dest_entry_t *d1, ipvs_dest_entry_t *d2)
 
 	if (d1->af == AF_INET6)
 		for (i = 0; !r && (i < 4); i++)
-			r = ntohl(d1->addr.in6.s6_addr32[i]) -
-			    ntohl(d2->addr.in6.s6_addr32[i]);
+			r = ntohl(d1->nf_addr.in6.s6_addr32[i]) -
+			    ntohl(d2->nf_addr.in6.s6_addr32[i]);
 	else
-		r = ntohl(d1->addr.ip) - ntohl(d2->addr.ip);
+		r = ntohl(d1->nf_addr.ip) - ntohl(d2->nf_addr.ip);
 	if (r != 0)
 		return r;
 
-	return ntohs(d1->port) - ntohs(d2->port);
+	return ntohs(d1->user.port) - ntohs(d2->user.port);
 }
 
 
-void ipvs_sort_dests(struct ip_vs_get_dests *d, ipvs_dest_cmp_t f)
+void ipvs_sort_dests(struct ip_vs_get_dests_app *d, ipvs_dest_cmp_t f)
 {
-	qsort(d->entrytable, d->num_dests,
+	qsort(d->user.entrytable, d->user.num_dests,
 	      sizeof(ipvs_dest_entry_t), (qsort_cmp_t)f);
 }
 #endif
 
 
+#ifdef _WITH_SNMP_CHECKER_
 ipvs_service_entry_t *
 ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr addr, __u16 port)
 {
@@ -1018,11 +1109,11 @@ ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr addr
 			return NULL;
 
 		memset(&tsvc, 0, sizeof(tsvc));
-		tsvc.fwmark = fwmark;
+		tsvc.user.fwmark = fwmark;
 		tsvc.af = af;
-		tsvc.protocol= protocol;
-		tsvc.addr = addr;
-		tsvc.port = port;
+		tsvc.user.protocol= protocol;
+		tsvc.nf_addr = addr;
+		tsvc.user.port = port;
 
 		if (!(get = MALLOC(sizeof(*get) + sizeof(ipvs_service_entry_t))))
 			goto ipvs_get_service_err2;
@@ -1030,7 +1121,8 @@ ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr addr
 		get->num_services = 0;
 
 		msg = ipvs_nl_message(IPVS_CMD_GET_SERVICE, 0);
-		if (!msg) goto ipvs_get_service_err;
+		if (!msg)
+			goto ipvs_get_service_err;
 		if (ipvs_nl_fill_service_attr(msg, &tsvc))
 			goto nla_put_failure;
 		if (ipvs_nl_send_message(msg, ipvs_services_parse_cb, &get))
@@ -1055,11 +1147,11 @@ ipvs_get_service_err2:
 	if (!svc)
 		return NULL;
 
-	svc->fwmark = fwmark;
+	svc->user.fwmark = fwmark;
 	svc->af = af;
-	svc->protocol = protocol;
-	svc->addr = addr;
-	svc->port = port;
+	svc->user.protocol = protocol;
+	svc->nf_addr = addr;
+	svc->user.port = port;
 
 	CHECK_COMPAT_SVC(svc, NULL);
 	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_SERVICE,
@@ -1068,13 +1160,14 @@ ipvs_get_service_err2:
 		return NULL;
 	}
 	svc->af = AF_INET;
-	svc->addr.ip = svc->__addr_v4;
+	svc->nf_addr.ip = svc->user.addr;
 	svc->pe_name[0] = '\0';
 	return svc;
 out_err:
 	FREE(svc);
 	return NULL;
 }
+#endif
 
 #ifdef _INCLUDE_UNUSED_CODE_
 #ifdef LIBIPVS_USE_NL
@@ -1112,7 +1205,7 @@ ipvs_timeout_t *ipvs_get_timeout(void)
 	if (try_nl) {
 		struct nl_msg *msg;
 		memset(u, 0, sizeof(*u));
-		msg = ipvs_nl_message(IPVS_CMD_GET_TIMEOUT, 0);
+		msg = ipvs_nl_message(IPVS_CMD_GET_CONFIG, 0);
 		if (msg && (ipvs_nl_send_message(msg, ipvs_timeout_parse_cb, u) == 0))
 			return u;
 
@@ -1242,7 +1335,6 @@ void ipvs_close(void)
 	close(sockfd);
 }
 
-
 const char *ipvs_strerror(int err)
 {
 	unsigned int i;
@@ -1265,7 +1357,9 @@ const char *ipvs_strerror(int err)
 		{ ipvs_del_dest, ENOENT, "No such destination" },
 		{ ipvs_start_daemon, EEXIST, "Daemon has already run" },
 		{ ipvs_stop_daemon, ESRCH, "No daemon is running" },
+#ifdef _INCLUDE_UNUSED_CODE_
 		{ ipvs_get_services, ESRCH, "No such service" },
+#endif
 		{ ipvs_get_dests, ESRCH, "No such service" },
 		{ ipvs_get_service, ESRCH, "No such service" },
 		{ 0, EPERM, "Permission denied (you must be root)" },

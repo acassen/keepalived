@@ -14,7 +14,7 @@ COMPILE	 = $(CC) $(CFLAGS) @APP_DEFS@
 OBJS =	check_daemon.o check_data.o check_parser.o \
 	check_api.o check_tcp.o check_http.o check_ssl.o \
 	check_smtp.o check_misc.o ipwrapper.o ipvswrapper.o \
-	libipvs.o ip_vs_nl_policy.o
+	libipvs.o
 
 ifeq ($(SNMP_CHECKER_FLAG),_WITH_SNMP_CHECKER_)
   OBJS += check_snmp.o

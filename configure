@@ -625,7 +625,6 @@ APP_DEFS
 PIPE2_SUPPORT
 LIBOBJS
 VRRP_SUPPORT
-IPVS_USE_NL
 VERSION_YEAR
 VERSION_DATE
 VERSION
@@ -665,6 +664,7 @@ RTA_NEWDST
 RTA_EXPIRES
 RTA_ENCAP
 USE_NL3
+IPVS_USE_NL
 EGREP
 GREP
 CPP
@@ -4195,6 +4195,7 @@ fi
 
 
 
+
 if test "$USE_NL3" != "_WITHOUT_LIBNL_"; then
   for ac_header in libnfnetlink/libnfnetlink.h
 do :
@@ -5131,7 +5132,6 @@ fi
 if test "${enable_profile}" = "yes"; then
   CFLAGS="$CFLAGS -pg"
 fi
-
 
 
 

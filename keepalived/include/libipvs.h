@@ -34,12 +34,12 @@
 #define IPVS_SVC_PERSISTENT_TIMEOUT	(6*60)
 
 
-typedef struct ip_vs_service_user	ipvs_service_t;
-typedef struct ip_vs_dest_user		ipvs_dest_t;
+typedef struct ip_vs_service_app	ipvs_service_t;
+typedef struct ip_vs_dest_app		ipvs_dest_t;
 typedef struct ip_vs_timeout_user	ipvs_timeout_t;
-typedef struct ip_vs_daemon_user	ipvs_daemon_t;
-typedef struct ip_vs_service_entry	ipvs_service_entry_t;
-typedef struct ip_vs_dest_entry		ipvs_dest_entry_t;
+typedef struct ip_vs_daemon_app		ipvs_daemon_t;
+typedef struct ip_vs_service_entry_app	ipvs_service_entry_t;
+typedef struct ip_vs_dest_entry_app	ipvs_dest_entry_t;
 
 
 /* ipvs info variable */
@@ -88,8 +88,10 @@ typedef int (*ipvs_service_cmp_t)(ipvs_service_entry_t *,
 				  ipvs_service_entry_t *);
 #endif
 
+#ifdef _WITH_SNMP_CHECKER_
 /* get the destination array of the specified service */
-extern struct ip_vs_get_dests *ipvs_get_dests(ipvs_service_entry_t *svc);
+extern struct ip_vs_get_dests_app *ipvs_get_dests(ipvs_service_entry_t *svc);
+#endif
 
 /* sort the destination entries */
 #ifdef _INCLUDE_UNUSED_CODE_
@@ -97,9 +99,11 @@ typedef int (*ipvs_dest_cmp_t)(ipvs_dest_entry_t *,
 			       ipvs_dest_entry_t *);
 #endif
 
+#ifdef _WITH_SNMP_CHECKER_
 /* get an ipvs service entry */
 extern ipvs_service_entry_t *
 ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr addr, __u16 port);
+#endif
 
 /* close the socket */
 extern void ipvs_close(void);

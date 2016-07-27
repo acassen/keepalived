@@ -111,6 +111,7 @@ AC_CHECK_LIB(nl-3, nl_socket_alloc,
       ])
   ])
 
+AC_SUBST(IPVS_USE_NL)
 AC_SUBST(USE_NL3)
 
 if test "$USE_NL3" != "_WITHOUT_LIBNL_"; then
@@ -580,7 +581,6 @@ AC_SUBST(VERSION)
 AC_SUBST(VERSION_DATE)
 AC_SUBST(VERSION_YEAR)
 AC_SUBST(IPVS_SUPPORT)
-AC_SUBST(IPVS_USE_NL)
 AC_SUBST(VRRP_SUPPORT)
 
 dnl ----[ Checks for typedefs, structures, and compiler characteristics ]----
