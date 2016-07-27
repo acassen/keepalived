@@ -23,6 +23,8 @@ AC_ARG_ENABLE(lvs-syncd,
   [  --disable-lvs-syncd     do not use LVS synchronization daemon])
 AC_ARG_ENABLE(lvs,
   [  --disable-lvs           do not use the LVS framework])
+AC_ARG_ENABLE(lvs-64bit-stats,
+  [  --disable-lvs-64bit-stats do not use the LVS 64-bit stats])
 AC_ARG_ENABLE(vrrp,
   [  --disable-vrrp          do not use the VRRP framework])
 AC_ARG_WITH(kernel-dir,
@@ -264,6 +266,7 @@ dnl ----[ Checks for LVS and VRRP support ]----
 IPVS_SUPPORT="_WITHOUT_LVS_"
 IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
 IPVS_SYNCD_ATTRIBUTES="_WITHOUT_IPVS_SYNCD_ATTRIBUTES_"
+IPVS_64BIT_STATS="_WITHOUT_LVS_64BIT_STATS_"
 if test "$enable_lvs" != "no"; then
   IPVS_SUPPORT="_WITH_LVS_"
 
@@ -291,12 +294,33 @@ if test "$enable_lvs" != "no"; then
       AC_MSG_RESULT([no])
     fi
   fi
+
+  dnl ----[ IPVS 64-bit stats ]----
+  if test "$IPVS_USE_NL" = "LIBIPVS_USE_NL" -a \
+          "$enable_lvs_64bit_stats" != "no"; then
+    AC_MSG_CHECKING([for LVS 64-bit stats])
+    AC_TRY_COMPILE([
+        #include <linux/ip_vs.h>
+        int value;
+      ], [
+        value = IPVS_SVC_ATTR_STATS64 + IPVS_DEST_ATTR_STATS64;
+      ], [
+        IPVS_64BIT_STATS="_WITH_LVS_64BIT_STATS_"
+      ], []);
+
+    if test "$IPVS_64BIT_STATS" = "_WITH_LVS_64BIT_STATS_"; then
+      AC_MSG_RESULT([yes])
+    else
+      AC_MSG_RESULT([no])
+    fi
+  fi
 elif test "$enable_vrrp" = "no"; then
   AC_MSG_ERROR([keepalived MUST be compiled at least with LVS or VRRP framework])
 fi
 AC_SUBST(IPVS_SUPPORT)
 AC_SUBST(IPVS_SYNCD)
 AC_SUBST(IPVS_SYNCD_ATTRIBUTES)
+AC_SUBST(IPVS_64BIT_STATS)
 
 dnl ----[ Checks for kernel netlink support ]----
 VRRP_SUPPORT="_WITHOUT_VRRP_"
@@ -596,7 +620,7 @@ AC_CHECK_FUNCS(gettimeofday select socket strerror strtol uname)
 AC_CHECK_FUNC([pipe2], [PIPE2_SUPPORT=_HAVE_PIPE2_], [PIPE2_SUPPORT=_WITHOUT_PIPE2_])
 AC_SUBST([PIPE2_SUPPORT])
 
-APP_DEFS="-D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${IPVS_SYNCD_ATTRIBUTES} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} -D${MEM_CHECK} -D${MEM_CHECK_LOG} -D${PIPE2_SUPPORT} -D${RTA_ENCAP} -D${RTA_EXPIRES} -D${RTA_NEWDST} -D${RTA_PREF} -D${RTA_VIA} -D${FRA_OIFNAME} -D${FRA_SUPPRESS_PREFIXLEN} -D${FRA_SUPPRESS_IFGROUP} -D${FRA_TUN_ID} ${DFLAGS}"
+APP_DEFS="-D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${IPVS_SYNCD_ATTRIBUTES} -D${IPVS_64BIT_STATS} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} -D${MEM_CHECK} -D${MEM_CHECK_LOG} -D${PIPE2_SUPPORT} -D${RTA_ENCAP} -D${RTA_EXPIRES} -D${RTA_NEWDST} -D${RTA_PREF} -D${RTA_VIA} -D${FRA_OIFNAME} -D${FRA_SUPPRESS_PREFIXLEN} -D${FRA_SUPPRESS_IFGROUP} -D${FRA_TUN_ID} ${DFLAGS}"
 BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
 AC_SUBST(APP_DEFS)
 AC_SUBST(BUILD_OPTS)
@@ -638,6 +662,11 @@ if test "${IPVS_SUPPORT}" = "_WITH_LVS_"; then
     echo "IPVS use libnl           : Yes"
   else
     echo "IPVS use libnl           : No"
+  fi
+  if test "${IPVS_64BIT_STATS}" = "_WITH_LVS_64BIT_STATS_"; then
+    echo "IPVS 64-bit stats        : Yes"
+  else
+    echo "IPVS 64-bit stats        : No"
   fi
 else
   echo "Use IPVS Framework       : No"

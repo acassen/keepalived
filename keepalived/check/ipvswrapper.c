@@ -792,7 +792,7 @@ ipvs_update_stats(virtual_server_t *vs)
 			continue;
 
 		/* Update virtual server stats */
-#define ADD_TO_VSSTATS(X) vs->stats.X += serv->user.stats.X;
+#define ADD_TO_VSSTATS(X) vs->stats.X += serv->stats.X;
 		ADD_TO_VSSTATS(conns);
 		ADD_TO_VSSTATS(inpkts);
 		ADD_TO_VSSTATS(outpkts);
@@ -836,10 +836,14 @@ ipvs_update_stats(virtual_server_t *vs)
 						break;
 				}
 			if (rs) {
-#define ADD_TO_RSSTATS(X) rs->X += dests->user.entrytable[i].user.X
-				ADD_TO_RSSTATS(activeconns);
-				ADD_TO_RSSTATS(inactconns);
-				ADD_TO_RSSTATS(persistconns);
+#define ADD_TO_RSSTATS(X) rs->X += dests->user.entrytable[i].X
+#define ADD_TO_RSSTATS_USER(X) rs->X += dests->user.entrytable[i].user.X
+				ADD_TO_RSSTATS_USER(activeconns);
+				ADD_TO_RSSTATS_USER(inactconns);
+				ADD_TO_RSSTATS_USER(persistconns);
+//				rs->activeconns = dests->user.entrytable[i].user.activeconns;
+//				rs->inactconns = dests->user.entrytable[i].user.inactconns;
+//				rs->persistconns = dests->user.entrytable[i].user.persistconns;
 				ADD_TO_RSSTATS(stats.conns);
 				ADD_TO_RSSTATS(stats.inpkts);
 				ADD_TO_RSSTATS(stats.outpkts);

@@ -86,7 +86,11 @@ typedef struct _real_server {
 	uint32_t			activeconns;	/* active connections */
 	uint32_t			inactconns;	/* inactive connections */
 	uint32_t			persistconns;	/* persistent connections */
+#ifndef _WITH_LVS_64BIT_STATS_
 	struct ip_vs_stats_user		stats;
+#else
+	struct ip_vs_stats64		stats;
+#endif
 #endif
 } real_server_t;
 
@@ -140,7 +144,11 @@ typedef struct _virtual_server {
 #if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)
 	/* Statistics */
 	time_t				lastupdated;
+#ifndef _WITH_LVS_64BIT_STATS_
 	struct ip_vs_stats_user		stats;
+#else
+	struct ip_vs_stats64		stats;
+#endif
 #endif
 } virtual_server_t;
 

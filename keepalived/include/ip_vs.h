@@ -9,6 +9,25 @@
 #include <linux/ip_vs.h>
 #include <linux/netfilter.h>	/* For nf_inet_addr */
 
+#ifdef _WITH_LVS_64BIT_STATS_
+struct ip_vs_stats64 {
+	__u64                   conns;          /* connections scheduled */
+	__u64                   inpkts;         /* incoming packets */
+	__u64                   outpkts;        /* outgoing packets */
+	__u64                   inbytes;        /* incoming bytes */
+	__u64                   outbytes;       /* outgoing bytes */
+
+	__u64			cps;		/* current connection rate */
+	__u64			inpps;		/* current in packet rate */
+	__u64			outpps;		/* current out packet rate */
+	__u64			inbps;		/* current in byte rate */
+	__u64			outbps;		/* current out byte rate */
+};
+typedef struct ip_vs_stats64 ip_vs_stats_t;
+#else
+typedef struct ip_vs_stats_user ip_vs_stats_t;
+#endif
+
 struct ip_vs_service_app {
 	struct ip_vs_service_user user;
 	u_int16_t		af;
@@ -25,6 +44,7 @@ struct ip_vs_dest_app {
 
 struct ip_vs_service_entry_app {
 	struct ip_vs_service_entry user;
+	ip_vs_stats_t		stats;
 	u_int16_t		af;
 	union nf_inet_addr	nf_addr;
 	char			pe_name[IP_VS_PENAME_MAXLEN];
@@ -33,8 +53,10 @@ struct ip_vs_service_entry_app {
 
 struct ip_vs_dest_entry_app {
 	struct ip_vs_dest_entry user;
+	ip_vs_stats_t		stats;
 	u_int16_t		af;
 	union nf_inet_addr	nf_addr;
+
 };
 
 struct ip_vs_get_dests_app {

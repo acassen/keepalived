@@ -80,6 +80,13 @@ static struct nla_policy ipvs_service_policy[IPVS_SVC_ATTR_MAX + 1] = {
 	[IPVS_SVC_ATTR_TIMEOUT]		= { .type = NLA_U32 },
 	[IPVS_SVC_ATTR_NETMASK]		= { .type = NLA_U32 },
 	[IPVS_SVC_ATTR_STATS]		= { .type = NLA_NESTED },
+#ifdef IPVS_SVR_ATTR_PE_NAME
+	[IPVS_SVC_ATTR_PE_NAME]		= { .type = NLA_STRING,
+					    .maxlen = IP_VS_PENAME_MAXLEN }
+#endif
+#ifdef IPVS_SVC_ATTR_STATS64
+	[IPVS_SVC_ATTR_STATS64]		= { .type = NLA_NESTED },
+#endif
 };
 
 static struct nla_policy ipvs_dest_policy[IPVS_DEST_ATTR_MAX + 1] = {
@@ -97,7 +104,25 @@ static struct nla_policy ipvs_dest_policy[IPVS_DEST_ATTR_MAX + 1] = {
 #ifdef IPVS_DEST_ATTR_ADDR_FAMILY
 	[IPVS_DEST_ATTR_ADDR_FAMILY]	= { .type = NLA_U16 },
 #endif
+#ifdef IPVS_DEST_ATTR_STATS64
+	[IPVS_DEST_ATTR_STATS64]	= {.type = NLA_NESTED },
+#endif
 };
+
+#ifdef _WITH_LVS_64BIT_STATS_
+static struct nla_policy ipvs_stats64_policy[IPVS_STATS_ATTR_MAX + 1] = {
+	[IPVS_STATS_ATTR_CONNS]		= { .type = NLA_U64 },
+	[IPVS_STATS_ATTR_INPKTS]	= { .type = NLA_U64 },
+	[IPVS_STATS_ATTR_OUTPKTS]	= { .type = NLA_U64 },
+	[IPVS_STATS_ATTR_INBYTES]	= { .type = NLA_U64 },
+	[IPVS_STATS_ATTR_OUTBYTES]	= { .type = NLA_U64 },
+	[IPVS_STATS_ATTR_CPS]		= { .type = NLA_U64 },
+	[IPVS_STATS_ATTR_INPPS]		= { .type = NLA_U64 },
+	[IPVS_STATS_ATTR_OUTPPS]	= { .type = NLA_U64 },
+	[IPVS_STATS_ATTR_INBPS]		= { .type = NLA_U64 },
+	[IPVS_STATS_ATTR_OUTBPS]	= { .type = NLA_U64 },
+};
+#endif
 
 static struct nla_policy ipvs_stats_policy[IPVS_STATS_ATTR_MAX + 1] = {
 	[IPVS_STATS_ATTR_CONNS]		= { .type = NLA_U32 },
@@ -247,7 +272,6 @@ int ipvs_init(void)
 
 	return 0;
 }
-
 
 int ipvs_flush(void)
 {
@@ -626,7 +650,42 @@ nla_put_failure:
 
 #ifdef _WITH_SNMP_CHECKER_
 #ifdef LIBIPVS_USE_NL
-static int ipvs_parse_stats(struct ip_vs_stats_user *stats, struct nlattr *nla)
+#ifdef _WITH_LVS_64BIT_STATS_
+static int ipvs_parse_stats64(ip_vs_stats_t *stats, struct nlattr *nla)
+{
+	struct nlattr *attrs[IPVS_STATS_ATTR_MAX + 1];
+
+	if (nla_parse_nested(attrs, IPVS_STATS_ATTR_MAX, nla, ipvs_stats64_policy))
+		return -1;
+
+	if (!(attrs[IPVS_STATS_ATTR_CONNS] &&
+	      attrs[IPVS_STATS_ATTR_INPKTS] &&
+	      attrs[IPVS_STATS_ATTR_OUTPKTS] &&
+	      attrs[IPVS_STATS_ATTR_INBYTES] &&
+	      attrs[IPVS_STATS_ATTR_OUTBYTES] &&
+	      attrs[IPVS_STATS_ATTR_CPS] &&
+	      attrs[IPVS_STATS_ATTR_INPPS] &&
+	      attrs[IPVS_STATS_ATTR_OUTPPS] &&
+	      attrs[IPVS_STATS_ATTR_INBPS] &&
+	      attrs[IPVS_STATS_ATTR_OUTBPS]))
+		return -1;
+
+	stats->conns = nla_get_u64(attrs[IPVS_STATS_ATTR_CONNS]);
+	stats->inpkts = nla_get_u64(attrs[IPVS_STATS_ATTR_INPKTS]);
+	stats->outpkts = nla_get_u64(attrs[IPVS_STATS_ATTR_OUTPKTS]);
+	stats->inbytes = nla_get_u64(attrs[IPVS_STATS_ATTR_INBYTES]);
+	stats->outbytes = nla_get_u64(attrs[IPVS_STATS_ATTR_OUTBYTES]);
+	stats->cps = nla_get_u64(attrs[IPVS_STATS_ATTR_CPS]);
+	stats->inpps = nla_get_u64(attrs[IPVS_STATS_ATTR_INPPS]);
+	stats->outpps = nla_get_u64(attrs[IPVS_STATS_ATTR_OUTPPS]);
+	stats->inbps = nla_get_u64(attrs[IPVS_STATS_ATTR_INBPS]);
+	stats->outbps = nla_get_u64(attrs[IPVS_STATS_ATTR_OUTBPS]);
+
+	return 0;
+}
+#endif
+
+static int ipvs_parse_stats(ip_vs_stats_t *stats, struct nlattr *nla)
 {
 	struct nlattr *attrs[IPVS_STATS_ATTR_MAX + 1];
 
@@ -717,9 +776,18 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 	nla_memcpy(&flags, svc_attrs[IPVS_SVC_ATTR_FLAGS], sizeof(flags));
 	get->user.entrytable[i].user.flags = flags.flags & flags.mask;
 
-	if (ipvs_parse_stats(&(get->user.entrytable[i].user.stats),
-			     svc_attrs[IPVS_SVC_ATTR_STATS]) != 0)
-		return -1;
+#ifdef _WITH_LVS_64BIT_STATS_
+	if (svc_attrs[IPVS_SVC_ATTR_STATS64]) {
+		if (ipvs_parse_stats64(&(get->user.entrytable[i].stats),
+				     svc_attrs[IPVS_SVC_ATTR_STATS64]) != 0)
+			return -1;
+	} else if (svc_attrs[IPVS_SVC_ATTR_STATS])
+#endif
+	{
+		if (ipvs_parse_stats(&(get->user.entrytable[i].stats),
+				     svc_attrs[IPVS_SVC_ATTR_STATS]) != 0)
+			return -1;
+	}
 
 	get->user.entrytable[i].user.num_dests = 0;
 
@@ -786,9 +854,18 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 #endif
 		d->user.entrytable[i].af = d->af;
 
-	if (ipvs_parse_stats(&(d->user.entrytable[i].user.stats),
-			     dest_attrs[IPVS_DEST_ATTR_STATS]) != 0)
-		return -1;
+#ifdef _WITH_LVS_64BIT_STATS_
+	if (dest_attrs[IPVS_DEST_ATTR_STATS64]) {
+		if (ipvs_parse_stats64(&(d->user.entrytable[i].stats),
+				     dest_attrs[IPVS_DEST_ATTR_STATS64]) != 0)
+			return -1;
+	} else if (dest_attrs[IPVS_DEST_ATTR_STATS])
+#endif
+	{
+		if (ipvs_parse_stats(&(d->user.entrytable[i].stats),
+				     dest_attrs[IPVS_DEST_ATTR_STATS]) != 0)
+			return -1;
+	}
 
 	i++;
 
@@ -1007,9 +1084,6 @@ const char *ipvs_strerror(int err)
 		{ ipvs_del_dest, ENOENT, "No such destination" },
 		{ ipvs_start_daemon, EEXIST, "Daemon has already run" },
 		{ ipvs_stop_daemon, ESRCH, "No daemon is running" },
-#ifdef _INCLUDE_UNUSED_CODE_
-		{ ipvs_get_services, ESRCH, "No such service" },
-#endif
 		{ ipvs_get_dests, ESRCH, "No such service" },
 		{ ipvs_get_service, ESRCH, "No such service" },
 		{ 0, EPERM, "Permission denied (you must be root)" },

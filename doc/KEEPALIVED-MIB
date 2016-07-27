@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201607100000Z"
+     LAST-UPDATED "201607260000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201607260000Z"
+     DESCRIPTION "64-bit stats added"
      REVISION "201607100000Z"
      DESCRIPTION "enhanced virtual rules and routes"
      REVISION "201607030000Z"
@@ -245,6 +247,14 @@ lvsFlush OBJECT-TYPE
     DESCRIPTION
         "Indicate whether LVS config is flushed at startup."
     ::= { global 6 }
+
+ipvs64BitStats OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "True if 64-bit stats counters are available for ipvs, false otherwise."
+    ::= { global 7 }
 
 -- ----------------------------------------------------------------------
 -- VRRP part
@@ -2215,7 +2225,20 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerRateOutPPS Gauge32,
     virtualServerRateInBPS Gauge32,
     virtualServerRateOutBPS Gauge32,
-    virtualServerOPS TruthValue
+    virtualServerOPS TruthValue,
+    virtualServerStatsConns64 Counter64,
+    virtualServerStatsInPkts64 Counter64,
+    virtualServerStatsOutPkts64 Counter64,
+    virtualServerRateCpsLow Unsigned32,
+    virtualServerRateCpsHigh Unsigned32,
+    virtualServerRateInPPSLow Unsigned32,
+    virtualServerRateInPPSHigh Unsigned32,
+    virtualServerRateOutPPSLow Unsigned32,
+    virtualServerRateOutPPSHigh Unsigned32,
+    virtualServerRateInBPSLow Unsigned32,
+    virtualServerRateInBPSHigh Unsigned32,
+    virtualServerRateOutBPSLow Unsigned32,
+    virtualServerRateOutBPSHigh Unsigned32
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -2550,6 +2573,133 @@ virtualServerOPS OBJECT-TYPE
         "If set to true(1), One-Packet-Scheduling will be applied."
     ::= { virtualServerEntry 37 }
 
+virtualServerStatsConns64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "connections"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Total number of connections scheduled for this virtual server."
+    ::= { virtualServerEntry 38 }
+
+virtualServerStatsInPkts64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "packets"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Total number of incoming packets for this virtual server."
+    ::= { virtualServerEntry 39 }
+
+virtualServerStatsOutPkts64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "packets"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Total number of outgoing packets for this virtual server."
+    ::= { virtualServerEntry 40 }
+
+virtualServerRateCpsLow OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "connections/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current connection rate for this virtual server.
+	Together with virtualServerRateCpsHigh composes 64-bit number."
+    ::= { virtualServerEntry 41 }
+
+virtualServerRateCpsHigh OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "connections/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current connection rate for this virtual server.
+	Together with virtualServerRateCpsLow composes 64-bit number."
+    ::= { virtualServerEntry 42 }
+
+virtualServerRateInPPSLow OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current in packet rate for this virtual server.
+	Together with virtualServerRateInPPSHigh composes 64-bit number."
+    ::= { virtualServerEntry 43 }
+
+virtualServerRateInPPSHigh OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current in packet rate for this virtual server.
+	Together with virtualServerRateInPPSLow composes 64-bit number."
+    ::= { virtualServerEntry 44 }
+
+virtualServerRateOutPPSLow OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current out packet rate for this virtual server.
+	Together with virtualServerRateOutPPSHigh composes 64-bit number."
+    ::= { virtualServerEntry 45 }
+
+virtualServerRateOutPPSHigh OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current out packet rate for this virtual server.
+	Together with virtualServerRateOutPPSLow composes 64-bit number."
+    ::= { virtualServerEntry 46 }
+
+virtualServerRateInBPSLow OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current incoming rate for this virtual server.
+	Together with virtualServerInBPSHigh composes 64-bit number."
+    ::= { virtualServerEntry 47 }
+
+virtualServerRateInBPSHigh OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current incoming rate for this virtual server.
+	Together with virtualServerRateInBPSLow composes 64-bit number."
+    ::= { virtualServerEntry 48 }
+
+virtualServerRateOutBPSLow OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current outgoing rate for this virtual server.
+	Together with virtualServerRateOutBPSHigh composes 64-bit number."
+    ::= { virtualServerEntry 49 }
+
+virtualServerRateOutBPSHigh OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current outgoing rate for this virtual server.
+	Together with virtualServerRateOutBPSLow composes 64-bit number."
+    ::= { virtualServerEntry 50 }
+
 -- real servers
 
 realServerTable OBJECT-TYPE
@@ -2595,7 +2745,20 @@ RealServerEntry ::= SEQUENCE {
     realServerRateInPPS Gauge32,
     realServerRateOutPPS Gauge32,
     realServerRateInBPS Gauge32,
-    realServerRateOutBPS Gauge32
+    realServerRateOutBPS Gauge32,
+    realServerStatsConns64 Counter64,
+    realServerStatsInPkts64 Counter64,
+    realServerStatsOutPkts64 Counter64,
+    realServerRateCpsLow Unsigned32,
+    realServerRateCpsHigh Unsigned32,
+    realServerRateInPPSLow Unsigned32,
+    realServerRateInPPSHigh Unsigned32,
+    realServerRateOutPPSLow Unsigned32,
+    realServerRateOutPPSHigh Unsigned32,
+    realServerRateInBPSLow Unsigned32,
+    realServerRateInBPSHigh Unsigned32,
+    realServerRateOutBPSLow Unsigned32,
+    realServerRateOutBPSHigh Unsigned32
 }
 
 realServerIndex OBJECT-TYPE
@@ -2822,6 +2985,133 @@ realServerRateOutBPS OBJECT-TYPE
         "Current outgoing rate for this real server."
     ::= { realServerEntry 26 }
 
+realServerStatsConns64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "connections"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Total number of connections scheduled for this real server."
+    ::= { realServerEntry 27 }
+
+realServerStatsInPkts64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "packets"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Total number of incoming packets for this real server."
+    ::= { realServerEntry 28 }
+
+realServerStatsOutPkts64 OBJECT-TYPE
+    SYNTAX Counter64
+    UNITS "packets"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Total number of outgoing packets for this real server."
+    ::= { realServerEntry 29 }
+
+realServerRateCpsLow OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "connections/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current connection rate for this real server.
+	Together with realServerRateCpsHigh composes 64-bit number."
+    ::= { realServerEntry 30 }
+
+realServerRateCpsHigh OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "connections/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current connection rate for this real server.
+	Together with realServerRateCpsLow composes 64-bit number."
+    ::= { realServerEntry 31 }
+
+realServerRateInPPSLow OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current in packet rate for this real server.
+	Together with realServerRateInPPSHigh composes 64-bit number."
+    ::= { realServerEntry 32 }
+
+realServerRateInPPSHigh OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current in packet rate for this real server.
+	Together with realServerRateInPPSLow composes 64-bit number."
+    ::= { realServerEntry 33 }
+
+realServerRateOutPPSLow OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current out packet rate for this real server.
+	Together with realServerRateOutPPSHigh composes 64-bit number."
+    ::= { realServerEntry 34 }
+
+realServerRateOutPPSHigh OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "packets/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current out packet rate for this real server.
+	Together with realServerRateOutPPSLow composes 64-bit number."
+    ::= { realServerEntry 35 }
+
+realServerRateInBPSLow OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current incoming rate for this real server.
+	Together with realServerInBPSHigh composes 64-bit number."
+    ::= { realServerEntry 36 }
+
+realServerRateInBPSHigh OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current incoming rate for this real server.
+	Together with realServerRateInBPSLow composes 64-bit number."
+    ::= { realServerEntry 37 }
+
+realServerRateOutBPSLow OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current outgoing rate for this real server.
+	Together with realServerRateOutBPSHigh composes 64-bit number."
+    ::= { realServerEntry 38 }
+
+realServerRateOutBPSHigh OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "bytes/s"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current outgoing rate for this real server.
+	Together with realServerRateOutBPSLow composes 64-bit number."
+    ::= { realServerEntry 39 }
+
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
 lvsSyncDaemonEnabled OBJECT-TYPE
@@ -3032,7 +3322,7 @@ vrrpLvsSyncGroupCompliances MODULE-COMPLIANCE
 
 globalGroup OBJECT-GROUP
     OBJECTS {
-        version,
+    version,
     routerId,
     smtpServerAddressType,
     smtpServerAddress,
@@ -3042,7 +3332,8 @@ globalGroup OBJECT-GROUP
     smtpServerPort,
     trapEnable,
     linkBeat,
-    lvsFlush
+    lvsFlush,
+    ipvs64BitStats
     }
     STATUS current
     DESCRIPTION
@@ -3309,7 +3600,20 @@ virtualServerGroup OBJECT-GROUP
     virtualServerRateOutPPS,
     virtualServerRateInBPS,
     virtualServerRateOutBPS,
-    virtualServerOPS
+    virtualServerOPS,
+    virtualServerStatsConns64,
+    virtualServerStatsInPkts64,
+    virtualServerStatsOutPkts64,
+    virtualServerRateCpsLow,
+    virtualServerRateCpsHigh,
+    virtualServerRateInPPSLow,
+    virtualServerRateInPPSHigh,
+    virtualServerRateOutPPSLow,
+    virtualServerRateOutPPSHigh,
+    virtualServerRateInBPSLow,
+    virtualServerRateInBPSHigh,
+    virtualServerRateOutBPSLow,
+    virtualServerRateOutBPSHigh
     }
     STATUS current
     DESCRIPTION
@@ -3342,7 +3646,20 @@ realServerGroup OBJECT-GROUP
     realServerRateInPPS,
     realServerRateOutPPS,
     realServerRateInBPS,
-    realServerRateOutBPS
+    realServerRateOutBPS,
+    realServerStatsConns64,
+    realServerStatsInPkts64,
+    realServerStatsOutPkts64,
+    realServerRateCpsLow,
+    realServerRateCpsHigh,
+    realServerRateInPPSLow,
+    realServerRateInPPSHigh,
+    realServerRateOutPPSLow,
+    realServerRateOutPPSHigh,
+    realServerRateInBPSLow,
+    realServerRateInBPSHigh,
+    realServerRateOutBPSLow,
+    realServerRateOutBPSHigh
     }
     STATUS current
     DESCRIPTION
