@@ -35,10 +35,6 @@ typedef uint8_t u8;
 #include <fcntl.h>
 #include <syslog.h>
 #include <ctype.h>
-#ifdef use_linux_libc5
-#include <linux/if_arp.h>
-#include <linux/if_ether.h>
-#endif
 #include <linux/ip.h>
 #include <stdlib.h>
 #include <stdio.h>
