@@ -23,11 +23,6 @@
 #ifndef _VRRP_NETLINK_H
 #define _VRRP_NETLINK_H 1
 
-/* Hack for GNU libc version 2. */
-#ifndef MSG_TRUNC
-#define MSG_TRUNC      0x20
-#endif				/* MSG_TRUNC */
-
 /* global includes */
 #include <asm/types.h>
 #include <linux/netlink.h>
