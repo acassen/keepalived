@@ -50,10 +50,6 @@
 #endif
 #endif
 
-#ifndef IP_VS_TEMPLATE_TIMEOUT
-#define IP_VS_TEMPLATE_TIMEOUT IPVS_SVC_PERSISTENT_TIMEOUT
-#endif
-
 /* locale includes */
 #include "scheduler.h"
 #include "check_data.h"
