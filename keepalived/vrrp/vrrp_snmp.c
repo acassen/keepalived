@@ -934,12 +934,8 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 		long_ret = route->protocol + 1;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ROUTE_ECN:
-#ifndef RTAX_FEATURES
-		break;
-#else
 		long_ret = 2 - !!(route->features & RTAX_FEATURE_ECN);
 		return (u_char *)&long_ret;
-#endif
 	case VRRP_SNMP_ROUTE_QUICK_ACK:
 		long_ret = 2 - !!(route->mask & IPROUTE_BIT_QUICKACK);
 		return (u_char *)&long_ret;

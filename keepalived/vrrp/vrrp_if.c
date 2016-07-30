@@ -38,7 +38,7 @@ typedef uint8_t u8;
 #include <linux/ip.h>
 #include <stdlib.h>
 #include <stdio.h>
-//#include <linux/ethtool.h>
+#include <linux/ethtool.h>
 #ifndef _HAVE_SOCK_CLOEXEC_
 #include "old_socket.h"
 #endif
@@ -277,7 +277,6 @@ if_mii_probe(const char *ifname)
 static int
 if_ethtool_status(const int fd)
 {
-#ifdef ETHTOOL_GLINK
 	struct ethtool_value edata;
 	int err = 0;
 
@@ -287,7 +286,6 @@ if_ethtool_status(const int fd)
 	if (err == 0)
 		return (edata.data) ? 1 : 0;
 	else
-#endif
 		return -1;
 }
 
