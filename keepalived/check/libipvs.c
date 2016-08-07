@@ -56,6 +56,7 @@ static struct nl_sock *sock = NULL;
 static int family, try_nl = 1;
 
 /* Policy definitions */
+#ifdef _WITH_SNMP_CHECKER_
 static struct nla_policy ipvs_cmd_policy[IPVS_CMD_ATTR_MAX + 1] = {
 	[IPVS_CMD_ATTR_SERVICE]		= { .type = NLA_NESTED },
 	[IPVS_CMD_ATTR_DEST]		= { .type = NLA_NESTED },
@@ -137,6 +138,7 @@ static struct nla_policy ipvs_stats_policy[IPVS_STATS_ATTR_MAX + 1] = {
 	[IPVS_STATS_ATTR_OUTBPS]	= { .type = NLA_U32 },
 };
 #endif
+#endif	/* _WITH_SNMP_CHECKER */
 
 #define CHECK_IPV4(s, ret) if (s->af && s->af != AF_INET)	\
 	{ errno = EAFNOSUPPORT; goto out_err; }			\
@@ -1050,7 +1052,7 @@ out_err:
 	FREE(svc);
 	return NULL;
 }
-#endif	/* _WITH_IPVS_CHECKER */
+#endif	/* _WITH_SNMP_CHECKER_ */
 
 void ipvs_close(void)
 {
@@ -1084,8 +1086,10 @@ const char *ipvs_strerror(int err)
 		{ ipvs_del_dest, ENOENT, "No such destination" },
 		{ ipvs_start_daemon, EEXIST, "Daemon has already run" },
 		{ ipvs_stop_daemon, ESRCH, "No daemon is running" },
+#ifdef _WITH_SNMP_CHECKER_
 		{ ipvs_get_dests, ESRCH, "No such service" },
 		{ ipvs_get_service, ESRCH, "No such service" },
+#endif
 		{ 0, EPERM, "Permission denied (you must be root)" },
 		{ 0, EINVAL, "Invalid operation.  Possibly wrong module version, address not unicast, ..." },
 		{ 0, ENOPROTOOPT, "Protocol not available" },
