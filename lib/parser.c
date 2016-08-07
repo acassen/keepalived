@@ -74,6 +74,10 @@ keyword_alloc_sub(vector_t *keywords_vec, const char *string, void (*handler) (v
 	/* fetch last keyword */
 	keyword = vector_slot(keywords_vec, vector_size(keywords_vec) - 1);
 
+	/* Don't install subordinate keywords if configuration block inactive */
+	if (!keyword->active)
+		return;
+
 	/* position to last sub level */
 	for (i = 0; i < sublevel; i++)
 		keyword =
@@ -121,6 +125,9 @@ install_sublevel_end_handler(void (*handler) (void))
 	/* fetch last keyword */
 	keyword = vector_slot(keywords, vector_size(keywords) - 1);
 
+	if (!keyword->active)
+		return;
+
 	/* position to last sub level */
 	for (i = 0; i < sublevel; i++)
 		keyword =
@@ -143,8 +150,6 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 		if (!fp)
 			return;
 	}
-
-	vector_dump(fp, keywords);
 
 	for (i = 0; i < vector_size(keydump); i++) {
 		keyword_vec = vector_slot(keydump, i);
@@ -501,9 +506,15 @@ alloc_value_block(vector_t *strvec, void (*alloc_func) (vector_t *))
 void *
 set_value(vector_t *strvec)
 {
-	char *str = vector_slot(strvec, 1);
-	int size = strlen(str);
+	char *str;
+	int size;
 	char *alloc;
+
+	if (vector_size(strvec) < 2)
+		return NULL;
+
+	str = vector_slot(strvec, 1);
+	size = strlen(str);
 
 	alloc = (char *) MALLOC(size + 1);
 	if (!alloc)
@@ -556,19 +567,19 @@ process_stream(vector_t *keywords_vec, int need_bob)
 
 		str = vector_slot(strvec, 0);
 
-		if (need_bob) {
-			need_bob = 0;
-			if (!strcmp(str, BOB) && kw_level > 0)
-				str[0] = 0;
-			else
-				log_message(LOG_INFO, "Missing '{' at beginning of configuration block");
+		if (skip_sublevel == -1) {
+			/* There wasn't a '{' on the keyword line */
+			if (!strcmp(str, BOB)) {
+				/* We've got the opening '{' now */
+				skip_sublevel = 1;
+				free_strvec(strvec);
+				continue;
+			}
+			else {
+				/* The skipped keyword doesn't have a {} block, so we no longer want to skip */
+				skip_sublevel = 0;
+			}
 		}
-		else if (!skip_sublevel && !strcmp(str, BOB)) {
-			log_message(LOG_INFO, "Unexpected '{' - ignoring");
-			free_strvec(strvec);
-			continue;
-		}
-
 		if (skip_sublevel) {
 			for (i = 0; i < vector_size(strvec); i++) {
 				str = vector_slot(strvec,i);
@@ -579,10 +590,23 @@ process_stream(vector_t *keywords_vec, int need_bob)
 						break;
 				}
 			}
-			free_strvec(strvec);
 
-			if (!skip_sublevel)
-				break;
+			free_strvec(strvec);
+			continue;
+		}
+
+		if (need_bob) {
+			need_bob = 0;
+			if (!strcmp(str, BOB) && kw_level > 0) {
+				free_strvec(strvec);
+				continue;
+			}
+			else
+				log_message(LOG_INFO, "Missing '{' at beginning of configuration block");
+		}
+		else if (!strcmp(str, BOB)) {
+			log_message(LOG_INFO, "Unexpected '{' - ignoring");
+			free_strvec(strvec);
 			continue;
 		}
 
@@ -595,6 +619,15 @@ process_stream(vector_t *keywords_vec, int need_bob)
 			keyword_vec = vector_slot(keywords_vec, i);
 
 			if (!strcmp(keyword_vec->string, str)) {
+				if (!keyword_vec->active) {
+					if (!strcmp(vector_slot(strvec, vector_size(strvec)-1), BOB))
+						skip_sublevel = 1;
+					else
+						skip_sublevel = -1;
+				}
+
+				/* There is an inconsistency here. 'static_ipaddress' for example
+				 * does not have sub levels, but needs a '{' */
 				if (keyword_vec->sub) {
 					/* Remove a trailing '{' */
 					char *bob = vector_slot(strvec, vector_size(strvec)-1) ;
@@ -607,13 +640,10 @@ process_stream(vector_t *keywords_vec, int need_bob)
 						bob_needed = 1;
 				}
 
-				if (keyword_vec->active && keyword_vec->handler)
+				if (keyword_vec->handler)
 					(*keyword_vec->handler) (strvec);
 
 				if (keyword_vec->sub) {
-					if (!keyword_vec->active)
-						skip_block();
-
 					kw_level++;
 					process_stream(keyword_vec->sub, bob_needed);
 					kw_level--;
