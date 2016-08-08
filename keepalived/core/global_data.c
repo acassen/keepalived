@@ -329,6 +329,6 @@ dump_global_data(data_t * data)
 #endif
 #ifdef _WITH_SNMP_
 	log_message(LOG_INFO, " SNMP traps %s", data->enable_traps ? "enabled" : "disabled");
-	log_message(LOG_INFO, " SNMP socket = %s", data->snmp_socket ? data->snmp_socket : "default (127.0.0.1:161)");
+	log_message(LOG_INFO, " SNMP socket = %s", data->snmp_socket ? data->snmp_socket : "default (unix:/var/agentx/master)");
 #endif
 }

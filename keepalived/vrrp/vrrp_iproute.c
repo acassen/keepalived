@@ -405,10 +405,8 @@ netlink_route(ip_route_t *iproute, int cmd)
 	if (iproute->mask & IPROUTE_BIT_RTO_MIN)
 		rta_addattr32(rta, sizeof(buf), RTAX_RTO_MIN, iproute->rto_min);
 
-#ifdef RTAX_FEATURES
 	if (iproute->features)
 		rta_addattr32(rta, sizeof(buf), RTAX_FEATURES, iproute->features);
-#endif
 
 	if (iproute->mask & IPROUTE_BIT_MTU)
 		rta_addattr32(rta, sizeof(buf), RTAX_MTU, iproute->mtu);
@@ -434,10 +432,8 @@ netlink_route(ip_route_t *iproute, int cmd)
 	if (iproute->mask & IPROUTE_BIT_INITCWND)
 		rta_addattr32(rta, sizeof(buf), RTAX_INITCWND, iproute->initcwnd);
 
-#ifdef RTAX_INITRWND
 	if (iproute->mask & IPROUTE_BIT_INITRWND)
 		rta_addattr32(rta, sizeof(buf), RTAX_INITRWND, iproute->initrwnd);
-#endif
 
 #ifdef RTAX_QUICKACK
 	if (iproute->mask & IPROUTE_BIT_QUICKACK)
@@ -753,12 +749,10 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 			op += snprintf(op, buf_end - op, "%ums", route->rto_min);
 	}
 
-#ifdef RTAX_FEATURES
 	if (route->features) {
 		if (route->features & RTAX_FEATURE_ECN)
 			op += snprintf(op, buf_end - op, " %s", "features ecn");
 	}
-#endif
 
 	if (route->mask & IPROUTE_BIT_MTU) {
 		op += snprintf(op, buf_end - op, " mtu %s%u",
@@ -799,10 +793,8 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 	if (route->mask & IPROUTE_BIT_INITCWND)
 		op += snprintf(op, buf_end - op, " initcwnd %u", route->initcwnd);
 
-#ifdef RTAX_INITRWND
 	if (route->mask & IPROUTE_BIT_INITRWND)
 		op += snprintf(op, buf_end - op, " initrwnd %u", route->initrwnd);
-#endif
 
 #ifdef RTAX_QUICKACK
 	if (route->mask & IPROUTE_BIT_QUICKACK)
@@ -1509,24 +1501,16 @@ alloc_route(list rt_list, vector_t *strvec)
 		}
 		else if (!strcmp(str, "initrwnd")) {
 			i++;
-#ifdef RTAX_INITRWND
 			if (get_u32(&new->initrwnd, vector_slot(strvec, i), UINT32_MAX, "Invalid initrwnd value %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_INITRWND;
-#else
-			log_message(LOG_INFO, "initrwnd for route not supported by kernel");
-#endif
 		}
 		else if (!strcmp(str, "features")) {
 			i++;
-#ifdef RTAX_FEATURES
 			if (!strcmp("ecn", vector_slot(strvec, i)))
 				new->features |= RTAX_FEATURE_ECN;
 			else
 				log_message(LOG_INFO, "feature %s not supported", FMT_STR_VSLOT(strvec,i));
-#else
-			log_message(LOG_INFO, "features for route not supported by kernel");
-#endif
 		}
 		else if (!strcmp(str, "quickack")) {
 			i++;

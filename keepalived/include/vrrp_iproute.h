@@ -173,9 +173,7 @@ typedef struct _ip_route {
 	ip_address_t		*via;
 	interface_t		*oif;
 	uint32_t		flags;
-#ifdef RTAX_FEATURES
 	uint32_t		features;
-#endif
 #ifdef RTAX_QUICKACK
 	bool			quickack;
 #endif
@@ -197,9 +195,7 @@ typedef struct _ip_route {
 	uint32_t		ssthresh;
 	uint32_t		rto_min;
 	uint32_t		initcwnd;
-#ifdef RTAX_INITRWND
 	uint32_t		initrwnd;
-#endif
 #ifdef RTAX_CC_ALGO
 	char			*congctl;
 #endif

@@ -21,14 +21,14 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef O_CLOEXEC
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE /* to make O_CLOEXEC available */
-#ifndef O_CLOEXEC
-#define O_CLOEXEC 0	/* It doesn't really matter if O_CLOEXEC isn't set here */
 #endif
-#endif
+
 #include <fcntl.h>
+
+#ifndef O_CLOEXEC	/* Since Linux 2.6.23 and glibc 2.7 */
+#define O_CLOEXEC 0	/* It doesn't really matter if O_CLOEXEC isn't set here */
 #endif
 
 #include "ipvswrapper.h"
@@ -68,14 +68,14 @@ parse_timeout(char *buf, unsigned *timeout)
 	int i;
 
 	if (buf == NULL) {
-		*timeout = IP_VS_TEMPLATE_TIMEOUT;
+		*timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
 		return 1;
 	}
 
 	if ((i = string_to_number(buf, 0, 86400 * 31)) == -1)
 		return 0;
 
-	*timeout = i * (IP_VS_TEMPLATE_TIMEOUT / (6*60));
+	*timeout = i * (IPVS_SVC_PERSISTENT_TIMEOUT / (6*60));
 	return 1;
 }
 
