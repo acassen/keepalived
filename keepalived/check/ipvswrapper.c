@@ -21,14 +21,14 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef O_CLOEXEC
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE /* to make O_CLOEXEC available */
-#ifndef O_CLOEXEC
-#define O_CLOEXEC 0	/* It doesn't really matter if O_CLOEXEC isn't set here */
 #endif
-#endif
+
 #include <fcntl.h>
+
+#ifndef O_CLOEXEC	/* Since Linux 2.6.23 and glibc 2.7 */
+#define O_CLOEXEC 0	/* It doesn't really matter if O_CLOEXEC isn't set here */
 #endif
 
 #include "ipvswrapper.h"
