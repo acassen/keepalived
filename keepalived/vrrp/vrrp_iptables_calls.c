@@ -98,7 +98,7 @@ int ip4tables_is_chain(struct iptc_handle* handle, const char* chain_name)
 
 int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name, int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint16_t type, int cmd)
 {
-	int size;
+	size_t size;
 	struct ipt_entry *fw;
 	struct xt_entry_target *target;
 	struct xt_entry_match *match ;
@@ -229,7 +229,7 @@ int ip6tables_is_chain(struct ip6tc_handle* handle, const char* chain_name)
 
 int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name, int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint16_t type, int cmd)
 {
-	int size;
+	size_t size;
 	struct ip6t_entry *fw;
 	struct xt_entry_target *target;
 	struct xt_entry_match *match ;
@@ -463,7 +463,7 @@ get_set_byname(const char *setname, struct xt_set_info *info, int family, bool i
 
 int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int rulenum, int dim, int src_dst, const char* target_name, const char* set_name, uint16_t protocol, int param, int cmd, bool ignore_errors)
 {
-	int size;
+	size_t size;
 	struct ipt_entry *fw;
 	struct xt_entry_target *target;
 	struct xt_entry_match *match;
@@ -479,7 +479,6 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 	size = XT_ALIGN(sizeof (struct ipt_entry)) +
 			XT_ALIGN(sizeof(struct xt_entry_match)) +
 			XT_ALIGN(sizeof(struct xt_entry_target) + 1) +
-			XT_ALIGN(sizeof( struct xt_entry_match)) +
 			XT_ALIGN(sizeof(struct xt_set_info_match_v1));
 
 	if (protocol == IPPROTO_ICMP)
@@ -564,7 +563,7 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 
 int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int rulenum, int dim, int src_dst, const char* target_name, const char* set_name, uint16_t protocol, int param, int cmd, bool ignore_errors)
 {
-	int size;
+	size_t size;
 	struct ip6t_entry *fw;
 	struct xt_entry_target *target;
 	struct xt_entry_match *match;
@@ -580,7 +579,6 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 	size = XT_ALIGN(sizeof (struct ip6t_entry)) +
 			XT_ALIGN(sizeof(struct xt_entry_match)) +
 			XT_ALIGN(sizeof(struct xt_entry_target) + 1) +
-			XT_ALIGN(sizeof( struct xt_entry_match)) +
 			XT_ALIGN(sizeof(struct xt_set_info_match_v1));
 
 	if (protocol == IPPROTO_ICMPV6)
