@@ -239,7 +239,7 @@ start_vrrp(void)
 
 	/* Post initializations */
 #ifdef _MEM_CHECK_
-	log_message(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
 #endif
 
 	/* Set static entries */
