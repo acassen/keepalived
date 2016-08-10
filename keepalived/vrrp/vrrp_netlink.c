@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 /* global include */
 #include <stdio.h>
 #include <stdlib.h>
@@ -46,7 +48,7 @@
 #include "scheduler.h"
 #include "utils.h"
 #include "bitops.h"
-#ifndef _HAVE_SOCK_NONBLOCK_
+#if !HAVE_DECL_SOCK_NONBLOCK
 #include "old_socket.h"
 #endif
 
@@ -120,7 +122,7 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 #else
 	socklen_t addr_len;
 	struct sockaddr_nl snl;
-#ifndef _HAVE_SOCK_NONBLOCK_
+#if !HAVE_DECL_SOCK_NONBLOCK
 	int sock_flags = flags;
 	flags &= ~SOCK_NONBLOCK;
 #endif
@@ -132,7 +134,7 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 		return -1;
 	}
 
-#ifndef _HAVE_SOCK_NONBLOCK_
+#if !HAVE_DECL_SOCK_NONBLOCK
 	if ((sock_flags & SOCK_NONBLOCK) &&
 	    set_sock_flags(nl->fd, F_SETFL, O_NONBLOCK))
 		return -1;

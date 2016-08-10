@@ -22,6 +22,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include <time.h>
 
 #include "smtp.h"
@@ -32,7 +34,7 @@
 #include "list.h"
 #include "logger.h"
 #include "utils.h"
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
 
@@ -590,7 +592,7 @@ smtp_connect(smtp_t * smtp)
 		return;
 	}
 
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(smtp->fd, F_SETFD, FD_CLOEXEC))
 		log_message(LOG_INFO, "Unable to set CLOEXEC on smtp_connect socket - %s (%d)", strerror(errno), errno);
 #endif

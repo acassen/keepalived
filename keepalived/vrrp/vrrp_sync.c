@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include "vrrp_sync.h"
 #include "vrrp_if.h"
 #include "vrrp_notify.h"

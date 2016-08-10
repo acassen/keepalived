@@ -1,18 +1,37 @@
 *.orig
 *.o
 *.a
-Makefile
-bin/*
-config.cache
-config.log
-config.status
+bin/
 keepalived.spec
-keepalived/include/config.h
-lib/config.h
 *~
 *.swp
 .dir-locals.el
-autom4te.cache
-doc/build
-!doc/Makefile
 keepalived-*.tar.gz
+
+
+# http://www.gnu.org/software/automake
+Makefile
+
+# http://www.gnu.org/software/autoconf
+/ar-lib
+/autom4te.cache
+/autoscan.log
+/autoscan-*.log
+/aclocal.m4
+/compile
+/config.cache
+#/config.h.in
+/config.log
+/config.status
+/configure.scan
+/depcomp
+/install-sh
+/missing
+stamp-h?
+
+.deps/
+
+# To be able to build without automake/autoconf comment out the following
+# lib/config.h.in
+# Makefile.in
+# /configure

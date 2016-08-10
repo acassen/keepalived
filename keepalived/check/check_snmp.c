@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include "check_data.h"
 #include "check_snmp.h"
 #include "list.h"
@@ -157,7 +159,7 @@ enum check_snmp_realserver_magic {
 #define STATE_RS_REGULAR_NEXT 3
 #define STATE_RS_END 4
 
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 enum check_snmp_lvs_sync_daemon {
 	CHECK_SNMP_LVSSYNCDAEMONENABLED,
 	CHECK_SNMP_LVSSYNCDAEMONINTERFACE,
@@ -991,7 +993,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	return NULL;
 }
 
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 static u_char*
 check_snmp_lvs_sync_daemon(struct variable *vp, oid *name, size_t *length,
 				 int exact, size_t *var_len, WriteMethod **write_method)
@@ -1078,12 +1080,12 @@ check_snmp_lvs_timeouts(struct variable *vp, oid *name, size_t *length,
 		if (!global_data->lvs_tcpfin_timeout)
 			return NULL;
 		long_ret = global_data->lvs_tcpfin_timeout;
-		return (u_char *)&long_ret;
+		return (u_char *)long_ret;
 	case CHECK_SNMP_LVSTIMEOUTUDP:
 		if (!global_data->lvs_udp_timeout)
 			return NULL;
 		long_ret = global_data->lvs_udp_timeout;
-		return (u_char *)&long_ret;
+		return (u_char *)long_ret;
 	}
 	return NULL;
 }
@@ -1292,7 +1294,7 @@ static struct variable8 check_vars[] = {
 	 check_snmp_realserver, 3, {4, 1, 39}},
 #endif
 #endif
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 	/* LVS sync daemon configuration */
 	{CHECK_SNMP_LVSSYNCDAEMONENABLED, ASN_INTEGER, RONLY,
 	 check_snmp_lvs_sync_daemon, 2, {6, 1}},

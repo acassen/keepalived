@@ -28,6 +28,8 @@
  * adding entries into iptables.
  */
 
+#include "config.h"
+
 #include <unistd.h>
 #define LIBIPSET_NFPROTO_H
 #define LIBIPSET_NF_INET_ADDR_H
@@ -153,7 +155,12 @@ static int create_sets(const char* addr4, const char* addr6, const char* addr_if
 
 	ipset_create(session, addr4, "hash:ip", NFPROTO_IPV4);
 	ipset_create(session, addr6, "hash:ip", NFPROTO_IPV6);
+#ifdef HAVE_IPSET_ATTR_IFACE
+	/* hash:net,iface was introduced in Linux 3.1 */
 	ipset_create(session, addr_if6, "hash:net,iface", NFPROTO_IPV6);
+#else
+	ipset_create(session, addr_if6, "hash:ip", NFPROTO_IPV6);
+#endif
 
 	ipset_session_fini(session);
 
@@ -230,8 +237,12 @@ void ipset_entry(struct ipset_session* session, int cmd, const ip_address_t* add
 
 	if (addr->ifa.ifa_family == AF_INET)
 		set = global_data->vrrp_ipset_address;
-	else if (IN6_IS_ADDR_LINKLOCAL(&addr->u.sin6_addr))
+	else if (IN6_IS_ADDR_LINKLOCAL(&addr->u.sin6_addr)) {
 		set = global_data->vrrp_ipset_address_iface6;
+#ifndef HAVE_IPSET_ATTR_IFACE
+			iface = NULL;
+#endif
+	}
 	else
 		set = global_data->vrrp_ipset_address6;
 	if (cmd == IPADDRESS_DEL)

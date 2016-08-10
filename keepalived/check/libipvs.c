@@ -16,6 +16,8 @@
  *              2 of the License, or (at your option) any later version.
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -34,7 +36,7 @@
 #include "libipvs.h"
 
 #include "memory.h"
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
 
@@ -81,11 +83,11 @@ static struct nla_policy ipvs_service_policy[IPVS_SVC_ATTR_MAX + 1] = {
 	[IPVS_SVC_ATTR_TIMEOUT]		= { .type = NLA_U32 },
 	[IPVS_SVC_ATTR_NETMASK]		= { .type = NLA_U32 },
 	[IPVS_SVC_ATTR_STATS]		= { .type = NLA_NESTED },
-#ifdef IPVS_SVR_ATTR_PE_NAME
+#ifdef IPVS_SVR_ATTR_PE_NAME		/* Since Linux 2.6.37 */
 	[IPVS_SVC_ATTR_PE_NAME]		= { .type = NLA_STRING,
 					    .maxlen = IP_VS_PENAME_MAXLEN }
 #endif
-#ifdef IPVS_SVC_ATTR_STATS64
+#ifdef IPVS_SVC_ATTR_STATS64		/* Since Linux 4.0 */
 	[IPVS_SVC_ATTR_STATS64]		= { .type = NLA_NESTED },
 #endif
 };
@@ -102,10 +104,10 @@ static struct nla_policy ipvs_dest_policy[IPVS_DEST_ATTR_MAX + 1] = {
 	[IPVS_DEST_ATTR_INACT_CONNS]	= { .type = NLA_U32 },
 	[IPVS_DEST_ATTR_PERSIST_CONNS]	= { .type = NLA_U32 },
 	[IPVS_DEST_ATTR_STATS]		= { .type = NLA_NESTED },
-#ifdef IPVS_DEST_ATTR_ADDR_FAMILY
+#ifdef IPVS_DEST_ATTR_ADDR_FAMILY	/* Since Linux 3.18 */
 	[IPVS_DEST_ATTR_ADDR_FAMILY]	= { .type = NLA_U16 },
 #endif
-#ifdef IPVS_DEST_ATTR_STATS64
+#ifdef IPVS_DEST_ATTR_STATS64		/* Since Linux 4.0 */
 	[IPVS_DEST_ATTR_STATS64]	= {.type = NLA_NESTED },
 #endif
 };
@@ -267,7 +269,7 @@ int ipvs_init(void)
 	if ((sockfd = socket(AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW)) == -1)
 		return -1;
 
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(sockfd, F_SETFD, FD_CLOEXEC))
 		return -1;
 #endif

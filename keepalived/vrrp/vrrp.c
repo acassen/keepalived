@@ -23,6 +23,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 /* local include */
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
@@ -51,7 +53,7 @@
 #include "utils.h"
 #include "notify.h"
 #include "bitops.h"
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
 #ifdef _HAVE_FIB_ROUTING_
@@ -59,6 +61,7 @@
 #include "vrrp_iproute.h"
 #endif
 
+#include <netinet/ip.h>
 #include <netinet/ip6.h>
 
 /* add/remove Virtual IP addresses */
@@ -1222,7 +1225,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	vrrp_rfcv3_snmp_new_master_notify(vrrp);
 #endif
 
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 	/* Check if sync daemon handling is needed */
 	if (global_data->lvs_syncd.vrrp == vrrp)
 		ipvs_syncd_master(&global_data->lvs_syncd);
@@ -1311,7 +1314,7 @@ void
 vrrp_state_leave_master(vrrp_t * vrrp)
 {
 	if (VRRP_VIP_ISSET(vrrp)) {
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 		/* Check if sync daemon handling is needed */
 		if (global_data->lvs_syncd.vrrp == vrrp)
 			ipvs_syncd_backup(&global_data->lvs_syncd);
@@ -1663,7 +1666,7 @@ open_vrrp_send_socket(sa_family_t family, int proto, int idx, int unicast)
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", errno);
 		return -1;
 	}
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
 #endif
 
@@ -1711,7 +1714,7 @@ open_vrrp_read_socket(sa_family_t family, int proto, int idx,
 		log_message(LOG_INFO, "cant open raw socket. errno=%d", err);
 		return -1;
 	}
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 	set_sock_flags(fd, F_SETFD, FD_CLOEXEC);
 #endif
 
@@ -1825,7 +1828,7 @@ shutdown_vrrp_instances(void)
 		if (vrrp->script_stop)
 			notify_exec(vrrp->script_stop);
 
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 		/*
 		 * Stop stalled syncd. IPVS syncd state is the
 		 * same as VRRP instance one. We need here to
@@ -2411,7 +2414,7 @@ vrrp_complete_init(void)
 		}
 	}
 
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 	/* Set up the lvs_syncd vrrp */
 	if (global_data->lvs_syncd.vrrp_name) {
 		for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
@@ -2449,7 +2452,7 @@ vrrp_complete_init(void)
 bool
 vrrp_ipvs_needed(void)
 {
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 	return !!(global_data->lvs_syncd.ifname);
 #else
 	return false;

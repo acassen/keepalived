@@ -40,12 +40,8 @@
 
 #ifdef _WITH_LVS_
   #include "libipvs.h"
-#ifdef _WITHOUT_LINUX_IP_VS_H_
-  #include <net/ip_vs.h>
-#else
   #include "ip_vs.h"
-#endif
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
   #include "vrrp.h"
 #endif
 #endif
@@ -58,7 +54,7 @@
 #define IPVS_SUCCESS	1
 #define IPVS_CMD_DELAY	3
 
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 #define IPVS_STARTDAEMON	IP_VS_SO_SET_STARTDAEMON
 #define IPVS_STOPDAEMON		IP_VS_SO_SET_STOPDAEMON
 #define IPVS_FLUSH		IP_VS_SO_SET_FLUSH
@@ -88,7 +84,7 @@ do {						\
 		UNSET_ALIVE((V));		\
 } while (0)
 
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 struct lvs_syncd_config {
 	char				*ifname;	/* handle LVS sync daemon state using this */
 	vrrp_t				*vrrp;		/* instance FSM & running on specific interface */
@@ -112,7 +108,7 @@ extern virtual_server_group_t *ipvs_get_group_by_name(char *, list);
 extern void ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge);
 extern void ipvs_group_remove_entry(virtual_server_t *, virtual_server_group_entry_t *);
 extern int ipvs_cmd(int, virtual_server_t *, real_server_t *);
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 extern void ipvs_syncd_cmd(int, const struct lvs_syncd_config *, int, bool, bool);
 extern void ipvs_syncd_master(const struct lvs_syncd_config *);
 extern void ipvs_syncd_backup(const struct lvs_syncd_config *);

@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 /* local include */
 #include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
@@ -34,7 +36,8 @@
 
 #include <linux/icmpv6.h>
 #include <inttypes.h>
-#ifdef _HAVE_RTA_ENCAP_
+#include <linux/rtnetlink.h>
+#if HAVE_DECL_RTA_ENCAP
 #include <linux/lwtunnel.h>
 #include <linux/mpls_iptunnel.h>
 #include <linux/ila.h>
@@ -69,7 +72,7 @@ add_addr2req(struct nlmsghdr *n, int maxlen, int type, ip_address_t *ip_address)
 	return addattr_l(n, maxlen, type, addr, alen);
 }
 
-#ifdef _HAVE_RTA_VIA_
+#ifdef RTA_VIA	/* Since Linux 4.1 */
 static int
 add_addr_fam2req(struct nlmsghdr *n, int maxlen, int type, ip_address_t *ip_address)
 {
@@ -115,7 +118,7 @@ add_addr2rta(struct rtattr *rta, int maxlen, int type, ip_address_t *ip_address)
 	return rta_addattr_l(rta, maxlen, type, addr, alen);
 }
 
-#ifdef _HAVE_RTA_VIA_
+#ifdef RTA_VIA
 static int
 add_addrfam2rta(struct rtattr *rta, int maxlen, int type, ip_address_t *ip_address)
 {
@@ -140,7 +143,7 @@ add_addrfam2rta(struct rtattr *rta, int maxlen, int type, ip_address_t *ip_addre
 }
 #endif
 
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 static void
 add_encap_mpls(struct rtattr *rta, size_t len, const encap_t *encap)
 {
@@ -224,7 +227,7 @@ add_nexthop(nexthop_t *nh, struct nlmsghdr *nlh, struct rtmsg *rtm, struct rtatt
 	if (nh->addr) {
 		if (rtm->rtm_family == nh->addr->ifa.ifa_family)
 			rtnh->rtnh_len += add_addr2rta(rta, len, RTA_GATEWAY, nh->addr);
-#ifdef _HAVE_RTA_VIA_
+#ifdef RTA_VIA
 		else
 			rtnh->rtnh_len += add_addrfam2rta(rta, len, RTA_VIA, nh->addr);
 #endif
@@ -240,7 +243,7 @@ add_nexthop(nexthop_t *nh, struct nlmsghdr *nlh, struct rtmsg *rtm, struct rtatt
 	if (nh->realms)
 		rtnh->rtnh_len += rta_addattr32(rta, len, RTA_FLOW, nh->realms);
 
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 	if (nh->encap.type != LWTUNNEL_ENCAP_NONE) {
 		int len = rta->rta_len;
 		add_encap(rta, len, &nh->encap);
@@ -344,7 +347,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 	if (iproute->pref_src)
 		add_addr2req(&req.n, sizeof(req), RTA_PREFSRC, iproute->pref_src);
 
-//#ifdef _HAVE_RTA_NEWDST_
+//#if HAVE_DECL_RTA_NEWDST
 //	if (iproute->as_to)
 //		add_addr2req(&req.n, sizeof(req), RTA_NEWDST, iproute->as_to);
 //#endif
@@ -352,13 +355,13 @@ netlink_route(ip_route_t *iproute, int cmd)
 	if (iproute->via) {
 		if (iproute->via->ifa.ifa_family == iproute->family)
 			add_addr2req(&req.n, sizeof(req), RTA_GATEWAY, iproute->via);
-#ifdef _HAVE_RTA_VIA_
+#ifdef RTA_VIA
 		else
 			add_addr_fam2req(&req.n, sizeof(req), RTA_VIA, iproute->via);
 #endif
 	}
 
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 	if (iproute->encap.type != LWTUNNEL_ENCAP_NONE) {
 		char encap_buf[ENCAP_RTA_SIZE];
 		struct rtattr *encap_rta = (void *)encap_buf;
@@ -386,12 +389,12 @@ netlink_route(ip_route_t *iproute, int cmd)
 	if (iproute->realms)
 		addattr32(&req.n, sizeof(req), RTA_FLOW, iproute->realms);
 
-#ifdef _HAVE_RTA_EXPIRES_
+#if HAVE_DECL_RTA_EXPIRES
 	if (iproute->mask & IPROUTE_BIT_EXPIRES)
 		addattr32(&req.n, sizeof(req), RTA_EXPIRES, iproute->expires);
 #endif
 
-#ifdef RTAX_CC_ALGO
+#if HAVE_DECL_RTAX_CC_ALGO
 	if (iproute->congctl)
 		rta_addattr_l(rta, sizeof(buf), RTAX_CC_ALGO, iproute->congctl, strlen(iproute->congctl));
 #endif
@@ -435,12 +438,12 @@ netlink_route(ip_route_t *iproute, int cmd)
 	if (iproute->mask & IPROUTE_BIT_INITRWND)
 		rta_addattr32(rta, sizeof(buf), RTAX_INITRWND, iproute->initrwnd);
 
-#ifdef RTAX_QUICKACK
+#if HAVE_DECL_RTAX_QUICKACK
 	if (iproute->mask & IPROUTE_BIT_QUICKACK)
 		rta_addattr32(rta, sizeof(buf), RTAX_QUICKACK, iproute->quickack);
 #endif
 
-#ifdef _HAVE_RTA_PREF_
+#if HAVE_DECL_RTA_PREF
 	if (iproute->mask & IPROUTE_BIT_PREF)
 		addattr8(&req.n, sizeof(req), RTA_PREF, iproute->pref);
 #endif
@@ -479,7 +482,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 	/* This returns ESRCH if the address of via address doesn't exist */
 	/* ENETDOWN if dev p33p1.40 for example is down */
 	if (netlink_talk(&nl_cmd, &req.n) < 0) {
-#ifdef _HAVE_RTA_EXPIRES_
+#if HAVE_DECL_RTA_EXPIRES
 		/* If an expiry was set on the route, it may have disappeared already */
 		if (cmd != IPADDRESS_DEL || !(iproute->mask & IPROUTE_BIT_EXPIRES))
 #endif
@@ -512,7 +515,7 @@ netlink_rtlist(list rt_list, int cmd)
 }
 
 /* Route dump/allocation */
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 void
 free_encap(void *rt_data)
 {
@@ -537,7 +540,7 @@ free_nh(void *rt_data)
 	nexthop_t *nh = rt_data;
 
 	FREE_PTR(nh->addr);
-//#ifdef _HAVE_RTA_NEWDST_
+//#if HAVE_DECL_RTA_NEWDST
 //	FREE_PTR(nh->as_to);
 //#endif
 	FREE(rt_data);
@@ -553,13 +556,13 @@ free_iproute(void *rt_data)
 	FREE_PTR(route->pref_src);
 	FREE_PTR(route->via);
 	free_list(&route->nhs);
-#ifdef RTAX_CC_ALGO
+#if HAVE_DECL_RTAX_CC_ALGO
 	FREE_PTR(route->congctl);
 #endif
 	FREE(rt_data);
 }
 
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 static size_t
 print_encap_mpls(char *op, size_t len, const encap_t* encap)
 {
@@ -669,7 +672,7 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 			op += snprintf(op, buf_end - op, "/%u", route->src->ifa.ifa_prefixlen);
 	}
 
-//#ifdef _HAVE_RTA_NEWDST_
+//#if HAVE_DECL_RTA_NEWDST
 //	/* MPLS only */
 //	if (route->as_to)
 //		op += snprintf(op, buf_end - op, " as to %s", ipaddresstos(NULL, route->as_to));
@@ -681,7 +684,7 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 	if (route->mask & IPROUTE_BIT_DSFIELD)
 		op += snprintf(op, buf_end - op, " tos %u", route->tos);
 
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 	if (route->encap.type != LWTUNNEL_ENCAP_NONE)
 		op += print_encap(op, buf_end - op, &route->encap);
 #endif
@@ -715,12 +718,12 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 		op += snprintf(op, buf_end - op, "%d", route->realms & 0xFFFF);
 	}
 
-#ifdef _HAVE_RTA_EXPIRES_
+#if HAVE_DECL_RTA_EXPIRES
 	if (route->mask & IPROUTE_BIT_EXPIRES)
 		op += snprintf(op, buf_end - op, " expires %dsec", route->expires);
 #endif
 
-#ifdef RTAX_CC_ALGO
+#if HAVE_DECL_RTAX_CC_ALGO
 	if (route->congctl)
 		op += snprintf(op, buf_end - op, " congctl %s%s", route->congctl, route->lock & (1<<RTAX_CC_ALGO) ? "lock " : "");
 #endif
@@ -796,12 +799,12 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 	if (route->mask & IPROUTE_BIT_INITRWND)
 		op += snprintf(op, buf_end - op, " initrwnd %u", route->initrwnd);
 
-#ifdef RTAX_QUICKACK
+#if HAVE_DECL_RTAX_QUICKACK
 	if (route->mask & IPROUTE_BIT_QUICKACK)
 		op += snprintf(op, buf_end - op, " quickack %u", route->quickack);
 #endif
 
-#ifdef _HAVE_RTA_PREF_
+#if HAVE_DECL_RTA_PREF
 	if (route->mask & IPROUTE_BIT_PREF)
 		op += snprintf(op, buf_end - op, " %s %s", "pref",
 			route->pref == ICMPV6_ROUTER_PREF_LOW ? "low" :
@@ -836,7 +839,7 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 					op += snprintf(op, buf_end - op, " realm ");
 				op += snprintf(op, buf_end - op, "%d", nh->realms & 0xFFFF);
 			}
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 			if (nh->encap.type != LWTUNNEL_ENCAP_NONE)
 				op += print_encap(op, buf_end - op, &nh->encap);
 #endif
@@ -860,7 +863,7 @@ dump_iproute(void *rt_data)
 	FREE(buf);
 }
 
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 static int parse_encap_mpls(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 {
 	char *str;
@@ -1158,7 +1161,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 				new->flags |= RTNH_F_ONLINK;
 			}
 			else if (!strcmp(str, "encap")) {	// New in 4.4
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 				parse_encap(strvec, &i, &new->encap);
 #else
 				log_message(LOG_INFO, "encap not supported by kernel - please remove configuration");
@@ -1246,7 +1249,7 @@ alloc_route(list rt_list, vector_t *strvec)
 		else if (!strcmp(str, "as")) {
 			if (!strcmp("to", vector_slot(strvec, ++i)))
 				i++;
-#ifdef _HAVE_RTA_NEWDST_
+#if HAVE_DECL_RTA_NEWDST
 			log_message(LOG_INFO, "\"as to\" for MPLS only - ignoring");
 #else
 			log_message(LOG_INFO, "'as [to]' not supported by kernel");
@@ -1367,7 +1370,7 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->flags |= RTNH_F_ONLINK;
 		}
 		else if (!strcmp(str, "encap")) {	// New in 4.4
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 			parse_encap(strvec, &i, &new->encap);
 #else
 			log_message(LOG_INFO, "encap not supported by kernel - please remove configuration");
@@ -1375,7 +1378,7 @@ alloc_route(list rt_list, vector_t *strvec)
 		}
 		else if (!strcmp(str, "expires")) {	// New in 4.4
 			i++;
-#ifdef _HAVE_RTA_EXPIRES_
+#if HAVE_DECL_RTA_EXPIRES
 			if (new->family == AF_INET) {
 				log_message(LOG_INFO, "expires is only valid for IPv6");
 				goto err;
@@ -1514,7 +1517,7 @@ alloc_route(list rt_list, vector_t *strvec)
 		}
 		else if (!strcmp(str, "quickack")) {
 			i++;
-#ifdef RTAX_QUICKACK
+#if HAVE_DECL_RTAX_QUICKACK
 			if (get_u32(&val, vector_slot(strvec, i), 1, "Invalid quickack value %s specified for route"))
 				goto err;
 			new->quickack = val;
@@ -1525,7 +1528,7 @@ alloc_route(list rt_list, vector_t *strvec)
 		}
 		else if (!strcmp(str, "congctl")) {
 			i++;
-#ifdef RTAX_CC_ALGO
+#if HAVE_DECL_RTAX_CC_ALGO
 			if (!strcmp(vector_slot(strvec, i), "lock")) {
 				new->lock |= 1 << RTAX_CC_ALGO;
 				i++;
@@ -1539,7 +1542,7 @@ alloc_route(list rt_list, vector_t *strvec)
 		}
 		else if (!strcmp(str, "pref")) {
 			i++;
-#ifdef _HAVE_RTA_PREF_
+#if HAVE_DECL_RTA_PREF
 			if (new->family == AF_INET) {
 				log_message(LOG_INFO, "pref is only valid for IPv6");
 				goto err;

@@ -22,6 +22,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include "vrrp_parser.h"
 #include "vrrp_data.h"
 #include "vrrp_sync.h"
@@ -451,7 +453,7 @@ vrrp_smtp_handler(vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->smtp_alert = 1;
 }
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 static void
 vrrp_lvs_syncd_handler(vector_t *strvec)
 {
@@ -862,7 +864,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("notify_stop", &vrrp_notify_stop_handler);
 	install_keyword("notify", &vrrp_notify_handler);
 	install_keyword("smtp_alert", &vrrp_smtp_handler);
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 	install_keyword("lvs_sync_daemon_interface", &vrrp_lvs_syncd_handler);
 #endif
 	install_keyword("garp_master_delay", &vrrp_garp_delay_handler);

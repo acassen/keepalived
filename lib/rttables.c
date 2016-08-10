@@ -20,6 +20,8 @@
  *
  * Copyright (C) 2001-2016 Alexandre Cassen, <acassen@linux-vs.org>
  */
+#include "config.h"
+
 #include <stdbool.h>
 #include <errno.h>
 
@@ -41,7 +43,7 @@
 #define	RT_REALMS_FILE	IPROUTE2_DIR "rt_realms"
 #define	RT_SCOPES_FILE	IPROUTE2_DIR "rt_scopes"
 #define	RT_PROTOS_FILE	IPROUTE2_DIR "rt_protos"
-#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 #define	RT_GROUPS_FILE	IPROUTE2_DIR "group"
 #endif
 
@@ -79,7 +81,7 @@ static rt_entry_t rtprot_default[] = {
         { RTPROT_MRT, "mrt"},
         { RTPROT_ZEBRA, "zebra"},
         { RTPROT_BIRD, "bird"},
-#ifdef RTPROT_BABEL
+#ifdef RTPROT_BABEL		/* Since Linux 3.19 */
         { RTPROT_BABEL, "babel"},
 #endif
         { RTPROT_DNROUTED, "dnrouted"},
@@ -109,7 +111,7 @@ static rt_entry_t rttable_default[] = {
 
 static list rt_tables;
 static list rt_dsfields;
-#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 static list rt_groups;
 #endif
 static list rt_realms;
@@ -205,7 +207,7 @@ clear_rt_names(void)
 {
 	free_list(&rt_tables);
 	free_list(&rt_dsfields);
-#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 	free_list(&rt_groups);
 #endif
 	free_list(&rt_realms);
@@ -303,7 +305,7 @@ find_rttables_dsfield(const char *name, uint32_t *id)
 	return find_entry(name, id, &rt_dsfields, RT_DSFIELD_FILE, NULL, 255);
 }
 
-#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 bool
 find_rttables_group(const char *name, uint32_t *id)
 {
@@ -378,7 +380,7 @@ get_rttables_scope(uint32_t id)
 	return get_entry(id, &rt_scopes, RT_SCOPES_FILE, rtscope_default, 255);
 }
 
-#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 const char *
 get_rttables_group(uint32_t id)
 {

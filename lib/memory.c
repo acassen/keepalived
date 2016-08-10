@@ -22,6 +22,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
+#include "config.h"
+
 #ifdef _MEM_CHECK_
 #include <assert.h>
 #include <unistd.h>
@@ -103,7 +105,7 @@ typedef struct {
 	char *func;
 	char *file;
 	void *ptr;
-	unsigned long size;
+	size_t size;
 	long csum;
 } MEMCHECK;
 
@@ -118,7 +120,7 @@ static int f = 0;		/* Free list pointer */
 static FILE *log_op = NULL;
 
 void *
-keepalived_malloc(unsigned long size, char *file, char *function, int line)
+keepalived_malloc(size_t size, char *file, char *function, int line)
 {
 	void *buf;
 	int i = 0;
@@ -148,11 +150,11 @@ keepalived_malloc(unsigned long size, char *file, char *function, int line)
 	alloc_list[i].csum = check;
 	alloc_list[i].type = 9;
 
-	fprintf(log_op, "zalloc[%3d:%3d], %p, %4ld at %s, %3d, %s\n",
+	fprintf(log_op, "zalloc[%3d:%3d], %p, %4zu at %s, %3d, %s\n",
 	       i, number_alloc_list, buf, size, file, line, function);
 #ifdef _MEM_CHECK_LOG_
 	if (__test_bit(MEM_CHECK_LOG_BIT, &debug))
-		log_message(LOG_INFO, "zalloc[%3d:%3d], %p, %4ld at %s, %3d, %s\n",
+		log_message(LOG_INFO, "zalloc[%3d:%3d], %p, %4zu at %s, %3d, %s\n",
 		       i, number_alloc_list, buf, size, file, line, function);
 #endif
 
@@ -193,7 +195,7 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 				mem_allocated -= alloc_list[i].size - sizeof(long);
 			} else {
 				alloc_list[i].type = 1;	/* Overrun */
-				fprintf(log_op, "free corrupt, buffer overrun [%3d:%3d], %p, %4ld at %s, %3d, %s\n",
+				fprintf(log_op, "free corrupt, buffer overrun [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
 				       i, number_alloc_list,
 				       buf, alloc_list[i].size, file,
 				       line, function);
@@ -231,12 +233,12 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 	if (buffer != NULL)
 		free(buffer);
 
-	fprintf(log_op, "free  [%3d:%3d], %p, %4ld at %s, %3d, %s\n",
+	fprintf(log_op, "free  [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
 	       i, number_alloc_list, buf,
 	       alloc_list[i].size, file, line, function);
 #ifdef _MEM_CHECK_LOG_
 	if (__test_bit(MEM_CHECK_LOG_BIT, &debug))
-		log_message(LOG_INFO, "free  [%3d:%3d], %p, %4ld at %s, %3d, %s\n",
+		log_message(LOG_INFO, "free  [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
 		       i, number_alloc_list, buf,
 		       alloc_list[i].size, file, line, function);
 #endif
@@ -269,7 +271,7 @@ keepalived_free_final(char *banner)
 		case 3:
 			badptr++;
 			fprintf
-			    (log_op, "null pointer to realloc(nil,%ld)! at %s, %3d, %s\n",
+			    (log_op, "null pointer to realloc(nil,%zu)! at %s, %3d, %s\n",
 			     alloc_list[i].size, alloc_list[i].file,
 			     alloc_list[i].line, alloc_list[i].func);
 			break;
@@ -299,7 +301,7 @@ keepalived_free_final(char *banner)
 			break;
 		case 1:
 			overrun++;
-			fprintf(log_op, "%p [%3d:%3d], %4ld buffer overrun!:\n",
+			fprintf(log_op, "%p [%3d:%3d], %4zu buffer overrun!:\n",
 			       alloc_list[i].ptr, i, number_alloc_list,
 			       alloc_list[i].size);
 			fprintf(log_op, " --> source of malloc: %s, %3d, %s\n",
@@ -308,7 +310,7 @@ keepalived_free_final(char *banner)
 			break;
 		case 9:
 			sum += alloc_list[i].size;
-			fprintf(log_op, "%p [%3d:%3d], %4ld not released!:\n",
+			fprintf(log_op, "%p [%3d:%3d], %4zu not released!:\n",
 			       alloc_list[i].ptr, i, number_alloc_list,
 			       alloc_list[i].size);
 			fprintf(log_op, " --> source of malloc: %s, %3d, %s\n",
@@ -334,7 +336,7 @@ keepalived_free_final(char *banner)
 }
 
 void *
-keepalived_realloc(void *buffer, unsigned long size, char *file, char *function,
+keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 		   int line)
 {
 	int i = 0;
@@ -393,7 +395,7 @@ keepalived_realloc(void *buffer, unsigned long size, char *file, char *function,
 	*(long *) ((char *) buf + size) = check;
 	alloc_list[i].csum = check;
 
-	fprintf(log_op, "realloc [%3d:%3d] %p, %4ld %s %d %s -> %p %4ld %s %d %s\n",
+	fprintf(log_op, "realloc [%3d:%3d] %p, %4zu %s %d %s -> %p %4zu %s %d %s\n",
 	       i, number_alloc_list, alloc_list[i].ptr,
 	       alloc_list[i].size, file, line, function, buf, size,
 	       alloc_list[i].file, alloc_list[i].line,

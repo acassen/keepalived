@@ -23,22 +23,24 @@
 #ifndef _OLD_SOCKET_H
 #define _OLD_SOCKET_H 1
 
-#if !defined _HAVE_SOCK_NONBLOCK_ || !defined _HAVE_SOCK_CLOEXEC_
-#include <fcntl.h>
-#endif
+#include "config.h"
+
+#if !HAVE_DECL_SOCK_NONBLOCK || !HAVE_DECL_SOCK_CLOEXEC
 #include <stdbool.h>
 
-/* Kernels < 2.6.27 don't support the SOCK_CLOEXEC or SOCK_NONBLOCK options */
+/* Kernels < 2.6.27 and glibc < 2.9 don't support the SOCK_CLOEXEC or SOCK_NONBLOCK options */
 
-#ifndef _HAVE_SOCK_NONBLOCK_
+/* We need to know if SOCK_NONBLOCK is desired */
+#if !HAVE_DECL_SOCK_NONBLOCK
 #define SOCK_NONBLOCK	04000
 #endif
 
-#ifndef _HAVE_SOCK_CLOEXEC_
+/* SOCK_CLOEXEC is always wanted, so we don't want to set if it is not defined */
+#if !HAVE_DECL_SOCK_CLOEXEC
 #define SOCK_CLOEXEC	0
 #endif
 
-#if !defined _HAVE_SOCK_NONBLOCK_ || !defined _HAVE_SOCK_CLOEXEC_
 bool set_sock_flags(int fd, int cmd, long flags);
 #endif
+
 #endif

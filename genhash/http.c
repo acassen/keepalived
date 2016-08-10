@@ -22,6 +22,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 /* system includes */
 #include <errno.h>
 #include <openssl/err.h>
@@ -68,7 +70,7 @@ const hash_t hashes[hash_guard] = {
 		"MD5",
 		"MD5SUM",
 	},
-#ifdef FEAT_SHA1
+#ifdef _WITH_SHA1_
 	[hash_sha1] = {
 		(hash_init_f) SHA1_Init,
 		(hash_update_f) SHA1_Update,

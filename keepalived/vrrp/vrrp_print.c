@@ -21,6 +21,8 @@
  * Copyright (C) 2012 John Southworth, <john.southworth@vyatta.com>
  */
 
+#include "config.h"
+
 #include "memory.h"
 #include "vrrp.h"
 #include "vrrp_data.h"

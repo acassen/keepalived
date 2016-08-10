@@ -20,6 +20,10 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
+#include "git-commit.h"
+
 #include <sys/resource.h>
 
 #include "main.h"
@@ -29,9 +33,15 @@
 #include "bitops.h"
 #include "logger.h"
 
+#define	LOG_FACILITY_MAX	7
+#define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" VERSION_DATE ")"
+#define COPYRIGHT_STRING	"Copyright(C) 2001-" COPYRIGHT_YEAR " Alexandre Cassen, <acassen@gmail.com>"
+#define BUILD_OPTIONS		CONFIGURATION_OPTIONS
+
 #define CHILD_WAIT_SECS	5
 
 /* global var */
+const char *version_string = VERSION_STRING;		/* keepalived version */
 char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
 int log_facility = LOG_DAEMON;				/* Optional logging facilities */
 pid_t vrrp_child = -1;					/* VRRP child process ID */
@@ -343,7 +353,7 @@ parse_cmdline(int argc, char **argv)
 									, long_options, NULL)) != EOF) {
 		switch (c) {
 		case 'v':
-			fprintf(stderr, "%s", VERSION_STRING);
+			fprintf(stderr, "%s", version_string);
 #ifdef GIT_COMMIT
 			fprintf(stderr, ", git commit %s", GIT_COMMIT);
 #endif
@@ -438,7 +448,7 @@ parse_cmdline(int argc, char **argv)
 
 /* Entry point */
 int
-main(int argc, char **argv)
+keepalived_main(int argc, char **argv)
 {
 	int report_stopped = true;
 
@@ -455,20 +465,20 @@ main(int argc, char **argv)
 	 */
 	parse_cmdline(argc, argv);
 
-	openlog(PROG, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
+	openlog(PACKAGE_NAME, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
 		    , log_facility);
 
 	if (__test_bit(LOG_CONSOLE_BIT, &debug))
 		enable_console_log();
 
 #ifdef GIT_COMMIT
-	log_message(LOG_INFO, "Starting %s, git commit %s", VERSION_STRING, GIT_COMMIT);
+	log_message(LOG_INFO, "Starting %s, git commit %s", version_string, GIT_COMMIT);
 #else
-	log_message(LOG_INFO, "Starting %s", VERSION_STRING);
+	log_message(LOG_INFO, "Starting %s", version_string);
 #endif
 
 #ifdef _MEM_CHECK_
-	mem_log_init(PROG);
+	mem_log_init(PACKAGE);
 #endif
 
 	/* Handle any core file requirements */
@@ -525,9 +535,9 @@ main(int argc, char **argv)
 end:
 	if (report_stopped) {
 #ifdef GIT_COMMIT
-		log_message(LOG_INFO, "Stopped %s, git commit %s", VERSION_STRING, GIT_COMMIT);
+		log_message(LOG_INFO, "Stopped %s, git commit %s", version_string, GIT_COMMIT);
 #else
-		log_message(LOG_INFO, "Stopped %s", VERSION_STRING);
+		log_message(LOG_INFO, "Stopped %s", version_string);
 #endif
 	}
 

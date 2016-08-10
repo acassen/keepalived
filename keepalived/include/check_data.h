@@ -32,11 +32,7 @@
 #include <openssl/ssl.h>
 
 #ifdef _WITH_LVS_
-  #ifdef _WITHOUT_LINUX_IP_VS_H
-    #include <net/ip_vs.h>
-  #else
-    #include "ip_vs.h"
-  #endif
+  #include "ip_vs.h"
 #endif
 
 /* local includes */

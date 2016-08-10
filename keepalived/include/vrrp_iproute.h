@@ -27,8 +27,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <arpa/inet.h>
-#include <linux/rtnetlink.h>
-#ifdef _HAVE_RTA_ENCAP_
+//#include <linux/rtnetlink.h>
+#if HAVE_DECL_RTA_ENCAP
 #include <linux/mpls.h>
 #endif
 #include <stdbool.h>
@@ -43,7 +43,7 @@
 #define	ROUTE_BUF_SIZE		1024
 
 /* types definition */
-#ifdef _HAVE_RTA_ENCAP_	/* introduced Linux 4.3 */
+#if HAVE_DECL_RTA_ENCAP	/* Since Linux 4.3 */
 enum iproute_encap {
 	IPROUTE_ENCAP_ID,
 	IPROUTE_ENCAP_DSFIELD,
@@ -106,10 +106,10 @@ typedef struct _nexthop {
 	uint8_t weight;
 	uint32_t flags;
 	uint32_t realms;
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 	encap_t encap;
 #endif
-//#ifdef _HAVE_RTA_NEWDST_
+//#if HAVE_DECL_RTA_NEWDST
 //	ip_address_t *as_to;
 //#endif
 } nexthop_t;
@@ -174,17 +174,17 @@ typedef struct _ip_route {
 	interface_t		*oif;
 	uint32_t		flags;
 	uint32_t		features;
-#ifdef RTAX_QUICKACK
+#if HAVE_DECL_RTAX_QUICKACK
 	bool			quickack;
 #endif
-#ifdef _HAVE_RTA_EXPIRES_
+#if HAVE_DECL_RTA_EXPIRES
 	uint32_t		expires;
 #endif
 	uint32_t		lock;
 	uint32_t		mtu;
 	uint8_t			hoplimit;
 	uint32_t		advmss;
-//#ifdef _HAVE_RTA_NEWDST_
+//#if HAVE_DECL_RTA_NEWDST
 //	ip_address_t		*as_to;
 //#endif
 	uint32_t		rtt;
@@ -196,16 +196,16 @@ typedef struct _ip_route {
 	uint32_t		rto_min;
 	uint32_t		initcwnd;
 	uint32_t		initrwnd;
-#ifdef RTAX_CC_ALGO
+#if HAVE_DECL_RTAX_CC_ALGO
 	char			*congctl;
 #endif
-#ifdef _HAVE_RTA_PREF_
+#if HAVE_DECL_RTA_PREF
 	uint8_t			pref;
 #endif
 	uint8_t			type;
 
 	uint32_t		realms;
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 	encap_t			encap;
 #endif
 	list			nhs;

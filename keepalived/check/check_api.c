@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include <dirent.h>
 #include <dlfcn.h>
 #include "check_api.h"
@@ -98,7 +100,7 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	checker->id = ncheckers++;
 	checker->enabled = (vs->vfwmark) ? 1 : 0;
 	checker->warmup = vs->delay_loop;
-#ifdef _WITHOUT_VRRP_
+#ifndef _WITH_VRRP_
 	checker->enabled = 1;
 #endif
 

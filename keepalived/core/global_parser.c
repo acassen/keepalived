@@ -22,6 +22,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include <netdb.h>
 #include <stdlib.h>
 #include "global_parser.h"
@@ -162,7 +164,7 @@ lvs_timeouts(vector_t *strvec)
 		log_message(LOG_INFO, "Unknown option %s specified for lvs_timeouts", FMT_STR_VSLOT(strvec, i));
 	}
 }
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 static void
 lvs_syncd_handler(vector_t *strvec)
 {
@@ -283,6 +285,7 @@ lvs_flush_handler(vector_t *strvec)
 	global_data->lvs_flush = true;
 }
 #endif
+#ifdef _WITH_VRRP_
 static void
 vrrp_mcast_group4_handler(vector_t *strvec)
 {
@@ -487,6 +490,13 @@ vrrp_prio_handler(vector_t *strvec)
 	global_data->vrrp_process_priority = priority;
 }
 static void
+vrrp_no_swap_handler(vector_t *strvec)
+{
+	global_data->vrrp_no_swap = true;
+}
+#endif
+#ifdef _WITH_LVS_
+static void
 checker_prio_handler(vector_t *strvec)
 {
 	int priority;
@@ -505,15 +515,11 @@ checker_prio_handler(vector_t *strvec)
 	global_data->checker_process_priority = priority;
 }
 static void
-vrrp_no_swap_handler(vector_t *strvec)
-{
-	global_data->vrrp_no_swap = true;
-}
-static void
 checker_no_swap_handler(vector_t *strvec)
 {
 	global_data->checker_no_swap = true;
 }
+#endif
 #ifdef _WITH_SNMP_
 static void
 snmp_socket_handler(vector_t *strvec)
@@ -599,10 +605,11 @@ global_init_keywords(void)
 #ifdef _WITH_LVS_
 	install_keyword("lvs_timeouts", &lvs_timeouts);
 	install_keyword("lvs_flush", &lvs_flush_handler);
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 	install_keyword("lvs_sync_daemon", &lvs_syncd_handler);
 #endif
 #endif
+#ifdef _WITH_VRRP_
 	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler);
 	install_keyword("vrrp_mcast_group6", &vrrp_mcast_group6_handler);
 	install_keyword("vrrp_garp_master_delay", &vrrp_garp_delay_handler);
@@ -623,9 +630,12 @@ global_init_keywords(void)
 	install_keyword("vrrp_skip_check_adv_addr", &vrrp_check_adv_addr_handler);
 	install_keyword("vrrp_strict", &vrrp_strict_handler);
 	install_keyword("vrrp_priority", &vrrp_prio_handler);
-	install_keyword("checker_priority", &checker_prio_handler);
 	install_keyword("vrrp_no_swap", &vrrp_no_swap_handler);
+#endif
+#ifdef _WITH_LVS_
+	install_keyword("checker_priority", &checker_prio_handler);
 	install_keyword("checker_no_swap", &checker_no_swap_handler);
+#endif
 #ifdef _WITH_SNMP_
 	install_keyword("snmp_socket", &snmp_socket_handler);
 	install_keyword("enable_traps", &trap_handler);

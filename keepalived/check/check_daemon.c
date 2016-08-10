@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include "check_daemon.h"
 #include "check_parser.h"
 #include "ipwrapper.h"
@@ -113,7 +115,7 @@ start_check(void)
 
 	/* Post initializations */
 #ifdef _MEM_CHECK_
-	log_message(LOG_INFO, "Configuration is using : %lu Bytes", mem_allocated);
+	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
 #endif
 
 	/* Remove any entries left over from previous invocation */

@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include "check_tcp.h"
 #include "check_api.h"
 #include "memory.h"
@@ -29,7 +31,7 @@
 #include "smtp.h"
 #include "utils.h"
 #include "parser.h"
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #include "string.h"
 #endif
@@ -209,7 +211,7 @@ tcp_connect_thread(thread_t * thread)
 		return 0;
 	}
 
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
 		log_message(LOG_INFO, "Unable to set CLOEXEC on tcp_connect socket - %s (%d)", strerror(errno), errno);
 #endif

@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include "ipwrapper.h"
 #include "ipvswrapper.h"
 #include "logger.h"

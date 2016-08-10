@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include "vrrp_scheduler.h"
 #include "vrrp_ipsecah.h"
 #include "vrrp_if.h"
@@ -246,7 +248,7 @@ vrrp_init_state(list l)
 
 		if (vrrp->wantstate == VRRP_STATE_MAST
 			|| vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
 			if (global_data->lvs_syncd.ifname &&
 			    global_data->lvs_syncd.vrrp == vrrp)
@@ -263,7 +265,7 @@ vrrp_init_state(list l)
 		} else {
 			vrrp->ms_down_timer = 3 * vrrp->adver_int
 			    + VRRP_TIMER_SKEW(vrrp);
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
 			if (global_data->lvs_syncd.ifname &&
 			    global_data->lvs_syncd.vrrp == vrrp)

@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #ifdef _HAVE_LINUX_NET_IF_H_COLLISION_
 /* The following is a horrible workaround. Linux 4.5 introduced a namespace
  * collision when including libiptc/libiptc.h due to both net/if.h and linux/if.h
@@ -36,6 +38,9 @@
 #include <libiptc/libiptc.h>
 #include <libiptc/libip6tc.h>
 #ifdef _HAVE_LIBIPSET_
+#ifdef XT_SET_H_NEEDS_LINUX_IP_SET_H
+#include <libipset/linux_ip_set.h>
+#endif
 #include <linux/netfilter/xt_set.h>
 #endif
 #include <unistd.h>
@@ -44,7 +49,7 @@
 #include "vrrp_iptables_calls.h"
 #include "memory.h"
 #include "logger.h"
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
 
@@ -340,17 +345,43 @@ int load_mod_xt_set(void)
 	return res;
 }
 
+#ifndef IP_SET_OP_VERSION	/* Exposed to userspace from Linux 3.4 */
+				/* Copied from <linux/netfilter/ipset/ip_set.h> */
+#define SO_IP_SET	83
+union ip_set_name_index {
+ char name[IPSET_MAXNAMELEN];
+ ip_set_id_t index;
+};
+
+#define IP_SET_OP_GET_BYNAME 0x00000006 /* Get set index by name */
+struct ip_set_req_get_set {
+ unsigned op;
+ unsigned version;
+ union ip_set_name_index set;
+};
+
+#define IP_SET_OP_GET_BYINDEX 0x00000007 /* Get set name by index */
+/* Uses ip_set_req_get_set */
+
+#define IP_SET_OP_VERSION 0x00000100 /* Ask kernel version */
+struct ip_set_req_version {
+ unsigned op;
+ unsigned version;
+};
+#endif
+
 static int
 get_version(unsigned int* version)
 {
-	int res, sockfd = socket(AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW);
+	int sockfd = socket(AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW);
 	struct ip_set_req_version req_version;
 	socklen_t size = sizeof(req_version);
+	int res;
 
 	if (sockfd < 0)
 		log_message(LOG_INFO, "Can't open socket to ipset.");
 
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 	if (fcntl(sockfd, F_SETFD, FD_CLOEXEC) == -1) {
 		log_message(LOG_INFO, "Could not set close on exec: %s",
 			      strerror(errno));
@@ -413,7 +444,7 @@ get_set_byname(const char *setname, struct xt_set_info *info, int family, bool i
 	info->index = IPSET_INVALID_ID;
 
 	sockfd = get_version(&version);
-#if defined IP_SET_OP_GET_FNAME
+#if defined IP_SET_OP_GET_FNAME		/* Since Linux 3.13 */
 	req.version = version;
 	req.op = IP_SET_OP_GET_FNAME;
 	strncpy(req.set.name, setname, IPSET_MAXNAMELEN);
@@ -467,7 +498,11 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 	struct ipt_entry *fw;
 	struct xt_entry_target *target;
 	struct xt_entry_match *match;
+#ifdef HAVE_XT_SET_INFO_MATCH_V1
 	struct xt_set_info_match_v1 *setinfo;
+#else
+	struct xt_set_info_match *setinfo;
+#endif
 	ipt_chainlabel chain;
 	int res;
 	int sav_errno;
@@ -479,7 +514,7 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 	size = XT_ALIGN(sizeof (struct ipt_entry)) +
 			XT_ALIGN(sizeof(struct xt_entry_match)) +
 			XT_ALIGN(sizeof(struct xt_entry_target) + 1) +
-			XT_ALIGN(sizeof(struct xt_set_info_match_v1));
+			XT_ALIGN(sizeof(*setinfo));
 
 	if (protocol == IPPROTO_ICMP)
 		size += XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ipt_icmp));
@@ -491,12 +526,20 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 
 	// set
 	match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
-	match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct xt_set_info_match_v1));
+	match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(*setinfo));
+#ifdef HAVE_XT_SET_INFO_MATCH_V1
 	match->u.user.revision = 1;
+#else
+	match->u.user.revision = 0;
+#endif
 	fw->target_offset += match->u.match_size;
 	strcpy(match->u.user.name, "set");
 
+#ifdef HAVE_XT_SET_INFO_MATCH_V1
 	setinfo = (struct xt_set_info_match_v1 *)match->data;
+#else
+	setinfo = (struct xt_set_info_match *)match->data;
+#endif
 	get_set_byname(set_name, &setinfo->match_set, NFPROTO_IPV4, ignore_errors);
 	if (setinfo->match_set.index == IPSET_INVALID_ID) {
 		FREE(fw);
@@ -567,7 +610,11 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 	struct ip6t_entry *fw;
 	struct xt_entry_target *target;
 	struct xt_entry_match *match;
+#ifdef HAVE_XT_SET_INFO_MATCH_V1
 	struct xt_set_info_match_v1 *setinfo;
+#else
+	struct xt_set_info_match *setinfo;
+#endif
 	ip6t_chainlabel chain;
 	int res;
 	int sav_errno;
@@ -579,7 +626,7 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 	size = XT_ALIGN(sizeof (struct ip6t_entry)) +
 			XT_ALIGN(sizeof(struct xt_entry_match)) +
 			XT_ALIGN(sizeof(struct xt_entry_target) + 1) +
-			XT_ALIGN(sizeof(struct xt_set_info_match_v1));
+			XT_ALIGN(sizeof(*setinfo));
 
 	if (protocol == IPPROTO_ICMPV6)
 		size += XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ip6t_icmp));
@@ -591,12 +638,20 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 
 	// set
 	match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
-	match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct xt_set_info_match_v1));
+	match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(*setinfo));
+#ifdef HAVE_XT_SET_INFO_MATCH_V1
 	match->u.user.revision = 1;
+#else
+	match->u.user.revision = 0;
+#endif
 	fw->target_offset += match->u.match_size;
 	strcpy(match->u.user.name, "set");
 
+#ifdef HAVE_XT_SET_INFO_MATCH_V1
 	setinfo = (struct xt_set_info_match_v1 *)match->data;
+#else
+	setinfo = (struct xt_set_info_match *)match->data;
+#endif
 	get_set_byname (set_name, &setinfo->match_set, NFPROTO_IPV6, ignore_errors);
 	if (setinfo->match_set.index == IPSET_INVALID_ID) {
 		FREE(fw);

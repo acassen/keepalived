@@ -4,19 +4,64 @@
 # Configuration template file for keepalived.
 # autoconf will generate & check deps for proper compilation
 #
-# Copyright (C) 2001-2009 Alexandre Cassen, <acassen@linux-vs.org>
+# Copyright (C) 2001-2016 Alexandre Cassen, <acassen@linux-vs.org>
+
+AC_DEFUN([add_to_var], [$1="$$1 $2"])
+AC_DEFUN([add_to_var_ind], [eval $1=\"\$$1 $2\"]) dnl "
+
+AC_DEFUN([add_to_var_ind_unique],
+  ADD_NEW=
+  [ eval var=\$$1
+    for item in $2; do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	add_to_var([ADD_NEW], [$item])
+      fi
+    done
+    add_to_var_ind([$1], [$ADD_NEW])
+  ])
+
+AC_DEFUN([add_pkg_config],
+  [ if test $# -ge 2; then
+      PKG_PFX=$2
+    else
+      PKG_PFX=KA
+    fi
+    add_to_var_ind_unique([${PKG_PFX}_CPPFLAGS], [$(pkg-config --cflags-only-I $1)])
+    add_to_var_ind_unique([${PKG_PFX}_CFLAGS], [$(pkg-config --cflags-only-other $1)])
+    add_to_var_ind_unique([${PKG_PFX}_LDFLAGS], [$(pkg-config --libs $1)])
+    add_to_var_ind_unique([${PKG_PFX}_LIBS], [$(pkg-config --libs $1)])
+  ])
+
+AC_DEFUN([add_build_opt], [add_to_var([BUILD_OPTIONS], [$1])])
 
 dnl ----[ Process this file with autoconf to produce a configure script ]----
-AC_INIT(keepalived/core/main.c)
-VERSION=`cat VERSION`
-VERSION_DATE=`date +%m/%d,%Y`
-VERSION_YEAR=`date +%Y`
-OUTPUT_TARGET="Makefile genhash/Makefile keepalived/core/Makefile lib/config.h keepalived.spec"
+AC_PREREQ([2.65])
+AC_INIT([Keepalived], [1.2.23], [keepalived-devel@lists.sourceforge.net], [], [http://www.keepalived.org/])
+AM_INIT_AUTOMAKE([-Wall -Werror -Woverride foreign])
 
-dnl ----[ Checks for programs ]----
-AC_PROG_CC
-AC_PROG_INSTALL
-AC_CHECK_TOOL(STRIP,strip)
+AC_CONFIG_SRCDIR([keepalived/core/main.c])
+
+AC_CONFIG_HEADERS([lib/config.h])
+AH_TOP(
+  [
+#ifndef _CONFIG_H
+#define _CONFIG_H
+  ])
+AH_BOTTOM(
+  [
+#endif
+  ])
+
+AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec \
+		 genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile doc/Makefile \
+		 bin_install/Makefile])
+
+MAINTAINERCLEANFILES="*~ *.orig *.rej core core.*"
+AC_SUBST(MAINTAINERCLEANFILES)
+BUILD_OPTIONS=
+
+AM_SILENT_RULES([yes])
 
 dnl ----[ Keepalived specific configure options ]----
 AC_ARG_ENABLE(lvs-syncd,
@@ -29,8 +74,7 @@ AC_ARG_ENABLE(vrrp,
   [  --disable-vrrp          do not use the VRRP framework])
 AC_ARG_WITH(kernel-dir,
   [  --with-kernel-dir=DIR   path to linux kernel source directory],
-  [kernelinc="$withval/include" kernelpath="$withval"],
-  [kernelinc="/usr/src/linux/include" kernelpath="/usr/src/linux"])
+  [kernel_src_path="$withval"], [kernel_src_path=""])
 AC_ARG_ENABLE(fwmark,
   [  --disable-fwmark        compile without SO_MARK support])
 AC_ARG_ENABLE(snmp,
@@ -45,6 +89,8 @@ AC_ARG_ENABLE(snmp-rfcv2,
   [  --enable-snmp-rfcv2     compile with SNMP RFC2787 (VRRPv2) support])
 AC_ARG_ENABLE(snmp-rfcv3,
   [  --enable-snmp-rfcv3     compile with SNMP RFC6257 (VRRPv3) support])
+AC_ARG_ENABLE(snmp-reply-v3-for-v2,
+  [  --disable-snmp-reply-v3-for-v2 disable RFC6257 responses for VRRPv2 instances])
 AC_ARG_ENABLE(sha1,
   [  --enable-sha1           compile with SHA1 support])
 AC_ARG_ENABLE(vrrp-auth,
@@ -58,583 +104,730 @@ AC_ARG_ENABLE(libipset,
 AC_ARG_ENABLE(mem-check,
   [  --enable-mem-check      compile with memory alloc checking])
 AC_ARG_ENABLE(mem-check-log,
-  [  --enable-mem-check-log  compile with memory alloc checking writing to syslog])
+  [  --enable-mem-check-log  compile with memory alloc checking wriging to syslog])
 AC_ARG_ENABLE(debug,
   [  --enable-debug          compile with debugging flags])
 AC_ARG_ENABLE(profile,
   [  --enable-profile        compile with profiling flags])
 
-dnl ----[ Checks for header files ]----
-AC_HEADER_STDC
-AC_HEADER_SYS_WAIT
-AC_CHECK_HEADERS(fcntl.h syslog.h unistd.h sys/ioctl.h sys/time.h linux/netfilter/x_tables.h)
-dnl [do we really need this ?] AC_CHECK_HEADERS(linux/netlink.h linux/rtnetlink.h)
-AC_CHECK_HEADERS(openssl/ssl.h openssl/md5.h openssl/err.h,,AC_MSG_ERROR([
+# Set the kernel headers path
+if test -n "$kernel_src_path"; then
+  kernelinc="-I$kernel_src_path/include"
+elif test ! -d /usr/include/linux -a \
+            -d /usr/src/linux/include; then
+  kernelinc="-I/usr/src/linux/include"
+else
+  kernelinc=
+fi
+
+# Checks for programs.
+AC_PROG_CC
+AC_PROG_MAKE_SET
+AC_PROG_INSTALL
+AC_PROG_RANLIB
+AC_PROG_GREP
+AC_PROG_LN_S
+AC_PROG_SED
+AC_CHECK_TOOL(STRIP,strip)
+
+AM_PROG_AR
+ARFLAGS=cr
+AC_SUBST(ARFLAGS)
+
+KA_CPPFLAGS="$kernelinc"
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes"
+KA_LDFLAGS="-ldl"
+KA_LIBS=
+#KA_LIBTOOLFLAGS = 
+
+AC_SUBST(KA_CPPFLAGS)
+AC_SUBST(KA_CFLAGS)
+AC_SUBST(KA_LDFLAGS)
+AC_SUBST(KA_LIBS)
+# AC_SUBST(KA_LIBTOOLFLAGS)
+
+# Checks for libraries.
+
+# Checks for header files.
+AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h stdlib.h string.h sys/ioctl.h sys/param.h sys/socket.h sys/time.h syslog.h unistd.h],
+  [], [AC_MSG_ERROR([Missing/unusable system header file <$ac_header>])])
+
+# check for kernel headers
+CPPFLAGS="$kernelinc"
+AC_CHECK_HEADERS([asm/types.h linux/ethtool.h linux/fib_rules.h linux/icmpv6.h linux/if_addr.h linux/if_ether.h linux/if_link.h linux/if_packet.h linux/ip.h linux/sockios.h linux/types.h],
+  [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header>])])
+AC_CHECK_HEADERS([linux/if_arp.h],
+  [], [AC_MSG_ERROR([Missing/unusable <$ac_header>])],
+  [[#include <sys/socket.h>]])
+
+# Checks for typedefs, structures, and compiler characteristics.
+AC_HEADER_STDBOOL
+AC_C_INLINE
+AC_TYPE_INT64_T
+AC_TYPE_PID_T
+AC_TYPE_SIZE_T
+AC_TYPE_UINT16_T
+AC_TYPE_UINT32_T
+AC_TYPE_UINT64_T
+AC_TYPE_UINT8_T
+AC_C_CONST
+
+# Checks for library functions.
+AC_FUNC_FORK
+AC_FUNC_MALLOC
+AC_FUNC_REALLOC
+AC_CHECK_FUNCS([dup2 getcwd gettimeofday memmove memset select setenv socket strcasecmp strchr strdup strerror strpbrk strstr strtol strtoul uname])
+dnl - pipe2() since Linux 2.6.27 and glibc 2.9.
+AC_CHECK_FUNCS([pipe2], [add_build_opt([PIPE2])])
+
+# check for missing definition - added in glibc 2.8
+AC_CHECK_DECLS([ETHERTYPE_IPV6], [],
+  [
+    AC_DEFINE([ETHERTYPE_IPV6], [0x86dd], [Defined here if not found in <net/ethernet.h>.])
+  ],
+  [[#include <net/ethernet.h>]])
+
+BUILD_GENHASH=Yes
+dnl ----[ Checks for openssl ]----
+# check for openssl headers
+NEED_MD5=no
+NEED_SSL=no
+if test "$enable_vrrp" != no -a \
+        "$enable_vrrp_auth" != no; then
+  NEED_MD5=yes
+fi
+if test "$enable_lvs" != no; then
+  NEED_MD5=yes
+  NEED_SSL=yes
+fi
+AC_CHECK_HEADERS([openssl/ssl.h openssl/err.h], [],
+  [
+    if test $NEED_SSL = yes; then
+      AC_MSG_ERROR([
   !!! OpenSSL is not properly installed on your system. !!!
-  !!! Can not include OpenSSL headers files.            !!!]))
-AC_CHECK_DECL([ETHERTYPE_IPV6],[],[CFLAGS="$CFLAGS -DETHERTYPE_IPV6=0x86dd"],
-  [[@%:@include <net/ethernet.h>]])
+  !!! Can not include OpenSSL headers files.            !!!])
+    fi
+    BUILD_GENHASH=No
+    NEED_SSL=no
+    break
+  ])
+AC_CHECK_HEADERS([openssl/md5.h], [],
+  [
+    if test $NEED_MD5 = yes; then
+      AC_MSG_ERROR([
+  !!! OpenSSL is not properly installed on your system. !!!
+  !!! Can not include OpenSSL MD5 headers files.        !!!])
+    fi
+    BUILD_GENHASH=No
+    NEED_MD5=no
+    break
+  ])
+AC_CHECK_LIB(crypto, MD5_Init, [],
+  [
+    if test $NEED_MD5 = yes; then
+      AC_MSG_ERROR([OpenSSL libraries are required])
+    fi
+    BUILD_GENHASH=No
+  ])
+AC_CHECK_LIB(ssl, SSL_CTX_new, [],
+  [
+    if test $NEED_SSL = yes; then
+      AC_MSG_ERROR([OpenSSL libraries are required])
+    fi
+    BUILD_GENHASH=No
+  ])
+add_to_var([KA_LIBS], [$LIBS])
+
+if test $BUILD_GENHASH = Yes; then
+  GENHASH_LIBS=
+  AC_SUBST([GENHASH_LIBS])
+  add_to_var([GENHASH_LIBS], [$LIBS])
+else
+  AC_MSG_NOTICE([Unable to build genhash due to missing openssl headers/libraries])
+fi
+AM_CONDITIONAL([BUILD_GENHASH], [test $BUILD_GENHASH = Yes])
 
 dnl ----[ Checks for libraries ]----
-AC_CHECK_LIB(crypt, crypt,,AC_MSG_ERROR([crypt() function is required]))
-AC_CHECK_LIB(crypto, MD5_Init,,AC_MSG_ERROR([OpenSSL libraries are required]))
-AC_CHECK_LIB(ssl, SSL_CTX_new,,AC_MSG_ERROR([OpenSSL libraries are required]))
-
-USE_NL3="_WITHOUT_LIBNL_"
+NETLINK_VER=None
+IPVS_USE_NL=No
 AC_CHECK_LIB(nl-3, nl_socket_alloc,
   [
     AC_CHECK_LIB(nl-genl-3, genl_connect,
       [
-        IPVS_USE_NL="LIBIPVS_USE_NL"
-        CFLAGS="$CFLAGS $(pkg-config --cflags libnl-genl-3.0)"
-        LIBS="$LIBS $(pkg-config --libs libnl-genl-3.0)"
+        IPVS_USE_NL=Yes
+        add_pkg_config([libnl-genl-3.0])
       ],
       [
-        AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3.])
+        AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])
       ])
     AC_CHECK_LIB(nl-route-3, nl_rtgen_request,
       [
-        USE_NL3="_HAVE_LIBNL3_"
-        CFLAGS="$CFLAGS $(pkg-config --cflags libnl-route-3.0)"
-        LIBS="$LIBS $(pkg-config --libs libnl-route-3.0)"
+        NETLINK_VER=3
+        AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
+        NL3_CFLAGS="$(pkg-config --cflags libnl-route-3.0)"
+        add_pkg_config([libnl-route-3.0])
+        add_build_opt([LIBNL3])
       ])
   ],
   [
     AC_CHECK_LIB(nl, nl_socket_modify_cb,
       [
-        IPVS_USE_NL="LIBIPVS_USE_NL"
-        USE_NL3="_HAVE_LIBNL1_"
-        CFLAGS="$CFLAGS -DFALLBACK_LIBNL1"
-        LIBS="$LIBS $(pkg-config --libs libnl-1)"
+        IPVS_USE_NL=Yes
+        NETLINK_VER=1
+        AC_DEFINE([_HAVE_LIBNL1_], [ 1 ], [Define to 1 if using libnl-1])
+        add_pkg_config([libnl-1])
+        add_build_opt([LIBNL1])
+        AC_DEFINE([FALLBACK_LIBNL1], [ 1 ], [Define to 1 if using libnl-1])
+        add_build_opt([FALLBACK_LIBNL1])
       ],
       [
-        IPVS_USE_NL="LIBIPVS_DONTUSE_NL"
         AC_MSG_WARN([keepalived will be built without libnl support.])
       ])
   ])
 
-AC_SUBST(IPVS_USE_NL)
-AC_SUBST(USE_NL3)
-
-if test "$USE_NL3" != "_WITHOUT_LIBNL_"; then
+if test $NETLINK_VER != None; then
+  CPPFLAGS="$kernelinc"
   AC_CHECK_HEADERS(libnfnetlink/libnfnetlink.h,,AC_MSG_ERROR([
     !!! Please install libnfnetlink headers.              !!!]))
+  if test $NETLINK_VER = 3; then
+    CPPFLAGS="$NL3_CFLAGS"
+    AC_CHECK_HEADERS([netlink/route/link.h netlink/route/link/inet.h], [], [AC_MSG_ERROR([libnl-3 headers missing])])
+  fi
+  AC_CHECK_HEADERS([linux/netlink.h linux/rtnetlink.h libnfnetlink/libnfnetlink.h netlink/genl/ctrl.h netlink/genl/genl.h netlink/netlink.h], [], [AC_MSG_ERROR([netlink headers missing])])
 fi
 
-for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF RTA_VIA FRA_OIFNAME FRA_SUPPRESS_PREFIXLEN FRA_SUPPRESS_IFGROUP FRA_TUN_ID; do
-  eval ${flag}="_WITHOUT_${flag}_"
-  if test "${IPVS_USE_NL}" = "LIBIPVS_USE_NL"; then
-    AC_MSG_CHECKING([for $flag])
-    AC_TRY_COMPILE([
-        #include <linux/rtnetlink.h>
-        #include <sys/socket.h>
-        #include <linux/fib_rules.h>
-      ], [
-	int flag = ${flag};
-      ], [
-	eval ${flag}_SUPPORT="yes"
-	], []);
-    eval SUPPORT=\$${flag}_SUPPORT
-    if test "${SUPPORT}" = "yes"; then
-      eval ${flag}="_HAVE_${flag}_"
-      AC_MSG_RESULT([yes])
-    else
-      AC_MSG_RESULT([no])
-    fi
+dnl -- Check for the following variables introduced at various times into Linux
+dnl --FRA_OIFNAME		dnl -- Linux 2.6.33
+dnl --RTAX_QUICKACK		dnl -- Linux 3.11
+dnl --FRA_SUPPRESS_PREFIXLEN	dnl -- Linux 3.12
+dnl --FRA_SUPPRESS_IFGROUP	dnl -- Linux 3.12
+dnl --RTAX_CC_ALGO		dnl -- Linux 4.0
+dnl --RTA_VIA			dnl -- Linux 4.1
+dnl --RTA_NEWDST		dnl -- Linux 4.1
+dnl --RTA_PREF			dnl -- Linux 4.1
+dnl --FRA_TUN_ID		dnl -- Linux 4.3
+dnl --RTA_ENCAP			dnl -- Linux 4.3
+dnl --RTA_EXPIRES		dnl -- Linux 4.5
+AC_CHECK_DECLS([RTA_ENCAP, RTA_EXPIRES, RTA_NEWDST, RTA_PREF, FRA_SUPPRESS_PREFIXLEN, FRA_SUPPRESS_IFGROUP, FRA_TUN_ID, RTAX_CC_ALGO, RTAX_QUICKACK], [], [],
+  [[#include <linux/rtnetlink.h>
+    #include <sys/socket.h>
+    #include <linux/fib_rules.h>]])
+dnl - following only needed for for flag loop
+AC_CHECK_DECLS([RTA_VIA, FRA_OIFNAME], [], [],
+  [[#include <linux/rtnetlink.h>
+    #include <sys/socket.h>
+    #include <linux/fib_rules.h>]])
+for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF RTA_VIA FRA_OIFNAME FRA_SUPPRESS_PREFIXLEN FRA_SUPPRESS_IFGROUP FRA_TUN_ID RTAX_CC_ALGO RTAX_QUICKACK; do
+  decl_var=ac_cv_have_decl_$flag
+  if test ${!decl_var} = yes; then
+    add_build_opt[${flag}]
   fi
 done
-AC_SUBST(RTA_ENCAP)
-AC_SUBST(RTA_EXPIRES)
-AC_SUBST(RTA_NEWDST)
-AC_SUBST(RTA_PREF)
-AC_SUBST(RTA_VIA)
-AC_SUBST(FRA_OIFNAME)
-AC_SUBST(FRA_SUPPRESS_PREFIXLEN)
-AC_SUBST(FRA_SUPPRESS_IFGROUP)
-AC_SUBST(FRA_TUN_ID)
 
-dnl ----[Check if have linux/if.h and netlink/route/link.h namespace collision]----
-IF_H_LINK_H_COLLISION="_WITHOUT_IF_H_LINK_H_COLLISION_"
-if test "${USE_NL3}" = "_HAVE_LIBNL3_"; then
-  AC_MSG_CHECKING([for linux/if.h and netlink/route/link.h namespace collision])
-  AC_TRY_COMPILE([
+dnl ----[Check if have net/if.h and netlink/route/link.h namespace collision]----
+dnl -- Resolved in libnl3-3.2.26 (release 30/3/2015)
+if test $NETLINK_VER = 3; then
+  AC_MSG_CHECKING([for net/if.h and libnl3/netlink/route/link.h namespace collision])
+  CPPFLAGS="$NL3_CFLAGS"
+  AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
       #include <net/if.h>
       #include <netlink/route/link.h>
+    ]])], [
+      AC_MSG_RESULT([no])
     ], [
-    ], [], [
-      IF_H_LINK_H_COLLISION=_HAVE_IF_H_LINK_H_COLLISION_
-    ]);
-  if test "$IF_H_LINK_H_COLLISION" = "_HAVE_IF_H_LINK_H_COLLISION_"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-  fi
+      AC_MSG_RESULT([yes])
+      AC_DEFINE([_HAVE_IF_H_LINK_H_COLLISION_], [ 1 ], [Define to 1 if <net/if.h> and <netlink/route/link.h> namespace collision])
+      add_build_opt([IF_H_LINK_H_COLLISION])
+    ])
 fi
 
-AC_SUBST(IF_H_LINK_H_COLLISION)
-
-dnl ----[Check if have linux/if.h and net/if.h namespace collision]----
-# Linux 4.5 caused <libiptc/libiptc.h> to indirectly include <net/if.h> and <linux/if.h>
-# which causes a namespace collision.
-# This issue was resolved in Linux 4.5.5 and 4.6
-LINUX_NET_IF_H_COLLISION="_WITHOUT_LINUX_NET_IF_H_COLLISION_"
-AC_MSG_CHECKING([for libiptc/libiptc.h linux/if.h and net/if.h namespace collision])
-AC_TRY_COMPILE([
-    #include <libiptc/libiptc.h>
-  ], [
-  ], [], [
-    LINUX_NET_IF_H_COLLISION=_HAVE_LINUX_NET_IF_H_COLLISION_
-  ]);
-if test "$LINUX_NET_IF_H_COLLISION" = "_HAVE_LINUX_NET_IF_H_COLLISION_"; then
-  AC_MSG_RESULT([yes])
+dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
+if test $NETLINK_VER = 3; then
+  IPV4_DEVCONF=Yes
+  CPPFLAGS="$kernelinc"
+  AC_CHECK_DECLS([
+    IPV4_DEVCONF_ARP_IGNORE,
+    IPV4_DEVCONF_ACCEPT_LOCAL,
+    IPV4_DEVCONF_RP_FILTER,
+    IPV4_DEVCONF_ARPFILTER],
+    [],
+    [
+      IPV4_DEVCONF=No
+      break
+    ],
+    [[#include <linux/ip.h>]])
 else
-  AC_MSG_RESULT([no])
+  IPV4_DEVCONF=No
 fi
-
-AC_SUBST(LINUX_NET_IF_H_COLLISION)
-
-dnl ----[Check have IPV4_DEVCONF defines]----
-IPV4_DEVCONF="_WITHOUT_IPV4_DEVCONF_"
-if test "${USE_NL3}" = "_HAVE_LIBNL3_"; then
-  AC_MSG_CHECKING([for IPV4_DEVCONF defines])
-  AC_TRY_COMPILE([
-      #include <linux/ip.h>
-      int devconf;
-    ], [
-      devconf = IPV4_DEVCONF_ARP_IGNORE;
-      devconf = IPV4_DEVCONF_ACCEPT_LOCAL;
-      devconf = IPV4_DEVCONF_RP_FILTER;
-      devconf = IPV4_DEVCONF_ARPFILTER;
-    ], [
-      IPV4_DEVCONF_SUPPORT=yes
-    ], []);
-  if test "$IPV4_DEVCONF_SUPPORT" = "yes"; then
-    IPV4_DEVCONF="_HAVE_IPV4_DEVCONF_"
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-  fi
+if test $IPV4_DEVCONF = Yes; then
+  AC_DEFINE([_HAVE_IPV4_DEVCONF_], [ 1 ], [Define to 1 if have IPv4 netlink device configuration])
+  add_build_opt([IPV4_DEVCONF])
 fi
-
-AC_SUBST(IPV4_DEVCONF)
 
 dnl ----[Check for iptables libraries]----
-USE_LIBIPTC=_WITHOUT_LIBIPTC_
-if test "${enable_libiptc}" != "no"; then
-  SAV_LIBS=$LIBS
-  LIBS="$LIBS $(pkg-config --libs --static libiptc)"
-  AC_CHECK_LIB(iptc, iptc_init,
+USE_LIBIPTC=No
+USE_LIBIPSET=No
+if test "$enable_vrrp" != no; then
+  dnl -- <linux/netfilter/x_tables.h> exists since 2.6.16
+  AC_CHECK_HEADERS([linux/netfilter/x_tables.h],
     [
-      USE_LIBIPTC="_HAVE_LIBIPTC_"
-      SAV_LIBS=$LIBS
-    ])
-  LIBS=$SAV_LIBS
-fi
+      dnl -- XT_EXTENSION_MAXNAMELEN not defined until Linux 2.6.35
+      AC_CHECK_DECL([XT_EXTENSION_MAXNAMELEN], [],
+        [AC_DEFINE([XT_EXTENSION_MAXNAMELEN], [ (XT_FUNCTION_MAXNAMELEN - 1) ], [Define if <linux/netfilter/x_tables.h> doesnt define it])],
+        [#include <linux/netfilter/x_tables.h>])
+    ],
+    [AC_DEFINE([XT_EXTENSION_MAXNAMELEN], [ 29 ], [Define if <linux/netfilter/x_tables.h> doesnt exist])])
 
-AC_SUBST(USE_LIBIPTC)
-
-dnl ----[Check for ipset libraries]----
-USE_LIBIPSET=_WITHOUT_LIBIPSET_
-if test "${USE_LIBIPTC}" = "_HAVE_LIBIPTC_"; then
-  if test "${enable_libipset}" != "no"; then
-    SAV_LIBS=$LIBS
-    LIBS="$LIBS -lipset -lxtables"
-    AC_CHECK_LIB(ipset, ipset_session_init,
+  if test .${enable_libiptc} != .no; then
+    USE_LIBIPTC=Yes
+    dnl -- linux/netfilter/x_tables.h since Linux 2.6.16
+    AC_CHECK_HEADERS([linux/netfilter/x_tables.h xtables.h libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h], [],
       [
-	AC_TRY_COMPILE([
-	    #include <linux/netfilter/xt_set.h>
-	    ip_set_id_t id;
-	  ], [
-	  ], [
-	    IPSET_HEADERS_OK=yes
-	  ], [
-	    IPSET_HEADERS_OK=no
-	  ]);
-
-	if test "$IPSET_HEADERS_OK" = "yes"; then
-          USE_LIBIPSET="_HAVE_LIBIPSET_"
-          SAV_LIBS=$LIBS
-	fi
-      ],
-      [])
-    LIBS=$SAV_LIBS
+        USE_LIBIPTC=No
+        break
+      ])
+    if test $USE_LIBIPTC = Yes; then
+      add_pkg_config([--static libiptc], [IPTC])
+      LIBS="$IPTC_LIBS"
+      CPPFLAGS="$kernelinc"
+      AC_CHECK_LIB(iptc, iptc_init,
+        [
+          add_pkg_config([--static libiptc])
+          AC_DEFINE([_HAVE_LIBIPTC_], [ 1 ], [Define to 1 if have iptables libraries])
+        ],
+        [USE_LIBIPTC=No])
+    fi
+  
+    if test $USE_LIBIPTC = Yes; then
+      add_build_opt([LIBIPTC])
+  
+      dnl ----[Check for ipset libraries]----
+      CPPFLAGS="$kernelinc"
+      if test "${enable_libipset}" != no; then
+        pkg-config --exists libipset
+        if test $? -eq 0; then
+          add_pkg_config([libipset], [IPSET])
+        else
+          IPSET_LIBS="-lipset"
+        fi
+        LIBS="$IPTC_LIBS $IPSET_LIBS"
+  
+        AC_CHECK_LIB(ipset, ipset_session_init,
+          [
+            USE_LIBIPSET=Yes
+            AC_CHECK_HEADERS([libipset/data.h libipset/linux_ip_set.h libipset/session.h libipset/types.h], [],
+              [
+                USE_LIBIPSET=No
+                break
+              ])
+    
+            if test $USE_LIBIPSET = Yes; then
+              AC_CHECK_LIB(xtables, xtables_insmod, [], [USE_LIBIPSET=No])
+            fi
+  
+            if test $USE_LIBIPSET = Yes; then
+              AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
+              add_build_opt([LIBIPSET])
+              pkg-config --exists libipset
+              if test $? -eq 0; then
+                add_pkg_config(libipset)
+              else
+                add_to_var([KA_LDFLAGS], [-lipset])
+              fi
+              add_pkg_config([xtables])
+  
+              dnl -- Need to include <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
+              EXTRA_INCLUDE=
+              AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+                #include <linux/netfilter/xt_set.h>
+                ]])], [],
+                [AC_CHECK_HEADER([linux/netfilter/xt_set.h],
+                  [
+                    AC_DEFINE([XT_SET_H_NEEDS_LINUX_IP_SET_H], [ 1 ], [Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>])
+                    EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
+                  ], [AC_MSG_ERROR([Missing/unusable kernel header file <linux/netfilter/xt_set.h>])],
+                  [[#include <libipset/linux_ip_set.h>]])])
+              AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [$EXTRA_INCLUDE])
+            fi
+    
+            dnl -- xt_set_info_match_v1 declared since Linux 3.1
+            AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [], [#include <linux/netfilter/xt_set.h>])
+    
+            dnl - ipset type iface introduced in Linux 3.1
+            AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+              #include <linux/netfilter/ipset/ip_set.h>
+              int main(void) { int var = IPSET_ATTR_IFACE; }
+              ]])],
+              [AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
+          ])
+      fi
+    fi
   fi
 fi
-AC_SUBST(USE_LIBIPSET)
+AM_CONDITIONAL([LIBIPTC], [test $USE_LIBIPTC = Yes])
+AM_CONDITIONAL([LIBIPSET], [test $USE_LIBIPSET = Yes])
+unset LIBS
+
+dnl ----[Check if have linux/if.h and net/if.h namespace collision]----
+# Linux 4.5 to 4.5.4 has <libiptc/libiptc.h> indirectly including <net/if.h>
+# and <linux/if.h> which causes a namespace collision.
+AC_MSG_CHECKING([for libiptc/libiptc.h linux/if.h and net/if.h namespace collision])
+CPPFLAGS="$kernelinc"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+    #include <libiptc/libiptc.h>
+  ]])],
+  [
+    AC_MSG_RESULT([no])
+  ],
+  [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([_HAVE_LINUX_NET_IF_H_COLLISION_], [ 1 ], [Define to 1 if have libiptc/libiptc.h linux/if.h and net/if.h namespace collision])
+    add_build_opt([LINUX_NET_IF_H_COLLISION])
+  ])
 
 dnl ----[ Checks for LVS and VRRP support ]----
-IPVS_SUPPORT="_WITHOUT_LVS_"
-IPVS_SYNCD="_WITHOUT_IPVS_SYNCD_"
-IPVS_SYNCD_ATTRIBUTES="_WITHOUT_IPVS_SYNCD_ATTRIBUTES_"
-IPVS_64BIT_STATS="_WITHOUT_LVS_64BIT_STATS_"
-if test "$enable_lvs" != "no"; then
-  IPVS_SUPPORT="_WITH_LVS_"
+IPVS_SYNCD_ATTRIBUTES=No
+IPVS_64BIT_STATS=No
+if test "$enable_lvs" != no; then
+  IPVS_SUPPORT=Yes
+  add_build_opt([LVS])
+  AC_DEFINE([_WITH_LVS_], [ 1 ], [Define to 1 if have IPVS support])
 
-  dnl ----[ IPVS syncd support probe ]---
-  if test "$enable_lvs_syncd" != "no"; then
-    IPVS_SYNCD="_HAVE_IPVS_SYNCD_"
+  dnl -- <linux/ip_vs.h> exists from 2.6.27; prior to that <net/ip_vs.h> is used
+  AC_CHECK_HEADERS([linux/ip_vs.h])
 
-    AC_MSG_CHECKING([for IPVS syncd attributes])
-    AC_TRY_COMPILE([
-        #include <linux/ip_vs.h>
-        int value;
-      ], [
-        value = IPVS_DAEMON_ATTR_SYNC_MAXLEN;
-        value = IPVS_DAEMON_ATTR_MCAST_GROUP;
-        value = IPVS_DAEMON_ATTR_MCAST_GROUP6;
-        value = IPVS_DAEMON_ATTR_MCAST_PORT;
-        value = IPVS_DAEMON_ATTR_MCAST_TTL;
-      ], [
-        IPVS_SYNCD_ATTRIBUTES=yes
-      ], []);
-    if test "$IPVS_SYNCD_ATTRIBUTES" = "yes"; then
-      IPVS_SYNCD_ATTRIBUTES="_HAVE_IPVS_SYNCD_ATTRIBUTES_"
-      AC_MSG_RESULT([yes])
-    else
-      AC_MSG_RESULT([no])
-    fi
+  if test $IPVS_USE_NL = Yes; then
+    AC_DEFINE([LIBIPVS_USE_NL], [ 1 ], [Define to 1 if libipvs can use netlink])
+    add_build_opt([LIBIPVS_NETLINK])
+  fi
+
+  dnl ----[ IPVS syncd options ]---
+  CPPFLAGS="$kernelinc"
+  IPVS_SYNCD_ATTRIBUTES=Yes
+  AC_CHECK_DECLS([
+    IPVS_DAEMON_ATTR_SYNC_MAXLEN,
+    IPVS_DAEMON_ATTR_MCAST_GROUP,
+    IPVS_DAEMON_ATTR_MCAST_GROUP6,
+    IPVS_DAEMON_ATTR_MCAST_PORT,
+    IPVS_DAEMON_ATTR_MCAST_TTL], [],
+    [
+      IPVS_SYNCD_ATTRIBUTES=No
+      break
+    ],
+    [[#include <linux/ip_vs.h>]])
+  dnl -- Since Linux 4.3
+  if test $IPVS_SYNCD_ATTRIBUTES = Yes; then
+    AC_DEFINE([_HAVE_IPVS_SYNCD_ATTRIBUTES_], [ 1 ], [Define to 1 if have IPVS syncd attributes])
+    add_build_opt([IPVS_SYNCD_ATTRIBUTES])
   fi
 
   dnl ----[ IPVS 64-bit stats ]----
-  if test "$IPVS_USE_NL" = "LIBIPVS_USE_NL" -a \
-          "$enable_lvs_64bit_stats" != "no"; then
-    AC_MSG_CHECKING([for LVS 64-bit stats])
-    AC_TRY_COMPILE([
-        #include <linux/ip_vs.h>
-        int value;
-      ], [
-        value = IPVS_SVC_ATTR_STATS64 + IPVS_DEST_ATTR_STATS64;
-      ], [
-        IPVS_64BIT_STATS="_WITH_LVS_64BIT_STATS_"
-      ], []);
-
-    if test "$IPVS_64BIT_STATS" = "_WITH_LVS_64BIT_STATS_"; then
-      AC_MSG_RESULT([yes])
-    else
-      AC_MSG_RESULT([no])
+  dnl -- Since Linux 4.2
+  if test "$enable_lvs_64bit_stats" != "no"; then
+    CPPFLAGS="$kernelinc"
+    IPVS_64BIT_STATS=Yes
+    AC_CHECK_DECLS([
+      IPVS_SVC_ATTR_STATS64,
+      IPVS_DEST_ATTR_STATS64], [],
+      [
+        IPVS_64BIT_STATS=No
+        break
+      ],
+      [[#include <linux/ip_vs.h>]])
+    if test $IPVS_64BIT_STATS = Yes; then
+      AC_DEFINE([_WITH_LVS_64BIT_STATS_], [ 1 ], [Define to 1 if have IPVS 64 bit stats])
+      add_build_opt([IPVS_64BIT_STATS])
     fi
   fi
-elif test "$enable_vrrp" = "no"; then
-  AC_MSG_ERROR([keepalived MUST be compiled at least with LVS or VRRP framework])
+else
+  IPVS_SUPPORT=No
 fi
-AC_SUBST(IPVS_SUPPORT)
-AC_SUBST(IPVS_SYNCD)
-AC_SUBST(IPVS_SYNCD_ATTRIBUTES)
-AC_SUBST(IPVS_64BIT_STATS)
+AM_CONDITIONAL([WITH_IPVS], [test $IPVS_SUPPORT = Yes])
 
 dnl ----[ Checks for kernel netlink support ]----
-VRRP_SUPPORT="_WITHOUT_VRRP_"
-if test "$enable_vrrp" != "no"; then
-  VRRP_SUPPORT="_WITH_VRRP_"
+VRRP_SUPPORT=No
+VRRP_AUTH_SUPPORT=No
+MACVLAN_SUPPORT=No
+if test "$enable_vrrp" != no; then
+  VRRP_SUPPORT=Yes
+  AC_DEFINE([_WITH_VRRP_], [ 1 ], [Define to 1 if have VRRP support])
+  add_build_opt([VRRP])
+
+  dnl ----[ check for VRRP authentication support ]----
+  if test "${enable_vrrp_auth}" != no; then
+    VRRP_AUTH_SUPPORT=Yes
+    AC_DEFINE([_WITH_VRRP_AUTH_], [ 1 ], [Define to 1 if want ARRP authentication support])
+    add_build_opt([VRRP_AUTH])
+  fi
+
+  dnl ----[ Checks for kernel VMAC support ]----
+  CPPFLAGS="$kernelinc"
+  MACVLAN_SUPPORT=Yes
+  dnl -- Since Linux 2.6.33
+  AC_CHECK_DECLS([
+      IFLA_MACVLAN_MODE,
+      MACVLAN_MODE_PRIVATE], [],
+    [
+      MACVLAN_SUPPORT=No
+      break
+    ], [[
+      #include <sys/socket.h>
+      #include <linux/if_link.h>
+    ]])
+  if test $MACVLAN_SUPPORT = Yes; then
+    AC_DEFINE([_HAVE_VRRP_VMAC_], [ 1 ], [Define to 1 if have MAC VLAN support])
+    add_build_opt([VRRP_VMAC])
+  fi
+fi
+AM_CONDITIONAL([WITH_VRRP], [test $VRRP_SUPPORT = Yes])
+AM_CONDITIONAL([VRRP_AUTH], [test $VRRP_AUTH_SUPPORT = Yes])
+AM_CONDITIONAL([VMAC], [test $MACVLAN_SUPPORT = Yes])
+
+if test ${IPVS_SUPPORT} = No -a ${VRRP_SUPPORT} = No; then
+  AC_MSG_ERROR([keepalived MUST be compiled with at least one of LVS or VRRP framework])
 fi
 
 dnl ----[ Checks for glibc SOCK_NONBLOCK support ]----
-# Introduced in Linux 2.6.23
-AC_MSG_CHECKING([for SOCK_NONBLOCK support])
-AC_TRY_COMPILE([
-    #include <sys/socket.h>
-    int flags;
-  ], [
-    flags = SOCK_NONBLOCK;
-  ], [
-    SOCK_NONBLOCK_SUPPORT=yes
-  ], []);
-
-  if test "$SOCK_NONBLOCK_SUPPORT" = "yes"; then
-    SOCK_NONBLOCK_SUPPORT="_HAVE_SOCK_NONBLOCK_"
-    AC_MSG_RESULT([yes])
-  else
-    SOCK_NONBLOCK_SUPPORT="_WITHOUT_SOCK_NONBLOCK_"
-    AC_MSG_RESULT([no])
-  fi
-
-AC_SUBST(SOCK_NONBLOCK_SUPPORT)
+# Introduced in Linux 2.6.27 and glibc 2.9
+AC_CHECK_DECLS([SOCK_NONBLOCK], [add_build_opt([SOCK_NONBLOCK])], [],[[#include <sys/socket.h>]])
+AM_CONDITIONAL([SOCK_NONBLOCK], [test $ac_cv_have_decl_SOCK_NONBLOCK = yes])
 
 dnl ----[ Checks for glibc SOCK_CLOEXEC support ]----
-# Introduced in Linux 2.6.23
-AC_MSG_CHECKING([for SOCK_CLOEXEC support])
-AC_TRY_COMPILE([
-    #include <sys/socket.h>
-    int flags;
-  ], [
-    flags = SOCK_CLOEXEC;
-  ], [
-    SOCK_CLOEXEC_SUPPORT=yes
-  ], []);
+# Introduced in Linux 2.6.27 and glibc 2.9
+AC_CHECK_DECLS([SOCK_CLOEXEC], [add_build_opt([SOCK_CLOEXEC])], [],[[#include <sys/socket.h>]])
 
-  if test "$SOCK_CLOEXEC_SUPPORT" = "yes"; then
-    SOCK_CLOEXEC_SUPPORT="_HAVE_SOCK_CLOEXEC_"
-    AC_MSG_RESULT([yes])
-  else
-    SOCK_CLOEXEC_SUPPORT="_WITHOUT_SOCK_CLOEXEC_"
-    AC_MSG_RESULT([no])
-  fi
+dnl ----[ Checks for FIB routing support ]----
+# Introduced in Linux 2.6.19
+CPPFLAGS="$kernelinc"
+AC_CHECK_DECL([FRA_SRC],
+  [
+    FIB_ROUTING_SUPPORT=Yes
+    AC_DEFINE([_HAVE_FIB_ROUTING_], [ 1 ], [Define to 1 if have FIB routing support])
+    add_build_opt([FIB_ROUTING])
+  ],
+  [
+    FIB_ROUTING_SUPPORT=No
+  ],[[#include <sys/socket.h>
+      #include <linux/fib_rules.h>]])
+AM_CONDITIONAL([FIB_ROUTING], [test $FIB_ROUTING_SUPPORT = Yes])
 
-AC_SUBST(SOCK_CLOEXEC_SUPPORT)
-
-FIB_ROUTING_SUPPORT="_WITHOUT_FIB_ROUTING_"
-if test ${VRRP_SUPPORT} = "_WITH_VRRP_"; then
-  dnl ----[ Checks for FIB routing support ]----
-  if test "${enable_routes}" != "no"; then
-    # Introduced in Linux 2.6.19
-    AC_MSG_CHECKING([for FIB routing support])
-    AC_TRY_COMPILE([
-        #include <sys/socket.h>
-        #include <linux/fib_rules.h>
-        int type;
-      ], [
-        type = FRA_SRC;
-      ], [
-        FIB_ROUTING_SUPPORT="_HAVE_FIB_ROUTING_"
-        AC_MSG_RESULT([yes])
-      ], [
-        AC_MSG_RESULT([no])
-      ]);
-  fi
-fi
-
-AC_SUBST(FIB_ROUTING_SUPPORT)
-
-dnl ----[ Checks for kernel VMAC support ]----
-CPPFLAGS="$CPPFLAGS -I$kernelinc"
-AC_MSG_CHECKING([for kernel macvlan support])
-AC_TRY_COMPILE([
-    #include <sys/socket.h>
-    #include <linux/if_link.h>
-    int macvlan;
-  ], [
-    macvlan = IFLA_MACVLAN_MODE;
-    macvlan = MACVLAN_MODE_PRIVATE;
-  ], [
-    MACVLAN_SUPPORT=yes
-  ], []);
-
-  if test "$MACVLAN_SUPPORT" = "yes"; then
-    VRRP_VMAC="_HAVE_VRRP_VMAC_"
-    AC_MSG_RESULT([yes])
-  else
-    VRRP_VMAC="_WITHOUT_VRRP_VMAC_"
-    AC_MSG_RESULT([no])
-  fi
-
-AC_SUBST(VRRP_VMAC)
-
-if test "${VRRP_VMAC}" = "_HAVE_VRRP_VMAC_"; then
-  dnl ----[ Checks for kernel INET6_ADDR_GEN_MODE support ]----
-  CPPFLAGS="$CPPFLAGS -I$kernelinc"
-  AC_MSG_CHECKING([for kernel inet6_addr_gen_mode support])
-  AC_TRY_COMPILE([
+dnl ----[ Checks for kernel IFLA_INET6_ADDR_GEN_MODE support ]----
+CPPFLAGS="$kernelinc"
+if test ${MACVLAN_SUPPORT} = Yes; then
+  # Introduced in Linux 3.17
+  AC_CHECK_DECLS([IFLA_INET6_ADDR_GEN_MODE],
+    [
+      add_build_opt([INET6_ADDR_GEN_MODE])
+    ], [], [[
       #include <linux/if_link.h>
-      int gen_mode;
-    ], [
-      gen_mode = IFLA_INET6_ADDR_GEN_MODE;
-      gen_mode++;
-    ], [
-      GEN_MODE_SUPPORT=yes
-    ], []);
-
-    if test "$GEN_MODE_SUPPORT" = "yes"; then
-      ADDR_GEN_MODE="_HAVE_ADDR_GEN_MODE_"
-      AC_MSG_RESULT([yes])
-    else
-      ADDR_GEN_MODE="_WITHOUT_ADDR_GEN_MODE_"
-      AC_MSG_RESULT([no])
-    fi
-else
-  ADDR_GEN_MODE="_WITHOUT_ADDR_GEN_MODE_"
+    ]])
 fi
-
-AC_SUBST(ADDR_GEN_MODE)
 
 dnl ----[ Checks for SNMP support ]----
-SNMP_SUPPORT="_WITHOUT_SNMP_"
-SNMP_KEEPALIVED_SUPPORT="_WITHOUT_SNMP_KEEPALIVED_"
-SNMP_RFC_SUPPORT="_WITHOUT_SNMP_RFC_"
-SNMP_RFCV2_SUPPORT="_WITHOUT_SNMP_RFCV2_"
-SNMP_RFCV3_SUPPORT="_WITHOUT_SNMP_RFCV3_"
-SNMP_CHECKER_SUPPORT="_WITHOUT_SNMP_CHECKER_"
-
-if test "$enable_snmp" = "yes" -o \
-	"$enable_snmp_rfc" = "yes" -o \
-	"$enable_snmp_rfcv2" = "yes" -o \
-	"$enable_snmp_rfcv3" = "yes" -o \
-	"$enable_snmp_keepalived" = "yes" -o \
-	"$enable_snmp_checker" = "yes" ; then
+SNMP_SUPPORT=No
+SNMP_KEEPALIVED_SUPPORT=No
+SNMP_RFC_SUPPORT=No
+SNMP_RFCV2_SUPPORT=No
+SNMP_RFCV3_SUPPORT=No
+SNMP_CHECKER_SUPPORT=No
+SNMP_V3_FOR_V2=No
+if test "$enable_snmp" = yes -o \
+	"$enable_snmp_keepalived" = yes -o \
+	"$enable_snmp_checker" = yes -o \
+	"$enable_snmp_rfc" = yes -o \
+	"$enable_snmp_rfcv2" = yes -o \
+	"$enable_snmp_rfcv3" = yes; then
   AC_PATH_TOOL([NETSNMP_CONFIG], [net-snmp-config], [no])
-  if test x"$NETSNMP_CONFIG" = x"no"; then
+  if test "$NETSNMP_CONFIG" = no; then
     AC_MSG_ERROR([*** unable to find net-snmp-config])
   fi
   NETSNMP_LIBS=`${NETSNMP_CONFIG} --agent-libs`
   NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags` -DNETSNMP_NO_INLINE"
 
-  CFLAGS="$CFLAGS ${NETSNMP_CFLAGS}"
-  LIBS="$LIBS ${NETSNMP_LIBS}"
+  CFLAGS="${NETSNMP_CFLAGS}"
+  LIBS="${NETSNMP_LIBS}"
   AC_MSG_CHECKING([whether C compiler supports flag "${NETSNMP_CFLAGS} ${NETSNMP_LIBS}" from Net-SNMP])
-  AC_LINK_IFELSE([AC_LANG_PROGRAM([
-int main(void);
-],
-[
-{
-  return 0;
-}
-])],[AC_MSG_RESULT(yes)],[
+  AC_LINK_IFELSE([AC_LANG_SOURCE([[
+      int main(void)
+      {
+        return 0;
+      }
+    ]])], [
+      AC_MSG_RESULT(yes)
+    ],[
      AC_MSG_RESULT(no)
-     AC_MSG_ERROR([*** incorrect CFLAGS from net-snmp-config])])
+     AC_MSG_ERROR([*** incorrect CFLAGS from net-snmp-config])
+    ])
 
   # Do we have subagent support?
-  AC_CHECK_FUNCS([netsnmp_enable_subagent], [:],
+  AC_CHECK_FUNCS([netsnmp_enable_subagent], [],
       [AC_MSG_ERROR([*** no subagent support in net-snmp])])
 
-  # Do we have a usable <net-snmp/agent/util_funcs.h> header?
-  # Some ancien distributions may miss this header.
-  AC_CHECK_HEADERS([net-snmp/agent/util_funcs.h],,,[
-@%:@include <net-snmp/net-snmp-config.h>
-@%:@include <net-snmp/net-snmp-includes.h>
-@%:@include <net-snmp/library/snmp_transport.h>
-@%:@include <net-snmp/agent/net-snmp-agent-includes.h>
-@%:@include <net-snmp/agent/snmp_vars.h>
-  ])
+  # check for net-snmp headers
+  # Some ancient distributions may miss <net-snmp/agent/util_funcs.h> header
+  CPPFLAGS="$NETSNMP_CFLAGS"
+  AC_CHECK_HEADERS(net-snmp/agent/agent_sysORTable.h net-snmp/agent/snmp_vars.h net-snmp/agent/util_funcs.h,[],
+    [AC_MSG_ERROR([missing net-snmp headers])],[[
+      #include <net-snmp/net-snmp-config.h>
+      #include <net-snmp/net-snmp-includes.h>
+      #include <net-snmp/agent/net-snmp-agent-includes.h>
+    ]])
 
-  SNMP_SUPPORT="_WITH_SNMP_"
-  if test "$enable_snmp_rfc" = "yes"; then
-    SNMP_RFCV2_SUPPORT="_WITH_SNMP_RFCV2_"
-    SNMP_RFCV3_SUPPORT="_WITH_SNMP_RFCV3_"
+  SNMP_SUPPORT=Yes
+  add_to_var([KA_CFLAGS], [$NETSNMP_CFLAGS])
+  add_to_var([KA_LDFLAGS], [$NETSNMP_LIBS])
+  if test "$enable_snmp_rfc" = yes; then
+    SNMP_RFCV2_SUPPORT=Yes
+    SNMP_RFCV3_SUPPORT=Yes
   else
-    if test "$enable_snmp_rfcv2" = "yes"; then
-      SNMP_RFCV2_SUPPORT="_WITH_SNMP_RFCV2_"
+    if test "$enable_snmp_rfcv2" = yes; then
+      SNMP_RFCV2_SUPPORT=Yes
     fi
-    if test "$enable_snmp_rfcv3" = "yes"; then
-      SNMP_RFCV3_SUPPORT="_WITH_SNMP_RFCV3_"
+    if test "$enable_snmp_rfcv3" = yes; then
+      SNMP_RFCV3_SUPPORT=Yes
     fi
   fi
-  if test "${SNMP_RFCV2_SUPPORT}" = "_WITH_SNMP_RFCV2_" -o \
-          "${SNMP_RFCV3_SUPPORT}" = "_WITH_SNMP_RFCV3_"; then
-      SNMP_RFC_SUPPORT="_WITH_SNMP_RFC_"
+  if test ${SNMP_RFCV2_SUPPORT} = Yes -o \
+          ${SNMP_RFCV3_SUPPORT} = Yes; then
+      if test ${VRRP_SUPPORT} != Yes; then
+        AC_MSG_ERROR([RFC SNMP support requires VRRP])
+      fi
+      SNMP_RFC_SUPPORT=Yes
+  fi
+  if test ${SNMP_RFCV3_SUPPORT} = Yes -a \
+          "$enable_snmp_reply_v3_for_v2" != no; then
+    AC_DEFINE([_SNMP_REPLY_V3_FOR_V2_], [ 1 ], [Define to 1 to have keepalived send RFC6257 SNMP responses for VRRPv2 instances])
+    SNMP_V3_FOR_V2=Yes
+    add_build_opt([SNMP_V3_FOR_V2])
   fi
 
-  if test "$enable_snmp" = "yes"; then
-    SNMP_KEEPALIVED_SUPPORT="_WITH_SNMP_KEEPALIVED_"
-    SNMP_CHECKER_SUPPORT="_WITH_SNMP_CHECKER_"
+  if test "$enable_snmp" = yes; then
+    SNMP_KEEPALIVED_SUPPORT=Yes
+    SNMP_CHECKER_SUPPORT=Yes
   else
-    if test "$enable_snmp_keepalived" = "yes"; then
-      SNMP_KEEPALIVED_SUPPORT="_WITH_SNMP_KEEPALIVED_"
+    if test "$enable_snmp_keepalived" = yes; then
+      SNMP_KEEPALIVED_SUPPORT=Yes
     fi
-    if test "$enable_snmp_checker" = "yes"; then
-      SNMP_CHECKER_SUPPORT="_WITH_SNMP_CHECKER_"
+    if test "$enable_snmp_checker" = yes; then
+      SNMP_CHECKER_SUPPORT=Yes
     fi
   fi
+  if test ${VRRP_SUPPORT} = No -a \
+          \( ${SNMP_KEEPALIVED_SUPPORT} = Yes -o ${SNMP_RFC_SUPPORT} = Yes \); then
+    AC_MSG_ERROR([VRRP SNMP support requires VRRP])
+  fi
+  if test ${IPVS_SUPPORT} = No -a \
+          ${SNMP_CHECKER_SUPPORT} = Yes; then
+    AC_MSG_ERROR([LVS SNMP support requires LVS])
+  fi
+
+  unset LIBS
+  unset CFLAGS
 fi
 
-AC_SUBST(SNMP_SUPPORT)
-AC_SUBST(SNMP_KEEPALIVED_SUPPORT)
-AC_SUBST(SNMP_CHECKER_SUPPORT)
-AC_SUBST(SNMP_RFC_SUPPORT)
-AC_SUBST(SNMP_RFCV2_SUPPORT)
-AC_SUBST(SNMP_RFCV3_SUPPORT)
+dnl ----[What SNMP support is required]----
+if test $SNMP_SUPPORT = Yes; then
+  AC_DEFINE([_WITH_SNMP_], [ 1 ], [Define to 1 to have keepalived SNMP support])
+  add_build_opt([SNMP])
+fi
+if test $SNMP_KEEPALIVED_SUPPORT = Yes; then
+  AC_DEFINE([_WITH_SNMP_KEEPALIVED_], [ 1 ], [Define to 1 to have keepalived SNMP VRRP support])
+  add_build_opt([SNMP_KEEPALIVED])
+fi
+if test $SNMP_CHECKER_SUPPORT = Yes; then
+  AC_DEFINE([_WITH_SNMP_CHECKER_], [ 1 ], [Define to 1 to have keepalived SNMP checker support])
+  add_build_opt([SNMP_CHECKER])
+fi
+if test $SNMP_RFC_SUPPORT = Yes; then
+  AC_DEFINE([_WITH_SNMP_RFC_], [ 1 ], [Define to 1 to have RFC SNMP support])
+  add_build_opt([SNMP_RFC])
+fi
+if test $SNMP_RFCV2_SUPPORT = Yes; then
+  AC_DEFINE([_WITH_SNMP_RFCV2_], [ 1 ], [Define to 1 to have RFCv2 SNMP support])
+  add_build_opt([SNMP_RFCV2])
+fi
+if test $SNMP_RFCV3_SUPPORT = Yes; then
+  AC_DEFINE([_WITH_SNMP_RFCV3_], [ 1 ], [Define to 1 to have RFCv3 SNMP support])
+  add_build_opt([SNMP_RFCV3])
+fi
+AM_CONDITIONAL([SNMP], [test $SNMP_SUPPORT = Yes])
+AM_CONDITIONAL([SNMP_VRRP], [test $SNMP_KEEPALIVED_SUPPORT = Yes])
+AM_CONDITIONAL([SNMP_CHECKER], [test $SNMP_CHECKER_SUPPORT = Yes])
+AM_CONDITIONAL([SNMP_RFC], [test $SNMP_RFC_SUPPORT = Yes])
+AM_CONDITIONAL([SNMP_RFCV2], [test $SNMP_RFCV2_SUPPORT = Yes])
+AM_CONDITIONAL([SNMP_RFCV3], [test $SNMP_RFCV3_SUPPORT = Yes])
 
 dnl ----[ SHA1 or not ? ]----
-SHA1_SUPPORT="_WITHOUT_SHA1_"
-if test "${enable_sha1}" = "yes"; then
-  CFLAGS="$CFLAGS -DFEAT_SHA1"
+SHA1_SUPPORT=No
+if test "${enable_sha1}" = yes; then
   AC_CHECK_HEADERS(openssl/sha.h,,AC_MSG_ERROR([unable to find openssl/sha.h]))
   AC_CHECK_LIB(crypto, SHA1_Init,,AC_MSG_ERROR([SHA1 in OpenSSL required]))
-  SHA1_SUPPORT="_WITH_SHA1_"
+  SHA1_SUPPORT=Yes
+  AC_DEFINE([_WITH_SHA1_], [ 1 ], [Define to 1 to have SHA1 support])
 fi
-
-AC_SUBST(SHA1_SUPPORT)
 
 dnl ----[ check for SO_MARK support ]----
-SO_MARK_SUPPORT="_WITHOUT_SO_MARK_"
-if test "${enable_fwmark}" != "no"; then
-  AC_MSG_CHECKING([for SO_MARK support])
-  AC_TRY_COMPILE([
-      #include <sys/socket.h>
-      int flag;
-    ], [
-      flag = SO_MARK;
-    ], [
-      SO_MARK_SUPPORT="_WITH_SO_MARK_"
-    ], [
-    ]);
-  if test "$SO_MARK_SUPPORT" = "_WITH_SO_MARK_"; then
-    AC_MSG_RESULT([yes])
-  else
-    AC_MSG_RESULT([no])
-  fi
+SO_MARK_SUPPORT=No
+if test "${enable_fwmark}" != no; then
+  AC_CHECK_DECLS([SO_MARK],
+    [
+      SO_MARK_SUPPORT=Yes
+      AC_DEFINE([_WITH_SO_MARK_], [ 1 ], [Define to 1 if have SO_MARK])
+      add_build_opt([SO_MARK])
+    ], [],
+    [[#include <sys/socket.h>]])
 fi
 
-AC_SUBST(SO_MARK_SUPPORT)
-
-
-dnl ----[ Debug or not ? ]----
-if test "${enable_debug}" = "yes"; then
-  DFLAGS="-D_DEBUG_"
-  AC_SUBST(DFLAGS)
+dnl ---[ check for sphinx-build executable ]----
+if test -z "$SPHINXBUILD"; then
+  SPHINXBUILDNAME=sphinx-build
+else
+  SPHINXBUILDNAME=${SPHINXBUILD}
 fi
+AC_SUBST(SPHINXBUILDNAME)
+AC_CHECK_PROG([HAVE_SPHINX_BUILD], [$SPHINXBUILDNAME], [Yes], [No])
+AM_CONDITIONAL([BUILD_DOCS], [test $HAVE_SPHINX_BUILD = Yes])
 
 dnl ----[ Memory alloc check or not ? ]----
-MEM_CHECK_LOG=_NO_MEM_CHECK_LOG_
+MEM_CHECK=No
+MEM_CHECK_LOG=No
 if test "${enable_mem_check}" = "yes"; then
-  MEM_CHECK=_MEM_CHECK_
+  MEM_CHECK=Yes
+  AC_DEFINE([_MEM_CHECK_], [ 1 ], [Define to 1 to build with malloc/free checks])
+  add_build_opt([MEM_CHECK])
   if test "${enable_mem_check_log}" = "yes"; then
-    MEM_CHECK_LOG=_MEM_CHECK_LOG_
+    MEM_CHECK_LOG=Yes
+    AC_DEFINE([_MEM_CHECK_LOG_], [ 1 ], [Define to 1 to log malloc/free checks to syslog])
+    add_build_opt([MEM_CHECK_LOG])
   fi
+fi
+
+dnl ----[ Debug or not ? ]----
+if test "${enable_debug}" = yes; then
+  AC_DEFINE([_DEBUG_], [ 1 ], [Define to 1 to build with debugging support])
+  ENABLE_DEBUG=Yes
+  add_build_opt([DEBUG])
 else
-  MEM_CHECK=_NO_MEM_CHECK_
+  ENABLE_DEBUG=No
 fi
-AC_SUBST(MEM_CHECK)
-AC_SUBST(MEM_CHECK_LOG)
-
-dnl ----[ check for VRRP authentication support ]----
-VRRP_AUTH_SUPPORT="_WITHOUT_VRRP_AUTH_"
-if test "$enable_vrrp" != "no"; then
-  if test "${enable_vrrp_auth}" != "no"; then
-    VRRP_AUTH_SUPPORT="_WITH_VRRP_AUTH_"
-  fi
-fi
-
-AC_SUBST(VRRP_AUTH_SUPPORT)
-
 
 dnl ----[ Profiling or not ? ]----
-if test "${enable_profile}" = "yes"; then
-  CFLAGS="$CFLAGS -pg"
+if test "${enable_profile}" = yes; then
+  add_to_var([KA_CFLAGS], [-pg])
 fi
 
-AC_SUBST(VERSION)
-AC_SUBST(VERSION_DATE)
-AC_SUBST(VERSION_YEAR)
-AC_SUBST(IPVS_SUPPORT)
-AC_SUBST(VRRP_SUPPORT)
 
-dnl ----[ Checks for typedefs, structures, and compiler characteristics ]----
-AC_C_CONST
-AC_TYPE_PID_T
-AC_HEADER_TIME
+VERSION_DATE=`date +%m/%d,%Y`
+VERSION_YEAR=`date +%Y`
 
-dnl ----[ Checks for library functions ]----
-AC_PROG_GCC_TRADITIONAL
-AC_FUNC_MEMCMP
-AC_TYPE_SIGNAL
-AC_CHECK_FUNCS(gettimeofday select socket strerror strtol uname)
-AC_CHECK_FUNC([pipe2], [PIPE2_SUPPORT=_HAVE_PIPE2_], [PIPE2_SUPPORT=_WITHOUT_PIPE2_])
-AC_SUBST([PIPE2_SUPPORT])
-
-APP_DEFS="-D${IPVS_SUPPORT} -D${IPVS_SYNCD} -D${IPVS_SYNCD_ATTRIBUTES} -D${IPVS_64BIT_STATS} -D${VRRP_SUPPORT} -D${VRRP_VMAC} -D${ADDR_GEN_MODE} -D${SNMP_SUPPORT} -D${SNMP_KEEPALIVED_SUPPORT} -D${SNMP_CHECKER_SUPPORT} -D${SNMP_RFC_SUPPORT} -D${SNMP_RFCV2_SUPPORT} -D${SNMP_RFCV3_SUPPORT} -D${IPVS_USE_NL} -D${USE_NL3} -D${VRRP_AUTH_SUPPORT} -D${SO_MARK_SUPPORT} -D${USE_LIBIPTC} -D${USE_LIBIPSET} -D${IPV4_DEVCONF} -D${IF_H_LINK_H_COLLISION} -D${LINUX_NET_IF_H_COLLISION} -D${SOCK_NONBLOCK_SUPPORT} -D${SOCK_CLOEXEC_SUPPORT} -D${FIB_ROUTING_SUPPORT} -D${MEM_CHECK} -D${MEM_CHECK_LOG} -D${PIPE2_SUPPORT} -D${RTA_ENCAP} -D${RTA_EXPIRES} -D${RTA_NEWDST} -D${RTA_PREF} -D${RTA_VIA} -D${FRA_OIFNAME} -D${FRA_SUPPRESS_PREFIXLEN} -D${FRA_SUPPRESS_IFGROUP} -D${FRA_TUN_ID} ${DFLAGS}"
-BUILD_OPTS=`echo ${APP_DEFS} | sed -e 's/ "$//' -e 's/.*"//' -e 's/-D//g' -e 's/_ / /g' -e 's/ _/ /g' -e 's/^_//' -e 's/_$//'`
-AC_SUBST(APP_DEFS)
-AC_SUBST(BUILD_OPTS)
+AC_DEFINE_UNQUOTED([VERSION_DATE], ["$VERSION_DATE"], [Date of build configuration])
+AC_DEFINE_UNQUOTED([COPYRIGHT_YEAR], ["$VERSION_YEAR"], [Year of build configuration])
+AC_DEFINE_UNQUOTED([CONFIGURATION_OPTIONS], ["$BUILD_OPTIONS"], [The configuration and build options from which the package is built])
 
 dnl ----[ Process output target ]----
-OUTPUT_TARGET="$OUTPUT_TARGET keepalived/Makefile lib/Makefile"
-if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
-  OUTPUT_TARGET="$OUTPUT_TARGET keepalived/vrrp/Makefile"
-fi
-if test "$IPVS_SUPPORT" = "_WITH_LVS_"; then
-  OUTPUT_TARGET="$OUTPUT_TARGET keepalived/check/Makefile"
-fi
-AC_OUTPUT($OUTPUT_TARGET)
+echo
 
+AC_OUTPUT
 
 dnl ----[ Display current configuration ]----
 cat <<EOF;
@@ -643,122 +836,46 @@ Keepalived configuration
 ------------------------
 Keepalived version       : ${VERSION}
 Compiler                 : ${CC}
-Compiler flags           : ${CFLAGS}
+Preprocessor flags       : ${KA_CPPFLAGS}
+Compiler flags           : ${KA_CFLAGS}
 EOF
 
 dnl ----[ display optional vars  ]----
-if test -n "$LIBS"; then
-  echo "Extra Lib                : $LIBS"
+if test -n "$KA_LDFLAGS$KA_LIBS"; then
+  echo "Extra Lib                : $KA_LDFLAGS $KA_LIBS"
 fi
 
-if test "${IPVS_SUPPORT}" = "_WITH_LVS_"; then
-  echo "Use IPVS Framework       : Yes"
-  if test "${IPVS_SYNCD}" = "_HAVE_IPVS_SYNCD_"; then
-    echo "IPVS sync daemon support : Yes"
-  elif test "${IPVS_SYNCD}" = "_WITHOUT_IPVS_SYNCD_"; then
-    echo "IPVS sync daemon support : No"
-  fi
-  if test "${IPVS_USE_NL}" = "LIBIPVS_USE_NL"; then
-    echo "IPVS use libnl           : Yes"
-  else
-    echo "IPVS use libnl           : No"
-  fi
-  if test "${IPVS_64BIT_STATS}" = "_WITH_LVS_64BIT_STATS_"; then
-    echo "IPVS 64-bit stats        : Yes"
-  else
-    echo "IPVS 64-bit stats        : No"
-  fi
-else
-  echo "Use IPVS Framework       : No"
-  echo "IPVS sync daemon support : No"
+echo "Use IPVS Framework       : ${IPVS_SUPPORT}"
+if test ${IPVS_SUPPORT} = Yes; then
+  echo "IPVS use libnl           : ${IPVS_USE_NL}"
+  echo "IPVS syncd attributes    : ${IPVS_SYNCD_ATTRIBUTES}"
+  echo "IPVS 64 bit stats        : ${IPVS_64BIT_STATS}"
 fi
+echo "fwmark socket support    : ${SO_MARK_SUPPORT}"
+echo "Use VRRP Framework       : ${VRRP_SUPPORT}"
+if test ${VRRP_SUPPORT} = Yes; then
+  echo "Use VRRP VMAC            : ${MACVLAN_SUPPORT}"
+  echo "Use VRRP authentication  : ${VRRP_AUTH_SUPPORT}"
+  echo "With ip rules/routes     : ${FIB_ROUTING_SUPPORT}"
+fi
+echo "SNMP keepalived support  : ${SNMP_KEEPALIVED_SUPPORT}"
+echo "SNMP checker support     : ${SNMP_CHECKER_SUPPORT}"
+echo "SNMP RFCv2 support       : ${SNMP_RFCV2_SUPPORT}"
+echo "SNMP RFCv3 support       : ${SNMP_RFCV3_SUPPORT}"
+if test ${SNMP_RFCV3_SUPPORT} = Yes; then
+  echo "SNMP send V3 for V2      : ${SNMP_V3_FOR_V2}"
+fi
+echo "SHA1 support             : ${SHA1_SUPPORT}"
+echo "Use Debug flags          : ${ENABLE_DEBUG}"
+echo "Memory alloc check       : ${MEM_CHECK}"
+if test ${MEM_CHECK} = Yes; then
+  echo "Memory alloc check log   : ${MEM_CHECK_LOG}"
+fi
+echo "libnl version            : ${NETLINK_VER}"
+echo "Use IPv4 devconf         : ${IPV4_DEVCONF}"
+echo "Use libiptc              : ${USE_LIBIPTC}"
+echo "Use libipset             : ${USE_LIBIPSET}"
+echo "Build genhash            : ${BUILD_GENHASH}"
+echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
 
-if test "${SO_MARK_SUPPORT}" = "_WITH_SO_MARK_"; then
-  echo "fwmark socket support    : Yes"
-else
-  echo "fwmark socket support    : No"
-fi
-
-if test "${VRRP_SUPPORT}" = "_WITH_VRRP_"; then
-  echo "Use VRRP Framework       : Yes"
-  if test "${VRRP_VMAC}" = "_HAVE_VRRP_VMAC_"; then
-    echo "Use VRRP VMAC            : Yes"
-  else
-    echo "Use VRRP VMAC            : No"
-  fi
-  if test "${VRRP_AUTH_SUPPORT}" = "_WITH_VRRP_AUTH_"; then
-    echo "Use VRRP authentication  : Yes"
-  else
-    echo "Use VRRP authentication  : No"
-  fi
-  if test ${FIB_ROUTING_SUPPORT} = "_HAVE_FIB_ROUTING_"; then
-    echo "With ip rules/routes     : Yes"
-  else
-    echo "With ip rules/routes     : No"
-  fi
-else
-  echo "Use VRRP Framework       : No"
-fi
-if test "${SNMP_KEEPALIVED_SUPPORT}" = "_WITH_SNMP_KEEPALIVED_"; then
-  echo "SNMP keepalived support  : Yes"
-else
-  echo "SNMP keepalived support  : No"
-fi
-if test "${SNMP_CHECKER_SUPPORT}" = "_WITH_SNMP_CHECKER_"; then
-  echo "SNMP checker support     : Yes"
-else
-  echo "SNMP checker support     : No"
-fi
-if test "${SNMP_RFCV2_SUPPORT}" = "_WITH_SNMP_RFCV2_"; then
-  echo "SNMP RFCv2 support       : Yes"
-else
-  echo "SNMP RFCv2 support       : No"
-fi
-if test "${SNMP_RFCV3_SUPPORT}" = "_WITH_SNMP_RFCV3_"; then
-  echo "SNMP RFCv3 support       : Yes"
-else
-  echo "SNMP RFCv3 support       : No"
-fi
-if test "${SHA1_SUPPORT}" = "_WITH_SHA1_"; then
-  echo "SHA1 support             : Yes"
-else
-  echo "SHA1 support             : No"
-fi
-if test "${DFLAGS}" = "-D_DEBUG_"; then
-  echo "Use Debug flags          : Yes"
-else
-  echo "Use Debug flags          : No"
-fi
-if test "${MEM_CHECK}" = "_MEM_CHECK_"; then
-  echo "Memory alloc check       : Yes"
-  if test "${MEM_CHECK_LOG}" = "_MEM_CHECK_LOG_"; then
-    echo "Memory alloc check log   : Yes"
-  else
-    echo "Memory alloc check log   : No"
-  fi
-else
-  echo "Memory alloc check       : No"
-fi
-if test "${USE_NL3}" = "_HAVE_LIBNL3_"; then
-  echo "libnl version            : 3"
-elif test "${USE_NL3}" = "_HAVE_LIBNL1_"; then
-  echo "libnl version            : 1"
-else
-  echo "libnl version            : None"
-fi
-if test "${IPV4_DEVCONF}" = "_HAVE_IPV4_DEVCONF_"; then
-  echo "Use IPv4 devconf         : Yes"
-else
-  echo "Use IPv4 devconf         : No"
-fi
-if test "${USE_LIBIPTC}" = "_HAVE_LIBIPTC_"; then
-  echo "Use libiptc              : Yes"
-else
-  echo "Use libiptc              : No"
-fi
-if test "${USE_LIBIPSET}" = "_HAVE_LIBIPSET_"; then
-  echo "Use libipset             : Yes"
-else
-  echo "Use libipset             : No"
-fi
 dnl ----[ end configure ]---

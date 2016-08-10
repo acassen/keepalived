@@ -20,11 +20,10 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 /* global include */
-//#include <limits.h>
-#ifdef _HAVE_ADDR_GEN_MODE_
 #include <linux/if_link.h>
-#endif
 
 /* local include */
 #include "vrrp_vmac.h"
@@ -205,7 +204,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		// If we have a sufficiently recent kernel, we can stop a link local address
 		// based on the MAC address being automatically assigned. If not, then we have
 		// to delete the generated address after bringing the interface up (see below).
-#ifdef _HAVE_ADDR_GEN_MODE_		// Introduced in Linux 3.17
+#ifdef IFLA_INET6_ADDR_GEN_MODE		/* Since Linux 3.17 */
 		memset(&req, 0, sizeof (req));
 		req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
 		req.n.nlmsg_flags = NLM_F_REQUEST ;
@@ -264,14 +263,14 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
 	netlink_link_up(vrrp);
 
-#ifndef _HAVE_ADDR_GEN_MODE_
+#ifndef IFLA_INET6_ADDR_GEN_MODE
 	if (vrrp->family == AF_INET6 || vrrp->evip_add_ipv6) {
 		/* Delete the automatically created link-local address based on the
 		 * MAC address if we weren't able to configure the interface not to
 		 * create the address (see above).
 		 * This isn't ideal, since the invalid address will exist momentarily,
 		 * but is there any better way to do it? probably not otherwise
-		 * ADDR_GEN_MODE woulddn't have been added to the kernel. */
+		 * ADDR_GEN_MODE wouldn't have been added to the kernel. */
 		ip_address_t ipaddress;
 
 		memset(&ipaddress, 0, sizeof(ipaddress));

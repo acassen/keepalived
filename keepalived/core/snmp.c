@@ -20,10 +20,13 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include "snmp.h"
 #include "logger.h"
 #include "config.h"
 #include "global_data.h"
+#include "main.h"
 
 #include <net-snmp/agent/agent_sysORTable.h>
 
@@ -104,15 +107,14 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
 	static unsigned long long_ret;
-	static char version[] = VERSION_STRING;
 
 	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
 
 	switch (vp->magic) {
 	case SNMP_KEEPALIVEDVERSION:
-		*var_len = sizeof(version) - 1;
-		return (u_char *)version;
+		*var_len = sizeof(version_string) - 1;
+		return (u_char *)version_string;
 	case SNMP_ROUTERID:
 		if (!global_data->router_id) return NULL;
 		*var_len = strlen(global_data->router_id);

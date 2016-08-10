@@ -21,6 +21,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include <ctype.h>
 
 #include "check_smtp.h"
@@ -31,7 +33,7 @@
 #include "utils.h"
 #include "parser.h"
 #include "daemon.h"
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #include "string.h"
 #endif
@@ -771,7 +773,7 @@ smtp_connect_thread(thread_t *thread)
 				 checker->vs->delay_loop);
 		return 0;
 	}
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(sd, F_SETFD, FD_CLOEXEC))
 		log_message(LOG_INFO, "Unable to set CLOEXEC on smtp socket - %s (%d)", strerror(errno), errno);
 #endif
