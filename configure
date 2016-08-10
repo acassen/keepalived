@@ -5032,6 +5032,15 @@ done
       SNMP_CHECKER_SUPPORT="_WITH_SNMP_CHECKER_"
     fi
   fi
+
+  if test "$enable_vrrp" = no -a \
+          \( $SNMP_RFC_SUPPORT = "_WITH_SNMP_RFC_" -o $SNMP_KEEPALIVED_SUPPORT = "_WITH_SNMP_KEEPALIVED_" \); then
+    as_fn_error $? "Cannot enable SNMP for VRRP without VRRP support" "$LINENO" 5
+  fi
+  if test "$enable_lvs" = no -a \
+          $SNMP_CHECKER_SUPPORT = "_WITH_SNMP_CHECKER_"; then
+    as_fn_error $? "Cannot enable SNMP for LVS without LVS support" "$LINENO" 5
+  fi
 fi
 
 

@@ -523,6 +523,15 @@ int main(void);
       SNMP_CHECKER_SUPPORT="_WITH_SNMP_CHECKER_"
     fi
   fi
+
+  if test "$enable_vrrp" = no -a \
+          \( $SNMP_RFC_SUPPORT = "_WITH_SNMP_RFC_" -o $SNMP_KEEPALIVED_SUPPORT = "_WITH_SNMP_KEEPALIVED_" \); then
+    AC_MSG_ERROR([Cannot enable SNMP for VRRP without VRRP support])
+  fi
+  if test "$enable_lvs" = no -a \
+          $SNMP_CHECKER_SUPPORT = "_WITH_SNMP_CHECKER_"; then
+    AC_MSG_ERROR([Cannot enable SNMP for LVS without LVS support])
+  fi
 fi
 
 AC_SUBST(SNMP_SUPPORT)

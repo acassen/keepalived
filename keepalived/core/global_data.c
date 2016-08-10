@@ -73,6 +73,7 @@ set_default_smtp_connection_timeout(data_t * data)
 	data->smtp_connection_to = DEFAULT_SMTP_CONNECTION_TIMEOUT;
 }
 
+#ifdef _WITH_VRRP_
 static void
 set_default_mcast_group(data_t * data)
 {
@@ -104,6 +105,7 @@ set_vrrp_defaults(data_t * data)
 	data->vrrp_skip_check_adv_addr = false;
 	data->vrrp_strict = false;
 }
+#endif
 
 /* email facility functions */
 static void
@@ -139,8 +141,10 @@ alloc_global_data(void)
 	new = (data_t *) MALLOC(sizeof(data_t));
 	new->email = alloc_list(free_email, dump_email);
 
+#ifdef _WITH_VRRP_
 	set_default_mcast_group(new);
 	set_vrrp_defaults(new);
+#endif
 
 #ifdef _WITH_SNMP_
 	if (snmp) {
@@ -274,6 +278,7 @@ dump_global_data(data_t * data)
 #endif
 	log_message(LOG_INFO, "LVS flush = %s", data->lvs_flush ? "true" : "false");
 #endif
+#ifdef _WITH_VRRP_
 	if (data->vrrp_mcast_group4.ss_family) {
 		log_message(LOG_INFO, " VRRP IPv4 mcast group = %s"
 				    , inet_sockaddrtos(&data->vrrp_mcast_group4));
@@ -312,9 +317,12 @@ dump_global_data(data_t * data)
 	log_message(LOG_INFO, " VRRP skip check advert addresses = %s", data->vrrp_skip_check_adv_addr ? "true" : "false");
 	log_message(LOG_INFO, " VRRP strict mode = %s", data->vrrp_strict ? "true" : "false");
 	log_message(LOG_INFO, " VRRP process priority = %d", data->vrrp_process_priority);
-	log_message(LOG_INFO, " Checker process priority = %d", data->checker_process_priority);
 	log_message(LOG_INFO, " VRRP don't swap = %s", data->vrrp_no_swap ? "true" : "false");
+#endif
+#ifdef _WITH_LVS_
+	log_message(LOG_INFO, " Checker process priority = %d", data->checker_process_priority);
 	log_message(LOG_INFO, " Checker don't swap = %s", data->checker_no_swap ? "true" : "false");
+#endif
 #ifdef _WITH_SNMP_KEEPALIVED_
 	log_message(LOG_INFO, " SNMP keepalived %s", data->enable_snmp_keepalived ? "enabled" : "disabled");
 #endif
