@@ -21,6 +21,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE /* to make O_CLOEXEC available */
 #endif
@@ -279,7 +281,7 @@ ipvs_talk(int cmd, bool ignore_error)
 }
 
 #ifdef _WITH_LVS_
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 /* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
 ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool ignore_interface, bool ignore_error)
@@ -865,7 +867,7 @@ ipvs_update_stats(virtual_server_t *vs)
 /*
  * Common IPVS functions
  */
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 /* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
 ipvs_syncd_master(const struct lvs_syncd_config *config)

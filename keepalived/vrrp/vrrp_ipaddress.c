@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 /* local include */
 #include "vrrp_ipaddress.h"
 #ifdef _HAVE_LIBIPTC_
@@ -100,7 +102,7 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 			 *     without service. HA/VRRP setups have their own "DAD"-like
 			 *     functionality, so it's not really needed from the IPv6 stack.
 			 */
-#ifdef IFA_F_NODAD
+#ifdef IFA_F_NODAD	/* Since Linux 2.6.19 */
 			req.ifa.ifa_flags |= IFA_F_NODAD;
 #endif
 		}

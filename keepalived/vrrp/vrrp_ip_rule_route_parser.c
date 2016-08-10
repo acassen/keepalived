@@ -20,6 +20,8 @@
  * Copyright (C) 2015 Chris Riley, <kernelchris@gmail.com>
  */
 
+#include "config.h"
+
 #include <string.h>
 #include <errno.h>
 #include <limits.h>
@@ -30,7 +32,7 @@
 #include "logger.h"
 #include "vrrp_ip_rule_route_parser.h"
 #include "rttables.h"
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 #include "vrrp_iproute.h"
 #endif
 
@@ -252,7 +254,7 @@ get_addr64(uint64_t *ap, const char *cp)
 	return false;
 }
 
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 bool
 parse_mpls_address(const char *str, encap_mpls_t *mpls)
 {

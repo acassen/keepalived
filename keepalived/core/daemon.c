@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include <syslog.h>
 #include "daemon.h"
 #include "logger.h"

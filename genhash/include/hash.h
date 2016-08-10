@@ -27,7 +27,7 @@
 
 /* system includes */
 #include <openssl/md5.h>
-#ifdef FEAT_SHA1
+#ifdef _WITH_SHA1_
 #include <openssl/sha.h>
 #endif
 
@@ -35,7 +35,7 @@
 enum feat_hashes {
 	hash_first,
 	hash_md5 = hash_first,
-#ifdef FEAT_SHA1
+#ifdef _WITH_SHA1_
 	hash_sha1,
 #endif
 	hash_guard,
@@ -44,7 +44,7 @@ enum feat_hashes {
 
 typedef union {
 	MD5_CTX			md5;
-#ifdef FEAT_SHA1
+#ifdef _WITH_SHA1_
 	SHA_CTX			sha;
 #endif
 	/* this is due to poor C standard/draft wording (wrapped):

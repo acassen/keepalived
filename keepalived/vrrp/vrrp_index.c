@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 /* local include */
 #include "vrrp_index.h"
 #include "vrrp_data.h"

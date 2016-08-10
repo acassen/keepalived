@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include <syslog.h>
 #include <unistd.h>
 #include <pwd.h>
@@ -217,7 +219,7 @@ free_global_data(data_t * data)
 #ifdef _WITH_SNMP_
 	FREE_PTR(data->snmp_socket);
 #endif
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 	FREE_PTR(data->lvs_syncd.ifname);
 	FREE_PTR(data->lvs_syncd.vrrp_name);
 #endif
@@ -255,7 +257,7 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO, " LVS TCP FIN timeout = %d", data->lvs_tcpfin_timeout);
 	if (data->lvs_udp_timeout)
 		log_message(LOG_INFO, " LVS TCP timeout = %d", data->lvs_udp_timeout);
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 	if (data->lvs_syncd.vrrp) {
 		log_message(LOG_INFO, " LVS syncd vrrp instance = %s"
 				    , data->lvs_syncd.vrrp->iname);

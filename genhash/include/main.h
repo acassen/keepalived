@@ -56,6 +56,9 @@
 	(version >> 8) & 0xFF,		\
 	version & 0xFF
 
+#ifdef VERSION_STRING
+  #undef VERSION_STRING
+#endif
 #define VERSION_STRING PROG" v%d.%d.%d (%.2d/%.2d, 20%.2d)\n",	\
 		GETMETER_VERSION(VERSION_CODE),			\
 		GETMETER_VERSION(DATE_CODE)

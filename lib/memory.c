@@ -22,6 +22,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
+#include "config.h"
+
 #ifdef _MEM_CHECK_
 #include <assert.h>
 #include <unistd.h>

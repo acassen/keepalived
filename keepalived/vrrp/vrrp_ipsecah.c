@@ -22,6 +22,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include "vrrp_ipsecah.h"
 
 #define	BLOCK_SIZE	64

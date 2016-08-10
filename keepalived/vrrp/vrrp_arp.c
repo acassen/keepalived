@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 /* system includes */
 #include <unistd.h>
 #include <netpacket/packet.h>
@@ -31,7 +33,7 @@
 #include "bitops.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_arp.h"
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
 
@@ -156,7 +158,7 @@ void gratuitous_arp_init(void)
 		return;
 	}
 
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(garp_fd, F_SETFD, FD_CLOEXEC))
 		log_message(LOG_INFO, "Unable to set CLOEXEC on gratuitous ARP socket");
 #endif

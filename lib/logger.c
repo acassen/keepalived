@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
+#include "config.h"
+
 #include <stdio.h>
 #include "logger.h"
 

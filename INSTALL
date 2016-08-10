@@ -6,7 +6,7 @@ Kernel needs
   Kernel/User netlink socket
   LinuxVirtualServer
 
-  Keepalived supports all LVS code, including IPVS code for kernel 2.4.
+  Keepalived supports all LVS code.
 
 Library dependencies
 ====================
@@ -37,13 +37,33 @@ Installation
 
   eg: './configure --prefix=/usr/'
 
+Modifying source code
+=====================
+
+If you modify the source code, especially configure.ac or any Makefile.am
+file, you will need to regenerate the build files. Keepalived uses automake
+and so you will need to have automake and autoconf installed.
+
+To regenerate the build environment, you will need to run the following
+commands before following the instuctions under 'Installation' above:
+
+  1. 'aclocal'
+  2. 'autoheader'
+  3. 'automake --add-missing'
+  4. 'autoreconf'
+
+If you are attempting to build keepalived after cloning
+https://github.com/acassen/keepalived and you don't have automake available,
+you may find it useful first to run 'find . -exec touch -r configure {} +'.
+
 Configuration
 =============
 
   Just take a look at the /etc/keepalived/keepalived.conf file installed.
-  It will give you all the information needed. If you want more information
-  about keepalived, please refer to the keepalived homepage into the
-  documentation section.
+  It will give you all the information needed. Alternativley, run
+  'man keepalived.conf' or look at doc/keepalived.conf.SYNOPSIS.
+  If you want more information about keepalived, please refer to the
+  keepalived homepage into the documentation section.
 
   http://www.keepalived.org
 

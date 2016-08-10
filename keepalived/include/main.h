@@ -46,6 +46,7 @@ enum daemon_bits {
 };
 
 /* Global vars exported */
+extern const char *version_string;	/* keepalived version */
 extern unsigned long daemon_mode;	/* Which child processes are run */
 extern char *conf_file;			/* Configuration file */
 extern int log_facility;		/* Optional logging facilities */
@@ -58,5 +59,6 @@ extern const char *vrrp_pidfile;	/* overrule default pidfile */
 extern int snmp;			/* Enable SNMP support */
 extern const char *snmp_socket;		/* Socket to use for SNMP agent */
 #endif
+extern int keepalived_main(int, char**); /* The "real" main function */
 
 #endif

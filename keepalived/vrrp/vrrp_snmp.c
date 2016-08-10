@@ -71,10 +71,12 @@
  *
  */
 
-#ifdef _HAVE_RTA_PREF_
+#include "config.h"
+
+#if HAVE_DECL_RTA_PREF
 #include <linux/icmpv6.h>
 #endif
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 #include <linux/lwtunnel.h>
 #endif
 
@@ -843,7 +845,7 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 		if (LIST_ISEMPTY(route->nhs) || LIST_SIZE(route->nhs) != 1)
 			break;
 		nexthop_t *gw2 = LIST_HEAD(route->nhs)->data;
-#ifdef _HAVE_RTA_ENCAP_
+#if HAVE_DECL_RTA_ENCAP
 		if (gw2->encap.type != LWTUNNEL_ENCAP_NONE)
 			break;
 #endif
@@ -940,7 +942,7 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 		long_ret = 2 - !!(route->mask & IPROUTE_BIT_QUICKACK);
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ROUTE_EXPIRES:
-#ifndef _HAVE_RTA_EXPIRES_
+#if !HAVE_DECL_RTA_EXPIRES
 		break;
 #else
 		if (!(route->mask & IPROUTE_BIT_EXPIRES))
@@ -1049,7 +1051,7 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 		long_ret = route->initrwnd;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ROUTE_CONG_CTL:
-#ifndef RTAX_CC_ALGO
+#if !HAVE_DECL_RTAX_CC_ALGO
 		break;
 #else
 		if (!route->congctl)
@@ -1058,7 +1060,7 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)route->congctl;
 #endif
 	case VRRP_SNMP_ROUTE_PREF:
-#ifndef _HAVE_RTA_PREF_
+#if !HAVE_DECL_RTA_PREF
 		break;
 #else
 		if (!(route->mask & IPROUTE_BIT_PREF))
@@ -1095,7 +1097,7 @@ static u_char*
 vrrp_snmp_encap(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
-#ifndef _HAVE_RTA_ENCAP_
+#if !HAVE_DECL_RTA_ENCAP
 	return NULL;
 #else
 	static unsigned long long_ret;
@@ -1416,7 +1418,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 			break;
 		long_ret = rule->priority;
 		return (u_char *)&long_ret;
-#ifdef _HAVE_FRA_SUPPRESS_PREFIXLEN_
+#if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
 	case VRRP_SNMP_RULE_SUPPRESSPREFIXLEN:
 		if (rule->mask & IPRULE_BIT_SUP_PREFIXLEN)
 			long_ret = rule->suppress_prefix_len;
@@ -1424,7 +1426,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 #endif
 			break;
 		return (u_char *)&long_ret;
-#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 	case VRRP_SNMP_RULE_SUPPRESSGROUP:
 		if (rule->mask & IPRULE_BIT_SUP_GROUP) {
 			str = get_rttables_group(rule->suppress_group);
@@ -1434,7 +1436,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 #endif
 			break;
 		return (u_char *)str;
-#ifdef _HAVE_FRA_TUN_ID_
+#if HAVE_DECL_FRA_TUN_ID
 	case VRRP_SNMP_RULE_TUNNELID_HIGH:
 		if (rule->tunnel_id)
 			long_ret = rule->tunnel_id >> 32;
@@ -1442,7 +1444,7 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 #endif
 			break;
 		return (u_char *)&long_ret;
-#ifdef _HAVE_FRA_TUN_ID_
+#if HAVE_DECL_FRA_TUN_ID
 	case VRRP_SNMP_RULE_TUNNELID_LOW:
 		if (rule->tunnel_id)
 			long_ret = rule->tunnel_id & 0xffffffff;
@@ -3155,13 +3157,10 @@ vrrp_rfcv2_snmp_auth_err_trap(vrrp_t *vrrp, struct in_addr src, enum rfcv2_trap_
 
 #ifdef _WITH_SNMP_RFCV3_
 
-/* Enable returning detail of VRRP version 2 instances as well as version 3 instances */
-#define SNMP_REPLY_V3_FOR_V2
-
 static bool
 suitable_for_rfc6527(vrrp_t* vrrp)
 {
-#ifndef SNMP_REPLY_V3_FOR_V2
+#ifndef _SNMP_REPLY_V3_FOR_V2_
 	/* We mustn't return any VRRP instances that don't match version */
 	if (vrrp->version != VRRP_VERSION_3)
 		return false;

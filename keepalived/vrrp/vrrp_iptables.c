@@ -38,6 +38,8 @@
  *   some documentation
 */
 
+#include "config.h"
+
 #ifdef _HAVE_LINUX_NET_IF_H_COLLISION_
 /* The following is a horrible workaround. Linux 4.5 introduced a namespace
  * collision when including libiptc/libiptc.h due to both net/if.h and linux/if.h
@@ -117,18 +119,30 @@ void add_del_rules(int cmd, bool ignore_errors)
 		h6 = ip6tables_open("filter");
 
 		if (global_data->vrrp_iptables_inchain[0]) {
+#ifdef HAVE_IPSET_ATTR_IFACE
 			ip6tables_add_rules(h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_TWO, IPSET_DIM_TWO_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 135, cmd, ignore_errors);
 			ip6tables_add_rules(h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_TWO, IPSET_DIM_TWO_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 136, cmd, ignore_errors);
 			ip6tables_add_rules(h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_TWO, IPSET_DIM_TWO_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address_iface6, IPPROTO_NONE, 0, cmd, ignore_errors);
+#else
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 135, cmd, ignore_errors);
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 136, cmd, ignore_errors);
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_DROP, global_data->vrrp_ipset_address_iface6, IPPROTO_NONE, 0, cmd, ignore_errors);
+#endif
 			ip6tables_add_rules(h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 135, cmd, ignore_errors);
 			ip6tables_add_rules(h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 136, cmd, ignore_errors);
 			ip6tables_add_rules(h6, global_data->vrrp_iptables_inchain, -1, IPSET_DIM_ONE, 0, XTC_LABEL_DROP, global_data->vrrp_ipset_address6, IPPROTO_NONE, 0, cmd, ignore_errors);
 		}
 
 		if (global_data->vrrp_iptables_outchain[0]) {
+#ifdef HAVE_IPSET_ATTR_IFACE
 			ip6tables_add_rules(h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_TWO, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 135, cmd, ignore_errors);
 			ip6tables_add_rules(h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_TWO, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 136, cmd, ignore_errors);
 			ip6tables_add_rules(h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_TWO, IPSET_DIM_ONE_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address_iface6, IPPROTO_NONE, 0, cmd, ignore_errors);
+#else
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 135, cmd, ignore_errors);
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address_iface6, IPPROTO_ICMPV6, 136, cmd, ignore_errors);
+			ip6tables_add_rules(h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address_iface6, IPPROTO_NONE, 0, cmd, ignore_errors);
+#endif
 			ip6tables_add_rules(h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 135, cmd, ignore_errors);
 			ip6tables_add_rules(h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_ACCEPT, global_data->vrrp_ipset_address6, IPPROTO_ICMPV6, 136, cmd, ignore_errors);
 			ip6tables_add_rules(h6, global_data->vrrp_iptables_outchain, -1, IPSET_DIM_ONE, IPSET_DIM_ONE_SRC, XTC_LABEL_DROP, global_data->vrrp_ipset_address6, IPPROTO_NONE, 0, cmd, ignore_errors);

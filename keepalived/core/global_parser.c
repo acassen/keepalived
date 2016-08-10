@@ -22,6 +22,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include <netdb.h>
 #include <stdlib.h>
 #include "global_parser.h"
@@ -162,7 +164,7 @@ lvs_timeouts(vector_t *strvec)
 		log_message(LOG_INFO, "Unknown option %s specified for lvs_timeouts", FMT_STR_VSLOT(strvec, i));
 	}
 }
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 static void
 lvs_syncd_handler(vector_t *strvec)
 {
@@ -603,7 +605,7 @@ global_init_keywords(void)
 #ifdef _WITH_LVS_
 	install_keyword("lvs_timeouts", &lvs_timeouts);
 	install_keyword("lvs_flush", &lvs_flush_handler);
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 	install_keyword("lvs_sync_daemon", &lvs_syncd_handler);
 #endif
 #endif

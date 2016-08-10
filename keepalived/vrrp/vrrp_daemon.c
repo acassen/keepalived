@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 #include "vrrp_daemon.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_if.h"
@@ -189,15 +191,13 @@ start_vrrp(void)
 			return;
 		}
 
-#ifdef _KRNL_2_6_
 		/* Set LVS timeouts */
 		if (global_data->lvs_tcp_timeout ||
 		    global_data->lvs_tcpfin_timeout ||
 		    global_data->lvs_udp_timeout)
 			ipvs_set_timeouts(global_data->lvs_tcp_timeout, global_data->lvs_tcpfin_timeout, global_data->lvs_udp_timeout);
-#endif
 
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 		/* If we are managing the sync daemon, then stop any
 		 * instances of it that may have been running if
 		 * we terminated abnormally */
@@ -324,7 +324,7 @@ reload_vrrp_thread(thread_t * thread)
 	vrrp_dispatcher_release(vrrp_data);
 	kernel_netlink_close();
 	thread_cleanup_master(master);
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 	if (global_data->lvs_syncd.ifname)
 		ipvs_syncd_cmd(IPVS_STOPDAEMON, &global_data->lvs_syncd,
 		       (global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
@@ -354,7 +354,7 @@ reload_vrrp_thread(thread_t * thread)
 #endif
 	start_vrrp();
 
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 	if (global_data->lvs_syncd.ifname)
 		ipvs_syncd_cmd(IPVS_STARTDAEMON, &global_data->lvs_syncd,
 			       (global_data->lvs_syncd.vrrp->state == VRRP_STATE_MAST) ? IPVS_MASTER:
@@ -383,7 +383,6 @@ print_vrrp_stats(thread_t * thread)
 	vrrp_print_stats();
 	return 0;
 }
-
 
 /* VRRP Child respawning thread */
 #ifndef _DEBUG_

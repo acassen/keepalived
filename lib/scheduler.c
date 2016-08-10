@@ -22,6 +22,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@linux-vs.org>
  */
 
+#include "config.h"
+
 /* SNMP should be included first: it redefines "FREE" */
 #ifdef _WITH_SNMP_
 #include <net-snmp/net-snmp-config.h>

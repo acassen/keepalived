@@ -20,6 +20,8 @@
  * Copyright (C) 2015 Chris Riley, <kernelchris@gmail.com>
  */
 
+#include "config.h"
+
 /* global includes */
 #include <sys/socket.h>
 #include <linux/fib_rules.h>
@@ -73,13 +75,13 @@ rule_is_equal(const ip_rule_t *x, const ip_rule_t *y)
 	    x->fwmark != y->fwmark ||
 	    x->fwmask != y->fwmask ||
 	    x->realms != y->realms ||
-#ifdef _HAVE_FRA_SUPPRESS_PREFIXLEN_
+#if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
 	    x->suppress_prefix_len != y->suppress_prefix_len ||
 #endif
-#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 	    x->suppress_group != y->suppress_group ||
 #endif
-#ifdef _HAVE_FRA_TUN_ID_
+#if HAVE_DECL_FRA_TUN_ID
 	    x->tunnel_id != y->tunnel_id ||
 #endif
 	    !(x->iif) != !(y->iif) ||
@@ -169,12 +171,12 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 	if (iprule->realms)	// "realms u16[/u16] using rt_realms. after / is 16 msb (src), pre slash is 16 lsb (dest)"
 		addattr32(&req.n, sizeof(req), FRA_FLOW, iprule->realms);
 
-#ifdef _HAVE_FRA_SUPPRESS_PREFIXLEN_
+#if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
 	if (iprule->mask & IPRULE_BIT_SUP_PREFIXLEN)	// "suppress_prefixlength" - only valid if table !=0
 		addattr32(&req.n, sizeof(req), FRA_SUPPRESS_PREFIXLEN, iprule->suppress_prefix_len);
 #endif
 
-#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 	if (iprule->mask & IPRULE_BIT_SUP_GROUP)	// "suppress_ifgroup" or "sup_group" int32 - only valid if table !=0
 		addattr32(&req.n, sizeof(req), FRA_SUPPRESS_IFGROUP, iprule->suppress_group);
 #endif
@@ -182,12 +184,12 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 	if (iprule->iif)	// "dev/iif"
 		addattr_l(&req.n, sizeof(req), FRA_IFNAME, iprule->iif, strlen(iprule->iif->ifname)+1);
 
-#ifdef _HAVE_FRA_OIFNAME_
+#ifdef FRA_OIFNAME	/* Since Linux 2.6.32 */
 	if (iprule->oif)	// "oif"
 		addattr_l(&req.n, sizeof(req), FRA_OIFNAME, iprule->oif, strlen(iprule->oif->ifname)+1);
 #endif
 
-#ifdef _HAVE_FRA_TUN_ID_
+#if HAVE_DECL_FRA_TUN_ID
 	if (iprule->tunnel_id)
 		addattr64(&req.n, sizeof(req), FRA_TUN_ID, htonll(iprule->tunnel_id));
 #endif
@@ -285,28 +287,28 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 	}
 
 	if (rule->iif)
-#ifdef _HAVE_FRA_OIFNAME_
+#ifdef FRA_OIFNAME
 		op += snprintf(op, buf_end - op, " iif %s", rule->iif->ifname);
 #else
 		op += snprintf(op, buf_end - op, " dev %s", rule->iif->ifname);
 #endif
 
-#ifdef _HAVE_FRA_OIFNAME_
+#ifdef FRA_OIFNAME
 	if (rule->oif)
 		op += snprintf(op, buf_end - op, " oif %s", rule->oif->ifname);
 #endif
 
-#ifdef _HAVE_FRA_SUPPRESS_PREFIXLEN_
+#if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
 	if (rule->mask & IPRULE_BIT_SUP_PREFIXLEN)
 		op += snprintf(op, buf_end - op, " suppress_prefixlen %d", rule->suppress_prefix_len);
 #endif
 
-#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 	if (rule->mask & IPRULE_BIT_SUP_GROUP)
 		op += snprintf(op, buf_end - op, " suppress_ifgroup %d", rule->suppress_group);
 #endif
 
-#ifdef _HAVE_FRA_TUN_ID_
+#if HAVE_DECL_FRA_TUN_ID
 	if (rule->tunnel_id)
 		op += snprintf(op, buf_end - op, " tunnel-id %" PRIu64, rule->tunnel_id);
 #endif
@@ -345,7 +347,7 @@ alloc_rule(list rule_list, vector_t *strvec)
 	unsigned int i = 0;
 	unsigned int val, val1;
 	int family = AF_UNSPEC;
-#ifdef _HAVE_FRA_SUPPRESS_PREFIXLEN_
+#if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
 	int sval;
 #endif
 	interface_t *ifp;
@@ -486,7 +488,7 @@ fwmark_err:
 				goto err;
 			}
 		}
-#ifdef _HAVE_FRA_SUPPRESS_PREFIXLEN_
+#if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
 		else if (!strcmp(str, "suppress_prefixlength") || !strcmp(str, "sup_pl")) {
 			str = vector_slot(strvec, ++i);
 			sval = strtol(str, &end, 0);
@@ -499,7 +501,7 @@ fwmark_err:
 			table_option = true;
 		}
 #endif
-#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 		else if (!strcmp(str, "suppress_ifgroup") || !strcmp(str, "sup_group")) {
 			if (!find_rttables_group(vector_slot(strvec, ++i), &val)) {
 				log_message(LOG_INFO, "suppress_group %s is invalid", FMT_STR_VSLOT(strvec, i));
@@ -519,7 +521,7 @@ fwmark_err:
 			}
 			new->iif = ifp;
 		}
-#ifdef _HAVE_FRA_OIFNAME_
+#ifdef FRA_OIFNAME
 		else if (!strcmp(str, "oif")) {
 			str = vector_slot(strvec, ++i);
 			ifp = if_get_by_ifname(str);
@@ -530,7 +532,7 @@ fwmark_err:
 			new->oif = ifp;
 		}
 #endif
-#ifdef _HAVE_FRA_TUN_ID_
+#if HAVE_DECL_FRA_TUN_ID
 		else if (!strcmp(str, "tunnel-id")) {
 			uint64_t val64;
 			val64 = strtoull(vector_slot(strvec, ++i), &end, 0);

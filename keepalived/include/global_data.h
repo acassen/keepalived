@@ -32,8 +32,6 @@
 
 #ifdef HAVE_LINUX_NETFILTER_X_TABLES_H
 #include <linux/netfilter/x_tables.h>
-#else
-#define	XT_EXTENSION_MAXNAMELEN 29
 #endif
 
 #ifdef _HAVE_LIBIPSET_
@@ -44,7 +42,7 @@
 #include "list.h"
 #include "timer.h"
 #include "vrrp.h"
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 #include "ipvswrapper.h"
 #endif
 
@@ -71,7 +69,7 @@ typedef struct _data {
 	int				lvs_tcp_timeout;
 	int				lvs_tcpfin_timeout;
 	int				lvs_udp_timeout;
-#ifdef _HAVE_IPVS_SYNCD_
+#ifdef _WITH_LVS_
 	struct lvs_syncd_config		lvs_syncd;
 #endif
 	bool				lvs_flush;		/* flush any residual LVS config at startup */

@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 /* system includes */
 #include <unistd.h>
 #include <net/ethernet.h>
@@ -33,7 +35,7 @@
 #include "vrrp_if_config.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_ndisc.h"
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
 #include "bitops.h"
@@ -250,7 +252,7 @@ ndisc_init(void)
 
 	/* Create the socket descriptor */
 	ndisc_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC, htons(ETH_P_IPV6));
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 	set_sock_flags(ndisc_fd, F_SETFD, FD_CLOEXEC);
 #endif
 }

@@ -20,6 +20,8 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
+
 /* global include */
 #include <unistd.h>
 #include <string.h>
@@ -39,7 +41,7 @@ typedef uint8_t u8;
 #include <stdlib.h>
 #include <stdio.h>
 #include <linux/ethtool.h>
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
 
@@ -245,7 +247,7 @@ if_mii_probe(const char *ifname)
 	if (fd < 0)
 		return -1;
 
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
 		log_message(LOG_INFO, "Unable to set CLOEXEC on mii_probe socket - %s (%d)", strerror(errno), errno);
 #endif
@@ -298,7 +300,7 @@ if_ethtool_probe(const char *ifname)
 	if (fd < 0)
 		return -1;
 
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
 		log_message(LOG_INFO, "Unable to set CLOEXEC on ethtool_probe socket - %s (%d)", strerror(errno), errno);
 #endif
@@ -319,7 +321,7 @@ if_ioctl_flags(interface_t * ifp)
 	if (fd < 0)
 		return;
 
-#ifndef _HAVE_SOCK_CLOEXEC_
+#if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
 		log_message(LOG_INFO, "Unable to set CLOEXEC on ioctl_flags socket - %s (%d)", strerror(errno), errno);
 #endif
@@ -719,9 +721,8 @@ if_setsockopt_ipv6_checksum(int *sd)
 int
 if_setsockopt_mcast_all(sa_family_t family, int *sd)
 {
-#ifndef IP_MULTICAST_ALL
-	/* IP_MULTICAST_ALL sockopt is available since Linux 2.6.31.
-	 * It seems reasonable to just skip the calls to if_setsockopt_mcast_all
+#ifndef IP_MULTICAST_ALL	/* Since Linux 2.6.31 */
+	/* It seems reasonable to just skip the calls to if_setsockopt_mcast_all
 	 * if there is no support for that feature in header files */
 	return -1;
 #else

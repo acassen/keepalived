@@ -28,14 +28,14 @@ extern void clear_rt_names(void);
 extern bool find_rttables_table(const char *, uint32_t *);
 extern bool find_rttables_dsfield(const char *, uint32_t *);
 extern bool find_rttables_realms(const char *, uint32_t *);
-#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 extern bool find_rttables_group(const char *, uint32_t *);
 #endif
 extern bool find_rttables_proto(const char *, uint32_t *);
 extern bool find_rttables_scope(const char *, uint32_t *);
 extern bool find_rttables_rtntype(const char *, uint8_t *);
 extern const char *get_rttables_scope(uint32_t);
-#ifdef _HAVE_FRA_SUPPRESS_IFGROUP_
+#if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 extern const char *get_rttables_group(uint32_t);
 #endif
 extern const char *get_rttables_rtntype(uint8_t);
