@@ -59,6 +59,7 @@
 #include "vrrp_iproute.h"
 #endif
 
+#include <netinet/ip.h>
 #include <netinet/ip6.h>
 
 /* add/remove Virtual IP addresses */
