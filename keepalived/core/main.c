@@ -25,6 +25,7 @@
 #include "git-commit.h"
 
 #include <sys/resource.h>
+#include <stdbool.h>
 
 #include "main.h"
 #include "config.h"
@@ -32,6 +33,12 @@
 #include "pidfile.h"
 #include "bitops.h"
 #include "logger.h"
+#include "check_parser.h"
+#include "vrrp_parser.h"
+#include "global_parser.h"
+#if HAVE_DECL_CLONE_NEWNET
+#include "namespaces.h"
+#endif
 
 #define	LOG_FACILITY_MAX	7
 #define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" VERSION_DATE ")"
@@ -46,13 +53,16 @@ char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
 int log_facility = LOG_DAEMON;				/* Optional logging facilities */
 pid_t vrrp_child = -1;					/* VRRP child process ID */
 pid_t checkers_child = -1;				/* Healthcheckers child process ID */
-const char *main_pidfile = KEEPALIVED_PID_FILE;		/* overrule default pidfile */
-const char *checkers_pidfile = CHECKERS_PID_FILE;	/* overrule default pidfile */
-const char *vrrp_pidfile = VRRP_PID_FILE;		/* overrule default pidfile */
+const char *main_pidfile;				/* overrule default pidfile */
+const char *checkers_pidfile;				/* overrule default pidfile */
+const char *vrrp_pidfile;				/* overrule default pidfile */
 unsigned long daemon_mode = 0;				/* VRRP/CHECK subsystem selection */
 #ifdef _WITH_SNMP_
 int snmp = 0;						/* Enable SNMP support */
 const char *snmp_socket = NULL;				/* Socket to use for SNMP agent */
+#endif
+#if HAVE_DECL_CLONE_NEWNET
+char *syslog_ns_ident;					/* syslog ident for network namespaces */
 #endif
 
 /* Log facility table */
@@ -68,6 +78,47 @@ static bool set_core_dump_pattern = false;
 static bool create_core_dump = false;
 static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
+
+void
+free_parent_mallocs_startup(void)
+{
+#if HAVE_DECL_CLONE_NEWNET
+	free_dirname();
+	FREE_PTR(syslog_ns_ident);
+#endif
+}
+
+void
+free_parent_mallocs_exit(void)
+{
+#if HAVE_DECL_CLONE_NEWNET
+	FREE_PTR(network_namespace);
+#endif
+}
+
+#if HAVE_DECL_CLONE_NEWNET
+static vector_t *
+global_init_keywords(void)
+{
+	/* global definitions mapping */
+	init_global_keywords(false);
+
+#ifdef _WITH_VRRP_
+	init_vrrp_keywords(false);
+#endif
+#ifdef _WITH_LVS_
+	init_check_keywords(false);
+#endif
+
+	return keywords;
+}
+
+static void
+read_config_file(void)
+{
+	init_data(conf_file, global_init_keywords);
+}
+#endif
 
 /* Daemon stop sequence */
 static void
@@ -85,10 +136,6 @@ stop_keepalived(void)
 
 	if (__test_bit(DAEMON_CHECKERS, &daemon_mode))
 		pidfile_rm(checkers_pidfile);
-#endif
-
-#ifdef _MEM_CHECK_
-	keepalived_free_final("Parent process");
 #endif
 }
 
@@ -113,6 +160,31 @@ start_keepalived(void)
 static void
 propogate_signal(void *v, int sig)
 {
+
+#if HAVE_DECL_CLONE_NEWNET
+	if (sig == SIGHUP) {
+		/* Make sure there isn't an attempt to change the network namespace */
+		bool namespace_change = false;
+		char *old_network_namespace = network_namespace;
+		network_namespace = NULL;
+
+		/* The only parameter handled is net_namespace */
+		read_config_file();
+
+		if (!!old_network_namespace != !!network_namespace ||
+		    (network_namespace && strcmp(old_network_namespace, network_namespace))) {
+			log_message(LOG_INFO, "Cannot change network namespace at a reload - please restart %s", PACKAGE);
+			namespace_change = true;
+		}
+
+		FREE_PTR(network_namespace);
+		network_namespace = old_network_namespace;
+
+		if (namespace_change)
+			return;
+	}
+#endif
+
 	/* Signal child process */
 	if (vrrp_child > 0)
 		kill(vrrp_child, sig);
@@ -216,7 +288,9 @@ signal_init(void)
 /* To create a core file when abrt is running (a RedHat distribution),
  * and keepalived isn't installed from an RPM package, edit the file
  * “/etc/abrt/abrt.conf”, and change the value of the field
- * “ProcessUnpackaged” to “yes”. */
+ * “ProcessUnpackaged” to “yes”.
+ *
+ * Alternatively, use the -M command line option. */
 static void
 update_core_dump_pattern(const char *pattern_str)
 {
@@ -450,7 +524,10 @@ parse_cmdline(int argc, char **argv)
 int
 keepalived_main(int argc, char **argv)
 {
-	int report_stopped = true;
+	bool report_stopped = true;
+#if HAVE_DECL_CLONE_NEWNET
+	bool using_namespaces = false;
+#endif
 
 	/* Init debugging level */
 	debug = 0;
@@ -465,8 +542,7 @@ keepalived_main(int argc, char **argv)
 	 */
 	parse_cmdline(argc, argv);
 
-	openlog(PACKAGE_NAME, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
-		    , log_facility);
+	openlog(PACKAGE_NAME, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0) , log_facility);
 
 	if (__test_bit(LOG_CONSOLE_BIT, &debug))
 		enable_console_log();
@@ -478,11 +554,64 @@ keepalived_main(int argc, char **argv)
 #endif
 
 #ifdef _MEM_CHECK_
-	mem_log_init(PACKAGE);
+	mem_log_init(PACKAGE_NAME, "Parent process", false);
 #endif
 
 	/* Handle any core file requirements */
 	core_dump_init();
+
+	/* Check we can read the configuration file(s).
+ 	   NOTE: the working directory will be / if we
+ 	   forked, but will be the current working directory
+ 	   when keepalived was run if we haven't forked.
+ 	   This means that if any config file names are not
+ 	   absolute file names, the behaviour will be different
+ 	   depending on whether we forked or not. */
+	if (!check_conf_file(conf_file))
+		goto end;
+
+#if HAVE_DECL_CLONE_NEWNET
+	read_config_file();
+
+	if (network_namespace) {
+		syslog_ns_ident = MALLOC(strlen(PACKAGE_NAME) + 1 + strlen(network_namespace) + 1);
+
+		if (syslog_ns_ident) {
+			strcpy(syslog_ns_ident, PACKAGE_NAME);
+			strcat(syslog_ns_ident, "_");
+			strcat(syslog_ns_ident, network_namespace);
+
+			log_message(LOG_INFO, "Changing syslog ident to %s", syslog_ns_ident);
+			closelog();
+			openlog(syslog_ns_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0), log_facility);
+		}
+		else
+			log_message(LOG_INFO, "Unable to change syslog ident to %s_%s", PACKAGE_NAME, network_namespace);
+
+		if (!set_namespaces(network_namespace)) {
+			log_message(LOG_ERR, "Unable to set network namespace %s - exiting", network_namespace);
+			goto end;
+		}
+
+		if (!main_pidfile)
+			main_pidfile = NAMESPACE_PID_DIR KEEPALIVED_PID_FILE;
+		if (!checkers_pidfile)
+			checkers_pidfile = NAMESPACE_PID_DIR CHECKERS_PID_FILE;
+		if (!vrrp_pidfile)
+			vrrp_pidfile = NAMESPACE_PID_DIR VRRP_PID_FILE;
+
+		using_namespaces = true;
+	}
+	else
+#endif
+	{
+		if (!main_pidfile)
+			main_pidfile = PID_DIR KEEPALIVED_PID_FILE;
+		if (!checkers_pidfile)
+			checkers_pidfile = PID_DIR CHECKERS_PID_FILE;
+		if (!vrrp_pidfile)
+			vrrp_pidfile = PID_DIR VRRP_PID_FILE;
+	}
 
 	/* Check if keepalived is already running */
 	if (keepalived_running(daemon_mode)) {
@@ -495,15 +624,9 @@ keepalived_main(int argc, char **argv)
 	if (!__test_bit(DONT_FORK_BIT, &debug))
 		xdaemon(0, 0, 0);
 
-	/* Check we can read the configuration file(s).
- 	   NOTE: the working directory will be / if we
- 	   forked, but will be the current working directory
- 	   when keepalived was run if we haven't forked.
- 	   This means that if any config file names are not
- 	   absolute file names, the behaviour will be different
- 	   depending on whether we forked or not. */
-	if (!check_conf_file(conf_file))
-		goto end;
+#ifdef _MEM_CHECK_
+	enable_mem_log_termination();
+#endif
 
 	/* write the father's pidfile */
 	if (!pidfile_write(main_pidfile, getpid()))
@@ -541,10 +664,23 @@ end:
 #endif
 	}
 
+#if HAVE_DECL_CLONE_NEWNET
+	if (using_namespaces)
+		clear_namespaces();
+
+	FREE_PTR(network_namespace);
+#endif
+
 	/* Restore original core_pattern if necessary */
 	if (orig_core_dump_pattern)
 		update_core_dump_pattern(orig_core_dump_pattern);
 
 	closelog();
+
+#if HAVE_DECL_CLONE_NEWNET
+	if (syslog_ns_ident)
+		FREE_PTR(syslog_ns_ident);
+#endif
+
 	exit(0);
 }

@@ -26,6 +26,8 @@
 
 #include <netdb.h>
 #include <stdlib.h>
+#include <stdbool.h>
+
 #include "global_parser.h"
 #include "global_data.h"
 #include "check_data.h"
@@ -34,6 +36,14 @@
 #include "smtp.h"
 #include "utils.h"
 #include "logger.h"
+
+#ifdef HAVE_DECL_CLONE_NEWNET
+#include "namespaces.h"
+#endif
+
+#ifdef _WITH_SNMP_
+#include "snmp.h"
+#endif
 
 #define LVS_MAX_TIMEOUT		(86400*31)	/* 31 days */
 
@@ -589,13 +599,48 @@ snmp_checker_handler(vector_t *strvec)
 }
 #endif
 #endif
+#if HAVE_DECL_CLONE_NEWNET
+static void
+net_namespace_handler(vector_t *strvec)
+{
+	/* If we are reloading, there has already been a check that the
+	 * namespace hasn't changed */ 
+	if (!reload) {
+		if (!network_namespace)
+			network_namespace = set_value(strvec);
+		else if (!global_data)	/* We only need to check in the parent, since the children will be the same as the parent */
+			log_message(LOG_INFO, "Duplicate net_namespace definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+	}
+
+#ifdef _WITH_SNMP_
+	/* Multiple instances of keepalived cannot register the same MIB
+	 * with the same instance of snmpd. In order for snmpd to work
+	 * with multiple instances of keepalived, there would need to be
+	 * one instance of snmpd per keepalived instance. Using unix domain
+	 * sockets will not work for this, so set the default snmp_socket
+	 * to udp:localhost:705 which will enable keepalived to communicate
+	 * with its own instance of snmpd running in the same network namespace. */
+	if (global_data && !global_data->snmp_socket) {
+		global_data->snmp_socket = MALLOC(strlen(SNMP_DEFAULT_NETWORK_SOCKET) + 1);
+		if (!global_data->snmp_socket) {
+			log_message(LOG_INFO, "Unable to set default SNMP socket for network namespace");
+			return;
+		}
+		strcpy(global_data->snmp_socket, SNMP_DEFAULT_NETWORK_SOCKET);
+	}
+#endif
+}
+#endif
 
 void
-global_init_keywords(void)
+init_global_keywords(bool global_active)
 {
 	/* global definitions mapping */
-	install_keyword_root("linkbeat_use_polling", use_polling_handler, true);
-	install_keyword_root("global_defs", NULL, true);
+	install_keyword_root("linkbeat_use_polling", use_polling_handler, global_active);
+#if HAVE_DECL_CLONE_NEWNET
+	install_keyword_root("net_namespace", &net_namespace_handler, true);
+#endif
+	install_keyword_root("global_defs", NULL, global_active);
 	install_keyword("router_id", &routerid_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);
 	install_keyword("smtp_server", &smtpserver_handler);

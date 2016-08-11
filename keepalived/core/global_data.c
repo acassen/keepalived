@@ -223,6 +223,10 @@ free_global_data(data_t * data)
 	FREE_PTR(data->lvs_syncd.ifname);
 	FREE_PTR(data->lvs_syncd.vrrp_name);
 #endif
+#if HAVE_DECL_CLONE_NEWNET
+	if (!reload)
+		FREE_PTR(network_namespace);
+#endif
 	FREE(data);
 }
 
@@ -278,7 +282,7 @@ dump_global_data(data_t * data)
 #endif
 	}
 #endif
-	log_message(LOG_INFO, "LVS flush = %s", data->lvs_flush ? "true" : "false");
+	log_message(LOG_INFO, " LVS flush = %s", data->lvs_flush ? "true" : "false");
 #endif
 #ifdef _WITH_VRRP_
 	if (data->vrrp_mcast_group4.ss_family) {
@@ -340,5 +344,8 @@ dump_global_data(data_t * data)
 #ifdef _WITH_SNMP_
 	log_message(LOG_INFO, " SNMP traps %s", data->enable_traps ? "enabled" : "disabled");
 	log_message(LOG_INFO, " SNMP socket = %s", data->snmp_socket ? data->snmp_socket : "default (unix:/var/agentx/master)");
+#endif
+#if HAVE_DECL_CLONE_NEWNET
+	log_message(LOG_INFO, " Network namespace = %s", network_namespace ? network_namespace : "(default)");
 #endif
 }

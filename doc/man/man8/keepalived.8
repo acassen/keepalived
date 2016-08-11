@@ -88,15 +88,20 @@ Dump the configuration data.
 .TP
 \fB -p, --pid\fP=FILE
 Use the specified pidfile for the parent keepalived process. The default
-pidfile for keepalived is "/var/run/keepalived.pid".
+pidfile for keepalived is "/var/run/keepalived.pid", unless a network
+namespace is being used. See
+.B NAMESPACES
+below for more details.
 .TP
 \fB -r, --vrrp_pid\fP=FILE
 Use the specified pidfile for the VRRP child process. The default pidfile
-for the VRRP child process is "/var/run/keepalived_vrrp.pid".
+for the VRRP child process is "/var/run/keepalived_vrrp.pid", unless a
+network namespace is being used.
 .TP
 \fB -c, --checkers_pid\fP=FILE
 Use the specified pidfile for checkers child process. The default pidfile
-for the checker child process is "/var/run/keepalived_checkers.pid".
+for the checker child process is "/var/run/keepalived_checkers.pid" unless
+a network namespace is being used.
 .TP
 \fB -x, --snmp\fP
 Enable the SNMP subsystem.
@@ -126,6 +131,19 @@ Display the version and exit.
 .TP
 \fB -h, --help\fP
 Display this help message and exit.
+
+.SH NAMESPACES
+.B keepalived
+can be run in a network namespace (see
+\fBkeepalived.conf\fP(5) for configuration details). When
+run in a network namespace, a local mount namespace is also
+created, and /var/run/keepalived/keepalived_NamespaceName
+is mounted on /var/run/keepalived. By default, pid files with
+the usual default names are then created in
+/var/run/keepalived from the perspective of a process in the
+mount namespace, and they will be visible in
+/var/run/keepalived/keepalived_NamespaceName for a process
+running in the default mount namespace.
 
 .SH SIGNALS
 .B keepalived

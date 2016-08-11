@@ -59,6 +59,12 @@ extern const char *vrrp_pidfile;	/* overrule default pidfile */
 extern int snmp;			/* Enable SNMP support */
 extern const char *snmp_socket;		/* Socket to use for SNMP agent */
 #endif
-extern int keepalived_main(int, char**); /* The "real" main function */
+#ifdef HAVE_DECL_CLONE_NEWNET
+extern char *network_namespace;		/* network namespace name */
+#endif
 
+extern void free_parent_mallocs_startup(void);
+extern void free_parent_mallocs_exit(void);
+
+extern int keepalived_main(int, char**); /* The "real" main function */
 #endif

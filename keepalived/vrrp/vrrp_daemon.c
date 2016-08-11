@@ -22,6 +22,8 @@
 
 #include "config.h"
 
+#include <string.h>
+
 #include "vrrp_daemon.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_if.h"
@@ -65,7 +67,9 @@ static int print_vrrp_data(thread_t * thread);
 static int print_vrrp_stats(thread_t * thread);
 static int reload_vrrp_thread(thread_t * thread);
 
-
+#if HAVE_DECL_CLONE_NEWNET
+static char *vrrp_syslog_ident;
+#endif
 
 /* Daemon stop sequence */
 static void
@@ -126,10 +130,7 @@ stop_vrrp(int status)
 	free_vrrp_data(vrrp_data);
 	free_vrrp_buffer();
 	free_interface_queue();
-
-#ifdef _MEM_CHECK_
-	keepalived_free_final("VRRP Child process");
-#endif
+	free_parent_mallocs_exit();
 
 	/*
 	 * Reached when terminate signal catched.
@@ -138,6 +139,9 @@ stop_vrrp(int status)
 	log_message(LOG_INFO, "Stopped");
 
 	closelog();
+#if HAVE_DECL_CLONE_NEWNET
+	FREE_PTR(vrrp_syslog_ident);
+#endif
 
 	exit(status);
 }
@@ -160,11 +164,12 @@ start_vrrp(void)
 
 	/* Parse configuration file */
 	vrrp_data = alloc_vrrp_data();
-	init_data(conf_file, vrrp_init_keywords);
 	if (!vrrp_data) {
 		stop_vrrp(KEEPALIVED_EXIT_FATAL);
 		return;
 	}
+	init_data(conf_file, vrrp_init_keywords);
+
 	init_global_data(global_data);
 
 	/* Set the process priority and non swappable if configured */
@@ -331,6 +336,7 @@ reload_vrrp_thread(thread_t * thread)
 										 IPVS_BACKUP,
 		       true, false);
 #endif
+
 	free_global_data(global_data);
 	free_vrrp_buffer();
 	gratuitous_arp_close();
@@ -420,6 +426,7 @@ start_vrrp_child(void)
 #ifndef _DEBUG_
 	pid_t pid;
 	int ret;
+	char *syslog_ident;
 
 	/* Initialize child process */
 	pid = fork();
@@ -439,14 +446,33 @@ start_vrrp_child(void)
 		return 0;
 	}
 
+	free_parent_mallocs_startup();
+
 	signal_handler_destroy();
 
 	/* Opening local VRRP syslog channel */
-	openlog(PROG_VRRP, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
-			 , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
+#if HAVE_DECL_CLONE_NEWNET
+	if (network_namespace) {
+		syslog_ident = MALLOC(strlen(PROG_VRRP) + 1 + strlen (network_namespace) + 1);
+		if (syslog_ident) {
+			strcpy(syslog_ident, PROG_VRRP);
+			strcat(syslog_ident, "_");
+			strcat(syslog_ident, network_namespace);
+
+			vrrp_syslog_ident = syslog_ident;
+		}
+		else
+			syslog_ident = PROG_VRRP;
+	}
+	else
+#endif
+		syslog_ident = PROG_VRRP;
+
+	openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
+			    , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
 
 #ifdef _MEM_CHECK_
-	mem_log_init(PROG_VRRP);
+	mem_log_init(PROG_VRRP, "VRRP Child process", true);
 #endif
 
 	/* Child process part, write pidfile */
@@ -485,6 +511,7 @@ start_vrrp_child(void)
 	launch_scheduler();
 
 	/* Finish VRRP daemon process */
+//TODO - stop_vrrp doesn't return
 	stop_vrrp(EXIT_SUCCESS);
 
 	/* unreachable */

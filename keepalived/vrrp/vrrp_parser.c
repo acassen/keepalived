@@ -894,7 +894,7 @@ vector_t *
 vrrp_init_keywords(void)
 {
 	/* global definitions mapping */
-	global_init_keywords();
+	init_global_keywords(true);
 
 	init_vrrp_keywords(true);
 #ifdef _WITH_LVS_

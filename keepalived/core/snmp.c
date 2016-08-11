@@ -90,17 +90,20 @@ snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
 	return NULL;
 }
 
-#define SNMP_KEEPALIVEDVERSION 1
-#define SNMP_ROUTERID 2
-#define SNMP_MAIL_SMTPSERVERADDRESSTYPE 3
-#define SNMP_MAIL_SMTPSERVERADDRESS 4
-#define SNMP_MAIL_SMTPSERVERTIMEOUT 5
-#define SNMP_MAIL_EMAILFROM 6
-#define SNMP_MAIL_EMAILADDRESS 7
-#define SNMP_TRAPS 8
-#define SNMP_LINKBEAT 9
-#define SNMP_LVSFLUSH 10
-#define SNMP_IPVS_64BIT_STATS 11
+enum snmp_global_magic {
+	SNMP_KEEPALIVEDVERSION,
+	SNMP_ROUTERID,
+	SNMP_MAIL_SMTPSERVERADDRESSTYPE,
+	SNMP_MAIL_SMTPSERVERADDRESS,
+	SNMP_MAIL_SMTPSERVERTIMEOUT,
+	SNMP_MAIL_EMAILFROM,
+	SNMP_MAIL_EMAILADDRESS,
+	SNMP_TRAPS,
+	SNMP_LINKBEAT,
+	SNMP_LVSFLUSH,
+	SNMP_IPVS_64BIT_STATS,
+	SNMP_NET_NAMESPACE,
+};
 
 static u_char*
 snmp_scalar(struct variable *vp, oid *name, size_t *length,
@@ -156,6 +159,15 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		long_ret = 2;
 #endif
 		return (u_char *)&long_ret;
+	case SNMP_NET_NAMESPACE:
+#if HAVE_DECL_CLONE_NEWNET
+		if (network_namespace) {
+			*var_len = strlen(network_namespace);
+			return (u_char *)network_namespace;
+		}
+#endif
+		*var_len = 0;
+		return (u_char *)"";
 	default:
 		break;
 	}
@@ -206,7 +218,7 @@ static struct variable8 global_vars[] = {
 	/* LVS 64-bit stats */
 	{SNMP_IPVS_64BIT_STATS, ASN_INTEGER, RONLY, snmp_scalar, 1, {7}},
 #endif
-
+	{SNMP_NET_NAMESPACE, ASN_OCTET_STR, RONLY, snmp_scalar, 1, {8}},
 };
 
 static int
