@@ -26,6 +26,7 @@
 
 /* system includes */
 #include <stdlib.h>
+#include <stdbool.h>
 
 /* Local defines */
 #ifdef _MEM_CHECK_
@@ -48,8 +49,9 @@ extern void *keepalived_malloc(size_t, char *, char *, int)
 extern int keepalived_free(void *, char *, char *, int);
 extern void *keepalived_realloc(void *, size_t, char *, char *, int)
 		__attribute__((alloc_size(2)));
-extern void keepalived_free_final(char *);
-extern void mem_log_init(const char *);
+
+extern void mem_log_init(const char *, const char*, bool);
+extern void enable_mem_log_termination(void);
 
 #else
 

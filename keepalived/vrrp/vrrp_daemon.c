@@ -130,10 +130,6 @@ stop_vrrp(int status)
 	free_vrrp_data(vrrp_data);
 	free_vrrp_buffer();
 	free_interface_queue();
-
-#ifdef _MEM_CHECK_
-	keepalived_free_final("VRRP Child process");
-#endif
 	free_parent_mallocs_exit();
 
 	/*
@@ -476,7 +472,7 @@ start_vrrp_child(void)
 			    , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
 
 #ifdef _MEM_CHECK_
-	mem_log_init(PROG_VRRP);
+	mem_log_init(PROG_VRRP, "VRRP Child process", true);
 #endif
 
 	/* Child process part, write pidfile */

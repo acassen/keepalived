@@ -29,6 +29,7 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <stdlib.h>
 #endif
 
 #include <errno.h>
@@ -43,6 +44,8 @@
 /* Global var */
 size_t mem_allocated;		/* Total memory used in Bytes */
 size_t max_mem_allocated;	/* Maximum memory used in Bytes */
+
+const char *terminate_banner;	/* banner string for report file */
 #endif
 
 static void *
@@ -257,14 +260,14 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 	return n;
 }
 
-void
-keepalived_free_final(char *banner)
+static void
+keepalived_free_final(void)
 {
 	unsigned int sum = 0, overrun = 0, badptr = 0;
 	int i, j;
 	i = 0;
 
-	fprintf(log_op, "\n---[ Keepalived memory dump for (%s)]---\n\n", banner);
+	fprintf(log_op, "\n---[ Keepalived memory dump for (%s)]---\n\n", terminate_banner);
 
 	while (i < number_alloc_list) {
 		switch (alloc_list[i].type) {
@@ -321,7 +324,7 @@ keepalived_free_final(char *banner)
 		i++;
 	}
 
-	fprintf(log_op, "\n\n---[ Keepalived memory dump summary for (%s) ]---\n", banner);
+	fprintf(log_op, "\n\n---[ Keepalived memory dump summary for (%s) ]---\n", terminate_banner);
 	fprintf(log_op, "Total number of bytes not freed...: %d\n", sum);
 	fprintf(log_op, "Number of entries not freed.......: %d\n", n);
 	fprintf(log_op, "Maximum allocated entries.........: %d\n", number_alloc_list);
@@ -411,7 +414,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 }
 
 void
-mem_log_init(const char* prog_name)
+mem_log_init(const char* prog_name, const char *banner, bool enable)
 {
 	size_t log_name_len;
 	char *log_name;
@@ -453,5 +456,15 @@ mem_log_init(const char* prog_name)
 	}
 
 	free(log_name);
+
+	terminate_banner = banner;
+
+	if (enable)
+		atexit(keepalived_free_final);
+}
+
+void enable_mem_log_termination(void)
+{
+	atexit(keepalived_free_final);
 }
 #endif

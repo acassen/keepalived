@@ -137,10 +137,6 @@ stop_keepalived(void)
 	if (__test_bit(DAEMON_CHECKERS, &daemon_mode))
 		pidfile_rm(checkers_pidfile);
 #endif
-
-#ifdef _MEM_CHECK_
-	keepalived_free_final("Parent process");
-#endif
 }
 
 /* Daemon init sequence */
@@ -558,7 +554,7 @@ keepalived_main(int argc, char **argv)
 #endif
 
 #ifdef _MEM_CHECK_
-	mem_log_init(PACKAGE_NAME);
+	mem_log_init(PACKAGE_NAME, "Parent process", false);
 #endif
 
 	/* Handle any core file requirements */
@@ -628,6 +624,9 @@ keepalived_main(int argc, char **argv)
 	if (!__test_bit(DONT_FORK_BIT, &debug))
 		xdaemon(0, 0, 0);
 
+#ifdef _MEM_CHECK_
+	enable_mem_log_termination();
+#endif
 
 	/* write the father's pidfile */
 	if (!pidfile_write(main_pidfile, getpid()))

@@ -78,10 +78,6 @@ stop_check(int status)
 #ifdef _WITH_VRRP_
 	free_interface_queue();
 #endif
-
-#ifdef _MEM_CHECK_
-	keepalived_free_final("Healthcheck child process");
-#endif
 	free_parent_mallocs_exit();
 
 	/*
@@ -326,7 +322,7 @@ start_check_child(void)
 			    , (log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
 
 #ifdef _MEM_CHECK_
-	mem_log_init(PROG_CHECK);
+	mem_log_init(PROG_CHECK, "Healthcheck child process", true);
 #endif
 
 	/* Child process part, write pidfile */
