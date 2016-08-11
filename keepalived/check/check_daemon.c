@@ -22,6 +22,8 @@
 
 #include "config.h"
 
+#include <string.h>
+
 #include "check_daemon.h"
 #include "check_parser.h"
 #include "ipwrapper.h"
@@ -44,6 +46,10 @@
 #include "vrrp_if.h"
 #ifdef _WITH_SNMP_CHECKER_
   #include "check_snmp.h"
+#endif
+
+#if HAVE_DECL_CLONE_NEWNET
+static char *check_syslog_ident;
 #endif
 
 /* Daemon stop sequence */
@@ -76,6 +82,7 @@ stop_check(int status)
 #ifdef _MEM_CHECK_
 	keepalived_free_final("Healthcheck child process");
 #endif
+	free_parent_mallocs_exit();
 
 	/*
 	 * Reached when terminate signal catched.
@@ -84,6 +91,10 @@ stop_check(int status)
 	log_message(LOG_INFO, "Stopped");
 
 	closelog();
+#if HAVE_DECL_CLONE_NEWNET
+	FREE_PTR(check_syslog_ident);
+#endif
+
 	exit(status);
 }
 
@@ -210,6 +221,7 @@ reload_check_thread(thread_t * thread)
 #endif
 	thread_cleanup_master(master);
 	free_global_data(global_data);
+
 	free_checkers_queue();
 #ifdef _WITH_VRRP_
 	free_interface_queue();
@@ -270,6 +282,7 @@ start_check_child(void)
 #ifndef _DEBUG_
 	pid_t pid;
 	int ret;
+	char *syslog_ident;
 
 	/* Initialize child process */
 	pid = fork();
@@ -289,12 +302,31 @@ start_check_child(void)
 		return 0;
 	}
 
+#if HAVE_DECL_CLONE_NEWNET
+	free_parent_mallocs_startup();
+
+	if (network_namespace) {
+		syslog_ident = MALLOC(strlen(PROG_CHECK) + 1 + strlen (network_namespace) + 1);
+		if (syslog_ident) {
+			strcpy(syslog_ident, PROG_CHECK);
+			strcat(syslog_ident, "_");
+			strcat(syslog_ident, network_namespace);
+
+			check_syslog_ident = syslog_ident;
+		}
+		else
+			syslog_ident = PROG_CHECK;
+	}
+	else
+#endif
+		syslog_ident = PROG_CHECK;
+
 	/* Opening local CHECK syslog channel */
-	openlog(PROG_CHECK, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
-			  , (log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
+	openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
+			    , (log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
 
 #ifdef _MEM_CHECK_
-        mem_log_init(PROG_CHECK);
+	mem_log_init(PROG_CHECK);
 #endif
 
 	/* Child process part, write pidfile */

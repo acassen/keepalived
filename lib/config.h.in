@@ -23,6 +23,10 @@
 /* Define to 1 if you have the <asm/types.h> header file. */
 #undef HAVE_ASM_TYPES_H
 
+/* Define to 1 if you have the declaration of `CLONE_NEWNET', and to 0 if you
+   don't. */
+#undef HAVE_DECL_CLONE_NEWNET
+
 /* Define to 1 if you have the declaration of `ETHERTYPE_IPV6', and to 0 if
    you don't. */
 #undef HAVE_DECL_ETHERTYPE_IPV6
@@ -315,6 +319,9 @@
 
 /* Define to 1 if you have the `setenv' function. */
 #undef HAVE_SETENV
+
+/* Define to 1 if you have the `setns' function. */
+#undef HAVE_SETNS
 
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET

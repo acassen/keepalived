@@ -629,6 +629,8 @@ BUILD_DOCS_FALSE
 BUILD_DOCS_TRUE
 HAVE_SPHINX_BUILD
 SPHINXBUILDNAME
+WITH_NAMESPACES_FALSE
+WITH_NAMESPACES_TRUE
 SNMP_RFCV3_FALSE
 SNMP_RFCV3_TRUE
 SNMP_RFCV2_FALSE
@@ -8210,6 +8212,39 @@ fi
 
 fi
 
+CFLAGS=-D_GNU_SOURCE
+ac_fn_c_check_decl "$LINENO" "CLONE_NEWNET" "ac_cv_have_decl_CLONE_NEWNET" "#include <sched.h>
+"
+if test "x$ac_cv_have_decl_CLONE_NEWNET" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_CLONE_NEWNET $ac_have_decl
+_ACEOF
+
+for ac_func in setns
+do :
+  ac_fn_c_check_func "$LINENO" "setns" "ac_cv_func_setns"
+if test "x$ac_cv_func_setns" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SETNS 1
+_ACEOF
+
+fi
+done
+
+ if test $ac_cv_have_decl_CLONE_NEWNET = yes; then
+  WITH_NAMESPACES_TRUE=
+  WITH_NAMESPACES_FALSE='#'
+else
+  WITH_NAMESPACES_TRUE='#'
+  WITH_NAMESPACES_FALSE=
+fi
+
+
 if test -z "$SPHINXBUILD"; then
   SPHINXBUILDNAME=sphinx-build
 else
@@ -8507,6 +8542,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${SNMP_RFCV3_TRUE}" && test -z "${SNMP_RFCV3_FALSE}"; then
   as_fn_error $? "conditional \"SNMP_RFCV3\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${WITH_NAMESPACES_TRUE}" && test -z "${WITH_NAMESPACES_FALSE}"; then
+  as_fn_error $? "conditional \"WITH_NAMESPACES\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${BUILD_DOCS_TRUE}" && test -z "${BUILD_DOCS_FALSE}"; then

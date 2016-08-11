@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201607260000Z"
+     LAST-UPDATED "201608030000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201608030000Z"
+     DESCRIPTION "net-namespace added"
      REVISION "201607260000Z"
      DESCRIPTION "64-bit stats added"
      REVISION "201607100000Z"
@@ -255,6 +257,14 @@ ipvs64BitStats OBJECT-TYPE
     DESCRIPTION
         "True if 64-bit stats counters are available for ipvs, false otherwise."
     ::= { global 7 }
+
+netNamespace OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "The name of the net namespace keepalived is running in."
+    ::= { global 8 }
 
 -- ----------------------------------------------------------------------
 -- VRRP part
@@ -3333,7 +3343,8 @@ globalGroup OBJECT-GROUP
     trapEnable,
     linkBeat,
     lvsFlush,
-    ipvs64BitStats
+    ipvs64BitStats,
+    netNamespace
     }
     STATUS current
     DESCRIPTION

@@ -375,7 +375,7 @@ vector_t *
 check_init_keywords(void)
 {
 	/* global definitions mapping */
-	global_init_keywords();
+	init_global_keywords(true);
 
 	init_check_keywords(true);
 #ifdef _WITH_VRRP_

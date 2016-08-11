@@ -101,6 +101,7 @@ global_defs {				# Block identification
 					   # Note: keepalived, checker and rfc support can be
 					   #   individually enabled/disabled
     snmp_socket <PROTOCOL>:<ADDRESS>[:<PORT>] # specify socket to use for connecting to SNMP master agent (default unix:/var/agentx/master)
+					   #   unless using a network namespace, when the default is udp:localhost:705
     enable_snmp_keepalived		   # enable SNMP handling of vrrp element of KEEPALIVED MIB
     enable_snmp_checker			   # enable SNMP handling of checker element of KEEPALIVED MIB
     enable_snmp_rfc			   # enable SNMP handling of RFC2787 and RFC6527 VRRP MIBs
@@ -109,7 +110,13 @@ global_defs {				# Block identification
     enable_traps			   # enable SNMP trap generation
 }
 
-linkbeat_use_polling	# Use media link failure detection polling fashion
+net_namespace NAME			   # Set the network namespace to run in
+					   # The directory /var/run/keepalived will be created as an unshared mount point,
+					   #   for example for pid files.
+					   # syslog entries will have _NAME appended to the ident.
+					   # Note: the namespace cannot be changed on a configuration reload
+
+linkbeat_use_polling			   # Use media link failure detection polling fashion
 
 	1.2. Static addresses
 

@@ -44,6 +44,8 @@ int header_generic(struct variable *, oid *, size_t *, int,
 #include "list.h"
 #include "utils.h"
 
+#define SNMP_DEFAULT_NETWORK_SOCKET	"udp:localhost:705"
+
 #define KEEPALIVED_OID 1, 3, 6, 1, 4, 1, 9586, 100, 5
 #define SNMPTRAP_OID 1, 3, 6, 1, 6, 3, 1, 1, 4, 1, 0
 #define GLOBAL_OID {KEEPALIVED_OID, 1}

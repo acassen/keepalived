@@ -23,9 +23,9 @@
 #ifndef _GLOBAL_PARSER_H
 #define _GLOBAL_PARSER_H
 
-/* local include */
+#include <stdbool.h>
 
 /* Prototypes */
-extern void global_init_keywords(void);
+extern void init_global_keywords(bool);
 
 #endif

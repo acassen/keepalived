@@ -778,6 +778,14 @@ if test "${enable_fwmark}" != no; then
     [[#include <sys/socket.h>]])
 fi
 
+dnl ---[ check for setns() ]----
+dnl -- CLONE_NEWNET defined from Linux 3.0
+CFLAGS=-D_GNU_SOURCE
+AC_CHECK_DECLS([CLONE_NEWNET], [], [], [[#include <sched.h>]])
+dnl -- From glibc 2.14. Otherwise use setns syscall, since Linux 2.4.x
+AC_CHECK_FUNCS([setns])
+AM_CONDITIONAL([WITH_NAMESPACES], [test $ac_cv_have_decl_CLONE_NEWNET = yes])
+
 dnl ---[ check for sphinx-build executable ]----
 if test -z "$SPHINXBUILD"; then
   SPHINXBUILDNAME=sphinx-build
