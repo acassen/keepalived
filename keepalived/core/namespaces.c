@@ -31,7 +31,7 @@
  * (/var/run/keepalived/keepalived.PID) on /var/run/keepalived, so keepalived will
  * write its usual pid files (but to /var/run/keepalived rather than to /var/run),
  * and outside the mount namespace these will be visible at
- * /var/run/keepalived/leepalived.PID
+ * /var/run/keepalived/keepalived.PID
  *
  * If you are familiar with network namespaces, then you will know what you can do
  * with them. If not, then the following scenarios should give you an idea of what
