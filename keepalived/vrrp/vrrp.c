@@ -2235,6 +2235,13 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->vipset = true;	/* Set to force address removal */
 		vrrp_restore_interface(vrrp, false, true);
 	}
+
+	/* If we are adding a large number of interfaces, the netlink socket
+	 * may run out of buffers if we don't receive the netlink messages
+	 * as we progress */
+	kernel_netlink_poll();
+
+	return 1;
 }
 
 int

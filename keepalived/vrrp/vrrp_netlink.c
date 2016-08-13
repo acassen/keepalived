@@ -537,7 +537,10 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				continue;
 			if (errno == EWOULDBLOCK || errno == EAGAIN)
 				break;
-			log_message(LOG_INFO, "Netlink: Received message overrun (%m)");
+			if (errno == ENOBUFS)
+				log_message(LOG_INFO, "Netlink: Received message overrun - (%m)");
+			else
+				log_message(LOG_INFO, "Netlink: recvmsg error - %d (%m)", errno);
 			continue;
 		}
 
@@ -1024,6 +1027,12 @@ kernel_netlink(thread_t * thread)
 	nl->thread = thread_add_read(master, kernel_netlink, nl, nl->fd,
 				      NETLINK_TIMER);
 	return 0;
+}
+
+void
+kernel_netlink_poll(void)
+{
+	netlink_parse_info(netlink_broadcast_filter, &nl_kernel, NULL);
 }
 
 void
