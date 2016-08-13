@@ -53,6 +53,7 @@
 #include "utils.h"
 #include "notify.h"
 #include "bitops.h"
+#include "vrrp_netlink.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
@@ -2234,8 +2235,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->vipset = true;	/* Set to force address removal */
 		vrrp_restore_interface(vrrp, false, true);
 	}
-
-	return 1;
 }
 
 int
@@ -2452,11 +2451,7 @@ vrrp_complete_init(void)
 bool
 vrrp_ipvs_needed(void)
 {
-#ifdef _WITH_LVS_
 	return !!(global_data->lvs_syncd.ifname);
-#else
-	return false;
-#endif
 }
 #endif
 
