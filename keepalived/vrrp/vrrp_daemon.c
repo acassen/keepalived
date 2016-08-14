@@ -202,13 +202,11 @@ start_vrrp(void)
 		    global_data->lvs_udp_timeout)
 			ipvs_set_timeouts(global_data->lvs_tcp_timeout, global_data->lvs_tcpfin_timeout, global_data->lvs_udp_timeout);
 
-#ifdef _WITH_LVS_
 		/* If we are managing the sync daemon, then stop any
 		 * instances of it that may have been running if
 		 * we terminated abnormally */
 		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_MASTER, true, true);
 		ipvs_syncd_cmd(IPVS_STOPDAEMON, NULL, IPVS_BACKUP, true, true);
-#endif
 	}
 #endif
 

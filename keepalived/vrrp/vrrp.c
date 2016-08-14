@@ -53,6 +53,7 @@
 #include "utils.h"
 #include "notify.h"
 #include "bitops.h"
+#include "vrrp_netlink.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
@@ -2235,6 +2236,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp_restore_interface(vrrp, false, true);
 	}
 
+	/* If we are adding a large number of interfaces, the netlink socket
+	 * may run out of buffers if we don't receive the netlink messages
+	 * as we progress */
+	kernel_netlink_poll();
+
 	return 1;
 }
 
@@ -2452,11 +2458,7 @@ vrrp_complete_init(void)
 bool
 vrrp_ipvs_needed(void)
 {
-#ifdef _WITH_LVS_
 	return !!(global_data->lvs_syncd.ifname);
-#else
-	return false;
-#endif
 }
 #endif
 
