@@ -135,9 +135,9 @@ ARFLAGS=cr
 AC_SUBST(ARFLAGS)
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes"
-KA_LDFLAGS="-ldl"
-KA_LIBS=
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -g -O2"
+KA_LDFLAGS="-g"
+KA_LIBS="-ldl"
 #KA_LIBTOOLFLAGS = 
 
 AC_SUBST(KA_CPPFLAGS)

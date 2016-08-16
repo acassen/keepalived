@@ -421,10 +421,10 @@ $(top_builddir)/bin/keepalived: $(top_builddir)/keepalived/keepalived
 		if test -z "$(DEBUG_LDFLAGS)$(DEBUG_CFLAGS)$(DEBUG_CPPFLAGS)"; then \
 			@STRIP@ -o $(top_builddir)/bin/keepalived $(top_builddir)/keepalived/keepalived; \
 		else \
-			@cp -p $(top_builddir)/keepalived/keepalived $(top_builddir)/bin; \
+			cp -p $(top_builddir)/keepalived/keepalived $(top_builddir)/bin; \
 		fi; \
 	else \
-		@rm -f $(top_builddir)/bin/keepalived; \
+		rm -f $(top_builddir)/bin/keepalived; \
 	fi)
 
 $(top_builddir)/bin/genhash: $(top_builddir)/genhash/genhash
@@ -433,14 +433,14 @@ $(top_builddir)/bin/genhash: $(top_builddir)/genhash/genhash
 		if test -z "$(DEBUG_LDFLAGS)$(DEBUG_CFLAGS)$(DEBUG_CPPFLAGS)"; then \
 			@STRIP@ -o $(top_builddir)/bin/genhash $(top_builddir)/genhash/genhash; \
 		else \
-			@cp -p $(top_builddir)/genhash/genhash $(top_builddir)/bin; \
+			cp -p $(top_builddir)/genhash/genhash $(top_builddir)/bin; \
 		fi; \
 	else \
-		@rm -f $(top_builddir)/bin/genhash; \
+		rm -f $(top_builddir)/bin/genhash; \
 	fi)
 
 clean-local:
-	@rm -f $(top_builddir)/bin/keepalived $(top_builddir)/bin/genhash
+	rm -f $(top_builddir)/bin/keepalived $(top_builddir)/bin/genhash
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
