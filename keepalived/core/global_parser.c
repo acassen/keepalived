@@ -650,9 +650,7 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_LVS_
 	install_keyword("lvs_timeouts", &lvs_timeouts);
 	install_keyword("lvs_flush", &lvs_flush_handler);
-#ifdef _WITH_LVS_
 	install_keyword("lvs_sync_daemon", &lvs_syncd_handler);
-#endif
 #endif
 #ifdef _WITH_VRRP_
 	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler);

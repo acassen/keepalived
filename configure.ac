@@ -135,9 +135,9 @@ ARFLAGS=cr
 AC_SUBST(ARFLAGS)
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes"
-KA_LDFLAGS="-ldl"
-KA_LIBS=
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -g -O2"
+KA_LDFLAGS="-g"
+KA_LIBS="-ldl"
 #KA_LIBTOOLFLAGS = 
 
 AC_SUBST(KA_CPPFLAGS)
@@ -451,7 +451,14 @@ if test "$enable_vrrp" != no; then
             fi
     
             dnl -- xt_set_info_match_v1 declared since Linux 3.1
-            AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [], [#include <linux/netfilter/xt_set.h>])
+            AC_CHECK_MEMBER(
+              [struct xt_set_info_match_v1.match_set.index],
+              [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])],
+              [],
+              [#ifdef XT_SET_H_NEEDS_LINUX_IP_SET_H
+               #include <libipset/linux_ip_set.h>
+               #endif
+               #include <linux/netfilter/xt_set.h>])
     
             dnl - ipset type iface introduced in Linux 3.1
             AC_COMPILE_IFELSE([AC_LANG_SOURCE([[

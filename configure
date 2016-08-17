@@ -4888,9 +4888,9 @@ ARFLAGS=cr
 
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes"
-KA_LDFLAGS="-ldl"
-KA_LIBS=
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -g -O2"
+KA_LDFLAGS="-g"
+KA_LIBS="-ldl"
 #KA_LIBTOOLFLAGS =
 
 
@@ -7330,7 +7330,10 @@ done
 
             fi
 
-                        ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v1" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v1_match_set_index" "#include <linux/netfilter/xt_set.h>
+                        ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v1" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v1_match_set_index" "#ifdef XT_SET_H_NEEDS_LINUX_IP_SET_H
+               #include <libipset/linux_ip_set.h>
+               #endif
+               #include <linux/netfilter/xt_set.h>
 "
 if test "x$ac_cv_member_struct_xt_set_info_match_v1_match_set_index" = xyes; then :
 
