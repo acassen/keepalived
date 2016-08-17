@@ -1205,6 +1205,8 @@ vrrp_state_become_master(vrrp_t * vrrp)
 		vrrp_handle_iprules(vrrp, IPRULE_ADD, false);
 #endif
 
+	kernel_netlink_poll();
+
 	/* remotes neighbour update */
 	vrrp_send_link_update(vrrp, vrrp->garp_rep);
 
