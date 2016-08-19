@@ -593,20 +593,22 @@ uninstall-am:
 .PRECIOUS: Makefile
 
 
+.PHONY: $(GIT_COMMIT_FILE)
+
 $(GIT_COMMIT_FILE):
 	@if [ ! -f $(srcdir)/$(GIT_COMMIT_FILE) -a ! -f $(builddir)/$(GIT_COMMIT_FILE) ]; then \
 		>$(builddir)/$(GIT_COMMIT_FILE); \
 	fi; \
 	if [ -x `type -p git` ]; then \
 		cd $(srcdir); \
-		git rev-parse --is-inside-work-tree 2>/dev/null; \
+		git rev-parse --is-inside-work-tree >/dev/null 2>&1; \
 		if [ $$? -eq 0 ]; then \
 			GIT_REV=`git describe --tags`; \
 			echo $${GIT_REV} | grep -qE -- "-[1-9][0-9]*-g[0-9a-f]{7}$$"; \
 			if [ $$? -eq 0 ]; then \
 				if [ -n "`git status --porcelain`" ]; then EXTRA="+"; else EXTRA=""; fi ; \
 				echo "#define GIT_COMMIT \"$${GIT_REV}$${EXTRA}\"" >$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
-				diff -q $(abs_builddir)$(GIT_COMMIT_FILE) $(abs_builddir)/$(GIT_COMMIT_FILE).new 2>/dev/null >/dev/null; \
+				diff -q $(abs_builddir)/$(GIT_COMMIT_FILE) $(abs_builddir)/$(GIT_COMMIT_FILE).new 2>/dev/null >/dev/null; \
 				if [ $$? -eq 0 ]; then \
 					rm $(abs_builddir)/$(GIT_COMMIT_FILE).new; \
 				else \
