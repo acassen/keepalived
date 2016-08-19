@@ -263,9 +263,9 @@ vrrp_print(FILE *file, void *data)
 	fprintf(file, "   Gratuitous ARP refresh = %lu\n",
 		       vrrp->garp_refresh.tv_sec/TIMER_HZ);
 	fprintf(file, "   Gratuitous ARP refresh repeat = %d\n", vrrp->garp_refresh_rep);
-	fprintf(file, "   Gratuitous ARP lower priority delay = %d", vrrp->garp_lower_prio_delay / TIMER_HZ);
-	fprintf(file, "   Gratuitous ARP lower priority repeat = %d", vrrp->garp_lower_prio_rep);
-	fprintf(file, "   Send advert after receive lower priority advert = %s", vrrp->lower_prio_no_advert ? "false" : "true");
+	fprintf(file, "   Gratuitous ARP lower priority delay = %d\n", vrrp->garp_lower_prio_delay / TIMER_HZ);
+	fprintf(file, "   Gratuitous ARP lower priority repeat = %d\n", vrrp->garp_lower_prio_rep);
+	fprintf(file, "   Send advert after receive lower priority advert = %s\n", vrrp->lower_prio_no_advert ? "false" : "true");
 	fprintf(file, "   Virtual Router ID = %d\n", vrrp->vrid);
 	fprintf(file, "   Priority = %d\n", vrrp->base_priority);
 	fprintf(file, "   Advert interval = %d %s\n",
