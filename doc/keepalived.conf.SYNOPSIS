@@ -49,6 +49,7 @@ global_defs {				# Block identification
 					   #   (in seconds, resolution microseconds)
     vrrp_mcast_group4 <IPv4 ADDRESS>	   # optional, default 224.0.0.18
     vrrp_mcast_group6 <IPv6 ADDRESS>	   # optional, default ff02::12
+    default_interface <INTERFACE>	   # sets the default interface for static addresses, default eth0
     lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE>	[id <SYNC_ID>] [maxlen <LEN>] [port <PORT>] [ttl <TTL>] [group <IP ADDR>]
 					   # Binding interface, vrrp instance and optional
 					   #  syncid (0 to 255) for lvs syncd
@@ -123,6 +124,7 @@ linkbeat_use_polling			   # Use media link failure detection polling fashion
 	The configuration block looks like :
 
 static_ipaddress {			# block identification
+					# If no dev element is specified, it defaults to the default_interface (default eth0)
     <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
     <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
     ...

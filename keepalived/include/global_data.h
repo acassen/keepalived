@@ -65,6 +65,7 @@ typedef struct _data {
 	char				*smtp_helo_name;
 	long				smtp_connection_to;
 	list				email;
+	interface_t			*default_ifp;		/* Default interface for static addresses */
 #ifdef _WITH_LVS_
 	int				lvs_tcp_timeout;
 	int				lvs_tcpfin_timeout;

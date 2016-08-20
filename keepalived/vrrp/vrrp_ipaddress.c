@@ -470,16 +470,18 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	}
 
 	if (!ifp && !new->ifp) {
-		ifp_local = if_get_by_ifname(DFLT_INT);
-		if (!ifp_local) {
-			log_message(LOG_INFO, "Default interface " DFLT_INT
-				    " does not exist and no interface specified. "
-				    "Skipping static address %s.", FMT_STR_VSLOT(strvec, addr_idx));
-			FREE(new);
-			return;
+		if (!global_data->default_ifp) {
+			global_data->default_ifp = if_get_by_ifname(DFLT_INT);
+			if (!global_data->default_ifp) {
+				log_message(LOG_INFO, "Default interface " DFLT_INT
+					    " does not exist and no interface specified. "
+					    "Skipping static address %s.", FMT_STR_VSLOT(strvec, addr_idx));
+				FREE(new);
+				return;
+			}
 		}
-		new->ifa.ifa_index = IF_INDEX(ifp_local);
-		new->ifp = ifp_local;
+		new->ifa.ifa_index = IF_INDEX(global_data->default_ifp);
+		new->ifp = global_data->default_ifp;
 	}
 
 	if (new->ifa.ifa_family == AF_INET6) {

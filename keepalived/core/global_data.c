@@ -254,6 +254,7 @@ dump_global_data(data_t * data)
 				    , data->email_from);
 		dump_list(data->email);
 	}
+	log_message(LOG_INFO, " Default interface = %s", data->default_ifp ? data->default_ifp->ifname : DFLT_INT);
 #ifdef _WITH_LVS_
 	if (data->lvs_tcp_timeout)
 		log_message(LOG_INFO, " LVS TCP timeout = %d", data->lvs_tcp_timeout);

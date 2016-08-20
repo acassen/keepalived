@@ -118,6 +118,21 @@ email_handler(vector_t *strvec)
 
 	free_strvec(email_vec);
 }
+static void
+default_interface_handler(vector_t *strvec)
+{
+	interface_t *ifp;
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "default_interface requires interface name");
+		return;
+	}
+	ifp = if_get_by_ifname(vector_slot(strvec, 1));
+	if (!ifp)
+		log_message(LOG_INFO, "Cannot find default interface %s", FMT_STR_VSLOT(strvec, 1));
+	else
+		global_data->default_ifp = ifp;
+}
 #ifdef _WITH_LVS_
 static void
 lvs_timeouts(vector_t *strvec)
@@ -647,6 +662,7 @@ init_global_keywords(bool global_active)
 	install_keyword("smtp_helo_name", &smtphelo_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
+	install_keyword("default_interface", &default_interface_handler);
 #ifdef _WITH_LVS_
 	install_keyword("lvs_timeouts", &lvs_timeouts);
 	install_keyword("lvs_flush", &lvs_flush_handler);

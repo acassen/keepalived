@@ -54,6 +54,8 @@ and
                               # default: local host name
  vrrp_mcast_group4 224.0.0.18 # optional, default 224.0.0.18
  vrrp_mcast_group6 ff02::12   # optional, default ff02::12
+ default_interface p33p1.3    # sets the default interface for static addresses, default eth0
+
 
  lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE> [id <SYNC_ID>] [maxlen <LEN>] [port <PORT>] [ttl <TTL>] [group <IP ADDR>]
                               # Binding interface, vrrp instance and optional
@@ -177,7 +179,8 @@ If you already have IPs and routes on your machines and
 your machines can ping each other, you don't need this section.
 The syntax for rules and routes is that same as for ip rule add/ip route add.
 .PP
-The syntax is the same for virtual addresses and virtual routes.
+The syntax is the same for virtual addresses and virtual routes. If no dev element
+is specified, it defaults to default_interface (default eth0).
 .PP
  static_ipaddress
  {
