@@ -46,10 +46,10 @@ timer_dup(timeval_t b)
 int
 timer_cmp(timeval_t a, timeval_t b)
 {
-	int ret = a.tv_sec - b.tv_sec;
-	if (! ret)
+	time_t ret = a.tv_sec - b.tv_sec;
+	if (!ret)
 		return a.tv_usec - b.tv_usec;
-	return ret;
+	return ret < 0 ? -1 : 1;
 }
 
 /* timer sub */
