@@ -95,10 +95,10 @@ set_vrrp_defaults(data_t * data)
 	data->vrrp_lower_prio_no_advert = false;
 	data->vrrp_version = VRRP_VERSION_2;
 	strcpy(data->vrrp_iptables_inchain, "INPUT");
-	data->block_ipv4 = 0;
-	data->block_ipv6 = 0;
+	data->block_ipv4 = false;
+	data->block_ipv6 = false;
 #ifdef _HAVE_LIBIPSET_
-	data->using_ipsets = 1;
+	data->using_ipsets = true;
 	strcpy(data->vrrp_ipset_address, "keepalived");
 	strcpy(data->vrrp_ipset_address6, "keepalived6");
 	strcpy(data->vrrp_ipset_address_iface6, "keepalived_if6");

@@ -58,7 +58,7 @@ typedef struct _email {
 
 /* Configuration data root */
 typedef struct _data {
-	int				linkbeat_use_polling;
+	bool				linkbeat_use_polling;
 	char				*router_id;
 	char				*email_from;
 	struct sockaddr_storage		smtp_server;
@@ -89,10 +89,10 @@ typedef struct _data {
 	int				vrrp_version;	/* VRRP version (2 or 3) */
 	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];
 	char				vrrp_iptables_outchain[XT_EXTENSION_MAXNAMELEN];
-	int				block_ipv4;
-	int				block_ipv6;
+	bool				block_ipv4;
+	bool				block_ipv6;
 #ifdef _HAVE_LIBIPSET_
-	int				using_ipsets;
+	bool				using_ipsets;
 	char				vrrp_ipset_address[IPSET_MAXNAMELEN];
 	char				vrrp_ipset_address6[IPSET_MAXNAMELEN];
 	char				vrrp_ipset_address_iface6[IPSET_MAXNAMELEN];
@@ -108,15 +108,15 @@ typedef struct _data {
 	bool				checker_no_swap;
 #endif
 #ifdef _WITH_SNMP_
-	int				enable_traps;
+	bool				enable_traps;
 	char				*snmp_socket;
 #ifdef _WITH_VRRP_
-	int				enable_snmp_keepalived;
-	int				enable_snmp_rfcv2;
-	int				enable_snmp_rfcv3;
+	bool				enable_snmp_keepalived;
+	bool				enable_snmp_rfcv2;
+	bool				enable_snmp_rfcv3;
 #endif
 #ifdef _WITH_LVS_
-	int				enable_snmp_checker;
+	bool				enable_snmp_checker;
 #endif
 #endif
 } data_t;

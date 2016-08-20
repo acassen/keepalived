@@ -52,7 +52,7 @@
 static void
 use_polling_handler(vector_t *strvec)
 {
-	global_data->linkbeat_use_polling = 1;
+	global_data->linkbeat_use_polling = true;
 }
 static void
 routerid_handler(vector_t *strvec)
