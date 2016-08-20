@@ -24,6 +24,7 @@
 #define _TIMER_H
 
 #include <sys/time.h>
+#include <limits.h>
 
 typedef struct timeval timeval_t;
 
@@ -35,6 +36,7 @@ extern timeval_t time_now;
 #define TIMER_HZ		1000000
 #define TIMER_CENTI_HZ		10000
 #define TIMER_MAX_SEC		1000
+#define TIMER_NEVER		LONG_MIN
 
 /* Some usefull macros */
 #define timer_sec(T) ((T).tv_sec)
