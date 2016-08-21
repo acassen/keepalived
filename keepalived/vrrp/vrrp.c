@@ -497,7 +497,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 
 	/*
 	 * MUST verify that the Adver Interval in the packet is the same as
-	 * the locally configured for this virtual router
+	 * the locally configured for this virtual router if VRRPv2
 	 */
 	if (vrrp->version == VRRP_VERSION_2) {
 		adver_int = hd->v2.adver_int * TIMER_HZ;
@@ -507,15 +507,6 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 			/* to prevent concurent VRID running => multiple master in 1 VRID */
 			return VRRP_PACKET_DROP;
 		}
-	}
-	else if (vrrp->version == VRRP_VERSION_3 && vrrp->state == VRRP_STATE_BACK) {
-		/* In v3 we do not drop the packet. Instead, when we are in BACKUP
-		 * state, we set our advertisement interval to match the MASTER's.
-		 */
-		adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
-		if (vrrp->master_adver_int != adver_int)
-			log_message(LOG_INFO, "(%s): advertisement interval changed: mine=%d milli-sec, rcved=%d milli-sec",
-				vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), adver_int / (TIMER_HZ / 1000));
 	}
 
 	if (vrrp->family == AF_INET && ntohs(ip->tot_len) != buflen) {
@@ -658,6 +649,15 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 
 	if (hd->priority == 0)
 		++vrrp->stats->pri_zero_rcvd;
+
+	if (vrrp->version == VRRP_VERSION_3 && vrrp->state == VRRP_STATE_BACK) {
+		/* In v3 when we are in BACKUP state, we set our
+		 * advertisement interval to match the MASTER's. */
+		adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
+		if (vrrp->master_adver_int != adver_int)
+			log_message(LOG_INFO, "(%s): advertisement interval changed: mine=%d milli-sec, rcved=%d milli-sec",
+				vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), adver_int / (TIMER_HZ / 1000));
+	}
 
 	return VRRP_PACKET_OK;
 }
