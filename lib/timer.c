@@ -46,10 +46,10 @@ timer_dup(timeval_t b)
 int
 timer_cmp(timeval_t a, timeval_t b)
 {
-	int ret = a.tv_sec - b.tv_sec;
-	if (! ret)
+	time_t ret = a.tv_sec - b.tv_sec;
+	if (!ret)
 		return a.tv_usec - b.tv_usec;
-	return ret;
+	return ret < 0 ? -1 : 1;
 }
 
 /* timer sub */
@@ -94,6 +94,15 @@ timer_add_long(timeval_t a, long b)
 	timeval_t ret;
 
 	timer_reset_lazy(ret);
+
+	if (b == TIMER_NEVER)
+	{
+		ret.tv_usec = TIMER_HZ - 1;
+		ret.tv_sec = LONG_MAX;
+
+		return ret;
+	}
+
 	ret.tv_usec = a.tv_usec + b % TIMER_HZ;
 	ret.tv_sec = a.tv_sec + b / TIMER_HZ;
 

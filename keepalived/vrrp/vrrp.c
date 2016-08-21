@@ -2119,6 +2119,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			/* We've found a unique name */
 			strncpy(vrrp->vmac_ifname, ifname, IFNAMSIZ);
 		}
+		if (vrrp->strict_mode && __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) {
+			log_message(LOG_INFO, "(%s): xmit_base is incompatible with strict mode - resetting", vrrp->iname);
+			__clear_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
+		}
 	}
 	else
 #endif
