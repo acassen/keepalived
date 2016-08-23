@@ -24,6 +24,8 @@
 
 #include "config.h"
 
+#include <errno.h>
+
 #include "check_parser.h"
 #include "check_data.h"
 #include "check_api.h"
@@ -138,14 +140,22 @@ static void
 pto_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = vector_slot(strvec, 1);
-	int size = sizeof (vs->timeout_persistence);
-	int str_len = strlen(str);
+	char *endptr;
+	unsigned long timeout;
 
-	if (size > str_len)
-		size = str_len;
+	if (vector_size(strvec) < 2) {
+		vs->timeout_persistence = IPVS_SVC_PERSISTENT_TIMEOUT;
+		return;
+	}
 
-	memcpy(vs->timeout_persistence, str, size);
+	errno = 0;
+	timeout = strtoul(vector_slot(strvec, 1), &endptr, 10);
+	if (errno || *endptr || timeout > UINT32_MAX || timeout == 0) {
+		log_message(LOG_INFO, "persistent_timeout invalid");
+		return;
+	}
+
+	vs->timeout_persistence = timeout;
 }
 static void
 pengine_handler(vector_t *strvec)
@@ -165,6 +175,8 @@ pgr_handler(vector_t *strvec)
 		vs->granularity_persistence = atoi(vector_slot(strvec, 1));
 	else
 		inet_ston(vector_slot(strvec, 1), &vs->granularity_persistence);
+	if (!vs->timeout_persistence)
+		vs->timeout_persistence = IPVS_SVC_PERSISTENT_TIMEOUT;
 }
 static void
 proto_handler(vector_t *strvec)

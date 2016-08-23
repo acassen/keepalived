@@ -471,16 +471,15 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		*var_len = strlen(v->virtualhost);
 		return (u_char*)v->virtualhost;
 	case CHECK_SNMP_VSPERSIST:
-		long_ret = (atol(v->timeout_persistence) > 0)?1:2;
+		long_ret = (v->timeout_persistence)?1:2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSPERSISTTIMEOUT:
-		if (atol(v->timeout_persistence) <= 0) break;
-		long_ret = atol(v->timeout_persistence);
+		if (!v->timeout_persistence) break;
+		long_ret = v->timeout_persistence;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSPERSISTGRANULARITY:
-		if (atol(v->timeout_persistence) <= 0) break;
 		if (!v->granularity_persistence) break;
-		*var_len = 4;
+		*var_len = sizeof(v->granularity_persistence);
 		return (u_char*)&v->granularity_persistence;
 	case CHECK_SNMP_VSDELAYLOOP:
 		if (v->delay_loop >= TIMER_MAX_SEC)
