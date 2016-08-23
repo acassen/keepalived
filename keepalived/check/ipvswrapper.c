@@ -410,20 +410,21 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 	srule->user.netmask = (vs->addr.ss_family == AF_INET6) ? 128 : ((u_int32_t) 0xffffffff);
 	srule->user.protocol = vs->service_type;
 
-	srule->user.timeout = vs->timeout_persistence;
+	srule->user.timeout = vs->persistence_timeout;
+	if (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL)
+		if (vs->persistence_granularity)
+			srule->user.netmask = vs->persistence_granularity;
 
-	if (vs->timeout_persistence || vs->granularity_persistence)
+	if (vs->persistence_timeout || vs->persistence_granularity)
 		srule->user.flags |= IP_VS_SVC_F_PERSISTENT;
 
 	/* Only for UDP services */
 	if (vs->ops == 1 && srule->user.protocol == IPPROTO_UDP)
 		srule->user.flags |= IP_VS_SVC_F_ONEPACKET;
 
-	if (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL)
-		if (vs->granularity_persistence)
-			srule->user.netmask = vs->granularity_persistence;
-
+#ifdef IPVS_SVC_ATTR_PE_NAME
 	strcpy(srule->pe_name, vs->pe_name);
+#endif
 
 	/* SVR specific */
 	if (rs) {

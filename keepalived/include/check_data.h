@@ -119,10 +119,12 @@ typedef struct _virtual_server {
 	int				ops;
 #ifdef _WITH_LVS_
 	char				sched[IP_VS_SCHEDNAME_MAXLEN];
-	uint32_t			timeout_persistence;
+	uint32_t			persistence_timeout;
+#ifdef IPVS_SVC_ATTR_PE_NAME
 	char				pe_name[IP_VS_PENAME_MAXLEN];
+#endif
 	unsigned			loadbalancing_kind;
-	uint32_t			granularity_persistence;
+	uint32_t			persistence_granularity;
 #endif
 	char				*virtualhost;
 	list				rs;
@@ -223,12 +225,12 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			 (X)->af                      == (Y)->af                        &&\
 			 (X)->service_type            == (Y)->service_type		&&\
 			 (X)->loadbalancing_kind      == (Y)->loadbalancing_kind	&&\
-			 (X)->granularity_persistence == (Y)->granularity_persistence	&&\
+			 (X)->persistence_granularity == (Y)->persistence_granularity	&&\
 			 (  (!(X)->quorum_up && !(Y)->quorum_up) || \
 			    ((X)->quorum_up && (Y)->quorum_up && !strcmp ((X)->quorum_up, (Y)->quorum_up)) \
 			 ) &&\
 			 !strcmp((X)->sched, (Y)->sched)				&&\
-			 (X)->timeout_persistence     == (Y)->timeout_persistence 	&&\
+			 (X)->persistence_timeout     == (Y)->persistence_timeout 	&&\
 			 (((X)->vsgname && (Y)->vsgname &&				\
 			   !strcmp((X)->vsgname, (Y)->vsgname)) ||			\
 			  (!(X)->vsgname && !(Y)->vsgname)))

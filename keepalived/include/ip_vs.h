@@ -38,7 +38,9 @@ struct ip_vs_service_app {
 	struct ip_vs_service_user user;
 	u_int16_t		af;
 	union nf_inet_addr	nf_addr;
+#ifdef IPVS_SVC_ATTR_PE_NAME
 	char			pe_name[IP_VS_PENAME_MAXLEN];
+#endif
 };
 
 struct ip_vs_dest_app {
@@ -53,7 +55,9 @@ struct ip_vs_service_entry_app {
 	ip_vs_stats_t		stats;
 	u_int16_t		af;
 	union nf_inet_addr	nf_addr;
+#ifdef IPVS_SVC_ATTR_PE_NAME
 	char			pe_name[IP_VS_PENAME_MAXLEN];
+#endif
 
 };
 

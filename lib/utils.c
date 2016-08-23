@@ -380,6 +380,7 @@ inet_sockaddrcmp(struct sockaddr_storage *a, struct sockaddr_storage *b)
 }
 
 
+#ifdef _INCLUDE_UNUSED_CODE_
 /*
  * IP string to network representation
  * Highly inspired from Paul Vixie code.
@@ -423,7 +424,6 @@ inet_ston(const char *addr, uint32_t * dst)
 	return 1;
 }
 
-#ifdef _INCLUDE_UNUSED_CODE_
 /*
  * Return broadcast address from network and netmask.
  */

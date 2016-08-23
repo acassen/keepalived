@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201608030000Z"
+     LAST-UPDATED "201608230000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201608230000Z"
+     DESCRIPTION "add IPv6 persistence granularity"
      REVISION "201608030000Z"
      DESCRIPTION "net-namespace added"
      REVISION "201607260000Z"
@@ -2248,7 +2250,8 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerRateInBPSLow Unsigned32,
     virtualServerRateInBPSHigh Unsigned32,
     virtualServerRateOutBPSLow Unsigned32,
-    virtualServerRateOutBPSHigh Unsigned32
+    virtualServerRateOutBPSHigh Unsigned32,
+    virtualServerPersistGranularity6 Unsigned32
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -2392,7 +2395,7 @@ virtualServerPersistGranularity OBJECT-TYPE
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION
-        "Netmask specifying the granularity of the persistence mechanism."
+        "Netmask specifying the granularity of the IPv4 persistence mechanism."
     ::= { virtualServerEntry 15 }
 
 virtualServerDelayLoop OBJECT-TYPE
@@ -2709,6 +2712,15 @@ virtualServerRateOutBPSHigh OBJECT-TYPE
         "Current outgoing rate for this virtual server.
 	Together with virtualServerRateOutBPSLow composes 64-bit number."
     ::= { virtualServerEntry 50 }
+
+virtualServerPersistGranularity6 OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Netmask specifying the granularity of the IPv6 persistence mechanism."
+    ::= { virtualServerEntry 51 }
+
 
 -- real servers
 
@@ -3624,7 +3636,8 @@ virtualServerGroup OBJECT-GROUP
     virtualServerRateInBPSLow,
     virtualServerRateInBPSHigh,
     virtualServerRateOutBPSLow,
-    virtualServerRateOutBPSHigh
+    virtualServerRateOutBPSHigh,
+    virtualServerPersistGranularity6
     }
     STATUS current
     DESCRIPTION

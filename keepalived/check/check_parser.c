@@ -144,7 +144,7 @@ pto_handler(vector_t *strvec)
 	unsigned long timeout;
 
 	if (vector_size(strvec) < 2) {
-		vs->timeout_persistence = IPVS_SVC_PERSISTENT_TIMEOUT;
+		vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
 		return;
 	}
 
@@ -155,8 +155,9 @@ pto_handler(vector_t *strvec)
 		return;
 	}
 
-	vs->timeout_persistence = timeout;
+	vs->persistence_timeout = timeout;
 }
+#ifdef IPVS_SVC_ATTR_PE_NAME
 static void
 pengine_handler(vector_t *strvec)
 {
@@ -167,16 +168,25 @@ pengine_handler(vector_t *strvec)
 	strncpy(vs->pe_name, str, size - 1);
 	vs->pe_name[size - 1] = '\0';
 }
+#endif
 static void
 pgr_handler(vector_t *strvec)
 {
+	struct in_addr addr;
+
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->addr.ss_family == AF_INET6)
-		vs->granularity_persistence = atoi(vector_slot(strvec, 1));
-	else
-		inet_ston(vector_slot(strvec, 1), &vs->granularity_persistence);
-	if (!vs->timeout_persistence)
-		vs->timeout_persistence = IPVS_SVC_PERSISTENT_TIMEOUT;
+		vs->persistence_granularity = atoi(vector_slot(strvec, 1));
+	else {
+		if (inet_aton(vector_slot(strvec, 1), &addr)) {
+			log_message(LOG_INFO, "Invalid persistence_timeout specified - %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+		vs->persistence_granularity = addr.s_addr;
+	}
+
+	if (!vs->persistence_timeout)
+		vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
 }
 static void
 proto_handler(vector_t *strvec)
@@ -348,7 +358,9 @@ init_check_keywords(bool active)
 	install_keyword("lvs_sched", &lbalgo_handler);
 	install_keyword("lb_kind", &lbkind_handler);
 	install_keyword("lvs_method", &lbkind_handler);
+#ifdef IPVS_SVC_ATTR_PE_NAME
 	install_keyword("persistence_engine", &pengine_handler);
+#endif
 	install_keyword("persistence_timeout", &pto_handler);
 	install_keyword("persistence_granularity", &pgr_handler);
 	install_keyword("protocol", &proto_handler);
