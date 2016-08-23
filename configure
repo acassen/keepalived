@@ -4888,9 +4888,9 @@ ARFLAGS=cr
 
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -g -O2"
-KA_LDFLAGS="-g"
-KA_LIBS="-ldl"
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes"
+KA_LDFLAGS="-ldl"
+KA_LIBS=
 #KA_LIBTOOLFLAGS =
 
 
@@ -5254,10 +5254,53 @@ done
 
 # check for kernel headers
 CPPFLAGS="$kernelinc"
-for ac_header in asm/types.h linux/ethtool.h linux/fib_rules.h linux/icmpv6.h linux/if_addr.h linux/if_ether.h linux/if_link.h linux/if_packet.h linux/ip.h linux/sockios.h linux/types.h
+NETLINK_EXTRA_INCLUDE=
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+  #include <linux/netlink.h>
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+else
+  ac_fn_c_check_header_compile "$LINENO" "linux/netlink.h" "ac_cv_header_linux_netlink_h" "#include <sys/socket.h>
+"
+if test "x$ac_cv_header_linux_netlink_h" = xyes; then :
+
+
+$as_echo "#define NETLINK_H_NEEDS_SYS_SOCKET_H  1 " >>confdefs.h
+
+      NETLINK_EXTRA_INCLUDE="#include <sys/socket.h>"
+
+else
+  as_fn_error $? "Missing/unusable kernel header file <linux/netlink.h>" "$LINENO" 5
+fi
+
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+for ac_header in asm/types.h linux/ethtool.h linux/icmpv6.h linux/if_ether.h linux/if_packet.h linux/ip.h linux/sockios.h linux/types.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+
+else
+  as_fn_error $? "Missing/unusable kernel header file <$ac_header>" "$LINENO" 5
+fi
+
+done
+
+for ac_header in linux/fib_rules.h linux/if_addr.h linux/if_link.h
+do :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_compile "$LINENO" "$ac_header" "$as_ac_Header" "$NETLINK_EXTRA_INCLUDE
+"
 if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
   cat >>confdefs.h <<_ACEOF
 #define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
@@ -6536,7 +6579,23 @@ fi
 done
 
   fi
-  for ac_header in linux/netlink.h linux/rtnetlink.h libnfnetlink/libnfnetlink.h netlink/genl/ctrl.h netlink/genl/genl.h netlink/netlink.h
+
+  for ac_header in linux/rtnetlink.h
+do :
+  ac_fn_c_check_header_compile "$LINENO" "linux/rtnetlink.h" "ac_cv_header_linux_rtnetlink_h" "$NETLINK_EXTRA_INCLUDE
+"
+if test "x$ac_cv_header_linux_rtnetlink_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LINUX_RTNETLINK_H 1
+_ACEOF
+
+else
+  as_fn_error $? "Unusable link/rtnetlink.h" "$LINENO" 5
+fi
+
+done
+
+  for ac_header in libnfnetlink/libnfnetlink.h netlink/genl/ctrl.h netlink/genl/genl.h netlink/netlink.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -6826,38 +6885,9 @@ fi
 
 USE_LIBIPTC=No
 USE_LIBIPSET=No
-if test "$enable_vrrp" != no; then
-    for ac_header in linux/netfilter/x_tables.h
-do :
-  ac_fn_c_check_header_mongrel "$LINENO" "linux/netfilter/x_tables.h" "ac_cv_header_linux_netfilter_x_tables_h" "$ac_includes_default"
-if test "x$ac_cv_header_linux_netfilter_x_tables_h" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LINUX_NETFILTER_X_TABLES_H 1
-_ACEOF
-
-            ac_fn_c_check_decl "$LINENO" "XT_EXTENSION_MAXNAMELEN" "ac_cv_have_decl_XT_EXTENSION_MAXNAMELEN" "#include <linux/netfilter/x_tables.h>
-"
-if test "x$ac_cv_have_decl_XT_EXTENSION_MAXNAMELEN" = xyes; then :
-
-else
-
-$as_echo "#define XT_EXTENSION_MAXNAMELEN  (XT_FUNCTION_MAXNAMELEN - 1) " >>confdefs.h
-
-fi
-
-
-else
-
-$as_echo "#define XT_EXTENSION_MAXNAMELEN  29 " >>confdefs.h
-
-fi
-
-done
-
-
-  if test .${enable_libiptc} != .no; then
-    USE_LIBIPTC=Yes
-        for ac_header in linux/netfilter/x_tables.h xtables.h libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h
+if test .${enable_libiptc} != .no; then
+  USE_LIBIPTC=Yes
+    for ac_header in linux/netfilter/x_tables.h xtables.h libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -6868,15 +6898,15 @@ _ACEOF
 
 else
 
-        USE_LIBIPTC=No
-        break
+      USE_LIBIPTC=No
+      break
 
 fi
 
 done
 
-    if test $USE_LIBIPTC = Yes; then
-       if test 2 -ge 2; then
+  if test $USE_LIBIPTC = Yes; then
+     if test 2 -ge 2; then
       PKG_PFX=IPTC
     else
       PKG_PFX=KA
@@ -6922,9 +6952,9 @@ done
     eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
 
 
-      LIBS="$IPTC_LIBS"
-      CPPFLAGS="$kernelinc"
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for iptc_init in -liptc" >&5
+    LIBS="$IPTC_LIBS"
+    CPPFLAGS="$kernelinc"
+    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for iptc_init in -liptc" >&5
 $as_echo_n "checking for iptc_init in -liptc... " >&6; }
 if ${ac_cv_lib_iptc_iptc_init+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -6962,7 +6992,7 @@ fi
 $as_echo "$ac_cv_lib_iptc_iptc_init" >&6; }
 if test "x$ac_cv_lib_iptc_iptc_init" = xyes; then :
 
-           if test 1 -ge 2; then
+         if test 1 -ge 2; then
       PKG_PFX=
     else
       PKG_PFX=KA
@@ -7016,16 +7046,16 @@ else
   USE_LIBIPTC=No
 fi
 
-    fi
+  fi
 
-    if test $USE_LIBIPTC = Yes; then
-      BUILD_OPTIONS="$BUILD_OPTIONS LIBIPTC"
+  if test $USE_LIBIPTC = Yes; then
+    BUILD_OPTIONS="$BUILD_OPTIONS LIBIPTC"
 
-            CPPFLAGS="$kernelinc"
-      if test "${enable_libipset}" != no; then
-        pkg-config --exists libipset
-        if test $? -eq 0; then
-           if test 2 -ge 2; then
+        CPPFLAGS="$kernelinc"
+    if test "${enable_libipset}" != no; then
+      pkg-config --exists libipset
+      if test $? -eq 0; then
+         if test 2 -ge 2; then
       PKG_PFX=IPSET
     else
       PKG_PFX=KA
@@ -7071,12 +7101,12 @@ fi
     eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
 
 
-        else
-          IPSET_LIBS="-lipset"
-        fi
-        LIBS="$IPTC_LIBS $IPSET_LIBS"
+      else
+        IPSET_LIBS="-lipset"
+      fi
+      LIBS="$IPTC_LIBS $IPSET_LIBS"
 
-        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ipset_session_init in -lipset" >&5
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ipset_session_init in -lipset" >&5
 $as_echo_n "checking for ipset_session_init in -lipset... " >&6; }
 if ${ac_cv_lib_ipset_ipset_session_init+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7114,8 +7144,8 @@ fi
 $as_echo "$ac_cv_lib_ipset_ipset_session_init" >&6; }
 if test "x$ac_cv_lib_ipset_ipset_session_init" = xyes; then :
 
-            USE_LIBIPSET=Yes
-            for ac_header in libipset/data.h libipset/linux_ip_set.h libipset/session.h libipset/types.h
+          USE_LIBIPSET=Yes
+          for ac_header in libipset/data.h libipset/linux_ip_set.h libipset/session.h libipset/types.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -7126,16 +7156,16 @@ _ACEOF
 
 else
 
-                USE_LIBIPSET=No
-                break
+              USE_LIBIPSET=No
+              break
 
 fi
 
 done
 
 
-            if test $USE_LIBIPSET = Yes; then
-              { $as_echo "$as_me:${as_lineno-$LINENO}: checking for xtables_insmod in -lxtables" >&5
+          if test $USE_LIBIPSET = Yes; then
+            { $as_echo "$as_me:${as_lineno-$LINENO}: checking for xtables_insmod in -lxtables" >&5
 $as_echo_n "checking for xtables_insmod in -lxtables... " >&6; }
 if ${ac_cv_lib_xtables_xtables_insmod+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7182,16 +7212,16 @@ else
   USE_LIBIPSET=No
 fi
 
-            fi
+          fi
 
-            if test $USE_LIBIPSET = Yes; then
+          if test $USE_LIBIPSET = Yes; then
 
 $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
 
-              BUILD_OPTIONS="$BUILD_OPTIONS LIBIPSET"
-              pkg-config --exists libipset
-              if test $? -eq 0; then
-                 if test 1 -ge 2; then
+            BUILD_OPTIONS="$BUILD_OPTIONS LIBIPSET"
+            pkg-config --exists libipset
+            if test $? -eq 0; then
+               if test 1 -ge 2; then
       PKG_PFX=
     else
       PKG_PFX=KA
@@ -7237,10 +7267,10 @@ $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
     eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
 
 
-              else
-                KA_LDFLAGS="$KA_LDFLAGS -lipset"
-              fi
-               if test 1 -ge 2; then
+            else
+              KA_LDFLAGS="$KA_LDFLAGS -lipset"
+            fi
+             if test 1 -ge 2; then
       PKG_PFX=
     else
       PKG_PFX=KA
@@ -7287,11 +7317,11 @@ $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
 
 
 
-                            EXTRA_INCLUDE=
-              cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+                        EXTRA_INCLUDE=
+            cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-                #include <linux/netfilter/xt_set.h>
+              #include <linux/netfilter/xt_set.h>
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
@@ -7304,7 +7334,7 @@ if test "x$ac_cv_header_linux_netfilter_xt_set_h" = xyes; then :
 
 $as_echo "#define XT_SET_H_NEEDS_LINUX_IP_SET_H  1 " >>confdefs.h
 
-                    EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
+                  EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
 
 else
   as_fn_error $? "Missing/unusable kernel header file <linux/netfilter/xt_set.h>" "$LINENO" 5
@@ -7313,7 +7343,7 @@ fi
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-              for ac_header in linux/netfilter/xt_set.h
+            for ac_header in linux/netfilter/xt_set.h
 do :
   ac_fn_c_check_header_compile "$LINENO" "linux/netfilter/xt_set.h" "ac_cv_header_linux_netfilter_xt_set_h" "$EXTRA_INCLUDE
 "
@@ -7328,12 +7358,9 @@ fi
 
 done
 
-            fi
+          fi
 
-                        ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v1" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v1_match_set_index" "#ifdef XT_SET_H_NEEDS_LINUX_IP_SET_H
-               #include <libipset/linux_ip_set.h>
-               #endif
-               #include <linux/netfilter/xt_set.h>
+                    ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v1" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v1_match_set_index" "#include <linux/netfilter/xt_set.h>
 "
 if test "x$ac_cv_member_struct_xt_set_info_match_v1_match_set_index" = xyes; then :
 
@@ -7342,11 +7369,11 @@ $as_echo "#define HAVE_XT_SET_INFO_MATCH_V1  1 " >>confdefs.h
 fi
 
 
-                        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+                    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-              #include <linux/netfilter/ipset/ip_set.h>
-              int main(void) { int var = IPSET_ATTR_IFACE; }
+            #include <linux/netfilter/ipset/ip_set.h>
+            int main(void) { int var = IPSET_ATTR_IFACE; }
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
@@ -7358,8 +7385,18 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
 fi
 
-      fi
     fi
+
+        ac_fn_c_check_decl "$LINENO" "XT_EXTENSION_MAXNAMELEN" "ac_cv_have_decl_XT_EXTENSION_MAXNAMELEN" "#include <linux/netfilter/x_tables.h>
+"
+if test "x$ac_cv_have_decl_XT_EXTENSION_MAXNAMELEN" = xyes; then :
+
+else
+
+$as_echo "#define XT_EXTENSION_MAXNAMELEN  (XT_FUNCTION_MAXNAMELEN - 1) " >>confdefs.h
+
+fi
+
   fi
 fi
  if test $USE_LIBIPTC = Yes; then
@@ -8023,13 +8060,13 @@ $as_echo "#define _SNMP_REPLY_V3_FOR_V2_  1 " >>confdefs.h
       SNMP_CHECKER_SUPPORT=Yes
     fi
   fi
-  if test ${VRRP_SUPPORT} = No -a \
-          \( ${SNMP_KEEPALIVED_SUPPORT} = Yes -o ${SNMP_RFC_SUPPORT} = Yes \); then
-    as_fn_error $? "VRRP SNMP support requires VRRP" "$LINENO" 5
+  if test ${VRRP_SUPPORT} != Yes -a \
+          ${SNMP_KEEPALIVED_SUPPORT} = Yes; then
+    as_fn_error $? "KEEPALIVED SNMP support requires VRRP" "$LINENO" 5
   fi
   if test ${IPVS_SUPPORT} = No -a \
           ${SNMP_CHECKER_SUPPORT} = Yes; then
-    as_fn_error $? "LVS SNMP support requires LVS" "$LINENO" 5
+    as_fn_error $? "CHECKER SNMP support requires checker" "$LINENO" 5
   fi
 
   unset LIBS

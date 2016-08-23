@@ -135,9 +135,9 @@ ARFLAGS=cr
 AC_SUBST(ARFLAGS)
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -g -O2"
-KA_LDFLAGS="-g"
-KA_LIBS="-ldl"
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes"
+KA_LDFLAGS="-ldl"
+KA_LIBS=
 #KA_LIBTOOLFLAGS = 
 
 AC_SUBST(KA_CPPFLAGS)
@@ -154,8 +154,24 @@ AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h std
 
 # check for kernel headers
 CPPFLAGS="$kernelinc"
-AC_CHECK_HEADERS([asm/types.h linux/ethtool.h linux/fib_rules.h linux/icmpv6.h linux/if_addr.h linux/if_ether.h linux/if_link.h linux/if_packet.h linux/ip.h linux/sockios.h linux/types.h],
+dnl -- <linux/netlink.h> needed <sys/socket.h> until Linux 3.1
+dnl -- using AC_CHECK_HEADER causes a horrible error message for the user
+NETLINK_EXTRA_INCLUDE=
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  #include <linux/netlink.h>
+  ]])], [],
+  [AC_CHECK_HEADER([linux/netlink.h],
+    [
+      AC_DEFINE([NETLINK_H_NEEDS_SYS_SOCKET_H], [ 1 ], [Define to 1 if <linux/netlink.h> needs <sys/socket.h>])
+      NETLINK_EXTRA_INCLUDE="#include <sys/socket.h>"
+    ], [AC_MSG_ERROR([Missing/unusable kernel header file <linux/netlink.h>])],
+    [[#include <sys/socket.h>]])])
+
+AC_CHECK_HEADERS([asm/types.h linux/ethtool.h linux/icmpv6.h linux/if_ether.h linux/if_packet.h linux/ip.h linux/sockios.h linux/types.h],
   [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header>])])
+AC_CHECK_HEADERS([linux/fib_rules.h linux/if_addr.h linux/if_link.h],
+  [], [AC_MSG_ERROR([Missing/unusable kernel header file <$ac_header>])],
+  [[$NETLINK_EXTRA_INCLUDE]])
 AC_CHECK_HEADERS([linux/if_arp.h],
   [], [AC_MSG_ERROR([Missing/unusable <$ac_header>])],
   [[#include <sys/socket.h>]])
@@ -293,7 +309,9 @@ if test $NETLINK_VER != None; then
     CPPFLAGS="$NL3_CFLAGS"
     AC_CHECK_HEADERS([netlink/route/link.h netlink/route/link/inet.h], [], [AC_MSG_ERROR([libnl-3 headers missing])])
   fi
-  AC_CHECK_HEADERS([linux/netlink.h linux/rtnetlink.h libnfnetlink/libnfnetlink.h netlink/genl/ctrl.h netlink/genl/genl.h netlink/netlink.h], [], [AC_MSG_ERROR([netlink headers missing])])
+
+  AC_CHECK_HEADERS([linux/rtnetlink.h], [], [AC_MSG_ERROR([Unusable link/rtnetlink.h])], [$NETLINK_EXTRA_INCLUDE])
+  AC_CHECK_HEADERS([libnfnetlink/libnfnetlink.h netlink/genl/ctrl.h netlink/genl/genl.h netlink/netlink.h], [], [AC_MSG_ERROR([netlink headers missing])])
 fi
 
 dnl -- Check for the following variables introduced at various times into Linux
@@ -367,108 +385,94 @@ fi
 dnl ----[Check for iptables libraries]----
 USE_LIBIPTC=No
 USE_LIBIPSET=No
-if test "$enable_vrrp" != no; then
-  dnl -- <linux/netfilter/x_tables.h> exists since 2.6.16
-  AC_CHECK_HEADERS([linux/netfilter/x_tables.h],
+if test .${enable_libiptc} != .no; then
+  USE_LIBIPTC=Yes
+  dnl -- linux/netfilter/x_tables.h since Linux 2.6.16
+  AC_CHECK_HEADERS([linux/netfilter/x_tables.h xtables.h libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h], [],
     [
-      dnl -- XT_EXTENSION_MAXNAMELEN not defined until Linux 2.6.35
-      AC_CHECK_DECL([XT_EXTENSION_MAXNAMELEN], [],
-        [AC_DEFINE([XT_EXTENSION_MAXNAMELEN], [ (XT_FUNCTION_MAXNAMELEN - 1) ], [Define if <linux/netfilter/x_tables.h> doesnt define it])],
-        [#include <linux/netfilter/x_tables.h>])
-    ],
-    [AC_DEFINE([XT_EXTENSION_MAXNAMELEN], [ 29 ], [Define if <linux/netfilter/x_tables.h> doesnt exist])])
-
-  if test .${enable_libiptc} != .no; then
-    USE_LIBIPTC=Yes
-    dnl -- linux/netfilter/x_tables.h since Linux 2.6.16
-    AC_CHECK_HEADERS([linux/netfilter/x_tables.h xtables.h libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h], [],
+      USE_LIBIPTC=No
+      break
+    ])
+  if test $USE_LIBIPTC = Yes; then
+    add_pkg_config([--static libiptc], [IPTC])
+    LIBS="$IPTC_LIBS"
+    CPPFLAGS="$kernelinc"
+    AC_CHECK_LIB(iptc, iptc_init,
       [
-        USE_LIBIPTC=No
-        break
-      ])
-    if test $USE_LIBIPTC = Yes; then
-      add_pkg_config([--static libiptc], [IPTC])
-      LIBS="$IPTC_LIBS"
-      CPPFLAGS="$kernelinc"
-      AC_CHECK_LIB(iptc, iptc_init,
-        [
-          add_pkg_config([--static libiptc])
-          AC_DEFINE([_HAVE_LIBIPTC_], [ 1 ], [Define to 1 if have iptables libraries])
-        ],
-        [USE_LIBIPTC=No])
-    fi
-  
-    if test $USE_LIBIPTC = Yes; then
-      add_build_opt([LIBIPTC])
-  
-      dnl ----[Check for ipset libraries]----
-      CPPFLAGS="$kernelinc"
-      if test "${enable_libipset}" != no; then
-        pkg-config --exists libipset
-        if test $? -eq 0; then
-          add_pkg_config([libipset], [IPSET])
-        else
-          IPSET_LIBS="-lipset"
-        fi
-        LIBS="$IPTC_LIBS $IPSET_LIBS"
-  
-        AC_CHECK_LIB(ipset, ipset_session_init,
-          [
-            USE_LIBIPSET=Yes
-            AC_CHECK_HEADERS([libipset/data.h libipset/linux_ip_set.h libipset/session.h libipset/types.h], [],
-              [
-                USE_LIBIPSET=No
-                break
-              ])
-    
-            if test $USE_LIBIPSET = Yes; then
-              AC_CHECK_LIB(xtables, xtables_insmod, [], [USE_LIBIPSET=No])
-            fi
-  
-            if test $USE_LIBIPSET = Yes; then
-              AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
-              add_build_opt([LIBIPSET])
-              pkg-config --exists libipset
-              if test $? -eq 0; then
-                add_pkg_config(libipset)
-              else
-                add_to_var([KA_LDFLAGS], [-lipset])
-              fi
-              add_pkg_config([xtables])
-  
-              dnl -- Need to include <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
-              EXTRA_INCLUDE=
-              AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-                #include <linux/netfilter/xt_set.h>
-                ]])], [],
-                [AC_CHECK_HEADER([linux/netfilter/xt_set.h],
-                  [
-                    AC_DEFINE([XT_SET_H_NEEDS_LINUX_IP_SET_H], [ 1 ], [Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>])
-                    EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
-                  ], [AC_MSG_ERROR([Missing/unusable kernel header file <linux/netfilter/xt_set.h>])],
-                  [[#include <libipset/linux_ip_set.h>]])])
-              AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [$EXTRA_INCLUDE])
-            fi
-    
-            dnl -- xt_set_info_match_v1 declared since Linux 3.1
-            AC_CHECK_MEMBER(
-              [struct xt_set_info_match_v1.match_set.index],
-              [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])],
-              [],
-              [#ifdef XT_SET_H_NEEDS_LINUX_IP_SET_H
-               #include <libipset/linux_ip_set.h>
-               #endif
-               #include <linux/netfilter/xt_set.h>])
-    
-            dnl - ipset type iface introduced in Linux 3.1
-            AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-              #include <linux/netfilter/ipset/ip_set.h>
-              int main(void) { int var = IPSET_ATTR_IFACE; }
-              ]])],
-              [AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
-          ])
+        add_pkg_config([--static libiptc])
+        AC_DEFINE([_HAVE_LIBIPTC_], [ 1 ], [Define to 1 if have iptables libraries])
+      ],
+      [USE_LIBIPTC=No])
+  fi
+
+  if test $USE_LIBIPTC = Yes; then
+    add_build_opt([LIBIPTC])
+
+    dnl ----[Check for ipset libraries]----
+    CPPFLAGS="$kernelinc"
+    if test "${enable_libipset}" != no; then
+      pkg-config --exists libipset
+      if test $? -eq 0; then
+        add_pkg_config([libipset], [IPSET])
+      else
+        IPSET_LIBS="-lipset"
       fi
+      LIBS="$IPTC_LIBS $IPSET_LIBS"
+
+      AC_CHECK_LIB(ipset, ipset_session_init,
+        [
+          USE_LIBIPSET=Yes
+          AC_CHECK_HEADERS([libipset/data.h libipset/linux_ip_set.h libipset/session.h libipset/types.h], [],
+            [
+              USE_LIBIPSET=No
+              break
+            ])
+  
+          if test $USE_LIBIPSET = Yes; then
+            AC_CHECK_LIB(xtables, xtables_insmod, [], [USE_LIBIPSET=No])
+          fi
+
+          if test $USE_LIBIPSET = Yes; then
+            AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
+            add_build_opt([LIBIPSET])
+            pkg-config --exists libipset
+            if test $? -eq 0; then
+              add_pkg_config(libipset)
+            else
+              add_to_var([KA_LDFLAGS], [-lipset])
+            fi
+            add_pkg_config([xtables])
+
+            dnl -- Need to include <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
+            EXTRA_INCLUDE=
+            AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+              #include <linux/netfilter/xt_set.h>
+              ]])], [],
+              [AC_CHECK_HEADER([linux/netfilter/xt_set.h],
+                [
+                  AC_DEFINE([XT_SET_H_NEEDS_LINUX_IP_SET_H], [ 1 ], [Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>])
+                  EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
+                ], [AC_MSG_ERROR([Missing/unusable kernel header file <linux/netfilter/xt_set.h>])],
+                [[#include <libipset/linux_ip_set.h>]])])
+            AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [$EXTRA_INCLUDE])
+          fi
+  
+          dnl -- xt_set_info_match_v1 declared since Linux 3.1
+          AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [], [#include <linux/netfilter/xt_set.h>])
+  
+          dnl - ipset type iface introduced in Linux 3.1
+          AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+            #include <linux/netfilter/ipset/ip_set.h>
+            int main(void) { int var = IPSET_ATTR_IFACE; }
+            ]])],
+            [AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
+        ])
     fi
+
+    dnl -- XT_EXTENSION_MAXNAMELEN not defined until Linux 2.6.35
+    AC_CHECK_DECL([XT_EXTENSION_MAXNAMELEN], [],
+      [AC_DEFINE([XT_EXTENSION_MAXNAMELEN], [ (XT_FUNCTION_MAXNAMELEN - 1) ], [Define if <linux/netfilter/x_tables.h> doesnt define it])],
+      [#include <linux/netfilter/x_tables.h>])
   fi
 fi
 AM_CONDITIONAL([LIBIPTC], [test $USE_LIBIPTC = Yes])
@@ -719,13 +723,13 @@ if test "$enable_snmp" = yes -o \
       SNMP_CHECKER_SUPPORT=Yes
     fi
   fi
-  if test ${VRRP_SUPPORT} = No -a \
-          \( ${SNMP_KEEPALIVED_SUPPORT} = Yes -o ${SNMP_RFC_SUPPORT} = Yes \); then
-    AC_MSG_ERROR([VRRP SNMP support requires VRRP])
+  if test ${VRRP_SUPPORT} != Yes -a \
+          ${SNMP_KEEPALIVED_SUPPORT} = Yes; then
+    AC_MSG_ERROR([KEEPALIVED SNMP support requires VRRP])
   fi
   if test ${IPVS_SUPPORT} = No -a \
           ${SNMP_CHECKER_SUPPORT} = Yes; then
-    AC_MSG_ERROR([LVS SNMP support requires LVS])
+    AC_MSG_ERROR([CHECKER SNMP support requires checker])
   fi
 
   unset LIBS
