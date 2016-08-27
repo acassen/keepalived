@@ -289,7 +289,7 @@ keepalived_free_final(void)
 				if (free_list[j].ptr == alloc_list[i].ptr)
 					if (free_list[j].type == 8)
 						fprintf
-						    (log_op, "  -> pointer allready released at [%3d:%3d], at %s, %3d, %s\n",
+						    (log_op, "  -> pointer already released at [%3d:%3d], at %s, %3d, %s\n",
 						     (int) free_list[j].csum,
 						     number_alloc_list,
 						     free_list[j].file,
