@@ -588,10 +588,12 @@ keepalived_main(int argc, char **argv)
 		else
 			log_message(LOG_INFO, "Unable to change syslog ident to %s_%s", PACKAGE_NAME, network_namespace);
 
-		if (!set_namespaces(network_namespace)) {
+#if HAVE_DECL_CLONE_NEWNET
+		if (network_namespace && !set_namespaces(network_namespace)) {
 			log_message(LOG_ERR, "Unable to set network namespace %s - exiting", network_namespace);
 			goto end;
 		}
+#endif
 
 		if (!main_pidfile)
 			main_pidfile = NAMESPACE_PID_DIR KEEPALIVED_PID_FILE;
