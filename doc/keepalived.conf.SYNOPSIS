@@ -117,6 +117,10 @@ net_namespace NAME			   # Set the network namespace to run in
 					   # syslog entries will have _NAME appended to the ident.
 					   # Note: the namespace cannot be changed on a configuration reload
 
+instance NAME				   # If multiple instances of keepalived are run in the same namespace, this will
+					   #   create pid files with NAME as part of the file names, in /var/run/keepalived.
+					   # Note: the instance name cannot be changed on a configuration reload
+
 linkbeat_use_polling			   # Use media link failure detection polling fashion
 
 	1.2. Static addresses

@@ -48,9 +48,7 @@
   #include "check_snmp.h"
 #endif
 
-#if HAVE_DECL_CLONE_NEWNET
 static char *check_syslog_ident;
-#endif
 
 /* Daemon stop sequence */
 static void
@@ -302,21 +300,14 @@ start_check_child(void)
 		return 0;
 	}
 
+	if ((instance_name
 #if HAVE_DECL_CLONE_NEWNET
-	if (network_namespace) {
-		syslog_ident = MALLOC(strlen(PROG_CHECK) + 1 + strlen (network_namespace) + 1);
-		if (syslog_ident) {
-			strcpy(syslog_ident, PROG_CHECK);
-			strcat(syslog_ident, "_");
-			strcat(syslog_ident, network_namespace);
-
-			check_syslog_ident = syslog_ident;
-		}
-		else
-			syslog_ident = PROG_CHECK;
-	}
-	else
+			   || network_namespace
 #endif
+					       ) &&
+	     (check_syslog_ident = make_syslog_ident(PROG_CHECK)))
+		syslog_ident = check_syslog_ident;
+	else
 		syslog_ident = PROG_CHECK;
 
 	/* Opening local CHECK syslog channel */

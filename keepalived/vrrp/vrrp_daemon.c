@@ -67,9 +67,7 @@ static int print_vrrp_data(thread_t * thread);
 static int print_vrrp_stats(thread_t * thread);
 static int reload_vrrp_thread(thread_t * thread);
 
-#if HAVE_DECL_CLONE_NEWNET
 static char *vrrp_syslog_ident;
-#endif
 
 /* Daemon stop sequence */
 static void
@@ -451,21 +449,14 @@ start_vrrp_child(void)
 	signal_handler_destroy();
 
 	/* Opening local VRRP syslog channel */
+	if ((instance_name
 #if HAVE_DECL_CLONE_NEWNET
-	if (network_namespace) {
-		syslog_ident = MALLOC(strlen(PROG_VRRP) + 1 + strlen (network_namespace) + 1);
-		if (syslog_ident) {
-			strcpy(syslog_ident, PROG_VRRP);
-			strcat(syslog_ident, "_");
-			strcat(syslog_ident, network_namespace);
-
-			vrrp_syslog_ident = syslog_ident;
-		}
-		else
-			syslog_ident = PROG_VRRP;
-	}
-	else
+			   || network_namespace
 #endif
+					       ) &&
+	    (vrrp_syslog_ident = make_syslog_ident(PROG_VRRP)))
+			syslog_ident = vrrp_syslog_ident;
+	else
 		syslog_ident = PROG_VRRP;
 
 	openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)

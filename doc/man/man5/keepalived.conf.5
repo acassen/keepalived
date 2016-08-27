@@ -166,7 +166,11 @@ and
                               # The directory /var/run/keepalived will be created as an unshared mount point,
                               #   for example for pid files.
                               # syslog entries will have _NAME appended to the ident.
-                              # Note: the namespace cannot be changed on a network reload
+                              # Note: the namespace cannot be changed on a configuration reload
+
+ instance NAME                # If multiple instances of keepalived are run in the same namespace, this will
+                              #   create pid files with NAME as part of the file names, in /var/run/keepalived.
+                              # Note: the instance name cannot be changed on a configuration reload
 
  linkbeat_use_polling         # Poll to detect media link failure otherwise attempt to use ETHTOOL or MII interface
 

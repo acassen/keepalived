@@ -51,19 +51,25 @@
 const char *version_string = VERSION_STRING;		/* keepalived version */
 char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
 int log_facility = LOG_DAEMON;				/* Optional logging facilities */
-pid_t vrrp_child = -1;					/* VRRP child process ID */
+char *main_pidfile;					/* overrule default pidfile */
+static bool free_main_pidfile;
+#ifdef _WITH_LVS_
 pid_t checkers_child = -1;				/* Healthcheckers child process ID */
-const char *main_pidfile;				/* overrule default pidfile */
-const char *checkers_pidfile;				/* overrule default pidfile */
-const char *vrrp_pidfile;				/* overrule default pidfile */
-unsigned long daemon_mode = 0;				/* VRRP/CHECK subsystem selection */
+char *checkers_pidfile;					/* overrule default pidfile */
+static bool free_checkers_pidfile;
+#endif
+#ifdef _WITH_VRRP_
+pid_t vrrp_child = -1;					/* VRRP child process ID */
+char *vrrp_pidfile;					/* overrule default pidfile */
+static bool free_vrrp_pidfile;
+#endif
+unsigned long daemon_mode;				/* VRRP/CHECK subsystem selection */
 #ifdef _WITH_SNMP_
-int snmp = 0;						/* Enable SNMP support */
-const char *snmp_socket = NULL;				/* Socket to use for SNMP agent */
+bool snmp;						/* Enable SNMP support */
+const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
-#if HAVE_DECL_CLONE_NEWNET
-char *syslog_ns_ident;					/* syslog ident for network namespaces */
-#endif
+static char *syslog_ident;				/* syslog ident if not default */
+char *instance_name;					/* keepalived instance name */
 
 /* Log facility table */
 static struct {
@@ -87,10 +93,15 @@ free_parent_mallocs_startup(bool am_child)
 		free_dirname();
 #endif
 #ifndef _MEM_CHECK_LOG_
-		FREE_PTR(syslog_ns_ident);
+		FREE_PTR(syslog_ident);
 #else
-		free(syslog_ns_ident);
+		free(syslog_ident);
 #endif
+	}
+
+	if (free_main_pidfile) {
+		FREE_PTR(main_pidfile);
+		free_main_pidfile = false;
 	}
 }
 
@@ -100,6 +111,85 @@ free_parent_mallocs_exit(void)
 #if HAVE_DECL_CLONE_NEWNET
 	FREE_PTR(network_namespace);
 #endif
+
+#ifdef _WITH_VRRP_
+	if (free_vrrp_pidfile)
+		FREE_PTR(vrrp_pidfile);
+#endif
+#ifdef _WITH_LVS_
+	if (free_checkers_pidfile)
+		FREE_PTR(checkers_pidfile);
+#endif
+
+	FREE_PTR(instance_name);
+}
+
+char *
+make_syslog_ident(const char* name)
+{
+	size_t ident_len = strlen(name) + 1;
+	char *ident;
+
+#if HAVE_DECL_CLONE_NEWNET
+	if (network_namespace)
+		ident_len += strlen(network_namespace) + 1;
+#endif
+	if (instance_name)
+		ident_len += strlen(instance_name) + 1;
+
+	/* If we are writing MALLOC/FREE info to the log, we have
+	 * trouble FREEing the syslog_ident */
+#ifndef _MEM_CHECK_LOG_
+	ident = MALLOC(ident_len);
+#else
+	ident = malloc(ident_len);
+#endif
+
+	if (!ident)
+		return NULL;
+
+	strcpy(ident, name);
+#if HAVE_DECL_CLONE_NEWNET
+	if (network_namespace) {
+		strcat(ident, "_");
+			strcat(ident, network_namespace);
+		}
+#endif
+	if (instance_name) {
+		strcat(ident, "_");
+		strcat(ident, instance_name);
+	}
+
+	return ident;
+}
+
+static char *
+make_pidfile_name(const char* start, const char* instance, const char* extn)
+{
+	size_t len;
+	char *name;
+
+	len = strlen(start) + 1;
+	if (instance)
+		len += strlen(instance) + 1;
+	if (extn)
+		len += strlen(extn);
+
+	name = MALLOC(len);
+	if (!name) {
+		log_message(LOG_INFO, "Unable to make pidfile name for %s", start);
+		return NULL;
+	}
+
+	strcpy(name, start);
+	if (instance) {
+		strcat(name, "_");
+		strcat(name, instance);
+	}
+	if (extn)
+		strcat(name, extn);
+
+	return name;
 }
 
 #if HAVE_DECL_CLONE_NEWNET
@@ -170,30 +260,41 @@ start_keepalived(void)
 static void
 propogate_signal(void *v, int sig)
 {
+	bool unsupported_change = false;
 
-#if HAVE_DECL_CLONE_NEWNET
 	if (sig == SIGHUP) {
-		/* Make sure there isn't an attempt to change the network namespace */
-		bool namespace_change = false;
+		/* Make sure there isn't an attempt to change the network namespace or instance name */
+#if HAVE_DECL_CLONE_NEWNET
 		char *old_network_namespace = network_namespace;
 		network_namespace = NULL;
+#endif
+		char *old_instance_name = instance_name;
+		instance_name = NULL;
 
-		/* The only parameter handled is net_namespace */
+		/* The only parameters handled are net_namespace and instance_name */
 		read_config_file();
 
+#if HAVE_DECL_CLONE_NEWNET
 		if (!!old_network_namespace != !!network_namespace ||
 		    (network_namespace && strcmp(old_network_namespace, network_namespace))) {
 			log_message(LOG_INFO, "Cannot change network namespace at a reload - please restart %s", PACKAGE);
-			namespace_change = true;
+			unsupported_change = true;
 		}
-
 		FREE_PTR(network_namespace);
 		network_namespace = old_network_namespace;
+#endif
 
-		if (namespace_change)
+		if (!!old_instance_name != !!instance_name ||
+		    (instance_name && strcmp(old_instance_name, instance_name))) {
+			log_message(LOG_INFO, "Cannot change instance name at a reload - please restart %s", PACKAGE);
+			unsupported_change = true;
+		}
+		FREE_PTR(instance_name);
+		instance_name = old_instance_name;
+
+		if (unsupported_change)
 			return;
 	}
-#endif
 
 	/* Signal child process */
 #ifdef _WITH_VRRP_
@@ -566,9 +667,6 @@ int
 keepalived_main(int argc, char **argv)
 {
 	bool report_stopped = true;
-#if HAVE_DECL_CLONE_NEWNET
-	bool using_namespaces = false;
-#endif
 
 	/* Init debugging level */
 	debug = 0;
@@ -615,23 +713,23 @@ keepalived_main(int argc, char **argv)
 	if (!check_conf_file(conf_file))
 		goto end;
 
-#if HAVE_DECL_CLONE_NEWNET
 	read_config_file();
 
-	if (network_namespace) {
-		syslog_ns_ident = MALLOC(strlen(PACKAGE_NAME) + 1 + strlen(network_namespace) + 1);
-
-		if (syslog_ns_ident) {
-			strcpy(syslog_ns_ident, PACKAGE_NAME);
-			strcat(syslog_ns_ident, "_");
-			strcat(syslog_ns_ident, network_namespace);
-
-			log_message(LOG_INFO, "Changing syslog ident to %s", syslog_ns_ident);
+	if (instance_name
+#if HAVE_DECL_CLONE_NEWNET
+			  || network_namespace
+#endif
+					      ) {
+		if ((syslog_ident = make_syslog_ident(PACKAGE_NAME))) {
+			log_message(LOG_INFO, "Changing syslog ident to %s", syslog_ident);
 			closelog();
-			openlog(syslog_ns_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0), log_facility);
+			openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0), log_facility);
 		}
 		else
-			log_message(LOG_INFO, "Unable to change syslog ident to %s_%s", PACKAGE_NAME, network_namespace);
+			log_message(LOG_INFO, "Unable to change syslog ident");
+
+		/* Create the directory for pid files */
+		create_pid_dir();
 
 #if HAVE_DECL_CLONE_NEWNET
 		if (network_namespace && !set_namespaces(network_namespace)) {
@@ -640,27 +738,41 @@ keepalived_main(int argc, char **argv)
 		}
 #endif
 
-		if (!main_pidfile)
-			main_pidfile = NAMESPACE_PID_DIR KEEPALIVED_PID_FILE;
-		if (!checkers_pidfile)
-			checkers_pidfile = NAMESPACE_PID_DIR CHECKERS_PID_FILE;
-		if (!vrrp_pidfile)
-			vrrp_pidfile = NAMESPACE_PID_DIR VRRP_PID_FILE;
-
-		using_namespaces = true;
-	}
-	else
+		if (instance_name) {
+			if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, instance_name, PID_EXTENSION)))
+				free_main_pidfile = true;
+#ifdef _WITH_LVS_
+			if (!checkers_pidfile && (checkers_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, instance_name, PID_EXTENSION)))
+				free_checkers_pidfile = true;
 #endif
-	{
+#ifdef _WITH_VRRP_
+			if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, instance_name, PID_EXTENSION)))
+				free_vrrp_pidfile = true;
+#endif
+		}
+
 		if (!main_pidfile)
-			main_pidfile = PID_DIR KEEPALIVED_PID_FILE;
+			main_pidfile = KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
 #ifdef _WITH_LVS_
 		if (!checkers_pidfile)
-			checkers_pidfile = PID_DIR CHECKERS_PID_FILE;
+			checkers_pidfile = KEEPALIVED_PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
 #endif
 #ifdef _WITH_VRRP_
 		if (!vrrp_pidfile)
-			vrrp_pidfile = PID_DIR VRRP_PID_FILE;
+			vrrp_pidfile = KEEPALIVED_PID_DIR VRRP_PID_FILE PID_EXTENSION;
+#endif
+	}
+	else
+	{
+		if (!main_pidfile)
+			main_pidfile = PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
+#ifdef _WITH_LVS_
+		if (!checkers_pidfile)
+			checkers_pidfile = PID_DIR CHECKERS_PID_FILE PID_EXTENSION;
+#endif
+#ifdef _WITH_VRRP_
+		if (!vrrp_pidfile)
+			vrrp_pidfile = PID_DIR VRRP_PID_FILE PID_EXTENSION;
 #endif
 	}
 
@@ -716,11 +828,17 @@ end:
 	}
 
 #if HAVE_DECL_CLONE_NEWNET
-	if (using_namespaces)
+	if (network_namespace)
 		clear_namespaces();
-
-	FREE_PTR(network_namespace);
 #endif
+
+	if (instance_name
+#if HAVE_DECL_CLONE_NEWNET
+			  || network_namespace
+#endif
+					      ) {
+		remove_pid_dir();
+	}
 
 	/* Restore original core_pattern if necessary */
 	if (orig_core_dump_pattern)
@@ -732,10 +850,10 @@ end:
 	closelog();
 
 #ifndef _MEM_CHECK_LOG_
-	FREE_PTR(syslog_ns_ident);
+	FREE_PTR(syslog_ident);
 #else
-	if (syslog_ns_ident)
-		free(syslog_ns_ident);
+	if (syslog_ident)
+		free(syslog_ident);
 #endif
 
 	exit(0);

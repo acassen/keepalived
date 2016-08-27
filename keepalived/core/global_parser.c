@@ -34,6 +34,7 @@
 
 #include "global_parser.h"
 #include "global_data.h"
+#include "main.h"
 #include "check_data.h"
 #include "parser.h"
 #include "memory.h"
@@ -648,6 +649,16 @@ net_namespace_handler(vector_t *strvec)
 #endif
 }
 #endif
+static void
+instance_handler(vector_t *strvec)
+{
+	if (!reload) {
+		if (!instance_name)
+			instance_name = set_value(strvec);
+		else
+			log_message(LOG_INFO, "Duplicate instance definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+	}
+}
 
 void
 init_global_keywords(bool global_active)
@@ -657,6 +668,7 @@ init_global_keywords(bool global_active)
 #if HAVE_DECL_CLONE_NEWNET
 	install_keyword_root("net_namespace", &net_namespace_handler, !global_active);
 #endif
+	install_keyword_root("instance", &instance_handler, !global_active);
 	install_keyword_root("global_defs", NULL, global_active);
 	install_keyword("router_id", &routerid_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);

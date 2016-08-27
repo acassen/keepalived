@@ -30,7 +30,26 @@
 #include "main.h"
 #include "bitops.h"
 
-/* Create the runnnig daemon pidfile */
+const char *pid_directory = PID_DIR PACKAGE;
+
+/* Create the directory for non-standard pid files */
+void
+create_pid_dir(void)
+{
+	if (mkdir(pid_directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) && errno != EEXIST) {
+		log_message(LOG_INFO, "Unable to create directory %s", pid_directory);
+		return;
+	}
+}
+
+void
+remove_pid_dir(void)
+{
+	if (rmdir(pid_directory) && errno != ENOTEMPTY && errno != EBUSY)
+		log_message(LOG_INFO, "unlink of %s failed - error (%d) '%s'", pid_directory, errno, strerror(errno));
+}
+
+/* Create the running daemon pidfile */
 int
 pidfile_write(const char *pid_file, int pid)
 {
@@ -39,7 +58,7 @@ pidfile_write(const char *pid_file, int pid)
 	if (pidfd != -1) pidfile = fdopen(pidfd, "w");
 
 	if (!pidfile) {
-		log_message(LOG_INFO, "pidfile_write : Can not open %s pidfile",
+		log_message(LOG_INFO, "pidfile_write : Cannot open %s pidfile",
 		       pid_file);
 		return 0;
 	}
