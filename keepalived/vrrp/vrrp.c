@@ -1544,6 +1544,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		   (hd->priority == vrrp->effective_priority &&
 		    addr_cmp < 0)) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
+		vrrp_log_effective_priority (vrrp);
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert %d"
 				      ", forcing new election", vrrp->iname, hd->priority);
 		if (proto == IPPROTO_IPSEC_AH) {
@@ -1580,6 +1581,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		   (hd->priority == vrrp->effective_priority &&
 		    addr_cmp > 0)) {
 
+		vrrp_log_effective_priority (vrrp);
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert %d"
 				    , vrrp->iname, hd->priority);
 		if (proto == IPPROTO_IPSEC_AH) {
@@ -2562,7 +2564,7 @@ reset_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 	vrrp->init_state = old_vrrp->state;
 	vrrp->wantstate = old_vrrp->state;
 	if (!old_vrrp->sync)
-		vrrp->effective_priority = old_vrrp->effective_priority;
+		vrrp_set_effective_priority(vrrp, old_vrrp->effective_priority);
 	/* Save old stats */
 	memcpy(vrrp->stats, old_vrrp->stats, sizeof(vrrp_stats));
 
