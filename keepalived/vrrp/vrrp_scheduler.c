@@ -737,24 +737,26 @@ vrrp_goto_master(vrrp_t * vrrp)
 		vrrp_snmp_instance_trap(vrrp);
 #endif
 		vrrp->last_transition = timer_now();
-	} else {
+
+		return;
+	}
+
 #if defined _WITH_VRRP_AUTH_
-		/* If becoming MASTER in IPSEC AH AUTH, we reset the anti-replay */
-		if (vrrp->version == VRRP_VERSION_2 && vrrp->ipsecah_counter->cycle) {
-			vrrp->ipsecah_counter->cycle = 0;
-			vrrp->ipsecah_counter->seq_number = 0;
-		}
+	/* If becoming MASTER in IPSEC AH AUTH, we reset the anti-replay */
+	if (vrrp->version == VRRP_VERSION_2 && vrrp->ipsecah_counter->cycle) {
+		vrrp->ipsecah_counter->cycle = 0;
+		vrrp->ipsecah_counter->seq_number = 0;
+	}
 #endif
 
 #ifdef _WITH_SNMP_RFCV3_
-		if ((vrrp->version == VRRP_VERSION_2 && vrrp->ms_down_timer >= 3 * vrrp->adver_int) ||
-		    (vrrp->version == VRRP_VERSION_3 && vrrp->ms_down_timer >= 3 * vrrp->master_adver_int))
-			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
+	if ((vrrp->version == VRRP_VERSION_2 && vrrp->ms_down_timer >= 3 * vrrp->adver_int) ||
+	    (vrrp->version == VRRP_VERSION_3 && vrrp->ms_down_timer >= 3 * vrrp->master_adver_int))
+		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
 #endif
-		/* handle master state transition */
-		vrrp->wantstate = VRRP_STATE_MAST;
-		vrrp_state_goto_master(vrrp);
-	}
+	/* handle master state transition */
+	vrrp->wantstate = VRRP_STATE_MAST;
+	vrrp_state_goto_master(vrrp);
 }
 
 /* Delayed gratuitous ARP thread */
