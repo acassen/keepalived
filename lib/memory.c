@@ -233,9 +233,6 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 		return n;
 	}
 
-	if (buffer != NULL)
-		free(buffer);
-
 	fprintf(log_op, "free  [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
 	       i, number_alloc_list, buf,
 	       alloc_list[i].size, file, line, function);
@@ -245,6 +242,9 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 		       i, number_alloc_list, buf,
 		       alloc_list[i].size, file, line, function);
 #endif
+
+	if (buffer != NULL)
+		free(buffer);
 
 	free_list[f].file = file;
 	free_list[f].line = line;
