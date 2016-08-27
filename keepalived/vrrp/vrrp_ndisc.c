@@ -146,9 +146,6 @@ ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	char *nd_opt_lladdr = (char *) ((char *)nd_opt_h + sizeof(struct nd_opt_hdr));
 	char *lladdr = (char *) IF_HWADDR(ipaddress->ifp);
 	int len;
-	bool router;
-
-	router = get_ipv6_forwarding(ifp);
 
 	/* Ethernet header:
 	 * Destination ethernet address MUST use specific address Mapping
@@ -171,7 +168,7 @@ ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 
 	/* ICMPv6 Header */
 	icmp6h->icmp6_type = NDISC_NEIGHBOUR_ADVERTISEMENT;
-	icmp6h->icmp6_router = router;
+	icmp6h->icmp6_router = ifp->gna_router;
 
 	/* Override flag is set to indicate that the advertisement
 	 * should override an existing cache entry and update the

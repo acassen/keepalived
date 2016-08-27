@@ -1181,6 +1181,8 @@ vrrp_remove_delayed_arp(vrrp_t *vrrp)
 static void
 vrrp_state_become_master(vrrp_t * vrrp)
 {
+	interface_t *ifp ;
+
 	++vrrp->stats->become_master;
 
 	if (vrrp->version == VRRP_VERSION_3)
@@ -1208,6 +1210,11 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	kernel_netlink_poll();
 
 	/* remotes neighbour update */
+	if (vrrp->family == AF_INET6) {
+		/* Refresh whether we are acting as a router for NA messages */
+		ifp = IF_BASE_IFP(vrrp->ifp);
+		ifp->gna_router = get_ipv6_forwarding(ifp);
+	}
 	vrrp_send_link_update(vrrp, vrrp->garp_rep);
 
 	/* set refresh timer */
