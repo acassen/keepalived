@@ -90,18 +90,18 @@ process_running(const char *pid_file)
 }
 
 /* Return parent process daemon state */
-int
+bool
 keepalived_running(unsigned long mode)
 {
 	if (process_running(main_pidfile))
-		return 1;
+		return true;
 #ifdef _WITH_VRRP_
 	if (__test_bit(DAEMON_VRRP, &mode) && process_running(vrrp_pidfile))
-		return 1;
+		return true;
 #endif
 #ifdef _WITH_LVS_
 	if (__test_bit(DAEMON_CHECKERS, &mode) && process_running(checkers_pidfile))
-		return 1;
+		return true;
 #endif
-	return 0;
+	return false;
 }

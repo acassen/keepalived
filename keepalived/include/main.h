@@ -41,8 +41,12 @@
 
 /* State flags */
 enum daemon_bits {
+#ifdef _WITH_VRRP_
 	DAEMON_VRRP,
-	DAEMON_CHECKERS
+#endif
+#ifdef _WITH_LVS_
+	DAEMON_CHECKERS,
+#endif
 };
 
 /* Global vars exported */

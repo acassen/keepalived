@@ -196,10 +196,14 @@ propogate_signal(void *v, int sig)
 #endif
 
 	/* Signal child process */
+#ifdef _WITH_VRRP_
 	if (vrrp_child > 0)
 		kill(vrrp_child, sig);
+#endif
+#ifdef _WITH_LVS_
 	if (checkers_child > 0 && sig == SIGHUP)
 		kill(checkers_child, sig);
+#endif
 }
 
 /* Terminate handler */
@@ -227,14 +231,18 @@ sigend(void *v, int sig)
 		sigprocmask(SIG_BLOCK, &child_wait, NULL);
 	}
 
+#ifdef _WITH_VRRP_
 	if (vrrp_child > 0) {
 		kill(vrrp_child, SIGTERM);
 		wait_count++;
 	}
+#endif
+#ifdef _WITH_LVS_
 	if (checkers_child > 0) {
 		kill(checkers_child, SIGTERM);
 		wait_count++;
 	}
+#endif
 
 	gettimeofday(&start_time, NULL);
 	while (wait_count) {
@@ -246,15 +254,20 @@ sigend(void *v, int sig)
 				break;
 		}
 
+#ifdef _WITH_VRRP_
 		if (vrrp_child > 0 && vrrp_child == waitpid(vrrp_child, &status, WNOHANG)) {
 			report_child_status(status, vrrp_child, PROG_VRRP);
 			wait_count--;
 		}
+#endif
 
+#ifdef _WITH_LVS_
 		if (checkers_child > 0 && checkers_child == waitpid(checkers_child, &status, WNOHANG)) {
 			report_child_status(status, checkers_child, PROG_CHECK);
 			wait_count--;
 		}
+#endif
+
 		if (wait_count) {
 			gettimeofday(&now, NULL);
 			if (now.tv_usec < start_time.tv_usec) {
@@ -367,8 +380,10 @@ usage(const char *prog)
 {
 	fprintf(stderr, "Usage: %s [OPTION...]\n", prog);
 	fprintf(stderr, "  -f, --use-file=FILE          Use the specified configuration file\n");
+#if defined _WITH_VRRP_ && defined _WITH_LVS_
 	fprintf(stderr, "  -P, --vrrp                   Only run with VRRP subsystem\n");
 	fprintf(stderr, "  -C, --check                  Only run with Health-checker subsystem\n");
+#endif
 	fprintf(stderr, "  -l, --log-console            Log messages to local console\n");
 	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");
 	fprintf(stderr, "  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n");
@@ -406,8 +421,10 @@ parse_cmdline(int argc, char **argv)
 
 	struct option long_options[] = {
 		{"use-file",          required_argument, 0, 'f'},
+#if defined _WITH_VRRP_ && defined _WITH_LVSL
 		{"vrrp",              no_argument,       0, 'P'},
 		{"check",             no_argument,       0, 'C'},
+#endif
 		{"log-console",       no_argument,       0, 'l'},
 		{"log-detail",        no_argument,       0, 'D'},
 		{"log-facility",      required_argument, 0, 'S'},
@@ -487,6 +504,7 @@ parse_cmdline(int argc, char **argv)
 		case 'f':
 			conf_file = optarg;
 			break;
+#if defined _WITH_VRRP_ && defined _WITH_LVS_
 		case 'P':
 			daemon_mode = 0;
 			__set_bit(DAEMON_VRRP, &daemon_mode);
@@ -495,6 +513,7 @@ parse_cmdline(int argc, char **argv)
 			daemon_mode = 0;
 			__set_bit(DAEMON_CHECKERS, &daemon_mode);
 			break;
+#endif
 		case 'p':
 			main_pidfile = optarg;
 			break;
@@ -555,8 +574,12 @@ keepalived_main(int argc, char **argv)
 	debug = 0;
 
 	/* Initialise daemon_mode */
+#ifdef _WITH_VRRP_
 	__set_bit(DAEMON_VRRP, &daemon_mode);
+#endif
+#ifdef _WITH_LVS_
 	__set_bit(DAEMON_CHECKERS, &daemon_mode);
+#endif
 
 	/*
 	 * Parse command line and set debug level.

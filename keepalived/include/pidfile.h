@@ -29,6 +29,7 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <syslog.h>
+#include <stdbool.h>
 
 /* lock pidfile */
 #define PID_DIR			"/var/run/"
@@ -40,6 +41,6 @@
 /* Prototypes */
 extern int pidfile_write(const char *, int);
 extern void pidfile_rm(const char *);
-extern int keepalived_running(unsigned long);
+extern bool keepalived_running(unsigned long);
 
 #endif

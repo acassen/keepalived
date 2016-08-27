@@ -118,6 +118,7 @@ email_handler(vector_t *strvec)
 
 	free_strvec(email_vec);
 }
+#ifdef _WITH_VRRP_
 static void
 default_interface_handler(vector_t *strvec)
 {
@@ -133,6 +134,7 @@ default_interface_handler(vector_t *strvec)
 	else
 		global_data->default_ifp = ifp;
 }
+#endif
 #ifdef _WITH_LVS_
 static void
 lvs_timeouts(vector_t *strvec)
@@ -662,7 +664,9 @@ init_global_keywords(bool global_active)
 	install_keyword("smtp_helo_name", &smtphelo_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
+#ifdef _WITH_VRRP_
 	install_keyword("default_interface", &default_interface_handler);
+#endif
 #ifdef _WITH_LVS_
 	install_keyword("lvs_timeouts", &lvs_timeouts);
 	install_keyword("lvs_flush", &lvs_flush_handler);
