@@ -80,12 +80,18 @@ static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
 
 void
-free_parent_mallocs_startup(void)
+free_parent_mallocs_startup(bool am_child)
 {
+	if (am_child) {
 #if HAVE_DECL_CLONE_NEWNET
-	free_dirname();
-	FREE_PTR(syslog_ns_ident);
+		free_dirname();
 #endif
+#ifndef _MEM_CHECK_LOG_
+		FREE_PTR(syslog_ns_ident);
+#else
+		free(syslog_ns_ident);
+#endif
+	}
 }
 
 void
@@ -677,11 +683,16 @@ end:
 	if (orig_core_dump_pattern)
 		update_core_dump_pattern(orig_core_dump_pattern);
 
+	free_parent_mallocs_startup(false);
+	free_parent_mallocs_exit();
+
 	closelog();
 
-#if HAVE_DECL_CLONE_NEWNET
+#ifndef _MEM_CHECK_LOG_
+	FREE_PTR(syslog_ns_ident);
+#else
 	if (syslog_ns_ident)
-		FREE_PTR(syslog_ns_ident);
+		free(syslog_ns_ident);
 #endif
 
 	exit(0);

@@ -63,7 +63,7 @@ extern const char *snmp_socket;		/* Socket to use for SNMP agent */
 extern char *network_namespace;		/* network namespace name */
 #endif
 
-extern void free_parent_mallocs_startup(void);
+extern void free_parent_mallocs_startup(bool);
 extern void free_parent_mallocs_exit(void);
 
 extern int keepalived_main(int, char**); /* The "real" main function */

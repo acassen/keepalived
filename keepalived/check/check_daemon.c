@@ -87,8 +87,12 @@ stop_check(int status)
 	log_message(LOG_INFO, "Stopped");
 
 	closelog();
-#if HAVE_DECL_CLONE_NEWNET
+
+#ifndef _MEM_CHECK_LOG_
 	FREE_PTR(check_syslog_ident);
+#else
+	if (check_syslog_ident)
+		free(check_syslog_ident);
 #endif
 
 	exit(status);
@@ -299,8 +303,6 @@ start_check_child(void)
 	}
 
 #if HAVE_DECL_CLONE_NEWNET
-	free_parent_mallocs_startup();
-
 	if (network_namespace) {
 		syslog_ident = MALLOC(strlen(PROG_CHECK) + 1 + strlen (network_namespace) + 1);
 		if (syslog_ident) {
@@ -324,6 +326,8 @@ start_check_child(void)
 #ifdef _MEM_CHECK_
 	mem_log_init(PROG_CHECK, "Healthcheck child process", true);
 #endif
+
+	free_parent_mallocs_startup(true);
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(checkers_pidfile, getpid())) {

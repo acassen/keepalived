@@ -139,8 +139,12 @@ stop_vrrp(int status)
 	log_message(LOG_INFO, "Stopped");
 
 	closelog();
-#if HAVE_DECL_CLONE_NEWNET
+
+#ifndef _MEM_CHECK_LOG_
 	FREE_PTR(vrrp_syslog_ident);
+#else
+	if (vrrp_syslog_ident)
+		free(vrrp_syslog_ident);
 #endif
 
 	exit(status);
@@ -444,8 +448,6 @@ start_vrrp_child(void)
 		return 0;
 	}
 
-	free_parent_mallocs_startup();
-
 	signal_handler_destroy();
 
 	/* Opening local VRRP syslog channel */
@@ -472,6 +474,8 @@ start_vrrp_child(void)
 #ifdef _MEM_CHECK_
 	mem_log_init(PROG_VRRP, "VRRP Child process", true);
 #endif
+
+	free_parent_mallocs_startup(true);
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(vrrp_pidfile, getpid())) {
