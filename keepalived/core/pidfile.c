@@ -60,7 +60,7 @@ static int
 process_running(const char *pid_file)
 {
 	FILE *pidfile = fopen(pid_file, "r");
-	pid_t pid;
+	pid_t pid = 0;
 	int ret;
 
 	/* No pidfile */
@@ -68,11 +68,12 @@ process_running(const char *pid_file)
 		return 0;
 
 	ret = fscanf(pidfile, "%d", &pid);
+	fclose(pidfile);
 	if (ret != 1) {
 		log_message(LOG_INFO, "Error reading pid file %s", pid_file);
 		pid = 0;
+		pidfile_rm(pid_file);
 	}
-	fclose(pidfile);
 
 	/* What should we return - we don't know if it is running or not. */
 	if (!pid)
