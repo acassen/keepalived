@@ -795,6 +795,13 @@ vrrp_lower_prio_gratuitous_arp_thread(thread_t * thread)
 	return 0;
 }
 
+void
+vrrp_log_effective_priority(vrrp_t *vrrp)
+{
+	log_message(LOG_INFO, "VRRP_Instance(%s) Effective priority = %d",
+		    vrrp->iname, vrrp->effective_priority);
+}
+
 /* Set effective priorty, issue message on changes */
 void
 vrrp_set_effective_priority(vrrp_t *vrrp, uint8_t new_prio)
@@ -802,10 +809,9 @@ vrrp_set_effective_priority(vrrp_t *vrrp, uint8_t new_prio)
 	if (vrrp->effective_priority == new_prio)
 		return;
 
-	log_message(LOG_INFO, "VRRP_Instance(%s) Effective priority = %d",
-		    vrrp->iname, new_prio);
-
 	vrrp->effective_priority = new_prio;
+
+	vrrp_log_effective_priority (vrrp);
 }
 
 
