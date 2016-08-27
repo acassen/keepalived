@@ -623,7 +623,7 @@ net_namespace_handler(vector_t *strvec)
 	if (!reload) {
 		if (!network_namespace)
 			network_namespace = set_value(strvec);
-		else if (!global_data)	/* We only need to check in the parent, since the children will be the same as the parent */
+		else
 			log_message(LOG_INFO, "Duplicate net_namespace definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
 	}
 
@@ -653,7 +653,7 @@ init_global_keywords(bool global_active)
 	/* global definitions mapping */
 	install_keyword_root("linkbeat_use_polling", use_polling_handler, global_active);
 #if HAVE_DECL_CLONE_NEWNET
-	install_keyword_root("net_namespace", &net_namespace_handler, true);
+	install_keyword_root("net_namespace", &net_namespace_handler, !global_active);
 #endif
 	install_keyword_root("global_defs", NULL, global_active);
 	install_keyword("router_id", &routerid_handler);
