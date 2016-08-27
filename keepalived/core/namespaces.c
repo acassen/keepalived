@@ -208,7 +208,7 @@ set_run_mount(const char *net_namespace)
 	/* /var/run/keepalived/NAMESPACE */
 	mount_dirname = MALLOC(strlen(PID_DIR PACKAGE "/") + 1 + strlen(net_namespace));
 	if (!mount_dirname) {
-		log_message(LOG_INFO, "Unable at allocate memory for pid file dirname");
+		log_message(LOG_INFO, "Unable to allocate memory for pid file dirname");
 		return;
 	}
 
