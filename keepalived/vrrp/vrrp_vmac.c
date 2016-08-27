@@ -23,6 +23,9 @@
 #include "config.h"
 
 /* global include */
+#ifdef NETLINK_H_NEEDS_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
 #include <linux/if_link.h>
 
 /* local include */

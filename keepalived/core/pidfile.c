@@ -30,7 +30,26 @@
 #include "main.h"
 #include "bitops.h"
 
-/* Create the runnnig daemon pidfile */
+const char *pid_directory = PID_DIR PACKAGE;
+
+/* Create the directory for non-standard pid files */
+void
+create_pid_dir(void)
+{
+	if (mkdir(pid_directory, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) && errno != EEXIST) {
+		log_message(LOG_INFO, "Unable to create directory %s", pid_directory);
+		return;
+	}
+}
+
+void
+remove_pid_dir(void)
+{
+	if (rmdir(pid_directory) && errno != ENOTEMPTY && errno != EBUSY)
+		log_message(LOG_INFO, "unlink of %s failed - error (%d) '%s'", pid_directory, errno, strerror(errno));
+}
+
+/* Create the running daemon pidfile */
 int
 pidfile_write(const char *pid_file, int pid)
 {
@@ -39,7 +58,7 @@ pidfile_write(const char *pid_file, int pid)
 	if (pidfd != -1) pidfile = fdopen(pidfd, "w");
 
 	if (!pidfile) {
-		log_message(LOG_INFO, "pidfile_write : Can not open %s pidfile",
+		log_message(LOG_INFO, "pidfile_write : Cannot open %s pidfile",
 		       pid_file);
 		return 0;
 	}
@@ -60,7 +79,7 @@ static int
 process_running(const char *pid_file)
 {
 	FILE *pidfile = fopen(pid_file, "r");
-	pid_t pid;
+	pid_t pid = 0;
 	int ret;
 
 	/* No pidfile */
@@ -68,11 +87,12 @@ process_running(const char *pid_file)
 		return 0;
 
 	ret = fscanf(pidfile, "%d", &pid);
+	fclose(pidfile);
 	if (ret != 1) {
 		log_message(LOG_INFO, "Error reading pid file %s", pid_file);
 		pid = 0;
+		pidfile_rm(pid_file);
 	}
-	fclose(pidfile);
 
 	/* What should we return - we don't know if it is running or not. */
 	if (!pid)
@@ -89,14 +109,18 @@ process_running(const char *pid_file)
 }
 
 /* Return parent process daemon state */
-int
+bool
 keepalived_running(unsigned long mode)
 {
 	if (process_running(main_pidfile))
-		return 1;
+		return true;
+#ifdef _WITH_VRRP_
 	if (__test_bit(DAEMON_VRRP, &mode) && process_running(vrrp_pidfile))
-		return 1;
+		return true;
+#endif
+#ifdef _WITH_LVS_
 	if (__test_bit(DAEMON_CHECKERS, &mode) && process_running(checkers_pidfile))
-		return 1;
-	return 0;
+		return true;
+#endif
+	return false;
 }

@@ -166,7 +166,13 @@ and
                               # The directory /var/run/keepalived will be created as an unshared mount point,
                               #   for example for pid files.
                               # syslog entries will have _NAME appended to the ident.
-                              # Note: the namespace cannot be changed on a network reload
+                              # Note: the namespace cannot be changed on a configuration reload
+
+ instance NAME                # If multiple instances of keepalived are run in the same namespace, this will
+                              #   create pid files with NAME as part of the file names, in /var/run/keepalived.
+                              # Note: the instance name cannot be changed on a configuration reload
+
+ use_pid_dir		      # Create pid files in /var/run/keepalived
 
  linkbeat_use_polling         # Poll to detect media link failure otherwise attempt to use ETHTOOL or MII interface
 
@@ -562,8 +568,8 @@ A virtual_server can be a declaration of one of
     lb_kind NAT|DR|TUN
     # LVS persistence engine name
     persistence_engine <STRING>
-    # LVS persistence timeout in seconds
-    persistence_timeout <INT>
+    # LVS persistence timeout in seconds, default 6 minutes
+    persistence_timeout [<INT>]
     # LVS granularity mask (-M in ipvsadm)
     persistence_granularity <NETMASK>
     # L4 protocol

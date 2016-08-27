@@ -44,43 +44,6 @@
  * Utility functions coming from Wensong code
  */
 
-static int
-string_to_number(const char *s, int min, int max)
-{
-	int number;
-	char *end;
-
-	number = (int) strtol(s, &end, 10);
-	if (*end || end == s)
-		return -1;
-
-	/*
-	 * We parsed a number, let's see if we want this.
-	 * If max <= min then ignore ranges
-	 */
-	if (max <= min || (min <= number && number <= max))
-		return number;
-
-	return -1;
-}
-
-static int
-parse_timeout(char *buf, unsigned *timeout)
-{
-	int i;
-
-	if (buf == NULL) {
-		*timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
-		return 1;
-	}
-
-	if ((i = string_to_number(buf, 0, 86400 * 31)) == -1)
-		return 0;
-
-	*timeout = i * (IPVS_SVC_PERSISTENT_TIMEOUT / (6*60));
-	return 1;
-}
-
 static char*
 get_modprobe(void)
 {
@@ -447,22 +410,21 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 	srule->user.netmask = (vs->addr.ss_family == AF_INET6) ? 128 : ((u_int32_t) 0xffffffff);
 	srule->user.protocol = vs->service_type;
 
-	if (!parse_timeout(vs->timeout_persistence, &srule->user.timeout))
-		log_message(LOG_INFO, "IPVS : Virtual service %s illegal timeout."
-				    , FMT_VS(vs));
+	srule->user.timeout = vs->persistence_timeout;
+	if (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL)
+		if (vs->persistence_granularity)
+			srule->user.netmask = vs->persistence_granularity;
 
-	if (srule->user.timeout != 0 || vs->granularity_persistence)
+	if (vs->persistence_timeout || vs->persistence_granularity)
 		srule->user.flags |= IP_VS_SVC_F_PERSISTENT;
 
 	/* Only for UDP services */
 	if (vs->ops == 1 && srule->user.protocol == IPPROTO_UDP)
 		srule->user.flags |= IP_VS_SVC_F_ONEPACKET;
 
-	if (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL)
-		if (vs->granularity_persistence)
-			srule->user.netmask = vs->granularity_persistence;
-
+#ifdef IPVS_SVC_ATTR_PE_NAME
 	strcpy(srule->pe_name, vs->pe_name);
+#endif
 
 	/* SVR specific */
 	if (rs) {

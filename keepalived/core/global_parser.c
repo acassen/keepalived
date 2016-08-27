@@ -28,8 +28,13 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#ifdef _WITH_SNMP_
+#include "snmp.h"
+#endif
+
 #include "global_parser.h"
 #include "global_data.h"
+#include "main.h"
 #include "check_data.h"
 #include "parser.h"
 #include "memory.h"
@@ -37,12 +42,8 @@
 #include "utils.h"
 #include "logger.h"
 
-#ifdef HAVE_DECL_CLONE_NEWNET
+#if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
-#endif
-
-#ifdef _WITH_SNMP_
-#include "snmp.h"
 #endif
 
 #define LVS_MAX_TIMEOUT		(86400*31)	/* 31 days */
@@ -118,6 +119,7 @@ email_handler(vector_t *strvec)
 
 	free_strvec(email_vec);
 }
+#ifdef _WITH_VRRP_
 static void
 default_interface_handler(vector_t *strvec)
 {
@@ -133,6 +135,7 @@ default_interface_handler(vector_t *strvec)
 	else
 		global_data->default_ifp = ifp;
 }
+#endif
 #ifdef _WITH_LVS_
 static void
 lvs_timeouts(vector_t *strvec)
@@ -621,9 +624,11 @@ net_namespace_handler(vector_t *strvec)
 	/* If we are reloading, there has already been a check that the
 	 * namespace hasn't changed */ 
 	if (!reload) {
-		if (!network_namespace)
+		if (!network_namespace) {
 			network_namespace = set_value(strvec);
-		else if (!global_data)	/* We only need to check in the parent, since the children will be the same as the parent */
+			use_pid_dir = true;
+		}
+		else
 			log_message(LOG_INFO, "Duplicate net_namespace definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
 	}
 
@@ -647,14 +652,35 @@ net_namespace_handler(vector_t *strvec)
 }
 #endif
 
+static void
+instance_handler(vector_t *strvec)
+{
+	if (!reload) {
+		if (!instance_name) {
+			instance_name = set_value(strvec);
+			use_pid_dir = true;
+		}
+		else
+			log_message(LOG_INFO, "Duplicate instance definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+	}
+}
+
+static void
+use_pid_dir_handler(vector_t *strvec)
+{
+	use_pid_dir = true;
+}
+
 void
 init_global_keywords(bool global_active)
 {
 	/* global definitions mapping */
 	install_keyword_root("linkbeat_use_polling", use_polling_handler, global_active);
 #if HAVE_DECL_CLONE_NEWNET
-	install_keyword_root("net_namespace", &net_namespace_handler, true);
+	install_keyword_root("net_namespace", &net_namespace_handler, !global_active);
 #endif
+	install_keyword_root("use_pid_dir", &use_pid_dir_handler, !global_active);
+	install_keyword_root("instance", &instance_handler, !global_active);
 	install_keyword_root("global_defs", NULL, global_active);
 	install_keyword("router_id", &routerid_handler);
 	install_keyword("notification_email_from", &emailfrom_handler);
@@ -662,7 +688,9 @@ init_global_keywords(bool global_active)
 	install_keyword("smtp_helo_name", &smtphelo_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
+#ifdef _WITH_VRRP_
 	install_keyword("default_interface", &default_interface_handler);
+#endif
 #ifdef _WITH_LVS_
 	install_keyword("lvs_timeouts", &lvs_timeouts);
 	install_keyword("lvs_flush", &lvs_flush_handler);

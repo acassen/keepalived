@@ -117,6 +117,12 @@ net_namespace NAME			   # Set the network namespace to run in
 					   # syslog entries will have _NAME appended to the ident.
 					   # Note: the namespace cannot be changed on a configuration reload
 
+instance NAME				   # If multiple instances of keepalived are run in the same namespace, this will
+					   #   create pid files with NAME as part of the file names, in /var/run/keepalived.
+					   # Note: the instance name cannot be changed on a configuration reload
+
+use_pid_dir				   # Create pid files in /var/run/keepalived
+
 linkbeat_use_polling			   # Use media link failure detection polling fashion
 
 	1.2. Static addresses
@@ -420,7 +426,7 @@ virtual_server group <STRING>      {	# VS group declaration
     ops					# Apply One-Packet-Scheduling (only for UDP)
     lvs_method NAT|DR|TUN		# LVS method used
     persistence_engine <STRING>	        # LVS persistence engine name
-    persistence_timeout <INTEGER>	# LVS persistence timeout
+    persistence_timeout [<INTEGER>]	# LVS persistence timeout, default 6 minutes
     persistence_granularity <NETMASK>	# LVS granularity mask
     protocol TCP|UDP|SCTP               # L4 protocol
     ha_suspend				# If VS IP address is not set, suspend

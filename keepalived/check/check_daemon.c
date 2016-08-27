@@ -48,9 +48,7 @@
   #include "check_snmp.h"
 #endif
 
-#if HAVE_DECL_CLONE_NEWNET
 static char *check_syslog_ident;
-#endif
 
 /* Daemon stop sequence */
 static void
@@ -87,8 +85,12 @@ stop_check(int status)
 	log_message(LOG_INFO, "Stopped");
 
 	closelog();
-#if HAVE_DECL_CLONE_NEWNET
+
+#ifndef _MEM_CHECK_LOG_
 	FREE_PTR(check_syslog_ident);
+#else
+	if (check_syslog_ident)
+		free(check_syslog_ident);
 #endif
 
 	exit(status);
@@ -298,23 +300,14 @@ start_check_child(void)
 		return 0;
 	}
 
+	if ((instance_name
 #if HAVE_DECL_CLONE_NEWNET
-	free_parent_mallocs_startup();
-
-	if (network_namespace) {
-		syslog_ident = MALLOC(strlen(PROG_CHECK) + 1 + strlen (network_namespace) + 1);
-		if (syslog_ident) {
-			strcpy(syslog_ident, PROG_CHECK);
-			strcat(syslog_ident, "_");
-			strcat(syslog_ident, network_namespace);
-
-			check_syslog_ident = syslog_ident;
-		}
-		else
-			syslog_ident = PROG_CHECK;
-	}
-	else
+			   || network_namespace
 #endif
+					       ) &&
+	     (check_syslog_ident = make_syslog_ident(PROG_CHECK)))
+		syslog_ident = check_syslog_ident;
+	else
 		syslog_ident = PROG_CHECK;
 
 	/* Opening local CHECK syslog channel */
@@ -322,8 +315,10 @@ start_check_child(void)
 			    , (log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
 
 #ifdef _MEM_CHECK_
-	mem_log_init(PROG_CHECK, "Healthcheck child process", true);
+	mem_log_init(PROG_CHECK, "Healthcheck child process");
 #endif
+
+	free_parent_mallocs_startup(true);
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(checkers_pidfile, getpid())) {

@@ -236,9 +236,6 @@
 /* Define to 1 if you have the <linux/netfilter/x_tables.h> header file. */
 #undef HAVE_LINUX_NETFILTER_X_TABLES_H
 
-/* Define to 1 if you have the <linux/netlink.h> header file. */
-#undef HAVE_LINUX_NETLINK_H
-
 /* Define to 1 if you have the <linux/rtnetlink.h> header file. */
 #undef HAVE_LINUX_RTNETLINK_H
 
@@ -416,6 +413,9 @@
 /* Define to 1 if libipvs can use netlink */
 #undef LIBIPVS_USE_NL
 
+/* Define to 1 if <linux/netlink.h> needs <sys/socket.h> */
+#undef NETLINK_H_NEEDS_SYS_SOCKET_H
+
 /* Name of package */
 #undef PACKAGE
 
@@ -446,7 +446,7 @@
 /* Date of build configuration */
 #undef VERSION_DATE
 
-/* Define if <linux/netfilter/x_tables.h> doesnt exist */
+/* Define if <linux/netfilter/x_tables.h> doesnt define it */
 #undef XT_EXTENSION_MAXNAMELEN
 
 /* Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>

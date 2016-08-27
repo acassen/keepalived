@@ -82,6 +82,7 @@ typedef struct _interface {
 							   otherwise the physical interface (i.e. ifindex) */
 #endif
 	garp_delay_t		*garp_delay;		/* Delays for sending gratuitous ARP/NA */
+	bool			gna_router;		/* Router flag for NA messages */
 	int			reset_arp_config;	/* Count of how many vrrps have changed arp parameters on interface */
 	uint32_t		reset_arp_ignore_value;	/* Original value of arp_ignore to be restored */
 	uint32_t		reset_arp_filter_value;	/* Original value of arp_filter to be restored */

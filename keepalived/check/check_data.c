@@ -186,12 +186,16 @@ dump_vs(void *data)
 						   vs->delay_loop,
 	       vs->sched);
 	log_message(LOG_INFO, "   One packet scheduling = %sabled%s", vs->ops ? "en" : "dis", (vs->ops && vs->service_type != IPPROTO_UDP) ? " (inactive due to not UDP)" : "");
-	if (atoi(vs->timeout_persistence) > 0)
-		log_message(LOG_INFO, "   persistence timeout = %s",
-		       vs->timeout_persistence);
-	if (vs->granularity_persistence)
-		log_message(LOG_INFO, "   persistence granularity = %s",
-		       inet_ntop2(vs->granularity_persistence));
+	if (vs->persistence_timeout)
+		log_message(LOG_INFO, "   persistence timeout = %u", vs->persistence_timeout);
+	if (vs->persistence_granularity) {
+		if (vs->addr.ss_family == AF_INET6)
+			log_message(LOG_INFO, "   persistence granularity = %d",
+				       vs->persistence_granularity);
+		else
+			log_message(LOG_INFO, "   persistence granularity = %s",
+				       inet_ntop2(vs->persistence_granularity));
+	}
 	if (vs->service_type == IPPROTO_TCP)
 		log_message(LOG_INFO, "   protocol = TCP");
 	else if (vs->service_type == IPPROTO_UDP)
@@ -253,7 +257,6 @@ alloc_vs(char *ip, char *port)
 	}
 
 	new->delay_loop = KEEPALIVED_DEFAULT_DELAY;
-	strncpy(new->timeout_persistence, "0", 1);
 	new->virtualhost = NULL;
 	new->alpha = 0;
 	new->omega = 0;

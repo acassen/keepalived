@@ -67,9 +67,7 @@ static int print_vrrp_data(thread_t * thread);
 static int print_vrrp_stats(thread_t * thread);
 static int reload_vrrp_thread(thread_t * thread);
 
-#if HAVE_DECL_CLONE_NEWNET
 static char *vrrp_syslog_ident;
-#endif
 
 /* Daemon stop sequence */
 static void
@@ -139,8 +137,12 @@ stop_vrrp(int status)
 	log_message(LOG_INFO, "Stopped");
 
 	closelog();
-#if HAVE_DECL_CLONE_NEWNET
+
+#ifndef _MEM_CHECK_LOG_
 	FREE_PTR(vrrp_syslog_ident);
+#else
+	if (vrrp_syslog_ident)
+		free(vrrp_syslog_ident);
 #endif
 
 	exit(status);
@@ -444,34 +446,27 @@ start_vrrp_child(void)
 		return 0;
 	}
 
-	free_parent_mallocs_startup();
-
 	signal_handler_destroy();
 
 	/* Opening local VRRP syslog channel */
+	if ((instance_name
 #if HAVE_DECL_CLONE_NEWNET
-	if (network_namespace) {
-		syslog_ident = MALLOC(strlen(PROG_VRRP) + 1 + strlen (network_namespace) + 1);
-		if (syslog_ident) {
-			strcpy(syslog_ident, PROG_VRRP);
-			strcat(syslog_ident, "_");
-			strcat(syslog_ident, network_namespace);
-
-			vrrp_syslog_ident = syslog_ident;
-		}
-		else
-			syslog_ident = PROG_VRRP;
-	}
-	else
+			   || network_namespace
 #endif
+					       ) &&
+	    (vrrp_syslog_ident = make_syslog_ident(PROG_VRRP)))
+			syslog_ident = vrrp_syslog_ident;
+	else
 		syslog_ident = PROG_VRRP;
 
 	openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
 			    , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
 
 #ifdef _MEM_CHECK_
-	mem_log_init(PROG_VRRP, "VRRP Child process", true);
+	mem_log_init(PROG_VRRP, "VRRP Child process");
 #endif
+
+	free_parent_mallocs_startup(true);
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(vrrp_pidfile, getpid())) {

@@ -63,6 +63,7 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSPERSIST,
 	CHECK_SNMP_VSPERSISTTIMEOUT,
 	CHECK_SNMP_VSPERSISTGRANULARITY,
+	CHECK_SNMP_VSPERSISTGRANULARITY6,
 	CHECK_SNMP_VSDELAYLOOP,
 	CHECK_SNMP_VSHASUSPEND,
 	CHECK_SNMP_VSOPS,
@@ -99,7 +100,7 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSRATEINBPSLOW,
 	CHECK_SNMP_VSRATEINBPSHIGH,
 	CHECK_SNMP_VSRATEOUTBPSLOW,
-	CHECK_SNMP_VSRATEOUTBPSHIGH
+	CHECK_SNMP_VSRATEOUTBPSHIGH,
 #endif
 #endif
 };
@@ -471,17 +472,20 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		*var_len = strlen(v->virtualhost);
 		return (u_char*)v->virtualhost;
 	case CHECK_SNMP_VSPERSIST:
-		long_ret = (atol(v->timeout_persistence) > 0)?1:2;
+		long_ret = (v->persistence_timeout)?1:2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSPERSISTTIMEOUT:
-		if (atol(v->timeout_persistence) <= 0) break;
-		long_ret = atol(v->timeout_persistence);
+		if (!v->persistence_timeout) break;
+		long_ret = v->persistence_timeout;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSPERSISTGRANULARITY:
-		if (atol(v->timeout_persistence) <= 0) break;
-		if (!v->granularity_persistence) break;
-		*var_len = 4;
-		return (u_char*)&v->granularity_persistence;
+		if (!v->persistence_granularity || v->addr.ss_family == AF_INET6) break;
+		*var_len = sizeof(v->persistence_granularity);
+		return (u_char*)&v->persistence_granularity;
+	case CHECK_SNMP_VSPERSISTGRANULARITY6:
+		if (!v->persistence_granularity || v->addr.ss_family == AF_INET) break;
+		*var_len = sizeof(v->persistence_granularity);
+		return (u_char*)&v->persistence_granularity;
 	case CHECK_SNMP_VSDELAYLOOP:
 		if (v->delay_loop >= TIMER_MAX_SEC)
 			long_ret = v->delay_loop/TIMER_HZ;
@@ -1213,6 +1217,8 @@ static struct variable8 check_vars[] = {
 	 check_snmp_virtualserver, 3, {3, 1, 50}},
 #endif
 #endif
+	{CHECK_SNMP_VSPERSISTGRANULARITY6, ASN_UNSIGNED, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 51}},
 	/* realServerTable */
 	{CHECK_SNMP_RSTYPE, ASN_INTEGER, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 2}},

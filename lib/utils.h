@@ -65,7 +65,6 @@ extern uint32_t inet_sockaddrip4(struct sockaddr_storage *);
 extern int inet_sockaddrip6(struct sockaddr_storage *, struct in6_addr *);
 extern int inet_inaddrcmp(int, void *, void *);
 extern int inet_sockaddrcmp(struct sockaddr_storage *, struct sockaddr_storage *);
-extern int inet_ston(const char *, uint32_t *);
 extern char *get_local_name(void);
 extern int string_equal(const char *, const char *);
 extern void set_std_fd(int);

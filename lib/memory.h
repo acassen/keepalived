@@ -50,7 +50,7 @@ extern int keepalived_free(void *, char *, char *, int);
 extern void *keepalived_realloc(void *, size_t, char *, char *, int)
 		__attribute__((alloc_size(2)));
 
-extern void mem_log_init(const char *, const char*, bool);
+extern void mem_log_init(const char *, const char *);
 extern void enable_mem_log_termination(void);
 
 #else
@@ -64,11 +64,5 @@ extern void *zalloc(unsigned long size);
 #endif
 
 /* Common defines */
-static inline void
-FREE_PTR(void *p)
-{
-	if (p)
-		FREE(p);
-}
-
+#define FREE_PTR(p)	{ if (p) { FREE(p);} }
 #endif

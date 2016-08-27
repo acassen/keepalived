@@ -194,37 +194,31 @@ char *network_namespace;
 
 /* Local data */
 static const char *netns_dir = "/var/run/netns/";
-static const char *mount_point = PID_DIR PACKAGE;
-static char *dirname;
+static char *mount_dirname;
 
 void
 free_dirname(void)
 {
-	FREE_PTR(dirname);
+	FREE_PTR(mount_dirname);
 }
 
 static void
 set_run_mount(const char *net_namespace)
 {
-	if (mkdir(mount_point, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) && errno != EEXIST) {
-		log_message(LOG_INFO, "Unable to create directory %s", mount_point);
+	/* /var/run/keepalived/NAMESPACE */
+	mount_dirname = MALLOC(strlen(PID_DIR PACKAGE "/") + 1 + strlen(net_namespace));
+	if (!mount_dirname) {
+		log_message(LOG_INFO, "Unable to allocate memory for pid file dirname");
 		return;
 	}
 
-	/* /var/run/keepalived/keepalived.NAMESPACE */
-	dirname = MALLOC(strlen(PID_DIR PACKAGE "/" PACKAGE) + 1 + strlen(net_namespace) + 1);
-	if (!dirname) {
-		log_message(LOG_INFO, "Unable at allocate memory for pid file dirname");
-		return;
-	}
+	strcpy(mount_dirname, PID_DIR PACKAGE "/");
+	strcat(mount_dirname, net_namespace);
 
-	strcpy(dirname, PID_DIR PACKAGE "/" PACKAGE ".");
-	strcat(dirname, net_namespace);
-
-	if (mkdir(dirname, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) && errno != EEXIST) {
-		log_message(LOG_INFO, "Unable to create directory %s", dirname);
-		FREE(dirname);
-		dirname = NULL;
+	if (mkdir(mount_dirname, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) && errno != EEXIST) {
+		log_message(LOG_INFO, "Unable to create directory %s", mount_dirname);
+		FREE(mount_dirname);
+		mount_dirname = NULL;
 		return;
 	}
 
@@ -239,22 +233,20 @@ set_run_mount(const char *net_namespace)
 		log_message(LOG_INFO, "Mount slave failed, error (%d) '%s'", errno, strerror(errno));
 #endif
 
-	if (mount(dirname, mount_point, NULL, MS_BIND, NULL))
+	if (mount(mount_dirname, pid_directory, NULL, MS_BIND, NULL))
 		log_message(LOG_INFO, "Mount failed, error (%d) '%s'", errno, strerror(errno));
 }
 
 static void
 unmount_run(void)
 {
-	if (umount(mount_point))
-		log_message(LOG_INFO, "unmount of %s failed - errno %d", mount_point, errno);
-	if (dirname) {
-		if (rmdir(dirname) && errno != ENOTEMPTY && errno != EBUSY)
-			log_message(LOG_INFO, "unlink of %s failed - error (%d) '%s'", dirname, errno, strerror(errno));
-		FREE(dirname);
+	if (umount(pid_directory))
+		log_message(LOG_INFO, "unmount of %s failed - errno %d", pid_directory, errno);
+	if (mount_dirname) {
+		if (rmdir(mount_dirname) && errno != ENOTEMPTY && errno != EBUSY)
+			log_message(LOG_INFO, "unlink of %s failed - error (%d) '%s'", mount_dirname, errno, strerror(errno));
+		FREE(mount_dirname);
 	}
-	if (rmdir(mount_point) && errno != ENOTEMPTY && errno != EBUSY)
-		log_message(LOG_INFO, "unlink of %s failed - error (%d) '%s'", mount_point, errno, strerror(errno));
 }
 
 bool

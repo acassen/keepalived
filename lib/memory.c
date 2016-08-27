@@ -233,9 +233,6 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 		return n;
 	}
 
-	if (buffer != NULL)
-		free(buffer);
-
 	fprintf(log_op, "free  [%3d:%3d], %p, %4zu at %s, %3d, %s\n",
 	       i, number_alloc_list, buf,
 	       alloc_list[i].size, file, line, function);
@@ -245,6 +242,9 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 		       i, number_alloc_list, buf,
 		       alloc_list[i].size, file, line, function);
 #endif
+
+	if (buffer != NULL)
+		free(buffer);
 
 	free_list[f].file = file;
 	free_list[f].line = line;
@@ -289,7 +289,7 @@ keepalived_free_final(void)
 				if (free_list[j].ptr == alloc_list[i].ptr)
 					if (free_list[j].type == 8)
 						fprintf
-						    (log_op, "  -> pointer allready released at [%3d:%3d], at %s, %3d, %s\n",
+						    (log_op, "  -> pointer already released at [%3d:%3d], at %s, %3d, %s\n",
 						     (int) free_list[j].csum,
 						     number_alloc_list,
 						     free_list[j].file,
@@ -414,7 +414,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 }
 
 void
-mem_log_init(const char* prog_name, const char *banner, bool enable)
+mem_log_init(const char* prog_name, const char *banner)
 {
 	size_t log_name_len;
 	char *log_name;
@@ -458,9 +458,6 @@ mem_log_init(const char* prog_name, const char *banner, bool enable)
 	free(log_name);
 
 	terminate_banner = banner;
-
-	if (enable)
-		atexit(keepalived_free_final);
 }
 
 void enable_mem_log_termination(void)
