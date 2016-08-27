@@ -135,13 +135,17 @@ stop_keepalived(void)
 	signal_handler_destroy();
 	thread_destroy_master(master);
 
-	pidfile_rm(main_pidfile);
-
+#ifdef _WITH_VRRP_
 	if (__test_bit(DAEMON_VRRP, &daemon_mode))
 		pidfile_rm(vrrp_pidfile);
+#endif
 
+#ifdef _WITH_LVS_
 	if (__test_bit(DAEMON_CHECKERS, &daemon_mode))
 		pidfile_rm(checkers_pidfile);
+#endif
+
+	pidfile_rm(main_pidfile);
 #endif
 }
 
@@ -375,8 +379,12 @@ usage(const char *prog)
 	fprintf(stderr, "  -n, --dont-fork              Don't fork the daemon process\n");
 	fprintf(stderr, "  -d, --dump-conf              Dump the configuration data\n");
 	fprintf(stderr, "  -p, --pid=FILE               Use specified pidfile for parent process\n");
+#ifdef _WITH_VRRP_
 	fprintf(stderr, "  -r, --vrrp_pid=FILE          Use specified pidfile for VRRP child process\n");
+#endif
+#ifdef _WITH_LVS_
 	fprintf(stderr, "  -c, --checkers_pid=FILE      Use specified pidfile for checkers child process\n");
+#endif
 #ifdef _WITH_SNMP_
 	fprintf(stderr, "  -x, --snmp                   Enable SNMP subsystem\n");
 	fprintf(stderr, "  -A, --snmp-agent-socket=FILE Use the specified socket for master agent\n");
@@ -410,8 +418,12 @@ parse_cmdline(int argc, char **argv)
 		{"dont-fork",         no_argument,       0, 'n'},
 		{"dump-conf",         no_argument,       0, 'd'},
 		{"pid",               required_argument, 0, 'p'},
+#ifdef _WITH_VRRP_
 		{"vrrp_pid",          required_argument, 0, 'r'},
+#endif
+#ifdef _WITH_LVS_
 		{"checkers_pid",      required_argument, 0, 'c'},
+#endif
  #ifdef _WITH_SNMP_
 		{"snmp",              no_argument,       0, 'x'},
 		{"snmp-agent-socket", required_argument, 0, 'A'},
@@ -486,12 +498,16 @@ parse_cmdline(int argc, char **argv)
 		case 'p':
 			main_pidfile = optarg;
 			break;
+#ifdef _WITH_LVS_
 		case 'c':
 			checkers_pidfile = optarg;
 			break;
+#endif
+#ifdef _WITH_VRRP_
 		case 'r':
 			vrrp_pidfile = optarg;
 			break;
+#endif
 #ifdef _WITH_SNMP_
 		case 'x':
 			snmp = 1;
@@ -615,10 +631,14 @@ keepalived_main(int argc, char **argv)
 	{
 		if (!main_pidfile)
 			main_pidfile = PID_DIR KEEPALIVED_PID_FILE;
+#ifdef _WITH_LVS_
 		if (!checkers_pidfile)
 			checkers_pidfile = PID_DIR CHECKERS_PID_FILE;
+#endif
+#ifdef _WITH_VRRP_
 		if (!vrrp_pidfile)
 			vrrp_pidfile = PID_DIR VRRP_PID_FILE;
+#endif
 	}
 
 	/* Check if keepalived is already running */
