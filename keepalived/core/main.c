@@ -599,7 +599,7 @@ keepalived_main(int argc, char **argv)
 #endif
 
 #ifdef _MEM_CHECK_
-	mem_log_init(PACKAGE_NAME, "Parent process", false);
+	mem_log_init(PACKAGE_NAME, "Parent process");
 #endif
 
 	/* Handle any core file requirements */

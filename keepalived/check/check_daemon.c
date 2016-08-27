@@ -324,7 +324,7 @@ start_check_child(void)
 			    , (log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
 
 #ifdef _MEM_CHECK_
-	mem_log_init(PROG_CHECK, "Healthcheck child process", true);
+	mem_log_init(PROG_CHECK, "Healthcheck child process");
 #endif
 
 	free_parent_mallocs_startup(true);

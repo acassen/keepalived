@@ -472,7 +472,7 @@ start_vrrp_child(void)
 			    , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
 
 #ifdef _MEM_CHECK_
-	mem_log_init(PROG_VRRP, "VRRP Child process", true);
+	mem_log_init(PROG_VRRP, "VRRP Child process");
 #endif
 
 	free_parent_mallocs_startup(true);

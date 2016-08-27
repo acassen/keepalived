@@ -414,7 +414,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 }
 
 void
-mem_log_init(const char* prog_name, const char *banner, bool enable)
+mem_log_init(const char* prog_name, const char *banner)
 {
 	size_t log_name_len;
 	char *log_name;
@@ -458,9 +458,6 @@ mem_log_init(const char* prog_name, const char *banner, bool enable)
 	free(log_name);
 
 	terminate_banner = banner;
-
-	if (enable)
-		atexit(keepalived_free_final);
 }
 
 void enable_mem_log_termination(void)
