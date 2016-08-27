@@ -41,7 +41,7 @@
 #include "utils.h"
 #include "logger.h"
 
-#ifdef HAVE_DECL_CLONE_NEWNET
+#if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
 #endif
 
