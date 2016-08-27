@@ -64,11 +64,5 @@ extern void *zalloc(unsigned long size);
 #endif
 
 /* Common defines */
-static inline void
-FREE_PTR(void *p)
-{
-	if (p)
-		FREE(p);
-}
-
+#define FREE_PTR(p)	{ if (p) { FREE(p);} }
 #endif

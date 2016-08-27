@@ -28,6 +28,10 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
+#ifdef _WITH_SNMP_
+#include "snmp.h"
+#endif
+
 #include "global_parser.h"
 #include "global_data.h"
 #include "check_data.h"
@@ -39,10 +43,6 @@
 
 #ifdef HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
-#endif
-
-#ifdef _WITH_SNMP_
-#include "snmp.h"
 #endif
 
 #define LVS_MAX_TIMEOUT		(86400*31)	/* 31 days */
