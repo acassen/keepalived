@@ -624,8 +624,10 @@ net_namespace_handler(vector_t *strvec)
 	/* If we are reloading, there has already been a check that the
 	 * namespace hasn't changed */ 
 	if (!reload) {
-		if (!network_namespace)
+		if (!network_namespace) {
 			network_namespace = set_value(strvec);
+			use_pid_dir = true;
+		}
 		else
 			log_message(LOG_INFO, "Duplicate net_namespace definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
 	}
@@ -649,15 +651,24 @@ net_namespace_handler(vector_t *strvec)
 #endif
 }
 #endif
+
 static void
 instance_handler(vector_t *strvec)
 {
 	if (!reload) {
-		if (!instance_name)
+		if (!instance_name) {
 			instance_name = set_value(strvec);
+			use_pid_dir = true;
+		}
 		else
 			log_message(LOG_INFO, "Duplicate instance definition %s - ignoring", FMT_STR_VSLOT(strvec, 1));
 	}
+}
+
+static void
+use_pid_dir_handler(vector_t *strvec)
+{
+	use_pid_dir = true;
 }
 
 void
@@ -668,6 +679,7 @@ init_global_keywords(bool global_active)
 #if HAVE_DECL_CLONE_NEWNET
 	install_keyword_root("net_namespace", &net_namespace_handler, !global_active);
 #endif
+	install_keyword_root("use_pid_dir", &use_pid_dir_handler, !global_active);
 	install_keyword_root("instance", &instance_handler, !global_active);
 	install_keyword_root("global_defs", NULL, global_active);
 	install_keyword("router_id", &routerid_handler);

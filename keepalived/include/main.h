@@ -67,6 +67,7 @@ extern const char *snmp_socket;		/* Socket to use for SNMP agent */
 extern char *network_namespace;		/* network namespace name */
 #endif
 extern char *instance_name;		/* keepalived instance name */
+extern bool use_pid_dir;		/* pid files in /var/run/keepalived */
 
 extern void free_parent_mallocs_startup(bool);
 extern void free_parent_mallocs_exit(void);

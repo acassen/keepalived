@@ -70,6 +70,7 @@ const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
 static char *syslog_ident;				/* syslog ident if not default */
 char *instance_name;					/* keepalived instance name */
+bool use_pid_dir;					/* Put pid files in /var/run/keepalived */
 
 /* Log facility table */
 static struct {
@@ -728,9 +729,6 @@ keepalived_main(int argc, char **argv)
 		else
 			log_message(LOG_INFO, "Unable to change syslog ident");
 
-		/* Create the directory for pid files */
-		create_pid_dir();
-
 #if HAVE_DECL_CLONE_NEWNET
 		if (network_namespace && !set_namespaces(network_namespace)) {
 			log_message(LOG_ERR, "Unable to set network namespace %s - exiting", network_namespace);
@@ -750,6 +748,11 @@ keepalived_main(int argc, char **argv)
 				free_vrrp_pidfile = true;
 #endif
 		}
+	}
+
+	if (use_pid_dir) {
+		/* Create the directory for pid files */
+		create_pid_dir();
 
 		if (!main_pidfile)
 			main_pidfile = KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
@@ -832,13 +835,8 @@ end:
 		clear_namespaces();
 #endif
 
-	if (instance_name
-#if HAVE_DECL_CLONE_NEWNET
-			  || network_namespace
-#endif
-					      ) {
+	if (use_pid_dir)
 		remove_pid_dir();
-	}
 
 	/* Restore original core_pattern if necessary */
 	if (orig_core_dump_pattern)

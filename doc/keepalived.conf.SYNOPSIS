@@ -121,6 +121,8 @@ instance NAME				   # If multiple instances of keepalived are run in the same na
 					   #   create pid files with NAME as part of the file names, in /var/run/keepalived.
 					   # Note: the instance name cannot be changed on a configuration reload
 
+use_pid_dir				   # Create pid files in /var/run/keepalived
+
 linkbeat_use_polling			   # Use media link failure detection polling fashion
 
 	1.2. Static addresses
