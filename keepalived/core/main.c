@@ -523,7 +523,7 @@ parse_cmdline(int argc, char **argv)
 
 	struct option long_options[] = {
 		{"use-file",          required_argument, 0, 'f'},
-#if defined _WITH_VRRP_ && defined _WITH_LVSL
+#if defined _WITH_VRRP_ && defined _WITH_LVS_
 		{"vrrp",              no_argument,       0, 'P'},
 		{"check",             no_argument,       0, 'C'},
 #endif
