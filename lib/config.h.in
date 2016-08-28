@@ -542,6 +542,9 @@
 /* Define to 1 if have SO_MARK */
 #undef _WITH_SO_MARK_
 
+/* Define to 1 to build with stacktrace support */
+#undef _WITH_STACKTRACE_
+
 /* Define to 1 if have VRRP support */
 #undef _WITH_VRRP_
 

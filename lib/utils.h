@@ -50,6 +50,9 @@ extern unsigned long debug;
 
 /* Prototypes defs */
 extern void dump_buffer(char *, int, FILE *);
+#ifdef _WITH_STACKTRACE_
+extern void write_stacktrace(const char *);
+#endif
 extern u_short in_csum(u_short *, int, int, int *);
 extern char *inet_ntop2(uint32_t);
 extern uint8_t inet_stor(const char *);

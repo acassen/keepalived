@@ -107,6 +107,8 @@ AC_ARG_ENABLE(mem-check-log,
   [  --enable-mem-check-log  compile with memory alloc checking wriging to syslog])
 AC_ARG_ENABLE(debug,
   [  --enable-debug          compile with debugging flags])
+AC_ARG_ENABLE(stacktrace,
+  [  --enable-stracktrace    compile with stacktrace support])
 AC_ARG_ENABLE(profile,
   [  --enable-profile        compile with profiling flags])
 
@@ -830,6 +832,16 @@ else
   ENABLE_DEBUG=No
 fi
 
+dnl ----[ Stacktrace support or not ? ]----
+if test "${enable_stacktrace}" = yes; then
+  AC_DEFINE([_WITH_STACKTRACE_], [ 1 ], [Define to 1 to build with stacktrace support])
+  ENABLE_STACKTRACE=Yes
+  add_build_opt([STACKTRACE])
+  add_to_var([KA_LDFLAGS], [-rdynamic])
+else
+  ENABLE_STACKTRACE=No
+fi
+
 dnl ----[ Profiling or not ? ]----
 if test "${enable_profile}" = yes; then
   add_to_var([KA_CFLAGS], [-pg])
@@ -886,6 +898,7 @@ if test ${SNMP_RFCV3_SUPPORT} = Yes; then
 fi
 echo "SHA1 support             : ${SHA1_SUPPORT}"
 echo "Use Debug flags          : ${ENABLE_DEBUG}"
+echo "Stacktrace support       : ${ENABLE_STACKTRACE}"
 echo "Memory alloc check       : ${MEM_CHECK}"
 if test ${MEM_CHECK} = Yes; then
   echo "Memory alloc check log   : ${MEM_CHECK_LOG}"

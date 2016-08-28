@@ -46,6 +46,9 @@
 #include "ipvswrapper.h"
 #endif
 
+#ifndef _HAVE_LIBIPTC_
+#define	XT_EXTENSION_MAXNAMELEN		29
+#endif
 
 /* constants */
 #define DEFAULT_SMTP_SERVER 0x7f000001
