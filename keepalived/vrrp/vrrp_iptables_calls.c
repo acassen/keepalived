@@ -116,7 +116,7 @@ int ip4tables_is_chain(struct iptc_handle* handle, const char* chain_name)
 	return iptc_is_chain(chain_name, handle);
 }
 
-int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name, int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint16_t type, int cmd)
+int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name, int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint16_t type, int cmd, bool force)
 {
 	size_t size;
 	struct ipt_entry *fw;
@@ -198,7 +198,7 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 
 	sav_errno = errno ;
 
-	if (res!= 1)
+	if (res !=  1 && (!force || sav_errno != ENOENT))
 	{
 		log_message(LOG_INFO, "ip4tables_process_entry for chain %s returned %d: %s", chain, res, iptc_strerror (sav_errno) ) ;
 
@@ -245,7 +245,7 @@ int ip6tables_is_chain(struct ip6tc_handle* handle, const char* chain_name)
 	return ip6tc_is_chain(chain_name, handle);
 }
 
-int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name, int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint16_t type, int cmd)
+int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name, int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint16_t type, int cmd, bool force)
 {
 	size_t size;
 	struct ip6t_entry *fw;
@@ -326,7 +326,7 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 
 	sav_errno = errno ;
 
-	if (res != 1)
+	if (res !=  1 && (!force || sav_errno != ENOENT))
 	{
 		log_message(LOG_INFO, "ip6tables_process_entry for chain %s returned %d: %s", chain, res, ip6tc_strerror (sav_errno) ) ;
 

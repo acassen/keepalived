@@ -166,7 +166,7 @@ netlink_iplist(list ip_list, int cmd)
 
 #ifndef _HAVE_LIBIPTC_
 static void
-handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
+handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname, bool force)
 {
 	char  *argv[14];
 	unsigned int i = 0;
@@ -198,13 +198,13 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 	argv[i++] = "ACCEPT";
 	argv[i] = NULL;
 
-	if (fork_exec(argv) < 0)
+	if (fork_exec(argv) < 0 && !force)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to accept NAs sent"
 				     " to vip %s", (cmd) ? "set" : "remove", addr_str);
 
 	argv[type_specifier] = "135";
 
-	if (fork_exec(argv) < 0)
+	if (fork_exec(argv) < 0 && !force)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to accept NSs sent"
 				     " to vip %s", (cmd) ? "set" : "remove", addr_str);
 
@@ -218,21 +218,21 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 
 	/* Allow NSs to be sent - this should only happen if the underlying interface
 	   doesn't have an IPv6 address */
-	if (fork_exec(argv) < 0)
+	if (fork_exec(argv) < 0 && !force)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to allow NSs to be"
 				     " sent from vip %s", (cmd) ? "set" : "remove", addr_str);
 
 	argv[type_specifier] = "136";
 
 	/* Allow NAs to be sent in reply to an NS */
-	if (fork_exec(argv) < 0)
+	if (fork_exec(argv) < 0 && !force)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to allow NAs to be"
 				     " sent from vip %s", (cmd) ? "set" : "remove", addr_str);
 }
 
 /* add/remove iptable drop rule to VIP */
 static void
-handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void *unused)
+handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void *unused, bool force)
 {
 	char  *argv[10];
 	unsigned int i = 0;
@@ -243,7 +243,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void 
 		return;
 
 	if (IP_IS6(ipaddress)) {
-		handle_iptable_rule_to_NA(ipaddress, cmd, ifname);
+		handle_iptable_rule_to_NA(ipaddress, cmd, ifname, force);
 		argv[i++] = "ip6tables";
 	} else {
 		argv[i++] = "iptables";
@@ -264,9 +264,11 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void 
 	argv[i++] = "DROP";
 	argv[i] = NULL;
 
-	if (fork_exec(argv) < 0)
-		log_message(LOG_ERR, "Failed to %s iptable drop rule"
-				     " to vip %s", (cmd) ? "set" : "remove", addr_str);
+	if (fork_exec(argv) < 0) {
+		if (!force)
+			log_message(LOG_ERR, "Failed to %s ip%stable drop rule"
+					     " to vip %s", (cmd) ? "set" : "remove", IP_IS6(ipaddress) ? "6" : "", addr_str);
+	}
 	else
 		ipaddress->iptable_rule_set = (cmd != IPADDRESS_DEL);
 
@@ -278,9 +280,9 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void 
 	if (if_specifier >= 0)
 		argv[if_specifier] = "-o";
 
-	if (fork_exec(argv) < 0)
-		log_message(LOG_ERR, "Failed to %s iptable drop rule"
-				     " from vip %s", (cmd) ? "set" : "remove", addr_str);
+	if (fork_exec(argv) < 0 && !force)
+		log_message(LOG_ERR, "Failed to %s ip%stable drop rule"
+				     " from vip %s", (cmd) ? "set" : "remove", IP_IS6(ipaddress) ? "6" : "", addr_str);
 }
 #endif
 
@@ -299,7 +301,7 @@ handle_iptable_rule_to_iplist(struct ipt_handle *h, list ip_list, int cmd, char 
 		ipaddr = ELEMENT_DATA(e);
 		if ((cmd == IPADDRESS_DEL) == ipaddr->iptable_rule_set ||
 		    force)
-			handle_iptable_rule_to_vip(ipaddr, cmd, ifname, h);
+			handle_iptable_rule_to_vip(ipaddr, cmd, ifname, h, force);
 	}
 }
 
@@ -562,7 +564,7 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 #endif
 							 )
 
-				handle_iptable_rule_to_vip(ipaddr, IPADDRESS_DEL, iface_name,h);
+				handle_iptable_rule_to_vip(ipaddr, IPADDRESS_DEL, iface_name, h, false);
 		}
 	}
 
