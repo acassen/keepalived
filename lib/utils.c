@@ -30,8 +30,7 @@
 #include "signals.h"
 #include "bitops.h"
 
-#ifdef _INCLUDE_UNUSED_CODE_
-/* Needed for write_stacktrace */
+#ifdef _WITH_STACKTRACE_
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -84,17 +83,17 @@ dump_buffer(char *buff, int count, FILE* fp)
 	}
 }
 
-#ifdef _INCLUDE_UNUSED_CODE_
-/* To use write_stacktrace, the program must be linked with -rdynamic */
+#ifdef _WITH_STACKTRACE_
 void
-write_stacktrace(void)
+write_stacktrace(const char *file_name)
 {
-	int fd = open("/tmp/stacktrace.keepalived", O_WRONLY | O_APPEND | O_CREAT, 0644);
+	int fd = open(file_name, O_WRONLY | O_APPEND | O_CREAT, 0644);
 	void *buffer[100];
 	int nptrs;
 
 	nptrs = backtrace(buffer, 100);
 	backtrace_symbols_fd(buffer, nptrs, fd);
+	write(fd, "\n", 1);
 	close(fd);
 }
 #endif

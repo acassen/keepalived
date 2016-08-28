@@ -785,6 +785,7 @@ enable_libipset
 enable_mem_check
 enable_mem_check_log
 enable_debug
+enable_stacktrace
 enable_profile
 enable_dependency_tracking
 '
@@ -1433,6 +1434,7 @@ Optional Features:
   --enable-mem-check      compile with memory alloc checking
   --enable-mem-check-log  compile with memory alloc checking wriging to syslog
   --enable-debug          compile with debugging flags
+  --enable-stracktrace    compile with stacktrace support
   --enable-profile        compile with profiling flags
   --enable-dependency-tracking
                           do not reject slow dependency extractors
@@ -3294,6 +3296,11 @@ fi
 # Check whether --enable-debug was given.
 if test "${enable_debug+set}" = set; then :
   enableval=$enable_debug;
+fi
+
+# Check whether --enable-stacktrace was given.
+if test "${enable_stacktrace+set}" = set; then :
+  enableval=$enable_stacktrace;
 fi
 
 # Check whether --enable-profile was given.
@@ -8365,6 +8372,17 @@ else
   ENABLE_DEBUG=No
 fi
 
+if test "${enable_stacktrace}" = yes; then
+
+$as_echo "#define _WITH_STACKTRACE_  1 " >>confdefs.h
+
+  ENABLE_STACKTRACE=Yes
+  BUILD_OPTIONS="$BUILD_OPTIONS STACKTRACE"
+  KA_LDFLAGS="$KA_LDFLAGS -rdynamic"
+else
+  ENABLE_STACKTRACE=No
+fi
+
 if test "${enable_profile}" = yes; then
   KA_CFLAGS="$KA_CFLAGS -pg"
 fi
@@ -9960,6 +9978,7 @@ if test ${SNMP_RFCV3_SUPPORT} = Yes; then
 fi
 echo "SHA1 support             : ${SHA1_SUPPORT}"
 echo "Use Debug flags          : ${ENABLE_DEBUG}"
+echo "Stacktrace support       : ${ENABLE_STACKTRACE}"
 echo "Memory alloc check       : ${MEM_CHECK}"
 if test ${MEM_CHECK} = Yes; then
   echo "Memory alloc check log   : ${MEM_CHECK_LOG}"
