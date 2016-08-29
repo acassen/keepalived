@@ -26,7 +26,7 @@ show_help()
 $0 - Usage:
         -h              Show this!
 	-n		network namespace name (default test)
-	-c		keepalived config file to read interfaces from
+	-f		keepalived config file to read interfaces from
 			  if no config file, all interfaces will be duplicated
 	-i		command to use instead of \`ip\`
 	-u		use 'unshare -n' before creating network namespace
@@ -35,7 +35,7 @@ $0 - Usage:
 EOF
 }
 
-while getopts ":hn:c:i:uxp" opt; do
+while getopts ":hn:f:i:uxp" opt; do
 	case $opt in
 	h)
 		show_help
@@ -44,7 +44,7 @@ while getopts ":hn:c:i:uxp" opt; do
 	n)
 		NS_NAME=$OPTARG
 		;;
-	c)
+	f)
 		CONF=$OPTARG
 		;;
 	i)
