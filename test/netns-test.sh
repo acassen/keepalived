@@ -151,6 +151,6 @@ fi
 echo
 echo Network namespace $NS_NAME set up to mirror default namespace$EXTRA.
 echo
-[[ -n $CONF ]] && echo To test keepalived execute \`$IPN keepalived -f $CONF\` && echo
+[[ -n $CONF ]] && echo To test keepalived execute \`$IP netns exec $NS_NAME keepalived [OPTIONS] -f $CONF -s $NS_NAME\` && echo
 echo Don\'t forget to delete namespace $NS_NAME with \'$IP netns del $NS_NAME\' when finished.
 echo
