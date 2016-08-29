@@ -781,7 +781,6 @@ keepalived_main(int argc, char **argv)
 
 #if HAVE_DECL_CLONE_NEWNET
 	if (network_namespace) {
-log_message(LOG_INFO, "Wanting %s namespace", network_namespace);
 		if (network_namespace && !set_namespaces(network_namespace)) {
 			log_message(LOG_ERR, "Unable to set network namespace %s - exiting", network_namespace);
 			goto end;
