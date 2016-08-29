@@ -135,12 +135,16 @@ while read line; do
 	fi
 done
 
-# Now create any additional interfaces in the config that don't exist
-if [[ -n $CONF && -n $EXTRA_IF ]]; then
+# Now deal with any additional interfaces in the config that don't exist
+if [[ -n $CONF ]]; then
 	for if in $IFACES; do
 		if [[ ! $CREATED_IFACES =~ " $if " ]]; then
-			$IPN link add $if type dummy
-			$IPN link set up $if
+			if [[ -z $EXTRA_IF ]]; then
+				echo Interface $if specified in configuration file doesn\'t exist
+			else
+				$IPN link add $if type dummy
+				$IPN link set up $if
+			fi
 		fi
 	done
 fi
