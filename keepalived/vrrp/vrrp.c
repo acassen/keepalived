@@ -2043,10 +2043,22 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	if (vrrp->garp_lower_prio_rep == PARAMETER_UNSET)
 		vrrp->garp_lower_prio_rep = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_rep;
+	else if (vrrp->strict_mode && vrrp->garp_lower_prio_rep) {
+		log_message(LOG_INFO, "(%s) Strict mode requires no repeat garps - resetting", vrrp->iname);
+		vrrp->garp_lower_prio_rep = 0;
+	}
 	if (vrrp->garp_lower_prio_delay == PARAMETER_UNSET)
 		vrrp->garp_lower_prio_delay = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_delay;
+	else if (vrrp->strict_mode && vrrp->garp_lower_prio_delay) {
+		log_message(LOG_INFO, "(%s) Strict mode requires no repeat garp delay - resetting", vrrp->iname);
+		vrrp->garp_lower_prio_delay = 0;
+	}
 	if (vrrp->lower_prio_no_advert == PARAMETER_UNSET)
 		vrrp->lower_prio_no_advert = vrrp->strict_mode ? true : global_data->vrrp_lower_prio_no_advert;
+	else if (vrrp->strict_mode && !vrrp->lower_prio_no_advert) {
+		log_message(LOG_INFO, "(%s) Strict mode requires no lower priority advert - resetting", vrrp->iname);
+		vrrp->lower_prio_no_advert = true;
+	}
 
 	/* Check that the advertisement interval is valid */
 	if (!vrrp->adver_int)
