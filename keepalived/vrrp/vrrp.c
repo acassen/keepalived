@@ -1456,12 +1456,19 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 			}
 		}
 	} else {
-		log_message(LOG_INFO, "VRRP_Instance(%s) forcing a new MASTER election" , vrrp->iname);
+		/* !nopreempt and lower priority advert and any preempt delay timer has expired */
+// TODO - RFC 5798 6.4.2(470) says discard the advert
+#if 0
+		log_message(LOG_INFO, "VRRP_Instance(%s) received lower prio advert (%d) forcing a new MASTER election", vrrp->iname, hd->priority);
 		vrrp->wantstate = VRRP_STATE_GOTO_MASTER;
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 #ifdef _WITH_SNMP_RFCV3_
 		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
+#endif
+		log_message(LOG_INFO, "VRRP_Instance(%s) received lower prio advert (%d) - discarding", vrrp->iname, hd->priority);
+		vrrp->ms_down_timer -= vrrp->master_adver_int;	// TODO - this is a bodge
+// TODO - call become_master
 	}
 }
 
