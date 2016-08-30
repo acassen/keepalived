@@ -1438,14 +1438,12 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 						"VRRP_Instance", vrrp->iname);
 					vrrp->preempt_time.tv_sec = 0;
 				}
-			} else {
-				if (!vrrp->preempt_time.tv_sec) {
-					log_message(LOG_INFO,
-						"%s(%s) start preempt delay(%ld)",
-						"VRRP_Instance", vrrp->iname,
-						vrrp->preempt_delay / TIMER_HZ);
-					vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
-				}
+			} else if (!vrrp->preempt_time.tv_sec) {
+				log_message(LOG_INFO,
+					"%s(%s) start preempt delay(%ld)",
+					"VRRP_Instance", vrrp->iname,
+					vrrp->preempt_delay / TIMER_HZ);
+				vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
 			}
 		}
 	} else {
