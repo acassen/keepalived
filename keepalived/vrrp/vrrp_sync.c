@@ -123,20 +123,16 @@ vrrp_sync_group_up(vrrp_sgroup_t * vgroup)
 	vrrp_t *vrrp;
 	element e;
 	list l = vgroup->index_list;
-	unsigned int is_up = 0;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-		if (VRRP_ISUP(vrrp))
-			is_up++;
+		if (!VRRP_ISUP(vrrp))
+			return 0;
 	}
 
-	if (is_up == LIST_SIZE(vgroup->index_list)) {
-		log_message(LOG_INFO, "Kernel is reporting: Group(%s) UP"
-			       , GROUP_NAME(vgroup));
-		return 1;
-	}
-	return 0;
+	log_message(LOG_INFO, "Kernel is reporting: Group(%s) UP"
+		       , GROUP_NAME(vgroup));
+	return 1;
 }
 
 /* SMTP alert group notifier */

@@ -1283,6 +1283,13 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 	vrrp->state = VRRP_STATE_MAST;
 	vrrp_state_master_tx(vrrp, vrrp->base_priority);
 #endif
+
+	if (vrrp->sync) {
+		// TODO - we should wiz all other members of the group to master
+		// TODO - we should wiz all other members down if instances becomes backup/fault
+		// TODO - when does GOTO_MASTER get cleared?
+		// TODO - is wantstate just for indicating for sync group?
+	}
 }
 
 /* leaving master state */
@@ -2277,6 +2284,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
+	// TODO
+	// If in sync group, check if priority and adver_int match first (if exists)
+	// member of sync group, and if not ? remove from sync group or set priority
+	// and adver_int to first.
 	if (interface_already_existed) {
 // TODO - consider reload
 		vrrp->vipset = true;	/* Set to force address removal */
