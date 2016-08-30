@@ -115,12 +115,42 @@ lbalgo_handler(vector_t *strvec)
 	char *str = vector_slot(strvec, 1);
 	int size = sizeof (vs->sched);
 	int str_len = strlen(str);
-
 	if (size > str_len)
 		size = str_len;
-
 	memcpy(vs->sched, str, size);
 }
+
+static void
+lbflags_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	int i;
+	char* str;
+	vector_foreach_slot_from(strvec,str,i,1)
+	{
+		if (!strcmp(str, "persistant"))
+			vs->flags |= IP_VS_SVC_F_PERSISTENT;
+		if (!strcmp(str, "hashed"))
+			vs->flags |= IP_VS_SVC_F_HASHED;
+		if (!strcmp(str, "one-packet"))
+			vs->flags |= IP_VS_SVC_F_ONEPACKET;
+		if (!strcmp(str, "flag-1"))
+			vs->flags |= IP_VS_SVC_F_SCHED1;
+		if (!strcmp(str, "flag-2"))
+			vs->flags |= IP_VS_SVC_F_SCHED2;
+		if (!strcmp(str, "flag-3"))
+			vs->flags |= IP_VS_SVC_F_SCHED3;
+		if (!strcmp(vs->sched , "sh") )
+		{
+			if (!strcmp(str, "sh-port")  )
+				vs->flags |= IP_VS_SVC_F_SCHED_SH_PORT;
+			if (!strcmp(str, "sh-fallback"))
+				vs->flags |= IP_VS_SVC_F_SCHED_SH_FALLBACK;
+		}
+	}
+
+}
+
 static void
 lbkind_handler(vector_t *strvec)
 {
@@ -356,6 +386,7 @@ init_check_keywords(bool active)
 	install_keyword("delay_loop", &delay_handler);
 	install_keyword("lb_algo", &lbalgo_handler);
 	install_keyword("lvs_sched", &lbalgo_handler);
+	install_keyword("lb_flags", &lbflags_handler);
 	install_keyword("lb_kind", &lbkind_handler);
 	install_keyword("lvs_method", &lbkind_handler);
 #ifdef IPVS_SVC_ATTR_PE_NAME

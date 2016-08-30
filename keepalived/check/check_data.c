@@ -265,6 +265,7 @@ alloc_vs(char *ip, char *port)
 	new->quorum = 1;
 	new->hysteresis = 0;
 	new->quorum_state = UP;
+	new->flags = 0;
 
 	list_add(check_data->vs, new);
 }

@@ -407,6 +407,7 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 	drule->user.l_threshold = 0;
 	drule->user.conn_flags = vs->loadbalancing_kind;
 	strncpy(srule->user.sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
+	srule->user.flags =vs->flags;
 	srule->user.netmask = (vs->addr.ss_family == AF_INET6) ? 128 : ((u_int32_t) 0xffffffff);
 	srule->user.protocol = vs->service_type;
 
