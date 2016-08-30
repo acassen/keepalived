@@ -487,6 +487,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		/* check the authenicaion if it is ipsec ah */
 		else if (hd->v2.auth_type == VRRP_AUTH_AH) {
 			if (vrrp_in_chk_ipsecah(vrrp, buffer)) {
+				log_message(LOG_INFO, "(%s): received an invalid auth header!", vrrp->iname);
 #ifdef _WITH_SNMP_RFCV2_
 				vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authFailure);
 #endif
