@@ -1272,11 +1272,17 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 		return;
 	}
 
+
+#if 0
 	vrrp_send_adv(vrrp, vrrp->effective_priority);
 
 	vrrp->state = VRRP_STATE_MAST;
 	log_message(LOG_INFO, "VRRP_Instance(%s) Transition to MASTER STATE"
 			    , vrrp->iname);
+#else
+	vrrp->state = VRRP_STATE_MAST;
+	vrrp_state_master_tx(vrrp, vrrp->base_priority);
+#endif
 }
 
 /* leaving master state */
