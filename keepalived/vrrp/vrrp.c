@@ -1437,7 +1437,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 			if (hd->priority >= vrrp->effective_priority) {
 				if (vrrp->preempt_time.tv_sec) {
 					log_message(LOG_INFO,
-						"%s(%s) reset preempt delay",
+						"%s(%s) stop preempt delay",
 						"VRRP_Instance", vrrp->iname);
 					vrrp->preempt_time.tv_sec = 0;
 				}
