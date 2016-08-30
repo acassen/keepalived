@@ -1092,21 +1092,20 @@ vrrp_check_packet(vrrp_t * vrrp, char *buf, ssize_t buflen, bool check_vip_addr)
 {
 	int ret;
 
-	if (buflen > 0) {
-		ret = vrrp_in_chk(vrrp, buf, buflen, check_vip_addr);
+	if (!buflen)
+		return VRRP_PACKET_NULL;
 
-		if (ret == VRRP_PACKET_DROP) {
-			log_message(LOG_INFO, "Sync instance needed on %s !!!",
-			       IF_NAME(vrrp->ifp));
-		}
+	ret = vrrp_in_chk(vrrp, buf, buflen, check_vip_addr);
 
-		else if (ret == VRRP_PACKET_KO)
-			log_message(LOG_INFO, "bogus VRRP packet received on %s !!!",
-			       IF_NAME(vrrp->ifp));
-		return ret;
+	if (ret == VRRP_PACKET_DROP) {
+		log_message(LOG_INFO, "Sync instance needed on %s !!!",
+		       IF_NAME(vrrp->ifp));
 	}
 
-	return VRRP_PACKET_NULL;
+	else if (ret == VRRP_PACKET_KO)
+		log_message(LOG_INFO, "bogus VRRP packet received on %s !!!",
+		       IF_NAME(vrrp->ifp));
+	return ret;
 }
 
 /* Gratuitous ARP on each VIP */
