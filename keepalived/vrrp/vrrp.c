@@ -1404,6 +1404,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		else
 			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	} else if (hd->priority == 0) {
+		log_message(LOG_INFO, "(%s): Backup received priority 0 advertisement", vrrp->iname);
 		vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
 #ifdef _WITH_SNMP_RFCV3_
 		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PRIORITY;
@@ -1536,6 +1537,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	}
 
 	if (hd->priority == 0) {
+		log_message(LOG_INFO, "(%s): Master received priority 0 message", vrrp->iname);
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 		return 0;
 	}
