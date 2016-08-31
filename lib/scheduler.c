@@ -533,15 +533,12 @@ thread_cancel_event(thread_master_t * m, void *arg)
 static void
 thread_update_timer(thread_list_t *list, timeval_t *timer_min)
 {
-	if (list->head) {
-		if (!timer_isnull(*timer_min)) {
-			if (timer_cmp(list->head->sands, *timer_min) <= 0) {
-				*timer_min = list->head->sands;
-			}
-		} else {
-			*timer_min = list->head->sands;
-		}
-	}
+	if (!list->head)
+		return;
+
+	if (timer_isnull(*timer_min) ||
+	    timer_cmp(list->head->sands, *timer_min) <= 0)
+		*timer_min = list->head->sands;
 }
 
 /* Compute the wait timer. Take care of timeouted fd */
@@ -557,7 +554,8 @@ thread_compute_timer(thread_master_t * m, timeval_t * timer_wait)
 	thread_update_timer(&m->read, &timer_min);
 	thread_update_timer(&m->child, &timer_min);
 
-	/* Take care about monotonic clock */
+	/* Take care about monotonic clock and
+	 * set timer to maximum 1 second */
 	if (!timer_isnull(timer_min)) {
 		timer_min = timer_sub(timer_min, time_now);
 		if (timer_min.tv_sec < 0) {
