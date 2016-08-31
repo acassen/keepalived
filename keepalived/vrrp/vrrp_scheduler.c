@@ -107,6 +107,8 @@ static struct {
 	{vrrp_backup,			vrrp_goto_master},	/*  BACKUP          */
 	{vrrp_leave_master,		vrrp_master},		/*  MASTER          */
 	{vrrp_leave_fault,		vrrp_fault},		/*  FAULT           */
+// TODO - why if read to we become master?, and timeout stay in GOTO_MASTER?
+// TODO - is GOTO_MASTER the problem with transition delays?
 	{vrrp_become_master,		vrrp_goto_master}	/*  GOTO_MASTER     */
 };
 
@@ -264,12 +266,12 @@ vrrp_init_state(list l)
 					       false);
 #endif
 #ifdef _WITH_SNMP_RFCV3_
+// TODO - why
 			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
 			vrrp->state = VRRP_STATE_GOTO_MASTER;
 		} else {
-			vrrp->ms_down_timer = 3 * vrrp->adver_int
-			    + VRRP_TIMER_SKEW(vrrp);
+			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
 			if (global_data->lvs_syncd.ifname &&
@@ -735,6 +737,10 @@ static void
 vrrp_goto_master(vrrp_t * vrrp)
 {
 	if (!VRRP_ISUP(vrrp)) {
+/* TODO Make common code for all transitions to fault */
+/* TODO Is vrrp->state always GOTO_MASTER if we get here, in which case test for FAULT is irrelevant */
+/* TODO - look at code before my uncommited changes - it might be that other changes are better */
+/* TODO - does all this bit need to be in state != FAULT, or none of it? */
 		vrrp_log_int_down(vrrp);
 		if (vrrp->state != VRRP_STATE_FAULT) {
 			log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state", vrrp->iname);
@@ -742,8 +748,9 @@ vrrp_goto_master(vrrp_t * vrrp)
 			vrrp->state = VRRP_STATE_FAULT;
 			vrrp->master_adver_int = vrrp->adver_int;
 		}
+// TODO Why are we setting the down timer?
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
-		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
+//??? TODO	notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 #ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
@@ -761,6 +768,7 @@ vrrp_goto_master(vrrp_t * vrrp)
 #endif
 
 #ifdef _WITH_SNMP_RFCV3_
+// TODO - what is this test doing?
 	if (vrrp->ms_down_timer >= 3 * vrrp->master_adver_int)
 		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
 #endif
@@ -858,6 +866,7 @@ vrrp_master(vrrp_t * vrrp)
 	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT ||
 	    vrrp->wantstate == VRRP_STATE_BACK ||
 	    (vrrp->version == VRRP_VERSION_2 && vrrp->ipsecah_counter->cycle)) {
+// TODO - if have received higher prio advert, we need to use master_adver_int
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 
 		/* handle backup state transition */
