@@ -662,7 +662,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		++vrrp->stats->pri_zero_rcvd;
 
 	if (vrrp->version == VRRP_VERSION_3 && vrrp->state == VRRP_STATE_BACK) {
-// TODO - is this the right place to do this?
+// TODO - is this the right place to do this? - Probably not, do it below
 		/* In v3 when we are in BACKUP state, we set our
 		 * advertisement interval to match the MASTER's. */
 		adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
@@ -1378,7 +1378,6 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 	}
 
 	/* Set the down timer */
-// TODO - should we use master_adver_int here?
 	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 	++vrrp->stats->release_master;
 	vrrp->last_transition = timer_now();
@@ -1427,6 +1426,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		   (vrrp->preempt_delay &&
 		    (!vrrp->preempt_time.tv_sec ||
 		     timer_cmp(vrrp->preempt_time, timer_now()) > 0))) {
+// TODO - why all the above checks?
 		if (vrrp->version == VRRP_VERSION_3) {
 			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
 			/* As per RFC5798, set Master_Adver_Interval to Adver Interval contained
@@ -1546,6 +1546,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 
 	/* return on link failure */
 	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT) {
+// TODO - why timer here? What about master_adver_int?
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		vrrp->state = VRRP_STATE_FAULT;
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
@@ -2608,6 +2609,7 @@ reset_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 	vrrp->state = old_vrrp->state;
 	vrrp->init_state = old_vrrp->state;
 	vrrp->wantstate = old_vrrp->state;
+// TODO - if base_priority changed, then the next must be wrong
 	if (!old_vrrp->sync)
 		vrrp->effective_priority = old_vrrp->effective_priority;
 	/* Save old stats */
