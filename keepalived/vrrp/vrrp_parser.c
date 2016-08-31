@@ -239,10 +239,16 @@ vrrp_state_handler(vector_t *strvec)
 		vrrp->wantstate = VRRP_STATE_MAST;
 		vrrp->init_state = VRRP_STATE_MAST;
 	}
-	else if (strcmp(str, "BACKUP"))
+	else if (!strcmp(str, "BACKUP"))
+	{
+		if (vrrp->init_state != VRRP_STATE_BACK)
+			log_message(LOG_INFO, "(%s): state previously set as MASTER - ignoring BACKUP", vrrp->iname);
+	}
+	else
 		log_message(LOG_INFO,"(%s): unknown state '%s', defaulting to BACKUP", vrrp->iname, str);
 
 	/* set eventual sync group */
+// TODO - what if vgroup->state previous set to BACK, and now MASTER - there will be a mix on the sync group
 	if (vgroup)
 		vgroup->state = vrrp->wantstate;
 }
@@ -329,7 +335,6 @@ vrrp_prio_handler(vector_t *strvec)
 	}
 	else
 		vrrp->base_priority = (uint8_t)base_priority;
-	vrrp->effective_priority = vrrp->base_priority;
 }
 static void
 vrrp_adv_handler(vector_t *strvec)
