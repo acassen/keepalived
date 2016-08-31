@@ -702,34 +702,33 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, ssize_t len)
 	if (!VRRP_ISUP(vrrp))
 		return;
 
-	if (vrrp_state_fault_rx(vrrp, buffer, len) == VRRP_STATE_MAST) {
-		if (!vrrp->sync || vrrp_sync_leave_fault(vrrp)) {
-			log_message(LOG_INFO,
-			       "VRRP_Instance(%s) prio is higher than received advert",
-			       vrrp->iname);
-			vrrp_become_master(vrrp, buffer, len);
+	if (vrrp->sync && !vrrp_sync_leave_fault(vrrp))
+		return;
+
+	if (vrrp_state_fault_rx(vrrp, buffer, len)) {
+		log_message(LOG_INFO, "VRRP_Instance(%s) prio is higher than received advert", vrrp->iname);
 #ifdef _WITH_SNMP_RFC_
 #ifdef _WITH_SNMP_RFCV3_
-			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+// TODO - how do we deal with master_reason if we ignore packets
+// TODO - check where else I have changed this
+		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
-			vrrp->stats->uptime = timer_now();
+// TODO - is uptime non fault or master?
+		vrrp->stats->uptime = timer_now();
 #endif
-		}
 	} else {
-		if (!vrrp->sync || vrrp_sync_leave_fault(vrrp)) {
-			log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
-			       vrrp->iname);
-			vrrp->state = VRRP_STATE_BACK;
-			vrrp_smtp_notifier(vrrp);
-			notify_instance_exec(vrrp, VRRP_STATE_BACK);
+		log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
+		vrrp->state = VRRP_STATE_BACK;
+		vrrp_smtp_notifier(vrrp);
+		notify_instance_exec(vrrp, VRRP_STATE_BACK);
 #ifdef _WITH_SNMP_KEEPALIVED_
-			vrrp_snmp_instance_trap(vrrp);
+		vrrp_snmp_instance_trap(vrrp);
 #endif
-			vrrp->last_transition = timer_now();
+// TODO - what is last_transition?
+		vrrp->last_transition = timer_now();
 #ifdef _WITH_SNMP_RFC_
-			vrrp->stats->uptime = vrrp->last_transition;
+		vrrp->stats->uptime = vrrp->last_transition;
 #endif
-		}
 	}
 }
 

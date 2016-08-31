@@ -1,3 +1,4 @@
+
 /*
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
@@ -1659,14 +1660,15 @@ vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	hd = vrrp_get_header(vrrp->family, buf, &proto);
 	ret = vrrp_check_packet(vrrp, buf, buflen, true);
 
-	if (ret == VRRP_PACKET_KO || ret == VRRP_PACKET_NULL || ret == VRRP_PACKET_DROP) {
+	if (ret != VRRP_PACKET_OK) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) Dropping received VRRP packet..."
 				    , vrrp->iname);
 		return 0;
-	} else if (vrrp->effective_priority > hd->priority) {
-		if (!vrrp->nopreempt)
-			return 1;
 	}
+
+	if (vrrp->base_priority == VRRP_PRIO_OWNER ||
+	    (vrrp->effective_priority > hd->priority && !vrrp->nopreempt))
+		return 1;
 
 	return 0;
 }
