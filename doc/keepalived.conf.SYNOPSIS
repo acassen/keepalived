@@ -60,7 +60,8 @@ global_defs {				# Block identification
 					   # NOTE: maxlen, port, ttl and group are only available on Linux 4.3 or later.
     lvs_flush				   # flush any existing LVS configuration at startup
     vrrp_garp_master_delay <INTEGER>	   # delay in seconds for second set of gratuitous ARP
-					   #  messages after MASTER state transition, default 5
+					   #  messages after MASTER state transition, default 5.
+					   #  0 means no second set.
     vrrp_garp_master_repeat <INTEGER>	   # how many gratuitous ARP messages after MASTER
 					   #  state transition should be sent, default 5
     vrrp_garp_lower_prio_delay <INTEGER>   # delay for second set of gratuitous ARPs after lower
