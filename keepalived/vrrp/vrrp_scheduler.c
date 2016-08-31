@@ -717,7 +717,8 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, ssize_t len)
 // TODO - is uptime non fault or master?
 		vrrp->stats->uptime = timer_now();
 #endif
-	} else {
+	}
+//	} else {
 		log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
 		vrrp->state = VRRP_STATE_BACK;
 		vrrp_smtp_notifier(vrrp);
@@ -729,8 +730,9 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, ssize_t len)
 		vrrp->last_transition = timer_now();
 #ifdef _WITH_SNMP_RFC_
 		vrrp->stats->uptime = vrrp->last_transition;
+//TODO - what is last_transition
 #endif
-	}
+//	}
 }
 
 static void
