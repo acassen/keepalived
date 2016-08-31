@@ -1258,14 +1258,6 @@ vrrp_state_become_master(vrrp_t * vrrp)
 void
 vrrp_state_goto_master(vrrp_t * vrrp)
 {
-	/* check sync-group status */
-	if (vrrp->sync && !vrrp_sync_goto_master(vrrp))
-		return;
-
-	/*
-	 * Send an advertisement. To force a new master
-	 * election.
-	 */
 	if (vrrp->sync && !vrrp_sync_goto_master(vrrp)) {
 		/*
 		 * Set quick sync flag to enable faster transition, i.e. check
@@ -1275,8 +1267,11 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 		return;
 	}
 
-
 #if 0
+	/*
+	 * Send an advertisement. To force a new master
+	 * election.
+	 */
 	vrrp_send_adv(vrrp, vrrp->effective_priority);
 
 	vrrp->state = VRRP_STATE_MAST;
