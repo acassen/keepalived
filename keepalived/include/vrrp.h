@@ -222,7 +222,7 @@ typedef struct _vrrp_t {
 							 * instead of three intervals.
 							 */
 
-	int version;		/* VRRP version (2 or 3) */
+	int			version;		/* VRRP version (2 or 3) */
 
 	/* State transition notification */
 	int			smtp_alert;
