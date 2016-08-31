@@ -1612,9 +1612,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	}
 
 	if (hd->priority > vrrp->effective_priority ||
-		   (hd->priority == vrrp->effective_priority &&
-		    addr_cmp > 0)) {
-
+	    (hd->priority == vrrp->effective_priority && addr_cmp > 0)) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert %d"
 				    , vrrp->iname, hd->priority);
 		if (proto == IPPROTO_IPSEC_AH) {
@@ -2014,19 +2012,18 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vrrp->base_priority = VRRP_PRIO_OWNER;
 		else
 			vrrp->base_priority = VRRP_PRIO_DFL;
-
-		vrrp->effective_priority = vrrp->base_priority;
 	}
 	else if (vrrp->strict_mode && (vrrp->init_state == VRRP_STATE_MAST) && (vrrp->base_priority != VRRP_PRIO_OWNER)) {
 		log_message(LOG_INFO,"(%s): Cannot start in MASTER state if not address owner", vrrp->iname);
 		vrrp->init_state = VRRP_STATE_BACK;
 		vrrp->wantstate = VRRP_STATE_BACK;
 	}
-	else if (vrrp->base_priority == VRRP_PRIO_OWNER && !vrrp->nopreempt) {
+	if (vrrp->base_priority == VRRP_PRIO_OWNER) {
 		/* Act as though state MASTER had been specified, to speed transition to master state */
 		vrrp->init_state = VRRP_STATE_MAST;
 		vrrp->wantstate = VRRP_STATE_MAST;
 	}
+	vrrp->effective_priority = vrrp->base_priority;
 
 	if (vrrp->nopreempt && vrrp->init_state == VRRP_STATE_MAST)
 		log_message(LOG_INFO, "(%s): Warning - nopreempt will not work with initial state MASTER", vrrp->iname);
@@ -2464,7 +2461,7 @@ vrrp_complete_init(void)
 							if (vrrp->state != VRRP_STATE_FAULT) {
 								if (vrrp->state == VRRP_STATE_MAST)
 									vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
-								if (vrrp->state == VRRP_STATE_BACK)
+								else if (vrrp->state == VRRP_STATE_BACK)
 									vrrp->state = VRRP_STATE_FAULT;
 							}
 							break;
