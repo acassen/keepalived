@@ -627,11 +627,11 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 
 	if (!VRRP_ISUP(vrrp)) {
 		vrrp_log_int_down(vrrp);
-		log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state",
-		       vrrp->iname);
+		log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state", vrrp->iname);
 		if (vrrp->state != VRRP_STATE_FAULT) {
 			notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 			vrrp->state = VRRP_STATE_FAULT;
+			vrrp->master_adver_int = vrrp->adver_int;
 #ifdef _WITH_SNMP_KEEPALIVED_
 			vrrp_snmp_instance_trap(vrrp);
 #endif
@@ -737,11 +737,12 @@ vrrp_goto_master(vrrp_t * vrrp)
 {
 	if (!VRRP_ISUP(vrrp)) {
 		vrrp_log_int_down(vrrp);
-		log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state",
-		       vrrp->iname);
-		if (vrrp->state != VRRP_STATE_FAULT)
+		if (vrrp->state != VRRP_STATE_FAULT) {
+			log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state", vrrp->iname);
 			notify_instance_exec(vrrp, VRRP_STATE_FAULT);
-		vrrp->state = VRRP_STATE_FAULT;
+			vrrp->state = VRRP_STATE_FAULT;
+			vrrp->master_adver_int = vrrp->adver_int;
+		}
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 #ifdef _WITH_SNMP_KEEPALIVED_
