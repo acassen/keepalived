@@ -385,26 +385,29 @@ vrrp_timer_fd(const int fd)
 	return timer_long(timer_sub(timer, time_now));
 }
 
-static int
-vrrp_timer_vrid_timeout(const int fd)
+//static int
+static vrrp_t *
+vrrp_timer_timeout(const int fd)
 {
 	vrrp_t *vrrp;
 	element e;
 	list l = &vrrp_data->vrrp_index_fd[fd%1024 + 1];
 	timeval_t timer;
-	int vrid = 0;
+	vrrp_t *best_vrrp = NULL;
 
 	/* Multiple instances on the same interface */
 	timer_reset(timer);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-		if (timer_cmp(vrrp->sands, timer) < 0 ||
-		    timer_isnull(timer)) {
+		if (vrrp->fd_in == fd &&
+		    (timer_cmp(vrrp->sands, timer) < 0 ||
+		     timer_isnull(timer))) {
 			timer = timer_dup(vrrp->sands);
-			vrid = vrrp->vrid;
+			best_vrrp = vrrp;
 		}
 	}
-	return vrid;
+
+	return best_vrrp;
 }
 
 /* Thread functions */
@@ -965,12 +968,11 @@ static int
 vrrp_dispatcher_read_timeout(int fd)
 {
 	vrrp_t *vrrp;
-	int vrid = 0;
 	int prev_state = 0;
 
 	/* Searching for matching instance */
-	vrid = vrrp_timer_vrid_timeout(fd);
-	vrrp = vrrp_index_lookup(vrid, fd);
+	vrrp = vrrp_timer_timeout(fd);
+log_message(LOG_INFO, "Got vrrp %p (fd_in = %d) for fd %d", vrrp, vrrp ? vrrp->fd_in : -1, fd);
 
 	/* Run the FSM handler */
 	prev_state = vrrp->state;
