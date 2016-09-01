@@ -185,7 +185,20 @@ dump_vs(void *data)
 	       (vs->delay_loop >= TIMER_MAX_SEC) ? vs->delay_loop/TIMER_HZ :
 						   vs->delay_loop,
 	       vs->sched);
-	log_message(LOG_INFO, "   One packet scheduling = %sabled%s", vs->ops ? "en" : "dis", (vs->ops && vs->service_type != IPPROTO_UDP) ? " (inactive due to not UDP)" : "");
+	log_message(LOG_INFO, "   Hashed = %sabled", vs->flags&IP_VS_SVC_F_HASHED ? "en" : "dis");
+	 if (!strcmp(vs->sched , "sh"))
+	 {
+		log_message(LOG_INFO, "   sh-port = %sabled", vs->flags&IP_VS_SVC_F_SCHED_SH_PORT ? "en" : "dis");
+		log_message(LOG_INFO, "   sh-fallback = %sabled", vs->flags&IP_VS_SVC_F_SCHED_SH_FALLBACK ? "en" : "dis");
+	 }
+	 else
+	 {
+		log_message(LOG_INFO, "   flag-1 = %sabled", vs->flags&IP_VS_SVC_F_SCHED1 ? "en" : "dis");
+		log_message(LOG_INFO, "   flag-2 = %sabled", vs->flags&IP_VS_SVC_F_SCHED2 ? "en" : "dis");
+		log_message(LOG_INFO, "   flag-3 = %sabled", vs->flags&IP_VS_SVC_F_SCHED3 ? "en" : "dis");
+	 }
+	log_message(LOG_INFO, "   One packet scheduling = %sabled%s", (vs->flags&IP_VS_SVC_F_ONEPACKET) ? "en" : "dis", ((vs->flags&IP_VS_SVC_F_ONEPACKET) && vs->service_type != IPPROTO_UDP) ? " (inactive due to not UDP)" : "");
+
 	if (vs->persistence_timeout)
 		log_message(LOG_INFO, "   persistence timeout = %u", vs->persistence_timeout);
 	if (vs->persistence_granularity) {

@@ -42,8 +42,6 @@ typedef struct _vector {
 #define vector_active(V) ((V)->active)
 #define vector_foreach_slot(v,p,i) \
 	for (i = 0; i < (v)->allocated && ((p) = (v)->slot[i]); i++)
-#define vector_foreach_slot_from(v,p,i,start) \
-	for (i = start; i < (v)->allocated && ((p) = (v)->slot[i]); i++)
 #define FMT_STR_VSLOT(V,E) ((char*)vector_slot(V,E))
 
 /* Prototypes */
