@@ -101,7 +101,7 @@ void set_vrrp_fd_bucket(int old_fd, vrrp_t *vrrp)
 			if (e->prev)
 				e->prev->next = e->next;
 			else
-				 l->head = e->next;
+				l->head = e->next;
 
 			if (e->next)
 				e->next->prev = e->prev;
