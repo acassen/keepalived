@@ -581,6 +581,7 @@ vrrp_set_fds(list l)
  *    | ETH0 |    | ETH1 |          | ETHn |
  *    +------+    +------+          +------+
  *
+ * TODO TODO - this description is way out of date
  * Here we have n physical NIC. Each NIC own a maximum of 2 fds.
  * (one for VRRP the other for IPSEC_AH). All our VRRP instances
  * are multiplexed through this fds. So our design can handle 2*n
@@ -616,6 +617,7 @@ vrrp_dispatcher_release(vrrp_data_t *data)
 static void
 vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 {
+#ifdef _WITH_VRRP_AUTH_
 	struct iphdr *iph;
 	ipsec_ah_t *ah;
 
@@ -628,6 +630,7 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 				vrrp->ipsecah_counter->cycle = 0;
 		}
 	}
+#endif
 
 	if (!VRRP_ISUP(vrrp)) {
 		vrrp_log_int_down(vrrp);
@@ -648,6 +651,7 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 static void
 vrrp_become_master(vrrp_t * vrrp, char *buffer, __attribute__((unused)) ssize_t len)
 {
+#ifdef _WITH_VRRP_AUTH_
 	struct iphdr *iph;
 	ipsec_ah_t *ah;
 
@@ -666,6 +670,7 @@ vrrp_become_master(vrrp_t * vrrp, char *buffer, __attribute__((unused)) ssize_t 
 			vrrp->ipsecah_counter->cycle = 0;
 		}
 	}
+#endif
 
 	/* Then jump to master state */
 	vrrp->wantstate = VRRP_STATE_MAST;
@@ -875,8 +880,11 @@ vrrp_master(vrrp_t * vrrp)
 
 	/* Then perform the state transition */
 	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT ||
-	    vrrp->wantstate == VRRP_STATE_BACK ||
-	    (vrrp->version == VRRP_VERSION_2 && vrrp->ipsecah_counter->cycle)) {
+	    vrrp->wantstate == VRRP_STATE_BACK
+#ifdef _WITH_VRRP_AUTH_
+	    || vrrp->ipsecah_counter->cycle
+#endif
+					) {
 // TODO - if have received higher prio advert, we need to use master_adver_int
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 
