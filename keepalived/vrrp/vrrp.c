@@ -1532,13 +1532,10 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 		return 0;
 	}
 
-	if (hd->priority == vrrp->effective_priority) {
-		addr_cmp = vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp);
-		if (addr_cmp == 0)
-			log_message(LOG_INFO, "(%s): WARNING - advert received from remote host with our IP address.", vrrp->iname);
-	}
- 	else
-		addr_cmp = 0; 	/* Avoid compiler warning */
+	addr_cmp = vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp);
+
+	if (hd->priority == vrrp->effective_priority && addr_cmp == 0)
+			log_message(LOG_INFO, "(%s): WARNING - equal priority advert received from remote host with our IP address.", vrrp->iname);
 
 	if (hd->priority < vrrp->effective_priority ||
 		   (hd->priority == vrrp->effective_priority &&

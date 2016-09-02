@@ -72,6 +72,10 @@ static char *syslog_ident;				/* syslog ident if not default */
 char *instance_name;					/* keepalived instance name */
 bool use_pid_dir;					/* Put pid files in /var/run/keepalived */
 
+#if HAVE_DECL_CLONE_NEWNET
+static char *override_namespace;			/* If namespace specified on command line */
+#endif
+
 /* Log facility table */
 static struct {
 	int facility;
@@ -506,6 +510,9 @@ usage(const char *prog)
 	fprintf(stderr, "  -x, --snmp                   Enable SNMP subsystem\n");
 	fprintf(stderr, "  -A, --snmp-agent-socket=FILE Use the specified socket for master agent\n");
 #endif
+#if HAVE_DECL_CLONE_NEWNET
+	fprintf(stderr, "  -s, --namespace=NAME         Run in network namespace NAME (overrides config)\n");
+#endif
 	fprintf(stderr, "  -m, --core-dump              Produce core dump if terminate abnormally\n");
 	fprintf(stderr, "  -M, --core-dump-pattern=PATN Also set /proc/sys/kernel/core_pattern to PATN (default 'core')\n");
 #ifdef _MEM_CHECK_LOG_
@@ -543,25 +550,43 @@ parse_cmdline(int argc, char **argv)
 #ifdef _WITH_LVS_
 		{"checkers_pid",      required_argument, 0, 'c'},
 #endif
- #ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_
 		{"snmp",              no_argument,       0, 'x'},
 		{"snmp-agent-socket", required_argument, 0, 'A'},
- #endif
+#endif
 		{"core-dump",         no_argument,       0, 'm'},
 		{"core-dump-pattern", optional_argument, 0, 'M'},
 #ifdef _MEM_CHECK_LOG_
 		{"mem-check-log",     no_argument,       0, 'L'},
 #endif
+#if HAVE_DECL_CLONE_NEWNET
+		{"namespace",         required_argument, 0, 's'},
+#endif	
 		{"version",           no_argument,       0, 'v'},
 		{"help",              no_argument,       0, 'h'},
 		{0, 0, 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:PCp:c:r:mML"
+	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:p:mM"
+#if defined _WITH_VRRP_ && defined _WITH_LVS_
+					    "PC"
+#endif
+#ifdef _WITH_VRRP_ 
+					    "r:"
+#endif
+#ifdef _WITH_LVS_
+					    "c:"
+#endif
 #ifdef _WITH_SNMP_
 					    "xA:"
 #endif
-									, long_options, NULL)) != EOF) {
+#ifdef _MEM_CHECK_LOG_
+					    "L"
+#endif
+#if HAVE_DECL_CLONE_NEWNET
+					    "s:"
+#endif
+				, long_options, NULL)) != EOF) {
 		switch (c) {
 		case 'v':
 			fprintf(stderr, "%s", version_string);
@@ -649,6 +674,12 @@ parse_cmdline(int argc, char **argv)
 			__set_bit(MEM_CHECK_LOG_BIT, &debug);
 			break;
 #endif
+#if HAVE_DECL_CLONE_NEWNET
+		case 's':
+			override_namespace = MALLOC(strlen(optarg) + 1);
+			strcpy(override_namespace, optarg);
+			break;
+#endif
 		default:
 			exit(0);
 			break;
@@ -716,6 +747,17 @@ keepalived_main(int argc, char **argv)
 
 	read_config_file();
 
+#if HAVE_DECL_CLONE_NEWNET
+	if (override_namespace) {
+		if (network_namespace) {
+			log_message(LOG_INFO, "Overriding config net_namespace '%s' with command line namespace '%s'", network_namespace, override_namespace);
+			FREE(network_namespace);
+		}
+		network_namespace = override_namespace;
+		override_namespace = NULL;
+	}
+#endif
+
 	if (instance_name
 #if HAVE_DECL_CLONE_NEWNET
 			  || network_namespace
@@ -729,31 +771,37 @@ keepalived_main(int argc, char **argv)
 		else
 			log_message(LOG_INFO, "Unable to change syslog ident");
 
-#if HAVE_DECL_CLONE_NEWNET
-		if (network_namespace && !set_namespaces(network_namespace)) {
-			log_message(LOG_ERR, "Unable to set network namespace %s - exiting", network_namespace);
-			goto end;
-		}
-#endif
-
-		if (instance_name) {
-			if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, instance_name, PID_EXTENSION)))
-				free_main_pidfile = true;
-#ifdef _WITH_LVS_
-			if (!checkers_pidfile && (checkers_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, instance_name, PID_EXTENSION)))
-				free_checkers_pidfile = true;
-#endif
-#ifdef _WITH_VRRP_
-			if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, instance_name, PID_EXTENSION)))
-				free_vrrp_pidfile = true;
-#endif
-		}
+		use_pid_dir = true;
 	}
 
 	if (use_pid_dir) {
 		/* Create the directory for pid files */
 		create_pid_dir();
+	}
 
+#if HAVE_DECL_CLONE_NEWNET
+	if (network_namespace) {
+		if (network_namespace && !set_namespaces(network_namespace)) {
+			log_message(LOG_ERR, "Unable to set network namespace %s - exiting", network_namespace);
+			goto end;
+		}
+	}
+#endif
+
+	if (instance_name) {
+		if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, instance_name, PID_EXTENSION)))
+			free_main_pidfile = true;
+#ifdef _WITH_LVS_
+		if (!checkers_pidfile && (checkers_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, instance_name, PID_EXTENSION)))
+			free_checkers_pidfile = true;
+#endif
+#ifdef _WITH_VRRP_
+		if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, instance_name, PID_EXTENSION)))
+			free_vrrp_pidfile = true;
+#endif
+	}
+
+	if (use_pid_dir) {
 		if (!main_pidfile)
 			main_pidfile = KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
 #ifdef _WITH_LVS_

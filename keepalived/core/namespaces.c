@@ -28,10 +28,10 @@
  * In order not to have to specify different pid files for each instance of
  * keepalived, if keepalived is running in a network namespace it will also create
  * its own mount namespace, and will slave bind mount a unique directory
- * (/var/run/keepalived/keepalived.PID) on /var/run/keepalived, so keepalived will
+ * (/var/run/keepalived/NAMESPACE) on /var/run/keepalived, so keepalived will
  * write its usual pid files (but to /var/run/keepalived rather than to /var/run),
  * and outside the mount namespace these will be visible at
- * /var/run/keepalived/keepalived.PID
+ * /var/run/keepalived/NAMESPACE.
  *
  * If you are familiar with network namespaces, then you will know what you can do
  * with them. If not, then the following scenarios should give you an idea of what
