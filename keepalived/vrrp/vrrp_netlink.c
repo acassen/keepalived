@@ -736,73 +736,74 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags, ifindex_t if_index)
 	bool now_up = ((ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
 	vrrp_t *vrrp;
 	element e;
-
-// TODO was_up = ifp->vmac ? ((ifp->vmac_ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING)) :
-// TODO log_message(LOG_INFO, "State of %s changed from %d (0x%x) to %d (0x%x)", ifp->ifname, was_up, (ifp->vmac) ? ifp->vmac_ifi_flags : ifp->ifi_flags, now_up, ifi_flags);
+	int ip_fd = 0;
+	int ip6_fd = 0;
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (ifp->vmac) {
 		was_up = ((ifp->vmac_ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
-// TODO log_message(LOG_INFO, "Setting vmac ifi_flags from 0x%x to 0x%x for %s", ifp->vmac_ifi_flags, ifi_flags, ifp->ifname);
 		ifp->vmac_ifi_flags = ifi_flags;
 	}
 	else
 	{
 		was_up = ((ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
-// TODO log_message(LOG_INFO, "Setting ifi_flags from 0x%x to 0x%x for %s", ifp->ifi_flags, ifi_flags, ifp->ifname);
 		ifp->ifi_flags = ifi_flags;
 		if_vmac_reflect_flags(if_index, ifi_flags);
 	}
 #else
 	was_up = ((ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
-// TODO log_message(LOG_INFO, "Setting ifi_flags from 0x%x to 0x%x for %s", ifp->ifi_flags, ifi_flags, ifp->ifname);
 	ifp->ifi_flags = ifi_flags;
 #endif
 
-	if (vrrp_data && vrrp_data->vrrp && was_up != now_up) {
-		int ip_fd = 0;
-		int ip6_fd = 0;
+	if (was_up == now_up)
+		return;
 
-		/* The state of the interface has changed from up to down or vice versa */
-		for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-			vrrp = ELEMENT_DATA(e);
+	log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
 
-			if (vrrp->ifp == ifp
+	if (!vrrp_data)
+		return;
+
+	/* The state of the interface has changed from up to down or vice versa.
+	 * Find which vrrp instances are affected */
+	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+
+		if (vrrp->ifp == ifp
 #ifdef _HAVE_VRRP_VMAC_
-					     || vrrp->ifp->base_ifindex == ifp->ifindex
+				     || vrrp->ifp->base_ifindex == ifp->ifindex
 #endif
-											) {
-				/* This vrrp's interface or underlying interface has changed */
-				if (VRRP_IF_ISUP(vrrp) != was_up) {
-					timer_reset(vrrp->sands);
-					log_message(LOG_INFO, "State of %s changed to %s", vrrp->iname, now_up ? "up" : "down");
+										) {
+			/* This vrrp's interface or underlying interface has changed */
+			if (VRRP_IF_ISUP(vrrp) != was_up) {
+// TODO - this to change
+				timer_reset(vrrp->sands);
 
-					/* This is how we update the queued thread */
-					if (vrrp->ifp == ifp) {
+				/* This is how we update the queued thread */
+				if (vrrp->ifp == ifp) {
 #ifdef _HAVE_VRRP_VMAC_
-						if (ifp->vmac) {
-							/* We are the only user of this fd */
-							thread_read_timer_expire(vrrp->fd_in);
-							break;
-						}
-#endif
-						if (vrrp->family == AF_INET)
-							ip_fd = vrrp->fd_in;
-						else
-							ip6_fd = vrrp->fd_in;
+					if (ifp->vmac) {
+						/* We are the only user of this fd */
+						if (vrrp->fd_in)
+							thread_read_timer_expire(vrrp->fd_in, true);
+						break;
 					}
-#ifdef _HAVE_VRRP_VMAC_
-					else
-						thread_read_timer_expire(vrrp->fd_in);
 #endif
+					if (vrrp->family == AF_INET)
+						ip_fd = vrrp->fd_in;
+					else
+						ip6_fd = vrrp->fd_in;
 				}
+#ifdef _HAVE_VRRP_VMAC_
+				else if (vrrp->fd_in)
+					thread_read_timer_expire(vrrp->fd_in, false);
+#endif
 			}
 		}
-		if (ip_fd)
-			thread_read_timer_expire(ip_fd);
-		if (ip6_fd)
-			thread_read_timer_expire(ip6_fd);
 	}
+	if (ip_fd)
+		thread_read_timer_expire(ip_fd, false);
+	if (ip6_fd)
+		thread_read_timer_expire(ip6_fd, false);
 }
 
 static int
@@ -875,17 +876,13 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 		}
 	}
 
-// TODO log_message(LOG_INFO, "Calling update_interface_flags from if_link_populate");
 	update_interface_flags(ifp, ifi->ifi_flags, (ifindex_t)ifi->ifi_index);
 
 	if (!ifp->vmac)
 		ifp->base_ifindex = ifp->ifindex;
 	else {
 		if ((ifp_base = if_get_by_ifindex(ifp->base_ifindex)))
-{
-// TODO log_message(LOG_INFO, "Setting vmac ifi_flags from parent in link_populate; was 0x%x, now 0x%x", ifp->ifi_flags, ifp_base->ifi_flags);
 			ifp->ifi_flags = ifp_base->ifi_flags;
-}
 	}
 #else
 	ifp->flags = ifi->ifi_flags;
@@ -929,7 +926,6 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	ifp = if_get_by_ifname(name);
 
 	if (ifp) {
-// TODO log_message(LOG_INFO, "Calling update_interface_flags from if_link_filter");
 		update_interface_flags(ifp, ifi->ifi_flags, (ifindex_t)ifi->ifi_index);
 
 		return 0;
@@ -1053,7 +1049,6 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	 * structure and fill it with the new interface information.
 	 */
 	ifp = if_get_by_ifindex((ifindex_t)ifi->ifi_index);
-// TODO log_message(LOG_INFO, "Netlink reflect_filter message for %s, flags 0x%x, saved flags 0x%x, change 0x%x, our_change 0x%x, cmd %s", (char *)RTA_DATA(tb[IFLA_IFNAME]), ifi->ifi_flags, ((ifp) ? (ifp->vmac ? ifp->vmac_ifi_flags : ifp->ifi_flags) : 0), ifi->ifi_change, ((ifp) ? (ifp->vmac ? ifp->vmac_ifi_flags : ifp->ifi_flags) : 0 ) ^ ifi->ifi_flags, h->nlmsg_type == RTM_NEWLINK ? "add" : "del");
 
 	if (!ifp) {
 		if (h->nlmsg_type == RTM_NEWLINK) {
@@ -1081,7 +1076,6 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	 * VMAC interfaces should never update it own flags, only be reflected
 	 * by the base interface flags.
 	 */
-// TODO log_message(LOG_INFO, "Calling update_interface_flags from reflect_filter");
 	update_interface_flags(ifp, ifi->ifi_flags, (ifindex_t)ifi->ifi_index);
 
 	return 0;

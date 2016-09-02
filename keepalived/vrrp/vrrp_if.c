@@ -164,10 +164,7 @@ if_vmac_reflect_flags(ifindex_t ifindex, unsigned flags)
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
 		if (ifp->vmac && ifp->base_ifindex == ifindex)
-{
-log_message(LOG_INFO, "reflect flags from 0x%x to 0x%x for %s", ifp->ifi_flags, flags, ifp->ifname);
 			ifp->ifi_flags = flags;
-}
 	}
 }
 #endif

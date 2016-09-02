@@ -463,9 +463,27 @@ thread_add_terminate_event(thread_master_t * m)
 }
 
 void
-thread_read_timer_expire(int fd)
+thread_read_timer_expire(int fd, bool only_one)
 {
-	log_message(LOG_INFO, "Request to expire timer for fd 0x%x", fd);
+	thread_t *thread;
+
+	thread = master->read.head;
+	while (thread) {
+		thread_t *t;
+
+		t = thread;
+		thread = t->next;
+
+		if (t->u.fd == fd) {
+			FD_CLR(t->u.fd, &master->readfd);
+			thread_list_delete(&master->read, t);
+			thread_list_add(&master->ready, t);
+			t->type = THREAD_READ_TIMEOUT;	// TODO - make this THREAD_IF_STATE_CHANGE
+
+			if (only_one)
+				return;
+		}
+	}
 }
 
 /* Cancel thread from scheduler. */
@@ -713,13 +731,11 @@ retry:	/* When thread can't fetch try to find next thread again. */
 			thread_list_delete(&m->read, t);
 			thread_list_add(&m->ready, t);
 			t->type = THREAD_READY_FD;
-		} else {
-			if (timer_cmp(time_now, t->sands) >= 0) {
-				FD_CLR(t->u.fd, &m->readfd);
-				thread_list_delete(&m->read, t);
-				thread_list_add(&m->ready, t);
-				t->type = THREAD_READ_TIMEOUT;
-			}
+		} else if (timer_cmp(time_now, t->sands) >= 0) {
+			FD_CLR(t->u.fd, &m->readfd);
+			thread_list_delete(&m->read, t);
+			thread_list_add(&m->ready, t);
+			t->type = THREAD_READ_TIMEOUT;
 		}
 	}
 

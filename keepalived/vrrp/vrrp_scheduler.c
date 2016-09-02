@@ -749,13 +749,7 @@ vrrp_goto_master(vrrp_t * vrrp)
 	if (!VRRP_ISUP(vrrp)) {
 /* TODO Make common code for all transitions to fault */
 /* TODO Is vrrp->state always GOTO_MASTER if we get here, in which case test for FAULT is irrelevant */
-/* TODO - look at code before my uncommited changes - it might be that other changes are better */
 /* TODO - does all this bit need to be in state != FAULT, or none of it? */
-log_message(LOG_INFO, "up %d, donnt_track %d, track_list %d, track_up %d",  IF_ISUP(vrrp->ifp), vrrp->dont_track_primary,
-                                 LIST_ISEMPTY(vrrp->track_ifp), !LIST_ISEMPTY(vrrp->track_ifp) ? TRACK_ISUP(vrrp->track_ifp) : -1);
-log_message(LOG_INFO, "ifi_flags 0x%x, vmac %d, vmac_ifi_flags 0x%x, linkbeat %d", vrrp->ifp->ifi_flags,
-                    vrrp->ifp->vmac, vrrp->ifp->vmac_ifi_flags, vrrp->ifp->linkbeat);
-
 
 		vrrp_log_int_down(vrrp);
 		if (vrrp->state != VRRP_STATE_FAULT) {
@@ -980,7 +974,6 @@ vrrp_dispatcher_read_timeout(int fd)
 
 	/* Searching for matching instance */
 	vrrp = vrrp_timer_timeout(fd);
-log_message(LOG_INFO, "Got vrrp %p (fd_in = %d) for fd %d", vrrp, vrrp ? vrrp->fd_in : -1, fd);
 
 	/* Run the FSM handler */
 	prev_state = vrrp->state;
