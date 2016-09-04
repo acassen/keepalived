@@ -879,9 +879,6 @@ vrrp_master(vrrp_t * vrrp)
 	    || vrrp->ipsecah_counter->cycle
 #endif
 					) {
-// TODO - if have received higher prio advert, we need to use master_adver_int
-		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
-
 		/* handle backup state transition */
 		vrrp_state_leave_master(vrrp);
 
@@ -970,8 +967,10 @@ static int
 vrrp_dispatcher_read_timeout(int fd)
 {
 	vrrp_t *vrrp;
-	int prev_state = 0;
+	int prev_state;
 
+// TODO - how does this work if multiple vrrps are using the same fd?
+// TODO - it returns the first one. Why don't we spin thtough them all?
 	/* Searching for matching instance */
 	vrrp = vrrp_timer_timeout(fd);
 
@@ -1056,6 +1055,49 @@ vrrp_dispatcher_read(sock_t * sock)
 	return sock->fd_in;
 }
 
+/* Netlink has reported a link status change */
+static int
+vrrp_dispatcher_link_status_change(int fd)
+{
+//	ADD MESSAGES TO MAKE SURE WE ARE GETTING HERE
+	vrrp_t *vrrp;
+	element e;
+	list l = &vrrp_data->vrrp_index_fd[fd%1024 + 1];
+
+	/* Multiple instances on the same interface */
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+		if (vrrp->fd_in != fd || !vrrp->if_state_changed)
+			continue;
+
+		vrrp->if_state_changed = false;
+
+		if (vrrp->state == VRRP_STATE_FAULT ||
+		    vrrp->state == VRRP_STATE_GOTO_FAULT)
+			vrrp_fault(vrrp);
+		else if (vrrp->state != VRRP_STATE_INIT) {
+			if (!VRRP_ISUP(vrrp)) {
+				vrrp_log_int_down(vrrp);
+				vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
+				if (vrrp->state == VRRP_STATE_MAST)
+					vrrp_state_leave_master(vrrp);
+				else
+				{
+					log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state", vrrp->iname);
+					notify_instance_exec(vrrp, VRRP_STATE_FAULT);
+					vrrp->state = VRRP_STATE_FAULT;
+					vrrp->master_adver_int = vrrp->adver_int;
+#ifdef _WITH_SNMP_KEEPALIVED_
+					vrrp_snmp_instance_trap(vrrp);
+#endif
+				}
+			}
+		}
+	}
+
+	return fd;
+}
+
 /* Our read packet dispatcher */
 static int
 vrrp_read_dispatcher_thread(thread_t * thread)
@@ -1070,6 +1112,8 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 	/* Dispatcher state handler */
 	if (thread->type == THREAD_READ_TIMEOUT || sock->fd_in == -1)
 		fd = vrrp_dispatcher_read_timeout(sock->fd_in);
+	else if (thread->type == THREAD_IF_UP || thread->type == THREAD_IF_DOWN)
+		fd = vrrp_dispatcher_link_status_change(sock->fd_in);
 	else
 		fd = vrrp_dispatcher_read(sock);
 

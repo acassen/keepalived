@@ -1378,6 +1378,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 	}
 
 	/* Set the down timer */
+//TODO - should this be adver_int
 	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 	++vrrp->stats->release_master;
 	vrrp->last_transition = timer_now();

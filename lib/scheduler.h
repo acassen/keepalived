@@ -77,18 +77,22 @@ typedef struct _thread_master {
 } thread_master_t;
 
 /* Thread types. */
-#define THREAD_READ		0
-#define THREAD_WRITE		1
-#define THREAD_TIMER		2
-#define THREAD_EVENT		3
-#define THREAD_CHILD		4
-#define THREAD_READY		5
-#define THREAD_UNUSED		6
-#define THREAD_WRITE_TIMEOUT	7
-#define THREAD_READ_TIMEOUT	8
-#define THREAD_CHILD_TIMEOUT	9
-#define THREAD_TERMINATE	10
-#define THREAD_READY_FD		11
+enum {
+	THREAD_READ,
+	THREAD_WRITE,
+	THREAD_TIMER,
+	THREAD_EVENT,
+	THREAD_CHILD,
+	THREAD_READY,
+	THREAD_UNUSED,
+	THREAD_WRITE_TIMEOUT,
+	THREAD_READ_TIMEOUT,
+	THREAD_CHILD_TIMEOUT,
+	THREAD_TERMINATE,
+	THREAD_READY_FD,
+	THREAD_IF_UP,
+	THREAD_IF_DOWN
+};
 
 /* MICRO SEC def */
 #define BOOTSTRAP_DELAY TIMER_HZ
@@ -120,7 +124,7 @@ extern thread_t *thread_add_write(thread_master_t *, int (*func) (thread_t *), v
 extern thread_t *thread_add_timer(thread_master_t *, int (*func) (thread_t *), void *, unsigned long);
 extern thread_t *thread_add_child(thread_master_t *, int (*func) (thread_t *), void *, pid_t, unsigned long);
 extern thread_t *thread_add_event(thread_master_t *, int (*func) (thread_t *), void *, int);
-extern void thread_read_timer_expire(int, bool);
+extern void thread_read_timer_expire(int, bool, bool);
 extern int thread_cancel(thread_t *);
 extern thread_t *thread_fetch(thread_master_t *, thread_t *);
 extern void thread_call(thread_t *);

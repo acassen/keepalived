@@ -155,6 +155,7 @@ typedef struct _vrrp_t {
 	bool			dont_track_primary;	/* If set ignores ifp faults */
 	bool			skip_check_adv_addr;	/* If set, don't check the VIPs in subsequent
 							 * adverts from the same master */
+	bool			if_state_changed;	/* Set if interface state changed */
 	unsigned		strict_mode;		/* Enforces strict VRRP compliance */
 #ifdef _HAVE_VRRP_VMAC_
 	unsigned long		vmac_flags;		/* VRRP VMAC flags */

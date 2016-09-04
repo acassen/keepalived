@@ -463,9 +463,10 @@ thread_add_terminate_event(thread_master_t * m)
 }
 
 void
-thread_read_timer_expire(int fd, bool only_one)
+thread_read_timer_expire(int fd, bool if_is_up, bool only_one)
 {
 	thread_t *thread;
+	unsigned char event_type = if_is_up ? THREAD_IF_UP : THREAD_IF_DOWN;
 
 	thread = master->read.head;
 	while (thread) {
@@ -478,7 +479,7 @@ thread_read_timer_expire(int fd, bool only_one)
 			FD_CLR(t->u.fd, &master->readfd);
 			thread_list_delete(&master->read, t);
 			thread_list_add(&master->ready, t);
-			t->type = THREAD_READ_TIMEOUT;	// TODO - make this THREAD_IF_STATE_CHANGE
+			t->type = event_type;
 
 			if (only_one)
 				return;

@@ -775,8 +775,7 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags, ifindex_t if_index)
 										) {
 			/* This vrrp's interface or underlying interface has changed */
 			if (VRRP_IF_ISUP(vrrp) != was_up) {
-// TODO - this to change
-				timer_reset(vrrp->sands);
+				vrrp->if_state_changed = true;
 
 				/* This is how we update the queued thread */
 				if (vrrp->ifp == ifp) {
@@ -784,7 +783,7 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags, ifindex_t if_index)
 					if (ifp->vmac) {
 						/* We are the only user of this fd */
 						if (vrrp->fd_in)
-							thread_read_timer_expire(vrrp->fd_in, true);
+							thread_read_timer_expire(vrrp->fd_in, now_up, true);
 						break;
 					}
 #endif
@@ -794,16 +793,19 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags, ifindex_t if_index)
 						ip6_fd = vrrp->fd_in;
 				}
 #ifdef _HAVE_VRRP_VMAC_
-				else if (vrrp->fd_in)
-					thread_read_timer_expire(vrrp->fd_in, false);
+				else if (vrrp->fd_in) {
+					/* This is a vmac, and the underlying interface has changed state.
+					 * We need to report this with the fd used by the interface */
+					thread_read_timer_expire(vrrp->fd_in, now_up, true);
+				}
 #endif
 			}
 		}
 	}
 	if (ip_fd)
-		thread_read_timer_expire(ip_fd, false);
+		thread_read_timer_expire(ip_fd, now_up, false);
 	if (ip6_fd)
-		thread_read_timer_expire(ip6_fd, false);
+		thread_read_timer_expire(ip6_fd, now_up, false);
 }
 
 static int
@@ -875,6 +877,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 			}
 		}
 	}
+
 
 	update_interface_flags(ifp, ifi->ifi_flags, (ifindex_t)ifi->ifi_index);
 
@@ -995,26 +998,6 @@ end_addr:
 	return status;
 }
 
-// #define	IFF_UP		0x1		/* interface is up		*/
-// #define	IFF_BROADCAST	0x2		/* broadcast address valid	*/
-// #define	IFF_DEBUG	0x4		/* turn on debugging		*/
-// #define	IFF_LOOPBACK	0x8		/* is a loopback net		*/
-// #define	IFF_POINTOPOINT	0x10		/* interface is has p-p link	*/
-// #define	IFF_NOTRAILERS	0x20		/* avoid use of trailers	*/
-// #define	IFF_RUNNING	0x40		/* interface RFC2863 OPER_UP	*/
-// #define	IFF_NOARP	0x80		/* no ARP protocol		*/
-// #define	IFF_PROMISC	0x100		/* receive all packets		*/
-// #define	IFF_ALLMULTI	0x200		/* receive all multicast packets*/
-// #define	IFF_MASTER	0x400		/* master of a load balancer 	*/
-// #define	IFF_SLAVE	0x800		/* slave of a load balancer	*/
-// #define	IFF_MULTICAST	0x1000		/* Supports multicast		*/
-// #define	IFF_PORTSEL	0x2000          /* can set media type		*/
-// #define	IFF_AUTOMEDIA	0x4000		/* auto media select active	*/
-// #define	IFF_DYNAMIC	0x8000		/* dialup device with changing addresses*/
-// #define	IFF_LOWER_UP	0x10000		/* driver signals L1 up		*/
-// #define	IFF_DORMANT	0x20000		/* driver signals dormant	*/
-// #define	IFF_ECHO	0x40000		/* echo sent packets		*/
-
 /* Netlink flag Link update */
 static int
 netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
@@ -1074,7 +1057,8 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	/*
 	 * Update flags.
 	 * VMAC interfaces should never update it own flags, only be reflected
-	 * by the base interface flags.
+	 * by the base interface flags, except IFF_UP and IFF_RUNNING need to be
+	 * taken into account for a VMAC.
 	 */
 	update_interface_flags(ifp, ifi->ifi_flags, (ifindex_t)ifi->ifi_index);
 
