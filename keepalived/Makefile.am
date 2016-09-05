@@ -32,7 +32,6 @@ SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR)
 EXTRA_DIST		= keepalived.service etc
 
 keepalived_LDADD	= core/libcore.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a
-# gcc -Wall -Wunused -Wstrict-prototypes     -D_GNU_SOURCE -ldl  -lssl -lcrypto  -lnl -L/lib64 -liptc -lip4tc -lip6tc -lxtables   -o keepalived main.o core/libcore.a check/libcheck.a vrrp/libvrrp.a  core/libcore.a ../lib/liblib.a
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 

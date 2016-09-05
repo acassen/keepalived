@@ -280,7 +280,6 @@ LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
-# gcc -Wall -Wunused -Wstrict-prototypes     -D_GNU_SOURCE -ldl  -lssl -lcrypto  -lnl -L/lib64 -liptc -lip4tc -lip6tc -lxtables   -o keepalived main.o core/libcore.a check/libcheck.a vrrp/libvrrp.a  core/libcore.a ../lib/liblib.a
 MAINTAINERCLEANFILES = @MAINTAINERCLEANFILES@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
