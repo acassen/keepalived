@@ -29,7 +29,6 @@ AC_DEFUN([add_pkg_config],
     fi
     add_to_var_ind_unique([${PKG_PFX}_CPPFLAGS], [$(pkg-config --cflags-only-I $1)])
     add_to_var_ind_unique([${PKG_PFX}_CFLAGS], [$(pkg-config --cflags-only-other $1)])
-    add_to_var_ind_unique([${PKG_PFX}_LDFLAGS], [$(pkg-config --libs $1)])
     add_to_var_ind_unique([${PKG_PFX}_LIBS], [$(pkg-config --libs $1)])
   ])
 
@@ -138,8 +137,8 @@ AC_SUBST(ARFLAGS)
 
 KA_CPPFLAGS="$kernelinc"
 KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes"
-KA_LDFLAGS="-ldl"
-KA_LIBS=
+KA_LDFLAGS=
+KA_LIBS="-ldl"
 #KA_LIBTOOLFLAGS = 
 
 AC_SUBST(KA_CPPFLAGS)
@@ -441,7 +440,7 @@ if test .${enable_libiptc} != .no; then
             if test $? -eq 0; then
               add_pkg_config(libipset)
             else
-              add_to_var([KA_LDFLAGS], [-lipset])
+              add_to_var([KA_LIBS], [-lipset])
             fi
             add_pkg_config([xtables])
 
@@ -873,7 +872,8 @@ EOF
 
 dnl ----[ display optional vars  ]----
 if test -n "$KA_LDFLAGS$KA_LIBS"; then
-  echo "Extra Lib                : $KA_LDFLAGS $KA_LIBS"
+  echo "Linker flags             : $KA_LDFLAGS"
+  echo "Extra Lib                : $KA_LIBS"
 fi
 
 echo "Use IPVS Framework       : ${IPVS_SUPPORT}"

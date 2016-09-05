@@ -112,9 +112,8 @@ am__installdirs = "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(configdir)" \
 PROGRAMS = $(sbin_PROGRAMS)
 am_keepalived_OBJECTS = main.$(OBJEXT)
 keepalived_OBJECTS = $(am_keepalived_OBJECTS)
-keepalived_DEPENDENCIES = $(IPVS_LIB) $(VRRP_LIB) core/libcore.a \
-	../lib/liblib.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a \
-	../lib/liblib.a
+keepalived_DEPENDENCIES = core/libcore.a $(IPVS_LIB) $(VRRP_LIB) \
+	core/libcore.a ../lib/liblib.a
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -281,6 +280,7 @@ LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
 LN_S = @LN_S@
 LTLIBOBJS = @LTLIBOBJS@
+# gcc -Wall -Wunused -Wstrict-prototypes     -D_GNU_SOURCE -ldl  -lssl -lcrypto  -lnl -L/lib64 -liptc -lip4tc -lip6tc -lxtables   -o keepalived main.o core/libcore.a check/libcheck.a vrrp/libvrrp.a  core/libcore.a ../lib/liblib.a
 MAINTAINERCLEANFILES = @MAINTAINERCLEANFILES@
 MAKEINFO = @MAKEINFO@
 MKDIR_P = @MKDIR_P@
@@ -356,7 +356,7 @@ noinst_HEADERS = $(srcdir)/include/*.h
 @WITH_VRRP_TRUE@VRRP_LIB = vrrp/libvrrp.a
 SUBDIRS = core $(VRRP_SUBDIR) $(IPVS_SUBDIR)
 EXTRA_DIST = keepalived.service etc
-keepalived_LDADD = $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a
+keepalived_LDADD = core/libcore.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a
 sysconfigdir = $(sysconfdir)/sysconfig
 sysconfig_DATA = etc/init.d/keepalived.sysconfig
 configdir = $(sysconfdir)/@PACKAGE@
