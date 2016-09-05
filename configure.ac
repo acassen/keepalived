@@ -456,17 +456,21 @@ if test .${enable_libiptc} != .no; then
                 ], [AC_MSG_ERROR([Missing/unusable kernel header file <linux/netfilter/xt_set.h>])],
                 [[#include <libipset/linux_ip_set.h>]])])
             AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [$EXTRA_INCLUDE])
+  
+            dnl -- xt_set_info_match_v1 declared since Linux 3.1
+            AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [],
+              [
+                $EXTRA_INCLUDE
+                #include <linux/netfilter/xt_set.h>
+              ])
+  
+            dnl - ipset type iface introduced in Linux 3.1
+            AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+              #include <linux/netfilter/ipset/ip_set.h>
+              int main(void) { int var = IPSET_ATTR_IFACE; }
+              ]])],
+              [AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
           fi
-  
-          dnl -- xt_set_info_match_v1 declared since Linux 3.1
-          AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [], [#include <linux/netfilter/xt_set.h>])
-  
-          dnl - ipset type iface introduced in Linux 3.1
-          AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-            #include <linux/netfilter/ipset/ip_set.h>
-            int main(void) { int var = IPSET_ATTR_IFACE; }
-            ]])],
-            [AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
         ])
     fi
 

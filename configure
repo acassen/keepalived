@@ -7285,9 +7285,11 @@ fi
 
 done
 
-          fi
 
-                    ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v1" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v1_match_set_index" "#include <linux/netfilter/xt_set.h>
+                        ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v1" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v1_match_set_index" "
+                $EXTRA_INCLUDE
+                #include <linux/netfilter/xt_set.h>
+
 "
 if test "x$ac_cv_member_struct_xt_set_info_match_v1_match_set_index" = xyes; then :
 
@@ -7296,11 +7298,11 @@ $as_echo "#define HAVE_XT_SET_INFO_MATCH_V1  1 " >>confdefs.h
 fi
 
 
-                    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+                        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-            #include <linux/netfilter/ipset/ip_set.h>
-            int main(void) { int var = IPSET_ATTR_IFACE; }
+              #include <linux/netfilter/ipset/ip_set.h>
+              int main(void) { int var = IPSET_ATTR_IFACE; }
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
@@ -7309,6 +7311,7 @@ $as_echo "#define HAVE_IPSET_ATTR_IFACE  1 " >>confdefs.h
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+          fi
 
 fi
 
