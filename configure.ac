@@ -29,7 +29,6 @@ AC_DEFUN([add_pkg_config],
     fi
     add_to_var_ind_unique([${PKG_PFX}_CPPFLAGS], [$(pkg-config --cflags-only-I $1)])
     add_to_var_ind_unique([${PKG_PFX}_CFLAGS], [$(pkg-config --cflags-only-other $1)])
-    add_to_var_ind_unique([${PKG_PFX}_LDFLAGS], [$(pkg-config --libs $1)])
     add_to_var_ind_unique([${PKG_PFX}_LIBS], [$(pkg-config --libs $1)])
   ])
 
@@ -138,8 +137,8 @@ AC_SUBST(ARFLAGS)
 
 KA_CPPFLAGS="$kernelinc"
 KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes"
-KA_LDFLAGS="-ldl"
-KA_LIBS=
+KA_LDFLAGS=
+KA_LIBS="-ldl"
 #KA_LIBTOOLFLAGS = 
 
 AC_SUBST(KA_CPPFLAGS)
@@ -441,7 +440,7 @@ if test .${enable_libiptc} != .no; then
             if test $? -eq 0; then
               add_pkg_config(libipset)
             else
-              add_to_var([KA_LDFLAGS], [-lipset])
+              add_to_var([KA_LIBS], [-lipset])
             fi
             add_pkg_config([xtables])
 
@@ -457,17 +456,21 @@ if test .${enable_libiptc} != .no; then
                 ], [AC_MSG_ERROR([Missing/unusable kernel header file <linux/netfilter/xt_set.h>])],
                 [[#include <libipset/linux_ip_set.h>]])])
             AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [$EXTRA_INCLUDE])
+  
+            dnl -- xt_set_info_match_v1 declared since Linux 3.1
+            AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [],
+              [
+                $EXTRA_INCLUDE
+                #include <linux/netfilter/xt_set.h>
+              ])
+  
+            dnl - ipset type iface introduced in Linux 3.1
+            AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+              #include <linux/netfilter/ipset/ip_set.h>
+              int main(void) { int var = IPSET_ATTR_IFACE; }
+              ]])],
+              [AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
           fi
-  
-          dnl -- xt_set_info_match_v1 declared since Linux 3.1
-          AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [], [#include <linux/netfilter/xt_set.h>])
-  
-          dnl - ipset type iface introduced in Linux 3.1
-          AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-            #include <linux/netfilter/ipset/ip_set.h>
-            int main(void) { int var = IPSET_ATTR_IFACE; }
-            ]])],
-            [AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
         ])
     fi
 
@@ -654,7 +657,9 @@ if test "$enable_snmp" = yes -o \
   if test "$NETSNMP_CONFIG" = no; then
     AC_MSG_ERROR([*** unable to find net-snmp-config])
   fi
-  NETSNMP_LIBS=`${NETSNMP_CONFIG} --agent-libs`
+  NETSNMP_LIBS_AGENT=`${NETSNMP_CONFIG} --netsnmp-agent-libs`
+  NETSNMP_LIBS_EXT=`${NETSNMP_CONFIG} --external-libs`
+  NETSNMP_LIBS="$NETSNMP_LIBS_AGENT $NETSNMP_LIBS_EXT"
   NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags` -DNETSNMP_NO_INLINE"
 
   CFLAGS="${NETSNMP_CFLAGS}"
@@ -688,7 +693,7 @@ if test "$enable_snmp" = yes -o \
 
   SNMP_SUPPORT=Yes
   add_to_var([KA_CFLAGS], [$NETSNMP_CFLAGS])
-  add_to_var([KA_LDFLAGS], [$NETSNMP_LIBS])
+  add_to_var([KA_LIBS], [$NETSNMP_LIBS])
   if test "$enable_snmp_rfc" = yes; then
     SNMP_RFCV2_SUPPORT=Yes
     SNMP_RFCV3_SUPPORT=Yes
@@ -873,7 +878,8 @@ EOF
 
 dnl ----[ display optional vars  ]----
 if test -n "$KA_LDFLAGS$KA_LIBS"; then
-  echo "Extra Lib                : $KA_LDFLAGS $KA_LIBS"
+  echo "Linker flags             : $KA_LDFLAGS"
+  echo "Extra Lib                : $KA_LIBS"
 fi
 
 echo "Use IPVS Framework       : ${IPVS_SUPPORT}"

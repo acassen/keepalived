@@ -112,9 +112,9 @@ am__installdirs = "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(configdir)" \
 PROGRAMS = $(sbin_PROGRAMS)
 am_keepalived_OBJECTS = main.$(OBJEXT)
 keepalived_OBJECTS = $(am_keepalived_OBJECTS)
-keepalived_DEPENDENCIES = $(IPVS_LIB) $(VRRP_LIB) core/libcore.a \
-	../lib/liblib.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a \
-	../lib/liblib.a
+am__DEPENDENCIES_1 =
+keepalived_DEPENDENCIES = core/libcore.a $(IPVS_LIB) $(VRRP_LIB) \
+	core/libcore.a ../lib/liblib.a $(am__DEPENDENCIES_1)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -347,7 +347,7 @@ top_srcdir = @top_srcdir@
 AM_CPPFLAGS = $(KA_CPPFLAGS) $(DEBUG_CPPFLAGS) -I$(srcdir)/include -I \
 	$(top_srcdir)/lib
 AM_CFLAGS = $(KA_CFLAGS) $(DEBUG_CFLAGS)
-AM_LDFLAGS = $(KA_LDFLAGS) $(KA_LIBS) $(DEBUG_LDFLAGS)
+AM_LDFLAGS = $(KA_LDFLAGS) $(DEBUG_LDFLAGS)
 keepalived_SOURCES = main.c
 noinst_HEADERS = $(srcdir)/include/*.h
 @WITH_IPVS_TRUE@IPVS_SUBDIR = check
@@ -356,7 +356,7 @@ noinst_HEADERS = $(srcdir)/include/*.h
 @WITH_VRRP_TRUE@VRRP_LIB = vrrp/libvrrp.a
 SUBDIRS = core $(VRRP_SUBDIR) $(IPVS_SUBDIR)
 EXTRA_DIST = keepalived.service etc
-keepalived_LDADD = $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a
+keepalived_LDADD = core/libcore.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a $(KA_LIBS)
 sysconfigdir = $(sysconfdir)/sysconfig
 sysconfig_DATA = etc/init.d/keepalived.sysconfig
 configdir = $(sysconfdir)/@PACKAGE@

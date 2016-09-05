@@ -4896,8 +4896,8 @@ ARFLAGS=cr
 
 KA_CPPFLAGS="$kernelinc"
 KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes"
-KA_LDFLAGS="-ldl"
-KA_LIBS=
+KA_LDFLAGS=
+KA_LIBS="-ldl"
 #KA_LIBTOOLFLAGS =
 
 
@@ -6322,16 +6322,6 @@ if test "x$ac_cv_lib_nl_genl_3_genl_connect" = xyes; then :
     eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_LDFLAGS
-    for item in $(pkg-config --libs libnl-genl-3.0); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${PKG_PFX}_LDFLAGS=\"\$${PKG_PFX}_LDFLAGS $ADD_NEW\"
-
-    ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
     for item in $(pkg-config --libs libnl-genl-3.0); do
       echo " $var " | $GREP -q " $item "
@@ -6418,16 +6408,6 @@ $as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
     eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_LDFLAGS
-    for item in $(pkg-config --libs libnl-route-3.0); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${PKG_PFX}_LDFLAGS=\"\$${PKG_PFX}_LDFLAGS $ADD_NEW\"
-
-    ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
     for item in $(pkg-config --libs libnl-route-3.0); do
       echo " $var " | $GREP -q " $item "
@@ -6512,16 +6492,6 @@ $as_echo "#define _HAVE_LIBNL1_  1 " >>confdefs.h
       fi
     done
     eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
-
-    ADD_NEW=
-   eval var=\$${PKG_PFX}_LDFLAGS
-    for item in $(pkg-config --libs libnl-1); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${PKG_PFX}_LDFLAGS=\"\$${PKG_PFX}_LDFLAGS $ADD_NEW\"
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
@@ -6939,16 +6909,6 @@ done
     eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_LDFLAGS
-    for item in $(pkg-config --libs --static libiptc); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${PKG_PFX}_LDFLAGS=\"\$${PKG_PFX}_LDFLAGS $ADD_NEW\"
-
-    ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
     for item in $(pkg-config --libs --static libiptc); do
       echo " $var " | $GREP -q " $item "
@@ -7025,16 +6985,6 @@ if test "x$ac_cv_lib_iptc_iptc_init" = xyes; then :
     eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_LDFLAGS
-    for item in $(pkg-config --libs --static libiptc); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${PKG_PFX}_LDFLAGS=\"\$${PKG_PFX}_LDFLAGS $ADD_NEW\"
-
-    ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
     for item in $(pkg-config --libs --static libiptc); do
       echo " $var " | $GREP -q " $item "
@@ -7086,16 +7036,6 @@ fi
       fi
     done
     eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
-
-    ADD_NEW=
-   eval var=\$${PKG_PFX}_LDFLAGS
-    for item in $(pkg-config --libs libipset); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${PKG_PFX}_LDFLAGS=\"\$${PKG_PFX}_LDFLAGS $ADD_NEW\"
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
@@ -7254,16 +7194,6 @@ $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
     eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_LDFLAGS
-    for item in $(pkg-config --libs libipset); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${PKG_PFX}_LDFLAGS=\"\$${PKG_PFX}_LDFLAGS $ADD_NEW\"
-
-    ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
     for item in $(pkg-config --libs libipset); do
       echo " $var " | $GREP -q " $item "
@@ -7275,7 +7205,7 @@ $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
 
 
             else
-              KA_LDFLAGS="$KA_LDFLAGS -lipset"
+              KA_LIBS="$KA_LIBS -lipset"
             fi
              if test 1 -ge 2; then
       PKG_PFX=
@@ -7301,16 +7231,6 @@ $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
       fi
     done
     eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
-
-    ADD_NEW=
-   eval var=\$${PKG_PFX}_LDFLAGS
-    for item in $(pkg-config --libs xtables); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${PKG_PFX}_LDFLAGS=\"\$${PKG_PFX}_LDFLAGS $ADD_NEW\"
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
@@ -7365,9 +7285,11 @@ fi
 
 done
 
-          fi
 
-                    ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v1" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v1_match_set_index" "#include <linux/netfilter/xt_set.h>
+                        ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v1" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v1_match_set_index" "
+                $EXTRA_INCLUDE
+                #include <linux/netfilter/xt_set.h>
+
 "
 if test "x$ac_cv_member_struct_xt_set_info_match_v1_match_set_index" = xyes; then :
 
@@ -7376,11 +7298,11 @@ $as_echo "#define HAVE_XT_SET_INFO_MATCH_V1  1 " >>confdefs.h
 fi
 
 
-                    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+                        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-            #include <linux/netfilter/ipset/ip_set.h>
-            int main(void) { int var = IPSET_ATTR_IFACE; }
+              #include <linux/netfilter/ipset/ip_set.h>
+              int main(void) { int var = IPSET_ATTR_IFACE; }
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
@@ -7389,6 +7311,7 @@ $as_echo "#define HAVE_IPSET_ATTR_IFACE  1 " >>confdefs.h
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+          fi
 
 fi
 
@@ -7956,7 +7879,9 @@ fi
   if test "$NETSNMP_CONFIG" = no; then
     as_fn_error $? "*** unable to find net-snmp-config" "$LINENO" 5
   fi
-  NETSNMP_LIBS=`${NETSNMP_CONFIG} --agent-libs`
+  NETSNMP_LIBS_AGENT=`${NETSNMP_CONFIG} --netsnmp-agent-libs`
+  NETSNMP_LIBS_EXT=`${NETSNMP_CONFIG} --external-libs`
+  NETSNMP_LIBS="$NETSNMP_LIBS_AGENT $NETSNMP_LIBS_EXT"
   NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags` -DNETSNMP_NO_INLINE"
 
   CFLAGS="${NETSNMP_CFLAGS}"
@@ -8028,7 +7953,7 @@ done
 
   SNMP_SUPPORT=Yes
   KA_CFLAGS="$KA_CFLAGS $NETSNMP_CFLAGS"
-  KA_LDFLAGS="$KA_LDFLAGS $NETSNMP_LIBS"
+  KA_LIBS="$KA_LIBS $NETSNMP_LIBS"
   if test "$enable_snmp_rfc" = yes; then
     SNMP_RFCV2_SUPPORT=Yes
     SNMP_RFCV3_SUPPORT=Yes
@@ -9953,7 +9878,8 @@ Compiler flags           : ${KA_CFLAGS}
 EOF
 
 if test -n "$KA_LDFLAGS$KA_LIBS"; then
-  echo "Extra Lib                : $KA_LDFLAGS $KA_LIBS"
+  echo "Linker flags             : $KA_LDFLAGS"
+  echo "Extra Lib                : $KA_LIBS"
 fi
 
 echo "Use IPVS Framework       : ${IPVS_SUPPORT}"

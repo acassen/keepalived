@@ -93,7 +93,9 @@ write_stacktrace(const char *file_name)
 
 	nptrs = backtrace(buffer, 100);
 	backtrace_symbols_fd(buffer, nptrs, fd);
-	write(fd, "\n", 1);
+	if (write(fd, "\n", 1) != 1) {
+		/* We don't care, but this stops a warning on Ubuntu */
+	}
 	close(fd);
 }
 #endif

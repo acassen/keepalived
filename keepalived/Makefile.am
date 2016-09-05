@@ -6,8 +6,7 @@
 
 AM_CPPFLAGS		= $(KA_CPPFLAGS) $(DEBUG_CPPFLAGS)
 AM_CFLAGS		= $(KA_CFLAGS) $(DEBUG_CFLAGS)
-AM_LDFLAGS		= $(KA_LDFLAGS) $(KA_LIBS) $(DEBUG_LDFLAGS)
-# AM_LIBS		= $(KA_LIBS)
+AM_LDFLAGS		= $(KA_LDFLAGS) $(DEBUG_LDFLAGS)
 # AM_LIBTOOLFLAGS	= $(KA_LIBTOOLFLAGS)
 
 sbin_PROGRAMS		= keepalived
@@ -31,7 +30,7 @@ SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR)
 
 EXTRA_DIST		= keepalived.service etc
 
-keepalived_LDADD	= $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a
+keepalived_LDADD	= core/libcore.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a $(KA_LIBS)
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 
