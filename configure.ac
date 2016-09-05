@@ -653,7 +653,9 @@ if test "$enable_snmp" = yes -o \
   if test "$NETSNMP_CONFIG" = no; then
     AC_MSG_ERROR([*** unable to find net-snmp-config])
   fi
-  NETSNMP_LIBS=`${NETSNMP_CONFIG} --agent-libs`
+  NETSNMP_LIBS_AGENT=`${NETSNMP_CONFIG} --netsnmp-agent-libs`
+  NETSNMP_LIBS_EXT=`${NETSNMP_CONFIG} --external-libs`
+  NETSNMP_LIBS="$NETSNMP_LIBS_AGENT $NETSNMP_LIBS_EXT"
   NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags` -DNETSNMP_NO_INLINE"
 
   CFLAGS="${NETSNMP_CFLAGS}"
@@ -687,7 +689,7 @@ if test "$enable_snmp" = yes -o \
 
   SNMP_SUPPORT=Yes
   add_to_var([KA_CFLAGS], [$NETSNMP_CFLAGS])
-  add_to_var([KA_LDFLAGS], [$NETSNMP_LIBS])
+  add_to_var([KA_LIBS], [$NETSNMP_LIBS])
   if test "$enable_snmp_rfc" = yes; then
     SNMP_RFCV2_SUPPORT=Yes
     SNMP_RFCV3_SUPPORT=Yes
