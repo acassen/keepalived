@@ -7,14 +7,13 @@
 AM_CPPFLAGS		= $(KA_CPPFLAGS) $(DEBUG_CPPFLAGS)
 AM_CFLAGS		= $(KA_CFLAGS) $(DEBUG_CFLAGS)
 AM_LDFLAGS		= $(KA_LDFLAGS) $(GENHASH_LIBS) $(DEBUG_LDFLAGS)
-# AM_LIBS		= $(KA_LIBS)
 # AM_LIBTOOLFLAGS	= $(KA_LIBTOOLFLAGS)
 
 bin_PROGRAMS		= genhash
 AM_CPPFLAGS		+= -I$(srcdir)/../lib
 
 genhash_SOURCES		= main.c sock.c layer4.c http.c ssl.c
-genhash_LDADD		= ../lib/liblib.a
+genhash_LDADD		= ../lib/liblib.a $(KA_LIBS)
 
 noinst_HEADERS		= $(srcdir)/include/*.h
 

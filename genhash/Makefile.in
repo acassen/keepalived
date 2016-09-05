@@ -110,7 +110,8 @@ PROGRAMS = $(bin_PROGRAMS)
 am_genhash_OBJECTS = main.$(OBJEXT) sock.$(OBJEXT) layer4.$(OBJEXT) \
 	http.$(OBJEXT) ssl.$(OBJEXT)
 genhash_OBJECTS = $(am_genhash_OBJECTS)
-genhash_DEPENDENCIES = ../lib/liblib.a
+am__DEPENDENCIES_1 =
+genhash_DEPENDENCIES = ../lib/liblib.a $(am__DEPENDENCIES_1)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
 am__v_P_0 = false
@@ -275,7 +276,7 @@ AM_CPPFLAGS = $(KA_CPPFLAGS) $(DEBUG_CPPFLAGS) -I$(srcdir)/../lib
 AM_CFLAGS = $(KA_CFLAGS) $(DEBUG_CFLAGS)
 AM_LDFLAGS = $(KA_LDFLAGS) $(GENHASH_LIBS) $(DEBUG_LDFLAGS)
 genhash_SOURCES = main.c sock.c layer4.c http.c ssl.c
-genhash_LDADD = ../lib/liblib.a
+genhash_LDADD = ../lib/liblib.a $(KA_LIBS)
 noinst_HEADERS = $(srcdir)/include/*.h
 EXTRA_DIST = AUTHOR
 all: all-am
