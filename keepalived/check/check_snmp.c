@@ -496,7 +496,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret = v->ha_suspend?1:2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSOPS:
-		long_ret = v->flags&IP_VS_SVC_F_ONEPACKET?1:2;
+		long_ret = v->flags & IP_VS_SVC_F_ONEPACKET?1:2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSALPHA:
 		long_ret = v->alpha?1:2;
