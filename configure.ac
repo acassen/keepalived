@@ -510,7 +510,12 @@ if test "$enable_lvs" != no; then
   AC_DEFINE([_WITH_LVS_], [ 1 ], [Define to 1 if have IPVS support])
 
   dnl -- <linux/ip_vs.h> exists from 2.6.27; prior to that <net/ip_vs.h> is used
-  AC_CHECK_HEADERS([linux/ip_vs.h])
+  AC_CHECK_HEADERS([linux/ip_vs.h],
+    [
+      dnl -- From 2.6.35 (but CentOS has it in 2.6.32)
+      AC_CHECK_DECLS([IP_VS_SVC_F_ONEPACKET], [], [],
+        [[#include <linux/ip_vs.h>]])
+    ])
 
   if test $IPVS_USE_NL = Yes; then
     AC_DEFINE([LIBIPVS_USE_NL], [ 1 ], [Define to 1 if libipvs can use netlink])

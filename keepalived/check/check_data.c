@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include <netdb.h>
+
 #include "check_data.h"
 #include "check_api.h"
 #include "check_ssl.h"
@@ -186,6 +187,7 @@ dump_vs(void *data)
 						   vs->delay_loop,
 	       vs->sched);
 	log_message(LOG_INFO, "   Hashed = %sabled", vs->flags & IP_VS_SVC_F_HASHED ? "en" : "dis");
+#ifdef IP_VS_SVC_F_SCHED1
 	if (!strcmp(vs->sched, "sh"))
 	{
 		log_message(LOG_INFO, "   sh-port = %sabled", vs->flags & IP_VS_SVC_F_SCHED_SH_PORT ? "en" : "dis");
@@ -197,9 +199,12 @@ dump_vs(void *data)
 		log_message(LOG_INFO, "   flag-2 = %sabled", vs->flags & IP_VS_SVC_F_SCHED2 ? "en" : "dis");
 		log_message(LOG_INFO, "   flag-3 = %sabled", vs->flags & IP_VS_SVC_F_SCHED3 ? "en" : "dis");
 	}
+#endif
+#ifdef IP_VS_SVC_F_ONEPACKET
 	log_message(LOG_INFO, "   One packet scheduling = %sabled%s",
 			(vs->flags & IP_VS_SVC_F_ONEPACKET) ? "en" : "dis",
 			((vs->flags & IP_VS_SVC_F_ONEPACKET) && vs->service_type != IPPROTO_UDP) ? " (inactive due to not UDP)" : "");
+#endif
 
 	if (vs->persistence_timeout)
 		log_message(LOG_INFO, "   persistence timeout = %u", vs->persistence_timeout);

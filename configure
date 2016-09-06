@@ -7392,6 +7392,19 @@ if test "x$ac_cv_header_linux_ip_vs_h" = xyes; then :
 #define HAVE_LINUX_IP_VS_H 1
 _ACEOF
 
+            ac_fn_c_check_decl "$LINENO" "IP_VS_SVC_F_ONEPACKET" "ac_cv_have_decl_IP_VS_SVC_F_ONEPACKET" "#include <linux/ip_vs.h>
+"
+if test "x$ac_cv_have_decl_IP_VS_SVC_F_ONEPACKET" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_IP_VS_SVC_F_ONEPACKET $ac_have_decl
+_ACEOF
+
+
 fi
 
 done

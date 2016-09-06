@@ -130,14 +130,17 @@ lbflags_handler(vector_t *strvec)
 
 	if (!strcmp(str, "hashed"))
 		vs->flags |= IP_VS_SVC_F_HASHED;
+#ifdef IP_VS_SVC_F_ONEPACKET
+	else if (!strcmp(str, "ops"))
+		vs->flags |= IP_VS_SVC_F_ONEPACKET;
+#endif
+#ifdef IP_VS_SVC_F_SCHED1		/* From Linux 3.11 */
 	else if (!strcmp(str, "flag-1"))
 		vs->flags |= IP_VS_SVC_F_SCHED1;
 	else if (!strcmp(str, "flag-2"))
 		vs->flags |= IP_VS_SVC_F_SCHED2;
 	else if (!strcmp(str, "flag-3"))
 		vs->flags |= IP_VS_SVC_F_SCHED3;
-	else if (!strcmp(str, "ops"))
-		vs->flags |= IP_VS_SVC_F_ONEPACKET;
 	else if (!strcmp(vs->sched , "sh") )
 	{
 		/* sh-port and sh-fallback flags are relevant for sh scheduler only */
@@ -148,6 +151,7 @@ lbflags_handler(vector_t *strvec)
 	}
 	else
 		log_message(LOG_INFO, "%s only applies to sh scheduler - ignoring", str);
+#endif
 }
 
 static void
@@ -382,12 +386,16 @@ init_check_keywords(bool active)
 	install_keyword("lvs_sched", &lbalgo_handler);
 
 	install_keyword("hashed", &lbflags_handler);
+#ifdef IP_VS_SVC_F_ONEPACKET
 	install_keyword("ops", &lbflags_handler);
+#endif
+#ifdef IP_VS_SVC_F_SCHED1
 	install_keyword("flag-1", &lbflags_handler);
 	install_keyword("flag-2", &lbflags_handler);
 	install_keyword("flag-3", &lbflags_handler);
 	install_keyword("sh-port", &lbflags_handler);
 	install_keyword("sh-fallback", &lbflags_handler);
+#endif
 	install_keyword("lb_kind", &lbkind_handler);
 	install_keyword("lvs_method", &lbkind_handler);
 #ifdef IPVS_SVC_ATTR_PE_NAME

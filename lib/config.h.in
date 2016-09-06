@@ -99,6 +99,10 @@
    0 if you don't. */
 #undef HAVE_DECL_IPVS_SVC_ATTR_STATS64
 
+/* Define to 1 if you have the declaration of `IP_VS_SVC_F_ONEPACKET', and to
+   0 if you don't. */
+#undef HAVE_DECL_IP_VS_SVC_F_ONEPACKET
+
 /* Define to 1 if you have the declaration of `MACVLAN_MODE_PRIVATE', and to 0
    if you don't. */
 #undef HAVE_DECL_MACVLAN_MODE_PRIVATE
