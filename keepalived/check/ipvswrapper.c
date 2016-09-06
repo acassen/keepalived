@@ -420,7 +420,7 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 		srule->user.flags |= IP_VS_SVC_F_PERSISTENT;
 
 	/* Disable ops flag if service is not UDP */
-	if (vs->flags&IP_VS_SVC_F_ONEPACKET && srule->user.protocol == IPPROTO_UDP)
+	if (vs->flags & IP_VS_SVC_F_ONEPACKET && srule->user.protocol != IPPROTO_UDP)
 		srule->user.flags &= ~IP_VS_SVC_F_ONEPACKET;
 
 #ifdef IPVS_SVC_ATTR_PE_NAME
