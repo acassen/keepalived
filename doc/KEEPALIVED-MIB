@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201608230000Z"
+     LAST-UPDATED "201609060000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201609060000Z"
+     DESCRIPTION "add LVS scheduler flags"
      REVISION "201608230000Z"
      DESCRIPTION "add IPv6 persistence granularity"
      REVISION "201608030000Z"
@@ -2251,7 +2253,11 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerRateInBPSHigh Unsigned32,
     virtualServerRateOutBPSLow Unsigned32,
     virtualServerRateOutBPSHigh Unsigned32,
-    virtualServerPersistGranularity6 Unsigned32
+    virtualServerPersistGranularity6 Unsigned32,
+    virtualServerHashed TruthValue,
+    virtualServerSHFallback TruthValue,
+    virtualServerSHPort TruthValue,
+    virtualServerSched3 TruthValue
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -2720,6 +2726,38 @@ virtualServerPersistGranularity6 OBJECT-TYPE
     DESCRIPTION
         "Netmask specifying the granularity of the IPv6 persistence mechanism."
     ::= { virtualServerEntry 51 }
+
+virtualServerHashed OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If set to true(1), entries will be hashed."
+    ::= { virtualServerEntry 52 }
+
+virtualServerSHFallback OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If set to true(1), SH scheduler fallback."
+    ::= { virtualServerEntry 53 }
+
+virtualServerSHPort OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If set to true(1), SH scheduler use port."
+    ::= { virtualServerEntry 54 }
+
+virtualServerSched3 OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If set to true(1), scheduler flag 3 set."
+    ::= { virtualServerEntry 55 }
 
 
 -- real servers
@@ -3637,7 +3675,11 @@ virtualServerGroup OBJECT-GROUP
     virtualServerRateInBPSHigh,
     virtualServerRateOutBPSLow,
     virtualServerRateOutBPSHigh,
-    virtualServerPersistGranularity6
+    virtualServerPersistGranularity6,
+    virtualServerHashed,
+    virtualServerSHFallback,
+    virtualServerSHPort,
+    virtualServerSched3
     }
     STATUS current
     DESCRIPTION

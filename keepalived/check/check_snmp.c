@@ -102,6 +102,10 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSRATEOUTBPSLOW,
 	CHECK_SNMP_VSRATEOUTBPSHIGH,
 #endif
+	CHECK_SNMP_VSHASHED,
+	CHECK_SNMP_VSSHFALLBACK,
+	CHECK_SNMP_VSSHPORT,
+	CHECK_SNMP_VSSCHED3,
 #endif
 };
 
@@ -640,6 +644,20 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_VSRATEOUTBPSHIGH:
 		ipvs_update_stats(v);
 		long_ret = v->stats.outbps >> 32;
+		return (u_char*)&long_ret;
+#endif
+#ifdef IP_VS_SVC_F_SCHED1
+	case CHECK_SNMP_VSHASHED:
+		long_ret = v->flags & IP_VS_SVC_F_HASHED ? 1 : 2;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSSHFALLBACK:
+		long_ret = v->flags & IP_VS_SVC_F_SCHED_SH_FALLBACK ? 1 : 2;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSSHPORT:
+		long_ret = v->flags & IP_VS_SVC_F_SCHED_SH_PORT ? 1 : 2;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSSCHED3:
+		long_ret = v->flags & IP_VS_SVC_F_SCHED3 ? 1 : 2;
 		return (u_char*)&long_ret;
 #endif
 	default:
@@ -1221,6 +1239,15 @@ static struct variable8 check_vars[] = {
 #endif
 	{CHECK_SNMP_VSPERSISTGRANULARITY6, ASN_UNSIGNED, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 51}},
+	{CHECK_SNMP_VSHASHED, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 52}},
+	{CHECK_SNMP_VSSHFALLBACK, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 53}},
+	{CHECK_SNMP_VSSHPORT, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 54}},
+	{CHECK_SNMP_VSSCHED3, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 55}},
+
 	/* realServerTable */
 	{CHECK_SNMP_RSTYPE, ASN_INTEGER, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 2}},
