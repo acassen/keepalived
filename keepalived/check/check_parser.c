@@ -115,12 +115,37 @@ lbalgo_handler(vector_t *strvec)
 	char *str = vector_slot(strvec, 1);
 	int size = sizeof (vs->sched);
 	int str_len = strlen(str);
-
 	if (size > str_len)
 		size = str_len;
-
 	memcpy(vs->sched, str, size);
 }
+
+static void
+lbflags_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	char* str=vector_slot(strvec,0);
+
+	if (!strcmp(str, "hashed"))
+		vs->flags |= IP_VS_SVC_F_HASHED;
+	if (!strcmp(str, "flag-1"))
+		vs->flags |= IP_VS_SVC_F_SCHED1;
+	if (!strcmp(str, "flag-2"))
+		vs->flags |= IP_VS_SVC_F_SCHED2;
+	if (!strcmp(str, "flag-3"))
+		vs->flags |= IP_VS_SVC_F_SCHED3;
+	if (!strcmp(str, "ops"))
+		vs->flags |= IP_VS_SVC_F_ONEPACKET;
+	/* sh-port and sh-fallback flags are relevant for sh schedular only */
+	if (!strcmp(vs->sched , "sh") )
+	{
+		if (!strcmp(str, "sh-port")  )
+			vs->flags |= IP_VS_SVC_F_SCHED_SH_PORT;
+		if (!strcmp(str, "sh-fallback"))
+			vs->flags |= IP_VS_SVC_F_SCHED_SH_FALLBACK;
+	}
+}
+
 static void
 lbkind_handler(vector_t *strvec)
 {
@@ -208,12 +233,7 @@ hasuspend_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->ha_suspend = 1;
 }
-static void
-ops_handler(vector_t *strvec)
-{
-	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->ops = 1;
-}
+
 static void
 virtualhost_handler(vector_t *strvec)
 {
@@ -356,6 +376,15 @@ init_check_keywords(bool active)
 	install_keyword("delay_loop", &delay_handler);
 	install_keyword("lb_algo", &lbalgo_handler);
 	install_keyword("lvs_sched", &lbalgo_handler);
+
+	// nirs
+	install_keyword("hashed", &lbflags_handler);
+	install_keyword("flag-1", &lbflags_handler);
+	install_keyword("flag-2", &lbflags_handler);
+	install_keyword("flag-3", &lbflags_handler);
+	install_keyword("sh-port", &lbflags_handler);
+	install_keyword("sh-fallback", &lbflags_handler);
+	install_keyword("hashed", &lbflags_handler);
 	install_keyword("lb_kind", &lbkind_handler);
 	install_keyword("lvs_method", &lbkind_handler);
 #ifdef IPVS_SVC_ATTR_PE_NAME
@@ -365,7 +394,7 @@ init_check_keywords(bool active)
 	install_keyword("persistence_granularity", &pgr_handler);
 	install_keyword("protocol", &proto_handler);
 	install_keyword("ha_suspend", &hasuspend_handler);
-	install_keyword("ops", &ops_handler);
+	install_keyword("ops", &lbflags_handler);
 	install_keyword("virtualhost", &virtualhost_handler);
 
 	/* Pool regression detection and handling. */

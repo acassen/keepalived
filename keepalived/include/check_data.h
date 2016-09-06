@@ -116,9 +116,9 @@ typedef struct _virtual_server {
 	uint16_t			service_type;
 	long				delay_loop;
 	int				ha_suspend;
-	int				ops;
 #ifdef _WITH_LVS_
 	char				sched[IP_VS_SCHEDNAME_MAXLEN];
+	uint32_t			flags;
 	uint32_t			persistence_timeout;
 #ifdef IPVS_SVC_ATTR_PE_NAME
 	char				pe_name[IP_VS_PENAME_MAXLEN];

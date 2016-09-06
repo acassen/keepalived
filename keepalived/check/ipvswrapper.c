@@ -407,6 +407,7 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 	drule->user.l_threshold = 0;
 	drule->user.conn_flags = vs->loadbalancing_kind;
 	strncpy(srule->user.sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
+	srule->user.flags =vs->flags;
 	srule->user.netmask = (vs->addr.ss_family == AF_INET6) ? 128 : ((u_int32_t) 0xffffffff);
 	srule->user.protocol = vs->service_type;
 
@@ -418,9 +419,9 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 	if (vs->persistence_timeout || vs->persistence_granularity)
 		srule->user.flags |= IP_VS_SVC_F_PERSISTENT;
 
-	/* Only for UDP services */
-	if (vs->ops == 1 && srule->user.protocol == IPPROTO_UDP)
-		srule->user.flags |= IP_VS_SVC_F_ONEPACKET;
+	/* Disable ops flag if service is not UDP */
+	if (vs->flags&IP_VS_SVC_F_ONEPACKET && srule->user.protocol == IPPROTO_UDP)
+		srule->user.flags &= ~IP_VS_SVC_F_ONEPACKET;
 
 #ifdef IPVS_SVC_ATTR_PE_NAME
 	strcpy(srule->pe_name, vs->pe_name);
