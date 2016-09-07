@@ -377,10 +377,9 @@ set_default_garp_delay(void)
 		ifp = ELEMENT_DATA(e);
 		if (!ifp->garp_delay
 #ifdef _HAVE_VRRP_VMAC_
-				     && !ifp->vmac)
-#else
-)
+				     && !ifp->vmac
 #endif
+						  )
 		{
 			alloc_garp_delay();
 			delay = LIST_TAIL_DATA(garp_delay);
