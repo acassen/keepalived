@@ -214,6 +214,9 @@ vrrp_init_state(list l)
 			 * not running floating priorities on any VRRP instance, or they
 			 * are all running with the same tracking conf.
 			 */
+// TODO - We also want to ensure if global_tracking on a group, then it really is
+// TODO - Can it be merged into 1 list held against the sync group ?
+
 			if (vrrp->sync && !vrrp->sync->global_tracking) {
 				element e2;
 				tracked_sc_t *sc;
@@ -835,6 +838,8 @@ vrrp_update_priority(thread_t * thread)
 {
 	vrrp_t *vrrp = THREAD_ARG(thread);
 	int prio_offset, new_prio;
+
+// TODO - we need to make sure tracked interfaces are handled in quick stuf
 
 	/* compute prio_offset right here */
 	prio_offset = 0;
