@@ -1,3 +1,218 @@
+2016-09-11 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.2.24 released.
+	* Declare and use default value for garp_refresh.
+	* Update documentation for default setting of snmp_server.
+	* Ensure old VIPs removed after reload.
+	* Add internet network control support for IPv6.
+	* Log startup and "already running" messages to console with --log-console.
+	* Remove VIPs on reload if no longer in configuration.
+	* Add internet network control support for IPv6.
+	* Add more lvs syncd options, and various minor fixes.
+	* Don't attempt to set packet priority for wrong IP protocol.
+	  if_setsockopt_priority() was setting SO_PRIORITY socket option regardless
+	  of whether the socket was IPv4 or IPv6. Although the setsockopt() call doesn't
+	  fail for IPv6, it doesn't do anything.
+	  Commit fc7ea83 added setting IPV6_TCLASS, again for both IPv4 and IPv6, but
+	  the setsockopt() call fails on an IPv4 socket.
+	  This commit makes keepalived only set the appropriate socket option, depending
+	  on whether it is an IPv4 or IPv6 socket.
+	  The commit also changes from using the SO_PRIORITY option for IPv4 to using the
+	  more specific IP_TOS option.
+	* Avoid compiler warning of duplicate definition.
+	* Add function attributes to malloc functions.
+	* KEEPALIVED-MIB vrrpRuleIndex should be unsigned.
+	* Allow all ip rule/route options for rules and routes.
+	  This commit adds support for all ip rule/route supported options for
+	  rules and routes (and also tunnel-id rule option not yet supported
+	  by ip rule).
+	* Make ip rules/routes a configuration option.
+	* Add all ip rules/routes options, and minor fixes.
+	* Corrections for rule suppress_ifgroup.
+	* Stop respawning children repeatedly after permanent error.
+	  Keepalived was respawning very rapidly after a permanent error, which
+	  was not useful.
+	  This commit allows the detection of certain errors and if one occurs
+	  keepalived won't respawn the child processes, but will terminate with
+	  an error message.
+	* Remove all remaining vestiges of Linux 2.4 (and earlier) support.
+	  There was code remaining for supporting ip_vs for Linux 2.4, but
+	  the remainder of the keepalived code requires Linux >= 2.6.
+	* Make some libipvs functions static.
+	* Move ipvs source and include files into check/include directories.
+	* Don't duplicate kernel definitions for IPVS code.
+	* Remove unused code from libipvs.c.
+	* Remove ip_vs_nl_policy.c, contents now in libipvs.c.
+	* Add ipvs 64 bit stats.
+	* Remove linux 2.4 code, add 64bit ipvs snmp stats, and some minor fixes.
+	* Fix compiling without SNMP checker support.
+	  The patchset removing support for Linux 2.4 introduced a problem
+	  compiling libipvs.c when SNMP checker support wasn't enabled.
+	* Remove those annoying "unknown keyword" messages.
+	  A slight reworking of the parsing code manages to get rid of those
+	  annoying "unknown keyword" messages which we all know are't true.
+	* Remove IP_VS_TEMPLATE_TIMEOUT. It was removed from ipvsadm in
+	  version 1.0.4.
+	* Remove check for MSG_TRUNC being defined.
+	  It has been defined since glibc 2.2.
+	* Remove conditionals based on libc5. libc5 predated glibc 2.0.
+	* Remove conditional compilation checks for defines in Linux 2.6.
+	  ETHTOOOL_GLINK, RTAX_FEATURES, RTAX_INITRWND, SIOCETHTOOL and SIOCGMIIPHY
+	  are all defined in Linux 2.6, so no longer need to be wrapped in
+	  conditional compilation checks.
+	* Sort out checks for O_CLOEXEC.
+	* Remove check for SA_RESTART. It existed pre Linux 2.6.
+	* Change reporting of default snmp socket.
+	* More updates for removing pre-Linux 2.6 code, and stop "unknown keyword"
+	  messages.
+	* Fix adding iptables entries on Linux 4.6.3 onwards.
+	  ip[46]tables_add_rules() were allocating space for an additional
+	  struct xt_entry_match. kernel commit 13631bfc6041 added validation
+	  that all offsets and sizes are sane, and the extra
+	  struct entry_match failed that test.
+	* Fix adding iptables entries on Linux 4.6.3 onwards.
+	* Fix size parameter for keepalived_malloc/realloc.
+	  lib/memory.h specified the size parameter to keepalived_malloc/realloc
+	  as size_t, whereas lib/memory.c specified unsigned long.
+	  The inconsistency was complained about by the compiler on 32-bit systems.
+	  Fix memory.c to make the parameter a size_t.
+	  Change lib/memory.c and lib/memory.h to use type size_t for size
+	  variables.
+	  Use printf format specified %zu for size parameters.
+	* Fix building without LVS or without VRRP.
+	* Convert build system to automake.
+	  The INSTALL file gives instructions for setting up the build system
+	  using automake etc.
+	  For those without automake (and autoconf), just running configure
+	  works as before.
+	* Convert build system to automake.
+	* Add network namespace support.
+	  This allows multiple instances of keepalived to be run on a single
+	  system. The instances can communicate with each other as though they
+	  are running in separate systems, but they are also isolated from
+	  each other for all other purposes.
+	  See keepalived/core/namespaces.c for some example configurations and
+	  use cases.
+	* Use atexit() for reporting malloc/free checks on termination.
+	* Add + and git commit in -v output if uncommited changes.
+	* Add network namespace support.
+	* Remove some superfluous conditional compilation tests.
+	* Poll for reflection netlink messages after adding each interface.
+	  If a large number of interfaces are added, the kernel reflection
+	  netlink socket can run out of buffers. This commit adds a poll of
+	  the kernel netlink reflection channel after adding each interface,
+	  thereby ensuring that a large queue of messages isn't built up.
+	* Stop Netlink: Received message overrun (No buffer space available) messages.
+	* Fix debug build since automake conversion.
+	* Fix configuration testing for ipset support prior to Linux 3.4.
+	* Add polling of netlink messages when entering master state.
+	  If a large number of vrrp instances enter master state simultaneously
+	  the netlink socket can run out of buffers, since the netlink socket
+	  isn't read sufficiently frequently. Adding a poll of the netlink socket
+	  after the VIPs/eVIPs are added ensures that the netlink messages are read
+	  when the become available.
+	* Add some missing '\n's when printing the vrrp configuration.
+	* Fix generating git-commit.h.
+	* Ensure xmit_base not set with strict mode.
+	* Fix detection of code changes not commited to git in git-commit.h.
+	* Change true/false variables in global_data to bools.
+	* Fix timer_cmp handling large differences between the two times.
+	  In a struct timeval, tv_sec is a time_t which is a long. Assigning
+	  a.tv_sec - b.tv_sec to an int caused it to overflow if the time
+	  differences were large.
+	* Add a TIMER_NEVER value.
+	  This allows a thread to specify that it never wants to be woken on a
+	  timed basis.
+	* Add global default_interface keyword.
+	  default_interfaces sets the default interface to use for static
+	  ipaddresses. If the system does not have an eth0, or one wants to
+	  use a different interface for several static ipaddresses, this makes
+	  the configuration simpler. It also has the potential to reduces
+	  changes required if transferring the configuration to another system.
+	* Fix skew time for VRRPv3 with low priority and long advert interval.
+	  With a low priority and a long advert interval, the calculation of the
+	  skew time was overflowing a uint32_t. For example, with a priority of
+	  1 and an advertisment interval of 10 seconds, the skew time was being
+	  calculated as 4288 seconds, rather than 9.96 seconds. This had the
+	  impact that the backup instance would take over an hour to transition
+	  to master.
+	* Don't set master_adver_int from an invalid packet.
+	* Make timeout_persistence a uint32 rather than a string.
+	* Fix some configuration tests and compiling on old Linux version.
+	* Improve persistence handling.
+	  Properly support persistence_granularity for IPv6.
+	  Set persistence_timeout default if granularity specified.
+	  Only support persistence engine if supported by the kernel.
+	  This commit also changes variables timeout_persistence and
+	  granularity_persistence to persistence_timeout and
+	  granularity_timeout.
+	* Simplify a bit of indentation.
+	* Add (commented out) code for writing stack backtrace to a file.
+	* Free syslog_ident string after logging the free.
+	  When writing mem check entries to the log, the syslog_ident needs to be
+	  freed after the log has been written to.
+	* Allow FREE_PTR mem check to log the proper function.
+	  Having FREE_PTR as a function meant that whenever any memory was freed by
+	  FREE_PTR() the function that was logged as freeing it was FREE_PTR itself.
+	  Changing FREE_PTR() to be a #define means that the calling function name
+	  is logged.
+	* Fix tests of HAVE_DECL_CLONE_NEWNET.
+	* Fix a conditional compilation test re namespaces and rename a variable.
+	* Fix when some FREE() calls are made.
+	* Only parse net_namespace in parent process.
+	* Add VRRP/LVS conditional compilation around PID files.
+	* Improve removing zombie PID files.
+	* Add more VRRP/LVS conditional compilation.
+	* Don't check if instance is a rotuer every time an NA is sent.
+	  keepalived was calling sysctl to check if the interface was configured as
+	  router before sending each gratuitous Neighbour Discovery advertisement. This
+	  patch now checks if the interface is routing when the instance transitions to
+	  master, and uses that for all the NA messages.
+	* Improve mem check initialisation.
+	* Add support for running multiple instances of keepalived.
+	  Using network namespaces allows multiple instances of keepalived to run
+	  concurrently, in different namespaces, without any collision of the pid
+	  files.
+	  This patch adds the concept of a keepalived instance name, which is then
+	  use in the pidfile name, so that multiple instances of keepalived can run
+	  in the same namespace without pid file name collisions.
+	* Add option to write pid files to /var/run/keepalived.
+	  When using namespaces or instances, pid files are written to /var/run/keepalived.
+	  The commit adds an option for the standard pid files to use that directory.
+	* Add keywords instance and use_pid_dir, plus sundry fixes/improvements.
+	* Add configure option to enable stacktrace support.
+	* Fix adding and deleting iptables rules for addresses.
+	  When keepalived was built not using ipsets, the adding and deleting
+	  of rules for addresses was including an extra xt_entry_match struct
+	  that meant that the rules could only be deleted by ithe iptables
+	  command by entry number and not be specifying the parameters.
+	* Fix compiling without libiptc (iptables) support.
+	* Don't log error message when trying to remove leftover iptables config.
+	  At startup keepalived attempts to remove any iptables configuration that
+	  may have been left over from a previous run. Of course the entries won't
+	  normally be there, so don't report an error if they are not found.
+	* Fix iptables entries for accept mode, other iptables fixes, and make
+	  write_stacktrace a configure option.
+	* Add script to setup interfaces in a network namespace.
+	  The scripts mirrors the running network interfaces that are needed
+	  for a given keepalived configuration into a network namespace
+	  (default test), so that keepalived can be run in that namespace in
+	  order to test the configuration.
+	* Correct comments re location of network namespace pid files.
+	* Add -s option for overriding net_namespace configuration option.
+	* Change test/netns-test.sh -c option to -f to match keepalived.
+	* Make netns-test.sh report interfaces that don't exist.
+	* Remove leftover debug message.
+	* Fix address comparison for equal priority adverts.
+	* Streamline the specification of libraries to the linker.
+	  Most of the dynamic libraries and static libraries were being specified
+	  twice. This commit removes the duplication of all of the dynamic libraries
+	  and only duplicates core/libcore.a of the static libraries.
+	* Fix automake files for building on Ubuntu 14.04 LTS.
+	* Enable building with Net-SNMP on Ubuntu.
+	* Stop compiler warning on Ubuntu.
+	* Fix compilation with libipset on Debian wheezy.
+	* Fix various build problems on Ubuntu 14.04 and Debian.
+
 2016-07-11 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.23 released.
 	* Make malloc/free diagnostics a separate configure option.
