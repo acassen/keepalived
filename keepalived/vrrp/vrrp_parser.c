@@ -33,6 +33,7 @@
 #include "vrrp_vmac.h"
 #endif
 #include "vrrp.h"
+#include "vrrp_scheduler.h"
 #include "global_data.h"
 #include "global_parser.h"
 #ifdef _WITH_LVS_
@@ -328,7 +329,7 @@ vrrp_prio_handler(vector_t *strvec)
 
 		vrrp->base_priority = VRRP_PRIO_DFL;
 	}
-	vrrp->effective_priority = vrrp->base_priority;
+	vrrp_set_effective_priority(vrrp, vrrp->base_priority);
 }
 static void
 vrrp_adv_handler(vector_t *strvec)
