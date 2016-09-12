@@ -290,8 +290,6 @@ typedef struct _vrrp_t {
 #define VRRP_IS_BAD_ADVERT_INT(d)	((d)<1)
 #define VRRP_IS_BAD_DEBUG_INT(d)	((d)<0 || (d)>4)
 #define VRRP_IS_BAD_PREEMPT_DELAY(d)	((d)>TIMER_MAX_SEC)
-#define VRRP_SEND_BUFFER(V)		((V)->send_buffer)
-#define VRRP_SEND_BUFFER_SIZE(V)	((V)->send_buffer_size)
 
 /* We have to do some reduction of the calculation for VRRPv3 in order not to overflow a uint32; 625 / 16 == TIMER_CENTI_HZ / 256 */
 #define VRRP_TIMER_SKEW(svr)	((svr)->version == VRRP_VERSION_3 ? (((256U-(svr)->effective_priority) * ((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : ((256U-(svr)->effective_priority) * TIMER_HZ/256U))

@@ -138,7 +138,7 @@ vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 }
 
 /* IP header length */
-static size_t
+static inline size_t
 vrrp_iphdr_len(void)
 {
 	return sizeof(struct iphdr);
@@ -146,7 +146,7 @@ vrrp_iphdr_len(void)
 
 #ifdef _WITH_VRRP_AUTH_
 /* IPSEC AH header length */
-static size_t
+static inline size_t
 vrrp_ipsecah_len(void)
 {
 	return sizeof(ipsec_ah_t);
@@ -778,8 +778,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, size_t buflen)
 	   => No padding needed.
 	   -- rfc2402.3.3.3.1.1.1 & rfc2401.5
 	 */
-	hmac_md5((unsigned char *) buffer, buflen, vrrp->auth_data, sizeof (vrrp->auth_data)
-		 , digest);
+	hmac_md5((unsigned char *) buffer, buflen, vrrp->auth_data, sizeof (vrrp->auth_data), digest);
 	memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
 
 	/* Restore the ip mutable fields */
@@ -791,7 +790,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, size_t buflen)
 #endif
 
 /* build VRRPv2 header */
-static int
+static void
 vrrp_build_vrrp_v2(vrrp_t *vrrp, uint8_t prio, char *buffer)
 {
 	int i = 0;
@@ -847,12 +846,10 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, uint8_t prio, char *buffer)
 		/* Kernel will update checksum field. let it be 0 now. */
 		hd->chksum = 0;
 	}
-
-	return 0;
 }
 
 /* build VRRPv3 header */
-static int
+static void
 vrrp_build_vrrp_v3(vrrp_t *vrrp, uint8_t prio, char *buffer)
 {
 	int i = 0;
@@ -903,18 +900,16 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, uint8_t prio, char *buffer)
 		/* Kernel will update checksum field. let it be 0 now. */
 		hd->chksum = 0;
 	}
-
-	return 0;
 }
 
 /* build VRRP header */
-static int
+static void
 vrrp_build_vrrp(vrrp_t *vrrp, uint8_t prio, char *buffer)
 {
 	if (vrrp->version == VRRP_VERSION_3)
-		return vrrp_build_vrrp_v3(vrrp, prio, buffer);
-
-	return vrrp_build_vrrp_v2(vrrp, prio, buffer);
+		vrrp_build_vrrp_v3(vrrp, prio, buffer);
+	else
+		vrrp_build_vrrp_v2(vrrp, prio, buffer);
 }
 
 /* build VRRP packet */
@@ -923,47 +918,33 @@ vrrp_build_pkt(vrrp_t * vrrp, uint8_t prio, struct sockaddr_storage *addr)
 {
 	char *bufptr;
 	uint32_t dst;
-	size_t len;
-
-	/* save reference values */
-	bufptr = VRRP_SEND_BUFFER(vrrp);
-	len = VRRP_SEND_BUFFER_SIZE(vrrp);
 
 	if (vrrp->family == AF_INET) {
+		/* save reference values */
+		bufptr = vrrp->send_buffer;
+
 		/* build the ip header */
 		dst = (addr) ? inet_sockaddrip4(addr) :
 			       ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr.s_addr;
-		vrrp_build_ip4(vrrp, bufptr, dst);
+		vrrp_build_ip4(vrrp, vrrp->send_buffer, dst);
 
 		/* build the vrrp header */
-		vrrp->send_buffer += vrrp_iphdr_len();
+		bufptr += vrrp_iphdr_len();
 
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
-			vrrp->send_buffer += vrrp_ipsecah_len();
+			bufptr += vrrp_ipsecah_len();
 #endif
-		vrrp->send_buffer_size -= vrrp_iphdr_len();
-
-#ifdef _WITH_VRRP_AUTH_
-		if (vrrp->auth_type == VRRP_AUTH_AH)
-			vrrp->send_buffer_size -= vrrp_ipsecah_len();
-#endif
-		vrrp_build_vrrp(vrrp, prio, vrrp->send_buffer);
+		vrrp_build_vrrp(vrrp, prio, bufptr);
 
 #ifdef _WITH_VRRP_AUTH_
 		/* build the IPSEC AH header */
-		if (vrrp->auth_type == VRRP_AUTH_AH) {
-			vrrp->send_buffer_size += vrrp_iphdr_len() + vrrp_ipsecah_len();
-			vrrp_build_ipsecah(vrrp, bufptr, VRRP_SEND_BUFFER_SIZE(vrrp));
-		}
+		if (vrrp->auth_type == VRRP_AUTH_AH)
+			vrrp_build_ipsecah(vrrp, vrrp->send_buffer, vrrp->send_buffer_size);
 #endif
-	} else if (vrrp->family == AF_INET6) {
-		vrrp_build_vrrp(vrrp, prio, VRRP_SEND_BUFFER(vrrp));
 	}
-
-	/* restore reference values */
-	vrrp->send_buffer = bufptr;
-	vrrp->send_buffer_size = len;
+	else if (vrrp->family == AF_INET6)
+		vrrp_build_vrrp(vrrp, prio, vrrp->send_buffer);
 }
 
 /* send VRRP packet */
@@ -1006,8 +987,8 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 	memset(&msg, 0, sizeof(msg));
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
-	iov.iov_base = VRRP_SEND_BUFFER(vrrp);
-	iov.iov_len = VRRP_SEND_BUFFER_SIZE(vrrp);
+	iov.iov_base = vrrp->send_buffer;
+	iov.iov_len = vrrp->send_buffer_size;
 
 	/* Unicast sending path */
 	if (addr && addr->ss_family == AF_INET) {
@@ -1050,7 +1031,7 @@ vrrp_alloc_send_buffer(vrrp_t * vrrp)
 #endif
 	}
 
-	vrrp->send_buffer = MALLOC(VRRP_SEND_BUFFER_SIZE(vrrp));
+	vrrp->send_buffer = MALLOC(vrrp->send_buffer_size);
 }
 
 /* send VRRP advertisement */
@@ -1066,7 +1047,7 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 	if (!vrrp->send_buffer)
 		vrrp_alloc_send_buffer(vrrp);
 	else
-		memset(vrrp->send_buffer, 0, VRRP_SEND_BUFFER_SIZE(vrrp));
+		memset(vrrp->send_buffer, 0, vrrp->send_buffer_size);
 
 	/* build the packet */
 	if (!LIST_ISEMPTY(l)) {
