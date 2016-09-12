@@ -338,9 +338,9 @@ vrrp_init_script(list l)
 		if (!vscript->inuse)
 			vscript->result = VRRP_SCRIPT_STATUS_DISABLED;
 		else {
-			if (vscript->result == VRRP_SCRIPT_STATUS_INIT) {
+			if (vscript->result == VRRP_SCRIPT_STATUS_INIT)
 				vscript->result = vscript->rise - 1; /* one success is enough */
-			else if (vscript->result == VRRP_SCRIPT_STATUS_INIT_GOOD) {
+			else if (vscript->result == VRRP_SCRIPT_STATUS_INIT_GOOD)
 				vscript->result = vscript->rise; /* one failure is enough */
 
 			thread_add_event(master, vrrp_script_thread, vscript, vscript->interval);
