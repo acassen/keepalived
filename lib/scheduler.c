@@ -213,13 +213,6 @@ thread_destroy_list(thread_master_t * m, thread_list_t thread_list)
 		t = thread;
 		thread = t->next;
 
-		if (t->type == THREAD_READY_FD ||
-		    t->type == THREAD_READ ||
-		    t->type == THREAD_WRITE ||
-		    t->type == THREAD_READ_TIMEOUT ||
-		    t->type == THREAD_WRITE_TIMEOUT)
-			close (t->u.fd);
-
 		thread_list_delete(&thread_list, t);
 		t->type = THREAD_UNUSED;
 		thread_add_unuse(m, t);
