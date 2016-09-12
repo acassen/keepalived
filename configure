@@ -631,6 +631,10 @@ HAVE_SPHINX_BUILD
 SPHINXBUILDNAME
 WITH_NAMESPACES_FALSE
 WITH_NAMESPACES_TRUE
+DBUS_CREATE_INSTANCE_FALSE
+DBUS_CREATE_INSTANCE_TRUE
+WITH_DBUS_FALSE
+WITH_DBUS_TRUE
 SNMP_RFCV3_FALSE
 SNMP_RFCV3_TRUE
 SNMP_RFCV2_FALSE
@@ -777,6 +781,8 @@ enable_snmp_rfc
 enable_snmp_rfcv2
 enable_snmp_rfcv3
 enable_snmp_reply_v3_for_v2
+enable_dbus
+enable_dbus_create_instance
 enable_sha1
 enable_vrrp_auth
 enable_routes
@@ -1426,6 +1432,8 @@ Optional Features:
   --enable-snmp-rfcv2     compile with SNMP RFC2787 (VRRPv2) support
   --enable-snmp-rfcv3     compile with SNMP RFC6257 (VRRPv3) support
   --disable-snmp-reply-v3-for-v2 disable RFC6257 responses for VRRPv2 instances
+  --enable-dbus           compile with dbus support
+  --enable-dbus-create-instance compile with dbus support for creating instances
   --enable-sha1           compile with SHA1 support
   --disable-vrrp-auth     compile without VRRP authentication
   --disable-routes        compile without ip rules/routes
@@ -3143,7 +3151,7 @@ ac_config_headers="$ac_config_headers lib/config.h"
 
 
 
-ac_config_files="$ac_config_files Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile doc/Makefile bin_install/Makefile"
+ac_config_files="$ac_config_files Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile doc/Makefile bin_install/Makefile keepalived/dbus/Makefile"
 
 
 MAINTAINERCLEANFILES="*~ *.orig *.rej core core.*"
@@ -3256,6 +3264,16 @@ fi
 # Check whether --enable-snmp-reply-v3-for-v2 was given.
 if test "${enable_snmp_reply_v3_for_v2+set}" = set; then :
   enableval=$enable_snmp_reply_v3_for_v2;
+fi
+
+# Check whether --enable-dbus was given.
+if test "${enable_dbus+set}" = set; then :
+  enableval=$enable_dbus;
+fi
+
+# Check whether --enable-dbus-create-instance was given.
+if test "${enable_dbus_create_instance+set}" = set; then :
+  enableval=$enable_dbus_create_instance;
 fi
 
 # Check whether --enable-sha1 was given.
@@ -4895,7 +4913,7 @@ ARFLAGS=cr
 
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes"
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -g"
 KA_LDFLAGS=
 KA_LIBS="-ldl"
 #KA_LIBTOOLFLAGS =
@@ -8103,6 +8121,158 @@ else
 fi
 
 
+DBUS_SUPPORT=No
+DBUS_CREATE_INSTANCE=No
+if test "$enable_dbus" = yes; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for g_bus_own_name in -lgio-2.0" >&5
+$as_echo_n "checking for g_bus_own_name in -lgio-2.0... " >&6; }
+if ${ac_cv_lib_gio_2_0_g_bus_own_name+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lgio-2.0  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char g_bus_own_name ();
+int
+main ()
+{
+return g_bus_own_name ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_gio_2_0_g_bus_own_name=yes
+else
+  ac_cv_lib_gio_2_0_g_bus_own_name=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_gio_2_0_g_bus_own_name" >&5
+$as_echo "$ac_cv_lib_gio_2_0_g_bus_own_name" >&6; }
+if test "x$ac_cv_lib_gio_2_0_g_bus_own_name" = xyes; then :
+
+       if test 1 -ge 2; then
+      PKG_PFX=
+    else
+      PKG_PFX=KA
+    fi
+    ADD_NEW=
+   eval var=\$${PKG_PFX}_CPPFLAGS
+    for item in $(pkg-config --cflags-only-I gio-2.0); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${PKG_PFX}_CPPFLAGS=\"\$${PKG_PFX}_CPPFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${PKG_PFX}_CFLAGS
+    for item in $(pkg-config --cflags-only-other gio-2.0); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${PKG_PFX}_LIBS
+    for item in $(pkg-config --libs gio-2.0); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
+
+
+      DBUS_SUPPORT=Yes
+
+$as_echo "#define _WITH_DBUS_  1 " >>confdefs.h
+
+      BUILD_OPTIONS="$BUILD_OPTIONS DBUS"
+
+            CFLAGS="$(pkg-config --cflags gio-2.0)"
+      LIBS="$(pkg-config --libs gio-2.0)"
+      if test "$cross_compiling" = yes; then :
+
+          { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Cannot determine if need to call g_type_init(). Assuming yes for safety." >&5
+$as_echo "$as_me: WARNING: Cannot determine if need to call g_type_init(). Assuming yes for safety." >&2;}
+          need_g_type_init=1
+
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+          #include <gio/gio.h>
+int
+main ()
+{
+return !g_thread_functions_for_glib_use.mutex_lock;
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_run "$LINENO"; then :
+  need_g_type_init=0
+else
+  need_g_type_init=1
+fi
+rm -f core *.core core.conftest.* gmon.out bb.out conftest$ac_exeext \
+  conftest.$ac_objext conftest.beam conftest.$ac_ext
+fi
+
+      if test $need_g_type_init -eq 1; then
+
+$as_echo "#define DBUS_NEED_G_TYPE_INIT  1 " >>confdefs.h
+
+      fi
+      LIBS=
+      CFLAGS=
+      if test "$enable_dbus_create_instance" = yes; then
+
+$as_echo "#define _WITH_DBUS_CREATE_INSTANCE_  1 " >>confdefs.h
+
+        DBUS_CREATE_INSTANCE=Yes
+        BUILD_OPTIONS="$BUILD_OPTIONS DBUS_CREATE_INSTANCE"
+        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: DBus create instance functionality is dangerous - why do you want it?" >&5
+$as_echo "$as_me: WARNING: DBus create instance functionality is dangerous - why do you want it?" >&2;}
+      fi
+
+else
+  as_fn_error $? "DBUS support requested but libgio-2.0 not found." "$LINENO" 5
+fi
+
+fi
+ if test $DBUS_SUPPORT = Yes; then
+  WITH_DBUS_TRUE=
+  WITH_DBUS_FALSE='#'
+else
+  WITH_DBUS_TRUE='#'
+  WITH_DBUS_FALSE=
+fi
+
+ if test $DBUS_CREATE_INSTANCE = Yes; then
+  DBUS_CREATE_INSTANCE_TRUE=
+  DBUS_CREATE_INSTANCE_FALSE='#'
+else
+  DBUS_CREATE_INSTANCE_TRUE='#'
+  DBUS_CREATE_INSTANCE_FALSE=
+fi
+
+
 SHA1_SUPPORT=No
 if test "${enable_sha1}" = yes; then
   for ac_header in openssl/sha.h
@@ -8538,6 +8708,14 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${SNMP_RFCV3_TRUE}" && test -z "${SNMP_RFCV3_FALSE}"; then
   as_fn_error $? "conditional \"SNMP_RFCV3\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${WITH_DBUS_TRUE}" && test -z "${WITH_DBUS_FALSE}"; then
+  as_fn_error $? "conditional \"WITH_DBUS\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${DBUS_CREATE_INSTANCE_TRUE}" && test -z "${DBUS_CREATE_INSTANCE_FALSE}"; then
+  as_fn_error $? "conditional \"DBUS_CREATE_INSTANCE\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${WITH_NAMESPACES_TRUE}" && test -z "${WITH_NAMESPACES_FALSE}"; then
@@ -9152,6 +9330,7 @@ do
     "keepalived/vrrp/Makefile") CONFIG_FILES="$CONFIG_FILES keepalived/vrrp/Makefile" ;;
     "doc/Makefile") CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;
     "bin_install/Makefile") CONFIG_FILES="$CONFIG_FILES bin_install/Makefile" ;;
+    "keepalived/dbus/Makefile") CONFIG_FILES="$CONFIG_FILES keepalived/dbus/Makefile" ;;
     "depfiles") CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;
@@ -9914,6 +10093,10 @@ echo "SNMP RFCv2 support       : ${SNMP_RFCV2_SUPPORT}"
 echo "SNMP RFCv3 support       : ${SNMP_RFCV3_SUPPORT}"
 if test ${SNMP_RFCV3_SUPPORT} = Yes; then
   echo "SNMP send V3 for V2      : ${SNMP_V3_FOR_V2}"
+fi
+echo "DBUS support             : ${DBUS_SUPPORT}"
+if test ${DBUS_SUPPORT} = Yes; then
+  echo "DBUS create instance     : ${DBUS_CREATE_INSTANCE}"
 fi
 echo "SHA1 support             : ${SHA1_SUPPORT}"
 echo "Use Debug flags          : ${ENABLE_DEBUG}"

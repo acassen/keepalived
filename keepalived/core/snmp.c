@@ -103,6 +103,7 @@ enum snmp_global_magic {
 	SNMP_LVSFLUSH,
 	SNMP_IPVS_64BIT_STATS,
 	SNMP_NET_NAMESPACE,
+	SNMP_DBUS,
 };
 
 static u_char*
@@ -168,6 +169,14 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 #endif
 		*var_len = 0;
 		return (u_char *)"";
+	case SNMP_DBUS:
+#ifdef _WITH_DBUS_
+		if (global_data->enable_dbus)
+			long_ret = 1;
+		else
+#endif
+			long_ret = 2;
+		return (u_char *)&long_ret;
 	default:
 		break;
 	}
@@ -219,6 +228,9 @@ static struct variable8 global_vars[] = {
 	{SNMP_IPVS_64BIT_STATS, ASN_INTEGER, RONLY, snmp_scalar, 1, {7}},
 #endif
 	{SNMP_NET_NAMESPACE, ASN_OCTET_STR, RONLY, snmp_scalar, 1, {8}},
+#ifdef _WITH_DBUS_
+	{SNMP_DBUS, ASN_INTEGER, RONLY, snmp_scalar, 1, {9}},
+#endif
 };
 
 static int

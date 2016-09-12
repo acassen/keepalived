@@ -54,6 +54,9 @@
 #ifdef _WITH_SNMP_
   #include "vrrp_snmp.h"
 #endif
+#ifdef _WITH_DBUS_
+  #include "vrrp_dbus.h"
+#endif
 #ifdef _HAVE_LIBIPSET_
   #include "vrrp_ipset.h"
 #endif
@@ -123,6 +126,11 @@ stop_vrrp(int status)
 	thread_destroy_master(master);
 	gratuitous_arp_close();
 	ndisc_close();
+
+#ifdef _WITH_DBUS_
+	if (global_data->enable_dbus)
+		dbus_stop();
+#endif
 
 	free_global_data(global_data);
 	free_vrrp_data(vrrp_data);
@@ -232,6 +240,12 @@ start_vrrp(void)
 #endif
 	}
 
+#ifdef _WITH_DBUS_
+	if (!reload && global_data->enable_dbus)
+		if (!dbus_start())
+			global_data->enable_dbus = false;
+#endif
+
 	/* Complete VRRP initialization */
 	if (!vrrp_complete_init()) {
 		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
@@ -240,6 +254,11 @@ start_vrrp(void)
 
 #ifdef _HAVE_LIBIPTC_
 	iptables_startup();
+#endif
+
+#ifdef _WITH_DBUS_
+	if (reload && global_data->enable_dbus)
+		dbus_reload(old_vrrp_data->vrrp, vrrp_data->vrrp);
 #endif
 
 	/* Post initializations */
@@ -371,6 +390,7 @@ reload_vrrp_thread(thread_t * thread)
 	/* free backup data */
 	free_vrrp_data(old_vrrp_data);
 	free_old_interface_queue();
+
 	UNSET_RELOAD;
 
 	return 0;

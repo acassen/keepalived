@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201609060000Z"
+     LAST-UPDATED "201609120000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201609120000Z"
+     DESCRIPTION "dbus support added"
      REVISION "201609060000Z"
      DESCRIPTION "add LVS scheduler flags"
      REVISION "201608230000Z"
@@ -269,6 +271,14 @@ netNamespace OBJECT-TYPE
     DESCRIPTION
         "The name of the net namespace keepalived is running in."
     ::= { global 8 }
+
+dbus OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "True if the DBus interface is enabled."
+    ::= { global 9 }
 
 -- ----------------------------------------------------------------------
 -- VRRP part
@@ -3394,7 +3404,8 @@ globalGroup OBJECT-GROUP
     linkBeat,
     lvsFlush,
     ipvs64BitStats,
-    netNamespace
+    netNamespace,
+    dbus
     }
     STATUS current
     DESCRIPTION

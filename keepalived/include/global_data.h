@@ -123,6 +123,9 @@ typedef struct _data {
 	bool				enable_snmp_checker;
 #endif
 #endif
+#ifdef _WITH_DBUS_
+	bool				enable_dbus;
+#endif
 } data_t;
 
 /* Global vars exported */

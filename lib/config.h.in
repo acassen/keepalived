@@ -11,6 +11,9 @@
 /* Year of build configuration */
 #undef COPYRIGHT_YEAR
 
+/* Define to 1 if need to call g_type_init() */
+#undef DBUS_NEED_G_TYPE_INIT
+
 /* Defined here if not found in <net/ethernet.h>. */
 #undef ETHERTYPE_IPV6
 
@@ -515,6 +518,12 @@
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
    #define below would cause a syntax error. */
 #undef _UINT8_T
+
+/* Define to 1 to have DBUS support */
+#undef _WITH_DBUS_
+
+/* Define to 1 to have DBus create instance support */
+#undef _WITH_DBUS_CREATE_INSTANCE_
 
 /* Define to 1 if have IPVS support */
 #undef _WITH_LVS_

@@ -54,7 +54,7 @@ AH_BOTTOM(
 
 AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec \
 		 genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile doc/Makefile \
-		 bin_install/Makefile])
+		 bin_install/Makefile keepalived/dbus/Makefile])
 
 MAINTAINERCLEANFILES="*~ *.orig *.rej core core.*"
 AC_SUBST(MAINTAINERCLEANFILES)
@@ -90,6 +90,10 @@ AC_ARG_ENABLE(snmp-rfcv3,
   [  --enable-snmp-rfcv3     compile with SNMP RFC6257 (VRRPv3) support])
 AC_ARG_ENABLE(snmp-reply-v3-for-v2,
   [  --disable-snmp-reply-v3-for-v2 disable RFC6257 responses for VRRPv2 instances])
+AC_ARG_ENABLE(dbus,
+  [  --enable-dbus           compile with dbus support])
+AC_ARG_ENABLE(dbus-create-instance,
+  [  --enable-dbus-create-instance compile with dbus support for creating instances])
 AC_ARG_ENABLE(sha1,
   [  --enable-sha1           compile with SHA1 support])
 AC_ARG_ENABLE(vrrp-auth,
@@ -136,7 +140,7 @@ ARFLAGS=cr
 AC_SUBST(ARFLAGS)
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes"
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -g"
 KA_LDFLAGS=
 KA_LIBS="-ldl"
 #KA_LIBTOOLFLAGS = 
@@ -780,6 +784,48 @@ AM_CONDITIONAL([SNMP_RFC], [test $SNMP_RFC_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_RFCV2], [test $SNMP_RFCV2_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_RFCV3], [test $SNMP_RFCV3_SUPPORT = Yes])
 
+dnl ----[ Check for Dbus support ]----
+DBUS_SUPPORT=No
+DBUS_CREATE_INSTANCE=No
+if test "$enable_dbus" = yes; then
+  AC_CHECK_LIB(gio-2.0, g_bus_own_name,
+    [
+      add_pkg_config([gio-2.0])
+      DBUS_SUPPORT=Yes
+      AC_DEFINE([_WITH_DBUS_], [ 1 ], [Define to 1 to have DBUS support])
+      add_build_opt([DBUS])
+
+      dnl -- g_type_init() not needed and deprecated since glib 2.36
+      CFLAGS="$(pkg-config --cflags gio-2.0)"
+      LIBS="$(pkg-config --libs gio-2.0)"
+      AC_RUN_IFELSE(
+        [
+          AC_LANG_PROGRAM(
+            [[#include <gio/gio.h>]],
+	    [[return !g_thread_functions_for_glib_use.mutex_lock;]])],
+	[need_g_type_init=0],
+        [need_g_type_init=1],
+        [
+          AC_MSG_WARN([Cannot determine if need to call g_type_init(). Assuming yes for safety.])
+          need_g_type_init=1
+        ])
+      if test $need_g_type_init -eq 1; then
+        AC_DEFINE([DBUS_NEED_G_TYPE_INIT], [ 1 ], [Define to 1 if need to call g_type_init()])
+      fi
+      LIBS=
+      CFLAGS=
+      if test "$enable_dbus_create_instance" = yes; then
+        AC_DEFINE([_WITH_DBUS_CREATE_INSTANCE_], [ 1 ], [Define to 1 to have DBus create instance support])
+        DBUS_CREATE_INSTANCE=Yes
+        add_build_opt([DBUS_CREATE_INSTANCE])
+        AC_MSG_WARN([DBus create instance functionality is dangerous - why do you want it?])
+      fi
+    ],
+    [AC_MSG_ERROR([DBUS support requested but libgio-2.0 not found.])])
+fi
+AM_CONDITIONAL([WITH_DBUS], [test $DBUS_SUPPORT = Yes])
+AM_CONDITIONAL([DBUS_CREATE_INSTANCE], [test $DBUS_CREATE_INSTANCE = Yes])
+
 dnl ----[ SHA1 or not ? ]----
 SHA1_SUPPORT=No
 if test "${enable_sha1}" = yes; then
@@ -906,6 +952,10 @@ echo "SNMP RFCv2 support       : ${SNMP_RFCV2_SUPPORT}"
 echo "SNMP RFCv3 support       : ${SNMP_RFCV3_SUPPORT}"
 if test ${SNMP_RFCV3_SUPPORT} = Yes; then
   echo "SNMP send V3 for V2      : ${SNMP_V3_FOR_V2}"
+fi
+echo "DBUS support             : ${DBUS_SUPPORT}"
+if test ${DBUS_SUPPORT} = Yes; then
+  echo "DBUS create instance     : ${DBUS_CREATE_INSTANCE}"
 fi
 echo "SHA1 support             : ${SHA1_SUPPORT}"
 echo "Use Debug flags          : ${ENABLE_DEBUG}"

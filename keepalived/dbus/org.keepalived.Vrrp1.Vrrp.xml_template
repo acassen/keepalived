@@ -1,0 +1,94 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+  <!--
+	   org.freedesktop.DBus.Properties:
+	   @short_description: General VRRP interface
+
+	   Interface implemented by a single VRRP object,
+	   exposes some VRRP utility methods and signals.
+  -->
+  <interface name='org.keepalived.Vrrp1.Vrrp'>
+	<!--
+	  PrintData:
+
+	  Signals VRRP process to print contents of vrrp_data
+	  in file /tmp/keepalived.data
+	-->
+	<method name='PrintData'>
+	</method>
+	<!--
+	  PrintStats:
+
+	  Signals VRRP process to print stats in file
+	  /tmp/keepalived.stats
+	-->
+	<method name='PrintStats'>
+	</method>
+	<!--
+	  ReloadConfig:
+
+	  Signals keepalvied process to reload its configuration
+	-->
+	<method name='ReloadConfig'>
+	</method>
+C		<!--
+C		  CreateInstance:
+C		  @iname: unique name for the new instance.
+C		  @interface: interface the instance will use.
+C		  @vrid: VRRP vrid for the new instance.
+C		  @family: IPv\# version (either 4 or 6).
+C
+C		  Creates new VRRP instance object at the path built
+C		  from the given parameters, implementing interface
+C		  org.keepalived.Vrrp1.Instance.
+C		  @iname must be unique to this object.
+C		  For every object created, there must also be an
+C		  actual VRRP instance, else all methods called on
+C		  this object will fail.
+C		-->
+C		<method name='CreateInstance'>
+C		  <arg name="iname" type="s" direction="in" />
+C		  <arg name="interface" type="s" direction="in" />
+C		  <arg name="vrid" type="u" direction="in" />
+C		  <arg name="family" type="u" direction="in" />
+C		</method>
+C		<!--
+C		  DestroyInstance:
+C		  @iname: name of the instance to be destroyed.
+C
+C		  Deletes from the bus a VRRP instance object
+C		  identified by the iname value. If no such object
+C		  exists, method has no effect.
+C		  Only deletes the DBus object for the instance, to
+C		  successfully remove an instance it must also be
+C		  deleted from VRRP.
+C		-->
+C		<method name='DestroyInstance'>
+C			<arg name="iname" type="s" direction="in" />
+C		</method>
+	<!--
+	  VrrpStarted:
+
+	  Emitted when VRRP process is started, just after
+	  the bus is connected.
+	-->
+	<signal name="VrrpStarted">
+	</signal>
+	<!--
+	  VrrpReloaded:
+
+	  Emitted when VRRP process reloads its configuration
+	-->
+	<signal name="VrrpReloaded">
+	</signal>
+	<!--
+	  VrrpStopped:
+
+	  Emitted when VRRP process is terminated, just before
+	  the bus is disconnected.
+	-->
+	<signal name="VrrpStopped">
+	</signal>
+  </interface>
+</node>

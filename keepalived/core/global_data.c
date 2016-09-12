@@ -349,4 +349,7 @@ dump_global_data(data_t * data)
 #if HAVE_DECL_CLONE_NEWNET
 	log_message(LOG_INFO, " Network namespace = %s", network_namespace ? network_namespace : "(default)");
 #endif
+#ifdef _WITH_DBUS_
+	log_message(LOG_INFO, " DBus %s", data->enable_dbus ? "enabled" : "disabled");
+#endif
 }

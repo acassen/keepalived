@@ -26,7 +26,11 @@ if WITH_VRRP
   VRRP_LIB		= vrrp/libvrrp.a
 endif
 
-SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR)
+if WITH_DBUS
+  DBUS_SUBDIR		= dbus
+endif
+
+SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR)
 
 EXTRA_DIST		= keepalived.service etc
 

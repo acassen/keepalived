@@ -109,6 +109,8 @@ global_defs {				# Block identification
     enable_snmp_rfcv2			   # enable SNMP handling of RFC2787 VRRPv2 MIB
     enable_snmp_rfcv3			   # enable SNMP handling of RFC6527 VRRPv3 MIB
     enable_traps			   # enable SNMP trap generation
+					   #
+    enable_dbus				   # enable the DBus interface
 }
 
 net_namespace NAME			   # Set the network namespace to run in

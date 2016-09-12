@@ -61,6 +61,10 @@
 #include "vrrp_iprule.h"
 #include "vrrp_iproute.h"
 #endif
+#ifdef _WITH_DBUS_
+#include "vrrp_dbus.h"
+#include "global_data.h"
+#endif
 
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
@@ -2609,6 +2613,11 @@ clear_diff_vrrp(void)
 			/* Remove VMAC if one was created */
 			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 				netlink_link_del_vmac(vrrp);
+#endif
+#ifdef _WITH_DBUS_
+			/* Remove DBus object */
+			if (global_data->enable_dbus)
+				dbus_remove_object(vrrp);
 #endif
 		} else {
 			/*

@@ -651,6 +651,13 @@ net_namespace_handler(vector_t *strvec)
 #endif
 }
 #endif
+#ifdef _WITH_DBUS_
+static void
+enable_dbus_handler(vector_t *strvec)
+{
+	global_data->enable_dbus = true;
+}
+#endif
 
 static void
 instance_handler(vector_t *strvec)
@@ -741,5 +748,8 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_SNMP_CHECKER_
 	install_keyword("enable_snmp_checker", &snmp_checker_handler);
 #endif
+#endif
+#ifdef _WITH_DBUS_
+	install_keyword("enable_dbus", &enable_dbus_handler);
 #endif
 }
