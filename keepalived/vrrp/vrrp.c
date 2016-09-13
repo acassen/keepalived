@@ -140,7 +140,7 @@ vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 
 /* IP header length */
 static int
-vrrp_iphdr_len(vrrp_t * vrrp)
+vrrp_iphdr_len(void)
 {
 	return sizeof(struct iphdr);
 }
@@ -174,7 +174,7 @@ vrrp_pkt_len(vrrp_t * vrrp)
 
 /* VRRP header pointer from buffer */
 vrrphdr_t *
-vrrp_get_header(sa_family_t family, char *buf, int *proto)
+vrrp_get_header(sa_family_t family, char *buf, unsigned *proto)
 {
 	struct iphdr *iph;
 	vrrphdr_t *hd = NULL;
@@ -263,7 +263,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 
 	/* Compute the ICV */
 	hmac_md5((unsigned char *) buffer,
-		 vrrp_iphdr_len(vrrp) + vrrp_ipsecah_len() + vrrp_pkt_len(vrrp)
+		 vrrp_iphdr_len() + vrrp_ipsecah_len() + vrrp_pkt_len(vrrp)
 		 , vrrp->auth_data, sizeof (vrrp->auth_data)
 		 , digest);
 
@@ -284,7 +284,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 static int
 vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
 {
-	int i;
+	size_t i;
 
 	if (vrrp->family == AF_INET) {
 		for (i = 0; i < LIST_SIZE(vrrp->vip); i++) {
@@ -313,7 +313,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 	struct iphdr *ip;
 	int ihl;
 	size_t vrrppkt_len;
-	int adver_int = 0;
+	unsigned adver_int = 0;
 #ifdef _WITH_VRRP_AUTH_
 	ipsec_ah_t *ah;
 #endif
@@ -331,7 +331,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 	/* IPv4 related */
 	if (vrrp->family == AF_INET) {
 		/* To begin with, we just concern ourselves with the protocol headers */
-		expected_len = vrrp_iphdr_len(vrrp) + sizeof(vrrphdr_t);
+		expected_len = vrrp_iphdr_len() + sizeof(vrrphdr_t);
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			expected_len += vrrp_ipsecah_len();
@@ -668,7 +668,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, size_t buflen, bool check_vip_addr)
 
 /* build IP header */
 static void
-vrrp_build_ip4(vrrp_t * vrrp, char *buffer, int buflen, uint32_t dst)
+vrrp_build_ip4(vrrp_t * vrrp, char *buffer, uint32_t dst)
 {
 	struct iphdr *ip = (struct iphdr *) (buffer);
 
@@ -924,16 +924,16 @@ vrrp_build_pkt(vrrp_t * vrrp, int prio, struct sockaddr_storage *addr)
 		/* build the ip header */
 		dst = (addr) ? inet_sockaddrip4(addr) :
 			       ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr.s_addr;
-		vrrp_build_ip4(vrrp, bufptr, len, dst);
+		vrrp_build_ip4(vrrp, bufptr, dst);
 
 		/* build the vrrp header */
-		vrrp->send_buffer += vrrp_iphdr_len(vrrp);
+		vrrp->send_buffer += vrrp_iphdr_len();
 
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			vrrp->send_buffer += vrrp_ipsecah_len();
 #endif
-		vrrp->send_buffer_size -= vrrp_iphdr_len(vrrp);
+		vrrp->send_buffer_size -= vrrp_iphdr_len();
 
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
@@ -944,7 +944,7 @@ vrrp_build_pkt(vrrp_t * vrrp, int prio, struct sockaddr_storage *addr)
 #ifdef _WITH_VRRP_AUTH_
 		/* build the IPSEC AH header */
 		if (vrrp->auth_type == VRRP_AUTH_AH) {
-			vrrp->send_buffer_size += vrrp_iphdr_len(vrrp) + vrrp_ipsecah_len();
+			vrrp->send_buffer_size += vrrp_iphdr_len() + vrrp_ipsecah_len();
 			vrrp_build_ipsecah(vrrp, bufptr, VRRP_SEND_BUFFER_SIZE(vrrp));
 		}
 #endif
@@ -1034,7 +1034,7 @@ vrrp_alloc_send_buffer(vrrp_t * vrrp)
 	vrrp->send_buffer_size = vrrp_pkt_len(vrrp);
 
 	if (vrrp->family == AF_INET) {
-		vrrp->send_buffer_size += vrrp_iphdr_len(vrrp);
+		vrrp->send_buffer_size += vrrp_iphdr_len();
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			vrrp->send_buffer_size += vrrp_ipsecah_len();
@@ -1370,7 +1370,8 @@ void
 vrrp_state_backup(vrrp_t * vrrp, char *buf, int buflen)
 {
 	vrrphdr_t *hd;
-	int ret = 0, master_adver_int, proto;
+	int ret = 0;
+	unsigned master_adver_int, proto;
 	bool check_addr = false;
 
 	/* Process the incoming packet */
@@ -1505,9 +1506,10 @@ int
 vrrp_state_master_rx(vrrp_t * vrrp, char *buf, int buflen)
 {
 	vrrphdr_t *hd;
-	int ret, proto = 0;
+	int ret;
+	unsigned proto = 0;
 	ipsec_ah_t *ah;
-	int master_adver_int;
+	unsigned master_adver_int;
 	int addr_cmp;
 
 	/* return on link failure */
@@ -1619,7 +1621,8 @@ int
 vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, int buflen)
 {
 	vrrphdr_t *hd;
-	int ret = 0, proto;
+	int ret = 0;
+	unsigned proto;
 
 	/* Process the incoming packet */
 	hd = vrrp_get_header(vrrp->family, buf, &proto);
@@ -1657,7 +1660,7 @@ chk_min_cfg(vrrp_t * vrrp)
 
 /* open a VRRP sending socket */
 int
-open_vrrp_send_socket(sa_family_t family, int proto, int idx, int unicast)
+open_vrrp_send_socket(sa_family_t family, unsigned int proto, unsigned int idx, bool unicast)
 {
 	interface_t *ifp;
 	int fd = -1;
@@ -1709,8 +1712,7 @@ open_vrrp_send_socket(sa_family_t family, int proto, int idx, int unicast)
 
 /* open a VRRP socket and join the multicast group. */
 int
-open_vrrp_read_socket(sa_family_t family, int proto, int idx,
-		 int unicast)
+open_vrrp_read_socket(sa_family_t family, unsigned int proto, unsigned int idx, bool unicast)
 {
 	interface_t *ifp;
 	int fd = -1;
@@ -1735,7 +1737,7 @@ open_vrrp_read_socket(sa_family_t family, int proto, int idx,
 
 	if (!unicast) {
 		/* Join the VRRP multicast group */
-		if_join_vrrp_group(family, &fd, ifp, proto);
+		if_join_vrrp_group(family, &fd, ifp);
 	}
 
 	/* Need to bind read socket so only process packets for interface we're
@@ -1771,7 +1773,8 @@ int
 new_vrrp_socket(vrrp_t * vrrp)
 {
 	int old_fd = vrrp->fd_in;
-	int proto, ifindex, unicast;
+	unsigned int proto, ifindex;
+	bool unicast;
 
 	/* close the desc & open a new one */
 	close_vrrp_socket(vrrp);
@@ -1867,8 +1870,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	element e;
 	ip_address_t *vip;
 	int hdr_len;
-	int max_addr;
-	int i;
+	size_t max_addr;
+	size_t i;
 	element next;
 	bool interface_already_existed = false;
 
@@ -1970,7 +1973,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Move any extra addresses to be evips. We won't advertise them, but at least we can respond to them */
 	if (!LIST_ISEMPTY(vrrp->vip) && LIST_SIZE(vrrp->vip) > max_addr) {
-		log_message(LOG_INFO, "(%s): Number of VIPs (%d) exceeds maximum/space available in packet (max %d addresses) - excess moved to eVIPs",
+		log_message(LOG_INFO, "(%s): Number of VIPs (%d) exceeds maximum/space available in packet (max %zu addresses) - excess moved to eVIPs",
 				vrrp->iname, LIST_SIZE(vrrp->vip), max_addr);
 		for (i = 0, e = LIST_HEAD(vrrp->vip); e; i++, e = next) {
 			next = e->next;

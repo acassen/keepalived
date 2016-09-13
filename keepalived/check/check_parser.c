@@ -42,7 +42,7 @@
 
 /* SSL handlers */
 static void
-ssl_handler(vector_t *strvec)
+ssl_handler(__attribute__((unused)) vector_t *strvec)
 {
 	check_data->ssl = alloc_ssl();
 }
@@ -73,7 +73,7 @@ vsg_handler(vector_t *strvec)
 {
 	/* Fetch queued vsg */
 	alloc_vsg(vector_slot(strvec, 1));
-	alloc_value_block(strvec, alloc_vsg_entry);
+	alloc_value_block(alloc_vsg_entry);
 }
 static void
 vs_handler(vector_t *strvec)
@@ -236,7 +236,7 @@ proto_handler(vector_t *strvec)
 		log_message(LOG_INFO, "Unknown protocol %s - ignoring", str);
 }
 static void
-hasuspend_handler(vector_t *strvec)
+hasuspend_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->ha_suspend = 1;
@@ -256,7 +256,7 @@ ssvr_handler(vector_t *strvec)
 	alloc_ssvr(vector_slot(strvec, 1), vector_slot(strvec, 2));
 }
 static void
-ssvri_handler(vector_t *strvec)
+ssvri_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->s_svr) {
@@ -295,7 +295,7 @@ lthreshold_handler(vector_t *strvec)
 	rs->l_threshold = atoi(vector_slot(strvec, 1));
 }
 static void
-inhibit_handler(vector_t *strvec)
+inhibit_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -316,14 +316,14 @@ notify_down_handler(vector_t *strvec)
 	rs->notify_down = set_value(strvec);
 }
 static void
-alpha_handler(vector_t *strvec)
+alpha_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->alpha = 1;
 	vs->quorum_state = DOWN;
 }
 static void
-omega_handler(vector_t *strvec)
+omega_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->omega = 1;

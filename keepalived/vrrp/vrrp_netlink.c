@@ -241,6 +241,8 @@ netlink_set_nonblock(nl_handle_t *nl, int *flags)
 #ifdef _HAVE_LIBNL3_
 	int ret;
 
+	if (flags) {};		/* Stop compiler warning */
+
 	if ((ret = nl_socket_set_nonblocking(nl->sk)) < 0 ) {
 		log_message(LOG_INFO, "Netlink: Cannot set nonblocking : (%s)",
 			strerror(ret));
@@ -447,7 +449,7 @@ parse_rtattr_nested(struct rtattr **tb, int max, struct rtattr *rta)
  * multiple secondary address to the same interface.
  */
 static int
-netlink_if_address_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
+netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
 	struct ifaddrmsg *ifa;
 	struct rtattr *tb[IFA_MAX + 1];
@@ -556,7 +558,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			return -1;
 		}
 
-		for (h = (struct nlmsghdr *) buf; NLMSG_OK(h, status);
+		for (h = (struct nlmsghdr *) buf; NLMSG_OK(h, (size_t)status);
 		     h = NLMSG_NEXT(h, status)) {
 			/* Finish of reading. */
 			if (h->nlmsg_type == NLMSG_DONE)
@@ -636,7 +638,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 
 /* Out talk filter */
 static int
-netlink_talk_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
+netlink_talk_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
 	log_message(LOG_INFO, "Netlink: ignoring message type 0x%04x",
 	       h->nlmsg_type);
@@ -816,7 +818,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 
 /* Netlink interface link lookup filter */
 static int
-netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
+netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
 	struct ifinfomsg *ifi;
 	struct rtattr *tb[IFLA_MAX + 1];
@@ -925,7 +927,7 @@ end_addr:
 
 /* Netlink flag Link update */
 static int
-netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
+netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
 	struct ifinfomsg *ifi;
 	struct rtattr *tb[IFLA_MAX + 1];

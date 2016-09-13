@@ -231,8 +231,9 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 	static uint32_t ip;
 	static struct in6_addr ip6;
 	oid *target, current[2], best[2];
-	int result, target_len;
-	int curgroup = 0, curentry;
+	int result;
+	size_t target_len;
+	unsigned curgroup = 0, curentry;
 	element e1, e2;
 	virtual_server_group_t *group;
 	virtual_server_group_entry_t *e, *be = NULL;
@@ -672,7 +673,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 static int
 check_snmp_realserver_weight(int action,
 			     u_char *var_val, u_char var_val_type, size_t var_val_len,
-			     u_char *statP, oid *name, size_t name_len)
+			     __attribute__((unused)) u_char *statP, oid *name, size_t name_len)
 {
 	element e1, e2;
 	virtual_server_t *vs = NULL;
@@ -685,8 +686,6 @@ check_snmp_realserver_weight(int action,
 			return SNMP_ERR_WRONGTYPE;
 		if (var_val_len > sizeof(long))
 			return SNMP_ERR_WRONGLENGTH;
-		if ((long)(*var_val) < 0)
-			return SNMP_ERR_WRONGVALUE;
 		break;
 	case RESERVE2:		/* Check that we can find the instance. We should. */
 	case COMMIT:
@@ -731,8 +730,9 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	static unsigned long long_ret;
 	static struct counter64 counter64_ret;
 	oid *target, current[2], best[2];
-	int result, target_len;
-	int curvirtual = 0, curreal;
+	int result;
+	size_t target_len;
+	unsigned curvirtual = 0, curreal;
 	real_server_t *e = NULL, *be = NULL;
 	element e1, e2 = NULL;
 	virtual_server_t *vs, *bvs = NULL;

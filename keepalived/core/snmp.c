@@ -31,7 +31,7 @@
 #include <net-snmp/agent/agent_sysORTable.h>
 
 static int
-snmp_keepalived_log(int major, int minor, void *serverarg, void *clientarg)
+snmp_keepalived_log(__attribute__((unused)) int major, __attribute__((unused)) int minor, void *serverarg, __attribute__((unused)) void *clientarg)
 {
 	struct snmp_log_message *slm = (struct snmp_log_message*)serverarg;
 	log_message(slm->priority, "%s", slm->msg);
@@ -234,8 +234,8 @@ static struct variable8 global_vars[] = {
 };
 
 static int
-snmp_setup_session_cb(int majorID, int minorID,
-		      void *serverarg, void *clientarg)
+snmp_setup_session_cb(__attribute__((unused)) int majorID, __attribute__((unused)) int minorID,
+		      void *serverarg, __attribute__((unused)) void *clientarg)
 {
 	netsnmp_session *sess = serverarg;
 	if (serverarg == NULL)

@@ -45,24 +45,24 @@
 
 /* Static addresses handler */
 static void
-static_addresses_handler(vector_t *strvec)
+static_addresses_handler(__attribute__((unused)) vector_t *strvec)
 {
-	alloc_value_block(strvec, alloc_saddress);
+	alloc_value_block(alloc_saddress);
 }
 
 #ifdef _HAVE_FIB_ROUTING_
 /* Static routes handler */
 static void
-static_routes_handler(vector_t *strvec)
+static_routes_handler(__attribute__((unused)) vector_t *strvec)
 {
-	alloc_value_block(strvec, alloc_sroute);
+	alloc_value_block(alloc_sroute);
 }
 
 /* Static rules handler */
 static void
-static_rules_handler(vector_t *strvec)
+static_rules_handler(__attribute__((unused)) vector_t *strvec)
 {
-	alloc_value_block(strvec, alloc_srule);
+	alloc_value_block(alloc_srule);
 }
 #endif
 
@@ -140,13 +140,13 @@ vrrp_gnotify_handler(vector_t *strvec)
 	vgroup->notify_exec = 1;
 }
 static void
-vrrp_gsmtp_handler(vector_t *strvec)
+vrrp_gsmtp_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	vgroup->smtp_alert = 1;
 }
 static void
-vrrp_gglobal_tracking_handler(vector_t *strvec)
+vrrp_gglobal_tracking_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 	vgroup->global_tracking = 1;
@@ -203,7 +203,7 @@ vrrp_vmac_handler(vector_t *strvec)
 	}
 }
 static void
-vrrp_vmac_xmit_base_handler(vector_t *strvec)
+vrrp_vmac_xmit_base_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -211,12 +211,12 @@ vrrp_vmac_xmit_base_handler(vector_t *strvec)
 }
 #endif
 static void
-vrrp_unicast_peer_handler(vector_t *strvec)
+vrrp_unicast_peer_handler(__attribute__((unused)) vector_t *strvec)
 {
-	alloc_value_block(strvec, alloc_vrrp_unicast_peer);
+	alloc_value_block(alloc_vrrp_unicast_peer);
 }
 static void
-vrrp_native_ipv6_handler(vector_t *strvec)
+vrrp_native_ipv6_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -260,17 +260,17 @@ vrrp_int_handler(vector_t *strvec)
 	}
 }
 static void
-vrrp_track_int_handler(vector_t *strvec)
+vrrp_track_int_handler(__attribute__((unused)) vector_t *strvec)
 {
-	alloc_value_block(strvec, alloc_vrrp_track);
+	alloc_value_block(alloc_vrrp_track);
 }
 static void
-vrrp_track_scr_handler(vector_t *strvec)
+vrrp_track_scr_handler(__attribute__((unused)) vector_t *strvec)
 {
-	alloc_value_block(strvec, alloc_vrrp_track_script);
+	alloc_value_block(alloc_vrrp_track_script);
 }
 static void
-vrrp_dont_track_handler(vector_t *strvec)
+vrrp_dont_track_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->dont_track_primary = 1;
@@ -303,9 +303,9 @@ static void
 vrrp_vrid_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->vrid = atoi(vector_slot(strvec, 1));
+	int vrid = atoi(vector_slot(strvec, 1));
 
-	if (VRRP_IS_BAD_VID(vrrp->vrid)) {
+	if (VRRP_IS_BAD_VID(vrid)) {
 		log_message(LOG_INFO, "VRRP Error : VRID not valid !");
 		log_message(LOG_INFO,
 		       "             must be between 1 & 255. reconfigure !");
@@ -313,6 +313,8 @@ vrrp_vrid_handler(vector_t *strvec)
 		vrrp->vrid = 0;
 		return;
 	}
+	else
+		vrrp->vrid = vrid;
 
 	alloc_vrrp_bucket(vrrp);
 }
@@ -320,14 +322,16 @@ static void
 vrrp_prio_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->base_priority = atoi(vector_slot(strvec, 1));
+	int base_priority = atoi(vector_slot(strvec, 1));
 
-	if (VRRP_IS_BAD_PRIORITY(vrrp->base_priority)) {
+	if (VRRP_IS_BAD_PRIORITY(base_priority)) {
 		log_message(LOG_INFO, "(%s): Priority not valid! must be between 1 & 255. Reconfigure !", vrrp->iname);
 		log_message(LOG_INFO, "%*sUsing default value : %d", (int)strlen(vrrp->iname) + 4, "", VRRP_PRIO_DFL);
 
 		vrrp->base_priority = VRRP_PRIO_DFL;
 	}
+	else
+		vrrp->base_priority = base_priority;
 	vrrp->effective_priority = vrrp->base_priority;
 }
 static void
@@ -388,13 +392,13 @@ vrrp_strict_mode_handler(vector_t *strvec)
 	}
 }
 static void
-vrrp_nopreempt_handler(vector_t *strvec)
+vrrp_nopreempt_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->nopreempt = 1;
 }
 static void	/* backwards compatibility */
-vrrp_preempt_handler(vector_t *strvec)
+vrrp_preempt_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->nopreempt = 0;
@@ -448,7 +452,7 @@ vrrp_notify_handler(vector_t *strvec)
 	vrrp->notify_exec = 1;
 }
 static void
-vrrp_smtp_handler(vector_t *strvec)
+vrrp_smtp_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->smtp_alert = 1;
@@ -513,10 +517,12 @@ static void
 vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->garp_lower_prio_rep = atoi(vector_slot(strvec, 1));
+	int garp_lower_prio_rep = atoi(vector_slot(strvec, 1));
 	/* Allow 0 GARP messages to be sent */
-	if ( vrrp->garp_lower_prio_rep < 0 )
+	if (garp_lower_prio_rep < 0)
 		vrrp->garp_lower_prio_rep = 0;
+	else
+		vrrp->garp_lower_prio_rep = garp_lower_prio_rep;
 }
 static void
 vrrp_lower_prio_no_advert_handler(vector_t *strvec)
@@ -570,7 +576,7 @@ vrrp_auth_pass_handler(vector_t *strvec)
 }
 #endif
 static void
-vrrp_vip_handler(vector_t *strvec)
+vrrp_vip_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *buf;
@@ -611,20 +617,20 @@ vrrp_vip_handler(vector_t *strvec)
 	FREE(buf);
 }
 static void
-vrrp_evip_handler(vector_t *strvec)
+vrrp_evip_handler(__attribute__((unused)) vector_t *strvec)
 {
-	alloc_value_block(strvec, alloc_vrrp_evip);
+	alloc_value_block(alloc_vrrp_evip);
 }
 #ifdef _HAVE_FIB_ROUTING_
 static void
-vrrp_vroutes_handler(vector_t *strvec)
+vrrp_vroutes_handler(__attribute__((unused)) vector_t *strvec)
 {
-	alloc_value_block(strvec, alloc_vrrp_vroute);
+	alloc_value_block(alloc_vrrp_vroute);
 }
 static void
-vrrp_vrules_handler(vector_t *strvec)
+vrrp_vrules_handler(__attribute__((unused)) vector_t *strvec)
 {
-	alloc_value_block(strvec, alloc_vrrp_vrule);
+	alloc_value_block(alloc_vrrp_vrule);
 }
 #endif
 static void
@@ -699,7 +705,7 @@ vrrp_version_handler(vector_t *strvec)
 }
 
 static void
-vrrp_accept_handler(vector_t *strvec)
+vrrp_accept_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -707,7 +713,7 @@ vrrp_accept_handler(vector_t *strvec)
 }
 
 static void
-garp_group_handler(vector_t *strvec)
+garp_group_handler(__attribute__((unused)) vector_t *strvec)
 {
 	alloc_garp_delay();
 }
@@ -765,7 +771,7 @@ garp_group_interfaces_handler(vector_t *strvec)
 	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
 	interface_t *ifp;
         vector_t *interface_vec = read_value_block(strvec);
-	int i;
+	size_t i;
 	garp_delay_t *gd;
 	element e;
 

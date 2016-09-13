@@ -758,7 +758,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 
 /* Synchronous signal handler to reap child processes */
 static void
-thread_child_handler(void * v, int sig)
+thread_child_handler(void * v, __attribute__ ((unused)) int unused)
 {
 	thread_master_t * m = v;
 

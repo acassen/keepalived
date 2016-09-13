@@ -33,9 +33,9 @@ extern timeval_t time_now;
 
 /* Some defines */
 #define TIME_MAX_FORWARD_US	2000000
-#define TIMER_HZ		1000000
-#define TIMER_CENTI_HZ		10000
-#define TIMER_MAX_SEC		1000
+#define TIMER_HZ		1000000U
+#define TIMER_CENTI_HZ		10000U
+#define TIMER_MAX_SEC		1000U
 #define TIMER_NEVER		LONG_MIN
 
 /* Some usefull macros */

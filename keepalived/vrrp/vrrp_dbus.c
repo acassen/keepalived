@@ -188,7 +188,7 @@ get_vrrp_instance(const char *ifname, int vrid, int family)
 }
 
 static gboolean
-unregister_object(gpointer key, gpointer value, gpointer user_data)
+unregister_object(gpointer key, gpointer value, __attribute__((unused)) gpointer user_data)
 {
 	if (g_hash_table_remove(objects, key))
 		return g_dbus_connection_unregister_object(global_connection, GPOINTER_TO_UINT(value));
@@ -297,13 +297,13 @@ get_interface_ids(const gchar *object_path, gchar *interface, uint8_t *vrid, uin
 
 /* handles reply to org.freedesktop.DBus.Properties.Get method on any object*/
 static GVariant *
-handle_get_property(GDBusConnection  *connection,
-		    const gchar      *sender,
+handle_get_property(__attribute__((unused)) GDBusConnection  *connection,
+		    __attribute__((unused)) const gchar      *sender,
 		    const gchar      *object_path,
 		    const gchar      *interface_name,
 		    const gchar      *property_name,
 		    GError          **error,
-		    gpointer          user_data)
+		    __attribute__((unused)) gpointer          user_data)
 {
 	GVariant *ret = NULL;
 	dbus_queue_ent_t ent;
@@ -340,14 +340,17 @@ handle_get_property(GDBusConnection  *connection,
 
 /* handles method_calls on any object */
 static void
-handle_method_call(GDBusConnection *connection,
-		   const gchar           *sender,
+handle_method_call(__attribute__((unused)) GDBusConnection *connection,
+		   __attribute__((unused)) const gchar           *sender,
 		   const gchar           *object_path,
 		   const gchar           *interface_name,
 		   const gchar           *method_name,
-		   GVariant              *parameters,
+#ifndef _WITH_DBUS_CREATE_INSTANCE_
+		   __attribute__((unused))
+#endif
+					   GVariant *parameters,
 		   GDBusMethodInvocation *invocation,
-		   gpointer               user_data)
+		   __attribute__((unused)) gpointer               user_data)
 {
 #ifdef _WITH_DBUS_CREATE_INSTANCE_
 	char *iname;
@@ -438,7 +441,8 @@ static const GDBusInterfaceVTable interface_vtable =
 {
 	handle_method_call,
 	handle_get_property,
-	NULL /* handle_set_property is null because we have no writeable property */
+	NULL, /* handle_set_property is null because we have no writeable property */
+	{}
 };
 
 static int
@@ -478,7 +482,7 @@ dbus_create_object(vrrp_t *vrrp)
 static void
 on_bus_acquired(GDBusConnection *connection,
 		const gchar     *name,
-		gpointer         user_data)
+		__attribute__((unused)) gpointer         user_data)
 {
 	global_connection = connection;
 	gchar *path;
@@ -519,9 +523,9 @@ on_bus_acquired(GDBusConnection *connection,
 
 /* run if bus name is acquired successfully */
 static void
-on_name_acquired(GDBusConnection *connection,
+on_name_acquired(__attribute__((unused)) GDBusConnection *connection,
 		 const gchar     *name,
-		 gpointer         user_data)
+		 __attribute__((unused)) gpointer         user_data)
 {
 	log_message(LOG_INFO, "Acquired the name %s on the session bus\n", name);
 }
@@ -530,7 +534,7 @@ on_name_acquired(GDBusConnection *connection,
 static void
 on_name_lost(GDBusConnection *connection,
 	     const gchar     *name,
-	     gpointer         user_data)
+	     __attribute__((unused)) gpointer user_data)
 {
 	log_message(LOG_INFO, "Lost the name %s on the session bus\n", name);
 	global_connection = connection;
@@ -696,7 +700,7 @@ dbus_remove_object(vrrp_t *vrrp)
 }
 
 static int
-handle_dbus_msg(thread_t *thread)
+handle_dbus_msg(__attribute__((unused)) thread_t *thread)
 {
 	dbus_queue_ent_t *ent;
 	char recv_buf;

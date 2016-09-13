@@ -47,12 +47,12 @@ clear_ssl(ssl_data_t *ssl)
 
 /* PEM password callback function */
 static int
-password_cb(char *buf, int num, int rwflag, void *userdata)
+password_cb(char *buf, int num, __attribute__((unused)) int rwflag, void *userdata)
 {
 	ssl_data_t *ssl = (ssl_data_t *) userdata;
 	unsigned int plen = strlen(ssl->password);
 
-	if (num < plen + 1)
+	if ((unsigned)num < plen + 1)
 		return (0);
 
 	strncpy(buf, ssl->password, plen);

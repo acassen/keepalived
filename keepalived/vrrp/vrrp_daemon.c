@@ -295,13 +295,13 @@ start_vrrp(void)
 }
 
 static void
-sighup_vrrp(void *v, int sig)
+sighup_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	thread_add_event(master, reload_vrrp_thread, NULL, 0);
 }
 
 static void
-sigusr1_vrrp(void *v, int sig)
+sigusr1_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	log_message(LOG_INFO, "Printing VRRP data for process(%d) on signal",
 		    getpid());
@@ -309,7 +309,7 @@ sigusr1_vrrp(void *v, int sig)
 }
 
 static void
-sigusr2_vrrp(void *v, int sig)
+sigusr2_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	log_message(LOG_INFO, "Printing VRRP stats for process(%d) on signal",
 		    getpid());
@@ -318,7 +318,7 @@ sigusr2_vrrp(void *v, int sig)
 
 /* Terminate handler */
 static void
-sigend_vrrp(void *v, int sig)
+sigend_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	if (master)
 		thread_add_terminate_event(master);
@@ -339,7 +339,7 @@ vrrp_signal_init(void)
 
 /* Reload thread */
 static int
-reload_vrrp_thread(thread_t * thread)
+reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 {
 	/* set the reloading flag */
 	SET_RELOAD;
@@ -397,14 +397,14 @@ reload_vrrp_thread(thread_t * thread)
 }
 
 static int
-print_vrrp_data(thread_t * thread)
+print_vrrp_data(__attribute__((unused)) thread_t * thread)
 {
 	vrrp_print_data();
 	return 0;
 }
 
 static int
-print_vrrp_stats(thread_t * thread)
+print_vrrp_stats(__attribute__((unused)) thread_t * thread)
 {
 	vrrp_print_stats();
 	return 0;

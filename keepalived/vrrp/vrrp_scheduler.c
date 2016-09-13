@@ -444,7 +444,7 @@ vrrp_register_workers(list l)
 
 /* VRRP dispatcher functions */
 static int
-already_exist_sock(list l, sa_family_t family, int proto, int ifindex, int unicast)
+already_exist_sock(list l, sa_family_t family, unsigned int proto, unsigned int ifindex, bool unicast)
 {
 	sock_t *sock;
 	element e;
@@ -461,7 +461,7 @@ already_exist_sock(list l, sa_family_t family, int proto, int ifindex, int unica
 }
 
 static void
-alloc_sock(sa_family_t family, list l, int proto, int ifindex, int unicast)
+alloc_sock(sa_family_t family, list l, unsigned int proto, unsigned int ifindex, bool unicast)
 {
 	sock_t *new;
 
@@ -480,7 +480,8 @@ vrrp_create_sockpool(list l)
 	vrrp_t *vrrp;
 	list p = vrrp_data->vrrp;
 	element e;
-	int ifindex, proto, unicast;
+	unsigned int ifindex, proto;
+	bool unicast;
 
 	for (e = LIST_HEAD(p); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
@@ -529,7 +530,8 @@ vrrp_set_fds(list l)
 	list p = vrrp_data->vrrp;
 	element e_sock;
 	element e_vrrp;
-	int proto, ifindex, unicast;
+	unsigned int proto, ifindex;
+	bool unicast;
 
 	for (e_sock = LIST_HEAD(l); e_sock; ELEMENT_NEXT(e_sock)) {
 		sock = ELEMENT_DATA(e_sock);
@@ -549,7 +551,7 @@ vrrp_set_fds(list l)
 				proto = IPPROTO_VRRP;
 
 			if ((sock->ifindex == ifindex)	&&
-		(sock->family == vrrp->family) &&
+			    (sock->family == vrrp->family) &&
 			    (sock->proto == proto)	&&
 			    (sock->unicast == unicast)) {
 				vrrp->fd_in = sock->fd_in;
@@ -577,7 +579,7 @@ vrrp_set_fds(list l)
  * multiplexing points.
  */
 int
-vrrp_dispatcher_init(thread_t * thread)
+vrrp_dispatcher_init(__attribute__((unused)) thread_t * thread)
 {
 	/* create the VRRP socket pool list */
 	vrrp_create_sockpool(vrrp_data->vrrp_socket_pool);
@@ -636,7 +638,7 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, int len)
 }
 
 static void
-vrrp_become_master(vrrp_t * vrrp, char *buffer, int len)
+vrrp_become_master(vrrp_t * vrrp, char *buffer, __attribute__((unused)) int len)
 {
 	struct iphdr *iph;
 	ipsec_ah_t *ah;
@@ -984,7 +986,9 @@ vrrp_dispatcher_read(sock_t * sock)
 {
 	vrrp_t *vrrp;
 	vrrphdr_t *hd;
-	int len = 0, prev_state = 0, proto = 0;
+	ssize_t len = 0;
+	int prev_state = 0;
+	unsigned proto = 0;
 	struct sockaddr_storage src_addr;
 	socklen_t src_addr_len = sizeof(src_addr);
 
@@ -1137,8 +1141,9 @@ vrrp_script_child_timeout_thread(thread_t * thread)
 	pid = THREAD_CHILD_PID(thread);
 	if (kill(pid, SIGKILL) < 0) {
 		/* Its possible it finished while we're handing this */
-		if (errno != ESRCH)
+		if (errno != ESRCH) {
 			DBG("kill error: %s", strerror(errno));
+		}
 		return 0;
 	}
 

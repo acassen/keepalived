@@ -620,7 +620,7 @@ ipvs_update_stats(virtual_server_t *vs)
 	union nf_inet_addr nfaddr;
 	ipvs_service_entry_t *serv = NULL;
 	struct ip_vs_get_dests_app *dests = NULL;
-	int i;
+	unsigned i;
 #define UPDATE_STATS_INIT 1
 #define UPDATE_STATS_VSG_IP 2
 #define UPDATE_STATS_VSG_FWMARK 4

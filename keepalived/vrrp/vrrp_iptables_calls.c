@@ -442,12 +442,14 @@ get_set_byname_only(const char *setname, struct xt_set_info *info,
 }
 
 static void
-get_set_byname(const char *setname, struct xt_set_info *info, int family, bool ignore_errors)
+get_set_byname(const char *setname, struct xt_set_info *info, unsigned family, bool ignore_errors)
 {
 #if defined IP_SET_OP_GET_FNAME
 	struct ip_set_req_get_set_family req;
 	socklen_t size = sizeof(struct ip_set_req_get_set_family);
 	int res;
+#else
+	if (family) {};		/* Avoid compiler warning */
 #endif
 	int sockfd;
 	unsigned int version;

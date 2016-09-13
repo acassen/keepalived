@@ -420,7 +420,7 @@ timeval_t vrrp_start_time;
 
 /* For some reason net-snmp doesn't use a uint64_t for 64 bit counters, but rather uses
  * a struct, with the high word at the lower address, so we need to assign values according. */
-static void inline
+inline static void
 set_counter64 (struct counter64 *c64, uint64_t val)
 {
 	c64->high = val >> 32;
@@ -511,11 +511,12 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 		     int *state)
 {
 	oid *target, current[2], best[2];
-	int result, target_len;
+	int result;
+	size_t target_len;
 	element e1 = NULL, e2;
 	void *el, *bel = NULL;
 	list l2;
-	int curinstance = 0;
+	unsigned curinstance = 0;
 	int curstate, nextstate;
 
 	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
@@ -659,11 +660,11 @@ vrrp_header_ar_table(struct variable *vp, oid *name, size_t *length,
 #define MAX_PTR ((void*)((char *)NULL - 1))
 static nexthop_t*
 vrrp_header_nh_table(struct variable *vp, oid *name, size_t *length,
-		     int exact, size_t *var_len, WriteMethod **write_method,
-		     int *state)
+		     int exact, size_t *var_len, WriteMethod **write_method)
 {
 	oid *target;
-	int result, target_len;
+	int result;
+	size_t target_len;
 	element e1, e2, e3;
 	list l2, l3;
 	oid curinstance[3];
@@ -1093,13 +1094,11 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 	return NULL;
 }
 
+#if HAVE_DECL_RTA_ENCAP
 static u_char*
 vrrp_snmp_encap(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
-#if !HAVE_DECL_RTA_ENCAP
-	return NULL;
-#else
 	static unsigned long long_ret;
 	static char labels[11*MAX_MPLS_LABELS];
 	char *op;
@@ -1107,7 +1106,7 @@ vrrp_snmp_encap(struct variable *vp, oid *name, size_t *length,
 	nexthop_t *nh;
 	encap_t *encap;
 	int state = HEADER_STATE_STATIC_ROUTE;
-	int i;
+	unsigned i;
 	static struct counter64 c64;
 
 	if (vp->name[vp->namelen - 3] == 7) {
@@ -1119,8 +1118,7 @@ vrrp_snmp_encap(struct variable *vp, oid *name, size_t *length,
 	}
 	else {
 		if ((nh = vrrp_header_nh_table(vp, name, length, exact,
-					  var_len, write_method,
-					  &state)) == NULL)
+					  var_len, write_method)) == NULL)
 			return NULL;
 		encap = &nh->encap;
 	}
@@ -1200,8 +1198,8 @@ vrrp_snmp_encap(struct variable *vp, oid *name, size_t *length,
 		return vrrp_snmp_encap(vp, name, length,
 				       exact, var_len, write_method);
 	return NULL;
-#endif
 }
+#endif
 
 static u_char*
 vrrp_snmp_next_hop(struct variable *vp, oid *name, size_t *length,
@@ -1209,11 +1207,9 @@ vrrp_snmp_next_hop(struct variable *vp, oid *name, size_t *length,
 {
 	static unsigned long long_ret;
 	nexthop_t *nh;
-	int state = HEADER_STATE_NEXT_HOP;
 
 	if ((nh = vrrp_header_nh_table(vp, name, length, exact,
-				  var_len, write_method,
-				  &state)) == NULL)
+				  var_len, write_method)) == NULL)
 		return NULL;
 
 	switch (vp->magic) {
@@ -1530,8 +1526,9 @@ vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 			  int exact, size_t *var_len, WriteMethod **write_method)
 {
 	oid *target, current[2], best[2];
-	int result, target_len;
-	int curgroup, curinstance;
+	int result;
+	size_t target_len;
+	unsigned curgroup, curinstance;
 	char *instance, *binstance = NULL;
 	element e;
 	vrrp_sgroup_t *group;
@@ -1621,7 +1618,7 @@ _get_instance(oid *name, size_t name_len)
 static int
 vrrp_snmp_instance_accept(int action,
 			  u_char *var_val, u_char var_val_type,
-			  size_t var_val_len, u_char *statP,
+			  size_t var_val_len, __attribute__((unused)) u_char *statP,
 			  oid *name, size_t name_len)
 {
 	vrrp_t *vrrp = NULL;
@@ -1675,7 +1672,7 @@ vrrp_snmp_instance_accept(int action,
 static int
 vrrp_snmp_instance_priority(int action,
 			    u_char *var_val, u_char var_val_type, size_t var_val_len,
-			    u_char *statP, oid *name, size_t name_len)
+			    __attribute__((unused)) u_char *statP, oid *name, size_t name_len)
 {
 	vrrp_t *vrrp = NULL;
 	switch (action) {
@@ -1685,7 +1682,7 @@ vrrp_snmp_instance_priority(int action,
 			return SNMP_ERR_WRONGTYPE;
 		if (var_val_len > sizeof(long))
 			return SNMP_ERR_WRONGLENGTH;
-		if (VRRP_IS_BAD_PRIORITY((long)(*var_val)))
+		if (*var_val == 0)
 			return SNMP_ERR_WRONGVALUE;
 		break;
 	case RESERVE2:		/* Check that we can find the instance. We should. */
@@ -1699,9 +1696,9 @@ vrrp_snmp_instance_priority(int action,
 		/* Commit: change values. There is no way to fail. */
 		log_message(LOG_INFO,
 			    "VRRP_Instance(%s) base priority changed from"
-			    " %d to %ld via SNMP.",
-			    vrrp->iname, vrrp->base_priority, (long)(*var_val));
-		vrrp->base_priority = (long)(*var_val);
+			    " %u to %u via SNMP.",
+			    vrrp->iname, vrrp->base_priority, *var_val);
+		vrrp->base_priority = *var_val;
 		/* If we the instance is not part of a sync group, the
 		   effective priority will be recomputed by some
 		   thread. Otherwise, we should set it equal to the
@@ -1717,7 +1714,7 @@ vrrp_snmp_instance_priority(int action,
 static int
 vrrp_snmp_instance_preempt(int action,
 			   u_char *var_val, u_char var_val_type, size_t var_val_len,
-			   u_char *statP, oid *name, size_t name_len)
+			   __attribute__((unused)) u_char *statP, oid *name, size_t name_len)
 {
 	vrrp_t *vrrp = NULL;
 	switch (action) {
@@ -1904,8 +1901,9 @@ vrrp_snmp_trackedinterface(struct variable *vp, oid *name, size_t *length,
 {
 	static unsigned long long_ret;
 	oid *target, current[2], best[2];
-	int result, target_len;
-	int curinstance;
+	int result;
+	size_t target_len;
+	unsigned curinstance;
 	element e1, e2;
 	vrrp_t *instance;
 	tracked_if_t *ifp, *bifp = NULL;
@@ -1987,8 +1985,9 @@ vrrp_snmp_trackedscript(struct variable *vp, oid *name, size_t *length,
 {
 	static unsigned long long_ret;
 	oid *target, current[2], best[2];
-	int result, target_len;
-	int curinstance, curscr;
+	int result;
+	size_t target_len;
+	unsigned curinstance, curscr;
 	element e1, e2;
 	vrrp_t *instance;
 	tracked_sc_t *scr, *bscr = NULL;
@@ -2267,6 +2266,7 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_route, 3, {7, 1, 44}},
 	{VRRP_SNMP_ROUTE_REALM_SRC, ASN_UNSIGNED, RONLY,
 	 vrrp_snmp_route, 3, {7, 1, 45}},
+#if HAVE_DECL_RTA_ENCAP
 	{VRRP_SNMP_ROUTE_ENCAP_TYPE, ASN_INTEGER, RONLY,
 	 vrrp_snmp_encap, 3, {7, 1, 46}},
 	{VRRP_SNMP_ROUTE_ENCAP_MPLS_LABELS, ASN_OCTET_STR, RONLY,
@@ -2285,6 +2285,7 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_encap, 3, {7, 1, 53}},
 	{VRRP_SNMP_ROUTE_ENCAP_ILA_LOCATOR, ASN_COUNTER64, RONLY,
 	 vrrp_snmp_encap, 3, {7, 1, 54}},
+#endif
 
 	 /* vrrpRuleTable */
 	{VRRP_SNMP_RULE_DIRECTION, ASN_OCTET_STR, RONLY,
@@ -2372,6 +2373,7 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_next_hop, 3, {11, 1, 8}},
 	{VRRP_SNMP_ROUTE_NEXT_HOP_REALM_SRC, ASN_UNSIGNED, RONLY,
 	 vrrp_snmp_next_hop, 3, {11, 1, 9}},
+#if HAVE_DECL_RTA_ENCAP
 	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_TYPE, ASN_INTEGER, RONLY,
 	 vrrp_snmp_encap, 3, {11, 1, 10}},
 	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_MPLS_LABELS, ASN_OCTET_STR, RONLY,
@@ -2390,6 +2392,7 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_encap, 3, {11, 1, 17}},
 	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_ILA_LOCATOR, ASN_COUNTER64, RONLY,
 	 vrrp_snmp_encap, 3, {11, 1, 18}},
+#endif
 #endif
 };
 
@@ -3176,7 +3179,7 @@ suitable_for_rfc6527(vrrp_t* vrrp)
 static inline int
 inet6_addr_compare(const struct in6_addr* l, const struct in6_addr* r)
 {
-	int i;
+	size_t i;
 	uint32_t l1, r1;
 
 	for (i = 0; i < sizeof(l->s6_addr32) / sizeof(l->s6_addr32[0]); i++)
@@ -3205,7 +3208,7 @@ vrrp_rfcv3_header_ar_table(struct variable *vp, oid *name, size_t *length,
 	size_t target_len;
 	bool found_exact = false;
 	bool found_better;
-	int i;
+	size_t i;
 
 	*write_method = 0;
 	*var_len = sizeof(unsigned long);

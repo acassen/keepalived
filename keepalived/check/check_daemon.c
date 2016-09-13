@@ -180,14 +180,14 @@ start_check(void)
 static int reload_check_thread(thread_t *);
 
 static void
-sighup_check(void *v, int sig)
+sighup_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	thread_add_event(master, reload_check_thread, NULL, 0);
 }
 
 /* Terminate handler */
 static void
-sigend_check(void *v, int sig)
+sigend_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	if (master)
 		thread_add_terminate_event(master);
@@ -206,7 +206,7 @@ check_signal_init(void)
 
 /* Reload thread */
 static int
-reload_check_thread(thread_t * thread)
+reload_check_thread(__attribute__((unused)) thread_t * thread)
 {
 	/* set the reloading flag */
 	SET_RELOAD;
