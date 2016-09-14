@@ -273,22 +273,20 @@ NETLINK_VER=None
 IPVS_USE_NL=No
 AC_CHECK_LIB(nl-3, nl_socket_alloc,
   [
-    AC_CHECK_LIB(nl-genl-3, genl_connect,
-      [
-        IPVS_USE_NL=Yes
-        add_pkg_config([libnl-genl-3.0])
-      ],
-      [
-        AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])
-      ])
-    AC_CHECK_LIB(nl-route-3, nl_rtgen_request,
-      [
-        NETLINK_VER=3
-        AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
-        NL3_CFLAGS="$(pkg-config --cflags libnl-route-3.0)"
-        add_pkg_config([libnl-route-3.0])
-        add_build_opt([LIBNL3])
-      ])
+    NETLINK_VER=3
+    AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
+    add_build_opt([LIBNL3])
+    add_pkg_config([libnl-3.0])
+
+    AC_CHECK_LIB(nl-genl-3, genl_connect, [],
+      [AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])])
+    IPVS_USE_NL=Yes
+    add_pkg_config([libnl-genl-3.0])
+
+    AC_CHECK_LIB(nl-route-3, nl_rtgen_request, [],
+      [AC_MSG_ERROR([libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3.])])
+    NL3_CFLAGS="$(pkg-config --cflags libnl-route-3.0)"
+    add_pkg_config([libnl-route-3.0])
   ],
   [
     AC_CHECK_LIB(nl, nl_socket_modify_cb,

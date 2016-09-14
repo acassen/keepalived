@@ -198,6 +198,12 @@
 /* Define to 1 if you have the <libnfnetlink/libnfnetlink.h> header file. */
 #undef HAVE_LIBNFNETLINK_LIBNFNETLINK_H
 
+/* Define to 1 if you have the `nl-genl-3' library (-lnl-genl-3). */
+#undef HAVE_LIBNL_GENL_3
+
+/* Define to 1 if you have the `nl-route-3' library (-lnl-route-3). */
+#undef HAVE_LIBNL_ROUTE_3
+
 /* Define to 1 if you have the `ssl' library (-lssl). */
 #undef HAVE_LIBSSL
 

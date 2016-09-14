@@ -6275,6 +6275,48 @@ fi
 $as_echo "$ac_cv_lib_nl_3_nl_socket_alloc" >&6; }
 if test "x$ac_cv_lib_nl_3_nl_socket_alloc" = xyes; then :
 
+    NETLINK_VER=3
+
+$as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
+
+    BUILD_OPTIONS="$BUILD_OPTIONS LIBNL3"
+     if test 1 -ge 2; then
+      PKG_PFX=
+    else
+      PKG_PFX=KA
+    fi
+    ADD_NEW=
+   eval var=\$${PKG_PFX}_CPPFLAGS
+    for item in $(pkg-config --cflags-only-I libnl-3.0); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${PKG_PFX}_CPPFLAGS=\"\$${PKG_PFX}_CPPFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${PKG_PFX}_CFLAGS
+    for item in $(pkg-config --cflags-only-other libnl-3.0); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${PKG_PFX}_LIBS
+    for item in $(pkg-config --libs libnl-3.0); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
+
+
+
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for genl_connect in -lnl-genl-3" >&5
 $as_echo_n "checking for genl_connect in -lnl-genl-3... " >&6; }
 if ${ac_cv_lib_nl_genl_3_genl_connect+:} false; then :
@@ -6312,9 +6354,18 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_nl_genl_3_genl_connect" >&5
 $as_echo "$ac_cv_lib_nl_genl_3_genl_connect" >&6; }
 if test "x$ac_cv_lib_nl_genl_3_genl_connect" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBNL_GENL_3 1
+_ACEOF
 
-        IPVS_USE_NL=Yes
-         if test 1 -ge 2; then
+  LIBS="-lnl-genl-3 $LIBS"
+
+else
+  as_fn_error $? "libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3." "$LINENO" 5
+fi
+
+    IPVS_USE_NL=Yes
+     if test 1 -ge 2; then
       PKG_PFX=
     else
       PKG_PFX=KA
@@ -6350,12 +6401,6 @@ if test "x$ac_cv_lib_nl_genl_3_genl_connect" = xyes; then :
     eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
 
 
-
-else
-
-        as_fn_error $? "libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3." "$LINENO" 5
-
-fi
 
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_rtgen_request in -lnl-route-3" >&5
 $as_echo_n "checking for nl_rtgen_request in -lnl-route-3... " >&6; }
@@ -6394,13 +6439,18 @@ fi
 { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_nl_route_3_nl_rtgen_request" >&5
 $as_echo "$ac_cv_lib_nl_route_3_nl_rtgen_request" >&6; }
 if test "x$ac_cv_lib_nl_route_3_nl_rtgen_request" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBNL_ROUTE_3 1
+_ACEOF
 
-        NETLINK_VER=3
+  LIBS="-lnl-route-3 $LIBS"
 
-$as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
+else
+  as_fn_error $? "libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3." "$LINENO" 5
+fi
 
-        NL3_CFLAGS="$(pkg-config --cflags libnl-route-3.0)"
-         if test 1 -ge 2; then
+    NL3_CFLAGS="$(pkg-config --cflags libnl-route-3.0)"
+     if test 1 -ge 2; then
       PKG_PFX=
     else
       PKG_PFX=KA
@@ -6435,10 +6485,6 @@ $as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
     done
     eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
 
-
-        BUILD_OPTIONS="$BUILD_OPTIONS LIBNL3"
-
-fi
 
 
 else
