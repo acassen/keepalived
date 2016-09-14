@@ -102,6 +102,10 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSRATEOUTBPSLOW,
 	CHECK_SNMP_VSRATEOUTBPSHIGH,
 #endif
+	CHECK_SNMP_VSHASHED,
+	CHECK_SNMP_VSSHFALLBACK,
+	CHECK_SNMP_VSSHPORT,
+	CHECK_SNMP_VSSCHED3,
 #endif
 };
 
@@ -227,8 +231,9 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 	static uint32_t ip;
 	static struct in6_addr ip6;
 	oid *target, current[2], best[2];
-	int result, target_len;
-	int curgroup = 0, curentry;
+	int result;
+	size_t target_len;
+	unsigned curgroup = 0, curentry;
 	element e1, e2;
 	virtual_server_group_t *group;
 	virtual_server_group_entry_t *e, *be = NULL;
@@ -495,9 +500,11 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_VSHASUSPEND:
 		long_ret = v->ha_suspend?1:2;
 		return (u_char*)&long_ret;
+#ifdef IP_VS_SVC_F_ONEPACKET
 	case CHECK_SNMP_VSOPS:
-		long_ret = v->ops?1:2;
+		long_ret = v->flags & IP_VS_SVC_F_ONEPACKET?1:2;
 		return (u_char*)&long_ret;
+#endif
 	case CHECK_SNMP_VSALPHA:
 		long_ret = v->alpha?1:2;
 		return (u_char*)&long_ret;
@@ -640,6 +647,20 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret = v->stats.outbps >> 32;
 		return (u_char*)&long_ret;
 #endif
+#ifdef IP_VS_SVC_F_SCHED1
+	case CHECK_SNMP_VSHASHED:
+		long_ret = v->flags & IP_VS_SVC_F_HASHED ? 1 : 2;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSSHFALLBACK:
+		long_ret = v->flags & IP_VS_SVC_F_SCHED_SH_FALLBACK ? 1 : 2;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSSHPORT:
+		long_ret = v->flags & IP_VS_SVC_F_SCHED_SH_PORT ? 1 : 2;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSSCHED3:
+		long_ret = v->flags & IP_VS_SVC_F_SCHED3 ? 1 : 2;
+		return (u_char*)&long_ret;
+#endif
 	default:
 		return NULL;
 	}
@@ -652,7 +673,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 static int
 check_snmp_realserver_weight(int action,
 			     u_char *var_val, u_char var_val_type, size_t var_val_len,
-			     u_char *statP, oid *name, size_t name_len)
+			     __attribute__((unused)) u_char *statP, oid *name, size_t name_len)
 {
 	element e1, e2;
 	virtual_server_t *vs = NULL;
@@ -665,8 +686,6 @@ check_snmp_realserver_weight(int action,
 			return SNMP_ERR_WRONGTYPE;
 		if (var_val_len > sizeof(long))
 			return SNMP_ERR_WRONGLENGTH;
-		if ((long)(*var_val) < 0)
-			return SNMP_ERR_WRONGVALUE;
 		break;
 	case RESERVE2:		/* Check that we can find the instance. We should. */
 	case COMMIT:
@@ -711,8 +730,9 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	static unsigned long long_ret;
 	static struct counter64 counter64_ret;
 	oid *target, current[2], best[2];
-	int result, target_len;
-	int curvirtual = 0, curreal;
+	int result;
+	size_t target_len;
+	unsigned curvirtual = 0, curreal;
 	real_server_t *e = NULL, *be = NULL;
 	element e1, e2 = NULL;
 	virtual_server_t *vs, *bvs = NULL;
@@ -1219,6 +1239,15 @@ static struct variable8 check_vars[] = {
 #endif
 	{CHECK_SNMP_VSPERSISTGRANULARITY6, ASN_UNSIGNED, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 51}},
+	{CHECK_SNMP_VSHASHED, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 52}},
+	{CHECK_SNMP_VSSHFALLBACK, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 53}},
+	{CHECK_SNMP_VSSHPORT, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 54}},
+	{CHECK_SNMP_VSSCHED3, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 55}},
+
 	/* realServerTable */
 	{CHECK_SNMP_RSTYPE, ASN_INTEGER, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 2}},

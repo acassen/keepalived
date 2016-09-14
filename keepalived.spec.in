@@ -1,6 +1,3 @@
-# $Id$
-# Authority: dag
-
 # Ugly, but we need headers from a kernel to rebuild against
 %define kernel %(rpm -q kernel-devel --qf '%{RPMTAG_VERSION}-%{RPMTAG_RELEASE}\\n' 2>/dev/null | head -1)
 
@@ -18,9 +15,14 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-%{release}-root
 BuildRequires: openssl-devel
 # We need both of these for proper LVS support
 BuildRequires: kernel, kernel-devel
-Requires(post): /sbin/chkconfig
-Requires(preun): /sbin/service, /sbin/chkconfig
-Requires(postun): /sbin/service
+BuildRequires: libnfnetlink-devel
+@LIBIPTC_TRUE@BuildRequires: iptables-devel
+@LIBIPSET_TRUE@BuildRequires: ipset-devel
+@LIBNL1_TRUE@BuildRequires: libnl-devel
+@LIBNL3_TRUE@BuildRequires: libnl3-devel
+@INIT_SYSV_TRUE@Requires(post): /sbin/chkconfig
+@INIT_SYSV_TRUE@Requires(preun): /sbin/service, /sbin/chkconfig
+@INIT_SYSV_TRUE@Requires(postun): /sbin/service
 
 %description
 The main goal of the keepalived project is to add a strong & robust keepalive
@@ -40,9 +42,18 @@ healthchecks and LVS directors failover.
 
 
 %build
+CONFIG_OPTS=
+@DEBUG_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-debug"
+@PROFILE_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-profile"
+@WITH_VRRP_FALSE@CONFIG_OPTS="$CONFIG_OPTS --disable-vrrp"
+@WITH_IPVS_FALSE@CONFIG_OPTS="$CONFIG_OPTS --disable-lvs"
+@SNMP_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-snmp"
+@SNMP_RFC_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-snmp-rfc"
+@WITH_SHA1_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-sha1"
+@WITH_DBUS_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-dbus"
 %{?el3:export CPPFLAGS="-I/usr/kerberos/include"}
 %{?rh9:export CPPFLAGS="-I/usr/kerberos/include"}
-%configure \
+%configure $CONFIG_OPTS \
 %{?el3:--includedir="/usr/kerberos/include"} \
 %{?rh9:--includedir="/usr/kerberos/include"} \
     --with-kernel-dir="/lib/modules/%{kernel}/build"
@@ -58,8 +69,8 @@ healthchecks and LVS directors failover.
 %check
 # A build could silently have LVS support disabled if the kernel includes can't
 # be properly found, we need to avoid that.
-if ! grep -q "IPVS_SUPPORT='_WITH_LVS_'" config.log; then
-    echo "ERROR: We do not want keeepalived lacking LVS support."
+if ! grep -q "#define _WITH_LVS_ *1" lib/config.h; then
+    %{__echo} "ERROR: We do not want keepalived lacking LVS support."
     exit 1
 fi
 
@@ -84,21 +95,32 @@ fi
 
 
 %files
-%defattr(-, root, root, 0755)
+%defattr(-, root, root, -)
 %doc AUTHOR ChangeLog CONTRIBUTORS COPYING README TODO
 %doc doc/keepalived.conf.SYNOPSIS doc/samples/
 %dir %{_sysconfdir}/keepalived/
-%attr(0600, root, root) %config(noreplace) %{_sysconfdir}/keepalived/keepalived.conf
-%attr(0600, root, root) %config(noreplace) %{_sysconfdir}/sysconfig/keepalived
-%{_sysconfdir}/rc.d/init.d/keepalived
+%attr(0600,root,root) %config(noreplace) %{_sysconfdir}/keepalived/keepalived.conf
+%attr(0600,root,root) %config(noreplace) %{_sysconfdir}/sysconfig/keepalived
+@INIT_SYSTEMD_TRUE@%{_unitdir}/keepalived.service
+@INIT_SYSV_TRUE@%{_initdir}/keepalived
+@INIT_UPSTART_TRUE@%{_sysconfdir}/init/keepalived.conf
+@SNMP_TRUE@%{_datadir}/snmp/mibs/KEEPALIVED-MIB.txt
+@SNMP_RFCV2_TRUE@%{_datadir}/snmp/mibs/VRRP-MIB.txt
+@SNMP_RFCV3_TRUE@%{_datadir}/snmp/mibs/VRRPv3-MIB.txt
 %{_bindir}/genhash
-%{_sbindir}/keepalived
+%attr(0755,root,root) %{_sbindir}/keepalived
 %{_mandir}/man1/genhash.1*
 %{_mandir}/man5/keepalived.conf.5*
 %{_mandir}/man8/keepalived.8*
-
+@WITH_DBUS_TRUE@%attr(0644,root,root) %{_sysconfdir}/dbus-1/system.d/org.keepalived.Vrrp1.conf
+@WITH_DBUS_TRUE@%attr(0644,root,root) %{_datarootdir}/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml
+@WITH_DBUS_TRUE@%attr(0644,root,root) %{_datarootdir}/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
 
 %changelog
+* Tue Sep 13 2016 Quentin Armitage <quentin@armitage.org.uk> 1.2.24
+- Update for changed format due of config.log due to using automake
+- Add support for systemd and upstart based systems
+
 * Thu Sep 13 2007 Alexandre Cassen <acassen@linux-vs.org> 1.1.14
 - Merge work done by freshrpms.net... Thanks guys !!! ;)
 

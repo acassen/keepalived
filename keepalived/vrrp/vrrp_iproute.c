@@ -222,7 +222,7 @@ add_encap(struct rtattr *rta, size_t len, encap_t *encap)
 #endif
 
 static void
-add_nexthop(nexthop_t *nh, struct nlmsghdr *nlh, struct rtmsg *rtm, struct rtattr *rta, size_t len, struct rtnexthop *rtnh)
+add_nexthop(nexthop_t *nh, struct rtmsg *rtm, struct rtattr *rta, size_t len, struct rtnexthop *rtnh)
 {
 	if (nh->addr) {
 		if (rtm->rtm_family == nh->addr->ifa.ifa_family)
@@ -271,7 +271,7 @@ add_nexthops(ip_route_t *route, struct nlmsghdr *nlh, struct rtmsg *rtm)
 		memset(rtnh, 0, sizeof(*rtnh));
 		rtnh->rtnh_len = sizeof(*rtnh);
 		rta->rta_len += rtnh->rtnh_len;
-		add_nexthop(nh, nlh, rtm, rta, sizeof(buf), rtnh);
+		add_nexthop(nh, rtm, rta, sizeof(buf), rtnh);
 		rtnh = RTNH_NEXT(rtnh);
 	}
 
@@ -566,7 +566,7 @@ free_iproute(void *rt_data)
 static size_t
 print_encap_mpls(char *op, size_t len, const encap_t* encap)
 {
-	int i;
+	unsigned i;
 	char *opn = op;
 
 	opn += snprintf(opn, len - (opn - op), " encap mpls");

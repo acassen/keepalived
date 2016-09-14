@@ -263,7 +263,7 @@ start_keepalived(void)
 /* SIGHUP/USR1/USR2 handler */
 #ifndef _DEBUG_
 static void
-propogate_signal(void *v, int sig)
+propogate_signal(__attribute__((unused)) void *v, int sig)
 {
 	bool unsupported_change = false;
 
@@ -314,7 +314,7 @@ propogate_signal(void *v, int sig)
 
 /* Terminate handler */
 static void
-sigend(void *v, int sig)
+sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	int status;
 	int ret;

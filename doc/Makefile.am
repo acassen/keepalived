@@ -8,7 +8,7 @@ endif
 dist_man5_MANS	= man/man5/keepalived.conf.5
 dist_man8_MANS	= man/man8/keepalived.8
 
-EXTRA_DIST	= source samples keepalived.conf.SYNOPSIS NOTE_vrrp_vmac.txt KEEPALIVED-MIB VRRP-MIB VRRPv3-MIB
+EXTRA_DIST	= source samples keepalived.conf.SYNOPSIS NOTE_vrrp_vmac.txt KEEPALIVED-MIB.txt VRRP-MIB.txt VRRPv3-MIB.txt
 
 sampledir	= $(sysconfdir)/@PACKAGE@/samples
 sample_DATA	= $(srcdir)/samples/*
@@ -16,13 +16,13 @@ sample_DATA	= $(srcdir)/samples/*
 mibsdir		= $(datarootdir)/snmp/mibs
 mibs_DATA	=
 if SNMP
-mibs_DATA	+= KEEPALIVED-MIB
+mibs_DATA	+= KEEPALIVED-MIB.txt
 endif
 if SNMP_RFCV2
-mibs_DATA	+= VRRP-MIB
+mibs_DATA	+= VRRP-MIB.txt
 endif
 if SNMP_RFCV3
-mibs_DATA	+= VRRPv3-MIB
+mibs_DATA	+= VRRPv3-MIB.txt
 endif
 
 dist-hook:

@@ -31,7 +31,7 @@
 #include <net-snmp/agent/agent_sysORTable.h>
 
 static int
-snmp_keepalived_log(int major, int minor, void *serverarg, void *clientarg)
+snmp_keepalived_log(__attribute__((unused)) int major, __attribute__((unused)) int minor, void *serverarg, __attribute__((unused)) void *clientarg)
 {
 	struct snmp_log_message *slm = (struct snmp_log_message*)serverarg;
 	log_message(slm->priority, "%s", slm->msg);
@@ -103,6 +103,7 @@ enum snmp_global_magic {
 	SNMP_LVSFLUSH,
 	SNMP_IPVS_64BIT_STATS,
 	SNMP_NET_NAMESPACE,
+	SNMP_DBUS,
 };
 
 static u_char*
@@ -168,6 +169,14 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 #endif
 		*var_len = 0;
 		return (u_char *)"";
+	case SNMP_DBUS:
+#ifdef _WITH_DBUS_
+		if (global_data->enable_dbus)
+			long_ret = 1;
+		else
+#endif
+			long_ret = 2;
+		return (u_char *)&long_ret;
 	default:
 		break;
 	}
@@ -219,11 +228,14 @@ static struct variable8 global_vars[] = {
 	{SNMP_IPVS_64BIT_STATS, ASN_INTEGER, RONLY, snmp_scalar, 1, {7}},
 #endif
 	{SNMP_NET_NAMESPACE, ASN_OCTET_STR, RONLY, snmp_scalar, 1, {8}},
+#ifdef _WITH_DBUS_
+	{SNMP_DBUS, ASN_INTEGER, RONLY, snmp_scalar, 1, {9}},
+#endif
 };
 
 static int
-snmp_setup_session_cb(int majorID, int minorID,
-		      void *serverarg, void *clientarg)
+snmp_setup_session_cb(__attribute__((unused)) int majorID, __attribute__((unused)) int minorID,
+		      void *serverarg, __attribute__((unused)) void *clientarg)
 {
 	netsnmp_session *sess = serverarg;
 	if (serverarg == NULL)

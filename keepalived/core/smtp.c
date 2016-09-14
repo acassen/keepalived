@@ -128,7 +128,7 @@ connection_in_progress(thread_t * thread)
 	 * Here we use the propriety of a union structure,
 	 * each element of the structure have the same value.
 	 */
-	status = tcp_socket_state(thread->u.fd, thread, connection_in_progress);
+	status = tcp_socket_state(thread, connection_in_progress);
 
 	if (status != connect_in_progress)
 		SMTP_FSM_SEND(status, thread);
@@ -569,8 +569,9 @@ quit_cmd(thread_t * thread)
 		smtp->stage++;
 	return 0;
 }
+
 static int
-quit_code(thread_t * thread, int status)
+quit_code(thread_t * thread, __attribute__((unused)) int status)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 

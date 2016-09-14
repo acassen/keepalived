@@ -214,7 +214,7 @@ am__define_uniq_tagged_files = \
   done | $(am__uniquify_input)`
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = core vrrp check
+DIST_SUBDIRS = core vrrp check dbus
 am__DIST_COMMON = $(srcdir)/Makefile.in $(top_srcdir)/depcomp
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 am__relativize = \
@@ -354,17 +354,20 @@ noinst_HEADERS = $(srcdir)/include/*.h
 @WITH_IPVS_TRUE@IPVS_LIB = check/libcheck.a
 @WITH_VRRP_TRUE@VRRP_SUBDIR = vrrp
 @WITH_VRRP_TRUE@VRRP_LIB = vrrp/libvrrp.a
-SUBDIRS = core $(VRRP_SUBDIR) $(IPVS_SUBDIR)
+@WITH_DBUS_TRUE@DBUS_SUBDIR = dbus
+SUBDIRS = core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR)
 EXTRA_DIST = keepalived.service etc
 keepalived_LDADD = core/libcore.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a $(KA_LIBS)
 sysconfigdir = $(sysconfdir)/sysconfig
-sysconfig_DATA = etc/init.d/keepalived.sysconfig
+sysconfig_DATA = etc/sysconfig/keepalived
 configdir = $(sysconfdir)/@PACKAGE@
 config_DATA = etc/keepalived/keepalived.conf
-initdir = $(sysconfdir)/rc.d/init.d
-init_DATA = etc/init.d/keepalived.init
-systemddir = $(prefix)/lib/systemd/system
-systemd_DATA = keepalived.service
+@INIT_SYSV_TRUE@initdir = $(sysconfdir)/rc.d/init.d
+@INIT_UPSTART_TRUE@initdir = $(sysconfdir)/init
+@INIT_SYSV_TRUE@init_DATA = etc/init.d/keepalived
+@INIT_UPSTART_TRUE@init_DATA = etc/init/keepalived.conf
+@INIT_SYSTEMD_TRUE@systemddir = /lib/systemd/system
+@INIT_SYSTEMD_TRUE@systemd_DATA = keepalived.service
 all: all-recursive
 
 .SUFFIXES:
@@ -768,8 +771,7 @@ info-am:
 
 install-data-am: install-configDATA install-initDATA \
 	install-sysconfigDATA install-systemdDATA
-	@$(NORMAL_INSTALL)
-	$(MAKE) $(AM_MAKEFLAGS) install-data-hook
+
 install-dvi: install-dvi-recursive
 
 install-dvi-am:
@@ -817,32 +819,27 @@ uninstall-am: uninstall-configDATA uninstall-initDATA \
 	uninstall-sbinPROGRAMS uninstall-sysconfigDATA \
 	uninstall-systemdDATA
 
-.MAKE: $(am__recursive_targets) install-am install-data-am \
-	install-strip
+.MAKE: $(am__recursive_targets) install-am install-strip
 
 .PHONY: $(am__recursive_targets) CTAGS GTAGS TAGS all all-am check \
 	check-am clean clean-generic clean-sbinPROGRAMS cscopelist-am \
 	ctags ctags-am distclean distclean-compile distclean-generic \
 	distclean-tags distdir dvi dvi-am html html-am info info-am \
 	install install-am install-configDATA install-data \
-	install-data-am install-data-hook install-dvi install-dvi-am \
-	install-exec install-exec-am install-html install-html-am \
-	install-info install-info-am install-initDATA install-man \
-	install-pdf install-pdf-am install-ps install-ps-am \
-	install-sbinPROGRAMS install-strip install-sysconfigDATA \
-	install-systemdDATA installcheck installcheck-am installdirs \
-	installdirs-am maintainer-clean maintainer-clean-generic \
-	mostlyclean mostlyclean-compile mostlyclean-generic pdf pdf-am \
-	ps ps-am tags tags-am uninstall uninstall-am \
-	uninstall-configDATA uninstall-initDATA uninstall-sbinPROGRAMS \
+	install-data-am install-dvi install-dvi-am install-exec \
+	install-exec-am install-html install-html-am install-info \
+	install-info-am install-initDATA install-man install-pdf \
+	install-pdf-am install-ps install-ps-am install-sbinPROGRAMS \
+	install-strip install-sysconfigDATA install-systemdDATA \
+	installcheck installcheck-am installdirs installdirs-am \
+	maintainer-clean maintainer-clean-generic mostlyclean \
+	mostlyclean-compile mostlyclean-generic pdf pdf-am ps ps-am \
+	tags tags-am uninstall uninstall-am uninstall-configDATA \
+	uninstall-initDATA uninstall-sbinPROGRAMS \
 	uninstall-sysconfigDATA uninstall-systemdDATA
 
 .PRECIOUS: Makefile
 
-
-install-data-hook:
-	mv $(DESTDIR)/$(sysconfdir)/rc.d/init.d/keepalived.init $(DESTDIR)/$(sysconfdir)/rc.d/init.d/keepalived
-	mv $(DESTDIR)/$(sysconfdir)/sysconfig/keepalived.sysconfig $(DESTDIR)/$(sysconfdir)/sysconfig/keepalived
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

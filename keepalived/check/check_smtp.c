@@ -106,7 +106,7 @@ smtp_alloc_host(void)
  * in the config file.
  */
 static void
-smtp_check_handler(vector_t *strvec)
+smtp_check_handler(__attribute__((unused)) vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = (smtp_checker_t *)MALLOC(sizeof(smtp_checker_t));
 
@@ -167,7 +167,7 @@ smtp_check_end_handler(void)
  * in the config file.
  */
 static void
-smtp_host_handler(vector_t *strvec)
+smtp_host_handler(__attribute__((unused)) vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
 
@@ -653,7 +653,7 @@ smtp_check_thread(thread_t *thread)
 	smtp_host_t *smtp_host = smtp_checker->host_ptr;
 	int status;
 
-	status = tcp_socket_state(thread->u.fd, thread, smtp_check_thread);
+	status = tcp_socket_state(thread, smtp_check_thread);
 	switch (status) {
 		case connect_error:
 			smtp_final(thread, 1, "Error connecting to server %s"

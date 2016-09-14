@@ -63,7 +63,7 @@ dump_tcp_check(void *data)
 }
 
 static void
-tcp_check_handler(vector_t *strvec)
+tcp_check_handler(__attribute__((unused)) vector_t *strvec)
 {
 	tcp_check_t *tcp_check;
 
@@ -156,7 +156,7 @@ tcp_check_thread(thread_t * thread)
 	int status;
 
 	checker = THREAD_ARG(thread);
-	status = tcp_socket_state(thread->u.fd, thread, tcp_check_thread);
+	status = tcp_socket_state(thread, tcp_check_thread);
 
 	/* If status = connect_in_progress, next thread is already registered.
 	 * If it is connect_success, the fd is still open.

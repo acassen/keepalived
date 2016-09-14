@@ -202,7 +202,7 @@ static struct nl_msg *ipvs_nl_message(int cmd, int flags)
 	return msg;
 }
 
-static int ipvs_nl_noop_cb(struct nl_msg *msg, void *arg)
+static int ipvs_nl_noop_cb(__attribute__((unused)) struct nl_msg *msg, __attribute__((unused)) void *arg)
 {
 	return NL_OK;
 }
@@ -896,7 +896,7 @@ struct ip_vs_get_dests_app *ipvs_get_dests(ipvs_service_entry_t *svc)
 	struct ip_vs_get_dests_app *d;
 	struct ip_vs_get_dests *dk;
 	socklen_t len;
-	int i;
+	unsigned i;
 
 	len = sizeof(*d) + sizeof(ipvs_dest_entry_t) * svc->user.num_dests;
 	if (!(d = MALLOC(len)))

@@ -247,6 +247,7 @@ read_conf_file(const char *conf_file)
 	char *path;
 	int ret;
 	glob_t globbuf;
+	size_t i;
 	int	res;
 	struct stat stb;
 
@@ -258,7 +259,6 @@ read_conf_file(const char *conf_file)
 		return;
 	}
 
-	int i;
 	for(i = 0; i < globbuf.gl_pathc; i++){
 		log_message(LOG_INFO, "Opening file '%s'.", globbuf.gl_pathv[i]);
 		stream = fopen(globbuf.gl_pathv[i], "r");
@@ -310,7 +310,7 @@ read_conf_file(const char *conf_file)
 bool check_conf_file(const char *conf_file)
 {
 	glob_t globbuf;
-	int i;
+	size_t i;
 	bool ret = true;
 	int res;
 	struct stat stb;
@@ -348,7 +348,7 @@ bool check_conf_file(const char *conf_file)
 	return ret;
 }
 
-static int
+static bool
 check_include(char *buf)
 {
 	char *str;
@@ -358,15 +358,10 @@ check_include(char *buf)
 
 	strvec = alloc_strvec(buf);
 
-	if (!strvec){
-		return 0;
-	}
-	str = vector_slot(strvec, 0);
+	if (!strvec)
+		return false;
 
-	if (!strcmp(str, EOB)) {
-		free_strvec(strvec);
-		return 0;
-	}
+	str = vector_slot(strvec, 0);
 
 	if(!strcmp("include", str) && vector_size(strvec) == 2){
 		char *conf_file = vector_slot(strvec, 1);
@@ -389,33 +384,35 @@ check_include(char *buf)
 					    , prev_path, strerror(errno));
 		}
 		free_strvec(strvec);
-		return 1;
+		return true;
 	}
+
 	free_strvec(strvec);
-	return 0;
+	return false;
 }
 
-int
-read_line(char *buf, int size)
+bool
+read_line(char *buf, size_t size)
 {
 	size_t len ;
 	bool eof = false;
 
 	do {
 		if (fgets(buf, size, current_stream)) {
-			for (len = strlen(buf) - 1; len >= 0; len--) {
-				if (buf[len] != '\r' && buf[len] != '\n')
-					break;
-				buf[len] = '\0';
-			}
+			len = strlen(buf);
+			if (len && (buf[len-1] == '\n' || buf[len-1] == '\r'))
+				buf[len-1] = '\0';
+			if (len > 1 && (buf[len-2] == '\n' || buf[len-2] == '\r'))
+				buf[len-2] = '\0';
 		}
 		else
 		{
 			eof = true;
 			buf[0] = '\0';
 		}
-	} while (check_include(buf) == 1);
-	return (eof) ? 0 : 1;
+	} while (check_include(buf));
+
+	return !eof;
 }
 
 vector_t *
@@ -478,7 +475,7 @@ read_value_block(vector_t *strvec)
 }
 
 void
-alloc_value_block(vector_t *strvec, void (*alloc_func) (vector_t *))
+alloc_value_block(void (*alloc_func) (vector_t *))
 {
 	char *buf;
 	char *str = NULL;
@@ -503,7 +500,6 @@ alloc_value_block(vector_t *strvec, void (*alloc_func) (vector_t *))
 	}
 	FREE(buf);
 }
-
 
 void *
 set_value(vector_t *strvec)

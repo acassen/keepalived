@@ -26,7 +26,11 @@ if WITH_VRRP
   VRRP_LIB		= vrrp/libvrrp.a
 endif
 
-SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR)
+if WITH_DBUS
+  DBUS_SUBDIR		= dbus
+endif
+
+SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR)
 
 EXTRA_DIST		= keepalived.service etc
 
@@ -35,17 +39,22 @@ keepalived_LDADD	= core/libcore.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 
 sysconfigdir		= $(sysconfdir)/sysconfig
-sysconfig_DATA		= etc/init.d/keepalived.sysconfig
+sysconfig_DATA		= etc/sysconfig/keepalived
 
 configdir		= $(sysconfdir)/@PACKAGE@
 config_DATA		= etc/keepalived/keepalived.conf
 
+if INIT_SYSV
 initdir			= $(sysconfdir)/rc.d/init.d
-init_DATA		= etc/init.d/keepalived.init
+init_DATA		= etc/init.d/keepalived
+endif
 
-systemddir		= $(prefix)/lib/systemd/system
+if INIT_SYSTEMD
+systemddir		= /lib/systemd/system
 systemd_DATA		= keepalived.service
+endif
 
-install-data-hook:
-	mv $(DESTDIR)/$(sysconfdir)/rc.d/init.d/keepalived.init $(DESTDIR)/$(sysconfdir)/rc.d/init.d/keepalived
-	mv $(DESTDIR)/$(sysconfdir)/sysconfig/keepalived.sysconfig $(DESTDIR)/$(sysconfdir)/sysconfig/keepalived
+if INIT_UPSTART
+initdir			= $(sysconfdir)/init
+init_DATA		= etc/init/keepalived.conf
+endif

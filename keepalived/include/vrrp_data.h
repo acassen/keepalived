@@ -44,9 +44,9 @@
 typedef struct _sock {
 	sa_family_t		family;
 	struct sockaddr_storage	saddr;
-	int			proto;
-	int			ifindex;
-	int			unicast;
+	unsigned int		proto;
+	unsigned int		ifindex;
+	bool			unicast;
 	int			fd_in;
 	int			fd_out;
 	thread_t		*thread;

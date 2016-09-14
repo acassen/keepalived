@@ -54,7 +54,7 @@ AH_BOTTOM(
 
 AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec \
 		 genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile doc/Makefile \
-		 bin_install/Makefile])
+		 bin_install/Makefile keepalived/dbus/Makefile])
 
 MAINTAINERCLEANFILES="*~ *.orig *.rej core core.*"
 AC_SUBST(MAINTAINERCLEANFILES)
@@ -90,6 +90,10 @@ AC_ARG_ENABLE(snmp-rfcv3,
   [  --enable-snmp-rfcv3     compile with SNMP RFC6257 (VRRPv3) support])
 AC_ARG_ENABLE(snmp-reply-v3-for-v2,
   [  --disable-snmp-reply-v3-for-v2 disable RFC6257 responses for VRRPv2 instances])
+AC_ARG_ENABLE(dbus,
+  [  --enable-dbus           compile with dbus support])
+AC_ARG_ENABLE(dbus-create-instance,
+  [  --enable-dbus-create-instance compile with dbus support for creating instances])
 AC_ARG_ENABLE(sha1,
   [  --enable-sha1           compile with SHA1 support])
 AC_ARG_ENABLE(vrrp-auth,
@@ -136,7 +140,7 @@ ARFLAGS=cr
 AC_SUBST(ARFLAGS)
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes"
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2"
 KA_LDFLAGS=
 KA_LIBS="-ldl"
 #KA_LIBTOOLFLAGS = 
@@ -269,22 +273,20 @@ NETLINK_VER=None
 IPVS_USE_NL=No
 AC_CHECK_LIB(nl-3, nl_socket_alloc,
   [
-    AC_CHECK_LIB(nl-genl-3, genl_connect,
-      [
-        IPVS_USE_NL=Yes
-        add_pkg_config([libnl-genl-3.0])
-      ],
-      [
-        AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])
-      ])
-    AC_CHECK_LIB(nl-route-3, nl_rtgen_request,
-      [
-        NETLINK_VER=3
-        AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
-        NL3_CFLAGS="$(pkg-config --cflags libnl-route-3.0)"
-        add_pkg_config([libnl-route-3.0])
-        add_build_opt([LIBNL3])
-      ])
+    NETLINK_VER=3
+    AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
+    add_build_opt([LIBNL3])
+    add_pkg_config([libnl-3.0])
+
+    AC_CHECK_LIB(nl-genl-3, genl_connect, [],
+      [AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])])
+    IPVS_USE_NL=Yes
+    add_pkg_config([libnl-genl-3.0])
+
+    AC_CHECK_LIB(nl-route-3, nl_rtgen_request, [],
+      [AC_MSG_ERROR([libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3.])])
+    NL3_CFLAGS="$(pkg-config --cflags libnl-route-3.0)"
+    add_pkg_config([libnl-route-3.0])
   ],
   [
     AC_CHECK_LIB(nl, nl_socket_modify_cb,
@@ -314,6 +316,8 @@ if test $NETLINK_VER != None; then
   AC_CHECK_HEADERS([linux/rtnetlink.h], [], [AC_MSG_ERROR([Unusable link/rtnetlink.h])], [$NETLINK_EXTRA_INCLUDE])
   AC_CHECK_HEADERS([libnfnetlink/libnfnetlink.h netlink/genl/ctrl.h netlink/genl/genl.h netlink/netlink.h], [], [AC_MSG_ERROR([netlink headers missing])])
 fi
+AM_CONDITIONAL([LIBNL1], [test $NETLINK_VER -eq 1])
+AM_CONDITIONAL([LIBNL3], [test $NETLINK_VER -eq 3])
 
 dnl -- Check for the following variables introduced at various times into Linux
 dnl --FRA_OIFNAME		dnl -- Linux 2.6.33
@@ -358,10 +362,8 @@ if test $NETLINK_VER = 3; then
       AC_DEFINE([_HAVE_IF_H_LINK_H_COLLISION_], [ 1 ], [Define to 1 if <net/if.h> and <netlink/route/link.h> namespace collision])
       add_build_opt([IF_H_LINK_H_COLLISION])
     ])
-fi
 
-dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
-if test $NETLINK_VER = 3; then
+  dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
   IPV4_DEVCONF=Yes
   CPPFLAGS="$kernelinc"
   AC_CHECK_DECLS([
@@ -510,7 +512,12 @@ if test "$enable_lvs" != no; then
   AC_DEFINE([_WITH_LVS_], [ 1 ], [Define to 1 if have IPVS support])
 
   dnl -- <linux/ip_vs.h> exists from 2.6.27; prior to that <net/ip_vs.h> is used
-  AC_CHECK_HEADERS([linux/ip_vs.h])
+  AC_CHECK_HEADERS([linux/ip_vs.h],
+    [
+      dnl -- From 2.6.35 (but CentOS has it in 2.6.32)
+      AC_CHECK_DECLS([IP_VS_SVC_F_ONEPACKET], [], [],
+        [[#include <linux/ip_vs.h>]])
+    ])
 
   if test $IPVS_USE_NL = Yes; then
     AC_DEFINE([LIBIPVS_USE_NL], [ 1 ], [Define to 1 if libipvs can use netlink])
@@ -775,6 +782,48 @@ AM_CONDITIONAL([SNMP_RFC], [test $SNMP_RFC_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_RFCV2], [test $SNMP_RFCV2_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_RFCV3], [test $SNMP_RFCV3_SUPPORT = Yes])
 
+dnl ----[ Check for Dbus support ]----
+DBUS_SUPPORT=No
+DBUS_CREATE_INSTANCE=No
+if test "$enable_dbus" = yes; then
+  AC_CHECK_LIB(gio-2.0, g_bus_own_name,
+    [
+      add_pkg_config([gio-2.0])
+      DBUS_SUPPORT=Yes
+      AC_DEFINE([_WITH_DBUS_], [ 1 ], [Define to 1 to have DBUS support])
+      add_build_opt([DBUS])
+
+      dnl -- g_type_init() not needed and deprecated since glib 2.36
+      CFLAGS="$(pkg-config --cflags gio-2.0)"
+      LIBS="$(pkg-config --libs gio-2.0)"
+      AC_RUN_IFELSE(
+        [
+          AC_LANG_PROGRAM(
+            [[#include <gio/gio.h>]],
+	    [[return !g_thread_functions_for_glib_use.mutex_lock;]])],
+	[need_g_type_init=0],
+        [need_g_type_init=1],
+        [
+          AC_MSG_WARN([Cannot determine if need to call g_type_init(). Assuming yes for safety.])
+          need_g_type_init=1
+        ])
+      if test $need_g_type_init -eq 1; then
+        AC_DEFINE([DBUS_NEED_G_TYPE_INIT], [ 1 ], [Define to 1 if need to call g_type_init()])
+      fi
+      LIBS=
+      CFLAGS=
+      if test "$enable_dbus_create_instance" = yes; then
+        AC_DEFINE([_WITH_DBUS_CREATE_INSTANCE_], [ 1 ], [Define to 1 to have DBus create instance support])
+        DBUS_CREATE_INSTANCE=Yes
+        add_build_opt([DBUS_CREATE_INSTANCE])
+        AC_MSG_WARN([DBus create instance functionality is dangerous - why do you want it?])
+      fi
+    ],
+    [AC_MSG_ERROR([DBUS support requested but libgio-2.0 not found.])])
+fi
+AM_CONDITIONAL([WITH_DBUS], [test $DBUS_SUPPORT = Yes])
+AM_CONDITIONAL([DBUS_CREATE_INSTANCE], [test $DBUS_CREATE_INSTANCE = Yes])
+
 dnl ----[ SHA1 or not ? ]----
 SHA1_SUPPORT=No
 if test "${enable_sha1}" = yes; then
@@ -783,6 +832,7 @@ if test "${enable_sha1}" = yes; then
   SHA1_SUPPORT=Yes
   AC_DEFINE([_WITH_SHA1_], [ 1 ], [Define to 1 to have SHA1 support])
 fi
+AM_CONDITIONAL([WITH_SHA1], [test $SHA1_SUPPORT = Yes])
 
 dnl ----[ check for SO_MARK support ]----
 SO_MARK_SUPPORT=No
@@ -836,6 +886,7 @@ if test "${enable_debug}" = yes; then
 else
   ENABLE_DEBUG=No
 fi
+AM_CONDITIONAL([DEBUG], [test $ENABLE_DEBUG = Yes])
 
 dnl ----[ Stacktrace support or not ? ]----
 if test "${enable_stacktrace}" = yes; then
@@ -848,11 +899,35 @@ else
 fi
 
 dnl ----[ Profiling or not ? ]----
+WITH_PROFILING=No
 if test "${enable_profile}" = yes; then
+  WITH_PROFILING=Yes
   add_to_var([KA_CFLAGS], [-pg])
 fi
+AM_CONDITIONAL([PROFILE], [test $WITH_PROFILING = Yes])
 
+dnl ----[ Determine system init type]----
+INIT_TYPE=
+/sbin/init --version 2>/dev/null | grep -q upstart
+if test $? -eq 0; then
+        INIT_TYPE=upstart
+else
+	if test \( `which systemctl` -a -x `which systemctl` \); then
+		systemctl | grep -q -- "-\.mount"
+		if test $? -eq 0; then
+			INIT_TYPE=systemd
+		fi
+	fi
+	if test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \); then
+		INIT_TYPE=SYSV
+	fi
+fi
+if test -z $INIT_TYPE; then INIT_TYPE=undetected; fi
+AM_CONDITIONAL([INIT_UPSTART], [test $INIT_TYPE = upstart])
+AM_CONDITIONAL([INIT_SYSTEMD], [test $INIT_TYPE = systemd])
+AM_CONDITIONAL([INIT_SYSV], [test $INIT_TYPE = SYSV])
 
+echo $INIT_TYPE
 VERSION_DATE=`date +%m/%d,%Y`
 VERSION_YEAR=`date +%Y`
 
@@ -902,6 +977,10 @@ echo "SNMP RFCv3 support       : ${SNMP_RFCV3_SUPPORT}"
 if test ${SNMP_RFCV3_SUPPORT} = Yes; then
   echo "SNMP send V3 for V2      : ${SNMP_V3_FOR_V2}"
 fi
+echo "DBUS support             : ${DBUS_SUPPORT}"
+if test ${DBUS_SUPPORT} = Yes; then
+  echo "DBUS create instance     : ${DBUS_CREATE_INSTANCE}"
+fi
 echo "SHA1 support             : ${SHA1_SUPPORT}"
 echo "Use Debug flags          : ${ENABLE_DEBUG}"
 echo "Stacktrace support       : ${ENABLE_STACKTRACE}"
@@ -913,6 +992,7 @@ echo "libnl version            : ${NETLINK_VER}"
 echo "Use IPv4 devconf         : ${IPV4_DEVCONF}"
 echo "Use libiptc              : ${USE_LIBIPTC}"
 echo "Use libipset             : ${USE_LIBIPSET}"
+echo "init type                : ${INIT_TYPE}"
 echo "Build genhash            : ${BUILD_GENHASH}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
 

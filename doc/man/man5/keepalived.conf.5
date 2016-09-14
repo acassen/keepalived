@@ -159,6 +159,9 @@ and
  enable_snmp_rfcv2            # enable SNMP handling of RFC2787 VRRP MIB
  enable_snmp_rfcv3            # enable SNMP handling of RFC6527 VRRP MIB
  enable_traps                 # enable SNMP traps
+
+ # If Keepalived has been build with DBus support, the following keyword is available
+ enable_dbus                  # enable the DBus interface
  }
 
  # For running keepalived in a separate network namespace
@@ -562,6 +565,19 @@ A virtual_server can be a declaration of one of
 
     # LVS scheduler
     lb_algo rr|wrr|lc|wlc|lblc|sh|dh
+    
+    # Enable hashed entry
+    hashed
+    # Enable flag-1 for scheduler (-b flag-1 in ipvsadm)
+    flag-1
+    # Enable flag-2 for scheduler (-b flag-2 in ipvsadm)
+    flag-2
+    # Enable flag-3 for scheduler (-b flag-3 in ipvsadm)
+    flag-3
+    # Enable sh-port for sh scheduler (-b sh-port in ipvsadm)
+    sh-port
+    # Enable sh-fallback for sh scheduler  (-b sh-fallback in ipvsadm)
+    sh-fallback
     # Enable One-Packet-Scheduling for UDP (-O in ipvsadm)
     ops
     # LVS forwarding method

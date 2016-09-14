@@ -206,44 +206,50 @@ vrrp_init_state(list l)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-		/* In case of VRRP SYNC, we have to carefully check that we are
-		 * not running floating priorities on any VRRP instance.
-		 */
-		if (vrrp->sync && !vrrp->sync->global_tracking) {
-			element e2;
-			tracked_sc_t *sc;
-			tracked_if_t *tip;
-			int warning = 0;
+		/* The effective priority is never changed for PRIO_OWNER */
+		if (vrrp->base_priority != VRRP_PRIO_OWNER) {
+			/* In case of VRRP SYNC, we have to carefully check that we are
+			 * not running floating priorities on any VRRP instance, or they
+			 * are all running with the same tracking conf.
+			 */
+			if (vrrp->sync && !vrrp->sync->global_tracking) {
+				element e2;
+				tracked_sc_t *sc;
+				tracked_if_t *tip;
+				bool int_warning = false;
+				bool script_warning = false;
 
-			if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-				for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
-					tip = ELEMENT_DATA(e2);
-					if (tip->weight) {
-						tip->weight = 0;
-						warning++;
+				if (!LIST_ISEMPTY(vrrp->track_ifp)) {
+					for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
+						tip = ELEMENT_DATA(e2);
+						if (tip->weight) {
+							tip->weight = 0;
+							int_warning = true;
+						}
 					}
 				}
-			}
 
-			if (!LIST_ISEMPTY(vrrp->track_script)) {
-				for (e2 = LIST_HEAD(vrrp->track_script); e2; ELEMENT_NEXT(e2)) {
-					sc = ELEMENT_DATA(e2);
-					if (sc->weight) {
-						sc->scr->inuse--;
-						warning++;
+				if (!LIST_ISEMPTY(vrrp->track_script)) {
+					for (e2 = LIST_HEAD(vrrp->track_script); e2; ELEMENT_NEXT(e2)) {
+						sc = ELEMENT_DATA(e2);
+						if (sc->weight) {
+							sc->scr->inuse--;
+							script_warning = true;
+						}
 					}
 				}
-			}
 
-			if (warning > 0) {
-				log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring "
-						 "tracked script with weights due to SYNC group",
-				       vrrp->iname);
+				if (int_warning)
+					log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring weights of "
+							 "tracked interface due to SYNC group", vrrp->iname);
+				if (script_warning)
+					log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring "
+							 "tracked script with weights due to SYNC group", vrrp->iname);
+			} else {
+				/* Register new priority update thread */
+				thread_add_timer(master, vrrp_update_priority,
+						 vrrp, vrrp->master_adver_int);
 			}
-		} else {
-			/* Register new priority update thread */
-			thread_add_timer(master, vrrp_update_priority,
-					 vrrp, vrrp->adver_int);
 		}
 
 		if (vrrp->wantstate == VRRP_STATE_MAST
@@ -329,14 +335,14 @@ vrrp_init_script(list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vscript = ELEMENT_DATA(e);
-		if (vscript->inuse == 0)
+		if (!vscript->inuse)
 			vscript->result = VRRP_SCRIPT_STATUS_DISABLED;
+		else {
+			if (vscript->result == VRRP_SCRIPT_STATUS_INIT)
+				vscript->result = vscript->rise - 1; /* one success is enough */
+			else if (vscript->result == VRRP_SCRIPT_STATUS_INIT_GOOD)
+				vscript->result = vscript->rise; /* one failure is enough */
 
-		if (vscript->result == VRRP_SCRIPT_STATUS_INIT) {
-			vscript->result = vscript->rise - 1; /* one success is enough */
-			thread_add_event(master, vrrp_script_thread, vscript, vscript->interval);
-		} else if (vscript->result == VRRP_SCRIPT_STATUS_INIT_GOOD) {
-			vscript->result = vscript->rise; /* one failure is enough */
 			thread_add_event(master, vrrp_script_thread, vscript, vscript->interval);
 		}
 	}
@@ -438,7 +444,7 @@ vrrp_register_workers(list l)
 
 /* VRRP dispatcher functions */
 static int
-already_exist_sock(list l, sa_family_t family, int proto, int ifindex, int unicast)
+already_exist_sock(list l, sa_family_t family, unsigned int proto, unsigned int ifindex, bool unicast)
 {
 	sock_t *sock;
 	element e;
@@ -455,7 +461,7 @@ already_exist_sock(list l, sa_family_t family, int proto, int ifindex, int unica
 }
 
 static void
-alloc_sock(sa_family_t family, list l, int proto, int ifindex, int unicast)
+alloc_sock(sa_family_t family, list l, unsigned int proto, unsigned int ifindex, bool unicast)
 {
 	sock_t *new;
 
@@ -474,7 +480,8 @@ vrrp_create_sockpool(list l)
 	vrrp_t *vrrp;
 	list p = vrrp_data->vrrp;
 	element e;
-	int ifindex, proto, unicast;
+	unsigned int ifindex, proto;
+	bool unicast;
 
 	for (e = LIST_HEAD(p); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
@@ -523,7 +530,8 @@ vrrp_set_fds(list l)
 	list p = vrrp_data->vrrp;
 	element e_sock;
 	element e_vrrp;
-	int proto, ifindex, unicast;
+	unsigned int proto, ifindex;
+	bool unicast;
 
 	for (e_sock = LIST_HEAD(l); e_sock; ELEMENT_NEXT(e_sock)) {
 		sock = ELEMENT_DATA(e_sock);
@@ -543,7 +551,7 @@ vrrp_set_fds(list l)
 				proto = IPPROTO_VRRP;
 
 			if ((sock->ifindex == ifindex)	&&
-		(sock->family == vrrp->family) &&
+			    (sock->family == vrrp->family) &&
 			    (sock->proto == proto)	&&
 			    (sock->unicast == unicast)) {
 				vrrp->fd_in = sock->fd_in;
@@ -571,7 +579,7 @@ vrrp_set_fds(list l)
  * multiplexing points.
  */
 int
-vrrp_dispatcher_init(thread_t * thread)
+vrrp_dispatcher_init(__attribute__((unused)) thread_t * thread)
 {
 	/* create the VRRP socket pool list */
 	vrrp_create_sockpool(vrrp_data->vrrp_socket_pool);
@@ -630,7 +638,7 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, int len)
 }
 
 static void
-vrrp_become_master(vrrp_t * vrrp, char *buffer, int len)
+vrrp_become_master(vrrp_t * vrrp, char *buffer, __attribute__((unused)) int len)
 {
 	struct iphdr *iph;
 	ipsec_ah_t *ah;
@@ -798,7 +806,9 @@ vrrp_set_effective_priority(vrrp_t *vrrp, int new_prio)
 
 
 /* Update VRRP effective priority based on multiple checkers.
- * This is a thread which is executed every adver_int.
+ * This is a thread which is executed every master_adver_int
+ * unless the vrrp instance is part of a sync group and there
+ * isn't global tracking for the group.
  */
 static int
 vrrp_update_priority(thread_t * thread)
@@ -810,29 +820,24 @@ vrrp_update_priority(thread_t * thread)
 	prio_offset = 0;
 
 	/* Now we will sum the weights of all interfaces which are tracked. */
-	if ((!vrrp->sync || vrrp->sync->global_tracking) && !LIST_ISEMPTY(vrrp->track_ifp))
+	if (!LIST_ISEMPTY(vrrp->track_ifp))
 		 prio_offset += vrrp_tracked_weight(vrrp->track_ifp);
 
 	/* Now we will sum the weights of all scripts which are tracked. */
-	if ((!vrrp->sync || vrrp->sync->global_tracking) && !LIST_ISEMPTY(vrrp->track_script))
+	if (!LIST_ISEMPTY(vrrp->track_script))
 		prio_offset += vrrp_script_weight(vrrp->track_script);
 
-	if (vrrp->base_priority == VRRP_PRIO_OWNER) {
-		/* we will not run a PRIO_OWNER into a non-PRIO_OWNER */
-		vrrp_set_effective_priority(vrrp, VRRP_PRIO_OWNER);
-	} else {
-		/* WARNING! we must compute new_prio on a signed int in order
-		   to detect overflows and avoid wrapping. */
-		new_prio = vrrp->base_priority + prio_offset;
-		if (new_prio < 1)
-			new_prio = 1;
-		else if (new_prio >= VRRP_PRIO_OWNER)
-			new_prio = VRRP_PRIO_OWNER - 1;
-		vrrp_set_effective_priority(vrrp, new_prio);
-	}
+	/* WARNING! we must compute new_prio on a signed int in order
+	   to detect overflows and avoid wrapping. */
+	new_prio = vrrp->base_priority + prio_offset;
+	if (new_prio < 1)
+		new_prio = 1;
+	else if (new_prio >= VRRP_PRIO_OWNER)
+		new_prio = VRRP_PRIO_OWNER - 1;
+	vrrp_set_effective_priority(vrrp, new_prio);
 
 	/* Register next priority update thread */
-	thread_add_timer(master, vrrp_update_priority, vrrp, vrrp->adver_int);
+	thread_add_timer(master, vrrp_update_priority, vrrp, vrrp->master_adver_int);
 	return 0;
 }
 
@@ -981,7 +986,9 @@ vrrp_dispatcher_read(sock_t * sock)
 {
 	vrrp_t *vrrp;
 	vrrphdr_t *hd;
-	int len = 0, prev_state = 0, proto = 0;
+	ssize_t len = 0;
+	int prev_state = 0;
+	unsigned proto = 0;
 	struct sockaddr_storage src_addr;
 	socklen_t src_addr_len = sizeof(src_addr);
 
@@ -1134,8 +1141,9 @@ vrrp_script_child_timeout_thread(thread_t * thread)
 	pid = THREAD_CHILD_PID(thread);
 	if (kill(pid, SIGKILL) < 0) {
 		/* Its possible it finished while we're handing this */
-		if (errno != ESRCH)
+		if (errno != ESRCH) {
 			DBG("kill error: %s", strerror(errno));
+		}
 		return 0;
 	}
 

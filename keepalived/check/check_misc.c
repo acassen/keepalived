@@ -63,7 +63,7 @@ dump_misc_check(void *data)
 }
 
 static void
-misc_check_handler(vector_t *strvec)
+misc_check_handler(__attribute__((unused)) vector_t *strvec)
 {
 	misc_checker_t *misck_checker = (misc_checker_t *) MALLOC(sizeof (misc_checker_t));
 
@@ -87,7 +87,7 @@ misc_timeout_handler(vector_t *strvec)
 }
 
 static void
-misc_dynamic_handler(vector_t *strvec)
+misc_dynamic_handler(__attribute__((unused)) vector_t *strvec)
 {
 	misc_checker_t *misck_checker = CHECKER_GET();
 	misck_checker->dynamic = 1;
@@ -227,8 +227,9 @@ misc_check_child_timeout_thread(thread_t * thread)
 	pid = THREAD_CHILD_PID(thread);
 	if (kill(pid, SIGKILL) < 0) {
 		/* Its possible it finished while we're handing this */
-		if (errno != ESRCH)
+		if (errno != ESRCH) {
 			DBG("kill error: %s", strerror(errno));
+		}
 		return 0;
 	}
 

@@ -42,7 +42,7 @@
 
 /* SSL handlers */
 static void
-ssl_handler(vector_t *strvec)
+ssl_handler(__attribute__((unused)) vector_t *strvec)
 {
 	check_data->ssl = alloc_ssl();
 }
@@ -73,7 +73,7 @@ vsg_handler(vector_t *strvec)
 {
 	/* Fetch queued vsg */
 	alloc_vsg(vector_slot(strvec, 1));
-	alloc_value_block(strvec, alloc_vsg_entry);
+	alloc_value_block(alloc_vsg_entry);
 }
 static void
 vs_handler(vector_t *strvec)
@@ -121,6 +121,39 @@ lbalgo_handler(vector_t *strvec)
 
 	memcpy(vs->sched, str, size);
 }
+
+static void
+lbflags_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	char *str = vector_slot(strvec, 0);
+
+	if (!strcmp(str, "hashed"))
+		vs->flags |= IP_VS_SVC_F_HASHED;
+#ifdef IP_VS_SVC_F_ONEPACKET
+	else if (!strcmp(str, "ops"))
+		vs->flags |= IP_VS_SVC_F_ONEPACKET;
+#endif
+#ifdef IP_VS_SVC_F_SCHED1		/* From Linux 3.11 */
+	else if (!strcmp(str, "flag-1"))
+		vs->flags |= IP_VS_SVC_F_SCHED1;
+	else if (!strcmp(str, "flag-2"))
+		vs->flags |= IP_VS_SVC_F_SCHED2;
+	else if (!strcmp(str, "flag-3"))
+		vs->flags |= IP_VS_SVC_F_SCHED3;
+	else if (!strcmp(vs->sched , "sh") )
+	{
+		/* sh-port and sh-fallback flags are relevant for sh scheduler only */
+		if (!strcmp(str, "sh-port")  )
+			vs->flags |= IP_VS_SVC_F_SCHED_SH_PORT;
+		if (!strcmp(str, "sh-fallback"))
+			vs->flags |= IP_VS_SVC_F_SCHED_SH_FALLBACK;
+	}
+	else
+		log_message(LOG_INFO, "%s only applies to sh scheduler - ignoring", str);
+#endif
+}
+
 static void
 lbkind_handler(vector_t *strvec)
 {
@@ -203,17 +236,12 @@ proto_handler(vector_t *strvec)
 		log_message(LOG_INFO, "Unknown protocol %s - ignoring", str);
 }
 static void
-hasuspend_handler(vector_t *strvec)
+hasuspend_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->ha_suspend = 1;
 }
-static void
-ops_handler(vector_t *strvec)
-{
-	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->ops = 1;
-}
+
 static void
 virtualhost_handler(vector_t *strvec)
 {
@@ -228,7 +256,7 @@ ssvr_handler(vector_t *strvec)
 	alloc_ssvr(vector_slot(strvec, 1), vector_slot(strvec, 2));
 }
 static void
-ssvri_handler(vector_t *strvec)
+ssvri_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->s_svr) {
@@ -267,7 +295,7 @@ lthreshold_handler(vector_t *strvec)
 	rs->l_threshold = atoi(vector_slot(strvec, 1));
 }
 static void
-inhibit_handler(vector_t *strvec)
+inhibit_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -288,14 +316,14 @@ notify_down_handler(vector_t *strvec)
 	rs->notify_down = set_value(strvec);
 }
 static void
-alpha_handler(vector_t *strvec)
+alpha_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->alpha = 1;
 	vs->quorum_state = DOWN;
 }
 static void
-omega_handler(vector_t *strvec)
+omega_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->omega = 1;
@@ -356,6 +384,18 @@ init_check_keywords(bool active)
 	install_keyword("delay_loop", &delay_handler);
 	install_keyword("lb_algo", &lbalgo_handler);
 	install_keyword("lvs_sched", &lbalgo_handler);
+
+	install_keyword("hashed", &lbflags_handler);
+#ifdef IP_VS_SVC_F_ONEPACKET
+	install_keyword("ops", &lbflags_handler);
+#endif
+#ifdef IP_VS_SVC_F_SCHED1
+	install_keyword("flag-1", &lbflags_handler);
+	install_keyword("flag-2", &lbflags_handler);
+	install_keyword("flag-3", &lbflags_handler);
+	install_keyword("sh-port", &lbflags_handler);
+	install_keyword("sh-fallback", &lbflags_handler);
+#endif
 	install_keyword("lb_kind", &lbkind_handler);
 	install_keyword("lvs_method", &lbkind_handler);
 #ifdef IPVS_SVC_ATTR_PE_NAME
@@ -365,7 +405,6 @@ init_check_keywords(bool active)
 	install_keyword("persistence_granularity", &pgr_handler);
 	install_keyword("protocol", &proto_handler);
 	install_keyword("ha_suspend", &hasuspend_handler);
-	install_keyword("ops", &ops_handler);
 	install_keyword("virtualhost", &virtualhost_handler);
 
 	/* Pool regression detection and handling. */

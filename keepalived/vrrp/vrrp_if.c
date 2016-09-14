@@ -69,7 +69,7 @@ list garp_delay;
 /* Helper functions */
 /* Return interface from interface index */
 interface_t *
-if_get_by_ifindex(const int ifindex)
+if_get_by_ifindex(const unsigned int ifindex)
 {
 	interface_t *ifp;
 	element e;
@@ -87,7 +87,7 @@ if_get_by_ifindex(const int ifindex)
 
 /* Return base interface from interface index incase of VMAC */
 interface_t *
-base_if_get_by_ifindex(const int ifindex)
+base_if_get_by_ifindex(const unsigned int ifindex)
 {
 	interface_t *ifp = if_get_by_ifindex(ifindex);
 
@@ -150,7 +150,7 @@ reset_interface_queue(void)
  * by the base interface flags.
  */
 void
-if_vmac_reflect_flags(const int ifindex, const unsigned long flags)
+if_vmac_reflect_flags(const unsigned ifindex, const unsigned long flags)
 {
 	interface_t *ifp;
 	element e;
@@ -377,10 +377,9 @@ set_default_garp_delay(void)
 		ifp = ELEMENT_DATA(e);
 		if (!ifp->garp_delay
 #ifdef _HAVE_VRRP_VMAC_
-				     && !ifp->vmac)
-#else
-)
+				     && !ifp->vmac
 #endif
+						  )
 		{
 			alloc_garp_delay();
 			delay = LIST_TAIL_DATA(garp_delay);
@@ -572,7 +571,7 @@ init_interface_linkbeat(void)
 }
 
 int
-if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp, int proto)
+if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp)
 {
 	struct ip_mreqn imr;
 	struct ipv6_mreq imr6;

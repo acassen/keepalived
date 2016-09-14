@@ -93,7 +93,7 @@ tcp_connect(int fd, struct sockaddr_storage *addr)
 }
 
 enum connect_result
-tcp_socket_state(int fd, thread_t * thread, int (*func) (thread_t *))
+tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
 {
 	int status;
 	socklen_t addrlen;

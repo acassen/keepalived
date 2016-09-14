@@ -232,7 +232,7 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname, bool f
 
 /* add/remove iptable drop rule to VIP */
 static void
-handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void *unused, bool force)
+handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, __attribute__((unused)) void *unused, bool force)
 {
 	char  *argv[10];
 	unsigned int i = 0;
@@ -444,8 +444,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			new->ifa.ifa_index = IF_INDEX(ifp_local);
 			new->ifp = ifp_local;
 		} else if (!strcmp(str, "scope")) {
-			find_rttables_scope(vector_slot(strvec, ++i), &scope);
-			if (scope == -1)
+			if (!find_rttables_scope(vector_slot(strvec, ++i), &scope))
 				log_message(LOG_INFO, "Invalid scope '%s' specified for %s - ignoring", FMT_STR_VSLOT(strvec,i), FMT_STR_VSLOT(strvec, addr_idx));
 			else
 				new->ifa.ifa_scope = scope;

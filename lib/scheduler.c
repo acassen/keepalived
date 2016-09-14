@@ -213,13 +213,6 @@ thread_destroy_list(thread_master_t * m, thread_list_t thread_list)
 		t = thread;
 		thread = t->next;
 
-		if (t->type == THREAD_READY_FD ||
-		    t->type == THREAD_READ ||
-		    t->type == THREAD_WRITE ||
-		    t->type == THREAD_READ_TIMEOUT ||
-		    t->type == THREAD_WRITE_TIMEOUT)
-			close (t->u.fd);
-
 		thread_list_delete(&thread_list, t);
 		t->type = THREAD_UNUSED;
 		thread_add_unuse(m, t);
@@ -765,7 +758,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 
 /* Synchronous signal handler to reap child processes */
 static void
-thread_child_handler(void * v, int sig)
+thread_child_handler(void * v, __attribute__ ((unused)) int unused)
 {
 	thread_master_t * m = v;
 

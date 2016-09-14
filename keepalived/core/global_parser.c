@@ -51,7 +51,7 @@
 /* data handlers */
 /* Global def handlers */
 static void
-use_polling_handler(vector_t *strvec)
+use_polling_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->linkbeat_use_polling = true;
 }
@@ -141,7 +141,7 @@ static void
 lvs_timeouts(vector_t *strvec)
 {
 	int val;
-	int i;
+	size_t i;
 	char *endptr;
 
 	if (vector_size(strvec) < 3) {
@@ -197,7 +197,7 @@ static void
 lvs_syncd_handler(vector_t *strvec)
 {
 	int val;
-	int i;
+	size_t i;
 	char *endptr;
 
 	if (global_data->lvs_syncd.ifname) {
@@ -308,7 +308,7 @@ lvs_syncd_handler(vector_t *strvec)
 }
 #endif
 static void
-lvs_flush_handler(vector_t *strvec)
+lvs_flush_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->lvs_flush = true;
 }
@@ -485,17 +485,17 @@ vrrp_version_handler(vector_t *strvec)
 	global_data->vrrp_version = version;
 }
 static void
-vrrp_check_unicast_src_handler(vector_t *strvec)
+vrrp_check_unicast_src_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->vrrp_check_unicast_src = 1;
 }
 static void
-vrrp_check_adv_addr_handler(vector_t *strvec)
+vrrp_check_adv_addr_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->vrrp_skip_check_adv_addr = 1;
 }
 static void
-vrrp_strict_handler(vector_t *strvec)
+vrrp_strict_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->vrrp_strict = 1;
 }
@@ -518,7 +518,7 @@ vrrp_prio_handler(vector_t *strvec)
 	global_data->vrrp_process_priority = priority;
 }
 static void
-vrrp_no_swap_handler(vector_t *strvec)
+vrrp_no_swap_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->vrrp_no_swap = true;
 }
@@ -543,7 +543,7 @@ checker_prio_handler(vector_t *strvec)
 	global_data->checker_process_priority = priority;
 }
 static void
-checker_no_swap_handler(vector_t *strvec)
+checker_no_swap_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->checker_no_swap = true;
 }
@@ -576,20 +576,20 @@ snmp_socket_handler(vector_t *strvec)
 	strcpy(global_data->snmp_socket, vector_slot(strvec,1));
 }
 static void
-trap_handler(vector_t *strvec)
+trap_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->enable_traps = true;
 }
 #ifdef _WITH_SNMP_KEEPALIVED_
 static void
-snmp_keepalived_handler(vector_t *strvec)
+snmp_keepalived_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->enable_snmp_keepalived = true;
 }
 #endif
 #ifdef _WITH_SNMP_RFC_
 static void
-snmp_rfc_handler(vector_t *strvec)
+snmp_rfc_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->enable_snmp_rfcv2 = true;
 	global_data->enable_snmp_rfcv3 = true;
@@ -597,21 +597,21 @@ snmp_rfc_handler(vector_t *strvec)
 #endif
 #ifdef _WITH_SNMP_RFCV2_
 static void
-snmp_rfcv2_handler(vector_t *strvec)
+snmp_rfcv2_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->enable_snmp_rfcv2 = true;
 }
 #endif
 #ifdef _WITH_SNMP_RFCV3_
 static void
-snmp_rfcv3_handler(vector_t *strvec)
+snmp_rfcv3_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->enable_snmp_rfcv3 = true;
 }
 #endif
 #ifdef _WITH_SNMP_CHECKER_
 static void
-snmp_checker_handler(vector_t *strvec)
+snmp_checker_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->enable_snmp_checker = true;
 }
@@ -651,6 +651,13 @@ net_namespace_handler(vector_t *strvec)
 #endif
 }
 #endif
+#ifdef _WITH_DBUS_
+static void
+enable_dbus_handler(__attribute__((unused)) vector_t *strvec)
+{
+	global_data->enable_dbus = true;
+}
+#endif
 
 static void
 instance_handler(vector_t *strvec)
@@ -666,7 +673,7 @@ instance_handler(vector_t *strvec)
 }
 
 static void
-use_pid_dir_handler(vector_t *strvec)
+use_pid_dir_handler(__attribute__((unused)) vector_t *strvec)
 {
 	use_pid_dir = true;
 }
@@ -741,5 +748,8 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_SNMP_CHECKER_
 	install_keyword("enable_snmp_checker", &snmp_checker_handler);
 #endif
+#endif
+#ifdef _WITH_DBUS_
+	install_keyword("enable_dbus", &enable_dbus_handler);
 #endif
 }

@@ -47,7 +47,7 @@ REQ *req = NULL;
 
 /* Terminate handler */
 static void
-sigend(void *v, int sig)
+sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	/* register the terminate thread */
 	thread_add_terminate_event(master);

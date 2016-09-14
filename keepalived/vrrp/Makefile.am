@@ -34,6 +34,11 @@ if VRRP_AUTH
   EXTRA_libvrrp_a_SOURCES += vrrp_ipsecah.c
 endif
 
+if WITH_DBUS
+  libvrrp_a_LIBADD	+= vrrp_dbus.o
+  EXTRA_libvrrp_a_SOURCES += vrrp_dbus.c
+endif
+
 if FIB_ROUTING
   libvrrp_a_LIBADD	+= vrrp_iproute.o vrrp_iprule.o vrrp_ip_rule_route_parser.o
   EXTRA_libvrrp_a_SOURCES += vrrp_iproute.c vrrp_iprule.c vrrp_ip_rule_route_parser.c
