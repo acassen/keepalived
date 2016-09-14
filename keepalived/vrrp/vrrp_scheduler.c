@@ -652,7 +652,11 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 }
 
 static void
-vrrp_become_master(vrrp_t * vrrp, char *buffer, __attribute__((unused)) ssize_t len)
+vrrp_become_master(vrrp_t * vrrp,
+#ifndef _WITH_VRRP_AUTH_
+				  __attribute__((unused))
+#endif
+							  char *buffer, __attribute__((unused)) ssize_t len)
 {
 #ifdef _WITH_VRRP_AUTH_
 	struct iphdr *iph;

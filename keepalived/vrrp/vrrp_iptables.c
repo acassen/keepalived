@@ -319,16 +319,16 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, struc
 			IPPROTO_NONE, 0, cmd, force);
 }
 
+#ifdef _HAVE_LIBIPSET_
 static void
 iptables_remove_structure(bool ignore_errors)
 {
-#ifdef _HAVE_LIBIPSET_
 	if (global_data->using_ipsets) {
 		add_del_rules(IPADDRESS_DEL, ignore_errors);
 		add_del_sets(IPADDRESS_DEL);
 	}
-#endif
 }
+#endif
 
 void
 iptables_startup(void)
@@ -351,7 +351,9 @@ iptables_startup(void)
 void
 iptables_cleanup(void)
 {
+#ifdef _HAVE_LIBIPSET_
 	iptables_remove_structure(true);
+#endif
 }
 
 bool
@@ -371,5 +373,7 @@ iptables_init(void)
 void
 iptables_fini(void)
 {
+#ifdef _HAVE_LIBIPSET_
 	iptables_remove_structure(false);
+#endif
 }
