@@ -316,6 +316,8 @@ if test $NETLINK_VER != None; then
   AC_CHECK_HEADERS([linux/rtnetlink.h], [], [AC_MSG_ERROR([Unusable link/rtnetlink.h])], [$NETLINK_EXTRA_INCLUDE])
   AC_CHECK_HEADERS([libnfnetlink/libnfnetlink.h netlink/genl/ctrl.h netlink/genl/genl.h netlink/netlink.h], [], [AC_MSG_ERROR([netlink headers missing])])
 fi
+AM_CONDITIONAL([LIBNL1], [test $NETLINK_VER -eq 1])
+AM_CONDITIONAL([LIBNL3], [test $NETLINK_VER -eq 3])
 
 dnl -- Check for the following variables introduced at various times into Linux
 dnl --FRA_OIFNAME		dnl -- Linux 2.6.33
@@ -360,10 +362,8 @@ if test $NETLINK_VER = 3; then
       AC_DEFINE([_HAVE_IF_H_LINK_H_COLLISION_], [ 1 ], [Define to 1 if <net/if.h> and <netlink/route/link.h> namespace collision])
       add_build_opt([IF_H_LINK_H_COLLISION])
     ])
-fi
 
-dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
-if test $NETLINK_VER = 3; then
+  dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
   IPV4_DEVCONF=Yes
   CPPFLAGS="$kernelinc"
   AC_CHECK_DECLS([
@@ -832,6 +832,7 @@ if test "${enable_sha1}" = yes; then
   SHA1_SUPPORT=Yes
   AC_DEFINE([_WITH_SHA1_], [ 1 ], [Define to 1 to have SHA1 support])
 fi
+AM_CONDITIONAL([WITH_SHA1], [test $SHA1_SUPPORT = Yes])
 
 dnl ----[ check for SO_MARK support ]----
 SO_MARK_SUPPORT=No
@@ -885,6 +886,7 @@ if test "${enable_debug}" = yes; then
 else
   ENABLE_DEBUG=No
 fi
+AM_CONDITIONAL([DEBUG], [test $ENABLE_DEBUG = Yes])
 
 dnl ----[ Stacktrace support or not ? ]----
 if test "${enable_stacktrace}" = yes; then
@@ -897,11 +899,35 @@ else
 fi
 
 dnl ----[ Profiling or not ? ]----
+WITH_PROFILING=No
 if test "${enable_profile}" = yes; then
+  WITH_PROFILING=Yes
   add_to_var([KA_CFLAGS], [-pg])
 fi
+AM_CONDITIONAL([PROFILE], [test $WITH_PROFILING = Yes])
 
+dnl ----[ Determine system init type]----
+INIT_TYPE=
+/sbin/init --version 2>/dev/null | grep -q upstart
+if test $? -eq 0; then
+        INIT_TYPE=upstart
+else
+	if test \( `which systemctl` -a -x `which systemctl` \); then
+		systemctl | grep -q -- "-\.mount"
+		if test $? -eq 0; then
+			INIT_TYPE=systemd
+		fi
+	fi
+	if test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \); then
+		INIT_TYPE=SYSV
+	fi
+fi
+if test -z $INIT_TYPE; then INIT_TYPE=undetected; fi
+AM_CONDITIONAL([INIT_UPSTART], [test $INIT_TYPE = upstart])
+AM_CONDITIONAL([INIT_SYSTEMD], [test $INIT_TYPE = systemd])
+AM_CONDITIONAL([INIT_SYSV], [test $INIT_TYPE = SYSV])
 
+echo $INIT_TYPE
 VERSION_DATE=`date +%m/%d,%Y`
 VERSION_YEAR=`date +%Y`
 
@@ -966,6 +992,7 @@ echo "libnl version            : ${NETLINK_VER}"
 echo "Use IPv4 devconf         : ${IPV4_DEVCONF}"
 echo "Use libiptc              : ${USE_LIBIPTC}"
 echo "Use libipset             : ${USE_LIBIPSET}"
+echo "init type                : ${INIT_TYPE}"
 echo "Build genhash            : ${BUILD_GENHASH}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
 

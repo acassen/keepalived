@@ -625,12 +625,24 @@ ac_includes_default="\
 ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
+INIT_SYSV_FALSE
+INIT_SYSV_TRUE
+INIT_SYSTEMD_FALSE
+INIT_SYSTEMD_TRUE
+INIT_UPSTART_FALSE
+INIT_UPSTART_TRUE
+PROFILE_FALSE
+PROFILE_TRUE
+DEBUG_FALSE
+DEBUG_TRUE
 BUILD_DOCS_FALSE
 BUILD_DOCS_TRUE
 HAVE_SPHINX_BUILD
 SPHINXBUILDNAME
 WITH_NAMESPACES_FALSE
 WITH_NAMESPACES_TRUE
+WITH_SHA1_FALSE
+WITH_SHA1_TRUE
 DBUS_CREATE_INSTANCE_FALSE
 DBUS_CREATE_INSTANCE_TRUE
 WITH_DBUS_FALSE
@@ -664,6 +676,10 @@ LIBIPSET_FALSE
 LIBIPSET_TRUE
 LIBIPTC_FALSE
 LIBIPTC_TRUE
+LIBNL3_FALSE
+LIBNL3_TRUE
+LIBNL1_FALSE
+LIBNL1_TRUE
 BUILD_GENHASH_FALSE
 BUILD_GENHASH_TRUE
 GENHASH_LIBS
@@ -6652,6 +6668,22 @@ fi
 done
 
 fi
+ if test $NETLINK_VER -eq 1; then
+  LIBNL1_TRUE=
+  LIBNL1_FALSE='#'
+else
+  LIBNL1_TRUE='#'
+  LIBNL1_FALSE=
+fi
+
+ if test $NETLINK_VER -eq 3; then
+  LIBNL3_TRUE=
+  LIBNL3_FALSE='#'
+else
+  LIBNL3_TRUE='#'
+  LIBNL3_FALSE=
+fi
+
 
 ac_fn_c_check_decl "$LINENO" "RTA_ENCAP" "ac_cv_have_decl_RTA_ENCAP" "#include <linux/rtnetlink.h>
     #include <sys/socket.h>
@@ -6832,10 +6864,8 @@ $as_echo "#define _HAVE_IF_H_LINK_H_COLLISION_  1 " >>confdefs.h
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-fi
 
-if test $NETLINK_VER = 3; then
-  IPV4_DEVCONF=Yes
+    IPV4_DEVCONF=Yes
   CPPFLAGS="$kernelinc"
   ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ARP_IGNORE" "ac_cv_have_decl_IPV4_DEVCONF_ARP_IGNORE" "#include <linux/ip.h>
 "
@@ -8387,6 +8417,14 @@ fi
 $as_echo "#define _WITH_SHA1_  1 " >>confdefs.h
 
 fi
+ if test $SHA1_SUPPORT = Yes; then
+  WITH_SHA1_TRUE=
+  WITH_SHA1_FALSE='#'
+else
+  WITH_SHA1_TRUE='#'
+  WITH_SHA1_FALSE=
+fi
+
 
 SO_MARK_SUPPORT=No
 if test "${enable_fwmark}" != no; then
@@ -8525,6 +8563,14 @@ $as_echo "#define _DEBUG_  1 " >>confdefs.h
 else
   ENABLE_DEBUG=No
 fi
+ if test $ENABLE_DEBUG = Yes; then
+  DEBUG_TRUE=
+  DEBUG_FALSE='#'
+else
+  DEBUG_TRUE='#'
+  DEBUG_FALSE=
+fi
+
 
 if test "${enable_stacktrace}" = yes; then
 
@@ -8537,11 +8583,62 @@ else
   ENABLE_STACKTRACE=No
 fi
 
+WITH_PROFILING=No
 if test "${enable_profile}" = yes; then
+  WITH_PROFILING=Yes
   KA_CFLAGS="$KA_CFLAGS -pg"
+fi
+ if test $WITH_PROFILING = Yes; then
+  PROFILE_TRUE=
+  PROFILE_FALSE='#'
+else
+  PROFILE_TRUE='#'
+  PROFILE_FALSE=
 fi
 
 
+INIT_TYPE=
+/sbin/init --version 2>/dev/null | grep -q upstart
+if test $? -eq 0; then
+        INIT_TYPE=upstart
+else
+	if test \( `which systemctl` -a -x `which systemctl` \); then
+		systemctl | grep -q -- "-\.mount"
+		if test $? -eq 0; then
+			INIT_TYPE=systemd
+		fi
+	fi
+	if test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \); then
+		INIT_TYPE=SYSV
+	fi
+fi
+if test -z $INIT_TYPE; then INIT_TYPE=undetected; fi
+ if test $INIT_TYPE = upstart; then
+  INIT_UPSTART_TRUE=
+  INIT_UPSTART_FALSE='#'
+else
+  INIT_UPSTART_TRUE='#'
+  INIT_UPSTART_FALSE=
+fi
+
+ if test $INIT_TYPE = systemd; then
+  INIT_SYSTEMD_TRUE=
+  INIT_SYSTEMD_FALSE='#'
+else
+  INIT_SYSTEMD_TRUE='#'
+  INIT_SYSTEMD_FALSE=
+fi
+
+ if test $INIT_TYPE = SYSV; then
+  INIT_SYSV_TRUE=
+  INIT_SYSV_FALSE='#'
+else
+  INIT_SYSV_TRUE='#'
+  INIT_SYSV_FALSE=
+fi
+
+
+echo $INIT_TYPE
 VERSION_DATE=`date +%m/%d,%Y`
 VERSION_YEAR=`date +%Y`
 
@@ -8700,6 +8797,14 @@ if test -z "${BUILD_GENHASH_TRUE}" && test -z "${BUILD_GENHASH_FALSE}"; then
   as_fn_error $? "conditional \"BUILD_GENHASH\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
+if test -z "${LIBNL1_TRUE}" && test -z "${LIBNL1_FALSE}"; then
+  as_fn_error $? "conditional \"LIBNL1\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${LIBNL3_TRUE}" && test -z "${LIBNL3_FALSE}"; then
+  as_fn_error $? "conditional \"LIBNL3\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
 if test -z "${LIBIPTC_TRUE}" && test -z "${LIBIPTC_FALSE}"; then
   as_fn_error $? "conditional \"LIBIPTC\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
@@ -8764,12 +8869,36 @@ if test -z "${DBUS_CREATE_INSTANCE_TRUE}" && test -z "${DBUS_CREATE_INSTANCE_FAL
   as_fn_error $? "conditional \"DBUS_CREATE_INSTANCE\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
+if test -z "${WITH_SHA1_TRUE}" && test -z "${WITH_SHA1_FALSE}"; then
+  as_fn_error $? "conditional \"WITH_SHA1\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
 if test -z "${WITH_NAMESPACES_TRUE}" && test -z "${WITH_NAMESPACES_FALSE}"; then
   as_fn_error $? "conditional \"WITH_NAMESPACES\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${BUILD_DOCS_TRUE}" && test -z "${BUILD_DOCS_FALSE}"; then
   as_fn_error $? "conditional \"BUILD_DOCS\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${DEBUG_TRUE}" && test -z "${DEBUG_FALSE}"; then
+  as_fn_error $? "conditional \"DEBUG\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${PROFILE_TRUE}" && test -z "${PROFILE_FALSE}"; then
+  as_fn_error $? "conditional \"PROFILE\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${INIT_UPSTART_TRUE}" && test -z "${INIT_UPSTART_FALSE}"; then
+  as_fn_error $? "conditional \"INIT_UPSTART\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${INIT_SYSTEMD_TRUE}" && test -z "${INIT_SYSTEMD_FALSE}"; then
+  as_fn_error $? "conditional \"INIT_SYSTEMD\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${INIT_SYSV_TRUE}" && test -z "${INIT_SYSV_FALSE}"; then
+  as_fn_error $? "conditional \"INIT_SYSV\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 
@@ -10155,6 +10284,7 @@ echo "libnl version            : ${NETLINK_VER}"
 echo "Use IPv4 devconf         : ${IPV4_DEVCONF}"
 echo "Use libiptc              : ${USE_LIBIPTC}"
 echo "Use libipset             : ${USE_LIBIPSET}"
+echo "init type                : ${INIT_TYPE}"
 echo "Build genhash            : ${BUILD_GENHASH}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
 
