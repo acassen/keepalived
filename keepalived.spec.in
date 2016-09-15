@@ -4,7 +4,7 @@
 Summary: HA monitor built upon LVS, VRRP and services poller
 Name: keepalived
 Version: @VERSION@
-Release: 5
+Release: 1
 License: GPL
 Group: Applications/System
 URL: http://www.keepalived.org/
@@ -23,6 +23,7 @@ BuildRequires: libnfnetlink-devel
 @INIT_SYSV_TRUE@Requires(post): /sbin/chkconfig
 @INIT_SYSV_TRUE@Requires(preun): /sbin/service, /sbin/chkconfig
 @INIT_SYSV_TRUE@Requires(postun): /sbin/service
+BuildRequires: autoconf automake pkgconfig
 
 %description
 The main goal of the keepalived project is to add a strong & robust keepalive
@@ -117,6 +118,9 @@ fi
 @WITH_DBUS_TRUE@%attr(0644,root,root) %{_datarootdir}/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
 
 %changelog
+* Wed Sep 14 2016 Quentin Armitage <quentin@armitage.org.uk> 1.2.24-1
+- Add more BuildRequires
+
 * Tue Sep 13 2016 Quentin Armitage <quentin@armitage.org.uk> 1.2.24
 - Update for changed format due of config.log due to using automake
 - Add support for systemd and upstart based systems
