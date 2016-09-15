@@ -304,7 +304,7 @@ typedef struct _vrrp_t {
 #define VRRP_IF_ISUP(V)		((IF_ISUP((V)->ifp) || (V)->dont_track_primary) && \
 				 (LIST_ISEMPTY((V)->track_ifp) || TRACK_ISUP((V)->track_ifp)))
 
-#define VRRP_SCRIPT_ISUP(V)	((!LIST_ISEMPTY((V)->track_script)) ? SCRIPT_ISUP((V)->track_script) : 1)
+#define VRRP_SCRIPT_ISUP(V)	(LIST_ISEMPTY((V)->track_script) ? true : SCRIPT_ISUP((V)->track_script))
 
 #define VRRP_ISUP(V)		(VRRP_IF_ISUP(V) && VRRP_SCRIPT_ISUP(V))
 

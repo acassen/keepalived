@@ -2385,8 +2385,7 @@ vrrp_complete_init(void)
 		next = e->next;
 		sgroup = ELEMENT_DATA(e);
 		vrrp_sync_set_group(sgroup);
-		if (LIST_ISEMPTY(sgroup->index_list) ||
-			LIST_SIZE(sgroup->index_list) <= 1) {
+		if (LIST_ISEMPTY(sgroup->index_list)) {
 			free_list_element(vrrp_data->vrrp_sync_group, e);
 			continue;
 		}

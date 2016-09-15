@@ -94,25 +94,31 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 	for (i = 0; i < vector_size(vgroup->iname); i++) {
 		str = vector_slot(vgroup->iname, i);
 		vrrp = vrrp_get_instance(str);
-		if (vrrp) {
-			if (vrrp->sync)
-				log_message(LOG_INFO, "Virtual router %s cannot exist in more than one sync group; ignoring %s", str, vgroup->gname);
-			else {
-				list_add(vgroup->index_list, vrrp);
-				vrrp->sync = vgroup;
-				vrrp_last = vrrp;
-			}
+		if (!vrrp) {
+			log_message(LOG_INFO, "Virtual router %s specified in sync group %s doesn't exist - ignoring", str, vgroup->gname);
+			continue;
 		}
-		else
-			log_message(LOG_INFO, "Virtual router %s specified in sync group %s doesn't exist - ignoring",
-				str, vgroup->gname);
+
+		if (vrrp->sync) {
+			log_message(LOG_INFO, "Virtual router %s cannot exist in more than one sync group; ignoring %s", str, vgroup->gname);
+			continue;
+		}
+
+		list_add(vgroup->index_list, vrrp);
+		vrrp->sync = vgroup;
+		vrrp_last = vrrp;
 	}
 	if (LIST_SIZE(vgroup->index_list) <= 1) {
 		/* The sync group will be removed by the calling function */
 		log_message(LOG_INFO, "Sync group %s has only %d virtual router(s) - removing", vgroup->gname, LIST_SIZE(vgroup->index_list));
+
 		/* If there is only one entry in the group, remove the group from the vrrp entry */
-		if (vrrp_last)
+		if (vrrp_last) {
 			vrrp_last->sync = NULL;
+			list_del(vgroup->index_list, vrrp_last);
+		}
+
+		free_list(&vgroup->index_list);
 	}
 }
 

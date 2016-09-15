@@ -36,6 +36,13 @@ dump_track(void *track_data)
 	tracked_if_t *tip = track_data;
 	log_message(LOG_INFO, "     %s weight %d", IF_NAME(tip->ifp), tip->weight);
 }
+
+void
+free_track(void *tip)
+{
+	FREE(tip);
+}
+
 void
 alloc_track(list track_list, vector_t *strvec)
 {
@@ -93,6 +100,13 @@ dump_track_script(void *track_data)
 	tracked_sc_t *tsc = track_data;
 	log_message(LOG_INFO, "     %s weight %d", tsc->scr->sname, tsc->weight);
 }
+
+void
+free_track_script(void *tsc)
+{
+	FREE(tsc);
+}
+
 void
 alloc_track_script(list track_list, vector_t *strvec)
 {
@@ -131,7 +145,7 @@ alloc_track_script(list track_list, vector_t *strvec)
 }
 
 /* Test if all tracked interfaces are either UP or weight-tracked */
-int
+bool
 vrrp_tracked_up(list l)
 {
 	element e;
@@ -140,10 +154,10 @@ vrrp_tracked_up(list l)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		tip = ELEMENT_DATA(e);
 		if (!tip->weight && !IF_ISUP(tip->ifp))
-			return 0;
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 
 /* Log tracked interface down */
@@ -190,7 +204,7 @@ vrrp_tracked_weight(list l)
 }
 
 /* Test if all tracked scripts are either OK or weight-tracked */
-int
+bool
 vrrp_script_up(list l)
 {
 	element e;
@@ -198,14 +212,13 @@ vrrp_script_up(list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		tsc = ELEMENT_DATA(e);
-		if ((tsc->scr->result == VRRP_SCRIPT_STATUS_DISABLED) ||
-		    (tsc->scr->result == VRRP_SCRIPT_STATUS_INIT_GOOD))
+		if (tsc->scr->result == VRRP_SCRIPT_STATUS_INIT_GOOD)
 			continue;
 		if (!tsc->weight && tsc->scr->result < tsc->scr->rise)
-			return 0;
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 
 /* Returns total weights of all tracked scripts :
@@ -222,13 +235,16 @@ vrrp_script_weight(list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		tsc = ELEMENT_DATA(e);
-		if (tsc->scr->result == VRRP_SCRIPT_STATUS_DISABLED)
+
+		/* Ignore non-weighted scripts */
+		if (!tsc->weight)
 			continue;
+
 		if (tsc->scr->result >= tsc->scr->rise) {
 			if (tsc->weight > 0)
 				weight += tsc->weight;
-		} else if (tsc->scr->result < tsc->scr->rise) {
-			if (tsc->weight < 0)
+		} else {
+			 if (tsc->weight < 0)
 				weight += tsc->weight;
 		}
 	}

@@ -218,7 +218,7 @@ vrrp_init_state(list l)
 // TODO - Can it be merged into 1 list held against the sync group ?
 
 			if (vrrp->sync && !vrrp->sync->global_tracking) {
-				element e2;
+				element e2, next;
 				tracked_sc_t *sc;
 				tracked_if_t *tip;
 				bool int_warning = false;
@@ -235,13 +235,17 @@ vrrp_init_state(list l)
 				}
 
 				if (!LIST_ISEMPTY(vrrp->track_script)) {
-					for (e2 = LIST_HEAD(vrrp->track_script); e2; ELEMENT_NEXT(e2)) {
+					for (e2 = LIST_HEAD(vrrp->track_script); e2; e2 = next) {
+						next = e2->next;
 						sc = ELEMENT_DATA(e2);
 						if (sc->weight) {
 							sc->scr->inuse--;
+							free_list_element(vrrp->track_script, e2);
 							script_warning = true;
 						}
 					}
+					if (LIST_ISEMPTY(vrrp->track_script))
+						free_list(&vrrp->track_script);
 				}
 
 				if (int_warning)
@@ -339,8 +343,10 @@ vrrp_init_script(list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vscript = ELEMENT_DATA(e);
-		if (!vscript->inuse)
+		if (!vscript->inuse) {
 			vscript->result = VRRP_SCRIPT_STATUS_DISABLED;
+			log_message(LOG_INFO, "Warning - script %s is not used", vscript->sname);
+		}
 		else {
 			if (vscript->result == VRRP_SCRIPT_STATUS_INIT)
 				vscript->result = vscript->rise - 1; /* one success is enough */
@@ -916,9 +922,7 @@ vrrp_master(vrrp_t * vrrp)
 static void
 vrrp_fault(vrrp_t * vrrp)
 {
-	vrrp_sgroup_t *vgroup = vrrp->sync;
-
-	if (vgroup) {
+	if (vrrp->sync) {
 		if (!vrrp_sync_leave_fault(vrrp))
 			return;
 	} else if (VRRP_ISUP(vrrp))

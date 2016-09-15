@@ -204,7 +204,6 @@ static void
 free_vrrp(void *data)
 {
 	vrrp_t *vrrp = data;
-	element e;
 
 	FREE(vrrp->iname);
 	FREE_PTR(vrrp->send_buffer);
@@ -218,16 +217,8 @@ free_vrrp(void *data)
 	FREE(vrrp->ipsecah_counter);
 #endif
 
-	if (!LIST_ISEMPTY(vrrp->track_ifp))
-		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e))
-			FREE(ELEMENT_DATA(e));
 	free_list(&vrrp->track_ifp);
-
-	if (!LIST_ISEMPTY(vrrp->track_script))
-		for (e = LIST_HEAD(vrrp->track_script); e; ELEMENT_NEXT(e))
-			FREE(ELEMENT_DATA(e));
 	free_list(&vrrp->track_script);
-
 	free_list(&vrrp->unicast_peer);
 	free_list(&vrrp->vip);
 	free_list(&vrrp->evip);
@@ -463,7 +454,7 @@ alloc_vrrp_track(vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	if (!LIST_EXISTS(vrrp->track_ifp))
-		vrrp->track_ifp = alloc_list(NULL, dump_track);
+		vrrp->track_ifp = alloc_list(free_track, dump_track);
 	alloc_track(vrrp->track_ifp, strvec);
 }
 
@@ -473,7 +464,7 @@ alloc_vrrp_track_script(vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	if (!LIST_EXISTS(vrrp->track_script))
-		vrrp->track_script = alloc_list(NULL, dump_track_script);
+		vrrp->track_script = alloc_list(free_track_script, dump_track_script);
 	alloc_track_script(vrrp->track_script, strvec);
 }
 

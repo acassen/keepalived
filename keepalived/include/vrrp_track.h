@@ -29,6 +29,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <syslog.h>
+#include <stdbool.h>
 
 /* local includes */
 #include "vector.h"
@@ -75,13 +76,15 @@ typedef struct _tracked_sc {
 
 /* prototypes */
 extern void dump_track(void *);
+extern void free_track(void *);
 extern void alloc_track(list, vector_t *);
 extern void dump_track_script(void *);
+extern void free_track_script(void *);
 extern void alloc_track_script(list, vector_t *);
-extern int vrrp_tracked_up(list);
+extern bool vrrp_tracked_up(list);
 extern void vrrp_log_tracked_down(list);
 extern int vrrp_tracked_weight(list);
-extern int vrrp_script_up(list);
+extern bool vrrp_script_up(list);
 extern int vrrp_script_weight(list);
 extern vrrp_script_t *find_script_by_name(char *);
 
