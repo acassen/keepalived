@@ -5438,7 +5438,8 @@ done
 
 
 # check for kernel headers
-CPPFLAGS="$kernelinc"
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $kernelinc"
 NETLINK_EXTRA_INCLUDE=
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
@@ -5512,6 +5513,7 @@ fi
 
 done
 
+CPPFLAGS="$SAV_CPPFLAGS"
 
 # Checks for typedefs, structures, and compiler characteristics.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for stdbool.h that conforms to C99" >&5
@@ -6746,7 +6748,8 @@ fi
 
 
 if test $NETLINK_VER != None; then
-  CPPFLAGS="$kernelinc"
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $kernelinc"
   for ac_header in libnfnetlink/libnfnetlink.h
 do :
   ac_fn_c_check_header_mongrel "$LINENO" "libnfnetlink/libnfnetlink.h" "ac_cv_header_libnfnetlink_libnfnetlink_h" "$ac_includes_default"
@@ -6763,7 +6766,7 @@ fi
 done
 
   if test $NETLINK_VER = 3; then
-    CPPFLAGS="$NL3_CFLAGS"
+    CPPFLAGS="$CPPFLAGS $NL3_CFLAGS"
     for ac_header in netlink/route/link.h netlink/route/link/inet.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
@@ -6811,6 +6814,8 @@ fi
 
 done
 
+
+  CPPFLAGS="$SAV_CPPFLAGS"
 fi
  if test $NETLINK_VER -eq 1; then
   LIBNL1_TRUE=
@@ -6984,7 +6989,8 @@ done
 if test $NETLINK_VER = 3; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for net/if.h and libnl3/netlink/route/link.h namespace collision" >&5
 $as_echo_n "checking for net/if.h and libnl3/netlink/route/link.h namespace collision... " >&6; }
-  CPPFLAGS="$NL3_CFLAGS"
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $NL3_CFLAGS"
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -7008,9 +7014,11 @@ $as_echo "#define _HAVE_IF_H_LINK_H_COLLISION_  1 " >>confdefs.h
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+  CPPFLAGS="$SAV_CPPFLAGS"
 
-    IPV4_DEVCONF=Yes
-  CPPFLAGS="$kernelinc"
+    SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPP_FLAGS $kernelinc"
+  IPV4_DEVCONF=Yes
   ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ARP_IGNORE" "ac_cv_have_decl_IPV4_DEVCONF_ARP_IGNORE" "#include <linux/ip.h>
 "
 if test "x$ac_cv_have_decl_IPV4_DEVCONF_ARP_IGNORE" = xyes; then :
@@ -7088,6 +7096,7 @@ else
 
 fi
 
+  CPPFLAGS="$SAV_CPPFLAGS"
 else
   IPV4_DEVCONF=No
 fi
@@ -7158,7 +7167,8 @@ done
 
 
     LIBS="$IPTC_LIBS"
-    CPPFLAGS="$kernelinc"
+    SAV_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS $kernelinc"
     { $as_echo "$as_me:${as_lineno-$LINENO}: checking for iptc_init in -liptc" >&5
 $as_echo_n "checking for iptc_init in -liptc... " >&6; }
 if ${ac_cv_lib_iptc_iptc_init+:} false; then :
@@ -7241,12 +7251,14 @@ else
   USE_LIBIPTC=No
 fi
 
+  CPPFLAGS="$SAV_CPPFLAGS"
   fi
 
   if test $USE_LIBIPTC = Yes; then
     BUILD_OPTIONS="$BUILD_OPTIONS LIBIPTC"
 
-        CPPFLAGS="$kernelinc"
+        SAV_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS $kernelinc"
     if test "${enable_libipset}" != no; then
       $PKG_CONFIG --exists libipset
       if test $? -eq 0; then
@@ -7565,6 +7577,8 @@ $as_echo "#define XT_EXTENSION_MAXNAMELEN  (XT_FUNCTION_MAXNAMELEN - 1) " >>conf
 
 fi
 
+
+    CPPFLAGS="$SAV_CPPFLAGS"
   fi
 fi
  if test $USE_LIBIPTC = Yes; then
@@ -7589,7 +7603,8 @@ unset LIBS
 # and <linux/if.h> which causes a namespace collision.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libiptc/libiptc.h linux/if.h and net/if.h namespace collision" >&5
 $as_echo_n "checking for libiptc/libiptc.h linux/if.h and net/if.h namespace collision... " >&6; }
-CPPFLAGS="$kernelinc"
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $kernelinc"
 cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
@@ -7612,6 +7627,7 @@ $as_echo "#define _HAVE_LINUX_NET_IF_H_COLLISION_  1 " >>confdefs.h
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+CPPFLAGS="$SAV_CPPFLAGS"
 
 IPVS_SYNCD_ATTRIBUTES=No
 IPVS_64BIT_STATS=No
@@ -7655,7 +7671,8 @@ $as_echo "#define LIBIPVS_USE_NL  1 " >>confdefs.h
     BUILD_OPTIONS="$BUILD_OPTIONS LIBIPVS_NETLINK"
   fi
 
-    CPPFLAGS="$kernelinc"
+    SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $kernelinc"
   IPVS_SYNCD_ATTRIBUTES=Yes
   ac_fn_c_check_decl "$LINENO" "IPVS_DAEMON_ATTR_SYNC_MAXLEN" "ac_cv_have_decl_IPVS_DAEMON_ATTR_SYNC_MAXLEN" "#include <linux/ip_vs.h>
 "
@@ -7761,7 +7778,6 @@ $as_echo "#define _HAVE_IPVS_SYNCD_ATTRIBUTES_  1 " >>confdefs.h
   fi
 
       if test "$enable_lvs_64bit_stats" != "no"; then
-    CPPFLAGS="$kernelinc"
     IPVS_64BIT_STATS=Yes
     ac_fn_c_check_decl "$LINENO" "IPVS_SVC_ATTR_STATS64" "ac_cv_have_decl_IPVS_SVC_ATTR_STATS64" "#include <linux/ip_vs.h>
 "
@@ -7809,6 +7825,7 @@ $as_echo "#define _WITH_LVS_64BIT_STATS_  1 " >>confdefs.h
       BUILD_OPTIONS="$BUILD_OPTIONS IPVS_64BIT_STATS"
     fi
   fi
+  CPPFLAGS="$SAV_CPPFLAGS"
 else
   IPVS_SUPPORT=No
 fi
@@ -7839,7 +7856,8 @@ $as_echo "#define _WITH_VRRP_AUTH_  1 " >>confdefs.h
     BUILD_OPTIONS="$BUILD_OPTIONS VRRP_AUTH"
   fi
 
-    CPPFLAGS="$kernelinc"
+    SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $kernelinc"
   MACVLAN_SUPPORT=Yes
     ac_fn_c_check_decl "$LINENO" "IFLA_MACVLAN_MODE" "ac_cv_have_decl_IFLA_MACVLAN_MODE" "
       #include <sys/socket.h>
@@ -7892,6 +7910,7 @@ $as_echo "#define _HAVE_VRRP_VMAC_  1 " >>confdefs.h
 
     BUILD_OPTIONS="$BUILD_OPTIONS VRRP_VMAC"
   fi
+  CPPFLAGS="$SAV_CPPFLAGS"
 fi
  if test $VRRP_SUPPORT = Yes; then
   WITH_VRRP_TRUE=
@@ -7965,7 +7984,8 @@ fi
 
 
 # Introduced in Linux 2.6.19
-CPPFLAGS="$kernelinc"
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $kernelinc"
 ac_fn_c_check_decl "$LINENO" "FRA_SRC" "ac_cv_have_decl_FRA_SRC" "#include <sys/socket.h>
       #include <linux/fib_rules.h>
 "
@@ -7991,8 +8011,10 @@ else
   FIB_ROUTING_FALSE=
 fi
 
+CPPFLAGS="$SAV_CPPFLAGS"
 
-CPPFLAGS="$kernelinc"
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $kernelinc"
 if test ${MACVLAN_SUPPORT} = Yes; then
   # Introduced in Linux 3.17
   ac_fn_c_check_decl "$LINENO" "IFLA_INET6_ADDR_GEN_MODE" "ac_cv_have_decl_IFLA_INET6_ADDR_GEN_MODE" "
@@ -8015,6 +8037,7 @@ if test $ac_have_decl = 1; then :
 fi
 
 fi
+CPPFLAGS="$SAV_CPPFLAGS"
 
 SNMP_SUPPORT=No
 SNMP_KEEPALIVED_SUPPORT=No
@@ -8135,8 +8158,10 @@ fi
   NETSNMP_LIBS="$NETSNMP_LIBS_AGENT $NETSNMP_LIBS_EXT"
   NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags` -DNETSNMP_NO_INLINE"
 
-  CFLAGS="${NETSNMP_CFLAGS}"
-  LIBS="${NETSNMP_LIBS}"
+  SAV_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS ${NETSNMP_CFLAGS}"
+  SAV_LIBS="$LIBS"
+  LIBS="$LIBS ${NETSNMP_LIBS}"
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking whether C compiler supports flag \"${NETSNMP_CFLAGS} ${NETSNMP_LIBS}\" from Net-SNMP" >&5
 $as_echo_n "checking whether C compiler supports flag \"${NETSNMP_CFLAGS} ${NETSNMP_LIBS}\" from Net-SNMP... " >&6; }
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
@@ -8180,7 +8205,8 @@ done
 
   # check for net-snmp headers
   # Some ancient distributions may miss <net-snmp/agent/util_funcs.h> header
-  CPPFLAGS="$NETSNMP_CFLAGS"
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $NETSNMP_CFLAGS"
   for ac_header in net-snmp/agent/agent_sysORTable.h net-snmp/agent/snmp_vars.h net-snmp/agent/util_funcs.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
@@ -8252,8 +8278,9 @@ $as_echo "#define _SNMP_REPLY_V3_FOR_V2_  1 " >>confdefs.h
     as_fn_error $? "CHECKER SNMP support requires checker" "$LINENO" 5
   fi
 
-  unset LIBS
-  unset CFLAGS
+  CPPFLAGS="$SAV_CPPFLAGS"
+  CFLAGS="$SAV_CFLAGS"
+  LIBS="$SAV_LIBS"
 fi
 
 if test $SNMP_SUPPORT = Yes; then
@@ -8595,7 +8622,8 @@ fi
 
 fi
 
-CFLAGS=-D_GNU_SOURCE
+SAV_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -D_GNU_SOURCE"
 ac_fn_c_check_decl "$LINENO" "CLONE_NEWNET" "ac_cv_have_decl_CLONE_NEWNET" "#include <sched.h>
 "
 if test "x$ac_cv_have_decl_CLONE_NEWNET" = xyes; then :
@@ -8619,6 +8647,7 @@ _ACEOF
 fi
 done
 
+CFLAGS="$SAV_CFLAGS"
  if test $ac_cv_have_decl_CLONE_NEWNET = yes; then
   WITH_NAMESPACES_TRUE=
   WITH_NAMESPACES_FALSE='#'

@@ -164,7 +164,8 @@ AC_CHECK_HEADERS([arpa/inet.h fcntl.h limits.h netdb.h netinet/in.h stdint.h std
   [], [AC_MSG_ERROR([Missing/unusable system header file <$ac_header>])])
 
 # check for kernel headers
-CPPFLAGS="$kernelinc"
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $kernelinc"
 dnl -- <linux/netlink.h> needed <sys/socket.h> until Linux 3.1
 dnl -- using AC_CHECK_HEADER causes a horrible error message for the user
 NETLINK_EXTRA_INCLUDE=
@@ -186,6 +187,7 @@ AC_CHECK_HEADERS([linux/fib_rules.h linux/if_addr.h linux/if_link.h],
 AC_CHECK_HEADERS([linux/if_arp.h],
   [], [AC_MSG_ERROR([Missing/unusable <$ac_header>])],
   [[#include <sys/socket.h>]])
+CPPFLAGS="$SAV_CPPFLAGS"
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_HEADER_STDBOOL
@@ -311,16 +313,19 @@ AC_CHECK_LIB(nl-3, nl_socket_alloc,
   ])
 
 if test $NETLINK_VER != None; then
-  CPPFLAGS="$kernelinc"
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $kernelinc"
   AC_CHECK_HEADERS(libnfnetlink/libnfnetlink.h,,AC_MSG_ERROR([
     !!! Please install libnfnetlink headers.              !!!]))
   if test $NETLINK_VER = 3; then
-    CPPFLAGS="$NL3_CFLAGS"
+    CPPFLAGS="$CPPFLAGS $NL3_CFLAGS"
     AC_CHECK_HEADERS([netlink/route/link.h netlink/route/link/inet.h], [], [AC_MSG_ERROR([libnl-3 headers missing])])
   fi
 
   AC_CHECK_HEADERS([linux/rtnetlink.h], [], [AC_MSG_ERROR([Unusable link/rtnetlink.h])], [$NETLINK_EXTRA_INCLUDE])
   AC_CHECK_HEADERS([libnfnetlink/libnfnetlink.h netlink/genl/ctrl.h netlink/genl/genl.h netlink/netlink.h], [], [AC_MSG_ERROR([netlink headers missing])])
+
+  CPPFLAGS="$SAV_CPPFLAGS"
 fi
 AM_CONDITIONAL([LIBNL1], [test $NETLINK_VER -eq 1])
 AM_CONDITIONAL([LIBNL3], [test $NETLINK_VER -eq 3])
@@ -357,7 +362,8 @@ dnl ----[Check if have net/if.h and netlink/route/link.h namespace collision]---
 dnl -- Resolved in libnl3-3.2.26 (release 30/3/2015)
 if test $NETLINK_VER = 3; then
   AC_MSG_CHECKING([for net/if.h and libnl3/netlink/route/link.h namespace collision])
-  CPPFLAGS="$NL3_CFLAGS"
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $NL3_CFLAGS"
   AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
       #include <net/if.h>
       #include <netlink/route/link.h>
@@ -368,10 +374,12 @@ if test $NETLINK_VER = 3; then
       AC_DEFINE([_HAVE_IF_H_LINK_H_COLLISION_], [ 1 ], [Define to 1 if <net/if.h> and <netlink/route/link.h> namespace collision])
       add_build_opt([IF_H_LINK_H_COLLISION])
     ])
+  CPPFLAGS="$SAV_CPPFLAGS"
 
   dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPP_FLAGS $kernelinc"
   IPV4_DEVCONF=Yes
-  CPPFLAGS="$kernelinc"
   AC_CHECK_DECLS([
     IPV4_DEVCONF_ARP_IGNORE,
     IPV4_DEVCONF_ACCEPT_LOCAL,
@@ -383,6 +391,7 @@ if test $NETLINK_VER = 3; then
       break
     ],
     [[#include <linux/ip.h>]])
+  CPPFLAGS="$SAV_CPPFLAGS"
 else
   IPV4_DEVCONF=No
 fi
@@ -405,20 +414,23 @@ if test .${enable_libiptc} != .no; then
   if test $USE_LIBIPTC = Yes; then
     add_pkg_config([--static libiptc], [IPTC])
     LIBS="$IPTC_LIBS"
-    CPPFLAGS="$kernelinc"
+    SAV_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS $kernelinc"
     AC_CHECK_LIB(iptc, iptc_init,
       [
         add_pkg_config([--static libiptc])
         AC_DEFINE([_HAVE_LIBIPTC_], [ 1 ], [Define to 1 if have iptables libraries])
       ],
       [USE_LIBIPTC=No])
+  CPPFLAGS="$SAV_CPPFLAGS"
   fi
 
   if test $USE_LIBIPTC = Yes; then
     add_build_opt([LIBIPTC])
 
     dnl ----[Check for ipset libraries]----
-    CPPFLAGS="$kernelinc"
+    SAV_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS $kernelinc"
     if test "${enable_libipset}" != no; then
       $PKG_CONFIG --exists libipset
       if test $? -eq 0; then
@@ -486,6 +498,8 @@ if test .${enable_libiptc} != .no; then
     AC_CHECK_DECL([XT_EXTENSION_MAXNAMELEN], [],
       [AC_DEFINE([XT_EXTENSION_MAXNAMELEN], [ (XT_FUNCTION_MAXNAMELEN - 1) ], [Define if <linux/netfilter/x_tables.h> doesnt define it])],
       [#include <linux/netfilter/x_tables.h>])
+
+    CPPFLAGS="$SAV_CPPFLAGS"
   fi
 fi
 AM_CONDITIONAL([LIBIPTC], [test $USE_LIBIPTC = Yes])
@@ -496,7 +510,8 @@ dnl ----[Check if have linux/if.h and net/if.h namespace collision]----
 # Linux 4.5 to 4.5.4 has <libiptc/libiptc.h> indirectly including <net/if.h>
 # and <linux/if.h> which causes a namespace collision.
 AC_MSG_CHECKING([for libiptc/libiptc.h linux/if.h and net/if.h namespace collision])
-CPPFLAGS="$kernelinc"
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $kernelinc"
 AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     #include <libiptc/libiptc.h>
   ]])],
@@ -508,6 +523,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     AC_DEFINE([_HAVE_LINUX_NET_IF_H_COLLISION_], [ 1 ], [Define to 1 if have libiptc/libiptc.h linux/if.h and net/if.h namespace collision])
     add_build_opt([LINUX_NET_IF_H_COLLISION])
   ])
+CPPFLAGS="$SAV_CPPFLAGS"
 
 dnl ----[ Checks for LVS and VRRP support ]----
 IPVS_SYNCD_ATTRIBUTES=No
@@ -531,7 +547,8 @@ if test "$enable_lvs" != no; then
   fi
 
   dnl ----[ IPVS syncd options ]---
-  CPPFLAGS="$kernelinc"
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $kernelinc"
   IPVS_SYNCD_ATTRIBUTES=Yes
   AC_CHECK_DECLS([
     IPVS_DAEMON_ATTR_SYNC_MAXLEN,
@@ -553,7 +570,6 @@ if test "$enable_lvs" != no; then
   dnl ----[ IPVS 64-bit stats ]----
   dnl -- Since Linux 4.2
   if test "$enable_lvs_64bit_stats" != "no"; then
-    CPPFLAGS="$kernelinc"
     IPVS_64BIT_STATS=Yes
     AC_CHECK_DECLS([
       IPVS_SVC_ATTR_STATS64,
@@ -568,6 +584,7 @@ if test "$enable_lvs" != no; then
       add_build_opt([IPVS_64BIT_STATS])
     fi
   fi
+  CPPFLAGS="$SAV_CPPFLAGS"
 else
   IPVS_SUPPORT=No
 fi
@@ -590,7 +607,8 @@ if test "$enable_vrrp" != no; then
   fi
 
   dnl ----[ Checks for kernel VMAC support ]----
-  CPPFLAGS="$kernelinc"
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $kernelinc"
   MACVLAN_SUPPORT=Yes
   dnl -- Since Linux 2.6.33
   AC_CHECK_DECLS([
@@ -607,6 +625,7 @@ if test "$enable_vrrp" != no; then
     AC_DEFINE([_HAVE_VRRP_VMAC_], [ 1 ], [Define to 1 if have MAC VLAN support])
     add_build_opt([VRRP_VMAC])
   fi
+  CPPFLAGS="$SAV_CPPFLAGS"
 fi
 AM_CONDITIONAL([WITH_VRRP], [test $VRRP_SUPPORT = Yes])
 AM_CONDITIONAL([VRRP_AUTH], [test $VRRP_AUTH_SUPPORT = Yes])
@@ -627,7 +646,8 @@ AC_CHECK_DECLS([SOCK_CLOEXEC], [add_build_opt([SOCK_CLOEXEC])], [],[[#include <s
 
 dnl ----[ Checks for FIB routing support ]----
 # Introduced in Linux 2.6.19
-CPPFLAGS="$kernelinc"
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $kernelinc"
 AC_CHECK_DECL([FRA_SRC],
   [
     FIB_ROUTING_SUPPORT=Yes
@@ -639,9 +659,11 @@ AC_CHECK_DECL([FRA_SRC],
   ],[[#include <sys/socket.h>
       #include <linux/fib_rules.h>]])
 AM_CONDITIONAL([FIB_ROUTING], [test $FIB_ROUTING_SUPPORT = Yes])
+CPPFLAGS="$SAV_CPPFLAGS"
 
 dnl ----[ Checks for kernel IFLA_INET6_ADDR_GEN_MODE support ]----
-CPPFLAGS="$kernelinc"
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $kernelinc"
 if test ${MACVLAN_SUPPORT} = Yes; then
   # Introduced in Linux 3.17
   AC_CHECK_DECLS([IFLA_INET6_ADDR_GEN_MODE],
@@ -651,6 +673,7 @@ if test ${MACVLAN_SUPPORT} = Yes; then
       #include <linux/if_link.h>
     ]])
 fi
+CPPFLAGS="$SAV_CPPFLAGS"
 
 dnl ----[ Checks for SNMP support ]----
 SNMP_SUPPORT=No
@@ -675,8 +698,10 @@ if test "$enable_snmp" = yes -o \
   NETSNMP_LIBS="$NETSNMP_LIBS_AGENT $NETSNMP_LIBS_EXT"
   NETSNMP_CFLAGS="`${NETSNMP_CONFIG} --base-cflags` -DNETSNMP_NO_INLINE"
 
-  CFLAGS="${NETSNMP_CFLAGS}"
-  LIBS="${NETSNMP_LIBS}"
+  SAV_CFLAGS="$CFLAGS"
+  CFLAGS="$CFLAGS ${NETSNMP_CFLAGS}"
+  SAV_LIBS="$LIBS"
+  LIBS="$LIBS ${NETSNMP_LIBS}"
   AC_MSG_CHECKING([whether C compiler supports flag "${NETSNMP_CFLAGS} ${NETSNMP_LIBS}" from Net-SNMP])
   AC_LINK_IFELSE([AC_LANG_SOURCE([[
       int main(void)
@@ -696,7 +721,8 @@ if test "$enable_snmp" = yes -o \
 
   # check for net-snmp headers
   # Some ancient distributions may miss <net-snmp/agent/util_funcs.h> header
-  CPPFLAGS="$NETSNMP_CFLAGS"
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $NETSNMP_CFLAGS"
   AC_CHECK_HEADERS(net-snmp/agent/agent_sysORTable.h net-snmp/agent/snmp_vars.h net-snmp/agent/util_funcs.h,[],
     [AC_MSG_ERROR([missing net-snmp headers])],[[
       #include <net-snmp/net-snmp-config.h>
@@ -752,8 +778,9 @@ if test "$enable_snmp" = yes -o \
     AC_MSG_ERROR([CHECKER SNMP support requires checker])
   fi
 
-  unset LIBS
-  unset CFLAGS
+  CPPFLAGS="$SAV_CPPFLAGS"
+  CFLAGS="$SAV_CFLAGS"
+  LIBS="$SAV_LIBS"
 fi
 
 dnl ----[What SNMP support is required]----
@@ -854,10 +881,12 @@ fi
 
 dnl ---[ check for setns() ]----
 dnl -- CLONE_NEWNET defined from Linux 3.0
-CFLAGS=-D_GNU_SOURCE
+SAV_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -D_GNU_SOURCE"
 AC_CHECK_DECLS([CLONE_NEWNET], [], [], [[#include <sched.h>]])
 dnl -- From glibc 2.14. Otherwise use setns syscall, since Linux 2.4.x
 AC_CHECK_FUNCS([setns])
+CFLAGS="$SAV_CFLAGS"
 AM_CONDITIONAL([WITH_NAMESPACES], [test $ac_cv_have_decl_CLONE_NEWNET = yes])
 
 dnl ---[ check for sphinx-build executable ]----
