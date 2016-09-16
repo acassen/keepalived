@@ -6441,39 +6441,39 @@ $as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
 
     BUILD_OPTIONS="$BUILD_OPTIONS LIBNL3"
      if test 1 -ge 2; then
-      PKG_PFX=
+      KA_PKG_PFX=
     else
-      PKG_PFX=KA
+      KA_PKG_PFX=KA
     fi
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CPPFLAGS
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
     for item in $($PKG_CONFIG --cflags-only-I libnl-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CPPFLAGS=\"\$${PKG_PFX}_CPPFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CFLAGS
+   eval var=\$${KA_PKG_PFX}_CFLAGS
     for item in $($PKG_CONFIG --cflags-only-other libnl-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_LIBS
+   eval var=\$${KA_PKG_PFX}_LIBS
     for item in $($PKG_CONFIG --libs libnl-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
 
@@ -6526,39 +6526,39 @@ fi
 
     IPVS_USE_NL=Yes
      if test 1 -ge 2; then
-      PKG_PFX=
+      KA_PKG_PFX=
     else
-      PKG_PFX=KA
+      KA_PKG_PFX=KA
     fi
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CPPFLAGS
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
     for item in $($PKG_CONFIG --cflags-only-I libnl-genl-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CPPFLAGS=\"\$${PKG_PFX}_CPPFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CFLAGS
+   eval var=\$${KA_PKG_PFX}_CFLAGS
     for item in $($PKG_CONFIG --cflags-only-other libnl-genl-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_LIBS
+   eval var=\$${KA_PKG_PFX}_LIBS
     for item in $($PKG_CONFIG --libs libnl-genl-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
 
@@ -6611,39 +6611,39 @@ fi
 
     NL3_CFLAGS="$($PKG_CONFIG --cflags libnl-route-3.0)"
      if test 1 -ge 2; then
-      PKG_PFX=
+      KA_PKG_PFX=
     else
-      PKG_PFX=KA
+      KA_PKG_PFX=KA
     fi
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CPPFLAGS
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
     for item in $($PKG_CONFIG --cflags-only-I libnl-route-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CPPFLAGS=\"\$${PKG_PFX}_CPPFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CFLAGS
+   eval var=\$${KA_PKG_PFX}_CFLAGS
     for item in $($PKG_CONFIG --cflags-only-other libnl-route-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_LIBS
+   eval var=\$${KA_PKG_PFX}_LIBS
     for item in $($PKG_CONFIG --libs libnl-route-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
 
@@ -6693,39 +6693,39 @@ if test "x$ac_cv_lib_nl_nl_socket_modify_cb" = xyes; then :
 $as_echo "#define _HAVE_LIBNL1_  1 " >>confdefs.h
 
          if test 1 -ge 2; then
-      PKG_PFX=
+      KA_PKG_PFX=
     else
-      PKG_PFX=KA
+      KA_PKG_PFX=KA
     fi
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CPPFLAGS
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
     for item in $($PKG_CONFIG --cflags-only-I libnl-1); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CPPFLAGS=\"\$${PKG_PFX}_CPPFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CFLAGS
+   eval var=\$${KA_PKG_PFX}_CFLAGS
     for item in $($PKG_CONFIG --cflags-only-other libnl-1); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_LIBS
+   eval var=\$${KA_PKG_PFX}_LIBS
     for item in $($PKG_CONFIG --libs libnl-1); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
         BUILD_OPTIONS="$BUILD_OPTIONS LIBNL1"
@@ -7122,39 +7122,39 @@ done
 
   if test $USE_LIBIPTC = Yes; then
      if test 2 -ge 2; then
-      PKG_PFX=IPTC
+      KA_PKG_PFX=IPTC
     else
-      PKG_PFX=KA
+      KA_PKG_PFX=KA
     fi
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CPPFLAGS
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
     for item in $($PKG_CONFIG --cflags-only-I --static libiptc); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CPPFLAGS=\"\$${PKG_PFX}_CPPFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CFLAGS
+   eval var=\$${KA_PKG_PFX}_CFLAGS
     for item in $($PKG_CONFIG --cflags-only-other --static libiptc); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_LIBS
+   eval var=\$${KA_PKG_PFX}_LIBS
     for item in $($PKG_CONFIG --libs --static libiptc); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
     LIBS="$IPTC_LIBS"
@@ -7198,39 +7198,39 @@ $as_echo "$ac_cv_lib_iptc_iptc_init" >&6; }
 if test "x$ac_cv_lib_iptc_iptc_init" = xyes; then :
 
          if test 1 -ge 2; then
-      PKG_PFX=
+      KA_PKG_PFX=
     else
-      PKG_PFX=KA
+      KA_PKG_PFX=KA
     fi
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CPPFLAGS
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
     for item in $($PKG_CONFIG --cflags-only-I --static libiptc); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CPPFLAGS=\"\$${PKG_PFX}_CPPFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CFLAGS
+   eval var=\$${KA_PKG_PFX}_CFLAGS
     for item in $($PKG_CONFIG --cflags-only-other --static libiptc); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_LIBS
+   eval var=\$${KA_PKG_PFX}_LIBS
     for item in $($PKG_CONFIG --libs --static libiptc); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
 
@@ -7251,39 +7251,39 @@ fi
       $PKG_CONFIG --exists libipset
       if test $? -eq 0; then
          if test 2 -ge 2; then
-      PKG_PFX=IPSET
+      KA_PKG_PFX=IPSET
     else
-      PKG_PFX=KA
+      KA_PKG_PFX=KA
     fi
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CPPFLAGS
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
     for item in $($PKG_CONFIG --cflags-only-I libipset); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CPPFLAGS=\"\$${PKG_PFX}_CPPFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CFLAGS
+   eval var=\$${KA_PKG_PFX}_CFLAGS
     for item in $($PKG_CONFIG --cflags-only-other libipset); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_LIBS
+   eval var=\$${KA_PKG_PFX}_LIBS
     for item in $($PKG_CONFIG --libs libipset); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
       else
@@ -7407,78 +7407,78 @@ $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
             $PKG_CONFIG --exists libipset
             if test $? -eq 0; then
                if test 1 -ge 2; then
-      PKG_PFX=
+      KA_PKG_PFX=
     else
-      PKG_PFX=KA
+      KA_PKG_PFX=KA
     fi
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CPPFLAGS
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
     for item in $($PKG_CONFIG --cflags-only-I libipset); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CPPFLAGS=\"\$${PKG_PFX}_CPPFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CFLAGS
+   eval var=\$${KA_PKG_PFX}_CFLAGS
     for item in $($PKG_CONFIG --cflags-only-other libipset); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_LIBS
+   eval var=\$${KA_PKG_PFX}_LIBS
     for item in $($PKG_CONFIG --libs libipset); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
             else
               KA_LIBS="$KA_LIBS -lipset"
             fi
              if test 1 -ge 2; then
-      PKG_PFX=
+      KA_PKG_PFX=
     else
-      PKG_PFX=KA
+      KA_PKG_PFX=KA
     fi
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CPPFLAGS
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
     for item in $($PKG_CONFIG --cflags-only-I xtables); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CPPFLAGS=\"\$${PKG_PFX}_CPPFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CFLAGS
+   eval var=\$${KA_PKG_PFX}_CFLAGS
     for item in $($PKG_CONFIG --cflags-only-other xtables); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_LIBS
+   eval var=\$${KA_PKG_PFX}_LIBS
     for item in $($PKG_CONFIG --libs xtables); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
 
@@ -8383,39 +8383,39 @@ $as_echo "$ac_cv_lib_gio_2_0_g_bus_own_name" >&6; }
 if test "x$ac_cv_lib_gio_2_0_g_bus_own_name" = xyes; then :
 
        if test 1 -ge 2; then
-      PKG_PFX=
+      KA_PKG_PFX=
     else
-      PKG_PFX=KA
+      KA_PKG_PFX=KA
     fi
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CPPFLAGS
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
     for item in $($PKG_CONFIG --cflags-only-I gio-2.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CPPFLAGS=\"\$${PKG_PFX}_CPPFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_CFLAGS
+   eval var=\$${KA_PKG_PFX}_CFLAGS
     for item in $($PKG_CONFIG --cflags-only-other gio-2.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_CFLAGS=\"\$${PKG_PFX}_CFLAGS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
 
     ADD_NEW=
-   eval var=\$${PKG_PFX}_LIBS
+   eval var=\$${KA_PKG_PFX}_LIBS
     for item in $($PKG_CONFIG --libs gio-2.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
       fi
     done
-    eval ${PKG_PFX}_LIBS=\"\$${PKG_PFX}_LIBS $ADD_NEW\"
+    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
       DBUS_SUPPORT=Yes

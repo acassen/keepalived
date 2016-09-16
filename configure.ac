@@ -23,13 +23,13 @@ AC_DEFUN([add_to_var_ind_unique],
 
 AC_DEFUN([add_pkg_config],
   [ if test $# -ge 2; then
-      PKG_PFX=$2
+      KA_PKG_PFX=$2
     else
-      PKG_PFX=KA
+      KA_PKG_PFX=KA
     fi
-    add_to_var_ind_unique([${PKG_PFX}_CPPFLAGS], [$($PKG_CONFIG --cflags-only-I $1)])
-    add_to_var_ind_unique([${PKG_PFX}_CFLAGS], [$($PKG_CONFIG --cflags-only-other $1)])
-    add_to_var_ind_unique([${PKG_PFX}_LIBS], [$($PKG_CONFIG --libs $1)])
+    add_to_var_ind_unique([${KA_PKG_PFX}_CPPFLAGS], [$($PKG_CONFIG --cflags-only-I $1)])
+    add_to_var_ind_unique([${KA_PKG_PFX}_CFLAGS], [$($PKG_CONFIG --cflags-only-other $1)])
+    add_to_var_ind_unique([${KA_PKG_PFX}_LIBS], [$($PKG_CONFIG --libs $1)])
   ])
 
 AC_DEFUN([add_build_opt], [add_to_var([BUILD_OPTIONS], [$1])])
