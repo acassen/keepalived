@@ -27,9 +27,9 @@ AC_DEFUN([add_pkg_config],
     else
       PKG_PFX=KA
     fi
-    add_to_var_ind_unique([${PKG_PFX}_CPPFLAGS], [$(pkg-config --cflags-only-I $1)])
-    add_to_var_ind_unique([${PKG_PFX}_CFLAGS], [$(pkg-config --cflags-only-other $1)])
-    add_to_var_ind_unique([${PKG_PFX}_LIBS], [$(pkg-config --libs $1)])
+    add_to_var_ind_unique([${PKG_PFX}_CPPFLAGS], [$($PKG_CONFIG --cflags-only-I $1)])
+    add_to_var_ind_unique([${PKG_PFX}_CFLAGS], [$($PKG_CONFIG --cflags-only-other $1)])
+    add_to_var_ind_unique([${PKG_PFX}_LIBS], [$($PKG_CONFIG --libs $1)])
   ])
 
 AC_DEFUN([add_build_opt], [add_to_var([BUILD_OPTIONS], [$1])])
@@ -61,6 +61,8 @@ AC_SUBST(MAINTAINERCLEANFILES)
 BUILD_OPTIONS=
 
 AM_SILENT_RULES([yes])
+
+PKG_PROG_PKG_CONFIG
 
 dnl ----[ Keepalived specific configure options ]----
 AC_ARG_ENABLE(lvs-syncd,
@@ -114,6 +116,10 @@ AC_ARG_ENABLE(stacktrace,
   [  --enable-stracktrace    compile with stacktrace support])
 AC_ARG_ENABLE(profile,
   [  --enable-profile        compile with profiling flags])
+
+AC_ARG_WITH([systemdsystemunitdir],
+        AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files]),
+        [], [with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)])
 
 # Set the kernel headers path
 if test -n "$kernel_src_path"; then
@@ -285,7 +291,7 @@ AC_CHECK_LIB(nl-3, nl_socket_alloc,
 
     AC_CHECK_LIB(nl-route-3, nl_rtgen_request, [],
       [AC_MSG_ERROR([libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3.])])
-    NL3_CFLAGS="$(pkg-config --cflags libnl-route-3.0)"
+    NL3_CFLAGS="$($PKG_CONFIG --cflags libnl-route-3.0)"
     add_pkg_config([libnl-route-3.0])
   ],
   [
@@ -414,7 +420,7 @@ if test .${enable_libiptc} != .no; then
     dnl ----[Check for ipset libraries]----
     CPPFLAGS="$kernelinc"
     if test "${enable_libipset}" != no; then
-      pkg-config --exists libipset
+      $PKG_CONFIG --exists libipset
       if test $? -eq 0; then
         add_pkg_config([libipset], [IPSET])
       else
@@ -438,7 +444,7 @@ if test .${enable_libiptc} != .no; then
           if test $USE_LIBIPSET = Yes; then
             AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
             add_build_opt([LIBIPSET])
-            pkg-config --exists libipset
+            $PKG_CONFIG --exists libipset
             if test $? -eq 0; then
               add_pkg_config(libipset)
             else
@@ -794,8 +800,8 @@ if test "$enable_dbus" = yes; then
       add_build_opt([DBUS])
 
       dnl -- g_type_init() not needed and deprecated since glib 2.36
-      CFLAGS="$(pkg-config --cflags gio-2.0)"
-      LIBS="$(pkg-config --libs gio-2.0)"
+      CFLAGS="$($PKG_CONFIG --cflags gio-2.0)"
+      LIBS="$($PKG_CONFIG --libs gio-2.0)"
       AC_RUN_IFELSE(
         [
           AC_LANG_PROGRAM(
@@ -915,6 +921,7 @@ else
 	if test \( `which systemctl` -a -x `which systemctl` \); then
 		systemctl | grep -q -- "-\.mount"
 		if test $? -eq 0; then
+			AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
 			INIT_TYPE=systemd
 		fi
 	fi

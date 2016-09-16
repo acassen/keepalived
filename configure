@@ -631,6 +631,7 @@ INIT_SYSTEMD_FALSE
 INIT_SYSTEMD_TRUE
 INIT_UPSTART_FALSE
 INIT_UPSTART_TRUE
+systemdsystemunitdir
 PROFILE_FALSE
 PROFILE_TRUE
 DEBUG_FALSE
@@ -714,6 +715,9 @@ CPPFLAGS
 LDFLAGS
 CFLAGS
 CC
+PKG_CONFIG_LIBDIR
+PKG_CONFIG_PATH
+PKG_CONFIG
 MAINTAINERCLEANFILES
 AM_BACKSLASH
 AM_DEFAULT_VERBOSITY
@@ -809,11 +813,15 @@ enable_mem_check_log
 enable_debug
 enable_stacktrace
 enable_profile
+with_systemdsystemunitdir
 enable_dependency_tracking
 '
       ac_precious_vars='build_alias
 host_alias
 target_alias
+PKG_CONFIG
+PKG_CONFIG_PATH
+PKG_CONFIG_LIBDIR
 CC
 CFLAGS
 LDFLAGS
@@ -1469,8 +1477,15 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-kernel-dir=DIR   path to linux kernel source directory
+  --with-systemdsystemunitdir=DIR
+                          Directory for systemd service files
 
 Some influential environment variables:
+  PKG_CONFIG  path to pkg-config utility
+  PKG_CONFIG_PATH
+              directories to add to pkg-config's search path
+  PKG_CONFIG_LIBDIR
+              path overriding pkg-config's built-in search path
   CC          C compiler command
   CFLAGS      C compiler flags
   LDFLAGS     linker flags, e.g. -L<lib dir> if you have libraries in a
@@ -3214,6 +3229,126 @@ fi
 AM_BACKSLASH='\'
 
 
+
+
+
+
+
+
+if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
+	if test -n "$ac_tool_prefix"; then
+  # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
+set dummy ${ac_tool_prefix}pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_PKG_CONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_PKG_CONFIG="$PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+PKG_CONFIG=$ac_cv_path_PKG_CONFIG
+if test -n "$PKG_CONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $PKG_CONFIG" >&5
+$as_echo "$PKG_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+
+fi
+if test -z "$ac_cv_path_PKG_CONFIG"; then
+  ac_pt_PKG_CONFIG=$PKG_CONFIG
+  # Extract the first word of "pkg-config", so it can be a program name with args.
+set dummy pkg-config; ac_word=$2
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for $ac_word" >&5
+$as_echo_n "checking for $ac_word... " >&6; }
+if ${ac_cv_path_ac_pt_PKG_CONFIG+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  case $ac_pt_PKG_CONFIG in
+  [\\/]* | ?:[\\/]*)
+  ac_cv_path_ac_pt_PKG_CONFIG="$ac_pt_PKG_CONFIG" # Let the user override the test with a path.
+  ;;
+  *)
+  as_save_IFS=$IFS; IFS=$PATH_SEPARATOR
+for as_dir in $PATH
+do
+  IFS=$as_save_IFS
+  test -z "$as_dir" && as_dir=.
+    for ac_exec_ext in '' $ac_executable_extensions; do
+  if as_fn_executable_p "$as_dir/$ac_word$ac_exec_ext"; then
+    ac_cv_path_ac_pt_PKG_CONFIG="$as_dir/$ac_word$ac_exec_ext"
+    $as_echo "$as_me:${as_lineno-$LINENO}: found $as_dir/$ac_word$ac_exec_ext" >&5
+    break 2
+  fi
+done
+  done
+IFS=$as_save_IFS
+
+  ;;
+esac
+fi
+ac_pt_PKG_CONFIG=$ac_cv_path_ac_pt_PKG_CONFIG
+if test -n "$ac_pt_PKG_CONFIG"; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_pt_PKG_CONFIG" >&5
+$as_echo "$ac_pt_PKG_CONFIG" >&6; }
+else
+  { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+fi
+
+  if test "x$ac_pt_PKG_CONFIG" = x; then
+    PKG_CONFIG=""
+  else
+    case $cross_compiling:$ac_tool_warned in
+yes:)
+{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: using cross tools not prefixed with host triplet" >&5
+$as_echo "$as_me: WARNING: using cross tools not prefixed with host triplet" >&2;}
+ac_tool_warned=yes ;;
+esac
+    PKG_CONFIG=$ac_pt_PKG_CONFIG
+  fi
+else
+  PKG_CONFIG="$ac_cv_path_PKG_CONFIG"
+fi
+
+fi
+if test -n "$PKG_CONFIG"; then
+	_pkg_min_version=0.9.0
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking pkg-config is at least version $_pkg_min_version" >&5
+$as_echo_n "checking pkg-config is at least version $_pkg_min_version... " >&6; }
+	if $PKG_CONFIG --atleast-pkgconfig-version $_pkg_min_version; then
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+	else
+		{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+		PKG_CONFIG=""
+	fi
+fi
+
 # Check whether --enable-lvs-syncd was given.
 if test "${enable_lvs_syncd+set}" = set; then :
   enableval=$enable_lvs_syncd;
@@ -3340,6 +3475,15 @@ fi
 # Check whether --enable-profile was given.
 if test "${enable_profile+set}" = set; then :
   enableval=$enable_profile;
+fi
+
+
+
+# Check whether --with-systemdsystemunitdir was given.
+if test "${with_systemdsystemunitdir+set}" = set; then :
+  withval=$with_systemdsystemunitdir;
+else
+  with_systemdsystemunitdir=$($PKG_CONFIG --variable=systemdsystemunitdir systemd)
 fi
 
 
@@ -6303,7 +6447,7 @@ $as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
     fi
     ADD_NEW=
    eval var=\$${PKG_PFX}_CPPFLAGS
-    for item in $(pkg-config --cflags-only-I libnl-3.0); do
+    for item in $($PKG_CONFIG --cflags-only-I libnl-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -6313,7 +6457,7 @@ $as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_CFLAGS
-    for item in $(pkg-config --cflags-only-other libnl-3.0); do
+    for item in $($PKG_CONFIG --cflags-only-other libnl-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -6323,7 +6467,7 @@ $as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
-    for item in $(pkg-config --libs libnl-3.0); do
+    for item in $($PKG_CONFIG --libs libnl-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -6388,7 +6532,7 @@ fi
     fi
     ADD_NEW=
    eval var=\$${PKG_PFX}_CPPFLAGS
-    for item in $(pkg-config --cflags-only-I libnl-genl-3.0); do
+    for item in $($PKG_CONFIG --cflags-only-I libnl-genl-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -6398,7 +6542,7 @@ fi
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_CFLAGS
-    for item in $(pkg-config --cflags-only-other libnl-genl-3.0); do
+    for item in $($PKG_CONFIG --cflags-only-other libnl-genl-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -6408,7 +6552,7 @@ fi
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
-    for item in $(pkg-config --libs libnl-genl-3.0); do
+    for item in $($PKG_CONFIG --libs libnl-genl-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -6465,7 +6609,7 @@ else
   as_fn_error $? "libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3." "$LINENO" 5
 fi
 
-    NL3_CFLAGS="$(pkg-config --cflags libnl-route-3.0)"
+    NL3_CFLAGS="$($PKG_CONFIG --cflags libnl-route-3.0)"
      if test 1 -ge 2; then
       PKG_PFX=
     else
@@ -6473,7 +6617,7 @@ fi
     fi
     ADD_NEW=
    eval var=\$${PKG_PFX}_CPPFLAGS
-    for item in $(pkg-config --cflags-only-I libnl-route-3.0); do
+    for item in $($PKG_CONFIG --cflags-only-I libnl-route-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -6483,7 +6627,7 @@ fi
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_CFLAGS
-    for item in $(pkg-config --cflags-only-other libnl-route-3.0); do
+    for item in $($PKG_CONFIG --cflags-only-other libnl-route-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -6493,7 +6637,7 @@ fi
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
-    for item in $(pkg-config --libs libnl-route-3.0); do
+    for item in $($PKG_CONFIG --libs libnl-route-3.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -6555,7 +6699,7 @@ $as_echo "#define _HAVE_LIBNL1_  1 " >>confdefs.h
     fi
     ADD_NEW=
    eval var=\$${PKG_PFX}_CPPFLAGS
-    for item in $(pkg-config --cflags-only-I libnl-1); do
+    for item in $($PKG_CONFIG --cflags-only-I libnl-1); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -6565,7 +6709,7 @@ $as_echo "#define _HAVE_LIBNL1_  1 " >>confdefs.h
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_CFLAGS
-    for item in $(pkg-config --cflags-only-other libnl-1); do
+    for item in $($PKG_CONFIG --cflags-only-other libnl-1); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -6575,7 +6719,7 @@ $as_echo "#define _HAVE_LIBNL1_  1 " >>confdefs.h
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
-    for item in $(pkg-config --libs libnl-1); do
+    for item in $($PKG_CONFIG --libs libnl-1); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -6984,7 +7128,7 @@ done
     fi
     ADD_NEW=
    eval var=\$${PKG_PFX}_CPPFLAGS
-    for item in $(pkg-config --cflags-only-I --static libiptc); do
+    for item in $($PKG_CONFIG --cflags-only-I --static libiptc); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -6994,7 +7138,7 @@ done
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_CFLAGS
-    for item in $(pkg-config --cflags-only-other --static libiptc); do
+    for item in $($PKG_CONFIG --cflags-only-other --static libiptc); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -7004,7 +7148,7 @@ done
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
-    for item in $(pkg-config --libs --static libiptc); do
+    for item in $($PKG_CONFIG --libs --static libiptc); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -7060,7 +7204,7 @@ if test "x$ac_cv_lib_iptc_iptc_init" = xyes; then :
     fi
     ADD_NEW=
    eval var=\$${PKG_PFX}_CPPFLAGS
-    for item in $(pkg-config --cflags-only-I --static libiptc); do
+    for item in $($PKG_CONFIG --cflags-only-I --static libiptc); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -7070,7 +7214,7 @@ if test "x$ac_cv_lib_iptc_iptc_init" = xyes; then :
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_CFLAGS
-    for item in $(pkg-config --cflags-only-other --static libiptc); do
+    for item in $($PKG_CONFIG --cflags-only-other --static libiptc); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -7080,7 +7224,7 @@ if test "x$ac_cv_lib_iptc_iptc_init" = xyes; then :
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
-    for item in $(pkg-config --libs --static libiptc); do
+    for item in $($PKG_CONFIG --libs --static libiptc); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -7104,7 +7248,7 @@ fi
 
         CPPFLAGS="$kernelinc"
     if test "${enable_libipset}" != no; then
-      pkg-config --exists libipset
+      $PKG_CONFIG --exists libipset
       if test $? -eq 0; then
          if test 2 -ge 2; then
       PKG_PFX=IPSET
@@ -7113,7 +7257,7 @@ fi
     fi
     ADD_NEW=
    eval var=\$${PKG_PFX}_CPPFLAGS
-    for item in $(pkg-config --cflags-only-I libipset); do
+    for item in $($PKG_CONFIG --cflags-only-I libipset); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -7123,7 +7267,7 @@ fi
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_CFLAGS
-    for item in $(pkg-config --cflags-only-other libipset); do
+    for item in $($PKG_CONFIG --cflags-only-other libipset); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -7133,7 +7277,7 @@ fi
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
-    for item in $(pkg-config --libs libipset); do
+    for item in $($PKG_CONFIG --libs libipset); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -7260,7 +7404,7 @@ fi
 $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
 
             BUILD_OPTIONS="$BUILD_OPTIONS LIBIPSET"
-            pkg-config --exists libipset
+            $PKG_CONFIG --exists libipset
             if test $? -eq 0; then
                if test 1 -ge 2; then
       PKG_PFX=
@@ -7269,7 +7413,7 @@ $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
     fi
     ADD_NEW=
    eval var=\$${PKG_PFX}_CPPFLAGS
-    for item in $(pkg-config --cflags-only-I libipset); do
+    for item in $($PKG_CONFIG --cflags-only-I libipset); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -7279,7 +7423,7 @@ $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_CFLAGS
-    for item in $(pkg-config --cflags-only-other libipset); do
+    for item in $($PKG_CONFIG --cflags-only-other libipset); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -7289,7 +7433,7 @@ $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
-    for item in $(pkg-config --libs libipset); do
+    for item in $($PKG_CONFIG --libs libipset); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -7308,7 +7452,7 @@ $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
     fi
     ADD_NEW=
    eval var=\$${PKG_PFX}_CPPFLAGS
-    for item in $(pkg-config --cflags-only-I xtables); do
+    for item in $($PKG_CONFIG --cflags-only-I xtables); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -7318,7 +7462,7 @@ $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_CFLAGS
-    for item in $(pkg-config --cflags-only-other xtables); do
+    for item in $($PKG_CONFIG --cflags-only-other xtables); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -7328,7 +7472,7 @@ $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
-    for item in $(pkg-config --libs xtables); do
+    for item in $($PKG_CONFIG --libs xtables); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -8245,7 +8389,7 @@ if test "x$ac_cv_lib_gio_2_0_g_bus_own_name" = xyes; then :
     fi
     ADD_NEW=
    eval var=\$${PKG_PFX}_CPPFLAGS
-    for item in $(pkg-config --cflags-only-I gio-2.0); do
+    for item in $($PKG_CONFIG --cflags-only-I gio-2.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -8255,7 +8399,7 @@ if test "x$ac_cv_lib_gio_2_0_g_bus_own_name" = xyes; then :
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_CFLAGS
-    for item in $(pkg-config --cflags-only-other gio-2.0); do
+    for item in $($PKG_CONFIG --cflags-only-other gio-2.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -8265,7 +8409,7 @@ if test "x$ac_cv_lib_gio_2_0_g_bus_own_name" = xyes; then :
 
     ADD_NEW=
    eval var=\$${PKG_PFX}_LIBS
-    for item in $(pkg-config --libs gio-2.0); do
+    for item in $($PKG_CONFIG --libs gio-2.0); do
       echo " $var " | $GREP -q " $item "
       if test $? -ne 0; then
 	ADD_NEW="$ADD_NEW $item"
@@ -8280,8 +8424,8 @@ $as_echo "#define _WITH_DBUS_  1 " >>confdefs.h
 
       BUILD_OPTIONS="$BUILD_OPTIONS DBUS"
 
-            CFLAGS="$(pkg-config --cflags gio-2.0)"
-      LIBS="$(pkg-config --libs gio-2.0)"
+            CFLAGS="$($PKG_CONFIG --cflags gio-2.0)"
+      LIBS="$($PKG_CONFIG --libs gio-2.0)"
       if test "$cross_compiling" = yes; then :
 
           { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Cannot determine if need to call g_type_init(). Assuming yes for safety." >&5
@@ -8605,6 +8749,8 @@ else
 	if test \( `which systemctl` -a -x `which systemctl` \); then
 		systemctl | grep -q -- "-\.mount"
 		if test $? -eq 0; then
+			systemdsystemunitdir=$with_systemdsystemunitdir
+
 			INIT_TYPE=systemd
 		fi
 	fi

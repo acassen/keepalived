@@ -50,8 +50,7 @@ init_DATA		= etc/init.d/keepalived
 endif
 
 if INIT_SYSTEMD
-systemddir		= /lib/systemd/system
-systemd_DATA		= keepalived.service
+systemdsystemunit_DATA	= keepalived.service
 endif
 
 if INIT_UPSTART
