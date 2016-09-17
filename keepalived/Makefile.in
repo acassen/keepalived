@@ -108,7 +108,7 @@ CONFIG_CLEAN_FILES =
 CONFIG_CLEAN_VPATH_FILES =
 am__installdirs = "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(configdir)" \
 	"$(DESTDIR)$(initdir)" "$(DESTDIR)$(sysconfigdir)" \
-	"$(DESTDIR)$(systemddir)"
+	"$(DESTDIR)$(systemdsystemunitdir)"
 PROGRAMS = $(sbin_PROGRAMS)
 am_keepalived_OBJECTS = main.$(OBJEXT)
 keepalived_OBJECTS = $(am_keepalived_OBJECTS)
@@ -185,7 +185,8 @@ am__uninstall_files_from_dir = { \
     || { echo " ( cd '$$dir' && rm -f" $$files ")"; \
          $(am__cd) "$$dir" && rm -f $$files; }; \
   }
-DATA = $(config_DATA) $(init_DATA) $(sysconfig_DATA) $(systemd_DATA)
+DATA = $(config_DATA) $(init_DATA) $(sysconfig_DATA) \
+	$(systemdsystemunit_DATA)
 HEADERS = $(noinst_HEADERS)
 RECURSIVE_CLEAN_TARGETS = mostlyclean-recursive clean-recursive	\
   distclean-recursive maintainer-clean-recursive
@@ -294,6 +295,9 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PKG_CONFIG = @PKG_CONFIG@
+PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
+PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
@@ -340,6 +344,7 @@ sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
 sysconfdir = @sysconfdir@
+systemdsystemunitdir = @systemdsystemunitdir@
 target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
@@ -366,8 +371,7 @@ config_DATA = etc/keepalived/keepalived.conf
 @INIT_UPSTART_TRUE@initdir = $(sysconfdir)/init
 @INIT_SYSV_TRUE@init_DATA = etc/init.d/keepalived
 @INIT_UPSTART_TRUE@init_DATA = etc/init/keepalived.conf
-@INIT_SYSTEMD_TRUE@systemddir = /lib/systemd/system
-@INIT_SYSTEMD_TRUE@systemd_DATA = keepalived.service
+@INIT_SYSTEMD_TRUE@systemdsystemunit_DATA = keepalived.service
 all: all-recursive
 
 .SUFFIXES:
@@ -532,27 +536,27 @@ uninstall-sysconfigDATA:
 	@list='$(sysconfig_DATA)'; test -n "$(sysconfigdir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
 	dir='$(DESTDIR)$(sysconfigdir)'; $(am__uninstall_files_from_dir)
-install-systemdDATA: $(systemd_DATA)
+install-systemdsystemunitDATA: $(systemdsystemunit_DATA)
 	@$(NORMAL_INSTALL)
-	@list='$(systemd_DATA)'; test -n "$(systemddir)" || list=; \
+	@list='$(systemdsystemunit_DATA)'; test -n "$(systemdsystemunitdir)" || list=; \
 	if test -n "$$list"; then \
-	  echo " $(MKDIR_P) '$(DESTDIR)$(systemddir)'"; \
-	  $(MKDIR_P) "$(DESTDIR)$(systemddir)" || exit 1; \
+	  echo " $(MKDIR_P) '$(DESTDIR)$(systemdsystemunitdir)'"; \
+	  $(MKDIR_P) "$(DESTDIR)$(systemdsystemunitdir)" || exit 1; \
 	fi; \
 	for p in $$list; do \
 	  if test -f "$$p"; then d=; else d="$(srcdir)/"; fi; \
 	  echo "$$d$$p"; \
 	done | $(am__base_list) | \
 	while read files; do \
-	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(systemddir)'"; \
-	  $(INSTALL_DATA) $$files "$(DESTDIR)$(systemddir)" || exit $$?; \
+	  echo " $(INSTALL_DATA) $$files '$(DESTDIR)$(systemdsystemunitdir)'"; \
+	  $(INSTALL_DATA) $$files "$(DESTDIR)$(systemdsystemunitdir)" || exit $$?; \
 	done
 
-uninstall-systemdDATA:
+uninstall-systemdsystemunitDATA:
 	@$(NORMAL_UNINSTALL)
-	@list='$(systemd_DATA)'; test -n "$(systemddir)" || list=; \
+	@list='$(systemdsystemunit_DATA)'; test -n "$(systemdsystemunitdir)" || list=; \
 	files=`for p in $$list; do echo $$p; done | sed -e 's|^.*/||'`; \
-	dir='$(DESTDIR)$(systemddir)'; $(am__uninstall_files_from_dir)
+	dir='$(DESTDIR)$(systemdsystemunitdir)'; $(am__uninstall_files_from_dir)
 
 # This directory's subdirectories are mostly independent; you can cd
 # into them and run 'make' without going through this Makefile.
@@ -713,7 +717,7 @@ check: check-recursive
 all-am: Makefile $(PROGRAMS) $(DATA) $(HEADERS)
 installdirs: installdirs-recursive
 installdirs-am:
-	for dir in "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(sysconfigdir)" "$(DESTDIR)$(systemddir)"; do \
+	for dir in "$(DESTDIR)$(sbindir)" "$(DESTDIR)$(configdir)" "$(DESTDIR)$(initdir)" "$(DESTDIR)$(sysconfigdir)" "$(DESTDIR)$(systemdsystemunitdir)"; do \
 	  test -z "$$dir" || $(MKDIR_P) "$$dir"; \
 	done
 install: install-recursive
@@ -770,7 +774,7 @@ info: info-recursive
 info-am:
 
 install-data-am: install-configDATA install-initDATA \
-	install-sysconfigDATA install-systemdDATA
+	install-sysconfigDATA install-systemdsystemunitDATA
 
 install-dvi: install-dvi-recursive
 
@@ -817,7 +821,7 @@ ps-am:
 
 uninstall-am: uninstall-configDATA uninstall-initDATA \
 	uninstall-sbinPROGRAMS uninstall-sysconfigDATA \
-	uninstall-systemdDATA
+	uninstall-systemdsystemunitDATA
 
 .MAKE: $(am__recursive_targets) install-am install-strip
 
@@ -830,13 +834,14 @@ uninstall-am: uninstall-configDATA uninstall-initDATA \
 	install-exec-am install-html install-html-am install-info \
 	install-info-am install-initDATA install-man install-pdf \
 	install-pdf-am install-ps install-ps-am install-sbinPROGRAMS \
-	install-strip install-sysconfigDATA install-systemdDATA \
-	installcheck installcheck-am installdirs installdirs-am \
-	maintainer-clean maintainer-clean-generic mostlyclean \
-	mostlyclean-compile mostlyclean-generic pdf pdf-am ps ps-am \
-	tags tags-am uninstall uninstall-am uninstall-configDATA \
-	uninstall-initDATA uninstall-sbinPROGRAMS \
-	uninstall-sysconfigDATA uninstall-systemdDATA
+	install-strip install-sysconfigDATA \
+	install-systemdsystemunitDATA installcheck installcheck-am \
+	installdirs installdirs-am maintainer-clean \
+	maintainer-clean-generic mostlyclean mostlyclean-compile \
+	mostlyclean-generic pdf pdf-am ps ps-am tags tags-am uninstall \
+	uninstall-am uninstall-configDATA uninstall-initDATA \
+	uninstall-sbinPROGRAMS uninstall-sysconfigDATA \
+	uninstall-systemdsystemunitDATA
 
 .PRECIOUS: Makefile
 
