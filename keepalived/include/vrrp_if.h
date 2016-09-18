@@ -88,8 +88,8 @@ typedef struct _interface {
 							   This is set true if not using linkbeat polling. */
 #ifdef _HAVE_VRRP_VMAC_
 	bool			vmac;			/* Set if interface is a VMAC interface */
-	ifindex_t		base_ifindex;		/* Base interface index (if interface is a VMAC interface),
-							   otherwise the physical interface (i.e. ifindex) */
+	struct _interface	*base_ifp;		/* Base interface (if interface is a VMAC interface),
+							   otherwise the physical interface */
 	unsigned		vmac_ifi_flags;		/* ifi_flags for vmac interface itself */
 #endif
 	garp_delay_t		*garp_delay;		/* Delays for sending gratuitous ARP/NA */
@@ -111,8 +111,8 @@ typedef struct _tracked_if {
 #define IF_NAME(X) ((X)->ifname)
 #define IF_INDEX(X) ((X)->ifindex)
 #ifdef _HAVE_VRRP_VMAC_
-#define IF_BASE_INDEX(X) ((X)->base_ifindex)
-#define IF_BASE_IFP(X) (((X)->ifindex == (X)->base_ifindex) ? X : if_get_by_ifindex((X)->base_ifindex))
+#define IF_BASE_INDEX(X) ((X)->base_ifp->ifindex)
+#define IF_BASE_IFP(X) ((X)->base_ifp)
 #else
 #define IF_BASE_INDEX(X) ((X)->ifindex)
 #define IF_BASE_IFP(X) (X)

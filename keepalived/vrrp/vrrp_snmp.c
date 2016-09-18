@@ -2801,7 +2801,7 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFC_SNMP_OPER_PIP:
 #ifdef _HAVE_VRRP_VMAC_
 		if (rt->ifp->vmac)
-			ifp = if_get_by_ifindex(rt->ifp->base_ifindex);
+			ifp = rt->ifp->base_ifp;
 		else
 #endif
 			ifp = rt->ifp;
@@ -3457,7 +3457,7 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFCv3_SNMP_OPER_PIP:
 #ifdef _HAVE_VRRP_VMAC_
 		if (rt->ifp->vmac)
-			ifp = if_get_by_ifindex(rt->ifp->base_ifindex);
+			ifp = rt->ifp->base_ifp;
 		else
 #endif
 			ifp = rt->ifp;

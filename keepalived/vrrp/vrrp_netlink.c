@@ -770,7 +770,7 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags, ifindex_t if_index)
 
 		if (vrrp->ifp == ifp
 #ifdef _HAVE_VRRP_VMAC_
-				     || vrrp->ifp->base_ifindex == ifp->ifindex
+				     || vrrp->ifp->base_ifp == ifp
 #endif
 										) {
 			/* This vrrp's interface or underlying interface has changed */
@@ -816,7 +816,6 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 #ifdef _HAVE_VRRP_VMAC_
 	struct rtattr* linkinfo[IFLA_INFO_MAX+1];
 	struct rtattr* linkattr[IFLA_MACVLAN_MAX+1];
-	interface_t *ifp_base;
 #endif
 
 	name = (char *)RTA_DATA(tb[IFLA_IFNAME]);
@@ -872,20 +871,21 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 
 			if (linkattr[IFLA_MACVLAN_MODE] &&
 			    *(uint32_t*)RTA_DATA(linkattr[IFLA_MACVLAN_MODE]) == MACVLAN_MODE_PRIVATE) {
-				ifp->base_ifindex = *(uint32_t *)RTA_DATA(tb[IFLA_LINK]);
+				ifp->base_ifp = if_get_by_ifindex(*(uint32_t *)RTA_DATA(tb[IFLA_LINK]));
 				ifp->vmac = true;
 			}
 		}
 	}
 
-
 	update_interface_flags(ifp, ifi->ifi_flags, (ifindex_t)ifi->ifi_index);
 
 	if (!ifp->vmac)
-		ifp->base_ifindex = ifp->ifindex;
+		ifp->base_ifp = ifp;
 	else {
-		if ((ifp_base = if_get_by_ifindex(ifp->base_ifindex)))
-			ifp->ifi_flags = ifp_base->ifi_flags;
+		if (ifp->base_ifp) {
+			ifp->vmac_ifi_flags = ifp->ifi_flags;
+			ifp->ifi_flags = ifp->base_ifp->ifi_flags;
+		}
 	}
 #else
 	ifp->flags = ifi->ifi_flags;

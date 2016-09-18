@@ -331,7 +331,7 @@ dump_vrrp(void *data)
 		log_message(LOG_INFO, "   Using VRRP VMAC (flags:%s|%s), vmac ifindex %u"
 				    , (__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags)) ? "UP" : "DOWN"
 				    , (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? "xmit_base" : "xmit"
-				    , vrrp->ifp->base_ifindex);
+				    , vrrp->ifp->base_ifp->ifindex);
 #endif
 }
 

@@ -1885,7 +1885,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	vrrp_t *vrrp_o;
 	interface_t *ifp;
 #endif
-	interface_t *base_ifp;
 	element e;
 	ip_address_t *vip;
 	size_t hdr_len;
@@ -2108,7 +2107,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				    ((vrrp->family == AF_INET && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x01) ||
 				     (vrrp->family == AF_INET6 && ifp->hw_addr[sizeof(ll_addr) - 2] == 0x02)) &&
 				    ifp->hw_addr[sizeof(ll_addr) - 1] == vrrp->vrid &&
-				    ifp->base_ifindex == vrrp->ifp->ifindex)
+				    ifp->base_ifp == vrrp->ifp)
 				{
 					log_message(LOG_INFO, "(%s): Found matching interface %s", vrrp->iname, ifp->ifname);
 					if (vrrp->vmac_ifname[0]) {
@@ -2176,8 +2175,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		interface_already_existed = true;
 	}
 
-	base_ifp = base_if_get_by_ifp(vrrp->ifp);
-
 	/* Make sure we have an IP address as needed */
 	if (vrrp->saddr.ss_family == AF_UNSPEC) {
 		/* Check the physical interface has a suitable address we can use.
@@ -2186,25 +2183,25 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		bool addr_missing = false;
 
 		if (vrrp->family == AF_INET) {
-			if (!base_ifp->sin_addr.s_addr)
+			if (!vrrp->ifp->base_ifp->sin_addr.s_addr)
 				addr_missing = true;
 		}
 #ifdef _HAVE_VRRP_VMAC_
 		else if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
-			if (!base_ifp->sin6_addr.s6_addr32[0])
+			if (!vrrp->ifp->base_ifp->sin6_addr.s6_addr32[0])
 				addr_missing = true;
 		}
 #endif
 
 		if (addr_missing) {
-			log_message(LOG_INFO, "(%s): Cannot find an IP address to use for interface %s", vrrp->iname, base_ifp->ifname);
+			log_message(LOG_INFO, "(%s): Cannot find an IP address to use for interface %s", vrrp->iname, vrrp->ifp->base_ifp->ifname);
 			return false;
 		}
 
 		if (vrrp->family == AF_INET) {
-			inet_ip4tosockaddr(&base_ifp->sin_addr, &vrrp->saddr);
+			inet_ip4tosockaddr(&vrrp->ifp->base_ifp->sin_addr, &vrrp->saddr);
 		} else if (vrrp->family == AF_INET6) {
-			inet_ip6tosockaddr(&base_ifp->sin6_addr, &vrrp->saddr);
+			inet_ip6tosockaddr(&vrrp->ifp->base_ifp->sin6_addr, &vrrp->saddr);
 			/* IPv6 use-case: Binding to link-local address requires an interface */
 			inet_ip6scopeid(IF_INDEX(vrrp->ifp), &vrrp->saddr);
 		}
@@ -2350,7 +2347,7 @@ vrrp_complete_init(void)
 		l_o = &vrrp_data->vrrp_index[vrrp->vrid];
 #ifdef _HAVE_VRRP_VMAC_
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-			ifindex = vrrp->ifp->base_ifindex;
+			ifindex = vrrp->ifp->base_ifp->ifindex;
 		else
 #endif
 			ifindex = vrrp->ifp->ifindex;
@@ -2364,7 +2361,7 @@ vrrp_complete_init(void)
 				    vrrp_o->family == vrrp->family) {
 #ifdef _HAVE_VRRP_VMAC_
 					if (__test_bit(VRRP_VMAC_BIT, &vrrp_o->vmac_flags))
-						ifindex_o = vrrp_o->ifp->base_ifindex;
+						ifindex_o = vrrp_o->ifp->base_ifp->ifindex;
 					else
 #endif
 						ifindex_o = vrrp_o->ifp->ifindex;

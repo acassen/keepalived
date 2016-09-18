@@ -88,7 +88,6 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 {
 	struct rtattr *linkinfo;
 	struct rtattr *data;
-	ifindex_t base_ifindex;
 	interface_t *ifp;
 	interface_t *base_ifp;
 	char ifname[IFNAMSIZ];
@@ -180,18 +179,20 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	/*
 	 * Update interface queue and vrrp instance interface binding.
 	 */
+// TODO - does this get all interfaces - can we just get the one?
 	netlink_interface_lookup();
 	ifp = if_get_by_ifname(ifname);
 	if (!ifp)
 		return -1;
 	base_ifp = vrrp->ifp;
-	base_ifindex = base_ifp->ifindex;
+//TODO - is this right for flags?
 //	ifp->vmac_ifi_flags = 0;
 	ifp->vmac_ifi_flags = ifp->ifi_flags;
 	ifp->ifi_flags = base_ifp->ifi_flags; /* Copy base interface flags */
 	vrrp->ifp = ifp;
-	vrrp->ifp->base_ifindex = base_ifindex;
-	vrrp->ifp->vmac = 1;
+	vrrp->ifp->base_ifp = base_ifp;
+	vrrp->ifp->vmac = true;
+//TODO1 - get rid of vmac_index - it is vrrp->ifp->ifindex
 	vrrp->vmac_ifindex = IF_INDEX(vrrp->ifp); /* For use on delete */
 
 	if (vrrp->family == AF_INET) {
@@ -297,8 +298,6 @@ int
 netlink_link_del_vmac(vrrp_t *vrrp)
 {
 	int status = 1;
-
-	interface_t *base_ifp ;
 	struct {
 		struct nlmsghdr n;
 		struct ifinfomsg ifi;
@@ -310,10 +309,9 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 
 	/* Reset arp_ignore and arp_filter on the base interface if necessary */
 	if (vrrp->family == AF_INET) {
-		base_ifp = if_get_by_ifindex(vrrp->ifp->base_ifindex);
-
-		if (base_ifp)
-			reset_interface_parameters(base_ifp);
+// TODO - what if other vmacs are using the same base interface. We need a counter.
+		if (vrrp->ifp->base_ifp)
+			reset_interface_parameters(vrrp->ifp->base_ifp);
 		else
 			log_message(LOG_INFO, "Unable to find base interface for vrrp instance %s", vrrp->iname);
 	}

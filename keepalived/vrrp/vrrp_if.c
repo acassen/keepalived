@@ -93,7 +93,7 @@ base_if_get_by_ifindex(ifindex_t ifindex)
 	interface_t *ifp = if_get_by_ifindex(ifindex);
 
 #ifdef _HAVE_VRRP_VMAC_
-	return (ifp && ifp->vmac) ? if_get_by_ifindex(ifp->base_ifindex) : ifp;
+	return (ifp && ifp->vmac) ? ifp->base_ifp : ifp;
 #else
 	return ifp;
 #endif
@@ -104,7 +104,7 @@ interface_t *
 base_if_get_by_ifp(interface_t *ifp)
 {
 #ifdef _HAVE_VRRP_VMAC_
-	return (ifp && ifp->vmac) ? if_get_by_ifindex(ifp->base_ifindex) : ifp;
+	return (ifp && ifp->vmac) ? ifp->base_ifp : ifp;
 #else
 	return ifp;
 #endif
@@ -163,7 +163,7 @@ if_vmac_reflect_flags(ifindex_t ifindex, unsigned flags)
 
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
-		if (ifp->vmac && ifp->base_ifindex == ifindex)
+		if (ifp->vmac && ifp->base_ifp->ifindex == ifindex)
 			ifp->ifi_flags = flags;
 	}
 }
@@ -432,7 +432,7 @@ dump_if(void *data)
 	}
 
 #ifdef _HAVE_VRRP_VMAC_
-	if (ifp->vmac && (ifp_u = if_get_by_ifindex(ifp->base_ifindex)))
+	if (ifp->vmac && (ifp_u = ifp->base_ifp))
 		log_message(LOG_INFO, " VMAC underlying interface = %s", ifp_u->ifname);
 #endif
 
