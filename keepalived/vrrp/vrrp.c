@@ -2117,7 +2117,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 					else
 						strcpy(vrrp->vmac_ifname, ifp->ifname);
 					vrrp->ifp = ifp;
-					vrrp->vmac_ifindex = ifp->ifindex;
 					__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
 
 					/* The interface existed, so it may have config set on it */
@@ -2233,7 +2232,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		/* set scopeid of source address if IPv6 */
 		if (vrrp->saddr.ss_family == AF_INET6)
-			inet_ip6scopeid(vrrp->vmac_ifindex, &vrrp->saddr);
+			inet_ip6scopeid(vrrp->ifp->ifindex, &vrrp->saddr);
 	}
 #endif
 
@@ -2636,7 +2635,7 @@ clear_diff_vrrp(void)
 		vrrp_t *new_vrrp;
 
 		/*
-		 * Try to find this vrrp into the new conf data
+		 * Try to find this vrrp in the new conf data
 		 * reloaded.
 		 */
 		new_vrrp = vrrp_exist(vrrp);
@@ -2644,6 +2643,7 @@ clear_diff_vrrp(void)
 			vrrp_restore_interface(vrrp, true, false);
 
 #ifdef _HAVE_VRRP_VMAC_
+// TODO - the vmac may be being used by another instance
 			/* Remove VMAC if one was created */
 			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 				netlink_link_del_vmac(vrrp);
@@ -2675,6 +2675,7 @@ clear_diff_vrrp(void)
 			 */
 			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
 			    !__test_bit(VRRP_VMAC_BIT, &new_vrrp->vmac_flags)) {
+// TODO - the vmac may be being used by another instance
 				netlink_link_del_vmac(vrrp);
 			}
 #endif

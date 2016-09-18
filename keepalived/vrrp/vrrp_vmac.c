@@ -192,8 +192,6 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	vrrp->ifp = ifp;
 	vrrp->ifp->base_ifp = base_ifp;
 	vrrp->ifp->vmac = true;
-//TODO1 - get rid of vmac_index - it is vrrp->ifp->ifindex
-	vrrp->vmac_ifindex = IF_INDEX(vrrp->ifp); /* For use on delete */
 
 	if (vrrp->family == AF_INET) {
 		/* Set the necessary kernel parameters to make macvlans work for us */
@@ -215,7 +213,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		req.n.nlmsg_flags = NLM_F_REQUEST ;
 		req.n.nlmsg_type = RTM_NEWLINK;
 		req.ifi.ifi_family = AF_UNSPEC;
-		req.ifi.ifi_index = (int)vrrp->vmac_ifindex;
+		req.ifi.ifi_index = (int)vrrp->ifp->ifindex;
 
 		u_char val = IN6_ADDR_GEN_MODE_NONE;
 		struct rtattr* spec;
@@ -252,7 +250,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 				make_link_local_address(&ipaddress.u.sin6_addr, base_ifp->hw_addr);
 			ipaddress.ifa.ifa_family = AF_INET6;
 			ipaddress.ifa.ifa_prefixlen = 64;
-			ipaddress.ifa.ifa_index = vrrp->vmac_ifindex;
+			ipaddress.ifa.ifa_index = vrrp->ifp->ifindex;
 
 			if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1)
 				log_message(LOG_INFO, "Adding link-local address to vmac failed");
@@ -260,7 +258,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			/* Save the address as source for vrrp packets */
 			if (vrrp->saddr.ss_family == AF_UNSPEC)
 				inet_ip6tosockaddr(&ipaddress.u.sin6_addr, &vrrp->saddr);
-			inet_ip6scopeid(vrrp->vmac_ifindex, &vrrp->saddr);
+			inet_ip6scopeid(vrrp->ifp->ifindex, &vrrp->saddr);
 		}
 	}
 
@@ -284,7 +282,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		make_link_local_address(&ipaddress.u.sin6_addr, ll_addr);
 		ipaddress.ifa.ifa_family = AF_INET6;
 		ipaddress.ifa.ifa_prefixlen = 64;
-		ipaddress.ifa.ifa_index = vrrp->vmac_ifindex;
+		ipaddress.ifa.ifa_index = vrrp->ifp->ifindex;
 
 		if (netlink_ipaddress(&ipaddress, IPADDRESS_DEL) != 1)
 			log_message(LOG_INFO, "Deleting auto link-local address from vmac failed");
@@ -322,7 +320,7 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 	req.n.nlmsg_flags = NLM_F_REQUEST;
 	req.n.nlmsg_type = RTM_DELLINK;
 	req.ifi.ifi_family = AF_INET;
-	req.ifi.ifi_index = (int)vrrp->vmac_ifindex;
+	req.ifi.ifi_index = (int)vrrp->ifp->ifindex;
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0) {
 		log_message(LOG_INFO, "vmac: Error removing VMAC interface %s for vrrp_instance %s!!!"
