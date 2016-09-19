@@ -149,9 +149,12 @@ reset_interface_queue(void)
  * Reflect base interface flags on VMAC interfaces.
  * VMAC interfaces should never update most of it's own flags,
  * only be reflected by the base interface flags, except the
- * IFF_UP and IFF_RUNNING flags for the vmac intefface must be
+ * IFF_UP and IFF_RUNNING flags for the vmac interface must be
  * taken into account.
  */
+// TODO - change this. Don't reflect flags. For an instance, it's state is:
+// vrrp->base_ifp->ifi_flags & (vrrp->vmac ? ~0 : vrrp->ifp->ifi_flags | ~(IFF_UP | IFF_RUNNING))
+// netlink_link_add_vmac() will need updating amongst other places
 void
 if_vmac_reflect_flags(ifindex_t ifindex, unsigned flags)
 {
@@ -331,6 +334,9 @@ log_message(LOG_INFO, "if_ioctl_flags changing ifi_flags from 0x%x to 0x%x for %
 static void
 free_if(void *data)
 {
+	interface_t *ifp = data;
+
+	free_list(&ifp->tracking_inst);
 	FREE(data);
 }
 
@@ -363,7 +369,7 @@ set_default_garp_delay(void)
 		default_delay.have_gna_interval = true;
 	}
 
-	/* Allocate a delay structure to each physical inteface that doesn't have one */
+	/* Allocate a delay structure to each physical interface that doesn't have one */
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
 		if (!ifp->garp_delay

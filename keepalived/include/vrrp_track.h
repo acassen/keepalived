@@ -34,6 +34,7 @@
 /* local includes */
 #include "vector.h"
 #include "list.h"
+#include "vrrp_if.h"
 
 /* Macro definition */
 #define TRACK_ISUP(L)	(vrrp_tracked_up((L)))
@@ -77,7 +78,7 @@ typedef struct _tracked_sc {
 /* prototypes */
 extern void dump_track(void *);
 extern void free_track(void *);
-extern void alloc_track(list, vector_t *);
+extern interface_t *alloc_track(list, vector_t *);
 extern void dump_track_script(void *);
 extern void free_track_script(void *);
 extern void alloc_track_script(list, vector_t *);

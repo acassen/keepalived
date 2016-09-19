@@ -43,7 +43,7 @@ free_track(void *tip)
 	FREE(tip);
 }
 
-void
+interface_t *
 alloc_track(list track_list, vector_t *strvec)
 {
 	interface_t *ifp = NULL;
@@ -56,7 +56,7 @@ alloc_track(list track_list, vector_t *strvec)
 	/* Ignoring if no interface found */
 	if (!ifp) {
 		log_message(LOG_INFO, "     %s no match, ignoring...", tracked);
-		return;
+		return NULL;
 	}
 
 	if (vector_size(strvec) >= 3 &&
@@ -74,6 +74,7 @@ alloc_track(list track_list, vector_t *strvec)
 	tip->weight = weight;
 
 	list_add(track_list, tip);
+	return ifp;
 }
 
 vrrp_script_t *

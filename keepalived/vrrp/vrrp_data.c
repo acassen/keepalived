@@ -452,10 +452,13 @@ void
 alloc_vrrp_track(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	interface_t *ifp;
 
 	if (!LIST_EXISTS(vrrp->track_ifp))
 		vrrp->track_ifp = alloc_list(free_track, dump_track);
-	alloc_track(vrrp->track_ifp, strvec);
+	ifp = alloc_track(vrrp->track_ifp, strvec);
+	if (ifp)
+		add_vrrp_to_interface(vrrp, ifp);
 }
 
 void

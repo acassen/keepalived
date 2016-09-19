@@ -97,6 +97,7 @@ typedef struct _interface {
 	int			reset_arp_config;	/* Count of how many vrrps have changed arp parameters on interface */
 	uint32_t		reset_arp_ignore_value;	/* Original value of arp_ignore to be restored */
 	uint32_t		reset_arp_filter_value;	/* Original value of arp_filter to be restored */
+	list			tracking_inst;		/* vrrp instances tracking this interface */
 } interface_t;
 
 #define GARP_DELAY_PTR(X) ((X)->switch_delay ? (X)->switch_delay : &((X)->if_delay))

@@ -1658,6 +1658,14 @@ vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	return 0;
 }
 
+void
+add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp)
+{
+	if (!LIST_EXISTS(ifp->tracking_inst))
+		ifp->tracking_inst = alloc_list(NULL, NULL);
+	list_add(ifp->tracking_inst, vrrp);
+}
+
 /* check for minimum configuration requirements */
 static bool
 chk_min_cfg(vrrp_t * vrrp)
@@ -2206,6 +2214,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
+	/* Add this instance to the physical interface */
+	add_vrrp_to_interface(vrrp, vrrp->ifp);
+
 #ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
 	    !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
@@ -2229,6 +2240,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		/* Create the interface if it doesn't already exist */
 		if (!__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags))
 			netlink_link_add_vmac(vrrp);
+
+		/* Add this instance to the vmac interface */
+		add_vrrp_to_interface(vrrp, vrrp->ifp);
 
 		/* set scopeid of source address if IPv6 */
 		if (vrrp->saddr.ss_family == AF_INET6)

@@ -765,41 +765,35 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags, ifindex_t if_index)
 
 	/* The state of the interface has changed from up to down or vice versa.
 	 * Find which vrrp instances are affected */
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+	for (e = LIST_HEAD(ifp->tracking_inst); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-		if (vrrp->ifp == ifp
-#ifdef _HAVE_VRRP_VMAC_
-				     || vrrp->ifp->base_ifp == ifp
-#endif
-										) {
-			/* This vrrp's interface or underlying interface has changed */
-			if (VRRP_IF_ISUP(vrrp) != was_up) {
-				vrrp->if_state_changed = true;
+		/* This vrrp's interface or underlying interface has changed */
+		if (VRRP_IF_ISUP(vrrp) != was_up) {
+			vrrp->if_state_changed = true;
 
-				/* This is how we update the queued thread */
-				if (vrrp->ifp == ifp) {
+			/* This is how we update the queued thread */
+			if (vrrp->ifp == ifp) {
 #ifdef _HAVE_VRRP_VMAC_
-					if (ifp->vmac) {
-						/* We are the only user of this fd */
-						if (vrrp->fd_in)
-							thread_read_timer_expire(vrrp->fd_in, now_up, true);
-						break;
-					}
-#endif
-					if (vrrp->family == AF_INET)
-						ip_fd = vrrp->fd_in;
-					else
-						ip6_fd = vrrp->fd_in;
-				}
-#ifdef _HAVE_VRRP_VMAC_
-				else if (vrrp->fd_in) {
-					/* This is a vmac, and the underlying interface has changed state.
-					 * We need to report this with the fd used by the interface */
-					thread_read_timer_expire(vrrp->fd_in, now_up, true);
+				if (ifp->vmac) {
+					/* We are the only user of this fd */
+					if (vrrp->fd_in)
+						thread_read_timer_expire(vrrp->fd_in, now_up, true);
+					continue;
 				}
 #endif
+				if (vrrp->family == AF_INET)
+					ip_fd = vrrp->fd_in;
+				else
+					ip6_fd = vrrp->fd_in;
 			}
+#ifdef _HAVE_VRRP_VMAC_
+			else if (vrrp->fd_in) {
+				/* This is a vmac, and the underlying interface has changed state.
+				 * We need to report this with the fd used by the interface */
+				thread_read_timer_expire(vrrp->fd_in, now_up, true);
+			}
+#endif
 		}
 	}
 	if (ip_fd)

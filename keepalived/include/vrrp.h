@@ -321,6 +321,7 @@ extern int vrrp_state_master_tx(vrrp_t *, const int);
 extern void vrrp_state_backup(vrrp_t *, char *, ssize_t);
 extern void vrrp_state_goto_master(vrrp_t *);
 extern void vrrp_state_leave_master(vrrp_t *);
+extern void add_vrrp_to_interface(vrrp_t *, interface_t *);
 extern bool vrrp_complete_init(void);
 #ifdef _WITH_LVS_
 extern bool vrrp_ipvs_needed(void);
