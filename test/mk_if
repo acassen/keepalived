@@ -1,12 +1,19 @@
 #!/bin/bash
 
 ECHO=
-IP_BASE_ADDR=141.1
-IP6_BASE_ADDR=2001:470:69dd
+IP_BASE_ADDR=10.1
+IP6_BASE_ADDR=fd00:0:1
 
 CMD=$1
 LOW=$2
 HIGH=$3
+
+if [[ $CMD = add ]]; then
+	for n in high medium low; do
+		unshare -n ip netns new $n
+		ip netns exec $n ip link set up lo
+	done
+fi
 
 for n in $(seq $LOW $HIGH); do
 	if [[ $CMD = add ]]; then
