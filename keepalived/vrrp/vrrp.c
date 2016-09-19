@@ -1396,6 +1396,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		log_message(LOG_INFO, "VRRP_Instance(%s) ignoring received advertisment..."
 				    ,  vrrp->iname);
 //TODO - this isn't ignoring advert !!!
+// see use of new_ms_down_timer below
 		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 	} else if (hd->priority == 0) {
 		log_message(LOG_INFO, "(%s): Backup received priority 0 advertisement", vrrp->iname);
@@ -2012,24 +2013,28 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	else if (vrrp->strict_mode && (vrrp->init_state == VRRP_STATE_MAST) && (vrrp->base_priority != VRRP_PRIO_OWNER)) {
 		log_message(LOG_INFO,"(%s): Cannot start in MASTER state if not address owner", vrrp->iname);
 		vrrp->init_state = VRRP_STATE_BACK;
-		vrrp->wantstate = VRRP_STATE_BACK;
-	}
-	if (vrrp->base_priority == VRRP_PRIO_OWNER) {
-		/* Act as though state MASTER had been specified, to speed transition to master state */
-		vrrp->init_state = VRRP_STATE_MAST;
-		vrrp->wantstate = VRRP_STATE_MAST;
 	}
 	vrrp->effective_priority = vrrp->base_priority;
 
-	if (vrrp->nopreempt && vrrp->init_state == VRRP_STATE_MAST)
-		log_message(LOG_INFO, "(%s): Warning - nopreempt will not work with initial state MASTER", vrrp->iname);
-	if (vrrp->strict_mode && vrrp->preempt_delay) {
-		log_message(LOG_INFO, "(%s): preempt_delay is incompatible with strict mode - resetting", vrrp->iname);
-		vrrp->preempt_delay = 0;
+	if (vrrp->init_state == VRRP_STATE_MAST) {
+		if (vrrp->nopreempt) {
+			log_message(LOG_INFO, "(%s): Warning - nopreempt will not work with initial state MASTER - clearing", vrrp->iname);
+			vrrp->nopreempt = false;
+		}
+		if (vrrp->preempt_delay) {
+			log_message(LOG_INFO, "(%s): Warning - preempt delay will not work with initial state MASTER - clearing", vrrp->iname);
+			vrrp->preempt_delay = false;
+		}
 	}
-	if (vrrp->nopreempt && vrrp->preempt_delay) {
-		log_message(LOG_INFO, "(%s): preempt_delay is incompatible with nopreempt mode - resetting", vrrp->iname);
-		vrrp->preempt_delay = 0;
+	if (vrrp->preempt_delay) {
+		if (vrrp->strict_mode) {
+			log_message(LOG_INFO, "(%s): preempt_delay is incompatible with strict mode - resetting", vrrp->iname);
+			vrrp->preempt_delay = 0;
+		}
+		if (vrrp->nopreempt) {
+			log_message(LOG_INFO, "(%s): preempt_delay is incompatible with nopreempt mode - resetting", vrrp->iname);
+			vrrp->preempt_delay = 0;
+		}
 	}
 
 	vrrp->state = VRRP_STATE_INIT;

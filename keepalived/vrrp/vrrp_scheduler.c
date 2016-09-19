@@ -263,6 +263,7 @@ vrrp_init_state(list l)
 			}
 		}
 
+		vrrp->wantstate = vrrp->init_state;
 		if (vrrp->wantstate == VRRP_STATE_MAST || vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */

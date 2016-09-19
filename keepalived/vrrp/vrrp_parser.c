@@ -235,10 +235,8 @@ vrrp_state_handler(vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp_sgroup_t *vgroup = vrrp->sync;
 
-	if (!strcmp(str, "MASTER")) {
-		vrrp->wantstate = VRRP_STATE_MAST;
+	if (!strcmp(str, "MASTER"))
 		vrrp->init_state = VRRP_STATE_MAST;
-	}
 	else if (!strcmp(str, "BACKUP"))
 	{
 		if (vrrp->init_state != VRRP_STATE_BACK)
@@ -250,7 +248,7 @@ vrrp_state_handler(vector_t *strvec)
 	/* set eventual sync group */
 // TODO - what if vgroup->state previous set to BACK, and now MASTER - there will be a mix on the sync group
 	if (vgroup)
-		vgroup->state = vrrp->wantstate;
+		vgroup->state = vrrp->init_state;
 }
 static void
 vrrp_int_handler(vector_t *strvec)
@@ -418,7 +416,6 @@ vrrp_preempt_delay_handler(vector_t *strvec)
 	}
 	else
 		vrrp->preempt_delay = preempt_delay * TIMER_HZ;
-	vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
 }
 static void
 vrrp_notify_backup_handler(vector_t *strvec)
