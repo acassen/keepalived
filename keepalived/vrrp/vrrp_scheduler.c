@@ -264,7 +264,9 @@ vrrp_init_state(list l)
 		}
 
 		vrrp->wantstate = vrrp->init_state;
-		if (vrrp->wantstate == VRRP_STATE_MAST || vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
+
+		if (vrrp->base_priority == VRRP_PRIO_OWNER ||
+		    vrrp->wantstate == VRRP_STATE_MAST || vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
 			if (global_data->lvs_syncd.ifname &&
@@ -280,6 +282,8 @@ vrrp_init_state(list l)
 			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
 			vrrp->state = VRRP_STATE_GOTO_MASTER;
+			if (vrrp->base_priority != VRRP_PRIO_OWNER)
+				log_message(LOG_INFO, "VRRP_Instance(%s) Entering GOTO MASTER STATE", vrrp->iname);
 		} else {
 			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 #ifdef _WITH_LVS_
@@ -337,7 +341,12 @@ vrrp_init_sands(list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-		vrrp_init_instance_sands(vrrp);
+
+// TODO this is probably not the right way of bringing up the address owner immediately
+		if (vrrp->base_priority != VRRP_PRIO_OWNER)
+			vrrp_init_instance_sands(vrrp);
+		else
+			vrrp->sands = timer_now();
 	}
 }
 
