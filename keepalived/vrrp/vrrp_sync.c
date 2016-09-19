@@ -42,6 +42,7 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 	    vrrp->state == VRRP_STATE_GOTO_MASTER ||
 	    vrrp->state == VRRP_STATE_GOTO_FAULT  ||
 	    vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
+// TODO
 // TIMER  - GOTO_MASTER shouldn't be adver_int. Look at circumstances to set GOTO_MASTER
 // i) backup and expire timer
 // ii) backup and receive prio 0

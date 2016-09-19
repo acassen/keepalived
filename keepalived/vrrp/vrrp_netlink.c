@@ -790,7 +790,7 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags, ifindex_t if_index)
 #ifdef _HAVE_VRRP_VMAC_
 			else if (vrrp->fd_in) {
 				/* This is a vmac, and the underlying interface has changed state.
-				 * We need to report this with the fd used by the interface */
+				 * We need to report this with the fd used by the vmac interface */
 				thread_read_timer_expire(vrrp->fd_in, now_up, true);
 			}
 #endif
