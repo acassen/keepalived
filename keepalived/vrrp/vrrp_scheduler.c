@@ -205,6 +205,8 @@ vrrp_init_state(list l)
 	vrrp_sgroup_t *vgroup;
 	element e;
 
+// TODO We need to spin through each sync group to see if any instance (including tracked interfaces)
+// is down (!VRRP_IF_ISUP), and is so set the sync group to FAULT state
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
@@ -289,14 +291,20 @@ vrrp_init_state(list l)
 					       false,
 					       false);
 #endif
-			log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE",
-			       vrrp->iname);
 
 			/* Set BACKUP state */
 			vrrp_restore_interface(vrrp, false, false);
-			vrrp->state = VRRP_STATE_BACK;
+			if (VRRP_IF_ISUP(vrrp) &&
+			    (!vrrp->sync || GROUP_STATE(vrrp->sync) != VRRP_STATE_FAULT)) {
+				vrrp->state = VRRP_STATE_BACK;
+				log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
+			}
+			else {
+				vrrp->state = VRRP_STATE_FAULT;
+				log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE", vrrp->iname);
+			}
 			vrrp_smtp_notifier(vrrp);
-			notify_instance_exec(vrrp, VRRP_STATE_BACK);
+			notify_instance_exec(vrrp, vrrp->state);
 #ifdef _WITH_SNMP_KEEPALIVED_
 			vrrp_snmp_instance_trap(vrrp);
 #endif
@@ -304,10 +312,10 @@ vrrp_init_state(list l)
 
 			/* Init group if needed  */
 			if ((vgroup = vrrp->sync)) {
-				if (GROUP_STATE(vgroup) != VRRP_STATE_BACK) {
-					vgroup->state = VRRP_STATE_BACK;
+				if (GROUP_STATE(vgroup) != vrrp->state && GROUP_STATE(vgroup) != VRRP_STATE_FAULT) {
+					vgroup->state = vrrp->state;
 					vrrp_sync_smtp_notifier(vgroup);
-					notify_group_exec(vgroup, VRRP_STATE_BACK);
+					notify_group_exec(vgroup, vrrp->state);
 #ifdef _WITH_SNMP_KEEPALIVED_
 					vrrp_snmp_group_trap(vgroup);
 #endif
@@ -952,8 +960,8 @@ vrrp_fault(vrrp_t * vrrp)
 			vrrp->state = VRRP_STATE_BACK;
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);
 
-//			vrrp->master_adver_int = vrrp->adver_int;
-//			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+			vrrp->master_adver_int = vrrp->adver_int;
+			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 
 			if (vrrp->preempt_delay)
 				vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
@@ -962,10 +970,13 @@ vrrp_fault(vrrp_t * vrrp)
 #endif
 			vrrp->last_transition = timer_now();
 			log_message(LOG_INFO, "VRRP_Instance(%s): Entering BACKUP STATE", vrrp->iname);
+
+			vrrp_init_instance_sands(vrrp);
 		} else {
 #ifdef _WITH_SNMP_RFCV3_
 			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
+// TODO 2 - this needs to have a delay before master. We need to keep goto_master for this or we enter backup state with MS_DOWN_TIMER = master_adver_int
 			log_message(LOG_INFO, "VRRP_Instance(%s): Transition to MASTER STATE", vrrp->iname);
 			vrrp_goto_master(vrrp);
 		}
@@ -1072,10 +1083,12 @@ vrrp_dispatcher_read(sock_t * sock)
 static int
 vrrp_dispatcher_link_status_change(int fd)
 {
-//	ADD MESSAGES TO MAKE SURE WE ARE GETTING HERE
+// TODO	ADD MESSAGES TO MAKE SURE WE ARE GETTING HERE
 	vrrp_t *vrrp;
 	element e;
 	list l = &vrrp_data->vrrp_index_fd[fd%1024 + 1];
+
+// TODO 3 - streamline using tracking_inst
 
 	/* Multiple instances on the same interface */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
