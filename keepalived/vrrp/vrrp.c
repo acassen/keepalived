@@ -1338,7 +1338,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 	case VRRP_STATE_BACK:
 		log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
 		vrrp_restore_interface(vrrp, false, false);
-		vrrp->state = vrrp->wantstate;
+		vrrp->state = VRRP_STATE_BACK;
 		notify_instance_exec(vrrp, VRRP_STATE_BACK);
 		vrrp->preempt_time.tv_sec = 0;
 #ifdef _WITH_SNMP_KEEPALIVED_

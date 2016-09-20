@@ -1095,8 +1095,8 @@ vrrp_dispatcher_read(sock_t * sock)
 static int
 vrrp_dispatcher_link_status_change(int fd)
 {
-	vrrp_t *vrrp;
-	element e;
+	vrrp_t *vrrp, *vrrp_s;
+	element e, s;
 	list l = &vrrp_data->vrrp_index_fd[fd%1024 + 1];
 
 // TODO 3 - streamline using tracking_inst
@@ -1104,19 +1104,36 @@ vrrp_dispatcher_link_status_change(int fd)
 	/* Multiple instances on the same interface */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
+log_message(LOG_INFO, "Checking if %d matches %s %d and %d", fd, vrrp->iname, vrrp->fd_in, vrrp->if_state_changed);
 		if (vrrp->fd_in != fd || !vrrp->if_state_changed)
 			continue;
 
 		vrrp->if_state_changed = false;
 
+log_message(LOG_INFO, "vrrp state %d", vrrp->state);
 		if (vrrp->state == VRRP_STATE_FAULT ||
 		    vrrp->state == VRRP_STATE_GOTO_FAULT) {
 			vrrp_fault(vrrp);
 			/* Do we need to bring a sync group up? */
 // TODO
+			if (vrrp->state != VRRP_STATE_FAULT && vrrp->state != VRRP_STATE_GOTO_FAULT && vrrp->sync) {
+				for (s = LIST_HEAD(vrrp->sync->index_list); s; ELEMENT_NEXT(s)) {
+					vrrp_s = ELEMENT_DATA(s);
+					if (vrrp_s == vrrp)
+{
+log_message(LOG_INFO, "(%s) sg up check - %s is us", vrrp->iname, vrrp_s->iname);
+						continue;
+}
+log_message(LOG_INFO, "(%s) Setting sync'd member %s to up", vrrp->iname, vrrp_s->iname);
+					vrrp_s->if_state_changed = true;
+					thread_read_timer_expire(vrrp_s->fd_in, true, !!(__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)));
+				}
+			}
 		}
 		else if (vrrp->state != VRRP_STATE_INIT) {
-			if (!VRRP_ISUP(vrrp)) {
+log_message(LOG_INFO, "!init, vrrp_isup %d, sync state %d", VRRP_ISUP(vrrp), vrrp->sync->state);
+			bool isup = VRRP_ISUP(vrrp);
+			if (!isup || (vrrp->sync && vrrp->sync->state == VRRP_STATE_FAULT)) {
 				vrrp_log_int_down(vrrp);
 				vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
 				if (vrrp->state == VRRP_STATE_MAST)
@@ -1131,8 +1148,26 @@ vrrp_dispatcher_link_status_change(int fd)
 					vrrp_snmp_instance_trap(vrrp);
 #endif
 				}
-			}
+				if (isup)
+					vrrp->wantstate = vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK;
+if (!vrrp->sync)
+log_message(LOG_INFO, "(%s): No sync group", vrrp->iname);
+				if (vrrp->sync && vrrp->sync->state != VRRP_STATE_FAULT) {
 // TODO - bring down sync group
+					for (s = LIST_HEAD(vrrp->sync->index_list); s; ELEMENT_NEXT(s)) {
+						vrrp_s = ELEMENT_DATA(s);
+						if (vrrp_s == vrrp)
+{
+log_message(LOG_INFO, "(%s) sg check - %s is us", vrrp->iname, vrrp_s->iname);
+							continue;
+}
+log_message(LOG_INFO, "(%s) Setting sync'd member %s to down", vrrp->iname, vrrp_s->iname);
+						vrrp_s->if_state_changed = true;
+						thread_read_timer_expire(vrrp_s->fd_in, false, !!(__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)));
+					}
+					vrrp->sync->state = VRRP_STATE_FAULT;
+				}
+			}
 		}
 	}
 

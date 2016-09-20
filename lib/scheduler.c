@@ -476,6 +476,7 @@ thread_read_timer_expire(int fd, bool if_is_up, bool only_one)
 		thread = t->next;
 
 		if (t->u.fd == fd) {
+log_message(LOG_INFO, "Moving thread for fd %d to ready", fd);
 			FD_CLR(t->u.fd, &master->readfd);
 			thread_list_delete(&master->read, t);
 			thread_list_add(&master->ready, t);
@@ -642,6 +643,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		*fetch = *thread;
 		thread->type = THREAD_UNUSED;
 		thread_add_unuse(m, thread);
+log_message(LOG_INFO, "REturning a ready thread, type %d. %s more.", fetch->type, m->ready.head ? "Still" : "No");
 		return fetch;
 	}
 

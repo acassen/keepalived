@@ -22,6 +22,8 @@
 
 #include "config.h"
 
+#include <stdbool.h>
+
 #include "vrrp_sync.h"
 #include "vrrp_if.h"
 #include "vrrp_notify.h"
@@ -129,7 +131,7 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 }
 
 /* All interface are UP in the same group */
-static int
+static bool
 vrrp_sync_group_up(vrrp_sgroup_t * vgroup)
 {
 	vrrp_t *vrrp;
@@ -139,12 +141,11 @@ vrrp_sync_group_up(vrrp_sgroup_t * vgroup)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 		if (!VRRP_ISUP(vrrp))
-			return 0;
+			return false;
 	}
 
-	log_message(LOG_INFO, "Kernel is reporting: Group(%s) UP"
-		       , GROUP_NAME(vgroup));
-	return 1;
+	log_message(LOG_INFO, "Kernel is reporting: Group(%s) UP" , GROUP_NAME(vgroup));
+	return true;
 }
 
 /* SMTP alert group notifier */
@@ -164,21 +165,20 @@ vrrp_sync_smtp_notifier(vrrp_sgroup_t *vgroup)
 }
 
 /* Leaving fault state */
-int
+bool
 vrrp_sync_leave_fault(vrrp_t * vrrp)
 {
 	vrrp_sgroup_t *vgroup = vrrp->sync;
 
 	if (vrrp_sync_group_up(vgroup)) {
-		log_message(LOG_INFO, "VRRP_Group(%s) Leaving FAULT state",
-		       GROUP_NAME(vgroup));
-		return 1;
+		log_message(LOG_INFO, "VRRP_Group(%s) Leaving FAULT state", GROUP_NAME(vgroup));
+		return true;
 	}
-	return 0;
+	return false;
 }
 
 /* Check transition to master state */
-int
+bool
 vrrp_sync_goto_master(vrrp_t * vrrp)
 {
 	vrrp_t *isync;
@@ -187,9 +187,9 @@ vrrp_sync_goto_master(vrrp_t * vrrp)
 	element e;
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
-		return 1;
+		return true;
 	if (GROUP_STATE(vgroup) == VRRP_STATE_GOTO_MASTER)
-		return 1;
+		return true;
 
 	/* Only sync to master if everyone wants to
 	 * i.e. prefer backup state to avoid thrashing */
@@ -197,10 +197,10 @@ vrrp_sync_goto_master(vrrp_t * vrrp)
 		isync = ELEMENT_DATA(e);
 		if (isync != vrrp && (isync->wantstate != VRRP_STATE_GOTO_MASTER &&
 				      isync->wantstate != VRRP_STATE_MAST)) {
-			return 0;
+			return false;
 		}
 	}
-	return 1;
+	return true;
 }
 
 void
