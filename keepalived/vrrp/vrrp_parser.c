@@ -246,7 +246,7 @@ vrrp_state_handler(vector_t *strvec)
 		log_message(LOG_INFO,"(%s): unknown state '%s', defaulting to BACKUP", vrrp->iname, str);
 
 	/* set eventual sync group */
-// TODO - what if vgroup->state previous set to BACK, and now MASTER - there will be a mix on the sync group
+// TODO 4 - what if vgroup->state previous set to BACK, and now MASTER - there will be a mix on the sync group
 	if (vgroup)
 		vgroup->state = vrrp->init_state;
 }

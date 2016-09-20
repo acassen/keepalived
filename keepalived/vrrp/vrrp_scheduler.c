@@ -966,12 +966,16 @@ vrrp_fault(vrrp_t * vrrp)
 #endif
 	{
 		/* Otherwise, we transit to init state */
-		if (vrrp->init_state == VRRP_STATE_BACK) {
+		if (vrrp->init_state == VRRP_STATE_BACK ||
+		    (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority != VRRP_PRIO_OWNER)) {
 			vrrp->state = VRRP_STATE_BACK;
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);
 
 			vrrp->master_adver_int = vrrp->adver_int;
-			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+			if (vrrp->init_state == VRRP_STATE_BACK)
+				vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+			else
+				vrrp->ms_down_timer = vrrp->master_adver_int;
 
 			if (vrrp->preempt_delay)
 				vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
@@ -979,15 +983,13 @@ vrrp_fault(vrrp_t * vrrp)
 			vrrp_snmp_instance_trap(vrrp);
 #endif
 			vrrp->last_transition = timer_now();
-			log_message(LOG_INFO, "VRRP_Instance(%s): Entering BACKUP STATE", vrrp->iname);
-
+			log_message(LOG_INFO, "VRRP_Instance(%s): Entering BACKUP STATE from fault", vrrp->iname);
 			vrrp_init_instance_sands(vrrp);
 		} else {
 #ifdef _WITH_SNMP_RFCV3_
 			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
-// TODO 2 - this needs to have a delay before master. We need to keep goto_master for this or we enter backup state with MS_DOWN_TIMER = master_adver_int
-			log_message(LOG_INFO, "VRRP_Instance(%s): Transition to MASTER STATE", vrrp->iname);
+			log_message(LOG_INFO, "VRRP_Instance(%s): Enter MASTER STATE from fault", vrrp->iname);
 			vrrp_goto_master(vrrp);
 		}
 	}
@@ -1093,7 +1095,6 @@ vrrp_dispatcher_read(sock_t * sock)
 static int
 vrrp_dispatcher_link_status_change(int fd)
 {
-// TODO	ADD MESSAGES TO MAKE SURE WE ARE GETTING HERE
 	vrrp_t *vrrp;
 	element e;
 	list l = &vrrp_data->vrrp_index_fd[fd%1024 + 1];
@@ -1109,8 +1110,11 @@ vrrp_dispatcher_link_status_change(int fd)
 		vrrp->if_state_changed = false;
 
 		if (vrrp->state == VRRP_STATE_FAULT ||
-		    vrrp->state == VRRP_STATE_GOTO_FAULT)
+		    vrrp->state == VRRP_STATE_GOTO_FAULT) {
 			vrrp_fault(vrrp);
+			/* Do we need to bring a sync group up? */
+// TODO
+		}
 		else if (vrrp->state != VRRP_STATE_INIT) {
 			if (!VRRP_ISUP(vrrp)) {
 				vrrp_log_int_down(vrrp);
@@ -1128,6 +1132,7 @@ vrrp_dispatcher_link_status_change(int fd)
 #endif
 				}
 			}
+// TODO - bring down sync group
 		}
 	}
 

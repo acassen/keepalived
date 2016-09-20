@@ -2010,10 +2010,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		else
 			vrrp->base_priority = VRRP_PRIO_DFL;
 	}
-	else if (vrrp->strict_mode && (vrrp->init_state == VRRP_STATE_MAST) && (vrrp->base_priority != VRRP_PRIO_OWNER)) {
-		log_message(LOG_INFO,"(%s): Cannot start in MASTER state if not address owner", vrrp->iname);
-		vrrp->init_state = VRRP_STATE_BACK;
+	else if (vrrp->init_state == VRRP_STATE_INIT)
+		vrrp->init_state = vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK;
+	else if (vrrp->strict_mode &&
+		 ((vrrp->init_state == VRRP_STATE_MAST) != (vrrp->base_priority == VRRP_PRIO_OWNER))) {
+			log_message(LOG_INFO,"(%s): State MASTER must match being address owner", vrrp->iname);
+			vrrp->init_state = vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK;
 	}
+
 	vrrp->effective_priority = vrrp->base_priority;
 
 	if (vrrp->init_state == VRRP_STATE_MAST) {

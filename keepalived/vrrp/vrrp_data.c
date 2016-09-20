@@ -390,7 +390,7 @@ alloc_vrrp(char *iname)
 	/* Set default values */
 	new->family = AF_UNSPEC;
 	new->saddr.ss_family = AF_UNSPEC;
-	new->init_state = VRRP_STATE_BACK;
+	new->init_state = VRRP_STATE_INIT;
 	new->version = 0;
 	new->master_priority = 0;
 	new->last_transition = timer_now();
