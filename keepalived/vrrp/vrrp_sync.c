@@ -108,6 +108,11 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 		list_add(vgroup->index_list, vrrp);
 		vrrp->sync = vgroup;
 		vrrp_last = vrrp;
+
+		/* set eventual sync group state. Unless all members are master and address owner,
+		 * then we must be backup */
+		if (vgroup->state != VRRP_STATE_BACK)
+			vgroup->state = (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER ) ? VRRP_STATE_MAST : VRRP_STATE_BACK;
 	}
 	if (LIST_SIZE(vgroup->index_list) <= 1) {
 		/* The sync group will be removed by the calling function */
