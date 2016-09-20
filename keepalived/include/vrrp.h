@@ -160,7 +160,6 @@ typedef struct _vrrp_t {
 #ifdef _HAVE_VRRP_VMAC_
 	unsigned long		vmac_flags;		/* VRRP VMAC flags */
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
-	ifindex_t		vmac_ifindex;		/* ifindex of vmac interface */
 #endif
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
