@@ -28,8 +28,10 @@
 #include "logger.h"
 
 enum connect_result
-tcp_bind_connect(int fd, conn_opts_t *co)
+socket_bind_connect(int fd, conn_opts_t *co)
 {
+	int opt;
+	socklen_t optlen;
 	struct linger li;
 	socklen_t addrlen;
 	int ret;
@@ -37,10 +39,17 @@ tcp_bind_connect(int fd, conn_opts_t *co)
 	struct sockaddr_storage *addr = &co->dst;
 	struct sockaddr_storage *bind_addr = &co->bindto;
 
-	/* free the tcp port after closing the socket descriptor */
-	li.l_onoff = 1;
-	li.l_linger = 0;
-	setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *) &li, sizeof (struct linger));
+	optlen = sizeof(opt);
+	if (getsockopt(fd, SOL_SOCKET, SO_TYPE, (void *) &opt, &optlen) < 0) {
+		log_message(LOG_ERR, "Can't get socket type: %s", strerror(errno));
+		return connect_error;
+	}
+	if (opt == SOCK_STREAM) {
+		/* free the tcp port after closing the socket descriptor */
+		li.l_onoff = 1;
+		li.l_linger = 0;
+		setsockopt(fd, SOL_SOCKET, SO_LINGER, (char *) &li, sizeof (struct linger));
+	}
 
 	/* Make socket non-block. */
 	val = fcntl(fd, F_GETFL, 0);
@@ -84,16 +93,16 @@ tcp_bind_connect(int fd, conn_opts_t *co)
 }
 
 enum connect_result
-tcp_connect(int fd, struct sockaddr_storage *addr)
+socket_connect(int fd, struct sockaddr_storage *addr)
 {
 	conn_opts_t co;
 	memset(&co, 0, sizeof(co));
 	co.dst = *addr;
-	return tcp_bind_connect(fd, &co);
+	return socket_bind_connect(fd, &co);
 }
 
 enum connect_result
-tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
+socket_state(thread_t * thread, int (*func) (thread_t *))
 {
 	int status;
 	socklen_t addrlen;
@@ -136,7 +145,7 @@ tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
 }
 
 int
-tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
+socket_connection_state(int fd, enum connect_result status, thread_t * thread,
 		     int (*func) (thread_t *), long timeout)
 {
 	checker_t *checker;
