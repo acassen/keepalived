@@ -555,7 +555,9 @@ free_old_interface_queue(void)
 void
 init_interface_queue(void)
 {
+log_message(LOG_INFO, "*** initialising interface queue");
 	init_if_queue();
+log_message(LOG_INFO, "*** completed interface queue");
 	netlink_interface_lookup();
 //	dump_list(if_queue);
 }

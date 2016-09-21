@@ -956,6 +956,7 @@ netlink_interface_lookup(void)
 		status = -1;
 		goto end_int;
 	}
+// TODO 9 - segfault on sit0 if vrrp.1 and vrrp.2 exist at startup
 	status = netlink_parse_info(netlink_if_link_filter, &nlh, NULL);
 
 end_int:

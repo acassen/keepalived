@@ -1344,6 +1344,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 #ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
+// TODO - if we are called due to receiving a higher priority advert, do we overwrite master adver int ?
 		vrrp->master_adver_int = vrrp->adver_int;
 		break;
 	case VRRP_STATE_GOTO_FAULT:
@@ -1362,6 +1363,41 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 //TODO - should this be adver_int
 	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 	++vrrp->stats->release_master;
+	vrrp->last_transition = timer_now();
+}
+
+void
+vrrp_state_leave_fault(vrrp_t * vrrp)
+{
+	/* set the new vrrp state */
+// TODO merge the code blocks of the switch statement
+	switch (vrrp->wantstate) {
+	case VRRP_STATE_BACK:
+		log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
+		vrrp->state = VRRP_STATE_BACK;
+		notify_instance_exec(vrrp, VRRP_STATE_BACK);
+		vrrp->preempt_time.tv_sec = 0;
+#ifdef _WITH_SNMP_KEEPALIVED_
+		vrrp_snmp_instance_trap(vrrp);
+#endif
+		vrrp->master_adver_int = vrrp->adver_int;
+		break;
+/*
+	case VRRP_STATE_GOTO_FAULT:
+		log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE", vrrp->iname);
+		vrrp_restore_interface(vrrp, false, false);
+		vrrp->state = VRRP_STATE_FAULT;
+		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
+		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
+#ifdef _WITH_SNMP_KEEPALIVED_
+		vrrp_snmp_instance_trap(vrrp);
+#endif
+		break;
+*/
+	}
+
+	/* Set the down timer */
+	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 	vrrp->last_transition = timer_now();
 }
 

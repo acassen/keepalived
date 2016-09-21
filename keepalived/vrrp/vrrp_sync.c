@@ -113,6 +113,8 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 
 		/* set eventual sync group state. Unless all members are master and address owner,
 		 * then we must be backup */
+		if (vgroup->state == VRRP_STATE_MAST && vrrp->init_state == VRRP_STATE_BACK)
+			log_message(LOG_INFO, "Sync group %s has some member(s) as address owner and some not as address owner. This won't work", vgroup->gname);
 		if (vgroup->state != VRRP_STATE_BACK)
 			vgroup->state = (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER ) ? VRRP_STATE_MAST : VRRP_STATE_BACK;
 	}
@@ -222,14 +224,14 @@ vrrp_sync_master_election(vrrp_t * vrrp)
 	/* Perform sync index */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		isync = ELEMENT_DATA(e);
-		if (isync != vrrp && isync->wantstate != VRRP_STATE_GOTO_MASTER) {
-			/* Force a new protocol master election */
-			isync->wantstate = VRRP_STATE_GOTO_MASTER;
-			log_message(LOG_INFO,
-			       "VRRP_Instance(%s) forcing a new MASTER election",
-			       isync->iname);
-			vrrp_send_adv(isync, isync->effective_priority);
-		}
+		if (isync == vrrp || isync->wantstate == VRRP_STATE_GOTO_MASTER)
+			continue;
+
+		/* Force a new protocol master election */
+		isync->wantstate = VRRP_STATE_MAST;
+//		log_message(LOG_INFO, "VRRP_Instance(%s) forcing a new MASTER election", isync->iname);
+//		vrrp_send_adv(isync, isync->effective_priority);
+		vrrp_state_goto_master(isync);
 	}
 }
 
@@ -250,11 +252,19 @@ vrrp_sync_backup(vrrp_t * vrrp)
 	/* Perform sync index */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		isync = ELEMENT_DATA(e);
-		if (isync != vrrp && isync->state != VRRP_STATE_BACK) {
-			isync->wantstate = VRRP_STATE_BACK;
+		if (isync == vrrp || isync->state == VRRP_STATE_BACK)
+			continue;
+
+		isync->wantstate = VRRP_STATE_BACK;
+// TODO - we may be leaving FAULT, so calling leave_master isn't right. I have
+// had to add vrrp_state_leave_fault() for this
+		if (vrrp->state == VRRP_STATE_FAULT)
+			vrrp_state_leave_fault(isync);
+		else
 			vrrp_state_leave_master(isync);
-			vrrp_init_instance_sands(isync);
-		}
+		vrrp_init_instance_sands(isync);
+		isync->if_state_changed = true;
+		thread_read_timer_expire(isync->fd_in, false, false);
 	}
 	vgroup->state = VRRP_STATE_BACK;
 	vrrp_sync_smtp_notifier(vgroup);
@@ -284,11 +294,19 @@ vrrp_sync_master(vrrp_t * vrrp)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		isync = ELEMENT_DATA(e);
 
-		/* Send the higher priority advert on all synced instances */
+// TODO		/* Send the higher priority advert on all synced instances */
 		if (isync != vrrp && isync->state != VRRP_STATE_MAST) {
 			isync->wantstate = VRRP_STATE_MAST;
-			vrrp_state_goto_master(isync);
+// TODO 6 - transition straight to master if PRIO_OWNER
+// TODO 7 - not here, but generally if init_state == MAST && !owner, ms_down_timer = adver_int + 1 skew and be backup
 			vrrp_init_instance_sands(isync);
+			if (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
+				/* ??? */
+			} else
+				vrrp_state_goto_master(isync);
+			isync->if_state_changed = true;
+log_message(LOG_INFO, "Expiring fd %d for %s", isync->fd_in, isync->iname);
+			thread_read_timer_expire(isync->fd_in, true, false);
 		}
 	}
 	vgroup->state = VRRP_STATE_MAST;
@@ -326,8 +344,11 @@ vrrp_sync_fault(vrrp_t * vrrp)
 		if (isync != vrrp && isync->state != VRRP_STATE_FAULT) {
 			if (isync->state == VRRP_STATE_MAST)
 				isync->wantstate = VRRP_STATE_GOTO_FAULT;
-			if (isync->state == VRRP_STATE_BACK)
+			else if (isync->state == VRRP_STATE_BACK)
 				isync->state = VRRP_STATE_FAULT;
+
+			isync->if_state_changed = true;
+			thread_read_timer_expire(isync->fd_in, false, false);
 		}
 	}
 	vgroup->state = VRRP_STATE_FAULT;
