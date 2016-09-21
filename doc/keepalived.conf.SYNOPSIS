@@ -574,6 +574,25 @@ virtual_server group <STRING>      {	# VS group declaration
         notify_up <STRING>|<QUOTED-STRING> # Idem
         notify_down <STRING>|<QUOTED-STRING> # Idem
 
+        DNS_CHECK {                     # DNS healthchecker
+            connect_ip <IP ADDRESS>     # Optional IP address to connect to
+            connect_port <PORT>         # Optional port to connect to
+            bindto <IP ADDRESS>         # Optional interface to use to originate the connection
+            bind_port <PORT>            # Optional source port to originate the connection from
+            connect_timeout <INTEGER>   # Optional per-host connection timeout.
+            fwmark <INTEGER>            # Optional fwmark to mark all outgoing checker pakets with
+            retry <INTEGER>             # Number of times to retry a failed check
+            type <STRING>               # DNS query type
+            name <STRING>               # Domain name to use for the DNS query
+        }
+    }
+
+    real_server <IP ADDRESS> <PORT> {	# Idem
+        weight <INTEGER>		# Idem
+        inhibit_on_failure		# Idem
+        notify_up <STRING>|<QUOTED-STRING> # Idem
+        notify_down <STRING>|<QUOTED-STRING> # Idem
+
         MISC_CHECK {				# MISC healthchecker
             misc_path <STRING>|<QUOTED-STRING>	# External system script or program
             misc_timeout <INTEGER>		# Script execution timeout
