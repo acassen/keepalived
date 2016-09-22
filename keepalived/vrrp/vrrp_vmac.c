@@ -179,8 +179,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	/*
 	 * Update interface queue and vrrp instance interface binding.
 	 */
-// TODO - does this get all interfaces - can we just get the one?
-	netlink_interface_lookup();
+	netlink_interface_lookup(ifname);
 	ifp = if_get_by_ifname(ifname);
 	if (!ifp)
 		return -1;
