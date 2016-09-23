@@ -90,8 +90,6 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	struct rtattr *data;
 	interface_t *ifp;
 	interface_t *base_ifp;
-// TODO 9 - remove ifname
-	char ifname[IFNAMSIZ];
 	struct {
 		struct nlmsghdr n;
 		struct ifinfomsg ifi;
@@ -109,14 +107,12 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	ll_addr[ETH_ALEN-1] = vrrp->vrid;
 
 	memset(&req, 0, sizeof (req));
-	memset(ifname, 0, IFNAMSIZ);
-	strncpy(ifname, vrrp->vmac_ifname, IFNAMSIZ - 1);
 
 	/*
 	 * Check to see if this vmac interface was created
 	 * by a previous instance.
 	 */
-	if ((ifp = if_get_by_ifname(ifname))) {
+	if ((ifp = if_get_by_ifname(vrrp->vmac_ifname))) {
 		/* Check to see whether this interface has wrong mac ? */
 		if (memcmp((const void *) ifp->hw_addr,
 			   (const void *) ll_addr, ETH_ALEN) != 0) {
@@ -168,23 +164,23 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		data->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)data);
 		linkinfo->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)linkinfo);
 		addattr_l(&req.n, sizeof(req), IFLA_LINK, &IF_INDEX(vrrp->ifp), sizeof(uint32_t));
-		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, ifname, strlen(ifname));
+		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
 		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, ll_addr, ETH_ALEN);
 
 		if (netlink_talk(&nl_cmd, &req.n) < 0) {
 			log_message(LOG_INFO, "vmac: Error creating VMAC interface %s for vrrp_instance %s!!!"
-					    , ifname, vrrp->iname);
+					    , vrrp->vmac_ifname, vrrp->iname);
 			return -1;
 		}
 
 		log_message(LOG_INFO, "vmac: Success creating VMAC interface %s for vrrp_instance %s"
-				    , ifname, vrrp->iname);
+				    , vrrp->vmac_ifname, vrrp->iname);
 
 		/*
 		 * Update interface queue and vrrp instance interface binding.
 		 */
-		netlink_interface_lookup(ifname);
-		ifp = if_get_by_ifname(ifname);
+		netlink_interface_lookup(vrrp->vmac_ifname);
+		ifp = if_get_by_ifname(vrrp->vmac_ifname);
 		if (!ifp)
 			return -1;
 
