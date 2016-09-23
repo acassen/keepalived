@@ -463,7 +463,7 @@ thread_add_terminate_event(thread_master_t * m)
 }
 
 void
-thread_read_timer_expire(int fd, bool if_is_up, bool only_one)
+thread_read_timer_expire(int fd, bool if_is_up)
 {
 	thread_t *thread;
 	unsigned char event_type = if_is_up ? THREAD_IF_UP : THREAD_IF_DOWN;
@@ -480,10 +480,6 @@ thread_read_timer_expire(int fd, bool if_is_up, bool only_one)
 			thread_list_delete(&master->read, t);
 			thread_list_add(&master->ready, t);
 			t->type = event_type;
-
-// TODO 5 - there can only ever be one!!!
-			if (only_one)
-				return;
 		}
 	}
 }

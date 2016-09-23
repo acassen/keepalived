@@ -264,7 +264,7 @@ vrrp_sync_backup(vrrp_t * vrrp)
 			vrrp_state_leave_master(isync);
 		vrrp_init_instance_sands(isync);
 		isync->if_state_changed = true;
-		thread_read_timer_expire(isync->fd_in, false, false);
+		thread_read_timer_expire(isync->fd_in, false);
 	}
 	vgroup->state = VRRP_STATE_BACK;
 	vrrp_sync_smtp_notifier(vgroup);
@@ -306,7 +306,7 @@ vrrp_sync_master(vrrp_t * vrrp)
 				vrrp_state_goto_master(isync);
 			isync->if_state_changed = true;
 log_message(LOG_INFO, "Expiring fd %d for %s", isync->fd_in, isync->iname);
-			thread_read_timer_expire(isync->fd_in, true, false);
+			thread_read_timer_expire(isync->fd_in, true);
 		}
 	}
 	vgroup->state = VRRP_STATE_MAST;
@@ -348,7 +348,7 @@ vrrp_sync_fault(vrrp_t * vrrp)
 				isync->state = VRRP_STATE_FAULT;
 
 			isync->if_state_changed = true;
-			thread_read_timer_expire(isync->fd_in, false, false);
+			thread_read_timer_expire(isync->fd_in, false);
 		}
 	}
 	vgroup->state = VRRP_STATE_FAULT;

@@ -789,7 +789,7 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 				if (ifp->vmac) {
 					/* We are the only user of this fd */
 					if (vrrp->fd_in)
-						thread_read_timer_expire(vrrp->fd_in, now_up, true);
+						thread_read_timer_expire(vrrp->fd_in, now_up);
 					continue;
 				}
 #endif
@@ -802,15 +802,15 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 			else if (vrrp->fd_in) {
 				/* This is a vmac, and the underlying interface has changed state.
 				 * We need to report this with the fd used by the vmac interface */
-				thread_read_timer_expire(vrrp->fd_in, now_up, true);
+				thread_read_timer_expire(vrrp->fd_in, now_up);
 			}
 #endif
 		}
 	}
 	if (ip_fd)
-		thread_read_timer_expire(ip_fd, now_up, false);
+		thread_read_timer_expire(ip_fd, now_up);
 	if (ip6_fd)
-		thread_read_timer_expire(ip6_fd, now_up, false);
+		thread_read_timer_expire(ip6_fd, now_up);
 }
 
 static int
