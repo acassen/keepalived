@@ -107,8 +107,6 @@ static struct {
 	{vrrp_backup,			vrrp_goto_master},	/*  BACKUP          */
 	{vrrp_leave_master,		vrrp_master},		/*  MASTER          */
 	{vrrp_leave_fault,		vrrp_fault},		/*  FAULT           */
-// TODO - why if read to we become master?, and timeout stay in GOTO_MASTER?
-// TODO - is GOTO_MASTER the problem with transition delays?
 	{vrrp_become_master,		vrrp_goto_master}	/*  GOTO_MASTER     */
 };
 
@@ -687,14 +685,14 @@ vrrp_become_master(vrrp_t * vrrp,
 	struct iphdr *iph;
 	ipsec_ah_t *ah;
 
-	if (vrrp->family == AF_INET) {
+	if (vrrp->family == AF_INET && vrrp->version == VRRP_VERSION_2) {
 		iph = (struct iphdr *) buffer;
 
 		/*
 		 * If we are in IPSEC AH mode, we must be sync
 		 * with the remote IPSEC AH VRRP instance counter.
 		 */
-		if (vrrp->version == VRRP_VERSION_2 && iph->protocol == IPPROTO_IPSEC_AH) {
+		if (iph->protocol == IPPROTO_IPSEC_AH) {
 			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : seq_num sync",
 			       vrrp->iname);
 			ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));
