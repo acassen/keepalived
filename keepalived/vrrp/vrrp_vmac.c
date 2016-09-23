@@ -90,6 +90,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	struct rtattr *data;
 	interface_t *ifp;
 	interface_t *base_ifp;
+// TODO 9 - remove ifname
 	char ifname[IFNAMSIZ];
 	struct {
 		struct nlmsghdr n;
@@ -126,7 +127,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 			/* Request that NETLINK remove the VIF interface first */
 			memset(&req, 0, sizeof (req));
-			req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
+			req.n.nlmsg_len = NLMSG_LENGTH(sizeof req.ifi);
 			req.n.nlmsg_flags = NLM_F_REQUEST;
 			req.n.nlmsg_type = RTM_DELLINK;
 			req.ifi.ifi_family = AF_INET;
@@ -140,54 +141,60 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			}
 
 			/* Interface successfully removed, now recreate */
+			ifp = NULL;
 		}
 	}
 
-	/* Request that NETLINK create the VIF interface */
-	req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
-	req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL;
-	req.n.nlmsg_type = RTM_NEWLINK;
-	req.ifi.ifi_family = AF_INET;
+	if (!ifp) {
+		/* Request that NETLINK create the VIF interface */
+		req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
+		req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL;
+		req.n.nlmsg_type = RTM_NEWLINK;
+		req.ifi.ifi_family = AF_INET;
 
-	/* macvlan settings */
-	linkinfo = NLMSG_TAIL(&req.n);
-	addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
-	addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (void *)macvlan_ll_kind, strlen(macvlan_ll_kind));
-	data = NLMSG_TAIL(&req.n);
-	addattr_l(&req.n, sizeof(req), IFLA_INFO_DATA, NULL, 0);
+		/* macvlan settings */
+		linkinfo = NLMSG_TAIL(&req.n);
+		addattr_l(&req.n, sizeof(req), IFLA_LINKINFO, NULL, 0);
+		addattr_l(&req.n, sizeof(req), IFLA_INFO_KIND, (void *)macvlan_ll_kind, strlen(macvlan_ll_kind));
+		data = NLMSG_TAIL(&req.n);
+		addattr_l(&req.n, sizeof(req), IFLA_INFO_DATA, NULL, 0);
 
-	/*
-	 * In private mode, macvlan will receive frames with same MAC addr
-	 * as configured on the interface.
-	 */
-	addattr32(&req.n, sizeof(req), IFLA_MACVLAN_MODE, MACVLAN_MODE_PRIVATE);
-	data->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)data);
-	linkinfo->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)linkinfo);
-	addattr_l(&req.n, sizeof(req), IFLA_LINK, &IF_INDEX(vrrp->ifp), sizeof(uint32_t));
-	addattr_l(&req.n, sizeof(req), IFLA_IFNAME, ifname, strlen(ifname));
-	addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, ll_addr, ETH_ALEN);
+		/*
+		 * In private mode, macvlan will receive frames with same MAC addr
+		 * as configured on the interface.
+		 */
+		addattr32(&req.n, sizeof(req), IFLA_MACVLAN_MODE,
+			  MACVLAN_MODE_PRIVATE);
+		data->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)data);
+		linkinfo->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)linkinfo);
+		addattr_l(&req.n, sizeof(req), IFLA_LINK, &IF_INDEX(vrrp->ifp), sizeof(uint32_t));
+		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, ifname, strlen(ifname));
+		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, ll_addr, ETH_ALEN);
 
-	if (netlink_talk(&nl_cmd, &req.n) < 0) {
-		log_message(LOG_INFO, "vmac: Error creating VMAC interface %s for vrrp_instance %s!!!"
+		if (netlink_talk(&nl_cmd, &req.n) < 0) {
+			log_message(LOG_INFO, "vmac: Error creating VMAC interface %s for vrrp_instance %s!!!"
+					    , ifname, vrrp->iname);
+			return -1;
+		}
+
+		log_message(LOG_INFO, "vmac: Success creating VMAC interface %s for vrrp_instance %s"
 				    , ifname, vrrp->iname);
-		return -1;
+
+		/*
+		 * Update interface queue and vrrp instance interface binding.
+		 */
+		netlink_interface_lookup(ifname);
+		ifp = if_get_by_ifname(ifname);
+		if (!ifp)
+			return -1;
+
+		/* If we do anything that might cause the interface state to change, we must
+		 * read the reflected netlink messages to ensure that the link status doesn't
+		 * get updated by out of date queued messages */
+		kernel_netlink_poll();
 	}
 
-	log_message(LOG_INFO, "vmac: Success creating VMAC interface %s for vrrp_instance %s"
-			    , ifname, vrrp->iname);
-
-	/*
-	 * Update interface queue and vrrp instance interface binding.
-	 */
-	netlink_interface_lookup(ifname);
-	ifp = if_get_by_ifname(ifname);
-	if (!ifp)
-		return -1;
 	base_ifp = vrrp->ifp;
-//TODO - is this right for flags?
-//	ifp->vmac_ifi_flags = 0;
-	ifp->vmac_ifi_flags = ifp->ifi_flags;
-	ifp->ifi_flags = base_ifp->ifi_flags; /* Copy base interface flags */
 	vrrp->ifp = ifp;
 	vrrp->ifp->base_ifp = base_ifp;
 	vrrp->ifp->vmac = true;
@@ -201,6 +208,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		if (!vrrp->evip_add_ipv6)
 			link_disable_ipv6(ifp);
 	}
+
 	if (vrrp->family == AF_INET6 || vrrp->evip_add_ipv6) {
 		// We don't want a link-local address auto assigned - see RFC5798 paragraph 7.4.
 		// If we have a sufficiently recent kernel, we can stop a link local address
@@ -264,6 +272,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	/* bring it UP ! */
 	__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
 	netlink_link_up(vrrp);
+	kernel_netlink_poll();
 
 #if !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
 	if (vrrp->family == AF_INET6 || vrrp->evip_add_ipv6) {
@@ -285,6 +294,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 		if (netlink_ipaddress(&ipaddress, IPADDRESS_DEL) != 1)
 			log_message(LOG_INFO, "Deleting auto link-local address from vmac failed");
+
 	}
 #endif
 

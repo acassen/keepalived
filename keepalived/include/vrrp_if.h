@@ -90,7 +90,6 @@ typedef struct _interface {
 	bool			vmac;			/* Set if interface is a VMAC interface */
 	struct _interface	*base_ifp;		/* Base interface (if interface is a VMAC interface),
 							   otherwise the physical interface */
-	unsigned		vmac_ifi_flags;		/* ifi_flags for vmac interface itself */
 #endif
 	garp_delay_t		*garp_delay;		/* Delays for sending gratuitous ARP/NA */
 	bool			gna_router;		/* Router flag for NA messages */
@@ -128,8 +127,8 @@ typedef struct _tracked_if {
 #define IF_ISUP(X) (((X)->ifi_flags & IFF_UP)      && \
 		    ((X)->ifi_flags & IFF_RUNNING) && \
 		    (!(X)->vmac || \
-		     ((X)->vmac_ifi_flags & IFF_UP && \
-		      (X)->vmac_ifi_flags & IFF_RUNNING)) && \
+		     ((X)->base_ifp->ifi_flags & IFF_UP && \
+		      (X)->base_ifp->ifi_flags & IFF_RUNNING)) && \
 		    ((X)->linkbeat))
 
 /* Global data */
@@ -142,9 +141,6 @@ extern interface_t *base_if_get_by_ifp(interface_t *);
 extern interface_t *if_get_by_ifname(const char *);
 extern list get_if_list(void);
 extern void reset_interface_queue(void);
-#ifdef _HAVE_VRRP_VMAC_
-extern void if_vmac_reflect_flags(ifindex_t, unsigned);
-#endif
 extern void alloc_garp_delay(void);
 extern void set_default_garp_delay(void);
 extern void if_add_queue(interface_t *);

@@ -741,30 +741,27 @@ netlink_request(nl_handle_t *nl, unsigned char family, uint16_t type, char *name
 }
 
 static void
-update_interface_flags(interface_t *ifp, unsigned ifi_flags, ifindex_t if_index)
+update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 {
 	bool was_up;
-	bool now_up = ((ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
+	bool now_up;
 	vrrp_t *vrrp;
 	element e;
 	int ip_fd = 0;
 	int ip6_fd = 0;
 
+	if (ifi_flags == ifp->ifi_flags)
+		return;
+
 #ifdef _HAVE_VRRP_VMAC_
-	if (ifp->vmac) {
-		was_up = ((ifp->vmac_ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
-		ifp->vmac_ifi_flags = ifi_flags;
-	}
-	else
-	{
-		was_up = ((ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
-		ifp->ifi_flags = ifi_flags;
-		if_vmac_reflect_flags(if_index, ifi_flags);
-	}
+	/* We need both the vmac i/f and the physical i/f to be up and running. */
+	was_up = ((ifp->ifi_flags & ifp->base_ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
+	now_up = ((ifi_flags & (ifp->vmac ? ifp->base_ifp->ifi_flags : ~0U) & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
 #else
 	was_up = ((ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
-	ifp->ifi_flags = ifi_flags;
+	now_up = ((ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
 #endif
+	ifp->ifi_flags = ifi_flags;
 
 	if (was_up == now_up)
 		return;
@@ -772,6 +769,9 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags, ifindex_t if_index)
 	log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
 
 	if (!vrrp_data)
+		return;
+
+	if (!ifp->tracking_inst)
 		return;
 
 	/* The state of the interface has changed from up to down or vice versa.
@@ -829,6 +829,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	ifp->ifindex = (ifindex_t)ifi->ifi_index;
 	ifp->mtu = *(uint32_t *)RTA_DATA(tb[IFLA_MTU]);
 	ifp->hw_type = ifi->ifi_type;
+	ifp->base_ifp = ifp;
 
 	/* We set linkbeat here. It will only be cleared if we are using linkbeat polling
 	 * so when checking it's status, we don't need to check if polling is enabled. */
@@ -882,19 +883,9 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 		}
 	}
 
-	update_interface_flags(ifp, ifi->ifi_flags, (ifindex_t)ifi->ifi_index);
-
-	if (!ifp->vmac)
-		ifp->base_ifp = ifp;
-	else {
-		if (ifp->base_ifp) {
-			ifp->vmac_ifi_flags = ifp->ifi_flags;
-			ifp->ifi_flags = ifp->base_ifp->ifi_flags;
-		}
-	}
-#else
-	ifp->flags = ifi->ifi_flags;
 #endif
+
+	update_interface_flags(ifp, ifi->ifi_flags);
 
 	return 1;
 }
@@ -934,7 +925,7 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	ifp = if_get_by_ifname(name);
 
 	if (ifp) {
-		update_interface_flags(ifp, ifi->ifi_flags, (ifindex_t)ifi->ifi_index);
+		update_interface_flags(ifp, ifi->ifi_flags);
 
 		return 0;
 	}
@@ -967,7 +958,6 @@ netlink_interface_lookup(char *name)
 		status = -1;
 		goto end_int;
 	}
-// TODO 9 - segfault on sit0 if vrrp.1 and vrrp.2 exist at startup
 	status = netlink_parse_info(netlink_if_link_filter, &nlh, NULL, false);
 
 end_int:
@@ -1066,7 +1056,7 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	 * by the base interface flags, except IFF_UP and IFF_RUNNING need to be
 	 * taken into account for a VMAC.
 	 */
-	update_interface_flags(ifp, ifi->ifi_flags, (ifindex_t)ifi->ifi_index);
+	update_interface_flags(ifp, ifi->ifi_flags);
 
 	return 0;
 }

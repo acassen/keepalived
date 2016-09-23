@@ -144,34 +144,6 @@ reset_interface_queue(void)
 	garp_delay = NULL;
 }
 
-#ifdef _HAVE_VRRP_VMAC_
-/*
- * Reflect base interface flags on VMAC interfaces.
- * VMAC interfaces should never update most of it's own flags,
- * only be reflected by the base interface flags, except the
- * IFF_UP and IFF_RUNNING flags for the vmac interface must be
- * taken into account.
- */
-// TODO - change this. Don't reflect flags. For an instance, it's state is:
-// vrrp->base_ifp->ifi_flags & (vrrp->vmac ? ~0 : vrrp->ifp->ifi_flags | ~(IFF_UP | IFF_RUNNING))
-// netlink_link_add_vmac() will need updating amongst other places
-void
-if_vmac_reflect_flags(ifindex_t ifindex, unsigned flags)
-{
-	interface_t *ifp;
-	element e;
-
-	if (LIST_ISEMPTY(if_queue) || !ifindex)
-		return;
-
-	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
-		ifp = ELEMENT_DATA(e);
-		if (ifp->vmac && ifp->base_ifp->ifindex == ifindex)
-			ifp->ifi_flags = flags;
-	}
-}
-#endif
-
 /* MII Transceiver Registers poller functions */
 static uint16_t
 if_mii_read(int fd, uint16_t phy_id, uint16_t reg_num)
@@ -409,19 +381,18 @@ dump_if(void *data)
 		       ifp->hw_addr[0], ifp->hw_addr[1], ifp->hw_addr[2]
 		       , ifp->hw_addr[3], ifp->hw_addr[4], ifp->hw_addr[5]);
 
-	ifi_flags = ifp->ifi_flags;
+	ifi_flags = ifp->ifi_flags & (IFF_UP | IFF_RUNNING);
 #ifdef _HAVE_VRRP_VMAC_
-	ifi_flags &= ifp->vmac_ifi_flags;
+	ifi_flags &= ifp->base_ifp->ifi_flags;
 #endif
-	if (!(ifi_flags & (IFF_UP | IFF_RUNNING)))
+	if (ifi_flags == (IFF_UP | IFF_RUNNING))
+		log_message(LOG_INFO, " is UP");
+	else if (ifi_flags & IFF_UP)
+		log_message(LOG_INFO, " is UP not RUNNING");
+	else if (ifi_flags & IFF_RUNNING)
+		log_message(LOG_INFO, " is RUNNING not UP");
+	else
 		log_message(LOG_INFO, " is DOWN");
-	else {
-		if (ifi_flags & IFF_UP)
-			log_message(LOG_INFO, " is UP");
-
-		if (ifi_flags & IFF_RUNNING)
-			log_message(LOG_INFO, " is RUNNING");
-	}
 
 	log_message(LOG_INFO, " MTU = %d", ifp->mtu);
 
@@ -556,9 +527,7 @@ void
 init_interface_queue(void)
 {
 	init_if_queue();
-log_message(LOG_INFO, "*** initialising interface queue");
 	netlink_interface_lookup(NULL);
-log_message(LOG_INFO, "*** completed interface queue");
 //	dump_list(if_queue);
 }
 
