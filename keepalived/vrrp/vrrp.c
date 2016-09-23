@@ -1239,29 +1239,11 @@ vrrp_state_become_master(vrrp_t * vrrp)
 void
 vrrp_state_goto_master(vrrp_t * vrrp)
 {
-	if (vrrp->sync && !vrrp_sync_goto_master(vrrp)) {
-		/*
-		 * Set quick sync flag to enable faster transition, i.e. check
-		 * again in the next interval instead of waiting three.
-		 */
-		vrrp->quick_sync = 1;
+	if (vrrp->sync && !vrrp_sync_goto_master(vrrp))
 		return;
-	}
 
-#if 0
-	/*
-	 * Send an advertisement. To force a new master
-	 * election.
-	 */
-	vrrp_send_adv(vrrp, vrrp->effective_priority);
-
-	vrrp->state = VRRP_STATE_MAST;
-	log_message(LOG_INFO, "VRRP_Instance(%s) Transition to MASTER STATE"
-			    , vrrp->iname);
-#else
 	vrrp->state = VRRP_STATE_MAST;
 	vrrp_state_master_tx(vrrp, vrrp->base_priority);
-#endif
 
 	if (vrrp->sync) {
 		// TODO - we should wiz all other members of the group to master
@@ -1429,11 +1411,11 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	ret = vrrp_check_packet(vrrp, buf, buflen, check_addr);
 
 	if (ret != VRRP_PACKET_OK) {		// TODO - reversed test to ! OK
-		log_message(LOG_INFO, "VRRP_Instance(%s) ignoring received advertisment..."
-				    ,  vrrp->iname);
-//TODO - this isn't ignoring advert !!!
-// see use of new_ms_down_timer below
-		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+		log_message(LOG_INFO, "VRRP_Instance(%s) ignoring received advertisment..." ,  vrrp->iname);
+
+		/* We need to reduce the down timer since we have ignored the advert */
+		new_ms_down_timer = timer_sub(vrrp->sands, set_time_now());
+		vrrp->ms_down_timer = new_ms_down_timer.tv_sec < 0 ? 1 : (uint32_t)(new_ms_down_timer.tv_sec * TIMER_HZ + new_ms_down_timer.tv_usec);
 	} else if (hd->priority == 0) {
 		log_message(LOG_INFO, "(%s): Backup received priority 0 advertisement", vrrp->iname);
 		vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
@@ -1480,20 +1462,11 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		}
 	} else {
 		/* !nopreempt and lower priority advert and any preempt delay timer has expired */
-// TODO - RFC 5798 6.4.2(470) says discard the advert
-#if 0
-		log_message(LOG_INFO, "VRRP_Instance(%s) received lower prio advert (%d) forcing a new MASTER election", vrrp->iname, hd->priority);
-		vrrp->wantstate = VRRP_STATE_GOTO_MASTER;
-		vrrp_send_adv(vrrp, vrrp->effective_priority);
-#ifdef _WITH_SNMP_RFCV3_
-		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
-#endif
-#endif
 		log_message(LOG_INFO, "VRRP_Instance(%s) received lower prio advert (%d) - discarding", vrrp->iname, hd->priority);
 
 		/* We need to reduce the down timer since we have ignored the advert */
 		new_ms_down_timer = timer_sub(vrrp->sands, set_time_now());
-		vrrp->ms_down_timer = new_ms_down_timer.tv_sec < 0 ? 1 : (uint32_t)(new_ms_down_timer.tv_sec * TIMER_HZ + new_ms_down_timer.tv_usec);
+		vrrp->ms_down_timer = new_ms_down_timer.tv_sec < 0 ? 0 : (uint32_t)(new_ms_down_timer.tv_sec * TIMER_HZ + new_ms_down_timer.tv_usec);
 	}
 }
 

@@ -1040,16 +1040,6 @@ log_message(LOG_INFO, "Calling TSM for %d to %d on %s", prev_state, vrrp->state,
 		 * compute new sands timer safely.
 		 */
 		vrrp_init_instance_sands(vrrp);
-
-		/*
-		 * If quick sync is set, refresh sands to one advert interval, i.e. the next
-		 * timeout will occur in one interval instead of three, and a check for a
-		 * possible transition check will perform more quickly.
-		 */
-		if (vrrp->quick_sync) {
-			vrrp->sands = timer_add_long(time_now, vrrp->adver_int);
-			vrrp->quick_sync = 0;
-		}
 	}
 
 	return fd;

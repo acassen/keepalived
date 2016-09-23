@@ -397,7 +397,6 @@ alloc_vrrp(char *iname)
 	new->iname = (char *) MALLOC(size + 1);
 	memcpy(new->iname, iname, size);
 	new->stats = alloc_vrrp_stats();
-	new->quick_sync = 0;
 	new->accept = PARAMETER_UNSET;
 	new->garp_rep = global_data->vrrp_garp_rep;
 	new->garp_refresh = global_data->vrrp_garp_refresh;
