@@ -10,7 +10,7 @@ HIGH=$3
 
 if [[ $CMD = add ]]; then
 	for n in high medium low; do
-		unshare -n ip netns new $n
+		unshare -n ip netns add $n
 		ip netns exec $n ip link set up lo
 	done
 fi
