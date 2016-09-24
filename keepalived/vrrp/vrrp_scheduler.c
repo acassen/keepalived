@@ -656,8 +656,8 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 
 		if (iph->protocol == IPPROTO_IPSEC_AH) {
 			ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));
-			if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter->seq_number)
-				vrrp->ipsecah_counter->cycle = false;
+			if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter.seq_number)
+				vrrp->ipsecah_counter.cycle = false;
 		}
 	}
 #endif
@@ -700,8 +700,8 @@ vrrp_become_master(vrrp_t * vrrp,
 			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : seq_num sync",
 			       vrrp->iname);
 			ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));
-			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
-			vrrp->ipsecah_counter->cycle = false;
+			vrrp->ipsecah_counter.seq_number = ntohl(ah->seq_number) + 1;
+			vrrp->ipsecah_counter.cycle = false;
 		}
 	}
 #endif
@@ -803,9 +803,9 @@ vrrp_goto_master(vrrp_t * vrrp)
 
 #if defined _WITH_VRRP_AUTH_
 	/* If becoming MASTER in IPSEC AH AUTH, we reset the anti-replay */
-	if (vrrp->version == VRRP_VERSION_2 && vrrp->ipsecah_counter->cycle) {
-		vrrp->ipsecah_counter->cycle = false;
-		vrrp->ipsecah_counter->seq_number = 0;
+	if (vrrp->version == VRRP_VERSION_2 && vrrp->ipsecah_counter.cycle) {
+		vrrp->ipsecah_counter.cycle = false;
+		vrrp->ipsecah_counter.seq_number = 0;
 	}
 #endif
 
@@ -910,7 +910,7 @@ vrrp_master(vrrp_t * vrrp)
 	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT ||
 	    vrrp->wantstate == VRRP_STATE_BACK
 #ifdef _WITH_VRRP_AUTH_
-	    || vrrp->ipsecah_counter->cycle
+	    || vrrp->ipsecah_counter.cycle
 #endif
 					) {
 		/* handle backup state transition */

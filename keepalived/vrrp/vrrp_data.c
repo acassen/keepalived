@@ -213,9 +213,6 @@ free_vrrp(void *data)
 	FREE_PTR(vrrp->script_stop);
 	FREE_PTR(vrrp->script);
 	FREE_PTR(vrrp->stats);
-#ifdef _WITH_VRRP_AUTH_
-	FREE(vrrp->ipsecah_counter);
-#endif
 
 	free_list(&vrrp->track_ifp);
 	free_list(&vrrp->track_script);
@@ -381,11 +378,6 @@ alloc_vrrp(char *iname)
 
 	/* Allocate new VRRP structure */
 	new = (vrrp_t *) MALLOC(sizeof(vrrp_t));
-
-	/* Build the structure */
-#ifdef _WITH_VRRP_AUTH_
-	new->ipsecah_counter = (seq_counter_t *) MALLOC(sizeof(seq_counter_t));
-#endif
 
 	/* Set default values */
 	new->family = AF_UNSPEC;

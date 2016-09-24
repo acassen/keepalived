@@ -228,19 +228,19 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	 * For inbound processing, we increment seq_number counter to audit
 	 * sender counter.
 	 */
-	vrrp->ipsecah_counter->seq_number++;
-	if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter->seq_number ||
+	vrrp->ipsecah_counter.seq_number++;
+	if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter.seq_number ||
 	    vrrp->sync
 #ifdef _HAVE_VRRP_VMAC_
 	    || __test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
 #endif
 							) {
-		vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number);
+		vrrp->ipsecah_counter.seq_number = ntohl(ah->seq_number);
 	} else {
 		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
 					" already proceeded. Packet dropped. Local(%d)",
 					vrrp->iname, ntohl(ah->seq_number),
-					vrrp->ipsecah_counter->seq_number);
+					vrrp->ipsecah_counter.seq_number);
 		++vrrp->stats->auth_failure;
 		return 1;
 	}
@@ -766,13 +766,13 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, size_t buflen)
 	   In the current implementation if counter has cycled, we stop sending adverts and
 	   become BACKUP. If all the master are down we reset the counter for becoming MASTER.
 	 */
-	if (vrrp->ipsecah_counter->seq_number > 0xFFFFFFFD) {
-		vrrp->ipsecah_counter->cycle = true;
+	if (vrrp->ipsecah_counter.seq_number > 0xFFFFFFFD) {
+		vrrp->ipsecah_counter.cycle = true;
 	} else {
-		vrrp->ipsecah_counter->seq_number++;
+		vrrp->ipsecah_counter.seq_number++;
 	}
 
-	ah->seq_number = htonl(vrrp->ipsecah_counter->seq_number);
+	ah->seq_number = htonl(vrrp->ipsecah_counter.seq_number);
 
 	/* Compute the ICV & trunc the digest to 96bits
 	   => No padding needed.
@@ -1577,8 +1577,8 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
 					      " - Increment seq"
 					    , vrrp->iname);
-			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
-			vrrp->ipsecah_counter->cycle = false;
+			vrrp->ipsecah_counter.seq_number = ntohl(ah->seq_number) + 1;
+			vrrp->ipsecah_counter.cycle = false;
 		}
 #endif
 		if (!vrrp->lower_prio_no_advert)
@@ -1613,8 +1613,8 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
 					      " - Decrement seq"
 					    , vrrp->iname);
-			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) - 1;
-			vrrp->ipsecah_counter->cycle = false;
+			vrrp->ipsecah_counter.seq_number = ntohl(ah->seq_number) - 1;
+			vrrp->ipsecah_counter.cycle = false;
 		}
 #endif
 
@@ -2626,7 +2626,7 @@ reset_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 	memcpy(vrrp->stats, old_vrrp->stats, sizeof(vrrp_stats));
 
 #ifdef _WITH_VRRP_AUTH_
-	memcpy(vrrp->ipsecah_counter, old_vrrp->ipsecah_counter, sizeof(seq_counter_t));
+	memcpy(&vrrp->ipsecah_counter, &old_vrrp->ipsecah_counter, sizeof(seq_counter_t));
 #endif
 
 	/* Remember if we had vips up and add new ones if needed */

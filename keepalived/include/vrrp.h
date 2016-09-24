@@ -241,7 +241,7 @@ typedef struct _vrrp_t {
 	uint8_t			auth_data[8];		/* authentification data */
 
 	/* IPSEC AH counter def (only valid for VRRPv2) --rfc2402.3.3.2 */
-	seq_counter_t		*ipsecah_counter;
+	seq_counter_t		ipsecah_counter;
 #endif
 
 	/*
