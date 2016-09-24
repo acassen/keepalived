@@ -312,7 +312,6 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 
 	/* Reset arp_ignore and arp_filter on the base interface if necessary */
 	if (vrrp->family == AF_INET) {
-// TODO - what if other vmacs are using the same base interface. We need a counter.
 		if (vrrp->ifp->base_ifp)
 			reset_interface_parameters(vrrp->ifp->base_ifp);
 		else
