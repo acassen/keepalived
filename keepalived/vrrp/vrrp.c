@@ -767,7 +767,7 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, size_t buflen)
 	   become BACKUP. If all the master are down we reset the counter for becoming MASTER.
 	 */
 	if (vrrp->ipsecah_counter->seq_number > 0xFFFFFFFD) {
-		vrrp->ipsecah_counter->cycle = 1;
+		vrrp->ipsecah_counter->cycle = true;
 	} else {
 		vrrp->ipsecah_counter->seq_number++;
 	}
@@ -1578,7 +1578,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 					      " - Increment seq"
 					    , vrrp->iname);
 			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
-			vrrp->ipsecah_counter->cycle = 0;
+			vrrp->ipsecah_counter->cycle = false;
 		}
 #endif
 		if (!vrrp->lower_prio_no_advert)
@@ -1614,7 +1614,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 					      " - Decrement seq"
 					    , vrrp->iname);
 			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) - 1;
-			vrrp->ipsecah_counter->cycle = 0;
+			vrrp->ipsecah_counter->cycle = false;
 		}
 #endif
 

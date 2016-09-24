@@ -29,6 +29,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <openssl/md5.h>
+#include <stdbool.h>
 
 /* Predefined values */
 #define HMAC_MD5_TRUNC 0x0C	/* MD5 digest truncate value : 96-bit
@@ -57,7 +58,7 @@ typedef struct {		/* rfc2402.3.3.3.1.1.1 */
 } ICV_mutable_fields;		/* We need to zero this fields to compute the ICV */
 
 typedef struct _seq_counter {
-	int			cycle;
+	bool			cycle;
 	uint32_t		seq_number;
 } seq_counter_t;
 
