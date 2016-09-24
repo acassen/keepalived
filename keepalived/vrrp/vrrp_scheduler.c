@@ -203,6 +203,7 @@ vrrp_init_state(list l)
 	vrrp_t *vrrp;
 	vrrp_sgroup_t *vgroup;
 	element e;
+	bool is_up;
 
 // TODO We need to spin through each sync group to see if any instance (including tracked interfaces)
 // is down (!VRRP_IF_ISUP), and is so set the sync group to FAULT state
@@ -264,8 +265,10 @@ vrrp_init_state(list l)
 
 		vrrp->wantstate = vrrp->init_state;
 
-		if (vrrp->base_priority == VRRP_PRIO_OWNER ||
-		    vrrp->wantstate == VRRP_STATE_MAST || vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
+		is_up = (VRRP_IF_ISUP(vrrp) && (!vrrp->sync || GROUP_STATE(vrrp->sync) != VRRP_STATE_FAULT));
+		if (is_up &&
+		    vrrp->base_priority == VRRP_PRIO_OWNER &&
+		    vrrp->init_state == VRRP_STATE_MAST) {
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
 			if (global_data->lvs_syncd.ifname &&
@@ -277,14 +280,16 @@ vrrp_init_state(list l)
 					       false);
 #endif
 #ifdef _WITH_SNMP_RFCV3_
-// TODO - why
 			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
 			vrrp->state = VRRP_STATE_GOTO_MASTER;
 			if (vrrp->base_priority != VRRP_PRIO_OWNER)
 				log_message(LOG_INFO, "VRRP_Instance(%s) Entering GOTO MASTER STATE", vrrp->iname);
 		} else {
-			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+			if (vrrp->init_state == VRRP_STATE_MAST)
+				vrrp->ms_down_timer = vrrp->adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
+			else
+				vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
 			if (global_data->lvs_syncd.ifname &&
@@ -298,8 +303,7 @@ vrrp_init_state(list l)
 
 			/* Set BACKUP state */
 			vrrp_restore_interface(vrrp, false, false);
-			if (VRRP_IF_ISUP(vrrp) &&
-			    (!vrrp->sync || GROUP_STATE(vrrp->sync) != VRRP_STATE_FAULT)) {
+			if (is_up) {
 				vrrp->state = VRRP_STATE_BACK;
 				log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
 			}
@@ -738,12 +742,12 @@ vrrp_ah_sync(vrrp_t *vrrp)
 static void
 vrrp_leave_fault(vrrp_t * vrrp, char *buffer, ssize_t len)
 {
-	if (!VRRP_ISUP(vrrp))
+	if (!VRRP_ISUP(vrrp) ||
+	    (vrrp->sync && !vrrp_sync_leave_fault(vrrp)))
 		return;
 
-	if (vrrp->sync && !vrrp_sync_leave_fault(vrrp))
-		return;
-
+// TODO 1 - the following is all wrong. PRIO == 255 -> straight to master, o/w backup.
+// init_state == master => ms_down_timer == advert_int + min skew, else 3 * + SKEW
 	if (vrrp_state_fault_rx(vrrp, buffer, len)) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) prio is higher than received advert", vrrp->iname);
 #ifdef _WITH_SNMP_RFC_
@@ -764,11 +768,11 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, ssize_t len)
 #ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
-// TODO - what is last_transition?
+// TODO - what is last_transition? - check consistently set
 		vrrp->last_transition = timer_now();
 #ifdef _WITH_SNMP_RFC_
 		vrrp->stats->uptime = vrrp->last_transition;
-//TODO - what is last_transition
+// TODO - check stats->uptime is used consistently
 #endif
 //	}
 }
@@ -788,9 +792,7 @@ vrrp_goto_master(vrrp_t * vrrp)
 			vrrp->state = VRRP_STATE_FAULT;
 			vrrp->master_adver_int = vrrp->adver_int;
 		}
-// TODO Why are we setting the down timer?
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
-//??? TODO	notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 #ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
@@ -939,18 +941,19 @@ vrrp_master(vrrp_t * vrrp)
 static void
 vrrp_fault(vrrp_t * vrrp)
 {
-	if (vrrp->sync) {
-		if (!vrrp_sync_leave_fault(vrrp))
-			return;
-	} else if (VRRP_ISUP(vrrp))
-		vrrp_log_int_up(vrrp);
-	else
+	if (!VRRP_ISUP(vrrp) ||
+	    (vrrp->sync && !vrrp_sync_leave_fault(vrrp)))
 		return;
+
+	vrrp_log_int_up(vrrp);
 
 	/* refresh the multicast fd */
 	if (new_vrrp_socket(vrrp) < 0)
 		return;
 
+// TODO 1 - make this the same as vrrp_leave_fault
+// Possibly two initial functions then call same function for most
+// vrrp_leave_fault should never happen, since we must have detected interface coming up first
 #if defined _WITH_VRRP_AUTH_
 	/*
 	 * We force the IPSEC AH seq_number sync
@@ -959,6 +962,7 @@ vrrp_fault(vrrp_t * vrrp)
 	 * VRRP MASTER send its advert for the concerned
 	 * instance.
 	 */
+// TODO - does something like this need to be done in leave_fault
 	if (vrrp->auth_type == VRRP_AUTH_AH) {
 		vrrp_ah_sync(vrrp);
 	} else
@@ -974,7 +978,7 @@ vrrp_fault(vrrp_t * vrrp)
 			if (vrrp->init_state == VRRP_STATE_BACK)
 				vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 			else
-				vrrp->ms_down_timer = vrrp->master_adver_int;
+				vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
 
 			if (vrrp->preempt_delay)
 				vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);

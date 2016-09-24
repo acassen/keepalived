@@ -269,7 +269,7 @@ typedef struct _vrrp_t {
 #define VRRP_PACKET_KO       1
 #define VRRP_PACKET_DROP     2
 #define VRRP_PACKET_NULL     3
-#define VRRP_PACKET_OTHER    4	/* Muliple VRRP on LAN, Identify "other" VRRP */
+#define VRRP_PACKET_OTHER    4	/* Multiple VRRP on LAN, Identify "other" VRRP */
 
 /* VRRP Packet fixed length */
 #define VRRP_AUTH_LEN		8
@@ -286,6 +286,7 @@ typedef struct _vrrp_t {
 
 /* We have to do some reduction of the calculation for VRRPv3 in order not to overflow a uint32; 625 / 16 == TIMER_CENTI_HZ / 256 */
 #define VRRP_TIMER_SKEW(svr)	((svr)->version == VRRP_VERSION_3 ? (((256U-(svr)->effective_priority) * ((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : ((256U-(svr)->effective_priority) * TIMER_HZ/256U))
+#define VRRP_TIMER_SKEW_MIN(svr)	((svr)->version == VRRP_VERSION_3 ? ((((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : (TIMER_HZ/256U))
 #define VRRP_VIP_ISSET(V)	((V)->vipset)
 
 #define VRRP_MIN(a, b)	((a) < (b)?(a):(b))
