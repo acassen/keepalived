@@ -280,6 +280,8 @@ and
     smtp_alert
 
     global_tracking     # All VRRP share the same tracking config
+                        # This enables weights for script and interface tracking,
+                        # which by default are disabled for sync groups.
  }
 
 .SH VRRP gratuitous ARP and unsolicited neighbour advert delay group(s)

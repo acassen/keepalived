@@ -213,6 +213,9 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
       <STRING>			#       set
       ...			#             of VRRP_Instance string
     }
+    global_tracking		# allow sync groups to use weights. In order for this
+				# to work, all members of the sync group must track
+				# exactly the same interfaces and scripts
     notify_master <STRING>|<QUOTED-STRING> # Script to run during MASTER transit
     notify_backup <STRING>|<QUOTED-STRING> # Script to run during BACKUP transit
     notify_fault <STRING>|<QUOTED-STRING>  # Script to run during FAULT transit
