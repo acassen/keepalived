@@ -207,7 +207,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		// If we have a sufficiently recent kernel, we can stop a link local address
 		// based on the MAC address being automatically assigned. If not, then we have
 		// to delete the generated address after bringing the interface up (see below).
-#ifdef IFLA_INET6_ADDR_GEN_MODE		/* Since Linux 3.17 */
+#if HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
 		memset(&req, 0, sizeof (req));
 		req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
 		req.n.nlmsg_flags = NLM_F_REQUEST ;
@@ -266,7 +266,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
 	netlink_link_up(vrrp);
 
-#ifndef IFLA_INET6_ADDR_GEN_MODE
+#if !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
 	if (vrrp->family == AF_INET6 || vrrp->evip_add_ipv6) {
 		/* Delete the automatically created link-local address based on the
 		 * MAC address if we weren't able to configure the interface not to
