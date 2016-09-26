@@ -425,7 +425,7 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 		srule->user.flags &= ~IP_VS_SVC_F_ONEPACKET;
 #endif
 
-#ifdef IPVS_SVC_ATTR_PE_NAME
+#ifdef _HAVE_PE_NAME_
 	strcpy(srule->pe_name, vs->pe_name);
 #endif
 
