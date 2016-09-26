@@ -497,6 +497,9 @@
    collision */
 #undef _HAVE_LINUX_NET_IF_H_COLLISION_
 
+/* Define to 1 if have pe selection support */
+#undef _HAVE_PE_NAME_
+
 /* Define to 1 if have MAC VLAN support */
 #undef _HAVE_VRRP_VMAC_
 

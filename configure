@@ -7983,6 +7983,18 @@ if test $ac_have_decl = 1; then :
 fi
 
 
+# Introduced in Linux 2.6.37
+ac_fn_c_check_decl "$LINENO" "IPVS_SVC_ATTR_PE_NAME" "ac_cv_have_decl_IPVS_SVC_ATTR_PE_NAME" "#include <linux/ip_vs.h>
+"
+if test "x$ac_cv_have_decl_IPVS_SVC_ATTR_PE_NAME" = xyes; then :
+
+
+$as_echo "#define _HAVE_PE_NAME_  1 " >>confdefs.h
+
+
+fi
+
+
 # Introduced in Linux 2.6.19
 SAV_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $kernelinc"

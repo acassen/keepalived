@@ -645,6 +645,7 @@ dnl ----[ Checks for glibc SOCK_CLOEXEC support ]----
 AC_CHECK_DECLS([SOCK_CLOEXEC], [add_build_opt([SOCK_CLOEXEC])], [],[[#include <sys/socket.h>]])
 
 dnl ----[ Checks for pe support ]----
+# Introduced in Linux 2.6.37
 AC_CHECK_DECL([IPVS_SVC_ATTR_PE_NAME],
    [
      AC_DEFINE([_HAVE_PE_NAME_], [ 1 ], [Define to 1 if have pe selection support])
