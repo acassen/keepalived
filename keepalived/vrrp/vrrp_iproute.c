@@ -72,7 +72,7 @@ add_addr2req(struct nlmsghdr *n, int maxlen, int type, ip_address_t *ip_address)
 	return addattr_l(n, maxlen, type, addr, alen);
 }
 
-#ifdef RTA_VIA	/* Since Linux 4.1 */
+#if HAVE_DECL_RTA_VIA
 static int
 add_addr_fam2req(struct nlmsghdr *n, int maxlen, int type, ip_address_t *ip_address)
 {
@@ -118,7 +118,7 @@ add_addr2rta(struct rtattr *rta, int maxlen, int type, ip_address_t *ip_address)
 	return rta_addattr_l(rta, maxlen, type, addr, alen);
 }
 
-#ifdef RTA_VIA
+#if HAVE_DECL_RTA_VIA
 static int
 add_addrfam2rta(struct rtattr *rta, int maxlen, int type, ip_address_t *ip_address)
 {
@@ -227,7 +227,7 @@ add_nexthop(nexthop_t *nh, struct rtmsg *rtm, struct rtattr *rta, size_t len, st
 	if (nh->addr) {
 		if (rtm->rtm_family == nh->addr->ifa.ifa_family)
 			rtnh->rtnh_len += add_addr2rta(rta, len, RTA_GATEWAY, nh->addr);
-#ifdef RTA_VIA
+#if HAVE_DECL_RTA_VIA
 		else
 			rtnh->rtnh_len += add_addrfam2rta(rta, len, RTA_VIA, nh->addr);
 #endif
@@ -355,7 +355,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 	if (iproute->via) {
 		if (iproute->via->ifa.ifa_family == iproute->family)
 			add_addr2req(&req.n, sizeof(req), RTA_GATEWAY, iproute->via);
-#ifdef RTA_VIA
+#if HAVE_DECL_RTA_VIA
 		else
 			add_addr_fam2req(&req.n, sizeof(req), RTA_VIA, iproute->via);
 #endif
