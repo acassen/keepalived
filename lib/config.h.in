@@ -94,6 +94,10 @@
    and to 0 if you don't. */
 #undef HAVE_DECL_IPVS_DAEMON_ATTR_SYNC_MAXLEN
 
+/* Define to 1 if you have the declaration of `IPVS_DEST_ATTR_ADDR_FAMILY',
+   and to 0 if you don't. */
+#undef HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
+
 /* Define to 1 if you have the declaration of `IPVS_DEST_ATTR_STATS64', and to
    0 if you don't. */
 #undef HAVE_DECL_IPVS_DEST_ATTR_STATS64

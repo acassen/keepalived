@@ -104,7 +104,7 @@ static struct nla_policy ipvs_dest_policy[IPVS_DEST_ATTR_MAX + 1] = {
 	[IPVS_DEST_ATTR_INACT_CONNS]	= { .type = NLA_U32 },
 	[IPVS_DEST_ATTR_PERSIST_CONNS]	= { .type = NLA_U32 },
 	[IPVS_DEST_ATTR_STATS]		= { .type = NLA_NESTED },
-#ifdef IPVS_DEST_ATTR_ADDR_FAMILY	/* Since Linux 3.18 */
+#if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
 	[IPVS_DEST_ATTR_ADDR_FAMILY]	= { .type = NLA_U16 },
 #endif
 #ifdef IPVS_DEST_ATTR_STATS64		/* Since Linux 4.0 */
@@ -438,7 +438,7 @@ static int ipvs_nl_fill_dest_attr(struct nl_msg *msg, ipvs_dest_t *dst)
 	if (!nl_dest)
 		return -1;
 
-#ifdef IPVS_DEST_ATTR_ADDR_FAMILY
+#if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
 	NLA_PUT_U16(msg, IPVS_DEST_ATTR_ADDR_FAMILY, dst->af);
 #endif
 	NLA_PUT(msg, IPVS_DEST_ATTR_ADDR, sizeof(dst->nf_addr), &(dst->nf_addr));
@@ -821,7 +821,7 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 	struct nlmsghdr *nlh = nlmsg_hdr(msg);
 	struct nlattr *attrs[IPVS_CMD_ATTR_MAX + 1];
 	struct nlattr *dest_attrs[IPVS_DEST_ATTR_MAX + 1];
-#ifdef IPVS_DEST_ATTR_ADDR_FAMILY
+#if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
 	struct nlattr *attr_addr_family = NULL;
 #endif
 	struct ip_vs_get_dests_app **dp = (struct ip_vs_get_dests_app **)arg;
@@ -861,10 +861,10 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 	d->user.entrytable[i].user.activeconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS]);
 	d->user.entrytable[i].user.inactconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_INACT_CONNS]);
 	d->user.entrytable[i].user.persistconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_PERSIST_CONNS]);
-#ifdef IPVS_DEST_ATTR_ADDR_FAMILY
+#if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
 	attr_addr_family = dest_attrs[IPVS_DEST_ATTR_ADDR_FAMILY];
 	if (attr_addr_family)
-		d->entrytable[i].af = nla_get_u16(attr_addr_family);
+		d->user.entrytable[i].af = nla_get_u16(attr_addr_family);
 	else
 #endif
 		d->user.entrytable[i].af = d->af;
