@@ -185,6 +185,7 @@ signal_handler_init(void)
 	int sig;
 	struct sigaction act, oact;
 	int n;
+	static int remember = 1;
 
 #ifdef HAVE_PIPE2
 	n = pipe2(signal_pipe, O_CLOEXEC | O_NONBLOCK);
@@ -224,8 +225,10 @@ signal_handler_init(void)
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
 
-	sigemptyset(&ign_sig);
-	sigemptyset(&dfl_sig);
+	if (remember) {
+		sigemptyset(&ign_sig);
+		sigemptyset(&dfl_sig);
+	}
 
 	for (sig = 1; sig <= SIGRTMAX; sig++) {
 		if (sigismember(&sset, sig)){
@@ -234,14 +237,19 @@ signal_handler_init(void)
 			/* Remember the original disposition, and ignore
 			 * any default action signals
 			 */
-			if (oact.sa_handler == SIG_IGN)
-				sigaddset(&ign_sig, sig);
+			if (oact.sa_handler == SIG_IGN) {
+				if (remember)
+					sigaddset(&ign_sig, sig);
+			}
 			else {
 				sigaction(sig, &act, NULL);
-				sigaddset(&dfl_sig, sig);
+				if (remember)
+					sigaddset(&dfl_sig, sig);
 			}
 		}
 	}
+	if (remember)
+		remember = 0;
 }
 
 static void
