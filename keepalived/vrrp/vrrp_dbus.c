@@ -199,7 +199,7 @@ static gchar *
 dbus_object_create_path_vrrp(void)
 {
 	return g_strconcat(DBUS_VRRP_OBJECT_ROOT,
-#ifdef HAVE_DECL_CLONE_NEWNET
+#if HAVE_DECL_CLONE_NEWNET
 			  (network_namespace) ? "/" : "", (network_namespace) ? network_namespace : "",
 #endif
 			  (instance_name) ? "/" : "", (instance_name) ? instance_name : "",
@@ -217,7 +217,7 @@ dbus_object_create_path_instance(const gchar *interface, int vrid, sa_family_t f
 	set_valid_path(standardized_name, interface);
 
 	object_path = g_strconcat(DBUS_VRRP_OBJECT_ROOT,
-#ifdef HAVE_DECL_CLONE_NEWNET
+#if HAVE_DECL_CLONE_NEWNET
 				  (network_namespace) ? "/" : "", (network_namespace) ? network_namespace : "",
 #endif
 				  (instance_name) ? "/" : "", (instance_name) ? instance_name : "",
@@ -277,7 +277,7 @@ get_interface_ids(const gchar *object_path, gchar *interface, uint8_t *vrid, uin
 	int path_length = DBUS_VRRP_INSTANCE_PATH_DEFAULT_LENGTH;
 	gchar **dirs;
 
-#ifdef HAVE_DECL_CLONE_NEWNET
+#if HAVE_DECL_CLONE_NEWNET
 	if(network_namespace)
 		path_length++;
 #endif
