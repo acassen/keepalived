@@ -190,7 +190,7 @@ pto_handler(vector_t *strvec)
 
 	vs->persistence_timeout = timeout;
 }
-#ifdef IPVS_SVC_ATTR_PE_NAME
+#ifdef _HAVE_PE_NAME_
 static void
 pengine_handler(vector_t *strvec)
 {
@@ -398,7 +398,7 @@ init_check_keywords(bool active)
 #endif
 	install_keyword("lb_kind", &lbkind_handler);
 	install_keyword("lvs_method", &lbkind_handler);
-#ifdef IPVS_SVC_ATTR_PE_NAME
+#ifdef _HAVE_PE_NAME_
 	install_keyword("persistence_engine", &pengine_handler);
 #endif
 	install_keyword("persistence_timeout", &pto_handler);
