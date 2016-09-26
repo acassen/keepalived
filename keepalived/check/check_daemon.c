@@ -35,6 +35,7 @@
 #include "pidfile.h"
 #include "daemon.h"
 #include "signals.h"
+#include "notify.h"
 #include "process.h"
 #include "logger.h"
 #include "list.h"
@@ -56,6 +57,7 @@ stop_check(int status)
 {
 	/* Destroy master thread */
 	signal_handler_destroy();
+	script_killall(master, SIGTERM);
 	thread_destroy_master(master);
 	free_checkers_queue();
 	free_ssl();
@@ -217,6 +219,7 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 #ifdef _WITH_VRRP_
 	kernel_netlink_close();
 #endif
+	script_killall(master, SIGHUP);
 	thread_cleanup_master(master);
 	free_global_data(global_data);
 

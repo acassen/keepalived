@@ -120,3 +120,22 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, lon
 
 	exit(WEXITSTATUS(status));
 }
+
+void
+script_killall(thread_master_t *m, int signo)
+{
+	thread_t *thread;
+	pid_t p_pgid, c_pgid;
+
+	thread = m->child.head;
+
+	p_pgid = getpgid(0);
+
+	while (thread) {
+		c_pgid = getpgid(thread->u.c.pid);
+		if (c_pgid != p_pgid) {
+			kill(-c_pgid, signo);
+		}
+		thread = thread->next;
+	}
+}

@@ -45,6 +45,7 @@
 #include "daemon.h"
 #include "logger.h"
 #include "signals.h"
+#include "notify.h"
 #include "process.h"
 #include "bitops.h"
 #include "rttables.h"
@@ -123,6 +124,7 @@ stop_vrrp(int status)
 	signal_handler_destroy();
 
 	kernel_netlink_close();
+	script_killall(master, SIGTERM);
 	thread_destroy_master(master);
 	gratuitous_arp_close();
 	ndisc_close();
@@ -347,6 +349,7 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 	/* Destroy master thread */
 	vrrp_dispatcher_release(vrrp_data);
 	kernel_netlink_close();
+	script_killall(master, SIGHUP);
 	thread_cleanup_master(master);
 #ifdef _WITH_LVS_
 	if (global_data->lvs_syncd.ifname)
