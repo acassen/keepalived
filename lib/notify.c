@@ -105,6 +105,7 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, lon
 
 	/* In case of this is parent process */
 	if (pid) {
+		setpgid(pid, pid);
 		thread_add_child(m, func, arg, pid, timer);
 		return 0;
 	}
