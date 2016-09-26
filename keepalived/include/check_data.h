@@ -120,7 +120,7 @@ typedef struct _virtual_server {
 	char				sched[IP_VS_SCHEDNAME_MAXLEN];
 	uint32_t			flags;
 	uint32_t			persistence_timeout;
-#ifdef IPVS_SVC_ATTR_PE_NAME
+#ifdef _HAVE_PE_NAME_
 	char				pe_name[IP_VS_PENAME_MAXLEN];
 #endif
 	unsigned			loadbalancing_kind;
