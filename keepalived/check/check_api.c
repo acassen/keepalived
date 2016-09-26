@@ -37,6 +37,7 @@
 #include "check_tcp.h"
 #include "check_http.h"
 #include "check_ssl.h"
+#include "check_dns.h"
 
 /* Global vars */
 static checker_id_t ncheckers = 0;
@@ -310,4 +311,5 @@ install_checkers_keyword(void)
 	install_tcp_check_keyword();
 	install_http_check_keyword();
 	install_ssl_check_keyword();
+	install_dns_check_keyword();
 }
