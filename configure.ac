@@ -573,7 +573,7 @@ if test "$enable_lvs" != no; then
   fi
 
   dnl ----[ IPVS 64-bit stats ]----
-  dnl -- Since Linux 4.2
+  dnl -- Since Linux 4.1
   if test "$enable_lvs_64bit_stats" != "no"; then
     IPVS_64BIT_STATS=Yes
     AC_CHECK_DECLS([

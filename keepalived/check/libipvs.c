@@ -85,9 +85,9 @@ static struct nla_policy ipvs_service_policy[IPVS_SVC_ATTR_MAX + 1] = {
 	[IPVS_SVC_ATTR_STATS]		= { .type = NLA_NESTED },
 #ifdef _HAVE_PE_NAME_
 	[IPVS_SVC_ATTR_PE_NAME]		= { .type = NLA_STRING,
-					    .maxlen = IP_VS_PENAME_MAXLEN }
+					    .maxlen = IP_VS_PENAME_MAXLEN },
 #endif
-#ifdef IPVS_SVC_ATTR_STATS64		/* Since Linux 4.0 */
+#ifdef _WITH_LVS_64BIT_STATS_
 	[IPVS_SVC_ATTR_STATS64]		= { .type = NLA_NESTED },
 #endif
 };
@@ -107,7 +107,7 @@ static struct nla_policy ipvs_dest_policy[IPVS_DEST_ATTR_MAX + 1] = {
 #if HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
 	[IPVS_DEST_ATTR_ADDR_FAMILY]	= { .type = NLA_U16 },
 #endif
-#ifdef IPVS_DEST_ATTR_STATS64		/* Since Linux 4.0 */
+#ifdef _WITH_LVS_64BIT_STATS_
 	[IPVS_DEST_ATTR_STATS64]	= {.type = NLA_NESTED },
 #endif
 };
