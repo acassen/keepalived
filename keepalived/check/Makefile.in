@@ -114,8 +114,8 @@ libcheck_a_DEPENDENCIES = $(am__append_1)
 am_libcheck_a_OBJECTS = check_daemon.$(OBJEXT) check_data.$(OBJEXT) \
 	check_parser.$(OBJEXT) check_api.$(OBJEXT) check_tcp.$(OBJEXT) \
 	check_http.$(OBJEXT) check_ssl.$(OBJEXT) check_smtp.$(OBJEXT) \
-	check_misc.$(OBJEXT) ipwrapper.$(OBJEXT) ipvswrapper.$(OBJEXT) \
-	libipvs.$(OBJEXT)
+	check_misc.$(OBJEXT) check_dns.$(OBJEXT) ipwrapper.$(OBJEXT) \
+	ipvswrapper.$(OBJEXT) libipvs.$(OBJEXT)
 am__EXTRA_libcheck_a_SOURCES_DIST = check_snmp.c
 libcheck_a_OBJECTS = $(am_libcheck_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
@@ -291,8 +291,8 @@ noinst_LIBRARIES = libcheck.a
 libcheck_a_SOURCES = \
 	check_daemon.c check_data.c check_parser.c \
 	check_api.c check_tcp.c check_http.c check_ssl.c \
-	check_smtp.c check_misc.c ipwrapper.c ipvswrapper.c \
-	libipvs.c
+	check_smtp.c check_misc.c check_dns.c ipwrapper.c \
+	ipvswrapper.c libipvs.c
 
 EXTRA_libcheck_a_SOURCES = $(am__append_2)
 libcheck_a_LIBADD = $(am__append_1)
@@ -347,6 +347,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_api.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_daemon.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_data.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_dns.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_http.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_misc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/check_parser.Po@am__quote@

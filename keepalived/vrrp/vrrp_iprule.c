@@ -184,7 +184,7 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 	if (iprule->iif)	// "dev/iif"
 		addattr_l(&req.n, sizeof(req), FRA_IFNAME, iprule->iif, strlen(iprule->iif->ifname)+1);
 
-#ifdef FRA_OIFNAME	/* Since Linux 2.6.32 */
+#if HAVE_DECL_FRA_OIFNAME
 	if (iprule->oif)	// "oif"
 		addattr_l(&req.n, sizeof(req), FRA_OIFNAME, iprule->oif, strlen(iprule->oif->ifname)+1);
 #endif
@@ -287,13 +287,13 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 	}
 
 	if (rule->iif)
-#ifdef FRA_OIFNAME
+#if HAVE_DECL_FRA_OIFNAME
 		op += snprintf(op, buf_end - op, " iif %s", rule->iif->ifname);
 #else
 		op += snprintf(op, buf_end - op, " dev %s", rule->iif->ifname);
 #endif
 
-#ifdef FRA_OIFNAME
+#if HAVE_DECL_FRA_OIFNAME
 	if (rule->oif)
 		op += snprintf(op, buf_end - op, " oif %s", rule->oif->ifname);
 #endif
@@ -521,7 +521,7 @@ fwmark_err:
 			}
 			new->iif = ifp;
 		}
-#ifdef FRA_OIFNAME
+#if HAVE_DECL_FRA_OIFNAME
 		else if (!strcmp(str, "oif")) {
 			str = vector_slot(strvec, ++i);
 			ifp = if_get_by_ifname(str);

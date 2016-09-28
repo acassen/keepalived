@@ -141,7 +141,7 @@ AC_PROG_LN_S
 AC_PROG_SED
 AC_CHECK_TOOL(STRIP,strip)
 
-AM_PROG_AR
+m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 ARFLAGS=cr
 AC_SUBST(ARFLAGS)
 
@@ -549,6 +549,10 @@ if test "$enable_lvs" != no; then
   dnl ----[ IPVS syncd options ]---
   SAV_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $kernelinc"
+
+  dnl -- Since Linux 3.18
+  AC_CHECK_DECLS([IPVS_DEST_ATTR_ADDR_FAMILY], [add_build_opt([IPVS_DEST_ATTR_ADDR_FAMILY])], [], [#include <linux/ip_vs.h>])
+
   IPVS_SYNCD_ATTRIBUTES=Yes
   AC_CHECK_DECLS([
     IPVS_DAEMON_ATTR_SYNC_MAXLEN,
@@ -561,6 +565,7 @@ if test "$enable_lvs" != no; then
       break
     ],
     [[#include <linux/ip_vs.h>]])
+
   dnl -- Since Linux 4.3
   if test $IPVS_SYNCD_ATTRIBUTES = Yes; then
     AC_DEFINE([_HAVE_IPVS_SYNCD_ATTRIBUTES_], [ 1 ], [Define to 1 if have IPVS syncd attributes])
@@ -568,7 +573,7 @@ if test "$enable_lvs" != no; then
   fi
 
   dnl ----[ IPVS 64-bit stats ]----
-  dnl -- Since Linux 4.2
+  dnl -- Since Linux 4.1
   if test "$enable_lvs_64bit_stats" != "no"; then
     IPVS_64BIT_STATS=Yes
     AC_CHECK_DECLS([
@@ -645,6 +650,7 @@ dnl ----[ Checks for glibc SOCK_CLOEXEC support ]----
 AC_CHECK_DECLS([SOCK_CLOEXEC], [add_build_opt([SOCK_CLOEXEC])], [],[[#include <sys/socket.h>]])
 
 dnl ----[ Checks for pe support ]----
+# Introduced in Linux 2.6.37
 AC_CHECK_DECL([IPVS_SVC_ATTR_PE_NAME],
    [
      AC_DEFINE([_HAVE_PE_NAME_], [ 1 ], [Define to 1 if have pe selection support])
