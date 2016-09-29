@@ -3235,7 +3235,6 @@ AM_BACKSLASH='\'
 
 
 
-
 if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
 	if test -n "$ac_tool_prefix"; then
   # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
@@ -7302,6 +7301,7 @@ fi
       else
         IPSET_LIBS="-lipset"
       fi
+      SAV_LIBS=$LIBS
       LIBS="$IPTC_LIBS $IPSET_LIBS"
 
       { $as_echo "$as_me:${as_lineno-$LINENO}: checking for ipset_session_init in -lipset" >&5
@@ -7413,88 +7413,6 @@ fi
           fi
 
           if test $USE_LIBIPSET = Yes; then
-
-$as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
-
-            BUILD_OPTIONS="$BUILD_OPTIONS LIBIPSET"
-            $PKG_CONFIG --exists libipset
-            if test $? -eq 0; then
-               if test 1 -ge 2; then
-      KA_PKG_PFX=
-    else
-      KA_PKG_PFX=KA
-    fi
-    ADD_NEW=
-   eval var=\$${KA_PKG_PFX}_CPPFLAGS
-    for item in $($PKG_CONFIG --cflags-only-I libipset); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
-
-    ADD_NEW=
-   eval var=\$${KA_PKG_PFX}_CFLAGS
-    for item in $($PKG_CONFIG --cflags-only-other libipset); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
-
-    ADD_NEW=
-   eval var=\$${KA_PKG_PFX}_LIBS
-    for item in $($PKG_CONFIG --libs libipset); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
-
-
-            else
-              KA_LIBS="$KA_LIBS -lipset"
-            fi
-             if test 1 -ge 2; then
-      KA_PKG_PFX=
-    else
-      KA_PKG_PFX=KA
-    fi
-    ADD_NEW=
-   eval var=\$${KA_PKG_PFX}_CPPFLAGS
-    for item in $($PKG_CONFIG --cflags-only-I xtables); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
-
-    ADD_NEW=
-   eval var=\$${KA_PKG_PFX}_CFLAGS
-    for item in $($PKG_CONFIG --cflags-only-other xtables); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
-
-    ADD_NEW=
-   eval var=\$${KA_PKG_PFX}_LIBS
-    for item in $($PKG_CONFIG --libs xtables); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
-
-
-
                         EXTRA_INCLUDE=
             cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
@@ -7537,6 +7455,70 @@ fi
 done
 
 
+
+$as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
+
+            BUILD_OPTIONS="$BUILD_OPTIONS LIBIPSET"
+            $PKG_CONFIG --exists libipset
+            if test $? -eq 0; then
+                            ADD_NEW=
+   eval var=\$KA_CPPFLAGS
+    for item in $IPSET_CPPFLAGS; do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval KA_CPPFLAGS=\"\$KA_CPPFLAGS $ADD_NEW\"
+
+              ADD_NEW=
+   eval var=\$KA_CFLAGS
+    for item in $IPSET_CFLAGS; do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval KA_CFLAGS=\"\$KA_CFLAGS $ADD_NEW\"
+
+            fi
+             if test 1 -ge 2; then
+      KA_PKG_PFX=
+    else
+      KA_PKG_PFX=KA
+    fi
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
+    for item in $($PKG_CONFIG --cflags-only-I xtables); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CFLAGS
+    for item in $($PKG_CONFIG --cflags-only-other xtables); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_LIBS
+    for item in $($PKG_CONFIG --libs xtables); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
+
+
+
                         ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v1" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v1_match_set_index" "
                 $EXTRA_INCLUDE
                 #include <linux/netfilter/xt_set.h>
@@ -7566,6 +7548,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
 fi
 
+      LIBS="$SAV_LIBS"
     fi
 
         ac_fn_c_check_decl "$LINENO" "XT_EXTENSION_MAXNAMELEN" "ac_cv_have_decl_XT_EXTENSION_MAXNAMELEN" "#include <linux/netfilter/x_tables.h>
