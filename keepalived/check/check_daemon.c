@@ -55,9 +55,11 @@ static char *check_syslog_ident;
 static void
 stop_check(int status)
 {
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
+
 	/* Destroy master thread */
 	signal_handler_destroy();
-	script_killall(master, SIGTERM);
 	thread_destroy_master(master);
 	free_checkers_queue();
 	free_ssl();
@@ -215,11 +217,13 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 
 	log_message(LOG_INFO, "Got SIGHUP, reloading checker configuration");
 
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
+
 	/* Destroy master thread */
 #ifdef _WITH_VRRP_
 	kernel_netlink_close();
 #endif
-	script_killall(master, SIGHUP);
 	thread_cleanup_master(master);
 	free_global_data(global_data);
 

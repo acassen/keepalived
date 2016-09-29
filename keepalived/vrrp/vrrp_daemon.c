@@ -120,11 +120,13 @@ stop_vrrp(int status)
 	}
 #endif
 
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
+
 	/* We mustn't receive a SIGCHLD after master is destroyed */
 	signal_handler_destroy();
 
 	kernel_netlink_close();
-	script_killall(master, SIGTERM);
 	thread_destroy_master(master);
 	gratuitous_arp_close();
 	ndisc_close();
@@ -346,10 +348,12 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 	/* set the reloading flag */
 	SET_RELOAD;
 
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
+
 	/* Destroy master thread */
 	vrrp_dispatcher_release(vrrp_data);
 	kernel_netlink_close();
-	script_killall(master, SIGHUP);
 	thread_cleanup_master(master);
 #ifdef _WITH_LVS_
 	if (global_data->lvs_syncd.ifname)
