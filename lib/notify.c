@@ -105,12 +105,13 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, lon
 
 	/* In case of this is parent process */
 	if (pid) {
-		setpgid(pid, pid);
 		thread_add_child(m, func, arg, pid, timer);
 		return 0;
 	}
 
 	/* Child part */
+	setpgid(0, 0);
+
 	script_setup();
 
 	status = system_call(script);
@@ -124,8 +125,16 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, lon
 void
 script_killall(thread_master_t *m, int signo)
 {
+	sigset_t old_set, child_wait;
 	thread_t *thread;
 	pid_t p_pgid, c_pgid;
+
+	sigprocmask(0, NULL, &old_set);
+	if (!sigismember(&old_set, SIGCHLD)) {
+		sigemptyset(&child_wait);
+		sigaddset(&child_wait, SIGCHLD);
+		sigprocmask(SIG_BLOCK, &child_wait, NULL);
+	}
 
 	thread = m->child.head;
 
@@ -138,4 +147,7 @@ script_killall(thread_master_t *m, int signo)
 		}
 		thread = thread->next;
 	}
+
+	if (!sigismember(&old_set, SIGCHLD))
+		sigprocmask(SIG_UNBLOCK, &child_wait, NULL);
 }
