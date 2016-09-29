@@ -438,6 +438,7 @@ if test .${enable_libiptc} != .no; then
       else
         IPSET_LIBS="-lipset"
       fi
+      SAV_LIBS=$LIBS
       LIBS="$IPTC_LIBS $IPSET_LIBS"
 
       AC_CHECK_LIB(ipset, ipset_session_init,
@@ -454,16 +455,6 @@ if test .${enable_libiptc} != .no; then
           fi
 
           if test $USE_LIBIPSET = Yes; then
-            AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
-            add_build_opt([LIBIPSET])
-            $PKG_CONFIG --exists libipset
-            if test $? -eq 0; then
-              add_pkg_config(libipset)
-            else
-              add_to_var([KA_LIBS], [-lipset])
-            fi
-            add_pkg_config([xtables])
-
             dnl -- Need to include <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
             EXTRA_INCLUDE=
             AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
@@ -477,6 +468,16 @@ if test .${enable_libiptc} != .no; then
                 [[#include <libipset/linux_ip_set.h>]])])
             AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [$EXTRA_INCLUDE])
   
+            AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
+            add_build_opt([LIBIPSET])
+            $PKG_CONFIG --exists libipset
+            if test $? -eq 0; then
+              dnl -- libipset is dynamically linked, so we don't want -lipset
+              add_to_var_ind_unique([KA_CPPFLAGS], [$IPSET_CPPFLAGS])
+              add_to_var_ind_unique([KA_CFLAGS], [$IPSET_CFLAGS])
+            fi
+            add_pkg_config([xtables])
+
             dnl -- xt_set_info_match_v1 declared since Linux 3.1
             AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [],
               [
@@ -492,6 +493,7 @@ if test .${enable_libiptc} != .no; then
               [AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
           fi
         ])
+      LIBS="$SAV_LIBS"
     fi
 
     dnl -- XT_EXTENSION_MAXNAMELEN not defined until Linux 2.6.35
