@@ -179,13 +179,12 @@ signal_ignore(int signo)
 
 /* Handlers intialization */
 void
-signal_handler_init(void)
+signal_handler_init(int remember)
 {
 	sigset_t sset;
 	int sig;
 	struct sigaction act, oact;
 	int n;
-	static int remember = 1;
 
 #ifdef HAVE_PIPE2
 	n = pipe2(signal_pipe, O_CLOEXEC | O_NONBLOCK);
@@ -248,8 +247,6 @@ signal_handler_init(void)
 			}
 		}
 	}
-	if (remember)
-		remember = 0;
 }
 
 static void
