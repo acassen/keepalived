@@ -127,6 +127,25 @@ if_get_by_ifname(const char *ifname)
 	return NULL;
 }
 
+/* Set the base_ifp for vmacs - only used at startup */
+void
+set_base_ifp(void)
+{
+	interface_t *ifp;
+	element e;
+
+	if (LIST_ISEMPTY(if_queue))
+		return;
+
+	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
+		ifp = ELEMENT_DATA(e);
+		if (!ifp->base_ifp) {
+			ifp->base_ifp = if_get_by_ifindex(ifp->base_ifindex);
+			ifp->base_ifindex = 0;	/* This is only used at startup, so ensure not used later */
+		}
+	}
+}
+
 /* Return the interface list itself */
 list
 get_if_list(void)

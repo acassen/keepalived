@@ -877,15 +877,17 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 
 			if (linkattr[IFLA_MACVLAN_MODE] &&
 			    *(uint32_t*)RTA_DATA(linkattr[IFLA_MACVLAN_MODE]) == MACVLAN_MODE_PRIVATE) {
-				ifp->base_ifp = if_get_by_ifindex(*(uint32_t *)RTA_DATA(tb[IFLA_LINK]));
+				ifp->base_ifindex = *(uint32_t *)RTA_DATA(tb[IFLA_LINK]);
+				ifp->base_ifp = if_get_by_ifindex(ifp->base_ifindex);
+				if (ifp->base_ifp)
+					ifp->base_ifindex = 0;	/* Make sure this isn't used at runtine */
 				ifp->vmac = true;
 			}
 		}
 	}
-
 #endif
 
-	update_interface_flags(ifp, ifi->ifi_flags);
+	ifp->ifi_flags = ifi->ifi_flags;
 
 	return 1;
 }
@@ -959,6 +961,9 @@ netlink_interface_lookup(char *name)
 		goto end_int;
 	}
 	status = netlink_parse_info(netlink_if_link_filter, &nlh, NULL, false);
+
+	/* We now need to ensure that all the base_ifp are set */
+	set_base_ifp();
 
 end_int:
 	netlink_close(&nlh);
