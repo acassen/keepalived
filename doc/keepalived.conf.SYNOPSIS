@@ -276,6 +276,9 @@ vrrp_instance <STRING> {		# VRRP instance declaration
 					#  when using mixed IPv4&IPv6 conf
     state MASTER|BACKUP			# Start-up default state
     interface <STRING>			# Binding interface
+    accept				# Allow a non address-owner to process packets
+					# destined to VIPs and eVIPs. For VRRPv3, but
+					# also VRRPv2 if not strict mode.
     track_interface {			# Interfaces state we monitor
       <STRING>
       <STRING>
