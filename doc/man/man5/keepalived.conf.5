@@ -464,7 +464,11 @@ which will transition together on any state change.
         to 192.168.2.0/24 table 1
     }
 
-    accept    # Allow the non-master owner to process the packets destined to VIP
+    # VRRPv3 has an Accept Mode to allow the virtual router when not the address owner to
+    # receive packets addressed to a VIP. This is the default setting unless strict mode is set.
+    # As an extension, this also works for VRRPv2 (RFC 3768 doesn't define an accept mode). 
+    accept		# Accept packets to non address-owner
+    no_accept		# Drop packets to non address-owner.
 
     # VRRP will normally preempt a lower priority
     # machine when a higher priority machine comes
