@@ -713,6 +713,14 @@ vrrp_accept_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
+vrrp_no_accept_handler(__attribute__((unused)) vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	vrrp->accept = false;
+}
+
+static void
 garp_group_handler(__attribute__((unused)) vector_t *strvec)
 {
 	alloc_garp_delay();
@@ -858,6 +866,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("virtual_rules", &vrrp_vrules_handler);
 #endif
 	install_keyword("accept", &vrrp_accept_handler);
+	install_keyword("no_accept", &vrrp_no_accept_handler);
 	install_keyword("skip_check_adv_addr", &vrrp_skip_check_adv_addr_handler);
 	install_keyword("strict_mode", &vrrp_strict_mode_handler);
 	install_keyword("preempt", &vrrp_preempt_handler);

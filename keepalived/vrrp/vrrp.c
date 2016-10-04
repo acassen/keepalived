@@ -114,9 +114,7 @@ vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 #endif
 	struct ipt_handle *h = NULL;
 
-	if ((vrrp->version == VRRP_VERSION_3) &&
-	    (vrrp->base_priority != VRRP_PRIO_OWNER) &&
-	    !vrrp->accept) {
+	if (vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol %s", vrrp->iname,
 				(cmd == IPADDRESS_ADD) ? "setting" : "removing", "iptable drop rule");
@@ -1891,16 +1889,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (vrrp->family == AF_UNSPEC)
 		vrrp->family = AF_INET;
 
-	if (vrrp->accept) {
-		if (vrrp->version == VRRP_VERSION_2)
-		{
-			log_message(LOG_INFO,"(%s): cannot set accept mode for VRRP version 2", vrrp->iname);
-			vrrp->accept = false;
-		}
-		else
-			vrrp->version = VRRP_VERSION_3;
-	}
-
 	if (vrrp->version == 0) {
 		if (vrrp->family == AF_INET6)
 			vrrp->version = VRRP_VERSION_3;
@@ -2018,6 +2006,19 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	vrrp->state = VRRP_STATE_INIT;
+
+	/* Set default for accept mode if not specified. If we are running in strict mode,
+	 * default is to disable accept mode, otherwise default is to enable it.
+	 * At some point we might want to change this to make non accept_mode the default,
+	 * to comply with the RFCs. */
+	if (vrrp->accept == -1)
+		vrrp->accept = !vrrp->strict_mode;
+
+	if (vrrp->accept &&
+	    vrrp->base_priority != VRRP_PRIO_OWNER &&
+	    vrrp->strict_mode &&
+	    vrrp->version == VRRP_VERSION_2)
+		log_message(LOG_INFO, "(%s): warning - accept mode for VRRP version 2 does not comply with RFC3768", vrrp->iname);
 
 	if (vrrp->garp_lower_prio_rep == -1)
 		vrrp->garp_lower_prio_rep = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_rep;
@@ -2209,9 +2210,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Spin through all our addresses, setting ifindex and ifp.
 	   We also need to know what addresses we might block */
-	if ((vrrp->version == VRRP_VERSION_3) &&
-	    (vrrp->base_priority != VRRP_PRIO_OWNER) &&
-	    !vrrp->accept) {
+	if (vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept) {
 //TODO = we have a problem since SNMP may change accept mode
 //it can also change priority
 		if (vrrp->saddr.ss_family == AF_INET)
@@ -2236,9 +2235,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				vip->ifp = vrrp->ifp;
 			}
 
-			if ((vrrp->version == VRRP_VERSION_3) &&
-			    (vrrp->base_priority != VRRP_PRIO_OWNER) &&
-			    !vrrp->accept) {
+			if (vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept) {
 				if (vip->ifa.ifa_family == AF_INET)
 					global_data->block_ipv4 = true;
 				else
@@ -2509,8 +2506,7 @@ clear_diff_vrrp_vip_list(vrrp_t *vrrp, struct ipt_handle* h, list l, list n)
 		return;
 
 	/* Clear iptable rule to VIP if needed. */
-	if ((vrrp->version == VRRP_VERSION_2) || vrrp->accept ||
-	    (vrrp->base_priority == VRRP_PRIO_OWNER)) {
+	if (vrrp->base_priority == VRRP_PRIO_OWNER || vrrp->accept) {
 		handle_iptable_rule_to_iplist(h, n, IPADDRESS_DEL, IF_NAME(vrrp->ifp), false);
 		vrrp->iptable_rules_set = false;
 	} else
