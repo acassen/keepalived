@@ -76,7 +76,7 @@ report_child_status(int status, pid_t pid, const char *prog_name)
 		}
 
 		if (exit_status != EXIT_SUCCESS)
-			log_message(LOG_INFO, "%s exited with status %d", prog_id, status);
+			log_message(LOG_INFO, "%s exited with status %d", prog_id, exit_status);
 		return false;
 	}
 	if (WIFSIGNALED(status)) {
