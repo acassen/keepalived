@@ -204,6 +204,23 @@ make_pidfile_name(const char* start, const char* instance, const char* extn)
 	return name;
 }
 
+static bool
+find_keepalived_child(pid_t pid, char const **prog_name)
+{
+#ifdef _WITH_LVS_
+	if (pid == checkers_child)
+		*prog_name = PROG_CHECK;
+#endif
+#ifdef _WITH_VRRP_
+	else if (pid == vrrp_child)
+		*prog_name = PROG_VRRP;
+#endif
+	else
+		return false;
+
+	return true;
+}
+
 #if HAVE_DECL_CLONE_NEWNET
 static vector_t *
 global_init_keywords(void)
@@ -711,6 +728,9 @@ keepalived_main(int argc, char **argv)
 
 	/* Init debugging level */
 	debug = 0;
+
+	/* Initialise pointer to child finding function */
+	set_child_finder(find_keepalived_child);
 
 	/* Initialise daemon_mode */
 #ifdef _WITH_VRRP_
