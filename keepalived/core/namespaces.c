@@ -177,6 +177,7 @@
 #include <sys/syscall.h>
 
 #include "namespaces.h"
+#include "main.h"
 
 #ifndef MS_SLAVE	/* Since glibc 2.12, but Linux since 2.6.15 */
 #include <linux/fs.h>
@@ -190,9 +191,6 @@ int setns(int fd, int nstype)
 #include "memory.h"
 #include "logger.h"
 #include "pidfile.h"
-
-/* Global data */
-char *network_namespace;
 
 /* Local data */
 static const char *netns_dir = "/var/run/netns/";

@@ -24,6 +24,8 @@
 
 #include "git-commit.h"
 
+#include <stdlib.h>
+#include <sys/utsname.h>
 #include <sys/resource.h>
 #include <stdbool.h>
 
@@ -71,8 +73,13 @@ const char *snmp_socket;				/* Socket to use for SNMP agent */
 static char *syslog_ident;				/* syslog ident if not default */
 char *instance_name;					/* keepalived instance name */
 bool use_pid_dir;					/* Put pid files in /var/run/keepalived */
+unsigned os_major;					/* Kernel version */
+unsigned os_minor;
+unsigned os_release;
 
 #if HAVE_DECL_CLONE_NEWNET
+char *network_namespace;				/* The network namespace we are running in */
+bool namespace_with_ipsets;				/* Override for using namespaces and ipsets with Linux < 3.13 */
 static char *override_namespace;			/* If namespace specified on command line */
 #endif
 
@@ -699,6 +706,8 @@ int
 keepalived_main(int argc, char **argv)
 {
 	bool report_stopped = true;
+	struct utsname uname_buf;
+	char *end;
 
 	/* Init debugging level */
 	debug = 0;
@@ -734,6 +743,27 @@ keepalived_main(int argc, char **argv)
 
 	/* Handle any core file requirements */
 	core_dump_init();
+
+	/* Some functionality depends on kernel version, so get the version here */
+	if (uname(&uname_buf))
+		log_message(LOG_INFO, "Unable to get uname() information - error %d", errno);
+	else {
+		os_major = strtoul(uname_buf.release, &end, 10);
+		if (*end != '.')
+			os_major = 0;
+		else {
+			os_minor = strtoul(end + 1, &end, 10);
+			if (*end != '.')
+				os_major = 0;
+			else {
+				os_release = strtoul(end + 1, &end, 10);
+				if (*end && *end != '-')
+					os_major = 0;
+			}
+		}
+		if (!os_major)
+			log_message(LOG_INFO, "Unable to parse kernel version %s", uname_buf.release);
+	}
 
 	/* Check we can read the configuration file(s).
  	   NOTE: the working directory will be / if we
