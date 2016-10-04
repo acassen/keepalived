@@ -652,7 +652,7 @@ net_namespace_handler(vector_t *strvec)
 }
 
 static void
-namespace_ipsets_handler(vector_t *strvec)
+namespace_ipsets_handler(__attribute__((unused)) vector_t *strvec)
 {
 	namespace_with_ipsets = true;
 }
