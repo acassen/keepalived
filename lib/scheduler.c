@@ -48,20 +48,41 @@
 #include "logger.h"
 #include "bitops.h"
 
-
 /* global vars */
 thread_master_t *master = NULL;
 
+#ifdef _WITH_LVS_
+#include "../keepalived/include/check_daemon.h"
+#endif
+#ifdef _WITH_VRRP_
+#include "../keepalived/include/vrrp_daemon.h"
+#endif
+#include "../keepalived/include/main.h"
+
+/* Function that returns if pid is a known child, and sets *prog_name accordingly */
+static bool (*child_finder)(pid_t pid, char const **prog_name);
+
+void
+set_child_finder(bool (*func)(pid_t, char const **))
+{
+	child_finder = func;
+}
+
 /* report_child_status returns true if the exit is a hard error, so unable to continue */
 bool
-report_child_status(int status, pid_t pid, const char *prog_name)
+report_child_status(int status, pid_t pid, char const *prog_name)
 {
-	const char *prog_id;
+	char const *prog_id = NULL;
 	char pid_buf[10];	/* "pid 32767" + '\0' */
 	int exit_status ;
+	bool keepalived_child_process = false;
 
-	if (prog_name)
+	if (prog_name) {
 		prog_id = prog_name;
+		keepalived_child_process = true;
+	}
+	else if (child_finder && child_finder(pid, &prog_id))
+		keepalived_child_process = true;
 	else {
 		snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
 		prog_id = pid_buf;
@@ -69,14 +90,17 @@ report_child_status(int status, pid_t pid, const char *prog_name)
 
 	if (WIFEXITED(status)) {
 		exit_status = WEXITSTATUS(status);
-		if (exit_status == KEEPALIVED_EXIT_FATAL ||
-		    exit_status == KEEPALIVED_EXIT_CONFIG) {
+
+		/* Handle exit codes of vrrp or checker child */
+		if (keepalived_child_process &&
+		    (exit_status == KEEPALIVED_EXIT_FATAL ||
+		     exit_status == KEEPALIVED_EXIT_CONFIG)) {
 			log_message(LOG_INFO, "%s exited with permanent error %s. Terminating", prog_id, exit_status == KEEPALIVED_EXIT_CONFIG ? "CONFIG" : "FATAL" );
 			return true;
 		}
 
 		if (exit_status != EXIT_SUCCESS)
-			log_message(LOG_INFO, "%s exited with status %d", prog_id, status);
+			log_message(LOG_INFO, "%s exited with status %d", prog_id, exit_status);
 		return false;
 	}
 	if (WIFSIGNALED(status)) {

@@ -56,9 +56,6 @@
 #include "logger.h"
 #include "timer.h"
 #include "scheduler.h"
-#if HAVE_DECL_CLONE_NEWNET
-#include "namespaces.h"
-#endif
 
 typedef enum dbus_action {
 	DBUS_ACTION_NONE,

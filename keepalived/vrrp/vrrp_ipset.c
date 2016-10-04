@@ -45,6 +45,7 @@
 #include "vrrp_iptables.h"
 #include "vrrp_ipset.h"
 #include "vrrp_ipaddress.h"
+#include "main.h"
 
 /* The addresses of the functions we want */
 struct ipset_session* (*ipset_session_init_addr)(ipset_outfn outfn);
@@ -172,6 +173,20 @@ bool ipset_init(void)
 	if (libipset_handle)
 		return true;
 
+#if HAVE_DECL_CLONE_NEWNET
+	/* Don't attempt to use ipsets if running in a namespace and kernel
+	 * version is less than 3.13, since ipsets didn't understand namespaces
+	 * prior to that. */
+	if (network_namespace &&
+	    !namespace_with_ipsets &&
+	    (os_major <= 2 ||
+	     (os_major == 3 && os_minor < 13))) {
+		log_message(LOG_INFO, "Not using ipsets with network namespace since not supported with kernel version < 3.13");
+		return false;
+	}
+#endif
+
+	/* Attempt to open the ipset library */
 	if (!(libipset_handle = dlopen("libipset.so", RTLD_NOW)) &&
 	    !(libipset_handle = dlopen("libipset.so.3", RTLD_NOW)) &&
 	    !(libipset_handle = dlopen("libipset.so.2", RTLD_NOW))) {
