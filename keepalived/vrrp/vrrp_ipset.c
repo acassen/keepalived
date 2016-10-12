@@ -209,8 +209,10 @@ bool ipset_init(void)
 
 	ipset_load_types();
 
-	if (!load_mod_xt_set())
+	if (!load_mod_xt_set()) {
+		log_message(LOG_INFO, "Unable to load xt_set module");
 		return false;
+	}
 
 	return true;
 }

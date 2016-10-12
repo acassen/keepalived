@@ -365,7 +365,6 @@ iptables_init(void)
 {
 #ifdef _HAVE_LIBIPSET_
 	if (!ipset_init()) {
-		log_message(LOG_INFO, "Unable to initialise ipsets");
 		global_data->using_ipsets = false;
 
 		return false;
