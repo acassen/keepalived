@@ -41,6 +41,7 @@ typedef uint8_t u8;
 #include <stdlib.h>
 #include <stdio.h>
 #include <linux/ethtool.h>
+#include <linux/mii.h>
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
@@ -167,70 +168,60 @@ if_vmac_reflect_flags(const unsigned ifindex, const unsigned long flags)
 #endif
 
 /* MII Transceiver Registers poller functions */
-static int
-if_mii_read(const int fd, const int phy_id, int location)
+static uint16_t
+if_mii_read(int fd, uint16_t phy_id, uint16_t reg_num)
 {
-	uint16_t *data = (uint16_t *) (&ifr.ifr_data);
+	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&ifr.ifr_data;
 
-	data[0] = phy_id;
-	data[1] = location;
+	data->phy_id = phy_id;
+	data->reg_num = reg_num;
 
 	if (ioctl(fd, SIOCGMIIREG, &ifr) < 0) {
-		log_message(LOG_ERR, "SIOCGMIIREG on %s failed: %s", ifr.ifr_name,
-		       strerror(errno));
-		return -1;
+		log_message(LOG_ERR, "SIOCGMIIREG on %s failed: %s", ifr.ifr_name, strerror(errno));
+		return 0xffff;
 	}
-	return data[3];
+	return data->val_out;
 }
 
-/*
-static void if_mii_dump(const uint16_t mii_regs[32], unsigned phy_id)
+#ifdef _INCLUDE_UNUSED_CODE_
+static void if_mii_dump(const uint16_t *mii_regs, size_t num_regs unsigned phy_id)
 {
-  int mii_reg;
+	int mii_reg;
 
-  printf(" MII PHY #%d transceiver registers:\n", phy_id);
-  for (mii_reg = 0; mii_reg < 32; mii_reg++)
-    printf("%s %4.4x", (mii_reg % 8) == 0 ? "\n ":"", mii_regs[mii_reg]);
+	printf(" MII PHY #%d transceiver registers:", phy_id);
+	for (mii_reg = 0; mii_reg < num_regs; mii_reg++)
+		printf("%s %4.4x", (mii_reg % 8) == 0 ? "\n ":"", mii_regs[mii_reg]);
+	printf("\n");
 }
-*/
+#endif
 
 static int
 if_mii_status(const int fd)
 {
-	uint16_t *data = (uint16_t *) (&ifr.ifr_data);
-	unsigned phy_id = data[0];
-	uint16_t mii_regs[32];
-	int mii_reg;
+	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&ifr.ifr_data;
+	uint16_t phy_id = data->phy_id;
 	uint16_t bmsr, new_bmsr;
 
-	/* Reset MII registers */
-	memset(mii_regs, 0, sizeof (mii_regs));
-
-	for (mii_reg = 0; mii_reg < 32; mii_reg++)
-		mii_regs[mii_reg] = if_mii_read(fd, phy_id, mii_reg);
-
-// if_mii_dump(mii_regs, phy_id);
-
-	if (mii_regs[0] == 0xffff) {
-		log_message(LOG_ERR, "No MII transceiver present for %s !!!",
-		       ifr.ifr_name);
+	if (if_mii_read(fd, phy_id, MII_BMCR) == 0xffff ||
+	    (bmsr = if_mii_read(fd, phy_id, MII_BMSR)) == 0) {
+		log_message(LOG_ERR, "No MII transceiver present for %s !!!", ifr.ifr_name);
 		return -1;
 	}
 
-	bmsr = mii_regs[1];
+// if_mii_dump(mii_regs, sizeof(mii_regs)/ sizeof(mii_regs[0], phy_id);
 
 	/*
 	 * For Basic Mode Status Register (BMSR).
 	 * Sticky field (Link established & Jabber detected), we need to read
 	 * a second time the BMSR to get current status.
 	 */
-	new_bmsr = if_mii_read(fd, phy_id, 1);
+	new_bmsr = if_mii_read(fd, phy_id, MII_BMSR);
 
 // printf(" \nBasic Mode Status Register 0x%4.4x ... 0x%4.4x\n", bmsr, new_bmsr);
 
-	if (bmsr & 0x0004)
+	if (bmsr & BMSR_LSTATUS)
 		return LINK_UP;
-	else if (new_bmsr & 0x0004)
+	else if (new_bmsr & BMSR_LSTATUS)
 		return LINK_UP;
 	else
 		return LINK_DOWN;
@@ -239,10 +230,10 @@ if_mii_status(const int fd)
 static int
 if_mii_probe(const char *ifname)
 {
-	uint16_t *data = (uint16_t *) (&ifr.ifr_data);
-	int phy_id;
+	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&ifr.ifr_data;
+	uint16_t phy_id;
 	int fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
-	int status = 0;
+	int status;
 
 	if (fd < 0)
 		return -1;
@@ -262,13 +253,13 @@ if_mii_probe(const char *ifname)
 	/* check if the driver reports BMSR using the MII interface, as we
 	 * will need this and we already know that some don't support it.
 	 */
-	phy_id = data[0]; /* save it in case it is overwritten */
-	data[1] = 1;
+	phy_id = data->phy_id; /* save it in case it is overwritten */
+	data->reg_num = MII_BMSR;
 	if (ioctl(fd, SIOCGMIIREG, &ifr) < 0) {
 		close(fd);
 		return -1;
 	}
-	data[0] = phy_id;
+	data->phy_id = phy_id;
 
 	/* Dump the MII transceiver */
 	status = if_mii_status(fd);
@@ -280,22 +271,19 @@ static int
 if_ethtool_status(const int fd)
 {
 	struct ethtool_value edata;
-	int err = 0;
 
 	edata.cmd = ETHTOOL_GLINK;
 	ifr.ifr_data = (caddr_t) & edata;
-	err = ioctl(fd, SIOCETHTOOL, &ifr);
-	if (err == 0)
+	if (!ioctl(fd, SIOCETHTOOL, &ifr))
 		return (edata.data) ? 1 : 0;
-	else
-		return -1;
+	return -1;
 }
 
 static int
 if_ethtool_probe(const char *ifname)
 {
 	int fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
-	int status = 0;
+	int status;
 
 	if (fd < 0)
 		return -1;
@@ -439,13 +427,15 @@ dump_if(void *data)
 		log_message(LOG_INFO, " VMAC underlying interface = %s", ifp_u->ifname);
 #endif
 
-	/* MII channel supported ? */
-	if (IF_MII_SUPPORTED(ifp))
-		log_message(LOG_INFO, " NIC support MII regs");
-	else if (IF_ETHTOOL_SUPPORTED(ifp))
-		log_message(LOG_INFO, " NIC support EHTTOOL GLINK interface");
-	else
-		log_message(LOG_INFO, " Enabling NIC ioctl refresh polling");
+	if (global_data->linkbeat_use_polling) {
+		/* MII channel supported ? */
+		if (IF_MII_SUPPORTED(ifp))
+			log_message(LOG_INFO, " NIC support MII regs");
+		else if (IF_ETHTOOL_SUPPORTED(ifp))
+			log_message(LOG_INFO, " NIC support ETHTOOL GLINK interface");
+		else
+			log_message(LOG_INFO, " NIC ioctl refresh polling");
+	}
 
 	if (ifp->garp_delay) {
 		if (ifp->garp_delay->have_garp_interval)
@@ -510,15 +500,14 @@ init_if_linkbeat(void)
 		status = if_mii_probe(ifp->ifname);
 		if (status >= 0) {
 			ifp->lb_type = LB_MII;
-			ifp->linkbeat = (status) ? 1 : 0;
+			ifp->linkbeat = !!status;
 		} else {
 			status = if_ethtool_probe(ifp->ifname);
 			if (status >= 0) {
 				ifp->lb_type = LB_ETHTOOL;
-				ifp->linkbeat = (status) ? 1 : 0;
+				ifp->linkbeat = !!status;
 			}
 		}
-
 		/* Register new monitor thread */
 		thread_add_timer(master, if_linkbeat_refresh_thread, ifp, POLLING_DELAY);
 	}
@@ -563,7 +552,7 @@ void
 init_interface_linkbeat(void)
 {
 	if (global_data->linkbeat_use_polling) {
-		log_message(LOG_INFO, "Using MII-BMSR NIC polling thread...");
+		log_message(LOG_INFO, "Using MII-BMSR/ETHTOOL NIC polling thread...");
 		init_if_linkbeat();
 	} else {
 		log_message(LOG_INFO, "Using LinkWatch kernel netlink reflector...");
