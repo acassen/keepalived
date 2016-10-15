@@ -49,7 +49,7 @@ get_modprobe(void)
 {
 	int procfile;
 	char *ret;
-	int count;
+	ssize_t count;
 
 	ret = MALLOC(PATH_MAX);
 	if (!ret)
@@ -244,7 +244,6 @@ ipvs_talk(int cmd, bool ignore_error)
 }
 
 #ifdef _WITH_LVS_
-#ifdef _WITH_LVS_
 /* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
 ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool ignore_interface, bool ignore_error)
@@ -254,7 +253,7 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 	/* prepare user rule */
 	daemonrule->state = state;
 	if (config) {
-		daemonrule->syncid = config->syncid;
+		daemonrule->syncid = (int)config->syncid;
 		if (!ignore_interface)
 			strncpy(daemonrule->mcast_ifn, config->ifname, IP_VS_IFNAME_MAXLEN);
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
@@ -280,7 +279,6 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 	/* Talk to the IPVS channel */
 	ipvs_talk(cmd, ignore_error);
 }
-#endif
 
 void
 ipvs_flush_cmd(void)
@@ -422,7 +420,7 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 #ifdef IP_VS_SVC_F_ONEPACKET
 	/* Disable ops flag if service is not UDP */
 	if (vs->flags & IP_VS_SVC_F_ONEPACKET && srule->user.protocol != IPPROTO_UDP)
-		srule->user.flags &= ~IP_VS_SVC_F_ONEPACKET;
+		srule->user.flags &= (unsigned)~IP_VS_SVC_F_ONEPACKET;
 #endif
 
 #ifdef _HAVE_PE_NAME_
@@ -466,9 +464,9 @@ ipvs_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 
 	/* Set flag */
 	if (cmd == IP_VS_SO_SET_ADDDEST && !rs->set)
-		rs->set = 1;
+		rs->set = true;
 	if (cmd == IP_VS_SO_SET_DELDEST && rs->set)
-		rs->set = 0;
+		rs->set = false;
 
 	/* Set vs rule and send to kernel */
 	if (vs->vsgname) {

@@ -80,10 +80,10 @@ thread_t *garp_thread;
  *     |               |<----------------------|               |
  *     +---------------+                       +---------------+
  */
-static void vrrp_backup(vrrp_t *, char *, int);
-static void vrrp_leave_master(vrrp_t *, char *, int);
-static void vrrp_leave_fault(vrrp_t *, char *, int);
-static void vrrp_become_master(vrrp_t *, char *, int);
+static void vrrp_backup(vrrp_t *, char *, ssize_t);
+static void vrrp_leave_master(vrrp_t *, char *, ssize_t);
+static void vrrp_leave_fault(vrrp_t *, char *, ssize_t);
+static void vrrp_become_master(vrrp_t *, char *, ssize_t);
 
 static void vrrp_goto_master(vrrp_t *);
 static void vrrp_master(vrrp_t *);
@@ -97,7 +97,7 @@ static int vrrp_script_thread(thread_t * thread);
 static int vrrp_read_dispatcher_thread(thread_t *);
 
 static struct {
-	void (*read) (vrrp_t *, char *, int);
+	void (*read) (vrrp_t *, char *, ssize_t);
 	void (*read_timeout) (vrrp_t *);
 } VRRP_FSM[VRRP_MAX_FSM_STATE + 1] =
 {
@@ -343,7 +343,7 @@ vrrp_init_script(list l)
 			else if (vscript->result == VRRP_SCRIPT_STATUS_INIT_GOOD)
 				vscript->result = vscript->rise; /* one failure is enough */
 
-			thread_add_event(master, vrrp_script_thread, vscript, vscript->interval);
+			thread_add_event(master, vrrp_script_thread, vscript, (int)vscript->interval);
 		}
 	}
 }
@@ -369,17 +369,19 @@ vrrp_compute_timer(const int fd)
 	return timer;
 }
 
-static long
+static unsigned long
 vrrp_timer_fd(const int fd)
 {
-	timeval_t timer, vrrp_timer;
-	long vrrp_long;
+	timeval_t timer;
 
 	timer = vrrp_compute_timer(fd);
-	vrrp_timer = timer_sub(timer, time_now);
-	vrrp_long = timer_long(vrrp_timer);
+// TODO - if the result of the following test is -ve, then a thread has already expired
+// and so shouldn't we run straight away? Or else ignore timers in past and take the next
+// one in the future?
+	if (timer_cmp(timer, time_now) < 0)
+		return TIMER_MAX_SEC;
 
-	return (vrrp_long < 0) ? TIMER_MAX_SEC : vrrp_long;
+	return timer_long(timer_sub(timer, time_now));
 }
 
 static int
@@ -410,7 +412,7 @@ vrrp_register_workers(list l)
 {
 	sock_t *sock;
 	timeval_t timer;
-	long vrrp_timer = 0;
+	unsigned long vrrp_timer = 0;
 	element e;
 
 	/* Init compute timer */
@@ -444,7 +446,7 @@ vrrp_register_workers(list l)
 
 /* VRRP dispatcher functions */
 static int
-already_exist_sock(list l, sa_family_t family, unsigned int proto, unsigned int ifindex, bool unicast)
+already_exist_sock(list l, sa_family_t family, int proto, ifindex_t ifindex, bool unicast)
 {
 	sock_t *sock;
 	element e;
@@ -461,11 +463,11 @@ already_exist_sock(list l, sa_family_t family, unsigned int proto, unsigned int 
 }
 
 static void
-alloc_sock(sa_family_t family, list l, unsigned int proto, unsigned int ifindex, bool unicast)
+alloc_sock(sa_family_t family, list l, int proto, ifindex_t ifindex, bool unicast)
 {
 	sock_t *new;
 
-	new = (sock_t *) MALLOC(sizeof (sock_t));
+	new = (sock_t *)MALLOC(sizeof (sock_t));
 	new->family = family;
 	new->proto = proto;
 	new->ifindex = ifindex;
@@ -480,7 +482,8 @@ vrrp_create_sockpool(list l)
 	vrrp_t *vrrp;
 	list p = vrrp_data->vrrp;
 	element e;
-	unsigned int ifindex, proto;
+	ifindex_t ifindex;
+	int proto;
 	bool unicast;
 
 	for (e = LIST_HEAD(p); e; ELEMENT_NEXT(e)) {
@@ -530,7 +533,8 @@ vrrp_set_fds(list l)
 	list p = vrrp_data->vrrp;
 	element e_sock;
 	element e_vrrp;
-	unsigned int proto, ifindex;
+	int proto;
+	ifindex_t ifindex;
 	bool unicast;
 
 	for (e_sock = LIST_HEAD(l); e_sock; ELEMENT_NEXT(e_sock)) {
@@ -606,7 +610,7 @@ vrrp_dispatcher_release(vrrp_data_t *data)
 }
 
 static void
-vrrp_backup(vrrp_t * vrrp, char *buffer, int len)
+vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 {
 	struct iphdr *iph;
 	ipsec_ah_t *ah;
@@ -638,7 +642,7 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, int len)
 }
 
 static void
-vrrp_become_master(vrrp_t * vrrp, char *buffer, __attribute__((unused)) int len)
+vrrp_become_master(vrrp_t * vrrp, char *buffer, __attribute__((unused)) ssize_t len)
 {
 	struct iphdr *iph;
 	ipsec_ah_t *ah;
@@ -665,7 +669,7 @@ vrrp_become_master(vrrp_t * vrrp, char *buffer, __attribute__((unused)) int len)
 }
 
 static void
-vrrp_leave_master(vrrp_t * vrrp, char *buffer, int len)
+vrrp_leave_master(vrrp_t * vrrp, char *buffer, ssize_t len)
 {
 	if (!VRRP_ISUP(vrrp)) {
 		vrrp_log_int_down(vrrp);
@@ -693,7 +697,7 @@ vrrp_ah_sync(vrrp_t *vrrp)
 #endif
 
 static void
-vrrp_leave_fault(vrrp_t * vrrp, char *buffer, int len)
+vrrp_leave_fault(vrrp_t * vrrp, char *buffer, ssize_t len)
 {
 	if (!VRRP_ISUP(vrrp))
 		return;
@@ -793,7 +797,7 @@ vrrp_lower_prio_gratuitous_arp_thread(thread_t * thread)
 
 /* Set effective priorty, issue message on changes */
 void
-vrrp_set_effective_priority(vrrp_t *vrrp, int new_prio)
+vrrp_set_effective_priority(vrrp_t *vrrp, uint8_t new_prio)
 {
 	if (vrrp->effective_priority == new_prio)
 		return;
@@ -834,7 +838,7 @@ vrrp_update_priority(thread_t * thread)
 		new_prio = 1;
 	else if (new_prio >= VRRP_PRIO_OWNER)
 		new_prio = VRRP_PRIO_OWNER - 1;
-	vrrp_set_effective_priority(vrrp, new_prio);
+	vrrp_set_effective_priority(vrrp, (uint8_t)new_prio);
 
 	/* Register next priority update thread */
 	thread_add_timer(master, vrrp_update_priority, vrrp, vrrp->master_adver_int);
@@ -1034,7 +1038,7 @@ vrrp_dispatcher_read(sock_t * sock)
 static int
 vrrp_read_dispatcher_thread(thread_t * thread)
 {
-	long vrrp_timer = 0;
+	unsigned long vrrp_timer;
 	sock_t *sock;
 	int fd;
 
@@ -1237,7 +1241,7 @@ vrrp_arp_thread(thread_t *thread)
 		garp_next_time = next_time;
 
 		garp_thread = thread_add_timer(thread->master, vrrp_arp_thread, NULL,
-						 -timer_long(timer_sub_now(next_time)));
+						 timer_long(timer_sub_now(next_time)));
 	}
 	else
 		garp_thread = NULL;

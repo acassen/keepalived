@@ -38,7 +38,7 @@ static enum connect_result
 tcp_connect(int fd, REQ * req_obj)
 {
 	struct linger li;
-	int long_inet;
+	socklen_t long_inet;
 	struct sockaddr_in adr_serv;
 	struct sockaddr_in6 adr_serv6;
 	int ret;
@@ -150,7 +150,7 @@ tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
 static void
 tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
 		     int (*func) (thread_t *)
-		     , long timeout)
+		     , unsigned long timeout)
 {
 	switch (status) {
 	case connect_error:

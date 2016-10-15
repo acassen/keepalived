@@ -86,7 +86,7 @@ netlink3_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 		goto err;
 	if (rtnl_link_alloc_cache(sk, AF_UNSPEC, &cache))
 		goto err;
-	if (!(link = rtnl_link_get(cache, ifp->ifindex)))
+	if (!(link = rtnl_link_get(cache, (int)ifp->ifindex)))
 		goto err;
 
 	// Allocate a new link
@@ -110,7 +110,7 @@ netlink3_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 	if (base_ifp->reset_arp_config)
 		(base_ifp->reset_arp_config)++;
 	else {
-		if (!(link = rtnl_link_get(cache, base_ifp->ifindex)))
+		if (!(link = rtnl_link_get(cache, (int)base_ifp->ifindex)))
 			goto err;
 		if (rtnl_link_inet_get_conf(link, IPV4_DEVCONF_ARP_IGNORE, &base_ifp->reset_arp_ignore_value) < 0)
 			goto err;
@@ -171,7 +171,7 @@ netlink3_reset_interface_parameters(const interface_t* ifp)
 		goto err;
 	if (rtnl_link_alloc_cache(sk, AF_UNSPEC, &cache))
 		goto err;
-	if (!(link = rtnl_link_get(cache, ifp->ifindex)))
+	if (!(link = rtnl_link_get(cache, (int)ifp->ifindex)))
 		goto err;
 	if (!(new_state = rtnl_link_alloc()))
 		goto err;
@@ -237,7 +237,7 @@ set_sysctl(const char* prefix, const char* iface, const char* parameter, int val
 	char* filename;
 	char buf[1];
 	int fd;
-	int len;
+	ssize_t len;
 
 	/* Make the filename */
 	filename = MALLOC(PATH_MAX);
@@ -249,7 +249,7 @@ set_sysctl(const char* prefix, const char* iface, const char* parameter, int val
 		return -1;
 
 	/* We only write integers 0-9 */
-	buf[0] = '0' + value;
+	buf[0] = (char)('0' + value);
 	len = write(fd, &buf, 1);
 	close(fd);
 
@@ -266,7 +266,7 @@ get_sysctl(const char* prefix, const char* iface, const char* parameter)
 	char *filename;
 	char buf[1];
 	int fd;
-	int len;
+	ssize_t len;
 
 	/* Make the filename */
 	filename = MALLOC(PATH_MAX);

@@ -35,7 +35,7 @@ set_process_dont_swap(size_t stack_reserve)
 {
 	/* Ensure stack pages allocated */
 	if (stack_reserve) {
-		int pagesize = sysconf(_SC_PAGESIZE);
+		size_t pagesize = (size_t)sysconf(_SC_PAGESIZE);
 		char stack[stack_reserve];
 		size_t i;
 

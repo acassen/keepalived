@@ -70,7 +70,7 @@ list garp_delay;
 /* Helper functions */
 /* Return interface from interface index */
 interface_t *
-if_get_by_ifindex(const unsigned int ifindex)
+if_get_by_ifindex(ifindex_t ifindex)
 {
 	interface_t *ifp;
 	element e;
@@ -88,7 +88,7 @@ if_get_by_ifindex(const unsigned int ifindex)
 
 /* Return base interface from interface index incase of VMAC */
 interface_t *
-base_if_get_by_ifindex(const unsigned int ifindex)
+base_if_get_by_ifindex(ifindex_t ifindex)
 {
 	interface_t *ifp = if_get_by_ifindex(ifindex);
 
@@ -151,7 +151,7 @@ reset_interface_queue(void)
  * by the base interface flags.
  */
 void
-if_vmac_reflect_flags(const unsigned ifindex, const unsigned long flags)
+if_vmac_reflect_flags(ifindex_t ifindex, unsigned long flags)
 {
 	interface_t *ifp;
 	element e;
@@ -320,7 +320,7 @@ if_ioctl_flags(interface_t * ifp)
 		close(fd);
 		return;
 	}
-	ifp->flags = ifr.ifr_flags;
+	ifp->flags = (unsigned short)ifr.ifr_flags;
 	close(fd);
 }
 
@@ -388,7 +388,7 @@ dump_if(void *data)
 
 	log_message(LOG_INFO, "------< NIC >------");
 	log_message(LOG_INFO, " Name = %s", ifp->ifname);
-	log_message(LOG_INFO, " index = %d", ifp->ifindex);
+	log_message(LOG_INFO, " index = %u", ifp->ifindex);
 	log_message(LOG_INFO, " IPv4 address = %s", inet_ntop2(ifp->sin_addr.s_addr));
 	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 	log_message(LOG_INFO, " IPv6 address = %s", addr_str);
@@ -578,19 +578,19 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp)
 	if (family == AF_INET) {
 		memset(&imr, 0, sizeof(imr));
 		imr.imr_multiaddr = ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr;
-		imr.imr_ifindex = IF_INDEX(ifp);
+		imr.imr_ifindex = (int)IF_INDEX(ifp);
 
 		/* -> Need to handle multicast convergance after takeover.
 		 * We retry until multicast is available on the interface.
 		 */
 		ret = setsockopt(*sd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-				 (char *) &imr, sizeof(struct ip_mreqn));
+				 (char *) &imr, (socklen_t)sizeof(struct ip_mreqn));
 	} else {
 		memset(&imr6, 0, sizeof(imr6));
 		imr6.ipv6mr_multiaddr = ((struct sockaddr_in6 *) &global_data->vrrp_mcast_group6)->sin6_addr;
 		imr6.ipv6mr_interface = IF_INDEX(ifp);
 		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
-				 (char *) &imr6, sizeof(struct ipv6_mreq));
+				 (char *) &imr6, (socklen_t)sizeof(struct ipv6_mreq));
 	}
 
 	if (ret < 0) {
@@ -618,7 +618,7 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 	if (family == AF_INET) {
 		memset(&imr, 0, sizeof(imr));
 		imr.imr_multiaddr = ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr;
-		imr.imr_ifindex = IF_INDEX(ifp);
+		imr.imr_ifindex = (int)IF_INDEX(ifp);
 		ret = setsockopt(sd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
 				 (char *) &imr, sizeof(imr));
 	} else {
@@ -655,7 +655,7 @@ if_setsockopt_bindtodevice(int *sd, interface_t *ifp)
 	 * -- If you read this !!! and know the answer to the question
 	 *    please feel free to answer me ! :)
 	 */
-	ret = setsockopt(*sd, SOL_SOCKET, SO_BINDTODEVICE, IF_NAME(ifp), strlen(IF_NAME(ifp)) + 1);
+	ret = setsockopt(*sd, SOL_SOCKET, SO_BINDTODEVICE, IF_NAME(ifp), (socklen_t)strlen(IF_NAME(ifp)) + 1);
 	if (ret < 0) {
 		log_message(LOG_INFO, "cant bind to device %s. errno=%d. (try to run it as root)",
 			    IF_NAME(ifp), errno);
@@ -788,7 +788,8 @@ int
 if_setsockopt_mcast_if(sa_family_t family, int *sd, interface_t *ifp)
 {
 	int ret;
-	unsigned int ifindex;
+	ifindex_t ifindex;
+	int int_ifindex;
 
 	if (*sd < 0)
 		return -1;
@@ -800,11 +801,13 @@ if_setsockopt_mcast_if(sa_family_t family, int *sd, interface_t *ifp)
 		struct ip_mreqn imr;
 
 		memset(&imr, 0, sizeof(imr));
-		imr.imr_ifindex = IF_INDEX(ifp);
+		imr.imr_ifindex = (int)IF_INDEX(ifp);
 		ret = setsockopt(*sd, IPPROTO_IP, IP_MULTICAST_IF, &imr, sizeof(imr));
 	}
-	else
-		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifindex, sizeof(ifindex));
+	else {
+		int_ifindex = (int)ifindex;
+		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &int_ifindex, sizeof(int_ifindex));
+	}
 
 	if (ret < 0) {
 		log_message(LOG_INFO, "cant set IP%s_MULTICAST_IF IP option. errno=%d (%m)", (family == AF_INET) ? "" : "V6", errno);

@@ -56,7 +56,7 @@ extern enum connect_result
 extern int
  socket_connection_state(int, enum connect_result
 		      , thread_t *, int (*func) (thread_t *)
-		      , long);
+		      , unsigned long);
 
 /* Backward compatibility */
 static inline enum connect_result
@@ -79,7 +79,7 @@ tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
 
 static inline int
 tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
-             int (*func) (thread_t *), long timeout)
+             int (*func) (thread_t *), unsigned long timeout)
 {
 	return socket_connection_state(fd, status, thread, func, timeout);
 }

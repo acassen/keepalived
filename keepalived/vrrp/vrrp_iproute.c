@@ -50,14 +50,14 @@
 #define NEXTHOP_RTA_SIZE	1024
 
 /* Utility functions */
-static int
-add_addr2req(struct nlmsghdr *n, int maxlen, int type, ip_address_t *ip_address)
+unsigned short
+add_addr2req(struct nlmsghdr *n, size_t maxlen, unsigned short type, ip_address_t *ip_address)
 {
 	void *addr;
-	int alen;
+	size_t alen;
 
 	if (!ip_address)
-		return -1;
+		return 0;
 
 	if (IP_IS6(ip_address)) {
 		addr = (void *) &ip_address->u.sin6_addr;
@@ -69,19 +69,19 @@ add_addr2req(struct nlmsghdr *n, int maxlen, int type, ip_address_t *ip_address)
 	     alen = sizeof(ip_address->u.sin.sin_addr);
 	}
 
-	return addattr_l(n, maxlen, type, addr, alen);
+	return (unsigned short)addattr_l(n, maxlen, type, addr, alen);
 }
 
 #if HAVE_DECL_RTA_VIA
-static int
-add_addr_fam2req(struct nlmsghdr *n, int maxlen, int type, ip_address_t *ip_address)
+static unsigned short
+add_addr_fam2req(struct nlmsghdr *n, size_t maxlen, unsigned short type, ip_address_t *ip_address)
 {
 	void *addr;
-	int alen;
+	size_t alen;
 	uint16_t family;
 
 	if (!ip_address)
-		return -1;
+		return 0;
 
 	if (IP_IS6(ip_address)) {
 		addr = (void *)&ip_address->u.sin6_addr;
@@ -93,18 +93,18 @@ add_addr_fam2req(struct nlmsghdr *n, int maxlen, int type, ip_address_t *ip_addr
 	}
 	family = ip_address->ifa.ifa_family;
 
-	return addattr_l2(n, maxlen, type, &family, sizeof(family), addr, alen);
+	return (unsigned short)addattr_l2(n, maxlen, type, &family, sizeof(family), addr, alen);
 }
 #endif
 
-static int
-add_addr2rta(struct rtattr *rta, int maxlen, int type, ip_address_t *ip_address)
+static unsigned short
+add_addr2rta(struct rtattr *rta, size_t maxlen, unsigned short type, ip_address_t *ip_address)
 {
 	void *addr;
-	int alen;
+	size_t alen;
 
 	if (!ip_address)
-		return -1;
+		return 0;
 
 	if (IP_IS6(ip_address)) {
 		addr = (void *)&ip_address->u.sin6_addr;
@@ -115,19 +115,19 @@ add_addr2rta(struct rtattr *rta, int maxlen, int type, ip_address_t *ip_address)
 		alen = sizeof(ip_address->u.sin.sin_addr);
 	}
 
-	return rta_addattr_l(rta, maxlen, type, addr, alen);
+	return (unsigned short)rta_addattr_l(rta, maxlen, type, addr, alen);
 }
 
 #if HAVE_DECL_RTA_VIA
-static int
-add_addrfam2rta(struct rtattr *rta, int maxlen, int type, ip_address_t *ip_address)
+static unsigned short
+add_addrfam2rta(struct rtattr *rta, size_t maxlen, unsigned short type, ip_address_t *ip_address)
 {
 	void *addr;
-	int alen;
+	size_t alen;
 	uint16_t family;
 
 	if (!ip_address)
-		return -1;
+		return 0;
 
 	if (IP_IS6(ip_address)) {
 		addr = (void *)&ip_address->u.sin6_addr;
@@ -139,7 +139,7 @@ add_addrfam2rta(struct rtattr *rta, int maxlen, int type, ip_address_t *ip_addre
 	}
 	family = ip_address->ifa.ifa_family;
 
-	return rta_addattr_l2(rta, maxlen, type, &family, sizeof(family), addr, alen);
+	return (unsigned short)rta_addattr_l2(rta, maxlen, type, &family, sizeof(family), addr, alen);
 }
 #endif
 
@@ -154,7 +154,7 @@ static void
 add_encap_ip(struct rtattr *rta, size_t len, const encap_t *encap)
 {
 	if (encap->flags & IPROUTE_BIT_ENCAP_ID)
-		rta_addattr64(rta, len, LWTUNNEL_IP_ID, htonll(encap->ip.id));
+		rta_addattr64(rta, len, LWTUNNEL_IP_ID, htobe64(encap->ip.id));
 	if (encap->ip.dst)
 		rta_addattr_l(rta, len, LWTUNNEL_IP_DST, &encap->ip.dst->u.sin.sin_addr.s_addr, sizeof(encap->ip.dst->u.sin.sin_addr.s_addr));
 	if (encap->ip.src)
@@ -177,7 +177,7 @@ static void
 add_encap_ip6(struct rtattr *rta, size_t len, const encap_t *encap)
 {
 	if (encap->flags & IPROUTE_BIT_ENCAP_ID)
-		rta_addattr64(rta, len, LWTUNNEL_IP6_ID, htonll(encap->ip6.id));
+		rta_addattr64(rta, len, LWTUNNEL_IP6_ID, htobe64(encap->ip6.id));
 	if (encap->ip6.dst)
 		rta_addattr_l(rta, len, LWTUNNEL_IP6_DST, &encap->ip6.dst->u.sin6_addr, sizeof(encap->ip6.dst->u.sin6_addr));
 	if (encap->ip6.src)
@@ -226,14 +226,14 @@ add_nexthop(nexthop_t *nh, struct rtmsg *rtm, struct rtattr *rta, size_t len, st
 {
 	if (nh->addr) {
 		if (rtm->rtm_family == nh->addr->ifa.ifa_family)
-			rtnh->rtnh_len += add_addr2rta(rta, len, RTA_GATEWAY, nh->addr);
+			rtnh->rtnh_len = (unsigned short)(rtnh->rtnh_len + add_addr2rta(rta, len, RTA_GATEWAY, nh->addr));
 #if HAVE_DECL_RTA_VIA
 		else
-			rtnh->rtnh_len += add_addrfam2rta(rta, len, RTA_VIA, nh->addr);
+			rtnh->rtnh_len = (unsigned short)(rtnh->rtnh_len + add_addrfam2rta(rta, len, RTA_VIA, nh->addr));
 #endif
 	}
 	if (nh->ifp)
-		rtnh->rtnh_ifindex = nh->ifp->ifindex;
+		rtnh->rtnh_ifindex = (int)nh->ifp->ifindex;
 
 	if (nh->mask |= IPROUTE_BIT_WEIGHT)
 		rtnh->rtnh_hops = nh->weight;
@@ -241,13 +241,13 @@ add_nexthop(nexthop_t *nh, struct rtmsg *rtm, struct rtattr *rta, size_t len, st
 	rtnh->rtnh_flags = nh->flags;
 
 	if (nh->realms)
-		rtnh->rtnh_len += rta_addattr32(rta, len, RTA_FLOW, nh->realms);
+		rtnh->rtnh_len = (unsigned short)(rtnh->rtnh_len + rta_addattr32(rta, len, RTA_FLOW, nh->realms));
 
 #if HAVE_DECL_RTA_ENCAP
 	if (nh->encap.type != LWTUNNEL_ENCAP_NONE) {
-		int len = rta->rta_len;
+		unsigned short len = rta->rta_len;
 		add_encap(rta, len, &nh->encap);
-		rtnh->rtnh_len += rta->rta_len - len;
+		rtnh->rtnh_len = (unsigned short)(rtnh->rtnh_len + rta->rta_len - len);
 	}
 #endif
 }
@@ -270,7 +270,7 @@ add_nexthops(ip_route_t *route, struct nlmsghdr *nlh, struct rtmsg *rtm)
 
 		memset(rtnh, 0, sizeof(*rtnh));
 		rtnh->rtnh_len = sizeof(*rtnh);
-		rta->rta_len += rtnh->rtnh_len;
+		rta->rta_len = (unsigned short)(rta->rta_len + rtnh->rtnh_len);
 		add_nexthop(nh, rtm, rta, sizeof(buf), rtnh);
 		rtnh = RTNH_NEXT(rtnh);
 	}
@@ -311,7 +311,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 
 	req.r.rtm_family = iproute->family;
 	if (iproute->table < 256)
-		req.r.rtm_table = iproute->table;
+		req.r.rtm_table = (unsigned char)iproute->table;
 	else {
 		req.r.rtm_table = RT_TABLE_UNSPEC;
 		addattr32(&req.n, sizeof(req), RTA_TABLE, iproute->table);
@@ -465,15 +465,15 @@ netlink_route(ip_route_t *iproute, int cmd)
 
 	log_message(LOG_INFO, "rtmsg buffer used %lu, rtattr buffer used %d", req.n.nlmsg_len - NLMSG_LENGTH(sizeof(struct rtmsg)), rta->rta_len);
 
-	op += snprintf(op, sizeof(lbuf) - (op - lbuf), "nlmsghdr %p(%u):", &req.n, req.n.nlmsg_len);
+	op += (size_t)snprintf(op, sizeof(lbuf) - (op - lbuf), "nlmsghdr %p(%u):", &req.n, req.n.nlmsg_len);
 	for (i = 0, p = (uint8_t*)&req.n; i < sizeof(struct nlmsghdr); i++)
-		op += snprintf(op, sizeof(lbuf) - (op - lbuf), " %2.2hhx", *(p++));
+		op += (size_t)snprintf(op, sizeof(lbuf) - (op - lbuf), " %2.2hhx", *(p++));
 	log_message(LOG_INFO, "%s\n", lbuf);
 
 	op = lbuf;
-	op += snprintf(op, sizeof(lbuf) - (op - lbuf), "rtmsg %p(%lu):", &req.r, req.n.nlmsg_len - sizeof(struct nlmsghdr));
+	op += (size_t)snprintf(op, sizeof(lbuf) - (op - lbuf), "rtmsg %p(%lu):", &req.r, req.n.nlmsg_len - sizeof(struct nlmsghdr));
 	for (i = 0, p = (uint8_t*)&req.r; i < + req.n.nlmsg_len - sizeof(struct nlmsghdr); i++)
-		op += snprintf(op, sizeof(lbuf) - (op - lbuf), " %2.2hhx", *(p++));
+		op += (size_t)snprintf(op, sizeof(lbuf) - (op - lbuf), " %2.2hhx", *(p++));
 
 	for (j = 0; lbuf + j < op; j+= MAX_LOG_MSG)
 		log_message(LOG_INFO, "%.*\n", MAX_LOG_MSG, lbuf+j);
@@ -566,66 +566,69 @@ free_iproute(void *rt_data)
 static size_t
 print_encap_mpls(char *op, size_t len, const encap_t* encap)
 {
+	char *buf = op;
+	const char* buf_end = op + len;
 	unsigned i;
-	char *opn = op;
 
-	opn += snprintf(opn, len - (opn - op), " encap mpls");
+	op += snprintf(op, (size_t)(buf_end - op), " encap mpls");
 	for (i = 0; i < encap->mpls.num_labels; i++)
-		opn += snprintf(opn, len - (opn - op), "%s%x", i ? "/" : " ", ntohl(encap->mpls.addr[i].entry));
+		op += snprintf(op, (size_t)(buf_end - op), "%s%x", i ? "/" : " ", ntohl(encap->mpls.addr[i].entry));
 
-	return opn - op;
+	return (size_t)(op - buf);
 }
 
 static size_t
 print_encap_ip(char *op, size_t len, const encap_t* encap)
 {
-	char *opn = op;
+	char *buf = op;
+	const char *buf_end = op + len;
 
-	opn += snprintf(opn, len - (opn - op), " encap ip");
+	op += snprintf(op, (size_t)(buf_end - op), " encap ip");
 
 	if (encap->flags & IPROUTE_BIT_ENCAP_ID)
-		opn += snprintf(opn, len - (opn - op), " id %" PRIu64, encap->ip.id);
+		op += snprintf(op, (size_t)(buf_end - op), " id %" PRIu64, encap->ip.id);
 	if (encap->ip.dst)
-		opn += snprintf(opn, len - (opn - op), " dst %s", ipaddresstos(NULL, encap->ip.dst));
+		op += snprintf(op, (size_t)(buf_end - op), " dst %s", ipaddresstos(NULL, encap->ip.dst));
 	if (encap->ip.src)
-		opn += snprintf(opn, len - (opn - op), " src %s", ipaddresstos(NULL, encap->ip.src));
+		op += snprintf(op, (size_t)(buf_end - op), " src %s", ipaddresstos(NULL, encap->ip.src));
 	if (encap->flags & IPROUTE_BIT_ENCAP_DSFIELD)
-		opn += snprintf(opn, len - (opn - op), " tos %d", encap->ip.tos);
+		op += snprintf(op, (size_t)(buf_end - op), " tos %d", encap->ip.tos);
 	if (encap->flags & IPROUTE_BIT_ENCAP_TTL)
-		opn += snprintf(opn, len - (opn - op), " ttl %d", encap->ip.ttl);
+		op += snprintf(op, (size_t)(buf_end - op), " ttl %d", encap->ip.ttl);
 	if (encap->flags & IPROUTE_BIT_ENCAP_FLAGS)
-		opn += snprintf(opn, len - (opn - op), " flags 0x%x", encap->ip.flags);
+		op += snprintf(op, (size_t)(buf_end - op), " flags 0x%x", encap->ip.flags);
 
-	return opn - op;
+	return (size_t)(op - buf);
 }
 
 static size_t
 print_encap_ila(char *op, size_t len, const encap_t* encap)
 {
-	return snprintf(op, len, " encap ila %" PRIu64, encap->ila.locator);
+	return (size_t)snprintf(op, len, " encap ila %" PRIu64, encap->ila.locator);
 }
 
 static size_t
 print_encap_ip6(char *op, size_t len, const encap_t* encap)
 {
-	char *opn = op;
+	char *buf = op;
+	const char *buf_end = op + len;
 
-	opn += snprintf(opn, len - (opn - op), " encap ip6");
+	op += snprintf(op, (size_t)(buf_end - op), " encap ip6");
 
 	if (encap->flags & IPROUTE_BIT_ENCAP_ID)
-		opn += snprintf(opn, len - (opn - op), " id %" PRIu64, encap->ip6.id);
+		op += snprintf(op, (size_t)(buf_end - op), " id %" PRIu64, encap->ip6.id);
 	if (encap->ip.dst)
-		opn += snprintf(opn, len - (opn - op), " dst %s", ipaddresstos(NULL, encap->ip6.dst));
+		op += snprintf(op, (size_t)(buf_end - op), " dst %s", ipaddresstos(NULL, encap->ip6.dst));
 	if (encap->ip.src)
-		opn += snprintf(opn, len - (opn - op), " src %s", ipaddresstos(NULL, encap->ip6.src));
+		op += snprintf(op, (size_t)(buf_end - op), " src %s", ipaddresstos(NULL, encap->ip6.src));
 	if (encap->flags & IPROUTE_BIT_ENCAP_DSFIELD)
-		opn += snprintf(opn, len - (opn - op), " tc %d", encap->ip6.tc);
+		op += snprintf(op, (size_t)(buf_end - op), " tc %d", encap->ip6.tc);
 	if (encap->flags & IPROUTE_BIT_ENCAP_HOPLIMIT)
-		opn += snprintf(opn, len - (opn - op), " hoplimit %d", encap->ip6.hoplimit);
+		op += snprintf(op, (size_t)(buf_end - op), " hoplimit %d", encap->ip6.hoplimit);
 	if (encap->flags & IPROUTE_BIT_ENCAP_FLAGS)
-		opn += snprintf(opn, len - (opn - op), " flags 0x%x", encap->ip6.flags);
+		op += snprintf(op, (size_t)(buf_end - op), " flags 0x%x", encap->ip6.flags);
 
-	return opn - op;
+	return (size_t)(op - buf);
 }
 
 static size_t
@@ -642,7 +645,7 @@ print_encap(char *op, size_t len, const encap_t* encap)
 		return print_encap_ip6(op, len, encap);
 	}
 
-	return snprintf(op, len, "unknown encap type %d", encap->type);
+	return (size_t)snprintf(op, len, "unknown encap type %d", encap->type);
 }
 #endif
 
@@ -650,163 +653,163 @@ void
 format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 {
 	char *op = buf;
-	char *buf_end = buf + buf_len;
+	const char *buf_end = buf + buf_len;
 	nexthop_t *nh;
 	element e;
 
 	if (route->type != RTN_UNICAST)
-		op += snprintf(op, buf_end - op, " %s", get_rttables_rtntype(route->type));
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s", get_rttables_rtntype(route->type));
 	if (route->dst) {
-		op += snprintf(op, buf_end - op, " %s", ipaddresstos(NULL, route->dst));
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s", ipaddresstos(NULL, route->dst));
 		if ((route->dst->ifa.ifa_family == AF_INET && route->dst->ifa.ifa_prefixlen != 32 ) ||
 		    (route->dst->ifa.ifa_family == AF_INET6 && route->dst->ifa.ifa_prefixlen != 128 ))
-			op += snprintf(op, buf_end - op, "/%u", route->dst->ifa.ifa_prefixlen);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "/%u", route->dst->ifa.ifa_prefixlen);
 	}
 	else
-		op += snprintf(op, buf_end - op, " %s", "default");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s", "default");
 
 	if (route->src) {
-		op += snprintf(op, buf_end - op, " from %s", ipaddresstos(NULL, route->src));
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " from %s", ipaddresstos(NULL, route->src));
 		if ((route->src->ifa.ifa_family == AF_INET && route->src->ifa.ifa_prefixlen != 32 ) ||
 		    (route->src->ifa.ifa_family == AF_INET6 && route->src->ifa.ifa_prefixlen != 128 ))
-			op += snprintf(op, buf_end - op, "/%u", route->src->ifa.ifa_prefixlen);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "/%u", route->src->ifa.ifa_prefixlen);
 	}
 
 //#if HAVE_DECL_RTA_NEWDST
 //	/* MPLS only */
 //	if (route->as_to)
-//		op += snprintf(op, buf_end - op, " as to %s", ipaddresstos(NULL, route->as_to));
+//		op += (size_t)snprintf(op, (size_t)(buf_end - op), " as to %s", ipaddresstos(NULL, route->as_to));
 //#endif
 
 	if (route->pref_src)
-		op += snprintf(op, buf_end - op, " src %s", ipaddresstos(NULL, route->pref_src));
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " src %s", ipaddresstos(NULL, route->pref_src));
 
 	if (route->mask & IPROUTE_BIT_DSFIELD)
-		op += snprintf(op, buf_end - op, " tos %u", route->tos);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " tos %u", route->tos);
 
 #if HAVE_DECL_RTA_ENCAP
 	if (route->encap.type != LWTUNNEL_ENCAP_NONE)
-		op += print_encap(op, buf_end - op, &route->encap);
+		op += print_encap(op, (size_t)(buf_end - op), &route->encap);
 #endif
 
 	if (route->via)
-		op += snprintf(op, buf_end - op, " via %s %s", route->via->ifa.ifa_family == AF_INET6 ? "inet6" : "inet", ipaddresstos(NULL, route->via));
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " via %s %s", route->via->ifa.ifa_family == AF_INET6 ? "inet6" : "inet", ipaddresstos(NULL, route->via));
 
 	if (route->oif)
-		op += snprintf(op, buf_end - op, " dev %s", route->oif->ifname);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " dev %s", route->oif->ifname);
 
 	if (route->table != RT_TABLE_MAIN)
-		op += snprintf(op, buf_end - op, " table %u", route->table);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " table %u", route->table);
 
 	if (route->mask & IPROUTE_BIT_PROTOCOL)
-		op += snprintf(op, buf_end - op, " proto %u", route->protocol);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " proto %u", route->protocol);
 
 	if (route->mask & IPROUTE_BIT_SCOPE)
-		op += snprintf(op, buf_end - op, " scope %u", route->scope);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " scope %u", route->scope);
 
 	if (route->mask & IPROUTE_BIT_METRIC)
-		op += snprintf(op, buf_end - op, " metric %u", route->metric);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " metric %u", route->metric);
 
 	if (route->family == AF_INET && route->flags & RTNH_F_ONLINK)
-		op += snprintf(op, buf_end - op, " %s", "onlink");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s", "onlink");
 
 	if (route->realms) {
 		if (route->realms & 0xFFFF0000)
-			op += snprintf(op, buf_end - op, " realms %d/", route->realms >> 16);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " realms %d/", route->realms >> 16);
 		else
-			op += snprintf(op, buf_end - op, " realm ");
-		op += snprintf(op, buf_end - op, "%d", route->realms & 0xFFFF);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " realm ");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), "%d", route->realms & 0xFFFF);
 	}
 
 #if HAVE_DECL_RTA_EXPIRES
 	if (route->mask & IPROUTE_BIT_EXPIRES)
-		op += snprintf(op, buf_end - op, " expires %dsec", route->expires);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " expires %dsec", route->expires);
 #endif
 
 #if HAVE_DECL_RTAX_CC_ALGO
 	if (route->congctl)
-		op += snprintf(op, buf_end - op, " congctl %s%s", route->congctl, route->lock & (1<<RTAX_CC_ALGO) ? "lock " : "");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " congctl %s%s", route->congctl, route->lock & (1<<RTAX_CC_ALGO) ? "lock " : "");
 #endif
 
 	if (route->mask & IPROUTE_BIT_RTT) {
-		op += snprintf(op, buf_end - op, " %s%s ", "rtt", route->lock & (1<<RTAX_RTT) ? " lock" : "");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s%s ", "rtt", route->lock & (1<<RTAX_RTT) ? " lock" : "");
 		if (route->rtt >= 8000)
-			op += snprintf(op, buf_end - op, "%gs", route->rtt / 8000.0);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rtt / 8000.0);
 		else
-			op += snprintf(op, buf_end - op, "%ums", route->rtt / 8);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rtt / 8);
 	}
 
 	if (route->mask & IPROUTE_BIT_RTTVAR) {
-		op += snprintf(op, buf_end - op, " %s%s ", "rttvar", route->lock & (1<<RTAX_RTTVAR) ? " lock" : "");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s%s ", "rttvar", route->lock & (1<<RTAX_RTTVAR) ? " lock" : "");
 		if (route->rttvar >= 4000)
-			op += snprintf(op, buf_end - op, "%gs", route->rttvar / 4000.0);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rttvar / 4000.0);
 		else
-			op += snprintf(op, buf_end - op, "%ums", route->rttvar / 4);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rttvar / 4);
 	}
 
 	if (route->mask & IPROUTE_BIT_RTO_MIN) {
-		op += snprintf(op, buf_end - op, " %s%s ", "rto_min", route->lock & (1<<RTAX_RTO_MIN) ? " lock" : "");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s%s ", "rto_min", route->lock & (1<<RTAX_RTO_MIN) ? " lock" : "");
 		if (route->rto_min >= 1000)
-			op += snprintf(op, buf_end - op, "%gs", route->rto_min / 1000.0);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rto_min / 1000.0);
 		else
-			op += snprintf(op, buf_end - op, "%ums", route->rto_min);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rto_min);
 	}
 
 	if (route->features) {
 		if (route->features & RTAX_FEATURE_ECN)
-			op += snprintf(op, buf_end - op, " %s", "features ecn");
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s", "features ecn");
 	}
 
 	if (route->mask & IPROUTE_BIT_MTU) {
-		op += snprintf(op, buf_end - op, " mtu %s%u",
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " mtu %s%u",
 			route->lock & (1<<RTAX_MTU) ? "lock " : "",
 			route->mtu);
 	}
 
 	if (route->mask & IPROUTE_BIT_WINDOW)
-		op += snprintf(op, buf_end - op, " window %u", route->window);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " window %u", route->window);
 
 	if (route->mask & IPROUTE_BIT_SSTHRESH) {
-		op += snprintf(op, buf_end - op, " ssthresh %s%u",
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " ssthresh %s%u",
 			route->lock & (1<<RTAX_SSTHRESH) ? "lock " : "",
 			route->ssthresh);
 	}
 
 	if (route->mask & IPROUTE_BIT_CWND) {
-		op += snprintf(op, buf_end - op, " cwnd %s%u",
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " cwnd %s%u",
 			route->lock & (1<<RTAX_CWND) ? "lock " : "",
 			route->cwnd);
 	}
 
 	if (route->mask & IPROUTE_BIT_ADVMSS) {
-		op += snprintf(op, buf_end - op, " advmss %s%u",
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " advmss %s%u",
 			route->lock & (1<<RTAX_ADVMSS) ? "lock " : "",
 			route->advmss);
 	}
 
 	if (route->mask & IPROUTE_BIT_REORDERING) {
-		op += snprintf(op, buf_end - op, " reordering %s%u",
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " reordering %s%u",
 			route->lock & (1<<RTAX_REORDERING) ? "lock " : "",
 			route->reordering);
 	}
 
 	if (route->mask & IPROUTE_BIT_HOPLIMIT)
-		op += snprintf(op, buf_end - op, " hoplimit %u", route->hoplimit);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " hoplimit %u", route->hoplimit);
 
 	if (route->mask & IPROUTE_BIT_INITCWND)
-		op += snprintf(op, buf_end - op, " initcwnd %u", route->initcwnd);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " initcwnd %u", route->initcwnd);
 
 	if (route->mask & IPROUTE_BIT_INITRWND)
-		op += snprintf(op, buf_end - op, " initrwnd %u", route->initrwnd);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " initrwnd %u", route->initrwnd);
 
 #if HAVE_DECL_RTAX_QUICKACK
 	if (route->mask & IPROUTE_BIT_QUICKACK)
-		op += snprintf(op, buf_end - op, " quickack %u", route->quickack);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " quickack %u", route->quickack);
 #endif
 
 #if HAVE_DECL_RTA_PREF
 	if (route->mask & IPROUTE_BIT_PREF)
-		op += snprintf(op, buf_end - op, " %s %s", "pref",
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s %s", "pref",
 			route->pref == ICMPV6_ROUTER_PREF_LOW ? "low" :
 			route->pref == ICMPV6_ROUTER_PREF_MEDIUM ? "medium" :
 			route->pref == ICMPV6_ROUTER_PREF_HIGH ? "high" :
@@ -817,31 +820,31 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 		for (e = LIST_HEAD(route->nhs); e; ELEMENT_NEXT(e)) {
 			nh = ELEMENT_DATA(e);
 
-			op += snprintf(op, buf_end - op, " nexthop");
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " nexthop");
 
 			if (nh->addr)
-				op += snprintf(op, buf_end - op, " via inet%s %s",
+				op += (size_t)snprintf(op, (size_t)(buf_end - op), " via inet%s %s",
 					nh->addr->ifa.ifa_family == AF_INET ? "" : "6",
 					ipaddresstos(NULL,nh->addr));
 			if (nh->ifp)
-				op += snprintf(op, buf_end - op, " dev %s", nh->ifp->ifname);
+				op += (size_t)snprintf(op, (size_t)(buf_end - op), " dev %s", nh->ifp->ifname);
 
 			if (nh->mask & IPROUTE_BIT_WEIGHT)
-				op += snprintf(op, buf_end - op, " weight %d", nh->weight + 1);
+				op += (size_t)snprintf(op, (size_t)(buf_end - op), " weight %d", nh->weight + 1);
 
 			if (nh->flags & RTNH_F_ONLINK)
-				op += snprintf(op, buf_end - op, " onlink");
+				op += (size_t)snprintf(op, (size_t)(buf_end - op), " onlink");
 
 			if (nh->realms) {
 				if (route->realms & 0xFFFF0000)
-					op += snprintf(op, buf_end - op, " realms %d/", nh->realms >> 16);
+					op += (size_t)snprintf(op, (size_t)(buf_end - op), " realms %d/", nh->realms >> 16);
 				else
-					op += snprintf(op, buf_end - op, " realm ");
-				op += snprintf(op, buf_end - op, "%d", nh->realms & 0xFFFF);
+					op += (size_t)snprintf(op, (size_t)(buf_end - op), " realm ");
+				op += (size_t)snprintf(op, (size_t)(buf_end - op), "%d", nh->realms & 0xFFFF);
 			}
 #if HAVE_DECL_RTA_ENCAP
 			if (nh->encap.type != LWTUNNEL_ENCAP_NONE)
-				op += print_encap(op, buf_end - op, &nh->encap);
+				op += print_encap(op, (size_t)(buf_end - op), &nh->encap);
 #endif
 		}
 	}
@@ -852,8 +855,8 @@ dump_iproute(void *rt_data)
 {
 	ip_route_t *route = rt_data;
 	char *buf = MALLOC(ROUTE_BUF_SIZE);
-	int len;
-	int i;
+	size_t len;
+	size_t i;
 
 	format_iproute(route, buf, ROUTE_BUF_SIZE);
 
@@ -1090,7 +1093,7 @@ parse_encap(vector_t *strvec, unsigned int *i, encap_t *encap)
 static void
 parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 {
-	int family = AF_UNSPEC;
+	uint8_t family = AF_UNSPEC;
 	nexthop_t *new;
 	char *str;
 	uint32_t val;
@@ -1153,7 +1156,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 					log_message(LOG_INFO, "Invalid weight 0 specified for route");
 					goto err;
 				}
-				new->weight = val - 1;
+				new->weight = (uint8_t)(--val & 0xff);
 				new->mask |= IPROUTE_BIT_WEIGHT;
 			}
 			else if (!strcmp(str, "onlink")) {
@@ -1218,6 +1221,7 @@ alloc_route(list rt_list, vector_t *strvec)
 	bool do_nexthop = false;
 	bool raw;
 	ip_address_t *dst;
+	uint8_t family;
 
 	new = (ip_route_t *) MALLOC(sizeof(ip_route_t));
 
@@ -1256,7 +1260,6 @@ alloc_route(list rt_list, vector_t *strvec)
 #endif
 		}
 		else if (!strcmp(str, "via") || !strcmp(str, "gw")) {
-			int family;
 
 			/* "gw" maintained for backward keepalived compatibility */
 			if (str[0] == 'g')	/* "gw" */
@@ -1316,12 +1319,12 @@ alloc_route(list rt_list, vector_t *strvec)
 		}
 		else if (!strcmp(str, "tos") || !strcmp(str,"dsfield")) {
 			/* Note: IPv4 only */
-			if (!find_rttables_dsfield(vector_slot(strvec, ++i), &val)) {
+			if (!find_rttables_dsfield(vector_slot(strvec, ++i), &val8)) {
 				log_message(LOG_INFO, "TOS value %s is invalid", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 
-			new->tos = val;
+			new->tos = val8;
 			new->mask |= IPROUTE_BIT_DSFIELD;
 		}
 		else if (!strcmp(str, "table")) {
@@ -1332,20 +1335,20 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->table = val;
 		}
 		else if (!strcmp(str, "protocol")) {
-			if (!find_rttables_proto(vector_slot(strvec, ++i), &val)) {
+			if (!find_rttables_proto(vector_slot(strvec, ++i), &val8)) {
 				log_message(LOG_INFO, "Protocol %s not found or invalid for route", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
-			new->protocol = val;
+			new->protocol = val8;
 			new->mask |= IPROUTE_BIT_PROTOCOL;
 		}
 		else if (!strcmp(str, "scope")) {
 			/* Note: IPv4 only */
-			if (!find_rttables_scope(vector_slot(strvec, ++i), &val)) {
+			if (!find_rttables_scope(vector_slot(strvec, ++i), &val8)) {
 				log_message(LOG_INFO, "Scope %s not found or invalid for route", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
-			new->scope = val;
+			new->scope = val8;
 			new->mask |= IPROUTE_BIT_SCOPE;
 		}
 		else if (!strcmp(str, "metric") ||
@@ -1401,9 +1404,9 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->mask |= IPROUTE_BIT_MTU;
 		}
 		else if (!strcmp(str, "hoplimit")) {
-			if (get_u32(&val, vector_slot(strvec, ++i), 255, "Invalid hoplimit %s specified for route"))
+			if (get_u8(&val8, vector_slot(strvec, ++i), 255, "Invalid hoplimit %s specified for route"))
 				goto err;
-			new->hoplimit = val;
+			new->hoplimit = val8;
 			new->mask |= IPROUTE_BIT_HOPLIMIT;
 		}
 		else if (!strcmp(str, "advmss")) {
@@ -1555,8 +1558,8 @@ alloc_route(list rt_list, vector_t *strvec)
 				new->pref = ICMPV6_ROUTER_PREF_MEDIUM;
 			else if (!strcmp(str, "high"))
 				new->pref = ICMPV6_ROUTER_PREF_HIGH;
-			else if (!get_u32(&val, str, UINT8_MAX, "Invalid pref value %s specified for route"))
-				new->pref = val;
+			else if (!get_u8(&val8, str, UINT8_MAX, "Invalid pref value %s specified for route"))
+				new->pref = val8;
 			else
 				goto err;
 			new->mask |= IPROUTE_BIT_PREF;

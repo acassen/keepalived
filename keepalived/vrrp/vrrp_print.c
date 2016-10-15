@@ -87,7 +87,7 @@ vscript_print(FILE *file, void *data)
 
 	fprintf(file, " VRRP Script = %s\n", vscript->sname);
 	fprintf(file, "   Command = %s\n", vscript->script);
-	fprintf(file, "   Interval = %ld sec\n", vscript->interval / TIMER_HZ);
+	fprintf(file, "   Interval = %lu sec\n", vscript->interval / TIMER_HZ);
 	fprintf(file, "   Weight = %d\n", vscript->weight);
 	fprintf(file, "   Rise = %d\n", vscript->rise);
 	fprintf(file, "   Full = %d\n", vscript->fall);
@@ -172,7 +172,7 @@ if_print(FILE *file, void * data)
 
 	fprintf(file, "------< NIC >------\n");
 	fprintf(file, " Name = %s\n", ifp->ifname);
-	fprintf(file, " index = %d\n", ifp->ifindex);
+	fprintf(file, " index = %u\n", ifp->ifindex);
 	fprintf(file, " IPv4 address = %s\n",
 		inet_ntop2(ifp->sin_addr.s_addr));
 	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
@@ -263,8 +263,8 @@ vrrp_print(FILE *file, void *data)
 	fprintf(file, "   Gratuitous ARP refresh = %lu\n",
 		       vrrp->garp_refresh.tv_sec/TIMER_HZ);
 	fprintf(file, "   Gratuitous ARP refresh repeat = %d\n", vrrp->garp_refresh_rep);
-	fprintf(file, "   Gratuitous ARP lower priority delay = %d\n", vrrp->garp_lower_prio_delay / TIMER_HZ);
-	fprintf(file, "   Gratuitous ARP lower priority repeat = %d\n", vrrp->garp_lower_prio_rep);
+	fprintf(file, "   Gratuitous ARP lower priority delay = %u\n", vrrp->garp_lower_prio_delay / TIMER_HZ);
+	fprintf(file, "   Gratuitous ARP lower priority repeat = %u\n", vrrp->garp_lower_prio_rep);
 	fprintf(file, "   Send advert after receive lower priority advert = %s\n", vrrp->lower_prio_no_advert ? "false" : "true");
 	fprintf(file, "   Virtual Router ID = %d\n", vrrp->vrid);
 	fprintf(file, "   Priority = %d\n", vrrp->base_priority);

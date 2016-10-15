@@ -145,6 +145,7 @@ read_file(const char* file_name, list *l, uint32_t max)
 	rt_entry_t *rte;
 	vector_t *strvec = NULL;
 	char buf[MAX_RT_BUF];
+	unsigned long id;
 
 	fp = fopen(file_name, "r");
 	if (!fp)
@@ -167,12 +168,13 @@ read_file(const char* file_name, list *l, uint32_t max)
 			goto err;
 		}
 
-		rte->id = strtoul(FMT_STR_VSLOT(strvec, 0), NULL, 0);
-		if (rte->id > max) {
+		id = strtoul(FMT_STR_VSLOT(strvec, 0), NULL, 0);
+		if (id > max) {
 			FREE(rte);
 			free_strvec(strvec);
 			continue;
 		}
+		rte->id = (unsigned)id;
 
 		rte->name = MALLOC(strlen(FMT_STR_VSLOT(strvec, 1)) + 1);
 		if (!rte->name) {
@@ -271,8 +273,10 @@ find_entry(const char *name, unsigned int *id, list *l, const char* file_name, c
 {
 	element e;
 	char	*endptr;
+	unsigned long l_id;
 
-	*id = strtoul(name, &endptr, 0);
+	l_id = strtoul(name, &endptr, 0);
+	*id = (unsigned int)l_id;
 	if (endptr != name && *endptr == '\0')
 		return (*id <= max);
 
@@ -300,9 +304,15 @@ find_rttables_table(const char *name, uint32_t *id)
 }
 
 bool
-find_rttables_dsfield(const char *name, uint32_t *id)
+find_rttables_dsfield(const char *name, uint8_t *id)
 {
-	return find_entry(name, id, &rt_dsfields, RT_DSFIELD_FILE, NULL, 255);
+	uint32_t val;
+	bool ret;
+	
+	ret = find_entry(name, &val, &rt_dsfields, RT_DSFIELD_FILE, NULL, 255);
+	*id = val & 0xff;
+
+	return ret;
 }
 
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
@@ -320,15 +330,27 @@ find_rttables_realms(const char *name, uint32_t *id)
 }
 
 bool
-find_rttables_proto(const char *name, uint32_t *id)
+find_rttables_proto(const char *name, uint8_t *id)
 {
-	return find_entry(name, id, &rt_protos, RT_PROTOS_FILE, rtprot_default, 255);
+	uint32_t val;
+	bool ret;
+	
+	ret = find_entry(name, &val, &rt_protos, RT_PROTOS_FILE, rtprot_default, 255);
+	*id = val & 0xff;
+
+	return ret;
 }
 
 bool
-find_rttables_scope(const char *name, uint32_t *id)
+find_rttables_scope(const char *name, uint8_t *id)
 {
-	return find_entry(name, id, &rt_scopes, RT_SCOPES_FILE, rtscope_default, 255);
+	uint32_t val;
+	bool ret;
+	
+	ret = find_entry(name, &val, &rt_scopes, RT_SCOPES_FILE, rtscope_default, 255);
+	*id = val & 0xff;
+
+	return ret;
 }
 
 bool
@@ -349,7 +371,7 @@ find_rttables_rtntype(const char *str, uint8_t *id)
 	if (*end || res > 255)
 		return false;
 
-	*id = res;
+	*id = (uint8_t)res;
 	return true;
 }
 

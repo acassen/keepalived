@@ -184,7 +184,7 @@ vector_t *
 alloc_strvec(char *string)
 {
 	char *cp, *start, *token;
-	int str_len;
+	size_t str_len;
 	vector_t *strvec;
 
 	if (!string)
@@ -217,13 +217,13 @@ alloc_strvec(char *string)
 				log_message(LOG_INFO, "Unmatched quote: '%s'", string);
 				return strvec;
 			}
-			str_len = cp - start;
+			str_len = (size_t)(cp - start);
 			cp++;
 		} else {
 			while (!isspace((int) *cp) && *cp != '\0' && *cp != '"'
 						   && *cp != '!' && *cp != '#')
 				cp++;
-			str_len = cp - start;
+			str_len = (size_t)(cp - start);
 		}
 		token = MALLOC(str_len + 1);
 		memcpy(token, start, str_len);
@@ -398,7 +398,7 @@ read_line(char *buf, size_t size)
 	bool eof = false;
 
 	do {
-		if (fgets(buf, size, current_stream)) {
+		if (fgets(buf, (int)size, current_stream)) {
 			len = strlen(buf);
 			if (len && (buf[len-1] == '\n' || buf[len-1] == '\r'))
 				buf[len-1] = '\0';
@@ -505,7 +505,7 @@ void *
 set_value(vector_t *strvec)
 {
 	char *str;
-	int size;
+	size_t size;
 	char *alloc;
 
 	if (vector_size(strvec) < 2)

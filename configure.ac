@@ -116,6 +116,10 @@ AC_ARG_ENABLE(stacktrace,
   [  --enable-stracktrace    compile with stacktrace support])
 AC_ARG_ENABLE(profile,
   [  --enable-profile        compile with profiling flags])
+AC_ARG_ENABLE(conversion-checks,
+  [  --enable-conversion-checks compile with conversion warnings if sensible])
+AC_ARG_ENABLE(force-conversion-checks,
+  [  --enable-force-conversion-checks compile with conversion warnings])
 
 AC_ARG_WITH([systemdsystemunitdir],
         AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files]),
@@ -150,6 +154,64 @@ KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2"
 KA_LDFLAGS=
 KA_LIBS="-ldl"
 #KA_LIBTOOLFLAGS = 
+
+if test "$enable_conversion_checks" = yes; then
+  # Check if we can sensibly enable -Wconversion
+  AC_MSG_CHECKING([for usable -Wconversion])
+  SAV_CFLAGS="$CFLAGS"
+  CFLAGS="-Wconversion -O2  -Wp,-D_FORTIFY_SOURCE=2  -Werror"
+  AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+    #include <sys/types.h>
+    #include <sys/select.h>
+    #include <stdint.h>
+    #include <stdbool.h>
+    #include <linux/rtnetlink.h>
+    
+    #define VAL	255
+    
+    static void
+    fun(uint8_t val)
+    {
+    }
+    
+    int main(int argc, char**argv)
+    {
+      fd_set set;
+      uint8_t	val = 42;
+      unsigned u;
+      bool b;
+      size_t size = 17;
+      char c[2];
+      char *c_ptr = c;
+      struct rtattr rta;
+      struct rtattr *rta_p = &rta;
+    
+      FD_SET(argc+1, &set);
+    
+      fun(argc == VAL ? VAL : val);
+    
+      //      vrrp->lower_prio_no_advert = vrrp->strict_mode ? true : global_data->vrrp_lower_prio_no_advert;
+      u = u ? true : b;
+    
+      size = RTA_LENGTH(size);
+      c_ptr = RTA_DATA(c_ptr);
+      rta_p = RTA_NEXT(rta_p, size);
+    
+      val = (u < 256 ) ? u & 0xff : 0;
+    }
+    ]])],
+    [
+      AC_MSG_RESULT([yes])
+      KA_CFLAGS="$KA_CFLAGS -Wconversion"
+    ],
+    [
+      AC_MSG_RESULT([no])
+      AC_MSG_WARN([-Wconversion is not sensible with this compiler. Use --enable-force-conversion-checks to override.])
+    ])
+  CFLAGS="$SAV_CFLAGS"
+elif test "$enable_force_conversion_checks" = yes; then
+  KA_CFLAGS="$KA_CFLAGS -Wconversion"
+fi
 
 AC_SUBST(KA_CPPFLAGS)
 AC_SUBST(KA_CFLAGS)

@@ -80,7 +80,7 @@ static void
 tcp_retry_handler(vector_t *strvec)
 {
 	tcp_check_t *tcp_check = CHECKER_GET();
-	tcp_check->n_retry = CHECKER_VALUE_INT(strvec);
+	tcp_check->n_retry = CHECKER_VALUE_UINT(strvec);
 }
 
 static void
@@ -88,7 +88,7 @@ tcp_delay_before_retry_handler(vector_t *strvec)
 {
 	tcp_check_t *tcp_check = CHECKER_GET();
 	tcp_check->delay_before_retry =
-		(long)CHECKER_VALUE_INT(strvec) * TIMER_HZ;
+		CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 }
 
 void
@@ -108,7 +108,7 @@ tcp_epilog(thread_t * thread, int is_success)
 {
 	checker_t *checker;
 	tcp_check_t *tcp_check;
-	long delay;
+	unsigned long delay;
 
 	checker = THREAD_ARG(thread);
 	tcp_check = CHECKER_ARG(checker);

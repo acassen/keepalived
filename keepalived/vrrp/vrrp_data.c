@@ -138,8 +138,8 @@ dump_vscript(void *data)
 
 	log_message(LOG_INFO, " VRRP Script = %s", vscript->sname);
 	log_message(LOG_INFO, "   Command = %s", vscript->script);
-	log_message(LOG_INFO, "   Interval = %d sec", (int)(vscript->interval / TIMER_HZ));
-	log_message(LOG_INFO, "   Timeout = %d sec", (int)(vscript->timeout / TIMER_HZ));
+	log_message(LOG_INFO, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
+	log_message(LOG_INFO, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
 	log_message(LOG_INFO, "   Weight = %d", vscript->weight);
 	log_message(LOG_INFO, "   Rise = %d", vscript->rise);
 	log_message(LOG_INFO, "   Fall = %d", vscript->fall);
@@ -335,7 +335,7 @@ dump_vrrp(void *data)
 		log_message(LOG_INFO, "   Using smtp notification");
 #ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-		log_message(LOG_INFO, "   Using VRRP VMAC (flags:%s|%s), vmac ifindex %d"
+		log_message(LOG_INFO, "   Using VRRP VMAC (flags:%s|%s), vmac ifindex %u"
 				    , (__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags)) ? "UP" : "DOWN"
 				    , (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? "xmit_base" : "xmit"
 				    , vrrp->ifp->base_ifindex);
@@ -345,7 +345,7 @@ dump_vrrp(void *data)
 void
 alloc_vrrp_sync_group(char *gname)
 {
-	int size = strlen(gname);
+	size_t size = strlen(gname);
 	vrrp_sgroup_t *new;
 
 	/* Allocate new VRRP group structure */
@@ -383,7 +383,7 @@ alloc_vrrp_stats(void)
 void
 alloc_vrrp(char *iname)
 {
-	int size = strlen(iname);
+	size_t size = strlen(iname);
 	seq_counter_t *counter;
 	vrrp_t *new;
 
@@ -406,17 +406,17 @@ alloc_vrrp(char *iname)
 	memcpy(new->iname, iname, size);
 	new->stats = alloc_vrrp_stats();
 	new->quick_sync = 0;
-	new->accept = -1;
+	new->accept = PARAMETER_UNSET;
 	new->garp_rep = global_data->vrrp_garp_rep;
 	new->garp_refresh = global_data->vrrp_garp_refresh;
 	new->garp_refresh_rep = global_data->vrrp_garp_refresh_rep;
 	new->garp_delay = global_data->vrrp_garp_delay;
-	new->garp_lower_prio_delay = -1;
-	new->garp_lower_prio_rep = -1;
-	new->lower_prio_no_advert = -1;
+	new->garp_lower_prio_delay = PARAMETER_UNSET;
+	new->garp_lower_prio_rep = PARAMETER_UNSET;
+	new->lower_prio_no_advert = PARAMETER_UNSET;
 
 	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
-	new->strict_mode = -1;
+	new->strict_mode = PARAMETER_UNSET;
 
 	list_add(vrrp_data->vrrp, new);
 }
@@ -519,7 +519,7 @@ alloc_vrrp_vrule(vector_t *strvec)
 void
 alloc_vrrp_script(char *sname)
 {
-	int size = strlen(sname);
+	size_t size = strlen(sname);
 	vrrp_script_t *new;
 
 	/* Allocate new VRRP group structure */

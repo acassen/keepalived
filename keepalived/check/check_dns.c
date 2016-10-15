@@ -138,7 +138,7 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 static int
 dns_recv_thread(thread_t * thread)
 {
-	long timeout;
+	unsigned long timeout;
 	ssize_t ret;
 	char rbuf[DNS_BUFFER_SIZE];
 	dns_header_t *s_header, *r_header;
@@ -215,10 +215,8 @@ dns_make_query(thread_t * thread)
 	uint8_t *p;
 	char *s, *e;
 	size_t n;
-
 	checker_t *checker = THREAD_ARG(thread);
 	dns_check_t *dns_check = CHECKER_ARG(checker);
-
 	dns_header_t *header = (dns_header_t *) dns_check->sbuf;
 
 	DNS_SET_RD(flags, 1);	/* Recursion Desired */
@@ -237,7 +235,8 @@ dns_make_query(thread_t * thread)
 		if (!(e = strchr(s, '.'))) {
 			e = s + strlen(s);
 		}
-		*(p++) = n = e - s;
+		n = (size_t)(e - s);
+		*(p++) = (uint8_t)n;
 		memcpy(p, s, n);
 		p += n;
 	}
@@ -249,7 +248,7 @@ dns_make_query(thread_t * thread)
 	APPEND16(p, dns_type_lookup(dns_check->type));
 	APPEND16(p, 1);		/* IN */
 
-	dns_check->slen = p - (uint8_t *) header;
+	dns_check->slen = (size_t)(p - (uint8_t *)header);
 
 	return 0;
 }
@@ -257,7 +256,7 @@ dns_make_query(thread_t * thread)
 static int
 dns_send_thread(thread_t * thread)
 {
-	long timeout;
+	unsigned long timeout;
 	ssize_t ret;
 
 	checker_t *checker = THREAD_ARG(thread);
@@ -296,7 +295,7 @@ static int
 dns_check_thread(thread_t * thread)
 {
 	int status;
-	long timeout;
+	unsigned long timeout;
 
 	checker_t *checker = THREAD_ARG(thread);
 

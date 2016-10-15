@@ -104,7 +104,7 @@ static void
 delay_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->delay_loop = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
+	vs->delay_loop = strtoul(vector_slot(strvec, 1), NULL, 10) * TIMER_HZ;
 	if (vs->delay_loop < TIMER_HZ)
 		vs->delay_loop = TIMER_HZ;
 }
@@ -113,8 +113,8 @@ lbalgo_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = vector_slot(strvec, 1);
-	int size = sizeof (vs->sched);
-	int str_len = strlen(str);
+	size_t size = sizeof (vs->sched);
+	size_t str_len = strlen(str);
 
 	if (size > str_len)
 		size = str_len;
@@ -188,7 +188,7 @@ pto_handler(vector_t *strvec)
 		return;
 	}
 
-	vs->persistence_timeout = timeout;
+	vs->persistence_timeout = (uint32_t)timeout;
 }
 #ifdef _HAVE_PE_NAME_
 static void
@@ -196,7 +196,7 @@ pengine_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = vector_slot(strvec, 1);
-	int size = sizeof (vs->pe_name);
+	size_t size = sizeof (vs->pe_name);
 
 	strncpy(vs->pe_name, str, size - 1);
 	vs->pe_name[size - 1] = '\0';
@@ -209,7 +209,7 @@ pgr_handler(vector_t *strvec)
 
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->addr.ss_family == AF_INET6)
-		vs->persistence_granularity = atoi(vector_slot(strvec, 1));
+		vs->persistence_granularity = (uint32_t)strtoul(vector_slot(strvec, 1), NULL, 10);
 	else {
 		if (inet_aton(vector_slot(strvec, 1), &addr)) {
 			log_message(LOG_INFO, "Invalid persistence_timeout specified - %s", FMT_STR_VSLOT(strvec, 1));
@@ -285,14 +285,14 @@ uthreshold_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->u_threshold = atoi(vector_slot(strvec, 1));
+	rs->u_threshold = (uint32_t)strtoul(vector_slot(strvec, 1), NULL, 10);
 }
 static void
 lthreshold_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->l_threshold = atoi(vector_slot(strvec, 1));
+	rs->l_threshold = (uint32_t)strtoul(vector_slot(strvec, 1), NULL, 10);
 }
 static void
 inhibit_handler(__attribute__((unused)) vector_t *strvec)
@@ -319,14 +319,14 @@ static void
 alpha_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->alpha = 1;
+	vs->alpha = true;
 	vs->quorum_state = DOWN;
 }
 static void
 omega_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->omega = 1;
+	vs->omega = true;
 }
 static void
 quorum_up_handler(vector_t *strvec)
@@ -344,27 +344,20 @@ static void
 quorum_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	long tmp = atol (vector_slot(strvec, 1));
-	if (tmp < 1) {
+	vs->quorum = (unsigned)strtoul(vector_slot(strvec, 1), NULL, 10);
+	if (vs->quorum < 1) {
 		log_message(LOG_ERR, "Condition not met: Quorum >= 1");
 		log_message(LOG_ERR, "Ignoring requested value %s, using 1 instead",
 		  (char *) vector_slot(strvec, 1));
-		tmp = 1;
+		vs->quorum = 1;
 	}
-	vs->quorum = tmp;
 }
 static void
 hysteresis_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	long tmp = atol (vector_slot(strvec, 1));
-	if (tmp < 0) {
-		log_message(LOG_ERR, "Condition not met: 0 <= Hysteresis");
-		log_message(LOG_ERR, "Ignoring requested value %s, using 0 instead",
-		       (char *) vector_slot(strvec, 1));
-		tmp = 0;
-	}
-	vs->hysteresis = tmp;
+
+	vs->hysteresis = (unsigned)strtoul(vector_slot(strvec, 1), NULL, 10);
 }
 
 void

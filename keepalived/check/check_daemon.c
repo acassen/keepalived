@@ -123,6 +123,11 @@ start_check(void)
 	init_global_data(global_data);
 
 	/* Post initializations */
+	if (!validate_check_config()) {
+		stop_check(KEEPALIVED_EXIT_CONFIG);
+		return;
+	}
+
 #ifdef _MEM_CHECK_
 	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
 #endif

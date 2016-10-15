@@ -48,7 +48,7 @@ typedef struct _checker {
 	checker_id_t			id;	/* Checker identifier */
 	int				enabled;/* Activation flag */
 	conn_opts_t			*co; /* connection options */
-	long				warmup;	/* max random timeout to start checker */
+	unsigned long			warmup;	/* max random timeout to start checker */
 } checker_t;
 
 /* Checkers queue */
@@ -62,6 +62,7 @@ extern list checkers_queue;
 #define CHECKER_GET() (CHECKER_DATA(CHECKER_GET_CURRENT()))
 #define CHECKER_GET_CO() (((checker_t *)CHECKER_GET_CURRENT())->co)
 #define CHECKER_VALUE_INT(X) (atoi(vector_slot(X,1)))
+#define CHECKER_VALUE_UINT(X) ((unsigned)strtoul(vector_slot(X,1), NULL, 10))
 #define CHECKER_VALUE_STRING(X) (set_value(X))
 #define CHECKER_VHOST(C) (VHOST((C)->vs))
 #define CHECKER_ENABLED(C) ((C)->enabled)

@@ -768,15 +768,15 @@ keepalived_main(int argc, char **argv)
 	if (uname(&uname_buf))
 		log_message(LOG_INFO, "Unable to get uname() information - error %d", errno);
 	else {
-		os_major = strtoul(uname_buf.release, &end, 10);
+		os_major = (unsigned)strtoul(uname_buf.release, &end, 10);
 		if (*end != '.')
 			os_major = 0;
 		else {
-			os_minor = strtoul(end + 1, &end, 10);
+			os_minor = (unsigned)strtoul(end + 1, &end, 10);
 			if (*end != '.')
 				os_major = 0;
 			else {
-				os_release = strtoul(end + 1, &end, 10);
+				os_release = (unsigned)strtoul(end + 1, &end, 10);
 				if (*end && *end != '-')
 					os_major = 0;
 			}

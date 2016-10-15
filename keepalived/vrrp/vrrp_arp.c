@@ -42,17 +42,17 @@ static char *garp_buffer;
 static int garp_fd;
 
 /* Send the gratuitous ARP message */
-static int send_arp(ip_address_t *ipaddress)
+static ssize_t send_arp(ip_address_t *ipaddress)
 {
 	struct sockaddr_ll sll;
-	int len;
+	ssize_t len;
 
 	/* Build the dst device */
 	memset(&sll, 0, sizeof(sll));
 	sll.sll_family = AF_PACKET;
 	memcpy(sll.sll_addr, IF_HWADDR(ipaddress->ifp), ETH_ALEN);
 	sll.sll_halen = ETHERNET_HW_LEN;
-	sll.sll_ifindex = IF_INDEX(ipaddress->ifp);
+	sll.sll_ifindex = (int)IF_INDEX(ipaddress->ifp);
 
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
 		log_message(LOG_INFO, "Sending gratuitous ARP on %s for %s",
@@ -68,12 +68,12 @@ static int send_arp(ip_address_t *ipaddress)
 }
 
 /* Build a gratuitous ARP message over a specific interface */
-int send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
+ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 {
 	struct ether_header *eth = (struct ether_header *) garp_buffer;
 	arphdr_t *arph		 = (arphdr_t *) (garp_buffer + ETHER_HDR_LEN);
 	char *hwaddr		 = (char *) IF_HWADDR(ipaddress->ifp);
-	int len;
+	ssize_t len;
 
 	/* Ethernet header */
 	memset(eth->ether_dhost, 0xFF, ETH_ALEN);
@@ -117,7 +117,7 @@ static void queue_garp(vrrp_t *vrrp, interface_t *ifp, ip_address_t *ipaddress)
 
 		garp_next_time = next_time;
 
-		garp_thread = thread_add_timer(master, vrrp_arp_thread, NULL, -timer_long(timer_sub_now(garp_next_time)));
+		garp_thread = thread_add_timer(master, vrrp_arp_thread, NULL, timer_long(timer_sub_now(garp_next_time)));
 	}
 }
 

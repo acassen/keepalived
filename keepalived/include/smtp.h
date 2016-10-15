@@ -35,8 +35,8 @@
 
 /* global defs */
 #define SMTP_PORT_STR		"25"
-#define SMTP_BUFFER_LENGTH	512
-#define SMTP_BUFFER_MAX		1024
+#define SMTP_BUFFER_LENGTH	512U
+#define SMTP_BUFFER_MAX		1024U
 #define SMTP_MAX_FSM_STATE	10
 
 /* SMTP command stage */
@@ -70,12 +70,12 @@ do {					\
 typedef struct _smtp {
 	int		fd;
 	int		stage;
-	int		email_it;
+	unsigned	email_it;
 	char		*subject;
 	char		*body;
 	char		*buffer;
 	char		*email_to;
-	long		buflen;
+	size_t		buflen;
 } smtp_t;
 
 /* SMTP command string processing */

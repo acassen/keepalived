@@ -59,7 +59,7 @@ snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
 {
 	element e;
 	void *scr;
-	unsigned int target, current;
+	oid target, current;
 
 	if (header_simple_table(vp, name, length, exact, var_len, write_method, -1))
 		return NULL;
@@ -86,7 +86,7 @@ snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
 		name[*length - 1] = current;
 		return scr;
 	}
-	/* No macth found at end */
+	/* No match found at end */
 	return NULL;
 }
 
@@ -250,8 +250,8 @@ snmp_setup_session_cb(__attribute__((unused)) int majorID, __attribute__((unused
 	return 0;
 }
 
-void snmp_register_mib(oid *myoid, int len, const char *name,
-		       struct variable *variables, int varsize, int varlen)
+void snmp_register_mib(oid *myoid, size_t len, const char *name,
+		       struct variable *variables, size_t varsize, size_t varlen)
 {
 	char name_buf[80];
 
@@ -264,7 +264,7 @@ void snmp_register_mib(oid *myoid, int len, const char *name,
 }
 
 void
-snmp_unregister_mib(oid *myoid, int len)
+snmp_unregister_mib(oid *myoid, size_t len)
 {
 	unregister_sysORTable(myoid, len);
 }
