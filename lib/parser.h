@@ -41,7 +41,7 @@
 #define EOB  "}"
 #define MAXBUF	1024
 
-/* ketword definition */
+/* keyword definition */
 typedef struct _keyword {
 	const char *string;
 	void (*handler) (vector_t *);
