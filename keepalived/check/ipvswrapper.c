@@ -291,34 +291,37 @@ ipvs_flush_cmd(void)
 static int
 ipvs_group_range_cmd(int cmd, virtual_server_group_entry_t *vsg_entry)
 {
-	uint32_t addr_ip, ip;
+	uint32_t addr_start;
+	uint32_t num_addr, i;
+	uint32_t addr_incr;
 
 	if (vsg_entry->addr.ss_family == AF_INET6) {
 		inet_sockaddrip6(&vsg_entry->addr, &srule->nf_addr.in6);
-		ip = srule->nf_addr.in6.s6_addr32[3];
+		addr_start = ntohs(srule->nf_addr.in6.s6_addr16[7]);
 	} else {
-		ip = inet_sockaddrip4(&vsg_entry->addr);
+		srule->nf_addr.ip = inet_sockaddrip4(&vsg_entry->addr);
+		addr_start = htonl(srule->nf_addr.ip) & 0xFF;
+		addr_incr = ntohl(1);
 	}
 
-	/* Set Address Family */
+	/* Set Address Family and port */
 	srule->af = vsg_entry->addr.ss_family;
+	srule->user.port = inet_sockaddrport(&vsg_entry->addr);
 
 	/* Parse the whole range */
-	for (addr_ip = ip;
-	     ((addr_ip >> 24) & 0xFF) <= vsg_entry->range;
-	     addr_ip += 0x01000000) {
+	num_addr = vsg_entry->range - addr_start + 1;
+	for (i = 0; i < num_addr; i++) {
 		if (srule->af == AF_INET6) {
-			if (srule->user.netmask == 0xffffffff)
-				srule->user.netmask = 128;
-			srule->nf_addr.in6.s6_addr32[3] = addr_ip;
-		} else {
-			srule->nf_addr.ip = addr_ip;
+			srule->nf_addr.in6.s6_addr16[7] = (htons(addr_start));
+			addr_start++;
 		}
-		srule->user.port = inet_sockaddrport(&vsg_entry->addr);
 
 		/* Talk to the IPVS channel */
 		if (ipvs_talk(cmd, false))
 			return -1;
+
+		if (srule->af == AF_INET)
+			srule->nf_addr.ip += addr_incr;
 	}
 
 	return 0;

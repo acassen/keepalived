@@ -137,6 +137,7 @@ alloc_vsg_entry(vector_t *strvec)
 {
 	virtual_server_group_t *vsg = LIST_TAIL_DATA(check_data->vs_group);
 	virtual_server_group_entry_t *new;
+	uint32_t start;
 
 	new = (virtual_server_group_entry_t *) MALLOC(sizeof(virtual_server_group_entry_t));
 
@@ -146,10 +147,27 @@ alloc_vsg_entry(vector_t *strvec)
 	} else {
 		new->range = inet_stor(vector_slot(strvec, 0));
 		inet_stosockaddr(vector_slot(strvec, 0), vector_slot(strvec, 1), &new->addr);
-		if (!new->range)
+		if (!new->range) {
 			list_add(vsg->addr_ip, new);
+			return;
+		}
+
+		if ((new->addr.ss_family == AF_INET && new->range > 255 ) ||
+		    (new->addr.ss_family == AF_INET6 && new->range > 0xffff)) {
+			log_message(LOG_INFO, "End address of range exceeds limit for address family - %s - skipping", FMT_STR_VSLOT(strvec, 0));
+			return;
+		}
+
+		if (new->addr.ss_family == AF_INET)
+			start = htonl(((struct sockaddr_in *)&new->addr)->sin_addr.s_addr) & 0xFF;
 		else
-			list_add(vsg->range, new);
+			start = htons(((struct sockaddr_in6 *)&new->addr)->sin6_addr.s6_addr16[7]);
+		if (start >= new->range) {
+			log_message(LOG_INFO, "Address range end is not greater than address range start - %s - skipping", FMT_STR_VSLOT(strvec, 0));
+			return;
+		}
+
+		list_add(vsg->range, new);
 	}
 }
 
