@@ -166,7 +166,7 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 					break;
 				}
 			if (i == hash_guard) {
-				fprintf(stderr, "unknown hash algoritm: %s\n", optarg);
+				fprintf(stderr, "unknown hash algorithm: %s\n", optarg);
 				return CMD_LINE_ERROR;
 			}
 			break;
