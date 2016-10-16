@@ -815,6 +815,7 @@ enable_stacktrace
 enable_profile
 enable_conversion_checks
 enable_force_conversion_checks
+enable_Werror
 with_systemdsystemunitdir
 enable_dependency_tracking
 '
@@ -1472,6 +1473,7 @@ Optional Features:
   --enable-profile        compile with profiling flags
   --enable-conversion-checks compile with conversion warnings if sensible
   --enable-force-conversion-checks compile with conversion warnings
+  --enable-Werror compile with warnings being errors
   --enable-dependency-tracking
                           do not reject slow dependency extractors
   --disable-dependency-tracking
@@ -3491,6 +3493,11 @@ if test "${enable_force_conversion_checks+set}" = set; then :
   enableval=$enable_force_conversion_checks;
 fi
 
+# Check whether --enable-Werror was given.
+if test "${enable_Werror+set}" = set; then :
+  enableval=$enable_Werror;
+fi
+
 
 
 # Check whether --with-systemdsystemunitdir was given.
@@ -5159,6 +5166,10 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
   CFLAGS="$SAV_CFLAGS"
 elif test "$enable_force_conversion_checks" = yes; then
   KA_CFLAGS="$KA_CFLAGS -Wconversion"
+fi
+
+if test "$enable_Werror" = yes; then
+  KA_CFLAGS="$KA_CFLAGS -Werror"
 fi
 
 

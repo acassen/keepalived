@@ -120,6 +120,8 @@ AC_ARG_ENABLE(conversion-checks,
   [  --enable-conversion-checks compile with conversion warnings if sensible])
 AC_ARG_ENABLE(force-conversion-checks,
   [  --enable-force-conversion-checks compile with conversion warnings])
+AC_ARG_ENABLE(Werror,
+  [  --enable-Werror compile with warnings being errors])
 
 AC_ARG_WITH([systemdsystemunitdir],
         AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files]),
@@ -211,6 +213,10 @@ if test "$enable_conversion_checks" = yes; then
   CFLAGS="$SAV_CFLAGS"
 elif test "$enable_force_conversion_checks" = yes; then
   KA_CFLAGS="$KA_CFLAGS -Wconversion"
+fi
+
+if test "$enable_Werror" = yes; then
+  KA_CFLAGS="$KA_CFLAGS -Werror"
 fi
 
 AC_SUBST(KA_CPPFLAGS)
