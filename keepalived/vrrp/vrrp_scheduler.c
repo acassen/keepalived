@@ -114,7 +114,7 @@ static struct {
  *
  * Introducing the Synchronization extension to VRRP
  * protocol, introduce the need for a transition machinery.
- * This mecanism can be designed using a diagonal matrix.
+ * This mechanism can be designed using a diagonal matrix.
  * We call this matrix the VRRP TSM:
  *
  *   \ E |  B  |  M  |  F  |
@@ -252,8 +252,7 @@ vrrp_init_state(list l)
 			}
 		}
 
-		if (vrrp->wantstate == VRRP_STATE_MAST
-			|| vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
+		if (vrrp->wantstate == VRRP_STATE_MAST || vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
 			if (global_data->lvs_syncd.ifname &&
@@ -911,7 +910,7 @@ vrrp_fault(vrrp_t * vrrp)
 	 * VRRP MASTER send its advert for the concerned
 	 * instance.
 	 */
-	if (vrrp->version == VRRP_VERSION_2 && vrrp->auth_type == VRRP_AUTH_AH) {
+	if (vrrp->auth_type == VRRP_AUTH_AH) {
 		vrrp_ah_sync(vrrp);
 	} else
 #endif
@@ -920,6 +919,10 @@ vrrp_fault(vrrp_t * vrrp)
 		if (vrrp->init_state == VRRP_STATE_BACK) {
 			vrrp->state = VRRP_STATE_BACK;
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);
+
+//			vrrp->master_adver_int = vrrp->adver_int;
+//			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+
 			if (vrrp->preempt_delay)
 				vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
 #ifdef _WITH_SNMP_KEEPALIVED_
