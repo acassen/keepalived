@@ -386,6 +386,9 @@ dump_if(void *data)
 #endif
 	char addr_str[INET6_ADDRSTRLEN];
 	unsigned ifi_flags;
+	char mac_str[3 * ifp->hw_addr_len];
+	char *mac_ptr = mac_str;
+	unsigned int i;
 
 	log_message(LOG_INFO, "------< NIC >------");
 	log_message(LOG_INFO, " Name = %s", ifp->ifname);
@@ -394,11 +397,9 @@ dump_if(void *data)
 	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 	log_message(LOG_INFO, " IPv6 address = %s", addr_str);
 
-	/* FIXME: Hardcoded for ethernet */
-	if (ifp->hw_type == ARPHRD_ETHER)
-		log_message(LOG_INFO, " MAC = %.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
-		       ifp->hw_addr[0], ifp->hw_addr[1], ifp->hw_addr[2]
-		       , ifp->hw_addr[3], ifp->hw_addr[4], ifp->hw_addr[5]);
+	for (i = 0; i < ifp->hw_addr_len; i++)
+		mac_ptr += sprintf(mac_ptr, "%s%.2x", i ? ":" : "", ifp->hw_addr[i]);
+	log_message(LOG_INFO, " MAC = %s", mac_str);
 
 	ifi_flags = ifp->ifi_flags & (IFF_UP | IFF_RUNNING);
 #ifdef _HAVE_VRRP_VMAC_
@@ -504,6 +505,10 @@ init_if_linkbeat(void)
  * Check by seeing where ifi_flags are used, e.g. IF_ISUP. */
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
+
+		/* Don't poll an interface that we aren't using */
+		if (!ifp->tracking_inst)
+			continue;
 
 #ifdef _HAVE_VRRP_VMAC_
 		/* netlink messages work for vmacs */

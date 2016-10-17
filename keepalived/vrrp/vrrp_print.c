@@ -169,6 +169,7 @@ if_print(FILE *file, void * data)
 	interface_t *ifp = tip->ifp;
 	char addr_str[INET6_ADDRSTRLEN];
 	int weight = tip->weight;
+	unsigned i;
 
 	fprintf(file, "------< NIC >------\n");
 	fprintf(file, " Name = %s\n", ifp->ifname);
@@ -178,11 +179,10 @@ if_print(FILE *file, void * data)
 	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 	fprintf(file, " IPv6 address = %s\n", addr_str);
 
-	/* FIXME: Harcoded for ethernet */
-	if (ifp->hw_type == ARPHRD_ETHER)
-	fprintf(file, " MAC = %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
-		ifp->hw_addr[0], ifp->hw_addr[1], ifp->hw_addr[2]
-		, ifp->hw_addr[3], ifp->hw_addr[4], ifp->hw_addr[5]);
+	fprintf(file, " MAC = ");
+	for (i = 0; i < ifp->hw_addr_len; i++)
+		fprintf(file, "%s%.2x", i ? ":" : "", ifp->hw_addr[i]);
+	fprintf(file, "\n");
 
 	if (!(ifp->ifi_flags & (IFF_UP | IFF_RUNNING)))
 		fprintf(file, " is DOWN\n");

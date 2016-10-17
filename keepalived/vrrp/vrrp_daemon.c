@@ -186,6 +186,7 @@ start_vrrp(void)
 	if (global_data->vrrp_process_priority)
 		set_process_priority(global_data->vrrp_process_priority);
 
+// TODO - measure max stack usage
 	if (global_data->vrrp_no_swap)
 		set_process_dont_swap(4096);	/* guess a stack size to reserve */
 

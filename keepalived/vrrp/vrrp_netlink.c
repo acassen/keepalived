@@ -838,7 +838,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	if (tb[IFLA_ADDRESS]) {
 		size_t hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
 
-		if (hw_addr_len > IF_HWADDR_MAX) {
+		if (hw_addr_len > IFHWADDRLEN) {
 			log_message(LOG_ERR, "MAC address for %s is too large: %zu",
 				name, hw_addr_len);
 			return -1;
@@ -1043,7 +1043,16 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 				ifp = (interface_t *) MALLOC(sizeof(interface_t));
 				if_add_queue(ifp);
 			} else {
+				/* Since the garp_delay and tracking_inst are set up by name,
+				 * it is reasonable to preserve them.
+				 * If what is created is a vmac, we could end up in a complete mess. */
+				garp_delay_t *sav_garp_delay = ifp->garp_delay;
+				list sav_tracking_inst = ifp->tracking_inst;
+
 				memset(ifp, 0, sizeof(interface_t));
+
+				ifp->garp_delay = sav_garp_delay;
+				ifp->tracking_inst = sav_tracking_inst;
 			}
 			status = netlink_if_link_populate(ifp, tb, ifi);
 			if (status < 0)

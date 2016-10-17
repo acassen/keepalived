@@ -87,6 +87,7 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 	char *str;
 	unsigned int i;
 	vrrp_t *vrrp_last = NULL;
+	bool group_member_down = false;
 
 	/* Can't handle no members of the group */
 	if (!vgroup->iname)
@@ -116,8 +117,16 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 		if (vgroup->state == VRRP_STATE_MAST && vrrp->init_state == VRRP_STATE_BACK)
 			log_message(LOG_INFO, "Sync group %s has some member(s) as address owner and some not as address owner. This won't work", vgroup->gname);
 		if (vgroup->state != VRRP_STATE_BACK)
-			vgroup->state = (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER ) ? VRRP_STATE_MAST : VRRP_STATE_BACK;
+			vgroup->state = (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) ? VRRP_STATE_MAST : VRRP_STATE_BACK;
+
+// TODO - what about track scripts down?
+		if (vrrp->state == VRRP_STATE_FAULT)
+			group_member_down = true;
 	}
+
+	if (group_member_down)
+		vgroup->state = VRRP_STATE_FAULT;
+
 	if (LIST_SIZE(vgroup->index_list) <= 1) {
 		/* The sync group will be removed by the calling function */
 		log_message(LOG_INFO, "Sync group %s has only %d virtual router(s) - removing", vgroup->gname, LIST_SIZE(vgroup->index_list));
@@ -285,7 +294,10 @@ vrrp_sync_master(vrrp_t * vrrp)
 	if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
 		return;
 	if (!vrrp_sync_goto_master(vrrp))
+{
+log_message(LOG_INFO, "sync from %s not master for %s", vrrp->sync->gname, vrrp->iname);
 		return;
+}
 
 	log_message(LOG_INFO, "VRRP_Group(%s) Syncing instances to MASTER state",
 	       GROUP_NAME(vgroup));

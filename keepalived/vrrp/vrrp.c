@@ -223,6 +223,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 		return 1;
 	}
 
+// TODO - If SPI doesn't match previous SPI, we are starting again
 	/*
 	 * then proceed with the sequence number to prevent against replay attack.
 	 * For inbound processing, we increment seq_number counter to audit
@@ -235,8 +236,10 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	    || __test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
 #endif
 							) {
+// TODO - why do we ignore seq no for vmac and sync groups?
 		vrrp->ipsecah_counter.seq_number = ntohl(ah->seq_number);
 	} else {
+// TODO - we could handle wrap around within a few numbers, e.g. FFFFFFFA -> 00000006
 		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
 					" already proceeded. Packet dropped. Local(%d)",
 					vrrp->iname, ntohl(ah->seq_number),
@@ -762,9 +765,14 @@ vrrp_build_ipsecah(vrrp_t * vrrp, char *buffer, size_t buflen)
 	/* Processing sequence number.
 	   Cycled assumed if 0xFFFFFFFD reached. So the MASTER state is free for another srv.
 	   Here can result a flapping MASTER state owner when max seq_number value reached.
-	   => Much work needed here.
+	   => We REALLY REALLY REALLY don't need to worry about this. We only use authentication
+	   for VRRPv2, for which the adver_int is specified in whole seconds, therefore the minimum
+	   adver_int is 1 second. 2^32-3 seconds is 4294967293 seconds, or in excess of 136 years,
+	   so since the sequence number always starts from 0, we are not going to reach the limit.
 	   In the current implementation if counter has cycled, we stop sending adverts and
-	   become BACKUP. If all the master are down we reset the counter for becoming MASTER.
+	   become BACKUP. We are ever the optimist and think we might run continuously for over
+	   136 years without someone redesigning their network!
+	   If all the master are down we reset the counter for becoming MASTER.
 	 */
 	if (vrrp->ipsecah_counter.seq_number > 0xFFFFFFFD) {
 		vrrp->ipsecah_counter.cycle = true;
@@ -1307,13 +1315,13 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 void
 vrrp_state_leave_master(vrrp_t * vrrp)
 {
-	if (VRRP_VIP_ISSET(vrrp)) {
 #ifdef _WITH_LVS_
+	if (VRRP_VIP_ISSET(vrrp)) {
 		/* Check if sync daemon handling is needed */
 		if (global_data->lvs_syncd.vrrp == vrrp)
 			ipvs_syncd_backup(&global_data->lvs_syncd);
-#endif
 	}
+#endif
 
 	/* set the new vrrp state */
 // TODO merge the code blocks of the switch statement
@@ -1393,6 +1401,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	unsigned master_adver_int, proto;
 	bool check_addr = false;
 	timeval_t new_ms_down_timer;
+	bool ignore_advert = false;
 
 	/* Process the incoming packet */
 	hd = vrrp_get_header(vrrp->family, buf, &proto);
@@ -1414,9 +1423,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	if (ret != VRRP_PACKET_OK) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) ignoring received advertisment..." ,  vrrp->iname);
 
-		/* We need to reduce the down timer since we have ignored the advert */
-		new_ms_down_timer = timer_sub(vrrp->sands, set_time_now());
-		vrrp->ms_down_timer = new_ms_down_timer.tv_sec < 0 ? 0 : (uint32_t)(new_ms_down_timer.tv_sec * TIMER_HZ + new_ms_down_timer.tv_usec);
+		ignore_advert = true;
 	} else if (hd->priority == 0) {
 		log_message(LOG_INFO, "(%s): Backup received priority 0 advertisement", vrrp->iname);
 		vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
@@ -1463,6 +1470,14 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	} else {
 		/* !nopreempt and lower priority advert and any preempt delay timer has expired */
 		log_message(LOG_INFO, "VRRP_Instance(%s) received lower prio advert (%d) - discarding", vrrp->iname, hd->priority);
+
+		ignore_advert = true;
+	}
+
+	if (ignore_advert) {
+		/* We need to reduce the down timer since we have ignored the advert */
+		new_ms_down_timer = timer_sub(vrrp->sands, set_time_now());
+		vrrp->ms_down_timer = new_ms_down_timer.tv_sec < 0 ? 0 : (uint32_t)(new_ms_down_timer.tv_sec * TIMER_HZ + new_ms_down_timer.tv_usec);
 	}
 }
 
@@ -1935,22 +1950,26 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 #ifdef _WITH_VRRP_AUTH_
-	if (vrrp->version == VRRP_VERSION_3 && vrrp->auth_type != VRRP_AUTH_NONE) {
+	if (vrrp->strict_mode && vrrp->auth_type != VRRP_AUTH_NONE) {
+		log_message(LOG_INFO, "(%s): Strict mode does not support authentication. Ignoring.", vrrp->iname);
+		vrrp->auth_type = VRRP_AUTH_NONE;
+	}
+	else if (vrrp->version == VRRP_VERSION_3 && vrrp->auth_type != VRRP_AUTH_NONE) {
 		log_message(LOG_INFO, "(%s): VRRP version 3 does not support authentication. Ignoring.", vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
-
-	if (vrrp->auth_type != VRRP_AUTH_NONE && !vrrp->auth_data[0]) {
+	else if (vrrp->auth_type != VRRP_AUTH_NONE && !vrrp->auth_data[0]) {
 		log_message(LOG_INFO, "(%s): Authentication specified but no password given. Ignoring", vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
-
-	if (!vrrp->strict_mode) {
-		/* The following can only happen if we are not in strict mode */
-		if (vrrp->version == VRRP_VERSION_2 && vrrp->family == AF_INET6 && vrrp->auth_type == VRRP_AUTH_AH) {
-			log_message(LOG_INFO, "(%s): Cannot use AH authentication with VRRPv2 and IPv6 - ignoring", vrrp->iname);
-			vrrp->auth_type = VRRP_AUTH_NONE;
-		}
+	else if (vrrp->family == AF_INET6 && vrrp->auth_type == VRRP_AUTH_AH) {
+		log_message(LOG_INFO, "(%s): Cannot use AH authentication with IPv6 - ignoring", vrrp->iname);
+		vrrp->auth_type = VRRP_AUTH_NONE;
+	}
+	else if (vrrp->auth_type == VRRP_AUTH_AH && vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority != VRRP_PRIO_OWNER) {
+		/* We need to have received an advert to get the AH sequence no before taking over, if possible */
+		log_message(LOG_INFO, "(%s): Initial state master is incompatible with AH authentication - clearing", vrrp->iname);
+		vrrp->init_state = VRRP_STATE_BACK;
 	}
 #endif
 
@@ -2313,6 +2332,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	 * may run out of buffers if we don't receive the netlink messages
 	 * as we progress */
 	kernel_netlink_poll();
+
+	if (!VRRP_IF_ISUP(vrrp))
+		vrrp->state = VRRP_STATE_FAULT;
 
 	return true;
 }
