@@ -1354,6 +1354,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 	}
 
 	/* set the new vrrp state */
+// TODO merge the code blocks of the switch statement
 	switch (vrrp->wantstate) {
 	case VRRP_STATE_BACK:
 		log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
@@ -1378,6 +1379,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 	}
 
 	/* Set the down timer */
+// TODO - should we use master_adver_int here?
 	vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	++vrrp->stats->release_master;
 	vrrp->last_transition = timer_now();
@@ -1412,6 +1414,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	if (ret != VRRP_PACKET_OK) {		// TODO - reversed test to ! OK
 		log_message(LOG_INFO, "VRRP_Instance(%s) ignoring received advertisment..."
 				    ,  vrrp->iname);
+//TODO - this isn't ignoring advert !!!
 		if (vrrp->version == VRRP_VERSION_3)
 			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 		else
@@ -1496,6 +1499,8 @@ vrrp_state_master_tx(vrrp_t * vrrp, const int prio)
 		vrrp->garp_refresh_timer = timer_add_now(vrrp->garp_refresh);
 	}
 
+// TODO - why can't we use effective_priority if owner?
+// TODO - prio is pointless - it was only called with value 0
 	vrrp_send_adv(vrrp,
 		      (prio == VRRP_PRIO_OWNER) ? VRRP_PRIO_OWNER :
 						  vrrp->effective_priority);
@@ -1527,6 +1532,10 @@ vrrp_saddr_cmp(struct sockaddr_storage *addr, vrrp_t *vrrp)
 	return 0;
 }
 
+// TODO Return true to leave master state, false to remain master
+// TODO Check all usage of master_adver_int
+// TODO 
+// TODO check all uses of effective_priority (and simplify for VRRPv2)
 int
 vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 {
