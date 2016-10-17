@@ -1397,6 +1397,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	ssize_t ret = 0;
 	unsigned master_adver_int, proto;
 	bool check_addr = false;
+	timeval_t new_ms_down_timer;
 
 	/* Process the incoming packet */
 	hd = vrrp_get_header(vrrp->family, buf, &proto);
@@ -1475,8 +1476,10 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 #endif
 #endif
 		log_message(LOG_INFO, "VRRP_Instance(%s) received lower prio advert (%d) - discarding", vrrp->iname, hd->priority);
-		vrrp->ms_down_timer -= vrrp->master_adver_int;	// TODO - this is a bodge
-// TODO - call become_master
+
+		/* We need to reduce the down timer since we have ignored the advert */
+		new_ms_down_timer = timer_sub(vrrp->sands, set_time_now());
+		vrrp->ms_down_timer = new_ms_down_timer.tv_sec < 0 ? 1 : (uint32_t)(new_ms_down_timer.tv_sec * TIMER_HZ + new_ms_down_timer.tv_usec);
 	}
 }
 
