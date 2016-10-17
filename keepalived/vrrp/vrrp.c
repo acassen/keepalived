@@ -304,6 +304,7 @@ vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
  * return VRRP_PACKET_OK if the pkt is valid, or
  *	  VRRP_PACKET_KO if packet invalid or
  *	  VRRP_PACKET_DROP if packet not relevant to us
+ *	  VRRP_PACKET_OTHER if packet has wrong vrid
  */
 static int
 vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr)
@@ -434,7 +435,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		vrrp_rfcv3_snmp_proto_err_notify(vrrp);
 #endif
 #endif
-		return VRRP_PACKET_DROP;
+		return VRRP_PACKET_OTHER;
 	}
 
 	/* Check that auth type of packet is one of the supported auth types */
@@ -1395,7 +1396,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	}
 	ret = vrrp_check_packet(vrrp, buf, buflen, check_addr);
 
-	if (ret == VRRP_PACKET_KO || ret == VRRP_PACKET_NULL) {
+	if (ret != VRRP_PACKET_OK) {		// TODO - reversed test to ! OK
 		log_message(LOG_INFO, "VRRP_Instance(%s) ignoring received advertisment..."
 				    ,  vrrp->iname);
 		if (vrrp->version == VRRP_VERSION_3)
@@ -1527,8 +1528,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	hd = vrrp_get_header(vrrp->family, buf, &proto);
 	ret = vrrp_check_packet(vrrp, buf, buflen, true);
 
-	if (ret == VRRP_PACKET_KO ||
-	    ret == VRRP_PACKET_NULL || ret == VRRP_PACKET_DROP) {
+	if (ret != VRRP_PACKET_OK) {
 		log_message(LOG_INFO,
 		       "VRRP_Instance(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
