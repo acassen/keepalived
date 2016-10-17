@@ -628,7 +628,7 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 
 	if (!VRRP_ISUP(vrrp)) {
 		vrrp_log_int_down(vrrp);
-		log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state", vrrp->iname);
+		log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state - backup", vrrp->iname);
 		if (vrrp->state != VRRP_STATE_FAULT) {
 			notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 			vrrp->state = VRRP_STATE_FAULT;
@@ -743,9 +743,15 @@ vrrp_goto_master(vrrp_t * vrrp)
 /* TODO Is vrrp->state always GOTO_MASTER if we get here, in which case test for FAULT is irrelevant */
 /* TODO - look at code before my uncommited changes - it might be that other changes are better */
 /* TODO - does all this bit need to be in state != FAULT, or none of it? */
+log_message(LOG_INFO, "up %d, donnt_track %d, track_list %d, track_up %d",  IF_ISUP(vrrp->ifp), vrrp->dont_track_primary,
+                                 LIST_ISEMPTY(vrrp->track_ifp), !LIST_ISEMPTY(vrrp->track_ifp) ? TRACK_ISUP(vrrp->track_ifp) : -1);
+log_message(LOG_INFO, "ifi_flags 0x%x, vmac %d, vmac_ifi_flags 0x%x, linkbeat %d", vrrp->ifp->ifi_flags,
+                    vrrp->ifp->vmac, vrrp->ifp->vmac_ifi_flags, vrrp->ifp->linkbeat);
+
+
 		vrrp_log_int_down(vrrp);
 		if (vrrp->state != VRRP_STATE_FAULT) {
-			log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state", vrrp->iname);
+			log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state - goto master", vrrp->iname);
 			notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 			vrrp->state = VRRP_STATE_FAULT;
 			vrrp->master_adver_int = vrrp->adver_int;

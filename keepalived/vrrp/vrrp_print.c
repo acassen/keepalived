@@ -184,14 +184,15 @@ if_print(FILE *file, void * data)
 		ifp->hw_addr[0], ifp->hw_addr[1], ifp->hw_addr[2]
 		, ifp->hw_addr[3], ifp->hw_addr[4], ifp->hw_addr[5]);
 
-	if (ifp->flags & IFF_UP)
-		fprintf(file, " is UP\n");
-
-	if (ifp->flags & IFF_RUNNING)
-		fprintf(file, " is RUNNING\n");
-
-	if (!(ifp->flags & IFF_UP) && !(ifp->flags & IFF_RUNNING))
+	if (!(ifp->ifi_flags & (IFF_UP | IFF_RUNNING)))
 		fprintf(file, " is DOWN\n");
+	else {
+		if (ifp->ifi_flags & IFF_UP)
+			fprintf(file, " is UP\n");
+
+		if (ifp->ifi_flags & IFF_RUNNING)
+			fprintf(file, " is RUNNING\n");
+	}
 
 	if (weight)
 		fprintf(file, " weight = %d\n", weight);

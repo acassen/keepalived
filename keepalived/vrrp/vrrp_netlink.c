@@ -746,6 +746,10 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	ifp->mtu = *(uint32_t *)RTA_DATA(tb[IFLA_MTU]);
 	ifp->hw_type = ifi->ifi_type;
 
+	/* We set linkbeat here. It will only be cleared if we are using linkbeat polling
+	 * so when checking it's status, we don't need to check if polling is enabled. */
+	ifp->linkbeat = true;
+
 	if (tb[IFLA_ADDRESS]) {
 		size_t hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
 
@@ -796,12 +800,19 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 
 	if (!ifp->vmac) {
 		if_vmac_reflect_flags(ifp->ifindex, ifi->ifi_flags);
-		ifp->flags = ifi->ifi_flags;
+log_message(LOG_INFO, "Setting ifi_flags from 0x%x to 0x%x for %s in link_populate", ifp->ifi_flags, ifi->ifi_flags, ifp->ifname);
+		ifp->ifi_flags = ifi->ifi_flags;
 		ifp->base_ifindex = ifp->ifindex;
 	}
 	else {
+log_message(LOG_INFO, "Setting ifi_flags from 0x%x to 0x%x for %s in link_populate", ifp->vmac_ifi_flags, ifi->ifi_flags, ifp->ifname);
+		ifp->vmac_ifi_flags = ifi->ifi_flags;
+
 		if ((ifp_base = if_get_by_ifindex(ifp->base_ifindex)))
-			ifp->flags = ifp_base->flags;
+{
+log_message(LOG_INFO, "Setting vmac ifi_flags from parent in link_populate; was 0x%x, now 0x%x", ifp->ifi_flags, ifp_base->ifi_flags);
+			ifp->ifi_flags = ifp_base->ifi_flags;
+}
 	}
 #else
 	ifp->flags = ifi->ifi_flags;
@@ -851,7 +862,12 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 #ifdef _HAVE_VRRP_VMAC_
 			if_vmac_reflect_flags((ifindex_t)ifi->ifi_index, ifi->ifi_flags);
 #endif
-			ifp->flags = ifi->ifi_flags;
+log_message(LOG_INFO, "Setting ifi_flags from 0x%x to 0x%x for %s in if_link_filter", ifp->ifi_flags, ifi->ifi_flags, ifp->ifname);
+			ifp->ifi_flags = ifi->ifi_flags;
+		}
+		else {
+log_message(LOG_INFO, "Setting vmac ifi_flags from 0x%x to 0x%x for %s in if_link_filter", ifp->ifi_flags, ifi->ifi_flags, ifp->ifname);
+			ifp->vmac_ifi_flags = ifi->ifi_flags;
 		}
 		return 0;
 	}
@@ -920,6 +936,26 @@ end_addr:
 	return status;
 }
 
+// #define	IFF_UP		0x1		/* interface is up		*/
+// #define	IFF_BROADCAST	0x2		/* broadcast address valid	*/
+// #define	IFF_DEBUG	0x4		/* turn on debugging		*/
+// #define	IFF_LOOPBACK	0x8		/* is a loopback net		*/
+// #define	IFF_POINTOPOINT	0x10		/* interface is has p-p link	*/
+// #define	IFF_NOTRAILERS	0x20		/* avoid use of trailers	*/
+// #define	IFF_RUNNING	0x40		/* interface RFC2863 OPER_UP	*/
+// #define	IFF_NOARP	0x80		/* no ARP protocol		*/
+// #define	IFF_PROMISC	0x100		/* receive all packets		*/
+// #define	IFF_ALLMULTI	0x200		/* receive all multicast packets*/
+// #define	IFF_MASTER	0x400		/* master of a load balancer 	*/
+// #define	IFF_SLAVE	0x800		/* slave of a load balancer	*/
+// #define	IFF_MULTICAST	0x1000		/* Supports multicast		*/
+// #define	IFF_PORTSEL	0x2000          /* can set media type		*/
+// #define	IFF_AUTOMEDIA	0x4000		/* auto media select active	*/
+// #define	IFF_DYNAMIC	0x8000		/* dialup device with changing addresses*/
+// #define	IFF_LOWER_UP	0x10000		/* driver signals L1 up		*/
+// #define	IFF_DORMANT	0x20000		/* driver signals dormant	*/
+// #define	IFF_ECHO	0x40000		/* echo sent packets		*/
+
 /* Netlink flag Link update */
 static int
 netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
@@ -954,6 +990,8 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	 * structure and fill it with the new interface information.
 	 */
 	ifp = if_get_by_ifindex((ifindex_t)ifi->ifi_index);
+log_message(LOG_INFO, "Netlink reflect_filter message for %s, flags 0x%x, saved flags 0x%x, change 0x%x, our_change 0x%x, cmd %s", (char *)RTA_DATA(tb[IFLA_IFNAME]), ifi->ifi_flags, ((ifp) ? (ifp->vmac ? ifp->vmac_ifi_flags : ifp->ifi_flags) : 0), ifi->ifi_change, ((ifp) ? (ifp->vmac ? ifp->vmac_ifi_flags : ifp->ifi_flags) : 0 ) ^ ifi->ifi_flags, h->nlmsg_type == RTM_NEWLINK ? "add" : "del");
+
 	if (!ifp) {
 		if (h->nlmsg_type == RTM_NEWLINK) {
 			char *name;
@@ -981,13 +1019,18 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	 * by the base interface flags.
 	 */
 #ifdef _HAVE_VRRP_VMAC_
-	if (!ifp->vmac)
+	if (ifp->vmac) {
+log_message(LOG_INFO, "Setting vmac ifi_flags from 0x%x to 0x%x for %s in reflect_filter", ifp->vmac_ifi_flags, ifi->ifi_flags, ifp->ifname);
+		ifp->vmac_ifi_flags = ifi->ifi_flags;
+	}
+	else
 	{
 		if_vmac_reflect_flags(ifp->ifindex, ifi->ifi_flags);
-		ifp->flags = ifi->ifi_flags;
+log_message(LOG_INFO, "Setting ifi_flags from 0x%x to 0x%x for %s in reflect_filter", ifp->ifi_flags, ifi->ifi_flags, ifp->ifname);
+		ifp->ifi_flags = ifi->ifi_flags;
 	}
 #else
-	ifp->flags = ifi->ifi_flags;
+	ifp->ifi_flags = ifi->ifi_flags;
 #endif
 
 	return 0;

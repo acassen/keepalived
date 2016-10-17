@@ -78,17 +78,19 @@ typedef struct _interface {
 	ifindex_t		ifindex;		/* Interface index */
 	struct in_addr		sin_addr;		/* IPv4 primary IPv4 address */
 	struct in6_addr		sin6_addr;		/* IPv6 link address */
-	unsigned long		flags;			/* flags */
+	unsigned		ifi_flags;		/* Kernel flags */
 	uint32_t		mtu;			/* MTU for this interface_t */
 	unsigned short		hw_type;		/* Type of hardware address */
 	u_char			hw_addr[IF_HWADDR_MAX];	/* MAC address */
 	size_t			hw_addr_len;		/* MAC addresss length */
 	int			lb_type;		/* Interface regs selection */
-	bool			linkbeat;		/* LinkBeat from MII BMSR req, SIOCETHTOOL or SIOCGIFFLAGS ioctls */
+	bool			linkbeat;		/* LinkBeat from MII BMSR req, SIOCETHTOOL or SIOCGIFFLAGS ioctls.
+							   This is set true if not using linkbeat polling. */
 #ifdef _HAVE_VRRP_VMAC_
-	int			vmac;			/* Set if interface is a VMAC interface */
+	bool			vmac;			/* Set if interface is a VMAC interface */
 	ifindex_t		base_ifindex;		/* Base interface index (if interface is a VMAC interface),
 							   otherwise the physical interface (i.e. ifindex) */
+	unsigned		vmac_ifi_flags;		/* ifi_flags for vmac interface itself */
 #endif
 	garp_delay_t		*garp_delay;		/* Delays for sending gratuitous ARP/NA */
 	bool			gna_router;		/* Router flag for NA messages */
@@ -122,9 +124,12 @@ typedef struct _tracked_if {
 #define IF_MII_SUPPORTED(X) ((X)->lb_type & LB_MII)
 #define IF_ETHTOOL_SUPPORTED(X) ((X)->lb_type & LB_ETHTOOL)
 #define IF_LINKBEAT(X) ((X)->linkbeat)
-#define IF_ISUP(X) (((X)->flags & IFF_UP)      && \
-		    ((X)->flags & IFF_RUNNING) && \
-		    if_linkbeat(X))
+#define IF_ISUP(X) (((X)->ifi_flags & IFF_UP)      && \
+		    ((X)->ifi_flags & IFF_RUNNING) && \
+		    (!(X)->vmac || \
+		     ((X)->vmac_ifi_flags & IFF_UP && \
+		      (X)->vmac_ifi_flags & IFF_RUNNING)) && \
+		    ((X)->linkbeat))
 
 /* Global data */
 list garp_delay;
@@ -137,9 +142,8 @@ extern interface_t *if_get_by_ifname(const char *);
 extern list get_if_list(void);
 extern void reset_interface_queue(void);
 #ifdef _HAVE_VRRP_VMAC_
-extern void if_vmac_reflect_flags(ifindex_t, unsigned long);
+extern void if_vmac_reflect_flags(ifindex_t, unsigned);
 #endif
-extern int if_linkbeat(const interface_t *);
 extern void alloc_garp_delay(void);
 extern void set_default_garp_delay(void);
 extern void if_add_queue(interface_t *);

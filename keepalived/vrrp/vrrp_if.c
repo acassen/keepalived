@@ -147,11 +147,13 @@ reset_interface_queue(void)
 #ifdef _HAVE_VRRP_VMAC_
 /*
  * Reflect base interface flags on VMAC interfaces.
- * VMAC interfaces should never update it own flags, only be reflected
- * by the base interface flags.
+ * VMAC interfaces should never update most of it's own flags,
+ * only be reflected by the base interface flags, except the
+ * IFF_UP and IFF_RUNNING flags for the vmac intefface must be
+ * taken into account.
  */
 void
-if_vmac_reflect_flags(ifindex_t ifindex, unsigned long flags)
+if_vmac_reflect_flags(ifindex_t ifindex, unsigned flags)
 {
 	interface_t *ifp;
 	element e;
@@ -162,7 +164,10 @@ if_vmac_reflect_flags(ifindex_t ifindex, unsigned long flags)
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
 		if (ifp->vmac && ifp->base_ifindex == ifindex)
-			ifp->flags = flags;
+{
+log_message(LOG_INFO, "reflect flags from 0x%x to 0x%x for %s", ifp->ifi_flags, flags, ifp->ifname);
+			ifp->ifi_flags = flags;
+}
 	}
 }
 #endif
@@ -320,7 +325,8 @@ if_ioctl_flags(interface_t * ifp)
 		close(fd);
 		return;
 	}
-	ifp->flags = (unsigned short)ifr.ifr_flags;
+log_message(LOG_INFO, "if_ioctl_flags changing ifi_flags from 0x%x to 0x%x for %s", ifr.ifr_flags, ifp->ifi_flags, ifp->ifname);
+	ifp->ifi_flags = (unsigned short)ifr.ifr_flags;
 	close(fd);
 }
 
@@ -385,6 +391,7 @@ dump_if(void *data)
 	interface_t *ifp_u;
 #endif
 	char addr_str[INET6_ADDRSTRLEN];
+	unsigned ifi_flags;
 
 	log_message(LOG_INFO, "------< NIC >------");
 	log_message(LOG_INFO, " Name = %s", ifp->ifname);
@@ -399,14 +406,19 @@ dump_if(void *data)
 		       ifp->hw_addr[0], ifp->hw_addr[1], ifp->hw_addr[2]
 		       , ifp->hw_addr[3], ifp->hw_addr[4], ifp->hw_addr[5]);
 
-	if (ifp->flags & IFF_UP)
-		log_message(LOG_INFO, " is UP");
-
-	if (ifp->flags & IFF_RUNNING)
-		log_message(LOG_INFO, " is RUNNING");
-
-	if (!(ifp->flags & IFF_UP) && !(ifp->flags & IFF_RUNNING))
+	ifi_flags = ifp->ifi_flags;
+#ifdef _HAVE_VRRP_VMAC_
+	ifi_flags &= ifp->vmac_ifi_flags;
+#endif
+	if (!(ifi_flags & (IFF_UP | IFF_RUNNING)))
 		log_message(LOG_INFO, " is DOWN");
+	else {
+		if (ifi_flags & IFF_UP)
+			log_message(LOG_INFO, " is UP");
+
+		if (ifi_flags & IFF_RUNNING)
+			log_message(LOG_INFO, " is RUNNING");
+	}
 
 	log_message(LOG_INFO, " MTU = %d", ifp->mtu);
 
@@ -494,8 +506,17 @@ init_if_linkbeat(void)
 	element e;
 	int status;
 
+/* TODO - only add thread if we are interested in the interface -
+ * a vrrp base interface, or a track interface. Are there any others?
+ * Check by seeing where ifi_flags are used, e.g. IF_ISUP. */
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
+
+#ifdef _HAVE_VRRP_VMAC_
+		/* netlink messages work for vmacs */
+		if (ifp->vmac)
+			continue;
+#endif
 		ifp->lb_type = LB_IOCTL;
 		status = if_mii_probe(ifp->ifname);
 		if (status >= 0) {
@@ -511,18 +532,6 @@ init_if_linkbeat(void)
 		/* Register new monitor thread */
 		thread_add_timer(master, if_linkbeat_refresh_thread, ifp, POLLING_DELAY);
 	}
-}
-
-int
-if_linkbeat(const interface_t * ifp)
-{
-	if (!global_data->linkbeat_use_polling)
-		return 1;
-
-	if (IF_MII_SUPPORTED(ifp) || IF_ETHTOOL_SUPPORTED(ifp))
-		return IF_LINKBEAT(ifp);
-
-	return 1;
 }
 
 /* Interface queue helpers*/

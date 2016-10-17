@@ -409,6 +409,7 @@ static void
 vrrp_preempt_delay_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+// TODO - make preempt_delay support centi-seconds (see adver_int for implementation)
 	unsigned long preempt_delay = strtoul(vector_slot(strvec, 1), NULL, 10);
 
 	if (VRRP_IS_BAD_PREEMPT_DELAY(preempt_delay)) {
