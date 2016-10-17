@@ -661,12 +661,14 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		++vrrp->stats->pri_zero_rcvd;
 
 	if (vrrp->version == VRRP_VERSION_3 && vrrp->state == VRRP_STATE_BACK) {
+// TODO - is this the right place to do this?
 		/* In v3 when we are in BACKUP state, we set our
 		 * advertisement interval to match the MASTER's. */
 		adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
-		if (vrrp->master_adver_int != adver_int)
+		if (vrrp->master_adver_int != adver_int) {
 			log_message(LOG_INFO, "(%s): advertisement interval changed: mine=%d milli-sec, rcved=%d milli-sec",
 				vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), adver_int / (TIMER_HZ / 1000));
+		}
 	}
 
 	return VRRP_PACKET_OK;
@@ -1365,6 +1367,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 #ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
+		vrrp->master_adver_int = vrrp->adver_int;
 		break;
 	case VRRP_STATE_GOTO_FAULT:
 		log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE", vrrp->iname);
@@ -1380,7 +1383,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 
 	/* Set the down timer */
 // TODO - should we use master_adver_int here?
-	vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 	++vrrp->stats->release_master;
 	vrrp->last_transition = timer_now();
 }
@@ -1415,10 +1418,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		log_message(LOG_INFO, "VRRP_Instance(%s) ignoring received advertisment..."
 				    ,  vrrp->iname);
 //TODO - this isn't ignoring advert !!!
-		if (vrrp->version == VRRP_VERSION_3)
-			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
-		else
-			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 	} else if (hd->priority == 0) {
 		log_message(LOG_INFO, "(%s): Backup received priority 0 advertisement", vrrp->iname);
 		vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
@@ -1436,15 +1436,12 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 			 * in the ADVERTISEMENT
 			 */
 			if (vrrp->master_adver_int != master_adver_int) {
+				log_message(LOG_INFO, "(%s): advertisement interval updated to %d milli-sec from %d milli-sec",
+						vrrp->iname, master_adver_int / (TIMER_HZ / 1000), vrrp->master_adver_int / (TIMER_HZ / 1000));
 				vrrp->master_adver_int = master_adver_int;
-				log_message(LOG_INFO, "VRRP_Instance(%s) advertisement interval updated to %d milli-sec",
-							vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000));
 			}
-			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 		}
-		else {
-			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
-		}
+		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 		vrrp->master_saddr = vrrp->pkt_saddr;
 		vrrp->master_priority = hd->priority;
 
@@ -1533,9 +1530,11 @@ vrrp_saddr_cmp(struct sockaddr_storage *addr, vrrp_t *vrrp)
 }
 
 // TODO Return true to leave master state, false to remain master
-// TODO Check all usage of master_adver_int
-// TODO 
-// TODO check all uses of effective_priority (and simplify for VRRPv2)
+// TODO make functions bool
+// TODO check all uses of master_adver_int (and simplify for VRRPv2)
+// TODO check all uses of effective_priority
+// TODO wantstate must be >= state
+// TODO SKEW_TIME should use master_adver_int USUALLY!!!
 int
 vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 {
@@ -1575,7 +1574,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	addr_cmp = vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp);
 
 	if (hd->priority == vrrp->effective_priority && addr_cmp == 0)
-			log_message(LOG_INFO, "(%s): WARNING - equal priority advert received from remote host with our IP address.", vrrp->iname);
+		log_message(LOG_INFO, "(%s): WARNING - equal priority advert received from remote host with our IP address.", vrrp->iname);
 
 	if (hd->priority < vrrp->effective_priority ||
 		   (hd->priority == vrrp->effective_priority &&
@@ -1634,14 +1633,12 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 			 * in the ADVERTISEMENT
 			 */
 			if (vrrp->master_adver_int != master_adver_int) {
+				log_message(LOG_INFO, "(%s): advertisement interval updated from %d to %d milli-sec from higher priority master",
+						vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), master_adver_int / (TIMER_HZ / 1000));
 				vrrp->master_adver_int = master_adver_int;
-				log_message(LOG_INFO, "VRRP_Instance(%s) advertisement interval updated to %d milli-sec from higher priority master",
-							vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000));
 			}
-			vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 		}
-		else
-			vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 		vrrp->master_priority = hd->priority;
 		vrrp->wantstate = VRRP_STATE_BACK;
 		vrrp->state = VRRP_STATE_BACK;

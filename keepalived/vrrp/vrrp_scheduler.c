@@ -762,8 +762,7 @@ vrrp_goto_master(vrrp_t * vrrp)
 #endif
 
 #ifdef _WITH_SNMP_RFCV3_
-	if ((vrrp->version == VRRP_VERSION_2 && vrrp->ms_down_timer >= 3 * vrrp->adver_int) ||
-	    (vrrp->version == VRRP_VERSION_3 && vrrp->ms_down_timer >= 3 * vrrp->master_adver_int))
+	if (vrrp->ms_down_timer >= 3 * vrrp->master_adver_int)
 		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
 #endif
 	/* handle master state transition */
@@ -868,7 +867,7 @@ vrrp_master(vrrp_t * vrrp)
 		if (vrrp->state == VRRP_STATE_BACK)
 			log_message(LOG_INFO, "VRRP_Instance(%s) Now in BACKUP state",
 				    vrrp->iname);
-		if (vrrp->state == VRRP_STATE_FAULT)
+		else if (vrrp->state == VRRP_STATE_FAULT)
 			log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state",
 				    vrrp->iname);
 	} else if (vrrp->state == VRRP_STATE_MAST) {

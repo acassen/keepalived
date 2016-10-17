@@ -196,6 +196,7 @@ typedef struct _vrrp_t {
 	unsigned		master_adver_int;	/* In v3, when we become BACKUP, we use the MASTER's
 							 * adver_int. If we become MASTER again, we use the
 							 * value we were originally configured with.
+							 * In v2, this will always be the configured adver_int.
 							 */
 	unsigned		accept;			/* Allow the non-master owner to process
 							 * the packets destined to VIP.
@@ -293,7 +294,7 @@ typedef struct _vrrp_t {
 #define VRRP_SEND_BUFFER_SIZE(V)	((V)->send_buffer_size)
 
 /* We have to do some reduction of the calculation for VRRPv3 in order not to overflow a uint32; 625 / 16 == TIMER_CENTI_HZ / 256 */
-#define VRRP_TIMER_SKEW(svr)	((svr)->version == VRRP_VERSION_3 ? (((256U-(svr)->base_priority) * ((svr)->adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : ((256U-(svr)->base_priority) * TIMER_HZ/256U))
+#define VRRP_TIMER_SKEW(svr)	((svr)->version == VRRP_VERSION_3 ? (((256U-(svr)->effective_priority) * ((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : ((256U-(svr)->effective_priority) * TIMER_HZ/256U))
 #define VRRP_VIP_ISSET(V)	((V)->vipset)
 
 #define VRRP_MIN(a, b)	((a) < (b)?(a):(b))
