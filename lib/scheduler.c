@@ -462,6 +462,12 @@ thread_add_terminate_event(thread_master_t * m)
 	return thread;
 }
 
+void
+thread_read_timer_expire(int fd)
+{
+	log_message(LOG_INFO, "Request to expire timer for fd 0x%x", fd);
+}
+
 /* Cancel thread from scheduler. */
 int
 thread_cancel(thread_t * thread)
