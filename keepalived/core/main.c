@@ -35,6 +35,7 @@
 #include "pidfile.h"
 #include "bitops.h"
 #include "logger.h"
+#include "parser.h"
 #include "check_parser.h"
 #include "vrrp_parser.h"
 #include "global_parser.h"
@@ -542,6 +543,7 @@ usage(const char *prog)
 #ifdef _MEM_CHECK_LOG_
 	fprintf(stderr, "  -L, --mem-check-log          Log malloc/frees to syslog\n");
 #endif
+	fprintf(stderr, "  -i, --config_id id           Skip any configuration lines beginning '@' that don't match id\n");
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -586,12 +588,13 @@ parse_cmdline(int argc, char **argv)
 #if HAVE_DECL_CLONE_NEWNET
 		{"namespace",         required_argument, 0, 's'},
 #endif	
+		{"config-id",         required_argument, 0, 'i'},
 		{"version",           no_argument,       0, 'v'},
 		{"help",              no_argument,       0, 'h'},
 		{0, 0, 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:p:mM"
+	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:p:i:mM"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
@@ -704,6 +707,9 @@ parse_cmdline(int argc, char **argv)
 			strcpy(override_namespace, optarg);
 			break;
 #endif
+		case 'i':
+			config_id = optarg;
+			break;
 		default:
 			exit(0);
 			break;

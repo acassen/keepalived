@@ -57,7 +57,8 @@ typedef struct _keyword {
 
 /* global vars exported */
 extern vector_t *keywords;
-extern int reload;
+extern bool reload;
+extern char *config_id;
 
 /* Prototypes */
 extern void install_keyword_root(const char *, void (*handler) (vector_t *), bool);
