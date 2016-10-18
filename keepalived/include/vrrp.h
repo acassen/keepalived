@@ -189,6 +189,7 @@ typedef struct _vrrp_t {
 							 * Those VIPs will not be presents into the
 							 * VRRP adverts
 							 */
+	bool			promote_secondaries;	/* Set promote_secondaries option on interface */
 	bool			evip_add_ipv6;		/* Enable IPv6 for eVIPs if this is an IPv4 instance */
 	list			vroutes;		/* list of virtual routes */
 	list			vrules;			/* list of virtual rules */

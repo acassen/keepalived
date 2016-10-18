@@ -1843,6 +1843,9 @@ shutdown_vrrp_instances(void)
 			netlink_link_del_vmac(vrrp);
 #endif
 
+		if (vrrp->ifp->reset_promote_secondaries)
+			reset_promote_secondaries(vrrp->ifp);
+
 		/* Run stop script */
 		if (vrrp->script_stop)
 			notify_exec(vrrp->script_stop);
@@ -2142,6 +2145,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			log_message(LOG_INFO, "(%s): xmit_base is incompatible with strict mode - resetting", vrrp->iname);
 			__clear_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
 		}
+
+		if (vrrp->promote_secondaries) {
+			log_message(LOG_INFO, "(%s): promote_secondaries is automatically set for vmacs - ignoring", vrrp->iname);
+			vrrp->promote_secondaries = false;
+		}
 	}
 	else
 #endif
@@ -2256,6 +2264,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->vipset = true;	/* Set to force address removal */
 		vrrp_restore_interface(vrrp, false, true);
 	}
+
+	/* See if we need to set promote_secondaries */
+	if (vrrp->promote_secondaries &&
+	    !vrrp->ifp->promote_secondaries_already_set &&
+	    !vrrp->ifp->reset_promote_secondaries)
+		set_promote_secondaries(vrrp->ifp);
 
 	/* If we are adding a large number of interfaces, the netlink socket
 	 * may run out of buffers if we don't receive the netlink messages

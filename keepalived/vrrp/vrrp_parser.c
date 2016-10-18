@@ -620,6 +620,13 @@ vrrp_evip_handler(__attribute__((unused)) vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_evip);
 }
+static void
+vrrp_promote_secondaries(__attribute__((unused)) vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	vrrp->promote_secondaries = true;
+}
 #ifdef _HAVE_FIB_ROUTING_
 static void
 vrrp_vroutes_handler(__attribute__((unused)) vector_t *strvec)
@@ -860,6 +867,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("advert_int", &vrrp_adv_handler);
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
 	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
+	install_keyword("promote_secondaries", &vrrp_promote_secondaries);
 #ifdef _HAVE_FIB_ROUTING_
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
 	install_keyword("virtual_rules", &vrrp_vrules_handler);
