@@ -262,12 +262,13 @@ dump_vrrp(void *data)
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
 		(vrrp->adver_int / (TIMER_HZ / 1000)),
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
-	log_message(LOG_INFO, "   Accept %s", ((vrrp->accept) ? "enabled" : "disabled"));
+	log_message(LOG_INFO, "   Accept %s", vrrp->accept ? "enabled" : "disabled");
 	if (vrrp->nopreempt)
 		log_message(LOG_INFO, "   Preempt disabled");
 	if (vrrp->preempt_delay)
 		log_message(LOG_INFO, "   Preempt delay = %ld secs",
 		       vrrp->preempt_delay / TIMER_HZ);
+	log_message(LOG_INFO, "   Promote_secondaries %s", vrrp->promote_secondaries ? "enabled" : "disabled");
 #if defined _WITH_VRRP_AUTH_
 	if (vrrp->version == VRRP_VERSION_2) {
 		if (vrrp->auth_type) {

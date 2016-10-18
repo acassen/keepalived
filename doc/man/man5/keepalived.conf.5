@@ -446,6 +446,14 @@ which will transition together on any state change.
      <IPADDR>/<MASK> brd <IPADDR> dev <STRING> scope <SCOPE>
         ...
     }
+
+    # Set the promote_secondaries flag on the interface to stop other
+    # addresses in the same CIDR being removed when 1 of them is removed
+    # For example if 10.1.1.2/24 and 10.1.1.3/24 are both configured on an
+    # interface, and one is removed, unless promote_secondaries is set on
+    # the interface the other address will also be removed.
+    prompte_secondaries
+
     # routes add|del when changing to MASTER, to BACKUP.
     # See static_routes for more details
     virtual_routes {
