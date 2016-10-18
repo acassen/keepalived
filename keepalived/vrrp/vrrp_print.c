@@ -272,11 +272,9 @@ vrrp_print(FILE *file, void *data)
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
 		(vrrp->adver_int / (TIMER_HZ / 1000)),
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
-	fprintf(file, "   Accept = %s\n", ((vrrp->accept) ? "enabled" : "disabled"));
-	if (vrrp->nopreempt)
-		fprintf(file, "   Preempt = disabled\n");
-	else
-		fprintf(file, "   Preempt = enabled\n");
+	fprintf(file, "   Accept = %s\n", vrrp->accept ? "enabled" : "disabled");
+	fprintf(file, "   Preempt = %s\n", vrrp->nopreempt ? "disabled" : "enabled");
+	fprintf(file, "   Promote_secondaries = %s\n", vrrp->promote_secondaries ? "enabled" : "disabled");
 	if (vrrp->preempt_delay)
 		fprintf(file, "   Preempt delay = %ld secs\n",
 		       vrrp->preempt_delay / TIMER_HZ);
