@@ -277,7 +277,7 @@ update_script_priorities(vrrp_script_t *vscript)
 	vrrp_t *vrrp;
 	tracked_sc_t *tsc;
 	int effective_priority;
-log_message(LOG_INFO, "In update_script_priorities");
+
 	if (LIST_ISEMPTY(vscript->vrrp))
 		return;
 
@@ -294,7 +294,6 @@ log_message(LOG_INFO, "In update_script_priorities");
 			if (tsc->scr != vscript)
 				continue;
 
-log_message(LOG_INFO, "Found matching script for %s", vrrp->iname);
 			if (!tsc->weight) {
 				if (tsc->scr->result < tsc->scr->rise) {
 					/* The instance needs to go down */

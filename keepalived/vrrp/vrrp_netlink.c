@@ -759,8 +759,6 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 	if (!ifp->tracking_vrrp)
 		return;
 
-	log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
-
 #ifdef _HAVE_VRRP_VMAC_
 	/* We need both the vmac i/f and the physical i/f to be up and running. */
 	was_up = ((ifp->ifi_flags & ifp->base_ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
@@ -773,6 +771,8 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 
 	if (was_up == now_up)
 		return;
+
+	log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
 
 	/* The state of the interface has changed from up to down or vice versa.
 	 * Find which vrrp instances are affected */

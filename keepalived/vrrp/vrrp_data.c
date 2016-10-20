@@ -455,7 +455,7 @@ alloc_vrrp_track(vector_t *strvec)
 
 	if (!LIST_EXISTS(vrrp->track_ifp))
 		vrrp->track_ifp = alloc_list(free_track, dump_track);
-	ifp = alloc_track(vrrp->track_ifp, strvec);
+	alloc_track(vrrp->track_ifp, strvec);
 }
 
 void

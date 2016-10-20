@@ -49,6 +49,14 @@ vrrp_print_list(FILE *file, list l, void (*fptr)(FILE*, void*))
 }
 
 static void
+vrrp_name_print(FILE *file, void *data)
+{
+	vrrp_t *vrrp = data;
+
+	fprintf(file, "     %s\n", vrrp->iname);
+}
+
+static void
 vgroup_print(FILE *file, void *data)
 {
 	unsigned int i;
@@ -79,18 +87,27 @@ vgroup_print(FILE *file, void *data)
 }
 
 static void
-vscript_print(FILE *file, void *data)
+vscript_name_print(FILE *file, void *data)
 {
 	tracked_sc_t *tsc = data;
-	vrrp_script_t *vscript = tsc->scr;
+
+	fprintf(file, "     %s, weight %d\n", tsc->scr->sname, tsc->weight);
+}
+
+static void
+vscript_print(FILE *file, void *data)
+{
+	vrrp_script_t *vscript = data;
 	const char *str;
 
 	fprintf(file, " VRRP Script = %s\n", vscript->sname);
 	fprintf(file, "   Command = %s\n", vscript->script);
 	fprintf(file, "   Interval = %lu sec\n", vscript->interval / TIMER_HZ);
+	fprintf(file, "   Timeout = %lu\n", vscript->timeout / TIMER_HZ);
 	fprintf(file, "   Weight = %d\n", vscript->weight);
 	fprintf(file, "   Rise = %d\n", vscript->rise);
-	fprintf(file, "   Full = %d\n", vscript->fall);
+	fprintf(file, "   Fall = %d\n", vscript->fall);
+	fprintf(file, "   Last exit status = %d\n", vscript->last_status);
 
 	switch (vscript->result) {
 	case VRRP_SCRIPT_STATUS_INIT:
@@ -100,8 +117,12 @@ vscript_print(FILE *file, void *data)
 	default:
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
-	fprintf(file, "   Status = %s\n", str);
-	fprintf(file, "   Interface weight %d\n", tsc->weight);
+	fprintf(file, "   Result = %d (%s)\n", vscript->result, str);
+
+	if (vscript->vrrp) {
+		fprintf(file, "   Tracking VRRP:\n");
+		vrrp_print_list(file, vscript->vrrp, &vrrp_name_print);
+	}
 }
 
 static void
@@ -161,61 +182,68 @@ rule_print(FILE *file, void *data)
 #endif
 
 static void
-if_print(FILE *file, void * data)
+if_name_print(FILE *file, void *data)
 {
 	tracked_if_t *tip = data;
-	interface_t *ifp = tip->ifp;
+
+	fprintf(file, "     %s, weight %d\n", tip->ifp->ifname, tip->weight);
+}
+
+static void
+if_print(FILE *file, void *data)
+{
+	interface_t *ifp = data;
 	char addr_str[INET6_ADDRSTRLEN];
-	int weight = tip->weight;
 	unsigned i;
 
-	fprintf(file, "------< NIC >------\n");
 	fprintf(file, " Name = %s\n", ifp->ifname);
-	fprintf(file, " index = %u\n", ifp->ifindex);
-	fprintf(file, " IPv4 address = %s\n",
+	fprintf(file, "   index = %u\n", ifp->ifindex);
+	fprintf(file, "   IPv4 address = %s\n",
 		inet_ntop2(ifp->sin_addr.s_addr));
 	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
-	fprintf(file, " IPv6 address = %s\n", addr_str);
+	fprintf(file, "   IPv6 address = %s\n", addr_str);
 
-	fprintf(file, " MAC = ");
+	fprintf(file, "   MAC = ");
+	// Copy dump_vrrp for next
 	for (i = 0; i < ifp->hw_addr_len; i++)
-		fprintf(file, "%s%.2x", i ? ":" : "", ifp->hw_addr[i]);
+		fprintf(file, "%s%.2x", i ? ":"  : "", ifp->hw_addr[i]);
 	fprintf(file, "\n");
 
-	if (!(ifp->ifi_flags & (IFF_UP | IFF_RUNNING)))
-		fprintf(file, " is DOWN\n");
-	else {
-		if (ifp->ifi_flags & IFF_UP)
-			fprintf(file, " is UP\n");
+	if ((ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING))
+		fprintf(file, "   is UP and RUNNING\n");
+	else if (ifp->ifi_flags & IFF_UP)
+		fprintf(file, "   is UP\n");
+	else if (ifp->ifi_flags & IFF_RUNNING)
+		fprintf(file, "   is RUNNING\n");
+	else
+		fprintf(file, "   is DOWN\n");
 
-		if (ifp->ifi_flags & IFF_RUNNING)
-			fprintf(file, " is RUNNING\n");
-	}
-
-	if (weight)
-		fprintf(file, " weight = %d\n", weight);
-
-	fprintf(file, " MTU = %d\n", ifp->mtu);
+	fprintf(file, "   MTU = %d\n", ifp->mtu);
 
 	switch (ifp->hw_type) {
 	case ARPHRD_LOOPBACK:
-		fprintf(file, " HW Type = LOOPBACK\n");
+		fprintf(file, "   HW Type = LOOPBACK\n");
 		break;
 	case ARPHRD_ETHER:
-		fprintf(file, " HW Type = ETHERNET\n");
+		fprintf(file, "   HW Type = ETHERNET\n");
 		break;
 	default:
-		fprintf(file, " HW Type = UNKNOWN\n");
+		fprintf(file, "   HW Type = UNKNOWN\n");
 		break;
 	}
 
 	/* MII channel supported ? */
 	if (IF_MII_SUPPORTED(ifp))
-		fprintf(file, " NIC support MII regs\n");
+		fprintf(file, "   NIC support MII regs\n");
 	else if (IF_ETHTOOL_SUPPORTED(ifp))
-		fprintf(file, " NIC support EHTTOOL GLINK interface\n");
+		fprintf(file, "   NIC support ETHTOOL GLINK interface\n");
 	else
-		fprintf(file, " Enabling NIC ioctl refresh polling\n");
+		fprintf(file, "   NIC netlink status update\n");
+
+	if (ifp->tracking_vrrp) {
+		fprintf(file, "   Tracking vrrp:\n");
+		vrrp_print_list(file, ifp->tracking_vrrp, &vrrp_name_print);
+	}
 }
 
 static void
@@ -233,10 +261,10 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   Using Native IPv6\n");
 	if (vrrp->state == VRRP_STATE_BACK) {
 		fprintf(file, "   State = BACKUP\n");
-		fprintf(file, "   Master router = %s\n",
-			inet_sockaddrtos(&vrrp->master_saddr));
-		fprintf(file, "   Master priority = %d\n",
-			vrrp->master_priority);
+		fprintf(file, "   Master router = %s\n", inet_sockaddrtos(&vrrp->master_saddr));
+		fprintf(file, "   Master priority = %d\n", vrrp->master_priority);
+		if (vrrp->version == VRRP_VERSION_3)
+			fprintf(file, "   Master advert int = %.2f sec\n", (float)vrrp->master_adver_int / TIMER_HZ);
 	}
 	else if (vrrp->state == VRRP_STATE_FAULT)
 		fprintf(file, "   State = FAULT\n");
@@ -246,8 +274,7 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   State = %d\n", vrrp->state);
 	ctime_r(&vrrp->last_transition.tv_sec, time_str);
 	time_str[sizeof(time_str)-2] = '\0';	/* Remove '\n' char */
-	fprintf(file, "   Last transition = %ld (%s)\n",
-		vrrp->last_transition.tv_sec, time_str);
+	fprintf(file, "   Last transition = %ld (%s)\n", vrrp->last_transition.tv_sec, time_str);
 	fprintf(file, "   Listening device = %s\n", IF_NAME(vrrp->ifp));
 	if (vrrp->dont_track_primary)
 		fprintf(file, "   VRRP interface tracking disabled\n");
@@ -294,14 +321,12 @@ vrrp_print(FILE *file, void *data)
 #endif
 
 	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-		fprintf(file, "   Tracked interfaces = %d\n",
-			LIST_SIZE(vrrp->track_ifp));
-		vrrp_print_list(file, vrrp->track_ifp, &if_print);
+		fprintf(file, "   Tracked interfaces = %d\n", LIST_SIZE(vrrp->track_ifp));
+		vrrp_print_list(file, vrrp->track_ifp, &if_name_print);
 	}
 	if (!LIST_ISEMPTY(vrrp->track_script)) {
-		fprintf(file, "   Tracked scripts = %d\n",
-		       LIST_SIZE(vrrp->track_script));
-		vrrp_print_list(file, vrrp->track_script, &vscript_print);
+		fprintf(file, "   Tracked scripts = %d\n", LIST_SIZE(vrrp->track_script));
+		vrrp_print_list(file, vrrp->track_script, &vscript_name_print);
 	}
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		fprintf(file, "   Virtual IP = %d\n", LIST_SIZE(vrrp->vip));
@@ -323,22 +348,17 @@ vrrp_print(FILE *file, void *data)
 	}
 #endif
 	if (vrrp->script_backup)
-		fprintf(file, "   Backup state transition script = %s\n",
-		       vrrp->script_backup);
+		fprintf(file, "   Backup state transition script = %s\n", vrrp->script_backup);
 	if (vrrp->script_master)
-		fprintf(file, "   Master state transition script = %s\n",
-		       vrrp->script_master);
+		fprintf(file, "   Master state transition script = %s\n", vrrp->script_master);
 	if (vrrp->script_fault)
-		fprintf(file, "   Fault state transition script = %s\n",
-		       vrrp->script_fault);
+		fprintf(file, "   Fault state transition script = %s\n", vrrp->script_fault);
 	if (vrrp->script_stop)
-		fprintf(file, "   Stop state transition script = %s\n",
-		       vrrp->script_stop);
+		fprintf(file, "   Stop state transition script = %s\n", vrrp->script_stop);
 	if (vrrp->script)
-		fprintf(file, "   Generic state transition script = '%s'\n",
-		       vrrp->script);
+		fprintf(file, "   Generic state transition script = '%s'\n", vrrp->script);
 	if (vrrp->smtp_alert)
-			fprintf(file, "   Using smtp notification\n");
+		fprintf(file, "   Using smtp notification\n");
 }
 
 void
@@ -346,6 +366,7 @@ vrrp_print_data(void)
 {
 	FILE *file;
 	file = fopen ("/tmp/keepalived.data","w");
+	list if_list = get_if_list();
 
 	if (!file) {
 		log_message(LOG_INFO, "Can't open /tmp/keepalived.data (%d: %s)",
@@ -359,6 +380,14 @@ vrrp_print_data(void)
 	if (!LIST_ISEMPTY(vrrp_data->vrrp_sync_group)) {
 		fprintf(file, "------< VRRP Sync groups >------\n");
 		vrrp_print_list(file, vrrp_data->vrrp_sync_group, &vgroup_print);
+	}
+	if (!LIST_ISEMPTY(if_list)) {
+		fprintf(file, "------< Interfaces >------\n");
+		vrrp_print_list(file, if_list, &if_print);
+	}
+	if (!LIST_ISEMPTY(vrrp_data->vrrp_script)) {
+		fprintf(file, "------< VRRP Scripts >------\n");
+		vrrp_print_list(file, vrrp_data->vrrp_script, &vscript_print);
 	}
 	fclose(file);
 
