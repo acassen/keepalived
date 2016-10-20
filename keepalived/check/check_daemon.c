@@ -305,6 +305,8 @@ start_check_child(void)
 		return 0;
 	}
 
+	prog_type = PROG_TYPE_CHECKER;
+
 	if ((instance_name
 #if HAVE_DECL_CLONE_NEWNET
 			   || network_namespace

@@ -28,6 +28,7 @@
 #include "vrrp_data.h"
 #include "logger.h"
 #include "memory.h"
+#include "vrrp_scheduler.h"
 
 /* Track interface dump */
 void
@@ -109,7 +110,7 @@ free_track_script(void *tsc)
 }
 
 void
-alloc_track_script(list track_list, vector_t *strvec)
+alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 {
 	vrrp_script_t *vsc = NULL;
 	tracked_sc_t *tsc = NULL;
@@ -142,7 +143,7 @@ alloc_track_script(list track_list, vector_t *strvec)
 	tsc->scr    = vsc;
 	tsc->weight = weight;
 	vsc->inuse++;
-	list_add(track_list, tsc);
+	list_add(vrrp->track_script, tsc);
 }
 
 /* Test if all tracked interfaces are either UP or weight-tracked */
@@ -251,4 +252,74 @@ vrrp_script_weight(list l)
 	}
 
 	return weight;
+}
+
+static void
+down_instance(vrrp_t *vrrp)
+{
+	/* See update_interface_flags() for some thoughts
+	 * Should we handle all sync group changes here or in the timer_expire ? */
+	if (vrrp->state == VRRP_STATE_MAST)
+		timer_reset(vrrp->sands);
+	thread_read_timer_expire(vrrp->fd_in, false);
+}
+
+static void
+try_up_instance(vrrp_t *vrrp)
+{
+// Something here about setting vrrp->sands
+//	timer_reset(vrrp->sands);
+//	thread_read_timer_expire(vrrp->fd_in, true);
+}
+
+void
+update_script_priorities(vrrp_script_t *vscript)
+{
+	element e, e1;
+	vrrp_t *vrrp;
+	tracked_sc_t *tsc;
+	int effective_priority;
+log_message(LOG_INFO, "In update_script_priorities");
+	if (LIST_ISEMPTY(vscript->vrrp))
+		return;
+
+	for (e = LIST_HEAD(vscript->vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+
+		if (LIST_ISEMPTY(vrrp->track_script))
+			continue;
+
+		for (e1 = LIST_HEAD(vrrp->track_script); e1; ELEMENT_NEXT(e1)) {
+			tsc = ELEMENT_DATA(e1);
+
+			/* Skip if we haven't found the matching entry */
+			if (tsc->scr != vscript)
+				continue;
+
+log_message(LOG_INFO, "Found matching script for %s", vrrp->iname);
+			if (!tsc->weight) {
+				if (tsc->scr->result < tsc->scr->rise) {
+					/* The instance needs to go down */
+					down_instance(vrrp);	//  sets timer_expire and checks sync group
+				} else {
+					/* The instance can come up */
+					try_up_instance(vrrp);  // Set want_state = BACKUP/MASTER, and check i/fs and sync groups
+				}
+				break;
+			}
+
+			/* Don't change effective priority if address owner */
+			if (vrrp->base_priority == VRRP_PRIO_OWNER)
+				continue;
+
+			if (tsc->scr->result >= tsc->scr->rise) {
+				vrrp->total_priority += abs(tsc->weight);
+				effective_priority = vrrp->total_priority >= VRRP_PRIO_OWNER ? VRRP_PRIO_OWNER - 1 : vrrp->total_priority;
+			} else {
+				vrrp->total_priority -= abs(tsc->weight);
+				effective_priority = vrrp->total_priority <= 1 ? 1 : vrrp->total_priority;
+			}
+			vrrp_set_effective_priority(vrrp, effective_priority);
+		}
+	}
 }

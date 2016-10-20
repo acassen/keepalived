@@ -16,7 +16,7 @@ in you configuration file use this char.
 
 0.2. Conditional configuration and configuration id
 
-Any configuration line starts with '@' is a conditional configuration line.
+Any configuration line starting with '@' is a conditional configuration line.
 The word immediately following (i.e. without any space) the '@' character
 is compared against the string specified with the -i command line option,
 and if they don't match, the configuration line is ignored.
@@ -94,7 +94,7 @@ global_defs {				# Block identification
     vrrp_garp_master_refresh <INTEGER>	   # Periodic delay in seconds sending
 					   #  gratuitous ARP while in MASTER state
 					   #  Default: 0 (no refreshing)
-    vrrp_garp_master_refresh_repeat <INTEGER> # how many gratuitous ARP messages shoule be sent
+    vrrp_garp_master_refresh_repeat <INTEGER> # how many gratuitous ARP messages should be sent
 					   #  at each periodic repeat
 					   #  Default: once (per period)
     vrrp_lower_prio_no_advert [<BOOL>]     # If a lower priority advert is received, just discard

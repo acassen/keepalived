@@ -230,7 +230,7 @@ vrrp_print(FILE *file, void *data)
 	char time_str[26];
 
 	fprintf(file, " VRRP Instance = %s\n", vrrp->iname);
-	fprintf(file, " VRRP Version = %d\n", vrrp->version);
+	fprintf(file, "   VRRP Version = %d\n", vrrp->version);
 	if (vrrp->family == AF_INET6)
 		fprintf(file, "   Using Native IPv6\n");
 	if (vrrp->state == VRRP_STATE_BACK) {

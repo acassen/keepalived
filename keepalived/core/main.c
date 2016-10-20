@@ -42,6 +42,7 @@
 #if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
 #endif
+#include "scheduler.h"
 
 #define	LOG_FACILITY_MAX	7
 #define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" VERSION_DATE ")"
@@ -734,6 +735,9 @@ keepalived_main(int argc, char **argv)
 
 	/* Init debugging level */
 	debug = 0;
+
+	/* We are the parent process */
+	prog_type = PROG_TYPE_PARENT;
 
 	/* Initialise pointer to child finding function */
 	set_child_finder(find_keepalived_child);

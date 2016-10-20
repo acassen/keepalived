@@ -50,6 +50,7 @@
 
 /* global vars */
 thread_master_t *master = NULL;
+prog_type_t prog_type;              /* Parent/VRRP/Checker process */
 
 #ifdef _WITH_LVS_
 #include "../keepalived/include/check_daemon.h"
@@ -83,10 +84,6 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 	}
 	else if (child_finder && child_finder(pid, &prog_id))
 		keepalived_child_process = true;
-	else {
-		snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
-		prog_id = pid_buf;
-	}
 
 	if (WIFEXITED(status)) {
 		exit_status = WEXITSTATUS(status);
@@ -99,11 +96,23 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 			return true;
 		}
 
-		if (exit_status != EXIT_SUCCESS)
+		/* We really want the checker process to be able to report this more intelligently */
+		if (exit_status != EXIT_SUCCESS && prog_type != PROG_TYPE_VRRP) {
+			if (!prog_id) {
+				snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
+				prog_id = pid_buf;
+			}
 			log_message(LOG_INFO, "%s exited with status %d", prog_id, exit_status);
+		}
+
 		return false;
 	}
 	if (WIFSIGNALED(status)) {
+		if (!prog_id) {
+			snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
+			prog_id = pid_buf;
+		}
+
 		if (WTERMSIG(status) == SIGSEGV) {
 			log_message(LOG_INFO, "%s exited due to segmentation fault (SIGSEGV).", prog_id);
 			log_message(LOG_INFO, "  Please report a bug at %s", "https://github.com/acassen/keepalived/issues");

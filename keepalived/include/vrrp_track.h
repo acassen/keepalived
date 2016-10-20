@@ -35,6 +35,7 @@
 #include "vector.h"
 #include "list.h"
 #include "vrrp_if.h"
+#include "vrrp.h"
 
 /* Macro definition */
 #define TRACK_ISUP(L)	(vrrp_tracked_up((L)))
@@ -52,6 +53,7 @@
  * success, we increase result and set it to rise+fall-1 when we pass above
  * rise-1.
  */
+#define VRRP_SCRIPT_STATUS_NOT_SET   -4
 #define VRRP_SCRIPT_STATUS_DISABLED  -3
 #define VRRP_SCRIPT_STATUS_INIT_GOOD -2
 #define VRRP_SCRIPT_STATUS_INIT      -1
@@ -67,6 +69,8 @@ typedef struct _vrrp_script {
 	int			inuse;		/* how many users have weight>0 ? */
 	int			rise;		/* R: how many successes before OK */
 	int			fall;		/* F: how many failures before KO */
+	list			vrrp;		/* List of vrrp instances using this script */
+	int8_t			last_status;	/* Last status returned by script. Used to report changes */
 } vrrp_script_t;
 
 /* Tracked script structure definition */
@@ -75,18 +79,22 @@ typedef struct _tracked_sc {
 	vrrp_script_t		*scr;		/* script pointer, cannot be NULL */
 } tracked_sc_t;
 
+/* Forward references */
+struct _vrrp_t;
+
 /* prototypes */
 extern void dump_track(void *);
 extern void free_track(void *);
 extern interface_t *alloc_track(list, vector_t *);
 extern void dump_track_script(void *);
 extern void free_track_script(void *);
-extern void alloc_track_script(list, vector_t *);
+extern void alloc_track_script(struct _vrrp_t*, vector_t *);
 extern bool vrrp_tracked_up(list);
 extern void vrrp_log_tracked_down(list);
 extern int vrrp_tracked_weight(list);
 extern bool vrrp_script_up(list);
 extern int vrrp_script_weight(list);
 extern vrrp_script_t *find_script_by_name(char *);
+extern void update_script_priorities(vrrp_script_t *);
 
 #endif

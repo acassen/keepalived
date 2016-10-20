@@ -469,6 +469,8 @@ start_vrrp_child(void)
 
 	signal_handler_destroy();
 
+	prog_type = PROG_TYPE_VRRP;
+
 	/* Opening local VRRP syslog channel */
 	if ((instance_name
 #if HAVE_DECL_CLONE_NEWNET

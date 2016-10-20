@@ -121,11 +121,19 @@ dump_vgroup(void *data)
 		log_message(LOG_INFO, "   Using smtp notification");
 }
 
+void
+dump_vscript_vrrp(void *data)
+{
+	vrrp_t *vrrp = (vrrp_t *)data;
+	log_message(LOG_INFO, "     %s", vrrp->iname);
+}
+
 static void
 free_vscript(void *data)
 {
 	vrrp_script_t *vscript = data;
 
+	free_list(&vscript->vrrp);
 	FREE(vscript->sname);
 	FREE_PTR(vscript->script);
 	FREE(vscript);
@@ -155,6 +163,9 @@ dump_vscript(void *data)
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
 	log_message(LOG_INFO, "   Status = %s", str);
+	log_message(LOG_INFO, "   Use count = %d", vscript->inuse);
+	log_message(LOG_INFO, "   VRRP instances:");
+	dump_list(vscript->vrrp);
 }
 
 /* Socket pool functions */
@@ -459,7 +470,7 @@ alloc_vrrp_track_script(vector_t *strvec)
 
 	if (!LIST_EXISTS(vrrp->track_script))
 		vrrp->track_script = alloc_list(free_track_script, dump_track_script);
-	alloc_track_script(vrrp->track_script, strvec);
+	alloc_track_script(vrrp, strvec);
 }
 
 void
@@ -517,6 +528,7 @@ alloc_vrrp_script(char *sname)
 	new->timeout = VRRP_SCRIPT_DT * TIMER_HZ;
 	new->weight = VRRP_SCRIPT_DW;
 	new->result = VRRP_SCRIPT_STATUS_INIT;
+	new->last_status = VRRP_SCRIPT_STATUS_NOT_SET;
 	new->inuse = 0;
 	new->rise = 1;
 	new->fall = 1;

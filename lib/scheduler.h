@@ -94,6 +94,12 @@ enum {
 	THREAD_IF_DOWN
 };
 
+typedef enum {
+	PROG_TYPE_PARENT,
+	PROG_TYPE_VRRP,
+	PROG_TYPE_CHECKER,
+} prog_type_t;
+
 /* MICRO SEC def */
 #define BOOTSTRAP_DELAY TIMER_HZ
 #define RESPAWN_TIMER	60*TIMER_HZ
@@ -111,6 +117,7 @@ enum {
 
 /* global vars exported */
 extern thread_master_t *master;
+prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 
 /* Prototypes. */
 extern void set_child_finder(bool (*)(pid_t, char const **));

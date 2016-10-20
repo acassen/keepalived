@@ -2045,6 +2045,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	vrrp->effective_priority = vrrp->base_priority;
+	vrrp->total_priority = vrrp->base_priority;
 
 	if (vrrp->init_state == VRRP_STATE_MAST) {
 		if (vrrp->nopreempt) {

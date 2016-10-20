@@ -279,6 +279,21 @@ vrrp_init_state(list l)
 			}
 		}
 
+		/* Now add a list to the script to reference the vrrp instances */
+		if (!LIST_ISEMPTY(vrrp->track_script)) {
+			element e2;
+			tracked_sc_t *sc;
+			vrrp_script_t *vsc;
+
+			for (e2 = LIST_HEAD(vrrp->track_script); e2; ELEMENT_NEXT(e2)) {
+				sc = ELEMENT_DATA(e2);
+				vsc = sc->scr;
+				if (!LIST_EXISTS(vsc->vrrp))
+					vsc->vrrp = alloc_list(NULL, dump_vscript_vrrp);
+				list_add(vsc->vrrp, vrrp); 
+			}
+		}
+
 		/* wantstate is the state we would be in disregarding any sync group */
 		vrrp->wantstate = vrrp->state == VRRP_STATE_FAULT ? VRRP_STATE_FAULT :
 					vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST :
@@ -885,31 +900,35 @@ static int
 vrrp_update_priority(thread_t * thread)
 {
 	vrrp_t *vrrp = THREAD_ARG(thread);
-	int prio_offset, new_prio;
+	int new_prio;
 
 // TODO - we need to make sure tracked interfaces are handled in quick stuf
 
+	/* WARNING! we must compute new_prio on a signed int in order
+	   to detect overflows and avoid wrapping. */
+
 	/* compute prio_offset right here */
-	prio_offset = 0;
+	new_prio = vrrp->base_priority;
 
 	/* Now we will sum the weights of all interfaces which are tracked. */
 	if (!LIST_ISEMPTY(vrrp->track_ifp))
-		 prio_offset += vrrp_tracked_weight(vrrp->track_ifp);
+		 new_prio += vrrp_tracked_weight(vrrp->track_ifp);
 
 	/* Now we will sum the weights of all scripts which are tracked. */
 	if (!LIST_ISEMPTY(vrrp->track_script))
-		prio_offset += vrrp_script_weight(vrrp->track_script);
+		new_prio += vrrp_script_weight(vrrp->track_script);
 
-	/* WARNING! we must compute new_prio on a signed int in order
-	   to detect overflows and avoid wrapping. */
-	new_prio = vrrp->base_priority + prio_offset;
+	vrrp->total_priority = new_prio;
 	if (new_prio < 1)
 		new_prio = 1;
 	else if (new_prio >= VRRP_PRIO_OWNER)
 		new_prio = VRRP_PRIO_OWNER - 1;
+// TODO 1 - just call with vrrp, and use total_priority
 	vrrp_set_effective_priority(vrrp, (uint8_t)new_prio);
 
 	/* Register next priority update thread */
+// TODO 1 - we won't want the add timer
+// To begin with we should run and check the calculated priorty == total_priority
 	thread_add_timer(master, vrrp_update_priority, vrrp, vrrp->master_adver_int);
 	return 0;
 }
@@ -1031,7 +1050,6 @@ vrrp_dispatcher_read_timeout(int fd)
 
 	set_time_now();
 
-log_message(LOG_INFO, "d_read_timeout for %d: %p, empty %d", fd, l, LIST_ISEMPTY(l));
 	/* Multiple instances on the same interface */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
@@ -1181,13 +1199,22 @@ vrrp_script_child_thread(thread_t * thread)
 	if (WIFEXITED(wait_status)) {
 		int status;
 		status = WEXITSTATUS(wait_status);
+
+		/* Report if status has changed */
+		if (status != vscript->last_status) {
+			log_message(LOG_INFO, "Script %s now returning %d", vscript->sname, status);
+			vscript->last_status = status;
+		}
+
 		if (status == 0) {
 			/* success */
 			if (vscript->result < vscript->rise - 1) {
 				vscript->result++;
 			} else {
-				if (vscript->result < vscript->rise)
+				if (vscript->result < vscript->rise) {
 					log_message(LOG_INFO, "VRRP_Script(%s) succeeded", vscript->sname);
+					update_script_priorities(vscript);
+				}
 				vscript->result = vscript->rise + vscript->fall - 1;
 			}
 		} else {
@@ -1195,8 +1222,10 @@ vrrp_script_child_thread(thread_t * thread)
 			if (vscript->result > vscript->rise) {
 				vscript->result--;
 			} else {
-				if (vscript->result >= vscript->rise)
+				if (vscript->result == vscript->rise) {
 					log_message(LOG_INFO, "VRRP_Script(%s) failed", vscript->sname);
+					update_script_priorities(vscript);
+				}
 				vscript->result = 0;
 			}
 		}

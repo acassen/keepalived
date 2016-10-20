@@ -317,7 +317,6 @@ log_message(LOG_INFO, "sync from %s not master for %s", vrrp->sync->gname, vrrp-
 			} else
 				vrrp_state_goto_master(isync);
 			isync->if_state_changed = true;
-log_message(LOG_INFO, "Expiring fd %d for %s", isync->fd_in, isync->iname);
 			thread_read_timer_expire(isync->fd_in, true);
 		}
 	}
