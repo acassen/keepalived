@@ -2256,7 +2256,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	/* Add this instance to the physical interface */
-	add_vrrp_to_interface(vrrp, vrrp->ifp);
+	if (!vrrp->dont_track_primary)
+		add_vrrp_to_interface(vrrp, vrrp->ifp);
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
@@ -2283,7 +2284,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			netlink_link_add_vmac(vrrp);
 
 		/* Add this instance to the vmac interface */
-		add_vrrp_to_interface(vrrp, vrrp->ifp);
+		if (!vrrp->dont_track_primary)
+			add_vrrp_to_interface(vrrp, vrrp->ifp);
 
 		/* set scopeid of source address if IPv6 */
 		if (vrrp->saddr.ss_family == AF_INET6)
