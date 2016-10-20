@@ -125,12 +125,14 @@ typedef struct _tracked_if {
 #define IF_MII_SUPPORTED(X) ((X)->lb_type & LB_MII)
 #define IF_ETHTOOL_SUPPORTED(X) ((X)->lb_type & LB_ETHTOOL)
 #define IF_LINKBEAT(X) ((X)->linkbeat)
-#define IF_ISUP(X) (((X)->ifi_flags & IFF_UP)      && \
-		    ((X)->ifi_flags & IFF_RUNNING) && \
-		    (!(X)->vmac || \
-		     ((X)->base_ifp->ifi_flags & IFF_UP && \
-		      (X)->base_ifp->ifi_flags & IFF_RUNNING)) && \
-		    ((X)->linkbeat))
+#define IF_FLAGS_UP(X) (((X)->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING))
+#ifdef _HAVE_VRRP_VMAC_
+#define IF_ISUP(X) (IF_FLAGS_UP(X) && \
+		    (!(X)->vmac || IF_FLAGS_UP((X)->base_ifp)) && \
+		    (X)->linkbeat)
+#else
+#define IF_ISUP(X) (IF_FLAGS_UP(X) && (X)->linkbeat)
+#endif
 
 /* Global data */
 list garp_delay;

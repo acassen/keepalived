@@ -98,8 +98,9 @@ typedef struct _vrrp_sgroup {
 	char			*gname;			/* Group name */
 	vector_t		*iname;			/* Set of VRRP instances in this group */
 	list			index_list;		/* List of VRRP instances */
+	unsigned		num_member_fault;	/* Number of members of group in fault state */
 	int			state;			/* current stable state */
-	int			global_tracking;	/* Use floating priority and scripts
+	bool			global_tracking;	/* Use floating priority and scripts
 							 * All VRRP must share same tracking conf */
 
 	/* State transition notification */

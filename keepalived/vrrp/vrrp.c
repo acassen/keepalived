@@ -2382,7 +2382,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
-	/* Now add a list to the script to reference the vrrp instances */
+	vrrp->num_script_if_fault = 0;
+
+	/* Add us to the vrrp list of the script, and update
+	 * effective_priority and num_script_if_fault */
 	if (!LIST_ISEMPTY(vrrp->track_script)) {
 		element e2;
 		tracked_sc_t *sc;
@@ -2396,8 +2399,36 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				vsc->vrrp = alloc_list(NULL, dump_vscript_vrrp);
 
 			list_add(vsc->vrrp, vrrp); 
+
+			if (sc->weight > 0) {
+				if (vsc->result == vsc->rise + vsc->fall - 1)
+					vrrp->effective_priority += sc->weight;
+			}
+			else if (sc->weight < 0) {
+				if (vsc->result == 0)
+					vrrp->effective_priority += sc->weight;
+			}
+			else if (vsc->result == 0)	// Unweighted so script down => instance down
+				vrrp->num_script_if_fault++;
 		}
 	}
+
+	/* Step through all the interfaces we are tracking, to set interface faults */
+	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
+		element e2;
+		interface_t *ifp;
+
+		for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
+			ifp = ELEMENT_DATA(e2);
+
+			if (!IF_ISUP(ifp))
+				vrrp->num_script_if_fault++;
+		}
+	}
+
+	/* Update fault count on sync group if needed */
+	if (vrrp->sync && vrrp->num_script_if_fault)
+		vrrp->sync->num_member_fault++;
 
 	if (interface_already_existed) {
 // TODO - consider reload
