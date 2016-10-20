@@ -2755,21 +2755,36 @@ void
 clear_diff_script(void)
 {
 	element e;
-	list l = old_vrrp_data->vrrp_script;
 	vrrp_script_t *vscript, *nvscript;
 
-	if (LIST_ISEMPTY(l))
+	if (LIST_ISEMPTY(old_vrrp_data->vrrp_script))
 		return;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+	for (e = LIST_HEAD(old_vrrp_data->vrrp_script); e; ELEMENT_NEXT(e)) {
 		vscript = ELEMENT_DATA(e);
-		if (vscript->result >= vscript->rise) {
-			nvscript = find_script_by_name(vscript->sname);
-			if (nvscript) {
-				log_message(LOG_INFO, "VRRP_Script(%s) considered successful on reload",
-					   nvscript->sname);
-				nvscript->result = VRRP_SCRIPT_STATUS_INIT_GOOD;
+		nvscript = find_script_by_name(vscript->sname);
+		if (nvscript) {
+			/* Set the script result to match the previous result */
+			if (vscript->result < vscript->rise) {
+				if (!vscript->result)
+					nvscript->result = 0;
+				else {
+					nvscript->result = nvscript->rise - (vscript->rise - vscript->result);
+					if (nvscript->result < 0)
+						nvscript->result = 0;
+				}
+				log_message(LOG_INFO, "VRRP_Script(%s) considered unsuccessful on reload", nvscript->sname);
+			} else {
+				if (vscript->result == vscript->rise + vscript->fall - 1)
+					nvscript->result = vscript->rise + vscript->fall - 1;
+				else {
+					nvscript->result = nvscript->rise + (vscript->rise - vscript->result);
+					if (nvscript->result >= nvscript->rise + nvscript->fall)
+						nvscript->result = vscript->rise + vscript->fall - 1;
+				}
+				log_message(LOG_INFO, "VRRP_Script(%s) considered successful on reload", nvscript->sname);
 			}
+			nvscript->last_status = vscript->last_status;
 		}
 	}
 }

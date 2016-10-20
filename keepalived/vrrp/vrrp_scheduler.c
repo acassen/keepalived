@@ -397,8 +397,6 @@ vrrp_init_script(list l)
 		else {
 			if (vscript->result == VRRP_SCRIPT_STATUS_INIT)
 				vscript->result = vscript->rise - 1; /* one success is enough */
-			else if (vscript->result == VRRP_SCRIPT_STATUS_INIT_GOOD)
-				vscript->result = vscript->rise; /* one failure is enough */
 
 			thread_add_event(master, vrrp_script_thread, vscript, (int)vscript->interval);
 		}

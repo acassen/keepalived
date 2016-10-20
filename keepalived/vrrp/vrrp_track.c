@@ -214,8 +214,6 @@ vrrp_script_up(list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		tsc = ELEMENT_DATA(e);
-		if (tsc->scr->result == VRRP_SCRIPT_STATUS_INIT_GOOD)
-			continue;
 		if (!tsc->weight && tsc->scr->result < tsc->scr->rise)
 			return false;
 	}

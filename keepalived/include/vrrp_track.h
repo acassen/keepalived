@@ -55,7 +55,6 @@
  */
 #define VRRP_SCRIPT_STATUS_NOT_SET   -4
 #define VRRP_SCRIPT_STATUS_DISABLED  -3
-#define VRRP_SCRIPT_STATUS_INIT_GOOD -2
 #define VRRP_SCRIPT_STATUS_INIT      -1
 
 /* external script we call to track local processes */

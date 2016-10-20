@@ -95,8 +95,6 @@ vscript_print(FILE *file, void *data)
 	switch (vscript->result) {
 	case VRRP_SCRIPT_STATUS_INIT:
 		str = "INIT"; break;
-	case VRRP_SCRIPT_STATUS_INIT_GOOD:
-		str = "INIT/GOOD"; break;
 	case VRRP_SCRIPT_STATUS_DISABLED:
 		str = "DISABLED"; break;
 	default:

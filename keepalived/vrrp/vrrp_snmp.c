@@ -486,8 +486,6 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 		switch (scr->result) {
 		case VRRP_SCRIPT_STATUS_INIT:
 			long_ret.u = 1; break;
-		case VRRP_SCRIPT_STATUS_INIT_GOOD:
-			long_ret.u = 4; break;
 		case VRRP_SCRIPT_STATUS_DISABLED:
 			long_ret.u = 0; break;
 		default:
