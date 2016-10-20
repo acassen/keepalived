@@ -162,6 +162,7 @@ typedef struct _vrrp_t {
 #endif
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
+	unsigned		num_script_if_fault;	/* Number of scripts and interfaces in fault state */
 	struct sockaddr_storage	saddr;			/* Src IP address to use in VRRP IP header */
 	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
 	list			unicast_peer;		/* List of Unicast peer to send advert to */
@@ -299,7 +300,7 @@ typedef struct _vrrp_t {
 #define VRRP_PKT_SADDR(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in *) &(V)->saddr)->sin_addr.s_addr : IF_ADDR((V)->ifp))
 #define VRRP_PKT_SADDR6(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in6 *) &(V)->saddr)->sin6_addr : IF_ADDR6((V)->ifp))
 
-#define VRRP_IF_ISUP(V)		((IF_ISUP(V)->ifp || (V)->dont_track_primary) && \
+#define VRRP_IF_ISUP(V)		((IF_ISUP((V)->ifp) || (V)->dont_track_primary) && \
 				 (LIST_ISEMPTY((V)->track_ifp) || TRACK_ISUP((V)->track_ifp)))
 
 #define VRRP_SCRIPT_ISUP(V)	(LIST_ISEMPTY((V)->track_script) || SCRIPT_ISUP((V)->track_script))
@@ -320,7 +321,6 @@ extern void vrrp_state_backup(vrrp_t *, char *, ssize_t);
 extern void vrrp_state_goto_master(vrrp_t *);
 extern void vrrp_state_leave_master(vrrp_t *);
 extern void vrrp_state_leave_fault(vrrp_t *);
-extern void add_vrrp_to_interface(vrrp_t *, interface_t *);
 extern bool vrrp_complete_init(void);
 #ifdef _WITH_LVS_
 extern bool vrrp_ipvs_needed(void);

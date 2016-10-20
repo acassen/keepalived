@@ -327,7 +327,7 @@ free_if(void *data)
 {
 	interface_t *ifp = data;
 
-	free_list(&ifp->tracking_inst);
+	free_list(&ifp->tracking_vrrp);
 	FREE(data);
 }
 
@@ -507,7 +507,7 @@ init_if_linkbeat(void)
 		ifp = ELEMENT_DATA(e);
 
 		/* Don't poll an interface that we aren't using */
-		if (!ifp->tracking_inst)
+		if (!ifp->tracking_vrrp)
 			continue;
 
 #ifdef _HAVE_VRRP_VMAC_

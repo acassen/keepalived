@@ -753,6 +753,14 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 	if (ifi_flags == ifp->ifi_flags)
 		return;
 
+	if (!vrrp_data)
+		return;
+
+	if (!ifp->tracking_vrrp)
+		return;
+
+	log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
+
 #ifdef _HAVE_VRRP_VMAC_
 	/* We need both the vmac i/f and the physical i/f to be up and running. */
 	was_up = ((ifp->ifi_flags & ifp->base_ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
@@ -766,17 +774,9 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 	if (was_up == now_up)
 		return;
 
-	log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
-
-	if (!vrrp_data)
-		return;
-
-	if (!ifp->tracking_inst)
-		return;
-
 	/* The state of the interface has changed from up to down or vice versa.
 	 * Find which vrrp instances are affected */
-	for (e = LIST_HEAD(ifp->tracking_inst); e; ELEMENT_NEXT(e)) {
+	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
 		/* This vrrp's interface or underlying interface has changed */
@@ -1043,16 +1043,16 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 				ifp = (interface_t *) MALLOC(sizeof(interface_t));
 				if_add_queue(ifp);
 			} else {
-				/* Since the garp_delay and tracking_inst are set up by name,
+				/* Since the garp_delay and tracking_vrrp are set up by name,
 				 * it is reasonable to preserve them.
 				 * If what is created is a vmac, we could end up in a complete mess. */
 				garp_delay_t *sav_garp_delay = ifp->garp_delay;
-				list sav_tracking_inst = ifp->tracking_inst;
+				list sav_tracking_vrrp = ifp->tracking_vrrp;
 
 				memset(ifp, 0, sizeof(interface_t));
 
 				ifp->garp_delay = sav_garp_delay;
-				ifp->tracking_inst = sav_tracking_inst;
+				ifp->tracking_vrrp = sav_tracking_vrrp;
 			}
 			status = netlink_if_link_populate(ifp, tb, ifi);
 			if (status < 0)

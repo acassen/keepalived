@@ -1678,12 +1678,12 @@ vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	return 0;
 }
 
-void
+static void
 add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp)
 {
-	if (!LIST_EXISTS(ifp->tracking_inst))
-		ifp->tracking_inst = alloc_list(NULL, NULL);
-	list_add(ifp->tracking_inst, vrrp);
+	if (!LIST_EXISTS(ifp->tracking_vrrp))
+		ifp->tracking_vrrp = alloc_list(NULL, NULL);
+	list_add(ifp->tracking_vrrp, vrrp);
 }
 
 /* check for minimum configuration requirements */
@@ -2333,6 +2333,72 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	// If in sync group, check if priority and adver_int match first (if exists)
 	// member of sync group, and if not ? remove from sync group or set priority
 	// and adver_int to first.
+
+	/* The effective priority is never changed for PRIO_OWNER */
+	if (vrrp->base_priority != VRRP_PRIO_OWNER) {
+		/* In case of VRRP SYNC, we have to carefully check that we are
+		 * not running floating priorities on any VRRP instance, or they
+		 * are all running with the same tracking conf.
+		 */
+// TODO - We also want to ensure if global_tracking on a group, then it really is
+// TODO - Can it be merged into 1 list held against the sync group ?
+
+		if (vrrp->sync && !vrrp->sync->global_tracking) {
+			element e2, next;
+			tracked_sc_t *sc;
+			tracked_if_t *tip;
+
+			/* Set weight to 0 of any interface we are tracking */
+			if (!LIST_ISEMPTY(vrrp->track_ifp)) {
+				for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
+					tip = ELEMENT_DATA(e2);
+					if (tip->weight) {
+						tip->weight = 0;
+						log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring weight of "
+								 "tracked interface %s due to SYNC group", vrrp->iname, tip->ifp->ifname);
+					}
+				}
+			}
+
+			if (!LIST_ISEMPTY(vrrp->track_script)) {
+				for (e2 = LIST_HEAD(vrrp->track_script); e2; e2 = next) {
+					next = e2->next;
+					sc = ELEMENT_DATA(e2);
+					if (sc->weight) {
+						log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring "
+								 "tracked script %s with weights due to SYNC group", vrrp->iname, sc->scr->sname);
+						free_list_element(vrrp->track_script, e2);
+
+						if (!--sc->scr->inuse) {
+							sc->scr->result = VRRP_SCRIPT_STATUS_DISABLED;
+							log_message(LOG_INFO, "Warning - script %s is not used", sc->scr->sname);
+						}
+					}
+				}
+				if (LIST_ISEMPTY(vrrp->track_script))
+					free_list(&vrrp->track_script);
+			}
+
+		}
+	}
+
+	/* Now add a list to the script to reference the vrrp instances */
+	if (!LIST_ISEMPTY(vrrp->track_script)) {
+		element e2;
+		tracked_sc_t *sc;
+		vrrp_script_t *vsc;
+
+		for (e2 = LIST_HEAD(vrrp->track_script); e2; ELEMENT_NEXT(e2)) {
+			sc = ELEMENT_DATA(e2);
+			vsc = sc->scr;
+
+			if (!LIST_EXISTS(vsc->vrrp))
+				vsc->vrrp = alloc_list(NULL, dump_vscript_vrrp);
+
+			list_add(vsc->vrrp, vrrp); 
+		}
+	}
+
 	if (interface_already_existed) {
 // TODO - consider reload
 		vrrp->vipset = true;	/* Set to force address removal */

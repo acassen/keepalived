@@ -225,73 +225,13 @@ vrrp_init_state(list l)
 		vrrp = ELEMENT_DATA(e);
 
 		/* The effective priority is never changed for PRIO_OWNER */
-		if (vrrp->base_priority != VRRP_PRIO_OWNER) {
-			/* In case of VRRP SYNC, we have to carefully check that we are
-			 * not running floating priorities on any VRRP instance, or they
-			 * are all running with the same tracking conf.
-			 */
 // TODO - We also want to ensure if global_tracking on a group, then it really is
 // TODO - Can it be merged into 1 list held against the sync group ?
-
-			if (vrrp->sync && !vrrp->sync->global_tracking) {
-				element e2, next;
-				tracked_sc_t *sc;
-				tracked_if_t *tip;
-				bool int_warning = false;
-				bool script_warning = false;
-
-				if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-					for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
-						tip = ELEMENT_DATA(e2);
-						if (tip->weight) {
-							tip->weight = 0;
-							int_warning = true;
-						}
-					}
-				}
-
-				if (!LIST_ISEMPTY(vrrp->track_script)) {
-					for (e2 = LIST_HEAD(vrrp->track_script); e2; e2 = next) {
-						next = e2->next;
-						sc = ELEMENT_DATA(e2);
-						if (sc->weight) {
-							/* We could be consistent with tracked interfaces, and simply
-							 * set sc->weight = 0, but whatever, its a configuration error */
-							sc->scr->inuse--;
-							free_list_element(vrrp->track_script, e2);
-							script_warning = true;
-						}
-					}
-					if (LIST_ISEMPTY(vrrp->track_script))
-						free_list(&vrrp->track_script);
-				}
-
-				if (int_warning)
-					log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring weights of "
-							 "tracked interface due to SYNC group", vrrp->iname);
-				if (script_warning)
-					log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring "
-							 "tracked script with weights due to SYNC group", vrrp->iname);
-			} else {
+		if (vrrp->base_priority != VRRP_PRIO_OWNER &&
+		    (!vrrp->sync || vrrp->sync->global_tracking)) {
 				/* Register new priority update thread */
 				thread_add_timer(master, vrrp_update_priority,
 						 vrrp, vrrp->master_adver_int);
-			}
-		}
-
-		/* Now add a list to the script to reference the vrrp instances */
-		if (!LIST_ISEMPTY(vrrp->track_script)) {
-			element e2;
-			tracked_sc_t *sc;
-			vrrp_script_t *vsc;
-
-			for (e2 = LIST_HEAD(vrrp->track_script); e2; ELEMENT_NEXT(e2)) {
-				sc = ELEMENT_DATA(e2);
-				vsc = sc->scr;
-				if (!LIST_EXISTS(vsc->vrrp))
-					vsc->vrrp = alloc_list(NULL, dump_vscript_vrrp);
-				list_add(vsc->vrrp, vrrp); 
-			}
 		}
 
 		/* wantstate is the state we would be in disregarding any sync group */
@@ -371,7 +311,7 @@ vrrp_init_sands(list l)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-// TODO this is probably not the right way of bringing up the address owner immediately
+// TODO 1 this is probably not the right way of bringing up the address owner immediately
 		if (vrrp->base_priority != VRRP_PRIO_OWNER)
 			vrrp_init_instance_sands(vrrp);
 		else
@@ -379,9 +319,6 @@ vrrp_init_sands(list l)
 	}
 }
 
-/* if run after vrrp_init_state(), it will be able to detect scripts that
- * have been disabled because of a sync group and will avoid to start them.
- */
 static void
 vrrp_init_script(list l)
 {
@@ -390,11 +327,7 @@ vrrp_init_script(list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vscript = ELEMENT_DATA(e);
-		if (!vscript->inuse) {
-			vscript->result = VRRP_SCRIPT_STATUS_DISABLED;
-			log_message(LOG_INFO, "Warning - script %s is not used", vscript->sname);
-		}
-		else {
+		if (vscript->result != VRRP_SCRIPT_STATUS_DISABLED) {
 			if (vscript->result == VRRP_SCRIPT_STATUS_INIT)
 				vscript->result = vscript->rise - 1; /* one success is enough */
 
