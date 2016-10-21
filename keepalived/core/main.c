@@ -209,17 +209,18 @@ static bool
 find_keepalived_child(pid_t pid, char const **prog_name)
 {
 #ifdef _WITH_LVS_
-	if (pid == checkers_child)
+	if (pid == checkers_child) {
 		*prog_name = PROG_CHECK;
+		return true;
+	}
 #endif
 #ifdef _WITH_VRRP_
-	else if (pid == vrrp_child)
+	if (pid == vrrp_child) {
 		*prog_name = PROG_VRRP;
+		return true;
+	}
 #endif
-	else
-		return false;
-
-	return true;
+	return false;
 }
 
 #if HAVE_DECL_CLONE_NEWNET
