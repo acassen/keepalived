@@ -81,8 +81,11 @@ free_vgroup(void *data)
 {
 	vrrp_sgroup_t *vgroup = data;
 
+	if (vgroup->iname) {
+		log_message(LOG_INFO, "sync group %s - iname vector exists when freeing group", vgroup->gname);
+		free_strvec(vgroup->iname);
+	}
 	FREE(vgroup->gname);
-	free_strvec(vgroup->iname);
 	free_list(&vgroup->index_list);
 	FREE_PTR(vgroup->script_backup);
 	FREE_PTR(vgroup->script_master);
@@ -94,14 +97,15 @@ static void
 dump_vgroup(void *data)
 {
 	vrrp_sgroup_t *vgroup = data;
-	unsigned int i;
-	char *str;
+	element e;
 
 	log_message(LOG_INFO, " VRRP Sync Group = %s, %s", vgroup->gname,
 	       (vgroup->state == VRRP_STATE_MAST) ? "MASTER" : "BACKUP");
-	for (i = 0; i < vector_size(vgroup->iname); i++) {
-		str = vector_slot(vgroup->iname, i);
-		log_message(LOG_INFO, "   monitor = %s", str);
+	if (vgroup->index_list) {
+		for (e = LIST_HEAD(vgroup->index_list); e; ELEMENT_NEXT(e)) {
+			vrrp_t *vrrp = ELEMENT_DATA(e);
+			log_message(LOG_INFO, "   monitor = %s", vrrp->iname);
+		}
 	}
 	if (vgroup->global_tracking)
 		log_message(LOG_INFO, "   Same tracking for all VRRP instances");

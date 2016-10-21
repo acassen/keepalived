@@ -59,15 +59,16 @@ vrrp_name_print(FILE *file, void *data)
 static void
 vgroup_print(FILE *file, void *data)
 {
-	unsigned int i;
-	char *str;
+	element e;
 
 	vrrp_sgroup_t *vgroup = data;
 	fprintf(file, " VRRP Sync Group = %s, %s\n", vgroup->gname,
 		(vgroup->state == VRRP_STATE_MAST) ? "MASTER" : "BACKUP");
-	for (i = 0; i < vector_size(vgroup->iname); i++) {
-		str = vector_slot(vgroup->iname, i);
-		fprintf(file, "   monitor = %s\n", str);
+	if (vgroup->index_list) {
+		for (e = LIST_HEAD(vgroup->index_list); e; ELEMENT_NEXT(e)) {
+			vrrp_t *vrrp = ELEMENT_DATA(e);
+			fprintf(file, "   monitor = %s\n", vrrp->iname);
+		}
 	}
 	if (vgroup->script_backup)
 		fprintf(file, "   Backup state transition script = %s\n",
@@ -209,15 +210,7 @@ if_print(FILE *file, void *data)
 		fprintf(file, "%s%.2x", i ? ":"  : "", ifp->hw_addr[i]);
 	fprintf(file, "\n");
 
-	if ((ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING))
-		fprintf(file, "   is UP and RUNNING\n");
-	else if (ifp->ifi_flags & IFF_UP)
-		fprintf(file, "   is UP\n");
-	else if (ifp->ifi_flags & IFF_RUNNING)
-		fprintf(file, "   is RUNNING\n");
-	else
-		fprintf(file, "   is DOWN\n");
-
+	fprintf(file, "   %sUP, %sRUNNING\n", ifp->ifi_flags & IFF_UP ? "" : "not ", ifp->ifi_flags & IFF_RUNNING ? "" : "not " );
 	fprintf(file, "   MTU = %d\n", ifp->mtu);
 
 	switch (ifp->hw_type) {
@@ -257,6 +250,8 @@ vrrp_print(FILE *file, void *data)
 
 	fprintf(file, " VRRP Instance = %s\n", vrrp->iname);
 	fprintf(file, "   VRRP Version = %d\n", vrrp->version);
+	if (vrrp->sync)
+		fprintf(file, "   Sync group = %s\n", vrrp->sync->gname);
 	if (vrrp->family == AF_INET6)
 		fprintf(file, "   Using Native IPv6\n");
 	if (vrrp->state == VRRP_STATE_BACK) {
@@ -275,7 +270,12 @@ vrrp_print(FILE *file, void *data)
 	ctime_r(&vrrp->last_transition.tv_sec, time_str);
 	time_str[sizeof(time_str)-2] = '\0';	/* Remove '\n' char */
 	fprintf(file, "   Last transition = %ld (%s)\n", vrrp->last_transition.tv_sec, time_str);
-	fprintf(file, "   Listening device = %s\n", IF_NAME(vrrp->ifp));
+	fprintf(file, "   Interface = %s", IF_NAME(vrrp->ifp));
+#ifdef _HAVE_VRRP_VMAC_
+	if (vrrp->ifp != vrrp->ifp->base_ifp)
+		fprintf(file, ", vmac on %s", vrrp->ifp->base_ifp->ifname);
+#endif
+	fprintf(file, "\n");
 	if (vrrp->dont_track_primary)
 		fprintf(file, "   VRRP interface tracking disabled\n");
 	if (vrrp->skip_check_adv_addr)

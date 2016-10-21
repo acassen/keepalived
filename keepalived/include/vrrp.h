@@ -96,7 +96,7 @@ typedef struct {
  */
 typedef struct _vrrp_sgroup {
 	char			*gname;			/* Group name */
-	vector_t		*iname;			/* Set of VRRP instances in this group */
+	vector_t		*iname;			/* Set of VRRP instances in this group, only used during initialisation */
 	list			index_list;		/* List of VRRP instances */
 	unsigned		num_member_fault;	/* Number of members of group in fault state */
 	int			state;			/* current stable state */

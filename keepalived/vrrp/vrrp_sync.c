@@ -132,13 +132,15 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 		log_message(LOG_INFO, "Sync group %s has only %d virtual router(s) - removing", vgroup->gname, LIST_SIZE(vgroup->index_list));
 
 		/* If there is only one entry in the group, remove the group from the vrrp entry */
-		if (vrrp_last) {
+		if (vrrp_last)
 			vrrp_last->sync = NULL;
-			list_del(vgroup->index_list, vrrp_last);
-		}
 
 		free_list(&vgroup->index_list);
 	}
+
+	/* The iname vector is only used for us to set up the sync groups, so delete it */
+	free_strvec(vgroup->iname);
+	vgroup->iname = NULL;
 }
 
 /* All interface are UP in the same group */

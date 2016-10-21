@@ -2543,8 +2543,18 @@ vrrp_complete_init(void)
 	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; e = next) {
 		next = e->next;
 		sgroup = ELEMENT_DATA(e);
-		vrrp_sync_set_group(sgroup);
-		if (LIST_ISEMPTY(sgroup->index_list)) {
+
+		/* A group needs at least two members */
+		if (!sgroup->iname) {
+			log_message(LOG_INFO, "Sync group %s has no virtual router(s) - removing", sgroup->gname);
+			free_list_element(vrrp_data->vrrp_sync_group, e);
+			continue;
+		}
+
+		if (sgroup->iname->active > 1)
+			vrrp_sync_set_group(sgroup);
+		
+		if (!sgroup->index_list) {
 			free_list_element(vrrp_data->vrrp_sync_group, e);
 			continue;
 		}
