@@ -77,13 +77,12 @@ typedef struct _interface {
 	struct in_addr		sin_addr;		/* IPv4 primary IPv4 address */
 	struct in6_addr		sin6_addr;		/* IPv6 link address */
 	unsigned		ifi_flags;		/* Kernel flags */
+	bool			linkbeat_use_polling;	/* Poll the interface for status, rather than use netlink */
 	uint32_t		mtu;			/* MTU for this interface_t */
 	unsigned short		hw_type;		/* Type of hardware address */
 	u_char			hw_addr[IFHWADDRLEN];	/* MAC address */
 	size_t			hw_addr_len;		/* MAC addresss length */
 	int			lb_type;		/* Interface regs selection */
-	bool			linkbeat;		/* LinkBeat from MII BMSR req, SIOCETHTOOL or SIOCGIFFLAGS ioctls.
-							   This is set true if not using linkbeat polling. */
 #ifdef _HAVE_VRRP_VMAC_
 	bool			vmac;			/* Set if interface is a VMAC interface */
 	unsigned		base_ifindex;		/* Only used at startup if we find vmac i/f before base i/f */
@@ -124,14 +123,12 @@ typedef struct _tracked_if {
 #define IF_HWADDR(X) ((X)->hw_addr)
 #define IF_MII_SUPPORTED(X) ((X)->lb_type & LB_MII)
 #define IF_ETHTOOL_SUPPORTED(X) ((X)->lb_type & LB_ETHTOOL)
-#define IF_LINKBEAT(X) ((X)->linkbeat)
 #define IF_FLAGS_UP(X) (((X)->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING))
 #ifdef _HAVE_VRRP_VMAC_
 #define IF_ISUP(X) (IF_FLAGS_UP(X) && \
-		    (!(X)->vmac || IF_FLAGS_UP((X)->base_ifp)) && \
-		    (X)->linkbeat)
+		    (!(X)->vmac || IF_FLAGS_UP((X)->base_ifp)))
 #else
-#define IF_ISUP(X) (IF_FLAGS_UP(X) && (X)->linkbeat)
+#define IF_ISUP(X) (IF_FLAGS_UP(X))
 #endif
 
 /* Global data */

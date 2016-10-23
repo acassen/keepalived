@@ -258,6 +258,13 @@ vrrp_int_handler(vector_t *strvec)
 	}
 }
 static void
+vrrp_linkbeat_handler(__attribute__((unused)) vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	vrrp->linkbeat_use_polling = true;
+}
+static void
 vrrp_track_int_handler(__attribute__((unused)) vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_track);
@@ -618,7 +625,7 @@ vrrp_evip_handler(__attribute__((unused)) vector_t *strvec)
 	alloc_value_block(alloc_vrrp_evip);
 }
 static void
-vrrp_promote_secondaries(__attribute__((unused)) vector_t *strvec)
+vrrp_promote_secondaries_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -864,7 +871,8 @@ init_vrrp_keywords(bool active)
 	install_keyword("advert_int", &vrrp_adv_handler);
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
 	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
-	install_keyword("promote_secondaries", &vrrp_promote_secondaries);
+	install_keyword("promote_secondaries", &vrrp_promote_secondaries_handler);
+	install_keyword("linkbeat_use_polling", &vrrp_linkbeat_handler);
 #ifdef _HAVE_FIB_ROUTING_
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
 	install_keyword("virtual_rules", &vrrp_vrules_handler);

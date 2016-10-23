@@ -2134,6 +2134,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 	vrrp->master_adver_int = vrrp->adver_int;
 
+	/* Set linkbeat polling on interface if wanted */
+	if (vrrp->linkbeat_use_polling || global_data->linkbeat_use_polling)
+		vrrp->ifp->linkbeat_use_polling = true;
+
 #ifdef _HAVE_VRRP_VMAC_
 	/* Set a default interface name for the vmac if needed */
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {

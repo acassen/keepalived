@@ -831,10 +831,6 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	ifp->hw_type = ifi->ifi_type;
 	ifp->base_ifp = ifp;
 
-	/* We set linkbeat here. It will only be cleared if we are using linkbeat polling
-	 * so when checking it's status, we don't need to check if polling is enabled. */
-	ifp->linkbeat = true;
-
 	if (tb[IFLA_ADDRESS]) {
 		size_t hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
 

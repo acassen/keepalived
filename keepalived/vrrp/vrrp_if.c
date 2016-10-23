@@ -433,7 +433,7 @@ dump_if(void *data)
 		log_message(LOG_INFO, " VMAC underlying interface = %s", ifp_u->ifname);
 #endif
 
-	if (global_data->linkbeat_use_polling) {
+	if (ifp->linkbeat_use_polling) {
 		/* MII channel supported ? */
 		if (IF_MII_SUPPORTED(ifp))
 			log_message(LOG_INFO, " NIC support MII regs");
@@ -476,11 +476,9 @@ if_linkbeat_refresh_thread(thread_t * thread)
 	interface_t *ifp = THREAD_ARG(thread);
 
 	if (IF_MII_SUPPORTED(ifp))
-		ifp->linkbeat = (if_mii_probe(ifp->ifname)) ? 1 : 0;
+		ifp->ifi_flags = (if_mii_probe(ifp->ifname)) ? IFF_UP | IFF_RUNNING : 0;
 	else if (IF_ETHTOOL_SUPPORTED(ifp))
-		ifp->linkbeat = (if_ethtool_probe(ifp->ifname)) ? 1 : 0;
-	else
-		ifp->linkbeat = 1;
+		ifp->ifi_flags = (if_ethtool_probe(ifp->ifname)) ? IFF_UP | IFF_RUNNING : 0;
 
 	/*
 	 * update ifp->flags to get the new IFF_RUNNING status.
@@ -493,18 +491,22 @@ if_linkbeat_refresh_thread(thread_t * thread)
 	return 0;
 }
 
-static void
+static bool
 init_if_linkbeat(void)
 {
 	interface_t *ifp;
 	element e;
 	int status;
+	bool linkbeat_in_use = false;
 
 /* TODO - only add thread if we are interested in the interface -
  * a vrrp base interface, or a track interface. Are there any others?
  * Check by seeing where ifi_flags are used, e.g. IF_ISUP. */
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
+
+		if (!ifp->linkbeat_use_polling)
+			continue;
 
 		/* Don't poll an interface that we aren't using */
 		if (!ifp->tracking_vrrp)
@@ -515,21 +517,27 @@ init_if_linkbeat(void)
 		if (ifp->vmac)
 			continue;
 #endif
+
+		linkbeat_in_use = true;
+		ifp->ifi_flags = IFF_UP | IFF_RUNNING;
+
 		ifp->lb_type = LB_IOCTL;
 		status = if_mii_probe(ifp->ifname);
 		if (status >= 0) {
 			ifp->lb_type = LB_MII;
-			ifp->linkbeat = !!status;
+			ifp->ifi_flags = status ? IFF_UP | IFF_RUNNING : 0;
 		} else {
 			status = if_ethtool_probe(ifp->ifname);
 			if (status >= 0) {
 				ifp->lb_type = LB_ETHTOOL;
-				ifp->linkbeat = !!status;
+				ifp->ifi_flags = status ? IFF_UP | IFF_RUNNING : 0;
 			}
 		}
 		/* Register new monitor thread */
 		thread_add_timer(master, if_linkbeat_refresh_thread, ifp, POLLING_DELAY);
 	}
+
+	return linkbeat_in_use;
 }
 
 /* Interface queue helpers*/
@@ -558,12 +566,8 @@ init_interface_queue(void)
 void
 init_interface_linkbeat(void)
 {
-	if (global_data->linkbeat_use_polling) {
+	if (init_if_linkbeat())
 		log_message(LOG_INFO, "Using MII-BMSR/ETHTOOL NIC polling thread...");
-		init_if_linkbeat();
-	} else {
-		log_message(LOG_INFO, "Using LinkWatch kernel netlink reflector...");
-	}
 }
 
 int

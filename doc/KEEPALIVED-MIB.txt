@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201610180000Z"
+     LAST-UPDATED "201610230000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201610230000Z"
+     DESCRIPTION "add per interface linkbeat option"
      REVISION "201610180000Z"
      DESCRIPTION "add promote_secondaries"
      REVISION "201609120000Z"
@@ -479,7 +481,8 @@ VrrpInstanceEntry ::= SEQUENCE {
     vrrpInstanceScriptStop DisplayString,
     vrrpInstanceScript DisplayString,
     vrrpInstanceAccept INTEGER,
-    vrrpInstancePromoteSecondaries INTEGER
+    vrrpInstancePromoteSecondaries INTEGER,
+    vrrpInstanceUseLinkbeat INTEGER
 }
 
 vrrpInstanceIndex OBJECT-TYPE
@@ -722,6 +725,14 @@ vrrpInstancePromoteSecondaries OBJECT-TYPE
     DESCRIPTION
         "Set promote_secondaries on interface."
     ::= { vrrpInstanceEntry 28 }
+
+vrrpInstanceUseLinkbeat OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-write
+    STATUS current
+    DESCRIPTION
+        "Use linkbeat for interface status."
+    ::= { vrrpInstanceEntry 29 }
 
 vrrpTrackedInterfaceTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpTrackedInterfaceEntry
@@ -3469,6 +3480,7 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpInstanceScript,
     vrrpInstanceAccept,
     vrrpInstancePromoteSecondaries,
+    vrrpInstanceUseLinkbeat,
     vrrpTrackedInterfaceName,
     vrrpTrackedInterfaceWeight,
     vrrpTrackedScriptName,
