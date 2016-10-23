@@ -52,6 +52,7 @@
 #if !HAVE_DECL_SOCK_NONBLOCK
 #include "old_socket.h"
 #endif
+#include "vrrp_scheduler.h"
 
 /* Global vars */
 nl_handle_t nl_cmd;	/* Command channel */
@@ -746,9 +747,10 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 	bool was_up;
 	bool now_up;
 	vrrp_t *vrrp;
-	element e;
+	element e, e2;
 	int ip_fd = 0;
 	int ip6_fd = 0;
+	tracked_if_t* tip;
 
 	if (ifi_flags == ifp->ifi_flags)
 		return;
@@ -757,7 +759,11 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 		return;
 
 	/* We get called after a VMAC is created, but before tracking_vrrp is set */
-	if (!ifp->tracking_vrrp && ifp == ifp->base_ifp)
+	if (!ifp->tracking_vrrp
+#ifdef _HAVE_VRRP_VMAC_
+				 && ifp == ifp->base_ifp
+#endif
+							)
 		return;
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -783,8 +789,34 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
+		if (!vrrp->track_ifp)
+			continue;
+
+		/* Find the entry */
+		tip = NULL;
+		for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
+			tip = ELEMENT_DATA(e2);
+			if (tip->ifp == ifp)
+				break;
+		}
+
+		/* The VRRP instance's own interface won't be in the list */
+		if (tip && tip->weight) {
+			if (now_up)
+				vrrp->total_priority += abs(tip->weight);
+			else
+				vrrp->total_priority -= abs(tip->weight);
+			vrrp_set_effective_priority(vrrp);
+			continue;
+		}
+
 		/* This vrrp's interface or underlying interface has changed */
 		if (VRRP_IF_ISUP(vrrp) != was_up) {
+			if (now_up)
+				vrrp->num_script_if_fault--;
+			else
+				vrrp->num_script_if_fault++;
+
 			vrrp->if_state_changed = true;
 
 			/* This is how we update the queued thread */

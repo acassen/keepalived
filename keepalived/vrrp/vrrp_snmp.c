@@ -1672,6 +1672,7 @@ vrrp_snmp_instance_priority(int action,
 			    __attribute__((unused)) u_char *statP, oid *name, size_t name_len)
 {
 	vrrp_t *vrrp = NULL;
+
 	switch (action) {
 	case RESERVE1:
 		/* Check that the proposed priority is acceptable */
@@ -1695,13 +1696,9 @@ vrrp_snmp_instance_priority(int action,
 			    "VRRP_Instance(%s) base priority changed from"
 			    " %u to %u via SNMP.",
 			    vrrp->iname, vrrp->base_priority, *var_val);
+		vrrp->total_priority += *var_val - vrrp_base_priority;
 		vrrp->base_priority = *var_val;
-		/* If we the instance is not part of a sync group, the
-		   effective priority will be recomputed by some
-		   thread. Otherwise, we should set it equal to the
-		   base priority. */
-		if (vrrp->sync)
-			vrrp_set_effective_priority(vrrp, vrrp->base_priority);
+		vrrp_set_effective_priority(vrrp);
 //TODO - could affect accept
 		break;
 	}

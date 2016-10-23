@@ -276,13 +276,16 @@ update_script_priorities(vrrp_script_t *vscript)
 	element e, e1;
 	vrrp_t *vrrp;
 	tracked_sc_t *tsc;
-	int effective_priority;
 
 	if (LIST_ISEMPTY(vscript->vrrp))
 		return;
 
 	for (e = LIST_HEAD(vscript->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
+
+		/* Don't change effective priority if address owner */
+		if (vrrp->base_priority == VRRP_PRIO_OWNER)
+			continue;
 
 		if (LIST_ISEMPTY(vrrp->track_script))
 			continue;
@@ -305,18 +308,11 @@ update_script_priorities(vrrp_script_t *vscript)
 				break;
 			}
 
-			/* Don't change effective priority if address owner */
-			if (vrrp->base_priority == VRRP_PRIO_OWNER)
-				continue;
-
-			if (tsc->scr->result >= tsc->scr->rise) {
+			if (tsc->scr->result >= tsc->scr->rise)
 				vrrp->total_priority += abs(tsc->weight);
-				effective_priority = vrrp->total_priority >= VRRP_PRIO_OWNER ? VRRP_PRIO_OWNER - 1 : vrrp->total_priority;
-			} else {
+			else
 				vrrp->total_priority -= abs(tsc->weight);
-				effective_priority = vrrp->total_priority <= 1 ? 1 : vrrp->total_priority;
-			}
-			vrrp_set_effective_priority(vrrp, effective_priority);
+			vrrp_set_effective_priority(vrrp);
 		}
 	}
 }

@@ -810,8 +810,17 @@ vrrp_lower_prio_gratuitous_arp_thread(thread_t * thread)
 
 /* Set effective priorty, issue message on changes */
 void
-vrrp_set_effective_priority(vrrp_t *vrrp, uint8_t new_prio)
+vrrp_set_effective_priority(vrrp_t *vrrp)
 {
+	uint8_t new_prio;
+
+	if (vrrp->total_priority < 1)
+		new_prio = 1;
+	else if (vrrp->total_priority >= VRRP_PRIO_OWNER)
+		new_prio = VRRP_PRIO_OWNER - 1;
+	else
+		new_prio = (uint8_t)vrrp->total_priority;
+
 	if (vrrp->effective_priority == new_prio)
 		return;
 
@@ -850,12 +859,8 @@ vrrp_update_priority(thread_t * thread)
 		new_prio += vrrp_script_weight(vrrp->track_script);
 
 	vrrp->total_priority = new_prio;
-	if (new_prio < 1)
-		new_prio = 1;
-	else if (new_prio >= VRRP_PRIO_OWNER)
-		new_prio = VRRP_PRIO_OWNER - 1;
 // TODO 1 - just call with vrrp, and use total_priority
-	vrrp_set_effective_priority(vrrp, (uint8_t)new_prio);
+	vrrp_set_effective_priority(vrrp);
 
 	/* Register next priority update thread */
 // TODO 1 - we won't want the add timer
