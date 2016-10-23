@@ -756,7 +756,8 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 	if (!vrrp_data)
 		return;
 
-	if (!ifp->tracking_vrrp)
+	/* We get called after a VMAC is created, but before tracking_vrrp is set */
+	if (!ifp->tracking_vrrp && ifp == ifp->base_ifp)
 		return;
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -773,6 +774,9 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 		return;
 
 	log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
+
+	if (!ifp->tracking_vrrp)
+		return;
 
 	/* The state of the interface has changed from up to down or vice versa.
 	 * Find which vrrp instances are affected */
@@ -919,7 +923,7 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	if (ifi->ifi_type == ARPHRD_LOOPBACK)
 		return 0;
 
-	/* Skip it if already exist */
+	/* Skip it if already exists */
 	ifp = if_get_by_ifname(name);
 
 	if (ifp) {

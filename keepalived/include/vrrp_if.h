@@ -125,8 +125,7 @@ typedef struct _tracked_if {
 #define IF_ETHTOOL_SUPPORTED(X) ((X)->lb_type & LB_ETHTOOL)
 #define IF_FLAGS_UP(X) (((X)->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING))
 #ifdef _HAVE_VRRP_VMAC_
-#define IF_ISUP(X) (IF_FLAGS_UP(X) && \
-		    (!(X)->vmac || IF_FLAGS_UP((X)->base_ifp)))
+#define IF_ISUP(X) (IF_FLAGS_UP(X) && (!(X)->vmac || IF_FLAGS_UP((X)->base_ifp)))
 #else
 #define IF_ISUP(X) (IF_FLAGS_UP(X))
 #endif
