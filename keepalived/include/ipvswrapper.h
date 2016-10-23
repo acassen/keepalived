@@ -88,12 +88,12 @@ do {						\
 struct lvs_syncd_config {
 	char				*ifname;	/* handle LVS sync daemon state using this */
 	vrrp_t				*vrrp;		/* instance FSM & running on specific interface */
-	int				syncid;		/* 0 .. 255 */
+	unsigned			syncid;		/* 0 .. 255 */
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
-	int				sync_maxlen;
+	uint16_t			sync_maxlen;
 	struct sockaddr_storage		mcast_group;
-	int				mcast_port;
-	int				mcast_ttl;
+	uint16_t			mcast_port;
+	uint8_t				mcast_ttl;
 #endif
 	char				*vrrp_name;	/* used during configuration and SNMP */
 };

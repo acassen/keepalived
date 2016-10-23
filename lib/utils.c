@@ -42,10 +42,10 @@ unsigned long debug = 0;
 
 /* Display a buffer into a HEXA formated output */
 void
-dump_buffer(char *buff, int count, FILE* fp)
+dump_buffer(char *buff, size_t count, FILE* fp)
 {
-	int i, j, c;
-	int printnext = 1;
+	size_t i, j, c;
+	bool printnext = true;
 
 	if (count % 16)
 		c = count + (16 - count % 16);
@@ -54,8 +54,8 @@ dump_buffer(char *buff, int count, FILE* fp)
 
 	for (i = 0; i < c; i++) {
 		if (printnext) {
-			printnext--;
-			fprintf(fp, "%.4x ", i & 0xffff);
+			printnext = false;
+			fprintf(fp, "%.4zu ", i & 0xffff);
 		}
 		if (i < count)
 			fprintf(fp, "%3.2x", buff[i] & 0xff);
@@ -77,7 +77,7 @@ dump_buffer(char *buff, int count, FILE* fp)
 					} else
 						fprintf(fp, " ");
 				fprintf(fp, "\n");
-				printnext = 1;
+				printnext = true;
 			}
 		}
 	}
@@ -101,13 +101,13 @@ write_stacktrace(const char *file_name)
 #endif
 
 /* Compute a checksum */
-u_short
-in_csum(u_short *addr, int len, int csum, int *acc)
+uint16_t
+in_csum(const uint16_t *addr, size_t len, uint32_t csum, uint32_t *acc)
 {
-	register int nleft = len;
-	const u_short *w = addr;
-	register u_short answer;
-	register int sum = csum;
+	register size_t nleft = len;
+	const uint16_t *w = addr;
+	register uint16_t answer;
+	register uint32_t sum = csum;
 
 	/*
 	 *  Our algorithm is simple, using a 32 bit accumulator (sum),
@@ -132,7 +132,7 @@ in_csum(u_short *addr, int len, int csum, int *acc)
 	 */
 	sum = (sum >> 16) + (sum & 0xffff);	/* add hi 16 to low 16 */
 	sum += (sum >> 16);			/* add carry */
-	answer = ~sum;				/* truncate to 16 bits */
+	answer = (~sum & 0xffff);		/* truncate to 16 bits */
 	return (answer);
 }
 
@@ -177,18 +177,15 @@ inet_stom(const char *addr)
 #endif
 
 /* IP string to network range representation. */
-uint8_t
+uint32_t
 inet_stor(const char *addr)
 {
 	const char *cp = addr;
 
-	if (!strstr(addr, "-"))
+	if (!(cp = strchr(addr, '-')))
 		return 0;
-	while (*cp != '-' && *cp != '\0')
-		cp++;
-	if (*cp == '-')
-		return strtoul(++cp, NULL, (strchr(addr, ':')) ? 16 : 10);
-	return 0;
+
+	return (uint32_t)strtoul(cp + 1, NULL, (strchr(addr, ':')) ? 16 : 10);
 }
 
 /* Domain to sockaddr_storage */
@@ -200,7 +197,7 @@ domain_stosockaddr(const char *domain, const char *port, struct sockaddr_storage
 	if (getaddrinfo(domain, NULL, NULL, &res) != 0 || !res)
 		return -1;
 
-	addr->ss_family = res->ai_family;
+	addr->ss_family = (sa_family_t)res->ai_family;
 
 	if (addr->ss_family == AF_INET6) {
 		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
@@ -273,10 +270,10 @@ inet_ip6tosockaddr(struct in6_addr *sin_addr, struct sockaddr_storage *addr)
 }
 
 void
-inet_ip6scopeid(uint32_t scope_id, struct sockaddr_storage *addr)
+inet_ip6scopeid(uint32_t ifindex, struct sockaddr_storage *addr)
 {
 	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
-	addr6->sin6_scope_id = scope_id;
+	addr6->sin6_scope_id = ifindex;
 }
 
 /* IP network to string representation */
@@ -340,7 +337,7 @@ uint32_t
 inet_sockaddrip4(struct sockaddr_storage *addr)
 {
 	if (addr->ss_family != AF_INET)
-		return -1;
+		return 0xffffffff;
 
 	return ((struct sockaddr_in *) addr)->sin_addr.s_addr;
 }
@@ -479,7 +476,7 @@ get_local_name(void)
 	struct utsname name;
 	struct addrinfo hints, *res = NULL;
 	char *canonname = NULL;
-	int len = 0;
+	size_t len = 0;
 
 	memset(&hints, 0, sizeof(struct addrinfo));
 	hints.ai_flags = AI_CANONNAME;

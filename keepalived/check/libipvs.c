@@ -162,6 +162,17 @@ static struct nla_policy ipvs_stats_policy[IPVS_STATS_ATTR_MAX + 1] = {
 	CHECK_IPV4(s, ret);
 #endif
 
+#ifndef NLA_PUT_S32
+#define NLA_PUT_S32(msg, attrtype, value) \
+	NLA_PUT_TYPE(msg, int32_t, attrtype, value)
+
+static inline int32_t
+nla_get_s32(struct nlattr *attr)
+{
+	return (int32_t)nla_get_u32(attr);
+}
+#endif
+
 #ifdef LIBIPVS_USE_NL
 #ifndef FALLBACK_LIBNL1
 static int nlerr2syserr(int err)
@@ -188,7 +199,7 @@ static int nlerr2syserr(int err)
 }
 #endif
 
-static struct nl_msg *ipvs_nl_message(int cmd, int flags)
+static struct nl_msg *ipvs_nl_message(uint8_t cmd, int flags)
 {
 	struct nl_msg *msg;
 
@@ -303,7 +314,7 @@ static int ipvs_nl_fill_service_attr(struct nl_msg *msg, ipvs_service_t *svc)
 {
 	struct nlattr *nl_service;
 	struct ip_vs_flags flags = { .flags = svc->user.flags,
-				     .mask = ~0 };
+				     .mask = ~0U };
 
 	nl_service = nla_nest_start(msg, IPVS_CMD_ATTR_SERVICE);
 	if (!nl_service)
@@ -444,7 +455,7 @@ static int ipvs_nl_fill_dest_attr(struct nl_msg *msg, ipvs_dest_t *dst)
 	NLA_PUT(msg, IPVS_DEST_ATTR_ADDR, sizeof(dst->nf_addr), &(dst->nf_addr));
 	NLA_PUT_U16(msg, IPVS_DEST_ATTR_PORT, dst->user.port);
 	NLA_PUT_U32(msg, IPVS_DEST_ATTR_FWD_METHOD, dst->user.conn_flags & IP_VS_CONN_F_FWD_MASK);
-	NLA_PUT_U32(msg, IPVS_DEST_ATTR_WEIGHT, dst->user.weight);
+	NLA_PUT_U32(msg, IPVS_DEST_ATTR_WEIGHT, (uint32_t)dst->user.weight);
 	NLA_PUT_U32(msg, IPVS_DEST_ATTR_U_THRESH, dst->user.u_threshold);
 	NLA_PUT_U32(msg, IPVS_DEST_ATTR_L_THRESH, dst->user.l_threshold);
 
@@ -561,11 +572,11 @@ int ipvs_set_timeout(ipvs_timeout_t *to)
 		if (!msg) return -1;
 
 		if (to->tcp_timeout)
-			NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP, to->tcp_timeout);
+			NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP, (uint32_t)to->tcp_timeout);
 		if (to->tcp_fin_timeout)
-			NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP_FIN, to->tcp_fin_timeout);
+			NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_TCP_FIN, (uint32_t)to->tcp_fin_timeout);
 		if (to->udp_timeout)
-			NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_UDP, to->udp_timeout);
+			NLA_PUT_U32(msg, IPVS_CMD_ATTR_TIMEOUT_UDP, (uint32_t)to->udp_timeout);
 		return ipvs_nl_send_message(msg, ipvs_nl_noop_cb, NULL);
 
 nla_put_failure:
@@ -593,9 +604,9 @@ int ipvs_start_daemon(ipvs_daemon_t *dm)
 		if (!nl_daemon)
 			goto nla_put_failure;
 
-		NLA_PUT_U32(msg, IPVS_DAEMON_ATTR_STATE, dm->state);
+		NLA_PUT_S32(msg, IPVS_DAEMON_ATTR_STATE, dm->state);
 		NLA_PUT_STRING(msg, IPVS_DAEMON_ATTR_MCAST_IFN, dm->mcast_ifn);
-		NLA_PUT_U32(msg, IPVS_DAEMON_ATTR_SYNC_ID, dm->syncid);
+		NLA_PUT_S32(msg, IPVS_DAEMON_ATTR_SYNC_ID, dm->syncid);
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 		if (dm->sync_maxlen)
 			NLA_PUT_U16(msg, IPVS_DAEMON_ATTR_SYNC_MAXLEN, dm->sync_maxlen);
@@ -619,9 +630,9 @@ nla_put_failure:
 	}
 #endif
 	memset(&dmk, 0, sizeof(dmk));
-	dmk.state = dm->state;
+	dmk.state = (int)dm->state;
 	strcpy(dmk.mcast_ifn, dm->mcast_ifn);
-	dmk.syncid = dm->syncid;
+	dmk.syncid = (int)dm->syncid;
 	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STARTDAEMON,
 			  (char *)&dmk, sizeof(dmk));
 }
@@ -642,9 +653,9 @@ int ipvs_stop_daemon(ipvs_daemon_t *dm)
 		if (!nl_daemon)
 			goto nla_put_failure;
 
-		NLA_PUT_U32(msg, IPVS_DAEMON_ATTR_STATE, dm->state);
+		NLA_PUT_S32(msg, IPVS_DAEMON_ATTR_STATE, dm->state);
 		NLA_PUT_STRING(msg, IPVS_DAEMON_ATTR_MCAST_IFN, dm->mcast_ifn);
-		NLA_PUT_U32(msg, IPVS_DAEMON_ATTR_SYNC_ID, dm->syncid);
+		NLA_PUT_S32(msg, IPVS_DAEMON_ATTR_SYNC_ID, dm->syncid);
 
 		nla_nest_end(msg, nl_daemon);
 
@@ -656,7 +667,7 @@ nla_put_failure:
 	}
 #endif
 	memset(&dmk, 0, sizeof(dmk));
-	dmk.state = dm->state;
+	dmk.state = (int)dm->state;
 	return setsockopt(sockfd, IPPROTO_IP, IP_VS_SO_SET_STOPDAEMON,
 			  (char *)&dmk, sizeof(dmk));
 }
@@ -740,7 +751,7 @@ static int ipvs_services_parse_cb(struct nl_msg *msg, void *arg)
 	struct ip_vs_get_services_app **getp = (struct ip_vs_get_services_app **)arg;
 	struct ip_vs_get_services_app *get = (struct ip_vs_get_services_app *)*getp;
 	struct ip_vs_flags flags;
-	int i = get->user.num_services;
+	unsigned i = get->user.num_services;
 
 	if (genlmsg_parse(nlh, 0, attrs, IPVS_CMD_ATTR_MAX, ipvs_cmd_policy) != 0)
 		return -1;
@@ -826,7 +837,7 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 #endif
 	struct ip_vs_get_dests_app **dp = (struct ip_vs_get_dests_app **)arg;
 	struct ip_vs_get_dests_app *d = (struct ip_vs_get_dests_app *)*dp;
-	int i = d->user.num_dests;
+	unsigned i = d->user.num_dests;
 
 	if (genlmsg_parse(nlh, 0, attrs, IPVS_CMD_ATTR_MAX, ipvs_cmd_policy) != 0)
 		return -1;
@@ -855,7 +866,7 @@ static int ipvs_dests_parse_cb(struct nl_msg *msg, void *arg)
 	       sizeof(d->user.entrytable[i].nf_addr));
 	d->user.entrytable[i].user.port = nla_get_u16(dest_attrs[IPVS_DEST_ATTR_PORT]);
 	d->user.entrytable[i].user.conn_flags = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_FWD_METHOD]);
-	d->user.entrytable[i].user.weight = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_WEIGHT]);
+	d->user.entrytable[i].user.weight = nla_get_s32(dest_attrs[IPVS_DEST_ATTR_WEIGHT]);
 	d->user.entrytable[i].user.u_threshold = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_U_THRESH]);
 	d->user.entrytable[i].user.l_threshold = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_L_THRESH]);
 	d->user.entrytable[i].user.activeconns = nla_get_u32(dest_attrs[IPVS_DEST_ATTR_ACTIVE_CONNS]);
@@ -898,7 +909,7 @@ struct ip_vs_get_dests_app *ipvs_get_dests(ipvs_service_entry_t *svc)
 	socklen_t len;
 	unsigned i;
 
-	len = sizeof(*d) + sizeof(ipvs_dest_entry_t) * svc->user.num_dests;
+	len = (socklen_t)(sizeof(*d) + sizeof(ipvs_dest_entry_t) * svc->user.num_dests);
 	if (!(d = MALLOC(len)))
 		return NULL;
 
@@ -956,7 +967,7 @@ ipvs_nl_dest_failure:
 		return NULL;
 	}
 
-	len = sizeof(*dk) + sizeof(struct ip_vs_dest_entry) * svc->user.num_dests;
+	len = (socklen_t)(sizeof(*dk) + sizeof(struct ip_vs_dest_entry) * svc->user.num_dests);
 	if (!(dk = MALLOC(len))) {
 		FREE(d);
 		return NULL;

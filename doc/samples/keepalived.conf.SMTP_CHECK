@@ -19,7 +19,7 @@ global_defs {
    notification_email_from Alexandre.Cassen@firewall.loc
    smtp_server 192.168.200.1
    smtp_connect_timeout 30
-   lvs_id LVS_DEVEL
+   router_id LVS_DEVEL
 }
 
 virtual_server 192.168.200.100 25 {

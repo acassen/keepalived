@@ -35,6 +35,7 @@
 #include "pidfile.h"
 #include "bitops.h"
 #include "logger.h"
+#include "parser.h"
 #include "check_parser.h"
 #include "vrrp_parser.h"
 #include "global_parser.h"
@@ -208,17 +209,18 @@ static bool
 find_keepalived_child(pid_t pid, char const **prog_name)
 {
 #ifdef _WITH_LVS_
-	if (pid == checkers_child)
+	if (pid == checkers_child) {
 		*prog_name = PROG_CHECK;
+		return true;
+	}
 #endif
 #ifdef _WITH_VRRP_
-	else if (pid == vrrp_child)
+	if (pid == vrrp_child) {
 		*prog_name = PROG_VRRP;
+		return true;
+	}
 #endif
-	else
-		return false;
-
-	return true;
+	return false;
 }
 
 #if HAVE_DECL_CLONE_NEWNET
@@ -542,6 +544,7 @@ usage(const char *prog)
 #ifdef _MEM_CHECK_LOG_
 	fprintf(stderr, "  -L, --mem-check-log          Log malloc/frees to syslog\n");
 #endif
+	fprintf(stderr, "  -i, --config_id id           Skip any configuration lines beginning '@' that don't match id\n");
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -586,12 +589,13 @@ parse_cmdline(int argc, char **argv)
 #if HAVE_DECL_CLONE_NEWNET
 		{"namespace",         required_argument, 0, 's'},
 #endif	
+		{"config-id",         required_argument, 0, 'i'},
 		{"version",           no_argument,       0, 'v'},
 		{"help",              no_argument,       0, 'h'},
 		{0, 0, 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:p:mM"
+	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:p:i:mM"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
@@ -704,6 +708,9 @@ parse_cmdline(int argc, char **argv)
 			strcpy(override_namespace, optarg);
 			break;
 #endif
+		case 'i':
+			config_id = optarg;
+			break;
 		default:
 			exit(0);
 			break;
@@ -768,15 +775,15 @@ keepalived_main(int argc, char **argv)
 	if (uname(&uname_buf))
 		log_message(LOG_INFO, "Unable to get uname() information - error %d", errno);
 	else {
-		os_major = strtoul(uname_buf.release, &end, 10);
+		os_major = (unsigned)strtoul(uname_buf.release, &end, 10);
 		if (*end != '.')
 			os_major = 0;
 		else {
-			os_minor = strtoul(end + 1, &end, 10);
+			os_minor = (unsigned)strtoul(end + 1, &end, 10);
 			if (*end != '.')
 				os_major = 0;
 			else {
-				os_release = strtoul(end + 1, &end, 10);
+				os_release = (unsigned)strtoul(end + 1, &end, 10);
 				if (*end && *end != '-')
 					os_major = 0;
 			}

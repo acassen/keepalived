@@ -139,14 +139,14 @@ static void
 nb_get_retry_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
-	http_get_chk->nb_get_retry = CHECKER_VALUE_INT(strvec);
+	http_get_chk->nb_get_retry = CHECKER_VALUE_UINT(strvec);
 }
 
 static void
 delay_before_retry_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
-	http_get_chk->delay_before_retry = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
+	http_get_chk->delay_before_retry = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 }
 
 static void
@@ -259,7 +259,7 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	http_t *http = HTTP_ARG(http_get_check);
 	request_t *req = HTTP_REQ(http);
-	long delay = 0;
+	unsigned long delay = 0;
 
 	http->url_it += t ? t : -http->url_it;
 	http->retry_it += c ? c : -http->retry_it;
@@ -438,26 +438,22 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 }
 
 /* Handle response stream performing MD5 updates */
-int
-http_process_response(request_t *req, int r, int do_md5)
+void
+http_process_response(request_t *req, size_t r, bool do_md5)
 {
 	req->len += r;
 	if (!req->extracted) {
-		if ((req->extracted =
-		     extract_html(req->buffer, req->len))) {
+		if ((req->extracted = extract_html(req->buffer, req->len))) {
 			req->status_code = extract_status_code(req->buffer, req->len);
-			r = req->len - (req->extracted - req->buffer);
+			r = req->len - (size_t)(req->extracted - req->buffer);
 			if (r && do_md5)
 				MD5_Update(&req->context, req->extracted, r);
 			req->len = 0;
 		}
 	} else if (req->len) {
-		MD5_Update(&req->context, req->buffer,
-			   req->len);
+		MD5_Update(&req->context, req->buffer, req->len);
 		req->len = 0;
 	}
-
-	return 0;
 }
 
 /* Asynchronous HTTP stream reader */
@@ -471,7 +467,7 @@ http_read_thread(thread_t * thread)
 	url_t *url = list_element(http_get_check->url, http->url_it);
 	unsigned timeout = checker->co->connection_to;
 	unsigned char digest[16];
-	int r = 0;
+	ssize_t r = 0;
 	int val;
 
 	/* Handle read timeout */
@@ -506,7 +502,7 @@ http_read_thread(thread_t * thread)
 			MD5_Final(digest, &req->context);
 
 		if (r == -1) {
-			/* We have encourred a real read error */
+			/* We have encountered a real read error */
 			return timeout_epilog(thread, "Read error with");
 		}
 
@@ -516,7 +512,7 @@ http_read_thread(thread_t * thread)
 	} else {
 
 		/* Handle response stream */
-		http_process_response(req, r, (url->digest != NULL));
+		http_process_response(req, (size_t)r, (url->digest != NULL));
 
 		/*
 		 * Register next http stream reader.
@@ -626,13 +622,10 @@ http_request_thread(thread_t * thread)
 	fcntl(thread->u.fd, F_SETFL, val | O_NONBLOCK);
 
 	/* Send the GET request to remote Web server */
-	if (http_get_check->proto == PROTO_SSL) {
-		ret = ssl_send_request(req->ssl, str_request,
-				       strlen(str_request));
-	} else {
-		ret = (send(thread->u.fd, str_request, strlen(str_request), 0) !=
-		       -1) ? 1 : 0;
-	}
+	if (http_get_check->proto == PROTO_SSL)
+		ret = ssl_send_request(req->ssl, str_request, (int)strlen(str_request));
+	else
+		ret = (send(thread->u.fd, str_request, strlen(str_request), 0) != -1) ? 1 : 0;
 
 	/* restore descriptor flags */
 	fcntl(thread->u.fd, F_SETFL, val);
@@ -661,7 +654,7 @@ http_check_thread(thread_t * thread)
 #endif
 	int ret = 1;
 	int status;
-	long timeout = 0;
+	unsigned long timeout = 0;
 	int ssl_err = 0;
 	int new_req = 0;
 

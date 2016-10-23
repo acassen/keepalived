@@ -89,7 +89,7 @@ notify_exec(char *cmd)
 }
 
 int
-system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, long timer, const char* script)
+system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, unsigned long timer, const char* script)
 {
 	int status;
 	pid_t pid;

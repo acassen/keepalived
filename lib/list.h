@@ -23,6 +23,8 @@
 #ifndef _LIST_H
 #define _LIST_H
 
+#include <stddef.h>
+
 /* list definition */
 typedef struct _element *element;
 typedef struct _list *list;
@@ -55,11 +57,11 @@ extern list alloc_list(void (*free_func) (void *), void (*dump_func) (void *));
 extern void free_list(list *);
 extern void free_list_elements(list l);
 extern void free_list_element(list l, element e);
-extern void *list_element(list l, int num);
+extern void *list_element(list l, unsigned num);
 extern void dump_list(list l);
 extern void list_add(list l, void *data);
 extern void list_del(list l, void *data);
-extern list alloc_mlist(void (*free_func) (void *), void (*dump_func) (void *), int size);
+extern list alloc_mlist(void (*free_func) (void *), void (*dump_func) (void *), size_t size);
 extern void free_mlist(list l, int size);
 
 #endif

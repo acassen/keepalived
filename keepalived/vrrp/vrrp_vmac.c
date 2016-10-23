@@ -73,7 +73,7 @@ netlink_link_up(vrrp_t *vrrp)
 	req.n.nlmsg_flags = NLM_F_REQUEST;
 	req.n.nlmsg_type = RTM_NEWLINK;
 	req.ifi.ifi_family = AF_UNSPEC;
-	req.ifi.ifi_index = IF_INDEX(vrrp->ifp);
+	req.ifi.ifi_index = (int)IF_INDEX(vrrp->ifp);
 	req.ifi.ifi_change |= IFF_UP;
 	req.ifi.ifi_flags |= IFF_UP;
 
@@ -88,7 +88,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 {
 	struct rtattr *linkinfo;
 	struct rtattr *data;
-	unsigned int base_ifindex;
+	ifindex_t base_ifindex;
 	interface_t *ifp;
 	interface_t *base_ifp;
 	char ifname[IFNAMSIZ];
@@ -131,7 +131,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			req.n.nlmsg_flags = NLM_F_REQUEST;
 			req.n.nlmsg_type = RTM_DELLINK;
 			req.ifi.ifi_family = AF_INET;
-			req.ifi.ifi_index = IF_INDEX(ifp);
+			req.ifi.ifi_index = (int)IF_INDEX(ifp);
 
 			if (netlink_talk(&nl_cmd, &req.n) < 0) {
 				log_message(LOG_INFO, "vmac: Error removing VMAC interface %s for "
@@ -161,10 +161,9 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	 * In private mode, macvlan will receive frames with same MAC addr
 	 * as configured on the interface.
 	 */
-	addattr32(&req.n, sizeof(req), IFLA_MACVLAN_MODE,
-		  MACVLAN_MODE_PRIVATE);
-	data->rta_len = (void *)NLMSG_TAIL(&req.n) - (void *)data;
-	linkinfo->rta_len = (void *)NLMSG_TAIL(&req.n) - (void *)linkinfo;
+	addattr32(&req.n, sizeof(req), IFLA_MACVLAN_MODE, MACVLAN_MODE_PRIVATE);
+	data->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)data);
+	linkinfo->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)linkinfo);
 	addattr_l(&req.n, sizeof(req), IFLA_LINK, &IF_INDEX(vrrp->ifp), sizeof(uint32_t));
 	addattr_l(&req.n, sizeof(req), IFLA_IFNAME, ifname, strlen(ifname));
 	addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, ll_addr, ETH_ALEN);
@@ -213,7 +212,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		req.n.nlmsg_flags = NLM_F_REQUEST ;
 		req.n.nlmsg_type = RTM_NEWLINK;
 		req.ifi.ifi_family = AF_UNSPEC;
-		req.ifi.ifi_index = vrrp->vmac_ifindex;
+		req.ifi.ifi_index = (int)vrrp->vmac_ifindex;
 
 		u_char val = IN6_ADDR_GEN_MODE_NONE;
 		struct rtattr* spec;
@@ -223,8 +222,8 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		data = NLMSG_TAIL(&req.n);
 		addattr_l(&req.n, sizeof(req), AF_INET6, NULL,0);
 		addattr_l(&req.n, sizeof(req), IFLA_INET6_ADDR_GEN_MODE, &val, sizeof(val));
-		data->rta_len = (void *)NLMSG_TAIL(&req.n) - (void *)data;
-		spec->rta_len = (void *)NLMSG_TAIL(&req.n) - (void *)spec;
+		data->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)data);
+		spec->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)spec);
 
 		if (netlink_talk(&nl_cmd, &req.n) < 0)
 			log_message(LOG_INFO, "vmac: Error setting ADDR_GEN_MODE to NONE");
@@ -323,7 +322,7 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 	req.n.nlmsg_flags = NLM_F_REQUEST;
 	req.n.nlmsg_type = RTM_DELLINK;
 	req.ifi.ifi_family = AF_INET;
-	req.ifi.ifi_index = vrrp->vmac_ifindex;
+	req.ifi.ifi_index = (int)vrrp->vmac_ifindex;
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0) {
 		log_message(LOG_INFO, "vmac: Error removing VMAC interface %s for vrrp_instance %s!!!"

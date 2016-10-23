@@ -55,7 +55,7 @@ typedef struct _ip_address {
 
 	interface_t		*ifp;			/* Interface owning IP address */
 	char			*label;			/* Alias name, e.g. eth0:1 */
-	int			set;			/* TRUE if addr is set */
+	bool			set;			/* TRUE if addr is set */
 	bool			iptable_rule_set;	/* TRUE if iptable drop rule
 							 * set to addr */
 	bool			garp_gna_pending;	/* Is a gratuitous ARP/NA message still to be sent */

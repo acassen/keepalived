@@ -524,7 +524,6 @@ start_vrrp_child(void)
 	launch_scheduler();
 
 	/* Finish VRRP daemon process */
-//TODO - stop_vrrp doesn't return
 	stop_vrrp(EXIT_SUCCESS);
 
 	/* unreachable */

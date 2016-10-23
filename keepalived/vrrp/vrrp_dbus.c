@@ -38,6 +38,9 @@
 
 #include "config.h"
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 #include <pthread.h>
 #include <semaphore.h>
 #include <signal.h>
@@ -231,7 +234,7 @@ dbus_object_create_path_instance(const gchar *interface, int vrid, sa_family_t f
 static dbus_queue_ent_t *
 process_method_call(dbus_queue_ent_t *ent)
 {
-	int ret;
+	ssize_t ret;
 
 	if (!ent)
 		return NULL;
@@ -285,7 +288,7 @@ get_interface_ids(const gchar *object_path, gchar *interface, uint8_t *vrid, uin
 	 * the third to last, second to last and last levels */
 	dirs = g_strsplit(object_path, "/", path_length);
 	strcpy(interface, dirs[path_length-3]);
-	*vrid = atoi(dirs[path_length-2]);
+	*vrid = (uint8_t)atoi(dirs[path_length-2]);
 	*family = !g_strcmp0(dirs[path_length-1], "IPv4") ? AF_INET : !g_strcmp0(dirs[path_length-1], "IPv6") ? AF_INET6 : AF_UNSPEC;
 
 	/* We are finished with all the object_path strings now */
@@ -443,7 +446,7 @@ static const GDBusInterfaceVTable interface_vtable =
 };
 
 static int
-dbus_create_object_params(char *instance_name, const char *interface_name, int vrid, int family, bool log_success)
+dbus_create_object_params(char *instance_name, const char *interface_name, int vrid, sa_family_t family, bool log_success)
 {
 	gchar *object_path;
 
@@ -544,13 +547,13 @@ static gchar*
 read_file(gchar* filepath)
 {
 	FILE * f;
-	long length;
+	size_t length;
 	gchar *ret = NULL;
 
 	f = fopen(filepath, "rb");
 	if (f) {
 		fseek(f, 0, SEEK_END);
-		length = ftell(f);
+		length = (size_t)ftell(f);
 		fseek(f, 0, SEEK_SET);
 
 		/* We can't use MALLOC since it isn't thread safe */

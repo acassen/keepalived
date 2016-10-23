@@ -120,7 +120,7 @@ dump_vsg_entry(void *data)
 void
 alloc_vsg(char *gname)
 {
-	int size = strlen(gname);
+	size_t size = strlen(gname);
 	virtual_server_group_t *new;
 
 	new = (virtual_server_group_t *) MALLOC(sizeof(virtual_server_group_t));
@@ -137,19 +137,37 @@ alloc_vsg_entry(vector_t *strvec)
 {
 	virtual_server_group_t *vsg = LIST_TAIL_DATA(check_data->vs_group);
 	virtual_server_group_entry_t *new;
+	uint32_t start;
 
 	new = (virtual_server_group_entry_t *) MALLOC(sizeof(virtual_server_group_entry_t));
 
 	if (!strcmp(vector_slot(strvec, 0), "fwmark")) {
-		new->vfwmark = atoi(vector_slot(strvec, 1));
+		new->vfwmark = (uint32_t)strtoul(vector_slot(strvec, 1), NULL, 10);
 		list_add(vsg->vfwmark, new);
 	} else {
 		new->range = inet_stor(vector_slot(strvec, 0));
 		inet_stosockaddr(vector_slot(strvec, 0), vector_slot(strvec, 1), &new->addr);
-		if (!new->range)
+		if (!new->range) {
 			list_add(vsg->addr_ip, new);
+			return;
+		}
+
+		if ((new->addr.ss_family == AF_INET && new->range > 255 ) ||
+		    (new->addr.ss_family == AF_INET6 && new->range > 0xffff)) {
+			log_message(LOG_INFO, "End address of range exceeds limit for address family - %s - skipping", FMT_STR_VSLOT(strvec, 0));
+			return;
+		}
+
+		if (new->addr.ss_family == AF_INET)
+			start = htonl(((struct sockaddr_in *)&new->addr)->sin_addr.s_addr) & 0xFF;
 		else
-			list_add(vsg->range, new);
+			start = htons(((struct sockaddr_in6 *)&new->addr)->sin6_addr.s6_addr16[7]);
+		if (start >= new->range) {
+			log_message(LOG_INFO, "Address range end is not greater than address range start - %s - skipping", FMT_STR_VSLOT(strvec, 0));
+			return;
+		}
+
+		list_add(vsg->range, new);
 	}
 }
 
@@ -226,7 +244,7 @@ dump_vs(void *data)
 		log_message(LOG_INFO, "   protocol = %d", vs->service_type);
 	log_message(LOG_INFO, "   alpha is %s, omega is %s",
 		    vs->alpha ? "ON" : "OFF", vs->omega ? "ON" : "OFF");
-	log_message(LOG_INFO, "   quorum = %lu, hysteresis = %lu", vs->quorum, vs->hysteresis);
+	log_message(LOG_INFO, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
 	if (vs->quorum_up)
 		log_message(LOG_INFO, "   -> Notify script UP = %s",
 			    vs->quorum_up);
@@ -261,7 +279,7 @@ dump_vs(void *data)
 void
 alloc_vs(char *ip, char *port)
 {
-	int size = strlen(port);
+	size_t size = strlen(port);
 	virtual_server_t *new;
 
 	new = (virtual_server_t *) MALLOC(sizeof(virtual_server_t));
@@ -270,7 +288,7 @@ alloc_vs(char *ip, char *port)
 		new->vsgname = (char *) MALLOC(size + 1);
 		memcpy(new->vsgname, port, size);
 	} else if (!strcmp(ip, "fwmark")) {
-		new->vfwmark = atoi(port);
+		new->vfwmark = (uint32_t)strtoul(port, NULL, 10);
 	} else {
 		inet_stosockaddr(ip, port, &new->addr);
 		new->af = new->addr.ss_family;
@@ -278,8 +296,8 @@ alloc_vs(char *ip, char *port)
 
 	new->delay_loop = KEEPALIVED_DEFAULT_DELAY;
 	new->virtualhost = NULL;
-	new->alpha = 0;
-	new->omega = 0;
+	new->alpha = false;
+	new->omega = false;
 	new->quorum_up = NULL;
 	new->quorum_down = NULL;
 	new->quorum = 1;
@@ -417,4 +435,25 @@ format_vs (virtual_server_t *vs)
 			, inet_sockaddrtopair(&vs->addr));
 
 	return ret;
+}
+
+bool validate_check_config(void)
+{
+	element e;
+	virtual_server_t *vs;
+
+	/* Ensure that no virtual server hysteresis >= quorum */
+	if (!LIST_ISEMPTY(check_data->vs)) {
+		for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
+			vs = ELEMENT_DATA(e);
+
+			if (vs->hysteresis >= vs->quorum) {
+				log_message(LOG_INFO, "Virtual server %s: hysteresis %u >= quorum %u; setting hysteresis to %u",
+						vs->vsgname, vs->hysteresis, vs->quorum, vs->quorum -1);
+				vs->hysteresis = vs->quorum - 1;
+			}
+		}
+	}
+
+	return true;
 }

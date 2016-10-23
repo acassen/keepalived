@@ -26,7 +26,7 @@
 #include "scheduler.h"
 
 /* system includes */
-extern int system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, long timer, const char* script);
+extern int system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, unsigned long timer, const char* script);
 extern int notify_exec(char *cmd);
 
 #endif

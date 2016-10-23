@@ -35,6 +35,7 @@
 #include "vector.h"
 #include "scheduler.h"
 #include "vrrp.h"
+#include "vrrp_if.h"
 
 /*
  * Our instance dispatcher use a socket pool.
@@ -44,8 +45,8 @@
 typedef struct _sock {
 	sa_family_t		family;
 	struct sockaddr_storage	saddr;
-	unsigned int		proto;
-	unsigned int		ifindex;
+	int			proto;
+	ifindex_t		ifindex;
 	bool			unicast;
 	int			fd_in;
 	int			fd_out;

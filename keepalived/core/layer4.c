@@ -134,7 +134,7 @@ socket_state(thread_t * thread, int (*func) (thread_t *))
 	if (status == EINPROGRESS) {
 		timer_min = timer_sub_now(thread->sands);
 		thread_add_write(thread->master, func, THREAD_ARG(thread),
-				 thread->u.fd, timer_long(timer_min));
+				 thread->u.fd, -timer_long(timer_min));
 		return connect_in_progress;
 	} else if (status != 0) {
 		close(thread->u.fd);
@@ -146,7 +146,7 @@ socket_state(thread_t * thread, int (*func) (thread_t *))
 
 int
 socket_connection_state(int fd, enum connect_result status, thread_t * thread,
-		     int (*func) (thread_t *), long timeout)
+		     int (*func) (thread_t *), unsigned long timeout)
 {
 	checker_t *checker;
 

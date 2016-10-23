@@ -123,13 +123,13 @@ struct ip_vs_daemon_app {
 
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 	/* UDP Payload Size */
-	int			sync_maxlen;
+	uint16_t		sync_maxlen;
 
 	/* Multicast Port (base) */
 	u_int16_t		mcast_port;
 
 	/* Multicast TTL */
-	u_int16_t		mcast_ttl;
+	u_int8_t		mcast_ttl;
 
 	/* Multicast Address Family */
 	u_int16_t		mcast_af;

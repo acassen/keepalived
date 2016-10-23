@@ -176,7 +176,7 @@ ssl_read_thread(thread_t * thread)
 		fprintf(stderr, "SSL socket buffer overflow (not consumed)\n");
 		r = MAX_BUFFER_LENGTH;
 	}
-	memset(sock_obj->buffer + sock_obj->size, 0, r);
+	memset(sock_obj->buffer + sock_obj->size, 0, (size_t)r);
 	r = SSL_read(sock_obj->ssl, sock_obj->buffer + sock_obj->size, r);
 	error = SSL_get_error(sock_obj->ssl, r);
 

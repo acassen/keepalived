@@ -66,7 +66,7 @@ typedef struct _data {
 	char				*email_from;
 	struct sockaddr_storage		smtp_server;
 	char				*smtp_helo_name;
-	long				smtp_connection_to;
+	unsigned long			smtp_connection_to;
 	list				email;
 	interface_t			*default_ifp;		/* Default interface for static addresses */
 #ifdef _WITH_LVS_
@@ -81,14 +81,14 @@ typedef struct _data {
 #ifdef _WITH_VRRP_
 	struct sockaddr_storage		vrrp_mcast_group4;
 	struct sockaddr_storage		vrrp_mcast_group6;
-	int				vrrp_garp_delay;
+	unsigned			vrrp_garp_delay;
 	timeval_t			vrrp_garp_refresh;
-	int				vrrp_garp_rep;
-	int				vrrp_garp_refresh_rep;
-	int				vrrp_garp_lower_prio_delay;
-	int				vrrp_garp_lower_prio_rep;
-	int				vrrp_garp_interval;
-	int				vrrp_gna_interval;
+	unsigned			vrrp_garp_rep;
+	unsigned			vrrp_garp_refresh_rep;
+	unsigned			vrrp_garp_lower_prio_delay;
+	unsigned			vrrp_garp_lower_prio_rep;
+	unsigned			vrrp_garp_interval;
+	unsigned			vrrp_gna_interval;
 	bool				vrrp_lower_prio_no_advert;
 	int				vrrp_version;	/* VRRP version (2 or 3) */
 	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];

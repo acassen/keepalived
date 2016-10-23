@@ -80,13 +80,13 @@ notify_script_name(char *cmdline)
 {
 	char *cp = cmdline;
 	char *script;
-	int str_len;
+	size_t str_len;
 
 	if (!cmdline)
 		return NULL;
-	while (!isspace((int) *cp) && *cp != '\0')
+	while (!isspace(*cp) && *cp != '\0')
 		cp++;
-	str_len = cp - cmdline;
+	str_len = (size_t)(cp - cmdline);
 	script = MALLOC(str_len + 1);
 	memcpy(script, cmdline, str_len);
 	*(script + str_len) = '\0';
@@ -123,7 +123,7 @@ notify_script_exec(char* script, const char *type, int state_num, char* name, in
 {
 	const char *state = "{UNKNOWN}";
 	char *command_line = NULL;
-	int size = 0;
+	size_t size = 0;
 
 	/*
 	 * Determine the length of the buffer that we'll need to generate the command

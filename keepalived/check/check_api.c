@@ -166,7 +166,7 @@ static void
 co_timeout_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
-	co->connection_to = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
+	co->connection_to = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 
 	/* do not allow 0 timeout */
 	if (! co->connection_to)
@@ -179,7 +179,7 @@ static void
 co_fwmark_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
-	co->fwmark = CHECKER_VALUE_INT(strvec);
+	co->fwmark = CHECKER_VALUE_UINT(strvec);
 }
 #endif
 
@@ -200,7 +200,7 @@ install_connect_keywords(void)
 void warmup_handler(vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
-	checker->warmup = (long)CHECKER_VALUE_INT (strvec) * TIMER_HZ;
+	checker->warmup = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 }
 
 /* dump the checkers_queue */
@@ -234,7 +234,7 @@ register_checkers_thread(void)
 {
 	checker_t *checker;
 	element e;
-	long warmup;
+	unsigned long warmup;
 
 	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 		checker = ELEMENT_DATA(e);
@@ -249,7 +249,7 @@ register_checkers_thread(void)
 			*/
 			warmup = checker->warmup;
 			if (warmup)
-				warmup = warmup * rand() / RAND_MAX;
+				warmup = warmup * (unsigned)rand() / RAND_MAX;
 			thread_add_timer(master, checker->launch, checker,
 					 BOOTSTRAP_DELAY + warmup);
 		}

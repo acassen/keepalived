@@ -813,6 +813,9 @@ enable_mem_check_log
 enable_debug
 enable_stacktrace
 enable_profile
+enable_conversion_checks
+enable_force_conversion_checks
+enable_Werror
 with_systemdsystemunitdir
 enable_dependency_tracking
 '
@@ -1468,6 +1471,9 @@ Optional Features:
   --enable-debug          compile with debugging flags
   --enable-stracktrace    compile with stacktrace support
   --enable-profile        compile with profiling flags
+  --enable-conversion-checks compile with conversion warnings if sensible
+  --enable-force-conversion-checks compile with conversion warnings
+  --enable-Werror compile with warnings being errors
   --enable-dependency-tracking
                           do not reject slow dependency extractors
   --disable-dependency-tracking
@@ -3477,6 +3483,21 @@ if test "${enable_profile+set}" = set; then :
   enableval=$enable_profile;
 fi
 
+# Check whether --enable-conversion-checks was given.
+if test "${enable_conversion_checks+set}" = set; then :
+  enableval=$enable_conversion_checks;
+fi
+
+# Check whether --enable-force-conversion-checks was given.
+if test "${enable_force_conversion_checks+set}" = set; then :
+  enableval=$enable_force_conversion_checks;
+fi
+
+# Check whether --enable-Werror was given.
+if test "${enable_Werror+set}" = set; then :
+  enableval=$enable_Werror;
+fi
+
 
 
 # Check whether --with-systemdsystemunitdir was given.
@@ -5077,6 +5098,79 @@ KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2"
 KA_LDFLAGS=
 KA_LIBS="-ldl"
 #KA_LIBTOOLFLAGS =
+
+if test "$enable_conversion_checks" = yes; then
+  # Check if we can sensibly enable -Wconversion
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for usable -Wconversion" >&5
+$as_echo_n "checking for usable -Wconversion... " >&6; }
+  SAV_CFLAGS="$CFLAGS"
+  CFLAGS="-Wconversion -O2  -Wp,-D_FORTIFY_SOURCE=2  -Werror"
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <sys/types.h>
+    #include <sys/select.h>
+    #include <stdint.h>
+    #include <stdbool.h>
+    #include <linux/rtnetlink.h>
+
+    #define VAL	255
+
+    static void
+    fun(uint8_t val)
+    {
+    }
+
+    int main(int argc, char**argv)
+    {
+      fd_set set;
+      uint8_t	val = 42;
+      unsigned u;
+      bool b;
+      size_t size = 17;
+      char c[2];
+      char *c_ptr = c;
+      struct rtattr rta;
+      struct rtattr *rta_p = &rta;
+
+      FD_SET(argc+1, &set);
+
+      fun(argc == VAL ? VAL : val);
+
+      //      vrrp->lower_prio_no_advert = vrrp->strict_mode ? true : global_data->vrrp_lower_prio_no_advert;
+      u = u ? true : b;
+
+      size = RTA_LENGTH(size);
+      c_ptr = RTA_DATA(c_ptr);
+      rta_p = RTA_NEXT(rta_p, size);
+
+      val = (u < 256 ) ? u & 0xff : 0;
+    }
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+      KA_CFLAGS="$KA_CFLAGS -Wconversion"
+
+else
+
+      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+      { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: -Wconversion is not sensible with this compiler. Use --enable-force-conversion-checks to override." >&5
+$as_echo "$as_me: WARNING: -Wconversion is not sensible with this compiler. Use --enable-force-conversion-checks to override." >&2;}
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+  CFLAGS="$SAV_CFLAGS"
+elif test "$enable_force_conversion_checks" = yes; then
+  KA_CFLAGS="$KA_CFLAGS -Wconversion"
+fi
+
+if test "$enable_Werror" = yes; then
+  KA_CFLAGS="$KA_CFLAGS -Werror"
+fi
 
 
 

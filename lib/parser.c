@@ -40,7 +40,8 @@
 
 /* global vars */
 vector_t *keywords;
-int reload = 0;
+bool reload = 0;
+char *config_id;
 
 /* local vars */
 static char *current_conf_file;
@@ -48,9 +49,6 @@ static vector_t *current_keywords;
 static FILE *current_stream;
 static int sublevel = 0;
 static int skip_sublevel = 0;
-
-/* Forward references */
-static void process_stream(vector_t *, int);
 
 static void
 keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (vector_t *), bool active)
@@ -184,7 +182,7 @@ vector_t *
 alloc_strvec(char *string)
 {
 	char *cp, *start, *token;
-	int str_len;
+	size_t str_len;
 	vector_t *strvec;
 
 	if (!string)
@@ -217,13 +215,13 @@ alloc_strvec(char *string)
 				log_message(LOG_INFO, "Unmatched quote: '%s'", string);
 				return strvec;
 			}
-			str_len = cp - start;
+			str_len = (size_t)(cp - start);
 			cp++;
 		} else {
 			while (!isspace((int) *cp) && *cp != '\0' && *cp != '"'
 						   && *cp != '!' && *cp != '#')
 				cp++;
-			str_len = cp - start;
+			str_len = (size_t)(cp - start);
 		}
 		token = MALLOC(str_len + 1);
 		memcpy(token, start, str_len);
@@ -238,6 +236,145 @@ alloc_strvec(char *string)
 		if (*cp == '\0' || *cp == '!' || *cp == '#')
 			return strvec;
 	}
+}
+
+/* recursive configuration stream handler */
+static int kw_level = 0;
+static void
+process_stream(vector_t *keywords_vec, int need_bob)
+{
+	unsigned int i;
+	keyword_t *keyword_vec;
+	char *str;
+	char *buf;
+	vector_t *strvec;
+	vector_t *prev_keywords = current_keywords;
+	current_keywords = keywords_vec;
+	int bob_needed = 0;
+	size_t config_id_len = 0;
+	char *buf_start;
+
+	if (config_id)
+		config_id_len = strlen(config_id);
+
+	buf = MALLOC(MAXBUF);
+	while (read_line(buf, MAXBUF)) {
+		if (buf[0] == '@') {
+			/* If the line starts '@', check the following word matches the system id */
+			if (!config_id)
+				continue;
+			buf_start = strpbrk(buf, " \t");
+			if ((size_t)(buf_start - (buf + 1)) != config_id_len ||
+			    strncmp(buf + 1, config_id, config_id_len))
+				continue;
+		}
+		else
+			buf_start = buf;
+
+		strvec = alloc_strvec(buf_start);
+		memset(buf, 0, MAXBUF);
+
+		if (!strvec)
+			continue;
+
+		str = vector_slot(strvec, 0);
+
+		if (skip_sublevel == -1) {
+			/* There wasn't a '{' on the keyword line */
+			if (!strcmp(str, BOB)) {
+				/* We've got the opening '{' now */
+				skip_sublevel = 1;
+				free_strvec(strvec);
+				continue;
+			}
+			else {
+				/* The skipped keyword doesn't have a {} block, so we no longer want to skip */
+				skip_sublevel = 0;
+			}
+		}
+		if (skip_sublevel) {
+			for (i = 0; i < vector_size(strvec); i++) {
+				str = vector_slot(strvec,i);
+				if (!strcmp(str,BOB))
+					skip_sublevel++;
+				else if (!strcmp(str,EOB)) {
+					if (--skip_sublevel == 0)
+						break;
+				}
+			}
+
+			free_strvec(strvec);
+			continue;
+		}
+
+		if (need_bob) {
+			need_bob = 0;
+			if (!strcmp(str, BOB) && kw_level > 0) {
+				free_strvec(strvec);
+				continue;
+			}
+			else
+				log_message(LOG_INFO, "Missing '{' at beginning of configuration block");
+		}
+		else if (!strcmp(str, BOB)) {
+			log_message(LOG_INFO, "Unexpected '{' - ignoring");
+			free_strvec(strvec);
+			continue;
+		}
+
+		if (!strcmp(str, EOB) && kw_level > 0) {
+			free_strvec(strvec);
+			break;
+		}
+
+		for (i = 0; i < vector_size(keywords_vec); i++) {
+			keyword_vec = vector_slot(keywords_vec, i);
+
+			if (!strcmp(keyword_vec->string, str)) {
+				if (!keyword_vec->active) {
+					if (!strcmp(vector_slot(strvec, vector_size(strvec)-1), BOB))
+						skip_sublevel = 1;
+					else
+						skip_sublevel = -1;
+				}
+
+				/* There is an inconsistency here. 'static_ipaddress' for example
+				 * does not have sub levels, but needs a '{' */
+				if (keyword_vec->sub) {
+					/* Remove a trailing '{' */
+					char *bob = vector_slot(strvec, vector_size(strvec)-1) ;
+					if (!strcmp(bob, BOB)) {
+						vector_unset(strvec, vector_size(strvec)-1);
+						FREE(bob);
+						bob_needed = 0;
+					}
+					else
+						bob_needed = 1;
+				}
+
+				if (keyword_vec->handler)
+					(*keyword_vec->handler) (strvec);
+
+				if (keyword_vec->sub) {
+					kw_level++;
+					process_stream(keyword_vec->sub, bob_needed);
+					kw_level--;
+					if (keyword_vec->active && keyword_vec->sub_close_handler)
+						(*keyword_vec->sub_close_handler) ();
+				}
+				break;
+			}
+		}
+
+		if (i >= vector_size(keywords_vec))
+			log_message(LOG_INFO, "Unknown keyword '%s'", str );
+
+		free_strvec(strvec);
+	}
+
+	current_keywords = prev_keywords;
+	FREE(buf);
+	return;
 }
 
 static void
@@ -398,7 +535,7 @@ read_line(char *buf, size_t size)
 	bool eof = false;
 
 	do {
-		if (fgets(buf, size, current_stream)) {
+		if (fgets(buf, (int)size, current_stream)) {
 			len = strlen(buf);
 			if (len && (buf[len-1] == '\n' || buf[len-1] == '\r'))
 				buf[len-1] = '\0';
@@ -505,7 +642,7 @@ void *
 set_value(vector_t *strvec)
 {
 	char *str;
-	int size;
+	size_t size;
 	char *alloc;
 
 	if (vector_size(strvec) < 2)
@@ -539,128 +676,6 @@ void skip_block(void)
 {
 	/* Don't process the rest of the configuration block */
 	skip_sublevel = 1;
-}
-
-/* recursive configuration stream handler */
-static int kw_level = 0;
-static void
-process_stream(vector_t *keywords_vec, int need_bob)
-{
-	unsigned int i;
-	keyword_t *keyword_vec;
-	char *str;
-	char *buf;
-	vector_t *strvec;
-	vector_t *prev_keywords = current_keywords;
-	current_keywords = keywords_vec;
-	int bob_needed = 0;
-
-	buf = MALLOC(MAXBUF);
-	while (read_line(buf, MAXBUF)) {
-		strvec = alloc_strvec(buf);
-		memset(buf, 0, MAXBUF);
-
-		if (!strvec)
-			continue;
-
-		str = vector_slot(strvec, 0);
-
-		if (skip_sublevel == -1) {
-			/* There wasn't a '{' on the keyword line */
-			if (!strcmp(str, BOB)) {
-				/* We've got the opening '{' now */
-				skip_sublevel = 1;
-				free_strvec(strvec);
-				continue;
-			}
-			else {
-				/* The skipped keyword doesn't have a {} block, so we no longer want to skip */
-				skip_sublevel = 0;
-			}
-		}
-		if (skip_sublevel) {
-			for (i = 0; i < vector_size(strvec); i++) {
-				str = vector_slot(strvec,i);
-				if (!strcmp(str,BOB))
-					skip_sublevel++;
-				else if (!strcmp(str,EOB)) {
-					if (--skip_sublevel == 0)
-						break;
-				}
-			}
-
-			free_strvec(strvec);
-			continue;
-		}
-
-		if (need_bob) {
-			need_bob = 0;
-			if (!strcmp(str, BOB) && kw_level > 0) {
-				free_strvec(strvec);
-				continue;
-			}
-			else
-				log_message(LOG_INFO, "Missing '{' at beginning of configuration block");
-		}
-		else if (!strcmp(str, BOB)) {
-			log_message(LOG_INFO, "Unexpected '{' - ignoring");
-			free_strvec(strvec);
-			continue;
-		}
-
-		if (!strcmp(str, EOB) && kw_level > 0) {
-			free_strvec(strvec);
-			break;
-		}
-
-		for (i = 0; i < vector_size(keywords_vec); i++) {
-			keyword_vec = vector_slot(keywords_vec, i);
-
-			if (!strcmp(keyword_vec->string, str)) {
-				if (!keyword_vec->active) {
-					if (!strcmp(vector_slot(strvec, vector_size(strvec)-1), BOB))
-						skip_sublevel = 1;
-					else
-						skip_sublevel = -1;
-				}
-
-				/* There is an inconsistency here. 'static_ipaddress' for example
-				 * does not have sub levels, but needs a '{' */
-				if (keyword_vec->sub) {
-					/* Remove a trailing '{' */
-					char *bob = vector_slot(strvec, vector_size(strvec)-1) ;
-					if (!strcmp(bob, BOB)) {
-						vector_unset(strvec, vector_size(strvec)-1);
-						FREE(bob);
-						bob_needed = 0;
-					}
-					else
-						bob_needed = 1;
-				}
-
-				if (keyword_vec->handler)
-					(*keyword_vec->handler) (strvec);
-
-				if (keyword_vec->sub) {
-					kw_level++;
-					process_stream(keyword_vec->sub, bob_needed);
-					kw_level--;
-					if (keyword_vec->active && keyword_vec->sub_close_handler)
-						(*keyword_vec->sub_close_handler) ();
-				}
-				break;
-			}
-		}
-
-		if (i >= vector_size(keywords_vec))
-			log_message(LOG_INFO, "Unknown keyword '%s'", str );
-
-		free_strvec(strvec);
-	}
-
-	current_keywords = prev_keywords;
-	FREE(buf);
-	return;
 }
 
 /* Data initialization */

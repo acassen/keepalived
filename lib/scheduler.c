@@ -304,7 +304,7 @@ thread_new(thread_master_t * m)
 /* Add new read thread. */
 thread_t *
 thread_add_read(thread_master_t * m, int (*func) (thread_t *)
-		, void *arg, int fd, long timer)
+		, void *arg, int fd, unsigned long timer)
 {
 	thread_t *thread;
 
@@ -337,7 +337,7 @@ thread_add_read(thread_master_t * m, int (*func) (thread_t *)
 /* Add new write thread. */
 thread_t *
 thread_add_write(thread_master_t * m, int (*func) (thread_t *)
-		 , void *arg, int fd, long timer)
+		 , void *arg, int fd, unsigned long timer)
 {
 	thread_t *thread;
 
@@ -370,7 +370,7 @@ thread_add_write(thread_master_t * m, int (*func) (thread_t *)
 /* Add timer event thread. */
 thread_t *
 thread_add_timer(thread_master_t * m, int (*func) (thread_t *)
-		 , void *arg, long timer)
+		 , void *arg, unsigned long timer)
 {
 	thread_t *thread;
 
@@ -396,7 +396,7 @@ thread_add_timer(thread_master_t * m, int (*func) (thread_t *)
 /* Add a child thread. */
 thread_t *
 thread_add_child(thread_master_t * m, int (*func) (thread_t *)
-		 , void * arg, pid_t pid, long timer)
+		 , void * arg, pid_t pid, unsigned long timer)
 {
 	thread_t *thread;
 

@@ -58,8 +58,8 @@
 typedef struct _vrrp_script {
 	char			*sname;		/* instance name */
 	char			*script;	/* the command to be called */
-	long			interval;	/* interval between script calls */
-	long			timeout;	/* seconds before script timeout */
+	unsigned long		interval;	/* interval between script calls */
+	unsigned long		timeout;	/* microseconds before script timeout */
 	int			weight;		/* weight associated to this script */
 	int			result;		/* result of last call to this script: 0..R-1 = KO, R..R+F-1 = OK */
 	int			inuse;		/* how many users have weight>0 ? */

@@ -126,18 +126,17 @@ void *
 keepalived_malloc(size_t size, char *file, char *function, int line)
 {
 	void *buf;
-	int i = 0;
+	int i;
 	long check;
 
 	buf = zalloc(size + sizeof (long));
 
-	check = 0xa5a5 + size;
+	check = (long)size + 0xa5a5;
 	*(long *) ((char *) buf + size) = check;
 
-	while (i < number_alloc_list) {
+	for (i = 0; i < number_alloc_list; i++) {
 		if (alloc_list[i].type == 0)
 			break;
-		i++;
 	}
 
 	if (i == number_alloc_list)
@@ -263,7 +262,8 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 static void
 keepalived_free_final(void)
 {
-	unsigned int sum = 0, overrun = 0, badptr = 0;
+	unsigned int overrun = 0, badptr = 0;
+	size_t sum = 0;
 	int i, j;
 	i = 0;
 
@@ -325,7 +325,7 @@ keepalived_free_final(void)
 	}
 
 	fprintf(log_op, "\n\n---[ Keepalived memory dump summary for (%s) ]---\n", terminate_banner);
-	fprintf(log_op, "Total number of bytes not freed...: %d\n", sum);
+	fprintf(log_op, "Total number of bytes not freed...: %zu\n", sum);
 	fprintf(log_op, "Number of entries not freed.......: %d\n", n);
 	fprintf(log_op, "Maximum allocated entries.........: %d\n", number_alloc_list);
 	fprintf(log_op, "Maximum memory allocated..........: %zu\n", max_mem_allocated);
@@ -342,7 +342,7 @@ void *
 keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 		   int line)
 {
-	int i = 0;
+	int i;
 	void *buf = buffer, *buf2;
 	long check;
 
@@ -361,12 +361,11 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 		return keepalived_malloc(size, file, function, line);
 	}
 
-	while (i < number_alloc_list) {
+	for (i = 0; i < number_alloc_list; i++) {
 		if (alloc_list[i].ptr == buf) {
 			buf = alloc_list[i].ptr;
 			break;
 		}
-		i++;
 	}
 
 	/* not found */
@@ -394,7 +393,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 	}
 	buf = realloc(buffer, size + sizeof (long));
 
-	check = 0xa5a5 + size;
+	check = (long)size + 0xa5a5;
 	*(long *) ((char *) buf + size) = check;
 	alloc_list[i].csum = check;
 

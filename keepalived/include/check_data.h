@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <syslog.h>
 #include <arpa/inet.h>
 #include <openssl/ssl.h>
@@ -72,10 +73,10 @@ typedef struct _real_server {
 							 */
 	char				*notify_up;	/* Script to launch when RS is added to LVS */
 	char				*notify_down;	/* Script to launch when RS is removed from LVS */
-	int				alive;
+	bool				alive;
 	list				failed_checkers;/* List of failed checkers */
-	int				set;		/* in the IPVS table */
-	int				reloaded;	/* active state was copied from old config while reloading */
+	bool				set;		/* in the IPVS table */
+	bool				reloaded;	/* active state was copied from old config while reloading */
 #if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)
 	/* Statistics */
 	uint32_t			activeconns;	/* active connections */
@@ -92,10 +93,10 @@ typedef struct _real_server {
 /* Virtual Server group definition */
 typedef struct _virtual_server_group_entry {
 	struct sockaddr_storage		addr;
-	uint8_t				range;
+	uint32_t			range;
 	uint32_t			vfwmark;
-	int				alive;
-	int				reloaded;
+	bool				alive;
+	bool				reloaded;
 } virtual_server_group_entry_t;
 
 typedef struct _virtual_server_group {
@@ -114,7 +115,7 @@ typedef struct _virtual_server {
 	uint32_t			vfwmark;
 	uint16_t			af;
 	uint16_t			service_type;
-	long				delay_loop;
+	unsigned long			delay_loop;
 	int				ha_suspend;
 #ifdef _WITH_LVS_
 	char				sched[IP_VS_SCHEDNAME_MAXLEN];
@@ -128,16 +129,15 @@ typedef struct _virtual_server {
 #endif
 	char				*virtualhost;
 	list				rs;
-	int				alive;
-	unsigned			alpha;		/* Alpha mode enabled. */
-	unsigned			omega;		/* Omega mode enabled. */
+	bool				alive;
+	bool				alpha;		/* Alpha mode enabled. */
+	bool				omega;		/* Omega mode enabled. */
 	char				*quorum_up;	/* A hook to call when the VS gains quorum. */
 	char				*quorum_down;	/* A hook to call when the VS loses quorum. */
-	long unsigned			quorum;		/* Minimum live RSs to consider VS up. */
-
-	long unsigned			hysteresis;	/* up/down events "lag" WRT quorum. */
-	unsigned			quorum_state;	/* Reflects result of the last transition done. */
-	int				reloaded;	/* quorum_state was copied from old config while reloading */
+	unsigned			quorum;		/* Minimum live RSs to consider VS up. */
+	unsigned			hysteresis;	/* up/down events "lag" WRT quorum. */
+	bool				quorum_state;	/* Reflects result of the last transition done. */
+	bool				reloaded;	/* quorum_state was copied from old config while reloading */
 #if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)
 	/* Statistics */
 	time_t				lastupdated;
@@ -257,5 +257,6 @@ extern check_data_t *alloc_check_data(void);
 extern void free_check_data(check_data_t *);
 extern void dump_check_data(check_data_t *);
 extern char *format_vs (virtual_server_t *);
+extern bool validate_check_config(void);
 
 #endif

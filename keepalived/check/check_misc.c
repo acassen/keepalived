@@ -83,7 +83,7 @@ static void
 misc_timeout_handler(vector_t *strvec)
 {
 	misc_checker_t *misck_checker = CHECKER_GET();
-	misck_checker->timeout = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
+	misck_checker->timeout = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 }
 
 static void
@@ -183,7 +183,7 @@ misc_check_child_thread(thread_t * thread)
 			 */
 			if (misck_checker->dynamic == 1 && status != 0)
 				update_svr_wgt(status - 2, checker->vs,
-					       checker->rs, 1);
+					       checker->rs, true);
 
 			/* everything is good */
 			if (!svr_checker_up(checker->id, checker->rs)) {

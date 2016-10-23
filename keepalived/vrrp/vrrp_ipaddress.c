@@ -159,7 +159,7 @@ netlink_iplist(list ip_list, int cmd)
 			if (netlink_ipaddress(ipaddr, cmd) > 0)
 				ipaddr->set = !(cmd == IPADDRESS_DEL);
 			else
-				ipaddr->set = 0;
+				ipaddr->set = false;
 		}
 	}
 }
@@ -363,7 +363,7 @@ parse_ipaddress(ip_address_t *ip_address, char *str, int allow_default)
 	new->ifa.ifa_prefixlen = (IP_IS6(new)) ? 128 : 32;
 	p = strchr(str, '/');
 	if (p) {
-		new->ifa.ifa_prefixlen = atoi(p + 1);
+		new->ifa.ifa_prefixlen = (uint8_t)atoi(p + 1);
 		*p = 0;
 	}
 
@@ -401,7 +401,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	interface_t *ifp_local;
 	char *str;
 	unsigned int i = 0, addr_idx = 0;
-	uint32_t scope;
+	uint8_t scope;
 	int param_avail;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));

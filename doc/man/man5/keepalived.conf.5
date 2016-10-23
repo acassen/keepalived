@@ -17,6 +17,28 @@ the main configuration file.
 .SH PARAMETER SYNTAX
 .B <BOOL>
 is one of on|off|true|false|yes|no
+.PP
+.SH Conditional configuration and configuration id
+Any configuration line starts with '@' is a conditional configuration line.
+The word immediately following (i.e. without any space) the '@' character
+is compared against the string specified with the -i command line option,
+and if they don't match, the configuration line is ignored.
+.PP
+The purpose of this is to allow a single configuration file to be used for
+multiple systems, where the only differences are likely to be the router_id,
+vrrp instance priorities, and possibly interface names.
+.PP
+For example:
+.PP
+ global_defs
+ {
+ @main   router_id main_router
+ @backup router_id backup_router
+ }
+.PP
+If keepalived is invoked with -i main, then the router_id will be set to main_router,
+if invoked with -i backup, then backup_router, if not invoked with -i, or with
+-i anything else, then the router_id will not be set.
 .SH TOP HIERACHY
 .PP
 .B GLOBAL CONFIGURATION
@@ -444,6 +466,14 @@ which will transition together on any state change.
      <IPADDR>/<MASK> brd <IPADDR> dev <STRING> scope <SCOPE>
         ...
     }
+
+    # Set the promote_secondaries flag on the interface to stop other
+    # addresses in the same CIDR being removed when 1 of them is removed
+    # For example if 10.1.1.2/24 and 10.1.1.3/24 are both configured on an
+    # interface, and one is removed, unless promote_secondaries is set on
+    # the interface the other address will also be removed.
+    prompte_secondaries
+
     # routes add|del when changing to MASTER, to BACKUP.
     # See static_routes for more details
     virtual_routes {

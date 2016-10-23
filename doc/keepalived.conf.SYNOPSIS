@@ -14,6 +14,29 @@ in you configuration file use this char.
 
 <BOOL> is one of on|off|true|false|yes|no
 
+0.2. Conditional configuration and configuration id
+
+Any configuration line starts with '@' is a conditional configuration line.
+The word immediately following (i.e. without any space) the '@' character
+is compared against the string specified with the -i command line option,
+and if they don't match, the configuration line is ignored.
+
+The purpose of this is to allow a single configuration file to be used for
+multiple systems, where the only differences are likely to be the router_id,
+vrrp instance priorities, and possibly interface names.
+
+For example:
+
+global_defs
+{
+@main	router_id main_router
+@backup router_id backup_router
+}
+
+If keepalived is invoked with -i main, then the router_id will be set to main_router,
+if invoked with -i backup, then backup_router, if not invoked with -i, or with
+-i anything else, then the router_id will not be set.
+
 1. Globals configurations
 
 This block is divided in 4 sub-blocks :
@@ -152,8 +175,9 @@ SCOPE can take the following values :
 	1.3 Static rules
 
 static_rules {							# block identification
-								# The syntax is that same as for ip rule add, without "ip rule add" with the addition of tunnel-id option, e.g.
-	from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1 oif wlan0 tos 22 fwmark 24/12 preference 39 realms 30/20 goto 40
+								# The syntax is that same as for ip rule add, without "ip rule add"
+								# with the addition of tunnel-id option, e.g.
+	from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1 oif wlan0 tos 22 fwmark 24/12 preference 39 realms 30/20
 	to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908
 }
 
@@ -220,7 +244,7 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
 
 (1) The "notify" script is called AFTER the corresponding notify_* script has
     been called, and is given exactly 4 arguments (the whole string is interpreted
-    as a litteral filename so don't add parameters!):
+    as a literal filename so don't add parameters!):
 
     $1 = A string indicating whether it's a "GROUP" or an "INSTANCE"
     $2 = The name of said group or instance
@@ -256,7 +280,7 @@ garp_group {
     gna_interval <DECIMAL>		   # Sets the default interval between unsolicited NA
 					   #   (in seconds, resolution microseconds)
     interface <STRING>			   # The physical interface to which the intervals apply
-    interfaces {			   # A list of interfaces accross which the delays are
+    interfaces {			   # A list of interfaces across which the delays are
 	<STRING>			   #   aggregated.
 	<STRING>
 	...
@@ -272,7 +296,7 @@ garp_group {
 	The configuration block looks like :
 
 vrrp_instance <STRING> {		# VRRP instance declaration
-    use_vmac				# Use VRRP Virtual MAC
+    use_vmac [<NAME>]			# Use VRRP Virtual MAC, optional NAME of interface
     version <INTEGER:2..3>              # VRRP version to use
     vmac_xmit_base			# Send/Recv VRRP messages from base
 					#  interface instead of VMAC interface
@@ -340,6 +364,8 @@ vrrp_instance <STRING> {		# VRRP instance declaration
         <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
         ...
     }
+    prompte_secondaries			# Set the promote_secondaries flag on the interface to stop other
+					# addresses in the same CIDR being removed when 1 of them is removed
     virtual_routes {			# VRRP virtual routes
 					# The syntax is the same as static_routes
     }
