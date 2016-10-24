@@ -298,12 +298,12 @@ update_script_priorities(vrrp_script_t *vscript, bool script_ok)
 		for (e1 = LIST_HEAD(vrrp->track_script); e1; ELEMENT_NEXT(e1)) {
 			tsc = ELEMENT_DATA(e1);
 
-		/* Skip if we haven't found the matching entry */
+			/* Skip if we haven't found the matching entry */
 			if (tsc->scr != vscript)
 				continue;
 
 			if (!tsc->weight) {
-				if (tsc->scr->result < tsc->scr->rise) {
+				if (!script_ok) {
 					/* The instance needs to go down */
 					down_instance(vrrp);	//  sets timer_expire and checks sync group
 				} else {
@@ -317,6 +317,7 @@ update_script_priorities(vrrp_script_t *vscript, bool script_ok)
 				vrrp->total_priority += abs(tsc->weight);
 			else
 				vrrp->total_priority -= abs(tsc->weight);
+
 			vrrp_set_effective_priority(vrrp);
 		}
 	}
@@ -365,11 +366,12 @@ log_message(LOG_INFO, "Incrementing fault count for %s due to %s/%s down", vrrp-
 			tsc = ELEMENT_DATA(e);
 
 			if (!tsc->weight) {
-				if (tsc->scr->result < tsc->scr->rise && tsc->scr->result >= 0) {
-log_message(LOG_INFO, "Incrementing fault count for %s due to %s down, result %d", vrrp->iname, tsc->scr->sname, tsc->scr->result);
+				if (tsc->scr->result == VRRP_SCRIPT_STATUS_INIT ||
+				    (tsc->scr->result >= 0 && tsc->scr->result < tsc->scr->rise)) {
 					/* The instance is down */
 					vrrp->num_script_if_fault++;
-					vrrp->state = VRRP_STATE_FAULT;
+					if (tsc->scr->result >= 0)
+						vrrp->state = VRRP_STATE_FAULT;
 				}
 				continue;
 			}
