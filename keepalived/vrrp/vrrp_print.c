@@ -70,6 +70,10 @@ vgroup_print(FILE *file, void *data)
 			fprintf(file, "   monitor = %s\n", vrrp->iname);
 		}
 	}
+	if (vgroup->num_member_fault)
+		fprintf(file, "   member instances down = %d\n", vgroup->num_member_fault);
+	if (vgroup->global_tracking)
+		fprintf(file, "   global tracking set\n");
 	if (vgroup->script_backup)
 		fprintf(file, "   Backup state transition script = %s\n",
 		       vgroup->script_backup);
@@ -294,6 +298,9 @@ vrrp_print(FILE *file, void *data)
 	fprintf(file, "   Send advert after receive lower priority advert = %s\n", vrrp->lower_prio_no_advert ? "false" : "true");
 	fprintf(file, "   Virtual Router ID = %d\n", vrrp->vrid);
 	fprintf(file, "   Priority = %d\n", vrrp->base_priority);
+	fprintf(file, "   Effective priority = %d\n", vrrp->effective_priority);
+	fprintf(file, "   Total priority = %d\n", vrrp->total_priority);
+	fprintf(file, "   Scripts/interfaces in fault state = %d\n", vrrp->num_script_if_fault);
 	fprintf(file, "   Advert interval = %d %s\n",
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
 		(vrrp->adver_int / (TIMER_HZ / 1000)),

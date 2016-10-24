@@ -1149,7 +1149,7 @@ vrrp_script_child_thread(thread_t * thread)
 			} else {
 				if (vscript->result < vscript->rise) {
 					log_message(LOG_INFO, "VRRP_Script(%s) succeeded", vscript->sname);
-					update_script_priorities(vscript);
+					update_script_priorities(vscript, true);
 				}
 				vscript->result = vscript->rise + vscript->fall - 1;
 			}
@@ -1160,7 +1160,7 @@ vrrp_script_child_thread(thread_t * thread)
 			} else {
 				if (vscript->result == vscript->rise) {
 					log_message(LOG_INFO, "VRRP_Script(%s) failed", vscript->sname);
-					update_script_priorities(vscript);
+					update_script_priorities(vscript, false);
 				}
 				vscript->result = 0;
 			}

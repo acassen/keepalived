@@ -257,9 +257,12 @@ down_instance(vrrp_t *vrrp)
 {
 	/* See update_interface_flags() for some thoughts
 	 * Should we handle all sync group changes here or in the timer_expire ? */
+	vrrp->num_script_if_fault++;
 	if (vrrp->state == VRRP_STATE_MAST)
 		timer_reset(vrrp->sands);
 	thread_read_timer_expire(vrrp->fd_in, false);
+
+log_message(LOG_INFO, "Should be downing %s", vrrp->iname);
 }
 
 static void
@@ -268,10 +271,12 @@ try_up_instance(vrrp_t *vrrp)
 // Something here about setting vrrp->sands
 //	timer_reset(vrrp->sands);
 //	thread_read_timer_expire(vrrp->fd_in, true);
+	vrrp->num_script_if_fault--;
+log_message(LOG_INFO, "Instance %s now has %d faults", vrrp->iname, vrrp->num_script_if_fault);
 }
 
 void
-update_script_priorities(vrrp_script_t *vscript)
+update_script_priorities(vrrp_script_t *vscript, bool script_ok)
 {
 	element e, e1;
 	vrrp_t *vrrp;
@@ -293,7 +298,7 @@ update_script_priorities(vrrp_script_t *vscript)
 		for (e1 = LIST_HEAD(vrrp->track_script); e1; ELEMENT_NEXT(e1)) {
 			tsc = ELEMENT_DATA(e1);
 
-			/* Skip if we haven't found the matching entry */
+		/* Skip if we haven't found the matching entry */
 			if (tsc->scr != vscript)
 				continue;
 
@@ -308,11 +313,82 @@ update_script_priorities(vrrp_script_t *vscript)
 				break;
 			}
 
-			if (tsc->scr->result >= tsc->scr->rise)
+			if (script_ok)
 				vrrp->total_priority += abs(tsc->weight);
 			else
 				vrrp->total_priority -= abs(tsc->weight);
 			vrrp_set_effective_priority(vrrp);
 		}
 	}
+}
+
+void
+initialise_tracking_priorities(vrrp_t *vrrp)
+{
+	element e;
+	tracked_if_t *tip;
+	tracked_sc_t *tsc;
+
+	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
+		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e)) {
+			tip = ELEMENT_DATA(e);
+
+			if (!tip->weight) {
+				if (!IF_ISUP(tip->ifp)) {
+log_message(LOG_INFO, "Incrementing fault count for %s due to %s/%s down", vrrp->iname, vrrp->ifp->ifname, vrrp->ifp->base_ifp->ifname);
+					/* The instance is down */
+					vrrp->num_script_if_fault++;
+					vrrp->state = VRRP_STATE_FAULT;
+				}
+				continue;
+			}
+
+			/* Don't change effective priority if address owner, or if
+			 * a member of a sync group with global tracking */
+			if (vrrp->base_priority == VRRP_PRIO_OWNER ||
+			    (vrrp->sync && !vrrp->sync->global_tracking))
+				continue;
+
+			if (IF_ISUP(tip->ifp)) {
+				if (tip->weight > 0)
+					vrrp->total_priority += tip->weight;
+			}
+			else {
+				if (tip->weight < 0)
+					vrrp->total_priority += tip->weight;
+			}
+		}
+	}
+
+	if (!LIST_ISEMPTY(vrrp->track_script)) {
+		for (e = LIST_HEAD(vrrp->track_script); e; ELEMENT_NEXT(e)) {
+			tsc = ELEMENT_DATA(e);
+
+			if (!tsc->weight) {
+				if (tsc->scr->result < tsc->scr->rise && tsc->scr->result >= 0) {
+log_message(LOG_INFO, "Incrementing fault count for %s due to %s down, result %d", vrrp->iname, tsc->scr->sname, tsc->scr->result);
+					/* The instance is down */
+					vrrp->num_script_if_fault++;
+					vrrp->state = VRRP_STATE_FAULT;
+				}
+				continue;
+			}
+
+			/* Don't change effective priority if address owner, or if
+			 * a member of a sync group with global tracking */
+			if (vrrp->base_priority == VRRP_PRIO_OWNER ||
+			    (vrrp->sync && !vrrp->sync->global_tracking))
+				continue;
+
+			if (tsc->scr->result >= tsc->scr->rise) {
+				if (tsc->weight > 0)
+					vrrp->total_priority += tsc->weight;
+			} else {
+				if (tsc->weight < 0)
+					vrrp->total_priority += tsc->weight;
+			}
+		}
+	}
+
+	vrrp_set_effective_priority(vrrp);
 }
