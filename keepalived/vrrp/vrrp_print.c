@@ -70,8 +70,7 @@ vgroup_print(FILE *file, void *data)
 			fprintf(file, "   monitor = %s\n", vrrp->iname);
 		}
 	}
-	if (vgroup->num_member_fault)
-		fprintf(file, "   member instances down = %d\n", vgroup->num_member_fault);
+	fprintf(file, "   member instances down = %d\n", vgroup->num_member_fault);
 	if (vgroup->global_tracking)
 		fprintf(file, "   global tracking set\n");
 	if (vgroup->script_backup)

@@ -2344,7 +2344,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		 * not running floating priorities on any VRRP instance, or they
 		 * are all running with the same tracking conf.
 		 */
-// TODO - We also want to ensure if global_tracking on a group, then it really is
+// TODO - We also want to ensure if global_tracking on a group, then it really is all the same
 // TODO - Can it be merged into 1 list held against the sync group ?
 
 		if (vrrp->sync && !vrrp->sync->global_tracking) {
@@ -2430,15 +2430,10 @@ bool
 vrrp_complete_init(void)
 {
 	/*
-	 * l - List of VRRP instances to complete
-	 * ol- List of VRRP sync-groups to restore state
-	 * sl- List of VRRP instances within a sync-group
-	 *
 	 * e - Element equal to a specific VRRP instance
 	 * eo- Element equal to a specific group within old global group list
 	 * se- Element equal to a specific VRRP instance within sync group
 	 */
-	list l, ol, sl;
 	element e, oe, se;
 	vrrp_t *vrrp;
 	vrrp_sgroup_t *sgroup, *old_sgroup;
@@ -2456,28 +2451,8 @@ vrrp_complete_init(void)
 	if (global_data->vrrp_garp_lower_prio_delay == PARAMETER_UNSET)
 		global_data->vrrp_garp_lower_prio_delay = global_data->vrrp_garp_delay;
 
-	/* Complete VRRP instance initialization */
-	l = vrrp_data->vrrp;
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-		if (!vrrp_complete_instance(vrrp))
-			return false;
-
-		if (vrrp->ifp->mtu > max_mtu_len)
-			max_mtu_len = vrrp->ifp->mtu;
-	}
-
-	/* If we have a global garp_delay add it to any interfaces without a garp_delay */
-	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
-		set_default_garp_delay();
-
-#ifdef _HAVE_LIBIPTC_
-	/* Make sure we don't have any old iptables/ipsets settings left around */
-	iptables_cleanup();
-#endif
-
 	/* Make sure don't have same vrid on same interface with same address family */
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 		l_o = &vrrp_data->vrrp_index[vrrp->vrid];
 #ifdef _HAVE_VRRP_VMAC_
@@ -2531,10 +2506,49 @@ vrrp_complete_init(void)
 			free_list_element(vrrp_data->vrrp_sync_group, e);
 			continue;
 		}
+	}
 
-		if (reload) {
-			ol = old_vrrp_data->vrrp_sync_group;
-			for (oe = LIST_HEAD(ol); oe; ELEMENT_NEXT(oe)) {
+	/* Complete VRRP instance initialization */
+	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+		if (!vrrp_complete_instance(vrrp))
+			return false;
+
+		if (vrrp->ifp->mtu > max_mtu_len)
+			max_mtu_len = vrrp->ifp->mtu;
+	}
+
+	/* If we have a global garp_delay add it to any interfaces without a garp_delay */
+	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
+		set_default_garp_delay();
+
+#ifdef _HAVE_LIBIPTC_
+	/* Make sure we don't have any old iptables/ipsets settings left around */
+	iptables_cleanup();
+#endif
+
+	/* Check for instance down due to an interface or script */
+	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+
+		/* Set effective priority and fault state */
+		initialise_tracking_priorities(vrrp);
+
+		/* Update fault count on sync group if needed */
+		if (vrrp->sync && vrrp->num_script_if_fault) {
+			vrrp->sync->num_member_fault++;
+			vrrp->state = VRRP_STATE_FAULT;
+		}
+	}
+
+	/* Restore status of any sync group that existed before */
+// TODO - is this relevant any more?
+	if (reload) {
+		for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; e = next) {
+			next = e->next;
+			sgroup = ELEMENT_DATA(e);
+
+			for (oe = LIST_HEAD(old_vrrp_data->vrrp_sync_group); oe; ELEMENT_NEXT(oe)) {
 				old_sgroup = ELEMENT_DATA(oe);
 				log_message(LOG_INFO,
 					"VRRP_Group(%s) - Found saved old sync-group called %s",
@@ -2563,8 +2577,7 @@ vrrp_complete_init(void)
 						"VRRP_Group(%s) Restoring saved sync State : %d",
 						GROUP_NAME(sgroup), sgroup->state);
 
-					sl = sgroup->index_list;
-					for (se = LIST_HEAD(sl); se; ELEMENT_NEXT(se)) {
+					for (se = LIST_HEAD(sgroup->index_list); se; ELEMENT_NEXT(se)) {
 						vrrp = ELEMENT_DATA(se);
 						log_message(LOG_INFO,
 							"VRRP_Instance(%s) used for VRRP_Group(%s) refresh sync",
@@ -2611,16 +2624,6 @@ vrrp_complete_init(void)
 		}
 	}
 
-
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-		/* Set effective priority and fault state */
-		initialise_tracking_priorities(vrrp);
-
-		/* Update fault count on sync group if needed */
-		if (vrrp->sync && vrrp->num_script_if_fault)
-			vrrp->sync->num_member_fault++;
-	}
 
 #ifdef _WITH_LVS_
 	/* Set up the lvs_syncd vrrp */

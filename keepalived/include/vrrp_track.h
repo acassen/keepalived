@@ -84,7 +84,7 @@ struct _vrrp_t;
 /* prototypes */
 extern void dump_track(void *);
 extern void free_track(void *);
-extern interface_t *alloc_track(list, vector_t *);
+extern void alloc_track(list, vector_t *);
 extern void dump_track_script(void *);
 extern void free_track_script(void *);
 extern void alloc_track_script(struct _vrrp_t *, vector_t *);

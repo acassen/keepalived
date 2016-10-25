@@ -26,6 +26,7 @@
 #include "vrrp_track.h"
 #include "vrrp_if.h"
 #include "vrrp_data.h"
+#include "vrrp.h"
 #include "logger.h"
 #include "memory.h"
 #include "vrrp_scheduler.h"
@@ -44,7 +45,7 @@ free_track(void *tip)
 	FREE(tip);
 }
 
-interface_t *
+void
 alloc_track(list track_list, vector_t *strvec)
 {
 	interface_t *ifp = NULL;
@@ -57,7 +58,7 @@ alloc_track(list track_list, vector_t *strvec)
 	/* Ignoring if no interface found */
 	if (!ifp) {
 		log_message(LOG_INFO, "     %s no match, ignoring...", tracked);
-		return NULL;
+		return;
 	}
 
 	if (vector_size(strvec) >= 3 &&
@@ -75,7 +76,6 @@ alloc_track(list track_list, vector_t *strvec)
 	tip->weight = weight;
 
 	list_add(track_list, tip);
-	return ifp;
 }
 
 vrrp_script_t *
@@ -257,22 +257,19 @@ down_instance(vrrp_t *vrrp)
 {
 	/* See update_interface_flags() for some thoughts
 	 * Should we handle all sync group changes here or in the timer_expire ? */
-	vrrp->num_script_if_fault++;
-	if (vrrp->state == VRRP_STATE_MAST)
+	if (vrrp->num_script_if_fault++ == 0) {
+		if (vrrp->state == VRRP_STATE_MAST) {
+			vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
+			vrrp_state_leave_master(vrrp);
 		timer_reset(vrrp->sands);
+		}
+		if (vrrp->sync && vrrp->sync->num_member_fault++) {
+		}
+	}
+
 	thread_read_timer_expire(vrrp->fd_in, false);
 
 log_message(LOG_INFO, "Should be downing %s", vrrp->iname);
-}
-
-static void
-try_up_instance(vrrp_t *vrrp)
-{
-// Something here about setting vrrp->sands
-//	timer_reset(vrrp->sands);
-//	thread_read_timer_expire(vrrp->fd_in, true);
-	vrrp->num_script_if_fault--;
-log_message(LOG_INFO, "Instance %s now has %d faults", vrrp->iname, vrrp->num_script_if_fault);
 }
 
 void
@@ -336,7 +333,6 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 
 			if (!tip->weight) {
 				if (!IF_ISUP(tip->ifp)) {
-log_message(LOG_INFO, "Incrementing fault count for %s due to %s/%s down", vrrp->iname, vrrp->ifp->ifname, vrrp->ifp->base_ifp->ifname);
 					/* The instance is down */
 					vrrp->num_script_if_fault++;
 					vrrp->state = VRRP_STATE_FAULT;
@@ -368,9 +364,9 @@ log_message(LOG_INFO, "Incrementing fault count for %s due to %s/%s down", vrrp-
 			if (!tsc->weight) {
 				if (tsc->scr->result == VRRP_SCRIPT_STATUS_INIT ||
 				    (tsc->scr->result >= 0 && tsc->scr->result < tsc->scr->rise)) {
-					/* The instance is down */
+					/* The script is in fault state */
 					vrrp->num_script_if_fault++;
-					if (tsc->scr->result >= 0)
+					if (tsc->scr->result >= 0)	/* Not INIT_STATE etc */
 						vrrp->state = VRRP_STATE_FAULT;
 				}
 				continue;
