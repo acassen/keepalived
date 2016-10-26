@@ -27,6 +27,7 @@
 #include "vrrp_if.h"
 #include "vrrp_data.h"
 #include "vrrp.h"
+#include "vrrp_sync.h"
 #include "logger.h"
 #include "memory.h"
 #include "vrrp_scheduler.h"
@@ -258,18 +259,18 @@ down_instance(vrrp_t *vrrp)
 	/* See update_interface_flags() for some thoughts
 	 * Should we handle all sync group changes here or in the timer_expire ? */
 	if (vrrp->num_script_if_fault++ == 0) {
-		if (vrrp->state == VRRP_STATE_MAST) {
-			vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
+		vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
+		if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_state_leave_master(vrrp);
+		else
+			vrrp_state_leave_fault(vrrp);
 		timer_reset(vrrp->sands);
-		}
-		if (vrrp->sync && vrrp->sync->num_member_fault++) {
-		}
+
+		if (vrrp->sync && vrrp->sync->num_member_fault++ == 0)
+			vrrp_sync_fault(vrrp);
 	}
 
-	thread_read_timer_expire(vrrp->fd_in, false);
-
-log_message(LOG_INFO, "Should be downing %s", vrrp->iname);
+//	thread_read_timer_expire(vrrp->fd_in, false);
 }
 
 void

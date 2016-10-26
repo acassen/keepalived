@@ -286,10 +286,10 @@ typedef struct _vrrp_t {
 /* VRRP macro */
 #define VRRP_IS_BAD_VERSION(id)		((id) < 2 || (id) > 3)
 #define VRRP_IS_BAD_VID(id)		((id) < 1 || (id) > 255)	/* rfc2338.6.1.vrid */
-#define VRRP_IS_BAD_PRIORITY(p)		((p)<1 || (p)>255)	/* rfc2338.6.1.prio */
-#define VRRP_IS_BAD_ADVERT_INT(d)	((d)<1)
-#define VRRP_IS_BAD_DEBUG_INT(d)	((d)<0 || (d)>4)
-#define VRRP_IS_BAD_PREEMPT_DELAY(d)	((d)>TIMER_MAX_SEC)
+#define VRRP_IS_BAD_PRIORITY(p)		((p) < 1 || (p) > VRRP_PRIO_OWNER)	/* rfc2338.6.1.prio */
+#define VRRP_IS_BAD_ADVERT_INT(d)	((d) < 1)
+#define VRRP_IS_BAD_DEBUG_INT(d)	((d) < 0 || (d) > 4)
+#define VRRP_IS_BAD_PREEMPT_DELAY(d)	((d) > TIMER_MAX_SEC)
 
 /* We have to do some reduction of the calculation for VRRPv3 in order not to overflow a uint32; 625 / 16 == TIMER_CENTI_HZ / 256 */
 #define VRRP_TIMER_SKEW(svr)	((svr)->version == VRRP_VERSION_3 ? (((256U-(svr)->effective_priority) * ((svr)->master_adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : ((256U-(svr)->effective_priority) * TIMER_HZ/256U))

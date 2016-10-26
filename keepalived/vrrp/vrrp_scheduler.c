@@ -975,90 +975,50 @@ vrrp_fault(vrrp_t * vrrp)
 #endif
 }
 
-static void	/* THIS DUPLICATES vrrp_fault() above */
-set_instance_up(vrrp_t *vrrp)
-{
-#if defined _WITH_VRRP_AUTH_
-	/*
-	 * We force the IPSEC AH seq_number sync
-	 * to be done in read advert handler.
-	 * So we ignore this timeouted state until remote
-	 * VRRP MASTER send its advert for the concerned
-	 * instance.
-	 */
-// TODO - does something like this need to be done in leave_fault
-	if (vrrp->auth_type == VRRP_AUTH_AH) {
-		vrrp_ah_sync(vrrp);
-	} else
-#endif
-	{
-		/* Otherwise, we transit to init state */
-		if (vrrp->wantstate == VRRP_STATE_BACK) {
-			vrrp->state = VRRP_STATE_BACK;
-			notify_instance_exec(vrrp, VRRP_STATE_BACK);
-
-			vrrp->master_adver_int = vrrp->adver_int;
-			if (vrrp->init_state == VRRP_STATE_BACK)
-				vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
-			else
-				vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
-
-			if (vrrp->preempt_delay)
-				vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
-#ifdef _WITH_SNMP_KEEPALIVED_
-			vrrp_snmp_instance_trap(vrrp);
-#endif
-			vrrp->last_transition = timer_now();
-			log_message(LOG_INFO, "VRRP_Instance(%s): Entering BACKUP STATE from fault", vrrp->iname);
-			vrrp_init_instance_sands(vrrp);
-		} else {
-#ifdef _WITH_SNMP_RFCV3_
-			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
-#endif
-			log_message(LOG_INFO, "VRRP_Instance(%s): Enter MASTER STATE from fault", vrrp->iname);
-			vrrp_goto_master(vrrp);
-		}
-	}
-#ifdef _WITH_SNMP_RFC_
-	vrrp->stats->uptime = timer_now();
-#endif
-}
-
 void
 try_up_instance(vrrp_t *vrrp)
 {
-	int next_state;
-	element e;
-	vrrp_t *svrrp;
+	bool sync_group_down = false;
+	int wantstate;
 
 // Something here about setting vrrp->sands
 //	timer_reset(vrrp->sands);
 //	thread_read_timer_expire(vrrp->fd_in, true);
 	if (--vrrp->num_script_if_fault)
 		return;
-	if (vrrp->init_state == VRRP_STATE_BACK ||
-	    (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority != VRRP_PRIO_OWNER))
-		vrrp->wantstate = VRRP_STATE_BACK;
-	else
+
+	if (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER)
 		vrrp->wantstate = VRRP_STATE_MAST;
+	else
+		vrrp->wantstate = VRRP_STATE_BACK;
+
+	if (vrrp->sync && --vrrp->sync->num_member_fault)
+		return;
+
+	/* This might be able to be simplified */
+	wantstate = vrrp->wantstate;
+	if (vrrp->sync && !vrrp_sync_goto_master(vrrp)) {
+		sync_group_down = true;
+		vrrp->wantstate = VRRP_STATE_BACK;
+	}
+
+	if (vrrp->wantstate == VRRP_STATE_BACK)
+		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+	else	/* Not sure we need to set this */
+		vrrp->ms_down_timer = vrrp->adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
 
 	/* We can come up */
-	if (!vrrp->sync)
-		set_instance_up(vrrp);
-	else {
-		if (--vrrp->sync->num_member_fault)
-			return;
+	vrrp_state_leave_fault(vrrp);
+	vrrp_init_instance_sands(vrrp);
 
-		next_state = vrrp_sync_goto_master(vrrp) ? VRRP_STATE_MAST : VRRP_STATE_BACK;
+	vrrp->wantstate = wantstate;
 
-		for (e = LIST_HEAD(vrrp->sync->index_list); e; ELEMENT_NEXT(e)) {
-			svrrp = ELEMENT_DATA(e);
-			svrrp->wantstate = next_state;
-
-			set_instance_up(svrrp);
-		}
+	if (vrrp->sync) {
+		if (!sync_group_down)
+			vrrp_sync_master(vrrp);
+		else
+			vrrp_sync_backup(vrrp);
 	}
-		
 }
 
 /* Handle dispatcher read timeout */

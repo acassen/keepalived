@@ -1251,8 +1251,7 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 		return;
 
 	vrrp->state = VRRP_STATE_MAST;
-// TODO - why is this base_priority - we may have scripts that have altered that
-	vrrp_state_master_tx(vrrp, vrrp->base_priority);
+	vrrp_state_master_tx(vrrp, vrrp->effective_priority);
 
 	if (vrrp->sync) {
 		// TODO - we should wiz all other members of the group to master
@@ -1372,6 +1371,9 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 		vrrp_snmp_instance_trap(vrrp);
 #endif
 		vrrp->master_adver_int = vrrp->adver_int;
+		break;
+	case VRRP_STATE_MAST:
+		vrrp_state_goto_master(vrrp);
 		break;
 /*
 	case VRRP_STATE_GOTO_FAULT:
