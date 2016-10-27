@@ -748,8 +748,6 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 	bool now_up;
 	vrrp_t *vrrp;
 	element e, e2;
-	int ip_fd = 0;
-	int ip6_fd = 0;
 	tracked_if_t* tip;
 
 	if (ifi_flags == ifp->ifi_flags)
@@ -759,11 +757,12 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 		return;
 
 	/* We get called after a VMAC is created, but before tracking_vrrp is set */
+// TODO - does this ONLY apply for VMACs?
 	if (!ifp->tracking_vrrp
 #ifdef _HAVE_VRRP_VMAC_
-				 && ifp == ifp->base_ifp
+	     && ifp == ifp->base_ifp
 #endif
-							)
+				    )
 		return;
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -779,74 +778,56 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 	if (was_up == now_up)
 		return;
 
-	log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
-
 	if (!ifp->tracking_vrrp)
 		return;
+
+	log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
 
 	/* The state of the interface has changed from up to down or vice versa.
 	 * Find which vrrp instances are affected */
 	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-		if (!vrrp->track_ifp)
+		/* If this interface isn't relevant to the vrrp instance, skip the instance */
+		if (!vrrp->track_ifp &&
+#ifdef _HAVE_VRRP_VMAC_
+		    vrrp->ifp->base_ifp != ifp &&
+#endif
+		    vrrp->ifp != ifp)
 			continue;
 
 		/* Find the entry */
-		tip = NULL;
-		for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
-			tip = ELEMENT_DATA(e2);
-			if (tip->ifp == ifp)
-				break;
-		}
+/* TODO -the tracking_vrrp list really ought to have weight as well, to stop this search */
+		if (vrrp->track_ifp) {
+			for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
+				tip = ELEMENT_DATA(e2);
+				if (tip->ifp == ifp) {
+					break;
+				}
+			}
 
-		/* The VRRP instance's own interface won't be in the list */
-		if (tip && tip->weight) {
-			if (now_up)
-				vrrp->total_priority += abs(tip->weight);
-			else
-				vrrp->total_priority -= abs(tip->weight);
-			vrrp_set_effective_priority(vrrp);
-			continue;
+			/* The VRRP instance's own interface won't be in the list */
+			if (e2 && tip->weight) {
+				if (now_up)
+					vrrp->total_priority += abs(tip->weight);
+				else
+					vrrp->total_priority -= abs(tip->weight);
+				vrrp_set_effective_priority(vrrp);
+
+				continue;
+			}
 		}
 
 		/* This vrrp's interface or underlying interface has changed */
 		if (VRRP_IF_ISUP(vrrp) != was_up) {
 			if (now_up)
-				vrrp->num_script_if_fault--;
+				try_up_instance(vrrp);
 			else
-				vrrp->num_script_if_fault++;
+				down_instance(vrrp);
 
 			vrrp->if_state_changed = true;
-
-			/* This is how we update the queued thread */
-			if (vrrp->ifp == ifp) {
-#ifdef _HAVE_VRRP_VMAC_
-				if (ifp->vmac) {
-					/* We are the only user of this fd */
-					if (vrrp->fd_in)
-						thread_read_timer_expire(vrrp->fd_in, now_up);
-					continue;
-				}
-#endif
-				if (vrrp->family == AF_INET)
-					ip_fd = vrrp->fd_in;
-				else
-					ip6_fd = vrrp->fd_in;
-			}
-#ifdef _HAVE_VRRP_VMAC_
-			else if (vrrp->fd_in) {
-				/* This is a vmac, and the underlying interface has changed state.
-				 * We need to report this with the fd used by the vmac interface */
-				thread_read_timer_expire(vrrp->fd_in, now_up);
-			}
-#endif
 		}
 	}
-	if (ip_fd)
-		thread_read_timer_expire(ip_fd, now_up);
-	if (ip6_fd)
-		thread_read_timer_expire(ip6_fd, now_up);
 }
 
 static int

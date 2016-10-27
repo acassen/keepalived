@@ -2408,6 +2408,16 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
+	/* And now add us to the interfaces we are tracking */
+	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
+		element e2;
+		tracked_if_t *tip;
+		for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
+			tip = ELEMENT_DATA(e2);
+			add_vrrp_to_interface(vrrp, tip->ifp);
+		}
+	}
+
 	if (interface_already_existed) {
 // TODO - consider reload
 		vrrp->vipset = true;	/* Set to force address removal */

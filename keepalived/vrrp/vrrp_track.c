@@ -253,7 +253,7 @@ vrrp_script_weight(list l)
 	return weight;
 }
 
-static void
+void
 down_instance(vrrp_t *vrrp)
 {
 	/* See update_interface_flags() for some thoughts

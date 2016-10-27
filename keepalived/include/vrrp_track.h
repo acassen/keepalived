@@ -95,6 +95,7 @@ extern bool vrrp_script_up(list);
 extern int vrrp_script_weight(list);
 extern vrrp_script_t *find_script_by_name(char *);
 extern void update_script_priorities(vrrp_script_t *, bool);
+extern void down_instance(struct _vrrp_t *);
 extern void initialise_tracking_priorities(struct _vrrp_t *);
 
 #endif
