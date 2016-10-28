@@ -114,6 +114,8 @@ AC_ARG_ENABLE(debug,
   [  --enable-debug          compile with debugging flags])
 AC_ARG_ENABLE(stacktrace,
   [  --enable-stracktrace    compile with stacktrace support])
+AC_ARG_ENABLE(dump-threads,
+  [  --enable-dump-threads   compile with thread dumping support])
 AC_ARG_ENABLE(profile,
   [  --enable-profile        compile with profiling flags])
 AC_ARG_ENABLE(conversion-checks,
@@ -1012,6 +1014,15 @@ if test "${enable_stacktrace}" = yes; then
   ENABLE_STACKTRACE=Yes
   add_build_opt([STACKTRACE])
   add_to_var([KA_LDFLAGS], [-rdynamic])
+else
+  ENABLE_STACKTRACE=No
+fi
+
+dnl ----[ Thread dumping support or not ? ]----
+if test "${enable_dump_threads}" = yes; then
+  AC_DEFINE([_WITH_DUMP_THREADS_], [ 1 ], [Define to 1 to build with thread dumping support])
+  ENABLE_DUMP_THREADS=Yes
+  add_build_opt([DUMP_THREADS])
 else
   ENABLE_STACKTRACE=No
 fi

@@ -1331,3 +1331,125 @@ vrrp_arp_thread(thread_t *thread)
 
 	return 0;
 }
+
+#ifdef _WITH_DUMP_THREADS_
+static char *
+get_func_name_from_addr(void *func)
+{
+/*
+func
+ handle_dbus_msg
+ http_read_thread
+ http_response_thread
+ if_linkbeat_refresh_thread
+ kernel_netlink
+ print_vrrp_data
+ print_vrrp_stats
+ reload_vrrp_thread
+ SMTP_FSM[status].send
+ smtp_read_thread
+ smtp_send_thread
+ ssl_read_thread
+ tcp_connect_thread
+*/
+	if (func == vrrp_arp_thread) return "vrrp_arp_thread";
+	if (func == vrrp_dispatcher_init) return "vrrp_dispatcher_init";
+	if (func == vrrp_gratuitous_arp_thread) return "vrrp_gratuitous_arp_thread";
+	if (func == vrrp_lower_prio_gratuitous_arp_thread) return "vrrp_lower_prio_gratuitous_arp_thread";
+	if (func == vrrp_read_dispatcher_thread) return "vrrp_read_dispatcher_thread";
+//	if (func == vrrp_respawn_thread) return "vrrp_respawn_thread";
+	if (func == vrrp_script_child_timeout_thread) return "vrrp_script_child_timeout_thread";
+	if (func == vrrp_script_thread) return "vrrp_script_thread";
+	if (func == vrrp_update_priority) return "vrrp_update_priority";
+
+	return NULL;
+}
+
+static void
+dump_thread_list( FILE *fp, thread_list_t *tlist, const char *type)
+{
+	thread_t *thread;
+	char time_buf[26];
+	char *func_name;
+
+	fprintf(fp, "\n  %s thread list dump\n", type);
+	for (thread = tlist->head; thread; thread = thread->next) {
+		fprintf(fp, "\n    type = %d (%s)\n", thread->type,
+				thread->type == THREAD_READ ? "THREAD_READ" :
+				thread->type == THREAD_WRITE ? "THREAD_WRITE" :
+				thread->type == THREAD_TIMER ? "THREAD_TIMER" :
+				thread->type == THREAD_EVENT ? "THREAD_EVENT" :
+				thread->type == THREAD_CHILD ? "THREAD_CHILD" :
+				thread->type == THREAD_READY ? "THREAD_READY" :
+				thread->type == THREAD_UNUSED ? "THREAD_UNUSED" :
+				thread->type == THREAD_WRITE_TIMEOUT ? "THREAD_WRITE_TIMEOUT" :
+				thread->type == THREAD_READ_TIMEOUT ? "THREAD_READ_TIMEOUT" :
+				thread->type == THREAD_CHILD_TIMEOUT ? "THREAD_CHILD_TIMEOUT" :
+				thread->type == THREAD_TERMINATE ? "THREAD_TERMINATE" :
+				thread->type == THREAD_READY_FD ? "THREAD_READY_FD" :
+				thread->type == THREAD_IF_UP ? "THREAD_IF_UP" :
+				thread->type == THREAD_IF_DOWN ? "THREAD_IF_DOWN" : "unknown");
+
+		fprintf(fp, "    id = %lu\n", thread->id);
+		fprintf(fp, "    union = %d\n", thread->u.val);
+		ctime_r(&thread->sands.tv_sec, time_buf);
+		fprintf(fp, "    sands = %.19s.%6.6lu\n", time_buf, thread->sands.tv_usec);
+		if ((func_name = get_func_name_from_addr(thread->func)))
+			fprintf(fp, "    func = %s()\n", func_name);
+		else
+			fprintf(fp, "    func = %p\n", thread->func);
+	}
+}
+
+static void
+dump_fd_set(FILE *fp, fd_set *fd, const char *type)
+{
+	fprintf(fp, "\n  %s fd_set dump\n", type);
+	fprintf(fp, "    0x%lx\n", __FDS_BITS(fd)[0]);
+}
+
+void
+dump_threads(void)
+{
+	FILE *fp;
+	char time_buf[26];
+	element e;
+	vrrp_t *vrrp;
+
+	fp = fopen("/tmp/thread_dump", "a");
+
+	set_time_now();
+	ctime_r(&time_now.tv_sec, time_buf);
+	time_buf[24] = '\0';
+
+	fprintf(fp, "\n%s: Thread dump\n", time_buf);
+
+	dump_thread_list(fp, &master->read, "read");
+	dump_thread_list(fp, &master->write, "write");
+	dump_thread_list(fp, &master->timer, "timer");
+	dump_thread_list(fp, &master->child, "child");
+	dump_thread_list(fp, &master->event, "event");
+	dump_thread_list(fp, &master->ready, "ready");
+	dump_thread_list(fp, &master->unuse, "unuse");
+	dump_fd_set(fp, &master->readfd, "read");
+	dump_fd_set(fp, &master->writefd, "write");
+	dump_fd_set(fp, &master->exceptfd, "except");
+	fprintf(fp, "alloc = %lu\n", master->alloc);
+
+	fprintf(fp, "\n");
+	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+		ctime_r(&vrrp->sands.tv_sec, time_buf);
+		fprintf(fp, "VRRP instance %s, sands %.19s.%6.6lu, status %s\n", vrrp->iname, time_buf, vrrp->sands.tv_usec,
+				vrrp->state == VRRP_STATE_INIT ? "INIT" :
+				vrrp->state == VRRP_STATE_BACK ? "BACKUP" :
+				vrrp->state == VRRP_STATE_MAST ? "MASTER" :
+				vrrp->state == VRRP_STATE_FAULT ? "FAULT" :
+				vrrp->state == VRRP_STATE_GOTO_MASTER ? "GOTO MASTER" :
+				vrrp->state == VRRP_STATE_GOTO_FAULT ? "GOTO FAULT" :
+				vrrp->state == VRRP_DISPATCHER ? "DISPATCHER" : "unknown");
+	}
+	fclose(fp);
+}
+#endif
+

@@ -538,6 +538,9 @@
 /* Define to 1 to have DBus create instance support */
 #undef _WITH_DBUS_CREATE_INSTANCE_
 
+/* Define to 1 to build with thread dumping support */
+#undef _WITH_DUMP_THREADS_
+
 /* Define to 1 if have IPVS support */
 #undef _WITH_LVS_
 

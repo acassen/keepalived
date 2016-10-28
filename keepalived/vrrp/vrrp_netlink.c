@@ -826,6 +826,9 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 				down_instance(vrrp);
 		}
 	}
+#ifdef _WITH_DUMP_THREADS_
+	dump_threads();
+#endif
 }
 
 static int
