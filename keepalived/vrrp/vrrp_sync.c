@@ -350,10 +350,15 @@ vrrp_sync_fault(vrrp_t * vrrp)
 		 * => Takeover will be less than 3secs !
 		 */
 		if (isync != vrrp && isync->state != VRRP_STATE_FAULT) {
-			if (isync->state == VRRP_STATE_MAST)
+			isync->wantstate = VRRP_STATE_GOTO_FAULT;
+			if (isync->state == VRRP_STATE_MAST) {
 				isync->wantstate = VRRP_STATE_GOTO_FAULT;
-			else if (isync->state == VRRP_STATE_BACK)
+				vrrp_state_leave_master(isync);
+			}
+			else if (isync->state == VRRP_STATE_BACK) {
 				isync->state = VRRP_STATE_FAULT;
+				vrrp_state_leave_fault(isync);
+			}
 		}
 	}
 	vgroup->state = VRRP_STATE_FAULT;

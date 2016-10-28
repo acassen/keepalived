@@ -1375,10 +1375,10 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 	case VRRP_STATE_MAST:
 		vrrp_state_goto_master(vrrp);
 		break;
-/*
 	case VRRP_STATE_GOTO_FAULT:
 		log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE", vrrp->iname);
-		vrrp_restore_interface(vrrp, false, false);
+		if (vrrp->state == VRRP_STATE_MAST)
+			vrrp_restore_interface(vrrp, false, false);
 		vrrp->state = VRRP_STATE_FAULT;
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
@@ -1386,7 +1386,6 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 		vrrp_snmp_instance_trap(vrrp);
 #endif
 		break;
-*/
 	}
 
 	/* Set the down timer */
