@@ -1389,7 +1389,8 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 	}
 
 	/* Set the down timer */
-	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+	vrrp->master_adver_int = vrrp->adver_int;
+	vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	vrrp->last_transition = timer_now();
 }
 
