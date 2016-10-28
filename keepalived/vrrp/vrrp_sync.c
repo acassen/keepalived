@@ -274,8 +274,6 @@ vrrp_sync_backup(vrrp_t * vrrp)
 		else
 			vrrp_state_leave_master(isync);
 		vrrp_init_instance_sands(isync);
-		isync->if_state_changed = true;
-		thread_read_timer_expire(isync->fd_in, false);
 	}
 	vgroup->state = VRRP_STATE_BACK;
 	vrrp_sync_smtp_notifier(vgroup);
@@ -301,8 +299,7 @@ log_message(LOG_INFO, "sync from %s not master for %s", vrrp->sync->gname, vrrp-
 		return;
 }
 
-	log_message(LOG_INFO, "VRRP_Group(%s) Syncing instances to MASTER state",
-	       GROUP_NAME(vgroup));
+	log_message(LOG_INFO, "VRRP_Group(%s) Syncing instances to MASTER state", GROUP_NAME(vgroup));
 
 	/* Perform sync index */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -318,8 +315,6 @@ log_message(LOG_INFO, "sync from %s not master for %s", vrrp->sync->gname, vrrp-
 				/* ??? */
 			} else
 				vrrp_state_goto_master(isync);
-			isync->if_state_changed = true;
-			thread_read_timer_expire(isync->fd_in, true);
 		}
 	}
 	vgroup->state = VRRP_STATE_MAST;
@@ -359,9 +354,6 @@ vrrp_sync_fault(vrrp_t * vrrp)
 				isync->wantstate = VRRP_STATE_GOTO_FAULT;
 			else if (isync->state == VRRP_STATE_BACK)
 				isync->state = VRRP_STATE_FAULT;
-
-			isync->if_state_changed = true;
-			thread_read_timer_expire(isync->fd_in, false);
 		}
 	}
 	vgroup->state = VRRP_STATE_FAULT;

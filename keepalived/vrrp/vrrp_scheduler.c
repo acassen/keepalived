@@ -1002,22 +1002,24 @@ try_up_instance(vrrp_t *vrrp)
 		vrrp->wantstate = VRRP_STATE_BACK;
 	}
 
-	if (vrrp->wantstate == VRRP_STATE_BACK)
-		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
-	else	/* Not sure we need to set this */
-		vrrp->ms_down_timer = vrrp->adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
-
 	/* We can come up */
+	vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	vrrp_state_leave_fault(vrrp);
 	vrrp_init_instance_sands(vrrp);
 
 	vrrp->wantstate = wantstate;
 
 	if (vrrp->sync) {
-		if (!sync_group_down)
+		if (vrrp->wantstate == VRRP_STATE_MAST && !sync_group_down)
+{
+log_message(LOG_INFO, "Calling vrrp_sync_master(%s)", vrrp->iname);
 			vrrp_sync_master(vrrp);
+}
 		else
+{
+log_message(LOG_INFO, "Calling vrrp_sync_backup(%s)", vrrp->iname);
 			vrrp_sync_backup(vrrp);
+}
 	}
 }
 
@@ -1038,9 +1040,7 @@ vrrp_dispatcher_read_timeout(int fd)
 		if (vrrp->fd_in != fd)
 			continue;
 
-		if (vrrp->if_state_changed)
-			vrrp->if_state_changed = false;
-		else if (timer_cmp(vrrp->sands, time_now) > 0)
+		if (timer_cmp(vrrp->sands, time_now) > 0)
 			continue;
 
 		/* Run the FSM handler */

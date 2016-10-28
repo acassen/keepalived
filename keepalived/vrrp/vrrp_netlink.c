@@ -824,8 +824,6 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 				try_up_instance(vrrp);
 			else
 				down_instance(vrrp);
-
-			vrrp->if_state_changed = true;
 		}
 	}
 }
