@@ -205,7 +205,7 @@ down_instance(vrrp_t *vrrp)
 			vrrp_state_leave_master(vrrp);
 		else
 			vrrp_state_leave_fault(vrrp);
-		timer_reset(vrrp->sands);
+		timer_disable(vrrp->sands);
 
 		if (vrrp->sync && vrrp->sync->num_member_fault++ == 0)
 			vrrp_sync_fault(vrrp);

@@ -359,6 +359,8 @@ vrrp_sync_fault(vrrp_t * vrrp)
 				isync->state = VRRP_STATE_FAULT;
 				vrrp_state_leave_fault(isync);
 			}
+
+			timer_disable(isync->sands);
 		}
 	}
 	vgroup->state = VRRP_STATE_FAULT;
