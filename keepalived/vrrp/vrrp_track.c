@@ -197,8 +197,6 @@ vrrp_script_up(list l)
 void
 down_instance(vrrp_t *vrrp)
 {
-	/* See update_interface_flags() for some thoughts
-	 * Should we handle all sync group changes here or in the timer_expire ? */
 	if (vrrp->num_script_if_fault++ == 0) {
 		vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
 		if (vrrp->state == VRRP_STATE_MAST)
@@ -242,7 +240,7 @@ update_script_priorities(vrrp_script_t *vscript, bool script_ok)
 			if (!tsc->weight) {
 				if (!script_ok) {
 					/* The instance needs to go down */
-					down_instance(vrrp);	//  sets timer_expire and checks sync group
+					down_instance(vrrp);
 				} else {
 					/* The instance can come up */
 					try_up_instance(vrrp);  // Set want_state = BACKUP/MASTER, and check i/fs and sync groups

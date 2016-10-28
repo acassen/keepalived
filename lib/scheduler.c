@@ -471,28 +471,6 @@ thread_add_terminate_event(thread_master_t * m)
 	return thread;
 }
 
-void
-thread_read_timer_expire(int fd, bool if_is_up)
-{
-	thread_t *thread;
-	unsigned char event_type = if_is_up ? THREAD_IF_UP : THREAD_IF_DOWN;
-
-	thread = master->read.head;
-	while (thread) {
-		thread_t *t;
-
-		t = thread;
-		thread = t->next;
-
-		if (t->u.fd == fd) {
-			FD_CLR(t->u.fd, &master->readfd);
-			thread_list_delete(&master->read, t);
-			thread_list_add(&master->ready, t);
-			t->type = event_type;
-		}
-	}
-}
-
 /* Cancel thread from scheduler. */
 int
 thread_cancel(thread_t * thread)

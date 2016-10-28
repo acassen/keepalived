@@ -931,9 +931,6 @@ try_up_instance(vrrp_t *vrrp)
 	bool sync_group_down = false;
 	int wantstate;
 
-// Something here about setting vrrp->sands
-//	timer_reset(vrrp->sands);
-//	thread_read_timer_expire(vrrp->fd_in, true);
 	if (--vrrp->num_script_if_fault)
 		return;
 
