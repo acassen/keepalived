@@ -928,7 +928,6 @@ vrrp_fault(vrrp_t * vrrp)
 void
 try_up_instance(vrrp_t *vrrp)
 {
-	bool sync_group_down = false;
 	int wantstate;
 
 	if (--vrrp->num_script_if_fault)
@@ -939,34 +938,28 @@ try_up_instance(vrrp_t *vrrp)
 	else
 		vrrp->wantstate = VRRP_STATE_BACK;
 
+	vrrp->master_adver_int = vrrp->adver_int;
+	vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+
 	if (vrrp->sync && --vrrp->sync->num_member_fault)
 		return;
 
-	/* This might be able to be simplified */
+	/* If the sync group can't go to master, we must go to backup state */
 	wantstate = vrrp->wantstate;
-	if (vrrp->sync && !vrrp_sync_goto_master(vrrp)) {
-		sync_group_down = true;
+	if (vrrp->sync && !vrrp_sync_goto_master(vrrp))
 		vrrp->wantstate = VRRP_STATE_BACK;
-	}
 
 	/* We can come up */
-	vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 	vrrp_state_leave_fault(vrrp);
 	vrrp_init_instance_sands(vrrp);
 
 	vrrp->wantstate = wantstate;
 
 	if (vrrp->sync) {
-		if (vrrp->wantstate == VRRP_STATE_MAST && !sync_group_down)
-{
-log_message(LOG_INFO, "Calling vrrp_sync_master(%s)", vrrp->iname);
+		if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_sync_master(vrrp);
-}
 		else
-{
-log_message(LOG_INFO, "Calling vrrp_sync_backup(%s)", vrrp->iname);
 			vrrp_sync_backup(vrrp);
-}
 	}
 }
 
