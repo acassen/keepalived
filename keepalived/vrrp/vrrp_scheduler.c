@@ -89,7 +89,6 @@ static void vrrp_goto_master(vrrp_t *);
 static void vrrp_master(vrrp_t *);
 static void vrrp_fault(vrrp_t *);
 
-static int vrrp_update_priority(thread_t * thread);
 static int vrrp_script_child_timeout_thread(thread_t * thread);
 static int vrrp_script_child_thread(thread_t * thread);
 static int vrrp_script_thread(thread_t * thread);
@@ -223,16 +222,6 @@ vrrp_init_state(list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-
-		/* The effective priority is never changed for PRIO_OWNER */
-// TODO - We also want to ensure if global_tracking on a group, then it really is
-// TODO - Can it be merged into 1 list held against the sync group ?
-		if (vrrp->base_priority != VRRP_PRIO_OWNER &&
-		    (!vrrp->sync || vrrp->sync->global_tracking)) {
-				/* Register new priority update thread */
-				thread_add_timer(master, vrrp_update_priority,
-						 vrrp, vrrp->master_adver_int);
-		}
 
 		/* wantstate is the state we would be in disregarding any sync group */
 		vrrp->wantstate = vrrp->state == VRRP_STATE_FAULT ? VRRP_STATE_FAULT :
@@ -828,45 +817,6 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 		    vrrp->iname, new_prio);
 
 	vrrp->effective_priority = new_prio;
-}
-
-
-/* Update VRRP effective priority based on multiple checkers.
- * This is a thread which is executed every master_adver_int
- * unless the vrrp instance is part of a sync group and there
- * isn't global tracking for the group.
- */
-static int
-vrrp_update_priority(thread_t * thread)
-{
-	vrrp_t *vrrp = THREAD_ARG(thread);
-	int new_prio;
-
-// TODO - we need to make sure tracked interfaces are handled in quick stuf
-
-	/* WARNING! we must compute new_prio on a signed int in order
-	   to detect overflows and avoid wrapping. */
-
-	/* compute prio_offset right here */
-	new_prio = vrrp->base_priority;
-
-	/* Now we will sum the weights of all interfaces which are tracked. */
-	if (!LIST_ISEMPTY(vrrp->track_ifp))
-		 new_prio += vrrp_tracked_weight(vrrp->track_ifp);
-
-	/* Now we will sum the weights of all scripts which are tracked. */
-	if (!LIST_ISEMPTY(vrrp->track_script))
-		new_prio += vrrp_script_weight(vrrp->track_script);
-
-	vrrp->total_priority = new_prio;
-// TODO 1 - just call with vrrp, and use total_priority
-	vrrp_set_effective_priority(vrrp);
-
-	/* Register next priority update thread */
-// TODO 1 - we won't want the add timer
-// To begin with we should run and check the calculated priorty == total_priority
-	thread_add_timer(master, vrrp_update_priority, vrrp, vrrp->master_adver_int);
-	return 0;
 }
 
 static void

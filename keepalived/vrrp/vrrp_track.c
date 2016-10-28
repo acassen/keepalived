@@ -178,34 +178,6 @@ vrrp_log_tracked_down(list l)
 	}
 }
 
-/* Returns total weights of all tracked interfaces :
- * - a positive interface weight adds to the global weight when the
- *   interface is UP.
- * - a negative interface weight subtracts from the global weight when the
- *   interface is DOWN.
- *
- */
-int
-vrrp_tracked_weight(list l)
-{
-	element e;
-	tracked_if_t *tip;
-	int weight = 0;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		tip = ELEMENT_DATA(e);
-		if (IF_ISUP(tip->ifp)) {
-			if (tip->weight > 0)
-				weight += tip->weight;
-		} else {
-			if (tip->weight < 0)
-				weight += tip->weight;
-		}
-	}
-
-	return weight;
-}
-
 /* Test if all tracked scripts are either OK or weight-tracked */
 bool
 vrrp_script_up(list l)
@@ -220,37 +192,6 @@ vrrp_script_up(list l)
 	}
 
 	return true;
-}
-
-/* Returns total weights of all tracked scripts :
- * - a positive weight adds to the global weight when the result is OK
- * - a negative weight subtracts from the global weight when the result is bad
- *
- */
-int
-vrrp_script_weight(list l)
-{
-	element e;
-	tracked_sc_t *tsc;
-	int weight = 0;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		tsc = ELEMENT_DATA(e);
-
-		/* Ignore non-weighted scripts */
-		if (!tsc->weight)
-			continue;
-
-		if (tsc->scr->result >= tsc->scr->rise) {
-			if (tsc->weight > 0)
-				weight += tsc->weight;
-		} else {
-			 if (tsc->weight < 0)
-				weight += tsc->weight;
-		}
-	}
-
-	return weight;
 }
 
 void
@@ -269,8 +210,6 @@ down_instance(vrrp_t *vrrp)
 		if (vrrp->sync && vrrp->sync->num_member_fault++ == 0)
 			vrrp_sync_fault(vrrp);
 	}
-
-//	thread_read_timer_expire(vrrp->fd_in, false);
 }
 
 void
