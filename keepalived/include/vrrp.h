@@ -331,6 +331,5 @@ extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);
 extern void clear_diff_script(void);
 extern void vrrp_restore_interface(vrrp_t *, bool, bool);
-extern void vrrp_remove_delayed_arp_na(vrrp_t *);
 
 #endif

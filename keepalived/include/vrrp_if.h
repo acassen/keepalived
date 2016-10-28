@@ -144,7 +144,6 @@ extern void reset_interface_queue(void);
 extern void alloc_garp_delay(void);
 extern void set_default_garp_delay(void);
 extern void if_add_queue(interface_t *);
-extern int if_monitor_thread(thread_t *);
 extern void init_interface_queue(void);
 extern void init_interface_linkbeat(void);
 extern void free_interface_queue(void);

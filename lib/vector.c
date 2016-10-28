@@ -255,6 +255,7 @@ vector_free(vector_t *v)
 	FREE(v);
 }
 
+#ifdef _INCLUDE_UNUSED_CODE_
 /* dump vector slots */
 void
 vector_dump(FILE *fp, vector_t *v)
@@ -269,6 +270,7 @@ vector_dump(FILE *fp, vector_t *v)
 		}
 	}
 }
+#endif
 
 /* String vector related */
 void

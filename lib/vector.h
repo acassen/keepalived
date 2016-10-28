@@ -51,7 +51,9 @@ extern void vector_set_slot(vector_t *, void *);
 extern void vector_unset(vector_t *, unsigned int);
 extern unsigned int vector_count(vector_t *);
 extern void vector_free(vector_t *);
+#ifdef _INCLUDE_UNUSED_CODE_
 extern void vector_dump(FILE *fp, vector_t *);
+#endif
 extern void free_strvec(vector_t *);
 
 #endif
