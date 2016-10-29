@@ -2375,7 +2375,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 								 "tracked script %s with weights due to SYNC group", vrrp->iname, sc->scr->sname);
 						free_list_element(vrrp->track_script, e2);
 
-						if (!--sc->scr->inuse) {
+						if (!LIST_SIZE(vrrp->track_script)) {
 							sc->scr->result = VRRP_SCRIPT_STATUS_DISABLED;
 							log_message(LOG_INFO, "Warning - script %s is not used", sc->scr->sname);
 						}

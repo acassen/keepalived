@@ -143,7 +143,6 @@ alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 	tsc	    = (tracked_sc_t *) MALLOC(sizeof(tracked_sc_t));
 	tsc->scr    = vsc;
 	tsc->weight = weight;
-	vsc->inuse++;
 	vsc->result = VRRP_SCRIPT_STATUS_INIT;
 	list_add(vrrp->track_script, tsc);
 }

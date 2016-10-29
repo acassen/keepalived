@@ -112,7 +112,7 @@ vscript_print(FILE *file, void *data)
 	fprintf(file, "   Rise = %d\n", vscript->rise);
 	fprintf(file, "   Fall = %d\n", vscript->fall);
 	fprintf(file, "   Last exit status = %d\n", vscript->last_status);
-	fprintf(file, "   Use count = %d\n", vscript->inuse);
+	fprintf(file, "   Use count = %d\n", (vscript->vrrp) ? LIST_SIZE(vscript->vrrp) : 0);
 
 	switch (vscript->result) {
 	case VRRP_SCRIPT_STATUS_INIT:
@@ -125,7 +125,7 @@ vscript_print(FILE *file, void *data)
 	fprintf(file, "   Result = %d (%s)\n", vscript->result, str);
 
 	if (vscript->vrrp) {
-		fprintf(file, "   Tracking VRRP (count %d):\n", LIST_SIZE(vscript->vrrp));
+		fprintf(file, "   Tracking VRRP:\n");
 		vrrp_print_list(file, vscript->vrrp, &vrrp_name_print);
 	}
 }

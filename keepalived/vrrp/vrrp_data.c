@@ -165,7 +165,7 @@ dump_vscript(void *data)
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
 	log_message(LOG_INFO, "   Status = %s", str);
-	log_message(LOG_INFO, "   Use count = %d", vscript->inuse);
+	log_message(LOG_INFO, "   Use count = %d", vscript->vrrp ? LIST_SIZE(vscript->vrrp) : 0);
 	log_message(LOG_INFO, "   VRRP instances:");
 	dump_list(vscript->vrrp);
 }
@@ -528,7 +528,6 @@ alloc_vrrp_script(char *sname)
 	new->weight = VRRP_SCRIPT_DW;
 	new->result = VRRP_SCRIPT_STATUS_DISABLED;	/* Disabled until a vrrp instance uses it */
 	new->last_status = VRRP_SCRIPT_STATUS_NOT_SET;
-	new->inuse = 0;
 	new->rise = 1;
 	new->fall = 1;
 	list_add(vrrp_data->vrrp_script, new);

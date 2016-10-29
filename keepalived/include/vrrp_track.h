@@ -65,7 +65,6 @@ typedef struct _vrrp_script {
 	unsigned long		timeout;	/* microseconds before script timeout */
 	int			weight;		/* weight associated to this script */
 	int			result;		/* result of last call to this script: 0..R-1 = KO, R..R+F-1 = OK */
-	int			inuse;		/* how many users have weight>0 ? */
 	int			rise;		/* R: how many successes before OK */
 	int			fall;		/* F: how many failures before KO */
 	list			vrrp;		/* List of vrrp instances using this script */
