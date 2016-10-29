@@ -1077,6 +1077,11 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 			return 0;
 		}
 	}
+	else {
+		/* Ignore interface if was are using linkbeat on it */
+		if (ifp->linkbeat_use_polling)
+			return 0;
+	}
 
 	/*
 	 * Update flags.
