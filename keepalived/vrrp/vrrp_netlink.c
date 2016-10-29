@@ -820,11 +820,11 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 
 #ifdef _HAVE_VRRP_VMAC_
 	/* We need both the vmac i/f and the physical i/f to be up and running. */
-	was_up = ((ifp->ifi_flags & ifp->base_ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
-	now_up = ((ifi_flags & (ifp->vmac ? ifp->base_ifp->ifi_flags : ~0U) & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
+	was_up = (IF_FLAGS_UP(ifp) && IF_FLAGS_UP(ifp->base_ifp));
+	now_up = FLAGS_UP(ifi_flags & (ifp->vmac ? ifp->base_ifp->ifi_flags : ~0U));
 #else
-	was_up = ((ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
-	now_up = ((ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
+	was_up = IF_FLAGS_UP(ifp);
+	now_up = FLAGS_UP(ifi_flags);
 #endif
 	ifp->ifi_flags = ifi_flags;
 
