@@ -526,7 +526,7 @@ alloc_vrrp_script(char *sname)
 	new->interval = VRRP_SCRIPT_DI * TIMER_HZ;
 	new->timeout = VRRP_SCRIPT_DT * TIMER_HZ;
 	new->weight = VRRP_SCRIPT_DW;
-	new->result = VRRP_SCRIPT_STATUS_INIT;
+	new->result = VRRP_SCRIPT_STATUS_DISABLED;	/* Disabled until a vrrp instance uses it */
 	new->last_status = VRRP_SCRIPT_STATUS_NOT_SET;
 	new->inuse = 0;
 	new->rise = 1;

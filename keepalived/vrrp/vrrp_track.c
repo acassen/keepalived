@@ -144,6 +144,7 @@ alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 	tsc->scr    = vsc;
 	tsc->weight = weight;
 	vsc->inuse++;
+	vsc->result = VRRP_SCRIPT_STATUS_INIT;
 	list_add(vrrp->track_script, tsc);
 }
 

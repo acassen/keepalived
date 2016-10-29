@@ -317,8 +317,7 @@ if_ioctl_flags(interface_t *ifp)
 		close(fd);
 		return true;
 	}
-if ((ifr.ifr_flags & (IFF_UP | IFF_RUNNING)) != ifp->ifi_flags)
-log_message(LOG_INFO, "if_ioctl_flags changing ifi_flags from 0x%x to 0x%x for %s", ifr.ifr_flags, ifp->ifi_flags, ifp->ifname);
+
 	close(fd);
 
 	return FLAGS_UP(ifr.ifr_flags);
