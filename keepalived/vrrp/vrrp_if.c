@@ -297,13 +297,14 @@ if_ethtool_probe(const char *ifname)
 	return status;
 }
 
-static void
-if_ioctl_flags(interface_t * ifp)
+/* Returns false if interface is down */
+static bool
+if_ioctl_flags(interface_t *ifp)
 {
 	int fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 
 	if (fd < 0)
-		return;
+		return true;
 
 #if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
@@ -314,11 +315,13 @@ if_ioctl_flags(interface_t * ifp)
 	strncpy(ifr.ifr_name, ifp->ifname, sizeof (ifr.ifr_name));
 	if (ioctl(fd, SIOCGIFFLAGS, &ifr) < 0) {
 		close(fd);
-		return;
+		return true;
 	}
+if ((ifr.ifr_flags & (IFF_UP | IFF_RUNNING)) != ifp->ifi_flags)
 log_message(LOG_INFO, "if_ioctl_flags changing ifi_flags from 0x%x to 0x%x for %s", ifr.ifr_flags, ifp->ifi_flags, ifp->ifname);
-	ifp->ifi_flags = (unsigned short)ifr.ifr_flags;
 	close(fd);
+
+	return FLAGS_UP(ifr.ifr_flags);
 }
 
 /* Interfaces lookup */
@@ -474,34 +477,43 @@ static int
 if_linkbeat_refresh_thread(thread_t * thread)
 {
 	interface_t *ifp = THREAD_ARG(thread);
+	bool if_up = true, was_up;
+
+	was_up = IF_FLAGS_UP(ifp);
 
 	if (IF_MII_SUPPORTED(ifp))
-		ifp->ifi_flags = (if_mii_probe(ifp->ifname)) ? IFF_UP | IFF_RUNNING : 0;
+		if_up = if_mii_probe(ifp->ifname);
 	else if (IF_ETHTOOL_SUPPORTED(ifp))
-		ifp->ifi_flags = (if_ethtool_probe(ifp->ifname)) ? IFF_UP | IFF_RUNNING : 0;
+		if_up = if_ethtool_probe(ifp->ifname);
 
 	/*
 	 * update ifp->flags to get the new IFF_RUNNING status.
 	 * Some buggy drivers need this...
 	 */
-	if_ioctl_flags(ifp);
+	if (if_up)
+		if_up = if_ioctl_flags(ifp);
+
+	ifp->ifi_flags = if_up ? IFF_UP | IFF_RUNNING : 0;
+
+	if (if_up != was_up) {
+		log_message(LOG_INFO, "Linkbeat reports %s %s", ifp->ifname, if_up ? "up" : "down");
+
+		process_if_status_change(ifp);
+	}
 
 	/* Register next polling thread */
 	thread_add_timer(master, if_linkbeat_refresh_thread, ifp, POLLING_DELAY);
 	return 0;
 }
 
-static bool
-init_if_linkbeat(void)
+void
+init_interface_linkbeat(void)
 {
 	interface_t *ifp;
 	element e;
 	int status;
 	bool linkbeat_in_use = false;
 
-/* TODO - only add thread if we are interested in the interface -
- * a vrrp base interface, or a track interface. Are there any others?
- * Check by seeing where ifi_flags are used, e.g. IF_ISUP. */
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
 
@@ -537,7 +549,8 @@ init_if_linkbeat(void)
 		thread_add_timer(master, if_linkbeat_refresh_thread, ifp, POLLING_DELAY);
 	}
 
-	return linkbeat_in_use;
+	if (linkbeat_in_use)
+		log_message(LOG_INFO, "Using MII-BMSR/ETHTOOL NIC polling thread...");
 }
 
 /* Interface queue helpers*/
@@ -561,13 +574,6 @@ init_interface_queue(void)
 	init_if_queue();
 	netlink_interface_lookup(NULL);
 //	dump_list(if_queue);
-}
-
-void
-init_interface_linkbeat(void)
-{
-	if (init_if_linkbeat())
-		log_message(LOG_INFO, "Using MII-BMSR/ETHTOOL NIC polling thread...");
 }
 
 int

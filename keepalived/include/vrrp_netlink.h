@@ -83,6 +83,7 @@ extern size_t rta_nest_end(struct rtattr *, struct rtattr *);
 extern ssize_t netlink_talk(nl_handle_t *, struct nlmsghdr *);
 extern int netlink_interface_lookup(char *);
 extern void kernel_netlink_poll(void);
+extern void process_if_status_change(interface_t *);
 extern void kernel_netlink_init(void);
 extern void kernel_netlink_close(void);
 

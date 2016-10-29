@@ -741,47 +741,13 @@ netlink_request(nl_handle_t *nl, unsigned char family, uint16_t type, char *name
 	return 0;
 }
 
-static void
-update_interface_flags(interface_t *ifp, unsigned ifi_flags)
+void
+process_if_status_change(interface_t *ifp)
 {
-	bool was_up;
-	bool now_up;
 	vrrp_t *vrrp;
 	element e, e2;
 	tracked_if_t* tip;
-
-	if (ifi_flags == ifp->ifi_flags)
-		return;
-
-	if (!vrrp_data)
-		return;
-
-	/* We get called after a VMAC is created, but before tracking_vrrp is set */
-// TODO - does this ONLY apply for VMACs?
-	if (!ifp->tracking_vrrp
-#ifdef _HAVE_VRRP_VMAC_
-	     && ifp == ifp->base_ifp
-#endif
-				    )
-		return;
-
-#ifdef _HAVE_VRRP_VMAC_
-	/* We need both the vmac i/f and the physical i/f to be up and running. */
-	was_up = ((ifp->ifi_flags & ifp->base_ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
-	now_up = ((ifi_flags & (ifp->vmac ? ifp->base_ifp->ifi_flags : ~0U) & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
-#else
-	was_up = ((ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
-	now_up = ((ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
-#endif
-	ifp->ifi_flags = ifi_flags;
-
-	if (was_up == now_up)
-		return;
-
-	if (!ifp->tracking_vrrp)
-		return;
-
-	log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
+	bool now_up = IF_ISUP(ifp);
 
 	/* The state of the interface has changed from up to down or vice versa.
 	 * Find which vrrp instances are affected */
@@ -819,16 +785,58 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 		}
 
 		/* This vrrp's interface or underlying interface has changed */
-		if (VRRP_IF_ISUP(vrrp) != was_up) {
+		if (VRRP_IF_ISUP(vrrp) == now_up) {
 			if (now_up)
 				try_up_instance(vrrp);
 			else
 				down_instance(vrrp);
 		}
 	}
+
 #ifdef _WITH_DUMP_THREADS_
 	dump_threads();
 #endif
+}
+
+static void
+update_interface_flags(interface_t *ifp, unsigned ifi_flags)
+{
+	bool was_up, now_up;
+
+	if (ifi_flags == ifp->ifi_flags)
+		return;
+
+	if (!vrrp_data)
+		return;
+
+	/* We get called after a VMAC is created, but before tracking_vrrp is set */
+// TODO - does this ONLY apply for VMACs?
+	if (!ifp->tracking_vrrp
+#ifdef _HAVE_VRRP_VMAC_
+	     && ifp == ifp->base_ifp
+#endif
+				    )
+		return;
+
+#ifdef _HAVE_VRRP_VMAC_
+	/* We need both the vmac i/f and the physical i/f to be up and running. */
+	was_up = ((ifp->ifi_flags & ifp->base_ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
+	now_up = ((ifi_flags & (ifp->vmac ? ifp->base_ifp->ifi_flags : ~0U) & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
+#else
+	was_up = ((ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
+	now_up = ((ifi_flags & (IFF_UP | IFF_RUNNING)) == (IFF_UP | IFF_RUNNING));
+#endif
+	ifp->ifi_flags = ifi_flags;
+
+	if (was_up == now_up)
+		return;
+
+	if (!ifp->tracking_vrrp)
+		return;
+
+	log_message(LOG_INFO, "Netlink reports %s %s", ifp->ifname, now_up ? "up" : "down");
+
+	process_if_status_change(ifp);
 }
 
 static int
