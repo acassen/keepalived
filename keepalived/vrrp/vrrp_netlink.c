@@ -784,7 +784,6 @@ process_if_status_change(interface_t *ifp)
 			}
 		}
 
-log_message(LOG_INFO, "We have got to here for %s - %s", vrrp->iname, ifp->ifname);
 		/* This vrrp's interface or underlying interface has changed */
 		if (now_up)
 			try_up_instance(vrrp);

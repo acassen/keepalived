@@ -1686,6 +1686,10 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp)
 	if (!LIST_EXISTS(ifp->tracking_vrrp))
 		ifp->tracking_vrrp = alloc_list(NULL, NULL);
 	list_add(ifp->tracking_vrrp, vrrp);
+
+	/* If the interface is down, record it against the vrrp instance */
+	if (!FLAGS_UP(ifp->ifi_flags))
+		vrrp->num_script_if_fault++;
 }
 
 /* check for minimum configuration requirements */
@@ -2387,8 +2391,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		}
 	}
-
-	vrrp->num_script_if_fault = 0;
 
 	/* Add us to the vrrp list of the script, and update
 	 * effective_priority and num_script_if_fault */
