@@ -56,14 +56,26 @@ vrrp_name_print(FILE *file, void *data)
 	fprintf(file, "     %s\n", vrrp->iname);
 }
 
+char *
+get_state_str(int state)
+{
+	if (state == VRRP_STATE_INIT) return "INIT";
+	if (state == VRRP_STATE_BACK) return "BACKUP";
+	if (state == VRRP_STATE_MAST) return "MASTER";
+	if (state == VRRP_STATE_FAULT) return "FAULT";
+	if (state == VRRP_STATE_GOTO_MASTER) return "GOTO_MASTER";
+	if (state == VRRP_STATE_GOTO_FAULT) return "GOTO_FAULT";
+	if (state == VRRP_DISPATCHER) return "DISPATCHER";
+	return "unknown";
+}
+
 static void
 vgroup_print(FILE *file, void *data)
 {
 	element e;
 
 	vrrp_sgroup_t *vgroup = data;
-	fprintf(file, " VRRP Sync Group = %s, %s\n", vgroup->gname,
-		(vgroup->state == VRRP_STATE_MAST) ? "MASTER" : "BACKUP");
+	fprintf(file, " VRRP Sync Group = %s, %s\n", vgroup->gname, get_state_str(vgroup->state));
 	if (vgroup->index_list) {
 		for (e = LIST_HEAD(vgroup->index_list); e; ELEMENT_NEXT(e)) {
 			vrrp_t *vrrp = ELEMENT_DATA(e);
@@ -273,8 +285,11 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   State = %d\n", vrrp->state);
 	fprintf(file, "   Wantstate = %d\n", vrrp->wantstate);
 	ctime_r(&vrrp->last_transition.tv_sec, time_str);
-	time_str[sizeof(time_str)-2] = '\0';	/* Remove '\n' char */
-	fprintf(file, "   Last transition = %ld (%s)\n", vrrp->last_transition.tv_sec, time_str);
+	fprintf(file, "   Last transition = %ld (%.24s)\n", vrrp->last_transition.tv_sec, time_str);
+	if (!ctime_r(&vrrp->sands.tv_sec, time_str))
+		strcpy(time_str, "invalid time ");
+	fprintf(file, "   Read timeout = %ld.%6.6ld (%.19s.%6.6ld)\n", vrrp->sands.tv_sec, vrrp->sands.tv_usec, time_str, vrrp->sands.tv_usec);
+	fprintf(file, "   Master down timer = %u usecs\n", vrrp->ms_down_timer);
 	fprintf(file, "   Interface = %s", IF_NAME(vrrp->ifp));
 #ifdef _HAVE_VRRP_VMAC_
 	if (vrrp->ifp != vrrp->ifp->base_ifp)

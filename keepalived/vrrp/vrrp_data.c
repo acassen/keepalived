@@ -31,6 +31,7 @@
 #include "vrrp_vmac.h"
 #endif
 #include "vrrp.h"
+#include "vrrp_print.h"
 #include "memory.h"
 #include "utils.h"
 #include "logger.h"
@@ -93,14 +94,14 @@ free_vgroup(void *data)
 	FREE_PTR(vgroup->script);
 	FREE(vgroup);
 }
+
 static void
 dump_vgroup(void *data)
 {
 	vrrp_sgroup_t *vgroup = data;
 	element e;
 
-	log_message(LOG_INFO, " VRRP Sync Group = %s, %s", vgroup->gname,
-	       (vgroup->state == VRRP_STATE_MAST) ? "MASTER" : "BACKUP");
+	log_message(LOG_INFO, " VRRP Sync Group = %s, %s", vgroup->gname, get_state_str(vgroup->state));
 	if (vgroup->index_list) {
 		for (e = LIST_HEAD(vgroup->index_list); e; ELEMENT_NEXT(e)) {
 			vrrp_t *vrrp = ELEMENT_DATA(e);

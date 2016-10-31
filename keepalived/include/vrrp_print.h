@@ -23,5 +23,6 @@
 
 #include <stdio.h>
 
+extern char * get_state_str(int);
 extern void vrrp_print_data(void);
 extern void vrrp_print_stats(void);

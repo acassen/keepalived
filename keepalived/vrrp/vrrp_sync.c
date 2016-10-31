@@ -42,7 +42,6 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 
 	if (vrrp->state == VRRP_STATE_MAST	  ||
 	    vrrp->state == VRRP_STATE_GOTO_MASTER ||
-	    vrrp->state == VRRP_STATE_GOTO_FAULT  ||
 	    vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
 // TODO
 // TIMER  - GOTO_MASTER shouldn't be adver_int. Look at circumstances to set GOTO_MASTER
@@ -59,8 +58,10 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 	 * received. (When a preemptable packet is received, the wantstate is
 	 * moved to GOTO_MASTER and this condition is caught above).
 	 */
-	if (vrrp->state == VRRP_STATE_BACK || vrrp->state == VRRP_STATE_FAULT)
+	if (vrrp->state == VRRP_STATE_BACK)
 		vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
+	else if (vrrp->state == VRRP_STATE_GOTO_FAULT || vrrp->state == VRRP_STATE_FAULT)
+		timer_disable(vrrp->sands);
 }
 
 /* Instance name lookup */

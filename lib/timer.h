@@ -36,7 +36,7 @@ extern timeval_t time_now;
 #define TIMER_HZ		1000000U
 #define TIMER_CENTI_HZ		10000U
 #define TIMER_MAX_SEC		1000U
-#define TIMER_NEVER		ULONG_MAX
+#define TIMER_NEVER		LONG_MAX
 
 /* Some usefull macros */
 #define timer_sec(T) ((T).tv_sec)
