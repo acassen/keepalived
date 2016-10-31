@@ -229,7 +229,7 @@ vrrp_init_state(list l)
 					VRRP_STATE_BACK;
 		new_state = vrrp->sync ? vrrp->sync->state : vrrp->wantstate;
 
-		is_up = (VRRP_IF_ISUP(vrrp) && (!vrrp->sync || GROUP_STATE(vrrp->sync) != VRRP_STATE_FAULT));
+		is_up = (VRRP_ISUP(vrrp) && (!vrrp->sync || GROUP_STATE(vrrp->sync) != VRRP_STATE_FAULT));
 		if (is_up &&
 		    vrrp->base_priority == VRRP_PRIO_OWNER &&
 		    vrrp->init_state == VRRP_STATE_MAST) {

@@ -2554,6 +2554,7 @@ vrrp_complete_init(void)
 		if (vrrp->sync && vrrp->num_script_if_fault) {
 			vrrp->sync->num_member_fault++;
 			vrrp->state = VRRP_STATE_FAULT;
+			vrrp->sync->state = VRRP_STATE_FAULT;
 		}
 	}
 
