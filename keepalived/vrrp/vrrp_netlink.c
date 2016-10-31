@@ -747,7 +747,7 @@ process_if_status_change(interface_t *ifp)
 	vrrp_t *vrrp;
 	element e, e2;
 	tracked_if_t* tip;
-	bool now_up = IF_ISUP(ifp);
+	bool now_up = FLAGS_UP(ifp->ifi_flags);
 
 	/* The state of the interface has changed from up to down or vice versa.
 	 * Find which vrrp instances are affected */
@@ -784,13 +784,12 @@ process_if_status_change(interface_t *ifp)
 			}
 		}
 
+log_message(LOG_INFO, "We have got to here for %s - %s", vrrp->iname, ifp->ifname);
 		/* This vrrp's interface or underlying interface has changed */
-		if (VRRP_IF_ISUP(vrrp) == now_up) {
-			if (now_up)
-				try_up_instance(vrrp);
-			else
-				down_instance(vrrp);
-		}
+		if (now_up)
+			try_up_instance(vrrp);
+		else
+			down_instance(vrrp);
 	}
 
 #ifdef _WITH_DUMP_THREADS_
@@ -818,14 +817,9 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 				    )
 		return;
 
-#ifdef _HAVE_VRRP_VMAC_
-	/* We need both the vmac i/f and the physical i/f to be up and running. */
-	was_up = (IF_FLAGS_UP(ifp) && IF_FLAGS_UP(ifp->base_ifp));
-	now_up = FLAGS_UP(ifi_flags & (ifp->vmac ? ifp->base_ifp->ifi_flags : ~0U));
-#else
 	was_up = IF_FLAGS_UP(ifp);
 	now_up = FLAGS_UP(ifi_flags);
-#endif
+
 	ifp->ifi_flags = ifi_flags;
 
 	if (was_up == now_up)

@@ -271,6 +271,7 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   State = MASTER\n");
 	else
 		fprintf(file, "   State = %d\n", vrrp->state);
+	fprintf(file, "   Wantstate = %d\n", vrrp->wantstate);
 	ctime_r(&vrrp->last_transition.tv_sec, time_str);
 	time_str[sizeof(time_str)-2] = '\0';	/* Remove '\n' char */
 	fprintf(file, "   Last transition = %ld (%s)\n", vrrp->last_transition.tv_sec, time_str);
