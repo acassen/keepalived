@@ -363,6 +363,12 @@ vrrp_timer_fd(const int fd)
 	return timer_long(timer_sub(timer, time_now));
 }
 
+static void
+thread_requeue_read_relative(vrrp_t *vrrp, uint32_t timer)
+{
+	thread_read_requeue(master, vrrp->fd_in, timer_sub_long(vrrp->sands, timer));
+}
+
 // TODO //static int
 //static vrrp_t *
 //vrrp_timer_timeout(const int fd)
@@ -824,6 +830,7 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 {
 	uint8_t new_prio;
 	bool increasing_priority;
+	uint32_t old_down_timer;
 
 	if (vrrp->total_priority < 1)
 		new_prio = 1;
@@ -840,10 +847,11 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 	increasing_priority = (new_prio > vrrp->effective_priority);
 
 	vrrp->effective_priority = new_prio;
+	old_down_timer = vrrp->ms_down_timer;
 	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 
 	if (vrrp->state == VRRP_STATE_BACK && increasing_priority)
-		thread_requeue_read(master, vrrp->fd_in, vrrp->ms_down_timer);
+		thread_requeue_read_relative(vrrp, old_down_timer - vrrp->ms_down_timer);
 }
 
 static void

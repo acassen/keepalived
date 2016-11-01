@@ -116,6 +116,23 @@ timer_add_long(timeval_t a, unsigned long b)
 	return ret;
 }
 
+timeval_t
+timer_sub_long(timeval_t a, unsigned long b)
+{
+	timeval_t ret;
+
+	timer_reset_lazy(ret);
+
+	if (a.tv_usec < (int)(b % TIMER_HZ)) {
+		a.tv_usec += TIMER_HZ;
+		a.tv_sec--;
+	}
+	ret.tv_usec = a.tv_usec - (int)(b % TIMER_HZ);
+	ret.tv_sec = a.tv_sec - (int)(b / TIMER_HZ);
+
+	return ret;
+}
+
 /* This function is a wrapper for gettimeofday(). It uses local storage to
  * guarantee that the returned time will always be monotonic. If the time goes
  * backwards, it returns the same as previous one and readjust its internal
