@@ -343,66 +343,6 @@ thread_add_read(thread_master_t * m, int (*func) (thread_t *)
 	return thread;
 }
 
-static void (*dump_threads)(void);
-
-void
-set_dump_threads(void (*dump_threads_addr)(void))
-{
-	dump_threads = dump_threads_addr;
-}
-
-void
-thread_requeue_read(thread_master_t *m, int fd, unsigned long timer)
-{
-	timeval_t new_sands;
-	thread_t *tt;
-	thread_t *insert = NULL;
-FILE *fp = fopen ("/tmp/thread_dump", "a");
-
-	set_time_now();
-fprintf(fp, "\n\n%.19s: thread_requeue_read called for fd %d, timer %lu\n", ctime(&time_now.tv_sec), fd, timer);
-fflush(fp);
-(*(dump_threads))();
-fseek(fp, 0, SEEK_END);
-	new_sands = timer_add_long(time_now, timer);
-fprintf(fp, "new sands %.19s.%6.6ld\n", ctime(&new_sands.tv_sec), new_sands.tv_usec);
-
-	for (tt = m->read.head; tt; tt = tt->next) {
-		if (!insert && timer_cmp(new_sands, tt->sands) <= 0)
-			insert = tt;
-		if (tt->u.fd == fd)
-			break;
-	}
-
-	if (!tt)
-{
-fprintf(fp, "Thread for fd %d not found\n", fd);
-fclose(fp);
-		return;
-}
-
-	tt->sands = new_sands;
-
-	if (tt == insert)
-{
-fprintf(fp, "Thread for fd %d doesn't need to move\n", fd );
-fclose(fp);
-		return;
-}
-
-	thread_list_delete(&m->read, tt);
-
-	if (insert)
-		thread_list_add_before(&m->read, insert, tt);
-	else
-		thread_list_add(&m->read, tt);
-
-fprintf(fp, "After requeue:\n");
-
-fclose(fp);
-(*(dump_threads))();
-}
-
 /* Add new write thread. */
 thread_t *
 thread_add_write(thread_master_t * m, int (*func) (thread_t *)

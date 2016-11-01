@@ -786,16 +786,13 @@ process_if_status_change(interface_t *ifp)
 
 		/* This vrrp's interface or underlying interface has changed */
 		if (now_up)
-{
-log_message(LOG_INFO, "Trying up_instance for %s %s", vrrp->iname, ifp->ifname);
 			try_up_instance(vrrp);
-}
 		else
 			down_instance(vrrp);
 	}
 
 #ifdef _WITH_DUMP_THREADS_
-//	dump_threads();
+	dump_threads();
 #endif
 }
 
