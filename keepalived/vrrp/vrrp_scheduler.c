@@ -255,9 +255,9 @@ vrrp_init_state(list l)
 //X				log_message(LOG_INFO, "VRRP_Instance(%s) Entering GOTO MASTER STATE", vrrp->iname);
 		} else {
 			if (new_state == VRRP_STATE_BACK && vrrp->init_state == VRRP_STATE_MAST)
-				vrrp->ms_down_timer = vrrp->adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
+				vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
 			else
-				vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+				vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 // TODO - if fault, do we need to run a timer?
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
@@ -765,7 +765,8 @@ vrrp_goto_master(vrrp_t * vrrp)
 			vrrp->state = VRRP_STATE_FAULT;
 			vrrp->master_adver_int = vrrp->adver_int;
 		}
-		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+		vrrp->master_adver_int = vrrp->adver_int;
+		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 #ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
@@ -822,6 +823,7 @@ void
 vrrp_set_effective_priority(vrrp_t *vrrp)
 {
 	uint8_t new_prio;
+	bool increasing_priority;
 
 	if (vrrp->total_priority < 1)
 		new_prio = 1;
@@ -833,10 +835,15 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 	if (vrrp->effective_priority == new_prio)
 		return;
 
-	log_message(LOG_INFO, "VRRP_Instance(%s) Effective priority = %d",
-		    vrrp->iname, new_prio);
+	log_message(LOG_INFO, "VRRP_Instance(%s) Effective priority = %d", vrrp->iname, new_prio);
+
+	increasing_priority = (new_prio > vrrp->effective_priority);
 
 	vrrp->effective_priority = new_prio;
+	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+
+	if (vrrp->state == VRRP_STATE_BACK && increasing_priority)
+		thread_requeue_read(master, vrrp->fd_in, vrrp->ms_down_timer);
 }
 
 static void
@@ -973,7 +980,7 @@ try_up_instance(vrrp_t *vrrp)
 		vrrp->wantstate = VRRP_STATE_BACK;
 
 	vrrp->master_adver_int = vrrp->adver_int;
-	vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
+	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 
 	if (vrrp->sync && --vrrp->sync->num_member_fault)
 		return;
