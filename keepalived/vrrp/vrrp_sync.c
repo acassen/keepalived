@@ -61,11 +61,7 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 	if (vrrp->state == VRRP_STATE_BACK)
 		vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
 	else if (vrrp->state == VRRP_STATE_GOTO_FAULT || vrrp->state == VRRP_STATE_FAULT)
-{
-//		vrrp->sands = timer_add_long(time_now, vrrp->adver_int);
 		vrrp->sands = timer_add_long(time_now, 86400000000L);
-//		timer_disable(vrrp->sands);
-}
 }
 
 /* Instance name lookup */
@@ -361,15 +357,12 @@ vrrp_sync_fault(vrrp_t * vrrp)
 		if (isync != vrrp && isync->state != VRRP_STATE_FAULT) {
 			isync->wantstate = VRRP_STATE_GOTO_FAULT;
 			if (isync->state == VRRP_STATE_MAST) {
-				isync->wantstate = VRRP_STATE_GOTO_FAULT;
 				vrrp_state_leave_master(isync);
 			}
 			else if (isync->state == VRRP_STATE_BACK) {
-				isync->state = VRRP_STATE_FAULT;
+				isync->state = VRRP_STATE_FAULT;	/* This is a bit of a bodge */
 				vrrp_state_leave_fault(isync);
 			}
-
-			timer_disable(isync->sands);
 		}
 	}
 	vgroup->state = VRRP_STATE_FAULT;

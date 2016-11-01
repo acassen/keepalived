@@ -49,7 +49,6 @@ extern timeval_t time_now;
 	if ( sizeof((T)) != sizeof((T).tv_sec) + sizeof((T).tv_usec) ) \
 		timer_reset((T)); \
 	} while (0)
-#define timer_disable(T) ((T).tv_sec = TIMER_NEVER, (T).tv_usec = 999999)
 
 /* prototypes */
 extern timeval_t timer_now(void);

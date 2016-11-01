@@ -865,6 +865,7 @@ vrrp_master(vrrp_t * vrrp)
 static void
 vrrp_fault(vrrp_t * vrrp)
 {
+log_message(LOG_INFO, "vrrp_fault called for %s", vrrp->iname);
 	if (!VRRP_ISUP(vrrp) ||
 	    (vrrp->sync && !vrrp_sync_leave_fault(vrrp)))
 		return;
