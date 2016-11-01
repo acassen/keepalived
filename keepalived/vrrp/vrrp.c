@@ -1691,7 +1691,10 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp)
 
 	/* If the interface is down, record it against the vrrp instance */
 	if (!FLAGS_UP(ifp->ifi_flags))
+{
 		vrrp->num_script_if_fault++;
+log_message(LOG_INFO, "add vrrp %s to down interface %s count no %d", vrrp->iname, ifp->ifname, vrrp->num_script_if_fault);
+}
 }
 
 /* check for minimum configuration requirements */

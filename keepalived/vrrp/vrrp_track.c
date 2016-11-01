@@ -272,14 +272,15 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 			if (!tip->weight) {
 				if (!IF_ISUP(tip->ifp)) {
 					/* The instance is down */
-					vrrp->num_script_if_fault++;
+//					vrrp->num_script_if_fault++;
+//log_message(LOG_INFO, "Incremented fault count to %d for %s, interface %s", vrrp->num_script_if_fault, vrrp->iname, tip->ifp->ifname);
 					vrrp->state = VRRP_STATE_FAULT;
 				}
 				continue;
 			}
 
 			/* Don't change effective priority if address owner, or if
-			 * a member of a sync group with global tracking */
+			 * a member of a sync group without global tracking */
 			if (vrrp->base_priority == VRRP_PRIO_OWNER ||
 			    (vrrp->sync && !vrrp->sync->global_tracking))
 				continue;
@@ -304,6 +305,7 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 				    (tsc->scr->result >= 0 && tsc->scr->result < tsc->scr->rise)) {
 					/* The script is in fault state */
 					vrrp->num_script_if_fault++;
+log_message(LOG_INFO, "Incremented fault count to %d for %s, script %s", vrrp->num_script_if_fault, vrrp->iname, tsc->scr->sname);
 					if (tsc->scr->result >= 0)	/* Not INIT_STATE etc */
 						vrrp->state = VRRP_STATE_FAULT;
 				}

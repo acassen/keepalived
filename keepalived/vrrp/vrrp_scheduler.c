@@ -563,9 +563,11 @@ vrrp_set_fds(list l)
  * are multiplexed through this fds. So our design can handle 2*n
  * multiplexing points.
  */
+void dump_threads(void);
 int
 vrrp_dispatcher_init(__attribute__((unused)) thread_t * thread)
 {
+set_dump_threads(dump_threads);
 	/* create the VRRP socket pool list */
 	vrrp_create_sockpool(vrrp_data->vrrp_socket_pool);
 
@@ -578,6 +580,8 @@ vrrp_dispatcher_init(__attribute__((unused)) thread_t * thread)
 	/* register read dispatcher worker thread */
 	vrrp_register_workers(vrrp_data->vrrp_socket_pool);
 
+//kill(getpid(), SIGUSR1);
+//dump_threads();
 	/* Dump socket pool */
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
 		dump_list(vrrp_data->vrrp_socket_pool);
@@ -931,7 +935,10 @@ try_up_instance(vrrp_t *vrrp)
 	int wantstate;
 
 	if (--vrrp->num_script_if_fault)
+{
+log_message(LOG_INFO, "Num fault now %d", vrrp->num_script_if_fault);
 		return;
+}
 
 	if (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER)
 		vrrp->wantstate = VRRP_STATE_MAST;
@@ -942,7 +949,10 @@ try_up_instance(vrrp_t *vrrp)
 	vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 
 	if (vrrp->sync && --vrrp->sync->num_member_fault)
+{
+log_message(LOG_INFO, "Num sync fault now %d", vrrp->sync->num_member_fault);
 		return;
+}
 
 	/* If the sync group can't go to master, we must go to backup state */
 	wantstate = vrrp->wantstate;
@@ -952,6 +962,9 @@ try_up_instance(vrrp_t *vrrp)
 	/* We can come up */
 	vrrp_state_leave_fault(vrrp);
 	vrrp_init_instance_sands(vrrp);
+
+log_message(LOG_INFO, "Requeuing %s on fd %d with timer %u", vrrp->iname, vrrp->fd_in, vrrp->ms_down_timer);
+	thread_requeue_read(master, vrrp->fd_in, vrrp->ms_down_timer);
 
 	vrrp->wantstate = wantstate;
 
@@ -1300,7 +1313,7 @@ func
 //	if (func == vrrp_respawn_thread) return "vrrp_respawn_thread";
 	if (func == vrrp_script_child_timeout_thread) return "vrrp_script_child_timeout_thread";
 	if (func == vrrp_script_thread) return "vrrp_script_thread";
-	if (func == vrrp_update_priority) return "vrrp_update_priority";
+//	if (func == vrrp_update_priority) return "vrrp_update_priority";
 
 	return NULL;
 }
@@ -1360,17 +1373,18 @@ dump_threads(void)
 
 	set_time_now();
 	ctime_r(&time_now.tv_sec, time_buf);
-	time_buf[24] = '\0';
 
-	fprintf(fp, "\n%s: Thread dump\n", time_buf);
+	fprintf(fp, "\n%.24s: Thread dump\n", time_buf);
 
 	dump_thread_list(fp, &master->read, "read");
+#if 0
 	dump_thread_list(fp, &master->write, "write");
 	dump_thread_list(fp, &master->timer, "timer");
 	dump_thread_list(fp, &master->child, "child");
 	dump_thread_list(fp, &master->event, "event");
 	dump_thread_list(fp, &master->ready, "ready");
 	dump_thread_list(fp, &master->unuse, "unuse");
+#endif
 	dump_fd_set(fp, &master->readfd, "read");
 	dump_fd_set(fp, &master->writefd, "write");
 	dump_fd_set(fp, &master->exceptfd, "except");
@@ -1392,4 +1406,3 @@ dump_threads(void)
 	fclose(fp);
 }
 #endif
-
