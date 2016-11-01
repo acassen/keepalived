@@ -953,6 +953,8 @@ try_up_instance(vrrp_t *vrrp)
 	vrrp_state_leave_fault(vrrp);
 	vrrp_init_instance_sands(vrrp);
 
+	thread_requeue_read(master, vrrp->fd_in, vrrp->ms_down_timer);
+
 	vrrp->wantstate = wantstate;
 
 	if (vrrp->sync) {
@@ -1300,7 +1302,6 @@ func
 //	if (func == vrrp_respawn_thread) return "vrrp_respawn_thread";
 	if (func == vrrp_script_child_timeout_thread) return "vrrp_script_child_timeout_thread";
 	if (func == vrrp_script_thread) return "vrrp_script_thread";
-	if (func == vrrp_update_priority) return "vrrp_update_priority";
 
 	return NULL;
 }
@@ -1360,9 +1361,8 @@ dump_threads(void)
 
 	set_time_now();
 	ctime_r(&time_now.tv_sec, time_buf);
-	time_buf[24] = '\0';
 
-	fprintf(fp, "\n%s: Thread dump\n", time_buf);
+	fprintf(fp, "\n%.24s: Thread dump\n", time_buf);
 
 	dump_thread_list(fp, &master->read, "read");
 	dump_thread_list(fp, &master->write, "write");
@@ -1392,4 +1392,3 @@ dump_threads(void)
 	fclose(fp);
 }
 #endif
-

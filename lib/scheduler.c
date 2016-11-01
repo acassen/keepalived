@@ -343,6 +343,39 @@ thread_add_read(thread_master_t * m, int (*func) (thread_t *)
 	return thread;
 }
 
+void
+thread_requeue_read(thread_master_t *m, int fd, unsigned long timer)
+{
+	timeval_t new_sands;
+	thread_t *tt;
+	thread_t *insert = NULL;
+
+	set_time_now();
+	new_sands = timer_add_long(time_now, timer);
+
+	for (tt = m->read.head; tt; tt = tt->next) {
+		if (!insert && timer_cmp(new_sands, tt->sands) <= 0)
+			insert = tt;
+		if (tt->u.fd == fd)
+			break;
+	}
+
+	if (!tt)
+		return;
+
+	tt->sands = new_sands;
+
+	if (tt == insert)
+		return;
+
+	thread_list_delete(&m->read, tt);
+
+	if (insert)
+		thread_list_add_before(&m->read, insert, tt);
+	else
+		thread_list_add(&m->read, tt);
+}
+
 /* Add new write thread. */
 thread_t *
 thread_add_write(thread_master_t * m, int (*func) (thread_t *)

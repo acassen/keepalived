@@ -274,8 +274,10 @@ vrrp_sync_backup(vrrp_t * vrrp)
 		isync->wantstate = VRRP_STATE_BACK;
 // TODO - we may be leaving FAULT, so calling leave_master isn't right. I have
 // had to add vrrp_state_leave_fault() for this
-		if (vrrp->state == VRRP_STATE_FAULT)
+		if (isync->state == VRRP_STATE_FAULT) {
 			vrrp_state_leave_fault(isync);
+			thread_requeue_read(master, isync->fd_in, isync->ms_down_timer);
+		}
 		else
 			vrrp_state_leave_master(isync);
 		vrrp_init_instance_sands(isync);
@@ -318,8 +320,10 @@ log_message(LOG_INFO, "sync from %s not master for %s", vrrp->sync->gname, vrrp-
 			vrrp_init_instance_sands(isync);
 			if (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
 				/* ??? */
-			} else
+			} else {
 				vrrp_state_goto_master(isync);
+				thread_requeue_read(master, vrrp->fd_in, vrrp->ms_down_timer);
+			}
 		}
 	}
 	vgroup->state = VRRP_STATE_MAST;

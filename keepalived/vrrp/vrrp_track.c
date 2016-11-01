@@ -272,14 +272,13 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 			if (!tip->weight) {
 				if (!IF_ISUP(tip->ifp)) {
 					/* The instance is down */
-					vrrp->num_script_if_fault++;
 					vrrp->state = VRRP_STATE_FAULT;
 				}
 				continue;
 			}
 
 			/* Don't change effective priority if address owner, or if
-			 * a member of a sync group with global tracking */
+			 * a member of a sync group without global tracking */
 			if (vrrp->base_priority == VRRP_PRIO_OWNER ||
 			    (vrrp->sync && !vrrp->sync->global_tracking))
 				continue;
