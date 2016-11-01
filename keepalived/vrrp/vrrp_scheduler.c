@@ -175,6 +175,7 @@ vrrp_smtp_notifier(vrrp_t * vrrp)
 	}
 }
 
+#ifdef _TEST_IF_DOWN_
 /* Log interface message */
 static void vrrp_log_int_down(vrrp_t *vrrp)
 {
@@ -193,6 +194,7 @@ static void vrrp_log_int_up(vrrp_t *vrrp)
 	if (!LIST_ISEMPTY(vrrp->track_ifp))
 		log_message(LOG_INFO, "Kernel is reporting: tracked interface are UP");
 }
+#endif
 
 /*
  * Initialize state handling
@@ -609,6 +611,7 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 	}
 #endif
 
+#ifdef _TEST_IF_DOWN_
 	if (!VRRP_ISUP(vrrp)) {
 // TODO - new fault only occur in backup and master timeout finctions
 log_message(LOG_INFO, "(%s): vrrp backup found fault state", vrrp->iname);
@@ -623,6 +626,7 @@ log_message(LOG_INFO, "(%s): vrrp backup found fault state", vrrp->iname);
 #endif
 		}
 	} else
+#endif
 		vrrp_state_backup(vrrp, buffer, len);
 }
 
@@ -664,19 +668,26 @@ vrrp_become_master(vrrp_t * vrrp,
 static void
 vrrp_leave_master(vrrp_t * vrrp, char *buffer, ssize_t len)
 {
+#ifdef _TEST_IF_DOWN_
 	if (!VRRP_ISUP(vrrp)) {
 /* TODO This shouldn't happen due to event driven */
 log_message(LOG_INFO, "(%s): vrrp_leave_master called when instance down", vrrp->iname);
 		vrrp_log_int_down(vrrp);
 		vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
 		vrrp_state_leave_master(vrrp);
-	} else if (vrrp_state_master_rx(vrrp, buffer, len)) {
+
+		return;
+	}
+#endif
+	if (vrrp_state_master_rx(vrrp, buffer, len))
+	{
 		vrrp_state_leave_master(vrrp);
 		vrrp_smtp_notifier(vrrp);
 	}
 }
 
 #ifdef _WITH_VRRP_AUTH_
+#ifdef _TEST_IF_DOWN_
 static void
 vrrp_ah_sync(vrrp_t *vrrp)
 {
@@ -690,12 +701,18 @@ vrrp_ah_sync(vrrp_t *vrrp)
 	vrrp_state_leave_master(vrrp);
 }
 #endif
+#endif
 
 /* TODO - read in fault state. Might happen - ? ignore. Unless
  * we have had an interface up then VRRP_ISUP will be false anyway */
 static void
+#ifdef _TEST_IF_DOWN_
 vrrp_leave_fault(vrrp_t * vrrp, char *buffer, ssize_t len)
+#else
+vrrp_leave_fault(__attribute__((unused)) vrrp_t *vrrp, __attribute__((unused)) char *buffer, __attribute__((unused)) ssize_t len)
+#endif
 {
+#ifdef _TEST_IF_DOWN_
 	if (!VRRP_ISUP(vrrp) ||
 	    (vrrp->sync && !vrrp_sync_leave_fault(vrrp)))
 		return;
@@ -729,11 +746,13 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, ssize_t len)
 // TODO - check stats->uptime is used consistently
 #endif
 //	}
+#endif
 }
 
 static void
 vrrp_goto_master(vrrp_t * vrrp)
 {
+#ifdef _TEST_IF_DOWN_
 	if (!VRRP_ISUP(vrrp)) {
 /* TODO Make common code for all transitions to fault */
 /* TODO Is vrrp->state always GOTO_MASTER if we get here, in which case test for FAULT is irrelevant */
@@ -754,6 +773,7 @@ vrrp_goto_master(vrrp_t * vrrp)
 
 		return;
 	}
+#endif
 
 #if defined _WITH_VRRP_AUTH_
 	/* If becoming MASTER in IPSEC AH AUTH, we reset the anti-replay */
@@ -822,6 +842,7 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 static void
 vrrp_master(vrrp_t * vrrp)
 {
+#ifdef _TEST_IF_DOWN_
 	/* Check if interface we are running on is UP */
 	if (vrrp->wantstate != VRRP_STATE_GOTO_FAULT) {
 		if (!VRRP_ISUP(vrrp)) {
@@ -831,8 +852,8 @@ vrrp_master(vrrp_t * vrrp)
 	}
 
 	/* Then perform the state transition */
-	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT ||
-	    vrrp->wantstate == VRRP_STATE_BACK
+	if ( vrrp->wantstate == VRRP_STATE_GOTO_FAULT ||
+	    vrrp->wantstate == VRRP_STATE_BACK	/* Don't see how this can be the case */
 #ifdef _WITH_VRRP_AUTH_
 	    || vrrp->ipsecah_counter.cycle
 #endif
@@ -846,7 +867,13 @@ vrrp_master(vrrp_t * vrrp)
 		else if (vrrp->state == VRRP_STATE_FAULT)
 			log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state",
 				    vrrp->iname);
-	} else if (vrrp->state == VRRP_STATE_MAST) {
+
+		return;
+	}
+
+	if (vrrp->state == VRRP_STATE_MAST)
+#endif
+	{
 		/*
 		 * Send the VRRP advert.
 		 * If we catch the master transition
@@ -863,8 +890,13 @@ vrrp_master(vrrp_t * vrrp)
 }
 
 static void
+#ifdef _TEST_IF_DOWN_
 vrrp_fault(vrrp_t * vrrp)
+#else
+vrrp_fault(__attribute__((unused)) vrrp_t * vrrp)
+#endif
 {
+#ifdef _TEST_IF_DOWN_
 log_message(LOG_INFO, "vrrp_fault called for %s", vrrp->iname);
 	if (!VRRP_ISUP(vrrp) ||
 	    (vrrp->sync && !vrrp_sync_leave_fault(vrrp)))
@@ -923,6 +955,7 @@ log_message(LOG_INFO, "vrrp_fault called for %s", vrrp->iname);
 	}
 #ifdef _WITH_SNMP_RFC_
 	vrrp->stats->uptime = timer_now();
+#endif
 #endif
 }
 
