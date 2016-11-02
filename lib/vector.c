@@ -46,7 +46,7 @@ null_strvec_handler_t unregister_null_strvec_handler(void)
 	return old_handler;
 }
 
-void *strvec_slot(const vector_t *strvec, unsigned int index)
+void *strvec_slot(const vector_t *strvec, size_t index)
 {
 	if (strvec &&
 	    index < vector_size(strvec) &&

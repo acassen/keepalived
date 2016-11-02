@@ -33,7 +33,7 @@ typedef struct _vector {
 	void		**slot;
 } vector_t;
 
-typedef char *(*null_strvec_handler_t)(const vector_t *, unsigned int);
+typedef char *(*null_strvec_handler_t)(const vector_t *, size_t);
 
 /* Some defines */
 #define VECTOR_DEFAULT_SIZE 1
@@ -51,7 +51,7 @@ typedef char *(*null_strvec_handler_t)(const vector_t *, unsigned int);
 /* Prototypes */
 extern null_strvec_handler_t register_null_strvec_handler(null_strvec_handler_t);
 extern null_strvec_handler_t unregister_null_strvec_handler(void);
-extern void *strvec_slot(const vector_t *strvec, unsigned int index);
+extern void *strvec_slot(const vector_t *strvec, size_t index);
 extern vector_t *vector_alloc(void);
 extern void vector_alloc_slot(vector_t *);
 extern void vector_set_slot(vector_t *, void *);
