@@ -375,15 +375,15 @@ vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
 static void
 vrrp_garp_interval_handler(vector_t *strvec)
 {
-	global_data->vrrp_garp_interval = (unsigned)(atof(strvec_slot(strvec, 1)) * 1000000);
-	if (global_data->vrrp_garp_interval >= 1000000)
+	global_data->vrrp_garp_interval = (unsigned)(atof(strvec_slot(strvec, 1)) * TIMER_HZ);
+	if (global_data->vrrp_garp_interval >= 1 * TIMER_HZ)
 		log_message(LOG_INFO, "The vrrp_garp_interval is very large - %s seconds", FMT_STR_VSLOT(strvec, 1));
 }
 static void
 vrrp_gna_interval_handler(vector_t *strvec)
 {
-	global_data->vrrp_gna_interval = (unsigned)(atof(strvec_slot(strvec, 1)) * 1000000);
-	if (global_data->vrrp_gna_interval >= 1000000)
+	global_data->vrrp_gna_interval = (unsigned)(atof(strvec_slot(strvec, 1)) * TIMER_HZ);
+	if (global_data->vrrp_gna_interval >= 1 * TIMER_HZ)
 		log_message(LOG_INFO, "The vrrp_gna_interval is very large - %s seconds", FMT_STR_VSLOT(strvec, 1));
 }
 static void
