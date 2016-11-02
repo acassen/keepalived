@@ -98,7 +98,7 @@ ip_family_handler(vector_t *strvec)
 	else if (0 == strcmp(strvec_slot(strvec, 1), "inet6"))
 		vs->af = AF_INET6;
 	else
-		log_message(LOG_INFO, "unknown address family %s", (char *)strvec_slot(strvec, 1));
+		log_message(LOG_INFO, "unknown address family %s", FMT_STR_VSLOT(strvec, 1));
 }
 static void
 delay_handler(vector_t *strvec)
@@ -348,7 +348,7 @@ quorum_handler(vector_t *strvec)
 	if (vs->quorum < 1) {
 		log_message(LOG_ERR, "Condition not met: Quorum >= 1");
 		log_message(LOG_ERR, "Ignoring requested value %s, using 1 instead",
-		  (char *) strvec_slot(strvec, 1));
+		  FMT_STR_VSLOT(strvec, 1));
 		vs->quorum = 1;
 	}
 }
