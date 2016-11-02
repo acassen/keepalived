@@ -163,15 +163,18 @@ alloc_global_data(void)
 		new->enable_snmp_checker = true;
 #endif
 	}
-	new->lvs_syncd.syncid = PARAMETER_UNSET;
-#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
-	new->lvs_syncd.mcast_group.ss_family = AF_UNSPEC;
-#endif
 
 	if (snmp_socket) {
 		new->snmp_socket = MALLOC(strlen(snmp_socket + 1));
 		strcpy(new->snmp_socket, snmp_socket);
 	}
+#endif
+
+#ifdef _WITH_LVS_
+	new->lvs_syncd.syncid = PARAMETER_UNSET;
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+	new->lvs_syncd.mcast_group.ss_family = AF_UNSPEC;
+#endif
 #endif
 
 	return new;

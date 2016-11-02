@@ -150,9 +150,11 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 	case SNMP_LINKBEAT:
 		long_ret = global_data->linkbeat_use_polling?2:1;
 		return (u_char *)&long_ret;
+#ifdef _WITH_LVS_
 	case SNMP_LVSFLUSH:
 		long_ret = global_data->lvs_flush?1:2;
 		return (u_char *)&long_ret;
+#endif
 	case SNMP_IPVS_64BIT_STATS:
 #ifdef _WITH_LVS_64BIT_STATS_
 		long_ret = 1;
