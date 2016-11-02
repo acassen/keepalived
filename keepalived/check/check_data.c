@@ -141,12 +141,12 @@ alloc_vsg_entry(vector_t *strvec)
 
 	new = (virtual_server_group_entry_t *) MALLOC(sizeof(virtual_server_group_entry_t));
 
-	if (!strcmp(vector_slot(strvec, 0), "fwmark")) {
-		new->vfwmark = (uint32_t)strtoul(vector_slot(strvec, 1), NULL, 10);
+	if (!strcmp(strvec_slot(strvec, 0), "fwmark")) {
+		new->vfwmark = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
 		list_add(vsg->vfwmark, new);
 	} else {
-		new->range = inet_stor(vector_slot(strvec, 0));
-		inet_stosockaddr(vector_slot(strvec, 0), vector_slot(strvec, 1), &new->addr);
+		new->range = inet_stor(strvec_slot(strvec, 0));
+		inet_stosockaddr(strvec_slot(strvec, 0), strvec_slot(strvec, 1), &new->addr);
 		if (!new->range) {
 			list_add(vsg->addr_ip, new);
 			return;

@@ -31,10 +31,12 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <stdbool.h>
+
 #include "parser.h"
 #include "memory.h"
 #include "logger.h"
 #include "rttables.h"
+#include "scheduler.h"
 
 #define DUMP_KEYWORDS	0
 
@@ -49,6 +51,19 @@ static vector_t *current_keywords;
 static FILE *current_stream;
 static int sublevel = 0;
 static int skip_sublevel = 0;
+
+static char *
+null_strvec(const vector_t *strvec, unsigned int index)
+{ 
+	if (index - 1 < vector_size(strvec) && index > 0 && vector_slot(strvec, index - 1))
+		log_message(LOG_INFO, "*** Configuration line starting `%s` is missing a parameter after keyword `%s` at word position %d", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", (char *)vector_slot(strvec, index - 1), index + 1);
+	else
+		log_message(LOG_INFO, "*** Configuration line starting `%s` is missing a parameter at word position %d", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", index + 1);
+
+	exit(KEEPALIVED_EXIT_CONFIG);
+
+	return NULL;
+} 
 
 static void
 keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (vector_t *), bool active)
@@ -80,8 +95,7 @@ keyword_alloc_sub(vector_t *keywords_vec, const char *string, void (*handler) (v
 
 	/* position to last sub level */
 	for (i = 0; i < sublevel; i++)
-		keyword =
-		    vector_slot(keyword->sub, vector_size(keyword->sub) - 1);
+		keyword = vector_slot(keyword->sub, vector_size(keyword->sub) - 1);
 
 	/* First sub level allocation */
 	if (!keyword->sub)
@@ -130,8 +144,7 @@ install_sublevel_end_handler(void (*handler) (void))
 
 	/* position to last sub level */
 	for (i = 0; i < sublevel; i++)
-		keyword =
-		    vector_slot(keyword->sub, vector_size(keyword->sub) - 1);
+		keyword = vector_slot(keyword->sub, vector_size(keyword->sub) - 1);
 	keyword->sub_close_handler = handler;
 }
 
@@ -684,6 +697,7 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 {
 	/* Init Keywords structure */
 	keywords = vector_alloc();
+
 	(*init_keywords) ();
 
 #if DUMP_KEYWORDS
@@ -693,7 +707,11 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 
 	/* Stream handling */
 	current_keywords = keywords;
+
+	register_null_strvec_handler(null_strvec);
 	read_conf_file(conf_file);
+	unregister_null_strvec_handler();
+
 	free_keywords(keywords);
 	clear_rt_names();
 }

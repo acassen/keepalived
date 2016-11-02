@@ -134,7 +134,7 @@ static void
 co_ip_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
-	inet_stosockaddr(vector_slot(strvec, 1), 0, &co->dst);
+	inet_stosockaddr(strvec_slot(strvec, 1), 0, &co->dst);
 }
 
 /* "connect_port" keyword */
@@ -150,7 +150,7 @@ static void
 co_srcip_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
-	inet_stosockaddr(vector_slot(strvec, 1), 0, &co->bindto);
+	inet_stosockaddr(strvec_slot(strvec, 1), 0, &co->bindto);
 }
 
 /* "bind_port" keyword */
