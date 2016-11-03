@@ -80,8 +80,10 @@ AC_ARG_ENABLE(fwmark,
   [  --disable-fwmark        compile without SO_MARK support])
 AC_ARG_ENABLE(snmp,
   [  --enable-snmp           compile with SNMP support])
+AC_ARG_ENABLE(snmp-vrrp,
+  [  --enable-snmp-vrrp      compile with SNMP vrrp support])
 AC_ARG_ENABLE(snmp-keepalived,
-  [  --enable-snmp-keepalived compile with SNMP keepalived support])
+  [  --enable-snmp-keepalived obsolete - use --enable-snmp-vrrp])
 AC_ARG_ENABLE(snmp-checker,
   [  --enable-snmp-checker   compile with SNMP checker support])
 AC_ARG_ENABLE(snmp-rfc,
@@ -760,14 +762,18 @@ CPPFLAGS="$SAV_CPPFLAGS"
 
 dnl ----[ Checks for SNMP support ]----
 SNMP_SUPPORT=No
-SNMP_KEEPALIVED_SUPPORT=No
+SNMP_VRRP_SUPPORT=No
 SNMP_RFC_SUPPORT=No
 SNMP_RFCV2_SUPPORT=No
 SNMP_RFCV3_SUPPORT=No
 SNMP_CHECKER_SUPPORT=No
 SNMP_V3_FOR_V2=No
+if test "$enable_snmp_keepalived" = yes; then
+  AC_MSG_WARN([--enable-snmp-keepalived is obsolete. Use --enable-snmp-vrrp.])
+  enable_snmp_vrrp=$enable_snmp_keepalived
+fi
 if test "$enable_snmp" = yes -o \
-	"$enable_snmp_keepalived" = yes -o \
+	"$enable_snmp_vrrp" = yes -o \
 	"$enable_snmp_checker" = yes -o \
 	"$enable_snmp_rfc" = yes -o \
 	"$enable_snmp_rfcv2" = yes -o \
@@ -842,18 +848,18 @@ if test "$enable_snmp" = yes -o \
   fi
 
   if test "$enable_snmp" = yes; then
-    SNMP_KEEPALIVED_SUPPORT=Yes
+    SNMP_VRRP_SUPPORT=Yes
     SNMP_CHECKER_SUPPORT=Yes
   else
-    if test "$enable_snmp_keepalived" = yes; then
-      SNMP_KEEPALIVED_SUPPORT=Yes
+    if test "$enable_snmp_vrrp" = yes; then
+      SNMP_VRRP_SUPPORT=Yes
     fi
     if test "$enable_snmp_checker" = yes; then
       SNMP_CHECKER_SUPPORT=Yes
     fi
   fi
   if test ${VRRP_SUPPORT} != Yes -a \
-          ${SNMP_KEEPALIVED_SUPPORT} = Yes; then
+          ${SNMP_VRRP_SUPPORT} = Yes; then
     AC_MSG_ERROR([KEEPALIVED SNMP support requires VRRP])
   fi
   if test ${IPVS_SUPPORT} = No -a \
@@ -871,7 +877,7 @@ if test $SNMP_SUPPORT = Yes; then
   AC_DEFINE([_WITH_SNMP_], [ 1 ], [Define to 1 to have keepalived SNMP support])
   add_build_opt([SNMP])
 fi
-if test $SNMP_KEEPALIVED_SUPPORT = Yes; then
+if test $SNMP_VRRP_SUPPORT = Yes; then
   AC_DEFINE([_WITH_SNMP_KEEPALIVED_], [ 1 ], [Define to 1 to have keepalived SNMP VRRP support])
   add_build_opt([SNMP_KEEPALIVED])
 fi
@@ -892,7 +898,7 @@ if test $SNMP_RFCV3_SUPPORT = Yes; then
   add_build_opt([SNMP_RFCV3])
 fi
 AM_CONDITIONAL([SNMP], [test $SNMP_SUPPORT = Yes])
-AM_CONDITIONAL([SNMP_VRRP], [test $SNMP_KEEPALIVED_SUPPORT = Yes])
+AM_CONDITIONAL([SNMP_VRRP], [test $SNMP_VRRP_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_CHECKER], [test $SNMP_CHECKER_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_RFC], [test $SNMP_RFC_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_RFCV2], [test $SNMP_RFCV2_SUPPORT = Yes])
@@ -1089,7 +1095,7 @@ if test ${VRRP_SUPPORT} = Yes; then
   echo "Use VRRP authentication  : ${VRRP_AUTH_SUPPORT}"
   echo "With ip rules/routes     : ${FIB_ROUTING_SUPPORT}"
 fi
-echo "SNMP keepalived support  : ${SNMP_KEEPALIVED_SUPPORT}"
+echo "SNMP vrrp support        : ${SNMP_VRRP_SUPPORT}"
 echo "SNMP checker support     : ${SNMP_CHECKER_SUPPORT}"
 echo "SNMP RFCv2 support       : ${SNMP_RFCV2_SUPPORT}"
 echo "SNMP RFCv3 support       : ${SNMP_RFCV3_SUPPORT}"
