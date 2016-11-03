@@ -1450,19 +1450,24 @@ Optional Features:
   --disable-silent-rules  verbose build output (undo: "make V=0")
   --disable-lvs-syncd     do not use LVS synchronization daemon
   --disable-lvs           do not use the LVS framework
-  --disable-lvs-64bit-stats do not use the LVS 64-bit stats
+  --disable-lvs-64bit-stats
+                          do not use the LVS 64-bit stats
   --disable-vrrp          do not use the VRRP framework
   --disable-fwmark        compile without SO_MARK support
   --enable-snmp           compile with SNMP support
   --enable-snmp-vrrp      compile with SNMP vrrp support
-  --enable-snmp-keepalived obsolete - use --enable-snmp-vrrp
+  --enable-snmp-keepalived
+                          obsolete - use --enable-snmp-vrrp
   --enable-snmp-checker   compile with SNMP checker support
-  --enable-snmp-rfc       compile with SNMP RFC2787 (VRRPv2) and SNMP RFC6527 (VRRPv3) support
+  --enable-snmp-rfc       compile with SNMP RFC2787 (VRRPv2) and SNMP RFC6527
+                          (VRRPv3) support
   --enable-snmp-rfcv2     compile with SNMP RFC2787 (VRRPv2) support
   --enable-snmp-rfcv3     compile with SNMP RFC6257 (VRRPv3) support
-  --disable-snmp-reply-v3-for-v2 disable RFC6257 responses for VRRPv2 instances
+  --disable-snmp-reply-v3-for-v2
+                          disable RFC6257 responses for VRRPv2 instances
   --enable-dbus           compile with dbus support
-  --enable-dbus-create-instance compile with dbus support for creating instances
+  --enable-dbus-create-instance
+                          compile with dbus support for creating instances
   --enable-sha1           compile with SHA1 support
   --disable-vrrp-auth     compile without VRRP authentication
   --disable-routes        compile without ip rules/routes
@@ -1473,9 +1478,11 @@ Optional Features:
   --enable-debug          compile with debugging flags
   --enable-stracktrace    compile with stacktrace support
   --enable-profile        compile with profiling flags
-  --enable-conversion-checks compile with conversion warnings if sensible
-  --enable-force-conversion-checks compile with conversion warnings
-  --enable-Werror compile with warnings being errors
+  --enable-conversion-checks
+                          compile with conversion warnings if sensible
+  --enable-force-conversion-checks
+                          compile with conversion warnings
+  --enable-Werror         compile with warnings being errors
   --enable-dependency-tracking
                           do not reject slow dependency extractors
   --disable-dependency-tracking
@@ -3380,9 +3387,8 @@ fi
 
 # Check whether --with-kernel-dir was given.
 if test "${with_kernel_dir+set}" = set; then :
-  withval=$with_kernel_dir; kernel_src_path="$withval"
-else
-  kernel_src_path=""
+  withval=$with_kernel_dir;   kernel_src_path="$withval"
+                          else kernel_src_path=""
 fi
 
 # Check whether --enable-fwmark was given.

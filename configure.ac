@@ -66,64 +66,64 @@ PKG_PROG_PKG_CONFIG
 
 dnl ----[ Keepalived specific configure options ]----
 AC_ARG_ENABLE(lvs-syncd,
-  [  --disable-lvs-syncd     do not use LVS synchronization daemon])
+  [AS_HELP_STRING([--disable-lvs-syncd], [do not use LVS synchronization daemon])])
 AC_ARG_ENABLE(lvs,
-  [  --disable-lvs           do not use the LVS framework])
+  [AS_HELP_STRING([--disable-lvs], [do not use the LVS framework])])
 AC_ARG_ENABLE(lvs-64bit-stats,
-  [  --disable-lvs-64bit-stats do not use the LVS 64-bit stats])
+  [AS_HELP_STRING([--disable-lvs-64bit-stats], [do not use the LVS 64-bit stats])])
 AC_ARG_ENABLE(vrrp,
-  [  --disable-vrrp          do not use the VRRP framework])
+  [AS_HELP_STRING([--disable-vrrp], [do not use the VRRP framework])])
 AC_ARG_WITH(kernel-dir,
-  [  --with-kernel-dir=DIR   path to linux kernel source directory],
-  [kernel_src_path="$withval"], [kernel_src_path=""])
+  [AS_HELP_STRING([--with-kernel-dir=DIR], [path to linux kernel source directory])],
+  [AS_HELP_STRING([kernel_src_path="$withval"],], [[kernel_src_path=""])])
 AC_ARG_ENABLE(fwmark,
-  [  --disable-fwmark        compile without SO_MARK support])
+  [AS_HELP_STRING([--disable-fwmark], [compile without SO_MARK support])])
 AC_ARG_ENABLE(snmp,
-  [  --enable-snmp           compile with SNMP support])
+  [AS_HELP_STRING([--enable-snmp], [compile with SNMP support])])
 AC_ARG_ENABLE(snmp-vrrp,
-  [  --enable-snmp-vrrp      compile with SNMP vrrp support])
+  [AS_HELP_STRING([--enable-snmp-vrrp], [compile with SNMP vrrp support])])
 AC_ARG_ENABLE(snmp-keepalived,
-  [  --enable-snmp-keepalived obsolete - use --enable-snmp-vrrp])
+  [AS_HELP_STRING([--enable-snmp-keepalived], [obsolete - use --enable-snmp-vrrp])])
 AC_ARG_ENABLE(snmp-checker,
-  [  --enable-snmp-checker   compile with SNMP checker support])
+  [AS_HELP_STRING([--enable-snmp-checker], [compile with SNMP checker support])])
 AC_ARG_ENABLE(snmp-rfc,
-  [  --enable-snmp-rfc       compile with SNMP RFC2787 (VRRPv2) and SNMP RFC6527 (VRRPv3) support])
+  [AS_HELP_STRING([--enable-snmp-rfc], [compile with SNMP RFC2787 (VRRPv2) and SNMP RFC6527 (VRRPv3) support])])
 AC_ARG_ENABLE(snmp-rfcv2,
-  [  --enable-snmp-rfcv2     compile with SNMP RFC2787 (VRRPv2) support])
+  [AS_HELP_STRING([--enable-snmp-rfcv2], [compile with SNMP RFC2787 (VRRPv2) support])])
 AC_ARG_ENABLE(snmp-rfcv3,
-  [  --enable-snmp-rfcv3     compile with SNMP RFC6257 (VRRPv3) support])
+  [AS_HELP_STRING([--enable-snmp-rfcv3], [compile with SNMP RFC6257 (VRRPv3) support])])
 AC_ARG_ENABLE(snmp-reply-v3-for-v2,
-  [  --disable-snmp-reply-v3-for-v2 disable RFC6257 responses for VRRPv2 instances])
+  [AS_HELP_STRING([--disable-snmp-reply-v3-for-v2], [disable RFC6257 responses for VRRPv2 instances])])
 AC_ARG_ENABLE(dbus,
-  [  --enable-dbus           compile with dbus support])
+  [AS_HELP_STRING([--enable-dbus], [compile with dbus support])])
 AC_ARG_ENABLE(dbus-create-instance,
-  [  --enable-dbus-create-instance compile with dbus support for creating instances])
+  [AS_HELP_STRING([--enable-dbus-create-instance], [compile with dbus support for creating instances])])
 AC_ARG_ENABLE(sha1,
-  [  --enable-sha1           compile with SHA1 support])
+  [AS_HELP_STRING([--enable-sha1], [compile with SHA1 support])])
 AC_ARG_ENABLE(vrrp-auth,
-  [  --disable-vrrp-auth     compile without VRRP authentication])
+  [AS_HELP_STRING([--disable-vrrp-auth], [compile without VRRP authentication])])
 AC_ARG_ENABLE(routes,
-  [  --disable-routes        compile without ip rules/routes])
+  [AS_HELP_STRING([--disable-routes], [compile without ip rules/routes])])
 AC_ARG_ENABLE(libiptc,
-  [  --disable-libiptc       compile without libiptc])
+  [AS_HELP_STRING([--disable-libiptc], [compile without libiptc])])
 AC_ARG_ENABLE(libipset,
-  [  --disable-libipset      compile without libipset])
+  [AS_HELP_STRING([--disable-libipset], [compile without libipset])])
 AC_ARG_ENABLE(mem-check,
-  [  --enable-mem-check      compile with memory alloc checking])
+  [AS_HELP_STRING([--enable-mem-check], [compile with memory alloc checking])])
 AC_ARG_ENABLE(mem-check-log,
-  [  --enable-mem-check-log  compile with memory alloc checking wriging to syslog])
+  [AS_HELP_STRING([--enable-mem-check-log], [compile with memory alloc checking wriging to syslog])])
 AC_ARG_ENABLE(debug,
-  [  --enable-debug          compile with debugging flags])
+  [AS_HELP_STRING([--enable-debug], [compile with debugging flags])])
 AC_ARG_ENABLE(stacktrace,
-  [  --enable-stracktrace    compile with stacktrace support])
+  [AS_HELP_STRING([--enable-stracktrace], [compile with stacktrace support])])
 AC_ARG_ENABLE(profile,
-  [  --enable-profile        compile with profiling flags])
+  [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
 AC_ARG_ENABLE(conversion-checks,
-  [  --enable-conversion-checks compile with conversion warnings if sensible])
+  [AS_HELP_STRING([--enable-conversion-checks], [compile with conversion warnings if sensible])])
 AC_ARG_ENABLE(force-conversion-checks,
-  [  --enable-force-conversion-checks compile with conversion warnings])
+  [AS_HELP_STRING([--enable-force-conversion-checks], [compile with conversion warnings])])
 AC_ARG_ENABLE(Werror,
-  [  --enable-Werror compile with warnings being errors])
+  [AS_HELP_STRING([--enable-Werror], [compile with warnings being errors])])
 
 AC_ARG_WITH([systemdsystemunitdir],
         AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files]),
