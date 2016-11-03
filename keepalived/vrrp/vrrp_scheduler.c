@@ -1098,7 +1098,7 @@ vrrp_script_child_thread(thread_t * thread)
 				log_message(LOG_INFO, "VRRP_Script(%s) timed out", vscript->sname);
 			vscript->result = 0;
 		}
-		kill(pid, SIGTERM);
+		kill(-pid, SIGTERM);
 		thread_add_child(thread->master, vrrp_script_child_timeout_thread,
 				 vscript, pid, 2);
 		return 0;
@@ -1143,7 +1143,7 @@ vrrp_script_child_timeout_thread(thread_t * thread)
 
 	/* OK, it still hasn't exited. Now really kill it off. */
 	pid = THREAD_CHILD_PID(thread);
-	if (kill(pid, SIGKILL) < 0) {
+	if (kill(-pid, SIGKILL) < 0) {
 		/* Its possible it finished while we're handing this */
 		if (errno != ESRCH) {
 			DBG("kill error: %s", strerror(errno));
