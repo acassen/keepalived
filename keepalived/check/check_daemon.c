@@ -35,6 +35,7 @@
 #include "pidfile.h"
 #include "daemon.h"
 #include "signals.h"
+#include "notify.h"
 #include "process.h"
 #include "logger.h"
 #include "list.h"
@@ -54,6 +55,9 @@ static char *check_syslog_ident;
 static void
 stop_check(int status)
 {
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
+
 	/* Destroy master thread */
 	signal_handler_destroy();
 	thread_destroy_master(master);
@@ -202,7 +206,7 @@ sigend_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 check_signal_init(void)
 {
-	signal_handler_init();
+	signal_handler_init(0);
 	signal_set(SIGHUP, sighup_check, NULL);
 	signal_set(SIGINT, sigend_check, NULL);
 	signal_set(SIGTERM, sigend_check, NULL);
@@ -217,6 +221,9 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	SET_RELOAD;
 
 	log_message(LOG_INFO, "Got SIGHUP, reloading checker configuration");
+
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
 
 	/* Destroy master thread */
 #ifdef _WITH_VRRP_

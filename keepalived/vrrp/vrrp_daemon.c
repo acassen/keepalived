@@ -45,6 +45,7 @@
 #include "daemon.h"
 #include "logger.h"
 #include "signals.h"
+#include "notify.h"
 #include "process.h"
 #include "bitops.h"
 #include "rttables.h"
@@ -118,6 +119,9 @@ stop_vrrp(int status)
 		ipvs_stop();
 	}
 #endif
+
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
 
 	/* We mustn't receive a SIGCHLD after master is destroyed */
 	signal_handler_destroy();
@@ -328,7 +332,7 @@ sigend_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 vrrp_signal_init(void)
 {
-	signal_handler_init();
+	signal_handler_init(0);
 	signal_set(SIGHUP, sighup_vrrp, NULL);
 	signal_set(SIGINT, sigend_vrrp, NULL);
 	signal_set(SIGTERM, sigend_vrrp, NULL);
@@ -343,6 +347,9 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 {
 	/* set the reloading flag */
 	SET_RELOAD;
+
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
 
 	/* Destroy master thread */
 	vrrp_dispatcher_release(vrrp_data);
