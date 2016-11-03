@@ -125,6 +125,8 @@ misc_check_thread(thread_t * thread)
 		return 0;
 	}
 
+	misck_checker->forcing_termination = false;
+
 	/* Register next timer checker */
 	thread_add_timer(thread->master, misc_check_thread, checker,
 			 checker->vs->delay_loop);
@@ -139,6 +141,7 @@ static int
 misc_check_child_thread(thread_t * thread)
 {
 	int wait_status;
+	pid_t pid;
 	checker_t *checker;
 	misc_checker_t *misck_checker;
 
@@ -146,8 +149,6 @@ misc_check_child_thread(thread_t * thread)
 	misck_checker = CHECKER_ARG(checker);
 
 	if (thread->type == THREAD_CHILD_TIMEOUT) {
-		pid_t pid;
-
 		pid = THREAD_CHILD_PID(thread);
 
 		/* The child hasn't responded. Kill it off. */
@@ -163,6 +164,7 @@ misc_check_child_thread(thread_t * thread)
 						     , checker->rs);
 		}
 
+		misck_checker->forcing_termination = true;
 		kill(-pid, SIGTERM);
 		thread_add_child(thread->master, misc_check_child_timeout_thread,
 				 checker, pid, 2);
@@ -211,6 +213,17 @@ misc_check_child_thread(thread_t * thread)
 			}
 		}
 	}
+	else if (WIFSIGNALED(wait_status)) {
+	        if (misck_checker->forcing_termination && WTERMSIG(wait_status) == SIGTERM) {
+	                /* The script terminated due to a SIGTERM, and we sent it a SIGTERM to
+	                 * terminate the process. Now make sure any children it created have
+	                 * died too. */
+	                pid = THREAD_CHILD_PID(thread);
+	                kill(-pid, SIGKILL);
+	        }
+	}
+
+	misck_checker->forcing_termination = false;
 
 	return 0;
 }
@@ -219,6 +232,7 @@ static int
 misc_check_child_timeout_thread(thread_t * thread)
 {
 	pid_t pid;
+	misc_checker_t *misck_checker;
 
 	if (thread->type != THREAD_CHILD_TIMEOUT)
 		return 0;
@@ -234,6 +248,8 @@ misc_check_child_timeout_thread(thread_t * thread)
 	}
 
 	log_message(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
+
+	misck_checker->forcing_termination = false;
 
 	return 0;
 }

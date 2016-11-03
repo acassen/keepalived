@@ -434,7 +434,7 @@ alloc_vrrp_unicast_peer(vector_t *strvec)
 
 	/* Allocate new unicast peer */
 	peer = (struct sockaddr_storage *) MALLOC(sizeof(struct sockaddr_storage));
-	ret = inet_stosockaddr(vector_slot(strvec, 0), 0, peer);
+	ret = inet_stosockaddr(strvec_slot(strvec, 0), 0, peer);
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] malformed unicast"
 				     " peer address[%s]. Skipping..."

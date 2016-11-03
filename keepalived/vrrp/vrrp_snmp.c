@@ -106,9 +106,10 @@
 
 #ifdef _WITH_SNMP_KEEPALIVED_
 /* VRRP SNMP defines */
+#define VRRP_OID KEEPALIVED_OID, 2
+
 enum snmp_vrrp_magic {
-	VRRP_OID KEEPALIVED_OID = 2,
-	VRRP_SNMP_SCRIPT_NAME,
+	VRRP_SNMP_SCRIPT_NAME = 3,
 	VRRP_SNMP_SCRIPT_COMMAND,
 	VRRP_SNMP_SCRIPT_INTERVAL,
 	VRRP_SNMP_SCRIPT_WEIGHT,
@@ -1819,7 +1820,7 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 			long_ret.u = rt->auth_type;
 #endif
 		return (u_char *)&long_ret;
-
+#ifdef _WITH_LVS_
 	case VRRP_SNMP_INSTANCE_USELVSSYNCDAEMON:
 		long_ret.u = (global_data->lvs_syncd.vrrp == rt)?1:2;
 		return (u_char *)&long_ret;
@@ -1829,6 +1830,7 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 			return (u_char *)global_data->lvs_syncd.ifname;
 		}
 		break;
+#endif
 	case VRRP_SNMP_INSTANCE_SYNCGROUP:
 		if (rt->sync) {
 			*var_len = strlen(rt->sync->gname);
@@ -3860,9 +3862,10 @@ static bool
 vrrp_handles_global_oid(void)
 {
 	if (global_data->enable_snmp_keepalived) {
+#ifdef _WITH_LVS_
 		if (!__test_bit(DAEMON_CHECKERS, &daemon_mode) || !global_data->enable_snmp_checker)
 			return true;
-#ifndef _WITH_LVS_
+#else
 		return true;
 #endif
 	}

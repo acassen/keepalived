@@ -795,6 +795,7 @@ enable_vrrp
 with_kernel_dir
 enable_fwmark
 enable_snmp
+enable_snmp_vrrp
 enable_snmp_keepalived
 enable_snmp_checker
 enable_snmp_rfc
@@ -1449,18 +1450,24 @@ Optional Features:
   --disable-silent-rules  verbose build output (undo: "make V=0")
   --disable-lvs-syncd     do not use LVS synchronization daemon
   --disable-lvs           do not use the LVS framework
-  --disable-lvs-64bit-stats do not use the LVS 64-bit stats
+  --disable-lvs-64bit-stats
+                          do not use the LVS 64-bit stats
   --disable-vrrp          do not use the VRRP framework
   --disable-fwmark        compile without SO_MARK support
   --enable-snmp           compile with SNMP support
-  --enable-snmp-keepalived compile with SNMP keepalived support
+  --enable-snmp-vrrp      compile with SNMP vrrp support
+  --enable-snmp-keepalived
+                          obsolete - use --enable-snmp-vrrp
   --enable-snmp-checker   compile with SNMP checker support
-  --enable-snmp-rfc       compile with SNMP RFC2787 (VRRPv2) and SNMP RFC6527 (VRRPv3) support
+  --enable-snmp-rfc       compile with SNMP RFC2787 (VRRPv2) and SNMP RFC6527
+                          (VRRPv3) support
   --enable-snmp-rfcv2     compile with SNMP RFC2787 (VRRPv2) support
   --enable-snmp-rfcv3     compile with SNMP RFC6257 (VRRPv3) support
-  --disable-snmp-reply-v3-for-v2 disable RFC6257 responses for VRRPv2 instances
+  --disable-snmp-reply-v3-for-v2
+                          disable RFC6257 responses for VRRPv2 instances
   --enable-dbus           compile with dbus support
-  --enable-dbus-create-instance compile with dbus support for creating instances
+  --enable-dbus-create-instance
+                          compile with dbus support for creating instances
   --enable-sha1           compile with SHA1 support
   --disable-vrrp-auth     compile without VRRP authentication
   --disable-routes        compile without ip rules/routes
@@ -1471,9 +1478,11 @@ Optional Features:
   --enable-debug          compile with debugging flags
   --enable-stracktrace    compile with stacktrace support
   --enable-profile        compile with profiling flags
-  --enable-conversion-checks compile with conversion warnings if sensible
-  --enable-force-conversion-checks compile with conversion warnings
-  --enable-Werror compile with warnings being errors
+  --enable-conversion-checks
+                          compile with conversion warnings if sensible
+  --enable-force-conversion-checks
+                          compile with conversion warnings
+  --enable-Werror         compile with warnings being errors
   --enable-dependency-tracking
                           do not reject slow dependency extractors
   --disable-dependency-tracking
@@ -3378,9 +3387,8 @@ fi
 
 # Check whether --with-kernel-dir was given.
 if test "${with_kernel_dir+set}" = set; then :
-  withval=$with_kernel_dir; kernel_src_path="$withval"
-else
-  kernel_src_path=""
+  withval=$with_kernel_dir;   kernel_src_path="$withval"
+                          else kernel_src_path=""
 fi
 
 # Check whether --enable-fwmark was given.
@@ -3391,6 +3399,11 @@ fi
 # Check whether --enable-snmp was given.
 if test "${enable_snmp+set}" = set; then :
   enableval=$enable_snmp;
+fi
+
+# Check whether --enable-snmp-vrrp was given.
+if test "${enable_snmp_vrrp+set}" = set; then :
+  enableval=$enable_snmp_vrrp;
 fi
 
 # Check whether --enable-snmp-keepalived was given.
@@ -8148,14 +8161,19 @@ fi
 CPPFLAGS="$SAV_CPPFLAGS"
 
 SNMP_SUPPORT=No
-SNMP_KEEPALIVED_SUPPORT=No
+SNMP_VRRP_SUPPORT=No
 SNMP_RFC_SUPPORT=No
 SNMP_RFCV2_SUPPORT=No
 SNMP_RFCV3_SUPPORT=No
 SNMP_CHECKER_SUPPORT=No
 SNMP_V3_FOR_V2=No
+if test "$enable_snmp_keepalived" = yes; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: --enable-snmp-keepalived is obsolete. Use --enable-snmp-vrrp." >&5
+$as_echo "$as_me: WARNING: --enable-snmp-keepalived is obsolete. Use --enable-snmp-vrrp." >&2;}
+  enable_snmp_vrrp=$enable_snmp_keepalived
+fi
 if test "$enable_snmp" = yes -o \
-	"$enable_snmp_keepalived" = yes -o \
+	"$enable_snmp_vrrp" = yes -o \
 	"$enable_snmp_checker" = yes -o \
 	"$enable_snmp_rfc" = yes -o \
 	"$enable_snmp_rfcv2" = yes -o \
@@ -8367,18 +8385,18 @@ $as_echo "#define _SNMP_REPLY_V3_FOR_V2_  1 " >>confdefs.h
   fi
 
   if test "$enable_snmp" = yes; then
-    SNMP_KEEPALIVED_SUPPORT=Yes
+    SNMP_VRRP_SUPPORT=Yes
     SNMP_CHECKER_SUPPORT=Yes
   else
-    if test "$enable_snmp_keepalived" = yes; then
-      SNMP_KEEPALIVED_SUPPORT=Yes
+    if test "$enable_snmp_vrrp" = yes; then
+      SNMP_VRRP_SUPPORT=Yes
     fi
     if test "$enable_snmp_checker" = yes; then
       SNMP_CHECKER_SUPPORT=Yes
     fi
   fi
   if test ${VRRP_SUPPORT} != Yes -a \
-          ${SNMP_KEEPALIVED_SUPPORT} = Yes; then
+          ${SNMP_VRRP_SUPPORT} = Yes; then
     as_fn_error $? "KEEPALIVED SNMP support requires VRRP" "$LINENO" 5
   fi
   if test ${IPVS_SUPPORT} = No -a \
@@ -8397,7 +8415,7 @@ $as_echo "#define _WITH_SNMP_  1 " >>confdefs.h
 
   BUILD_OPTIONS="$BUILD_OPTIONS SNMP"
 fi
-if test $SNMP_KEEPALIVED_SUPPORT = Yes; then
+if test $SNMP_VRRP_SUPPORT = Yes; then
 
 $as_echo "#define _WITH_SNMP_KEEPALIVED_  1 " >>confdefs.h
 
@@ -8435,7 +8453,7 @@ else
   SNMP_FALSE=
 fi
 
- if test $SNMP_KEEPALIVED_SUPPORT = Yes; then
+ if test $SNMP_VRRP_SUPPORT = Yes; then
   SNMP_VRRP_TRUE=
   SNMP_VRRP_FALSE='#'
 else
@@ -10545,7 +10563,7 @@ if test ${VRRP_SUPPORT} = Yes; then
   echo "Use VRRP authentication  : ${VRRP_AUTH_SUPPORT}"
   echo "With ip rules/routes     : ${FIB_ROUTING_SUPPORT}"
 fi
-echo "SNMP keepalived support  : ${SNMP_KEEPALIVED_SUPPORT}"
+echo "SNMP vrrp support        : ${SNMP_VRRP_SUPPORT}"
 echo "SNMP checker support     : ${SNMP_CHECKER_SUPPORT}"
 echo "SNMP RFCv2 support       : ${SNMP_RFCV2_SUPPORT}"
 echo "SNMP RFCv3 support       : ${SNMP_RFCV3_SUPPORT}"

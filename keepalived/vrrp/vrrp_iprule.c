@@ -341,12 +341,12 @@ alloc_rule(list rule_list, vector_t *strvec)
 
 	/* FMT parse */
 	while (i < vector_size(strvec)) {
-		str = vector_slot(strvec, i);
+		str = strvec_slot(strvec, i);
 
 		if (!strcmp(str, "from")) {
 			if (new->from_addr)
 				FREE(new->from_addr);
-			new->from_addr = parse_ipaddress(NULL, vector_slot(strvec, ++i), false);
+			new->from_addr = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
 			if (!new->from_addr) {
 				log_message(LOG_INFO, "Invalid rule from address %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
@@ -362,7 +362,7 @@ alloc_rule(list rule_list, vector_t *strvec)
 		else if (!strcmp(str, "to")) {
 			if (new->to_addr)
 				FREE(new->to_addr);
-			new->to_addr = parse_ipaddress(NULL, vector_slot(strvec, ++i), false);
+			new->to_addr = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
 			if (!new->to_addr) {
 				log_message(LOG_INFO, "Invalid rule to address %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
@@ -377,7 +377,7 @@ alloc_rule(list rule_list, vector_t *strvec)
 		}
 		else if (!strcmp(str, "table") ||
 			 !strcmp(str, "lookup")) {
-			if (!find_rttables_table(vector_slot(strvec, ++i), &uval32)) {
+			if (!find_rttables_table(strvec_slot(strvec, ++i), &uval32)) {
 				log_message(LOG_INFO, "Routing table %s not found for rule", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
@@ -397,7 +397,7 @@ alloc_rule(list rule_list, vector_t *strvec)
 		else if (!strcmp(str, "preference") ||
 			 !strcmp(str, "order") ||
 			 !strcmp(str, "priority")) {
-			str = vector_slot(strvec, ++i);
+			str = strvec_slot(strvec, ++i);
 			val = strtoul(str, &end, 0);
 			if (*end || val > UINT32_MAX) {
 				log_message(LOG_INFO, "Invalid rule preference %s specified", str);
@@ -408,7 +408,7 @@ alloc_rule(list rule_list, vector_t *strvec)
 			new->mask |= IPRULE_BIT_PRIORITY;
 		}
 		else if (!strcmp(str, "tos") || !strcmp(str, "dsfield")) {
-			if (!find_rttables_dsfield(vector_slot(strvec, ++i), &uval8)) {
+			if (!find_rttables_dsfield(strvec_slot(strvec, ++i), &uval8)) {
 				log_message(LOG_INFO, "TOS value %s is invalid", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
@@ -417,7 +417,7 @@ alloc_rule(list rule_list, vector_t *strvec)
 			new->mask |= IPRULE_BIT_DSFIELD;
 		}
 		else if (!strcmp(str, "fwmark")) {
-			str = vector_slot(strvec, ++i);
+			str = strvec_slot(strvec, ++i);
 			if (str[0] == '-')
 				goto fwmark_err;
 			val = strtoul(str, &end, 0);
@@ -452,7 +452,7 @@ fwmark_err:
 			}
 		}
 		else if (!strcmp(str, "realms")) {
-			str = vector_slot(strvec, ++i);
+			str = strvec_slot(strvec, ++i);
 			if (get_realms(&uval32, str)) {
 				log_message(LOG_INFO, "invalid realms %s for rule", FMT_STR_VSLOT(strvec, i));
 				goto err;
@@ -469,7 +469,7 @@ fwmark_err:
 		}
 #if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
 		else if (!strcmp(str, "suppress_prefixlength") || !strcmp(str, "sup_pl")) {
-			str = vector_slot(strvec, ++i);
+			str = strvec_slot(strvec, ++i);
 			val = strtoul(str, &end, 0);
 			if (*end || val > INT32_MAX) {
 				log_message(LOG_INFO, "Invalid suppress_prefixlength %s specified", str);
@@ -482,7 +482,7 @@ fwmark_err:
 #endif
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 		else if (!strcmp(str, "suppress_ifgroup") || !strcmp(str, "sup_group")) {
-			if (!find_rttables_group(vector_slot(strvec, ++i), &uval32)) {
+			if (!find_rttables_group(strvec_slot(strvec, ++i), &uval32)) {
 				log_message(LOG_INFO, "suppress_group %s is invalid", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
@@ -492,7 +492,7 @@ fwmark_err:
 		}
 #endif
 		else if (!strcmp(str, "dev") || !strcmp(str, "iif")) {
-			str = vector_slot(strvec, ++i);
+			str = strvec_slot(strvec, ++i);
 			ifp = if_get_by_ifname(str);
 			if (!ifp) {
 				log_message(LOG_INFO, "Unknown interface %s for rule",  str);
@@ -502,7 +502,7 @@ fwmark_err:
 		}
 #if HAVE_DECL_FRA_OIFNAME
 		else if (!strcmp(str, "oif")) {
-			str = vector_slot(strvec, ++i);
+			str = strvec_slot(strvec, ++i);
 			ifp = if_get_by_ifname(str);
 			if (!ifp) {
 				log_message(LOG_INFO, "Unknown interface %s for rule",  str);
@@ -514,7 +514,7 @@ fwmark_err:
 #if HAVE_DECL_FRA_TUN_ID
 		else if (!strcmp(str, "tunnel-id")) {
 			uint64_t val64;
-			val64 = strtoull(vector_slot(strvec, ++i), &end, 0);
+			val64 = strtoull(strvec_slot(strvec, ++i), &end, 0);
 			if (*end) {
 				log_message(LOG_INFO, "Invalid tunnel-id %s specified", str);
 				goto err;
@@ -526,10 +526,10 @@ fwmark_err:
 			uint8_t action = FR_ACT_UNSPEC;
 
 			if (!strcmp(str, "type"))
-				str = vector_slot(strvec, ++i);
+				str = strvec_slot(strvec, ++i);
 
 			if (!strcmp(str, "goto")) {
-				val = strtoul(vector_slot(strvec, ++i), &end, 0);
+				val = strtoul(strvec_slot(strvec, ++i), &end, 0);
 				if (*end || val > UINT32_MAX) {
 					log_message(LOG_INFO, "Invalid target %s specified", str);
 					goto err;
