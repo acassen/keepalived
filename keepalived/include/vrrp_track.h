@@ -29,6 +29,7 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <syslog.h>
+#include <stdbool.h>
 
 /* local includes */
 #include "vector.h"
@@ -65,6 +66,7 @@ typedef struct _vrrp_script {
 	int			inuse;		/* how many users have weight>0 ? */
 	int			rise;		/* R: how many successes before OK */
 	int			fall;		/* F: how many failures before KO */
+	bool			forcing_termination;	/* Set if script didn't respond and we sent it SIGTERM */
 } vrrp_script_t;
 
 /* Tracked script structure definition */

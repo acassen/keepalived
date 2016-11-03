@@ -1069,6 +1069,8 @@ vrrp_script_thread(thread_t * thread)
 {
 	vrrp_script_t *vscript = THREAD_ARG(thread);
 
+	vscript->forcing_termination = false;
+
 	/* Register next timer tracker */
 	thread_add_timer(thread->master, vrrp_script_thread, vscript,
 			 vscript->interval);
@@ -1083,11 +1085,10 @@ static int
 vrrp_script_child_thread(thread_t * thread)
 {
 	int wait_status;
+	pid_t pid;
 	vrrp_script_t *vscript = THREAD_ARG(thread);
 
 	if (thread->type == THREAD_CHILD_TIMEOUT) {
-		pid_t pid;
-
 		pid = THREAD_CHILD_PID(thread);
 
 		/* The child hasn't responded. Kill it off. */
@@ -1098,6 +1099,7 @@ vrrp_script_child_thread(thread_t * thread)
 				log_message(LOG_INFO, "VRRP_Script(%s) timed out", vscript->sname);
 			vscript->result = 0;
 		}
+		vscript->forcing_termination = true;
 		kill(-pid, SIGTERM);
 		thread_add_child(thread->master, vrrp_script_child_timeout_thread,
 				 vscript, pid, 2);
@@ -1129,6 +1131,17 @@ vrrp_script_child_thread(thread_t * thread)
 			}
 		}
 	}
+	else if (WIFSIGNALED(wait_status)) {
+		if (vscript->forcing_termination && WTERMSIG(wait_status) == SIGTERM) {
+			/* The script terminated due to a SIGTERM, and we sent it a SIGTERM to
+			 * terminate the process. Now make sure any children it created have
+			 * died too. */
+			pid = THREAD_CHILD_PID(thread);
+			kill(-pid, SIGKILL);
+		}
+	}
+
+	vscript->forcing_termination = false;
 
 	return 0;
 }
@@ -1137,6 +1150,7 @@ static int
 vrrp_script_child_timeout_thread(thread_t * thread)
 {
 	pid_t pid;
+	vrrp_script_t *vscript = THREAD_ARG(thread);
 
 	if (thread->type != THREAD_CHILD_TIMEOUT)
 		return 0;
@@ -1148,10 +1162,13 @@ vrrp_script_child_timeout_thread(thread_t * thread)
 		if (errno != ESRCH) {
 			DBG("kill error: %s", strerror(errno));
 		}
+
 		return 0;
 	}
 
 	log_message(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
+
+	vscript->forcing_termination = false;
 
 	return 0;
 }
