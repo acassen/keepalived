@@ -163,7 +163,7 @@ misc_check_child_thread(thread_t * thread)
 						     , checker->rs);
 		}
 
-		kill(pid, SIGTERM);
+		kill(-pid, SIGTERM);
 		thread_add_child(thread->master, misc_check_child_timeout_thread,
 				 checker, pid, 2);
 		return 0;
@@ -225,7 +225,7 @@ misc_check_child_timeout_thread(thread_t * thread)
 
 	/* OK, it still hasn't exited. Now really kill it off. */
 	pid = THREAD_CHILD_PID(thread);
-	if (kill(pid, SIGKILL) < 0) {
+	if (kill(-pid, SIGKILL) < 0) {
 		/* Its possible it finished while we're handing this */
 		if (errno != ESRCH) {
 			DBG("kill error: %s", strerror(errno));
