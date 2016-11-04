@@ -2511,19 +2511,35 @@ vrrp_ipvs_needed(void)
 
 /* Try to find a VRRP instance */
 static vrrp_t *
-vrrp_exist(vrrp_t * old_vrrp)
+vrrp_exist(vrrp_t *old_vrrp)
 {
 	element e;
-	list l = vrrp_data->vrrp;
 	vrrp_t *vrrp;
 
-	if (LIST_ISEMPTY(l))
+	if (LIST_ISEMPTY(vrrp_data->vrrp))
 		return NULL;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-		if (!strcmp(vrrp->iname, old_vrrp->iname))
+		if (vrrp->vrid != old_vrrp->vrid ||
+		    vrrp->family != old_vrrp->family)
+			continue;
+
+#ifndef _HAVE_VRRP_VMAC_
+		if (vrrp->ifp == old_vrrp->ifp)
 			return vrrp;
+#else
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) != __test_bit(VRRP_VMAC_BIT, &old_vrrp->vmac_flags))
+			continue;
+		if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
+			if (vrrp->ifp == old_vrrp->ifp)
+				return vrrp;
+			continue;
+		}
+
+		if (vrrp->ifp->base_ifindex == old_vrrp->ifp->base_ifindex)
+			return vrrp;
+#endif
 	}
 
 	return NULL;
