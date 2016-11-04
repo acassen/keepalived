@@ -1587,8 +1587,8 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		   (hd->priority == vrrp->effective_priority &&
 		    addr_cmp < 0)) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
-		log_message(LOG_INFO, "VRRP_Instance(%s) Received lower prio advert %d"
-				      ", forcing new election", vrrp->iname, hd->priority);
+		log_message(LOG_INFO, "VRRP_Instance(%s) Received advert with lower priority %d, ours %d"
+				      ", forcing new election", vrrp->iname, hd->priority, vrrp->effective_priority);
 #ifdef _WITH_VRRP_AUTH_
 		if (proto == IPPROTO_IPSEC_AH) {
 			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
@@ -1623,8 +1623,8 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 
 	if (hd->priority > vrrp->effective_priority ||
 	    (hd->priority == vrrp->effective_priority && addr_cmp > 0)) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) Received higher prio advert %d"
-				    , vrrp->iname, hd->priority);
+		log_message(LOG_INFO, "VRRP_Instance(%s) Received advert with higher priority %d, ours %d"
+				    , vrrp->iname, hd->priority, vrrp->effective_priority);
 #ifdef _WITH_VRRP_AUTH_
 		if (proto == IPPROTO_IPSEC_AH) {
 			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
@@ -2165,12 +2165,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				    ifp->base_ifp == vrrp->ifp)
 				{
 					log_message(LOG_INFO, "(%s): Found matching interface %s", vrrp->iname, ifp->ifname);
-					if (vrrp->vmac_ifname[0]) {
-						if (strcmp(vrrp->vmac_ifname, ifp->ifname))
-							log_message(LOG_INFO, "(%s): vmac name mismatch %s <=> %s", vrrp->iname, vrrp->vmac_ifname, ifp->ifname);
-					}
-					else
-						strcpy(vrrp->vmac_ifname, ifp->ifname);
+					if (vrrp->vmac_ifname[0] &&
+					    strcmp(vrrp->vmac_ifname, ifp->ifname))
+						log_message(LOG_INFO, "(%s): vmac name mismatch %s <=> %s; changing to %s.", vrrp->iname, vrrp->vmac_ifname, ifp->ifname, ifp->ifname);
+
+					strcpy(vrrp->vmac_ifname, ifp->ifname);
 					vrrp->ifp = ifp;
 					__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
 
@@ -2178,6 +2177,19 @@ vrrp_complete_instance(vrrp_t * vrrp)
 					interface_already_existed = true;
 
 					break;
+				}
+			}
+
+			if (!interface_already_existed &&
+			    vrrp->vmac_ifname[0] &&
+			    (ifp = if_get_by_ifname(vrrp->vmac_ifname))) {
+				/* An interface with the same name exists, but it doesn't match */
+				if (ifp->vmac)
+					log_message(LOG_INFO, "(%s): VMAC %s already exists but is incompatible. It will be deleted", vrrp->iname, vrrp->vmac_ifname);
+				else {
+					log_message(LOG_INFO, "(%s): VMAC interface name %s already exists as a non VMAC interface - ignoring configured name",
+						    vrrp->iname, vrrp->vmac_ifname);
+					vrrp->vmac_ifname[0] = 0;
 				}
 			}
 		}
@@ -2685,19 +2697,35 @@ vrrp_ipvs_needed(void)
 
 /* Try to find a VRRP instance */
 static vrrp_t *
-vrrp_exist(vrrp_t * old_vrrp)
+vrrp_exist(vrrp_t *old_vrrp)
 {
 	element e;
-	list l = vrrp_data->vrrp;
 	vrrp_t *vrrp;
 
-	if (LIST_ISEMPTY(l))
+	if (LIST_ISEMPTY(vrrp_data->vrrp))
 		return NULL;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-		if (!strcmp(vrrp->iname, old_vrrp->iname))
+		if (vrrp->vrid != old_vrrp->vrid ||
+		    vrrp->family != old_vrrp->family)
+			continue;
+
+#ifndef _HAVE_VRRP_VMAC_
+		if (vrrp->ifp == old_vrrp->ifp)
 			return vrrp;
+#else
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) != __test_bit(VRRP_VMAC_BIT, &old_vrrp->vmac_flags))
+			continue;
+		if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
+			if (vrrp->ifp == old_vrrp->ifp)
+				return vrrp;
+			continue;
+		}
+
+		if (vrrp->ifp->base_ifindex == old_vrrp->ifp->base_ifindex)
+			return vrrp;
+#endif
 	}
 
 	return NULL;

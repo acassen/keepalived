@@ -110,6 +110,8 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 	}
 
 	/* Child part */
+	setpgid(0, 0);
+
 	script_setup();
 
 	status = system_call(script);
@@ -118,4 +120,34 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 		exit(0); /* Script errors aren't server errors */
 
 	exit(WEXITSTATUS(status));
+}
+
+void
+script_killall(thread_master_t *m, int signo)
+{
+	sigset_t old_set, child_wait;
+	thread_t *thread;
+	pid_t p_pgid, c_pgid;
+
+	sigprocmask(0, NULL, &old_set);
+	if (!sigismember(&old_set, SIGCHLD)) {
+		sigemptyset(&child_wait);
+		sigaddset(&child_wait, SIGCHLD);
+		sigprocmask(SIG_BLOCK, &child_wait, NULL);
+	}
+
+	thread = m->child.head;
+
+	p_pgid = getpgid(0);
+
+	while (thread) {
+		c_pgid = getpgid(thread->u.c.pid);
+		if (c_pgid != p_pgid) {
+			kill(-c_pgid, signo);
+		}
+		thread = thread->next;
+	}
+
+	if (!sigismember(&old_set, SIGCHLD))
+		sigprocmask(SIG_UNBLOCK, &child_wait, NULL);
 }

@@ -72,13 +72,13 @@ static void
 vsg_handler(vector_t *strvec)
 {
 	/* Fetch queued vsg */
-	alloc_vsg(vector_slot(strvec, 1));
+	alloc_vsg(strvec_slot(strvec, 1));
 	alloc_value_block(alloc_vsg_entry);
 }
 static void
 vs_handler(vector_t *strvec)
 {
-	alloc_vs(vector_slot(strvec, 1), vector_slot(strvec, 2));
+	alloc_vs(strvec_slot(strvec, 1), strvec_slot(strvec, 2));
 }
 static void
 vs_end_handler(void)
@@ -93,18 +93,18 @@ ip_family_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->af)
 		return;
-	if (0 == strcmp(vector_slot(strvec, 1), "inet"))
+	if (0 == strcmp(strvec_slot(strvec, 1), "inet"))
 		vs->af = AF_INET;
-	else if (0 == strcmp(vector_slot(strvec, 1), "inet6"))
+	else if (0 == strcmp(strvec_slot(strvec, 1), "inet6"))
 		vs->af = AF_INET6;
 	else
-		log_message(LOG_INFO, "unknown address family %s", (char *)vector_slot(strvec, 1));
+		log_message(LOG_INFO, "unknown address family %s", FMT_STR_VSLOT(strvec, 1));
 }
 static void
 delay_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->delay_loop = strtoul(vector_slot(strvec, 1), NULL, 10) * TIMER_HZ;
+	vs->delay_loop = strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
 	if (vs->delay_loop < TIMER_HZ)
 		vs->delay_loop = TIMER_HZ;
 }
@@ -112,7 +112,7 @@ static void
 lbalgo_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = vector_slot(strvec, 1);
+	char *str = strvec_slot(strvec, 1);
 	size_t size = sizeof (vs->sched);
 	size_t str_len = strlen(str);
 
@@ -126,7 +126,7 @@ static void
 lbflags_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = vector_slot(strvec, 0);
+	char *str = strvec_slot(strvec, 0);
 
 	if (!strcmp(str, "hashed"))
 		vs->flags |= IP_VS_SVC_F_HASHED;
@@ -158,7 +158,7 @@ static void
 lbkind_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = vector_slot(strvec, 1);
+	char *str = strvec_slot(strvec, 1);
 
 	if (!strcmp(str, "NAT"))
 		vs->loadbalancing_kind = IP_VS_CONN_F_MASQ;
@@ -182,7 +182,7 @@ pto_handler(vector_t *strvec)
 	}
 
 	errno = 0;
-	timeout = strtoul(vector_slot(strvec, 1), &endptr, 10);
+	timeout = strtoul(strvec_slot(strvec, 1), &endptr, 10);
 	if (errno || *endptr || timeout > UINT32_MAX || timeout == 0) {
 		log_message(LOG_INFO, "persistent_timeout invalid");
 		return;
@@ -195,7 +195,7 @@ static void
 pengine_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = vector_slot(strvec, 1);
+	char *str = strvec_slot(strvec, 1);
 	size_t size = sizeof (vs->pe_name);
 
 	strncpy(vs->pe_name, str, size - 1);
@@ -209,9 +209,9 @@ pgr_handler(vector_t *strvec)
 
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->addr.ss_family == AF_INET6)
-		vs->persistence_granularity = (uint32_t)strtoul(vector_slot(strvec, 1), NULL, 10);
+		vs->persistence_granularity = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
 	else {
-		if (inet_aton(vector_slot(strvec, 1), &addr)) {
+		if (inet_aton(strvec_slot(strvec, 1), &addr)) {
 			log_message(LOG_INFO, "Invalid persistence_timeout specified - %s", FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
@@ -225,7 +225,7 @@ static void
 proto_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = vector_slot(strvec, 1);
+	char *str = strvec_slot(strvec, 1);
 	if (!strcmp(str, "TCP"))
 		vs->service_type = IPPROTO_TCP;
 	else if (!strcmp(str, "SCTP"))
@@ -253,7 +253,7 @@ virtualhost_handler(vector_t *strvec)
 static void
 ssvr_handler(vector_t *strvec)
 {
-	alloc_ssvr(vector_slot(strvec, 1), vector_slot(strvec, 2));
+	alloc_ssvr(strvec_slot(strvec, 1), strvec_slot(strvec, 2));
 }
 static void
 ssvri_handler(__attribute__((unused)) vector_t *strvec)
@@ -270,14 +270,14 @@ ssvri_handler(__attribute__((unused)) vector_t *strvec)
 static void
 rs_handler(vector_t *strvec)
 {
-	alloc_rs(vector_slot(strvec, 1), vector_slot(strvec, 2));
+	alloc_rs(strvec_slot(strvec, 1), strvec_slot(strvec, 2));
 }
 static void
 weight_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->weight = atoi(vector_slot(strvec, 1));
+	rs->weight = atoi(strvec_slot(strvec, 1));
 	rs->iweight = rs->weight;
 }
 static void
@@ -285,14 +285,14 @@ uthreshold_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->u_threshold = (uint32_t)strtoul(vector_slot(strvec, 1), NULL, 10);
+	rs->u_threshold = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
 }
 static void
 lthreshold_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->l_threshold = (uint32_t)strtoul(vector_slot(strvec, 1), NULL, 10);
+	rs->l_threshold = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
 }
 static void
 inhibit_handler(__attribute__((unused)) vector_t *strvec)
@@ -344,11 +344,11 @@ static void
 quorum_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->quorum = (unsigned)strtoul(vector_slot(strvec, 1), NULL, 10);
+	vs->quorum = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
 	if (vs->quorum < 1) {
 		log_message(LOG_ERR, "Condition not met: Quorum >= 1");
 		log_message(LOG_ERR, "Ignoring requested value %s, using 1 instead",
-		  (char *) vector_slot(strvec, 1));
+		  FMT_STR_VSLOT(strvec, 1));
 		vs->quorum = 1;
 	}
 }
@@ -357,7 +357,7 @@ hysteresis_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 
-	vs->hysteresis = (unsigned)strtoul(vector_slot(strvec, 1), NULL, 10);
+	vs->hysteresis = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
 }
 
 void

@@ -90,12 +90,12 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	struct rtattr *data;
 	interface_t *ifp;
 	interface_t *base_ifp;
+	bool create_interface = true;
 	struct {
 		struct nlmsghdr n;
 		struct ifinfomsg ifi;
 		char buf[256];
 	} req;
-	bool created_if = false;
 
 	if (!vrrp->ifp || __test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) || !vrrp->vrid)
 		return -1;
@@ -115,34 +115,40 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	 */
 	if ((ifp = if_get_by_ifname(vrrp->vmac_ifname))) {
 		/* Check to see whether this interface has wrong mac ? */
-		if (memcmp((const void *) ifp->hw_addr,
-			   (const void *) ll_addr, ETH_ALEN) != 0) {
-			/* We have found a VIF but the vmac do not match */
-			log_message(LOG_INFO, "vmac: Removing old VMAC interface %s due to conflicting "
-					      "interface MAC for vrrp_instance %s!!!"
-					    , vrrp->vmac_ifname, vrrp->iname);
+		if ((memcmp((const void *) ifp->hw_addr, (const void *) ll_addr, ETH_ALEN) != 0 ||
+		     ifp->base_ifindex != vrrp->ifp->ifindex)) {
 
-			/* Request that NETLINK remove the VIF interface first */
-			memset(&req, 0, sizeof (req));
-			req.n.nlmsg_len = NLMSG_LENGTH(sizeof req.ifi);
-			req.n.nlmsg_flags = NLM_F_REQUEST;
-			req.n.nlmsg_type = RTM_DELLINK;
-			req.ifi.ifi_family = AF_INET;
-			req.ifi.ifi_index = (int)IF_INDEX(ifp);
-
-			if (netlink_talk(&nl_cmd, &req.n) < 0) {
-				log_message(LOG_INFO, "vmac: Error removing VMAC interface %s for "
-						      "vrrp_instance %s!!!"
+			/* Be safe here - we don't want to remove a physical interface */
+			if (ifp->vmac) {
+				/* We have found a VIF but the vmac do not match */
+				log_message(LOG_INFO, "vmac: Removing old VMAC interface %s due to conflicting "
+						      "interface or MAC for vrrp_instance %s!!!"
 						    , vrrp->vmac_ifname, vrrp->iname);
-				return -1;
-			}
 
-			/* Interface successfully removed, now recreate */
-			ifp = NULL;
+				/* Request that NETLINK remove the VIF interface first */
+				memset(&req, 0, sizeof (req));
+				req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
+				req.n.nlmsg_flags = NLM_F_REQUEST;
+				req.n.nlmsg_type = RTM_DELLINK;
+				req.ifi.ifi_family = AF_INET;
+				req.ifi.ifi_index = (int)IF_INDEX(ifp);
+
+				if (netlink_talk(&nl_cmd, &req.n) < 0) {
+					log_message(LOG_INFO, "vmac: Error removing VMAC interface %s for "
+							      "vrrp_instance %s!!!"
+							    , vrrp->vmac_ifname, vrrp->iname);
+					return -1;
+				}
+
+				/* Interface successfully removed, now recreate */
+				ifp = NULL;
+			}
 		}
+		else
+			create_interface = false;
 	}
 
-	if (!ifp) {
+	if (create_interface) {
 		/* Request that NETLINK create the VIF interface */
 		req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
 		req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL;
@@ -189,8 +195,6 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		 * read the reflected netlink messages to ensure that the link status doesn't
 		 * get updated by out of date queued messages */
 		kernel_netlink_poll();
-
-		created_if = true;
 	}
 
 	base_ifp = vrrp->ifp;
@@ -200,14 +204,14 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 	if (vrrp->family == AF_INET) {
 		/* Set the necessary kernel parameters to make macvlans work for us */
-		if (created_if)
+		if (create_interface)
 			set_interface_parameters(ifp, base_ifp);
 
 		/* We don't want IPv6 running on the interface unless we have some IPv6
 		 * eVIPs, so disable it if not needed */
 		if (!vrrp->evip_add_ipv6)
 			link_set_ipv6(ifp, false);
-		else if (!created_if && vrrp->evip_add_ipv6) {
+		else if (!create_interface && vrrp->evip_add_ipv6) {
 			/* If we didn't create the VMAC we don't know what state it is in */
 			link_set_ipv6(ifp, true);
 		}
@@ -263,7 +267,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			ipaddress.ifa.ifa_prefixlen = 64;
 			ipaddress.ifa.ifa_index = vrrp->ifp->ifindex;
 
-			if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1 && created_if)
+			if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1 && create_interface)
 				log_message(LOG_INFO, "Adding link-local address to vmac failed");
 
 			/* Save the address as source for vrrp packets */
@@ -296,7 +300,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		ipaddress.ifa.ifa_prefixlen = 64;
 		ipaddress.ifa.ifa_index = vrrp->ifp->ifindex;
 
-		if (netlink_ipaddress(&ipaddress, IPADDRESS_DEL) != 1 && created_if)
+		if (netlink_ipaddress(&ipaddress, IPADDRESS_DEL) != 1 && create_interface)
 			log_message(LOG_INFO, "Deleting auto link-local address from vmac failed");
 
 	}

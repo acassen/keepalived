@@ -127,7 +127,7 @@ static void
 http_get_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk;
-	char *str = vector_slot(strvec, 0);
+	char *str = strvec_slot(strvec, 0);
 
 	/* queue new checker */
 	http_get_chk = alloc_http_get(str);
@@ -579,9 +579,9 @@ http_request_thread(thread_t * thread)
 	int ret = 0;
 	int val;
 
-	/* Handle read timeout */
+	/* Handle write timeout */
 	if (thread->type == THREAD_WRITE_TIMEOUT)
-		return timeout_epilog(thread, "Timeout WEB read");
+		return timeout_epilog(thread, "Timeout WEB write");
 
 	/* Allocate & clean the GET string */
 	str_request = (char *) MALLOC(GET_BUFFER_LENGTH);

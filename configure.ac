@@ -66,64 +66,66 @@ PKG_PROG_PKG_CONFIG
 
 dnl ----[ Keepalived specific configure options ]----
 AC_ARG_ENABLE(lvs-syncd,
-  [  --disable-lvs-syncd     do not use LVS synchronization daemon])
+  [AS_HELP_STRING([--disable-lvs-syncd], [do not use LVS synchronization daemon])])
 AC_ARG_ENABLE(lvs,
-  [  --disable-lvs           do not use the LVS framework])
+  [AS_HELP_STRING([--disable-lvs], [do not use the LVS framework])])
 AC_ARG_ENABLE(lvs-64bit-stats,
-  [  --disable-lvs-64bit-stats do not use the LVS 64-bit stats])
+  [AS_HELP_STRING([--disable-lvs-64bit-stats], [do not use the LVS 64-bit stats])])
 AC_ARG_ENABLE(vrrp,
-  [  --disable-vrrp          do not use the VRRP framework])
+  [AS_HELP_STRING([--disable-vrrp], [do not use the VRRP framework])])
 AC_ARG_WITH(kernel-dir,
-  [  --with-kernel-dir=DIR   path to linux kernel source directory],
-  [kernel_src_path="$withval"], [kernel_src_path=""])
+  [AS_HELP_STRING([--with-kernel-dir=DIR], [path to linux kernel source directory])],
+  [AS_HELP_STRING([kernel_src_path="$withval"],], [[kernel_src_path=""])])
 AC_ARG_ENABLE(fwmark,
-  [  --disable-fwmark        compile without SO_MARK support])
+  [AS_HELP_STRING([--disable-fwmark], [compile without SO_MARK support])])
 AC_ARG_ENABLE(snmp,
-  [  --enable-snmp           compile with SNMP support])
+  [AS_HELP_STRING([--enable-snmp], [compile with SNMP support])])
+AC_ARG_ENABLE(snmp-vrrp,
+  [AS_HELP_STRING([--enable-snmp-vrrp], [compile with SNMP vrrp support])])
 AC_ARG_ENABLE(snmp-keepalived,
-  [  --enable-snmp-keepalived compile with SNMP keepalived support])
+  [AS_HELP_STRING([--enable-snmp-keepalived], [obsolete - use --enable-snmp-vrrp])])
 AC_ARG_ENABLE(snmp-checker,
-  [  --enable-snmp-checker   compile with SNMP checker support])
+  [AS_HELP_STRING([--enable-snmp-checker], [compile with SNMP checker support])])
 AC_ARG_ENABLE(snmp-rfc,
-  [  --enable-snmp-rfc       compile with SNMP RFC2787 (VRRPv2) and SNMP RFC6527 (VRRPv3) support])
+  [AS_HELP_STRING([--enable-snmp-rfc], [compile with SNMP RFC2787 (VRRPv2) and SNMP RFC6527 (VRRPv3) support])])
 AC_ARG_ENABLE(snmp-rfcv2,
-  [  --enable-snmp-rfcv2     compile with SNMP RFC2787 (VRRPv2) support])
+  [AS_HELP_STRING([--enable-snmp-rfcv2], [compile with SNMP RFC2787 (VRRPv2) support])])
 AC_ARG_ENABLE(snmp-rfcv3,
-  [  --enable-snmp-rfcv3     compile with SNMP RFC6257 (VRRPv3) support])
+  [AS_HELP_STRING([--enable-snmp-rfcv3], [compile with SNMP RFC6257 (VRRPv3) support])])
 AC_ARG_ENABLE(snmp-reply-v3-for-v2,
-  [  --disable-snmp-reply-v3-for-v2 disable RFC6257 responses for VRRPv2 instances])
+  [AS_HELP_STRING([--disable-snmp-reply-v3-for-v2], [disable RFC6257 responses for VRRPv2 instances])])
 AC_ARG_ENABLE(dbus,
-  [  --enable-dbus           compile with dbus support])
+  [AS_HELP_STRING([--enable-dbus], [compile with dbus support])])
 AC_ARG_ENABLE(dbus-create-instance,
-  [  --enable-dbus-create-instance compile with dbus support for creating instances])
+  [AS_HELP_STRING([--enable-dbus-create-instance], [compile with dbus support for creating instances])])
 AC_ARG_ENABLE(sha1,
-  [  --enable-sha1           compile with SHA1 support])
+  [AS_HELP_STRING([--enable-sha1], [compile with SHA1 support])])
 AC_ARG_ENABLE(vrrp-auth,
-  [  --disable-vrrp-auth     compile without VRRP authentication])
+  [AS_HELP_STRING([--disable-vrrp-auth], [compile without VRRP authentication])])
 AC_ARG_ENABLE(routes,
-  [  --disable-routes        compile without ip rules/routes])
+  [AS_HELP_STRING([--disable-routes], [compile without ip rules/routes])])
 AC_ARG_ENABLE(libiptc,
-  [  --disable-libiptc       compile without libiptc])
+  [AS_HELP_STRING([--disable-libiptc], [compile without libiptc])])
 AC_ARG_ENABLE(libipset,
-  [  --disable-libipset      compile without libipset])
+  [AS_HELP_STRING([--disable-libipset], [compile without libipset])])
 AC_ARG_ENABLE(mem-check,
-  [  --enable-mem-check      compile with memory alloc checking])
+  [AS_HELP_STRING([--enable-mem-check], [compile with memory alloc checking])])
 AC_ARG_ENABLE(mem-check-log,
-  [  --enable-mem-check-log  compile with memory alloc checking wriging to syslog])
+  [AS_HELP_STRING([--enable-mem-check-log], [compile with memory alloc checking wriging to syslog])])
 AC_ARG_ENABLE(debug,
-  [  --enable-debug          compile with debugging flags])
+  [AS_HELP_STRING([--enable-debug], [compile with debugging flags])])
 AC_ARG_ENABLE(stacktrace,
-  [  --enable-stracktrace    compile with stacktrace support])
+  [AS_HELP_STRING([--enable-stracktrace], [compile with stacktrace support])])
 AC_ARG_ENABLE(dump-threads,
   [  --enable-dump-threads   compile with thread dumping support])
 AC_ARG_ENABLE(profile,
-  [  --enable-profile        compile with profiling flags])
+  [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
 AC_ARG_ENABLE(conversion-checks,
-  [  --enable-conversion-checks compile with conversion warnings if sensible])
+  [AS_HELP_STRING([--enable-conversion-checks], [compile with conversion warnings if sensible])])
 AC_ARG_ENABLE(force-conversion-checks,
-  [  --enable-force-conversion-checks compile with conversion warnings])
+  [AS_HELP_STRING([--enable-force-conversion-checks], [compile with conversion warnings])])
 AC_ARG_ENABLE(Werror,
-  [  --enable-Werror compile with warnings being errors])
+  [AS_HELP_STRING([--enable-Werror], [compile with warnings being errors])])
 
 AC_ARG_WITH([systemdsystemunitdir],
         AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files]),
@@ -762,14 +764,18 @@ CPPFLAGS="$SAV_CPPFLAGS"
 
 dnl ----[ Checks for SNMP support ]----
 SNMP_SUPPORT=No
-SNMP_KEEPALIVED_SUPPORT=No
+SNMP_VRRP_SUPPORT=No
 SNMP_RFC_SUPPORT=No
 SNMP_RFCV2_SUPPORT=No
 SNMP_RFCV3_SUPPORT=No
 SNMP_CHECKER_SUPPORT=No
 SNMP_V3_FOR_V2=No
+if test "$enable_snmp_keepalived" = yes; then
+  AC_MSG_WARN([--enable-snmp-keepalived is obsolete. Use --enable-snmp-vrrp.])
+  enable_snmp_vrrp=$enable_snmp_keepalived
+fi
 if test "$enable_snmp" = yes -o \
-	"$enable_snmp_keepalived" = yes -o \
+	"$enable_snmp_vrrp" = yes -o \
 	"$enable_snmp_checker" = yes -o \
 	"$enable_snmp_rfc" = yes -o \
 	"$enable_snmp_rfcv2" = yes -o \
@@ -844,18 +850,18 @@ if test "$enable_snmp" = yes -o \
   fi
 
   if test "$enable_snmp" = yes; then
-    SNMP_KEEPALIVED_SUPPORT=Yes
+    SNMP_VRRP_SUPPORT=Yes
     SNMP_CHECKER_SUPPORT=Yes
   else
-    if test "$enable_snmp_keepalived" = yes; then
-      SNMP_KEEPALIVED_SUPPORT=Yes
+    if test "$enable_snmp_vrrp" = yes; then
+      SNMP_VRRP_SUPPORT=Yes
     fi
     if test "$enable_snmp_checker" = yes; then
       SNMP_CHECKER_SUPPORT=Yes
     fi
   fi
   if test ${VRRP_SUPPORT} != Yes -a \
-          ${SNMP_KEEPALIVED_SUPPORT} = Yes; then
+          ${SNMP_VRRP_SUPPORT} = Yes; then
     AC_MSG_ERROR([KEEPALIVED SNMP support requires VRRP])
   fi
   if test ${IPVS_SUPPORT} = No -a \
@@ -873,7 +879,7 @@ if test $SNMP_SUPPORT = Yes; then
   AC_DEFINE([_WITH_SNMP_], [ 1 ], [Define to 1 to have keepalived SNMP support])
   add_build_opt([SNMP])
 fi
-if test $SNMP_KEEPALIVED_SUPPORT = Yes; then
+if test $SNMP_VRRP_SUPPORT = Yes; then
   AC_DEFINE([_WITH_SNMP_KEEPALIVED_], [ 1 ], [Define to 1 to have keepalived SNMP VRRP support])
   add_build_opt([SNMP_KEEPALIVED])
 fi
@@ -894,7 +900,7 @@ if test $SNMP_RFCV3_SUPPORT = Yes; then
   add_build_opt([SNMP_RFCV3])
 fi
 AM_CONDITIONAL([SNMP], [test $SNMP_SUPPORT = Yes])
-AM_CONDITIONAL([SNMP_VRRP], [test $SNMP_KEEPALIVED_SUPPORT = Yes])
+AM_CONDITIONAL([SNMP_VRRP], [test $SNMP_VRRP_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_CHECKER], [test $SNMP_CHECKER_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_RFC], [test $SNMP_RFC_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_RFCV2], [test $SNMP_RFCV2_SUPPORT = Yes])
@@ -1100,7 +1106,7 @@ if test ${VRRP_SUPPORT} = Yes; then
   echo "Use VRRP authentication  : ${VRRP_AUTH_SUPPORT}"
   echo "With ip rules/routes     : ${FIB_ROUTING_SUPPORT}"
 fi
-echo "SNMP keepalived support  : ${SNMP_KEEPALIVED_SUPPORT}"
+echo "SNMP vrrp support        : ${SNMP_VRRP_SUPPORT}"
 echo "SNMP checker support     : ${SNMP_CHECKER_SUPPORT}"
 echo "SNMP RFCv2 support       : ${SNMP_RFCV2_SUPPORT}"
 echo "SNMP RFCv3 support       : ${SNMP_RFCV3_SUPPORT}"

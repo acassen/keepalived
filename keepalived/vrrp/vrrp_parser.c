@@ -81,7 +81,7 @@ vrrp_sync_group_handler(vector_t *strvec)
 		return;
 	}
 
-	gname = vector_slot(strvec, 1);
+	gname = strvec_slot(strvec, 1);
 
 	/* check group doesn't already exist */
 	if (!LIST_ISEMPTY(vrrp_data->vrrp_sync_group)) {
@@ -165,7 +165,7 @@ vrrp_handler(vector_t *strvec)
 		return;
 	}
 
-	iname = vector_slot(strvec,1);
+	iname = strvec_slot(strvec,1);
 
 	/* Make sure the vrrp instance doesn't already exist */
 	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
@@ -192,7 +192,7 @@ vrrp_vmac_handler(vector_t *strvec)
 	__set_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags);
 
 	if (vector_size(strvec) >= 2) {
-		strncpy(vrrp->vmac_ifname, vector_slot(strvec, 1), IFNAMSIZ - 1);
+		strncpy(vrrp->vmac_ifname, strvec_slot(strvec, 1), IFNAMSIZ - 1);
 
 		/* Check if the interface exists and is a macvlan we can use */
 		if ((ifp = if_get_by_ifname(vrrp->vmac_ifname)) &&
@@ -231,7 +231,7 @@ vrrp_native_ipv6_handler(__attribute__((unused)) vector_t *strvec)
 static void
 vrrp_state_handler(vector_t *strvec)
 {
-	char *str = vector_slot(strvec, 1);
+	char *str = strvec_slot(strvec, 1);
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	if (!strcmp(str, "MASTER"))
@@ -248,7 +248,7 @@ static void
 vrrp_int_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	char *name = vector_slot(strvec, 1);
+	char *name = strvec_slot(strvec, 1);
 
 	vrrp->ifp = if_get_by_ifname(name);
 	if (!vrrp->ifp) {
@@ -287,7 +287,7 @@ vrrp_srcip_handler(vector_t *strvec)
 	struct sockaddr_storage *saddr = &vrrp->saddr;
 	int ret;
 
-	ret = inet_stosockaddr(vector_slot(strvec, 1), 0, saddr);
+	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, saddr);
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] malformed unicast"
 				     " src address[%s]. Skipping..."
@@ -309,7 +309,7 @@ vrrp_vrid_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *end_ptr;
-	unsigned long vrid = strtoul(vector_slot(strvec, 1),&end_ptr, 10);
+	unsigned long vrid = strtoul(strvec_slot(strvec, 1),&end_ptr, 10);
 
 	if (*end_ptr || VRRP_IS_BAD_VID(vrid)) {
 		log_message(LOG_INFO, "VRRP Error : VRID not valid - must be between 1 & 255. reconfigure !");
@@ -324,7 +324,7 @@ vrrp_prio_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *endptr;
-	unsigned long base_priority = strtoul(vector_slot(strvec, 1), &endptr, 10);
+	unsigned long base_priority = strtoul(strvec_slot(strvec, 1), &endptr, 10);
 
 	if (*endptr || VRRP_IS_BAD_PRIORITY(base_priority)) {
 		log_message(LOG_INFO, "(%s): Priority not valid! must be between 1 & 255. Reconfigure !", vrrp->iname);
@@ -339,7 +339,7 @@ static void
 vrrp_adv_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	int adver_int = (int)(atof(vector_slot(strvec, 1)) * TIMER_HZ);
+	int adver_int = (int)(atof(strvec_slot(strvec, 1)) * TIMER_HZ);
 
 	/* Simple check - just positive */
 	if (adver_int <= 0)
@@ -351,7 +351,7 @@ static void
 vrrp_debug_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->debug = atoi(vector_slot(strvec, 1));
+	vrrp->debug = atoi(strvec_slot(strvec, 1));
 
 	if (VRRP_IS_BAD_DEBUG_INT(vrrp->debug)) {
 		log_message(LOG_INFO, "(%s): Debug value not valid! must be between 0-4", vrrp->iname);
@@ -365,7 +365,7 @@ vrrp_skip_check_adv_addr_handler(vector_t *strvec)
 	int res;
 
 	if (vector_size(strvec) >= 2) {
-		res = check_true_false(vector_slot(strvec, 1));
+		res = check_true_false(strvec_slot(strvec, 1));
 		if (res >= 0)
 			vrrp->skip_check_adv_addr = (bool)res;
 		else
@@ -382,7 +382,7 @@ vrrp_strict_mode_handler(vector_t *strvec)
 
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vector_size(strvec) >= 2) {
-		res = check_true_false(vector_slot(strvec, 1));
+		res = check_true_false(strvec_slot(strvec, 1));
 		if (res >= 0)
 			vrrp->strict_mode = (bool)res;
 		else
@@ -481,7 +481,7 @@ static void
 vrrp_garp_delay_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->garp_delay = (unsigned)strtoul(vector_slot(strvec, 1), NULL, 10) * TIMER_HZ;
+	vrrp->garp_delay = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
 	if (vrrp->garp_delay < TIMER_HZ)
 		vrrp->garp_delay = TIMER_HZ;
 }
@@ -489,14 +489,14 @@ static void
 vrrp_garp_refresh_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->garp_refresh.tv_sec = atoi(vector_slot(strvec, 1));
+	vrrp->garp_refresh.tv_sec = atoi(strvec_slot(strvec, 1));
 	vrrp->garp_refresh.tv_usec = 0;
 }
 static void
 vrrp_garp_rep_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->garp_rep = (unsigned)strtoul(vector_slot(strvec, 1), NULL, 10);
+	vrrp->garp_rep = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
 	if (vrrp->garp_rep < 1)
 		vrrp->garp_rep = 1;
 }
@@ -504,7 +504,7 @@ static void
 vrrp_garp_refresh_rep_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->garp_refresh_rep = (unsigned)strtoul(vector_slot(strvec, 1), NULL, 10);
+	vrrp->garp_refresh_rep = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
 	if (vrrp->garp_refresh_rep < 1)
 		vrrp->garp_refresh_rep = 1;
 }
@@ -513,13 +513,13 @@ static void
 vrrp_garp_lower_prio_delay_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->garp_lower_prio_delay = (unsigned)strtoul(vector_slot(strvec, 1), NULL, 10) * TIMER_HZ;
+	vrrp->garp_lower_prio_delay = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
 }
 static void
 vrrp_garp_lower_prio_rep_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	int garp_lower_prio_rep = atoi(vector_slot(strvec, 1));
+	int garp_lower_prio_rep = atoi(strvec_slot(strvec, 1));
 
 	/* Allow 0 GARP messages to be sent */
 	if (garp_lower_prio_rep < 0)
@@ -534,7 +534,7 @@ vrrp_lower_prio_no_advert_handler(vector_t *strvec)
 
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vector_size(strvec) >= 2) {
-		res = check_true_false(vector_slot(strvec, 1));
+		res = check_true_false(strvec_slot(strvec, 1));
 		if (res >= 0)
 			vrrp->lower_prio_no_advert = (unsigned)res;
 		else
@@ -551,7 +551,7 @@ static void
 vrrp_auth_type_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	char *str = vector_slot(strvec, 1);
+	char *str = strvec_slot(strvec, 1);
 
 	if (!strcmp(str, "AH"))
 		vrrp->auth_type = VRRP_AUTH_AH;
@@ -564,7 +564,7 @@ static void
 vrrp_auth_pass_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	char *str = vector_slot(strvec, 1);
+	char *str = strvec_slot(strvec, 1);
 	size_t max_size = sizeof (vrrp->auth_data);
 	size_t str_len = strlen(str);
 
@@ -592,7 +592,7 @@ vrrp_vip_handler(__attribute__((unused)) vector_t *strvec)
 		address_family = AF_UNSPEC;
 		vec = alloc_strvec(buf);
 		if (vec) {
-			str = vector_slot(vec, 0);
+			str = strvec_slot(vec, 0);
 			if (!strcmp(str, EOB)) {
 				free_strvec(vec);
 				break;
@@ -646,7 +646,7 @@ vrrp_vrules_handler(__attribute__((unused)) vector_t *strvec)
 static void
 vrrp_script_handler(vector_t *strvec)
 {
-	alloc_vrrp_script(vector_slot(strvec, 1));
+	alloc_vrrp_script(strvec_slot(strvec, 1));
 }
 static void
 vrrp_vscript_script_handler(vector_t *strvec)
@@ -658,7 +658,7 @@ static void
 vrrp_vscript_interval_handler(vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	vscript->interval = (unsigned)(strtoul(vector_slot(strvec, 1), NULL, 10) * TIMER_HZ);
+	vscript->interval = (unsigned)(strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ);
 	if (vscript->interval < TIMER_HZ)
 		vscript->interval = TIMER_HZ;
 }
@@ -666,7 +666,7 @@ static void
 vrrp_vscript_timeout_handler(vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	vscript->timeout = strtoul(vector_slot(strvec, 1), NULL, 10) * TIMER_HZ;
+	vscript->timeout = strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
 	if (vscript->timeout < TIMER_HZ)
 		vscript->timeout = TIMER_HZ;
 }
@@ -674,13 +674,13 @@ static void
 vrrp_vscript_weight_handler(vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	vscript->weight = atoi(vector_slot(strvec, 1));
+	vscript->weight = atoi(strvec_slot(strvec, 1));
 }
 static void
 vrrp_vscript_rise_handler(vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	vscript->rise = atoi(vector_slot(strvec, 1));
+	vscript->rise = atoi(strvec_slot(strvec, 1));
 	if (vscript->rise < 1)
 		vscript->rise = 1;
 }
@@ -688,7 +688,7 @@ static void
 vrrp_vscript_fall_handler(vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	vscript->fall = atoi(vector_slot(strvec, 1));
+	vscript->fall = atoi(strvec_slot(strvec, 1));
 	if (vscript->fall < 1)
 		vscript->fall = 1;
 }
@@ -697,7 +697,7 @@ static void
 vrrp_version_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	uint8_t version = (uint8_t)strtoul(vector_slot(strvec, 1), NULL, 10);
+	uint8_t version = (uint8_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
 
 	if (VRRP_IS_BAD_VERSION(version)) {
 		log_message(LOG_INFO, "VRRP Error : Version not valid !");
@@ -740,7 +740,7 @@ garp_group_garp_interval_handler(vector_t *strvec)
 {
 	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
 
-	delay->garp_interval.tv_usec = (useconds_t)atof(vector_slot(strvec, 1)) * 1000000;
+	delay->garp_interval.tv_usec = (useconds_t)atof(strvec_slot(strvec, 1)) * 1000000;
 	delay->garp_interval.tv_sec = delay->garp_interval.tv_usec / 1000000;
 	delay->garp_interval.tv_usec %= 1000000;
 	delay->have_garp_interval = true;
@@ -753,7 +753,7 @@ garp_group_gna_interval_handler(vector_t *strvec)
 {
 	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
 
-	delay->gna_interval.tv_usec = (suseconds_t)(atof(vector_slot(strvec, 1)) * 1000000);
+	delay->gna_interval.tv_usec = (suseconds_t)(atof(strvec_slot(strvec, 1)) * 1000000);
 	delay->gna_interval.tv_sec = delay->gna_interval.tv_usec / 1000000;
 	delay->gna_interval.tv_usec %= 1000000;
 	delay->have_gna_interval = true;
@@ -764,7 +764,7 @@ garp_group_gna_interval_handler(vector_t *strvec)
 static void
 garp_group_interface_handler(vector_t *strvec)
 {
-	interface_t *ifp = if_get_by_ifname(vector_slot(strvec, 1));
+	interface_t *ifp = if_get_by_ifname(strvec_slot(strvec, 1));
 	if (!ifp) {
 		log_message(LOG_INFO, "Unknown interface %s specified for garp_group - ignoring", FMT_STR_VSLOT(strvec, 1));
 		return;

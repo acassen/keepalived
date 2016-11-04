@@ -26,6 +26,7 @@
 
 /* system includes */
 #include <stdlib.h>
+#include <stdbool.h>
 
 /* local includes */
 #include "scheduler.h"
@@ -35,6 +36,7 @@ typedef struct _misc_checker {
 	char			*path;
 	unsigned long		timeout;
 	int			dynamic;  /* 0: old-style, 1: exit code from checker affects weight */
+	bool			forcing_termination;	/* Set if we have sent the process a SIGTERM */
 } misc_checker_t;
 
 /* Prototypes defs */

@@ -431,7 +431,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 signal_init(void)
 {
-	signal_handler_init();
+	signal_handler_init(1);
 	signal_set(SIGHUP, propogate_signal, NULL);
 	signal_set(SIGUSR1, propogate_signal, NULL);
 	signal_set(SIGUSR2, propogate_signal, NULL);

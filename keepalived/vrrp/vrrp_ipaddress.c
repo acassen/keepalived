@@ -407,7 +407,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 
 	/* We expect the address first */
-	if (!parse_ipaddress(new, vector_slot(strvec,0), false)) {
+	if (!parse_ipaddress(new, strvec_slot(strvec,0), false)) {
 		FREE(new);
 		return;
 	}
@@ -416,7 +416,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 
 	/* FMT parse */
 	while (i < vector_size(strvec)) {
-		str = vector_slot(strvec, i);
+		str = strvec_slot(strvec, i);
 
 		/* cmd parsing */
 		param_avail = (vector_size(strvec) >= i+2);
@@ -432,7 +432,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 				FREE(new);
 				return;
 			}
-			ifp_local = if_get_by_ifname(vector_slot(strvec, ++i));
+			ifp_local = if_get_by_ifname(strvec_slot(strvec, ++i));
 			if (!ifp_local) {
 				log_message(LOG_INFO, "VRRP is trying to assign ip address %s to unknown %s"
 				       " interface !!! go out and fix your conf !!!",
@@ -444,7 +444,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			new->ifa.ifa_index = IF_INDEX(ifp_local);
 			new->ifp = ifp_local;
 		} else if (!strcmp(str, "scope")) {
-			if (!find_rttables_scope(vector_slot(strvec, ++i), &scope))
+			if (!find_rttables_scope(strvec_slot(strvec, ++i), &scope))
 				log_message(LOG_INFO, "Invalid scope '%s' specified for %s - ignoring", FMT_STR_VSLOT(strvec,i), FMT_STR_VSLOT(strvec, addr_idx));
 			else
 				new->ifa.ifa_scope = scope;
@@ -456,7 +456,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 				FREE(new);
 				return;
 			}
-			if (!inet_pton(AF_INET, vector_slot(strvec, ++i), &new->u.sin.sin_brd)) {
+			if (!inet_pton(AF_INET, strvec_slot(strvec, ++i), &new->u.sin.sin_brd)) {
 				log_message(LOG_INFO, "VRRP is trying to assign invalid broadcast %s. "
 						      "skipping VIP...", FMT_STR_VSLOT(strvec, i));
 				FREE(new);
@@ -464,7 +464,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			}
 		} else if (!strcmp(str, "label")) {
 			new->label = MALLOC(IFNAMSIZ);
-			strncpy(new->label, vector_slot(strvec, ++i), IFNAMSIZ);
+			strncpy(new->label, strvec_slot(strvec, ++i), IFNAMSIZ);
 		} else
 			log_message(LOG_INFO, "Unknown configuration entry '%s' for ip address - ignoring", str);
 		i++;

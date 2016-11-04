@@ -878,7 +878,7 @@ static int parse_encap_mpls(vector_t *strvec, unsigned int *i_ptr, encap_t *enca
 		return true;
 	}
 
-	str = vector_slot(strvec, (*i_ptr)++);
+	str = strvec_slot(strvec, (*i_ptr)++);
 	if (parse_mpls_address(str, &encap->mpls)) {
 		log_message(LOG_INFO, "invalid mpls address %s for encapsulation", str);
 		return true;
@@ -895,8 +895,8 @@ static int parse_encap_ip(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 	encap->type = LWTUNNEL_ENCAP_IP;
 
 	while (i + 1 < vector_size(strvec)) {
-		str = vector_slot(strvec, i);
-		str1 = vector_slot(strvec, i + 1);
+		str = strvec_slot(strvec, i);
+		str1 = strvec_slot(strvec, i + 1);
 
 		if (!strcmp(str, "id")) {
 			if (get_u64(&encap->ip.id, str1, UINT64_MAX, "encap id %s value is invalid"))
@@ -975,7 +975,7 @@ int parse_encap_ila(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 		return true;
 	}
 
-	str = vector_slot(strvec, (*i_ptr)++);
+	str = strvec_slot(strvec, (*i_ptr)++);
 
 	if (get_addr64(&encap->ila.locator, str)) {
 		log_message(LOG_INFO, "invalid locator %s for ila encapsulation", str);
@@ -994,8 +994,8 @@ int parse_encap_ip6(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 	encap->type = LWTUNNEL_ENCAP_IP6;
 
 	while (i + 1 < vector_size(strvec)) {
-		str = vector_slot(strvec, i);
-		str1 = vector_slot(strvec, i + 1);
+		str = strvec_slot(strvec, i);
+		str1 = strvec_slot(strvec, i + 1);
 
 		if (!strcmp(str, "id")) {
 			if (get_u64(&encap->ip6.id, str1, UINT64_MAX, "id %s value invalid for IPv6 encapsulation\n"))
@@ -1070,7 +1070,7 @@ parse_encap(vector_t *strvec, unsigned int *i, encap_t *encap)
 		return false;
 	}
 
-	str = vector_slot(strvec, (*i)++);
+	str = strvec_slot(strvec, (*i)++);
 
 	if (!strcmp(str, "mpls"))
 		parse_encap_mpls(strvec, i, encap);
@@ -1101,22 +1101,22 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 	if (!LIST_EXISTS(route->nhs))
 		route->nhs = alloc_list(free_nh, NULL);
 
-	while (i < vector_size(strvec) && !strcmp("nexthop", vector_slot(strvec, i))) {
+	while (i < vector_size(strvec) && !strcmp("nexthop", strvec_slot(strvec, i))) {
 		i++;
 		new = MALLOC(sizeof(nexthop_t));
 
 		while (i < vector_size(strvec)) {
-			str = vector_slot(strvec, i);
+			str = strvec_slot(strvec, i);
 
 			if (!strcmp(str, "via")) {
-				str = vector_slot(strvec, ++i);
+				str = strvec_slot(strvec, ++i);
 				if (!strcmp(str, "inet")) {
 					family = AF_INET;
-					str = vector_slot(strvec, ++i);
+					str = strvec_slot(strvec, ++i);
 				}
 				else if (!strcmp(str, "inet6")) {
 					family = AF_INET6;
-					str = vector_slot(strvec, ++i);
+					str = strvec_slot(strvec, ++i);
 				}
 
 				if (family != AF_UNSPEC) {
@@ -1141,7 +1141,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 					route->family = new->addr->ifa.ifa_family;
 			}
 			else if (!strcmp(str, "dev")) {
-				new->ifp = if_get_by_ifname(vector_slot(strvec, ++i));
+				new->ifp = if_get_by_ifname(strvec_slot(strvec, ++i));
 				if (!new->ifp) {
 					log_message(LOG_INFO, "VRRP is trying to assign VROUTE to unknown "
 					       "%s interface !!! go out and fix your conf !!!",
@@ -1150,7 +1150,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 				}
 			}
 			else if (!strcmp(str, "weight")) {
-				if (get_u32(&val, vector_slot(strvec, ++i), 256, "Invalid weight %s specified for route"))
+				if (get_u32(&val, strvec_slot(strvec, ++i), 256, "Invalid weight %s specified for route"))
 					goto err;
 				if (!val) {
 					log_message(LOG_INFO, "Invalid weight 0 specified for route");
@@ -1172,7 +1172,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 			}
 			else if (!strcmp(str, "realms")) {
 				/* Note: IPv4 only */
-				if (get_realms(&new->realms, vector_slot(strvec, ++i))) {
+				if (get_realms(&new->realms, strvec_slot(strvec, ++i))) {
 					log_message(LOG_INFO, "Invalid realms %s for route", FMT_STR_VSLOT(strvec,i));
 					goto err;
 				}
@@ -1184,7 +1184,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 				}
 			}
 			else if (!strcmp(str, "as")) {
-				if (!strcmp("to", vector_slot(strvec, ++i)))
+				if (!strcmp("to", strvec_slot(strvec, ++i)))
 					i++;
 				log_message(LOG_INFO, "'as [to]' (nat) not supported");
 				goto err;
@@ -1232,13 +1232,13 @@ alloc_route(list rt_list, vector_t *strvec)
 
 	/* FMT parse */
 	while (i < vector_size(strvec)) {
-		str = vector_slot(strvec, i);
+		str = strvec_slot(strvec, i);
 
 		/* cmd parsing */
 		if (!strcmp(str, "src")) {
 			if (new->pref_src)
 				FREE(new->pref_src);
-			new->pref_src = parse_ipaddress(NULL, vector_slot(strvec, ++i), false);
+			new->pref_src = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
 			if (!new->pref_src) {
 				log_message(LOG_INFO, "invalid route src address %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
@@ -1251,7 +1251,7 @@ alloc_route(list rt_list, vector_t *strvec)
 			}
 		}
 		else if (!strcmp(str, "as")) {
-			if (!strcmp("to", vector_slot(strvec, ++i)))
+			if (!strcmp("to", strvec_slot(strvec, ++i)))
 				i++;
 #if HAVE_DECL_RTA_NEWDST
 			log_message(LOG_INFO, "\"as to\" for MPLS only - ignoring");
@@ -1265,14 +1265,14 @@ alloc_route(list rt_list, vector_t *strvec)
 			if (str[0] == 'g')	/* "gw" */
 				log_message(LOG_INFO, "\"gw\" for routes is deprecated. Please use \"via\"");
 
-			str = vector_slot(strvec, ++i);
+			str = strvec_slot(strvec, ++i);
 			if (!strcmp(str, "inet")) {
 				family = AF_INET;
-				str = vector_slot(strvec, ++i);
+				str = strvec_slot(strvec, ++i);
 			}
 			if (!strcmp(str, "inet6")) {
 				family = AF_INET6;
-				str = vector_slot(strvec, ++i);
+				str = strvec_slot(strvec, ++i);
 			}
 			else
 				family = new->family;
@@ -1301,7 +1301,7 @@ alloc_route(list rt_list, vector_t *strvec)
 		else if (!strcmp(str, "from")) {
 			if (new->src)
 				FREE(new->src);
-			new->src = parse_ipaddress(NULL, vector_slot(strvec, ++i), false);
+			new->src = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
 			if (!new->src) {
 				log_message(LOG_INFO, "invalid route from address %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
@@ -1319,7 +1319,7 @@ alloc_route(list rt_list, vector_t *strvec)
 		}
 		else if (!strcmp(str, "tos") || !strcmp(str,"dsfield")) {
 			/* Note: IPv4 only */
-			if (!find_rttables_dsfield(vector_slot(strvec, ++i), &val8)) {
+			if (!find_rttables_dsfield(strvec_slot(strvec, ++i), &val8)) {
 				log_message(LOG_INFO, "TOS value %s is invalid", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
@@ -1328,14 +1328,14 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->mask |= IPROUTE_BIT_DSFIELD;
 		}
 		else if (!strcmp(str, "table")) {
-			if (!find_rttables_table(vector_slot(strvec, ++i), &val)) {
+			if (!find_rttables_table(strvec_slot(strvec, ++i), &val)) {
 				log_message(LOG_INFO, "Routing table %s not found for route", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			new->table = val;
 		}
 		else if (!strcmp(str, "protocol")) {
-			if (!find_rttables_proto(vector_slot(strvec, ++i), &val8)) {
+			if (!find_rttables_proto(strvec_slot(strvec, ++i), &val8)) {
 				log_message(LOG_INFO, "Protocol %s not found or invalid for route", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
@@ -1344,7 +1344,7 @@ alloc_route(list rt_list, vector_t *strvec)
 		}
 		else if (!strcmp(str, "scope")) {
 			/* Note: IPv4 only */
-			if (!find_rttables_scope(vector_slot(strvec, ++i), &val8)) {
+			if (!find_rttables_scope(strvec_slot(strvec, ++i), &val8)) {
 				log_message(LOG_INFO, "Scope %s not found or invalid for route", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
@@ -1354,12 +1354,12 @@ alloc_route(list rt_list, vector_t *strvec)
 		else if (!strcmp(str, "metric") ||
 			 !strcmp(str, "priority") ||
 			 !strcmp(str, "preference")) {
-			if (get_u32(&new->metric, vector_slot(strvec, ++i), UINT32_MAX, "Invalid MTU %s specified for route"))
+			if (get_u32(&new->metric, strvec_slot(strvec, ++i), UINT32_MAX, "Invalid MTU %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_METRIC;
 		}
 		else if (!strcmp(str, "dev") || !strcmp(str, "oif")) {
-			ifp = if_get_by_ifname(vector_slot(strvec, ++i));
+			ifp = if_get_by_ifname(strvec_slot(strvec, ++i));
 			if (!ifp) {
 				log_message(LOG_INFO, "VRRP is trying to assign VROUTE to unknown "
 				       "%s interface !!! go out and fix your conf !!!",
@@ -1387,7 +1387,7 @@ alloc_route(list rt_list, vector_t *strvec)
 				goto err;
 			}
 			new->family = AF_INET6;
-			if (get_u32(&new->expires, vector_slot(strvec, i), UINT32_MAX, "Invalid expires time %s specified for route"))
+			if (get_u32(&new->expires, strvec_slot(strvec, i), UINT32_MAX, "Invalid expires time %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_EXPIRES;
 #else
@@ -1395,35 +1395,35 @@ alloc_route(list rt_list, vector_t *strvec)
 #endif
 		}
 		else if (!strcmp(str, "mtu")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_MTU;
 				i++;
 			}
-			if (get_u32(&new->mtu, vector_slot(strvec, i), UINT32_MAX, "Invalid MTU %s specified for route"))
+			if (get_u32(&new->mtu, strvec_slot(strvec, i), UINT32_MAX, "Invalid MTU %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_MTU;
 		}
 		else if (!strcmp(str, "hoplimit")) {
-			if (get_u8(&val8, vector_slot(strvec, ++i), 255, "Invalid hoplimit %s specified for route"))
+			if (get_u8(&val8, strvec_slot(strvec, ++i), 255, "Invalid hoplimit %s specified for route"))
 				goto err;
 			new->hoplimit = val8;
 			new->mask |= IPROUTE_BIT_HOPLIMIT;
 		}
 		else if (!strcmp(str, "advmss")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_ADVMSS;
 				i++;
 			}
-			if (get_u32(&new->advmss, vector_slot(strvec, i), UINT32_MAX, "Invalid advmss %s specified for route"))
+			if (get_u32(&new->advmss, strvec_slot(strvec, i), UINT32_MAX, "Invalid advmss %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_ADVMSS;
 		}
 		else if (!strcmp(str, "rtt")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_RTT;
 				i++;
 			}
-			if (get_time_rtt(&new->rtt, vector_slot(strvec, i), &raw) ||
+			if (get_time_rtt(&new->rtt, strvec_slot(strvec, i), &raw) ||
 			    (!raw && new->rtt >= UINT32_MAX / 8)) {
 				log_message(LOG_INFO, "Invalid rtt %s for route", FMT_STR_VSLOT(strvec,i));
 				goto err;
@@ -1433,11 +1433,11 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->mask |= IPROUTE_BIT_RTT;
 		}
 		else if (!strcmp(str, "rttvar")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_RTTVAR;
 				i++;
 			}
-			if (get_time_rtt(&new->rttvar, vector_slot(strvec, i), &raw) ||
+			if (get_time_rtt(&new->rttvar, strvec_slot(strvec, i), &raw) ||
 			    (!raw && new->rtt >= UINT32_MAX / 4)) {
 				log_message(LOG_INFO, "Invalid rttvar %s for route", FMT_STR_VSLOT(strvec,i));
 				goto err;
@@ -1447,39 +1447,39 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->mask |= IPROUTE_BIT_RTTVAR;
 		}
 		else if (!strcmp(str, "reordering")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_REORDERING;
 				i++;
 			}
-			if (get_u32(&new->reordering, vector_slot(strvec, i), UINT32_MAX, "Invalid reordering value %s specified for route"))
+			if (get_u32(&new->reordering, strvec_slot(strvec, i), UINT32_MAX, "Invalid reordering value %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_REORDERING;
 		}
 		else if (!strcmp(str, "window")) {
-			if (get_u32(&new->window, vector_slot(strvec, ++i), UINT32_MAX, "Invalid window value %s specified for route"))
+			if (get_u32(&new->window, strvec_slot(strvec, ++i), UINT32_MAX, "Invalid window value %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_WINDOW;
 		}
 		else if (!strcmp(str, "cwnd")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_CWND;
 				i++;
 			}
-			if (get_u32(&new->cwnd, vector_slot(strvec, i), UINT32_MAX, "Invalid cwnd value %s specified for route"))
+			if (get_u32(&new->cwnd, strvec_slot(strvec, i), UINT32_MAX, "Invalid cwnd value %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_CWND;
 		}
 		else if (!strcmp(str, "ssthresh")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_SSTHRESH;
 				i++;
 			}
-			if (get_u32(&new->ssthresh, vector_slot(strvec, i), UINT32_MAX, "Invalid ssthresh value %s specified for route"))
+			if (get_u32(&new->ssthresh, strvec_slot(strvec, i), UINT32_MAX, "Invalid ssthresh value %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_SSTHRESH;
 		}
 		else if (!strcmp(str, "realms")) {
-			if (get_realms(&new->realms, vector_slot(strvec, ++i))) {
+			if (get_realms(&new->realms, strvec_slot(strvec, ++i))) {
 				log_message(LOG_INFO, "Invalid realms %s for route", FMT_STR_VSLOT(strvec,i));
 				goto err;
 			}
@@ -1490,30 +1490,30 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->family = AF_INET;
 		}
 		else if (!strcmp(str, "rto_min")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_RTO_MIN;
 				i++;
 			}
-			if (get_time_rtt(&new->rto_min, vector_slot(strvec, i), &raw)) {
+			if (get_time_rtt(&new->rto_min, strvec_slot(strvec, i), &raw)) {
 				log_message(LOG_INFO, "Invalid rto_min value %s specified for route", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			new->mask |= IPROUTE_BIT_RTO_MIN;
 		}
 		else if (!strcmp(str, "initcwnd")) {
-			if (get_u32(&new->initcwnd, vector_slot(strvec, ++i), UINT32_MAX, "Invalid initcwnd value %s specified for route"))
+			if (get_u32(&new->initcwnd, strvec_slot(strvec, ++i), UINT32_MAX, "Invalid initcwnd value %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_INITCWND;
 		}
 		else if (!strcmp(str, "initrwnd")) {
 			i++;
-			if (get_u32(&new->initrwnd, vector_slot(strvec, i), UINT32_MAX, "Invalid initrwnd value %s specified for route"))
+			if (get_u32(&new->initrwnd, strvec_slot(strvec, i), UINT32_MAX, "Invalid initrwnd value %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_INITRWND;
 		}
 		else if (!strcmp(str, "features")) {
 			i++;
-			if (!strcmp("ecn", vector_slot(strvec, i)))
+			if (!strcmp("ecn", strvec_slot(strvec, i)))
 				new->features |= RTAX_FEATURE_ECN;
 			else
 				log_message(LOG_INFO, "feature %s not supported", FMT_STR_VSLOT(strvec,i));
@@ -1521,7 +1521,7 @@ alloc_route(list rt_list, vector_t *strvec)
 		else if (!strcmp(str, "quickack")) {
 			i++;
 #if HAVE_DECL_RTAX_QUICKACK
-			if (get_u32(&val, vector_slot(strvec, i), 1, "Invalid quickack value %s specified for route"))
+			if (get_u32(&val, strvec_slot(strvec, i), 1, "Invalid quickack value %s specified for route"))
 				goto err;
 			new->quickack = val;
 			new->mask |= IPROUTE_BIT_QUICKACK;
@@ -1532,11 +1532,11 @@ alloc_route(list rt_list, vector_t *strvec)
 		else if (!strcmp(str, "congctl")) {
 			i++;
 #if HAVE_DECL_RTAX_CC_ALGO
-			if (!strcmp(vector_slot(strvec, i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, i), "lock")) {
 				new->lock |= 1 << RTAX_CC_ALGO;
 				i++;
 			}
-			str = vector_slot(strvec, i);
+			str = strvec_slot(strvec, i);
 			new->congctl = malloc(strlen(str) + 1);
 			strcpy(new->congctl, str); 
 #else
@@ -1551,7 +1551,7 @@ alloc_route(list rt_list, vector_t *strvec)
 				goto err;
 			}
 			new->family = AF_INET6;
-			str = vector_slot(strvec, i);
+			str = strvec_slot(strvec, i);
 			if (!strcmp(str, "low"))
 				new->pref = ICMPV6_ROUTER_PREF_LOW;
 			else if (!strcmp(str, "medium"))
@@ -1587,7 +1587,7 @@ alloc_route(list rt_list, vector_t *strvec)
 
 			/* Now handle the "or" address */
 			nh = MALLOC(sizeof(nexthop_t));
-			nh->addr = parse_ipaddress(NULL, vector_slot(strvec, ++i), false);
+			nh->addr = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
 			if (!nh->addr) {
 				log_message(LOG_INFO, "Invalid \"or\" address %s", FMT_STR_VSLOT(strvec, i));
 				FREE(nh);
@@ -1613,7 +1613,7 @@ alloc_route(list rt_list, vector_t *strvec)
 			}
 			if (new->dst)
 				FREE(new->dst);
-			dst = parse_ipaddress(NULL, vector_slot(strvec, i), true);
+			dst = parse_ipaddress(NULL, strvec_slot(strvec, i), true);
 			if (!dst) {
 				log_message(LOG_INFO, "unknown route keyword %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
