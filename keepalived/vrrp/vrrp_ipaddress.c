@@ -525,7 +525,7 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 {
 	ip_address_t *ipaddr;
 	element e;
-	char *addr_str;
+	char addr_str[INET6_ADDRSTRLEN];
 	void *addr;
 	char *iface_name;
 
@@ -537,13 +537,12 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 	iface_name = IF_NAME(base_if_get_by_ifindex(ipaddr->ifa.ifa_index));
 	/* All addresses removed */
 	if (LIST_ISEMPTY(n)) {
-		log_message(LOG_INFO, "Removing a VIP and e-VIP block");
+		log_message(LOG_INFO, "Removing a complete VIP or e-VIP block");
 		netlink_iplist(l, IPADDRESS_DEL);
 		handle_iptable_rule_to_iplist(h, l, IPADDRESS_DEL, iface_name, false);
 		return;
 	}
 
-	addr_str = (char *) MALLOC(INET6_ADDRSTRLEN);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		ipaddr = ELEMENT_DATA(e);
 
@@ -566,8 +565,6 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 				handle_iptable_rule_to_vip(ipaddr, IPADDRESS_DEL, iface_name, h, false);
 		}
 	}
-
-	FREE(addr_str);
 }
 
 /* Clear static ip address */
