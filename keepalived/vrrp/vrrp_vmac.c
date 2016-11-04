@@ -95,6 +95,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		struct ifinfomsg ifi;
 		char buf[256];
 	} req;
+	bool created_if = false;
 
 	if (!vrrp->ifp || __test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) || !vrrp->vrid)
 		return -1;
@@ -188,6 +189,8 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		 * read the reflected netlink messages to ensure that the link status doesn't
 		 * get updated by out of date queued messages */
 		kernel_netlink_poll();
+
+		created_if = true;
 	}
 
 	base_ifp = vrrp->ifp;
@@ -197,12 +200,17 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 	if (vrrp->family == AF_INET) {
 		/* Set the necessary kernel parameters to make macvlans work for us */
-		set_interface_parameters(ifp, base_ifp);
+		if (created_if)
+			set_interface_parameters(ifp, base_ifp);
 
 		/* We don't want IPv6 running on the interface unless we have some IPv6
 		 * eVIPs, so disable it if not needed */
 		if (!vrrp->evip_add_ipv6)
-			link_disable_ipv6(ifp);
+			link_set_ipv6(ifp, false);
+		else if (!created_if && vrrp->evip_add_ipv6) {
+			/* If we didn't create the VMAC we don't know what state it is in */
+			link_set_ipv6(ifp, true);
+		}
 	}
 
 	if (vrrp->family == AF_INET6 || vrrp->evip_add_ipv6) {
@@ -255,7 +263,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			ipaddress.ifa.ifa_prefixlen = 64;
 			ipaddress.ifa.ifa_index = vrrp->ifp->ifindex;
 
-			if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1)
+			if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1 && created_if)
 				log_message(LOG_INFO, "Adding link-local address to vmac failed");
 
 			/* Save the address as source for vrrp packets */
@@ -288,7 +296,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		ipaddress.ifa.ifa_prefixlen = 64;
 		ipaddress.ifa.ifa_index = vrrp->ifp->ifindex;
 
-		if (netlink_ipaddress(&ipaddress, IPADDRESS_DEL) != 1)
+		if (netlink_ipaddress(&ipaddress, IPADDRESS_DEL) != 1 && created_if)
 			log_message(LOG_INFO, "Deleting auto link-local address from vmac failed");
 
 	}

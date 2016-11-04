@@ -32,7 +32,7 @@ extern int reset_promote_secondaries(interface_t*);
 extern void set_interface_parameters(const interface_t*, interface_t*);
 extern void reset_interface_parameters(interface_t*);
 #endif
-extern void link_disable_ipv6(const interface_t*);
+extern void link_set_ipv6(const interface_t*, bool);
 extern int get_ipv6_forwarding(const interface_t*);
 
 #endif
