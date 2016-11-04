@@ -230,7 +230,6 @@ start_vrrp(void)
 		clear_diff_srules();
 		clear_diff_sroutes();
 #endif
-		clear_diff_vrrp();
 		clear_diff_script();
 	}
 	else {
@@ -255,6 +254,11 @@ start_vrrp(void)
 		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
 		return;
 	}
+
+	/* clear_diff_vrrp must be called after vrrp_complete_init, since the latter
+	 * sets ifa_index on the addresses, which is used for the address comparison */
+	if (reload)
+		clear_diff_vrrp();
 
 #ifdef _HAVE_LIBIPTC_
 	iptables_startup();

@@ -2526,13 +2526,13 @@ vrrp_exist(vrrp_t *old_vrrp)
 			continue;
 
 #ifndef _HAVE_VRRP_VMAC_
-		if (vrrp->ifp == old_vrrp->ifp)
+		if (vrrp->ifp->ifindex == old_vrrp->ifp->ifindex)
 			return vrrp;
 #else
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) != __test_bit(VRRP_VMAC_BIT, &old_vrrp->vmac_flags))
 			continue;
 		if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
-			if (vrrp->ifp == old_vrrp->ifp)
+			if (vrrp->ifp->ifindex == old_vrrp->ifp->ifindex)
 				return vrrp;
 			continue;
 		}
