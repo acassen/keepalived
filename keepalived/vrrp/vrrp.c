@@ -2089,12 +2089,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				    ifp->base_ifindex == vrrp->ifp->ifindex)
 				{
 					log_message(LOG_INFO, "(%s): Found matching interface %s", vrrp->iname, ifp->ifname);
-					if (vrrp->vmac_ifname[0]) {
-						if (strcmp(vrrp->vmac_ifname, ifp->ifname))
-							log_message(LOG_INFO, "(%s): vmac name mismatch %s <=> %s", vrrp->iname, vrrp->vmac_ifname, ifp->ifname);
-					}
-					else
-						strcpy(vrrp->vmac_ifname, ifp->ifname);
+					if (vrrp->vmac_ifname[0] &&
+					    strcmp(vrrp->vmac_ifname, ifp->ifname))
+						log_message(LOG_INFO, "(%s): vmac name mismatch %s <=> %s; changing to %s.", vrrp->iname, vrrp->vmac_ifname, ifp->ifname, ifp->ifname);
+
+					strcpy(vrrp->vmac_ifname, ifp->ifname);
 					vrrp->ifp = ifp;
 					vrrp->vmac_ifindex = ifp->ifindex;
 					__set_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
@@ -2103,6 +2102,19 @@ vrrp_complete_instance(vrrp_t * vrrp)
 					interface_already_existed = true;
 
 					break;
+				}
+			}
+
+			if (!interface_already_existed &&
+			    vrrp->vmac_ifname[0] &&
+			    (ifp = if_get_by_ifname(vrrp->vmac_ifname))) {
+				/* An interface with the same name exists, but it doesn't match */
+				if (ifp->vmac)
+					log_message(LOG_INFO, "(%s): VMAC %s already exists but is incompatible. It will be deleted", vrrp->iname, vrrp->vmac_ifname);
+				else {
+					log_message(LOG_INFO, "(%s): VMAC interface name %s already exists as a non VMAC interface - ignoring configured name",
+						    vrrp->iname, vrrp->vmac_ifname);
+					vrrp->vmac_ifname[0] = 0;
 				}
 			}
 		}
