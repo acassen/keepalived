@@ -2727,7 +2727,7 @@ vrrp_exist(vrrp_t *old_vrrp)
 			continue;
 		}
 
-		if (vrrp->ifp->base_ifindex == old_vrrp->ifp->base_ifindex)
+		if (vrrp->ifp->base_ifp->ifindex == old_vrrp->ifp->base_ifp->ifindex)
 			return vrrp;
 #endif
 	}
