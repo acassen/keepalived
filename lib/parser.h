@@ -50,14 +50,8 @@ typedef struct _keyword {
 	bool active;
 } keyword_t;
 
-/* Reloading helpers */
-#define SET_RELOAD      (reload = 1)
-#define UNSET_RELOAD    (reload = 0)
-#define RELOAD_DELAY    5
-
 /* global vars exported */
 extern vector_t *keywords;
-extern bool reload;
 extern char *config_id;
 
 /* Prototypes */

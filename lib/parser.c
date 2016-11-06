@@ -42,7 +42,6 @@
 
 /* global vars */
 vector_t *keywords;
-bool reload = 0;
 char *config_id;
 
 /* local vars */

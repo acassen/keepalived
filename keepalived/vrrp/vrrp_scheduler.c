@@ -226,14 +226,16 @@ vrrp_init_state(list l)
 		vrrp = ELEMENT_DATA(e);
 
 		/* wantstate is the state we would be in disregarding any sync group */
-		vrrp->wantstate = vrrp->state == VRRP_STATE_FAULT ? VRRP_STATE_FAULT :
-					vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST :
-					VRRP_STATE_BACK;
+		if (vrrp->wantstate == VRRP_STATE_INIT) {
+			vrrp->wantstate = vrrp->state == VRRP_STATE_FAULT ? VRRP_STATE_FAULT :
+					    vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST :
+					    VRRP_STATE_BACK;
+		}
 		new_state = vrrp->sync ? vrrp->sync->state : vrrp->wantstate;
 
 		is_up = (VRRP_ISUP(vrrp) && (!vrrp->sync || GROUP_STATE(vrrp->sync) != VRRP_STATE_FAULT));
 		if (is_up &&
-		    vrrp->base_priority == VRRP_PRIO_OWNER &&
+//		    vrrp->base_priority == VRRP_PRIO_OWNER &&
 		    vrrp->init_state == VRRP_STATE_MAST) {
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
@@ -250,15 +252,11 @@ vrrp_init_state(list l)
 #endif
 			vrrp->state = VRRP_STATE_MAST;
 			log_message(LOG_INFO, "VRRP_Instance(%s) Entering MASTER STATE", vrrp->iname);
-//X			vrrp->state = VRRP_STATE_GOTO_MASTER;
-//X			if (vrrp->base_priority != VRRP_PRIO_OWNER)
-//X				log_message(LOG_INFO, "VRRP_Instance(%s) Entering GOTO MASTER STATE", vrrp->iname);
 		} else {
 			if (new_state == VRRP_STATE_BACK && vrrp->init_state == VRRP_STATE_MAST)
 				vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
 			else
 				vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
-// TODO - if fault, do we need to run a timer?
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
 			if (global_data->lvs_syncd.ifname &&
@@ -574,7 +572,6 @@ vrrp_set_fds(list l)
 int
 vrrp_dispatcher_init(__attribute__((unused)) thread_t * thread)
 {
-	/* create the VRRP socket pool list */
 	vrrp_create_sockpool(vrrp_data->vrrp_socket_pool);
 
 	/* open the VRRP socket pool */
@@ -583,6 +580,7 @@ vrrp_dispatcher_init(__attribute__((unused)) thread_t * thread)
 	/* set VRRP instance fds to sockpool */
 	vrrp_set_fds(vrrp_data->vrrp_socket_pool);
 
+	/* create the VRRP socket pool list */
 	/* register read dispatcher worker thread */
 	vrrp_register_workers(vrrp_data->vrrp_socket_pool);
 

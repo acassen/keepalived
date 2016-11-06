@@ -55,6 +55,7 @@
 #include "notify.h"
 #include "bitops.h"
 #include "vrrp_netlink.h"
+#include "vrrp_print.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
@@ -1856,6 +1857,42 @@ new_vrrp_socket(vrrp_t * vrrp)
 	return vrrp->fd_in;
 }
 
+/* Try to find a VRRP instance */
+static vrrp_t *
+vrrp_exist(vrrp_t *old_vrrp)
+{
+	element e;
+	vrrp_t *vrrp;
+
+	if (LIST_ISEMPTY(vrrp_data->vrrp))
+		return NULL;
+
+	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+		if (vrrp->vrid != old_vrrp->vrid ||
+		    vrrp->family != old_vrrp->family)
+			continue;
+
+#ifndef _HAVE_VRRP_VMAC_
+		if (vrrp->ifp->ifindex == old_vrrp->ifp->ifindex)
+			return vrrp;
+#else
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) != __test_bit(VRRP_VMAC_BIT, &old_vrrp->vmac_flags))
+			continue;
+		if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
+			if (vrrp->ifp->ifindex == old_vrrp->ifp->ifindex)
+				return vrrp;
+			continue;
+		}
+
+		if (vrrp->ifp->base_ifp->ifindex == old_vrrp->ifp->base_ifp->ifindex)
+			return vrrp;
+#endif
+	}
+
+	return NULL;
+}
+
 /* handle terminate state phase 1 */
 void
 restore_vrrp_interfaces(void)
@@ -2463,10 +2500,9 @@ vrrp_complete_init(void)
 	/*
 	 * e - Element equal to a specific VRRP instance
 	 * eo- Element equal to a specific group within old global group list
-	 * se- Element equal to a specific VRRP instance within sync group
 	 */
-	element e, oe, se;
-	vrrp_t *vrrp;
+	element e, e2, oe;
+	vrrp_t *vrrp, *old_vrrp;
 	vrrp_sgroup_t *sgroup, *old_sgroup;
 	list l_o;
 	element e_o;
@@ -2573,6 +2609,19 @@ vrrp_complete_init(void)
 		}
 	}
 
+	if (reload) {
+		/* Now step through the old vrrp to set the status on matching new instances */
+		for (e = LIST_HEAD(old_vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+			old_vrrp = ELEMENT_DATA(e);
+			vrrp = vrrp_exist(old_vrrp);
+			if (vrrp) {
+				vrrp->state = old_vrrp->state;
+				vrrp->init_state = old_vrrp->state;
+				vrrp->wantstate = old_vrrp->state;
+			}
+		}
+	}
+
 	/* Restore status of any sync group that existed before */
 // TODO - is this relevant any more?
 	if (reload) {
@@ -2580,82 +2629,37 @@ vrrp_complete_init(void)
 			next = e->next;
 			sgroup = ELEMENT_DATA(e);
 
+			/* Set the sync group state based on its members */
+			if (sgroup->state != VRRP_STATE_FAULT) {
+				sgroup->state = VRRP_STATE_MAST;
+				for (e2 = LIST_HEAD(sgroup->index_list); e2; ELEMENT_NEXT(e2)) {
+					vrrp = ELEMENT_DATA(e2);
+					if (vrrp->state == VRRP_STATE_BACK ||
+					    vrrp->state == VRRP_STATE_INIT) {
+						sgroup->state = VRRP_STATE_BACK;
+						break;
+					}
+				}
+			}
+
 			for (oe = LIST_HEAD(old_vrrp_data->vrrp_sync_group); oe; ELEMENT_NEXT(oe)) {
 				old_sgroup = ELEMENT_DATA(oe);
-				log_message(LOG_INFO,
-					"VRRP_Group(%s) - Found saved old sync-group called %s",
-					GROUP_NAME(sgroup), GROUP_NAME(old_sgroup));
 
 				if (strcmp(old_sgroup->gname, sgroup->gname) == 0) {
 					/* Old Sync group matches current Sync group */
+					if (old_sgroup->state != sgroup->state) {
+						log_message(LOG_INFO, "Sync group %s status changed from %s to %s on reload",
+								sgroup->gname, get_state_str(old_sgroup->state), get_state_str(sgroup->state));
 
-					/* Check for instances that have been removed from the
-					 * sync-group. If this is the case, and the sync-group
-					 * was previously in the MASTER state, then we should
-					 * fall-back to BACKUP, to allow a new MASTER
-					 * for any removed instances.
-					 */
-					if (LIST_SIZE(sgroup->index_list) <
-						LIST_SIZE(old_sgroup->index_list)) {
-						sgroup->state = VRRP_STATE_BACK;
-						log_message(LOG_INFO,
-							"VRRP_Group(%s) Detected instance removed from sync-group, forcing BACKUP",
-							GROUP_NAME(sgroup));
-					} else {
-						sgroup->state = old_sgroup->state;
-					}
-
-					log_message(LOG_INFO,
-						"VRRP_Group(%s) Restoring saved sync State : %d",
-						GROUP_NAME(sgroup), sgroup->state);
-
-					for (se = LIST_HEAD(sgroup->index_list); se; ELEMENT_NEXT(se)) {
-						vrrp = ELEMENT_DATA(se);
-						log_message(LOG_INFO,
-							"VRRP_Instance(%s) used for VRRP_Group(%s) refresh sync",
-							vrrp->iname, GROUP_NAME(sgroup));
-
-						switch (sgroup->state) {
-						case VRRP_STATE_INIT:
-							/* Do nothing */
-							break;
-
-						case VRRP_STATE_BACK:
-							if (vrrp->state != VRRP_STATE_BACK) {
-								vrrp->wantstate = VRRP_STATE_BACK;
-							}
-							break;
-
-						case VRRP_STATE_MAST:
-							if (vrrp->state != VRRP_STATE_MAST) {
-								vrrp->wantstate = VRRP_STATE_MAST;
-							}
-							break;
-
-						case VRRP_STATE_FAULT:
-							if (vrrp->state != VRRP_STATE_FAULT) {
-								if (vrrp->state == VRRP_STATE_MAST)
-									vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
-								else if (vrrp->state == VRRP_STATE_BACK)
-									vrrp->state = VRRP_STATE_FAULT;
-							}
-							break;
-
-						default:
-							/* Do nothing */
-							break;
-						}
-					}
-
-					notify_group_exec(sgroup, sgroup->state);
+						notify_group_exec(sgroup, sgroup->state);
 #ifdef _WITH_SNMP_KEEPALIVED_
-					vrrp_snmp_group_trap(sgroup);
+						vrrp_snmp_group_trap(sgroup);
 #endif
+					}
 				}
 			}
 		}
 	}
-
 
 #ifdef _WITH_LVS_
 	/* Set up the lvs_syncd vrrp */
@@ -2698,42 +2702,6 @@ vrrp_ipvs_needed(void)
 	return !!(global_data->lvs_syncd.ifname);
 }
 #endif
-
-/* Try to find a VRRP instance */
-static vrrp_t *
-vrrp_exist(vrrp_t *old_vrrp)
-{
-	element e;
-	vrrp_t *vrrp;
-
-	if (LIST_ISEMPTY(vrrp_data->vrrp))
-		return NULL;
-
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-		if (vrrp->vrid != old_vrrp->vrid ||
-		    vrrp->family != old_vrrp->family)
-			continue;
-
-#ifndef _HAVE_VRRP_VMAC_
-		if (vrrp->ifp->ifindex == old_vrrp->ifp->ifindex)
-			return vrrp;
-#else
-		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) != __test_bit(VRRP_VMAC_BIT, &old_vrrp->vmac_flags))
-			continue;
-		if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
-			if (vrrp->ifp->ifindex == old_vrrp->ifp->ifindex)
-				return vrrp;
-			continue;
-		}
-
-		if (vrrp->ifp->base_ifp->ifindex == old_vrrp->ifp->base_ifp->ifindex)
-			return vrrp;
-#endif
-	}
-
-	return NULL;
-}
 
 /* Clear VIP|EVIP not present into the new data */
 static void
@@ -2797,9 +2765,6 @@ static void
 reset_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
 	/* Keep VRRP state, ipsec AH seq_number */
-	vrrp->state = old_vrrp->state;
-	vrrp->init_state = old_vrrp->state;
-	vrrp->wantstate = old_vrrp->state;
 // TODO - if base_priority changed, then the next must be wrong
 	if (!old_vrrp->sync)
 		vrrp->effective_priority = old_vrrp->effective_priority;

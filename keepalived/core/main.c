@@ -55,6 +55,7 @@
 const char *version_string = VERSION_STRING;		/* keepalived version */
 char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
 int log_facility = LOG_DAEMON;				/* Optional logging facilities */
+bool reload;						/* Set during a reload */
 char *main_pidfile;					/* overrule default pidfile */
 static bool free_main_pidfile;
 #ifdef _WITH_LVS_
