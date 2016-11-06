@@ -1072,6 +1072,9 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 			status = netlink_if_link_populate(ifp, tb, ifi);
 			if (status < 0)
 				return -1;
+
+			if (__test_bit(LOG_DETAIL_BIT, &debug))
+				log_message(LOG_INFO, "Interface %s added", ifp->ifname);
 		} else {
 			if (__test_bit(LOG_DETAIL_BIT, &debug))
 				log_message(LOG_INFO, "Unknown interface %s deleted", (char *)tb[IFLA_IFNAME]);
@@ -1079,18 +1082,18 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 		}
 	}
 	else {
-		/* Ignore interface if was are using linkbeat on it */
-		if (ifp->linkbeat_use_polling)
-			return 0;
+		if (h->nlmsg_type == RTM_DELLINK) {
+			if (__test_bit(LOG_DETAIL_BIT, &debug))
+				log_message(LOG_INFO, "Interface %s deleted", ifp->ifname);
+		} else {
+			/* Ignore interface if we are using linkbeat on it */
+			if (ifp->linkbeat_use_polling)
+				return 0;
+		}
 	}
 
-	/*
-	 * Update flags.
-	 * VMAC interfaces should never update it own flags, only be reflected
-	 * by the base interface flags, except IFF_UP and IFF_RUNNING need to be
-	 * taken into account for a VMAC.
-	 */
-	update_interface_flags(ifp, ifi->ifi_flags);
+	/* Update flags. Flags == 0 means interface deleted. */
+	update_interface_flags(ifp, (h->nlmsg_type == RTM_DELLINK) ? 0 : ifi->ifi_flags);
 
 	return 0;
 }

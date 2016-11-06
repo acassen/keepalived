@@ -2280,7 +2280,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Add this instance to the physical interface */
 	if (!vrrp->dont_track_primary)
+#ifdef _HAVE_VRRP_VMAC_
+		add_vrrp_to_interface(vrrp, vrrp->ifp->base_ifp);
+#else
 		add_vrrp_to_interface(vrrp, vrrp->ifp);
+#endif
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&

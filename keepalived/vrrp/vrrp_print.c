@@ -270,20 +270,14 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   Sync group = %s\n", vrrp->sync->gname);
 	if (vrrp->family == AF_INET6)
 		fprintf(file, "   Using Native IPv6\n");
+	fprintf(file, "   State = %s\n", get_state_str(vrrp->state));
 	if (vrrp->state == VRRP_STATE_BACK) {
-		fprintf(file, "   State = BACKUP\n");
 		fprintf(file, "   Master router = %s\n", inet_sockaddrtos(&vrrp->master_saddr));
 		fprintf(file, "   Master priority = %d\n", vrrp->master_priority);
 		if (vrrp->version == VRRP_VERSION_3)
 			fprintf(file, "   Master advert int = %.2f sec\n", (float)vrrp->master_adver_int / TIMER_HZ);
 	}
-	else if (vrrp->state == VRRP_STATE_FAULT)
-		fprintf(file, "   State = FAULT\n");
-	else if (vrrp->state == VRRP_STATE_MAST)
-		fprintf(file, "   State = MASTER\n");
-	else
-		fprintf(file, "   State = %d\n", vrrp->state);
-	fprintf(file, "   Wantstate = %d\n", vrrp->wantstate);
+	fprintf(file, "   Wantstate = %s\n", get_state_str(vrrp->wantstate));
 	ctime_r(&vrrp->last_transition.tv_sec, time_str);
 	fprintf(file, "   Last transition = %ld (%.24s)\n", vrrp->last_transition.tv_sec, time_str);
 	if (!ctime_r(&vrrp->sands.tv_sec, time_str))
