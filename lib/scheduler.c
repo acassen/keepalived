@@ -606,9 +606,6 @@ thread_compute_timer(thread_master_t * m, timeval_t * timer_wait)
 		timer_min = timer_sub(timer_min, time_now);
 		if (timer_min.tv_sec < 0) {
 			timer_min.tv_sec = timer_min.tv_usec = 0;
-		} else if (timer_min.tv_sec >= 1) {
-			timer_min.tv_sec = 1;
-			timer_min.tv_usec = 0;
 		}
 
 		timer_wait->tv_sec = timer_min.tv_sec;

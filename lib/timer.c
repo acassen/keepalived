@@ -136,18 +136,16 @@ timer_sub_long(timeval_t a, unsigned long b)
 /* This function is a wrapper for gettimeofday(). It uses local storage to
  * guarantee that the returned time will always be monotonic. If the time goes
  * backwards, it returns the same as previous one and readjust its internal
- * drift. If the time goes forward further than TIME_MAX_FORWARD_US
- * microseconds since last call, it will bound it to that value. It is designed
- * to be used as a drop-in replacement of gettimeofday(&now, NULL). It will
- * normally return 0, unless <now> is NULL, in which case it will return -1 and
- * set errno to EFAULT.
+ * drift. It is designed * to be used as a drop-in replacement of
+ * gettimeofday(&now, NULL). It will normally return 0, unless <now> is NULL,
+ * in which case it will return -1 and set errno to EFAULT.
  */
 static int
 monotonic_gettimeofday(timeval_t *now)
 {
 	static timeval_t mono_date;
 	static timeval_t drift; /* warning: signed seconds! */
-	timeval_t sys_date, adjusted, deadline;
+	timeval_t sys_date, adjusted;
 
 	if (!now) {
 		errno = EFAULT;
@@ -172,15 +170,6 @@ monotonic_gettimeofday(timeval_t *now)
 	/* check for jumps in the past, and bound to last date */
 	if (timer_cmp(adjusted, mono_date) < 0)
 		goto fixup;
-
-	/* check for jumps too far in the future, and bound them to
-	 * TIME_MAX_FORWARD_US microseconds.
-	 */
-	deadline = timer_add_long(mono_date, TIME_MAX_FORWARD_US);
-	if (timer_cmp (adjusted, deadline) >= 0) {
-		mono_date = deadline;
-		goto fixup;
-	}
 
 	/* adjusted date is correct */
 	mono_date = adjusted;
