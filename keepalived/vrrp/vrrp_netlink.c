@@ -1172,3 +1172,11 @@ kernel_netlink_close(void)
 	netlink_close(&nl_kernel);
 	netlink_close(&nl_cmd);
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_vrrp_netlink_addresses(void)
+{
+	log_message(LOG_INFO, "Address of kernel_netlink() is 0x%p", kernel_netlink);
+}
+#endif

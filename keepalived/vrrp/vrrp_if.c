@@ -881,3 +881,11 @@ if_setsockopt_rcvbuf(int *sd, int val)
 
 	return *sd;
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_vrrp_if_addresses(void)
+{
+	log_message(LOG_INFO, "Address of if_linkbeat_refresh_thread() is 0x%p", if_linkbeat_refresh_thread);
+}
+#endif

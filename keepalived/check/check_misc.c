@@ -253,3 +253,14 @@ misc_check_child_timeout_thread(thread_t * thread)
 
 	return 0;
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_check_misc_addresses(void)
+{
+	log_message(LOG_INFO, "Address of dump_misc_check() is 0x%p", dump_misc_check);
+	log_message(LOG_INFO, "Address of misc_check_child_thread() is 0x%p", misc_check_child_thread);
+	log_message(LOG_INFO, "Address of misc_check_child_timeout_thread() is 0x%p", misc_check_child_timeout_thread);
+	log_message(LOG_INFO, "Address of misc_check_thread() is 0x%p", misc_check_thread);
+}
+#endif

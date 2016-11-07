@@ -305,3 +305,11 @@ ssl_read_thread(thread_t * thread)
 
 	return 0;
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_check_ssl_addresses(void)
+{
+	log_message(LOG_INFO, "Address of ssl_read_thread() is 0x%p", ssl_read_thread);
+}
+#endif

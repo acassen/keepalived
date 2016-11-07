@@ -922,3 +922,11 @@ dbus_stop(void)
 		sem_destroy(&thread_end);
 	}
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_vrrp_dbus_addresses(void)
+{
+	log_message(LOG_INFO, "Address of handle_dbus_msg() is 0x%p", handle_dbus_msg);
+}
+#endif

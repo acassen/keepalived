@@ -647,3 +647,22 @@ smtp_alert(real_server_t * rs, vrrp_t * vrrp,
 		smtp_connect(smtp);
 	}
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_smtp_addresses(void)
+{
+	log_message(LOG_INFO, "Address of body_cmd() is 0x%p", body_cmd);
+	log_message(LOG_INFO, "Address of connection_error() is 0x%p", connection_error);
+	log_message(LOG_INFO, "Address of connection_in_progress() is 0x%p", connection_in_progress);
+	log_message(LOG_INFO, "Address of connection_success() is 0x%p", connection_success);
+	log_message(LOG_INFO, "Address of connection_timeout() is 0x%p", connection_timeout);
+	log_message(LOG_INFO, "Address of data_cmd() is 0x%p", data_cmd);
+	log_message(LOG_INFO, "Address of helo_cmd() is 0x%p", helo_cmd);
+	log_message(LOG_INFO, "Address of mail_cmd() is 0x%p", mail_cmd);
+	log_message(LOG_INFO, "Address of quit_cmd() is 0x%p", quit_cmd);
+	log_message(LOG_INFO, "Address of rcpt_cmd() is 0x%p", rcpt_cmd);
+	log_message(LOG_INFO, "Address of smtp_read_thread() is 0x%p", smtp_read_thread);
+	log_message(LOG_INFO, "Address of smtp_send_thread() is 0x%p", smtp_send_thread);
+}
+#endif

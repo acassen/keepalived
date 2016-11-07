@@ -543,3 +543,14 @@ start_vrrp_child(void)
 	/* unreachable */
 	exit(EXIT_SUCCESS);
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_vrrp_daemon_addresses(void)
+{
+	log_message(LOG_INFO, "Address of print_vrrp_data() is 0x%p", print_vrrp_data);
+	log_message(LOG_INFO, "Address of print_vrrp_stats() is 0x%p", print_vrrp_stats);
+	log_message(LOG_INFO, "Address of reload_vrrp_thread() is 0x%p", reload_vrrp_thread);
+	log_message(LOG_INFO, "Address of vrrp_respawn_thread() is 0x%p", vrrp_respawn_thread);
+}
+#endif

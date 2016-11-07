@@ -793,3 +793,15 @@ smtp_connect_thread(thread_t *thread)
 
 	return 0;
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_check_smtp_addresses(void)
+{
+	log_message(LOG_INFO, "Address of dump_smtp_check() is 0x%p", dump_smtp_check);
+	log_message(LOG_INFO, "Address of smtp_check_thread() is 0x%p", smtp_check_thread);
+	log_message(LOG_INFO, "Address of smtp_connect_thread() is 0x%p", smtp_connect_thread);
+	log_message(LOG_INFO, "Address of smtp_get_line_cb() is 0x%p", smtp_get_line_cb);
+	log_message(LOG_INFO, "Address of smtp_put_line_cb() is 0x%p", smtp_put_line_cb);
+}
+#endif

@@ -1229,3 +1229,15 @@ dump_threads(void)
 	fclose(fp);
 }
 #endif
+
+#ifdef _TIMER_DEBUG_
+void
+print_vrrp_scheduler_addresses(void)
+{
+	log_message(LOG_INFO, "Address of vrrp_arp_thread() is 0x%p", vrrp_arp_thread);
+	log_message(LOG_INFO, "Address of vrrp_dispatcher_init() is 0x%p", vrrp_dispatcher_init);
+	log_message(LOG_INFO, "Address of vrrp_lower_prio_gratuitous_arp_thread() is 0x%p", vrrp_lower_prio_gratuitous_arp_thread);
+	log_message(LOG_INFO, "Address of vrrp_script_child_thread() is 0x%p", vrrp_script_child_thread);
+	log_message(LOG_INFO, "Address of vrrp_read_dispatcher_thread() is 0x%p", vrrp_read_dispatcher_thread);
+}
+#endif

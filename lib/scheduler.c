@@ -695,7 +695,15 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		memcpy(&timer_wait, &snmp_timer_wait, sizeof(timeval_t));
 #endif
 
+#ifdef _TIMER_DEBUG_
+	if (prog_type == PROG_TYPE_VRRP)
+		log_message(LOG_INFO, "select with timer %ld.%6.6ld", timer_wait.tv_sec, timer_wait.tv_usec);
+#endif
 	ret = select(FD_SETSIZE, &readfd, &writefd, &exceptfd, &timer_wait);
+#ifdef _TIMER_DEBUG_
+	if (prog_type == PROG_TYPE_VRRP)
+		log_message(LOG_INFO, "Select returned %d", ret);
+#endif
 
 	/* we have to save errno here because the next syscalls will set it */
 	old_errno = errno;
@@ -879,11 +887,38 @@ thread_get_id(void)
 	return ++counter;
 }
 
+#ifdef _TIMER_DEBUG_
+static const char *
+get_thread_type_str(int id)
+{
+	if (id == THREAD_READ) return "READ";
+	if (id == THREAD_WRITE) return "WRITE";
+	if (id == THREAD_TIMER) return "TIMER";
+	if (id == THREAD_EVENT) return "EVENT";
+	if (id == THREAD_CHILD) return "CHILD";
+	if (id == THREAD_READY) return "READY";
+	if (id == THREAD_UNUSED) return "UNUSED";
+	if (id == THREAD_WRITE_TIMEOUT) return "WRITE_TIMEOUT";
+	if (id == THREAD_READ_TIMEOUT) return "READ_TIMEOUT";
+	if (id == THREAD_CHILD_TIMEOUT) return "CHILD_TIMEOUT";
+	if (id == THREAD_TERMINATE) return "TERMINATE";
+	if (id == THREAD_READY_FD) return "READY_FD";
+	if (id == THREAD_IF_UP) return "IF_UP";
+	if (id == THREAD_IF_DOWN) return "IF_DOWN";
+
+	return "unknown";
+}
+#endif
+
 /* Call thread ! */
 void
 thread_call(thread_t * thread)
 {
 	thread->id = thread_get_id();
+#ifdef _TIMER_DEBUG_
+	if (prog_type == PROG_TYPE_VRRP)
+		log_message(LOG_INFO, "Calling thread function, type %s, addr 0x%p, val/fd/pid %d, status %d", get_thread_type_str(thread->type), thread->func, thread->u.val, thread->u.c.status);
+#endif
 	(*thread->func) (thread);
 }
 

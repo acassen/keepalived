@@ -375,3 +375,12 @@ start_check_child(void)
 	/* unreachable */
 	exit(EXIT_SUCCESS);
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_check_daemon_addresses(void)
+{
+	log_message(LOG_INFO, "Address of check_respawn_thread() is 0x%p", check_respawn_thread);
+	log_message(LOG_INFO, "Address of reload_check_thread() is 0x%p", reload_check_thread);
+}
+#endif
