@@ -1378,11 +1378,12 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 		break;
 	case VRRP_STATE_GOTO_FAULT:
 		log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE", vrrp->iname);
-		if (vrrp->state == VRRP_STATE_MAST)
+		if (vrrp->state == VRRP_STATE_MAST) {
+			vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 			vrrp_restore_interface(vrrp, false, false);
+		}
 		vrrp->state = VRRP_STATE_FAULT;
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
-		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 #ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
