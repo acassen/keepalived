@@ -51,6 +51,7 @@
 #include "vrrp_snmp.h"
 #endif
 #include <netinet/ip.h>
+#include "vrrp_print.h"
 
 /* global vars */
 timeval_t garp_next_time;
@@ -82,12 +83,10 @@ thread_t *garp_thread;
  */
 static void vrrp_backup(vrrp_t *, char *, ssize_t);
 static void vrrp_leave_master(vrrp_t *, char *, ssize_t);
-static void vrrp_leave_fault(vrrp_t *, char *, ssize_t);
 static void vrrp_become_master(vrrp_t *, char *, ssize_t);
 
 static void vrrp_goto_master(vrrp_t *);
 static void vrrp_master(vrrp_t *);
-static void vrrp_fault(vrrp_t *);
 
 static int vrrp_script_child_timeout_thread(thread_t * thread);
 static int vrrp_script_child_thread(thread_t * thread);
@@ -105,7 +104,7 @@ static struct {
 	{NULL,				NULL},
 	{vrrp_backup,			vrrp_goto_master},	/*  BACKUP          */
 	{vrrp_leave_master,		vrrp_master},		/*  MASTER          */
-	{vrrp_leave_fault,		vrrp_fault},		/*  FAULT           */
+	{NULL,				NULL},			/*  FAULT           */
 	{vrrp_become_master,		vrrp_goto_master}	/*  GOTO_MASTER     */
 };
 
@@ -138,8 +137,10 @@ static struct {
  *
  * This matrix is the strict implementation way. For readability and
  * performance we have implemented some handlers directly into the VRRP
- * FSM. For instance the handlers (5) & (6) are directly into the VRRP
- * FSM since it will speed up convergence to init state.
+ * FSM or they are handled when the trigger events to/from FAULT state occur.
+ * For instance the handlers (2), (4), (5) & (6) are handled when it is 
+ * detected that a script or an interface has failed or recovered since
+ * it will speed up convergence to init state.
  * Additionnaly, we have implemented some other handlers into the matrix
  * in order to speed up group synchronization takeover. For instance
  * transitions :
@@ -152,11 +153,11 @@ static struct {
 	void (*handler) (vrrp_t *);
 } VRRP_TSM[VRRP_MAX_TSM_STATE + 1][VRRP_MAX_TSM_STATE + 1] =
 {
-/* From:	  To: >	  BACKUP		       MASTER		   FAULT */
-/*   v    */	{ {NULL}, {NULL},                      {NULL},             {NULL}            },
-/* BACKUP */	{ {NULL}, {vrrp_sync_master_election}, {vrrp_sync_master}, {vrrp_sync_fault} },
-/* MASTER */ 	{ {NULL}, {vrrp_sync_backup},          {vrrp_sync_master}, {vrrp_sync_fault} },
-/* FAULT  */	{ {NULL}, {vrrp_sync_backup},          {vrrp_sync_master}, {vrrp_sync_fault} }
+/* From:	  To: >	  BACKUP			MASTER		    FAULT */
+/*   v    */	{ {NULL}, {NULL},			{NULL},		   {NULL} },
+/* BACKUP */	{ {NULL}, {vrrp_sync_master_election},	{vrrp_sync_master}, {NULL} },
+/* MASTER */	{ {NULL}, {vrrp_sync_backup},		{vrrp_sync_master}, {NULL} },
+/* FAULT  */	{ {NULL}, {NULL},			{vrrp_sync_master}, {NULL} }
 };
 
 /* SMTP alert notifier */
@@ -174,27 +175,6 @@ vrrp_smtp_notifier(vrrp_t * vrrp)
 				   "=> VRRP Instance is nolonger owning VRRP VIPs <=");
 	}
 }
-
-#ifdef _TEST_IF_DOWN_
-/* Log interface message */
-static void vrrp_log_int_down(vrrp_t *vrrp)
-{
-	if (!IF_ISUP(vrrp->ifp))
-		log_message(LOG_INFO, "Kernel is reporting: interface %s DOWN",
-		       IF_NAME(vrrp->ifp));
-	if (!LIST_ISEMPTY(vrrp->track_ifp))
-		vrrp_log_tracked_down(vrrp->track_ifp);
-}
-
-static void vrrp_log_int_up(vrrp_t *vrrp)
-{
-	if (IF_ISUP(vrrp->ifp))
-		log_message(LOG_INFO, "Kernel is reporting: interface %s UP",
-		       IF_NAME(vrrp->ifp));
-	if (!LIST_ISEMPTY(vrrp->track_ifp))
-		log_message(LOG_INFO, "Kernel is reporting: tracked interface are UP");
-}
-#endif
 
 /*
  * Initialize state handling
@@ -615,23 +595,7 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 	}
 #endif
 
-#ifdef _TEST_IF_DOWN_
-	if (!VRRP_ISUP(vrrp)) {
-// TODO - new fault only occur in backup and master timeout finctions
-log_message(LOG_INFO, "(%s): vrrp backup found fault state", vrrp->iname);
-		vrrp_log_int_down(vrrp);
-		log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state - backup", vrrp->iname);
-		if (vrrp->state != VRRP_STATE_FAULT) {
-			notify_instance_exec(vrrp, VRRP_STATE_FAULT);
-			vrrp->state = VRRP_STATE_FAULT;
-			vrrp->master_adver_int = vrrp->adver_int;
-#ifdef _WITH_SNMP_KEEPALIVED_
-			vrrp_snmp_instance_trap(vrrp);
-#endif
-		}
-	} else
-#endif
-		vrrp_state_backup(vrrp, buffer, len);
+	vrrp_state_backup(vrrp, buffer, len);
 }
 
 static void
@@ -672,17 +636,6 @@ vrrp_become_master(vrrp_t * vrrp,
 static void
 vrrp_leave_master(vrrp_t * vrrp, char *buffer, ssize_t len)
 {
-#ifdef _TEST_IF_DOWN_
-	if (!VRRP_ISUP(vrrp)) {
-/* TODO This shouldn't happen due to event driven */
-log_message(LOG_INFO, "(%s): vrrp_leave_master called when instance down", vrrp->iname);
-		vrrp_log_int_down(vrrp);
-		vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
-		vrrp_state_leave_master(vrrp);
-
-		return;
-	}
-#endif
 	if (vrrp_state_master_rx(vrrp, buffer, len))
 	{
 		vrrp_state_leave_master(vrrp);
@@ -690,96 +643,9 @@ log_message(LOG_INFO, "(%s): vrrp_leave_master called when instance down", vrrp-
 	}
 }
 
-#ifdef _WITH_VRRP_AUTH_
-#ifdef _TEST_IF_DOWN_
-static void
-vrrp_ah_sync(vrrp_t *vrrp)
-{
-	/*
-	 * Transition to BACKUP state for AH
-	 * seq number synchronization.
-	 */
-	log_message(LOG_INFO, "VRRP_Instance(%s) in FAULT state jump to AH sync",
-	       vrrp->iname);
-	vrrp->wantstate = VRRP_STATE_BACK;
-	vrrp_state_leave_master(vrrp);
-}
-#endif
-#endif
-
-/* TODO - read in fault state. Might happen - ? ignore. Unless
- * we have had an interface up then VRRP_ISUP will be false anyway */
-static void
-#ifdef _TEST_IF_DOWN_
-vrrp_leave_fault(vrrp_t * vrrp, char *buffer, ssize_t len)
-#else
-vrrp_leave_fault(__attribute__((unused)) vrrp_t *vrrp, __attribute__((unused)) char *buffer, __attribute__((unused)) ssize_t len)
-#endif
-{
-#ifdef _TEST_IF_DOWN_
-	if (!VRRP_ISUP(vrrp) ||
-	    (vrrp->sync && !vrrp_sync_leave_fault(vrrp)))
-		return;
-
-// TODO 1 - the following is all wrong. PRIO == 255 -> straight to master, o/w backup.
-// init_state == master => ms_down_timer == advert_int + min skew, else 3 * + SKEW
-	if (vrrp_state_fault_rx(vrrp, buffer, len)) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) prio is higher than received advert", vrrp->iname);
-#ifdef _WITH_SNMP_RFC_
-#ifdef _WITH_SNMP_RFCV3_
-// TODO - how do we deal with master_reason if we ignore packets
-// TODO - check where else I have changed this
-		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
-#endif
-// TODO - is uptime non fault or master?
-		vrrp->stats->uptime = timer_now();
-#endif
-	}
-//	} else {
-		log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
-		vrrp->state = VRRP_STATE_BACK;
-		vrrp_smtp_notifier(vrrp);
-		notify_instance_exec(vrrp, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_KEEPALIVED_
-		vrrp_snmp_instance_trap(vrrp);
-#endif
-// TODO - what is last_transition? - check consistently set
-		vrrp->last_transition = timer_now();
-#ifdef _WITH_SNMP_RFC_
-		vrrp->stats->uptime = vrrp->last_transition;
-// TODO - check stats->uptime is used consistently
-#endif
-//	}
-#endif
-}
-
 static void
 vrrp_goto_master(vrrp_t * vrrp)
 {
-#ifdef _TEST_IF_DOWN_
-	if (!VRRP_ISUP(vrrp)) {
-/* TODO Make common code for all transitions to fault */
-/* TODO Is vrrp->state always GOTO_MASTER if we get here, in which case test for FAULT is irrelevant */
-/* TODO - does all this bit need to be in state != FAULT, or none of it? */
-
-		vrrp_log_int_down(vrrp);
-		if (vrrp->state != VRRP_STATE_FAULT) {
-			log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state - goto master", vrrp->iname);
-			notify_instance_exec(vrrp, VRRP_STATE_FAULT);
-			vrrp->state = VRRP_STATE_FAULT;
-			vrrp->master_adver_int = vrrp->adver_int;
-		}
-		vrrp->master_adver_int = vrrp->adver_int;
-		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
-#ifdef _WITH_SNMP_KEEPALIVED_
-		vrrp_snmp_instance_trap(vrrp);
-#endif
-		vrrp->last_transition = timer_now();
-
-		return;
-	}
-#endif
-
 #if defined _WITH_VRRP_AUTH_
 	/* If becoming MASTER in IPSEC AH AUTH, we reset the anti-replay */
 	if (vrrp->version == VRRP_VERSION_2 && vrrp->ipsecah_counter.cycle) {
@@ -856,121 +722,18 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 static void
 vrrp_master(vrrp_t * vrrp)
 {
-#ifdef _TEST_IF_DOWN_
-	/* Check if interface we are running on is UP */
-	if (vrrp->wantstate != VRRP_STATE_GOTO_FAULT) {
-		if (!VRRP_ISUP(vrrp)) {
-			vrrp_log_int_down(vrrp);
-			vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
-		}
-	}
-
-	/* Then perform the state transition */
-	if ( vrrp->wantstate == VRRP_STATE_GOTO_FAULT ||
-	    vrrp->wantstate == VRRP_STATE_BACK	/* Don't see how this can be the case */
-#ifdef _WITH_VRRP_AUTH_
-	    || vrrp->ipsecah_counter.cycle
-#endif
-					) {
-		/* handle backup state transition */
-		vrrp_state_leave_master(vrrp);
-
-		if (vrrp->state == VRRP_STATE_BACK)
-			log_message(LOG_INFO, "VRRP_Instance(%s) Now in BACKUP state",
-				    vrrp->iname);
-		else if (vrrp->state == VRRP_STATE_FAULT)
-			log_message(LOG_INFO, "VRRP_Instance(%s) Now in FAULT state",
-				    vrrp->iname);
-
-		return;
-	}
-
-	if (vrrp->state == VRRP_STATE_MAST)
-#endif
-	{
-		/*
-		 * Send the VRRP advert.
-		 * If we catch the master transition
-		 * <=> vrrp_state_master_tx(...) = 1
-		 * register a gratuitous arp thread delayed to garp_delay secs.
-		 */
-		if (vrrp_state_master_tx(vrrp, 0)) {
-			if (vrrp->garp_delay)
-				thread_add_timer(master, vrrp_gratuitous_arp_thread,
-						 vrrp, vrrp->garp_delay);
-			vrrp_smtp_notifier(vrrp);
-		}
-	}
-}
-
-static void
-#ifdef _TEST_IF_DOWN_
-vrrp_fault(vrrp_t * vrrp)
-#else
-vrrp_fault(__attribute__((unused)) vrrp_t * vrrp)
-#endif
-{
-#ifdef _TEST_IF_DOWN_
-log_message(LOG_INFO, "vrrp_fault called for %s", vrrp->iname);
-	if (!VRRP_ISUP(vrrp) ||
-	    (vrrp->sync && !vrrp_sync_leave_fault(vrrp)))
-		return;
-
-	vrrp_log_int_up(vrrp);
-
-	/* refresh the multicast fd */
-	if (new_vrrp_socket(vrrp) < 0)
-		return;
-
-// TODO 1 - make this the same as vrrp_leave_fault
-// Possibly two initial functions then call same function for most
-// vrrp_leave_fault should never happen, since we must have detected interface coming up first
-#if defined _WITH_VRRP_AUTH_
 	/*
-	 * We force the IPSEC AH seq_number sync
-	 * to be done in read advert handler.
-	 * So we ignore this timeouted state until remote
-	 * VRRP MASTER send its advert for the concerned
-	 * instance.
+	 * Send the VRRP advert.
+	 * If we catch the master transition
+	 * <=> vrrp_state_master_tx(...) = 1
+	 * register a gratuitous arp thread delayed to garp_delay secs.
 	 */
-// TODO - does something like this need to be done in leave_fault
-	if (vrrp->auth_type == VRRP_AUTH_AH) {
-		vrrp_ah_sync(vrrp);
-	} else
-#endif
-	{
-		/* Otherwise, we transit to init state */
-		if (vrrp->init_state == VRRP_STATE_BACK ||
-		    (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority != VRRP_PRIO_OWNER)) {
-			vrrp->state = VRRP_STATE_BACK;
-			notify_instance_exec(vrrp, VRRP_STATE_BACK);
-
-			vrrp->master_adver_int = vrrp->adver_int;
-			if (vrrp->init_state == VRRP_STATE_BACK)
-				vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
-			else
-				vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
-
-			if (vrrp->preempt_delay)
-				vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
-#ifdef _WITH_SNMP_KEEPALIVED_
-			vrrp_snmp_instance_trap(vrrp);
-#endif
-			vrrp->last_transition = timer_now();
-			log_message(LOG_INFO, "VRRP_Instance(%s): Entering BACKUP STATE from fault", vrrp->iname);
-			vrrp_init_instance_sands(vrrp);
-		} else {
-#ifdef _WITH_SNMP_RFCV3_
-			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
-#endif
-			log_message(LOG_INFO, "VRRP_Instance(%s): Enter MASTER STATE from fault", vrrp->iname);
-			vrrp_goto_master(vrrp);
-		}
+	if (vrrp_state_master_tx(vrrp, 0)) {
+		if (vrrp->garp_delay)
+			thread_add_timer(master, vrrp_gratuitous_arp_thread,
+					 vrrp, vrrp->garp_delay);
+		vrrp_smtp_notifier(vrrp);
 	}
-#ifdef _WITH_SNMP_RFC_
-	vrrp->stats->uptime = timer_now();
-#endif
-#endif
 }
 
 void
@@ -1042,6 +805,8 @@ vrrp_dispatcher_read_timeout(int fd)
 		printf("Send [%s] TSM transtition : [%d,%d] Wantstate = [%d]\n",
 			vrrp->iname, prev_state, vrrp->state, vrrp->wantstate);
 #endif
+if (vrrp->state == VRRP_STATE_FAULT || prev_state == VRRP_STATE_FAULT)
+log_message(LOG_INFO, "%s TSM timeout called for %s to %s, ms_down_timer %u", vrrp->iname, get_state_str(prev_state), get_state_str(vrrp->state), vrrp->ms_down_timer);
 		VRRP_TSM_HANDLE(prev_state, vrrp);
 
 		vrrp_init_instance_sands(vrrp);
@@ -1077,6 +842,11 @@ vrrp_dispatcher_read(sock_t * sock)
 	if (!vrrp)
 		return sock->fd_in;
 
+	if (vrrp->state == VRRP_STATE_FAULT) {
+		/* We just ignore a message received when we are in fault state */
+		return sock->fd_in;
+	}
+
 	vrrp->pkt_saddr = src_addr;
 
 	/* Run the FSM handler */
@@ -1088,6 +858,8 @@ vrrp_dispatcher_read(sock_t * sock)
 	printf("Read [%s] TSM transtition : [%d,%d] Wantstate = [%d]\n",
 		vrrp->iname, prev_state, vrrp->state, vrrp->wantstate);
 #endif
+if (vrrp->state == VRRP_STATE_FAULT || prev_state == VRRP_STATE_FAULT)
+log_message(LOG_INFO, "%s TSM read called for %s to %s, ms_down_timer %u", vrrp->iname, get_state_str(prev_state), get_state_str(vrrp->state), vrrp->ms_down_timer);
 	VRRP_TSM_HANDLE(prev_state, vrrp);
 
 	vrrp_init_instance_sands(vrrp);

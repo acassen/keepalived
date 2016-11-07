@@ -44,7 +44,6 @@
 extern void vrrp_init_instance_sands(vrrp_t *);
 extern void vrrp_sync_smtp_notifier(vrrp_sgroup_t *);
 extern void vrrp_sync_set_group(vrrp_sgroup_t *);
-extern bool vrrp_sync_leave_fault(vrrp_t *);
 extern bool vrrp_sync_goto_master(vrrp_t *);
 extern void vrrp_sync_backup(vrrp_t *);
 extern void vrrp_sync_master(vrrp_t *);

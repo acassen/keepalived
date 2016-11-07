@@ -34,6 +34,8 @@
 #include "logger.h"
 #include "smtp.h"
 
+#include "vrrp_print.h"
+
 /* Compute the new instance sands */
 void
 vrrp_init_instance_sands(vrrp_t * vrrp)
@@ -144,24 +146,6 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 	vgroup->iname = NULL;
 }
 
-/* All interface are UP in the same group */
-static bool
-vrrp_sync_group_up(vrrp_sgroup_t * vgroup)
-{
-	vrrp_t *vrrp;
-	element e;
-	list l = vgroup->index_list;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-		if (!VRRP_ISUP(vrrp))
-			return false;
-	}
-
-	log_message(LOG_INFO, "Kernel is reporting: Group(%s) UP" , GROUP_NAME(vgroup));
-	return true;
-}
-
 /* SMTP alert group notifier */
 void
 vrrp_sync_smtp_notifier(vrrp_sgroup_t *vgroup)
@@ -176,19 +160,6 @@ vrrp_sync_smtp_notifier(vrrp_sgroup_t *vgroup)
 				   "Entering BACKUP state",
 				   "=> All VRRP group instances are now in BACKUP state <=");
 	}
-}
-
-/* Leaving fault state */
-bool
-vrrp_sync_leave_fault(vrrp_t * vrrp)
-{
-	vrrp_sgroup_t *vgroup = vrrp->sync;
-
-	if (vrrp_sync_group_up(vgroup)) {
-		log_message(LOG_INFO, "VRRP_Group(%s) Leaving FAULT state", GROUP_NAME(vgroup));
-		return true;
-	}
-	return false;
 }
 
 /* Check transition to master state */
