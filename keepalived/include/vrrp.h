@@ -301,12 +301,7 @@ typedef struct _vrrp_t {
 #define VRRP_PKT_SADDR(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in *) &(V)->saddr)->sin_addr.s_addr : IF_ADDR((V)->ifp))
 #define VRRP_PKT_SADDR6(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in6 *) &(V)->saddr)->sin6_addr : IF_ADDR6((V)->ifp))
 
-#define VRRP_IF_ISUP(V)		((IF_ISUP((V)->ifp) || (V)->dont_track_primary) && \
-				 (LIST_ISEMPTY((V)->track_ifp) || TRACK_ISUP((V)->track_ifp)))
-
-#define VRRP_SCRIPT_ISUP(V)	(LIST_ISEMPTY((V)->track_script) || SCRIPT_ISUP((V)->track_script))
-
-#define VRRP_ISUP(V)		(VRRP_IF_ISUP(V) && VRRP_SCRIPT_ISUP(V))
+#define VRRP_ISUP(V)		(!(V)->num_script_if_fault)
 
 /* prototypes */
 extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, unsigned *);
