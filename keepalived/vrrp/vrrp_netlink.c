@@ -790,10 +790,6 @@ process_if_status_change(interface_t *ifp)
 		else
 			down_instance(vrrp);
 	}
-
-#ifdef _WITH_DUMP_THREADS_
-	dump_threads();
-#endif
 }
 
 static void

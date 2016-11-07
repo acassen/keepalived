@@ -1199,7 +1199,7 @@ dump_threads(void)
 	set_time_now();
 	ctime_r(&time_now.tv_sec, time_buf);
 
-	fprintf(fp, "\n%.24s: Thread dump\n", time_buf);
+	fprintf(fp, "\n%.19s.%6.6ld: Thread dump\n", time_buf, time_now.tv_usec);
 
 	dump_thread_list(fp, &master->read, "read");
 	dump_thread_list(fp, &master->write, "write");
