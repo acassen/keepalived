@@ -749,7 +749,6 @@ process_if_status_change(interface_t *ifp)
 	tracked_if_t* tip;
 	bool now_up = FLAGS_UP(ifp->ifi_flags);
 
-log_message(LOG_INFO, "In process_if_status_change(%s)", ifp->ifname);
 	/* The state of the interface has changed from up to down or vice versa.
 	 * Find which vrrp instances are affected */
 	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
