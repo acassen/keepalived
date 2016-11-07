@@ -147,53 +147,6 @@ alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 	list_add(vrrp->track_script, tsc);
 }
 
-/* Test if all tracked interfaces are either UP or weight-tracked */
-bool
-vrrp_tracked_up(list l)
-{
-	element e;
-	tracked_if_t *tip;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		tip = ELEMENT_DATA(e);
-		if (!tip->weight && !IF_ISUP(tip->ifp))
-			return false;
-	}
-
-	return true;
-}
-
-/* Log tracked interface down */
-void
-vrrp_log_tracked_down(list l)
-{
-	element e;
-	tracked_if_t *tip;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		tip = ELEMENT_DATA(e);
-		if (!IF_ISUP(tip->ifp))
-			log_message(LOG_INFO, "Kernel is reporting: interface %s DOWN",
-			       IF_NAME(tip->ifp));
-	}
-}
-
-/* Test if all tracked scripts are either OK or weight-tracked */
-bool
-vrrp_script_up(list l)
-{
-	element e;
-	tracked_sc_t *tsc;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		tsc = ELEMENT_DATA(e);
-		if (!tsc->weight && tsc->scr->result < tsc->scr->rise)
-			return false;
-	}
-
-	return true;
-}
-
 void
 down_instance(vrrp_t *vrrp)
 {

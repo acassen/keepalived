@@ -37,10 +37,6 @@
 #include "vrrp_if.h"
 #include "vrrp.h"
 
-/* Macro definition */
-#define TRACK_ISUP(L)	(vrrp_tracked_up((L)))
-#define SCRIPT_ISUP(L)	(vrrp_script_up((L)))
-
 /* VRRP script tracking defaults */
 #define VRRP_SCRIPT_DI 1	/* external script track interval (in sec) */
 #define VRRP_SCRIPT_DT 0	/* external script track timeout (in sec) */
@@ -88,9 +84,6 @@ extern void alloc_track(list, vector_t *);
 extern void dump_track_script(void *);
 extern void free_track_script(void *);
 extern void alloc_track_script(struct _vrrp_t *, vector_t *);
-extern bool vrrp_tracked_up(list);
-extern void vrrp_log_tracked_down(list);
-extern bool vrrp_script_up(list);
 extern vrrp_script_t *find_script_by_name(char *);
 extern void update_script_priorities(vrrp_script_t *, bool);
 extern void down_instance(struct _vrrp_t *);
