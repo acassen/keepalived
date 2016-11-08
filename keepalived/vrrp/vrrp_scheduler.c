@@ -879,8 +879,7 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 	sock = THREAD_ARG(thread);
 
 	/* Dispatcher state handler */
-	if (thread->type == THREAD_READ_TIMEOUT || sock->fd_in == -1 ||
-	    thread->type == THREAD_IF_UP || thread->type == THREAD_IF_DOWN)
+	if (thread->type == THREAD_READ_TIMEOUT || sock->fd_in == -1)
 		fd = vrrp_dispatcher_read_timeout(sock->fd_in);
 	else
 		fd = vrrp_dispatcher_read(sock);
@@ -1165,8 +1164,7 @@ dump_thread_list( FILE *fp, thread_list_t *tlist, const char *type)
 				thread->type == THREAD_CHILD_TIMEOUT ? "THREAD_CHILD_TIMEOUT" :
 				thread->type == THREAD_TERMINATE ? "THREAD_TERMINATE" :
 				thread->type == THREAD_READY_FD ? "THREAD_READY_FD" :
-				thread->type == THREAD_IF_UP ? "THREAD_IF_UP" :
-				thread->type == THREAD_IF_DOWN ? "THREAD_IF_DOWN" : "unknown");
+				"unknown");
 
 		fprintf(fp, "    id = %lu\n", thread->id);
 		fprintf(fp, "    union = %d\n", thread->u.val);

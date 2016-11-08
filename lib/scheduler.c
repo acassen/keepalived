@@ -900,8 +900,6 @@ get_thread_type_str(int id)
 	if (id == THREAD_CHILD_TIMEOUT) return "CHILD_TIMEOUT";
 	if (id == THREAD_TERMINATE) return "TERMINATE";
 	if (id == THREAD_READY_FD) return "READY_FD";
-	if (id == THREAD_IF_UP) return "IF_UP";
-	if (id == THREAD_IF_DOWN) return "IF_DOWN";
 
 	return "unknown";
 }
