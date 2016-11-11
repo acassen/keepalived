@@ -82,6 +82,7 @@ notify_script_name(char *cmdline)
 	char *script;
 	size_t str_len;
 
+// TODO - do this at parse time
 	if (!cmdline)
 		return NULL;
 	while (!isspace(*cp) && *cp != '\0')
@@ -97,8 +98,9 @@ notify_script_name(char *cmdline)
 static int
 script_open_litteral(char *script)
 {
+// TODO - use stat()
 	log_message(LOG_DEBUG, "Opening script file %s",script);
-	FILE *fOut = fopen(script, "r");;
+	FILE *fOut = fopen(script, "r");
 	if (!fOut) {
 		log_message(LOG_INFO, "Can't open %s (errno %d %s)", script,
 		       errno, strerror(errno));

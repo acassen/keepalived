@@ -337,7 +337,7 @@ sigend_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 vrrp_signal_init(void)
 {
-	signal_handler_init(0);
+	signal_handler_init();
 	signal_set(SIGHUP, sighup_vrrp, NULL);
 	signal_set(SIGINT, sigend_vrrp, NULL);
 	signal_set(SIGTERM, sigend_vrrp, NULL);
@@ -478,8 +478,6 @@ start_vrrp_child(void)
 		return 0;
 	}
 
-	signal_handler_destroy();
-
 	prog_type = PROG_TYPE_VRRP;
 
 	/* Opening local VRRP syslog channel */
@@ -495,6 +493,8 @@ start_vrrp_child(void)
 
 	openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
 			    , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
+
+	signal_handler_destroy();
 
 #ifdef _MEM_CHECK_
 	mem_log_init(PROG_VRRP, "VRRP Child process");

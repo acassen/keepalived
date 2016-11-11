@@ -942,8 +942,8 @@ vrrp_script_child_thread(thread_t * thread)
 	wait_status = THREAD_CHILD_STATUS(thread);
 
 	if (WIFEXITED(wait_status)) {
-		int status;
-		status = WEXITSTATUS(wait_status);
+		int8_t status;
+		status = (int8_t)WEXITSTATUS(wait_status);
 
 		/* Report if status has changed */
 		if (status != vscript->last_status) {

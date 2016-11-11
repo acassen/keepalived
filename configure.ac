@@ -280,6 +280,8 @@ AC_FUNC_REALLOC
 AC_CHECK_FUNCS([dup2 getcwd gettimeofday memmove memset select setenv socket strcasecmp strchr strdup strerror strpbrk strstr strtol strtoul uname])
 dnl - pipe2() since Linux 2.6.27 and glibc 2.9.
 AC_CHECK_FUNCS([pipe2], [add_build_opt([PIPE2])])
+dnl - signalfd() since Linux 2.6.22 and glibc 2.8
+AC_CHECK_FUNCS([signalfd], [add_build_opt([SIGNALFD])])
 
 # check for missing definition - added in glibc 2.8
 AC_CHECK_DECLS([ETHERTYPE_IPV6], [],

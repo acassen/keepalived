@@ -39,8 +39,9 @@ system_call(const char *cmdline)
 {
 	int retval;
 
-	/* system() fails if SIGCHLD is set to SIG_IGN */
-	signal_set(SIGCHLD, (void*)SIG_DFL, NULL);
+	/* Prepare for invoking process/script */
+	signal_handler_script();
+	set_std_fd(false);
 
 	retval = system(cmdline);
 
@@ -49,18 +50,10 @@ system_call(const char *cmdline)
 		log_message(LOG_ALERT, "Couldn't exec command: %s", cmdline);
 	} else if (retval == -1) {
 		/* other error */
-		log_message(LOG_ALERT, "Error exec-ing command: %s", cmdline);
+		log_message(LOG_ALERT, "Error exec-ing command error %d: %s", errno, cmdline);
 	}
 
 	return retval;
-}
-
-static void
-script_setup(void)
-{
-	signal_handler_script();
-
-	set_std_fd(false);
 }
 
 /* Execute external script/program */
@@ -71,17 +64,16 @@ notify_exec(char *cmd)
 
 	pid = fork();
 
-	/* In case of fork is error. */
 	if (pid < 0) {
+		/* fork error. */
 		log_message(LOG_INFO, "Failed fork process");
 		return -1;
 	}
 
-	/* In case of this is parent process */
-	if (pid)
+	if (pid) {
+		/* parent process */
 		return 0;
-
-	script_setup();
+	}
 
 	system_call(cmd);
 
@@ -112,10 +104,9 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 	/* Child part */
 	setpgid(0, 0);
 
-	script_setup();
-
 	status = system_call(script);
 
+	/* Note, if script_use_exec is set, system_call will not return */
 	if (status < 0 || !WIFEXITED(status))
 		exit(0); /* Script errors aren't server errors */
 

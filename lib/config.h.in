@@ -337,6 +337,9 @@
 /* Define to 1 if you have the `setns' function. */
 #undef HAVE_SETNS
 
+/* Define to 1 if you have the `signalfd' function. */
+#undef HAVE_SIGNALFD
+
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
 

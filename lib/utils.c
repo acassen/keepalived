@@ -532,7 +532,7 @@ set_std_fd(int force)
 		}
 	}
 
-	signal_pipe_close(STDERR_FILENO+1);
+	signal_fd_close(STDERR_FILENO+1);
 }
 
 #ifndef _HAVE_LIBIPTC_

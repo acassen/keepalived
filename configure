@@ -6305,6 +6305,17 @@ _ACEOF
 fi
 done
 
+for ac_func in signalfd
+do :
+  ac_fn_c_check_func "$LINENO" "signalfd" "ac_cv_func_signalfd"
+if test "x$ac_cv_func_signalfd" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SIGNALFD 1
+_ACEOF
+ BUILD_OPTIONS="$BUILD_OPTIONS SIGNALFD"
+fi
+done
+
 
 # check for missing definition - added in glibc 2.8
 ac_fn_c_check_decl "$LINENO" "ETHERTYPE_IPV6" "ac_cv_have_decl_ETHERTYPE_IPV6" "#include <net/ethernet.h>

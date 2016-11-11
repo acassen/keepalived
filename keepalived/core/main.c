@@ -28,6 +28,9 @@
 #include <sys/utsname.h>
 #include <sys/resource.h>
 #include <stdbool.h>
+#ifdef HAVE_SIGNALFD
+#include <sys/signalfd.h>
+#endif
 
 #include "main.h"
 #include "config.h"
@@ -384,23 +387,43 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	int status;
 	int ret;
 	int wait_count = 0;
+	struct timeval start_time, now;
+#ifdef HAVE_SIGNALFD
+	struct timeval timeout = {
+		.tv_sec = CHILD_WAIT_SECS,
+		.tv_usec = 0
+	};
+	int signal_fd = signal_rfd();
+	fd_set read_set;
+	struct signalfd_siginfo siginfo;
+	sigset_t sigmask;
+#else
 	sigset_t old_set, child_wait;
 	struct timespec timeout = {
 		.tv_sec = CHILD_WAIT_SECS,
 		.tv_nsec = 0
 	};
-	struct timeval start_time, now;
+#endif
 
 	/* register the terminate thread */
 	thread_add_terminate_event(master);
 
 	log_message(LOG_INFO, "Stopping");
+
+#ifdef HAVE_SIGNALFD
+	/* We only want to receive SIGCHLD now */
+	sigemptyset(&sigmask);
+	sigaddset(&sigmask, SIGCHLD);
+	signalfd(signal_fd, &sigmask, 0);
+	FD_ZERO(&read_set);
+#else
 	sigprocmask(0, NULL, &old_set);
 	if (!sigismember(&old_set, SIGCHLD)) {
 		sigemptyset(&child_wait);
 		sigaddset(&child_wait, SIGCHLD);
 		sigprocmask(SIG_BLOCK, &child_wait, NULL);
 	}
+#endif
 
 #ifdef _WITH_VRRP_
 	if (vrrp_child > 0) {
@@ -417,6 +440,47 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 
 	gettimeofday(&start_time, NULL);
 	while (wait_count) {
+#ifdef HAVE_SIGNALFD
+		FD_SET(signal_fd, &read_set);
+		ret = select(signal_fd + 1, &read_set, NULL, NULL, &timeout);
+		if (ret == 0)
+			break;
+		if (ret == -1) {
+			if (errno == EINTR)
+				continue;
+
+			log_message(LOG_INFO, "Terminating select returned errno %d", errno);
+			break;
+		}
+
+		if (!FD_ISSET(signal_fd, &read_set)) {
+			log_message(LOG_INFO, "Terminating select did not return select_fd");
+			continue;
+		}
+
+		if (read(signal_fd, &siginfo, sizeof(siginfo)) != sizeof(siginfo)) {
+			log_message(LOG_INFO, "Terminating signal read did not read entire siginfo");
+			break;
+		}
+
+		status = siginfo.ssi_code == CLD_EXITED ? W_EXITCODE(siginfo.ssi_status, 0) :
+			 siginfo.ssi_code == CLD_KILLED ? W_EXITCODE(0, siginfo.ssi_status) :
+							   WCOREFLAG;
+
+#ifdef _WITH_VRRP_
+		if (vrrp_child > 0 && vrrp_child == (pid_t)siginfo.ssi_pid) {
+			report_child_status(status, vrrp_child, PROG_VRRP);
+			wait_count--;
+		}
+#endif
+
+#ifdef _WITH_LVS_
+		if (checkers_child > 0 && checkers_child == (pid_t)siginfo.ssi_pid) {
+			report_child_status(status, checkers_child, PROG_CHECK);
+			wait_count--;
+		}
+#endif
+#else
 		ret = sigtimedwait(&child_wait, NULL, &timeout);
 		if (ret == -1) {
 			if (errno == EINTR)
@@ -438,38 +502,40 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 			wait_count--;
 		}
 #endif
+#endif
 
 		if (wait_count) {
 			gettimeofday(&now, NULL);
-			if (now.tv_usec < start_time.tv_usec) {
-				timeout.tv_nsec = (start_time.tv_usec - now.tv_usec) * 1000;
-				timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec);
-			} else if (now.tv_usec == start_time.tv_usec) {
-				timeout.tv_nsec = 0;
-				timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec);
-			} else {
-				timeout.tv_nsec = (1000000L + start_time.tv_usec - now.tv_usec) * 1000;
-				timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec + 1);
-			}
-
-			timeout.tv_nsec = (start_time.tv_usec - now.tv_usec) * 1000;
 			timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec);
+#ifdef HAVE_SIGNALFD
+			timeout.tv_usec = (start_time.tv_usec - now.tv_usec);
+			if (timeout.tv_usec < 0) {
+				timeout.tv_usec += 1000000L;
+				timeout.tv_sec--;
+			}
+#else
+			timeout.tv_nsec = (start_time.tv_usec - now.tv_usec) * 1000;
 			if (timeout.tv_nsec < 0) {
 				timeout.tv_nsec += 1000000000L;
 				timeout.tv_sec--;
 			}
+#endif
+			if (timeout.tv_sec < 0)
+				break;
 		}
 	}
 
+#ifndef HAVE_SIGNALFD
 	if (!sigismember(&old_set, SIGCHLD))
 		sigprocmask(SIG_UNBLOCK, &child_wait, NULL);
+#endif
 }
 
 /* Initialize signal handler */
 static void
 signal_init(void)
 {
-	signal_handler_init(1);
+	signal_handler_init();
 	signal_set(SIGHUP, propogate_signal, NULL);
 	signal_set(SIGUSR1, propogate_signal, NULL);
 	signal_set(SIGUSR2, propogate_signal, NULL);
@@ -958,6 +1024,7 @@ keepalived_main(int argc, char **argv)
 	master = thread_make_master();
 
 	/* Init daemon */
+	signal_set(SIGCHLD, thread_child_handler, master);	/* Set this before creating children */
 	start_keepalived();
 
 #ifndef _DEBUG_

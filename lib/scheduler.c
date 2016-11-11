@@ -41,6 +41,10 @@
 #include <sys/wait.h>
 #include <sys/select.h>
 #include <unistd.h>
+#ifdef HAVE_SIGNALFD
+#include <sys/signalfd.h>
+#endif
+
 #include "scheduler.h"
 #include "memory.h"
 #include "utils.h"
@@ -827,20 +831,63 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	return fetch;
 }
 
-/* Synchronous signal handler to reap child processes */
 static void
-thread_child_handler(void * v, __attribute__ ((unused)) int unused)
+process_child_termination(pid_t pid, int status)
 {
-	thread_master_t * m = v;
-
+	bool respawn;
+	thread_master_t * m = master;
 	/*
 	 * This is O(n^2), but there will only be a few entries on
 	 * this list.
 	 */
 	thread_t *thread;
+
+	respawn = !report_child_status(status, pid, NULL);
+
+	thread = m->child.head;
+	while (thread) {
+		thread_t *t;
+		t = thread;
+		thread = t->next;
+		if (pid == t->u.c.pid) {
+			thread_list_delete(&m->child, t);
+			t->u.c.status = status;
+			if (respawn) {
+				t->type = THREAD_READY;
+				thread_list_add(&m->ready, t);
+			}
+			else {
+				/* The child had a permanant error, so no point in respawning */
+				raise(SIGTERM);
+			}
+
+			break;
+		}
+	}
+}
+
+/* Synchronous signal handler to reap child processes */
+void
+#ifdef HAVE_SIGNALFD
+thread_child_handler(void * v, __attribute__ ((unused)) int unused)
+#else
+thread_child_handler(__attribute__((unused)) void * v, __attribute__ ((unused)) int unused)
+#endif
+{
 	pid_t pid;
 	int status;
-	bool respawn;
+
+#ifdef HAVE_SIGNALFD
+	struct signalfd_siginfo *siginfo = v;
+
+	if (siginfo->ssi_code == CLD_EXITED || siginfo->ssi_code == CLD_KILLED || siginfo->ssi_code == CLD_DUMPED) {
+		pid = (pid_t)siginfo->ssi_pid;
+		status = siginfo->ssi_code == CLD_EXITED ? W_EXITCODE(siginfo->ssi_status, 0) :
+			 siginfo->ssi_code == CLD_KILLED ? W_EXITCODE(0, siginfo->ssi_status) :
+							   WCOREFLAG;
+		process_child_termination(pid, status);
+	}
+#endif
 
 	while ((pid = waitpid(-1, &status, WNOHANG))) {
 		if (pid == -1) {
@@ -848,33 +895,10 @@ thread_child_handler(void * v, __attribute__ ((unused)) int unused)
 				return;
 			DBG("waitpid error: %s", strerror(errno));
 			assert(0);
-		} else {
-			respawn = !report_child_status(status, pid, NULL);
-
-			thread = m->child.head;
-			while (thread) {
-				thread_t *t;
-				t = thread;
-				thread = t->next;
-				if (pid == t->u.c.pid) {
-					thread_list_delete(&m->child, t);
-					t->u.c.status = status;
-					if (respawn) {
-						t->type = THREAD_READY;
-						thread_list_add(&m->ready, t);
-					}
-					else {
-						/* The child had a permanant error, so no point in respawning */
-						raise(SIGTERM);
-					}
-
-					break;
-				}
-			}
 		}
+		process_child_termination(pid, status);
 	}
 }
-
 
 /* Make unique thread id for non pthread version of thread manager. */
 static unsigned long

@@ -136,6 +136,6 @@ extern thread_t *thread_add_event(thread_master_t *, int (*func) (thread_t *), v
 extern int thread_cancel(thread_t *);
 extern thread_t *thread_fetch(thread_master_t *, thread_t *);
 extern void thread_call(thread_t *);
+extern void thread_child_handler(void *, int);
 extern void launch_scheduler(void);
-
 #endif
