@@ -2519,30 +2519,6 @@ vrrp_complete_init(void)
 	if (global_data->vrrp_garp_lower_prio_delay == PARAMETER_UNSET)
 		global_data->vrrp_garp_lower_prio_delay = global_data->vrrp_garp_delay;
 
-<<<<<<< HEAD
-=======
-	/* Complete VRRP instance initialization */
-	l = vrrp_data->vrrp;
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-		if (!vrrp_complete_instance(vrrp))
-			return false;
-
-		if (vrrp->ifp->mtu > max_mtu_len)
-			max_mtu_len = vrrp->ifp->mtu;
-	}
-
-	/* If we have a global garp_delay add it to any interfaces without a garp_delay */
-	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
-		set_default_garp_delay();
-
-#ifdef _HAVE_LIBIPTC_
-	/* Make sure we don't have any old iptables/ipsets settings left around */
-	if (!reload)
-		iptables_cleanup();
-#endif
-
->>>>>>> fixes
 	/* Make sure don't have same vrid on same interface with same address family */
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
@@ -2616,7 +2592,8 @@ vrrp_complete_init(void)
 
 #ifdef _HAVE_LIBIPTC_
 	/* Make sure we don't have any old iptables/ipsets settings left around */
-	iptables_cleanup();
+	if (!reload)
+		iptables_cleanup();
 #endif
 
 	/* Check for instance down due to an interface or script */
