@@ -72,14 +72,14 @@
 #include <netinet/ip6.h>
 
 /* add/remove Virtual IP addresses */
-static void
+static bool
 vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type)
 {
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
 		log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol %s", vrrp->iname,
 		       (cmd == IPADDRESS_ADD) ? "setting" : "removing",
 		       (type == VRRP_VIP_TYPE) ? "VIPs." : "E-VIPs.");
-	netlink_iplist((type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip, cmd);
+	return netlink_iplist((type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip, cmd);
 }
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -1138,6 +1138,7 @@ vrrp_send_link_update(vrrp_t * vrrp, unsigned rep)
 	if (!VRRP_VIP_ISSET(vrrp))
 		return;
 
+log_message(LOG_INFO, "In vrrp_Send_link_update()");
 	/* send gratuitous arp for each virtual ip */
 	for (j = 0; j < rep; j++) {
 		if (!LIST_ISEMPTY(vrrp->vip)) {
@@ -2475,8 +2476,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
-	if (interface_already_existed) {
-// TODO - consider reload
+	if (!reload && interface_already_existed) {
 		vrrp->vipset = true;	/* Set to force address removal */
 		vrrp_restore_interface(vrrp, false, true);
 	}
@@ -2519,6 +2519,30 @@ vrrp_complete_init(void)
 	if (global_data->vrrp_garp_lower_prio_delay == PARAMETER_UNSET)
 		global_data->vrrp_garp_lower_prio_delay = global_data->vrrp_garp_delay;
 
+<<<<<<< HEAD
+=======
+	/* Complete VRRP instance initialization */
+	l = vrrp_data->vrrp;
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+		if (!vrrp_complete_instance(vrrp))
+			return false;
+
+		if (vrrp->ifp->mtu > max_mtu_len)
+			max_mtu_len = vrrp->ifp->mtu;
+	}
+
+	/* If we have a global garp_delay add it to any interfaces without a garp_delay */
+	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
+		set_default_garp_delay();
+
+#ifdef _HAVE_LIBIPTC_
+	/* Make sure we don't have any old iptables/ipsets settings left around */
+	if (!reload)
+		iptables_cleanup();
+#endif
+
+>>>>>>> fixes
 	/* Make sure don't have same vrid on same interface with same address family */
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
@@ -2762,9 +2786,11 @@ clear_diff_vrrp_vrules(vrrp_t *old_vrrp, vrrp_t *vrrp)
 #endif
 
 /* Keep the state from before reload */
-static void
-reset_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
+static bool
+restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 {
+	bool added_ip_addr = false;
+
 	/* Keep VRRP state, ipsec AH seq_number */
 // TODO - if base_priority changed, then the next must be wrong
 	if (!old_vrrp->sync)
@@ -2781,9 +2807,11 @@ reset_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 	if (vrrp->vipset) {
 		vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, false);
 		if (!LIST_ISEMPTY(vrrp->vip))
-			vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
-		if (!LIST_ISEMPTY(vrrp->evip))
-			vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
+			added_ip_addr = vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
+		if (!LIST_ISEMPTY(vrrp->evip)) {
+			if (vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE))
+				added_ip_addr = true;
+		}
 #ifdef _HAVE_FIB_ROUTING_
 		if (!LIST_ISEMPTY(vrrp->vroutes))
 			vrrp_handle_iproutes(vrrp, IPROUTE_ADD);
@@ -2791,6 +2819,8 @@ reset_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 			vrrp_handle_iprules(vrrp, IPRULE_ADD, false);
 #endif
 	}
+
+	return added_ip_addr;
 }
 
 /* Diff when reloading configuration */
@@ -2800,6 +2830,7 @@ clear_diff_vrrp(void)
 	element e;
 	list l = old_vrrp_data->vrrp;
 	vrrp_t *vrrp;
+	interface_t *ifp;
 
 	if (LIST_ISEMPTY(l))
 		return;
@@ -2855,7 +2886,24 @@ clear_diff_vrrp(void)
 #endif
 
 			/* reset the state */
-			reset_vrrp_state(vrrp, new_vrrp);
+			if (restore_vrrp_state(vrrp, new_vrrp)) {
+				/* There were addresses added, so set GARP/GNA for them.
+				 * This is a bit over the top since it will send GARPs/GNAs for
+				 * all the addresses, but at least we will do so for the new addresses. */
+
+				/* remotes neighbour update */
+				if (new_vrrp->family == AF_INET6) {
+					/* Refresh whether we are acting as a router for NA messages */
+					ifp = IF_BASE_IFP(new_vrrp->ifp);
+					ifp->gna_router = get_ipv6_forwarding(ifp);
+				}
+				vrrp_send_link_update(new_vrrp, new_vrrp->garp_rep);
+
+				/* set refresh timer */
+				if (!timer_isnull(new_vrrp->garp_refresh)) {
+					new_vrrp->garp_refresh_timer = timer_add_now(new_vrrp->garp_refresh);
+				}
+			}
 		}
 	}
 }

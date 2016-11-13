@@ -262,7 +262,7 @@ start_vrrp(void)
 		clear_diff_vrrp();
 
 #ifdef _HAVE_LIBIPTC_
-	iptables_startup();
+	iptables_startup(reload);
 #endif
 
 #ifdef _WITH_DBUS_
@@ -386,9 +386,6 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 	reset_interface_queue();
 
 	/* Reload the conf */
-#ifdef _MEM_CHECK_
-	mem_allocated = 0;
-#endif
 	start_vrrp();
 
 #ifdef _WITH_LVS_

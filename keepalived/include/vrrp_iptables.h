@@ -39,7 +39,7 @@ struct ipt_handle;
 
 bool iptables_init(void);
 void iptables_fini(void);
-void iptables_startup(void);
+void iptables_startup(bool);
 void iptables_cleanup(void);
 struct ipt_handle *iptables_open(void);
 int iptables_close(struct ipt_handle *h);
