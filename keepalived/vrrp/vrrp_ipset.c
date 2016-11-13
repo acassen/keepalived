@@ -141,7 +141,7 @@ has_ipset_setname(struct ipset_session* session, const char *setname)
 	return ipset_cmd1(session, IPSET_CMD_HEADER, 0) == 0;
 }
 
-static int create_sets(const char* addr4, const char* addr6, const char* addr_if6)
+static int create_sets(const char* addr4, const char* addr6, const char* addr_if6, bool reload)
 {
 	struct ipset_session *session;
 
@@ -151,17 +151,23 @@ static int create_sets(const char* addr4, const char* addr6, const char* addr_if
 		return false;
 	}
 
-	/* don't worry if sets already exist */
-	ipset_envopt_parse(session, IPSET_ENV_EXIST, NULL);
+	/* If we aren't reloading, don't worry if sets already exists. With the
+	 * IPSET_ENV_EXIST option set, any existing entries in the set are removed. */
+	if (!reload)
+		ipset_envopt_parse(session, IPSET_ENV_EXIST, NULL);
 
-	ipset_create(session, addr4, "hash:ip", NFPROTO_IPV4);
-	ipset_create(session, addr6, "hash:ip", NFPROTO_IPV6);
+	if (!reload || !has_ipset_setname(session, addr4))
+		ipset_create(session, addr4, "hash:ip", NFPROTO_IPV4);
+	if (!reload || !has_ipset_setname(session, addr6))
+		ipset_create(session, addr6, "hash:ip", NFPROTO_IPV6);
+	if (!reload || !has_ipset_setname(session, addr_if6)) {
 #ifdef HAVE_IPSET_ATTR_IFACE
-	/* hash:net,iface was introduced in Linux 3.1 */
-	ipset_create(session, addr_if6, "hash:net,iface", NFPROTO_IPV6);
+		/* hash:net,iface was introduced in Linux 3.1 */
+		ipset_create(session, addr_if6, "hash:net,iface", NFPROTO_IPV6);
 #else
-	ipset_create(session, addr_if6, "hash:ip", NFPROTO_IPV6);
+		ipset_create(session, addr_if6, "hash:ip", NFPROTO_IPV6);
 #endif
+	}
 
 	ipset_session_fini(session);
 
@@ -236,9 +242,9 @@ int remove_ipsets(void)
 	return true;
 }
 
-int add_ipsets(void)
+int add_ipsets(bool reload)
 {
-	return create_sets(global_data->vrrp_ipset_address, global_data->vrrp_ipset_address6, global_data->vrrp_ipset_address_iface6);
+	return create_sets(global_data->vrrp_ipset_address, global_data->vrrp_ipset_address6, global_data->vrrp_ipset_address_iface6, reload);
 }
 
 struct ipset_session* ipset_session_start(void)

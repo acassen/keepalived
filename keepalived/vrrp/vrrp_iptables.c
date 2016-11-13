@@ -84,13 +84,13 @@ static bool use_iptables = true;
 
 #ifdef _HAVE_LIBIPSET_
 static
-void add_del_sets(int cmd)
+void add_del_sets(int cmd, bool reload)
 {
 	if (!global_data->using_ipsets)
 		return;
 
 	if (cmd == IPADDRESS_ADD)
-		add_ipsets();
+		add_ipsets(reload);
 	else
 		remove_ipsets();
 }
@@ -325,15 +325,15 @@ iptables_remove_structure(bool ignore_errors)
 #ifdef _HAVE_LIBIPSET_
 	if (global_data->using_ipsets) {
 		add_del_rules(IPADDRESS_DEL, ignore_errors);
-		add_del_sets(IPADDRESS_DEL);
+		add_del_sets(IPADDRESS_DEL, false);
 	}
 #endif
 }
 
 void
-iptables_startup(void)
+iptables_startup(bool reload)
 {
-	if (!check_chains_exist()) {
+	if (!reload && !check_chains_exist()) {
 		use_iptables = false;
 #ifdef _HAVE_LIBIPSET_
 		global_data->using_ipsets = false;
@@ -342,7 +342,7 @@ iptables_startup(void)
 
 #ifdef _HAVE_LIBIPSET_
 	if (global_data->using_ipsets) {
-		add_del_sets(IPADDRESS_ADD);
+		add_del_sets(IPADDRESS_ADD, reload);
 		add_del_rules(IPADDRESS_ADD, false);
 	}
 #endif

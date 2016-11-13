@@ -261,7 +261,7 @@ start_vrrp(void)
 		clear_diff_vrrp();
 
 #ifdef _HAVE_LIBIPTC_
-	iptables_startup();
+	iptables_startup(reload);
 #endif
 
 #ifdef _WITH_DBUS_

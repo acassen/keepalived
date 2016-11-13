@@ -556,12 +556,7 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 					    , ipaddr->ifa.ifa_prefixlen
 					    , IF_NAME(if_get_by_ifindex(ipaddr->ifa.ifa_index)));
 			netlink_ipaddress(ipaddr, IPADDRESS_DEL);
-			if (ipaddr->iptable_rule_set
-#ifdef _HAVE_LIBIPTC_
-						     && h
-#endif
-							 )
-
+			if (ipaddr->iptable_rule_set)
 				handle_iptable_rule_to_vip(ipaddr, IPADDRESS_DEL, iface_name, h, false);
 		}
 	}

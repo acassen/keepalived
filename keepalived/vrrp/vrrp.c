@@ -2271,7 +2271,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
-	if (interface_already_existed) {
+	if (!reload && interface_already_existed) {
 // TODO - consider reload
 		vrrp->vipset = true;	/* Set to force address removal */
 		vrrp_restore_interface(vrrp, false, true);
@@ -2338,7 +2338,8 @@ vrrp_complete_init(void)
 
 #ifdef _HAVE_LIBIPTC_
 	/* Make sure we don't have any old iptables/ipsets settings left around */
-	iptables_cleanup();
+	if (!reload)
+		iptables_cleanup();
 #endif
 
 	/* Make sure don't have same vrid on same interface with same address family */
