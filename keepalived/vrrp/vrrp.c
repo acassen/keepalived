@@ -1838,11 +1838,11 @@ new_vrrp_socket(vrrp_t * vrrp)
 	else
 #endif
 		proto = IPPROTO_VRRP;
-	ifp =
 #ifdef _HAVE_VRRP_VMAC_
-		 (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? vrrp->ifp->base_ifp :
+	ifp = __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) ? IF_BASE_IFP(vrrp->ifp) : vrrp->ifp;
+#else
+	ifp = vrrp->ifp;
 #endif
-									    vrrp->ifp;
 	unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 	vrrp->fd_in = open_vrrp_read_socket(vrrp->family, proto, ifp, unicast);
 	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifp, unicast);
@@ -2290,25 +2290,25 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		bool addr_missing = false;
 
 		if (vrrp->family == AF_INET) {
-			if (!vrrp->ifp->base_ifp->sin_addr.s_addr)
+			if (!IF_BASE_IFP(vrrp->ifp)->sin_addr.s_addr)
 				addr_missing = true;
 		}
 #ifdef _HAVE_VRRP_VMAC_
 		else if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
-			if (!vrrp->ifp->base_ifp->sin6_addr.s6_addr32[0])
+			if (!IF_BASE_IFP(vrrp->ifp)->sin6_addr.s6_addr32[0])
 				addr_missing = true;
 		}
 #endif
 
 		if (addr_missing) {
-			log_message(LOG_INFO, "(%s): Cannot find an IP address to use for interface %s", vrrp->iname, vrrp->ifp->base_ifp->ifname);
+			log_message(LOG_INFO, "(%s): Cannot find an IP address to use for interface %s", vrrp->iname, IF_BASE_IFP(vrrp->ifp)->ifname);
 			return false;
 		}
 
 		if (vrrp->family == AF_INET) {
-			inet_ip4tosockaddr(&vrrp->ifp->base_ifp->sin_addr, &vrrp->saddr);
+			inet_ip4tosockaddr(&IF_BASE_IFP(vrrp->ifp)->sin_addr, &vrrp->saddr);
 		} else if (vrrp->family == AF_INET6) {
-			inet_ip6tosockaddr(&vrrp->ifp->base_ifp->sin6_addr, &vrrp->saddr);
+			inet_ip6tosockaddr(&IF_BASE_IFP(vrrp->ifp)->sin6_addr, &vrrp->saddr);
 			/* IPv6 use-case: Binding to link-local address requires an interface */
 			inet_ip6scopeid(IF_INDEX(vrrp->ifp), &vrrp->saddr);
 		}
@@ -2316,11 +2316,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Add this instance to the physical interface */
 	if (!vrrp->dont_track_primary)
-#ifdef _HAVE_VRRP_VMAC_
-		add_vrrp_to_interface(vrrp, vrrp->ifp->base_ifp);
-#else
-		add_vrrp_to_interface(vrrp, vrrp->ifp);
-#endif
+		add_vrrp_to_interface(vrrp, IF_BASE_IFP(vrrp->ifp));
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&

@@ -138,7 +138,9 @@ list garp_delay;
 extern interface_t *if_get_by_ifindex(ifindex_t);
 extern interface_t *base_if_get_by_ifp(interface_t *);
 extern interface_t *if_get_by_ifname(const char *);
+#ifdef _HAVE_VRRP_VMAC_
 extern void set_base_ifp(void);
+#endif
 extern list get_if_list(void);
 extern void reset_interface_queue(void);
 extern void alloc_garp_delay(void);

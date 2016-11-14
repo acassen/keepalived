@@ -114,6 +114,7 @@ if_get_by_ifname(const char *ifname)
 	return NULL;
 }
 
+#ifdef _HAVE_VRRP_VMAC_
 /* Set the base_ifp for vmacs - only used at startup */
 void
 set_base_ifp(void)
@@ -132,6 +133,7 @@ set_base_ifp(void)
 		}
 	}
 }
+#endif
 
 /* Return the interface list itself */
 list

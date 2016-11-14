@@ -756,9 +756,7 @@ process_if_status_change(interface_t *ifp)
 
 		/* If this interface isn't relevant to the vrrp instance, skip the instance */
 		if (!vrrp->track_ifp &&
-#ifdef _HAVE_VRRP_VMAC_
-		    vrrp->ifp->base_ifp != ifp &&
-#endif
+		    IF_BASE_IFP(vrrp->ifp) != ifp &&
 		    vrrp->ifp != ifp)
 			continue;
 
@@ -805,11 +803,8 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 
 	/* We get called after a VMAC is created, but before tracking_vrrp is set */
 // TODO - does this ONLY apply for VMACs?
-	if (!ifp->tracking_vrrp
-#ifdef _HAVE_VRRP_VMAC_
-	     && ifp == ifp->base_ifp
-#endif
-				    )
+	if (!ifp->tracking_vrrp &&
+	    ifp == IF_BASE_IFP(ifp))
 		return;
 
 	was_up = IF_FLAGS_UP(ifp);
@@ -844,7 +839,9 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	ifp->ifindex = (ifindex_t)ifi->ifi_index;
 	ifp->mtu = *(uint32_t *)RTA_DATA(tb[IFLA_MTU]);
 	ifp->hw_type = ifi->ifi_type;
+#ifdef _HAVE_VRRP_VMAC_
 	ifp->base_ifp = ifp;
+#endif
 
 	if (tb[IFLA_ADDRESS]) {
 		size_t hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
@@ -891,7 +888,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 				ifp->base_ifindex = *(uint32_t *)RTA_DATA(tb[IFLA_LINK]);
 				ifp->base_ifp = if_get_by_ifindex(ifp->base_ifindex);
 				if (ifp->base_ifp)
-					ifp->base_ifindex = 0;	/* Make sure this isn't used at runtine */
+					ifp->base_ifindex = 0;	/* Make sure this isn't used at runtime */
 				ifp->vmac = true;
 			}
 		}
@@ -973,8 +970,10 @@ netlink_interface_lookup(char *name)
 	}
 	status = netlink_parse_info(netlink_if_link_filter, &nlh, NULL, false);
 
+#ifdef _HAVE_VRRP_VMAC_
 	/* We now need to ensure that all the base_ifp are set */
 	set_base_ifp();
+#endif
 
 end_int:
 	netlink_close(&nlh);
