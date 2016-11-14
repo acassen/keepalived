@@ -318,7 +318,7 @@ extern void vrrp_send_link_update(vrrp_t *, unsigned);
 extern int vrrp_send_adv(vrrp_t *, uint8_t);
 extern int vrrp_state_fault_rx(vrrp_t *, char *, ssize_t);
 extern int vrrp_state_master_rx(vrrp_t *, char *, ssize_t);
-extern int vrrp_state_master_tx(vrrp_t *, const int);
+extern void vrrp_state_master_tx(vrrp_t *, const int);
 extern void vrrp_state_backup(vrrp_t *, char *, ssize_t);
 extern void vrrp_state_goto_master(vrrp_t *);
 extern void vrrp_state_leave_master(vrrp_t *);

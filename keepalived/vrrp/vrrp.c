@@ -1466,16 +1466,21 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 }
 
 /* MASTER state processing */
-int
+void
 vrrp_state_master_tx(vrrp_t * vrrp, const int prio)
 {
-	int ret = 0;
-
 	if (!VRRP_VIP_ISSET(vrrp)) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) Entering MASTER STATE"
 				    , vrrp->iname);
 		vrrp_state_become_master(vrrp);
-		ret = 1;
+		/*
+		 * If we catch the master transition
+		 * register a gratuitous arp thread delayed to garp_delay secs.
+		 */
+		if (vrrp->garp_delay)
+			thread_add_timer(master, vrrp_gratuitous_arp_thread,
+					 vrrp, vrrp->garp_delay);
+		vrrp_smtp_notifier(vrrp);
 	} else if (!timer_isnull(vrrp->garp_refresh) &&
 		   timer_cmp(time_now, vrrp->garp_refresh_timer) > 0) {
 		vrrp_send_link_update(vrrp, vrrp->garp_refresh_rep);
@@ -1485,7 +1490,6 @@ vrrp_state_master_tx(vrrp_t * vrrp, const int prio)
 	vrrp_send_adv(vrrp,
 		      (prio == VRRP_PRIO_OWNER) ? VRRP_PRIO_OWNER :
 						  vrrp->effective_priority);
-	return ret;
 }
 
 static int
