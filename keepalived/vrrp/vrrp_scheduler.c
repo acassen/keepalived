@@ -161,7 +161,7 @@ static struct {
 };
 
 /* SMTP alert notifier */
-static void
+void
 vrrp_smtp_notifier(vrrp_t * vrrp)
 {
 	if (vrrp->smtp_alert) {
@@ -665,7 +665,7 @@ vrrp_goto_master(vrrp_t * vrrp)
 }
 
 /* Delayed gratuitous ARP thread */
-static int
+int
 vrrp_gratuitous_arp_thread(thread_t * thread)
 {
 	vrrp_t *vrrp = THREAD_ARG(thread);
@@ -722,18 +722,8 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 static void
 vrrp_master(vrrp_t * vrrp)
 {
-	/*
-	 * Send the VRRP advert.
-	 * If we catch the master transition
-	 * <=> vrrp_state_master_tx(...) = 1
-	 * register a gratuitous arp thread delayed to garp_delay secs.
-	 */
-	if (vrrp_state_master_tx(vrrp, 0)) {
-		if (vrrp->garp_delay)
-			thread_add_timer(master, vrrp_gratuitous_arp_thread,
-					 vrrp, vrrp->garp_delay);
-		vrrp_smtp_notifier(vrrp);
-	}
+	/* Send the VRRP advert */
+	vrrp_state_master_tx(vrrp, 0);
 }
 
 void
