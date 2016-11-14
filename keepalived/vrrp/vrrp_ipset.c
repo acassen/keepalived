@@ -257,22 +257,21 @@ void ipset_session_end(struct ipset_session* session)
 	ipset_session_fini(session);
 }
 
-void ipset_entry(struct ipset_session* session, int cmd, const ip_address_t* addr, const char* iface)
+void ipset_entry(struct ipset_session* session, int cmd, const ip_address_t* addr)
 {
 	const char* set;
+	char *iface = NULL;
 
 	if (addr->ifa.ifa_family == AF_INET)
 		set = global_data->vrrp_ipset_address;
 	else if (IN6_IS_ADDR_LINKLOCAL(&addr->u.sin6_addr)) {
 		set = global_data->vrrp_ipset_address_iface6;
-#ifndef HAVE_IPSET_ATTR_IFACE
-			iface = NULL;
+#ifdef HAVE_IPSET_ATTR_IFACE
+		iface = addr->ifp->ifname;
 #endif
 	}
 	else
 		set = global_data->vrrp_ipset_address6;
-	if (cmd == IPADDRESS_DEL)
-		do_ipset_cmd(session, IPSET_CMD_DEL, set, addr, 0, iface);
-	else
-		do_ipset_cmd(session, IPSET_CMD_ADD, set, addr, 0, iface);
+
+	do_ipset_cmd(session, (cmd == IPADDRESS_DEL) ? IPSET_CMD_DEL : IPSET_CMD_ADD, set, addr, 0, iface);
 }

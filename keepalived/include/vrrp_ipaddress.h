@@ -94,7 +94,7 @@ struct ipt_handle;	// AAGH - TODO
 extern char *ipaddresstos(char *, ip_address_t *);
 extern int netlink_ipaddress(ip_address_t *, int);
 extern bool netlink_iplist(list, int);
-extern void handle_iptable_rule_to_iplist(struct ipt_handle *, list, int, char *, bool force);
+extern void handle_iptable_rule_to_iplist(struct ipt_handle *, list, int, bool force);
 extern void free_ipaddress(void *);
 extern void dump_ipaddress(void *);
 extern ip_address_t *parse_ipaddress(ip_address_t *, char *, int);
