@@ -137,15 +137,16 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 }
 
 /* Add/Delete a list of IP addresses */
-void
+bool
 netlink_iplist(list ip_list, int cmd)
 {
 	ip_address_t *ipaddr;
 	element e;
+	bool changed_entries = false;
 
 	/* No addresses in this list */
 	if (LIST_ISEMPTY(ip_list))
-		return;
+		return false;
 
 	/*
 	 * If "--dont-release-vrrp" is set then try to release addresses
@@ -156,12 +157,16 @@ netlink_iplist(list ip_list, int cmd)
 		if ((cmd == IPADDRESS_ADD && !ipaddr->set) ||
 		    (cmd == IPADDRESS_DEL &&
 		     (ipaddr->set || __test_bit(DONT_RELEASE_VRRP_BIT, &debug)))) {
-			if (netlink_ipaddress(ipaddr, cmd) > 0)
+			if (netlink_ipaddress(ipaddr, cmd) > 0) {
 				ipaddr->set = !(cmd == IPADDRESS_DEL);
+				changed_entries = true;
+			}
 			else
 				ipaddr->set = false;
 		}
 	}
+
+	return changed_entries;
 }
 
 #ifndef _HAVE_LIBIPTC_
@@ -556,12 +561,7 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 					    , ipaddr->ifa.ifa_prefixlen
 					    , IF_NAME(if_get_by_ifindex(ipaddr->ifa.ifa_index)));
 			netlink_ipaddress(ipaddr, IPADDRESS_DEL);
-			if (ipaddr->iptable_rule_set
-#ifdef _HAVE_LIBIPTC_
-						     && h
-#endif
-							 )
-
+			if (ipaddr->iptable_rule_set)
 				handle_iptable_rule_to_vip(ipaddr, IPADDRESS_DEL, iface_name, h, false);
 		}
 	}

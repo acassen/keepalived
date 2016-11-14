@@ -244,9 +244,6 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	check_data = NULL;
 
 	/* Reload the conf */
-#ifdef _MEM_CHECK_
-	mem_allocated = 0;
-#endif
 	start_check();
 
 	/* free backup data */
