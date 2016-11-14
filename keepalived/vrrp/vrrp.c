@@ -1929,8 +1929,10 @@ shutdown_vrrp_instances(void)
 		vrrp = ELEMENT_DATA(e);
 
 #ifdef _HAVE_VRRP_VMAC_
-		/* Remove VMAC */
-		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+		/* Remove VMAC. If we are shutting down due to a configuration
+		 * error, the VMACs may not be set up yet, and vrrp->ifp may
+		 * still point to the physical interface. */
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) && vrrp->ifp->vmac)
 			netlink_link_del_vmac(vrrp);
 #endif
 
