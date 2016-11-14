@@ -305,8 +305,8 @@ typedef struct _vrrp_t {
 
 /* prototypes */
 extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, unsigned *);
-extern int open_vrrp_send_socket(sa_family_t, int, ifindex_t, bool);
-extern int open_vrrp_read_socket(sa_family_t, int, ifindex_t, bool);
+extern int open_vrrp_send_socket(sa_family_t, int, interface_t *, bool);
+extern int open_vrrp_read_socket(sa_family_t, int, interface_t *, bool);
 extern int new_vrrp_socket(vrrp_t *);
 extern void vrrp_send_link_update(vrrp_t *, unsigned);
 extern int vrrp_send_adv(vrrp_t *, uint8_t);

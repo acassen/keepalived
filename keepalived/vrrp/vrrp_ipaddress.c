@@ -561,7 +561,7 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 			log_message(LOG_INFO, "ip address %s/%d dev %s, no longer exist"
 					    , addr_str
 					    , ipaddr->ifa.ifa_prefixlen
-					    , IF_NAME(if_get_by_ifindex(ipaddr->ifa.ifa_index)));
+					    , ipaddr->ifp->ifname);
 			netlink_ipaddress(ipaddr, IPADDRESS_DEL);
 			if (ipaddr->iptable_rule_set)
 				handle_iptable_rule_to_vip(ipaddr, IPADDRESS_DEL, h, false);

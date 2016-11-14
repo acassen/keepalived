@@ -88,19 +88,6 @@ if_get_by_ifindex(ifindex_t ifindex)
 
 /* Return base interface from interface index incase of VMAC */
 interface_t *
-base_if_get_by_ifindex(ifindex_t ifindex)
-{
-	interface_t *ifp = if_get_by_ifindex(ifindex);
-
-#ifdef _HAVE_VRRP_VMAC_
-	return (ifp && ifp->vmac) ? ifp->base_ifp : ifp;
-#else
-	return ifp;
-#endif
-}
-
-/* Return base interface from interface index incase of VMAC */
-interface_t *
 base_if_get_by_ifp(interface_t *ifp)
 {
 #ifdef _HAVE_VRRP_VMAC_

@@ -136,7 +136,6 @@ list garp_delay;
 
 /* prototypes */
 extern interface_t *if_get_by_ifindex(ifindex_t);
-extern interface_t *base_if_get_by_ifindex(ifindex_t);
 extern interface_t *base_if_get_by_ifp(interface_t *);
 extern interface_t *if_get_by_ifname(const char *);
 extern void set_base_ifp(void);

@@ -478,16 +478,18 @@ vrrp_open_sockpool(list l)
 {
 	sock_t *sock;
 	element e;
+	interface_t *ifp;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		sock = ELEMENT_DATA(e);
+		ifp = if_get_by_ifindex(sock->ifindex);
 		sock->fd_in = open_vrrp_read_socket(sock->family, sock->proto,
-					       sock->ifindex, sock->unicast);
+					       ifp, sock->unicast);
 		if (sock->fd_in == -1)
 			sock->fd_out = -1;
 		else
 			sock->fd_out = open_vrrp_send_socket(sock->family, sock->proto,
-							     sock->ifindex, sock->unicast);
+							     ifp, sock->unicast);
 	}
 }
 

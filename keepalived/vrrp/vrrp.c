@@ -1719,9 +1719,8 @@ chk_min_cfg(vrrp_t * vrrp)
 
 /* open a VRRP sending socket */
 int
-open_vrrp_send_socket(sa_family_t family, int proto, ifindex_t idx, bool unicast)
+open_vrrp_send_socket(sa_family_t family, int proto, interface_t *ifp, bool unicast)
 {
-	interface_t *ifp;
 	int fd = -1;
 
 	if (family != AF_INET && family != AF_INET6) {
@@ -1729,9 +1728,6 @@ open_vrrp_send_socket(sa_family_t family, int proto, ifindex_t idx, bool unicast
 				    , family);
 		return -1;
 	}
-
-	/* Retreive interface_t */
-	ifp = if_get_by_ifindex(idx);
 
 	/* Create and init socket descriptor */
 	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC, proto);
@@ -1771,13 +1767,9 @@ open_vrrp_send_socket(sa_family_t family, int proto, ifindex_t idx, bool unicast
 
 /* open a VRRP socket and join the multicast group. */
 int
-open_vrrp_read_socket(sa_family_t family, int proto, ifindex_t idx, bool unicast)
+open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unicast)
 {
-	interface_t *ifp;
 	int fd = -1;
-
-	/* Retreive interface_t */
-	ifp = if_get_by_ifindex(idx);
 
 	/* open the socket */
 	fd = socket(family, SOCK_RAW | SOCK_CLOEXEC, proto);
@@ -1833,7 +1825,7 @@ new_vrrp_socket(vrrp_t * vrrp)
 {
 	int old_fd = vrrp->fd_in;
 	int proto;
-	ifindex_t ifindex;
+	interface_t *ifp;
 	bool unicast;
 
 	/* close the desc & open a new one */
@@ -1846,14 +1838,14 @@ new_vrrp_socket(vrrp_t * vrrp)
 	else
 #endif
 		proto = IPPROTO_VRRP;
-	ifindex =
+	ifp =
 #ifdef _HAVE_VRRP_VMAC_
-		 (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? IF_BASE_INDEX(vrrp->ifp) :
+		 (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? vrrp->ifp->base_ifp :
 #endif
-									    IF_INDEX(vrrp->ifp);
+									    vrrp->ifp;
 	unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
-	vrrp->fd_in = open_vrrp_read_socket(vrrp->family, proto, ifindex, unicast);
-	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifindex, unicast);
+	vrrp->fd_in = open_vrrp_read_socket(vrrp->family, proto, ifp, unicast);
+	vrrp->fd_out = open_vrrp_send_socket(vrrp->family, proto, ifp, unicast);
 	alloc_vrrp_fd_bucket(vrrp);
 
 	/* Sync the other desc */
@@ -2514,7 +2506,7 @@ vrrp_complete_init(void)
 	element e_o;
 	element next;
 	vrrp_t *vrrp_o;
-	ifindex_t ifindex;
+	interface_t *ifp;
 	ifindex_t ifindex_o;
 	size_t max_mtu_len = 0;
 
@@ -2530,10 +2522,10 @@ vrrp_complete_init(void)
 		l_o = &vrrp_data->vrrp_index[vrrp->vrid];
 #ifdef _HAVE_VRRP_VMAC_
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-			ifindex = vrrp->ifp->base_ifp->ifindex;
+			ifp = vrrp->ifp->base_ifp;
 		else
 #endif
-			ifindex = vrrp->ifp->ifindex;
+			ifp = vrrp->ifp;
 
 		/* Check if any other entries with same vrid conflict */
 		if (!LIST_ISEMPTY(l_o) && LIST_SIZE(l_o) > 1) {
@@ -2549,9 +2541,9 @@ vrrp_complete_init(void)
 #endif
 						ifindex_o = vrrp_o->ifp->ifindex;
 
-					if (ifindex == ifindex_o)
+					if (ifp->ifindex == ifindex_o)
 					{
-						log_message(LOG_INFO, "VRID %d is duplicated on interface %s", vrrp->vrid, if_get_by_ifindex(ifindex)->ifname);
+						log_message(LOG_INFO, "VRID %d is duplicated on interface %s", vrrp->vrid, ifp->ifname);
 						return false;
 					}
 				}
