@@ -125,9 +125,9 @@ vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 #endif
 			/* As accept is false, add iptable rule to drop packets destinated to VIPs and eVIPs */
 			if (!LIST_ISEMPTY(vrrp->vip))
-				handle_iptable_rule_to_iplist(h, vrrp->vip, cmd, IF_NAME(vrrp->ifp), force);
+				handle_iptable_rule_to_iplist(h, vrrp->vip, cmd, force);
 			if (!LIST_ISEMPTY(vrrp->evip))
-				handle_iptable_rule_to_iplist(h, vrrp->evip, cmd, IF_NAME(vrrp->ifp), force);
+				handle_iptable_rule_to_iplist(h, vrrp->evip, cmd, force);
 #ifdef _HAVE_LIBIPTC_
 			res = iptables_close(h);
 		} while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
@@ -2558,7 +2558,7 @@ clear_diff_vrrp_vip_list(vrrp_t *vrrp, struct ipt_handle* h, list l, list n)
 
 	/* Clear iptable rule to VIP if needed. */
 	if (vrrp->base_priority == VRRP_PRIO_OWNER || vrrp->accept) {
-		handle_iptable_rule_to_iplist(h, n, IPADDRESS_DEL, IF_NAME(vrrp->ifp), false);
+		handle_iptable_rule_to_iplist(h, n, IPADDRESS_DEL, false);
 		vrrp->iptable_rules_set = false;
 	} else
 		vrrp->iptable_rules_set = true;
