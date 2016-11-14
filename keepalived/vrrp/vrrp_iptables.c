@@ -231,7 +231,7 @@ static int iptables_entry(struct ipt_handle* h, const char* chain_name, unsigned
 		if (!h->h4)
 			h->h4 = ip4tables_open ("filter");
 
-		res = ip4tables_process_entry( h->h4, chain_name, rulenum, target_name, src_ip_address, dst_ip_address, in_iface, out_iface, protocol, type, cmd, force);
+		res = ip4tables_process_entry(h->h4, chain_name, rulenum, target_name, src_ip_address, dst_ip_address, in_iface, out_iface, protocol, type, cmd, force);
 		if (!res)
 			h->updated_v4 = true ;
 		return res;
@@ -241,7 +241,7 @@ static int iptables_entry(struct ipt_handle* h, const char* chain_name, unsigned
 		if (!h->h6)
 			h->h6 = ip6tables_open ("filter");
 
-		res = ip6tables_process_entry( h->h6, chain_name, rulenum, target_name, src_ip_address, dst_ip_address, in_iface, out_iface, protocol, type, cmd, force);
+		res = ip6tables_process_entry(h->h6, chain_name, rulenum, target_name, src_ip_address, dst_ip_address, in_iface, out_iface, protocol, type, cmd, force);
 		if (!res)
 			h->updated_v6 = true;
 		return res;
@@ -251,10 +251,16 @@ static int iptables_entry(struct ipt_handle* h, const char* chain_name, unsigned
 }
 
 static void
-handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname, void *h, bool force)
+handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, void *h, bool force)
 {
+
+	char *ifname = NULL;
+
 	if (global_data->vrrp_iptables_inchain[0] == '\0')
 		return;
+
+	if (IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr))
+		ifname = ipaddress->ifp->ifname;
 
 	iptables_entry(h, global_data->vrrp_iptables_inchain, APPEND_RULE,
 			XTC_LABEL_ACCEPT, NULL, ipaddress, ifname, NULL,
@@ -275,9 +281,9 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname, void *
 }
 
 void
-handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, struct ipt_handle *h, bool force)
+handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, struct ipt_handle *h, bool force)
 {
-	char *my_ifname = NULL;
+	char *ifname = NULL;
 
 	if (!use_iptables)
 		return;
@@ -291,7 +297,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, struc
 		if (!h->session)
 			h->session = ipset_session_start();
 
-		ipset_entry(h->session, cmd, ipaddress, ifname);
+		ipset_entry(h->session, cmd, ipaddress);
 		ipaddress->iptable_rule_set = (cmd != IPADDRESS_DEL);
 
 		return;
@@ -300,13 +306,12 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, struc
 
 	if (IP_IS6(ipaddress)) {
 		if (IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr))
-			my_ifname = ifname;
-
-		handle_iptable_rule_to_NA(ipaddress, cmd, my_ifname, h, force);
+			ifname = ipaddress->ifp->ifname;
+		handle_iptable_rule_to_NA(ipaddress, cmd, h, force);
 	}
 
 	iptables_entry(h, global_data->vrrp_iptables_inchain, APPEND_RULE,
-			XTC_LABEL_DROP, NULL, ipaddress, my_ifname, NULL,
+			XTC_LABEL_DROP, NULL, ipaddress, ifname, NULL,
 			IPPROTO_NONE, 0, cmd, force);
 
 	ipaddress->iptable_rule_set = (cmd != IPADDRESS_DEL);
@@ -315,7 +320,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, struc
 		return;
 
 	iptables_entry(h, global_data->vrrp_iptables_outchain, APPEND_RULE,
-			XTC_LABEL_DROP, ipaddress, NULL, NULL, my_ifname,
+			XTC_LABEL_DROP, ipaddress, NULL, NULL, ifname,
 			IPPROTO_NONE, 0, cmd, force);
 }
 

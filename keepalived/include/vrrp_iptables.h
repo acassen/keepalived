@@ -43,6 +43,6 @@ void iptables_startup(bool);
 void iptables_cleanup(void);
 struct ipt_handle *iptables_open(void);
 int iptables_close(struct ipt_handle *h);
-void handle_iptable_rule_to_vip(ip_address_t *, int, char *, struct ipt_handle *, bool);
+void handle_iptable_rule_to_vip(ip_address_t *, int, struct ipt_handle *, bool);
 
 #endif
