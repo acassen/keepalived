@@ -322,6 +322,12 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 	if (!vrrp->ifp)
 		return -1;
 
+	/* Make sure we don't remove a real interface */
+	if (!vrrp->ifp->vmac) {
+		log_message(LOG_INFO, "BUG - Attempting to remove non VMAC i/f %s", vrrp->ifp->ifname);
+		return -1;
+	}
+
 	/* Reset arp_ignore and arp_filter on the base interface if necessary */
 	if (vrrp->family == AF_INET) {
 		if (vrrp->ifp->base_ifp)
