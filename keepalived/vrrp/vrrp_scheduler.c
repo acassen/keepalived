@@ -215,7 +215,7 @@ vrrp_init_state(list l)
 
 		is_up = (VRRP_ISUP(vrrp) && (!vrrp->sync || GROUP_STATE(vrrp->sync) != VRRP_STATE_FAULT));
 		if (is_up &&
-//		    vrrp->base_priority == VRRP_PRIO_OWNER &&
+		    vrrp->base_priority == VRRP_PRIO_OWNER &&
 		    vrrp->init_state == VRRP_STATE_MAST) {
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
@@ -231,7 +231,6 @@ vrrp_init_state(list l)
 			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
 			vrrp->state = VRRP_STATE_MAST;
-			log_message(LOG_INFO, "VRRP_Instance(%s) Entering MASTER STATE", vrrp->iname);
 		} else {
 			if (new_state == VRRP_STATE_BACK && vrrp->init_state == VRRP_STATE_MAST)
 				vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
@@ -281,7 +280,7 @@ vrrp_init_sands(list l)
 		vrrp = ELEMENT_DATA(e);
 
 // TODO 1 this is probably not the right way of bringing up the address owner immediately
-		if (vrrp->base_priority != VRRP_PRIO_OWNER)
+		if (vrrp->base_priority != VRRP_PRIO_OWNER || vrrp->init_state != VRRP_STATE_MAST)
 			vrrp_init_instance_sands(vrrp);
 		else
 			vrrp->sands = timer_now();
@@ -698,6 +697,10 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 	bool increasing_priority;
 	uint32_t old_down_timer;
 
+	/* Don't change priority if address owner */
+	if (vrrp->base_priority == VRRP_PRIO_OWNER)
+		return;
+
 	if (vrrp->total_priority < 1)
 		new_prio = 1;
 	else if (vrrp->total_priority >= VRRP_PRIO_OWNER)
@@ -725,7 +728,7 @@ static void
 vrrp_master(vrrp_t * vrrp)
 {
 	/* Send the VRRP advert */
-	vrrp_state_master_tx(vrrp, 0);
+	vrrp_state_master_tx(vrrp);
 }
 
 void

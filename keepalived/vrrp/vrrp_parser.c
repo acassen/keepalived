@@ -240,9 +240,13 @@ vrrp_state_handler(vector_t *strvec)
 	{
 		if (vrrp->init_state == VRRP_STATE_MAST)
 			log_message(LOG_INFO, "(%s): state previously set as MASTER - ignoring BACKUP", vrrp->iname);
+		else
+			vrrp->init_state = VRRP_STATE_BACK;
 	}
-	else
+	else {
 		log_message(LOG_INFO,"(%s): unknown state '%s', defaulting to BACKUP", vrrp->iname, str);
+		vrrp->init_state = VRRP_STATE_BACK;
+	}
 }
 static void
 vrrp_int_handler(vector_t *strvec)

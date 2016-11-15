@@ -1252,14 +1252,7 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 		return;
 
 	vrrp->state = VRRP_STATE_MAST;
-	vrrp_state_master_tx(vrrp, vrrp->effective_priority);
-
-	if (vrrp->sync) {
-		// TODO - we should wiz all other members of the group to master
-		// TODO - we should wiz all other members down if instances becomes backup/fault
-		// TODO - when does GOTO_MASTER get cleared?
-		// TODO - is wantstate just for indicating for sync group? - No, it is for what to do next time
-	}
+	vrrp_state_master_tx(vrrp);
 }
 
 /* leaving master state */
@@ -1488,7 +1481,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 
 /* MASTER state processing */
 void
-vrrp_state_master_tx(vrrp_t * vrrp, const int prio)
+vrrp_state_master_tx(vrrp_t * vrrp)
 {
 	if (!VRRP_VIP_ISSET(vrrp)) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) Entering MASTER STATE"
@@ -1508,10 +1501,7 @@ vrrp_state_master_tx(vrrp_t * vrrp, const int prio)
 		vrrp->garp_refresh_timer = timer_add_now(vrrp->garp_refresh);
 	}
 
-// TODO - why can't we use effective_priority if owner?
-	vrrp_send_adv(vrrp,
-		      (prio == VRRP_PRIO_OWNER) ? VRRP_PRIO_OWNER :
-						  vrrp->effective_priority);
+	vrrp_send_adv(vrrp, vrrp->effective_priority);
 }
 
 static int
