@@ -1144,7 +1144,6 @@ vrrp_send_link_update(vrrp_t * vrrp, unsigned rep)
 	if (!VRRP_VIP_ISSET(vrrp))
 		return;
 
-log_message(LOG_INFO, "In vrrp_Send_link_update()");
 	/* send gratuitous arp for each virtual ip */
 	for (j = 0; j < rep; j++) {
 		if (!LIST_ISEMPTY(vrrp->vip)) {
