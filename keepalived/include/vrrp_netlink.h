@@ -66,6 +66,7 @@ extern nl_handle_t nl_cmd;	/* Command channel */
 extern int netlink_error_ignore; /* If we get this error, ignore it */
 
 /* prototypes */
+extern void netlink_set_recv_buf_size(void);
 extern int addattr_l(struct nlmsghdr *, size_t, unsigned short, void *, size_t);
 extern int addattr8(struct nlmsghdr *, size_t, unsigned short, uint8_t);
 extern int addattr32(struct nlmsghdr *, size_t, unsigned short, uint32_t);

@@ -46,6 +46,7 @@
 #include "namespaces.h"
 #endif
 #include "scheduler.h"
+#include "vrrp_netlink.h"
 
 #define	LOG_FACILITY_MAX	7
 #define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" VERSION_DATE ")"
@@ -878,6 +879,8 @@ keepalived_main(int argc, char **argv)
 
 	/* Handle any core file requirements */
 	core_dump_init();
+
+	netlink_set_recv_buf_size();
 
 	/* Some functionality depends on kernel version, so get the version here */
 	if (uname(&uname_buf))

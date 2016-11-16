@@ -60,6 +60,23 @@ int netlink_error_ignore; /* If we get this error, ignore it */
 
 /* Static vars */
 static nl_handle_t nl_kernel;	/* Kernel reflection channel */
+static size_t nlmsg_buf_size;	/* Size of netlink message buffer */
+
+void
+netlink_set_recv_buf_size(void)
+{
+	/* The size of the read buffer for the NL socket is based on page
+	 * size however, it should not exceed 8192. See the comment in:
+	 * linux/include/linux/netlink.h (copied below):
+	 * skb should fit one page. This choice is good for headerless malloc.
+	 * But we should limit to 8K so that userspace does not have to
+	 * use enormous buffer sizes on recvmsg() calls just to avoid
+	 * MSG_TRUNC when PAGE_SIZE is very large.
+	 */
+	nlmsg_buf_size = getpagesize();
+	if (nlmsg_buf_size > 8192)
+		nlmsg_buf_size = 8192;
+}
 
 /* Create a socket to netlink interface_t */
 static int
@@ -517,7 +534,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 	int error;
 
 	while (1) {
-		char buf[4096];
+		char buf[nlmsg_buf_size];
 		struct iovec iov = {
 			.iov_base = buf,
 			.iov_len = sizeof buf
