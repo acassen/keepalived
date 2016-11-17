@@ -103,6 +103,11 @@ global_defs {				# Block identification
     vrrp_iptables [keepalived_in [keepalived_out]]     # default INPUT
 					   # Specifies the iptables chains to add entries to
 					   # If no table names are specied, no entries are added
+    vrrp_ipsets ipset4 [ipset6 [ipset_if6]] # Set the ipset set names to use. If no names are specied,
+					   #   ipsets will not be used.
+					   # If ipset6 is not specified, '6' as appended to the ipset4 name
+					   #   if ipset_if6 is not specified, any trailing '6' from ipset6
+					   #   is removed and '_if6' appended
     vrrp_check_unicast_src		   # Check source address of a unicast packet is a
 					   # unicast peer
     vrrp_strict				   # Enforce strict VRRP protocol compliance. This will prohibit:
@@ -111,6 +116,7 @@ global_defs {				# Block identification
 					   #   IPv6 addresses in VRRP version 2
 					   # Sets:
 					   #   vrrp_lower_priority_dont_send_advert
+					   #
 					   # The following 4 options can be used if vrrp or checker processes
 					   #   are timing out. This can be seen by a backup vrrp instance becoming
 					   #   master even when the master is still running, due to the master or
@@ -143,7 +149,8 @@ net_namespace NAME			   # Set the network namespace to run in
 					   # Note: the namespace cannot be changed on a configuration reload
 namespace_with_ipsets			   # ipsets wasn't network namespace aware until Linux 3.13, and so if running with
 					   # an earlier version of the kernel, by default use of ipsets is disabled if using
-					   # a namespace. This options overrides the default and allows ipsets to be used
+					   # a namespace and vrrp_ipsets isn't specified.
+					   # This options overrides the default and allows ipsets to be used
 					   # with a namespace on kernels prior to 3.13.
 
 instance NAME				   # If multiple instances of keepalived are run in the same namespace, this will

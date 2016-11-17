@@ -144,7 +144,7 @@ and
  # If no names are specified, ipsets will not be used, otherwise any omitted
  # names will be constructed by adding "_if" and/or "6" to previously specified
  # names.
- vrrp_ipset [keepalived [keepalived_if [keepalived6 [keepalived_if6]]]]
+ vrrp_ipset [keepalived [keepalived6 [keepalived_if6]]]
 
  # The following enables checking that when in unicast mode, the source
  # address of a VRRP packet is one of our unicast peers.
@@ -194,8 +194,8 @@ and
                               # Note: the namespace cannot be changed on a configuration reload
  namespace_with_ipsets        # ipsets wasn't network namespace aware until Linux 3.13, and so if running with
                               # an earlier version of the kernel, by default use of ipsets is disabled if using
-                              # a namespace. This options overrides the default and allows ipsets to be used
-                              # with a namespace on kernels prior to 3.13.
+                              # a namespace and vrrp_ipsets has not been specified. This options overrides the
+                              # default and allows ipsets to be used with a namespace on kernels prior to 3.13.
 
  instance NAME                # If multiple instances of keepalived are run in the same namespace, this will
                               #   create pid files with NAME as part of the file names, in /var/run/keepalived.
