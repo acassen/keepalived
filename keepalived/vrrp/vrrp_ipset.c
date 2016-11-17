@@ -180,11 +180,12 @@ bool ipset_init(void)
 		return true;
 
 #if HAVE_DECL_CLONE_NEWNET
-	/* Don't attempt to use ipsets if running in a namespace and kernel
-	 * version is less than 3.13, since ipsets didn't understand namespaces
-	 * prior to that. */
+	/* Don't attempt to use ipsets if running in a namespace and the default
+	 * set names have not been overridden and the kernel version is less
+	 * than 3.13, since ipsets didn't understand namespaces prior to that. */
 	if (network_namespace &&
 	    !namespace_with_ipsets &&
+	    !strcmp(global_data->vrrp_ipset_address, "keepalived") &&
 	    (os_major <= 2 ||
 	     (os_major == 3 && os_minor < 13))) {
 		log_message(LOG_INFO, "Not using ipsets with network namespace since not supported with kernel version < 3.13");
