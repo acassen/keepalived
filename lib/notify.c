@@ -81,6 +81,10 @@ notify_exec(char *cmd)
 	if (pid)
 		return 0;
 
+#ifdef _MEM_CHECK_
+        skip_mem_dump();
+#endif
+
 	script_setup();
 
 	system_call(cmd);
@@ -110,6 +114,10 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 	}
 
 	/* Child part */
+#ifdef _MEM_CHECK_
+        skip_mem_dump();
+#endif
+
 	setpgid(0, 0);
 
 	script_setup();
