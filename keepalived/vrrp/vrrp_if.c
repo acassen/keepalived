@@ -388,6 +388,7 @@ dump_if(void *data)
 	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 	log_message(LOG_INFO, " IPv6 address = %s", addr_str);
 
+	mac_ptr[0] = '\0';
 	for (i = 0; i < ifp->hw_addr_len; i++)
 		mac_ptr += sprintf(mac_ptr, "%s%.2x", i ? ":" : "", ifp->hw_addr[i]);
 	log_message(LOG_INFO, " MAC = %s", mac_str);
