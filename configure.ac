@@ -422,8 +422,8 @@ AC_CHECK_DECLS([RTA_VIA, FRA_OIFNAME], [], [],
     #include <sys/socket.h>
     #include <linux/fib_rules.h>]])
 for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF RTA_VIA FRA_OIFNAME FRA_SUPPRESS_PREFIXLEN FRA_SUPPRESS_IFGROUP FRA_TUN_ID RTAX_CC_ALGO RTAX_QUICKACK; do
-  decl_var=ac_cv_have_decl_$flag
-  if test ${!decl_var} = yes; then
+  AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
+  if test ${decl_var} = yes; then
     add_build_opt[${flag}]
   fi
 done
