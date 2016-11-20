@@ -395,7 +395,7 @@ handle_method_call(__attribute__((unused)) GDBusConnection *connection,
 		}
 		else if (g_strcmp0(method_name, "DestroyInstance") == 0) {
 // TODO - this should be on the instance
- 			ent.action = DBUS_DESTROY_INSTANCE;
+			ent.action = DBUS_DESTROY_INSTANCE;
 			ent.args = parameters;
 			process_method_call(&ent);
 

@@ -709,7 +709,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* we have to save errno here because the next syscalls will set it */
 	old_errno = errno;
 
-       /* Handle SNMP stuff */
+	/* Handle SNMP stuff */
 #ifdef _WITH_SNMP_
 	if (ret > 0)
 		snmp_read(&readfd);

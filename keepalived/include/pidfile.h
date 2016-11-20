@@ -37,7 +37,7 @@
 #define KEEPALIVED_PID_DIR	PID_DIR PACKAGE "/"
 #define KEEPALIVED_PID_FILE	PACKAGE
 #define VRRP_PID_FILE		"vrrp"
-#define CHECKERS_PID_FILE 	"checkers"
+#define CHECKERS_PID_FILE	"checkers"
 #define	PID_EXTENSION		".pid"
 
 extern const char *pid_directory;

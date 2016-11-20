@@ -158,8 +158,8 @@ dump_vscript(void *data)
 	log_message(LOG_INFO, "   Weight = %d", vscript->weight);
 	log_message(LOG_INFO, "   Rise = %d", vscript->rise);
 	log_message(LOG_INFO, "   Fall = %d", vscript->fall);
-        log_message(LOG_INFO, "   Insecure = %s", vscript->insecure ? "yes" : "no");
-        log_message(LOG_INFO, "   Executable = %s", vscript->executable ? "yes" : "no");
+	log_message(LOG_INFO, "   Insecure = %s", vscript->insecure ? "yes" : "no");
+	log_message(LOG_INFO, "   Executable = %s", vscript->executable ? "yes" : "no");
 
 	switch (vscript->result) {
 	case VRRP_SCRIPT_STATUS_INIT:

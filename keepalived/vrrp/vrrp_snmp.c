@@ -1070,8 +1070,8 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 			break;
 		long_ret.u = 
 			route->pref == ICMPV6_ROUTER_PREF_LOW ? 1 :
-                        route->pref == ICMPV6_ROUTER_PREF_MEDIUM ? 2 :
-                        route->pref == ICMPV6_ROUTER_PREF_HIGH ? 3 : 0;
+			route->pref == ICMPV6_ROUTER_PREF_MEDIUM ? 2 :
+			route->pref == ICMPV6_ROUTER_PREF_HIGH ? 3 : 0;
 		return (u_char *)&long_ret;
 #endif
 	case VRRP_SNMP_ROUTE_REALM_DST:
