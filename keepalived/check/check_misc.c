@@ -137,6 +137,7 @@ check_check_script_security(void)
 	checker_t *checker;
 	misc_checker_t *misc_script;
 	int script_flags = 0;
+	int flags;
 	notify_script_t script;
 
 	if (LIST_ISEMPTY(checkers_queue))
@@ -153,18 +154,18 @@ check_check_script_security(void)
 		script.uid = misc_script->uid;
 		script.gid = misc_script->gid;
 
-		script_flags |= check_script_secure(&script, global_data->script_security);
+		script_flags |= (flags = check_script_secure(&script, global_data->script_security));
 
 		/* Mark not to run if needs inhibiting */
-		if (script_flags & SC_INHIBIT) {
+		if (flags & SC_INHIBIT) {
 			log_message(LOG_INFO, "Disabling misc script %s due to insecure", misc_script->path);
 			misc_script->insecure = true;
 		}
-		else if (script_flags & SC_NOTFOUND) {
+		else if (flags & SC_NOTFOUND) {
 			log_message(LOG_INFO, "Disabling misc script %s since not found", misc_script->path);
 			misc_script->insecure = true;
 		}
-		else if (script_flags & SC_EXECUTABLE)
+		else if (flags & SC_EXECUTABLE)
 			misc_script->executable = true;
 	}
 
