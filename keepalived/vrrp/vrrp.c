@@ -150,7 +150,7 @@ check_track_script_secure(tracked_sc_t *script)
 	ns.uid = script->scr->uid;
 	ns.gid = script->scr->gid;
 
-	flags = check_script_secure(&ns, global_data->script_security);
+	flags = check_script_secure(&ns, global_data->script_security, false);
 
 	/* Mark not to run if needs inhibiting */
 	if (flags & SC_INHIBIT) {
@@ -168,7 +168,7 @@ check_track_script_secure(tracked_sc_t *script)
 }
 
 static int
-check_notify_script_secure(notify_script_t **script_p)
+check_notify_script_secure(notify_script_t **script_p, bool full_string)
 {
 	int flags;
 	notify_script_t *script = *script_p;
@@ -176,7 +176,7 @@ check_notify_script_secure(notify_script_t **script_p)
 	if (!script)
 		return 0;
 
-	flags = check_script_secure(script, global_data->script_security);
+	flags = check_script_secure(script, global_data->script_security, full_string);
 
 	/* Mark not to run if needs inhibiting */
 	if (flags & SC_INHIBIT) {
@@ -208,11 +208,11 @@ check_vrrp_script_security(void)
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-		script_flags |= check_notify_script_secure(&vrrp->script_backup);
-		script_flags |= check_notify_script_secure(&vrrp->script_master);
-		script_flags |= check_notify_script_secure(&vrrp->script_fault);
-		script_flags |= check_notify_script_secure(&vrrp->script_stop);
-		script_flags |= check_notify_script_secure(&vrrp->script);
+		script_flags |= check_notify_script_secure(&vrrp->script_backup, false);
+		script_flags |= check_notify_script_secure(&vrrp->script_master, false);
+		script_flags |= check_notify_script_secure(&vrrp->script_fault, false);
+		script_flags |= check_notify_script_secure(&vrrp->script_stop, false);
+		script_flags |= check_notify_script_secure(&vrrp->script, true);
 
 		if (LIST_ISEMPTY(vrrp->track_script))
 			continue;
@@ -225,10 +225,10 @@ check_vrrp_script_security(void)
 
 	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
 		sg = ELEMENT_DATA(e);
-		script_flags |= check_notify_script_secure(&sg->script_backup);
-		script_flags |= check_notify_script_secure(&sg->script_master);
-		script_flags |= check_notify_script_secure(&sg->script_fault);
-		script_flags |= check_notify_script_secure(&sg->script);
+		script_flags |= check_notify_script_secure(&sg->script_backup, false);
+		script_flags |= check_notify_script_secure(&sg->script_master, false);
+		script_flags |= check_notify_script_secure(&sg->script_fault, false);
+		script_flags |= check_notify_script_secure(&sg->script, true);
 	}
 
 	if (!global_data->script_security && script_flags & SC_ISSCRIPT) {

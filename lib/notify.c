@@ -182,7 +182,7 @@ script_killall(thread_master_t *m, int signo)
 }
 
 int
-check_script_secure(notify_script_t *script, bool script_security)
+check_script_secure(notify_script_t *script, bool script_security, bool full_string)
 {
 	int flags;
 	char *slash;
@@ -197,21 +197,32 @@ check_script_secure(notify_script_t *script, bool script_security)
 	flags = SC_ISSCRIPT;
 
 	while (next) {
-		slash = strchr(next, '/');
-
-		/* If there are multiple consecutive '/'s, don't check subsequent ones */
-		if (slash && slash > script->name && slash[-1] == '/')
-			continue;
+		slash = next + strcspn(next, "/ ");
+		if (*slash)
+			next = slash + 1;
+		else {
+			slash = NULL;
+			next = NULL;
+		}
 
 		if (slash) {
-			next = slash + 1;
+			/* If full_string, then file name can contain spaces, otherwise it terminates the command */
+			if (*slash == ' ') {
+				if (full_string)
+					continue;
+				next = NULL;
+			}
+
+			/* If there are multiple consecutive '/'s, don't check subsequent ones */
+			if (slash > script->name && slash[-1] == '/')
+				continue;
+
+			/* We want to check '/' for first time around */
 			if (slash == script->name)
 				slash++;
 			sav = *slash;
 			*slash = 0;
 		}
-		else
-			next = NULL;
 
 		ret = stat(script->name, &buf);
 
@@ -240,7 +251,7 @@ check_script_secure(notify_script_t *script, bool script_security)
 				flags |= SC_INHIBIT;
 		}
 
-		if (!slash) {
+		if (!slash || (!full_string && *slash == ' ')) {
 			/* We have the final file. Check if it is executable. */
 			if (((script->uid == 0 || script->uid == buf.st_uid) && buf.st_mode & S_IXUSR) ||
 			    ((script->uid == 0 || script->uid != buf.st_uid) && (script->gid == 0 || script->gid == buf.st_gid) && buf.st_mode & S_IXGRP) ||
