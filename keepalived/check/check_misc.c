@@ -65,7 +65,6 @@ dump_misc_check(void *data)
 	log_message(LOG_INFO, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
 	log_message(LOG_INFO, "   uid:gid = %d:%d", misck_checker->uid, misck_checker->gid);
 	log_message(LOG_INFO, "   executable = %s", misck_checker->executable ? "Yes" : "No");
-	log_message(LOG_INFO, "   insecure = %s", misck_checker->insecure ? "Yes" : "No");
 }
 
 static void
@@ -133,17 +132,19 @@ install_misc_check_keyword(void)
 void
 check_check_script_security(void)
 {
-	element e;
+	element e, next;
 	checker_t *checker;
 	misc_checker_t *misc_script;
 	int script_flags = 0;
 	int flags;
 	notify_script_t script;
+	bool insecure;
 
 	if (LIST_ISEMPTY(checkers_queue))
 		return;
 
-	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
+	for (e = LIST_HEAD(checkers_queue); e; e = next) {
+		next = e->next;
 		checker = ELEMENT_DATA(e);
 
 		if (checker->launch != misc_check_thread)
@@ -157,16 +158,23 @@ check_check_script_security(void)
 		script_flags |= (flags = check_script_secure(&script, global_data->script_security));
 
 		/* Mark not to run if needs inhibiting */
+		insecure = false;
 		if (flags & SC_INHIBIT) {
 			log_message(LOG_INFO, "Disabling misc script %s due to insecure", misc_script->path);
-			misc_script->insecure = true;
+			insecure = true;
 		}
 		else if (flags & SC_NOTFOUND) {
 			log_message(LOG_INFO, "Disabling misc script %s since not found", misc_script->path);
-			misc_script->insecure = true;
+			insecure = true;
 		}
 		else if (flags & SC_EXECUTABLE)
 			misc_script->executable = true;
+
+		if (insecure) {
+			/* Remove the script */
+log_message(LOG_INFO, "Removing misc script %s", misc_script->path);
+			free_list_element(checkers_queue, e);
+		}
 	}
 
 	if (!global_data->script_security && script_flags & SC_ISSCRIPT) {
@@ -183,11 +191,6 @@ misc_check_thread(thread_t * thread)
 
 	checker = THREAD_ARG(thread);
 	misck_checker = CHECKER_ARG(checker);
-
-	/* If the script has been identified as insecure, don't execute it.
-	 * To stop attempting to execute it again, don't re-add the timer. */
-	if (misck_checker->insecure)
-		return 0;
 
 	/*
 	 * Register a new checker thread & return

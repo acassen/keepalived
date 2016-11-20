@@ -236,7 +236,7 @@ check_script_secure(notify_script_t *script, bool script_security)
 		       buf.st_mode & S_IWOTH)))) {		/* World has write permission */
 			log_message(LOG_INFO, "Unsafe permissions found for script '%s' executed by root.", script->name);
 			flags |= SC_INSECURE;
-			if (script_security && flags & SC_INSECURE)
+			if (script_security)
 				flags |= SC_INHIBIT;
 		}
 

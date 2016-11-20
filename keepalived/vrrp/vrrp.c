@@ -47,6 +47,7 @@
 #ifdef _WITH_SNMP_
 #include "vrrp_snmp.h"
 #endif
+
 #include "memory.h"
 #include "list.h"
 #include "logger.h"
@@ -198,11 +199,13 @@ check_notify_script_secure(notify_script_t **script_p)
 static void
 check_vrrp_script_security(void)
 {
-	element e, e1;
+	element e, e1, next;
 	vrrp_t *vrrp;
 	vrrp_sgroup_t *sg;
 	tracked_sc_t *track_script;
+	vrrp_script_t *vscript;
 	int script_flags = 0;
+	int flags;
 
 	if (LIST_ISEMPTY(vrrp_data->vrrp))
 		return;
@@ -219,9 +222,17 @@ check_vrrp_script_security(void)
 		if (LIST_ISEMPTY(vrrp->track_script))
 			continue;
 
-		for (e1 = LIST_HEAD(vrrp->track_script); e1; ELEMENT_NEXT(e1)) {
+		for (e1 = LIST_HEAD(vrrp->track_script); e1; e1 = next) {
+			next = e1->next;
 			track_script = ELEMENT_DATA(e1);
-			script_flags |= check_track_script_secure(track_script);
+			script_flags |= (flags = check_track_script_secure(track_script));
+log_message(LOG_INFO, "Checking track script %s for %s returned 0x%x", track_script->scr->sname, vrrp->iname, flags);
+
+			if (track_script->scr->insecure) {
+				/* Remove it from the vrrp instance's queue */
+log_message(LOG_INFO, "Removing track script %s from %s", track_script->scr->sname, vrrp->iname);
+				free_list_element(vrrp->track_script, e1);
+			}
 		}
 	}
 
@@ -236,6 +247,20 @@ check_vrrp_script_security(void)
 	if (!global_data->script_security && script_flags & SC_ISSCRIPT) {
 		log_message(LOG_INFO, "SECURITY VIOLATION - scripts are being executed but script_security not enabled.%s",
 				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
+	}
+
+	/* Now walk through the vrrp_script list, removing any that aren't used */
+	for (e = LIST_HEAD(vrrp_data->vrrp_script); e; e = next) {
+		next = e->next;
+		vscript = ELEMENT_DATA(e);
+
+		if (vscript->insecure) {
+log_message(LOG_INFO, "Removing tracking script %s%s%s",
+	vscript->sname,
+	vscript->insecure ? ", insecure" : "",
+	vscript->result == VRRP_SCRIPT_STATUS_DISABLED ? ", unused" : "");
+			free_list_element(vrrp_data->vrrp_script, e);
+		}
 	}
 }
 

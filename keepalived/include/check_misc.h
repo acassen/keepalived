@@ -40,7 +40,6 @@ typedef struct _misc_checker {
 	bool			forcing_termination; /* Set if we have sent the process a SIGTERM */
 	uid_t			uid;		/* uid for script execution */
 	gid_t			gid;		/* gid for script execution */
-	bool			insecure;	/* script is insecure */
 	bool			executable;	/* script is executable for uid:gid */
 } misc_checker_t;
 
