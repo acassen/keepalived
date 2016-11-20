@@ -808,7 +808,7 @@ garp_group_interfaces_handler(vector_t *strvec)
 {
 	garp_delay_t *delay = LIST_TAIL_DATA(garp_delay);
 	interface_t *ifp;
-        vector_t *interface_vec = read_value_block(strvec);
+	vector_t *interface_vec = read_value_block(strvec);
 	size_t i;
 	garp_delay_t *gd;
 	element e;
@@ -821,7 +821,7 @@ garp_group_interfaces_handler(vector_t *strvec)
 			delay->aggregation_group++;
 	}
 
-        for (i = 0; i < vector_size(interface_vec); i++) {
+	for (i = 0; i < vector_size(interface_vec); i++) {
 		ifp = if_get_by_ifname(vector_slot(interface_vec, i));
 		if (!ifp) {
 			log_message(LOG_INFO, "Unknown interface %s specified for garp_group - ignoring", FMT_STR_VSLOT(interface_vec, i));
@@ -842,7 +842,7 @@ garp_group_interfaces_handler(vector_t *strvec)
 		ifp->garp_delay = delay;
 	}
 
-        free_strvec(interface_vec);
+	free_strvec(interface_vec);
 }
 
 void

@@ -213,9 +213,9 @@ typedef struct _ip_route {
 	bool			set;
 } ip_route_t;
 
-#define IPROUTE_DEL 	0
-#define IPROUTE_ADD 	1
-#define IPROUTE_REPLACE 2
+#define IPROUTE_DEL	0
+#define IPROUTE_ADD	1
+#define IPROUTE_REPLACE	2
 
 /* prototypes */
 extern unsigned short add_addr2req(struct nlmsghdr *, size_t, unsigned short, ip_address_t *);

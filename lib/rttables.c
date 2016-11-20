@@ -70,40 +70,40 @@ static rt_entry_t rtntypes[] = {
 };
 
 static rt_entry_t rtprot_default[] = {
-        { RTPROT_UNSPEC, "none"},
-        { RTPROT_REDIRECT, "redirect"},
-        { RTPROT_KERNEL, "kernel"},
-        { RTPROT_BOOT, "boot"},
-        { RTPROT_STATIC, "static"},
+	{ RTPROT_UNSPEC, "none"},
+	{ RTPROT_REDIRECT, "redirect"},
+	{ RTPROT_KERNEL, "kernel"},
+	{ RTPROT_BOOT, "boot"},
+	{ RTPROT_STATIC, "static"},
 
-        { RTPROT_GATED, "gated"},
-        { RTPROT_RA, "ra"},
-        { RTPROT_MRT, "mrt"},
-        { RTPROT_ZEBRA, "zebra"},
-        { RTPROT_BIRD, "bird"},
+	{ RTPROT_GATED, "gated"},
+	{ RTPROT_RA, "ra"},
+	{ RTPROT_MRT, "mrt"},
+	{ RTPROT_ZEBRA, "zebra"},
+	{ RTPROT_BIRD, "bird"},
 #ifdef RTPROT_BABEL		/* Since Linux 3.19 */
-        { RTPROT_BABEL, "babel"},
+	{ RTPROT_BABEL, "babel"},
 #endif
-        { RTPROT_DNROUTED, "dnrouted"},
-        { RTPROT_XORP, "xorp"},
-        { RTPROT_NTK, "ntk"},
-        { RTPROT_DHCP, "dhcp"},
+	{ RTPROT_DNROUTED, "dnrouted"},
+	{ RTPROT_XORP, "xorp"},
+	{ RTPROT_NTK, "ntk"},
+	{ RTPROT_DHCP, "dhcp"},
 	{ 0, NULL},
 };
 
 static rt_entry_t rtscope_default[] = {
-        { RT_SCOPE_UNIVERSE, "global"},
-        { RT_SCOPE_NOWHERE, "nowhere"},
-        { RT_SCOPE_HOST, "host"},
-        { RT_SCOPE_LINK, "link"},
-        { RT_SCOPE_SITE, "site"},
+	{ RT_SCOPE_UNIVERSE, "global"},
+	{ RT_SCOPE_NOWHERE, "nowhere"},
+	{ RT_SCOPE_HOST, "host"},
+	{ RT_SCOPE_LINK, "link"},
+	{ RT_SCOPE_SITE, "site"},
 	{ 0, NULL},
 };
 
 static rt_entry_t rttable_default[] = {
-        { RT_TABLE_DEFAULT, "default"},
-        { RT_TABLE_MAIN, "main"},
-        { RT_TABLE_LOCAL, "local"},
+	{ RT_TABLE_DEFAULT, "default"},
+	{ RT_TABLE_MAIN, "main"},
+	{ RT_TABLE_LOCAL, "local"},
 	{ 0, NULL},
 };
 

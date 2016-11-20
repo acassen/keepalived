@@ -223,7 +223,7 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 
 #define VS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&&\
 			 (X)->vfwmark                 == (Y)->vfwmark			&&\
-			 (X)->af                      == (Y)->af                        &&\
+			 (X)->af                      == (Y)->af			&&\
 			 (X)->service_type            == (Y)->service_type		&&\
 			 (X)->loadbalancing_kind      == (Y)->loadbalancing_kind	&&\
 			 (X)->persistence_granularity == (Y)->persistence_granularity	&&\
@@ -234,7 +234,7 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			    ((X)->quorum_down && (Y)->quorum_down && !strcmp ((X)->quorum_down->name, (Y)->quorum_down->name)) \
 			 ) &&\
 			 !strcmp((X)->sched, (Y)->sched)				&&\
-			 (X)->persistence_timeout     == (Y)->persistence_timeout 	&&\
+			 (X)->persistence_timeout     == (Y)->persistence_timeout	&&\
 			 (((X)->vsgname && (Y)->vsgname &&				\
 			   !strcmp((X)->vsgname, (Y)->vsgname)) ||			\
 			  (!(X)->vsgname && !(Y)->vsgname)))

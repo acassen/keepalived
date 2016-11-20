@@ -325,19 +325,19 @@ vrrp_print(FILE *file, void *data)
 		vrrp_print_list(file, vrrp->vrules, &rule_print);
 	}
 #endif
- 	if (vrrp->script_backup)
+	if (vrrp->script_backup)
 		fprintf(file, "   Backup state transition script = %s, uid:gid %d:%d\n",
 				vrrp->script_backup->name, vrrp->script_backup->uid, vrrp->script_backup->gid);
- 	if (vrrp->script_master)
+	if (vrrp->script_master)
 		fprintf(file, "   Master state transition script = %s, uid:gid %d:%d\n",
 				vrrp->script_master->name, vrrp->script_master->uid, vrrp->script_master->gid);
- 	if (vrrp->script_fault)
+	if (vrrp->script_fault)
 		fprintf(file, "   Fault state transition script = %s, uid:gid %d:%d\n",
 				vrrp->script_fault->name, vrrp->script_fault->uid, vrrp->script_fault->gid);
- 	if (vrrp->script_stop)
+	if (vrrp->script_stop)
 		fprintf(file, "   Stop state transition script = %s, uid:gid %d:%d\n",
 				vrrp->script_stop->name, vrrp->script_stop->uid, vrrp->script_stop->gid);
- 	if (vrrp->script)
+	if (vrrp->script)
 		fprintf(file, "   Generic state transition script = '%s', uid:gid %d:%d\n",
 				vrrp->script->name, vrrp->script->uid, vrrp->script->gid);
 	if (vrrp->smtp_alert)

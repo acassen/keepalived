@@ -209,10 +209,10 @@ check_vrrp_script_security(void)
 		vrrp = ELEMENT_DATA(e);
 
 		script_flags |= check_notify_script_secure(&vrrp->script_backup);
-        	script_flags |= check_notify_script_secure(&vrrp->script_master);
-        	script_flags |= check_notify_script_secure(&vrrp->script_fault);
-        	script_flags |= check_notify_script_secure(&vrrp->script_stop);
-        	script_flags |= check_notify_script_secure(&vrrp->script);
+		script_flags |= check_notify_script_secure(&vrrp->script_master);
+		script_flags |= check_notify_script_secure(&vrrp->script_fault);
+		script_flags |= check_notify_script_secure(&vrrp->script_stop);
+		script_flags |= check_notify_script_secure(&vrrp->script);
 
 		if (LIST_ISEMPTY(vrrp->track_script))
 			continue;
@@ -226,9 +226,9 @@ check_vrrp_script_security(void)
 	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
 		sg = ELEMENT_DATA(e);
 		script_flags |= check_notify_script_secure(&sg->script_backup);
-        	script_flags |= check_notify_script_secure(&sg->script_master);
-        	script_flags |= check_notify_script_secure(&sg->script_fault);
-        	script_flags |= check_notify_script_secure(&sg->script);
+		script_flags |= check_notify_script_secure(&sg->script_master);
+		script_flags |= check_notify_script_secure(&sg->script_fault);
+		script_flags |= check_notify_script_secure(&sg->script);
 	}
 
 	if (!global_data->script_security && script_flags & SC_ISSCRIPT) {

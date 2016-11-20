@@ -192,18 +192,18 @@ get_time_rtt(uint32_t *val, const char *str, bool *raw)
 
 	if (*end) {
 		*raw = false;
-                if (!strcasecmp(end, "s") ||
+		if (!strcasecmp(end, "s") ||
 		    !strcasecmp(end, "sec") ||
-                    !strcasecmp(end, "secs")) {
+		    !strcasecmp(end, "secs")) {
 			if (t >= UINT32_MAX / 1000)
 				return -1;
-                        t *= 1000;
+			t *= 1000;
 		}
-                else if (strcasecmp(end, "ms") &&
+		else if (strcasecmp(end, "ms") &&
 			 strcasecmp(end, "msec") &&
-                         strcasecmp(end, "msecs"))
-                        return true;
-        }
+			 strcasecmp(end, "msecs"))
+			return true;
+	}
 	else
 		*raw = true;
 
@@ -211,7 +211,7 @@ get_time_rtt(uint32_t *val, const char *str, bool *raw)
 	if (*val < t)
 		(*val)++;
 	
-        return false;
+	return false;
 }
 
 bool

@@ -261,8 +261,8 @@ set_default_script_user(uid_t *uid, gid_t *gid)
 {
 	char buf[sysconf(_SC_GETPW_R_SIZE_MAX)];
 	char *default_user_name = "keepalived_script";
-        struct passwd pwd;
-        struct passwd *pwd_p;
+	struct passwd pwd;
+	struct passwd *pwd_p;
 
 	if (getpwnam_r(default_user_name, &pwd, buf, sizeof(buf), &pwd_p)) {
 		log_message(LOG_INFO, "Unable to resolve default script username '%s' - ignoring", default_user_name);

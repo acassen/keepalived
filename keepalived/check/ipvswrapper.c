@@ -283,7 +283,7 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 void
 ipvs_flush_cmd(void)
 {
-        ipvs_talk(IP_VS_SO_SET_FLUSH, false);
+	ipvs_talk(IP_VS_SO_SET_FLUSH, false);
 }
 #endif
 

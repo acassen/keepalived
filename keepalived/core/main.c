@@ -808,12 +808,12 @@ keepalived_main(int argc, char **argv)
 	}
 
 	/* Check we can read the configuration file(s).
- 	   NOTE: the working directory will be / if we
- 	   forked, but will be the current working directory
- 	   when keepalived was run if we haven't forked.
- 	   This means that if any config file names are not
- 	   absolute file names, the behaviour will be different
- 	   depending on whether we forked or not. */
+	   NOTE: the working directory will be / if we
+	   forked, but will be the current working directory
+	   when keepalived was run if we haven't forked.
+	   This means that if any config file names are not
+	   absolute file names, the behaviour will be different
+	   depending on whether we forked or not. */
 	if (!check_conf_file(conf_file))
 		goto end;
 

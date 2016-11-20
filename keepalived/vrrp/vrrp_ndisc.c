@@ -197,7 +197,7 @@ ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 static void
 queue_ndisc(vrrp_t *vrrp, interface_t *ifp, ip_address_t *ipaddress)
 {
-        timeval_t next_time = timer_add_now(ifp->garp_delay->gna_interval);
+	timeval_t next_time = timer_add_now(ifp->garp_delay->gna_interval);
 
 	vrrp->gna_pending = true;
 	ipaddress->garp_gna_pending = true;
