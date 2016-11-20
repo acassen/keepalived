@@ -62,17 +62,17 @@ vgroup_print(FILE *file, void *data)
 		fprintf(file, "   monitor = %s\n", str);
 	}
 	if (vgroup->script_backup)
-		fprintf(file, "   Backup state transition script = %s\n",
-		       vgroup->script_backup);
+		fprintf(file, "   Backup state transition script = %s, uid:gid %d:%d\n",
+		       vgroup->script_backup->name, vgroup->script_backup->uid, vgroup->script_backup->gid);
 	if (vgroup->script_master)
-		fprintf(file, "   Master state transition script = %s\n",
-		       vgroup->script_master);
+		fprintf(file, "   Master state transition script = %s, uid:gid %d:%d\n",
+		       vgroup->script_master->name, vgroup->script_master->uid, vgroup->script_master->gid);
 	if (vgroup->script_fault)
-		fprintf(file, "   Fault state transition script = %s\n",
-		       vgroup->script_fault);
+		fprintf(file, "   Fault state transition script = %s, uid:gid %d:%d\n",
+		       vgroup->script_fault->name, vgroup->script_fault->uid, vgroup->script_fault->gid);
 	if (vgroup->script)
-		fprintf(file, "   Generic state transition script = '%s\n'",
-		       vgroup->script);
+		fprintf(file, "   Generic state transition script = '%s', uid:gid %d:%d\n",
+		       vgroup->script->name, vgroup->script->uid, vgroup->script->gid);
 	if (vgroup->smtp_alert)
 		fprintf(file, "   Using smtp notification\n");
 
@@ -91,6 +91,8 @@ vscript_print(FILE *file, void *data)
 	fprintf(file, "   Weight = %d\n", vscript->weight);
 	fprintf(file, "   Rise = %d\n", vscript->rise);
 	fprintf(file, "   Full = %d\n", vscript->fall);
+	fprintf(file, "   Insecure = %s\n", vscript->insecure ? "yes" : "no");
+	fprintf(file, "   Executable = %s\n", vscript->executable ? "yes" : "no");
 
 	switch (vscript->result) {
 	case VRRP_SCRIPT_STATUS_INIT:
@@ -323,21 +325,21 @@ vrrp_print(FILE *file, void *data)
 		vrrp_print_list(file, vrrp->vrules, &rule_print);
 	}
 #endif
-	if (vrrp->script_backup)
-		fprintf(file, "   Backup state transition script = %s\n",
-		       vrrp->script_backup);
-	if (vrrp->script_master)
-		fprintf(file, "   Master state transition script = %s\n",
-		       vrrp->script_master);
-	if (vrrp->script_fault)
-		fprintf(file, "   Fault state transition script = %s\n",
-		       vrrp->script_fault);
-	if (vrrp->script_stop)
-		fprintf(file, "   Stop state transition script = %s\n",
-		       vrrp->script_stop);
-	if (vrrp->script)
-		fprintf(file, "   Generic state transition script = '%s'\n",
-		       vrrp->script);
+ 	if (vrrp->script_backup)
+		fprintf(file, "   Backup state transition script = %s, uid:gid %d:%d\n",
+				vrrp->script_backup->name, vrrp->script_backup->uid, vrrp->script_backup->gid);
+ 	if (vrrp->script_master)
+		fprintf(file, "   Master state transition script = %s, uid:gid %d:%d\n",
+				vrrp->script_master->name, vrrp->script_master->uid, vrrp->script_master->gid);
+ 	if (vrrp->script_fault)
+		fprintf(file, "   Fault state transition script = %s, uid:gid %d:%d\n",
+				vrrp->script_fault->name, vrrp->script_fault->uid, vrrp->script_fault->gid);
+ 	if (vrrp->script_stop)
+		fprintf(file, "   Stop state transition script = %s, uid:gid %d:%d\n",
+				vrrp->script_stop->name, vrrp->script_stop->uid, vrrp->script_stop->gid);
+ 	if (vrrp->script)
+		fprintf(file, "   Generic state transition script = '%s', uid:gid %d:%d\n",
+				vrrp->script->name, vrrp->script->uid, vrrp->script->gid);
 	if (vrrp->smtp_alert)
 			fprintf(file, "   Using smtp notification\n");
 }

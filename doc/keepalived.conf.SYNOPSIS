@@ -140,6 +140,13 @@ global_defs {				# Block identification
     enable_traps			   # enable SNMP trap generation
 					   #
     enable_dbus				   # enable the DBus interface
+					   #
+    script_user USERNAME [GROUPNAME]	   # Specify the default username/groupname to run scripts under
+					   # If groupname is not specified, the group of the user is used.
+					   # If this option is not specified, the user defaults to keepalived_script
+					   # if that user exists, otherwise root.
+    enable_script_security		   # Don't run scripts configured to be run as root if any part of the path
+					   # is writable by a non-root user.
 }
 
 net_namespace NAME			   # Set the network namespace to run in
@@ -219,6 +226,7 @@ vrrp_script <STRING> {          # VRRP script declaration
     weight <INTEGER:-254..254>  # adjust priority by this weight
     fall <INTEGER>              # required number of failures for KO switch
     rise <INTEGER>              # required number of successes for OK switch
+    user USERNAME [GROUPNAME]	# Specify user/group to run script under
 }
 
 The script will be executed periodically, every <interval> seconds. Its exit
@@ -242,10 +250,20 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
       <STRING>			#       set
       ...			#             of VRRP_Instance string
     }
-    notify_master <STRING>|<QUOTED-STRING> # Script to run during MASTER transit
-    notify_backup <STRING>|<QUOTED-STRING> # Script to run during BACKUP transit
-    notify_fault <STRING>|<QUOTED-STRING>  # Script to run during FAULT transit
-    notify <STRING>|<QUOTED-STRING>	   # Script to run during ANY state transit (1)
+
+				# The username and groupname specify the user and group
+				# under which the scripts should be run. If username is
+				# specified, the group defaults to the group of the user.
+				# If username is not specified, they default to the
+				# global script_user and script_group
+    notify_master <STRING>|<QUOTED-STRING> [username [groupname]]
+				# Script to run during MASTER transit
+    notify_backup <STRING>|<QUOTED-STRING> [username [groupname]]
+				# Script to run during BACKUP transit
+    notify_fault <STRING>|<QUOTED-STRING> [username [groupname]]
+				# Script to run during FAULT transit
+    notify <STRING>|<QUOTED-STRING> [username [groupname]]
+				# Script to run during ANY state transit (1)
     smtp_alert		 # Send email notification during state transit
 }
 
@@ -387,11 +405,16 @@ vrrp_instance <STRING> {		# VRRP instance declaration
 						# If vrrp_strict is not specified, it takes the value of vrrp_strict
 						# If strict_mode without a parameter is specified, it defaults to on
     debug <LEVEL>				# Debug level. LEVEL is a number in the range 0 to 4.
-    notify_master <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
-    notify_backup <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
-    notify_fault <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
-    notify_stop <STRING>|<QUOTED-STRING>	# Script to launch when stopping vrrp
-    notify <STRING>|<QUOTED-STRING>		# Same as vrrp_sync_group
+    notify_master <STRING>|<QUOTED-STRING> [username [groupname]]
+						# Same as vrrp_sync_group
+    notify_backup <STRING>|<QUOTED-STRING> [username [groupname]]
+						# Same as vrrp_sync_group
+    notify_fault <STRING>|<QUOTED-STRING> [username [groupname]]
+						# Same as vrrp_sync_group
+    notify_stop <STRING>|<QUOTED-STRING> [username [groupname]]
+						# Script to launch when stopping vrrp
+    notify <STRING>|<QUOTED-STRING> [username [groupname]]
+						# Same as vrrp_sync_group
     smtp_alert					# Same as vrrp_sync_group
 }
 
@@ -650,6 +673,7 @@ virtual_server group <STRING>      {	# VS group declaration
             #   (for example: exit status of 255 would set
             #     weight to 253)
             misc_dynamic
+	    user USERNAME [GROUPNAME] # Specify user/group to run script under
         }
     }
 }
