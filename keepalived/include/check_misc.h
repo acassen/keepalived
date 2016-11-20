@@ -27,6 +27,7 @@
 /* system includes */
 #include <stdlib.h>
 #include <stdbool.h>
+#include <sys/types.h>
 
 /* local includes */
 #include "scheduler.h"
@@ -35,11 +36,16 @@
 typedef struct _misc_checker {
 	char			*path;
 	unsigned long		timeout;
-	int			dynamic;  /* 0: old-style, 1: exit code from checker affects weight */
-	bool			forcing_termination;	/* Set if we have sent the process a SIGTERM */
+	int			dynamic;	/* 0: old-style, 1: exit code from checker affects weight */
+	bool			forcing_termination; /* Set if we have sent the process a SIGTERM */
+	uid_t			uid;		/* uid for script execution */
+	gid_t			gid;		/* gid for script execution */
+	bool			insecure;	/* script is insecure */
+	bool			executable;	/* script is executable for uid:gid */
 } misc_checker_t;
 
 /* Prototypes defs */
 extern void install_misc_check_keyword(void);
+extern void check_check_script_security(void);
 
 #endif

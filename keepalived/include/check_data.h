@@ -40,6 +40,7 @@
 #include "list.h"
 #include "vector.h"
 #include "timer.h"
+#include "notify.h"
 
 /* Typedefs */
 typedef unsigned int checker_id_t;
@@ -71,8 +72,8 @@ typedef struct _real_server {
 	int				inhibit;	/* Set weight to 0 instead of removing
 							 * the service from IPVS topology.
 							 */
-	char				*notify_up;	/* Script to launch when RS is added to LVS */
-	char				*notify_down;	/* Script to launch when RS is removed from LVS */
+	notify_script_t			*notify_up;	/* Script to launch when RS is added to LVS */
+	notify_script_t			*notify_down;	/* Script to launch when RS is removed from LVS */
 	bool				alive;
 	list				failed_checkers;/* List of failed checkers */
 	bool				set;		/* in the IPVS table */
@@ -132,8 +133,8 @@ typedef struct _virtual_server {
 	bool				alive;
 	bool				alpha;		/* Alpha mode enabled. */
 	bool				omega;		/* Omega mode enabled. */
-	char				*quorum_up;	/* A hook to call when the VS gains quorum. */
-	char				*quorum_down;	/* A hook to call when the VS loses quorum. */
+	notify_script_t			*quorum_up;	/* A hook to call when the VS gains quorum. */
+	notify_script_t			*quorum_down;	/* A hook to call when the VS loses quorum. */
 	unsigned			quorum;		/* Minimum live RSs to consider VS up. */
 	unsigned			hysteresis;	/* up/down events "lag" WRT quorum. */
 	bool				quorum_state;	/* Reflects result of the last transition done. */
@@ -222,15 +223,18 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 
 #define VS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&&\
 			 (X)->vfwmark                 == (Y)->vfwmark			&&\
-			 (X)->af                      == (Y)->af                        &&\
+			 (X)->af                      == (Y)->af			&&\
 			 (X)->service_type            == (Y)->service_type		&&\
 			 (X)->loadbalancing_kind      == (Y)->loadbalancing_kind	&&\
 			 (X)->persistence_granularity == (Y)->persistence_granularity	&&\
 			 (  (!(X)->quorum_up && !(Y)->quorum_up) || \
-			    ((X)->quorum_up && (Y)->quorum_up && !strcmp ((X)->quorum_up, (Y)->quorum_up)) \
+			    ((X)->quorum_up && (Y)->quorum_up && !strcmp ((X)->quorum_up->name, (Y)->quorum_up->name)) \
+			 ) &&\
+			 (  (!(X)->quorum_down && !(Y)->quorum_down) || \
+			    ((X)->quorum_down && (Y)->quorum_down && !strcmp ((X)->quorum_down->name, (Y)->quorum_down->name)) \
 			 ) &&\
 			 !strcmp((X)->sched, (Y)->sched)				&&\
-			 (X)->persistence_timeout     == (Y)->persistence_timeout 	&&\
+			 (X)->persistence_timeout     == (Y)->persistence_timeout	&&\
 			 (((X)->vsgname && (Y)->vsgname &&				\
 			   !strcmp((X)->vsgname, (Y)->vsgname)) ||			\
 			  (!(X)->vsgname && !(Y)->vsgname)))

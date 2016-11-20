@@ -136,6 +136,107 @@ vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 	}
 }
 
+/* Check that the scripts are secure */
+static int
+check_track_script_secure(tracked_sc_t *script)
+{
+	notify_script_t ns;
+	int flags;
+
+	if (script->scr->insecure)
+		return 0;
+
+	ns.name = script->scr->script;
+	ns.uid = script->scr->uid;
+	ns.gid = script->scr->gid;
+
+	flags = check_script_secure(&ns, global_data->script_security);
+
+	/* Mark not to run if needs inhibiting */
+	if (flags & SC_INHIBIT) {
+		log_message(LOG_INFO, "Disabling track script %s due to insecure", script->scr->sname);
+		script->scr->insecure = true;
+	}
+	else if (flags & SC_NOTFOUND) {
+		log_message(LOG_INFO, "Disabling track script %s since not found", script->scr->sname);
+		script->scr->insecure = true;
+	}
+	else if (flags & SC_EXECUTABLE)
+		script->scr->executable = true;
+
+	return flags;
+}
+
+static int
+check_notify_script_secure(notify_script_t **script_p)
+{
+	int flags;
+	notify_script_t *script = *script_p;
+
+	if (!script)
+		return 0;
+
+	flags = check_script_secure(script, global_data->script_security);
+
+	/* Mark not to run if needs inhibiting */
+	if (flags & SC_INHIBIT) {
+		log_message(LOG_INFO, "Disabling notify script %s due to insecure", script->name);
+		free_notify_script(script_p);
+	}
+	else if (flags & SC_NOTFOUND) {
+		log_message(LOG_INFO, "Disabling notify script %s since not found", script->name);
+		free_notify_script(script_p);
+	}
+	else if (flags & SC_EXECUTABLE)
+		script->executable = true;
+
+	return flags;
+}
+
+static void
+check_vrrp_script_security(void)
+{
+	element e, e1;
+	vrrp_t *vrrp;
+	vrrp_sgroup_t *sg;
+	tracked_sc_t *track_script;
+	int script_flags = 0;
+
+	if (LIST_ISEMPTY(vrrp_data->vrrp))
+		return;
+
+	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+
+		script_flags |= check_notify_script_secure(&vrrp->script_backup);
+		script_flags |= check_notify_script_secure(&vrrp->script_master);
+		script_flags |= check_notify_script_secure(&vrrp->script_fault);
+		script_flags |= check_notify_script_secure(&vrrp->script_stop);
+		script_flags |= check_notify_script_secure(&vrrp->script);
+
+		if (LIST_ISEMPTY(vrrp->track_script))
+			continue;
+
+		for (e1 = LIST_HEAD(vrrp->track_script); e1; ELEMENT_NEXT(e1)) {
+			track_script = ELEMENT_DATA(e1);
+			script_flags |= check_track_script_secure(track_script);
+		}
+	}
+
+	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
+		sg = ELEMENT_DATA(e);
+		script_flags |= check_notify_script_secure(&sg->script_backup);
+		script_flags |= check_notify_script_secure(&sg->script_master);
+		script_flags |= check_notify_script_secure(&sg->script_fault);
+		script_flags |= check_notify_script_secure(&sg->script);
+	}
+
+	if (!global_data->script_security && script_flags & SC_ISSCRIPT) {
+		log_message(LOG_INFO, "SECURITY VIOLATION - scripts are being executed but script_security not enabled.%s",
+				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
+	}
+}
+
 /* IP header length */
 static size_t
 vrrp_iphdr_len(void)
@@ -2341,6 +2442,9 @@ vrrp_complete_init(void)
 	if (!reload)
 		iptables_cleanup();
 #endif
+
+	/* Mark any scripts as insecure */
+	check_vrrp_script_security();
 
 	/* Make sure don't have same vrid on same interface with same address family */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {

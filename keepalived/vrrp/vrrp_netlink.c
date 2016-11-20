@@ -58,7 +58,7 @@ int netlink_error_ignore; /* If we get this error, ignore it */
 
 /* Static vars */
 static nl_handle_t nl_kernel;	/* Kernel reflection channel */
-static size_t nlmsg_buf_size;	/* Size of netlink message buffer */
+static int nlmsg_buf_size;	/* Size of netlink message buffer */
 
 void
 netlink_set_recv_buf_size(void)
@@ -456,7 +456,7 @@ parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, size_t len)
 static void
 parse_rtattr_nested(struct rtattr **tb, int max, struct rtattr *rta)
 {
-        parse_rtattr(tb, max, RTA_DATA(rta), RTA_PAYLOAD(rta));
+	parse_rtattr(tb, max, RTA_DATA(rta), RTA_PAYLOAD(rta));
 }
 #endif
 

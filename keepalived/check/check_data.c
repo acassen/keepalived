@@ -26,6 +26,7 @@
 
 #include "check_data.h"
 #include "check_api.h"
+#include "check_misc.h"
 #include "check_ssl.h"
 #include "logger.h"
 #include "memory.h"
@@ -180,8 +181,8 @@ free_vs(void *data)
 	FREE_PTR(vs->virtualhost);
 	FREE_PTR(vs->s_svr);
 	free_list(&vs->rs);
-	FREE_PTR(vs->quorum_up);
-	FREE_PTR(vs->quorum_down);
+	free_notify_script(&vs->quorum_up);
+	free_notify_script(&vs->quorum_down);
 	FREE(vs);
 }
 static void
@@ -246,11 +247,11 @@ dump_vs(void *data)
 		    vs->alpha ? "ON" : "OFF", vs->omega ? "ON" : "OFF");
 	log_message(LOG_INFO, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
 	if (vs->quorum_up)
-		log_message(LOG_INFO, "   -> Notify script UP = %s",
-			    vs->quorum_up);
+		log_message(LOG_INFO, "   -> Notify script UP = %s, uid:gid %d:%d",
+			    vs->quorum_up->name, vs->quorum_up->uid, vs->quorum_up->gid);
 	if (vs->quorum_down)
-		log_message(LOG_INFO, "   -> Notify script DOWN = %s",
-			    vs->quorum_down);
+		log_message(LOG_INFO, "   -> Notify script DOWN = %s, uid:gid %d:%d",
+			    vs->quorum_down->name, vs->quorum_down->uid, vs->quorum_down->gid);
 	if (vs->ha_suspend)
 		log_message(LOG_INFO, "   Using HA suspend");
 
@@ -328,8 +329,8 @@ static void
 free_rs(void *data)
 {
 	real_server_t *rs = data;
-	FREE_PTR(rs->notify_up);
-	FREE_PTR(rs->notify_down);
+	free_notify_script(&rs->notify_up);
+	free_notify_script(&rs->notify_down);
 	free_list(&rs->failed_checkers);
 	FREE(rs);
 }
@@ -345,11 +346,11 @@ dump_rs(void *data)
 	if (rs->inhibit)
 		log_message(LOG_INFO, "     -> Inhibit service on failure");
 	if (rs->notify_up)
-		log_message(LOG_INFO, "     -> Notify script UP = %s",
-		       rs->notify_up);
+		log_message(LOG_INFO, "     -> Notify script UP = %s, uid:gid %d:%d",
+		       rs->notify_up->name, rs->notify_up->uid, rs->notify_up->gid);
 	if (rs->notify_down)
-		log_message(LOG_INFO, "     -> Notify script DOWN = %s",
-		       rs->notify_down);
+		log_message(LOG_INFO, "     -> Notify script DOWN = %s, uid:gid %d:%d",
+		       rs->notify_down->name, rs->notify_down->uid, rs->notify_down->gid);
 }
 
 static void
@@ -454,6 +455,8 @@ bool validate_check_config(void)
 			}
 		}
 	}
+
+	check_check_script_security();
 
 	return true;
 }

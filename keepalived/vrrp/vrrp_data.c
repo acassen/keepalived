@@ -84,12 +84,22 @@ free_vgroup(void *data)
 	FREE(vgroup->gname);
 	free_strvec(vgroup->iname);
 	free_list(&vgroup->index_list);
-	FREE_PTR(vgroup->script_backup);
-	FREE_PTR(vgroup->script_master);
-	FREE_PTR(vgroup->script_fault);
-	FREE_PTR(vgroup->script);
+	free_notify_script(&vgroup->script_backup);
+	free_notify_script(&vgroup->script_master);
+	free_notify_script(&vgroup->script_fault);
+	free_notify_script(&vgroup->script);
 	FREE(vgroup);
 }
+static void
+dump_notify_script(notify_script_t *script, char *type)
+{
+	if (!script)
+		return;
+
+	log_message(LOG_INFO, "   %s state transition script = %s, uid:gid %d:%d, %sexecutable", type,
+	       script->name, script->uid, script->gid, script->executable ? "" : "not ");
+}
+
 static void
 dump_vgroup(void *data)
 {
@@ -105,18 +115,10 @@ dump_vgroup(void *data)
 	}
 	if (vgroup->global_tracking)
 		log_message(LOG_INFO, "   Same tracking for all VRRP instances");
-	if (vgroup->script_backup)
-		log_message(LOG_INFO, "   Backup state transition script = %s",
-		       vgroup->script_backup);
-	if (vgroup->script_master)
-		log_message(LOG_INFO, "   Master state transition script = %s",
-		       vgroup->script_master);
-	if (vgroup->script_fault)
-		log_message(LOG_INFO, "   Fault state transition script = %s",
-		       vgroup->script_fault);
-	if (vgroup->script)
-		log_message(LOG_INFO, "   Generic state transition script = '%s'",
-		       vgroup->script);
+	dump_notify_script(vgroup->script_backup, "Backup");
+	dump_notify_script(vgroup->script_master, "Master");
+	dump_notify_script(vgroup->script_fault, "Fault");
+	dump_notify_script(vgroup->script, "Generic");
 	if (vgroup->smtp_alert)
 		log_message(LOG_INFO, "   Using smtp notification");
 }
@@ -143,6 +145,8 @@ dump_vscript(void *data)
 	log_message(LOG_INFO, "   Weight = %d", vscript->weight);
 	log_message(LOG_INFO, "   Rise = %d", vscript->rise);
 	log_message(LOG_INFO, "   Fall = %d", vscript->fall);
+	log_message(LOG_INFO, "   Insecure = %s", vscript->insecure ? "yes" : "no");
+	log_message(LOG_INFO, "   Executable = %s", vscript->executable ? "yes" : "no");
 
 	switch (vscript->result) {
 	case VRRP_SCRIPT_STATUS_INIT:
@@ -155,6 +159,9 @@ dump_vscript(void *data)
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
 	log_message(LOG_INFO, "   Status = %s", str);
+	if (vscript->uid || vscript->gid)
+		log_message(LOG_INFO, "   Script uid:gid = %d:%d", vscript->uid, vscript->gid);
+
 }
 
 /* Socket pool functions */
@@ -208,11 +215,11 @@ free_vrrp(void *data)
 
 	FREE(vrrp->iname);
 	FREE_PTR(vrrp->send_buffer);
-	FREE_PTR(vrrp->script_backup);
-	FREE_PTR(vrrp->script_master);
-	FREE_PTR(vrrp->script_fault);
-	FREE_PTR(vrrp->script_stop);
-	FREE_PTR(vrrp->script);
+	free_notify_script(&vrrp->script_backup);
+	free_notify_script(&vrrp->script_master);
+	free_notify_script(&vrrp->script_fault);
+	free_notify_script(&vrrp->script_stop);
+	free_notify_script(&vrrp->script);
 	FREE_PTR(vrrp->stats);
 	FREE(vrrp->ipsecah_counter);
 
@@ -322,16 +329,11 @@ dump_vrrp(void *data)
 		log_message(LOG_INFO, "   Virtual Rules = %d", LIST_SIZE(vrrp->vrules));
 		dump_list(vrrp->vrules);
 	}
-	if (vrrp->script_backup)
-		log_message(LOG_INFO, "   Backup state transition script = %s", vrrp->script_backup);
-	if (vrrp->script_master)
-		log_message(LOG_INFO, "   Master state transition script = %s", vrrp->script_master);
-	if (vrrp->script_fault)
-		log_message(LOG_INFO, "   Fault state transition script = %s", vrrp->script_fault);
-	if (vrrp->script_stop)
-		log_message(LOG_INFO, "   Stop state transition script = %s", vrrp->script_stop);
-	if (vrrp->script)
-		log_message(LOG_INFO, "   Generic state transition script = '%s'", vrrp->script);
+	dump_notify_script(vrrp->script_backup, "Backup");
+	dump_notify_script(vrrp->script_master, "Master");
+	dump_notify_script(vrrp->script_fault, "Fault");
+	dump_notify_script(vrrp->script_stop, "Stop");
+	dump_notify_script(vrrp->script, "Generic");
 	if (vrrp->smtp_alert)
 		log_message(LOG_INFO, "   Using smtp notification");
 #ifdef _HAVE_VRRP_VMAC_

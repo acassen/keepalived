@@ -1,19 +1,19 @@
 /*
  * libipvs:	Library for manipulating IPVS through netlink or [gs]etsockopt
  *
- * 		This code is copied from the ipvsadm sources, with the unused
- * 		code removed. It is available at:
- * 		https://git.kernel.org/cgit/utils/kernel/ipvsadm/ipvsadm.git
+ *		This code is copied from the ipvsadm sources, with the unused
+ *		code removed. It is available at:
+ *		https://git.kernel.org/cgit/utils/kernel/ipvsadm/ipvsadm.git
  *
- * 		The upstream code should periodically be checked for updates,
- * 		which should then be applied to this code.
+ *		The upstream code should periodically be checked for updates,
+ *		which should then be applied to this code.
  *
- * Authors:     Wensong Zhang <wensong@linuxvirtualserver.org>
+ * Authors:	Wensong Zhang <wensong@linuxvirtualserver.org>
  *
- *              This program is free software; you can redistribute it and/or
- *              modify it under the terms of the GNU General Public License
- *              as published by the Free Software Foundation; either version
- *              2 of the License, or (at your option) any later version.
+ *		This program is free software; you can redistribute it and/or
+ *		modify it under the terms of the GNU General Public License
+ *		as published by the Free Software Foundation; either version
+ *		2 of the License, or (at your option) any later version.
  */
 
 #include "config.h"

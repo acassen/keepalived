@@ -46,6 +46,8 @@ size_t mem_allocated;		/* Total memory used in Bytes */
 size_t max_mem_allocated;	/* Maximum memory used in Bytes */
 
 const char *terminate_banner;	/* banner string for report file */
+
+static bool skip_mem_check_final;
 #endif
 
 static void *
@@ -267,6 +269,10 @@ keepalived_free_final(void)
 	int i, j;
 	i = 0;
 
+	/* If this is a forked child, we don't want the dump */
+	if (skip_mem_check_final)
+		return;
+
 	fprintf(log_op, "\n---[ Keepalived memory dump for (%s)]---\n\n", terminate_banner);
 
 	while (i < number_alloc_list) {
@@ -457,6 +463,11 @@ mem_log_init(const char* prog_name, const char *banner)
 	free(log_name);
 
 	terminate_banner = banner;
+}
+
+void skip_mem_dump(void)
+{
+	skip_mem_check_final = true;
 }
 
 void enable_mem_log_termination(void)

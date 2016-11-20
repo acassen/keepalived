@@ -25,6 +25,7 @@
 
 #include "config.h"
 
+#include "main.h"
 #include "check_misc.h"
 #include "check_api.h"
 #include "memory.h"
@@ -36,6 +37,8 @@
 #include "notify.h"
 #include "daemon.h"
 #include "signals.h"
+#include "global_data.h"
+#include "global_parser.h"
 
 static int misc_check_thread(thread_t *);
 static int misc_check_child_thread(thread_t *);
@@ -60,12 +63,18 @@ dump_misc_check(void *data)
 	log_message(LOG_INFO, "   script = %s", misck_checker->path);
 	log_message(LOG_INFO, "   timeout = %lu", misck_checker->timeout/TIMER_HZ);
 	log_message(LOG_INFO, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
+	log_message(LOG_INFO, "   uid:gid = %d:%d", misck_checker->uid, misck_checker->gid);
+	log_message(LOG_INFO, "   executable = %s", misck_checker->executable ? "Yes" : "No");
+	log_message(LOG_INFO, "   insecure = %s", misck_checker->insecure ? "Yes" : "No");
 }
 
 static void
 misc_check_handler(__attribute__((unused)) vector_t *strvec)
 {
 	misc_checker_t *misck_checker = (misc_checker_t *) MALLOC(sizeof (misc_checker_t));
+
+	misck_checker->uid = default_script_uid;
+	misck_checker->gid = default_script_gid;
 
 	/* queue new checker */
 	queue_checker(free_misc_check, dump_misc_check, misc_check_thread,
@@ -93,6 +102,20 @@ misc_dynamic_handler(__attribute__((unused)) vector_t *strvec)
 	misck_checker->dynamic = 1;
 }
 
+static void
+misc_user_handler(vector_t *strvec)
+{
+	misc_checker_t *misck_checker = CHECKER_GET();
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "No user specified for misc checker script %s", misck_checker->path);
+		return;
+	}
+
+	if (set_script_uid_gid(strvec, 1, &misck_checker->uid, &misck_checker->gid))
+		log_message(LOG_INFO, "Failed to set uid/gid for misc checker script %s", misck_checker->path);
+}
+
 void
 install_misc_check_keyword(void)
 {
@@ -102,7 +125,54 @@ install_misc_check_keyword(void)
 	install_keyword("misc_timeout", &misc_timeout_handler);
 	install_keyword("misc_dynamic", &misc_dynamic_handler);
 	install_keyword("warmup", &warmup_handler);
+	install_keyword("user", &misc_user_handler);
 	install_sublevel_end();
+}
+
+/* Check that the scripts are secure */
+void
+check_check_script_security(void)
+{
+	element e;
+	checker_t *checker;
+	misc_checker_t *misc_script;
+	int script_flags = 0;
+	int flags;
+	notify_script_t script;
+
+	if (LIST_ISEMPTY(checkers_queue))
+		return;
+
+	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
+		checker = ELEMENT_DATA(e);
+
+		if (checker->launch != misc_check_thread)
+			continue;
+
+		misc_script = CHECKER_ARG(checker);
+		script.name = misc_script->path;
+		script.uid = misc_script->uid;
+		script.gid = misc_script->gid;
+
+		script_flags |= (flags = check_script_secure(&script, global_data->script_security));
+
+		/* Mark not to run if needs inhibiting */
+		if (flags & SC_INHIBIT) {
+			log_message(LOG_INFO, "Disabling misc script %s due to insecure", misc_script->path);
+			misc_script->insecure = true;
+		}
+		else if (flags & SC_NOTFOUND) {
+			log_message(LOG_INFO, "Disabling misc script %s since not found", misc_script->path);
+			misc_script->insecure = true;
+		}
+		else if (flags & SC_EXECUTABLE)
+			misc_script->executable = true;
+	}
+
+	if (!global_data->script_security && script_flags & SC_ISSCRIPT) {
+		log_message(LOG_INFO, "SECURITY VIOLATION - check scripts are being executed but script_security not enabled.%s",
+				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
+	}
 }
 
 static int
@@ -113,6 +183,11 @@ misc_check_thread(thread_t * thread)
 
 	checker = THREAD_ARG(thread);
 	misck_checker = CHECKER_ARG(checker);
+
+	/* If the script has been identified as insecure, don't execute it.
+	 * To stop attempting to execute it again, don't re-add the timer. */
+	if (misck_checker->insecure)
+		return 0;
 
 	/*
 	 * Register a new checker thread & return
@@ -134,7 +209,7 @@ misc_check_thread(thread_t * thread)
 	/* Execute the script in a child process. Parent returns, child doesn't */
 	return system_call_script(thread->master, misc_check_child_thread,
 				  checker, (misck_checker->timeout) ? misck_checker->timeout : checker->vs->delay_loop,
-				  misck_checker->path);
+				  misck_checker->path, misck_checker->uid, misck_checker->gid);
 }
 
 static int

@@ -172,10 +172,6 @@ start_vrrp(void)
 
 	global_data = alloc_global_data();
 
-#ifdef _HAVE_LIBIPTC_
-	iptables_init();
-#endif
-
 	/* Parse configuration file */
 	vrrp_data = alloc_vrrp_data();
 	if (!vrrp_data) {
@@ -192,6 +188,10 @@ start_vrrp(void)
 
 	if (global_data->vrrp_no_swap)
 		set_process_dont_swap(4096);	/* guess a stack size to reserve */
+
+#ifdef _HAVE_LIBIPTC_
+	iptables_init();
+#endif
 
 #ifdef _WITH_SNMP_
 	if (!reload && (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {
@@ -255,14 +255,14 @@ start_vrrp(void)
 		return;
 	}
 
+#ifdef _HAVE_LIBIPTC_
+	iptables_startup(reload);
+#endif
+
 	/* clear_diff_vrrp must be called after vrrp_complete_init, since the latter
 	 * sets ifa_index on the addresses, which is used for the address comparison */
 	if (reload)
 		clear_diff_vrrp();
-
-#ifdef _HAVE_LIBIPTC_
-	iptables_startup(reload);
-#endif
 
 #ifdef _WITH_DBUS_
 	if (reload && global_data->enable_dbus)
