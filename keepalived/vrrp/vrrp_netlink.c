@@ -60,7 +60,7 @@ int netlink_error_ignore; /* If we get this error, ignore it */
 
 /* Static vars */
 static nl_handle_t nl_kernel;	/* Kernel reflection channel */
-static size_t nlmsg_buf_size;	/* Size of netlink message buffer */
+static int nlmsg_buf_size;	/* Size of netlink message buffer */
 
 void
 netlink_set_recv_buf_size(void)

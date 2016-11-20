@@ -63,7 +63,7 @@ clear_service_rs(virtual_server_t * vs, list l)
 	element e;
 	real_server_t *rs;
 	long weight_sum;
-	unsigned down_threshold = vs->quorum - vs->hysteresis;
+	long down_threshold = vs->quorum - vs->hysteresis;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
@@ -288,14 +288,14 @@ static void
 update_quorum_state(virtual_server_t * vs)
 {
 	long weight_sum = weigh_live_realservers(vs);
-	unsigned up_threshold = vs->quorum + vs->hysteresis;
-	unsigned down_threshold = vs->quorum - vs->hysteresis;
+	long up_threshold = vs->quorum + vs->hysteresis;
+	long down_threshold = vs->quorum - vs->hysteresis;
 
 	/* If we have just gained quorum, it's time to consider notify_up. */
 	if (vs->quorum_state == DOWN &&
 	    weight_sum >= up_threshold) {
 		vs->quorum_state = UP;
-		log_message(LOG_INFO, "Gained quorum %u+%u=%u <= %ld for VS %s"
+		log_message(LOG_INFO, "Gained quorum %u+%u=%ld <= %ld for VS %s"
 				    , vs->quorum
 				    , vs->hysteresis
 				    , up_threshold
@@ -332,7 +332,7 @@ update_quorum_state(virtual_server_t * vs)
 	    (!weight_sum || weight_sum < down_threshold)
 	) {
 		vs->quorum_state = DOWN;
-		log_message(LOG_INFO, "Lost quorum %u-%u=%u > %ld for VS %s"
+		log_message(LOG_INFO, "Lost quorum %u-%u=%ld > %ld for VS %s"
 				    , vs->quorum
 				    , vs->hysteresis
 				    , down_threshold

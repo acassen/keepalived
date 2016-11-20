@@ -156,17 +156,22 @@ static int create_sets(const char* addr4, const char* addr6, const char* addr_if
 	if (!reload)
 		ipset_envopt_parse(session, IPSET_ENV_EXIST, NULL);
 
-	if (!reload || !has_ipset_setname(session, addr4))
-		ipset_create(session, addr4, "hash:ip", NFPROTO_IPV4);
-	if (!reload || !has_ipset_setname(session, addr6))
-		ipset_create(session, addr6, "hash:ip", NFPROTO_IPV6);
-	if (!reload || !has_ipset_setname(session, addr_if6)) {
+	if (use_ip4tables) {
+		if (!reload || !has_ipset_setname(session, addr4))
+			ipset_create(session, addr4, "hash:ip", NFPROTO_IPV4);
+	}
+
+	if (use_ip6tables) {
+		if (!reload || !has_ipset_setname(session, addr6))
+			ipset_create(session, addr6, "hash:ip", NFPROTO_IPV6);
+		if (!reload || !has_ipset_setname(session, addr_if6)) {
 #ifdef HAVE_IPSET_ATTR_IFACE
-		/* hash:net,iface was introduced in Linux 3.1 */
-		ipset_create(session, addr_if6, "hash:net,iface", NFPROTO_IPV6);
+			/* hash:net,iface was introduced in Linux 3.1 */
+			ipset_create(session, addr_if6, "hash:net,iface", NFPROTO_IPV6);
 #else
-		ipset_create(session, addr_if6, "hash:ip", NFPROTO_IPV6);
+			ipset_create(session, addr_if6, "hash:ip", NFPROTO_IPV6);
 #endif
+		}
 	}
 
 	ipset_session_fini(session);
@@ -234,9 +239,13 @@ int remove_ipsets(void)
 		return false;
 	}
 
-	ipset_destroy(session, global_data->vrrp_ipset_address);
-	ipset_destroy(session, global_data->vrrp_ipset_address6);
-	ipset_destroy(session, global_data->vrrp_ipset_address_iface6);
+	if (use_ip4tables)
+		ipset_destroy(session, global_data->vrrp_ipset_address);
+
+	if (use_ip6tables) {
+		ipset_destroy(session, global_data->vrrp_ipset_address6);
+		ipset_destroy(session, global_data->vrrp_ipset_address_iface6);
+	}
 
 	ipset_session_fini(session);
 
@@ -263,9 +272,15 @@ void ipset_entry(struct ipset_session* session, int cmd, const ip_address_t* add
 	const char* set;
 	char *iface = NULL;
 
-	if (addr->ifa.ifa_family == AF_INET)
+	if (addr->ifa.ifa_family == AF_INET) {
+		if (!use_ip4tables)
+			return;
 		set = global_data->vrrp_ipset_address;
+	}
 	else if (IN6_IS_ADDR_LINKLOCAL(&addr->u.sin6_addr)) {
+		if (!use_ip6tables)
+			return;
+
 		set = global_data->vrrp_ipset_address_iface6;
 #ifdef HAVE_IPSET_ATTR_IFACE
 		iface = addr->ifp->ifname;

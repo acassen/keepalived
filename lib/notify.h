@@ -49,6 +49,8 @@ typedef struct _notify_script {
 static inline void
 free_notify_script(notify_script_t **script)
 {
+	if (!*script)
+		return;
 	FREE_PTR((*script)->name);
 	FREE_PTR(*script);
 }

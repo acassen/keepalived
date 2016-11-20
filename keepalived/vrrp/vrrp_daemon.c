@@ -256,14 +256,14 @@ start_vrrp(void)
 		return;
 	}
 
+#ifdef _HAVE_LIBIPTC_
+	iptables_startup(reload);
+#endif
+
 	/* clear_diff_vrrp must be called after vrrp_complete_init, since the latter
 	 * sets ifa_index on the addresses, which is used for the address comparison */
 	if (reload)
 		clear_diff_vrrp();
-
-#ifdef _HAVE_LIBIPTC_
-	iptables_startup(reload);
-#endif
 
 #ifdef _WITH_DBUS_
 	if (reload && global_data->enable_dbus)

@@ -36,6 +36,8 @@ struct ipt_handle;
 
 #define	IPTABLES_MAX_TRIES	3	/* How many times to try adding/deleting when get EAGAIN */
 
+extern bool use_ip4tables;		/* Set if using iptables */
+extern bool use_ip6tables;		/* Set if using ip6tables */
 
 bool iptables_init(void);
 void iptables_fini(void);
