@@ -31,6 +31,7 @@
 #include "check_api.h"
 #include "global_data.h"
 #include "global_parser.h"
+#include "main.h"
 #include "logger.h"
 #include "parser.h"
 #include "memory.h"
@@ -301,19 +302,31 @@ inhibit_handler(__attribute__((unused)) vector_t *strvec)
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	rs->inhibit = 1;
 }
+static inline notify_script_t*
+set_check_notify_script(vector_t *strvec)
+{
+	notify_script_t *script = notify_script_init(strvec, default_script_uid, default_script_gid);
+
+	if (vector_size(strvec) > 2 ) {
+		if (set_script_uid_gid(strvec, 2, &script->uid, &script->gid))
+			log_message(LOG_INFO, "Invalid user/group for quorum/notify script %s", script->name);
+	}
+
+	return script;
+}
 static void
 notify_up_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->notify_up = set_value(strvec);
+	rs->notify_up = set_check_notify_script(strvec);
 }
 static void
 notify_down_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->notify_down = set_value(strvec);
+	rs->notify_down = set_check_notify_script(strvec);
 }
 static void
 alpha_handler(__attribute__((unused)) vector_t *strvec)
@@ -332,13 +345,13 @@ static void
 quorum_up_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->quorum_up = set_value(strvec);
+	vs->quorum_up = set_check_notify_script(strvec);
 }
 static void
 quorum_down_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->quorum_down = set_value(strvec);
+	vs->quorum_down = set_check_notify_script(strvec);
 }
 static void
 quorum_handler(vector_t *strvec)

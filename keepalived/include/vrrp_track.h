@@ -30,6 +30,7 @@
 #include <string.h>
 #include <syslog.h>
 #include <stdbool.h>
+#include <sys/types.h>
 
 /* local includes */
 #include "vector.h"
@@ -66,6 +67,10 @@ typedef struct _vrrp_script {
 	list			vrrp;		/* List of vrrp instances using this script */
 	int8_t			last_status;	/* Last status returned by script. Used to report changes */
 	bool			forcing_termination;	/* Set if script didn't respond and we sent it SIGTERM */
+	uid_t			uid;		/* uid to run script as */
+	gid_t			gid;		/* gid to run script as */
+	bool			insecure;	/* Set if script is run by root, but is non-root modifiable */
+	bool			executable;	/* Script is executable for uid:gid */
 } vrrp_script_t;
 
 /* Tracked script structure definition */

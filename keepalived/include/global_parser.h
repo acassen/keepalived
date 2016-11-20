@@ -24,8 +24,12 @@
 #define _GLOBAL_PARSER_H
 
 #include <stdbool.h>
+#include <sys/types.h>
+
+#include "vector.h"
 
 /* Prototypes */
+extern bool set_script_uid_gid(vector_t *, unsigned, uid_t *, gid_t *);
 extern void init_global_keywords(bool);
 
 #endif

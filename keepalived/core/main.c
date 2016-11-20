@@ -39,6 +39,7 @@
 #include "bitops.h"
 #include "logger.h"
 #include "parser.h"
+#include "notify.h"
 #include "check_parser.h"
 #include "vrrp_parser.h"
 #include "global_parser.h"
@@ -80,6 +81,9 @@ const char *snmp_socket;				/* Socket to use for SNMP agent */
 static char *syslog_ident;				/* syslog ident if not default */
 char *instance_name;					/* keepalived instance name */
 bool use_pid_dir;					/* Put pid files in /var/run/keepalived */
+size_t getpwnam_buf_len;				/* Buffer length needed for getpwnam_r/getgrname_r */
+uid_t default_script_uid;				/* Default user/group for script execution */
+gid_t default_script_gid;
 unsigned os_major;					/* Kernel version */
 unsigned os_minor;
 unsigned os_release;
@@ -838,6 +842,7 @@ keepalived_main(int argc, char **argv)
 	bool report_stopped = true;
 	struct utsname uname_buf;
 	char *end;
+	size_t buf_len;
 
 	/* Init debugging level */
 	debug = 0;
@@ -881,6 +886,13 @@ keepalived_main(int argc, char **argv)
 	core_dump_init();
 
 	netlink_set_recv_buf_size();
+
+	set_default_script_user(&default_script_uid, &default_script_gid);
+
+	/* Get buffer length needed for getpwnam_r/getgrnam_r */
+	getpwnam_buf_len = (size_t)sysconf(_SC_GETPW_R_SIZE_MAX);
+	if ((buf_len = (size_t)sysconf(_SC_GETGR_R_SIZE_MAX)) > getpwnam_buf_len)
+		getpwnam_buf_len = buf_len;
 
 	/* Some functionality depends on kernel version, so get the version here */
 	if (uname(&uname_buf))

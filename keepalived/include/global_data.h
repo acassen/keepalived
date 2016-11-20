@@ -29,6 +29,7 @@
 #include <stdint.h>
 #include <sys/socket.h>
 #include <stdbool.h>
+#include <sys/types.h>
 
 #ifdef HAVE_LINUX_NETFILTER_X_TABLES_H
 #include <linux/netfilter/x_tables.h>
@@ -126,6 +127,7 @@ typedef struct _data {
 #ifdef _WITH_DBUS_
 	bool				enable_dbus;
 #endif
+	bool				script_security;
 } data_t;
 
 /* Global vars exported */

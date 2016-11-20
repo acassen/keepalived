@@ -37,6 +37,7 @@
 #include "utils.h"
 #include "vector.h"
 #include "list.h"
+#include "notify.h"
 
 /* Special value for parameters when we want to know they haven't been set */
 #define	PARAMETER_UNSET		UINT_MAX
@@ -104,12 +105,12 @@ typedef struct _vrrp_sgroup {
 							 * All VRRP must share same tracking conf */
 
 	/* State transition notification */
-	int			notify_exec;
-	char			*script_backup;
-	char			*script_master;
-	char			*script_fault;
-	char			*script;
-	int			smtp_alert;
+	bool			notify_exec;
+	notify_script_t		*script_backup;
+	notify_script_t		*script_master;
+	notify_script_t		*script_fault;
+	notify_script_t		*script;
+	bool			smtp_alert;
 } vrrp_sgroup_t;
 
 /* Statistics */
@@ -223,13 +224,13 @@ typedef struct _vrrp_t {
 	int			version;		/* VRRP version (2 or 3) */
 
 	/* State transition notification */
-	int			smtp_alert;
-	int			notify_exec;
-	char			*script_backup;
-	char			*script_master;
-	char			*script_fault;
-	char			*script_stop;
-	char			*script;
+	bool			smtp_alert;
+	bool			notify_exec;
+	notify_script_t		*script_backup;
+	notify_script_t		*script_master;
+	notify_script_t		*script_fault;
+	notify_script_t		*script_stop;
+	notify_script_t		*script;
 
 	/* rfc2338.6.2 */
 	uint32_t		ms_down_timer;

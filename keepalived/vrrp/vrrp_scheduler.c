@@ -295,7 +295,11 @@ vrrp_init_script(list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vscript = ELEMENT_DATA(e);
-		if (vscript->result != VRRP_SCRIPT_STATUS_DISABLED) {
+		if (vscript->insecure) {
+			/* The script cannot be run for security reasons */
+			vscript->result = vscript->rise;
+		}
+		else if (vscript->result != VRRP_SCRIPT_STATUS_DISABLED) {
 			if (vscript->result == VRRP_SCRIPT_STATUS_INIT)
 				vscript->result = vscript->rise - 1; /* one success is enough */
 
@@ -906,7 +910,7 @@ vrrp_script_thread(thread_t * thread)
 	/* Execute the script in a child process. Parent returns, child doesn't */
 	return system_call_script(thread->master, vrrp_script_child_thread,
 				  vscript, (vscript->timeout) ? vscript->timeout : vscript->interval,
-				  vscript->script);
+				  vscript->script, vscript->uid, vscript->gid);
 }
 
 static int
@@ -942,7 +946,7 @@ vrrp_script_child_thread(thread_t * thread)
 
 		/* Report if status has changed */
 		if (status != vscript->last_status) {
-			log_message(LOG_INFO, "Script %s now returning %d", vscript->sname, status);
+			log_message(LOG_INFO, "Script `%s` now returning %d", vscript->sname, status);
 			vscript->last_status = status;
 		}
 

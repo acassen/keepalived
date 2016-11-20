@@ -250,6 +250,11 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 		for (e = LIST_HEAD(vrrp->track_script); e; ELEMENT_NEXT(e)) {
 			tsc = ELEMENT_DATA(e);
 
+			if (tsc->scr->insecure) {
+				/* This script won't be run, so ignore it */
+				continue;
+			}
+
 			if (!tsc->weight) {
 				if (tsc->scr->result == VRRP_SCRIPT_STATUS_INIT ||
 				    (tsc->scr->result >= 0 && tsc->scr->result < tsc->scr->rise)) {
