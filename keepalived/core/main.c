@@ -82,8 +82,6 @@ static char *syslog_ident;				/* syslog ident if not default */
 char *instance_name;					/* keepalived instance name */
 bool use_pid_dir;					/* Put pid files in /var/run/keepalived */
 size_t getpwnam_buf_len;				/* Buffer length needed for getpwnam_r/getgrname_r */
-uid_t default_script_uid;				/* Default user/group for script execution */
-gid_t default_script_gid;
 unsigned os_major;					/* Kernel version */
 unsigned os_minor;
 unsigned os_release;
@@ -887,7 +885,7 @@ keepalived_main(int argc, char **argv)
 
 	netlink_set_recv_buf_size();
 
-	set_default_script_user(&default_script_uid, &default_script_gid);
+	set_default_script_user();
 
 	/* Get buffer length needed for getpwnam_r/getgrnam_r */
 	getpwnam_buf_len = (size_t)sysconf(_SC_GETPW_R_SIZE_MAX);

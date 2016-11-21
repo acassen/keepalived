@@ -153,7 +153,7 @@ check_track_script_secure(tracked_sc_t *script)
 	ns.uid = script->scr->uid;
 	ns.gid = script->scr->gid;
 
-	flags = check_script_secure(&ns, global_data->script_security, false);
+	flags = check_script_secure(&ns, false);
 
 	/* Mark not to run if needs inhibiting */
 	if (flags & SC_INHIBIT) {
@@ -187,11 +187,11 @@ check_vrrp_script_security(void)
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-		script_flags |= check_notify_script_secure(&vrrp->script_backup, global_data->script_security, false);
-		script_flags |= check_notify_script_secure(&vrrp->script_master, global_data->script_security, false);
-		script_flags |= check_notify_script_secure(&vrrp->script_fault, global_data->script_security, false);
-		script_flags |= check_notify_script_secure(&vrrp->script_stop, global_data->script_security, false);
-		script_flags |= check_notify_script_secure(&vrrp->script, global_data->script_security, true);
+		script_flags |= check_notify_script_secure(&vrrp->script_backup, false);
+		script_flags |= check_notify_script_secure(&vrrp->script_master, false);
+		script_flags |= check_notify_script_secure(&vrrp->script_fault, false);
+		script_flags |= check_notify_script_secure(&vrrp->script_stop, false);
+		script_flags |= check_notify_script_secure(&vrrp->script, true);
 
 		if (LIST_ISEMPTY(vrrp->track_script))
 			continue;
@@ -212,13 +212,13 @@ log_message(LOG_INFO, "Removing track script %s from %s", track_script->scr->sna
 
 	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
 		sg = ELEMENT_DATA(e);
-		script_flags |= check_notify_script_secure(&sg->script_backup, global_data->script_security, false);
-		script_flags |= check_notify_script_secure(&sg->script_master, global_data->script_security, false);
-		script_flags |= check_notify_script_secure(&sg->script_fault, global_data->script_security, false);
-		script_flags |= check_notify_script_secure(&sg->script, global_data->script_security, true);
+		script_flags |= check_notify_script_secure(&sg->script_backup, false);
+		script_flags |= check_notify_script_secure(&sg->script_master, false);
+		script_flags |= check_notify_script_secure(&sg->script_fault, false);
+		script_flags |= check_notify_script_secure(&sg->script, true);
 	}
 
-	if (!global_data->script_security && script_flags & SC_ISSCRIPT) {
+	if (!script_security && script_flags & SC_ISSCRIPT) {
 		log_message(LOG_INFO, "SECURITY VIOLATION - scripts are being executed but script_security not enabled.%s",
 				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
 	}

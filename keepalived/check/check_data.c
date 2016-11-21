@@ -452,18 +452,18 @@ check_check_script_security(void)
 	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
 
-		script_flags |= check_notify_script_secure(&vs->quorum_up, global_data->script_security, false);
-		script_flags |= check_notify_script_secure(&vs->quorum_down, global_data->script_security, false);
+		script_flags |= check_notify_script_secure(&vs->quorum_up, false);
+		script_flags |= check_notify_script_secure(&vs->quorum_down, false);
 
 		for (e1 = LIST_HEAD(vs->rs); e1; ELEMENT_NEXT(e1)) {
 			rs = ELEMENT_DATA(e1);
 
-			script_flags |= check_notify_script_secure(&rs->notify_up, global_data->script_security, false);
-			script_flags |= check_notify_script_secure(&rs->notify_down, global_data->script_security, false);
+			script_flags |= check_notify_script_secure(&rs->notify_up, false);
+			script_flags |= check_notify_script_secure(&rs->notify_down, false);
 		}
 	}
 
-	if (!global_data->script_security && script_flags & SC_ISSCRIPT) {
+	if (!script_security && script_flags & SC_ISSCRIPT) {
 		log_message(LOG_INFO, "SECURITY VIOLATION - check scripts are being executed but script_security not enabled.%s",
 				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
 	}

@@ -41,6 +41,13 @@
 #include "vector.h"
 #include "parser.h"
 
+/* Default user/group for script execution */
+uid_t default_script_uid;
+gid_t default_script_gid;
+
+/* Script security enabled */
+bool script_security = false;
+
 /* perform a system call */
 static int
 system_call(const char *cmdline, uid_t uid, gid_t gid)
@@ -182,7 +189,7 @@ script_killall(thread_master_t *m, int signo)
 }
 
 int
-check_script_secure(notify_script_t *script, bool script_security, bool full_string)
+check_script_secure(notify_script_t *script, bool full_string)
 {
 	int flags;
 	char *slash;
@@ -267,7 +274,7 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 }
 
 int
-check_notify_script_secure(notify_script_t **script_p, bool script_security, bool full_string)
+check_notify_script_secure(notify_script_t **script_p, bool full_string)
 {
 	int flags;
 	notify_script_t *script = *script_p;
@@ -275,7 +282,7 @@ check_notify_script_secure(notify_script_t **script_p, bool script_security, boo
 	if (!script)
 		return 0;
 
-	flags = check_script_secure(script, script_security, full_string);
+	flags = check_script_secure(script, full_string);
 
 	/* Mark not to run if needs inhibiting */
 	if (flags & SC_INHIBIT) {
@@ -294,7 +301,7 @@ check_notify_script_secure(notify_script_t **script_p, bool script_security, boo
 
 /* The default script user/group is keepalived_script if it exists, or root otherwise */
 void
-set_default_script_user(uid_t *uid, gid_t *gid)
+set_default_script_user(void)
 {
 	char buf[sysconf(_SC_GETPW_R_SIZE_MAX)];
 	char *default_user_name = "keepalived_script";
@@ -311,20 +318,20 @@ set_default_script_user(uid_t *uid, gid_t *gid)
 		return;
 	}
 
-	*uid = pwd.pw_uid;
-	*gid = pwd.pw_gid;
+	default_script_uid = pwd.pw_uid;
+	default_script_gid = pwd.pw_gid;
 
 	log_message(LOG_INFO, "Setting default script user to '%s', uid:gid %d:%d", default_user_name, pwd.pw_uid, pwd.pw_gid);
 }
 
 notify_script_t*
-notify_script_init(vector_t *strvec, uid_t uid, gid_t gid)
+notify_script_init(vector_t *strvec)
 {
 	notify_script_t *script = MALLOC(sizeof(notify_script_t));
 
 	script->name = set_value(strvec);
-	script->uid = uid;
-	script->gid = gid;
+	script->uid = default_script_uid;
+	script->gid = default_script_gid;
 
 	return script;
 }

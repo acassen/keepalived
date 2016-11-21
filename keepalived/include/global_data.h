@@ -127,7 +127,6 @@ typedef struct _data {
 #ifdef _WITH_DBUS_
 	bool				enable_dbus;
 #endif
-	bool				script_security;
 } data_t;
 
 /* Global vars exported */

@@ -155,7 +155,7 @@ check_misc_script_security(void)
 		script.uid = misc_script->uid;
 		script.gid = misc_script->gid;
 
-		script_flags |= (flags = check_script_secure(&script, global_data->script_security, false));
+		script_flags |= (flags = check_script_secure(&script, false));
 
 		/* Mark not to run if needs inhibiting */
 		insecure = false;

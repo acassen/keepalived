@@ -54,14 +54,21 @@ free_notify_script(notify_script_t **script)
 	FREE_PTR((*script)->name);
 	FREE_PTR(*script);
 }
-	
+
+/* Default user/group for script execution */
+extern uid_t default_script_uid;
+extern gid_t default_script_gid;
+
+/* Script security enabled */
+extern bool script_security;
+
 /* prototypes */
 extern int system_call_script(thread_master_t *, int (*) (thread_t *), void *, unsigned long, const char*, uid_t, gid_t);
 extern int notify_exec(const notify_script_t *);
 extern void script_killall(thread_master_t *, int);
-extern int check_script_secure(notify_script_t *, bool, bool);
-extern int check_notify_script_secure(notify_script_t **, bool, bool);
-extern void set_default_script_user(uid_t *, gid_t *);
-extern notify_script_t* notify_script_init(vector_t *, uid_t, gid_t);
+extern int check_script_secure(notify_script_t *, bool);
+extern int check_notify_script_secure(notify_script_t **, bool);
+extern void set_default_script_user(void);
+extern notify_script_t* notify_script_init(vector_t *);
 
 #endif

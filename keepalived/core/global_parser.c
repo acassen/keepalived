@@ -748,7 +748,7 @@ script_user_handler(vector_t *strvec)
 static void
 script_security_handler(__attribute__((unused)) vector_t *strvec)
 {
-	global_data->script_security = true;
+	script_security = true;
 }
 
 void

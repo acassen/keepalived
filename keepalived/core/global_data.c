@@ -31,6 +31,7 @@
 #include "list.h"
 #include "logger.h"
 #include "utils.h"
+#include "notify.h"
 #include "vrrp.h"
 #include "main.h"
 
@@ -355,6 +356,6 @@ dump_global_data(data_t * data)
 #ifdef _WITH_DBUS_
 	log_message(LOG_INFO, " DBus %s", data->enable_dbus ? "enabled" : "disabled");
 #endif
-	log_message(LOG_INFO, " Script security %s", data->script_security ? "enabled" : "disabled");
+	log_message(LOG_INFO, " Script security %s", script_security ? "enabled" : "disabled");
 	log_message(LOG_INFO, " Default script uid:gid %d:%d", default_script_uid, default_script_gid);
 }

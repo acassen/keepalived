@@ -305,7 +305,7 @@ inhibit_handler(__attribute__((unused)) vector_t *strvec)
 static inline notify_script_t*
 set_check_notify_script(vector_t *strvec)
 {
-	notify_script_t *script = notify_script_init(strvec, default_script_uid, default_script_gid);
+	notify_script_t *script = notify_script_init(strvec);
 
 	if (vector_size(strvec) > 2 ) {
 		if (set_script_uid_gid(strvec, 2, &script->uid, &script->gid))
