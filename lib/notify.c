@@ -62,15 +62,19 @@ system_call(const char *cmdline, uid_t uid, gid_t gid)
 
 	retval = system(cmdline);
 
-	if (retval == 127) {
-		/* couldn't exec command */
-		log_message(LOG_ALERT, "Couldn't find command: %s", cmdline);
-	} else if (retval == 126) {
-		/* don't have sufficient privilege to exec command */
-		log_message(LOG_ALERT, "Insufficient privilege to exec command: %s", cmdline);
-	} else if (retval == -1) {
+
+	if (retval == -1) {
 		/* other error */
 		log_message(LOG_ALERT, "Error exec-ing command: %s", cmdline);
+	}
+	else if (WIFEXITED(retval)) {
+		if (retval == 127) {
+			/* couldn't exec /bin/sh or couldn't find command */
+			log_message(LOG_ALERT, "Couldn't find command: %s", cmdline);
+		} else if (retval == 126) {
+			/* don't have sufficient privilege to exec command */
+			log_message(LOG_ALERT, "Insufficient privilege to exec command: %s", cmdline);
+		}
 	}
 
 	return retval;
@@ -145,7 +149,7 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 
 	status = system_call(script, uid, gid);
 
-	if (status < 0 || !WIFEXITED(status))
+	if (status < 0 || !WIFEXITED(status) || WEXITSTATUS(status >= 126))
 		exit(0); /* Script errors aren't server errors */
 
 	exit(WEXITSTATUS(status));
