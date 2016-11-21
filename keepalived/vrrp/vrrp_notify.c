@@ -75,56 +75,6 @@ get_ggscript(vrrp_sgroup_t * vgroup)
 	return vgroup->script;
 }
 
-static char *
-notify_script_name(char *cmdline)
-{
-	char *cp = cmdline;
-	char *script;
-	size_t str_len;
-
-// TODO - do this at parse time
-	if (!cmdline)
-		return NULL;
-	while (!isspace(*cp) && *cp != '\0')
-		cp++;
-	str_len = (size_t)(cp - cmdline);
-	script = MALLOC(str_len + 1);
-	memcpy(script, cmdline, str_len);
-	*(script + str_len) = '\0';
-
-	return script;
-}
-
-static bool
-script_open_literal(char *script)
-{
-// TODO - use stat()
-	log_message(LOG_DEBUG, "Opening script file %s",script);
-	FILE *fOut = fopen(script, "r");
-	if (!fOut) {
-		log_message(LOG_INFO, "Can't open %s (errno %d %s)", script,
-		       errno, strerror(errno));
-		return false;
-	}
-	fclose(fOut);
-	return true;
-}
-
-static bool
-script_open(notify_script_t *script)
-{
-	char *name = notify_script_name(script->name);
-	int ret;
-
-	if (!name)
-		return false;
-
-	ret = script_open_literal(name);
-	FREE(name);
-
-	return ret;
-}
-
 static void
 notify_script_exec(notify_script_t* script, const char *type, int state_num, char* name, int prio)
 {
@@ -189,13 +139,13 @@ notify_instance_exec(vrrp_t * vrrp, int state)
 	int ret = 0;
 
 	/* Launch the notify_* script */
-	if (script && script_open(script)) {
+	if (script) {
 		notify_exec(script);
 		ret = 1;
 	}
 
 	/* Launch the generic notify script */
-	if (gscript && script_open_literal(gscript->name)) {
+	if (gscript) {
 		notify_script_exec(gscript, "INSTANCE", state, vrrp->iname,
 				   vrrp->effective_priority);
 		ret = 1;
@@ -217,13 +167,13 @@ notify_group_exec(vrrp_sgroup_t * vgroup, int state)
 	int ret = 0;
 
 	/* Launch the notify_* script */
-	if (script && script_open(script)) {
+	if (script) {
 		notify_exec(script);
 		ret = 1;
 	}
 
 	/* Launch the generic notify script */
-	if (gscript && script_open_literal(gscript->name)) {
+	if (gscript) {
 		notify_script_exec(gscript, "GROUP", state, vgroup->gname, 0);
 		ret = 1;
 	}
