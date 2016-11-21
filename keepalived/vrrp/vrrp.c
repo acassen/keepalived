@@ -210,12 +210,14 @@ log_message(LOG_INFO, "Removing track script %s from %s", track_script->scr->sna
 		}
 	}
 
-	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
-		sg = ELEMENT_DATA(e);
-		script_flags |= check_notify_script_secure(&sg->script_backup, false);
-		script_flags |= check_notify_script_secure(&sg->script_master, false);
-		script_flags |= check_notify_script_secure(&sg->script_fault, false);
-		script_flags |= check_notify_script_secure(&sg->script, true);
+	if (!LIST_ISEMPTY(vrrp_data->vrrp_sync_group)) {
+		for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
+			sg = ELEMENT_DATA(e);
+			script_flags |= check_notify_script_secure(&sg->script_backup, false);
+			script_flags |= check_notify_script_secure(&sg->script_master, false);
+			script_flags |= check_notify_script_secure(&sg->script_fault, false);
+			script_flags |= check_notify_script_secure(&sg->script, true);
+		}
 	}
 
 	if (!script_security && script_flags & SC_ISSCRIPT) {

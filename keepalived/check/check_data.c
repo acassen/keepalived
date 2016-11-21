@@ -447,6 +447,9 @@ check_check_script_security(void)
 	real_server_t *rs;
 	int script_flags;
 
+	if (LIST_ISEMPTY(check_data->vs))
+		return;
+
 	script_flags = check_misc_script_security();
 
 	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
