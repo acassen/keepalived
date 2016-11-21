@@ -1487,26 +1487,26 @@ vrrp_snmp_syncgroup(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_SYNCGROUP_SCRIPTMASTER:
 		if (group->script_master) {
-			*var_len = strlen(group->script_master);
-			return (u_char *)group->script_master;
+			*var_len = strlen(group->script_master->name);
+			return (u_char *)group->script_master->name;
 		}
 		break;
 	case VRRP_SNMP_SYNCGROUP_SCRIPTBACKUP:
 		if (group->script_backup) {
-			*var_len = strlen(group->script_backup);
-			return (u_char *)group->script_backup;
+			*var_len = strlen(group->script_backup->name);
+			return (u_char *)group->script_backup->name;
 		}
 		break;
 	case VRRP_SNMP_SYNCGROUP_SCRIPTFAULT:
 		if (group->script_fault) {
-			*var_len = strlen(group->script_fault);
-			return (u_char *)group->script_fault;
+			*var_len = strlen(group->script_fault->name);
+			return (u_char *)group->script_fault->name;
 		}
 		break;
 	case VRRP_SNMP_SYNCGROUP_SCRIPT:
 		if (group->script) {
-			*var_len = strlen(group->script);
-			return (u_char *)group->script;
+			*var_len = strlen(group->script->name);
+			return (u_char *)group->script->name;
 		}
 		break;
 	default:
@@ -1848,32 +1848,32 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_SCRIPTMASTER:
 		if (rt->script_master) {
-			*var_len = strlen(rt->script_master);
-			return (u_char *)rt->script_master;
+			*var_len = strlen(rt->script_master->name);
+			return (u_char *)rt->script_master->name;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPTBACKUP:
 		if (rt->script_backup) {
-			*var_len = strlen(rt->script_backup);
-			return (u_char *)rt->script_backup;
+			*var_len = strlen(rt->script_backup->name);
+			return (u_char *)rt->script_backup->name;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPTFAULT:
 		if (rt->script_fault) {
-			*var_len = strlen(rt->script_fault);
-			return (u_char *)rt->script_fault;
+			*var_len = strlen(rt->script_fault->name);
+			return (u_char *)rt->script_fault->name;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPTSTOP:
 		if (rt->script_stop) {
-			*var_len = strlen(rt->script_stop);
-			return (u_char *)rt->script_stop;
+			*var_len = strlen(rt->script_stop->name);
+			return (u_char *)rt->script_stop->name;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPT:
 		if (rt->script) {
-			*var_len = strlen(rt->script);
-			return (u_char *)rt->script;
+			*var_len = strlen(rt->script->name);
+			return (u_char *)rt->script->name;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_ACCEPT:
