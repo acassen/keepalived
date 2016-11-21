@@ -142,8 +142,6 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 	skip_mem_dump();
 #endif
 
-	setpgid(0, 0);
-
 	/* Move us into our own process group, so if the script needs to be killed
 	 * all its child processes will also be killed. */
 	setpgid(0, 0);
