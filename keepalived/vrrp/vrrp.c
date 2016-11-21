@@ -197,12 +197,14 @@ check_vrrp_script_security(void)
 		}
 	}
 
-	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
-		sg = ELEMENT_DATA(e);
-		script_flags |= check_notify_script_secure(&sg->script_backup, global_data->script_security, false);
-		script_flags |= check_notify_script_secure(&sg->script_master, global_data->script_security, false);
-		script_flags |= check_notify_script_secure(&sg->script_fault, global_data->script_security, false);
-		script_flags |= check_notify_script_secure(&sg->script, global_data->script_security, true);
+	if (!LIST_ISEMPTY(vrrp_data->vrrp_sync_group)) {
+		for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
+			sg = ELEMENT_DATA(e);
+			script_flags |= check_notify_script_secure(&sg->script_backup, global_data->script_security, false);
+			script_flags |= check_notify_script_secure(&sg->script_master, global_data->script_security, false);
+			script_flags |= check_notify_script_secure(&sg->script_fault, global_data->script_security, false);
+			script_flags |= check_notify_script_secure(&sg->script, global_data->script_security, true);
+		}
 	}
 
 	if (!global_data->script_security && script_flags & SC_ISSCRIPT) {
