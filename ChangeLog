@@ -1,3 +1,13 @@
+2016-11-21 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.3.1 released.
+	* Ensure lists aren't empty when checking script security.
+	* Correctly check security of scripts with parameters, and check
+	  checker notify/quorum scripts
+	* Check security of real/virtual server notify scripts.
+	* Handle space in filenames appropriately when checking script security.
+	  The generic notify scripts can have spaces in their filenames, all other
+	  scripts spaced delineate parameters.
+
 2016-11-20 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.3.0 released.
 	* Add DBus functionality to VRRP.
