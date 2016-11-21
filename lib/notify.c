@@ -266,6 +266,32 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 	return flags;
 }
 
+int
+check_notify_script_secure(notify_script_t **script_p, bool script_security, bool full_string)
+{
+	int flags;
+	notify_script_t *script = *script_p;
+
+	if (!script)
+		return 0;
+
+	flags = check_script_secure(script, script_security, full_string);
+
+	/* Mark not to run if needs inhibiting */
+	if (flags & SC_INHIBIT) {
+		log_message(LOG_INFO, "Disabling notify script %s due to insecure", script->name);
+		free_notify_script(script_p);
+	}
+	else if (flags & SC_NOTFOUND) {
+		log_message(LOG_INFO, "Disabling notify script %s since not found", script->name);
+		free_notify_script(script_p);
+	}
+	else if (flags & SC_EXECUTABLE)
+		script->executable = true;
+
+	return flags;
+}
+
 /* The default script user/group is keepalived_script if it exists, or root otherwise */
 void
 set_default_script_user(uid_t *uid, gid_t *gid)
