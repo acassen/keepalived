@@ -153,7 +153,7 @@ check_track_script_secure(tracked_sc_t *script)
 	ns.uid = script->scr->uid;
 	ns.gid = script->scr->gid;
 
-	flags = check_script_secure(&ns, global_data->script_security);
+	flags = check_script_secure(&ns, global_data->script_security, false);
 
 	/* Mark not to run if needs inhibiting */
 	if (flags & SC_INHIBIT) {
@@ -166,32 +166,6 @@ check_track_script_secure(tracked_sc_t *script)
 	}
 	else if (flags & SC_EXECUTABLE)
 		script->scr->executable = true;
-
-	return flags;
-}
-
-static int
-check_notify_script_secure(notify_script_t **script_p)
-{
-	int flags;
-	notify_script_t *script = *script_p;
-
-	if (!script)
-		return 0;
-
-	flags = check_script_secure(script, global_data->script_security);
-
-	/* Mark not to run if needs inhibiting */
-	if (flags & SC_INHIBIT) {
-		log_message(LOG_INFO, "Disabling notify script %s due to insecure", script->name);
-		free_notify_script(script_p);
-	}
-	else if (flags & SC_NOTFOUND) {
-		log_message(LOG_INFO, "Disabling notify script %s since not found", script->name);
-		free_notify_script(script_p);
-	}
-	else if (flags & SC_EXECUTABLE)
-		script->executable = true;
 
 	return flags;
 }
@@ -213,11 +187,11 @@ check_vrrp_script_security(void)
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-		script_flags |= check_notify_script_secure(&vrrp->script_backup);
-		script_flags |= check_notify_script_secure(&vrrp->script_master);
-		script_flags |= check_notify_script_secure(&vrrp->script_fault);
-		script_flags |= check_notify_script_secure(&vrrp->script_stop);
-		script_flags |= check_notify_script_secure(&vrrp->script);
+		script_flags |= check_notify_script_secure(&vrrp->script_backup, global_data->script_security, false);
+		script_flags |= check_notify_script_secure(&vrrp->script_master, global_data->script_security, false);
+		script_flags |= check_notify_script_secure(&vrrp->script_fault, global_data->script_security, false);
+		script_flags |= check_notify_script_secure(&vrrp->script_stop, global_data->script_security, false);
+		script_flags |= check_notify_script_secure(&vrrp->script, global_data->script_security, true);
 
 		if (LIST_ISEMPTY(vrrp->track_script))
 			continue;
@@ -238,10 +212,10 @@ log_message(LOG_INFO, "Removing track script %s from %s", track_script->scr->sna
 
 	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
 		sg = ELEMENT_DATA(e);
-		script_flags |= check_notify_script_secure(&sg->script_backup);
-		script_flags |= check_notify_script_secure(&sg->script_master);
-		script_flags |= check_notify_script_secure(&sg->script_fault);
-		script_flags |= check_notify_script_secure(&sg->script);
+		script_flags |= check_notify_script_secure(&sg->script_backup, global_data->script_security, false);
+		script_flags |= check_notify_script_secure(&sg->script_master, global_data->script_security, false);
+		script_flags |= check_notify_script_secure(&sg->script_fault, global_data->script_security, false);
+		script_flags |= check_notify_script_secure(&sg->script, global_data->script_security, true);
 	}
 
 	if (!global_data->script_security && script_flags & SC_ISSCRIPT) {
