@@ -130,8 +130,8 @@ install_misc_check_keyword(void)
 }
 
 /* Check that the scripts are secure */
-void
-check_check_script_security(void)
+int
+check_misc_script_security(void)
 {
 	element e;
 	checker_t *checker;
@@ -141,7 +141,7 @@ check_check_script_security(void)
 	notify_script_t script;
 
 	if (LIST_ISEMPTY(checkers_queue))
-		return;
+		return 0;
 
 	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 		checker = ELEMENT_DATA(e);
@@ -154,7 +154,7 @@ check_check_script_security(void)
 		script.uid = misc_script->uid;
 		script.gid = misc_script->gid;
 
-		script_flags |= (flags = check_script_secure(&script, global_data->script_security));
+		script_flags |= (flags = check_script_secure(&script, global_data->script_security, false));
 
 		/* Mark not to run if needs inhibiting */
 		if (flags & SC_INHIBIT) {
@@ -169,10 +169,7 @@ check_check_script_security(void)
 			misc_script->executable = true;
 	}
 
-	if (!global_data->script_security && script_flags & SC_ISSCRIPT) {
-		log_message(LOG_INFO, "SECURITY VIOLATION - check scripts are being executed but script_security not enabled.%s",
-				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
-	}
+	return script_flags;
 }
 
 static int
