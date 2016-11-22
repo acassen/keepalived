@@ -3568,6 +3568,7 @@ vrrp_rfcv3_snmp_stats(struct variable *vp, oid *name, size_t *length,
 			int exact, size_t *var_len, WriteMethod **write_method)
 {
 	static struct counter64 c64;
+	static uint32_t ret;
 	element e;
 	vrrp_t *vrrp;
 	uint64_t count;
@@ -3590,25 +3591,30 @@ vrrp_rfcv3_snmp_stats(struct variable *vp, oid *name, size_t *length,
 	count = 0;
 
 	/* We don't do discontinuity time at the moment */
-	if (vp->magic != VRRP_RFCv3_SNMP_STATS_ROW_DISC_TIME) {
-		/* Work through all the vrrp instances that we can respond for */
-		for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-			vrrp = ELEMENT_DATA(e);
+	if (vp->magic == VRRP_RFCv3_SNMP_STATS_DISC_TIME) {
+		// We don't "do" discontinuities
+		*var_len = sizeof(ret);
+		ret = 0;
+		return (u_char *)&ret;
+	}
 
-			if (!suitable_for_rfc6527(vrrp))
-				continue;
+	/* Work through all the vrrp instances that we can respond for */
+	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
 
-			switch (vp->magic) {
-			case VRRP_RFCv3_SNMP_STATS_CHK_ERR:
-				count += vrrp->stats->chk_err;
-				break;
-			case VRRP_RFCv3_SNMP_STATS_VER_ERR:
-				count += vrrp->stats->vers_err;
-				break;
-			case VRRP_RFCv3_SNMP_STATS_VRID_ERR:
-				count += vrrp->stats->vrid_err;
-				break;
-			}
+		if (!suitable_for_rfc6527(vrrp))
+			continue;
+
+		switch (vp->magic) {
+		case VRRP_RFCv3_SNMP_STATS_CHK_ERR:
+			count += vrrp->stats->chk_err;
+			break;
+		case VRRP_RFCv3_SNMP_STATS_VER_ERR:
+			count += vrrp->stats->vers_err;
+			break;
+		case VRRP_RFCv3_SNMP_STATS_VRID_ERR:
+			count += vrrp->stats->vrid_err;
+			break;
 		}
 	}
 
