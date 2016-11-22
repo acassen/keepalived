@@ -417,10 +417,11 @@ read_conf_file(const char *conf_file)
 			continue;
 		}
 
-		/* Make sure what we have opened is a regular file, and not for example a directory */
+		/* Make sure what we have opened is a regular file, and not for example a directory or executable */
 		if (fstat(fileno(stream), &stb) ||
-		    !S_ISREG(stb.st_mode)) {
-			log_message(LOG_INFO, "Configuration file '%s' is not a regular file - skipping", globbuf.gl_pathv[i]);
+		    !S_ISREG(stb.st_mode) ||
+		    (stb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+			log_message(LOG_INFO, "Configuration file '%s' is not a regular non-executable file - skipping", globbuf.gl_pathv[i]);
 			fclose(stream);
 			continue;
 		}
@@ -481,10 +482,11 @@ bool check_conf_file(const char *conf_file)
 				break;
 			}
 
-			/* Make sure that the file is a regular file, and not for example a directory */
+			/* Make sure that the file is a regular file, and not for example a directory or executable */
 			if (stat(globbuf.gl_pathv[i], &stb) ||
-			    !S_ISREG(stb.st_mode)) {
-				log_message(LOG_INFO, "Configuration file '%s' is not a regular file", globbuf.gl_pathv[i]);
+			    !S_ISREG(stb.st_mode) ||
+			     (stb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+				log_message(LOG_INFO, "Configuration file '%s' is not a regular non-executable file", globbuf.gl_pathv[i]);
 				ret = false;
 				break;
 			}
