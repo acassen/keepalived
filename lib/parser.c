@@ -426,7 +426,6 @@ read_conf_file(const char *conf_file)
 		}
 
 		current_stream = stream;
-		current_conf_file = globbuf.gl_pathv[i];
 
 		char prev_path[MAXBUF];
 		path = getcwd(prev_path, MAXBUF);
