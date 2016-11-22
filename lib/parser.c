@@ -541,6 +541,7 @@ read_line(char *buf, size_t size)
 		{
 			eof = true;
 			buf[0] = '\0';
+			break;
 		}
 	} while (check_include(buf));
 
