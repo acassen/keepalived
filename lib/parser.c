@@ -46,7 +46,6 @@ bool reload = 0;
 char *config_id;
 
 /* local vars */
-static char *current_conf_file;
 static vector_t *current_keywords;
 static FILE *current_stream;
 static int sublevel = 0;
@@ -501,44 +500,26 @@ bool check_conf_file(const char *conf_file)
 static bool
 check_include(char *buf)
 {
-	char *str;
 	vector_t *strvec;
-	char *path;
-	int ret;
+	bool ret = false;
+	FILE *prev_stream;
 
 	strvec = alloc_strvec(buf);
 
 	if (!strvec)
 		return false;
 
-	str = vector_slot(strvec, 0);
+	if(!strcmp("include", vector_slot(strvec, 0)) && vector_size(strvec) == 2) {
+		prev_stream = current_stream;
 
-	if(!strcmp("include", str) && vector_size(strvec) == 2){
-		char *conf_file = vector_slot(strvec, 1);
+		read_conf_file(vector_slot(strvec, 1));
 
-		FILE *prev_stream = current_stream;
-		char *prev_conf_file = current_conf_file;
-		char prev_path[MAXBUF];
-		path = getcwd(prev_path, MAXBUF);
-		if (!path) {
-			log_message(LOG_INFO, "getcwd(%s) error (%s)"
-					    , prev_path, strerror(errno));
-		}
-
-		read_conf_file(conf_file);
 		current_stream = prev_stream;
-		current_conf_file = prev_conf_file;
-		ret = chdir(prev_path);
-		if (ret < 0) {
-			log_message(LOG_INFO, "chdir(%s) error (%s)"
-					    , prev_path, strerror(errno));
-		}
-		free_strvec(strvec);
-		return true;
+		ret = true;
 	}
 
 	free_strvec(strvec);
-	return false;
+	return ret;
 }
 
 bool
