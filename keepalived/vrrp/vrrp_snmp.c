@@ -1697,7 +1697,7 @@ vrrp_snmp_instance_priority(int action,
 			    "VRRP_Instance(%s) base priority changed from"
 			    " %u to %u via SNMP.",
 			    vrrp->iname, vrrp->base_priority, *var_val);
-		vrrp->total_priority += *var_val - vrrp_base_priority;
+		vrrp->total_priority += *var_val - vrrp->base_priority;
 		vrrp->base_priority = *var_val;
 		vrrp_set_effective_priority(vrrp);
 //TODO - could affect accept
