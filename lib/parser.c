@@ -428,8 +428,8 @@ read_conf_file(const char *conf_file)
 
 		current_stream = stream;
 
-		char prev_path[MAXBUF];
-		path = getcwd(prev_path, MAXBUF);
+		char prev_path[PATH_MAX];
+		path = getcwd(prev_path, PATH_MAX);
 		if (!path) {
 			log_message(LOG_INFO, "getcwd(%s) error (%s)"
 					    , prev_path, strerror(errno));
