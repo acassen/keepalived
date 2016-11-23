@@ -1914,14 +1914,17 @@ shutdown_vrrp_instances(void)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
+		/* We may not have an ifp if we are aborting at startup */
+		if (vrrp->ifp) {
 #ifdef _HAVE_VRRP_VMAC_
-		/* Remove VMAC */
-		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-			netlink_link_del_vmac(vrrp);
+			/* Remove VMAC */
+			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+				netlink_link_del_vmac(vrrp);
 #endif
 
-		if (vrrp->ifp->reset_promote_secondaries)
-			reset_promote_secondaries(vrrp->ifp);
+			if (vrrp->ifp->reset_promote_secondaries)
+				reset_promote_secondaries(vrrp->ifp);
+		}
 
 		/* Run stop script */
 		if (vrrp->script_stop)
