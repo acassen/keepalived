@@ -49,25 +49,33 @@ system_call(const char *cmdline, uid_t uid, gid_t gid)
 
 	/* Drop our privileges if configured */
 	if (gid) {
-		setgid(gid);
+		retval = setgid(gid);
+		if (retval < 0) {
+			log_message(LOG_ALERT, "Couldn't setgid: %d (%m)", gid);
+		}
 
 		/* Clear any extra supplementary groups */
-		setgroups(1, &gid);
+		retval = setgroups(1, &gid);
+		if (retval < 0) {
+			log_message(LOG_ALERT, "Couldn't setgroups: %d (%m)", gid);
+		}
 	}
-	if (uid)
-		setuid(uid);
+
+	if (uid) {
+		retval = setuid(uid);
+		if (retval < 0) {
+			log_message(LOG_ALERT, "Couldn't setuid: %d (%m)", uid);
+		}
+	}
 
 	/* system() fails if SIGCHLD is set to SIG_IGN */
 	signal_set(SIGCHLD, (void*)SIG_DFL, NULL);
 
 	retval = system(cmdline);
-
-
 	if (retval == -1) {
 		/* other error */
 		log_message(LOG_ALERT, "Error exec-ing command: %s", cmdline);
-	}
-	else if (WIFEXITED(retval)) {
+	} else if (WIFEXITED(retval)) {
 		if (retval == 127) {
 			/* couldn't exec /bin/sh or couldn't find command */
 			log_message(LOG_ALERT, "Couldn't find command: %s", cmdline);
