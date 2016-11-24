@@ -52,12 +52,14 @@ system_call(const char *cmdline, uid_t uid, gid_t gid)
 		retval = setgid(gid);
 		if (retval < 0) {
 			log_message(LOG_ALERT, "Couldn't setgid: %d (%m)", gid);
+			return -1;
 		}
 
 		/* Clear any extra supplementary groups */
 		retval = setgroups(1, &gid);
 		if (retval < 0) {
 			log_message(LOG_ALERT, "Couldn't setgroups: %d (%m)", gid);
+			return -1;
 		}
 	}
 
@@ -65,6 +67,7 @@ system_call(const char *cmdline, uid_t uid, gid_t gid)
 		retval = setuid(uid);
 		if (retval < 0) {
 			log_message(LOG_ALERT, "Couldn't setuid: %d (%m)", uid);
+			return -1;
 		}
 	}
 
