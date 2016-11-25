@@ -52,7 +52,7 @@ static void
 set_default_email_from(data_t * data, const char *hostname)
 {
 	struct passwd *pwd = NULL;
-	int len = 0;
+	size_t len;
 
 	if (!hostname || !hostname[0])
 		return;
@@ -90,8 +90,8 @@ set_vrrp_defaults(data_t * data)
 	data->vrrp_garp_refresh.tv_sec = VRRP_GARP_REFRESH;
 	data->vrrp_garp_refresh_rep = VRRP_GARP_REFRESH_REP;
 	data->vrrp_garp_delay = VRRP_GARP_DELAY;
-	data->vrrp_garp_lower_prio_delay = -1;
-	data->vrrp_garp_lower_prio_rep = -1;
+	data->vrrp_garp_lower_prio_delay = PARAMETER_UNSET;
+	data->vrrp_garp_lower_prio_rep = PARAMETER_UNSET;
 	data->vrrp_lower_prio_no_advert = false;
 	data->vrrp_version = VRRP_VERSION_2;
 	strcpy(data->vrrp_iptables_inchain, "INPUT");
@@ -125,7 +125,7 @@ dump_email(void *data)
 void
 alloc_email(char *addr)
 {
-	int size = strlen(addr);
+	size_t size = strlen(addr);
 	char *new;
 
 	new = (char *) MALLOC(size + 1);
@@ -163,15 +163,18 @@ alloc_global_data(void)
 		new->enable_snmp_checker = true;
 #endif
 	}
-	new->lvs_syncd.syncid = -1;
-#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
-	new->lvs_syncd.mcast_group.ss_family = AF_UNSPEC;
-#endif
 
 	if (snmp_socket) {
 		new->snmp_socket = MALLOC(strlen(snmp_socket + 1));
 		strcpy(new->snmp_socket, snmp_socket);
 	}
+#endif
+
+#ifdef _WITH_LVS_
+	new->lvs_syncd.syncid = PARAMETER_UNSET;
+#ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
+	new->lvs_syncd.mcast_group.ss_family = AF_UNSPEC;
+#endif
 #endif
 
 	return new;
@@ -269,17 +272,17 @@ dump_global_data(data_t * data)
 		if (data->lvs_syncd.ifname)
 			log_message(LOG_INFO, " LVS syncd interface = %s"
 				    , data->lvs_syncd.ifname);
-		log_message(LOG_INFO, " LVS syncd syncid = %d"
+		log_message(LOG_INFO, " LVS syncd syncid = %u"
 				    , data->lvs_syncd.syncid);
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 		if (data->lvs_syncd.sync_maxlen)
-			log_message(LOG_INFO, " LVS syncd maxlen = %d", data->lvs_syncd.sync_maxlen);
+			log_message(LOG_INFO, " LVS syncd maxlen = %u", data->lvs_syncd.sync_maxlen);
 		if (data->lvs_syncd.mcast_group.ss_family != AF_UNSPEC)
 			log_message(LOG_INFO, " LVS mcast group %s", inet_sockaddrtos(&data->lvs_syncd.mcast_group));
 		if (data->lvs_syncd.mcast_port)
 			log_message(LOG_INFO, " LVS syncd mcast port = %d", data->lvs_syncd.mcast_port);
 		if (data->lvs_syncd.mcast_ttl)
-			log_message(LOG_INFO, " LVS syncd mcast ttl = %d", data->lvs_syncd.mcast_ttl);
+			log_message(LOG_INFO, " LVS syncd mcast ttl = %u", data->lvs_syncd.mcast_ttl);
 #endif
 	}
 #endif
@@ -294,9 +297,9 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO, " VRRP IPv6 mcast group = %s"
 				    , inet_sockaddrtos(&data->vrrp_mcast_group6));
 	}
-	log_message(LOG_INFO, " Gratuitous ARP delay = %d",
+	log_message(LOG_INFO, " Gratuitous ARP delay = %u",
 		       data->vrrp_garp_delay/TIMER_HZ);
-	log_message(LOG_INFO, " Gratuitous ARP repeat = %d", data->vrrp_garp_rep);
+	log_message(LOG_INFO, " Gratuitous ARP repeat = %u", data->vrrp_garp_rep);
 	log_message(LOG_INFO, " Gratuitous ARP refresh timer = %lu",
 		       data->vrrp_garp_refresh.tv_sec);
 	log_message(LOG_INFO, " Gratuitous ARP refresh repeat = %d", data->vrrp_garp_refresh_rep);
@@ -349,4 +352,9 @@ dump_global_data(data_t * data)
 #if HAVE_DECL_CLONE_NEWNET
 	log_message(LOG_INFO, " Network namespace = %s", network_namespace ? network_namespace : "(default)");
 #endif
+#ifdef _WITH_DBUS_
+	log_message(LOG_INFO, " DBus %s", data->enable_dbus ? "enabled" : "disabled");
+#endif
+	log_message(LOG_INFO, " Script security %s", data->script_security ? "enabled" : "disabled");
+	log_message(LOG_INFO, " Default script uid:gid %d:%d", default_script_uid, default_script_gid);
 }

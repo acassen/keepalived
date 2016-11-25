@@ -47,7 +47,7 @@ REQ *req = NULL;
 
 /* Terminate handler */
 static void
-sigend(void *v, int sig)
+sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	/* register the terminate thread */
 	thread_add_terminate_event(master);
@@ -57,7 +57,7 @@ sigend(void *v, int sig)
 static void
 signal_init(void)
 {
-	signal_handler_init();
+	signal_handler_init(1);
 	signal_set(SIGHUP, sigend, NULL);
 	signal_set(SIGINT, sigend, NULL);
 	signal_set(SIGTERM, sigend, NULL);
@@ -166,7 +166,7 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 					break;
 				}
 			if (i == hash_guard) {
-				fprintf(stderr, "unknown hash algoritm: %s\n", optarg);
+				fprintf(stderr, "unknown hash algorithm: %s\n", optarg);
 				return CMD_LINE_ERROR;
 			}
 			break;
@@ -181,7 +181,7 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 			break;
 		case 'm':
 #ifdef _WITH_SO_MARK_
-			req_obj->mark = atoi(optarg);
+			req_obj->mark = (unsigned)strtoul(optarg, NULL, 10);
 #else
 			fprintf(stderr, "genhash built without fwmark support\n");
 			return CMD_LINE_ERROR;

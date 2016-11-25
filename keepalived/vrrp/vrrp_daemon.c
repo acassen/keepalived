@@ -45,6 +45,7 @@
 #include "daemon.h"
 #include "logger.h"
 #include "signals.h"
+#include "notify.h"
 #include "process.h"
 #include "bitops.h"
 #include "rttables.h"
@@ -53,6 +54,9 @@
 #endif
 #ifdef _WITH_SNMP_
   #include "vrrp_snmp.h"
+#endif
+#ifdef _WITH_DBUS_
+  #include "vrrp_dbus.h"
 #endif
 #ifdef _HAVE_LIBIPSET_
   #include "vrrp_ipset.h"
@@ -116,6 +120,9 @@ stop_vrrp(int status)
 	}
 #endif
 
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
+
 	/* We mustn't receive a SIGCHLD after master is destroyed */
 	signal_handler_destroy();
 
@@ -123,6 +130,11 @@ stop_vrrp(int status)
 	thread_destroy_master(master);
 	gratuitous_arp_close();
 	ndisc_close();
+
+#ifdef _WITH_DBUS_
+	if (global_data->enable_dbus)
+		dbus_stop();
+#endif
 
 	free_global_data(global_data);
 	free_vrrp_data(vrrp_data);
@@ -160,10 +172,6 @@ start_vrrp(void)
 
 	global_data = alloc_global_data();
 
-#ifdef _HAVE_LIBIPTC_
-	iptables_init();
-#endif
-
 	/* Parse configuration file */
 	vrrp_data = alloc_vrrp_data();
 	if (!vrrp_data) {
@@ -180,6 +188,10 @@ start_vrrp(void)
 
 	if (global_data->vrrp_no_swap)
 		set_process_dont_swap(4096);	/* guess a stack size to reserve */
+
+#ifdef _HAVE_LIBIPTC_
+	iptables_init();
+#endif
 
 #ifdef _WITH_SNMP_
 	if (!reload && (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {
@@ -218,7 +230,6 @@ start_vrrp(void)
 		clear_diff_srules();
 		clear_diff_sroutes();
 #endif
-		clear_diff_vrrp();
 		clear_diff_script();
 	}
 	else {
@@ -232,6 +243,12 @@ start_vrrp(void)
 #endif
 	}
 
+#ifdef _WITH_DBUS_
+	if (!reload && global_data->enable_dbus)
+		if (!dbus_start())
+			global_data->enable_dbus = false;
+#endif
+
 	/* Complete VRRP initialization */
 	if (!vrrp_complete_init()) {
 		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
@@ -239,7 +256,17 @@ start_vrrp(void)
 	}
 
 #ifdef _HAVE_LIBIPTC_
-	iptables_startup();
+	iptables_startup(reload);
+#endif
+
+	/* clear_diff_vrrp must be called after vrrp_complete_init, since the latter
+	 * sets ifa_index on the addresses, which is used for the address comparison */
+	if (reload)
+		clear_diff_vrrp();
+
+#ifdef _WITH_DBUS_
+	if (reload && global_data->enable_dbus)
+		dbus_reload(old_vrrp_data->vrrp, vrrp_data->vrrp);
 #endif
 
 	/* Post initializations */
@@ -276,13 +303,13 @@ start_vrrp(void)
 }
 
 static void
-sighup_vrrp(void *v, int sig)
+sighup_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	thread_add_event(master, reload_vrrp_thread, NULL, 0);
 }
 
 static void
-sigusr1_vrrp(void *v, int sig)
+sigusr1_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	log_message(LOG_INFO, "Printing VRRP data for process(%d) on signal",
 		    getpid());
@@ -290,7 +317,7 @@ sigusr1_vrrp(void *v, int sig)
 }
 
 static void
-sigusr2_vrrp(void *v, int sig)
+sigusr2_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	log_message(LOG_INFO, "Printing VRRP stats for process(%d) on signal",
 		    getpid());
@@ -299,7 +326,7 @@ sigusr2_vrrp(void *v, int sig)
 
 /* Terminate handler */
 static void
-sigend_vrrp(void *v, int sig)
+sigend_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	if (master)
 		thread_add_terminate_event(master);
@@ -309,7 +336,7 @@ sigend_vrrp(void *v, int sig)
 static void
 vrrp_signal_init(void)
 {
-	signal_handler_init();
+	signal_handler_init(0);
 	signal_set(SIGHUP, sighup_vrrp, NULL);
 	signal_set(SIGINT, sigend_vrrp, NULL);
 	signal_set(SIGTERM, sigend_vrrp, NULL);
@@ -320,10 +347,13 @@ vrrp_signal_init(void)
 
 /* Reload thread */
 static int
-reload_vrrp_thread(thread_t * thread)
+reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 {
 	/* set the reloading flag */
 	SET_RELOAD;
+
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
 
 	/* Destroy master thread */
 	vrrp_dispatcher_release(vrrp_data);
@@ -355,9 +385,6 @@ reload_vrrp_thread(thread_t * thread)
 	reset_interface_queue();
 
 	/* Reload the conf */
-#ifdef _MEM_CHECK_
-	mem_allocated = 0;
-#endif
 	start_vrrp();
 
 #ifdef _WITH_LVS_
@@ -371,20 +398,21 @@ reload_vrrp_thread(thread_t * thread)
 	/* free backup data */
 	free_vrrp_data(old_vrrp_data);
 	free_old_interface_queue();
+
 	UNSET_RELOAD;
 
 	return 0;
 }
 
 static int
-print_vrrp_data(thread_t * thread)
+print_vrrp_data(__attribute__((unused)) thread_t * thread)
 {
 	vrrp_print_data();
 	return 0;
 }
 
 static int
-print_vrrp_stats(thread_t * thread)
+print_vrrp_stats(__attribute__((unused)) thread_t * thread)
 {
 	vrrp_print_stats();
 	return 0;
@@ -504,7 +532,6 @@ start_vrrp_child(void)
 	launch_scheduler();
 
 	/* Finish VRRP daemon process */
-//TODO - stop_vrrp doesn't return
 	stop_vrrp(EXIT_SUCCESS);
 
 	/* unreachable */

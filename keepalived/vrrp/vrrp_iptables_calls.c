@@ -64,6 +64,21 @@
  * be interferred with by anyone else doing an update.
  */
 
+static void
+set_iface(char *vianame, unsigned char *mask, const char *iface)
+{
+	size_t vialen = strlen(iface);
+
+	memset(vianame, 0, IFNAMSIZ);
+	memset(mask, 0, IFNAMSIZ);
+
+	strcpy(vianame, iface);
+	if (!vialen)
+		return;
+
+	memset(mask, 0xFF, vialen + 1);
+}
+
 /* Initializes a new iptables instance and returns an iptables resource associated with the new iptables table */
 struct iptc_handle* ip4tables_open ( const char* tablename )
 {
@@ -101,7 +116,7 @@ int ip4tables_is_chain(struct iptc_handle* handle, const char* chain_name)
 	return iptc_is_chain(chain_name, handle);
 }
 
-int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name, int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint16_t type, int cmd)
+int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name, unsigned int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint8_t type, int cmd, bool force)
 {
 	size_t size;
 	struct ipt_entry *fw;
@@ -116,14 +131,12 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 	memset (chain, 0, sizeof (chain));
 
 	size = XT_ALIGN (sizeof (struct ipt_entry)) +
-			XT_ALIGN ( sizeof ( struct xt_entry_match ) ) +
 			XT_ALIGN (sizeof (struct xt_entry_target) + 1);
 
 	if ( protocol == IPPROTO_ICMP )
 		size += XT_ALIGN ( sizeof(struct xt_entry_match) ) + XT_ALIGN ( sizeof(struct ipt_icmp) ) ;
 
 	fw = (struct ipt_entry*)MALLOC(size);
-	memset (fw, 0, size);
 
 	fw->target_offset = XT_ALIGN ( sizeof ( struct ipt_entry ) ) ;
 
@@ -139,10 +152,10 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 		memset ( &fw->ip.dmsk, 0xff, sizeof(fw->ip.dmsk));
 	}
 
-	if ( in_iface )
-		strcpy ( fw->ip.iniface, in_iface ) ;
-	if ( out_iface )
-		strcpy ( fw->ip.outiface, out_iface ) ;
+	if (in_iface)
+		set_iface(fw->ip.iniface, fw->ip.iniface_mask, in_iface);
+	if (out_iface)
+		set_iface(fw->ip.outiface, fw->ip.outiface_mask, out_iface);
 
 	if ( protocol != IPPROTO_NONE ) {
 		fw->ip.proto = protocol ;
@@ -152,10 +165,10 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 		if ( protocol == IPPROTO_ICMP )
 		{
 			match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
-			match->u.match_size = XT_ALIGN ( sizeof (struct xt_entry_match) ) + XT_ALIGN ( sizeof (struct ipt_icmp) ) ;
+			match->u.match_size = XT_ALIGN(sizeof (struct xt_entry_match)) + XT_ALIGN(sizeof(struct ipt_icmp));  
 			match->u.user.revision = 0;
-			fw->target_offset += match->u.match_size ;
-			strcpy ( match->u.user.name, "icmpv" ) ;
+			fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
+			strcpy ( match->u.user.name, "icmp" ) ;
 
 			struct ipt_icmp *icmpinfo = (struct ipt_icmp *) match->data;
 			icmpinfo->type = type ;		// type to match
@@ -166,7 +179,7 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 	}
 
 // target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
-	fw->next_offset = size;
+	fw->next_offset = (uint16_t)size;
 	target = ipt_get_target ( fw ) ;
 	target->u.user.target_size = XT_ALIGN (sizeof (struct xt_entry_target) + 1);
 	strcpy (target->u.user.name, target_name );
@@ -178,14 +191,14 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 		memset(matchmask, 0xff, fw->next_offset);
 		res = iptc_delete_entry(chain, fw, matchmask, handle);
 	}
-	else if ( rulenum == -1 )
+	else if (rulenum == APPEND_RULE)
 		res = iptc_append_entry (chain, fw, handle ) ;
 	else
 		res = iptc_insert_entry (chain, fw, rulenum, handle ) ;
 
 	sav_errno = errno ;
 
-	if (res!= 1)
+	if (res !=  1 && (!force || sav_errno != ENOENT))
 	{
 		log_message(LOG_INFO, "ip4tables_process_entry for chain %s returned %d: %s", chain, res, iptc_strerror (sav_errno) ) ;
 
@@ -232,7 +245,7 @@ int ip6tables_is_chain(struct ip6tc_handle* handle, const char* chain_name)
 	return ip6tc_is_chain(chain_name, handle);
 }
 
-int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name, int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint16_t type, int cmd)
+int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name, unsigned int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint8_t type, int cmd, bool force)
 {
 	size_t size;
 	struct ip6t_entry *fw;
@@ -247,14 +260,12 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 	memset (chain, 0, sizeof (chain));
 
 	size = XT_ALIGN (sizeof (struct ip6t_entry)) +
-			XT_ALIGN ( sizeof ( struct xt_entry_match ) ) +
 			XT_ALIGN (sizeof (struct xt_entry_target) + 1);
 
 	if ( protocol == IPPROTO_ICMPV6 )
 		size += XT_ALIGN ( sizeof(struct xt_entry_match) ) + XT_ALIGN ( sizeof(struct ip6t_icmp) ) ;
 
 	fw = (struct ip6t_entry*)MALLOC(size);
-	memset (fw, 0, size);
 
 	fw->target_offset = XT_ALIGN ( sizeof ( struct ip6t_entry ) ) ;
 
@@ -268,10 +279,10 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 		memset ( &fw->ipv6.dmsk, 0xff, sizeof(fw->ipv6.smsk));
 	}
 
-	if ( in_iface )
-		strcpy ( fw->ipv6.iniface, in_iface ) ;
-	if ( out_iface )
-		strcpy ( fw->ipv6.outiface, out_iface ) ;
+	if (in_iface)
+		set_iface(fw->ipv6.iniface, fw->ipv6.iniface_mask, in_iface);
+	if (out_iface)
+		set_iface(fw->ipv6.outiface, fw->ipv6.outiface_mask, out_iface);
 
 	if ( protocol != IPPROTO_NONE ) {
 		fw->ipv6.proto = protocol ;
@@ -283,7 +294,7 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 			match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 			match->u.match_size = XT_ALIGN ( sizeof (struct xt_entry_match) ) + XT_ALIGN ( sizeof (struct ip6t_icmp) ) ;
 			match->u.user.revision = 0;
-			fw->target_offset += match->u.match_size ;
+			fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 			strcpy ( match->u.user.name, "icmp6" ) ;
 
 			struct ip6t_icmp *icmpinfo = (struct ip6t_icmp *) match->data;
@@ -295,7 +306,7 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 	}
 
 // target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
-	fw->next_offset = size;
+	fw->next_offset = (uint16_t)size;
 	target = ip6t_get_target ( fw ) ;
 	target->u.user.target_size = XT_ALIGN (sizeof (struct xt_entry_target) + 1);
 	strcpy (target->u.user.name, target_name );
@@ -308,14 +319,14 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 		memset(matchmask, 0xff, fw->next_offset);
 		res = ip6tc_delete_entry ( chain, fw, matchmask, handle);
 	}
-	else if ( rulenum == -1 )
+	else if (rulenum == APPEND_RULE)
 		res = ip6tc_append_entry (chain, fw, handle ) ;
 	else
 		res = ip6tc_insert_entry (chain, fw, rulenum, handle ) ;
 
 	sav_errno = errno ;
 
-	if (res != 1)
+	if (res !=  1 && (!force || sav_errno != ENOENT))
 	{
 		log_message(LOG_INFO, "ip6tables_process_entry for chain %s returned %d: %s", chain, res, ip6tc_strerror (sav_errno) ) ;
 
@@ -431,12 +442,14 @@ get_set_byname_only(const char *setname, struct xt_set_info *info,
 }
 
 static void
-get_set_byname(const char *setname, struct xt_set_info *info, int family, bool ignore_errors)
+get_set_byname(const char *setname, struct xt_set_info *info, unsigned family, bool ignore_errors)
 {
 #if defined IP_SET_OP_GET_FNAME
 	struct ip_set_req_get_set_family req;
 	socklen_t size = sizeof(struct ip_set_req_get_set_family);
 	int res;
+#else
+	if (family) {};		/* Avoid compiler warning */
 #endif
 	int sockfd;
 	unsigned int version;
@@ -492,7 +505,7 @@ get_set_byname(const char *setname, struct xt_set_info *info, int family, bool i
 #endif
 }
 
-int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int rulenum, int dim, int src_dst, const char* target_name, const char* set_name, uint16_t protocol, int param, int cmd, bool ignore_errors)
+int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsigned int rulenum, uint8_t dim, uint8_t src_dst, const char* target_name, const char* set_name, uint16_t protocol, uint8_t param, int cmd, bool ignore_errors)
 {
 	size_t size;
 	struct ipt_entry *fw;
@@ -520,7 +533,6 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 		size += XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ipt_icmp));
 
 	fw = (struct ipt_entry*)MALLOC(size);
-	memset(fw, 0, size);
 
 	fw->target_offset = XT_ALIGN(sizeof(struct ipt_entry));
 
@@ -532,7 +544,7 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 #else
 	match->u.user.revision = 0;
 #endif
-	fw->target_offset += match->u.match_size;
+	fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 	strcpy(match->u.user.name, "set");
 
 #ifdef HAVE_XT_SET_INFO_MATCH_V1
@@ -559,7 +571,7 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 			match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 			match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ipt_icmp));
 			match->u.user.revision = 0;
-			fw->target_offset += match->u.match_size;
+			fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 			strcpy(match->u.user.name, "icmp");
 
 			struct ipt_icmp *icmpinfo = (struct ipt_icmp *)match->data;
@@ -571,7 +583,7 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 	}
 
 // target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
-	fw->next_offset = size;
+	fw->next_offset = (uint16_t)size;
 	target = ipt_get_target(fw);
 	target->u.user.target_size = XT_ALIGN(sizeof(struct xt_entry_target) + 1);
 	strcpy(target->u.user.name, target_name);
@@ -584,7 +596,7 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 		memset(matchmask, 0xff, fw->next_offset);
 		res = iptc_delete_entry(chain, fw, matchmask, handle);
 	}
-	else if (rulenum == -1)
+	else if (rulenum == APPEND_RULE)
 		res = iptc_append_entry(chain, fw, handle) ;
 	else
 		res = iptc_insert_entry(chain, fw, rulenum, handle) ;
@@ -604,7 +616,7 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 	return 0;
 }
 
-int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int rulenum, int dim, int src_dst, const char* target_name, const char* set_name, uint16_t protocol, int param, int cmd, bool ignore_errors)
+int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, unsigned int rulenum, uint8_t dim, uint8_t src_dst, const char* target_name, const char* set_name, uint16_t protocol, uint8_t param, int cmd, bool ignore_errors)
 {
 	size_t size;
 	struct ip6t_entry *fw;
@@ -632,7 +644,6 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 		size += XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ip6t_icmp));
 
 	fw = (struct ip6t_entry*)MALLOC(size);
-	memset(fw, 0, size);
 
 	fw->target_offset = XT_ALIGN(sizeof(struct ip6t_entry));
 
@@ -644,7 +655,7 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 #else
 	match->u.user.revision = 0;
 #endif
-	fw->target_offset += match->u.match_size;
+	fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 	strcpy(match->u.user.name, "set");
 
 #ifdef HAVE_XT_SET_INFO_MATCH_V1
@@ -671,7 +682,7 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 			match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 			match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ip6t_icmp));
 			match->u.user.revision = 0;
-			fw->target_offset += match->u.match_size;
+			fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 			strcpy(match->u.user.name, "icmp6");
 
 			struct ip6t_icmp *icmpinfo = (struct ip6t_icmp *)match->data;
@@ -683,7 +694,7 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 	}
 
 // target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
-	fw->next_offset = size;
+	fw->next_offset = (uint16_t)size;
 	target = ip6t_get_target(fw);
 	target->u.user.target_size = XT_ALIGN(sizeof(struct xt_entry_target) + 1);
 	strcpy(target->u.user.name, target_name);
@@ -696,7 +707,7 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 		memset(matchmask, 0xff, fw->next_offset);
 		res = ip6tc_delete_entry(chain, fw, matchmask, handle);
 	}
-	else if (rulenum == -1)
+	else if (rulenum == APPEND_RULE)
 		res = ip6tc_append_entry(chain, fw, handle) ;
 	else
 		res = ip6tc_insert_entry(chain, fw, rulenum, handle) ;

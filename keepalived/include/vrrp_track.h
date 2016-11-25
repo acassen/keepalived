@@ -29,6 +29,8 @@
 #include <arpa/inet.h>
 #include <string.h>
 #include <syslog.h>
+#include <stdbool.h>
+#include <sys/types.h>
 
 /* local includes */
 #include "vector.h"
@@ -58,13 +60,18 @@
 typedef struct _vrrp_script {
 	char			*sname;		/* instance name */
 	char			*script;	/* the command to be called */
-	long			interval;	/* interval between script calls */
-	long			timeout;	/* seconds before script timeout */
+	unsigned long		interval;	/* interval between script calls */
+	unsigned long		timeout;	/* microseconds before script timeout */
 	int			weight;		/* weight associated to this script */
 	int			result;		/* result of last call to this script: 0..R-1 = KO, R..R+F-1 = OK */
 	int			inuse;		/* how many users have weight>0 ? */
 	int			rise;		/* R: how many successes before OK */
 	int			fall;		/* F: how many failures before KO */
+	bool			forcing_termination;	/* Set if script didn't respond and we sent it SIGTERM */
+	uid_t			uid;		/* uid to run script as */
+	gid_t			gid;		/* gid to run script as */
+	bool			insecure;	/* Set if script is run by root, but is non-root modifiable */
+	bool			executable;	/* Script is executable for uid:gid */
 } vrrp_script_t;
 
 /* Tracked script structure definition */

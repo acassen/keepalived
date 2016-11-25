@@ -58,6 +58,23 @@ int netlink_error_ignore; /* If we get this error, ignore it */
 
 /* Static vars */
 static nl_handle_t nl_kernel;	/* Kernel reflection channel */
+static int nlmsg_buf_size;	/* Size of netlink message buffer */
+
+void
+netlink_set_recv_buf_size(void)
+{
+	/* The size of the read buffer for the NL socket is based on page
+	 * size however, it should not exceed 8192. See the comment in:
+	 * linux/include/linux/netlink.h (copied below):
+	 * skb should fit one page. This choice is good for headerless malloc.
+	 * But we should limit to 8K so that userspace does not have to
+	 * use enormous buffer sizes on recvmsg() calls just to avoid
+	 * MSG_TRUNC when PAGE_SIZE is very large.
+	 */
+	nlmsg_buf_size = getpagesize();
+	if (nlmsg_buf_size > 8192)
+		nlmsg_buf_size = 8192;
+}
 
 /* Create a socket to netlink interface_t */
 static int
@@ -194,7 +211,7 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 	if_setsockopt_rcvbuf(&nl->fd, IF_DEFAULT_BUFSIZE);
 #endif
 
-	nl->seq = time(NULL);
+	nl->seq = (uint32_t)time(NULL);
 
 	if (nl->fd < 0)
 		return -1;
@@ -241,6 +258,8 @@ netlink_set_nonblock(nl_handle_t *nl, int *flags)
 #ifdef _HAVE_LIBNL3_
 	int ret;
 
+	if (flags) {};		/* Stop compiler warning */
+
 	if ((ret = nl_socket_set_nonblocking(nl->sk)) < 0 ) {
 		log_message(LOG_INFO, "Netlink: Cannot set nonblocking : (%s)",
 			strerror(ret));
@@ -259,7 +278,7 @@ netlink_set_nonblock(nl_handle_t *nl, int *flags)
 
 /* iproute2 utility function */
 int
-addattr_l(struct nlmsghdr *n, size_t maxlen, int type, void *data, size_t alen)
+addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, void *data, size_t alen)
 {
 	size_t len = RTA_LENGTH(alen);
 	size_t align_len = NLMSG_ALIGN(len);
@@ -270,33 +289,33 @@ addattr_l(struct nlmsghdr *n, size_t maxlen, int type, void *data, size_t alen)
 
 	rta = (struct rtattr *) (((char *) n) + n->nlmsg_len);
 	rta->rta_type = type;
-	rta->rta_len = len;
+	rta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(rta), data, alen);
-	n->nlmsg_len += align_len;
+	n->nlmsg_len += (uint32_t)align_len;
 
 	return 0;
 }
 
 int
-addattr8(struct nlmsghdr *n, size_t maxlen, int type, uint8_t data)
+addattr8(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint8_t data)
 {
 	return addattr_l(n, maxlen, type, &data, sizeof data);
 }
 
 int
-addattr32(struct nlmsghdr *n, size_t maxlen, int type, uint32_t data)
+addattr32(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint32_t data)
 {
 	return addattr_l(n, maxlen, type, &data, sizeof data);
 }
 
 int
-addattr64(struct nlmsghdr *n, size_t maxlen, int type, uint64_t data)
+addattr64(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint64_t data)
 {
 	return addattr_l(n, maxlen, type, &data, sizeof(data));
 }
 
 int
-addattr_l2(struct nlmsghdr *n, size_t maxlen, int type, void *data, size_t alen, void *data2, size_t alen2)
+addattr_l2(struct nlmsghdr *n, size_t maxlen, unsigned short type, void *data, size_t alen, void *data2, size_t alen2)
 {
 	size_t len = RTA_LENGTH(alen + alen2);
 	size_t align_len = NLMSG_ALIGN(len);
@@ -307,10 +326,10 @@ addattr_l2(struct nlmsghdr *n, size_t maxlen, int type, void *data, size_t alen,
 
 	rta = (struct rtattr *) (((char *) n) + n->nlmsg_len);
 	rta->rta_type = type;
-	rta->rta_len = len;
+	rta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(rta), data, alen);
 	memcpy(RTA_DATA(rta) + alen, data2, alen2);
-	n->nlmsg_len += align_len;
+	n->nlmsg_len += (uint32_t)align_len;
 
 	return 0;
 }
@@ -325,12 +344,12 @@ addraw_l(struct nlmsghdr *n, size_t maxlen, const void *data, size_t len)
 
 	memcpy(NLMSG_TAIL(n), data, len);
 	memset((void *) NLMSG_TAIL(n) + len, 0, align_len - len);
-	n->nlmsg_len += align_len;
+	n->nlmsg_len += (uint32_t)align_len;
 	return 0;
 }
 
 size_t
-rta_addattr_l(struct rtattr *rta, size_t maxlen, int type,
+rta_addattr_l(struct rtattr *rta, size_t maxlen, unsigned short type,
 		  const void *data, size_t alen)
 {
 	struct rtattr *subrta;
@@ -342,14 +361,14 @@ rta_addattr_l(struct rtattr *rta, size_t maxlen, int type,
 
 	subrta = (struct rtattr*)(((char*)rta) + rta->rta_len);
 	subrta->rta_type = type;
-	subrta->rta_len = len;
+	subrta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(subrta), data, alen);
-	rta->rta_len += align_len;
+	rta->rta_len = (unsigned short)(rta->rta_len + align_len);
 	return align_len;
 }
 
 size_t
-rta_addattr_l2(struct rtattr *rta, size_t maxlen, int type,
+rta_addattr_l2(struct rtattr *rta, size_t maxlen, unsigned short type,
 		  const void *data, size_t alen,
 		  const void *data2, size_t alen2)
 {
@@ -362,21 +381,21 @@ rta_addattr_l2(struct rtattr *rta, size_t maxlen, int type,
 
 	subrta = (struct rtattr*)(((char*)rta) + rta->rta_len);
 	subrta->rta_type = type;
-	subrta->rta_len = len;
+	subrta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(subrta), data, alen);
 	memcpy(RTA_DATA(subrta) + alen, data2, alen2);
-	rta->rta_len += align_len;
+	rta->rta_len = (unsigned short)(rta->rta_len + align_len);
 	return align_len;
 }
 
 size_t
-rta_addattr64(struct rtattr *rta, size_t maxlen, int type, uint64_t data)
+rta_addattr64(struct rtattr *rta, size_t maxlen, unsigned short type, uint64_t data)
 {
 	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
 }
 
 size_t
-rta_addattr32(struct rtattr *rta, size_t maxlen, int type, uint32_t data)
+rta_addattr32(struct rtattr *rta, size_t maxlen, unsigned short type, uint32_t data)
 {
 	struct rtattr *subrta;
 	size_t len = RTA_LENGTH(sizeof data);
@@ -387,26 +406,26 @@ rta_addattr32(struct rtattr *rta, size_t maxlen, int type, uint32_t data)
 
 	subrta = (struct rtattr*)(((char*)rta) + rta->rta_len);
 	subrta->rta_type = type;
-	subrta->rta_len = len;
+	subrta->rta_len = (unsigned short)len;
 	memcpy(RTA_DATA(subrta), &data, sizeof data);
-	rta->rta_len += align_len;
+	rta->rta_len = (unsigned short)(rta->rta_len + align_len);
 	return align_len;
 }
 
 size_t
-rta_addattr16(struct rtattr *rta, size_t maxlen, int type, uint16_t data)
+rta_addattr16(struct rtattr *rta, size_t maxlen, unsigned short type, uint16_t data)
 {
 	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
 }
 
 size_t
-rta_addattr8(struct rtattr *rta, size_t maxlen, int type, uint8_t data)
+rta_addattr8(struct rtattr *rta, size_t maxlen, unsigned short type, uint8_t data)
 {
 	return rta_addattr_l(rta, maxlen, type, &data, sizeof data);
 }
 
 struct rtattr *
-rta_nest(struct rtattr *rta, size_t maxlen, int type)
+rta_nest(struct rtattr *rta, size_t maxlen, unsigned short type)
 {
 	struct rtattr *nest = RTA_TAIL(rta);
 
@@ -418,13 +437,13 @@ rta_nest(struct rtattr *rta, size_t maxlen, int type)
 size_t
 rta_nest_end(struct rtattr *rta, struct rtattr *nest)
 {
-	nest->rta_len = (int)((void *)RTA_TAIL(rta) - (void *)nest);
+	nest->rta_len = (unsigned short)((void *)RTA_TAIL(rta) - (void *)nest);
 
 	return rta->rta_len;
 }
 
 static void
-parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, int len)
+parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, size_t len)
 {
 	while (RTA_OK(rta, len)) {
 		if (rta->rta_type <= max)
@@ -437,7 +456,7 @@ parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, int len)
 static void
 parse_rtattr_nested(struct rtattr **tb, int max, struct rtattr *rta)
 {
-        parse_rtattr(tb, max, RTA_DATA(rta), RTA_PAYLOAD(rta));
+	parse_rtattr(tb, max, RTA_DATA(rta), RTA_PAYLOAD(rta));
 }
 #endif
 
@@ -447,12 +466,12 @@ parse_rtattr_nested(struct rtattr **tb, int max, struct rtattr *rta)
  * multiple secondary address to the same interface.
  */
 static int
-netlink_if_address_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
+netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
 	struct ifaddrmsg *ifa;
 	struct rtattr *tb[IFA_MAX + 1];
 	interface_t *ifp;
-	int len;
+	size_t len;
 	void *addr;
 
 	ifa = NLMSG_DATA(h);
@@ -464,9 +483,9 @@ netlink_if_address_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	if (h->nlmsg_type != RTM_NEWADDR && h->nlmsg_type != RTM_DELADDR)
 		return 0;
 
-	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifaddrmsg));
-	if (len < 0)
+	if (h->nlmsg_len < NLMSG_LENGTH(sizeof (struct ifaddrmsg)))
 		return -1;
+	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifaddrmsg));
 
 	memset(tb, 0, sizeof (tb));
 	parse_rtattr(tb, IFA_MAX, IFA_RTA(ifa), len);
@@ -508,12 +527,12 @@ static int
 netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 		   nl_handle_t *nl, struct nlmsghdr *n)
 {
-	int status;
+	ssize_t status;
 	int ret = 0;
 	int error;
 
 	while (1) {
-		char buf[4096];
+		char buf[nlmsg_buf_size];
 		struct iovec iov = {
 			.iov_base = buf,
 			.iov_len = sizeof buf
@@ -556,7 +575,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			return -1;
 		}
 
-		for (h = (struct nlmsghdr *) buf; NLMSG_OK(h, status);
+		for (h = (struct nlmsghdr *) buf; NLMSG_OK(h, (size_t)status);
 		     h = NLMSG_NEXT(h, status)) {
 			/* Finish of reading. */
 			if (h->nlmsg_type == NLMSG_DONE)
@@ -625,7 +644,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 			continue;
 		}
 		if (status) {
-			log_message(LOG_INFO, "Netlink: error: data remnant size %d",
+			log_message(LOG_INFO, "Netlink: error: data remnant size %zd",
 			       status);
 			return -1;
 		}
@@ -636,7 +655,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 
 /* Out talk filter */
 static int
-netlink_talk_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
+netlink_talk_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
 	log_message(LOG_INFO, "Netlink: ignoring message type 0x%04x",
 	       h->nlmsg_type);
@@ -644,10 +663,10 @@ netlink_talk_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 }
 
 /* send message to netlink kernel socket, then receive response */
-int
+ssize_t
 netlink_talk(nl_handle_t *nl, struct nlmsghdr *n)
 {
-	int status;
+	ssize_t status;
 	int ret, flags;
 	struct sockaddr_nl snl;
 	struct iovec iov = {
@@ -696,9 +715,9 @@ netlink_talk(nl_handle_t *nl, struct nlmsghdr *n)
 
 /* Fetch a specific type information from netlink kernel */
 static int
-netlink_request(nl_handle_t *nl, int family, int type)
+netlink_request(nl_handle_t *nl, unsigned char family, uint16_t type)
 {
-	int status;
+	ssize_t status;
 	struct sockaddr_nl snl;
 	struct {
 		struct nlmsghdr nlh;
@@ -730,32 +749,31 @@ static int
 netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg *ifi)
 {
 	char *name;
-	int i;
+	size_t i;
 #ifdef _HAVE_VRRP_VMAC_
 	struct rtattr* linkinfo[IFLA_INFO_MAX+1];
 	struct rtattr* linkattr[IFLA_MACVLAN_MAX+1];
 	interface_t *ifp_base;
 #endif
 
-	name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
+	name = (char *)RTA_DATA(tb[IFLA_IFNAME]);
 	/* Fill the interface structure */
 	memcpy(ifp->ifname, name, strlen(name));
-	ifp->ifindex = ifi->ifi_index;
-	ifp->mtu = *(int *) RTA_DATA(tb[IFLA_MTU]);
+	ifp->ifindex = (ifindex_t)ifi->ifi_index;
+	ifp->mtu = *(uint32_t *)RTA_DATA(tb[IFLA_MTU]);
 	ifp->hw_type = ifi->ifi_type;
 
 	if (tb[IFLA_ADDRESS]) {
-		int hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
+		size_t hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
 
 		if (hw_addr_len > IF_HWADDR_MAX) {
-			log_message(LOG_ERR, "MAC address for %s is too large: %d",
+			log_message(LOG_ERR, "MAC address for %s is too large: %zu",
 				name, hw_addr_len);
 			return -1;
 		}
 		else {
 			ifp->hw_addr_len = hw_addr_len;
-			memcpy(ifp->hw_addr, RTA_DATA(tb[IFLA_ADDRESS]),
-				hw_addr_len);
+			memcpy(ifp->hw_addr, RTA_DATA(tb[IFLA_ADDRESS]), hw_addr_len);
 			for (i = 0; i < hw_addr_len; i++)
 				if (ifp->hw_addr[i] != 0)
 					break;
@@ -786,29 +804,24 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 			parse_rtattr_nested(linkattr, IFLA_MACVLAN_MAX, linkinfo[IFLA_INFO_DATA]);
 
 			if (linkattr[IFLA_MACVLAN_MODE] &&
-			    *(int*)RTA_DATA(linkattr[IFLA_MACVLAN_MODE]) == MACVLAN_MODE_PRIVATE) {
-				ifp->base_ifindex = *(int*)RTA_DATA(tb[IFLA_LINK]);
+			    *(uint32_t*)RTA_DATA(linkattr[IFLA_MACVLAN_MODE]) == MACVLAN_MODE_PRIVATE) {
+				ifp->base_ifindex = *(uint32_t *)RTA_DATA(tb[IFLA_LINK]);
 				ifp->vmac = true;
 			}
 		}
 	}
 
-	if (!ifp->vmac)
-#endif
-	{
-#ifdef _HAVE_VRRP_VMAC_
-		if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);
-#endif
+	if (!ifp->vmac) {
+		if_vmac_reflect_flags(ifp->ifindex, ifi->ifi_flags);
 		ifp->flags = ifi->ifi_flags;
-#ifdef _HAVE_VRRP_VMAC_
-		ifp->base_ifindex = ifi->ifi_index;
-#endif
+		ifp->base_ifindex = ifp->ifindex;
 	}
-#ifdef _HAVE_VRRP_VMAC_
 	else {
 		if ((ifp_base = if_get_by_ifindex(ifp->base_ifindex)))
 			ifp->flags = ifp_base->flags;
 	}
+#else
+	ifp->flags = ifi->ifi_flags;
 #endif
 
 	return 1;
@@ -816,12 +829,13 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 
 /* Netlink interface link lookup filter */
 static int
-netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
+netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
 	struct ifinfomsg *ifi;
 	struct rtattr *tb[IFLA_MAX + 1];
 	interface_t *ifp;
-	int len, status;
+	size_t len;
+	int status;
 	char *name;
 
 	ifi = NLMSG_DATA(h);
@@ -829,9 +843,9 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	if (h->nlmsg_type != RTM_NEWLINK)
 		return 0;
 
-	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifinfomsg));
-	if (len < 0)
+	if (h->nlmsg_len < NLMSG_LENGTH(sizeof (struct ifinfomsg)))
 		return -1;
+	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifinfomsg));
 
 	/* Interface name lookup */
 	memset(tb, 0, sizeof (tb));
@@ -852,7 +866,7 @@ netlink_if_link_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 #endif
 		{
 #ifdef _HAVE_VRRP_VMAC_
-			if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);
+			if_vmac_reflect_flags((ifindex_t)ifi->ifi_index, ifi->ifi_flags);
 #endif
 			ifp->flags = ifi->ifi_flags;
 		}
@@ -925,20 +939,21 @@ end_addr:
 
 /* Netlink flag Link update */
 static int
-netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
+netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
 	struct ifinfomsg *ifi;
 	struct rtattr *tb[IFLA_MAX + 1];
 	interface_t *ifp;
-	int len, status;
+	size_t len;
+	int status;
 
 	ifi = NLMSG_DATA(h);
 	if (!(h->nlmsg_type == RTM_NEWLINK || h->nlmsg_type == RTM_DELLINK))
 		return 0;
 
-	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifinfomsg));
-	if (len < 0)
+	if (h->nlmsg_len < NLMSG_LENGTH(sizeof (struct ifinfomsg)))
 		return -1;
+	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifinfomsg));
 
 	/* Interface name lookup */
 	memset(tb, 0, sizeof (tb));
@@ -955,7 +970,7 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	 * If an interface with the same name exists overwrite the older
 	 * structure and fill it with the new interface information.
 	 */
-	ifp = if_get_by_ifindex(ifi->ifi_index);
+	ifp = if_get_by_ifindex((ifindex_t)ifi->ifi_index);
 	if (!ifp) {
 		if (h->nlmsg_type == RTM_NEWLINK) {
 			char *name;
@@ -984,13 +999,13 @@ netlink_reflect_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	 */
 #ifdef _HAVE_VRRP_VMAC_
 	if (!ifp->vmac)
-#endif
 	{
-#ifdef _HAVE_VRRP_VMAC_
-		if_vmac_reflect_flags(ifi->ifi_index, ifi->ifi_flags);
-#endif
+		if_vmac_reflect_flags(ifp->ifindex, ifi->ifi_flags);
 		ifp->flags = ifi->ifi_flags;
 	}
+#else
+	ifp->flags = ifi->ifi_flags;
+#endif
 
 	return 0;
 }

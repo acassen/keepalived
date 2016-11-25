@@ -150,9 +150,9 @@ finalize(thread_t * thread)
 
 /* Dump HTTP header */
 static void
-http_dump_header(char *buffer, int size)
+http_dump_header(char *buffer, size_t size)
 {
-	int r;
+	size_t r;
 
 	dump_buffer(buffer, size, stdout);
 	printf(HTTP_HEADER_ASCII);
@@ -171,26 +171,24 @@ http_process_stream(SOCK * sock_obj, int r)
 	if (!sock_obj->extracted) {
 		if (req->verbose)
 			printf(HTTP_HEADER_HEXA);
-		if ((sock_obj->extracted = extract_html(sock_obj->buffer, sock_obj->size))) {
+		if ((sock_obj->extracted = extract_html(sock_obj->buffer, (size_t)sock_obj->size))) {
 			if (req->verbose)
 				http_dump_header(sock_obj->buffer + (sock_obj->size - r),
-						 (sock_obj->extracted - sock_obj->buffer)
-						 - (sock_obj->size - r));
-			r = sock_obj->size - (sock_obj->extracted - sock_obj->buffer);
+						 (size_t)((sock_obj->extracted - sock_obj->buffer) - (sock_obj->size - r)));
+			r = sock_obj->size - (int)(sock_obj->extracted - sock_obj->buffer);
 			if (r) {
 				if (req->verbose) {
 					printf(HTML_HEADER_HEXA);
-					dump_buffer(sock_obj->extracted, r, stdout);
+					dump_buffer(sock_obj->extracted, (size_t)r, stdout);
 				}
-				memmove(sock_obj->buffer, sock_obj->extracted, r);
-				HASH_UPDATE(sock_obj, sock_obj->buffer, r);
+				memmove(sock_obj->buffer, sock_obj->extracted, (size_t)r);
+				HASH_UPDATE(sock_obj, sock_obj->buffer, (size_t)r);
 				r = 0;
 			}
 			sock_obj->size = r;
 		} else {
 			if (req->verbose)
-				http_dump_header(sock_obj->buffer + (sock_obj->size - r),
-						 r);
+				http_dump_header(sock_obj->buffer + (sock_obj->size - r), (size_t)r);
 
 			/* minimize buffer using no 2*CR/LF found yet */
 			if (sock_obj->size > 4) {
@@ -201,8 +199,8 @@ http_process_stream(SOCK * sock_obj, int r)
 		}
 	} else if (sock_obj->size) {
 		if (req->verbose)
-			dump_buffer(sock_obj->buffer, r, stdout);
-		HASH_UPDATE(sock_obj, sock_obj->buffer, sock_obj->size);
+			dump_buffer(sock_obj->buffer, (size_t)r, stdout);
+		HASH_UPDATE(sock_obj, sock_obj->buffer, (size_t)sock_obj->size);
 		sock_obj->size = 0;
 	}
 
@@ -214,7 +212,7 @@ int
 http_read_thread(thread_t * thread)
 {
 	SOCK *sock_obj = THREAD_ARG(thread);
-	int r = 0;
+	ssize_t r = 0;
 
 	/* Handle read timeout */
 	if (thread->type == THREAD_READ_TIMEOUT)
@@ -227,10 +225,10 @@ http_read_thread(thread_t * thread)
 		fprintf(stderr, "HTTP socket buffer overflow (not consumed)\n");
 		r = MAX_BUFFER_LENGTH;
 	}
-	memset(sock_obj->buffer + sock_obj->size, 0, r);
-	r = read(thread->u.fd, sock_obj->buffer + sock_obj->size, r);
+	memset(sock_obj->buffer + sock_obj->size, 0, (size_t)r);
+	r = read(thread->u.fd, sock_obj->buffer + sock_obj->size, (size_t)r);
 
-	DBG(" [l:%d,fd:%d]\n", r, sock_obj->fd);
+	DBG(" [l:%zd,fd:%d]\n", r, sock_obj->fd);
 
 	if (r == -1 || r == 0) {	/* -1:error , 0:EOF */
 		if (r == -1) {
@@ -245,7 +243,7 @@ http_read_thread(thread_t * thread)
 		finalize(thread);
 	} else {
 		/* Handle the response stream */
-		http_process_stream(sock_obj, r);
+		http_process_stream(sock_obj, (int)r);
 
 		/*
 		 * Register next http stream reader.
@@ -329,13 +327,9 @@ http_request_thread(thread_t * thread)
 	/* Send the GET request to remote Web server */
 	DBG("Sending GET request [%s] on fd:%d\n", req->url, sock_obj->fd);
 	if (req->ssl)
-		ret =
-		    ssl_send_request(sock_obj->ssl, str_request,
-				     strlen(str_request));
+		ret = ssl_send_request(sock_obj->ssl, str_request, (int)strlen(str_request));
 	else
-		ret =
-		    (send(sock_obj->fd, str_request, strlen(str_request), 0) !=
-		     -1) ? 1 : 0;
+		ret = (send(sock_obj->fd, str_request, strlen(str_request), 0) != -1) ? 1 : 0;
 
 	FREE(str_request);
 

@@ -24,7 +24,7 @@
 #define _HTML_H
 
 /* Prototypes */
-extern int extract_status_code(char *buffer, int size);
-extern char *extract_html(char *buffer, int size_buffer);
+extern int extract_status_code(char *buffer, size_t size);
+extern char *extract_html(char *buffer, size_t size_buffer);
 
 #endif

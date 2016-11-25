@@ -41,7 +41,7 @@
 #define EOB  "}"
 #define MAXBUF	1024
 
-/* ketword definition */
+/* keyword definition */
 typedef struct _keyword {
 	const char *string;
 	void (*handler) (vector_t *);
@@ -57,7 +57,8 @@ typedef struct _keyword {
 
 /* global vars exported */
 extern vector_t *keywords;
-extern int reload;
+extern bool reload;
+extern char *config_id;
 
 /* Prototypes */
 extern void install_keyword_root(const char *, void (*handler) (vector_t *), bool);
@@ -67,9 +68,9 @@ extern void install_sublevel_end_handler(void (*handler) (void));
 extern void install_keyword(const char *, void (*handler) (vector_t *));
 extern vector_t *alloc_strvec(char *);
 extern bool check_conf_file(const char*);
-extern int read_line(char *, int);
+extern bool read_line(char *, size_t);
 extern vector_t *read_value_block(vector_t *);
-extern void alloc_value_block(vector_t *, void (*alloc_func) (vector_t *));
+extern void alloc_value_block(void (*alloc_func) (vector_t *));
 extern void *set_value(vector_t *);
 extern int check_true_false(char *);
 extern void skip_block(void);

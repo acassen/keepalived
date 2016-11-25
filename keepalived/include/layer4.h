@@ -45,16 +45,42 @@ enum connect_result {
 
 /* Prototypes defs */
 extern enum connect_result
- tcp_bind_connect(int, conn_opts_t *);
+ socket_bind_connect(int, conn_opts_t *);
 
 extern enum connect_result
- tcp_connect(int, struct sockaddr_storage *);
+ socket_connect(int, struct sockaddr_storage *);
 
 extern enum connect_result
- tcp_socket_state(int, thread_t *, int (*func) (thread_t *));
+ socket_state(thread_t *, int (*func) (thread_t *));
 
 extern int
- tcp_connection_state(int, enum connect_result
+ socket_connection_state(int, enum connect_result
 		      , thread_t *, int (*func) (thread_t *)
-		      , long);
+		      , unsigned long);
+
+/* Backward compatibility */
+static inline enum connect_result
+tcp_bind_connect(int fd, conn_opts_t *co)
+{
+	return socket_bind_connect(fd, co);
+}
+
+static inline enum connect_result
+tcp_connect(int fd, struct sockaddr_storage *addr)
+{
+	return socket_connect(fd, addr);
+}
+
+static inline enum connect_result
+tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
+{
+	return socket_state(thread, func);
+}
+
+static inline int
+tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
+             int (*func) (thread_t *), unsigned long timeout)
+{
+	return socket_connection_state(fd, status, thread, func, timeout);
+}
 #endif

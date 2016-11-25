@@ -22,12 +22,18 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201608230000Z"
+     LAST-UPDATED "201610180000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201610180000Z"
+     DESCRIPTION "add promote_secondaries"
+     REVISION "201609120000Z"
+     DESCRIPTION "dbus support added"
+     REVISION "201609060000Z"
+     DESCRIPTION "add LVS scheduler flags"
      REVISION "201608230000Z"
      DESCRIPTION "add IPv6 persistence granularity"
      REVISION "201608030000Z"
@@ -268,6 +274,14 @@ netNamespace OBJECT-TYPE
         "The name of the net namespace keepalived is running in."
     ::= { global 8 }
 
+dbus OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "True if the DBus interface is enabled."
+    ::= { global 9 }
+
 -- ----------------------------------------------------------------------
 -- VRRP part
 -- ----------------------------------------------------------------------
@@ -464,7 +478,8 @@ VrrpInstanceEntry ::= SEQUENCE {
     vrrpInstanceScriptFault DisplayString,
     vrrpInstanceScriptStop DisplayString,
     vrrpInstanceScript DisplayString,
-    vrrpInstanceAccept INTEGER
+    vrrpInstanceAccept INTEGER,
+    vrrpInstancePromoteSecondaries INTEGER
 }
 
 vrrpInstanceIndex OBJECT-TYPE
@@ -699,6 +714,14 @@ vrrpInstanceAccept OBJECT-TYPE
     DESCRIPTION
         "Accept allow the non-master owner to process the packets destined to VIP and it is supported for only VRRPv3."
     ::= { vrrpInstanceEntry 27 }
+
+vrrpInstancePromoteSecondaries OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-write
+    STATUS current
+    DESCRIPTION
+        "Set promote_secondaries on interface."
+    ::= { vrrpInstanceEntry 28 }
 
 vrrpTrackedInterfaceTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpTrackedInterfaceEntry
@@ -2251,7 +2274,11 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerRateInBPSHigh Unsigned32,
     virtualServerRateOutBPSLow Unsigned32,
     virtualServerRateOutBPSHigh Unsigned32,
-    virtualServerPersistGranularity6 Unsigned32
+    virtualServerPersistGranularity6 Unsigned32,
+    virtualServerHashed TruthValue,
+    virtualServerSHFallback TruthValue,
+    virtualServerSHPort TruthValue,
+    virtualServerSched3 TruthValue
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -2720,6 +2747,38 @@ virtualServerPersistGranularity6 OBJECT-TYPE
     DESCRIPTION
         "Netmask specifying the granularity of the IPv6 persistence mechanism."
     ::= { virtualServerEntry 51 }
+
+virtualServerHashed OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If set to true(1), entries will be hashed."
+    ::= { virtualServerEntry 52 }
+
+virtualServerSHFallback OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If set to true(1), SH scheduler fallback."
+    ::= { virtualServerEntry 53 }
+
+virtualServerSHPort OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If set to true(1), SH scheduler use port."
+    ::= { virtualServerEntry 54 }
+
+virtualServerSched3 OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If set to true(1), scheduler flag 3 set."
+    ::= { virtualServerEntry 55 }
 
 
 -- real servers
@@ -3356,7 +3415,8 @@ globalGroup OBJECT-GROUP
     linkBeat,
     lvsFlush,
     ipvs64BitStats,
-    netNamespace
+    netNamespace,
+    dbus
     }
     STATUS current
     DESCRIPTION
@@ -3408,6 +3468,7 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpInstanceScriptStop,
     vrrpInstanceScript,
     vrrpInstanceAccept,
+    vrrpInstancePromoteSecondaries,
     vrrpTrackedInterfaceName,
     vrrpTrackedInterfaceWeight,
     vrrpTrackedScriptName,
@@ -3637,7 +3698,11 @@ virtualServerGroup OBJECT-GROUP
     virtualServerRateInBPSHigh,
     virtualServerRateOutBPSLow,
     virtualServerRateOutBPSHigh,
-    virtualServerPersistGranularity6
+    virtualServerPersistGranularity6,
+    virtualServerHashed,
+    virtualServerSHFallback,
+    virtualServerSHPort,
+    virtualServerSched3
     }
     STATUS current
     DESCRIPTION

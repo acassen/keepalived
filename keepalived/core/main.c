@@ -24,6 +24,8 @@
 
 #include "git-commit.h"
 
+#include <stdlib.h>
+#include <sys/utsname.h>
 #include <sys/resource.h>
 #include <stdbool.h>
 
@@ -33,12 +35,15 @@
 #include "pidfile.h"
 #include "bitops.h"
 #include "logger.h"
+#include "parser.h"
+#include "notify.h"
 #include "check_parser.h"
 #include "vrrp_parser.h"
 #include "global_parser.h"
 #if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
 #endif
+#include "vrrp_netlink.h"
 
 #define	LOG_FACILITY_MAX	7
 #define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" VERSION_DATE ")"
@@ -71,6 +76,18 @@ const char *snmp_socket;				/* Socket to use for SNMP agent */
 static char *syslog_ident;				/* syslog ident if not default */
 char *instance_name;					/* keepalived instance name */
 bool use_pid_dir;					/* Put pid files in /var/run/keepalived */
+size_t getpwnam_buf_len;				/* Buffer length needed for getpwnam_r/getgrname_r */
+uid_t default_script_uid;				/* Default user/group for script execution */
+gid_t default_script_gid;
+unsigned os_major;					/* Kernel version */
+unsigned os_minor;
+unsigned os_release;
+
+#if HAVE_DECL_CLONE_NEWNET
+char *network_namespace;				/* The network namespace we are running in */
+bool namespace_with_ipsets;				/* Override for using namespaces and ipsets with Linux < 3.13 */
+static char *override_namespace;			/* If namespace specified on command line */
+#endif
 
 /* Log facility table */
 static struct {
@@ -193,6 +210,24 @@ make_pidfile_name(const char* start, const char* instance, const char* extn)
 	return name;
 }
 
+static bool
+find_keepalived_child(pid_t pid, char const **prog_name)
+{
+#ifdef _WITH_LVS_
+	if (pid == checkers_child) {
+		*prog_name = PROG_CHECK;
+		return true;
+	}
+#endif
+#ifdef _WITH_VRRP_
+	if (pid == vrrp_child) {
+		*prog_name = PROG_VRRP;
+		return true;
+	}
+#endif
+	return false;
+}
+
 #if HAVE_DECL_CLONE_NEWNET
 static vector_t *
 global_init_keywords(void)
@@ -259,7 +294,7 @@ start_keepalived(void)
 /* SIGHUP/USR1/USR2 handler */
 #ifndef _DEBUG_
 static void
-propogate_signal(void *v, int sig)
+propogate_signal(__attribute__((unused)) void *v, int sig)
 {
 	bool unsupported_change = false;
 
@@ -310,7 +345,7 @@ propogate_signal(void *v, int sig)
 
 /* Terminate handler */
 static void
-sigend(void *v, int sig)
+sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	int status;
 	int ret;
@@ -400,7 +435,7 @@ sigend(void *v, int sig)
 static void
 signal_init(void)
 {
-	signal_handler_init();
+	signal_handler_init(1);
 	signal_set(SIGHUP, propogate_signal, NULL);
 	signal_set(SIGUSR1, propogate_signal, NULL);
 	signal_set(SIGUSR2, propogate_signal, NULL);
@@ -506,11 +541,15 @@ usage(const char *prog)
 	fprintf(stderr, "  -x, --snmp                   Enable SNMP subsystem\n");
 	fprintf(stderr, "  -A, --snmp-agent-socket=FILE Use the specified socket for master agent\n");
 #endif
+#if HAVE_DECL_CLONE_NEWNET
+	fprintf(stderr, "  -s, --namespace=NAME         Run in network namespace NAME (overrides config)\n");
+#endif
 	fprintf(stderr, "  -m, --core-dump              Produce core dump if terminate abnormally\n");
 	fprintf(stderr, "  -M, --core-dump-pattern=PATN Also set /proc/sys/kernel/core_pattern to PATN (default 'core')\n");
 #ifdef _MEM_CHECK_LOG_
 	fprintf(stderr, "  -L, --mem-check-log          Log malloc/frees to syslog\n");
 #endif
+	fprintf(stderr, "  -i, --config_id id           Skip any configuration lines beginning '@' that don't match id\n");
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -543,25 +582,44 @@ parse_cmdline(int argc, char **argv)
 #ifdef _WITH_LVS_
 		{"checkers_pid",      required_argument, 0, 'c'},
 #endif
- #ifdef _WITH_SNMP_
+#ifdef _WITH_SNMP_
 		{"snmp",              no_argument,       0, 'x'},
 		{"snmp-agent-socket", required_argument, 0, 'A'},
- #endif
+#endif
 		{"core-dump",         no_argument,       0, 'm'},
 		{"core-dump-pattern", optional_argument, 0, 'M'},
 #ifdef _MEM_CHECK_LOG_
 		{"mem-check-log",     no_argument,       0, 'L'},
 #endif
+#if HAVE_DECL_CLONE_NEWNET
+		{"namespace",         required_argument, 0, 's'},
+#endif	
+		{"config-id",         required_argument, 0, 'i'},
 		{"version",           no_argument,       0, 'v'},
 		{"help",              no_argument,       0, 'h'},
 		{0, 0, 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:PCp:c:r:mML"
+	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:p:i:mM"
+#if defined _WITH_VRRP_ && defined _WITH_LVS_
+					    "PC"
+#endif
+#ifdef _WITH_VRRP_ 
+					    "r:"
+#endif
+#ifdef _WITH_LVS_
+					    "c:"
+#endif
 #ifdef _WITH_SNMP_
 					    "xA:"
 #endif
-									, long_options, NULL)) != EOF) {
+#ifdef _MEM_CHECK_LOG_
+					    "L"
+#endif
+#if HAVE_DECL_CLONE_NEWNET
+					    "s:"
+#endif
+				, long_options, NULL)) != EOF) {
 		switch (c) {
 		case 'v':
 			fprintf(stderr, "%s", version_string);
@@ -649,6 +707,15 @@ parse_cmdline(int argc, char **argv)
 			__set_bit(MEM_CHECK_LOG_BIT, &debug);
 			break;
 #endif
+#if HAVE_DECL_CLONE_NEWNET
+		case 's':
+			override_namespace = MALLOC(strlen(optarg) + 1);
+			strcpy(override_namespace, optarg);
+			break;
+#endif
+		case 'i':
+			config_id = optarg;
+			break;
 		default:
 			exit(0);
 			break;
@@ -668,9 +735,15 @@ int
 keepalived_main(int argc, char **argv)
 {
 	bool report_stopped = true;
+	struct utsname uname_buf;
+	char *end;
+	size_t buf_len;
 
 	/* Init debugging level */
 	debug = 0;
+
+	/* Initialise pointer to child finding function */
+	set_child_finder(find_keepalived_child);
 
 	/* Initialise daemon_mode */
 #ifdef _WITH_VRRP_
@@ -704,17 +777,58 @@ keepalived_main(int argc, char **argv)
 	/* Handle any core file requirements */
 	core_dump_init();
 
+	netlink_set_recv_buf_size();
+
+	set_default_script_user(&default_script_uid, &default_script_gid);
+
+	/* Get buffer length needed for getpwnam_r/getgrnam_r */
+	getpwnam_buf_len = (size_t)sysconf(_SC_GETPW_R_SIZE_MAX);
+	if ((buf_len = (size_t)sysconf(_SC_GETGR_R_SIZE_MAX)) > getpwnam_buf_len)
+		getpwnam_buf_len = buf_len;
+
+	/* Some functionality depends on kernel version, so get the version here */
+	if (uname(&uname_buf))
+		log_message(LOG_INFO, "Unable to get uname() information - error %d", errno);
+	else {
+		os_major = (unsigned)strtoul(uname_buf.release, &end, 10);
+		if (*end != '.')
+			os_major = 0;
+		else {
+			os_minor = (unsigned)strtoul(end + 1, &end, 10);
+			if (*end != '.')
+				os_major = 0;
+			else {
+				os_release = (unsigned)strtoul(end + 1, &end, 10);
+				if (*end && *end != '-')
+					os_major = 0;
+			}
+		}
+		if (!os_major)
+			log_message(LOG_INFO, "Unable to parse kernel version %s", uname_buf.release);
+	}
+
 	/* Check we can read the configuration file(s).
- 	   NOTE: the working directory will be / if we
- 	   forked, but will be the current working directory
- 	   when keepalived was run if we haven't forked.
- 	   This means that if any config file names are not
- 	   absolute file names, the behaviour will be different
- 	   depending on whether we forked or not. */
+	   NOTE: the working directory will be / if we
+	   forked, but will be the current working directory
+	   when keepalived was run if we haven't forked.
+	   This means that if any config file names are not
+	   absolute file names, the behaviour will be different
+	   depending on whether we forked or not. */
 	if (!check_conf_file(conf_file))
 		goto end;
 
 	read_config_file();
+
+#if HAVE_DECL_CLONE_NEWNET
+	if (override_namespace) {
+		if (network_namespace) {
+			log_message(LOG_INFO, "Overriding config net_namespace '%s' with command line namespace '%s'", network_namespace, override_namespace);
+			FREE(network_namespace);
+		}
+		network_namespace = override_namespace;
+		override_namespace = NULL;
+	}
+#endif
 
 	if (instance_name
 #if HAVE_DECL_CLONE_NEWNET
@@ -729,31 +843,37 @@ keepalived_main(int argc, char **argv)
 		else
 			log_message(LOG_INFO, "Unable to change syslog ident");
 
-#if HAVE_DECL_CLONE_NEWNET
-		if (network_namespace && !set_namespaces(network_namespace)) {
-			log_message(LOG_ERR, "Unable to set network namespace %s - exiting", network_namespace);
-			goto end;
-		}
-#endif
-
-		if (instance_name) {
-			if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, instance_name, PID_EXTENSION)))
-				free_main_pidfile = true;
-#ifdef _WITH_LVS_
-			if (!checkers_pidfile && (checkers_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, instance_name, PID_EXTENSION)))
-				free_checkers_pidfile = true;
-#endif
-#ifdef _WITH_VRRP_
-			if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, instance_name, PID_EXTENSION)))
-				free_vrrp_pidfile = true;
-#endif
-		}
+		use_pid_dir = true;
 	}
 
 	if (use_pid_dir) {
 		/* Create the directory for pid files */
 		create_pid_dir();
+	}
 
+#if HAVE_DECL_CLONE_NEWNET
+	if (network_namespace) {
+		if (network_namespace && !set_namespaces(network_namespace)) {
+			log_message(LOG_ERR, "Unable to set network namespace %s - exiting", network_namespace);
+			goto end;
+		}
+	}
+#endif
+
+	if (instance_name) {
+		if (!main_pidfile && (main_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE, instance_name, PID_EXTENSION)))
+			free_main_pidfile = true;
+#ifdef _WITH_LVS_
+		if (!checkers_pidfile && (checkers_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR CHECKERS_PID_FILE, instance_name, PID_EXTENSION)))
+			free_checkers_pidfile = true;
+#endif
+#ifdef _WITH_VRRP_
+		if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, instance_name, PID_EXTENSION)))
+			free_vrrp_pidfile = true;
+#endif
+	}
+
+	if (use_pid_dir) {
 		if (!main_pidfile)
 			main_pidfile = KEEPALIVED_PID_DIR KEEPALIVED_PID_FILE PID_EXTENSION;
 #ifdef _WITH_LVS_

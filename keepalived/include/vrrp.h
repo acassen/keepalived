@@ -26,6 +26,7 @@
 
 /* system include */
 #include <unistd.h>
+#include <stdbool.h>
 
 /* local include */
 #include "vrrp_ipaddress.h"
@@ -36,6 +37,10 @@
 #include "utils.h"
 #include "vector.h"
 #include "list.h"
+#include "notify.h"
+
+/* Special value for parameters when we want to know they haven't been set */
+#define	PARAMETER_UNSET		UINT_MAX
 
 typedef struct _vrrphdr {			/* rfc2338.5.1 */
 	uint8_t			vers_type;	/* 0-3=type, 4-7=version */
@@ -100,12 +105,12 @@ typedef struct _vrrp_sgroup {
 							 */
 
 	/* State transition notification */
-	int			notify_exec;
-	char			*script_backup;
-	char			*script_master;
-	char			*script_fault;
-	char			*script;
-	int			smtp_alert;
+	bool			notify_exec;
+	notify_script_t		*script_backup;
+	notify_script_t		*script_master;
+	notify_script_t		*script_fault;
+	notify_script_t		*script;
+	bool			smtp_alert;
 } vrrp_sgroup_t;
 
 /* Statistics */
@@ -135,8 +140,8 @@ typedef struct _vrrp_stats {
 	uint32_t	vrid_err;
 	timeval_t	uptime;
 #ifdef _WITH_SNMP_RFCV3_
-	int		master_reason;
-	int		proto_err_reason;
+	uint32_t	master_reason;
+	uint32_t	proto_err_reason;
 #endif
 #endif
 } vrrp_stats;
@@ -148,14 +153,14 @@ typedef struct _vrrp_t {
 	vrrp_sgroup_t		*sync;			/* Sync group we belong to */
 	vrrp_stats		*stats;			/* Statistics */
 	interface_t		*ifp;			/* Interface we belong to */
-	int			dont_track_primary;	/* If set ignores ifp faults */
+	bool			dont_track_primary;	/* If set ignores ifp faults */
 	bool			skip_check_adv_addr;	/* If set, don't check the VIPs in subsequent
 							 * adverts from the same master */
-	int			strict_mode;		/* Enforces strict VRRP compliance */
+	unsigned		strict_mode;		/* Enforces strict VRRP compliance */
 #ifdef _HAVE_VRRP_VMAC_
 	unsigned long		vmac_flags;		/* VRRP VMAC flags */
 	char			vmac_ifname[IFNAMSIZ];	/* Name of VRRP VMAC interface */
-	unsigned int		vmac_ifindex;		/* ifindex of vmac interface */
+	ifindex_t		vmac_ifindex;		/* ifindex of vmac interface */
 #endif
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
@@ -165,40 +170,41 @@ typedef struct _vrrp_t {
 	struct sockaddr_storage master_saddr;		/* Store last heard Master address */
 	uint8_t			master_priority;	/* Store last heard priority */
 	timeval_t		last_transition;	/* Store transition time */
-	int			garp_delay;		/* Delay to launch gratuitous ARP */
+	unsigned		garp_delay;		/* Delay to launch gratuitous ARP */
 	timeval_t		garp_refresh;		/* Next scheduled gratuitous ARP refresh */
 	timeval_t		garp_refresh_timer;	/* Next scheduled gratuitous ARP timer */
-	int			garp_rep;		/* gratuitous ARP repeat value */
-	int			garp_refresh_rep;	/* refresh gratuitous ARP repeat value */
-	int			garp_lower_prio_delay;	/* Delay to second set or ARP messages */
+	unsigned		garp_rep;		/* gratuitous ARP repeat value */
+	unsigned		garp_refresh_rep;	/* refresh gratuitous ARP repeat value */
+	unsigned		garp_lower_prio_delay;	/* Delay to second set or ARP messages */
 	bool			garp_pending;		/* Are there gratuitous ARP messages still to be sent */
 	bool			gna_pending;		/* Are there gratuitous NA messages still to be sent */
-	int			garp_lower_prio_rep;	/* Number of ARP messages to send at a time */
-	int			lower_prio_no_advert;	/* Don't send advert after lower prio
+	unsigned		garp_lower_prio_rep;	/* Number of ARP messages to send at a time */
+	unsigned		lower_prio_no_advert;	/* Don't send advert after lower prio
 							 * advert received */
-	int			vrid;			/* virtual id. from 1(!) to 255 */
-	int			base_priority;		/* configured priority value */
-	int			effective_priority;	/* effective priority value */
-	int			vipset;			/* All the vips are set ? */
+	uint8_t			vrid;			/* virtual id. from 1(!) to 255 */
+	uint8_t			base_priority;		/* configured priority value */
+	uint8_t			effective_priority;	/* effective priority value */
+	bool			vipset;			/* All the vips are set ? */
 	list			vip;			/* list of virtual ip addresses */
 	list			evip;			/* list of protocol excluded VIPs.
 							 * Those VIPs will not be presents into the
 							 * VRRP adverts
 							 */
+	bool			promote_secondaries;	/* Set promote_secondaries option on interface */
 	bool			evip_add_ipv6;		/* Enable IPv6 for eVIPs if this is an IPv4 instance */
 	list			vroutes;		/* list of virtual routes */
 	list			vrules;			/* list of virtual rules */
-	int			adver_int;		/* locally configured delay between advertisements*/
-	int			master_adver_int;	/* In v3, when we become BACKUP, we use the MASTER's
+	unsigned		adver_int;		/* locally configured delay between advertisements*/
+	unsigned		master_adver_int;	/* In v3, when we become BACKUP, we use the MASTER's
 							 * adver_int. If we become MASTER again, we use the
 							 * value we were originally configured with.
 							 */
-	bool			accept;			/* Allow the non-master owner to process
+	unsigned		accept;			/* Allow the non-master owner to process
 							 * the packets destined to VIP.
 							 */
 	bool			iptable_rules_set;	/* Iptable drop rules set to VIP list ? */
-	int			nopreempt;		/* true if higher prio does not preempt lower */
-	long			preempt_delay;		/* Seconds*TIMER_HZ after startup until
+	bool			nopreempt;		/* true if higher prio does not preempt lower */
+	unsigned long		preempt_delay;		/* Seconds*TIMER_HZ after startup until
 							 * preemption based on higher prio over lower
 							 * prio is allowed.  0 means no delay.
 							 */
@@ -211,7 +217,7 @@ typedef struct _vrrp_t {
 
 	int			debug;			/* Debug level 0-4 */
 
-	int			quick_sync;		/* Will be set when waiting for the other members
+	bool			quick_sync;		/* Will be set when waiting for the other members
 							 * in the sync group to become master.
 							 * If set the next check will occur in one interval
 							 * instead of three intervals.
@@ -220,13 +226,13 @@ typedef struct _vrrp_t {
 	int version;		/* VRRP version (2 or 3) */
 
 	/* State transition notification */
-	int			smtp_alert;
-	int			notify_exec;
-	char			*script_backup;
-	char			*script_master;
-	char			*script_fault;
-	char			*script_stop;
-	char			*script;
+	bool			smtp_alert;
+	bool			notify_exec;
+	notify_script_t		*script_backup;
+	notify_script_t		*script_master;
+	notify_script_t		*script_fault;
+	notify_script_t		*script_stop;
+	notify_script_t		*script;
 
 	/* rfc2338.6.2 */
 	uint32_t		ms_down_timer;
@@ -234,11 +240,11 @@ typedef struct _vrrp_t {
 
 	/* Sending buffer */
 	char			*send_buffer;		/* Allocated send buffer */
-	int			send_buffer_size;
+	size_t			send_buffer_size;
 
 #if defined _WITH_VRRP_AUTH_
 	/* Authentication data (only valid for VRRPv2) */
-	int			auth_type;		/* authentification type. VRRP_AUTH_* */
+	uint8_t			auth_type;		/* authentification type. VRRP_AUTH_* */
 	uint8_t			auth_data[8];		/* authentification data */
 #endif
 
@@ -284,12 +290,12 @@ typedef struct _vrrp_t {
 #define VRRP_IS_BAD_PRIORITY(p)		((p)<1 || (p)>255)	/* rfc2338.6.1.prio */
 #define VRRP_IS_BAD_ADVERT_INT(d)	((d)<1)
 #define VRRP_IS_BAD_DEBUG_INT(d)	((d)<0 || (d)>4)
-#define VRRP_IS_BAD_PREEMPT_DELAY(d)	((d)<0 || (d)>TIMER_MAX_SEC)
+#define VRRP_IS_BAD_PREEMPT_DELAY(d)	((d)>TIMER_MAX_SEC)
 #define VRRP_SEND_BUFFER(V)		((V)->send_buffer)
 #define VRRP_SEND_BUFFER_SIZE(V)	((V)->send_buffer_size)
 
 /* We have to do some reduction of the calculation for VRRPv3 in order not to overflow a uint32; 625 / 16 == TIMER_CENTI_HZ / 256 */
-#define VRRP_TIMER_SKEW(svr)	((svr)->version == VRRP_VERSION_3 ? (((256-(svr)->base_priority) * ((svr)->adver_int / TIMER_CENTI_HZ) * 625) / 16) : ((256-(svr)->base_priority) * TIMER_HZ/256))
+#define VRRP_TIMER_SKEW(svr)	((svr)->version == VRRP_VERSION_3 ? (((256U-(svr)->base_priority) * ((svr)->adver_int / TIMER_CENTI_HZ) * 625U) / 16U) : ((256U-(svr)->base_priority) * TIMER_HZ/256U))
 #define VRRP_VIP_ISSET(V)	((V)->vipset)
 
 #define VRRP_MIN(a, b)	((a) < (b)?(a):(b))
@@ -306,19 +312,19 @@ typedef struct _vrrp_t {
 #define VRRP_ISUP(V)		(VRRP_IF_ISUP(V) && VRRP_SCRIPT_ISUP(V))
 
 /* prototypes */
-extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, int *);
-extern int open_vrrp_send_socket(sa_family_t, int, int, int);
-extern int open_vrrp_read_socket(sa_family_t, int, int, int);
+extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, unsigned *);
+extern int open_vrrp_send_socket(sa_family_t, int, ifindex_t, bool);
+extern int open_vrrp_read_socket(sa_family_t, int, ifindex_t, bool);
 extern int new_vrrp_socket(vrrp_t *);
-extern void vrrp_send_link_update(vrrp_t *, int);
-extern int vrrp_send_adv(vrrp_t *, int);
-extern int vrrp_state_fault_rx(vrrp_t *, char *, int);
-extern int vrrp_state_master_rx(vrrp_t *, char *, int);
+extern void vrrp_send_link_update(vrrp_t *, unsigned);
+extern int vrrp_send_adv(vrrp_t *, uint8_t);
+extern int vrrp_state_fault_rx(vrrp_t *, char *, ssize_t);
+extern int vrrp_state_master_rx(vrrp_t *, char *, ssize_t);
 extern int vrrp_state_master_tx(vrrp_t *, const int);
-extern void vrrp_state_backup(vrrp_t *, char *, int);
+extern void vrrp_state_backup(vrrp_t *, char *, ssize_t);
 extern void vrrp_state_goto_master(vrrp_t *);
 extern void vrrp_state_leave_master(vrrp_t *);
-extern int vrrp_complete_init(void);
+extern bool vrrp_complete_init(void);
 #ifdef _WITH_LVS_
 extern bool vrrp_ipvs_needed(void);
 #endif

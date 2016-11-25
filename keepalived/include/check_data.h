@@ -27,6 +27,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include <syslog.h>
 #include <arpa/inet.h>
 #include <openssl/ssl.h>
@@ -39,6 +40,7 @@
 #include "list.h"
 #include "vector.h"
 #include "timer.h"
+#include "notify.h"
 
 /* Typedefs */
 typedef unsigned int checker_id_t;
@@ -70,12 +72,12 @@ typedef struct _real_server {
 	int				inhibit;	/* Set weight to 0 instead of removing
 							 * the service from IPVS topology.
 							 */
-	char				*notify_up;	/* Script to launch when RS is added to LVS */
-	char				*notify_down;	/* Script to launch when RS is removed from LVS */
-	int				alive;
+	notify_script_t			*notify_up;	/* Script to launch when RS is added to LVS */
+	notify_script_t			*notify_down;	/* Script to launch when RS is removed from LVS */
+	bool				alive;
 	list				failed_checkers;/* List of failed checkers */
-	int				set;		/* in the IPVS table */
-	int				reloaded;	/* active state was copied from old config while reloading */
+	bool				set;		/* in the IPVS table */
+	bool				reloaded;	/* active state was copied from old config while reloading */
 #if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)
 	/* Statistics */
 	uint32_t			activeconns;	/* active connections */
@@ -92,10 +94,10 @@ typedef struct _real_server {
 /* Virtual Server group definition */
 typedef struct _virtual_server_group_entry {
 	struct sockaddr_storage		addr;
-	uint8_t				range;
+	uint32_t			range;
 	uint32_t			vfwmark;
-	int				alive;
-	int				reloaded;
+	bool				alive;
+	bool				reloaded;
 } virtual_server_group_entry_t;
 
 typedef struct _virtual_server_group {
@@ -114,13 +116,13 @@ typedef struct _virtual_server {
 	uint32_t			vfwmark;
 	uint16_t			af;
 	uint16_t			service_type;
-	long				delay_loop;
+	unsigned long			delay_loop;
 	int				ha_suspend;
-	int				ops;
 #ifdef _WITH_LVS_
 	char				sched[IP_VS_SCHEDNAME_MAXLEN];
+	uint32_t			flags;
 	uint32_t			persistence_timeout;
-#ifdef IPVS_SVC_ATTR_PE_NAME
+#ifdef _HAVE_PE_NAME_
 	char				pe_name[IP_VS_PENAME_MAXLEN];
 #endif
 	unsigned			loadbalancing_kind;
@@ -128,16 +130,15 @@ typedef struct _virtual_server {
 #endif
 	char				*virtualhost;
 	list				rs;
-	int				alive;
-	unsigned			alpha;		/* Alpha mode enabled. */
-	unsigned			omega;		/* Omega mode enabled. */
-	char				*quorum_up;	/* A hook to call when the VS gains quorum. */
-	char				*quorum_down;	/* A hook to call when the VS loses quorum. */
-	long unsigned			quorum;		/* Minimum live RSs to consider VS up. */
-
-	long unsigned			hysteresis;	/* up/down events "lag" WRT quorum. */
-	unsigned			quorum_state;	/* Reflects result of the last transition done. */
-	int				reloaded;	/* quorum_state was copied from old config while reloading */
+	bool				alive;
+	bool				alpha;		/* Alpha mode enabled. */
+	bool				omega;		/* Omega mode enabled. */
+	notify_script_t			*quorum_up;	/* A hook to call when the VS gains quorum. */
+	notify_script_t			*quorum_down;	/* A hook to call when the VS loses quorum. */
+	unsigned			quorum;		/* Minimum live RSs to consider VS up. */
+	unsigned			hysteresis;	/* up/down events "lag" WRT quorum. */
+	bool				quorum_state;	/* Reflects result of the last transition done. */
+	bool				reloaded;	/* quorum_state was copied from old config while reloading */
 #if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)
 	/* Statistics */
 	time_t				lastupdated;
@@ -222,15 +223,18 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 
 #define VS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&&\
 			 (X)->vfwmark                 == (Y)->vfwmark			&&\
-			 (X)->af                      == (Y)->af                        &&\
+			 (X)->af                      == (Y)->af			&&\
 			 (X)->service_type            == (Y)->service_type		&&\
 			 (X)->loadbalancing_kind      == (Y)->loadbalancing_kind	&&\
 			 (X)->persistence_granularity == (Y)->persistence_granularity	&&\
 			 (  (!(X)->quorum_up && !(Y)->quorum_up) || \
-			    ((X)->quorum_up && (Y)->quorum_up && !strcmp ((X)->quorum_up, (Y)->quorum_up)) \
+			    ((X)->quorum_up && (Y)->quorum_up && !strcmp ((X)->quorum_up->name, (Y)->quorum_up->name)) \
+			 ) &&\
+			 (  (!(X)->quorum_down && !(Y)->quorum_down) || \
+			    ((X)->quorum_down && (Y)->quorum_down && !strcmp ((X)->quorum_down->name, (Y)->quorum_down->name)) \
 			 ) &&\
 			 !strcmp((X)->sched, (Y)->sched)				&&\
-			 (X)->persistence_timeout     == (Y)->persistence_timeout 	&&\
+			 (X)->persistence_timeout     == (Y)->persistence_timeout	&&\
 			 (((X)->vsgname && (Y)->vsgname &&				\
 			   !strcmp((X)->vsgname, (Y)->vsgname)) ||			\
 			  (!(X)->vsgname && !(Y)->vsgname)))
@@ -257,5 +261,6 @@ extern check_data_t *alloc_check_data(void);
 extern void free_check_data(check_data_t *);
 extern void dump_check_data(check_data_t *);
 extern char *format_vs (virtual_server_t *);
+extern bool validate_check_config(void);
 
 #endif

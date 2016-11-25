@@ -35,6 +35,7 @@
 #include "pidfile.h"
 #include "daemon.h"
 #include "signals.h"
+#include "notify.h"
 #include "process.h"
 #include "logger.h"
 #include "list.h"
@@ -54,6 +55,9 @@ static char *check_syslog_ident;
 static void
 stop_check(int status)
 {
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
+
 	/* Destroy master thread */
 	signal_handler_destroy();
 	thread_destroy_master(master);
@@ -123,6 +127,11 @@ start_check(void)
 	init_global_data(global_data);
 
 	/* Post initializations */
+	if (!validate_check_config()) {
+		stop_check(KEEPALIVED_EXIT_CONFIG);
+		return;
+	}
+
 #ifdef _MEM_CHECK_
 	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
 #endif
@@ -180,14 +189,14 @@ start_check(void)
 static int reload_check_thread(thread_t *);
 
 static void
-sighup_check(void *v, int sig)
+sighup_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	thread_add_event(master, reload_check_thread, NULL, 0);
 }
 
 /* Terminate handler */
 static void
-sigend_check(void *v, int sig)
+sigend_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
 	if (master)
 		thread_add_terminate_event(master);
@@ -197,7 +206,7 @@ sigend_check(void *v, int sig)
 static void
 check_signal_init(void)
 {
-	signal_handler_init();
+	signal_handler_init(0);
 	signal_set(SIGHUP, sighup_check, NULL);
 	signal_set(SIGINT, sigend_check, NULL);
 	signal_set(SIGTERM, sigend_check, NULL);
@@ -206,12 +215,15 @@ check_signal_init(void)
 
 /* Reload thread */
 static int
-reload_check_thread(thread_t * thread)
+reload_check_thread(__attribute__((unused)) thread_t * thread)
 {
 	/* set the reloading flag */
 	SET_RELOAD;
 
 	log_message(LOG_INFO, "Got SIGHUP, reloading checker configuration");
+
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
 
 	/* Destroy master thread */
 #ifdef _WITH_VRRP_
@@ -232,9 +244,6 @@ reload_check_thread(thread_t * thread)
 	check_data = NULL;
 
 	/* Reload the conf */
-#ifdef _MEM_CHECK_
-	mem_allocated = 0;
-#endif
 	start_check();
 
 	/* free backup data */

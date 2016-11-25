@@ -38,7 +38,7 @@ static enum connect_result
 tcp_connect(int fd, REQ * req_obj)
 {
 	struct linger li;
-	int long_inet;
+	socklen_t long_inet;
 	struct sockaddr_in adr_serv;
 	struct sockaddr_in6 adr_serv6;
 	int ret;
@@ -100,8 +100,7 @@ tcp_connect(int fd, REQ * req_obj)
 }
 
 static enum connect_result
-tcp_socket_state(int fd, thread_t * thread, char *ipaddress, uint16_t addr_port,
-		 int (*func) (thread_t *))
+tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
 {
 	int status;
 	socklen_t slen;
@@ -111,7 +110,7 @@ tcp_socket_state(int fd, thread_t * thread, char *ipaddress, uint16_t addr_port,
 	/* Handle connection timeout */
 	if (thread->type == THREAD_WRITE_TIMEOUT) {
 		DBG("TCP connection timeout to [%s]:%d.\n",
-		    ipaddress, ntohs(addr_port));
+		    req->ipaddress, ntohs(req->addr_port));
 		close(thread->u.fd);
 		return connect_timeout;
 	}
@@ -125,7 +124,7 @@ tcp_socket_state(int fd, thread_t * thread, char *ipaddress, uint16_t addr_port,
 	/* Connection failed !!! */
 	if (ret) {
 		DBG("TCP connection failed to [%s]:%d.\n",
-		    ipaddress, ntohs(addr_port));
+		    req->ipaddress, ntohs(req->addr_port));
 		close(thread->u.fd);
 		return connect_error;
 	}
@@ -137,7 +136,7 @@ tcp_socket_state(int fd, thread_t * thread, char *ipaddress, uint16_t addr_port,
 	 */
 	if (status != 0) {
 		DBG("TCP connection to [%s]:%d still IN_PROGRESS.\n",
-		    ipaddress, ntohs(addr_port));
+		    req->ipaddress, ntohs(req->addr_port));
 
 		timer_min = timer_sub_now(thread->sands);
 		thread_add_write(thread->master, func, THREAD_ARG(thread)
@@ -151,7 +150,7 @@ tcp_socket_state(int fd, thread_t * thread, char *ipaddress, uint16_t addr_port,
 static void
 tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
 		     int (*func) (thread_t *)
-		     , long timeout)
+		     , unsigned long timeout)
 {
 	switch (status) {
 	case connect_error:
@@ -181,9 +180,7 @@ tcp_check_thread(thread_t * thread)
 	SOCK *sock_obj = THREAD_ARG(thread);
 	int ret = 1;
 
-	sock_obj->status =
-	    tcp_socket_state(thread->u.fd, thread, req->ipaddress, req->addr_port,
-			     tcp_check_thread);
+	sock_obj->status = tcp_socket_state(thread, tcp_check_thread);
 	switch (sock_obj->status) {
 	case connect_error:
 		DBG("Error connecting server [%s]:%d.\n",

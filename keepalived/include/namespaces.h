@@ -25,8 +25,6 @@
 
 #include <stdbool.h>
 
-extern char *network_namespace;
-
 extern void free_dirname(void);
 extern bool set_namespaces(const char*);
 extern void clear_namespaces(void);

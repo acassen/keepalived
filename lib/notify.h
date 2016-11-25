@@ -23,10 +23,45 @@
 #ifndef _NOTIFY_H
 #define _NOTIFY_H
 
-#include "scheduler.h"
-
 /* system includes */
-extern int system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, long timer, const char* script);
-extern int notify_exec(char *cmd);
+#include <sys/types.h>
+
+/* application includes */
+#include "scheduler.h"
+#include "memory.h"
+#include "vector.h"
+
+/* Flags returned by check_script_secure() */
+#define SC_INSECURE     0x01    /* Script is insecure */ 
+#define SC_ISSCRIPT     0x02    /* It is a script */
+#define SC_INHIBIT      0x04    /* Script needs inhibiting */
+#define SC_NOTFOUND	0x08	/* Cannot find element of path */
+#define	SC_EXECUTABLE	0x10	/* The script is marked executable */
+
+/* notify_script details */
+typedef struct _notify_script {
+	char	*name;		/* Script name */
+	uid_t	uid;		/* uid of user to execute script */
+	gid_t	gid;		/* gid of group to execute script */
+	bool	executable;	/* script is executable for uid:gid */
+} notify_script_t;
+
+static inline void
+free_notify_script(notify_script_t **script)
+{
+	if (!*script)
+		return;
+	FREE_PTR((*script)->name);
+	FREE_PTR(*script);
+}
+	
+/* prototypes */
+extern int system_call_script(thread_master_t *, int (*) (thread_t *), void *, unsigned long, const char*, uid_t, gid_t);
+extern int notify_exec(const notify_script_t *);
+extern void script_killall(thread_master_t *, int);
+extern int check_script_secure(notify_script_t *, bool, bool);
+extern int check_notify_script_secure(notify_script_t **, bool, bool);
+extern void set_default_script_user(uid_t *, gid_t *);
+extern notify_script_t* notify_script_init(vector_t *, uid_t, gid_t);
 
 #endif

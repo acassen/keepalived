@@ -77,7 +77,7 @@ get_u8(uint8_t *val, const char *str, uint8_t max, const char* errmsg)
 
 	t_val = strtoul(str, &end, 0);
 	if (*end == '\0' && t_val <= max) {
-		*val = t_val;
+		*val = (uint8_t)t_val;
 		return false;
 	}
 
@@ -97,7 +97,7 @@ get_u16(uint16_t *val, const char *str, uint16_t max, const char* errmsg)
 
 	t_val = strtoul(str, &end, 0);
 	if (*end == '\0' && t_val <= max) {
-		*val = t_val;
+		*val = (uint16_t)t_val;
 		return false;
 	}
 
@@ -117,7 +117,7 @@ get_u32(uint32_t *val, const char *str, uint32_t max, const char* errmsg)
 
 	t_val = strtoul(str, &end, 0);
 	if (*end == '\0' && t_val <= max) {
-		*val = t_val;
+		*val = (uint32_t)t_val;
 		return false;
 	}
 
@@ -167,12 +167,12 @@ get_time_rtt(uint32_t *val, const char *str, bool *raw)
 		if (t == HUGE_VAL && errno == ERANGE)
 			return true;
 
-		if (t >=UINT_MAX)
-			return -1;
+		if (t >=UINT32_MAX)
+			return true;
 	} else {
 		/* strtoul does "nasty" things with negative numbers */
 		if (str[0] == '-')
-			return -1;
+			return true;
 
 		res = strtoul(str, &end, 0);
 
@@ -184,34 +184,34 @@ get_time_rtt(uint32_t *val, const char *str, bool *raw)
 		if (res == ULONG_MAX && errno == ERANGE)
 			return true;
 
-		if (res >= UINT_MAX)
-			return -1;
+		if (res >= UINT32_MAX)
+			return true;
 
 		t = (double)res;
 	}
 
 	if (*end) {
 		*raw = false;
-                if (!strcasecmp(end, "s") ||
+		if (!strcasecmp(end, "s") ||
 		    !strcasecmp(end, "sec") ||
-                    !strcasecmp(end, "secs")) {
-			if (t >= UINT_MAX / 1000)
+		    !strcasecmp(end, "secs")) {
+			if (t >= UINT32_MAX / 1000)
 				return -1;
-                        t *= 1000;
+			t *= 1000;
 		}
-                else if (strcasecmp(end, "ms") &&
+		else if (strcasecmp(end, "ms") &&
 			 strcasecmp(end, "msec") &&
-                         strcasecmp(end, "msecs"))
-                        return true;
-        }
+			 strcasecmp(end, "msecs"))
+			return true;
+	}
 	else
 		*raw = true;
 
-	*val = t;
+	*val = (uint32_t)t;
 	if (*val < t)
 		(*val)++;
 	
-        return false;
+	return false;
 }
 
 bool
@@ -270,16 +270,16 @@ parse_mpls_address(const char *str, encap_mpls_t *mpls)
 
 		label = strtoul(str, &endp, 0);
 
+		if (endp == str) /* no digits */
+			return true;
+
 		/* Fail when the label value is out of range */
 		if (label > UINT32_MAX)
 			return true;
 		if (label & ~(MPLS_LS_LABEL_MASK >> MPLS_LS_LABEL_SHIFT))
 			return true;
 
-		if (endp == str) /* no digits */
-			return true;
-
-		mpls->addr[count].entry = htonl(label << MPLS_LS_LABEL_SHIFT);
+		mpls->addr[count].entry = htonl((uint32_t)label << MPLS_LS_LABEL_SHIFT);
 		if (*endp == '\0') {
 			mpls->addr[count].entry |= htonl(1 << MPLS_LS_S_SHIFT);
 			mpls->num_labels = count + 1;

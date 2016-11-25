@@ -41,6 +41,7 @@ typedef uint8_t u8;
 #include <stdlib.h>
 #include <stdio.h>
 #include <linux/ethtool.h>
+#include <linux/mii.h>
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
@@ -69,7 +70,7 @@ list garp_delay;
 /* Helper functions */
 /* Return interface from interface index */
 interface_t *
-if_get_by_ifindex(const int ifindex)
+if_get_by_ifindex(ifindex_t ifindex)
 {
 	interface_t *ifp;
 	element e;
@@ -87,7 +88,7 @@ if_get_by_ifindex(const int ifindex)
 
 /* Return base interface from interface index incase of VMAC */
 interface_t *
-base_if_get_by_ifindex(const int ifindex)
+base_if_get_by_ifindex(ifindex_t ifindex)
 {
 	interface_t *ifp = if_get_by_ifindex(ifindex);
 
@@ -150,7 +151,7 @@ reset_interface_queue(void)
  * by the base interface flags.
  */
 void
-if_vmac_reflect_flags(const int ifindex, const unsigned long flags)
+if_vmac_reflect_flags(ifindex_t ifindex, unsigned long flags)
 {
 	interface_t *ifp;
 	element e;
@@ -167,70 +168,60 @@ if_vmac_reflect_flags(const int ifindex, const unsigned long flags)
 #endif
 
 /* MII Transceiver Registers poller functions */
-static int
-if_mii_read(const int fd, const int phy_id, int location)
+static uint16_t
+if_mii_read(int fd, uint16_t phy_id, uint16_t reg_num)
 {
-	uint16_t *data = (uint16_t *) (&ifr.ifr_data);
+	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&ifr.ifr_data;
 
-	data[0] = phy_id;
-	data[1] = location;
+	data->phy_id = phy_id;
+	data->reg_num = reg_num;
 
 	if (ioctl(fd, SIOCGMIIREG, &ifr) < 0) {
-		log_message(LOG_ERR, "SIOCGMIIREG on %s failed: %s", ifr.ifr_name,
-		       strerror(errno));
-		return -1;
+		log_message(LOG_ERR, "SIOCGMIIREG on %s failed: %s", ifr.ifr_name, strerror(errno));
+		return 0xffff;
 	}
-	return data[3];
+	return data->val_out;
 }
 
-/*
-static void if_mii_dump(const uint16_t mii_regs[32], unsigned phy_id)
+#ifdef _INCLUDE_UNUSED_CODE_
+static void if_mii_dump(const uint16_t *mii_regs, size_t num_regs unsigned phy_id)
 {
-  int mii_reg;
+	int mii_reg;
 
-  printf(" MII PHY #%d transceiver registers:\n", phy_id);
-  for (mii_reg = 0; mii_reg < 32; mii_reg++)
-    printf("%s %4.4x", (mii_reg % 8) == 0 ? "\n ":"", mii_regs[mii_reg]);
+	printf(" MII PHY #%d transceiver registers:", phy_id);
+	for (mii_reg = 0; mii_reg < num_regs; mii_reg++)
+		printf("%s %4.4x", (mii_reg % 8) == 0 ? "\n ":"", mii_regs[mii_reg]);
+	printf("\n");
 }
-*/
+#endif
 
 static int
 if_mii_status(const int fd)
 {
-	uint16_t *data = (uint16_t *) (&ifr.ifr_data);
-	unsigned phy_id = data[0];
-	uint16_t mii_regs[32];
-	int mii_reg;
+	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&ifr.ifr_data;
+	uint16_t phy_id = data->phy_id;
 	uint16_t bmsr, new_bmsr;
 
-	/* Reset MII registers */
-	memset(mii_regs, 0, sizeof (mii_regs));
-
-	for (mii_reg = 0; mii_reg < 32; mii_reg++)
-		mii_regs[mii_reg] = if_mii_read(fd, phy_id, mii_reg);
-
-// if_mii_dump(mii_regs, phy_id);
-
-	if (mii_regs[0] == 0xffff) {
-		log_message(LOG_ERR, "No MII transceiver present for %s !!!",
-		       ifr.ifr_name);
+	if (if_mii_read(fd, phy_id, MII_BMCR) == 0xffff ||
+	    (bmsr = if_mii_read(fd, phy_id, MII_BMSR)) == 0) {
+		log_message(LOG_ERR, "No MII transceiver present for %s !!!", ifr.ifr_name);
 		return -1;
 	}
 
-	bmsr = mii_regs[1];
+// if_mii_dump(mii_regs, sizeof(mii_regs)/ sizeof(mii_regs[0], phy_id);
 
 	/*
 	 * For Basic Mode Status Register (BMSR).
 	 * Sticky field (Link established & Jabber detected), we need to read
 	 * a second time the BMSR to get current status.
 	 */
-	new_bmsr = if_mii_read(fd, phy_id, 1);
+	new_bmsr = if_mii_read(fd, phy_id, MII_BMSR);
 
 // printf(" \nBasic Mode Status Register 0x%4.4x ... 0x%4.4x\n", bmsr, new_bmsr);
 
-	if (bmsr & 0x0004)
+	if (bmsr & BMSR_LSTATUS)
 		return LINK_UP;
-	else if (new_bmsr & 0x0004)
+	else if (new_bmsr & BMSR_LSTATUS)
 		return LINK_UP;
 	else
 		return LINK_DOWN;
@@ -239,10 +230,10 @@ if_mii_status(const int fd)
 static int
 if_mii_probe(const char *ifname)
 {
-	uint16_t *data = (uint16_t *) (&ifr.ifr_data);
-	int phy_id;
+	struct mii_ioctl_data *data = (struct mii_ioctl_data *)&ifr.ifr_data;
+	uint16_t phy_id;
 	int fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
-	int status = 0;
+	int status;
 
 	if (fd < 0)
 		return -1;
@@ -262,13 +253,13 @@ if_mii_probe(const char *ifname)
 	/* check if the driver reports BMSR using the MII interface, as we
 	 * will need this and we already know that some don't support it.
 	 */
-	phy_id = data[0]; /* save it in case it is overwritten */
-	data[1] = 1;
+	phy_id = data->phy_id; /* save it in case it is overwritten */
+	data->reg_num = MII_BMSR;
 	if (ioctl(fd, SIOCGMIIREG, &ifr) < 0) {
 		close(fd);
 		return -1;
 	}
-	data[0] = phy_id;
+	data->phy_id = phy_id;
 
 	/* Dump the MII transceiver */
 	status = if_mii_status(fd);
@@ -280,22 +271,19 @@ static int
 if_ethtool_status(const int fd)
 {
 	struct ethtool_value edata;
-	int err = 0;
 
 	edata.cmd = ETHTOOL_GLINK;
 	ifr.ifr_data = (caddr_t) & edata;
-	err = ioctl(fd, SIOCETHTOOL, &ifr);
-	if (err == 0)
+	if (!ioctl(fd, SIOCETHTOOL, &ifr))
 		return (edata.data) ? 1 : 0;
-	else
-		return -1;
+	return -1;
 }
 
 static int
 if_ethtool_probe(const char *ifname)
 {
 	int fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
-	int status = 0;
+	int status;
 
 	if (fd < 0)
 		return -1;
@@ -332,7 +320,7 @@ if_ioctl_flags(interface_t * ifp)
 		close(fd);
 		return;
 	}
-	ifp->flags = ifr.ifr_flags;
+	ifp->flags = (unsigned short)ifr.ifr_flags;
 	close(fd);
 }
 
@@ -377,10 +365,9 @@ set_default_garp_delay(void)
 		ifp = ELEMENT_DATA(e);
 		if (!ifp->garp_delay
 #ifdef _HAVE_VRRP_VMAC_
-				     && !ifp->vmac)
-#else
-)
+				     && !ifp->vmac
 #endif
+						  )
 		{
 			alloc_garp_delay();
 			delay = LIST_TAIL_DATA(garp_delay);
@@ -401,7 +388,7 @@ dump_if(void *data)
 
 	log_message(LOG_INFO, "------< NIC >------");
 	log_message(LOG_INFO, " Name = %s", ifp->ifname);
-	log_message(LOG_INFO, " index = %d", ifp->ifindex);
+	log_message(LOG_INFO, " index = %u", ifp->ifindex);
 	log_message(LOG_INFO, " IPv4 address = %s", inet_ntop2(ifp->sin_addr.s_addr));
 	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 	log_message(LOG_INFO, " IPv6 address = %s", addr_str);
@@ -440,13 +427,15 @@ dump_if(void *data)
 		log_message(LOG_INFO, " VMAC underlying interface = %s", ifp_u->ifname);
 #endif
 
-	/* MII channel supported ? */
-	if (IF_MII_SUPPORTED(ifp))
-		log_message(LOG_INFO, " NIC support MII regs");
-	else if (IF_ETHTOOL_SUPPORTED(ifp))
-		log_message(LOG_INFO, " NIC support EHTTOOL GLINK interface");
-	else
-		log_message(LOG_INFO, " Enabling NIC ioctl refresh polling");
+	if (global_data->linkbeat_use_polling) {
+		/* MII channel supported ? */
+		if (IF_MII_SUPPORTED(ifp))
+			log_message(LOG_INFO, " NIC support MII regs");
+		else if (IF_ETHTOOL_SUPPORTED(ifp))
+			log_message(LOG_INFO, " NIC support ETHTOOL GLINK interface");
+		else
+			log_message(LOG_INFO, " NIC ioctl refresh polling");
+	}
 
 	if (ifp->garp_delay) {
 		if (ifp->garp_delay->have_garp_interval)
@@ -511,15 +500,14 @@ init_if_linkbeat(void)
 		status = if_mii_probe(ifp->ifname);
 		if (status >= 0) {
 			ifp->lb_type = LB_MII;
-			ifp->linkbeat = (status) ? 1 : 0;
+			ifp->linkbeat = !!status;
 		} else {
 			status = if_ethtool_probe(ifp->ifname);
 			if (status >= 0) {
 				ifp->lb_type = LB_ETHTOOL;
-				ifp->linkbeat = (status) ? 1 : 0;
+				ifp->linkbeat = !!status;
 			}
 		}
-
 		/* Register new monitor thread */
 		thread_add_timer(master, if_linkbeat_refresh_thread, ifp, POLLING_DELAY);
 	}
@@ -564,7 +552,7 @@ void
 init_interface_linkbeat(void)
 {
 	if (global_data->linkbeat_use_polling) {
-		log_message(LOG_INFO, "Using MII-BMSR NIC polling thread...");
+		log_message(LOG_INFO, "Using MII-BMSR/ETHTOOL NIC polling thread...");
 		init_if_linkbeat();
 	} else {
 		log_message(LOG_INFO, "Using LinkWatch kernel netlink reflector...");
@@ -572,7 +560,7 @@ init_interface_linkbeat(void)
 }
 
 int
-if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp, int proto)
+if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp)
 {
 	struct ip_mreqn imr;
 	struct ipv6_mreq imr6;
@@ -590,19 +578,19 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp, int proto)
 	if (family == AF_INET) {
 		memset(&imr, 0, sizeof(imr));
 		imr.imr_multiaddr = ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr;
-		imr.imr_ifindex = IF_INDEX(ifp);
+		imr.imr_ifindex = (int)IF_INDEX(ifp);
 
 		/* -> Need to handle multicast convergance after takeover.
 		 * We retry until multicast is available on the interface.
 		 */
 		ret = setsockopt(*sd, IPPROTO_IP, IP_ADD_MEMBERSHIP,
-				 (char *) &imr, sizeof(struct ip_mreqn));
+				 (char *) &imr, (socklen_t)sizeof(struct ip_mreqn));
 	} else {
 		memset(&imr6, 0, sizeof(imr6));
 		imr6.ipv6mr_multiaddr = ((struct sockaddr_in6 *) &global_data->vrrp_mcast_group6)->sin6_addr;
 		imr6.ipv6mr_interface = IF_INDEX(ifp);
 		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_ADD_MEMBERSHIP,
-				 (char *) &imr6, sizeof(struct ipv6_mreq));
+				 (char *) &imr6, (socklen_t)sizeof(struct ipv6_mreq));
 	}
 
 	if (ret < 0) {
@@ -630,7 +618,7 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 	if (family == AF_INET) {
 		memset(&imr, 0, sizeof(imr));
 		imr.imr_multiaddr = ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr;
-		imr.imr_ifindex = IF_INDEX(ifp);
+		imr.imr_ifindex = (int)IF_INDEX(ifp);
 		ret = setsockopt(sd, IPPROTO_IP, IP_DROP_MEMBERSHIP,
 				 (char *) &imr, sizeof(imr));
 	} else {
@@ -667,7 +655,7 @@ if_setsockopt_bindtodevice(int *sd, interface_t *ifp)
 	 * -- If you read this !!! and know the answer to the question
 	 *    please feel free to answer me ! :)
 	 */
-	ret = setsockopt(*sd, SOL_SOCKET, SO_BINDTODEVICE, IF_NAME(ifp), strlen(IF_NAME(ifp)) + 1);
+	ret = setsockopt(*sd, SOL_SOCKET, SO_BINDTODEVICE, IF_NAME(ifp), (socklen_t)strlen(IF_NAME(ifp)) + 1);
 	if (ret < 0) {
 		log_message(LOG_INFO, "cant bind to device %s. errno=%d. (try to run it as root)",
 			    IF_NAME(ifp), errno);
@@ -800,7 +788,8 @@ int
 if_setsockopt_mcast_if(sa_family_t family, int *sd, interface_t *ifp)
 {
 	int ret;
-	unsigned int ifindex;
+	ifindex_t ifindex;
+	int int_ifindex;
 
 	if (*sd < 0)
 		return -1;
@@ -812,11 +801,13 @@ if_setsockopt_mcast_if(sa_family_t family, int *sd, interface_t *ifp)
 		struct ip_mreqn imr;
 
 		memset(&imr, 0, sizeof(imr));
-		imr.imr_ifindex = IF_INDEX(ifp);
+		imr.imr_ifindex = (int)IF_INDEX(ifp);
 		ret = setsockopt(*sd, IPPROTO_IP, IP_MULTICAST_IF, &imr, sizeof(imr));
 	}
-	else
-		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &ifindex, sizeof(ifindex));
+	else {
+		int_ifindex = (int)ifindex;
+		ret = setsockopt(*sd, IPPROTO_IPV6, IPV6_MULTICAST_IF, &int_ifindex, sizeof(int_ifindex));
+	}
 
 	if (ret < 0) {
 		log_message(LOG_INFO, "cant set IP%s_MULTICAST_IF IP option. errno=%d (%m)", (family == AF_INET) ? "" : "V6", errno);

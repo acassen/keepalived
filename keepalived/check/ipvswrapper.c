@@ -49,7 +49,7 @@ get_modprobe(void)
 {
 	int procfile;
 	char *ret;
-	int count;
+	ssize_t count;
 
 	ret = MALLOC(PATH_MAX);
 	if (!ret)
@@ -244,7 +244,6 @@ ipvs_talk(int cmd, bool ignore_error)
 }
 
 #ifdef _WITH_LVS_
-#ifdef _WITH_LVS_
 /* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
 ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool ignore_interface, bool ignore_error)
@@ -254,7 +253,7 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 	/* prepare user rule */
 	daemonrule->state = state;
 	if (config) {
-		daemonrule->syncid = config->syncid;
+		daemonrule->syncid = (int)config->syncid;
 		if (!ignore_interface)
 			strncpy(daemonrule->mcast_ifn, config->ifname, IP_VS_IFNAME_MAXLEN);
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
@@ -280,12 +279,11 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 	/* Talk to the IPVS channel */
 	ipvs_talk(cmd, ignore_error);
 }
-#endif
 
 void
 ipvs_flush_cmd(void)
 {
-        ipvs_talk(IP_VS_SO_SET_FLUSH, false);
+	ipvs_talk(IP_VS_SO_SET_FLUSH, false);
 }
 #endif
 
@@ -293,34 +291,37 @@ ipvs_flush_cmd(void)
 static int
 ipvs_group_range_cmd(int cmd, virtual_server_group_entry_t *vsg_entry)
 {
-	uint32_t addr_ip, ip;
+	uint32_t addr_start;
+	uint32_t num_addr, i;
+	uint32_t addr_incr;
 
 	if (vsg_entry->addr.ss_family == AF_INET6) {
 		inet_sockaddrip6(&vsg_entry->addr, &srule->nf_addr.in6);
-		ip = srule->nf_addr.in6.s6_addr32[3];
+		addr_start = ntohs(srule->nf_addr.in6.s6_addr16[7]);
 	} else {
-		ip = inet_sockaddrip4(&vsg_entry->addr);
+		srule->nf_addr.ip = inet_sockaddrip4(&vsg_entry->addr);
+		addr_start = htonl(srule->nf_addr.ip) & 0xFF;
+		addr_incr = ntohl(1);
 	}
 
-	/* Set Address Family */
+	/* Set Address Family and port */
 	srule->af = vsg_entry->addr.ss_family;
+	srule->user.port = inet_sockaddrport(&vsg_entry->addr);
 
 	/* Parse the whole range */
-	for (addr_ip = ip;
-	     ((addr_ip >> 24) & 0xFF) <= vsg_entry->range;
-	     addr_ip += 0x01000000) {
+	num_addr = vsg_entry->range - addr_start + 1;
+	for (i = 0; i < num_addr; i++) {
 		if (srule->af == AF_INET6) {
-			if (srule->user.netmask == 0xffffffff)
-				srule->user.netmask = 128;
-			srule->nf_addr.in6.s6_addr32[3] = addr_ip;
-		} else {
-			srule->nf_addr.ip = addr_ip;
+			srule->nf_addr.in6.s6_addr16[7] = (htons(addr_start));
+			addr_start++;
 		}
-		srule->user.port = inet_sockaddrport(&vsg_entry->addr);
 
 		/* Talk to the IPVS channel */
 		if (ipvs_talk(cmd, false))
 			return -1;
+
+		if (srule->af == AF_INET)
+			srule->nf_addr.ip += addr_incr;
 	}
 
 	return 0;
@@ -407,6 +408,7 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 	drule->user.l_threshold = 0;
 	drule->user.conn_flags = vs->loadbalancing_kind;
 	strncpy(srule->user.sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
+	srule->user.flags = vs->flags;
 	srule->user.netmask = (vs->addr.ss_family == AF_INET6) ? 128 : ((u_int32_t) 0xffffffff);
 	srule->user.protocol = vs->service_type;
 
@@ -418,11 +420,13 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 	if (vs->persistence_timeout || vs->persistence_granularity)
 		srule->user.flags |= IP_VS_SVC_F_PERSISTENT;
 
-	/* Only for UDP services */
-	if (vs->ops == 1 && srule->user.protocol == IPPROTO_UDP)
-		srule->user.flags |= IP_VS_SVC_F_ONEPACKET;
+#ifdef IP_VS_SVC_F_ONEPACKET
+	/* Disable ops flag if service is not UDP */
+	if (vs->flags & IP_VS_SVC_F_ONEPACKET && srule->user.protocol != IPPROTO_UDP)
+		srule->user.flags &= (unsigned)~IP_VS_SVC_F_ONEPACKET;
+#endif
 
-#ifdef IPVS_SVC_ATTR_PE_NAME
+#ifdef _HAVE_PE_NAME_
 	strcpy(srule->pe_name, vs->pe_name);
 #endif
 
@@ -463,9 +467,9 @@ ipvs_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 
 	/* Set flag */
 	if (cmd == IP_VS_SO_SET_ADDDEST && !rs->set)
-		rs->set = 1;
+		rs->set = true;
 	if (cmd == IP_VS_SO_SET_DELDEST && rs->set)
-		rs->set = 0;
+		rs->set = false;
 
 	/* Set vs rule and send to kernel */
 	if (vs->vsgname) {
@@ -617,7 +621,7 @@ ipvs_update_stats(virtual_server_t *vs)
 	union nf_inet_addr nfaddr;
 	ipvs_service_entry_t *serv = NULL;
 	struct ip_vs_get_dests_app *dests = NULL;
-	int i;
+	unsigned i;
 #define UPDATE_STATS_INIT 1
 #define UPDATE_STATS_VSG_IP 2
 #define UPDATE_STATS_VSG_FWMARK 4

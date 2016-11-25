@@ -69,7 +69,7 @@ typedef struct _encap_ip {
 	uint64_t	id;
 	ip_address_t	*dst;
 	ip_address_t	*src;
-	uint32_t	tos;
+	uint8_t		tos;
 	uint16_t	flags;
 	uint8_t		ttl;
 } encap_ip_t;
@@ -82,13 +82,13 @@ typedef struct _encap_ip6 {
 	uint64_t	id;
 	ip_address_t	*dst;
 	ip_address_t	*src;
-	uint32_t	tc;
+	uint8_t		tc;
 	uint16_t	flags;
 	uint8_t		hoplimit;
 } encap_ip6_t;
 
 typedef struct _encap {
-	int		type;
+	uint16_t	type;
 	uint32_t	flags;
 	union {
 		encap_mpls_t	mpls;
@@ -104,7 +104,7 @@ typedef struct _nexthop {
 	ip_address_t *addr;
 	interface_t *ifp;
 	uint8_t weight;
-	uint32_t flags;
+	uint8_t flags;
 	uint32_t realms;
 #if HAVE_DECL_RTA_ENCAP
 	encap_t encap;
@@ -213,11 +213,12 @@ typedef struct _ip_route {
 	bool			set;
 } ip_route_t;
 
-#define IPROUTE_DEL 	0
-#define IPROUTE_ADD 	1
-#define IPROUTE_REPLACE 2
+#define IPROUTE_DEL	0
+#define IPROUTE_ADD	1
+#define IPROUTE_REPLACE	2
 
 /* prototypes */
+extern unsigned short add_addr2req(struct nlmsghdr *, size_t, unsigned short, ip_address_t *);
 extern void netlink_rtlist(list, int);
 extern void free_iproute(void *);
 extern void format_iproute(ip_route_t *, char *, size_t);

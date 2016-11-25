@@ -28,10 +28,10 @@
  * In order not to have to specify different pid files for each instance of
  * keepalived, if keepalived is running in a network namespace it will also create
  * its own mount namespace, and will slave bind mount a unique directory
- * (/var/run/keepalived/keepalived.PID) on /var/run/keepalived, so keepalived will
+ * (/var/run/keepalived/NAMESPACE) on /var/run/keepalived, so keepalived will
  * write its usual pid files (but to /var/run/keepalived rather than to /var/run),
  * and outside the mount namespace these will be visible at
- * /var/run/keepalived/keepalived.PID
+ * /var/run/keepalived/NAMESPACE.
  *
  * If you are familiar with network namespaces, then you will know what you can do
  * with them. If not, then the following scenarios should give you an idea of what
@@ -84,8 +84,8 @@
  * # ip netns exec netns2 ip link set eth0 netns netns3
  *
  * Make the link names in netns2 easier to remember
- * # ip netns exec netns1 ip link set 1.eth0 name eth0
- * # ip netns exec netns1 ip link set 3.eth1 name eth1
+ * # ip netns exec netns2 ip link set 1.eth0 name eth0
+ * # ip netns exec netns2 ip link set 3.eth1 name eth1
  *
  * Bring up the interfaces
  * # ip netns exec netns1 ip link set eth0 up
@@ -104,7 +104,7 @@
  * Configure some addresses
  * # ip netns exec netns1 ip addr add 10.2.0.1/24 broadcast 10.2.0.255 dev eth0
  * # ip netns exec netns2 ip addr add 10.2.0.2/24 broadcast 10.2.0.255 dev br0
- * # ip netns exec netns1 ip addr add 10.2.0.3/24 broadcast 10.2.0.255 dev eth0
+ * # ip netns exec netns3 ip addr add 10.2.0.3/24 broadcast 10.2.0.255 dev eth0
  *
  * Test it
  * # ip netns exec netns1 ping 10.2.0.2		# netns1 can talk to netns2
@@ -118,6 +118,8 @@
  * Create three configuration files, keepalived.netns1.conf etc
  * and in each config file in the global_defs section specify
  * net_namespace netns1        # or netns2 or netns3 as appropriate
+ * global_defs {
+ *		....
  *
  * Now run three instances of keepalived. Note, keepalived handles
  * joining the appropriate network namespace, and so the commands don't
@@ -175,6 +177,7 @@
 #include <sys/syscall.h>
 
 #include "namespaces.h"
+#include "main.h"
 
 #ifndef MS_SLAVE	/* Since glibc 2.12, but Linux since 2.6.15 */
 #include <linux/fs.h>
@@ -188,9 +191,6 @@ int setns(int fd, int nstype)
 #include "memory.h"
 #include "logger.h"
 #include "pidfile.h"
-
-/* Global data */
-char *network_namespace;
 
 /* Local data */
 static const char *netns_dir = "/var/run/netns/";

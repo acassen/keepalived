@@ -128,7 +128,7 @@ connection_in_progress(thread_t * thread)
 	 * Here we use the propriety of a union structure,
 	 * each element of the structure have the same value.
 	 */
-	status = tcp_socket_state(thread->u.fd, thread, connection_in_progress);
+	status = tcp_socket_state(thread, connection_in_progress);
 
 	if (status != connect_in_progress)
 		SMTP_FSM_SEND(status, thread);
@@ -156,7 +156,7 @@ smtp_read_thread(thread_t * thread)
 	smtp_t *smtp;
 	char *buffer;
 	char *reply;
-	int rcv_buffer_size = 0;
+	ssize_t rcv_buffer_size;
 	int status = -1;
 
 	smtp = THREAD_ARG(thread);
@@ -195,7 +195,7 @@ smtp_read_thread(thread_t * thread)
 		SMTP_FSM_READ(QUIT, thread, 0);
 		return 0;
 	} else {
-		smtp->buflen += rcv_buffer_size;
+		smtp->buflen += (size_t)rcv_buffer_size;
 		buffer[smtp->buflen] = 0;	/* NULL terminate */
 	}
 
@@ -209,8 +209,8 @@ smtp_read_thread(thread_t * thread)
 		p = strstr(reply, "\r\n");
 		if (!p) {
 			memmove(buffer, reply,
-				smtp->buflen - (reply - buffer));
-			smtp->buflen -= (reply - buffer);
+				smtp->buflen - (size_t)(reply - buffer));
+			smtp->buflen -= (size_t)(reply - buffer);
 			buffer[smtp->buflen] = 0;
 
 			thread_add_read(thread->master, smtp_read_thread,
@@ -231,8 +231,8 @@ smtp_read_thread(thread_t * thread)
 		break;
 	}
 
-	memmove(buffer, reply, smtp->buflen - (reply - buffer));
-	smtp->buflen -= (reply - buffer);
+	memmove(buffer, reply, smtp->buflen - (size_t)(reply - buffer));
+	smtp->buflen -= (size_t)(reply - buffer);
 	buffer[smtp->buflen] = 0;
 
 	if (status == -1) {
@@ -455,8 +455,8 @@ build_to_header_rcpt_addrs(smtp_t *smtp)
 {
 	char *fetched_email;
 	char *email_to_addrs;
-	int bytes_available = SMTP_BUFFER_MAX - 1;
-	int bytes_not_written, bytes_to_write;
+	size_t bytes_available = SMTP_BUFFER_MAX - 1;
+	size_t bytes_to_write;
 
 	if (smtp == NULL)
 		return;
@@ -469,9 +469,8 @@ build_to_header_rcpt_addrs(smtp_t *smtp)
 		if (fetched_email == NULL)
 			break;
 
-		bytes_not_written = 0;
 		bytes_to_write = strlen(fetched_email);
-		if (smtp->email_it == 0) {
+		if (!smtp->email_it) {
 			if (bytes_available < bytes_to_write)
 				break;
 		} else {
@@ -484,8 +483,7 @@ build_to_header_rcpt_addrs(smtp_t *smtp)
 			bytes_available -= 2;
 		}
 
-		bytes_not_written = snprintf(email_to_addrs, bytes_to_write + 1, "%s", fetched_email) - bytes_to_write;;
-		if (bytes_not_written > 0) {
+		if (snprintf(email_to_addrs, bytes_to_write + 1, "%s", fetched_email) != (int)bytes_to_write) {
 			/* Inconsistent state, no choice but to break here and do nothing */
 			break;
 		}
@@ -569,8 +567,9 @@ quit_cmd(thread_t * thread)
 		smtp->stage++;
 	return 0;
 }
+
 static int
-quit_code(thread_t * thread, int status)
+quit_code(thread_t * thread, __attribute__((unused)) int status)
 {
 	smtp_t *smtp = THREAD_ARG(thread);
 

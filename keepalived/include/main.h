@@ -65,9 +65,16 @@ extern const char *snmp_socket;		/* Socket to use for SNMP agent */
 #endif
 #if HAVE_DECL_CLONE_NEWNET
 extern char *network_namespace;		/* network namespace name */
+extern bool namespace_with_ipsets;	/* override for namespaces with ipsets on Linux < 3.13 */
 #endif
 extern char *instance_name;		/* keepalived instance name */
 extern bool use_pid_dir;		/* pid files in /var/run/keepalived */
+extern size_t getpwnam_buf_len;		/* Buffer length needed for getpwnam_r/getgrnam_r */
+extern uid_t default_script_uid;	/* Default user/group for script execution */
+extern gid_t default_script_gid;
+extern unsigned os_major;		/* Kernel version */
+extern unsigned os_minor;
+extern unsigned os_release;
 
 extern void free_parent_mallocs_startup(bool);
 extern void free_parent_mallocs_exit(void);

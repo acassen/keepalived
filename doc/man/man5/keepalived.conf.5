@@ -17,6 +17,28 @@ the main configuration file.
 .SH PARAMETER SYNTAX
 .B <BOOL>
 is one of on|off|true|false|yes|no
+.PP
+.SH Conditional configuration and configuration id
+Any configuration line starts with '@' is a conditional configuration line.
+The word immediately following (i.e. without any space) the '@' character
+is compared against the string specified with the -i command line option,
+and if they don't match, the configuration line is ignored.
+.PP
+The purpose of this is to allow a single configuration file to be used for
+multiple systems, where the only differences are likely to be the router_id,
+vrrp instance priorities, and possibly interface names.
+.PP
+For example:
+.PP
+ global_defs
+ {
+ @main   router_id main_router
+ @backup router_id backup_router
+ }
+.PP
+If keepalived is invoked with -i main, then the router_id will be set to main_router,
+if invoked with -i backup, then backup_router, if not invoked with -i, or with
+-i anything else, then the router_id will not be set.
 .SH TOP HIERACHY
 .PP
 .B GLOBAL CONFIGURATION
@@ -122,7 +144,7 @@ and
  # If no names are specified, ipsets will not be used, otherwise any omitted
  # names will be constructed by adding "_if" and/or "6" to previously specified
  # names.
- vrrp_ipset [keepalived [keepalived_if [keepalived6 [keepalived_if6]]]]
+ vrrp_ipset [keepalived [keepalived6 [keepalived_if6]]]
 
  # The following enables checking that when in unicast mode, the source
  # address of a VRRP packet is one of our unicast peers.
@@ -159,6 +181,16 @@ and
  enable_snmp_rfcv2            # enable SNMP handling of RFC2787 VRRP MIB
  enable_snmp_rfcv3            # enable SNMP handling of RFC6527 VRRP MIB
  enable_traps                 # enable SNMP traps
+
+ # If Keepalived has been build with DBus support, the following keyword is available
+ enable_dbus                  # enable the DBus interface
+
+ # Specify the default username/groupname to run scripts under.
+ # If this option is not specified, the user defaults to keepalived_script
+ #   if that user exists, otherwise root.
+ script_user username [groupname] # If groupname is not specified, it defaults to the user's group
+ enable_script_security       # Don't run scripts configured to be run as root if any part of the path
+                              #   is writable by a non-root user.
  }
 
  # For running keepalived in a separate network namespace
@@ -167,6 +199,10 @@ and
                               #   for example for pid files.
                               # syslog entries will have _NAME appended to the ident.
                               # Note: the namespace cannot be changed on a configuration reload
+ namespace_with_ipsets        # ipsets wasn't network namespace aware until Linux 3.13, and so if running with
+                              # an earlier version of the kernel, by default use of ipsets is disabled if using
+                              # a namespace and vrrp_ipsets has not been specified. This options overrides the
+                              # default and allows ipsets to be used with a namespace on kernels prior to 3.13.
 
  instance NAME                # If multiple instances of keepalived are run in the same namespace, this will
                               #   create pid files with NAME as part of the file names, in /var/run/keepalived.
@@ -232,6 +268,8 @@ and
     weight <INTEGER:-254..254>  # adjust priority by this weight, default 2
     rise <INTEGER>              # required number of successes for OK transition
     fall <INTEGER>              # required number of successes for KO transition
+    user USERNAME [GROUPNAME]   # user/group names to run script under
+                                #   group default to group of user
  }
 .PP
 .SH VRRP synchronization group(s)
@@ -250,11 +288,16 @@ and
     # can be unquoted (if just filename)
     # or quoted (if it has parameters)
     # to MASTER transition
-    notify_master /path/to_master.sh
+    # The username and groupname specify the user and group
+    # under which the scripts should be run. If username is
+    # specified, the group defaults to the group of the user.
+    # If username is not specified, they default to the
+    # global script_user and script_group
+    notify_master /path/to_master.sh [username [groupname]]
     # to BACKUP transition
-    notify_backup /path/to_backup.sh
+    notify_backup /path/to_backup.sh [username [groupname]]
     # FAULT transition
-    notify_fault "/path/fault.sh VG_1"
+    notify_fault "/path/fault.sh VG_1" [username [groupname]]
 
     # for ANY state transition.
     # "notify" script is called AFTER the
@@ -266,7 +309,7 @@ and
     # $2 = name of the group or instance
     # $3 = target state of transition
     #     ("MASTER"|"BACKUP"|"FAULT")
-    notify /path/notify.sh
+    notify /path/notify.sh [username [groupname]]
 
     # Send email notification during state transition,
     # using addresses in global_defs above.
@@ -437,6 +480,14 @@ which will transition together on any state change.
      <IPADDR>/<MASK> brd <IPADDR> dev <STRING> scope <SCOPE>
         ...
     }
+
+    # Set the promote_secondaries flag on the interface to stop other
+    # addresses in the same CIDR being removed when 1 of them is removed
+    # For example if 10.1.1.2/24 and 10.1.1.3/24 are both configured on an
+    # interface, and one is removed, unless promote_secondaries is set on
+    # the interface the other address will also be removed.
+    prompte_secondaries
+
     # routes add|del when changing to MASTER, to BACKUP.
     # See static_routes for more details
     virtual_routes {
@@ -457,7 +508,11 @@ which will transition together on any state change.
         to 192.168.2.0/24 table 1
     }
 
-    accept    # Allow the non-master owner to process the packets destined to VIP
+    # VRRPv3 has an Accept Mode to allow the virtual router when not the address owner to
+    # receive packets addressed to a VIP. This is the default setting unless strict mode is set.
+    # As an extension, this also works for VRRPv2 (RFC 3768 doesn't define an accept mode). 
+    accept		# Accept packets to non address-owner
+    no_accept		# Drop packets to non address-owner.
 
     # VRRP will normally preempt a lower priority
     # machine when a higher priority machine comes
@@ -489,11 +544,11 @@ which will transition together on any state change.
     debug <LEVEL>        # LEVEL is a number in the range 0 to 4
 
     # notify scripts, alert as above
-    notify_master <STRING>|<QUOTED-STRING>
-    notify_backup <STRING>|<QUOTED-STRING>
-    notify_fault <STRING>|<QUOTED-STRING>
-    notify_stop <STRING>|<QUOTED-STRING>      # executed when stopping vrrp
-    notify <STRING>|<QUOTED-STRING>
+    notify_master <STRING>|<QUOTED-STRING> [username [groupname]]
+    notify_backup <STRING>|<QUOTED-STRING> [username [groupname]]
+    notify_fault <STRING>|<QUOTED-STRING> [username [groupname]]
+    notify_stop <STRING>|<QUOTED-STRING> [username [groupname]]      # executed when stopping vrrp
+    notify <STRING>|<QUOTED-STRING> [username [groupname]]
     smtp_alert
  }
 
@@ -562,6 +617,19 @@ A virtual_server can be a declaration of one of
 
     # LVS scheduler
     lb_algo rr|wrr|lc|wlc|lblc|sh|dh
+    
+    # Enable hashed entry
+    hashed
+    # Enable flag-1 for scheduler (-b flag-1 in ipvsadm)
+    flag-1
+    # Enable flag-2 for scheduler (-b flag-2 in ipvsadm)
+    flag-2
+    # Enable flag-3 for scheduler (-b flag-3 in ipvsadm)
+    flag-3
+    # Enable sh-port for sh scheduler (-b sh-port in ipvsadm)
+    sh-port
+    # Enable sh-fallback for sh scheduler  (-b sh-fallback in ipvsadm)
+    sh-fallback
     # Enable One-Packet-Scheduling for UDP (-O in ipvsadm)
     ops
     # LVS forwarding method
@@ -643,7 +711,7 @@ A virtual_server can be a declaration of one of
            lthreshold <INTEGER> # minimum number of connections to server
 
            # pick one healthchecker
-           # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|MISC_CHECK
+           # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK
 
            # HTTP and SSL healthcheckers
            HTTP_GET|SSL_GET
@@ -795,6 +863,41 @@ A virtual_server can be a declaration of one of
               warmup <INT>
            } #SMTP_CHECK
 
+           # DNS healthchecker
+           DNS_CHECK
+           {
+               # ======== generic connection options
+               # Optional IP address to connect to.
+               # The default is the realserver IP
+               connect_ip <IP ADDRESS>
+               # Optional port to connect to
+               # The default is the realserver port
+               connect_port <PORT>
+               # Optional interface to use to
+               # originate the connection
+               bindto <IP ADDRESS>
+               # Optional source port to
+               # originate the connection from
+               bind_port <PORT>
+               # Optional connection timeout in seconds.
+               # The default is 5 seconds
+               connect_timeout <INTEGER>
+               # Optional fwmark to mark all outgoing
+               # checker packets with
+               fwmark <INTEGER>
+
+               # Number of times to retry a failed check
+               # The default is 3 times.
+               retry <INTEGER>
+               # DNS query type
+               #   A|NS|CNAME|SOA|MX|TXT|AAAA
+               # The default is SOA
+               type <STRING>
+               # Domain name to use for the DNS query
+               # The default is . (dot)
+               name <STRING>
+           }
+
            # MISC healthchecker, run a program
            MISC_CHECK
            {
@@ -820,6 +923,12 @@ A virtual_server can be a declaration of one of
                #   (for example: exit status of 255 would set
                #     weight to 253)
                misc_dynamic
+
+               # Specify the username/groupname that the script should
+               #   be run under.
+               # If GROUPNAME is not specified, the group of the user
+               #   is used
+               user USERNAME [GROUPNAME]
            }
        } # realserver defn
     } # virtual service

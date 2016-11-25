@@ -52,6 +52,15 @@
 /* Default values */
 #define IF_DEFAULT_BUFSIZE	(65*1024)
 
+/* I don't know what the correct type is. 
+ * The kernel has ifindex in the range [1, INT_MAX], but IFLA_LINK is defined
+ * to be __u32. See dev_new_index() in net/core/dev.c and net/core/rtnetlink.c.
+ * ifaddrmsg.ifa_index (See /usr/include/linux/if_addr.h> is __u32.
+ * /usr/include/linux/rtnetlink.h has them as ints.
+ * RTA_OIF and RTA_IIF are u32.
+ * RFC2553 defines sin6_scopeid to be a uint32_t, and it can hold an ifindex */
+typedef uint32_t ifindex_t;
+
 /* Structure for delayed sending of gratuitous ARP/NA messages */
 typedef struct _garp_delay {
 	timeval_t		garp_interval;		/* Delay between sending gratuitous ARP messages on an interface */
@@ -66,19 +75,19 @@ typedef struct _garp_delay {
 /* Interface structure definition */
 typedef struct _interface {
 	char			ifname[IF_NAMESIZ + 1];	/* Interface name */
-	unsigned int		ifindex;		/* Interface index */
+	ifindex_t		ifindex;		/* Interface index */
 	struct in_addr		sin_addr;		/* IPv4 primary IPv4 address */
 	struct in6_addr		sin6_addr;		/* IPv6 link address */
 	unsigned long		flags;			/* flags */
-	unsigned int		mtu;			/* MTU for this interface_t */
+	uint32_t		mtu;			/* MTU for this interface_t */
 	unsigned short		hw_type;		/* Type of hardware address */
 	u_char			hw_addr[IF_HWADDR_MAX];	/* MAC address */
-	int			hw_addr_len;		/* MAC addresss length */
+	size_t			hw_addr_len;		/* MAC addresss length */
 	int			lb_type;		/* Interface regs selection */
-	int			linkbeat;		/* LinkBeat from MII BMSR req */
+	bool			linkbeat;		/* LinkBeat from MII BMSR req, SIOCETHTOOL or SIOCGIFFLAGS ioctls */
 #ifdef _HAVE_VRRP_VMAC_
 	int			vmac;			/* Set if interface is a VMAC interface */
-	unsigned int		base_ifindex;		/* Base interface index (if interface is a VMAC interface),
+	ifindex_t		base_ifindex;		/* Base interface index (if interface is a VMAC interface),
 							   otherwise the physical interface (i.e. ifindex) */
 #endif
 	garp_delay_t		*garp_delay;		/* Delays for sending gratuitous ARP/NA */
@@ -86,6 +95,8 @@ typedef struct _interface {
 	int			reset_arp_config;	/* Count of how many vrrps have changed arp parameters on interface */
 	uint32_t		reset_arp_ignore_value;	/* Original value of arp_ignore to be restored */
 	uint32_t		reset_arp_filter_value;	/* Original value of arp_filter to be restored */
+	uint32_t		reset_promote_secondaries; /* Count of how many vrrps have changed promote_secondaries on interface */
+	bool			promote_secondaries_already_set; /* Set if promote_secondaries already set on interface */
 } interface_t;
 
 #define GARP_DELAY_PTR(X) ((X)->switch_delay ? (X)->switch_delay : &((X)->if_delay))
@@ -121,14 +132,14 @@ typedef struct _tracked_if {
 list garp_delay;
 
 /* prototypes */
-extern interface_t *if_get_by_ifindex(const int);
-extern interface_t *base_if_get_by_ifindex(const int);
+extern interface_t *if_get_by_ifindex(ifindex_t);
+extern interface_t *base_if_get_by_ifindex(ifindex_t);
 extern interface_t *base_if_get_by_ifp(interface_t *);
 extern interface_t *if_get_by_ifname(const char *);
 extern list get_if_list(void);
 extern void reset_interface_queue(void);
 #ifdef _HAVE_VRRP_VMAC_
-extern void if_vmac_reflect_flags(const int, const unsigned long);
+extern void if_vmac_reflect_flags(ifindex_t, unsigned long);
 #endif
 extern int if_linkbeat(const interface_t *);
 extern void alloc_garp_delay(void);
@@ -139,7 +150,7 @@ extern void init_interface_queue(void);
 extern void init_interface_linkbeat(void);
 extern void free_interface_queue(void);
 extern void free_old_interface_queue(void);
-extern int if_join_vrrp_group(sa_family_t, int *, interface_t *, int);
+extern int if_join_vrrp_group(sa_family_t, int *, interface_t *);
 extern int if_leave_vrrp_group(sa_family_t, int, interface_t *);
 extern int if_setsockopt_bindtodevice(int *, interface_t *);
 extern int if_setsockopt_hdrincl(int *);

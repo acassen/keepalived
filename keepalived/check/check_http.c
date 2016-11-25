@@ -37,6 +37,9 @@
 #include "string.h"
 #endif
 
+#define	REGISTER_CHECKER_NEW	1
+#define	REGISTER_CHECKER_RETRY	2
+
 static int http_connect_thread(thread_t *);
 
 /* Configuration stream handling */
@@ -99,7 +102,7 @@ dump_http_get_check(void *data)
 	else
 		log_message(LOG_INFO, "   Keepalive method = SSL_GET");
 	dump_conn_opts(CHECKER_CO(data));
-	log_message(LOG_INFO, "   Nb get retry = %d", http_get_chk->nb_get_retry);
+	log_message(LOG_INFO, "   Nb get retry = %u", http_get_chk->nb_get_retry);
 	log_message(LOG_INFO, "   Delay before retry = %lu",
 	       http_get_chk->delay_before_retry/TIMER_HZ);
 	dump_list(http_get_chk->url);
@@ -124,7 +127,7 @@ static void
 http_get_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk;
-	char *str = vector_slot(strvec, 0);
+	char *str = strvec_slot(strvec, 0);
 
 	/* queue new checker */
 	http_get_chk = alloc_http_get(str);
@@ -136,18 +139,18 @@ static void
 nb_get_retry_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
-	http_get_chk->nb_get_retry = CHECKER_VALUE_INT(strvec);
+	http_get_chk->nb_get_retry = CHECKER_VALUE_UINT(strvec);
 }
 
 static void
 delay_before_retry_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
-	http_get_chk->delay_before_retry = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
+	http_get_chk->delay_before_retry = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 }
 
 static void
-url_handler(vector_t *strvec)
+url_handler(__attribute__((unused)) vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	url_t *new;
@@ -250,20 +253,18 @@ install_ssl_check_keyword(void)
  * method == 2 => register a retry on url checker thread
  */
 static int
-epilog(thread_t * thread, int method, int t, int c)
+epilog(thread_t * thread, int method, unsigned t, unsigned c)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	http_t *http = HTTP_ARG(http_get_check);
 	request_t *req = HTTP_REQ(http);
-	long delay = 0;
+	unsigned long delay = 0;
 
-	if (method) {
-		http->url_it += t ? t : -http->url_it;
-		http->retry_it += c ? c : -http->retry_it;
-	}
+	http->url_it += t ? t : -http->url_it;
+	http->retry_it += c ? c : -http->retry_it;
 
-	if (method == 1 && http->url_it >= LIST_SIZE(http_get_check->url)) {
+	if (method == REGISTER_CHECKER_NEW && http->url_it >= LIST_SIZE(http_get_check->url)) {
 		/* All the url have been successfully checked.
 		 * Check completed.
 		 * check if server is currently alive.
@@ -288,11 +289,11 @@ epilog(thread_t * thread, int method, int t, int c)
 	 * html buffer. This is sometime needed with some applications
 	 * servers.
 	 */
-	else if (method == 2 && http->retry_it > http_get_check->nb_get_retry) {
+	else if (method == REGISTER_CHECKER_RETRY && http->retry_it > http_get_check->nb_get_retry) {
 		if (svr_checker_up(checker->id, checker->rs)) {
 			if (http_get_check->nb_get_retry)
 				log_message(LOG_INFO
-				   , "Check on service %s failed after %d retry."
+				   , "Check on service %s failed after %u retry."
 				   , FMT_HTTP_RS(checker)
 				   , http->retry_it - 1);
 			smtp_alert(checker->rs, NULL, NULL,
@@ -311,10 +312,10 @@ epilog(thread_t * thread, int method, int t, int c)
 
 	/* register next timer thread */
 	switch (method) {
-	case 1:
+	case REGISTER_CHECKER_NEW:
 		delay = checker->vs->delay_loop;
 		break;
-	case 2:
+	case REGISTER_CHECKER_RETRY:
 		if (http->url_it == 0 && http->retry_it == 0)
 			delay = checker->vs->delay_loop;
 		else
@@ -344,11 +345,11 @@ timeout_epilog(thread_t * thread, const char *debug_msg)
 		log_message(LOG_INFO, "%s server %s."
 				    , debug_msg
 				    , FMT_HTTP_RS(checker));
-		return epilog(thread, 2, 0, 1);
+		return epilog(thread, REGISTER_CHECKER_RETRY, 0, 1);
 	}
 
 	/* do not retry if server is already known as dead */
-	return epilog(thread, 1, 0, 0);
+	return epilog(thread, REGISTER_CHECKER_NEW, 0, 0);
 }
 
 /* return the url pointer of the current url iterator  */
@@ -414,49 +415,45 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 				break;
 			case ON_SUCCESS:
 				log_message(LOG_INFO,
-				       "HTTP success to %s url(%d)."
+				       "HTTP success to %s url(%u)."
 				       , FMT_HTTP_RS(checker)
 				       , http->url_it + 1);
-				return epilog(thread, 1, 1, 0) + 1;
+				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
 			case ON_STATUS:
 				log_message(LOG_INFO,
-				       "HTTP status code success to %s url(%d)."
+				       "HTTP status code success to %s url(%u)."
 				       , FMT_HTTP_RS(checker)
 				       , http->url_it + 1);
-				return epilog(thread, 1, 1, 0) + 1;
+				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
 			case ON_DIGEST:
 				log_message(LOG_INFO,
-					"MD5 digest success to %s url(%d)."
+					"MD5 digest success to %s url(%u)."
 					, FMT_HTTP_RS(checker)
 					, http->url_it + 1);
-				return epilog(thread, 1, 1, 0) + 1;
+				return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
 		}
 	}
 
-	return epilog(thread, 1, 0, 0) + 1;
+	return epilog(thread, REGISTER_CHECKER_NEW, 0, 0) + 1;
 }
 
 /* Handle response stream performing MD5 updates */
-int
-http_process_response(request_t *req, int r, int do_md5)
+void
+http_process_response(request_t *req, size_t r, bool do_md5)
 {
 	req->len += r;
 	if (!req->extracted) {
-		if ((req->extracted =
-		     extract_html(req->buffer, req->len))) {
+		if ((req->extracted = extract_html(req->buffer, req->len))) {
 			req->status_code = extract_status_code(req->buffer, req->len);
-			r = req->len - (req->extracted - req->buffer);
+			r = req->len - (size_t)(req->extracted - req->buffer);
 			if (r && do_md5)
 				MD5_Update(&req->context, req->extracted, r);
 			req->len = 0;
 		}
 	} else if (req->len) {
-		MD5_Update(&req->context, req->buffer,
-			   req->len);
+		MD5_Update(&req->context, req->buffer, req->len);
 		req->len = 0;
 	}
-
-	return 0;
 }
 
 /* Asynchronous HTTP stream reader */
@@ -470,7 +467,7 @@ http_read_thread(thread_t * thread)
 	url_t *url = list_element(http_get_check->url, http->url_it);
 	unsigned timeout = checker->co->connection_to;
 	unsigned char digest[16];
-	int r = 0;
+	ssize_t r = 0;
 	int val;
 
 	/* Handle read timeout */
@@ -505,7 +502,7 @@ http_read_thread(thread_t * thread)
 			MD5_Final(digest, &req->context);
 
 		if (r == -1) {
-			/* We have encourred a real read error */
+			/* We have encountered a real read error */
 			return timeout_epilog(thread, "Read error with");
 		}
 
@@ -515,7 +512,7 @@ http_read_thread(thread_t * thread)
 	} else {
 
 		/* Handle response stream */
-		http_process_response(req, r, (url->digest != NULL));
+		http_process_response(req, (size_t)r, (url->digest != NULL));
 
 		/*
 		 * Register next http stream reader.
@@ -582,9 +579,9 @@ http_request_thread(thread_t * thread)
 	int ret = 0;
 	int val;
 
-	/* Handle read timeout */
+	/* Handle write timeout */
 	if (thread->type == THREAD_WRITE_TIMEOUT)
-		return timeout_epilog(thread, "Timeout WEB read");
+		return timeout_epilog(thread, "Timeout WEB write");
 
 	/* Allocate & clean the GET string */
 	str_request = (char *) MALLOC(GET_BUFFER_LENGTH);
@@ -616,7 +613,7 @@ http_request_thread(thread_t * thread)
 
 	FREE(request_host_port);
 
-	DBG("Processing url(%d) of %s.",
+	DBG("Processing url(%u) of %s.",
 	    http->url_it + 1
 	    , FMT_HTTP_RS(checker));
 
@@ -625,13 +622,10 @@ http_request_thread(thread_t * thread)
 	fcntl(thread->u.fd, F_SETFL, val | O_NONBLOCK);
 
 	/* Send the GET request to remote Web server */
-	if (http_get_check->proto == PROTO_SSL) {
-		ret = ssl_send_request(req->ssl, str_request,
-				       strlen(str_request));
-	} else {
-		ret = (send(thread->u.fd, str_request, strlen(str_request), 0) !=
-		       -1) ? 1 : 0;
-	}
+	if (http_get_check->proto == PROTO_SSL)
+		ret = ssl_send_request(req->ssl, str_request, (int)strlen(str_request));
+	else
+		ret = (send(thread->u.fd, str_request, strlen(str_request), 0) != -1) ? 1 : 0;
 
 	/* restore descriptor flags */
 	fcntl(thread->u.fd, F_SETFL, val);
@@ -660,11 +654,11 @@ http_check_thread(thread_t * thread)
 #endif
 	int ret = 1;
 	int status;
-	long timeout = 0;
+	unsigned long timeout = 0;
 	int ssl_err = 0;
 	int new_req = 0;
 
-	status = tcp_socket_state(thread->u.fd, thread, http_check_thread);
+	status = tcp_socket_state(thread, http_check_thread);
 	switch (status) {
 	case connect_error:
 		return timeout_epilog(thread, "Error connecting");
@@ -765,7 +759,7 @@ http_connect_thread(thread_t * thread)
 	/* if there are no URLs in list, enable server w/o checking */
 	fetched_url = fetch_next_url(http_get_check);
 	if (!fetched_url)
-		return epilog(thread, 1, 1, 0) + 1;
+		return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
 
 	/* Create the socket */
 	if ((fd = socket(co->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {

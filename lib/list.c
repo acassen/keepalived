@@ -81,10 +81,10 @@ list_del(list l, void *data)
 }
 
 void *
-list_element(list l, int num)
+list_element(list l, unsigned num)
 {
 	element e = LIST_HEAD(l);
-	int i = 0;
+	unsigned i = 0;
 
 	/* fetch element number num */
 	for (i = 0; i < num; i++) {
@@ -173,7 +173,7 @@ free_list_element(list l, element e)
 
 /* Multiple list helpers functions */
 list
-alloc_mlist(void (*free_func) (void *), void (*dump_func) (void *), int size)
+alloc_mlist(void (*free_func) (void *), void (*dump_func) (void *), size_t size)
 {
 	list new = (list) MALLOC(size * sizeof (struct _list));
 	new->free = free_func;

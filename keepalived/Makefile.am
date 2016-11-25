@@ -6,8 +6,7 @@
 
 AM_CPPFLAGS		= $(KA_CPPFLAGS) $(DEBUG_CPPFLAGS)
 AM_CFLAGS		= $(KA_CFLAGS) $(DEBUG_CFLAGS)
-AM_LDFLAGS		= $(KA_LDFLAGS) $(KA_LIBS) $(DEBUG_LDFLAGS)
-# AM_LIBS		= $(KA_LIBS)
+AM_LDFLAGS		= $(KA_LDFLAGS) $(DEBUG_LDFLAGS)
 # AM_LIBTOOLFLAGS	= $(KA_LIBTOOLFLAGS)
 
 sbin_PROGRAMS		= keepalived
@@ -27,26 +26,34 @@ if WITH_VRRP
   VRRP_LIB		= vrrp/libvrrp.a
 endif
 
-SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR)
+if WITH_DBUS
+  DBUS_SUBDIR		= dbus
+endif
+
+SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR)
 
 EXTRA_DIST		= keepalived.service etc
 
-keepalived_LDADD	= $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a
+keepalived_LDADD	= core/libcore.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a $(KA_LIBS)
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 
 sysconfigdir		= $(sysconfdir)/sysconfig
-sysconfig_DATA		= etc/init.d/keepalived.sysconfig
+sysconfig_DATA		= etc/sysconfig/keepalived
 
 configdir		= $(sysconfdir)/@PACKAGE@
 config_DATA		= etc/keepalived/keepalived.conf
 
+if INIT_SYSV
 initdir			= $(sysconfdir)/rc.d/init.d
-init_DATA		= etc/init.d/keepalived.init
+init_DATA		= etc/init.d/keepalived
+endif
 
-systemddir		= $(prefix)/lib/systemd/system
-systemd_DATA		= keepalived.service
+if INIT_SYSTEMD
+systemdsystemunit_DATA	= keepalived.service
+endif
 
-install-data-hook:
-	mv $(DESTDIR)/$(sysconfdir)/rc.d/init.d/keepalived.init $(DESTDIR)/$(sysconfdir)/rc.d/init.d/keepalived
-	mv $(DESTDIR)/$(sysconfdir)/sysconfig/keepalived.sysconfig $(DESTDIR)/$(sysconfdir)/sysconfig/keepalived
+if INIT_UPSTART
+initdir			= $(sysconfdir)/init
+init_DATA		= etc/init/keepalived.conf
+endif

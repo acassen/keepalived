@@ -55,7 +55,7 @@ typedef struct _ip_address {
 
 	interface_t		*ifp;			/* Interface owning IP address */
 	char			*label;			/* Alias name, e.g. eth0:1 */
-	int			set;			/* TRUE if addr is set */
+	bool			set;			/* TRUE if addr is set */
 	bool			iptable_rule_set;	/* TRUE if iptable drop rule
 							 * set to addr */
 	bool			garp_gna_pending;	/* Is a gratuitous ARP/NA message still to be sent */
@@ -93,8 +93,8 @@ struct ipt_handle;	// AAGH - TODO
 /* prototypes */
 extern char *ipaddresstos(char *, ip_address_t *);
 extern int netlink_ipaddress(ip_address_t *, int);
-extern void netlink_iplist(list, int);
-extern void handle_iptable_rule_to_iplist(struct ipt_handle *, list, int, char *, bool force);
+extern bool netlink_iplist(list, int);
+extern void handle_iptable_rule_to_iplist(struct ipt_handle *, list, int, bool force);
 extern void free_ipaddress(void *);
 extern void dump_ipaddress(void *);
 extern ip_address_t *parse_ipaddress(ip_address_t *, char *, int);

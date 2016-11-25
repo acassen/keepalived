@@ -11,6 +11,9 @@
 /* Year of build configuration */
 #undef COPYRIGHT_YEAR
 
+/* Define to 1 if need to call g_type_init() */
+#undef DBUS_NEED_G_TYPE_INIT
+
 /* Defined here if not found in <net/ethernet.h>. */
 #undef ETHERTYPE_IPV6
 
@@ -91,6 +94,10 @@
    and to 0 if you don't. */
 #undef HAVE_DECL_IPVS_DAEMON_ATTR_SYNC_MAXLEN
 
+/* Define to 1 if you have the declaration of `IPVS_DEST_ATTR_ADDR_FAMILY',
+   and to 0 if you don't. */
+#undef HAVE_DECL_IPVS_DEST_ATTR_ADDR_FAMILY
+
 /* Define to 1 if you have the declaration of `IPVS_DEST_ATTR_STATS64', and to
    0 if you don't. */
 #undef HAVE_DECL_IPVS_DEST_ATTR_STATS64
@@ -98,6 +105,10 @@
 /* Define to 1 if you have the declaration of `IPVS_SVC_ATTR_STATS64', and to
    0 if you don't. */
 #undef HAVE_DECL_IPVS_SVC_ATTR_STATS64
+
+/* Define to 1 if you have the declaration of `IP_VS_SVC_F_ONEPACKET', and to
+   0 if you don't. */
+#undef HAVE_DECL_IP_VS_SVC_F_ONEPACKET
 
 /* Define to 1 if you have the declaration of `MACVLAN_MODE_PRIVATE', and to 0
    if you don't. */
@@ -190,6 +201,12 @@
 
 /* Define to 1 if you have the <libnfnetlink/libnfnetlink.h> header file. */
 #undef HAVE_LIBNFNETLINK_LIBNFNETLINK_H
+
+/* Define to 1 if you have the `nl-genl-3' library (-lnl-genl-3). */
+#undef HAVE_LIBNL_GENL_3
+
+/* Define to 1 if you have the `nl-route-3' library (-lnl-route-3). */
+#undef HAVE_LIBNL_ROUTE_3
 
 /* Define to 1 if you have the `ssl' library (-lssl). */
 #undef HAVE_LIBSSL
@@ -484,6 +501,9 @@
    collision */
 #undef _HAVE_LINUX_NET_IF_H_COLLISION_
 
+/* Define to 1 if have pe selection support */
+#undef _HAVE_PE_NAME_
+
 /* Define to 1 if have MAC VLAN support */
 #undef _HAVE_VRRP_VMAC_
 
@@ -511,6 +531,12 @@
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
    #define below would cause a syntax error. */
 #undef _UINT8_T
+
+/* Define to 1 to have DBUS support */
+#undef _WITH_DBUS_
+
+/* Define to 1 to have DBus create instance support */
+#undef _WITH_DBUS_CREATE_INSTANCE_
 
 /* Define to 1 if have IPVS support */
 #undef _WITH_LVS_
@@ -541,6 +567,9 @@
 
 /* Define to 1 if have SO_MARK */
 #undef _WITH_SO_MARK_
+
+/* Define to 1 to build with stacktrace support */
+#undef _WITH_STACKTRACE_
 
 /* Define to 1 if have VRRP support */
 #undef _WITH_VRRP_

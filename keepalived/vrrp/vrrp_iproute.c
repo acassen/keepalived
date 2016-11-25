@@ -50,14 +50,14 @@
 #define NEXTHOP_RTA_SIZE	1024
 
 /* Utility functions */
-static int
-add_addr2req(struct nlmsghdr *n, int maxlen, int type, ip_address_t *ip_address)
+unsigned short
+add_addr2req(struct nlmsghdr *n, size_t maxlen, unsigned short type, ip_address_t *ip_address)
 {
 	void *addr;
-	int alen;
+	size_t alen;
 
 	if (!ip_address)
-		return -1;
+		return 0;
 
 	if (IP_IS6(ip_address)) {
 		addr = (void *) &ip_address->u.sin6_addr;
@@ -69,19 +69,19 @@ add_addr2req(struct nlmsghdr *n, int maxlen, int type, ip_address_t *ip_address)
 	     alen = sizeof(ip_address->u.sin.sin_addr);
 	}
 
-	return addattr_l(n, maxlen, type, addr, alen);
+	return (unsigned short)addattr_l(n, maxlen, type, addr, alen);
 }
 
-#ifdef RTA_VIA	/* Since Linux 4.1 */
-static int
-add_addr_fam2req(struct nlmsghdr *n, int maxlen, int type, ip_address_t *ip_address)
+#if HAVE_DECL_RTA_VIA
+static unsigned short
+add_addr_fam2req(struct nlmsghdr *n, size_t maxlen, unsigned short type, ip_address_t *ip_address)
 {
 	void *addr;
-	int alen;
+	size_t alen;
 	uint16_t family;
 
 	if (!ip_address)
-		return -1;
+		return 0;
 
 	if (IP_IS6(ip_address)) {
 		addr = (void *)&ip_address->u.sin6_addr;
@@ -93,18 +93,18 @@ add_addr_fam2req(struct nlmsghdr *n, int maxlen, int type, ip_address_t *ip_addr
 	}
 	family = ip_address->ifa.ifa_family;
 
-	return addattr_l2(n, maxlen, type, &family, sizeof(family), addr, alen);
+	return (unsigned short)addattr_l2(n, maxlen, type, &family, sizeof(family), addr, alen);
 }
 #endif
 
-static int
-add_addr2rta(struct rtattr *rta, int maxlen, int type, ip_address_t *ip_address)
+static unsigned short
+add_addr2rta(struct rtattr *rta, size_t maxlen, unsigned short type, ip_address_t *ip_address)
 {
 	void *addr;
-	int alen;
+	size_t alen;
 
 	if (!ip_address)
-		return -1;
+		return 0;
 
 	if (IP_IS6(ip_address)) {
 		addr = (void *)&ip_address->u.sin6_addr;
@@ -115,19 +115,19 @@ add_addr2rta(struct rtattr *rta, int maxlen, int type, ip_address_t *ip_address)
 		alen = sizeof(ip_address->u.sin.sin_addr);
 	}
 
-	return rta_addattr_l(rta, maxlen, type, addr, alen);
+	return (unsigned short)rta_addattr_l(rta, maxlen, type, addr, alen);
 }
 
-#ifdef RTA_VIA
-static int
-add_addrfam2rta(struct rtattr *rta, int maxlen, int type, ip_address_t *ip_address)
+#if HAVE_DECL_RTA_VIA
+static unsigned short
+add_addrfam2rta(struct rtattr *rta, size_t maxlen, unsigned short type, ip_address_t *ip_address)
 {
 	void *addr;
-	int alen;
+	size_t alen;
 	uint16_t family;
 
 	if (!ip_address)
-		return -1;
+		return 0;
 
 	if (IP_IS6(ip_address)) {
 		addr = (void *)&ip_address->u.sin6_addr;
@@ -139,7 +139,7 @@ add_addrfam2rta(struct rtattr *rta, int maxlen, int type, ip_address_t *ip_addre
 	}
 	family = ip_address->ifa.ifa_family;
 
-	return rta_addattr_l2(rta, maxlen, type, &family, sizeof(family), addr, alen);
+	return (unsigned short)rta_addattr_l2(rta, maxlen, type, &family, sizeof(family), addr, alen);
 }
 #endif
 
@@ -154,7 +154,7 @@ static void
 add_encap_ip(struct rtattr *rta, size_t len, const encap_t *encap)
 {
 	if (encap->flags & IPROUTE_BIT_ENCAP_ID)
-		rta_addattr64(rta, len, LWTUNNEL_IP_ID, htonll(encap->ip.id));
+		rta_addattr64(rta, len, LWTUNNEL_IP_ID, htobe64(encap->ip.id));
 	if (encap->ip.dst)
 		rta_addattr_l(rta, len, LWTUNNEL_IP_DST, &encap->ip.dst->u.sin.sin_addr.s_addr, sizeof(encap->ip.dst->u.sin.sin_addr.s_addr));
 	if (encap->ip.src)
@@ -177,7 +177,7 @@ static void
 add_encap_ip6(struct rtattr *rta, size_t len, const encap_t *encap)
 {
 	if (encap->flags & IPROUTE_BIT_ENCAP_ID)
-		rta_addattr64(rta, len, LWTUNNEL_IP6_ID, htonll(encap->ip6.id));
+		rta_addattr64(rta, len, LWTUNNEL_IP6_ID, htobe64(encap->ip6.id));
 	if (encap->ip6.dst)
 		rta_addattr_l(rta, len, LWTUNNEL_IP6_DST, &encap->ip6.dst->u.sin6_addr, sizeof(encap->ip6.dst->u.sin6_addr));
 	if (encap->ip6.src)
@@ -222,18 +222,18 @@ add_encap(struct rtattr *rta, size_t len, encap_t *encap)
 #endif
 
 static void
-add_nexthop(nexthop_t *nh, struct nlmsghdr *nlh, struct rtmsg *rtm, struct rtattr *rta, size_t len, struct rtnexthop *rtnh)
+add_nexthop(nexthop_t *nh, struct rtmsg *rtm, struct rtattr *rta, size_t len, struct rtnexthop *rtnh)
 {
 	if (nh->addr) {
 		if (rtm->rtm_family == nh->addr->ifa.ifa_family)
-			rtnh->rtnh_len += add_addr2rta(rta, len, RTA_GATEWAY, nh->addr);
-#ifdef RTA_VIA
+			rtnh->rtnh_len = (unsigned short)(rtnh->rtnh_len + add_addr2rta(rta, len, RTA_GATEWAY, nh->addr));
+#if HAVE_DECL_RTA_VIA
 		else
-			rtnh->rtnh_len += add_addrfam2rta(rta, len, RTA_VIA, nh->addr);
+			rtnh->rtnh_len = (unsigned short)(rtnh->rtnh_len + add_addrfam2rta(rta, len, RTA_VIA, nh->addr));
 #endif
 	}
 	if (nh->ifp)
-		rtnh->rtnh_ifindex = nh->ifp->ifindex;
+		rtnh->rtnh_ifindex = (int)nh->ifp->ifindex;
 
 	if (nh->mask |= IPROUTE_BIT_WEIGHT)
 		rtnh->rtnh_hops = nh->weight;
@@ -241,13 +241,13 @@ add_nexthop(nexthop_t *nh, struct nlmsghdr *nlh, struct rtmsg *rtm, struct rtatt
 	rtnh->rtnh_flags = nh->flags;
 
 	if (nh->realms)
-		rtnh->rtnh_len += rta_addattr32(rta, len, RTA_FLOW, nh->realms);
+		rtnh->rtnh_len = (unsigned short)(rtnh->rtnh_len + rta_addattr32(rta, len, RTA_FLOW, nh->realms));
 
 #if HAVE_DECL_RTA_ENCAP
 	if (nh->encap.type != LWTUNNEL_ENCAP_NONE) {
-		int len = rta->rta_len;
+		unsigned short len = rta->rta_len;
 		add_encap(rta, len, &nh->encap);
-		rtnh->rtnh_len += rta->rta_len - len;
+		rtnh->rtnh_len = (unsigned short)(rtnh->rtnh_len + rta->rta_len - len);
 	}
 #endif
 }
@@ -270,8 +270,8 @@ add_nexthops(ip_route_t *route, struct nlmsghdr *nlh, struct rtmsg *rtm)
 
 		memset(rtnh, 0, sizeof(*rtnh));
 		rtnh->rtnh_len = sizeof(*rtnh);
-		rta->rta_len += rtnh->rtnh_len;
-		add_nexthop(nh, nlh, rtm, rta, sizeof(buf), rtnh);
+		rta->rta_len = (unsigned short)(rta->rta_len + rtnh->rtnh_len);
+		add_nexthop(nh, rtm, rta, sizeof(buf), rtnh);
 		rtnh = RTNH_NEXT(rtnh);
 	}
 
@@ -311,7 +311,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 
 	req.r.rtm_family = iproute->family;
 	if (iproute->table < 256)
-		req.r.rtm_table = iproute->table;
+		req.r.rtm_table = (unsigned char)iproute->table;
 	else {
 		req.r.rtm_table = RT_TABLE_UNSPEC;
 		addattr32(&req.n, sizeof(req), RTA_TABLE, iproute->table);
@@ -355,7 +355,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 	if (iproute->via) {
 		if (iproute->via->ifa.ifa_family == iproute->family)
 			add_addr2req(&req.n, sizeof(req), RTA_GATEWAY, iproute->via);
-#ifdef RTA_VIA
+#if HAVE_DECL_RTA_VIA
 		else
 			add_addr_fam2req(&req.n, sizeof(req), RTA_VIA, iproute->via);
 #endif
@@ -465,15 +465,15 @@ netlink_route(ip_route_t *iproute, int cmd)
 
 	log_message(LOG_INFO, "rtmsg buffer used %lu, rtattr buffer used %d", req.n.nlmsg_len - NLMSG_LENGTH(sizeof(struct rtmsg)), rta->rta_len);
 
-	op += snprintf(op, sizeof(lbuf) - (op - lbuf), "nlmsghdr %p(%u):", &req.n, req.n.nlmsg_len);
+	op += (size_t)snprintf(op, sizeof(lbuf) - (op - lbuf), "nlmsghdr %p(%u):", &req.n, req.n.nlmsg_len);
 	for (i = 0, p = (uint8_t*)&req.n; i < sizeof(struct nlmsghdr); i++)
-		op += snprintf(op, sizeof(lbuf) - (op - lbuf), " %2.2hhx", *(p++));
+		op += (size_t)snprintf(op, sizeof(lbuf) - (op - lbuf), " %2.2hhx", *(p++));
 	log_message(LOG_INFO, "%s\n", lbuf);
 
 	op = lbuf;
-	op += snprintf(op, sizeof(lbuf) - (op - lbuf), "rtmsg %p(%lu):", &req.r, req.n.nlmsg_len - sizeof(struct nlmsghdr));
+	op += (size_t)snprintf(op, sizeof(lbuf) - (op - lbuf), "rtmsg %p(%lu):", &req.r, req.n.nlmsg_len - sizeof(struct nlmsghdr));
 	for (i = 0, p = (uint8_t*)&req.r; i < + req.n.nlmsg_len - sizeof(struct nlmsghdr); i++)
-		op += snprintf(op, sizeof(lbuf) - (op - lbuf), " %2.2hhx", *(p++));
+		op += (size_t)snprintf(op, sizeof(lbuf) - (op - lbuf), " %2.2hhx", *(p++));
 
 	for (j = 0; lbuf + j < op; j+= MAX_LOG_MSG)
 		log_message(LOG_INFO, "%.*\n", MAX_LOG_MSG, lbuf+j);
@@ -566,66 +566,69 @@ free_iproute(void *rt_data)
 static size_t
 print_encap_mpls(char *op, size_t len, const encap_t* encap)
 {
-	int i;
-	char *opn = op;
+	char *buf = op;
+	const char* buf_end = op + len;
+	unsigned i;
 
-	opn += snprintf(opn, len - (opn - op), " encap mpls");
+	op += snprintf(op, (size_t)(buf_end - op), " encap mpls");
 	for (i = 0; i < encap->mpls.num_labels; i++)
-		opn += snprintf(opn, len - (opn - op), "%s%x", i ? "/" : " ", ntohl(encap->mpls.addr[i].entry));
+		op += snprintf(op, (size_t)(buf_end - op), "%s%x", i ? "/" : " ", ntohl(encap->mpls.addr[i].entry));
 
-	return opn - op;
+	return (size_t)(op - buf);
 }
 
 static size_t
 print_encap_ip(char *op, size_t len, const encap_t* encap)
 {
-	char *opn = op;
+	char *buf = op;
+	const char *buf_end = op + len;
 
-	opn += snprintf(opn, len - (opn - op), " encap ip");
+	op += snprintf(op, (size_t)(buf_end - op), " encap ip");
 
 	if (encap->flags & IPROUTE_BIT_ENCAP_ID)
-		opn += snprintf(opn, len - (opn - op), " id %" PRIu64, encap->ip.id);
+		op += snprintf(op, (size_t)(buf_end - op), " id %" PRIu64, encap->ip.id);
 	if (encap->ip.dst)
-		opn += snprintf(opn, len - (opn - op), " dst %s", ipaddresstos(NULL, encap->ip.dst));
+		op += snprintf(op, (size_t)(buf_end - op), " dst %s", ipaddresstos(NULL, encap->ip.dst));
 	if (encap->ip.src)
-		opn += snprintf(opn, len - (opn - op), " src %s", ipaddresstos(NULL, encap->ip.src));
+		op += snprintf(op, (size_t)(buf_end - op), " src %s", ipaddresstos(NULL, encap->ip.src));
 	if (encap->flags & IPROUTE_BIT_ENCAP_DSFIELD)
-		opn += snprintf(opn, len - (opn - op), " tos %d", encap->ip.tos);
+		op += snprintf(op, (size_t)(buf_end - op), " tos %d", encap->ip.tos);
 	if (encap->flags & IPROUTE_BIT_ENCAP_TTL)
-		opn += snprintf(opn, len - (opn - op), " ttl %d", encap->ip.ttl);
+		op += snprintf(op, (size_t)(buf_end - op), " ttl %d", encap->ip.ttl);
 	if (encap->flags & IPROUTE_BIT_ENCAP_FLAGS)
-		opn += snprintf(opn, len - (opn - op), " flags 0x%x", encap->ip.flags);
+		op += snprintf(op, (size_t)(buf_end - op), " flags 0x%x", encap->ip.flags);
 
-	return opn - op;
+	return (size_t)(op - buf);
 }
 
 static size_t
 print_encap_ila(char *op, size_t len, const encap_t* encap)
 {
-	return snprintf(op, len, " encap ila %" PRIu64, encap->ila.locator);
+	return (size_t)snprintf(op, len, " encap ila %" PRIu64, encap->ila.locator);
 }
 
 static size_t
 print_encap_ip6(char *op, size_t len, const encap_t* encap)
 {
-	char *opn = op;
+	char *buf = op;
+	const char *buf_end = op + len;
 
-	opn += snprintf(opn, len - (opn - op), " encap ip6");
+	op += snprintf(op, (size_t)(buf_end - op), " encap ip6");
 
 	if (encap->flags & IPROUTE_BIT_ENCAP_ID)
-		opn += snprintf(opn, len - (opn - op), " id %" PRIu64, encap->ip6.id);
+		op += snprintf(op, (size_t)(buf_end - op), " id %" PRIu64, encap->ip6.id);
 	if (encap->ip.dst)
-		opn += snprintf(opn, len - (opn - op), " dst %s", ipaddresstos(NULL, encap->ip6.dst));
+		op += snprintf(op, (size_t)(buf_end - op), " dst %s", ipaddresstos(NULL, encap->ip6.dst));
 	if (encap->ip.src)
-		opn += snprintf(opn, len - (opn - op), " src %s", ipaddresstos(NULL, encap->ip6.src));
+		op += snprintf(op, (size_t)(buf_end - op), " src %s", ipaddresstos(NULL, encap->ip6.src));
 	if (encap->flags & IPROUTE_BIT_ENCAP_DSFIELD)
-		opn += snprintf(opn, len - (opn - op), " tc %d", encap->ip6.tc);
+		op += snprintf(op, (size_t)(buf_end - op), " tc %d", encap->ip6.tc);
 	if (encap->flags & IPROUTE_BIT_ENCAP_HOPLIMIT)
-		opn += snprintf(opn, len - (opn - op), " hoplimit %d", encap->ip6.hoplimit);
+		op += snprintf(op, (size_t)(buf_end - op), " hoplimit %d", encap->ip6.hoplimit);
 	if (encap->flags & IPROUTE_BIT_ENCAP_FLAGS)
-		opn += snprintf(opn, len - (opn - op), " flags 0x%x", encap->ip6.flags);
+		op += snprintf(op, (size_t)(buf_end - op), " flags 0x%x", encap->ip6.flags);
 
-	return opn - op;
+	return (size_t)(op - buf);
 }
 
 static size_t
@@ -642,7 +645,7 @@ print_encap(char *op, size_t len, const encap_t* encap)
 		return print_encap_ip6(op, len, encap);
 	}
 
-	return snprintf(op, len, "unknown encap type %d", encap->type);
+	return (size_t)snprintf(op, len, "unknown encap type %d", encap->type);
 }
 #endif
 
@@ -650,163 +653,163 @@ void
 format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 {
 	char *op = buf;
-	char *buf_end = buf + buf_len;
+	const char *buf_end = buf + buf_len;
 	nexthop_t *nh;
 	element e;
 
 	if (route->type != RTN_UNICAST)
-		op += snprintf(op, buf_end - op, " %s", get_rttables_rtntype(route->type));
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s", get_rttables_rtntype(route->type));
 	if (route->dst) {
-		op += snprintf(op, buf_end - op, " %s", ipaddresstos(NULL, route->dst));
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s", ipaddresstos(NULL, route->dst));
 		if ((route->dst->ifa.ifa_family == AF_INET && route->dst->ifa.ifa_prefixlen != 32 ) ||
 		    (route->dst->ifa.ifa_family == AF_INET6 && route->dst->ifa.ifa_prefixlen != 128 ))
-			op += snprintf(op, buf_end - op, "/%u", route->dst->ifa.ifa_prefixlen);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "/%u", route->dst->ifa.ifa_prefixlen);
 	}
 	else
-		op += snprintf(op, buf_end - op, " %s", "default");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s", "default");
 
 	if (route->src) {
-		op += snprintf(op, buf_end - op, " from %s", ipaddresstos(NULL, route->src));
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " from %s", ipaddresstos(NULL, route->src));
 		if ((route->src->ifa.ifa_family == AF_INET && route->src->ifa.ifa_prefixlen != 32 ) ||
 		    (route->src->ifa.ifa_family == AF_INET6 && route->src->ifa.ifa_prefixlen != 128 ))
-			op += snprintf(op, buf_end - op, "/%u", route->src->ifa.ifa_prefixlen);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "/%u", route->src->ifa.ifa_prefixlen);
 	}
 
 //#if HAVE_DECL_RTA_NEWDST
 //	/* MPLS only */
 //	if (route->as_to)
-//		op += snprintf(op, buf_end - op, " as to %s", ipaddresstos(NULL, route->as_to));
+//		op += (size_t)snprintf(op, (size_t)(buf_end - op), " as to %s", ipaddresstos(NULL, route->as_to));
 //#endif
 
 	if (route->pref_src)
-		op += snprintf(op, buf_end - op, " src %s", ipaddresstos(NULL, route->pref_src));
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " src %s", ipaddresstos(NULL, route->pref_src));
 
 	if (route->mask & IPROUTE_BIT_DSFIELD)
-		op += snprintf(op, buf_end - op, " tos %u", route->tos);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " tos %u", route->tos);
 
 #if HAVE_DECL_RTA_ENCAP
 	if (route->encap.type != LWTUNNEL_ENCAP_NONE)
-		op += print_encap(op, buf_end - op, &route->encap);
+		op += print_encap(op, (size_t)(buf_end - op), &route->encap);
 #endif
 
 	if (route->via)
-		op += snprintf(op, buf_end - op, " via %s %s", route->via->ifa.ifa_family == AF_INET6 ? "inet6" : "inet", ipaddresstos(NULL, route->via));
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " via %s %s", route->via->ifa.ifa_family == AF_INET6 ? "inet6" : "inet", ipaddresstos(NULL, route->via));
 
 	if (route->oif)
-		op += snprintf(op, buf_end - op, " dev %s", route->oif->ifname);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " dev %s", route->oif->ifname);
 
 	if (route->table != RT_TABLE_MAIN)
-		op += snprintf(op, buf_end - op, " table %u", route->table);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " table %u", route->table);
 
 	if (route->mask & IPROUTE_BIT_PROTOCOL)
-		op += snprintf(op, buf_end - op, " proto %u", route->protocol);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " proto %u", route->protocol);
 
 	if (route->mask & IPROUTE_BIT_SCOPE)
-		op += snprintf(op, buf_end - op, " scope %u", route->scope);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " scope %u", route->scope);
 
 	if (route->mask & IPROUTE_BIT_METRIC)
-		op += snprintf(op, buf_end - op, " metric %u", route->metric);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " metric %u", route->metric);
 
 	if (route->family == AF_INET && route->flags & RTNH_F_ONLINK)
-		op += snprintf(op, buf_end - op, " %s", "onlink");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s", "onlink");
 
 	if (route->realms) {
 		if (route->realms & 0xFFFF0000)
-			op += snprintf(op, buf_end - op, " realms %d/", route->realms >> 16);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " realms %d/", route->realms >> 16);
 		else
-			op += snprintf(op, buf_end - op, " realm ");
-		op += snprintf(op, buf_end - op, "%d", route->realms & 0xFFFF);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " realm ");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), "%d", route->realms & 0xFFFF);
 	}
 
 #if HAVE_DECL_RTA_EXPIRES
 	if (route->mask & IPROUTE_BIT_EXPIRES)
-		op += snprintf(op, buf_end - op, " expires %dsec", route->expires);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " expires %dsec", route->expires);
 #endif
 
 #if HAVE_DECL_RTAX_CC_ALGO
 	if (route->congctl)
-		op += snprintf(op, buf_end - op, " congctl %s%s", route->congctl, route->lock & (1<<RTAX_CC_ALGO) ? "lock " : "");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " congctl %s%s", route->congctl, route->lock & (1<<RTAX_CC_ALGO) ? "lock " : "");
 #endif
 
 	if (route->mask & IPROUTE_BIT_RTT) {
-		op += snprintf(op, buf_end - op, " %s%s ", "rtt", route->lock & (1<<RTAX_RTT) ? " lock" : "");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s%s ", "rtt", route->lock & (1<<RTAX_RTT) ? " lock" : "");
 		if (route->rtt >= 8000)
-			op += snprintf(op, buf_end - op, "%gs", route->rtt / 8000.0);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rtt / 8000.0);
 		else
-			op += snprintf(op, buf_end - op, "%ums", route->rtt / 8);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rtt / 8);
 	}
 
 	if (route->mask & IPROUTE_BIT_RTTVAR) {
-		op += snprintf(op, buf_end - op, " %s%s ", "rttvar", route->lock & (1<<RTAX_RTTVAR) ? " lock" : "");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s%s ", "rttvar", route->lock & (1<<RTAX_RTTVAR) ? " lock" : "");
 		if (route->rttvar >= 4000)
-			op += snprintf(op, buf_end - op, "%gs", route->rttvar / 4000.0);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rttvar / 4000.0);
 		else
-			op += snprintf(op, buf_end - op, "%ums", route->rttvar / 4);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rttvar / 4);
 	}
 
 	if (route->mask & IPROUTE_BIT_RTO_MIN) {
-		op += snprintf(op, buf_end - op, " %s%s ", "rto_min", route->lock & (1<<RTAX_RTO_MIN) ? " lock" : "");
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s%s ", "rto_min", route->lock & (1<<RTAX_RTO_MIN) ? " lock" : "");
 		if (route->rto_min >= 1000)
-			op += snprintf(op, buf_end - op, "%gs", route->rto_min / 1000.0);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%gs", route->rto_min / 1000.0);
 		else
-			op += snprintf(op, buf_end - op, "%ums", route->rto_min);
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), "%ums", route->rto_min);
 	}
 
 	if (route->features) {
 		if (route->features & RTAX_FEATURE_ECN)
-			op += snprintf(op, buf_end - op, " %s", "features ecn");
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s", "features ecn");
 	}
 
 	if (route->mask & IPROUTE_BIT_MTU) {
-		op += snprintf(op, buf_end - op, " mtu %s%u",
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " mtu %s%u",
 			route->lock & (1<<RTAX_MTU) ? "lock " : "",
 			route->mtu);
 	}
 
 	if (route->mask & IPROUTE_BIT_WINDOW)
-		op += snprintf(op, buf_end - op, " window %u", route->window);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " window %u", route->window);
 
 	if (route->mask & IPROUTE_BIT_SSTHRESH) {
-		op += snprintf(op, buf_end - op, " ssthresh %s%u",
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " ssthresh %s%u",
 			route->lock & (1<<RTAX_SSTHRESH) ? "lock " : "",
 			route->ssthresh);
 	}
 
 	if (route->mask & IPROUTE_BIT_CWND) {
-		op += snprintf(op, buf_end - op, " cwnd %s%u",
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " cwnd %s%u",
 			route->lock & (1<<RTAX_CWND) ? "lock " : "",
 			route->cwnd);
 	}
 
 	if (route->mask & IPROUTE_BIT_ADVMSS) {
-		op += snprintf(op, buf_end - op, " advmss %s%u",
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " advmss %s%u",
 			route->lock & (1<<RTAX_ADVMSS) ? "lock " : "",
 			route->advmss);
 	}
 
 	if (route->mask & IPROUTE_BIT_REORDERING) {
-		op += snprintf(op, buf_end - op, " reordering %s%u",
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " reordering %s%u",
 			route->lock & (1<<RTAX_REORDERING) ? "lock " : "",
 			route->reordering);
 	}
 
 	if (route->mask & IPROUTE_BIT_HOPLIMIT)
-		op += snprintf(op, buf_end - op, " hoplimit %u", route->hoplimit);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " hoplimit %u", route->hoplimit);
 
 	if (route->mask & IPROUTE_BIT_INITCWND)
-		op += snprintf(op, buf_end - op, " initcwnd %u", route->initcwnd);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " initcwnd %u", route->initcwnd);
 
 	if (route->mask & IPROUTE_BIT_INITRWND)
-		op += snprintf(op, buf_end - op, " initrwnd %u", route->initrwnd);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " initrwnd %u", route->initrwnd);
 
 #if HAVE_DECL_RTAX_QUICKACK
 	if (route->mask & IPROUTE_BIT_QUICKACK)
-		op += snprintf(op, buf_end - op, " quickack %u", route->quickack);
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " quickack %u", route->quickack);
 #endif
 
 #if HAVE_DECL_RTA_PREF
 	if (route->mask & IPROUTE_BIT_PREF)
-		op += snprintf(op, buf_end - op, " %s %s", "pref",
+		op += (size_t)snprintf(op, (size_t)(buf_end - op), " %s %s", "pref",
 			route->pref == ICMPV6_ROUTER_PREF_LOW ? "low" :
 			route->pref == ICMPV6_ROUTER_PREF_MEDIUM ? "medium" :
 			route->pref == ICMPV6_ROUTER_PREF_HIGH ? "high" :
@@ -817,31 +820,31 @@ format_iproute(ip_route_t *route, char *buf, size_t buf_len)
 		for (e = LIST_HEAD(route->nhs); e; ELEMENT_NEXT(e)) {
 			nh = ELEMENT_DATA(e);
 
-			op += snprintf(op, buf_end - op, " nexthop");
+			op += (size_t)snprintf(op, (size_t)(buf_end - op), " nexthop");
 
 			if (nh->addr)
-				op += snprintf(op, buf_end - op, " via inet%s %s",
+				op += (size_t)snprintf(op, (size_t)(buf_end - op), " via inet%s %s",
 					nh->addr->ifa.ifa_family == AF_INET ? "" : "6",
 					ipaddresstos(NULL,nh->addr));
 			if (nh->ifp)
-				op += snprintf(op, buf_end - op, " dev %s", nh->ifp->ifname);
+				op += (size_t)snprintf(op, (size_t)(buf_end - op), " dev %s", nh->ifp->ifname);
 
 			if (nh->mask & IPROUTE_BIT_WEIGHT)
-				op += snprintf(op, buf_end - op, " weight %d", nh->weight + 1);
+				op += (size_t)snprintf(op, (size_t)(buf_end - op), " weight %d", nh->weight + 1);
 
 			if (nh->flags & RTNH_F_ONLINK)
-				op += snprintf(op, buf_end - op, " onlink");
+				op += (size_t)snprintf(op, (size_t)(buf_end - op), " onlink");
 
 			if (nh->realms) {
 				if (route->realms & 0xFFFF0000)
-					op += snprintf(op, buf_end - op, " realms %d/", nh->realms >> 16);
+					op += (size_t)snprintf(op, (size_t)(buf_end - op), " realms %d/", nh->realms >> 16);
 				else
-					op += snprintf(op, buf_end - op, " realm ");
-				op += snprintf(op, buf_end - op, "%d", nh->realms & 0xFFFF);
+					op += (size_t)snprintf(op, (size_t)(buf_end - op), " realm ");
+				op += (size_t)snprintf(op, (size_t)(buf_end - op), "%d", nh->realms & 0xFFFF);
 			}
 #if HAVE_DECL_RTA_ENCAP
 			if (nh->encap.type != LWTUNNEL_ENCAP_NONE)
-				op += print_encap(op, buf_end - op, &nh->encap);
+				op += print_encap(op, (size_t)(buf_end - op), &nh->encap);
 #endif
 		}
 	}
@@ -852,8 +855,8 @@ dump_iproute(void *rt_data)
 {
 	ip_route_t *route = rt_data;
 	char *buf = MALLOC(ROUTE_BUF_SIZE);
-	int len;
-	int i;
+	size_t len;
+	size_t i;
 
 	format_iproute(route, buf, ROUTE_BUF_SIZE);
 
@@ -875,7 +878,7 @@ static int parse_encap_mpls(vector_t *strvec, unsigned int *i_ptr, encap_t *enca
 		return true;
 	}
 
-	str = vector_slot(strvec, (*i_ptr)++);
+	str = strvec_slot(strvec, (*i_ptr)++);
 	if (parse_mpls_address(str, &encap->mpls)) {
 		log_message(LOG_INFO, "invalid mpls address %s for encapsulation", str);
 		return true;
@@ -892,8 +895,8 @@ static int parse_encap_ip(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 	encap->type = LWTUNNEL_ENCAP_IP;
 
 	while (i + 1 < vector_size(strvec)) {
-		str = vector_slot(strvec, i);
-		str1 = vector_slot(strvec, i + 1);
+		str = strvec_slot(strvec, i);
+		str1 = strvec_slot(strvec, i + 1);
 
 		if (!strcmp(str, "id")) {
 			if (get_u64(&encap->ip.id, str1, UINT64_MAX, "encap id %s value is invalid"))
@@ -972,7 +975,7 @@ int parse_encap_ila(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 		return true;
 	}
 
-	str = vector_slot(strvec, (*i_ptr)++);
+	str = strvec_slot(strvec, (*i_ptr)++);
 
 	if (get_addr64(&encap->ila.locator, str)) {
 		log_message(LOG_INFO, "invalid locator %s for ila encapsulation", str);
@@ -991,8 +994,8 @@ int parse_encap_ip6(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 	encap->type = LWTUNNEL_ENCAP_IP6;
 
 	while (i + 1 < vector_size(strvec)) {
-		str = vector_slot(strvec, i);
-		str1 = vector_slot(strvec, i + 1);
+		str = strvec_slot(strvec, i);
+		str1 = strvec_slot(strvec, i + 1);
 
 		if (!strcmp(str, "id")) {
 			if (get_u64(&encap->ip6.id, str1, UINT64_MAX, "id %s value invalid for IPv6 encapsulation\n"))
@@ -1067,7 +1070,7 @@ parse_encap(vector_t *strvec, unsigned int *i, encap_t *encap)
 		return false;
 	}
 
-	str = vector_slot(strvec, (*i)++);
+	str = strvec_slot(strvec, (*i)++);
 
 	if (!strcmp(str, "mpls"))
 		parse_encap_mpls(strvec, i, encap);
@@ -1090,7 +1093,7 @@ parse_encap(vector_t *strvec, unsigned int *i, encap_t *encap)
 static void
 parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 {
-	int family = AF_UNSPEC;
+	uint8_t family = AF_UNSPEC;
 	nexthop_t *new;
 	char *str;
 	uint32_t val;
@@ -1098,22 +1101,22 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 	if (!LIST_EXISTS(route->nhs))
 		route->nhs = alloc_list(free_nh, NULL);
 
-	while (i < vector_size(strvec) && !strcmp("nexthop", vector_slot(strvec, i))) {
+	while (i < vector_size(strvec) && !strcmp("nexthop", strvec_slot(strvec, i))) {
 		i++;
 		new = MALLOC(sizeof(nexthop_t));
 
 		while (i < vector_size(strvec)) {
-			str = vector_slot(strvec, i);
+			str = strvec_slot(strvec, i);
 
 			if (!strcmp(str, "via")) {
-				str = vector_slot(strvec, ++i);
+				str = strvec_slot(strvec, ++i);
 				if (!strcmp(str, "inet")) {
 					family = AF_INET;
-					str = vector_slot(strvec, ++i);
+					str = strvec_slot(strvec, ++i);
 				}
 				else if (!strcmp(str, "inet6")) {
 					family = AF_INET6;
-					str = vector_slot(strvec, ++i);
+					str = strvec_slot(strvec, ++i);
 				}
 
 				if (family != AF_UNSPEC) {
@@ -1138,7 +1141,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 					route->family = new->addr->ifa.ifa_family;
 			}
 			else if (!strcmp(str, "dev")) {
-				new->ifp = if_get_by_ifname(vector_slot(strvec, ++i));
+				new->ifp = if_get_by_ifname(strvec_slot(strvec, ++i));
 				if (!new->ifp) {
 					log_message(LOG_INFO, "VRRP is trying to assign VROUTE to unknown "
 					       "%s interface !!! go out and fix your conf !!!",
@@ -1147,13 +1150,13 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 				}
 			}
 			else if (!strcmp(str, "weight")) {
-				if (get_u32(&val, vector_slot(strvec, ++i), 256, "Invalid weight %s specified for route"))
+				if (get_u32(&val, strvec_slot(strvec, ++i), 256, "Invalid weight %s specified for route"))
 					goto err;
 				if (!val) {
 					log_message(LOG_INFO, "Invalid weight 0 specified for route");
 					goto err;
 				}
-				new->weight = val - 1;
+				new->weight = (uint8_t)(--val & 0xff);
 				new->mask |= IPROUTE_BIT_WEIGHT;
 			}
 			else if (!strcmp(str, "onlink")) {
@@ -1169,7 +1172,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 			}
 			else if (!strcmp(str, "realms")) {
 				/* Note: IPv4 only */
-				if (get_realms(&new->realms, vector_slot(strvec, ++i))) {
+				if (get_realms(&new->realms, strvec_slot(strvec, ++i))) {
 					log_message(LOG_INFO, "Invalid realms %s for route", FMT_STR_VSLOT(strvec,i));
 					goto err;
 				}
@@ -1181,7 +1184,7 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 				}
 			}
 			else if (!strcmp(str, "as")) {
-				if (!strcmp("to", vector_slot(strvec, ++i)))
+				if (!strcmp("to", strvec_slot(strvec, ++i)))
 					i++;
 				log_message(LOG_INFO, "'as [to]' (nat) not supported");
 				goto err;
@@ -1218,6 +1221,7 @@ alloc_route(list rt_list, vector_t *strvec)
 	bool do_nexthop = false;
 	bool raw;
 	ip_address_t *dst;
+	uint8_t family;
 
 	new = (ip_route_t *) MALLOC(sizeof(ip_route_t));
 
@@ -1228,13 +1232,13 @@ alloc_route(list rt_list, vector_t *strvec)
 
 	/* FMT parse */
 	while (i < vector_size(strvec)) {
-		str = vector_slot(strvec, i);
+		str = strvec_slot(strvec, i);
 
 		/* cmd parsing */
 		if (!strcmp(str, "src")) {
 			if (new->pref_src)
 				FREE(new->pref_src);
-			new->pref_src = parse_ipaddress(NULL, vector_slot(strvec, ++i), false);
+			new->pref_src = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
 			if (!new->pref_src) {
 				log_message(LOG_INFO, "invalid route src address %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
@@ -1247,7 +1251,7 @@ alloc_route(list rt_list, vector_t *strvec)
 			}
 		}
 		else if (!strcmp(str, "as")) {
-			if (!strcmp("to", vector_slot(strvec, ++i)))
+			if (!strcmp("to", strvec_slot(strvec, ++i)))
 				i++;
 #if HAVE_DECL_RTA_NEWDST
 			log_message(LOG_INFO, "\"as to\" for MPLS only - ignoring");
@@ -1256,20 +1260,19 @@ alloc_route(list rt_list, vector_t *strvec)
 #endif
 		}
 		else if (!strcmp(str, "via") || !strcmp(str, "gw")) {
-			int family;
 
 			/* "gw" maintained for backward keepalived compatibility */
 			if (str[0] == 'g')	/* "gw" */
 				log_message(LOG_INFO, "\"gw\" for routes is deprecated. Please use \"via\"");
 
-			str = vector_slot(strvec, ++i);
+			str = strvec_slot(strvec, ++i);
 			if (!strcmp(str, "inet")) {
 				family = AF_INET;
-				str = vector_slot(strvec, ++i);
+				str = strvec_slot(strvec, ++i);
 			}
 			if (!strcmp(str, "inet6")) {
 				family = AF_INET6;
-				str = vector_slot(strvec, ++i);
+				str = strvec_slot(strvec, ++i);
 			}
 			else
 				family = new->family;
@@ -1298,7 +1301,7 @@ alloc_route(list rt_list, vector_t *strvec)
 		else if (!strcmp(str, "from")) {
 			if (new->src)
 				FREE(new->src);
-			new->src = parse_ipaddress(NULL, vector_slot(strvec, ++i), false);
+			new->src = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
 			if (!new->src) {
 				log_message(LOG_INFO, "invalid route from address %s", FMT_STR_VSLOT(strvec, i));
 				goto err;
@@ -1316,47 +1319,47 @@ alloc_route(list rt_list, vector_t *strvec)
 		}
 		else if (!strcmp(str, "tos") || !strcmp(str,"dsfield")) {
 			/* Note: IPv4 only */
-			if (!find_rttables_dsfield(vector_slot(strvec, ++i), &val)) {
+			if (!find_rttables_dsfield(strvec_slot(strvec, ++i), &val8)) {
 				log_message(LOG_INFO, "TOS value %s is invalid", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 
-			new->tos = val;
+			new->tos = val8;
 			new->mask |= IPROUTE_BIT_DSFIELD;
 		}
 		else if (!strcmp(str, "table")) {
-			if (!find_rttables_table(vector_slot(strvec, ++i), &val)) {
+			if (!find_rttables_table(strvec_slot(strvec, ++i), &val)) {
 				log_message(LOG_INFO, "Routing table %s not found for route", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			new->table = val;
 		}
 		else if (!strcmp(str, "protocol")) {
-			if (!find_rttables_proto(vector_slot(strvec, ++i), &val)) {
+			if (!find_rttables_proto(strvec_slot(strvec, ++i), &val8)) {
 				log_message(LOG_INFO, "Protocol %s not found or invalid for route", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
-			new->protocol = val;
+			new->protocol = val8;
 			new->mask |= IPROUTE_BIT_PROTOCOL;
 		}
 		else if (!strcmp(str, "scope")) {
 			/* Note: IPv4 only */
-			if (!find_rttables_scope(vector_slot(strvec, ++i), &val)) {
+			if (!find_rttables_scope(strvec_slot(strvec, ++i), &val8)) {
 				log_message(LOG_INFO, "Scope %s not found or invalid for route", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
-			new->scope = val;
+			new->scope = val8;
 			new->mask |= IPROUTE_BIT_SCOPE;
 		}
 		else if (!strcmp(str, "metric") ||
 			 !strcmp(str, "priority") ||
 			 !strcmp(str, "preference")) {
-			if (get_u32(&new->metric, vector_slot(strvec, ++i), UINT32_MAX, "Invalid MTU %s specified for route"))
+			if (get_u32(&new->metric, strvec_slot(strvec, ++i), UINT32_MAX, "Invalid MTU %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_METRIC;
 		}
 		else if (!strcmp(str, "dev") || !strcmp(str, "oif")) {
-			ifp = if_get_by_ifname(vector_slot(strvec, ++i));
+			ifp = if_get_by_ifname(strvec_slot(strvec, ++i));
 			if (!ifp) {
 				log_message(LOG_INFO, "VRRP is trying to assign VROUTE to unknown "
 				       "%s interface !!! go out and fix your conf !!!",
@@ -1384,7 +1387,7 @@ alloc_route(list rt_list, vector_t *strvec)
 				goto err;
 			}
 			new->family = AF_INET6;
-			if (get_u32(&new->expires, vector_slot(strvec, i), UINT32_MAX, "Invalid expires time %s specified for route"))
+			if (get_u32(&new->expires, strvec_slot(strvec, i), UINT32_MAX, "Invalid expires time %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_EXPIRES;
 #else
@@ -1392,35 +1395,35 @@ alloc_route(list rt_list, vector_t *strvec)
 #endif
 		}
 		else if (!strcmp(str, "mtu")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_MTU;
 				i++;
 			}
-			if (get_u32(&new->mtu, vector_slot(strvec, i), UINT32_MAX, "Invalid MTU %s specified for route"))
+			if (get_u32(&new->mtu, strvec_slot(strvec, i), UINT32_MAX, "Invalid MTU %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_MTU;
 		}
 		else if (!strcmp(str, "hoplimit")) {
-			if (get_u32(&val, vector_slot(strvec, ++i), 255, "Invalid hoplimit %s specified for route"))
+			if (get_u8(&val8, strvec_slot(strvec, ++i), 255, "Invalid hoplimit %s specified for route"))
 				goto err;
-			new->hoplimit = val;
+			new->hoplimit = val8;
 			new->mask |= IPROUTE_BIT_HOPLIMIT;
 		}
 		else if (!strcmp(str, "advmss")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_ADVMSS;
 				i++;
 			}
-			if (get_u32(&new->advmss, vector_slot(strvec, i), UINT32_MAX, "Invalid advmss %s specified for route"))
+			if (get_u32(&new->advmss, strvec_slot(strvec, i), UINT32_MAX, "Invalid advmss %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_ADVMSS;
 		}
 		else if (!strcmp(str, "rtt")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_RTT;
 				i++;
 			}
-			if (get_time_rtt(&new->rtt, vector_slot(strvec, i), &raw) ||
+			if (get_time_rtt(&new->rtt, strvec_slot(strvec, i), &raw) ||
 			    (!raw && new->rtt >= UINT32_MAX / 8)) {
 				log_message(LOG_INFO, "Invalid rtt %s for route", FMT_STR_VSLOT(strvec,i));
 				goto err;
@@ -1430,11 +1433,11 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->mask |= IPROUTE_BIT_RTT;
 		}
 		else if (!strcmp(str, "rttvar")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_RTTVAR;
 				i++;
 			}
-			if (get_time_rtt(&new->rttvar, vector_slot(strvec, i), &raw) ||
+			if (get_time_rtt(&new->rttvar, strvec_slot(strvec, i), &raw) ||
 			    (!raw && new->rtt >= UINT32_MAX / 4)) {
 				log_message(LOG_INFO, "Invalid rttvar %s for route", FMT_STR_VSLOT(strvec,i));
 				goto err;
@@ -1444,39 +1447,39 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->mask |= IPROUTE_BIT_RTTVAR;
 		}
 		else if (!strcmp(str, "reordering")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_REORDERING;
 				i++;
 			}
-			if (get_u32(&new->reordering, vector_slot(strvec, i), UINT32_MAX, "Invalid reordering value %s specified for route"))
+			if (get_u32(&new->reordering, strvec_slot(strvec, i), UINT32_MAX, "Invalid reordering value %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_REORDERING;
 		}
 		else if (!strcmp(str, "window")) {
-			if (get_u32(&new->window, vector_slot(strvec, ++i), UINT32_MAX, "Invalid window value %s specified for route"))
+			if (get_u32(&new->window, strvec_slot(strvec, ++i), UINT32_MAX, "Invalid window value %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_WINDOW;
 		}
 		else if (!strcmp(str, "cwnd")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_CWND;
 				i++;
 			}
-			if (get_u32(&new->cwnd, vector_slot(strvec, i), UINT32_MAX, "Invalid cwnd value %s specified for route"))
+			if (get_u32(&new->cwnd, strvec_slot(strvec, i), UINT32_MAX, "Invalid cwnd value %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_CWND;
 		}
 		else if (!strcmp(str, "ssthresh")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_SSTHRESH;
 				i++;
 			}
-			if (get_u32(&new->ssthresh, vector_slot(strvec, i), UINT32_MAX, "Invalid ssthresh value %s specified for route"))
+			if (get_u32(&new->ssthresh, strvec_slot(strvec, i), UINT32_MAX, "Invalid ssthresh value %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_SSTHRESH;
 		}
 		else if (!strcmp(str, "realms")) {
-			if (get_realms(&new->realms, vector_slot(strvec, ++i))) {
+			if (get_realms(&new->realms, strvec_slot(strvec, ++i))) {
 				log_message(LOG_INFO, "Invalid realms %s for route", FMT_STR_VSLOT(strvec,i));
 				goto err;
 			}
@@ -1487,30 +1490,30 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->family = AF_INET;
 		}
 		else if (!strcmp(str, "rto_min")) {
-			if (!strcmp(vector_slot(strvec, ++i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, ++i), "lock")) {
 				new->lock |= 1 << RTAX_RTO_MIN;
 				i++;
 			}
-			if (get_time_rtt(&new->rto_min, vector_slot(strvec, i), &raw)) {
+			if (get_time_rtt(&new->rto_min, strvec_slot(strvec, i), &raw)) {
 				log_message(LOG_INFO, "Invalid rto_min value %s specified for route", FMT_STR_VSLOT(strvec, i));
 				goto err;
 			}
 			new->mask |= IPROUTE_BIT_RTO_MIN;
 		}
 		else if (!strcmp(str, "initcwnd")) {
-			if (get_u32(&new->initcwnd, vector_slot(strvec, ++i), UINT32_MAX, "Invalid initcwnd value %s specified for route"))
+			if (get_u32(&new->initcwnd, strvec_slot(strvec, ++i), UINT32_MAX, "Invalid initcwnd value %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_INITCWND;
 		}
 		else if (!strcmp(str, "initrwnd")) {
 			i++;
-			if (get_u32(&new->initrwnd, vector_slot(strvec, i), UINT32_MAX, "Invalid initrwnd value %s specified for route"))
+			if (get_u32(&new->initrwnd, strvec_slot(strvec, i), UINT32_MAX, "Invalid initrwnd value %s specified for route"))
 				goto err;
 			new->mask |= IPROUTE_BIT_INITRWND;
 		}
 		else if (!strcmp(str, "features")) {
 			i++;
-			if (!strcmp("ecn", vector_slot(strvec, i)))
+			if (!strcmp("ecn", strvec_slot(strvec, i)))
 				new->features |= RTAX_FEATURE_ECN;
 			else
 				log_message(LOG_INFO, "feature %s not supported", FMT_STR_VSLOT(strvec,i));
@@ -1518,7 +1521,7 @@ alloc_route(list rt_list, vector_t *strvec)
 		else if (!strcmp(str, "quickack")) {
 			i++;
 #if HAVE_DECL_RTAX_QUICKACK
-			if (get_u32(&val, vector_slot(strvec, i), 1, "Invalid quickack value %s specified for route"))
+			if (get_u32(&val, strvec_slot(strvec, i), 1, "Invalid quickack value %s specified for route"))
 				goto err;
 			new->quickack = val;
 			new->mask |= IPROUTE_BIT_QUICKACK;
@@ -1529,11 +1532,11 @@ alloc_route(list rt_list, vector_t *strvec)
 		else if (!strcmp(str, "congctl")) {
 			i++;
 #if HAVE_DECL_RTAX_CC_ALGO
-			if (!strcmp(vector_slot(strvec, i), "lock")) {
+			if (!strcmp(strvec_slot(strvec, i), "lock")) {
 				new->lock |= 1 << RTAX_CC_ALGO;
 				i++;
 			}
-			str = vector_slot(strvec, i);
+			str = strvec_slot(strvec, i);
 			new->congctl = malloc(strlen(str) + 1);
 			strcpy(new->congctl, str); 
 #else
@@ -1548,15 +1551,15 @@ alloc_route(list rt_list, vector_t *strvec)
 				goto err;
 			}
 			new->family = AF_INET6;
-			str = vector_slot(strvec, i);
+			str = strvec_slot(strvec, i);
 			if (!strcmp(str, "low"))
 				new->pref = ICMPV6_ROUTER_PREF_LOW;
 			else if (!strcmp(str, "medium"))
 				new->pref = ICMPV6_ROUTER_PREF_MEDIUM;
 			else if (!strcmp(str, "high"))
 				new->pref = ICMPV6_ROUTER_PREF_HIGH;
-			else if (!get_u32(&val, str, UINT8_MAX, "Invalid pref value %s specified for route"))
-				new->pref = val;
+			else if (!get_u8(&val8, str, UINT8_MAX, "Invalid pref value %s specified for route"))
+				new->pref = val8;
 			else
 				goto err;
 			new->mask |= IPROUTE_BIT_PREF;
@@ -1584,7 +1587,7 @@ alloc_route(list rt_list, vector_t *strvec)
 
 			/* Now handle the "or" address */
 			nh = MALLOC(sizeof(nexthop_t));
-			nh->addr = parse_ipaddress(NULL, vector_slot(strvec, ++i), false);
+			nh->addr = parse_ipaddress(NULL, strvec_slot(strvec, ++i), false);
 			if (!nh->addr) {
 				log_message(LOG_INFO, "Invalid \"or\" address %s", FMT_STR_VSLOT(strvec, i));
 				FREE(nh);
@@ -1610,7 +1613,7 @@ alloc_route(list rt_list, vector_t *strvec)
 			}
 			if (new->dst)
 				FREE(new->dst);
-			dst = parse_ipaddress(NULL, vector_slot(strvec, i), true);
+			dst = parse_ipaddress(NULL, strvec_slot(strvec, i), true);
 			if (!dst) {
 				log_message(LOG_INFO, "unknown route keyword %s", FMT_STR_VSLOT(strvec, i));
 				goto err;

@@ -84,12 +84,22 @@ free_vgroup(void *data)
 	FREE(vgroup->gname);
 	free_strvec(vgroup->iname);
 	free_list(&vgroup->index_list);
-	FREE_PTR(vgroup->script_backup);
-	FREE_PTR(vgroup->script_master);
-	FREE_PTR(vgroup->script_fault);
-	FREE_PTR(vgroup->script);
+	free_notify_script(&vgroup->script_backup);
+	free_notify_script(&vgroup->script_master);
+	free_notify_script(&vgroup->script_fault);
+	free_notify_script(&vgroup->script);
 	FREE(vgroup);
 }
+static void
+dump_notify_script(notify_script_t *script, char *type)
+{
+	if (!script)
+		return;
+
+	log_message(LOG_INFO, "   %s state transition script = %s, uid:gid %d:%d, %sexecutable", type,
+	       script->name, script->uid, script->gid, script->executable ? "" : "not ");
+}
+
 static void
 dump_vgroup(void *data)
 {
@@ -105,18 +115,10 @@ dump_vgroup(void *data)
 	}
 	if (vgroup->global_tracking)
 		log_message(LOG_INFO, "   Same tracking for all VRRP instances");
-	if (vgroup->script_backup)
-		log_message(LOG_INFO, "   Backup state transition script = %s",
-		       vgroup->script_backup);
-	if (vgroup->script_master)
-		log_message(LOG_INFO, "   Master state transition script = %s",
-		       vgroup->script_master);
-	if (vgroup->script_fault)
-		log_message(LOG_INFO, "   Fault state transition script = %s",
-		       vgroup->script_fault);
-	if (vgroup->script)
-		log_message(LOG_INFO, "   Generic state transition script = '%s'",
-		       vgroup->script);
+	dump_notify_script(vgroup->script_backup, "Backup");
+	dump_notify_script(vgroup->script_master, "Master");
+	dump_notify_script(vgroup->script_fault, "Fault");
+	dump_notify_script(vgroup->script, "Generic");
 	if (vgroup->smtp_alert)
 		log_message(LOG_INFO, "   Using smtp notification");
 }
@@ -138,11 +140,13 @@ dump_vscript(void *data)
 
 	log_message(LOG_INFO, " VRRP Script = %s", vscript->sname);
 	log_message(LOG_INFO, "   Command = %s", vscript->script);
-	log_message(LOG_INFO, "   Interval = %d sec", (int)(vscript->interval / TIMER_HZ));
-	log_message(LOG_INFO, "   Timeout = %d sec", (int)(vscript->timeout / TIMER_HZ));
+	log_message(LOG_INFO, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
+	log_message(LOG_INFO, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
 	log_message(LOG_INFO, "   Weight = %d", vscript->weight);
 	log_message(LOG_INFO, "   Rise = %d", vscript->rise);
 	log_message(LOG_INFO, "   Fall = %d", vscript->fall);
+	log_message(LOG_INFO, "   Insecure = %s", vscript->insecure ? "yes" : "no");
+	log_message(LOG_INFO, "   Executable = %s", vscript->executable ? "yes" : "no");
 
 	switch (vscript->result) {
 	case VRRP_SCRIPT_STATUS_INIT:
@@ -155,6 +159,9 @@ dump_vscript(void *data)
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
 	log_message(LOG_INFO, "   Status = %s", str);
+	if (vscript->uid || vscript->gid)
+		log_message(LOG_INFO, "   Script uid:gid = %d:%d", vscript->uid, vscript->gid);
+
 }
 
 /* Socket pool functions */
@@ -178,7 +185,7 @@ static void
 dump_sock(void *sock_data)
 {
 	sock_t *sock = sock_data;
-	log_message(LOG_INFO, "VRRP sockpool: [ifindex(%d), proto(%d), unicast(%d), fd(%d,%d)]"
+	log_message(LOG_INFO, "VRRP sockpool: [ifindex(%u), proto(%u), unicast(%d), fd(%d,%d)]"
 			    , sock->ifindex
 			    , sock->proto
 			    , sock->unicast
@@ -208,11 +215,11 @@ free_vrrp(void *data)
 
 	FREE(vrrp->iname);
 	FREE_PTR(vrrp->send_buffer);
-	FREE_PTR(vrrp->script_backup);
-	FREE_PTR(vrrp->script_master);
-	FREE_PTR(vrrp->script_fault);
-	FREE_PTR(vrrp->script_stop);
-	FREE_PTR(vrrp->script);
+	free_notify_script(&vrrp->script_backup);
+	free_notify_script(&vrrp->script_master);
+	free_notify_script(&vrrp->script_fault);
+	free_notify_script(&vrrp->script_stop);
+	free_notify_script(&vrrp->script);
 	FREE_PTR(vrrp->stats);
 	FREE(vrrp->ipsecah_counter);
 
@@ -272,12 +279,13 @@ dump_vrrp(void *data)
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
 		(vrrp->adver_int / (TIMER_HZ / 1000)),
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
-	log_message(LOG_INFO, "   Accept %s", ((vrrp->accept) ? "enabled" : "disabled"));
+	log_message(LOG_INFO, "   Accept %s", vrrp->accept ? "enabled" : "disabled");
 	if (vrrp->nopreempt)
 		log_message(LOG_INFO, "   Preempt disabled");
 	if (vrrp->preempt_delay)
 		log_message(LOG_INFO, "   Preempt delay = %ld secs",
 		       vrrp->preempt_delay / TIMER_HZ);
+	log_message(LOG_INFO, "   Promote_secondaries %s", vrrp->promote_secondaries ? "enabled" : "disabled");
 #if defined _WITH_VRRP_AUTH_
 	if (vrrp->version == VRRP_VERSION_2) {
 		if (vrrp->auth_type) {
@@ -321,21 +329,16 @@ dump_vrrp(void *data)
 		log_message(LOG_INFO, "   Virtual Rules = %d", LIST_SIZE(vrrp->vrules));
 		dump_list(vrrp->vrules);
 	}
-	if (vrrp->script_backup)
-		log_message(LOG_INFO, "   Backup state transition script = %s", vrrp->script_backup);
-	if (vrrp->script_master)
-		log_message(LOG_INFO, "   Master state transition script = %s", vrrp->script_master);
-	if (vrrp->script_fault)
-		log_message(LOG_INFO, "   Fault state transition script = %s", vrrp->script_fault);
-	if (vrrp->script_stop)
-		log_message(LOG_INFO, "   Stop state transition script = %s", vrrp->script_stop);
-	if (vrrp->script)
-		log_message(LOG_INFO, "   Generic state transition script = '%s'", vrrp->script);
+	dump_notify_script(vrrp->script_backup, "Backup");
+	dump_notify_script(vrrp->script_master, "Master");
+	dump_notify_script(vrrp->script_fault, "Fault");
+	dump_notify_script(vrrp->script_stop, "Stop");
+	dump_notify_script(vrrp->script, "Generic");
 	if (vrrp->smtp_alert)
 		log_message(LOG_INFO, "   Using smtp notification");
 #ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-		log_message(LOG_INFO, "   Using VRRP VMAC (flags:%s|%s), vmac ifindex %d"
+		log_message(LOG_INFO, "   Using VRRP VMAC (flags:%s|%s), vmac ifindex %u"
 				    , (__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags)) ? "UP" : "DOWN"
 				    , (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? "xmit_base" : "xmit"
 				    , vrrp->ifp->base_ifindex);
@@ -345,7 +348,7 @@ dump_vrrp(void *data)
 void
 alloc_vrrp_sync_group(char *gname)
 {
-	int size = strlen(gname);
+	size_t size = strlen(gname);
 	vrrp_sgroup_t *new;
 
 	/* Allocate new VRRP group structure */
@@ -383,7 +386,7 @@ alloc_vrrp_stats(void)
 void
 alloc_vrrp(char *iname)
 {
-	int size = strlen(iname);
+	size_t size = strlen(iname);
 	seq_counter_t *counter;
 	vrrp_t *new;
 
@@ -406,16 +409,17 @@ alloc_vrrp(char *iname)
 	memcpy(new->iname, iname, size);
 	new->stats = alloc_vrrp_stats();
 	new->quick_sync = 0;
+	new->accept = PARAMETER_UNSET;
 	new->garp_rep = global_data->vrrp_garp_rep;
 	new->garp_refresh = global_data->vrrp_garp_refresh;
 	new->garp_refresh_rep = global_data->vrrp_garp_refresh_rep;
 	new->garp_delay = global_data->vrrp_garp_delay;
-	new->garp_lower_prio_delay = -1;
-	new->garp_lower_prio_rep = -1;
-	new->lower_prio_no_advert = -1;
+	new->garp_lower_prio_delay = PARAMETER_UNSET;
+	new->garp_lower_prio_rep = PARAMETER_UNSET;
+	new->lower_prio_no_advert = PARAMETER_UNSET;
 
 	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
-	new->strict_mode = -1;
+	new->strict_mode = PARAMETER_UNSET;
 
 	list_add(vrrp_data->vrrp, new);
 }
@@ -432,7 +436,7 @@ alloc_vrrp_unicast_peer(vector_t *strvec)
 
 	/* Allocate new unicast peer */
 	peer = (struct sockaddr_storage *) MALLOC(sizeof(struct sockaddr_storage));
-	ret = inet_stosockaddr(vector_slot(strvec, 0), 0, peer);
+	ret = inet_stosockaddr(strvec_slot(strvec, 0), 0, peer);
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] malformed unicast"
 				     " peer address[%s]. Skipping..."
@@ -518,7 +522,7 @@ alloc_vrrp_vrule(vector_t *strvec)
 void
 alloc_vrrp_script(char *sname)
 {
-	int size = strlen(sname);
+	size_t size = strlen(sname);
 	vrrp_script_t *new;
 
 	/* Allocate new VRRP group structure */

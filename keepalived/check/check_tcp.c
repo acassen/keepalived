@@ -63,7 +63,7 @@ dump_tcp_check(void *data)
 }
 
 static void
-tcp_check_handler(vector_t *strvec)
+tcp_check_handler(__attribute__((unused)) vector_t *strvec)
 {
 	tcp_check_t *tcp_check;
 
@@ -80,7 +80,7 @@ static void
 tcp_retry_handler(vector_t *strvec)
 {
 	tcp_check_t *tcp_check = CHECKER_GET();
-	tcp_check->n_retry = CHECKER_VALUE_INT(strvec);
+	tcp_check->n_retry = CHECKER_VALUE_UINT(strvec);
 }
 
 static void
@@ -88,7 +88,7 @@ tcp_delay_before_retry_handler(vector_t *strvec)
 {
 	tcp_check_t *tcp_check = CHECKER_GET();
 	tcp_check->delay_before_retry =
-		(long)CHECKER_VALUE_INT(strvec) * TIMER_HZ;
+		CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 }
 
 void
@@ -108,7 +108,7 @@ tcp_epilog(thread_t * thread, int is_success)
 {
 	checker_t *checker;
 	tcp_check_t *tcp_check;
-	long delay;
+	unsigned long delay;
 
 	checker = THREAD_ARG(thread);
 	tcp_check = CHECKER_ARG(checker);
@@ -156,7 +156,7 @@ tcp_check_thread(thread_t * thread)
 	int status;
 
 	checker = THREAD_ARG(thread);
-	status = tcp_socket_state(thread->u.fd, thread, tcp_check_thread);
+	status = tcp_socket_state(thread, tcp_check_thread);
 
 	/* If status = connect_in_progress, next thread is already registered.
 	 * If it is connect_success, the fd is still open.

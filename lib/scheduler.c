@@ -48,20 +48,41 @@
 #include "logger.h"
 #include "bitops.h"
 
-
 /* global vars */
 thread_master_t *master = NULL;
 
+#ifdef _WITH_LVS_
+#include "../keepalived/include/check_daemon.h"
+#endif
+#ifdef _WITH_VRRP_
+#include "../keepalived/include/vrrp_daemon.h"
+#endif
+#include "../keepalived/include/main.h"
+
+/* Function that returns if pid is a known child, and sets *prog_name accordingly */
+static bool (*child_finder)(pid_t pid, char const **prog_name);
+
+void
+set_child_finder(bool (*func)(pid_t, char const **))
+{
+	child_finder = func;
+}
+
 /* report_child_status returns true if the exit is a hard error, so unable to continue */
 bool
-report_child_status(int status, pid_t pid, const char *prog_name)
+report_child_status(int status, pid_t pid, char const *prog_name)
 {
-	const char *prog_id;
+	char const *prog_id = NULL;
 	char pid_buf[10];	/* "pid 32767" + '\0' */
 	int exit_status ;
+	bool keepalived_child_process = false;
 
-	if (prog_name)
+	if (prog_name) {
 		prog_id = prog_name;
+		keepalived_child_process = true;
+	}
+	else if (child_finder && child_finder(pid, &prog_id))
+		keepalived_child_process = true;
 	else {
 		snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
 		prog_id = pid_buf;
@@ -69,14 +90,17 @@ report_child_status(int status, pid_t pid, const char *prog_name)
 
 	if (WIFEXITED(status)) {
 		exit_status = WEXITSTATUS(status);
-		if (exit_status == KEEPALIVED_EXIT_FATAL ||
-		    exit_status == KEEPALIVED_EXIT_CONFIG) {
+
+		/* Handle exit codes of vrrp or checker child */
+		if (keepalived_child_process &&
+		    (exit_status == KEEPALIVED_EXIT_FATAL ||
+		     exit_status == KEEPALIVED_EXIT_CONFIG)) {
 			log_message(LOG_INFO, "%s exited with permanent error %s. Terminating", prog_id, exit_status == KEEPALIVED_EXIT_CONFIG ? "CONFIG" : "FATAL" );
 			return true;
 		}
 
 		if (exit_status != EXIT_SUCCESS)
-			log_message(LOG_INFO, "%s exited with status %d", prog_id, status);
+			log_message(LOG_INFO, "%s exited with status %d", prog_id, exit_status);
 		return false;
 	}
 	if (WIFSIGNALED(status)) {
@@ -213,13 +237,6 @@ thread_destroy_list(thread_master_t * m, thread_list_t thread_list)
 		t = thread;
 		thread = t->next;
 
-		if (t->type == THREAD_READY_FD ||
-		    t->type == THREAD_READ ||
-		    t->type == THREAD_WRITE ||
-		    t->type == THREAD_READ_TIMEOUT ||
-		    t->type == THREAD_WRITE_TIMEOUT)
-			close (t->u.fd);
-
 		thread_list_delete(&thread_list, t);
 		t->type = THREAD_UNUSED;
 		thread_add_unuse(m, t);
@@ -287,7 +304,7 @@ thread_new(thread_master_t * m)
 /* Add new read thread. */
 thread_t *
 thread_add_read(thread_master_t * m, int (*func) (thread_t *)
-		, void *arg, int fd, long timer)
+		, void *arg, int fd, unsigned long timer)
 {
 	thread_t *thread;
 
@@ -320,7 +337,7 @@ thread_add_read(thread_master_t * m, int (*func) (thread_t *)
 /* Add new write thread. */
 thread_t *
 thread_add_write(thread_master_t * m, int (*func) (thread_t *)
-		 , void *arg, int fd, long timer)
+		 , void *arg, int fd, unsigned long timer)
 {
 	thread_t *thread;
 
@@ -353,7 +370,7 @@ thread_add_write(thread_master_t * m, int (*func) (thread_t *)
 /* Add timer event thread. */
 thread_t *
 thread_add_timer(thread_master_t * m, int (*func) (thread_t *)
-		 , void *arg, long timer)
+		 , void *arg, unsigned long timer)
 {
 	thread_t *thread;
 
@@ -379,7 +396,7 @@ thread_add_timer(thread_master_t * m, int (*func) (thread_t *)
 /* Add a child thread. */
 thread_t *
 thread_add_child(thread_master_t * m, int (*func) (thread_t *)
-		 , void * arg, pid_t pid, long timer)
+		 , void * arg, pid_t pid, unsigned long timer)
 {
 	thread_t *thread;
 
@@ -639,7 +656,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* we have to save errno here because the next syscalls will set it */
 	old_errno = errno;
 
-       /* Handle SNMP stuff */
+	/* Handle SNMP stuff */
 #ifdef _WITH_SNMP_
 	if (ret > 0)
 		snmp_read(&readfd);
@@ -765,7 +782,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 
 /* Synchronous signal handler to reap child processes */
 static void
-thread_child_handler(void * v, int sig)
+thread_child_handler(void * v, __attribute__ ((unused)) int unused)
 {
 	thread_master_t * m = v;
 

@@ -106,7 +106,7 @@ smtp_alloc_host(void)
  * in the config file.
  */
 static void
-smtp_check_handler(vector_t *strvec)
+smtp_check_handler(__attribute__((unused)) vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = (smtp_checker_t *)MALLOC(sizeof(smtp_checker_t));
 
@@ -167,7 +167,7 @@ smtp_check_end_handler(void)
  * in the config file.
  */
 static void
-smtp_host_handler(vector_t *strvec)
+smtp_host_handler(__attribute__((unused)) vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
 
@@ -188,7 +188,7 @@ static void
 smtp_retry_handler(vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
-	smtp_checker->retry = CHECKER_VALUE_INT(strvec);
+	smtp_checker->retry = CHECKER_VALUE_UINT(strvec);
 }
 
 /* "delay_before_retry" keyword */
@@ -196,7 +196,7 @@ static void
 smtp_db_retry_handler(vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
-	smtp_checker->db_retry = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
+	smtp_checker->db_retry = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 }
 
 /* Config callback installer */
@@ -347,7 +347,9 @@ smtp_get_line_cb(thread_t *thread)
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
 	smtp_host_t *smtp_host = smtp_checker->host_ptr;
-	int f, r, x;
+	int f;
+	unsigned x;
+	ssize_t r;
 
 	/* Handle read timeout */
 	if (thread->type == THREAD_READ_TIMEOUT) {
@@ -357,7 +359,7 @@ smtp_get_line_cb(thread_t *thread)
 	}
 
 	/* wrap the buffer, if full, by clearing it */
-	if (SMTP_BUFF_MAX - smtp_checker->buff_ctr <= 0) {
+	if (smtp_checker->buff_ctr > SMTP_BUFF_MAX) {
 		log_message(LOG_INFO, "SMTP_CHECK Buffer overflow reading from server %s. "
 				      "Increase SMTP_BUFF_MAX in smtp_check.h"
 				    , FMT_SMTP_RS(smtp_host));
@@ -378,7 +380,7 @@ smtp_get_line_cb(thread_t *thread)
 		fcntl(thread->u.fd, F_SETFL, f);
 		return 0;
 	} else if (r > 0)
-		smtp_checker->buff_ctr += r;
+		smtp_checker->buff_ctr += (size_t)r;
 
 	/* restore descriptor flags */
 	fcntl(thread->u.fd, F_SETFL, f);
@@ -458,7 +460,8 @@ smtp_put_line_cb(thread_t *thread)
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
 	smtp_host_t *smtp_host = smtp_checker->host_ptr;
-	int f, w;
+	int f;
+	ssize_t w;
 
 
 	/* Handle read timeout */
@@ -653,7 +656,7 @@ smtp_check_thread(thread_t *thread)
 	smtp_host_t *smtp_host = smtp_checker->host_ptr;
 	int status;
 
-	status = tcp_socket_state(thread->u.fd, thread, smtp_check_thread);
+	status = tcp_socket_state(thread, smtp_check_thread);
 	switch (status) {
 		case connect_error:
 			smtp_final(thread, 1, "Error connecting to server %s"

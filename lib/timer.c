@@ -47,9 +47,11 @@ int
 timer_cmp(timeval_t a, timeval_t b)
 {
 	time_t ret = a.tv_sec - b.tv_sec;
-	if (!ret)
-		return a.tv_usec - b.tv_usec;
-	return ret < 0 ? -1 : 1;
+	if (ret)
+		return ret < 0 ? -1 : 1;
+
+	ret = a.tv_usec - b.tv_usec;
+	return ret < 0 ? -1 : ret > 0 ? 1 : 0;
 }
 
 /* timer sub */
@@ -89,7 +91,7 @@ timer_add(timeval_t a, timeval_t b)
 }
 
 timeval_t
-timer_add_long(timeval_t a, long b)
+timer_add_long(timeval_t a, unsigned long b)
 {
 	timeval_t ret;
 
@@ -103,8 +105,8 @@ timer_add_long(timeval_t a, long b)
 		return ret;
 	}
 
-	ret.tv_usec = a.tv_usec + b % TIMER_HZ;
-	ret.tv_sec = a.tv_sec + b / TIMER_HZ;
+	ret.tv_usec = a.tv_usec + (int)(b % TIMER_HZ);
+	ret.tv_sec = a.tv_sec + (int)(b / TIMER_HZ);
 
 	if (ret.tv_usec >= TIMER_HZ) {
 		ret.tv_sec++;
@@ -214,7 +216,7 @@ set_time_now(void)
 timeval_t
 timer_sub_now(timeval_t a)
 {
-	return timer_sub(time_now, a);
+	return timer_sub(a, time_now);
 }
 
 /* timer add to current time */
@@ -228,19 +230,20 @@ timer_add_now(timeval_t a)
 	return timer_add(time_now, a);
 }
 
-/* print timer value */
-void
-timer_dump(timeval_t a)
-{
-	unsigned long timer;
-	timer = a.tv_sec * TIMER_HZ + a.tv_usec;
-	printf("=> %lu (usecs)\n", timer);
-}
-
+/* Return time as unsigned long */
 unsigned long
 timer_tol(timeval_t a)
 {
 	unsigned long timer;
-	timer = a.tv_sec * TIMER_HZ + a.tv_usec;
+	timer = (unsigned long)a.tv_sec * TIMER_HZ + (unsigned long)a.tv_usec;
 	return timer;
 }
+
+#ifdef _INCLUDE_UNUSED_CODE_
+/* print timer value */
+void
+timer_dump(timeval_t a)
+{
+	printf("=> %lu (usecs)\n", timer_tol(a));
+}
+#endif
