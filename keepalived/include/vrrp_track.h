@@ -71,7 +71,6 @@ typedef struct _vrrp_script {
 	uid_t			uid;		/* uid to run script as */
 	gid_t			gid;		/* gid to run script as */
 	bool			insecure;	/* Set if script is run by root, but is non-root modifiable */
-	bool			executable;	/* Script is executable for uid:gid */
 } vrrp_script_t;
 
 /* Tracked script structure definition */

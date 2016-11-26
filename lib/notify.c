@@ -469,7 +469,7 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 		    (file_buf.st_gid == 0 && (file_buf.st_mode & S_IXGRP) && (file_buf.st_mode & S_ISGID)))
 			need_script_protection = true;
 	} else
-		log_message(LOG_INFO, "WARNING - script '%s' is not executable for uid:gid %d:%d. Please fix.", script->name, script->uid, script->gid);
+		log_message(LOG_INFO, "WARNING - script '%s' is not executable for uid:gid %d:%d - disabling.", script->name, script->uid, script->gid);
 
 	if (!need_script_protection)
 		return flags;
@@ -554,8 +554,8 @@ check_notify_script_secure(notify_script_t **script_p, bool script_security, boo
 		log_message(LOG_INFO, "Disabling notify script %s since not found", script->name);
 		free_notify_script(script_p);
 	}
-	else if (flags & SC_EXECUTABLE)
-		script->executable = true;
+	else if (!(flags & SC_EXECUTABLE))
+		free_notify_script(script_p);
 
 	return flags;
 }
