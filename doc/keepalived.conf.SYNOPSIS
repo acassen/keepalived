@@ -226,7 +226,8 @@ vrrp_script <STRING> {          # VRRP script declaration
     weight <INTEGER:-254..254>  # adjust priority by this weight
     fall <INTEGER>              # required number of failures for KO switch
     rise <INTEGER>              # required number of successes for OK switch
-    user USERNAME [GROUPNAME]	# Specify user/group to run script under
+    user USERNAME [GROUPNAME]	# specify user/group to run script under
+    init_fail                   # assume script initially is in failed state
 }
 
 The script will be executed periodically, every <interval> seconds. Its exit
