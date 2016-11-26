@@ -101,8 +101,8 @@ dump_notify_script(notify_script_t *script, char *type)
 	if (!script)
 		return;
 
-	log_message(LOG_INFO, "   %s state transition script = %s, uid:gid %d:%d, %sexecutable", type,
-	       script->name, script->uid, script->gid, script->executable ? "" : "not ");
+	log_message(LOG_INFO, "   %s state transition script = %s, uid:gid %d:%d", type,
+	       script->name, script->uid, script->gid);
 }
 
 static void
@@ -159,11 +159,12 @@ dump_vscript(void *data)
 	log_message(LOG_INFO, "   Rise = %d", vscript->rise);
 	log_message(LOG_INFO, "   Fall = %d", vscript->fall);
 	log_message(LOG_INFO, "   Insecure = %s", vscript->insecure ? "yes" : "no");
-	log_message(LOG_INFO, "   Executable = %s", vscript->executable ? "yes" : "no");
 
 	switch (vscript->result) {
 	case VRRP_SCRIPT_STATUS_INIT:
 		str = "INIT"; break;
+	case VRRP_SCRIPT_STATUS_INIT_FAILED:
+		str = "INIT/FAILED"; break;
 	case VRRP_SCRIPT_STATUS_DISABLED:
 		str = "DISABLED"; break;
 	default:

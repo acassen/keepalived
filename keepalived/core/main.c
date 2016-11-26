@@ -1020,6 +1020,9 @@ keepalived_main(int argc, char **argv)
 	if (!__test_bit(DONT_FORK_BIT, &debug))
 		xdaemon(0, 0, 0);
 
+	/* Set file creation mask */
+	umask(0);
+
 #ifdef _MEM_CHECK_
 	enable_mem_log_termination();
 #endif

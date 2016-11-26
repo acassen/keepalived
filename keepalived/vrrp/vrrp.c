@@ -164,8 +164,8 @@ check_track_script_secure(tracked_sc_t *script)
 		log_message(LOG_INFO, "Disabling track script %s since not found", script->scr->sname);
 		script->scr->insecure = true;
 	}
-	else if (flags & SC_EXECUTABLE)
-		script->scr->executable = true;
+	else if (!(flags & SC_EXECUTABLE))
+		script->scr->insecure = true;
 
 	return flags;
 }
@@ -2218,8 +2218,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (vrrp->accept &&
 	    vrrp->base_priority != VRRP_PRIO_OWNER &&
 	    vrrp->strict_mode &&
-	    vrrp->version == VRRP_VERSION_2)
-		log_message(LOG_INFO, "(%s): warning - accept mode for VRRP version 2 does not comply with RFC3768", vrrp->iname);
+	    vrrp->version == VRRP_VERSION_2) {
+		log_message(LOG_INFO, "(%s): warning - accept mode for VRRP version 2 does not comply with RFC3768 - resetting", vrrp->iname);
+		vrrp->accept = 0;
+	}
 
 	if (vrrp->garp_lower_prio_rep == PARAMETER_UNSET)
 		vrrp->garp_lower_prio_rep = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_rep;

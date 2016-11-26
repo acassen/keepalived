@@ -722,6 +722,12 @@ vrrp_vscript_user_handler(vector_t *strvec)
 		log_message(LOG_INFO, "Unable to set uid/gid for script %s", vscript->script);
 }
 static void
+vrrp_vscript_init_fail_handler(__attribute__((unused)) vector_t *strvec)
+{
+	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+	vscript->result = VRRP_SCRIPT_STATUS_INIT_FAILED;
+}
+static void
 vrrp_version_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -944,6 +950,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("rise", &vrrp_vscript_rise_handler);
 	install_keyword("fall", &vrrp_vscript_fall_handler);
 	install_keyword("user", &vrrp_vscript_user_handler);
+	install_keyword("init_fail", &vrrp_vscript_init_fail_handler);
 }
 
 vector_t *

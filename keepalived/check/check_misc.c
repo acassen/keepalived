@@ -64,7 +64,6 @@ dump_misc_check(void *data)
 	log_message(LOG_INFO, "   timeout = %lu", misck_checker->timeout/TIMER_HZ);
 	log_message(LOG_INFO, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
 	log_message(LOG_INFO, "   uid:gid = %d:%d", misck_checker->uid, misck_checker->gid);
-	log_message(LOG_INFO, "   executable = %s", misck_checker->executable ? "Yes" : "No");
 }
 
 static void
@@ -167,8 +166,8 @@ check_misc_script_security(void)
 			log_message(LOG_INFO, "Disabling misc script %s since not found", misc_script->path);
 			insecure = true;
 		}
-		else if (flags & SC_EXECUTABLE)
-			misc_script->executable = true;
+		else if (!(flags & SC_EXECUTABLE))
+			insecure = true;
 
 		if (insecure) {
 			/* Remove the script */

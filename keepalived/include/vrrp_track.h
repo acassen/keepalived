@@ -52,6 +52,7 @@
  */
 #define VRRP_SCRIPT_STATUS_NOT_SET   -4
 #define VRRP_SCRIPT_STATUS_DISABLED  -3
+#define VRRP_SCRIPT_STATUS_INIT_FAILED -2
 #define VRRP_SCRIPT_STATUS_INIT      -1
 
 /* external script we call to track local processes */
@@ -70,7 +71,6 @@ typedef struct _vrrp_script {
 	uid_t			uid;		/* uid to run script as */
 	gid_t			gid;		/* gid to run script as */
 	bool			insecure;	/* Set if script is run by root, but is non-root modifiable */
-	bool			executable;	/* Script is executable for uid:gid */
 } vrrp_script_t;
 
 /* Tracked script structure definition */
