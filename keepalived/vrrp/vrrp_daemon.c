@@ -453,7 +453,6 @@ start_vrrp_child(void)
 {
 #ifndef _DEBUG_
 	pid_t pid;
-	int ret;
 	char *syslog_ident;
 
 	/* Initialize child process */
@@ -506,12 +505,6 @@ start_vrrp_child(void)
 	/* Create the new master thread */
 	thread_destroy_master(master);	/* This destroys any residual settings from the parent */
 	master = thread_make_master();
-
-	/* change to / dir */
-	ret = chdir("/");
-	if (ret < 0) {
-		log_message(LOG_INFO, "VRRP child process: error chdir");
-	}
 
 	/* Set mask */
 	umask(0);
