@@ -52,9 +52,10 @@
  * success, we increase result and set it to rise+fall-1 when we pass above
  * rise-1.
  */
-#define VRRP_SCRIPT_STATUS_DISABLED  -3
-#define VRRP_SCRIPT_STATUS_INIT_GOOD -2
-#define VRRP_SCRIPT_STATUS_INIT      -1
+#define VRRP_SCRIPT_STATUS_DISABLED    -4
+#define VRRP_SCRIPT_STATUS_INIT_FAILED -3
+#define VRRP_SCRIPT_STATUS_INIT_GOOD   -2
+#define VRRP_SCRIPT_STATUS_INIT        -1
 
 /* external script we call to track local processes */
 typedef struct _vrrp_script {

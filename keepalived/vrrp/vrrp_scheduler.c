@@ -342,10 +342,17 @@ vrrp_init_script(list l)
 		else if (!vscript->inuse)
 			vscript->result = VRRP_SCRIPT_STATUS_DISABLED;
 		else {
-			if (vscript->result == VRRP_SCRIPT_STATUS_INIT)
+			switch (vscript->result) {
+			case VRRP_SCRIPT_STATUS_INIT:
 				vscript->result = vscript->rise - 1; /* one success is enough */
-			else if (vscript->result == VRRP_SCRIPT_STATUS_INIT_GOOD)
+				break;
+			case VRRP_SCRIPT_STATUS_INIT_GOOD:
 				vscript->result = vscript->rise; /* one failure is enough */
+				break;
+			case VRRP_SCRIPT_STATUS_INIT_FAILED:
+				vscript->result = 0; /* assume failed by config */
+				break;
+			}
 
 			thread_add_event(master, vrrp_script_thread, vscript, (int)vscript->interval);
 		}
