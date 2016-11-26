@@ -203,9 +203,10 @@ static bool
 is_executable(struct stat *buf, uid_t uid, gid_t gid)
 {
 	return (uid == 0 && buf->st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) ||
-		(uid == buf->st_uid && buf->st_mode & S_IXUSR) ||
-		(uid != buf->st_uid && gid == buf->st_gid && buf->st_mode & S_IXGRP) ||
-		(uid != buf->st_uid && gid != buf->st_gid && buf->st_mode & S_IXOTH);
+	       (uid == buf->st_uid && buf->st_mode & S_IXUSR) ||
+	       (uid != buf->st_uid && 
+		((gid == buf->st_gid && buf->st_mode & S_IXGRP) ||
+		 (gid != buf->st_gid && buf->st_mode & S_IXOTH)));
 }
 
 /* The following function is essentially __execve() from glibc */
@@ -427,6 +428,7 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 	char sav;
 	int ret;
 	struct stat buf, file_buf;
+	bool need_script_protection = false;
 
 	if (!script)
 		return 0;
@@ -442,8 +444,6 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 		}
 	}
 
-	flags = SC_ISSCRIPT;
-
 	/* Get the permissions for the file itself */
 	if (!full_string) {
 		space = strchr(script->name, ' ');
@@ -458,6 +458,21 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 	}
 	if (space)
 		*space = ' ';
+
+	flags = SC_ISSCRIPT;
+
+	/* We have the final file. Check if root is executing it, or it is set uid/gid root. */
+	if (is_executable(&file_buf, script->uid, script->gid)) {
+		flags |= SC_EXECUTABLE;
+		if (script->uid == 0 || script->gid == 0 ||
+		    (file_buf.st_uid == 0 && (file_buf.st_mode & S_IXUSR) && (file_buf.st_mode & S_ISUID)) ||
+		    (file_buf.st_gid == 0 && (file_buf.st_mode & S_IXGRP) && (file_buf.st_mode & S_ISGID)))
+			need_script_protection = true;
+	} else
+		log_message(LOG_INFO, "WARNING - script '%s' is not executable for uid:gid %d:%d. Please fix.", script->name, script->uid, script->gid);
+
+	if (!need_script_protection)
+		return flags;
 
 	next = script->name;
 	while (next) {
@@ -502,31 +517,20 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 			return flags | SC_NOTFOUND;
 		}
 
-		if (!(flags & SC_INSECURE) &&			/* Don't check again */
-		    (script->uid == 0 || script->gid == 0) &&	/* Script executes with root user or group privilege */
-		    (buf.st_uid ||				/* Owner is not root */
-		     ((!(buf.st_mode & S_ISVTX) ||		/* Sticky bit not set */
-		       buf.st_mode & S_IFREG) &&		/* This is a file */
-		      ((buf.st_gid && buf.st_mode & S_IWGRP) ||	/* Group is not root and group write permission */
-		       buf.st_mode & S_IWOTH)))) {		/* World has write permission */
-			log_message(LOG_INFO, "Unsafe permissions found for script '%s' executed by root.", script->name);
+		if (buf.st_uid ||				/* Owner is not root */
+		    ((!(buf.st_mode & S_ISVTX) ||		/* Sticky bit not set */
+		      buf.st_mode & S_IFREG) &&			/* This is a file */
+		     ((buf.st_gid && buf.st_mode & S_IWGRP) ||	/* Group is not root and group write permission */
+		      buf.st_mode & S_IWOTH))) {		/* World has write permission */
+			log_message(LOG_INFO, "Unsafe permissions found for script '%s'.", script->name);
 			flags |= SC_INSECURE;
-			if (script_security && flags & SC_INSECURE)
+			if (script_security)
 				flags |= SC_INHIBIT;
+			break;
 		}
 
-		if (!slash || (!full_string && *slash == ' ')) {
-			/* We have the final file. Check if it is executable. */
-			if (((script->uid == 0 || script->uid == buf.st_uid) && buf.st_mode & S_IXUSR) ||
-			    ((script->uid == 0 || script->uid != buf.st_uid) && (script->gid == 0 || script->gid == buf.st_gid) && buf.st_mode & S_IXGRP) ||
-			    ((script->uid == 0 || script->uid != buf.st_uid) && (script->gid == 0 || script->gid != buf.st_gid) && buf.st_mode & S_IXOTH)) {
-				/* The script is executable for us */
-				flags |= SC_EXECUTABLE;
-			} else {
-				log_message(LOG_INFO, "WARNING - script '%s' is not executable for uid:gid %d:%d. Please fix.", script->name, script->uid, script->gid);
-			}
-		}
 	}
+
 	return flags;
 }
 
