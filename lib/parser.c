@@ -405,7 +405,7 @@ read_conf_file(const char *conf_file)
 
 	if (res) {
 		log_message(LOG_INFO, "Unable to find config file(s) '%s'.", conf_file);
-		return;
+		exit(KEEPALIVED_EXIT_CONFIG);
 	}
 
 	for(i = 0; i < globbuf.gl_pathc; i++){

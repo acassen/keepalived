@@ -288,7 +288,6 @@ start_check_child(void)
 {
 #ifndef _DEBUG_
 	pid_t pid;
-	int ret;
 	char *syslog_ident;
 
 	/* Initialize child process */
@@ -339,15 +338,6 @@ start_check_child(void)
 	signal_handler_destroy();
 	thread_destroy_master(master);	/* This destroys any residual settings from the parent */
 	master = thread_make_master();
-
-	/* change to / dir */
-	ret = chdir("/");
-	if (ret < 0) {
-		log_message(LOG_INFO, "Healthcheck child process: error chdir");
-	}
-
-	/* Set mask */
-	umask(0);
 #endif
 
 	/* If last process died during a reload, we can get there and we
