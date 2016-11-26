@@ -1,3 +1,62 @@
+2016-11-26 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.3.2 released.
+	* Correctly handle return code from system() call.
+	  If we want to check for an exit status, WIFEXITED(ret) must be
+	  checked first.
+	* Fix compilation where SNMP enabled.
+	* Fix a couple of SNMP errors.
+	  The length of KEEPALIVED-MIB::version was being returned a sizeof(char *)
+	  rather than strlen(char *).
+	  VRRPv3 vrrpv3GlobalStatisticsDiscontinuityTime was being completely
+	  mishandled.
+	* Add additional files needed to build from git without autoconf.
+	* Don't save and restore current directory twice with config includes.
+	* Don't recognise an executable file as a configuration file.
+	* Allow maximum path names for configuration files.
+	* Don't check for include file after reaching EOF.
+	* Fix a segfault if terminating at startup do to interface not found.
+	* notify: log error while performing set{gid,uid}.
+	  Log error message while setting goup and user before system call.
+	  Maybe we should avoid system call on error if {gid,uid} are used, would
+	  be more secure.
+	* Don't execute a script if setuid or setgid fails.
+	  This was suggested in the comment of commit 849615d and is clearly
+	  the right (secure) thing to do.
+	* If a script doesn't have a '/' in the name, search PATH for it.
+	  This also handles spaces in script specifications where they are
+	  parameters.
+	* Don't allow accept when strict mode set if not address owner.
+	  This commit changes keepalived from just issuing a warning to also
+	  disable accept mode when strict mode is set.
+	  Patch submitted by levin1.
+	* Added init_fail setting to assume failed state for vrrp_script during
+	  startup of keepalived.
+	* When checking script security check set uid/gid bits too.
+	  Although the setuid/gid bits are ignored for scripts, they are
+	  not ignored for binary executables, and there is no point in having
+	  the bits set for scripts. So we play safe, and simply check those
+	  bits, and don't attempt to ascertain if it is a script or not.
+	* Disable scripts that aren't executable.
+	  system() on a non-executable script will fail, so we may as well
+	  just not try executing such a script.
+	* Exit if can't read configuration file.
+	  If we have no configuration, we have nothing to run, so exit.
+	* Don't chdir("/") if not forking.
+	  In keepalived_main() there is a comment that the working directory
+	  is / unless keepalived is run in non-forked mode, in which case it
+	  remains the current working directory when keepalived was run.
+	  Unfortunately start_vrrp_child() and start_check_child() were
+	  executing chdir("/") regardless of whether they had been forked or not.
+	  Since the parent process does chdir("/") if it is appropriate, the
+	  children will inherit that, so they don't need to chdir() at all.
+	* Only set umask(0) in parent process.
+	  The children inherit it from the parent, so no need to set it in
+	  the vrrp or checker child processes.
+	* Further changes for script init state failed.
+	* notify: use _GNU_SOURCE.
+	  Just to make compiler happy about inconsitent declaration of mempcpy
+	  and strchrnul. Just cosmetics here.
+
 2016-11-21 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.3.1 released.
 	* Ensure lists aren't empty when checking script security.
