@@ -92,7 +92,6 @@ vscript_print(FILE *file, void *data)
 	fprintf(file, "   Rise = %d\n", vscript->rise);
 	fprintf(file, "   Full = %d\n", vscript->fall);
 	fprintf(file, "   Insecure = %s\n", vscript->insecure ? "yes" : "no");
-	fprintf(file, "   Executable = %s\n", vscript->executable ? "yes" : "no");
 
 	switch (vscript->result) {
 	case VRRP_SCRIPT_STATUS_INIT:

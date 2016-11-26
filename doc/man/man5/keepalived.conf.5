@@ -287,12 +287,12 @@ and
     # filenames of scripts to run on transitions
     # can be unquoted (if just filename)
     # or quoted (if it has parameters)
-    # to MASTER transition
     # The username and groupname specify the user and group
     # under which the scripts should be run. If username is
     # specified, the group defaults to the group of the user.
     # If username is not specified, they default to the
     # global script_user and script_group
+    # to MASTER transition
     notify_master /path/to_master.sh [username [groupname]]
     # to BACKUP transition
     notify_backup /path/to_backup.sh [username [groupname]]

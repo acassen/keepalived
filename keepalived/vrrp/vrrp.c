@@ -161,8 +161,8 @@ check_track_script_secure(tracked_sc_t *script)
 		log_message(LOG_INFO, "Disabling track script %s since not found", script->scr->sname);
 		script->scr->insecure = true;
 	}
-	else if (flags & SC_EXECUTABLE)
-		script->scr->executable = true;
+	else if (!(flags & SC_EXECUTABLE))
+		script->scr->insecure = true;
 
 	return flags;
 }
@@ -1914,14 +1914,17 @@ shutdown_vrrp_instances(void)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
+		/* We may not have an ifp if we are aborting at startup */
+		if (vrrp->ifp) {
 #ifdef _HAVE_VRRP_VMAC_
-		/* Remove VMAC */
-		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-			netlink_link_del_vmac(vrrp);
+			/* Remove VMAC */
+			if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+				netlink_link_del_vmac(vrrp);
 #endif
 
-		if (vrrp->ifp->reset_promote_secondaries)
-			reset_promote_secondaries(vrrp->ifp);
+			if (vrrp->ifp->reset_promote_secondaries)
+				reset_promote_secondaries(vrrp->ifp);
+		}
 
 		/* Run stop script */
 		if (vrrp->script_stop)
@@ -2104,8 +2107,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (vrrp->accept &&
 	    vrrp->base_priority != VRRP_PRIO_OWNER &&
 	    vrrp->strict_mode &&
-	    vrrp->version == VRRP_VERSION_2)
-		log_message(LOG_INFO, "(%s): warning - accept mode for VRRP version 2 does not comply with RFC3768", vrrp->iname);
+	    vrrp->version == VRRP_VERSION_2) {
+		log_message(LOG_INFO, "(%s): warning - accept mode for VRRP version 2 does not comply with RFC3768 - resetting", vrrp->iname);
+		vrrp->accept = 0;
+	}
 
 	if (vrrp->garp_lower_prio_rep == PARAMETER_UNSET)
 		vrrp->garp_lower_prio_rep = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_rep;
