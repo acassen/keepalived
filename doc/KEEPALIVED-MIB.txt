@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201610180000Z"
+     LAST-UPDATED "201611260000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201611260000Z"
+     DESCRIPTION "add initfailed state for scripts"
      REVISION "201610180000Z"
      DESCRIPTION "add promote_secondaries"
      REVISION "201609120000Z"
@@ -1995,7 +1997,8 @@ vrrpScriptResult OBJECT-TYPE
         init(1),
         bad(2),
         good(3),
-        initgood(4)
+        initgood(4),
+        initfailed(5)
            }
     MAX-ACCESS read-only
     STATUS current

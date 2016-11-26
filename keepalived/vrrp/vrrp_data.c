@@ -152,6 +152,8 @@ dump_vscript(void *data)
 		str = "INIT"; break;
 	case VRRP_SCRIPT_STATUS_INIT_GOOD:
 		str = "INIT/GOOD"; break;
+	case VRRP_SCRIPT_STATUS_INIT_FAILED:
+		str = "INIT/FAILED"; break;
 	case VRRP_SCRIPT_STATUS_DISABLED:
 		str = "DISABLED"; break;
 	default:
