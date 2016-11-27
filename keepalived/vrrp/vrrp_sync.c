@@ -63,7 +63,7 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 	if (vrrp->state == VRRP_STATE_BACK)
 		vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
 	else if (vrrp->state == VRRP_STATE_GOTO_FAULT || vrrp->state == VRRP_STATE_FAULT)
-		vrrp->sands = timer_add_long(time_now, 86400000000L);
+		vrrp->sands = timer_add_secs(time_now, 86400UL);
 }
 
 /* Instance name lookup */

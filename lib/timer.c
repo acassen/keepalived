@@ -91,6 +91,14 @@ timer_add(timeval_t a, timeval_t b)
 }
 
 timeval_t
+timer_add_secs(timeval_t a, unsigned long secs)
+{
+	a.tv_sec += secs;
+
+	return a;
+}
+
+timeval_t
 timer_add_long(timeval_t a, unsigned long b)
 {
 	timeval_t ret;
