@@ -25,6 +25,9 @@
 #include <errno.h>
 #include <netinet/ip.h>
 #include <signal.h>
+#if defined _WITH_VRRP_AUTH_
+#include <netinet/in.h>
+#endif
 
 #include "vrrp_scheduler.h"
 #include "vrrp_track.h"
@@ -465,7 +468,7 @@ vrrp_create_sockpool(list l)
 		unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 #if defined _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH)
-			proto = IPPROTO_IPSEC_AH;
+			proto = IPPROTO_AH;
 		else
 #endif
 			proto = IPPROTO_VRRP;
@@ -520,7 +523,7 @@ vrrp_set_fds(list l)
 			unicast = !LIST_ISEMPTY(vrrp->unicast_peer);
 #if defined _WITH_VRRP_AUTH_
 			if (vrrp->auth_type == VRRP_AUTH_AH)
-				proto = IPPROTO_IPSEC_AH;
+				proto = IPPROTO_AH;
 			else
 #endif
 				proto = IPPROTO_VRRP;
@@ -591,7 +594,7 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 	if (vrrp->auth_type == VRRP_AUTH_AH) {
 		iph = (struct iphdr *) buffer;
 
-		if (iph->protocol == IPPROTO_IPSEC_AH) {
+		if (iph->protocol == IPPROTO_AH) {
 			ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));
 			if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter.seq_number)
 				vrrp->ipsecah_counter.cycle = false;
@@ -622,7 +625,7 @@ vrrp_become_master(vrrp_t * vrrp,
 		 * If we are in IPSEC AH mode, we must be sync
 		 * with the remote IPSEC AH VRRP instance counter.
 		 */
-		if (iph->protocol == IPPROTO_IPSEC_AH) {
+		if (iph->protocol == IPPROTO_AH) {
 			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : seq_num sync",
 			       vrrp->iname);
 			ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));

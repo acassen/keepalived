@@ -34,6 +34,9 @@
 #include <errno.h>
 #include <openssl/md5.h>
 #include <unistd.h>
+#ifdef _WITH_VRRP_AUTH_
+#include <netinet/in.h>
+#endif
 
 /* local include */
 #include "parser.h"
@@ -294,8 +297,8 @@ vrrp_get_header(sa_family_t family, char *buf, unsigned *proto)
 
 		/* Fill the VRRP header */
 #ifdef _WITH_VRRP_AUTH_
-		if (iph->protocol == IPPROTO_IPSEC_AH) {
-			*proto = IPPROTO_IPSEC_AH;
+		if (iph->protocol == IPPROTO_AH) {
+			*proto = IPPROTO_AH;
 			hd = (vrrphdr_t *) ((char *) iph + (iph->ihl << 2) +
 					   vrrp_ipsecah_len());
 		}
@@ -810,7 +813,7 @@ vrrp_build_ip4(vrrp_t * vrrp, char *buffer, uint32_t dst)
 
 	/* fill protocol type --rfc2402.2 */
 #ifdef _WITH_VRRP_AUTH_
-	ip->protocol = (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH : IPPROTO_VRRP;
+	ip->protocol = (vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_AH : IPPROTO_VRRP;
 #else
 	ip->protocol = IPPROTO_VRRP;
 #endif
@@ -1696,7 +1699,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received advert with lower priority %d, ours %d"
 				      ", forcing new election", vrrp->iname, hd->priority, vrrp->effective_priority);
 #ifdef _WITH_VRRP_AUTH_
-		if (proto == IPPROTO_IPSEC_AH) {
+		if (proto == IPPROTO_AH) {
 			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
 			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
 					      " - Increment seq"
@@ -1732,7 +1735,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received advert with higher priority %d, ours %d"
 				    , vrrp->iname, hd->priority, vrrp->effective_priority);
 #ifdef _WITH_VRRP_AUTH_
-		if (proto == IPPROTO_IPSEC_AH) {
+		if (proto == IPPROTO_AH) {
 			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
 			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
 					      " - Decrement seq"
@@ -1933,7 +1936,7 @@ new_vrrp_socket(vrrp_t * vrrp)
 	remove_vrrp_fd_bucket(vrrp);
 #ifdef _WITH_VRRP_AUTH_
 	if (vrrp->version == VRRP_VERSION_2)
-		proto =(vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_IPSEC_AH :
+		proto =(vrrp->auth_type == VRRP_AUTH_AH) ? IPPROTO_AH :
 				IPPROTO_VRRP;
 	else
 #endif

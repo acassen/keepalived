@@ -35,7 +35,6 @@
 				   Computed in 32-bit words minus 2
 				   => (HMAC_MD5_TRUNC*8+3*32)/32 - 2
 				   -- rfc2402.2.2 */
-#define IPPROTO_IPSEC_AH 51	/* IP protocol number -- rfc2402.2 */
 
 typedef struct _ipsec_ah {				/* rfc2402.2 */
 	uint8_t			next_header;	/* Next header field */
