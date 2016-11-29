@@ -26,8 +26,6 @@
 #include "vrrp_index.h"
 #include "vrrp_data.h"
 #include "vrrp.h"
-#include "memory.h"
-#include "list.h"
 
 /* VRID hash table */
 void

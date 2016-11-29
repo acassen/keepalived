@@ -23,14 +23,6 @@
 #ifndef _CHECK_TCP_H
 #define _CHECK_TCP_H
 
-/* system includes */
-#include <unistd.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-
-/* local includes */
-#include "scheduler.h"
-
 typedef struct _tcp_check {
 	unsigned	n_retry;
 	unsigned long	delay_before_retry;

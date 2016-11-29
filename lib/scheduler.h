@@ -24,13 +24,9 @@
 #define _SCHEDULER_H
 
 /* system includes */
-#include <sys/time.h>
 #include <sys/types.h>
-#include <sys/wait.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <syslog.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include "timer.h"
 

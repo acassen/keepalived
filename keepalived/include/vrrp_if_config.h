@@ -23,6 +23,8 @@
 #ifndef _VRRP_IF_CONFIG_H
 #define _VRRP_IF_CONFIG_H 1
 
+#include "config.h"
+
 #include "vrrp_if.h"
 
 /* prototypes */

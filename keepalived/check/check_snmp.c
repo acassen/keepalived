@@ -22,14 +22,11 @@
 
 #include "config.h"
 
-#include "check_data.h"
 #include "check_snmp.h"
-#include "list.h"
-#include "ipvswrapper.h"
 #include "ipwrapper.h"
 #include "global_data.h"
 #include "snmp.h"
-
+#include "utils.h"
 
 /* CHECK SNMP defines */
 #define CHECK_OID KEEPALIVED_OID, 3

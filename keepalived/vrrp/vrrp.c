@@ -26,17 +26,28 @@
 
 #include "config.h"
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
+/* System includes */
+#include <errno.h>
+#include <openssl/md5.h>
+#include <unistd.h>
+
 /* local include */
+#include "parser.h"
+
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_notify.h"
-#include "ipvswrapper.h"
 #include "vrrp.h"
+#include "global_data.h"
 #include "vrrp_data.h"
 #include "vrrp_sync.h"
 #include "vrrp_index.h"
-#include "vrrp_if.h"
+#include "vrrp_track.h"
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
 #endif
@@ -47,13 +58,10 @@
 #ifdef _WITH_SNMP_
 #include "vrrp_snmp.h"
 #endif
-
-#include "memory.h"
 #include "list.h"
 #include "logger.h"
 #include "main.h"
 #include "utils.h"
-#include "notify.h"
 #include "bitops.h"
 #include "vrrp_netlink.h"
 #include "vrrp_print.h"

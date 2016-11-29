@@ -20,11 +20,9 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#include "config.h"
 
 #include "snmp.h"
 #include "logger.h"
-#include "config.h"
 #include "global_data.h"
 #include "main.h"
 

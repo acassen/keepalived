@@ -29,7 +29,6 @@
 #include <net-snmp/net-snmp-config.h>
 #include <net-snmp/net-snmp-includes.h>
 #include <net-snmp/agent/net-snmp-agent-includes.h>
-#include <net-snmp/agent/snmp_vars.h>
 #undef FREE
 #endif
 
@@ -37,9 +36,8 @@
 #define NDEBUG
 #endif
 #include <assert.h>
-#include <signal.h>
+#include <errno.h>
 #include <sys/wait.h>
-#include <sys/select.h>
 #include <unistd.h>
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
@@ -50,19 +48,10 @@
 #include "utils.h"
 #include "signals.h"
 #include "logger.h"
-#include "bitops.h"
 
 /* global vars */
 thread_master_t *master = NULL;
 prog_type_t prog_type;              /* Parent/VRRP/Checker process */
-
-#ifdef _WITH_LVS_
-#include "../keepalived/include/check_daemon.h"
-#endif
-#ifdef _WITH_VRRP_
-#include "../keepalived/include/vrrp_daemon.h"
-#endif
-#include "../keepalived/include/main.h"
 
 /* Function that returns if pid is a known child, and sets *prog_name accordingly */
 static bool (*child_finder)(pid_t pid, char const **prog_name);

@@ -22,9 +22,11 @@
 
 #include "config.h"
 
+#include <net/if.h>
+#include <stdlib.h>
+
 /* local include */
 #include "vrrp_track.h"
-#include "vrrp_if.h"
 #include "vrrp_data.h"
 #include "vrrp.h"
 #include "vrrp_sync.h"

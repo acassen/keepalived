@@ -22,24 +22,24 @@
 
 #include "config.h"
 
-#include "global_data.h"
-#include "vrrp_data.h"
-#include "vrrp_index.h"
-#include "vrrp_sync.h"
-#include "vrrp_if.h"
-#ifdef _HAVE_VRRP_VMAC_
-#include "vrrp_vmac.h"
-#endif
-#include "vrrp.h"
-#include "vrrp_print.h"
-#include "memory.h"
+#include <unistd.h>
+
 #include "utils.h"
 #include "logger.h"
 #include "bitops.h"
+
+#include "global_data.h"
+#include "vrrp_data.h"
+#include "vrrp_sync.h"
+#ifdef _HAVE_VRRP_VMAC_
+#include "vrrp_vmac.h"
+#endif
+#include "vrrp_print.h"
 #ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iprule.h"
 #include "vrrp_iproute.h"
 #endif
+#include "vrrp_track.h"
 
 /* global vars */
 vrrp_data_t *vrrp_data = NULL;

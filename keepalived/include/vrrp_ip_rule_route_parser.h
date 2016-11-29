@@ -25,7 +25,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <linux/rtnetlink.h>
 #if HAVE_DECL_RTA_ENCAP
 #include "vrrp_iproute.h"
 #endif

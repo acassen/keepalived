@@ -24,13 +24,11 @@
 
 #include "config.h"
 
-#include <netdb.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <pwd.h>
 #include <grp.h>
+#include <ctype.h>
 
 #ifdef _WITH_SNMP_
 #include "snmp.h"
@@ -39,9 +37,7 @@
 #include "global_parser.h"
 #include "global_data.h"
 #include "main.h"
-#include "check_data.h"
 #include "parser.h"
-#include "memory.h"
 #include "smtp.h"
 #include "utils.h"
 #include "logger.h"

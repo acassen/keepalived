@@ -23,13 +23,10 @@
 #ifndef _VRRP_IPTABLES_H
 #define _VRRP_IPTABLES_H
 
+#include "config.h"
+
 #include <stdbool.h>
 
-#ifdef _HAVE_LIBIPTC_
-#include <libiptc/libxtc.h>
-#endif
-
-#include "vrrp_iptables_calls.h"
 #include "vrrp_ipaddress.h"
 
 struct ipt_handle;

@@ -24,14 +24,12 @@
 #define _VRRP_IPROUTE_H
 
 /* global includes */
-#include <stdio.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
-//#include <linux/rtnetlink.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <sys/types.h>
 #if HAVE_DECL_RTA_ENCAP
 #include <linux/mpls.h>
 #endif
-#include <stdbool.h>
 
 /* local includes */
 #include "list.h"

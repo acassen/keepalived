@@ -22,7 +22,6 @@
 
 #include "config.h"
 
-#include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include "timer.h"
@@ -91,7 +90,7 @@ timer_add(timeval_t a, timeval_t b)
 }
 
 timeval_t
-timer_add_secs(timeval_t a, unsigned long secs)
+timer_add_secs(timeval_t a, time_t secs)
 {
 	a.tv_sec += secs;
 

@@ -8,8 +8,9 @@
 #ifndef _LIBIPVS_H
 #define _LIBIPVS_H
 
-#include "ip_vs.h"
+#include "config.h"
 
+#include "ip_vs.h"
 
 /*
  * The default IPVS_SVC_PERSISTENT_TIMEOUT is a little larger than average

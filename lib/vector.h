@@ -23,8 +23,8 @@
 #ifndef _VECTOR_H
 #define _VECTOR_H
 
+#include <sys/types.h>
 #include <stdio.h>
-#include <stdbool.h>
 
 /* vector definition */
 typedef struct _vector {

@@ -22,12 +22,11 @@
 
 #include "config.h"
 
-#include <dirent.h>
 #include <dlfcn.h>
+
 #include "check_api.h"
 #include "main.h"
 #include "parser.h"
-#include "memory.h"
 #include "utils.h"
 #include "logger.h"
 #include "bitops.h"

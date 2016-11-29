@@ -22,32 +22,28 @@
 
 #include "config.h"
 
-#include <string.h>
+#include <errno.h>
+#include <signal.h>
+#include <unistd.h>
 
 #include "check_daemon.h"
 #include "check_parser.h"
 #include "ipwrapper.h"
-#include "ipvswrapper.h"
-#include "check_data.h"
 #include "check_ssl.h"
 #include "check_api.h"
 #include "global_data.h"
 #include "pidfile.h"
-#include "daemon.h"
 #include "signals.h"
-#include "notify.h"
 #include "process.h"
 #include "logger.h"
-#include "list.h"
 #include "main.h"
-#include "memory.h"
 #include "parser.h"
 #include "bitops.h"
 #include "vrrp_netlink.h"
-#include "vrrp_if.h"
 #ifdef _WITH_SNMP_CHECKER_
   #include "check_snmp.h"
 #endif
+#include "utils.h"
 
 static char *check_syslog_ident;
 

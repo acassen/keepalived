@@ -79,22 +79,20 @@
 #if HAVE_DECL_RTA_ENCAP
 #include <linux/lwtunnel.h>
 #endif
+#ifdef NETLINK_H_NEEDS_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#include <linux/fib_rules.h>
 
 #include "vrrp.h"
 #include "vrrp_snmp.h"
-#include "vrrp_data.h"
 #include "vrrp_track.h"
-#include "vrrp_ipaddress.h"
 #ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
 #endif
 #include "vrrp_scheduler.h"
-#ifdef _HAVE_VRRP_VMAC_
-#include "vrrp_vmac.h"
-#endif
 #include "config.h"
-#include "vector.h"
 #include "list.h"
 #include "logger.h"
 #include "global_data.h"

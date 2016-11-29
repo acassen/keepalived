@@ -23,7 +23,14 @@
 
 #include "config.h"
 
-#include "memory.h"
+#include <time.h>
+#include <errno.h>
+#include <inttypes.h>
+
+#include "logger.h"
+#include "rttables.h"
+#include "utils.h"
+
 #include "vrrp.h"
 #include "vrrp_data.h"
 #include "vrrp_print.h"
@@ -31,13 +38,7 @@
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
 #endif
-#include "vrrp_netlink.h"
-#include "rttables.h"
-#include "logger.h"
-
-#include <time.h>
-#include <errno.h>
-#include <inttypes.h>
+#include "vrrp_track.h"
 
 static void
 vrrp_print_list(FILE *file, list l, void (*fptr)(FILE*, void*))

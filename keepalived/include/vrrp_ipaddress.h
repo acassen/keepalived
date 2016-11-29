@@ -23,15 +23,10 @@
 #ifndef _VRRP_IPADDR_H
 #define _VRRP_IPADDR_H
 
+#include "config.h"
+
 /* global includes */
-#include <stdio.h>
-#include <stdlib.h>
-#ifndef _USE_GNU
-#define __USE_GNU 1
-#endif
 #include <netinet/in.h>
-#include <string.h>
-#include <syslog.h>
 #include <linux/if_addr.h>
 #include <stdbool.h>
 
@@ -39,7 +34,6 @@
 #include "vrrp_if.h"
 #include "list.h"
 #include "vector.h"
-#include "utils.h"
 
 /* types definition */
 typedef struct _ip_address {

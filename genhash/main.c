@@ -25,14 +25,11 @@
 #include "config.h"
 
 /* system includes */
-#include <signal.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
-#include <sys/types.h>
 #include <stdio.h>
-#include <string.h>
 #include <sys/socket.h>
-#include <netdb.h>
+#include <arpa/inet.h>
 
 /* keepalived includes */
 #include "utils.h"

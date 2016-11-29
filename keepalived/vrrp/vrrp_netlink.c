@@ -23,19 +23,16 @@
 #include "config.h"
 
 /* global include */
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <syslog.h>
 #include <fcntl.h>
-#include <net/if_arp.h>
 #include <sys/socket.h>
-#include <netinet/in.h>
 #include <string.h>
 #include <errno.h>
-#include <time.h>
 #include <sys/uio.h>
-#include <stdarg.h>
+#ifdef _HAVE_LIBNL3_
+#include <netlink/netlink.h>
+#endif
 
 /* local include */
 #include "check_api.h"
@@ -45,14 +42,13 @@
 #include "vrrp_vmac.h"
 #endif
 #include "logger.h"
-#include "memory.h"
 #include "scheduler.h"
 #include "utils.h"
 #include "bitops.h"
 #if !HAVE_DECL_SOCK_NONBLOCK
-#include "old_socket.h"
 #endif
 #include "vrrp_scheduler.h"
+#include "vrrp_track.h"
 
 /* Global vars */
 nl_handle_t nl_cmd;	/* Command channel */

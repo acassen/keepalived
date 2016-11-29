@@ -24,6 +24,7 @@
 #ifndef _CHECK_SNMP_H
 #define _CHECK_SNMP_H
 
+#include "check_data.h"
 
 /* Prototypes */
 extern void check_snmp_agent_init(const char *);

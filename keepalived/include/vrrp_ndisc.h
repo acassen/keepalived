@@ -24,13 +24,16 @@
 #define _VRRP_NDISC_H
 
 /* system includes */
+#include <asm/byteorder.h>
 #include <linux/icmpv6.h>
+#include <netinet/in.h>
 
 /* local includes */
 #include "vrrp.h"
+#include "vrrp_if.h"
+#include "vrrp_ipaddress.h"
 
 /* local definitions */
-#define ETHERNET_HW_LEN	6
 #define NEXTHDR_ICMP	58
 #define NDISC_HOPLIMIT	255
 

@@ -22,14 +22,12 @@
  */
 #include "config.h"
 
-#include <stdbool.h>
 #include <errno.h>
-
-#include <linux/socket.h>
+#include <stdlib.h>
+#include <string.h>
 #include <sys/socket.h>
 #include <linux/rtnetlink.h>
 
-#include "vector.h"
 #include "list.h"
 #include "memory.h"
 #include "logger.h"

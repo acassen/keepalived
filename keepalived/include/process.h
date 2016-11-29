@@ -23,6 +23,8 @@
 #ifndef _PROCESS_H
 #define _PROCESS_H
 
+#include <sys/types.h>
+
 extern void set_process_dont_swap(size_t);
 extern void set_process_priority(int);
 

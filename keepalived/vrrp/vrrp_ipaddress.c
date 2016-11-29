@@ -22,6 +22,7 @@
 
 #include "config.h"
 
+
 /* local include */
 #include "vrrp_ipaddress.h"
 #ifdef _HAVE_LIBIPTC_
@@ -30,7 +31,6 @@
 #include "vrrp_netlink.h"
 #include "vrrp_data.h"
 #include "logger.h"
-#include "memory.h"
 #include "utils.h"
 #include "bitops.h"
 #include "global_data.h"

@@ -24,36 +24,27 @@
 
 /* global include */
 #include <unistd.h>
-#include <string.h>
 #include <stdint.h>
 typedef uint64_t u64;
 typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t u8;
-#include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <netinet/in.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <syslog.h>
-#include <ctype.h>
 #include <linux/ip.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <linux/ethtool.h>
 #include <linux/mii.h>
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
+#include <linux/sockios.h>	/* needed to get correct values for SIOC* */
 
 /* local include */
-#include "scheduler.h"
 #include "global_data.h"
-#include "vrrp_data.h"
 #include "vrrp.h"
 #include "vrrp_if.h"
 #include "vrrp_netlink.h"
-#include "memory.h"
 #include "utils.h"
 #include "logger.h"
 

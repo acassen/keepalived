@@ -24,11 +24,6 @@
 #define _VRRP_TRACK_H
 
 /* global includes */
-#include <stdio.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <syslog.h>
 #include <stdbool.h>
 #include <sys/types.h>
 

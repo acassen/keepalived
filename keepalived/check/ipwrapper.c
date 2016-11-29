@@ -23,11 +23,8 @@
 #include "config.h"
 
 #include "ipwrapper.h"
-#include "ipvswrapper.h"
 #include "logger.h"
-#include "memory.h"
 #include "utils.h"
-#include "notify.h"
 #include "main.h"
 #ifdef _WITH_SNMP_CHECKER_
   #include "check_snmp.h"

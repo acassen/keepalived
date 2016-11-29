@@ -23,18 +23,19 @@
 #ifndef _VRRP_IF_H
 #define _VRRP_IF_H
 
+#include "config.h"
+
 /* global includes */
-#include <sys/socket.h>
-#include <net/if.h>
 #include <netinet/in.h>
 #include <stdbool.h>
-
-/* needed to get correct values for SIOC* */
-#include <linux/sockios.h>
+#include <stdint.h>
+#include <sys/types.h>
+#include <net/if.h>
 
 /* local includes */
 #include "scheduler.h"
 #include "list.h"
+#include "timer.h"
 
 #define LINK_UP   1
 #define LINK_DOWN 0

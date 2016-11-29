@@ -24,16 +24,13 @@
 #define _VRRP_SCHEDULER_H
 
 /* system include */
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <string.h>
 #include <stdint.h>
 
 /* local includes */
 #include "scheduler.h"
-#include "list.h"
+#include "timer.h"
 #include "vrrp_data.h"
+#include "vrrp.h"
 
 /* global vars */
 extern timeval_t garp_next_time;

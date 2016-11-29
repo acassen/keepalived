@@ -23,13 +23,13 @@
 #ifndef _CHECK_DATA_H
 #define _CHECK_DATA_H
 
+#include "config.h"
+
 /* system includes */
-#include <stdlib.h>
-#include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <syslog.h>
-#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <openssl/ssl.h>
 
 #ifdef _WITH_LVS_
@@ -39,7 +39,6 @@
 /* local includes */
 #include "list.h"
 #include "vector.h"
-#include "timer.h"
 #include "notify.h"
 
 /* Typedefs */

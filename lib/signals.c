@@ -26,20 +26,17 @@
 #if defined HAVE_PIPE2 && !defined _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <signal.h>
 #include <string.h>
 
 #include <fcntl.h>
 #include <unistd.h>
 
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
 #ifndef _DEBUG_
 #define NDEBUG
 #endif
 #include <assert.h>
-#include <syslog.h>
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
 #endif

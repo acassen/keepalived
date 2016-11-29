@@ -23,20 +23,16 @@
 #ifndef _VRRP_NETLINK_H
 #define _VRRP_NETLINK_H 1
 
+#include "config.h"
+
 /* global includes */
-#include <asm/types.h>
+#include <stdint.h>
+#include <sys/types.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
-#ifdef _HAVE_LIBNL3_
-#include <netlink/netlink.h>
-#include <libnfnetlink/libnfnetlink.h>
-#endif
-#ifdef _HAVE_LIBNL1_
-#include <libnfnetlink/libnfnetlink.h>
-#endif
 
 /* local includes */
-#include "timer.h"
+#include "scheduler.h"
 #include "vrrp_if.h"
 
 /* types definitions */

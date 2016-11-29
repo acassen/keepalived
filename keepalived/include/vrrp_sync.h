@@ -23,13 +23,6 @@
 #ifndef _VRRP_SYNC_H
 #define _VRRP_SYNC_H
 
-/* system include */
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <string.h>
-#include <stdint.h>
-
 /* local include */
 #include "vrrp.h"
 

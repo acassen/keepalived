@@ -27,18 +27,21 @@
 #define _GNU_SOURCE /* to make O_CLOEXEC available */
 #endif
 
+#include <errno.h>
 #include <fcntl.h>
+#include <unistd.h>
+#include <sys/wait.h>
 
 #ifndef O_CLOEXEC	/* Since Linux 2.6.23 and glibc 2.7 */
 #define O_CLOEXEC 0	/* It doesn't really matter if O_CLOEXEC isn't set here */
 #endif
 
 #include "ipvswrapper.h"
-#include "check_data.h"
+#include "global_data.h"
 #include "list.h"
 #include "utils.h"
-#include "memory.h"
 #include "logger.h"
+#include "libipvs.h"
 
 /*
  * Utility functions coming from Wensong code

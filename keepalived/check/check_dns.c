@@ -23,20 +23,21 @@
 
 #include "config.h"
 
-#include <strings.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include "check_dns.h"
-#include "check_api.h"
 #include "memory.h"
 #include "ipwrapper.h"
 #include "logger.h"
 #include "smtp.h"
 #include "utils.h"
 #include "parser.h"
-#include "timer.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
-#include "string.h"
 #endif
+#include "layer4.h"
 
 #ifdef _DEBUG_
 #define DNS_DBG(args...) dns_log_message(thread, LOG_DEBUG, ## args)

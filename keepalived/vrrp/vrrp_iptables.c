@@ -53,7 +53,9 @@
 #define _LINUX_IF_H
 #endif
 
-#include <libiptc/libiptc.h>
+#ifdef _HAVE_LIBIPTC_
+#include <libiptc/libxtc.h>
+#endif
 
 #include "vrrp_iptables.h"
 #include "vrrp_iptables_calls.h"
@@ -61,11 +63,9 @@
 #include "vrrp_ipset.h"
 #endif
 #include "logger.h"
-#include "memory.h"
 #include "global_data.h"
 
 #ifdef _HAVE_LIBIPSET_
-#include <xtables.h>
 #include "vrrp_ipset.h"
 #endif
 

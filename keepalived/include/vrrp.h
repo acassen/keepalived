@@ -24,20 +24,25 @@
 #ifndef _VRRP_H
 #define _VRRP_H
 
+#include "config.h"
+
 /* system include */
-#include <unistd.h>
+#include <stdint.h>
 #include <stdbool.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#ifdef HAVE_LIBNFNETLINK_LIBNFNETLINK_H
+#include <libnfnetlink/libnfnetlink.h>
+#endif
 
 /* local include */
-#include "vrrp_ipaddress.h"
-#include "vrrp_ipsecah.h"
-#include "vrrp_if.h"
-#include "vrrp_track.h"
-#include "timer.h"
-#include "utils.h"
 #include "vector.h"
 #include "list.h"
+#include "timer.h"
 #include "notify.h"
+#include "vrrp_ipsecah.h"
+#include "vrrp_if.h"
 
 /* Special value for parameters when we want to know they haven't been set */
 #define	PARAMETER_UNSET		UINT_MAX

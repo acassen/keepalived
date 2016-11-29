@@ -23,10 +23,8 @@
 #include "config.h"
 
 /* local include */
-#include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
 #include "vrrp_netlink.h"
-#include "vrrp_if.h"
 #include "vrrp_data.h"
 #include "logger.h"
 #include "memory.h"
@@ -36,12 +34,13 @@
 
 #include <linux/icmpv6.h>
 #include <inttypes.h>
-#include <linux/rtnetlink.h>
 #if HAVE_DECL_RTA_ENCAP
 #include <linux/lwtunnel.h>
 #include <linux/mpls_iptunnel.h>
 #include <linux/ila.h>
 #endif
+
+//////#include <linux/rtnetlink.h>
 
 /* Buffer sizes for netlink messages. Increase if needed. */
 #define	RTM_SIZE		1024

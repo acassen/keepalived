@@ -28,6 +28,8 @@
 /* global includes */
 #include <openssl/ssl.h>
 
+#include "scheduler.h"
+
 /* Prototypes */
 extern void init_ssl(void);
 extern int ssl_connect(thread_t *);

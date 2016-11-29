@@ -25,10 +25,11 @@
 /* system includes */
 #include <unistd.h>
 #include <netpacket/packet.h>
+#include <net/ethernet.h>
+#include <net/if_arp.h>
 
 /* local includes */
 #include "logger.h"
-#include "memory.h"
 #include "utils.h"
 #include "bitops.h"
 #include "vrrp_scheduler.h"
@@ -51,7 +52,7 @@ static ssize_t send_arp(ip_address_t *ipaddress)
 	memset(&sll, 0, sizeof(sll));
 	sll.sll_family = AF_PACKET;
 	memcpy(sll.sll_addr, IF_HWADDR(ipaddress->ifp), ETH_ALEN);
-	sll.sll_halen = ETHERNET_HW_LEN;
+	sll.sll_halen = ETH_ALEN;
 	sll.sll_ifindex = (int)IF_INDEX(ipaddress->ifp);
 
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
@@ -83,7 +84,7 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	/* ARP payload */
 	arph->ar_hrd = htons(ARPHRD_ETHER);
 	arph->ar_pro = htons(ETHERTYPE_IP);
-	arph->ar_hln = ETHERNET_HW_LEN;
+	arph->ar_hln = ETH_ALEN;
 	arph->ar_pln = IPPROTO_ADDR_LEN;
 	arph->ar_op = htons(ARPOP_REQUEST);
 	memcpy(arph->__ar_sha, hwaddr, ETH_ALEN);

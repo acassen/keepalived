@@ -22,49 +22,41 @@
 
 #include "config.h"
 
-#include <string.h>
+#include <errno.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 #include "vrrp_daemon.h"
 #include "vrrp_scheduler.h"
-#include "vrrp_if.h"
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
 #include "vrrp_netlink.h"
-#include "vrrp_ipaddress.h"
 #include "vrrp_iptables.h"
 #ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iprule.h"
 #include "vrrp_iproute.h"
 #endif
 #include "vrrp_parser.h"
-#include "vrrp_data.h"
 #include "vrrp.h"
 #include "vrrp_print.h"
 #include "global_data.h"
 #include "pidfile.h"
-#include "daemon.h"
 #include "logger.h"
 #include "signals.h"
-#include "notify.h"
 #include "process.h"
 #include "bitops.h"
 #include "rttables.h"
-#ifdef _WITH_LVS_
-  #include "ipvswrapper.h"
-#endif
 #ifdef _WITH_SNMP_
   #include "vrrp_snmp.h"
 #endif
 #ifdef _WITH_DBUS_
   #include "vrrp_dbus.h"
 #endif
-#ifdef _HAVE_LIBIPSET_
-  #include "vrrp_ipset.h"
-#endif
 #include "list.h"
 #include "main.h"
-#include "memory.h"
 #include "parser.h"
+#include "utils.h"
 
 /* Forward declarations */
 static int print_vrrp_data(thread_t * thread);

@@ -24,14 +24,13 @@
 
 #include "config.h"
 
-#include <time.h>
+#include <errno.h>
+#include <unistd.h>
 
 #include "smtp.h"
-#include "global_data.h"
 #include "check_data.h"
-#include "scheduler.h"
 #include "memory.h"
-#include "list.h"
+#include "layer4.h"
 #include "logger.h"
 #include "utils.h"
 #if !HAVE_DECL_SOCK_CLOEXEC

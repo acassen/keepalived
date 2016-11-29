@@ -24,26 +24,31 @@
 
 #include "config.h"
 
+#include <unistd.h>
+#include <string.h>
+
 #include "vrrp_parser.h"
-#include "vrrp_data.h"
-#include "vrrp_sync.h"
-#include "vrrp_index.h"
-#include "vrrp_if.h"
-#ifdef _HAVE_VRRP_VMAC_
-#include "vrrp_vmac.h"
-#endif
-#include "vrrp.h"
+#include "logger.h"
+#include "parser.h"
+#include "bitops.h"
+#include "utils.h"
+
 #include "main.h"
 #include "global_data.h"
 #include "global_parser.h"
+
+#include "vrrp_data.h"
+#include "vrrp_index.h"
+#include "vrrp_ipaddress.h"
+#include "vrrp_sync.h"
+#include "vrrp_track.h"
+#ifdef _HAVE_VRRP_VMAC_
+#include "vrrp_vmac.h"
+#endif
+
 #ifdef _WITH_LVS_
 #include "check_parser.h"
 #endif
-#include "logger.h"
-#include "parser.h"
-#include "memory.h"
-#include "bitops.h"
-#include "notify.h"
 
 /* Static addresses handler */
 static void

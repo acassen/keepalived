@@ -6,6 +6,11 @@
 #ifndef KEEPALIVED_IP_VS_H
 #define KEEPALIVED_IP_VS_H
 
+#include "config.h"
+
+/* System includes */
+#include <sys/types.h>
+#include <netinet/in.h>
 #ifdef HAVE_LINUX_IP_VS_H
 #include <linux/ip_vs.h>
 #else

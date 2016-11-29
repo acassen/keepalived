@@ -22,18 +22,16 @@
 
 #include "config.h"
 
-#include <syslog.h>
 #include <unistd.h>
 #include <pwd.h>
-#include <netdb.h>
+
 #include "global_data.h"
-#include "memory.h"
 #include "list.h"
 #include "logger.h"
+#include "parser.h"
 #include "utils.h"
-#include "notify.h"
-#include "vrrp.h"
 #include "main.h"
+#include "vrrp_ipaddress.h"
 
 /* global vars */
 data_t *global_data = NULL;

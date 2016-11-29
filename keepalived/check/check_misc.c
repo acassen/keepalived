@@ -25,18 +25,18 @@
 
 #include "config.h"
 
+#include <errno.h>
+#include <signal.h>
+
 #include "main.h"
 #include "check_misc.h"
 #include "check_api.h"
-#include "memory.h"
 #include "ipwrapper.h"
 #include "logger.h"
 #include "smtp.h"
 #include "utils.h"
 #include "parser.h"
-#include "notify.h"
 #include "daemon.h"
-#include "signals.h"
 #include "global_data.h"
 #include "global_parser.h"
 

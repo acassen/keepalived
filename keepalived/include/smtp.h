@@ -24,13 +24,11 @@
 #define _SMTP_H
 
 /* globales includes */
-#include <netdb.h>
+#include <sys/types.h>
 
 /* local includes */
 #include "check_data.h"
-#include "vrrp_data.h"
-#include "scheduler.h"
-#include "layer4.h"
+#include "global_data.h"
 #include "vrrp.h"
 
 /* global defs */

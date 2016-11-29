@@ -23,10 +23,7 @@
 #ifndef _VRRP_IPSEC_AH_H
 #define _VRRP_IPSEC_AH_H
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <sys/types.h>
-#include <string.h>
 #include <stdint.h>
 #include <openssl/md5.h>
 #include <stdbool.h>

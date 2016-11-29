@@ -22,35 +22,33 @@
 
 #include "config.h"
 
+#include <errno.h>
+#include <netinet/ip.h>
+#include <signal.h>
+
 #include "vrrp_scheduler.h"
-#include "vrrp_ipsecah.h"
-#include "vrrp_if.h"
+#include "vrrp_track.h"
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
 #endif
-#include "vrrp.h"
 #include "vrrp_sync.h"
 #include "vrrp_notify.h"
-#include "vrrp_netlink.h"
 #include "vrrp_data.h"
 #include "vrrp_index.h"
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
 #include "vrrp_if.h"
-#include "ipvswrapper.h"
+#include "global_data.h"
 #include "memory.h"
-#include "notify.h"
 #include "list.h"
 #include "logger.h"
-#include "timer.h"
 #include "main.h"
 #include "smtp.h"
-#include "signals.h"
+#include "utils.h"
 #include "bitops.h"
 #ifdef _WITH_SNMP_
 #include "vrrp_snmp.h"
 #endif
-#include <netinet/ip.h>
 #include "vrrp_print.h"
 
 /* global vars */

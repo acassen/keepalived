@@ -24,16 +24,15 @@
 #define _VRRP_ARP_H
 
 /* system includes */
-#include <net/ethernet.h>
-#include <net/if_arp.h>
+#include <sys/types.h>
+#include <linux/if_ether.h>
 
 /* local includes */
-#include "vrrp_ipaddress.h"
-#include "scheduler.h"
 #include "vrrp.h"
+#include "vrrp_if.h"
+#include "vrrp_ipaddress.h"
 
 /* local definitions */
-#define ETHERNET_HW_LEN		6
 #define IPPROTO_ADDR_LEN	4
 
 /* types definition */

@@ -23,13 +23,11 @@
 #ifndef _GLOBAL_DATA_H
 #define _GLOBAL_DATA_H
 
+#include "config.h"
+
 /* system includes */
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <sys/socket.h>
 #include <stdbool.h>
-#include <sys/types.h>
+#include <sys/socket.h>
 
 #ifdef HAVE_LINUX_NETFILTER_X_TABLES_H
 #include <linux/netfilter/x_tables.h>
@@ -41,8 +39,8 @@
 
 /* local includes */
 #include "list.h"
+#include "vrrp_if.h"
 #include "timer.h"
-#include "vrrp.h"
 #ifdef _WITH_LVS_
 #include "ipvswrapper.h"
 #endif

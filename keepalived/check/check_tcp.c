@@ -22,8 +22,9 @@
 
 #include "config.h"
 
+#include <unistd.h>
+
 #include "check_tcp.h"
-#include "check_api.h"
 #include "memory.h"
 #include "ipwrapper.h"
 #include "layer4.h"
@@ -33,8 +34,8 @@
 #include "parser.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
-#include "string.h"
 #endif
+
 
 static int tcp_connect_thread(thread_t *);
 

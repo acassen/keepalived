@@ -29,9 +29,7 @@
 
 /* local includes */
 #include "logger.h"
-#include "memory.h"
 #include "utils.h"
-#include "vrrp_ipaddress.h"
 #include "vrrp_if_config.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_ndisc.h"
@@ -58,7 +56,7 @@ ndisc_send_na(ip_address_t *ipaddress)
 	memset(&sll, 0, sizeof (sll));
 	sll.sll_family = AF_PACKET;
 	memcpy(sll.sll_addr, IF_HWADDR(ipaddress->ifp), ETH_ALEN);
-	sll.sll_halen = ETHERNET_HW_LEN;
+	sll.sll_halen = ETH_ALEN;
 	sll.sll_ifindex = (int)IF_INDEX(ipaddress->ifp);
 
 	if (__test_bit(LOG_DETAIL_BIT, &debug)) {

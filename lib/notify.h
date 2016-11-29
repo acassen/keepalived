@@ -25,6 +25,7 @@
 
 /* system includes */
 #include <sys/types.h>
+#include <stdbool.h>
 
 /* application includes */
 #include "scheduler.h"

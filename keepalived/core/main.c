@@ -22,7 +22,6 @@
 
 #include "config.h"
 
-#include "git-commit.h"
 
 #include <stdlib.h>
 #include <sys/utsname.h>
@@ -31,17 +30,28 @@
 #ifdef HAVE_SIGNALFD
 #include <sys/signalfd.h>
 #endif
+#include <errno.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <getopt.h>
 
 #include "main.h"
-#include "config.h"
+#include "daemon.h"
 #include "signals.h"
 #include "pidfile.h"
 #include "bitops.h"
 #include "logger.h"
 #include "parser.h"
 #include "notify.h"
+#include "utils.h"
 #include "check_parser.h"
+#include "check_daemon.h"
+#include "vrrp_daemon.h"
 #include "vrrp_parser.h"
+#include "vrrp_if.h"
 #include "global_parser.h"
 #if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"

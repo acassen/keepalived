@@ -23,7 +23,7 @@
 #include "config.h"
 
 /* system include */
-#include <ctype.h>
+#include <errno.h>
 
 /* local include */
 #include "vrrp_notify.h"
@@ -31,7 +31,6 @@
 #include "vrrp_dbus.h"
 #endif
 #include "global_data.h"
-#include "memory.h"
 #include "notify.h"
 #include "logger.h"
 

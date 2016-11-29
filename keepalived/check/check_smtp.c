@@ -23,20 +23,21 @@
 
 #include "config.h"
 
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <ctype.h>
 
 #include "check_smtp.h"
-#include "check_api.h"
 #include "logger.h"
-#include "memory.h"
 #include "ipwrapper.h"
 #include "utils.h"
 #include "parser.h"
-#include "daemon.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
-#include "string.h"
 #endif
+#include "layer4.h"
+#include "smtp.h"
 
 static int smtp_connect_thread(thread_t *);
 static int smtp_final(thread_t *thread, int error, const char *format, ...)

@@ -24,12 +24,7 @@
 #define _PARSER_H
 
 /* system includes */
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
-#include <stdint.h>
-#include <syslog.h>
-#include <ctype.h>
+#include <sys/types.h>
 #include <stdbool.h>
 
 /* local includes */

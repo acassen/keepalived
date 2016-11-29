@@ -34,12 +34,12 @@
 #include "main.h"
 #include "logger.h"
 #include "parser.h"
-#include "memory.h"
 #include "utils.h"
 #include "ipwrapper.h"
 #if defined _WITH_VRRP_
 #include "vrrp_parser.h"
 #endif
+#include "libipvs.h"
 
 /* SSL handlers */
 static void

@@ -41,24 +41,20 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+#include <errno.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include <signal.h>
 #include <gio/gio.h>
 #include <ctype.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <sys/types.h>
+#include <stdlib.h>
 
 #include "vrrp_dbus.h"
 #include "vrrp_data.h"
-#include "vrrp_if.h"
 #include "vrrp_print.h"
 #include "main.h"
-#include "memory.h"
 #include "logger.h"
-#include "timer.h"
-#include "scheduler.h"
 
 typedef enum dbus_action {
 	DBUS_ACTION_NONE,
@@ -557,7 +553,7 @@ read_file(gchar* filepath)
 		fseek(f, 0, SEEK_SET);
 
 		/* We can't use MALLOC since it isn't thread safe */
-		ret = malloc(length + 1);
+		ret = MALLOC(length + 1);
 		if (ret) {
 			if (fread(ret, length, 1, f) != 1) {
 				log_message(LOG_INFO, "Failed to read all of %s", filepath);
@@ -596,7 +592,7 @@ dbus_main(__attribute__ ((unused)) void *unused)
 	if (!introspection_xml)
 		return NULL;
 	vrrp_introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, &error);
-	free(introspection_xml);
+	FREE(introspection_xml);
 	if (!vrrp_introspection_data) {
 		log_message(LOG_INFO, "%s", error->message);
 		return NULL;
@@ -606,7 +602,7 @@ dbus_main(__attribute__ ((unused)) void *unused)
 	if (!introspection_xml)
 		return NULL;
 	vrrp_instance_introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, &error);
-	free(introspection_xml);
+	FREE(introspection_xml);
 	if (!vrrp_instance_introspection_data) {
 		log_message(LOG_INFO, "%s", error->message);
 		return NULL;

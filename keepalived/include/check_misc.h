@@ -25,12 +25,8 @@
 #define _CHECK_MISC_H
 
 /* system includes */
-#include <stdlib.h>
 #include <stdbool.h>
 #include <sys/types.h>
-
-/* local includes */
-#include "scheduler.h"
 
 /* Checker argument structure  */
 typedef struct _misc_checker {

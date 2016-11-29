@@ -23,21 +23,11 @@
 #ifndef _MAIN_H
 #define _MAIN_H
 
-/* global includes */
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <getopt.h>
+#include "config.h"
 
-/* local includes */
-#include "daemon.h"
-#include "memory.h"
-#include "utils.h"
-#include "pidfile.h"
-#include "scheduler.h"
-#include "parser.h"
-#include "vrrp_daemon.h"
-#include "check_daemon.h"
-#include "global_data.h"
+/* global includes */
+#include <stdbool.h>
+#include <sys/types.h>
 
 /* State flags */
 enum daemon_bits {

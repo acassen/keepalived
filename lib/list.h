@@ -23,7 +23,7 @@
 #ifndef _LIST_H
 #define _LIST_H
 
-#include <stddef.h>
+#include <sys/types.h>
 
 /* list definition */
 typedef struct _element *element;

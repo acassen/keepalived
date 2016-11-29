@@ -24,17 +24,14 @@
 #define _VRRP_DATA_H
 
 /* system includes */
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <syslog.h>
-#include <arpa/inet.h>
+#include <stdbool.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 /* local includes */
 #include "list.h"
 #include "vector.h"
 #include "scheduler.h"
-#include "vrrp.h"
 #include "vrrp_if.h"
 
 /*

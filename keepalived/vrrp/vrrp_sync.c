@@ -25,7 +25,7 @@
 #include <stdbool.h>
 
 #include "vrrp_sync.h"
-#include "vrrp_if.h"
+#include "vrrp_track.h"
 #include "vrrp_notify.h"
 #include "vrrp_data.h"
 #ifdef _WITH_SNMP_

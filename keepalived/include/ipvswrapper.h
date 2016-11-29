@@ -23,31 +23,13 @@
 #ifndef _IPVSWRAPPER_H
 #define _IPVSWRAPPER_H
 
-/* system includes */
-#include <unistd.h>
-#include <errno.h>
-#include <sys/socket.h>
-#include <sys/param.h>
-#include <arpa/inet.h>
-#include <asm/types.h>
-#include <stdbool.h>
+#include "config.h"
 
-#include <net/if.h>
-//#include <netinet/ip_icmp.h>
-#include <netinet/udp.h>
-#include <netinet/tcp.h>
-#include <sys/wait.h>
-
-#ifdef _WITH_LVS_
-  #include "libipvs.h"
-  #include "ip_vs.h"
+/* local includes */
 #ifdef _WITH_LVS_
   #include "vrrp.h"
 #endif
-#endif
 
-/* locale includes */
-#include "scheduler.h"
 #include "check_data.h"
 
 #define IPVS_ERROR	0

@@ -22,7 +22,6 @@
 
 #include "config.h"
 
-#include <netdb.h>
 
 #include "check_data.h"
 #include "check_api.h"
@@ -30,7 +29,6 @@
 #include "global_data.h"
 #include "check_ssl.h"
 #include "logger.h"
-#include "memory.h"
 #include "utils.h"
 #include "ipwrapper.h"
 

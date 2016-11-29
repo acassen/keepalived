@@ -23,13 +23,6 @@
 #ifndef _VRRP_INDEX_H
 #define _VRRP_INDEX_H
 
-/* global includes */
-#include <stdio.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <syslog.h>
-
 /* local includes */
 #include "vrrp.h"
 

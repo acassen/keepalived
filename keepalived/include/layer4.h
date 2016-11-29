@@ -24,12 +24,6 @@
 #define _LAYER4_H
 
 /* system includes */
-#include <unistd.h>
-#include <string.h>
-#include <stdint.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 
 /* local includes */
