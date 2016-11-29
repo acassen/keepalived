@@ -39,8 +39,6 @@
 
 #define LINK_UP   1
 #define LINK_DOWN 0
-#define ARPHRD_ETHER 1
-#define ARPHRD_LOOPBACK 772
 #define POLLING_DELAY TIMER_HZ
 
 /* Interface Linkbeat code selection */

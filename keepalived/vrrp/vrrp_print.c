@@ -26,6 +26,7 @@
 #include <time.h>
 #include <errno.h>
 #include <inttypes.h>
+#include <net/if_arp.h>
 
 #include "logger.h"
 #include "rttables.h"

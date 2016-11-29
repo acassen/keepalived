@@ -39,6 +39,7 @@ typedef uint8_t u8;
 #include "old_socket.h"
 #endif
 #include <linux/sockios.h>	/* needed to get correct values for SIOC* */
+#include <net/if_arp.h>
 
 /* local include */
 #include "global_data.h"

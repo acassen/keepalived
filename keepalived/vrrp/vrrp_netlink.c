@@ -33,6 +33,7 @@
 #ifdef _HAVE_LIBNL3_
 #include <netlink/netlink.h>
 #endif
+#include <net/if_arp.h>
 
 /* local include */
 #include "check_api.h"
