@@ -6504,7 +6504,7 @@ else
 fi
 
 
-NETLINK_VER=None
+NETLINK_VER=0
 IPVS_USE_NL=No
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_socket_alloc in -lnl-3" >&5
 $as_echo_n "checking for nl_socket_alloc in -lnl-3... " >&6; }
@@ -6854,7 +6854,7 @@ fi
 fi
 
 
-if test $NETLINK_VER != None; then
+if test $NETLINK_VER -ne 0; then
   SAV_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $kernelinc"
   for ac_header in libnfnetlink/libnfnetlink.h
@@ -6872,7 +6872,7 @@ fi
 
 done
 
-  if test $NETLINK_VER = 3; then
+  if test $NETLINK_VER -eq 3; then
     CPPFLAGS="$CPPFLAGS $NL3_CFLAGS"
     for ac_header in netlink/route/link.h netlink/route/link/inet.h
 do :
@@ -7093,7 +7093,7 @@ for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF RTA_VIA FRA_OIFNAME FRA_SU
   fi
 done
 
-if test $NETLINK_VER = 3; then
+if test $NETLINK_VER -eq 3; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: checking for net/if.h and libnl3/netlink/route/link.h namespace collision" >&5
 $as_echo_n "checking for net/if.h and libnl3/netlink/route/link.h namespace collision... " >&6; }
   SAV_CPPFLAGS="$CPPFLAGS"
@@ -8958,6 +8958,10 @@ cat >>confdefs.h <<_ACEOF
 #define CONFIGURATION_OPTIONS "$BUILD_OPTIONS"
 _ACEOF
 
+
+if test $NETLINK_VER -eq 0; then
+	NETLINK_VER=None
+fi
 
 echo
 
