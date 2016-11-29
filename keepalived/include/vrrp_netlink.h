@@ -50,8 +50,12 @@ typedef struct _nl_handle {
 #define NETLINK_TIMER (86400L * TIMER_HZ)
 #ifndef _HAVE_LIBNL3_
 #ifndef _HAVE_LIBNL1_
+#ifndef NLMSG_TAIL
 #define NLMSG_TAIL(nmsg) ((struct rtattr *) (((void *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len)))
+#endif
+#ifndef SOL_NETLINK
 #define SOL_NETLINK 270
+#endif
 #endif
 #endif
 
