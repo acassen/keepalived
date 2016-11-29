@@ -343,7 +343,7 @@ make_sysctl_filename(char *dest, const char* prefix, const char* iface, const ch
 }
 
 static int
-set_sysctl(const char* prefix, const char* iface, const char* parameter, int value)
+set_sysctl(const char* prefix, const char* iface, const char* parameter, unsigned value)
 {
 	char* filename;
 	char buf[1];
@@ -371,7 +371,7 @@ set_sysctl(const char* prefix, const char* iface, const char* parameter, int val
 	return 0;
 }
 
-static int
+static unsigned
 get_sysctl(const char* prefix, const char* iface, const char* parameter)
 {
 	char *filename;
@@ -461,7 +461,7 @@ void link_set_ipv6(const interface_t* ifp, bool enable)
 	set_sysctl("net/ipv6/conf", ifp->ifname, "disable_ipv6", enable ? 0 : 1);
 }
 
-int get_ipv6_forwarding(const interface_t* ifp)
+bool get_ipv6_forwarding(const interface_t* ifp)
 {
-	return get_sysctl("net/ipv6/conf", ifp->ifname, "forwarding");
+	return !!get_sysctl("net/ipv6/conf", ifp->ifname, "forwarding");
 }
