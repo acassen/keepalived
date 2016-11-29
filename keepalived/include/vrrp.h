@@ -41,7 +41,9 @@
 #include "list.h"
 #include "timer.h"
 #include "notify.h"
+#if defined _WITH_VRRP_AUTH_
 #include "vrrp_ipsecah.h"
+#endif
 #include "vrrp_if.h"
 
 /* Special value for parameters when we want to know they haven't been set */
@@ -282,9 +284,7 @@ typedef struct _vrrp_t {
 #define VRRP_PACKET_OTHER    4	/* Multiple VRRP on LAN, Identify "other" VRRP */
 
 /* VRRP Packet fixed length */
-#ifdef _WITH_VRRP_AUTH_
 #define VRRP_AUTH_LEN		8
-#endif
 #define VRRP_VIP_TYPE		(1 << 0)
 #define VRRP_EVIP_TYPE		(1 << 1)
 
