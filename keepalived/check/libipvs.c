@@ -162,6 +162,7 @@ static struct nla_policy ipvs_stats_policy[IPVS_STATS_ATTR_MAX + 1] = {
 	CHECK_IPV4(s, ret);
 #endif
 
+#ifdef LIBIPVS_USE_NL
 #ifndef NLA_PUT_S32
 #define NLA_PUT_S32(msg, attrtype, value) \
 	NLA_PUT_TYPE(msg, int32_t, attrtype, value)
@@ -173,7 +174,6 @@ nla_get_s32(struct nlattr *attr)
 }
 #endif
 
-#ifdef LIBIPVS_USE_NL
 #ifndef FALLBACK_LIBNL1
 static int nlerr2syserr(int err)
 {
