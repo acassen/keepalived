@@ -25,7 +25,7 @@
 
 /* system includes */
 #include <asm/byteorder.h>
-#include <linux/icmpv6.h>
+#include <netinet/icmp6.h>
 #include <netinet/in.h>
 
 /* local includes */
@@ -34,22 +34,7 @@
 #include "vrrp_ipaddress.h"
 
 /* local definitions */
-#define NEXTHDR_ICMP	58
 #define NDISC_HOPLIMIT	255
-
-/*
- *	ICMPv6 codes for Neighbour Discovery messages
- */
-#define NDISC_ROUTER_SOLICITATION	133
-#define NDISC_ROUTER_ADVERTISEMENT	134
-#define NDISC_NEIGHBOUR_SOLICITATION	135
-#define NDISC_NEIGHBOUR_ADVERTISEMENT	136
-#define NDISC_REDIRECT			137
-
-/*
- *	Neighbour Discovery option codes
- */
-#define ND_OPT_TARGET_LL_ADDR	2
 
 /*
  *	IPv6 Header
@@ -73,21 +58,6 @@ struct ip6hdr {
 	struct	in6_addr	saddr;
 	struct	in6_addr	daddr;
 };
-
-/*
- *	NDISC Neighbour Advertisement related
- */
-struct ndhdr {
-	struct icmp6hdr		icmph;
-	struct in6_addr		target;
-	__u8			opt[0];
-};
-
-struct nd_opt_hdr {
-	__u8			nd_opt_type;
-	__u8			nd_opt_len;
-} __attribute__((__packed__));
-
 
 /* prototypes */
 extern void ndisc_init(void);

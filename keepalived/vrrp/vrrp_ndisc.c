@@ -26,6 +26,8 @@
 #include <unistd.h>
 #include <net/ethernet.h>
 #include <linux/if_packet.h>
+#include <netinet/icmp6.h>
+#include <netinet/in.h>
 
 /* local includes */
 #include "logger.h"
@@ -68,7 +70,7 @@ ndisc_send_na(ip_address_t *ipaddress)
 
 	/* Send packet */
 	len = sendto(ndisc_fd, ndisc_buffer,
-		     ETHER_HDR_LEN + sizeof(struct ip6hdr) + sizeof(struct ndhdr) +
+		     ETHER_HDR_LEN + sizeof(struct ip6hdr) + sizeof(struct nd_neighbor_advert) +
 		     sizeof(struct nd_opt_hdr) + ETH_ALEN, 0,
 		     (struct sockaddr *) &sll, sizeof (sll));
 	if (len < 0) {
@@ -83,7 +85,7 @@ ndisc_send_na(ip_address_t *ipaddress)
  *	ICMPv6 Checksuming.
  */
 static __sum16
-ndisc_icmp6_cksum(const struct ip6hdr *ip6, const struct icmp6hdr *icp, uint32_t len)
+ndisc_icmp6_cksum(const struct ip6hdr *ip6, const struct icmp6_hdr *icp, uint32_t len)
 {
 	size_t i;
 	register const uint16_t *sp;
@@ -135,9 +137,9 @@ ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 {
 	struct ether_header *eth = (struct ether_header *) ndisc_buffer;
 	struct ip6hdr *ip6h = (struct ip6hdr *) ((char *)eth + ETHER_HDR_LEN);
-	struct ndhdr *ndh = (struct ndhdr*) ((char *)ip6h + sizeof(struct ip6hdr));
-	struct icmp6hdr *icmp6h = &ndh->icmph;
-	struct nd_opt_hdr *nd_opt_h = (struct nd_opt_hdr *) ((char *)ndh + sizeof(struct ndhdr));
+	struct nd_neighbor_advert *ndh = (struct nd_neighbor_advert*) ((char *)ip6h + sizeof(struct ip6hdr));
+	struct icmp6_hdr *icmp6h = &ndh->nd_na_hdr;
+	struct nd_opt_hdr *nd_opt_h = (struct nd_opt_hdr *) ((char *)ndh + sizeof(struct nd_neighbor_advert));
 	char *nd_opt_lladdr = (char *) ((char *)nd_opt_h + sizeof(struct nd_opt_hdr));
 	char *lladdr = (char *) IF_HWADDR(ipaddress->ifp);
 
@@ -153,39 +155,43 @@ ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 
 	/* IPv6 Header */
 	ip6h->version = 6;
-	ip6h->payload_len = htons(sizeof(struct ndhdr) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
-	ip6h->nexthdr = NEXTHDR_ICMP;
+	ip6h->payload_len = htons(sizeof(struct nd_neighbor_advert) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
+	ip6h->nexthdr = IPPROTO_ICMPV6;
 	ip6h->hop_limit = NDISC_HOPLIMIT;
 	memcpy(&ip6h->saddr, &ipaddress->u.sin6_addr, sizeof(struct in6_addr));
 	ip6h->daddr.s6_addr16[0] = htons(0xff02);
 	ip6h->daddr.s6_addr16[7] = htons(1);
 
 	/* ICMPv6 Header */
-	icmp6h->icmp6_type = NDISC_NEIGHBOUR_ADVERTISEMENT;
-	icmp6h->icmp6_router = ifp->gna_router;
+//	icmp6h->icmp6_type = ND_NEIGHBOR_ADVERT;
+//	icmp6h->icmp6_router = ifp->gna_router;
+	ndh->nd_na_type = ND_NEIGHBOR_ADVERT;
+	if (ifp->gna_router)
+		ndh->nd_na_flags_reserved |= ND_NA_FLAG_ROUTER;
 
 	/* Override flag is set to indicate that the advertisement
 	 * should override an existing cache entry and update the
 	 * cached link-layer address.
 	 */
-	icmp6h->icmp6_override = 1;
-	ndh->target = ipaddress->u.sin6_addr;
+//	icmp6h->icmp6_override = 1;
+	ndh->nd_na_flags_reserved |= ND_NA_FLAG_OVERRIDE;
+	ndh->nd_na_target = ipaddress->u.sin6_addr;
 
 	/* NDISC Option header */
-	nd_opt_h->nd_opt_type = ND_OPT_TARGET_LL_ADDR;
+	nd_opt_h->nd_opt_type = ND_OPT_TARGET_LINKADDR;
 	nd_opt_h->nd_opt_len = 1;
 	memcpy(nd_opt_lladdr, lladdr, ETH_ALEN);
 
 	/* Compute checksum */
 	icmp6h->icmp6_cksum = ndisc_icmp6_cksum(ip6h, icmp6h,
-						sizeof(struct ndhdr) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
+						sizeof(struct nd_neighbor_advert) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
 
 	/* Send the neighbor advertisement message */
 	ndisc_send_na(ipaddress);
 
 	/* Cleanup room for next round */
 	memset(ndisc_buffer, 0, ETHER_HDR_LEN + sizeof(struct ip6hdr) +
-	       sizeof(struct ndhdr) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
+	       sizeof(struct nd_neighbor_advert) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
 
 	/* If we have to delay between sending NAs, note the next time we can */
 	if (ifp->garp_delay && ifp->garp_delay->have_gna_interval)
@@ -237,7 +243,7 @@ ndisc_init(void)
 {
 	/* Initalize shared buffer */
 	ndisc_buffer = (char *) MALLOC(ETHER_HDR_LEN + sizeof(struct ip6hdr) +
-				       sizeof(struct ndhdr) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
+				       sizeof(struct nd_neighbor_advert) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
 
 	/* Create the socket descriptor */
 	ndisc_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC, htons(ETH_P_IPV6));
