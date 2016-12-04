@@ -22,6 +22,9 @@
 
 #include "config.h"
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
 
 #include <stdlib.h>
 #include <sys/utsname.h>
@@ -827,7 +830,9 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'i':
-			config_id = optarg;
+			FREE_PTR(config_id);
+			config_id = MALLOC(strlen(optarg) + 1);
+			strcpy(config_id, optarg);
 			break;
 		default:
 			exit(0);
@@ -921,6 +926,14 @@ keepalived_main(int argc, char **argv)
 		}
 		if (!os_major)
 			log_message(LOG_INFO, "Unable to parse kernel version %s", uname_buf.release);
+
+		/* config_id defaults to hostname */
+		if (!config_id) {
+			end = strchrnul(uname_buf.nodename, '.');
+			config_id = MALLOC(end - uname_buf.nodename + 1);
+			strncpy(config_id, uname_buf.nodename, end - uname_buf.nodename);
+			config_id[end - uname_buf.nodename] = '\0';
+		}
 	}
 
 	/* Check we can read the configuration file(s).
