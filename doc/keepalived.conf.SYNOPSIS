@@ -19,6 +19,7 @@ in you configuration file use this char.
 Any configuration line starts with '@' is a conditional configuration line.
 The word immediately following (i.e. without any space) the '@' character
 is compared against the string specified with the -i command line option,
+or if none specified, the first part of the node name as returned by uname,
 and if they don't match, the configuration line is ignored.
 
 Alternatively, '@^' is a negative comparison, so if the word immediately
@@ -50,10 +51,13 @@ vrrp_instance VRRP1 {
 	}
 }
 
-If keepalived is invoked with -i main, then the router_id will be set to main_router,
-if invoked with -i backup, then backup_router, if not invoked with -i, or with
--i anything else, then the router_id will not be set. The unicast peers for main will
-be 1.2.3.5 and 1.2.3.6.
+If keepalived is invoked with -i main, or if -i is not specified and the node
+name is main.SOMETHING, then the router_id will be set to main_router,
+if invoked with -i backup, or the node name is backup, then backup_router,
+if not invoked with -i and the node name is not main or backup, or with
+-i anything else, then the router_id will not be set.
+
+The unicast peers for main will be 1.2.3.5 and 1.2.3.6.
 
 1. Globals configurations
 
