@@ -37,6 +37,7 @@
 #include "logger.h"
 #include "rttables.h"
 #include "scheduler.h"
+#include "notify.h"
 
 #define DUMP_KEYWORDS	0
 
@@ -696,4 +697,5 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 
 	free_keywords(keywords);
 	clear_rt_names();
+	notify_resource_release();
 }

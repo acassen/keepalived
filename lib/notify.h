@@ -71,5 +71,6 @@ extern int check_script_secure(notify_script_t *, bool);
 extern int check_notify_script_secure(notify_script_t **, bool);
 extern void set_default_script_user(void);
 extern notify_script_t* notify_script_init(vector_t *);
+extern void notify_resource_release(void);
 
 #endif
