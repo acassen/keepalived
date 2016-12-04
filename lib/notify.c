@@ -34,6 +34,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <pwd.h>
+#include <sys/resource.h>
+#include <limits.h>
 
 #include "notify.h"
 #include "signals.h"
@@ -51,11 +53,20 @@ bool script_security = false;
 static char *path;
 static bool path_is_malloced;
 
+/* The priority this process is running at */
+static int cur_prio = INT_MAX;
+
 /* perform a system call */
 static int
 system_call(const char *cmdline, uid_t uid, gid_t gid)
 {
 	int retval;
+
+	/* If we have increased our priority, set it to default for the script */
+	if (cur_prio != INT_MAX)
+		cur_prio = getpriority(PRIO_PROCESS, 0);
+	if (cur_prio < 0)
+		setpriority(PRIO_PROCESS, 0, 0);
 
 	/* Drop our privileges if configured */
 	if (gid) {
