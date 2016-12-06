@@ -45,7 +45,6 @@ typedef struct _notify_script {
 	char*	cmd_str;	/* Script command string (only used for dumping config)*/
 	uid_t	uid;		/* uid of user to execute script */
 	gid_t	gid;		/* gid of group to execute script */
-	bool	executable;	/* script is executable for uid:gid */
 } notify_script_t;
 
 static inline void
