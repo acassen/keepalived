@@ -61,6 +61,7 @@
 #endif
 #include "scheduler.h"
 #include "vrrp_netlink.h"
+#include "git-commit.h"
 
 #define	LOG_FACILITY_MAX	7
 #define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" VERSION_DATE ")"
