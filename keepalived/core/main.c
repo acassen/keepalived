@@ -671,10 +671,11 @@ usage(const char *prog)
 }
 
 /* Command line parser */
-static void
+static bool
 parse_cmdline(int argc, char **argv)
 {
 	int c;
+	bool reopen_log = false;
 
 	struct option long_options[] = {
 		{"use-file",          required_argument, 0, 'f'},
@@ -752,6 +753,7 @@ parse_cmdline(int argc, char **argv)
 			break;
 		case 'l':
 			__set_bit(LOG_CONSOLE_BIT, &debug);
+			reopen_log = true;
 			break;
 		case 'n':
 			__set_bit(DONT_FORK_BIT, &debug);
@@ -776,6 +778,7 @@ parse_cmdline(int argc, char **argv)
 			break;
 		case 'S':
 			log_facility = LOG_FACILITY[atoi(optarg)].facility;
+			reopen_log = true;
 			break;
 		case 'f':
 			conf_file = optarg;
@@ -846,6 +849,8 @@ parse_cmdline(int argc, char **argv)
 			printf("%s ", argv[optind++]);
 		printf("\n");
 	}
+
+	return reopen_log;
 }
 
 /* Entry point */
@@ -874,13 +879,21 @@ keepalived_main(int argc, char **argv)
 	__set_bit(DAEMON_CHECKERS, &daemon_mode);
 #endif
 
+	/* Open log with default settings so we can log initially */
+	openlog(PACKAGE_NAME, LOG_PID, log_facility);
+
+#ifdef _MEM_CHECK_
+	mem_log_init(PACKAGE_NAME, "Parent process");
+#endif
+
 	/*
 	 * Parse command line and set debug level.
 	 * bits 0..7 reserved by main.c
 	 */
-	parse_cmdline(argc, argv);
-
-	openlog(PACKAGE_NAME, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0) , log_facility);
+	if (parse_cmdline(argc, argv)) {
+		closelog();
+		openlog(PACKAGE_NAME, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0) , log_facility);
+	}
 
 	if (__test_bit(LOG_CONSOLE_BIT, &debug))
 		enable_console_log();
@@ -889,10 +902,6 @@ keepalived_main(int argc, char **argv)
 	log_message(LOG_INFO, "Starting %s, git commit %s", version_string, GIT_COMMIT);
 #else
 	log_message(LOG_INFO, "Starting %s", version_string);
-#endif
-
-#ifdef _MEM_CHECK_
-	mem_log_init(PACKAGE_NAME, "Parent process");
 #endif
 
 	/* Handle any core file requirements */
