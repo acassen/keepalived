@@ -40,6 +40,34 @@ if invoked with -i backup, or the node name is backup, then backup_router,
 if not invoked with -i and the node name is not main or backup, or with
 -i anything else, then the router_id will not be set.
 
+0.3. Scripts
+
+There are three classes of scripts can be configured to be executed.
+
+a. Notify scripts that are run when a vrrp instance or vrrp group changes state,
+   or a virtual server quorum changes between up and down.
+
+b. vrrp tracking scripts that will cause vrrp instances to go down it they exit
+   a non-zero exist status, or if a weight is specified will add or subtract the
+   weight to/from the priority of that vrrp instance.
+
+c. LVS checker misc scripts that will cause a real server to be configured down
+   if they exit with a non-zero status.
+
+By default the scripts will be executed by user keepalived_script if that user
+exists, or if not by root, but for each script the user/group under which it is
+to be executed can be specified.
+
+There are significant security implications if scripts are executed with root
+privileges, especially if the scripts themselves are modifiable or replaceable
+by a non root user. Consequently, security checks are made at startup to ensure
+that if a script is executed by root, then it cannot be modified or replaced by
+a non root user.
+
+All scripts should be written so that they will terminate on receipt of a SIGTERM
+signal. Scripts will be sent SIGTERM if their parent terminates, or it is a script
+the keepalived is awaiting its exit status and it has run for too long.
+
 1. Globals configurations
 
 This block is divided in 4 sub-blocks :

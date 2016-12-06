@@ -36,6 +36,7 @@
 #include <pwd.h>
 #include <sys/resource.h>
 #include <limits.h>
+#include <sys/prctl.h>
 
 #include "notify.h"
 #include "signals.h"
@@ -61,6 +62,9 @@ static int
 system_call(char ** cmdline, uid_t uid, gid_t gid)
 {
 	int retval;
+
+	/* Ensure we receive SIGTERM if our parent process dies */
+	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	/* If we have increased our priority, set it to default for the script */
 	if (cur_prio != INT_MAX)
