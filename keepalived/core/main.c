@@ -193,6 +193,7 @@ free_parent_mallocs_exit(void)
 #endif
 
 	FREE_PTR(instance_name);
+	FREE_PTR(config_id);
 }
 
 char *
