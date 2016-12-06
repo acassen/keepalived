@@ -114,6 +114,9 @@ typedef enum {
 /* global vars exported */
 extern thread_master_t *master;
 prog_type_t prog_type;		/* Parent/VRRP/Checker process */
+#ifdef _WITH_SNMP_
+extern bool snmp_running;
+#endif
 
 /* Prototypes. */
 extern void set_child_finder(bool (*)(pid_t, char const **));

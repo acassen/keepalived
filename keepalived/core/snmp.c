@@ -20,7 +20,9 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
+#include "config.h"
 
+#include "scheduler.h"
 #include "snmp.h"
 #include "logger.h"
 #include "global_data.h"
@@ -313,6 +315,8 @@ snmp_agent_init(const char *snmp_socket, bool base_mib)
 				  sizeof(struct variable8),
 				  sizeof(global_vars)/sizeof(struct variable8));
 	init_snmp(global_name);
+
+	snmp_running = true;
 }
 
 void
@@ -321,4 +325,6 @@ snmp_agent_close(bool base_mib)
 	if (base_mib)
 		snmp_unregister_mib(global_oid, OID_LENGTH(global_oid));
 	snmp_shutdown(global_name);
+
+	snmp_running = false;
 }

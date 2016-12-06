@@ -51,7 +51,10 @@
 
 /* global vars */
 thread_master_t *master = NULL;
-prog_type_t prog_type;              /* Parent/VRRP/Checker process */
+prog_type_t prog_type;		/* Parent/VRRP/Checker process */
+#ifdef _WITH_SNMP_
+bool snmp_running;		/* True if this process is running SNMP */
+#endif
 
 /* Function that returns if pid is a known child, and sets *prog_name accordingly */
 static bool (*child_finder)(pid_t pid, char const **prog_name);
@@ -621,7 +624,6 @@ thread_fetch(thread_master_t * m, thread_t * fetch)
 	timeval_t timer_wait;
 	int signal_fd;
 #ifdef _WITH_SNMP_
-	timeval_t snmp_timer_wait;
 	int snmpblock = 0;
 	int fdsetsize;
 #endif
@@ -675,23 +677,23 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* When SNMP is enabled, we may have to select() on additional
 	 * FD. snmp_select_info() will add them to `readfd'. The trick
 	 * with this function is its last argument. We need to set it
-	 * to 0 and we need to use the provided new timer only if it
-	 * is still set to 0. */
-	fdsetsize = FD_SETSIZE;
-	snmpblock = 0;
-	memcpy(&snmp_timer_wait, &timer_wait, sizeof(timeval_t));
-	snmp_select_info(&fdsetsize, &readfd, &snmp_timer_wait, &snmpblock);
-	if (snmpblock == 0)
-		memcpy(&timer_wait, &snmp_timer_wait, sizeof(timeval_t));
+	 * to 0 to update our timer. */
+	if (snmp_running) {
+		fdsetsize = FD_SETSIZE;
+		snmpblock = 0;
+		snmp_select_info(&fdsetsize, &readfd, &timer_wait, &snmpblock);
+	}
 #endif
 
 #ifdef _TIMER_DEBUG_
-	if (prog_type == PROG_TYPE_VRRP)
+	/* if (prog_type == PROG_TYPE_VRRP) */
 		log_message(LOG_INFO, "select with timer %ld.%6.6ld", timer_wait.tv_sec, timer_wait.tv_usec);
 #endif
+
 	ret = select(FD_SETSIZE, &readfd, &writefd, &exceptfd, &timer_wait);
+
 #ifdef _TIMER_DEBUG_
-	if (prog_type == PROG_TYPE_VRRP)
+	/* if (prog_type == PROG_TYPE_VRRP) */
 		log_message(LOG_INFO, "Select returned %d", ret);
 #endif
 
@@ -700,10 +702,12 @@ retry:	/* When thread can't fetch try to find next thread again. */
 
 	/* Handle SNMP stuff */
 #ifdef _WITH_SNMP_
-	if (ret > 0)
-		snmp_read(&readfd);
-	else if (ret == 0)
-		snmp_timeout();
+	if (snmp_running) {
+		if (ret > 0)
+			snmp_read(&readfd);
+		else if (ret == 0)
+			snmp_timeout();
+	}
 #endif
 
 	/* handle signals synchronously, including child reaping */
