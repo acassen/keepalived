@@ -372,34 +372,31 @@ find_path(notify_script_t *script)
 		ret = stat (buffer, &buf);
 		if (!ret) {
 			if (!S_ISREG(buf.st_mode))
-				ret = EACCES;
+				errno = EACCES;
 			else if (!is_executable(&buf, script->uid, script->gid)) {
-				ret = EACCES;
+				errno = EACCES;
+			} else {
+				/* Success */
+				log_message(LOG_INFO, "WARNING - script `%s` resolved by path search to `%s`. Please specify full path.", script->args[0], buffer); 
+
+				/* Copy the found file name, and any parameters */
+				replace_cmd_name(script, buffer);
+
+				ret_val = 0;
+				got_eacces = false;
+				goto exit;
 			}
 		}
-		else
-			ret = errno;
 
-		if (!ret) {
-			/* Success */
-			log_message(LOG_INFO, "WARNING - script `%s` resolved by path search to `%s`. Please specify full path.", script->args[0], buffer); 
-
-			/* Copy the found file name, and any parameters */
-			replace_cmd_name(script, buffer);
-
-			ret_val = 0;
-			got_eacces = false;
-			goto exit;
-		}
-
-		switch (ret)
+		switch (errno)
 		{
 		case ENOEXEC:
 		case EACCES:
 			/* Record that we got a 'Permission denied' error.  If we end
 			   up finding no executable we can use, we want to diagnose
 			   that we did find one but were denied access. */
-			got_eacces = true;
+			if (!ret)
+				got_eacces = true;
 		case ENOENT:
 		case ESTALE:
 		case ENOTDIR:
