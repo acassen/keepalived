@@ -268,10 +268,7 @@ vrrp_sync_master(vrrp_t * vrrp)
 	if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
 		return;
 	if (!vrrp_sync_goto_master(vrrp))
-{
-log_message(LOG_INFO, "sync from %s not master for %s", vrrp->sync->gname, vrrp->iname);
 		return;
-}
 
 	log_message(LOG_INFO, "VRRP_Group(%s) Syncing instances to MASTER state", GROUP_NAME(vgroup));
 

@@ -206,11 +206,9 @@ check_vrrp_script_security(void)
 			next = e1->next;
 			track_script = ELEMENT_DATA(e1);
 			script_flags |= (flags = check_track_script_secure(track_script));
-log_message(LOG_INFO, "Checking track script %s for %s returned 0x%x", track_script->scr->sname, vrrp->iname, flags);
 
 			if (track_script->scr->insecure) {
 				/* Remove it from the vrrp instance's queue */
-log_message(LOG_INFO, "Removing track script %s from %s", track_script->scr->sname, vrrp->iname);
 				free_list_element(vrrp->track_script, e1);
 			}
 		}
@@ -237,10 +235,6 @@ log_message(LOG_INFO, "Removing track script %s from %s", track_script->scr->sna
 		vscript = ELEMENT_DATA(e);
 
 		if (vscript->insecure) {
-log_message(LOG_INFO, "Removing tracking script %s%s%s",
-	vscript->sname,
-	vscript->insecure ? ", insecure" : "",
-	vscript->result == VRRP_SCRIPT_STATUS_DISABLED ? ", unused" : "");
 			free_list_element(vrrp_data->vrrp_script, e);
 		}
 	}

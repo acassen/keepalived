@@ -807,8 +807,6 @@ vrrp_dispatcher_read_timeout(int fd)
 		printf("Send [%s] TSM transtition : [%d,%d] Wantstate = [%d]\n",
 			vrrp->iname, prev_state, vrrp->state, vrrp->wantstate);
 #endif
-if (vrrp->state == VRRP_STATE_FAULT || prev_state == VRRP_STATE_FAULT)
-log_message(LOG_INFO, "%s TSM timeout called for %s to %s, ms_down_timer %u", vrrp->iname, get_state_str(prev_state), get_state_str(vrrp->state), vrrp->ms_down_timer);
 		VRRP_TSM_HANDLE(prev_state, vrrp);
 
 		vrrp_init_instance_sands(vrrp);
@@ -860,8 +858,6 @@ vrrp_dispatcher_read(sock_t * sock)
 	printf("Read [%s] TSM transtition : [%d,%d] Wantstate = [%d]\n",
 		vrrp->iname, prev_state, vrrp->state, vrrp->wantstate);
 #endif
-if (vrrp->state == VRRP_STATE_FAULT || prev_state == VRRP_STATE_FAULT)
-log_message(LOG_INFO, "%s TSM read called for %s to %s, ms_down_timer %u", vrrp->iname, get_state_str(prev_state), get_state_str(vrrp->state), vrrp->ms_down_timer);
 	VRRP_TSM_HANDLE(prev_state, vrrp);
 
 	vrrp_init_instance_sands(vrrp);
