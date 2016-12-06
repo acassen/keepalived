@@ -347,7 +347,7 @@ fi
 AM_CONDITIONAL([BUILD_GENHASH], [test $BUILD_GENHASH = Yes])
 
 dnl ----[ Checks for libraries ]----
-NETLINK_VER=None
+NETLINK_VER=0
 IPVS_USE_NL=No
 AC_CHECK_LIB(nl-3, nl_socket_alloc,
   [
@@ -382,12 +382,12 @@ AC_CHECK_LIB(nl-3, nl_socket_alloc,
       ])
   ])
 
-if test $NETLINK_VER != None; then
+if test $NETLINK_VER -ne 0; then
   SAV_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $kernelinc"
   AC_CHECK_HEADERS(libnfnetlink/libnfnetlink.h,,AC_MSG_ERROR([
     !!! Please install libnfnetlink headers.              !!!]))
-  if test $NETLINK_VER = 3; then
+  if test $NETLINK_VER -eq 3; then
     CPPFLAGS="$CPPFLAGS $NL3_CFLAGS"
     AC_CHECK_HEADERS([netlink/route/link.h netlink/route/link/inet.h], [], [AC_MSG_ERROR([libnl-3 headers missing])])
   fi
@@ -430,7 +430,7 @@ done
 
 dnl ----[Check if have net/if.h and netlink/route/link.h namespace collision]----
 dnl -- Resolved in libnl3-3.2.26 (release 30/3/2015)
-if test $NETLINK_VER = 3; then
+if test $NETLINK_VER -eq 3; then
   AC_MSG_CHECKING([for net/if.h and libnl3/netlink/route/link.h namespace collision])
   SAV_CPPFLAGS="$CPPFLAGS"
   CPPFLAGS="$CPPFLAGS $NL3_CFLAGS"
@@ -1059,6 +1059,10 @@ VERSION_YEAR=`date +%Y`
 AC_DEFINE_UNQUOTED([VERSION_DATE], ["$VERSION_DATE"], [Date of build configuration])
 AC_DEFINE_UNQUOTED([COPYRIGHT_YEAR], ["$VERSION_YEAR"], [Year of build configuration])
 AC_DEFINE_UNQUOTED([CONFIGURATION_OPTIONS], ["$BUILD_OPTIONS"], [The configuration and build options from which the package is built])
+
+if test $NETLINK_VER -eq 0; then
+	NETLINK_VER=None
+fi
 
 dnl ----[ Process output target ]----
 echo
