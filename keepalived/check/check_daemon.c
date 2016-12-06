@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include <string.h>
+#include <sys/prctl.h>
 
 #include "check_daemon.h"
 #include "check_parser.h"
@@ -307,6 +308,7 @@ start_check_child(void)
 				 pid, RESPAWN_TIMER);
 		return 0;
 	}
+	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	if ((instance_name
 #if HAVE_DECL_CLONE_NEWNET

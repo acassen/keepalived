@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include <string.h>
+#include <sys/prctl.h>
 
 #include "vrrp_daemon.h"
 #include "vrrp_scheduler.h"
@@ -472,6 +473,7 @@ start_vrrp_child(void)
 				 pid, RESPAWN_TIMER);
 		return 0;
 	}
+	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	signal_handler_destroy();
 
