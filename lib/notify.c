@@ -467,16 +467,16 @@ check_script_secure(notify_script_t *script)
 		/* It is a bare file name, so do a path search */
 		if ((ret = find_path(script))) {
 			if (ret == EACCES)
-				log_message(LOG_INFO, "Permissions failure for script %s in path", script->cmd_str);
+				log_message(LOG_INFO, "Permissions failure for script %s in path - disabling", script->cmd_str);
 			else
-				log_message(LOG_INFO, "Cannot find script %s in path", script->cmd_str);
+				log_message(LOG_INFO, "Cannot find script %s in path - disabling", script->cmd_str);
 			return SC_NOTFOUND;
 		}
 	}
 
 	/* Get the permissions for the file itself */
 	if (stat(script->args[0], &file_buf)) {
-		log_message(LOG_INFO, "Unable to access script `%s`", script->cmd_str);
+		log_message(LOG_INFO, "Unable to access script `%s` - disabling", script->cmd_str);
 		return SC_NOTFOUND;
 	}
 
@@ -525,9 +525,9 @@ check_script_secure(notify_script_t *script)
 
 		if (ret) {
 			if (errno == EACCES || errno == ELOOP || errno == ENOENT || errno == ENOTDIR)
-				log_message(LOG_INFO, "check_script_secure could not find script '%s'", script->cmd_str);
+				log_message(LOG_INFO, "check_script_secure could not find script '%s' - disabling", script->cmd_str);
 			else
-				log_message(LOG_INFO, "check_script_secure('%s') returned errno %d - %s", script->cmd_str, errno, strerror(errno));
+				log_message(LOG_INFO, "check_script_secure('%s') returned errno %d - %s - disabling", script->cmd_str, errno, strerror(errno));
 			return flags | SC_NOTFOUND;
 		}
 
@@ -536,7 +536,7 @@ check_script_secure(notify_script_t *script)
 		      buf.st_mode & S_IFREG) &&			/* This is a file */
 		     ((buf.st_gid && buf.st_mode & S_IWGRP) ||	/* Group is not root and group write permission */
 		      buf.st_mode & S_IWOTH))) {		/* World has write permission */
-			log_message(LOG_INFO, "Unsafe permissions found for script '%s'.", script->cmd_str);
+			log_message(LOG_INFO, "Unsafe permissions found for script '%s'%s.", script->cmd_str, script_security ? " - disabling" : "");
 			flags |= SC_INSECURE;
 			if (script_security)
 				flags |= SC_INHIBIT;
@@ -559,15 +559,8 @@ check_notify_script_secure(notify_script_t **script_p)
 	flags = check_script_secure(script);
 
 	/* Mark not to run if needs inhibiting */
-	if (flags & SC_INHIBIT) {
-		log_message(LOG_INFO, "Disabling notify script %s due to insecure", script->cmd_str);
-		free_notify_script(script_p);
-	}
-	else if (flags & SC_NOTFOUND) {
-		log_message(LOG_INFO, "Disabling notify script %s since not found", script->cmd_str);
-		free_notify_script(script_p);
-	}
-	else if (!(flags & SC_EXECUTABLE))
+	if ((flags & (SC_INHIBIT | SC_NOTFOUND)) ||
+	    !(flags & SC_EXECUTABLE))
 		free_notify_script(script_p);
 
 	return flags;
