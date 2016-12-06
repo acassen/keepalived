@@ -25,6 +25,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <unistd.h>
+#include <sys/prctl.h>
 
 #include "check_daemon.h"
 #include "check_parser.h"
@@ -303,6 +304,7 @@ start_check_child(void)
 				 pid, RESPAWN_TIMER);
 		return 0;
 	}
+	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	prog_type = PROG_TYPE_CHECKER;
 
