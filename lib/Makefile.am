@@ -32,9 +32,9 @@ EXTRA_DIST		= $(GIT_COMMIT_FILE)
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 
-.PHONY: $(GIT_COMMIT_FILE)
+.FORCE:
 
-$(GIT_COMMIT_FILE):
+$(GIT_COMMIT_FILE): .FORCE
 	@if [ ! -f $(srcdir)/$(GIT_COMMIT_FILE) -a ! -f $(builddir)/$(GIT_COMMIT_FILE) ]; then \
 		>$(builddir)/$(GIT_COMMIT_FILE); \
 	fi; \
@@ -45,7 +45,7 @@ $(GIT_COMMIT_FILE):
 			GIT_REV=`git describe --tags`; \
 			echo $${GIT_REV} | grep -qE -- "-[1-9][0-9]*-g[0-9a-f]{7}$$"; \
 			if [ $$? -eq 0 ]; then \
-				if [ "`git status --porcelain | wc -l`" -ne 0 ]; then EXTRA="+"; else EXTRA=""; fi ; \
+				if [ "`git status --porcelain | grep -v '^??' | wc -l`" -ne 0 ]; then EXTRA="+"; else EXTRA=""; fi ; \
 				echo "#define GIT_COMMIT \"$${GIT_REV}$${EXTRA}\"" >$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
 				diff -q $(abs_builddir)/$(GIT_COMMIT_FILE) $(abs_builddir)/$(GIT_COMMIT_FILE).new 2>/dev/null >/dev/null; \
 				if [ $$? -eq 0 ]; then \
