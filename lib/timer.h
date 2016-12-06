@@ -36,9 +36,10 @@ extern timeval_t time_now;
 #define TIMER_HZ		1000000U
 #define TIMER_CENTI_HZ		10000U
 #define TIMER_MAX_SEC		1000U
-#define TIMER_NEVER		LONG_MAX
+#define TIMER_NEVER		ULONG_MAX	/* Used with time intervals in TIMER_HZ units */
+#define TIMER_DISABLED		LONG_MIN	/* Value in timeval_t tv_sec */
 
-/* Some usefull macros */
+/* Some useful macros */
 #define timer_sec(T) ((T).tv_sec)
 #define timer_long(T) (unsigned long)(((T).tv_sec * TIMER_HZ + (T).tv_usec))
 #define timer_isnull(T) ((T).tv_sec == 0 && (T).tv_usec == 0)

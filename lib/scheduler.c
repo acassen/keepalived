@@ -168,6 +168,11 @@ thread_list_add_timeval(thread_list_t * list, thread_t * thread)
 {
 	thread_t *tt;
 
+	if (thread->sands.tv_sec == TIMER_DISABLED) {
+		thread_list_add(list, thread);
+		return;
+	}
+
 	for (tt = list->head; tt; tt = tt->next) {
 		if (timer_cmp(thread->sands, tt->sands) <= 0)
 			break;
@@ -330,8 +335,12 @@ thread_add_read(thread_master_t * m, int (*func) (thread_t *)
 	thread->u.fd = fd;
 
 	/* Compute read timeout value */
-	set_time_now();
-	thread->sands = timer_add_long(time_now, timer);
+	if (timer == TIMER_NEVER)
+		thread->sands.tv_sec = TIMER_DISABLED;
+	else {
+		set_time_now();
+		thread->sands = timer_add_long(time_now, timer);
+	}
 
 	/* Sort the thread. */
 	thread_list_add_timeval(&m->read, thread);
@@ -400,8 +409,12 @@ thread_add_write(thread_master_t * m, int (*func) (thread_t *)
 	thread->u.fd = fd;
 
 	/* Compute write timeout value */
-	set_time_now();
-	thread->sands = timer_add_long(time_now, timer);
+	if (timer == TIMER_NEVER)
+		thread->sands.tv_sec = TIMER_DISABLED;
+	else {
+		set_time_now();
+		thread->sands = timer_add_long(time_now, timer);
+	}
 
 	/* Sort the thread. */
 	thread_list_add_timeval(&m->write, thread);
@@ -426,8 +439,12 @@ thread_add_timer(thread_master_t * m, int (*func) (thread_t *)
 	thread->arg = arg;
 
 	/* Do we need jitter here? */
-	set_time_now();
-	thread->sands = timer_add_long(time_now, timer);
+	if (timer == TIMER_NEVER)
+		thread->sands.tv_sec = TIMER_DISABLED;
+	else {
+		set_time_now();
+		thread->sands = timer_add_long(time_now, timer);
+	}
 
 	/* Sort by timeval. */
 	thread_list_add_timeval(&m->timer, thread);
@@ -453,9 +470,13 @@ thread_add_child(thread_master_t * m, int (*func) (thread_t *)
 	thread->u.c.pid = pid;
 	thread->u.c.status = 0;
 
-	/* Compute write timeout value */
-	set_time_now();
-	thread->sands = timer_add_long(time_now, timer);
+	/* Compute child timeout value */
+	if (timer == TIMER_NEVER)
+		thread->sands.tv_sec = TIMER_DISABLED;
+	else {
+		set_time_now();
+		thread->sands = timer_add_long(time_now, timer);
+	}
 
 	/* Sort by timeval. */
 	thread_list_add_timeval(&m->child, thread);
@@ -578,6 +599,9 @@ thread_update_timer(thread_list_t *list, timeval_t *timer_min)
 	if (!list->head)
 		return;
 
+	if (list->head->sands.tv_sec == TIMER_DISABLED)
+		return;
+
 	if (timer_isnull(*timer_min) ||
 	    timer_cmp(list->head->sands, *timer_min) <= 0)
 		*timer_min = list->head->sands;
@@ -596,9 +620,8 @@ thread_compute_timer(thread_master_t * m, timeval_t * timer_wait)
 	thread_update_timer(&m->read, &timer_min);
 	thread_update_timer(&m->child, &timer_min);
 
-	/* Take care about monotonic clock and
-	 * set timer to maximum 1 second */
 	if (!timer_isnull(timer_min)) {
+		/* Take care about monotonic clock */
 		timer_min = timer_sub(timer_min, time_now);
 		if (timer_min.tv_sec < 0) {
 			timer_min.tv_sec = timer_min.tv_usec = 0;
@@ -607,7 +630,8 @@ thread_compute_timer(thread_master_t * m, timeval_t * timer_wait)
 		timer_wait->tv_sec = timer_min.tv_sec;
 		timer_wait->tv_usec = timer_min.tv_usec;
 	} else {
-		timer_wait->tv_sec = 1;
+		/* set timer to a VERY long time */
+		timer_wait->tv_sec = LONG_MAX;
 		timer_wait->tv_usec = 0;
 	}
 }

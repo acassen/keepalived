@@ -98,7 +98,7 @@ typedef enum {
 
 /* MICRO SEC def */
 #define BOOTSTRAP_DELAY TIMER_HZ
-#define RESPAWN_TIMER	60*TIMER_HZ
+#define RESPAWN_TIMER	TIMER_NEVER
 
 /* Macros. */
 #define THREAD_ARG(X) ((X)->arg)
