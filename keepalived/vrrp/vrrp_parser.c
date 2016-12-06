@@ -120,13 +120,13 @@ vrrp_group_handler(vector_t *strvec)
 }
 
 static inline notify_script_t*
-set_vrrp_notify_script(vector_t *strvec)
+set_vrrp_notify_script(vector_t *strvec, bool with_params)
 {
-	notify_script_t *script = notify_script_init(strvec);
+	notify_script_t *script = notify_script_init(strvec, with_params);
 
 	if (vector_size(strvec) > 2) {
 		if (set_script_uid_gid(strvec, 2, &script->uid, &script->gid))
-			log_message(LOG_INFO, "Invalid user/group for notify script %s", script->name);
+			log_message(LOG_INFO, "Invalid user/group for notify script %s", script->cmd_str);
 	}
 
 	return script;
@@ -136,28 +136,28 @@ static void
 vrrp_gnotify_backup_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
-	vgroup->script_backup = set_vrrp_notify_script(strvec);
+	vgroup->script_backup = set_vrrp_notify_script(strvec, true);
 	vgroup->notify_exec = true;
 }
 static void
 vrrp_gnotify_master_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
-	vgroup->script_master = set_vrrp_notify_script(strvec);
+	vgroup->script_master = set_vrrp_notify_script(strvec, true);
 	vgroup->notify_exec = true;
 }
 static void
 vrrp_gnotify_fault_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
-	vgroup->script_fault = set_vrrp_notify_script(strvec);
+	vgroup->script_fault = set_vrrp_notify_script(strvec, true);
 	vgroup->notify_exec = true;
 }
 static void
 vrrp_gnotify_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
-	vgroup->script = set_vrrp_notify_script(strvec);
+	vgroup->script = set_vrrp_notify_script(strvec, false);
 	vgroup->notify_exec = true;
 }
 static void
@@ -447,35 +447,35 @@ static void
 vrrp_notify_backup_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->script_backup = set_vrrp_notify_script(strvec);
+	vrrp->script_backup = set_vrrp_notify_script(strvec, true);
 	vrrp->notify_exec = true;
 }
 static void
 vrrp_notify_master_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->script_master = set_vrrp_notify_script(strvec);
+	vrrp->script_master = set_vrrp_notify_script(strvec, true);
 	vrrp->notify_exec = true;
 }
 static void
 vrrp_notify_fault_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->script_fault = set_vrrp_notify_script(strvec);
+	vrrp->script_fault = set_vrrp_notify_script(strvec, true);
 	vrrp->notify_exec = true;
 }
 static void
 vrrp_notify_stop_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->script_stop = set_vrrp_notify_script(strvec);
+	vrrp->script_stop = set_vrrp_notify_script(strvec, true);
 	vrrp->notify_exec = true;
 }
 static void
 vrrp_notify_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->script = set_vrrp_notify_script(strvec);
+	vrrp->script = set_vrrp_notify_script(strvec, false);
 	vrrp->notify_exec = true;
 }
 static void
@@ -677,9 +677,10 @@ static void
 vrrp_vscript_script_handler(vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	vscript->script = set_value(strvec);
-	vscript->uid = default_script_uid;
-	vscript->gid = default_script_gid;
+	vscript->script.args = set_script_params_array(strvec, true);
+	vscript->script.cmd_str = set_value(strvec);
+	vscript->script.uid = default_script_uid;
+	vscript->script.gid = default_script_gid;
 }
 static void
 vrrp_vscript_interval_handler(vector_t *strvec)
@@ -723,8 +724,8 @@ static void
 vrrp_vscript_user_handler(vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	if (set_script_uid_gid(strvec, 1, &vscript->uid, &vscript->gid))
-		log_message(LOG_INFO, "Unable to set uid/gid for script %s", vscript->script);
+	if (set_script_uid_gid(strvec, 1, &vscript->script.uid, &vscript->script.gid))
+		log_message(LOG_INFO, "Unable to set uid/gid for script %s", vscript->script.cmd_str);
 }
 static void
 vrrp_vscript_init_fail_handler(__attribute__((unused)) vector_t *strvec)

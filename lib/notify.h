@@ -41,7 +41,8 @@
 
 /* notify_script details */
 typedef struct _notify_script {
-	char	*name;		/* Script name */
+	char**	args;		/* Script args */
+	char*	cmd_str;	/* Script command string (only used for dumping config)*/
 	uid_t	uid;		/* uid of user to execute script */
 	gid_t	gid;		/* gid of group to execute script */
 	bool	executable;	/* script is executable for uid:gid */
@@ -52,7 +53,8 @@ free_notify_script(notify_script_t **script)
 {
 	if (!*script)
 		return;
-	FREE_PTR((*script)->name);
+	FREE_PTR((*script)->args);
+	FREE_PTR((*script)->cmd_str);
 	FREE_PTR(*script);
 }
 
@@ -64,13 +66,14 @@ extern gid_t default_script_gid;
 extern bool script_security;
 
 /* prototypes */
-extern int system_call_script(thread_master_t *, int (*) (thread_t *), void *, unsigned long, const char*, uid_t, gid_t);
+extern int system_call_script(thread_master_t *, int (*) (thread_t *), void *, unsigned long, notify_script_t *);
 extern int notify_exec(const notify_script_t *);
 extern void script_killall(thread_master_t *, int);
-extern int check_script_secure(notify_script_t *, bool);
-extern int check_notify_script_secure(notify_script_t **, bool);
+extern int check_script_secure(notify_script_t *);
+extern int check_notify_script_secure(notify_script_t **);
 extern void set_default_script_user(void);
-extern notify_script_t* notify_script_init(vector_t *);
+extern char **set_script_params_array(vector_t *, bool);
+extern notify_script_t* notify_script_init(vector_t *, bool);
 extern void notify_resource_release(void);
 
 #endif

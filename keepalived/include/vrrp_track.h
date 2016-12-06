@@ -53,7 +53,7 @@
 /* external script we call to track local processes */
 typedef struct _vrrp_script {
 	char			*sname;		/* instance name */
-	char			*script;	/* the command to be called */
+	notify_script_t		script;		/* The script details */
 	unsigned long		interval;	/* interval between script calls */
 	unsigned long		timeout;	/* microseconds before script timeout */
 	int			weight;		/* weight associated to this script */
@@ -63,8 +63,6 @@ typedef struct _vrrp_script {
 	list			vrrp;		/* List of vrrp instances using this script */
 	int8_t			last_status;	/* Last status returned by script. Used to report changes */
 	bool			forcing_termination;	/* Set if script didn't respond and we sent it SIGTERM */
-	uid_t			uid;		/* uid to run script as */
-	gid_t			gid;		/* gid to run script as */
 	bool			insecure;	/* Set if script is run by root, but is non-root modifiable */
 } vrrp_script_t;
 

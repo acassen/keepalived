@@ -913,7 +913,7 @@ vrrp_script_thread(thread_t * thread)
 	/* Execute the script in a child process. Parent returns, child doesn't */
 	return system_call_script(thread->master, vrrp_script_child_thread,
 				  vscript, (vscript->timeout) ? vscript->timeout : vscript->interval,
-				  vscript->script, vscript->uid, vscript->gid);
+				  &vscript->script);
 }
 
 static int

@@ -75,59 +75,38 @@ get_ggscript(vrrp_sgroup_t * vgroup)
 }
 
 static void
-notify_script_exec(notify_script_t* script, const char *type, int state_num, char* name, int prio)
+notify_script_exec(notify_script_t* script, char *type, int state_num, char* name, int prio)
 {
-	const char *state = "{UNKNOWN}";
-	size_t size = 0;
 	notify_script_t new_script;
+	char *words[6];
+	char prio_buf[4];
 
 	/*
-	 * Determine the length of the buffer that we'll need to generate the command
-	 * to run:
-	 *
-	 * "script" {GROUP|INSTANCE} "NAME" {MASTER|BACKUP|FAULT} PRIO
-	 *
-	 * Thus, the length of the buffer will be:
-	 *
-	 *     ( strlen(script) + 3 ) + ( strlen(type) + 1 ) + ( strlen(name) + 1 ) +
-	 *      ( strlen(state) + 2 ) + ( strlen(prio) + 1 ) + 1
+	 * script {GROUP|INSTANCE} NAME {MASTER|BACKUP|FAULT} PRIO
 	 *
 	 * Note that the prio will be indicated as zero for a group.
 	 *
-	 * Which is:
-	 *     - The length of the script plus two enclosing quotes plus adjacent space
-	 *     - The length of the type string plus the adjacent space
-	 *     - The length of the name of the instance or group, plus two enclosing
-	 *       quotes (just in case)
-	 *     - The length of the state string plus the adjacent space
-	 *     - The length of the priority value (3 digits) plus the adjacent
-	 *       space
-	 *     - The null-terminator
-	 *
-	 * Which results in:
-	 *
-	 *     strlen(script) + strlen(type) + strlen(state) + strlen(name) + 12
 	 */
+	words[0] = script->args[0];
+	words[1] = type;
+	words[2] = name;
 	switch (state_num) {
-		case VRRP_STATE_MAST  : state = "MASTER" ; break;
-		case VRRP_STATE_BACK  : state = "BACKUP" ; break;
-		case VRRP_STATE_FAULT : state = "FAULT" ; break;
+		case VRRP_STATE_MAST  : words[3] = "MASTER" ; break;
+		case VRRP_STATE_BACK  : words[3] = "BACKUP" ; break;
+		case VRRP_STATE_FAULT : words[3] = "FAULT" ; break;
+		default:		words[3] = "{UNKNOWN}"; break;
 	}
-
-	size = strlen(script->name) + strlen(type) + strlen(state) + strlen(name) + 12;
-	new_script.name = MALLOC(size);
-	if (!new_script.name)
-		return;
+	snprintf(prio_buf, sizeof(prio_buf), "%d", prio);
+	words[4] = prio_buf;
+	words[5] = NULL;
+	new_script.args = words;
 
 	/* Launch the script */
-	snprintf(new_script.name, size, "\"%s\" %s \"%s\" %s %d",
-		 script->name, type, name, state, prio);
+	new_script.cmd_str = script->args[0];
 	new_script.uid = script->uid;
 	new_script.gid = script->gid;
 
 	notify_exec(&new_script);
-
-	FREE(new_script.name);
 }
 
 int

@@ -58,7 +58,7 @@ static int cur_prio = INT_MAX;
 
 /* perform a system call */
 static int
-system_call(const char *cmdline, uid_t uid, gid_t gid)
+system_call(char ** cmdline, uid_t uid, gid_t gid)
 {
 	int retval;
 
@@ -96,21 +96,12 @@ system_call(const char *cmdline, uid_t uid, gid_t gid)
 	signal_handler_script();
 	set_std_fd(false);
 
-	retval = system(cmdline);
-	if (retval == -1) {
-		/* other error */
-		log_message(LOG_ALERT, "Error exec-ing command error %d: %s", errno, cmdline);
-	} else if (WIFEXITED(retval)) {
-		if (retval == 127) {
-			/* couldn't exec /bin/sh or couldn't find command */
-			log_message(LOG_ALERT, "Couldn't find command: %s", cmdline);
-		} else if (retval == 126) {
-			/* don't have sufficient privilege to exec command */
-			log_message(LOG_ALERT, "Insufficient privilege to exec command: %s", cmdline);
-		}
-	}
+	execve(cmdline[0], cmdline, environ);
 
-	return retval;
+	/* error */
+	log_message(LOG_ALERT, "Error exec-ing command '%s', error %d: %m", cmdline[0], errno);
+
+	return -1;
 }
 
 /* Execute external script/program */
@@ -136,15 +127,15 @@ notify_exec(const notify_script_t *script)
 	skip_mem_dump();
 #endif
 
-	system_call(script->name, script->uid, script->gid);
+	system_call(script->args, script->uid, script->gid);
 
+	/* We should never get here */
 	exit(0);
 }
 
 int
-system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, unsigned long timer, const char* script, uid_t uid, gid_t gid)
+system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, unsigned long timer, notify_script_t* script)
 {
-	int status;
 	pid_t pid;
 
 	/* Daemonization to not degrade our scheduling timer */
@@ -171,15 +162,12 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 	 * all its child processes will also be killed. */
 	setpgid(0, 0);
 
-	status = system_call(script, uid, gid);
+	system_call(script->args, script->uid, script->gid);
 
-	/* Note, if script_use_exec is set, system_call will not return */
 // TODO - Maybe we should exit with status 127 to signify don't change priority
 // unless this is the first return in which was we want to creep out of fault state
-	if (status < 0 || !WIFEXITED(status) || WEXITSTATUS(status >= 126))
-		exit(0); /* Script errors aren't server errors */
-
-	exit(WEXITSTATUS(status));
+// BETTER - kill ourselves with USR1 - parent can then distinguish
+	exit(0); /* Script errors aren't server errors */
 }
 
 void
@@ -222,20 +210,66 @@ is_executable(struct stat *buf, uid_t uid, gid_t gid)
 		 (gid != buf->st_gid && buf->st_mode & S_IXOTH)));
 }
 
+static void
+replace_cmd_name(notify_script_t *script, char *new_cmd)
+{
+	size_t new_len = sizeof(char *) + strlen(new_cmd) + 1;
+	char **word_ptrs = script->args;
+	int num_words = 1;
+	char **new_args;
+	char *new_words;
+	char **new_word_ptrs;
+	char *new_cmd_str;
+
+	while (*++word_ptrs) {
+		new_len += sizeof(char *) + strlen(*word_ptrs) + 1;
+		num_words++;
+	}
+
+	/* Allow for terminating null pointer */
+	new_len += sizeof(char *);
+
+	new_args = MALLOC(new_len);
+	word_ptrs = script->args;
+	new_words = (char *)new_args + (num_words + 1) * sizeof(char *);
+	new_word_ptrs = new_args;
+
+	strcpy(new_words, new_cmd);
+	*new_word_ptrs = new_words;
+	new_words += strlen(new_words) + 1;
+
+	while (*++word_ptrs) {
+		strcpy(new_words, *word_ptrs);
+		*++new_word_ptrs = new_words;
+		new_words += strlen(new_words) + 1;
+	}
+	*++new_word_ptrs = NULL;
+
+	/* Now do the cmd_str */
+	new_cmd_str = MALLOC(strlen(script->cmd_str) - strlen(script->args[0]) + strlen(new_args[0]) + 1);
+	strcpy(new_cmd_str, new_args[0]);
+	strcat(new_cmd_str, script->cmd_str + strlen(script->args[0]));
+
+	FREE(script->cmd_str);
+	script->cmd_str = new_cmd_str;
+
+	FREE(script->args);
+	script->args = new_args;
+}
+
 /* The following function is essentially __execve() from glibc */
 static int
-find_path(notify_script_t *script, bool full_string)
+find_path(notify_script_t *script)
 {
 	size_t filename_len;
 	size_t file_len;
 	size_t path_len;
-	char *file = script->name;
+	char *file = script->args[0];
 	struct stat buf;
 	int ret;
 	int ret_val = ENOENT;
 	int sgid_num;
 	gid_t *sgid_list = NULL;
-	char *space = NULL;
 	const char *subp;
 	bool got_eacces = false;
 	const char *p;
@@ -243,11 +277,6 @@ find_path(notify_script_t *script, bool full_string)
 	/* We check the simple case first. */
 	if (*file == '\0')
 		return ENOENT;
-
-	if (!full_string) {
-		if ((space = strchr(file, ' ')))
-			*space = '\0';
-	}
 
 	filename_len = strlen(file);
 	if (filename_len >= PATH_MAX) {
@@ -349,20 +378,10 @@ find_path(notify_script_t *script, bool full_string)
 
 		if (!ret) {
 			/* Success */
-			log_message(LOG_INFO, "WARNING - script `%s` resolved by path search to `%s`. Please specify full path.", script->name, buffer); 
+			log_message(LOG_INFO, "WARNING - script `%s` resolved by path search to `%s`. Please specify full path.", script->args[0], buffer); 
 
-			/* Copy the found file name, and append any parameters */
-			file = MALLOC(strlen(buffer) + (space ? strlen(space + 1) + 1 : 0) + 1);
-			strcpy(file, buffer);
-			if (space) {
-				filename_len = strlen(file);
-				file[filename_len] = ' ';
-				strcpy(file + filename_len + 1, space + 1);
-				space = NULL;
-			}
-
-			FREE(script->name);
-			script->name = file;
+			/* Copy the found file name, and any parameters */
+			replace_cmd_name(script, buffer);
 
 			ret_val = 0;
 			got_eacces = false;
@@ -419,9 +438,6 @@ exit:
 	}
 
 exit1:
-	if (space)
-		*space = 0;
-
 	/* We tried every element and none of them worked. */
 	if (got_eacces) {
 		/* At least one failure was due to permissions, so report that error. */
@@ -432,12 +448,11 @@ exit1:
 }
 
 int
-check_script_secure(notify_script_t *script, bool full_string)
+check_script_secure(notify_script_t *script)
 {
 	int flags;
 	char *slash;
-	char *space = NULL;
-	char *next = script->name;
+	char *next;
 	char sav;
 	int ret;
 	struct stat buf, file_buf;
@@ -446,31 +461,23 @@ check_script_secure(notify_script_t *script, bool full_string)
 	if (!script)
 		return 0;
 
-	if (!strchr(script->name, '/')) {
+	next = script->args[0];
+	if (!strchr(script->args[0], '/')) {
 		/* It is a bare file name, so do a path search */
-		if ((ret = find_path(script, full_string))) {
+		if ((ret = find_path(script))) {
 			if (ret == EACCES)
-				log_message(LOG_INFO, "Permissions failure for script %s in path", script->name);
+				log_message(LOG_INFO, "Permissions failure for script %s in path", script->cmd_str);
 			else
-				log_message(LOG_INFO, "Cannot find script %s in path", script->name);
+				log_message(LOG_INFO, "Cannot find script %s in path", script->cmd_str);
 			return SC_NOTFOUND;
 		}
 	}
 
 	/* Get the permissions for the file itself */
-	if (!full_string) {
-		space = strchr(script->name, ' ');
-		if (space)
-			*space = '\0';
-	}
-	if (stat(script->name, &file_buf)) {
-		log_message(LOG_INFO, "Unable to access script `%s`", script->name);
-		if (space)
-			*space = ' ';
+	if (stat(script->args[0], &file_buf)) {
+		log_message(LOG_INFO, "Unable to access script `%s`", script->cmd_str);
 		return SC_NOTFOUND;
 	}
-	if (space)
-		*space = ' ';
 
 	flags = SC_ISSCRIPT;
 
@@ -482,14 +489,14 @@ check_script_secure(notify_script_t *script, bool full_string)
 		    (file_buf.st_gid == 0 && (file_buf.st_mode & S_IXGRP) && (file_buf.st_mode & S_ISGID)))
 			need_script_protection = true;
 	} else
-		log_message(LOG_INFO, "WARNING - script '%s' is not executable for uid:gid %d:%d - disabling.", script->name, script->uid, script->gid);
+		log_message(LOG_INFO, "WARNING - script '%s' is not executable for uid:gid %d:%d - disabling.", script->cmd_str, script->uid, script->gid);
 
 	if (!need_script_protection)
 		return flags;
 
-	next = script->name;
+	next = script->args[0];
 	while (next) {
-		slash = next + strcspn(next, "/ ");
+		slash = strchrnul(next, '/');
 		if (*slash)
 			next = slash + 1;
 		else {
@@ -498,25 +505,18 @@ check_script_secure(notify_script_t *script, bool full_string)
 		}
 
 		if (slash) {
-			/* If full_string, then file name can contain spaces, otherwise it terminates the command */
-			if (*slash == ' ') {
-				if (full_string)
-					continue;
-				next = NULL;
-			}
-
 			/* If there are multiple consecutive '/'s, don't check subsequent ones */
-			if (slash > script->name && slash[-1] == '/')
+			if (slash > script->args[0] && slash[-1] == '/')
 				continue;
 
 			/* We want to check '/' for first time around */
-			if (slash == script->name)
+			if (slash == script->args[0])
 				slash++;
 			sav = *slash;
 			*slash = 0;
 		}
 
-		ret = stat(script->name, &buf);
+		ret = stat(script->args[0], &buf);
 
 		/* Restore the full path name */
 		if (slash)
@@ -524,9 +524,9 @@ check_script_secure(notify_script_t *script, bool full_string)
 
 		if (ret) {
 			if (errno == EACCES || errno == ELOOP || errno == ENOENT || errno == ENOTDIR)
-				log_message(LOG_INFO, "check_script_secure could not find script '%s'", script->name);
+				log_message(LOG_INFO, "check_script_secure could not find script '%s'", script->cmd_str);
 			else
-				log_message(LOG_INFO, "check_script_secure('%s') returned errno %d - %s", script->name, errno, strerror(errno));
+				log_message(LOG_INFO, "check_script_secure('%s') returned errno %d - %s", script->cmd_str, errno, strerror(errno));
 			return flags | SC_NOTFOUND;
 		}
 
@@ -535,20 +535,19 @@ check_script_secure(notify_script_t *script, bool full_string)
 		      buf.st_mode & S_IFREG) &&			/* This is a file */
 		     ((buf.st_gid && buf.st_mode & S_IWGRP) ||	/* Group is not root and group write permission */
 		      buf.st_mode & S_IWOTH))) {		/* World has write permission */
-			log_message(LOG_INFO, "Unsafe permissions found for script '%s'.", script->name);
+			log_message(LOG_INFO, "Unsafe permissions found for script '%s'.", script->cmd_str);
 			flags |= SC_INSECURE;
 			if (script_security)
 				flags |= SC_INHIBIT;
 			break;
 		}
-
 	}
 
 	return flags;
 }
 
 int
-check_notify_script_secure(notify_script_t **script_p, bool full_string)
+check_notify_script_secure(notify_script_t **script_p)
 {
 	int flags;
 	notify_script_t *script = *script_p;
@@ -556,15 +555,15 @@ check_notify_script_secure(notify_script_t **script_p, bool full_string)
 	if (!script)
 		return 0;
 
-	flags = check_script_secure(script, full_string);
+	flags = check_script_secure(script);
 
 	/* Mark not to run if needs inhibiting */
 	if (flags & SC_INHIBIT) {
-		log_message(LOG_INFO, "Disabling notify script %s due to insecure", script->name);
+		log_message(LOG_INFO, "Disabling notify script %s due to insecure", script->cmd_str);
 		free_notify_script(script_p);
 	}
 	else if (flags & SC_NOTFOUND) {
-		log_message(LOG_INFO, "Disabling notify script %s since not found", script->name);
+		log_message(LOG_INFO, "Disabling notify script %s since not found", script->cmd_str);
 		free_notify_script(script_p);
 	}
 	else if (!(flags & SC_EXECUTABLE))
@@ -598,12 +597,62 @@ set_default_script_user(void)
 	log_message(LOG_INFO, "Setting default script user to '%s', uid:gid %d:%d", default_user_name, pwd.pw_uid, pwd.pw_gid);
 }
 
+char **
+set_script_params_array(vector_t *strvec, bool with_params)
+{
+	unsigned num_words = 0;
+	size_t len = 0;
+	char *w, *save_p;
+	char **word_ptrs, **params;
+	char *words;
+	char *str_cpy;
+
+	/* Count the number of words, and total string length */
+	if (!with_params) {
+		num_words = 1;
+		len = strlen(strvec_slot(strvec, 1)) + 1;
+	} else {
+		str_cpy = MALLOC(strlen(strvec_slot(strvec, 1)) + 1);
+		strcpy(str_cpy, strvec_slot(strvec, 1));
+		w = strtok_r(str_cpy, " \t", &save_p);
+		while (w) {
+			num_words++;
+			len += strlen(w) + 1;
+			w = strtok_r(NULL, " \t", &save_p);
+		}
+	}
+
+	/* Allocate memory for pointers to words and words themselves */
+	params = word_ptrs = MALLOC((num_words + 1) * sizeof(char *) + len);
+	words = (char *)params + (num_words + 1) * sizeof(char *);
+
+	/* Set up pointers to words, and copy the words */
+	if (!with_params) {
+		strcpy(words, strvec_slot(strvec, 1));
+		*(word_ptrs++) = words;
+	} else {
+		strcpy(str_cpy, strvec_slot(strvec, 1));
+		w = strtok_r(str_cpy, " \t", &save_p);
+		while (w) {
+			strcpy(words, w);
+			*(word_ptrs++) = words;
+			words += strlen(w) + 1;
+			w = strtok_r(NULL, " \t", &save_p);
+		}
+		FREE(str_cpy);
+	}
+	*word_ptrs = NULL;
+
+	return params;
+}
+
 notify_script_t*
-notify_script_init(vector_t *strvec)
+notify_script_init(vector_t *strvec, bool with_params)
 {
 	notify_script_t *script = MALLOC(sizeof(notify_script_t));
 
-	script->name = set_value(strvec);
+	script->args = set_script_params_array(strvec, with_params);
+	script->cmd_str = set_value(strvec);
 	script->uid = default_script_uid;
 	script->gid = default_script_gid;
 

@@ -102,7 +102,7 @@ dump_notify_script(notify_script_t *script, char *type)
 		return;
 
 	log_message(LOG_INFO, "   %s state transition script = %s, uid:gid %d:%d", type,
-	       script->name, script->uid, script->gid);
+	       script->cmd_str, script->uid, script->gid);
 }
 
 static void
@@ -142,7 +142,8 @@ free_vscript(void *data)
 
 	free_list(&vscript->vrrp);
 	FREE(vscript->sname);
-	FREE_PTR(vscript->script);
+	FREE_PTR(vscript->script.cmd_str);
+	FREE_PTR(vscript->script.args);
 	FREE(vscript);
 }
 static void
@@ -152,7 +153,7 @@ dump_vscript(void *data)
 	const char *str;
 
 	log_message(LOG_INFO, " VRRP Script = %s", vscript->sname);
-	log_message(LOG_INFO, "   Command = %s", vscript->script);
+	log_message(LOG_INFO, "   Command = %s", vscript->script.cmd_str);
 	log_message(LOG_INFO, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
 	log_message(LOG_INFO, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
 	log_message(LOG_INFO, "   Weight = %d", vscript->weight);
@@ -171,8 +172,8 @@ dump_vscript(void *data)
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
 	log_message(LOG_INFO, "   Status = %s", str);
-	if (vscript->uid || vscript->gid)
-		log_message(LOG_INFO, "   Script uid:gid = %d:%d", vscript->uid, vscript->gid);
+	if (vscript->script.uid || vscript->script.gid)
+		log_message(LOG_INFO, "   Script uid:gid = %d:%d", vscript->script.uid, vscript->script.gid);
 	log_message(LOG_INFO, "   Use count = %d", vscript->vrrp ? LIST_SIZE(vscript->vrrp) : 0);
 	log_message(LOG_INFO, "   VRRP instances:");
 	if (vscript->vrrp)

@@ -517,12 +517,12 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSQUORUMUP:
 		if (!v->quorum_up) break;
-		*var_len = strlen(v->quorum_up->name);
-		return (u_char*)v->quorum_up->name;
+		*var_len = strlen(v->quorum_up->cmd_str);
+		return (u_char*)v->quorum_up->cmd_str;
 	case CHECK_SNMP_VSQUORUMDOWN:
 		if (!v->quorum_down) break;
-		*var_len = strlen(v->quorum_down->name);
-		return (u_char*)v->quorum_down->name;
+		*var_len = strlen(v->quorum_down->cmd_str);
+		return (u_char*)v->quorum_down->cmd_str;
 	case CHECK_SNMP_VSHYSTERESIS:
 		long_ret.u = v->hysteresis;
 		return (u_char*)&long_ret;
@@ -871,13 +871,13 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_RSNOTIFYUP:
 		if (btype == STATE_RS_SORRY) break;
 		if (!be->notify_up) break;
-		*var_len = strlen(be->notify_up->name);
-		return (u_char*)be->notify_up->name;
+		*var_len = strlen(be->notify_up->cmd_str);
+		return (u_char*)be->notify_up->cmd_str;
 	case CHECK_SNMP_RSNOTIFYDOWN:
 		if (btype == STATE_RS_SORRY) break;
 		if (!be->notify_down) break;
-		*var_len = strlen(be->notify_down->name);
-		return (u_char*)be->notify_down->name;
+		*var_len = strlen(be->notify_down->cmd_str);
+		return (u_char*)be->notify_down->cmd_str;
 	case CHECK_SNMP_RSFAILEDCHECKS:
 		if (btype == STATE_RS_SORRY) break;
 		if (LIST_ISEMPTY(be->failed_checkers))

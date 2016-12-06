@@ -247,10 +247,10 @@ dump_vs(void *data)
 	log_message(LOG_INFO, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
 	if (vs->quorum_up)
 		log_message(LOG_INFO, "   -> Notify script UP = %s, uid:gid %d:%d",
-			    vs->quorum_up->name, vs->quorum_up->uid, vs->quorum_up->gid);
+			    vs->quorum_up->cmd_str, vs->quorum_up->uid, vs->quorum_up->gid);
 	if (vs->quorum_down)
 		log_message(LOG_INFO, "   -> Notify script DOWN = %s, uid:gid %d:%d",
-			    vs->quorum_down->name, vs->quorum_down->uid, vs->quorum_down->gid);
+			    vs->quorum_down->cmd_str, vs->quorum_down->uid, vs->quorum_down->gid);
 	if (vs->ha_suspend)
 		log_message(LOG_INFO, "   Using HA suspend");
 
@@ -346,10 +346,10 @@ dump_rs(void *data)
 		log_message(LOG_INFO, "     -> Inhibit service on failure");
 	if (rs->notify_up)
 		log_message(LOG_INFO, "     -> Notify script UP = %s, uid:gid %d:%d",
-		       rs->notify_up->name, rs->notify_up->uid, rs->notify_up->gid);
+		       rs->notify_up->cmd_str, rs->notify_up->uid, rs->notify_up->gid);
 	if (rs->notify_down)
 		log_message(LOG_INFO, "     -> Notify script DOWN = %s, uid:gid %d:%d",
-		       rs->notify_down->name, rs->notify_down->uid, rs->notify_down->gid);
+		       rs->notify_down->cmd_str, rs->notify_down->uid, rs->notify_down->gid);
 }
 
 static void
@@ -453,14 +453,14 @@ check_check_script_security(void)
 	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
 
-		script_flags |= check_notify_script_secure(&vs->quorum_up, false);
-		script_flags |= check_notify_script_secure(&vs->quorum_down, false);
+		script_flags |= check_notify_script_secure(&vs->quorum_up);
+		script_flags |= check_notify_script_secure(&vs->quorum_down);
 
 		for (e1 = LIST_HEAD(vs->rs); e1; ELEMENT_NEXT(e1)) {
 			rs = ELEMENT_DATA(e1);
 
-			script_flags |= check_notify_script_secure(&rs->notify_up, false);
-			script_flags |= check_notify_script_secure(&rs->notify_down, false);
+			script_flags |= check_notify_script_secure(&rs->notify_up);
+			script_flags |= check_notify_script_secure(&rs->notify_down);
 		}
 	}
 

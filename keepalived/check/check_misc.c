@@ -50,7 +50,8 @@ free_misc_check(void *data)
 {
 	misc_checker_t *misck_checker = CHECKER_DATA(data);
 
-	FREE(misck_checker->path);
+	FREE(misck_checker->script.cmd_str);
+	FREE(misck_checker->script.args);
 	FREE(misck_checker);
 	FREE(data);
 }
@@ -60,10 +61,10 @@ dump_misc_check(void *data)
 {
 	misc_checker_t *misck_checker = CHECKER_DATA(data);
 	log_message(LOG_INFO, "   Keepalive method = MISC_CHECK");
-	log_message(LOG_INFO, "   script = %s", misck_checker->path);
+	log_message(LOG_INFO, "   script = %s", misck_checker->script.cmd_str);
 	log_message(LOG_INFO, "   timeout = %lu", misck_checker->timeout/TIMER_HZ);
 	log_message(LOG_INFO, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
-	log_message(LOG_INFO, "   uid:gid = %d:%d", misck_checker->uid, misck_checker->gid);
+	log_message(LOG_INFO, "   uid:gid = %d:%d", misck_checker->script.uid, misck_checker->script.gid);
 }
 
 static void
@@ -71,8 +72,8 @@ misc_check_handler(__attribute__((unused)) vector_t *strvec)
 {
 	misc_checker_t *misck_checker = (misc_checker_t *) MALLOC(sizeof (misc_checker_t));
 
-	misck_checker->uid = default_script_uid;
-	misck_checker->gid = default_script_gid;
+	misck_checker->script.uid = default_script_uid;
+	misck_checker->script.gid = default_script_gid;
 
 	/* queue new checker */
 	queue_checker(free_misc_check, dump_misc_check, misc_check_thread,
@@ -83,7 +84,8 @@ static void
 misc_path_handler(vector_t *strvec)
 {
 	misc_checker_t *misck_checker = CHECKER_GET();
-	misck_checker->path = CHECKER_VALUE_STRING(strvec);
+	misck_checker->script.cmd_str = CHECKER_VALUE_STRING(strvec);
+	misck_checker->script.args = set_script_params_array(strvec, true);
 }
 
 static void
@@ -106,12 +108,12 @@ misc_user_handler(vector_t *strvec)
 	misc_checker_t *misck_checker = CHECKER_GET();
 
 	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "No user specified for misc checker script %s", misck_checker->path);
+		log_message(LOG_INFO, "No user specified for misc checker script %s", misck_checker->script.cmd_str);
 		return;
 	}
 
-	if (set_script_uid_gid(strvec, 1, &misck_checker->uid, &misck_checker->gid))
-		log_message(LOG_INFO, "Failed to set uid/gid for misc checker script %s", misck_checker->path);
+	if (set_script_uid_gid(strvec, 1, &misck_checker->script.uid, &misck_checker->script.gid))
+		log_message(LOG_INFO, "Failed to set uid/gid for misc checker script %s", misck_checker->script.cmd_str);
 }
 
 void
@@ -136,7 +138,6 @@ check_misc_script_security(void)
 	misc_checker_t *misc_script;
 	int script_flags = 0;
 	int flags;
-	notify_script_t script;
 	bool insecure;
 
 	if (LIST_ISEMPTY(checkers_queue))
@@ -150,20 +151,17 @@ check_misc_script_security(void)
 			continue;
 
 		misc_script = CHECKER_ARG(checker);
-		script.name = misc_script->path;
-		script.uid = misc_script->uid;
-		script.gid = misc_script->gid;
 
-		script_flags |= (flags = check_script_secure(&script, false));
+		script_flags |= (flags = check_script_secure(&misc_script->script));
 
 		/* Mark not to run if needs inhibiting */
 		insecure = false;
 		if (flags & SC_INHIBIT) {
-			log_message(LOG_INFO, "Disabling misc script %s due to insecure", misc_script->path);
+			log_message(LOG_INFO, "Disabling misc script %s due to insecure", misc_script->script.cmd_str);
 			insecure = true;
 		}
 		else if (flags & SC_NOTFOUND) {
-			log_message(LOG_INFO, "Disabling misc script %s since not found", misc_script->path);
+			log_message(LOG_INFO, "Disabling misc script %s since not found", misc_script->script.cmd_str);
 			insecure = true;
 		}
 		else if (!(flags & SC_EXECUTABLE))
@@ -171,7 +169,6 @@ check_misc_script_security(void)
 
 		if (insecure) {
 			/* Remove the script */
-log_message(LOG_INFO, "Removing misc script %s", misc_script->path);
 			free_list_element(checkers_queue, e);
 		}
 	}
@@ -208,7 +205,7 @@ misc_check_thread(thread_t * thread)
 	/* Execute the script in a child process. Parent returns, child doesn't */
 	return system_call_script(thread->master, misc_check_child_thread,
 				  checker, (misck_checker->timeout) ? misck_checker->timeout : checker->vs->delay_loop,
-				  misck_checker->path, misck_checker->uid, misck_checker->gid);
+				  &misck_checker->script);
 }
 
 static int
@@ -229,7 +226,7 @@ misc_check_child_thread(thread_t * thread)
 		if (svr_checker_up(checker->id, checker->rs)) {
 			log_message(LOG_INFO, "Misc check to [%s] for [%s] timed out"
 					    , inet_sockaddrtos(&checker->rs->addr)
-					    , misck_checker->path);
+					    , misck_checker->script.cmd_str);
 			smtp_alert(checker->rs, NULL, NULL,
 				   "DOWN",
 				   "=> MISC CHECK script timeout on service <=");
@@ -265,7 +262,7 @@ misc_check_child_thread(thread_t * thread)
 			if (!svr_checker_up(checker->id, checker->rs)) {
 				log_message(LOG_INFO, "Misc check to [%s] for [%s] success."
 						    , inet_sockaddrtos(&checker->rs->addr)
-						    , misck_checker->path);
+						    , misck_checker->script.cmd_str);
 				smtp_alert(checker->rs, NULL, NULL,
 					   "UP",
 					   "=> MISC CHECK succeed on service <=");
@@ -277,7 +274,7 @@ misc_check_child_thread(thread_t * thread)
 			if (svr_checker_up(checker->id, checker->rs)) {
 				log_message(LOG_INFO, "Misc check to [%s] for [%s] failed."
 						    , inet_sockaddrtos(&checker->rs->addr)
-						    , misck_checker->path);
+						    , misck_checker->script.cmd_str);
 				smtp_alert(checker->rs, NULL, NULL,
 					   "DOWN",
 					   "=> MISC CHECK failed on service <=");

@@ -474,8 +474,8 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 		*var_len = strlen(scr->sname);
 		return (u_char *)scr->sname;
 	case VRRP_SNMP_SCRIPT_COMMAND:
-		*var_len = strlen(scr->script);
-		return (u_char *)scr->script;
+		*var_len = strlen(scr->script.cmd_str);
+		return (u_char *)scr->script.cmd_str;
 	case VRRP_SNMP_SCRIPT_INTERVAL:
 		long_ret.u = scr->interval / TIMER_HZ;
 		return (u_char *)&long_ret;
@@ -1486,26 +1486,26 @@ vrrp_snmp_syncgroup(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_SYNCGROUP_SCRIPTMASTER:
 		if (group->script_master) {
-			*var_len = strlen(group->script_master->name);
-			return (u_char *)group->script_master->name;
+			*var_len = strlen(group->script_master->cmd_str);
+			return (u_char *)group->script_master->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_SYNCGROUP_SCRIPTBACKUP:
 		if (group->script_backup) {
-			*var_len = strlen(group->script_backup->name);
-			return (u_char *)group->script_backup->name;
+			*var_len = strlen(group->script_backup->cmd_str);
+			return (u_char *)group->script_backup->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_SYNCGROUP_SCRIPTFAULT:
 		if (group->script_fault) {
-			*var_len = strlen(group->script_fault->name);
-			return (u_char *)group->script_fault->name;
+			*var_len = strlen(group->script_fault->cmd_str);
+			return (u_char *)group->script_fault->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_SYNCGROUP_SCRIPT:
 		if (group->script) {
-			*var_len = strlen(group->script->name);
-			return (u_char *)group->script->name;
+			*var_len = strlen(group->script->cmd_str);
+			return (u_char *)group->script->cmd_str;
 		}
 		break;
 	default:
@@ -1844,32 +1844,32 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_SCRIPTMASTER:
 		if (rt->script_master) {
-			*var_len = strlen(rt->script_master->name);
-			return (u_char *)rt->script_master->name;
+			*var_len = strlen(rt->script_master->cmd_str);
+			return (u_char *)rt->script_master->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPTBACKUP:
 		if (rt->script_backup) {
-			*var_len = strlen(rt->script_backup->name);
-			return (u_char *)rt->script_backup->name;
+			*var_len = strlen(rt->script_backup->cmd_str);
+			return (u_char *)rt->script_backup->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPTFAULT:
 		if (rt->script_fault) {
-			*var_len = strlen(rt->script_fault->name);
-			return (u_char *)rt->script_fault->name;
+			*var_len = strlen(rt->script_fault->cmd_str);
+			return (u_char *)rt->script_fault->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPTSTOP:
 		if (rt->script_stop) {
-			*var_len = strlen(rt->script_stop->name);
-			return (u_char *)rt->script_stop->name;
+			*var_len = strlen(rt->script_stop->cmd_str);
+			return (u_char *)rt->script_stop->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPT:
 		if (rt->script) {
-			*var_len = strlen(rt->script->name);
-			return (u_char *)rt->script->name;
+			*var_len = strlen(rt->script->cmd_str);
+			return (u_char *)rt->script->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_ACCEPT:

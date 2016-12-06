@@ -154,17 +154,12 @@ vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 static int
 check_track_script_secure(tracked_sc_t *script)
 {
-	notify_script_t ns;
 	int flags;
 
 	if (script->scr->insecure)
 		return 0;
 
-	ns.name = script->scr->script;
-	ns.uid = script->scr->uid;
-	ns.gid = script->scr->gid;
-
-	flags = check_script_secure(&ns, false);
+	flags = check_script_secure(&script->scr->script);
 
 	/* Mark not to run if needs inhibiting */
 	if (flags & SC_INHIBIT) {
@@ -198,11 +193,11 @@ check_vrrp_script_security(void)
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-		script_flags |= check_notify_script_secure(&vrrp->script_backup, false);
-		script_flags |= check_notify_script_secure(&vrrp->script_master, false);
-		script_flags |= check_notify_script_secure(&vrrp->script_fault, false);
-		script_flags |= check_notify_script_secure(&vrrp->script_stop, false);
-		script_flags |= check_notify_script_secure(&vrrp->script, true);
+		script_flags |= check_notify_script_secure(&vrrp->script_backup);
+		script_flags |= check_notify_script_secure(&vrrp->script_master);
+		script_flags |= check_notify_script_secure(&vrrp->script_fault);
+		script_flags |= check_notify_script_secure(&vrrp->script_stop);
+		script_flags |= check_notify_script_secure(&vrrp->script);
 
 		if (LIST_ISEMPTY(vrrp->track_script))
 			continue;
@@ -224,10 +219,10 @@ log_message(LOG_INFO, "Removing track script %s from %s", track_script->scr->sna
 	if (!LIST_ISEMPTY(vrrp_data->vrrp_sync_group)) {
 		for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
 			sg = ELEMENT_DATA(e);
-			script_flags |= check_notify_script_secure(&sg->script_backup, false);
-			script_flags |= check_notify_script_secure(&sg->script_master, false);
-			script_flags |= check_notify_script_secure(&sg->script_fault, false);
-			script_flags |= check_notify_script_secure(&sg->script, true);
+			script_flags |= check_notify_script_secure(&sg->script_backup);
+			script_flags |= check_notify_script_secure(&sg->script_master);
+			script_flags |= check_notify_script_secure(&sg->script_fault);
+			script_flags |= check_notify_script_secure(&sg->script);
 		}
 	}
 
