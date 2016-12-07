@@ -23,14 +23,9 @@
 
 #include "config.h"
 
-#if defined HAVE_PIPE2 && !defined _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 #include <string.h>
-
 #include <fcntl.h>
 #include <unistd.h>
-
 #include <sys/wait.h>
 #include <errno.h>
 #ifndef _DEBUG_

@@ -26,10 +26,6 @@
 
 #include "config.h"
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 /* System includes */
 #include <errno.h>
 #include <openssl/md5.h>

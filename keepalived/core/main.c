@@ -22,10 +22,6 @@
 
 #include "config.h"
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 #include <stdlib.h>
 #include <sys/utsname.h>
 #include <sys/resource.h>

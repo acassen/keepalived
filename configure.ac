@@ -49,8 +49,11 @@ AH_TOP(
   ])
 AH_BOTTOM(
   [
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
 #endif
-  ])
+
+#endif])
 
 AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec \
 		 genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile doc/Makefile \
