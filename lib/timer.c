@@ -144,16 +144,13 @@ timer_now(void)
 	return curr_time;
 }
 
-#include "logger.h"
 /* sets and returns current time from system time */
 timeval_t
 set_time_now(void)
 {
-timeval_t old_time = time_now;
 	/* init timer */
 	monotonic_gettimeofday(&time_now);
 
-log_message(LOG_INFO, "time_now updated by %ld us", (time_now.tv_sec - old_time.tv_sec) * 1000000L + time_now.tv_usec - old_time.tv_usec);
 	return time_now;
 }
 
