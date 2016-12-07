@@ -84,7 +84,7 @@ typedef struct _interface {
 	int			lb_type;		/* Interface regs selection */
 #ifdef _HAVE_VRRP_VMAC_
 	bool			vmac;			/* Set if interface is a VMAC interface */
-	unsigned		base_ifindex;		/* Only used at startup if we find vmac i/f before base i/f */
+	ifindex_t		base_ifindex;		/* Only used at startup if we find vmac i/f before base i/f */
 	struct _interface	*base_ifp;		/* Base interface (if interface is a VMAC interface),
 							   otherwise the physical interface */
 #endif
