@@ -334,6 +334,10 @@ thread_add_read(thread_master_t * m, int (*func) (thread_t *)
 	FD_SET(fd, &m->readfd);
 	thread->u.fd = fd;
 
+	/* Ensure we can be efficient with select */
+	if (fd > m->max_fd)
+		m->max_fd = fd;
+
 	/* Compute read timeout value */
 	if (timer == TIMER_NEVER)
 		thread->sands.tv_sec = TIMER_DISABLED;
@@ -407,6 +411,10 @@ thread_add_write(thread_master_t * m, int (*func) (thread_t *)
 	thread->arg = arg;
 	FD_SET(fd, &m->writefd);
 	thread->u.fd = fd;
+
+	/* Ensure we can be efficient with select */
+	if (fd > m->max_fd)
+		m->max_fd = fd;
 
 	/* Compute write timeout value */
 	if (timer == TIMER_NEVER)
@@ -647,9 +655,9 @@ thread_fetch(thread_master_t * m, thread_t * fetch)
 	fd_set exceptfd;
 	timeval_t timer_wait;
 	int signal_fd;
+	int fdsetsize;
 #ifdef _WITH_SNMP_
 	int snmpblock = 0;
-	int fdsetsize;
 #endif
 
 	assert(m != NULL);
@@ -693,9 +701,12 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	readfd = m->readfd;
 	writefd = m->writefd;
 	exceptfd = m->exceptfd;
+	fdsetsize = m->max_fd + 1;
 
 	signal_fd = signal_rfd();
 	FD_SET(signal_fd, &readfd);
+	if (signal_fd >= m->max_fd)
+		fdsetsize = signal_fd + 1;
 
 #ifdef _WITH_SNMP_
 	/* When SNMP is enabled, we may have to select() on additional
@@ -703,7 +714,6 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	 * with this function is its last argument. We need to set it
 	 * to 0 to update our timer. */
 	if (snmp_running) {
-		fdsetsize = FD_SETSIZE;
 		snmpblock = 0;
 		snmp_select_info(&fdsetsize, &readfd, &timer_wait, &snmpblock);
 	}
@@ -711,10 +721,10 @@ retry:	/* When thread can't fetch try to find next thread again. */
 
 #ifdef _TIMER_DEBUG_
 	/* if (prog_type == PROG_TYPE_VRRP) */
-		log_message(LOG_INFO, "select with timer %ld.%6.6ld", timer_wait.tv_sec, timer_wait.tv_usec);
+		log_message(LOG_INFO, "select with timer %ld.%6.6ld, fdsetsize %d", timer_wait.tv_sec, timer_wait.tv_usec, fdsetsize);
 #endif
 
-	ret = select(FD_SETSIZE, &readfd, &writefd, &exceptfd, &timer_wait);
+	ret = select(fdsetsize, &readfd, &writefd, &exceptfd, &timer_wait);
 
 #ifdef _TIMER_DEBUG_
 	/* if (prog_type == PROG_TYPE_VRRP) */
