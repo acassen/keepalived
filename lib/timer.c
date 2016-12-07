@@ -24,70 +24,12 @@
 
 #include <string.h>
 #include <errno.h>
+#include <sys/time.h>
+
 #include "timer.h"
 
 /* time_now holds current time */
 timeval_t time_now;
-
-/* set a timer to a specific value */
-timeval_t
-timer_dup(timeval_t b)
-{
-	timeval_t a;
-
-	timer_reset_lazy(a);
-	a.tv_sec = b.tv_sec;
-	a.tv_usec = b.tv_usec;
-	return a;
-}
-
-/* timer compare */
-int
-timer_cmp(timeval_t a, timeval_t b)
-{
-	time_t ret = a.tv_sec - b.tv_sec;
-	if (ret)
-		return ret < 0 ? -1 : 1;
-
-	ret = a.tv_usec - b.tv_usec;
-	return ret < 0 ? -1 : ret > 0 ? 1 : 0;
-}
-
-/* timer sub */
-timeval_t
-timer_sub(timeval_t a, timeval_t b)
-{
-	timeval_t ret;
-
-	timer_reset_lazy(ret);
-	ret.tv_usec = a.tv_usec - b.tv_usec;
-	ret.tv_sec = a.tv_sec - b.tv_sec;
-
-	if (ret.tv_usec < 0) {
-		ret.tv_usec += TIMER_HZ;
-		ret.tv_sec--;
-	}
-
-	return ret;
-}
-
-/* timer add */
-timeval_t
-timer_add(timeval_t a, timeval_t b)
-{
-	timeval_t ret;
-
-	timer_reset_lazy(ret);
-	ret.tv_usec = a.tv_usec + b.tv_usec;
-	ret.tv_sec = a.tv_sec + b.tv_sec;
-
-	if (ret.tv_usec >= TIMER_HZ) {
-		ret.tv_sec++;
-		ret.tv_usec -= TIMER_HZ;
-	}
-
-	return ret;
-}
 
 timeval_t
 timer_add_secs(timeval_t a, time_t secs)
@@ -101,8 +43,6 @@ timeval_t
 timer_add_long(timeval_t a, unsigned long b)
 {
 	timeval_t ret;
-
-	timer_reset_lazy(ret);
 
 	if (b == TIMER_NEVER)
 	{
@@ -127,8 +67,6 @@ timeval_t
 timer_sub_long(timeval_t a, unsigned long b)
 {
 	timeval_t ret;
-
-	timer_reset_lazy(ret);
 
 	if (a.tv_usec < (int)(b % TIMER_HZ)) {
 		a.tv_usec += TIMER_HZ;
@@ -159,23 +97,23 @@ monotonic_gettimeofday(timeval_t *now)
 		return -1;
 	}
 
-	timer_reset_lazy(*now);
+	timerclear(now);
 
 	gettimeofday(&sys_date, NULL);
 
 	/* on first call, we set mono_date to system date */
 	if (mono_date.tv_sec == 0) {
 		mono_date = sys_date;
-		timer_reset(drift);
+		timerclear(&drift);
 		*now = mono_date;
 		return 0;
 	}
 
 	/* compute new adjusted time by adding the drift offset */
-	adjusted = timer_add(sys_date, drift);
+	timeradd(&sys_date, &drift, &adjusted);
 
 	/* check for jumps in the past, and bound to last date */
-	if (timer_cmp(adjusted, mono_date) < 0)
+	if (timercmp(&adjusted, &mono_date, <))
 		goto fixup;
 
 	/* adjusted date is correct */
@@ -189,7 +127,7 @@ monotonic_gettimeofday(timeval_t *now)
 	 * play with negative carries in all computations, we take
 	 * care of always having the microseconds positive.
 	 */
-	drift = timer_sub(mono_date, sys_date);
+	timersub(&mono_date, &sys_date, &drift);
 	*now = mono_date;
 	return 0;
 }
@@ -199,13 +137,9 @@ timeval_t
 timer_now(void)
 {
 	timeval_t curr_time;
-	int old_errno = errno;
 
 	/* init timer */
-	if (monotonic_gettimeofday(&curr_time)) {
-		timer_reset(curr_time);
-		errno = old_errno;
-	}
+	monotonic_gettimeofday(&curr_time);
 
 	return curr_time;
 }
@@ -214,13 +148,8 @@ timer_now(void)
 timeval_t
 set_time_now(void)
 {
-	int old_errno = errno;
-
 	/* init timer */
-	if (monotonic_gettimeofday(&time_now)) {
-		timer_reset(time_now);
-		errno = old_errno;
-	}
+	monotonic_gettimeofday(&time_now);
 
 	return time_now;
 }
@@ -229,7 +158,9 @@ set_time_now(void)
 timeval_t
 timer_sub_now(timeval_t a)
 {
-	return timer_sub(a, time_now);
+	timersub(&a, &time_now, &a);
+
+	return a;
 }
 
 /* timer add to current time */
@@ -237,10 +168,12 @@ timeval_t
 timer_add_now(timeval_t a)
 {
 	/* Init current time if needed */
-	if (timer_isnull(time_now))
+	if (!timerisset(&time_now))
 		set_time_now();
 
-	return timer_add(time_now, a);
+	timeradd(&time_now, &a, &a);
+
+	return a;
 }
 
 /* Return time as unsigned long */

@@ -207,7 +207,7 @@ queue_ndisc(vrrp_t *vrrp, interface_t *ifp, ip_address_t *ipaddress)
 	ipaddress->garp_gna_pending = true;
 
 	/* Do we need to schedule/reschedule the garp thread? */
-	if (!garp_thread || timer_cmp(next_time, garp_next_time) < 0) {
+	if (!garp_thread || timercmp(&next_time, &garp_next_time, <)) {
 		if (garp_thread)
 			thread_cancel(garp_thread);
 
@@ -226,7 +226,7 @@ ndisc_send_unsolicited_na(vrrp_t *vrrp, ip_address_t *ipaddress)
 
 	/* Do we need to delay sending the ndisc? */
 	if (ifp->garp_delay && ifp->garp_delay->have_gna_interval && ifp->garp_delay->gna_next_time.tv_sec) {
-		if (timer_cmp(time_now, ifp->garp_delay->gna_next_time) < 0) {
+		if (timercmp(&time_now, &ifp->garp_delay->gna_next_time, <)) {
 			queue_ndisc(vrrp, ifp, ipaddress);
 			return;
 		}

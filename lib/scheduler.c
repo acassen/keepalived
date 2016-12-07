@@ -174,7 +174,7 @@ thread_list_add_timeval(thread_list_t * list, thread_t * thread)
 	}
 
 	for (tt = list->head; tt; tt = tt->next) {
-		if (timer_cmp(thread->sands, tt->sands) <= 0)
+		if (tt->sands.tv_sec == TIMER_DISABLED || timercmp(&thread->sands, &tt->sands, <=))
 			break;
 	}
 
@@ -355,7 +355,7 @@ thread_read_requeue(thread_master_t *m, int fd, timeval_t new_sands)
 	thread_t *insert = NULL;
 
 	for (tt = m->read.head; tt; tt = tt->next) {
-		if (!insert && timer_cmp(new_sands, tt->sands) <= 0)
+		if (!insert && timercmp(&new_sands, &tt->sands, <=))
 			insert = tt;
 		if (tt->u.fd == fd)
 			break;
@@ -602,8 +602,8 @@ thread_update_timer(thread_list_t *list, timeval_t *timer_min)
 	if (list->head->sands.tv_sec == TIMER_DISABLED)
 		return;
 
-	if (timer_isnull(*timer_min) ||
-	    timer_cmp(list->head->sands, *timer_min) <= 0)
+	if (!timerisset(timer_min) ||
+	    timercmp(&list->head->sands, timer_min, <=))
 		*timer_min = list->head->sands;
 }
 
@@ -614,15 +614,15 @@ thread_compute_timer(thread_master_t * m, timeval_t * timer_wait)
 	timeval_t timer_min;
 
 	/* Prepare timer */
-	timer_reset(timer_min);
+	timerclear(&timer_min);
 	thread_update_timer(&m->timer, &timer_min);
 	thread_update_timer(&m->write, &timer_min);
 	thread_update_timer(&m->read, &timer_min);
 	thread_update_timer(&m->child, &timer_min);
 
-	if (!timer_isnull(timer_min)) {
+	if (timerisset(&timer_min)) {
 		/* Take care about monotonic clock */
-		timer_min = timer_sub(timer_min, time_now);
+		timersub(&timer_min, &time_now, &timer_min);
 		if (timer_min.tv_sec < 0) {
 			timer_min.tv_sec = timer_min.tv_usec = 0;
 		}
@@ -757,7 +757,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		t = thread;
 		thread = t->next;
 
-		if (timer_cmp(time_now, t->sands) >= 0) {
+		if (timercmp(&time_now, &t->sands, >=)) {
 			thread_list_delete(&m->child, t);
 			thread_list_add(&m->ready, t);
 			t->type = THREAD_CHILD_TIMEOUT;
@@ -779,7 +779,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 			thread_list_delete(&m->read, t);
 			thread_list_add(&m->ready, t);
 			t->type = THREAD_READY_FD;
-		} else if (timer_cmp(time_now, t->sands) >= 0) {
+		} else if (timercmp(&time_now, &t->sands, >=)) {
 			FD_CLR(t->u.fd, &m->readfd);
 			thread_list_delete(&m->read, t);
 			thread_list_add(&m->ready, t);
@@ -802,7 +802,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 			thread_list_add(&m->ready, t);
 			t->type = THREAD_READY_FD;
 		} else {
-			if (timer_cmp(time_now, t->sands) >= 0) {
+			if (timercmp(&time_now, &t->sands, >=)) {
 				FD_CLR(t->u.fd, &m->writefd);
 				thread_list_delete(&m->write, t);
 				thread_list_add(&m->ready, t);
@@ -821,7 +821,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		t = thread;
 		thread = t->next;
 
-		if (timer_cmp(time_now, t->sands) >= 0) {
+		if (timercmp(&time_now, &t->sands, >=)) {
 			thread_list_delete(&m->timer, t);
 			thread_list_add(&m->ready, t);
 			t->type = THREAD_READY;

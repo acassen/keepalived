@@ -2835,7 +2835,7 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFC_SNMP_OPER_VR_UPTIME:
 		if (rt->state == VRRP_STATE_BACK ||
 		    rt->state == VRRP_STATE_MAST) {
-			uptime = timer_sub(rt->stats->uptime, vrrp_start_time);
+			timersub(&rt->stats->uptime, &vrrp_start_time, &uptime);
 			long_ret.s = uptime.tv_sec * 100 + uptime.tv_usec / 10000;	// unit is centi-seconds
 		}
 		else
@@ -3504,7 +3504,7 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFCv3_SNMP_OPER_VR_UPTIME:
 		if (rt->state == VRRP_STATE_BACK ||
 		    rt->state == VRRP_STATE_MAST) {
-			uptime = timer_sub(rt->stats->uptime, vrrp_start_time);
+			timersub(&rt->stats->uptime, &vrrp_start_time, &uptime);
 			long_ret.s = uptime.tv_sec * 100 + uptime.tv_usec / 10000;	// unit is centi-seconds
 		}
 		else

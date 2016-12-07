@@ -40,24 +40,11 @@ extern timeval_t time_now;
 #define TIMER_DISABLED		LONG_MIN	/* Value in timeval_t tv_sec */
 
 /* Some useful macros */
-#define timer_sec(T) ((T).tv_sec)
 #define timer_long(T) (unsigned long)(((T).tv_sec * TIMER_HZ + (T).tv_usec))
-#define timer_isnull(T) ((T).tv_sec == 0 && (T).tv_usec == 0)
-#define timer_reset(T) (memset(&(T), 0, sizeof(timeval_t)))
-/* call this instead of timer_reset() when you intend to set
- * all the fields of timeval manually afterwards. */
-#define timer_reset_lazy(T) do { \
-	if ( sizeof((T)) != sizeof((T).tv_sec) + sizeof((T).tv_usec) ) \
-		timer_reset((T)); \
-	} while (0)
 
 /* prototypes */
 extern timeval_t timer_now(void);
 extern timeval_t set_time_now(void);
-extern timeval_t timer_dup(timeval_t);
-extern int timer_cmp(timeval_t, timeval_t);
-extern timeval_t timer_sub(timeval_t, timeval_t);
-extern timeval_t timer_add(timeval_t, timeval_t);
 extern timeval_t timer_add_secs(timeval_t, time_t);
 extern timeval_t timer_add_long(timeval_t, unsigned long);
 extern timeval_t timer_sub_long(timeval_t, unsigned long);

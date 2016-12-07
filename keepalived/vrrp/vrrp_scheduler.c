@@ -321,12 +321,12 @@ vrrp_compute_timer(const int fd)
 	timeval_t timer;
 
 	/* Multiple instances on the same interface */
-	timer_reset(timer);
+	timerclear(&timer);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-		if (timer_cmp(vrrp->sands, timer) < 0 ||
-		    timer_isnull(timer))
-			timer = timer_dup(vrrp->sands);
+		if (!timerisset(&timer) ||
+		    timercmp(&vrrp->sands, &timer, <))
+			timer = vrrp->sands;
 	}
 
 	return timer;
@@ -341,10 +341,11 @@ vrrp_timer_fd(const int fd)
 // TODO - if the result of the following test is -ve, then a thread has already expired
 // and so shouldn't we run straight away? Or else ignore timers in past and take the next
 // one in the future?
-	if (timer_cmp(timer, time_now) < 0)
+	if (timercmp(&timer, &time_now, <))
 		return TIMER_MAX_SEC;
 
-	return timer_long(timer_sub(timer, time_now));
+	timersub(&timer, &time_now, &timer);
+	return timer_long(timer);
 }
 
 static void
@@ -364,13 +365,13 @@ thread_requeue_read_relative(vrrp_t *vrrp, uint32_t timer)
 //	vrrp_t *best_vrrp = NULL;
 //
 //	/* Multiple instances on the same interface */
-//	timer_reset(timer);
+//	timerclear(&timer);
 //	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 //		vrrp = ELEMENT_DATA(e);
 //		if (vrrp->fd_in == fd &&
-//		    (timer_cmp(vrrp->sands, timer) < 0 ||
-//		     timer_isnull(timer))) {
-//			timer = timer_dup(vrrp->sands);
+//		    (!timerisset(&timer) ||
+//		     timercmp(&vrrp->sands, &timer, <))) {
+//			timer = vrrp->sands;
 //			best_vrrp = vrrp;
 //		}
 //	}
@@ -795,7 +796,7 @@ vrrp_dispatcher_read_timeout(int fd)
 		if (vrrp->fd_in != fd)
 			continue;
 
-		if (timer_cmp(vrrp->sands, time_now) > 0)
+		if (timercmp(&vrrp->sands, &time_now, >))
 			continue;
 
 		/* Run the FSM handler */
@@ -1069,24 +1070,24 @@ vrrp_arp_thread(thread_t *thread)
 					}
 
 					if (!IP_IS6(ipaddress)) {
-						if (timer_cmp(time_now, ifp->garp_delay->garp_next_time) >= 0) {
+						if (timercmp(&time_now, &ifp->garp_delay->garp_next_time, >=)) {
 							send_gratuitous_arp_immediate(ifp, ipaddress);
 							ipaddress->garp_gna_pending = false;
 						}
 						else {
 							vrrp->garp_pending = true;
-							if (timer_cmp(ifp->garp_delay->garp_next_time, next_time) < 0)
+							if (timercmp(&ifp->garp_delay->garp_next_time, &next_time, <))
 								next_time = ifp->garp_delay->garp_next_time;
 						}
 					}
 					else {
-						if (timer_cmp(time_now, ifp->garp_delay->gna_next_time) >= 0) {
+						if (timercmp(&time_now, &ifp->garp_delay->gna_next_time, >=)) {
 							ndisc_send_unsolicited_na_immediate(ifp, ipaddress);
 							ipaddress->garp_gna_pending = false;
 						}
 						else {
 							vrrp->gna_pending = true;
-							if (timer_cmp(ifp->garp_delay->gna_next_time, next_time) < 0)
+							if (timercmp(&ifp->garp_delay->gna_next_time, &next_time, <))
 								next_time = ifp->garp_delay->gna_next_time;
 						}
 					}

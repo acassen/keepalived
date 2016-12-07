@@ -112,7 +112,7 @@ static void queue_garp(vrrp_t *vrrp, interface_t *ifp, ip_address_t *ipaddress)
 	ipaddress->garp_gna_pending = true;
 
 	/* Do we need to reschedule the garp thread? */
-	if (!garp_thread || timer_cmp(next_time, garp_next_time) < 0) {
+	if (!garp_thread || timercmp(&next_time, &garp_next_time, <)) {
 		if (garp_thread)
 			thread_cancel(garp_thread);
 
@@ -132,7 +132,7 @@ void send_gratuitous_arp(vrrp_t *vrrp, ip_address_t *ipaddress)
 	if (ifp->garp_delay &&
 	    ifp->garp_delay->have_garp_interval &&
 	    ifp->garp_delay->garp_next_time.tv_sec) {
-		if (timer_cmp(time_now, ifp->garp_delay->garp_next_time) < 0) {
+		if (timercmp(&time_now, &ifp->garp_delay->garp_next_time, <)) {
 			queue_garp(vrrp, ifp, ipaddress);
 			return;
 		}

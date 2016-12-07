@@ -34,6 +34,7 @@
 #include <errno.h>
 #include <openssl/md5.h>
 #include <unistd.h>
+#include <sys/time.h>
 #ifdef _WITH_VRRP_AUTH_
 #include <netinet/in.h>
 #endif
@@ -1322,7 +1323,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	vrrp_send_link_update(vrrp, vrrp->garp_rep);
 
 	/* set refresh timer */
-	if (!timer_isnull(vrrp->garp_refresh)) {
+	if (timerisset(&vrrp->garp_refresh)) {
 		vrrp->garp_refresh_timer = timer_add_now(vrrp->garp_refresh);
 	}
 
@@ -1534,7 +1535,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		   hd->priority >= vrrp->effective_priority ||
 		   (vrrp->preempt_delay &&
 		    (!vrrp->preempt_time.tv_sec ||
-		     timer_cmp(vrrp->preempt_time, timer_now()) > 0))) {
+		     timercmp(&vrrp->preempt_time, &time_now, >)))) {
 // TODO - why all the above checks - in particular what would preempt_time == 0 && preempt_delay mean?
 		if (vrrp->version == VRRP_VERSION_3) {
 			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
@@ -1576,7 +1577,8 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 
 	if (ignore_advert) {
 		/* We need to reduce the down timer since we have ignored the advert */
-		new_ms_down_timer = timer_sub(vrrp->sands, set_time_now());
+		set_time_now();
+		timersub(&vrrp->sands, &time_now, &new_ms_down_timer);
 		vrrp->ms_down_timer = new_ms_down_timer.tv_sec < 0 ? 0 : (uint32_t)(new_ms_down_timer.tv_sec * TIMER_HZ + new_ms_down_timer.tv_usec);
 	}
 }
@@ -1597,8 +1599,8 @@ vrrp_state_master_tx(vrrp_t * vrrp)
 			thread_add_timer(master, vrrp_gratuitous_arp_thread,
 					 vrrp, vrrp->garp_delay);
 		vrrp_smtp_notifier(vrrp);
-	} else if (!timer_isnull(vrrp->garp_refresh) &&
-		   timer_cmp(time_now, vrrp->garp_refresh_timer) > 0) {
+	} else if (timerisset(&vrrp->garp_refresh) &&
+		   timercmp(&time_now, &vrrp->garp_refresh_timer, >)) {
 		vrrp_send_link_update(vrrp, vrrp->garp_refresh_rep);
 		vrrp->garp_refresh_timer = timer_add_now(vrrp->garp_refresh);
 	}
@@ -2973,7 +2975,7 @@ clear_diff_vrrp(void)
 				vrrp_send_link_update(new_vrrp, new_vrrp->garp_rep);
 
 				/* set refresh timer */
-				if (!timer_isnull(new_vrrp->garp_refresh)) {
+				if (timerisset(&new_vrrp->garp_refresh)) {
 					new_vrrp->garp_refresh_timer = timer_add_now(new_vrrp->garp_refresh);
 				}
 			}
