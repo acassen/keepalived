@@ -69,6 +69,8 @@
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
 
+extern int vip_netlink_address_lookup(vrrp_t * vrrp);
+
 /* add/remove Virtual IP addresses */
 static bool
 vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type)
@@ -1555,6 +1557,9 @@ vrrp_state_master_tx(vrrp_t * vrrp, const int prio)
 	vrrp_send_adv(vrrp,
 		      (prio == VRRP_PRIO_OWNER) ? VRRP_PRIO_OWNER :
 						  vrrp->effective_priority);
+						  
+        /*When VRRP_Instance is MASTE state ,if vip was removed, it will be bound to linux kernel interface again.*/						  
+	vip_netlink_address_lookup(vrrp);						  
 	return ret;
 }
 
