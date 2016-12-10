@@ -305,9 +305,9 @@ vrrp_get_header(sa_family_t family, char *buf, unsigned *proto)
 #ifdef _WITH_VRRP_AUTH_
 /*
  * IPSEC AH incoming packet check.
- * return 0 for a valid pkt, != 0 otherwise.
+ * return false for a valid pkt, true otherwise.
  */
-static int
+static bool
 vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 {
 	struct iphdr *ip = (struct iphdr *) (buffer);
@@ -320,7 +320,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 		log_message(LOG_INFO, "IPSEC AH : invalid IPSEC SPI value. %d and expect %d",
 			    ip->saddr, ah->spi);
 		++vrrp->stats->auth_failure;
-		return 1;
+		return true;
 	}
 
 // TODO - If SPI doesn't match previous SPI, we are starting again
@@ -336,7 +336,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	    || __test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
 #endif
 							) {
-// TODO - why do we ignore seq no for vmac and sync groups?
+// TODO - why do we ignore seq no for vmac (commit 3efff46b6 8/4/2015) and sync groups?
 		vrrp->ipsecah_counter.seq_number = ntohl(ah->seq_number);
 	} else {
 // TODO - we could handle wrap around within a few numbers, e.g. FFFFFFFA -> 00000006
@@ -345,7 +345,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 					vrrp->iname, ntohl(ah->seq_number),
 					vrrp->ipsecah_counter.seq_number);
 		++vrrp->stats->auth_failure;
-		return 1;
+		return true;
 	}
 
 	/*
@@ -375,10 +375,10 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 				      " or bad password !",
 			    vrrp->iname);
 		++vrrp->stats->auth_failure;
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 #endif
 
@@ -1630,12 +1630,12 @@ vrrp_saddr_cmp(struct sockaddr_storage *addr, vrrp_t *vrrp)
 }
 
 // TODO Return true to leave master state, false to remain master
-// TODO make functions bool
 // TODO check all uses of master_adver_int (and simplify for VRRPv2)
 // TODO check all uses of effective_priority
 // TODO wantstate must be >= state
 // TODO SKEW_TIME should use master_adver_int USUALLY!!!
-int
+// TODO check all use of ipsecah_counter, including cycle, and when we set seq_number
+bool
 vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 {
 	vrrphdr_t *hd;
@@ -1654,7 +1654,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		vrrp->state = VRRP_STATE_FAULT;
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 		vrrp->last_transition = timer_now();
-		return 1;
+		return true;
 	}
 
 	/* Process the incoming packet */
@@ -1665,32 +1665,44 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		log_message(LOG_INFO,
 		       "VRRP_Instance(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
-		return 0;
+		return false;
 	}
 
 	if (hd->priority == 0) {
 		log_message(LOG_INFO, "(%s): Master received priority 0 message", vrrp->iname);
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
-		return 0;
+		return false;
 	}
 
 	addr_cmp = vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp);
 
-	if (hd->priority == vrrp->effective_priority && addr_cmp == 0)
-		log_message(LOG_INFO, "(%s): WARNING - equal priority advert received from remote host with our IP address.", vrrp->iname);
+	if (hd->priority == vrrp->effective_priority) {
+		if (addr_cmp == 0)
+			log_message(LOG_INFO, "(%s): WARNING - equal priority advert received from remote host with our IP address.", vrrp->iname);
+		else if (vrrp->effective_priority == VRRP_PRIO_OWNER) {
+			/* If we are configured as the address owner (priority == 255), and we receive an advertisement 
+			 * from another system indicating it is also the address owner, then there is a clear conflict.
+			 * Report a configuration error, and drop our priority as a workaround. */
+			log_message(LOG_INFO, "(%s): CONFIGURATION ERROR: local instance and a remote instance are both configured as address owner, please fix - reducing local priority", vrrp->iname);
+			vrrp->effective_priority = VRRP_PRIO_OWNER - 1;
+			vrrp->base_priority = VRRP_PRIO_OWNER - 1;
+		}
+	}
 
 	if (hd->priority < vrrp->effective_priority ||
-		   (hd->priority == vrrp->effective_priority &&
-		    addr_cmp < 0)) {
+	    (hd->priority == vrrp->effective_priority &&
+	     addr_cmp < 0)) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
-		log_message(LOG_INFO, "VRRP_Instance(%s) Received advert with lower priority %d, ours %d"
-				      ", forcing new election", vrrp->iname, hd->priority, vrrp->effective_priority);
+		log_message(LOG_INFO, "VRRP_Instance(%s) Received advert with lower priority %d, ours %d%s",
+					vrrp->iname, hd->priority, vrrp->effective_priority,
+					!vrrp->lower_prio_no_advert ? ", forcing new election" : "");
 #ifdef _WITH_VRRP_AUTH_
 		if (proto == IPPROTO_AH) {
 			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
 			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
 					      " - Increment seq"
 					    , vrrp->iname);
+// TODO - why is seq_number taken from lower priority advert?
 			vrrp->ipsecah_counter.seq_number = ntohl(ah->seq_number) + 1;
 			vrrp->ipsecah_counter.cycle = false;
 		}
@@ -1703,18 +1715,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 				thread_add_timer(master, vrrp_lower_prio_gratuitous_arp_thread,
 						 vrrp, vrrp->garp_lower_prio_delay);
 		}
-		return 0;
-	}
-
-	/* If we are configured as the address owner (priority == 255), and we receive an advertisement 
-	 * from another system indicating it is also the address owner, then there is a clear conflict.
-	 * Report a configuration error, and drop our priority as a workaround. */
-	if (hd->priority == VRRP_PRIO_OWNER &&
-	    vrrp->effective_priority == VRRP_PRIO_OWNER) {
-		log_message(LOG_INFO, "(%s): CONFIGURATION ERROR: local instance and a remote instance are both configured as address owner, please fix - reducing local priority", vrrp->iname);
-		vrrp->effective_priority--;
-		if (vrrp->base_priority > 1)
-			vrrp->base_priority--;
+		return false;
 	}
 
 	if (hd->priority > vrrp->effective_priority ||
@@ -1747,13 +1748,13 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		vrrp->master_priority = hd->priority;
 		vrrp->wantstate = VRRP_STATE_BACK;
 		vrrp->state = VRRP_STATE_BACK;
-		return 1;
+		return true;
 	}
 
-	return 0;
+	return false;
 }
 
-int
+bool
 vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 {
 	vrrphdr_t *hd;
@@ -1767,14 +1768,14 @@ vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	if (ret != VRRP_PACKET_OK) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) Dropping received VRRP packet..."
 				    , vrrp->iname);
-		return 0;
+		return false;
 	}
 
 	if (vrrp->base_priority == VRRP_PRIO_OWNER ||
 	    (vrrp->effective_priority > hd->priority && !vrrp->nopreempt))
-		return 1;
+		return true;
 
-	return 0;
+	return false;
 }
 
 static void
