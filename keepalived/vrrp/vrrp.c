@@ -319,7 +319,6 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	if (ah->spi != ip->saddr) {
 		log_message(LOG_INFO, "IPSEC AH : invalid IPSEC SPI value. %d and expect %d",
 			    ip->saddr, ah->spi);
-		++vrrp->stats->auth_failure;
 		return true;
 	}
 
@@ -344,7 +343,6 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 					" already proceeded. Packet dropped. Local(%d)",
 					vrrp->iname, ntohl(ah->seq_number),
 					vrrp->ipsecah_counter.seq_number);
-		++vrrp->stats->auth_failure;
 		return true;
 	}
 
@@ -374,7 +372,6 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 				      " IPSEC HMAC-MD5 value. Due to fields mutation"
 				      " or bad password !",
 			    vrrp->iname);
-		++vrrp->stats->auth_failure;
 		return true;
 	}
 
@@ -542,40 +539,39 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		return VRRP_PACKET_OTHER;
 	}
 
-	/* Check that auth type of packet is one of the supported auth types */
-	if (vrrp->version == VRRP_VERSION_2 &&
+	if (vrrp->version == VRRP_VERSION_2) {
+		/* Check that authentication of packet is correct */
+		if (
 #ifdef _WITH_VRRP_AUTH_
-		hd->v2.auth_type != VRRP_AUTH_AH &&
-		hd->v2.auth_type != VRRP_AUTH_PASS &&
+		    hd->v2.auth_type != VRRP_AUTH_AH &&
+		    hd->v2.auth_type != VRRP_AUTH_PASS &&
 #endif
-		hd->v2.auth_type != VRRP_AUTH_NONE) {
-		log_message(LOG_INFO, "(%s): Invalid auth type: %d", vrrp->iname, hd->v2.auth_type);
-		++vrrp->stats->invalid_authtype;
+		    hd->v2.auth_type != VRRP_AUTH_NONE) {
+			log_message(LOG_INFO, "(%s): Invalid auth type: %d", vrrp->iname, hd->v2.auth_type);
+			++vrrp->stats->invalid_authtype;
 #ifdef _WITH_SNMP_RFCV2_
-		vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, invalidAuthType);
+			vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, invalidAuthType);
 #endif
-		return VRRP_PACKET_KO;
-	}
+			return VRRP_PACKET_KO;
+		}
 
 #ifdef _WITH_VRRP_AUTH_
-	/*
-	 * MUST perform authentication specified by Auth Type
-	 * check the authentication type
-	 */
-	if (vrrp->version == VRRP_VERSION_2 &&
-	    vrrp->auth_type != hd->v2.auth_type) {
-		log_message(LOG_INFO, "(%s): received a %d auth, expecting %d!",
-		       vrrp->iname, hd->v2.auth_type, vrrp->auth_type);
-		++vrrp->stats->authtype_mismatch;
+		/*
+		 * MUST perform authentication specified by Auth Type
+		 * check the authentication type
+		 */
+		if (vrrp->auth_type != hd->v2.auth_type) {
+			log_message(LOG_INFO, "(%s): received a %d auth, expecting %d!",
+			       vrrp->iname, hd->v2.auth_type, vrrp->auth_type);
+			++vrrp->stats->authtype_mismatch;
 #ifdef _WITH_SNMP_RFCV2_
-		vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authTypeMismatch);
+			vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authTypeMismatch);
 #endif
-		return VRRP_PACKET_KO;
-	}
+			return VRRP_PACKET_KO;
+		}
 
-	if (vrrp->version == VRRP_VERSION_2 && vrrp->family == AF_INET) {
-		/* check the authentication if it is a passwd */
-		if (hd->v2.auth_type == VRRP_AUTH_PASS) {
+		if (vrrp->auth_type == VRRP_AUTH_PASS) {
+			/* check the authentication if it is a passwd */
 			char *pw = (char *) ip + ntohs(ip->tot_len)
 			    - sizeof (vrrp->auth_data);
 			if (memcmp(pw, vrrp->auth_data, sizeof(vrrp->auth_data)) != 0) {
@@ -587,19 +583,31 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 				return VRRP_PACKET_KO;
 			}
 		}
-
-		/* check the authentication if it is ipsec ah */
 		else if (hd->v2.auth_type == VRRP_AUTH_AH) {
+			/* check the authentication if it is ipsec ah */
 			if (vrrp_in_chk_ipsecah(vrrp, buffer)) {
 				log_message(LOG_INFO, "(%s): received an invalid auth header!", vrrp->iname);
+				++vrrp->stats->auth_failure;
 #ifdef _WITH_SNMP_RFCV2_
 				vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authFailure);
 #endif
 				return VRRP_PACKET_KO;
 			}
 		}
-	}
 #endif
+
+		/*
+		 * MUST verify that the Adver Interval in the packet is the same as
+		 * the locally configured for this virtual router if VRRPv2
+		 */
+		if (vrrp->adver_int != hd->v2.adver_int * TIMER_HZ) {
+			log_message(LOG_INFO, "(%s): advertisement interval mismatch mine=%d sec rcved=%d sec",
+				vrrp->iname, vrrp->adver_int / TIMER_HZ, adver_int / TIMER_HZ);
+			/* to prevent concurent VRID running => multiple master in 1 VRID */
+			return VRRP_PACKET_DROP;
+		}
+
+	}
 
 	if ((LIST_ISEMPTY(vrrp->vip) && hd->naddr > 0) ||
 	    (!LIST_ISEMPTY(vrrp->vip) && LIST_SIZE(vrrp->vip) != hd->naddr)) {
@@ -607,20 +615,6 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 			vrrp->iname, hd->naddr, LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip));
 		++vrrp->stats->addr_list_err;
 		return VRRP_PACKET_KO;
-	}
-
-	/*
-	 * MUST verify that the Adver Interval in the packet is the same as
-	 * the locally configured for this virtual router if VRRPv2
-	 */
-	if (vrrp->version == VRRP_VERSION_2) {
-		adver_int = hd->v2.adver_int * TIMER_HZ;
-		if (vrrp->adver_int != adver_int) {
-			log_message(LOG_INFO, "(%s): advertisement interval mismatch mine=%d sec rcved=%d sec",
-				vrrp->iname, vrrp->adver_int / TIMER_HZ, adver_int / TIMER_HZ);
-			/* to prevent concurent VRID running => multiple master in 1 VRID */
-			return VRRP_PACKET_DROP;
-		}
 	}
 
 	if (vrrp->family == AF_INET && ntohs(ip->tot_len) != buflen) {
