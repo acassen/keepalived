@@ -151,8 +151,6 @@ state_str(int state)
 		return "Master";
 	case VRRP_STATE_FAULT:
 		return "Fault";
-	case VRRP_STATE_GOTO_FAULT:
-		return "Goto fault";
 	}
 	return "Unknown";
 }

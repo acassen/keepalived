@@ -65,7 +65,6 @@ get_state_str(int state)
 	if (state == VRRP_STATE_BACK) return "BACKUP";
 	if (state == VRRP_STATE_MAST) return "MASTER";
 	if (state == VRRP_STATE_FAULT) return "FAULT";
-	if (state == VRRP_STATE_GOTO_FAULT) return "GOTO_FAULT";
 	if (state == VRRP_DISPATCHER) return "DISPATCHER";
 	return "unknown";
 }

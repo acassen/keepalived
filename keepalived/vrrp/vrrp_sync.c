@@ -54,7 +54,7 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 	 */
 	if (vrrp->state == VRRP_STATE_BACK)
 		vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
-	else if (vrrp->state == VRRP_STATE_GOTO_FAULT || vrrp->state == VRRP_STATE_FAULT)
+	else if (vrrp->state == VRRP_STATE_FAULT)
 		vrrp->sands = timer_add_secs(time_now, 86400UL);
 }
 
@@ -282,7 +282,7 @@ vrrp_sync_fault(vrrp_t * vrrp)
 		 * => Takeover will be less than 3secs !
 		 */
 		if (isync != vrrp && isync->state != VRRP_STATE_FAULT) {
-			isync->wantstate = VRRP_STATE_GOTO_FAULT;
+			isync->wantstate = VRRP_STATE_FAULT;
 			if (isync->state == VRRP_STATE_MAST) {
 				vrrp_state_leave_master(isync);
 			}

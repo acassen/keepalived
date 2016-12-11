@@ -1430,7 +1430,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 // TODO - if we are called due to receiving a higher priority advert, do we overwrite master adver int ?
 		vrrp->master_adver_int = vrrp->adver_int;
 		break;
-	case VRRP_STATE_GOTO_FAULT:
+	case VRRP_STATE_FAULT:
 		log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE", vrrp->iname);
 		vrrp_restore_interface(vrrp, false, false);
 		vrrp->state = VRRP_STATE_FAULT;
@@ -1468,7 +1468,7 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 	case VRRP_STATE_MAST:
 		vrrp_state_goto_master(vrrp);
 		break;
-	case VRRP_STATE_GOTO_FAULT:
+	case VRRP_STATE_FAULT:
 		log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE", vrrp->iname);
 		if (vrrp->state == VRRP_STATE_MAST) {
 			vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
@@ -1648,7 +1648,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	int addr_cmp;
 
 	/* return on link failure */
-	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT) {
+	if (vrrp->wantstate == VRRP_STATE_FAULT) {
 		vrrp->master_adver_int = vrrp->adver_int;
 		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 		vrrp->state = VRRP_STATE_FAULT;

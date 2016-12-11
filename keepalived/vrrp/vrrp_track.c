@@ -153,7 +153,7 @@ void
 down_instance(vrrp_t *vrrp)
 {
 	if (vrrp->num_script_if_fault++ == 0) {
-		vrrp->wantstate = VRRP_STATE_GOTO_FAULT;
+		vrrp->wantstate = VRRP_STATE_FAULT;
 		if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_state_leave_master(vrrp);
 		else
