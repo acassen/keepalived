@@ -156,7 +156,7 @@ vrrp_sync_smtp_notifier(vrrp_sgroup_t *vgroup)
 
 /* Check transition to master state */
 bool
-vrrp_sync_goto_master(vrrp_t * vrrp)
+vrrp_sync_can_goto_master(vrrp_t * vrrp)
 {
 	vrrp_t *isync;
 	vrrp_sgroup_t *vgroup = vrrp->sync;
@@ -226,7 +226,7 @@ vrrp_sync_master(vrrp_t * vrrp)
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
 		return;
-	if (!vrrp_sync_goto_master(vrrp))
+	if (!vrrp_sync_can_goto_master(vrrp))
 		return;
 
 	log_message(LOG_INFO, "VRRP_Group(%s) Syncing instances to MASTER state", GROUP_NAME(vgroup));

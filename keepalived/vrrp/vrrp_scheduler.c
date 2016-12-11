@@ -724,7 +724,7 @@ try_up_instance(vrrp_t *vrrp)
 
 	/* If the sync group can't go to master, we must go to backup state */
 	wantstate = vrrp->wantstate;
-	if (vrrp->sync && !vrrp_sync_goto_master(vrrp))
+	if (vrrp->sync && !vrrp_sync_can_goto_master(vrrp))
 		vrrp->wantstate = VRRP_STATE_BACK;
 
 	/* We can come up */

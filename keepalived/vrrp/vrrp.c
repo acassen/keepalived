@@ -1347,7 +1347,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 void
 vrrp_state_goto_master(vrrp_t * vrrp)
 {
-	if (vrrp->sync && !vrrp_sync_goto_master(vrrp))
+	if (vrrp->sync && !vrrp_sync_can_goto_master(vrrp))
 		return;
 
 	vrrp->state = VRRP_STATE_MAST;
