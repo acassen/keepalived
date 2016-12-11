@@ -42,14 +42,7 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 {
 	set_time_now();
 
-	if (vrrp->state == VRRP_STATE_MAST	  ||
-	    vrrp->state == VRRP_STATE_GOTO_MASTER ||
-	    vrrp->wantstate == VRRP_STATE_GOTO_MASTER) {
-// TODO
-// TIMER  - GOTO_MASTER shouldn't be adver_int. Look at circumstances to set GOTO_MASTER
-// i) backup and expire timer
-// ii) backup and receive prio 0
-// iii) master and receive higher prio advert
+	if (vrrp->state == VRRP_STATE_MAST) {
 		vrrp->sands = timer_add_long(time_now, vrrp->adver_int);
 		return;
 	}
@@ -57,8 +50,7 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 	/*
 	 * When in the BACKUP state the expiry timer should be updated to
 	 * time_now plus the Master Down Timer, when a non-preemptable packet is
-	 * received. (When a preemptable packet is received, the wantstate is
-	 * moved to GOTO_MASTER and this condition is caught above).
+	 * received.
 	 */
 	if (vrrp->state == VRRP_STATE_BACK)
 		vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
@@ -173,49 +165,16 @@ vrrp_sync_goto_master(vrrp_t * vrrp)
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
 		return true;
-	if (GROUP_STATE(vgroup) == VRRP_STATE_GOTO_MASTER)
-		return true;
 
 	/* Only sync to master if everyone wants to
 	 * i.e. prefer backup state to avoid thrashing */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		isync = ELEMENT_DATA(e);
-		if (isync != vrrp && (isync->wantstate != VRRP_STATE_GOTO_MASTER &&
-				      isync->wantstate != VRRP_STATE_MAST)) {
+		if (isync != vrrp && isync->wantstate != VRRP_STATE_MAST) {
 			return false;
 		}
 	}
 	return true;
-}
-
-void
-vrrp_sync_master_election(vrrp_t * vrrp)
-{
-	vrrp_t *isync;
-	vrrp_sgroup_t *vgroup = vrrp->sync;
-	list l = vgroup->index_list;
-	element e;
-
-	if (vrrp->wantstate != VRRP_STATE_GOTO_MASTER)
-		return;
-	if (GROUP_STATE(vgroup) == VRRP_STATE_FAULT)
-		return;
-
-	log_message(LOG_INFO, "VRRP_Group(%s) Transition to MASTER state",
-	       GROUP_NAME(vgroup));
-
-	/* Perform sync index */
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		isync = ELEMENT_DATA(e);
-		if (isync == vrrp || isync->wantstate == VRRP_STATE_GOTO_MASTER)
-			continue;
-
-		/* Force a new protocol master election */
-		isync->wantstate = VRRP_STATE_MAST;
-//		log_message(LOG_INFO, "VRRP_Instance(%s) forcing a new MASTER election", isync->iname);
-//		vrrp_send_adv(isync, isync->effective_priority);
-		vrrp_state_goto_master(isync);
-	}
 }
 
 void

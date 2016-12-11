@@ -455,7 +455,7 @@ sprint_oid(char *str, oid* oid, int len)
 static int
 vrrp_snmp_state(int state)
 {
-	return state < VRRP_STATE_GOTO_MASTER ? state : 4;
+	return state <= VRRP_STATE_FAULT ? state : 4;
 }
 
 static u_char*
@@ -2529,11 +2529,6 @@ vrrp_snmp_rfc_state(int state)
 {
 	if (state <= VRRP_STATE_MAST)
 		return state + 1;
-	if (state == VRRP_STATE_FAULT ||
-	    state == VRRP_STATE_GOTO_FAULT)
-		return VRRP_STATE_INIT + 1;
-	if (state == VRRP_STATE_GOTO_MASTER)
-		return VRRP_STATE_BACK + 1;
 	return VRRP_STATE_INIT + 1;
 }
 #endif

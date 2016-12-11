@@ -53,8 +53,7 @@ do {						\
 #define VRRP_TSM_HANDLE(S,V)			\
 do {						\
   if ((V)->sync &&				\
-      S != VRRP_STATE_GOTO_MASTER)		\
-    if ((*(VRRP_TSM[S][(V)->state].handler)))	\
+      (*(VRRP_TSM[S][(V)->state].handler)))	\
       (*(VRRP_TSM[S][(V)->state].handler)) (V);	\
 } while (0)
 

@@ -271,10 +271,9 @@ typedef struct _vrrp_t {
 #define VRRP_STATE_BACK			1	/* rfc2338.6.4.2 */
 #define VRRP_STATE_MAST			2	/* rfc2338.6.4.3 */
 #define VRRP_STATE_FAULT		3	/* internal */
-#define VRRP_STATE_GOTO_MASTER		4	/* internal */
 #define VRRP_STATE_GOTO_FAULT		98	/* internal */
 #define VRRP_DISPATCHER			99	/* internal */
-#define VRRP_MAX_FSM_STATE		4	/* internal */
+#define VRRP_MAX_FSM_STATE		3	/* internal */
 
 /* VRRP packet handling */
 #define VRRP_PACKET_OK       0

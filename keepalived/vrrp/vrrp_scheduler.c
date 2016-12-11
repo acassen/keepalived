@@ -84,7 +84,6 @@ thread_t *garp_thread;
  */
 static void vrrp_backup(vrrp_t *, char *, ssize_t);
 static void vrrp_leave_master(vrrp_t *, char *, ssize_t);
-static void vrrp_become_master(vrrp_t *, char *, ssize_t);
 
 static void vrrp_goto_master(vrrp_t *);
 static void vrrp_master(vrrp_t *);
@@ -105,8 +104,7 @@ static struct {
 	{NULL,				NULL},
 	{vrrp_backup,			vrrp_goto_master},	/*  BACKUP          */
 	{vrrp_leave_master,		vrrp_master},		/*  MASTER          */
-	{NULL,				NULL},			/*  FAULT           */
-	{vrrp_become_master,		vrrp_goto_master}	/*  GOTO_MASTER     */
+	{NULL,				NULL}			/*  FAULT           */
 };
 
 #define	TSM_DEBUG
@@ -142,9 +140,9 @@ static struct {
  * For instance the handlers (2), (4), (5) & (6) are handled when it is 
  * detected that a script or an interface has failed or recovered since
  * it will speed up convergence to init state.
- * Additionnaly, we have implemented some other handlers into the matrix
+ * Additionaly, we have implemented some other handlers into the matrix
  * in order to speed up group synchronization takeover. For instance
- * transitions :
+ * transition:
  *    o B->B: To catch wantstate MASTER transition to force sync group
  *            to this transition state too.
  *    o F->F: To speed up FAULT state transition if group is not already
@@ -156,7 +154,7 @@ static struct {
 {
 /* From:	  To: >	  BACKUP			MASTER		    FAULT */
 /*   v    */	{ {NULL}, {NULL},			{NULL},		   {NULL} },
-/* BACKUP */	{ {NULL}, {vrrp_sync_master_election},	{vrrp_sync_master}, {NULL} },
+/* BACKUP */	{ {NULL}, {NULL},			{vrrp_sync_master}, {NULL} },
 /* MASTER */	{ {NULL}, {vrrp_sync_backup},		{vrrp_sync_master}, {NULL} },
 /* FAULT  */	{ {NULL}, {NULL},			{vrrp_sync_master}, {NULL} }
 };
@@ -605,40 +603,6 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 #endif
 
 	vrrp_state_backup(vrrp, buffer, len);
-}
-
-static void
-vrrp_become_master(vrrp_t * vrrp,
-#ifndef _WITH_VRRP_AUTH_
-				  __attribute__((unused))
-#endif
-							  char *buffer, __attribute__((unused)) ssize_t len)
-{
-#ifdef _WITH_VRRP_AUTH_
-	struct iphdr *iph;
-	ipsec_ah_t *ah;
-
-/* TODO - we don't want this anymore - it is for state GOTO_MASTER */
-	if (vrrp->auth_type == VRRP_AUTH_AH) {
-		iph = (struct iphdr *) buffer;
-
-		/*
-		 * If we are in IPSEC AH mode, we must be sync
-		 * with the remote IPSEC AH VRRP instance counter.
-		 */
-		if (iph->protocol == IPPROTO_AH) {
-			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : seq_num sync",
-			       vrrp->iname);
-			ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));
-			vrrp->ipsecah_counter.seq_number = ntohl(ah->seq_number) + 1;
-			vrrp->ipsecah_counter.cycle = false;
-		}
-	}
-#endif
-
-	/* Then jump to master state */
-	vrrp->wantstate = VRRP_STATE_MAST;
-	vrrp_state_goto_master(vrrp);
 }
 
 /* This is called if receive a packet when master */
@@ -1219,7 +1183,6 @@ dump_threads(void)
 				vrrp->state == VRRP_STATE_BACK ? "BACKUP" :
 				vrrp->state == VRRP_STATE_MAST ? "MASTER" :
 				vrrp->state == VRRP_STATE_FAULT ? "FAULT" :
-				vrrp->state == VRRP_STATE_GOTO_MASTER ? "GOTO MASTER" :
 				vrrp->state == VRRP_STATE_GOTO_FAULT ? "GOTO FAULT" :
 				vrrp->state == VRRP_DISPATCHER ? "DISPATCHER" : "unknown");
 	}
