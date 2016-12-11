@@ -177,10 +177,6 @@ update_script_priorities(vrrp_script_t *vscript, bool script_ok)
 	for (e = LIST_HEAD(vscript->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-		/* Don't change effective priority if address owner */
-		if (vrrp->base_priority == VRRP_PRIO_OWNER)
-			continue;
-
 		if (LIST_ISEMPTY(vrrp->track_script))
 			continue;
 
@@ -201,6 +197,10 @@ update_script_priorities(vrrp_script_t *vscript, bool script_ok)
 				}
 				break;
 			}
+
+			/* Don't change effective priority if address owner */
+			if (vrrp->base_priority == VRRP_PRIO_OWNER)
+				break;
 
 			if (script_ok)
 				vrrp->total_priority += abs(tsc->weight);
