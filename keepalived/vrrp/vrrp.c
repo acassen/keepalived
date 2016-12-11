@@ -588,7 +588,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 			}
 		}
 
-		/* check the authenicaion if it is ipsec ah */
+		/* check the authentication if it is ipsec ah */
 		else if (hd->v2.auth_type == VRRP_AUTH_AH) {
 			if (vrrp_in_chk_ipsecah(vrrp, buffer)) {
 				log_message(LOG_INFO, "(%s): received an invalid auth header!", vrrp->iname);
@@ -1416,31 +1416,28 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 #endif
 
 	/* set the new vrrp state */
-// TODO merge the code blocks of the switch statement
-	switch (vrrp->wantstate) {
-	case VRRP_STATE_BACK:
+	if (vrrp->wantstate == VRRP_STATE_BACK) {
 		log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
-		vrrp_restore_interface(vrrp, false, false);
-		vrrp->state = VRRP_STATE_BACK;
-		notify_instance_exec(vrrp, VRRP_STATE_BACK);
 		vrrp->preempt_time.tv_sec = 0;
-#ifdef _WITH_SNMP_KEEPALIVED_
-		vrrp_snmp_instance_trap(vrrp);
-#endif
 // TODO - if we are called due to receiving a higher priority advert, do we overwrite master adver int ?
 		vrrp->master_adver_int = vrrp->adver_int;
-		break;
-	case VRRP_STATE_FAULT:
-		log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE", vrrp->iname);
-		vrrp_restore_interface(vrrp, false, false);
-		vrrp->state = VRRP_STATE_FAULT;
-		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
-		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
-#ifdef _WITH_SNMP_KEEPALIVED_
-		vrrp_snmp_instance_trap(vrrp);
-#endif
-		break;
 	}
+	else if (vrrp->wantstate == VRRP_STATE_FAULT) {
+		log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE", vrrp->iname);
+		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
+	}
+	else {
+		log_message(LOG_INFO, "(%s): vrrp_state_leave_master called with invalid wantstate %d", vrrp->iname, vrrp->wantstate);
+		return;
+	}
+
+	vrrp_restore_interface(vrrp, false, false);
+	vrrp->state = vrrp->wantstate;
+	notify_instance_exec(vrrp, vrrp->state);
+
+#ifdef _WITH_SNMP_KEEPALIVED_
+	vrrp_snmp_instance_trap(vrrp);
+#endif
 
 	/* Set the down timer */
 	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
@@ -1453,33 +1450,23 @@ void
 vrrp_state_leave_fault(vrrp_t * vrrp)
 {
 	/* set the new vrrp state */
-// TODO merge the code blocks of the switch statement
-	switch (vrrp->wantstate) {
-	case VRRP_STATE_BACK:
-		log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
-		vrrp->state = VRRP_STATE_BACK;
-		notify_instance_exec(vrrp, VRRP_STATE_BACK);
-		vrrp->preempt_time.tv_sec = 0;
-#ifdef _WITH_SNMP_KEEPALIVED_
-		vrrp_snmp_instance_trap(vrrp);
-#endif
-		vrrp->master_adver_int = vrrp->adver_int;
-		break;
-	case VRRP_STATE_MAST:
+	if (vrrp->wantstate == VRRP_STATE_MAST)
 		vrrp_state_goto_master(vrrp);
-		break;
-	case VRRP_STATE_FAULT:
-		log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE", vrrp->iname);
-		if (vrrp->state == VRRP_STATE_MAST) {
+	else {
+		log_message(LOG_INFO, "VRRP_Instance(%s) Entering %s STATE", vrrp->iname, vrrp->wantstate == VRRP_STATE_BACK ? "BACKUP" : "FAULT");
+		if (vrrp->wantstate == VRRP_STATE_FAULT && vrrp->state == VRRP_STATE_MAST) {
 			vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 			vrrp_restore_interface(vrrp, false, false);
 		}
-		vrrp->state = VRRP_STATE_FAULT;
-		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
+		vrrp->state = vrrp->wantstate;
+		notify_instance_exec(vrrp, vrrp->state);
+		if (vrrp->state == VRRP_STATE_BACK) {
+			vrrp->preempt_time.tv_sec = 0;
+			vrrp->master_adver_int = vrrp->adver_int;
+		}
 #ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
-		break;
 	}
 
 	/* Set the down timer */
