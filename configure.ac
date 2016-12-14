@@ -428,6 +428,18 @@ for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF RTA_VIA FRA_OIFNAME FRA_SU
   fi
 done
 
+dnl -- RedHat backported ENCAP_IP and ENCAP_IP6 without MPLS and ILA
+AC_CHECK_DECLS([LWTUNNEL_ENCAP_MPLS, LWTUNNEL_ENCAP_ILA], [], [],
+  [[#include <linux/lwtunnel.h>]])
+if test ${ac_cv_have_decl_RTA_ENCAP}; then
+  for flag in LWTUNNEL_ENCAP_MPLS LWTUNNEL_ENCAP_ILA; do
+    AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
+    if test ${decl_var} = yes; then
+      add_build_opt[${flag}]
+    fi
+  done
+fi
+
 dnl ----[Check if have net/if.h and netlink/route/link.h namespace collision]----
 dnl -- Resolved in libnl3-3.2.26 (release 30/3/2015)
 if test $NETLINK_VER -eq 3; then
