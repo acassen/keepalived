@@ -27,7 +27,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/types.h>
-#if HAVE_DECL_RTA_ENCAP
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 #include <linux/mpls.h>
 #endif
 
@@ -55,6 +55,7 @@ enum iproute_encap {
 #define	IPROUTE_BIT_ENCAP_TTL		(1<<IPROUTE_ENCAP_TTL)
 #define	IPROUTE_BIT_ENCAP_FLAGS		(1<<IPROUTE_ENCAP_FLAGS)
 
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 #define MAX_MPLS_LABELS	2
 typedef struct mpls_label mpls_labels[MAX_MPLS_LABELS];
 
@@ -62,6 +63,7 @@ typedef struct _encap_mpls {
 	mpls_labels	addr;
 	size_t		num_labels;
 } encap_mpls_t;
+#endif
 
 typedef struct _encap_ip {
 	uint64_t	id;
@@ -72,9 +74,11 @@ typedef struct _encap_ip {
 	uint8_t		ttl;
 } encap_ip_t;
 
+#if HAVE_DECL_LWTUNNEL_ENCAP_ILA
 typedef struct _encap_ila {
 	uint64_t	locator;
 } encap_ila_t;
+#endif
 
 typedef struct _encap_ip6 {
 	uint64_t	id;
@@ -89,9 +93,13 @@ typedef struct _encap {
 	uint16_t	type;
 	uint32_t	flags;
 	union {
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 		encap_mpls_t	mpls;
+#endif
 		encap_ip_t	ip;
+#if HAVE_DECL_LWTUNNEL_ENCAP_ILA
 		encap_ila_t	ila;
+#endif
 		encap_ip6_t	ip6;
 	};
 } encap_t;

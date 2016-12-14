@@ -110,6 +110,14 @@
    0 if you don't. */
 #undef HAVE_DECL_IP_VS_SVC_F_ONEPACKET
 
+/* Define to 1 if you have the declaration of `LWTUNNEL_ENCAP_ILA', and to 0
+   if you don't. */
+#undef HAVE_DECL_LWTUNNEL_ENCAP_ILA
+
+/* Define to 1 if you have the declaration of `LWTUNNEL_ENCAP_MPLS', and to 0
+   if you don't. */
+#undef HAVE_DECL_LWTUNNEL_ENCAP_MPLS
+
 /* Define to 1 if you have the declaration of `MACVLAN_MODE_PRIVATE', and to 0
    if you don't. */
 #undef HAVE_DECL_MACVLAN_MODE_PRIVATE
