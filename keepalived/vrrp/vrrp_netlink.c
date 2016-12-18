@@ -472,6 +472,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	interface_t *ifp;
 	size_t len;
 	void *addr;
+	char addr_str[INET6_ADDRSTRLEN];
 
 	ifa = NLMSG_DATA(h);
 
@@ -513,10 +514,16 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 			ifp->sin6_addr = *(struct in6_addr *) addr;
 	}
 
+	/* Display netlink operation */
+	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+		inet_ntop(ifa->ifa_family, addr, addr_str, sizeof(addr_str));
+		log_message(LOG_INFO, "Netlink reflector reports IP %s %s"
+				    , addr_str, h->nlmsg_type == RTM_NEWADDR ? "added" : "removed");
+	}
+
 #ifdef _WITH_LVS_
 	/* Refresh checkers state */
-	update_checker_activity(ifa->ifa_family, addr,
-				(h->nlmsg_type == RTM_NEWADDR) ? 1 : 0);
+	update_checker_activity(ifa->ifa_family, addr, h->nlmsg_type == RTM_NEWADDR);
 #endif
 	return 0;
 }
