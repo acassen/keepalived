@@ -24,6 +24,8 @@
 
 #include "config.h"
 
+#define _TIMER_DEBUG_
+
 /* SNMP should be included first: it redefines "FREE" */
 #ifdef _WITH_SNMP_
 #include <net-snmp/net-snmp-config.h>
@@ -789,7 +791,8 @@ retry:	/* When thread can't fetch try to find next thread again. */
 			thread_list_delete(&m->read, t);
 			thread_list_add(&m->ready, t);
 			t->type = THREAD_READY_FD;
-		} else if (timercmp(&time_now, &t->sands, >=)) {
+		} else if (t->sands.tv_sec != TIMER_DISABLED &&
+			   timercmp(&time_now, &t->sands, >=)) {
 			FD_CLR(t->u.fd, &m->readfd);
 			thread_list_delete(&m->read, t);
 			thread_list_add(&m->ready, t);
