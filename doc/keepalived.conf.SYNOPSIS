@@ -241,8 +241,8 @@ of the script. After that, <rise> consecutive successes will cause VRRP instance
 leave the fault state, unless they are also in the fault state due to other scripts
 or interfaces that they are tracking.
 
-A weight > 0 means that a <rise> successes will add <weight> to the priority of all VRRP
-instances which monitor it. On the opposite, a negative weight will be subtracted
+A positive weight means that <rise> successes will add <weight> to the priority of all
+VRRP instances which monitor it. On the opposite, a negative weight will be subtracted
 from the initial priority in case of <fall> failures.
 
 	2.2. VRRP synchronization group
