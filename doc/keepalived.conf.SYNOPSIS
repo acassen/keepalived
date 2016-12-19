@@ -231,17 +231,19 @@ vrrp_script <STRING> {          # VRRP script declaration
 }
 
 The script will be executed periodically, every <interval> seconds. Its exit
-code will be recorded for all VRRP instances which will want to monitor it.
+code will be recorded for all VRRP instances which monitor it.
 Note that the script will only be executed if at least one VRRP instance
-monitors it with a non-zero weight. Thus, any number of scripts may be
-declared without taking the system down.
+monitors.
 
-A positive weight means that a success will add the weight to the priority of all 
-VRRP instances which monitor it. On the opposite, a negative weight will be
-subtracted from the initial priority in case of failure.
+The default weight equals 0, which means that any VRRP instance monitoring
+the script will transition to the fault state after <fall> consecutive failures
+of the script. After that, <rise> consecutive successes will cause VRRP instances to
+leave the fault state, unless they are also in the fault state due to other scripts
+or interfaces that they are tracking.
 
-If unspecified, the weight equals 0, which means that a failure implies a
-FAULT state.
+A positive weight means that <rise> successes will add <weight> to the priority of all
+VRRP instances which monitor it. On the opposite, a negative weight will be subtracted
+from the initial priority in case of <fall> failures.
 
 	2.2. VRRP synchronization group
 
@@ -440,7 +442,7 @@ increased by the weight when the interface is up (for positive weights),
 or decreased by the weight's absolute value when the interface is down
 (for negative weights). The weight must be comprised between -254 and +254
 inclusive. 0 is the default behaviour which means that a failure implies a
-FAULT state. The common practise is to use positive weights to count a
+FAULT state. The common practice is to use positive weights to count a
 limited number of good services so that the server with the highest count
 becomes master. Negative weights are better to count unexpected failures
 among a high number of interfaces, as it will not saturate even with high
@@ -448,7 +450,7 @@ number of interfaces.
 
 The same principle can be applied to track_script entries, except that an
 unspecified weight means that the default weight declared in the script
-will be used.
+will be used (which itself defaults to 0).
 
 
 3. LVS configuration
