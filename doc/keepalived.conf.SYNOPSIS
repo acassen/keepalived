@@ -236,10 +236,12 @@ Note that the script will only be executed if at least one VRRP instance
 monitors it with a non-zero weight. Thus, any number of scripts may be
 declared without taking the system down.
 
-If unspecified, the weight equals 2, which means that a success will add +2
-to the priority of all VRRP instances which monitor it. On the opposite, a
-negative weight will be subtracted from the initial priority in case of
-failure.
+A positive weight means that a success will add the weight to the priority of all 
+VRRP instances which monitor it. On the opposite, a negative weight will be
+subtracted from the initial priority in case of failure.
+
+If unspecified, the weight equals 0, which means that a failure implies a
+FAULT state.
 
 	2.2. VRRP synchronization group
 
