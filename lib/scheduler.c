@@ -24,8 +24,6 @@
 
 #include "config.h"
 
-#define _TIMER_DEBUG_
-
 /* SNMP should be included first: it redefines "FREE" */
 #ifdef _WITH_SNMP_
 #include <net-snmp/net-snmp-config.h>
