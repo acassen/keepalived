@@ -1477,7 +1477,7 @@ Optional Features:
   --enable-mem-check      compile with memory alloc checking
   --enable-mem-check-log  compile with memory alloc checking wriging to syslog
   --enable-debug          compile with debugging flags
-  --enable-stracktrace    compile with stacktrace support
+  --enable-stacktrace     compile with stacktrace support
   --enable-dump-threads   compile with thread dumping support
   --enable-profile        compile with profiling flags
   --enable-conversion-checks

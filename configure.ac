@@ -118,7 +118,7 @@ AC_ARG_ENABLE(mem-check-log,
 AC_ARG_ENABLE(debug,
   [AS_HELP_STRING([--enable-debug], [compile with debugging flags])])
 AC_ARG_ENABLE(stacktrace,
-  [AS_HELP_STRING([--enable-stracktrace], [compile with stacktrace support])])
+  [AS_HELP_STRING([--enable-stacktrace], [compile with stacktrace support])])
 AC_ARG_ENABLE(dump-threads,
   [  --enable-dump-threads   compile with thread dumping support])
 AC_ARG_ENABLE(profile,

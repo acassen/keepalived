@@ -325,7 +325,7 @@ find_path(notify_script_t *script)
 
 		/* Get our supplementary groups */
 		sgid_num = getgroups(0, NULL);
-		sgid_list = MALLOC((size_t)(sgid_num + 1) * sizeof(gid_t));
+		sgid_list = MALLOC(((size_t)sgid_num + 1) * sizeof(gid_t));
 		sgid_num = getgroups(sgid_num, sgid_list);
 		sgid_list[sgid_num++] = 0;
 
