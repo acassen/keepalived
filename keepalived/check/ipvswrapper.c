@@ -238,7 +238,7 @@ ipvs_talk(int cmd, bool ignore_error)
 		else if (errno == ENOENT &&
 			(cmd == IP_VS_SO_SET_DEL || cmd == IP_VS_SO_SET_DELDEST))
 			result = 0;
-		log_message(LOG_INFO, "IPVS: %s", ipvs_strerror(errno));
+		log_message(LOG_INFO, "IPVS (cmd %d, errno %d): %s", cmd, errno, ipvs_strerror(errno));
 	}
 	return result;
 }
