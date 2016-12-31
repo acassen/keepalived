@@ -23,6 +23,7 @@
 #include <errno.h>
 #include <sys/socket.h>
 #include <string.h>
+#include <stdbool.h>
 
 #ifdef LIBIPVS_USE_NL
 #include <netlink/netlink.h>
