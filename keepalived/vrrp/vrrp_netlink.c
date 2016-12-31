@@ -1058,6 +1058,11 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	if (ifi->ifi_type == ARPHRD_LOOPBACK)
 		return 0;
 
+	/* Ignore messages with ifi_change == 0 and IFLA_WIRELESS set
+	   See for example https://bugs.chromium.org/p/chromium/issues/detail?id=501982 */
+	if (!ifi->ifi_change && tb[IFLA_WIRELESS])
+		return 0;
+
 	/* find the interface_t. If the interface doesn't exist in the interface
 	 * list and this is a new interface add it to the interface list.
 	 * If an interface with the same name exists overwrite the older
