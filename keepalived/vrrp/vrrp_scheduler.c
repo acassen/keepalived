@@ -598,6 +598,7 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 			if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter.seq_number)
 				vrrp->ipsecah_counter.cycle = false;
 		}
+// TODO - vrrp_master_rx must do the same, so move to common place
 // TODO - what if mismatch between configured and received auth type?
 	}
 #endif
