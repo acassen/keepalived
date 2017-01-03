@@ -48,6 +48,11 @@ typedef uint8_t u8;
 #include "vrrp_netlink.h"
 #include "utils.h"
 #include "logger.h"
+#ifdef _HAVE_VRRP_VMAC_
+#include "vrrp_vmac.h"
+#include "bitops.h"
+#endif
+#include "vrrp_index.h"
 
 /* Local vars */
 static list if_queue;
@@ -90,20 +95,32 @@ base_if_get_by_ifp(interface_t *ifp)
 }
 
 interface_t *
-if_get_by_ifname(const char *ifname)
+if_get_by_ifname(const char *ifname, bool create)
 {
 	interface_t *ifp;
 	element e;
 
-	if (LIST_ISEMPTY(if_queue))
+	if (!LIST_ISEMPTY(if_queue)) {
+		for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
+			ifp = ELEMENT_DATA(e);
+			if (!strcmp(ifp->ifname, ifname))
+				return ifp;
+		}
+	}
+
+	if (!create)
 		return NULL;
 
-	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
-		ifp = ELEMENT_DATA(e);
-		if (!strcmp(ifp->ifname, ifname))
-			return ifp;
-	}
-	return NULL;
+	if (!(ifp = MALLOC(sizeof(interface_t))))
+		return NULL;
+
+	strcpy(ifp->ifname, ifname);
+#ifdef _HAVE_VRRP_VMAC_
+	ifp->base_ifp = ifp;
+#endif
+	if_add_queue(ifp);
+
+	return ifp;
 }
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -655,7 +672,7 @@ if_setsockopt_bindtodevice(int *sd, interface_t *ifp)
 	 */
 	ret = setsockopt(*sd, SOL_SOCKET, SO_BINDTODEVICE, IF_NAME(ifp), (socklen_t)strlen(IF_NAME(ifp)) + 1);
 	if (ret < 0) {
-		log_message(LOG_INFO, "cant bind to device %s. errno=%d. (try to run it as root)",
+		log_message(LOG_INFO, "can't bind to device %s. errno=%d. (try to run it as root)",
 			    IF_NAME(ifp), errno);
 		close(*sd);
 		*sd = -1;
@@ -702,7 +719,6 @@ if_setsockopt_ipv6_checksum(int *sd)
 
 	return *sd;
 }
-
 
 int
 if_setsockopt_mcast_all(sa_family_t family, int *sd)
@@ -871,3 +887,99 @@ print_vrrp_if_addresses(void)
 	log_message(LOG_INFO, "Address of if_linkbeat_refresh_thread() is 0x%p", if_linkbeat_refresh_thread);
 }
 #endif
+
+void
+cleanup_lost_interface(interface_t *ifp)
+{
+	vrrp_t *vrrp;
+	element e;
+
+	/*
+	Recalc max fd for select
+
+	Remove vrid_index
+	Make sock_t have ifp and what is saddr?
+*/
+
+	ifp->ifindex = 0;
+	ifp->ifi_flags = 0;
+
+	if (LIST_ISEMPTY(ifp->tracking_vrrp))
+		return;
+
+	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+
+		/* If this is just a tracking interface, we don't need to do anything */
+		if (vrrp->ifp != ifp && IF_BASE_IFP(ifp) != ifp)
+			continue;
+
+#ifdef _HAVE_VRRP_VMAC_
+		/* If vmac going, clear VMAC_UP_BIT on vrrp instance */
+		if (vrrp->ifp->vmac) {
+			__clear_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
+			vrrp->ifp = vrrp->ifp->base_ifp;
+		}
+#endif
+
+		/* Find the sockpool entry. If none, then we have closed the socket */
+		if (vrrp->sockets->fd_in != -1) {
+			remove_vrrp_fd_bucket(vrrp->sockets->fd_in);
+			close(vrrp->sockets->fd_in);
+			vrrp->sockets->fd_in = -1;
+		}
+		if (vrrp->sockets->fd_out != -1) {
+			close(vrrp->sockets->fd_out);
+			vrrp->sockets->fd_out = -1;
+		}
+		vrrp->sockets->ifindex = 0;
+	}
+}
+
+void
+update_added_interface(interface_t *ifp)
+{
+	vrrp_t *vrrp;
+	element e;
+
+	if (LIST_ISEMPTY(ifp->tracking_vrrp))
+		return;
+
+	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+
+		/* If this is just a tracking interface, we don't need to do anything */
+		if (vrrp->ifp != ifp && IF_BASE_IFP(ifp) != ifp)
+			continue;
+
+#ifdef _HAVE_VRRP_VMAC_
+                if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+                        netlink_link_add_vmac(vrrp);
+
+                /* Add this instance to the vmac interface */
+//                add_vrrp_to_interface(vrrp, vrrp->ifp);
+
+                /* set scopeid of source address if IPv6 */
+                if (vrrp->saddr.ss_family == AF_INET6)
+                        inet_ip6scopeid(vrrp->ifp->ifindex, &vrrp->saddr);
+#endif
+
+		/* Find the sockpool entry. If none, then we open the socket */
+		if (vrrp->sockets->fd_in == -1) {
+			vrrp->sockets->fd_in = open_vrrp_read_socket(vrrp->sockets->family, vrrp->sockets->proto,
+								ifp, vrrp->sockets->unicast);
+			if (vrrp->sockets->fd_in == -1)
+				vrrp->sockets->fd_out = -1;
+			else
+				vrrp->sockets->fd_out = open_vrrp_send_socket(vrrp->sockets->family, vrrp->sockets->proto,
+								ifp, vrrp->sockets->unicast);
+
+			if (vrrp->sockets->fd_out > master->max_fd)
+				master->max_fd = vrrp->sockets->fd_out;
+			if (vrrp->sockets->fd_in > master->max_fd)
+				master->max_fd = vrrp->sockets->fd_in;
+			vrrp->sockets->ifindex = ifp->ifindex;
+		}
+		alloc_vrrp_fd_bucket(vrrp);
+	}
+}

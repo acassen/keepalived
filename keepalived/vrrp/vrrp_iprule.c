@@ -64,16 +64,13 @@ rule_is_equal(const ip_rule_t *x, const ip_rule_t *y)
 #if HAVE_DECL_FRA_TUN_ID
 	    x->tunnel_id != y->tunnel_id ||
 #endif
-	    !(x->iif) != !(y->iif) ||
-	    !(x->oif) != !(y->oif) ||
+	    x->iif != y->iif ||
+#if HAVE_DECL_FRA_OIFNAME
+	    x->oif != y->oif ||
+#endif
 	    x->goto_target != y->goto_target ||
 	    x->table != y->table ||
 	    x->action != y->action)
-		return false;
-
-	if (x->iif && x->iif->ifindex != y->iif->ifindex)
-		return false;
-	if (x->oif && x->oif->ifindex != y->oif->ifindex)
 		return false;
 
 	return true;
@@ -495,19 +492,17 @@ fwmark_err:
 #endif
 		else if (!strcmp(str, "dev") || !strcmp(str, "iif")) {
 			str = strvec_slot(strvec, ++i);
-			ifp = if_get_by_ifname(str);
-			if (!ifp) {
-				log_message(LOG_INFO, "Unknown interface %s for rule",  str);
-				goto err;
-			}
+			ifp = if_get_by_ifname(str, true);
+			if (!ifp->ifindex)
+				log_message(LOG_INFO, "WARNING - interface %s for rule doesn't currently exist",  str);
 			new->iif = ifp;
 		}
 #if HAVE_DECL_FRA_OIFNAME
 		else if (!strcmp(str, "oif")) {
 			str = strvec_slot(strvec, ++i);
-			ifp = if_get_by_ifname(str);
-			if (!ifp) {
-				log_message(LOG_INFO, "Unknown interface %s for rule",  str);
+			ifp = if_get_by_ifname(str, true);
+			if (!ifp->ifindex) {
+				log_message(LOG_INFO, "WARNING - interface %s for rule doesn't currently exist",  str);
 				goto err;
 			}
 			new->oif = ifp;

@@ -53,6 +53,7 @@
 #include "vrrp_snmp.h"
 #endif
 #include "vrrp_print.h"
+#include "vrrp_sock.h"
 
 /* global vars */
 timeval_t garp_next_time;
@@ -349,7 +350,7 @@ vrrp_timer_fd(const int fd)
 static void
 thread_requeue_read_relative(vrrp_t *vrrp, uint32_t timer)
 {
-	thread_read_requeue(master, vrrp->fd_in, timer_sub_long(vrrp->sands, timer));
+	thread_read_requeue(master, vrrp->sockets->fd_in, timer_sub_long(vrrp->sands, timer));
 }
 
 // TODO //static int
@@ -487,6 +488,10 @@ vrrp_open_sockpool(list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		sock = ELEMENT_DATA(e);
+		if (!sock->ifindex) {
+			sock->fd_in = sock->fd_out = -1;
+			continue;
+		}
 		ifp = if_get_by_ifindex(sock->ifindex);
 		sock->fd_in = open_vrrp_read_socket(sock->family, sock->proto,
 					       ifp, sock->unicast);
@@ -531,8 +536,7 @@ vrrp_set_fds(list l)
 			    (sock->family == vrrp->family) &&
 			    (sock->proto == proto)	&&
 			    (sock->unicast == unicast)) {
-				vrrp->fd_in = sock->fd_in;
-				vrrp->fd_out = sock->fd_out;
+				vrrp->sockets = sock;
 
 				/* append to hash index */
 				alloc_vrrp_fd_bucket(vrrp);
@@ -731,7 +735,7 @@ try_up_instance(vrrp_t *vrrp)
 	vrrp_state_leave_fault(vrrp);
 	vrrp_init_instance_sands(vrrp);
 
-	thread_requeue_read(master, vrrp->fd_in, vrrp->ms_down_timer);
+	thread_requeue_read(master, vrrp->sockets->fd_in, vrrp->ms_down_timer);
 
 	vrrp->wantstate = wantstate;
 
@@ -757,7 +761,7 @@ vrrp_dispatcher_read_timeout(int fd)
 	/* Multiple instances on the same interface */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-		if (vrrp->fd_in != fd)
+		if (vrrp->sockets->fd_in != fd)
 			continue;
 
 		if (timercmp(&vrrp->sands, &time_now, >))

@@ -89,7 +89,6 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	struct rtattr *linkinfo;
 	struct rtattr *data;
 	interface_t *ifp;
-	interface_t *base_ifp;
 	bool create_interface = true;
 	struct {
 		struct nlmsghdr n;
@@ -113,7 +112,8 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	 * Check to see if this vmac interface was created
 	 * by a previous instance.
 	 */
-	if ((ifp = if_get_by_ifname(vrrp->vmac_ifname))) {
+	if ((ifp = if_get_by_ifname(vrrp->vmac_ifname, true)) &&
+	     ifp->ifindex) {
 		/* Check to see whether this interface has wrong mac ? */
 		if ((memcmp((const void *) ifp->hw_addr, (const void *) ll_addr, ETH_ALEN) != 0 ||
 		     ifp->base_ifindex != vrrp->ifp->ifindex)) {
@@ -148,7 +148,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			create_interface = false;
 	}
 
-	if (create_interface) {
+	if (create_interface && vrrp->ifp->ifindex) {
 		/* Request that NETLINK create the VIF interface */
 		req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
 		req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL;
@@ -187,7 +187,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		 * Update interface queue and vrrp instance interface binding.
 		 */
 		netlink_interface_lookup(vrrp->vmac_ifname);
-		ifp = if_get_by_ifname(vrrp->vmac_ifname);
+		ifp = if_get_by_ifname(vrrp->vmac_ifname, false);
 		if (!ifp)
 			return -1;
 
@@ -197,15 +197,17 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		kernel_netlink_poll();
 	}
 
-	base_ifp = vrrp->ifp;
+	ifp->base_ifp = vrrp->ifp;
 	vrrp->ifp = ifp;
-	vrrp->ifp->base_ifp = base_ifp;
 	vrrp->ifp->vmac = true;
+
+	if (!vrrp->ifp->ifindex)
+		return -1;
 
 	if (vrrp->family == AF_INET) {
 		/* Set the necessary kernel parameters to make macvlans work for us */
 		if (create_interface)
-			set_interface_parameters(ifp, base_ifp);
+			set_interface_parameters(ifp, ifp->base_ifp);
 
 		/* We don't want IPv6 running on the interface unless we have some IPv6
 		 * eVIPs, so disable it if not needed */
@@ -259,10 +261,10 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			ipaddress.ifp = ifp;
 			if (vrrp->saddr.ss_family == AF_INET6)
 				ipaddress.u.sin6_addr = ((struct sockaddr_in6*)&vrrp->saddr)->sin6_addr;
-			else if (base_ifp->sin6_addr.s6_addr32[0])
-				ipaddress.u.sin6_addr = base_ifp->sin6_addr;
+			else if (ifp->base_ifp->sin6_addr.s6_addr32[0])
+				ipaddress.u.sin6_addr = ifp->base_ifp->sin6_addr;
 			else
-				make_link_local_address(&ipaddress.u.sin6_addr, base_ifp->hw_addr);
+				make_link_local_address(&ipaddress.u.sin6_addr, ifp->base_ifp->hw_addr);
 			ipaddress.ifa.ifa_family = AF_INET6;
 			ipaddress.ifa.ifa_prefixlen = 64;
 			ipaddress.ifa.ifa_index = vrrp->ifp->ifindex;
@@ -294,7 +296,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 		memset(&ipaddress, 0, sizeof(ipaddress));
 
-		ipaddress.u.sin6_addr = base_ifp->sin6_addr;
+		ipaddress.u.sin6_addr = ifp->base_ifp->sin6_addr;
 		make_link_local_address(&ipaddress.u.sin6_addr, ll_addr);
 		ipaddress.ifa.ifa_family = AF_INET6;
 		ipaddress.ifa.ifa_prefixlen = 64;

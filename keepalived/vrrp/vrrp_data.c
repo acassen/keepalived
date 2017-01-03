@@ -40,6 +40,7 @@
 #include "vrrp_iproute.h"
 #endif
 #include "vrrp_track.h"
+#include "vrrp_sock.h"
 
 /* global vars */
 vrrp_data_t *vrrp_data = NULL;
@@ -466,7 +467,7 @@ alloc_vrrp_track(vector_t *strvec)
 
 	if (!LIST_EXISTS(vrrp->track_ifp))
 		vrrp->track_ifp = alloc_list(free_track, dump_track);
-	alloc_track(vrrp->track_ifp, strvec);
+	alloc_track(vrrp, strvec);
 }
 
 void

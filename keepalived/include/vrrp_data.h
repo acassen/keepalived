@@ -24,31 +24,13 @@
 #define _VRRP_DATA_H
 
 /* system includes */
-#include <stdbool.h>
 #include <sys/types.h>
-#include <sys/socket.h>
 
 /* local includes */
 #include "list.h"
 #include "vector.h"
-#include "scheduler.h"
-#include "vrrp_if.h"
-
-/*
- * Our instance dispatcher use a socket pool.
- * That way we handle VRRP protocol type per
- * physical interface.
- */
-typedef struct _sock {
-	sa_family_t		family;
-	struct sockaddr_storage	saddr;
-	int			proto;
-	ifindex_t		ifindex;
-	bool			unicast;
-	int			fd_in;
-	int			fd_out;
-	thread_t		*thread;
-} sock_t;
+//#include "scheduler.h"
+//#include "vrrp_if.h"
 
 /* Configuration data root */
 typedef struct _vrrp_data {

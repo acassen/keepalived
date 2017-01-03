@@ -136,7 +136,7 @@ list garp_delay;
 /* prototypes */
 extern interface_t *if_get_by_ifindex(ifindex_t);
 extern interface_t *base_if_get_by_ifp(interface_t *);
-extern interface_t *if_get_by_ifname(const char *);
+extern interface_t *if_get_by_ifname(const char *, bool);
 #ifdef _HAVE_VRRP_VMAC_
 extern void set_base_ifp(void);
 #endif
@@ -160,5 +160,7 @@ extern int if_setsockopt_mcast_hops(sa_family_t, int *);
 extern int if_setsockopt_mcast_if(sa_family_t, int *, interface_t *);
 extern int if_setsockopt_priority(int *, int);
 extern int if_setsockopt_rcvbuf(int *, int);
+extern void cleanup_lost_interface(interface_t *);
+extern void update_added_interface(interface_t *);
 
 #endif

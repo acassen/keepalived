@@ -765,7 +765,7 @@ vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = snmp_scope(addr->ifa.ifa_scope);
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ADDRESS_IFINDEX:
-		long_ret.u = addr->ifa.ifa_index;
+		long_ret.u = addr->ifp->ifindex;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ADDRESS_IFNAME:
 		*var_len = strlen(addr->ifp->ifname);

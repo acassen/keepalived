@@ -129,11 +129,11 @@ default_interface_handler(vector_t *strvec)
 		log_message(LOG_INFO, "default_interface requires interface name");
 		return;
 	}
-	ifp = if_get_by_ifname(strvec_slot(strvec, 1));
-	if (!ifp)
-		log_message(LOG_INFO, "Cannot find default interface %s", FMT_STR_VSLOT(strvec, 1));
-	else
-		global_data->default_ifp = ifp;
+	ifp = if_get_by_ifname(strvec_slot(strvec, 1), true);
+	if (!ifp->ifindex)
+		log_message(LOG_INFO, "WARNING - default interface %s doesn't currently exist", ifp->ifname);
+
+	global_data->default_ifp = ifp;
 }
 #endif
 #ifdef _WITH_LVS_

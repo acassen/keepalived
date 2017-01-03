@@ -227,6 +227,11 @@ if_print(FILE *file, void *data)
 		inet_ntop2(ifp->sin_addr.s_addr));
 	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 	fprintf(file, "   IPv6 address = %s\n", addr_str);
+#ifdef _HAVE_VRRP_VMAC_
+	fprintf(file, "   VMAC = %s\n", ifp != ifp->base_ifp ? "true" : "false");
+	if (ifp != ifp->base_ifp)
+		fprintf(file, "   Underlying interface = %s\n", ifp->base_ifp ? ifp->base_ifp->ifname : "NONE");
+#endif
 
 	fprintf(file, "   MAC = ");
 	// Copy dump_vrrp for next
@@ -245,7 +250,7 @@ if_print(FILE *file, void *data)
 		fprintf(file, "   HW Type = ETHERNET\n");
 		break;
 	default:
-		fprintf(file, "   HW Type = UNKNOWN\n");
+		fprintf(file, "   HW Type = UNKNOWN (%d)\n", ifp->hw_type);
 		break;
 	}
 
@@ -290,7 +295,10 @@ vrrp_print(FILE *file, void *data)
 	fprintf(file, "   Last transition = %ld (%.24s)\n", vrrp->last_transition.tv_sec, time_str);
 	if (!ctime_r(&vrrp->sands.tv_sec, time_str))
 		strcpy(time_str, "invalid time ");
-	fprintf(file, "   Read timeout = %ld.%6.6ld (%.19s.%6.6ld)\n", vrrp->sands.tv_sec, vrrp->sands.tv_usec, time_str, vrrp->sands.tv_usec);
+	if (vrrp->sands.tv_sec == TIMER_DISABLED)
+		fprintf(file, "   Read timeout = DISABLED\n");
+	else
+		fprintf(file, "   Read timeout = %ld.%6.6ld (%.19s.%6.6ld)\n", vrrp->sands.tv_sec, vrrp->sands.tv_usec, time_str, vrrp->sands.tv_usec);
 	fprintf(file, "   Master down timer = %u usecs\n", vrrp->ms_down_timer);
 	fprintf(file, "   Interface = %s", IF_NAME(vrrp->ifp));
 #ifdef _HAVE_VRRP_VMAC_

@@ -254,7 +254,7 @@ start_vrrp(void)
 #endif
 
 	/* clear_diff_vrrp must be called after vrrp_complete_init, since the latter
-	 * sets ifa_index on the addresses, which is used for the address comparison */
+	 * sets ifp on the addresses, which is used for the address comparison */
 	if (reload)
 		clear_diff_vrrp();
 

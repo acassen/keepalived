@@ -776,7 +776,7 @@ process_if_status_change(interface_t *ifp)
 		vrrp = ELEMENT_DATA(e);
 
 		/* If this interface isn't relevant to the vrrp instance, skip the instance */
-		if (!vrrp->track_ifp &&
+		if (LIST_ISEMPTY(vrrp->track_ifp) &&
 		    IF_BASE_IFP(vrrp->ifp) != ifp &&
 		    vrrp->ifp != ifp)
 			continue;
@@ -803,6 +803,12 @@ process_if_status_change(interface_t *ifp)
 			}
 		}
 
+		/* If this is the interface of the vrrp instance, and we aren't tracking
+		 * the instance's own interface, skip it */
+		if (vrrp->dont_track_primary &&
+		    (vrrp->ifp == ifp || IF_BASE_IFP(vrrp->ifp) == ifp))
+			continue;
+
 		/* This vrrp's interface or underlying interface has changed */
 		if (now_up)
 			try_up_instance(vrrp);
@@ -821,7 +827,6 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 
 	if (!vrrp_data)
 		return;
-
 	/* We get called after a VMAC is created, but before tracking_vrrp is set */
 // TODO - does this ONLY apply for VMACs?
 	if (!ifp->tracking_vrrp &&
@@ -931,6 +936,7 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	size_t len;
 	int status;
 	char *name;
+	bool new_if;
 
 	ifi = NLMSG_DATA(h);
 
@@ -953,24 +959,32 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 		return 0;
 
 	/* Skip it if already exists */
-	ifp = if_get_by_ifname(name);
+	ifp = if_get_by_ifname(name, false);
 
-	if (ifp) {
+	if (ifp && ifp->ifindex) {
 		update_interface_flags(ifp, ifi->ifi_flags);
 
 		return 0;
 	}
 
 	/* Fill the interface structure */
-	ifp = (interface_t *) MALLOC(sizeof(interface_t));
+	if (ifp)
+		new_if = false;
+	else {
+		ifp = (interface_t *) MALLOC(sizeof(interface_t));
+		new_if = true;
+	}
 
 	status = netlink_if_link_populate(ifp, tb, ifi);
 	if (status < 0) {
 		FREE(ifp);
 		return -1;
 	}
+
 	/* Queue this new interface_t */
-	if_add_queue(ifp);
+	if (new_if)
+		if_add_queue(ifp);
+
 	return 0;
 }
 
@@ -1040,7 +1054,6 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	size_t len;
 	int status;
 
-	ifi = NLMSG_DATA(h);
 	if (!(h->nlmsg_type == RTM_NEWLINK || h->nlmsg_type == RTM_DELLINK))
 		return 0;
 
@@ -1050,6 +1063,7 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 
 	/* Interface name lookup */
 	memset(tb, 0, sizeof (tb));
+	ifi = NLMSG_DATA(h);
 	parse_rtattr(tb, IFLA_MAX, IFLA_RTA(ifi), len);
 	if (tb[IFLA_IFNAME] == NULL)
 		return -1;
@@ -1058,9 +1072,9 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	if (ifi->ifi_type == ARPHRD_LOOPBACK)
 		return 0;
 
-	/* Ignore messages with ifi_change == 0 and IFLA_WIRELESS set
+	/* Ignore NEWLINK messages with ifi_change == 0 and IFLA_WIRELESS set
 	   See for example https://bugs.chromium.org/p/chromium/issues/detail?id=501982 */
-	if (!ifi->ifi_change && tb[IFLA_WIRELESS])
+	if (!ifi->ifi_change && tb[IFLA_WIRELESS] && h->nlmsg_type == RTM_NEWLINK)
 		return 0;
 
 	/* find the interface_t. If the interface doesn't exist in the interface
@@ -1070,11 +1084,44 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	 */
 	ifp = if_get_by_ifindex((ifindex_t)ifi->ifi_index);
 
+	if (ifp) {
+		if (h->nlmsg_type == RTM_DELLINK) {
+			if (__test_bit(LOG_DETAIL_BIT, &debug))
+				log_message(LOG_INFO, "Interface %s deleted", ifp->ifname);
+			if (prog_type == PROG_TYPE_VRRP)
+				cleanup_lost_interface(ifp);
+			else {
+				ifp->ifi_flags = 0;
+				ifp->ifindex = 0;
+			}
+		} else {
+			/* The name can change, so handle that here */
+			char *name = (char *)RTA_DATA(tb[IFLA_IFNAME]);
+			if (strcmp(ifp->ifname, name)) {
+				log_message(LOG_INFO, "Interface name has changed from %s to %s", ifp->ifname, name);
+
+				if (prog_type == PROG_TYPE_VRRP)
+					cleanup_lost_interface(ifp);
+				else {
+					ifp->ifi_flags = 0;
+					ifp->ifindex = 0;
+				}
+
+				/* Set ifp to null, to force creating a new interface_t */
+				ifp = NULL;
+			} else {
+				/* Ignore interface if we are using linkbeat on it */
+				if (ifp->linkbeat_use_polling)
+					return 0;
+			}
+		}
+	}
+
 	if (!ifp) {
 		if (h->nlmsg_type == RTM_NEWLINK) {
 			char *name;
 			name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
-			ifp = if_get_by_ifname(name);
+			ifp = if_get_by_ifname(name, false);
 			if (!ifp) {
 				ifp = (interface_t *) MALLOC(sizeof(interface_t));
 				if_add_queue(ifp);
@@ -1096,20 +1143,12 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 
 			if (__test_bit(LOG_DETAIL_BIT, &debug))
 				log_message(LOG_INFO, "Interface %s added", ifp->ifname);
+
+			update_added_interface(ifp);
 		} else {
 			if (__test_bit(LOG_DETAIL_BIT, &debug))
 				log_message(LOG_INFO, "Unknown interface %s deleted", (char *)tb[IFLA_IFNAME]);
 			return 0;
-		}
-	}
-	else {
-		if (h->nlmsg_type == RTM_DELLINK) {
-			if (__test_bit(LOG_DETAIL_BIT, &debug))
-				log_message(LOG_INFO, "Interface %s deleted", ifp->ifname);
-		} else {
-			/* Ignore interface if we are using linkbeat on it */
-			if (ifp->linkbeat_use_polling)
-				return 0;
 		}
 	}
 

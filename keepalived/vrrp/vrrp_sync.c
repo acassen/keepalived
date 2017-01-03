@@ -202,7 +202,7 @@ vrrp_sync_backup(vrrp_t * vrrp)
 // had to add vrrp_state_leave_fault() for this
 		if (isync->state == VRRP_STATE_FAULT) {
 			vrrp_state_leave_fault(isync);
-			thread_requeue_read(master, isync->fd_in, isync->ms_down_timer);
+			thread_requeue_read(master, isync->sockets->fd_in, isync->ms_down_timer);
 		}
 		else
 			vrrp_state_leave_master(isync);
@@ -245,7 +245,7 @@ vrrp_sync_master(vrrp_t * vrrp)
 				/* ??? */
 			} else {
 				vrrp_state_goto_master(isync);
-				thread_requeue_read(master, vrrp->fd_in, vrrp->ms_down_timer);
+				thread_requeue_read(master, vrrp->sockets->fd_in, vrrp->ms_down_timer);
 			}
 		}
 	}

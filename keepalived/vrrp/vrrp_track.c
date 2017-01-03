@@ -49,20 +49,17 @@ free_track(void *tip)
 }
 
 void
-alloc_track(list track_list, vector_t *strvec)
+alloc_track(vrrp_t *vrrp, vector_t *strvec)
 {
 	interface_t *ifp = NULL;
 	tracked_if_t *tip = NULL;
 	int weight = 0;
 	char *tracked = strvec_slot(strvec, 0);
 
-	ifp = if_get_by_ifname(tracked);
+	ifp = if_get_by_ifname(tracked, true);
 
-	/* Ignoring if no interface found */
-	if (!ifp) {
-		log_message(LOG_INFO, "     %s no match, ignoring...", tracked);
-		return;
-	}
+	if (!ifp->ifindex)
+		log_message(LOG_INFO, "WARNING - tracked interface %s for vrrp instance %s doesn't currently exist", tracked, vrrp->iname);
 
 	if (vector_size(strvec) >= 3 &&
 	    !strcmp(strvec_slot(strvec, 1), "weight")) {
@@ -78,7 +75,7 @@ alloc_track(list track_list, vector_t *strvec)
 	tip->ifp    = ifp;
 	tip->weight = weight;
 
-	list_add(track_list, tip);
+	list_add(vrrp->track_ifp, tip);
 }
 
 vrrp_script_t *

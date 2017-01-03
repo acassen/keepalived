@@ -45,6 +45,7 @@
 #include "vrrp_ipsecah.h"
 #endif
 #include "vrrp_if.h"
+#include "vrrp_sock.h"
 
 /* Special value for parameters when we want to know they haven't been set */
 #define	PARAMETER_UNSET		UINT_MAX
@@ -56,10 +57,11 @@ typedef struct _vrrphdr {			/* rfc2338.5.1 */
 	uint8_t			naddr;		/* address counter */
 	union {
 		struct {
-	uint8_t			auth_type;	/* authentification type */
+			uint8_t	auth_type;	/* authentification type */
 			uint8_t adver_int;	/* advertisement interval (in sec) */
 		} v2;
 		struct {
+// TODO - this should be 4 bits followed by 12 bit adver_int - see /usr/include/linux/ip.h
 			uint16_t adver_int;	/* advertisement interval (in centi-sec (100ms)) */
 		} v3;
 	};
@@ -223,8 +225,7 @@ typedef struct _vrrp_t {
 	int			state;			/* internal state (init/backup/master) */
 	int			init_state;		/* the initial state of the instance */
 	int			wantstate;		/* user explicitly wants a state (back/mast) */
-	int			fd_in;			/* IN socket descriptor */
-	int			fd_out;			/* OUT socket descriptor */
+	sock_t			*sockets;		/* In and out socket descriptors */
 
 	int			debug;			/* Debug level 0-4 */
 

@@ -1116,7 +1116,7 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 	}
 
 	/* Send the packet */
-	return sendmsg(vrrp->fd_out, &msg, (addr) ? 0 : MSG_DONTROUTE);
+	return sendmsg(vrrp->sockets->fd_out, &msg, (addr) ? 0 : MSG_DONTROUTE);
 }
 
 /* Allocate the sending buffer */
@@ -1381,7 +1381,7 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 	 *
 	 * If "--release-vips" is set then try to release any virtual addresses.
 	 * kill -1 tells keepalived to reread its config.  If a config change
-	 * (such as lower priority) causes astate transition to backup then
+	 * (such as lower priority) causes a state transition to backup then
 	 * keepalived doesn't remove the VIPs.  Then we have duplicate IP addresses
 	 * on both master/backup.
 	 */
@@ -1629,6 +1629,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	int addr_cmp;
 
 	/* return on link failure */
+// TODO - not needed???
 	if (vrrp->wantstate == VRRP_STATE_FAULT) {
 		vrrp->master_adver_int = vrrp->adver_int;
 		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
@@ -1766,8 +1767,11 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp)
 		ifp->tracking_vrrp = alloc_list(NULL, NULL);
 	list_add(ifp->tracking_vrrp, vrrp);
 
-	/* If the interface is down, record it against the vrrp instance */
-	if (!FLAGS_UP(ifp->ifi_flags))
+	/* If the interface is down, record it against the vrrp instance,
+	 * unless we are not tracking the primary i/f */
+	if ((!vrrp->dont_track_primary ||
+	     (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp)) &&
+	    !FLAGS_UP(ifp->ifi_flags))
 		vrrp->num_script_if_fault++;
 }
 
@@ -1882,6 +1886,7 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	return fd;
 }
 
+#ifdef UNUSED
 static void
 close_vrrp_socket(vrrp_t * vrrp)
 {
@@ -1925,6 +1930,7 @@ new_vrrp_socket(vrrp_t * vrrp)
 
 	return vrrp->fd_in;
 }
+#endif
 
 /* Try to find a VRRP instance */
 static vrrp_t *
@@ -2295,7 +2301,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 			if (!interface_already_existed &&
 			    vrrp->vmac_ifname[0] &&
-			    (ifp = if_get_by_ifname(vrrp->vmac_ifname))) {
+			    (ifp = if_get_by_ifname(vrrp->vmac_ifname, false))) {
 				/* An interface with the same name exists, but it doesn't match */
 				if (ifp->vmac)
 					log_message(LOG_INFO, "(%s): VMAC %s already exists but is incompatible. It will be deleted", vrrp->iname, vrrp->vmac_ifname);
@@ -2320,7 +2326,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				}
 				/* If there is no VMAC with the name and no existing
 				 * interface with the name, we can use it */
-				if (!e && !if_get_by_ifname(ifname))
+				if (!e && !if_get_by_ifname(ifname, false))
 					break;
 
 				/* For IPv6 try vrrp6 as second attempt */
@@ -2360,7 +2366,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	/* Make sure we have an IP address as needed */
-	if (vrrp->saddr.ss_family == AF_UNSPEC) {
+	if (vrrp->ifp->ifindex && vrrp->saddr.ss_family == AF_UNSPEC) {
 		/* Check the physical interface has a suitable address we can use.
 		 * We don't need an IPv6 address on the underlying interface if it is
 		 * a VMAC since we can create our own. */
@@ -2377,7 +2383,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 #endif
 
-		if (addr_missing) {
+		if (vrrp->ifp->ifindex && addr_missing) {
 			log_message(LOG_INFO, "(%s): Cannot find an IP address to use for interface %s", vrrp->iname, IF_BASE_IFP(vrrp->ifp)->ifname);
 			return false;
 		}
@@ -2392,8 +2398,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	/* Add this instance to the physical interface */
-	if (!vrrp->dont_track_primary)
-		add_vrrp_to_interface(vrrp, IF_BASE_IFP(vrrp->ifp));
+	add_vrrp_to_interface(vrrp, IF_BASE_IFP(vrrp->ifp));
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
@@ -2415,13 +2420,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			}
 		}
 
-		/* Create the interface if it doesn't already exist */
-		if (!__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags))
+		/* Create the interface if it doesn't already exist and
+		 * the underlying interface does exist */
+		if (vrrp->ifp->ifindex &&
+		    !__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags))
 			netlink_link_add_vmac(vrrp);
 
 		/* Add this instance to the vmac interface */
-		if (!vrrp->dont_track_primary)
-			add_vrrp_to_interface(vrrp, vrrp->ifp);
+		add_vrrp_to_interface(vrrp, vrrp->ifp);
 
 		/* set scopeid of source address if IPv6 */
 		if (vrrp->saddr.ss_family == AF_INET6)
@@ -2442,19 +2448,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 			vip = ELEMENT_DATA(e);
-			if (!vip->ifa.ifa_index) {
-				vip->ifa.ifa_index = vrrp->ifp->ifindex;
+			if (!vip->ifp)
 				vip->ifp = vrrp->ifp;
-			}
 		}
 	}
 	if (!LIST_ISEMPTY(vrrp->evip)) {
 		for (e = LIST_HEAD(vrrp->evip); e; ELEMENT_NEXT(e)) {
 			vip = ELEMENT_DATA(e);
-			if (!vip->ifa.ifa_index) {
-				vip->ifa.ifa_index = vrrp->ifp->ifindex;
+			if (!vip->ifp)
 				vip->ifp = vrrp->ifp;
-			}
 
 			if (vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept) {
 				if (vip->ifa.ifa_family == AF_INET)
@@ -2548,6 +2550,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			add_vrrp_to_interface(vrrp, tip->ifp);
 		}
 	}
+
+	if (!vrrp->ifp->ifindex)
+		return true;
 
 	if (!reload && interface_already_existed) {
 		vrrp->vipset = true;	/* Set to force address removal */
@@ -2999,4 +3004,3 @@ clear_diff_script(void)
 		}
 	}
 }
-

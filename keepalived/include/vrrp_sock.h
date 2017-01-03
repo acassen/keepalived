@@ -3,7 +3,7 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        vrrp_index.c include file.
+ * Part:        Dynamic data structure definition.
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,22 +20,32 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _VRRP_INDEX_H
-#define _VRRP_INDEX_H
+#ifndef _VRRP_SOCK_H
+#define _VRRP_SOCK_H
+
+/* system includes */
+#include <stdbool.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 /* local includes */
-#include "vrrp.h"
+#include "scheduler.h"
+#include "vrrp_if.h"
 
-/* Macro definition */
-
-/* prototypes */
-extern void alloc_vrrp_bucket(vrrp_t *);
-extern void alloc_vrrp_fd_bucket(vrrp_t *);
-extern vrrp_t *vrrp_index_lookup(const int, const int);
-extern void remove_vrrp_fd_bucket(int);
-#ifdef UNUSED
-extern void remove_vrrp_fd_bucket(vrrp_t *);
-extern void set_vrrp_fd_bucket(int, vrrp_t *);
-#endif
+/*
+ * Our instance dispatcher use a socket pool.
+ * That way we handle VRRP protocol type per
+ * physical interface.
+ */
+typedef struct _sock {
+	sa_family_t		family;
+	struct sockaddr_storage	saddr;
+	int			proto;
+	ifindex_t		ifindex;
+	bool			unicast;
+	int			fd_in;
+	int			fd_out;
+	thread_t		*thread;
+} sock_t;
 
 #endif
