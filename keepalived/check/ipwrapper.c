@@ -235,10 +235,11 @@ init_service_vs(virtual_server_t * vs)
 		if (vs->vsgname)
 			/* add reloaded dests into new vsg entries */
 			sync_service_vsg(vs);
-
-		/* we may have got/lost quorum due to quorum setting changed */
-		update_quorum_state(vs);
 	}
+
+	/* we may have got/lost quorum due to quorum setting changed */
+	/* also update, in case we need the sorry server in alpha mode */
+	update_quorum_state(vs);
 
 	return true;
 }
@@ -344,7 +345,12 @@ update_quorum_state(virtual_server_t * vs)
 					    , FMT_VS(vs));
 			notify_exec(vs->quorum_down);
 		}
-		if (vs->s_svr) {
+#ifdef _WITH_SNMP_CHECKER_
+		check_snmp_quorum_trap(vs);
+#endif
+	}
+	if (vs->quorum_state == DOWN) {
+		if (vs->s_svr && !ISALIVE(vs->s_svr)) {
 			log_message(LOG_INFO, "%s sorry server %s to VS %s"
 					    , (vs->s_svr->inhibit ? "Enabling" : "Adding")
 					    , FMT_RS(vs->s_svr)
@@ -357,9 +363,6 @@ update_quorum_state(virtual_server_t * vs)
 			/* Remove remaining alive real servers */
 			perform_quorum_state(vs, false);
 		}
-#ifdef _WITH_SNMP_CHECKER_
-		check_snmp_quorum_trap(vs);
-#endif
 		return;
 	}
 }
