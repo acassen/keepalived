@@ -686,6 +686,27 @@ clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 	return ret;
 }
 
+/* clear sorry server, but only if changed */
+int
+clear_diff_s_srv(virtual_server_t * old_vs, real_server_t * new_rs)
+{
+	real_server_t * old_rs = old_vs->s_svr;
+
+	if (old_rs && new_rs && RS_ISEQ(old_rs, new_rs)) {
+		/* which fields are really used on s_svr? */
+		new_rs->alive = old_rs->alive;
+		new_rs->set = old_rs->set;
+		new_rs->weight = old_rs->weight;
+		new_rs->pweight = old_rs->iweight;
+		new_rs->reloaded = true;
+		return 1;
+	}
+	if (old_rs && ISALIVE(old_rs))
+		ipvs_cmd(LVS_CMD_DEL_DEST, old_vs, old_rs);
+
+	return 1;
+}
+
 /* When reloading configuration, remove negative diff entries
  * and copy status of existing entries to the new ones */
 void
@@ -732,8 +753,8 @@ clear_diff_services(void)
 			vs->omega = true;
 			if (!clear_diff_rs(vs, new_vs->rs))
 				return;
-			if (vs->s_svr && ISALIVE(vs->s_svr))
-				ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
+			if (!clear_diff_s_srv(vs, new_vs->s_svr))
+				return;
 		}
 	}
 }
