@@ -235,10 +235,11 @@ init_service_vs(virtual_server_t * vs)
 		if (vs->vsgname)
 			/* add reloaded dests into new vsg entries */
 			sync_service_vsg(vs);
-
-		/* we may have got/lost quorum due to quorum setting changed */
-		update_quorum_state(vs);
 	}
+
+	/* we may have got/lost quorum due to quorum setting changed */
+	/* also update, in case we need the sorry server in alpha mode */
+	update_quorum_state(vs);
 
 	return true;
 }
@@ -344,7 +345,12 @@ update_quorum_state(virtual_server_t * vs)
 					    , FMT_VS(vs));
 			notify_exec(vs->quorum_down);
 		}
-		if (vs->s_svr) {
+#ifdef _WITH_SNMP_CHECKER_
+		check_snmp_quorum_trap(vs);
+#endif
+	}
+	if (vs->quorum_state == DOWN) {
+		if (vs->s_svr && !ISALIVE(vs->s_svr)) {
 			log_message(LOG_INFO, "%s sorry server %s to VS %s"
 					    , (vs->s_svr->inhibit ? "Enabling" : "Adding")
 					    , FMT_RS(vs->s_svr)
@@ -357,9 +363,6 @@ update_quorum_state(virtual_server_t * vs)
 			/* Remove remaining alive real servers */
 			perform_quorum_state(vs, false);
 		}
-#ifdef _WITH_SNMP_CHECKER_
-		check_snmp_quorum_trap(vs);
-#endif
 		return;
 	}
 }
@@ -686,6 +689,27 @@ clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 	return ret;
 }
 
+/* clear sorry server, but only if changed */
+int
+clear_diff_s_srv(virtual_server_t * old_vs, real_server_t * new_rs)
+{
+	real_server_t * old_rs = old_vs->s_svr;
+
+	if (old_rs && new_rs && RS_ISEQ(old_rs, new_rs)) {
+		/* which fields are really used on s_svr? */
+		new_rs->alive = old_rs->alive;
+		new_rs->set = old_rs->set;
+		new_rs->weight = old_rs->weight;
+		new_rs->pweight = old_rs->iweight;
+		new_rs->reloaded = true;
+		return 1;
+	}
+	if (old_rs && ISALIVE(old_rs))
+		ipvs_cmd(LVS_CMD_DEL_DEST, old_vs, old_rs);
+
+	return 1;
+}
+
 /* When reloading configuration, remove negative diff entries
  * and copy status of existing entries to the new ones */
 void
@@ -732,8 +756,8 @@ clear_diff_services(void)
 			vs->omega = true;
 			if (!clear_diff_rs(vs, new_vs->rs))
 				return;
-			if (vs->s_svr && ISALIVE(vs->s_svr))
-				ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
+			if (!clear_diff_s_srv(vs, new_vs->s_svr))
+				return;
 		}
 	}
 }
