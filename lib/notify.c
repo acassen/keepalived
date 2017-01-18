@@ -257,7 +257,7 @@ find_path(notify_script_t *script, bool full_string)
 		path = getenv ("PATH");
 
 		if (!path) {
-			int cs_path_len;
+			size_t cs_path_len;
 			path = MALLOC(cs_path_len = confstr(_CS_PATH, NULL, 0));
 			confstr(_CS_PATH, path, cs_path_len);
 			path_is_malloced = true;
@@ -285,7 +285,7 @@ find_path(notify_script_t *script, bool full_string)
 
 		/* Get our supplementary groups */
 		sgid_num = getgroups(0, NULL);
-		sgid_list = MALLOC((sgid_num + 1) * sizeof(gid_t));
+		sgid_list = MALLOC(((size_t)sgid_num + 1) * sizeof(gid_t));
 		sgid_num = getgroups(sgid_num, sgid_list);
 		sgid_list[sgid_num++] = 0;
 
@@ -322,7 +322,7 @@ find_path(notify_script_t *script, bool full_string)
 		}
 
 		/* Use the current path entry, plus a '/' if nonempty, plus the file to execute. */
-		char *pend = mempcpy (buffer, p, subp - p);
+		char *pend = mempcpy (buffer, p, (size_t)(subp - p));
 		*pend = '/';
 		memcpy (pend + (p < subp), file, file_len + 1);
 
@@ -402,7 +402,7 @@ exit:
 
 		/* restore supplementary groups */
 		if (sgid_list) {
-			if (setgroups(sgid_num, sgid_list))
+			if (setgroups((size_t)sgid_num, sgid_list))
 				log_message(LOG_INFO, "Unable to restore supplementary groups after script search (%m)");
 			FREE(sgid_list);
 		}
