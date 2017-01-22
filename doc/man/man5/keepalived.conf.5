@@ -329,13 +329,14 @@ and
     # for ANY state transition.
     # "notify" script is called AFTER the
     # notify_* script(s) and is executed
-    # with 3 arguments provided by Keepalived
+    # with 4 arguments provided by Keepalived
     # (so don't include parameters in the notify line).
     # arguments
     # $1 = "GROUP"|"INSTANCE"
     # $2 = name of the group or instance
     # $3 = target state of transition
     #     ("MASTER"|"BACKUP"|"FAULT")
+    # $4 = priority value
     notify /path/notify.sh [username [groupname]]
 
     # Send email notification during state transition,
