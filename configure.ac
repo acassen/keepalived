@@ -1065,11 +1065,12 @@ AM_CONDITIONAL([INIT_SYSTEMD], [test $INIT_TYPE = systemd])
 AM_CONDITIONAL([INIT_SYSV], [test $INIT_TYPE = SYSV])
 
 echo $INIT_TYPE
-VERSION_DATE=`date +%m/%d,%Y`
-VERSION_YEAR=`date +%Y`
+DATE_FMT="+%m/%d,%Y"
+SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date +%s)}"
+VERSION_DATE=$(date -u -d "@$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u -r "$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u "+$DATE_FMT")
 
 AC_DEFINE_UNQUOTED([VERSION_DATE], ["$VERSION_DATE"], [Date of build configuration])
-AC_DEFINE_UNQUOTED([COPYRIGHT_YEAR], ["$VERSION_YEAR"], [Year of build configuration])
+AC_DEFINE_UNQUOTED([COPYRIGHT_YEAR], ["2017"], [Year of build configuration])
 AC_DEFINE_UNQUOTED([CONFIGURATION_OPTIONS], ["$BUILD_OPTIONS"], [The configuration and build options from which the package is built])
 
 if test $NETLINK_VER -eq 0; then
