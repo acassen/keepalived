@@ -8973,7 +8973,6 @@ fi
 
 echo $INIT_TYPE
 VERSION_DATE=`date +%m/%d,%Y`
-VERSION_YEAR=`date +%Y`
 
 
 cat >>confdefs.h <<_ACEOF
@@ -8982,7 +8981,7 @@ _ACEOF
 
 
 cat >>confdefs.h <<_ACEOF
-#define COPYRIGHT_YEAR "$VERSION_YEAR"
+#define COPYRIGHT_YEAR "2017"
 _ACEOF
 
 
