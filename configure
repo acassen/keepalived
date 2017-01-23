@@ -8972,7 +8972,9 @@ fi
 
 
 echo $INIT_TYPE
-VERSION_DATE=`date +%m/%d,%Y`
+DATE_FMT="+%m/%d,%Y"
+SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(date +%s)}"
+VERSION_DATE=$(date -u -d "@$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u -r "$SOURCE_DATE_EPOCH" "+$DATE_FMT" 2>/dev/null || date -u "+$DATE_FMT")
 
 
 cat >>confdefs.h <<_ACEOF
