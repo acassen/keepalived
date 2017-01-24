@@ -7390,7 +7390,7 @@ else
   USE_LIBIPTC=No
 fi
 
-  CPPFLAGS="$SAV_CPPFLAGS"
+    CPPFLAGS="$SAV_CPPFLAGS"
   fi
 
   if test $USE_LIBIPTC = Yes; then
@@ -8970,20 +8970,6 @@ else
   INIT_SYSV_FALSE=
 fi
 
-
-echo $INIT_TYPE
-VERSION_DATE=`date +%m/%d,%Y`
-VERSION_YEAR=`date +%Y`
-
-
-cat >>confdefs.h <<_ACEOF
-#define VERSION_DATE "$VERSION_DATE"
-_ACEOF
-
-
-cat >>confdefs.h <<_ACEOF
-#define COPYRIGHT_YEAR "$VERSION_YEAR"
-_ACEOF
 
 
 cat >>confdefs.h <<_ACEOF
