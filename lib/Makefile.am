@@ -43,10 +43,15 @@ $(GIT_COMMIT_FILE):
 		git rev-parse --is-inside-work-tree >/dev/null 2>&1; \
 		if [ $$? -eq 0 ]; then \
 			GIT_REV=`git describe --tags`; \
+			GIT_TIMESTAMP=`git log -1 --format=%ct`; \
+			GIT_DATE=`date -d "1970-01-01 UTC $${GIT_TIMESTAMP} seconds" +"%m/%d,%Y"`; \
+			GIT_YEAR=`date -d "1970-01-01 UTC $${GIT_TIMESTAMP} seconds" +"%Y"`; \
 			echo $${GIT_REV} | grep -qE -- "-[1-9][0-9]*-g[0-9a-f]{7}$$"; \
 			if [ $$? -eq 0 ]; then \
 				if [ "`git status --porcelain | wc -l`" -ne 0 ]; then EXTRA="+"; else EXTRA=""; fi ; \
 				echo "#define GIT_COMMIT \"$${GIT_REV}$${EXTRA}\"" >$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
+				echo "#define GIT_DATE \"$${GIT_DATE}\"" >>$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
+				echo "#define GIT_YEAR \"$${GIT_YEAR}\"" >>$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
 				diff -q $(abs_builddir)/$(GIT_COMMIT_FILE) $(abs_builddir)/$(GIT_COMMIT_FILE).new 2>/dev/null >/dev/null; \
 				if [ $$? -eq 0 ]; then \
 					rm $(abs_builddir)/$(GIT_COMMIT_FILE).new; \
