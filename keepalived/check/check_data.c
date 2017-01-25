@@ -33,6 +33,7 @@
 #include "memory.h"
 #include "utils.h"
 #include "ipwrapper.h"
+#include "parser.h"
 
 /* global vars */
 check_data_t *check_data = NULL;
@@ -149,6 +150,13 @@ alloc_vsg_entry(vector_t *strvec)
 	} else {
 		new->range = inet_stor(strvec_slot(strvec, 0));
 		inet_stosockaddr(strvec_slot(strvec, 0), strvec_slot(strvec, 1), &new->addr);
+#ifndef IPVS_USE_NL
+		if (new->addr.ss_family != AF_INET) {
+			log_message(LOG_INFO, "IPVS does not support IPv6 in this build - skipping %s", FMT_STR_VSLOT(strvec, 0));
+			FREE(new);
+			return;
+		}
+#endif
 		if (!new->range) {
 			list_add(vsg->addr_ip, new);
 			return;
@@ -157,6 +165,7 @@ alloc_vsg_entry(vector_t *strvec)
 		if ((new->addr.ss_family == AF_INET && new->range > 255 ) ||
 		    (new->addr.ss_family == AF_INET6 && new->range > 0xffff)) {
 			log_message(LOG_INFO, "End address of range exceeds limit for address family - %s - skipping", FMT_STR_VSLOT(strvec, 0));
+			FREE(new);
 			return;
 		}
 
@@ -166,6 +175,7 @@ alloc_vsg_entry(vector_t *strvec)
 			start = htons(((struct sockaddr_in6 *)&new->addr)->sin6_addr.s6_addr16[7]);
 		if (start >= new->range) {
 			log_message(LOG_INFO, "Address range end is not greater than address range start - %s - skipping", FMT_STR_VSLOT(strvec, 0));
+			FREE(new);
 			return;
 		}
 
@@ -294,6 +304,14 @@ alloc_vs(char *ip, char *port)
 	} else {
 		inet_stosockaddr(ip, port, &new->addr);
 		new->af = new->addr.ss_family;
+#ifndef IPVS_USE_NL
+		if (new->af != AF_INET) {
+			log_message(LOG_INFO, "IPVS with IPv6 is not supported by this build");
+			FREE(new);
+			skip_block();
+			return;
+		}
+#endif
 	}
 
 	new->delay_loop = KEEPALIVED_DEFAULT_DELAY;
@@ -369,6 +387,15 @@ alloc_rs(char *ip, char *port)
 	new = (real_server_t *) MALLOC(sizeof(real_server_t));
 	inet_stosockaddr(ip, port, &new->addr);
 
+#ifndef IPVS_USE_NL
+	if (new->addr.ss_family != AF_INET) {
+		log_message(LOG_INFO, "IPVS does not support IPv6 in this build - skipping %s", ip);
+		skip_block();
+		FREE(new);
+		return;
+	}
+#endif
+
 	new->weight = 1;
 	new->iweight = 1;
 	new->failed_checkers = alloc_list(free_failed_checkers, NULL);
@@ -377,7 +404,7 @@ alloc_rs(char *ip, char *port)
 		vs->rs = alloc_list(free_rs, dump_rs);
 	list_add(vs->rs, new);
 
-	if (! vs->af)
+	if (!vs->af)
 		vs->af = new->addr.ss_family;
 }
 

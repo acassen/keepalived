@@ -85,7 +85,7 @@ static void
 vs_end_handler(void)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	if (! vs->af)
+	if (!vs->af)
 		vs->af = AF_INET;
 }
 static void
@@ -96,8 +96,14 @@ ip_family_handler(vector_t *strvec)
 		return;
 	if (0 == strcmp(strvec_slot(strvec, 1), "inet"))
 		vs->af = AF_INET;
-	else if (0 == strcmp(strvec_slot(strvec, 1), "inet6"))
+	else if (0 == strcmp(strvec_slot(strvec, 1), "inet6")) {
+#ifndef IPVS_USE_NL
+		log_message(LOG_INFO, "IPVS with IPv6 is not supported by this build");
+		skip_block();
+		return;
+#endif
 		vs->af = AF_INET6;
+	}
 	else
 		log_message(LOG_INFO, "unknown address family %s", FMT_STR_VSLOT(strvec, 1));
 }
