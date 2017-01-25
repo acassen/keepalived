@@ -110,11 +110,18 @@ dump_vsg_entry(void *data)
 
 	if (vsg_entry->vfwmark)
 		log_message(LOG_INFO, "   FWMARK = %u", vsg_entry->vfwmark);
-	else if (vsg_entry->range)
-		log_message(LOG_INFO, "   VIP Range = %s-%d, VPORT = %d"
-				    , inet_sockaddrtos(&vsg_entry->addr)
-				    , vsg_entry->range
-				    , ntohs(inet_sockaddrport(&vsg_entry->addr)));
+	else if (vsg_entry->range) {
+		if (vsg_entry->addr.ss_family == AF_INET)
+			log_message(LOG_INFO, "   VIP Range = %s-%d, VPORT = %d"
+					    , inet_sockaddrtos(&vsg_entry->addr)
+					    , vsg_entry->range
+					    , ntohs(inet_sockaddrport(&vsg_entry->addr)));
+		else
+			log_message(LOG_INFO, "   VIP Range = %s-%x, VPORT = %d"
+					    , inet_sockaddrtos(&vsg_entry->addr)
+					    , vsg_entry->range
+					    , ntohs(inet_sockaddrport(&vsg_entry->addr)));
+	}
 	else
 		log_message(LOG_INFO, "   VIP = %s, VPORT = %d"
 				    , inet_sockaddrtos(&vsg_entry->addr)
