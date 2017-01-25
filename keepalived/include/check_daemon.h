@@ -23,10 +23,6 @@
 #ifndef _CHECK_DAEMON_H
 #define _CHECK_DAEMON_H
 
-/* system include */
-#include <stdlib.h>
-#include <signal.h>
-
 /* Daemon define */
 #define PROG_CHECK	"Keepalived_healthcheckers"
 #define WDOG_CHECK	"/tmp/.healthcheckers"

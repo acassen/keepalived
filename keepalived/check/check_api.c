@@ -22,12 +22,11 @@
 
 #include "config.h"
 
-#include <dirent.h>
 #include <dlfcn.h>
+
 #include "check_api.h"
 #include "main.h"
 #include "parser.h"
-#include "memory.h"
 #include "utils.h"
 #include "logger.h"
 #include "bitops.h"
@@ -263,15 +262,7 @@ update_checker_activity(sa_family_t family, void *address, int enable)
 	checker_t *checker;
 	sa_family_t vip_family;
 	element e;
-	char addr_str[INET6_ADDRSTRLEN];
 	void *addr;
-
-	/* Display netlink operation */
-	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
-		inet_ntop(family, address, addr_str, sizeof(addr_str));
-		log_message(LOG_INFO, "Netlink reflector reports IP %s %s"
-				    , addr_str, (enable) ? "added" : "removed");
-	}
 
 	/* Processing Healthcheckers queue */
 	if (!LIST_ISEMPTY(checkers_queue)) {

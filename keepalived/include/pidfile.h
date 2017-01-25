@@ -24,11 +24,6 @@
 #define _PIDFILE_H
 
 /* system include */
-#include <unistd.h>
-#include <stdio.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <syslog.h>
 #include <stdbool.h>
 #include <paths.h>
 

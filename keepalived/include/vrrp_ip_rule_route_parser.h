@@ -25,7 +25,6 @@
 
 #include <stdint.h>
 #include <stdbool.h>
-#include <linux/rtnetlink.h>
 #if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 #include "vrrp_iproute.h"
 #endif

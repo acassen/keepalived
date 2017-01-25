@@ -22,28 +22,42 @@
 
 #include "config.h"
 
-#include "git-commit.h"
-
 #include <stdlib.h>
 #include <sys/utsname.h>
 #include <sys/resource.h>
 #include <stdbool.h>
+#ifdef HAVE_SIGNALFD
+#include <sys/signalfd.h>
+#endif
+#include <errno.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <getopt.h>
 
 #include "main.h"
-#include "config.h"
+#include "daemon.h"
 #include "signals.h"
 #include "pidfile.h"
 #include "bitops.h"
 #include "logger.h"
 #include "parser.h"
 #include "notify.h"
+#include "utils.h"
 #include "check_parser.h"
+#include "check_daemon.h"
+#include "vrrp_daemon.h"
 #include "vrrp_parser.h"
+#include "vrrp_if.h"
 #include "global_parser.h"
 #if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
 #endif
+#include "scheduler.h"
 #include "vrrp_netlink.h"
+#include "git-commit.h"
 
 #define	LOG_FACILITY_MAX	7
 #define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" VERSION_DATE ")"
@@ -56,6 +70,7 @@
 const char *version_string = VERSION_STRING;		/* keepalived version */
 char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
 int log_facility = LOG_DAEMON;				/* Optional logging facilities */
+bool reload;						/* Set during a reload */
 char *main_pidfile;					/* overrule default pidfile */
 static bool free_main_pidfile;
 #ifdef _WITH_LVS_
@@ -77,8 +92,6 @@ static char *syslog_ident;				/* syslog ident if not default */
 char *instance_name;					/* keepalived instance name */
 bool use_pid_dir;					/* Put pid files in /var/run/keepalived */
 size_t getpwnam_buf_len;				/* Buffer length needed for getpwnam_r/getgrname_r */
-uid_t default_script_uid;				/* Default user/group for script execution */
-gid_t default_script_gid;
 unsigned os_major;					/* Kernel version */
 unsigned os_minor;
 unsigned os_release;
@@ -102,6 +115,43 @@ static bool set_core_dump_pattern = false;
 static bool create_core_dump = false;
 static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
+
+#ifdef _TIMER_DEBUG_
+extern void print_smtp_addresses(void);
+extern void print_check_daemon_addresses(void);
+extern void print_check_dns_addresses(void);
+extern void print_check_http_addresses(void);
+extern void print_check_misc_addresses(void);
+extern void print_check_smtp_addresses(void);
+extern void print_check_tcp_addresses(void);
+#ifdef _WITH_DBUS_
+extern void print_vrrp_dbus_addresses(void);
+#endif
+extern void print_vrrp_if_addresses(void);
+extern void print_vrrp_netlink_addresses(void);
+extern void print_vrrp_daemon_addresses(void);
+extern void print_check_ssl_addresses(void);
+extern void print_vrrp_scheduler_addresses(void);
+
+void global_print(void)
+{
+	print_smtp_addresses();
+	print_check_daemon_addresses();
+	print_check_dns_addresses();
+	print_check_http_addresses();
+	print_check_misc_addresses();
+	print_check_smtp_addresses();
+	print_check_tcp_addresses();
+#ifdef _WITH_DBUS_
+	print_vrrp_dbus_addresses();
+#endif
+	print_vrrp_if_addresses();
+	print_vrrp_netlink_addresses();
+	print_vrrp_daemon_addresses();
+	print_check_ssl_addresses();
+	print_vrrp_scheduler_addresses();
+}
+#endif
 
 void
 free_parent_mallocs_startup(bool am_child)
@@ -140,6 +190,7 @@ free_parent_mallocs_exit(void)
 #endif
 
 	FREE_PTR(instance_name);
+	FREE_PTR(config_id);
 }
 
 char *
@@ -350,23 +401,43 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	int status;
 	int ret;
 	int wait_count = 0;
+	struct timeval start_time, now;
+#ifdef HAVE_SIGNALFD
+	struct timeval timeout = {
+		.tv_sec = CHILD_WAIT_SECS,
+		.tv_usec = 0
+	};
+	int signal_fd = signal_rfd();
+	fd_set read_set;
+	struct signalfd_siginfo siginfo;
+	sigset_t sigmask;
+#else
 	sigset_t old_set, child_wait;
 	struct timespec timeout = {
 		.tv_sec = CHILD_WAIT_SECS,
 		.tv_nsec = 0
 	};
-	struct timeval start_time, now;
+#endif
 
 	/* register the terminate thread */
 	thread_add_terminate_event(master);
 
 	log_message(LOG_INFO, "Stopping");
+
+#ifdef HAVE_SIGNALFD
+	/* We only want to receive SIGCHLD now */
+	sigemptyset(&sigmask);
+	sigaddset(&sigmask, SIGCHLD);
+	signalfd(signal_fd, &sigmask, 0);
+	FD_ZERO(&read_set);
+#else
 	sigprocmask(0, NULL, &old_set);
 	if (!sigismember(&old_set, SIGCHLD)) {
 		sigemptyset(&child_wait);
 		sigaddset(&child_wait, SIGCHLD);
 		sigprocmask(SIG_BLOCK, &child_wait, NULL);
 	}
+#endif
 
 #ifdef _WITH_VRRP_
 	if (vrrp_child > 0) {
@@ -383,6 +454,47 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 
 	gettimeofday(&start_time, NULL);
 	while (wait_count) {
+#ifdef HAVE_SIGNALFD
+		FD_SET(signal_fd, &read_set);
+		ret = select(signal_fd + 1, &read_set, NULL, NULL, &timeout);
+		if (ret == 0)
+			break;
+		if (ret == -1) {
+			if (errno == EINTR)
+				continue;
+
+			log_message(LOG_INFO, "Terminating select returned errno %d", errno);
+			break;
+		}
+
+		if (!FD_ISSET(signal_fd, &read_set)) {
+			log_message(LOG_INFO, "Terminating select did not return select_fd");
+			continue;
+		}
+
+		if (read(signal_fd, &siginfo, sizeof(siginfo)) != sizeof(siginfo)) {
+			log_message(LOG_INFO, "Terminating signal read did not read entire siginfo");
+			break;
+		}
+
+		status = siginfo.ssi_code == CLD_EXITED ? W_EXITCODE(siginfo.ssi_status, 0) :
+			 siginfo.ssi_code == CLD_KILLED ? W_EXITCODE(0, siginfo.ssi_status) :
+							   WCOREFLAG;
+
+#ifdef _WITH_VRRP_
+		if (vrrp_child > 0 && vrrp_child == (pid_t)siginfo.ssi_pid) {
+			report_child_status(status, vrrp_child, PROG_VRRP);
+			wait_count--;
+		}
+#endif
+
+#ifdef _WITH_LVS_
+		if (checkers_child > 0 && checkers_child == (pid_t)siginfo.ssi_pid) {
+			report_child_status(status, checkers_child, PROG_CHECK);
+			wait_count--;
+		}
+#endif
+#else
 		ret = sigtimedwait(&child_wait, NULL, &timeout);
 		if (ret == -1) {
 			if (errno == EINTR)
@@ -404,38 +516,40 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 			wait_count--;
 		}
 #endif
+#endif
 
 		if (wait_count) {
 			gettimeofday(&now, NULL);
-			if (now.tv_usec < start_time.tv_usec) {
-				timeout.tv_nsec = (start_time.tv_usec - now.tv_usec) * 1000;
-				timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec);
-			} else if (now.tv_usec == start_time.tv_usec) {
-				timeout.tv_nsec = 0;
-				timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec);
-			} else {
-				timeout.tv_nsec = (1000000L + start_time.tv_usec - now.tv_usec) * 1000;
-				timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec + 1);
-			}
-
-			timeout.tv_nsec = (start_time.tv_usec - now.tv_usec) * 1000;
 			timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec);
+#ifdef HAVE_SIGNALFD
+			timeout.tv_usec = (start_time.tv_usec - now.tv_usec);
+			if (timeout.tv_usec < 0) {
+				timeout.tv_usec += 1000000L;
+				timeout.tv_sec--;
+			}
+#else
+			timeout.tv_nsec = (start_time.tv_usec - now.tv_usec) * 1000;
 			if (timeout.tv_nsec < 0) {
 				timeout.tv_nsec += 1000000000L;
 				timeout.tv_sec--;
 			}
+#endif
+			if (timeout.tv_sec < 0)
+				break;
 		}
 	}
 
+#ifndef HAVE_SIGNALFD
 	if (!sigismember(&old_set, SIGCHLD))
 		sigprocmask(SIG_UNBLOCK, &child_wait, NULL);
+#endif
 }
 
 /* Initialize signal handler */
 static void
 signal_init(void)
 {
-	signal_handler_init(1);
+	signal_handler_init();
 	signal_set(SIGHUP, propogate_signal, NULL);
 	signal_set(SIGUSR1, propogate_signal, NULL);
 	signal_set(SIGUSR2, propogate_signal, NULL);
@@ -717,7 +831,9 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'i':
-			config_id = optarg;
+			FREE_PTR(config_id);
+			config_id = MALLOC(strlen(optarg) + 1);
+			strcpy(config_id, optarg);
 			break;
 		default:
 			exit(0);
@@ -746,6 +862,9 @@ keepalived_main(int argc, char **argv)
 
 	/* Init debugging level */
 	debug = 0;
+
+	/* We are the parent process */
+	prog_type = PROG_TYPE_PARENT;
 
 	/* Initialise pointer to child finding function */
 	set_child_finder(find_keepalived_child);
@@ -788,7 +907,7 @@ keepalived_main(int argc, char **argv)
 
 	netlink_set_recv_buf_size();
 
-	set_default_script_user(&default_script_uid, &default_script_gid);
+	set_default_script_user();
 
 	/* Get buffer length needed for getpwnam_r/getgrnam_r */
 	getpwnam_buf_len = (size_t)sysconf(_SC_GETPW_R_SIZE_MAX);
@@ -814,6 +933,14 @@ keepalived_main(int argc, char **argv)
 		}
 		if (!os_major)
 			log_message(LOG_INFO, "Unable to parse kernel version %s", uname_buf.release);
+
+		/* config_id defaults to hostname */
+		if (!config_id) {
+			end = strchrnul(uname_buf.nodename, '.');
+			config_id = MALLOC(end - uname_buf.nodename + 1);
+			strncpy(config_id, uname_buf.nodename, end - uname_buf.nodename);
+			config_id[end - uname_buf.nodename] = '\0';
+		}
 	}
 
 	/* Check we can read the configuration file(s).
@@ -854,6 +981,10 @@ keepalived_main(int argc, char **argv)
 
 		use_pid_dir = true;
 	}
+
+#ifdef _TIMER_DEBUG_
+	global_print();
+#endif
 
 	if (use_pid_dir) {
 		/* Create the directory for pid files */
@@ -939,6 +1070,7 @@ keepalived_main(int argc, char **argv)
 	master = thread_make_master();
 
 	/* Init daemon */
+	signal_set(SIGCHLD, thread_child_handler, master);	/* Set this before creating children */
 	start_keepalived();
 
 #ifndef _DEBUG_

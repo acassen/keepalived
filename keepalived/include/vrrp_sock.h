@@ -3,7 +3,7 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        ipwrapper.c include file.
+ * Part:        Dynamic data structure definition.
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -20,40 +20,32 @@
  * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
  */
 
-#ifndef _IPWRAPPER_H
-#define _IPWRAPPER_H
+#ifndef _VRRP_SOCK_H
+#define _VRRP_SOCK_H
 
 /* system includes */
 #include <stdbool.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
-/* locale includes */
-#include "check_data.h"
+/* local includes */
+#include "scheduler.h"
+#include "vrrp_if.h"
 
-/* NAT netmask */
-#define HOST_NETMASK   0xffffffff
-
-/* firewall rules framework command */
-#define IP_FW_CMD_ADD 0x0001
-#define IP_FW_CMD_DEL 0x0002
-
-/* UP & DOWN value */
-#define UP   true
-#define DOWN false
-
-/* LVS command set by kernel */
-#define LVS_CMD_ADD		IP_VS_SO_SET_ADD
-#define LVS_CMD_DEL		IP_VS_SO_SET_DEL
-#define LVS_CMD_ADD_DEST	IP_VS_SO_SET_ADDDEST
-#define LVS_CMD_DEL_DEST	IP_VS_SO_SET_DELDEST
-#define LVS_CMD_EDIT_DEST	IP_VS_SO_SET_EDITDEST
-
-/* prototypes */
-extern void update_svr_wgt(int, virtual_server_t *, real_server_t *, bool);
-extern int svr_checker_up(checker_id_t, real_server_t *);
-extern void update_svr_checker_state(bool, checker_id_t, virtual_server_t *, real_server_t *);
-extern bool init_services(void);
-extern void clear_services(void);
-extern void clear_diff_services(void);
-extern void link_vsg_to_vs(void);
+/*
+ * Our instance dispatcher use a socket pool.
+ * That way we handle VRRP protocol type per
+ * physical interface.
+ */
+typedef struct _sock {
+	sa_family_t		family;
+	struct sockaddr_storage	saddr;
+	int			proto;
+	ifindex_t		ifindex;
+	bool			unicast;
+	int			fd_in;
+	int			fd_out;
+	thread_t		*thread;
+} sock_t;
 
 #endif

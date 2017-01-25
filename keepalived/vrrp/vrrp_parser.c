@@ -24,26 +24,31 @@
 
 #include "config.h"
 
+#include <unistd.h>
+#include <string.h>
+
 #include "vrrp_parser.h"
-#include "vrrp_data.h"
-#include "vrrp_sync.h"
-#include "vrrp_index.h"
-#include "vrrp_if.h"
-#ifdef _HAVE_VRRP_VMAC_
-#include "vrrp_vmac.h"
-#endif
-#include "vrrp.h"
+#include "logger.h"
+#include "parser.h"
+#include "bitops.h"
+#include "utils.h"
+
 #include "main.h"
 #include "global_data.h"
 #include "global_parser.h"
+
+#include "vrrp_data.h"
+#include "vrrp_index.h"
+#include "vrrp_ipaddress.h"
+#include "vrrp_sync.h"
+#include "vrrp_track.h"
+#ifdef _HAVE_VRRP_VMAC_
+#include "vrrp_vmac.h"
+#endif
+
 #ifdef _WITH_LVS_
 #include "check_parser.h"
 #endif
-#include "logger.h"
-#include "parser.h"
-#include "memory.h"
-#include "bitops.h"
-#include "notify.h"
 
 /* Static addresses handler */
 static void
@@ -115,13 +120,13 @@ vrrp_group_handler(vector_t *strvec)
 }
 
 static inline notify_script_t*
-set_vrrp_notify_script(vector_t *strvec)
+set_vrrp_notify_script(vector_t *strvec, bool with_params)
 {
-	notify_script_t *script = notify_script_init(strvec, default_script_uid, default_script_gid);
+	notify_script_t *script = notify_script_init(strvec, with_params);
 
 	if (vector_size(strvec) > 2) {
 		if (set_script_uid_gid(strvec, 2, &script->uid, &script->gid))
-			log_message(LOG_INFO, "Invalid user/group for notify script %s", script->name);
+			log_message(LOG_INFO, "Invalid user/group for notify script %s", script->cmd_str);
 	}
 
 	return script;
@@ -131,28 +136,28 @@ static void
 vrrp_gnotify_backup_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
-	vgroup->script_backup = set_vrrp_notify_script(strvec);
+	vgroup->script_backup = set_vrrp_notify_script(strvec, true);
 	vgroup->notify_exec = true;
 }
 static void
 vrrp_gnotify_master_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
-	vgroup->script_master = set_vrrp_notify_script(strvec);
+	vgroup->script_master = set_vrrp_notify_script(strvec, true);
 	vgroup->notify_exec = true;
 }
 static void
 vrrp_gnotify_fault_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
-	vgroup->script_fault = set_vrrp_notify_script(strvec);
+	vgroup->script_fault = set_vrrp_notify_script(strvec, true);
 	vgroup->notify_exec = true;
 }
 static void
 vrrp_gnotify_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
-	vgroup->script = set_vrrp_notify_script(strvec);
+	vgroup->script = set_vrrp_notify_script(strvec, false);
 	vgroup->notify_exec = true;
 }
 static void
@@ -211,7 +216,7 @@ vrrp_vmac_handler(vector_t *strvec)
 		strncpy(vrrp->vmac_ifname, strvec_slot(strvec, 1), IFNAMSIZ - 1);
 
 		/* Check if the interface exists and is a macvlan we can use */
-		if ((ifp = if_get_by_ifname(vrrp->vmac_ifname)) &&
+		if ((ifp = if_get_by_ifname(vrrp->vmac_ifname, false)) &&
 		    !ifp->vmac) {
 			log_message(LOG_INFO, "(%s): interface %s already exists and is not a private macvlan; ignoring vmac if_name", vrrp->iname, vrrp->vmac_ifname);
 			vrrp->vmac_ifname[0] = '\0';
@@ -249,18 +254,20 @@ vrrp_state_handler(vector_t *strvec)
 {
 	char *str = strvec_slot(strvec, 1);
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp_sgroup_t *vgroup = vrrp->sync;
 
-	if (!strcmp(str, "MASTER")) {
-		vrrp->wantstate = VRRP_STATE_MAST;
+	if (!strcmp(str, "MASTER"))
 		vrrp->init_state = VRRP_STATE_MAST;
+	else if (!strcmp(str, "BACKUP"))
+	{
+		if (vrrp->init_state == VRRP_STATE_MAST)
+			log_message(LOG_INFO, "(%s): state previously set as MASTER - ignoring BACKUP", vrrp->iname);
+		else
+			vrrp->init_state = VRRP_STATE_BACK;
 	}
-	else if (strcmp(str, "BACKUP"))
+	else {
 		log_message(LOG_INFO,"(%s): unknown state '%s', defaulting to BACKUP", vrrp->iname, str);
-
-	/* set eventual sync group */
-	if (vgroup)
-		vgroup->state = vrrp->wantstate;
+		vrrp->init_state = VRRP_STATE_BACK;
+	}
 }
 static void
 vrrp_int_handler(vector_t *strvec)
@@ -268,12 +275,16 @@ vrrp_int_handler(vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *name = strvec_slot(strvec, 1);
 
-	vrrp->ifp = if_get_by_ifname(name);
-	if (!vrrp->ifp) {
-		log_message(LOG_INFO, "Cant find interface %s for vrrp_instance %s !!!"
-				    , name, vrrp->iname);
-		return;
-	}
+	vrrp->ifp = if_get_by_ifname(name, true);
+	if (!vrrp->ifp->ifindex)
+		log_message(LOG_INFO, "WARNING - interface %s for vrrp_instance %s doesn't currently exist - will start in FAULT state", name, vrrp->iname);
+}
+static void
+vrrp_linkbeat_handler(__attribute__((unused)) vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	vrrp->linkbeat_use_polling = true;
 }
 static void
 vrrp_track_int_handler(__attribute__((unused)) vector_t *strvec)
@@ -289,7 +300,7 @@ static void
 vrrp_dont_track_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->dont_track_primary = 1;
+	vrrp->dont_track_primary = true;
 }
 static void
 vrrp_srcip_handler(vector_t *strvec)
@@ -345,7 +356,6 @@ vrrp_prio_handler(vector_t *strvec)
 	}
 	else
 		vrrp->base_priority = (uint8_t)base_priority;
-	vrrp->effective_priority = vrrp->base_priority;
 }
 static void
 vrrp_adv_handler(vector_t *strvec)
@@ -420,7 +430,8 @@ static void
 vrrp_preempt_delay_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	unsigned long preempt_delay = strtoul(strvec_slot(strvec, 1), NULL, 10);
+// TODO - make preempt_delay support centi-seconds (see adver_int for implementation)
+	unsigned long preempt_delay = strtoul(vector_slot(strvec, 1), NULL, 10);
 
 	if (VRRP_IS_BAD_PREEMPT_DELAY(preempt_delay)) {
 		log_message(LOG_INFO, "(%s): Preempt_delay not valid! must be between 0-%d", vrrp->iname, TIMER_MAX_SEC);
@@ -428,41 +439,40 @@ vrrp_preempt_delay_handler(vector_t *strvec)
 	}
 	else
 		vrrp->preempt_delay = preempt_delay * TIMER_HZ;
-	vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
 }
 static void
 vrrp_notify_backup_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->script_backup = set_vrrp_notify_script(strvec);
+	vrrp->script_backup = set_vrrp_notify_script(strvec, true);
 	vrrp->notify_exec = true;
 }
 static void
 vrrp_notify_master_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->script_master = set_vrrp_notify_script(strvec);
+	vrrp->script_master = set_vrrp_notify_script(strvec, true);
 	vrrp->notify_exec = true;
 }
 static void
 vrrp_notify_fault_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->script_fault = set_vrrp_notify_script(strvec);
+	vrrp->script_fault = set_vrrp_notify_script(strvec, true);
 	vrrp->notify_exec = true;
 }
 static void
 vrrp_notify_stop_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->script_stop = set_vrrp_notify_script(strvec);
+	vrrp->script_stop = set_vrrp_notify_script(strvec, true);
 	vrrp->notify_exec = true;
 }
 static void
 vrrp_notify_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	vrrp->script = set_vrrp_notify_script(strvec);
+	vrrp->script = set_vrrp_notify_script(strvec, false);
 	vrrp->notify_exec = true;
 }
 static void
@@ -637,7 +647,7 @@ vrrp_evip_handler(__attribute__((unused)) vector_t *strvec)
 	alloc_value_block(alloc_vrrp_evip);
 }
 static void
-vrrp_promote_secondaries(__attribute__((unused)) vector_t *strvec)
+vrrp_promote_secondaries_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
@@ -664,9 +674,10 @@ static void
 vrrp_vscript_script_handler(vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	vscript->script = set_value(strvec);
-	vscript->uid = default_script_uid;
-	vscript->gid = default_script_gid;
+	vscript->script.args = set_script_params_array(strvec, true);
+	vscript->script.cmd_str = set_value(strvec);
+	vscript->script.uid = default_script_uid;
+	vscript->script.gid = default_script_gid;
 }
 static void
 vrrp_vscript_interval_handler(vector_t *strvec)
@@ -710,8 +721,8 @@ static void
 vrrp_vscript_user_handler(vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	if (set_script_uid_gid(strvec, 1, &vscript->uid, &vscript->gid))
-		log_message(LOG_INFO, "Unable to set uid/gid for script %s", vscript->script);
+	if (set_script_uid_gid(strvec, 1, &vscript->script.uid, &vscript->script.gid))
+		log_message(LOG_INFO, "Unable to set uid/gid for script %s", vscript->script.cmd_str);
 }
 static void
 vrrp_vscript_init_fail_handler(__attribute__((unused)) vector_t *strvec)
@@ -790,11 +801,9 @@ garp_group_gna_interval_handler(vector_t *strvec)
 static void
 garp_group_interface_handler(vector_t *strvec)
 {
-	interface_t *ifp = if_get_by_ifname(strvec_slot(strvec, 1));
-	if (!ifp) {
-		log_message(LOG_INFO, "Unknown interface %s specified for garp_group - ignoring", FMT_STR_VSLOT(strvec, 1));
-		return;
-	}
+	interface_t *ifp = if_get_by_ifname(strvec_slot(strvec, 1), true);
+	if (!ifp->ifindex)
+		log_message(LOG_INFO, "WARNING - interface %s specified for garp_group doesn't currently exist", ifp->ifname);
 
 	if (ifp->garp_delay) {
 		log_message(LOG_INFO, "garp_group already specified for %s - ignoring", FMT_STR_VSLOT(strvec, 1));
@@ -802,6 +811,7 @@ garp_group_interface_handler(vector_t *strvec)
 	}
 
 #ifdef _HAVE_VRRP_VMAC_
+	/* We cannot have a group on a vmac interface */
 	if (ifp->vmac) {
 		log_message(LOG_INFO, "Cannot specify garp_delay on a vmac (%s) - ignoring", ifp->ifname);
 		return;
@@ -828,11 +838,9 @@ garp_group_interfaces_handler(vector_t *strvec)
 	}
 
 	for (i = 0; i < vector_size(interface_vec); i++) {
-		ifp = if_get_by_ifname(vector_slot(interface_vec, i));
-		if (!ifp) {
-			log_message(LOG_INFO, "Unknown interface %s specified for garp_group - ignoring", FMT_STR_VSLOT(interface_vec, i));
-			continue;
-		}
+		ifp = if_get_by_ifname(vector_slot(interface_vec, i), true);
+		if (!ifp->ifindex)
+			log_message(LOG_INFO, "WARNING - interface %s specified for garp_group doesn't currently exist", ifp->ifname);
 
 		if (ifp->garp_delay) {
 			log_message(LOG_INFO, "garp_group already specified for %s - ignoring", FMT_STR_VSLOT(strvec, 1));
@@ -897,7 +905,8 @@ init_vrrp_keywords(bool active)
 	install_keyword("advert_int", &vrrp_adv_handler);
 	install_keyword("virtual_ipaddress", &vrrp_vip_handler);
 	install_keyword("virtual_ipaddress_excluded", &vrrp_evip_handler);
-	install_keyword("promote_secondaries", &vrrp_promote_secondaries);
+	install_keyword("promote_secondaries", &vrrp_promote_secondaries_handler);
+	install_keyword("linkbeat_use_polling", &vrrp_linkbeat_handler);
 #ifdef _HAVE_FIB_ROUTING_
 	install_keyword("virtual_routes", &vrrp_vroutes_handler);
 	install_keyword("virtual_rules", &vrrp_vrules_handler);

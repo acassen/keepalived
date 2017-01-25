@@ -16,9 +16,10 @@ in you configuration file use this char.
 
 0.2. Conditional configuration and configuration id
 
-Any configuration line starts with '@' is a conditional configuration line.
+Any configuration line starting with '@' is a conditional configuration line.
 The word immediately following (i.e. without any space) the '@' character
 is compared against the string specified with the -i command line option,
+or if none specified, the first part of the node name as returned by uname,
 and if they don't match, the configuration line is ignored.
 
 The purpose of this is to allow a single configuration file to be used for
@@ -33,9 +34,39 @@ global_defs
 @backup router_id backup_router
 }
 
-If keepalived is invoked with -i main, then the router_id will be set to main_router,
-if invoked with -i backup, then backup_router, if not invoked with -i, or with
+If keepalived is invoked with -i main, or if -i is not specified and the node
+name is main.SOMETHING, then the router_id will be set to main_router,
+if invoked with -i backup, or the node name is backup, then backup_router,
+if not invoked with -i and the node name is not main or backup, or with
 -i anything else, then the router_id will not be set.
+
+0.3. Scripts
+
+There are three classes of scripts can be configured to be executed.
+
+a. Notify scripts that are run when a vrrp instance or vrrp group changes state,
+   or a virtual server quorum changes between up and down.
+
+b. vrrp tracking scripts that will cause vrrp instances to go down it they exit
+   a non-zero exist status, or if a weight is specified will add or subtract the
+   weight to/from the priority of that vrrp instance.
+
+c. LVS checker misc scripts that will cause a real server to be configured down
+   if they exit with a non-zero status.
+
+By default the scripts will be executed by user keepalived_script if that user
+exists, or if not by root, but for each script the user/group under which it is
+to be executed can be specified.
+
+There are significant security implications if scripts are executed with root
+privileges, especially if the scripts themselves are modifiable or replaceable
+by a non root user. Consequently, security checks are made at startup to ensure
+that if a script is executed by root, then it cannot be modified or replaced by
+a non root user.
+
+All scripts should be written so that they will terminate on receipt of a SIGTERM
+signal. Scripts will be sent SIGTERM if their parent terminates, or it is a script
+the keepalived is awaiting its exit status and it has run for too long.
 
 1. Globals configurations
 
@@ -83,7 +114,8 @@ global_defs {				# Block identification
 					   # NOTE: maxlen, port, ttl and group are only available on Linux 4.3 or later.
     lvs_flush				   # flush any existing LVS configuration at startup
     vrrp_garp_master_delay <INTEGER>	   # delay in seconds for second set of gratuitous ARP
-					   #  messages after MASTER state transition, default 5
+					   #  messages after MASTER state transition, default 5.
+					   #  0 means no second set.
     vrrp_garp_master_repeat <INTEGER>	   # how many gratuitous ARP messages after MASTER
 					   #  state transition should be sent, default 5
     vrrp_garp_lower_prio_delay <INTEGER>   # delay for second set of gratuitous ARPs after lower
@@ -93,7 +125,7 @@ global_defs {				# Block identification
     vrrp_garp_master_refresh <INTEGER>	   # Periodic delay in seconds sending
 					   #  gratuitous ARP while in MASTER state
 					   #  Default: 0 (no refreshing)
-    vrrp_garp_master_refresh_repeat <INTEGER> # how many gratuitous ARP messages shoule be sent
+    vrrp_garp_master_refresh_repeat <INTEGER> # how many gratuitous ARP messages should be sent
 					   #  at each periodic repeat
 					   #  Default: once (per period)
     vrrp_lower_prio_no_advert [<BOOL>]     # If a lower priority advert is received, just discard
@@ -255,6 +287,9 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
       <STRING>			#       set
       ...			#             of VRRP_Instance string
     }
+    global_tracking		# allow sync groups to use weights. In order for this
+				# to work, all members of the sync group must track
+				# exactly the same interfaces and scripts
 
 				# The username and groupname specify the user and group
 				# under which the scripts should be run. If username is

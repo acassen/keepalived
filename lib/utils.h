@@ -23,18 +23,14 @@
 #ifndef _UTILS_H
 #define _UTILS_H
 
+#include "config.h"
+
 /* system includes */
-#include <stdio.h>
-#include <stdlib.h>
-#include <stdint.h>
-#include <stdbool.h>
-#include <string.h>
-#include <arpa/inet.h>
-#include <arpa/nameser.h>
-#include <sys/param.h>
 #include <sys/types.h>
-#include <sys/utsname.h>
-#include <netdb.h>
+#include <stdint.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <stdio.h>
 
 /* Global debugging logging facilities */
 #ifdef _DEBUG_

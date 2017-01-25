@@ -29,13 +29,10 @@
 
 /* keepalived includes */
 #include "utils.h"
-#include "html.h"
 
 /* genhash includes */
-#include "include/main.h"
-#include "include/sock.h"
-#include "include/http.h"
 #include "include/ssl.h"
+#include "include/main.h"
 
 /* extern variables */
 extern REQ *req;

@@ -23,23 +23,18 @@
 
 #include "config.h"
 
-#if defined HAVE_PIPE2 && !defined _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-#include <signal.h>
 #include <string.h>
-
 #include <fcntl.h>
 #include <unistd.h>
-
-#include <sys/types.h>
 #include <sys/wait.h>
 #include <errno.h>
 #ifndef _DEBUG_
 #define NDEBUG
 #endif
 #include <assert.h>
-#include <syslog.h>
+#ifdef HAVE_SIGNALFD
+#include <sys/signalfd.h>
+#endif
 
 #include "signals.h"
 #include "utils.h"
@@ -59,10 +54,14 @@ static void *signal_SIGUSR1_v;
 static void (*signal_SIGUSR2_handler) (void *, int sig);
 static void *signal_SIGUSR2_v;
 
+#ifdef HAVE_SIGNALFD
+static int signal_fd = -1;
+static sigset_t signal_fd_set;
+#else
 static int signal_pipe[2] = { -1, -1 };
+#endif
 
-/* Remember our initial signal disposition */
-static sigset_t ign_sig;
+/* Remember signal disposition for not default disposition */
 static sigset_t dfl_sig;
 
 #ifdef _INCLUDE_UNUSED_CODE_
@@ -78,15 +77,22 @@ signal_pending(void)
 	};
 
 	FD_ZERO(&readset);
+#ifdef HAVE_SIGNALFD
+	FD_SET(signal_fd, &readset);
+
+	rc = select(signal_fd + 1, &readset, NULL, NULL, &timeout);
+#else
 	FD_SET(signal_pipe[0], &readset);
 
 	rc = select(signal_pipe[0] + 1, &readset, NULL, NULL, &timeout);
+#endif
 
-	return rc>0?1:0;
+	return rc > 0 ? 1 : 0;
 }
 #endif
 
 /* Signal flag */
+#ifndef HAVE_SIGNALFD
 static void
 signal_handler(int sig)
 {
@@ -97,27 +103,66 @@ signal_handler(int sig)
 		log_message(LOG_INFO, "BUG - write to signal_pipe[1] error %s - please report", strerror(errno));
 	}
 }
+#endif
 
 /* Signal wrapper */
-void *
+void
 signal_set(int signo, void (*func) (void *, int), void *v)
 {
 	int ret;
 	sigset_t sset;
 	struct sigaction sig;
+#ifndef HAVE_SIGNALFD
 	struct sigaction osig;
+#endif
+
+	if (func == (void *)SIG_DFL)
+		sigaddset(&dfl_sig, signo);
+	else
+		sigdelset(&dfl_sig, signo);
 
 	if (func == (void*)SIG_IGN || func == (void*)SIG_DFL) {
-		sig.sa_handler = (void*)func;
-
 		/* We are no longer handling the signal, so
-		 * clear our handlers
-		 */
+		 * clear our handlers */
 		func = NULL;
 		v = NULL;
 	}
-	else
+
+#ifdef HAVE_SIGNALFD
+	sigemptyset(&sset);
+	sigaddset(&sset, signo);
+
+	sigemptyset(&sig.sa_mask);
+	sig.sa_flags = 0;
+
+	if (!func) {
+		sigdelset(&signal_fd_set, signo);
+		sig.sa_handler = SIG_IGN;
+	}
+	else {
+		sigaddset(&signal_fd_set, signo);
+		sigprocmask(SIG_BLOCK, &sset, NULL);
+		sig.sa_handler = SIG_DFL;
+	}
+
+	/* Don't open signal_fd if clearing the handler */
+	if (func || signal_fd != -1) {
+		ret = signalfd(signal_fd, &signal_fd_set, 0);
+		if (ret == -1)
+			log_message(LOG_INFO, "BUG - signal_fd update failed - %d (%s), please report", errno, strerror(errno));
+	}
+	
+	if (sigaction(signo, &sig, NULL))
+		log_message(LOG_INFO, "sigaction failed for signalfd");
+
+	if (!func)
+		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+#else
+	if (func)
 		sig.sa_handler = signal_handler;
+	else
+		sig.sa_handler = (void*)func;
+
 	sigemptyset(&sig.sa_mask);
 	sig.sa_flags = 0;
 	sig.sa_flags |= SA_RESTART;
@@ -125,13 +170,14 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 	/* Block the signal we are about to configure, to avoid
 	 * any race conditions while setting the handler and
 	 * parameter */
-	if (func != NULL) {
+	if (func) {
 		sigemptyset(&sset);
 		sigaddset(&sset, signo);
 		sigprocmask(SIG_BLOCK, &sset, NULL);
 	}
 
 	ret = sigaction(signo, &sig, &osig);
+#endif
 
 	switch(signo) {
 	case SIGHUP:
@@ -160,31 +206,48 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 		break;
 	}
 
+#ifndef HAVE_SIGNALFD
 	if (ret < 0)
-		return (SIG_ERR);
+		return;
 
 	/* Release the signal */
 	if (func != NULL)
 		sigprocmask(SIG_UNBLOCK, &sset, NULL);
-
-	return ((osig.sa_flags & SA_SIGINFO) ? (void*)osig.sa_sigaction : (void*)osig.sa_handler);
+#endif
 }
 
 /* Signal Ignore */
-void *
+void
 signal_ignore(int signo)
 {
-	return signal_set(signo, (void*)SIG_IGN, NULL);
+	signal_set(signo, (void *)SIG_IGN, NULL);
 }
 
 /* Handlers intialization */
 void
-signal_handler_init(int remember)
+signal_handler_init(void)
 {
 	sigset_t sset;
 	int sig;
-	struct sigaction act, oact;
+	struct sigaction act;
+#ifndef HAVE_SIGNALFD
 	int n;
+#endif
+
+#ifdef HAVE_SIGNALFD
+	sigemptyset(&signal_fd_set);
+
+#ifdef SFD_NONBLOCK	/* From Linux 2.6.26 */
+	signal_fd = signalfd(signal_fd, &signal_fd_set, SFD_NONBLOCK | SFD_CLOEXEC);
+#else
+	signal_fd = signalfd(signal_fd, &signal_fd_set, 0);
+
+	fcntl(signal_fd, F_SETFL, O_NONBLOCK | fcntl(signal_fd, F_GETFL));
+	fcntl(signal_fd, F_SETFD, FD_CLOEXEC | fcntl(signal_fd, F_GETFD));
+#endif
+	if (signal_fd == -1)
+		log_message(LOG_INFO, "BUG - signal_fd init failed - %d (%s), please report", errno, strerror(errno));
+#else
 
 #ifdef HAVE_PIPE2
 	n = pipe2(signal_pipe, O_CLOEXEC | O_NONBLOCK);
@@ -194,7 +257,7 @@ signal_handler_init(int remember)
 
 	assert(!n);
 	if (n)
-		log_message(LOG_INFO, "BUG - pipe in signal_handler_init failed (%s), please report", strerror(errno));
+		log_message(LOG_INFO, "BUG - pipe in signal_handler_init failed - %d (%s), please report", errno, strerror(errno));
 
 #ifndef HAVE_PIPE2
 	fcntl(signal_pipe[0], F_SETFL, O_NONBLOCK | fcntl(signal_pipe[0], F_GETFL));
@@ -202,6 +265,7 @@ signal_handler_init(int remember)
 
 	fcntl(signal_pipe[0], F_SETFD, FD_CLOEXEC | fcntl(signal_pipe[0], F_GETFD));
 	fcntl(signal_pipe[1], F_SETFD, FD_CLOEXEC | fcntl(signal_pipe[1], F_GETFD));
+#endif
 #endif
 
 	signal_SIGHUP_handler = NULL;
@@ -211,42 +275,30 @@ signal_handler_init(int remember)
 	signal_SIGUSR1_handler = NULL;
 	signal_SIGUSR2_handler = NULL;
 
-	/* Ignore all signals set to default (except essential ones) */
-	sigfillset(&sset);
-	sigdelset(&sset, SIGILL);
-	sigdelset(&sset, SIGFPE);
-	sigdelset(&sset, SIGSEGV);
-	sigdelset(&sset, SIGBUS);
-	sigdelset(&sset, SIGKILL);
-	sigdelset(&sset, SIGSTOP);
+	/* Ignore all signals except essential ones */
+	sigemptyset(&sset);
+	sigaddset(&sset, SIGILL);
+	sigaddset(&sset, SIGFPE);
+	sigaddset(&sset, SIGSEGV);
+	sigaddset(&sset, SIGBUS);
+	sigaddset(&sset, SIGKILL);
+	sigaddset(&sset, SIGSTOP);
+
+	dfl_sig = sset;
 
 	act.sa_handler = SIG_IGN;
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
 
-	if (remember) {
-		sigemptyset(&ign_sig);
-		sigemptyset(&dfl_sig);
-	}
-
 	for (sig = 1; sig <= SIGRTMAX; sig++) {
-		if (sigismember(&sset, sig)){
-			sigaction(sig, NULL, &oact);
-
-			/* Remember the original disposition, and ignore
-			 * any default action signals
-			 */
-			if (oact.sa_handler == SIG_IGN) {
-				if (remember)
-					sigaddset(&ign_sig, sig);
-			}
-			else {
-				sigaction(sig, &act, NULL);
-				if (remember)
-					sigaddset(&dfl_sig, sig);
-			}
-		}
+		if (!sigismember(&sset, sig))
+			sigaction(sig, &act, NULL);
 	}
+
+#ifdef HAVE_SIGNALFD
+	sigemptyset(&sset);
+	sigprocmask(SIG_SETMASK, &sset, NULL);
+#endif
 }
 
 static void
@@ -264,11 +316,20 @@ signal_handlers_clear(void *state)
 void
 signal_handler_destroy(void)
 {
+#ifdef HAVE_SIGNALFD
+	close(signal_fd);
+	signal_fd = -1;
+	sigemptyset(&signal_fd_set);
+#endif
+
 	signal_handlers_clear(SIG_IGN);
+
+#ifndef HAVE_SIGNALFD
 	close(signal_pipe[1]);
 	close(signal_pipe[0]);
 	signal_pipe[1] = -1;
 	signal_pipe[0] = -1;
+#endif
 }
 
 /* Called prior to exec'ing a script. The script can reasonably
@@ -276,38 +337,57 @@ signal_handler_destroy(void)
 void
 signal_handler_script(void)
 {
-	struct sigaction ign, dfl;
+	struct sigaction dfl;
 	int sig;
+#ifdef HAVE_SIGNALFD
+	sigset_t sset;
 
-	ign.sa_handler = SIG_IGN;
-	ign.sa_flags = 0;
-	sigemptyset(&ign.sa_mask);
+	if (signal_fd != -1){
+		close(signal_fd);
+		signal_fd = -1;
+	}
+#endif
+
 	dfl.sa_handler = SIG_DFL;
 	dfl.sa_flags = 0;
 	sigemptyset(&dfl.sa_mask);
 
 	for (sig = 1; sig <= SIGRTMAX; sig++) {
-		if (sigismember(&ign_sig, sig))
-			sigaction(sig, &ign, NULL);
-		else if (sigismember(&dfl_sig, sig))
+		if (!sigismember(&dfl_sig, sig))
 			sigaction(sig, &dfl, NULL);
 	}
+
+#ifdef HAVE_SIGNALFD
+	sigemptyset(&sset);
+	sigprocmask(SIG_SETMASK, &sset, NULL);
+#endif
 }
 
 int
 signal_rfd(void)
 {
-	return(signal_pipe[0]);
+#ifdef HAVE_SIGNALFD
+	return signal_fd;
+#else
+	return signal_pipe[0];
+#endif
 }
 
 /* Handlers callback  */
 void
 signal_run_callback(void)
 {
+#ifdef HAVE_SIGNALFD
+	struct signalfd_siginfo siginfo;
+
+	while(read(signal_fd, &siginfo, sizeof(struct signalfd_siginfo)) == sizeof(struct signalfd_siginfo)) {
+		switch(siginfo.ssi_signo) {
+#else
 	int sig;
 
 	while(read(signal_pipe[0], &sig, sizeof(int)) == sizeof(int)) {
 		switch(sig) {
+#endif
 		case SIGHUP:
 			if (signal_SIGHUP_handler)
 				signal_SIGHUP_handler(signal_SIGHUP_v, SIGHUP);
@@ -322,7 +402,11 @@ signal_run_callback(void)
 			break;
 		case SIGCHLD:
 			if (signal_SIGCHLD_handler)
+#ifdef HAVE_SIGNALFD
+				signal_SIGCHLD_handler(&siginfo, SIGCHLD);
+#else
 				signal_SIGCHLD_handler(signal_SIGCHLD_v, SIGCHLD);
+#endif
 			break;
 		case SIGUSR1:
 			if (signal_SIGUSR1_handler)
@@ -338,10 +422,21 @@ signal_run_callback(void)
 	}
 }
 
-void signal_pipe_close(int min_fd)
+void signal_fd_close(int min_fd)
 {
-	if (signal_pipe[0] && signal_pipe[0] >= min_fd)
+#ifdef HAVE_SIGNALFD
+	if (signal_fd >= min_fd) {
+		close(signal_fd);
+		signal_fd = -1;
+	}
+#else
+	if (signal_pipe[0] >= min_fd) {
 		close(signal_pipe[0]);
-	if (signal_pipe[1] && signal_pipe[1] >= min_fd)
+		signal_pipe[0] = -1;
+	}
+	if (signal_pipe[1] >= min_fd) {
 		close(signal_pipe[1]);
+		signal_pipe[1] = -1;
+	}
+#endif
 }

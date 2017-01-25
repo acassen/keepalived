@@ -25,22 +25,18 @@
 #define _CHECK_MISC_H
 
 /* system includes */
-#include <stdlib.h>
 #include <stdbool.h>
 #include <sys/types.h>
 
-/* local includes */
-#include "scheduler.h"
+/* user includes */
+#include "notify.h"
 
 /* Checker argument structure  */
 typedef struct _misc_checker {
-	char			*path;
+	notify_script_t		script;		/* The script details */
 	unsigned long		timeout;
 	int			dynamic;	/* 0: old-style, 1: exit code from checker affects weight */
 	bool			forcing_termination; /* Set if we have sent the process a SIGTERM */
-	uid_t			uid;		/* uid for script execution */
-	gid_t			gid;		/* gid for script execution */
-	bool			insecure;	/* script is insecure */
 } misc_checker_t;
 
 /* Prototypes defs */

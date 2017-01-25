@@ -19,7 +19,7 @@ the main configuration file.
 is one of on|off|true|false|yes|no
 .PP
 .SH Conditional configuration and configuration id
-Any configuration line starts with '@' is a conditional configuration line.
+Any configuration line starting with '@' is a conditional configuration line.
 The word immediately following (i.e. without any space) the '@' character
 is compared against the string specified with the -i command line option,
 and if they don't match, the configuration line is ignored.
@@ -39,6 +39,33 @@ For example:
 If keepalived is invoked with -i main, then the router_id will be set to main_router,
 if invoked with -i backup, then backup_router, if not invoked with -i, or with
 -i anything else, then the router_id will not be set.
+.SH SCRIPTS
+There are three classes of scripts can be configured to be executed.
+
+a. Notify scripts that are run when a vrrp instance or vrrp group changes state,
+   or a virtual server quorum changes between up and down.
+
+b. vrrp tracking scripts that will cause vrrp instances to go down it they exit
+   a non-zero exist status, or if a weight is specified will add or subtract the
+   weight to/from the priority of that vrrp instance.
+
+c. LVS checker misc scripts that will cause a real server to be configured down
+   if they exit with a non-zero status.
+
+By default the scripts will be executed by user keepalived_script if that user
+exists, or if not by root, but for each script the user/group under which it is
+to be executed can be specified.
+
+There are significant security implications if scripts are executed with root
+privileges, especially if the scripts themselves are modifiable or replaceable
+by a non root user. Consequently, security checks are made at startup to ensure
+that if a script is executed by root, then it cannot be modified or replaced by
+a non root user.
+
+All scripts should be written so that they will terminate on receipt of a SIGTERM
+signal. Scripts will be sent SIGTERM if their parent terminates, or it is a script
+the keepalived is awaiting its exit status and it has run for too long.
+
 .SH TOP HIERACHY
 .PP
 .B GLOBAL CONFIGURATION
@@ -317,6 +344,8 @@ and
     smtp_alert
 
     global_tracking     # All VRRP share the same tracking config
+                        # This enables weights for script and interface tracking,
+                        # which by default are disabled for sync groups.
  }
 
 .SH VRRP gratuitous ARP and unsolicited neighbour advert delay group(s)

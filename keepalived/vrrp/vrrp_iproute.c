@@ -23,10 +23,8 @@
 #include "config.h"
 
 /* local include */
-#include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
 #include "vrrp_netlink.h"
-#include "vrrp_if.h"
 #include "vrrp_data.h"
 #include "logger.h"
 #include "memory.h"
@@ -36,7 +34,6 @@
 
 #include <linux/icmpv6.h>
 #include <inttypes.h>
-#include <linux/rtnetlink.h>
 #if HAVE_DECL_RTA_ENCAP
 #include <linux/lwtunnel.h>
 #if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
@@ -46,6 +43,8 @@
 #include <linux/ila.h>
 #endif
 #endif
+
+//////#include <linux/rtnetlink.h>
 
 /* Buffer sizes for netlink messages. Increase if needed. */
 #define	RTM_SIZE		1024
@@ -1169,13 +1168,9 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 					route->family = new->addr->ifa.ifa_family;
 			}
 			else if (!strcmp(str, "dev")) {
-				new->ifp = if_get_by_ifname(strvec_slot(strvec, ++i));
-				if (!new->ifp) {
-					log_message(LOG_INFO, "VRRP is trying to assign VROUTE to unknown "
-					       "%s interface !!! go out and fix your conf !!!",
-					       FMT_STR_VSLOT(strvec, i));
-					goto err;
-				}
+				new->ifp = if_get_by_ifname(strvec_slot(strvec, ++i), true);
+				if (!new->ifp->ifindex)
+					log_message(LOG_INFO, "WARNING - interface %s for VROUTE nexthop doesn't currently exist", new->ifp->ifname);
 			}
 			else if (!strcmp(str, "weight")) {
 				if (get_u32(&val, strvec_slot(strvec, ++i), 256, "Invalid weight %s specified for route"))
@@ -1387,13 +1382,9 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->mask |= IPROUTE_BIT_METRIC;
 		}
 		else if (!strcmp(str, "dev") || !strcmp(str, "oif")) {
-			ifp = if_get_by_ifname(strvec_slot(strvec, ++i));
-			if (!ifp) {
-				log_message(LOG_INFO, "VRRP is trying to assign VROUTE to unknown "
-				       "%s interface !!! go out and fix your conf !!!",
-				       FMT_STR_VSLOT(strvec, i));
-				goto err;
-			}
+			ifp = if_get_by_ifname(strvec_slot(strvec, ++i), true);
+			if (!ifp->ifindex)
+				log_message(LOG_INFO, "WARNING - interface %s for VROUTE nexthop doesn't currently exist", ifp->ifname);
 			new->oif = ifp;
 		}
 		else if (!strcmp(str, "onlink")) {

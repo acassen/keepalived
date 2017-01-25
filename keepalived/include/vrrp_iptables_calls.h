@@ -24,7 +24,11 @@
 #ifndef _VRRP_IPTABLES_CALLS_H
 #define	_VRRP_IPTABLES_CALLS_H
 
+#include "config.h"
+
 #include <limits.h>
+#include <stdbool.h>
+#include <stdint.h>
 
 #include "vrrp_ipaddress.h"
 

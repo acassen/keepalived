@@ -23,7 +23,10 @@
 #ifndef _BITOPS_H
 #define _BITOPS_H
 
+#include "config.h"
+
 #include <limits.h>
+#include <stdbool.h>
 
 /* Defines */
 #define BIT_PER_LONG	(CHAR_BIT * sizeof(unsigned long))

@@ -24,38 +24,35 @@
 
 /* global include */
 #include <unistd.h>
-#include <string.h>
 #include <stdint.h>
 typedef uint64_t u64;
 typedef uint32_t u32;
 typedef uint16_t u16;
 typedef uint8_t u8;
-#include <sys/socket.h>
 #include <sys/ioctl.h>
-#include <netinet/in.h>
 #include <errno.h>
-#include <fcntl.h>
 #include <syslog.h>
-#include <ctype.h>
 #include <linux/ip.h>
-#include <stdlib.h>
 #include <stdio.h>
-#include <linux/ethtool.h>
 #include <linux/mii.h>
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
+#include <linux/sockios.h>	/* needed to get correct values for SIOC* */
+#include <net/if_arp.h>
 
 /* local include */
-#include "scheduler.h"
 #include "global_data.h"
-#include "vrrp_data.h"
 #include "vrrp.h"
 #include "vrrp_if.h"
 #include "vrrp_netlink.h"
-#include "memory.h"
 #include "utils.h"
 #include "logger.h"
+#ifdef _HAVE_VRRP_VMAC_
+#include "vrrp_vmac.h"
+#include "bitops.h"
+#endif
+#include "vrrp_index.h"
 
 /* Local vars */
 static list if_queue;
@@ -88,44 +85,64 @@ if_get_by_ifindex(ifindex_t ifindex)
 
 /* Return base interface from interface index incase of VMAC */
 interface_t *
-base_if_get_by_ifindex(ifindex_t ifindex)
-{
-	interface_t *ifp = if_get_by_ifindex(ifindex);
-
-#ifdef _HAVE_VRRP_VMAC_
-	return (ifp && ifp->vmac) ? if_get_by_ifindex(ifp->base_ifindex) : ifp;
-#else
-	return ifp;
-#endif
-}
-
-/* Return base interface from interface index incase of VMAC */
-interface_t *
 base_if_get_by_ifp(interface_t *ifp)
 {
 #ifdef _HAVE_VRRP_VMAC_
-	return (ifp && ifp->vmac) ? if_get_by_ifindex(ifp->base_ifindex) : ifp;
+	return (ifp && ifp->vmac) ? ifp->base_ifp : ifp;
 #else
 	return ifp;
 #endif
 }
 
 interface_t *
-if_get_by_ifname(const char *ifname)
+if_get_by_ifname(const char *ifname, bool create)
+{
+	interface_t *ifp;
+	element e;
+
+	if (!LIST_ISEMPTY(if_queue)) {
+		for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
+			ifp = ELEMENT_DATA(e);
+			if (!strcmp(ifp->ifname, ifname))
+				return ifp;
+		}
+	}
+
+	if (!create)
+		return NULL;
+
+	if (!(ifp = MALLOC(sizeof(interface_t))))
+		return NULL;
+
+	strcpy(ifp->ifname, ifname);
+#ifdef _HAVE_VRRP_VMAC_
+	ifp->base_ifp = ifp;
+#endif
+	if_add_queue(ifp);
+
+	return ifp;
+}
+
+#ifdef _HAVE_VRRP_VMAC_
+/* Set the base_ifp for vmacs - only used at startup */
+void
+set_base_ifp(void)
 {
 	interface_t *ifp;
 	element e;
 
 	if (LIST_ISEMPTY(if_queue))
-		return NULL;
+		return;
 
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
-		if (!strcmp(ifp->ifname, ifname))
-			return ifp;
+		if (!ifp->base_ifp) {
+			ifp->base_ifp = if_get_by_ifindex(ifp->base_ifindex);
+			ifp->base_ifindex = 0;	/* This is only used at startup, so ensure not used later */
+		}
 	}
-	return NULL;
 }
+#endif
 
 /* Return the interface list itself */
 list
@@ -143,29 +160,6 @@ reset_interface_queue(void)
 	if_queue = NULL;
 	garp_delay = NULL;
 }
-
-#ifdef _HAVE_VRRP_VMAC_
-/*
- * Reflect base interface flags on VMAC interfaces.
- * VMAC interfaces should never update it own flags, only be reflected
- * by the base interface flags.
- */
-void
-if_vmac_reflect_flags(ifindex_t ifindex, unsigned long flags)
-{
-	interface_t *ifp;
-	element e;
-
-	if (LIST_ISEMPTY(if_queue) || !ifindex)
-		return;
-
-	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
-		ifp = ELEMENT_DATA(e);
-		if (ifp->vmac && ifp->base_ifindex == ifindex)
-			ifp->flags = flags;
-	}
-}
-#endif
 
 /* MII Transceiver Registers poller functions */
 static uint16_t
@@ -301,13 +295,14 @@ if_ethtool_probe(const char *ifname)
 	return status;
 }
 
-static void
-if_ioctl_flags(interface_t * ifp)
+/* Returns false if interface is down */
+static bool
+if_ioctl_flags(interface_t *ifp)
 {
 	int fd = socket(AF_INET, SOCK_DGRAM | SOCK_CLOEXEC, 0);
 
 	if (fd < 0)
-		return;
+		return true;
 
 #if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
@@ -318,16 +313,21 @@ if_ioctl_flags(interface_t * ifp)
 	strncpy(ifr.ifr_name, ifp->ifname, sizeof (ifr.ifr_name));
 	if (ioctl(fd, SIOCGIFFLAGS, &ifr) < 0) {
 		close(fd);
-		return;
+		return true;
 	}
-	ifp->flags = (unsigned short)ifr.ifr_flags;
+
 	close(fd);
+
+	return FLAGS_UP(ifr.ifr_flags);
 }
 
 /* Interfaces lookup */
 static void
 free_if(void *data)
 {
+	interface_t *ifp = data;
+
+	free_list(&ifp->tracking_vrrp);
 	FREE(data);
 }
 
@@ -360,7 +360,7 @@ set_default_garp_delay(void)
 		default_delay.have_gna_interval = true;
 	}
 
-	/* Allocate a delay structure to each physical inteface that doesn't have one */
+	/* Allocate a delay structure to each physical interface that doesn't have one */
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
 		if (!ifp->garp_delay
@@ -385,6 +385,10 @@ dump_if(void *data)
 	interface_t *ifp_u;
 #endif
 	char addr_str[INET6_ADDRSTRLEN];
+	unsigned ifi_flags;
+	char mac_str[3 * ifp->hw_addr_len];
+	char *mac_ptr = mac_str;
+	unsigned int i;
 
 	log_message(LOG_INFO, "------< NIC >------");
 	log_message(LOG_INFO, " Name = %s", ifp->ifname);
@@ -393,19 +397,22 @@ dump_if(void *data)
 	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
 	log_message(LOG_INFO, " IPv6 address = %s", addr_str);
 
-	/* FIXME: Hardcoded for ethernet */
-	if (ifp->hw_type == ARPHRD_ETHER)
-		log_message(LOG_INFO, " MAC = %.2x:%.2x:%.2x:%.2x:%.2x:%.2x",
-		       ifp->hw_addr[0], ifp->hw_addr[1], ifp->hw_addr[2]
-		       , ifp->hw_addr[3], ifp->hw_addr[4], ifp->hw_addr[5]);
+	mac_ptr[0] = '\0';
+	for (i = 0; i < ifp->hw_addr_len; i++)
+		mac_ptr += sprintf(mac_ptr, "%s%.2x", i ? ":" : "", ifp->hw_addr[i]);
+	log_message(LOG_INFO, " MAC = %s", mac_str);
 
-	if (ifp->flags & IFF_UP)
+	ifi_flags = ifp->ifi_flags & (IFF_UP | IFF_RUNNING);
+#ifdef _HAVE_VRRP_VMAC_
+	ifi_flags &= ifp->base_ifp->ifi_flags;
+#endif
+	if (ifi_flags == (IFF_UP | IFF_RUNNING))
 		log_message(LOG_INFO, " is UP");
-
-	if (ifp->flags & IFF_RUNNING)
-		log_message(LOG_INFO, " is RUNNING");
-
-	if (!(ifp->flags & IFF_UP) && !(ifp->flags & IFF_RUNNING))
+	else if (ifi_flags & IFF_UP)
+		log_message(LOG_INFO, " is UP not RUNNING");
+	else if (ifi_flags & IFF_RUNNING)
+		log_message(LOG_INFO, " is RUNNING not UP");
+	else
 		log_message(LOG_INFO, " is DOWN");
 
 	log_message(LOG_INFO, " MTU = %d", ifp->mtu);
@@ -423,11 +430,11 @@ dump_if(void *data)
 	}
 
 #ifdef _HAVE_VRRP_VMAC_
-	if (ifp->vmac && (ifp_u = if_get_by_ifindex(ifp->base_ifindex)))
+	if (ifp->vmac && (ifp_u = ifp->base_ifp))
 		log_message(LOG_INFO, " VMAC underlying interface = %s", ifp_u->ifname);
 #endif
 
-	if (global_data->linkbeat_use_polling) {
+	if (ifp->linkbeat_use_polling) {
 		/* MII channel supported ? */
 		if (IF_MII_SUPPORTED(ifp))
 			log_message(LOG_INFO, " NIC support MII regs");
@@ -468,61 +475,80 @@ static int
 if_linkbeat_refresh_thread(thread_t * thread)
 {
 	interface_t *ifp = THREAD_ARG(thread);
+	bool if_up = true, was_up;
+
+	was_up = IF_FLAGS_UP(ifp);
 
 	if (IF_MII_SUPPORTED(ifp))
-		ifp->linkbeat = (if_mii_probe(ifp->ifname)) ? 1 : 0;
+		if_up = if_mii_probe(ifp->ifname);
 	else if (IF_ETHTOOL_SUPPORTED(ifp))
-		ifp->linkbeat = (if_ethtool_probe(ifp->ifname)) ? 1 : 0;
-	else
-		ifp->linkbeat = 1;
+		if_up = if_ethtool_probe(ifp->ifname);
 
 	/*
 	 * update ifp->flags to get the new IFF_RUNNING status.
 	 * Some buggy drivers need this...
 	 */
-	if_ioctl_flags(ifp);
+	if (if_up)
+		if_up = if_ioctl_flags(ifp);
+
+	ifp->ifi_flags = if_up ? IFF_UP | IFF_RUNNING : 0;
+
+	if (if_up != was_up) {
+		log_message(LOG_INFO, "Linkbeat reports %s %s", ifp->ifname, if_up ? "up" : "down");
+
+		process_if_status_change(ifp);
+	}
 
 	/* Register next polling thread */
 	thread_add_timer(master, if_linkbeat_refresh_thread, ifp, POLLING_DELAY);
 	return 0;
 }
 
-static void
-init_if_linkbeat(void)
+void
+init_interface_linkbeat(void)
 {
 	interface_t *ifp;
 	element e;
 	int status;
+	bool linkbeat_in_use = false;
 
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
+
+		if (!ifp->linkbeat_use_polling)
+			continue;
+
+		/* Don't poll an interface that we aren't using */
+		if (!ifp->tracking_vrrp)
+			continue;
+
+#ifdef _HAVE_VRRP_VMAC_
+		/* netlink messages work for vmacs */
+		if (ifp->vmac)
+			continue;
+#endif
+
+		linkbeat_in_use = true;
+		ifp->ifi_flags = IFF_UP | IFF_RUNNING;
+
 		ifp->lb_type = LB_IOCTL;
 		status = if_mii_probe(ifp->ifname);
 		if (status >= 0) {
 			ifp->lb_type = LB_MII;
-			ifp->linkbeat = !!status;
+			ifp->ifi_flags = status ? IFF_UP | IFF_RUNNING : 0;
 		} else {
 			status = if_ethtool_probe(ifp->ifname);
 			if (status >= 0) {
 				ifp->lb_type = LB_ETHTOOL;
-				ifp->linkbeat = !!status;
+				ifp->ifi_flags = status ? IFF_UP | IFF_RUNNING : 0;
 			}
 		}
 		/* Register new monitor thread */
 		thread_add_timer(master, if_linkbeat_refresh_thread, ifp, POLLING_DELAY);
 	}
-}
 
-int
-if_linkbeat(const interface_t * ifp)
-{
-	if (!global_data->linkbeat_use_polling)
-		return 1;
-
-	if (IF_MII_SUPPORTED(ifp) || IF_ETHTOOL_SUPPORTED(ifp))
-		return IF_LINKBEAT(ifp);
-
-	return 1;
+	if (linkbeat_in_use)
+		log_message(LOG_INFO, "Using MII-BMSR/ETHTOOL NIC polling thread...");
 }
 
 /* Interface queue helpers*/
@@ -544,19 +570,8 @@ void
 init_interface_queue(void)
 {
 	init_if_queue();
-	netlink_interface_lookup();
+	netlink_interface_lookup(NULL);
 //	dump_list(if_queue);
-}
-
-void
-init_interface_linkbeat(void)
-{
-	if (global_data->linkbeat_use_polling) {
-		log_message(LOG_INFO, "Using MII-BMSR/ETHTOOL NIC polling thread...");
-		init_if_linkbeat();
-	} else {
-		log_message(LOG_INFO, "Using LinkWatch kernel netlink reflector...");
-	}
 }
 
 int
@@ -657,7 +672,7 @@ if_setsockopt_bindtodevice(int *sd, interface_t *ifp)
 	 */
 	ret = setsockopt(*sd, SOL_SOCKET, SO_BINDTODEVICE, IF_NAME(ifp), (socklen_t)strlen(IF_NAME(ifp)) + 1);
 	if (ret < 0) {
-		log_message(LOG_INFO, "cant bind to device %s. errno=%d. (try to run it as root)",
+		log_message(LOG_INFO, "can't bind to device %s. errno=%d. (try to run it as root)",
 			    IF_NAME(ifp), errno);
 		close(*sd);
 		*sd = -1;
@@ -704,7 +719,6 @@ if_setsockopt_ipv6_checksum(int *sd)
 
 	return *sd;
 }
-
 
 int
 if_setsockopt_mcast_all(sa_family_t family, int *sd)
@@ -864,4 +878,108 @@ if_setsockopt_rcvbuf(int *sd, int val)
 	}
 
 	return *sd;
+}
+
+#ifdef _TIMER_DEBUG_
+void
+print_vrrp_if_addresses(void)
+{
+	log_message(LOG_INFO, "Address of if_linkbeat_refresh_thread() is 0x%p", if_linkbeat_refresh_thread);
+}
+#endif
+
+void
+cleanup_lost_interface(interface_t *ifp)
+{
+	vrrp_t *vrrp;
+	element e;
+
+	/*
+	Recalc max fd for select
+
+	Remove vrid_index
+	Make sock_t have ifp and what is saddr?
+*/
+
+	ifp->ifindex = 0;
+	ifp->ifi_flags = 0;
+
+	if (LIST_ISEMPTY(ifp->tracking_vrrp))
+		return;
+
+	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+
+		/* If this is just a tracking interface, we don't need to do anything */
+		if (vrrp->ifp != ifp && IF_BASE_IFP(ifp) != ifp)
+			continue;
+
+#ifdef _HAVE_VRRP_VMAC_
+		/* If vmac going, clear VMAC_UP_BIT on vrrp instance */
+		if (vrrp->ifp->vmac) {
+			__clear_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
+			vrrp->ifp = vrrp->ifp->base_ifp;
+		}
+#endif
+
+		/* Find the sockpool entry. If none, then we have closed the socket */
+		if (vrrp->sockets->fd_in != -1) {
+			remove_vrrp_fd_bucket(vrrp->sockets->fd_in);
+			close(vrrp->sockets->fd_in);
+			vrrp->sockets->fd_in = -1;
+		}
+		if (vrrp->sockets->fd_out != -1) {
+			close(vrrp->sockets->fd_out);
+			vrrp->sockets->fd_out = -1;
+		}
+		vrrp->sockets->ifindex = 0;
+	}
+}
+
+void
+update_added_interface(interface_t *ifp)
+{
+	vrrp_t *vrrp;
+	element e;
+
+	if (LIST_ISEMPTY(ifp->tracking_vrrp))
+		return;
+
+	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+
+		/* If this is just a tracking interface, we don't need to do anything */
+		if (vrrp->ifp != ifp && IF_BASE_IFP(ifp) != ifp)
+			continue;
+
+#ifdef _HAVE_VRRP_VMAC_
+                if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+                        netlink_link_add_vmac(vrrp);
+
+                /* Add this instance to the vmac interface */
+//                add_vrrp_to_interface(vrrp, vrrp->ifp);
+
+                /* set scopeid of source address if IPv6 */
+                if (vrrp->saddr.ss_family == AF_INET6)
+                        inet_ip6scopeid(vrrp->ifp->ifindex, &vrrp->saddr);
+#endif
+
+		/* Find the sockpool entry. If none, then we open the socket */
+		if (vrrp->sockets->fd_in == -1) {
+			vrrp->sockets->fd_in = open_vrrp_read_socket(vrrp->sockets->family, vrrp->sockets->proto,
+								ifp, vrrp->sockets->unicast);
+			if (vrrp->sockets->fd_in == -1)
+				vrrp->sockets->fd_out = -1;
+			else
+				vrrp->sockets->fd_out = open_vrrp_send_socket(vrrp->sockets->family, vrrp->sockets->proto,
+								ifp, vrrp->sockets->unicast);
+
+			if (vrrp->sockets->fd_out > master->max_fd)
+				master->max_fd = vrrp->sockets->fd_out;
+			if (vrrp->sockets->fd_in > master->max_fd)
+				master->max_fd = vrrp->sockets->fd_in;
+			vrrp->sockets->ifindex = ifp->ifindex;
+		}
+		alloc_vrrp_fd_bucket(vrrp);
+	}
 }

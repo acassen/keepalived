@@ -23,13 +23,13 @@
 #ifndef _CHECK_DATA_H
 #define _CHECK_DATA_H
 
+#include "config.h"
+
 /* system includes */
-#include <stdlib.h>
-#include <string.h>
 #include <stdint.h>
 #include <stdbool.h>
-#include <syslog.h>
-#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
 #include <openssl/ssl.h>
 
 #ifdef _WITH_LVS_
@@ -39,7 +39,6 @@
 /* local includes */
 #include "list.h"
 #include "vector.h"
-#include "timer.h"
 #include "notify.h"
 
 /* Typedefs */
@@ -221,18 +220,21 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 #define FMT_RS(R) (inet_sockaddrtopair (&(R)->addr))
 #define FMT_VS(V) (format_vs((V)))
 
+#define VS_SCRIPT_ISEQ(XS,YS) \
+	(!(XS) == !(YS) && \
+	 (!(XS) || \
+	  (!strcmp((XS)->cmd_str, (YS)->cmd_str) && \
+	   (XS)->uid == (YS)->uid && \
+	   (XS)->gid == (YS)->gid)))
+
 #define VS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&&\
 			 (X)->vfwmark                 == (Y)->vfwmark			&&\
 			 (X)->af                      == (Y)->af			&&\
 			 (X)->service_type            == (Y)->service_type		&&\
 			 (X)->loadbalancing_kind      == (Y)->loadbalancing_kind	&&\
 			 (X)->persistence_granularity == (Y)->persistence_granularity	&&\
-			 (  (!(X)->quorum_up && !(Y)->quorum_up) || \
-			    ((X)->quorum_up && (Y)->quorum_up && !strcmp ((X)->quorum_up->name, (Y)->quorum_up->name)) \
-			 ) &&\
-			 (  (!(X)->quorum_down && !(Y)->quorum_down) || \
-			    ((X)->quorum_down && (Y)->quorum_down && !strcmp ((X)->quorum_down->name, (Y)->quorum_down->name)) \
-			 ) &&\
+			 VS_SCRIPT_ISEQ((X)->quorum_up, (Y)->quorum_up)			&&\
+			 VS_SCRIPT_ISEQ((X)->quorum_down, (Y)->quorum_down)		&&\
 			 !strcmp((X)->sched, (Y)->sched)				&&\
 			 (X)->persistence_timeout     == (Y)->persistence_timeout	&&\
 			 (((X)->vsgname && (Y)->vsgname &&				\

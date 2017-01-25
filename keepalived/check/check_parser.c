@@ -34,12 +34,12 @@
 #include "main.h"
 #include "logger.h"
 #include "parser.h"
-#include "memory.h"
 #include "utils.h"
 #include "ipwrapper.h"
 #if defined _WITH_VRRP_
 #include "vrrp_parser.h"
 #endif
+#include "libipvs.h"
 
 /* SSL handlers */
 static void
@@ -305,11 +305,11 @@ inhibit_handler(__attribute__((unused)) vector_t *strvec)
 static inline notify_script_t*
 set_check_notify_script(vector_t *strvec)
 {
-	notify_script_t *script = notify_script_init(strvec, default_script_uid, default_script_gid);
+	notify_script_t *script = notify_script_init(strvec, true);
 
-	if (vector_size(strvec) > 2 ) {
+	if (vector_size(strvec) > 2) {
 		if (set_script_uid_gid(strvec, 2, &script->uid, &script->gid))
-			log_message(LOG_INFO, "Invalid user/group for quorum/notify script %s", script->name);
+			log_message(LOG_INFO, "Invalid user/group for quorum/notify script %s", script->cmd_str);
 	}
 
 	return script;

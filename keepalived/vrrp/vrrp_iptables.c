@@ -53,7 +53,9 @@
 #define _LINUX_IF_H
 #endif
 
-#include <libiptc/libiptc.h>
+#ifdef _HAVE_LIBIPTC_
+#include <libiptc/libxtc.h>
+#endif
 
 #include "vrrp_iptables.h"
 #include "vrrp_iptables_calls.h"
@@ -61,11 +63,9 @@
 #include "vrrp_ipset.h"
 #endif
 #include "logger.h"
-#include "memory.h"
 #include "global_data.h"
 
 #ifdef _HAVE_LIBIPSET_
-#include <xtables.h>
 #include "vrrp_ipset.h"
 #endif
 
@@ -340,16 +340,16 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, struct ipt_handle *
 			IPPROTO_NONE, 0, cmd, force);
 }
 
+#ifdef _HAVE_LIBIPSET_
 static void
 iptables_remove_structure(bool ignore_errors)
 {
-#ifdef _HAVE_LIBIPSET_
 	if (global_data->using_ipsets) {
 		add_del_rules(IPADDRESS_DEL, ignore_errors);
 		add_del_sets(IPADDRESS_DEL, false);
 	}
-#endif
 }
+#endif
 
 void
 iptables_startup(bool reload)
@@ -373,7 +373,9 @@ iptables_startup(bool reload)
 void
 iptables_cleanup(void)
 {
+#ifdef _HAVE_LIBIPSET_
 	iptables_remove_structure(true);
+#endif
 }
 
 bool
@@ -393,5 +395,7 @@ iptables_init(void)
 void
 iptables_fini(void)
 {
+#ifdef _HAVE_LIBIPSET_
 	iptables_remove_structure(false);
+#endif
 }

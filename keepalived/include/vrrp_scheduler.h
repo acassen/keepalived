@@ -24,16 +24,13 @@
 #define _VRRP_SCHEDULER_H
 
 /* system include */
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <string.h>
 #include <stdint.h>
 
 /* local includes */
 #include "scheduler.h"
-#include "list.h"
+#include "timer.h"
 #include "vrrp_data.h"
+#include "vrrp.h"
 
 /* global vars */
 extern timeval_t garp_next_time;
@@ -56,16 +53,21 @@ do {						\
 #define VRRP_TSM_HANDLE(S,V)			\
 do {						\
   if ((V)->sync &&				\
-      S != VRRP_STATE_GOTO_MASTER)		\
-    if ((*(VRRP_TSM[S][(V)->state].handler)))	\
+      (*(VRRP_TSM[S][(V)->state].handler)))	\
       (*(VRRP_TSM[S][(V)->state].handler)) (V);	\
 } while (0)
 
 /* extern prototypes */
+extern void vrrp_smtp_notifier(vrrp_t *);
 extern void vrrp_dispatcher_release(vrrp_data_t *);
 extern int vrrp_dispatcher_init(thread_t *);
+extern int vrrp_gratuitous_arp_thread(thread_t *);
 extern int vrrp_lower_prio_gratuitous_arp_thread(thread_t *);
-extern void vrrp_set_effective_priority(vrrp_t *, uint8_t);
+extern void vrrp_set_effective_priority(vrrp_t *);
 extern int vrrp_arp_thread(thread_t *);
+extern void try_up_instance(vrrp_t *);
+#ifdef _WITH_DUMP_THREADS_
+extern void dump_threads(void);
+#endif
 
 #endif

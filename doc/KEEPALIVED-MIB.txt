@@ -22,14 +22,23 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
+<<<<<<< HEAD
+     LAST-UPDATED "201610230000Z"
+=======
      LAST-UPDATED "201611260000Z"
+>>>>>>> fixes
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+<<<<<<< HEAD
+     REVISION "201610230000Z"
+     DESCRIPTION "add per interface linkbeat option"
+=======
      REVISION "201611260000Z"
      DESCRIPTION "add initfailed state for scripts"
+>>>>>>> fixes
      REVISION "201610180000Z"
      DESCRIPTION "add promote_secondaries"
      REVISION "201609120000Z"
@@ -481,7 +490,8 @@ VrrpInstanceEntry ::= SEQUENCE {
     vrrpInstanceScriptStop DisplayString,
     vrrpInstanceScript DisplayString,
     vrrpInstanceAccept INTEGER,
-    vrrpInstancePromoteSecondaries INTEGER
+    vrrpInstancePromoteSecondaries INTEGER,
+    vrrpInstanceUseLinkbeat INTEGER
 }
 
 vrrpInstanceIndex OBJECT-TYPE
@@ -724,6 +734,14 @@ vrrpInstancePromoteSecondaries OBJECT-TYPE
     DESCRIPTION
         "Set promote_secondaries on interface."
     ::= { vrrpInstanceEntry 28 }
+
+vrrpInstanceUseLinkbeat OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-write
+    STATUS current
+    DESCRIPTION
+        "Use linkbeat for interface status."
+    ::= { vrrpInstanceEntry 29 }
 
 vrrpTrackedInterfaceTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpTrackedInterfaceEntry
@@ -1997,7 +2015,6 @@ vrrpScriptResult OBJECT-TYPE
         init(1),
         bad(2),
         good(3),
-        initgood(4),
         initfailed(5)
            }
     MAX-ACCESS read-only
@@ -3472,6 +3489,7 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpInstanceScript,
     vrrpInstanceAccept,
     vrrpInstancePromoteSecondaries,
+    vrrpInstanceUseLinkbeat,
     vrrpTrackedInterfaceName,
     vrrpTrackedInterfaceWeight,
     vrrpTrackedScriptName,

@@ -23,9 +23,13 @@
 #ifndef _CHECK_API_H
 #define _CHECK_API_H
 
+#include "config.h"
+
 /* local includes */
+#include "list.h"
+#include <sys/socket.h>
 #include "check_data.h"
-#include "scheduler.h"
+#include "vector.h"
 
 /* connection options structure definition */
 typedef struct _conn_opts {

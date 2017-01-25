@@ -1,1 +1,43 @@
 Whatever you want !
+
+ipvs_group_range_cmd() appears nonsense, and inet_stor returning a uint8_t
+doesn't work for IPv6. The virtual_service_entry_t thing needs range to be
+uint32_t. Why would mask be 0xffffffff for IPv6?
+
+init_if_linkbeat should only be done for interfaces that are used or tracked
+
+ip_vs_daemon_kern vs /usr/include/linux/ip_vs.h ip_vs_daemon_user
+
+vrrp_timer_fd should return 0 if an fd's timer is in the past?
+
+ensure all ifindex are ifindex_t (change typedef to float to get compiler warnings)
+
+Stop using ifp->base_if_index
+
+Stop using if_vmac_reflect_flags
+
+Get rid of vmac_ifi_flags
+
+Make vrrp_update_priority() void
+
+Make vrrp->send_buffer a single buffer for all
+
+Check timers passto to thread_... functions are reasonable, and stacktrace if not.
+
+In function socket_state, should thread_add_write use timer_long() or -timer_long()
+
+vrrp_timer_fd() - see comment
+
+In thread functions with a timer, ensure not > LONG_MAX (or even some lower value);
+
+Change tcp_socket_state etc to socket_state etc
+
+Add noreturn function attribute on stop_vrrp/check
+
+bin/genhash -s 2001:470:69dd:35::188 --port 80 -u /Harriet/     # works, but
+bin/genhash -s 2001:470:69dd:35::188 --port 80 -u /Harriet/     # -S doesn;t
+                                                                # but -S is OK with IPv5 address
+
+in ipvswrapper.c, get rid of static srule etc and make them procedure local and pass as parameters
+
+Stop passing base_ifp to netlink3_set_interface_parameters() etc

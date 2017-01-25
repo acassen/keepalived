@@ -24,8 +24,12 @@
 #ifndef _CHECK_SSL_H
 #define _CHECK_SSL_H
 
+/* system includes */
+#include <openssl/ssl.h>
+
 /* local includes */
-#include "check_http.h"
+#include "check_data.h"
+#include "scheduler.h"
 
 /* Prototypes */
 extern void install_ssl_check_keyword(void);

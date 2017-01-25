@@ -23,11 +23,8 @@
 #include "config.h"
 
 #include "ipwrapper.h"
-#include "ipvswrapper.h"
 #include "logger.h"
-#include "memory.h"
 #include "utils.h"
-#include "notify.h"
 #include "main.h"
 #ifdef _WITH_SNMP_CHECKER_
   #include "check_snmp.h"
@@ -81,7 +78,7 @@ clear_service_rs(virtual_server_t * vs, list l)
 			 */
 			if (rs->notify_down) {
 				log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
-						    , rs->notify_down->name
+						    , rs->notify_down->cmd_str
 						    , FMT_RS(rs)
 						    , FMT_VS(vs));
 				notify_exec(rs->notify_down);
@@ -102,7 +99,7 @@ clear_service_rs(virtual_server_t * vs, list l)
 				vs->quorum_state = DOWN;
 				if (vs->quorum_down) {
 					log_message(LOG_INFO, "Executing [%s] for VS %s"
-							    , vs->quorum_down->name
+							    , vs->quorum_down->cmd_str
 							    , FMT_VS(vs));
 					notify_exec(vs->quorum_down);
 				}
@@ -312,7 +309,7 @@ update_quorum_state(virtual_server_t * vs)
 		}
 		if (vs->quorum_up) {
 			log_message(LOG_INFO, "Executing [%s] for VS %s"
-					    , vs->quorum_up->name
+					    , vs->quorum_up->cmd_str
 					    , FMT_VS(vs));
 			notify_exec(vs->quorum_up);
 		}
@@ -335,7 +332,7 @@ update_quorum_state(virtual_server_t * vs)
 				    , FMT_VS(vs));
 		if (vs->quorum_down) {
 			log_message(LOG_INFO, "Executing [%s] for VS %s"
-					    , vs->quorum_down->name
+					    , vs->quorum_down->cmd_str
 					    , FMT_VS(vs));
 			notify_exec(vs->quorum_down);
 		}
@@ -385,7 +382,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 		rs->alive = alive;
 		if (rs->notify_up) {
 			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
-					    , rs->notify_up->name
+					    , rs->notify_up->cmd_str
 					    , FMT_RS(rs)
 					    , FMT_VS(vs));
 			notify_exec(rs->notify_up);
@@ -414,7 +411,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 		rs->alive = alive;
 		if (rs->notify_down) {
 			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
-					    , rs->notify_down->name
+					    , rs->notify_down->cmd_str
 					    , FMT_RS(rs)
 					    , FMT_VS(vs));
 			notify_exec(rs->notify_down);

@@ -23,21 +23,11 @@
 #ifndef _MAIN_H
 #define _MAIN_H
 
-/* global includes */
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <getopt.h>
+#include "config.h"
 
-/* local includes */
-#include "daemon.h"
-#include "memory.h"
-#include "utils.h"
-#include "pidfile.h"
-#include "scheduler.h"
-#include "parser.h"
-#include "vrrp_daemon.h"
-#include "check_daemon.h"
-#include "global_data.h"
+/* global includes */
+#include <stdbool.h>
+#include <sys/types.h>
 
 /* State flags */
 enum daemon_bits {
@@ -49,6 +39,10 @@ enum daemon_bits {
 #endif
 };
 
+/* Reloading helpers */
+#define SET_RELOAD      (reload = 1)
+#define UNSET_RELOAD    (reload = 0)
+
 /* Global vars exported */
 extern const char *version_string;	/* keepalived version */
 extern unsigned long daemon_mode;	/* Which child processes are run */
@@ -56,6 +50,7 @@ extern char *conf_file;			/* Configuration file */
 extern int log_facility;		/* Optional logging facilities */
 extern pid_t vrrp_child;		/* VRRP child process ID */
 extern pid_t checkers_child;		/* Healthcheckers child process ID */
+extern bool reload;			/* Set during a reload */
 extern char *main_pidfile;		/* overrule default pidfile */
 extern char *checkers_pidfile;		/* overrule default pidfile */
 extern char *vrrp_pidfile;		/* overrule default pidfile */
@@ -70,8 +65,6 @@ extern bool namespace_with_ipsets;	/* override for namespaces with ipsets on Lin
 extern char *instance_name;		/* keepalived instance name */
 extern bool use_pid_dir;		/* pid files in /var/run/keepalived */
 extern size_t getpwnam_buf_len;		/* Buffer length needed for getpwnam_r/getgrnam_r */
-extern uid_t default_script_uid;	/* Default user/group for script execution */
-extern gid_t default_script_gid;
 extern unsigned os_major;		/* Kernel version */
 extern unsigned os_minor;
 extern unsigned os_release;

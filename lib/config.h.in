@@ -345,6 +345,9 @@
 /* Define to 1 if you have the `setns' function. */
 #undef HAVE_SETNS
 
+/* Define to 1 if you have the `signalfd' function. */
+#undef HAVE_SIGNALFD
+
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
 
@@ -549,6 +552,9 @@
 /* Define to 1 to have DBus create instance support */
 #undef _WITH_DBUS_CREATE_INSTANCE_
 
+/* Define to 1 to build with thread dumping support */
+#undef _WITH_DUMP_THREADS_
+
 /* Define to 1 if have IPVS support */
 #undef _WITH_LVS_
 
@@ -633,5 +639,8 @@
 #undef vfork
 
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
 #endif
-  
+
+#endif

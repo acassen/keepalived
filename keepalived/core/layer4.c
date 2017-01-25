@@ -23,8 +23,11 @@
 
 #include "config.h"
 
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include "layer4.h"
-#include "utils.h"
 #include "logger.h"
 
 enum connect_result

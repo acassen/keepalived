@@ -24,9 +24,15 @@
 #ifndef _MEMORY_H
 #define _MEMORY_H
 
+#include "config.h"
+
 /* system includes */
+#include <stddef.h>
+#ifdef _MEM_CHECK_
+#include <sys/types.h>
+#else
 #include <stdlib.h>
-#include <stdbool.h>
+#endif
 
 /* Local defines */
 #ifdef _MEM_CHECK_

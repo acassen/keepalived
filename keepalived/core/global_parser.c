@@ -24,13 +24,11 @@
 
 #include "config.h"
 
-#include <netdb.h>
 #include <stdlib.h>
-#include <stdbool.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <pwd.h>
 #include <grp.h>
+#include <ctype.h>
 
 #ifdef _WITH_SNMP_
 #include "snmp.h"
@@ -39,9 +37,7 @@
 #include "global_parser.h"
 #include "global_data.h"
 #include "main.h"
-#include "check_data.h"
 #include "parser.h"
-#include "memory.h"
 #include "smtp.h"
 #include "utils.h"
 #include "logger.h"
@@ -133,11 +129,11 @@ default_interface_handler(vector_t *strvec)
 		log_message(LOG_INFO, "default_interface requires interface name");
 		return;
 	}
-	ifp = if_get_by_ifname(strvec_slot(strvec, 1));
-	if (!ifp)
-		log_message(LOG_INFO, "Cannot find default interface %s", FMT_STR_VSLOT(strvec, 1));
-	else
-		global_data->default_ifp = ifp;
+	ifp = if_get_by_ifname(strvec_slot(strvec, 1), true);
+	if (!ifp->ifindex)
+		log_message(LOG_INFO, "WARNING - default interface %s doesn't currently exist", ifp->ifname);
+
+	global_data->default_ifp = ifp;
 }
 #endif
 #ifdef _WITH_LVS_
@@ -748,7 +744,7 @@ script_user_handler(vector_t *strvec)
 static void
 script_security_handler(__attribute__((unused)) vector_t *strvec)
 {
-	global_data->script_security = true;
+	script_security = true;
 }
 
 void

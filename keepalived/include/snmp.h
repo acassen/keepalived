@@ -23,6 +23,11 @@
 #ifndef _SNMP_H
 #define _SNMP_H
 
+#include "config.h"
+
+#include <sys/types.h>
+#include <stdbool.h>
+
 #define USING_AGENTX_SUBAGENT_MODULE
 
 #include <net-snmp/net-snmp-config.h>
@@ -42,7 +47,6 @@ int header_generic(struct variable *, oid *, size_t *, int,
 #undef FREE
 
 #include "list.h"
-#include "utils.h"
 
 #define SNMP_DEFAULT_NETWORK_SOCKET	"udp:localhost:705"
 

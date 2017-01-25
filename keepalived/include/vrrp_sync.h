@@ -23,13 +23,6 @@
 #ifndef _VRRP_SYNC_H
 #define _VRRP_SYNC_H
 
-/* system include */
-#include <stdlib.h>
-#include <stdio.h>
-#include <sys/types.h>
-#include <string.h>
-#include <stdint.h>
-
 /* local include */
 #include "vrrp.h"
 
@@ -44,11 +37,9 @@
 extern void vrrp_init_instance_sands(vrrp_t *);
 extern void vrrp_sync_smtp_notifier(vrrp_sgroup_t *);
 extern void vrrp_sync_set_group(vrrp_sgroup_t *);
-extern int vrrp_sync_leave_fault(vrrp_t *);
-extern int vrrp_sync_goto_master(vrrp_t *);
+extern bool vrrp_sync_can_goto_master(vrrp_t *);
 extern void vrrp_sync_backup(vrrp_t *);
 extern void vrrp_sync_master(vrrp_t *);
-extern void vrrp_sync_master_election(vrrp_t *);
 extern void vrrp_sync_fault(vrrp_t *);
 
 #endif

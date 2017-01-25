@@ -22,23 +22,25 @@
 
 #include "config.h"
 
-#include "global_data.h"
-#include "vrrp_data.h"
-#include "vrrp_index.h"
-#include "vrrp_sync.h"
-#include "vrrp_if.h"
-#ifdef _HAVE_VRRP_VMAC_
-#include "vrrp_vmac.h"
-#endif
-#include "vrrp.h"
-#include "memory.h"
+#include <unistd.h>
+
 #include "utils.h"
 #include "logger.h"
 #include "bitops.h"
+
+#include "global_data.h"
+#include "vrrp_data.h"
+#include "vrrp_sync.h"
+#ifdef _HAVE_VRRP_VMAC_
+#include "vrrp_vmac.h"
+#endif
+#include "vrrp_print.h"
 #ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iprule.h"
 #include "vrrp_iproute.h"
 #endif
+#include "vrrp_track.h"
+#include "vrrp_sock.h"
 
 /* global vars */
 vrrp_data_t *vrrp_data = NULL;
@@ -81,8 +83,11 @@ free_vgroup(void *data)
 {
 	vrrp_sgroup_t *vgroup = data;
 
+	if (vgroup->iname) {
+		log_message(LOG_INFO, "sync group %s - iname vector exists when freeing group", vgroup->gname);
+		free_strvec(vgroup->iname);
+	}
 	FREE(vgroup->gname);
-	free_strvec(vgroup->iname);
 	free_list(&vgroup->index_list);
 	free_notify_script(&vgroup->script_backup);
 	free_notify_script(&vgroup->script_master);
@@ -90,6 +95,7 @@ free_vgroup(void *data)
 	free_notify_script(&vgroup->script);
 	FREE(vgroup);
 }
+
 static void
 dump_notify_script(notify_script_t *script, char *type)
 {
@@ -97,21 +103,21 @@ dump_notify_script(notify_script_t *script, char *type)
 		return;
 
 	log_message(LOG_INFO, "   %s state transition script = %s, uid:gid %d:%d", type,
-	       script->name, script->uid, script->gid);
+	       script->cmd_str, script->uid, script->gid);
 }
 
 static void
 dump_vgroup(void *data)
 {
 	vrrp_sgroup_t *vgroup = data;
-	unsigned int i;
-	char *str;
+	element e;
 
-	log_message(LOG_INFO, " VRRP Sync Group = %s, %s", vgroup->gname,
-	       (vgroup->state == VRRP_STATE_MAST) ? "MASTER" : "BACKUP");
-	for (i = 0; i < vector_size(vgroup->iname); i++) {
-		str = vector_slot(vgroup->iname, i);
-		log_message(LOG_INFO, "   monitor = %s", str);
+	log_message(LOG_INFO, " VRRP Sync Group = %s, %s", vgroup->gname, get_state_str(vgroup->state));
+	if (vgroup->index_list) {
+		for (e = LIST_HEAD(vgroup->index_list); e; ELEMENT_NEXT(e)) {
+			vrrp_t *vrrp = ELEMENT_DATA(e);
+			log_message(LOG_INFO, "   monitor = %s", vrrp->iname);
+		}
 	}
 	if (vgroup->global_tracking)
 		log_message(LOG_INFO, "   Same tracking for all VRRP instances");
@@ -123,13 +129,22 @@ dump_vgroup(void *data)
 		log_message(LOG_INFO, "   Using smtp notification");
 }
 
+void
+dump_vscript_vrrp(void *data)
+{
+	vrrp_t *vrrp = (vrrp_t *)data;
+	log_message(LOG_INFO, "     %s", vrrp->iname);
+}
+
 static void
 free_vscript(void *data)
 {
 	vrrp_script_t *vscript = data;
 
+	free_list(&vscript->vrrp);
 	FREE(vscript->sname);
-	FREE_PTR(vscript->script);
+	FREE_PTR(vscript->script.cmd_str);
+	FREE_PTR(vscript->script.args);
 	FREE(vscript);
 }
 static void
@@ -139,7 +154,7 @@ dump_vscript(void *data)
 	const char *str;
 
 	log_message(LOG_INFO, " VRRP Script = %s", vscript->sname);
-	log_message(LOG_INFO, "   Command = %s", vscript->script);
+	log_message(LOG_INFO, "   Command = %s", vscript->script.cmd_str);
 	log_message(LOG_INFO, "   Interval = %lu sec", vscript->interval / TIMER_HZ);
 	log_message(LOG_INFO, "   Timeout = %lu sec", vscript->timeout / TIMER_HZ);
 	log_message(LOG_INFO, "   Weight = %d", vscript->weight);
@@ -150,8 +165,6 @@ dump_vscript(void *data)
 	switch (vscript->result) {
 	case VRRP_SCRIPT_STATUS_INIT:
 		str = "INIT"; break;
-	case VRRP_SCRIPT_STATUS_INIT_GOOD:
-		str = "INIT/GOOD"; break;
 	case VRRP_SCRIPT_STATUS_INIT_FAILED:
 		str = "INIT/FAILED"; break;
 	case VRRP_SCRIPT_STATUS_DISABLED:
@@ -160,9 +173,14 @@ dump_vscript(void *data)
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
 	log_message(LOG_INFO, "   Status = %s", str);
-	if (vscript->uid || vscript->gid)
-		log_message(LOG_INFO, "   Script uid:gid = %d:%d", vscript->uid, vscript->gid);
-
+	if (vscript->script.uid || vscript->script.gid)
+		log_message(LOG_INFO, "   Script uid:gid = %d:%d", vscript->script.uid, vscript->script.gid);
+	log_message(LOG_INFO, "   Use count = %d", vscript->vrrp ? LIST_SIZE(vscript->vrrp) : 0);
+	log_message(LOG_INFO, "   VRRP instances:");
+	if (vscript->vrrp)
+		dump_list(vscript->vrrp);
+	else
+		log_message(LOG_INFO, "     (none)");
 }
 
 /* Socket pool functions */
@@ -212,7 +230,6 @@ static void
 free_vrrp(void *data)
 {
 	vrrp_t *vrrp = data;
-	element e;
 
 	FREE(vrrp->iname);
 	FREE_PTR(vrrp->send_buffer);
@@ -222,18 +239,9 @@ free_vrrp(void *data)
 	free_notify_script(&vrrp->script_stop);
 	free_notify_script(&vrrp->script);
 	FREE_PTR(vrrp->stats);
-	FREE(vrrp->ipsecah_counter);
 
-	if (!LIST_ISEMPTY(vrrp->track_ifp))
-		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e))
-			FREE(ELEMENT_DATA(e));
 	free_list(&vrrp->track_ifp);
-
-	if (!LIST_ISEMPTY(vrrp->track_script))
-		for (e = LIST_HEAD(vrrp->track_script); e; ELEMENT_NEXT(e))
-			FREE(ELEMENT_DATA(e));
 	free_list(&vrrp->track_script);
-
 	free_list(&vrrp->unicast_peer);
 	free_list(&vrrp->vip);
 	free_list(&vrrp->evip);
@@ -342,7 +350,7 @@ dump_vrrp(void *data)
 		log_message(LOG_INFO, "   Using VRRP VMAC (flags:%s|%s), vmac ifindex %u"
 				    , (__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags)) ? "UP" : "DOWN"
 				    , (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) ? "xmit_base" : "xmit"
-				    , vrrp->ifp->base_ifindex);
+				    , vrrp->ifp->base_ifp->ifindex);
 #endif
 }
 
@@ -388,28 +396,21 @@ void
 alloc_vrrp(char *iname)
 {
 	size_t size = strlen(iname);
-	seq_counter_t *counter;
 	vrrp_t *new;
 
 	/* Allocate new VRRP structure */
 	new = (vrrp_t *) MALLOC(sizeof(vrrp_t));
-	counter = (seq_counter_t *) MALLOC(sizeof(seq_counter_t));
-
-	/* Build the structure */
-	new->ipsecah_counter = counter;
 
 	/* Set default values */
 	new->family = AF_UNSPEC;
 	new->saddr.ss_family = AF_UNSPEC;
-	new->wantstate = VRRP_STATE_BACK;
-	new->init_state = VRRP_STATE_BACK;
+	new->init_state = VRRP_STATE_INIT;
 	new->version = 0;
 	new->master_priority = 0;
 	new->last_transition = timer_now();
 	new->iname = (char *) MALLOC(size + 1);
 	memcpy(new->iname, iname, size);
 	new->stats = alloc_vrrp_stats();
-	new->quick_sync = 0;
 	new->accept = PARAMETER_UNSET;
 	new->garp_rep = global_data->vrrp_garp_rep;
 	new->garp_refresh = global_data->vrrp_garp_refresh;
@@ -465,8 +466,8 @@ alloc_vrrp_track(vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	if (!LIST_EXISTS(vrrp->track_ifp))
-		vrrp->track_ifp = alloc_list(NULL, dump_track);
-	alloc_track(vrrp->track_ifp, strvec);
+		vrrp->track_ifp = alloc_list(free_track, dump_track);
+	alloc_track(vrrp, strvec);
 }
 
 void
@@ -475,8 +476,8 @@ alloc_vrrp_track_script(vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	if (!LIST_EXISTS(vrrp->track_script))
-		vrrp->track_script = alloc_list(NULL, dump_track_script);
-	alloc_track_script(vrrp->track_script, strvec);
+		vrrp->track_script = alloc_list(free_track_script, dump_track_script);
+	alloc_track_script(vrrp, strvec);
 }
 
 void
@@ -533,8 +534,8 @@ alloc_vrrp_script(char *sname)
 	new->interval = VRRP_SCRIPT_DI * TIMER_HZ;
 	new->timeout = VRRP_SCRIPT_DT * TIMER_HZ;
 	new->weight = VRRP_SCRIPT_DW;
-	new->result = VRRP_SCRIPT_STATUS_INIT;
-	new->inuse = 0;
+	new->result = VRRP_SCRIPT_STATUS_DISABLED;	/* Disabled until a vrrp instance uses it */
+	new->last_status = VRRP_SCRIPT_STATUS_NOT_SET;
 	new->rise = 1;
 	new->fall = 1;
 	list_add(vrrp_data->vrrp_script, new);

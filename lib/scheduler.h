@@ -24,13 +24,9 @@
 #define _SCHEDULER_H
 
 /* system includes */
-#include <sys/time.h>
 #include <sys/types.h>
-#include <sys/wait.h>
-#include <fcntl.h>
-#include <errno.h>
-#include <syslog.h>
 #include <stdbool.h>
+#include <stdlib.h>
 
 #include "timer.h"
 
@@ -73,26 +69,37 @@ typedef struct _thread_master {
 	fd_set readfd;
 	fd_set writefd;
 	fd_set exceptfd;
+	int max_fd;
 	unsigned long alloc;
 } thread_master_t;
 
 /* Thread types. */
-#define THREAD_READ		0
-#define THREAD_WRITE		1
-#define THREAD_TIMER		2
-#define THREAD_EVENT		3
-#define THREAD_CHILD		4
-#define THREAD_READY		5
-#define THREAD_UNUSED		6
-#define THREAD_WRITE_TIMEOUT	7
-#define THREAD_READ_TIMEOUT	8
-#define THREAD_CHILD_TIMEOUT	9
-#define THREAD_TERMINATE	10
-#define THREAD_READY_FD		11
+enum {
+	THREAD_READ,
+	THREAD_WRITE,
+	THREAD_TIMER,
+	THREAD_EVENT,
+	THREAD_CHILD,
+	THREAD_READY,
+	THREAD_UNUSED,
+	THREAD_WRITE_TIMEOUT,
+	THREAD_READ_TIMEOUT,
+	THREAD_CHILD_TIMEOUT,
+	THREAD_TERMINATE,
+	THREAD_READY_FD,
+	THREAD_IF_UP,
+	THREAD_IF_DOWN
+};
+
+typedef enum {
+	PROG_TYPE_PARENT,
+	PROG_TYPE_VRRP,
+	PROG_TYPE_CHECKER,
+} prog_type_t;
 
 /* MICRO SEC def */
 #define BOOTSTRAP_DELAY TIMER_HZ
-#define RESPAWN_TIMER	60*TIMER_HZ
+#define RESPAWN_TIMER	TIMER_NEVER
 
 /* Macros. */
 #define THREAD_ARG(X) ((X)->arg)
@@ -107,6 +114,10 @@ typedef struct _thread_master {
 
 /* global vars exported */
 extern thread_master_t *master;
+prog_type_t prog_type;		/* Parent/VRRP/Checker process */
+#ifdef _WITH_SNMP_
+extern bool snmp_running;
+#endif
 
 /* Prototypes. */
 extern void set_child_finder(bool (*)(pid_t, char const **));
@@ -116,6 +127,8 @@ extern thread_t *thread_add_terminate_event(thread_master_t *);
 extern void thread_cleanup_master(thread_master_t *);
 extern void thread_destroy_master(thread_master_t *);
 extern thread_t *thread_add_read(thread_master_t *, int (*func) (thread_t *), void *, int, unsigned long);
+extern void thread_read_requeue(thread_master_t *, int, timeval_t);
+extern void thread_requeue_read(thread_master_t *, int, unsigned long);
 extern thread_t *thread_add_write(thread_master_t *, int (*func) (thread_t *), void *, int, unsigned long);
 extern thread_t *thread_add_timer(thread_master_t *, int (*func) (thread_t *), void *, unsigned long);
 extern thread_t *thread_add_child(thread_master_t *, int (*func) (thread_t *), void *, pid_t, unsigned long);
@@ -123,6 +136,6 @@ extern thread_t *thread_add_event(thread_master_t *, int (*func) (thread_t *), v
 extern int thread_cancel(thread_t *);
 extern thread_t *thread_fetch(thread_master_t *, thread_t *);
 extern void thread_call(thread_t *);
+extern void thread_child_handler(void *, int);
 extern void launch_scheduler(void);
-
 #endif

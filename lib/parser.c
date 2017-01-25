@@ -28,21 +28,21 @@
 #include <unistd.h>
 #include <libgen.h>
 #include <errno.h>
-#include <sys/types.h>
 #include <sys/stat.h>
-#include <stdbool.h>
+#include <stdlib.h>
+#include <ctype.h>
 
 #include "parser.h"
 #include "memory.h"
 #include "logger.h"
 #include "rttables.h"
 #include "scheduler.h"
+#include "notify.h"
 
 #define DUMP_KEYWORDS	0
 
 /* global vars */
 vector_t *keywords;
-bool reload = 0;
 char *config_id;
 
 /* local vars */
@@ -697,4 +697,5 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 
 	free_keywords(keywords);
 	clear_rt_names();
+	notify_resource_release();
 }

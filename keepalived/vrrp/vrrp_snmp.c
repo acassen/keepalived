@@ -79,22 +79,20 @@
 #if HAVE_DECL_RTA_ENCAP
 #include <linux/lwtunnel.h>
 #endif
+#ifdef NETLINK_H_NEEDS_SYS_SOCKET_H
+#include <sys/socket.h>
+#endif
+#include <linux/fib_rules.h>
 
 #include "vrrp.h"
 #include "vrrp_snmp.h"
-#include "vrrp_data.h"
 #include "vrrp_track.h"
-#include "vrrp_ipaddress.h"
 #ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
 #endif
 #include "vrrp_scheduler.h"
-#ifdef _HAVE_VRRP_VMAC_
-#include "vrrp_vmac.h"
-#endif
 #include "config.h"
-#include "vector.h"
 #include "list.h"
 #include "logger.h"
 #include "global_data.h"
@@ -163,6 +161,7 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_INSTANCE_SCRIPT,
 	VRRP_SNMP_INSTANCE_ACCEPT,
 	VRRP_SNMP_INSTANCE_PROMOTE_SECONDARIES,
+	VRRP_SNMP_INSTANCE_USE_LINKBEAT,
 	VRRP_SNMP_TRACKEDINTERFACE_NAME,
 	VRRP_SNMP_TRACKEDINTERFACE_WEIGHT,
 	VRRP_SNMP_TRACKEDSCRIPT_NAME,
@@ -456,7 +455,7 @@ sprint_oid(char *str, oid* oid, int len)
 static int
 vrrp_snmp_state(int state)
 {
-	return state < VRRP_STATE_GOTO_MASTER ? state : 4;
+	return state <= VRRP_STATE_FAULT ? state : 4;
 }
 
 static u_char*
@@ -475,8 +474,8 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 		*var_len = strlen(scr->sname);
 		return (u_char *)scr->sname;
 	case VRRP_SNMP_SCRIPT_COMMAND:
-		*var_len = strlen(scr->script);
-		return (u_char *)scr->script;
+		*var_len = strlen(scr->script.cmd_str);
+		return (u_char *)scr->script.cmd_str;
 	case VRRP_SNMP_SCRIPT_INTERVAL:
 		long_ret.u = scr->interval / TIMER_HZ;
 		return (u_char *)&long_ret;
@@ -487,8 +486,6 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 		switch (scr->result) {
 		case VRRP_SCRIPT_STATUS_INIT:
 			long_ret.u = 1; break;
-		case VRRP_SCRIPT_STATUS_INIT_GOOD:
-			long_ret.u = 4; break;
 		case VRRP_SCRIPT_STATUS_INIT_FAILED:
 			long_ret.u = 5; break;
 		case VRRP_SCRIPT_STATUS_DISABLED:
@@ -768,7 +765,7 @@ vrrp_snmp_address(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = snmp_scope(addr->ifa.ifa_scope);
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ADDRESS_IFINDEX:
-		long_ret.u = addr->ifa.ifa_index;
+		long_ret.u = addr->ifp->ifindex;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_ADDRESS_IFNAME:
 		*var_len = strlen(addr->ifp->ifname);
@@ -1495,26 +1492,26 @@ vrrp_snmp_syncgroup(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_SYNCGROUP_SCRIPTMASTER:
 		if (group->script_master) {
-			*var_len = strlen(group->script_master->name);
-			return (u_char *)group->script_master->name;
+			*var_len = strlen(group->script_master->cmd_str);
+			return (u_char *)group->script_master->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_SYNCGROUP_SCRIPTBACKUP:
 		if (group->script_backup) {
-			*var_len = strlen(group->script_backup->name);
-			return (u_char *)group->script_backup->name;
+			*var_len = strlen(group->script_backup->cmd_str);
+			return (u_char *)group->script_backup->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_SYNCGROUP_SCRIPTFAULT:
 		if (group->script_fault) {
-			*var_len = strlen(group->script_fault->name);
-			return (u_char *)group->script_fault->name;
+			*var_len = strlen(group->script_fault->cmd_str);
+			return (u_char *)group->script_fault->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_SYNCGROUP_SCRIPT:
 		if (group->script) {
-			*var_len = strlen(group->script->name);
-			return (u_char *)group->script->name;
+			*var_len = strlen(group->script->cmd_str);
+			return (u_char *)group->script->cmd_str;
 		}
 		break;
 	default:
@@ -1682,6 +1679,7 @@ vrrp_snmp_instance_priority(int action,
 			    __attribute__((unused)) u_char *statP, oid *name, size_t name_len)
 {
 	vrrp_t *vrrp = NULL;
+
 	switch (action) {
 	case RESERVE1:
 		/* Check that the proposed priority is acceptable */
@@ -1705,13 +1703,9 @@ vrrp_snmp_instance_priority(int action,
 			    "VRRP_Instance(%s) base priority changed from"
 			    " %u to %u via SNMP.",
 			    vrrp->iname, vrrp->base_priority, *var_val);
+		vrrp->total_priority += *var_val - vrrp->base_priority;
 		vrrp->base_priority = *var_val;
-		/* If we the instance is not part of a sync group, the
-		   effective priority will be recomputed by some
-		   thread. Otherwise, we should set it equal to the
-		   base priority. */
-		if (vrrp->sync)
-			vrrp_set_effective_priority(vrrp, vrrp->base_priority);
+		vrrp_set_effective_priority(vrrp);
 //TODO - could affect accept
 		break;
 	}
@@ -1856,32 +1850,32 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_SCRIPTMASTER:
 		if (rt->script_master) {
-			*var_len = strlen(rt->script_master->name);
-			return (u_char *)rt->script_master->name;
+			*var_len = strlen(rt->script_master->cmd_str);
+			return (u_char *)rt->script_master->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPTBACKUP:
 		if (rt->script_backup) {
-			*var_len = strlen(rt->script_backup->name);
-			return (u_char *)rt->script_backup->name;
+			*var_len = strlen(rt->script_backup->cmd_str);
+			return (u_char *)rt->script_backup->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPTFAULT:
 		if (rt->script_fault) {
-			*var_len = strlen(rt->script_fault->name);
-			return (u_char *)rt->script_fault->name;
+			*var_len = strlen(rt->script_fault->cmd_str);
+			return (u_char *)rt->script_fault->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPTSTOP:
 		if (rt->script_stop) {
-			*var_len = strlen(rt->script_stop->name);
-			return (u_char *)rt->script_stop->name;
+			*var_len = strlen(rt->script_stop->cmd_str);
+			return (u_char *)rt->script_stop->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_SCRIPT:
 		if (rt->script) {
-			*var_len = strlen(rt->script->name);
-			return (u_char *)rt->script->name;
+			*var_len = strlen(rt->script->cmd_str);
+			return (u_char *)rt->script->cmd_str;
 		}
 		break;
 	case VRRP_SNMP_INSTANCE_ACCEPT:
@@ -1893,6 +1887,9 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_PROMOTE_SECONDARIES:
 		long_ret.u = rt->promote_secondaries ? 1:2;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_INSTANCE_USE_LINKBEAT:
+		long_ret.u = rt->linkbeat_use_polling ? 1:2;
 		return (u_char *)&long_ret;
 	default:
 		return NULL;
@@ -2154,6 +2151,8 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_instance, 3, {3, 1, 27} },
 	{VRRP_SNMP_INSTANCE_PROMOTE_SECONDARIES, ASN_INTEGER, RWRITE,
 	 vrrp_snmp_instance, 3, {3, 1, 28} },
+	{VRRP_SNMP_INSTANCE_USE_LINKBEAT, ASN_INTEGER, RWRITE,
+	 vrrp_snmp_instance, 3, {3, 1, 29} },
 	/* vrrpTrackedInterfaceTable */
 	{VRRP_SNMP_TRACKEDINTERFACE_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_trackedinterface, 3, {4, 1, 1}},
@@ -2544,11 +2543,6 @@ vrrp_snmp_rfc_state(int state)
 {
 	if (state <= VRRP_STATE_MAST)
 		return state + 1;
-	if (state == VRRP_STATE_FAULT ||
-	    state == VRRP_STATE_GOTO_FAULT)
-		return VRRP_STATE_INIT + 1;
-	if (state == VRRP_STATE_GOTO_MASTER)
-		return VRRP_STATE_BACK + 1;
 	return VRRP_STATE_INIT + 1;
 }
 #endif
@@ -2826,7 +2820,7 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFC_SNMP_OPER_PIP:
 #ifdef _HAVE_VRRP_VMAC_
 		if (rt->ifp->vmac)
-			ifp = if_get_by_ifindex(rt->ifp->base_ifindex);
+			ifp = rt->ifp->base_ifp;
 		else
 #endif
 			ifp = rt->ifp;
@@ -2850,7 +2844,7 @@ vrrp_rfcv2_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFC_SNMP_OPER_VR_UPTIME:
 		if (rt->state == VRRP_STATE_BACK ||
 		    rt->state == VRRP_STATE_MAST) {
-			uptime = timer_sub(rt->stats->uptime, vrrp_start_time);
+			timersub(&rt->stats->uptime, &vrrp_start_time, &uptime);
 			long_ret.s = uptime.tv_sec * 100 + uptime.tv_usec / 10000;	// unit is centi-seconds
 		}
 		else
@@ -3482,7 +3476,7 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFCv3_SNMP_OPER_PIP:
 #ifdef _HAVE_VRRP_VMAC_
 		if (rt->ifp->vmac)
-			ifp = if_get_by_ifindex(rt->ifp->base_ifindex);
+			ifp = rt->ifp->base_ifp;
 		else
 #endif
 			ifp = rt->ifp;
@@ -3519,7 +3513,7 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 	case VRRP_RFCv3_SNMP_OPER_VR_UPTIME:
 		if (rt->state == VRRP_STATE_BACK ||
 		    rt->state == VRRP_STATE_MAST) {
-			uptime = timer_sub(rt->stats->uptime, vrrp_start_time);
+			timersub(&rt->stats->uptime, &vrrp_start_time, &uptime);
 			long_ret.s = uptime.tv_sec * 100 + uptime.tv_usec / 10000;	// unit is centi-seconds
 		}
 		else

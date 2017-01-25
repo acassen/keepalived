@@ -24,15 +24,17 @@
 #ifndef _SIGNALS_H
 #define _SIGNALS_H
 
+#include <stdbool.h>
+
 /* Prototypes */
-extern void *signal_set(int signo, void (*func) (void *, int), void *);
-extern void *signal_ignore(int signo);
-extern void signal_handler_init(int);
+extern void signal_set(int, void (*) (void *, int), void *);
+extern void signal_ignore(int);
+extern void signal_handler_init(void);
 extern void signal_handler_destroy(void);
 extern void signal_handler_script(void);
 extern void signal_run_callback(void);
 
 extern int signal_rfd(void);
-extern void signal_pipe_close(int);
+extern void signal_fd_close(int);
 
 #endif

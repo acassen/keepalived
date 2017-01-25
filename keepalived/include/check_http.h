@@ -25,15 +25,13 @@
 #define _CHECK_HTTP_H
 
 /* system includes */
-#include <stdio.h>
+#include <sys/types.h>
+#include <stdbool.h>
 #include <openssl/md5.h>
 #include <openssl/ssl.h>
 
 /* local includes */
-#include "check_data.h"
-#include "ipwrapper.h"
 #include "scheduler.h"
-#include "layer4.h"
 #include "list.h"
 
 /* Checker argument structure  */

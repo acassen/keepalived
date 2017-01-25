@@ -22,12 +22,17 @@
 
 #include "config.h"
 
+#include <net/if.h>
+#include <stdlib.h>
+
 /* local include */
 #include "vrrp_track.h"
-#include "vrrp_if.h"
 #include "vrrp_data.h"
+#include "vrrp.h"
+#include "vrrp_sync.h"
 #include "logger.h"
 #include "memory.h"
+#include "vrrp_scheduler.h"
 
 /* Track interface dump */
 void
@@ -36,21 +41,25 @@ dump_track(void *track_data)
 	tracked_if_t *tip = track_data;
 	log_message(LOG_INFO, "     %s weight %d", IF_NAME(tip->ifp), tip->weight);
 }
+
 void
-alloc_track(list track_list, vector_t *strvec)
+free_track(void *tip)
+{
+	FREE(tip);
+}
+
+void
+alloc_track(vrrp_t *vrrp, vector_t *strvec)
 {
 	interface_t *ifp = NULL;
 	tracked_if_t *tip = NULL;
 	int weight = 0;
 	char *tracked = strvec_slot(strvec, 0);
 
-	ifp = if_get_by_ifname(tracked);
+	ifp = if_get_by_ifname(tracked, true);
 
-	/* Ignoring if no interface found */
-	if (!ifp) {
-		log_message(LOG_INFO, "     %s no match, ignoring...", tracked);
-		return;
-	}
+	if (!ifp->ifindex)
+		log_message(LOG_INFO, "WARNING - tracked interface %s for vrrp instance %s doesn't currently exist", tracked, vrrp->iname);
 
 	if (vector_size(strvec) >= 3 &&
 	    !strcmp(strvec_slot(strvec, 1), "weight")) {
@@ -66,7 +75,7 @@ alloc_track(list track_list, vector_t *strvec)
 	tip->ifp    = ifp;
 	tip->weight = weight;
 
-	list_add(track_list, tip);
+	list_add(vrrp->track_ifp, tip);
 }
 
 vrrp_script_t *
@@ -93,8 +102,15 @@ dump_track_script(void *track_data)
 	tracked_sc_t *tsc = track_data;
 	log_message(LOG_INFO, "     %s weight %d", tsc->scr->sname, tsc->weight);
 }
+
 void
-alloc_track_script(list track_list, vector_t *strvec)
+free_track_script(void *tsc)
+{
+	FREE(tsc);
+}
+
+void
+alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 {
 	vrrp_script_t *vsc = NULL;
 	tracked_sc_t *tsc = NULL;
@@ -126,112 +142,144 @@ alloc_track_script(list track_list, vector_t *strvec)
 	tsc	    = (tracked_sc_t *) MALLOC(sizeof(tracked_sc_t));
 	tsc->scr    = vsc;
 	tsc->weight = weight;
-	vsc->inuse++;
-	list_add(track_list, tsc);
+	vsc->result = VRRP_SCRIPT_STATUS_INIT;
+	list_add(vrrp->track_script, tsc);
 }
 
-/* Test if all tracked interfaces are either UP or weight-tracked */
-int
-vrrp_tracked_up(list l)
-{
-	element e;
-	tracked_if_t *tip;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		tip = ELEMENT_DATA(e);
-		if (!tip->weight && !IF_ISUP(tip->ifp))
-			return 0;
-	}
-
-	return 1;
-}
-
-/* Log tracked interface down */
 void
-vrrp_log_tracked_down(list l)
+down_instance(vrrp_t *vrrp)
+{
+	if (vrrp->num_script_if_fault++ == 0) {
+		vrrp->wantstate = VRRP_STATE_FAULT;
+		if (vrrp->state == VRRP_STATE_MAST)
+			vrrp_state_leave_master(vrrp);
+		else
+			vrrp_state_leave_fault(vrrp);
+
+		if (vrrp->sync && vrrp->sync->num_member_fault++ == 0)
+			vrrp_sync_fault(vrrp);
+	}
+}
+
+void
+update_script_priorities(vrrp_script_t *vscript, bool script_ok)
+{
+	element e, e1;
+	vrrp_t *vrrp;
+	tracked_sc_t *tsc;
+
+	if (LIST_ISEMPTY(vscript->vrrp))
+		return;
+
+	for (e = LIST_HEAD(vscript->vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+
+		if (LIST_ISEMPTY(vrrp->track_script))
+			continue;
+
+		for (e1 = LIST_HEAD(vrrp->track_script); e1; ELEMENT_NEXT(e1)) {
+			tsc = ELEMENT_DATA(e1);
+
+			/* Skip if we haven't found the matching entry */
+			if (tsc->scr != vscript)
+				continue;
+
+			if (!tsc->weight) {
+				if (!script_ok) {
+					/* The instance needs to go down */
+					down_instance(vrrp);
+				} else {
+					/* The instance can come up */
+					try_up_instance(vrrp);  // Set want_state = BACKUP/MASTER, and check i/fs and sync groups
+				}
+				break;
+			}
+
+			/* Don't change effective priority if address owner */
+			if (vrrp->base_priority == VRRP_PRIO_OWNER)
+				break;
+
+			if (script_ok)
+				vrrp->total_priority += abs(tsc->weight);
+			else
+				vrrp->total_priority -= abs(tsc->weight);
+
+			vrrp_set_effective_priority(vrrp);
+		}
+	}
+}
+
+void
+initialise_tracking_priorities(vrrp_t *vrrp)
 {
 	element e;
 	tracked_if_t *tip;
+	tracked_sc_t *tsc;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		tip = ELEMENT_DATA(e);
-		if (!IF_ISUP(tip->ifp))
-			log_message(LOG_INFO, "Kernel is reporting: interface %s DOWN",
-			       IF_NAME(tip->ifp));
-	}
-}
+	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
+		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e)) {
+			tip = ELEMENT_DATA(e);
 
-/* Returns total weights of all tracked interfaces :
- * - a positive interface weight adds to the global weight when the
- *   interface is UP.
- * - a negative interface weight subtracts from the global weight when the
- *   interface is DOWN.
- *
- */
-int
-vrrp_tracked_weight(list l)
-{
-	element e;
-	tracked_if_t *tip;
-	int weight = 0;
+			if (!tip->weight) {
+				if (!IF_ISUP(tip->ifp)) {
+					/* The instance is down */
+					vrrp->state = VRRP_STATE_FAULT;
+				}
+				continue;
+			}
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		tip = ELEMENT_DATA(e);
-		if (IF_ISUP(tip->ifp)) {
-			if (tip->weight > 0)
-				weight += tip->weight;
-		} else {
-			if (tip->weight < 0)
-				weight += tip->weight;
+			/* Don't change effective priority if address owner, or if
+			 * a member of a sync group without global tracking */
+			if (vrrp->base_priority == VRRP_PRIO_OWNER ||
+			    (vrrp->sync && !vrrp->sync->global_tracking))
+				continue;
+
+			if (IF_ISUP(tip->ifp)) {
+				if (tip->weight > 0)
+					vrrp->total_priority += tip->weight;
+			}
+			else {
+				if (tip->weight < 0)
+					vrrp->total_priority += tip->weight;
+			}
 		}
 	}
 
-	return weight;
-}
+	if (!LIST_ISEMPTY(vrrp->track_script)) {
+		for (e = LIST_HEAD(vrrp->track_script); e; ELEMENT_NEXT(e)) {
+			tsc = ELEMENT_DATA(e);
 
-/* Test if all tracked scripts are either OK or weight-tracked */
-int
-vrrp_script_up(list l)
-{
-	element e;
-	tracked_sc_t *tsc;
+			if (tsc->scr->insecure) {
+				/* This script won't be run, so ignore it */
+				continue;
+			}
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		tsc = ELEMENT_DATA(e);
-		if ((tsc->scr->result == VRRP_SCRIPT_STATUS_DISABLED) ||
-		    (tsc->scr->result == VRRP_SCRIPT_STATUS_INIT_GOOD))
-			continue;
-		if (!tsc->weight && tsc->scr->result < tsc->scr->rise)
-			return 0;
-	}
+			if (!tsc->weight) {
+				if (tsc->scr->result == VRRP_SCRIPT_STATUS_INIT ||
+				    (tsc->scr->result >= 0 && tsc->scr->result < tsc->scr->rise)) {
+					/* The script is in fault state */
+					vrrp->num_script_if_fault++;
+					if (tsc->scr->result >= 0)	/* Not INIT_STATE etc */
+						vrrp->state = VRRP_STATE_FAULT;
+				}
+				continue;
+			}
 
-	return 1;
-}
+			/* Don't change effective priority if address owner, or if
+			 * a member of a sync group with global tracking */
+			if (vrrp->base_priority == VRRP_PRIO_OWNER ||
+			    (vrrp->sync && !vrrp->sync->global_tracking))
+				continue;
 
-/* Returns total weights of all tracked scripts :
- * - a positive weight adds to the global weight when the result is OK
- * - a negative weight subtracts from the global weight when the result is bad
- *
- */
-int
-vrrp_script_weight(list l)
-{
-	element e;
-	tracked_sc_t *tsc;
-	int weight = 0;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		tsc = ELEMENT_DATA(e);
-		if (tsc->scr->result == VRRP_SCRIPT_STATUS_DISABLED)
-			continue;
-		if (tsc->scr->result >= tsc->scr->rise) {
-			if (tsc->weight > 0)
-				weight += tsc->weight;
-		} else if (tsc->scr->result < tsc->scr->rise) {
-			if (tsc->weight < 0)
-				weight += tsc->weight;
+			if (tsc->scr->result >= tsc->scr->rise) {
+				if (tsc->weight > 0)
+					vrrp->total_priority += tsc->weight;
+			} else {
+				if (tsc->weight < 0)
+					vrrp->total_priority += tsc->weight;
+			}
 		}
 	}
 
-	return weight;
+	vrrp_set_effective_priority(vrrp);
 }

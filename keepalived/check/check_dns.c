@@ -23,20 +23,21 @@
 
 #include "config.h"
 
-#include <strings.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <unistd.h>
+
 #include "check_dns.h"
-#include "check_api.h"
 #include "memory.h"
 #include "ipwrapper.h"
 #include "logger.h"
 #include "smtp.h"
 #include "utils.h"
 #include "parser.h"
-#include "timer.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
-#include "string.h"
 #endif
+#include "layer4.h"
 
 #ifdef _DEBUG_
 #define DNS_DBG(args...) dns_log_message(thread, LOG_DEBUG, ## args)
@@ -430,3 +431,15 @@ install_dns_check_keyword(void)
 	install_keyword("name", &dns_name_handler);
 	install_sublevel_end();
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_check_dns_addresses(void)
+{
+	log_message(LOG_INFO, "Address of dns_check_thread() is 0x%p", dns_check_thread);
+	log_message(LOG_INFO, "Address of dns_connect_thread() is 0x%p", dns_connect_thread);
+	log_message(LOG_INFO, "Address of dns_dump() is 0x%p", dns_dump);
+	log_message(LOG_INFO, "Address of dns_recv_thread() is 0x%p", dns_recv_thread);
+	log_message(LOG_INFO, "Address of dns_send_thread() is 0x%p", dns_send_thread);
+}
+#endif

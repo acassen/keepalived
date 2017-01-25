@@ -22,50 +22,42 @@
 
 #include "config.h"
 
-#include <string.h>
+#include <errno.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <sys/prctl.h>
 
 #include "vrrp_daemon.h"
 #include "vrrp_scheduler.h"
-#include "vrrp_if.h"
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
 #include "vrrp_netlink.h"
-#include "vrrp_ipaddress.h"
 #include "vrrp_iptables.h"
 #ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iprule.h"
 #include "vrrp_iproute.h"
 #endif
 #include "vrrp_parser.h"
-#include "vrrp_data.h"
 #include "vrrp.h"
 #include "vrrp_print.h"
 #include "global_data.h"
 #include "pidfile.h"
-#include "daemon.h"
 #include "logger.h"
 #include "signals.h"
-#include "notify.h"
 #include "process.h"
 #include "bitops.h"
 #include "rttables.h"
-#ifdef _WITH_LVS_
-  #include "ipvswrapper.h"
-#endif
 #ifdef _WITH_SNMP_
   #include "vrrp_snmp.h"
 #endif
 #ifdef _WITH_DBUS_
   #include "vrrp_dbus.h"
 #endif
-#ifdef _HAVE_LIBIPSET_
-  #include "vrrp_ipset.h"
-#endif
 #include "list.h"
 #include "main.h"
-#include "memory.h"
 #include "parser.h"
+#include "utils.h"
 
 /* Forward declarations */
 static int print_vrrp_data(thread_t * thread);
@@ -187,6 +179,7 @@ start_vrrp(void)
 	if (global_data->vrrp_process_priority)
 		set_process_priority(global_data->vrrp_process_priority);
 
+// TODO - measure max stack usage
 	if (global_data->vrrp_no_swap)
 		set_process_dont_swap(4096);	/* guess a stack size to reserve */
 
@@ -261,7 +254,7 @@ start_vrrp(void)
 #endif
 
 	/* clear_diff_vrrp must be called after vrrp_complete_init, since the latter
-	 * sets ifa_index on the addresses, which is used for the address comparison */
+	 * sets ifp on the addresses, which is used for the address comparison */
 	if (reload)
 		clear_diff_vrrp();
 
@@ -337,7 +330,7 @@ sigend_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 vrrp_signal_init(void)
 {
-	signal_handler_init(0);
+	signal_handler_init();
 	signal_set(SIGHUP, sighup_vrrp, NULL);
 	signal_set(SIGINT, sigend_vrrp, NULL);
 	signal_set(SIGTERM, sigend_vrrp, NULL);
@@ -475,7 +468,7 @@ start_vrrp_child(void)
 	}
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
-	signal_handler_destroy();
+	prog_type = PROG_TYPE_VRRP;
 
 	/* Opening local VRRP syslog channel */
 	if ((instance_name
@@ -490,6 +483,8 @@ start_vrrp_child(void)
 
 	openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
 			    , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
+
+	signal_handler_destroy();
 
 #ifdef _MEM_CHECK_
 	mem_log_init(PROG_VRRP, "VRRP Child process");
@@ -529,3 +524,14 @@ start_vrrp_child(void)
 	/* unreachable */
 	exit(EXIT_SUCCESS);
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_vrrp_daemon_addresses(void)
+{
+	log_message(LOG_INFO, "Address of print_vrrp_data() is 0x%p", print_vrrp_data);
+	log_message(LOG_INFO, "Address of print_vrrp_stats() is 0x%p", print_vrrp_stats);
+	log_message(LOG_INFO, "Address of reload_vrrp_thread() is 0x%p", reload_vrrp_thread);
+	log_message(LOG_INFO, "Address of vrrp_respawn_thread() is 0x%p", vrrp_respawn_thread);
+}
+#endif

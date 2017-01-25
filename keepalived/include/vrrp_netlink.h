@@ -23,20 +23,16 @@
 #ifndef _VRRP_NETLINK_H
 #define _VRRP_NETLINK_H 1
 
+#include "config.h"
+
 /* global includes */
-#include <asm/types.h>
+#include <stdint.h>
+#include <sys/types.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
-#ifdef _HAVE_LIBNL3_
-#include <netlink/netlink.h>
-#include <libnfnetlink/libnfnetlink.h>
-#endif
-#ifdef _HAVE_LIBNL1_
-#include <libnfnetlink/libnfnetlink.h>
-#endif
 
 /* local includes */
-#include "timer.h"
+#include "scheduler.h"
 #include "vrrp_if.h"
 
 /* types definitions */
@@ -51,11 +47,15 @@ typedef struct _nl_handle {
 } nl_handle_t;
 
 /* Define types */
-#define NETLINK_TIMER (30 * TIMER_HZ)
+#define NETLINK_TIMER	TIMER_NEVER
 #ifndef _HAVE_LIBNL3_
 #ifndef _HAVE_LIBNL1_
+#ifndef NLMSG_TAIL
 #define NLMSG_TAIL(nmsg) ((struct rtattr *) (((void *) (nmsg)) + NLMSG_ALIGN((nmsg)->nlmsg_len)))
+#endif
+#ifndef SOL_NETLINK
 #define SOL_NETLINK 270
+#endif
 #endif
 #endif
 
@@ -82,8 +82,9 @@ extern size_t rta_addattr8(struct rtattr *, size_t, unsigned short, uint8_t);
 extern struct rtattr *rta_nest(struct rtattr *, size_t, unsigned short);
 extern size_t rta_nest_end(struct rtattr *, struct rtattr *);
 extern ssize_t netlink_talk(nl_handle_t *, struct nlmsghdr *);
-extern int netlink_interface_lookup(void);
+extern int netlink_interface_lookup(char *);
 extern void kernel_netlink_poll(void);
+extern void process_if_status_change(interface_t *);
 extern void kernel_netlink_init(void);
 extern void kernel_netlink_close(void);
 

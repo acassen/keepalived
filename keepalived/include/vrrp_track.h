@@ -24,21 +24,14 @@
 #define _VRRP_TRACK_H
 
 /* global includes */
-#include <stdio.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <syslog.h>
 #include <stdbool.h>
 #include <sys/types.h>
 
 /* local includes */
 #include "vector.h"
 #include "list.h"
-
-/* Macro definition */
-#define TRACK_ISUP(L)	(vrrp_tracked_up((L)))
-#define SCRIPT_ISUP(L)	(vrrp_script_up((L)))
+#include "vrrp_if.h"
+#include "vrrp.h"
 
 /* VRRP script tracking defaults */
 #define VRRP_SCRIPT_DI 1	/* external script track interval (in sec) */
@@ -52,25 +45,24 @@
  * success, we increase result and set it to rise+fall-1 when we pass above
  * rise-1.
  */
-#define VRRP_SCRIPT_STATUS_DISABLED    -4
-#define VRRP_SCRIPT_STATUS_INIT_FAILED -3
-#define VRRP_SCRIPT_STATUS_INIT_GOOD   -2
-#define VRRP_SCRIPT_STATUS_INIT        -1
+#define VRRP_SCRIPT_STATUS_NOT_SET   -4
+#define VRRP_SCRIPT_STATUS_DISABLED  -3
+#define VRRP_SCRIPT_STATUS_INIT_FAILED -2
+#define VRRP_SCRIPT_STATUS_INIT      -1
 
 /* external script we call to track local processes */
 typedef struct _vrrp_script {
 	char			*sname;		/* instance name */
-	char			*script;	/* the command to be called */
+	notify_script_t		script;		/* The script details */
 	unsigned long		interval;	/* interval between script calls */
 	unsigned long		timeout;	/* microseconds before script timeout */
 	int			weight;		/* weight associated to this script */
 	int			result;		/* result of last call to this script: 0..R-1 = KO, R..R+F-1 = OK */
-	int			inuse;		/* how many users have weight>0 ? */
 	int			rise;		/* R: how many successes before OK */
 	int			fall;		/* F: how many failures before KO */
+	list			vrrp;		/* List of vrrp instances using this script */
+	int8_t			last_status;	/* Last status returned by script. Used to report changes */
 	bool			forcing_termination;	/* Set if script didn't respond and we sent it SIGTERM */
-	uid_t			uid;		/* uid to run script as */
-	gid_t			gid;		/* gid to run script as */
 	bool			insecure;	/* Set if script is run by root, but is non-root modifiable */
 } vrrp_script_t;
 
@@ -80,16 +72,19 @@ typedef struct _tracked_sc {
 	vrrp_script_t		*scr;		/* script pointer, cannot be NULL */
 } tracked_sc_t;
 
+/* Forward references */
+struct _vrrp_t;
+
 /* prototypes */
 extern void dump_track(void *);
-extern void alloc_track(list, vector_t *);
+extern void free_track(void *);
+extern void alloc_track(struct _vrrp_t *, vector_t *);
 extern void dump_track_script(void *);
-extern void alloc_track_script(list, vector_t *);
-extern int vrrp_tracked_up(list);
-extern void vrrp_log_tracked_down(list);
-extern int vrrp_tracked_weight(list);
-extern int vrrp_script_up(list);
-extern int vrrp_script_weight(list);
+extern void free_track_script(void *);
+extern void alloc_track_script(struct _vrrp_t *, vector_t *);
 extern vrrp_script_t *find_script_by_name(char *);
+extern void update_script_priorities(vrrp_script_t *, bool);
+extern void down_instance(struct _vrrp_t *);
+extern void initialise_tracking_priorities(struct _vrrp_t *);
 
 #endif

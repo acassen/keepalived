@@ -23,12 +23,10 @@
 #ifndef _VRRP_IPSEC_AH_H
 #define _VRRP_IPSEC_AH_H
 
-#include <stdlib.h>
-#include <stdio.h>
 #include <sys/types.h>
-#include <string.h>
 #include <stdint.h>
 #include <openssl/md5.h>
+#include <stdbool.h>
 
 /* Predefined values */
 #define HMAC_MD5_TRUNC 0x0C	/* MD5 digest truncate value : 96-bit
@@ -37,7 +35,6 @@
 				   Computed in 32-bit words minus 2
 				   => (HMAC_MD5_TRUNC*8+3*32)/32 - 2
 				   -- rfc2402.2.2 */
-#define IPPROTO_IPSEC_AH 51	/* IP protocol number -- rfc2402.2 */
 
 typedef struct _ipsec_ah {				/* rfc2402.2 */
 	uint8_t			next_header;	/* Next header field */
@@ -57,7 +54,7 @@ typedef struct {		/* rfc2402.3.3.3.1.1.1 */
 } ICV_mutable_fields;		/* We need to zero this fields to compute the ICV */
 
 typedef struct _seq_counter {
-	int			cycle;
+	bool			cycle;
 	uint32_t		seq_number;
 } seq_counter_t;
 

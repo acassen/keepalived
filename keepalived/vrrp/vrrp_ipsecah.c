@@ -24,6 +24,9 @@
 
 #include "config.h"
 
+#include <openssl/md5.h>
+#include <string.h>
+
 #include "vrrp_ipsecah.h"
 
 #define	BLOCK_SIZE	64

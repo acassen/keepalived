@@ -22,20 +22,31 @@
 
 #include "config.h"
 
-#include <sys/wait.h>
-#include "memory.h"
+/* System includes */
+#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdlib.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <sys/utsname.h>
+
+#ifndef _HAVE_LIBIPTC_
+#include <signal.h>
+#include <sys/wait.h>
+#endif
+
+#ifdef _WITH_STACKTRACE_
+#include <sys/stat.h>
+#include <execinfo.h>
+#endif
+
+/* Local includes */
+#include "utils.h"
+#include "memory.h"
 #include "utils.h"
 #include "signals.h"
 #include "bitops.h"
-
-#ifdef _WITH_STACKTRACE_
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <execinfo.h>
-#endif
 
 /* global vars */
 unsigned long debug = 0;
@@ -532,7 +543,7 @@ set_std_fd(int force)
 		}
 	}
 
-	signal_pipe_close(STDERR_FILENO+1);
+	signal_fd_close(STDERR_FILENO+1);
 }
 
 #ifndef _HAVE_LIBIPTC_

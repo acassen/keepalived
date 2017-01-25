@@ -24,16 +24,11 @@
 #define _VRRP_VMAC_H
 
 /* global includes */
-#include <stdio.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <syslog.h>
+#include <sys/types.h>
 #include <net/ethernet.h>
 
 /* local includes */
 #include "vrrp.h"
-#include "vrrp_if.h"
 
 /* Defines */
 enum vrrp_vmac_bits {

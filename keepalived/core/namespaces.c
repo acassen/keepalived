@@ -154,20 +154,14 @@
 
 #include "config.h"
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
-
 #include <fcntl.h>
 #include <sched.h>
 #include <string.h>
 #include <errno.h>
 #include <unistd.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <stdio.h>
 #include <sys/mount.h>
-#include <stdlib.h>
 #include <stdbool.h>
 
 #ifndef HAVE_SETNS
@@ -177,7 +171,6 @@
 #include <sys/syscall.h>
 
 #include "namespaces.h"
-#include "main.h"
 
 #ifndef MS_SLAVE	/* Since glibc 2.12, but Linux since 2.6.15 */
 #include <linux/fs.h>

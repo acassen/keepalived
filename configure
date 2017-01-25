@@ -813,6 +813,7 @@ enable_mem_check
 enable_mem_check_log
 enable_debug
 enable_stacktrace
+enable_dump_threads
 enable_profile
 enable_conversion_checks
 enable_force_conversion_checks
@@ -1477,6 +1478,7 @@ Optional Features:
   --enable-mem-check-log  compile with memory alloc checking wriging to syslog
   --enable-debug          compile with debugging flags
   --enable-stacktrace     compile with stacktrace support
+  --enable-dump-threads   compile with thread dumping support
   --enable-profile        compile with profiling flags
   --enable-conversion-checks
                           compile with conversion warnings if sensible
@@ -3489,6 +3491,11 @@ fi
 # Check whether --enable-stacktrace was given.
 if test "${enable_stacktrace+set}" = set; then :
   enableval=$enable_stacktrace;
+fi
+
+# Check whether --enable-dump-threads was given.
+if test "${enable_dump_threads+set}" = set; then :
+  enableval=$enable_dump_threads;
 fi
 
 # Check whether --enable-profile was given.
@@ -6298,6 +6305,17 @@ _ACEOF
 fi
 done
 
+for ac_func in signalfd
+do :
+  ac_fn_c_check_func "$LINENO" "signalfd" "ac_cv_func_signalfd"
+if test "x$ac_cv_func_signalfd" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_SIGNALFD 1
+_ACEOF
+ BUILD_OPTIONS="$BUILD_OPTIONS SIGNALFD"
+fi
+done
+
 
 # check for missing definition - added in glibc 2.8
 ac_fn_c_check_decl "$LINENO" "ETHERTYPE_IPV6" "ac_cv_have_decl_ETHERTYPE_IPV6" "#include <net/ethernet.h>
@@ -8910,6 +8928,16 @@ $as_echo "#define _WITH_STACKTRACE_  1 " >>confdefs.h
   ENABLE_STACKTRACE=Yes
   BUILD_OPTIONS="$BUILD_OPTIONS STACKTRACE"
   KA_LDFLAGS="$KA_LDFLAGS -rdynamic"
+else
+  ENABLE_STACKTRACE=No
+fi
+
+if test "${enable_dump_threads}" = yes; then
+
+$as_echo "#define _WITH_DUMP_THREADS_  1 " >>confdefs.h
+
+  ENABLE_DUMP_THREADS=Yes
+  BUILD_OPTIONS="$BUILD_OPTIONS DUMP_THREADS"
 else
   ENABLE_STACKTRACE=No
 fi
