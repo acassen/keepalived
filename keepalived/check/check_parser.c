@@ -97,7 +97,7 @@ ip_family_handler(vector_t *strvec)
 	if (0 == strcmp(strvec_slot(strvec, 1), "inet"))
 		vs->af = AF_INET;
 	else if (0 == strcmp(strvec_slot(strvec, 1), "inet6")) {
-#ifndef IPVS_USE_NL
+#ifndef LIBIPVS_USE_NL
 		log_message(LOG_INFO, "IPVS with IPv6 is not supported by this build");
 		skip_block();
 		return;
