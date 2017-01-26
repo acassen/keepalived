@@ -31,6 +31,7 @@
 #include "logger.h"
 #include "utils.h"
 #include "ipwrapper.h"
+#include "parser.h"
 
 /* global vars */
 check_data_t *check_data = NULL;
@@ -107,11 +108,18 @@ dump_vsg_entry(void *data)
 
 	if (vsg_entry->vfwmark)
 		log_message(LOG_INFO, "   FWMARK = %u", vsg_entry->vfwmark);
-	else if (vsg_entry->range)
-		log_message(LOG_INFO, "   VIP Range = %s-%d, VPORT = %d"
-				    , inet_sockaddrtos(&vsg_entry->addr)
-				    , vsg_entry->range
-				    , ntohs(inet_sockaddrport(&vsg_entry->addr)));
+	else if (vsg_entry->range) {
+		if (vsg_entry->addr.ss_family == AF_INET)
+			log_message(LOG_INFO, "   VIP Range = %s-%d, VPORT = %d"
+					    , inet_sockaddrtos(&vsg_entry->addr)
+					    , vsg_entry->range
+					    , ntohs(inet_sockaddrport(&vsg_entry->addr)));
+		else
+			log_message(LOG_INFO, "   VIP Range = %s-%x, VPORT = %d"
+					    , inet_sockaddrtos(&vsg_entry->addr)
+					    , vsg_entry->range
+					    , ntohs(inet_sockaddrport(&vsg_entry->addr)));
+	}
 	else
 		log_message(LOG_INFO, "   VIP = %s, VPORT = %d"
 				    , inet_sockaddrtos(&vsg_entry->addr)
@@ -137,7 +145,9 @@ alloc_vsg_entry(vector_t *strvec)
 {
 	virtual_server_group_t *vsg = LIST_TAIL_DATA(check_data->vs_group);
 	virtual_server_group_entry_t *new;
+	virtual_server_group_entry_t *old;
 	uint32_t start;
+	element e;
 
 	new = (virtual_server_group_entry_t *) MALLOC(sizeof(virtual_server_group_entry_t));
 
@@ -147,14 +157,42 @@ alloc_vsg_entry(vector_t *strvec)
 	} else {
 		new->range = inet_stor(strvec_slot(strvec, 0));
 		inet_stosockaddr(strvec_slot(strvec, 0), strvec_slot(strvec, 1), &new->addr);
+#ifndef LIBIPVS_USE_NL
+		if (new->addr.ss_family != AF_INET) {
+			log_message(LOG_INFO, "IPVS does not support IPv6 in this build - skipping %s", FMT_STR_VSLOT(strvec, 0));
+			FREE(new);
+			return;
+		}
+#endif
+
+		/* Ensure the address family matches any previously configured addresses */
+		if (!LIST_ISEMPTY(vsg->addr_ip)) {
+			e = LIST_HEAD(vsg->addr_ip);
+			old = ELEMENT_DATA(e);
+			if (old->addr.ss_family != new->addr.ss_family) {
+				log_message(LOG_INFO, "Cannot mix IPv4 and IPv6 in virtual server group - %s", vsg->gname);
+				FREE(new);
+				return;
+			}
+		}
+		if (!LIST_ISEMPTY(vsg->range)) {
+			e = LIST_HEAD(vsg->range);
+			old = ELEMENT_DATA(e);
+			if (old->addr.ss_family != new->addr.ss_family) {
+				log_message(LOG_INFO, "Cannot mix IPv4 and IPv6 in virtual server group -  %s", vsg->gname);
+				FREE(new);
+				return;
+			}
+		}
 		if (!new->range) {
 			list_add(vsg->addr_ip, new);
 			return;
 		}
 
-		if ((new->addr.ss_family == AF_INET && new->range > 255 ) ||
+		if ((new->addr.ss_family == AF_INET && new->range > 255) ||
 		    (new->addr.ss_family == AF_INET6 && new->range > 0xffff)) {
 			log_message(LOG_INFO, "End address of range exceeds limit for address family - %s - skipping", FMT_STR_VSLOT(strvec, 0));
+			FREE(new);
 			return;
 		}
 
@@ -164,6 +202,7 @@ alloc_vsg_entry(vector_t *strvec)
 			start = htons(((struct sockaddr_in6 *)&new->addr)->sin6_addr.s6_addr16[7]);
 		if (start >= new->range) {
 			log_message(LOG_INFO, "Address range end is not greater than address range start - %s - skipping", FMT_STR_VSLOT(strvec, 0));
+			FREE(new);
 			return;
 		}
 
@@ -292,6 +331,14 @@ alloc_vs(char *ip, char *port)
 	} else {
 		inet_stosockaddr(ip, port, &new->addr);
 		new->af = new->addr.ss_family;
+#ifndef LIBIPVS_USE_NL
+		if (new->af != AF_INET) {
+			log_message(LOG_INFO, "IPVS with IPv6 is not supported by this build");
+			FREE(new);
+			skip_block();
+			return;
+		}
+#endif
 	}
 
 	new->delay_loop = KEEPALIVED_DEFAULT_DELAY;
@@ -319,8 +366,14 @@ alloc_ssvr(char *ip, char *port)
 	vs->s_svr->iweight = 1;
 	inet_stosockaddr(ip, port, &vs->s_svr->addr);
 
-	if (! vs->af)
+	if (!vs->af)
 		vs->af = vs->s_svr->addr.ss_family;
+	else if (vs->af != vs->s_svr->addr.ss_family) {
+		log_message(LOG_INFO, "Address family of virtual server and sorry server %s don't match - skipping.", ip);
+		FREE(vs->s_svr);
+		vs->s_svr = NULL;
+		return;
+	}
 }
 
 /* Real server facility functions */
@@ -367,6 +420,23 @@ alloc_rs(char *ip, char *port)
 	new = (real_server_t *) MALLOC(sizeof(real_server_t));
 	inet_stosockaddr(ip, port, &new->addr);
 
+#ifndef LIBIPVS_USE_NL
+	if (new->addr.ss_family != AF_INET) {
+		log_message(LOG_INFO, "IPVS does not support IPv6 in this build - skipping %s", ip);
+		skip_block();
+		FREE(new);
+		return;
+	}
+#endif
+
+	if (!vs->af)
+		vs->af = new->addr.ss_family;
+	else if (vs->af != new->addr.ss_family) {
+		log_message(LOG_INFO, "Address family of virtual server and real server %s don't match - skipping.", ip);
+		FREE(new);
+		return;
+	}
+
 	new->weight = 1;
 	new->iweight = 1;
 	new->failed_checkers = alloc_list(free_failed_checkers, NULL);
@@ -374,9 +444,6 @@ alloc_rs(char *ip, char *port)
 	if (!LIST_EXISTS(vs->rs))
 		vs->rs = alloc_list(free_rs, dump_rs);
 	list_add(vs->rs, new);
-
-	if (! vs->af)
-		vs->af = new->addr.ss_family;
 }
 
 /* data facility functions */

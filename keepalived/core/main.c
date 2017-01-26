@@ -39,6 +39,8 @@
 
 #include "main.h"
 #include "daemon.h"
+#include "config.h"
+#include "git-commit.h"
 #include "signals.h"
 #include "pidfile.h"
 #include "bitops.h"
@@ -60,8 +62,8 @@
 #include "git-commit.h"
 
 #define	LOG_FACILITY_MAX	7
-#define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" VERSION_DATE ")"
-#define COPYRIGHT_STRING	"Copyright(C) 2001-" COPYRIGHT_YEAR " Alexandre Cassen, <acassen@gmail.com>"
+#define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" GIT_DATE ")"
+#define COPYRIGHT_STRING	"Copyright(C) 2001-" GIT_YEAR " Alexandre Cassen, <acassen@gmail.com>"
 #define BUILD_OPTIONS		CONFIGURATION_OPTIONS
 
 #define CHILD_WAIT_SECS	5

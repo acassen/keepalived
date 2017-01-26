@@ -8,9 +8,6 @@
 /* The configuration and build options from which the package is built */
 #undef CONFIGURATION_OPTIONS
 
-/* Year of build configuration */
-#undef COPYRIGHT_YEAR
-
 /* Define to 1 if need to call g_type_init() */
 #undef DBUS_NEED_G_TYPE_INIT
 
@@ -473,9 +470,6 @@
 
 /* Version number of package */
 #undef VERSION
-
-/* Date of build configuration */
-#undef VERSION_DATE
 
 /* Define if <linux/netfilter/x_tables.h> doesnt define it */
 #undef XT_EXTENSION_MAXNAMELEN

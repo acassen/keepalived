@@ -809,6 +809,7 @@ enable_vrrp_auth
 enable_routes
 enable_libiptc
 enable_libipset
+enable_libnl
 enable_mem_check
 enable_mem_check_log
 enable_debug
@@ -1474,6 +1475,7 @@ Optional Features:
   --disable-routes        compile without ip rules/routes
   --disable-libiptc       compile without libiptc
   --disable-libipset      compile without libipset
+  --disable-libnl         compile without libnl
   --enable-mem-check      compile with memory alloc checking
   --enable-mem-check-log  compile with memory alloc checking wriging to syslog
   --enable-debug          compile with debugging flags
@@ -3471,6 +3473,11 @@ fi
 # Check whether --enable-libipset was given.
 if test "${enable_libipset+set}" = set; then :
   enableval=$enable_libipset;
+fi
+
+# Check whether --enable-libnl was given.
+if test "${enable_libnl+set}" = set; then :
+  enableval=$enable_libnl;
 fi
 
 # Check whether --enable-mem-check was given.
@@ -6524,7 +6531,8 @@ fi
 
 NETLINK_VER=0
 IPVS_USE_NL=No
-{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_socket_alloc in -lnl-3" >&5
+if test .${enable_libnl} != .no; then
+  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_socket_alloc in -lnl-3" >&5
 $as_echo_n "checking for nl_socket_alloc in -lnl-3... " >&6; }
 if ${ac_cv_lib_nl_3_nl_socket_alloc+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -6562,12 +6570,12 @@ fi
 $as_echo "$ac_cv_lib_nl_3_nl_socket_alloc" >&6; }
 if test "x$ac_cv_lib_nl_3_nl_socket_alloc" = xyes; then :
 
-    NETLINK_VER=3
+      NETLINK_VER=3
 
 $as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
 
-    BUILD_OPTIONS="$BUILD_OPTIONS LIBNL3"
-     if test 1 -ge 2; then
+      BUILD_OPTIONS="$BUILD_OPTIONS LIBNL3"
+       if test 1 -ge 2; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -6604,7 +6612,7 @@ $as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
 
 
 
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for genl_connect in -lnl-genl-3" >&5
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for genl_connect in -lnl-genl-3" >&5
 $as_echo_n "checking for genl_connect in -lnl-genl-3... " >&6; }
 if ${ac_cv_lib_nl_genl_3_genl_connect+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -6651,8 +6659,8 @@ else
   as_fn_error $? "libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3." "$LINENO" 5
 fi
 
-    IPVS_USE_NL=Yes
-     if test 1 -ge 2; then
+      IPVS_USE_NL=Yes
+       if test 1 -ge 2; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -6689,7 +6697,7 @@ fi
 
 
 
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_rtgen_request in -lnl-route-3" >&5
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_rtgen_request in -lnl-route-3" >&5
 $as_echo_n "checking for nl_rtgen_request in -lnl-route-3... " >&6; }
 if ${ac_cv_lib_nl_route_3_nl_rtgen_request+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -6736,8 +6744,8 @@ else
   as_fn_error $? "libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3." "$LINENO" 5
 fi
 
-    NL3_CFLAGS="$($PKG_CONFIG --cflags libnl-route-3.0)"
-     if test 1 -ge 2; then
+      NL3_CFLAGS="$($PKG_CONFIG --cflags libnl-route-3.0)"
+       if test 1 -ge 2; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -6776,7 +6784,7 @@ fi
 
 else
 
-    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_socket_modify_cb in -lnl" >&5
+      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_socket_modify_cb in -lnl" >&5
 $as_echo_n "checking for nl_socket_modify_cb in -lnl... " >&6; }
 if ${ac_cv_lib_nl_nl_socket_modify_cb+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -6814,12 +6822,12 @@ fi
 $as_echo "$ac_cv_lib_nl_nl_socket_modify_cb" >&6; }
 if test "x$ac_cv_lib_nl_nl_socket_modify_cb" = xyes; then :
 
-        IPVS_USE_NL=Yes
-        NETLINK_VER=1
+          IPVS_USE_NL=Yes
+          NETLINK_VER=1
 
 $as_echo "#define _HAVE_LIBNL1_  1 " >>confdefs.h
 
-         if test 1 -ge 2; then
+           if test 1 -ge 2; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -6855,15 +6863,15 @@ $as_echo "#define _HAVE_LIBNL1_  1 " >>confdefs.h
     eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
-        BUILD_OPTIONS="$BUILD_OPTIONS LIBNL1"
+          BUILD_OPTIONS="$BUILD_OPTIONS LIBNL1"
 
 $as_echo "#define FALLBACK_LIBNL1  1 " >>confdefs.h
 
-        BUILD_OPTIONS="$BUILD_OPTIONS FALLBACK_LIBNL1"
+          BUILD_OPTIONS="$BUILD_OPTIONS FALLBACK_LIBNL1"
 
 else
 
-        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: keepalived will be built without libnl support." >&5
+          { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: keepalived will be built without libnl support." >&5
 $as_echo "$as_me: WARNING: keepalived will be built without libnl support." >&2;}
 
 fi
@@ -6872,10 +6880,10 @@ fi
 fi
 
 
-if test $NETLINK_VER -ne 0; then
-  SAV_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $kernelinc"
-  for ac_header in libnfnetlink/libnfnetlink.h
+  if test $NETLINK_VER -ne 0; then
+    SAV_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS $kernelinc"
+    for ac_header in libnfnetlink/libnfnetlink.h
 do :
   ac_fn_c_check_header_mongrel "$LINENO" "libnfnetlink/libnfnetlink.h" "ac_cv_header_libnfnetlink_libnfnetlink_h" "$ac_includes_default"
 if test "x$ac_cv_header_libnfnetlink_libnfnetlink_h" = xyes; then :
@@ -6885,14 +6893,14 @@ _ACEOF
 
 else
   as_fn_error $? "
-    !!! Please install libnfnetlink headers.              !!!" "$LINENO" 5
+      !!! Please install libnfnetlink headers.              !!!" "$LINENO" 5
 fi
 
 done
 
-  if test $NETLINK_VER -eq 3; then
-    CPPFLAGS="$CPPFLAGS $NL3_CFLAGS"
-    for ac_header in netlink/route/link.h netlink/route/link/inet.h
+    if test $NETLINK_VER -eq 3; then
+      CPPFLAGS="$CPPFLAGS $NL3_CFLAGS"
+      for ac_header in netlink/route/link.h netlink/route/link/inet.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -6907,9 +6915,9 @@ fi
 
 done
 
-  fi
+    fi
 
-  for ac_header in linux/rtnetlink.h
+    for ac_header in linux/rtnetlink.h
 do :
   ac_fn_c_check_header_compile "$LINENO" "linux/rtnetlink.h" "ac_cv_header_linux_rtnetlink_h" "$NETLINK_EXTRA_INCLUDE
 "
@@ -6919,12 +6927,12 @@ if test "x$ac_cv_header_linux_rtnetlink_h" = xyes; then :
 _ACEOF
 
 else
-  as_fn_error $? "Unusable link/rtnetlink.h" "$LINENO" 5
+  as_fn_error $? "Unusable linux/rtnetlink.h" "$LINENO" 5
 fi
 
 done
 
-  for ac_header in libnfnetlink/libnfnetlink.h netlink/genl/ctrl.h netlink/genl/genl.h netlink/netlink.h
+    for ac_header in libnfnetlink/libnfnetlink.h netlink/genl/ctrl.h netlink/genl/genl.h netlink/netlink.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -6940,7 +6948,8 @@ fi
 done
 
 
-  CPPFLAGS="$SAV_CPPFLAGS"
+    CPPFLAGS="$SAV_CPPFLAGS"
+  fi
 fi
  if test $NETLINK_VER -eq 1; then
   LIBNL1_TRUE=
@@ -7408,7 +7417,7 @@ else
   USE_LIBIPTC=No
 fi
 
-  CPPFLAGS="$SAV_CPPFLAGS"
+    CPPFLAGS="$SAV_CPPFLAGS"
   fi
 
   if test $USE_LIBIPTC = Yes; then
@@ -8998,20 +9007,6 @@ else
   INIT_SYSV_FALSE=
 fi
 
-
-echo $INIT_TYPE
-VERSION_DATE=`date +%m/%d,%Y`
-VERSION_YEAR=`date +%Y`
-
-
-cat >>confdefs.h <<_ACEOF
-#define VERSION_DATE "$VERSION_DATE"
-_ACEOF
-
-
-cat >>confdefs.h <<_ACEOF
-#define COPYRIGHT_YEAR "$VERSION_YEAR"
-_ACEOF
 
 
 cat >>confdefs.h <<_ACEOF
@@ -10653,3 +10648,9 @@ echo "init type                : ${INIT_TYPE}"
 echo "Build genhash            : ${BUILD_GENHASH}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
 
+
+if test ${IPVS_SUPPORT} = Yes -a ${IPVS_USE_NL} = No; then
+  echo
+  echo "*** WARNING - this build will not support IPVS with IPv6. Please install libnl/libnl-3 dev libraries to support IPv6 with IPVS."
+  echo
+fi
