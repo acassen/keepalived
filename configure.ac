@@ -1052,7 +1052,7 @@ INIT_TYPE=
 if test $? -eq 0; then
         INIT_TYPE=upstart
 else
-	if test \( `which systemctl` -a -x `which systemctl` \); then
+	if test \( "`which systemctl`" -a -x "`which systemctl`" \); then
 		systemctl | grep -q -- "-\.mount"
 		if test $? -eq 0; then
 			AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
@@ -1069,6 +1069,27 @@ AM_CONDITIONAL([INIT_SYSTEMD], [test $INIT_TYPE = systemd])
 AM_CONDITIONAL([INIT_SYSV], [test $INIT_TYPE = SYSV])
 
 AC_DEFINE_UNQUOTED([CONFIGURATION_OPTIONS], ["$BUILD_OPTIONS"], [The configuration and build options from which the package is built])
+
+dnl ----[ check get*_r_size_max ]----
+AC_RUN_IFELSE([AC_LANG_PROGRAM([[
+	       #include <unistd.h>
+	       ]],
+	      [[
+		long int s = sysconf(_SC_GETPW_R_SIZE_MAX);
+		return(s > 0 && (s < 1<<20));
+	       ]])]
+, [AC_DEFINE([_MISSING_GETPW_R_SIZE_MAX],[],[Define for missing getpw_r_size_max])]
+)
+
+AC_RUN_IFELSE([AC_LANG_PROGRAM([[
+	       #include <unistd.h>
+	       ]],
+	      [[
+		long int s = sysconf(_SC_GETGR_R_SIZE_MAX);
+		return(s > 0 && (s < 1<<20));
+	       ]])]
+, [AC_DEFINE([_MISSING_GETGR_R_SIZE_MAX],[],[Define for missing getgr_r_size_max])]
+)
 
 if test $NETLINK_VER -eq 0; then
 	NETLINK_VER=None
