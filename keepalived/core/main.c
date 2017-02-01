@@ -792,9 +792,15 @@ keepalived_main(int argc, char **argv)
 	set_default_script_user(&default_script_uid, &default_script_gid);
 
 	/* Get buffer length needed for getpwnam_r/getgrnam_r */
+#ifdef _MISSING_GETPW_R_SIZE_MAX
+	getpwnam_buf_len = 1024;
+#else
 	getpwnam_buf_len = (size_t)sysconf(_SC_GETPW_R_SIZE_MAX);
+#endif
+#ifndef _MISSING_GETGR_R_SIZE_MAX
 	if ((buf_len = (size_t)sysconf(_SC_GETGR_R_SIZE_MAX)) > getpwnam_buf_len)
 		getpwnam_buf_len = buf_len;
+#endif
 
 	/* Some functionality depends on kernel version, so get the version here */
 	if (uname(&uname_buf))

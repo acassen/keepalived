@@ -567,7 +567,11 @@ check_notify_script_secure(notify_script_t **script_p, bool script_security, boo
 void
 set_default_script_user(uid_t *uid, gid_t *gid)
 {
+#ifdef _MISSING_GETPW_R_SIZE_MAX
+	char buf[1024];
+#else
 	char buf[sysconf(_SC_GETPW_R_SIZE_MAX)];
+#endif
 	char *default_user_name = "keepalived_script";
 	struct passwd pwd;
 	struct passwd *pwd_p;
