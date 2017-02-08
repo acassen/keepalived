@@ -7,7 +7,7 @@ The Keepalived configuration file uses the following synopsis (configuration key
 Global Definitions Synopsis
 ***************************
 
-::
+.. parsed-literal::
 
     **global_defs** {
         **notification_email** {
@@ -15,9 +15,9 @@ Global Definitions Synopsis
             email
         }
         **notification_email_from** email
-        smtp_server host
-        smtp_connect_timeout num
-        lvs_id string
+        **smtp_server** host
+        **smtp_connect_timeout** num
+        **lvs_id** string
     }
 
 ========================    ======================================================  =========
@@ -36,45 +36,45 @@ Email type: Is a string using charset as specified into the SMTP RFC eg: “user
 Virtual Server Definitions Synopsis
 ***********************************
 
-::
+.. parsed-literal::
 
-    virtual_server (@IP PORT)|( fwmark num) {
-        delay_loop num
-        lb_algo rr|wrr|lc|wlc|sh|dh|lblc
-        lb_kind NAT|DR|TUN
-        (nat_mask @IP)
-        persistence_timeout num
-        persistence_granularity @IP
-        virtualhost string
-        protocol TCP|UDP
+    **virtual_server** (@IP PORT)|(*fwmark* num) {
+        **delay_loop** num
+        **lb_algo** *rr|wrr|lc|wlc|sh|dh|lblc*
+        **lb_kind** *NAT|DR|TUN*
+        **(nat_mask** @IP)
+        **persistence_timeout** num
+        **persistence_granularity** @IP
+        **virtualhost** string
+        **protocol** *TCP|UDP*
         
-        sorry_server @IP PORT
-        real_server @IP PORT {
-            weight num
-            TCP_CHECK {
-                connect_port num
-                connect_timeout num
+        **sorry_server** @IP PORT
+        **real_server** @IP PORT {
+            **weight** num
+            **TCP_CHECK** {
+                **connect_port** num
+                **connect_timeout** num
             }
         }
-        real_server @IP PORT {
-            weight num
-            MISC_CHECK {
-                misc_path /path_to_script/script.sh
-                (or misc_path “ /path_to_script/script.sh <arg_list>”)
+        **real_server** @IP PORT {
+            **weight** num
+            **MISC_CHECK** {
+                **misc_path** /path_to_script/script.sh
+                (or **misc_path** “ /path_to_script/script.sh <arg_list>”)
             }
         }
     }
-    real_server @IP PORT {
-        weight num
-        HTTP_GET|SSL_GET {
-            url { # You can add multiple url block
-                path alphanum
-                digest alphanum
+    **real_server** @IP PORT {
+        **weight** num
+        **HTTP_GET|SSL_GET** {
+            **url** { # You can add multiple url block
+                **path** alphanum
+                **digest** alphanum
             }
-            connect_port num
-            connect_timeout num
-            nb_get_retry num
-            delay_before_retry num
+            **connect_port** num
+            **connect_timeout** num
+            **nb_get_retry** num
+            **delay_before_retry** num
         }
     }
     
@@ -84,26 +84,26 @@ Keyword                 Definition                                              
 virtual_server          identify a virtual server definition block
 fwmark                  specify that virtual server is a FWMARK
 delay_loop              specify in seconds the interval between checks              numerical
-lb_algo                 select a specific scheduler ( rr|wrr|lc|wlc...)             string
+lb_algo                 select a specific scheduler (rr|wrr|lc|wlc...)              string
 lb_kind                 select a specific forwarding method (NAT|DR|TUN)            string
 persistence_timeout     specify a timeout value for persistent connections          numerical
 persistence_granularity specify a granularity mask for persistent connections
-Virtualhost             specify a HTTP virtualhost to use for HTTP|SSL_GET          alphanum
+virtualhost             specify a HTTP virtualhost to use for HTTP|SSL_GET          alphanum
 protocol                specify the protocol kind (TCP|UDP)                         numerical
 sorry_server            server to be added to the pool if all real servers are down
 real_server             specify a real server member
-Weight                  specify the real server weight for load balancing decisions numerical
+weight                  specify the real server weight for load balancing decisions numerical
 TCP_CHECK               check real server availability using TCP connect
 MISC_CHECK              check real server availability using user defined script
 misc_path               identify the script to run with full path                   path
 HTTP_GET                check real server availability using HTTP GET request
 SSL_GET                 check real server availability using SSL GET request
 url                     identify a url definition block
-Path                    specify the url path                                        alphanum
-Digest                  specify the digest for a specific url path                  alphanum
+path                    specify the url path                                        alphanum
+digest                  specify the digest for a specific url path                  alphanum
 connect_port            connect remote server on specified TCP port                 numerical
 connect_timeout         connect remote server using timeout                         numerical
-Nb_get_retry            maximum number of retries                                   numerical
+nb_get_retry            maximum number of retries                                   numerical
 delay_before_retry      delay between two successive retries                        numerical 
 ======================= =========================================================== =========
 
@@ -119,61 +119,61 @@ delay_before_retry      delay between two successive retries                    
 VRRP Instance Definitions Synopsis
 **********************************
 
-::
+.. parsed-literal::
 
-    vrrp_sync_grou p string {
-        group {
+    **vrrp_sync_group** string {
+        **group** {
             string
             string
         }
-        notify_master /path_to_script/script_master.sh
-            (or notify_master “ /path_to_script/script_master.sh <arg_list>”)
-        notify_backup /path_to_script/script_backup.sh
-            (or notify_backup “/path_to_script/script_backup.sh <arg_list>”)
-        notify_fault /path_to_script/script_fault.sh
-            (or notify_fault “ /path_to_script/script_fault.sh <arg_list>”)
+        **notify_master** /path_to_script/script_master.sh
+            (or **notify_master** “ /path_to_script/script_master.sh <arg_list>”)
+        **notify_backup** /path_to_script/script_backup.sh
+            (or **notify_backup** “/path_to_script/script_backup.sh <arg_list>”)
+        **notify_fault** /path_to_script/script_fault.sh
+            (or **notify_fault** “ /path_to_script/script_fault.sh <arg_list>”)
     }
-    vrrp_instance string {
-        state MASTER|BACKUP
-        interface string
-        mcast_src_ip @IP
-        lvs_sync_daemon_interface string
-        virtual_router_id num
-        priority num
-        advert_int num
-        smtp_alert
-        authentication {
-            auth_type PASS|AH
-            auth_pass string
+    **vrrp_instance** string {
+        **state** *MASTER|BACKUP*
+        **interface** string
+        **mcast_src_ip** @IP
+        **lvs_sync_daemon_interface** string
+        **virtual_router_id** num
+        **priority** num
+        **advert_int** num
+        **smtp_alert**
+        **authentication** {
+            **auth_type** *PASS|AH*
+            **auth_pass** string
         }
-        virtual_ipaddress { # Block limited to 20 IP addresses
-            @IP
-            @IP
-            @IP
-        }
-        virtual_ipaddress_excluded { # Unlimited IP addresses number
+        **virtual_ipaddress** { # Block limited to 20 IP addresses
             @IP
             @IP
             @IP
         }
-        notify_master /path_to_script/script_master.sh
-            (or notify_master “ /path_to_script/script_master.sh <arg_list>”)
-        notify_backup /path_to_script/script_backup.sh
-            (or notify_backup “ /path_to_script/script_backup.sh <arg_list>”)
-        notify_fault /path_to_script/script_fault.sh
-            (or notify_fault “ /path_to_script/script_fault.sh <arg_list>”)
+        **virtual_ipaddress_excluded** { # Unlimited IP addresses
+            @IP
+            @IP
+            @IP
+        }
+        **notify_master** /path_to_script/script_master.sh
+            (or **notify_master** “ /path_to_script/script_master.sh <arg_list>”)
+        **notify_backup** /path_to_script/script_backup.sh
+            (or **notify_backup** “ /path_to_script/script_backup.sh <arg_list>”)
+        **notify_fault** /path_to_script/script_fault.sh
+            (or **notify_fault** “ /path_to_script/script_fault.sh <arg_list>”)
     }
 
 ==========================  ======================================================================= =========
 Keyword                     Definition                                                              Type
 ==========================  ======================================================================= =========
 vrrp_instance               identify a VRRP instance definition block
-State                       specify the instance state in standard use
+state                       specify the instance state in standard use
 Interface                   specify the network interface for the instance to run on                string
 mcast_src_ip                specify the src IP address value for VRRP adverts IP header
 lvs_sync_daemon_inteface    specify the network interface for the LVS sync_daemon to run on         string
-Virtual_router_id           specify to which VRRP router id the instance belongs                    numerical
-Priority                    specify the instance priority in the VRRP router                        numerical
+virtual_router_id           specify to which VRRP router id the instance belongs                    numerical
+priority                    specify the instance priority in the VRRP router                        numerical
 advert_int                  specify the advertisement interval in seconds (set to 1)                numerical
 smtp_alert                  Activate the SMTP notification for MASTER state transition
 authentication              identify a VRRP authentication definition block
