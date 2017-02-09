@@ -48,7 +48,7 @@ $(GIT_COMMIT_FILE): .FORCE
 			GIT_YEAR=`date -d "1970-01-01 UTC $${GIT_TIMESTAMP} seconds" +"%Y"`; \
 			echo $${GIT_REV} | grep -qE -- "-[1-9][0-9]*-g[0-9a-f]{7}$$"; \
 			if [ $$? -eq 0 ]; then \
-				if [ "`git status --porcelain | grep -v '^??' | wc -l`" -ne 0 ]; then EXTRA="+"; else EXTRA=""; fi ; \
+				if [ "`git status --porcelain | grep -v '^??' | grep -v '[ /]Makefile.in$$' | grep -Ev ' (aclocal.m4|ar-lib|compile|configure|depcomp|install-sh|missing)$$' | wc -l`" -ne 0 ]; then EXTRA="+"; else EXTRA=""; fi ; \
 				echo "#define GIT_COMMIT \"$${GIT_REV}$${EXTRA}\"" >$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
 				echo "#define GIT_DATE \"$${GIT_DATE}\"" >>$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
 				echo "#define GIT_YEAR \"$${GIT_YEAR}\"" >>$(abs_builddir)/$(GIT_COMMIT_FILE).new; \

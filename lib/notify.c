@@ -48,6 +48,9 @@ gid_t default_script_gid;
 /* Script security enabled */
 bool script_security = false;
 
+/* Buffer length needed for getpwnam_r/getgrname_r */
+size_t getpwnam_buf_len;
+
 static char *path;
 static bool path_is_malloced;
 
@@ -567,7 +570,7 @@ check_notify_script_secure(notify_script_t **script_p)
 void
 set_default_script_user(void)
 {
-	char buf[sysconf(_SC_GETPW_R_SIZE_MAX)];
+	char buf[getpwnam_buf_len];
 	char *default_user_name = "keepalived_script";
 	struct passwd pwd;
 	struct passwd *pwd_p;

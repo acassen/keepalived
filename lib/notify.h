@@ -64,6 +64,9 @@ extern gid_t default_script_gid;
 /* Script security enabled */
 extern bool script_security;
 
+/* Buffer length needed for getpwnam_r/getgrnam_r */
+extern size_t getpwnam_buf_len;
+
 /* prototypes */
 extern int system_call_script(thread_master_t *, int (*) (thread_t *), void *, unsigned long, notify_script_t *);
 extern int notify_exec(const notify_script_t *);

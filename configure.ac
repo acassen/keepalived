@@ -1068,7 +1068,7 @@ INIT_TYPE=
 if test $? -eq 0; then
         INIT_TYPE=upstart
 else
-	if test \( `which systemctl` -a -x `which systemctl` \); then
+	if test \( "`which systemctl`" -a -x "`which systemctl`" \); then
 		systemctl | grep -q -- "-\.mount"
 		if test $? -eq 0; then
 			AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
