@@ -755,12 +755,37 @@ clear_diff_services(void)
 void
 link_vsg_to_vs(void)
 {
-	element e;
+	element e, next;
 	virtual_server_t *vs;
+	int vsg_af;
+	virtual_server_group_entry_t *vsge;
 
-	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
+	for (e = LIST_HEAD(check_data->vs); e; e = next) {
+		next = e->next;
 		vs = ELEMENT_DATA(e);
-		if (vs->vsgname)
+
+		if (vs->vsgname) {
 			vs->vsg = ipvs_get_group_by_name(vs->vsgname, check_data->vs_group);
+			if (!vs->vsg)
+				log_message(LOG_INFO, "Virtual server group %s specified but not configured - removing virtual server", vs->vsgname);
+			else {
+				/* Check the vs and vsg address families match */
+				if (!LIST_ISEMPTY(vs->vsg->addr_ip)) {
+					vsge = ELEMENT_DATA(LIST_HEAD(vs->vsg->addr_ip));
+					vsg_af = vsge->addr.ss_family;
+				}
+				else if (!LIST_ISEMPTY(vs->vsg->range)) {
+					vsge = ELEMENT_DATA(LIST_HEAD(vs->vsg->range));
+					vsg_af = vsge->addr.ss_family;
+				}
+				else
+					vsg_af = AF_UNSPEC;
+
+				if (vsg_af != AF_UNSPEC && vsg_af != vs->af) {
+					log_message(LOG_INFO, "Virtual server group %s address family doesn't match virtual server", vs->vsgname);
+					vs->vsg = NULL;
+				}
+			}
+		}
 	}
 }

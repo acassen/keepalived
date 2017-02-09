@@ -108,6 +108,8 @@ AC_ARG_ENABLE(libiptc,
   [AS_HELP_STRING([--disable-libiptc], [compile without libiptc])])
 AC_ARG_ENABLE(libipset,
   [AS_HELP_STRING([--disable-libipset], [compile without libipset])])
+AC_ARG_ENABLE(libnl,
+  [AS_HELP_STRING([--disable-libnl], [compile without libnl])])
 AC_ARG_ENABLE(mem-check,
   [AS_HELP_STRING([--enable-mem-check], [compile with memory alloc checking])])
 AC_ARG_ENABLE(mem-check-log,
@@ -349,53 +351,55 @@ AM_CONDITIONAL([BUILD_GENHASH], [test $BUILD_GENHASH = Yes])
 dnl ----[ Checks for libraries ]----
 NETLINK_VER=0
 IPVS_USE_NL=No
-AC_CHECK_LIB(nl-3, nl_socket_alloc,
-  [
-    NETLINK_VER=3
-    AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
-    add_build_opt([LIBNL3])
-    add_pkg_config([libnl-3.0])
-
-    AC_CHECK_LIB(nl-genl-3, genl_connect, [],
-      [AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])])
-    IPVS_USE_NL=Yes
-    add_pkg_config([libnl-genl-3.0])
-
-    AC_CHECK_LIB(nl-route-3, nl_rtgen_request, [],
-      [AC_MSG_ERROR([libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3.])])
-    NL3_CFLAGS="$($PKG_CONFIG --cflags libnl-route-3.0)"
-    add_pkg_config([libnl-route-3.0])
-  ],
-  [
-    AC_CHECK_LIB(nl, nl_socket_modify_cb,
-      [
-        IPVS_USE_NL=Yes
-        NETLINK_VER=1
-        AC_DEFINE([_HAVE_LIBNL1_], [ 1 ], [Define to 1 if using libnl-1])
-        add_pkg_config([libnl-1])
-        add_build_opt([LIBNL1])
-        AC_DEFINE([FALLBACK_LIBNL1], [ 1 ], [Define to 1 if using libnl-1])
-        add_build_opt([FALLBACK_LIBNL1])
-      ],
-      [
-        AC_MSG_WARN([keepalived will be built without libnl support.])
-      ])
-  ])
-
-if test $NETLINK_VER -ne 0; then
-  SAV_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $kernelinc"
-  AC_CHECK_HEADERS(libnfnetlink/libnfnetlink.h,,AC_MSG_ERROR([
-    !!! Please install libnfnetlink headers.              !!!]))
-  if test $NETLINK_VER -eq 3; then
-    CPPFLAGS="$CPPFLAGS $NL3_CFLAGS"
-    AC_CHECK_HEADERS([netlink/route/link.h netlink/route/link/inet.h], [], [AC_MSG_ERROR([libnl-3 headers missing])])
+if test .${enable_libnl} != .no; then
+  AC_CHECK_LIB(nl-3, nl_socket_alloc,
+    [
+      NETLINK_VER=3
+      AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
+      add_build_opt([LIBNL3])
+      add_pkg_config([libnl-3.0])
+  
+      AC_CHECK_LIB(nl-genl-3, genl_connect, [],
+        [AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])])
+      IPVS_USE_NL=Yes
+      add_pkg_config([libnl-genl-3.0])
+  
+      AC_CHECK_LIB(nl-route-3, nl_rtgen_request, [],
+        [AC_MSG_ERROR([libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3.])])
+      NL3_CFLAGS="$($PKG_CONFIG --cflags libnl-route-3.0)"
+      add_pkg_config([libnl-route-3.0])
+    ],
+    [
+      AC_CHECK_LIB(nl, nl_socket_modify_cb,
+        [
+          IPVS_USE_NL=Yes
+          NETLINK_VER=1
+          AC_DEFINE([_HAVE_LIBNL1_], [ 1 ], [Define to 1 if using libnl-1])
+          add_pkg_config([libnl-1])
+          add_build_opt([LIBNL1])
+          AC_DEFINE([FALLBACK_LIBNL1], [ 1 ], [Define to 1 if using libnl-1])
+          add_build_opt([FALLBACK_LIBNL1])
+        ],
+        [
+          AC_MSG_WARN([keepalived will be built without libnl support.])
+        ])
+    ])
+  
+  if test $NETLINK_VER -ne 0; then
+    SAV_CPPFLAGS="$CPPFLAGS"
+    CPPFLAGS="$CPPFLAGS $kernelinc"
+    AC_CHECK_HEADERS(libnfnetlink/libnfnetlink.h,,AC_MSG_ERROR([
+      !!! Please install libnfnetlink headers.              !!!]))
+    if test $NETLINK_VER -eq 3; then
+      CPPFLAGS="$CPPFLAGS $NL3_CFLAGS"
+      AC_CHECK_HEADERS([netlink/route/link.h netlink/route/link/inet.h], [], [AC_MSG_ERROR([libnl-3 headers missing])])
+    fi
+  
+    AC_CHECK_HEADERS([linux/rtnetlink.h], [], [AC_MSG_ERROR([Unusable linux/rtnetlink.h])], [$NETLINK_EXTRA_INCLUDE])
+    AC_CHECK_HEADERS([libnfnetlink/libnfnetlink.h netlink/genl/ctrl.h netlink/genl/genl.h netlink/netlink.h], [], [AC_MSG_ERROR([netlink headers missing])])
+  
+    CPPFLAGS="$SAV_CPPFLAGS"
   fi
-
-  AC_CHECK_HEADERS([linux/rtnetlink.h], [], [AC_MSG_ERROR([Unusable link/rtnetlink.h])], [$NETLINK_EXTRA_INCLUDE])
-  AC_CHECK_HEADERS([libnfnetlink/libnfnetlink.h netlink/genl/ctrl.h netlink/genl/genl.h netlink/netlink.h], [], [AC_MSG_ERROR([netlink headers missing])])
-
-  CPPFLAGS="$SAV_CPPFLAGS"
 fi
 AM_CONDITIONAL([LIBNL1], [test $NETLINK_VER -eq 1])
 AM_CONDITIONAL([LIBNL3], [test $NETLINK_VER -eq 3])
@@ -504,7 +508,7 @@ if test .${enable_libiptc} != .no; then
         AC_DEFINE([_HAVE_LIBIPTC_], [ 1 ], [Define to 1 if have iptables libraries])
       ],
       [USE_LIBIPTC=No])
-  CPPFLAGS="$SAV_CPPFLAGS"
+    CPPFLAGS="$SAV_CPPFLAGS"
   fi
 
   if test $USE_LIBIPTC = Yes; then
@@ -1048,7 +1052,7 @@ INIT_TYPE=
 if test $? -eq 0; then
         INIT_TYPE=upstart
 else
-	if test \( `which systemctl` -a -x `which systemctl` \); then
+	if test \( "`which systemctl`" -a -x "`which systemctl`" \); then
 		systemctl | grep -q -- "-\.mount"
 		if test $? -eq 0; then
 			AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
@@ -1064,12 +1068,6 @@ AM_CONDITIONAL([INIT_UPSTART], [test $INIT_TYPE = upstart])
 AM_CONDITIONAL([INIT_SYSTEMD], [test $INIT_TYPE = systemd])
 AM_CONDITIONAL([INIT_SYSV], [test $INIT_TYPE = SYSV])
 
-echo $INIT_TYPE
-VERSION_DATE=`date +%m/%d,%Y`
-VERSION_YEAR=`date +%Y`
-
-AC_DEFINE_UNQUOTED([VERSION_DATE], ["$VERSION_DATE"], [Date of build configuration])
-AC_DEFINE_UNQUOTED([COPYRIGHT_YEAR], ["$VERSION_YEAR"], [Year of build configuration])
 AC_DEFINE_UNQUOTED([CONFIGURATION_OPTIONS], ["$BUILD_OPTIONS"], [The configuration and build options from which the package is built])
 
 if test $NETLINK_VER -eq 0; then
@@ -1138,3 +1136,9 @@ echo "Build genhash            : ${BUILD_GENHASH}"
 echo "Build documentation      : ${HAVE_SPHINX_BUILD}"
 
 dnl ----[ end configure ]---
+
+if test ${IPVS_SUPPORT} = Yes -a ${IPVS_USE_NL} = No; then
+  echo
+  echo "*** WARNING - this build will not support IPVS with IPv6. Please install libnl/libnl-3 dev libraries to support IPv6 with IPVS."
+  echo
+fi
