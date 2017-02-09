@@ -764,7 +764,7 @@ link_vsg_to_vs(void)
 		if (vs->vsgname) {
 			vs->vsg = ipvs_get_group_by_name(vs->vsgname, check_data->vs_group);
 			if (!vs->vsg)
-				log_message(LOG_INFO, "Virtual server group %s specified but not configured - removing virtual server", vs->vsgname);
+				log_message(LOG_INFO, "Virtual server group %s specified but not configured - ignoring virtual server", vs->vsgname);
 			else {
 				/* Check the vs and vsg address families match */
 				if (!LIST_ISEMPTY(vs->vsg->addr_ip)) {
