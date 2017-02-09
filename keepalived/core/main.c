@@ -77,7 +77,6 @@ const char *snmp_socket;				/* Socket to use for SNMP agent */
 static char *syslog_ident;				/* syslog ident if not default */
 char *instance_name;					/* keepalived instance name */
 bool use_pid_dir;					/* Put pid files in /var/run/keepalived */
-size_t getpwnam_buf_len;				/* Buffer length needed for getpwnam_r/getgrname_r */
 uid_t default_script_uid;				/* Default user/group for script execution */
 gid_t default_script_gid;
 unsigned os_major;					/* Kernel version */
@@ -743,7 +742,7 @@ keepalived_main(int argc, char **argv)
 	bool report_stopped = true;
 	struct utsname uname_buf;
 	char *end;
-	size_t buf_len;
+	long buf_len;
 
 	/* Init debugging level */
 	debug = 0;
@@ -792,9 +791,13 @@ keepalived_main(int argc, char **argv)
 	set_default_script_user(&default_script_uid, &default_script_gid);
 
 	/* Get buffer length needed for getpwnam_r/getgrnam_r */
-	getpwnam_buf_len = (size_t)sysconf(_SC_GETPW_R_SIZE_MAX);
-	if ((buf_len = (size_t)sysconf(_SC_GETGR_R_SIZE_MAX)) > getpwnam_buf_len)
-		getpwnam_buf_len = buf_len;
+	if ((buf_len = sysconf(_SC_GETPW_R_SIZE_MAX)) == -1)
+		getpwnam_buf_len = 1024;	/* A safe default if no value is returned */
+	else
+		getpwnam_buf_len = (size_t)buf_len;
+	if ((buf_len = sysconf(_SC_GETGR_R_SIZE_MAX)) != -1 &&
+	    (size_t)buf_len > getpwnam_buf_len)
+		getpwnam_buf_len = (size_t)buf_len;
 
 	/* Some functionality depends on kernel version, so get the version here */
 	if (uname(&uname_buf))

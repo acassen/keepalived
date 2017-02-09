@@ -54,7 +54,10 @@ free_notify_script(notify_script_t **script)
 	FREE_PTR((*script)->name);
 	FREE_PTR(*script);
 }
-	
+
+/* Global variables */
+extern size_t getpwnam_buf_len;		/* Buffer length needed for getpwnam_r/getgrnam_r */
+
 /* prototypes */
 extern int system_call_script(thread_master_t *, int (*) (thread_t *), void *, unsigned long, const char*, uid_t, gid_t);
 extern int notify_exec(const notify_script_t *);
