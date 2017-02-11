@@ -20,6 +20,7 @@ parts:
   keepalived:
     plugin: autotools
     source: .
+    source-type: git
     build-packages: [ iptables-dev, libipset-dev, libnl-3-dev,
       libnl-genl-3-dev, libnl-route-3-dev, libnfnetlink-dev,
       libsnmp-dev ]
