@@ -10,8 +10,10 @@ grade: stable
 confinement: classic
 
 apps:
-  keepalived:
+  daemon: # until I can get a daemon to show up in /snap/bin/
     daemon: forking
+    command: sbin/keepalived
+  keepalived:
     command: sbin/keepalived
 
 parts:
