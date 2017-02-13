@@ -55,6 +55,7 @@ CONFIG_OPTS=
 @WITH_DBUS_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-dbus"
 %{?el3:export CPPFLAGS="-I/usr/kerberos/include"}
 %{?rh9:export CPPFLAGS="-I/usr/kerberos/include"}
+autoreconf -f -i
 %configure $CONFIG_OPTS \
 %{?el3:--includedir="/usr/kerberos/include"} \
 %{?rh9:--includedir="/usr/kerberos/include"} \
