@@ -18,6 +18,22 @@ Library dependencies
 Linux flavours
 ==============
 
+RedHat based systems (RedHat Enterprise/CentOS/Fedora)
+------------------------------------------------------
+The following libraries need to be installed:
+	openssl-devel libnl3-devel ipset-devel iptables-devel libnfnetlink-devel
+For SNMP support:
+	net-snmp-devel
+
+Debian/Ubuntu
+-------------
+On Debian, install:
+	pkg-config
+The following libraries need to be installed:
+	iptables-dev libipset-dev libnfnetlink-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev libssl-dev
+For SNMP support:
+	libsnmp-dev
+
 Alpine Linux
 ------------
 The following libraries need to be installed:
