@@ -619,7 +619,12 @@ $(GIT_COMMIT_FILE):
 			GIT_REV=`git describe --tags`; \
 			GIT_TIMESTAMP=`git log -1 --format=%ct`; \
 			GIT_DATE=`date -d "1970-01-01 UTC $${GIT_TIMESTAMP} seconds" +"%m/%d,%Y"`; \
-			GIT_YEAR=`date -d "1970-01-01 UTC $${GIT_TIMESTAMP} seconds" +"%Y"`; \
+			if test -n "$${GIT_DATE}"; then \
+				GIT_YEAR=`date -d "1970-01-01 UTC $${GIT_TIMESTAMP} seconds" +"%Y"`; \
+			else \
+				GIT_DATE=`git log -1 --date=iso | grep Date: | sed -e "s/^[^ ]* *\(....\)-\(..\)-\(..\).*/\2\/\3,\1/"`; \
+				GIT_YEAR=`echo $${GIT_DATE} | sed -e "s/.*,//"`; \
+			fi; \
 			echo $${GIT_REV} | grep -qE -- "-[1-9][0-9]*-g[0-9a-f]{7}$$"; \
 			if [ $$? -eq 0 ]; then \
 				if [ "`git status --porcelain | \

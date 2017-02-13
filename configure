@@ -625,6 +625,8 @@ ac_includes_default="\
 ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
+INIT_OPENRC_FALSE
+INIT_OPENRC_TRUE
 INIT_SYSV_FALSE
 INIT_SYSV_TRUE
 INIT_SYSTEMD_FALSE
@@ -8950,6 +8952,13 @@ else
 			INIT_TYPE=systemd
 		fi
 	fi
+	if test \( -z "$INIT_TYPE" -a -f /etc/init.d/networking -a \
+		   "`which openrc-run`" -a -x "`which openrc-run`" \); then
+		head -1 /etc/init.d/networking | grep -q "^#!/.*/openrc-run$"
+		if test $? -eq 0; then
+			INIT_TYPE=openrc
+		fi
+	fi
 	if test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \); then
 		INIT_TYPE=SYSV
 	fi
@@ -8977,6 +8986,14 @@ fi
 else
   INIT_SYSV_TRUE='#'
   INIT_SYSV_FALSE=
+fi
+
+ if test $INIT_TYPE = openrc; then
+  INIT_OPENRC_TRUE=
+  INIT_OPENRC_FALSE='#'
+else
+  INIT_OPENRC_TRUE='#'
+  INIT_OPENRC_FALSE=
 fi
 
 
@@ -9231,6 +9248,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${INIT_SYSV_TRUE}" && test -z "${INIT_SYSV_FALSE}"; then
   as_fn_error $? "conditional \"INIT_SYSV\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${INIT_OPENRC_TRUE}" && test -z "${INIT_OPENRC_FALSE}"; then
+  as_fn_error $? "conditional \"INIT_OPENRC\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 

@@ -1,0 +1,11 @@
+#!/sbin/openrc-run
+
+command="/sbin/$SVCNAME"
+command_args="$KEEPALIVED_OPTS"
+pidfile="/var/run/$SVCNAME.pid"
+
+depend() {
+	need net
+	after firewall
+}
+
