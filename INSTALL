@@ -15,6 +15,16 @@ Library dependencies
 
   * OpenSSL, <www.openssl.org>
 
+Linux flavours
+==============
+
+Alpine Linux
+------------
+The following libraries need to be installed:
+	iptables-dev ipset-dev libnfnetlink-dev libnl3-dev musl-dev and openssl-dev or libressl-dev
+For SNMP support:
+	net-snmp-dev (requires libressl-dev and not openssl-dev)
+
 Installation
 ============
 
