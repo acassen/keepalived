@@ -1,3 +1,121 @@
+2017-02-14 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.3.3 released.
+	* Fix unitialised use of misck_checker in script timeout.
+	* Fix detection of no netlink being installed.
+	* Fix conditional compilation for LIBIPVS without netlink.
+	* Terminate child processes if parent dies.
+	  If the parent keepalived process is killed, the child processes will
+	  be orphaned and can cause problem when attempting to restart
+	  keepalived. This patch makes use of prctl with PR_SET_PDEATHSIG such
+	  that all child processes will receive SIGTERM if the parent process
+	  dies.
+	* Ensure syslog and mem_check_log open before using them.
+	  A segfault was occuring when --enable-mem-check-log option was
+	  selected, due to attempting to write to the log file before it had
+	  been opened. It was also evident that there could be attempts to
+	  write to syslog before that had been opened too.
+	* Fix building on Centos 7/RHEL 7 re lightweight tunnel encapsulation.
+	  RedHat have partially backported lightweight tunnel encapsulation
+	  into their kernel, but not included MPLS or ILA. We need to have
+	  conditional compilation for LWTUNNEL_ENCAP_MPLS and LWTUNNEL_ENCAP_ILA
+	  rather than just checking for RTA_ENCAP.
+	* Update documentation for tracking scripts weight 0.
+	  weight default is 0, which means tat a failure implies a FAULT state.
+	* Reinstate code checking module ip_vs loaded.
+	  Commit d900df2 removed a bit to much code that looked as though it
+	  wasn't doing anything, with the result that the check of whether the
+	  ip_vs module was loaded didn't occur.
+	  This commit reinstates the code for checking, and if necessary loading,
+	  the ip_vs module, but also sanitises the code slightly.
+	* Fix some more compiler warnings.
+	* Fix a typo in a help message in configure.ac.
+	* sorry_server: keep sorry_server on reload.
+	* sorry_server: set it up on start or reload if quorum is down.
+	  on start: in alpha mode.
+	  on reload: if changed, or no previous sorry_server.
+	* Added doc for priority 4th parameter to notify script.
+	* ipwrapper.c: make functions void if return value not used or constant.
+	  Several functions in check/ipwrapper.c were always returnung the same
+	  value, and the code calling the functions then checked and returned an
+	  error if the return value was not the value always returned. Also, for
+	  some functions returning a value the return value was never checked in
+	  the calling function.
+	  Making the functions void, and removing the if (...) makes the code easier
+	  to read, and potentially slightly more efficient.
+	* Add snapcraft.yaml for CI build publication.
+	* Fix missing documentation for 4th parameter of notify action.
+	* Make builds reproducable, and copyright date reflect latest commit.
+	  Pull request #503 provided an update to facilitate reproducable builds,
+	  and also ensure that the copyright date doesn't postdate the last source
+	  code modification. Unfortunately the commits required manual updates to
+	  change the copyright year, thereby creating maintainability issues. The
+	  commit also allowed fake build dates to be specified.
+	  This commit takes an alternative approach, and takes the dates used for
+	  the copyright message and the version date from the date of the last git
+	  commit.
+	  If the code is build from within a git tree, this is straightforward. On
+	  the other hand, the code may be build from  tarball, so we ensure that
+	  the lib/git-commit.h file is updated when the tarball is built, and
+	  included in the tarball.
+	* Add option to force building without libnl/libnl-3.
+	  This option is really only for test purposes to build keepalived
+	  without libnl even though libnl is installed.
+	* Log errors if configure IPVS with IPv6 if not using libnl.
+	  The socket interface for configurating IPVS does not support IPv6,
+	  so rather than leaving the user with the error message
+	  "Operation not supported with specified address family"
+	  give a meaningful message in the log.
+	  At configure time, a warning will also be generated stating that
+	  IPVS will not support IPv6.
+	* Ensure IPVS address families match.
+	  Don't allow a mixture of IPv4 and IPv6 addresses in a virtual server
+	  group, or within a virtual server.
+	* When dumping an IPVS IPv6 address range, use hex.
+	* Log if virtual_server_group doesn't exists, or address family mismatch.
+	  If a virtual server is configured to use a virtual server group but that
+	  virtual server group doesn't exist, then log an error.
+	  Also, if the address family of the virtual server group and virtual server
+	  don't match, log an error as well.
+	  We really ought to be removing the virtual server from the configuration,
+	  but I haven't worked out how to do that yet.
+	* Don't flag changes to automake/conf generated files as source changes.
+	  The output of keepalived -v adds a '+' if there are uncommitted changes to
+	  the source code. However, we aren't interested in changes to the autoconf
+	  or automake generated files, since these aren't really "source" files, and
+	  are only included in the git repo to allow building on systems without
+	  autoconf/automake. Further, the differences may simply be due to different
+	  versions of autotools being used.
+	* Minor formatting updates to Sphinx documentation.
+	* Enable configure to work with ash.
+	* Handle sysconf() returning -1 for _SC_GETPW_R_SIZE_MAX.
+	* Report ignoring virtual server if group specified doesn't exist.
+	  It's too difficult to remove the virtual server from the configuration,
+	  but the error will be reported in the log, and so the sysadmin should
+	  resolve the configuration.
+	* Updated snapcraft.yaml location.
+	* Move snapcraft and reflect master version.
+	* Add libipset3 to snap stage packages.
+	* Allow for keepalived to be a command in /snap/bin/ as well as a daemon.
+	* Add 'source-type: git' to avoid dirty commit versions.
+	* Update gitignore for clean snap commit versions.
+	* Resolve not adding '+' to git version in snapcraft builds.
+	  This is a temporary workaround to the problem of snapcraft deleting
+	  the snap/snapcraft.yaml file from its clone of the git repo (see
+	  https://bugs.launchpad.net/snapcraft/+bug/1662388 for details).
+	* Add cleaning of snapcraft generated directories/files.
+	* Add support for Alpine Linux.
+	  This commit adds detection and support of the OpenRC init system.
+	* Add details of what libraries are needed for various Linux distros.
+	* Force recreating automake/autoconf files when building with rpm.
+	  If an autoconf/automake source file is patched as part of the rpmbuild
+	  process, then some of the autoconf/automake generated files may be
+	  regenerated, and this can cause a mismatch if the versions of autoconf/
+	  automake on the system building the rpm don't match the versions
+	  that were used to generate the files that have been committed to git.
+	  This patch changes the keepalived.spec file to always run autoreconf -f -i
+	  to ensure the generated autoconf/automake files are aligned to the right
+	  version.
+
 2016-11-26 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.3.2 released.
 	* Correctly handle return code from system() call.

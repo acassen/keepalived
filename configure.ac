@@ -36,7 +36,7 @@ AC_DEFUN([add_build_opt], [add_to_var([BUILD_OPTIONS], [$1])])
 
 dnl ----[ Process this file with autoconf to produce a configure script ]----
 AC_PREREQ([2.65])
-AC_INIT([Keepalived], [1.3.2], [keepalived-devel@lists.sourceforge.net], [], [http://www.keepalived.org/])
+AC_INIT([Keepalived], [1.3.3], [keepalived-devel@lists.sourceforge.net], [], [http://www.keepalived.org/])
 AM_INIT_AUTOMAKE([-Wall -Werror -Woverride foreign])
 
 AC_CONFIG_SRCDIR([keepalived/core/main.c])
@@ -1075,6 +1075,13 @@ else
 			INIT_TYPE=systemd
 		fi
 	fi
+	if test \( -z "$INIT_TYPE" -a -f /etc/init.d/networking -a \
+		   "`which openrc-run`" -a -x "`which openrc-run`" \); then
+		head -1 /etc/init.d/networking | grep -q "^#!/.*/openrc-run$"
+		if test $? -eq 0; then
+			INIT_TYPE=openrc
+		fi
+	fi
 	if test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \); then
 		INIT_TYPE=SYSV
 	fi
@@ -1083,6 +1090,7 @@ if test -z $INIT_TYPE; then INIT_TYPE=undetected; fi
 AM_CONDITIONAL([INIT_UPSTART], [test $INIT_TYPE = upstart])
 AM_CONDITIONAL([INIT_SYSTEMD], [test $INIT_TYPE = systemd])
 AM_CONDITIONAL([INIT_SYSV], [test $INIT_TYPE = SYSV])
+AM_CONDITIONAL([INIT_OPENRC], [test $INIT_TYPE = openrc])
 
 AC_DEFINE_UNQUOTED([CONFIGURATION_OPTIONS], ["$BUILD_OPTIONS"], [The configuration and build options from which the package is built])
 
