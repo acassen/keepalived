@@ -147,7 +147,7 @@ vscript_print(FILE *file, void *data)
 	if (vscript->vrrp)
 		vrrp_print_list(file, vscript->vrrp, &vrrp_name_print);
 	else
-		log_message(LOG_INFO, "     (none)");
+		fprintf(file, "     (none)\n");
 }
 
 static void
