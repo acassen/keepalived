@@ -2506,11 +2506,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 						log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring "
 								 "tracked script %s with weights due to SYNC group", vrrp->iname, sc->scr->sname);
 						free_list_element(vrrp->track_script, e2);
-
-						if (!LIST_SIZE(vrrp->track_script)) {
-							sc->scr->result = VRRP_SCRIPT_STATUS_DISABLED;
-							log_message(LOG_INFO, "Warning - script %s is not used", sc->scr->sname);
-						}
 					}
 				}
 				if (LIST_ISEMPTY(vrrp->track_script))
@@ -2772,6 +2767,18 @@ vrrp_complete_init(void)
 		global_data->lvs_syncd.vrrp_name = NULL;
 	}
 #endif
+
+	/* Identify and remove any unused tracking scripts */
+	if (!LIST_ISEMPTY(vrrp_data->vrrp_script)) {
+		for (e = LIST_HEAD(vrrp_data->vrrp_script); e; e = next) {
+			next = e->next;
+			vrrp_script_t *scr = ELEMENT_DATA(e);
+			if (LIST_ISEMPTY(scr->vrrp)) {
+				log_message(LOG_INFO, "Warning - script %s is not used", scr->sname);
+				free_list_element(vrrp_data->vrrp_script, e);
+			}
+		}
+	}
 
 	alloc_vrrp_buffer(max_mtu_len);
 
