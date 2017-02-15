@@ -1,3 +1,488 @@
+2017-02-14 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.3.3 released.
+	* Fix unitialised use of misck_checker in script timeout.
+	* Fix detection of no netlink being installed.
+	* Fix conditional compilation for LIBIPVS without netlink.
+	* Terminate child processes if parent dies.
+	  If the parent keepalived process is killed, the child processes will
+	  be orphaned and can cause problem when attempting to restart
+	  keepalived. This patch makes use of prctl with PR_SET_PDEATHSIG such
+	  that all child processes will receive SIGTERM if the parent process
+	  dies.
+	* Ensure syslog and mem_check_log open before using them.
+	  A segfault was occuring when --enable-mem-check-log option was
+	  selected, due to attempting to write to the log file before it had
+	  been opened. It was also evident that there could be attempts to
+	  write to syslog before that had been opened too.
+	* Fix building on Centos 7/RHEL 7 re lightweight tunnel encapsulation.
+	  RedHat have partially backported lightweight tunnel encapsulation
+	  into their kernel, but not included MPLS or ILA. We need to have
+	  conditional compilation for LWTUNNEL_ENCAP_MPLS and LWTUNNEL_ENCAP_ILA
+	  rather than just checking for RTA_ENCAP.
+	* Update documentation for tracking scripts weight 0.
+	  weight default is 0, which means tat a failure implies a FAULT state.
+	* Reinstate code checking module ip_vs loaded.
+	  Commit d900df2 removed a bit to much code that looked as though it
+	  wasn't doing anything, with the result that the check of whether the
+	  ip_vs module was loaded didn't occur.
+	  This commit reinstates the code for checking, and if necessary loading,
+	  the ip_vs module, but also sanitises the code slightly.
+	* Fix some more compiler warnings.
+	* Fix a typo in a help message in configure.ac.
+	* sorry_server: keep sorry_server on reload.
+	* sorry_server: set it up on start or reload if quorum is down.
+	  on start: in alpha mode.
+	  on reload: if changed, or no previous sorry_server.
+	* Added doc for priority 4th parameter to notify script.
+	* ipwrapper.c: make functions void if return value not used or constant.
+	  Several functions in check/ipwrapper.c were always returnung the same
+	  value, and the code calling the functions then checked and returned an
+	  error if the return value was not the value always returned. Also, for
+	  some functions returning a value the return value was never checked in
+	  the calling function.
+	  Making the functions void, and removing the if (...) makes the code easier
+	  to read, and potentially slightly more efficient.
+	* Add snapcraft.yaml for CI build publication.
+	* Fix missing documentation for 4th parameter of notify action.
+	* Make builds reproducable, and copyright date reflect latest commit.
+	  Pull request #503 provided an update to facilitate reproducable builds,
+	  and also ensure that the copyright date doesn't postdate the last source
+	  code modification. Unfortunately the commits required manual updates to
+	  change the copyright year, thereby creating maintainability issues. The
+	  commit also allowed fake build dates to be specified.
+	  This commit takes an alternative approach, and takes the dates used for
+	  the copyright message and the version date from the date of the last git
+	  commit.
+	  If the code is build from within a git tree, this is straightforward. On
+	  the other hand, the code may be build from  tarball, so we ensure that
+	  the lib/git-commit.h file is updated when the tarball is built, and
+	  included in the tarball.
+	* Add option to force building without libnl/libnl-3.
+	  This option is really only for test purposes to build keepalived
+	  without libnl even though libnl is installed.
+	* Log errors if configure IPVS with IPv6 if not using libnl.
+	  The socket interface for configurating IPVS does not support IPv6,
+	  so rather than leaving the user with the error message
+	  "Operation not supported with specified address family"
+	  give a meaningful message in the log.
+	  At configure time, a warning will also be generated stating that
+	  IPVS will not support IPv6.
+	* Ensure IPVS address families match.
+	  Don't allow a mixture of IPv4 and IPv6 addresses in a virtual server
+	  group, or within a virtual server.
+	* When dumping an IPVS IPv6 address range, use hex.
+	* Log if virtual_server_group doesn't exists, or address family mismatch.
+	  If a virtual server is configured to use a virtual server group but that
+	  virtual server group doesn't exist, then log an error.
+	  Also, if the address family of the virtual server group and virtual server
+	  don't match, log an error as well.
+	  We really ought to be removing the virtual server from the configuration,
+	  but I haven't worked out how to do that yet.
+	* Don't flag changes to automake/conf generated files as source changes.
+	  The output of keepalived -v adds a '+' if there are uncommitted changes to
+	  the source code. However, we aren't interested in changes to the autoconf
+	  or automake generated files, since these aren't really "source" files, and
+	  are only included in the git repo to allow building on systems without
+	  autoconf/automake. Further, the differences may simply be due to different
+	  versions of autotools being used.
+	* Minor formatting updates to Sphinx documentation.
+	* Enable configure to work with ash.
+	* Handle sysconf() returning -1 for _SC_GETPW_R_SIZE_MAX.
+	* Report ignoring virtual server if group specified doesn't exist.
+	  It's too difficult to remove the virtual server from the configuration,
+	  but the error will be reported in the log, and so the sysadmin should
+	  resolve the configuration.
+	* Updated snapcraft.yaml location.
+	* Move snapcraft and reflect master version.
+	* Add libipset3 to snap stage packages.
+	* Allow for keepalived to be a command in /snap/bin/ as well as a daemon.
+	* Add 'source-type: git' to avoid dirty commit versions.
+	* Update gitignore for clean snap commit versions.
+	* Resolve not adding '+' to git version in snapcraft builds.
+	  This is a temporary workaround to the problem of snapcraft deleting
+	  the snap/snapcraft.yaml file from its clone of the git repo (see
+	  https://bugs.launchpad.net/snapcraft/+bug/1662388 for details).
+	* Add cleaning of snapcraft generated directories/files.
+	* Add support for Alpine Linux.
+	  This commit adds detection and support of the OpenRC init system.
+	* Add details of what libraries are needed for various Linux distros.
+	* Force recreating automake/autoconf files when building with rpm.
+	  If an autoconf/automake source file is patched as part of the rpmbuild
+	  process, then some of the autoconf/automake generated files may be
+	  regenerated, and this can cause a mismatch if the versions of autoconf/
+	  automake on the system building the rpm don't match the versions
+	  that were used to generate the files that have been committed to git.
+	  This patch changes the keepalived.spec file to always run autoreconf -f -i
+	  to ensure the generated autoconf/automake files are aligned to the right
+	  version.
+
+2016-11-26 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.3.2 released.
+	* Correctly handle return code from system() call.
+	  If we want to check for an exit status, WIFEXITED(ret) must be
+	  checked first.
+	* Fix compilation where SNMP enabled.
+	* Fix a couple of SNMP errors.
+	  The length of KEEPALIVED-MIB::version was being returned a sizeof(char *)
+	  rather than strlen(char *).
+	  VRRPv3 vrrpv3GlobalStatisticsDiscontinuityTime was being completely
+	  mishandled.
+	* Add additional files needed to build from git without autoconf.
+	* Don't save and restore current directory twice with config includes.
+	* Don't recognise an executable file as a configuration file.
+	* Allow maximum path names for configuration files.
+	* Don't check for include file after reaching EOF.
+	* Fix a segfault if terminating at startup do to interface not found.
+	* notify: log error while performing set{gid,uid}.
+	  Log error message while setting goup and user before system call.
+	  Maybe we should avoid system call on error if {gid,uid} are used, would
+	  be more secure.
+	* Don't execute a script if setuid or setgid fails.
+	  This was suggested in the comment of commit 849615d and is clearly
+	  the right (secure) thing to do.
+	* If a script doesn't have a '/' in the name, search PATH for it.
+	  This also handles spaces in script specifications where they are
+	  parameters.
+	* Don't allow accept when strict mode set if not address owner.
+	  This commit changes keepalived from just issuing a warning to also
+	  disable accept mode when strict mode is set.
+	  Patch submitted by levin1.
+	* Added init_fail setting to assume failed state for vrrp_script during
+	  startup of keepalived.
+	* When checking script security check set uid/gid bits too.
+	  Although the setuid/gid bits are ignored for scripts, they are
+	  not ignored for binary executables, and there is no point in having
+	  the bits set for scripts. So we play safe, and simply check those
+	  bits, and don't attempt to ascertain if it is a script or not.
+	* Disable scripts that aren't executable.
+	  system() on a non-executable script will fail, so we may as well
+	  just not try executing such a script.
+	* Exit if can't read configuration file.
+	  If we have no configuration, we have nothing to run, so exit.
+	* Don't chdir("/") if not forking.
+	  In keepalived_main() there is a comment that the working directory
+	  is / unless keepalived is run in non-forked mode, in which case it
+	  remains the current working directory when keepalived was run.
+	  Unfortunately start_vrrp_child() and start_check_child() were
+	  executing chdir("/") regardless of whether they had been forked or not.
+	  Since the parent process does chdir("/") if it is appropriate, the
+	  children will inherit that, so they don't need to chdir() at all.
+	* Only set umask(0) in parent process.
+	  The children inherit it from the parent, so no need to set it in
+	  the vrrp or checker child processes.
+	* Further changes for script init state failed.
+	* notify: use _GNU_SOURCE.
+	  Just to make compiler happy about inconsitent declaration of mempcpy
+	  and strchrnul. Just cosmetics here.
+
+2016-11-21 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.3.1 released.
+	* Ensure lists aren't empty when checking script security.
+	* Correctly check security of scripts with parameters, and check
+	  checker notify/quorum scripts
+	* Check security of real/virtual server notify scripts.
+	* Handle space in filenames appropriately when checking script security.
+	  The generic notify scripts can have spaces in their filenames, all other
+	  scripts spaced delineate parameters.
+
+2016-11-20 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.3.0 released.
+	* Add DBus functionality to VRRP.
+	  Add new pthread off VRRP to expose DBUs service org.keepalived.Vrrp1
+	  through a GMainLoop.
+	  Create a general /org/keepalived/Vrrp1/Vrrp DBus
+	  object and a /org/keepalived/Vrrp1/Instance/#interface#/#group# object for
+	  each VRRP instance.
+	  Interface org.keepalived.Vrrp1.Vrrp implements methods PrintData,
+	  PrintStats and signal VrrpStopped.
+	  Interface com.keepalived.Vrrp1.Instance implements method SendGarp
+	  (sends a single Gratuitous ARP from the given Instance),
+	  signal VrrpStatusChange, and properties Name and State (retrievable
+	  through calls to org.freedesktop.DBus.Properties.Get)
+	  Interface files are located at location /usr/share/dbus-1/interfaces/
+	  A policy file, which determines who has access to the service, is
+	  located at /etc/dbus-1/system.d/
+	* Resolve DBus working after a reload
+	  thread_destroy_list() was closing file descriptors of read and write
+	  threads, but we wanted the DBus pipes to remain open. It transpires that
+	  closing the fds in thread_destroy_list() is unnecessary, since they are
+	  closed elsewhere anyway, so stop closing the fds in thread_destroy_list().
+	* Add stronger compiler warnings (-Wextra).
+	  The following bugs were discovered:
+	  check_smnp_realserver_weight()
+		comparison if unsigned value < 0
+	  alloc_ipaddress()
+	    comparison of unsigned == -1 and not checking
+	    return status of find_rttables_scope() correctly
+	  read_line()
+	    accessing element buf[18446744073709551615]
+	    ie. buf[2^64-1], which is the same as buf[-1].
+	  The following improvements to the code were made:
+	  Many unused function parameters
+	  either removed or marked unused
+	  Many signed vs. unsigned comparisons
+	  In most cases variables change to be unsigned
+	  Lengths being stored in signed variables
+	* Rationalise checking of libnl-3.
+	* Bring generation of rpmbuild keepalived.spec file up to date
+	  The keepalived.spec file is now created to match the options passed
+	  to configure. It also detects if the system init process is systemd,
+	  upstart or the traditional SYSV init system.
+	* Add more BuildRequires to keepalived.spec.in.
+	* Further improvements to keepalived.spec.in for systemd systems
+	* Change some configure.ac variable names due to using PKG_PROG_PKG_CONFIG
+	* Fix configure.ac to make RedHat hardened rpm builds work
+	  CFLAGS, CPPFLAGS and LIBS variables were not being preserved by
+	  configure.ac, and this caused needed CFLAGS to be lost when
+	  configure was run, resulting in a build failure.
+	  This commit ensures the flags are all preserved.
+	* Allow for automake macro AM_PROG_AR not existing.
+	* Add support for UDP socket to layer4 library.
+	* Add DNS checker.
+	* Update documentation for DNS health checker.
+	* Fix compile check for PE selection support.
+	* Add file missing from add-dns-checker commit.
+	* Update commits for correctly checking for IPVS_SVC_ATTR_PE_NAME.
+	  The upadted configure and lib/config.h.in weren't included in the commits,
+	  and to be consistent the comment on what Linux version introduced the feature
+	  is in configure.ac if the test exists in configure.ac
+	* Fix conditional compilation test for FRA_OIFNAME.
+	* Fix compilation test for IFLA_INET6_ADDR_GEN_MODE.
+	* Fix compilation test for IPVS_DEST_ATTR_ADDR_FAMILY.
+	* Fix compilation test for IPVS_DEST_ATTR_STATS64 and IPVS_SVC_ATTR_STATS64.
+	* Fix compilation test for RTA_VIA.
+	* Fix compilation test for CLONE_NEWNET for DBus.
+	* Fix issue of overwriting the original disposition of signals.
+	* Improve forced termination of script execution process and its offspring.
+	* Improve propagate important signal for the script process groups.
+	* Use argument instead of static variable.
+	* Fix bug around the process group.
+	* Use SIGTERM instead of SIGHUP.
+	* Stop linking with -lipset.
+	  libipset (if used) is dynamically linked at runtime, and so keepalived
+	  shouldn't be linked with -lipset.
+	  Linking with -lipset was erroneously added when converting the build
+	  system to use automake.
+	* Report diagnostic message if dlopen() fails.
+	* Fix loading of ipset library when development library not installed.
+	* Don't use ipsets with namespaces on Linux < 3.13 by default.
+	  On Linux prior to version 3.13, ipsets were not network namespace
+	  aware, so by default the use if ipsets is disabled if keepalived
+	  is running in a network namespace. Configuration keyword
+	  'namespace_with_ipsets' enables ipset use with a network namespace
+	  on these older kernels.
+	* Fix reporting of script exit status.
+	* Update documentation and fix compiler warning re ipset with Linux < 3.13
+	* Make report_child_status() check for vrrp and checker child processes
+	  report_child_status() checks for exit status KEEPALIVED_EXIT_FATAL
+	  and KEEPALIVED_EXIT_CONFIG, but these are only relevant for the vrrp
+	  and checker child processes, and not for track scripts etc. This commit
+	  adds a check that the terminating process is the vrrp or checker process
+	  before checking those exit statuses.
+	* Add no_accept mode for VRRPv2 and standardise VRRPv3 with it
+	  RFC3768, for VRRPv2, specifies that packets addressed to the VIPs
+	  should not be accepted, unless the router is the address owner.
+	  This commit implements not accepting the packets when running VRRPv2,
+	  but only if no_accept is specified, or running in strict mode. The reason
+	  for not making no_accept the default (which would confirm to the RFCs) is
+	  that if running IPVS, or any other service on top of the VIPs, we need to
+	  be able to accept the packets, and requiring everyone to specify accept
+	  in that case would not be reasonable.
+	  Prior to this commit, VRRPv3 was blocking packets sent to VIPs (and eVIPS),
+	  unless the vrrp instance was the address owner, or accept mode was set. This
+	  commit changes the default behaviour for VRRPv3 to make it consistent with
+	  VRRPv2 (i.e. either strict mode or no_accept needs to be specified to be
+	  conformant with RFC5978).
+	* Tidy up logged messages if ipset initialisation fails.
+	* Streamline MII polling.
+	  We only need to read 2 MII registers, and not 32 as was previously being
+	  done.
+	  This commit also uses the <linux/mii.h> header file for field and
+	  register definitions.
+	* Simplify bitops.h code.
+	* Resolve warnings generated with compiler option -Dconversion.
+	  Most of the warnings were resolved by changing the data types of some
+	  variables. Others required casting, particularly where kernel interfaces
+	  are involved.
+	  There were a few instances discovered that were errors, for example comparing
+	  an unsigned int against -1, and assigning a 16 bit value to a uint8_t.
+	  This commit also adds configure options --enable-conversion-checks and
+	  --enable-force-conversion-checks, the former adds compiler option -Dconversion
+	  unless the compiler is an old version that throws up false warnings. Option
+	  --enable-force-conversion-checks adds -Dconversion even if the compiler throws
+	  up known false warnings.
+	* Fix some minor errors/typos in doc/keepalived.conf.SYNOPSIS.
+	* Fix keyword error in sample configuration.
+	* Fix typo in genhash error message.
+	* Fix address ranges for virtual server groups
+	  The handling of address ranges was only written for IPv4 addresses, and
+	  only worked on little endian systems.
+	  This commit enables IPv6 address ranges to work, and also should now
+	  work on big endian systems (but I don't have access to a big endian system
+	  to test it). Validation is added to ensure that the end of the range is after
+	  the start of the range, and that the value of the range end does not exceed
+	  255 (for IPv4) of ffff (for IPv6).
+	  There is also some optimisation of the code, so that netmask is not set (since
+	  it isn't used by the kernel), and the port is set once only, before the loop
+	  through the addresses.
+	* Add --enable-Werror configure option.
+	* Add promote_secondaries keyword for vrrp_instance block.
+	  If two IPv4 VIP addresses are in the same CIDR, and the primary
+	  address is removed, then by default any other address in the same CIDR is
+	  also removed. To stop this happening, the promote_secondaries flag
+	  needs to be set on the interface.
+	  Commit e5526cf added setting the promote_secondaries option on
+	  VMAC interfaces, and stated that adding the option for non-VMAC
+	  interfaces would be added later. This commit now adds a
+	  promote_secondaries configuration option in order to set the flag
+	  on the interface.
+	* Add reporting of promote_secondaries configuration setting.
+	* Add conditional configuration feature
+	  It is usually the case that the configurations for keepalived for
+	  systems operating together are virtually identical, and only differ
+	  in vrrp instance priorities, router id, and unicast addresses if
+	  those are being used.
+	  It is a nuisance to have to edit one file for each server to make
+	  identical changes, so this commit adds the facility for conditional
+	  configuration entries.
+	  Any line starting with the '@' character is a conditional line.
+	  Immediately following the '@' character is a config id. The line is
+	  only included in the configuration if the config id matches the
+	  argument passed to keepalived with the -i option on the command line.
+	  For example, consider the following configuration snippet:
+	  global_defs
+	  {
+	    @main       router_id main_router
+	    @backup router_id backup_router
+	  }
+	  If keepalived is started with -i main, then the router id will be
+	  main_router, if started with -i backup, then backup_router. If
+	  keepalived is started without the -i option, or -i anything else,
+	  then the above snippet will not configure any router id.
+	* Fix building with --disable-vrrp.
+	* Stop segfaulting when configuration keyword is missing its parameter
+	  There are many places where during configuration parsing the code
+	  assumes that if a keyword is specified that requires a parameter, then
+	  the parameter exists. If the parameter doesn't exist, then the code
+	  indexes past the end of the vector, and at best segfaults, and at worst
+	  may carry on, parsing random data.
+	  This commit adds strvec_slot() which checks for the presence of the
+	  parameter, and if configured will call a function that can handle the
+	  error. Currently this logs that the parameter is missing, with as much
+	  helpful information as it can provide, and then terminates.
+	* Use FMT_STR_VSLOT where appropriate.
+	* Use TIMER_HZ where appropriate.
+	* Fix comment and error message re http write timeout.
+	* More verbose logging on (effective) priorities pt. 2.
+	* Change configure option --enable-snmp-keepalived to --enable-snmp-vrrp
+	  The option was enabling snmp for vrrp, not all of keepalived (the
+	  --enable-snmp option does that), so this commit renames it to reflect
+	  what it is actually doing.
+	  The --enable-snmp-keepalived option is retained but marked as obsolete.
+	* Use AS_HELP_STRING autoconf macro.
+	* Fix process increase
+	* Add forcing termination of children of scripts if script times out
+	  Commits fe9638b..cebfbf5 resolved problems around forced termination
+	  of scripts if they didn't terminate within the proscribed time. During
+	  the development of the patches, it was identified that after a script
+	  had been terminated by SIGTERM, any child processes created by the
+	  script also need to be kill.
+	  This commit adds the forced termination of any such children.
+	* Correctly handle existing VMACs on reload.
+	  Anthony Dempsey in issue #449 identified that
+	  keepalived attempts to recreate existing VMAC interfaces on a reload,
+	  and that the subsequent failure causes keepalived not to use the VMAC.
+	  This then identified further issues such as the check for an existing
+	  VMAC in netlink_link_add_vmac() didn't also check the interface a
+	  VMAC was on, and that the checks for conflicts of VMAC interface names
+	  with existing interfaces weren't sufficient.
+	  This patch builds on the patch provided by Anthony Dempsey to also
+	  resolve the additional issues identified.
+	* Fix check of matching VRRP instances on reload.
+	  On a reload, clear_diff_vrrp() removes vrrp instances that are no
+	  longer in the configuration. The check, however, was based on vrrp
+	  instance name, which might have changed. The check is now based on
+	  VRID, address family and interface, since it is this triplet that
+	  uniquely defines a vrrp instance.
+	* Fix clearing addresses no longer used after a reload.
+	  The address comparison was including ifa_index, but that wasn't being
+	  set up until after clear_diff_vrrp() was called.
+	* Don't zero the mem_allocated count during reload.
+	  We want to know if there is a leak during reload, so don't zero the
+	  counter.
+	* Ensure iptables/sets entries and ip routes/rules not lost on reload.
+	  There were several places in the code that were causing existing
+	  iptables/ipsets entries to be lost on reload, and also new entries
+	  for additional ip addresses were deleted after being added. In
+	  addition, ip rules/routes for existing entries were being removed.
+	* Ensure GARPs/GNAs are sent after reload if VIP/eVIP addresses added.
+	  Although there have been versions of keepalived when GARPs/GNAs were
+	  sent after a reload, this was due to a bug in determining if the VRRP
+	  instance had existed before. Resolving that bug (commit aaea8a4),
+	  caused keepalived to stop sending GARPs after a reload. This commit
+	  now specifically adds code to send GARPs on a VRRP instance for all
+	  addresses on that instance. It would be better if GARPs were sent only
+	  for the added addresses, and that may be resolved in a future commit.
+	* Use correct interface for iptables/ipset entries when not accept mode
+	  If an interface was specified for a VIP/eVIP, the iptables/ipset block
+	  if not in accept mode for link local IPV6 addresses was specifying the
+	  interface the vrrp instance was on rather than the interface the address
+	  was added to.
+	  This commit now makes the iptables/ipset entry specify the interface that
+	  the address has been added to.
+	* Resolve "Netlink: error: message truncated" messages.
+	  On systems with a page size larger than 4096 keepalived may report:
+	  "Netlink: error: message truncated" messages
+	  This error was reported on a ppc64le in an OpenStack/Nutron environment.
+	  Ppc64le is using a 64k pages size. I found that keepalived's netlink recvmsg
+	  buffer was too small causing messages to be truncated. The size of the read
+	  buffer for the netlink socket should be based on page size however, it should
+	  not exceed 8192. See the comment in the patch.
+	  I tested the fix by creating 100 veth interfaces and verifying the errors
+	  did not return.
+	* Use ipsets with namespaces on Linux < 3.13 if ipset names configured.
+	  The problem with using ipsets with namespaces on Linux < 3.13 is that
+	  ipsets were not namespace aware, and so all ipset entries added are
+	  global to the system, including all network namespaces. This causes
+	  problems if the default ipset names are used, but if set names have
+	  been specified, it is reasonable that they have been set to be
+	  different for each namespace, and hence there will be no clashes.
+	  The documentation is also updated for vrrp_ipsets keyword.
+	* Don't write MEM_CHECK data to log when forked script child terminates.
+	  The mem check log file was being filled with extraneous termination
+	  information every time a forked child terminated. When a child is forked
+	  it now sets a flag to stop the termination dump.
+	* Fix illegal syntax in configure script
+	  Indirect expansion (`${!foo}`) is a bashism, it's not POSIX-sh
+	  compatible and is not supported by common shells except Bash and ZSH!
+	  Configure script should be portable, hence strictly POSIX compliant.
+	  Moreover it has shebang /bin/sh.
+	* Make running scripts more secure
+	  Previously, keepalived ran all scripts as root. This is potentially
+	  dangerous if a non-root user can modify the script, or has write
+	  access to any part of the path to the script.
+	  This commit does the following:
+	  1) Adds configuration options to specify the user/group under which to
+	     run each script
+	  2) Adds an option to set the default script user/group. If this is not
+	     set it will default to user keepalived_script if that user exists,
+	     otherwise it will default to root, as before.
+	  3) If a script is to be executed with root privilege, report if it is
+	     writeable in any way by a non-root user.
+	  4) Add an option enable_script_security so that any scripts failing
+	  3) above won't be executed.
+	  5) Report if any scripts are not executable by the relevant user.
+	* Fix some lead tab/space issues.
+	* Fix segfault when terminating with no notify script configured.
+	* Fix compiler warning generated with --enable-conversion-checks.
+	* Don't segfault if modules ip_tables or ip6_tables not loaded
+	  If either of the modules is not loaded, then don't use ip(6)tables for
+	  that address family. We could load the module, but there would be no
+	  entries pointing to the chains that we use, and so there is no point
+	  adding entries to chains that won't be traversed.
+	* Resolve some type mismatch warnings on 32 bit systems.
+	* Fix checking security of misc_check scripts.
+
 2016-09-11 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.24 released.
 	* Declare and use default value for garp_refresh.

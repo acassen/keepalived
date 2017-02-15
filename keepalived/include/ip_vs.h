@@ -38,7 +38,7 @@ struct ip_vs_service_app {
 	struct ip_vs_service_user user;
 	u_int16_t		af;
 	union nf_inet_addr	nf_addr;
-#ifdef IPVS_SVC_ATTR_PE_NAME
+#ifdef _HAVE_PE_NAME_
 	char			pe_name[IP_VS_PENAME_MAXLEN];
 #endif
 };
@@ -55,7 +55,7 @@ struct ip_vs_service_entry_app {
 	ip_vs_stats_t		stats;
 	u_int16_t		af;
 	union nf_inet_addr	nf_addr;
-#ifdef IPVS_SVC_ATTR_PE_NAME
+#ifdef _HAVE_PE_NAME_
 	char			pe_name[IP_VS_PENAME_MAXLEN];
 #endif
 
@@ -123,13 +123,13 @@ struct ip_vs_daemon_app {
 
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 	/* UDP Payload Size */
-	int			sync_maxlen;
+	uint16_t		sync_maxlen;
 
 	/* Multicast Port (base) */
 	u_int16_t		mcast_port;
 
 	/* Multicast TTL */
-	u_int16_t		mcast_ttl;
+	u_int8_t		mcast_ttl;
 
 	/* Multicast Address Family */
 	u_int16_t		mcast_af;

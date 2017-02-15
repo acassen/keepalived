@@ -50,11 +50,15 @@ init_DATA		= etc/init.d/keepalived
 endif
 
 if INIT_SYSTEMD
-systemddir		= /lib/systemd/system
-systemd_DATA		= keepalived.service
+systemdsystemunit_DATA	= keepalived.service
 endif
 
 if INIT_UPSTART
 initdir			= $(sysconfdir)/init
 init_DATA		= etc/init/keepalived.conf
+endif
+
+if INIT_OPENRC
+initdir			= $(sysconfdir)/init.d
+init_DATA		= etc/openrc/keepalived
 endif

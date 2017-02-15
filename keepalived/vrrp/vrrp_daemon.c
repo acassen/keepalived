@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include <string.h>
+#include <sys/prctl.h>
 
 #include "vrrp_daemon.h"
 #include "vrrp_scheduler.h"
@@ -45,6 +46,7 @@
 #include "daemon.h"
 #include "logger.h"
 #include "signals.h"
+#include "notify.h"
 #include "process.h"
 #include "bitops.h"
 #include "rttables.h"
@@ -119,6 +121,9 @@ stop_vrrp(int status)
 	}
 #endif
 
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
+
 	/* We mustn't receive a SIGCHLD after master is destroyed */
 	signal_handler_destroy();
 
@@ -168,10 +173,6 @@ start_vrrp(void)
 
 	global_data = alloc_global_data();
 
-#ifdef _HAVE_LIBIPTC_
-	iptables_init();
-#endif
-
 	/* Parse configuration file */
 	vrrp_data = alloc_vrrp_data();
 	if (!vrrp_data) {
@@ -188,6 +189,10 @@ start_vrrp(void)
 
 	if (global_data->vrrp_no_swap)
 		set_process_dont_swap(4096);	/* guess a stack size to reserve */
+
+#ifdef _HAVE_LIBIPTC_
+	iptables_init();
+#endif
 
 #ifdef _WITH_SNMP_
 	if (!reload && (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {
@@ -226,7 +231,6 @@ start_vrrp(void)
 		clear_diff_srules();
 		clear_diff_sroutes();
 #endif
-		clear_diff_vrrp();
 		clear_diff_script();
 	}
 	else {
@@ -253,8 +257,13 @@ start_vrrp(void)
 	}
 
 #ifdef _HAVE_LIBIPTC_
-	iptables_startup();
+	iptables_startup(reload);
 #endif
+
+	/* clear_diff_vrrp must be called after vrrp_complete_init, since the latter
+	 * sets ifa_index on the addresses, which is used for the address comparison */
+	if (reload)
+		clear_diff_vrrp();
 
 #ifdef _WITH_DBUS_
 	if (reload && global_data->enable_dbus)
@@ -328,7 +337,7 @@ sigend_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 vrrp_signal_init(void)
 {
-	signal_handler_init();
+	signal_handler_init(0);
 	signal_set(SIGHUP, sighup_vrrp, NULL);
 	signal_set(SIGINT, sigend_vrrp, NULL);
 	signal_set(SIGTERM, sigend_vrrp, NULL);
@@ -343,6 +352,9 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 {
 	/* set the reloading flag */
 	SET_RELOAD;
+
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
 
 	/* Destroy master thread */
 	vrrp_dispatcher_release(vrrp_data);
@@ -374,9 +386,6 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 	reset_interface_queue();
 
 	/* Reload the conf */
-#ifdef _MEM_CHECK_
-	mem_allocated = 0;
-#endif
 	start_vrrp();
 
 #ifdef _WITH_LVS_
@@ -445,7 +454,6 @@ start_vrrp_child(void)
 {
 #ifndef _DEBUG_
 	pid_t pid;
-	int ret;
 	char *syslog_ident;
 
 	/* Initialize child process */
@@ -465,6 +473,7 @@ start_vrrp_child(void)
 				 pid, RESPAWN_TIMER);
 		return 0;
 	}
+	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	signal_handler_destroy();
 
@@ -498,15 +507,6 @@ start_vrrp_child(void)
 	/* Create the new master thread */
 	thread_destroy_master(master);	/* This destroys any residual settings from the parent */
 	master = thread_make_master();
-
-	/* change to / dir */
-	ret = chdir("/");
-	if (ret < 0) {
-		log_message(LOG_INFO, "VRRP child process: error chdir");
-	}
-
-	/* Set mask */
-	umask(0);
 #endif
 
 	/* If last process died during a reload, we can get there and we
@@ -524,7 +524,6 @@ start_vrrp_child(void)
 	launch_scheduler();
 
 	/* Finish VRRP daemon process */
-//TODO - stop_vrrp doesn't return
 	stop_vrrp(EXIT_SUCCESS);
 
 	/* unreachable */

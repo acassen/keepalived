@@ -13,20 +13,20 @@ keepalived-*.tar.gz
 Makefile
 
 # http://www.gnu.org/software/autoconf
-/ar-lib
+# /ar-lib
 /autom4te.cache
 /autoscan.log
 /autoscan-*.log
-/aclocal.m4
-/compile
+# /aclocal.m4
+# /compile
 /config.cache
 #/config.h.in
 /config.log
 /config.status
 /configure.scan
-/depcomp
+# /depcomp
 /install-sh
-/missing
+# /missing
 stamp-h?
 
 .deps/
@@ -35,3 +35,9 @@ stamp-h?
 # lib/config.h.in
 # Makefile.in
 # /configure
+
+# For snap builds
+parts/
+prime/
+stage/
+keepalived*.snap

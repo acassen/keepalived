@@ -32,6 +32,7 @@
 #ifdef _WITH_SNMP_CHECKER_
   #include "check_snmp.h"
 #endif
+#include "global_data.h"
 
 /* out-of-order functions declarations */
 static void update_quorum_state(virtual_server_t * vs);
@@ -56,7 +57,7 @@ weigh_live_realservers(virtual_server_t * vs)
 }
 
 /* Remove a realserver IPVS rule */
-static int
+static void
 clear_service_rs(virtual_server_t * vs, list l)
 {
 	element e;
@@ -80,7 +81,7 @@ clear_service_rs(virtual_server_t * vs, list l)
 			 */
 			if (rs->notify_down) {
 				log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
-						    , rs->notify_down
+						    , rs->notify_down->name
 						    , FMT_RS(rs)
 						    , FMT_VS(vs));
 				notify_exec(rs->notify_down);
@@ -101,7 +102,7 @@ clear_service_rs(virtual_server_t * vs, list l)
 				vs->quorum_state = DOWN;
 				if (vs->quorum_down) {
 					log_message(LOG_INFO, "Executing [%s] for VS %s"
-							    , vs->quorum_down
+							    , vs->quorum_down->name
 							    , FMT_VS(vs));
 					notify_exec(vs->quorum_down);
 				}
@@ -111,12 +112,10 @@ clear_service_rs(virtual_server_t * vs, list l)
 			}
 		}
 	}
-
-	return 1;
 }
 
 /* Remove a virtualserver IPVS rule */
-static int
+static void
 clear_service_vs(virtual_server_t * vs)
 {
 	/* Processing real server queue */
@@ -124,19 +123,18 @@ clear_service_vs(virtual_server_t * vs)
 		if (vs->s_svr) {
 			if (ISALIVE(vs->s_svr))
 				ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
-		} else if (!clear_service_rs(vs, vs->rs))
-			return 0;
+		} else
+			clear_service_rs(vs, vs->rs);
 		/* The above will handle Omega case for VS as well. */
 	}
 
 	ipvs_cmd(LVS_CMD_DEL, vs, NULL);
 
 	UNSET_ALIVE(vs);
-	return 1;
 }
 
 /* IPVS cleaner processing */
-int
+void
 clear_services(void)
 {
 	element e;
@@ -145,23 +143,20 @@ clear_services(void)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
-		if (!clear_service_vs(vs))
-			return 0;
+		clear_service_vs(vs);
 	}
-	return 1;
 }
 
 /* Set a realserver IPVS rules */
-static int
+static bool
 init_service_rs(virtual_server_t * vs)
 {
 	element e;
 	real_server_t *rs;
 
 	if (LIST_ISEMPTY(vs->rs)) {
-		log_message(LOG_WARNING, "VS [%s] has no configured RS! Skipping RS activation."
-				       , FMT_VS(vs));
-		return 1;
+		log_message(LOG_WARNING, "VS [%s] has no configured RS! Skipping RS activation.", FMT_VS(vs));
+		return true;
 	}
 
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
@@ -169,7 +164,7 @@ init_service_rs(virtual_server_t * vs)
 
 		if (rs->reloaded) {
 			if (rs->iweight != rs->pweight)
-				update_svr_wgt(rs->iweight, vs, rs, 0);
+				update_svr_wgt(rs->iweight, vs, rs, false);
 			/* Do not re-add failed RS instantly on reload */
 			continue;
 		}
@@ -183,7 +178,7 @@ init_service_rs(virtual_server_t * vs)
 		}
 	}
 
-	return 1;
+	return true;
 }
 
 static void
@@ -219,7 +214,7 @@ sync_service_vsg(virtual_server_t * vs)
 }
 
 /* Set a virtualserver IPVS rules */
-static int
+static bool
 init_service_vs(virtual_server_t * vs)
 {
 	/* Init the VS root */
@@ -230,22 +225,23 @@ init_service_vs(virtual_server_t * vs)
 
 	/* Processing real server queue */
 	if (!init_service_rs(vs))
-		return 0;
+		return false;
 
 	if (vs->reloaded) {
 		if (vs->vsgname)
 			/* add reloaded dests into new vsg entries */
 			sync_service_vsg(vs);
-
-		/* we may have got/lost quorum due to quorum setting changed */
-		update_quorum_state(vs);
 	}
 
-	return 1;
+	/* we may have got/lost quorum due to quorum setting changed */
+	/* also update, in case we need the sorry server in alpha mode */
+	update_quorum_state(vs);
+
+	return true;
 }
 
 /* Set IPVS rules */
-int
+bool
 init_services(void)
 {
 	element e;
@@ -255,14 +251,14 @@ init_services(void)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
 		if (!init_service_vs(vs))
-			return 0;
+			return false;
 	}
-	return 1;
+	return true;
 }
 
 /* add or remove _alive_ real servers from a virtual server */
 static void
-perform_quorum_state(virtual_server_t *vs, int add)
+perform_quorum_state(virtual_server_t *vs, bool add)
 {
 	element e;
 	real_server_t *rs;
@@ -278,9 +274,9 @@ perform_quorum_state(virtual_server_t *vs, int add)
 		if (!ISALIVE(rs)) /* We only handle alive servers */
 			continue;
 		if (add)
-			rs->alive = 0;
+			rs->alive = false;
 		ipvs_cmd(add?LVS_CMD_ADD_DEST:LVS_CMD_DEL_DEST, vs, rs);
-		rs->alive = 1;
+		rs->alive = true;
 	}
 }
 
@@ -296,7 +292,7 @@ update_quorum_state(virtual_server_t * vs)
 	if (vs->quorum_state == DOWN &&
 	    weight_sum >= up_threshold) {
 		vs->quorum_state = UP;
-		log_message(LOG_INFO, "Gained quorum %lu+%lu=%li <= %li for VS %s"
+		log_message(LOG_INFO, "Gained quorum %u+%u=%ld <= %ld for VS %s"
 				    , vs->quorum
 				    , vs->hysteresis
 				    , up_threshold
@@ -309,31 +305,29 @@ update_quorum_state(virtual_server_t * vs)
 					    , FMT_VS(vs));
 
 			ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
-			vs->s_svr->alive = 0;
+			vs->s_svr->alive = false;
 
 			/* Adding back alive real servers */
-			perform_quorum_state(vs, 1);
+			perform_quorum_state(vs, true);
 		}
 		if (vs->quorum_up) {
 			log_message(LOG_INFO, "Executing [%s] for VS %s"
-					    , vs->quorum_up
+					    , vs->quorum_up->name
 					    , FMT_VS(vs));
 			notify_exec(vs->quorum_up);
 		}
 #ifdef _WITH_SNMP_CHECKER_
-	       check_snmp_quorum_trap(vs);
+		check_snmp_quorum_trap(vs);
 #endif
 		return;
 	}
-
-	/* If we have just lost quorum for the VS, we need to consider
-	 * VS notify_down and sorry_server cases
-	 */
-	if (vs->quorum_state == UP &&
-	    (!weight_sum || weight_sum < down_threshold)
-	) {
+	else if (vs->quorum_state == UP &&
+		 (!weight_sum || weight_sum < down_threshold)) {
+		/* We have just lost quorum for the VS, we need to consider
+		 * VS notify_down and sorry_server cases
+		 */
 		vs->quorum_state = DOWN;
-		log_message(LOG_INFO, "Lost quorum %lu-%lu=%li > %li for VS %s"
+		log_message(LOG_INFO, "Lost quorum %u-%u=%ld > %ld for VS %s"
 				    , vs->quorum
 				    , vs->hysteresis
 				    , down_threshold
@@ -341,40 +335,42 @@ update_quorum_state(virtual_server_t * vs)
 				    , FMT_VS(vs));
 		if (vs->quorum_down) {
 			log_message(LOG_INFO, "Executing [%s] for VS %s"
-					    , vs->quorum_down
+					    , vs->quorum_down->name
 					    , FMT_VS(vs));
 			notify_exec(vs->quorum_down);
-		}
-		if (vs->s_svr) {
-			log_message(LOG_INFO, "%s sorry server %s to VS %s"
-					    , (vs->s_svr->inhibit ? "Enabling" : "Adding")
-					    , FMT_RS(vs->s_svr)
-					    , FMT_VS(vs));
-
-			/* the sorry server is now up in the pool, we flag it alive */
-			ipvs_cmd(LVS_CMD_ADD_DEST, vs, vs->s_svr);
-			vs->s_svr->alive = 1;
-
-			/* Remove remaining alive real servers */
-			perform_quorum_state(vs, 0);
 		}
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_quorum_trap(vs);
 #endif
-		return;
+	}
+
+	if (vs->quorum_state == DOWN &&
+	    vs->s_svr &&
+	    !ISALIVE(vs->s_svr)) {
+		log_message(LOG_INFO, "%s sorry server %s to VS %s"
+				    , (vs->s_svr->inhibit ? "Enabling" : "Adding")
+				    , FMT_RS(vs->s_svr)
+				    , FMT_VS(vs));
+
+		/* the sorry server is now up in the pool, we flag it alive */
+		ipvs_cmd(LVS_CMD_ADD_DEST, vs, vs->s_svr);
+		vs->s_svr->alive = true;
+
+		/* Remove remaining alive real servers */
+		perform_quorum_state(vs, false);
 	}
 }
 
 /* manipulate add/remove rs according to alive state */
 static int
-perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
+perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 {
 	/*
 	 * | ISALIVE(rs) | alive | context
-	 * | 0           | 0     | first check failed under alpha mode, unreachable here
-	 * | 0           | 1     | RS went up, add it to the pool
-	 * | 1           | 0     | RS went down, remove it from the pool
-	 * | 1           | 1     | first check succeeded w/o alpha mode, unreachable here
+	 * | false       | false | first check failed under alpha mode, unreachable here
+	 * | false       | true  | RS went up, add it to the pool
+	 * | true        | false | RS went down, remove it from the pool
+	 * | true        | true  | first check succeeded w/o alpha mode, unreachable here
 	 */
 	if (!ISALIVE(rs) && alive) {
 		log_message(LOG_INFO, "%s service %s to VS %s"
@@ -389,7 +385,7 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 		rs->alive = alive;
 		if (rs->notify_up) {
 			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
-					    , rs->notify_up
+					    , rs->notify_up->name
 					    , FMT_RS(rs)
 					    , FMT_VS(vs));
 			notify_exec(rs->notify_up);
@@ -418,7 +414,7 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 		rs->alive = alive;
 		if (rs->notify_down) {
 			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
-					    , rs->notify_down
+					    , rs->notify_down->name
 					    , FMT_RS(rs)
 					    , FMT_VS(vs));
 			notify_exec(rs->notify_down);
@@ -436,7 +432,7 @@ perform_svr_state(int alive, virtual_server_t * vs, real_server_t * rs)
 /* Store new weight in real_server struct and then update kernel. */
 void
 update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
-		, int update_quorum)
+		, bool update_quorum)
 {
 	if (weight != rs->weight) {
 		log_message(LOG_INFO, "Changing weight from %d to %d for %s service %s of VS %s"
@@ -484,7 +480,7 @@ svr_checker_up(checker_id_t cid, real_server_t *rs)
 
 /* Update checker's state */
 void
-update_svr_checker_state(int alive, checker_id_t cid, virtual_server_t *vs, real_server_t *rs)
+update_svr_checker_state(bool alive, checker_id_t cid, virtual_server_t *vs, real_server_t *rs)
 {
 	element e;
 	list l = rs->failed_checkers;
@@ -548,7 +544,7 @@ vsge_exist(virtual_server_group_entry_t *vsg_entry, list l)
 }
 
 /* Clear the diff vsge of old group */
-static int
+static void
 clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 {
 	virtual_server_group_entry_t *vsge, *new_vsge;
@@ -559,7 +555,7 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 		new_vsge = vsge_exist(vsge, new);
 		if (new_vsge) {
 			new_vsge->alive = vsge->alive;
-			new_vsge->reloaded = 1;
+			new_vsge->reloaded = true;
 		}
 		else {
 			log_message(LOG_INFO, "VS [%s:%d:%u] in group %s no longer exist"
@@ -571,26 +567,19 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 			ipvs_group_remove_entry(old_vs, vsge);
 		}
 	}
-
-	return 1;
 }
 
 /* Clear the diff vsg of the old vs */
-static int
+static void
 clear_diff_vsg(virtual_server_t * old_vs, virtual_server_t * new_vs)
 {
 	virtual_server_group_t *old = old_vs->vsg;
 	virtual_server_group_t *new = new_vs->vsg;
 
 	/* Diff the group entries */
-	if (!clear_diff_vsge(old->addr_ip, new->addr_ip, old_vs))
-		return 0;
-	if (!clear_diff_vsge(old->range, new->range, old_vs))
-		return 0;
-	if (!clear_diff_vsge(old->vfwmark, new->vfwmark, old_vs))
-		return 0;
-
-	return 1;
+	clear_diff_vsge(old->addr_ip, new->addr_ip, old_vs);
+	clear_diff_vsge(old->range, new->range, old_vs);
+	clear_diff_vsge(old->vfwmark, new->vfwmark, old_vs);
 }
 
 /* Check if a vs exist in new data and returns pointer to it */
@@ -633,7 +622,7 @@ rs_exist(real_server_t * old_rs, list l)
 }
 
 /* Clear the diff rs of the old vs */
-static int
+static void
 clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 {
 	element e;
@@ -642,7 +631,7 @@ clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 
 	/* If old vs didn't own rs then nothing return */
 	if (LIST_ISEMPTY(l))
-		return 1;
+		return;
 
 	/* remove RS from old vs which are not found in new vs */
 	list rs_to_remove = alloc_list (NULL, NULL);
@@ -665,7 +654,7 @@ clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 			new_rs->set = rs->set;
 			new_rs->weight = rs->weight;
 			new_rs->pweight = rs->iweight;
-			new_rs->reloaded = 1;
+			new_rs->reloaded = true;
 			if (new_rs->alive) {
 				/* clear failed_checkers list */
 				free_list_elements(new_rs->failed_checkers);
@@ -688,15 +677,35 @@ clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 			}
 		}
 	}
-	int ret = clear_service_rs (old_vs, rs_to_remove);
+	clear_service_rs (old_vs, rs_to_remove);
 	free_list(&rs_to_remove);
+}
 
-	return ret;
+/* clear sorry server, but only if changed */
+static void
+clear_diff_s_srv(virtual_server_t *old_vs, real_server_t *new_rs)
+{
+	real_server_t *old_rs = old_vs->s_svr;
+
+	if (!old_rs)
+		return;
+
+	if (new_rs && RS_ISEQ(old_rs, new_rs)) {
+		/* which fields are really used on s_svr? */
+		new_rs->alive = old_rs->alive;
+		new_rs->set = old_rs->set;
+		new_rs->weight = old_rs->weight;
+		new_rs->pweight = old_rs->iweight;
+		new_rs->reloaded = true;
+	}
+	else if (ISALIVE(old_rs))
+		ipvs_cmd(LVS_CMD_DEL_DEST, old_vs, old_rs);
+
 }
 
 /* When reloading configuration, remove negative diff entries
  * and copy status of existing entries to the new ones */
-int
+void
 clear_diff_services(void)
 {
 	element e;
@@ -705,7 +714,7 @@ clear_diff_services(void)
 
 	/* If old config didn't own vs then nothing return */
 	if (LIST_ISEMPTY(l))
-		return 1;
+		return;
 
 	/* Remove diff entries from previous IPVS rules */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -718,49 +727,65 @@ clear_diff_services(void)
 		new_vs = vs_exist(vs);
 		if (!new_vs) {
 			if (vs->vsgname)
-				log_message(LOG_INFO, "Removing Virtual Server Group [%s]"
-						    , vs->vsgname);
+				log_message(LOG_INFO, "Removing Virtual Server Group [%s]", vs->vsgname);
 			else
-				log_message(LOG_INFO, "Removing Virtual Server %s"
-						    , FMT_VS(vs));
+				log_message(LOG_INFO, "Removing Virtual Server %s", FMT_VS(vs));
 
 			/* Clear VS entry */
-			if (!clear_service_vs(vs))
-				return 0;
+			clear_service_vs(vs);
 		} else {
 			/* copy status fields from old VS */
 			SET_ALIVE(new_vs);
 			new_vs->quorum_state = vs->quorum_state;
-			new_vs->reloaded = 1;
+			new_vs->reloaded = true;
 
 			if (vs->vsgname)
 				clear_diff_vsg(vs, new_vs);
 
 			/* If vs exist, perform rs pool diff */
-			/* omega = 0 must not prevent the notifiers from being called,
+			/* omega = false must not prevent the notifiers from being called,
 			   because the VS still exists in new configuration */
-			vs->omega = 1;
-			if (!clear_diff_rs(vs, new_vs->rs))
-				return 0;
-			if (vs->s_svr && ISALIVE(vs->s_svr))
-				ipvs_cmd(LVS_CMD_DEL_DEST
-					      , vs
-					      , vs->s_svr);
+			vs->omega = true;
+			clear_diff_rs(vs, new_vs->rs);
+			clear_diff_s_srv(vs, new_vs->s_svr);
 		}
 	}
-
-	return 1;
 }
 
 void
 link_vsg_to_vs(void)
 {
-	element e;
+	element e, next;
 	virtual_server_t *vs;
+	int vsg_af;
+	virtual_server_group_entry_t *vsge;
 
-	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
+	for (e = LIST_HEAD(check_data->vs); e; e = next) {
+		next = e->next;
 		vs = ELEMENT_DATA(e);
-		if (vs->vsgname)
+
+		if (vs->vsgname) {
 			vs->vsg = ipvs_get_group_by_name(vs->vsgname, check_data->vs_group);
+			if (!vs->vsg)
+				log_message(LOG_INFO, "Virtual server group %s specified but not configured - ignoring virtual server", vs->vsgname);
+			else {
+				/* Check the vs and vsg address families match */
+				if (!LIST_ISEMPTY(vs->vsg->addr_ip)) {
+					vsge = ELEMENT_DATA(LIST_HEAD(vs->vsg->addr_ip));
+					vsg_af = vsge->addr.ss_family;
+				}
+				else if (!LIST_ISEMPTY(vs->vsg->range)) {
+					vsge = ELEMENT_DATA(LIST_HEAD(vs->vsg->range));
+					vsg_af = vsge->addr.ss_family;
+				}
+				else
+					vsg_af = AF_UNSPEC;
+
+				if (vsg_af != AF_UNSPEC && vsg_af != vs->af) {
+					log_message(LOG_INFO, "Virtual server group %s address family doesn't match virtual server", vs->vsgname);
+					vs->vsg = NULL;
+				}
+			}
+		}
 	}
 }

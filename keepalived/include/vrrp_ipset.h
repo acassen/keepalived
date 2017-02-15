@@ -27,12 +27,12 @@
 #include <libipset/session.h>
 #include "vrrp_ipaddress.h"
 
-int add_ipsets(void);
+int add_ipsets(bool);
 int remove_ipsets(void);
 bool has_ipset_setname(struct ipset_session*, const char *);
 bool ipset_init(void);
 struct ipset_session* ipset_session_start(void);
 void ipset_session_end(struct ipset_session*);
-void ipset_entry(struct ipset_session*, int cmd, const ip_address_t*, const char*);
+void ipset_entry(struct ipset_session*, int cmd, const ip_address_t*);
 
 #endif

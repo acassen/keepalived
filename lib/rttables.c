@@ -70,40 +70,40 @@ static rt_entry_t rtntypes[] = {
 };
 
 static rt_entry_t rtprot_default[] = {
-        { RTPROT_UNSPEC, "none"},
-        { RTPROT_REDIRECT, "redirect"},
-        { RTPROT_KERNEL, "kernel"},
-        { RTPROT_BOOT, "boot"},
-        { RTPROT_STATIC, "static"},
+	{ RTPROT_UNSPEC, "none"},
+	{ RTPROT_REDIRECT, "redirect"},
+	{ RTPROT_KERNEL, "kernel"},
+	{ RTPROT_BOOT, "boot"},
+	{ RTPROT_STATIC, "static"},
 
-        { RTPROT_GATED, "gated"},
-        { RTPROT_RA, "ra"},
-        { RTPROT_MRT, "mrt"},
-        { RTPROT_ZEBRA, "zebra"},
-        { RTPROT_BIRD, "bird"},
+	{ RTPROT_GATED, "gated"},
+	{ RTPROT_RA, "ra"},
+	{ RTPROT_MRT, "mrt"},
+	{ RTPROT_ZEBRA, "zebra"},
+	{ RTPROT_BIRD, "bird"},
 #ifdef RTPROT_BABEL		/* Since Linux 3.19 */
-        { RTPROT_BABEL, "babel"},
+	{ RTPROT_BABEL, "babel"},
 #endif
-        { RTPROT_DNROUTED, "dnrouted"},
-        { RTPROT_XORP, "xorp"},
-        { RTPROT_NTK, "ntk"},
-        { RTPROT_DHCP, "dhcp"},
+	{ RTPROT_DNROUTED, "dnrouted"},
+	{ RTPROT_XORP, "xorp"},
+	{ RTPROT_NTK, "ntk"},
+	{ RTPROT_DHCP, "dhcp"},
 	{ 0, NULL},
 };
 
 static rt_entry_t rtscope_default[] = {
-        { RT_SCOPE_UNIVERSE, "global"},
-        { RT_SCOPE_NOWHERE, "nowhere"},
-        { RT_SCOPE_HOST, "host"},
-        { RT_SCOPE_LINK, "link"},
-        { RT_SCOPE_SITE, "site"},
+	{ RT_SCOPE_UNIVERSE, "global"},
+	{ RT_SCOPE_NOWHERE, "nowhere"},
+	{ RT_SCOPE_HOST, "host"},
+	{ RT_SCOPE_LINK, "link"},
+	{ RT_SCOPE_SITE, "site"},
 	{ 0, NULL},
 };
 
 static rt_entry_t rttable_default[] = {
-        { RT_TABLE_DEFAULT, "default"},
-        { RT_TABLE_MAIN, "main"},
-        { RT_TABLE_LOCAL, "local"},
+	{ RT_TABLE_DEFAULT, "default"},
+	{ RT_TABLE_MAIN, "main"},
+	{ RT_TABLE_LOCAL, "local"},
 	{ 0, NULL},
 };
 
@@ -145,6 +145,7 @@ read_file(const char* file_name, list *l, uint32_t max)
 	rt_entry_t *rte;
 	vector_t *strvec = NULL;
 	char buf[MAX_RT_BUF];
+	unsigned long id;
 
 	fp = fopen(file_name, "r");
 	if (!fp)
@@ -167,12 +168,13 @@ read_file(const char* file_name, list *l, uint32_t max)
 			goto err;
 		}
 
-		rte->id = strtoul(FMT_STR_VSLOT(strvec, 0), NULL, 0);
-		if (rte->id > max) {
+		id = strtoul(FMT_STR_VSLOT(strvec, 0), NULL, 0);
+		if (id > max) {
 			FREE(rte);
 			free_strvec(strvec);
 			continue;
 		}
+		rte->id = (unsigned)id;
 
 		rte->name = MALLOC(strlen(FMT_STR_VSLOT(strvec, 1)) + 1);
 		if (!rte->name) {
@@ -271,8 +273,10 @@ find_entry(const char *name, unsigned int *id, list *l, const char* file_name, c
 {
 	element e;
 	char	*endptr;
+	unsigned long l_id;
 
-	*id = strtoul(name, &endptr, 0);
+	l_id = strtoul(name, &endptr, 0);
+	*id = (unsigned int)l_id;
 	if (endptr != name && *endptr == '\0')
 		return (*id <= max);
 
@@ -300,9 +304,15 @@ find_rttables_table(const char *name, uint32_t *id)
 }
 
 bool
-find_rttables_dsfield(const char *name, uint32_t *id)
+find_rttables_dsfield(const char *name, uint8_t *id)
 {
-	return find_entry(name, id, &rt_dsfields, RT_DSFIELD_FILE, NULL, 255);
+	uint32_t val;
+	bool ret;
+	
+	ret = find_entry(name, &val, &rt_dsfields, RT_DSFIELD_FILE, NULL, 255);
+	*id = val & 0xff;
+
+	return ret;
 }
 
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
@@ -320,15 +330,27 @@ find_rttables_realms(const char *name, uint32_t *id)
 }
 
 bool
-find_rttables_proto(const char *name, uint32_t *id)
+find_rttables_proto(const char *name, uint8_t *id)
 {
-	return find_entry(name, id, &rt_protos, RT_PROTOS_FILE, rtprot_default, 255);
+	uint32_t val;
+	bool ret;
+	
+	ret = find_entry(name, &val, &rt_protos, RT_PROTOS_FILE, rtprot_default, 255);
+	*id = val & 0xff;
+
+	return ret;
 }
 
 bool
-find_rttables_scope(const char *name, uint32_t *id)
+find_rttables_scope(const char *name, uint8_t *id)
 {
-	return find_entry(name, id, &rt_scopes, RT_SCOPES_FILE, rtscope_default, 255);
+	uint32_t val;
+	bool ret;
+	
+	ret = find_entry(name, &val, &rt_scopes, RT_SCOPES_FILE, rtscope_default, 255);
+	*id = val & 0xff;
+
+	return ret;
 }
 
 bool
@@ -349,7 +371,7 @@ find_rttables_rtntype(const char *str, uint8_t *id)
 	if (*end || res > 255)
 		return false;
 
-	*id = res;
+	*id = (uint8_t)res;
 	return true;
 }
 

@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include <string.h>
+#include <sys/prctl.h>
 
 #include "check_daemon.h"
 #include "check_parser.h"
@@ -35,6 +36,7 @@
 #include "pidfile.h"
 #include "daemon.h"
 #include "signals.h"
+#include "notify.h"
 #include "process.h"
 #include "logger.h"
 #include "list.h"
@@ -54,6 +56,9 @@ static char *check_syslog_ident;
 static void
 stop_check(int status)
 {
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
+
 	/* Destroy master thread */
 	signal_handler_destroy();
 	thread_destroy_master(master);
@@ -123,6 +128,11 @@ start_check(void)
 	init_global_data(global_data);
 
 	/* Post initializations */
+	if (!validate_check_config()) {
+		stop_check(KEEPALIVED_EXIT_CONFIG);
+		return;
+	}
+
 #ifdef _MEM_CHECK_
 	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
 #endif
@@ -197,7 +207,7 @@ sigend_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 check_signal_init(void)
 {
-	signal_handler_init();
+	signal_handler_init(0);
 	signal_set(SIGHUP, sighup_check, NULL);
 	signal_set(SIGINT, sigend_check, NULL);
 	signal_set(SIGTERM, sigend_check, NULL);
@@ -212,6 +222,9 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	SET_RELOAD;
 
 	log_message(LOG_INFO, "Got SIGHUP, reloading checker configuration");
+
+	/* Terminate all script process */
+	script_killall(master, SIGTERM);
 
 	/* Destroy master thread */
 #ifdef _WITH_VRRP_
@@ -232,9 +245,6 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	check_data = NULL;
 
 	/* Reload the conf */
-#ifdef _MEM_CHECK_
-	mem_allocated = 0;
-#endif
 	start_check();
 
 	/* free backup data */
@@ -279,7 +289,6 @@ start_check_child(void)
 {
 #ifndef _DEBUG_
 	pid_t pid;
-	int ret;
 	char *syslog_ident;
 
 	/* Initialize child process */
@@ -299,6 +308,7 @@ start_check_child(void)
 				 pid, RESPAWN_TIMER);
 		return 0;
 	}
+	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	if ((instance_name
 #if HAVE_DECL_CLONE_NEWNET
@@ -330,15 +340,6 @@ start_check_child(void)
 	signal_handler_destroy();
 	thread_destroy_master(master);	/* This destroys any residual settings from the parent */
 	master = thread_make_master();
-
-	/* change to / dir */
-	ret = chdir("/");
-	if (ret < 0) {
-		log_message(LOG_INFO, "Healthcheck child process: error chdir");
-	}
-
-	/* Set mask */
-	umask(0);
 #endif
 
 	/* If last process died during a reload, we can get there and we

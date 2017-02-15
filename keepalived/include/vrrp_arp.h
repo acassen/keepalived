@@ -55,5 +55,5 @@ typedef struct _arphdr {
 extern void gratuitous_arp_init(void);
 extern void gratuitous_arp_close(void);
 extern void send_gratuitous_arp(vrrp_t *, ip_address_t *);
-extern int send_gratuitous_arp_immediate(interface_t *, ip_address_t *);
+extern ssize_t send_gratuitous_arp_immediate(interface_t *, ip_address_t *);
 #endif

@@ -37,6 +37,7 @@
 #include "check_tcp.h"
 #include "check_http.h"
 #include "check_ssl.h"
+#include "check_dns.h"
 
 /* Global vars */
 static checker_id_t ncheckers = 0;
@@ -133,7 +134,7 @@ static void
 co_ip_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
-	inet_stosockaddr(vector_slot(strvec, 1), 0, &co->dst);
+	inet_stosockaddr(strvec_slot(strvec, 1), 0, &co->dst);
 }
 
 /* "connect_port" keyword */
@@ -149,7 +150,7 @@ static void
 co_srcip_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
-	inet_stosockaddr(vector_slot(strvec, 1), 0, &co->bindto);
+	inet_stosockaddr(strvec_slot(strvec, 1), 0, &co->bindto);
 }
 
 /* "bind_port" keyword */
@@ -165,7 +166,7 @@ static void
 co_timeout_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
-	co->connection_to = CHECKER_VALUE_INT(strvec) * TIMER_HZ;
+	co->connection_to = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 
 	/* do not allow 0 timeout */
 	if (! co->connection_to)
@@ -178,7 +179,7 @@ static void
 co_fwmark_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
-	co->fwmark = CHECKER_VALUE_INT(strvec);
+	co->fwmark = CHECKER_VALUE_UINT(strvec);
 }
 #endif
 
@@ -199,7 +200,7 @@ install_connect_keywords(void)
 void warmup_handler(vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
-	checker->warmup = (long)CHECKER_VALUE_INT (strvec) * TIMER_HZ;
+	checker->warmup = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 }
 
 /* dump the checkers_queue */
@@ -233,7 +234,7 @@ register_checkers_thread(void)
 {
 	checker_t *checker;
 	element e;
-	long warmup;
+	unsigned long warmup;
 
 	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 		checker = ELEMENT_DATA(e);
@@ -248,7 +249,7 @@ register_checkers_thread(void)
 			*/
 			warmup = checker->warmup;
 			if (warmup)
-				warmup = warmup * rand() / RAND_MAX;
+				warmup = warmup * (unsigned)rand() / RAND_MAX;
 			thread_add_timer(master, checker->launch, checker,
 					 BOOTSTRAP_DELAY + warmup);
 		}
@@ -310,4 +311,5 @@ install_checkers_keyword(void)
 	install_tcp_check_keyword();
 	install_http_check_keyword();
 	install_ssl_check_keyword();
+	install_dns_check_keyword();
 }

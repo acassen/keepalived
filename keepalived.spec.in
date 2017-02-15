@@ -4,7 +4,7 @@
 Summary: HA monitor built upon LVS, VRRP and services poller
 Name: keepalived
 Version: @VERSION@
-Release: 5
+Release: 2
 License: GPL
 Group: Applications/System
 URL: http://www.keepalived.org/
@@ -23,6 +23,8 @@ BuildRequires: libnfnetlink-devel
 @INIT_SYSV_TRUE@Requires(post): /sbin/chkconfig
 @INIT_SYSV_TRUE@Requires(preun): /sbin/service, /sbin/chkconfig
 @INIT_SYSV_TRUE@Requires(postun): /sbin/service
+BuildRequires: autoconf automake pkgconfig
+@INIT_SYSTEMD_TRUE@BuildRequires: systemd-units
 
 %description
 The main goal of the keepalived project is to add a strong & robust keepalive
@@ -53,6 +55,7 @@ CONFIG_OPTS=
 @WITH_DBUS_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-dbus"
 %{?el3:export CPPFLAGS="-I/usr/kerberos/include"}
 %{?rh9:export CPPFLAGS="-I/usr/kerberos/include"}
+autoreconf -f -i
 %configure $CONFIG_OPTS \
 %{?el3:--includedir="/usr/kerberos/include"} \
 %{?rh9:--includedir="/usr/kerberos/include"} \
@@ -80,19 +83,29 @@ fi
 
 
 %post
-/sbin/chkconfig --add keepalived
+if [ $1 -eq 1 ]; then
+        # Enable (but don't start) the units by default
+@INIT_SYSV_TRUE@	/sbin/chkconfig --add keepalived
+@INIT_SYSTEMD_TRUE@	/bin/systemctl enable keepalived.service >/dev/null 2>&1 || :
+fi
 
 %preun
 if [ $1 -eq 0 ]; then
-    /sbin/service keepalived stop &>/dev/null || :
-    /sbin/chkconfig --del keepalived
+        # Disable and stop the units
+@INIT_SYSV_TRUE@	/sbin/service keepalived stop &>/dev/null || :
+@INIT_SYSV_TRUE@	/sbin/chkconfig --del keepalived
+@INIT_SYSTEMD_TRUE@	/bin/systemctl disable keepalived.service >/dev/null 2>&1 || :
+@INIT_SYSTEMD_TRUE@	/bin/systemctl stop keepalived.service >/dev/null 2>&1 || :
 fi
 
 %postun
 if [ $1 -ge 1 ]; then
-    /sbin/service keepalived condrestart &>/dev/null || :
+@INIT_SYSV_TRUE@	/sbin/service keepalived condrestart &>/dev/null || :
+	# On upgrade, reload init system configuration if we changed unit files
+	# and restart the daemon
+@INIT_SYSTEMD_TRUE@	/bin/systemctl daemon-reload >/dev/null 2>&1 || :
+@INIT_SYSTEMD_TRUE@	/bin/systemctl try-restart keepalived.service >/dev/null 2>&1 || :
 fi
-
 
 %files
 %defattr(-, root, root, -)
@@ -117,6 +130,12 @@ fi
 @WITH_DBUS_TRUE@%attr(0644,root,root) %{_datarootdir}/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
 
 %changelog
+* Fri Sep 16 2016 Quentin Armitage <quentin@armitage.org.uk> 1.2.24-2
+- Fixes to allow building on a systemd based system
+
+* Wed Sep 14 2016 Quentin Armitage <quentin@armitage.org.uk> 1.2.24-1
+- Add more BuildRequires
+
 * Tue Sep 13 2016 Quentin Armitage <quentin@armitage.org.uk> 1.2.24
 - Update for changed format due of config.log due to using automake
 - Add support for systemd and upstart based systems

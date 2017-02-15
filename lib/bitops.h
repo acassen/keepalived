@@ -31,43 +31,34 @@
 #define BIT_WORD(idx)	((idx) / BIT_PER_LONG)
 
 /* Helpers */
-static inline void __set_bit(int idx, unsigned long *bmap)
+static inline void __set_bit(unsigned idx, unsigned long *bmap)
 {
-	unsigned long mask = BIT_MASK(idx);
-	unsigned long *p = ((unsigned long *)bmap) + BIT_WORD(idx);
-
-	*p |= mask;
+	bmap[BIT_WORD(idx)] |= BIT_MASK(idx);
 }
 
-static inline void __clear_bit(int idx, unsigned long *bmap)
+static inline void __clear_bit(unsigned idx, unsigned long *bmap)
 {
-	unsigned long mask = BIT_MASK(idx);
-	unsigned long *p = ((unsigned long *)bmap) + BIT_WORD(idx);
-
-	*p &= ~mask;
+	bmap[BIT_WORD(idx)] &= ~BIT_MASK(idx);
 }
 
-static inline int __test_bit(int idx, unsigned long *bmap)
+static inline bool __test_bit(unsigned idx, unsigned long *bmap)
 {
-	unsigned long mask = BIT_MASK(idx);
-	unsigned long *p = ((unsigned long *)bmap) + BIT_WORD(idx);
-
-	return *p & mask;
+	return !!(bmap[BIT_WORD(idx)] & BIT_MASK(idx));
 }
 
 /* Bits */
 enum global_bits {
-	LOG_CONSOLE_BIT = 0,
-	DONT_FORK_BIT = 1,
-	DUMP_CONF_BIT = 2,
-	DONT_RELEASE_VRRP_BIT = 3,
-	DONT_RELEASE_IPVS_BIT = 4,
-	LOG_DETAIL_BIT = 5,
-	DONT_RESPAWN_BIT = 6,
-	RELEASE_VIPS_BIT = 7,
-	MEM_ERR_DETECT_BIT = 8,
+	LOG_CONSOLE_BIT,
+	DONT_FORK_BIT,
+	DUMP_CONF_BIT,
+	DONT_RELEASE_VRRP_BIT,
+	DONT_RELEASE_IPVS_BIT,
+	LOG_DETAIL_BIT,
+	DONT_RESPAWN_BIT,
+	RELEASE_VIPS_BIT,
+	MEM_ERR_DETECT_BIT,
 #ifdef _MEM_CHECK_LOG_
-	MEM_CHECK_LOG_BIT = 9,
+	MEM_CHECK_LOG_BIT,
 #endif
 };
 

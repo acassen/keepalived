@@ -46,6 +46,8 @@ size_t mem_allocated;		/* Total memory used in Bytes */
 size_t max_mem_allocated;	/* Maximum memory used in Bytes */
 
 const char *terminate_banner;	/* banner string for report file */
+
+static bool skip_mem_check_final;
 #endif
 
 static void *
@@ -126,18 +128,17 @@ void *
 keepalived_malloc(size_t size, char *file, char *function, int line)
 {
 	void *buf;
-	int i = 0;
+	int i;
 	long check;
 
 	buf = zalloc(size + sizeof (long));
 
-	check = 0xa5a5 + size;
+	check = (long)size + 0xa5a5;
 	*(long *) ((char *) buf + size) = check;
 
-	while (i < number_alloc_list) {
+	for (i = 0; i < number_alloc_list; i++) {
 		if (alloc_list[i].type == 0)
 			break;
-		i++;
 	}
 
 	if (i == number_alloc_list)
@@ -263,9 +264,14 @@ keepalived_free(void *buffer, char *file, char *function, int line)
 static void
 keepalived_free_final(void)
 {
-	unsigned int sum = 0, overrun = 0, badptr = 0;
+	unsigned int overrun = 0, badptr = 0;
+	size_t sum = 0;
 	int i, j;
 	i = 0;
+
+	/* If this is a forked child, we don't want the dump */
+	if (skip_mem_check_final)
+		return;
 
 	fprintf(log_op, "\n---[ Keepalived memory dump for (%s)]---\n\n", terminate_banner);
 
@@ -325,7 +331,7 @@ keepalived_free_final(void)
 	}
 
 	fprintf(log_op, "\n\n---[ Keepalived memory dump summary for (%s) ]---\n", terminate_banner);
-	fprintf(log_op, "Total number of bytes not freed...: %d\n", sum);
+	fprintf(log_op, "Total number of bytes not freed...: %zu\n", sum);
 	fprintf(log_op, "Number of entries not freed.......: %d\n", n);
 	fprintf(log_op, "Maximum allocated entries.........: %d\n", number_alloc_list);
 	fprintf(log_op, "Maximum memory allocated..........: %zu\n", max_mem_allocated);
@@ -342,7 +348,7 @@ void *
 keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 		   int line)
 {
-	int i = 0;
+	int i;
 	void *buf = buffer, *buf2;
 	long check;
 
@@ -361,12 +367,11 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 		return keepalived_malloc(size, file, function, line);
 	}
 
-	while (i < number_alloc_list) {
+	for (i = 0; i < number_alloc_list; i++) {
 		if (alloc_list[i].ptr == buf) {
 			buf = alloc_list[i].ptr;
 			break;
 		}
-		i++;
 	}
 
 	/* not found */
@@ -394,7 +399,7 @@ keepalived_realloc(void *buffer, size_t size, char *file, char *function,
 	}
 	buf = realloc(buffer, size + sizeof (long));
 
-	check = 0xa5a5 + size;
+	check = (long)size + 0xa5a5;
 	*(long *) ((char *) buf + size) = check;
 	alloc_list[i].csum = check;
 
@@ -458,6 +463,11 @@ mem_log_init(const char* prog_name, const char *banner)
 	free(log_name);
 
 	terminate_banner = banner;
+}
+
+void skip_mem_dump(void)
+{
+	skip_mem_check_final = true;
 }
 
 void enable_mem_log_termination(void)

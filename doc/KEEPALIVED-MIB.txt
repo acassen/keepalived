@@ -22,12 +22,16 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201609120000Z"
+     LAST-UPDATED "201611260000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201611260000Z"
+     DESCRIPTION "add initfailed state for scripts"
+     REVISION "201610180000Z"
+     DESCRIPTION "add promote_secondaries"
      REVISION "201609120000Z"
      DESCRIPTION "dbus support added"
      REVISION "201609060000Z"
@@ -476,7 +480,8 @@ VrrpInstanceEntry ::= SEQUENCE {
     vrrpInstanceScriptFault DisplayString,
     vrrpInstanceScriptStop DisplayString,
     vrrpInstanceScript DisplayString,
-    vrrpInstanceAccept INTEGER
+    vrrpInstanceAccept INTEGER,
+    vrrpInstancePromoteSecondaries INTEGER
 }
 
 vrrpInstanceIndex OBJECT-TYPE
@@ -711,6 +716,14 @@ vrrpInstanceAccept OBJECT-TYPE
     DESCRIPTION
         "Accept allow the non-master owner to process the packets destined to VIP and it is supported for only VRRPv3."
     ::= { vrrpInstanceEntry 27 }
+
+vrrpInstancePromoteSecondaries OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-write
+    STATUS current
+    DESCRIPTION
+        "Set promote_secondaries on interface."
+    ::= { vrrpInstanceEntry 28 }
 
 vrrpTrackedInterfaceTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpTrackedInterfaceEntry
@@ -1984,7 +1997,8 @@ vrrpScriptResult OBJECT-TYPE
         init(1),
         bad(2),
         good(3),
-        initgood(4)
+        initgood(4),
+        initfailed(5)
            }
     MAX-ACCESS read-only
     STATUS current
@@ -3457,6 +3471,7 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpInstanceScriptStop,
     vrrpInstanceScript,
     vrrpInstanceAccept,
+    vrrpInstancePromoteSecondaries,
     vrrpTrackedInterfaceName,
     vrrpTrackedInterfaceWeight,
     vrrpTrackedScriptName,

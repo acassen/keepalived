@@ -59,8 +59,6 @@ typedef struct _nl_handle {
 #endif
 #endif
 
-#define htonll(x) ((1==htonl(1)) ? (x) : ((uint64_t)htonl((x) & 0xFFFFFFFF) << 32) | htonl((x) >> 32))
-
 #define RTA_TAIL(rta)	((struct rtattr *) (((void *) (rta)) + RTA_ALIGN((rta)->rta_len)))
 
 /* Global vars exported */
@@ -68,21 +66,22 @@ extern nl_handle_t nl_cmd;	/* Command channel */
 extern int netlink_error_ignore; /* If we get this error, ignore it */
 
 /* prototypes */
-extern int addattr_l(struct nlmsghdr *, size_t, int, void *, size_t);
-extern int addattr8(struct nlmsghdr *, size_t, int, uint8_t);
-extern int addattr32(struct nlmsghdr *, size_t, int, uint32_t);
-extern int addattr64(struct nlmsghdr *, size_t, int, uint64_t);
-extern int addattr_l2(struct nlmsghdr *, size_t, int, void *, size_t, void *, size_t);
+extern void netlink_set_recv_buf_size(void);
+extern int addattr_l(struct nlmsghdr *, size_t, unsigned short, void *, size_t);
+extern int addattr8(struct nlmsghdr *, size_t, unsigned short, uint8_t);
+extern int addattr32(struct nlmsghdr *, size_t, unsigned short, uint32_t);
+extern int addattr64(struct nlmsghdr *, size_t, unsigned short, uint64_t);
+extern int addattr_l2(struct nlmsghdr *, size_t, unsigned short, void *, size_t, void *, size_t);
 extern int addraw_l(struct nlmsghdr *, size_t, const void *, size_t);
-extern size_t rta_addattr_l(struct rtattr *, size_t, int, const void *, size_t);
-extern size_t rta_addattr_l2(struct rtattr *, size_t, int, const void *, size_t, const void*, size_t);
-extern size_t rta_addattr64(struct rtattr *, size_t, int, uint64_t);
-extern size_t rta_addattr32(struct rtattr *, size_t, int, uint32_t);
-extern size_t rta_addattr16(struct rtattr *, size_t, int, uint16_t);
-extern size_t rta_addattr8(struct rtattr *, size_t, int, uint8_t);
-extern struct rtattr *rta_nest(struct rtattr *, size_t, int);
+extern size_t rta_addattr_l(struct rtattr *, size_t, unsigned short, const void *, size_t);
+extern size_t rta_addattr_l2(struct rtattr *, size_t, unsigned short, const void *, size_t, const void*, size_t);
+extern size_t rta_addattr64(struct rtattr *, size_t, unsigned short, uint64_t);
+extern size_t rta_addattr32(struct rtattr *, size_t, unsigned short, uint32_t);
+extern size_t rta_addattr16(struct rtattr *, size_t, unsigned short, uint16_t);
+extern size_t rta_addattr8(struct rtattr *, size_t, unsigned short, uint8_t);
+extern struct rtattr *rta_nest(struct rtattr *, size_t, unsigned short);
 extern size_t rta_nest_end(struct rtattr *, struct rtattr *);
-extern int netlink_talk(nl_handle_t *, struct nlmsghdr *);
+extern ssize_t netlink_talk(nl_handle_t *, struct nlmsghdr *);
 extern int netlink_interface_lookup(void);
 extern void kernel_netlink_poll(void);
 extern void kernel_netlink_init(void);

@@ -61,6 +61,6 @@ typedef struct _seq_counter {
 	uint32_t		seq_number;
 } seq_counter_t;
 
-extern void hmac_md5(unsigned char *, int, unsigned char *, int, unsigned char *);
+extern void hmac_md5(unsigned char *, size_t, unsigned char *, size_t, unsigned char *);
 
 #endif

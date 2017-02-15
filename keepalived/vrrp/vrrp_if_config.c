@@ -68,6 +68,118 @@
 #include <unistd.h>
 
 #ifdef _HAVE_IPV4_DEVCONF_
+int
+set_promote_secondaries(interface_t *ifp)
+{
+	struct nl_sock *sk;
+	struct nl_cache *cache;
+	struct rtnl_link *link = NULL;
+	struct rtnl_link *new_state = NULL;
+	int res = 0;
+	uint32_t prom_secs;
+
+	if (!(sk = nl_socket_alloc())) {
+		log_message(LOG_INFO, "Unable to open netlink socket");
+		return -1;
+	}
+
+	if (nl_connect(sk, NETLINK_ROUTE) < 0)
+		goto err;
+	if (rtnl_link_alloc_cache(sk, AF_UNSPEC, &cache))
+		goto err;
+	if (!(link = rtnl_link_get(cache, (int)ifp->ifindex)))
+		goto err;
+
+	if (rtnl_link_inet_get_conf(link, IPV4_DEVCONF_PROMOTE_SECONDARIES, &prom_secs) < 0)
+		goto err;
+	if (prom_secs) {
+		ifp->promote_secondaries_already_set = true;
+		goto exit_ok;
+	}
+
+	// Allocate a new link
+	if (!(new_state = rtnl_link_alloc()))
+		goto err;
+
+	if (rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_PROMOTE_SECONDARIES, 1) ||
+	    rtnl_link_change (sk, link, new_state, 0))
+		goto err;
+	ifp->reset_promote_secondaries = 1;
+
+	rtnl_link_put(new_state);
+	new_state = NULL;
+
+	rtnl_link_put(link);
+	link = NULL;
+
+	goto exit;
+err:
+	res = -1;
+
+exit_ok:
+	if (link)
+		rtnl_link_put(link);
+	if (new_state)
+		rtnl_link_put(new_state);
+
+exit:
+	nl_socket_free(sk);
+
+	return res;
+}
+
+int
+reset_promote_secondaries(interface_t *ifp)
+{
+	struct nl_sock *sk;
+	struct nl_cache *cache;
+	struct rtnl_link *link = NULL;
+	struct rtnl_link *new_state = NULL;
+	int res = 0;
+
+	if (!ifp->reset_promote_secondaries ||
+	    --ifp->reset_promote_secondaries)
+		return 0;
+
+	if (!(sk = nl_socket_alloc())) {
+		log_message(LOG_INFO, "Unable to open netlink socket");
+		return -1;
+	}
+
+	if (nl_connect(sk, NETLINK_ROUTE) < 0)
+		goto err;
+	if (rtnl_link_alloc_cache(sk, AF_UNSPEC, &cache))
+		goto err;
+	if (!(link = rtnl_link_get(cache, (int)ifp->ifindex)))
+		goto err;
+	if (!(new_state = rtnl_link_alloc()))
+		goto err;
+	if (rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_PROMOTE_SECONDARIES, 0) ||
+	    rtnl_link_change (sk, link, new_state, 0))
+		goto err;
+
+	rtnl_link_put(new_state);
+	new_state = NULL;
+
+	rtnl_link_put(link);
+	link = NULL;
+
+	goto exit;
+err:
+	res = -1;
+
+	if (link)
+		rtnl_link_put(link);
+	if (new_state)
+		rtnl_link_put(new_state);
+
+exit:
+	nl_socket_free(sk);
+
+	return res;
+}
+
+#ifdef _HAVE_VRRP_VMAC_
 static int
 netlink3_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 {
@@ -86,7 +198,7 @@ netlink3_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 		goto err;
 	if (rtnl_link_alloc_cache(sk, AF_UNSPEC, &cache))
 		goto err;
-	if (!(link = rtnl_link_get(cache, ifp->ifindex)))
+	if (!(link = rtnl_link_get(cache, (int)ifp->ifindex)))
 		goto err;
 
 	// Allocate a new link
@@ -110,7 +222,7 @@ netlink3_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 	if (base_ifp->reset_arp_config)
 		(base_ifp->reset_arp_config)++;
 	else {
-		if (!(link = rtnl_link_get(cache, base_ifp->ifindex)))
+		if (!(link = rtnl_link_get(cache, (int)base_ifp->ifindex)))
 			goto err;
 		if (rtnl_link_inet_get_conf(link, IPV4_DEVCONF_ARP_IGNORE, &base_ifp->reset_arp_ignore_value) < 0)
 			goto err;
@@ -171,7 +283,7 @@ netlink3_reset_interface_parameters(const interface_t* ifp)
 		goto err;
 	if (rtnl_link_alloc_cache(sk, AF_UNSPEC, &cache))
 		goto err;
-	if (!(link = rtnl_link_get(cache, ifp->ifindex)))
+	if (!(link = rtnl_link_get(cache, (int)ifp->ifindex)))
 		goto err;
 	if (!(new_state = rtnl_link_alloc()))
 		goto err;
@@ -216,7 +328,7 @@ reset_interface_parameters(interface_t *base_ifp)
 			log_message(LOG_INFO, "Unable to reset parameters for %s", base_ifp->ifname);
 	}
 }
-
+#endif
 #endif
 
 /* Sysctl get and set functions */
@@ -237,7 +349,7 @@ set_sysctl(const char* prefix, const char* iface, const char* parameter, int val
 	char* filename;
 	char buf[1];
 	int fd;
-	int len;
+	ssize_t len;
 
 	/* Make the filename */
 	filename = MALLOC(PATH_MAX);
@@ -249,7 +361,7 @@ set_sysctl(const char* prefix, const char* iface, const char* parameter, int val
 		return -1;
 
 	/* We only write integers 0-9 */
-	buf[0] = '0' + value;
+	buf[0] = (char)('0' + value);
 	len = write(fd, &buf, 1);
 	close(fd);
 
@@ -266,7 +378,7 @@ get_sysctl(const char* prefix, const char* iface, const char* parameter)
 	char *filename;
 	char buf[1];
 	int fd;
-	int len;
+	ssize_t len;
 
 	/* Make the filename */
 	filename = MALLOC(PATH_MAX);
@@ -289,6 +401,29 @@ get_sysctl(const char* prefix, const char* iface, const char* parameter)
 }
 
 #ifndef _HAVE_IPV4_DEVCONF_
+int
+set_promote_secondaries(interface_t *ifp)
+{
+	if (get_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries")) {
+		ifp->promote_secondaries_already_set = true;
+		return 0;
+	}
+	set_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries", 1);
+	ifp->reset_promote_secondaries = 1;
+
+	return 0;
+}
+
+int
+reset_promote_secondaries(interface_t *ifp)
+{
+	if (ifp->reset_promote_secondaries && !--ifp->reset_promote_secondaries)
+		set_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries", 0);
+
+	return 0;
+}
+
+#ifdef _HAVE_VRRP_VMAC_
 void
 set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 {
@@ -318,6 +453,7 @@ void reset_interface_parameters(interface_t *base_ifp)
 		set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter", base_ifp->reset_arp_filter_value);
 	}
 }
+#endif
 #endif
 
 void link_disable_ipv6(const interface_t* ifp)

@@ -59,7 +59,7 @@ typedef struct _ip_rule {
 	uint32_t	fwmask;
 	uint32_t	realms;
 #if HAVE_DECL_FRA_SUPPRESS_PREFIXLEN
-	int32_t		suppress_prefix_len;
+	uint32_t	suppress_prefix_len;
 #endif
 #if HAVE_DECL_FRA_SUPPRESS_IFGROUP
 	uint32_t	suppress_group;

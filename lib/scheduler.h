@@ -109,15 +109,16 @@ typedef struct _thread_master {
 extern thread_master_t *master;
 
 /* Prototypes. */
+extern void set_child_finder(bool (*)(pid_t, char const **));
 extern bool report_child_status(int, pid_t, const char *);
 extern thread_master_t *thread_make_master(void);
 extern thread_t *thread_add_terminate_event(thread_master_t *);
 extern void thread_cleanup_master(thread_master_t *);
 extern void thread_destroy_master(thread_master_t *);
-extern thread_t *thread_add_read(thread_master_t *, int (*func) (thread_t *), void *, int, long);
-extern thread_t *thread_add_write(thread_master_t *, int (*func) (thread_t *), void *, int, long);
-extern thread_t *thread_add_timer(thread_master_t *, int (*func) (thread_t *), void *, long);
-extern thread_t *thread_add_child(thread_master_t *, int (*func) (thread_t *), void *, pid_t, long);
+extern thread_t *thread_add_read(thread_master_t *, int (*func) (thread_t *), void *, int, unsigned long);
+extern thread_t *thread_add_write(thread_master_t *, int (*func) (thread_t *), void *, int, unsigned long);
+extern thread_t *thread_add_timer(thread_master_t *, int (*func) (thread_t *), void *, unsigned long);
+extern thread_t *thread_add_child(thread_master_t *, int (*func) (thread_t *), void *, pid_t, unsigned long);
 extern thread_t *thread_add_event(thread_master_t *, int (*func) (thread_t *), void *, int);
 extern int thread_cancel(thread_t *);
 extern thread_t *thread_fetch(thread_master_t *, thread_t *);
