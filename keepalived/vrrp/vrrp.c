@@ -1501,7 +1501,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 #ifdef _WITH_SNMP_RFCV3_
 		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PRIORITY;
 #endif
-	} else if ((vrrp->nopreempt || vrrp->effective_priority != VRRP_PRIO_OWNER)
+	} else if ((vrrp->nopreempt &&  vrrp->effective_priority != VRRP_PRIO_OWNER) ||
 		   hd->priority >= vrrp->effective_priority ||
 		   (vrrp->preempt_delay &&
 		    (!vrrp->preempt_time.tv_sec ||
