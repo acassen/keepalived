@@ -609,9 +609,12 @@ uninstall-am:
 # since in a snapcraft build that file is deleted
 # (see https://bugs.launchpad.net/snapcraft/+bug/1662388).
 $(GIT_COMMIT_FILE):
+        @echo Regenerating $(GIT_COMMIT_FILE);\
 	@if [ ! -f $(srcdir)/$(GIT_COMMIT_FILE) -a ! -f $(builddir)/$(GIT_COMMIT_FILE) ]; then \
 		>$(builddir)/$(GIT_COMMIT_FILE); \
 	fi; \
+        grep -qw GIT_DATE $@ || echo '#define GIT_DATE "unknown"' >>$@; \
+        grep -qw GIT_YEAR $@ || echo '#define GIT_YEAR "???"' >>$@; \
 	if [ -x `type -p git` ]; then \
 		cd $(srcdir); \
 		git rev-parse --is-inside-work-tree >/dev/null 2>&1; \
