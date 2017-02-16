@@ -60,23 +60,27 @@ $(GIT_COMMIT_FILE): .FORCE
 				GIT_DATE=`git log -1 --date=iso | grep Date: | sed -e "s/^[^ ]* *\(....\)-\(..\)-\(..\).*/\2\/\3,\1/"`; \
 				GIT_YEAR=`echo $${GIT_DATE} | sed -e "s/.*,//"`; \
 			fi; \
+			if [ "`git status --porcelain | \
+			       grep -v '^??' | \
+			       grep -v '[ /]Makefile.in$$' | \
+			       grep -Ev ' (aclocal.m4|ar-lib|compile|configure|depcomp|install-sh|missing)$$' | \
+			       grep -v "^ D snap/snapcraft.yaml" | \
+			       wc -l`" -ne 0 ]; then \
+				EXTRA="+"; \
+			else \
+				EXTRA=""; \
+			fi; \
 			echo $${GIT_REV} | grep -qE -- "-[1-9][0-9]*-g[0-9a-f]{7}$$"; \
-			if [ $$? -eq 0 ]; then \
-				if [ "`git status --porcelain | \
-				       grep -v '^??' | \
-				       grep -v '[ /]Makefile.in$$' | \
-				       grep -Ev ' (aclocal.m4|ar-lib|compile|configure|depcomp|install-sh|missing)$$' | \
-				       grep -v "^ D snap/snapcraft.yaml" | \
-				       wc -l`" -ne 0 ]; then EXTRA="+"; else EXTRA=""; fi ; \
+			if [ $$? -eq 0 -o -n "$${EXTRA}" ]; then \
 				echo "#define GIT_COMMIT \"$${GIT_REV}$${EXTRA}\"" >$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
-				echo "#define GIT_DATE \"$${GIT_DATE}\"" >>$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
-				echo "#define GIT_YEAR \"$${GIT_YEAR}\"" >>$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
-				diff -q $(abs_builddir)/$(GIT_COMMIT_FILE) $(abs_builddir)/$(GIT_COMMIT_FILE).new 2>/dev/null >/dev/null; \
-				if [ $$? -eq 0 ]; then \
-					rm $(abs_builddir)/$(GIT_COMMIT_FILE).new; \
-				else \
-					mv $(abs_builddir)/$(GIT_COMMIT_FILE).new $(abs_builddir)/$(GIT_COMMIT_FILE); \
-				fi; \
+			fi; \
+			echo "#define GIT_DATE \"$${GIT_DATE}\"" >>$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
+			echo "#define GIT_YEAR \"$${GIT_YEAR}\"" >>$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
+			diff -q $(abs_builddir)/$(GIT_COMMIT_FILE) $(abs_builddir)/$(GIT_COMMIT_FILE).new 2>/dev/null >/dev/null; \
+			if [ $$? -eq 0 ]; then \
+				rm $(abs_builddir)/$(GIT_COMMIT_FILE).new; \
+			else \
+				mv $(abs_builddir)/$(GIT_COMMIT_FILE).new $(abs_builddir)/$(GIT_COMMIT_FILE); \
 			fi; \
 		fi; \
 		cd $(abs_builddir); \

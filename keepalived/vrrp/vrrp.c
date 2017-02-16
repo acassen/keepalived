@@ -2174,6 +2174,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vrrp->init_state = vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK;
 	}
 
+	if (vrrp->base_priority == VRRP_PRIO_OWNER && vrrp->nopreempt) {
+		log_message(LOG_INFO, "(%s): nopreempt is incompatible with priority %d - resetting nopreempt", vrrp->iname, VRRP_PRIO_OWNER);
+		vrrp->nopreempt = false;
+	}
+
 	vrrp->effective_priority = vrrp->base_priority;
 	vrrp->total_priority = vrrp->base_priority;
 
