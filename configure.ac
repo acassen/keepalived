@@ -36,7 +36,7 @@ AC_DEFUN([add_build_opt], [add_to_var([BUILD_OPTIONS], [$1])])
 
 dnl ----[ Process this file with autoconf to produce a configure script ]----
 AC_PREREQ([2.65])
-AC_INIT([Keepalived], [1.3.3], [keepalived-devel@lists.sourceforge.net], [], [http://www.keepalived.org/])
+AC_INIT([Keepalived], [1.3.4], [keepalived-devel@lists.sourceforge.net], [], [http://www.keepalived.org/])
 AM_INIT_AUTOMAKE([-Wall -Werror -Woverride foreign])
 
 AC_CONFIG_SRCDIR([keepalived/core/main.c])

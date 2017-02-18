@@ -1,3 +1,10 @@
+2017-02-18 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.3.4 released.
+	* Fix generation of lib/git-commit.h when building a tagged commit.
+	* Define GIT_DATE and GIT_YEAR when generating default git-commit.h
+	  This issue was caused by commit 5287f03 which didn't define GIT_DATE
+	  and GIT_YEAR in all circumstances.
+
 2017-02-14 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.3.3 released.
 	* Fix unitialised use of misck_checker in script timeout.
