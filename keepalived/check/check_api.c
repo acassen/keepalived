@@ -284,7 +284,7 @@ update_checker_activity(sa_family_t family, void *address, int enable)
 				if (!CHECKER_ENABLED(checker) && enable)
 					log_message(LOG_INFO, "Activating healthchecker for service %s"
 							    , FMT_CHK(checker));
-				if (CHECKER_ENABLED(checker) && !enable)
+				else if (CHECKER_ENABLED(checker) && !enable)
 					log_message(LOG_INFO, "Suspending healthchecker for service %s"
 							    , FMT_CHK(checker));
 				checker->enabled = enable;
