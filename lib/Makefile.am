@@ -43,9 +43,10 @@ MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 # The other file that needs to be ignored is deletion of snap/snapcraft.yaml,
 # since in a snapcraft build that file is deleted
 # (see https://bugs.launchpad.net/snapcraft/+bug/1662388).
-$(GIT_COMMIT_FILE): .FORCE
-	@if [ ! -f $(srcdir)/$(GIT_COMMIT_FILE) -a ! -f $(builddir)/$(GIT_COMMIT_FILE) ]; then \
-		>$(builddir)/$(GIT_COMMIT_FILE); \
+$(GIT_COMMIT_FILE):
+	@if [ ! -f $(srcdir)/$@ -a ! -f $@ ]; then \
+		echo '#define GIT_DATE	"unknown"' >$@; \
+		echo "#define GIT_YEAR	\"`date +%Y`\"" >>$@; \
 	fi; \
 	if [ -x `type -p git` ]; then \
 		cd $(srcdir); \
@@ -72,15 +73,15 @@ $(GIT_COMMIT_FILE): .FORCE
 			fi; \
 			echo $${GIT_REV} | grep -qE -- "-[1-9][0-9]*-g[0-9a-f]{7}$$"; \
 			if [ $$? -eq 0 -o -n "$${EXTRA}" ]; then \
-				echo "#define GIT_COMMIT \"$${GIT_REV}$${EXTRA}\"" >$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
+				echo "#define GIT_COMMIT \"$${GIT_REV}$${EXTRA}\"" >$(abs_builddir)/$@.new; \
 			fi; \
-			echo "#define GIT_DATE \"$${GIT_DATE}\"" >>$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
-			echo "#define GIT_YEAR \"$${GIT_YEAR}\"" >>$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
-			diff -q $(abs_builddir)/$(GIT_COMMIT_FILE) $(abs_builddir)/$(GIT_COMMIT_FILE).new 2>/dev/null >/dev/null; \
+			echo "#define GIT_DATE \"$${GIT_DATE}\"" >>$(abs_builddir)/$@.new; \
+			echo "#define GIT_YEAR \"$${GIT_YEAR}\"" >>$(abs_builddir)/$@.new; \
+			diff -q $(abs_builddir)/$@ $(abs_builddir)/$@.new 2>/dev/null >/dev/null; \
 			if [ $$? -eq 0 ]; then \
-				rm $(abs_builddir)/$(GIT_COMMIT_FILE).new; \
+				rm $(abs_builddir)/$@.new; \
 			else \
-				mv $(abs_builddir)/$(GIT_COMMIT_FILE).new $(abs_builddir)/$(GIT_COMMIT_FILE); \
+				mv $(abs_builddir)/$@.new $(abs_builddir)/$@; \
 			fi; \
 		fi; \
 		cd $(abs_builddir); \

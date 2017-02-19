@@ -1,5 +1,5 @@
 name: keepalived
-version: '1.3.3'
+version: '1.3.4'
 summary: High availability VRRP and load-balancing for Linux
 description: |
   Keepalived provides simple and robust loadbalancing and high-availability
