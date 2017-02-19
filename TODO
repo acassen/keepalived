@@ -41,3 +41,25 @@ bin/genhash -s 2001:470:69dd:35::188 --port 80 -u /Harriet/     # -S doesn;t
 in ipvswrapper.c, get rid of static srule etc and make them procedure local and pass as parameters
 
 Stop passing base_ifp to netlink3_set_interface_parameters() etc
+
+
+Interfaces going down
+======================
+
+1. Interface goes down
+	VMACs removed
+	IP addresses removed
+	IP routes using dev removed
+
+2. Address removed
+	IP routes using address removed
+
+3. VMAC removed
+
+4. IP Route removed
+
+When interface comes back up:
+1. Recreate VMACs
+2. Add back static routes and addresses
+
+Add "required" against against routes/addresses

@@ -474,17 +474,18 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	void *addr;
 	char addr_str[INET6_ADDRSTRLEN];
 
-	ifa = NLMSG_DATA(h);
-
-	/* Only IPV4 are valid us */
-	if (ifa->ifa_family != AF_INET && ifa->ifa_family != AF_INET6)
-		return 0;
-
 	if (h->nlmsg_type != RTM_NEWADDR && h->nlmsg_type != RTM_DELADDR)
 		return 0;
 
 	if (h->nlmsg_len < NLMSG_LENGTH(sizeof (struct ifaddrmsg)))
 		return -1;
+
+	ifa = NLMSG_DATA(h);
+
+	/* Only IPv4 and IPv6 are valid for us */
+	if (ifa->ifa_family != AF_INET && ifa->ifa_family != AF_INET6)
+		return 0;
+
 	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifaddrmsg));
 
 	memset(tb, 0, sizeof (tb));
@@ -1158,6 +1159,45 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	return 0;
 }
 
+static int
+netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
+{
+	struct rtmsg *rt;
+	struct rtattr *tb[RTA_MAX + 1];
+	size_t len;
+// char src[INET6_ADDRSTRLEN] = "None";
+// char dst[INET6_ADDRSTRLEN] = "None";
+
+	if (h->nlmsg_type != RTM_NEWROUTE && h->nlmsg_type != RTM_DELROUTE)
+		return 0;
+
+	if (h->nlmsg_len < NLMSG_LENGTH(sizeof (struct rtmsg)))
+		return -1;
+
+	rt = NLMSG_DATA(h);
+
+// log_message(LOG_INFO, "Netlink route message (%s): IPv%d, table %d, protocol %d, type %d, scope %d, dlen %d, slen %d, flags 0x%x",
+// 	h->nlmsg_type == RTM_NEWROUTE ? "add" : "del", rt->rtm_family == AF_INET ? 4 : rt->rtm_family == AF_INET6 ? 6 : -rt->rtm_family,
+// 	rt->rtm_table, rt->rtm_protocol, rt->rtm_type, rt->rtm_scope, rt->rtm_dst_len, rt->rtm_src_len, rt->rtm_flags);
+
+	/* Only IPv4 and IPv6 are valid for us */
+	if (rt->rtm_family != AF_INET && rt->rtm_family != AF_INET6)
+		return 0;
+
+	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct rtmsg));
+
+	memset(tb, 0, sizeof (tb));
+	parse_rtattr(tb, RTA_MAX, RTM_RTA(rt), len);
+
+// if (tb[RTA_DST] != NULL)
+//   inet_ntop(rt->rtm_family, RTA_DATA(tb[RTA_DST]), dst, INET6_ADDRSTRLEN);
+// if (tb[RTA_SRC] != NULL)
+//   inet_ntop(rt->rtm_family, RTA_DATA(tb[RTA_SRC]), src, INET6_ADDRSTRLEN);
+// log_message(LOG_INFO, "src: %s/%d, dst: %s/%d, table: %d", src, rt->rtm_src_len, dst, rt->rtm_dst_len, tb[RTA_TABLE] ? *(uint32_t *)RTA_DATA(tb[RTA_TABLE]) : rt->rtm_table);
+
+	return 0;
+}
+
 /* Netlink kernel message reflection */
 static int
 netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
@@ -1171,6 +1211,9 @@ netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 	case RTM_DELADDR:
 		return netlink_if_address_filter(snl, h);
 		break;
+	case RTM_NEWROUTE:
+	case RTM_DELROUTE:
+		return netlink_route_filter(snl, h);
 	default:
 		log_message(LOG_INFO,
 		       "Kernel is reflecting an unknown netlink nlmsg_type: %d",
@@ -1206,10 +1249,27 @@ kernel_netlink_init(void)
 
 	/*
 	 * Prepare netlink kernel broadcast channel
-	 * subscribtion. We subscribe to LINK and ADDR
-	 * netlink broadcast messages.
+	 * subscription. We subscribe to LINK, ADDR,
+	 * and ROUTE netlink broadcast messages, but
+	 * the checker process does not need the
+	 * route messages.
 	 */
-	netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
+	/* TODO
+	 * If an interface goes down, or an address is removed, any routes that specify the interface or address are deleted.
+	 * If an interface goes down, any address on that interface is deleted. In this case, the vrrp instance should go to fault state.
+	 * If an interface goes down, any VMACs are deleted. We need to recreate them when the interface returns.
+	 * If a static route goes down, some vrrp instances maybe should go down - add a tracking_instance option
+	 * We need to reinstate routes/addresses/VMACs when we can.
+	 * We need an option on routes to put the instance in fault state if the route disappears.
+	 */
+	/* TODO
+	 * We should only log netlink address messages if it is one of our addresses, or an option to log all
+	 */ 
+	if (prog_type == PROG_TYPE_VRRP) {
+		netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_IPV4_ROUTE, RTNLGRP_IPV6_ROUTE, 0);
+	}
+	else
+		netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
 
 	if (nl_kernel.fd > 0) {
 		log_message(LOG_INFO, "Registering Kernel netlink reflector");
