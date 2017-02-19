@@ -1057,18 +1057,21 @@ if test -z $init_type; then
   if test $? -eq 0; then
     INIT_TYPE=upstart
   else
-    if test \( "`which systemctl`" -a -x "`which systemctl`" \); then
+    init_path=`which systemctl 2>/dev/null`
+    if test \( $? -eq 0 -a -x "$init_path" \); then
       systemctl | grep -q -- "-\.mount"
       if test $? -eq 0; then
 	AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
 	INIT_TYPE=systemd
       fi
     fi
-    if test \( -z "$INIT_TYPE" -a -f /etc/init.d/networking -a \
-	      "`which openrc-run`" -a -x "`which openrc-run`" \); then
-      head -1 /etc/init.d/networking | grep -q "^#!/.*/openrc-run$"
-      if test $? -eq 0; then
-	INIT_TYPE=openrc
+    if test \( -z "$INIT_TYPE" -a -f /etc/init.d/networking \); then
+      init_path=`which openrc-run 2>/dev/null`
+      if test \( $? -eq 0 -a -x "$init_path" \); then
+        head -1 /etc/init.d/networking | grep -q "^#! */.*/openrc-run$"
+        if test $? -eq 0; then
+	  INIT_TYPE=openrc
+        fi
       fi
     fi
     if test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \); then
