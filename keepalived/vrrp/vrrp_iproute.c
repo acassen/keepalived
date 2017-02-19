@@ -44,7 +44,11 @@
 #endif
 #endif
 
-//////#include <linux/rtnetlink.h>
+#include <linux/rtnetlink.h>
+
+#ifndef RTPROT_KEEPALIVED
+#define RTPROT_KEEPALIVED	112	/* Keepalived daemon */
+#endif
 
 /* Buffer sizes for netlink messages. Increase if needed. */
 #define	RTM_SIZE		1024
@@ -334,13 +338,14 @@ netlink_route(ip_route_t *iproute, int cmd)
 			req.r.rtm_type = iproute->type;
 	}
 	else {
-		req.r.rtm_protocol = RTPROT_BOOT;
 		req.r.rtm_scope = RT_SCOPE_UNIVERSE;
 		req.r.rtm_type = iproute->type;
 	}
 
 	if (iproute->mask & IPROUTE_BIT_PROTOCOL)
 		req.r.rtm_protocol = iproute->protocol;
+	else
+		req.r.rtm_protocol = RTPROT_KEEPALIVED;
 
 	if (iproute->mask & IPROUTE_BIT_SCOPE)
 		req.r.rtm_scope = iproute->scope;
