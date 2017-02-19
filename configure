@@ -809,6 +809,7 @@ enable_snmp_reply_v3_for_v2
 enable_dbus
 enable_dbus_create_instance
 enable_sha1
+with_init
 enable_vrrp_auth
 enable_routes
 enable_libiptc
@@ -1498,6 +1499,8 @@ Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
   --with-kernel-dir=DIR   path to linux kernel source directory
+  --with-init=(upstart|systemd|SYSV|SUSE|openrc)
+                          specify init type
   --with-systemdsystemunitdir=DIR
                           Directory for systemd service files
 
@@ -3455,6 +3458,14 @@ fi
 # Check whether --enable-sha1 was given.
 if test "${enable_sha1+set}" = set; then :
   enableval=$enable_sha1;
+fi
+
+
+# Check whether --with-init was given.
+if test "${with_init+set}" = set; then :
+  withval=$with_init; init_type="$withval"
+else
+  init_type=""
 fi
 
 # Check whether --enable-vrrp-auth was given.
@@ -8942,28 +8953,32 @@ fi
 
 
 INIT_TYPE=
-/sbin/init --version 2>/dev/null | grep -q upstart
-if test $? -eq 0; then
-        INIT_TYPE=upstart
-else
-	if test \( "`which systemctl`" -a -x "`which systemctl`" \); then
-		systemctl | grep -q -- "-\.mount"
-		if test $? -eq 0; then
-			systemdsystemunitdir=$with_systemdsystemunitdir
+if test -z $init_type; then
+  /sbin/init --version 2>/dev/null | grep -q upstart
+  if test $? -eq 0; then
+    INIT_TYPE=upstart
+  else
+    if test \( "`which systemctl`" -a -x "`which systemctl`" \); then
+      systemctl | grep -q -- "-\.mount"
+      if test $? -eq 0; then
+	systemdsystemunitdir=$with_systemdsystemunitdir
 
-			INIT_TYPE=systemd
-		fi
-	fi
-	if test \( -z "$INIT_TYPE" -a -f /etc/init.d/networking -a \
-		   "`which openrc-run`" -a -x "`which openrc-run`" \); then
-		head -1 /etc/init.d/networking | grep -q "^#!/.*/openrc-run$"
-		if test $? -eq 0; then
-			INIT_TYPE=openrc
-		fi
-	fi
-	if test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \); then
-		INIT_TYPE=SYSV
-	fi
+	INIT_TYPE=systemd
+      fi
+    fi
+    if test \( -z "$INIT_TYPE" -a -f /etc/init.d/networking -a \
+	      "`which openrc-run`" -a -x "`which openrc-run`" \); then
+      head -1 /etc/init.d/networking | grep -q "^#!/.*/openrc-run$"
+      if test $? -eq 0; then
+	INIT_TYPE=openrc
+      fi
+    fi
+    if test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \); then
+      INIT_TYPE=SYSV
+    fi
+  fi
+else
+  INIT_TYPE=$init_type
 fi
 if test -z $INIT_TYPE; then INIT_TYPE=undetected; fi
  if test $INIT_TYPE = upstart; then
