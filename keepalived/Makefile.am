@@ -30,9 +30,9 @@ if WITH_DBUS
   DBUS_SUBDIR		= dbus
 endif
 
-SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR)
+SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR) etc
 
-EXTRA_DIST		= keepalived.service etc
+EXTRA_DIST		= keepalived.service
 
 keepalived_LDADD	= core/libcore.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a $(KA_LIBS)
 
@@ -44,18 +44,8 @@ sysconfig_DATA		= etc/sysconfig/keepalived
 configdir		= $(sysconfdir)/@PACKAGE@
 config_DATA		= etc/keepalived/keepalived.conf
 
-if INIT_SYSV
-initdir			= $(sysconfdir)/rc.d/init.d
-init_DATA		= etc/init.d/keepalived
-endif
-
 if INIT_SYSTEMD
 systemdsystemunit_DATA	= keepalived.service
-endif
-
-if INIT_UPSTART
-initdir			= $(sysconfdir)/init
-init_DATA		= etc/init/keepalived.conf
 endif
 
 if INIT_OPENRC

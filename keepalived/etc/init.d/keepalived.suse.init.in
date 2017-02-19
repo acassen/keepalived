@@ -12,14 +12,13 @@
 
 
 DAEMON="Keepalived daemon"
-DAEMON_BIN="/usr/local/sbin/keepalived"
-DAEMON_CONF="/etc/keepalived/keepalived.conf"
-DAEMON_PIDFILE="/var/run/keepalived.pid"
+DAEMON_BIN="@sbindir@/keepalived"
+DAEMON_CONF="@sysconfdir@/keepalived/keepalived.conf"
+DAEMON_PIDFILE="@localstatedir@/run/keepalived.pid"
 DAEMON_OPT="-d"
 #DAEMON_USER="root"
-SUPPORTS_HUP="yes"    
-# "yes" if exist next values in freshclam.conf
-#       PidFile /var/run/keepalived.pid
+SUPPORTS_HUP="yes"
+#       PidFile @localstatedir@/run/keepalived.pid
 #       DatabaseOwner root
 
 pid_par=${DAEMON_PIDFILE:+"-p $DAEMON_PIDFILE"}
@@ -50,7 +49,7 @@ rc_reset
 # 5 - program is not installed
 # 6 - program is not configured
 # 7 - program is not running
-# 
+#
 # Note that starting an already running service, stopping
 # or restarting a not-running service as well as the restart
 # with force-reload (in case signalling is not supported) are
@@ -91,7 +90,7 @@ case "$1" in
 		$0 status
 		if test $? = 0; then
 			$0 restart
-		else 
+		else
 			rc_reset
 		fi
 		rc_status

@@ -625,6 +625,8 @@ ac_includes_default="\
 ac_subst_vars='am__EXEEXT_FALSE
 am__EXEEXT_TRUE
 LTLIBOBJS
+INIT_SUSE_FALSE
+INIT_SUSE_TRUE
 INIT_OPENRC_FALSE
 INIT_OPENRC_TRUE
 INIT_SYSV_FALSE
@@ -3201,7 +3203,7 @@ ac_config_headers="$ac_config_headers lib/config.h"
 
 
 
-ac_config_files="$ac_config_files Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile doc/Makefile bin_install/Makefile keepalived/dbus/Makefile"
+ac_config_files="$ac_config_files Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile doc/Makefile bin_install/Makefile keepalived/dbus/Makefile keepalived/etc/Makefile keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile"
 
 
 MAINTAINERCLEANFILES="*~ *.orig *.rej core core.*"
@@ -8996,6 +8998,14 @@ else
   INIT_OPENRC_FALSE=
 fi
 
+ if test $INIT_TYPE = SUSE; then
+  INIT_SUSE_TRUE=
+  INIT_SUSE_FALSE='#'
+else
+  INIT_SUSE_TRUE='#'
+  INIT_SUSE_FALSE=
+fi
+
 
 
 cat >>confdefs.h <<_ACEOF
@@ -9252,6 +9262,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${INIT_OPENRC_TRUE}" && test -z "${INIT_OPENRC_FALSE}"; then
   as_fn_error $? "conditional \"INIT_OPENRC\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${INIT_SUSE_TRUE}" && test -z "${INIT_SUSE_FALSE}"; then
+  as_fn_error $? "conditional \"INIT_SUSE\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 
@@ -9859,6 +9873,9 @@ do
     "doc/Makefile") CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;
     "bin_install/Makefile") CONFIG_FILES="$CONFIG_FILES bin_install/Makefile" ;;
     "keepalived/dbus/Makefile") CONFIG_FILES="$CONFIG_FILES keepalived/dbus/Makefile" ;;
+    "keepalived/etc/Makefile") CONFIG_FILES="$CONFIG_FILES keepalived/etc/Makefile" ;;
+    "keepalived/etc/init/Makefile") CONFIG_FILES="$CONFIG_FILES keepalived/etc/init/Makefile" ;;
+    "keepalived/etc/init.d/Makefile") CONFIG_FILES="$CONFIG_FILES keepalived/etc/init.d/Makefile" ;;
     "depfiles") CONFIG_COMMANDS="$CONFIG_COMMANDS depfiles" ;;
 
   *) as_fn_error $? "invalid argument: \`$ac_config_target'" "$LINENO" 5;;

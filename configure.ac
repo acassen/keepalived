@@ -54,7 +54,8 @@ AH_BOTTOM(
 
 AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec \
 		 genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile doc/Makefile \
-		 bin_install/Makefile keepalived/dbus/Makefile])
+		 bin_install/Makefile keepalived/dbus/Makefile keepalived/etc/Makefile \
+		 keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile])
 
 MAINTAINERCLEANFILES="*~ *.orig *.rej core core.*"
 AC_SUBST(MAINTAINERCLEANFILES)
@@ -1075,6 +1076,7 @@ AM_CONDITIONAL([INIT_UPSTART], [test $INIT_TYPE = upstart])
 AM_CONDITIONAL([INIT_SYSTEMD], [test $INIT_TYPE = systemd])
 AM_CONDITIONAL([INIT_SYSV], [test $INIT_TYPE = SYSV])
 AM_CONDITIONAL([INIT_OPENRC], [test $INIT_TYPE = openrc])
+AM_CONDITIONAL([INIT_SUSE], [test $INIT_TYPE = SUSE])
 
 AC_DEFINE_UNQUOTED([CONFIGURATION_OPTIONS], ["$BUILD_OPTIONS"], [The configuration and build options from which the package is built])
 
