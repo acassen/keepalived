@@ -1622,7 +1622,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	addr_cmp = vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp);
 
 	if (hd->priority == vrrp->effective_priority && addr_cmp == 0)
-			log_message(LOG_INFO, "(%s): WARNING - equal priority advert received from remote host with our IP address.", vrrp->iname);
+		log_message(LOG_INFO, "(%s): WARNING - equal priority advert received from remote host with our IP address.", vrrp->iname);
 
 	if (hd->priority < vrrp->effective_priority ||
 		   (hd->priority == vrrp->effective_priority &&
@@ -2073,7 +2073,13 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		vrrp->effective_priority = vrrp->base_priority;
 	}
-	else if (vrrp->strict_mode && (vrrp->init_state == VRRP_STATE_MAST) && (vrrp->base_priority != VRRP_PRIO_OWNER)) {
+
+	if (vrrp->base_priority == VRRP_PRIO_OWNER && vrrp->nopreempt) {
+		log_message(LOG_INFO, "(%s): nopreempt is incompatible with priority %d - resetting nopreempt", vrrp->iname, VRRP_PRIO_OWNER);
+		vrrp->nopreempt = false;
+	}
+
+	if (vrrp->strict_mode && (vrrp->init_state == VRRP_STATE_MAST) && (vrrp->base_priority != VRRP_PRIO_OWNER)) {
 		log_message(LOG_INFO,"(%s): Cannot start in MASTER state if not address owner", vrrp->iname);
 		vrrp->init_state = VRRP_STATE_BACK;
 		vrrp->wantstate = VRRP_STATE_BACK;

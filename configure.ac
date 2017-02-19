@@ -54,7 +54,8 @@ AH_BOTTOM(
 
 AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec \
 		 genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile doc/Makefile \
-		 bin_install/Makefile keepalived/dbus/Makefile])
+		 bin_install/Makefile keepalived/dbus/Makefile keepalived/etc/Makefile \
+		 keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile])
 
 MAINTAINERCLEANFILES="*~ *.orig *.rej core core.*"
 AC_SUBST(MAINTAINERCLEANFILES)
@@ -100,6 +101,9 @@ AC_ARG_ENABLE(dbus-create-instance,
   [AS_HELP_STRING([--enable-dbus-create-instance], [compile with dbus support for creating instances])])
 AC_ARG_ENABLE(sha1,
   [AS_HELP_STRING([--enable-sha1], [compile with SHA1 support])])
+AC_ARG_WITH(init,
+  [AS_HELP_STRING([--with-init=(upstart|systemd|SYSV|SUSE|openrc)], [specify init type])],
+  [init_type="$withval"], [init_type=""])
 AC_ARG_ENABLE(vrrp-auth,
   [AS_HELP_STRING([--disable-vrrp-auth], [compile without VRRP authentication])])
 AC_ARG_ENABLE(routes,
@@ -1048,33 +1052,41 @@ AM_CONDITIONAL([PROFILE], [test $WITH_PROFILING = Yes])
 
 dnl ----[ Determine system init type]----
 INIT_TYPE=
-/sbin/init --version 2>/dev/null | grep -q upstart
-if test $? -eq 0; then
-        INIT_TYPE=upstart
+if test -z $init_type; then
+  /sbin/init --version 2>/dev/null | grep -q upstart
+  if test $? -eq 0; then
+    INIT_TYPE=upstart
+  else
+    init_path=`which systemctl 2>/dev/null`
+    if test \( $? -eq 0 -a -x "$init_path" \); then
+      systemctl | grep -q -- "-\.mount"
+      if test $? -eq 0; then
+	AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
+	INIT_TYPE=systemd
+      fi
+    fi
+    if test \( -z "$INIT_TYPE" -a -f /etc/init.d/networking \); then
+      init_path=`which openrc-run 2>/dev/null`
+      if test \( $? -eq 0 -a -x "$init_path" \); then
+        head -1 /etc/init.d/networking | grep -q "^#! */.*/openrc-run$"
+        if test $? -eq 0; then
+	  INIT_TYPE=openrc
+        fi
+      fi
+    fi
+    if test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \); then
+      INIT_TYPE=SYSV
+    fi
+  fi
 else
-	if test \( "`which systemctl`" -a -x "`which systemctl`" \); then
-		systemctl | grep -q -- "-\.mount"
-		if test $? -eq 0; then
-			AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
-			INIT_TYPE=systemd
-		fi
-	fi
-	if test \( -z "$INIT_TYPE" -a -f /etc/init.d/networking -a \
-		   "`which openrc-run`" -a -x "`which openrc-run`" \); then
-		head -1 /etc/init.d/networking | grep -q "^#!/.*/openrc-run$"
-		if test $? -eq 0; then
-			INIT_TYPE=openrc
-		fi
-	fi
-	if test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \); then
-		INIT_TYPE=SYSV
-	fi
+  INIT_TYPE=$init_type
 fi
 if test -z $INIT_TYPE; then INIT_TYPE=undetected; fi
 AM_CONDITIONAL([INIT_UPSTART], [test $INIT_TYPE = upstart])
 AM_CONDITIONAL([INIT_SYSTEMD], [test $INIT_TYPE = systemd])
 AM_CONDITIONAL([INIT_SYSV], [test $INIT_TYPE = SYSV])
 AM_CONDITIONAL([INIT_OPENRC], [test $INIT_TYPE = openrc])
+AM_CONDITIONAL([INIT_SUSE], [test $INIT_TYPE = SUSE])
 
 AC_DEFINE_UNQUOTED([CONFIGURATION_OPTIONS], ["$BUILD_OPTIONS"], [The configuration and build options from which the package is built])
 
