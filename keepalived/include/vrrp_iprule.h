@@ -45,6 +45,7 @@ enum iprule_param_mask {
 	IPRULE_BIT_FWMASK = 0x08,
 	IPRULE_BIT_SUP_PREFIXLEN = 0x10,
 	IPRULE_BIT_SUP_GROUP = 0x20,
+	IPRULE_BIT_UID_RANGE = 0x40,
 } ;
 
  /* types definition */
@@ -71,6 +72,9 @@ typedef struct _ip_rule {
 	uint8_t		action;
 #if HAVE_DECL_FRA_TUN_ID
 	uint64_t	tunnel_id;
+#endif
+#if HAVE_DECL_FRA_UID_RANGE
+	struct fib_rule_uid_range uid_range;
 #endif
 	bool		set;
 } ip_rule_t;
