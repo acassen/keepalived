@@ -47,6 +47,10 @@
    don't. */
 #undef HAVE_DECL_FRA_TUN_ID
 
+/* Define to 1 if you have the declaration of `FRA_UID_RANGE', and to 0 if you
+   don't. */
+#undef HAVE_DECL_FRA_UID_RANGE
+
 /* Define to 1 if you have the declaration of `IFLA_INET6_ADDR_GEN_MODE', and
    to 0 if you don't. */
 #undef HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
