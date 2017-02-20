@@ -39,9 +39,9 @@
      authCommunity  log,execute,net public
 
  * Put the MIB definition files in a place that will be found:
-     cp doc/[VK]*-MIB /usr/share/snmp/mibs
+     cp doc/[VK]*-MIB.txt /usr/share/snmp/mibs
  *  or
-     cp doc/[VK]*-MIB ~/.snmp/mibs
+     cp doc/[VK]*-MIB.txt ~/.snmp/mibs
 
  * Run snmpd (in background)
      snmpd -LS0-6d
@@ -68,7 +68,10 @@
      MIBS="+VRRP-MIB" snmpwalk -v2c -c public localhost VRRP-MIB::vrrpMIB
     or
      MIBS="+VRRPV3-MIB" snmpwalk -v2c -c public localhost VRRPV3-MIB::vrrpv3MIB
- *
+
+ * To check the validity of a MIB file:
+     smilint doc/KEEPALIVED-MIB.txt
+
  */
 
 #include "config.h"
@@ -198,6 +201,8 @@ enum snmp_rule_magic {
 	VRRP_SNMP_RULE_SUPPRESSGROUP,
 	VRRP_SNMP_RULE_TUNNELID_HIGH,
 	VRRP_SNMP_RULE_TUNNELID_LOW,
+	VRRP_SNMP_RULE_UID_RANGE_START,
+	VRRP_SNMP_RULE_UID_RANGE_END,
 };
 
 enum snmp_route_magic {
@@ -1453,6 +1458,22 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 #endif
 			break;
 		return (u_char *)&long_ret;
+#if HAVE_DECL_FRA_UID_RANGE
+	case VRRP_SNMP_RULE_UID_RANGE_START:
+		if (rule->mask & IPRULE_BIT_UID_RANGE)
+			long_ret.u = rule->uid_range.start;
+		else
+#endif
+			break;
+		return (u_char *)&long_ret;
+#if HAVE_DECL_FRA_UID_RANGE
+	case VRRP_SNMP_RULE_UID_RANGE_END:
+		if (rule->mask & IPRULE_BIT_UID_RANGE)
+			long_ret.u = rule->uid_range.end;
+		else
+#endif
+			break;
+		return (u_char *)&long_ret;
 	default:
 		return NULL;
 	}
@@ -2357,6 +2378,12 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_rule, 3, {8, 1, 28}},
 	{VRRP_SNMP_RULE_TUNNELID_LOW, ASN_UNSIGNED, RONLY,
 	 vrrp_snmp_rule, 3, {8, 1, 29}},
+#endif
+#if HAVE_DECL_FRA_UID_RANGE
+	{VRRP_SNMP_RULE_UID_RANGE_START, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 30}},
+	{VRRP_SNMP_RULE_UID_RANGE_END, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 31}},
 #endif
 
 	/* vrrpScriptTable */

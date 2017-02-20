@@ -55,7 +55,7 @@ timer_add_long(timeval_t a, unsigned long b)
 	ret.tv_usec = a.tv_usec + (int)(b % TIMER_HZ);
 	ret.tv_sec = a.tv_sec + (int)(b / TIMER_HZ);
 
-	if (ret.tv_usec >= TIMER_HZ) {
+	if (ret.tv_usec >= (int)TIMER_HZ) {
 		ret.tv_sec++;
 		ret.tv_usec -= TIMER_HZ;
 	}
@@ -68,9 +68,22 @@ timer_sub_long(timeval_t a, unsigned long b)
 {
 	timeval_t ret;
 
-	if (a.tv_usec < (int)(b % TIMER_HZ)) {
-		a.tv_usec += TIMER_HZ;
-		a.tv_sec--;
+	timer_reset_lazy(ret);
+
+	if (b == TIMER_NEVER)
+	{
+		ret.tv_usec = TIMER_HZ - 1;
+		ret.tv_sec = LONG_MAX;
+
+		return ret;
+	}
+
+	ret.tv_usec = a.tv_usec + (int)(b % TIMER_HZ);
+	ret.tv_sec = a.tv_sec + (int)(b / TIMER_HZ);
+
+	if (ret.tv_usec >= (int)TIMER_HZ) {
+		ret.tv_sec++;
+		ret.tv_usec -= TIMER_HZ;
 	}
 	ret.tv_usec = a.tv_usec - (int)(b % TIMER_HZ);
 	ret.tv_sec = a.tv_sec - (int)(b / TIMER_HZ);
