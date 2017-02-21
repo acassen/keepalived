@@ -323,6 +323,8 @@ vrrp_timer_fd(const int fd)
 // TODO - if the result of the following test is -ve, then a thread has already expired
 // and so shouldn't we run straight away? Or else ignore timers in past and take the next
 // one in the future?
+	if (timer.tv_sec == TIMER_DISABLED)
+		return ULONG_MAX;
 	if (timercmp(&timer, &time_now, <))
 		return TIMER_MAX_SEC;
 
