@@ -83,30 +83,12 @@ thread_t *garp_thread;
  *     |               |<----------------------|               |
  *     +---------------+                       +---------------+
  */
-static void vrrp_backup(vrrp_t *, char *, ssize_t);
-static void vrrp_leave_master(vrrp_t *, char *, ssize_t);
-
-static void vrrp_goto_master(vrrp_t *);
-static void vrrp_master(vrrp_t *);
 
 static int vrrp_script_child_timeout_thread(thread_t * thread);
 static int vrrp_script_child_thread(thread_t * thread);
 static int vrrp_script_thread(thread_t * thread);
 
 static int vrrp_read_dispatcher_thread(thread_t *);
-
-static struct {
-	void (*read) (vrrp_t *, char *, ssize_t);
-	void (*read_timeout) (vrrp_t *);
-} VRRP_FSM[VRRP_MAX_FSM_STATE + 1] =
-{
-/*    Stream Read Handlers      |    Stream Read_to handlers   *
- *------------------------------+------------------------------*/
-	{NULL,				NULL},
-	{vrrp_backup,			vrrp_goto_master},	/*  BACKUP          */
-	{vrrp_leave_master,		vrrp_master},		/*  MASTER          */
-	{NULL,				NULL}			/*  FAULT           */
-};
 
 #define	TSM_DEBUG
 
@@ -189,6 +171,7 @@ vrrp_init_state(list l)
 	bool is_up;
 	int new_state;
 
+// TODO 1 - don't report fault state if just running scripts. Have an init state??
 	/* Do notifications for any sync groups in fault state */
 	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
 		/* Init group if needed  */
@@ -616,23 +599,14 @@ vrrp_leave_master(vrrp_t * vrrp, char *buffer, ssize_t len)
 	if (vrrp_state_master_rx(vrrp, buffer, len))
 	{
 		vrrp_state_leave_master(vrrp);
-		vrrp_smtp_notifier(vrrp);
+		vrrp_smtp_notifier(vrrp);	// TODO 1 - should this be in state_leave_masteR()?
 	}
 }
 
 static void
 vrrp_goto_master(vrrp_t * vrrp)
 {
-#if defined _WITH_VRRP_AUTH_
-	/* If becoming MASTER in IPSEC AH AUTH, we reset the anti-replay */
-	if (vrrp->version == VRRP_VERSION_2 && vrrp->ipsecah_counter.cycle) {
-		vrrp->ipsecah_counter.cycle = false;
-		vrrp->ipsecah_counter.seq_number = 0;
-	}
-#endif
-
 #ifdef _WITH_SNMP_RFCV3_
-// TODO - what is this test doing?
 	if (vrrp->ms_down_timer >= 3 * vrrp->master_adver_int)
 		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
 #endif
@@ -728,7 +702,7 @@ try_up_instance(vrrp_t *vrrp)
 
 	/* If the sync group can't go to master, we must go to backup state */
 	wantstate = vrrp->wantstate;
-	if (vrrp->sync && !vrrp_sync_can_goto_master(vrrp))
+	if (vrrp->sync && vrrp->wantstate == VRRP_STATE_MAST && !vrrp_sync_can_goto_master(vrrp))
 		vrrp->wantstate = VRRP_STATE_BACK;
 
 	/* We can come up */
@@ -767,9 +741,14 @@ vrrp_dispatcher_read_timeout(int fd)
 		if (timercmp(&vrrp->sands, &time_now, >))
 			continue;
 
-		/* Run the FSM handler */
 		prev_state = vrrp->state;
-		VRRP_FSM_READ_TO(vrrp);
+
+		if (vrrp->state == VRRP_STATE_BACK)
+			vrrp_goto_master(vrrp);
+		else if (vrrp->state == VRRP_STATE_MAST)
+			vrrp_master(vrrp);
+		else
+			log_message(LOG_INFO, "(%s): In dispatcher_read_timeout with state %d, sands %lu.%6.6ld", vrrp->iname, vrrp->state, vrrp->sands.tv_sec, vrrp->sands.tv_usec);
 
 		/* handle instance synchronization */
 #ifdef TSM_DEBUG
@@ -818,9 +797,14 @@ vrrp_dispatcher_read(sock_t * sock)
 
 	vrrp->pkt_saddr = src_addr;
 
-	/* Run the FSM handler */
 	prev_state = vrrp->state;
-	VRRP_FSM_READ(vrrp, vrrp_buffer, len);
+
+	if (vrrp->state == VRRP_STATE_BACK)
+		vrrp_backup(vrrp, vrrp_buffer, len);
+	else if (vrrp->state == VRRP_STATE_MAST)
+		vrrp_leave_master(vrrp, vrrp_buffer, len);
+	else
+		log_message(LOG_INFO, "(%s): In dispatcher_read with state %d", vrrp->iname, vrrp->state);
 
 	/* handle instance synchronization */
 #ifdef TSM_DEBUG

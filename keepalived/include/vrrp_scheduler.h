@@ -36,19 +36,6 @@
 extern timeval_t garp_next_time;
 extern thread_t *garp_thread;
 
-/* VRRP FSM Macro */
-#define VRRP_FSM_READ_TO(V)			\
-do {						\
-  if ((*(VRRP_FSM[(V)->state].read_timeout)))	\
-    (*(VRRP_FSM[(V)->state].read_timeout)) (V);	\
-} while (0)
-
-#define VRRP_FSM_READ(V, B, L)			\
-do {						\
-  if ((*(VRRP_FSM[(V)->state].read)))		\
-    (*(VRRP_FSM[(V)->state].read)) (V, B, L);	\
-} while (0)
-
 /* VRRP TSM Macro */
 #define VRRP_TSM_HANDLE(S,V)			\
 do {						\

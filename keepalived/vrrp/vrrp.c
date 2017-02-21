@@ -1344,6 +1344,14 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 	if (vrrp->sync && !vrrp_sync_can_goto_master(vrrp))
 		return;
 
+#if defined _WITH_VRRP_AUTH_
+	/* If becoming MASTER in IPSEC AH AUTH, we reset the anti-replay */
+	if (vrrp->ipsecah_counter.cycle) {
+		vrrp->ipsecah_counter.cycle = false;
+		vrrp->ipsecah_counter.seq_number = 0;
+	}
+#endif
+
 	vrrp->state = VRRP_STATE_MAST;
 	vrrp_state_master_tx(vrrp);
 }
@@ -1628,6 +1636,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	unsigned master_adver_int;
 	int addr_cmp;
 
+// TODO - could we get here with wantstate == FAULT and STATE != FAULT?
 	/* return on link failure */
 // TODO - not needed???
 	if (vrrp->wantstate == VRRP_STATE_FAULT) {
