@@ -62,3 +62,40 @@ When interface comes back up:
 2. Add back static routes and addresses
 
 Add "required" against against routes/addresses
+
+Add id for static routes:
+static_routes FRED {
+...
+}
+and in vrrp instance
+track_static_routes {
+    FRED
+}
+
+and similarly for static_ipaddress
+
+Add global keyword
+  track_added
+to make vrrp instances go to backup or fault state if anything they added goes away
+(backup if can re-add, fault it not).
+
+Add option `track` to virtual route to do same as global track_added, but for
+that route for that vrrp instance. If route has a dev, then 
+
+Add option track for virtual ip address, which will add specified dev to tracked interfaces.
+
+Add options at static config level and vrrp instance to track system ip addresses and track system routes
+(although this is crudely available via scripts).
+
+
+epoll
+=====
+Use timerfd (see timerfd_create(2)) for microsecond timing with epoll, and do not bother with its timeout.
+If not available, then simply use the epoll timer.
+
+Optimise calls to timer_now() and see set_time_now()
+====================================================
+After select completes, get time. Before calculating next
+select expire time, get time again.
+To test time processing, save time after select and log time taken
+before next select. Also initialise timer at startup.
