@@ -648,7 +648,7 @@ thread_compute_timer(thread_master_t * m, timeval_t * timer_wait)
 thread_t *
 thread_fetch(thread_master_t * m, thread_t * fetch)
 {
-	int ret, old_errno;
+	int num_fds, old_errno;
 	thread_t *thread;
 	fd_set readfd;
 	fd_set writefd;
@@ -659,6 +659,7 @@ thread_fetch(thread_master_t * m, thread_t * fetch)
 #ifdef _WITH_SNMP_
 	int snmpblock = 0;
 #endif
+	bool timer_expired;
 
 	assert(m != NULL);
 
@@ -719,39 +720,22 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	}
 #endif
 
-#ifdef _TIMER_DEBUG_
+#ifdef _SELECT_DEBUG_
 	/* if (prog_type == PROG_TYPE_VRRP) */
-		log_message(LOG_INFO, "select with timer %ld.%6.6ld, fdsetsize %d", timer_wait.tv_sec, timer_wait.tv_usec, fdsetsize);
+		log_message(LOG_INFO, "select with timer %lu.%6.6ld, fdsetsize %d", timer_wait.tv_sec, timer_wait.tv_usec, fdsetsize);
 #endif
 
-	ret = select(fdsetsize, &readfd, &writefd, &exceptfd, &timer_wait);
+	num_fds = select(fdsetsize, &readfd, &writefd, &exceptfd, &timer_wait);
 
-#ifdef _TIMER_DEBUG_
+#ifdef _SELECT_DEBUG_
 	/* if (prog_type == PROG_TYPE_VRRP) */
-		log_message(LOG_INFO, "Select returned %d", ret);
+		log_message(LOG_INFO, "Select returned %d, readfd 0x%lx, writefd 0x%lx, exceptfd 0x%lx, timer %lu.%6.6ld", num_fds, readfd.fds_bits[0], writefd.fds_bits[0], exceptfd.fds_bits[0], timer_wait.tv_sec, timer_wait.tv_usec);
 #endif
 
 	/* we have to save errno here because the next syscalls will set it */
 	old_errno = errno;
 
-	/* Handle SNMP stuff */
-#ifdef _WITH_SNMP_
-	if (snmp_running) {
-		if (ret > 0)
-			snmp_read(&readfd);
-		else if (ret == 0)
-			snmp_timeout();
-	}
-#endif
-
-	/* handle signals synchronously, including child reaping */
-	if (FD_ISSET(signal_fd, &readfd))
-		signal_run_callback();
-
-	/* Update current time */
-	set_time_now();
-
-	if (ret < 0) {
+	if (num_fds < 0) {
 		if (old_errno == EINTR)
 			goto retry;
 		/* Real error. */
@@ -759,37 +743,62 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		assert(0);
 	}
 
-	/* Timeout children */
-	thread = m->child.head;
-	while (thread) {
-		thread_t *t;
+	/* Handle SNMP stuff */
+#ifdef _WITH_SNMP_
+	if (snmp_running) {
+		if (num_fds > 0)
+			snmp_read(&readfd);
+		else if (num_fds == 0)
+			snmp_timeout();
+	}
+#endif
 
-		t = thread;
-		thread = t->next;
-
-		if (timercmp(&time_now, &t->sands, >=)) {
-			thread_list_delete(&m->child, t);
-			thread_list_add(&m->ready, t);
-			t->type = THREAD_CHILD_TIMEOUT;
-		} else
-			break;
+	/* handle signals synchronously, including child reaping */
+	if (num_fds && FD_ISSET(signal_fd, &readfd)) {
+		signal_run_callback();
+		num_fds--;
 	}
 
-	/* Read thead. */
+	/* Update current time */
+	set_time_now();
+
+	timer_expired = (timer_wait.tv_sec == 0 && timer_wait.tv_usec == 0);
+
+	if (timer_expired) {
+		/* Timeout children */
+		thread = m->child.head;
+		while (thread) {
+			thread_t *t;
+
+			t = thread;
+			thread = t->next;
+
+			if (timercmp(&time_now, &t->sands, >=)) {
+				thread_list_delete(&m->child, t);
+				thread_list_add(&m->ready, t);
+				t->type = THREAD_CHILD_TIMEOUT;
+			} else
+				break;
+		}
+	}
+
+	/* Read thread. */
 	thread = m->read.head;
-	while (thread) {
+	while (thread && (num_fds || timer_expired)) {
 		thread_t *t;
 
 		t = thread;
 		thread = t->next;
 
-		if (FD_ISSET(t->u.fd, &readfd)) {
+		if (num_fds && FD_ISSET(t->u.fd, &readfd)) {
 			assert(FD_ISSET(t->u.fd, &m->readfd));
 			FD_CLR(t->u.fd, &m->readfd);
 			thread_list_delete(&m->read, t);
 			thread_list_add(&m->ready, t);
 			t->type = THREAD_READY_FD;
-		} else if (t->sands.tv_sec != TIMER_DISABLED &&
+			num_fds--;
+		} else if (timer_expired &&
+			   t->sands.tv_sec != TIMER_DISABLED &&
 			   timercmp(&time_now, &t->sands, >=)) {
 			FD_CLR(t->u.fd, &m->readfd);
 			thread_list_delete(&m->read, t);
@@ -800,20 +809,22 @@ retry:	/* When thread can't fetch try to find next thread again. */
 
 	/* Write thead. */
 	thread = m->write.head;
-	while (thread) {
+	while (thread && (num_fds || timer_expired)) {
 		thread_t *t;
 
 		t = thread;
 		thread = t->next;
 
-		if (FD_ISSET(t->u.fd, &writefd)) {
+		if (num_fds && FD_ISSET(t->u.fd, &writefd)) {
 			assert(FD_ISSET(t->u.fd, &writefd));
 			FD_CLR(t->u.fd, &m->writefd);
 			thread_list_delete(&m->write, t);
 			thread_list_add(&m->ready, t);
 			t->type = THREAD_READY_FD;
+			num_fds--;
 		} else {
-			if (timercmp(&time_now, &t->sands, >=)) {
+			if (timer_expired &&
+			    timercmp(&time_now, &t->sands, >=)) {
 				FD_CLR(t->u.fd, &m->writefd);
 				thread_list_delete(&m->write, t);
 				thread_list_add(&m->ready, t);
@@ -825,19 +836,21 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/*... */
 
 	/* Timer update. */
-	thread = m->timer.head;
-	while (thread) {
-		thread_t *t;
+	if (timer_expired) {
+		thread = m->timer.head;
+		while (thread) {
+			thread_t *t;
 
-		t = thread;
-		thread = t->next;
+			t = thread;
+			thread = t->next;
 
-		if (timercmp(&time_now, &t->sands, >=)) {
-			thread_list_delete(&m->timer, t);
-			thread_list_add(&m->ready, t);
-			t->type = THREAD_READY;
-		} else
-			break;
+			if (timercmp(&time_now, &t->sands, >=)) {
+				thread_list_delete(&m->timer, t);
+				thread_list_add(&m->ready, t);
+				t->type = THREAD_READY;
+			} else
+				break;
+		}
 	}
 
 	/* Return one event. */
