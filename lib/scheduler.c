@@ -378,7 +378,7 @@ thread_read_requeue(thread_master_t *m, int fd, timeval_t new_sands)
 	if (insert)
 		thread_list_add_before(&m->read, insert, tt);
 	else
-		thread_list_add(&m->read, tt);
+		thread_list_add_timeval(&m->read, tt);
 }
 
 void
