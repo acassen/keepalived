@@ -155,6 +155,9 @@ check_misc_script_security(void)
 
 		script_flags |= (flags = check_script_secure(&script, global_data->script_security, false));
 
+		/* The script path may have been updated if it wan't an absolute path */
+		misc_script->path = script.name;
+
 		/* Mark not to run if needs inhibiting */
 		if (flags & SC_INHIBIT) {
 			log_message(LOG_INFO, "Disabling misc script %s due to insecure", misc_script->path);
