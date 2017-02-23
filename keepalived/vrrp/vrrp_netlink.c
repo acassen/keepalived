@@ -1084,3 +1084,237 @@ kernel_netlink_close(void)
 	netlink_close(&nl_kernel);
 	netlink_close(&nl_cmd);
 }
+
+
+static int
+vip_netlink_if_address_filter(__attribute__((unused))struct sockaddr_nl *snl, struct nlmsghdr *h,ip_address_t *ipaddress,int *vip_flag)
+{
+	struct ifaddrmsg *ifa;
+	struct rtattr *tb[IFA_MAX + 1];
+	int len;
+    interface_t *ifp;
+	void *addr;
+	void *vip_addr;
+        int vip_set =0;
+
+	ifa = NLMSG_DATA(h);
+
+	/* Only IPV4 are valid us */
+	if (ifa->ifa_family != AF_INET && ifa->ifa_family != AF_INET6)
+		return -1;
+
+	len = h->nlmsg_len - NLMSG_LENGTH(sizeof (struct ifaddrmsg));
+	if (len < 0)
+		return -1;
+
+	memset(tb, 0, sizeof (tb));
+	parse_rtattr(tb, IFA_MAX, IFA_RTA(ifa), len);
+
+	/* Fetch interface_t */
+	ifp = if_get_by_ifindex(ifa->ifa_index);
+
+	if (!ifp)
+		return 0;
+	if (tb[IFA_LOCAL] == NULL)
+    {
+        tb[IFA_LOCAL] = tb[IFA_ADDRESS];    
+    }
+	if (tb[IFA_ADDRESS] == NULL)
+    {
+        tb[IFA_ADDRESS] = tb[IFA_LOCAL];
+    }
+
+
+	/* local interface address */
+	addr = (tb[IFA_LOCAL] ? RTA_DATA(tb[IFA_LOCAL]) : NULL);
+
+	if (addr == NULL)
+    {
+        return -1;
+    }
+
+    if(ifa->ifa_family == AF_INET)
+    {
+        vip_addr = (void *)&ipaddress->u.sin.sin_addr;
+    }
+    else
+    {
+        vip_addr = (void *)&ipaddress->u.sin6_addr;    
+    }
+	
+
+	/* If no address is set on interface then set the first time */
+	if ((ifa->ifa_family == ipaddress->ifa.ifa_family)&& (ifa->ifa_index == ipaddress->ifa.ifa_index ))
+    {
+    
+        if( inaddr_equal(ifa->ifa_family,vip_addr,addr))
+        {
+            vip_set = 1; 
+        }
+        else
+        {
+            vip_set = 2; /*标示这次未找到vip地址*/
+        }
+        * vip_flag = vip_set;		
+    }
+	return 0;
+}
+
+
+static int
+vip_netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *,ip_address_t *,int *),
+		   nl_handle_t *nl, list vip_list)
+{
+	int status;
+	int status_bak;
+	int ret = 0;
+	int error;
+	ip_address_t *ipaddr;
+	element e;
+        int vip_flag = 0;
+	
+	if (LIST_ISEMPTY(vip_list))
+		return -1;
+
+	while (1) {
+		char buf[4096];
+		struct iovec iov = { buf, sizeof buf };
+		struct sockaddr_nl snl;
+		struct msghdr msg =
+		    { (void *) &snl, sizeof snl, &iov, 1, NULL, 0, 0 };
+		struct nlmsghdr *h;
+
+		status = recvmsg(nl->fd, &msg, 0);
+
+		if (status < 0) {
+			if (errno == EINTR)
+				continue;
+			if (errno == EWOULDBLOCK || errno == EAGAIN)
+				break;
+			log_message(LOG_INFO, "vip_netlink_parse_info: Received message overrun (%m)");
+			continue;
+		}
+
+		if (status == 0) {
+			log_message(LOG_INFO, "vip_netlink_parse_info: EOF");
+			return -1;
+		}
+
+		if (msg.msg_namelen != sizeof snl) {
+			log_message(LOG_INFO,
+			       "vip_netlink_parse_info: Sender address length error: length %d",
+			       msg.msg_namelen);
+			return -1;
+		}
+
+        for (e = LIST_HEAD(vip_list); e; ELEMENT_NEXT(e)) 
+        {
+            ipaddr = ELEMENT_DATA(e);
+			vip_flag = 0;
+			status_bak = status;
+
+            if (ipaddr->set == 0 )
+            {
+               continue;				
+            }
+				
+			for (h = (struct nlmsghdr *) buf; NLMSG_OK(h, status);
+				 h = NLMSG_NEXT(h, status)) {
+				/* Finish of reading. */
+				if (h->nlmsg_type == NLMSG_DONE)
+					return ret;
+			
+				/* Error handling. */
+				if (h->nlmsg_type == NLMSG_ERROR) {
+					struct nlmsgerr *err = (struct nlmsgerr *) NLMSG_DATA(h);
+			
+					/*
+					 * If error == 0 then this is a netlink ACK.
+					 * return if not related to multipart message.
+					 */
+					if (err->error == 0) {
+						if (!(h->nlmsg_flags & NLM_F_MULTI))
+							return 0;
+						continue;
+					}
+			
+					if (h->nlmsg_len < NLMSG_LENGTH(sizeof (struct nlmsgerr))) {
+						log_message(LOG_INFO,
+							   "vip_netlink_parse_info: error: message truncated");
+						return -1;
+					}
+			
+					if (netlink_error_ignore != -err->error)
+						log_message(LOG_INFO,
+							   "vip_netlink_parse_info: error: %s, type=(%u), seq=%u, pid=%d",
+							   strerror(-err->error),
+							   err->msg.nlmsg_type,
+							   err->msg.nlmsg_seq, err->msg.nlmsg_pid);
+			
+					return -1;
+				}
+			
+				/* Skip unsolicited messages from cmd channel */
+				if (nl != &nl_cmd && h->nlmsg_pid == nl_cmd.nl_pid)
+					continue;
+			
+				error = (*filter) (&snl, h,ipaddr,&vip_flag);
+				if (error < 0) {
+					log_message(LOG_INFO, "vip_netlink_parse_info: filter function error");
+					ret = error;
+				}
+                if(vip_flag == 1)
+                {
+                  break;
+                }
+			}
+				 
+            if(vip_flag == 2)
+            {   
+                netlink_ipaddress(ipaddr, IPADDRESS_ADD);                        
+            }
+			
+			status = status_bak;
+			/* After error care. */
+			if (msg.msg_flags & MSG_TRUNC) {
+				log_message(LOG_INFO, "vip_netlink_parse_info: error: message truncated");
+				continue;
+			}
+			
+        }
+	}
+
+	return ret;
+}
+
+
+ int
+vip_netlink_address_lookup(vrrp_t * vrrp)
+{
+	nl_handle_t nlh;
+	int status = 0;
+
+	if (netlink_socket(&nlh, 0, 0) < 0)
+		return -1;
+
+	/* IPv4 Address lookup */
+	if (netlink_request(&nlh, AF_INET, RTM_GETADDR) < 0) {
+		status = -1;
+		goto end_addr;
+	}
+	status = vip_netlink_parse_info(vip_netlink_if_address_filter, &nlh, vrrp->vip);
+
+	/* IPv6 Address lookup */
+	if (netlink_request(&nlh, AF_INET6, RTM_GETADDR) < 0) {
+		status = -1;
+		goto end_addr;
+	}
+	status = vip_netlink_parse_info(vip_netlink_if_address_filter, &nlh,  vrrp->vip);
+
+end_addr:
+	netlink_close(&nlh);
+	return status;
+}
+
+
+
