@@ -9,6 +9,12 @@ AM_CFLAGS		= $(KA_CFLAGS) $(DEBUG_CFLAGS)
 AM_LDFLAGS		= $(KA_LDFLAGS) $(DEBUG_LDFLAGS)
 # AM_LIBTOOLFLAGS	= $(KA_LIBTOOLFLAGS)
 
+edit = echo "  EDIT     $@"; \
+	sed \
+	 -e 's|@sbindir[@]|$(sbindir)|g' \
+	 -e 's|@localstatedir[@]|$(localstatedir)|g' \
+	 -e 's|@sysconfdir[@]|$(sysconfdir)|g'
+
 sbin_PROGRAMS		= keepalived
 keepalived_SOURCES	= main.c
 
@@ -30,11 +36,19 @@ if WITH_DBUS
   DBUS_SUBDIR		= dbus
 endif
 
+keepalived.service: Makefile
+	@rm -f $@ $@.tmp
+	@$(edit) '$(srcdir)/$@.in' >$@
+
+keepalived.service: $(srcdir)/keepalived.service.in
+
 SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR) etc
 
-EXTRA_DIST		= keepalived.service
+EXTRA_DIST		= keepalived.service.in
 
 keepalived_LDADD	= core/libcore.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a $(KA_LIBS)
+
+MOSTLYCLEANFILES	= keepalived.service
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 
