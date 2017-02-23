@@ -64,6 +64,9 @@ static int signal_pipe[2] = { -1, -1 };
 /* Remember signal disposition for not default disposition */
 static sigset_t dfl_sig;
 
+/* Signal handlers set in parent */
+static sigset_t parent_sig;
+
 #ifdef _INCLUDE_UNUSED_CODE_
 /* Local signal test */
 int
@@ -174,6 +177,10 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 		sigemptyset(&sset);
 		sigaddset(&sset, signo);
 		sigprocmask(SIG_BLOCK, &sset, NULL);
+
+		/* If we are the parent, remember what signals
+		 * we set, so vrrp and checker children can clear them */
+		sigaddset(&parent_sig, signo);
 	}
 
 	ret = sigaction(signo, &sig, &osig);
@@ -223,6 +230,17 @@ signal_ignore(int signo)
 	signal_set(signo, (void *)SIG_IGN, NULL);
 }
 
+static void
+clear_signal_handler_addresses(void)
+{
+	signal_SIGHUP_handler = NULL;
+	signal_SIGINT_handler = NULL;
+	signal_SIGTERM_handler = NULL;
+	signal_SIGCHLD_handler = NULL;
+	signal_SIGUSR1_handler = NULL;
+	signal_SIGUSR2_handler = NULL;
+}
+
 /* Handlers intialization */
 void
 signal_handler_init(void)
@@ -268,12 +286,7 @@ signal_handler_init(void)
 #endif
 #endif
 
-	signal_SIGHUP_handler = NULL;
-	signal_SIGINT_handler = NULL;
-	signal_SIGTERM_handler = NULL;
-	signal_SIGCHLD_handler = NULL;
-	signal_SIGUSR1_handler = NULL;
-	signal_SIGUSR2_handler = NULL;
+	clear_signal_handler_addresses();
 
 	/* Ignore all signals except essential ones */
 	sigemptyset(&sset);
@@ -295,10 +308,30 @@ signal_handler_init(void)
 			sigaction(sig, &act, NULL);
 	}
 
+	sigemptyset(&parent_sig);
+
 #ifdef HAVE_SIGNALFD
 	sigemptyset(&sset);
 	sigprocmask(SIG_SETMASK, &sset, NULL);
 #endif
+}
+
+void
+signal_parent_clear(void)
+{
+	struct sigaction act;
+	int sig;
+
+	act.sa_handler = SIG_IGN;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+
+	for (sig = 1; sig <= SIGRTMAX; sig++) {
+		if (sigismember(&parent_sig, sig))
+			sigaction(sig, &act, NULL);
+	}
+
+	clear_signal_handler_addresses();
 }
 
 static void
