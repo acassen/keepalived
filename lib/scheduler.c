@@ -926,7 +926,13 @@ thread_child_handler(__attribute__((unused)) void * v, __attribute__ ((unused)) 
 		status = siginfo->ssi_code == CLD_EXITED ? W_EXITCODE(siginfo->ssi_status, 0) :
 			 siginfo->ssi_code == CLD_KILLED ? W_EXITCODE(0, siginfo->ssi_status) :
 							   WCOREFLAG;
+
+		/* Allow process to complete termination */
+		waitpid(pid, NULL, WNOHANG);
+
 		process_child_termination(pid, status);
+
+		return;
 	}
 #endif
 
