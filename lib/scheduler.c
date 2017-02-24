@@ -83,7 +83,7 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 	}
 	else if (child_finder && child_finder(pid, &prog_id))
 		keepalived_child_process = true;
-	else {
+	if (!prog_id) {
 		snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
 		prog_id = pid_buf;
 	}
