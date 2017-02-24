@@ -815,7 +815,9 @@ vrrp_dispatcher_read(sock_t * sock)
 #endif
 	VRRP_TSM_HANDLE(prev_state, vrrp);
 
-	vrrp_init_instance_sands(vrrp);
+	/* If we have sent an advert, reset the timer */
+	if (vrrp->state != VRRP_STATE_MAST || !vrrp->lower_prio_no_advert)
+		vrrp_init_instance_sands(vrrp);
 
 	return sock->fd_in;
 }
