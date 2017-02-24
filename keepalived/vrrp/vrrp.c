@@ -2553,7 +2553,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				continue;
 			}
 
-log_message(LOG_INFO, "Checking owner and tracking");
 			if (vrrp->base_priority == VRRP_PRIO_OWNER && sc->weight) {
 				log_message(LOG_INFO, "(%s): Cannot have weighted track script '%s' with priority %d", vrrp->iname, vsc->sname, VRRP_PRIO_OWNER);
 				list_del(vrrp->track_script, sc);
