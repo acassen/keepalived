@@ -243,15 +243,8 @@ clear_signal_handler_addresses(void)
 
 /* Handlers intialization */
 void
-signal_handler_init(void)
+open_signal_fd(void)
 {
-	sigset_t sset;
-	int sig;
-	struct sigaction act;
-#ifndef HAVE_SIGNALFD
-	int n;
-#endif
-
 #ifdef HAVE_SIGNALFD
 	sigemptyset(&signal_fd_set);
 
@@ -266,6 +259,7 @@ signal_handler_init(void)
 	if (signal_fd == -1)
 		log_message(LOG_INFO, "BUG - signal_fd init failed - %d (%s), please report", errno, strerror(errno));
 #else
+	int n;
 
 #ifdef HAVE_PIPE2
 	n = pipe2(signal_pipe, O_CLOEXEC | O_NONBLOCK);
@@ -285,6 +279,16 @@ signal_handler_init(void)
 	fcntl(signal_pipe[1], F_SETFD, FD_CLOEXEC | fcntl(signal_pipe[1], F_GETFD));
 #endif
 #endif
+}
+
+void
+signal_handler_init(void)
+{
+	sigset_t sset;
+	int sig;
+	struct sigaction act;
+
+	open_signal_fd();
 
 	clear_signal_handler_addresses();
 
@@ -317,7 +321,7 @@ signal_handler_init(void)
 }
 
 void
-signal_parent_clear(void)
+signal_handler_child_init(void)
 {
 	struct sigaction act;
 	int sig;
@@ -330,6 +334,8 @@ signal_parent_clear(void)
 		if (sigismember(&parent_sig, sig))
 			sigaction(sig, &act, NULL);
 	}
+
+	open_signal_fd();
 
 	clear_signal_handler_addresses();
 }

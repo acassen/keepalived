@@ -30,7 +30,7 @@
 extern void signal_set(int, void (*) (void *, int), void *);
 extern void signal_ignore(int);
 extern void signal_handler_init(void);
-extern void signal_parent_clear(void);
+extern void signal_handler_child_init(void);
 extern void signal_handler_destroy(void);
 extern void signal_handler_script(void);
 extern void signal_run_callback(void);

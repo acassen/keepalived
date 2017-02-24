@@ -850,6 +850,22 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 }
 
 /* Script tracking threads */
+bool
+vrrp_child_finder(pid_t pid, char const **name)
+{
+	thread_t *thread;
+
+	for (thread = master->child.head; thread; thread = thread->next)
+	{
+		if (thread->u.c.pid == pid) {
+			vrrp_script_t* scr = THREAD_ARG(thread);
+			*name = scr->script.cmd_str;
+			return false;
+		}
+	}
+	return false;
+}
+
 static int
 vrrp_script_thread(thread_t * thread)
 {
@@ -888,7 +904,7 @@ vrrp_script_child_thread(thread_t * thread)
 		vscript->forcing_termination = true;
 		kill(-pid, SIGTERM);
 		thread_add_child(thread->master, vrrp_script_child_timeout_thread,
-				 vscript, pid, 2);
+				 vscript, pid, 2 * 1000000);
 		return 0;
 	}
 

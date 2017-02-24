@@ -2802,6 +2802,8 @@ vrrp_complete_init(void)
 
 	alloc_vrrp_buffer(max_mtu_len);
 
+	set_child_finder(vrrp_child_finder);
+
 	return true;
 }
 

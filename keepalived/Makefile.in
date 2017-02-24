@@ -353,6 +353,13 @@ AM_CPPFLAGS = $(KA_CPPFLAGS) $(DEBUG_CPPFLAGS) -I$(srcdir)/include -I \
 	$(top_srcdir)/lib
 AM_CFLAGS = $(KA_CFLAGS) $(DEBUG_CFLAGS)
 AM_LDFLAGS = $(KA_LDFLAGS) $(DEBUG_LDFLAGS)
+# AM_LIBTOOLFLAGS	= $(KA_LIBTOOLFLAGS)
+edit = echo "  EDIT     $@"; \
+	sed \
+	 -e 's|@sbindir[@]|$(sbindir)|g' \
+	 -e 's|@localstatedir[@]|$(localstatedir)|g' \
+	 -e 's|@sysconfdir[@]|$(sysconfdir)|g'
+
 keepalived_SOURCES = main.c
 noinst_HEADERS = $(srcdir)/include/*.h
 @WITH_IPVS_TRUE@IPVS_SUBDIR = check
@@ -361,8 +368,9 @@ noinst_HEADERS = $(srcdir)/include/*.h
 @WITH_VRRP_TRUE@VRRP_LIB = vrrp/libvrrp.a
 @WITH_DBUS_TRUE@DBUS_SUBDIR = dbus
 SUBDIRS = core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR) etc
-EXTRA_DIST = keepalived.service
+EXTRA_DIST = keepalived.service.in
 keepalived_LDADD = core/libcore.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a $(KA_LIBS)
+MOSTLYCLEANFILES = keepalived.service
 sysconfigdir = $(sysconfdir)/sysconfig
 sysconfig_DATA = etc/sysconfig/keepalived
 configdir = $(sysconfdir)/@PACKAGE@
@@ -738,6 +746,7 @@ install-strip:
 	    "INSTALL_PROGRAM_ENV=STRIPPROG='$(STRIP)'" install; \
 	fi
 mostlyclean-generic:
+	-test -z "$(MOSTLYCLEANFILES)" || rm -f $(MOSTLYCLEANFILES)
 
 clean-generic:
 
@@ -843,6 +852,12 @@ uninstall-am: uninstall-configDATA uninstall-initDATA \
 
 .PRECIOUS: Makefile
 
+
+keepalived.service: Makefile
+	@rm -f $@ $@.tmp
+	@$(edit) '$(srcdir)/$@.in' >$@
+
+keepalived.service: $(srcdir)/keepalived.service.in
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

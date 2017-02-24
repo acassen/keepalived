@@ -238,7 +238,7 @@ misc_check_child_thread(thread_t * thread)
 		misck_checker->forcing_termination = true;
 		kill(-pid, SIGTERM);
 		thread_add_child(thread->master, misc_check_child_timeout_thread,
-				 checker, pid, 2);
+				 checker, pid, 2 * 1000000);
 		return 0;
 	}
 
