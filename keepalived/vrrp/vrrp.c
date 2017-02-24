@@ -2538,16 +2538,27 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	/* Add us to the vrrp list of the script, and update
 	 * effective_priority and num_script_if_fault */
 	if (!LIST_ISEMPTY(vrrp->track_script)) {
-		element e2;
+		element e2, next;
 		tracked_sc_t *sc;
 		vrrp_script_t *vsc;
 
-		for (e2 = LIST_HEAD(vrrp->track_script); e2; ELEMENT_NEXT(e2)) {
+		for (e2 = LIST_HEAD(vrrp->track_script); e2; e2 = next) {
+			next = e2->next;
+
 			sc = ELEMENT_DATA(e2);
 			vsc = sc->scr;
 
-			if (vsc->insecure)
+			if (vsc->insecure) {
+				list_del(vrrp->track_script, sc);
 				continue;
+			}
+
+log_message(LOG_INFO, "Checking owner and tracking");
+			if (vrrp->base_priority == VRRP_PRIO_OWNER && sc->weight) {
+				log_message(LOG_INFO, "(%s): Cannot have weighted track script '%s' with priority %d", vrrp->iname, vsc->sname, VRRP_PRIO_OWNER);
+				list_del(vrrp->track_script, sc);
+				continue;
+			}
 
 			if (!LIST_EXISTS(vsc->vrrp))
 				vsc->vrrp = alloc_list(NULL, dump_vscript_vrrp);
