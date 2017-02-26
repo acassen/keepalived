@@ -48,6 +48,9 @@
 #include "utils.h"
 #include "signals.h"
 #include "logger.h"
+#ifdef _DEBUG_
+#include "bitops.h"
+#endif
 
 /* global vars */
 thread_master_t *master = NULL;
