@@ -639,7 +639,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		if (vrrp->version == VRRP_VERSION_3) {
 			/* Create IPv4 pseudo-header */
 			ipv4_phdr.src   = ip->saddr;
-			ipv4_phdr.dst   = htonl(INADDR_VRRP_GROUP);
+			ipv4_phdr.dst   = ip->daddr;
 			ipv4_phdr.zero  = 0;
 			ipv4_phdr.proto = IPPROTO_VRRP;
 			ipv4_phdr.len   = htons(vrrppkt_len);
@@ -943,7 +943,11 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer)
 
 		/* Create IPv4 pseudo-header */
 		ipv4_phdr.src   = VRRP_PKT_SADDR(vrrp);
-		ipv4_phdr.dst   = htonl(INADDR_VRRP_GROUP);
+		if (LIST_ISEMPTY(vrrp->unicast_peer))
+			ipv4_phdr.dst   = htonl(INADDR_VRRP_GROUP);
+		else
+			ipv4_phdr.dst = 0;
+
 		ipv4_phdr.zero  = 0;
 		ipv4_phdr.proto = IPPROTO_VRRP;
 		ipv4_phdr.len   = htons(vrrp_pkt_len(vrrp));
@@ -1083,7 +1087,22 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 		}
 		else {
 			// If unicast address
-			ip->daddr = inet_sockaddrip4(addr);
+			if (vrrp->version == VRRP_VERSION_2)
+				ip->daddr = inet_sockaddrip4(addr);
+			else {
+				/* Update the destination address, and the checksum */
+				uint32_t acc = (~hd->chksum & 0xffff) + (~(ip->daddr >> 16 ) & 0xffff) + (~ip->daddr & 0xffff);
+
+				ip->daddr = inet_sockaddrip4(addr);
+
+				acc += (ip->daddr >> 16) + (ip->daddr & 0xffff);
+
+				/* finally compute vrrp checksum */
+				acc = (acc & 0xffff) + (acc >> 16);
+				acc += acc >> 16;
+
+				hd->chksum = ~acc & 0xffff;
+			}
 		}
 
 #ifdef _WITH_VRRP_AUTH_
