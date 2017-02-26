@@ -31,6 +31,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <stdio.h>
+#ifdef _DEBUG_
+#include <sys/syslog.h>
+#endif
 
 /* Global debugging logging facilities */
 #ifdef _DEBUG_
