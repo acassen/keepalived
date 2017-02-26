@@ -62,6 +62,7 @@ typedef struct _vrrphdr {			/* rfc2338.5.1 */
 		} v2;
 		struct {
 // TODO - this should be 4 bits followed by 12 bit adver_int - see /usr/include/linux/ip.h
+// Consider little vs big endian
 			uint16_t adver_int;	/* advertisement interval (in centi-sec (100ms)) */
 		} v3;
 	};
@@ -73,6 +74,7 @@ typedef struct _vrrphdr {			/* rfc2338.5.1 */
 typedef struct {
 	uint32_t src;
 	uint32_t dst;
+// TODO - is the following order Big Endian ?
 	uint8_t  zero;
 	uint8_t  proto;
 	uint16_t len;
@@ -247,6 +249,7 @@ typedef struct _vrrp_t {
 	/* Sending buffer */
 	char			*send_buffer;		/* Allocated send buffer */
 	size_t			send_buffer_size;
+	uint32_t		ipv4_csum;		/* Checksum ip IPv4 pseudo header for VRRPv3 */
 
 #if defined _WITH_VRRP_AUTH_
 	/* Authentication data (only valid for VRRPv2) */

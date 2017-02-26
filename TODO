@@ -99,3 +99,17 @@ After select completes, get time. Before calculating next
 select expire time, get time again.
 To test time processing, save time after select and log time taken
 before next select. Also initialise timer at startup.
+
+Add api
+=======
+
+Add a file_watch as an option for a track_script
+================================================
+
+Add pipe for updates
+====================
+track_script like for absolute or relative priority
+
+Done
+====
+1. Don't recreate entire VRRP packet each time.
