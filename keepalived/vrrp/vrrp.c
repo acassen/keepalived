@@ -338,7 +338,6 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 // TODO - why do we ignore seq no for vmac (commit 3efff46b6 8/4/2015) and sync groups?
 		vrrp->ipsecah_counter.seq_number = ntohl(ah->seq_number);
 	} else {
-// TODO - we could handle wrap around within a few numbers, e.g. FFFFFFFA -> 00000006
 		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
 					" already proceeded. Packet dropped. Local(%d)",
 					vrrp->iname, ntohl(ah->seq_number),
@@ -502,43 +501,6 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		return VRRP_PACKET_KO;
 	}
 
-	/* MUST verify the VRRP version */
-	if ((hd->vers_type >> 4) != vrrp->version) {
-		log_message(LOG_INFO, "(%s): invalid version. %d and expect %d",
-		       vrrp->iname, (hd->vers_type >> 4), vrrp->version);
-#ifdef _WITH_SNMP_RFC_
-		vrrp->stats->vers_err++;
-#ifdef _WITH_SNMP_RFCV3_
-		vrrp->stats->proto_err_reason = versionError;
-		vrrp_rfcv3_snmp_proto_err_notify(vrrp);
-#endif
-#endif
-		return VRRP_PACKET_KO;
-	}
-
-	/* verify packet type */
-	if ((hd->vers_type & 0x0f) != VRRP_PKT_ADVERT) {
-		log_message(LOG_INFO, "(%s): Invalid packet type. %d and expect %d",
-			vrrp->iname, (hd->vers_type & 0x0f), VRRP_PKT_ADVERT);
-		++vrrp->stats->invalid_type_rcvd;
-		return VRRP_PACKET_KO;
-	}
-
-	/* MUST verify that the VRID is valid on the receiving interface_t */
-	if (vrrp->vrid != hd->vrid) {
-		log_message(LOG_INFO,
-		       "(%s): received VRID mismatch. Received %d, Expected %d",
-		       vrrp->iname, hd->vrid, vrrp->vrid);
-#ifdef _WITH_SNMP_RFC_
-		vrrp->stats->vrid_err++;
-#ifdef _WITH_SNMP_RFCV3_
-		vrrp->stats->proto_err_reason = vrIdError;
-		vrrp_rfcv3_snmp_proto_err_notify(vrrp);
-#endif
-#endif
-		return VRRP_PACKET_OTHER;
-	}
-
 	if (vrrp->version == VRRP_VERSION_2) {
 		/* Check that authentication of packet is correct */
 		if (
@@ -593,6 +555,10 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 #endif
 				return VRRP_PACKET_KO;
 			}
+
+			if (vrrp->state == VRRP_STATE_BACK &&
+			    ntohl(ah->seq_number) >= vrrp->ipsecah_counter.seq_number)
+				vrrp->ipsecah_counter.cycle = false;
 		}
 #endif
 
@@ -607,6 +573,43 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 			return VRRP_PACKET_DROP;
 		}
 
+	}
+
+	/* MUST verify the VRRP version */
+	if ((hd->vers_type >> 4) != vrrp->version) {
+		log_message(LOG_INFO, "(%s): invalid version. %d and expect %d",
+		       vrrp->iname, (hd->vers_type >> 4), vrrp->version);
+#ifdef _WITH_SNMP_RFC_
+		vrrp->stats->vers_err++;
+#ifdef _WITH_SNMP_RFCV3_
+		vrrp->stats->proto_err_reason = versionError;
+		vrrp_rfcv3_snmp_proto_err_notify(vrrp);
+#endif
+#endif
+		return VRRP_PACKET_KO;
+	}
+
+	/* verify packet type */
+	if ((hd->vers_type & 0x0f) != VRRP_PKT_ADVERT) {
+		log_message(LOG_INFO, "(%s): Invalid packet type. %d and expect %d",
+			vrrp->iname, (hd->vers_type & 0x0f), VRRP_PKT_ADVERT);
+		++vrrp->stats->invalid_type_rcvd;
+		return VRRP_PACKET_KO;
+	}
+
+	/* MUST verify that the VRID is valid on the receiving interface_t */
+	if (vrrp->vrid != hd->vrid) {
+		log_message(LOG_INFO,
+		       "(%s): received VRID mismatch. Received %d, Expected %d",
+		       vrrp->iname, hd->vrid, vrrp->vrid);
+#ifdef _WITH_SNMP_RFC_
+		vrrp->stats->vrid_err++;
+#ifdef _WITH_SNMP_RFCV3_
+		vrrp->stats->proto_err_reason = vrIdError;
+		vrrp_rfcv3_snmp_proto_err_notify(vrrp);
+#endif
+#endif
+		return VRRP_PACKET_OTHER;
 	}
 
 	if ((LIST_ISEMPTY(vrrp->vip) && hd->naddr > 0) ||

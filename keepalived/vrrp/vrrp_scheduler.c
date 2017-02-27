@@ -575,22 +575,6 @@ vrrp_dispatcher_release(vrrp_data_t *data)
 static void
 vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 {
-#ifdef _WITH_VRRP_AUTH_
-	struct iphdr *iph;
-	ipsec_ah_t *ah;
-
-	if (vrrp->auth_type == VRRP_AUTH_AH) {
-		iph = (struct iphdr *) buffer;
-
-		if (iph->protocol == IPPROTO_AH) {
-			ah = (ipsec_ah_t *) (buffer + sizeof (struct iphdr));
-			if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter.seq_number)
-				vrrp->ipsecah_counter.cycle = false;
-		}
-// TODO - what if mismatch between configured and received auth type?
-	}
-#endif
-
 	vrrp_state_backup(vrrp, buffer, len);
 }
 
