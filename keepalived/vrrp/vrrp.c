@@ -556,6 +556,8 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 				return VRRP_PACKET_KO;
 			}
 
+			/* NOTE: ah below is initialised above. Older versions of gcc may
+			 * however warn that it may be used uninitialised. */
 			if (vrrp->state == VRRP_STATE_BACK &&
 			    ntohl(ah->seq_number) >= vrrp->ipsecah_counter.seq_number)
 				vrrp->ipsecah_counter.cycle = false;
