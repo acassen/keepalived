@@ -34,6 +34,7 @@
 #ifdef _HAVE_LIBNL1_
 #include <libnfnetlink/libnfnetlink.h>
 #endif
+#include <stdbool.h>
 
 /* local includes */
 #include "timer.h"
@@ -85,10 +86,10 @@ extern size_t rta_addattr8(struct rtattr *, size_t, unsigned short, uint8_t);
 extern struct rtattr *rta_nest(struct rtattr *, size_t, unsigned short);
 extern size_t rta_nest_end(struct rtattr *, struct rtattr *);
 extern ssize_t netlink_talk(nl_handle_t *, struct nlmsghdr *);
-extern int netlink_interface_lookup(void);
+extern int netlink_interface_lookup(bool);
 extern void kernel_netlink_poll(void);
 #endif
-extern void kernel_netlink_init(void);
+extern void kernel_netlink_init(bool);
 extern void kernel_netlink_close(void);
 
 #endif

@@ -167,7 +167,7 @@ start_vrrp(void)
 {
 	/* Initialize sub-system */
 	init_interface_queue();
-	kernel_netlink_init();
+	kernel_netlink_init(true);
 	gratuitous_arp_init();
 	ndisc_init();
 

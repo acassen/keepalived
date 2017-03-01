@@ -51,7 +51,9 @@
 #if !HAVE_DECL_SOCK_NONBLOCK
 #include "old_socket.h"
 #endif
+#ifdef _WITH_VRRP
 #include "vrrp_if.h"
+#endif
 
 /* Global vars */
 #ifdef _WITH_VRRP_
@@ -1083,7 +1085,7 @@ kernel_netlink_poll(void)
 #endif
 
 void
-kernel_netlink_init(void)
+kernel_netlink_init(bool monitor_links)
 {
 	/* Start with a netlink address lookup */
 	netlink_address_lookup();
@@ -1093,11 +1095,10 @@ kernel_netlink_init(void)
 	 * subscribtion. We subscribe to LINK and ADDR
 	 * netlink broadcast messages.
 	 */
-#ifdef _WITH_VRRP_
-	netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
-#else
-	netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
-#endif
+	if (monitor_links)
+		netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
+	else
+		netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
 
 	if (nl_kernel.fd > 0) {
 		log_message(LOG_INFO, "Registering Kernel netlink reflector");

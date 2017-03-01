@@ -77,9 +77,6 @@ stop_check(int status)
 	/* Clean data */
 	free_global_data(global_data);
 	free_check_data(check_data);
-#ifdef _WITH_VRRP_
-	free_interface_queue();
-#endif
 	free_parent_mallocs_exit();
 
 	/*
@@ -111,10 +108,7 @@ start_check(void)
 	}
 
 	init_checkers_queue();
-#ifdef _WITH_VRRP_
-	init_interface_queue();
-#endif
-	kernel_netlink_init();
+	kernel_netlink_init(false);
 
 	/* Parse configuration file */
 	global_data = alloc_global_data();
@@ -176,11 +170,6 @@ start_check(void)
 		dump_check_data(check_data);
 	}
 
-#ifdef _WITH_VRRP_
-	/* Initialize linkbeat */
-	init_interface_linkbeat();
-#endif
-
 	/* Register checkers thread */
 	register_checkers_thread();
 }
@@ -231,9 +220,6 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	free_global_data(global_data);
 
 	free_checkers_queue();
-#ifdef _WITH_VRRP_
-	free_interface_queue();
-#endif
 	free_ssl();
 	ipvs_stop();
 
