@@ -53,7 +53,7 @@
 #include "utils.h"
 #include "notify.h"
 #include "bitops.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif

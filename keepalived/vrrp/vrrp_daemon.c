@@ -30,7 +30,7 @@
 #include "vrrp_if.h"
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_iptables.h"
 #ifdef _HAVE_FIB_ROUTING_

@@ -27,6 +27,7 @@
 /* system include */
 #include <unistd.h>
 #include <stdbool.h>
+#include <net/if.h>
 
 /* local include */
 #include "vrrp_ipaddress.h"

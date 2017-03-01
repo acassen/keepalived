@@ -44,8 +44,7 @@
 #include "memory.h"
 #include "parser.h"
 #include "bitops.h"
-#include "vrrp_netlink.h"
-#include "vrrp_if.h"
+#include "keepalived_netlink.h"
 #ifdef _WITH_SNMP_CHECKER_
   #include "check_snmp.h"
 #endif
@@ -114,8 +113,8 @@ start_check(void)
 	init_checkers_queue();
 #ifdef _WITH_VRRP_
 	init_interface_queue();
-	kernel_netlink_init();
 #endif
+	kernel_netlink_init();
 
 	/* Parse configuration file */
 	global_data = alloc_global_data();
@@ -227,9 +226,7 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	script_killall(master, SIGTERM);
 
 	/* Destroy master thread */
-#ifdef _WITH_VRRP_
 	kernel_netlink_close();
-#endif
 	thread_cleanup_master(master);
 	free_global_data(global_data);
 

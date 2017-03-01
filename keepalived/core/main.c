@@ -44,7 +44,7 @@
 #if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
 #endif
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 
 #define	LOG_FACILITY_MAX	7
 #define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" GIT_DATE ")"

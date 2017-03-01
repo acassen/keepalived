@@ -31,7 +31,7 @@
 #include "vrrp.h"
 #include "vrrp_sync.h"
 #include "vrrp_notify.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "vrrp_data.h"
 #include "vrrp_index.h"
 #include "vrrp_arp.h"
