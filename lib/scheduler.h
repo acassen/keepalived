@@ -114,7 +114,7 @@ typedef enum {
 
 /* global vars exported */
 extern thread_master_t *master;
-prog_type_t prog_type;		/* Parent/VRRP/Checker process */
+extern prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #ifdef _WITH_SNMP_
 extern bool snmp_running;
 #endif
