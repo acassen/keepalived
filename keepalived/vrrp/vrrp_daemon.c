@@ -74,6 +74,14 @@ static int reload_vrrp_thread(thread_t * thread);
 
 static char *vrrp_syslog_ident;
 
+#ifdef _WITH_LVS_
+static bool
+vrrp_ipvs_needed(void)
+{
+	return !!(global_data->lvs_syncd.ifname);
+}
+#endif
+
 /* Daemon stop sequence */
 static void
 stop_vrrp(int status)

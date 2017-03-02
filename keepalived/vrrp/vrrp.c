@@ -2598,14 +2598,6 @@ vrrp_complete_init(void)
 	return true;
 }
 
-#ifdef _WITH_LVS_
-bool
-vrrp_ipvs_needed(void)
-{
-	return !!(global_data->lvs_syncd.ifname);
-}
-#endif
-
 /* Try to find a VRRP instance */
 static vrrp_t *
 vrrp_exist(vrrp_t *old_vrrp)
