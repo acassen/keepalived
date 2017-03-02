@@ -39,7 +39,6 @@
 #include "global_parser.h"
 #include "global_data.h"
 #include "main.h"
-#include "check_data.h"
 #include "parser.h"
 #include "memory.h"
 #include "smtp.h"

@@ -28,7 +28,6 @@
 
 #include "smtp.h"
 #include "global_data.h"
-#include "check_data.h"
 #include "scheduler.h"
 #include "memory.h"
 #include "list.h"

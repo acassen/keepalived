@@ -34,7 +34,6 @@
 #endif
 
 #include "ipvswrapper.h"
-#include "check_data.h"
 #include "list.h"
 #include "utils.h"
 #include "memory.h"

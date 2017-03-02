@@ -27,8 +27,6 @@
 #include <netdb.h>
 
 /* local includes */
-#include "check_data.h"
-#include "vrrp_data.h"
 #include "scheduler.h"
 #include "layer4.h"
 #include "vrrp.h"
