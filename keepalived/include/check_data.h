@@ -93,6 +93,7 @@ typedef struct _real_server {
 
 /* Virtual Server group definition */
 typedef struct _virtual_server_group_entry {
+/* TODO - vfwmark can be a union with addr and range */
 	struct sockaddr_storage		addr;
 	uint32_t			range;
 	uint32_t			vfwmark;
@@ -117,7 +118,8 @@ typedef struct _virtual_server {
 	uint16_t			af;
 	uint16_t			service_type;
 	unsigned long			delay_loop;
-	int				ha_suspend;
+	bool				ha_suspend;
+	int				ha_suspend_addr_count;
 #ifdef _WITH_LVS_
 	char				sched[IP_VS_SCHEDNAME_MAXLEN];
 	uint32_t			flags;

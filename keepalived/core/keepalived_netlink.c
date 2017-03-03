@@ -478,6 +478,8 @@ parse_rtattr_nested(struct rtattr **tb, int max, struct rtattr *rta)
  * Netlink interface address lookup filter
  * We need to handle multiple primary address and
  * multiple secondary address to the same interface.
+ * We also need to handle the same address on
+ * multiple interfaces, for IPv6 link local addresses.
  */
 static int
 netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
@@ -506,12 +508,6 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	memset(tb, 0, sizeof (tb));
 	parse_rtattr(tb, IFA_MAX, IFA_RTA(ifa), len);
 
-#ifdef _WITH_VRRP_
-	/* Fetch interface_t */
-	ifp = if_get_by_ifindex(ifa->ifa_index);
-	if (!ifp)
-		return 0;
-#endif
 	if (tb[IFA_LOCAL] == NULL)
 		tb[IFA_LOCAL] = tb[IFA_ADDRESS];
 	if (tb[IFA_ADDRESS] == NULL)
@@ -524,21 +520,32 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 		return -1;
 
 #ifdef _WITH_VRRP_
-	/* If no address is set on interface then set the first time */
-	if (ifa->ifa_family == AF_INET) {
-		if (!ifp->sin_addr.s_addr)
-			ifp->sin_addr = *(struct in_addr *) addr;
-	} else {
-		if (!ifp->sin6_addr.s6_addr16[0] && ifa->ifa_scope == RT_SCOPE_LINK)
-			ifp->sin6_addr = *(struct in6_addr *) addr;
+	if (prog_type == PROG_TYPE_VRRP) {
+		/* Fetch interface_t */
+		ifp = if_get_by_ifindex(ifa->ifa_index);
+		if (!ifp)
+			return 0;
+
+		/* If no address is set on interface then set the first time */
+		if (ifa->ifa_family == AF_INET) {
+			if (!ifp->sin_addr.s_addr)
+				ifp->sin_addr = *(struct in_addr *) addr;
+		} else {
+			if (!ifp->sin6_addr.s6_addr16[0] && ifa->ifa_scope == RT_SCOPE_LINK)
+				ifp->sin6_addr = *(struct in6_addr *) addr;
+		}
 	}
 #endif
 
 #ifdef _WITH_LVS_
-	/* Refresh checkers state */
-	update_checker_activity(ifa->ifa_family, addr,
-				(h->nlmsg_type == RTM_NEWADDR) ? 1 : 0);
+	if (prog_type == PROG_TYPE_CHECKER)
+	{
+		/* Refresh checkers state */
+		update_checker_activity(ifa->ifa_family, addr,
+					(h->nlmsg_type == RTM_NEWADDR));
+	}
 #endif
+
 	return 0;
 }
 
@@ -651,7 +658,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 
 #ifdef _WITH_VRRP_
 			/* Skip unsolicited messages from cmd channel */
-			if (nl != &nl_cmd && h->nlmsg_pid == nl_cmd.nl_pid)
+			if (prog_type == PROG_TYPE_VRRP && nl != &nl_cmd && h->nlmsg_pid == nl_cmd.nl_pid)
 				continue;
 #endif
 
@@ -936,7 +943,7 @@ end_int:
 }
 #endif
 
-/* Adresses lookup bootstrap function */
+/* Addresses lookup bootstrap function */
 static int
 netlink_address_lookup(void)
 {
@@ -1085,7 +1092,7 @@ kernel_netlink_poll(void)
 #endif
 
 void
-kernel_netlink_init(bool monitor_links)
+kernel_netlink_init(void)
 {
 	/* Start with a netlink address lookup */
 	netlink_address_lookup();
@@ -1095,10 +1102,14 @@ kernel_netlink_init(bool monitor_links)
 	 * subscribtion. We subscribe to LINK and ADDR
 	 * netlink broadcast messages.
 	 */
-	if (monitor_links)
+#ifdef _WITH_VRRP_
+	if (prog_type == PROG_TYPE_VRRP)
 		netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
-	else
+#endif
+#ifdef _WITH_LVS_
+	if (prog_type == PROG_TYPE_CHECKER)
 		netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
+#endif
 
 	if (nl_kernel.fd > 0) {
 		log_message(LOG_INFO, "Registering Kernel netlink reflector");
@@ -1108,12 +1119,14 @@ kernel_netlink_init(bool monitor_links)
 		log_message(LOG_INFO, "Error while registering Kernel netlink reflector channel");
 
 #ifdef _WITH_VRRP_
-	/* Prepare netlink command channel. */
-	netlink_socket(&nl_cmd, SOCK_NONBLOCK, 0);
-	if (nl_cmd.fd > 0)
-		log_message(LOG_INFO, "Registering Kernel netlink command channel");
-	else
-		log_message(LOG_INFO, "Error while registering Kernel netlink cmd channel");
+	if (prog_type == PROG_TYPE_VRRP) {
+		/* Prepare netlink command channel. */
+		netlink_socket(&nl_cmd, SOCK_NONBLOCK, 0);
+		if (nl_cmd.fd > 0)
+			log_message(LOG_INFO, "Registering Kernel netlink command channel");
+		else
+			log_message(LOG_INFO, "Error while registering Kernel netlink cmd channel");
+	}
 #endif
 }
 
@@ -1122,6 +1135,7 @@ kernel_netlink_close(void)
 {
 	netlink_close(&nl_kernel);
 #ifdef _WITH_VRRP_
-	netlink_close(&nl_cmd);
+	if (prog_type == PROG_TYPE_VRRP)
+		netlink_close(&nl_cmd);
 #endif
 }

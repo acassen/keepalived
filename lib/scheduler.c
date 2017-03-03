@@ -50,6 +50,7 @@
 
 /* global vars */
 thread_master_t *master = NULL;
+prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 
 #ifdef _WITH_LVS_
 #include "../keepalived/include/check_daemon.h"

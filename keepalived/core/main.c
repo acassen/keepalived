@@ -747,6 +747,9 @@ keepalived_main(int argc, char **argv)
 	/* Init debugging level */
 	debug = 0;
 
+	/* We are the parent process */
+	prog_type = PROG_TYPE_PARENT;
+
 	/* Initialise pointer to child finding function */
 	set_child_finder(find_keepalived_child);
 

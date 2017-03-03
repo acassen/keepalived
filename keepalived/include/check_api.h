@@ -23,6 +23,9 @@
 #ifndef _CHECK_API_H
 #define _CHECK_API_H
 
+/* global includes */
+#include <stdbool.h>
+
 /* local includes */
 #include "check_data.h"
 #include "scheduler.h"
@@ -65,9 +68,6 @@ extern list checkers_queue;
 #define CHECKER_VALUE_UINT(X) ((unsigned)strtoul(vector_slot(X,1), NULL, 10))
 #define CHECKER_VALUE_STRING(X) (set_value(X))
 #define CHECKER_VHOST(C) (VHOST((C)->vs))
-#define CHECKER_ENABLED(C) ((C)->enabled)
-#define CHECKER_ENABLE(C)  ((C)->enabled = 1)
-#define CHECKER_DISABLE(C) ((C)->enabled = 0)
 #define CHECKER_HA_SUSPEND(C) ((C)->vs->ha_suspend)
 #define CHECKER_NEW_CO() ((conn_opts_t *) MALLOC(sizeof (conn_opts_t)))
 #define FMT_CHK(C) FMT_RS((C)->rs)
@@ -85,6 +85,6 @@ extern void register_checkers_thread(void);
 extern void install_checkers_keyword(void);
 extern void install_connect_keywords(void);
 extern void warmup_handler(vector_t *);
-extern void update_checker_activity(sa_family_t, void *, int);
+extern void update_checker_activity(sa_family_t, void *, bool);
 
 #endif

@@ -197,7 +197,7 @@ tcp_connect_thread(thread_t * thread)
 	 * Register a new checker thread & return
 	 * if checker is disabled
 	 */
-	if (!CHECKER_ENABLED(checker)) {
+	if (!checker->enabled) {
 		thread_add_timer(thread->master, tcp_connect_thread, checker,
 				 checker->vs->delay_loop);
 		return 0;

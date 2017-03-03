@@ -108,7 +108,6 @@ start_check(void)
 	}
 
 	init_checkers_queue();
-	kernel_netlink_init(false);
 
 	/* Parse configuration file */
 	global_data = alloc_global_data();
@@ -120,6 +119,13 @@ start_check(void)
 
 	init_global_data(global_data);
 
+	/* fill 'vsg' members of the virtual_server_t structure.
+	 * We must do that after parsing config, because
+	 * vs and vsg declarations may appear in any order,
+	 * but we must do it before validate_check_config().
+	 */
+	link_vsg_to_vs();
+
 	/* Post initializations */
 	if (!validate_check_config()) {
 		stop_check(KEEPALIVED_EXIT_CONFIG);
@@ -129,6 +135,9 @@ start_check(void)
 #ifdef _MEM_CHECK_
 	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
 #endif
+
+	/* Get current active addresses, and start update process */
+	kernel_netlink_init();
 
 	/* Remove any entries left over from previous invocation */
 	if (!reload && global_data->lvs_flush)
@@ -142,12 +151,6 @@ start_check(void)
 	/* SSL load static data & initialize common ctx context */
 	if (!init_ssl_ctx())
 		stop_check(KEEPALIVED_EXIT_FATAL);
-
-	/* fill 'vsg' members of the virtual_server_t structure.
-	 * We must do that after parsing config, because
-	 * vs and vsg declarations may appear in any order
-	 */
-	link_vsg_to_vs();
 
 	/* Set the process priority and non swappable if configured */
 	if (global_data->checker_process_priority)
@@ -292,6 +295,8 @@ start_check_child(void)
 		return 0;
 	}
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
+
+	prog_type = PROG_TYPE_CHECKER;
 
 	if ((instance_name
 #if HAVE_DECL_CLONE_NEWNET

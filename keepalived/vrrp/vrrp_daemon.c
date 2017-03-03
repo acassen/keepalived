@@ -175,7 +175,7 @@ start_vrrp(void)
 {
 	/* Initialize sub-system */
 	init_interface_queue();
-	kernel_netlink_init(true);
+	kernel_netlink_init();
 	gratuitous_arp_init();
 	ndisc_init();
 
@@ -484,6 +484,8 @@ start_vrrp_child(void)
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	signal_handler_destroy();
+
+	prog_type = PROG_TYPE_VRRP;
 
 	/* Opening local VRRP syslog channel */
 	if ((instance_name

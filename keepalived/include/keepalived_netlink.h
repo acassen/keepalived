@@ -89,7 +89,7 @@ extern ssize_t netlink_talk(nl_handle_t *, struct nlmsghdr *);
 extern int netlink_interface_lookup(void);
 extern void kernel_netlink_poll(void);
 #endif
-extern void kernel_netlink_init(bool);
+extern void kernel_netlink_init(void);
 extern void kernel_netlink_close(void);
 
 #endif
