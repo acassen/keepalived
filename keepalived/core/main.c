@@ -524,9 +524,13 @@ usage(const char *prog)
 	fprintf(stderr, "  -l, --log-console            Log messages to local console\n");
 	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");
 	fprintf(stderr, "  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n");
+#ifdef _WITH_VRRP_
 	fprintf(stderr, "  -X, --release-vips           Drop VIP on transition from signal.\n");
 	fprintf(stderr, "  -V, --dont-release-vrrp      Don't remove VRRP VIPs and VROUTEs on daemon stop\n");
+#endif
+#ifdef _WITH_LVS_
 	fprintf(stderr, "  -I, --dont-release-ipvs      Don't remove IPVS topology on daemon stop\n");
+#endif
 	fprintf(stderr, "  -R, --dont-respawn           Don't respawn child processes\n");
 	fprintf(stderr, "  -n, --dont-fork              Don't fork the daemon process\n");
 	fprintf(stderr, "  -d, --dump-conf              Dump the configuration data\n");
@@ -570,9 +574,13 @@ parse_cmdline(int argc, char **argv)
 		{"log-console",       no_argument,       0, 'l'},
 		{"log-detail",        no_argument,       0, 'D'},
 		{"log-facility",      required_argument, 0, 'S'},
+#ifdef _WITH_VRRP_
 		{"release-vips",      no_argument,       0, 'X'},
 		{"dont-release-vrrp", no_argument,       0, 'V'},
+#endif
+#ifdef _WITH_LVS_
 		{"dont-release-ipvs", no_argument,       0, 'I'},
+#endif
 		{"dont-respawn",      no_argument,       0, 'R'},
 		{"dont-fork",         no_argument,       0, 'n'},
 		{"dump-conf",         no_argument,       0, 'd'},
@@ -601,15 +609,15 @@ parse_cmdline(int argc, char **argv)
 		{0, 0, 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:p:i:mM"
+	while ((c = getopt_long(argc, argv, "vhlndDRS:f:p:i:mM"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
 #ifdef _WITH_VRRP_ 
-					    "r:"
+					    "r:VX"
 #endif
 #ifdef _WITH_LVS_
-					    "c:"
+					    "c:I"
 #endif
 #ifdef _WITH_SNMP_
 					    "xA:"
@@ -645,21 +653,27 @@ parse_cmdline(int argc, char **argv)
 		case 'd':
 			__set_bit(DUMP_CONF_BIT, &debug);
 			break;
+#ifdef _WITH_VRRP_
 		case 'V':
 			__set_bit(DONT_RELEASE_VRRP_BIT, &debug);
 			break;
+#endif
+#ifdef _WITH_LVS_
 		case 'I':
 			__set_bit(DONT_RELEASE_IPVS_BIT, &debug);
 			break;
+#endif
 		case 'D':
 			__set_bit(LOG_DETAIL_BIT, &debug);
 			break;
 		case 'R':
 			__set_bit(DONT_RESPAWN_BIT, &debug);
 			break;
+#ifdef _WITH_VRRP_
 		case 'X':
 			__set_bit(RELEASE_VIPS_BIT, &debug);
 			break;
+#endif
 		case 'S':
 			log_facility = LOG_FACILITY[atoi(optarg)].facility;
 			reopen_log = true;
