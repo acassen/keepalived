@@ -49,12 +49,19 @@
   #include "check_snmp.h"
 #endif
 
+/* Global variables */
+bool using_ha_suspend;
+
+/* local variables */
 static char *check_syslog_ident;
 
 /* Daemon stop sequence */
 static void
 stop_check(int status)
 {
+	if (using_ha_suspend)
+		kernel_netlink_close();
+
 	/* Terminate all script process */
 	script_killall(master, SIGTERM);
 
@@ -137,7 +144,8 @@ start_check(void)
 #endif
 
 	/* Get current active addresses, and start update process */
-	kernel_netlink_init();
+	if (using_ha_suspend)
+		kernel_netlink_init();
 
 	/* Remove any entries left over from previous invocation */
 	if (!reload && global_data->lvs_flush)
@@ -218,7 +226,8 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	script_killall(master, SIGTERM);
 
 	/* Destroy master thread */
-	kernel_netlink_close();
+	if (using_ha_suspend)
+		kernel_netlink_close();
 	thread_cleanup_master(master);
 	free_global_data(global_data);
 

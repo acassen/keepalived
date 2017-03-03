@@ -27,6 +27,7 @@
 #include "check_data.h"
 #include "check_api.h"
 #include "check_misc.h"
+#include "check_daemon.h"
 #include "global_data.h"
 #include "check_ssl.h"
 #include "logger.h"
@@ -546,6 +547,7 @@ bool validate_check_config(void)
 	virtual_server_t *vs;
 	checker_t *checker;
 
+	using_ha_suspend = false;
 	if (!LIST_ISEMPTY(check_data->vs)) {
 		for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
 			vs = ELEMENT_DATA(e);
@@ -563,6 +565,9 @@ bool validate_check_config(void)
 				log_message(LOG_INFO, "Virtual server %s: cannot use ha_suspend with fwmarks - clearing ha_suspend", FMT_VS(vs));
 				vs->ha_suspend = false;
 			}
+
+			if (vs->ha_suspend)
+				using_ha_suspend = true;
 		}
 	}
 
