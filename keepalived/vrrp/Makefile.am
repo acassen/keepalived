@@ -17,7 +17,7 @@ noinst_LIBRARIES	= libvrrp.a
 libvrrp_a_SOURCES	= \
 	vrrp_daemon.c vrrp_print.c vrrp_data.c vrrp_parser.c \
 	vrrp.c vrrp_notify.c vrrp_scheduler.c vrrp_sync.c vrrp_index.c \
-	vrrp_netlink.c vrrp_arp.c vrrp_if.c vrrp_track.c vrrp_ipaddress.c \
+	vrrp_arp.c vrrp_if.c vrrp_track.c vrrp_ipaddress.c \
 	vrrp_ndisc.c vrrp_if_config.c
 libvrrp_a_SOURCES += ../include/vrrp_daemon.h
 

@@ -30,7 +30,7 @@
 #include "vrrp_if.h"
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "vrrp_ipaddress.h"
 #include "vrrp_iptables.h"
 #ifdef _HAVE_FIB_ROUTING_
@@ -73,6 +73,14 @@ static int print_vrrp_stats(thread_t * thread);
 static int reload_vrrp_thread(thread_t * thread);
 
 static char *vrrp_syslog_ident;
+
+#ifdef _WITH_LVS_
+static bool
+vrrp_ipvs_needed(void)
+{
+	return !!(global_data->lvs_syncd.ifname);
+}
+#endif
 
 /* Daemon stop sequence */
 static void
@@ -337,7 +345,7 @@ sigend_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 vrrp_signal_init(void)
 {
-	signal_handler_init(0);
+	signal_handler_child_clear();
 	signal_set(SIGHUP, sighup_vrrp, NULL);
 	signal_set(SIGINT, sigend_vrrp, NULL);
 	signal_set(SIGTERM, sigend_vrrp, NULL);
@@ -476,6 +484,8 @@ start_vrrp_child(void)
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	signal_handler_destroy();
+
+	prog_type = PROG_TYPE_VRRP;
 
 	/* Opening local VRRP syslog channel */
 	if ((instance_name

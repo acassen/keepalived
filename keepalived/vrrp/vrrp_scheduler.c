@@ -31,13 +31,15 @@
 #include "vrrp.h"
 #include "vrrp_sync.h"
 #include "vrrp_notify.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "vrrp_data.h"
 #include "vrrp_index.h"
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
 #include "vrrp_if.h"
+#ifdef _WITH_LVS_
 #include "ipvswrapper.h"
+#endif
 #include "memory.h"
 #include "notify.h"
 #include "list.h"
@@ -1075,6 +1077,22 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 }
 
 /* Script tracking threads */
+bool
+vrrp_child_finder(pid_t pid, char const **name)
+{
+	thread_t *thread;
+
+	for (thread = master->child.head; thread; thread = thread->next)
+	{
+		if (thread->u.c.pid == pid) {
+			vrrp_script_t* scr = THREAD_ARG(thread);
+			*name = scr->script;
+			return false;
+		}
+	}
+	return false;
+}
+
 static int
 vrrp_script_thread(thread_t * thread)
 {

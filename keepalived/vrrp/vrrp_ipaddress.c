@@ -27,7 +27,7 @@
 #ifdef _HAVE_LIBIPTC_
 #include "vrrp_iptables.h"
 #endif
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "vrrp_data.h"
 #include "logger.h"
 #include "memory.h"

@@ -263,28 +263,10 @@ process_stream(vector_t *keywords_vec, int need_bob)
 	vector_t *prev_keywords = current_keywords;
 	current_keywords = keywords_vec;
 	int bob_needed = 0;
-	size_t config_id_len = 0;
-	char *buf_start;
-
-	if (config_id)
-		config_id_len = strlen(config_id);
 
 	buf = MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
-		if (buf[0] == '@') {
-			/* If the line starts '@', check the following word matches the system id */
-			if (!config_id)
-				continue;
-			buf_start = strpbrk(buf, " \t");
-			if ((size_t)(buf_start - (buf + 1)) != config_id_len ||
-			    strncmp(buf + 1, config_id, config_id_len))
-				continue;
-		}
-		else
-			buf_start = buf;
-
-		strvec = alloc_strvec(buf_start);
-		memset(buf, 0, MAXBUF);
+		strvec = alloc_strvec(buf);
 
 		if (!strvec)
 			continue;
@@ -528,7 +510,10 @@ read_line(char *buf, size_t size)
 {
 	size_t len ;
 	bool eof = false;
+	size_t config_id_len;
+	char *buf_start;
 
+	config_id_len = config_id ? strlen(config_id) : 0;
 	do {
 		if (fgets(buf, (int)size, current_stream)) {
 			len = strlen(buf);
@@ -536,6 +521,19 @@ read_line(char *buf, size_t size)
 				buf[len-1] = '\0';
 			if (len > 1 && (buf[len-2] == '\n' || buf[len-2] == '\r'))
 				buf[len-2] = '\0';
+			if (buf[0] == '@') {
+				/* If the line starts '@', check the following word matches the system id */
+				if (!config_id ||
+				    !(buf_start = strpbrk(buf, " \t")) ||
+				    (size_t)(buf_start - (buf + 1)) != config_id_len ||
+				    strncmp(buf + 1, config_id, config_id_len)) {
+					buf[0] = '\0';
+					break;
+				}
+
+				/* Remove the @config_id from start of line */
+				memmove(buf, buf_start + 1, strlen(buf_start));
+			}
 		}
 		else
 		{
@@ -543,7 +541,7 @@ read_line(char *buf, size_t size)
 			buf[0] = '\0';
 			break;
 		}
-	} while (check_include(buf));
+	} while (buf[0] && check_include(buf));
 
 	return !eof;
 }

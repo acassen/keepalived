@@ -65,6 +65,9 @@ static int signal_pipe[2] = { -1, -1 };
 static sigset_t ign_sig;
 static sigset_t dfl_sig;
 
+/* Signal handlers set in parent */
+static sigset_t parent_sig;
+
 #ifdef _INCLUDE_UNUSED_CODE_
 /* Local signal test */
 int
@@ -82,7 +85,7 @@ signal_pending(void)
 
 	rc = select(signal_pipe[0] + 1, &readset, NULL, NULL, &timeout);
 
-	return rc>0?1:0;
+	return rc > 0 ? 1 : 0;
 }
 #endif
 
@@ -129,6 +132,10 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 		sigemptyset(&sset);
 		sigaddset(&sset, signo);
 		sigprocmask(SIG_BLOCK, &sset, NULL);
+
+		/* If we are the parent, remember what signals
+		 * we set, so vrrp and checker children can clear them */
+		sigaddset(&parent_sig, signo);
 	}
 
 	ret = sigaction(signo, &sig, &osig);
@@ -177,13 +184,21 @@ signal_ignore(int signo)
 	return signal_set(signo, (void*)SIG_IGN, NULL);
 }
 
+static void
+clear_signal_handler_addresses(void)
+{
+	signal_SIGHUP_handler = NULL;
+	signal_SIGINT_handler = NULL;
+	signal_SIGTERM_handler = NULL;
+	signal_SIGCHLD_handler = NULL;
+	signal_SIGUSR1_handler = NULL;
+	signal_SIGUSR2_handler = NULL;
+}
+
 /* Handlers intialization */
 void
-signal_handler_init(int remember)
+open_signal_pipe(void)
 {
-	sigset_t sset;
-	int sig;
-	struct sigaction act, oact;
 	int n;
 
 #ifdef HAVE_PIPE2
@@ -203,13 +218,18 @@ signal_handler_init(int remember)
 	fcntl(signal_pipe[0], F_SETFD, FD_CLOEXEC | fcntl(signal_pipe[0], F_GETFD));
 	fcntl(signal_pipe[1], F_SETFD, FD_CLOEXEC | fcntl(signal_pipe[1], F_GETFD));
 #endif
+}
 
-	signal_SIGHUP_handler = NULL;
-	signal_SIGINT_handler = NULL;
-	signal_SIGTERM_handler = NULL;
-	signal_SIGCHLD_handler = NULL;
-	signal_SIGUSR1_handler = NULL;
-	signal_SIGUSR2_handler = NULL;
+void
+signal_handler_init(void)
+{
+	sigset_t sset;
+	int sig;
+	struct sigaction act, oact;
+
+	open_signal_pipe();
+
+	clear_signal_handler_addresses();
 
 	/* Ignore all signals set to default (except essential ones) */
 	sigfillset(&sset);
@@ -224,29 +244,45 @@ signal_handler_init(int remember)
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
 
-	if (remember) {
-		sigemptyset(&ign_sig);
-		sigemptyset(&dfl_sig);
-	}
+	sigemptyset(&ign_sig);
+	sigemptyset(&dfl_sig);
+	sigemptyset(&parent_sig);
 
 	for (sig = 1; sig <= SIGRTMAX; sig++) {
-		if (sigismember(&sset, sig)){
+		if (sigismember(&sset, sig)) {
 			sigaction(sig, NULL, &oact);
 
 			/* Remember the original disposition, and ignore
 			 * any default action signals
 			 */
-			if (oact.sa_handler == SIG_IGN) {
-				if (remember)
-					sigaddset(&ign_sig, sig);
-			}
+			if (oact.sa_handler == SIG_IGN)
+				sigaddset(&ign_sig, sig);
 			else {
 				sigaction(sig, &act, NULL);
-				if (remember)
-					sigaddset(&dfl_sig, sig);
+				sigaddset(&dfl_sig, sig);
 			}
 		}
 	}
+}
+
+void
+signal_handler_child_clear(void)
+{
+	struct sigaction act;
+	int sig;
+
+	act.sa_handler = SIG_IGN;
+	sigemptyset(&act.sa_mask);
+	act.sa_flags = 0;
+
+	for (sig = 1; sig <= SIGRTMAX; sig++) {
+		if (sigismember(&parent_sig, sig))
+			sigaction(sig, &act, NULL);
+	}
+
+	open_signal_pipe();
+
+	clear_signal_handler_addresses();
 }
 
 static void

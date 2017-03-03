@@ -31,7 +31,7 @@
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
 #endif
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "rttables.h"
 #include "logger.h"
 

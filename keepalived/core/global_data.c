@@ -31,7 +31,9 @@
 #include "list.h"
 #include "logger.h"
 #include "utils.h"
+#ifdef _WITH_VRRP_
 #include "vrrp.h"
+#endif
 #include "main.h"
 
 /* global vars */
@@ -171,7 +173,9 @@ alloc_global_data(void)
 #endif
 
 #ifdef _WITH_LVS_
+#ifdef _WITH_VRRP_
 	new->lvs_syncd.syncid = PARAMETER_UNSET;
+#endif
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 	new->lvs_syncd.mcast_group.ss_family = AF_UNSPEC;
 #endif
@@ -222,7 +226,7 @@ free_global_data(data_t * data)
 #ifdef _WITH_SNMP_
 	FREE_PTR(data->snmp_socket);
 #endif
-#ifdef _WITH_LVS_
+#if defined _WITH_LVS_ && defined _WITH_VRRP_
 	FREE_PTR(data->lvs_syncd.ifname);
 	FREE_PTR(data->lvs_syncd.vrrp_name);
 #endif
@@ -257,7 +261,6 @@ dump_global_data(data_t * data)
 				    , data->email_from);
 		dump_list(data->email);
 	}
-	log_message(LOG_INFO, " Default interface = %s", data->default_ifp ? data->default_ifp->ifname : DFLT_INT);
 #ifdef _WITH_LVS_
 	if (data->lvs_tcp_timeout)
 		log_message(LOG_INFO, " LVS TCP timeout = %d", data->lvs_tcp_timeout);
@@ -265,7 +268,8 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO, " LVS TCP FIN timeout = %d", data->lvs_tcpfin_timeout);
 	if (data->lvs_udp_timeout)
 		log_message(LOG_INFO, " LVS TCP timeout = %d", data->lvs_udp_timeout);
-#ifdef _WITH_LVS_
+#ifdef _WITH_VRRP_
+	log_message(LOG_INFO, " Default interface = %s", data->default_ifp ? data->default_ifp->ifname : DFLT_INT);
 	if (data->lvs_syncd.vrrp) {
 		log_message(LOG_INFO, " LVS syncd vrrp instance = %s"
 				    , data->lvs_syncd.vrrp->iname);

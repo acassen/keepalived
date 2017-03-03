@@ -27,6 +27,7 @@
 /* system include */
 #include <unistd.h>
 #include <stdbool.h>
+#include <net/if.h>
 
 /* local include */
 #include "vrrp_ipaddress.h"
@@ -325,9 +326,6 @@ extern void vrrp_state_backup(vrrp_t *, char *, ssize_t);
 extern void vrrp_state_goto_master(vrrp_t *);
 extern void vrrp_state_leave_master(vrrp_t *);
 extern bool vrrp_complete_init(void);
-#ifdef _WITH_LVS_
-extern bool vrrp_ipvs_needed(void);
-#endif
 extern void restore_vrrp_interfaces(void);
 extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);

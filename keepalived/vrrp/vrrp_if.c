@@ -52,7 +52,7 @@ typedef uint8_t u8;
 #include "vrrp_data.h"
 #include "vrrp.h"
 #include "vrrp_if.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "memory.h"
 #include "utils.h"
 #include "logger.h"

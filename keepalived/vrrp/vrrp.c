@@ -30,7 +30,9 @@
 #include "vrrp_ndisc.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_notify.h"
+#ifdef _WITH_LVS_
 #include "ipvswrapper.h"
+#endif
 #include "vrrp.h"
 #include "vrrp_data.h"
 #include "vrrp_sync.h"
@@ -53,7 +55,7 @@
 #include "utils.h"
 #include "notify.h"
 #include "bitops.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
@@ -2593,16 +2595,10 @@ vrrp_complete_init(void)
 
 	alloc_vrrp_buffer(max_mtu_len);
 
+	set_child_finder(vrrp_child_finder);
+
 	return true;
 }
-
-#ifdef _WITH_LVS_
-bool
-vrrp_ipvs_needed(void)
-{
-	return !!(global_data->lvs_syncd.ifname);
-}
-#endif
 
 /* Try to find a VRRP instance */
 static vrrp_t *
