@@ -296,7 +296,6 @@ dump_vs(void *data)
 	if (vs->ha_suspend)
 		log_message(LOG_INFO, "   Using HA suspend");
 
-#ifdef _WITH_LVS_
 	switch (vs->loadbalancing_kind) {
 	case IP_VS_CONN_F_MASQ:
 		log_message(LOG_INFO, "   lb_kind = NAT");
@@ -308,7 +307,6 @@ dump_vs(void *data)
 		log_message(LOG_INFO, "   lb_kind = TUN");
 		break;
 	}
-#endif
 
 	if (vs->s_svr) {
 		log_message(LOG_INFO, "   sorry server = %s"

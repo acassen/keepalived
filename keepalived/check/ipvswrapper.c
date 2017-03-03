@@ -242,7 +242,6 @@ ipvs_talk(int cmd, bool ignore_error)
 	return result;
 }
 
-#ifdef _WITH_LVS_
 /* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
 ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool ignore_interface, bool ignore_error)
@@ -284,7 +283,6 @@ ipvs_flush_cmd(void)
 {
 	ipvs_talk(IP_VS_SO_SET_FLUSH, false);
 }
-#endif
 
 /* IPVS group range rule */
 static int
@@ -832,7 +830,6 @@ ipvs_update_stats(virtual_server_t *vs)
 /*
  * Common IPVS functions
  */
-#ifdef _WITH_LVS_
 /* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
 ipvs_syncd_master(const struct lvs_syncd_config *config)
@@ -848,4 +845,3 @@ ipvs_syncd_backup(const struct lvs_syncd_config *config)
 	ipvs_syncd_cmd(IPVS_STOPDAEMON, config, IPVS_MASTER, false, false);
 	ipvs_syncd_cmd(IPVS_STARTDAEMON, config, IPVS_BACKUP, false, false);
 }
-#endif
