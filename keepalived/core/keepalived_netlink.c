@@ -38,7 +38,9 @@
 #include <stdarg.h>
 
 /* local include */
+#ifdef _WITH_LVS_
 #include "check_api.h"
+#endif
 #include "keepalived_netlink.h"
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
@@ -51,9 +53,9 @@
 #if !HAVE_DECL_SOCK_NONBLOCK
 #include "old_socket.h"
 #endif
-#ifdef _WITH_VRRP
-#include "vrrp_if.h"
-#endif
+
+/* Default values */
+#define IF_DEFAULT_BUFSIZE	(65*1024)
 
 /* Global vars */
 #ifdef _WITH_VRRP_

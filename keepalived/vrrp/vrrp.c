@@ -30,7 +30,9 @@
 #include "vrrp_ndisc.h"
 #include "vrrp_scheduler.h"
 #include "vrrp_notify.h"
+#ifdef _WITH_LVS_
 #include "ipvswrapper.h"
+#endif
 #include "vrrp.h"
 #include "vrrp_data.h"
 #include "vrrp_sync.h"

@@ -242,6 +242,7 @@ ipvs_talk(int cmd, bool ignore_error)
 	return result;
 }
 
+#ifdef _WITH_VRRP_
 /* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
 ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool ignore_interface, bool ignore_error)
@@ -277,6 +278,7 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 	/* Talk to the IPVS channel */
 	ipvs_talk(cmd, ignore_error);
 }
+#endif
 
 void
 ipvs_flush_cmd(void)
@@ -827,6 +829,7 @@ ipvs_update_stats(virtual_server_t *vs)
 }
 #endif /* _WITH_SNMP_CHECKER_ */
 
+#ifdef _WITH_VRRP_
 /*
  * Common IPVS functions
  */
@@ -845,3 +848,4 @@ ipvs_syncd_backup(const struct lvs_syncd_config *config)
 	ipvs_syncd_cmd(IPVS_STOPDAEMON, config, IPVS_MASTER, false, false);
 	ipvs_syncd_cmd(IPVS_STARTDAEMON, config, IPVS_BACKUP, false, false);
 }
+#endif

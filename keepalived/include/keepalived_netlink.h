@@ -38,7 +38,9 @@
 
 /* local includes */
 #include "timer.h"
+#ifdef _WITH_VRRP_
 #include "vrrp_if.h"
+#endif
 
 /* types definitions */
 typedef struct _nl_handle {

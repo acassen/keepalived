@@ -37,7 +37,9 @@
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
 #include "vrrp_if.h"
+#ifdef _WITH_LVS_
 #include "ipvswrapper.h"
+#endif
 #include "memory.h"
 #include "notify.h"
 #include "list.h"

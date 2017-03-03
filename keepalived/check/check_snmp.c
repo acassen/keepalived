@@ -160,6 +160,7 @@ enum check_snmp_realserver_magic {
 #define STATE_RS_REGULAR_NEXT 3
 #define STATE_RS_END 4
 
+#ifdef _WITH_VRRP_
 enum check_snmp_lvs_sync_daemon {
 	CHECK_SNMP_LVSSYNCDAEMONENABLED,
 	CHECK_SNMP_LVSSYNCDAEMONINTERFACE,
@@ -173,6 +174,7 @@ enum check_snmp_lvs_sync_daemon {
 	CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRVALUE,
 #endif
 };
+#endif
 
 enum check_snmp_lvs_timeouts {
 	CHECK_SNMP_LVSTIMEOUTTCP,
@@ -1003,6 +1005,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	return NULL;
 }
 
+#ifdef _WITH_VRRP_
 static u_char*
 check_snmp_lvs_sync_daemon(struct variable *vp, oid *name, size_t *length,
 				 int exact, size_t *var_len, WriteMethod **write_method)
@@ -1066,6 +1069,7 @@ check_snmp_lvs_sync_daemon(struct variable *vp, oid *name, size_t *length,
 	}
 	return NULL;
 }
+#endif
 
 static u_char*
 check_snmp_lvs_timeouts(struct variable *vp, oid *name, size_t *length,
@@ -1305,6 +1309,7 @@ static struct variable8 check_vars[] = {
 	{CHECK_SNMP_RSRATEOUTBPSHIGH, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 39}},
 #endif
+#ifdef _WITH_VRRP_
 	/* LVS sync daemon configuration */
 	{CHECK_SNMP_LVSSYNCDAEMONENABLED, ASN_INTEGER, RONLY,
 	 check_snmp_lvs_sync_daemon, 2, {6, 1}},
@@ -1325,6 +1330,7 @@ static struct variable8 check_vars[] = {
 	 check_snmp_lvs_sync_daemon, 2, {6, 8}},
 	{CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRVALUE, ASN_OCTET_STR, RONLY,
 	 check_snmp_lvs_sync_daemon, 2, {6, 9}},
+#endif
 #endif
 	/* LVS timeouts */
 	{CHECK_SNMP_LVSTIMEOUTTCP, ASN_INTEGER, RONLY,

@@ -38,8 +38,12 @@
 #include "logger.h"
 #include "parser.h"
 #include "notify.h"
+#ifdef _WITH_LVS_
 #include "check_parser.h"
+#endif
+#ifdef _WITH_VRRP_
 #include "vrrp_parser.h"
+#endif
 #include "global_parser.h"
 #if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
