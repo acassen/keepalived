@@ -348,9 +348,10 @@ update_checker_activity(sa_family_t family, void *address, bool enable)
 	checker_t *checker;
 	element e;
 	char addr_str[INET6_ADDRSTRLEN];
+	bool address_matched = false;
 
 	/* Display netlink operation */
-	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+	if (__test_bit(LOG_ADDRESS_CHANGES, &debug)) {
 		inet_ntop(family, address, addr_str, sizeof(addr_str));
 		log_message(LOG_INFO, "Netlink reflector reports IP %s %s"
 				    , addr_str, (enable) ? "added" : "removed");
@@ -372,11 +373,21 @@ update_checker_activity(sa_family_t family, void *address, bool enable)
 			 * we want to count them multiple times so that we only suspend the checkers
 			 * if they are all deleted */
 			if (addr_matches(checker->vs, address)) {
+				if (!address_matched &&
+				    !__test_bit(LOG_ADDRESS_CHANGES, &debug) &&
+				    __test_bit(LOG_DETAIL_BIT, &debug)) {
+					inet_ntop(family, address, addr_str, sizeof(addr_str));
+					log_message(LOG_INFO, "Netlink reflector reports IP %s %s"
+							    , addr_str, (enable) ? "added" : "removed");
+				}
+				address_matched = true;
+
 				if (enable)
 					checker->vs->ha_suspend_addr_count++;
 				else
 					checker->vs->ha_suspend_addr_count--;
 			}
+
 			if (!(checker->vs->ha_suspend_addr_count) == checker->enabled) {
 				log_message(LOG_INFO, "%sing healthchecker for service %s",
 							!checker->enabled ? "Activat" : "Suspend",

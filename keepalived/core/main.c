@@ -540,6 +540,7 @@ usage(const char *prog)
 #endif
 #ifdef _WITH_LVS_
 	fprintf(stderr, "  -c, --checkers_pid=FILE      Use specified pidfile for checkers child process\n");
+	fprintf(stderr, "  -a, --address-monitoring     Report all address additions/deletions notified via netlink\n");
 #endif
 #ifdef _WITH_SNMP_
 	fprintf(stderr, "  -x, --snmp                   Enable SNMP subsystem\n");
@@ -590,6 +591,7 @@ parse_cmdline(int argc, char **argv)
 #endif
 #ifdef _WITH_LVS_
 		{"checkers_pid",      required_argument, 0, 'c'},
+		{"address-monitoring",no_argument,       0, 'a'},
 #endif
 #ifdef _WITH_SNMP_
 		{"snmp",              no_argument,       0, 'x'},
@@ -617,7 +619,7 @@ parse_cmdline(int argc, char **argv)
 					    "r:VX"
 #endif
 #ifdef _WITH_LVS_
-					    "c:I"
+					    "ac:I"
 #endif
 #ifdef _WITH_SNMP_
 					    "xA:"
@@ -697,6 +699,9 @@ parse_cmdline(int argc, char **argv)
 #ifdef _WITH_LVS_
 		case 'c':
 			checkers_pidfile = optarg;
+			break;
+		case 'a':
+			__set_bit(LOG_ADDRESS_CHANGES, &debug);
 			break;
 #endif
 #ifdef _WITH_VRRP_

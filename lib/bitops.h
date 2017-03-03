@@ -64,6 +64,9 @@ enum global_bits {
 #ifdef _MEM_CHECK_LOG_
 	MEM_CHECK_LOG_BIT,
 #endif
+#ifdef _WITH_LVS_
+	LOG_ADDRESS_CHANGES,
+#endif
 };
 
 #endif
