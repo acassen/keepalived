@@ -25,6 +25,7 @@
 #include <unistd.h>
 
 #include "check_tcp.h"
+#include "check_api.h"
 #include "memory.h"
 #include "ipwrapper.h"
 #include "layer4.h"
@@ -198,7 +199,7 @@ tcp_connect_thread(thread_t * thread)
 	 * Register a new checker thread & return
 	 * if checker is disabled
 	 */
-	if (!CHECKER_ENABLED(checker)) {
+	if (!checker->enabled) {
 		thread_add_timer(thread->master, tcp_connect_thread, checker,
 				 checker->vs->delay_loop);
 		return 0;

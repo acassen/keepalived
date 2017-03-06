@@ -3,7 +3,7 @@
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
  *              a loadbalanced server pool using multi-layer checks.
  *
- * Part:        vrrp_netlink.c include file.
+ * Part:        keepalived_netlink.c include file.
  *
  * Author:      Alexandre Cassen, <acassen@linux-vs.org>
  *
@@ -33,7 +33,9 @@
 
 /* local includes */
 #include "scheduler.h"
+#ifdef _WITH_VRRP_
 #include "vrrp_if.h"
+#endif
 
 /* types definitions */
 typedef struct _nl_handle {
@@ -62,11 +64,14 @@ typedef struct _nl_handle {
 #define RTA_TAIL(rta)	((struct rtattr *) (((void *) (rta)) + RTA_ALIGN((rta)->rta_len)))
 
 /* Global vars exported */
+#ifdef _WITH_VRRP_
 extern nl_handle_t nl_cmd;	/* Command channel */
 extern int netlink_error_ignore; /* If we get this error, ignore it */
+#endif
 
 /* prototypes */
 extern void netlink_set_recv_buf_size(void);
+#ifdef _WITH_VRRP_
 extern int addattr_l(struct nlmsghdr *, size_t, unsigned short, void *, size_t);
 extern int addattr8(struct nlmsghdr *, size_t, unsigned short, uint8_t);
 extern int addattr32(struct nlmsghdr *, size_t, unsigned short, uint32_t);
@@ -85,6 +90,7 @@ extern ssize_t netlink_talk(nl_handle_t *, struct nlmsghdr *);
 extern int netlink_interface_lookup(char *);
 extern void kernel_netlink_poll(void);
 extern void process_if_status_change(interface_t *);
+#endif
 extern void kernel_netlink_init(void);
 extern void kernel_netlink_close(void);
 

@@ -24,7 +24,7 @@
 
 /* local include */
 #include "vrrp_iproute.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "vrrp_data.h"
 #include "logger.h"
 #include "memory.h"

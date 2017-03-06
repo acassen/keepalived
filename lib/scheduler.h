@@ -93,8 +93,12 @@ enum {
 
 typedef enum {
 	PROG_TYPE_PARENT,
+#ifdef _WITH_VRRP_
 	PROG_TYPE_VRRP,
+#endif
+#ifdef _WITH_LVS_
 	PROG_TYPE_CHECKER,
+#endif
 } prog_type_t;
 
 /* MICRO SEC def */

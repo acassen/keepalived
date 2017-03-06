@@ -737,7 +737,7 @@ smtp_connect_thread(thread_t *thread)
 	 * But we still have to register ourselves again so
 	 * we don't fall of the face of the earth.
 	 */
-	if (!CHECKER_ENABLED(checker)) {
+	if (!checker->enabled) {
 		thread_add_timer(thread->master, smtp_connect_thread, checker,
 				 checker->vs->delay_loop);
 		return 0;

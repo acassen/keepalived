@@ -63,7 +63,7 @@
 #include "main.h"
 #include "utils.h"
 #include "bitops.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "vrrp_print.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
@@ -2910,14 +2910,6 @@ vrrp_complete_init(void)
 
 	return true;
 }
-
-#ifdef _WITH_LVS_
-bool
-vrrp_ipvs_needed(void)
-{
-	return !!(global_data->lvs_syncd.ifname);
-}
-#endif
 
 /* Clear VIP|EVIP not present into the new data */
 static void

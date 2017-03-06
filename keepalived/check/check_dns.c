@@ -28,6 +28,7 @@
 #include <unistd.h>
 
 #include "check_dns.h"
+#include "check_api.h"
 #include "memory.h"
 #include "ipwrapper.h"
 #include "logger.h"
@@ -334,7 +335,7 @@ dns_connect_thread(thread_t * thread)
 	checker_t *checker = THREAD_ARG(thread);
 	conn_opts_t *co = checker->co;
 
-	if (!CHECKER_ENABLED(checker)) {
+	if (!checker->enabled) {
 		thread_add_timer(thread->master, dns_connect_thread, checker,
 				 checker->vs->delay_loop);
 		return 0;

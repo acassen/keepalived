@@ -64,6 +64,7 @@
 #endif
 #include "logger.h"
 #include "global_data.h"
+#include "memory.h"
 
 #ifdef _HAVE_LIBIPSET_
 #include "vrrp_ipset.h"

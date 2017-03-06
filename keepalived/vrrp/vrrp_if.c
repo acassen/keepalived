@@ -45,7 +45,7 @@ typedef uint8_t u8;
 #include "global_data.h"
 #include "vrrp.h"
 #include "vrrp_if.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "utils.h"
 #include "logger.h"
 #ifdef _HAVE_VRRP_VMAC_

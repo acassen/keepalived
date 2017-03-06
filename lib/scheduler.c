@@ -96,7 +96,12 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 		}
 
 		/* We really want the checker process to be able to report this more intelligently */
-		if (exit_status != EXIT_SUCCESS && prog_type != PROG_TYPE_VRRP) {
+		if (exit_status != EXIT_SUCCESS &&
+		    (
+#ifdef _WITH_LVS_
+		     prog_type == PROG_TYPE_CHECKER ||
+#endif
+						       prog_type == PROG_TYPE_PARENT)) {
 			if (!prog_id) {
 				snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
 				prog_id = pid_buf;

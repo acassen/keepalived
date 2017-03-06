@@ -30,6 +30,9 @@
 #include "layer4.h"
 #include "logger.h"
 
+#ifndef _WITH_LVS_
+static
+#endif
 enum connect_result
 socket_bind_connect(int fd, conn_opts_t *co)
 {
@@ -147,11 +150,12 @@ socket_state(thread_t * thread, int (*func) (thread_t *))
 	return connect_success;
 }
 
+#ifdef _WITH_LVS_
 int
 socket_connection_state(int fd, enum connect_result status, thread_t * thread,
 		     int (*func) (thread_t *), unsigned long timeout)
 {
-	checker_t *checker;
+	void *checker;
 
 	checker = THREAD_ARG(thread);
 
@@ -169,3 +173,4 @@ socket_connection_state(int fd, enum connect_result status, thread_t * thread,
 		return 1;
 	}
 }
+#endif

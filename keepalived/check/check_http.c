@@ -28,6 +28,7 @@
 #include <unistd.h>
 
 #include "check_http.h"
+#include "check_api.h"
 #include "check_ssl.h"
 #include "logger.h"
 #include "parser.h"
@@ -754,7 +755,7 @@ http_connect_thread(thread_t * thread)
 	 * Register a new checker thread & return
 	 * if checker is disabled
 	 */
-	if (!CHECKER_ENABLED(checker)) {
+	if (!checker->enabled) {
 		thread_add_timer(thread->master, http_connect_thread, checker,
 				 checker->vs->delay_loop);
 		return 0;

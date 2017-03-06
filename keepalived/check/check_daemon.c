@@ -40,18 +40,25 @@
 #include "main.h"
 #include "parser.h"
 #include "bitops.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #ifdef _WITH_SNMP_CHECKER_
   #include "check_snmp.h"
 #endif
 #include "utils.h"
 
+/* Global variables */
+bool using_ha_suspend;
+
+/* local variables */
 static char *check_syslog_ident;
 
 /* Daemon stop sequence */
 static void
 stop_check(int status)
 {
+	if (using_ha_suspend)
+		kernel_netlink_close();
+
 	/* Terminate all script process */
 	script_killall(master, SIGTERM);
 
@@ -74,9 +81,6 @@ stop_check(int status)
 	/* Clean data */
 	free_global_data(global_data);
 	free_check_data(check_data);
-#ifdef _WITH_VRRP_
-	free_interface_queue();
-#endif
 	free_parent_mallocs_exit();
 
 	/*
@@ -108,10 +112,6 @@ start_check(void)
 	}
 
 	init_checkers_queue();
-#ifdef _WITH_VRRP_
-	init_interface_queue();
-	kernel_netlink_init();
-#endif
 
 	/* Parse configuration file */
 	global_data = alloc_global_data();
@@ -123,6 +123,13 @@ start_check(void)
 
 	init_global_data(global_data);
 
+	/* fill 'vsg' members of the virtual_server_t structure.
+	 * We must do that after parsing config, because
+	 * vs and vsg declarations may appear in any order,
+	 * but we must do it before validate_check_config().
+	 */
+	link_vsg_to_vs();
+
 	/* Post initializations */
 	if (!validate_check_config()) {
 		stop_check(KEEPALIVED_EXIT_CONFIG);
@@ -132,6 +139,10 @@ start_check(void)
 #ifdef _MEM_CHECK_
 	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
 #endif
+
+	/* Get current active addresses, and start update process */
+	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug))
+		kernel_netlink_init();
 
 	/* Remove any entries left over from previous invocation */
 	if (!reload && global_data->lvs_flush)
@@ -145,12 +156,6 @@ start_check(void)
 	/* SSL load static data & initialize common ctx context */
 	if (!init_ssl_ctx())
 		stop_check(KEEPALIVED_EXIT_FATAL);
-
-	/* fill 'vsg' members of the virtual_server_t structure.
-	 * We must do that after parsing config, because
-	 * vs and vsg declarations may appear in any order
-	 */
-	link_vsg_to_vs();
 
 	/* Set the process priority and non swappable if configured */
 	if (global_data->checker_process_priority)
@@ -172,11 +177,6 @@ start_check(void)
 		dump_global_data(global_data);
 		dump_check_data(check_data);
 	}
-
-#ifdef _WITH_VRRP_
-	/* Initialize linkbeat */
-	init_interface_linkbeat();
-#endif
 
 	/* Register checkers thread */
 	register_checkers_thread();
@@ -223,16 +223,12 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	script_killall(master, SIGTERM);
 
 	/* Destroy master thread */
-#ifdef _WITH_VRRP_
-	kernel_netlink_close();
-#endif
+	if (using_ha_suspend)
+		kernel_netlink_close();
 	thread_cleanup_master(master);
 	free_global_data(global_data);
 
 	free_checkers_queue();
-#ifdef _WITH_VRRP_
-	free_interface_queue();
-#endif
 	free_ssl();
 	ipvs_stop();
 

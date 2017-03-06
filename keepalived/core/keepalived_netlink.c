@@ -17,7 +17,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #include "config.h"
@@ -34,11 +34,22 @@
 #include <netlink/netlink.h>
 #endif
 #include <net/if_arp.h>
+#include <arpa/inet.h>
+#ifdef HAVE_LIBNFNETLINK_LIBNFNETLINK_H
+#include <libnfnetlink/libnfnetlink.h>
+#endif
+#include <time.h>
 
 /* local include */
+#include "keepalived_netlink.h"
+#ifdef _WITH_LVS_
 #include "check_api.h"
-#include "vrrp_netlink.h"
+#endif
+#ifdef _WITH_VRRP_
+#include "vrrp_scheduler.h"
+#include "vrrp_track.h"
 #include "vrrp_data.h"
+#endif
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
 #endif
@@ -47,13 +58,17 @@
 #include "utils.h"
 #include "bitops.h"
 #if !HAVE_DECL_SOCK_NONBLOCK
+#include "old_socket.h"
 #endif
-#include "vrrp_scheduler.h"
-#include "vrrp_track.h"
+
+/* Default values */
+#define IF_DEFAULT_BUFSIZE	(65*1024)
 
 /* Global vars */
-nl_handle_t nl_cmd;	/* Command channel */
-int netlink_error_ignore; /* If we get this error, ignore it */
+#ifdef _WITH_VRRP_
+nl_handle_t nl_cmd;		/* Command channel */
+int netlink_error_ignore;	/* If we get this error, ignore it */
+#endif
 
 /* Static vars */
 static nl_handle_t nl_kernel;	/* Kernel reflection channel */
@@ -81,6 +96,7 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 {
 	int ret;
 	va_list gp;
+	int rcvbuf_size;
 
 	memset(nl, 0, sizeof (*nl));
 
@@ -207,7 +223,13 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 	nl->nl_pid = snl.nl_pid;
 
 	/* Set default rcvbuf size */
-	if_setsockopt_rcvbuf(&nl->fd, IF_DEFAULT_BUFSIZE);
+	rcvbuf_size = IF_DEFAULT_BUFSIZE;
+	ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size));
+	if (ret < 0) {
+		log_message(LOG_INFO, "cant set SO_RCVBUF IP option. errno=%d (%m)", errno);
+		close(nl->fd);
+		return -1;
+	}
 #endif
 
 	nl->seq = (uint32_t)time(NULL);
@@ -232,6 +254,7 @@ netlink_close(nl_handle_t *nl)
 	return 0;
 }
 
+#ifdef _WITH_VRRP_
 /* Set netlink socket channel as blocking */
 static int
 netlink_set_block(nl_handle_t *nl, int *flags)
@@ -274,6 +297,7 @@ netlink_set_nonblock(nl_handle_t *nl, int *flags)
 #endif
 	return 0;
 }
+#endif
 
 /* iproute2 utility function */
 int
@@ -295,11 +319,13 @@ addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, void *data, si
 	return 0;
 }
 
+#ifdef _WITH_VRRP_
 int
 addattr8(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint8_t data)
 {
 	return addattr_l(n, maxlen, type, &data, sizeof data);
 }
+#endif
 
 int
 addattr32(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint32_t data)
@@ -307,6 +333,7 @@ addattr32(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint32_t data)
 	return addattr_l(n, maxlen, type, &data, sizeof data);
 }
 
+#ifdef _WITH_VRRP_
 int
 addattr64(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint64_t data)
 {
@@ -440,6 +467,7 @@ rta_nest_end(struct rtattr *rta, struct rtattr *nest)
 
 	return rta->rta_len;
 }
+#endif
 
 static void
 parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, size_t len)
@@ -463,13 +491,17 @@ parse_rtattr_nested(struct rtattr **tb, int max, struct rtattr *rta)
  * Netlink interface address lookup filter
  * We need to handle multiple primary address and
  * multiple secondary address to the same interface.
+ * We also need to handle the same address on
+ * multiple interfaces, for IPv6 link local addresses.
  */
 static int
 netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
 	struct ifaddrmsg *ifa;
 	struct rtattr *tb[IFA_MAX + 1];
+#ifdef _WITH_VRRP_
 	interface_t *ifp;
+#endif
 	size_t len;
 	void *addr;
 	char addr_str[INET6_ADDRSTRLEN];
@@ -491,10 +523,6 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	memset(tb, 0, sizeof (tb));
 	parse_rtattr(tb, IFA_MAX, IFA_RTA(ifa), len);
 
-	/* Fetch interface_t */
-	ifp = if_get_by_ifindex(ifa->ifa_index);
-	if (!ifp)
-		return 0;
 	if (tb[IFA_LOCAL] == NULL)
 		tb[IFA_LOCAL] = tb[IFA_ADDRESS];
 	if (tb[IFA_ADDRESS] == NULL)
@@ -506,14 +534,23 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	if (addr == NULL)
 		return -1;
 
-	/* If no address is set on interface then set the first time */
-	if (ifa->ifa_family == AF_INET) {
-		if (!ifp->sin_addr.s_addr)
-			ifp->sin_addr = *(struct in_addr *) addr;
-	} else {
-		if (!ifp->sin6_addr.s6_addr16[0] && ifa->ifa_scope == RT_SCOPE_LINK)
-			ifp->sin6_addr = *(struct in6_addr *) addr;
+#ifdef _WITH_VRRP_
+	if (prog_type == PROG_TYPE_VRRP) {
+		/* Fetch interface_t */
+		ifp = if_get_by_ifindex(ifa->ifa_index);
+		if (!ifp)
+			return 0;
+
+		/* If no address is set on interface then set the first time */
+		if (ifa->ifa_family == AF_INET) {
+			if (!ifp->sin_addr.s_addr)
+				ifp->sin_addr = *(struct in_addr *) addr;
+		} else {
+			if (!ifp->sin6_addr.s6_addr16[0] && ifa->ifa_scope == RT_SCOPE_LINK)
+				ifp->sin6_addr = *(struct in6_addr *) addr;
+		}
 	}
+#endif
 
 	/* Display netlink operation */
 	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
@@ -523,9 +560,14 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	}
 
 #ifdef _WITH_LVS_
-	/* Refresh checkers state */
-	update_checker_activity(ifa->ifa_family, addr, h->nlmsg_type == RTM_NEWADDR);
+	if (prog_type == PROG_TYPE_CHECKER)
+	{
+		/* Refresh checkers state */
+		update_checker_activity(ifa->ifa_family, addr,
+					(h->nlmsg_type == RTM_NEWADDR));
+	}
 #endif
+
 	return 0;
 }
 
@@ -624,7 +666,9 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 						return 0;
 					continue;
 				}
+#ifdef _WITH_VRRP_
 				if (netlink_error_ignore != -err->error)
+#endif
 					log_message(LOG_INFO,
 					       "Netlink: error: %s, type=(%u), seq=%u, pid=%d",
 					       strerror(-err->error),
@@ -634,9 +678,11 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				return -1;
 			}
 
+#ifdef _WITH_VRRP_
 			/* Skip unsolicited messages from cmd channel */
-			if (nl != &nl_cmd && h->nlmsg_pid == nl_cmd.nl_pid)
+			if (prog_type == PROG_TYPE_VRRP && nl != &nl_cmd && h->nlmsg_pid == nl_cmd.nl_pid)
 				continue;
+#endif
 
 			error = (*filter) (&snl, h);
 			if (error < 0) {
@@ -663,6 +709,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 	return ret;
 }
 
+#ifdef _WITH_VRRP_
 /* Out talk filter */
 static int
 netlink_talk_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
@@ -722,10 +769,15 @@ netlink_talk(nl_handle_t *nl, struct nlmsghdr *n)
 		netlink_set_nonblock(nl, &flags);
 	return status;
 }
+#endif
 
 /* Fetch a specific type of information from netlink kernel */
 static int
-netlink_request(nl_handle_t *nl, unsigned char family, uint16_t type, char *name)
+netlink_request(nl_handle_t *nl, unsigned char family, uint16_t type,
+#ifndef _WITH_VRRP_
+		__attribute__((unused))
+#endif
+					char *name)
 {
 	ssize_t status;
 	struct sockaddr_nl snl;
@@ -747,9 +799,11 @@ netlink_request(nl_handle_t *nl, unsigned char family, uint16_t type, char *name
 	req.nlh.nlmsg_seq = ++nl->seq;
 	req.i.ifi_family = family;
 
+#ifdef _WITH_VRRP_
 	if (name)
 		addattr_l(&req.nlh, sizeof req, IFLA_IFNAME, name, strlen(name) + 1);
 	else
+#endif
 		req.nlh.nlmsg_flags |= NLM_F_DUMP;
 	addattr32(&req.nlh, sizeof req, IFLA_EXT_MASK, RTEXT_FILTER_VF);
 
@@ -763,6 +817,7 @@ netlink_request(nl_handle_t *nl, unsigned char family, uint16_t type, char *name
 	return 0;
 }
 
+#ifdef _WITH_VRRP_
 void
 process_if_status_change(interface_t *ifp)
 {
@@ -1015,8 +1070,9 @@ end_int:
 	netlink_close(&nlh);
 	return status;
 }
+#endif
 
-/* Adresses lookup bootstrap function */
+/* Addresses lookup bootstrap function */
 static int
 netlink_address_lookup(void)
 {
@@ -1045,6 +1101,7 @@ end_addr:
 	return status;
 }
 
+#ifdef _WITH_VRRP_
 /* Netlink flag Link update */
 static int
 netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlmsghdr *h)
@@ -1197,23 +1254,28 @@ netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlm
 
 	return 0;
 }
+#endif
 
 /* Netlink kernel message reflection */
 static int
 netlink_broadcast_filter(struct sockaddr_nl *snl, struct nlmsghdr *h)
 {
 	switch (h->nlmsg_type) {
+#ifdef _WITH_VRRP_
 	case RTM_NEWLINK:
 	case RTM_DELLINK:
 		return netlink_reflect_filter(snl, h);
 		break;
+#endif
 	case RTM_NEWADDR:
 	case RTM_DELADDR:
 		return netlink_if_address_filter(snl, h);
 		break;
+#ifdef _WITH_VRRP_
 	case RTM_NEWROUTE:
 	case RTM_DELROUTE:
 		return netlink_route_filter(snl, h);
+#endif
 	default:
 		log_message(LOG_INFO,
 		       "Kernel is reflecting an unknown netlink nlmsg_type: %d",
@@ -1235,11 +1297,13 @@ kernel_netlink(thread_t * thread)
 	return 0;
 }
 
+#ifdef _WITH_VRRP_
 void
 kernel_netlink_poll(void)
 {
 	netlink_parse_info(netlink_broadcast_filter, &nl_kernel, NULL, true);
 }
+#endif
 
 void
 kernel_netlink_init(void)
@@ -1262,14 +1326,14 @@ kernel_netlink_init(void)
 	 * We need to reinstate routes/addresses/VMACs when we can.
 	 * We need an option on routes to put the instance in fault state if the route disappears.
 	 */
-	/* TODO
-	 * We should only log netlink address messages if it is one of our addresses, or an option to log all
-	 */ 
-	if (prog_type == PROG_TYPE_VRRP) {
+#ifdef _WITH_VRRP_
+	if (prog_type == PROG_TYPE_VRRP)
 		netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_IPV4_ROUTE, RTNLGRP_IPV6_ROUTE, 0);
-	}
-	else
-		netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
+#endif
+#ifdef _WITH_LVS_
+	if (prog_type == PROG_TYPE_CHECKER)
+		netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
+#endif
 
 	if (nl_kernel.fd > 0) {
 		log_message(LOG_INFO, "Registering Kernel netlink reflector");
@@ -1278,19 +1342,26 @@ kernel_netlink_init(void)
 	} else
 		log_message(LOG_INFO, "Error while registering Kernel netlink reflector channel");
 
-	/* Prepare netlink command channel. */
-	netlink_socket(&nl_cmd, SOCK_NONBLOCK, 0);
-	if (nl_cmd.fd > 0)
-		log_message(LOG_INFO, "Registering Kernel netlink command channel");
-	else
-		log_message(LOG_INFO, "Error while registering Kernel netlink cmd channel");
+#ifdef _WITH_VRRP_
+	if (prog_type == PROG_TYPE_VRRP) {
+		/* Prepare netlink command channel. */
+		netlink_socket(&nl_cmd, SOCK_NONBLOCK, 0);
+		if (nl_cmd.fd > 0)
+			log_message(LOG_INFO, "Registering Kernel netlink command channel");
+		else
+			log_message(LOG_INFO, "Error while registering Kernel netlink cmd channel");
+	}
+#endif
 }
 
 void
 kernel_netlink_close(void)
 {
 	netlink_close(&nl_kernel);
-	netlink_close(&nl_cmd);
+#ifdef _WITH_VRRP_
+	if (prog_type == PROG_TYPE_VRRP)
+		netlink_close(&nl_cmd);
+#endif
 }
 
 #ifdef _TIMER_DEBUG_

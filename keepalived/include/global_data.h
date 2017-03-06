@@ -41,6 +41,9 @@
 #include "list.h"
 #include "vrrp_if.h"
 #include "timer.h"
+#ifdef _WITH_VRRP_
+#include "vrrp.h"
+#endif
 #ifdef _WITH_LVS_
 #include "ipvswrapper.h"
 #endif
@@ -67,12 +70,14 @@ typedef struct _data {
 	char				*smtp_helo_name;
 	unsigned long			smtp_connection_to;
 	list				email;
+#ifdef _WITH_VRRP_
 	interface_t			*default_ifp;		/* Default interface for static addresses */
+#endif
 #ifdef _WITH_LVS_
 	int				lvs_tcp_timeout;
 	int				lvs_tcpfin_timeout;
 	int				lvs_udp_timeout;
-#ifdef _WITH_LVS_
+#ifdef _WITH_VRRP_
 	struct lvs_syncd_config		lvs_syncd;
 #endif
 	bool				lvs_flush;		/* flush any residual LVS config at startup */

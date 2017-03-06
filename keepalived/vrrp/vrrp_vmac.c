@@ -30,7 +30,7 @@
 
 /* local include */
 #include "vrrp_vmac.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "logger.h"
 #include "bitops.h"
 #include "utils.h"

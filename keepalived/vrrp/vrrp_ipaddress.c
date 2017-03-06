@@ -24,20 +24,21 @@
 
 /* Global include */
 #include <errno.h>
+#include <arpa/inet.h>
 
 /* local include */
 #include "vrrp_ipaddress.h"
 #ifdef _HAVE_LIBIPTC_
 #include "vrrp_iptables.h"
 #endif
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "vrrp_data.h"
 #include "logger.h"
 #include "utils.h"
 #include "bitops.h"
 #include "global_data.h"
 #include "rttables.h"
-
+#include "memory.h"
 
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
 

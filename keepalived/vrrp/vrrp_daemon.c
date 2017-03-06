@@ -32,7 +32,7 @@
 #include "vrrp_scheduler.h"
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "vrrp_iptables.h"
 #ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iprule.h"
@@ -65,6 +65,14 @@ static int print_vrrp_stats(thread_t * thread);
 static int reload_vrrp_thread(thread_t * thread);
 
 static char *vrrp_syslog_ident;
+
+#ifdef _WITH_LVS_
+static bool
+vrrp_ipvs_needed(void)
+{
+	return !!(global_data->lvs_syncd.ifname);
+}
+#endif
 
 /* Daemon stop sequence */
 static void
@@ -467,6 +475,8 @@ start_vrrp_child(void)
 		return 0;
 	}
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
+
+	prog_type = PROG_TYPE_VRRP;
 
 	prog_type = PROG_TYPE_VRRP;
 

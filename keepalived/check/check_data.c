@@ -26,6 +26,7 @@
 #include "check_data.h"
 #include "check_api.h"
 #include "check_misc.h"
+#include "check_daemon.h"
 #include "global_data.h"
 #include "check_ssl.h"
 #include "logger.h"
@@ -293,7 +294,6 @@ dump_vs(void *data)
 	if (vs->ha_suspend)
 		log_message(LOG_INFO, "   Using HA suspend");
 
-#ifdef _WITH_LVS_
 	switch (vs->loadbalancing_kind) {
 	case IP_VS_CONN_F_MASQ:
 		log_message(LOG_INFO, "   lb_kind = NAT");
@@ -305,7 +305,6 @@ dump_vs(void *data)
 		log_message(LOG_INFO, "   lb_kind = TUN");
 		break;
 	}
-#endif
 
 	if (vs->s_svr) {
 		log_message(LOG_INFO, "   sorry server = %s"
@@ -316,20 +315,21 @@ dump_vs(void *data)
 }
 
 void
-alloc_vs(char *ip, char *port)
+alloc_vs(char *param1, char *param2)
 {
-	size_t size = strlen(port);
+	size_t size;
 	virtual_server_t *new;
 
 	new = (virtual_server_t *) MALLOC(sizeof(virtual_server_t));
 
-	if (!strcmp(ip, "group")) {
+	if (!strcmp(param1, "group")) {
+		size = strlen(param2);
 		new->vsgname = (char *) MALLOC(size + 1);
-		memcpy(new->vsgname, port, size);
-	} else if (!strcmp(ip, "fwmark")) {
-		new->vfwmark = (uint32_t)strtoul(port, NULL, 10);
+		memcpy(new->vsgname, param2, size);
+	} else if (!strcmp(param1, "fwmark")) {
+		new->vfwmark = (uint32_t)strtoul(param2, NULL, 10);
 	} else {
-		inet_stosockaddr(ip, port, &new->addr);
+		inet_stosockaddr(param1, param2, &new->addr);
 		new->af = new->addr.ss_family;
 #ifndef LIBIPVS_USE_NL
 		if (new->af != AF_INET) {
@@ -541,17 +541,39 @@ bool validate_check_config(void)
 {
 	element e;
 	virtual_server_t *vs;
+	checker_t *checker;
 
-	/* Ensure that no virtual server hysteresis >= quorum */
+	using_ha_suspend = false;
 	if (!LIST_ISEMPTY(check_data->vs)) {
 		for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
 			vs = ELEMENT_DATA(e);
 
+			/* Ensure that no virtual server hysteresis >= quorum */
 			if (vs->hysteresis >= vs->quorum) {
 				log_message(LOG_INFO, "Virtual server %s: hysteresis %u >= quorum %u; setting hysteresis to %u",
-						vs->vsgname, vs->hysteresis, vs->quorum, vs->quorum -1);
+						FMT_VS(vs), vs->hysteresis, vs->quorum, vs->quorum -1);
 				vs->hysteresis = vs->quorum - 1;
 			}
+
+			/* Ensure that ha_suspend is not set for any virtual server using fwmarks */
+			if (vs->ha_suspend &&
+			    (vs->vfwmark || (vs->vsg && !LIST_ISEMPTY(vs->vsg->vfwmark)))) {
+				log_message(LOG_INFO, "Virtual server %s: cannot use ha_suspend with fwmarks - clearing ha_suspend", FMT_VS(vs));
+				vs->ha_suspend = false;
+			}
+
+			if (vs->ha_suspend)
+				using_ha_suspend = true;
+		}
+	}
+
+	/* Ensure any checkers that don't have ha_suspend set are enabled */
+	if (!LIST_ISEMPTY(checkers_queue)) {
+		for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
+			checker = ELEMENT_DATA(e);
+
+			if (!checker->vs->ha_suspend)
+				checker->enabled = true;
 		}
 	}
 

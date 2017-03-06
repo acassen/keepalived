@@ -189,7 +189,7 @@ misc_check_thread(thread_t * thread)
 	 * Register a new checker thread & return
 	 * if checker is disabled
 	 */
-	if (!CHECKER_ENABLED(checker)) {
+	if (!checker->enabled) {
 		/* Register next timer checker */
 		thread_add_timer(thread->master, misc_check_thread, checker,
 				 checker->vs->delay_loop);

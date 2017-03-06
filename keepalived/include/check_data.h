@@ -32,9 +32,7 @@
 #include <netinet/in.h>
 #include <openssl/ssl.h>
 
-#ifdef _WITH_LVS_
-  #include "ip_vs.h"
-#endif
+#include "ip_vs.h"
 
 /* local includes */
 #include "list.h"
@@ -77,7 +75,7 @@ typedef struct _real_server {
 	list				failed_checkers;/* List of failed checkers */
 	bool				set;		/* in the IPVS table */
 	bool				reloaded;	/* active state was copied from old config while reloading */
-#if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)
+#if defined(_WITH_SNMP_CHECKER_)
 	/* Statistics */
 	uint32_t			activeconns;	/* active connections */
 	uint32_t			inactconns;	/* inactive connections */
@@ -92,6 +90,7 @@ typedef struct _real_server {
 
 /* Virtual Server group definition */
 typedef struct _virtual_server_group_entry {
+/* TODO - vfwmark can be a union with addr and range */
 	struct sockaddr_storage		addr;
 	uint32_t			range;
 	uint32_t			vfwmark;
@@ -116,8 +115,8 @@ typedef struct _virtual_server {
 	uint16_t			af;
 	uint16_t			service_type;
 	unsigned long			delay_loop;
-	int				ha_suspend;
-#ifdef _WITH_LVS_
+	bool				ha_suspend;
+	int				ha_suspend_addr_count;
 	char				sched[IP_VS_SCHEDNAME_MAXLEN];
 	uint32_t			flags;
 	uint32_t			persistence_timeout;
@@ -126,7 +125,6 @@ typedef struct _virtual_server {
 #endif
 	unsigned			loadbalancing_kind;
 	uint32_t			persistence_granularity;
-#endif
 	char				*virtualhost;
 	list				rs;
 	bool				alive;
@@ -138,7 +136,7 @@ typedef struct _virtual_server {
 	unsigned			hysteresis;	/* up/down events "lag" WRT quorum. */
 	bool				quorum_state;	/* Reflects result of the last transition done. */
 	bool				reloaded;	/* quorum_state was copied from old config while reloading */
-#if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)
+#if defined(_WITH_SNMP_CHECKER_)
 	/* Statistics */
 	time_t				lastupdated;
 #ifndef _WITH_LVS_64BIT_STATS_
