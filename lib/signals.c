@@ -441,11 +441,7 @@ signal_run_callback(void)
 			break;
 		case SIGCHLD:
 			if (signal_SIGCHLD_handler)
-#ifdef HAVE_SIGNALFD
-				signal_SIGCHLD_handler(&siginfo, SIGCHLD);
-#else
 				signal_SIGCHLD_handler(signal_SIGCHLD_v, SIGCHLD);
-#endif
 			break;
 		case SIGUSR1:
 			if (signal_SIGUSR1_handler)

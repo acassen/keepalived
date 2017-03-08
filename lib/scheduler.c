@@ -917,32 +917,10 @@ process_child_termination(pid_t pid, int status)
 
 /* Synchronous signal handler to reap child processes */
 void
-#ifdef HAVE_SIGNALFD
-thread_child_handler(void * v, __attribute__ ((unused)) int unused)
-#else
-thread_child_handler(__attribute__((unused)) void * v, __attribute__ ((unused)) int unused)
-#endif
+thread_child_handler(__attribute__((unused)) void *v, __attribute__((unused)) int unused)
 {
 	pid_t pid;
 	int status;
-
-#ifdef HAVE_SIGNALFD
-	struct signalfd_siginfo *siginfo = v;
-
-	if (siginfo->ssi_code == CLD_EXITED || siginfo->ssi_code == CLD_KILLED || siginfo->ssi_code == CLD_DUMPED) {
-		pid = (pid_t)siginfo->ssi_pid;
-		status = siginfo->ssi_code == CLD_EXITED ? W_EXITCODE(siginfo->ssi_status, 0) :
-			 siginfo->ssi_code == CLD_KILLED ? W_EXITCODE(0, siginfo->ssi_status) :
-							   WCOREFLAG;
-
-		/* Allow process to complete termination */
-		waitpid(pid, NULL, WNOHANG);
-
-		process_child_termination(pid, status);
-
-		return;
-	}
-#endif
 
 	while ((pid = waitpid(-1, &status, WNOHANG))) {
 		if (pid == -1) {
