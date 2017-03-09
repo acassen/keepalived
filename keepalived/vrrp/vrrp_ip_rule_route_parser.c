@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <arpa/inet.h>
+#include <stdint.h>
 
 #include "logger.h"
 #include "vrrp_ip_rule_route_parser.h"

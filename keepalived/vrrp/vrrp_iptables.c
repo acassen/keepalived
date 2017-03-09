@@ -56,6 +56,7 @@
 #ifdef _HAVE_LIBIPTC_
 #include <libiptc/libxtc.h>
 #endif
+#include <stdint.h>
 
 #include "vrrp_iptables.h"
 #include "vrrp_iptables_calls.h"

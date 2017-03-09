@@ -24,6 +24,7 @@
 
 #include <dlfcn.h>
 #include <arpa/inet.h>
+#include <stdint.h>
 
 #include "check_api.h"
 #include "main.h"

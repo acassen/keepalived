@@ -25,6 +25,8 @@
 #include "config.h"
 
 #include <stdlib.h>
+#include <stdint.h>
+#include <stdbool.h>
 #include <unistd.h>
 #include <pwd.h>
 #include <grp.h>

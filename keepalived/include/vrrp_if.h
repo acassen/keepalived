@@ -27,6 +27,7 @@
 
 /* global includes */
 #include <netinet/in.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/types.h>

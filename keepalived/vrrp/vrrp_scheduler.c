@@ -28,6 +28,7 @@
 #if defined _WITH_VRRP_AUTH_
 #include <netinet/in.h>
 #endif
+#include <stdint.h>
 
 #include "vrrp_scheduler.h"
 #include "vrrp_track.h"

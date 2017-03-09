@@ -26,6 +26,7 @@
 
 #include <unistd.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "vrrp_parser.h"
 #include "logger.h"

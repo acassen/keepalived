@@ -25,6 +25,8 @@
 
 #include "config.h"
 
+#include <stdint.h>
+
 /* local includes */
 #ifdef _WITH_VRRP_
   #include "vrrp.h"

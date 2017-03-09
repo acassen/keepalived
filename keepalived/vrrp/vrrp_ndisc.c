@@ -28,6 +28,7 @@
 #include <linux/if_packet.h>
 #include <netinet/icmp6.h>
 #include <netinet/in.h>
+#include <stdint.h>
 
 /* local includes */
 #include "logger.h"

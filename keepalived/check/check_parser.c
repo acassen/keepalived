@@ -26,6 +26,7 @@
 
 #include <errno.h>
 #include <arpa/inet.h>
+#include <stdint.h>
 
 #include "check_parser.h"
 #include "check_data.h"

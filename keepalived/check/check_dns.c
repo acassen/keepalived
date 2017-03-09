@@ -26,6 +26,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #include "check_dns.h"
 #include "check_api.h"

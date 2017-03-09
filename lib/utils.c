@@ -30,6 +30,7 @@
 #include <netdb.h>
 #include <arpa/inet.h>
 #include <sys/utsname.h>
+#include <stdint.h>
 
 #ifndef _HAVE_LIBIPTC_
 #include <signal.h>

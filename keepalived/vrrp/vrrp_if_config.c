@@ -58,6 +58,7 @@
 #include <netlink/route/link.h>
 #include <netlink/route/link/inet.h>
 #include <linux/ip.h>
+#include <stdint.h>
 
 #include "vrrp_if.h"
 #include "logger.h"

@@ -46,6 +46,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <errno.h>
+#include <stdint.h>
 
 #include "vrrp_iptables_calls.h"
 #include "memory.h"

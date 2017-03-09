@@ -27,6 +27,7 @@
 #include <sys/socket.h>
 #endif
 #include <linux/if_link.h>
+#include <stdint.h>
 
 /* local include */
 #include "vrrp_vmac.h"
