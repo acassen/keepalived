@@ -62,7 +62,7 @@ typedef struct _vrrp_script {
 	int			rise;		/* R: how many successes before OK */
 	int			fall;		/* F: how many failures before KO */
 	list			vrrp;		/* List of vrrp instances using this script */
-	int8_t			last_status;	/* Last status returned by script. Used to report changes */
+	int			last_status;	/* Last status returned by script. Used to report changes */
 	bool			forcing_termination;	/* Set if script didn't respond and we sent it SIGTERM */
 	bool			insecure;	/* Set if script is run by root, but is non-root modifiable */
 } vrrp_script_t;

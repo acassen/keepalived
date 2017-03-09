@@ -87,6 +87,20 @@ Add option track for virtual ip address, which will add specified dev to tracked
 Add options at static config level and vrrp instance to track system ip addresses and track system routes
 (although this is crudely available via scripts).
 
+Solution
+========
+
+    Add keywords track_vip_ifs and track_vroute_ifs  - would make the vrrp instance track the interfaces that vips are configured on (we probably ought to have a track_vroute_ifs too)
+    Add keyword track against vips and vroutes so that if a vip or vroute is deleted, the instance will transition to backup state
+    Add keywords track_vips and track_vroutes to track all a vrrp instances vips or vroutes (same effect as configuring track against all vips or vroutes). We could also add these as global keywords too to make it the default for all vrrp instances.
+    Modify keywords static_ipaddress and static_routes to add an optional track name, for example:
+    static_ipaddress track_group1 {. Then add keywords track_sip and track_sroute for vrrp instances, so that the static ip addresses and static routes for the vrrp instance to track can be specified. Again, track_sips and track_sroutes could be global keywords to make all instances track all static ips and static routes.
+    If a static ip address or static route is deleted due to an interface going down, then when the interface returns, re-add the static ip address/routes.
+    Add global keyword track_ip_route which is the same as specifing track_vips, track_vroutes, track_sips and track_sroutes at the global level.
+    Add keyword restore for static ip addresses and static routes so that if they are deleted, we automatically add them back.
+    Add notify_vip_deleted and notify_vroute_deleted notify scripts. Can we also add notify_sip_deleted and notify_sroute_deleted scritps?
+    If a vmac interface is removed, transition to backup state (or fault state if the underlying interface is down) and re-add the vmac interface immediately if possible, or when the underlying interface comes up again (the vmac interfaces are ours, so no-one else should delete them).
+
 
 epoll
 =====

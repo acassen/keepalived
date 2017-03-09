@@ -265,7 +265,7 @@ vrrp_script <STRING> {          # VRRP script declaration
 The script will be executed periodically, every <interval> seconds. Its exit
 code will be recorded for all VRRP instances which monitor it.
 Note that the script will only be executed if at least one VRRP instance
-monitors.
+monitors it.
 
 The default weight equals 0, which means that any VRRP instance monitoring
 the script will transition to the fault state after <fall> consecutive failures
