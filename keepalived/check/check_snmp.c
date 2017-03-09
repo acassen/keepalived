@@ -357,7 +357,7 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 		} else {
 			struct sockaddr_in *addr4 = (struct sockaddr_in *)&be->addr;
 			*var_len = 4;
-			ip = (*(u_int32_t *)&addr4->sin_addr) & htonl(0xFFFFFF00);
+			ip = (*(uint32_t *)&addr4->sin_addr) & htonl(0xFFFFFF00);
 			ip += htonl(be->range);
 			return (u_char *)&ip;
 		}
