@@ -883,8 +883,8 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 
 	if (!vrrp_data)
 		return;
+
 	/* We get called after a VMAC is created, but before tracking_vrrp is set */
-// TODO - does this ONLY apply for VMACs?
 	if (!ifp->tracking_vrrp &&
 	    ifp == IF_BASE_IFP(ifp))
 		return;

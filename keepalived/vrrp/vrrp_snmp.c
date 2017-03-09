@@ -1680,13 +1680,13 @@ vrrp_snmp_instance_accept(int action,
 				     vrrp->iname);
 // TODO - What do we do about adding/removing iptables blocks?
 // RFC6527 requires the instance to be down to change this - can't find now where it says that
-			vrrp->accept = 1;
+			vrrp->accept = true;
 			break;
 		case 2:
 			log_message(LOG_INFO,
 				    "VRRP_Instance(%s) accept mode disabled with SNMP",
 				    vrrp->iname);
-			vrrp->accept = 0;
+			vrrp->accept = false;
 			break;
 			}
 		break;

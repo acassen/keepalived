@@ -62,8 +62,6 @@ typedef struct _vrrphdr {			/* rfc2338.5.1 */
 			uint8_t adver_int;	/* advertisement interval (in sec) */
 		} v2;
 		struct {
-// TODO - this should be 4 bits followed by 12 bit adver_int - see /usr/include/linux/ip.h
-// Consider little vs big endian
 			uint16_t adver_int;	/* advertisement interval (in centi-sec (100ms)) */
 		} v3;
 	};
@@ -75,7 +73,6 @@ typedef struct _vrrphdr {			/* rfc2338.5.1 */
 typedef struct {
 	uint32_t src;
 	uint32_t dst;
-// TODO - is the following order Big Endian ?
 	uint8_t  zero;
 	uint8_t  proto;
 	uint16_t len;
@@ -277,7 +274,6 @@ typedef struct _vrrp_t {
 #define VRRP_STATE_MAST			2	/* rfc2338.6.4.3 */
 #define VRRP_STATE_FAULT		3	/* internal */
 #define VRRP_DISPATCHER			99	/* internal */
-#define VRRP_MAX_FSM_STATE		3	/* internal */
 
 /* VRRP packet handling */
 #define VRRP_PACKET_OK       0

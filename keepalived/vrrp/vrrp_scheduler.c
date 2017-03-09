@@ -171,11 +171,11 @@ vrrp_init_state(list l)
 	bool is_up;
 	int new_state;
 
-// TODO 1 - don't report fault state if just running scripts. Have an init state??
 	/* Do notifications for any sync groups in fault state */
 	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
 		/* Init group if needed  */
 		vgroup = ELEMENT_DATA(e);
+// TODO 1 - don't report fault state if just running scripts. Have an init state??
 		if (vgroup->state == VRRP_STATE_FAULT) {
 			vrrp_sync_smtp_notifier(vgroup);
 			notify_group_exec(vgroup, VRRP_STATE_FAULT);
@@ -214,6 +214,8 @@ vrrp_init_state(list l)
 			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
 			vrrp->state = VRRP_STATE_MAST;
+// TODO Do we need ->	vrrp_restore_interface(vrrp, false, false);
+// It removes everything, so probably if !reload
 		} else {
 			if (new_state == VRRP_STATE_BACK && vrrp->init_state == VRRP_STATE_MAST)
 				vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
@@ -232,6 +234,8 @@ vrrp_init_state(list l)
 
 			/* Set interface state */
 			vrrp_restore_interface(vrrp, false, false);
+// TODO Need a is_up_but_for_scripts
+// TODO Do we cope with !is_up_but_for_scripts and down for another reason?
 			if (is_up) {
 				vrrp->state = VRRP_STATE_BACK;
 				log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
@@ -879,46 +883,52 @@ vrrp_script_child_thread(thread_t * thread)
 	if (thread->type == THREAD_CHILD_TIMEOUT) {
 		pid = THREAD_CHILD_PID(thread);
 
-		/* The child hasn't responded. Kill it off. */
+		/* The child hasn't responded. */
 		if (vscript->result > vscript->rise) {
 			vscript->result--;
-		} else {
-			if (vscript->result == vscript->rise)
+		} else if (vscript->result) {
+			if (vscript->result == vscript->rise ||
+			    vscript->last_status == VRRP_SCRIPT_STATUS_INIT) {
 				log_message(LOG_INFO, "VRRP_Script(%s) timed out", vscript->sname);
+				update_script_priorities(vscript, false);
+			}
 			vscript->result = 0;
 		}
+
+		/* Kill it off. */
 		vscript->forcing_termination = true;
 		kill(-pid, SIGTERM);
 		thread_add_child(thread->master, vrrp_script_child_timeout_thread,
 				 vscript, pid, 2 * 1000000);
+
+		vscript->last_status = VRRP_SCRIPT_STATUS_TIMEDOUT;
 		return 0;
 	}
 
 	wait_status = THREAD_CHILD_STATUS(thread);
 
 	if (WIFEXITED(wait_status)) {
-		int8_t status;
-		status = (int8_t)WEXITSTATUS(wait_status);
+		int status;
+		status = WEXITSTATUS(wait_status);
 
 		/* Report if status has changed */
-		if (status != vscript->last_status) {
+		if (status != vscript->last_status)
 			log_message(LOG_INFO, "Script `%s` now returning %d", vscript->sname, status);
-			vscript->last_status = status;
-		}
 
 		if (status == 0) {
 			/* success */
 			if (vscript->result < vscript->rise - 1) {
 				vscript->result++;
-			} else {
+			} else if (vscript->result != vscript->rise + vscript->fall - 1) {
 				if (vscript->result < vscript->rise) {
 					log_message(LOG_INFO, "VRRP_Script(%s) succeeded", vscript->sname);
 					update_script_priorities(vscript, true);
 				}
 				vscript->result = vscript->rise + vscript->fall - 1;
 			}
-		} else {
+		} else if (vscript->result) {
 			/* failure */
+
 			if (vscript->result > vscript->rise) {
 				vscript->result--;
 			} else {
@@ -929,6 +939,8 @@ vrrp_script_child_thread(thread_t * thread)
 				vscript->result = 0;
 			}
 		}
+
+		vscript->last_status = status;
 	}
 	else if (WIFSIGNALED(wait_status)) {
 		if (vscript->forcing_termination && WTERMSIG(wait_status) == SIGTERM) {
@@ -965,7 +977,7 @@ vrrp_script_child_timeout_thread(thread_t * thread)
 		return 0;
 	}
 
-	log_message(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
+	log_message(LOG_WARNING, "Script %s (pid %d) didn't respond to SIGTERM", vscript->sname, pid);
 
 	vscript->forcing_termination = false;
 
