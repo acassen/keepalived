@@ -2818,10 +2818,8 @@ vrrp_complete_init(void)
 			old_vrrp = ELEMENT_DATA(e);
 			vrrp = vrrp_exist(old_vrrp);
 			if (vrrp) {
-// TODO - Shouldn't init_state come from config?
-// For state, we need to set the script states first, and only do this if not FAULT
+// TODO For state, we need to set the script states first, and only do this if not FAULT
 				vrrp->state = old_vrrp->state;
-				vrrp->init_state = old_vrrp->state;
 				vrrp->wantstate = old_vrrp->state;
 			}
 		}
