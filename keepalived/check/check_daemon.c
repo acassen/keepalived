@@ -144,7 +144,7 @@ start_check(void)
 #endif
 
 	/* Get current active addresses, and start update process */
-	if (using_ha_suspend)
+	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug))
 		kernel_netlink_init();
 
 	/* Remove any entries left over from previous invocation */

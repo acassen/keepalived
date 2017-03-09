@@ -25,6 +25,7 @@
 #define	_VRRP_IPTABLES_CALLS_H
 
 #include <limits.h>
+#include <stdint.h>
 
 #include "vrrp_ipaddress.h"
 

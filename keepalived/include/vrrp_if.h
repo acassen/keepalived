@@ -27,6 +27,7 @@
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <stdint.h>
 #include <stdbool.h>
 
 /* needed to get correct values for SIOC* */

@@ -53,6 +53,7 @@
 #include "vrrp_snmp.h"
 #endif
 #include <netinet/ip.h>
+#include <stdint.h>
 
 /* global vars */
 timeval_t garp_next_time;

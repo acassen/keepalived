@@ -23,12 +23,9 @@
 #include "config.h"
 
 #include <sys/wait.h>
-#include "memory.h"
 #include <unistd.h>
 #include <fcntl.h>
-#include "utils.h"
-#include "signals.h"
-#include "bitops.h"
+#include <stdint.h>
 
 #ifdef _WITH_STACKTRACE_
 #include <sys/types.h>
@@ -36,6 +33,11 @@
 #include <fcntl.h>
 #include <execinfo.h>
 #endif
+
+#include "memory.h"
+#include "utils.h"
+#include "signals.h"
+#include "bitops.h"
 
 /* global vars */
 unsigned long debug = 0;

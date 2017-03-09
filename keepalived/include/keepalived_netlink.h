@@ -34,6 +34,7 @@
 #ifdef _HAVE_LIBNL1_
 #include <libnfnetlink/libnfnetlink.h>
 #endif
+#include <stdint.h>
 #include <stdbool.h>
 
 /* local includes */

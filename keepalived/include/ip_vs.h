@@ -14,6 +14,7 @@
 /* Prior to Linux 4.2 have to include linux/in.h and linux/in6.h
  * or linux/netlink.h to include linux/netfilter.h */
 #include <linux/netfilter.h>	/* For nf_inet_addr */
+#include <stdint.h>
 
 #ifdef _WITH_LVS_64BIT_STATS_
 struct ip_vs_stats64 {
@@ -36,7 +37,7 @@ typedef struct ip_vs_stats_user ip_vs_stats_t;
 
 struct ip_vs_service_app {
 	struct ip_vs_service_user user;
-	u_int16_t		af;
+	uint16_t		af;
 	union nf_inet_addr	nf_addr;
 #ifdef _HAVE_PE_NAME_
 	char			pe_name[IP_VS_PENAME_MAXLEN];
@@ -45,7 +46,7 @@ struct ip_vs_service_app {
 
 struct ip_vs_dest_app {
 	struct ip_vs_dest_user	user;
-	u_int16_t		af;
+	uint16_t		af;
 	union nf_inet_addr	nf_addr;
 };
 
@@ -53,7 +54,7 @@ struct ip_vs_dest_app {
 struct ip_vs_service_entry_app {
 	struct ip_vs_service_entry user;
 	ip_vs_stats_t		stats;
-	u_int16_t		af;
+	uint16_t		af;
 	union nf_inet_addr	nf_addr;
 #ifdef _HAVE_PE_NAME_
 	char			pe_name[IP_VS_PENAME_MAXLEN];
@@ -64,7 +65,7 @@ struct ip_vs_service_entry_app {
 struct ip_vs_dest_entry_app {
 	struct ip_vs_dest_entry user;
 	ip_vs_stats_t		stats;
-	u_int16_t		af;
+	uint16_t		af;
 	union nf_inet_addr	nf_addr;
 
 };
@@ -84,7 +85,7 @@ struct ip_vs_get_dests_app {
 	struct ip_vs_dest_entry_app	entrytable[0];
 	} user;
 
-	u_int16_t		af;
+	uint16_t		af;
 	union nf_inet_addr	nf_addr;
 };
 
@@ -126,13 +127,13 @@ struct ip_vs_daemon_app {
 	uint16_t		sync_maxlen;
 
 	/* Multicast Port (base) */
-	u_int16_t		mcast_port;
+	uint16_t		mcast_port;
 
 	/* Multicast TTL */
-	u_int8_t		mcast_ttl;
+	uint8_t			mcast_ttl;
 
 	/* Multicast Address Family */
-	u_int16_t		mcast_af;
+	uint16_t		mcast_af;
 
 	/* Multicast Address */
 	union nf_inet_addr	mcast_group;

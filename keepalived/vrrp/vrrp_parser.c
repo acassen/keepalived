@@ -24,6 +24,9 @@
 
 #include "config.h"
 
+/* Global includes */
+#include <stdint.h>
+
 #include "vrrp_parser.h"
 #include "vrrp_data.h"
 #include "vrrp_sync.h"

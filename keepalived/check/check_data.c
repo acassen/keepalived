@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include <netdb.h>
+#include <stdint.h>
 
 #include "check_data.h"
 #include "check_api.h"

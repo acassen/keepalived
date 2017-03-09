@@ -24,6 +24,8 @@
 #ifndef _READ_RTTABLES_H
 #define _READ_RTTABLES_H
 
+#include <stdint.h>
+
 extern void clear_rt_names(void);
 extern bool find_rttables_table(const char *, uint32_t *);
 extern bool find_rttables_dsfield(const char *, uint8_t *);

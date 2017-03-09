@@ -70,6 +70,7 @@
 
 #include <netinet/ip.h>
 #include <netinet/ip6.h>
+#include <stdint.h>
 
 /* add/remove Virtual IP addresses */
 static bool

@@ -26,6 +26,7 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <stdint.h>
 
 #ifdef LIBIPVS_USE_NL
 #include <netlink/netlink.h>

@@ -35,7 +35,6 @@
 #include "vrrp_ip_rule_route_parser.h"
 
 #include <linux/icmpv6.h>
-#include <inttypes.h>
 #include <linux/rtnetlink.h>
 #if HAVE_DECL_RTA_ENCAP
 #include <linux/lwtunnel.h>
@@ -46,6 +45,7 @@
 #include <linux/ila.h>
 #endif
 #endif
+#include <stdint.h>
 
 /* Buffer sizes for netlink messages. Increase if needed. */
 #define	RTM_SIZE		1024

@@ -36,6 +36,7 @@
 #include <time.h>
 #include <sys/uio.h>
 #include <stdarg.h>
+#include <stdint.h>
 
 /* local include */
 #ifdef _WITH_LVS_
@@ -89,7 +90,9 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 {
 	int ret;
 	va_list gp;
+#ifndef _HAVE_LIBNL3_
 	int rcvbuf_size;
+#endif
 
 	memset(nl, 0, sizeof (*nl));
 

@@ -26,6 +26,7 @@
 
 /* system include */
 #include <unistd.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <net/if.h>
 

@@ -26,6 +26,7 @@
 #include <sys/socket.h>
 #include <linux/fib_rules.h>
 #include <inttypes.h>
+#include <stdint.h>
 
 /* local include */
 #include "vrrp_ipaddress.h"
