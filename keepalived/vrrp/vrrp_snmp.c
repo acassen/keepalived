@@ -82,6 +82,7 @@
 #if HAVE_DECL_RTA_ENCAP
 #include <linux/lwtunnel.h>
 #endif
+#include <stdint.h>
 
 #include "vrrp.h"
 #include "vrrp_snmp.h"

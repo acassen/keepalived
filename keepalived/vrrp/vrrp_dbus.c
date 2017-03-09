@@ -49,6 +49,7 @@
 #include <fcntl.h>
 #include <unistd.h>
 #include <sys/types.h>
+#include <stdint.h>
 
 #include "vrrp_dbus.h"
 #include "vrrp_data.h"

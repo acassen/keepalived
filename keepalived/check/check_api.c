@@ -24,6 +24,8 @@
 
 #include <dirent.h>
 #include <dlfcn.h>
+#include <stdint.h>
+
 #include "check_api.h"
 #include "main.h"
 #include "parser.h"

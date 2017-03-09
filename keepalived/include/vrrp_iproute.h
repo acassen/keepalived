@@ -31,6 +31,7 @@
 #if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 #include <linux/mpls.h>
 #endif
+#include <stdint.h>
 #include <stdbool.h>
 
 /* local includes */

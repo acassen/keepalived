@@ -26,10 +26,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdint.h>
-typedef uint64_t u64;
-typedef uint32_t u32;
-typedef uint16_t u16;
-typedef uint8_t u8;
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>

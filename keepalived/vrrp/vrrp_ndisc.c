@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <net/ethernet.h>
 #include <linux/if_packet.h>
+#include <stdint.h>
 
 /* local includes */
 #include "logger.h"

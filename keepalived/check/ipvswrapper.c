@@ -28,6 +28,7 @@
 #endif
 
 #include <fcntl.h>
+#include <stdint.h>
 
 #ifndef O_CLOEXEC	/* Since Linux 2.6.23 and glibc 2.7 */
 #define O_CLOEXEC 0	/* It doesn't really matter if O_CLOEXEC isn't set here */

@@ -54,6 +54,7 @@
 #endif
 
 #include <libiptc/libiptc.h>
+#include <stdint.h>
 
 #include "vrrp_iptables.h"
 #include "vrrp_iptables_calls.h"

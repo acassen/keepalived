@@ -14,6 +14,7 @@
 /* Prior to Linux 4.2 have to include linux/in.h and linux/in6.h
  * or linux/netlink.h to include linux/netfilter.h */
 #include <linux/netfilter.h>	/* For nf_inet_addr */
+#include <stdint.h>
 
 #ifdef _WITH_LVS_64BIT_STATS_
 struct ip_vs_stats64 {

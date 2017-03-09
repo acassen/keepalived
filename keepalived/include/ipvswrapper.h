@@ -30,6 +30,7 @@
 #include <sys/param.h>
 #include <arpa/inet.h>
 #include <asm/types.h>
+#include <stdint.h>
 #include <stdbool.h>
 
 #include <net/if.h>

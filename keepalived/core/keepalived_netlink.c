@@ -36,6 +36,7 @@
 #include <time.h>
 #include <sys/uio.h>
 #include <stdarg.h>
+#include <stdint.h>
 
 /* local include */
 #ifdef _WITH_LVS_

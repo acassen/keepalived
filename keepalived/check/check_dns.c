@@ -24,6 +24,8 @@
 #include "config.h"
 
 #include <strings.h>
+#include <stdint.h>
+
 #include "check_dns.h"
 #include "check_api.h"
 #include "memory.h"
