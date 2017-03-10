@@ -812,6 +812,7 @@ enable_sha1
 with_init
 enable_vrrp_auth
 enable_routes
+enable_libipset_dynamic
 enable_libiptc
 enable_libipset
 enable_libnl
@@ -1478,6 +1479,8 @@ Optional Features:
   --enable-sha1           compile with SHA1 support
   --disable-vrrp-auth     compile without VRRP authentication
   --disable-routes        compile without ip rules/routes
+  --disable-libipset-dynamic
+                          compile with libipset statically linked
   --disable-libiptc       compile without libiptc
   --disable-libipset      compile without libipset
   --disable-libnl         compile without libnl
@@ -3478,6 +3481,11 @@ fi
 # Check whether --enable-routes was given.
 if test "${enable_routes+set}" = set; then :
   enableval=$enable_routes;
+fi
+
+# Check whether --enable-libipset-dynamic was given.
+if test "${enable_libipset_dynamic+set}" = set; then :
+  enableval=$enable_libipset_dynamic;
 fi
 
 # Check whether --enable-libiptc was given.
@@ -7652,10 +7660,9 @@ done
 
 $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
 
-            BUILD_OPTIONS="$BUILD_OPTIONS LIBIPSET"
             $PKG_CONFIG --exists libipset
             if test $? -eq 0; then
-                            ADD_NEW=
+              ADD_NEW=
    eval var=\$KA_CPPFLAGS
     for item in $IPSET_CPPFLAGS; do
       echo " $var " | $GREP -q " $item "
@@ -7675,7 +7682,29 @@ $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
     done
     eval KA_CFLAGS=\"\$KA_CFLAGS $ADD_NEW\"
 
+              	      if test .${enable_libipset_dynamic} = .no; then
+		ADD_NEW=
+   eval var=\$KA_LIBS
+    for item in $IPSET_LIBS; do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval KA_LIBS=\"\$KA_LIBS $ADD_NEW\"
+
+	      fi
+	    elif test .${enable_libipset_dynamic} = .no; then
+	      KA_LIBS="$KA_LIBS -lipset"
             fi
+	    if test .${enable_libipset_dynamic} != .no; then
+
+$as_echo "#define _LIBIPSET_DYNAMIC_  1 " >>confdefs.h
+
+              BUILD_OPTIONS="$BUILD_OPTIONS LIBIPSET_DYNAMIC"
+	    else
+              BUILD_OPTIONS="$BUILD_OPTIONS LIBIPSET"
+	    fi
              if test 1 -ge 2; then
       KA_PKG_PFX=
     else
