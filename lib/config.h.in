@@ -516,6 +516,9 @@
 /* Define to 1 if have MAC VLAN support */
 #undef _HAVE_VRRP_VMAC_
 
+/* Define to 1 if building with libipset dynamic linking */
+#undef _LIBIPSET_DYNAMIC_
+
 /* Define to 1 to build with malloc/free checks */
 #undef _MEM_CHECK_
 

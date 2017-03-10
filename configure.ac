@@ -108,6 +108,8 @@ AC_ARG_ENABLE(vrrp-auth,
   [AS_HELP_STRING([--disable-vrrp-auth], [compile without VRRP authentication])])
 AC_ARG_ENABLE(routes,
   [AS_HELP_STRING([--disable-routes], [compile without ip rules/routes])])
+AC_ARG_ENABLE(libipset-dynamic,
+  [AS_HELP_STRING([--disable-libipset-dynamic], [compile with libipset statically linked])])
 AC_ARG_ENABLE(libiptc,
   [AS_HELP_STRING([--disable-libiptc], [compile without libiptc])])
 AC_ARG_ENABLE(libipset,
@@ -560,13 +562,23 @@ if test .${enable_libiptc} != .no; then
             AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [$EXTRA_INCLUDE])
   
             AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
-            add_build_opt([LIBIPSET])
             $PKG_CONFIG --exists libipset
             if test $? -eq 0; then
-              dnl -- libipset is dynamically linked, so we don't want -lipset
               add_to_var_ind_unique([KA_CPPFLAGS], [$IPSET_CPPFLAGS])
               add_to_var_ind_unique([KA_CFLAGS], [$IPSET_CFLAGS])
+              dnl -- if libipset is dynamically linked, so we don't want -lipset
+	      if test .${enable_libipset_dynamic} = .no; then
+		add_to_var_ind_unique([KA_LIBS], [$IPSET_LIBS])
+	      fi
+	    elif test .${enable_libipset_dynamic} = .no; then
+	      add_to_var([KA_LIBS], [-lipset])
             fi
+	    if test .${enable_libipset_dynamic} != .no; then
+	      AC_DEFINE([_LIBIPSET_DYNAMIC_], [ 1 ], [Define to 1 if building with libipset dynamic linking])
+              add_build_opt([LIBIPSET_DYNAMIC])
+	    else
+              add_build_opt([LIBIPSET])
+	    fi
             add_pkg_config([xtables])
 
             dnl -- xt_set_info_match_v1 declared since Linux 3.1
@@ -575,7 +587,7 @@ if test .${enable_libiptc} != .no; then
                 $EXTRA_INCLUDE
                 #include <linux/netfilter/xt_set.h>
               ])
-  
+
             dnl - ipset type iface introduced in Linux 3.1
             AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
               #include <linux/netfilter/ipset/ip_set.h>
