@@ -334,13 +334,21 @@ AC_CHECK_HEADERS([openssl/md5.h], [],
     NEED_MD5=no
     break
   ])
+
+unset LIBS
 AC_CHECK_LIB(crypto, MD5_Init, [],
   [
     if test $NEED_MD5 = yes; then
-      AC_MSG_ERROR([OpenSSL libraries are required])
+      AC_MSG_ERROR([OpenSSL MD5 libraries are required])
     fi
     BUILD_GENHASH=No
   ])
+if test $NEED_MD5 = yes; then
+  add_to_var([KA_LIBS], [$LIBS])
+fi
+add_to_var([GENHASH_LIBS], [$LIBS])
+unset LIBS
+
 AC_CHECK_LIB(ssl, SSL_CTX_new, [],
   [
     if test $NEED_SSL = yes; then
@@ -348,15 +356,17 @@ AC_CHECK_LIB(ssl, SSL_CTX_new, [],
     fi
     BUILD_GENHASH=No
   ])
-add_to_var([KA_LIBS], [$LIBS])
-
-if test $BUILD_GENHASH = Yes; then
-  GENHASH_LIBS=
-  AC_SUBST([GENHASH_LIBS])
-  add_to_var([GENHASH_LIBS], [$LIBS])
-else
-  AC_MSG_NOTICE([Unable to build genhash due to missing openssl headers/libraries])
+if test $NEED_SSL = yes; then
+  add_to_var([KA_LIBS], [$LIBS])
 fi
+add_to_var([GENHASH_LIBS], [$LIBS])
+unset LIBS
+
+if test $BUILD_GENHASH = No; then
+  AC_MSG_NOTICE([Unable to build genhash due to missing openssl headers/libraries])
+  GENHASH_LIBS=
+fi
+AC_SUBST([GENHASH_LIBS])
 AM_CONDITIONAL([BUILD_GENHASH], [test $BUILD_GENHASH = Yes])
 
 dnl ----[ Checks for libraries ]----
@@ -369,16 +379,20 @@ if test .${enable_libnl} != .no; then
       AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
       add_build_opt([LIBNL3])
       add_pkg_config([libnl-3.0])
-  
-      AC_CHECK_LIB(nl-genl-3, genl_connect, [],
-        [AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])])
-      IPVS_USE_NL=Yes
-      add_pkg_config([libnl-genl-3.0])
-  
-      AC_CHECK_LIB(nl-route-3, nl_rtgen_request, [],
-        [AC_MSG_ERROR([libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3.])])
-      NL3_CFLAGS="$($PKG_CONFIG --cflags libnl-route-3.0)"
-      add_pkg_config([libnl-route-3.0])
+      NL3_CFLAGS="`$PKG_CONFIG --cflags libnl-3.0`"
+
+      if test .$enable_lvs != .no -a .$enable_lvs != .no; then
+	AC_CHECK_LIB(nl-genl-3, genl_connect, [],
+	  [AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])])
+	IPVS_USE_NL=Yes
+	add_pkg_config([libnl-genl-3.0])
+      fi
+
+      if test .$enable_routes != .no -a .$enable_vrrp != .no; then
+	AC_CHECK_LIB(nl-route-3, nl_rtgen_request, [],
+	  [AC_MSG_ERROR([libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3.])])
+	add_pkg_config([libnl-route-3.0])
+      fi
     ],
     [
       AC_CHECK_LIB(nl, nl_socket_modify_cb,
@@ -399,17 +413,56 @@ if test .${enable_libnl} != .no; then
   if test $NETLINK_VER -ne 0; then
     SAV_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS $kernelinc"
-    AC_CHECK_HEADERS(libnfnetlink/libnfnetlink.h,,AC_MSG_ERROR([
-      !!! Please install libnfnetlink headers.              !!!]))
-    if test $NETLINK_VER -eq 3; then
-      CPPFLAGS="$CPPFLAGS $NL3_CFLAGS"
-      AC_CHECK_HEADERS([netlink/route/link.h netlink/route/link/inet.h], [], [AC_MSG_ERROR([libnl-3 headers missing])])
-    fi
-  
     AC_CHECK_HEADERS([linux/rtnetlink.h], [], [AC_MSG_ERROR([Unusable linux/rtnetlink.h])], [$NETLINK_EXTRA_INCLUDE])
-    AC_CHECK_HEADERS([libnfnetlink/libnfnetlink.h netlink/genl/ctrl.h netlink/genl/genl.h netlink/netlink.h], [], [AC_MSG_ERROR([netlink headers missing])])
-  
+    if test $NETLINK_VER -eq 3; then
+      CPPFLAGS="$SAV_CPPFLAGS $NL3_CFLAGS"
+      AC_CHECK_HEADERS([libnfnetlink/libnfnetlink.h netlink/netlink.h], [], [AC_MSG_ERROR([netlink headers missing])])
+      if test .$disable_lvs != .no; then
+        AC_CHECK_HEADERS([netlink/genl/ctrl.h netlink/genl/genl.h], [], [AC_MSG_ERROR([netlink genl headers missing])])
+      fi
+    fi
     CPPFLAGS="$SAV_CPPFLAGS"
+
+    if test $NETLINK_VER -eq 3 -a .$disable_vrrp != .no; then
+      dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
+      SAV_CPPFLAGS="$CPPFLAGS"
+      CPPFLAGS="$CPP_FLAGS $kernelinc"
+      IPV4_DEVCONF=Yes
+      AC_CHECK_DECLS([
+        IPV4_DEVCONF_ARP_IGNORE,
+        IPV4_DEVCONF_ACCEPT_LOCAL,
+        IPV4_DEVCONF_RP_FILTER,
+        IPV4_DEVCONF_ARPFILTER],
+        [],
+        [
+          IPV4_DEVCONF=No
+          break
+        ],
+        [[#include <linux/ip.h>]])
+      if test $IPV4_DEVCONF = Yes; then
+        CPPFLAGS="$SAV_CPPFLAGS $NL3_CFLAGS"
+        AC_CHECK_HEADERS([netlink/route/link.h netlink/route/link/inet.h], [], [AC_MSG_ERROR([libnl-3 route link headers missing])])
+        AC_DEFINE([_HAVE_IPV4_DEVCONF_], [ 1 ], [Define to 1 if have IPv4 netlink device configuration])
+        add_build_opt([IPV4_DEVCONF])
+
+        dnl ----[Check if have net/if.h and netlink/route/link.h namespace collision]----
+        dnl -- Resolved in libnl3-3.2.26 (release 30/3/2015)
+        AC_MSG_CHECKING([for net/if.h and libnl3/netlink/route/link.h namespace collision])
+        AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+            #include <net/if.h>
+            #include <netlink/route/link.h>
+          ]])], [
+            AC_MSG_RESULT([no])
+          ], [
+            AC_MSG_RESULT([yes])
+            AC_DEFINE([_HAVE_IF_H_LINK_H_COLLISION_], [ 1 ], [Define to 1 if <net/if.h> and <netlink/route/link.h> namespace collision])
+            add_build_opt([IF_H_LINK_H_COLLISION])
+          ])
+      fi
+      CPPFLAGS="$SAV_CPPFLAGS"
+    else
+      IPV4_DEVCONF=No
+    fi
   fi
 fi
 AM_CONDITIONAL([LIBNL1], [test $NETLINK_VER -eq 1])
@@ -456,48 +509,6 @@ if test ${ac_cv_have_decl_RTA_ENCAP}; then
   done
 fi
 
-dnl ----[Check if have net/if.h and netlink/route/link.h namespace collision]----
-dnl -- Resolved in libnl3-3.2.26 (release 30/3/2015)
-if test $NETLINK_VER -eq 3; then
-  AC_MSG_CHECKING([for net/if.h and libnl3/netlink/route/link.h namespace collision])
-  SAV_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $NL3_CFLAGS"
-  AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-      #include <net/if.h>
-      #include <netlink/route/link.h>
-    ]])], [
-      AC_MSG_RESULT([no])
-    ], [
-      AC_MSG_RESULT([yes])
-      AC_DEFINE([_HAVE_IF_H_LINK_H_COLLISION_], [ 1 ], [Define to 1 if <net/if.h> and <netlink/route/link.h> namespace collision])
-      add_build_opt([IF_H_LINK_H_COLLISION])
-    ])
-  CPPFLAGS="$SAV_CPPFLAGS"
-
-  dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
-  SAV_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPP_FLAGS $kernelinc"
-  IPV4_DEVCONF=Yes
-  AC_CHECK_DECLS([
-    IPV4_DEVCONF_ARP_IGNORE,
-    IPV4_DEVCONF_ACCEPT_LOCAL,
-    IPV4_DEVCONF_RP_FILTER,
-    IPV4_DEVCONF_ARPFILTER],
-    [],
-    [
-      IPV4_DEVCONF=No
-      break
-    ],
-    [[#include <linux/ip.h>]])
-  CPPFLAGS="$SAV_CPPFLAGS"
-else
-  IPV4_DEVCONF=No
-fi
-if test $IPV4_DEVCONF = Yes; then
-  AC_DEFINE([_HAVE_IPV4_DEVCONF_], [ 1 ], [Define to 1 if have IPv4 netlink device configuration])
-  add_build_opt([IPV4_DEVCONF])
-fi
-
 dnl - Do we want to override dynamic/static linking?
 if test -n ".$enable_dynamic_linking"; then
   enable_libiptc_dynamic=$enable_dynamic_linking
@@ -507,14 +518,18 @@ fi
 dnl ----[Check for iptables libraries]----
 USE_LIBIPTC=No
 USE_LIBIPSET=No
-if test .${enable_libiptc} != .no; then
+if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
   USE_LIBIPTC=Yes
   dnl -- linux/netfilter/x_tables.h since Linux 2.6.16
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $kernelinc"
   AC_CHECK_HEADERS([linux/netfilter/x_tables.h xtables.h libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h], [],
     [
       USE_LIBIPTC=No
       break
     ])
+  CPPFLAGS="$SAV_CPPFLAGS"
+
   if test $USE_LIBIPTC = Yes; then
     add_pkg_config([--static libiptc], [IPTC])
     LIBS="$IPTC_LIBS"

@@ -6429,6 +6429,8 @@ fi
 
 done
 
+
+unset LIBS
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for MD5_Init in -lcrypto" >&5
 $as_echo_n "checking for MD5_Init in -lcrypto... " >&6; }
 if ${ac_cv_lib_crypto_MD5_Init+:} false; then :
@@ -6475,11 +6477,17 @@ _ACEOF
 else
 
     if test $NEED_MD5 = yes; then
-      as_fn_error $? "OpenSSL libraries are required" "$LINENO" 5
+      as_fn_error $? "OpenSSL MD5 libraries are required" "$LINENO" 5
     fi
     BUILD_GENHASH=No
 
 fi
+
+if test $NEED_MD5 = yes; then
+  KA_LIBS="$KA_LIBS $LIBS"
+fi
+GENHASH_LIBS="$GENHASH_LIBS $LIBS"
+unset LIBS
 
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for SSL_CTX_new in -lssl" >&5
 $as_echo_n "checking for SSL_CTX_new in -lssl... " >&6; }
@@ -6533,16 +6541,18 @@ else
 
 fi
 
-KA_LIBS="$KA_LIBS $LIBS"
+if test $NEED_SSL = yes; then
+  KA_LIBS="$KA_LIBS $LIBS"
+fi
+GENHASH_LIBS="$GENHASH_LIBS $LIBS"
+unset LIBS
 
-if test $BUILD_GENHASH = Yes; then
-  GENHASH_LIBS=
-
-  GENHASH_LIBS="$GENHASH_LIBS $LIBS"
-else
+if test $BUILD_GENHASH = No; then
   { $as_echo "$as_me:${as_lineno-$LINENO}: Unable to build genhash due to missing openssl headers/libraries" >&5
 $as_echo "$as_me: Unable to build genhash due to missing openssl headers/libraries" >&6;}
+  GENHASH_LIBS=
 fi
+
  if test $BUILD_GENHASH = Yes; then
   BUILD_GENHASH_TRUE=
   BUILD_GENHASH_FALSE='#'
@@ -6634,8 +6644,10 @@ $as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
     eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
+      NL3_CFLAGS="`$PKG_CONFIG --cflags libnl-3.0`"
 
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for genl_connect in -lnl-genl-3" >&5
+      if test .$enable_lvs != .no -a .$enable_lvs != .no; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for genl_connect in -lnl-genl-3" >&5
 $as_echo_n "checking for genl_connect in -lnl-genl-3... " >&6; }
 if ${ac_cv_lib_nl_genl_3_genl_connect+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -6682,8 +6694,8 @@ else
   as_fn_error $? "libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3." "$LINENO" 5
 fi
 
-      IPVS_USE_NL=Yes
-       if test 1 -ge 2; then
+	IPVS_USE_NL=Yes
+	 if test 1 -ge 2; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -6719,8 +6731,10 @@ fi
     eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
+      fi
 
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_rtgen_request in -lnl-route-3" >&5
+      if test .$enable_routes != .no -a .$enable_vrrp != .no; then
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_rtgen_request in -lnl-route-3" >&5
 $as_echo_n "checking for nl_rtgen_request in -lnl-route-3... " >&6; }
 if ${ac_cv_lib_nl_route_3_nl_rtgen_request+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -6767,8 +6781,7 @@ else
   as_fn_error $? "libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3." "$LINENO" 5
 fi
 
-      NL3_CFLAGS="$($PKG_CONFIG --cflags libnl-route-3.0)"
-       if test 1 -ge 2; then
+	 if test 1 -ge 2; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -6804,6 +6817,7 @@ fi
     eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
+      fi
 
 else
 
@@ -6906,40 +6920,6 @@ fi
   if test $NETLINK_VER -ne 0; then
     SAV_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS $kernelinc"
-    for ac_header in libnfnetlink/libnfnetlink.h
-do :
-  ac_fn_c_check_header_mongrel "$LINENO" "libnfnetlink/libnfnetlink.h" "ac_cv_header_libnfnetlink_libnfnetlink_h" "$ac_includes_default"
-if test "x$ac_cv_header_libnfnetlink_libnfnetlink_h" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_LIBNFNETLINK_LIBNFNETLINK_H 1
-_ACEOF
-
-else
-  as_fn_error $? "
-      !!! Please install libnfnetlink headers.              !!!" "$LINENO" 5
-fi
-
-done
-
-    if test $NETLINK_VER -eq 3; then
-      CPPFLAGS="$CPPFLAGS $NL3_CFLAGS"
-      for ac_header in netlink/route/link.h netlink/route/link/inet.h
-do :
-  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
-ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
-if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
-  cat >>confdefs.h <<_ACEOF
-#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
-_ACEOF
-
-else
-  as_fn_error $? "libnl-3 headers missing" "$LINENO" 5
-fi
-
-done
-
-    fi
-
     for ac_header in linux/rtnetlink.h
 do :
   ac_fn_c_check_header_compile "$LINENO" "linux/rtnetlink.h" "ac_cv_header_linux_rtnetlink_h" "$NETLINK_EXTRA_INCLUDE
@@ -6955,7 +6935,9 @@ fi
 
 done
 
-    for ac_header in libnfnetlink/libnfnetlink.h netlink/genl/ctrl.h netlink/genl/genl.h netlink/netlink.h
+    if test $NETLINK_VER -eq 3; then
+      CPPFLAGS="$SAV_CPPFLAGS $NL3_CFLAGS"
+      for ac_header in libnfnetlink/libnfnetlink.h netlink/netlink.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -6970,8 +6952,159 @@ fi
 
 done
 
+      if test .$disable_lvs != .no; then
+        for ac_header in netlink/genl/ctrl.h netlink/genl/genl.h
+do :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
 
+else
+  as_fn_error $? "netlink genl headers missing" "$LINENO" 5
+fi
+
+done
+
+      fi
+    fi
     CPPFLAGS="$SAV_CPPFLAGS"
+
+    if test $NETLINK_VER -eq 3 -a .$disable_vrrp != .no; then
+            SAV_CPPFLAGS="$CPPFLAGS"
+      CPPFLAGS="$CPP_FLAGS $kernelinc"
+      IPV4_DEVCONF=Yes
+      ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ARP_IGNORE" "ac_cv_have_decl_IPV4_DEVCONF_ARP_IGNORE" "#include <linux/ip.h>
+"
+if test "x$ac_cv_have_decl_IPV4_DEVCONF_ARP_IGNORE" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_IPV4_DEVCONF_ARP_IGNORE $ac_have_decl
+_ACEOF
+if test $ac_have_decl = 1; then :
+
+else
+
+          IPV4_DEVCONF=No
+          break
+
+fi
+ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ACCEPT_LOCAL" "ac_cv_have_decl_IPV4_DEVCONF_ACCEPT_LOCAL" "#include <linux/ip.h>
+"
+if test "x$ac_cv_have_decl_IPV4_DEVCONF_ACCEPT_LOCAL" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_IPV4_DEVCONF_ACCEPT_LOCAL $ac_have_decl
+_ACEOF
+if test $ac_have_decl = 1; then :
+
+else
+
+          IPV4_DEVCONF=No
+          break
+
+fi
+ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_RP_FILTER" "ac_cv_have_decl_IPV4_DEVCONF_RP_FILTER" "#include <linux/ip.h>
+"
+if test "x$ac_cv_have_decl_IPV4_DEVCONF_RP_FILTER" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_IPV4_DEVCONF_RP_FILTER $ac_have_decl
+_ACEOF
+if test $ac_have_decl = 1; then :
+
+else
+
+          IPV4_DEVCONF=No
+          break
+
+fi
+ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ARPFILTER" "ac_cv_have_decl_IPV4_DEVCONF_ARPFILTER" "#include <linux/ip.h>
+"
+if test "x$ac_cv_have_decl_IPV4_DEVCONF_ARPFILTER" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_IPV4_DEVCONF_ARPFILTER $ac_have_decl
+_ACEOF
+if test $ac_have_decl = 1; then :
+
+else
+
+          IPV4_DEVCONF=No
+          break
+
+fi
+
+      if test $IPV4_DEVCONF = Yes; then
+        CPPFLAGS="$SAV_CPPFLAGS $NL3_CFLAGS"
+        for ac_header in netlink/route/link.h netlink/route/link/inet.h
+do :
+  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
+ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
+if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  cat >>confdefs.h <<_ACEOF
+#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+_ACEOF
+
+else
+  as_fn_error $? "libnl-3 route link headers missing" "$LINENO" 5
+fi
+
+done
+
+
+$as_echo "#define _HAVE_IPV4_DEVCONF_  1 " >>confdefs.h
+
+        BUILD_OPTIONS="$BUILD_OPTIONS IPV4_DEVCONF"
+
+                        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for net/if.h and libnl3/netlink/route/link.h namespace collision" >&5
+$as_echo_n "checking for net/if.h and libnl3/netlink/route/link.h namespace collision... " >&6; }
+        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+            #include <net/if.h>
+            #include <netlink/route/link.h>
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+            { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+else
+
+            { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define _HAVE_IF_H_LINK_H_COLLISION_  1 " >>confdefs.h
+
+            BUILD_OPTIONS="$BUILD_OPTIONS IF_H_LINK_H_COLLISION"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+      fi
+      CPPFLAGS="$SAV_CPPFLAGS"
+    else
+      IPV4_DEVCONF=No
+    fi
   fi
 fi
  if test $NETLINK_VER -eq 1; then
@@ -7188,127 +7321,6 @@ if test ${ac_cv_have_decl_RTA_ENCAP}; then
   done
 fi
 
-if test $NETLINK_VER -eq 3; then
-  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for net/if.h and libnl3/netlink/route/link.h namespace collision" >&5
-$as_echo_n "checking for net/if.h and libnl3/netlink/route/link.h namespace collision... " >&6; }
-  SAV_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPPFLAGS $NL3_CFLAGS"
-  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-      #include <net/if.h>
-      #include <netlink/route/link.h>
-
-_ACEOF
-if ac_fn_c_try_compile "$LINENO"; then :
-
-      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
-$as_echo "no" >&6; }
-
-else
-
-      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
-$as_echo "yes" >&6; }
-
-$as_echo "#define _HAVE_IF_H_LINK_H_COLLISION_  1 " >>confdefs.h
-
-      BUILD_OPTIONS="$BUILD_OPTIONS IF_H_LINK_H_COLLISION"
-
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-  CPPFLAGS="$SAV_CPPFLAGS"
-
-    SAV_CPPFLAGS="$CPPFLAGS"
-  CPPFLAGS="$CPP_FLAGS $kernelinc"
-  IPV4_DEVCONF=Yes
-  ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ARP_IGNORE" "ac_cv_have_decl_IPV4_DEVCONF_ARP_IGNORE" "#include <linux/ip.h>
-"
-if test "x$ac_cv_have_decl_IPV4_DEVCONF_ARP_IGNORE" = xyes; then :
-  ac_have_decl=1
-else
-  ac_have_decl=0
-fi
-
-cat >>confdefs.h <<_ACEOF
-#define HAVE_DECL_IPV4_DEVCONF_ARP_IGNORE $ac_have_decl
-_ACEOF
-if test $ac_have_decl = 1; then :
-
-else
-
-      IPV4_DEVCONF=No
-      break
-
-fi
-ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ACCEPT_LOCAL" "ac_cv_have_decl_IPV4_DEVCONF_ACCEPT_LOCAL" "#include <linux/ip.h>
-"
-if test "x$ac_cv_have_decl_IPV4_DEVCONF_ACCEPT_LOCAL" = xyes; then :
-  ac_have_decl=1
-else
-  ac_have_decl=0
-fi
-
-cat >>confdefs.h <<_ACEOF
-#define HAVE_DECL_IPV4_DEVCONF_ACCEPT_LOCAL $ac_have_decl
-_ACEOF
-if test $ac_have_decl = 1; then :
-
-else
-
-      IPV4_DEVCONF=No
-      break
-
-fi
-ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_RP_FILTER" "ac_cv_have_decl_IPV4_DEVCONF_RP_FILTER" "#include <linux/ip.h>
-"
-if test "x$ac_cv_have_decl_IPV4_DEVCONF_RP_FILTER" = xyes; then :
-  ac_have_decl=1
-else
-  ac_have_decl=0
-fi
-
-cat >>confdefs.h <<_ACEOF
-#define HAVE_DECL_IPV4_DEVCONF_RP_FILTER $ac_have_decl
-_ACEOF
-if test $ac_have_decl = 1; then :
-
-else
-
-      IPV4_DEVCONF=No
-      break
-
-fi
-ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ARPFILTER" "ac_cv_have_decl_IPV4_DEVCONF_ARPFILTER" "#include <linux/ip.h>
-"
-if test "x$ac_cv_have_decl_IPV4_DEVCONF_ARPFILTER" = xyes; then :
-  ac_have_decl=1
-else
-  ac_have_decl=0
-fi
-
-cat >>confdefs.h <<_ACEOF
-#define HAVE_DECL_IPV4_DEVCONF_ARPFILTER $ac_have_decl
-_ACEOF
-if test $ac_have_decl = 1; then :
-
-else
-
-      IPV4_DEVCONF=No
-      break
-
-fi
-
-  CPPFLAGS="$SAV_CPPFLAGS"
-else
-  IPV4_DEVCONF=No
-fi
-if test $IPV4_DEVCONF = Yes; then
-
-$as_echo "#define _HAVE_IPV4_DEVCONF_  1 " >>confdefs.h
-
-  BUILD_OPTIONS="$BUILD_OPTIONS IPV4_DEVCONF"
-fi
-
 if test -n ".$enable_dynamic_linking"; then
   enable_libiptc_dynamic=$enable_dynamic_linking
   enable_libipset_dynamic=$enable_dynamic_linking
@@ -7316,9 +7328,11 @@ fi
 
 USE_LIBIPTC=No
 USE_LIBIPSET=No
-if test .${enable_libiptc} != .no; then
+if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
   USE_LIBIPTC=Yes
-    for ac_header in linux/netfilter/x_tables.h xtables.h libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h
+    SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $kernelinc"
+  for ac_header in linux/netfilter/x_tables.h xtables.h libiptc/libip6tc.h libiptc/libiptc.h libiptc/libxtc.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -7335,6 +7349,8 @@ else
 fi
 
 done
+
+  CPPFLAGS="$SAV_CPPFLAGS"
 
   if test $USE_LIBIPTC = Yes; then
      if test 2 -ge 2; then
