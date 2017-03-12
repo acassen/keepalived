@@ -386,7 +386,6 @@ iptables_cleanup(void)
 bool
 iptables_init(void)
 {
-#ifdef _HAVE_LIBIPSET_
 #ifdef _LIBIPTC_DYNAMIC_
 	if (!iptables_lib_init()) {
 		using_libiptc = false;
@@ -394,6 +393,7 @@ iptables_init(void)
 	}
 #endif
 
+#ifdef _HAVE_LIBIPSET_
 	if (!ipset_init()) {
 		global_data->using_ipsets = false;
 		return false;
