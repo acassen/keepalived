@@ -384,7 +384,7 @@ iptables_cleanup(void)
 }
 
 bool
-iptables_init(void)
+iptables_init_lib(void)
 {
 #ifdef _LIBIPTC_DYNAMIC_
 	if (!iptables_lib_init()) {
@@ -394,10 +394,8 @@ iptables_init(void)
 #endif
 
 #ifdef _HAVE_LIBIPSET_
-	if (!ipset_init()) {
+	if (!ipset_init())
 		global_data->using_ipsets = false;
-		return false;
-	}
 #endif
 
 	return true;

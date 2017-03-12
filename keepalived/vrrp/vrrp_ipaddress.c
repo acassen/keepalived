@@ -41,6 +41,9 @@
 
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
 
+bool iptables_cmd_available = true;
+bool ip6tables_cmd_available = true;
+
 char *
 ipaddresstos(char *buf, ip_address_t *ipaddress)
 {
@@ -249,6 +252,14 @@ handle_iptable_rule_to_vip_cmd(ip_address_t *ipaddress, int cmd, bool force)
 
 	if (global_data->vrrp_iptables_inchain[0] == '\0')
 		return;
+
+	if (IP_IS6(ipaddress)) {
+		if (!ip6tables_cmd_available)
+			return;
+	} else {
+		if (!iptables_cmd_available)
+			return;
+	}
 
 	if (IP_IS6(ipaddress)) {
 		if (IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr))
@@ -599,4 +610,33 @@ void
 clear_diff_saddresses(void)
 {
 	clear_diff_address(NULL, old_vrrp_data->static_addresses, vrrp_data->static_addresses);
+}
+
+void
+iptables_init(void)
+{
+#ifdef _WITH_LIBIPTC_
+	if (iptables_init_lib())
+		return;
+#endif
+
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+	char *argv[3];
+
+	/* We can't use libiptc, so check iptables command available */
+	argv[0] = "iptables";
+	argv[1] = "-V";
+	argv[2] = NULL;
+
+	if (fork_exec(argv) < 0) {
+		log_message(LOG_INFO, "iptables command not available - can't filter IPv4 VIP address destinations");
+		iptables_cmd_available = false;
+	}
+
+	argv[0] = "ip6tables";
+	if (fork_exec(argv) < 0) {
+		log_message(LOG_INFO, "ip6tables command not available - can't filter IPv6 VIP address destinations");
+		ip6tables_cmd_available = false;
+	}
+#endif
 }

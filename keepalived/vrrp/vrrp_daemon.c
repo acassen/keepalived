@@ -198,9 +198,7 @@ start_vrrp(void)
 	if (global_data->vrrp_no_swap)
 		set_process_dont_swap(4096);	/* guess a stack size to reserve */
 
-#ifdef _HAVE_LIBIPTC_
 	iptables_init();
-#endif
 
 #ifdef _WITH_SNMP_
 	if (!reload && (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {

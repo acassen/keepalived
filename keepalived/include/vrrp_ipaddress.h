@@ -101,5 +101,6 @@ extern ip_address_t *parse_ipaddress(ip_address_t *, char *, int);
 extern void alloc_ipaddress(list, vector_t *, interface_t *);
 extern void clear_diff_address(struct ipt_handle *, list, list);
 extern void clear_diff_saddresses(void);
+extern void iptables_init(void);
 
 #endif

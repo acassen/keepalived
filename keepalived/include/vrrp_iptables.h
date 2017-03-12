@@ -42,7 +42,7 @@ extern bool using_libiptc;		/* Set if using libiptc - for dynamic linking */
 extern bool use_ip4tables;		/* Set if using iptables */
 extern bool use_ip6tables;		/* Set if using ip6tables */
 
-bool iptables_init(void);
+bool iptables_init_lib(void);
 void iptables_fini(void);
 void iptables_startup(bool);
 void iptables_cleanup(void);
