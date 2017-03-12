@@ -2355,13 +2355,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				vip->ifa.ifa_index = vrrp->ifp->ifindex;
 				vip->ifp = vrrp->ifp;
 			}
-
-			if (vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept) {
-				if (vip->ifa.ifa_family == AF_INET)
-					global_data->block_ipv4 = true;
-				else
-					global_data->block_ipv6 = true;
-			}
 		}
 	}
 
