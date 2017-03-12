@@ -179,7 +179,7 @@ static void
 handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, bool force)
 {
 	char  *argv[14];
-	unsigned int i = 0;
+	int i = 0;
 	int if_specifier = -1;
 	int type_specifier ;
 	char *addr_str;
@@ -244,8 +244,8 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, bool force)
 static void
 handle_iptable_rule_to_vip_cmd(ip_address_t *ipaddress, int cmd, bool force)
 {
-	char  *argv[10];
-	unsigned int i = 0;
+	char *argv[10];
+	int i = 0;
 	int if_specifier = -1;
 	char *addr_str;
 	char *ifname = NULL;

@@ -394,7 +394,7 @@ update_checker_activity(sa_family_t family, void *address, bool enable)
 					checker->vs->ha_suspend_addr_count--;
 			}
 
-			if (!(checker->vs->ha_suspend_addr_count) == checker->enabled) {
+			if ((!(checker->vs->ha_suspend_addr_count)) == checker->enabled) {
 				log_message(LOG_INFO, "%sing healthchecker for service %s",
 							!checker->enabled ? "Activat" : "Suspend",
 							FMT_VS(checker->vs));

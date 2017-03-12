@@ -45,7 +45,7 @@
 #include <linux/ila.h>
 #endif
 #endif
-#include <stdint.h>
+#include <inttypes.h>
 
 /* Buffer sizes for netlink messages. Increase if needed. */
 #define	RTM_SIZE		1024

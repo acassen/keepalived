@@ -428,6 +428,8 @@ reset_promote_secondaries(interface_t *ifp)
 void
 set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 {
+	int val;
+
 	set_sysctl("net/ipv4/conf", ifp->ifname, "arp_ignore", 1);
 	set_sysctl("net/ipv4/conf", ifp->ifname, "accept_local", 1);
 	set_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter", 0);
@@ -437,21 +439,23 @@ set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 	if (base_ifp->reset_arp_config)
 		base_ifp->reset_arp_config++;
 	else {
-		if ((base_ifp->reset_arp_ignore_value = get_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore")) != 1)
+		if ((val = get_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore")) != -1 &&
+		    (base_ifp->reset_arp_ignore_value = (uint32_t)val) != 1)
 			set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore", 1);
 
-		if ((base_ifp->reset_arp_filter_value = get_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter")) != 1)
+		if ((val = get_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter")) != -1 &&
+		    (base_ifp->reset_arp_filter_value = (uint32_t)val) != 1)
 			set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter", 1);
 
-		base_ifp->reset_arp_config = 1;
+		base_ifp->reset_arp_config = true;
 	}
 }
 
 void reset_interface_parameters(interface_t *base_ifp)
 {
 	if (base_ifp->reset_arp_config && --base_ifp->reset_arp_config == 0) {
-		set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore", base_ifp->reset_arp_ignore_value);
-		set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter", base_ifp->reset_arp_filter_value);
+		set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore", (int)base_ifp->reset_arp_ignore_value);
+		set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter", (int)base_ifp->reset_arp_filter_value);
 	}
 }
 #endif
