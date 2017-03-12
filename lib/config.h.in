@@ -14,9 +14,6 @@
 /* Defined here if not found in <net/ethernet.h>. */
 #undef ETHERTYPE_IPV6
 
-/* Define to 1 if using libnl-1 */
-#undef FALLBACK_LIBNL1
-
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 

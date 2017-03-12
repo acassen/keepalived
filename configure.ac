@@ -402,8 +402,6 @@ if test .${enable_libnl} != .no; then
           AC_DEFINE([_HAVE_LIBNL1_], [ 1 ], [Define to 1 if using libnl-1])
           add_pkg_config([libnl-1])
           add_build_opt([LIBNL1])
-          AC_DEFINE([FALLBACK_LIBNL1], [ 1 ], [Define to 1 if using libnl-1])
-          add_build_opt([FALLBACK_LIBNL1])
         ],
         [
           AC_MSG_WARN([keepalived will be built without libnl support.])

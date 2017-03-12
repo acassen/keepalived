@@ -6902,10 +6902,6 @@ $as_echo "#define _HAVE_LIBNL1_  1 " >>confdefs.h
 
           BUILD_OPTIONS="$BUILD_OPTIONS LIBNL1"
 
-$as_echo "#define FALLBACK_LIBNL1  1 " >>confdefs.h
-
-          BUILD_OPTIONS="$BUILD_OPTIONS FALLBACK_LIBNL1"
-
 else
 
           { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: keepalived will be built without libnl support." >&5

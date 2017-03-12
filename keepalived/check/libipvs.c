@@ -50,7 +50,7 @@ static int sockfd = -1;
 static void* ipvs_func = NULL;
 
 #ifdef LIBIPVS_USE_NL
-#ifdef FALLBACK_LIBNL1
+#ifdef _HAVE_LIBNL1_
 #define nl_sock		nl_handle
 #define nl_socket_alloc	nl_handle_alloc
 #define nl_socket_free	nl_handle_destroy
@@ -181,7 +181,7 @@ nla_get_s32(struct nlattr *attr)
 }
 #endif
 
-#ifndef FALLBACK_LIBNL1
+#ifndef _HAVE_LIBNL1_
 static int nlerr2syserr(int err)
 {
 	switch (abs(err)) {
@@ -269,8 +269,9 @@ fail_genl:
 	nl_socket_free(sock);
 	sock = NULL;
 	nlmsg_free(msg);
+#ifdef _HAVE_LIBNL1_
 	errno = err;
-#ifndef FALLBACK_LIBNL1
+#else
 	errno = nlerr2syserr(err);
 #endif
 	return -1;
