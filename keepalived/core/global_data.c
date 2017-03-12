@@ -175,9 +175,9 @@ alloc_global_data(void)
 #ifdef _WITH_LVS_
 #ifdef _WITH_VRRP_
 	new->lvs_syncd.syncid = PARAMETER_UNSET;
-#endif
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 	new->lvs_syncd.mcast_group.ss_family = AF_UNSPEC;
+#endif
 #endif
 #endif
 
