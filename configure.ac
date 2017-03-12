@@ -168,7 +168,8 @@ AC_SUBST(ARFLAGS)
 KA_CPPFLAGS="$kernelinc"
 KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2"
 KA_LDFLAGS=
-KA_LIBS="-ldl"
+KA_LIBS=
+NEED_LIBDL=No
 #KA_LIBTOOLFLAGS = 
 
 if test "$enable_conversion_checks" = yes; then
@@ -530,6 +531,7 @@ if test .${enable_libiptc} != .no; then
 	else
 	  add_build_opt([LIBIPTC_DYNAMIC])
 	  AC_DEFINE([_LIBIPTC_DYNAMIC_], [ 1 ], [Define to 1 if building with libiptc dynamic linking])
+	  NEED_LIBDL=Yes
 	fi
       ],
       [USE_LIBIPTC=No])
@@ -592,6 +594,7 @@ if test .${enable_libiptc} != .no; then
 	    if test .${enable_libipset_dynamic} != .no; then
 	      AC_DEFINE([_LIBIPSET_DYNAMIC_], [ 1 ], [Define to 1 if building with libipset dynamic linking])
               add_build_opt([LIBIPSET_DYNAMIC])
+	      NEED_LIBDL=Yes
 	    else
               add_build_opt([LIBIPSET])
 	    fi
@@ -1101,6 +1104,10 @@ if test "${enable_profile}" = yes; then
   add_to_var([KA_CFLAGS], [-pg])
 fi
 AM_CONDITIONAL([PROFILE], [test $WITH_PROFILING = Yes])
+
+if test ${NEED_LIBDL} = Yes; then
+  add_to_var([KA_LIBS], [-ldl])
+fi
 
 dnl ----[ Determine system init type]----
 INIT_TYPE=

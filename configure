@@ -5156,7 +5156,8 @@ ARFLAGS=cr
 KA_CPPFLAGS="$kernelinc"
 KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2"
 KA_LDFLAGS=
-KA_LIBS="-ldl"
+KA_LIBS=
+NEED_LIBDL=No
 #KA_LIBTOOLFLAGS =
 
 if test "$enable_conversion_checks" = yes; then
@@ -7460,6 +7461,7 @@ $as_echo "#define _HAVE_LIBIPTC_  1 " >>confdefs.h
 
 $as_echo "#define _LIBIPTC_DYNAMIC_  1 " >>confdefs.h
 
+	  NEED_LIBDL=Yes
 	fi
 
 else
@@ -7713,6 +7715,7 @@ $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
 $as_echo "#define _LIBIPSET_DYNAMIC_  1 " >>confdefs.h
 
               BUILD_OPTIONS="$BUILD_OPTIONS LIBIPSET_DYNAMIC"
+	      NEED_LIBDL=Yes
 	    else
               BUILD_OPTIONS="$BUILD_OPTIONS LIBIPSET"
 	    fi
@@ -9056,6 +9059,10 @@ else
   PROFILE_FALSE=
 fi
 
+
+if test ${NEED_LIBDL} = Yes; then
+  KA_LIBS="$KA_LIBS -ldl"
+fi
 
 INIT_TYPE=
 if test -z $init_type; then
