@@ -801,21 +801,22 @@ AC_CHECK_DECL([IPVS_SVC_ATTR_PE_NAME],
    [], [[#include <linux/ip_vs.h>]])
 
 dnl ----[ Checks for FIB routing support ]----
-# Introduced in Linux 2.6.19
-SAV_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $kernelinc"
-AC_CHECK_DECL([FRA_SRC],
-  [
-    FIB_ROUTING_SUPPORT=Yes
-    AC_DEFINE([_HAVE_FIB_ROUTING_], [ 1 ], [Define to 1 if have FIB routing support])
-    add_build_opt([FIB_ROUTING])
-  ],
-  [
-    FIB_ROUTING_SUPPORT=No
-  ],[[#include <sys/socket.h>
+FIB_ROUTING_SUPPORT=No
+if test .$enable_routes != .no; then
+  # Introduced in Linux 2.6.19
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $kernelinc"
+  AC_CHECK_DECL([FRA_SRC],
+    [
+      FIB_ROUTING_SUPPORT=Yes
+      AC_DEFINE([_HAVE_FIB_ROUTING_], [ 1 ], [Define to 1 if have FIB routing support])
+      add_build_opt([FIB_ROUTING])
+    ], [],
+    [[#include <sys/socket.h>
       #include <linux/fib_rules.h>]])
+  CPPFLAGS="$SAV_CPPFLAGS"
+fi
 AM_CONDITIONAL([FIB_ROUTING], [test $FIB_ROUTING_SUPPORT = Yes])
-CPPFLAGS="$SAV_CPPFLAGS"
 
 dnl ----[ Checks for kernel IFLA_INET6_ADDR_GEN_MODE support ]----
 SAV_CPPFLAGS="$CPPFLAGS"

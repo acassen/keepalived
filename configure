@@ -8266,26 +8266,26 @@ $as_echo "#define _HAVE_PE_NAME_  1 " >>confdefs.h
 fi
 
 
-# Introduced in Linux 2.6.19
-SAV_CPPFLAGS="$CPPFLAGS"
-CPPFLAGS="$CPPFLAGS $kernelinc"
-ac_fn_c_check_decl "$LINENO" "FRA_SRC" "ac_cv_have_decl_FRA_SRC" "#include <sys/socket.h>
+FIB_ROUTING_SUPPORT=No
+if test .$enable_routes != .no; then
+  # Introduced in Linux 2.6.19
+  SAV_CPPFLAGS="$CPPFLAGS"
+  CPPFLAGS="$CPPFLAGS $kernelinc"
+  ac_fn_c_check_decl "$LINENO" "FRA_SRC" "ac_cv_have_decl_FRA_SRC" "#include <sys/socket.h>
       #include <linux/fib_rules.h>
 "
 if test "x$ac_cv_have_decl_FRA_SRC" = xyes; then :
 
-    FIB_ROUTING_SUPPORT=Yes
+      FIB_ROUTING_SUPPORT=Yes
 
 $as_echo "#define _HAVE_FIB_ROUTING_  1 " >>confdefs.h
 
-    BUILD_OPTIONS="$BUILD_OPTIONS FIB_ROUTING"
-
-else
-
-    FIB_ROUTING_SUPPORT=No
+      BUILD_OPTIONS="$BUILD_OPTIONS FIB_ROUTING"
 
 fi
 
+  CPPFLAGS="$SAV_CPPFLAGS"
+fi
  if test $FIB_ROUTING_SUPPORT = Yes; then
   FIB_ROUTING_TRUE=
   FIB_ROUTING_FALSE='#'
@@ -8294,7 +8294,6 @@ else
   FIB_ROUTING_FALSE=
 fi
 
-CPPFLAGS="$SAV_CPPFLAGS"
 
 SAV_CPPFLAGS="$CPPFLAGS"
 CPPFLAGS="$CPPFLAGS $kernelinc"
