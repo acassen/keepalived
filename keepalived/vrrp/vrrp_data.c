@@ -222,7 +222,9 @@ free_vrrp(void *data)
 	free_notify_script(&vrrp->script_stop);
 	free_notify_script(&vrrp->script);
 	FREE_PTR(vrrp->stats);
+#ifdef _WITH_VRRP_AUTH_
 	FREE(vrrp->ipsecah_counter);
+#endif
 
 	if (!LIST_ISEMPTY(vrrp->track_ifp))
 		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e))
@@ -388,15 +390,19 @@ void
 alloc_vrrp(char *iname)
 {
 	size_t size = strlen(iname);
+#ifdef _WITH_VRRP_AUTH_
 	seq_counter_t *counter;
+#endif
 	vrrp_t *new;
 
 	/* Allocate new VRRP structure */
 	new = (vrrp_t *) MALLOC(sizeof(vrrp_t));
+#ifdef _WITH_VRRP_AUTH_
 	counter = (seq_counter_t *) MALLOC(sizeof(seq_counter_t));
 
 	/* Build the structure */
 	new->ipsecah_counter = counter;
+#endif
 
 	/* Set default values */
 	new->family = AF_UNSPEC;
