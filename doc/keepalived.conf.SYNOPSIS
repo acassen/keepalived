@@ -103,10 +103,10 @@ global_defs {				# Block identification
     vrrp_iptables [keepalived_in [keepalived_out]]     # default INPUT
 					   # Specifies the iptables chains to add entries to
 					   # If no table names are specied, no entries are added
-    vrrp_ipsets ipset4 [ipset6 [ipset_if6]] # Set the ipset set names to use. If no names are specied,
-					   #   ipsets will not be used.
-					   # If ipset6 is not specified, '6' as appended to the ipset4 name
-					   #   if ipset_if6 is not specified, any trailing '6' from ipset6
+    vrrp_ipsets ipset4 [ipset6 [ipset_if6]] # Set the ipset set names to use. If no names are specified,
+					   #   ipsets will not be used. The default ipset4 name is 'keepalived'.
+					   # If ipset6 is not specified, '6' as appended to the ipset4 name.
+					   #   If ipset_if6 is not specified, any trailing '6' from ipset6
 					   #   is removed and '_if6' appended
     vrrp_check_unicast_src		   # Check source address of a unicast packet is a
 					   # unicast peer

@@ -812,6 +812,8 @@ enable_sha1
 with_init
 enable_vrrp_auth
 enable_routes
+enable_dynamic_linking
+enable_libiptc_dynamic
 enable_libipset_dynamic
 enable_libiptc
 enable_libipset
@@ -1478,6 +1480,11 @@ Optional Features:
   --enable-sha1           compile with SHA1 support
   --disable-vrrp-auth     compile without VRRP authentication
   --disable-routes        compile without ip rules/routes
+  --enable-dynamic-linking
+                          compile with/without dynamically linked
+                          libiptc/libipset
+  --enable-libiptc-dynamic
+                          compile with libiptc dynamically linked
   --disable-libipset-dynamic
                           compile with libipset statically linked
   --disable-libiptc       compile without libiptc
@@ -3479,6 +3486,16 @@ fi
 # Check whether --enable-routes was given.
 if test "${enable_routes+set}" = set; then :
   enableval=$enable_routes;
+fi
+
+# Check whether --enable-dynamic-linking was given.
+if test "${enable_dynamic_linking+set}" = set; then :
+  enableval=$enable_dynamic_linking;
+fi
+
+# Check whether --enable-libiptc-dynamic was given.
+if test "${enable_libiptc_dynamic+set}" = set; then :
+  enableval=$enable_libiptc_dynamic;
 fi
 
 # Check whether --enable-libipset-dynamic was given.
@@ -7291,6 +7308,11 @@ $as_echo "#define _HAVE_IPV4_DEVCONF_  1 " >>confdefs.h
   BUILD_OPTIONS="$BUILD_OPTIONS IPV4_DEVCONF"
 fi
 
+if test -n ".$enable_dynamic_linking"; then
+  enable_libiptc_dynamic=$enable_dynamic_linking
+  enable_libipset_dynamic=$enable_dynamic_linking
+fi
+
 USE_LIBIPTC=No
 USE_LIBIPSET=No
 if test .${enable_libiptc} != .no; then
@@ -7391,7 +7413,11 @@ fi
 $as_echo "$ac_cv_lib_iptc_iptc_init" >&6; }
 if test "x$ac_cv_lib_iptc_iptc_init" = xyes; then :
 
-         if test 1 -ge 2; then
+
+$as_echo "#define _HAVE_LIBIPTC_  1 " >>confdefs.h
+
+	if test .${enable_libiptc_dynamic} != .yes; then
+           if test 1 -ge 2; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -7427,9 +7453,14 @@ if test "x$ac_cv_lib_iptc_iptc_init" = xyes; then :
     eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
+	  	  KA_LIBS=`echo $KA_LIBS | sed -e "s/ -liptc//"`
+	  BUILD_OPTIONS="$BUILD_OPTIONS LIBIPTC"
+	else
+	  BUILD_OPTIONS="$BUILD_OPTIONS LIBIPTC_DYNAMIC"
 
-$as_echo "#define _HAVE_LIBIPTC_  1 " >>confdefs.h
+$as_echo "#define _LIBIPTC_DYNAMIC_  1 " >>confdefs.h
 
+	fi
 
 else
   USE_LIBIPTC=No
@@ -7439,8 +7470,6 @@ fi
   fi
 
   if test $USE_LIBIPTC = Yes; then
-    BUILD_OPTIONS="$BUILD_OPTIONS LIBIPTC"
-
         SAV_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS $kernelinc"
     if test "${enable_libipset}" != no; then
@@ -7746,6 +7775,41 @@ _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
 $as_echo "#define HAVE_IPSET_ATTR_IFACE  1 " >>confdefs.h
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+
+            	    	    	    	    	                cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+              #include <linux/netfilter/ipset/ip_set.h>
+              #include <libipset/linux_ip_set.h>
+              int main(void) {}
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+else
+  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+                 #include <linux/netfilter/ipset/ip_set.h>
+		 #ifdef _UAPI_IP_SET_H
+		 #error _UAPI_IP_SET_H defined
+		 #endif
+                 int main(void) {}
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+$as_echo "#define XT_SET_H_ADD_IP_SET_H_GUARD 1" >>confdefs.h
+
+else
+
+$as_echo "#define XT_SET_H_ADD_UAPI_IP_SET_H_GUARD 1" >>confdefs.h
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext

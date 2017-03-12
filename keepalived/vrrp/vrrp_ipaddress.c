@@ -35,7 +35,9 @@
 #include "bitops.h"
 #include "global_data.h"
 #include "rttables.h"
-
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+#include "utils.h"
+#endif
 
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
 
@@ -169,7 +171,7 @@ netlink_iplist(list ip_list, int cmd)
 	return changed_entries;
 }
 
-#ifndef _HAVE_LIBIPTC_
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 static void
 handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, bool force)
 {
@@ -237,7 +239,7 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, bool force)
 
 /* add/remove iptable drop rule to VIP */
 static void
-handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, __attribute__((unused)) void *unused, bool force)
+handle_iptable_rule_to_vip_cmd(ip_address_t *ipaddress, int cmd, bool force)
 {
 	char  *argv[10];
 	unsigned int i = 0;
@@ -293,6 +295,29 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, __attribute__((unus
 				     " from vip %s", (cmd) ? "set" : "remove", IP_IS6(ipaddress) ? "6" : "", addr_str);
 }
 #endif
+
+static inline void
+handle_iptable_rule_to_vip(ip_address_t *ipaddr, int cmd,
+#ifdef _HAVE_LIBIPTC_
+							     struct ipt_handle *h,
+#else
+							     __attribute__((unused)) void *unused,
+#endif
+												   bool force)
+{
+#ifdef _HAVE_LIBIPTC_
+#ifdef _LIBIPTC_DYNAMIC_
+	if (using_libiptc)
+#endif
+	{
+		handle_iptable_rule_to_vip_lib(ipaddr, cmd, h, force);
+		return;
+	}
+#endif
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+	handle_iptable_rule_to_vip_cmd(ipaddr, cmd, force);
+#endif
+}
 
 /* add/remove iptable drop rules to iplist */
 void

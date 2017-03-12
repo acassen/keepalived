@@ -38,8 +38,11 @@
 #include <libiptc/libiptc.h>
 #include <libiptc/libip6tc.h>
 #ifdef _HAVE_LIBIPSET_
-#ifdef XT_SET_H_NEEDS_LINUX_IP_SET_H
 #include <libipset/linux_ip_set.h>
+#if defined XT_SET_H_ADD_IP_SET_H_GUARD
+#define _IP_SET_H
+#elif defined XT_SET_H_ADD_UAPI_IP_SET_H_GUARD
+#define _UAPI_IP_SET_H
 #endif
 #include <linux/netfilter/xt_set.h>
 #endif
@@ -53,6 +56,9 @@
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
+#ifdef _LIBIPTC_DYNAMIC_
+#include "global_data.h"
+#endif
 
 /* We sometimes get a resource_busy on iptc_commit. This appears to happen
  * when someone else is also updating it.
@@ -64,6 +70,51 @@
  * state of iptables. This fits with the tests, but also means that we could
  * be interferred with by anyone else doing an update.
  */
+
+#ifdef _LIBIPTC_DYNAMIC_
+#include <dlfcn.h>
+
+/* The addresses of the functions we want */
+struct iptc_handle *(*iptc_init_addr)(const char *tablename);
+void (*iptc_free_addr)(struct iptc_handle *h);
+int (*iptc_is_chain_addr)(const char *chain, struct iptc_handle *const handle);
+int (*iptc_insert_entry_addr)(const ipt_chainlabel chain, const struct ipt_entry *e, unsigned int rulenum, struct iptc_handle *handle);
+int (*iptc_append_entry_addr)(const ipt_chainlabel chain, const struct ipt_entry *e, struct iptc_handle *handle);
+int (*iptc_delete_entry_addr)(const ipt_chainlabel chain, const struct ipt_entry *origfw, unsigned char *matchmask, struct iptc_handle *handle);
+int (*iptc_commit_addr)(struct iptc_handle *handle);
+const char *(*iptc_strerror_addr)(int err);
+
+struct ip6tc_handle *(*ip6tc_init_addr)(const char *tablename);
+void (*ip6tc_free_addr)(struct ip6tc_handle *h);
+int (*ip6tc_is_chain_addr)(const char *chain, struct ip6tc_handle *const handle);
+int (*ip6tc_insert_entry_addr)(const ip6t_chainlabel chain, const struct ip6t_entry *e, unsigned int rulenum, struct ip6tc_handle *handle);
+int (*ip6tc_append_entry_addr)(const ip6t_chainlabel chain, const struct ip6t_entry *e, struct ip6tc_handle *handle);
+int (*ip6tc_delete_entry_addr)(const ip6t_chainlabel chain, const struct ip6t_entry *origfw, unsigned char *matchmask, struct ip6tc_handle *handle);
+int (*ip6tc_commit_addr)(struct ip6tc_handle *handle);
+const char *(*ip6tc_strerror_addr)(int err);
+
+/* We can make it look as though normal linking is being used */
+#define iptc_init (*iptc_init_addr)
+#define iptc_free (*iptc_free_addr)
+#define iptc_is_chain (*iptc_is_chain_addr)
+#define iptc_insert_entry (*iptc_insert_entry_addr)
+#define iptc_append_entry (*iptc_append_entry_addr)
+#define iptc_delete_entry (*iptc_delete_entry_addr)
+#define iptc_commit (*iptc_commit_addr)
+#define iptc_strerror (*iptc_strerror_addr)
+
+#define ip6tc_init (*ip6tc_init_addr)
+#define ip6tc_free (*ip6tc_free_addr)
+#define ip6tc_is_chain (*ip6tc_is_chain_addr)
+#define ip6tc_insert_entry (*ip6tc_insert_entry_addr)
+#define ip6tc_append_entry (*ip6tc_append_entry_addr)
+#define ip6tc_delete_entry (*ip6tc_delete_entry_addr)
+#define ip6tc_commit (*ip6tc_commit_addr)
+#define ip6tc_strerror (*ip6tc_strerror_addr)
+
+static void* libip4tc_handle;
+static void* libip6tc_handle;
+#endif
 
 static void
 set_iface(char *vianame, unsigned char *mask, const char *iface)
@@ -726,5 +777,57 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, uns
 	}
 
 	return 0;
+}
+#endif
+
+#ifdef _LIBIPTC_DYNAMIC_
+bool iptables_lib_init(void)
+{
+	if (libip4tc_handle)
+		return true;
+
+	/* Attempt to open the ip4tc library */
+	if (!(libip4tc_handle = dlopen("libip4tc.so", RTLD_NOW)) &&
+	    !(libip4tc_handle = dlopen("libip4tc.so.0", RTLD_NOW))) {
+		/* Generate the most useful error message */
+		dlopen("libip4tc.so", RTLD_NOW);
+
+		log_message(LOG_INFO, "Unable to load ip4tc library - %s", dlerror());
+		return false;
+	}
+
+	iptc_init_addr = dlsym(libip4tc_handle, "iptc_init");
+	iptc_free_addr = dlsym(libip4tc_handle, "iptc_free");
+	iptc_is_chain_addr = dlsym(libip4tc_handle,"iptc_is_chain");
+	iptc_insert_entry_addr = dlsym(libip4tc_handle,"iptc_insert_entry");
+	iptc_append_entry_addr = dlsym(libip4tc_handle,"iptc_append_entry");
+	iptc_delete_entry_addr = dlsym(libip4tc_handle,"iptc_delete_entry");
+	iptc_commit_addr = dlsym(libip4tc_handle,"iptc_commit");
+	iptc_strerror_addr = dlsym(libip4tc_handle,"iptc_strerror");
+
+	/* Attempt to open the ip6tc library */
+	if (!(libip6tc_handle = dlopen("libip6tc.so", RTLD_NOW)) &&
+	    !(libip6tc_handle = dlopen("libip6tc.so.0", RTLD_NOW))) {
+		/* Generate the most useful error message */
+		dlopen("libip6tc.so", RTLD_NOW);
+
+		log_message(LOG_INFO, "Unable to load ip6tc library - %s", dlerror());
+
+		if (global_data->block_ipv4)
+			dlclose(libip4tc_handle);
+
+		return false;
+	}
+
+	ip6tc_init_addr = dlsym(libip6tc_handle, "ip6tc_init");
+	ip6tc_free_addr = dlsym(libip6tc_handle, "ip6tc_free");
+	ip6tc_is_chain_addr = dlsym(libip6tc_handle,"ip6tc_is_chain");
+	ip6tc_insert_entry_addr = dlsym(libip6tc_handle,"ip6tc_insert_entry");
+	ip6tc_append_entry_addr = dlsym(libip6tc_handle,"ip6tc_append_entry");
+	ip6tc_delete_entry_addr = dlsym(libip6tc_handle,"ip6tc_delete_entry");
+	ip6tc_commit_addr = dlsym(libip6tc_handle,"ip6tc_commit");
+	ip6tc_strerror_addr = dlsym(libip6tc_handle,"ip6tc_strerror");
+
+	return true;
 }
 #endif

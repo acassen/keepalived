@@ -55,6 +55,10 @@
 
 #include <libiptc/libiptc.h>
 #include <stdint.h>
+#ifdef _HAVE_LIBIPSET_
+#include <xtables.h>
+#include <libipset/linux_ip_set.h>
+#endif
 
 #include "vrrp_iptables.h"
 #include "vrrp_iptables_calls.h"
@@ -64,11 +68,6 @@
 #include "logger.h"
 #include "memory.h"
 #include "global_data.h"
-
-#ifdef _HAVE_LIBIPSET_
-#include <xtables.h>
-#include "vrrp_ipset.h"
-#endif
 
 struct ipt_handle {
 	struct iptc_handle *h4;
@@ -81,6 +80,9 @@ struct ipt_handle {
 } ;
 
 /* If the chains don't exist, or modules not loaded, we can't use iptables/ip6tables */
+#ifdef _LIBIPTC_DYNAMIC_
+bool using_libiptc = true;
+#endif
 bool use_ip4tables = true;
 bool use_ip6tables = true;
 
@@ -296,7 +298,7 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, void *h, bool force)
 }
 
 void
-handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, struct ipt_handle *h, bool force)
+handle_iptable_rule_to_vip_lib(ip_address_t *ipaddress, int cmd, struct ipt_handle *h, bool force)
 {
 	char *ifname = NULL;
 
@@ -342,7 +344,11 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, struct ipt_handle *
 }
 
 static void
-iptables_remove_structure(bool ignore_errors)
+iptables_remove_structure(
+#ifndef _HAVE_LIBIPSET_
+			  __attribute__((unused))
+#endif
+						 bool ignore_errors)
 {
 #ifdef _HAVE_LIBIPSET_
 	if (global_data->using_ipsets) {
@@ -381,9 +387,15 @@ bool
 iptables_init(void)
 {
 #ifdef _HAVE_LIBIPSET_
+#ifdef _LIBIPTC_DYNAMIC_
+	if (!iptables_lib_init()) {
+		using_libiptc = false;
+		return false;
+	}
+#endif
+
 	if (!ipset_init()) {
 		global_data->using_ipsets = false;
-
 		return false;
 	}
 #endif

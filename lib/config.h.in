@@ -475,6 +475,14 @@
 /* Define if <linux/netfilter/x_tables.h> doesnt define it */
 #undef XT_EXTENSION_MAXNAMELEN
 
+/* Define to add guard _IP_SET_H before including <linux/netfilter/xt_set.h>
+   */
+#undef XT_SET_H_ADD_IP_SET_H_GUARD
+
+/* Define to add guard _UAPI_IP_SET_H before including
+   <linux/netfilter/xt_set.h> */
+#undef XT_SET_H_ADD_UAPI_IP_SET_H_GUARD
+
 /* Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>
    */
 #undef XT_SET_H_NEEDS_LINUX_IP_SET_H
@@ -518,6 +526,9 @@
 
 /* Define to 1 if building with libipset dynamic linking */
 #undef _LIBIPSET_DYNAMIC_
+
+/* Define to 1 if building with libiptc dynamic linking */
+#undef _LIBIPTC_DYNAMIC_
 
 /* Define to 1 to build with malloc/free checks */
 #undef _MEM_CHECK_

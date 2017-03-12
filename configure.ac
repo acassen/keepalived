@@ -4,7 +4,7 @@
 # Configuration template file for keepalived.
 # autoconf will generate & check deps for proper compilation
 #
-# Copyright (C) 2001-2016 Alexandre Cassen, <acassen@linux-vs.org>
+# Copyright (C) 2001-2017 Alexandre Cassen, <acassen@linux-vs.org>
 
 AC_DEFUN([add_to_var], [$1="$$1 $2"])
 AC_DEFUN([add_to_var_ind], [eval $1=\"\$$1 $2\"]) dnl "
@@ -108,6 +108,10 @@ AC_ARG_ENABLE(vrrp-auth,
   [AS_HELP_STRING([--disable-vrrp-auth], [compile without VRRP authentication])])
 AC_ARG_ENABLE(routes,
   [AS_HELP_STRING([--disable-routes], [compile without ip rules/routes])])
+AC_ARG_ENABLE(dynamic-linking,
+  [AS_HELP_STRING([--enable-dynamic-linking], [compile with/without dynamically linked libiptc/libipset])])
+AC_ARG_ENABLE(libiptc-dynamic,
+  [AS_HELP_STRING([--enable-libiptc-dynamic], [compile with libiptc dynamically linked])])
 AC_ARG_ENABLE(libipset-dynamic,
   [AS_HELP_STRING([--disable-libipset-dynamic], [compile with libipset statically linked])])
 AC_ARG_ENABLE(libiptc,
@@ -493,6 +497,12 @@ if test $IPV4_DEVCONF = Yes; then
   add_build_opt([IPV4_DEVCONF])
 fi
 
+dnl - Do we want to override dynamic/static linking?
+if test -n ".$enable_dynamic_linking"; then
+  enable_libiptc_dynamic=$enable_dynamic_linking
+  enable_libipset_dynamic=$enable_dynamic_linking
+fi
+
 dnl ----[Check for iptables libraries]----
 USE_LIBIPTC=No
 USE_LIBIPSET=No
@@ -511,16 +521,22 @@ if test .${enable_libiptc} != .no; then
     CPPFLAGS="$CPPFLAGS $kernelinc"
     AC_CHECK_LIB(iptc, iptc_init,
       [
-        add_pkg_config([--static libiptc])
         AC_DEFINE([_HAVE_LIBIPTC_], [ 1 ], [Define to 1 if have iptables libraries])
+	if test .${enable_libiptc_dynamic} != .yes; then
+          add_pkg_config([--static libiptc])
+	  dnl - Older versions of libiptc produced a requirement for -liptc, but we don't need it
+	  KA_LIBS=`echo $KA_LIBS | sed -e "s/ -liptc//"`
+	  add_build_opt([LIBIPTC])
+	else
+	  add_build_opt([LIBIPTC_DYNAMIC])
+	  AC_DEFINE([_LIBIPTC_DYNAMIC_], [ 1 ], [Define to 1 if building with libiptc dynamic linking])
+	fi
       ],
       [USE_LIBIPTC=No])
     CPPFLAGS="$SAV_CPPFLAGS"
   fi
 
   if test $USE_LIBIPTC = Yes; then
-    add_build_opt([LIBIPTC])
-
     dnl ----[Check for ipset libraries]----
     SAV_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS $kernelinc"
@@ -594,6 +610,28 @@ if test .${enable_libiptc} != .no; then
               int main(void) { int var = IPSET_ATTR_IFACE; }
               ]])],
               [AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
+
+            dnl - The include guard for <linux/netfilter/ipset/ip_set.h> changed for the UAPI disintegration.
+	    dnl - Unfortunately libipset provides a copy of the kernel headers, <libipset/linux_ip_set.h>,
+	    dnl - and if one header is from before the disambiguation and one from after, the include guards
+	    dnl - don't match. Unfortunately we need to include some libipset header files, which include the
+	    dnl - libipset version, and also <linux/netfilter/xt_set.h> which includes the kernel version.
+	    dnl - We will take the libipset version if there is an inclusion collision.
+            AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+              #include <linux/netfilter/ipset/ip_set.h>
+              #include <libipset/linux_ip_set.h>
+              int main(void) {}
+              ]])], [],
+              [AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+                 #include <linux/netfilter/ipset/ip_set.h>
+		 #ifdef _UAPI_IP_SET_H
+		 #error _UAPI_IP_SET_H defined
+		 #endif
+                 int main(void) {}
+                 ]])],
+		 [AC_DEFINE([XT_SET_H_ADD_IP_SET_H_GUARD], [1], [Define to add guard _IP_SET_H before including <linux/netfilter/xt_set.h>])],
+	         [AC_DEFINE([XT_SET_H_ADD_UAPI_IP_SET_H_GUARD], [1], [Define to add guard _UAPI_IP_SET_H before including <linux/netfilter/xt_set.h>])])
+	      ])
           fi
         ])
       LIBS="$SAV_LIBS"
