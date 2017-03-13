@@ -32,7 +32,38 @@ AC_DEFUN([add_pkg_config],
     add_to_var_ind_unique([${KA_PKG_PFX}_LIBS], [$($PKG_CONFIG --libs $1)])
   ])
 
+AC_DEFUN([add_pkg_config_without_libs],
+  [ if test $# -ge 2; then
+      KA_PKG_PFX=$2
+    else
+      KA_PKG_PFX=KA
+    fi
+    add_to_var_ind_unique([${KA_PKG_PFX}_CPPFLAGS], [$($PKG_CONFIG --cflags-only-I $1)])
+    add_to_var_ind_unique([${KA_PKG_PFX}_CFLAGS], [$($PKG_CONFIG --cflags-only-other $1)])
+  ])
+
 AC_DEFUN([add_build_opt], [add_to_var([BUILD_OPTIONS], [$1])])
+
+AC_DEFUN([get_lib_name_dir],
+  [
+    if test $LDD = :; then
+      AC_MSG_ERROR([ldd is required for dynamic run-time linking support])
+    fi
+
+    SAV_LIBS="$LIBS"
+    LIBS=-l$1
+    AC_LINK_IFELSE([AC_LANG_SOURCE([[
+      int main(void)
+      {
+        return 0;
+      }
+    ]])], [
+      LIB_DETAILS=`$LDD ./conftest$EXEEXT | grep $1.so | sed -e "s/^[[ \t]]*//"`
+      LIB_NAME=`echo $LIB_DETAILS | sed -e "s/ .*//"`
+    ],[
+    ])
+    LIBS="$SAV_LIBS"
+  ])
 
 dnl ----[ Process this file with autoconf to produce a configure script ]----
 AC_PREREQ([2.65])
@@ -114,6 +145,8 @@ AC_ARG_ENABLE(libiptc-dynamic,
   [AS_HELP_STRING([--enable-libiptc-dynamic], [compile with libiptc dynamically linked])])
 AC_ARG_ENABLE(libipset-dynamic,
   [AS_HELP_STRING([--disable-libipset-dynamic], [compile with libipset statically linked])])
+AC_ARG_ENABLE(libxtables-dynamic,
+  [AS_HELP_STRING([--enable-libxtables-dynamic], [compile with libxtables dynamically linked])])
 AC_ARG_ENABLE(libiptc,
   [AS_HELP_STRING([--disable-libiptc], [compile without libiptc])])
 AC_ARG_ENABLE(libipset,
@@ -160,10 +193,13 @@ AC_PROG_GREP
 AC_PROG_LN_S
 AC_PROG_SED
 AC_CHECK_TOOL(STRIP,strip)
+AC_CHECK_TOOL(LDD,ldd)
 
 m4_ifdef([AM_PROG_AR], [AM_PROG_AR])
 ARFLAGS=cr
 AC_SUBST(ARFLAGS)
+
+# AC_PROG_LIBTOOL
 
 KA_CPPFLAGS="$kernelinc"
 KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2"
@@ -508,9 +544,10 @@ if test ${ac_cv_have_decl_RTA_ENCAP}; then
 fi
 
 dnl - Do we want to override dynamic/static linking?
-if test -n ".$enable_dynamic_linking"; then
+if test -n "$enable_dynamic_linking"; then
   enable_libiptc_dynamic=$enable_dynamic_linking
   enable_libipset_dynamic=$enable_dynamic_linking
+  enable_libxtables_dynamic=$enable_dynamic_linking
 fi
 
 dnl ----[Check for iptables libraries]----
@@ -542,9 +579,14 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
 	  KA_LIBS=`echo $KA_LIBS | sed -e "s/ -liptc//"`
 	  add_build_opt([LIBIPTC])
 	else
+          add_pkg_config_without_libs([libiptc])
 	  add_build_opt([LIBIPTC_DYNAMIC])
 	  AC_DEFINE([_LIBIPTC_DYNAMIC_], [ 1 ], [Define to 1 if building with libiptc dynamic linking])
 	  NEED_LIBDL=Yes
+	  get_lib_name_dir([ip4tc])
+	  AC_DEFINE_UNQUOTED([IP4TC_LIB_NAME], [ "$LIB_NAME" ], [Define the ip4tc library name])
+	  get_lib_name_dir([ip6tc])
+	  AC_DEFINE_UNQUOTED([IP6TC_LIB_NAME], [ "$LIB_NAME" ], [Define the ip6tc library name])
 	fi
       ],
       [USE_LIBIPTC=No])
@@ -595,11 +637,10 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
             AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
             $PKG_CONFIG --exists libipset
             if test $? -eq 0; then
-              add_to_var_ind_unique([KA_CPPFLAGS], [$IPSET_CPPFLAGS])
-              add_to_var_ind_unique([KA_CFLAGS], [$IPSET_CFLAGS])
-              dnl -- if libipset is dynamically linked, so we don't want -lipset
 	      if test .${enable_libipset_dynamic} = .no; then
-		add_to_var_ind_unique([KA_LIBS], [$IPSET_LIBS])
+		add_pkg_config([libipset])
+	      else
+		add_pkg_config_without_libs([libipset])
 	      fi
 	    elif test .${enable_libipset_dynamic} = .no; then
 	      add_to_var([KA_LIBS], [-lipset])
@@ -608,10 +649,21 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
 	      AC_DEFINE([_LIBIPSET_DYNAMIC_], [ 1 ], [Define to 1 if building with libipset dynamic linking])
               add_build_opt([LIBIPSET_DYNAMIC])
 	      NEED_LIBDL=Yes
+	      get_lib_name_dir([ipset])
+	      AC_DEFINE_UNQUOTED([IPSET_LIB_NAME], [ "$LIB_NAME" ], [Define the ipset library name])
 	    else
               add_build_opt([LIBIPSET])
 	    fi
-            add_pkg_config([xtables])
+	    if test .$enable_libxtables_dynamic != .yes; then
+              add_pkg_config([xtables])
+	    else
+              add_pkg_config_without_libs([xtables])
+	      AC_DEFINE([_LIBXTABLES_DYNAMIC_], [ 1 ], [Define to 1 if building with libxtables dynamic linking])
+	      add_build_opt([XTABLES_DYNAMIC])
+	      NEED_LIBDL=Yes
+	      get_lib_name_dir([xtables])
+	      AC_DEFINE_UNQUOTED([XTABLES_LIB_NAME], [ "$LIB_NAME" ], [Define the xtables library name])
+	    fi
 
             dnl -- xt_set_info_match_v1 declared since Linux 3.1
             AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [],

@@ -116,6 +116,13 @@ static void* libip4tc_handle;
 static void* libip6tc_handle;
 #endif
 
+#ifdef _LIBXTABLES_DYNAMIC_
+#include <dlfcn.h>
+
+/* We can make it look as though normal linking is being used */
+#define xtables_insmod (*xtables_insmod_addr)
+#endif
+
 static void
 set_iface(char *vianame, unsigned char *mask, const char *iface)
 {
@@ -393,11 +400,28 @@ int load_mod_xt_set(void)
 {
 	struct sigaction act, old_act;
 	bool res = true;
+#ifdef _LIBXTABLES_DYNAMIC_
+	void *libxtables_handle;
+	int (*xtables_insmod_addr)(const char *, const char *, bool);
+#endif
 
 	/* Enable SIGCHLD since xtables_insmod forks/execs modprobe */
 	act.sa_handler = SIG_DFL;
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
+
+#ifdef _LIBXTABLES_DYNAMIC_
+	if (!(libxtables_handle = dlopen("libxtables.so", RTLD_NOW)) &&
+	    !(libxtables_handle = dlopen(XTABLES_LIB_NAME, RTLD_NOW))) {
+		log_message(LOG_INFO, "Unable to load xtables library - %s", dlerror());
+		return false;
+	}
+
+	if (!(xtables_insmod_addr = dlsym(libxtables_handle, "xtables_insmod"))) {
+		dlclose(libxtables_handle);
+		return false;
+	}
+#endif
 
 	sigaction(SIGCHLD, &act, &old_act);
 
@@ -405,6 +429,11 @@ int load_mod_xt_set(void)
 		res = false;
 
 	sigaction(SIGCHLD, &old_act, NULL);
+
+#ifdef _LIBXTABLES_DYNAMIC_
+	dlclose(libxtables_handle);
+#endif
+
 	return res;
 }
 
@@ -788,10 +817,7 @@ bool iptables_lib_init(void)
 
 	/* Attempt to open the ip4tc library */
 	if (!(libip4tc_handle = dlopen("libip4tc.so", RTLD_NOW)) &&
-	    !(libip4tc_handle = dlopen("libip4tc.so.0", RTLD_NOW))) {
-		/* Generate the most useful error message */
-		dlopen("libip4tc.so", RTLD_NOW);
-
+	    !(libip4tc_handle = dlopen(IP4TC_LIB_NAME, RTLD_NOW))) {
 		log_message(LOG_INFO, "Unable to load ip4tc library - %s", dlerror());
 		return false;
 	}
@@ -807,10 +833,7 @@ bool iptables_lib_init(void)
 
 	/* Attempt to open the ip6tc library */
 	if (!(libip6tc_handle = dlopen("libip6tc.so", RTLD_NOW)) &&
-	    !(libip6tc_handle = dlopen("libip6tc.so.0", RTLD_NOW))) {
-		/* Generate the most useful error message */
-		dlopen("libip6tc.so", RTLD_NOW);
-
+	    !(libip6tc_handle = dlopen(IP6TC_LIB_NAME, RTLD_NOW))) {
 		log_message(LOG_INFO, "Unable to load ip6tc library - %s", dlerror());
 
 		if (global_data->block_ipv4)

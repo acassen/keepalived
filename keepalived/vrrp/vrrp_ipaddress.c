@@ -615,7 +615,7 @@ clear_diff_saddresses(void)
 void
 iptables_init(void)
 {
-#ifdef _WITH_LIBIPTC_
+#ifdef _HAVE_LIBIPTC_
 	if (iptables_init_lib())
 		return;
 #endif

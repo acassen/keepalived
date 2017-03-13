@@ -208,11 +208,7 @@ bool ipset_init(void)
 #ifdef _LIBIPSET_DYNAMIC_
 	/* Attempt to open the ipset library */
 	if (!(libipset_handle = dlopen("libipset.so", RTLD_NOW)) &&
-	    !(libipset_handle = dlopen("libipset.so.3", RTLD_NOW)) &&
-	    !(libipset_handle = dlopen("libipset.so.2", RTLD_NOW))) {
-		/* Generate the most useful error message */
-		dlopen("libipset.so.3", RTLD_NOW);
-
+	    !(libipset_handle = dlopen(IPSET_LIB_NAME, RTLD_NOW))) {
 		log_message(LOG_INFO, "Unable to load ipset library - %s", dlerror());
 		return false;
 	}

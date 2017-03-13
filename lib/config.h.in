@@ -436,6 +436,15 @@
 /* Define to 1 if the system has the type `_Bool'. */
 #undef HAVE__BOOL
 
+/* Define the ip4tc library name */
+#undef IP4TC_LIB_NAME
+
+/* Define the ip6tc library name */
+#undef IP6TC_LIB_NAME
+
+/* Define the ipset library name */
+#undef IPSET_LIB_NAME
+
 /* Define to 1 if libipvs can use netlink */
 #undef LIBIPVS_USE_NL
 
@@ -468,6 +477,9 @@
 
 /* Version number of package */
 #undef VERSION
+
+/* Define the xtables library name */
+#undef XTABLES_LIB_NAME
 
 /* Define if <linux/netfilter/x_tables.h> doesnt define it */
 #undef XT_EXTENSION_MAXNAMELEN
@@ -526,6 +538,9 @@
 
 /* Define to 1 if building with libiptc dynamic linking */
 #undef _LIBIPTC_DYNAMIC_
+
+/* Define to 1 if building with libxtables dynamic linking */
+#undef _LIBXTABLES_DYNAMIC_
 
 /* Define to 1 to build with malloc/free checks */
 #undef _MEM_CHECK_

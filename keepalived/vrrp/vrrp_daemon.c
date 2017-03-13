@@ -187,6 +187,7 @@ start_vrrp(void)
 		stop_vrrp(KEEPALIVED_EXIT_FATAL);
 		return;
 	}
+
 	init_data(conf_file, vrrp_init_keywords);
 
 	init_global_data(global_data);
