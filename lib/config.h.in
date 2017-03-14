@@ -451,6 +451,15 @@
 /* Define to 1 if <linux/netlink.h> needs <sys/socket.h> */
 #undef NETLINK_H_NEEDS_SYS_SOCKET_H
 
+/* Define the nl-genl-3.0 library name */
+#undef NL3_GENL_LIB_NAME
+
+/* Define the nl-route-3.0 library name */
+#undef NL3_ROUTE_LIB_NAME
+
+/* Define the nl library name */
+#undef NL_LIB_NAME
+
 /* Name of package */
 #undef PACKAGE
 
@@ -538,6 +547,9 @@
 
 /* Define to 1 if building with libiptc dynamic linking */
 #undef _LIBIPTC_DYNAMIC_
+
+/* Define to 1 if building with libnl dynamic linking */
+#undef _LIBNL_DYNAMIC_
 
 /* Define to 1 if building with libxtables dynamic linking */
 #undef _LIBXTABLES_DYNAMIC_

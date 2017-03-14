@@ -817,6 +817,7 @@ enable_dynamic_linking
 enable_libiptc_dynamic
 enable_libipset_dynamic
 enable_libxtables_dynamic
+enable_libnl_dynamic
 enable_libiptc
 enable_libipset
 enable_libnl
@@ -1491,6 +1492,7 @@ Optional Features:
                           compile with libipset statically linked
   --enable-libxtables-dynamic
                           compile with libxtables dynamically linked
+  --enable-libnl-dynamic  compile with libnl dynamically linked
   --disable-libiptc       compile without libiptc
   --disable-libipset      compile without libipset
   --disable-libnl         compile without libnl
@@ -3510,6 +3512,11 @@ fi
 # Check whether --enable-libxtables-dynamic was given.
 if test "${enable_libxtables_dynamic+set}" = set; then :
   enableval=$enable_libxtables_dynamic;
+fi
+
+# Check whether --enable-libnl-dynamic was given.
+if test "${enable_libnl_dynamic+set}" = set; then :
+  enableval=$enable_libnl_dynamic;
 fi
 
 # Check whether --enable-libiptc was given.
@@ -6707,49 +6714,9 @@ $as_echo "$ac_cv_lib_nl_3_nl_socket_alloc" >&6; }
 if test "x$ac_cv_lib_nl_3_nl_socket_alloc" = xyes; then :
 
       NETLINK_VER=3
+      NEED_NL3=No
 
-$as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
-
-      BUILD_OPTIONS="$BUILD_OPTIONS LIBNL3"
-       if test 1 -ge 2; then
-      KA_PKG_PFX=
-    else
-      KA_PKG_PFX=KA
-    fi
-    ADD_NEW=
-   eval var=\$${KA_PKG_PFX}_CPPFLAGS
-    for item in $($PKG_CONFIG --cflags-only-I libnl-3.0); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
-
-    ADD_NEW=
-   eval var=\$${KA_PKG_PFX}_CFLAGS
-    for item in $($PKG_CONFIG --cflags-only-other libnl-3.0); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
-
-    ADD_NEW=
-   eval var=\$${KA_PKG_PFX}_LIBS
-    for item in $($PKG_CONFIG --libs libnl-3.0); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
-
-
-      NL3_CFLAGS="`$PKG_CONFIG --cflags libnl-3.0`"
-
-      if test .$enable_lvs != .no -a .$enable_lvs != .no; then
+      if test .$enable_lvs != .no; then
 	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for genl_connect in -lnl-genl-3" >&5
 $as_echo_n "checking for genl_connect in -lnl-genl-3... " >&6; }
 if ${ac_cv_lib_nl_genl_3_genl_connect+:} false; then :
@@ -6798,7 +6765,68 @@ else
 fi
 
 	IPVS_USE_NL=Yes
-	 if test 1 -ge 2; then
+	if test .$enable_libnl_dynamic = .yes; then
+	   if test 1 -ge 2; then
+      KA_PKG_PFX=
+    else
+      KA_PKG_PFX=KA
+    fi
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
+    for item in $($PKG_CONFIG --cflags-only-I libnl-genl-3.0); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CFLAGS
+    for item in $($PKG_CONFIG --cflags-only-other libnl-genl-3.0); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
+
+
+# We need to get lib names from pkg-config --libs
+# Need to define NL_IPVS_LIB_NAME
+
+    if test $LDD = :; then
+      as_fn_error $? "ldd is required for dynamic run-time linking support" "$LINENO" 5
+    fi
+
+    SAV_LIBS="$LIBS"
+    LIBS=-lnl-genl-3
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+      int main(void)
+      {
+        return 0;
+      }
+
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+
+      LIB_DETAILS=`$LDD ./conftest$EXEEXT | grep nl-genl-3.so | sed -e "s/^[ \t]*//"`
+      LIB_NAME=`echo $LIB_DETAILS | sed -e "s/ .*//"`
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    LIBS="$SAV_LIBS"
+
+
+cat >>confdefs.h <<_ACEOF
+#define NL3_GENL_LIB_NAME  "$LIB_NAME"
+_ACEOF
+
+	else
+	   if test 1 -ge 2; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -6834,6 +6862,8 @@ fi
     eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
+	fi
+	NEED_NL3=Yes
       fi
 
       if test .$enable_routes != .no -a .$enable_vrrp != .no; then
@@ -6884,7 +6914,66 @@ else
   as_fn_error $? "libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3." "$LINENO" 5
 fi
 
-	 if test 1 -ge 2; then
+	if test .$enable_libnl_dynamic = .yes; then
+	   if test 1 -ge 2; then
+      KA_PKG_PFX=
+    else
+      KA_PKG_PFX=KA
+    fi
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
+    for item in $($PKG_CONFIG --cflags-only-I libnl-route-3.0); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CFLAGS
+    for item in $($PKG_CONFIG --cflags-only-other libnl-route-3.0); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
+
+
+
+    if test $LDD = :; then
+      as_fn_error $? "ldd is required for dynamic run-time linking support" "$LINENO" 5
+    fi
+
+    SAV_LIBS="$LIBS"
+    LIBS=-lnl-route-3
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+      int main(void)
+      {
+        return 0;
+      }
+
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+
+      LIB_DETAILS=`$LDD ./conftest$EXEEXT | grep nl-route-3.so | sed -e "s/^[ \t]*//"`
+      LIB_NAME=`echo $LIB_DETAILS | sed -e "s/ .*//"`
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    LIBS="$SAV_LIBS"
+
+
+cat >>confdefs.h <<_ACEOF
+#define NL3_ROUTE_LIB_NAME  "$LIB_NAME"
+_ACEOF
+
+	else
+	   if test 1 -ge 2; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -6920,11 +7009,31 @@ fi
     eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
+	fi
+	NEED_NL3=Yes
+      fi
+
+      if test $NEED_NL3 = Yes; then
+
+$as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
+
+        BUILD_OPTIONS="$BUILD_OPTIONS LIBNL3"
+# The next line is probably needed for IPV4_DEVCONF below, so move this block later
+#	add_pkg_config([libnl-3.0])
+	if test .$enable_libnl_dynamic = .yes; then
+          BUILD_OPTIONS="$BUILD_OPTIONS LIBNL3_DYNAMIC"
+
+$as_echo "#define _LIBNL_DYNAMIC_  1 " >>confdefs.h
+
+	  NEED_LIBDL=Yes
+	fi
+        NL3_CFLAGS="`$PKG_CONFIG --cflags libnl-3.0`"
       fi
 
 else
 
-      { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_socket_modify_cb in -lnl" >&5
+      if test .$enable_lvs != .no; then
+        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_socket_modify_cb in -lnl" >&5
 $as_echo_n "checking for nl_socket_modify_cb in -lnl... " >&6; }
 if ${ac_cv_lib_nl_nl_socket_modify_cb+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -6962,12 +7071,77 @@ fi
 $as_echo "$ac_cv_lib_nl_nl_socket_modify_cb" >&6; }
 if test "x$ac_cv_lib_nl_nl_socket_modify_cb" = xyes; then :
 
-          IPVS_USE_NL=Yes
-          NETLINK_VER=1
+            IPVS_USE_NL=Yes
+            NETLINK_VER=1
 
 $as_echo "#define _HAVE_LIBNL1_  1 " >>confdefs.h
 
-           if test 1 -ge 2; then
+	    if test .$enable_libnl_dynamic = .yes; then
+               if test 1 -ge 2; then
+      KA_PKG_PFX=
+    else
+      KA_PKG_PFX=KA
+    fi
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
+    for item in $($PKG_CONFIG --cflags-only-I libnl-1); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CFLAGS
+    for item in $($PKG_CONFIG --cflags-only-other libnl-1); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
+
+
+              BUILD_OPTIONS="$BUILD_OPTIONS LIBNL1_DYNAMIC"
+
+$as_echo "#define _LIBNL_DYNAMIC_  1 " >>confdefs.h
+
+	      NEED_LIBDL=Yes
+
+    if test $LDD = :; then
+      as_fn_error $? "ldd is required for dynamic run-time linking support" "$LINENO" 5
+    fi
+
+    SAV_LIBS="$LIBS"
+    LIBS=-lnl
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+      int main(void)
+      {
+        return 0;
+      }
+
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+
+      LIB_DETAILS=`$LDD ./conftest$EXEEXT | grep nl.so | sed -e "s/^[ \t]*//"`
+      LIB_NAME=`echo $LIB_DETAILS | sed -e "s/ .*//"`
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    LIBS="$SAV_LIBS"
+
+
+cat >>confdefs.h <<_ACEOF
+#define NL_LIB_NAME  "$LIB_NAME"
+_ACEOF
+
+# Need to define NL_IPVS_LIB_NAME
+	    else
+               if test 1 -ge 2; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -7003,15 +7177,17 @@ $as_echo "#define _HAVE_LIBNL1_  1 " >>confdefs.h
     eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
 
 
-          BUILD_OPTIONS="$BUILD_OPTIONS LIBNL1"
+              BUILD_OPTIONS="$BUILD_OPTIONS LIBNL1"
+	    fi
 
 else
 
-          { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: keepalived will be built without libnl support." >&5
+            { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: keepalived will be built without libnl support." >&5
 $as_echo "$as_me: WARNING: keepalived will be built without libnl support." >&2;}
 
 fi
 
+      fi
 
 fi
 
@@ -7424,6 +7600,7 @@ if test -n "$enable_dynamic_linking"; then
   enable_libiptc_dynamic=$enable_dynamic_linking
   enable_libipset_dynamic=$enable_dynamic_linking
   enable_libxtables_dynamic=$enable_dynamic_linking
+  enable_libnl_dynamic=$enable_dynamic_linking
 fi
 
 USE_LIBIPTC=No

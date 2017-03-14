@@ -40,6 +40,8 @@
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
+#include "logger.h"
+
 
 typedef struct ipvs_servicedest_s {
 	struct ip_vs_service_user	svc;
@@ -52,9 +54,52 @@ static void* ipvs_func = NULL;
 #ifdef LIBIPVS_USE_NL
 #ifdef _HAVE_LIBNL1_
 #define nl_sock		nl_handle
+#ifndef _LIBNL_DYNAMIC_
 #define nl_socket_alloc	nl_handle_alloc
 #define nl_socket_free	nl_handle_destroy
 #endif
+#endif
+
+#ifdef _LIBNL_DYNAMIC_
+#include <dlfcn.h>
+
+/* The addresses of the functions we want */
+int (*genl_connect_addr)(struct nl_sock *);
+int (*genl_ctrl_resolve_addr)(struct nl_sock *, const char *);
+int (*genlmsg_parse_addr)(struct nlmsghdr *, int, struct nlattr **, int, struct nla_policy *);
+void * (*genlmsg_put_addr)(struct nl_msg *, uint32_t, uint32_t, int, int, int, uint8_t, uint8_t);
+int (*nla_nest_end_addr)(struct nl_msg *, struct nlattr *);
+struct nlattr * (*nla_nest_start_addr)(struct nl_msg *, int);
+int (*nla_put_daddr)(struct nl_msg *, int, int, const void *);
+struct nl_sock * (*nl_socket_alloc_addr)(void);
+void (*nl_socket_free_addr)(struct nl_sock *);
+struct nl_msg * (*nlmsg_alloc_addr)(void);
+void (*nlmsg_free_addr)(struct nl_msg *);
+struct nlmsghdr * (*nlmsg_hdr_addr)(struct nl_msg *);
+int (*nl_recvmsgs_default_addr)(struct nl_sock *);
+int (*nl_send_auto_complete_addr)(struct nl_sock *,  struct nl_msg *);
+int (*nl_socket_modify_cb_addr)(struct nl_sock *, enum nl_cb_type, enum nl_cb_kind, nl_recvmsg_msg_cb_t, void *);
+
+/* We can make it look as though normal linking is being used */
+#define genl_connect (*genl_connect_addr)
+#define genl_ctrl_resolve (*genl_ctrl_resolve_addr)
+#define genlmsg_parse (*genlmsg_parse_addr)
+#define genlmsg_put (*genlmsg_put_addr)
+#define nla_nest_end (*nla_nest_end_addr)
+#define nla_nest_start (*nla_nest_start_addr)
+#define nla_put (*nla_put_daddr)
+#define nl_socket_alloc (*nl_socket_alloc_addr)
+#define nl_socket_free (*nl_socket_free_addr)
+#define nlmsg_alloc (*nlmsg_alloc_addr)
+#define nlmsg_free (*nlmsg_free_addr)
+#define nlmsg_hdr (*nlmsg_hdr_addr)
+#define nl_recvmsgs_default (*nl_recvmsgs_default_addr)
+#define nl_send_auto_complete (*nl_send_auto_complete_addr)
+#define nl_socket_modify_cb (*nl_socket_modify_cb_addr)
+
+static void* libnl_handle;
+#endif
+
 static struct nl_sock *sock = NULL;
 static int family;
 static bool try_nl = true;
@@ -313,6 +358,50 @@ static int ipvs_getinfo(void)
 	return getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,
 			  (char *)&ipvs_info, &len);
 }
+
+#ifdef _LIBNL_DYNAMIC_
+bool
+libnl_init(void)
+{
+	if (libnl_handle)
+		return true;
+
+	/* Attempt to open the ipset library */
+#ifdef _HAVE_LIBNL1_
+	if (!(libnl_handle = dlopen("libnl.so", RTLD_NOW)) &&
+	    !(libnl_handle = dlopen(NL_LIB_NAME, RTLD_NOW))) {
+#else
+	if (!(libnl_handle = dlopen("libnl-genl-3.0.so", RTLD_NOW)) &&
+	    !(libnl_handle = dlopen(NL3_GENL_LIB_NAME, RTLD_NOW))) {
+#endif
+		log_message(LOG_INFO, "Unable to load nl library - %s", dlerror());
+		return false;
+	}
+
+	genl_connect_addr = dlsym(libnl_handle, "genl_connect");
+	genl_ctrl_resolve_addr = dlsym(libnl_handle, "genl_ctrl_resolve");
+	genlmsg_parse_addr = dlsym(libnl_handle, "genlmsg_parse");
+	genlmsg_put_addr = dlsym(libnl_handle, "genlmsg_put");
+	nla_nest_end_addr = dlsym(libnl_handle, "nla_nest_end");
+	nla_nest_start_addr = dlsym(libnl_handle, "nla_nest_start");
+	nla_put_daddr = dlsym(libnl_handle, "nla_put");
+#ifdef _HAVE_LIBNL1_
+	nl_socket_alloc_addr = dlsym(libnl_handle, "nl_handle_alloc");
+	nl_socket_free_addr = dlsym(libnl_handle, "nl_handle_destroy");
+#else
+	nl_socket_alloc_addr = dlsym(libnl_handle, "nl_socket_alloc");
+	nl_socket_free_addr = dlsym(libnl_handle, "nl_socket_free");
+#endif
+	nlmsg_alloc_addr = dlsym(libnl_handle, "nlmsg_alloc");
+	nlmsg_free_addr = dlsym(libnl_handle, "nlmsg_free");
+	nlmsg_hdr_addr = dlsym(libnl_handle, "nlmsg_hdr");
+	nl_recvmsgs_default_addr = dlsym(libnl_handle, "nl_recvmsgs_default");
+	nl_send_auto_complete_addr = dlsym(libnl_handle, "nl_send_auto_complete");
+	nl_socket_modify_cb_addr = dlsym(libnl_handle, "nl_socket_modify_cb");
+
+	return true;
+}
+#endif
 #endif
 
 int ipvs_init(void)
@@ -323,9 +412,15 @@ int ipvs_init(void)
 	ipvs_func = ipvs_init;
 
 #ifdef LIBIPVS_USE_NL
+#ifdef _LIBNL_DYNAMIC_
+	try_nl = libnl_init();
+	if (!try_nl)
+		log_message(LOG_INFO, "Note: IPVS with IPv6 will not be supported");
+#else
 	try_nl = true;
+#endif
 
-	if (ipvs_nl_send_message(NULL, NULL, NULL) == 0)
+	if (try_nl && ipvs_nl_send_message(NULL, NULL, NULL) == 0)
 		return ipvs_getinfo();
 
 	try_nl = false;

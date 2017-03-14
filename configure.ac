@@ -44,7 +44,7 @@ AC_DEFUN([add_pkg_config_without_libs],
 
 AC_DEFUN([add_build_opt], [add_to_var([BUILD_OPTIONS], [$1])])
 
-AC_DEFUN([get_lib_name_dir],
+AC_DEFUN([get_lib_name],
   [
     if test $LDD = :; then
       AC_MSG_ERROR([ldd is required for dynamic run-time linking support])
@@ -147,6 +147,8 @@ AC_ARG_ENABLE(libipset-dynamic,
   [AS_HELP_STRING([--disable-libipset-dynamic], [compile with libipset statically linked])])
 AC_ARG_ENABLE(libxtables-dynamic,
   [AS_HELP_STRING([--enable-libxtables-dynamic], [compile with libxtables dynamically linked])])
+AC_ARG_ENABLE(libnl-dynamic,
+  [AS_HELP_STRING([--enable-libnl-dynamic], [compile with libnl dynamically linked])])
 AC_ARG_ENABLE(libiptc,
   [AS_HELP_STRING([--disable-libiptc], [compile without libiptc])])
 AC_ARG_ENABLE(libipset,
@@ -412,36 +414,74 @@ if test .${enable_libnl} != .no; then
   AC_CHECK_LIB(nl-3, nl_socket_alloc,
     [
       NETLINK_VER=3
-      AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
-      add_build_opt([LIBNL3])
-      add_pkg_config([libnl-3.0])
-      NL3_CFLAGS="`$PKG_CONFIG --cflags libnl-3.0`"
+      NEED_NL3=No
 
-      if test .$enable_lvs != .no -a .$enable_lvs != .no; then
+      if test .$enable_lvs != .no; then
 	AC_CHECK_LIB(nl-genl-3, genl_connect, [],
 	  [AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])])
 	IPVS_USE_NL=Yes
-	add_pkg_config([libnl-genl-3.0])
+	if test .$enable_libnl_dynamic = .yes; then
+	  add_pkg_config_without_libs([libnl-genl-3.0])
+# We need to get lib names from pkg-config --libs
+# Need to define NL_IPVS_LIB_NAME
+	  get_lib_name([nl-genl-3])
+	  AC_DEFINE_UNQUOTED([NL3_GENL_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-genl-3.0 library name])
+	else
+	  add_pkg_config([libnl-genl-3.0])
+	fi
+	NEED_NL3=Yes
       fi
 
       if test .$enable_routes != .no -a .$enable_vrrp != .no; then
 	AC_CHECK_LIB(nl-route-3, nl_rtgen_request, [],
 	  [AC_MSG_ERROR([libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3.])])
-	add_pkg_config([libnl-route-3.0])
+	if test .$enable_libnl_dynamic = .yes; then
+	  add_pkg_config_without_libs([libnl-route-3.0])
+	  get_lib_name([nl-route-3])
+	  AC_DEFINE_UNQUOTED([NL3_ROUTE_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-route-3.0 library name])
+	else
+	  add_pkg_config([libnl-route-3.0])
+	fi
+	NEED_NL3=Yes
+      fi
+
+      if test $NEED_NL3 = Yes; then
+        AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
+        add_build_opt([LIBNL3])
+# The next line is probably needed for IPV4_DEVCONF below, so move this block later
+#	add_pkg_config([libnl-3.0])
+	if test .$enable_libnl_dynamic = .yes; then
+          add_build_opt([LIBNL3_DYNAMIC])
+	  AC_DEFINE([_LIBNL_DYNAMIC_], [ 1 ], [Define to 1 if building with libnl dynamic linking])
+	  NEED_LIBDL=Yes
+	fi
+        NL3_CFLAGS="`$PKG_CONFIG --cflags libnl-3.0`"
       fi
     ],
     [
-      AC_CHECK_LIB(nl, nl_socket_modify_cb,
-        [
-          IPVS_USE_NL=Yes
-          NETLINK_VER=1
-          AC_DEFINE([_HAVE_LIBNL1_], [ 1 ], [Define to 1 if using libnl-1])
-          add_pkg_config([libnl-1])
-          add_build_opt([LIBNL1])
-        ],
-        [
-          AC_MSG_WARN([keepalived will be built without libnl support.])
-        ])
+      if test .$enable_lvs != .no; then
+        AC_CHECK_LIB(nl, nl_socket_modify_cb,
+          [
+            IPVS_USE_NL=Yes
+            NETLINK_VER=1
+            AC_DEFINE([_HAVE_LIBNL1_], [ 1 ], [Define to 1 if using libnl-1])
+	    if test .$enable_libnl_dynamic = .yes; then
+              add_pkg_config_without_libs([libnl-1])
+              add_build_opt([LIBNL1_DYNAMIC])
+	      AC_DEFINE([_LIBNL_DYNAMIC_], [ 1 ], [Define to 1 if building with libnl dynamic linking])
+	      NEED_LIBDL=Yes
+	      get_lib_name([nl])
+	      AC_DEFINE_UNQUOTED([NL_LIB_NAME], [ "$LIB_NAME" ], [Define the nl library name])
+# Need to define NL_IPVS_LIB_NAME
+	    else
+              add_pkg_config([libnl-1])
+              add_build_opt([LIBNL1])
+	    fi
+          ],
+          [
+            AC_MSG_WARN([keepalived will be built without libnl support.])
+          ])
+      fi
     ])
   
   if test $NETLINK_VER -ne 0; then
@@ -548,6 +588,7 @@ if test -n "$enable_dynamic_linking"; then
   enable_libiptc_dynamic=$enable_dynamic_linking
   enable_libipset_dynamic=$enable_dynamic_linking
   enable_libxtables_dynamic=$enable_dynamic_linking
+  enable_libnl_dynamic=$enable_dynamic_linking
 fi
 
 dnl ----[Check for iptables libraries]----
@@ -583,9 +624,9 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
 	  add_build_opt([LIBIPTC_DYNAMIC])
 	  AC_DEFINE([_LIBIPTC_DYNAMIC_], [ 1 ], [Define to 1 if building with libiptc dynamic linking])
 	  NEED_LIBDL=Yes
-	  get_lib_name_dir([ip4tc])
+	  get_lib_name([ip4tc])
 	  AC_DEFINE_UNQUOTED([IP4TC_LIB_NAME], [ "$LIB_NAME" ], [Define the ip4tc library name])
-	  get_lib_name_dir([ip6tc])
+	  get_lib_name([ip6tc])
 	  AC_DEFINE_UNQUOTED([IP6TC_LIB_NAME], [ "$LIB_NAME" ], [Define the ip6tc library name])
 	fi
       ],
@@ -649,7 +690,7 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
 	      AC_DEFINE([_LIBIPSET_DYNAMIC_], [ 1 ], [Define to 1 if building with libipset dynamic linking])
               add_build_opt([LIBIPSET_DYNAMIC])
 	      NEED_LIBDL=Yes
-	      get_lib_name_dir([ipset])
+	      get_lib_name([ipset])
 	      AC_DEFINE_UNQUOTED([IPSET_LIB_NAME], [ "$LIB_NAME" ], [Define the ipset library name])
 	    else
               add_build_opt([LIBIPSET])
@@ -661,7 +702,7 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
 	      AC_DEFINE([_LIBXTABLES_DYNAMIC_], [ 1 ], [Define to 1 if building with libxtables dynamic linking])
 	      add_build_opt([XTABLES_DYNAMIC])
 	      NEED_LIBDL=Yes
-	      get_lib_name_dir([xtables])
+	      get_lib_name([xtables])
 	      AC_DEFINE_UNQUOTED([XTABLES_LIB_NAME], [ "$LIB_NAME" ], [Define the xtables library name])
 	    fi
 
