@@ -44,6 +44,7 @@
 #ifdef _LIBNL_DYNAMIC_
 #include "libnl_link.h"
 #endif
+#endif
 
 #include "libipvs.h"
 
@@ -63,6 +64,7 @@ static int sockfd = -1;
 static void* ipvs_func = NULL;
 
 
+#ifdef LIBIPVS_USE_NL
 static struct nl_sock *sock = NULL;
 static int family;
 static bool try_nl = true;
