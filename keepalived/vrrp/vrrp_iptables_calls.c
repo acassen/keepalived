@@ -49,6 +49,10 @@
 #include <unistd.h>
 #include <signal.h>
 #include <stdint.h>
+#ifdef _LIBXTABLES_DYNAMIC_
+#include <sys/types.h>
+#include <sys/stat.h>
+#endif
 
 #include "vrrp_iptables_calls.h"
 #include "memory.h"
@@ -403,6 +407,8 @@ int load_mod_xt_set(void)
 #ifdef _LIBXTABLES_DYNAMIC_
 	void *libxtables_handle;
 	int (*xtables_insmod_addr)(const char *, const char *, bool);
+	bool insmod_succeeded = false;
+	struct stat stat_buf;
 #endif
 
 	/* Enable SIGCHLD since xtables_insmod forks/execs modprobe */
@@ -414,11 +420,21 @@ int load_mod_xt_set(void)
 	if (!(libxtables_handle = dlopen("libxtables.so", RTLD_NOW)) &&
 	    !(libxtables_handle = dlopen(XTABLES_LIB_NAME, RTLD_NOW))) {
 		log_message(LOG_INFO, "Unable to load xtables library - %s", dlerror());
-		return false;
 	}
-
-	if (!(xtables_insmod_addr = dlsym(libxtables_handle, "xtables_insmod"))) {
+	else if (!(xtables_insmod_addr = dlsym(libxtables_handle, "xtables_insmod"))) {
+		log_message(LOG_INFO, "Failed to dynamic link xtables_insmod");
 		dlclose(libxtables_handle);
+	}
+	else
+		insmod_succeeded = true;
+
+	if (!insmod_succeeded) {
+		/* See if the module is loaded anyway */
+		if (!stat("/sys/module/xt_set", &stat_buf) &&
+		    (stat_buf.st_mode & S_IFDIR))
+			return true;
+
+		log_message(LOG_INFO, "Module xt_set cannot be loaded; not using ipsets");
 		return false;
 	}
 #endif
@@ -822,14 +838,15 @@ bool iptables_lib_init(void)
 		return false;
 	}
 
-	iptc_init_addr = dlsym(libip4tc_handle, "iptc_init");
-	iptc_free_addr = dlsym(libip4tc_handle, "iptc_free");
-	iptc_is_chain_addr = dlsym(libip4tc_handle,"iptc_is_chain");
-	iptc_insert_entry_addr = dlsym(libip4tc_handle,"iptc_insert_entry");
-	iptc_append_entry_addr = dlsym(libip4tc_handle,"iptc_append_entry");
-	iptc_delete_entry_addr = dlsym(libip4tc_handle,"iptc_delete_entry");
-	iptc_commit_addr = dlsym(libip4tc_handle,"iptc_commit");
-	iptc_strerror_addr = dlsym(libip4tc_handle,"iptc_strerror");
+	if (!(iptc_init_addr = dlsym(libip4tc_handle, "iptc_init")) ||
+	    !(iptc_free_addr = dlsym(libip4tc_handle, "iptc_free")) ||
+	    !(iptc_is_chain_addr = dlsym(libip4tc_handle,"iptc_is_chain")) ||
+	    !(iptc_insert_entry_addr = dlsym(libip4tc_handle,"iptc_insert_entry")) ||
+	    !(iptc_append_entry_addr = dlsym(libip4tc_handle,"iptc_append_entry")) ||
+	    !(iptc_delete_entry_addr = dlsym(libip4tc_handle,"iptc_delete_entry")) ||
+	    !(iptc_commit_addr = dlsym(libip4tc_handle,"iptc_commit")) ||
+	    !(iptc_strerror_addr = dlsym(libip4tc_handle,"iptc_strerror")))
+		log_message(LOG_INFO, "Failed to dynamic link an iptc function");
 
 	/* Attempt to open the ip6tc library */
 	if (!(libip6tc_handle = dlopen("libip6tc.so", RTLD_NOW)) &&
@@ -842,14 +859,15 @@ bool iptables_lib_init(void)
 		return false;
 	}
 
-	ip6tc_init_addr = dlsym(libip6tc_handle, "ip6tc_init");
-	ip6tc_free_addr = dlsym(libip6tc_handle, "ip6tc_free");
-	ip6tc_is_chain_addr = dlsym(libip6tc_handle,"ip6tc_is_chain");
-	ip6tc_insert_entry_addr = dlsym(libip6tc_handle,"ip6tc_insert_entry");
-	ip6tc_append_entry_addr = dlsym(libip6tc_handle,"ip6tc_append_entry");
-	ip6tc_delete_entry_addr = dlsym(libip6tc_handle,"ip6tc_delete_entry");
-	ip6tc_commit_addr = dlsym(libip6tc_handle,"ip6tc_commit");
-	ip6tc_strerror_addr = dlsym(libip6tc_handle,"ip6tc_strerror");
+	if (!(ip6tc_init_addr = dlsym(libip6tc_handle, "ip6tc_init")) ||
+	    !(ip6tc_free_addr = dlsym(libip6tc_handle, "ip6tc_free")) ||
+	    !(ip6tc_is_chain_addr = dlsym(libip6tc_handle,"ip6tc_is_chain")) ||
+	    !(ip6tc_insert_entry_addr = dlsym(libip6tc_handle,"ip6tc_insert_entry")) ||
+	    !(ip6tc_append_entry_addr = dlsym(libip6tc_handle,"ip6tc_append_entry")) ||
+	    !(ip6tc_delete_entry_addr = dlsym(libip6tc_handle,"ip6tc_delete_entry")) ||
+	    !(ip6tc_commit_addr = dlsym(libip6tc_handle,"ip6tc_commit")) ||
+	    !(ip6tc_strerror_addr = dlsym(libip6tc_handle,"ip6tc_strerror")))
+		log_message(LOG_INFO, "Failed to dynamic link an ip6tc function");
 
 	return true;
 }

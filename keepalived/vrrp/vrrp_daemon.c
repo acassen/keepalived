@@ -66,6 +66,9 @@
 #include "main.h"
 #include "memory.h"
 #include "parser.h"
+#ifdef _LIBNL_DYNAMIC_
+#include "libnl_link.h"
+#endif
 
 /* Forward declarations */
 static int print_vrrp_data(thread_t * thread);
@@ -525,6 +528,10 @@ start_vrrp_child(void)
 
 	/* Signal handling initialization */
 	vrrp_signal_init();
+
+#ifdef _LIBNL_DYNAMIC_
+	libnl_init();
+#endif
 
 	/* Start VRRP daemon */
 	start_vrrp();

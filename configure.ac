@@ -22,18 +22,31 @@ AC_DEFUN([add_to_var_ind_unique],
   ])
 
 AC_DEFUN([add_pkg_config],
-  [ if test $# -ge 2; then
+  [ if test -n "$2"; then
       KA_PKG_PFX=$2
     else
       KA_PKG_PFX=KA
     fi
-    add_to_var_ind_unique([${KA_PKG_PFX}_CPPFLAGS], [$($PKG_CONFIG --cflags-only-I $1)])
-    add_to_var_ind_unique([${KA_PKG_PFX}_CFLAGS], [$($PKG_CONFIG --cflags-only-other $1)])
-    add_to_var_ind_unique([${KA_PKG_PFX}_LIBS], [$($PKG_CONFIG --libs $1)])
+    add_to_var_ind_unique([${KA_PKG_PFX}_CPPFLAGS], [`$PKG_CONFIG --cflags-only-I $1`])
+    add_to_var_ind_unique([${KA_PKG_PFX}_CFLAGS], [`$PKG_CONFIG --cflags-only-other $1`])
+    add_to_var_ind_unique([${KA_PKG_PFX}_LIBS], [`$PKG_CONFIG --libs $1`])
+
+    if test .$3 = .remove-requires; then
+      REQUIRES=`$PKG_CONFIG --print-requires $1`
+      eval var=\$${KA_PKG_PFX}_LIBS
+      for r in $REQUIRES; do
+	REQ_LIBS=`$PKG_CONFIG --libs $r`
+	for l in $REQ_LIBS; do
+	  var=`echo " $var " | sed -e "s/ $l / /g"`
+	done
+      done
+      var=`echo $var | sed -e "s/^ *//" -e "s/  *$//"`
+      eval ${KA_PKG_PFX}_LIBS="\"$var\""
+    fi
   ])
 
 AC_DEFUN([add_pkg_config_without_libs],
-  [ if test $# -ge 2; then
+  [ if test -n "$2"; then
       KA_PKG_PFX=$2
     else
       KA_PKG_PFX=KA
@@ -330,6 +343,14 @@ AC_CHECK_FUNCS([dup2 getcwd gettimeofday memmove memset select setenv socket str
 dnl - pipe2() since Linux 2.6.27 and glibc 2.9.
 AC_CHECK_FUNCS([pipe2], [add_build_opt([PIPE2])])
 
+dnl - Do we want to override dynamic/static linking?
+if test -n "$enable_dynamic_linking"; then
+  enable_libiptc_dynamic=$enable_dynamic_linking
+  enable_libipset_dynamic=$enable_dynamic_linking
+  enable_libxtables_dynamic=$enable_dynamic_linking
+  enable_libnl_dynamic=$enable_dynamic_linking
+fi
+
 # check for missing definition - added in glibc 2.8
 AC_CHECK_DECLS([ETHERTYPE_IPV6], [],
   [
@@ -410,52 +431,103 @@ AM_CONDITIONAL([BUILD_GENHASH], [test $BUILD_GENHASH = Yes])
 dnl ----[ Checks for libraries ]----
 NETLINK_VER=0
 IPVS_USE_NL=No
+IPV4_DEVCONF=No
 if test .${enable_libnl} != .no; then
-  AC_CHECK_LIB(nl-3, nl_socket_alloc,
+  $PKG_CONFIG --exists libnl-3.0
+  if test $? -eq 0; then
+    add_pkg_config([libnl-3.0], [NL3], [remove-requires])
+    NL3_LIB=`echo $NL3_LIBS | sed -e "s/-l//g"`
+  fi
+  AC_CHECK_LIB($NL3_LIB, nl_socket_alloc,
     [
       NETLINK_VER=3
       NEED_NL3=No
+      add_pkg_config([libnl-3.0], [NL3])
 
       if test .$enable_lvs != .no; then
-	AC_CHECK_LIB(nl-genl-3, genl_connect, [],
+	add_pkg_config([libnl-genl-3.0], [GENL], [remove-requires])
+	GENL_LIB=`echo $GENL_LIBS | sed -e "s/-l//g"`
+	AC_CHECK_LIB($GENL_LIB, genl_connect, [],
 	  [AC_MSG_ERROR([libnl-3 is installed but not libnl-gen-3. Please, install libnl-gen-3/libnl-genl-3.])])
 	IPVS_USE_NL=Yes
 	if test .$enable_libnl_dynamic = .yes; then
 	  add_pkg_config_without_libs([libnl-genl-3.0])
-# We need to get lib names from pkg-config --libs
-# Need to define NL_IPVS_LIB_NAME
-	  get_lib_name([nl-genl-3])
+	  get_lib_name([$GENL_LIB])
 	  AC_DEFINE_UNQUOTED([NL3_GENL_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-genl-3.0 library name])
 	else
-	  add_pkg_config([libnl-genl-3.0])
+	  add_pkg_config([libnl-genl-3.0], [], [remove-requires])
 	fi
 	NEED_NL3=Yes
       fi
 
-      if test .$enable_routes != .no -a .$enable_vrrp != .no; then
-	AC_CHECK_LIB(nl-route-3, nl_rtgen_request, [],
+      if test $NETLINK_VER -eq 3 -a .$disable_vrrp != .no; then
+	NEED_NL3=Yes
+
+        dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
+        SAV_CPPFLAGS="$CPPFLAGS"
+        CPPFLAGS="$CPP_FLAGS $kernelinc"
+        IPV4_DEVCONF=Yes
+        AC_CHECK_DECLS([
+          IPV4_DEVCONF_ARP_IGNORE,
+          IPV4_DEVCONF_ACCEPT_LOCAL,
+          IPV4_DEVCONF_RP_FILTER,
+          IPV4_DEVCONF_ARPFILTER],
+          [],
+          [
+            IPV4_DEVCONF=No
+            break
+          ],
+          [[#include <linux/ip.h>]])
+        if test $IPV4_DEVCONF = Yes; then
+          CPPFLAGS="$SAV_CPPFLAGS $NL3_CPPFLAGS"
+          AC_CHECK_HEADERS([netlink/route/link.h netlink/route/link/inet.h], [], [AC_MSG_ERROR([libnl-3 route link headers missing])])
+          AC_DEFINE([_HAVE_IPV4_DEVCONF_], [ 1 ], [Define to 1 if have IPv4 netlink device configuration])
+          add_build_opt([IPV4_DEVCONF])
+
+          dnl ----[Check if have net/if.h and netlink/route/link.h namespace collision]----
+          dnl -- Resolved in libnl3-3.2.26 (release 30/3/2015)
+          AC_MSG_CHECKING([for net/if.h and libnl3/netlink/route/link.h namespace collision])
+          AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+              #include <net/if.h>
+              #include <netlink/route/link.h>
+            ]])], [
+              AC_MSG_RESULT([no])
+            ], [
+              AC_MSG_RESULT([yes])
+              AC_DEFINE([_HAVE_IF_H_LINK_H_COLLISION_], [ 1 ], [Define to 1 if <net/if.h> and <netlink/route/link.h> namespace collision])
+              add_build_opt([IF_H_LINK_H_COLLISION])
+            ])
+        fi
+        CPPFLAGS="$SAV_CPPFLAGS"
+      fi
+
+      if test $IPV4_DEVCONF = Yes; then
+	add_pkg_config([libnl-route-3.0], [ROUTE], [remove-requires])
+	ROUTE_LIB=`echo $ROUTE_LIBS | sed -e "s/-l//g"`
+	AC_CHECK_LIB($ROUTE_LIB, nl_rtgen_request, [],
 	  [AC_MSG_ERROR([libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3.])])
 	if test .$enable_libnl_dynamic = .yes; then
 	  add_pkg_config_without_libs([libnl-route-3.0])
-	  get_lib_name([nl-route-3])
+	  get_lib_name([$ROUTE_LIB])
 	  AC_DEFINE_UNQUOTED([NL3_ROUTE_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-route-3.0 library name])
 	else
-	  add_pkg_config([libnl-route-3.0])
+	  add_pkg_config([libnl-route-3.0], [], [remove-requires])
 	fi
-	NEED_NL3=Yes
       fi
 
       if test $NEED_NL3 = Yes; then
         AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
         add_build_opt([LIBNL3])
-# The next line is probably needed for IPV4_DEVCONF below, so move this block later
-#	add_pkg_config([libnl-3.0])
 	if test .$enable_libnl_dynamic = .yes; then
-          add_build_opt([LIBNL3_DYNAMIC])
+          add_build_opt([LIBNL_DYNAMIC])
+	  add_pkg_config_without_libs([libnl-3.0])
 	  AC_DEFINE([_LIBNL_DYNAMIC_], [ 1 ], [Define to 1 if building with libnl dynamic linking])
 	  NEED_LIBDL=Yes
+	  get_lib_name([$NL3_LIB])
+	  AC_DEFINE_UNQUOTED([NL3_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-3 library name])
+	else
+	  add_pkg_config([libnl-3.0])
 	fi
-        NL3_CFLAGS="`$PKG_CONFIG --cflags libnl-3.0`"
       fi
     ],
     [
@@ -465,17 +537,16 @@ if test .${enable_libnl} != .no; then
             IPVS_USE_NL=Yes
             NETLINK_VER=1
             AC_DEFINE([_HAVE_LIBNL1_], [ 1 ], [Define to 1 if using libnl-1])
+            add_build_opt([LIBNL1])
 	    if test .$enable_libnl_dynamic = .yes; then
               add_pkg_config_without_libs([libnl-1])
-              add_build_opt([LIBNL1_DYNAMIC])
+              add_build_opt([LIBNL_DYNAMIC])
 	      AC_DEFINE([_LIBNL_DYNAMIC_], [ 1 ], [Define to 1 if building with libnl dynamic linking])
 	      NEED_LIBDL=Yes
 	      get_lib_name([nl])
 	      AC_DEFINE_UNQUOTED([NL_LIB_NAME], [ "$LIB_NAME" ], [Define the nl library name])
-# Need to define NL_IPVS_LIB_NAME
 	    else
               add_pkg_config([libnl-1])
-              add_build_opt([LIBNL1])
 	    fi
           ],
           [
@@ -489,58 +560,18 @@ if test .${enable_libnl} != .no; then
     CPPFLAGS="$CPPFLAGS $kernelinc"
     AC_CHECK_HEADERS([linux/rtnetlink.h], [], [AC_MSG_ERROR([Unusable linux/rtnetlink.h])], [$NETLINK_EXTRA_INCLUDE])
     if test $NETLINK_VER -eq 3; then
-      CPPFLAGS="$SAV_CPPFLAGS $NL3_CFLAGS"
+      CPPFLAGS="$SAV_CPPFLAGS $NL3_CPPFLAGS"
       AC_CHECK_HEADERS([libnfnetlink/libnfnetlink.h netlink/netlink.h], [], [AC_MSG_ERROR([netlink headers missing])])
       if test .$disable_lvs != .no; then
         AC_CHECK_HEADERS([netlink/genl/ctrl.h netlink/genl/genl.h], [], [AC_MSG_ERROR([netlink genl headers missing])])
       fi
     fi
     CPPFLAGS="$SAV_CPPFLAGS"
-
-    if test $NETLINK_VER -eq 3 -a .$disable_vrrp != .no; then
-      dnl ----[Check have IPV4_DEVCONF defines - since Linux 3.11]----
-      SAV_CPPFLAGS="$CPPFLAGS"
-      CPPFLAGS="$CPP_FLAGS $kernelinc"
-      IPV4_DEVCONF=Yes
-      AC_CHECK_DECLS([
-        IPV4_DEVCONF_ARP_IGNORE,
-        IPV4_DEVCONF_ACCEPT_LOCAL,
-        IPV4_DEVCONF_RP_FILTER,
-        IPV4_DEVCONF_ARPFILTER],
-        [],
-        [
-          IPV4_DEVCONF=No
-          break
-        ],
-        [[#include <linux/ip.h>]])
-      if test $IPV4_DEVCONF = Yes; then
-        CPPFLAGS="$SAV_CPPFLAGS $NL3_CFLAGS"
-        AC_CHECK_HEADERS([netlink/route/link.h netlink/route/link/inet.h], [], [AC_MSG_ERROR([libnl-3 route link headers missing])])
-        AC_DEFINE([_HAVE_IPV4_DEVCONF_], [ 1 ], [Define to 1 if have IPv4 netlink device configuration])
-        add_build_opt([IPV4_DEVCONF])
-
-        dnl ----[Check if have net/if.h and netlink/route/link.h namespace collision]----
-        dnl -- Resolved in libnl3-3.2.26 (release 30/3/2015)
-        AC_MSG_CHECKING([for net/if.h and libnl3/netlink/route/link.h namespace collision])
-        AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-            #include <net/if.h>
-            #include <netlink/route/link.h>
-          ]])], [
-            AC_MSG_RESULT([no])
-          ], [
-            AC_MSG_RESULT([yes])
-            AC_DEFINE([_HAVE_IF_H_LINK_H_COLLISION_], [ 1 ], [Define to 1 if <net/if.h> and <netlink/route/link.h> namespace collision])
-            add_build_opt([IF_H_LINK_H_COLLISION])
-          ])
-      fi
-      CPPFLAGS="$SAV_CPPFLAGS"
-    else
-      IPV4_DEVCONF=No
-    fi
   fi
 fi
 AM_CONDITIONAL([LIBNL1], [test $NETLINK_VER -eq 1])
 AM_CONDITIONAL([LIBNL3], [test $NETLINK_VER -eq 3])
+AM_CONDITIONAL([LIBNL_DYNAMIC], [test .$enable_libnl_dynamic = .yes -a $NETLINK_VER -ne 0])
 
 dnl -- Check for the following variables introduced at various times into Linux
 dnl --FRA_OIFNAME		dnl -- Linux 2.6.33
@@ -581,14 +612,6 @@ if test ${ac_cv_have_decl_RTA_ENCAP}; then
       add_build_opt[${flag}]
     fi
   done
-fi
-
-dnl - Do we want to override dynamic/static linking?
-if test -n "$enable_dynamic_linking"; then
-  enable_libiptc_dynamic=$enable_dynamic_linking
-  enable_libipset_dynamic=$enable_dynamic_linking
-  enable_libxtables_dynamic=$enable_dynamic_linking
-  enable_libnl_dynamic=$enable_dynamic_linking
 fi
 
 dnl ----[Check for iptables libraries]----

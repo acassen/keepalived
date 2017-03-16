@@ -213,15 +213,16 @@ bool ipset_init(void)
 		return false;
 	}
 
-	ipset_session_init_addr = dlsym(libipset_handle, "ipset_session_init");
-	ipset_session_fini_addr = dlsym(libipset_handle, "ipset_session_fini");
-	ipset_session_data_addr = dlsym(libipset_handle,"ipset_session_data");
-	ipset_session_error_addr = dlsym(libipset_handle,"ipset_session_error");
-	ipset_envopt_parse_addr = dlsym(libipset_handle,"ipset_envopt_parse");
-	ipset_type_get_addr = dlsym(libipset_handle,"ipset_type_get");
-	ipset_data_set_addr = dlsym(libipset_handle,"ipset_data_set");
-	ipset_cmd_addr = dlsym(libipset_handle,"ipset_cmd");
-	ipset_load_types_addr = dlsym(libipset_handle,"ipset_load_types");
+	if (!(ipset_session_init_addr = dlsym(libipset_handle, "ipset_session_init")) ||
+	    !(ipset_session_fini_addr = dlsym(libipset_handle, "ipset_session_fini")) ||
+	    !(ipset_session_data_addr = dlsym(libipset_handle,"ipset_session_data")) ||
+	    !(ipset_session_error_addr = dlsym(libipset_handle,"ipset_session_error")) ||
+	    !(ipset_envopt_parse_addr = dlsym(libipset_handle,"ipset_envopt_parse")) ||
+	    !(ipset_type_get_addr = dlsym(libipset_handle,"ipset_type_get")) ||
+	    !(ipset_data_set_addr = dlsym(libipset_handle,"ipset_data_set")) ||
+	    !(ipset_cmd_addr = dlsym(libipset_handle,"ipset_cmd")) ||
+	    !(ipset_load_types_addr = dlsym(libipset_handle,"ipset_load_types")))
+		log_message(LOG_INFO, "Failed to dynamic link an ipset function");
 #endif
 
 	ipset_load_types();
