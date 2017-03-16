@@ -32,6 +32,18 @@
 #include <netlink/netlink.h>
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
+
+#ifdef _HAVE_LIBNL1_
+#define nl_sock		nl_handle
+#ifndef _LIBNL_DYNAMIC_
+#define nl_socket_alloc	nl_handle_alloc
+#define nl_socket_free	nl_handle_destroy
+#endif
+#endif
+
+#ifdef _LIBNL_DYNAMIC_
+#include "libnl_link.h"
+#endif
 #endif
 
 #include "libipvs.h"
@@ -40,6 +52,8 @@
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
+#include "logger.h"
+
 
 typedef struct ipvs_servicedest_s {
 	struct ip_vs_service_user	svc;
@@ -49,12 +63,8 @@ typedef struct ipvs_servicedest_s {
 static int sockfd = -1;
 static void* ipvs_func = NULL;
 
+
 #ifdef LIBIPVS_USE_NL
-#ifdef FALLBACK_LIBNL1
-#define nl_sock		nl_handle
-#define nl_socket_alloc	nl_handle_alloc
-#define nl_socket_free	nl_handle_destroy
-#endif
 static struct nl_sock *sock = NULL;
 static int family;
 static bool try_nl = true;
@@ -181,7 +191,7 @@ nla_get_s32(struct nlattr *attr)
 }
 #endif
 
-#ifndef FALLBACK_LIBNL1
+#ifndef _HAVE_LIBNL1_
 static int nlerr2syserr(int err)
 {
 	switch (abs(err)) {
@@ -269,8 +279,9 @@ fail_genl:
 	nl_socket_free(sock);
 	sock = NULL;
 	nlmsg_free(msg);
+#ifdef _HAVE_LIBNL1_
 	errno = err;
-#ifndef FALLBACK_LIBNL1
+#else
 	errno = nlerr2syserr(err);
 #endif
 	return -1;
@@ -322,9 +333,15 @@ int ipvs_init(void)
 	ipvs_func = ipvs_init;
 
 #ifdef LIBIPVS_USE_NL
+#ifdef _LIBNL_DYNAMIC_
+	try_nl = libnl_init();
+	if (!try_nl)
+		log_message(LOG_INFO, "Note: IPVS with IPv6 will not be supported");
+#else
 	try_nl = true;
+#endif
 
-	if (ipvs_nl_send_message(NULL, NULL, NULL) == 0)
+	if (try_nl && ipvs_nl_send_message(NULL, NULL, NULL) == 0)
 		return ipvs_getinfo();
 
 	try_nl = false;

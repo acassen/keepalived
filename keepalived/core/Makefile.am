@@ -31,4 +31,9 @@ if WITH_NAMESPACES
   EXTRA_libcore_a_SOURCES += namespaces.c
 endif
 
+if LIBNL_DYNAMIC
+  libcore_a_LIBADD	+= libnl_link.o
+  EXTRA_libcore_a_SOURCES += libnl_link.c
+endif
+
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@

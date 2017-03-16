@@ -14,9 +14,6 @@
 /* Defined here if not found in <net/ethernet.h>. */
 #undef ETHERTYPE_IPV6
 
-/* Define to 1 if using libnl-1 */
-#undef FALLBACK_LIBNL1
-
 /* Define to 1 if you have the <arpa/inet.h> header file. */
 #undef HAVE_ARPA_INET_H
 
@@ -210,12 +207,6 @@
 
 /* Define to 1 if you have the <libnfnetlink/libnfnetlink.h> header file. */
 #undef HAVE_LIBNFNETLINK_LIBNFNETLINK_H
-
-/* Define to 1 if you have the `nl-genl-3' library (-lnl-genl-3). */
-#undef HAVE_LIBNL_GENL_3
-
-/* Define to 1 if you have the `nl-route-3' library (-lnl-route-3). */
-#undef HAVE_LIBNL_ROUTE_3
 
 /* Define to 1 if you have the `ssl' library (-lssl). */
 #undef HAVE_LIBSSL
@@ -439,11 +430,32 @@
 /* Define to 1 if the system has the type `_Bool'. */
 #undef HAVE__BOOL
 
+/* Define the ip4tc library name */
+#undef IP4TC_LIB_NAME
+
+/* Define the ip6tc library name */
+#undef IP6TC_LIB_NAME
+
+/* Define the ipset library name */
+#undef IPSET_LIB_NAME
+
 /* Define to 1 if libipvs can use netlink */
 #undef LIBIPVS_USE_NL
 
 /* Define to 1 if <linux/netlink.h> needs <sys/socket.h> */
 #undef NETLINK_H_NEEDS_SYS_SOCKET_H
+
+/* Define the nl-genl-3.0 library name */
+#undef NL3_GENL_LIB_NAME
+
+/* Define the nl-3 library name */
+#undef NL3_LIB_NAME
+
+/* Define the nl-route-3.0 library name */
+#undef NL3_ROUTE_LIB_NAME
+
+/* Define the nl library name */
+#undef NL_LIB_NAME
 
 /* Name of package */
 #undef PACKAGE
@@ -472,8 +484,19 @@
 /* Version number of package */
 #undef VERSION
 
+/* Define the xtables library name */
+#undef XTABLES_LIB_NAME
+
 /* Define if <linux/netfilter/x_tables.h> doesnt define it */
 #undef XT_EXTENSION_MAXNAMELEN
+
+/* Define to add guard _IP_SET_H before including <linux/netfilter/xt_set.h>
+   */
+#undef XT_SET_H_ADD_IP_SET_H_GUARD
+
+/* Define to add guard _UAPI_IP_SET_H before including
+   <linux/netfilter/xt_set.h> */
+#undef XT_SET_H_ADD_UAPI_IP_SET_H_GUARD
 
 /* Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>
    */
@@ -515,6 +538,18 @@
 
 /* Define to 1 if have MAC VLAN support */
 #undef _HAVE_VRRP_VMAC_
+
+/* Define to 1 if building with libipset dynamic linking */
+#undef _LIBIPSET_DYNAMIC_
+
+/* Define to 1 if building with libiptc dynamic linking */
+#undef _LIBIPTC_DYNAMIC_
+
+/* Define to 1 if building with libnl dynamic linking */
+#undef _LIBNL_DYNAMIC_
+
+/* Define to 1 if building with libxtables dynamic linking */
+#undef _LIBXTABLES_DYNAMIC_
 
 /* Define to 1 to build with malloc/free checks */
 #undef _MEM_CHECK_

@@ -32,7 +32,9 @@
 
 /* local include */
 #include "vrrp_ipaddress.h"
+#ifdef _WITH_VRRP_AUTH_
 #include "vrrp_ipsecah.h"
+#endif
 #include "vrrp_if.h"
 #include "vrrp_track.h"
 #include "timer.h"
@@ -248,6 +250,7 @@ typedef struct _vrrp_t {
 	/* Authentication data (only valid for VRRPv2) */
 	uint8_t			auth_type;		/* authentification type. VRRP_AUTH_* */
 	uint8_t			auth_data[8];		/* authentification data */
+	seq_counter_t		*ipsecah_counter;
 #endif
 
 	/*
@@ -258,9 +261,6 @@ typedef struct _vrrp_t {
 	 * to warn the user only if the outoing mtu is too small
 	 */
 	int			ip_id;
-
-	/* IPSEC AH counter def (only valid for VRRPv2) --rfc2402.3.3.2 */
-	seq_counter_t		*ipsecah_counter;
 } vrrp_t;
 
 /* VRRP state machine -- rfc2338.6.4 */

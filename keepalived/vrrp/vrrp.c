@@ -1595,7 +1595,9 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	vrrphdr_t *hd;
 	ssize_t ret;
 	unsigned proto = 0;
+#ifdef _WITH_VRRP_AUTH_
 	ipsec_ah_t *ah;
+#endif
 	unsigned master_adver_int;
 	int addr_cmp;
 
@@ -1636,6 +1638,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		/* We receive a lower prio adv we just refresh remote ARP cache */
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received advert with lower priority %d, ours %d"
 				      ", forcing new election", vrrp->iname, hd->priority, vrrp->effective_priority);
+#ifdef _WITH_VRRP_AUTH_
 		if (proto == IPPROTO_IPSEC_AH) {
 			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
 			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
@@ -1644,6 +1647,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) + 1;
 			vrrp->ipsecah_counter->cycle = 0;
 		}
+#endif
 		if (!vrrp->lower_prio_no_advert)
 			vrrp_send_adv(vrrp, vrrp->effective_priority);
 		if (vrrp->garp_lower_prio_rep) {
@@ -1672,6 +1676,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 
 		log_message(LOG_INFO, "VRRP_Instance(%s) Received advert with higher priority %d, ours %d"
 				    , vrrp->iname, hd->priority, vrrp->effective_priority);
+#ifdef _WITH_VRRP_AUTH_
 		if (proto == IPPROTO_IPSEC_AH) {
 			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
 			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
@@ -1680,6 +1685,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 			vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number) - 1;
 			vrrp->ipsecah_counter->cycle = 0;
 		}
+#endif
 
 		if (vrrp->version == VRRP_VERSION_3) {
 			master_adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
@@ -2355,13 +2361,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				vip->ifa.ifa_index = vrrp->ifp->ifindex;
 				vip->ifp = vrrp->ifp;
 			}
-
-			if (vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept) {
-				if (vip->ifa.ifa_family == AF_INET)
-					global_data->block_ipv4 = true;
-				else
-					global_data->block_ipv6 = true;
-			}
 		}
 	}
 
@@ -2709,7 +2708,9 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 	/* Save old stats */
 	memcpy(vrrp->stats, old_vrrp->stats, sizeof(vrrp_stats));
 
+#ifdef _WITH_VRRP_AUTH_
 	memcpy(vrrp->ipsecah_counter, old_vrrp->ipsecah_counter, sizeof(seq_counter_t));
+#endif
 
 	/* Remember if we had vips up and add new ones if needed */
 	vrrp->vipset = old_vrrp->vipset;

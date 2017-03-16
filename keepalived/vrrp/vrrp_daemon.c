@@ -66,6 +66,9 @@
 #include "main.h"
 #include "memory.h"
 #include "parser.h"
+#ifdef _LIBNL_DYNAMIC_
+#include "libnl_link.h"
+#endif
 
 /* Forward declarations */
 static int print_vrrp_data(thread_t * thread);
@@ -187,6 +190,7 @@ start_vrrp(void)
 		stop_vrrp(KEEPALIVED_EXIT_FATAL);
 		return;
 	}
+
 	init_data(conf_file, vrrp_init_keywords);
 
 	init_global_data(global_data);
@@ -198,9 +202,7 @@ start_vrrp(void)
 	if (global_data->vrrp_no_swap)
 		set_process_dont_swap(4096);	/* guess a stack size to reserve */
 
-#ifdef _HAVE_LIBIPTC_
 	iptables_init();
-#endif
 
 #ifdef _WITH_SNMP_
 	if (!reload && (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {
@@ -526,6 +528,10 @@ start_vrrp_child(void)
 
 	/* Signal handling initialization */
 	vrrp_signal_init();
+
+#ifdef _LIBNL_DYNAMIC_
+	libnl_init();
+#endif
 
 	/* Start VRRP daemon */
 	start_vrrp();

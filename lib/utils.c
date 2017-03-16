@@ -537,7 +537,7 @@ set_std_fd(int force)
 	signal_pipe_close(STDERR_FILENO+1);
 }
 
-#ifndef _HAVE_LIBIPTC_
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 int
 fork_exec(char **argv)
 {
