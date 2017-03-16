@@ -2151,6 +2151,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ);
 			vrrp->adver_int = vrrp->adver_int + (TIMER_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_HZ;
+			if (vrrp->adver_int == 0)
+				vrrp->adver_int = TIMER_HZ;
 		}
 	}
 	else
@@ -2165,6 +2167,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ);
 			vrrp->adver_int = vrrp->adver_int + (TIMER_CENTI_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_CENTI_HZ;
+
+			if (vrrp->adver_int == 0)
+				vrrp->adver_int = TIMER_CENTI_HZ;
 		}
 	}
 	vrrp->master_adver_int = vrrp->adver_int;
