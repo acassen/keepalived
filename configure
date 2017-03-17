@@ -8689,7 +8689,7 @@ _ACEOF
 
 	    fi
 
-                        ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v1" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v1_match_set_index" "
+	                            ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v1" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v1_match_set_index" "
                 $EXTRA_INCLUDE
                 #include <linux/netfilter/xt_set.h>
 
@@ -8697,6 +8697,28 @@ _ACEOF
 if test "x$ac_cv_member_struct_xt_set_info_match_v1_match_set_index" = xyes; then :
 
 $as_echo "#define HAVE_XT_SET_INFO_MATCH_V1  1 " >>confdefs.h
+
+fi
+
+                        ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v3" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v3_match_set_index" "
+                $EXTRA_INCLUDE
+                #include <linux/netfilter/xt_set.h>
+
+"
+if test "x$ac_cv_member_struct_xt_set_info_match_v3_match_set_index" = xyes; then :
+
+$as_echo "#define HAVE_XT_SET_INFO_MATCH_V3  1 " >>confdefs.h
+
+fi
+
+                        ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v4" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v4_match_set_index" "
+                $EXTRA_INCLUDE
+                #include <linux/netfilter/xt_set.h>
+
+"
+if test "x$ac_cv_member_struct_xt_set_info_match_v4_match_set_index" = xyes; then :
+
+$as_echo "#define HAVE_XT_SET_INFO_MATCH_V4  1 " >>confdefs.h
 
 fi
 
