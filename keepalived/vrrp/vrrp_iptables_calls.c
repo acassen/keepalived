@@ -608,7 +608,11 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 	struct ipt_entry *fw;
 	struct xt_entry_target *target;
 	struct xt_entry_match *match;
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	struct xt_set_info_match_v4 *setinfo;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	struct xt_set_info_match_v3 *setinfo;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	struct xt_set_info_match_v1 *setinfo;
 #else
 	struct xt_set_info_match *setinfo;
@@ -636,7 +640,11 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 	// set
 	match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 	match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(*setinfo));
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	match->u.user.revision = 4;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	match->u.user.revision = 3;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	match->u.user.revision = 1;
 #else
 	match->u.user.revision = 0;
@@ -644,19 +652,31 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 	fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 	strcpy(match->u.user.name, "set");
 
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	setinfo = (struct xt_set_info_match_v4 *)match->data;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	setinfo = (struct xt_set_info_match_v3 *)match->data;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	setinfo = (struct xt_set_info_match_v1 *)match->data;
 #else
 	setinfo = (struct xt_set_info_match *)match->data;
 #endif
+	memset(setinfo, 0, sizeof (*setinfo));
+
 	get_set_byname(set_name, &setinfo->match_set, NFPROTO_IPV4, ignore_errors);
 	if (setinfo->match_set.index == IPSET_INVALID_ID) {
 		FREE(fw);
 		return -1;
 	}
 
+#ifndef HAVE_XT_SET_INFO_MATCH_V1
+	/* Version 0 */
+	setinfo->match_set.compat.dim = dim;
+	setinfo->match_set.compat.flags = src_dst;
+#else
 	setinfo->match_set.dim = dim;
 	setinfo->match_set.flags = src_dst;
+#endif
 
 	if (protocol != IPPROTO_NONE) {
 		fw->ip.proto = protocol;
@@ -719,7 +739,11 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, uns
 	struct ip6t_entry *fw;
 	struct xt_entry_target *target;
 	struct xt_entry_match *match;
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	struct xt_set_info_match_v4 *setinfo;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	struct xt_set_info_match_v3 *setinfo;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	struct xt_set_info_match_v1 *setinfo;
 #else
 	struct xt_set_info_match *setinfo;
@@ -747,7 +771,11 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, uns
 	// set
 	match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 	match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(*setinfo));
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	match->u.user.revision = 4;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	match->u.user.revision = 3;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	match->u.user.revision = 1;
 #else
 	match->u.user.revision = 0;
@@ -755,19 +783,31 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, uns
 	fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 	strcpy(match->u.user.name, "set");
 
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	setinfo = (struct xt_set_info_match_v4 *)match->data;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	setinfo = (struct xt_set_info_match_v3 *)match->data;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	setinfo = (struct xt_set_info_match_v1 *)match->data;
 #else
 	setinfo = (struct xt_set_info_match *)match->data;
 #endif
+	memset(setinfo, 0, sizeof(*setinfo));
+
 	get_set_byname (set_name, &setinfo->match_set, NFPROTO_IPV6, ignore_errors);
 	if (setinfo->match_set.index == IPSET_INVALID_ID) {
 		FREE(fw);
 		return -1;
 	}
 
+#ifndef HAVE_XT_SET_INFO_MATCH_V1
+	/* Version 0 */
+	setinfo->match_set.compat.dim = dim;
+	setinfo->match_set.compat.flags = src_dst;
+#else
 	setinfo->match_set.dim = dim;
 	setinfo->match_set.flags = src_dst;
+#endif
 
 	if (protocol != IPPROTO_NONE) {
 		fw->ipv6.proto = protocol;

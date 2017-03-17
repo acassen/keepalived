@@ -427,6 +427,12 @@
 /* Define to 1 if have struct xt_set_info_match_v1 */
 #undef HAVE_XT_SET_INFO_MATCH_V1
 
+/* Define to 1 if have struct xt_set_info_match_v3 */
+#undef HAVE_XT_SET_INFO_MATCH_V3
+
+/* Define to 1 if have struct xt_set_info_match_v4 */
+#undef HAVE_XT_SET_INFO_MATCH_V4
+
 /* Define to 1 if the system has the type `_Bool'. */
 #undef HAVE__BOOL
 
