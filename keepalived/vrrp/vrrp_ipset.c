@@ -221,8 +221,10 @@ bool ipset_init(void)
 	    !(ipset_type_get_addr = dlsym(libipset_handle,"ipset_type_get")) ||
 	    !(ipset_data_set_addr = dlsym(libipset_handle,"ipset_data_set")) ||
 	    !(ipset_cmd_addr = dlsym(libipset_handle,"ipset_cmd")) ||
-	    !(ipset_load_types_addr = dlsym(libipset_handle,"ipset_load_types")))
+	    !(ipset_load_types_addr = dlsym(libipset_handle,"ipset_load_types"))) {
 		log_message(LOG_INFO, "Failed to dynamic link an ipset function");
+		return false;
+	}
 #endif
 
 	ipset_load_types();
