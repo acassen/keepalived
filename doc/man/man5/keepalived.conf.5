@@ -118,6 +118,13 @@ and
  # adherence to the RFCs. Defaults to false, unless strict_mode is set.
  vrrp_lower_prio_no_advert [<BOOL>]
 
+ # If we are master and receive a higher priority advert, send an advert (which will be
+ # lower priority than the other master), before we transition to backup. This means
+ # that if the other master has garp_lower_priority_repeat set, it will resend garp messages.
+ # This is to get around the problem of their having been two simultaneous masters, and the
+ # last GARP messages seen were from us.
+ vrrp_higher_prio_send_advert [<BOOL>]
+
  # Set the default VRRP version to use
  vrrp_version <2 or 3>        # default version 2
 
@@ -429,6 +436,7 @@ which will transition together on any state change.
     gna_interval 100
 
     lower_prio_no_advert [<BOOL>]
+    higher_prio_send_advert [<BOOL>]
 
     # arbitrary unique number from 0 to 255
     # used to differentiate multiple instances of vrrpd

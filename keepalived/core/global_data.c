@@ -95,6 +95,7 @@ set_vrrp_defaults(data_t * data)
 	data->vrrp_garp_lower_prio_delay = PARAMETER_UNSET;
 	data->vrrp_garp_lower_prio_rep = PARAMETER_UNSET;
 	data->vrrp_lower_prio_no_advert = false;
+	data->vrrp_higher_prio_send_advert = false;
 	data->vrrp_version = VRRP_VERSION_2;
 	strcpy(data->vrrp_iptables_inchain, "INPUT");
 	data->block_ipv4 = false;
@@ -310,6 +311,7 @@ dump_global_data(data_t * data)
 	log_message(LOG_INFO, " Gratuitous ARP lower priority delay = %d", data->vrrp_garp_lower_prio_delay / TIMER_HZ);
 	log_message(LOG_INFO, " Gratuitous ARP lower priority repeat = %d", data->vrrp_garp_lower_prio_rep);
 	log_message(LOG_INFO, " Send advert after receive lower priority advert = %s", data->vrrp_lower_prio_no_advert ? "false" : "true");
+	log_message(LOG_INFO, " Send advert after receive higher priority advert = %s", data->vrrp_higher_prio_send_advert ? "true" : "false");
 	log_message(LOG_INFO, " Gratuitous ARP interval = %d", data->vrrp_garp_interval);
 	log_message(LOG_INFO, " Gratuitous NA interval = %d", data->vrrp_gna_interval);
 	log_message(LOG_INFO, " VRRP default protocol version = %d", data->vrrp_version);
