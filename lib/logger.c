@@ -23,15 +23,17 @@
 #include "config.h"
 
 #include <stdio.h>
+#include <stdbool.h>
+
 #include "logger.h"
 
 /* Boolean flag - send messages to console as well as syslog */
-static int log_console = 0;
+static bool log_console = false;
 
 void
 enable_console_log(void)
 {
-	log_console = 1;
+	log_console = true;
 }
 
 void
