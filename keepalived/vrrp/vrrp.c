@@ -1629,7 +1629,9 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	    (hd->priority > vrrp->effective_priority ||
 	     (hd->priority == vrrp->effective_priority && addr_cmp > 0)))) {
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
-		return 0;
+
+		if (hd->priority == 0)
+			return 0;
 	}
 
 	if (hd->priority == vrrp->effective_priority && addr_cmp == 0)
