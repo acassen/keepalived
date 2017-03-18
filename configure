@@ -6968,8 +6968,10 @@ fi
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
+      extern void genl_connect(void);
       int main(void)
       {
+	genl_connect();
         return 0;
       }
 
@@ -7314,8 +7316,10 @@ fi
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
+      extern void rtgen_request(void);
       int main(void)
       {
+	rtgen_request();
         return 0;
       }
 
@@ -7435,8 +7439,10 @@ $as_echo "#define _LIBNL_DYNAMIC_  1 " >>confdefs.h
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
+      extern void nl_socket_alloc(void);
       int main(void)
       {
+	nl_socket_alloc();
         return 0;
       }
 
@@ -7598,8 +7604,10 @@ $as_echo "#define _LIBNL_DYNAMIC_  1 " >>confdefs.h
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
+      extern void nl_socket_modify_cb(void);
       int main(void)
       {
+	nl_socket_modify_cb();
         return 0;
       }
 
@@ -8175,8 +8183,10 @@ $as_echo "#define _LIBIPTC_DYNAMIC_  1 " >>confdefs.h
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
+      extern void iptc_init(void);
       int main(void)
       {
+	iptc_init();
         return 0;
       }
 
@@ -8206,8 +8216,10 @@ _ACEOF
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
+      extern void ip6tc_init(void);
       int main(void)
       {
+	ip6tc_init();
         return 0;
       }
 
@@ -8550,8 +8562,10 @@ $as_echo "#define _LIBIPSET_DYNAMIC_  1 " >>confdefs.h
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
+      extern void ipset_session_init(void);
       int main(void)
       {
+	ipset_session_init();
         return 0;
       }
 
@@ -8666,8 +8680,10 @@ $as_echo "#define _LIBXTABLES_DYNAMIC_  1 " >>confdefs.h
     cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
+      extern void xtables_insmod(void);
       int main(void)
       {
+	xtables_insmod();
         return 0;
       }
 
