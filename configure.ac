@@ -66,8 +66,10 @@ AC_DEFUN([get_lib_name],
     SAV_LIBS="$LIBS"
     LIBS=-l$1
     AC_LINK_IFELSE([AC_LANG_SOURCE([[
+      extern void $2(void);
       int main(void)
       {
+	$2();
         return 0;
       }
     ]])], [
@@ -452,7 +454,7 @@ if test .${enable_libnl} != .no; then
 	IPVS_USE_NL=Yes
 	if test .$enable_libnl_dynamic = .yes; then
 	  add_pkg_config_without_libs([libnl-genl-3.0])
-	  get_lib_name([$GENL_LIB])
+	  get_lib_name([$GENL_LIB], [genl_connect])
 	  AC_DEFINE_UNQUOTED([NL3_GENL_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-genl-3.0 library name])
 	else
 	  add_pkg_config([libnl-genl-3.0], [], [remove-requires])
@@ -508,7 +510,7 @@ if test .${enable_libnl} != .no; then
 	  [AC_MSG_ERROR([libnl-3 is installed but not libnl-route-3. Please, install libnl-route-3.])])
 	if test .$enable_libnl_dynamic = .yes; then
 	  add_pkg_config_without_libs([libnl-route-3.0])
-	  get_lib_name([$ROUTE_LIB])
+	  get_lib_name([$ROUTE_LIB], [rtgen_request])
 	  AC_DEFINE_UNQUOTED([NL3_ROUTE_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-route-3.0 library name])
 	else
 	  add_pkg_config([libnl-route-3.0], [], [remove-requires])
@@ -523,7 +525,7 @@ if test .${enable_libnl} != .no; then
 	  add_pkg_config_without_libs([libnl-3.0])
 	  AC_DEFINE([_LIBNL_DYNAMIC_], [ 1 ], [Define to 1 if building with libnl dynamic linking])
 	  NEED_LIBDL=Yes
-	  get_lib_name([$NL3_LIB])
+	  get_lib_name([$NL3_LIB], [nl_socket_alloc])
 	  AC_DEFINE_UNQUOTED([NL3_LIB_NAME], [ "$LIB_NAME" ], [Define the nl-3 library name])
 	else
 	  add_pkg_config([libnl-3.0])
@@ -543,7 +545,7 @@ if test .${enable_libnl} != .no; then
               add_build_opt([LIBNL_DYNAMIC])
 	      AC_DEFINE([_LIBNL_DYNAMIC_], [ 1 ], [Define to 1 if building with libnl dynamic linking])
 	      NEED_LIBDL=Yes
-	      get_lib_name([nl])
+	      get_lib_name([nl], [nl_socket_modify_cb])
 	      AC_DEFINE_UNQUOTED([NL_LIB_NAME], [ "$LIB_NAME" ], [Define the nl library name])
 	    else
               add_pkg_config([libnl-1])
@@ -647,9 +649,9 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
 	  add_build_opt([LIBIPTC_DYNAMIC])
 	  AC_DEFINE([_LIBIPTC_DYNAMIC_], [ 1 ], [Define to 1 if building with libiptc dynamic linking])
 	  NEED_LIBDL=Yes
-	  get_lib_name([ip4tc])
+	  get_lib_name([ip4tc], [iptc_init])
 	  AC_DEFINE_UNQUOTED([IP4TC_LIB_NAME], [ "$LIB_NAME" ], [Define the ip4tc library name])
-	  get_lib_name([ip6tc])
+	  get_lib_name([ip6tc], [ip6tc_init])
 	  AC_DEFINE_UNQUOTED([IP6TC_LIB_NAME], [ "$LIB_NAME" ], [Define the ip6tc library name])
 	fi
       ],
@@ -713,7 +715,7 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
 	      AC_DEFINE([_LIBIPSET_DYNAMIC_], [ 1 ], [Define to 1 if building with libipset dynamic linking])
               add_build_opt([LIBIPSET_DYNAMIC])
 	      NEED_LIBDL=Yes
-	      get_lib_name([ipset])
+	      get_lib_name([ipset], [ipset_session_init])
 	      AC_DEFINE_UNQUOTED([IPSET_LIB_NAME], [ "$LIB_NAME" ], [Define the ipset library name])
 	    else
               add_build_opt([LIBIPSET])
@@ -725,7 +727,7 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
 	      AC_DEFINE([_LIBXTABLES_DYNAMIC_], [ 1 ], [Define to 1 if building with libxtables dynamic linking])
 	      add_build_opt([XTABLES_DYNAMIC])
 	      NEED_LIBDL=Yes
-	      get_lib_name([xtables])
+	      get_lib_name([xtables], [xtables_insmod])
 	      AC_DEFINE_UNQUOTED([XTABLES_LIB_NAME], [ "$LIB_NAME" ], [Define the xtables library name])
 	    fi
 
