@@ -183,8 +183,8 @@ typedef struct _vrrp_t {
 	bool			garp_pending;		/* Are there gratuitous ARP messages still to be sent */
 	bool			gna_pending;		/* Are there gratuitous NA messages still to be sent */
 	unsigned		garp_lower_prio_rep;	/* Number of ARP messages to send at a time */
-	unsigned		lower_prio_no_advert;	/* Don't send advert after lower prio
-							 * advert received */
+	unsigned		lower_prio_no_advert;	/* Don't send advert after lower prio advert received */
+	unsigned		higher_prio_send_advert; /* Send advert after higher prio advert received */
 	uint8_t			vrid;			/* virtual id. from 1(!) to 255 */
 	uint8_t			base_priority;		/* configured priority value */
 	uint8_t			effective_priority;	/* effective priority value */

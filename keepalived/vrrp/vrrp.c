@@ -1622,12 +1622,17 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		return 0;
 	}
 
-	if (hd->priority == 0) {
-		vrrp_send_adv(vrrp, vrrp->effective_priority);
-		return 0;
-	}
-
 	addr_cmp = vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp);
+
+	if (hd->priority == 0 ||
+	    (vrrp->higher_prio_send_advert &&
+	    (hd->priority > vrrp->effective_priority ||
+	     (hd->priority == vrrp->effective_priority && addr_cmp > 0)))) {
+		vrrp_send_adv(vrrp, vrrp->effective_priority);
+
+		if (hd->priority == 0)
+			return 0;
+	}
 
 	if (hd->priority == vrrp->effective_priority && addr_cmp == 0)
 		log_message(LOG_INFO, "(%s): WARNING - equal priority advert received from remote host with our IP address.", vrrp->iname);
@@ -2136,6 +2141,19 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->garp_lower_prio_delay = vrrp->strict_mode ? 0 : global_data->vrrp_garp_lower_prio_delay;
 	if (vrrp->lower_prio_no_advert == PARAMETER_UNSET)
 		vrrp->lower_prio_no_advert = vrrp->strict_mode ? true : global_data->vrrp_lower_prio_no_advert;
+	if (vrrp->higher_prio_send_advert == PARAMETER_UNSET)
+		vrrp->higher_prio_send_advert = vrrp->strict_mode ? false : global_data->vrrp_higher_prio_send_advert;
+
+	if (vrrp->strict_mode) {
+		if (!vrrp->lower_prio_no_advert) {
+			log_message(LOG_INFO, "(%s): strict mode requires lower_prio_no_advert to be set - setting", vrrp->iname);
+			vrrp->lower_prio_no_advert = true;
+		}
+		if (vrrp->higher_prio_send_advert) {
+			log_message(LOG_INFO, "(%s): strict mode requires higherer_prio_send_advert to be clear - resetting", vrrp->iname);
+			vrrp->higher_prio_send_advert = false;
+		}
+	}
 
 	/* Check that the advertisement interval is valid */
 	if (!vrrp->adver_int)

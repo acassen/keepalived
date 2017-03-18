@@ -99,6 +99,14 @@ global_defs {				# Block identification
     vrrp_lower_prio_no_advert [<BOOL>]     # If a lower priority advert is received, just discard
 					   # it and don't send another advert. This causes adherence
 					   # to the RFCs.
+    vrrp_higher_prio_send_advert [<BOOL>]  # If we are master and receive a higher priority
+					   # advert, send an advert (which will be lower priority
+					   # than the other master), before we transition to
+					   # backup. This means that if the other master has
+					   # garp_lower_priority_repeat set, it will resend garp
+					   # messages. This is to get around the problem of their
+					   # having been two simultaneous masters, and the last GARP
+					   # messages seen were from us.
     vrrp_version <INTEGER:2..3>            # Default VRRP version (default 2)
     vrrp_iptables [keepalived_in [keepalived_out]]     # default INPUT
 					   # Specifies the iptables chains to add entries to
@@ -372,10 +380,19 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     priority <INTEGER-1..255>		# VRRP PRIO
     advert_int <FLOAT>			# VRRP Advert interval (use default)
 
-    lower_prio_no_advert		# If a lower priority advert is received, don't
-					# don't send another advert. This causes adherence
+    lower_prio_no_advert [<BOOL>]	# If a lower priority advert is received, don't
+					# send another advert. This causes adherence
 					# to the RFCs (defaults to global
 					# vrrp_lower_priority_dont_send_advert).
+
+    higher_prio_send_advert [<BOOL>]	# If we are master and receive a higher priority
+					# advert, send an advert (which will be lower priority
+					# than the other master), before we transition to
+					# backup. This means that if the other master has
+					# garp_lower_priority_repeat set, it will resend garp
+					# messages. This is to get around the problem of their
+					# having been two simultaneous masters, and the last GARP
+					# messages seen were from us.
 
     # Note: authentication was removed from the VRRPv2 specification by RFC3768 in 2004.
     #   Use of this option is non-compliant and can cause problems; avoid using if possible,
