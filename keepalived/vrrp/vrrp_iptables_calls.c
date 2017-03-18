@@ -123,8 +123,13 @@ static void* libip6tc_handle;
 #ifdef _LIBXTABLES_DYNAMIC_
 #include <dlfcn.h>
 
+/* The addresses of the functions we want */
+int (*xtables_insmod_addr)(const char *, const char *, bool);
+
 /* We can make it look as though normal linking is being used */
 #define xtables_insmod (*xtables_insmod_addr)
+
+static void *libxtables_handle;
 #endif
 
 static void
@@ -399,16 +404,62 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 	return 0 ;
 }
 
-#ifdef _HAVE_LIBIPSET_
-int load_mod_xt_set(void)
+#ifdef _HAVE_LIBIPTC_
+#ifdef _LIBXTABLES_DYNAMIC_ 
+bool xtables_load(void)
+{
+	if (libxtables_handle)
+		return true;
+
+	if (!(libxtables_handle = dlopen("libxtables.so", RTLD_NOW)) &&
+	    !(libxtables_handle = dlopen(XTABLES_LIB_NAME, RTLD_NOW))) {
+		log_message(LOG_INFO, "Unable to load xtables library - %s", dlerror());
+		return false;
+	}
+
+	if (!(xtables_insmod_addr = dlsym(libxtables_handle, "xtables_insmod"))) {
+		log_message(LOG_INFO, "Failed to dynamic link xtables_insmod");
+		dlclose(libxtables_handle);
+		libxtables_handle = NULL;
+
+		return false;
+	}
+
+	return true;
+}
+
+void xtables_unload(void)
+{
+	if (!libxtables_handle)
+		return;
+
+	dlclose(libxtables_handle);
+	libxtables_handle = NULL;
+}
+#endif
+
+bool load_xtables_module(const char *module,
+#ifndef _LIBXTABLES_DYNAMIC
+					    __attribute__((unused))
+#endif
+								    const char *function)
 {
 	struct sigaction act, old_act;
 	bool res = true;
 #ifdef _LIBXTABLES_DYNAMIC_
-	void *libxtables_handle;
-	int (*xtables_insmod_addr)(const char *, const char *, bool);
-	bool insmod_succeeded = false;
 	struct stat stat_buf;
+	char module_path[32] = "/sys/module/";
+
+	if (!libxtables_handle) {
+		/* See if the module is loaded anyway */
+		strcat(module_path, module);
+		if (!stat(module_path, &stat_buf) &&
+		    (stat_buf.st_mode & S_IFDIR))
+			return true;
+
+		log_message(LOG_INFO, "Module %s cannot be loaded; not using %s", module, function);
+		return false;
+	}
 #endif
 
 	/* Enable SIGCHLD since xtables_insmod forks/execs modprobe */
@@ -416,43 +467,18 @@ int load_mod_xt_set(void)
 	sigemptyset(&act.sa_mask);
 	act.sa_flags = 0;
 
-#ifdef _LIBXTABLES_DYNAMIC_
-	if (!(libxtables_handle = dlopen("libxtables.so", RTLD_NOW)) &&
-	    !(libxtables_handle = dlopen(XTABLES_LIB_NAME, RTLD_NOW))) {
-		log_message(LOG_INFO, "Unable to load xtables library - %s", dlerror());
-	}
-	else if (!(xtables_insmod_addr = dlsym(libxtables_handle, "xtables_insmod"))) {
-		log_message(LOG_INFO, "Failed to dynamic link xtables_insmod");
-		dlclose(libxtables_handle);
-	}
-	else
-		insmod_succeeded = true;
-
-	if (!insmod_succeeded) {
-		/* See if the module is loaded anyway */
-		if (!stat("/sys/module/xt_set", &stat_buf) &&
-		    (stat_buf.st_mode & S_IFDIR))
-			return true;
-
-		log_message(LOG_INFO, "Module xt_set cannot be loaded; not using ipsets");
-		return false;
-	}
-#endif
-
 	sigaction(SIGCHLD, &act, &old_act);
 
-	if (xtables_insmod("xt_set", NULL, true))
+	if (xtables_insmod(module, NULL, true))
 		res = false;
 
 	sigaction(SIGCHLD, &old_act, NULL);
 
-#ifdef _LIBXTABLES_DYNAMIC_
-	dlclose(libxtables_handle);
-#endif
-
 	return res;
 }
+#endif
 
+#ifdef _HAVE_LIBIPSET_
 #ifndef IP_SET_OP_VERSION	/* Exposed to userspace from Linux 3.4 */
 				/* Copied from <linux/netfilter/ipset/ip_set.h> */
 #define SO_IP_SET	83
