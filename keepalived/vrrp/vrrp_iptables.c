@@ -386,16 +386,37 @@ iptables_cleanup(void)
 bool
 iptables_init_lib(void)
 {
+#ifdef _LIBXTABLES_DYNAMIC_
+	xtables_load();
+#endif
+
 #ifdef _LIBIPTC_DYNAMIC_
 	if (!iptables_lib_init()) {
 		using_libiptc = false;
+#ifdef _LIBXTABLES_DYNAMIC_
+		xtables_unload();
+#endif
 		return false;
 	}
 #endif
 
+	if (!load_xtables_module("ip_tables", "iptables")) {
+#ifdef _LIBIPTC_DYNAMIC_
+		using_libiptc = false;
+#endif
+#ifdef _LIBXTABLES_DYNAMIC_
+		xtables_unload();
+#endif
+		return false;
+	}
+
 #ifdef _HAVE_LIBIPSET_
 	if (!ipset_init())
 		global_data->using_ipsets = false;
+#endif
+
+#ifdef _LIBXTABLES_DYNAMIC_
+	xtables_unload();
 #endif
 
 	return true;
