@@ -8151,6 +8151,10 @@ $as_echo "#define _HAVE_LIBIPTC_  1 " >>confdefs.h
     fi
 
 	  	  KA_LIBS=`echo $KA_LIBS | sed -e "s/ -liptc//"`
+	  	  IPTC_LIBS=`echo $IPTC_LIBS | sed -e "s/ *-L[^ ]*  */ /" -e "s/ *-liptc */ /" -e "s/^  *$//"`
+	  if test .$IPTC_LIBS = .; then
+	    KA_LIBS=`echo $KA_LIBS -lip4tc -lip6tc`
+	  fi
 	  BUILD_OPTIONS="$BUILD_OPTIONS LIBIPTC"
 	else
            if test -n ""; then

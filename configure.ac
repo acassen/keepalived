@@ -642,6 +642,11 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
           add_pkg_config([--static libiptc])
 	  dnl - Older versions of libiptc produced a requirement for -liptc, but we don't need it
 	  KA_LIBS=`echo $KA_LIBS | sed -e "s/ -liptc//"`
+	  dnl - Even older versions of libiptc don't produce any requirement other than -liptc
+	  IPTC_LIBS=`echo $IPTC_LIBS | sed -e "s/ *-L[[^ ]]*  */ /" -e "s/ *-liptc */ /" -e "s/^  *$//"`
+	  if test .$IPTC_LIBS = .; then
+	    KA_LIBS=`echo $KA_LIBS -lip4tc -lip6tc`
+	  fi
 	  add_build_opt([LIBIPTC])
 	else
           add_pkg_config_without_libs([libiptc])
