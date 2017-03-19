@@ -111,7 +111,7 @@ libnl_init(void)
 		return false;
 	}
 #endif
-#ifdef _WITH_VRRP_
+#if defined _WITH_VRRP_ && defined _HAVE_IPV4_DEVCONF_
 	if (!(libnl_route_handle = dlopen("libnl-route-3.so", RTLD_NOW)) &&
 	    !(libnl_route_handle = dlopen(NL3_ROUTE_LIB_NAME, RTLD_NOW))) {
 		log_message(LOG_INFO, "Unable to load nl-route-3 library - %s", dlerror());
