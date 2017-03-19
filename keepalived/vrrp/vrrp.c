@@ -1754,13 +1754,18 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		return false;
 	}
 
-	if (hd->priority == 0) {
+	addr_cmp = vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp);
+
+	if (hd->priority == 0 ||
+	    (vrrp->higher_prio_send_advert &&
+	     (hd->priority > vrrp->effective_priority ||
+	      (hd->priority == vrrp->effective_priority && addr_cmp > 0)))) {
 		log_message(LOG_INFO, "(%s): Master received priority 0 message", vrrp->iname);
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
-		return false;
-	}
 
-	addr_cmp = vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp);
+		if (hd->priority == 0)
+			return false;
+	}
 
 	if (hd->priority == vrrp->effective_priority) {
 		if (addr_cmp == 0)
@@ -2342,6 +2347,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		log_message(LOG_INFO, "(%s) Strict mode requires no lower priority advert - resetting", vrrp->iname);
 		vrrp->lower_prio_no_advert = true;
 	}
+	if (vrrp->higher_prio_send_advert == PARAMETER_UNSET)
+		vrrp->higher_prio_send_advert = vrrp->strict_mode ? false : global_data->vrrp_higher_prio_send_advert;
+	else if (vrrp->strict_mode && vrrp->higher_prio_send_advert) {
+		log_message(LOG_INFO, "(%s): strict mode requires higherer_prio_send_advert to be clear - resetting", vrrp->iname);
+		vrrp->higher_prio_send_advert = false;
+	}
 
 	/* Check that the advertisement interval is valid */
 	if (!vrrp->adver_int)
@@ -2357,6 +2368,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ);
 			vrrp->adver_int = vrrp->adver_int + (TIMER_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_HZ;
+			if (vrrp->adver_int == 0)
+				vrrp->adver_int = TIMER_HZ;
 		}
 	}
 	else
@@ -2371,6 +2384,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ);
 			vrrp->adver_int = vrrp->adver_int + (TIMER_CENTI_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_CENTI_HZ;
+
+			if (vrrp->adver_int == 0)
+				vrrp->adver_int = TIMER_CENTI_HZ;
 		}
 	}
 	vrrp->master_adver_int = vrrp->adver_int;
@@ -2572,13 +2588,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			vip = ELEMENT_DATA(e);
 			if (!vip->ifp)
 				vip->ifp = vrrp->ifp;
-
-			if (vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept) {
-				if (vip->ifa.ifa_family == AF_INET)
-					global_data->block_ipv4 = true;
-				else
-					global_data->block_ipv6 = true;
-			}
 		}
 	}
 

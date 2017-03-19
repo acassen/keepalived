@@ -38,8 +38,11 @@
 #include <libiptc/libiptc.h>
 #include <libiptc/libip6tc.h>
 #ifdef _HAVE_LIBIPSET_
-#ifdef XT_SET_H_NEEDS_LINUX_IP_SET_H
 #include <libipset/linux_ip_set.h>
+#if defined XT_SET_H_ADD_IP_SET_H_GUARD
+#define _IP_SET_H
+#elif defined XT_SET_H_ADD_UAPI_IP_SET_H_GUARD
+#define _UAPI_IP_SET_H
 #endif
 #include <linux/netfilter/xt_set.h>
 #endif
@@ -47,12 +50,19 @@
 #include <signal.h>
 #include <errno.h>
 #include <stdint.h>
+#ifdef _LIBXTABLES_DYNAMIC_
+#include <sys/types.h>
+#include <sys/stat.h>
+#endif
 
 #include "vrrp_iptables_calls.h"
 #include "memory.h"
 #include "logger.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
+#endif
+#ifdef _LIBIPTC_DYNAMIC_
+#include "global_data.h"
 #endif
 
 /* We sometimes get a resource_busy on iptc_commit. This appears to happen
@@ -65,6 +75,63 @@
  * state of iptables. This fits with the tests, but also means that we could
  * be interferred with by anyone else doing an update.
  */
+
+#ifdef _LIBIPTC_DYNAMIC_
+#include <dlfcn.h>
+
+/* The addresses of the functions we want */
+struct iptc_handle *(*iptc_init_addr)(const char *tablename);
+void (*iptc_free_addr)(struct iptc_handle *h);
+int (*iptc_is_chain_addr)(const char *chain, struct iptc_handle *const handle);
+int (*iptc_insert_entry_addr)(const ipt_chainlabel chain, const struct ipt_entry *e, unsigned int rulenum, struct iptc_handle *handle);
+int (*iptc_append_entry_addr)(const ipt_chainlabel chain, const struct ipt_entry *e, struct iptc_handle *handle);
+int (*iptc_delete_entry_addr)(const ipt_chainlabel chain, const struct ipt_entry *origfw, unsigned char *matchmask, struct iptc_handle *handle);
+int (*iptc_commit_addr)(struct iptc_handle *handle);
+const char *(*iptc_strerror_addr)(int err);
+
+struct ip6tc_handle *(*ip6tc_init_addr)(const char *tablename);
+void (*ip6tc_free_addr)(struct ip6tc_handle *h);
+int (*ip6tc_is_chain_addr)(const char *chain, struct ip6tc_handle *const handle);
+int (*ip6tc_insert_entry_addr)(const ip6t_chainlabel chain, const struct ip6t_entry *e, unsigned int rulenum, struct ip6tc_handle *handle);
+int (*ip6tc_append_entry_addr)(const ip6t_chainlabel chain, const struct ip6t_entry *e, struct ip6tc_handle *handle);
+int (*ip6tc_delete_entry_addr)(const ip6t_chainlabel chain, const struct ip6t_entry *origfw, unsigned char *matchmask, struct ip6tc_handle *handle);
+int (*ip6tc_commit_addr)(struct ip6tc_handle *handle);
+const char *(*ip6tc_strerror_addr)(int err);
+
+/* We can make it look as though normal linking is being used */
+#define iptc_init (*iptc_init_addr)
+#define iptc_free (*iptc_free_addr)
+#define iptc_is_chain (*iptc_is_chain_addr)
+#define iptc_insert_entry (*iptc_insert_entry_addr)
+#define iptc_append_entry (*iptc_append_entry_addr)
+#define iptc_delete_entry (*iptc_delete_entry_addr)
+#define iptc_commit (*iptc_commit_addr)
+#define iptc_strerror (*iptc_strerror_addr)
+
+#define ip6tc_init (*ip6tc_init_addr)
+#define ip6tc_free (*ip6tc_free_addr)
+#define ip6tc_is_chain (*ip6tc_is_chain_addr)
+#define ip6tc_insert_entry (*ip6tc_insert_entry_addr)
+#define ip6tc_append_entry (*ip6tc_append_entry_addr)
+#define ip6tc_delete_entry (*ip6tc_delete_entry_addr)
+#define ip6tc_commit (*ip6tc_commit_addr)
+#define ip6tc_strerror (*ip6tc_strerror_addr)
+
+static void* libip4tc_handle;
+static void* libip6tc_handle;
+#endif
+
+#ifdef _LIBXTABLES_DYNAMIC_
+#include <dlfcn.h>
+
+/* The addresses of the functions we want */
+int (*xtables_insmod_addr)(const char *, const char *, bool);
+
+/* We can make it look as though normal linking is being used */
+#define xtables_insmod (*xtables_insmod_addr)
+
+static void *libxtables_handle;
+#endif
 
 static void
 set_iface(char *vianame, unsigned char *mask, const char *iface)
@@ -338,11 +405,63 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 	return 0 ;
 }
 
-#ifdef _HAVE_LIBIPSET_
-int load_mod_xt_set(void)
+#ifdef _HAVE_LIBIPTC_
+#ifdef _LIBXTABLES_DYNAMIC_ 
+bool xtables_load(void)
+{
+	if (libxtables_handle)
+		return true;
+
+	if (!(libxtables_handle = dlopen("libxtables.so", RTLD_NOW)) &&
+	    !(libxtables_handle = dlopen(XTABLES_LIB_NAME, RTLD_NOW))) {
+		log_message(LOG_INFO, "Unable to load xtables library - %s", dlerror());
+		return false;
+	}
+
+	if (!(xtables_insmod_addr = dlsym(libxtables_handle, "xtables_insmod"))) {
+		log_message(LOG_INFO, "Failed to dynamic link xtables_insmod");
+		dlclose(libxtables_handle);
+		libxtables_handle = NULL;
+
+		return false;
+	}
+
+	return true;
+}
+
+void xtables_unload(void)
+{
+	if (!libxtables_handle)
+		return;
+
+	dlclose(libxtables_handle);
+	libxtables_handle = NULL;
+}
+#endif
+
+bool load_xtables_module(const char *module,
+#ifndef _LIBXTABLES_DYNAMIC_
+					    __attribute__((unused))
+#endif
+								    const char *function)
 {
 	struct sigaction act, old_act;
 	bool res = true;
+#ifdef _LIBXTABLES_DYNAMIC_
+	struct stat stat_buf;
+	char module_path[32] = "/sys/module/";
+
+	if (!libxtables_handle) {
+		/* See if the module is loaded anyway */
+		strcat(module_path, module);
+		if (!stat(module_path, &stat_buf) &&
+		    (stat_buf.st_mode & S_IFDIR))
+			return true;
+
+		log_message(LOG_INFO, "Module %s cannot be loaded; not using %s", module, function);
+		return false;
+	}
+#endif
 
 	/* Enable SIGCHLD since xtables_insmod forks/execs modprobe */
 	act.sa_handler = SIG_DFL;
@@ -351,13 +470,16 @@ int load_mod_xt_set(void)
 
 	sigaction(SIGCHLD, &act, &old_act);
 
-	if (xtables_insmod("xt_set", NULL, true))
+	if (xtables_insmod(module, NULL, true))
 		res = false;
 
 	sigaction(SIGCHLD, &old_act, NULL);
+
 	return res;
 }
+#endif
 
+#ifdef _HAVE_LIBIPSET_
 #ifndef IP_SET_OP_VERSION	/* Exposed to userspace from Linux 3.4 */
 				/* Copied from <linux/netfilter/ipset/ip_set.h> */
 #define SO_IP_SET	83
@@ -513,7 +635,11 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 	struct ipt_entry *fw;
 	struct xt_entry_target *target;
 	struct xt_entry_match *match;
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	struct xt_set_info_match_v4 *setinfo;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	struct xt_set_info_match_v3 *setinfo;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	struct xt_set_info_match_v1 *setinfo;
 #else
 	struct xt_set_info_match *setinfo;
@@ -541,7 +667,11 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 	// set
 	match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 	match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(*setinfo));
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	match->u.user.revision = 4;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	match->u.user.revision = 3;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	match->u.user.revision = 1;
 #else
 	match->u.user.revision = 0;
@@ -549,19 +679,31 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 	fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 	strcpy(match->u.user.name, "set");
 
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	setinfo = (struct xt_set_info_match_v4 *)match->data;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	setinfo = (struct xt_set_info_match_v3 *)match->data;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	setinfo = (struct xt_set_info_match_v1 *)match->data;
 #else
 	setinfo = (struct xt_set_info_match *)match->data;
 #endif
+	memset(setinfo, 0, sizeof (*setinfo));
+
 	get_set_byname(set_name, &setinfo->match_set, NFPROTO_IPV4, ignore_errors);
 	if (setinfo->match_set.index == IPSET_INVALID_ID) {
 		FREE(fw);
 		return -1;
 	}
 
+#ifndef HAVE_XT_SET_INFO_MATCH_V1
+	/* Version 0 */
+	setinfo->match_set.compat.dim = dim;
+	setinfo->match_set.compat.flags = src_dst;
+#else
 	setinfo->match_set.dim = dim;
 	setinfo->match_set.flags = src_dst;
+#endif
 
 	if (protocol != IPPROTO_NONE) {
 		fw->ip.proto = protocol;
@@ -624,7 +766,11 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, uns
 	struct ip6t_entry *fw;
 	struct xt_entry_target *target;
 	struct xt_entry_match *match;
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	struct xt_set_info_match_v4 *setinfo;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	struct xt_set_info_match_v3 *setinfo;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	struct xt_set_info_match_v1 *setinfo;
 #else
 	struct xt_set_info_match *setinfo;
@@ -652,7 +798,11 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, uns
 	// set
 	match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 	match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(*setinfo));
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	match->u.user.revision = 4;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	match->u.user.revision = 3;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	match->u.user.revision = 1;
 #else
 	match->u.user.revision = 0;
@@ -660,19 +810,31 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, uns
 	fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 	strcpy(match->u.user.name, "set");
 
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	setinfo = (struct xt_set_info_match_v4 *)match->data;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	setinfo = (struct xt_set_info_match_v3 *)match->data;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	setinfo = (struct xt_set_info_match_v1 *)match->data;
 #else
 	setinfo = (struct xt_set_info_match *)match->data;
 #endif
+	memset(setinfo, 0, sizeof(*setinfo));
+
 	get_set_byname (set_name, &setinfo->match_set, NFPROTO_IPV6, ignore_errors);
 	if (setinfo->match_set.index == IPSET_INVALID_ID) {
 		FREE(fw);
 		return -1;
 	}
 
+#ifndef HAVE_XT_SET_INFO_MATCH_V1
+	/* Version 0 */
+	setinfo->match_set.compat.dim = dim;
+	setinfo->match_set.compat.flags = src_dst;
+#else
 	setinfo->match_set.dim = dim;
 	setinfo->match_set.flags = src_dst;
+#endif
 
 	if (protocol != IPPROTO_NONE) {
 		fw->ipv6.proto = protocol;
@@ -727,5 +889,53 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, uns
 	}
 
 	return 0;
+}
+#endif
+
+#ifdef _LIBIPTC_DYNAMIC_
+bool iptables_lib_init(void)
+{
+	if (libip4tc_handle)
+		return true;
+
+	/* Attempt to open the ip4tc library */
+	if (!(libip4tc_handle = dlopen("libip4tc.so", RTLD_NOW)) &&
+	    !(libip4tc_handle = dlopen(IP4TC_LIB_NAME, RTLD_NOW))) {
+		log_message(LOG_INFO, "Unable to load ip4tc library - %s", dlerror());
+		return false;
+	}
+
+	if (!(iptc_init_addr = dlsym(libip4tc_handle, "iptc_init")) ||
+	    !(iptc_free_addr = dlsym(libip4tc_handle, "iptc_free")) ||
+	    !(iptc_is_chain_addr = dlsym(libip4tc_handle,"iptc_is_chain")) ||
+	    !(iptc_insert_entry_addr = dlsym(libip4tc_handle,"iptc_insert_entry")) ||
+	    !(iptc_append_entry_addr = dlsym(libip4tc_handle,"iptc_append_entry")) ||
+	    !(iptc_delete_entry_addr = dlsym(libip4tc_handle,"iptc_delete_entry")) ||
+	    !(iptc_commit_addr = dlsym(libip4tc_handle,"iptc_commit")) ||
+	    !(iptc_strerror_addr = dlsym(libip4tc_handle,"iptc_strerror")))
+		log_message(LOG_INFO, "Failed to dynamic link an iptc function");
+
+	/* Attempt to open the ip6tc library */
+	if (!(libip6tc_handle = dlopen("libip6tc.so", RTLD_NOW)) &&
+	    !(libip6tc_handle = dlopen(IP6TC_LIB_NAME, RTLD_NOW))) {
+		log_message(LOG_INFO, "Unable to load ip6tc library - %s", dlerror());
+
+		if (global_data->block_ipv4)
+			dlclose(libip4tc_handle);
+
+		return false;
+	}
+
+	if (!(ip6tc_init_addr = dlsym(libip6tc_handle, "ip6tc_init")) ||
+	    !(ip6tc_free_addr = dlsym(libip6tc_handle, "ip6tc_free")) ||
+	    !(ip6tc_is_chain_addr = dlsym(libip6tc_handle,"ip6tc_is_chain")) ||
+	    !(ip6tc_insert_entry_addr = dlsym(libip6tc_handle,"ip6tc_insert_entry")) ||
+	    !(ip6tc_append_entry_addr = dlsym(libip6tc_handle,"ip6tc_append_entry")) ||
+	    !(ip6tc_delete_entry_addr = dlsym(libip6tc_handle,"ip6tc_delete_entry")) ||
+	    !(ip6tc_commit_addr = dlsym(libip6tc_handle,"ip6tc_commit")) ||
+	    !(ip6tc_strerror_addr = dlsym(libip6tc_handle,"ip6tc_strerror")))
+		log_message(LOG_INFO, "Failed to dynamic link an ip6tc function");
+
+	return true;
 }
 #endif

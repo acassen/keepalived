@@ -57,6 +57,10 @@
 #include <libiptc/libxtc.h>
 #endif
 #include <stdint.h>
+#ifdef _HAVE_LIBIPSET_
+#include <xtables.h>
+#include <libipset/linux_ip_set.h>
+#endif
 
 #include "vrrp_iptables.h"
 #include "vrrp_iptables_calls.h"
@@ -66,10 +70,6 @@
 #include "logger.h"
 #include "global_data.h"
 #include "memory.h"
-
-#ifdef _HAVE_LIBIPSET_
-#include "vrrp_ipset.h"
-#endif
 
 struct ipt_handle {
 	struct iptc_handle *h4;
@@ -82,6 +82,9 @@ struct ipt_handle {
 } ;
 
 /* If the chains don't exist, or modules not loaded, we can't use iptables/ip6tables */
+#ifdef _LIBIPTC_DYNAMIC_
+bool using_libiptc = true;
+#endif
 bool use_ip4tables = true;
 bool use_ip6tables = true;
 
@@ -297,7 +300,7 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, void *h, bool force)
 }
 
 void
-handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, struct ipt_handle *h, bool force)
+handle_iptable_rule_to_vip_lib(ip_address_t *ipaddress, int cmd, struct ipt_handle *h, bool force)
 {
 	char *ifname = NULL;
 
@@ -344,7 +347,11 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, struct ipt_handle *
 
 #ifdef _HAVE_LIBIPSET_
 static void
-iptables_remove_structure(bool ignore_errors)
+iptables_remove_structure(
+#ifndef _HAVE_LIBIPSET_
+			  __attribute__((unused))
+#endif
+						 bool ignore_errors)
 {
 	if (global_data->using_ipsets) {
 		add_del_rules(IPADDRESS_DEL, ignore_errors);
@@ -381,14 +388,39 @@ iptables_cleanup(void)
 }
 
 bool
-iptables_init(void)
+iptables_init_lib(void)
 {
-#ifdef _HAVE_LIBIPSET_
-	if (!ipset_init()) {
-		global_data->using_ipsets = false;
+#ifdef _LIBXTABLES_DYNAMIC_
+	xtables_load();
+#endif
 
+#ifdef _LIBIPTC_DYNAMIC_
+	if (!iptables_lib_init()) {
+		using_libiptc = false;
+#ifdef _LIBXTABLES_DYNAMIC_
+		xtables_unload();
+#endif
 		return false;
 	}
+#endif
+
+	if (!load_xtables_module("ip_tables", "iptables")) {
+#ifdef _LIBIPTC_DYNAMIC_
+		using_libiptc = false;
+#endif
+#ifdef _LIBXTABLES_DYNAMIC_
+		xtables_unload();
+#endif
+		return false;
+	}
+
+#ifdef _HAVE_LIBIPSET_
+	if (!ipset_init())
+		global_data->using_ipsets = false;
+#endif
+
+#ifdef _LIBXTABLES_DYNAMIC_
+	xtables_unload();
 #endif
 
 	return true;

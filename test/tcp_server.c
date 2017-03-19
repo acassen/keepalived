@@ -16,8 +16,11 @@ int main(int argc, char **argv)
 	struct sockaddr_in cliaddr, servaddr;
 	struct sockaddr_in6 cliaddr6, servaddr6;
 	char opt;
+	int sock_type = SOCK_STREAM;
+	int n;
+	char buf[128];
 
-	while ((opt = getopt(argc, argv, "46p:")) != -1) {
+	while ((opt = getopt(argc, argv, "46p:u")) != -1) {
 		switch (opt) {
 		case '4':
 			family = AF_INET;
@@ -28,13 +31,16 @@ int main(int argc, char **argv)
 		case 'p':
 			port = atoi(optarg);
 			break;
+		case 'u':
+			sock_type = SOCK_DGRAM;
+			break;
 		default: /* '?' */
 			fprintf(stderr, "Usage: %s [-p port] [-4] [-6]\n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
 	}
 
-	listenfd = socket(family, SOCK_STREAM, 0);
+	listenfd = socket(family, sock_type, 0);
 
 	if (family == AF_INET) {
 		bzero(&servaddr, sizeof(servaddr));
@@ -53,23 +59,43 @@ int main(int argc, char **argv)
 		bind(listenfd, (struct sockaddr *)&servaddr6, sizeof(servaddr6));
 	}
 
-	listen(listenfd, 4);
+	if (sock_type == SOCK_STREAM) {
+		listen(listenfd, 4);
 
-	for (;;) {
-		clilen = sizeof (cliaddr);
-		if (family == AF_INET)
-			connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &clilen);
-		else
-			connfd = accept(listenfd, (struct sockaddr *)&cliaddr6, &clilen);
+		for (;;) {
+			if (family == AF_INET) {
+				clilen = sizeof (cliaddr);
+				connfd = accept(listenfd, (struct sockaddr *)&cliaddr, &clilen);
+			}
+			else {
+				clilen = sizeof (cliaddr6);
+				connfd = accept(listenfd, (struct sockaddr *)&cliaddr6, &clilen);
+			}
 
-		printf("Received connection\n");
-		if ((childpid = fork()) == 0) {
-			close(listenfd);
-			sleep (1);
-			exit(0);
+			printf("Received connection\n");
+			if ((childpid = fork()) == 0) {
+				close(listenfd);
+				sleep (1);
+				exit(0);
+			}
+
+			close(connfd);
 		}
-
-		close(connfd);
+	}
+	else
+	{
+		for (;;) {
+			clilen = sizeof(cliaddr);
+			if (family == AF_INET) {
+				clilen = sizeof (cliaddr);
+				n = recvfrom(listenfd, buf, sizeof(buf), 0, (struct sockaddr *)&cliaddr, &clilen);
+				sendto(listenfd, buf, n, 0, (struct sockaddr *)&cliaddr, clilen);
+			}
+			else {
+				clilen = sizeof (cliaddr6);
+				sendto(listenfd, buf, n, 0, (struct sockaddr *)&cliaddr6, clilen);
+			}
+			printf("Received %d bytes\n", n);
+		}
 	}
 }
-

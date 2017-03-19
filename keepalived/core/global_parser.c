@@ -404,6 +404,21 @@ vrrp_lower_prio_no_advert_handler(vector_t *strvec)
 		global_data->vrrp_lower_prio_no_advert = true;
 }
 static void
+vrrp_higher_prio_send_advert_handler(vector_t *strvec)
+{
+	int res;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0)
+			log_message(LOG_INFO, "Invalid value for vrrp_higher_prio_send_advert specified");
+		else
+			global_data->vrrp_higher_prio_send_advert = res;
+	}
+	else
+		global_data->vrrp_higher_prio_send_advert = true;
+}
+static void
 vrrp_iptables_handler(vector_t *strvec)
 {
 	global_data->vrrp_iptables_inchain[0] = '\0';
@@ -789,6 +804,7 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_garp_interval", &vrrp_garp_interval_handler);
 	install_keyword("vrrp_gna_interval", &vrrp_gna_interval_handler);
 	install_keyword("vrrp_lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
+	install_keyword("vrrp_higher_prio_send_advert", &vrrp_higher_prio_send_advert_handler);
 	install_keyword("vrrp_version", &vrrp_version_handler);
 	install_keyword("vrrp_iptables", &vrrp_iptables_handler);
 #ifdef _HAVE_LIBIPSET_

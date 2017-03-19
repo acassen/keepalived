@@ -568,6 +568,24 @@ vrrp_lower_prio_no_advert_handler(vector_t *strvec)
 	}
 }
 
+static void
+vrrp_higher_prio_send_advert_handler(vector_t *strvec)
+{
+	int res;
+
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res >= 0)
+			vrrp->higher_prio_send_advert = (unsigned)res;
+		else
+			log_message(LOG_INFO, "(%s): invalid higher_prio_send_advert %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+	} else {
+		/* Defaults to true */
+		vrrp->higher_prio_send_advert = true;
+	}
+}
+
 
 #if defined _WITH_VRRP_AUTH_
 static void
@@ -936,6 +954,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("garp_lower_prio_delay", &vrrp_garp_lower_prio_delay_handler);
 	install_keyword("garp_lower_prio_repeat", &vrrp_garp_lower_prio_rep_handler);
 	install_keyword("lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
+	install_keyword("higher_prio_send_advert", &vrrp_higher_prio_send_advert_handler);
 #if defined _WITH_VRRP_AUTH_
 	install_keyword("authentication", NULL);
 	install_sublevel();

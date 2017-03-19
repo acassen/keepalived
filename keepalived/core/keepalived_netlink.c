@@ -35,8 +35,10 @@
 #endif
 #include <net/if_arp.h>
 #include <arpa/inet.h>
+#if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
 #ifdef HAVE_LIBNFNETLINK_LIBNFNETLINK_H
 #include <libnfnetlink/libnfnetlink.h>
+#endif
 #endif
 #include <time.h>
 
@@ -59,6 +61,9 @@
 #include "bitops.h"
 #if !HAVE_DECL_SOCK_NONBLOCK
 #include "old_socket.h"
+#endif
+#ifdef _LIBNL_DYNAMIC_
+#include "libnl_link.h"
 #endif
 
 /* Default values */
@@ -96,141 +101,152 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 {
 	int ret;
 	va_list gp;
-#ifndef _HAVE_LIBNL3_
+#if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
 	int rcvbuf_size;
 #endif
 
 	memset(nl, 0, sizeof (*nl));
 
 #ifdef _HAVE_LIBNL3_
-	/* We need to keep libnl3 in step with our netlink socket creation.  */
-	nl->sk = nl_socket_alloc();
-	if (nl->sk == NULL) {
-		log_message(LOG_INFO, "Netlink: Cannot allocate netlink socket" );
-		return -1;
-	}
-
-	ret = nl_connect(nl->sk, NETLINK_ROUTE);
-	if (ret != 0) {
-		log_message(LOG_INFO, "Netlink: Cannot open netlink socket : (%d)", ret);
-		return -1;
-	}
-
-	/* Unfortunately we can't call nl_socket_add_memberships() with variadic arguments
-	 * from a variadic argument list passed to us
-	 */
-	va_start(gp, group);
-	while (group != 0) {
-		if (group < 0) {
-			va_end(gp);
+#ifdef _LIBNL_DYNAMIC_
+	if (use_nl)
+#endif
+	{
+		/* We need to keep libnl3 in step with our netlink socket creation.  */
+		nl->sk = nl_socket_alloc();
+		if (nl->sk == NULL) {
+			log_message(LOG_INFO, "Netlink: Cannot allocate netlink socket" );
 			return -1;
 		}
 
-		if ((ret = nl_socket_add_membership(nl->sk, group))) {
-			log_message(LOG_INFO, "Netlink: Cannot add socket membership 0x%x : (%d)", group, ret);
+		ret = nl_connect(nl->sk, NETLINK_ROUTE);
+		if (ret != 0) {
+			log_message(LOG_INFO, "Netlink: Cannot open netlink socket : (%d)", ret);
 			return -1;
 		}
 
-		group = va_arg(gp,int);
-	}
-	va_end(gp);
+		/* Unfortunately we can't call nl_socket_add_memberships() with variadic arguments
+		 * from a variadic argument list passed to us
+		 */
+		va_start(gp, group);
+		while (group != 0) {
+			if (group < 0) {
+				va_end(gp);
+				return -1;
+			}
 
-	if (flags & SOCK_NONBLOCK) {
-		if ((ret = nl_socket_set_nonblocking(nl->sk))) {
-			log_message(LOG_INFO, "Netlink: Cannot set netlink socket non-blocking : (%d)", ret);
+			if ((ret = nl_socket_add_membership(nl->sk, group))) {
+				log_message(LOG_INFO, "Netlink: Cannot add socket membership 0x%x : (%d)", group, ret);
+				return -1;
+			}
+
+			group = va_arg(gp,int);
+		}
+		va_end(gp);
+
+		if (flags & SOCK_NONBLOCK) {
+			if ((ret = nl_socket_set_nonblocking(nl->sk))) {
+				log_message(LOG_INFO, "Netlink: Cannot set netlink socket non-blocking : (%d)", ret);
+				return -1;
+			}
+		}
+
+		if ((ret = nl_socket_set_buffer_size(nl->sk, IF_DEFAULT_BUFSIZE, 0))) {
+			log_message(LOG_INFO, "Netlink: Cannot set netlink buffer size : (%d)", ret);
 			return -1;
 		}
+
+		nl->nl_pid = nl_socket_get_local_port(nl->sk);
+
+		nl->fd = nl_socket_get_fd(nl->sk);
+
+		/* Set CLOEXEC */
+		fcntl(nl->fd, F_SETFD, fcntl(nl->fd, F_GETFD) | FD_CLOEXEC);
 	}
-
-	if ((ret = nl_socket_set_buffer_size(nl->sk, IF_DEFAULT_BUFSIZE, 0))) {
-		log_message(LOG_INFO, "Netlink: Cannot set netlink buffer size : (%d)", ret);
-		return -1;
-	}
-
-	nl->nl_pid = nl_socket_get_local_port(nl->sk);
-
-	nl->fd = nl_socket_get_fd(nl->sk);
-
-	/* Set CLOEXEC */
-	fcntl(nl->fd, F_SETFD, fcntl(nl->fd, F_GETFD) | FD_CLOEXEC);
-#else
-	socklen_t addr_len;
-	struct sockaddr_nl snl;
-	int sock_flags = flags;
+#endif
+#if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
+#if defined _HAVE_LIBNL3 && defined _LIBNL_DYNAMIC_
+	else
+#endif
+	{
+		socklen_t addr_len;
+		struct sockaddr_nl snl;
+		int sock_flags = flags;
 #if !HAVE_DECL_SOCK_NONBLOCK
-	sock_flags &= ~SOCK_NONBLOCK;
+		sock_flags &= ~SOCK_NONBLOCK;
 #endif
 
-	nl->fd = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC | sock_flags, NETLINK_ROUTE);
-	if (nl->fd < 0) {
-		log_message(LOG_INFO, "Netlink: Cannot open netlink socket : (%s)",
-		       strerror(errno));
-		return -1;
-	}
-
-#if !HAVE_DECL_SOCK_NONBLOCK
-	if ((flags & SOCK_NONBLOCK) &&
-	    set_sock_flags(nl->fd, F_SETFL, O_NONBLOCK))
-		return -1;
-#endif
-
-	memset(&snl, 0, sizeof (snl));
-	snl.nl_family = AF_NETLINK;
-
-	ret = bind(nl->fd, (struct sockaddr *) &snl, sizeof (snl));
-	if (ret < 0) {
-		log_message(LOG_INFO, "Netlink: Cannot bind netlink socket : (%s)",
-		       strerror(errno));
-		close(nl->fd);
-		return -1;
-	}
-
-	/* Join the requested groups */
-	va_start(gp, group);
-	while (group != 0) {
-		if (group < 0) {
-			va_end(gp);
-			return -1;
-		}
-
-		ret = setsockopt(nl->fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &group, sizeof(group));
-		if (ret < 0) {
-			log_message(LOG_INFO, "Netlink: Cannot add membership on netlink socket : (%s)",
+		nl->fd = socket(AF_NETLINK, SOCK_RAW | SOCK_CLOEXEC | sock_flags, NETLINK_ROUTE);
+		if (nl->fd < 0) {
+			log_message(LOG_INFO, "Netlink: Cannot open netlink socket : (%s)",
 			       strerror(errno));
-			va_end(gp);
 			return -1;
 		}
 
-		group = va_arg(gp,int);
-	}
-	va_end(gp);
+#if !HAVE_DECL_SOCK_NONBLOCK
+		if ((flags & SOCK_NONBLOCK) &&
+		    set_sock_flags(nl->fd, F_SETFL, O_NONBLOCK))
+			return -1;
+#endif
 
-	addr_len = sizeof (snl);
-	ret = getsockname(nl->fd, (struct sockaddr *) &snl, &addr_len);
-	if (ret < 0 || addr_len != sizeof (snl)) {
-		log_message(LOG_INFO, "Netlink: Cannot getsockname : (%s)",
-		       strerror(errno));
-		close(nl->fd);
-		return -1;
-	}
+		memset(&snl, 0, sizeof (snl));
+		snl.nl_family = AF_NETLINK;
 
-	if (snl.nl_family != AF_NETLINK) {
-		log_message(LOG_INFO, "Netlink: Wrong address family %d",
-		       snl.nl_family);
-		close(nl->fd);
-		return -1;
-	}
+		ret = bind(nl->fd, (struct sockaddr *) &snl, sizeof (snl));
+		if (ret < 0) {
+			log_message(LOG_INFO, "Netlink: Cannot bind netlink socket : (%s)",
+			       strerror(errno));
+			close(nl->fd);
+			return -1;
+		}
 
-	/* Save the port id for checking message source later */
-	nl->nl_pid = snl.nl_pid;
+		/* Join the requested groups */
+		va_start(gp, group);
+		while (group != 0) {
+			if (group < 0) {
+				va_end(gp);
+				return -1;
+			}
 
-	/* Set default rcvbuf size */
-	rcvbuf_size = IF_DEFAULT_BUFSIZE;
-	ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size));
-	if (ret < 0) {
-		log_message(LOG_INFO, "cant set SO_RCVBUF IP option. errno=%d (%m)", errno);
-		close(nl->fd);
-		return -1;
+			ret = setsockopt(nl->fd, SOL_NETLINK, NETLINK_ADD_MEMBERSHIP, &group, sizeof(group));
+			if (ret < 0) {
+				log_message(LOG_INFO, "Netlink: Cannot add membership on netlink socket : (%s)",
+				       strerror(errno));
+				va_end(gp);
+				return -1;
+			}
+
+			group = va_arg(gp,int);
+		}
+		va_end(gp);
+
+		addr_len = sizeof (snl);
+		ret = getsockname(nl->fd, (struct sockaddr *) &snl, &addr_len);
+		if (ret < 0 || addr_len != sizeof (snl)) {
+			log_message(LOG_INFO, "Netlink: Cannot getsockname : (%s)",
+			       strerror(errno));
+			close(nl->fd);
+			return -1;
+		}
+
+		if (snl.nl_family != AF_NETLINK) {
+			log_message(LOG_INFO, "Netlink: Wrong address family %d",
+			       snl.nl_family);
+			close(nl->fd);
+			return -1;
+		}
+
+		/* Save the port id for checking message source later */
+		nl->nl_pid = snl.nl_pid;
+
+		/* Set default rcvbuf size */
+		rcvbuf_size = IF_DEFAULT_BUFSIZE;
+		ret = setsockopt(nl->fd, SOL_SOCKET, SO_RCVBUF, &rcvbuf_size, sizeof(rcvbuf_size));
+		if (ret < 0) {
+			log_message(LOG_INFO, "cant set SO_RCVBUF IP option. errno=%d (%m)", errno);
+			close(nl->fd);
+			return -1;
+		}
 	}
 #endif
 
@@ -248,11 +264,20 @@ netlink_close(nl_handle_t *nl)
 {
 	/* First of all release pending thread */
 	thread_cancel(nl->thread);
+
 #ifdef _HAVE_LIBNL3_
-	nl_socket_free(nl->sk);
-#else
-	close(nl->fd);
+#ifdef _LIBNL_DYNAMIC_
+	if (use_nl)
 #endif
+		nl_socket_free(nl->sk);
+#endif
+#if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
+#if defined _HAVE_LIBNL3 && defined _LIBNL_DYNAMIC_
+	else
+#endif
+		close(nl->fd);
+#endif
+
 	return 0;
 }
 
@@ -277,26 +302,40 @@ netlink_set_block(nl_handle_t *nl, int *flags)
 
 /* Set netlink socket channel as non-blocking */
 static int
-netlink_set_nonblock(nl_handle_t *nl, int *flags)
+netlink_set_nonblock(nl_handle_t *nl,
+#ifdef _HAVE_LIBNL3_
+				     __attribute__((unused))
+#endif
+							     int *flags)
 {
 #ifdef _HAVE_LIBNL3_
-	int ret;
+#ifdef _LIBNL_DYNAMIC_
+	if (use_nl)
+#endif
+	{
+		int ret;
 
-	if (flags) {};		/* Stop compiler warning */
-
-	if ((ret = nl_socket_set_nonblocking(nl->sk)) < 0 ) {
-		log_message(LOG_INFO, "Netlink: Cannot set nonblocking : (%s)",
-			strerror(ret));
-		return -1;
-	}
-#else
-	*flags |= O_NONBLOCK;
-	if (fcntl(nl->fd, F_SETFL, *flags) < 0) {
-		log_message(LOG_INFO, "Netlink: Cannot F_SETFL socket : (%s)",
-		       strerror(errno));
-		return -1;
+		if ((ret = nl_socket_set_nonblocking(nl->sk)) < 0 ) {
+			log_message(LOG_INFO, "Netlink: Cannot set nonblocking : (%s)",
+				strerror(ret));
+			return -1;
+		}
 	}
 #endif
+#if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
+#if defined _HAVE_LIBNL3 && defined _LIBNL_DYNAMIC_
+	else
+#endif
+	{
+		*flags |= O_NONBLOCK;
+		if (fcntl(nl->fd, F_SETFL, *flags) < 0) {
+			log_message(LOG_INFO, "Netlink: Cannot F_SETFL socket : (%s)",
+			       strerror(errno));
+			return -1;
+		}
+	}
+#endif
+
 	return 0;
 }
 #endif

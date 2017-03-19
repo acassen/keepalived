@@ -43,7 +43,7 @@
 #include <linux/ila.h>
 #endif
 #endif
-#include <stdint.h>
+#include <inttypes.h>
 
 #include <linux/rtnetlink.h>
 

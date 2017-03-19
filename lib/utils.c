@@ -32,7 +32,7 @@
 #include <sys/utsname.h>
 #include <stdint.h>
 
-#ifndef _HAVE_LIBIPTC_
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 #include <signal.h>
 #include <sys/wait.h>
 #endif
@@ -547,7 +547,7 @@ set_std_fd(int force)
 	signal_fd_close(STDERR_FILENO+1);
 }
 
-#ifndef _HAVE_LIBIPTC_
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 int
 fork_exec(char **argv)
 {

@@ -39,8 +39,14 @@
 #include "global_data.h"
 #include "rttables.h"
 #include "memory.h"
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+#include "utils.h"
+#endif
 
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
+
+bool iptables_cmd_available = true;
+bool ip6tables_cmd_available = true;
 
 char *
 ipaddresstos(char *buf, ip_address_t *ipaddress)
@@ -194,12 +200,12 @@ netlink_iplist(list ip_list, int cmd)
 	return changed_entries;
 }
 
-#ifndef _HAVE_LIBIPTC_
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 static void
 handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, bool force)
 {
 	char  *argv[14];
-	unsigned int i = 0;
+	int i = 0;
 	int if_specifier = -1;
 	int type_specifier ;
 	char *addr_str;
@@ -262,16 +268,24 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, bool force)
 
 /* add/remove iptable drop rule to VIP */
 static void
-handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, __attribute__((unused)) void *unused, bool force)
+handle_iptable_rule_to_vip_cmd(ip_address_t *ipaddress, int cmd, bool force)
 {
-	char  *argv[10];
-	unsigned int i = 0;
+	char *argv[10];
+	int i = 0;
 	int if_specifier = -1;
 	char *addr_str;
 	char *ifname = NULL;
 
 	if (global_data->vrrp_iptables_inchain[0] == '\0')
 		return;
+
+	if (IP_IS6(ipaddress)) {
+		if (!ip6tables_cmd_available)
+			return;
+	} else {
+		if (!iptables_cmd_available)
+			return;
+	}
 
 	if (IP_IS6(ipaddress)) {
 		if (IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr))
@@ -318,6 +332,29 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, __attribute__((unus
 				     " from vip %s", (cmd) ? "set" : "remove", IP_IS6(ipaddress) ? "6" : "", addr_str);
 }
 #endif
+
+static inline void
+handle_iptable_rule_to_vip(ip_address_t *ipaddr, int cmd,
+#ifdef _HAVE_LIBIPTC_
+							     struct ipt_handle *h,
+#else
+							     __attribute__((unused)) void *unused,
+#endif
+												   bool force)
+{
+#ifdef _HAVE_LIBIPTC_
+#ifdef _LIBIPTC_DYNAMIC_
+	if (using_libiptc)
+#endif
+	{
+		handle_iptable_rule_to_vip_lib(ipaddr, cmd, h, force);
+		return;
+	}
+#endif
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+	handle_iptable_rule_to_vip_cmd(ipaddr, cmd, force);
+#endif
+}
 
 /* add/remove iptable drop rules to iplist */
 void
@@ -590,4 +627,33 @@ void
 clear_diff_saddresses(void)
 {
 	clear_diff_address(NULL, old_vrrp_data->static_addresses, vrrp_data->static_addresses);
+}
+
+void
+iptables_init(void)
+{
+#ifdef _HAVE_LIBIPTC_
+	if (iptables_init_lib())
+		return;
+#endif
+
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+	char *argv[3];
+
+	/* We can't use libiptc, so check iptables command available */
+	argv[0] = "iptables";
+	argv[1] = "-V";
+	argv[2] = NULL;
+
+	if (fork_exec(argv) < 0) {
+		log_message(LOG_INFO, "iptables command not available - can't filter IPv4 VIP address destinations");
+		iptables_cmd_available = false;
+	}
+
+	argv[0] = "ip6tables";
+	if (fork_exec(argv) < 0) {
+		log_message(LOG_INFO, "ip6tables command not available - can't filter IPv6 VIP address destinations");
+		ip6tables_cmd_available = false;
+	}
+#endif
 }

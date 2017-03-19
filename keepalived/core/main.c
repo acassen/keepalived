@@ -578,10 +578,10 @@ update_core_dump_pattern(const char *pattern_str)
 	int fd;
 	bool initialising = (orig_core_dump_pattern == NULL);
 
-	/* CORENAME_MAX_SIZE in kernel source defines the maximum string length,
-	 * see core_pattern[CORENAME_MAX_SIZE] in fs/coredump.c. Currently,
-	 * (Linux 4.6) defineds it to be 128, but the definition is not exposed
-	 * to user-space. */
+	/* CORENAME_MAX_SIZE in kernel source include/linux/binfmts.h defines
+	 * the maximum string length, * see core_pattern[CORENAME_MAX_SIZE] in
+	 * fs/coredump.c. Currently (Linux 4.10) defines it to be 128, but the
+	 * definition is not exposed to user-space. */
 #define	CORENAME_MAX_SIZE	128
 
 	if (initialising)
