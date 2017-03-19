@@ -1,3 +1,165 @@
+2017-03-19 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.3.5 released.
+	* Ensure nopreempt is not set if address owner.
+	* Remove hardcoded paths from init files.
+	* Add configure option to override system init type.
+	* Fix some configure tests for init type.
+	* Add support for ip rules uidrange option.
+	  This option was added in Linux 4.10.
+	* Resolve compiler warning on 32 bit systems.
+	  There were two warnings in lib/timer.c for signed vs. unsigned
+	  comparisons on 32 bit systems.
+	* Add missing documentation for ip rule uidrange.
+	* Include snapcraft.yaml tar file.
+	* Remove extraneous EXTRA_DIST directory.
+	* Add library requirements for ArchLinux.
+	* Allow tracking and misc_check scripts time to terminate after
+	  timeout. If a script exceeds the timeout, it is sent a SIGTERM,
+	  and then if it still doesn't terminate, it is sent a SIGKILL.
+	  The problem was that the script was only allowed 2 microseconds
+	  to terminate, whereas it should have been 2 seconds.
+	* Fix script paths when converted to absolute path names.
+	  If a tracking or misc_check script is not specified by a fully
+	  qualified path name, but rather it is resolved via PATH, the updated
+	  patch name wasn't being saved for tracking or misc_check scripts.
+	* Remove yet more hardcoded paths.
+	* Make git ignore keepalived.service file.
+	* Streamline signal handling initialisation.
+	* Report track script name if it times out.
+	  keepalived was simply reporting that pid nnnn had timed out, which
+	  didn't give any indication of what script it was that had timed out.
+	  This patch now means that the script name will be logged rather than
+	  the pid.
+	* Fix conditional configuration for config read via alloc_value_block().
+	  The code for handling conditional configuration was in the wrong function.
+	  This commit move it to read_line() so all configuration is read in the
+	  context of @system_id conditional lines.
+	* Fix compiling with --disable-vrrp.
+	  When building without vrrp, the checker process still needs to
+	  know about IP address creationg and deletion in order to allow the
+	  ha_suspend configuration option to work.
+	* The checker process never needs to monitor interfaces.
+	* Move vrrp_ipvs_needed() to vrrp_daemon.c.
+	* Remove some unnecessary includes of check_data.h.
+	* Make ha_suspend work when building without vrrp.
+	  Support of ha_suspend was only enabled when keepalived was built
+	  with vrrp support. There may be other processes that are adding and
+	  deleting ip addresses, so support of ha_suspend should be enabled when
+	  building without vrrp support.
+	  Also, the vrrp process doesn't need to call the update_checker_activity()
+	  function when addresses are added or deleted.
+	* Don't use netlink address monitoring if not using ha_suspend.
+	* Make --release-vips (-X) option work.
+	  'X' was not included in the optstring for getopt_long(), and so
+	  --release-vips option was not recognised.
+	  Further, only enable VRRP and checker specific options if compiled
+	  with that functionality.
+	* Only report added/deleted addresses if relevant to keepalived.
+	  Logs could get full of messages reporting address addition/deletion
+	  that were of no relevance to keepalived. By default, keepalived will
+	  now only report address additions/deletions with the -D option if
+	  the address is relevant to keepalived.
+	  The -a option is added to log all address additions/deletions.
+	* Remove all #ifdef _WITH_LVS_ from checker code.
+	  If building the checker code, _WITH_LVS_ is always defined (_WITH_LVS_
+	  means build the checker code), so there is no point testing if it is
+	  defined in any of the checker code.
+	* Only include vrrp header files when building with vrrp and also for
+	  check. Make sure vrrp header files are only included if building with
+	  vrrp (i.e. without --disable-vrrp), and likewise only include check
+	  header files if compiling with LVS support (i.e. without --disable-lvs).
+	* Add test/tcp_server.c for testing TCP_CHECK.
+	* Make -a option work without ha_suspend.
+	* Fix integer types. The correct, standard integer types are uint8_t and
+	  uint16_t, not u_int8_t nor u_int16_t (the latter being kernel types).
+	  glibc and uClibc may define the kernel-compatible types, but musl (which
+	  is standards-compliant) does not.
+	* Fix warning when compiling without libnl.
+	* Add including <stdint.h> where those types are used.
+	* Add option to not use dlopen() for libipset, but link at link time.
+	* Remove superfluous (duplicated) block of code.
+	* Add option for dynamic (run-time) linking to libip[46]tc.
+	* Fix dynamic linking of libiptc without ipsets.
+	* Check iptables/ip6tables commands available before using them.
+	* Fix some conversion check compiler warnings.
+	* Make configure option --disable-routes do something.
+	* Don't link to libdl if not needed.
+	* Fix compilation with --disable-vrrp.
+	* Don't link to libraries not required by configuration.
+	* Remove all authentication code if --disable-vrrp-auth specified.
+	* Remove FALLBACK_LIBNL1 and use existing _HAVE_LIBNL1_ instead.
+	  There was no point in a separate FALLBACK_LIBNL1 since it and
+	  _HAVE_LIBNL1_ always had the same value.
+	* Add udp functionality to tcp_server test program.
+	* Fix check_conditional_tests script.
+	* Add option for dynamic (run-time) linking to libxtables.
+	* First stage of run-time linking to libnl-3.
+	* Dynamic/static linking options of libnl/libnl-3, libip[46]tc and
+	  libipset. libnl/libnl-3, libip[46]tc and libipset can all be dynamically
+	  linked at run-time, and if they are not available, keepalvied will use
+	  the alternative code which is used when the libraries cannot be linked
+	  a build time.
+	  This means that a single executable keepalived can be created that will
+	  use the libraries if they are installed on the target system, but will
+	  fall back to the alternatives if the libraries are not available.
+	  This is useful for build environments such as Buildroot which will not
+	  force optional dependencies (see pull request #540), since now keepalived
+	  can be built so as not to force the optional dependencies, but to make
+	  use of them if they are installed.
+	* Fix building without libnl/libnl-3.
+	* Don't allow adver_int to be rounded down to 0.
+	* Fix creation of iptables entries on more recent kernels.
+	  On a 4.9.13 kernel iptables entries were being created with
+	  return-nomatch ! update-counters ! update-subcounters, as shown by
+	  the iptables command.
+	  Although it is not understood why these options are being added, it
+	  transpires that the problem occurs when using version one of the
+	  xt_info_set_match, but doesn't occur when using version 4 of the
+	  structure.
+	  This patch ensures that the latest version of the structure that is
+	  supported by the kernel is always used.
+	* Fix updating /proc/sys/kernel/core_pattern.
+	  Reset file offset to beginning of file between reading the file and
+	  writing new contents.
+	* Fix printing of smtp_server port.
+	* Handle failure if fail dynamically to get address of a libipset function.
+	* Be defensive in case fail to get addres of a libipset function dynamically.
+	* Fix evaluation of library names for run-time linking.
+	* Show failed ipset dl function.
+	* Provide explicit DL error messages and fix autobuilt snap version.
+	* Fix formatting of email message for CHECK_SMTP failures.
+	  The format string passed to smtp_final() can contain format specifiers
+	  so a further pass through printf is required.
+	* Add printf format attribute to vlog_message().
+	* Add higher_prio_send_advert vrrp config option.
+	  There is a problem if two vrrp instances, due to becoming isolated,
+	  both become master, since they will both have sent GARP messages.
+	  Setting higher_prio_send_advert and garp_lower_priority_repeat means
+	  that if a master receives a higher priority advert, it will send its
+	  own lower priority advert before it transitions to backup. The higher
+	  priority master, on receiving a lower priority advert, will then send
+	  GARP messages, and so the ARP caches will then be correctly updated.
+	  Using the higher_prio_send_advert option may be considered not to
+	  conform to the VRRP protocol (725) to (765) in state description of
+	  RFC5798, however, since which of the two masters advertises first
+	  after they can both see each other again is random, there is a 50%
+	  chance that the lower priority instance will send an advert before the
+	  higher priority instance, so to all external observers it will appear
+	  that this is the case, or at least that the adverts overlapped.
+	* Fix higher_prio_send_advert in lower priority master.
+	* Load the ip_tables module if using iptables.
+	  We cannot guarantee that the ip_tables modules has been loaded, so
+	  we load it ourself if using libiptc.
+	* Fix (cosmetic) conditional compilation test.
+	* Fix building with --enable-libxtables-dynamic --disable-libiptc.
+	* Enable compilation with namespaces if SYS_setns is not defined.
+	* Fix compiling with struct xt_set_info_match_v0.
+	* Check to libnfnetlink.h and netlink.h with libnl v1 too.
+	* Workaround missing libraries from pkg-config --libs libiptc.
+	  Old version of libiptc don't report requirements on libip4tc and
+	  libip6tc, so check if the output from pkg-config is only -L.* -liptc
+	  and if so add -lip4tc -lip6tc.
+
 2017-02-18 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.3.4 released.
 	* Fix generation of lib/git-commit.h when building a tagged commit.
