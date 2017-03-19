@@ -695,14 +695,8 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 		return -1;
 	}
 
-#ifndef HAVE_XT_SET_INFO_MATCH_V1
-	/* Version 0 */
-	setinfo->match_set.compat.dim = dim;
-	setinfo->match_set.compat.flags = src_dst;
-#else
 	setinfo->match_set.dim = dim;
 	setinfo->match_set.flags = src_dst;
-#endif
 
 	if (protocol != IPPROTO_NONE) {
 		fw->ip.proto = protocol;
@@ -826,14 +820,8 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, uns
 		return -1;
 	}
 
-#ifndef HAVE_XT_SET_INFO_MATCH_V1
-	/* Version 0 */
-	setinfo->match_set.compat.dim = dim;
-	setinfo->match_set.compat.flags = src_dst;
-#else
 	setinfo->match_set.dim = dim;
 	setinfo->match_set.flags = src_dst;
-#endif
 
 	if (protocol != IPPROTO_NONE) {
 		fw->ipv6.proto = protocol;

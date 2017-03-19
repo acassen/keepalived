@@ -174,6 +174,10 @@
 //#include "linux/unistd.h"
 //_syscall2(int, setns, int, fd, int, nstype)
 #include <unistd.h>
+#ifndef SYS_setns
+#define SYS_setns __NR_setns
+#endif
+
 #include <sys/syscall.h>
 
 #include "namespaces.h"
