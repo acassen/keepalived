@@ -8249,6 +8249,123 @@ fi
   fi
 
   if test $USE_LIBIPTC = Yes; then
+    if test .$enable_libxtables_dynamic != .yes; then
+       if test -n ""; then
+      KA_PKG_PFX=
+    else
+      KA_PKG_PFX=KA
+    fi
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
+    for item in `$PKG_CONFIG --cflags-only-I xtables`; do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CFLAGS
+    for item in `$PKG_CONFIG --cflags-only-other xtables`; do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_LIBS
+    for item in `$PKG_CONFIG --libs xtables`; do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
+
+
+    if test . = .remove-requires; then
+      REQUIRES=`$PKG_CONFIG --print-requires xtables`
+      eval var=\$${KA_PKG_PFX}_LIBS
+      for r in $REQUIRES; do
+	REQ_LIBS=`$PKG_CONFIG --libs $r`
+	for l in $REQ_LIBS; do
+	  var=`echo " $var " | sed -e "s/ $l / /g"`
+	done
+      done
+      var=`echo $var | sed -e "s/^ *//" -e "s/  *$//"`
+      eval ${KA_PKG_PFX}_LIBS="\"$var\""
+    fi
+
+    else
+       if test -n ""; then
+      KA_PKG_PFX=
+    else
+      KA_PKG_PFX=KA
+    fi
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
+    for item in $($PKG_CONFIG --cflags-only-I xtables); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CFLAGS
+    for item in $($PKG_CONFIG --cflags-only-other xtables); do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
+
+
+
+$as_echo "#define _LIBXTABLES_DYNAMIC_  1 " >>confdefs.h
+
+      BUILD_OPTIONS="$BUILD_OPTIONS XTABLES_DYNAMIC"
+      NEED_LIBDL=Yes
+
+    if test $LDD = :; then
+      as_fn_error $? "ldd is required for dynamic run-time linking support" "$LINENO" 5
+    fi
+
+    SAV_LIBS="$LIBS"
+    LIBS=-lxtables
+    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+      extern void xtables_insmod(void);
+      int main(void)
+      {
+	xtables_insmod();
+        return 0;
+      }
+
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+
+      LIB_DETAILS=`$LDD ./conftest$EXEEXT | grep xtables.so | sed -e "s/^[ \t]*//"`
+      LIB_NAME=`echo $LIB_DETAILS | sed -e "s/ .*//"`
+
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+    LIBS="$SAV_LIBS"
+
+
+cat >>confdefs.h <<_ACEOF
+#define XTABLES_LIB_NAME  "$LIB_NAME"
+_ACEOF
+
+    fi
+
         SAV_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS $kernelinc"
     if test "${enable_libipset}" != no; then
@@ -8587,122 +8704,6 @@ _ACEOF
 
 	    else
               BUILD_OPTIONS="$BUILD_OPTIONS LIBIPSET"
-	    fi
-	    if test .$enable_libxtables_dynamic != .yes; then
-               if test -n ""; then
-      KA_PKG_PFX=
-    else
-      KA_PKG_PFX=KA
-    fi
-    ADD_NEW=
-   eval var=\$${KA_PKG_PFX}_CPPFLAGS
-    for item in `$PKG_CONFIG --cflags-only-I xtables`; do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
-
-    ADD_NEW=
-   eval var=\$${KA_PKG_PFX}_CFLAGS
-    for item in `$PKG_CONFIG --cflags-only-other xtables`; do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
-
-    ADD_NEW=
-   eval var=\$${KA_PKG_PFX}_LIBS
-    for item in `$PKG_CONFIG --libs xtables`; do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
-
-
-    if test . = .remove-requires; then
-      REQUIRES=`$PKG_CONFIG --print-requires xtables`
-      eval var=\$${KA_PKG_PFX}_LIBS
-      for r in $REQUIRES; do
-	REQ_LIBS=`$PKG_CONFIG --libs $r`
-	for l in $REQ_LIBS; do
-	  var=`echo " $var " | sed -e "s/ $l / /g"`
-	done
-      done
-      var=`echo $var | sed -e "s/^ *//" -e "s/  *$//"`
-      eval ${KA_PKG_PFX}_LIBS="\"$var\""
-    fi
-
-	    else
-               if test -n ""; then
-      KA_PKG_PFX=
-    else
-      KA_PKG_PFX=KA
-    fi
-    ADD_NEW=
-   eval var=\$${KA_PKG_PFX}_CPPFLAGS
-    for item in $($PKG_CONFIG --cflags-only-I xtables); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
-
-    ADD_NEW=
-   eval var=\$${KA_PKG_PFX}_CFLAGS
-    for item in $($PKG_CONFIG --cflags-only-other xtables); do
-      echo " $var " | $GREP -q " $item "
-      if test $? -ne 0; then
-	ADD_NEW="$ADD_NEW $item"
-      fi
-    done
-    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
-
-
-
-$as_echo "#define _LIBXTABLES_DYNAMIC_  1 " >>confdefs.h
-
-	      BUILD_OPTIONS="$BUILD_OPTIONS XTABLES_DYNAMIC"
-	      NEED_LIBDL=Yes
-
-    if test $LDD = :; then
-      as_fn_error $? "ldd is required for dynamic run-time linking support" "$LINENO" 5
-    fi
-
-    SAV_LIBS="$LIBS"
-    LIBS=-lxtables
-    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
-/* end confdefs.h.  */
-
-      extern void xtables_insmod(void);
-      int main(void)
-      {
-	xtables_insmod();
-        return 0;
-      }
-
-_ACEOF
-if ac_fn_c_try_link "$LINENO"; then :
-
-      LIB_DETAILS=`$LDD ./conftest$EXEEXT | grep xtables.so | sed -e "s/^[ \t]*//"`
-      LIB_NAME=`echo $LIB_DETAILS | sed -e "s/ .*//"`
-
-fi
-rm -f core conftest.err conftest.$ac_objext \
-    conftest$ac_exeext conftest.$ac_ext
-    LIBS="$SAV_LIBS"
-
-
-cat >>confdefs.h <<_ACEOF
-#define XTABLES_LIB_NAME  "$LIB_NAME"
-_ACEOF
-
 	    fi
 
 	                            ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v1" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v1_match_set_index" "

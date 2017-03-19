@@ -660,6 +660,17 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
   fi
 
   if test $USE_LIBIPTC = Yes; then
+    if test .$enable_libxtables_dynamic != .yes; then
+      add_pkg_config([xtables])
+    else
+      add_pkg_config_without_libs([xtables])
+      AC_DEFINE([_LIBXTABLES_DYNAMIC_], [ 1 ], [Define to 1 if building with libxtables dynamic linking])
+      add_build_opt([XTABLES_DYNAMIC])
+      NEED_LIBDL=Yes
+      get_lib_name([xtables], [xtables_insmod])
+      AC_DEFINE_UNQUOTED([XTABLES_LIB_NAME], [ "$LIB_NAME" ], [Define the xtables library name])
+    fi
+
     dnl ----[Check for ipset libraries]----
     SAV_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS $kernelinc"
@@ -719,16 +730,6 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
 	      AC_DEFINE_UNQUOTED([IPSET_LIB_NAME], [ "$LIB_NAME" ], [Define the ipset library name])
 	    else
               add_build_opt([LIBIPSET])
-	    fi
-	    if test .$enable_libxtables_dynamic != .yes; then
-              add_pkg_config([xtables])
-	    else
-              add_pkg_config_without_libs([xtables])
-	      AC_DEFINE([_LIBXTABLES_DYNAMIC_], [ 1 ], [Define to 1 if building with libxtables dynamic linking])
-	      add_build_opt([XTABLES_DYNAMIC])
-	      NEED_LIBDL=Yes
-	      get_lib_name([xtables], [xtables_insmod])
-	      AC_DEFINE_UNQUOTED([XTABLES_LIB_NAME], [ "$LIB_NAME" ], [Define the xtables library name])
 	    fi
 
 	    dnl - xt_set_info_match first introduced in Linux 2.6.39
