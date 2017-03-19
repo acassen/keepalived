@@ -46,6 +46,16 @@ extern struct nlmsghdr * (*nlmsg_hdr_addr)(struct nl_msg *);
 extern int (*nl_recvmsgs_default_addr)(struct nl_sock *);
 extern int (*nl_send_auto_complete_addr)(struct nl_sock *,  struct nl_msg *);
 extern int (*nl_socket_modify_cb_addr)(struct nl_sock *, enum nl_cb_type, enum nl_cb_kind, nl_recvmsg_msg_cb_t, void *);
+#ifdef _HAVE_LIBNL3_
+extern void * (*nla_data_addr)(const struct nlattr *);
+extern int32_t (*nla_get_s32_addr)(const struct nlattr *);
+extern char * (*nla_get_string_addr)(const struct nlattr *);
+extern uint16_t (*nla_get_u16_addr)(const struct nlattr *);
+extern uint32_t (*nla_get_u32_addr)(const struct nlattr *);
+extern uint64_t (*nla_get_u64_addr)(const struct nlattr *);
+extern int (*nla_memcpy_addr)(void *, const struct nlattr *, int);
+extern int (*nla_parse_nested_addr)(struct nlattr **, int, struct nlattr *, struct nla_policy *);
+#endif
 #endif
 #ifdef _HAVE_LIBNL3_
 #if defined _WITH_VRRP_ && defined _HAVE_IPV4_DEVCONF_
@@ -82,6 +92,16 @@ extern int (*nl_socket_set_nonblocking_addr)(const struct nl_sock *);
 #define nl_recvmsgs_default (*nl_recvmsgs_default_addr)
 #define nl_send_auto_complete (*nl_send_auto_complete_addr)
 #define nl_socket_modify_cb (*nl_socket_modify_cb_addr)
+#ifdef _HAVE_LIBNL3_
+#define nla_data (*nla_data_addr)
+#define nla_get_s32 (*nla_get_s32_addr)
+#define nla_get_string (*nla_get_string_addr)
+#define nla_get_u16 (*nla_get_u16_addr)
+#define nla_get_u32 (*nla_get_u32_addr)
+#define nla_get_u64 (*nla_get_u64_addr)
+#define nla_memcpy (*nla_memcpy_addr)
+#define nla_parse_nested (*nla_parse_nested_addr)
+#endif
 #endif
 #ifdef _HAVE_LIBNL3_
 #if defined _WITH_VRRP_ && defined _HAVE_IPV4_DEVCONF_
