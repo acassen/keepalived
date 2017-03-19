@@ -7709,15 +7709,27 @@ fi
 
 done
 
-    if test $NETLINK_VER -eq 3; then
-      CPPFLAGS="$SAV_CPPFLAGS $NL3_CPPFLAGS"
-      for ac_header in libnfnetlink/libnfnetlink.h netlink/netlink.h
+    CPPFLAGS="$SAV_CPPFLAGS $NL3_CPPFLAGS"
+    for ac_header in libnfnetlink/libnfnetlink.h
 do :
-  as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
-ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
-if eval test \"x\$"$as_ac_Header"\" = x"yes"; then :
+  ac_fn_c_check_header_mongrel "$LINENO" "libnfnetlink/libnfnetlink.h" "ac_cv_header_libnfnetlink_libnfnetlink_h" "$ac_includes_default"
+if test "x$ac_cv_header_libnfnetlink_libnfnetlink_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
-#define `$as_echo "HAVE_$ac_header" | $as_tr_cpp` 1
+#define HAVE_LIBNFNETLINK_LIBNFNETLINK_H 1
+_ACEOF
+
+else
+  as_fn_error $? "libnfnetlink headers missing" "$LINENO" 5
+fi
+
+done
+
+    for ac_header in netlink/netlink.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "netlink/netlink.h" "ac_cv_header_netlink_netlink_h" "$ac_includes_default"
+if test "x$ac_cv_header_netlink_netlink_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_NETLINK_NETLINK_H 1
 _ACEOF
 
 else
@@ -7726,8 +7738,8 @@ fi
 
 done
 
-      if test .$disable_lvs != .no; then
-        for ac_header in netlink/genl/ctrl.h netlink/genl/genl.h
+    if test .$disable_lvs != .no; then
+      for ac_header in netlink/genl/ctrl.h netlink/genl/genl.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -7742,7 +7754,6 @@ fi
 
 done
 
-      fi
     fi
     CPPFLAGS="$SAV_CPPFLAGS"
   fi
