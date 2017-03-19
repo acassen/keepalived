@@ -439,7 +439,7 @@ void xtables_unload(void)
 #endif
 
 bool load_xtables_module(const char *module,
-#ifndef _LIBXTABLES_DYNAMIC
+#ifndef _LIBXTABLES_DYNAMIC_
 					    __attribute__((unused))
 #endif
 								    const char *function)
