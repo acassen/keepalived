@@ -52,6 +52,16 @@ struct nlmsghdr * (*nlmsg_hdr_addr)(struct nl_msg *);
 int (*nl_recvmsgs_default_addr)(struct nl_sock *);
 int (*nl_send_auto_complete_addr)(struct nl_sock *,  struct nl_msg *);
 int (*nl_socket_modify_cb_addr)(struct nl_sock *, enum nl_cb_type, enum nl_cb_kind, nl_recvmsg_msg_cb_t, void *);
+#ifdef _HAVE_LIBNL3_
+void * (*nla_data_addr)(const struct nlattr *);
+int32_t (*nla_get_s32_addr)(const struct nlattr *);
+char * (*nla_get_string_addr)(const struct nlattr *);
+uint16_t (*nla_get_u16_addr)(const struct nlattr *);
+uint32_t (*nla_get_u32_addr)(const struct nlattr *);
+uint64_t (*nla_get_u64_addr)(const struct nlattr *);
+int (*nla_memcpy_addr)(void *, const struct nlattr *, int);
+int (*nla_parse_nested_addr)(struct nlattr **, int, struct nlattr *, struct nla_policy *);
+#endif
 #endif
 #ifdef _HAVE_LIBNL3_
 #if defined _WITH_VRRP_ && defined _HAVE_IPV4_DEVCONF_
@@ -111,7 +121,7 @@ libnl_init(void)
 		return false;
 	}
 #endif
-#ifdef _WITH_VRRP_
+#if defined _WITH_VRRP_ && defined _HAVE_IPV4_DEVCONF_
 	if (!(libnl_route_handle = dlopen("libnl-route-3.so", RTLD_NOW)) &&
 	    !(libnl_route_handle = dlopen(NL3_ROUTE_LIB_NAME, RTLD_NOW))) {
 		log_message(LOG_INFO, "Unable to load nl-route-3 library - %s", dlerror());
@@ -142,6 +152,16 @@ libnl_init(void)
 	    !(nl_recvmsgs_default_addr = dlsym(libnl_handle, "nl_recvmsgs_default")) ||
 	    !(nl_send_auto_complete_addr = dlsym(libnl_handle, "nl_send_auto_complete")) ||
 	    !(nl_socket_modify_cb_addr = dlsym(libnl_handle, "nl_socket_modify_cb")) ||
+#ifdef _HAVE_LIBNL3_
+	    !(nla_data_addr = dlsym(libnl_handle, "nla_data")) ||
+	    !(nla_get_s32_addr = dlsym(libnl_handle, "nla_get_s32")) ||
+	    !(nla_get_string_addr = dlsym(libnl_handle, "nla_get_string")) ||
+	    !(nla_get_u16_addr = dlsym(libnl_handle, "nla_get_u16")) ||
+	    !(nla_get_u32_addr = dlsym(libnl_handle, "nla_get_u32")) ||
+	    !(nla_get_u64_addr = dlsym(libnl_handle, "nla_get_u64")) ||
+	    !(nla_memcpy_addr = dlsym(libnl_handle, "nla_memcpy")) ||
+	    !(nla_parse_nested_addr = dlsym(libnl_handle, "nla_parse_nested")) ||
+#endif
 #endif
 
 #ifdef _HAVE_LIBNL3_
