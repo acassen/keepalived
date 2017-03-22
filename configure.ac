@@ -154,6 +154,8 @@ AC_ARG_ENABLE(vrrp-auth,
   [AS_HELP_STRING([--disable-vrrp-auth], [compile without VRRP authentication])])
 AC_ARG_ENABLE(routes,
   [AS_HELP_STRING([--disable-routes], [compile without ip rules/routes])])
+AC_ARG_ENABLE(gnu-std-paths,
+  [AS_HELP_STRING([--enable-gnu-std-paths], [use GNU standard paths for pid files etc])])
 AC_ARG_ENABLE(dynamic-linking,
   [AS_HELP_STRING([--enable-dynamic-linking], [compile with/without dynamically linked libiptc/libipset])])
 AC_ARG_ENABLE(libiptc-dynamic,
@@ -1201,6 +1203,16 @@ dnl -- From glibc 2.14. Otherwise use setns syscall, since Linux 2.4.x
 AC_CHECK_FUNCS([setns])
 CFLAGS="$SAV_CFLAGS"
 AM_CONDITIONAL([WITH_NAMESPACES], [test $ac_cv_have_decl_CLONE_NEWNET = yes])
+
+dnl -- Do we want GNU standard paths (moves .pid files)
+GNU_STD_PATHS=No
+if test "${enable_gnu_std_paths}" = "yes"; then
+  AC_DEFINE([GNU_STD_PATHS], [ 1 ], [set to enforce GNU standard paths, for .pid files etc])
+  PID_DIR=$localstatedir
+else
+  PID_DIR=/var
+fi
+AC_SUBST([PID_DIR])
 
 dnl ---[ check for sphinx-build executable ]----
 if test -z "$SPHINXBUILD"; then
