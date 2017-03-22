@@ -80,7 +80,7 @@ const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
 static char *syslog_ident;				/* syslog ident if not default */
 char *instance_name;					/* keepalived instance name */
-bool use_pid_dir;					/* Put pid files in /var/run/keepalived */
+bool use_pid_dir;					/* Put pid files in /var/run/keepalived or @localstatedir@/run/keepalived */
 uid_t default_script_uid;				/* Default user/group for script execution */
 gid_t default_script_gid;
 unsigned os_major;					/* Kernel version */

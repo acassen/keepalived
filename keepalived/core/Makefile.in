@@ -232,6 +232,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PID_DIR = @PID_DIR@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
@@ -286,7 +287,8 @@ target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-AM_CPPFLAGS = $(KA_CPPFLAGS) $(DEBUG_CPPFLAGS) -I$(srcdir)/../include \
+AM_CPPFLAGS = $(KA_CPPFLAGS) $(DEBUG_CPPFLAGS) \
+	-DLOCAL_STATE_DIR=\"@localstatedir@\" -I$(srcdir)/../include \
 	-I$(srcdir)/../../lib
 AM_CFLAGS = $(KA_CFLAGS) $(DEBUG_CFLAGS)
 AM_LDFLAGS = $(KA_LDFLAGS) $(DEBUG_LDFLAGS)
