@@ -49,7 +49,7 @@ virtual_server ae00::1 80 {
 #            nb_get_retry 3
 #            delay_before_retry 3
 #        }
-#    }
+    }
 
 
 }
