@@ -90,8 +90,6 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 				cinfo.ifa_prefered = 0;
 				cinfo.ifa_valid = INFINITY_LIFE_TIME;
 
-				log_message(LOG_INFO, "%s has a prefix length of 128, setting "
-						      "preferred_lft to 0", ipaddresstos(NULL, ipaddress));
 				addattr_l(&req.n, sizeof(req), IFA_CACHEINFO, &cinfo,
 					  sizeof(cinfo));
 			}
@@ -114,6 +112,8 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin6_addr, sizeof(ipaddress->u.sin6_addr));
+
+
 	} else {
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin.sin_addr, sizeof(ipaddress->u.sin.sin_addr));
