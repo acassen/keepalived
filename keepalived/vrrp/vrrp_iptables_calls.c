@@ -263,6 +263,8 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 
 	sav_errno = errno ;
 
+	FREE(fw);
+
 	if (res !=  1 && (!force || sav_errno != ENOENT))
 	{
 		log_message(LOG_INFO, "ip4tables_process_entry for chain %s returned %d: %s", chain, res, iptc_strerror (sav_errno) ) ;
@@ -390,6 +392,8 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 		res = ip6tc_insert_entry (chain, fw, rulenum, handle ) ;
 
 	sav_errno = errno ;
+
+	FREE(fw);
 
 	if (res !=  1 && (!force || sav_errno != ENOENT))
 	{
