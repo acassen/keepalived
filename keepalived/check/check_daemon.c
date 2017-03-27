@@ -107,12 +107,6 @@ stop_check(int status)
 static void
 start_check(void)
 {
-	/* Initialize sub-system */
-	if (ipvs_start() != IPVS_SUCCESS) {
-		stop_check(KEEPALIVED_EXIT_FATAL);
-		return;
-	}
-
 	init_checkers_queue();
 
 	/* Parse configuration file */
@@ -141,6 +135,13 @@ start_check(void)
 #ifdef _MEM_CHECK_
 	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
 #endif
+
+	/* Initialize sub-system if any virtual servers are configured */
+	if (!LIST_ISEMPTY(check_data->vs) &&
+	    ipvs_start() != IPVS_SUCCESS) {
+		stop_check(KEEPALIVED_EXIT_FATAL);
+		return;
+	}
 
 	/* Get current active addresses, and start update process */
 	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug))

@@ -268,6 +268,11 @@ bool remove_ipsets(void)
 	if (!global_data->using_ipsets)
 		return true;
 
+#ifdef _LIBIPSET_DYNAMIC_
+	if (!libipset_handle)
+		return true;
+#endif
+
 	session = ipset_session_init(printf);
 	if (!session) {
 		log_message(LOG_INFO, "Cannot initialize ipset session.");
