@@ -220,6 +220,28 @@ init_checkers_queue(void)
 	checkers_queue = alloc_list(free_checker, dump_checker);
 }
 
+/* release the checkers for a virtual server */
+void
+free_vs_checkers(virtual_server_t *vs)
+{
+	element e;
+	element next;
+	checker_t *checker;
+
+	if (LIST_ISEMPTY(checkers_queue))
+		return;
+
+	for (e = LIST_HEAD(checkers_queue); e; e = next) {
+		next = e->next;
+
+		checker = ELEMENT_DATA(e);
+		if (checker->vs != vs)
+			continue;
+
+		free_list_element(checkers_queue, e);
+	}
+}
+
 /* release the checkers_queue */
 void
 free_checkers_queue(void)

@@ -550,11 +550,20 @@ bool validate_check_config(void)
 	element e;
 	virtual_server_t *vs;
 	checker_t *checker;
+	element next;
 
 	using_ha_suspend = false;
 	if (!LIST_ISEMPTY(check_data->vs)) {
-		for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
+		for (e = LIST_HEAD(check_data->vs); e; e = next) {
+			next = e->next;
+
 			vs = ELEMENT_DATA(e);
+
+			if (!vs->rs) {
+				log_message(LOG_INFO, "Virtual server %s has no real servers - ignoring", FMT_VS(vs));
+				free_list_element(check_data->vs, e);
+				continue;
+			}
 
 			/* Ensure that no virtual server hysteresis >= quorum */
 			if (vs->hysteresis >= vs->quorum) {
