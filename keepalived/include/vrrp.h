@@ -308,6 +308,10 @@ typedef struct _vrrp_t {
 
 #define VRRP_ISUP(V)		(!(V)->num_script_if_fault)
 
+/* Global variables */
+extern bool block_ipv4;
+extern bool block_ipv6;
+
 /* prototypes */
 extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, unsigned *);
 extern int open_vrrp_send_socket(sa_family_t, int, interface_t *, bool);
@@ -323,6 +327,7 @@ extern void vrrp_state_goto_master(vrrp_t *);
 extern void vrrp_state_leave_master(vrrp_t *);
 extern void vrrp_state_leave_fault(vrrp_t *);
 extern bool vrrp_complete_init(void);
+extern void vrrp_restore_interfaces_startup(void);
 extern void restore_vrrp_interfaces(void);
 extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);

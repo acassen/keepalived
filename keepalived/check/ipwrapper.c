@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include "ipwrapper.h"
+#include "check_api.h"
 #include "logger.h"
 #include "utils.h"
 #include "main.h"
@@ -135,10 +136,12 @@ void
 clear_services(void)
 {
 	element e;
-	list l = check_data->vs;
 	virtual_server_t *vs;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+	if (!check_data || !check_data->vs)
+		return;
+
+	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
 		clear_service_vs(vs);
 	}
@@ -763,25 +766,41 @@ link_vsg_to_vs(void)
 
 		if (vs->vsgname) {
 			vs->vsg = ipvs_get_group_by_name(vs->vsgname, check_data->vs_group);
-			if (!vs->vsg)
-				log_message(LOG_INFO, "Virtual server group %s specified but not configured - ignoring virtual server", vs->vsgname);
-			else {
-				/* Check the vs and vsg address families match */
-				if (!LIST_ISEMPTY(vs->vsg->addr_ip)) {
-					vsge = ELEMENT_DATA(LIST_HEAD(vs->vsg->addr_ip));
-					vsg_af = vsge->addr.ss_family;
-				}
-				else if (!LIST_ISEMPTY(vs->vsg->range)) {
-					vsge = ELEMENT_DATA(LIST_HEAD(vs->vsg->range));
-					vsg_af = vsge->addr.ss_family;
-				}
-				else
-					vsg_af = AF_UNSPEC;
+			if (!vs->vsg) {
+				log_message(LOG_INFO, "Virtual server group %s specified but not configured - ignoring virtual server %s", vs->vsgname, FMT_VS(vs));
+				free_vs_checkers(vs);
+				free_list_element(check_data->vs, e);
+				continue;
+			}
 
-				if (vsg_af != AF_UNSPEC && vsg_af != vs->af) {
-					log_message(LOG_INFO, "Virtual server group %s address family doesn't match virtual server", vs->vsgname);
-					vs->vsg = NULL;
-				}
+			/* Check the vsg has some configuration */
+			if (LIST_ISEMPTY(vs->vsg->addr_ip) &&
+			    LIST_ISEMPTY(vs->vsg->range) &&
+			    LIST_ISEMPTY(vs->vsg->vfwmark)) {
+				log_message(LOG_INFO, "Virtual server group %s has no configuration - ignoring virtual server %s", vs->vsgname, FMT_VS(vs));
+				free_vs_checkers(vs);
+				free_list_element(check_data->vs, e);
+				continue;
+			}
+
+			/* Check the vs and vsg address families match */
+			if (!LIST_ISEMPTY(vs->vsg->addr_ip)) {
+				vsge = ELEMENT_DATA(LIST_HEAD(vs->vsg->addr_ip));
+				vsg_af = vsge->addr.ss_family;
+			}
+			else if (!LIST_ISEMPTY(vs->vsg->range)) {
+				vsge = ELEMENT_DATA(LIST_HEAD(vs->vsg->range));
+				vsg_af = vsge->addr.ss_family;
+			}
+			else {
+				/* fwmark only */
+				vsg_af = AF_UNSPEC;
+			}
+
+			if (vsg_af != AF_UNSPEC && vsg_af != vs->af) {
+				log_message(LOG_INFO, "Virtual server group %s address family doesn't match virtual server %s - ignoring", vs->vsgname, FMT_VS(vs));
+				free_vs_checkers(vs);
+				free_list_element(check_data->vs, e);
 			}
 		}
 	}

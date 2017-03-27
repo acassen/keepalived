@@ -82,7 +82,7 @@ AC_DEFUN([get_lib_name],
 
 dnl ----[ Process this file with autoconf to produce a configure script ]----
 AC_PREREQ([2.65])
-AC_INIT([Keepalived], [1.3.4], [keepalived-devel@lists.sourceforge.net], [], [http://www.keepalived.org/])
+AC_INIT([Keepalived], [1.3.5], [keepalived-devel@lists.sourceforge.net], [], [http://www.keepalived.org/])
 AM_INIT_AUTOMAKE([-Wall -Werror -Woverride foreign])
 
 AC_CONFIG_SRCDIR([keepalived/core/main.c])
@@ -157,6 +157,8 @@ AC_ARG_ENABLE(vrrp-auth,
   [AS_HELP_STRING([--disable-vrrp-auth], [compile without VRRP authentication])])
 AC_ARG_ENABLE(routes,
   [AS_HELP_STRING([--disable-routes], [compile without ip rules/routes])])
+AC_ARG_ENABLE(gnu-std-paths,
+  [AS_HELP_STRING([--enable-gnu-std-paths], [use GNU standard paths for pid files etc])])
 AC_ARG_ENABLE(dynamic-linking,
   [AS_HELP_STRING([--enable-dynamic-linking], [compile with/without dynamically linked libiptc/libipset])])
 AC_ARG_ENABLE(libiptc-dynamic,
@@ -568,12 +570,11 @@ if test .${enable_libnl} != .no; then
     SAV_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS $kernelinc"
     AC_CHECK_HEADERS([linux/rtnetlink.h], [], [AC_MSG_ERROR([Unusable linux/rtnetlink.h])], [$NETLINK_EXTRA_INCLUDE])
-      CPPFLAGS="$SAV_CPPFLAGS $NL3_CPPFLAGS"
-      AC_CHECK_HEADERS([libnfnetlink/libnfnetlink.h netlink/netlink.h], [], [AC_MSG_ERROR([netlink headers missing])])
-    if test $NETLINK_VER -eq 3; then
-      if test .$disable_lvs != .no; then
-        AC_CHECK_HEADERS([netlink/genl/ctrl.h netlink/genl/genl.h], [], [AC_MSG_ERROR([netlink genl headers missing])])
-      fi
+    CPPFLAGS="$SAV_CPPFLAGS $NL3_CPPFLAGS"
+    AC_CHECK_HEADERS([libnfnetlink/libnfnetlink.h], [], [AC_MSG_ERROR([libnfnetlink headers missing])])
+    AC_CHECK_HEADERS([netlink/netlink.h], [], [AC_MSG_ERROR([netlink headers missing])])
+    if test .$disable_lvs != .no; then
+      AC_CHECK_HEADERS([netlink/genl/ctrl.h netlink/genl/genl.h], [], [AC_MSG_ERROR([netlink genl headers missing])])
     fi
     CPPFLAGS="$SAV_CPPFLAGS"
   fi
@@ -650,6 +651,11 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
           add_pkg_config([--static libiptc])
 	  dnl - Older versions of libiptc produced a requirement for -liptc, but we don't need it
 	  KA_LIBS=`echo $KA_LIBS | sed -e "s/ -liptc//"`
+	  dnl - Even older versions of libiptc don't produce any requirement other than -liptc
+	  IPTC_LIBS=`echo $IPTC_LIBS | sed -e "s/ *-L[[^ ]]*  */ /" -e "s/ *-liptc */ /" -e "s/^  *$//"`
+	  if test ".$IPTC_LIBS" = .; then
+	    KA_LIBS=`echo $KA_LIBS -lip4tc -lip6tc`
+	  fi
 	  add_build_opt([LIBIPTC])
 	else
           add_pkg_config_without_libs([libiptc])
@@ -667,6 +673,17 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
   fi
 
   if test $USE_LIBIPTC = Yes; then
+    if test .$enable_libxtables_dynamic != .yes; then
+      add_pkg_config([xtables])
+    else
+      add_pkg_config_without_libs([xtables])
+      AC_DEFINE([_LIBXTABLES_DYNAMIC_], [ 1 ], [Define to 1 if building with libxtables dynamic linking])
+      add_build_opt([XTABLES_DYNAMIC])
+      NEED_LIBDL=Yes
+      get_lib_name([xtables], [xtables_insmod])
+      AC_DEFINE_UNQUOTED([XTABLES_LIB_NAME], [ "$LIB_NAME" ], [Define the xtables library name])
+    fi
+
     dnl ----[Check for ipset libraries]----
     SAV_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS $kernelinc"
@@ -726,16 +743,6 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
 	      AC_DEFINE_UNQUOTED([IPSET_LIB_NAME], [ "$LIB_NAME" ], [Define the ipset library name])
 	    else
               add_build_opt([LIBIPSET])
-	    fi
-	    if test .$enable_libxtables_dynamic != .yes; then
-              add_pkg_config([xtables])
-	    else
-              add_pkg_config_without_libs([xtables])
-	      AC_DEFINE([_LIBXTABLES_DYNAMIC_], [ 1 ], [Define to 1 if building with libxtables dynamic linking])
-	      add_build_opt([XTABLES_DYNAMIC])
-	      NEED_LIBDL=Yes
-	      get_lib_name([xtables], [xtables_insmod])
-	      AC_DEFINE_UNQUOTED([XTABLES_LIB_NAME], [ "$LIB_NAME" ], [Define the xtables library name])
 	    fi
 
 	    dnl - xt_set_info_match first introduced in Linux 2.6.39
@@ -1203,6 +1210,16 @@ dnl -- From glibc 2.14. Otherwise use setns syscall, since Linux 2.4.x
 AC_CHECK_FUNCS([setns])
 CFLAGS="$SAV_CFLAGS"
 AM_CONDITIONAL([WITH_NAMESPACES], [test $ac_cv_have_decl_CLONE_NEWNET = yes])
+
+dnl -- Do we want GNU standard paths (moves .pid files)
+GNU_STD_PATHS=No
+if test "${enable_gnu_std_paths}" = "yes"; then
+  AC_DEFINE([GNU_STD_PATHS], [ 1 ], [set to enforce GNU standard paths, for .pid files etc])
+  PID_DIR=$localstatedir
+else
+  PID_DIR=/var
+fi
+AC_SUBST([PID_DIR])
 
 dnl ---[ check for sphinx-build executable ]----
 if test -z "$SPHINXBUILD"; then

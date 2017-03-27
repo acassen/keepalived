@@ -37,23 +37,19 @@
 #include <xtables.h>
 #include <libiptc/libiptc.h>
 #include <libiptc/libip6tc.h>
-#ifdef _HAVE_LIBIPSET_
 #include <libipset/linux_ip_set.h>
 #if defined XT_SET_H_ADD_IP_SET_H_GUARD
 #define _IP_SET_H
 #elif defined XT_SET_H_ADD_UAPI_IP_SET_H_GUARD
 #define _UAPI_IP_SET_H
 #endif
+#ifdef _HAVE_LIBIPSET_
 #include <linux/netfilter/xt_set.h>
 #endif
 #include <unistd.h>
 #include <signal.h>
 #include <errno.h>
 #include <stdint.h>
-#ifdef _LIBXTABLES_DYNAMIC_
-#include <sys/types.h>
-#include <sys/stat.h>
-#endif
 
 #include "vrrp_iptables_calls.h"
 #include "memory.h"
@@ -64,6 +60,7 @@
 #ifdef _LIBIPTC_DYNAMIC_
 #include "global_data.h"
 #endif
+#include "vrrp_iptables.h"
 
 /* We sometimes get a resource_busy on iptc_commit. This appears to happen
  * when someone else is also updating it.
@@ -267,6 +264,8 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 
 	sav_errno = errno ;
 
+	FREE(fw);
+
 	if (res !=  1 && (!force || sav_errno != ENOENT))
 	{
 		log_message(LOG_INFO, "ip4tables_process_entry for chain %s returned %d: %s", chain, res, iptc_strerror (sav_errno) ) ;
@@ -395,6 +394,8 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 
 	sav_errno = errno ;
 
+	FREE(fw);
+
 	if (res !=  1 && (!force || sav_errno != ENOENT))
 	{
 		log_message(LOG_INFO, "ip6tables_process_entry for chain %s returned %d: %s", chain, res, ip6tc_strerror (sav_errno) ) ;
@@ -407,6 +408,7 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 
 #ifdef _HAVE_LIBIPTC_
 #ifdef _LIBXTABLES_DYNAMIC_ 
+static
 bool xtables_load(void)
 {
 	if (libxtables_handle)
@@ -419,7 +421,7 @@ bool xtables_load(void)
 	}
 
 	if (!(xtables_insmod_addr = dlsym(libxtables_handle, "xtables_insmod"))) {
-		log_message(LOG_INFO, "Failed to dynamic link xtables_insmod");
+		log_message(LOG_INFO, "Failed to dynamic link xtables_insmod - %s", dlerror());
 		dlclose(libxtables_handle);
 		libxtables_handle = NULL;
 
@@ -439,25 +441,18 @@ void xtables_unload(void)
 }
 #endif
 
-bool load_xtables_module(const char *module,
+bool
+load_xtables_module(const char *module,
 #ifndef _LIBXTABLES_DYNAMIC_
-					    __attribute__((unused))
+					__attribute__((unused))
 #endif
-								    const char *function)
+								const char *function)
 {
 	struct sigaction act, old_act;
 	bool res = true;
+
 #ifdef _LIBXTABLES_DYNAMIC_
-	struct stat stat_buf;
-	char module_path[32] = "/sys/module/";
-
-	if (!libxtables_handle) {
-		/* See if the module is loaded anyway */
-		strcat(module_path, module);
-		if (!stat(module_path, &stat_buf) &&
-		    (stat_buf.st_mode & S_IFDIR))
-			return true;
-
+	if (!libxtables_handle && !xtables_load()) {
 		log_message(LOG_INFO, "Module %s cannot be loaded; not using %s", module, function);
 		return false;
 	}
@@ -696,14 +691,8 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsi
 		return -1;
 	}
 
-#ifndef HAVE_XT_SET_INFO_MATCH_V1
-	/* Version 0 */
-	setinfo->match_set.compat.dim = dim;
-	setinfo->match_set.compat.flags = src_dst;
-#else
 	setinfo->match_set.dim = dim;
 	setinfo->match_set.flags = src_dst;
-#endif
 
 	if (protocol != IPPROTO_NONE) {
 		fw->ip.proto = protocol;
@@ -827,14 +816,8 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, uns
 		return -1;
 	}
 
-#ifndef HAVE_XT_SET_INFO_MATCH_V1
-	/* Version 0 */
-	setinfo->match_set.compat.dim = dim;
-	setinfo->match_set.compat.flags = src_dst;
-#else
 	setinfo->match_set.dim = dim;
 	setinfo->match_set.flags = src_dst;
-#endif
 
 	if (protocol != IPPROTO_NONE) {
 		fw->ipv6.proto = protocol;
@@ -895,47 +878,50 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, uns
 #ifdef _LIBIPTC_DYNAMIC_
 bool iptables_lib_init(void)
 {
-	if (libip4tc_handle)
-		return true;
-
-	/* Attempt to open the ip4tc library */
-	if (!(libip4tc_handle = dlopen("libip4tc.so", RTLD_NOW)) &&
-	    !(libip4tc_handle = dlopen(IP4TC_LIB_NAME, RTLD_NOW))) {
-		log_message(LOG_INFO, "Unable to load ip4tc library - %s", dlerror());
-		return false;
-	}
-
-	if (!(iptc_init_addr = dlsym(libip4tc_handle, "iptc_init")) ||
-	    !(iptc_free_addr = dlsym(libip4tc_handle, "iptc_free")) ||
-	    !(iptc_is_chain_addr = dlsym(libip4tc_handle,"iptc_is_chain")) ||
-	    !(iptc_insert_entry_addr = dlsym(libip4tc_handle,"iptc_insert_entry")) ||
-	    !(iptc_append_entry_addr = dlsym(libip4tc_handle,"iptc_append_entry")) ||
-	    !(iptc_delete_entry_addr = dlsym(libip4tc_handle,"iptc_delete_entry")) ||
-	    !(iptc_commit_addr = dlsym(libip4tc_handle,"iptc_commit")) ||
-	    !(iptc_strerror_addr = dlsym(libip4tc_handle,"iptc_strerror")))
-		log_message(LOG_INFO, "Failed to dynamic link an iptc function");
-
-	/* Attempt to open the ip6tc library */
-	if (!(libip6tc_handle = dlopen("libip6tc.so", RTLD_NOW)) &&
-	    !(libip6tc_handle = dlopen(IP6TC_LIB_NAME, RTLD_NOW))) {
-		log_message(LOG_INFO, "Unable to load ip6tc library - %s", dlerror());
-
-		if (global_data->block_ipv4)
+	if (!libip4tc_handle && block_ipv4) {
+		/* Attempt to open the ip4tc library */
+		if (!(libip4tc_handle = dlopen("libip4tc.so", RTLD_NOW)) &&
+		    !(libip4tc_handle = dlopen(IP4TC_LIB_NAME, RTLD_NOW))) {
+			log_message(LOG_INFO, "Unable to load ip4tc library - %s", dlerror());
+			using_libip4tc = false;
+		}
+		else if (!(iptc_init_addr = dlsym(libip4tc_handle, "iptc_init")) ||
+			 !(iptc_free_addr = dlsym(libip4tc_handle, "iptc_free")) ||
+			 !(iptc_is_chain_addr = dlsym(libip4tc_handle,"iptc_is_chain")) ||
+			 !(iptc_insert_entry_addr = dlsym(libip4tc_handle,"iptc_insert_entry")) ||
+			 !(iptc_append_entry_addr = dlsym(libip4tc_handle,"iptc_append_entry")) ||
+			 !(iptc_delete_entry_addr = dlsym(libip4tc_handle,"iptc_delete_entry")) ||
+			 !(iptc_commit_addr = dlsym(libip4tc_handle,"iptc_commit")) ||
+			 !(iptc_strerror_addr = dlsym(libip4tc_handle,"iptc_strerror"))) {
+			log_message(LOG_INFO, "Failed to dynamic link an iptc function - %s", dlerror());
+			using_libip4tc = false;
 			dlclose(libip4tc_handle);
-
-		return false;
+			libip4tc_handle = NULL;
+		}
 	}
 
-	if (!(ip6tc_init_addr = dlsym(libip6tc_handle, "ip6tc_init")) ||
-	    !(ip6tc_free_addr = dlsym(libip6tc_handle, "ip6tc_free")) ||
-	    !(ip6tc_is_chain_addr = dlsym(libip6tc_handle,"ip6tc_is_chain")) ||
-	    !(ip6tc_insert_entry_addr = dlsym(libip6tc_handle,"ip6tc_insert_entry")) ||
-	    !(ip6tc_append_entry_addr = dlsym(libip6tc_handle,"ip6tc_append_entry")) ||
-	    !(ip6tc_delete_entry_addr = dlsym(libip6tc_handle,"ip6tc_delete_entry")) ||
-	    !(ip6tc_commit_addr = dlsym(libip6tc_handle,"ip6tc_commit")) ||
-	    !(ip6tc_strerror_addr = dlsym(libip6tc_handle,"ip6tc_strerror")))
-		log_message(LOG_INFO, "Failed to dynamic link an ip6tc function");
+	if (!libip6tc_handle && block_ipv6) {
+		/* Attempt to open the ip6tc library */
+		if (!(libip6tc_handle = dlopen("libip6tc.so", RTLD_NOW)) &&
+		    !(libip6tc_handle = dlopen(IP6TC_LIB_NAME, RTLD_NOW))) {
+			log_message(LOG_INFO, "Unable to load ip6tc library - %s", dlerror());
+			using_libip6tc = false;
+		}
+		else if (!(ip6tc_init_addr = dlsym(libip6tc_handle, "ip6tc_init")) ||
+			 !(ip6tc_free_addr = dlsym(libip6tc_handle, "ip6tc_free")) ||
+			 !(ip6tc_is_chain_addr = dlsym(libip6tc_handle,"ip6tc_is_chain")) ||
+			 !(ip6tc_insert_entry_addr = dlsym(libip6tc_handle,"ip6tc_insert_entry")) ||
+			 !(ip6tc_append_entry_addr = dlsym(libip6tc_handle,"ip6tc_append_entry")) ||
+			 !(ip6tc_delete_entry_addr = dlsym(libip6tc_handle,"ip6tc_delete_entry")) ||
+			 !(ip6tc_commit_addr = dlsym(libip6tc_handle,"ip6tc_commit")) ||
+			 !(ip6tc_strerror_addr = dlsym(libip6tc_handle,"ip6tc_strerror"))) {
+			log_message(LOG_INFO, "Failed to dynamic link an ip6tc function - %s", dlerror());
+			using_libip6tc = false;
+			dlclose(libip6tc_handle);
+			libip6tc_handle = NULL;
+		}
+	}
 
-	return true;
+	return libip4tc_handle || libip6tc_handle;
 }
 #endif

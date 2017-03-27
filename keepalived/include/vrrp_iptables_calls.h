@@ -37,7 +37,6 @@
 
 #ifdef _HAVE_LIBIPTC_
 #ifdef _LIBXTABLES_DYNAMIC_ 
-extern bool xtables_load(void);
 extern void xtables_unload(void);
 #endif
 extern bool load_xtables_module(const char *, const char *);

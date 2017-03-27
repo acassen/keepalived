@@ -4,7 +4,7 @@ After=syslog.target network-online.target
 
 [Service]
 Type=forking
-PIDFile=@localstatedir@/run/keepalived.pid
+PIDFile=@PID_DIR@/run/keepalived.pid
 KillMode=process
 EnvironmentFile=-@sysconfdir@/sysconfig/keepalived
 ExecStart=@sbindir@/keepalived $KEEPALIVED_OPTIONS
