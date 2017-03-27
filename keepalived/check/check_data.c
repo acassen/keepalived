@@ -51,7 +51,12 @@ alloc_ssl(void)
 void
 free_ssl(void)
 {
-	ssl_data_t *ssl = check_data->ssl;
+	ssl_data_t *ssl;
+       
+	if (!check_data)
+		return;
+
+	ssl = check_data->ssl;
 
 	if (!ssl)
 		return;

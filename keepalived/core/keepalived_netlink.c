@@ -251,9 +251,12 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 }
 
 /* Close a netlink socket */
-static int
+static void
 netlink_close(nl_handle_t *nl)
 {
+	if (!nl)
+		return;
+
 	/* First of all release pending thread */
 	thread_cancel(nl->thread);
 
@@ -269,8 +272,6 @@ netlink_close(nl_handle_t *nl)
 #endif
 		close(nl->fd);
 #endif
-
-	return 0;
 }
 
 #ifdef _WITH_VRRP_

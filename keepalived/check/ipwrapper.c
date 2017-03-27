@@ -138,10 +138,12 @@ void
 clear_services(void)
 {
 	element e;
-	list l = check_data->vs;
 	virtual_server_t *vs;
 
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+	if (!check_data || !check_data->vs)
+		return;
+
+	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
 		clear_service_vs(vs);
 	}

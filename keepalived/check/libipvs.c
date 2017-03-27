@@ -1157,7 +1157,10 @@ void ipvs_close(void)
 	if (try_nl)
 		return;
 #endif
-	close(sockfd);
+	if (sockfd != -1) {
+		close(sockfd);
+		sockfd = -1;
+	}
 }
 
 const char *ipvs_strerror(int err)

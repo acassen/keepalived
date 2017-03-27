@@ -74,7 +74,7 @@ stop_check(int status)
 		clear_services();
 	ipvs_stop();
 #ifdef _WITH_SNMP_CHECKER_
-	if (global_data->enable_snmp_checker)
+	if (global_data && global_data->enable_snmp_checker)
 		check_snmp_agent_close();
 #endif
 
@@ -82,8 +82,10 @@ stop_check(int status)
 	pidfile_rm(checkers_pidfile);
 
 	/* Clean data */
-	free_global_data(global_data);
-	free_check_data(check_data);
+	if (global_data)
+		free_global_data(global_data);
+	if (check_data)
+		free_check_data(check_data);
 	free_parent_mallocs_exit();
 
 	/*
