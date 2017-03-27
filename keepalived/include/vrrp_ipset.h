@@ -27,8 +27,8 @@
 #include <libipset/session.h>
 #include "vrrp_ipaddress.h"
 
-int add_ipsets(bool);
-int remove_ipsets(void);
+bool add_ipsets(bool);
+bool remove_ipsets(void);
 bool has_ipset_setname(struct ipset_session*, const char *);
 bool ipset_init(void);
 struct ipset_session* ipset_session_start(void);

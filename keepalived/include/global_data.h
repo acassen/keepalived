@@ -99,8 +99,6 @@ typedef struct _data {
 	int				vrrp_version;	/* VRRP version (2 or 3) */
 	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];
 	char				vrrp_iptables_outchain[XT_EXTENSION_MAXNAMELEN];
-	bool				block_ipv4;
-	bool				block_ipv6;
 #ifdef _HAVE_LIBIPSET_
 	bool				using_ipsets;
 	char				vrrp_ipset_address[IPSET_MAXNAMELEN];
