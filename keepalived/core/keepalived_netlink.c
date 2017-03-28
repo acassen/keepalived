@@ -157,7 +157,7 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 	}
 #endif
 #if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
-#if defined _HAVE_LIBNL3 && defined _LIBNL_DYNAMIC_
+#if defined _HAVE_LIBNL3_ && defined _LIBNL_DYNAMIC_
 	else
 #endif
 	{
@@ -267,7 +267,7 @@ netlink_close(nl_handle_t *nl)
 		nl_socket_free(nl->sk);
 #endif
 #if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
-#if defined _HAVE_LIBNL3 && defined _LIBNL_DYNAMIC_
+#if defined _HAVE_LIBNL3_ && defined _LIBNL_DYNAMIC_
 	else
 #endif
 		close(nl->fd);
@@ -316,7 +316,7 @@ netlink_set_nonblock(nl_handle_t *nl,
 	}
 #endif
 #if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
-#if defined _HAVE_LIBNL3 && defined _LIBNL_DYNAMIC_
+#if defined _HAVE_LIBNL3_ && defined _LIBNL_DYNAMIC_
 	else
 #endif
 	{
