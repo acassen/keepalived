@@ -65,6 +65,11 @@ a non root user.
 All scripts should be written so that they will terminate on receipt of a SIGTERM
 signal. Scripts will be sent SIGTERM if their parent terminates, or it is a script
 the keepalived is awaiting its exit status and it has run for too long.
+.PP
+.SH CONFIGURATION PARSER
+Traditionally the configuration file parser has not been one of the strengths of
+keepalived. yukki maintains a project on github that is a keepalived syntax
+checker that may be of use. It can be downloaded from https://github.com/yuuki/gokc
 
 .SH TOP HIERACHY
 .PP
