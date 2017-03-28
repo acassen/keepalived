@@ -36,7 +36,7 @@
 #endif
 
 #ifdef _HAVE_LIBIPSET_
-#include <libipset/linux_ip_set.h>
+#include <linux/netfilter/ipset/ip_set.h>
 #endif
 
 /* local includes */

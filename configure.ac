@@ -765,12 +765,16 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
               ]])],
               [AC_DEFINE([HAVE_IPSET_ATTR_IFACE], [ 1 ], [Define to 1 if ipset supports iface type])])
 
-            dnl - The include guard for <linux/netfilter/ipset/ip_set.h> changed for the UAPI disintegration.
-	    dnl - Unfortunately libipset provides a copy of the kernel headers, <libipset/linux_ip_set.h>,
-	    dnl - and if one header is from before the disambiguation and one from after, the include guards
-	    dnl - don't match. Unfortunately we need to include some libipset header files, which include the
+	    dnl - The include guard for <linux/netfilter/ipset/ip_set.h> has the leading _UAPI remove when
+	    dnl - the source code is processed to produce the actual header files.
+	    dnl - Unfortunately libipset provides a copy of the kernel headers, as <libipset/linux_ip_set*.h>,
+	    dnl - but it doesn't remove the _UAPI from the header files when installing them.
+	    dnl - Unfortunately we need to include some libipset header files, which include the
 	    dnl - libipset version, and also <linux/netfilter/xt_set.h> which includes the kernel version.
-	    dnl - We will take the libipset version if there is an inclusion collision.
+	    dnl - To get around this problem, after include one of these we need to define the header guard
+	    dnl - for the other, to stop it being included as well.
+	    dnl - This is reported as a bug against ipset at https://bugzilla.netfilter.org/show_bug.cgi?id=1139
+	    dnl - We will take the kernel version if there is an inclusion collision.
             AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
               #include <linux/netfilter/ipset/ip_set.h>
               #include <libipset/linux_ip_set.h>
@@ -783,8 +787,8 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
 		 #endif
                  int main(void) {}
                  ]])],
-		 [AC_DEFINE([XT_SET_H_ADD_IP_SET_H_GUARD], [1], [Define to add guard _IP_SET_H before including <linux/netfilter/xt_set.h>])],
-	         [AC_DEFINE([XT_SET_H_ADD_UAPI_IP_SET_H_GUARD], [1], [Define to add guard _UAPI_IP_SET_H before including <linux/netfilter/xt_set.h>])])
+	         [AC_DEFINE([LIBIPSET_H_ADD_UAPI_IP_SET_H_GUARD], [1], [Define to add guard _UAPI_IP_SET_H before including <libipset/linux_ip_set.h>])],
+		 [AC_DEFINE([LIBIPSET_H_ADD_IP_SET_H_GUARD], [1], [Define to add guard _IP_SET_H before including <libipset/linux_ip_set.h>])])
 	      ])
           fi
         ])

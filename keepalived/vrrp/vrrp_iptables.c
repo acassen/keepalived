@@ -57,7 +57,7 @@
 #include <stdint.h>
 #ifdef _HAVE_LIBIPSET_
 #include <xtables.h>
-#include <libipset/linux_ip_set.h>
+#include <linux/netfilter/ipset/ip_set.h>
 #endif
 #include <sys/stat.h>
 #include <sys/vfs.h>
