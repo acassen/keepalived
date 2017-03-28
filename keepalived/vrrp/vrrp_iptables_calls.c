@@ -37,13 +37,8 @@
 #include <xtables.h>
 #include <libiptc/libiptc.h>
 #include <libiptc/libip6tc.h>
-#include <libipset/linux_ip_set.h>
-#if defined XT_SET_H_ADD_IP_SET_H_GUARD
-#define _IP_SET_H
-#elif defined XT_SET_H_ADD_UAPI_IP_SET_H_GUARD
-#define _UAPI_IP_SET_H
-#endif
 #ifdef _HAVE_LIBIPSET_
+#include <linux/netfilter/ipset/ip_set.h>
 #include <linux/netfilter/xt_set.h>
 #endif
 #include <unistd.h>

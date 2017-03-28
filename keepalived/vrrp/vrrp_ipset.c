@@ -32,6 +32,15 @@
 
 #define LIBIPSET_NFPROTO_H
 #define LIBIPSET_NF_INET_ADDR_H
+#if defined LIBIPSET_H_ADD_UAPI_IP_SET_H_GUARD || defined LIBIPSET_H_ADD_IP_SET_H_GUARD
+#include <linux/netfilter/ipset/ip_set.h>
+#if defined LIBIPSET_H_ADD_UAPI_IP_SET_H_GUARD
+#define _UAPI_IP_SET_H
+#else
+#define _IP_SET_H
+#endif
+#endif
+#include <libipset/session.h>
 #include <libipset/types.h>
 #include <netinet/in.h>
 #include <linux/types.h>        /* For __beXX types in userland */
@@ -139,8 +148,10 @@ ipset_destroy(struct ipset_session* session, const char *setname)
 }
 
 bool
-has_ipset_setname(struct ipset_session* session, const char *setname)
+has_ipset_setname(void* vsession, const char *setname)
 {
+	struct ipset_session *session = vsession;
+ 
 	ipset_session_data_set(session, IPSET_SETNAME, setname);
 
 	return ipset_cmd1(session, IPSET_CMD_HEADER, 0) == 0;
@@ -297,20 +308,24 @@ bool add_ipsets(bool reload)
 	return create_sets(global_data->vrrp_ipset_address, global_data->vrrp_ipset_address6, global_data->vrrp_ipset_address_iface6, reload);
 }
 
-struct ipset_session* ipset_session_start(void)
+void* ipset_session_start(void)
 {
 	return ipset_session_init(NULL);
 }
 
-void ipset_session_end(struct ipset_session* session)
+void ipset_session_end(void* vsession)
 {
+	struct ipset_session *session = vsession;
+
 	ipset_session_fini(session);
 }
 
-void ipset_entry(struct ipset_session* session, int cmd, const ip_address_t* addr)
+void ipset_entry(void* vsession, int cmd, const ip_address_t* addr)
 {
 	const char* set;
 	char *iface = NULL;
+	struct ipset_session *session = vsession;
+
 
 	if (addr->ifa.ifa_family == AF_INET) {
 		if (!block_ipv4)
