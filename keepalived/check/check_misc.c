@@ -99,7 +99,7 @@ static void
 misc_dynamic_handler(__attribute__((unused)) vector_t *strvec)
 {
 	misc_checker_t *misck_checker = CHECKER_GET();
-	misck_checker->dynamic = 1;
+	misck_checker->dynamic = true;
 }
 
 static void
@@ -248,13 +248,13 @@ misc_check_child_thread(thread_t * thread)
 		int status;
 		status = WEXITSTATUS(wait_status);
 		if (status == 0 ||
-		    (misck_checker->dynamic == 1 && status >= 2 && status <= 255)) {
+		    (misck_checker->dynamic && status >= 2 && status <= 255)) {
 			/*
 			 * The actual weight set when using misc_dynamic is two less than
 			 * the exit status returned.  Effective range is 0..253.
 			 * Catch legacy case of status being 0 but misc_dynamic being set.
 			 */
-			if (misck_checker->dynamic == 1 && status != 0)
+			if (misck_checker->dynamic && status != 0)
 				update_svr_wgt(status - 2, checker->vs,
 					       checker->rs, true);
 
