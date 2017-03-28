@@ -72,6 +72,10 @@
 #include <netinet/ip6.h>
 #include <stdint.h>
 
+/* Set if need to block ip addresses and are able to do so */
+bool block_ipv4;
+bool block_ipv6;
+
 /* add/remove Virtual IP addresses */
 static bool
 vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type)
@@ -124,7 +128,11 @@ vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 
 #ifdef _HAVE_LIBIPTC_
 		do {
-			h = iptables_open();
+#ifdef _LIBIPTC_DYNAMIC_
+			if ((vrrp->family == AF_INET && using_libip4tc) ||
+			    (vrrp->family == AF_INET6 && using_libip6tc))
+#endif
+				h = iptables_open();
 #endif
 			/* As accept is false, add iptable rule to drop packets destinated to VIPs and eVIPs */
 			if (!LIST_ISEMPTY(vrrp->vip))
@@ -132,7 +140,10 @@ vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 			if (!LIST_ISEMPTY(vrrp->evip))
 				handle_iptable_rule_to_iplist(h, vrrp->evip, cmd, force);
 #ifdef _HAVE_LIBIPTC_
-			res = iptables_close(h);
+#ifdef _LIBIPTC_DYNAMIC_
+			if (h)
+#endif
+				res = iptables_close(h);
 		} while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
 #endif
 		vrrp->iptable_rules_set = (cmd == IPADDRESS_ADD);
@@ -2363,10 +2374,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept) {
 //TODO = we have a problem since SNMP may change accept mode
 //it can also change priority
-		if (vrrp->saddr.ss_family == AF_INET)
-			global_data->block_ipv4 = true;
+		if (!global_data->vrrp_iptables_inchain[0])
+			log_message(LOG_INFO, "(%s): Unable to set no_accept mode since iptables chain name unset", vrrp->iname);
+		else if (vrrp->family == AF_INET)
+			block_ipv4 = true;
 		else
-			global_data->block_ipv6 = true;
+			block_ipv6 = true;
 	}
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
@@ -2390,7 +2403,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (!reload && interface_already_existed) {
 // TODO - consider reload
 		vrrp->vipset = true;	/* Set to force address removal */
-		vrrp_restore_interface(vrrp, false, true);
 	}
 
 	/* See if we need to set promote_secondaries */
@@ -2451,12 +2463,6 @@ vrrp_complete_init(void)
 	/* If we have a global garp_delay add it to any interfaces without a garp_delay */
 	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
 		set_default_garp_delay();
-
-#ifdef _HAVE_LIBIPTC_
-	/* Make sure we don't have any old iptables/ipsets settings left around */
-	if (!reload)
-		iptables_cleanup();
-#endif
 
 	/* Mark any scripts as insecure */
 	check_vrrp_script_security();
@@ -2623,6 +2629,18 @@ vrrp_complete_init(void)
 	return true;
 }
 
+void vrrp_restore_interfaces_startup(void)
+{
+	element e;
+	vrrp_t *vrrp;
+
+	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+		if (vrrp->vipset)
+			vrrp_restore_interface(vrrp, false, true);
+	}
+}
+
 /* Try to find a VRRP instance */
 static vrrp_t *
 vrrp_exist(vrrp_t *old_vrrp)
@@ -2690,12 +2708,19 @@ clear_diff_vrrp_vip(vrrp_t *old_vrrp, vrrp_t *vrrp)
 
 #ifdef _HAVE_LIBIPTC_
 	do {
-		h = iptables_open();
+#ifdef _LIBIPTC_DYNAMIC_
+		if ((vrrp->family == AF_INET && using_libip4tc) ||
+		    (vrrp->family == AF_INET6 && using_libip6tc))
+#endif
+			h = iptables_open();
 #endif
 		clear_diff_vrrp_vip_list(vrrp, h, old_vrrp->vip, vrrp->vip);
 		clear_diff_vrrp_vip_list(vrrp, h, old_vrrp->evip, vrrp->evip);
 #ifdef _HAVE_LIBIPTC_
-		res = iptables_close(h);
+#ifdef _LIBIPTC_DYNAMIC_
+		if (h)
+#endif
+			res = iptables_close(h);
 	} while (res == EAGAIN && ++tries < IPTABLES_MAX_TRIES);
 #endif
 }

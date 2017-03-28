@@ -165,9 +165,12 @@ void
 ipvs_stop(void)
 {
 	/* Clean up the room */
-	FREE(srule);
-	FREE(drule);
-	FREE(daemonrule);
+	if (srule)
+		FREE(srule);
+	if (drule)
+		FREE(drule);
+	if (daemonrule)
+		FREE(daemonrule);
 	ipvs_close();
 }
 

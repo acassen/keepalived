@@ -202,8 +202,6 @@ start_vrrp(void)
 	if (global_data->vrrp_no_swap)
 		set_process_dont_swap(4096);	/* guess a stack size to reserve */
 
-	iptables_init();
-
 #ifdef _WITH_SNMP_
 	if (!reload && (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {
 		vrrp_snmp_agent_init(global_data->snmp_socket);
@@ -266,9 +264,20 @@ start_vrrp(void)
 		return;
 	}
 
+	/* We need to delay the init of iptables to after vrrp_complete_init()
+	 * has been called so we know whether we want IPv4 and/or IPv6 */
+	iptables_init();
+
+	/* Make sure we don't have any old iptables/ipsets settings left around */
 #ifdef _HAVE_LIBIPTC_
+	if (!reload)
+		iptables_cleanup();
+
 	iptables_startup(reload);
 #endif
+
+	if (!reload)
+		vrrp_restore_interfaces_startup();
 
 	/* clear_diff_vrrp must be called after vrrp_complete_init, since the latter
 	 * sets ifa_index on the addresses, which is used for the address comparison */

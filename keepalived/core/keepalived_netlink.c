@@ -157,7 +157,7 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 	}
 #endif
 #if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
-#if defined _HAVE_LIBNL3 && defined _LIBNL_DYNAMIC_
+#if defined _HAVE_LIBNL3_ && defined _LIBNL_DYNAMIC_
 	else
 #endif
 	{
@@ -251,9 +251,12 @@ netlink_socket(nl_handle_t *nl, int flags, int group, ...)
 }
 
 /* Close a netlink socket */
-static int
+static void
 netlink_close(nl_handle_t *nl)
 {
+	if (!nl)
+		return;
+
 	/* First of all release pending thread */
 	thread_cancel(nl->thread);
 
@@ -264,13 +267,11 @@ netlink_close(nl_handle_t *nl)
 		nl_socket_free(nl->sk);
 #endif
 #if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
-#if defined _HAVE_LIBNL3 && defined _LIBNL_DYNAMIC_
+#if defined _HAVE_LIBNL3_ && defined _LIBNL_DYNAMIC_
 	else
 #endif
 		close(nl->fd);
 #endif
-
-	return 0;
 }
 
 #ifdef _WITH_VRRP_
@@ -315,7 +316,7 @@ netlink_set_nonblock(nl_handle_t *nl,
 	}
 #endif
 #if !defined _HAVE_LIBNL3_ || defined _LIBNL_DYNAMIC_
-#if defined _HAVE_LIBNL3 && defined _LIBNL_DYNAMIC_
+#if defined _HAVE_LIBNL3_ && defined _LIBNL_DYNAMIC_
 	else
 #endif
 	{

@@ -100,7 +100,11 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 			return true;
 		}
 
-		if (exit_status != EXIT_SUCCESS)
+		if (exit_status != EXIT_SUCCESS
+#ifdef _WITH_LVS_
+					        && prog_type != PROG_TYPE_CHECKER
+#endif
+										 )
 			log_message(LOG_INFO, "%s exited with status %d", prog_id, exit_status);
 		return false;
 	}
