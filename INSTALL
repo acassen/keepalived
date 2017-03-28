@@ -101,6 +101,40 @@ Configuration
   http://www.keepalived.org
 
 
+Creating a docker container
+===========================
+There is a very useful github project maintained by osixia for building a
+docker container with keepalived.
+
+To use, run the following:
+git clone https://github.com/osixia/docker-keepalived.git
+cd docker-keepalived
+make build
+docker run --name keepalived --cap-add=NET_ADMIN --net=host \
+  --env KEEPALIVED_INTERFACE=eth0 -d osixia/keepalived:1.3.5 \
+	# or whatever version of keepalived you have
+
+To update the keepalived source code, put a new tarball in the image
+directory (the Dockerfile may need updating with a new version).
+
+Useful docker commands are:
+docker logs keepalvied 2>&1 | lessa	# view system logs of container
+docker exec it keepalived bash		# execute shell in container
+docker rm -f keepalived			# Remove the container
+
+keepalived is unable to load the ip_tables, ip6_tables, xt_set and ip_vs
+modules from within the container, so ensure they are already loaded in
+the host system.
+
+To generate a core file in the root filesystem of the container,
+/proc/sys/kernel/core_pattern needs to be updated in the host system,
+and not from the container (or in other words the -M option to keepalived
+does not work within a container. Installing gdb in the container (edit
+the image/Dockerfile to add it before make build) may be helpful if you
+need to examine core files in the container.
+
+
+
 Have fun with it !
 
 Alexandre, <acassen@linux-vs.org>
