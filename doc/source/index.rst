@@ -9,7 +9,7 @@ Keepalived User Guide
    software_design
    load_balancing_techniques
    installing_keepalived
-   configuration_sysnopsis
+   configuration_synopsis
    programs_synopsis
    scheduling_algorithms
    protocol_support

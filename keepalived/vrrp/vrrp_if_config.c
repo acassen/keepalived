@@ -36,6 +36,7 @@
 #include "config.h"
 
 #include <string.h>
+
 #include "vrrp_if_config.h"
 #include "memory.h"
 
@@ -59,6 +60,7 @@
 #include <netlink/route/link/inet.h>
 #include <linux/ip.h>
 #include <syslog.h>
+#include <stdint.h>
 
 #include "vrrp_if.h"
 #include "logger.h"
@@ -68,8 +70,13 @@
 #include <unistd.h>
 
 #ifdef _HAVE_IPV4_DEVCONF_
-int
-set_promote_secondaries(interface_t *ifp)
+
+#ifdef _LIBNL_DYNAMIC_
+#include "libnl_link.h"
+#endif
+
+static inline int
+set_promote_secondaries_devconf(interface_t *ifp)
 {
 	struct nl_sock *sk;
 	struct nl_cache *cache;
@@ -128,8 +135,8 @@ exit:
 	return res;
 }
 
-int
-reset_promote_secondaries(interface_t *ifp)
+static inline int
+reset_promote_secondaries_devconf(interface_t *ifp)
 {
 	struct nl_sock *sk;
 	struct nl_cache *cache;
@@ -180,7 +187,7 @@ exit:
 }
 
 #ifdef _HAVE_VRRP_VMAC_
-static int
+static inline int
 netlink3_set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 {
 	struct nl_sock *sk;
@@ -265,7 +272,7 @@ exit:
 	return res;
 }
 
-static int
+static inline int
 netlink3_reset_interface_parameters(const interface_t* ifp)
 {
 	struct nl_sock *sk;
@@ -313,15 +320,15 @@ exit:
 	return res;
 }
 
-void
-set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
+static inline void
+set_interface_parameters_devconf(const interface_t *ifp, interface_t *base_ifp)
 {
 	if (netlink3_set_interface_parameters(ifp, base_ifp))
 		log_message(LOG_INFO, "Unable to set parameters for %s", ifp->ifname);
 }
 
-void
-reset_interface_parameters(interface_t *base_ifp)
+static inline void
+reset_interface_parameters_devconf(interface_t *base_ifp)
 {
 	if (base_ifp->reset_arp_config && --base_ifp->reset_arp_config == 0) {
 		if (netlink3_reset_interface_parameters(base_ifp))
@@ -400,9 +407,9 @@ get_sysctl(const char* prefix, const char* iface, const char* parameter)
 	return buf[0] - '0';
 }
 
-#ifndef _HAVE_IPV4_DEVCONF_
-int
-set_promote_secondaries(interface_t *ifp)
+#if !defined _HAVE_IPV4_DEVCONF_ || defined _LIBNL_DYNAMIC_
+static inline int
+set_promote_secondaries_sysctl(interface_t *ifp)
 {
 	if (get_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries")) {
 		ifp->promote_secondaries_already_set = true;
@@ -414,8 +421,8 @@ set_promote_secondaries(interface_t *ifp)
 	return 0;
 }
 
-int
-reset_promote_secondaries(interface_t *ifp)
+static inline int
+reset_promote_secondaries_sysctl(interface_t *ifp)
 {
 	if (ifp->reset_promote_secondaries && !--ifp->reset_promote_secondaries)
 		set_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries", 0);
@@ -424,9 +431,11 @@ reset_promote_secondaries(interface_t *ifp)
 }
 
 #ifdef _HAVE_VRRP_VMAC_
-void
-set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
+static inline void
+set_interface_parameters_sysctl(const interface_t *ifp, interface_t *base_ifp)
 {
+	int val;
+
 	set_sysctl("net/ipv4/conf", ifp->ifname, "arp_ignore", 1);
 	set_sysctl("net/ipv4/conf", ifp->ifname, "accept_local", 1);
 	set_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter", 0);
@@ -436,24 +445,94 @@ set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 	if (base_ifp->reset_arp_config)
 		base_ifp->reset_arp_config++;
 	else {
-		if ((base_ifp->reset_arp_ignore_value = get_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore")) != 1)
+		if ((val = get_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore")) != -1 &&
+		    (base_ifp->reset_arp_ignore_value = (uint32_t)val) != 1)
 			set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore", 1);
 
-		if ((base_ifp->reset_arp_filter_value = get_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter")) != 1)
+		if ((val = get_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter")) != -1 &&
+		    (base_ifp->reset_arp_filter_value = (uint32_t)val) != 1)
 			set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter", 1);
 
-		base_ifp->reset_arp_config = 1;
+		base_ifp->reset_arp_config = true;
 	}
+}
+
+static inline void
+reset_interface_parameters_sysctl(interface_t *base_ifp)
+{
+	if (base_ifp->reset_arp_config && --base_ifp->reset_arp_config == 0) {
+		set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore", (int)base_ifp->reset_arp_ignore_value);
+		set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter", (int)base_ifp->reset_arp_filter_value);
+	}
+}
+#endif
+#endif
+
+int
+set_promote_secondaries(interface_t *ifp)
+{
+#ifdef _HAVE_IPV4_DEVCONF_
+#ifdef _LIBNL_DYNAMIC_
+	if (use_nl)
+#endif
+		return set_promote_secondaries_devconf(ifp);
+#endif
+
+#if !defined _HAVE_IPV4_DEVCONF_ || defined _LIBNL_DYNAMIC_
+	return set_promote_secondaries_sysctl(ifp);
+#endif
+}
+
+int
+reset_promote_secondaries(interface_t *ifp)
+{
+#ifdef _HAVE_IPV4_DEVCONF_
+#ifdef _LIBNL_DYNAMIC_
+	if (use_nl)
+#endif
+		return reset_promote_secondaries_devconf(ifp);
+#endif
+
+#if !defined _HAVE_IPV4_DEVCONF_ || defined _LIBNL_DYNAMIC_
+	return reset_promote_secondaries_sysctl(ifp);
+#endif
+}
+
+#ifdef _HAVE_VRRP_VMAC_
+void
+set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
+{
+#ifdef _HAVE_IPV4_DEVCONF_
+#ifdef _LIBNL_DYNAMIC_
+	if (use_nl)
+#endif
+	{
+		set_interface_parameters_devconf(ifp, base_ifp);
+		return;
+	}
+#endif
+
+#if !defined _HAVE_IPV4_DEVCONF_ || defined _LIBNL_DYNAMIC_
+	set_interface_parameters_sysctl(ifp, base_ifp);
+#endif
 }
 
 void reset_interface_parameters(interface_t *base_ifp)
 {
-	if (base_ifp->reset_arp_config && --base_ifp->reset_arp_config == 0) {
-		set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore", base_ifp->reset_arp_ignore_value);
-		set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter", base_ifp->reset_arp_filter_value);
-	}
-}
+#ifdef _HAVE_IPV4_DEVCONF_
+#ifdef _LIBNL_DYNAMIC_
+	if (use_nl)
 #endif
+	{
+		reset_interface_parameters_devconf(base_ifp);
+		return;
+	}
+#endif
+
+#if !defined _HAVE_IPV4_DEVCONF_ || defined _LIBNL_DYNAMIC_
+	reset_interface_parameters_sysctl(base_ifp);
+#endif
+}
 #endif
 
 void link_disable_ipv6(const interface_t* ifp)

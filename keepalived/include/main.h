@@ -35,8 +35,12 @@
 #include "pidfile.h"
 #include "scheduler.h"
 #include "parser.h"
+#ifdef _WITH_VRRP_
 #include "vrrp_daemon.h"
+#endif
+#ifdef _WITH_LVS_
 #include "check_daemon.h"
+#endif
 #include "global_data.h"
 
 /* State flags */
@@ -69,7 +73,6 @@ extern bool namespace_with_ipsets;	/* override for namespaces with ipsets on Lin
 #endif
 extern char *instance_name;		/* keepalived instance name */
 extern bool use_pid_dir;		/* pid files in /var/run/keepalived */
-extern size_t getpwnam_buf_len;		/* Buffer length needed for getpwnam_r/getgrnam_r */
 extern uid_t default_script_uid;	/* Default user/group for script execution */
 extern gid_t default_script_gid;
 extern unsigned os_major;		/* Kernel version */

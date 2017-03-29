@@ -27,6 +27,7 @@
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>
+#include <stdint.h>
 #include <stdbool.h>
 
 /* needed to get correct values for SIOC* */
@@ -48,9 +49,6 @@
 #define LB_IOCTL   0x1
 #define LB_MII     0x2
 #define LB_ETHTOOL 0x4
-
-/* Default values */
-#define IF_DEFAULT_BUFSIZE	(65*1024)
 
 /* I don't know what the correct type is. 
  * The kernel has ifindex in the range [1, INT_MAX], but IFLA_LINK is defined

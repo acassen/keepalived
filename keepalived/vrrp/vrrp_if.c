@@ -26,10 +26,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdint.h>
-typedef uint64_t u64;
-typedef uint32_t u32;
-typedef uint16_t u16;
-typedef uint8_t u8;
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <netinet/in.h>
@@ -52,7 +48,7 @@ typedef uint8_t u8;
 #include "vrrp_data.h"
 #include "vrrp.h"
 #include "vrrp_if.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "memory.h"
 #include "utils.h"
 #include "logger.h"
@@ -707,13 +703,15 @@ if_setsockopt_ipv6_checksum(int *sd)
 
 
 int
-if_setsockopt_mcast_all(sa_family_t family, int *sd)
-{
 #ifndef IP_MULTICAST_ALL	/* Since Linux 2.6.31 */
+if_setsockopt_mcast_all(__attribute__((unused)) sa_family_t family, __attribute__((unused)) int *sd)
+{
 	/* It seems reasonable to just skip the calls to if_setsockopt_mcast_all
 	 * if there is no support for that feature in header files */
 	return -1;
 #else
+if_setsockopt_mcast_all(sa_family_t family, int *sd)
+{
 	int ret;
 	unsigned char no = 0;
 

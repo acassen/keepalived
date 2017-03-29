@@ -24,6 +24,9 @@
 
 #include "config.h"
 
+/* Global includes */
+#include <stdint.h>
+
 #include "vrrp_parser.h"
 #include "vrrp_data.h"
 #include "vrrp_sync.h"
@@ -557,6 +560,24 @@ vrrp_lower_prio_no_advert_handler(vector_t *strvec)
 	}
 }
 
+static void
+vrrp_higher_prio_send_advert_handler(vector_t *strvec)
+{
+	int res;
+
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res >= 0)
+			vrrp->higher_prio_send_advert = (unsigned)res;
+		else
+			log_message(LOG_INFO, "(%s): invalid higher_prio_send_advert %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+	} else {
+		/* Defaults to true */
+		vrrp->higher_prio_send_advert = true;
+	}
+}
+
 
 #if defined _WITH_VRRP_AUTH_
 static void
@@ -712,6 +733,12 @@ vrrp_vscript_user_handler(vector_t *strvec)
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	if (set_script_uid_gid(strvec, 1, &vscript->uid, &vscript->gid))
 		log_message(LOG_INFO, "Unable to set uid/gid for script %s", vscript->script);
+}
+static void
+vrrp_vscript_init_fail_handler(__attribute__((unused)) vector_t *strvec)
+{
+	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+	vscript->result = VRRP_SCRIPT_STATUS_INIT_FAILED;
 }
 static void
 vrrp_version_handler(vector_t *strvec)
@@ -920,6 +947,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("garp_lower_prio_delay", &vrrp_garp_lower_prio_delay_handler);
 	install_keyword("garp_lower_prio_repeat", &vrrp_garp_lower_prio_rep_handler);
 	install_keyword("lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
+	install_keyword("higher_prio_send_advert", &vrrp_higher_prio_send_advert_handler);
 #if defined _WITH_VRRP_AUTH_
 	install_keyword("authentication", NULL);
 	install_sublevel();
@@ -935,6 +963,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("rise", &vrrp_vscript_rise_handler);
 	install_keyword("fall", &vrrp_vscript_fall_handler);
 	install_keyword("user", &vrrp_vscript_user_handler);
+	install_keyword("init_fail", &vrrp_vscript_init_fail_handler);
 }
 
 vector_t *

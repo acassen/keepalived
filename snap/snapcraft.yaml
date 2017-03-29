@@ -1,0 +1,28 @@
+name: keepalived
+version: '1.3+git'
+summary: High availability VRRP and load-balancing for Linux
+description: |
+  Keepalived provides simple and robust loadbalancing and high-availability
+  to Linux based infrastructures using VRRP and the well-known Linux Virtual
+  Server (IPVS) kernel module.
+
+grade: devel
+confinement: classic
+
+apps:
+  daemon: # until I can get a daemon to show up in /snap/bin/
+    daemon: forking
+    command: sbin/keepalived
+  keepalived:
+    command: sbin/keepalived
+
+parts:
+  keepalived:
+    plugin: autotools
+    source: .
+    source-type: git
+    build-packages: [ iptables-dev, libipset-dev, libnl-3-dev,
+      libnl-genl-3-dev, libnl-route-3-dev, libnfnetlink-dev,
+      libsnmp-dev ]
+    configflags: [ '--enable-snmp', '--enable-snmp-rfc']
+    stage-packages: [ libsnmp30, libipset3 ]

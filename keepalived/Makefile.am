@@ -9,6 +9,13 @@ AM_CFLAGS		= $(KA_CFLAGS) $(DEBUG_CFLAGS)
 AM_LDFLAGS		= $(KA_LDFLAGS) $(DEBUG_LDFLAGS)
 # AM_LIBTOOLFLAGS	= $(KA_LIBTOOLFLAGS)
 
+edit = echo "  EDIT     $@"; \
+	sed \
+	 -e 's|@sbindir[@]|$(sbindir)|g' \
+	 -e 's|@localstatedir[@]|$(localstatedir)|g' \
+	 -e 's|@sysconfdir[@]|$(sysconfdir)|g' \
+	 -e 's|@PID_DIR[@]|$(PID_DIR)|g'
+
 sbin_PROGRAMS		= keepalived
 keepalived_SOURCES	= main.c
 
@@ -30,11 +37,19 @@ if WITH_DBUS
   DBUS_SUBDIR		= dbus
 endif
 
-SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR)
+keepalived.service: Makefile
+	@rm -f $@ $@.tmp
+	@$(edit) '$(srcdir)/$@.in' >$@
 
-EXTRA_DIST		= keepalived.service etc
+keepalived.service: $(srcdir)/keepalived.service.in
+
+SUBDIRS			= core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR) etc
+
+EXTRA_DIST		= keepalived.service.in
 
 keepalived_LDADD	= core/libcore.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a $(KA_LIBS)
+
+MOSTLYCLEANFILES	= keepalived.service
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 
@@ -44,16 +59,11 @@ sysconfig_DATA		= etc/sysconfig/keepalived
 configdir		= $(sysconfdir)/@PACKAGE@
 config_DATA		= etc/keepalived/keepalived.conf
 
-if INIT_SYSV
-initdir			= $(sysconfdir)/rc.d/init.d
-init_DATA		= etc/init.d/keepalived
-endif
-
 if INIT_SYSTEMD
 systemdsystemunit_DATA	= keepalived.service
 endif
 
-if INIT_UPSTART
-initdir			= $(sysconfdir)/init
-init_DATA		= etc/init/keepalived.conf
+if INIT_OPENRC
+initdir			= $(sysconfdir)/init.d
+init_DATA		= etc/openrc/keepalived
 endif

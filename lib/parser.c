@@ -46,7 +46,6 @@ bool reload = 0;
 char *config_id;
 
 /* local vars */
-static char *current_conf_file;
 static vector_t *current_keywords;
 static FILE *current_stream;
 static int sublevel = 0;
@@ -264,28 +263,10 @@ process_stream(vector_t *keywords_vec, int need_bob)
 	vector_t *prev_keywords = current_keywords;
 	current_keywords = keywords_vec;
 	int bob_needed = 0;
-	size_t config_id_len = 0;
-	char *buf_start;
-
-	if (config_id)
-		config_id_len = strlen(config_id);
 
 	buf = MALLOC(MAXBUF);
 	while (read_line(buf, MAXBUF)) {
-		if (buf[0] == '@') {
-			/* If the line starts '@', check the following word matches the system id */
-			if (!config_id)
-				continue;
-			buf_start = strpbrk(buf, " \t");
-			if ((size_t)(buf_start - (buf + 1)) != config_id_len ||
-			    strncmp(buf + 1, config_id, config_id_len))
-				continue;
-		}
-		else
-			buf_start = buf;
-
-		strvec = alloc_strvec(buf_start);
-		memset(buf, 0, MAXBUF);
+		strvec = alloc_strvec(buf);
 
 		if (!strvec)
 			continue;
@@ -406,7 +387,7 @@ read_conf_file(const char *conf_file)
 
 	if (res) {
 		log_message(LOG_INFO, "Unable to find config file(s) '%s'.", conf_file);
-		return;
+		exit(KEEPALIVED_EXIT_CONFIG);
 	}
 
 	for(i = 0; i < globbuf.gl_pathc; i++){
@@ -418,19 +399,19 @@ read_conf_file(const char *conf_file)
 			continue;
 		}
 
-		/* Make sure what we have opened is a regular file, and not for example a directory */
+		/* Make sure what we have opened is a regular file, and not for example a directory or executable */
 		if (fstat(fileno(stream), &stb) ||
-		    !S_ISREG(stb.st_mode)) {
-			log_message(LOG_INFO, "Configuration file '%s' is not a regular file - skipping", globbuf.gl_pathv[i]);
+		    !S_ISREG(stb.st_mode) ||
+		    (stb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+			log_message(LOG_INFO, "Configuration file '%s' is not a regular non-executable file - skipping", globbuf.gl_pathv[i]);
 			fclose(stream);
 			continue;
 		}
 
 		current_stream = stream;
-		current_conf_file = globbuf.gl_pathv[i];
 
-		char prev_path[MAXBUF];
-		path = getcwd(prev_path, MAXBUF);
+		char prev_path[PATH_MAX];
+		path = getcwd(prev_path, PATH_MAX);
 		if (!path) {
 			log_message(LOG_INFO, "getcwd(%s) error (%s)"
 					    , prev_path, strerror(errno));
@@ -483,10 +464,11 @@ bool check_conf_file(const char *conf_file)
 				break;
 			}
 
-			/* Make sure that the file is a regular file, and not for example a directory */
+			/* Make sure that the file is a regular file, and not for example a directory or executable */
 			if (stat(globbuf.gl_pathv[i], &stb) ||
-			    !S_ISREG(stb.st_mode)) {
-				log_message(LOG_INFO, "Configuration file '%s' is not a regular file", globbuf.gl_pathv[i]);
+			    !S_ISREG(stb.st_mode) ||
+			     (stb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+				log_message(LOG_INFO, "Configuration file '%s' is not a regular non-executable file", globbuf.gl_pathv[i]);
 				ret = false;
 				break;
 			}
@@ -501,44 +483,26 @@ bool check_conf_file(const char *conf_file)
 static bool
 check_include(char *buf)
 {
-	char *str;
 	vector_t *strvec;
-	char *path;
-	int ret;
+	bool ret = false;
+	FILE *prev_stream;
 
 	strvec = alloc_strvec(buf);
 
 	if (!strvec)
 		return false;
 
-	str = vector_slot(strvec, 0);
+	if(!strcmp("include", vector_slot(strvec, 0)) && vector_size(strvec) == 2) {
+		prev_stream = current_stream;
 
-	if(!strcmp("include", str) && vector_size(strvec) == 2){
-		char *conf_file = vector_slot(strvec, 1);
+		read_conf_file(vector_slot(strvec, 1));
 
-		FILE *prev_stream = current_stream;
-		char *prev_conf_file = current_conf_file;
-		char prev_path[MAXBUF];
-		path = getcwd(prev_path, MAXBUF);
-		if (!path) {
-			log_message(LOG_INFO, "getcwd(%s) error (%s)"
-					    , prev_path, strerror(errno));
-		}
-
-		read_conf_file(conf_file);
 		current_stream = prev_stream;
-		current_conf_file = prev_conf_file;
-		ret = chdir(prev_path);
-		if (ret < 0) {
-			log_message(LOG_INFO, "chdir(%s) error (%s)"
-					    , prev_path, strerror(errno));
-		}
-		free_strvec(strvec);
-		return true;
+		ret = true;
 	}
 
 	free_strvec(strvec);
-	return false;
+	return ret;
 }
 
 bool
@@ -546,7 +510,10 @@ read_line(char *buf, size_t size)
 {
 	size_t len ;
 	bool eof = false;
+	size_t config_id_len;
+	char *buf_start;
 
+	config_id_len = config_id ? strlen(config_id) : 0;
 	do {
 		if (fgets(buf, (int)size, current_stream)) {
 			len = strlen(buf);
@@ -554,13 +521,27 @@ read_line(char *buf, size_t size)
 				buf[len-1] = '\0';
 			if (len > 1 && (buf[len-2] == '\n' || buf[len-2] == '\r'))
 				buf[len-2] = '\0';
+			if (buf[0] == '@') {
+				/* If the line starts '@', check the following word matches the system id */
+				if (!config_id ||
+				    !(buf_start = strpbrk(buf, " \t")) ||
+				    (size_t)(buf_start - (buf + 1)) != config_id_len ||
+				    strncmp(buf + 1, config_id, config_id_len)) {
+					buf[0] = '\0';
+					break;
+				}
+
+				/* Remove the @config_id from start of line */
+				memmove(buf, buf_start + 1, strlen(buf_start));
+			}
 		}
 		else
 		{
 			eof = true;
 			buf[0] = '\0';
+			break;
 		}
-	} while (check_include(buf));
+	} while (buf[0] && check_include(buf));
 
 	return !eof;
 }

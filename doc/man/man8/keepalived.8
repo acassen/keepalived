@@ -14,6 +14,7 @@ keepalived \- load\-balancing and high\-availability service
 [\fB\-l\fP|\fB\-\-log\-console\fP]
 [\fB\-D\fP|\fB\-\-log\-detail\fP]
 [\fB\-S\fP|\fB\-\-log\-facility\fP={0-7}]
+[\fB\-X\fP|\fB\-\-release\-vips\fP]
 [\fB\-V\fP|\fB\-\-dont\-release\-vrrp\fP]
 [\fB\-I\fP|\fB\-\-dont\-release\-ipvs\fP]
 [\fB\-R\fP|\fB\-\-dont\-respawn\fP]
@@ -22,6 +23,7 @@ keepalived \- load\-balancing and high\-availability service
 [\fB\-p\fP|\fB\-\-pid\fP=FILE]
 [\fB\-r\fP|\fB\-\-vrrp_pid\fP=FILE]
 [\fB\-c\fP|\fB\-\-checkers_pid\fP=FILE]
+[\fB\-a\fP|\fB\-\-address-monitoring\fP]
 [\fB\-x\fP|\fB\-\-snmp\fP]
 [\fB\-A\fP|\fB\-\-snmp-agent-socket\fP=FILE]
 [\fB\-m\fP|\fB\-\-core\-dump\fP]
@@ -102,6 +104,9 @@ network namespace is being used.
 Use the specified pidfile for checkers child process. The default pidfile
 for the checker child process is "/var/run/keepalived_checkers.pid" unless
 a network namespace is being used.
+.TP
+\fB -a, --address-monitoring\fP
+Log all address additions/deletions reported by netlink.
 .TP
 \fB -x, --snmp\fP
 Enable the SNMP subsystem.

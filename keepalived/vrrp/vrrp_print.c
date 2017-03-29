@@ -31,7 +31,7 @@
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
 #endif
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "rttables.h"
 #include "logger.h"
 
@@ -92,13 +92,14 @@ vscript_print(FILE *file, void *data)
 	fprintf(file, "   Rise = %d\n", vscript->rise);
 	fprintf(file, "   Full = %d\n", vscript->fall);
 	fprintf(file, "   Insecure = %s\n", vscript->insecure ? "yes" : "no");
-	fprintf(file, "   Executable = %s\n", vscript->executable ? "yes" : "no");
 
 	switch (vscript->result) {
 	case VRRP_SCRIPT_STATUS_INIT:
 		str = "INIT"; break;
 	case VRRP_SCRIPT_STATUS_INIT_GOOD:
 		str = "INIT/GOOD"; break;
+	case VRRP_SCRIPT_STATUS_INIT_FAILED:
+		str = "INIT/FAILED"; break;
 	case VRRP_SCRIPT_STATUS_DISABLED:
 		str = "DISABLED"; break;
 	default:
@@ -268,6 +269,7 @@ vrrp_print(FILE *file, void *data)
 	fprintf(file, "   Gratuitous ARP lower priority delay = %u\n", vrrp->garp_lower_prio_delay / TIMER_HZ);
 	fprintf(file, "   Gratuitous ARP lower priority repeat = %u\n", vrrp->garp_lower_prio_rep);
 	fprintf(file, "   Send advert after receive lower priority advert = %s\n", vrrp->lower_prio_no_advert ? "false" : "true");
+	fprintf(file, "   Send advert after receive higher priority advert = %s\n", vrrp->higher_prio_send_advert ? "true" : "false");
 	fprintf(file, "   Virtual Router ID = %d\n", vrrp->vrid);
 	fprintf(file, "   Priority = %d\n", vrrp->base_priority);
 	fprintf(file, "   Advert interval = %d %s\n",

@@ -26,11 +26,24 @@
 #include <netinet/in.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
+#include <stdint.h>
 
 #ifdef LIBIPVS_USE_NL
 #include <netlink/netlink.h>
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
+
+#ifdef _HAVE_LIBNL1_
+#define nl_sock		nl_handle
+#ifndef _LIBNL_DYNAMIC_
+#define nl_socket_alloc	nl_handle_alloc
+#define nl_socket_free	nl_handle_destroy
+#endif
+#endif
+
+#ifdef _LIBNL_DYNAMIC_
+#include "libnl_link.h"
+#endif
 #endif
 
 #include "libipvs.h"
@@ -39,6 +52,8 @@
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
+#include "logger.h"
+
 
 typedef struct ipvs_servicedest_s {
 	struct ip_vs_service_user	svc;
@@ -48,14 +63,11 @@ typedef struct ipvs_servicedest_s {
 static int sockfd = -1;
 static void* ipvs_func = NULL;
 
+
 #ifdef LIBIPVS_USE_NL
-#ifdef FALLBACK_LIBNL1
-#define nl_sock		nl_handle
-#define nl_socket_alloc	nl_handle_alloc
-#define nl_socket_free	nl_handle_destroy
-#endif
 static struct nl_sock *sock = NULL;
-static int family, try_nl = 1;
+static int family;
+static bool try_nl = true;
 
 /* Policy definitions */
 #ifdef _WITH_SNMP_CHECKER_
@@ -139,8 +151,13 @@ static struct nla_policy ipvs_stats_policy[IPVS_STATS_ATTR_MAX + 1] = {
 	[IPVS_STATS_ATTR_INBPS]		= { .type = NLA_U32 },
 	[IPVS_STATS_ATTR_OUTBPS]	= { .type = NLA_U32 },
 };
-#endif
 #endif	/* _WITH_SNMP_CHECKER */
+
+static struct nla_policy ipvs_info_policy[IPVS_INFO_ATTR_MAX + 1] = {
+	[IPVS_INFO_ATTR_VERSION]        = { .type = NLA_U32 },
+	[IPVS_INFO_ATTR_CONN_TAB_SIZE]  = { .type = NLA_U32 },
+};
+#endif
 
 #define CHECK_IPV4(s, ret) if (s->af && s->af != AF_INET)	\
 	{ errno = EAFNOSUPPORT; goto out_err; }			\
@@ -162,6 +179,7 @@ static struct nla_policy ipvs_stats_policy[IPVS_STATS_ATTR_MAX + 1] = {
 	CHECK_IPV4(s, ret);
 #endif
 
+#ifdef LIBIPVS_USE_NL
 #ifndef NLA_PUT_S32
 #define NLA_PUT_S32(msg, attrtype, value) \
 	NLA_PUT_TYPE(msg, int32_t, attrtype, value)
@@ -173,8 +191,7 @@ nla_get_s32(struct nlattr *attr)
 }
 #endif
 
-#ifdef LIBIPVS_USE_NL
-#ifndef FALLBACK_LIBNL1
+#ifndef _HAVE_LIBNL1_
 static int nlerr2syserr(int err)
 {
 	switch (abs(err)) {
@@ -224,7 +241,8 @@ static int ipvs_nl_send_message(struct nl_msg *msg, nl_recvmsg_msg_cb_t func, vo
 
 	sock = nl_socket_alloc();
 	if (!sock) {
-		nlmsg_free(msg);
+		if (msg)
+			nlmsg_free(msg);
 		return -1;
 	}
 
@@ -261,36 +279,89 @@ fail_genl:
 	nl_socket_free(sock);
 	sock = NULL;
 	nlmsg_free(msg);
+#ifdef _HAVE_LIBNL1_
 	errno = err;
-#ifndef FALLBACK_LIBNL1
+#else
 	errno = nlerr2syserr(err);
 #endif
 	return -1;
 }
 #endif
 
+#ifdef LIBIPVS_USE_NL
+static int ipvs_getinfo_parse_cb(struct nl_msg *msg, __attribute__((unused)) void *arg)
+{
+	struct nlmsghdr *nlh = nlmsg_hdr(msg);
+	struct nlattr *attrs[IPVS_INFO_ATTR_MAX + 1];
+
+	if (genlmsg_parse(nlh, 0, attrs, IPVS_INFO_ATTR_MAX, ipvs_info_policy) != 0)
+		return -1;
+
+	if (!(attrs[IPVS_INFO_ATTR_VERSION] &&
+	      attrs[IPVS_INFO_ATTR_CONN_TAB_SIZE]))
+		return -1;
+
+	return NL_OK;
+}
+
+static int ipvs_getinfo(void)
+{
+	socklen_t len;
+	struct ip_vs_getinfo ipvs_info;
+
+	ipvs_func = ipvs_getinfo;
+
+	if (try_nl) {
+		struct nl_msg *msg;
+		msg = ipvs_nl_message(IPVS_CMD_GET_INFO, 0);
+		if (msg)
+			return ipvs_nl_send_message(msg, ipvs_getinfo_parse_cb, NULL);
+		return -1;
+	}
+
+	len = sizeof(ipvs_info);
+	return getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO,
+			  (char *)&ipvs_info, &len);
+}
+#endif
+
 int ipvs_init(void)
 {
+	socklen_t len;
+	struct ip_vs_getinfo ipvs_info;
+
 	ipvs_func = ipvs_init;
 
 #ifdef LIBIPVS_USE_NL
-	try_nl = 1;
+#ifdef _LIBNL_DYNAMIC_
+	try_nl = libnl_init();
+	if (!try_nl)
+		log_message(LOG_INFO, "Note: IPVS with IPv6 will not be supported");
+#else
+	try_nl = true;
+#endif
 
-	if (ipvs_nl_send_message(NULL, NULL, NULL) == 0) {
-		try_nl = 1;
-		return 0;
-	}
+	if (try_nl && ipvs_nl_send_message(NULL, NULL, NULL) == 0)
+		return ipvs_getinfo();
 
-	try_nl = 0;
+	try_nl = false;
 #endif
 
 	if ((sockfd = socket(AF_INET, SOCK_RAW | SOCK_CLOEXEC, IPPROTO_RAW)) == -1)
 		return -1;
 
 #if !HAVE_DECL_SOCK_CLOEXEC
-	if (set_sock_flags(sockfd, F_SETFD, FD_CLOEXEC))
+	if (set_sock_flags(sockfd, F_SETFD, FD_CLOEXEC)) {
+		close(sockfd);
 		return -1;
+	}
 #endif
+
+	len = sizeof(ipvs_info);
+	if (getsockopt(sockfd, IPPROTO_IP, IP_VS_SO_GET_INFO, (char *)&ipvs_info, &len)) {
+		close(sockfd);
+		return -1;
+	}
 
 	return 0;
 }
@@ -1083,11 +1154,13 @@ out_err:
 void ipvs_close(void)
 {
 #ifdef LIBIPVS_USE_NL
-	if (try_nl) {
+	if (try_nl)
 		return;
-	}
 #endif
-	close(sockfd);
+	if (sockfd != -1) {
+		close(sockfd);
+		sockfd = -1;
+	}
 }
 
 const char *ipvs_strerror(int err)

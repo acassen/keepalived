@@ -90,6 +90,16 @@ typedef struct _thread_master {
 #define THREAD_TERMINATE	10
 #define THREAD_READY_FD		11
 
+typedef enum {
+	PROG_TYPE_PARENT,
+#ifdef _WITH_VRRP_
+	PROG_TYPE_VRRP,
+#endif
+#ifdef _WITH_LVS_
+	PROG_TYPE_CHECKER,
+#endif
+} prog_type_t;
+
 /* MICRO SEC def */
 #define BOOTSTRAP_DELAY TIMER_HZ
 #define RESPAWN_TIMER	60*TIMER_HZ
@@ -107,6 +117,7 @@ typedef struct _thread_master {
 
 /* global vars exported */
 extern thread_master_t *master;
+extern prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 
 /* Prototypes. */
 extern void set_child_finder(bool (*)(pid_t, char const **));

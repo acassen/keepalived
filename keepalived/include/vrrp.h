@@ -26,11 +26,15 @@
 
 /* system include */
 #include <unistd.h>
+#include <stdint.h>
 #include <stdbool.h>
+#include <net/if.h>
 
 /* local include */
 #include "vrrp_ipaddress.h"
+#ifdef _WITH_VRRP_AUTH_
 #include "vrrp_ipsecah.h"
+#endif
 #include "vrrp_if.h"
 #include "vrrp_track.h"
 #include "timer.h"
@@ -179,8 +183,8 @@ typedef struct _vrrp_t {
 	bool			garp_pending;		/* Are there gratuitous ARP messages still to be sent */
 	bool			gna_pending;		/* Are there gratuitous NA messages still to be sent */
 	unsigned		garp_lower_prio_rep;	/* Number of ARP messages to send at a time */
-	unsigned		lower_prio_no_advert;	/* Don't send advert after lower prio
-							 * advert received */
+	unsigned		lower_prio_no_advert;	/* Don't send advert after lower prio advert received */
+	unsigned		higher_prio_send_advert; /* Send advert after higher prio advert received */
 	uint8_t			vrid;			/* virtual id. from 1(!) to 255 */
 	uint8_t			base_priority;		/* configured priority value */
 	uint8_t			effective_priority;	/* effective priority value */
@@ -246,6 +250,7 @@ typedef struct _vrrp_t {
 	/* Authentication data (only valid for VRRPv2) */
 	uint8_t			auth_type;		/* authentification type. VRRP_AUTH_* */
 	uint8_t			auth_data[8];		/* authentification data */
+	seq_counter_t		*ipsecah_counter;
 #endif
 
 	/*
@@ -256,9 +261,6 @@ typedef struct _vrrp_t {
 	 * to warn the user only if the outoing mtu is too small
 	 */
 	int			ip_id;
-
-	/* IPSEC AH counter def (only valid for VRRPv2) --rfc2402.3.3.2 */
-	seq_counter_t		*ipsecah_counter;
 } vrrp_t;
 
 /* VRRP state machine -- rfc2338.6.4 */
@@ -311,6 +313,10 @@ typedef struct _vrrp_t {
 
 #define VRRP_ISUP(V)		(VRRP_IF_ISUP(V) && VRRP_SCRIPT_ISUP(V))
 
+/* Global variables */
+extern bool block_ipv4;
+extern bool block_ipv6;
+
 /* prototypes */
 extern vrrphdr_t *vrrp_get_header(sa_family_t, char *, unsigned *);
 extern int open_vrrp_send_socket(sa_family_t, int, ifindex_t, bool);
@@ -325,9 +331,7 @@ extern void vrrp_state_backup(vrrp_t *, char *, ssize_t);
 extern void vrrp_state_goto_master(vrrp_t *);
 extern void vrrp_state_leave_master(vrrp_t *);
 extern bool vrrp_complete_init(void);
-#ifdef _WITH_LVS_
-extern bool vrrp_ipvs_needed(void);
-#endif
+extern void vrrp_restore_interfaces_startup(void);
 extern void restore_vrrp_interfaces(void);
 extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);

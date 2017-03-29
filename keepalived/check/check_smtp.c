@@ -258,8 +258,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		if (svr_checker_up(checker->id, checker->rs)) {
 			if (format != NULL) {
 				/* prepend format with the "SMTP_CHECK " string */
-				error_buff[0] = '\0';
-				strncat(error_buff, "SMTP_CHECK ", sizeof(error_buff) - 1);
+				strncpy(error_buff, "SMTP_CHECK ", sizeof(error_buff) - 1);
 				strncat(error_buff, format, sizeof(error_buff) - 11 - 1);
 
 				va_start(varg_list, format);
@@ -289,13 +288,15 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		 */
 		if (svr_checker_up(checker->id, checker->rs)) {
 			if (format != NULL) {
-				snprintf(smtp_buff, 542, "=> CHECK failed on service : %s <=",
-					 error_buff + 11);
+				snprintf(error_buff, sizeof(error_buff), "=> CHECK failed on service : %s <=", format);
+				va_start(varg_list, format);
+				vsnprintf(smtp_buff, sizeof(smtp_buff), error_buff, varg_list);
+				va_end(varg_list);
 			} else {
-				snprintf(smtp_buff, 542, "=> CHECK failed on service <=");
+				strncpy(smtp_buff, "=> CHECK failed on service <=", sizeof(smtp_buff));
 			}
 
-			smtp_buff[542 - 1] = '\0';
+			smtp_buff[sizeof(smtp_buff) - 1] = '\0';
 			smtp_alert(checker->rs, NULL, NULL, "DOWN", smtp_buff);
 			update_svr_checker_state(DOWN, checker->id, checker->vs, checker->rs);
 		}
@@ -736,7 +737,7 @@ smtp_connect_thread(thread_t *thread)
 	 * But we still have to register ourselves again so
 	 * we don't fall of the face of the earth.
 	 */
-	if (!CHECKER_ENABLED(checker)) {
+	if (!checker->enabled) {
 		thread_add_timer(thread->master, smtp_connect_thread, checker,
 				 checker->vs->delay_loop);
 		return 0;

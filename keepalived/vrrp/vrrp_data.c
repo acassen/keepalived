@@ -96,8 +96,8 @@ dump_notify_script(notify_script_t *script, char *type)
 	if (!script)
 		return;
 
-	log_message(LOG_INFO, "   %s state transition script = %s, uid:gid %d:%d, %sexecutable", type,
-	       script->name, script->uid, script->gid, script->executable ? "" : "not ");
+	log_message(LOG_INFO, "   %s state transition script = %s, uid:gid %d:%d", type,
+	       script->name, script->uid, script->gid);
 }
 
 static void
@@ -146,13 +146,14 @@ dump_vscript(void *data)
 	log_message(LOG_INFO, "   Rise = %d", vscript->rise);
 	log_message(LOG_INFO, "   Fall = %d", vscript->fall);
 	log_message(LOG_INFO, "   Insecure = %s", vscript->insecure ? "yes" : "no");
-	log_message(LOG_INFO, "   Executable = %s", vscript->executable ? "yes" : "no");
 
 	switch (vscript->result) {
 	case VRRP_SCRIPT_STATUS_INIT:
 		str = "INIT"; break;
 	case VRRP_SCRIPT_STATUS_INIT_GOOD:
 		str = "INIT/GOOD"; break;
+	case VRRP_SCRIPT_STATUS_INIT_FAILED:
+		str = "INIT/FAILED"; break;
 	case VRRP_SCRIPT_STATUS_DISABLED:
 		str = "DISABLED"; break;
 	default:
@@ -221,7 +222,9 @@ free_vrrp(void *data)
 	free_notify_script(&vrrp->script_stop);
 	free_notify_script(&vrrp->script);
 	FREE_PTR(vrrp->stats);
+#ifdef _WITH_VRRP_AUTH_
 	FREE(vrrp->ipsecah_counter);
+#endif
 
 	if (!LIST_ISEMPTY(vrrp->track_ifp))
 		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e))
@@ -273,6 +276,7 @@ dump_vrrp(void *data)
 	log_message(LOG_INFO, "   Gratuitous ARP lower priority delay = %d", vrrp->garp_lower_prio_delay / TIMER_HZ);
 	log_message(LOG_INFO, "   Gratuitous ARP lower priority repeat = %d", vrrp->garp_lower_prio_rep);
 	log_message(LOG_INFO, "   Send advert after receive lower priority advert = %s", vrrp->lower_prio_no_advert ? "false" : "true");
+	log_message(LOG_INFO, "   Send advert after receive higher priority advert = %s", vrrp->higher_prio_send_advert ? "true" : "false");
 	log_message(LOG_INFO, "   Virtual Router ID = %d", vrrp->vrid);
 	log_message(LOG_INFO, "   Priority = %d", vrrp->base_priority);
 	log_message(LOG_INFO, "   Advert interval = %d %s",
@@ -387,15 +391,19 @@ void
 alloc_vrrp(char *iname)
 {
 	size_t size = strlen(iname);
+#ifdef _WITH_VRRP_AUTH_
 	seq_counter_t *counter;
+#endif
 	vrrp_t *new;
 
 	/* Allocate new VRRP structure */
 	new = (vrrp_t *) MALLOC(sizeof(vrrp_t));
+#ifdef _WITH_VRRP_AUTH_
 	counter = (seq_counter_t *) MALLOC(sizeof(seq_counter_t));
 
 	/* Build the structure */
 	new->ipsecah_counter = counter;
+#endif
 
 	/* Set default values */
 	new->family = AF_UNSPEC;

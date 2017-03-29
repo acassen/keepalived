@@ -23,6 +23,7 @@
 #include "config.h"
 
 #include <string.h>
+#include <sys/prctl.h>
 
 #include "check_daemon.h"
 #include "check_parser.h"
@@ -43,18 +44,24 @@
 #include "memory.h"
 #include "parser.h"
 #include "bitops.h"
-#include "vrrp_netlink.h"
-#include "vrrp_if.h"
+#include "keepalived_netlink.h"
 #ifdef _WITH_SNMP_CHECKER_
   #include "check_snmp.h"
 #endif
 
+/* Global variables */
+bool using_ha_suspend;
+
+/* local variables */
 static char *check_syslog_ident;
 
 /* Daemon stop sequence */
 static void
 stop_check(int status)
 {
+	if (using_ha_suspend)
+		kernel_netlink_close();
+
 	/* Terminate all script process */
 	script_killall(master, SIGTERM);
 
@@ -67,7 +74,7 @@ stop_check(int status)
 		clear_services();
 	ipvs_stop();
 #ifdef _WITH_SNMP_CHECKER_
-	if (global_data->enable_snmp_checker)
+	if (global_data && global_data->enable_snmp_checker)
 		check_snmp_agent_close();
 #endif
 
@@ -75,11 +82,10 @@ stop_check(int status)
 	pidfile_rm(checkers_pidfile);
 
 	/* Clean data */
-	free_global_data(global_data);
-	free_check_data(check_data);
-#ifdef _WITH_VRRP_
-	free_interface_queue();
-#endif
+	if (global_data)
+		free_global_data(global_data);
+	if (check_data)
+		free_check_data(check_data);
 	free_parent_mallocs_exit();
 
 	/*
@@ -104,17 +110,7 @@ stop_check(int status)
 static void
 start_check(void)
 {
-	/* Initialize sub-system */
-	if (ipvs_start() != IPVS_SUCCESS) {
-		stop_check(KEEPALIVED_EXIT_FATAL);
-		return;
-	}
-
 	init_checkers_queue();
-#ifdef _WITH_VRRP_
-	init_interface_queue();
-	kernel_netlink_init();
-#endif
 
 	/* Parse configuration file */
 	global_data = alloc_global_data();
@@ -126,6 +122,13 @@ start_check(void)
 
 	init_global_data(global_data);
 
+	/* fill 'vsg' members of the virtual_server_t structure.
+	 * We must do that after parsing config, because
+	 * vs and vsg declarations may appear in any order,
+	 * but we must do it before validate_check_config().
+	 */
+	link_vsg_to_vs();
+
 	/* Post initializations */
 	if (!validate_check_config()) {
 		stop_check(KEEPALIVED_EXIT_CONFIG);
@@ -135,6 +138,17 @@ start_check(void)
 #ifdef _MEM_CHECK_
 	log_message(LOG_INFO, "Configuration is using : %zu Bytes", mem_allocated);
 #endif
+
+	/* Initialize sub-system if any virtual servers are configured */
+	if (!LIST_ISEMPTY(check_data->vs) &&
+	    ipvs_start() != IPVS_SUCCESS) {
+		stop_check(KEEPALIVED_EXIT_FATAL);
+		return;
+	}
+
+	/* Get current active addresses, and start update process */
+	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug))
+		kernel_netlink_init();
 
 	/* Remove any entries left over from previous invocation */
 	if (!reload && global_data->lvs_flush)
@@ -148,12 +162,6 @@ start_check(void)
 	/* SSL load static data & initialize common ctx context */
 	if (!init_ssl_ctx())
 		stop_check(KEEPALIVED_EXIT_FATAL);
-
-	/* fill 'vsg' members of the virtual_server_t structure.
-	 * We must do that after parsing config, because
-	 * vs and vsg declarations may appear in any order
-	 */
-	link_vsg_to_vs();
 
 	/* Set the process priority and non swappable if configured */
 	if (global_data->checker_process_priority)
@@ -175,11 +183,6 @@ start_check(void)
 		dump_global_data(global_data);
 		dump_check_data(check_data);
 	}
-
-#ifdef _WITH_VRRP_
-	/* Initialize linkbeat */
-	init_interface_linkbeat();
-#endif
 
 	/* Register checkers thread */
 	register_checkers_thread();
@@ -206,7 +209,7 @@ sigend_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 check_signal_init(void)
 {
-	signal_handler_init(0);
+	signal_handler_child_clear();
 	signal_set(SIGHUP, sighup_check, NULL);
 	signal_set(SIGINT, sigend_check, NULL);
 	signal_set(SIGTERM, sigend_check, NULL);
@@ -226,16 +229,12 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	script_killall(master, SIGTERM);
 
 	/* Destroy master thread */
-#ifdef _WITH_VRRP_
-	kernel_netlink_close();
-#endif
+	if (using_ha_suspend)
+		kernel_netlink_close();
 	thread_cleanup_master(master);
 	free_global_data(global_data);
 
 	free_checkers_queue();
-#ifdef _WITH_VRRP_
-	free_interface_queue();
-#endif
 	free_ssl();
 	ipvs_stop();
 
@@ -288,7 +287,6 @@ start_check_child(void)
 {
 #ifndef _DEBUG_
 	pid_t pid;
-	int ret;
 	char *syslog_ident;
 
 	/* Initialize child process */
@@ -308,6 +306,9 @@ start_check_child(void)
 				 pid, RESPAWN_TIMER);
 		return 0;
 	}
+	prctl(PR_SET_PDEATHSIG, SIGTERM);
+
+	prog_type = PROG_TYPE_CHECKER;
 
 	if ((instance_name
 #if HAVE_DECL_CLONE_NEWNET
@@ -339,15 +340,6 @@ start_check_child(void)
 	signal_handler_destroy();
 	thread_destroy_master(master);	/* This destroys any residual settings from the parent */
 	master = thread_make_master();
-
-	/* change to / dir */
-	ret = chdir("/");
-	if (ret < 0) {
-		log_message(LOG_INFO, "Healthcheck child process: error chdir");
-	}
-
-	/* Set mask */
-	umask(0);
 #endif
 
 	/* If last process died during a reload, we can get there and we

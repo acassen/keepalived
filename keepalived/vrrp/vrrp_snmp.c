@@ -39,9 +39,9 @@
      authCommunity  log,execute,net public
 
  * Put the MIB definition files in a place that will be found:
-     cp doc/[VK]*-MIB /usr/share/snmp/mibs
+     cp doc/[VK]*-MIB.txt /usr/share/snmp/mibs
  *  or
-     cp doc/[VK]*-MIB ~/.snmp/mibs
+     cp doc/[VK]*-MIB.txt ~/.snmp/mibs
 
  * Run snmpd (in background)
      snmpd -LS0-6d
@@ -68,7 +68,10 @@
      MIBS="+VRRP-MIB" snmpwalk -v2c -c public localhost VRRP-MIB::vrrpMIB
     or
      MIBS="+VRRPV3-MIB" snmpwalk -v2c -c public localhost VRRPV3-MIB::vrrpv3MIB
- *
+
+ * To check the validity of a MIB file:
+     smilint doc/KEEPALIVED-MIB.txt
+
  */
 
 #include "config.h"
@@ -79,6 +82,7 @@
 #if HAVE_DECL_RTA_ENCAP
 #include <linux/lwtunnel.h>
 #endif
+#include <stdint.h>
 
 #include "vrrp.h"
 #include "vrrp_snmp.h"
@@ -199,6 +203,8 @@ enum snmp_rule_magic {
 	VRRP_SNMP_RULE_SUPPRESSGROUP,
 	VRRP_SNMP_RULE_TUNNELID_HIGH,
 	VRRP_SNMP_RULE_TUNNELID_LOW,
+	VRRP_SNMP_RULE_UID_RANGE_START,
+	VRRP_SNMP_RULE_UID_RANGE_END,
 };
 
 enum snmp_route_magic {
@@ -489,6 +495,8 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 			long_ret.u = 1; break;
 		case VRRP_SCRIPT_STATUS_INIT_GOOD:
 			long_ret.u = 4; break;
+		case VRRP_SCRIPT_STATUS_INIT_FAILED:
+			long_ret.u = 5; break;
 		case VRRP_SCRIPT_STATUS_DISABLED:
 			long_ret.u = 0; break;
 		default:
@@ -1102,7 +1110,9 @@ static u_char*
 vrrp_snmp_encap(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 	static char labels[11*MAX_MPLS_LABELS];
+#endif
 	char *op;
 	ip_route_t *route;
 	nexthop_t *nh;
@@ -1132,16 +1142,7 @@ vrrp_snmp_encap(struct variable *vp, oid *name, size_t *length,
 			return (u_char *)&long_ret;
 		}
 
-		if (encap->type == LWTUNNEL_ENCAP_MPLS) {
-			if (vp->magic == VRRP_SNMP_ROUTE_ENCAP_MPLS_LABELS) {
-				op = labels;
-				for (i = 0; i < encap->mpls.num_labels; i++)
-					op += snprintf(op, (size_t)(labels + sizeof(labels) - op), "%s%u", i ? "/" : "", encap->mpls.addr[i].entry);
-				*var_len = strlen(labels);
-				return (u_char *)labels;
-			}
-		}
-		else if (encap->type == LWTUNNEL_ENCAP_IP ||
+		if (encap->type == LWTUNNEL_ENCAP_IP ||
 			 encap->type == LWTUNNEL_ENCAP_IP6) {
 			switch(vp->magic) {
 			case VRRP_SNMP_ROUTE_ENCAP_ID:
@@ -1185,6 +1186,18 @@ vrrp_snmp_encap(struct variable *vp, oid *name, size_t *length,
 				return (u_char *)&long_ret;
 			}
 		}
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
+		else if (encap->type == LWTUNNEL_ENCAP_MPLS) {
+			if (vp->magic == VRRP_SNMP_ROUTE_ENCAP_MPLS_LABELS) {
+				op = labels;
+				for (i = 0; i < encap->mpls.num_labels; i++)
+					op += snprintf(op, (size_t)(labels + sizeof(labels) - op), "%s%u", i ? "/" : "", encap->mpls.addr[i].entry);
+				*var_len = strlen(labels);
+				return (u_char *)labels;
+			}
+		}
+#endif
+#if HAVE_DECL_LWTUNNEL_ENCAP_ILA
 		else if (encap->type == LWTUNNEL_ENCAP_ILA) {
 			if (vp->magic == VRRP_SNMP_ROUTE_ENCAP_ILA_LOCATOR) {
 				*var_len = sizeof(c64);
@@ -1192,6 +1205,7 @@ vrrp_snmp_encap(struct variable *vp, oid *name, size_t *length,
 				return (u_char *)&c64;
 			}
 		}
+#endif
 	}
 
 	/* If we are here, we asked for a non existent data. Try the
@@ -1444,6 +1458,22 @@ vrrp_snmp_rule(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_RULE_TUNNELID_LOW:
 		if (rule->tunnel_id)
 			long_ret.u = rule->tunnel_id & 0xffffffff;
+		else
+#endif
+			break;
+		return (u_char *)&long_ret;
+#if HAVE_DECL_FRA_UID_RANGE
+	case VRRP_SNMP_RULE_UID_RANGE_START:
+		if (rule->mask & IPRULE_BIT_UID_RANGE)
+			long_ret.u = rule->uid_range.start;
+		else
+#endif
+			break;
+		return (u_char *)&long_ret;
+#if HAVE_DECL_FRA_UID_RANGE
+	case VRRP_SNMP_RULE_UID_RANGE_END:
+		if (rule->mask & IPRULE_BIT_UID_RANGE)
+			long_ret.u = rule->uid_range.end;
 		else
 #endif
 			break;
@@ -2271,8 +2301,10 @@ static struct variable8 vrrp_vars[] = {
 #if HAVE_DECL_RTA_ENCAP
 	{VRRP_SNMP_ROUTE_ENCAP_TYPE, ASN_INTEGER, RONLY,
 	 vrrp_snmp_encap, 3, {7, 1, 46}},
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 	{VRRP_SNMP_ROUTE_ENCAP_MPLS_LABELS, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_encap, 3, {7, 1, 47}},
+#endif
 	{VRRP_SNMP_ROUTE_ENCAP_ID, ASN_COUNTER64, RONLY,
 	 vrrp_snmp_encap, 3, {7, 1, 48}},
 	{VRRP_SNMP_ROUTE_ENCAP_DST_ADDRESS, ASN_OCTET_STR, RONLY,
@@ -2285,8 +2317,10 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_encap, 3, {7, 1, 52}},
 	{VRRP_SNMP_ROUTE_ENCAP_FLAGS, ASN_UNSIGNED, RONLY,
 	 vrrp_snmp_encap, 3, {7, 1, 53}},
+#if HAVE_DECL_LWTUNNEL_ENCAP_ILA
 	{VRRP_SNMP_ROUTE_ENCAP_ILA_LOCATOR, ASN_COUNTER64, RONLY,
 	 vrrp_snmp_encap, 3, {7, 1, 54}},
+#endif
 #endif
 
 	 /* vrrpRuleTable */
@@ -2347,6 +2381,12 @@ static struct variable8 vrrp_vars[] = {
 	{VRRP_SNMP_RULE_TUNNELID_LOW, ASN_UNSIGNED, RONLY,
 	 vrrp_snmp_rule, 3, {8, 1, 29}},
 #endif
+#if HAVE_DECL_FRA_UID_RANGE
+	{VRRP_SNMP_RULE_UID_RANGE_START, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 30}},
+	{VRRP_SNMP_RULE_UID_RANGE_END, ASN_UNSIGNED, RONLY,
+	 vrrp_snmp_rule, 3, {8, 1, 31}},
+#endif
 
 	/* vrrpScriptTable */
 	{VRRP_SNMP_SCRIPT_NAME, ASN_OCTET_STR, RONLY, vrrp_snmp_script, 3, {9, 1, 2}},
@@ -2378,8 +2418,10 @@ static struct variable8 vrrp_vars[] = {
 #if HAVE_DECL_RTA_ENCAP
 	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_TYPE, ASN_INTEGER, RONLY,
 	 vrrp_snmp_encap, 3, {11, 1, 10}},
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_MPLS_LABELS, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_encap, 3, {11, 1, 11}},
+#endif
 	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_ID, ASN_COUNTER64, RONLY,
 	 vrrp_snmp_encap, 3, {11, 1, 12}},
 	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_DST_ADDRESS, ASN_OCTET_STR, RONLY,
@@ -2392,8 +2434,10 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_encap, 3, {11, 1, 16}},
 	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_FLAGS, ASN_UNSIGNED, RONLY,
 	 vrrp_snmp_encap, 3, {11, 1, 17}},
+#if HAVE_DECL_LWTUNNEL_ENCAP_ILA
 	{VRRP_SNMP_ROUTE_NEXT_HOP_ENCAP_ILA_LOCATOR, ASN_COUNTER64, RONLY,
 	 vrrp_snmp_encap, 3, {11, 1, 18}},
+#endif
 #endif
 #endif
 };

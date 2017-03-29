@@ -28,7 +28,6 @@
 
 #include "smtp.h"
 #include "global_data.h"
-#include "check_data.h"
 #include "scheduler.h"
 #include "memory.h"
 #include "list.h"
@@ -604,8 +603,20 @@ smtp_connect(smtp_t * smtp)
 
 /* Main entry point */
 void
-smtp_alert(real_server_t * rs, vrrp_t * vrrp,
-	   vrrp_sgroup_t * vgroup, const char *subject, const char *body)
+smtp_alert(
+#ifndef _WITH_LVS_
+	   __attribute__((unused))
+#endif
+	   real_server_t * rs,
+#ifndef _WITH_VRRP_
+	   __attribute__((unused))
+#endif
+	   vrrp_t * vrrp,
+#ifndef _WITH_VRRP_
+	   __attribute__((unused))
+#endif
+	   vrrp_sgroup_t * vgroup,
+	   const char *subject, const char *body)
 {
 	smtp_t *smtp;
 
@@ -619,12 +630,17 @@ smtp_alert(real_server_t * rs, vrrp_t * vrrp,
 		smtp->email_to = (char *) MALLOC(SMTP_BUFFER_MAX);
 
 		/* format subject if rserver is specified */
+#ifdef _WITH_LVS_
 		if (rs) {
 			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s - %s"
 					      , global_data->router_id
 					      , FMT_RS(rs)
 					      , subject);
-		} else if (vrrp)
+		}
+		else
+#endif
+#ifdef _WITH_VRRP_
+		if (vrrp)
 			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] VRRP Instance %s - %s"
 					      , global_data->router_id
 					      , vrrp->iname
@@ -634,7 +650,9 @@ smtp_alert(real_server_t * rs, vrrp_t * vrrp,
 					      , global_data->router_id
 					      , vgroup->gname
 					      , subject);
-		else if (global_data->router_id)
+		else
+#endif
+		if (global_data->router_id)
 			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] %s"
 					      , global_data->router_id
 					      , subject);

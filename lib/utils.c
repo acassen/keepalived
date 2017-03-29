@@ -23,12 +23,9 @@
 #include "config.h"
 
 #include <sys/wait.h>
-#include "memory.h"
 #include <unistd.h>
 #include <fcntl.h>
-#include "utils.h"
-#include "signals.h"
-#include "bitops.h"
+#include <stdint.h>
 
 #ifdef _WITH_STACKTRACE_
 #include <sys/types.h>
@@ -36,6 +33,11 @@
 #include <fcntl.h>
 #include <execinfo.h>
 #endif
+
+#include "memory.h"
+#include "utils.h"
+#include "signals.h"
+#include "bitops.h"
 
 /* global vars */
 unsigned long debug = 0;
@@ -535,7 +537,7 @@ set_std_fd(int force)
 	signal_pipe_close(STDERR_FILENO+1);
 }
 
-#ifndef _HAVE_LIBIPTC_
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 int
 fork_exec(char **argv)
 {

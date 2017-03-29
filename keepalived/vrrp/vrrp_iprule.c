@@ -26,12 +26,13 @@
 #include <sys/socket.h>
 #include <linux/fib_rules.h>
 #include <inttypes.h>
+#include <stdint.h>
 
 /* local include */
 #include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "vrrp_if.h"
 #include "vrrp_data.h"
 #include "logger.h"
@@ -61,6 +62,10 @@ rule_is_equal(const ip_rule_t *x, const ip_rule_t *y)
 #endif
 #if HAVE_DECL_FRA_TUN_ID
 	    x->tunnel_id != y->tunnel_id ||
+#endif
+#if HAVE_DECL_FRA_UID_RANGE
+	    x->uid_range.start != y->uid_range.start ||
+	    x->uid_range.end != y->uid_range.end ||
 #endif
 	    !(x->iif) != !(y->iif) ||
 	    !(x->oif) != !(y->oif) ||
@@ -171,6 +176,12 @@ netlink_rule(ip_rule_t *iprule, int cmd)
 	if (iprule->tunnel_id)
 		addattr64(&req.n, sizeof(req), FRA_TUN_ID, htobe64(iprule->tunnel_id));
 #endif
+
+#if HAVE_DECL_FRA_UID_RANGE
+	if (iprule->mask & IPRULE_BIT_UID_RANGE)
+		addattr_l(&req.n, sizeof(req), FRA_UID_RANGE, &iprule->uid_range, sizeof(iprule->uid_range));
+#endif
+
 	if (iprule->action == FR_ACT_GOTO) {	// "goto"
 		addattr32(&req.n, sizeof(req), FRA_GOTO, iprule->goto_target);
 		req.frh.action = FR_ACT_GOTO;
@@ -289,6 +300,11 @@ format_iprule(ip_rule_t *rule, char *buf, size_t buf_len)
 #if HAVE_DECL_FRA_TUN_ID
 	if (rule->tunnel_id)
 		op += snprintf(op, (size_t)(buf_end - op), " tunnel-id %" PRIu64, rule->tunnel_id);
+#endif
+
+#if HAVE_DECL_FRA_UID_RANGE
+	if (rule->mask & IPRULE_BIT_UID_RANGE)
+		op += snprintf(op, (size_t)(buf_end - op), " uidrange %" PRIu32 "-%" PRIu32, rule->uid_range.start, rule->uid_range.end);
 #endif
 
 	if (rule->realms)
@@ -520,6 +536,18 @@ fwmark_err:
 				goto err;
 			}
 			new->tunnel_id = val64;
+		}
+#endif
+#if HAVE_DECL_FRA_UID_RANGE
+		else if (!strcmp(str, "uidrange")) {
+			uint32_t start, end;
+			if (sscanf(strvec_slot(strvec, ++i), "%" PRIu32 "-%" PRIu32, &start, &end) != 2) {
+				log_message(LOG_INFO, "Invalid uidrange %s specified", str);
+				goto err;
+			}
+			new->mask |= IPRULE_BIT_UID_RANGE;
+			new->uid_range.start = start;
+			new->uid_range.end = end;
 		}
 #endif
 		else {

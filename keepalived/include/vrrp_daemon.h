@@ -23,10 +23,6 @@
 #ifndef _VRRP_DAEMON_H
 #define _VRRP_DAEMON_H
 
-/* system include */
-#include <stdlib.h>
-#include <signal.h>
-
 /* Daemon define */
 #define PROG_VRRP	"Keepalived_vrrp"
 #define WDOG_VRRP	"/tmp/.vrrp"

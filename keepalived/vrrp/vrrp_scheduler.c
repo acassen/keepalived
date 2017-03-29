@@ -23,7 +23,9 @@
 #include "config.h"
 
 #include "vrrp_scheduler.h"
+#ifdef _WITH_VRRP_AUTH_
 #include "vrrp_ipsecah.h"
+#endif
 #include "vrrp_if.h"
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
@@ -31,13 +33,15 @@
 #include "vrrp.h"
 #include "vrrp_sync.h"
 #include "vrrp_notify.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "vrrp_data.h"
 #include "vrrp_index.h"
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
 #include "vrrp_if.h"
+#ifdef _WITH_LVS_
 #include "ipvswrapper.h"
+#endif
 #include "memory.h"
 #include "notify.h"
 #include "list.h"
@@ -51,6 +55,7 @@
 #include "vrrp_snmp.h"
 #endif
 #include <netinet/ip.h>
+#include <stdint.h>
 
 /* global vars */
 timeval_t garp_next_time;
@@ -342,10 +347,17 @@ vrrp_init_script(list l)
 		else if (!vscript->inuse)
 			vscript->result = VRRP_SCRIPT_STATUS_DISABLED;
 		else {
-			if (vscript->result == VRRP_SCRIPT_STATUS_INIT)
+			switch (vscript->result) {
+			case VRRP_SCRIPT_STATUS_INIT:
 				vscript->result = vscript->rise - 1; /* one success is enough */
-			else if (vscript->result == VRRP_SCRIPT_STATUS_INIT_GOOD)
+				break;
+			case VRRP_SCRIPT_STATUS_INIT_GOOD:
 				vscript->result = vscript->rise; /* one failure is enough */
+				break;
+			case VRRP_SCRIPT_STATUS_INIT_FAILED:
+				vscript->result = 0; /* assume failed by config */
+				break;
+			}
 
 			thread_add_event(master, vrrp_script_thread, vscript, (int)vscript->interval);
 		}
@@ -616,6 +628,7 @@ vrrp_dispatcher_release(vrrp_data_t *data)
 static void
 vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 {
+#ifdef _WITH_VRRP_AUTH_
 	struct iphdr *iph;
 	ipsec_ah_t *ah;
 
@@ -628,6 +641,7 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 				vrrp->ipsecah_counter->cycle = 0;
 		}
 	}
+#endif
 
 	if (!VRRP_ISUP(vrrp)) {
 		vrrp_log_int_down(vrrp);
@@ -646,8 +660,13 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 }
 
 static void
-vrrp_become_master(vrrp_t * vrrp, char *buffer, __attribute__((unused)) ssize_t len)
+vrrp_become_master(vrrp_t * vrrp,
+#ifdef _WITH_VRRP_AUTH_
+				 __attribute__((unused))
+#endif
+							 char *buffer, __attribute__((unused)) ssize_t len)
 {
+#ifdef _WITH_VRRP_AUTH_
 	struct iphdr *iph;
 	ipsec_ah_t *ah;
 
@@ -666,6 +685,7 @@ vrrp_become_master(vrrp_t * vrrp, char *buffer, __attribute__((unused)) ssize_t 
 			vrrp->ipsecah_counter->cycle = 0;
 		}
 	}
+#endif
 
 	/* Then jump to master state */
 	vrrp->wantstate = VRRP_STATE_MAST;
@@ -862,8 +882,11 @@ vrrp_master(vrrp_t * vrrp)
 
 	/* Then perform the state transition */
 	if (vrrp->wantstate == VRRP_STATE_GOTO_FAULT ||
-	    vrrp->wantstate == VRRP_STATE_BACK ||
-	    (vrrp->version == VRRP_VERSION_2 && vrrp->ipsecah_counter->cycle)) {
+	    vrrp->wantstate == VRRP_STATE_BACK
+#ifdef _WITH_VRRP_AUTH_
+	    || (vrrp->version == VRRP_VERSION_2 && vrrp->ipsecah_counter->cycle)
+#endif
+										) {
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 
 		/* handle backup state transition */
@@ -1068,6 +1091,22 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 }
 
 /* Script tracking threads */
+bool
+vrrp_child_finder(pid_t pid, char const **name)
+{
+	thread_t *thread;
+
+	for (thread = master->child.head; thread; thread = thread->next)
+	{
+		if (thread->u.c.pid == pid) {
+			vrrp_script_t* scr = THREAD_ARG(thread);
+			*name = scr->script;
+			return false;
+		}
+	}
+	return false;
+}
+
 static int
 vrrp_script_thread(thread_t * thread)
 {
@@ -1106,7 +1145,7 @@ vrrp_script_child_thread(thread_t * thread)
 		vscript->forcing_termination = true;
 		kill(-pid, SIGTERM);
 		thread_add_child(thread->master, vrrp_script_child_timeout_thread,
-				 vscript, pid, 2);
+				 vscript, pid, 2 * 1000000);
 		return 0;
 	}
 

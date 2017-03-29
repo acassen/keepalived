@@ -26,7 +26,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <linux/rtnetlink.h>
-#if HAVE_DECL_RTA_ENCAP
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 #include "vrrp_iproute.h"
 #endif
 
@@ -37,7 +37,7 @@ extern bool get_u16(uint16_t *, const char *, uint16_t, const char*);
 extern bool get_u64(uint64_t *, const char *, uint64_t, const char*);
 extern bool get_time_rtt(uint32_t *, const char *, bool *);
 extern bool get_addr64(uint64_t *, const char *);
-#if HAVE_DECL_RTA_ENCAP
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 extern bool parse_mpls_address(const char *, encap_mpls_t *);
 #endif
 

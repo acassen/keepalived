@@ -64,7 +64,6 @@ dump_misc_check(void *data)
 	log_message(LOG_INFO, "   timeout = %lu", misck_checker->timeout/TIMER_HZ);
 	log_message(LOG_INFO, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
 	log_message(LOG_INFO, "   uid:gid = %d:%d", misck_checker->uid, misck_checker->gid);
-	log_message(LOG_INFO, "   executable = %s", misck_checker->executable ? "Yes" : "No");
 	log_message(LOG_INFO, "   insecure = %s", misck_checker->insecure ? "Yes" : "No");
 }
 
@@ -99,7 +98,7 @@ static void
 misc_dynamic_handler(__attribute__((unused)) vector_t *strvec)
 {
 	misc_checker_t *misck_checker = CHECKER_GET();
-	misck_checker->dynamic = 1;
+	misck_checker->dynamic = true;
 }
 
 static void
@@ -156,6 +155,9 @@ check_misc_script_security(void)
 
 		script_flags |= (flags = check_script_secure(&script, global_data->script_security, false));
 
+		/* The script path may have been updated if it wan't an absolute path */
+		misc_script->path = script.name;
+
 		/* Mark not to run if needs inhibiting */
 		if (flags & SC_INHIBIT) {
 			log_message(LOG_INFO, "Disabling misc script %s due to insecure", misc_script->path);
@@ -165,8 +167,8 @@ check_misc_script_security(void)
 			log_message(LOG_INFO, "Disabling misc script %s since not found", misc_script->path);
 			misc_script->insecure = true;
 		}
-		else if (flags & SC_EXECUTABLE)
-			misc_script->executable = true;
+		else if (!(flags & SC_EXECUTABLE))
+			misc_script->insecure = true;
 	}
 
 	return script_flags;
@@ -190,7 +192,7 @@ misc_check_thread(thread_t * thread)
 	 * Register a new checker thread & return
 	 * if checker is disabled
 	 */
-	if (!CHECKER_ENABLED(checker)) {
+	if (!checker->enabled) {
 		/* Register next timer checker */
 		thread_add_timer(thread->master, misc_check_thread, checker,
 				 checker->vs->delay_loop);
@@ -239,7 +241,7 @@ misc_check_child_thread(thread_t * thread)
 		misck_checker->forcing_termination = true;
 		kill(-pid, SIGTERM);
 		thread_add_child(thread->master, misc_check_child_timeout_thread,
-				 checker, pid, 2);
+				 checker, pid, 2 * 1000000);
 		return 0;
 	}
 
@@ -249,13 +251,13 @@ misc_check_child_thread(thread_t * thread)
 		int status;
 		status = WEXITSTATUS(wait_status);
 		if (status == 0 ||
-		    (misck_checker->dynamic == 1 && status >= 2 && status <= 255)) {
+		    (misck_checker->dynamic && status >= 2 && status <= 255)) {
 			/*
 			 * The actual weight set when using misc_dynamic is two less than
 			 * the exit status returned.  Effective range is 0..253.
 			 * Catch legacy case of status being 0 but misc_dynamic being set.
 			 */
-			if (misck_checker->dynamic == 1 && status != 0)
+			if (misck_checker->dynamic && status != 0)
 				update_svr_wgt(status - 2, checker->vs,
 					       checker->rs, true);
 
@@ -304,6 +306,7 @@ static int
 misc_check_child_timeout_thread(thread_t * thread)
 {
 	pid_t pid;
+	checker_t *checker;
 	misc_checker_t *misck_checker;
 
 	if (thread->type != THREAD_CHILD_TIMEOUT)
@@ -320,6 +323,9 @@ misc_check_child_timeout_thread(thread_t * thread)
 	}
 
 	log_message(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
+
+	checker = THREAD_ARG(thread);
+	misck_checker = CHECKER_ARG(checker);
 
 	misck_checker->forcing_termination = false;
 

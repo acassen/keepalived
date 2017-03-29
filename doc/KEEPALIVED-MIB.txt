@@ -22,12 +22,16 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201610180000Z"
+     LAST-UPDATED "201702190000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201702190000Z"
+     DESCRIPTION "add ip rule/route uid support"
+     REVISION "201611260000Z"
+     DESCRIPTION "add initfailed state for scripts"
      REVISION "201610180000Z"
      DESCRIPTION "add promote_secondaries"
      REVISION "201609120000Z"
@@ -1682,7 +1686,9 @@ VrrpRuleEntry ::= SEQUENCE {
     vrrpRuleSuppressPrefixLen Unsigned32,
     vrrpRuleSuppressGroup DisplayString,
     vrrpRuleTunnelIdHigh Unsigned32,
-    vrrpRuleTunnelIdLow Unsigned32
+    vrrpRuleTunnelIdLow Unsigned32,
+    vrrpRuleUidRangeStart Unsigned32,
+    vrrpRuleUidRangeEnd Unsigned32
 }
 
 vrrpRuleIndex OBJECT-TYPE
@@ -1917,6 +1923,22 @@ vrrpRuleTunnelIdLow OBJECT-TYPE
         "Rule tunnel-id high 32 bits."
     ::= { vrrpRuleEntry 29 }
 
+vrrpRuleUidRangeStart OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule Uid range start."
+    ::= { vrrpRuleEntry 30 }
+
+vrrpRuleUidRangeEnd OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule Uid range end."
+    ::= { vrrpRuleEntry 31 }
+
 -- VRRP scripts
 -- see vrrp_track.h
 
@@ -1995,7 +2017,8 @@ vrrpScriptResult OBJECT-TYPE
         init(1),
         bad(2),
         good(3),
-        initgood(4)
+        initgood(4),
+        initfailed(5)
            }
     MAX-ACCESS read-only
     STATUS current
@@ -3575,7 +3598,9 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpRuleSuppressPrefixLen,
     vrrpRuleSuppressGroup,
     vrrpRuleTunnelIdHigh,
-    vrrpRuleTunnelIdLow
+    vrrpRuleTunnelIdLow,
+    vrrpRuleUidRangeStart,
+    vrrpRuleUidRangeEnd
     }
     STATUS current
     DESCRIPTION

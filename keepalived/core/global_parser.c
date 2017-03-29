@@ -26,6 +26,7 @@
 
 #include <netdb.h>
 #include <stdlib.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
 #include <sys/types.h>
@@ -39,7 +40,6 @@
 #include "global_parser.h"
 #include "global_data.h"
 #include "main.h"
-#include "check_data.h"
 #include "parser.h"
 #include "memory.h"
 #include "smtp.h"
@@ -196,7 +196,7 @@ lvs_timeouts(vector_t *strvec)
 		log_message(LOG_INFO, "Unknown option %s specified for lvs_timeouts", FMT_STR_VSLOT(strvec, i));
 	}
 }
-#ifdef _WITH_LVS_
+#if defined _WITH_LVS_ && defined _WITH_VRRP_
 static void
 lvs_syncd_handler(vector_t *strvec)
 {
@@ -404,6 +404,21 @@ vrrp_lower_prio_no_advert_handler(vector_t *strvec)
 	}
 	else
 		global_data->vrrp_lower_prio_no_advert = true;
+}
+static void
+vrrp_higher_prio_send_advert_handler(vector_t *strvec)
+{
+	int res;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec,1));
+		if (res < 0)
+			log_message(LOG_INFO, "Invalid value for vrrp_higher_prio_send_advert specified");
+		else
+			global_data->vrrp_higher_prio_send_advert = res;
+	}
+	else
+		global_data->vrrp_higher_prio_send_advert = true;
 }
 static void
 vrrp_iptables_handler(vector_t *strvec)
@@ -775,7 +790,9 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_LVS_
 	install_keyword("lvs_timeouts", &lvs_timeouts);
 	install_keyword("lvs_flush", &lvs_flush_handler);
+#ifdef _WITH_VRRP_
 	install_keyword("lvs_sync_daemon", &lvs_syncd_handler);
+#endif
 #endif
 #ifdef _WITH_VRRP_
 	install_keyword("vrrp_mcast_group4", &vrrp_mcast_group4_handler);
@@ -789,6 +806,7 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_garp_interval", &vrrp_garp_interval_handler);
 	install_keyword("vrrp_gna_interval", &vrrp_gna_interval_handler);
 	install_keyword("vrrp_lower_prio_no_advert", &vrrp_lower_prio_no_advert_handler);
+	install_keyword("vrrp_higher_prio_send_advert", &vrrp_higher_prio_send_advert_handler);
 	install_keyword("vrrp_version", &vrrp_version_handler);
 	install_keyword("vrrp_iptables", &vrrp_iptables_handler);
 #ifdef _HAVE_LIBIPSET_

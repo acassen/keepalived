@@ -215,7 +215,7 @@ am__define_uniq_tagged_files = \
   done | $(am__uniquify_input)`
 ETAGS = etags
 CTAGS = ctags
-DIST_SUBDIRS = core vrrp check dbus
+DIST_SUBDIRS = core vrrp check dbus etc
 am__DIST_COMMON = $(srcdir)/Makefile.in $(top_srcdir)/depcomp
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
 am__relativize = \
@@ -277,6 +277,7 @@ KA_CFLAGS = @KA_CFLAGS@
 KA_CPPFLAGS = @KA_CPPFLAGS@
 KA_LDFLAGS = @KA_LDFLAGS@
 KA_LIBS = @KA_LIBS@
+LDD = @LDD@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
@@ -295,6 +296,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PID_DIR = @PID_DIR@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
@@ -353,6 +355,14 @@ AM_CPPFLAGS = $(KA_CPPFLAGS) $(DEBUG_CPPFLAGS) -I$(srcdir)/include -I \
 	$(top_srcdir)/lib
 AM_CFLAGS = $(KA_CFLAGS) $(DEBUG_CFLAGS)
 AM_LDFLAGS = $(KA_LDFLAGS) $(DEBUG_LDFLAGS)
+# AM_LIBTOOLFLAGS	= $(KA_LIBTOOLFLAGS)
+edit = echo "  EDIT     $@"; \
+	sed \
+	 -e 's|@sbindir[@]|$(sbindir)|g' \
+	 -e 's|@localstatedir[@]|$(localstatedir)|g' \
+	 -e 's|@sysconfdir[@]|$(sysconfdir)|g' \
+	 -e 's|@PID_DIR[@]|$(PID_DIR)|g'
+
 keepalived_SOURCES = main.c
 noinst_HEADERS = $(srcdir)/include/*.h
 @WITH_IPVS_TRUE@IPVS_SUBDIR = check
@@ -360,18 +370,17 @@ noinst_HEADERS = $(srcdir)/include/*.h
 @WITH_VRRP_TRUE@VRRP_SUBDIR = vrrp
 @WITH_VRRP_TRUE@VRRP_LIB = vrrp/libvrrp.a
 @WITH_DBUS_TRUE@DBUS_SUBDIR = dbus
-SUBDIRS = core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR)
-EXTRA_DIST = keepalived.service etc
+SUBDIRS = core $(VRRP_SUBDIR) $(IPVS_SUBDIR) $(DBUS_SUBDIR) etc
+EXTRA_DIST = keepalived.service.in
 keepalived_LDADD = core/libcore.a $(IPVS_LIB) $(VRRP_LIB) core/libcore.a ../lib/liblib.a $(KA_LIBS)
+MOSTLYCLEANFILES = keepalived.service
 sysconfigdir = $(sysconfdir)/sysconfig
 sysconfig_DATA = etc/sysconfig/keepalived
 configdir = $(sysconfdir)/@PACKAGE@
 config_DATA = etc/keepalived/keepalived.conf
-@INIT_SYSV_TRUE@initdir = $(sysconfdir)/rc.d/init.d
-@INIT_UPSTART_TRUE@initdir = $(sysconfdir)/init
-@INIT_SYSV_TRUE@init_DATA = etc/init.d/keepalived
-@INIT_UPSTART_TRUE@init_DATA = etc/init/keepalived.conf
 @INIT_SYSTEMD_TRUE@systemdsystemunit_DATA = keepalived.service
+@INIT_OPENRC_TRUE@initdir = $(sysconfdir)/init.d
+@INIT_OPENRC_TRUE@init_DATA = etc/openrc/keepalived
 all: all-recursive
 
 .SUFFIXES:
@@ -740,6 +749,7 @@ install-strip:
 	    "INSTALL_PROGRAM_ENV=STRIPPROG='$(STRIP)'" install; \
 	fi
 mostlyclean-generic:
+	-test -z "$(MOSTLYCLEANFILES)" || rm -f $(MOSTLYCLEANFILES)
 
 clean-generic:
 
@@ -845,6 +855,12 @@ uninstall-am: uninstall-configDATA uninstall-initDATA \
 
 .PRECIOUS: Makefile
 
+
+keepalived.service: Makefile
+	@rm -f $@ $@.tmp
+	@$(edit) '$(srcdir)/$@.in' >$@
+
+keepalived.service: $(srcdir)/keepalived.service.in
 
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.

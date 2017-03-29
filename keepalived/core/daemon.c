@@ -68,6 +68,5 @@ xdaemon(int nochdir, int noclose, int exitflag)
 	if (!noclose)
 		set_std_fd(true);
 
-	umask(0);
 	return 0;
 }

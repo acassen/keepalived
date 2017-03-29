@@ -50,6 +50,7 @@
 
 /* global vars */
 thread_master_t *master = NULL;
+prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 
 #ifdef _WITH_LVS_
 #include "../keepalived/include/check_daemon.h"
@@ -83,7 +84,7 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 	}
 	else if (child_finder && child_finder(pid, &prog_id))
 		keepalived_child_process = true;
-	else {
+	if (!prog_id) {
 		snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
 		prog_id = pid_buf;
 	}
@@ -99,7 +100,11 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 			return true;
 		}
 
-		if (exit_status != EXIT_SUCCESS)
+		if (exit_status != EXIT_SUCCESS
+#ifdef _WITH_LVS_
+					        && prog_type != PROG_TYPE_CHECKER
+#endif
+										 )
 			log_message(LOG_INFO, "%s exited with status %d", prog_id, exit_status);
 		return false;
 	}

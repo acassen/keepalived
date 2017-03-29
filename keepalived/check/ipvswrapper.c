@@ -28,13 +28,13 @@
 #endif
 
 #include <fcntl.h>
+#include <stdint.h>
 
 #ifndef O_CLOEXEC	/* Since Linux 2.6.23 and glibc 2.7 */
 #define O_CLOEXEC 0	/* It doesn't really matter if O_CLOEXEC isn't set here */
 #endif
 
 #include "ipvswrapper.h"
-#include "check_data.h"
 #include "list.h"
 #include "utils.h"
 #include "memory.h"
@@ -165,9 +165,12 @@ void
 ipvs_stop(void)
 {
 	/* Clean up the room */
-	FREE(srule);
-	FREE(drule);
-	FREE(daemonrule);
+	if (srule)
+		FREE(srule);
+	if (drule)
+		FREE(drule);
+	if (daemonrule)
+		FREE(daemonrule);
 	ipvs_close();
 }
 
@@ -238,12 +241,12 @@ ipvs_talk(int cmd, bool ignore_error)
 		else if (errno == ENOENT &&
 			(cmd == IP_VS_SO_SET_DEL || cmd == IP_VS_SO_SET_DELDEST))
 			result = 0;
-		log_message(LOG_INFO, "IPVS: %s", ipvs_strerror(errno));
+		log_message(LOG_INFO, "IPVS (cmd %d, errno %d): %s", cmd, errno, ipvs_strerror(errno));
 	}
 	return result;
 }
 
-#ifdef _WITH_LVS_
+#ifdef _WITH_VRRP_
 /* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
 ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool ignore_interface, bool ignore_error)
@@ -279,13 +282,13 @@ ipvs_syncd_cmd(int cmd, const struct lvs_syncd_config *config, int state, bool i
 	/* Talk to the IPVS channel */
 	ipvs_talk(cmd, ignore_error);
 }
+#endif
 
 void
 ipvs_flush_cmd(void)
 {
 	ipvs_talk(IP_VS_SO_SET_FLUSH, false);
 }
-#endif
 
 /* IPVS group range rule */
 static int
@@ -409,7 +412,7 @@ ipvs_set_rule(int cmd, virtual_server_t * vs, real_server_t * rs)
 	drule->user.conn_flags = vs->loadbalancing_kind;
 	strncpy(srule->user.sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
 	srule->user.flags = vs->flags;
-	srule->user.netmask = (vs->addr.ss_family == AF_INET6) ? 128 : ((u_int32_t) 0xffffffff);
+	srule->user.netmask = (vs->addr.ss_family == AF_INET6) ? 128 : ((uint32_t) 0xffffffff);
 	srule->user.protocol = vs->service_type;
 
 	srule->user.timeout = vs->persistence_timeout;
@@ -830,10 +833,10 @@ ipvs_update_stats(virtual_server_t *vs)
 }
 #endif /* _WITH_SNMP_CHECKER_ */
 
+#ifdef _WITH_VRRP_
 /*
  * Common IPVS functions
  */
-#ifdef _WITH_LVS_
 /* Note: This function is called in the context of the vrrp child process, not the checker process */
 void
 ipvs_syncd_master(const struct lvs_syncd_config *config)

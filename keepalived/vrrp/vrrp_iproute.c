@@ -25,7 +25,7 @@
 /* local include */
 #include "vrrp_ipaddress.h"
 #include "vrrp_iproute.h"
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 #include "vrrp_if.h"
 #include "vrrp_data.h"
 #include "logger.h"
@@ -35,13 +35,17 @@
 #include "vrrp_ip_rule_route_parser.h"
 
 #include <linux/icmpv6.h>
-#include <inttypes.h>
 #include <linux/rtnetlink.h>
 #if HAVE_DECL_RTA_ENCAP
 #include <linux/lwtunnel.h>
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 #include <linux/mpls_iptunnel.h>
+#endif
+#if HAVE_DECL_LWTUNNEL_ENCAP_ILA
 #include <linux/ila.h>
 #endif
+#endif
+#include <inttypes.h>
 
 /* Buffer sizes for netlink messages. Increase if needed. */
 #define	RTM_SIZE		1024
@@ -144,11 +148,13 @@ add_addrfam2rta(struct rtattr *rta, size_t maxlen, unsigned short type, ip_addre
 #endif
 
 #if HAVE_DECL_RTA_ENCAP
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 static void
 add_encap_mpls(struct rtattr *rta, size_t len, const encap_t *encap)
 {
 	rta_addattr_l(rta, len, MPLS_IPTUNNEL_DST, &encap->mpls.addr, encap->mpls.num_labels * sizeof(encap->mpls.addr[0]));
 }
+#endif
 
 static void
 add_encap_ip(struct rtattr *rta, size_t len, const encap_t *encap)
@@ -167,11 +173,13 @@ add_encap_ip(struct rtattr *rta, size_t len, const encap_t *encap)
 		rta_addattr16(rta, len, LWTUNNEL_IP_FLAGS, encap->ip.flags);
 }
 
+#if HAVE_DECL_LWTUNNEL_ENCAP_ILA
 static void
 add_encap_ila(struct rtattr *rta, size_t len, const encap_t *encap)
 {
 	rta_addattr64(rta, len, ILA_ATTR_LOCATOR, encap->ila.locator);
 }
+#endif
 
 static void
 add_encap_ip6(struct rtattr *rta, size_t len, const encap_t *encap)
@@ -197,15 +205,19 @@ add_encap(struct rtattr *rta, size_t len, encap_t *encap)
 
 	nest = rta_nest(rta, len, RTA_ENCAP);
 	switch (encap->type) {
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 	case LWTUNNEL_ENCAP_MPLS:
 		add_encap_mpls(rta, len, encap);
 		break;
+#endif
 	case LWTUNNEL_ENCAP_IP:
 		add_encap_ip(rta, len, encap);
 		break;
+#if HAVE_DECL_LWTUNNEL_ENCAP_ILA
 	case LWTUNNEL_ENCAP_ILA:
 		add_encap_ila(rta, len, encap);
 		break;
+#endif
 	case LWTUNNEL_ENCAP_IP6:
 		add_encap_ip6(rta, len, encap);
 		break;
@@ -563,6 +575,7 @@ free_iproute(void *rt_data)
 }
 
 #if HAVE_DECL_RTA_ENCAP
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 static size_t
 print_encap_mpls(char *op, size_t len, const encap_t* encap)
 {
@@ -576,6 +589,7 @@ print_encap_mpls(char *op, size_t len, const encap_t* encap)
 
 	return (size_t)(op - buf);
 }
+#endif
 
 static size_t
 print_encap_ip(char *op, size_t len, const encap_t* encap)
@@ -601,11 +615,13 @@ print_encap_ip(char *op, size_t len, const encap_t* encap)
 	return (size_t)(op - buf);
 }
 
+#if HAVE_DECL_LWTUNNEL_ENCAP_ILA
 static size_t
 print_encap_ila(char *op, size_t len, const encap_t* encap)
 {
 	return (size_t)snprintf(op, len, " encap ila %" PRIu64, encap->ila.locator);
 }
+#endif
 
 static size_t
 print_encap_ip6(char *op, size_t len, const encap_t* encap)
@@ -635,12 +651,16 @@ static size_t
 print_encap(char *op, size_t len, const encap_t* encap)
 {
 	switch (encap->type) {
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 	case LWTUNNEL_ENCAP_MPLS:
 		return print_encap_mpls(op, len, encap);
+#endif
 	case LWTUNNEL_ENCAP_IP:
 		return print_encap_ip(op, len, encap);
+#if HAVE_DECL_LWTUNNEL_ENCAP_ILA
 	case LWTUNNEL_ENCAP_ILA:
 		return print_encap_ila(op, len, encap);
+#endif
 	case LWTUNNEL_ENCAP_IP6:
 		return print_encap_ip6(op, len, encap);
 	}
@@ -867,6 +887,7 @@ dump_iproute(void *rt_data)
 }
 
 #if HAVE_DECL_RTA_ENCAP
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 static int parse_encap_mpls(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 {
 	char *str;
@@ -886,6 +907,7 @@ static int parse_encap_mpls(vector_t *strvec, unsigned int *i_ptr, encap_t *enca
 
 	return false;
 }
+#endif
 
 static int parse_encap_ip(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 {
@@ -963,6 +985,7 @@ err:
 	return true;
 }
 
+#if HAVE_DECL_LWTUNNEL_ENCAP_ILA
 static
 int parse_encap_ila(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 {
@@ -984,6 +1007,7 @@ int parse_encap_ila(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 
 	return false;
 }
+#endif
 
 static
 int parse_encap_ip6(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
@@ -1072,14 +1096,18 @@ parse_encap(vector_t *strvec, unsigned int *i, encap_t *encap)
 
 	str = strvec_slot(strvec, (*i)++);
 
-	if (!strcmp(str, "mpls"))
-		parse_encap_mpls(strvec, i, encap);
-	else if (!strcmp(str, "ip"))
+	if (!strcmp(str, "ip"))
 		parse_encap_ip(strvec, i, encap);
 	else if (!strcmp(str, "ip6"))
 		parse_encap_ip6(strvec, i, encap);
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
+	else if (!strcmp(str, "mpls"))
+		parse_encap_mpls(strvec, i, encap);
+#endif
+#if HAVE_DECL_LWTUNNEL_ENCAP_ILA
 	else if (!strcmp(str, "ila"))
 		parse_encap_ila(strvec, i, encap);
+#endif
 	else {
 		log_message(LOG_INFO, "Unknown encap type - %s", str);
 		return false;

@@ -99,14 +99,22 @@ global_defs {				# Block identification
     vrrp_lower_prio_no_advert [<BOOL>]     # If a lower priority advert is received, just discard
 					   # it and don't send another advert. This causes adherence
 					   # to the RFCs.
+    vrrp_higher_prio_send_advert [<BOOL>]  # If we are master and receive a higher priority
+					   # advert, send an advert (which will be lower priority
+					   # than the other master), before we transition to
+					   # backup. This means that if the other master has
+					   # garp_lower_priority_repeat set, it will resend garp
+					   # messages. This is to get around the problem of their
+					   # having been two simultaneous masters, and the last GARP
+					   # messages seen were from us.
     vrrp_version <INTEGER:2..3>            # Default VRRP version (default 2)
     vrrp_iptables [keepalived_in [keepalived_out]]     # default INPUT
 					   # Specifies the iptables chains to add entries to
 					   # If no table names are specied, no entries are added
-    vrrp_ipsets ipset4 [ipset6 [ipset_if6]] # Set the ipset set names to use. If no names are specied,
-					   #   ipsets will not be used.
-					   # If ipset6 is not specified, '6' as appended to the ipset4 name
-					   #   if ipset_if6 is not specified, any trailing '6' from ipset6
+    vrrp_ipsets ipset4 [ipset6 [ipset_if6]] # Set the ipset set names to use. If no names are specified,
+					   #   ipsets will not be used. The default ipset4 name is 'keepalived'.
+					   # If ipset6 is not specified, '6' as appended to the ipset4 name.
+					   #   If ipset_if6 is not specified, any trailing '6' from ipset6
 					   #   is removed and '_if6' appended
     vrrp_check_unicast_src		   # Check source address of a unicast packet is a
 					   # unicast peer
@@ -192,7 +200,7 @@ static_rules {							# block identification
 								# The syntax is that same as for ip rule add, without "ip rule add"
 								# with the addition of tunnel-id option, e.g.
 	from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1 oif wlan0 tos 22 fwmark 24/12 preference 39 realms 30/20
-	to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908
+	to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908 uidrange 10000-19999
 }
 
 	1.4. Static routes
@@ -226,19 +234,24 @@ vrrp_script <STRING> {          # VRRP script declaration
     weight <INTEGER:-254..254>  # adjust priority by this weight
     fall <INTEGER>              # required number of failures for KO switch
     rise <INTEGER>              # required number of successes for OK switch
-    user USERNAME [GROUPNAME]	# Specify user/group to run script under
+    user USERNAME [GROUPNAME]	# specify user/group to run script under
+    init_fail                   # assume script initially is in failed state
 }
 
 The script will be executed periodically, every <interval> seconds. Its exit
-code will be recorded for all VRRP instances which will want to monitor it.
+code will be recorded for all VRRP instances which monitor it.
 Note that the script will only be executed if at least one VRRP instance
-monitors it with a non-zero weight. Thus, any number of scripts may be
-declared without taking the system down.
+monitors.
 
-If unspecified, the weight equals 2, which means that a success will add +2
-to the priority of all VRRP instances which monitor it. On the opposite, a
-negative weight will be subtracted from the initial priority in case of
-failure.
+The default weight equals 0, which means that any VRRP instance monitoring
+the script will transition to the fault state after <fall> consecutive failures
+of the script. After that, <rise> consecutive successes will cause VRRP instances to
+leave the fault state, unless they are also in the fault state due to other scripts
+or interfaces that they are tracking.
+
+A positive weight means that <rise> successes will add <weight> to the priority of all
+VRRP instances which monitor it. On the opposite, a negative weight will be subtracted
+from the initial priority in case of <fall> failures.
 
 	2.2. VRRP synchronization group
 
@@ -367,10 +380,19 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     priority <INTEGER-1..255>		# VRRP PRIO
     advert_int <FLOAT>			# VRRP Advert interval (use default)
 
-    lower_prio_no_advert		# If a lower priority advert is received, don't
-					# don't send another advert. This causes adherence
+    lower_prio_no_advert [<BOOL>]	# If a lower priority advert is received, don't
+					# send another advert. This causes adherence
 					# to the RFCs (defaults to global
 					# vrrp_lower_priority_dont_send_advert).
+
+    higher_prio_send_advert [<BOOL>]	# If we are master and receive a higher priority
+					# advert, send an advert (which will be lower priority
+					# than the other master), before we transition to
+					# backup. This means that if the other master has
+					# garp_lower_priority_repeat set, it will resend garp
+					# messages. This is to get around the problem of their
+					# having been two simultaneous masters, and the last GARP
+					# messages seen were from us.
 
     # Note: authentication was removed from the VRRPv2 specification by RFC3768 in 2004.
     #   Use of this option is non-compliant and can cause problems; avoid using if possible,
@@ -437,7 +459,7 @@ increased by the weight when the interface is up (for positive weights),
 or decreased by the weight's absolute value when the interface is down
 (for negative weights). The weight must be comprised between -254 and +254
 inclusive. 0 is the default behaviour which means that a failure implies a
-FAULT state. The common practise is to use positive weights to count a
+FAULT state. The common practice is to use positive weights to count a
 limited number of good services so that the server with the highest count
 becomes master. Negative weights are better to count unexpected failures
 among a high number of interfaces, as it will not saturate even with high
@@ -445,7 +467,7 @@ number of interfaces.
 
 The same principle can be applied to track_script entries, except that an
 unspecified weight means that the default weight declared in the script
-will be used.
+will be used (which itself defaults to 0).
 
 
 3. LVS configuration

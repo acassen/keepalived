@@ -31,23 +31,28 @@
 
 #include "main.h"
 #include "config.h"
+#include "git-commit.h"
 #include "signals.h"
 #include "pidfile.h"
 #include "bitops.h"
 #include "logger.h"
 #include "parser.h"
 #include "notify.h"
+#ifdef _WITH_LVS_
 #include "check_parser.h"
+#endif
+#ifdef _WITH_VRRP_
 #include "vrrp_parser.h"
+#endif
 #include "global_parser.h"
 #if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
 #endif
-#include "vrrp_netlink.h"
+#include "keepalived_netlink.h"
 
 #define	LOG_FACILITY_MAX	7
-#define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" VERSION_DATE ")"
-#define COPYRIGHT_STRING	"Copyright(C) 2001-" COPYRIGHT_YEAR " Alexandre Cassen, <acassen@gmail.com>"
+#define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" GIT_DATE ")"
+#define COPYRIGHT_STRING	"Copyright(C) 2001-" GIT_YEAR " Alexandre Cassen, <acassen@gmail.com>"
 #define BUILD_OPTIONS		CONFIGURATION_OPTIONS
 
 #define CHILD_WAIT_SECS	5
@@ -75,8 +80,7 @@ const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
 static char *syslog_ident;				/* syslog ident if not default */
 char *instance_name;					/* keepalived instance name */
-bool use_pid_dir;					/* Put pid files in /var/run/keepalived */
-size_t getpwnam_buf_len;				/* Buffer length needed for getpwnam_r/getgrname_r */
+bool use_pid_dir;					/* Put pid files in /var/run/keepalived or @localstatedir@/run/keepalived */
 uid_t default_script_uid;				/* Default user/group for script execution */
 gid_t default_script_gid;
 unsigned os_major;					/* Kernel version */
@@ -115,6 +119,9 @@ free_parent_mallocs_startup(bool am_child)
 #else
 		free(syslog_ident);
 #endif
+
+		if (orig_core_dump_pattern)
+			FREE_PTR(orig_core_dump_pattern);
 	}
 
 	if (free_main_pidfile) {
@@ -435,7 +442,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 signal_init(void)
 {
-	signal_handler_init(1);
+	signal_handler_init();
 	signal_set(SIGHUP, propogate_signal, NULL);
 	signal_set(SIGUSR1, propogate_signal, NULL);
 	signal_set(SIGUSR2, propogate_signal, NULL);
@@ -457,10 +464,10 @@ update_core_dump_pattern(const char *pattern_str)
 	int fd;
 	bool initialising = (orig_core_dump_pattern == NULL);
 
-	/* CORENAME_MAX_SIZE in kernel source defines the maximum string length,
-	 * see core_pattern[CORENAME_MAX_SIZE] in fs/coredump.c. Currently,
-	 * (Linux 4.6) defineds it to be 128, but the definition is not exposed
-	 * to user-space. */
+	/* CORENAME_MAX_SIZE in kernel source include/linux/binfmts.h defines
+	 * the maximum string length, * see core_pattern[CORENAME_MAX_SIZE] in
+	 * fs/coredump.c. Currently (Linux 4.10) defines it to be 128, but the
+	 * definition is not exposed to user-space. */
 #define	CORENAME_MAX_SIZE	128
 
 	if (initialising)
@@ -524,9 +531,13 @@ usage(const char *prog)
 	fprintf(stderr, "  -l, --log-console            Log messages to local console\n");
 	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");
 	fprintf(stderr, "  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n");
+#ifdef _WITH_VRRP_
 	fprintf(stderr, "  -X, --release-vips           Drop VIP on transition from signal.\n");
 	fprintf(stderr, "  -V, --dont-release-vrrp      Don't remove VRRP VIPs and VROUTEs on daemon stop\n");
+#endif
+#ifdef _WITH_LVS_
 	fprintf(stderr, "  -I, --dont-release-ipvs      Don't remove IPVS topology on daemon stop\n");
+#endif
 	fprintf(stderr, "  -R, --dont-respawn           Don't respawn child processes\n");
 	fprintf(stderr, "  -n, --dont-fork              Don't fork the daemon process\n");
 	fprintf(stderr, "  -d, --dump-conf              Dump the configuration data\n");
@@ -536,6 +547,7 @@ usage(const char *prog)
 #endif
 #ifdef _WITH_LVS_
 	fprintf(stderr, "  -c, --checkers_pid=FILE      Use specified pidfile for checkers child process\n");
+	fprintf(stderr, "  -a, --address-monitoring     Report all address additions/deletions notified via netlink\n");
 #endif
 #ifdef _WITH_SNMP_
 	fprintf(stderr, "  -x, --snmp                   Enable SNMP subsystem\n");
@@ -555,10 +567,11 @@ usage(const char *prog)
 }
 
 /* Command line parser */
-static void
+static bool
 parse_cmdline(int argc, char **argv)
 {
 	int c;
+	bool reopen_log = false;
 
 	struct option long_options[] = {
 		{"use-file",          required_argument, 0, 'f'},
@@ -569,9 +582,13 @@ parse_cmdline(int argc, char **argv)
 		{"log-console",       no_argument,       0, 'l'},
 		{"log-detail",        no_argument,       0, 'D'},
 		{"log-facility",      required_argument, 0, 'S'},
+#ifdef _WITH_VRRP_
 		{"release-vips",      no_argument,       0, 'X'},
 		{"dont-release-vrrp", no_argument,       0, 'V'},
+#endif
+#ifdef _WITH_LVS_
 		{"dont-release-ipvs", no_argument,       0, 'I'},
+#endif
 		{"dont-respawn",      no_argument,       0, 'R'},
 		{"dont-fork",         no_argument,       0, 'n'},
 		{"dump-conf",         no_argument,       0, 'd'},
@@ -581,6 +598,7 @@ parse_cmdline(int argc, char **argv)
 #endif
 #ifdef _WITH_LVS_
 		{"checkers_pid",      required_argument, 0, 'c'},
+		{"address-monitoring",no_argument,       0, 'a'},
 #endif
 #ifdef _WITH_SNMP_
 		{"snmp",              no_argument,       0, 'x'},
@@ -600,15 +618,15 @@ parse_cmdline(int argc, char **argv)
 		{0, 0, 0, 0}
 	};
 
-	while ((c = getopt_long(argc, argv, "vhlndVIDRS:f:p:i:mM"
+	while ((c = getopt_long(argc, argv, "vhlndDRS:f:p:i:mM"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
 #ifdef _WITH_VRRP_ 
-					    "r:"
+					    "r:VX"
 #endif
 #ifdef _WITH_LVS_
-					    "c:"
+					    "ac:I"
 #endif
 #ifdef _WITH_SNMP_
 					    "xA:"
@@ -636,6 +654,7 @@ parse_cmdline(int argc, char **argv)
 			break;
 		case 'l':
 			__set_bit(LOG_CONSOLE_BIT, &debug);
+			reopen_log = true;
 			break;
 		case 'n':
 			__set_bit(DONT_FORK_BIT, &debug);
@@ -643,23 +662,30 @@ parse_cmdline(int argc, char **argv)
 		case 'd':
 			__set_bit(DUMP_CONF_BIT, &debug);
 			break;
+#ifdef _WITH_VRRP_
 		case 'V':
 			__set_bit(DONT_RELEASE_VRRP_BIT, &debug);
 			break;
+#endif
+#ifdef _WITH_LVS_
 		case 'I':
 			__set_bit(DONT_RELEASE_IPVS_BIT, &debug);
 			break;
+#endif
 		case 'D':
 			__set_bit(LOG_DETAIL_BIT, &debug);
 			break;
 		case 'R':
 			__set_bit(DONT_RESPAWN_BIT, &debug);
 			break;
+#ifdef _WITH_VRRP_
 		case 'X':
 			__set_bit(RELEASE_VIPS_BIT, &debug);
 			break;
+#endif
 		case 'S':
 			log_facility = LOG_FACILITY[atoi(optarg)].facility;
+			reopen_log = true;
 			break;
 		case 'f':
 			conf_file = optarg;
@@ -680,6 +706,9 @@ parse_cmdline(int argc, char **argv)
 #ifdef _WITH_LVS_
 		case 'c':
 			checkers_pidfile = optarg;
+			break;
+		case 'a':
+			__set_bit(LOG_ADDRESS_CHANGES, &debug);
 			break;
 #endif
 #ifdef _WITH_VRRP_
@@ -728,6 +757,8 @@ parse_cmdline(int argc, char **argv)
 			printf("%s ", argv[optind++]);
 		printf("\n");
 	}
+
+	return reopen_log;
 }
 
 /* Entry point */
@@ -737,10 +768,13 @@ keepalived_main(int argc, char **argv)
 	bool report_stopped = true;
 	struct utsname uname_buf;
 	char *end;
-	size_t buf_len;
+	long buf_len;
 
 	/* Init debugging level */
 	debug = 0;
+
+	/* We are the parent process */
+	prog_type = PROG_TYPE_PARENT;
 
 	/* Initialise pointer to child finding function */
 	set_child_finder(find_keepalived_child);
@@ -753,13 +787,21 @@ keepalived_main(int argc, char **argv)
 	__set_bit(DAEMON_CHECKERS, &daemon_mode);
 #endif
 
+	/* Open log with default settings so we can log initially */
+	openlog(PACKAGE_NAME, LOG_PID, log_facility);
+
+#ifdef _MEM_CHECK_
+	mem_log_init(PACKAGE_NAME, "Parent process");
+#endif
+
 	/*
 	 * Parse command line and set debug level.
 	 * bits 0..7 reserved by main.c
 	 */
-	parse_cmdline(argc, argv);
-
-	openlog(PACKAGE_NAME, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0) , log_facility);
+	if (parse_cmdline(argc, argv)) {
+		closelog();
+		openlog(PACKAGE_NAME, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0) , log_facility);
+	}
 
 	if (__test_bit(LOG_CONSOLE_BIT, &debug))
 		enable_console_log();
@@ -770,10 +812,6 @@ keepalived_main(int argc, char **argv)
 	log_message(LOG_INFO, "Starting %s", version_string);
 #endif
 
-#ifdef _MEM_CHECK_
-	mem_log_init(PACKAGE_NAME, "Parent process");
-#endif
-
 	/* Handle any core file requirements */
 	core_dump_init();
 
@@ -782,9 +820,13 @@ keepalived_main(int argc, char **argv)
 	set_default_script_user(&default_script_uid, &default_script_gid);
 
 	/* Get buffer length needed for getpwnam_r/getgrnam_r */
-	getpwnam_buf_len = (size_t)sysconf(_SC_GETPW_R_SIZE_MAX);
-	if ((buf_len = (size_t)sysconf(_SC_GETGR_R_SIZE_MAX)) > getpwnam_buf_len)
-		getpwnam_buf_len = buf_len;
+	if ((buf_len = sysconf(_SC_GETPW_R_SIZE_MAX)) == -1)
+		getpwnam_buf_len = 1024;	/* A safe default if no value is returned */
+	else
+		getpwnam_buf_len = (size_t)buf_len;
+	if ((buf_len = sysconf(_SC_GETGR_R_SIZE_MAX)) != -1 &&
+	    (size_t)buf_len > getpwnam_buf_len)
+		getpwnam_buf_len = (size_t)buf_len;
 
 	/* Some functionality depends on kernel version, so get the version here */
 	if (uname(&uname_buf))
@@ -909,6 +951,9 @@ keepalived_main(int argc, char **argv)
 	/* daemonize process */
 	if (!__test_bit(DONT_FORK_BIT, &debug))
 		xdaemon(0, 0, 0);
+
+	/* Set file creation mask */
+	umask(0);
 
 #ifdef _MEM_CHECK_
 	enable_mem_log_termination();

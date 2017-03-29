@@ -24,6 +24,8 @@
 
 #include <dirent.h>
 #include <dlfcn.h>
+#include <stdint.h>
+
 #include "check_api.h"
 #include "main.h"
 #include "parser.h"
@@ -99,11 +101,9 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	checker->data = data;
 	checker->co = co;
 	checker->id = ncheckers++;
-	checker->enabled = (vs->vfwmark) ? 1 : 0;
+	/* Enable the checker if the virtual server is not configured with ha_suspend */
+	checker->enabled = !vs->ha_suspend;
 	checker->warmup = vs->delay_loop;
-#ifndef _WITH_VRRP_
-	checker->enabled = 1;
-#endif
 
 	/* queue the checker */
 	list_add(checkers_queue, checker);
@@ -220,10 +220,35 @@ init_checkers_queue(void)
 	checkers_queue = alloc_list(free_checker, dump_checker);
 }
 
+/* release the checkers for a virtual server */
+void
+free_vs_checkers(virtual_server_t *vs)
+{
+	element e;
+	element next;
+	checker_t *checker;
+
+	if (LIST_ISEMPTY(checkers_queue))
+		return;
+
+	for (e = LIST_HEAD(checkers_queue); e; e = next) {
+		next = e->next;
+
+		checker = ELEMENT_DATA(e);
+		if (checker->vs != vs)
+			continue;
+
+		free_list_element(checkers_queue, e);
+	}
+}
+
 /* release the checkers_queue */
 void
 free_checkers_queue(void)
 {
+	if (!checkers_queue)
+		return;
+
 	free_list(&checkers_queue);
 	ncheckers = 0;
 }
@@ -238,9 +263,8 @@ register_checkers_thread(void)
 
 	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 		checker = ELEMENT_DATA(e);
-		log_message(LOG_INFO, "Activating healthchecker for service %s"
-				    , FMT_CHK(checker));
-		CHECKER_ENABLE(checker);
+		log_message(LOG_INFO, "%sctivating healthchecker for service %s"
+				    , checker->enabled ? "A" : "Dea", FMT_VS(checker->vs));
 		if (checker->launch)
 		{
 			/* wait for a random timeout to begin checker thread.
@@ -257,45 +281,148 @@ register_checkers_thread(void)
 }
 
 /* Sync checkers activity with netlink kernel reflection */
+static bool
+addr_matches(const virtual_server_t *vs, void *address)
+{
+	void *addr;
+        virtual_server_group_entry_t *vsg_entry;
+
+	if (vs->addr.ss_family != AF_UNSPEC) {
+		if (vs->addr.ss_family == AF_INET6)
+			addr = (void *) &((struct sockaddr_in6 *)&vs->addr)->sin6_addr;
+		else
+			addr = (void *) &((struct sockaddr_in *)&vs->addr)->sin_addr;
+
+		return inaddr_equal(vs->addr.ss_family, addr, address);
+	}
+
+	if (!vs->vsg)
+		return false;
+
+	if (vs->vsg->addr_ip) {
+		element e;
+		for (e = LIST_HEAD(vs->vsg->addr_ip); e; ELEMENT_NEXT(e)) {
+			vsg_entry = ELEMENT_DATA(e);
+
+			if (vsg_entry->addr.ss_family == AF_INET6)
+				addr = (void *) &((struct sockaddr_in6 *)&vsg_entry->addr)->sin6_addr;
+			else
+				addr = (void *) &((struct sockaddr_in *)&vsg_entry->addr)->sin_addr;
+
+			if (inaddr_equal(vsg_entry->addr.ss_family, addr, address))
+				return true;
+		}
+	}
+
+	if (vs->vsg->range) {
+		element e;
+		struct in_addr mask_addr = {0};
+		struct in6_addr mask_addr6 = {{{0}}};
+		unsigned addr_base;
+
+		if (vs->af == AF_INET) {
+			mask_addr = *(struct in_addr*)address;
+			addr_base = htonl(mask_addr.s_addr & htonl(0xFF));
+			mask_addr.s_addr &= htonl(0xFFFFFF00);
+		}
+		else {
+			mask_addr6 = *(struct in6_addr*)address;
+			addr_base = htons(mask_addr6.s6_addr16[7]);
+			mask_addr6.s6_addr16[7] = 0;
+		}
+
+		for (e = LIST_HEAD(vs->vsg->range); e; ELEMENT_NEXT(e)) {
+			vsg_entry = ELEMENT_DATA(e);
+			struct sockaddr_storage range_addr = vsg_entry->addr;
+			uint32_t ra_base;
+
+			if (range_addr.ss_family == AF_INET) {
+				struct in_addr ra;
+
+				ra = ((struct sockaddr_in *)&range_addr)->sin_addr;
+				ra_base = htonl(ra.s_addr & htonl(0xFF));
+
+				if (addr_base < ra_base || addr_base > vsg_entry->range)
+					continue;
+
+				ra.s_addr &= htonl(0xFFFFFF00);
+				if (ra.s_addr != mask_addr.s_addr)
+					continue;
+			}
+			else
+			{
+				struct in6_addr ra = ((struct sockaddr_in6 *)&range_addr)->sin6_addr;
+				ra_base = htons(ra.s6_addr16[7]);
+
+				if (addr_base < ra_base || addr_base > htons(vsg_entry->range))
+					continue;
+
+				ra.s6_addr16[7] = 0;
+				if (!inaddr_equal(AF_INET6, &ra, &mask_addr6))
+					continue;
+			}
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void
-update_checker_activity(sa_family_t family, void *address, int enable)
+update_checker_activity(sa_family_t family, void *address, bool enable)
 {
 	checker_t *checker;
-	sa_family_t vip_family;
 	element e;
 	char addr_str[INET6_ADDRSTRLEN];
-	void *addr;
+	bool address_logged = false;
 
 	/* Display netlink operation */
-	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+	if (__test_bit(LOG_ADDRESS_CHANGES, &debug)) {
 		inet_ntop(family, address, addr_str, sizeof(addr_str));
 		log_message(LOG_INFO, "Netlink reflector reports IP %s %s"
 				    , addr_str, (enable) ? "added" : "removed");
+
+		address_logged = true;
 	}
+
+	if (!using_ha_suspend)
+		return;
 
 	/* Processing Healthcheckers queue */
 	if (!LIST_ISEMPTY(checkers_queue)) {
 		for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 			checker = ELEMENT_DATA(e);
-			vip_family = checker->vs->addr.ss_family;
 
-			if (vip_family != family)
+			if (!CHECKER_HA_SUSPEND(checker))
 				continue;
 
-			if (family == AF_INET6) {
-				addr = (void *) &((struct sockaddr_in6 *)&checker->vs->addr)->sin6_addr;
-			} else {
-				addr = (void *) &((struct sockaddr_in *)&checker->vs->addr)->sin_addr;
+			/* If there is no address configured, the family will be AF_UNSPEC */
+			if (checker->vs->af != family)
+				continue;
+
+			/* If we have that same address (IPv6 link local) on multiple interfaces,
+			 * we want to count them multiple times so that we only suspend the checkers
+			 * if they are all deleted */
+			if (addr_matches(checker->vs, address)) {
+				if (!address_logged &&
+				    __test_bit(LOG_DETAIL_BIT, &debug)) {
+					inet_ntop(family, address, addr_str, sizeof(addr_str));
+					log_message(LOG_INFO, "Netlink reflector reports IP %s %s"
+							    , addr_str, (enable) ? "added" : "removed");
+				}
+				address_logged = true;
+
+				if (enable)
+					checker->vs->ha_suspend_addr_count++;
+				else
+					checker->vs->ha_suspend_addr_count--;
 			}
 
-			if (inaddr_equal(family, addr, address) &&
-			    CHECKER_HA_SUSPEND(checker)) {
-				if (!CHECKER_ENABLED(checker) && enable)
-					log_message(LOG_INFO, "Activating healthchecker for service %s"
-							    , FMT_CHK(checker));
-				if (CHECKER_ENABLED(checker) && !enable)
-					log_message(LOG_INFO, "Suspending healthchecker for service %s"
-							    , FMT_CHK(checker));
+			if ((!(checker->vs->ha_suspend_addr_count)) == checker->enabled) {
+				log_message(LOG_INFO, "%sing healthchecker for service %s",
+							!checker->enabled ? "Activat" : "Suspend",
+							FMT_VS(checker->vs));
 				checker->enabled = enable;
 			}
 		}

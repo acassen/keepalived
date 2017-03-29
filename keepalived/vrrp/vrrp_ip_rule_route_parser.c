@@ -28,6 +28,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <arpa/inet.h>
+#include <stdint.h>
 
 #include "logger.h"
 #include "vrrp_ip_rule_route_parser.h"
@@ -254,7 +255,7 @@ get_addr64(uint64_t *ap, const char *cp)
 	return false;
 }
 
-#if HAVE_DECL_RTA_ENCAP
+#if HAVE_DECL_LWTUNNEL_ENCAP_MPLS
 bool
 parse_mpls_address(const char *str, encap_mpls_t *mpls)
 {

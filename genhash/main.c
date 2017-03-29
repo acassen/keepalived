@@ -57,7 +57,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 signal_init(void)
 {
-	signal_handler_init(1);
+	signal_handler_init();
 	signal_set(SIGHUP, sigend, NULL);
 	signal_set(SIGINT, sigend, NULL);
 	signal_set(SIGTERM, sigend, NULL);

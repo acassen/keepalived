@@ -31,7 +31,9 @@
 #include "list.h"
 #include "logger.h"
 #include "utils.h"
+#ifdef _WITH_VRRP_
 #include "vrrp.h"
+#endif
 #include "main.h"
 
 /* global vars */
@@ -93,10 +95,9 @@ set_vrrp_defaults(data_t * data)
 	data->vrrp_garp_lower_prio_delay = PARAMETER_UNSET;
 	data->vrrp_garp_lower_prio_rep = PARAMETER_UNSET;
 	data->vrrp_lower_prio_no_advert = false;
+	data->vrrp_higher_prio_send_advert = false;
 	data->vrrp_version = VRRP_VERSION_2;
 	strcpy(data->vrrp_iptables_inchain, "INPUT");
-	data->block_ipv4 = false;
-	data->block_ipv6 = false;
 #ifdef _HAVE_LIBIPSET_
 	data->using_ipsets = true;
 	strcpy(data->vrrp_ipset_address, "keepalived");
@@ -171,9 +172,11 @@ alloc_global_data(void)
 #endif
 
 #ifdef _WITH_LVS_
+#ifdef _WITH_VRRP_
 	new->lvs_syncd.syncid = PARAMETER_UNSET;
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 	new->lvs_syncd.mcast_group.ss_family = AF_UNSPEC;
+#endif
 #endif
 #endif
 
@@ -222,7 +225,7 @@ free_global_data(data_t * data)
 #ifdef _WITH_SNMP_
 	FREE_PTR(data->snmp_socket);
 #endif
-#ifdef _WITH_LVS_
+#if defined _WITH_LVS_ && defined _WITH_VRRP_
 	FREE_PTR(data->lvs_syncd.ifname);
 	FREE_PTR(data->lvs_syncd.vrrp_name);
 #endif
@@ -245,7 +248,7 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO, " Router ID = %s", data->router_id);
 	if (data->smtp_server.ss_family) {
 		log_message(LOG_INFO, " Smtp server = %s", inet_sockaddrtos(&data->smtp_server));
-		log_message(LOG_INFO, " Smtp server port = %u", inet_sockaddrport(&data->smtp_server));
+		log_message(LOG_INFO, " Smtp server port = %u", ntohs(inet_sockaddrport(&data->smtp_server)));
 	}
 	if (data->smtp_helo_name)
 		log_message(LOG_INFO, " Smtp HELO name = %s" , data->smtp_helo_name);
@@ -257,7 +260,6 @@ dump_global_data(data_t * data)
 				    , data->email_from);
 		dump_list(data->email);
 	}
-	log_message(LOG_INFO, " Default interface = %s", data->default_ifp ? data->default_ifp->ifname : DFLT_INT);
 #ifdef _WITH_LVS_
 	if (data->lvs_tcp_timeout)
 		log_message(LOG_INFO, " LVS TCP timeout = %d", data->lvs_tcp_timeout);
@@ -265,7 +267,8 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO, " LVS TCP FIN timeout = %d", data->lvs_tcpfin_timeout);
 	if (data->lvs_udp_timeout)
 		log_message(LOG_INFO, " LVS TCP timeout = %d", data->lvs_udp_timeout);
-#ifdef _WITH_LVS_
+#ifdef _WITH_VRRP_
+	log_message(LOG_INFO, " Default interface = %s", data->default_ifp ? data->default_ifp->ifname : DFLT_INT);
 	if (data->lvs_syncd.vrrp) {
 		log_message(LOG_INFO, " LVS syncd vrrp instance = %s"
 				    , data->lvs_syncd.vrrp->iname);
@@ -306,6 +309,7 @@ dump_global_data(data_t * data)
 	log_message(LOG_INFO, " Gratuitous ARP lower priority delay = %d", data->vrrp_garp_lower_prio_delay / TIMER_HZ);
 	log_message(LOG_INFO, " Gratuitous ARP lower priority repeat = %d", data->vrrp_garp_lower_prio_rep);
 	log_message(LOG_INFO, " Send advert after receive lower priority advert = %s", data->vrrp_lower_prio_no_advert ? "false" : "true");
+	log_message(LOG_INFO, " Send advert after receive higher priority advert = %s", data->vrrp_higher_prio_send_advert ? "true" : "false");
 	log_message(LOG_INFO, " Gratuitous ARP interval = %d", data->vrrp_garp_interval);
 	log_message(LOG_INFO, " Gratuitous NA interval = %d", data->vrrp_gna_interval);
 	log_message(LOG_INFO, " VRRP default protocol version = %d", data->vrrp_version);

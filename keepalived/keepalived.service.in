@@ -4,10 +4,10 @@ After=syslog.target network-online.target
 
 [Service]
 Type=forking
-PIDFile=/var/run/keepalived.pid
+PIDFile=@PID_DIR@/run/keepalived.pid
 KillMode=process
-EnvironmentFile=-/etc/sysconfig/keepalived
-ExecStart=/usr/sbin/keepalived $KEEPALIVED_OPTIONS
+EnvironmentFile=-@sysconfdir@/sysconfig/keepalived
+ExecStart=@sbindir@/keepalived $KEEPALIVED_OPTIONS
 ExecReload=/bin/kill -HUP $MAINPID
 
 [Install]
