@@ -42,6 +42,8 @@ RUN apk --no-cache add \
         musl-dev \
         openssl-dev
 
+ADD docker/keepalived.conf /usr/local/etc/keepalived/keepalived.conf
+
 # set keepalived as image entrypoint with --dont-fork and --log-console (to make it docker friendly)
 # define /usr/local/etc/keepalived/keepalived.conf as the configuration file to use
 ENTRYPOINT ["/usr/local/sbin/keepalived","--dont-fork","--log-console", "-f","/usr/local/etc/keepalived/keepalived.conf"]
