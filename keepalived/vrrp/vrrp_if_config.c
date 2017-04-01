@@ -377,7 +377,7 @@ set_sysctl(const char* prefix, const char* iface, const char* parameter, unsigne
 	return 0;
 }
 
-static unsigned
+static int
 get_sysctl(const char* prefix, const char* iface, const char* parameter)
 {
 	char *filename;
@@ -409,7 +409,7 @@ get_sysctl(const char* prefix, const char* iface, const char* parameter)
 static inline int
 set_promote_secondaries_sysctl(interface_t *ifp)
 {
-	if (get_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries")) {
+	if (get_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries") > 0) {
 		ifp->promote_secondaries_already_set = true;
 		return 0;
 	}

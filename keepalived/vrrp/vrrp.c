@@ -1078,7 +1078,7 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 		if (vrrp->family == AF_INET) {
 			/* HC' = ~(~HC + ~m + m') */
  			uint16_t *prio_addr = (uint16_t *)((char *)&hd->priority - (((char *)hd -(char *)&hd->priority) & 1));
-			uint32_t acc = (~hd->chksum & 0xffff) + (~(*prio_addr) & 0xffff);
+			uint32_t acc = (uint32_t)((~hd->chksum & 0xffff) + (~(*prio_addr) & 0xffff));
 
 			hd->priority = prio;
 

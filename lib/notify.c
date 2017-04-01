@@ -219,7 +219,7 @@ replace_cmd_name(notify_script_t *script, char *new_cmd)
 {
 	size_t new_len = sizeof(char *) + strlen(new_cmd) + 1;
 	char **word_ptrs = script->args;
-	int num_words = 1;
+	size_t num_words = 1;
 	char **new_args;
 	char *new_words;
 	char **new_word_ptrs;
