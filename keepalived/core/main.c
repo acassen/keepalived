@@ -939,8 +939,6 @@ keepalived_main(int argc, char **argv)
 
 	netlink_set_recv_buf_size();
 
-	set_default_script_user();
-
 	/* Get buffer length needed for getpwnam_r/getgrnam_r */
 	if ((buf_len = sysconf(_SC_GETPW_R_SIZE_MAX)) == -1)
 		getpwnam_buf_len = 1024;	/* A safe default if no value is returned */
@@ -949,6 +947,8 @@ keepalived_main(int argc, char **argv)
 	if ((buf_len = sysconf(_SC_GETGR_R_SIZE_MAX)) != -1 &&
 	    (size_t)buf_len > getpwnam_buf_len)
 		getpwnam_buf_len = (size_t)buf_len;
+
+	set_default_script_user();
 
 	/* Some functionality depends on kernel version, so get the version here */
 	if (uname(&uname_buf))
