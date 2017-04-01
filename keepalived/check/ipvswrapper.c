@@ -235,7 +235,6 @@ ipvs_talk(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, ipvs_daemon_t *dae
 		else if (errno == ENOENT &&
 			(cmd == IP_VS_SO_SET_DEL || cmd == IP_VS_SO_SET_DELDEST))
 			result = 0;
-write_stacktrace("/tmp/ka.stacktrace");
 		log_message(LOG_INFO, "IPVS (cmd %d, errno %d): %s", cmd, errno, ipvs_strerror(errno));
 	}
 	return result;
