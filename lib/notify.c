@@ -466,7 +466,6 @@ check_script_secure(notify_script_t *script)
 	uid_t old_uid = 0;
 	gid_t old_gid = 0;
 	char *new_path;
-	size_t len;
 	int sav_errno;
 
 	if (!script)
@@ -518,10 +517,38 @@ check_script_secure(notify_script_t *script)
 
 	if (strcmp(script->args[0], new_path)) {
 		/* The path name is different */
+		size_t len;
+		size_t num_words = 1;
+		char **wp = &script->args[1];
+		char **params;
+		char **word_ptrs;
+		char *words;
+
+		/* We need to set up all the args again */
 		len = strlen(new_path) + 1;
-		FREE(script->args[0]);
-		script->args[0] = MALLOC(len);
-		strcpy(script->args[0], new_path);
+		while (*wp) {
+			len += strlen(*wp) + 1;
+			num_words++;
+		}
+		params = word_ptrs = MALLOC((num_words + 1) * sizeof(char *) + len);
+		words = (char *)params + (num_words + 1) * sizeof(char *);
+		strcpy(words, new_path);
+		*(word_ptrs++) = words;
+		words += strlen(words) + 1;
+		wp = &script->args[1];
+		while (*wp) {
+			strcpy(words, *wp);
+			*(word_ptrs++) = words;
+			words += strlen(*wp) + 1;
+			wp++;
+		}
+		*word_ptrs = NULL;
+		FREE(script->args);
+		script->args = params;
+
+		FREE(script->cmd_str);
+		script->cmd_str = MALLOC(strlen(new_path) + 1);
+		strcpy(script->cmd_str, new_path);
 	}
 	free(new_path);
 
@@ -779,6 +806,8 @@ notify_script_init(vector_t *strvec, bool with_params, const char *type)
 	if (vector_size(strvec) > 2) {
 		if (set_script_uid_gid(strvec, 2, &script->uid, &script->gid)) {
 			log_message(LOG_INFO, "Invalid user/group for %s script %s - ignoring", type, script->args[0]);
+			FREE(script->args);
+			FREE(script->cmd_str);
 			FREE(script);
 			return NULL;
 		}
@@ -786,6 +815,8 @@ notify_script_init(vector_t *strvec, bool with_params, const char *type)
 	else {
 		if (set_default_script_user(NULL, NULL)) {
 			log_message(LOG_INFO, "Failed to set default user for %s script %s - ignoring", type, script->args[0]);
+			FREE(script->args);
+			FREE(script->cmd_str);
 			FREE(script);
 			return NULL;
 		}
