@@ -44,6 +44,10 @@ static int misc_check_thread(thread_t *);
 static int misc_check_child_thread(thread_t *);
 static int misc_check_child_timeout_thread(thread_t *);
 
+static bool script_user_set;
+static misc_checker_t *misck_checker;
+
+
 /* Configuration stream handling */
 static void
 free_misc_check(void *data)
@@ -70,20 +74,17 @@ dump_misc_check(void *data)
 static void
 misc_check_handler(__attribute__((unused)) vector_t *strvec)
 {
-	misc_checker_t *misck_checker = (misc_checker_t *) MALLOC(sizeof (misc_checker_t));
+	misck_checker = (misc_checker_t *) MALLOC(sizeof (misc_checker_t));
 
-	misck_checker->script.uid = default_script_uid;
-	misck_checker->script.gid = default_script_gid;
-
-	/* queue new checker */
-	queue_checker(free_misc_check, dump_misc_check, misc_check_thread,
-		      misck_checker, NULL);
+	script_user_set = false;
 }
 
 static void
 misc_path_handler(vector_t *strvec)
 {
-	misc_checker_t *misck_checker = CHECKER_GET();
+	if (!misck_checker)
+		return;
+
 	misck_checker->script.cmd_str = CHECKER_VALUE_STRING(strvec);
 	misck_checker->script.args = set_script_params_array(strvec, true);
 }
@@ -91,29 +92,63 @@ misc_path_handler(vector_t *strvec)
 static void
 misc_timeout_handler(vector_t *strvec)
 {
-	misc_checker_t *misck_checker = CHECKER_GET();
+	if (!misck_checker)
+		return;
+
 	misck_checker->timeout = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 }
 
 static void
 misc_dynamic_handler(__attribute__((unused)) vector_t *strvec)
 {
-	misc_checker_t *misck_checker = CHECKER_GET();
+	if (!misck_checker)
+		return;
+
 	misck_checker->dynamic = true;
 }
 
 static void
 misc_user_handler(vector_t *strvec)
 {
-	misc_checker_t *misck_checker = CHECKER_GET();
+	if (!misck_checker)
+		return;
 
 	if (vector_size(strvec) < 2) {
 		log_message(LOG_INFO, "No user specified for misc checker script %s", misck_checker->script.cmd_str);
 		return;
 	}
 
-	if (set_script_uid_gid(strvec, 1, &misck_checker->script.uid, &misck_checker->script.gid))
+	if (set_script_uid_gid(strvec, 1, &misck_checker->script.uid, &misck_checker->script.gid)) {
 		log_message(LOG_INFO, "Failed to set uid/gid for misc checker script %s", misck_checker->script.cmd_str);
+		FREE(misck_checker);
+		misck_checker = NULL;
+	}
+	else
+		script_user_set = true;
+}
+ 
+static void
+misc_end_handler(void)
+{
+	if (!misck_checker)
+		return;
+
+	if (!script_user_set)
+	{
+		if ( set_default_script_user(NULL, NULL)) {
+			log_message(LOG_INFO, "Unable to set default user for misc script %s - removing", misck_checker->script.args[0]);
+			FREE(misck_checker);
+			misck_checker = NULL;
+			return;
+		}
+
+		misck_checker->script.uid = default_script_uid;
+		misck_checker->script.gid = default_script_gid;
+	}
+
+	/* queue new checker */
+	queue_checker(free_misc_check, dump_misc_check, misc_check_thread, misck_checker, NULL);
+	misck_checker = NULL;
 }
 
 void
@@ -126,6 +161,7 @@ install_misc_check_keyword(void)
 	install_keyword("misc_dynamic", &misc_dynamic_handler);
 	install_keyword("warmup", &warmup_handler);
 	install_keyword("user", &misc_user_handler);
+	install_sublevel_end_handler(&misc_end_handler);
 	install_sublevel_end();
 }
 
@@ -161,7 +197,7 @@ check_misc_script_security(void)
 			insecure = true;
 		}
 		else if (flags & SC_NOTFOUND) {
-			log_message(LOG_INFO, "Disabling misc script %s since not found", misc_script->script.cmd_str);
+			log_message(LOG_INFO, "Disabling misc script %s since not found/accessible", misc_script->script.cmd_str);
 			insecure = true;
 		}
 		else if (!(flags & SC_EXECUTABLE))

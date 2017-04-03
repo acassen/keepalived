@@ -176,7 +176,7 @@ check_track_script_secure(tracked_sc_t *script)
 		script->scr->insecure = true;
 	}
 	else if (flags & SC_NOTFOUND) {
-		log_message(LOG_INFO, "Disabling track script %s since not found", script->scr->sname);
+		log_message(LOG_INFO, "Disabling track script %s since not found/accessible", script->scr->sname);
 		script->scr->insecure = true;
 	}
 	else if (!(flags & SC_EXECUTABLE))

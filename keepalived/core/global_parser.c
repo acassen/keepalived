@@ -699,53 +699,6 @@ use_pid_dir_handler(__attribute__((unused)) vector_t *strvec)
 	use_pid_dir = true;
 }
 
-bool
-set_script_uid_gid(vector_t *strvec, unsigned keyword_offset, uid_t *uid_p, gid_t *gid_p)
-{
-	char *username;
-	char *groupname;
-	uid_t uid;
-	gid_t gid;
-	struct passwd pwd;
-	struct passwd *pwd_p;
-	struct group grp;
-	struct group *grp_p;
-	int ret;
-	char buf[getpwnam_buf_len];
-
-	username = strvec_slot(strvec, keyword_offset);
-
-	if ((ret = getpwnam_r(username, &pwd, buf, sizeof(buf), &pwd_p))) {
-		log_message(LOG_INFO, "Unable to resolve script username '%s' - ignoring", username);
-		return true;
-	}
-	if (!pwd_p) {
-		log_message(LOG_INFO, "Script user '%s' does not exist", username);
-		return true;
-	}
-
-	uid = pwd.pw_uid;
-	gid = pwd.pw_gid;
-
-	if (vector_size(strvec) > keyword_offset + 1) {
-		groupname = strvec_slot(strvec, keyword_offset + 1);
-		if ((ret = getgrnam_r(groupname, &grp, buf, sizeof(buf), &grp_p))) {
-			log_message(LOG_INFO, "Unable to resolve script group name '%s' - ignoring", groupname);
-			return true;
-		}
-		if (!grp_p) {
-			log_message(LOG_INFO, "Script group '%s' does not exist", groupname);
-			return true;
-		}
-		gid = grp.gr_gid;
-	}
-
-	*uid_p = uid;
-	*gid_p = gid;
-
-	return false;
-}
-
 static void
 script_user_handler(vector_t *strvec)
 {
@@ -754,7 +707,7 @@ script_user_handler(vector_t *strvec)
 		return;
 	}
 
-	if (set_script_uid_gid(strvec, 1, &default_script_uid, &default_script_gid))
+	if (set_default_script_user(strvec_slot(strvec, 1), vector_size(strvec) > 2 ? strvec_slot(strvec, 2) : NULL))
 		log_message(LOG_INFO, "Error setting global script uid/gid");
 }
 

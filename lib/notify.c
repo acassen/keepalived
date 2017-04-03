@@ -45,11 +45,16 @@
 uid_t default_script_uid;
 gid_t default_script_gid;
 
+/* Have we got a default user OK? */
+static bool default_script_uid_set = false;
+static bool default_user_fail = false;			/* Set if failed to set default user,
+							   unless it defaults to root */
+
 /* Script security enabled */
 bool script_security = false;
 
 /* Buffer length needed for getpwnam_r/getgrname_r */
-size_t getpwnam_buf_len;
+static size_t getpwnam_buf_len;
 
 static char *path;
 static bool path_is_malloced;
@@ -458,6 +463,11 @@ check_script_secure(notify_script_t *script)
 	int ret;
 	struct stat buf, file_buf;
 	bool need_script_protection = false;
+	uid_t old_uid = 0;
+	gid_t old_gid = 0;
+	char *new_path;
+	size_t len;
+	int sav_errno;
 
 	if (!script)
 		return 0;
@@ -473,6 +483,47 @@ check_script_secure(notify_script_t *script)
 			return SC_NOTFOUND;
 		}
 	}
+
+	/* Remove symbolic links, /./ and /../, and also check script accessible by the user running it */
+	if (script->uid)
+		old_uid = geteuid();
+	if (script->gid)
+		old_gid = getegid();
+
+	if ((script->gid && setegid(script->gid)) ||
+	    (script->uid && seteuid(script->uid))) {
+		if (script->uid)
+			seteuid(old_uid);
+
+		log_message(LOG_INFO, "Unable to set uid:gid %d:%d for script %s - disabling", script->uid, script->gid, script->args[0]);
+
+		return SC_INHIBIT;
+	}
+
+	/* Remove /./, /../, multiple /'s, and resolve symbolic links */
+	new_path = realpath(script->args[0], NULL);
+	sav_errno = errno;
+
+	if (script->gid)
+		setegid(old_gid);
+	if (script->uid)
+		seteuid(old_uid);
+
+	if (!new_path)
+	{
+		log_message(LOG_INFO, "Script %s cannot be accessed - %s", script->args[0], strerror(sav_errno));
+
+		return SC_NOTFOUND;
+	}
+
+	if (strcmp(script->args[0], new_path)) {
+		/* The path name is different */
+		len = strlen(new_path) + 1;
+		FREE(script->args[0]);
+		script->args[0] = MALLOC(len);
+		strcpy(script->args[0], new_path);
+	}
+	free(new_path);
 
 	/* Get the permissions for the file itself */
 	if (stat(script->args[0], &file_buf)) {
@@ -506,10 +557,6 @@ check_script_secure(notify_script_t *script)
 		}
 
 		if (slash) {
-			/* If there are multiple consecutive '/'s, don't check subsequent ones */
-			if (slash > script->args[0] && slash[-1] == '/')
-				continue;
-
 			/* We want to check '/' for first time around */
 			if (slash == script->args[0])
 				slash++;
@@ -566,29 +613,110 @@ check_notify_script_secure(notify_script_t **script_p)
 	return flags;
 }
 
-/* The default script user/group is keepalived_script if it exists, or root otherwise */
-void
-set_default_script_user(void)
+static void
+set_pwnam_buf_len(void)
 {
-	char buf[getpwnam_buf_len];
-	char *default_user_name = "keepalived_script";
+	long buf_len;
+
+	/* Get buffer length needed for getpwnam_r/getgrnam_r */
+	if ((buf_len = sysconf(_SC_GETPW_R_SIZE_MAX)) == -1)
+		getpwnam_buf_len = 1024;	/* A safe default if no value is returned */
+	else
+		getpwnam_buf_len = (size_t)buf_len;
+	if ((buf_len = sysconf(_SC_GETGR_R_SIZE_MAX)) != -1 &&
+	    (size_t)buf_len > getpwnam_buf_len)
+		getpwnam_buf_len = (size_t)buf_len;
+}
+
+bool
+set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gid_p, bool default_user)
+{
+	uid_t uid;
+	gid_t gid;
 	struct passwd pwd;
 	struct passwd *pwd_p;
+	struct group grp;
+	struct group *grp_p;
+	int ret;
+	bool using_default_default_user = false;
 
-	if (getpwnam_r(default_user_name, &pwd, buf, sizeof(buf), &pwd_p)) {
-		log_message(LOG_INFO, "Unable to resolve default script username '%s' - ignoring", default_user_name);
-		return;
+	if (!getpwnam_buf_len)
+		set_pwnam_buf_len();
+
+	{
+		char buf[getpwnam_buf_len];
+
+		if (default_user && !username) {
+			using_default_default_user = true;
+			username = "keepalived_script";
+		}
+
+		if ((ret = getpwnam_r(username, &pwd, buf, sizeof(buf), &pwd_p))) {
+			log_message(LOG_INFO, "Unable to resolve %sscript username '%s' - ignoring", default_user ? "default " : "", username);
+			return true;
+		}
+		if (!pwd_p) {
+			if (using_default_default_user)
+				log_message(LOG_INFO, "WARNING - default user '%s' for script execution does not exist - please create.", username);
+			else
+				log_message(LOG_INFO, "%script user '%s' does not exist", default_user ? "Default s" : "S", username);
+			return true;
+		}
+
+		uid = pwd.pw_uid;
+		gid = pwd.pw_gid;
+
+		if (groupname) {
+			if ((ret = getgrnam_r(groupname, &grp, buf, sizeof(buf), &grp_p))) {
+				log_message(LOG_INFO, "Unable to resolve %sscript group name '%s' - ignoring", default_user ? "default " : "", groupname);
+				return true;
+			}
+			if (!grp_p) {
+				log_message(LOG_INFO, "%script group '%s' does not exist", default_user ? "Default s" : "S", groupname);
+				return true;
+			}
+			gid = grp.gr_gid;
+		}
+
+		*uid_p = uid;
+		*gid_p = gid;
 	}
-	if (!pwd_p) {
-		/* The username does not exist */
-		log_message(LOG_INFO, "WARNING - default user '%s' for script execution does not exist - please create.", default_user_name);
-		return;
+
+	return false;
+}
+
+/* The default script user/group is keepalived_script if it exists, or root otherwise */
+bool
+set_default_script_user(const char *username, const char *groupname)
+{
+	if (!default_script_uid_set || username) {
+		/* Even if we fail to set it, there is no point in trying again */
+		default_script_uid_set = true;
+ 
+		if (set_uid_gid(username, groupname, &default_script_uid, &default_script_gid, true)) {
+			if (username || script_security)
+				default_user_fail = true;
+		}
+		else
+			default_user_fail = false;
 	}
 
-	default_script_uid = pwd.pw_uid;
-	default_script_gid = pwd.pw_gid;
+	return default_user_fail;
+}
 
-	log_message(LOG_INFO, "Setting default script user to '%s', uid:gid %d:%d", default_user_name, pwd.pw_uid, pwd.pw_gid);
+bool
+set_script_uid_gid(vector_t *strvec, unsigned keyword_offset, uid_t *uid_p, gid_t *gid_p)
+{
+	char *username;
+	char *groupname;
+ 
+	username = strvec_slot(strvec, keyword_offset);
+	if (vector_size(strvec) > keyword_offset + 1)
+		groupname = strvec_slot(strvec, keyword_offset + 1);
+	else
+		groupname = NULL;
+
+	return set_uid_gid(username, groupname, uid_p, gid_p, false);
 }
 
 char **
@@ -641,14 +769,30 @@ set_script_params_array(vector_t *strvec, bool with_params)
 }
 
 notify_script_t*
-notify_script_init(vector_t *strvec, bool with_params)
+notify_script_init(vector_t *strvec, bool with_params, const char *type)
 {
 	notify_script_t *script = MALLOC(sizeof(notify_script_t));
 
 	script->args = set_script_params_array(strvec, with_params);
 	script->cmd_str = set_value(strvec);
-	script->uid = default_script_uid;
-	script->gid = default_script_gid;
+
+	if (vector_size(strvec) > 2) {
+		if (set_script_uid_gid(strvec, 2, &script->uid, &script->gid)) {
+			log_message(LOG_INFO, "Invalid user/group for %s script %s - ignoring", type, script->args[0]);
+			FREE(script);
+			return NULL;
+		}
+	}
+	else {
+		if (set_default_script_user(NULL, NULL)) {
+			log_message(LOG_INFO, "Failed to set default user for %s script %s - ignoring", type, script->args[0]);
+			FREE(script);
+			return NULL;
+		}
+
+		script->uid = default_script_uid;
+		script->gid = default_script_gid;
+	}
 
 	return script;
 }

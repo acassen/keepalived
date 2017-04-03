@@ -130,6 +130,7 @@ vscript_print(FILE *file, void *data)
 	fprintf(file, "   Last exit status = %d\n", vscript->last_status);
 	fprintf(file, "   Use count = %d\n", (vscript->vrrp) ? LIST_SIZE(vscript->vrrp) : 0);
 	fprintf(file, "   Insecure = %s\n", vscript->insecure ? "yes" : "no");
+	fprintf(file, "   uid:gid = %d:%d\n", vscript->script.uid, vscript->script.gid);
 
 	switch (vscript->result) {
 	case VRRP_SCRIPT_STATUS_INIT:

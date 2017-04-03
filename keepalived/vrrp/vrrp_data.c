@@ -173,8 +173,7 @@ dump_vscript(void *data)
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
 	log_message(LOG_INFO, "   Status = %s", str);
-	if (vscript->script.uid || vscript->script.gid)
-		log_message(LOG_INFO, "   Script uid:gid = %d:%d", vscript->script.uid, vscript->script.gid);
+	log_message(LOG_INFO, "   Script uid:gid = %d:%d", vscript->script.uid, vscript->script.gid);
 	log_message(LOG_INFO, "   Use count = %d", vscript->vrrp ? LIST_SIZE(vscript->vrrp) : 0);
 	log_message(LOG_INFO, "   VRRP instances:");
 	if (vscript->vrrp)

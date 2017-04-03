@@ -64,18 +64,15 @@ extern gid_t default_script_gid;
 /* Script security enabled */
 extern bool script_security;
 
-/* Buffer length needed for getpwnam_r/getgrnam_r */
-extern size_t getpwnam_buf_len;
-
 /* prototypes */
 extern int system_call_script(thread_master_t *, int (*) (thread_t *), void *, unsigned long, notify_script_t *);
 extern int notify_exec(const notify_script_t *);
 extern void script_killall(thread_master_t *, int);
 extern int check_script_secure(notify_script_t *);
 extern int check_notify_script_secure(notify_script_t **);
-extern void set_default_script_user(void);
+extern bool set_default_script_user(const char *, const char *);
 extern char **set_script_params_array(vector_t *, bool);
-extern notify_script_t* notify_script_init(vector_t *, bool);
+extern notify_script_t* notify_script_init(vector_t *, bool, const char *);
 extern void notify_resource_release(void);
 
 #endif

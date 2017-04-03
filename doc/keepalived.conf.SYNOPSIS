@@ -610,12 +610,14 @@ virtual_server group <STRING>      {	# VS group declaration
         weight <INTEGER>		# weight to use (default: 1)
         inhibit_on_failure		# Set weight to 0 on healthchecker
 					#  failure
-        notify_up <STRING>|<QUOTED-STRING> # Script to launch when
-					   #  healthchecker consider service
-					   #  as up.
-        notify_down <STRING>|<QUOTED-STRING> # Script to launch when
-					     #  healthchecker consider service
-					     #  as down.
+        notify_up <STRING>|<QUOTED-STRING> [username [groupname]]
+					# Script to launch when
+					#  healthchecker consider service
+					#  as up.
+        notify_down <STRING>|<QUOTED-STRING> [username [groupname]]
+					# Script to launch when
+					#  healthchecker consider service
+					#  as down.
 
         HTTP_GET|SSL_GET {		# HTTP and SSL healthcheckers
             url {			# A set of url to test
@@ -645,8 +647,8 @@ virtual_server group <STRING>      {	# VS group declaration
     real_server <IP ADDRESS> <PORT> {	# Idem
         weight <INTEGER>		# Idem
         inhibit_on_failure		# Idem
-        notify_up <STRING>|<QUOTED-STRING> # Idem
-        notify_down <STRING>|<QUOTED-STRING> # Idem
+        notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
+        notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
 
         TCP_CHECK {			# TCP healthchecker
             connect_ip <IP ADDRESS> # IP address to connect
@@ -662,8 +664,8 @@ virtual_server group <STRING>      {	# VS group declaration
     real_server <IP ADDRESS> <PORT> {	# Idem
         weight <INTEGER>		# Idem
         inhibit_on_failure		# Idem
-        notify_up <STRING>|<QUOTED-STRING> # Idem
-        notify_down <STRING>|<QUOTED-STRING> # Idem
+        notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
+        notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
 
         SMTP_CHECK {                   # SMTP healthchecker
             connect_ip <IP ADDRESS>     # Optional IP address to connect to
@@ -700,8 +702,8 @@ virtual_server group <STRING>      {	# VS group declaration
     real_server <IP ADDRESS> <PORT> {	# Idem
         weight <INTEGER>		# Idem
         inhibit_on_failure		# Idem
-        notify_up <STRING>|<QUOTED-STRING> # Idem
-        notify_down <STRING>|<QUOTED-STRING> # Idem
+        notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
+        notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
 
         DNS_CHECK {                     # DNS healthchecker
             connect_ip <IP ADDRESS>     # Optional IP address to connect to
@@ -719,8 +721,8 @@ virtual_server group <STRING>      {	# VS group declaration
     real_server <IP ADDRESS> <PORT> {	# Idem
         weight <INTEGER>		# Idem
         inhibit_on_failure		# Idem
-        notify_up <STRING>|<QUOTED-STRING> # Idem
-        notify_down <STRING>|<QUOTED-STRING> # Idem
+        notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
+        notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
 
         MISC_CHECK {				# MISC healthchecker
             misc_path <STRING>|<QUOTED-STRING>	# External system script or program
