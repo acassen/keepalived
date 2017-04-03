@@ -417,7 +417,7 @@ exit:
 
 exit1:
 	if (space)
-		*space = 0;
+		*space = ' ';
 
 	/* We tried every element and none of them worked. */
 	if (got_eacces) {
