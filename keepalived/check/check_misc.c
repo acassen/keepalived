@@ -135,7 +135,6 @@ misc_end_handler(void)
 
 	if (!script_user_set)
 	{
-log_message(LOG_INFO, "remove_script 1 %d", remove_script);
 		if ( set_default_script_user(NULL, NULL, global_data->script_security)) {
 			log_message(LOG_INFO, "Unable to set default user for misc script %s - removing", misck_checker->path);
 			FREE(misck_checker);
@@ -143,7 +142,6 @@ log_message(LOG_INFO, "remove_script 1 %d", remove_script);
 			return;
 		}
 
-log_message(LOG_INFO, "Setting uid.gid");
 		misck_checker->uid = default_script_uid;
 		misck_checker->gid = default_script_gid;
 	}
@@ -151,7 +149,6 @@ log_message(LOG_INFO, "Setting uid.gid");
 	/* queue new checker */
 	queue_checker(free_misc_check, dump_misc_check, misc_check_thread, misck_checker, NULL);
 	misck_checker = NULL;
-log_message(LOG_INFO, "Leaving misc_end_handler");
 }
 
 void
