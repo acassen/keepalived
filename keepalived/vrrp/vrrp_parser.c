@@ -130,6 +130,10 @@ static void
 vrrp_gnotify_backup_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+	if (vgroup->script_backup) {
+		log_message(LOG_INFO, "vrrp group %s: notify_backup script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
 	vgroup->script_backup = set_vrrp_notify_script(strvec);
 	vgroup->notify_exec = true;
 }
@@ -137,6 +141,10 @@ static void
 vrrp_gnotify_master_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+	if (vgroup->script_master) {
+		log_message(LOG_INFO, "vrrp group %s: notify_master script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
 	vgroup->script_master = set_vrrp_notify_script(strvec);
 	vgroup->notify_exec = true;
 }
@@ -144,6 +152,10 @@ static void
 vrrp_gnotify_fault_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+	if (vgroup->script_fault) {
+		log_message(LOG_INFO, "vrrp group %s: notify_fault script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
 	vgroup->script_fault = set_vrrp_notify_script(strvec);
 	vgroup->notify_exec = true;
 }
@@ -151,6 +163,10 @@ static void
 vrrp_gnotify_handler(vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+	if (vgroup->script) {
+		log_message(LOG_INFO, "vrrp group %s: notify script already specified - ignoring %s", vgroup->gname, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
 	vgroup->script = set_vrrp_notify_script(strvec);
 	vgroup->notify_exec = true;
 }
@@ -433,6 +449,10 @@ static void
 vrrp_notify_backup_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	if (vrrp->script_backup) {
+		log_message(LOG_INFO, "(%s): notify_backup script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
 	vrrp->script_backup = set_vrrp_notify_script(strvec);
 	vrrp->notify_exec = true;
 }
@@ -440,6 +460,10 @@ static void
 vrrp_notify_master_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	if (vrrp->script_master) {
+		log_message(LOG_INFO, "(%s): notify_master script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
 	vrrp->script_master = set_vrrp_notify_script(strvec);
 	vrrp->notify_exec = true;
 }
@@ -447,6 +471,10 @@ static void
 vrrp_notify_fault_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	if (vrrp->script_fault) {
+		log_message(LOG_INFO, "(%s): notify_fault script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
 	vrrp->script_fault = set_vrrp_notify_script(strvec);
 	vrrp->notify_exec = true;
 }
@@ -454,6 +482,10 @@ static void
 vrrp_notify_stop_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	if (vrrp->script_stop) {
+		log_message(LOG_INFO, "(%s): notify_stop script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
 	vrrp->script_stop = set_vrrp_notify_script(strvec);
 	vrrp->notify_exec = true;
 }
@@ -461,6 +493,10 @@ static void
 vrrp_notify_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	if (vrrp->script) {
+		log_message(LOG_INFO, "(%s): notify script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
 	vrrp->script = set_vrrp_notify_script(strvec);
 	vrrp->notify_exec = true;
 }
