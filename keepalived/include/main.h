@@ -73,8 +73,6 @@ extern bool namespace_with_ipsets;	/* override for namespaces with ipsets on Lin
 #endif
 extern char *instance_name;		/* keepalived instance name */
 extern bool use_pid_dir;		/* pid files in /var/run/keepalived */
-extern uid_t default_script_uid;	/* Default user/group for script execution */
-extern gid_t default_script_gid;
 extern unsigned os_major;		/* Kernel version */
 extern unsigned os_minor;
 extern unsigned os_release;

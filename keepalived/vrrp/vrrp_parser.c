@@ -48,6 +48,9 @@
 #include "bitops.h"
 #include "notify.h"
 
+static bool script_user_set;
+static bool remove_script;
+
 /* Static addresses handler */
 static void
 static_addresses_handler(__attribute__((unused)) vector_t *strvec)
@@ -120,14 +123,7 @@ vrrp_group_handler(vector_t *strvec)
 static inline notify_script_t*
 set_vrrp_notify_script(vector_t *strvec)
 {
-	notify_script_t *script = notify_script_init(strvec, default_script_uid, default_script_gid);
-
-	if (vector_size(strvec) > 2) {
-		if (set_script_uid_gid(strvec, 2, &script->uid, &script->gid))
-			log_message(LOG_INFO, "Invalid user/group for notify script %s", script->name);
-	}
-
-	return script;
+	return notify_script_init(strvec, "notify", global_data->script_security);
 }
 
 static void
@@ -680,6 +676,8 @@ static void
 vrrp_script_handler(vector_t *strvec)
 {
 	alloc_vrrp_script(strvec_slot(strvec, 1));
+	script_user_set = false;
+	remove_script = false;
 }
 static void
 vrrp_vscript_script_handler(vector_t *strvec)
@@ -731,8 +729,35 @@ static void
 vrrp_vscript_user_handler(vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	if (set_script_uid_gid(strvec, 1, &vscript->uid, &vscript->gid))
-		log_message(LOG_INFO, "Unable to set uid/gid for script %s", vscript->script);
+	if (set_script_uid_gid(strvec, 1, &vscript->uid, &vscript->gid)) {
+		log_message(LOG_INFO, "Unable to set uid/gid for script %s - disabling", vscript->script);
+		remove_script = true;
+	}
+	else
+		script_user_set = true;
+}
+static void
+vrrp_vscript_end_handler(void)
+{
+	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
+
+	if (script_user_set)
+		return;
+
+	if (!remove_script &&
+	     set_default_script_user(NULL, NULL, global_data->script_security)) {
+		log_message(LOG_INFO, "Unable to set default user for track script %s - removing", vscript->script);
+		remove_script = true;
+	}
+
+	if (remove_script) {
+		free_list_element(vrrp_data->vrrp_script, vrrp_data->vrrp_script->tail);
+		return;
+	}
+
+	vscript->uid = default_script_uid;
+	vscript->gid = default_script_gid;
+
 }
 static void
 vrrp_vscript_init_fail_handler(__attribute__((unused)) vector_t *strvec)
@@ -964,6 +989,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("fall", &vrrp_vscript_fall_handler);
 	install_keyword("user", &vrrp_vscript_user_handler);
 	install_keyword("init_fail", &vrrp_vscript_init_fail_handler);
+	install_sublevel_end_handler(&vrrp_vscript_end_handler);
 }
 
 vector_t *

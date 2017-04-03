@@ -711,10 +711,10 @@ A virtual_server can be a declaration of one of
 
            # Script to execute when healthchecker
            # considers service as up.
-           notify_up <STRING>|<QUOTED-STRING>
+           notify_up <STRING>|<QUOTED-STRING> [username [groupname]]
            # Script to execute when healthchecker
            # considers service as down.
-           notify_down <STRING>|<QUOTED-STRING>
+           notify_down <STRING>|<QUOTED-STRING> [username [groupname]]
 
            uthreshold <INTEGER> # maximum number of connections to server
            lthreshold <INTEGER> # minimum number of connections to server

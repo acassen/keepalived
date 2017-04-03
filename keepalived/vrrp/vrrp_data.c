@@ -160,8 +160,7 @@ dump_vscript(void *data)
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
 	log_message(LOG_INFO, "   Status = %s", str);
-	if (vscript->uid || vscript->gid)
-		log_message(LOG_INFO, "   Script uid:gid = %d:%d", vscript->uid, vscript->gid);
+	log_message(LOG_INFO, "   Script uid:gid = %d:%d", vscript->uid, vscript->gid);
 
 }
 

@@ -322,14 +322,7 @@ inhibit_handler(__attribute__((unused)) vector_t *strvec)
 static inline notify_script_t*
 set_check_notify_script(vector_t *strvec)
 {
-	notify_script_t *script = notify_script_init(strvec, default_script_uid, default_script_gid);
-
-	if (vector_size(strvec) > 2 ) {
-		if (set_script_uid_gid(strvec, 2, &script->uid, &script->gid))
-			log_message(LOG_INFO, "Invalid user/group for quorum/notify script %s", script->name);
-	}
-
-	return script;
+	return notify_script_init(strvec, "quorum/notify", global_data->script_security);
 }
 static void
 notify_up_handler(vector_t *strvec)
