@@ -36,6 +36,8 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <pwd.h>
+#include <limits.h>
+#include <stdlib.h>
 
 #include "notify.h"
 #include "signals.h"
@@ -439,6 +441,13 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 	int ret;
 	struct stat buf, file_buf;
 	bool need_script_protection = false;
+	uid_t old_uid = 0;
+	gid_t old_gid = 0;
+	char *new_path;
+	size_t len;
+	char *new_script_name;
+	char *new_space;
+	int sav_errno;
 
 	if (!script)
 		return 0;
@@ -460,6 +469,64 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 		if (space)
 			*space = '\0';
 	}
+
+	/* Remove symbolic links, /./ and /../, and also check script accessible by the user running it */
+	if (script->uid)
+		old_uid = geteuid();
+	if (script->gid)
+		old_gid = getegid();
+
+	if ((script->gid && setegid(script->gid)) ||
+	    (script->uid && seteuid(script->uid))) {
+		if (script->uid)
+			seteuid(old_uid);
+
+		log_message(LOG_INFO, "Unable to set uid:gid %d:%d for script %s - disabling", script->uid, script->gid, script->name);
+
+		if (space)
+			*space = ' ';
+
+		return SC_INHIBIT;
+	}
+
+	/* Remove /./, /../, multiple /'s, and resolve symbolic links */
+	new_path = realpath(script->name, NULL);
+	sav_errno = errno;
+
+	if (script->gid)
+		setegid(old_gid);
+	if (script->uid)
+		seteuid(old_uid);
+
+	if (!new_path)
+	{
+		log_message(LOG_INFO, "Script %s cannot be accessed - %s", script->name, strerror(sav_errno));
+
+		if (space)
+			*space = ' ';
+
+		return SC_NOTFOUND;
+	}
+
+	if (strcmp(script->name, new_path)) {
+		/* The path name is different */
+		len = strlen(new_path) + 1;
+		if (space)
+			len += strlen(space + 1) + 1;
+		new_script_name = MALLOC(len);
+		strcpy(new_script_name, new_path);
+		if (space) {
+			new_space = new_script_name + strlen(new_script_name);
+			strcat(new_script_name, " ");
+			strcat(new_script_name, space + 1);
+			space = new_space;
+		}
+
+		FREE(script->name);
+		script->name = new_script_name;
+	}
+	free(new_path);
+
 	if (stat(script->name, &file_buf)) {
 		log_message(LOG_INFO, "Unable to access script `%s`", script->name);
 		if (space)
@@ -501,10 +568,6 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 					continue;
 				next = NULL;
 			}
-
-			/* If there are multiple consecutive '/'s, don't check subsequent ones */
-			if (slash > script->name && slash[-1] == '/')
-				continue;
 
 			/* We want to check '/' for first time around */
 			if (slash == script->name)
@@ -561,7 +624,7 @@ check_notify_script_secure(notify_script_t **script_p, bool script_security, boo
 		free_notify_script(script_p);
 	}
 	else if (flags & SC_NOTFOUND) {
-		log_message(LOG_INFO, "Disabling notify script %s since not found", script->name);
+		log_message(LOG_INFO, "Disabling notify script %s since not found/accessible", script->name);
 		free_notify_script(script_p);
 	}
 	else if (!(flags & SC_EXECUTABLE))

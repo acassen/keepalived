@@ -192,7 +192,7 @@ check_misc_script_security(void)
 
 		script_flags |= (flags = check_script_secure(&script, global_data->script_security, false));
 
-		/* The script path may have been updated if it wan't an absolute path */
+		/* The script path may have been updated if it wasn't an absolute path */
 		misc_script->path = script.name;
 
 		/* Mark not to run if needs inhibiting */
@@ -201,7 +201,7 @@ check_misc_script_security(void)
 			misc_script->insecure = true;
 		}
 		else if (flags & SC_NOTFOUND) {
-			log_message(LOG_INFO, "Disabling misc script %s since not found", misc_script->path);
+			log_message(LOG_INFO, "Disabling misc script %s since not found/accessible", misc_script->path);
 			misc_script->insecure = true;
 		}
 		else if (!(flags & SC_EXECUTABLE))
