@@ -49,6 +49,7 @@
 #include "bitops.h"
 #endif
 #include "vrrp_index.h"
+#include "vrrp_track.h"
 
 /* Local vars */
 static list if_queue;
@@ -895,14 +896,8 @@ void
 cleanup_lost_interface(interface_t *ifp)
 {
 	vrrp_t *vrrp;
+	tracking_vrrp_t *tvp;
 	element e;
-
-	/*
-	Recalc max fd for select
-
-	Remove vrid_index
-	Make sock_t have ifp and what is saddr?
-*/
 
 	ifp->ifindex = 0;
 	ifp->ifi_flags = 0;
@@ -911,7 +906,8 @@ cleanup_lost_interface(interface_t *ifp)
 		return;
 
 	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
+		tvp = ELEMENT_DATA(e);
+		vrrp = tvp->vrrp;
 
 		/* If this is just a tracking interface, we don't need to do anything */
 		if (vrrp->ifp != ifp && IF_BASE_IFP(ifp) != ifp)
@@ -943,13 +939,15 @@ void
 update_added_interface(interface_t *ifp)
 {
 	vrrp_t *vrrp;
+	tracking_vrrp_t *tvp;
 	element e;
 
 	if (LIST_ISEMPTY(ifp->tracking_vrrp))
 		return;
 
 	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
+		tvp = ELEMENT_DATA(e);
+		vrrp = tvp->vrrp;
 
 		/* If this is just a tracking interface, we don't need to do anything */
 		if (vrrp->ifp != ifp && IF_BASE_IFP(ifp) != ifp)
@@ -958,9 +956,6 @@ update_added_interface(interface_t *ifp)
 #ifdef _HAVE_VRRP_VMAC_
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 			netlink_link_add_vmac(vrrp);
-
-		/* Add this instance to the vmac interface */
-//		add_vrrp_to_interface(vrrp, vrrp->ifp);
 
 		/* set scopeid of source address if IPv6 */
 		if (vrrp->saddr.ss_family == AF_INET6)

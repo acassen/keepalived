@@ -1886,12 +1886,22 @@ vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	return false;
 }
 
-static void
-add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp)
+static void free_tracking_vrrp(void *data)
 {
+	FREE(data);
+}
+
+static void
+add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight)
+{
+	tracking_vrrp_t *tvp = MALLOC(sizeof *tvp);
+
+	tvp->vrrp = vrrp;
+	tvp->weight = weight;
+
 	if (!LIST_EXISTS(ifp->tracking_vrrp))
-		ifp->tracking_vrrp = alloc_list(NULL, NULL);
-	list_add(ifp->tracking_vrrp, vrrp);
+		ifp->tracking_vrrp = alloc_list(free_tracking_vrrp, NULL);
+	list_add(ifp->tracking_vrrp, tvp);
 
 	/* If the interface is down, record it against the vrrp instance,
 	 * unless we are not tracking the primary i/f */
@@ -2540,7 +2550,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	/* Add this instance to the physical interface */
-	add_vrrp_to_interface(vrrp, IF_BASE_IFP(vrrp->ifp));
+	add_vrrp_to_interface(vrrp, IF_BASE_IFP(vrrp->ifp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0);
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
@@ -2569,7 +2579,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			netlink_link_add_vmac(vrrp);
 
 		/* Add this instance to the vmac interface */
-		add_vrrp_to_interface(vrrp, vrrp->ifp);
+		add_vrrp_to_interface(vrrp, vrrp->ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0);
 
 		/* set scopeid of source address if IPv6 */
 		if (vrrp->saddr.ss_family == AF_INET6)
@@ -2689,7 +2699,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		tracked_if_t *tip;
 		for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
 			tip = ELEMENT_DATA(e2);
-			add_vrrp_to_interface(vrrp, tip->ifp);
+			add_vrrp_to_interface(vrrp, tip->ifp, tip->weight);
 		}
 	}
 

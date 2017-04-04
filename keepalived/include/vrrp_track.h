@@ -51,6 +51,11 @@
 #define VRRP_SCRIPT_STATUS_INIT_FAILED	-2
 #define VRRP_SCRIPT_STATUS_INIT		-1
 
+/* If a VRRP instance doesn't track it's own interface, we still
+ * want the interface to have a reference to the VRRP instance,
+ * but it needs to know the instance isn't tracking it. */
+#define	VRRP_NOT_TRACK_IF	255
+
 /* external script we call to track local processes */
 typedef struct _vrrp_script {
 	char			*sname;		/* instance name */
@@ -75,6 +80,12 @@ typedef struct _tracked_sc {
 
 /* Forward references */
 struct _vrrp_t;
+
+/* Tracked interface structure definition */
+typedef struct _tracking_vrrp {
+	int			weight;		/* Tracking weight, or zero for down instance */
+	struct _vrrp_t		*vrrp;		/* The vrrp instance */
+} tracking_vrrp_t;
 
 /* prototypes */
 extern void dump_track(void *);

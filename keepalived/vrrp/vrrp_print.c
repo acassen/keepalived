@@ -58,6 +58,15 @@ vrrp_name_print(FILE *file, void *data)
 	fprintf(file, "     %s\n", vrrp->iname);
 }
 
+static void
+vrrp_track_print(FILE *file, void *data)
+{
+	tracking_vrrp_t *tvp = data;
+	vrrp_t *vrrp = tvp->vrrp;
+
+	fprintf(file, "     %s, weight %d\n", vrrp->iname, tvp->weight);
+}
+
 char *
 get_state_str(int state)
 {
@@ -265,7 +274,7 @@ if_print(FILE *file, void *data)
 
 	if (ifp->tracking_vrrp) {
 		fprintf(file, "   Tracking vrrp:\n");
-		vrrp_print_list(file, ifp->tracking_vrrp, &vrrp_name_print);
+		vrrp_print_list(file, ifp->tracking_vrrp, &vrrp_track_print);
 	}
 }
 

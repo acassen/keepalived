@@ -864,48 +864,34 @@ void
 process_if_status_change(interface_t *ifp)
 {
 	vrrp_t *vrrp;
-	element e, e2;
-	tracked_if_t* tip;
+	element e;
+	tracking_vrrp_t *tvp;
 	bool now_up = FLAGS_UP(ifp->ifi_flags);
 
 	/* The state of the interface has changed from up to down or vice versa.
 	 * Find which vrrp instances are affected */
 	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
+		tvp = ELEMENT_DATA(e);
+		vrrp = tvp->vrrp;
 
 		/* If this interface isn't relevant to the vrrp instance, skip the instance */
-		if (LIST_ISEMPTY(vrrp->track_ifp) &&
-		    IF_BASE_IFP(vrrp->ifp) != ifp &&
-		    vrrp->ifp != ifp)
+		if (LIST_ISEMPTY(vrrp->track_ifp))
 			continue;
 
-		/* Find the entry */
-/* TODO -the tracking_vrrp list really ought to have weight as well, to stop this search */
-		if (vrrp->track_ifp) {
-			for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
-				tip = ELEMENT_DATA(e2);
-				if (tip->ifp == ifp) {
-					break;
-				}
-			}
-
-			/* The VRRP instance's own interface won't be in the list */
-			if (e2 && tip->weight) {
-				if (now_up)
-					vrrp->total_priority += abs(tip->weight);
-				else
-					vrrp->total_priority -= abs(tip->weight);
-				vrrp_set_effective_priority(vrrp);
-
-				continue;
-			}
+		if (tvp->weight == VRRP_NOT_TRACK_IF) {
+			/* We might want to restore things to the interface if it is coming up */
+			continue;
 		}
 
-		/* If this is the interface of the vrrp instance, and we aren't tracking
-		 * the instance's own interface, skip it */
-		if (vrrp->dont_track_primary &&
-		    (vrrp->ifp == ifp || IF_BASE_IFP(vrrp->ifp) == ifp))
+		if (tvp->weight) {
+			if (now_up)
+				vrrp->total_priority += abs(tvp->weight);
+			else
+				vrrp->total_priority -= abs(tvp->weight);
+			vrrp_set_effective_priority(vrrp);
+
 			continue;
+		}
 
 		/* This vrrp's interface or underlying interface has changed */
 		if (now_up)
