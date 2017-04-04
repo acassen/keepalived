@@ -391,7 +391,7 @@ vrrp_print(FILE *file, void *data)
 		vrrp_print_list(file, vrrp->vrules, &rule_print);
 	}
 #endif
-	if (vrrp->script_master)
+	if (vrrp->script_backup)
 		print_script(file, vrrp->script_backup, "Backup");
 	if (vrrp->script_master)
 		print_script(file, vrrp->script_master, "Master");
@@ -408,8 +408,7 @@ vrrp_print(FILE *file, void *data)
 void
 vrrp_print_data(void)
 {
-	FILE *file;
-	file = fopen ("/tmp/keepalived.data","w");
+	FILE *file = fopen ("/tmp/keepalived.data","w");
 	list if_list = get_if_list();
 
 	if (!file) {
