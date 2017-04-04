@@ -168,9 +168,13 @@ vrrp_init_state(list l)
 {
 	vrrp_t *vrrp;
 	vrrp_sgroup_t *vgroup;
-	element e;
+	element e, e1;
 	bool is_up;
 	int new_state;
+	vrrp_script_t *vs;
+	tracked_sc_t *ts;
+	unsigned num_script_fault;
+	bool is_up_except_scripts;
 
 	/* Do notifications for any sync groups in fault state */
 	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
@@ -197,7 +201,23 @@ vrrp_init_state(list l)
 		}
 		new_state = vrrp->sync ? vrrp->sync->state : vrrp->wantstate;
 
-		is_up = (VRRP_ISUP(vrrp) && (!vrrp->sync || GROUP_STATE(vrrp->sync) != VRRP_STATE_FAULT));
+		is_up_except_scripts = (!vrrp->sync || GROUP_STATE(vrrp->sync) != VRRP_STATE_FAULT);
+		is_up = (VRRP_ISUP(vrrp) && is_up_except_scripts);
+		if (!is_up && is_up_except_scripts && !(LIST_ISEMPTY(vrrp->track_script))) {
+			/* We need to know if it is only down due to uninitialised scripts */
+			num_script_fault = 0;
+			for (e1 = LIST_HEAD(vrrp->track_script); e1; ELEMENT_NEXT(e1)) {
+				ts = ELEMENT_DATA(e1);
+				vs = ts->scr;
+				if (!ts->weight && vs->last_status == VRRP_SCRIPT_STATUS_NOT_SET)
+					num_script_fault++;
+			}
+			if (vrrp->num_script_if_fault != num_script_fault)
+				is_up_except_scripts = false;
+		}
+		else
+			is_up_except_scripts = is_up;
+
 		if (is_up &&
 		    vrrp->base_priority == VRRP_PRIO_OWNER &&
 		    vrrp->init_state == VRRP_STATE_MAST) {
@@ -235,21 +255,21 @@ vrrp_init_state(list l)
 
 			/* Set interface state */
 			vrrp_restore_interface(vrrp, false, false);
-// TODO Need a is_up_but_for_scripts
-// TODO Do we cope with !is_up_but_for_scripts and down for another reason?
-			if (is_up) {
-				vrrp->state = VRRP_STATE_BACK;
-				log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
-			}
-			else {
-				vrrp->state = VRRP_STATE_FAULT;
-				log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE", vrrp->iname);
-			}
-			vrrp_smtp_notifier(vrrp);
-			notify_instance_exec(vrrp, vrrp->state);
+			if (is_up || !is_up_except_scripts) {
+				if (is_up) {
+					vrrp->state = VRRP_STATE_BACK;
+					log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
+				}
+				else {
+					vrrp->state = VRRP_STATE_FAULT;
+					log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE", vrrp->iname);
+				}
+				vrrp_smtp_notifier(vrrp);
+				notify_instance_exec(vrrp, vrrp->state);
 #ifdef _WITH_SNMP_KEEPALIVED_
-			vrrp_snmp_instance_trap(vrrp);
+				vrrp_snmp_instance_trap(vrrp);
 #endif
+			}
 			vrrp->last_transition = timer_now();
 		}
 #ifdef _WITH_SNMP_RFC_
@@ -781,8 +801,10 @@ vrrp_dispatcher_read(sock_t * sock)
 	if (!vrrp)
 		return sock->fd_in;
 
-	if (vrrp->state == VRRP_STATE_FAULT) {
-		/* We just ignore a message received when we are in fault state */
+	if (vrrp->state == VRRP_STATE_FAULT ||
+	    vrrp->state == VRRP_STATE_INIT) {
+		/* We just ignore a message received when we are in fault state or
+		 * not yet fully initialised */
 		return sock->fd_in;
 	}
 
@@ -889,7 +911,7 @@ vrrp_script_child_thread(thread_t * thread)
 			vscript->result--;
 		} else if (vscript->result) {
 			if (vscript->result == vscript->rise ||
-			    vscript->last_status == VRRP_SCRIPT_STATUS_INIT) {
+			    vscript->last_status == VRRP_SCRIPT_STATUS_NOT_SET) {
 				log_message(LOG_INFO, "VRRP_Script(%s) timed out", vscript->sname);
 				update_script_priorities(vscript, false);
 			}
@@ -932,8 +954,9 @@ vrrp_script_child_thread(thread_t * thread)
 
 			if (vscript->result > vscript->rise) {
 				vscript->result--;
-			} else {
-				if (vscript->result == vscript->rise) {
+			} else if (vscript->result) {
+				if (vscript->result == vscript->rise ||
+				    vscript->last_status == VRRP_SCRIPT_STATUS_NOT_SET) {
 					log_message(LOG_INFO, "VRRP_Script(%s) failed", vscript->sname);
 					update_script_priorities(vscript, false);
 				}

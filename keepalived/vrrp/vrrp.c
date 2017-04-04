@@ -2839,14 +2839,18 @@ vrrp_complete_init(void)
 			old_vrrp = ELEMENT_DATA(e);
 			vrrp = vrrp_exist(old_vrrp);
 			if (vrrp) {
-// TODO For state, we need to set the script states first, and only do this if not FAULT
+				/* If we have detected a fault, don't override it */
+				if (vrrp->state == VRRP_STATE_FAULT)
+					continue;
+
+// TODO-PQA For state, we need to set the script states first, and only do this if not FAULT
 				vrrp->state = old_vrrp->state;
 				vrrp->wantstate = old_vrrp->state;
 			}
 		}
 
 		/* Restore status of any sync group that existed before */
-// TODO - is this relevant any more?
+// TODO-PQA - is this relevant any more?
 		for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; e = next) {
 			next = e->next;
 			sgroup = ELEMENT_DATA(e);

@@ -54,7 +54,7 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 	 */
 	if (vrrp->state == VRRP_STATE_BACK)
 		vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
-	else if (vrrp->state == VRRP_STATE_FAULT)
+	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT)
 		vrrp->sands.tv_sec = TIMER_DISABLED;
 }
 
@@ -286,7 +286,7 @@ vrrp_sync_fault(vrrp_t * vrrp)
 			if (isync->state == VRRP_STATE_MAST) {
 				vrrp_state_leave_master(isync);
 			}
-			else if (isync->state == VRRP_STATE_BACK) {
+			else if (isync->state == VRRP_STATE_BACK || isync->state == VRRP_STATE_INIT) {
 				isync->state = VRRP_STATE_FAULT;	/* This is a bit of a bodge */
 				vrrp_state_leave_fault(isync);
 			}

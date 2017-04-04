@@ -149,13 +149,14 @@ alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 void
 down_instance(vrrp_t *vrrp)
 {
-	if (vrrp->num_script_if_fault++ == 0) {
+	if (vrrp->num_script_if_fault++ == 0 || vrrp->state == VRRP_STATE_INIT) {
 		vrrp->wantstate = VRRP_STATE_FAULT;
 		if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_state_leave_master(vrrp);
 		else
 			vrrp_state_leave_fault(vrrp);
 
+// TODO-PQA
 		if (vrrp->sync && vrrp->sync->num_member_fault++ == 0)
 			vrrp_sync_fault(vrrp);
 	}
@@ -186,6 +187,11 @@ update_script_priorities(vrrp_script_t *vscript, bool script_ok)
 
 			if (!tsc->weight) {
 				if (!script_ok) {
+					if (vscript->last_status == VRRP_SCRIPT_STATUS_NOT_SET) {
+						/* We need to adjust the number of down scripts, since we had counted it as down */
+						vrrp->num_script_if_fault--;
+					}
+
 					/* The instance needs to go down */
 					down_instance(vrrp);
 				} else {
