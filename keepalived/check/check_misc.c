@@ -126,7 +126,7 @@ misc_user_handler(vector_t *strvec)
 	else
 		script_user_set = true;
 }
- 
+
 static void
 misc_end_handler(void)
 {
@@ -321,13 +321,13 @@ misc_check_child_thread(thread_t * thread)
 		}
 	}
 	else if (WIFSIGNALED(wait_status)) {
-	        if (misck_checker->forcing_termination && WTERMSIG(wait_status) == SIGTERM) {
-	                /* The script terminated due to a SIGTERM, and we sent it a SIGTERM to
-	                 * terminate the process. Now make sure any children it created have
-	                 * died too. */
-	                pid = THREAD_CHILD_PID(thread);
-	                kill(-pid, SIGKILL);
-	        }
+		if (misck_checker->forcing_termination && WTERMSIG(wait_status) == SIGTERM) {
+			/* The script terminated due to a SIGTERM, and we sent it a SIGTERM to
+			 * terminate the process. Now make sure any children it created have
+			 * died too. */
+			pid = THREAD_CHILD_PID(thread);
+			kill(-pid, SIGKILL);
+		}
 	}
 
 	misck_checker->forcing_termination = false;

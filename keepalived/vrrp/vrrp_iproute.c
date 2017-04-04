@@ -394,7 +394,7 @@ netlink_route(ip_route_t *iproute, int cmd)
 
 	if (iproute->mask & IPROUTE_BIT_DSFIELD)
 		req.r.rtm_tos = iproute->tos;
-	
+
 	if (iproute->oif)
 		addattr32(&req.n, sizeof(req), RTA_OIF, iproute->oif->ifindex);
 
@@ -1563,7 +1563,7 @@ alloc_route(list rt_list, vector_t *strvec)
 			}
 			str = strvec_slot(strvec, i);
 			new->congctl = malloc(strlen(str) + 1);
-			strcpy(new->congctl, str); 
+			strcpy(new->congctl, str);
 #else
 			log_message(LOG_INFO, "congctl for route not supported by kernel");
 #endif

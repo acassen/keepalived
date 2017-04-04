@@ -208,7 +208,7 @@ netlink_rulelist(list rule_list, int cmd, bool force)
 	 * rule might not exist. That's not an error, so indicate not
 	 * to report such a situation */
 	if (force && cmd == IPRULE_DEL)
-	         netlink_error_ignore = ENOENT;
+		netlink_error_ignore = ENOENT;
 
 	for (e = LIST_HEAD(rule_list); e; ELEMENT_NEXT(e)) {
 		iprule = ELEMENT_DATA(e);
@@ -442,7 +442,7 @@ alloc_rule(list rule_list, vector_t *strvec)
 			if (*end == '/') {
 				if (end[1] == '-')
 					goto fwmark_err;
-					
+
 				val1 = strtoul(end+1, &end, 0);
 				if (val1 > UINT32_MAX)
 					goto fwmark_err;

@@ -226,7 +226,7 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 		if ( protocol == IPPROTO_ICMP )
 		{
 			match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
-			match->u.match_size = XT_ALIGN(sizeof (struct xt_entry_match)) + XT_ALIGN(sizeof(struct ipt_icmp));  
+			match->u.match_size = XT_ALIGN(sizeof (struct xt_entry_match)) + XT_ALIGN(sizeof(struct ipt_icmp));
 			match->u.user.revision = 0;
 			fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 			strcpy ( match->u.user.name, "icmp" ) ;
@@ -402,7 +402,7 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 }
 
 #ifdef _HAVE_LIBIPTC_
-#ifdef _LIBXTABLES_DYNAMIC_ 
+#ifdef _LIBXTABLES_DYNAMIC_
 static
 bool xtables_load(void)
 {

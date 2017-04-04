@@ -287,13 +287,13 @@ get_interface_ids(const gchar *object_path, gchar *interface, uint8_t *vrid, uin
 
 /* handles reply to org.freedesktop.DBus.Properties.Get method on any object*/
 static GVariant *
-handle_get_property(__attribute__((unused)) GDBusConnection  *connection,
-		    __attribute__((unused)) const gchar      *sender,
-		    const gchar      *object_path,
-		    const gchar      *interface_name,
-		    const gchar      *property_name,
-		    GError          **error,
-		    __attribute__((unused)) gpointer          user_data)
+handle_get_property(__attribute__((unused)) GDBusConnection *connection,
+		    __attribute__((unused)) const gchar     *sender,
+					    const gchar     *object_path,
+					    const gchar     *interface_name,
+					    const gchar     *property_name,
+					    GError	   **error,
+		    __attribute__((unused)) gpointer	     user_data)
 {
 	GVariant *ret = NULL;
 	dbus_queue_ent_t ent;
@@ -331,10 +331,10 @@ handle_get_property(__attribute__((unused)) GDBusConnection  *connection,
 /* handles method_calls on any object */
 static void
 handle_method_call(__attribute__((unused)) GDBusConnection *connection,
-		   __attribute__((unused)) const gchar           *sender,
-		   const gchar           *object_path,
-		   const gchar           *interface_name,
-		   const gchar           *method_name,
+		   __attribute__((unused)) const gchar	   *sender,
+					   const gchar	   *object_path,
+					   const gchar	   *interface_name,
+					   const gchar	   *method_name,
 #ifndef _WITH_DBUS_CREATE_INSTANCE_
 		   __attribute__((unused))
 #endif

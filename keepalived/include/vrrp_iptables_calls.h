@@ -36,7 +36,7 @@
 #define	APPEND_RULE	UINT_MAX
 
 #ifdef _HAVE_LIBIPTC_
-#ifdef _LIBXTABLES_DYNAMIC_ 
+#ifdef _LIBXTABLES_DYNAMIC_
 extern void xtables_unload(void);
 #endif
 extern bool load_xtables_module(const char *, const char *);

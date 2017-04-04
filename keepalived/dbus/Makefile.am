@@ -18,7 +18,7 @@
 # XML_MATCH = C[A-Z]*X	# pass lines that have a C followed by an X (possibly with other letters in between)
 # XML_MATCH = [CX]	# pass lines their have C or X (or both)
 # XML_MATCH = [CX][A-Z]*[CX] # pass lines with C and X in either order (or two C's or two X's)
-# 			     # C[A-Z]*X is preferred if all option letters are in alphabetical order
+#			     # C[A-Z]*X is preferred if all option letters are in alphabetical order
 
 if DBUS_CREATE_INSTANCE
 XML_MATCH	= C

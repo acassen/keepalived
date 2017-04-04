@@ -306,7 +306,7 @@ find_rttables_dsfield(const char *name, uint8_t *id)
 {
 	uint32_t val;
 	bool ret;
-	
+
 	ret = find_entry(name, &val, &rt_dsfields, RT_DSFIELD_FILE, NULL, 255);
 	*id = val & 0xff;
 
@@ -332,7 +332,7 @@ find_rttables_proto(const char *name, uint8_t *id)
 {
 	uint32_t val;
 	bool ret;
-	
+
 	ret = find_entry(name, &val, &rt_protos, RT_PROTOS_FILE, rtprot_default, 255);
 	*id = val & 0xff;
 
@@ -344,7 +344,7 @@ find_rttables_scope(const char *name, uint8_t *id)
 {
 	uint32_t val;
 	bool ret;
-	
+
 	ret = find_entry(name, &val, &rt_scopes, RT_SCOPES_FILE, rtscope_default, 255);
 	*id = val & 0xff;
 

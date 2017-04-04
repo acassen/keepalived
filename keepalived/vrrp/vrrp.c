@@ -1077,7 +1077,7 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 	if (hd->priority != prio) {
 		if (vrrp->family == AF_INET) {
 			/* HC' = ~(~HC + ~m + m') */
- 			uint16_t *prio_addr = (uint16_t *)((char *)&hd->priority - (((char *)hd -(char *)&hd->priority) & 1));
+			uint16_t *prio_addr = (uint16_t *)((char *)&hd->priority - (((char *)hd -(char *)&hd->priority) & 1));
 			uint32_t acc = (uint32_t)((~hd->chksum & 0xffff) + (~(*prio_addr) & 0xffff));
 
 			hd->priority = prio;
@@ -1782,7 +1782,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		if (addr_cmp == 0)
 			log_message(LOG_INFO, "(%s): WARNING - equal priority advert received from remote host with our IP address.", vrrp->iname);
 		else if (vrrp->effective_priority == VRRP_PRIO_OWNER) {
-			/* If we are configured as the address owner (priority == 255), and we receive an advertisement 
+			/* If we are configured as the address owner (priority == 255), and we receive an advertisement
 			 * from another system indicating it is also the address owner, then there is a clear conflict.
 			 * Report a configuration error, and drop our priority as a workaround. */
 			log_message(LOG_INFO, "(%s): CONFIGURATION ERROR: local instance and a remote instance are both configured as address owner, please fix - reducing local priority", vrrp->iname);
@@ -2679,7 +2679,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			if (!LIST_EXISTS(vsc->vrrp))
 				vsc->vrrp = alloc_list(NULL, dump_vscript_vrrp);
 
-			list_add(vsc->vrrp, vrrp); 
+			list_add(vsc->vrrp, vrrp);
 		}
 	}
 
@@ -2791,7 +2791,7 @@ vrrp_complete_init(void)
 
 		if (sgroup->iname->active > 1)
 			vrrp_sync_set_group(sgroup);
-		
+
 		if (!sgroup->index_list) {
 			free_list_element(vrrp_data->vrrp_sync_group, e);
 			continue;

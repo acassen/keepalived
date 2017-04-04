@@ -8,10 +8,10 @@ export			DEBUG_CFLAGS
 export			DEBUG_CPPFLAGS
 export			DEBUG_LDFLAGS
 
-SUBDIRS 		= lib keepalived doc
+SUBDIRS			= lib keepalived doc
 
 if BUILD_GENHASH
-  SUBDIRS 		+= genhash
+  SUBDIRS		+= genhash
 endif
 
 SUBDIRS			+= bin_install

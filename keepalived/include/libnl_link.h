@@ -1,5 +1,5 @@
 /*
- * libnl_link: Handle dynamic linking to netlink libraries 
+ * libnl_link: Handle dynamic linking to netlink libraries
  *
  * Authors:	P. Quentin Armitage <Quentin@Armitage.org.uk>
  *

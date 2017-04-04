@@ -92,7 +92,7 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		}
 
 		/* Make sure the ifindex for the address is current */
-		ipaddress->ifa.ifa_index = ipaddress->ifp->ifindex; 
+		ipaddress->ifa.ifa_index = ipaddress->ifp->ifindex;
 	}
 	else if (!ipaddress->ifp->ifindex) {
 		/* The interface has been deleted, so there is no point deleting the address */

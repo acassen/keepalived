@@ -154,7 +154,7 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 		if (ret == -1)
 			log_message(LOG_INFO, "BUG - signal_fd update failed - %d (%s), please report", errno, strerror(errno));
 	}
-	
+
 	if (sigaction(signo, &sig, NULL))
 		log_message(LOG_INFO, "sigaction failed for signalfd");
 

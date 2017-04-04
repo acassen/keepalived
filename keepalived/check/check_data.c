@@ -50,7 +50,7 @@ void
 free_ssl(void)
 {
 	ssl_data_t *ssl;
-       
+
 	if (!check_data)
 		return;
 

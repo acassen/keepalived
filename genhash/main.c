@@ -109,16 +109,16 @@ parse_cmdline(int argc, char **argv, REQ * req_obj)
 	hint.ai_flags = AI_NUMERICHOST;
 
 	struct option long_options[] = {
-		{"release",         no_argument,       0, 'r'},
-		{"help",            no_argument,       0, 'h'},
-		{"verbose",         no_argument,       0, 'v'},
-		{"use-ssl",         no_argument,       0, 'S'},
-		{"server",          required_argument, 0, 's'},
-		{"hash",            required_argument, 0, 'H'},
-		{"use-virtualhost", required_argument, 0, 'V'},
-		{"port",            required_argument, 0, 'p'},
-		{"url",             required_argument, 0, 'u'},
-		{"fwmark",          required_argument, 0, 'm'},
+		{"release",		no_argument,       0, 'r'},
+		{"help",		no_argument,       0, 'h'},
+		{"verbose",		no_argument,       0, 'v'},
+		{"use-ssl",		no_argument,       0, 'S'},
+		{"server",		required_argument, 0, 's'},
+		{"hash",		required_argument, 0, 'H'},
+		{"use-virtualhost",	required_argument, 0, 'V'},
+		{"port",		required_argument, 0, 'p'},
+		{"url",			required_argument, 0, 'u'},
+		{"fwmark",		required_argument, 0, 'm'},
 		{0, 0, 0, 0}
 	};
 

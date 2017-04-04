@@ -121,7 +121,7 @@ static int vrrp_read_dispatcher_thread(thread_t *);
  * This matrix is the strict implementation way. For readability and
  * performance we have implemented some handlers directly into the VRRP
  * FSM or they are handled when the trigger events to/from FAULT state occur.
- * For instance the handlers (2), (4), (5) & (6) are handled when it is 
+ * For instance the handlers (2), (4), (5) & (6) are handled when it is
  * detected that a script or an interface has failed or recovered since
  * it will speed up convergence to init state.
  * Additionaly, we have implemented some other handlers into the matrix

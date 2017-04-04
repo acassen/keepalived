@@ -336,7 +336,7 @@ alloc_garp_delay(void)
 
 	list_add(garp_delay, MALLOC(sizeof(garp_delay_t)));
 }
-	
+
 void
 set_default_garp_delay(void)
 {
@@ -951,15 +951,15 @@ update_added_interface(interface_t *ifp)
 			continue;
 
 #ifdef _HAVE_VRRP_VMAC_
-                if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-                        netlink_link_add_vmac(vrrp);
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
+			netlink_link_add_vmac(vrrp);
 
-                /* Add this instance to the vmac interface */
-//                add_vrrp_to_interface(vrrp, vrrp->ifp);
+		/* Add this instance to the vmac interface */
+//		add_vrrp_to_interface(vrrp, vrrp->ifp);
 
-                /* set scopeid of source address if IPv6 */
-                if (vrrp->saddr.ss_family == AF_INET6)
-                        inet_ip6scopeid(vrrp->ifp->ifindex, &vrrp->saddr);
+		/* set scopeid of source address if IPv6 */
+		if (vrrp->saddr.ss_family == AF_INET6)
+			inet_ip6scopeid(vrrp->ifp->ifindex, &vrrp->saddr);
 #endif
 
 		/* Find the sockpool entry. If none, then we open the socket */

@@ -43,8 +43,8 @@
 #include <libipset/session.h>
 #include <libipset/types.h>
 #include <netinet/in.h>
-#include <linux/types.h>        /* For __beXX types in userland */
-#include <linux/netfilter.h>    /* For nf_inet_addr */
+#include <linux/types.h>	/* For __beXX types in userland */
+#include <linux/netfilter.h>	/* For nf_inet_addr */
 #include <stdint.h>
 #include <stdio.h>
 
@@ -151,7 +151,7 @@ bool
 has_ipset_setname(void* vsession, const char *setname)
 {
 	struct ipset_session *session = vsession;
- 
+
 	ipset_session_data_set(session, IPSET_SETNAME, setname);
 
 	return ipset_cmd1(session, IPSET_CMD_HEADER, 0) == 0;

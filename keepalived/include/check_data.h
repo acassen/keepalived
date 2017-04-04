@@ -229,9 +229,9 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 	   (XS)->gid == (YS)->gid)))
 
 #define VS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&&\
-			 (X)->vfwmark                 == (Y)->vfwmark			&&\
-			 (X)->af                      == (Y)->af			&&\
-			 (X)->service_type            == (Y)->service_type		&&\
+			 (X)->vfwmark		      == (Y)->vfwmark			&&\
+			 (X)->af		      == (Y)->af			&&\
+			 (X)->service_type	      == (Y)->service_type		&&\
 			 (X)->loadbalancing_kind      == (Y)->loadbalancing_kind	&&\
 			 (X)->persistence_granularity == (Y)->persistence_granularity	&&\
 			 VS_SCRIPT_ISEQ((X)->quorum_up, (Y)->quorum_up)			&&\

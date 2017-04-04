@@ -89,7 +89,7 @@ tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
 #ifdef _WITH_LVS_
 static inline int
 tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
-             int (*func) (thread_t *), unsigned long timeout)
+		     int (*func) (thread_t *), unsigned long timeout)
 {
 	return socket_connection_state(fd, status, thread, func, timeout);
 }

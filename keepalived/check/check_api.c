@@ -285,7 +285,7 @@ static bool
 addr_matches(const virtual_server_t *vs, void *address)
 {
 	void *addr;
-        virtual_server_group_entry_t *vsg_entry;
+	virtual_server_group_entry_t *vsg_entry;
 
 	if (vs->addr.ss_family != AF_UNSPEC) {
 		if (vs->addr.ss_family == AF_INET6)

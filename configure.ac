@@ -230,7 +230,7 @@ KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2"
 KA_LDFLAGS=
 KA_LIBS=
 NEED_LIBDL=No
-#KA_LIBTOOLFLAGS = 
+#KA_LIBTOOLFLAGS =
 
 if test "$enable_conversion_checks" = yes; then
   # Check if we can sensibly enable -Wconversion
@@ -243,14 +243,14 @@ if test "$enable_conversion_checks" = yes; then
     #include <stdint.h>
     #include <stdbool.h>
     #include <linux/rtnetlink.h>
-    
+
     #define VAL	255
-    
+
     static void
     fun(uint8_t val)
     {
     }
-    
+
     int main(int argc, char**argv)
     {
       fd_set set;
@@ -262,18 +262,18 @@ if test "$enable_conversion_checks" = yes; then
       char *c_ptr = c;
       struct rtattr rta;
       struct rtattr *rta_p = &rta;
-    
+
       FD_SET(argc+1, &set);
-    
+
       fun(argc == VAL ? VAL : val);
-    
+
       //      vrrp->lower_prio_no_advert = vrrp->strict_mode ? true : global_data->vrrp_lower_prio_no_advert;
       u = u ? true : b;
-    
+
       size = RTA_LENGTH(size);
       c_ptr = RTA_DATA(c_ptr);
       rta_p = RTA_NEXT(rta_p, size);
-    
+
       val = (u < 256 ) ? u & 0xff : 0;
     }
     ]])],
@@ -565,7 +565,7 @@ if test .${enable_libnl} != .no; then
           ])
       fi
     ])
-  
+
   if test $NETLINK_VER -ne 0; then
     SAV_CPPFLAGS="$CPPFLAGS"
     CPPFLAGS="$CPPFLAGS $kernelinc"
@@ -705,7 +705,7 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
               USE_LIBIPSET=No
               break
             ])
-  
+
           if test $USE_LIBIPSET = Yes; then
             AC_CHECK_LIB(xtables, xtables_insmod, [], [USE_LIBIPSET=No])
           fi
@@ -723,7 +723,7 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
                 ], [AC_MSG_ERROR([Missing/unusable kernel header file <linux/netfilter/xt_set.h>])],
                 [[#include <libipset/linux_ip_set.h>]])])
             AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [$EXTRA_INCLUDE])
-  
+
             AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
             $PKG_CONFIG --exists libipset
             if test $? -eq 0; then

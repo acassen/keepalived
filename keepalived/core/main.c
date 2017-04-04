@@ -620,7 +620,7 @@ core_dump_init(void)
 
 	if (set_core_dump_pattern) {
 		/* If we set the core_pattern here, we will attempt to restore it when we
-		 * exit. This will be fine if it is a child of ours that core dumps, 
+		 * exit. This will be fine if it is a child of ours that core dumps,
 		 * but if we ourself core dump, then the core_pattern will not be restored */
 		update_core_dump_pattern(core_dump_pattern);
 	}
@@ -633,7 +633,7 @@ core_dump_init(void)
 			log_message(LOG_INFO, "Failed to set core file size");
 	}
 }
-		
+
 /* Usage function */
 static void
 usage(const char *prog)
@@ -690,47 +690,47 @@ parse_cmdline(int argc, char **argv)
 	bool reopen_log = false;
 
 	struct option long_options[] = {
-		{"use-file",          required_argument, 0, 'f'},
+		{"use-file",		required_argument, 0, 'f'},
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
-		{"vrrp",              no_argument,       0, 'P'},
-		{"check",             no_argument,       0, 'C'},
+		{"vrrp",		no_argument,       0, 'P'},
+		{"check",		no_argument,       0, 'C'},
 #endif
-		{"log-console",       no_argument,       0, 'l'},
-		{"log-detail",        no_argument,       0, 'D'},
-		{"log-facility",      required_argument, 0, 'S'},
+		{"log-console",		no_argument,       0, 'l'},
+		{"log-detail",		no_argument,       0, 'D'},
+		{"log-facility",	required_argument, 0, 'S'},
 #ifdef _WITH_VRRP_
-		{"release-vips",      no_argument,       0, 'X'},
-		{"dont-release-vrrp", no_argument,       0, 'V'},
+		{"release-vips",	no_argument,       0, 'X'},
+		{"dont-release-vrrp",	no_argument,       0, 'V'},
 #endif
 #ifdef _WITH_LVS_
-		{"dont-release-ipvs", no_argument,       0, 'I'},
+		{"dont-release-ipvs",	no_argument,       0, 'I'},
 #endif
-		{"dont-respawn",      no_argument,       0, 'R'},
-		{"dont-fork",         no_argument,       0, 'n'},
-		{"dump-conf",         no_argument,       0, 'd'},
-		{"pid",               required_argument, 0, 'p'},
+		{"dont-respawn",	no_argument,       0, 'R'},
+		{"dont-fork",		no_argument,       0, 'n'},
+		{"dump-conf",		no_argument,       0, 'd'},
+		{"pid",			required_argument, 0, 'p'},
 #ifdef _WITH_VRRP_
-		{"vrrp_pid",          required_argument, 0, 'r'},
+		{"vrrp_pid",		required_argument, 0, 'r'},
 #endif
 #ifdef _WITH_LVS_
-		{"checkers_pid",      required_argument, 0, 'c'},
-		{"address-monitoring",no_argument,       0, 'a'},
+		{"checkers_pid",	required_argument, 0, 'c'},
+		{"address-monitoring",	no_argument,       0, 'a'},
 #endif
 #ifdef _WITH_SNMP_
-		{"snmp",              no_argument,       0, 'x'},
-		{"snmp-agent-socket", required_argument, 0, 'A'},
+		{"snmp",		no_argument,       0, 'x'},
+		{"snmp-agent-socket",	required_argument, 0, 'A'},
 #endif
-		{"core-dump",         no_argument,       0, 'm'},
-		{"core-dump-pattern", optional_argument, 0, 'M'},
+		{"core-dump",		no_argument,       0, 'm'},
+		{"core-dump-pattern",	optional_argument, 0, 'M'},
 #ifdef _MEM_CHECK_LOG_
-		{"mem-check-log",     no_argument,       0, 'L'},
+		{"mem-check-log",	no_argument,       0, 'L'},
 #endif
 #if HAVE_DECL_CLONE_NEWNET
-		{"namespace",         required_argument, 0, 's'},
-#endif	
-		{"config-id",         required_argument, 0, 'i'},
-		{"version",           no_argument,       0, 'v'},
-		{"help",              no_argument,       0, 'h'},
+		{"namespace",		required_argument, 0, 's'},
+#endif
+		{"config-id",		required_argument, 0, 'i'},
+		{"version",		no_argument,       0, 'v'},
+		{"help",		no_argument,       0, 'h'},
 		{0, 0, 0, 0}
 	};
 
@@ -738,7 +738,7 @@ parse_cmdline(int argc, char **argv)
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
-#ifdef _WITH_VRRP_ 
+#ifdef _WITH_VRRP_
 					    "r:VX"
 #endif
 #ifdef _WITH_LVS_

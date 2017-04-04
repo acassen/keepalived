@@ -1074,7 +1074,7 @@ vrrp_snmp_route(struct variable *vp, oid *name, size_t *length,
 #else
 		if (!(route->mask & IPROUTE_BIT_PREF))
 			break;
-		long_ret.u = 
+		long_ret.u =
 			route->pref == ICMPV6_ROUTER_PREF_LOW ? 1 :
 			route->pref == ICMPV6_ROUTER_PREF_MEDIUM ? 2 :
 			route->pref == ICMPV6_ROUTER_PREF_HIGH ? 3 : 0;

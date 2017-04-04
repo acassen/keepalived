@@ -214,7 +214,7 @@ is_executable(struct stat *buf, uid_t uid, gid_t gid)
 {
 	return (uid == 0 && buf->st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) ||
 	       (uid == buf->st_uid && buf->st_mode & S_IXUSR) ||
-	       (uid != buf->st_uid && 
+	       (uid != buf->st_uid &&
 		((gid == buf->st_gid && buf->st_mode & S_IXGRP) ||
 		 (gid != buf->st_gid && buf->st_mode & S_IXOTH)));
 }
@@ -382,7 +382,7 @@ find_path(notify_script_t *script)
 				errno = EACCES;
 			} else {
 				/* Success */
-				log_message(LOG_INFO, "WARNING - script `%s` resolved by path search to `%s`. Please specify full path.", script->args[0], buffer); 
+				log_message(LOG_INFO, "WARNING - script `%s` resolved by path search to `%s`. Please specify full path.", script->args[0], buffer);
 
 				/* Copy the found file name, and any parameters */
 				replace_cmd_name(script, buffer);
@@ -719,7 +719,7 @@ set_default_script_user(const char *username, const char *groupname)
 	if (!default_script_uid_set || username) {
 		/* Even if we fail to set it, there is no point in trying again */
 		default_script_uid_set = true;
- 
+
 		if (set_uid_gid(username, groupname, &default_script_uid, &default_script_gid, true)) {
 			if (username || script_security)
 				default_user_fail = true;
@@ -736,7 +736,7 @@ set_script_uid_gid(vector_t *strvec, unsigned keyword_offset, uid_t *uid_p, gid_
 {
 	char *username;
 	char *groupname;
- 
+
 	username = strvec_slot(strvec, keyword_offset);
 	if (vector_size(strvec) > keyword_offset + 1)
 		groupname = strvec_slot(strvec, keyword_offset + 1);

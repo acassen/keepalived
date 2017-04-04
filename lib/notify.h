@@ -33,7 +33,7 @@
 #include "vector.h"
 
 /* Flags returned by check_script_secure() */
-#define SC_INSECURE     0x01    /* Script is insecure */ 
+#define SC_INSECURE     0x01    /* Script is insecure */
 #define SC_ISSCRIPT     0x02    /* It is a script */
 #define SC_INHIBIT      0x04    /* Script needs inhibiting */
 #define SC_NOTFOUND	0x08	/* Cannot find element of path */

@@ -66,7 +66,7 @@ ndisc_send_na(ip_address_t *ipaddress)
 		inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, sizeof(addr_str));
 		log_message(LOG_INFO, "Sending unsolicited Neighbour Advert on %s for %s",
 			    IF_NAME(ipaddress->ifp), addr_str);
-	
+
 	}
 
 	/* Send packet */

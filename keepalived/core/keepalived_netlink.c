@@ -1276,8 +1276,8 @@ netlink_route_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct nlm
 	rt = NLMSG_DATA(h);
 
 // log_message(LOG_INFO, "Netlink route message (%s): IPv%d, table %d, protocol %d, type %d, scope %d, dlen %d, slen %d, flags 0x%x",
-// 	h->nlmsg_type == RTM_NEWROUTE ? "add" : "del", rt->rtm_family == AF_INET ? 4 : rt->rtm_family == AF_INET6 ? 6 : -rt->rtm_family,
-// 	rt->rtm_table, rt->rtm_protocol, rt->rtm_type, rt->rtm_scope, rt->rtm_dst_len, rt->rtm_src_len, rt->rtm_flags);
+//	h->nlmsg_type == RTM_NEWROUTE ? "add" : "del", rt->rtm_family == AF_INET ? 4 : rt->rtm_family == AF_INET6 ? 6 : -rt->rtm_family,
+//	rt->rtm_table, rt->rtm_protocol, rt->rtm_type, rt->rtm_scope, rt->rtm_dst_len, rt->rtm_src_len, rt->rtm_flags);
 
 	/* Only IPv4 and IPv6 are valid for us */
 	if (rt->rtm_family != AF_INET && rt->rtm_family != AF_INET6)

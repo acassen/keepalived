@@ -47,7 +47,7 @@
 #define LB_MII     0x2
 #define LB_ETHTOOL 0x4
 
-/* I don't know what the correct type is. 
+/* I don't know what the correct type is.
  * The kernel has ifindex in the range [1, INT_MAX], but IFLA_LINK is defined
  * to be __u32. See dev_new_index() in net/core/dev.c and net/core/rtnetlink.c.
  * ifaddrmsg.ifa_index (See /usr/include/linux/if_addr.h> is __u32.

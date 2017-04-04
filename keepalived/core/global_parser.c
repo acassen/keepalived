@@ -84,7 +84,7 @@ smtpserver_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 3)
 		port_str = strvec_slot(strvec,2);
 
-	/* It can't be an IP address if it contains '-' or '/', and 
+	/* It can't be an IP address if it contains '-' or '/', and
 	   inet_stosockaddr() modifies the string if it contains either of them */
 	if (!strpbrk(strvec_slot(strvec, 1), "-/"))
 		ret = inet_stosockaddr(strvec_slot(strvec, 1), port_str, &global_data->smtp_server);
@@ -636,7 +636,7 @@ static void
 net_namespace_handler(vector_t *strvec)
 {
 	/* If we are reloading, there has already been a check that the
-	 * namespace hasn't changed */ 
+	 * namespace hasn't changed */
 	if (!reload) {
 		if (!network_namespace) {
 			network_namespace = set_value(strvec);
