@@ -262,10 +262,11 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 
 			if (!tsc->weight) {
 				if (tsc->scr->result == VRRP_SCRIPT_STATUS_INIT ||
+				    tsc->scr->result == VRRP_SCRIPT_STATUS_INIT_FAILED ||
 				    (tsc->scr->result >= 0 && tsc->scr->result < tsc->scr->rise)) {
 					/* The script is in fault state */
 					vrrp->num_script_if_fault++;
-					if (tsc->scr->result >= 0)	/* Not INIT_STATE etc */
+					if (tsc->scr->result != VRRP_SCRIPT_STATUS_INIT)
 						vrrp->state = VRRP_STATE_FAULT;
 				}
 				continue;
