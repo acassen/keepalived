@@ -307,9 +307,6 @@ start_vrrp(void)
 		clear_rt_names();
 	}
 
-	/* Initialize linkbeat */
-	init_interface_linkbeat();
-
 	/* Init & start the VRRP packet dispatcher */
 	thread_add_event(master, vrrp_dispatcher_init, NULL,
 			 VRRP_DISPATCHER);

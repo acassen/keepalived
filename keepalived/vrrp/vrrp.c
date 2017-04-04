@@ -2818,6 +2818,9 @@ vrrp_complete_init(void)
 		iptables_cleanup();
 #endif
 
+	/* We need to know the state of interfaces for the next loop */
+	init_interface_linkbeat();
+
 	/* Check for instance down due to an interface or script */
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);

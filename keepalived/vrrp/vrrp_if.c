@@ -507,6 +507,7 @@ init_interface_linkbeat(void)
 	element e;
 	int status;
 	bool linkbeat_in_use = false;
+	bool if_up;
 
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
@@ -531,14 +532,18 @@ init_interface_linkbeat(void)
 		status = if_mii_probe(ifp->ifname);
 		if (status >= 0) {
 			ifp->lb_type = LB_MII;
-			ifp->ifi_flags = status ? IFF_UP | IFF_RUNNING : 0;
-		} else {
-			status = if_ethtool_probe(ifp->ifname);
-			if (status >= 0) {
-				ifp->lb_type = LB_ETHTOOL;
-				ifp->ifi_flags = status ? IFF_UP | IFF_RUNNING : 0;
-			}
+			if_up = !!status;
+		} else if ((status = if_ethtool_probe(ifp->ifname)) >= 0) {
+			ifp->lb_type = LB_ETHTOOL;
+			if_up = !!status;
 		}
+		else
+			if_up = true;
+		if (if_up)
+			if_up = if_ioctl_flags(ifp);
+
+		ifp->ifi_flags = if_up ? IFF_UP | IFF_RUNNING : 0;
+
 		/* Register new monitor thread */
 		thread_add_timer(master, if_linkbeat_refresh_thread, ifp, POLLING_DELAY);
 	}
