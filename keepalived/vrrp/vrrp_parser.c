@@ -729,8 +729,6 @@ vrrp_vscript_script_handler(vector_t *strvec)
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 	vscript->script.args = set_script_params_array(strvec, true);
 	vscript->script.cmd_str = set_value(strvec);
-	vscript->script.uid = default_script_uid;
-	vscript->script.gid = default_script_gid;
 }
 static void
 vrrp_vscript_interval_handler(vector_t *strvec)
@@ -778,8 +776,10 @@ vrrp_vscript_user_handler(vector_t *strvec)
 		log_message(LOG_INFO, "Unable to set uid/gid for script %s", vscript->script.cmd_str);
 		remove_script = true;
 	}
-	else
+	else {
 		remove_script = false;
+		script_user_set = true;
+	}
 }
 static void
 vrrp_vscript_end_handler(void)
