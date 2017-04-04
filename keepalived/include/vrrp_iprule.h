@@ -27,6 +27,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <sys/types.h>
+#if HAVE_DECL_FRA_UID_RANGE
+#include <linux/fib_rules.h>
+#endif
 
 /* local includes */
 #include "vrrp_if.h"
