@@ -302,6 +302,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		ipaddress.ifa.ifa_family = AF_INET6;
 		ipaddress.ifa.ifa_prefixlen = 64;
 		ipaddress.ifa.ifa_index = vrrp->ifp->ifindex;
+		ipaddress.ifp = vrrp->ifp;
 
 		if (netlink_ipaddress(&ipaddress, IPADDRESS_DEL) != 1 && create_interface)
 			log_message(LOG_INFO, "Deleting auto link-local address from vmac failed");
