@@ -502,7 +502,6 @@ check_script_secure(notify_script_t *script)
 	/* Remove /./, /../, multiple /'s, and resolve symbolic links */
 	new_path = realpath(script->args[0], NULL);
 	sav_errno = errno;
-
 	if (script->gid)
 		setegid(old_gid);
 	if (script->uid)
@@ -529,6 +528,7 @@ check_script_secure(notify_script_t *script)
 		while (*wp) {
 			len += strlen(*wp) + 1;
 			num_words++;
+			wp++;
 		}
 		params = word_ptrs = MALLOC((num_words + 1) * sizeof(char *) + len);
 		words = (char *)params + (num_words + 1) * sizeof(char *);
