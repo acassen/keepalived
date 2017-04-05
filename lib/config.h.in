@@ -602,6 +602,9 @@
 /* Define to 1 if have IPVS 64 bit stats */
 #undef _WITH_LVS_64BIT_STATS_
 
+/* Define to 1 if using pthreads */
+#undef _WITH_PTHREADS_
+
 /* Define to 1 to have SHA1 support */
 #undef _WITH_SHA1_
 

@@ -186,11 +186,11 @@ script_killall(thread_master_t *m, int signo)
 	thread_t *thread;
 	pid_t p_pgid, c_pgid;
 
-	sigprocmask(0, NULL, &old_set);
+	sigmask_func(0, NULL, &old_set);
 	if (!sigismember(&old_set, SIGCHLD)) {
 		sigemptyset(&child_wait);
 		sigaddset(&child_wait, SIGCHLD);
-		sigprocmask(SIG_BLOCK, &child_wait, NULL);
+		sigmask_func(SIG_BLOCK, &child_wait, NULL);
 	}
 
 	thread = m->child.head;
@@ -206,7 +206,7 @@ script_killall(thread_master_t *m, int signo)
 	}
 
 	if (!sigismember(&old_set, SIGCHLD))
-		sigprocmask(SIG_UNBLOCK, &child_wait, NULL);
+		sigmask_func(SIG_UNBLOCK, &child_wait, NULL);
 }
 
 static bool

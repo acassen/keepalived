@@ -24,7 +24,20 @@
 #ifndef _SIGNALS_H
 #define _SIGNALS_H
 
+#include "config.h"
+
+#include <signal.h>
 #include <stdbool.h>
+
+static inline int
+sigmask_func(int how, const sigset_t *set, sigset_t *oldset)
+{
+#ifdef _WITH_PTHREADS_
+    return pthread_sigmask(how, set, oldset);
+#else
+    return sigprocmask(how, set, oldset);
+#endif
+}
 
 /* Prototypes */
 extern void signal_set(int, void (*) (void *, int), void *);

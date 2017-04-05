@@ -440,11 +440,11 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	signalfd(signal_fd, &sigmask, 0);
 	FD_ZERO(&read_set);
 #else
-	sigprocmask(0, NULL, &old_set);
+	sigmask_func(0, NULL, &old_set);
 	if (!sigismember(&old_set, SIGCHLD)) {
 		sigemptyset(&child_wait);
 		sigaddset(&child_wait, SIGCHLD);
-		sigprocmask(SIG_BLOCK, &child_wait, NULL);
+		sigmask_func(SIG_BLOCK, &child_wait, NULL);
 	}
 #endif
 
@@ -550,7 +550,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 
 #ifndef HAVE_SIGNALFD
 	if (!sigismember(&old_set, SIGCHLD))
-		sigprocmask(SIG_UNBLOCK, &child_wait, NULL);
+		sigmask_func(SIG_UNBLOCK, &child_wait, NULL);
 #endif
 }
 

@@ -144,7 +144,7 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 	}
 	else {
 		sigaddset(&signal_fd_set, signo);
-		sigprocmask(SIG_BLOCK, &sset, NULL);
+		sigmask_func(SIG_BLOCK, &sset, NULL);
 		sig.sa_handler = SIG_DFL;
 	}
 
@@ -159,7 +159,7 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 		log_message(LOG_INFO, "sigaction failed for signalfd");
 
 	if (!func)
-		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+		sigmask_func(SIG_UNBLOCK, &sset, NULL);
 #else
 	if (func)
 		sig.sa_handler = signal_handler;
@@ -176,7 +176,7 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 	if (func) {
 		sigemptyset(&sset);
 		sigaddset(&sset, signo);
-		sigprocmask(SIG_BLOCK, &sset, NULL);
+		sigmask_func(SIG_BLOCK, &sset, NULL);
 
 		/* If we are the parent, remember what signals
 		 * we set, so vrrp and checker children can clear them */
@@ -219,7 +219,7 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 
 	/* Release the signal */
 	if (func != NULL)
-		sigprocmask(SIG_UNBLOCK, &sset, NULL);
+		sigmask_func(SIG_UNBLOCK, &sset, NULL);
 #endif
 }
 
@@ -316,7 +316,7 @@ signal_handler_init(void)
 
 #ifdef HAVE_SIGNALFD
 	sigemptyset(&sset);
-	sigprocmask(SIG_SETMASK, &sset, NULL);
+	sigmask_func(SIG_SETMASK, &sset, NULL);
 #endif
 }
 
@@ -398,7 +398,7 @@ signal_handler_script(void)
 
 #ifdef HAVE_SIGNALFD
 	sigemptyset(&sset);
-	sigprocmask(SIG_SETMASK, &sset, NULL);
+	sigmask_func(SIG_SETMASK, &sset, NULL);
 #endif
 }
 

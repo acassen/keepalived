@@ -1290,6 +1290,12 @@ if test ${NEED_LIBDL} = Yes; then
   add_to_var([KA_LIBS], [-ldl])
 fi
 
+dnl ----[ Determine if we are using pthreads ]----
+echo " $KA_LIBS" | grep -qE -- " -l?pthread "
+if test $? -eq 0 ;then
+  AC_DEFINE([_WITH_PTHREADS_], [ 1 ], [Define to 1 if using pthreads])
+fi
+
 dnl ----[ Determine system init type]----
 INIT_TYPE=
 if test -z $init_type; then

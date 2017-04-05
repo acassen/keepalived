@@ -10111,6 +10111,13 @@ if test ${NEED_LIBDL} = Yes; then
   KA_LIBS="$KA_LIBS -ldl"
 fi
 
+echo " $KA_LIBS" | grep -qE -- " -l?pthread "
+if test $? -eq 0 ;then
+
+$as_echo "#define _WITH_PTHREADS_  1 " >>confdefs.h
+
+fi
+
 INIT_TYPE=
 if test -z $init_type; then
   /sbin/init --version 2>/dev/null | grep -q upstart
