@@ -2731,7 +2731,7 @@ vrrp_complete_init(void)
 	 * e - Element equal to a specific VRRP instance
 	 * eo- Element equal to a specific group within old global group list
 	 */
-	element e, e2, oe;
+	element e, oe;
 	vrrp_t *vrrp, *old_vrrp;
 	vrrp_sgroup_t *sgroup, *old_sgroup;
 	list l_o;
@@ -2881,24 +2881,10 @@ vrrp_complete_init(void)
 		}
 
 #if 0
-		/* Restore status of any sync group that existed before */
-// TODO-PQA - is this relevant any more?
+		/* Send notifactions for any sync group that has changed state */
 		for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; e = next) {
 			next = e->next;
 			sgroup = ELEMENT_DATA(e);
-
-			/* Set the sync group state based on its members */
-			if (sgroup->state != VRRP_STATE_FAULT) {
-				sgroup->state = VRRP_STATE_MAST;
-				for (e2 = LIST_HEAD(sgroup->index_list); e2; ELEMENT_NEXT(e2)) {
-					vrrp = ELEMENT_DATA(e2);
-					if (vrrp->state == VRRP_STATE_BACK ||
-					    vrrp->state == VRRP_STATE_INIT) {
-						sgroup->state = VRRP_STATE_BACK;
-						break;
-					}
-				}
-			}
 
 			for (oe = LIST_HEAD(old_vrrp_data->vrrp_sync_group); oe; ELEMENT_NEXT(oe)) {
 				old_sgroup = ELEMENT_DATA(oe);
