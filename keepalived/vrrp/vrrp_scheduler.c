@@ -200,6 +200,7 @@ vrrp_init_state(list l)
 		is_up = VRRP_ISUP(vrrp);
 
 		if (is_up &&
+		    new_state == VRRP_STATE_MAST &&
 		    !vrrp->num_script_init && (!vrrp->sync || !vrrp->sync->num_member_init) &&
 		    vrrp->base_priority == VRRP_PRIO_OWNER &&
 		    vrrp->init_state == VRRP_STATE_MAST) {
@@ -237,10 +238,10 @@ vrrp_init_state(list l)
 
 			/* Set interface state */
 			vrrp_restore_interface(vrrp, false, false);
-			if (is_up && !vrrp->num_script_init && (!vrrp->sync || !vrrp->sync->num_member_init)) {
+			if (is_up && new_state != VRRP_STATE_FAULT && !vrrp->num_script_init && (!vrrp->sync || !vrrp->sync->num_member_init)) {
 				if (is_up) {
 					vrrp->state = VRRP_STATE_BACK;
-					log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
+					log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE (init)", vrrp->iname);
 				}
 				else {
 					vrrp->state = VRRP_STATE_FAULT;

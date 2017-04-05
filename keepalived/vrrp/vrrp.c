@@ -2838,11 +2838,31 @@ vrrp_complete_init(void)
 		/* Set effective priority and fault state */
 		initialise_tracking_priorities(vrrp);
 
-		/* Update fault count on sync group if needed */
-		if (vrrp->sync && vrrp->num_script_init) {
-			vrrp->sync->num_member_init++;
-			vrrp->sync->state = VRRP_STATE_INIT;
+		if (vrrp->sync) {
+			if (vrrp->state == VRRP_STATE_FAULT) {
+				vrrp->sync->state = VRRP_STATE_FAULT;
+// TODO-PQA - do we update this elsewhere? */
+				vrrp->sync->num_member_fault++;
+			}
+			else if (vrrp->num_script_init) {
+				/* Update init count on sync group if needed */
+// TODO-PQA - do we update this elsewhere? */
+				vrrp->sync->num_member_init++;
+				if (vrrp->sync->state != VRRP_STATE_FAULT)
+					vrrp->sync->state = VRRP_STATE_INIT;
+			}
 		}
+	}
+
+// What we want to do is make all the settings for vrrp instances, including scripts in init
+// Then copy old vrrp master/backup in !fault or num_script_init
+//   and then go through and set up sync groups in fault or init with counts
+// TODO-PQA
+	/* Set all sync group members to fault state if sync group is in fault state */
+	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+		if (vrrp->sync && vrrp->sync->state == VRRP_STATE_FAULT)
+			vrrp->state = VRRP_STATE_FAULT;
 	}
 
 	if (reload) {
@@ -2852,15 +2872,15 @@ vrrp_complete_init(void)
 			vrrp = vrrp_exist(old_vrrp);
 			if (vrrp) {
 				/* If we have detected a fault, don't override it */
-				if (vrrp->state == VRRP_STATE_FAULT)
+				if (vrrp->state == VRRP_STATE_FAULT || vrrp->num_script_init)
 					continue;
 
-// TODO-PQA For state, we need to set the script states first, and only do this if not FAULT
 				vrrp->state = old_vrrp->state;
 				vrrp->wantstate = old_vrrp->state;
 			}
 		}
 
+#if 0
 		/* Restore status of any sync group that existed before */
 // TODO-PQA - is this relevant any more?
 		for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; e = next) {
@@ -2897,6 +2917,7 @@ vrrp_complete_init(void)
 				}
 			}
 		}
+#endif
 	}
 
 #ifdef _WITH_LVS_
