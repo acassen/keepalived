@@ -168,19 +168,15 @@ vrrp_init_state(list l)
 {
 	vrrp_t *vrrp;
 	vrrp_sgroup_t *vgroup;
-	element e, e1;
+	element e;
 	bool is_up;
 	int new_state;
-	vrrp_script_t *vs;
-	tracked_sc_t *ts;
-	unsigned num_script_fault;
-	bool is_up_except_scripts;
 
 	/* Do notifications for any sync groups in fault state */
 	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
 		/* Init group if needed  */
 		vgroup = ELEMENT_DATA(e);
-// TODO 1 - don't report fault state if just running scripts. Have an init state??
+
 		if (vgroup->state == VRRP_STATE_FAULT) {
 			vrrp_sync_smtp_notifier(vgroup);
 			notify_group_exec(vgroup, VRRP_STATE_FAULT);
@@ -201,24 +197,10 @@ vrrp_init_state(list l)
 		}
 		new_state = vrrp->sync ? vrrp->sync->state : vrrp->wantstate;
 
-		is_up_except_scripts = (!vrrp->sync || GROUP_STATE(vrrp->sync) != VRRP_STATE_FAULT);
-		is_up = (VRRP_ISUP(vrrp) && is_up_except_scripts);
-		if (!is_up && is_up_except_scripts && !(LIST_ISEMPTY(vrrp->track_script))) {
-			/* We need to know if it is only down due to uninitialised scripts */
-			num_script_fault = 0;
-			for (e1 = LIST_HEAD(vrrp->track_script); e1; ELEMENT_NEXT(e1)) {
-				ts = ELEMENT_DATA(e1);
-				vs = ts->scr;
-				if (!ts->weight && vs->last_status == VRRP_SCRIPT_STATUS_NOT_SET)
-					num_script_fault++;
-			}
-			if (vrrp->num_script_if_fault != num_script_fault)
-				is_up_except_scripts = false;
-		}
-		else
-			is_up_except_scripts = is_up;
+		is_up = VRRP_ISUP(vrrp);
 
 		if (is_up &&
+		    !vrrp->num_script_init && (!vrrp->sync || !vrrp->sync->num_member_init) &&
 		    vrrp->base_priority == VRRP_PRIO_OWNER &&
 		    vrrp->init_state == VRRP_STATE_MAST) {
 #ifdef _WITH_LVS_
@@ -255,14 +237,14 @@ vrrp_init_state(list l)
 
 			/* Set interface state */
 			vrrp_restore_interface(vrrp, false, false);
-			if (is_up || !is_up_except_scripts) {
+			if (is_up && !vrrp->num_script_init && (!vrrp->sync || !vrrp->sync->num_member_init)) {
 				if (is_up) {
 					vrrp->state = VRRP_STATE_BACK;
 					log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
 				}
 				else {
 					vrrp->state = VRRP_STATE_FAULT;
-					log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE", vrrp->iname);
+					log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE (init)", vrrp->iname);
 				}
 				vrrp_smtp_notifier(vrrp);
 				notify_instance_exec(vrrp, vrrp->state);
@@ -287,7 +269,6 @@ vrrp_init_sands(list l)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-// TODO 1 this is probably not the right way of bringing up the address owner immediately
 		if (vrrp->base_priority != VRRP_PRIO_OWNER || vrrp->init_state != VRRP_STATE_MAST)
 			vrrp_init_instance_sands(vrrp);
 		else
@@ -693,11 +674,15 @@ vrrp_master(vrrp_t * vrrp)
 }
 
 void
-try_up_instance(vrrp_t *vrrp)
+try_up_instance(vrrp_t *vrrp, bool leaving_init)
 {
 	int wantstate;
 
-	if (--vrrp->num_script_if_fault)
+	if (leaving_init) {
+		if (vrrp->num_script_if_fault)
+			return;
+	}
+	else if (--vrrp->num_script_if_fault || vrrp->num_script_init)
 		return;
 
 	if (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER)
@@ -708,8 +693,14 @@ try_up_instance(vrrp_t *vrrp)
 	vrrp->master_adver_int = vrrp->adver_int;
 	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 
-	if (vrrp->sync && --vrrp->sync->num_member_fault)
-		return;
+	if (vrrp->sync) {
+		if (leaving_init) {
+			if (vrrp->sync->num_member_fault)
+				return;
+		}
+		else if (--vrrp->sync->num_member_fault || vrrp->sync->num_member_init)
+			return;
+	}
 
 	/* If the sync group can't go to master, we must go to backup state */
 	wantstate = vrrp->wantstate;

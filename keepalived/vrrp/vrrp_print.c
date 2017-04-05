@@ -99,6 +99,7 @@ vgroup_print(FILE *file, void *data)
 		}
 	}
 	fprintf(file, "   member instances down = %d\n", vgroup->num_member_fault);
+	fprintf(file, "   member instances init = %d\n", vgroup->num_member_init);
 	if (vgroup->global_tracking)
 		fprintf(file, "   global tracking set\n");
 	if (vgroup->script_backup)
@@ -304,6 +305,8 @@ vrrp_print(FILE *file, void *data)
 	}
 	fprintf(file, "   Wantstate = %s\n", get_state_str(vrrp->wantstate));
 	ctime_r(&vrrp->last_transition.tv_sec, time_str);
+	fprintf(file, "   Number of interface and track script faults = %d\n", vrrp->num_script_if_fault);
+	fprintf(file, "   Number of track scripts init = %d\n", vrrp->num_script_init);
 	fprintf(file, "   Last transition = %ld (%.24s)\n", vrrp->last_transition.tv_sec, time_str);
 	if (!ctime_r(&vrrp->sands.tv_sec, time_str))
 		strcpy(time_str, "invalid time ");

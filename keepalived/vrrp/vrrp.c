@@ -2839,10 +2839,9 @@ vrrp_complete_init(void)
 		initialise_tracking_priorities(vrrp);
 
 		/* Update fault count on sync group if needed */
-		if (vrrp->sync && vrrp->num_script_if_fault) {
-			vrrp->sync->num_member_fault++;
-			vrrp->state = VRRP_STATE_FAULT;
-			vrrp->sync->state = VRRP_STATE_FAULT;
+		if (vrrp->sync && vrrp->num_script_init) {
+			vrrp->sync->num_member_init++;
+			vrrp->sync->state = VRRP_STATE_INIT;
 		}
 	}
 

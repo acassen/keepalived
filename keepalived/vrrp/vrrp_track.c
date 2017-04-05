@@ -168,6 +168,7 @@ update_script_priorities(vrrp_script_t *vscript, bool script_ok)
 	element e, e1;
 	vrrp_t *vrrp;
 	tracked_sc_t *tsc;
+	bool instance_left_init = false;
 
 	if (LIST_ISEMPTY(vscript->vrrp))
 		return;
@@ -185,18 +186,23 @@ update_script_priorities(vrrp_script_t *vscript, bool script_ok)
 			if (tsc->scr != vscript)
 				continue;
 
+			if (!tsc->weight && vscript->last_status == VRRP_SCRIPT_STATUS_NOT_SET) {
+				/* We need to adjust the number of scripts in init state */
+				if (!--vrrp->num_script_init) {
+					instance_left_init = true;
+					if (vrrp->sync)
+						vrrp->sync->num_member_init--;
+				}
+			}
+
 			if (!tsc->weight) {
 				if (!script_ok) {
-					if (vscript->last_status == VRRP_SCRIPT_STATUS_NOT_SET) {
-						/* We need to adjust the number of down scripts, since we had counted it as down */
-						vrrp->num_script_if_fault--;
-					}
-
 					/* The instance needs to go down */
 					down_instance(vrrp);
-				} else {
+				} else if (!vrrp->num_script_init &&
+					   (!vrrp->sync || !vrrp->sync->num_member_init)) {
 					/* The instance can come up */
-					try_up_instance(vrrp);  // Set want_state = BACKUP/MASTER, and check i/fs and sync groups
+					try_up_instance(vrrp, instance_left_init);  // Set want_state = BACKUP/MASTER, and check i/fs and sync groups
 				}
 				break;
 			}
@@ -261,13 +267,13 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 			}
 
 			if (!tsc->weight) {
-				if (tsc->scr->result == VRRP_SCRIPT_STATUS_INIT ||
-				    tsc->scr->result == VRRP_SCRIPT_STATUS_INIT_FAILED ||
-				    (tsc->scr->result >= 0 && tsc->scr->result < tsc->scr->rise)) {
+				if (tsc->scr->result == VRRP_SCRIPT_STATUS_INIT)
+					vrrp->num_script_init++;
+				else if (tsc->scr->result == VRRP_SCRIPT_STATUS_INIT_FAILED ||
+					 (tsc->scr->result >= 0 && tsc->scr->result < tsc->scr->rise)) {
 					/* The script is in fault state */
 					vrrp->num_script_if_fault++;
-					if (tsc->scr->result != VRRP_SCRIPT_STATUS_INIT)
-						vrrp->state = VRRP_STATE_FAULT;
+					vrrp->state = VRRP_STATE_FAULT;
 				}
 				continue;
 			}

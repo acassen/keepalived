@@ -109,6 +109,7 @@ typedef struct _vrrp_sgroup {
 	vector_t		*iname;			/* Set of VRRP instances in this group, only used during initialisation */
 	list			index_list;		/* List of VRRP instances */
 	unsigned		num_member_fault;	/* Number of members of group in fault state */
+	unsigned		num_member_init;	/* Number of members of group in pending state */
 	int			state;			/* current stable state */
 	bool			global_tracking;	/* Use floating priority and scripts
 							 * All VRRP must share same tracking conf */
@@ -174,6 +175,7 @@ typedef struct _vrrp_t {
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
 	unsigned		num_script_if_fault;	/* Number of scripts and interfaces in fault state */
+	unsigned		num_script_init;	/* Number of scripts in init state */
 	struct sockaddr_storage	saddr;			/* Src IP address to use in VRRP IP header */
 	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
 	list			unicast_peer;		/* List of Unicast peer to send advert to */

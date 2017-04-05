@@ -55,7 +55,7 @@ extern int vrrp_lower_prio_gratuitous_arp_thread(thread_t *);
 extern void vrrp_set_effective_priority(vrrp_t *);
 extern bool vrrp_child_finder(pid_t, char const **);
 extern int vrrp_arp_thread(thread_t *);
-extern void try_up_instance(vrrp_t *);
+extern void try_up_instance(vrrp_t *, bool);
 #ifdef _WITH_DUMP_THREADS_
 extern void dump_threads(void);
 #endif

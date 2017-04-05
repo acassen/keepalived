@@ -200,7 +200,8 @@ vrrp_sync_backup(vrrp_t * vrrp)
 		isync->wantstate = VRRP_STATE_BACK;
 // TODO - we may be leaving FAULT, so calling leave_master isn't right. I have
 // had to add vrrp_state_leave_fault() for this
-		if (isync->state == VRRP_STATE_FAULT) {
+		if (isync->state == VRRP_STATE_FAULT ||
+		    isync->state == VRRP_STATE_INIT) {
 			vrrp_state_leave_fault(isync);
 			thread_requeue_read(master, isync->sockets->fd_in, isync->ms_down_timer);
 		}
