@@ -764,7 +764,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* Update current time */
 	set_time_now();
 
-	timer_expired = (timer_wait.tv_sec == 0 && timer_wait.tv_usec == 0);
+	timer_expired = !timerisset(&timer_wait);
 
 	if (timer_expired) {
 		/* Timeout children */
