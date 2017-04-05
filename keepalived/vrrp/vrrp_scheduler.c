@@ -749,8 +749,6 @@ vrrp_dispatcher_read_timeout(int fd)
 			vrrp_goto_master(vrrp);
 		else if (vrrp->state == VRRP_STATE_MAST)
 			vrrp_master(vrrp);
-		else
-			log_message(LOG_INFO, "(%s): In dispatcher_read_timeout with state %d, sands %lu.%6.6ld", vrrp->iname, vrrp->state, vrrp->sands.tv_sec, vrrp->sands.tv_usec);
 
 		/* handle instance synchronization */
 #ifdef TSM_DEBUG
