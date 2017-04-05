@@ -186,16 +186,16 @@ update_script_priorities(vrrp_script_t *vscript, bool script_ok)
 			if (tsc->scr != vscript)
 				continue;
 
-			if (!tsc->weight && vscript->last_status == VRRP_SCRIPT_STATUS_NOT_SET) {
-				/* We need to adjust the number of scripts in init state */
-				if (!--vrrp->num_script_init) {
-					instance_left_init = true;
-					if (vrrp->sync)
-						vrrp->sync->num_member_init--;
-				}
-			}
-
 			if (!tsc->weight) {
+				if (vscript->last_status == VRRP_SCRIPT_STATUS_NOT_SET) {
+					/* We need to adjust the number of scripts in init state */
+					if (!--vrrp->num_script_init) {
+						instance_left_init = true;
+						if (vrrp->sync)
+							vrrp->sync->num_member_init--;
+					}
+				}
+
 				if (!script_ok) {
 					/* The instance needs to go down */
 					down_instance(vrrp);
@@ -217,6 +217,8 @@ update_script_priorities(vrrp_script_t *vscript, bool script_ok)
 				vrrp->total_priority -= abs(tsc->weight);
 
 			vrrp_set_effective_priority(vrrp);
+
+			break;
 		}
 	}
 }
@@ -284,12 +286,15 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 			    (vrrp->sync && !vrrp->sync->global_tracking))
 				continue;
 
-			if (tsc->scr->result >= tsc->scr->rise) {
-				if (tsc->weight > 0)
-					vrrp->total_priority += tsc->weight;
-			} else {
-				if (tsc->weight < 0)
-					vrrp->total_priority += tsc->weight;
+			if (tsc->scr->last_status != VRRP_SCRIPT_STATUS_NOT_SET)
+			{
+				if (tsc->scr->result >= tsc->scr->rise) {
+					if (tsc->weight > 0)
+						vrrp->total_priority += tsc->weight;
+				} else {
+					if (tsc->weight < 0)
+						vrrp->total_priority += tsc->weight;
+				}
 			}
 		}
 	}
