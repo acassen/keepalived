@@ -166,7 +166,7 @@ check_track_script_secure(tracked_sc_t *script)
 
 	flags = check_script_secure(&ns, global_data->script_security, false);
 
-	/* The script path may have been updated if it wan't an absolute path */
+	/* The script path may have been updated if it wasn't an absolute path */
 	script->scr->script = ns.name;
 
 	/* Mark not to run if needs inhibiting */
@@ -175,7 +175,7 @@ check_track_script_secure(tracked_sc_t *script)
 		script->scr->insecure = true;
 	}
 	else if (flags & SC_NOTFOUND) {
-		log_message(LOG_INFO, "Disabling track script %s since not found", script->scr->sname);
+		log_message(LOG_INFO, "Disabling track script %s since not found/accessible", script->scr->sname);
 		script->scr->insecure = true;
 	}
 	else if (!(flags & SC_EXECUTABLE))
