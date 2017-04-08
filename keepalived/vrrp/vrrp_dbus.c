@@ -865,7 +865,7 @@ dbus_start(void)
 	sem_init(&thread_end, 0, 0);
 
 	/* Block signals (all) we don't want the new thread to process */
-	sigemptyset(&sigset);
+	sigfillset(&sigset);
 	pthread_sigmask(SIG_SETMASK, &sigset, &cursigset);
 
 	/* Now create the dbus thread */
