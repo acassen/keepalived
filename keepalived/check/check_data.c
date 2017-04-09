@@ -236,11 +236,11 @@ dump_vs(void *data)
 	virtual_server_t *vs = data;
 
 	if (vs->vsgname)
-		log_message(LOG_INFO, " VS GROUP = %s", vs->vsgname);
+		log_message(LOG_INFO, " VS GROUP = %s", FMT_VS(vs));
 	else if (vs->vfwmark)
 		log_message(LOG_INFO, " VS FWMARK = %u", vs->vfwmark);
 	else
-		log_message(LOG_INFO, " VIP = %s, VPORT = %d"
+		log_message(LOG_INFO, " VS VIP = %s, VPORT = %d"
 				    , inet_sockaddrtos(&vs->addr), ntohs(inet_sockaddrport(&vs->addr)));
 	if (vs->virtualhost)
 		log_message(LOG_INFO, "   VirtualHost = %s", vs->virtualhost);

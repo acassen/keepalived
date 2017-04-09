@@ -755,10 +755,15 @@ clear_diff_services(void)
 void
 link_vsg_to_vs(void)
 {
-	element e, next;
+	element e, e1, next;
 	virtual_server_t *vs;
 	int vsg_af;
+	virtual_server_group_t *vsg;
 	virtual_server_group_entry_t *vsge;
+	unsigned vsg_member_no;
+
+	if (LIST_ISEMPTY(check_data->vs))
+		return;
 
 	for (e = LIST_HEAD(check_data->vs); e; e = next) {
 		next = e->next;
@@ -801,6 +806,30 @@ link_vsg_to_vs(void)
 				log_message(LOG_INFO, "Virtual server group %s address family doesn't match virtual server %s - ignoring", vs->vsgname, FMT_VS(vs));
 				free_vs_checkers(vs);
 				free_list_element(check_data->vs, e);
+			}
+		}
+	}
+
+	/* The virtual server port number is used to identify the sequence number of the virtual server in the group */
+	if (LIST_ISEMPTY(check_data->vs_group))
+		return;
+
+	for (e = LIST_HEAD(check_data->vs_group); e; ELEMENT_NEXT(e)) {
+		vsg_member_no = 0;
+		vsg = ELEMENT_DATA(e);
+
+		for (e1 = LIST_HEAD(check_data->vs); e1; ELEMENT_NEXT(e1)) {
+			vs = ELEMENT_DATA(e1);
+
+			if (!vs->vsgname)
+				continue;
+
+			if (!strcmp(vs->vsgname, vsg->gname)) {
+				if (vs->addr.ss_family == AF_INET6)
+					((struct sockaddr_in6 *)&vs->addr)->sin6_port = ntohs(vsg_member_no);
+				else
+					((struct sockaddr_in *)&vs->addr)->sin_port = ntohs(vsg_member_no);
+				vsg_member_no++;
 			}
 		}
 	}
