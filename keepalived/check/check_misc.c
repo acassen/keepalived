@@ -45,7 +45,6 @@ static int misc_check_child_thread(thread_t *);
 static int misc_check_child_timeout_thread(thread_t *);
 
 static bool script_user_set;
-static bool remove_script;
 static misc_checker_t *misck_checker;
 
 
