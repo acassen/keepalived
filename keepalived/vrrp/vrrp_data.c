@@ -419,6 +419,7 @@ alloc_vrrp(char *iname)
 	new->garp_lower_prio_delay = PARAMETER_UNSET;
 	new->garp_lower_prio_rep = PARAMETER_UNSET;
 	new->lower_prio_no_advert = PARAMETER_UNSET;
+	new->higher_prio_send_advert = PARAMETER_UNSET;
 
 	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
 	new->strict_mode = PARAMETER_UNSET;
