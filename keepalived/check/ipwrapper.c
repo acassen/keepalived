@@ -117,19 +117,22 @@ clear_service_rs(virtual_server_t * vs, list l)
 
 /* Remove a virtualserver IPVS rule */
 static void
-clear_service_vs(virtual_server_t * vs)
+clear_service_vs(virtual_server_t * vs, bool leave_vs)
 {
 	/* Processing real server queue */
 	if (!LIST_ISEMPTY(vs->rs)) {
 		if (vs->s_svr) {
-			if (ISALIVE(vs->s_svr))
+			if (ISALIVE(vs->s_svr)) {
 				ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
+				UNSET_ALIVE(vs->s_svr);
+			}
 		} else
 			clear_service_rs(vs, vs->rs);
 		/* The above will handle Omega case for VS as well. */
 	}
 
-	ipvs_cmd(LVS_CMD_DEL, vs, NULL);
+	if (!leave_vs)
+		ipvs_cmd(LVS_CMD_DEL, vs, NULL);
 
 	UNSET_ALIVE(vs);
 }
@@ -146,7 +149,25 @@ clear_services(void)
 
 	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
-		clear_service_vs(vs);
+		clear_service_vs(vs, true);
+	}
+
+	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
+		vs = ELEMENT_DATA(e);
+		if (vs->vsg) {
+			/* Only clear the first virtual server for a virtual server group */
+			if (vs->addr.ss_family == AF_INET6) {
+				if (vs->addr.ss_family == AF_INET6) {
+					if (!((struct sockaddr_in6 *)&vs->addr)->sin6_port)
+						continue;
+				}
+				else {
+					if (!((struct sockaddr_in *)&vs->addr)->sin_port)
+						continue;
+				}
+			}
+		}
+		clear_service_vs(vs, false);
 	}
 }
 
@@ -162,6 +183,7 @@ init_service_rs(virtual_server_t * vs)
 		return true;
 	}
 
+log_message(LOG_INFO, "Initing vs %s, vsg %s", FMT_VS(vs), vs->vsgname ? vs->vsgname : "(none)");
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
 
@@ -176,9 +198,12 @@ init_service_rs(virtual_server_t * vs)
 		 * later upon healthchecks recovery (if ever).
 		 */
 		if (!vs->alpha && !ISALIVE(rs)) {
+log_message(LOG_INFO, "Adding rs %s", FMT_RS(rs));
 			ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
 			SET_ALIVE(rs);
 		}
+else
+log_message(LOG_INFO, "Not adding rs %s", FMT_RS(rs));
 	}
 
 	return true;
@@ -735,7 +760,7 @@ clear_diff_services(void)
 				log_message(LOG_INFO, "Removing Virtual Server %s", FMT_VS(vs));
 
 			/* Clear VS entry */
-			clear_service_vs(vs);
+			clear_service_vs(vs, false);
 		} else {
 			/* copy status fields from old VS */
 			SET_ALIVE(new_vs);
