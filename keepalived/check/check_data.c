@@ -359,6 +359,7 @@ alloc_vs(char *param1, char *param2)
 	new->hysteresis = 0;
 	new->quorum_state = UP;
 	new->flags = 0;
+	new->loadbalancing_kind = IP_VS_CONN_F_FWD_MASK;	/* So we can detect if it has been set */
 
 	list_add(check_data->vs, new);
 }
@@ -583,13 +584,54 @@ bool validate_check_config(void)
 			if (vs->ha_suspend)
 				using_ha_suspend = true;
 
+			/* Check protocol set */
+			if (!vs->service_type &&
+			    ((vs->vsg && (!LIST_ISEMPTY(vs->vsg->addr_ip) || !LIST_ISEMPTY(vs->vsg->range))) ||
+			     (!vs->vsg && !vs->vfwmark))) {
+				/* If the protocol is 0, the kernel defaults to UDP, so set it explicitly */
+				log_message(LOG_INFO, "Virtual server %s: no protocol set - defaulting to UDP", FMT_VS(vs));
+				vs->service_type = IPPROTO_UDP;
+			}
+
+			/* Check OPS not set for TCP or SCTP */
+			if (vs->flags & IP_VS_SVC_F_ONEPACKET &&
+			    vs->service_type != IPPROTO_UDP &&
+			    ((vs->vsg && (!LIST_ISEMPTY(vs->vsg->addr_ip) || !LIST_ISEMPTY(vs->vsg->range))) ||
+			     (!vs->vsg && !vs->vfwmark))) {
+				/* OPS is only valid for UDP, or with a firewall mark */
+				log_message(LOG_INFO, "Virtual server %s: one packet scheduling requires UDP - resetting", FMT_VS(vs));
+				vs->flags &= ~IP_VS_SVC_F_ONEPACKET;
+			}
+
+			/* Check port specified for udp/tcp/sctp unless persistent */
+			if (!(vs->persistence_timeout || vs->persistence_granularity) &&
+			    ((!vs->vsg && !vs->vfwmark) ||
+			     (vs->vsg && (!LIST_ISEMPTY(vs->vsg->addr_ip) || !LIST_ISEMPTY(vs->vsg->range)))) &&
+			    ((vs->addr.ss_family == AF_INET6 && !((struct sockaddr_in6 *)&vs->addr)->sin6_port) ||
+			     (vs->addr.ss_family == AF_INET && !((struct sockaddr_in *)&vs->addr)->sin_port))) {
+				log_message(LOG_INFO, "Virtual server %s: zero port only valid for persistent sevices - setting", FMT_VS(vs));
+				vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
+			}
+
+			/* Check scheduler set */
+			if (!vs->sched[0]) {
+				log_message(LOG_INFO, "Virtual server %s: no scheduler set, setting default '%s'", FMT_VS(vs), IPVS_DEF_SCHED);
+				strcpy(vs->sched, IPVS_DEF_SCHED);
+			}
+
+			/* Check forward method (loadbalancing_kind) set */
+			if (vs->loadbalancing_kind == IP_VS_CONN_F_FWD_MASK) {
+				log_message(LOG_INFO, "Virtual server %s: no forwarding method set, setting default NAT", FMT_VS(vs));
+				vs->loadbalancing_kind = IP_VS_CONN_F_MASQ;
+			}
+
 			/* Check any real server in alpha mode has a checker */
 			if (vs->alpha) {
 				for (e1 = LIST_HEAD(vs->rs); e1; ELEMENT_NEXT(e1)) {
 					rs = ELEMENT_DATA(e1);
 					if (!rs->alive && LIST_ISEMPTY(rs->failed_checkers))
 						log_message(LOG_INFO, "Warning - real server %s for virtual server %s cannot be activated due to no checker and in alpha mode",
-								FMT_VS(vs), FMT_RS(rs));
+								FMT_RS(rs), FMT_VS(vs));
 				}
 			}
 		}

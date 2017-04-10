@@ -71,6 +71,8 @@
 #define IPVS_FLUSH		5
 #endif
 
+#define IPVS_DEF_SCHED		"wlc"
+
 /* Macro */
 #define IPVS_ALIVE(X,Y,Z)	(((X) == IP_VS_SO_SET_ADD && !(Y)->alive)	|| \
 				 ((X) == IP_VS_SO_SET_DEL && (Y)->alive)	|| \
