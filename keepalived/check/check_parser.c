@@ -179,11 +179,11 @@ lbkind_handler(vector_t *strvec)
 	char *str = strvec_slot(strvec, 1);
 
 	if (!strcmp(str, "NAT"))
-		vs->loadbalancing_kind = IP_VS_CONN_F_MASQ;
+		vs->forwarding_method = IP_VS_CONN_F_MASQ;
 	else if (!strcmp(str, "DR"))
-		vs->loadbalancing_kind = IP_VS_CONN_F_DROUTE;
+		vs->forwarding_method = IP_VS_CONN_F_DROUTE;
 	else if (!strcmp(str, "TUN"))
-		vs->loadbalancing_kind = IP_VS_CONN_F_TUNNEL;
+		vs->forwarding_method = IP_VS_CONN_F_TUNNEL;
 	else
 		log_message(LOG_INFO, "PARSER : unknown [%s] routing method.", str);
 }

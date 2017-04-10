@@ -451,7 +451,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSLOADBALANCINGKIND:
 		long_ret.u = 0;
-		switch (v->loadbalancing_kind) {
+		switch (v->forwarding_method) {
 		case IP_VS_CONN_F_MASQ:
 			long_ret.u = 1;
 			break;

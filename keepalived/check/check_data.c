@@ -302,7 +302,7 @@ dump_vs(void *data)
 	if (vs->ha_suspend)
 		log_message(LOG_INFO, "   Using HA suspend");
 
-	switch (vs->loadbalancing_kind) {
+	switch (vs->forwarding_method) {
 	case IP_VS_CONN_F_MASQ:
 		log_message(LOG_INFO, "   lb_kind = NAT");
 		break;
@@ -359,7 +359,7 @@ alloc_vs(char *param1, char *param2)
 	new->hysteresis = 0;
 	new->quorum_state = UP;
 	new->flags = 0;
-	new->loadbalancing_kind = IP_VS_CONN_F_FWD_MASK;	/* So we can detect if it has been set */
+	new->forwarding_method = IP_VS_CONN_F_FWD_MASK;		/* So we can detect if it has been set */
 
 	list_add(check_data->vs, new);
 }
@@ -619,10 +619,10 @@ bool validate_check_config(void)
 				strcpy(vs->sched, IPVS_DEF_SCHED);
 			}
 
-			/* Check forward method (loadbalancing_kind) set */
-			if (vs->loadbalancing_kind == IP_VS_CONN_F_FWD_MASK) {
+			/* Check forwarding method set */
+			if (vs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
 				log_message(LOG_INFO, "Virtual server %s: no forwarding method set, setting default NAT", FMT_VS(vs));
-				vs->loadbalancing_kind = IP_VS_CONN_F_MASQ;
+				vs->forwarding_method = IP_VS_CONN_F_MASQ;
 			}
 
 			/* Check any real server in alpha mode has a checker */
