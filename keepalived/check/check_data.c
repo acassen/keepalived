@@ -547,8 +547,9 @@ check_check_script_security(void)
 
 bool validate_check_config(void)
 {
-	element e;
+	element e, e1;
 	virtual_server_t *vs;
+	real_server_t *rs;
 	checker_t *checker;
 	element next;
 
@@ -559,7 +560,7 @@ bool validate_check_config(void)
 
 			vs = ELEMENT_DATA(e);
 
-			if (!vs->rs) {
+			if (!vs->rs || LIST_ISEMPTY(vs->rs)) {
 				log_message(LOG_INFO, "Virtual server %s has no real servers - ignoring", FMT_VS(vs));
 				free_list_element(check_data->vs, e);
 				continue;
@@ -581,6 +582,16 @@ bool validate_check_config(void)
 
 			if (vs->ha_suspend)
 				using_ha_suspend = true;
+
+			/* Check any real server in alpha mode has a checker */
+			if (vs->alpha) {
+				for (e1 = LIST_HEAD(vs->rs); e1; ELEMENT_NEXT(e1)) {
+					rs = ELEMENT_DATA(e1);
+					if (!rs->alive && LIST_ISEMPTY(rs->failed_checkers))
+						log_message(LOG_INFO, "Warning - real server %s for virtual server %s cannot be activated due to no checker and in alpha mode",
+								FMT_VS(vs), FMT_RS(rs));
+				}
+			}
 		}
 	}
 
