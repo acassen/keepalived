@@ -446,6 +446,10 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 			long_ret.u = 9;
 		else if (!strcmp(v->sched, "nq"))
 			long_ret.u = 10;
+		else if (!strcmp(v->sched, "fo"))
+			long_ret.u = 11;
+		else if (!strcmp(v->sched, "ovf"))
+			long_ret.u = 12;
 		else
 			long_ret.u = 99;
 		return (u_char*)&long_ret;

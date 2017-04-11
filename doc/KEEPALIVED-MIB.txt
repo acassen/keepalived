@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201702190000Z"
+     LAST-UPDATED "201704110000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201704110000Z"
+     DESCRIPTION "add fo and ovf load balancing types"
      REVISION "201702190000Z"
      DESCRIPTION "add ip rule/route uid support"
      REVISION "201611260000Z"
@@ -2380,7 +2382,7 @@ virtualServerProtocol OBJECT-TYPE
 
 virtualServerLoadBalancingAlgo OBJECT-TYPE
     SYNTAX INTEGER {
-        rr(1),
+    rr(1),
     wrr(2),
     lc(3),
     wlc(4),
@@ -2390,6 +2392,8 @@ virtualServerLoadBalancingAlgo OBJECT-TYPE
     sh(8),
     sed(9),
     nq(10),
+    fo(11),
+    ovf(12),
     unknown(99)
     }
     MAX-ACCESS read-only
