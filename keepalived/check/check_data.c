@@ -304,13 +304,13 @@ dump_vs(void *data)
 
 	switch (vs->forwarding_method) {
 	case IP_VS_CONN_F_MASQ:
-		log_message(LOG_INFO, "   lb_kind = NAT");
+		log_message(LOG_INFO, "   default forwarding method = NAT");
 		break;
 	case IP_VS_CONN_F_DROUTE:
-		log_message(LOG_INFO, "   lb_kind = DR");
+		log_message(LOG_INFO, "   default forwarding method = DR");
 		break;
 	case IP_VS_CONN_F_TUNNEL:
-		log_message(LOG_INFO, "   lb_kind = TUN");
+		log_message(LOG_INFO, "   default forwarding method = TUN");
 		break;
 	}
 
@@ -404,6 +404,17 @@ dump_rs(void *data)
 			    , inet_sockaddrtos(&rs->addr)
 			    , ntohs(inet_sockaddrport(&rs->addr))
 			    , rs->weight);
+	switch (rs->forwarding_method) {
+	case IP_VS_CONN_F_MASQ:
+		log_message(LOG_INFO, "   forwarding method = NAT");
+		break;
+	case IP_VS_CONN_F_DROUTE:
+		log_message(LOG_INFO, "   forwarding method = DR");
+		break;
+	case IP_VS_CONN_F_TUNNEL:
+		log_message(LOG_INFO, "   forwarding method = TUN");
+		break;
+	}
 	if (rs->inhibit)
 		log_message(LOG_INFO, "     -> Inhibit service on failure");
 	if (rs->notify_up)
@@ -449,6 +460,7 @@ alloc_rs(char *ip, char *port)
 	new->weight = 1;
 	new->iweight = 1;
 	new->failed_checkers = alloc_list(free_failed_checkers, NULL);
+	new->forwarding_method = vs->forwarding_method;
 
 	if (!LIST_EXISTS(vs->rs))
 		vs->rs = alloc_list(free_rs, dump_rs);
@@ -621,19 +633,23 @@ bool validate_check_config(void)
 				strcpy(vs->sched, IPVS_DEF_SCHED);
 			}
 
-			/* Check forwarding method set */
-			if (vs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
-				log_message(LOG_INFO, "Virtual server %s: no forwarding method set, setting default NAT", FMT_VS(vs));
-				vs->forwarding_method = IP_VS_CONN_F_MASQ;
-			}
 
-			/* Check any real server in alpha mode has a checker */
-			if (vs->alpha) {
-				for (e1 = LIST_HEAD(vs->rs); e1; ELEMENT_NEXT(e1)) {
-					rs = ELEMENT_DATA(e1);
-					if (!rs->alive && LIST_ISEMPTY(rs->failed_checkers))
-						log_message(LOG_INFO, "Warning - real server %s for virtual server %s cannot be activated due to no checker and in alpha mode",
-								FMT_RS(rs), FMT_VS(vs));
+			/* Spin through all the real servers */
+			for (e1 = LIST_HEAD(vs->rs); e1; ELEMENT_NEXT(e1)) {
+				rs = ELEMENT_DATA(e1);
+
+				/* Check any real server in alpha mode has a checker */
+				if (vs->alpha && !rs->alive && LIST_ISEMPTY(rs->failed_checkers))
+					log_message(LOG_INFO, "Warning - real server %s for virtual server %s cannot be activated due to no checker and in alpha mode",
+							FMT_RS(rs), FMT_VS(vs));
+
+				/* Set the forwarding method if necessary */
+				if (rs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
+					if (vs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
+						log_message(LOG_INFO, "Virtual server %s: no forwarding method set, setting default NAT", FMT_VS(vs));
+						vs->forwarding_method = IP_VS_CONN_F_MASQ;
+					}
+					rs->forwarding_method = vs->forwarding_method;
 				}
 			}
 		}

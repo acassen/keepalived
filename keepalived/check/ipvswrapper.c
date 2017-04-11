@@ -395,13 +395,15 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 static void
 ipvs_set_rule(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_server_t * vs, real_server_t * rs)
 {
-	/* Clean target rule */
-	memset(drule, 0, sizeof(ipvs_dest_t));
+	if (drule) {
+		/* Clean target rule */
+		memset(drule, 0, sizeof(ipvs_dest_t));
 
-	drule->user.weight = 1;
-	drule->user.u_threshold = 0;
-	drule->user.l_threshold = 0;
-	drule->user.conn_flags = vs->forwarding_method;
+		drule->user.weight = 1;
+		drule->user.u_threshold = 0;
+		drule->user.l_threshold = 0;
+	}
+
 	strncpy(srule->user.sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
 	srule->user.flags = vs->flags;
 	srule->user.netmask = (vs->addr.ss_family == AF_INET6) ? 128 : ((uint32_t) 0xffffffff);
@@ -435,6 +437,7 @@ ipvs_set_rule(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_server
 			else
 				drule->nf_addr.ip = inet_sockaddrip4(&rs->addr);
 			drule->user.port = inet_sockaddrport(&rs->addr);
+			drule->user.conn_flags = rs->forwarding_method;
 			drule->user.weight = rs->weight;
 			drule->user.u_threshold = rs->u_threshold;
 			drule->user.l_threshold = rs->l_threshold;

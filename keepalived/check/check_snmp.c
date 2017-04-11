@@ -148,8 +148,9 @@ enum check_snmp_realserver_magic {
 	CHECK_SNMP_RSRATEINBPSLOW,
 	CHECK_SNMP_RSRATEINBPSHIGH,
 	CHECK_SNMP_RSRATEOUTBPSLOW,
-	CHECK_SNMP_RSRATEOUTBPSHIGH
+	CHECK_SNMP_RSRATEOUTBPSHIGH,
 #endif
+	CHECK_SNMP_RSLOADBALANCINGKIND
 };
 
 #define STATE_VSGM_FWMARK 1
@@ -844,6 +845,21 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_RSPORT:
 		long_ret.u = htons(inet_sockaddrport(&be->addr));
 		return (u_char *)&long_ret;
+	case CHECK_SNMP_RSLOADBALANCINGKIND:
+		long_ret.u = 0;
+		switch (be->forwarding_method) {
+		case IP_VS_CONN_F_MASQ:
+			long_ret.u = 1;
+			break;
+		case IP_VS_CONN_F_DROUTE:
+			long_ret.u = 2;
+			break;
+		case IP_VS_CONN_F_TUNNEL:
+			long_ret.u = 3;
+			break;
+		}
+		if (!long_ret.u) break;
+		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSSTATUS:
 		if (btype == STATE_RS_SORRY) break;
 		long_ret.u = be->alive?1:2;
@@ -1315,6 +1331,8 @@ static struct variable8 check_vars[] = {
 	{CHECK_SNMP_RSRATEOUTBPSHIGH, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 39}},
 #endif
+	{CHECK_SNMP_RSLOADBALANCINGKIND, ASN_UNSIGNED, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 40}},
 #ifdef _WITH_VRRP_
 	/* LVS sync daemon configuration */
 	{CHECK_SNMP_LVSSYNCDAEMONENABLED, ASN_INTEGER, RONLY,

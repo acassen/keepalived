@@ -67,6 +67,7 @@ typedef struct _real_server {
 	int				iweight;	/* Initial weight */
 	int				pweight;	/* previous weight
 							 * used for reloading */
+	unsigned			forwarding_method; /* NAT/TUN/DR */
 	uint32_t			u_threshold;   /* Upper connection limit. */
 	uint32_t			l_threshold;   /* Lower connection limit. */
 	int				inhibit;	/* Set weight to 0 instead of removing
@@ -244,7 +245,8 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			 (X)->range     == (Y)->range &&		\
 			 (X)->vfwmark   == (Y)->vfwmark)
 
-#define RS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr))
+#define RS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&& \
+			 (X)->forwarding_method       == (Y)->forwarding_method)
 
 /* Global vars exported */
 extern check_data_t *check_data;

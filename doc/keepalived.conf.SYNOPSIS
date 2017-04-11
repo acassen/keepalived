@@ -522,7 +522,7 @@ virtual_server group <STRING>      {	# VS group declaration
     sh-fallback				# Apply sh-fallback scheduler flag (only for sh scheduler,
 					#  same as flag-1 for sh scheduler)
     ops					# Apply One-Packet-Scheduling (only for UDP)
-    lvs_method NAT|DR|TUN		# LVS method used
+    lvs_method NAT|DR|TUN		# default LVS method to use
     persistence_engine <STRING>	        # LVS persistence engine name
     persistence_timeout [<INTEGER>]	# LVS persistence timeout, default 6 minutes
     persistence_granularity <NETMASK>	# LVS granularity mask
@@ -567,6 +567,7 @@ virtual_server group <STRING>      {	# VS group declaration
 
     real_server <IP ADDRESS> <PORT> {	# RS declaration
         weight <INTEGER>		# weight to use (default: 1)
+        lvs_method NAT|DR|TUN		# LVS method to use
         inhibit_on_failure		# Set weight to 0 on healthchecker
 					#  failure
         notify_up <STRING>|<QUOTED-STRING> [username [groupname]]
@@ -605,6 +606,7 @@ virtual_server group <STRING>      {	# VS group declaration
 
     real_server <IP ADDRESS> <PORT> {	# Idem
         weight <INTEGER>		# Idem
+        lvs_method NAT|DR|TUN		# Idem
         inhibit_on_failure		# Idem
         notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
         notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
@@ -660,6 +662,7 @@ virtual_server group <STRING>      {	# VS group declaration
 
     real_server <IP ADDRESS> <PORT> {	# Idem
         weight <INTEGER>		# Idem
+        lvs_method NAT|DR|TUN		# Idem
         inhibit_on_failure		# Idem
         notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
         notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
@@ -679,6 +682,7 @@ virtual_server group <STRING>      {	# VS group declaration
 
     real_server <IP ADDRESS> <PORT> {	# Idem
         weight <INTEGER>		# Idem
+        lvs_method NAT|DR|TUN		# Idem
         inhibit_on_failure		# Idem
         notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
         notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
