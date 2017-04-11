@@ -593,6 +593,7 @@ bool validate_check_config(void)
 				vs->service_type = IPPROTO_UDP;
 			}
 
+#ifdef IP_VS_SVC_F_ONEPACKET
 			/* Check OPS not set for TCP or SCTP */
 			if (vs->flags & IP_VS_SVC_F_ONEPACKET &&
 			    vs->service_type != IPPROTO_UDP &&
@@ -602,6 +603,7 @@ bool validate_check_config(void)
 				log_message(LOG_INFO, "Virtual server %s: one packet scheduling requires UDP - resetting", FMT_VS(vs));
 				vs->flags &= ~IP_VS_SVC_F_ONEPACKET;
 			}
+#endif
 
 			/* Check port specified for udp/tcp/sctp unless persistent */
 			if (!(vs->persistence_timeout || vs->persistence_granularity) &&
