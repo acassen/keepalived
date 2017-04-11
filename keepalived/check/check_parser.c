@@ -174,17 +174,17 @@ lbflags_handler(vector_t *strvec)
 }
 
 static void
-lbkind_handler(vector_t *strvec)
+forwarding_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	char *str = strvec_slot(strvec, 1);
 
 	if (!strcmp(str, "NAT"))
-		vs->loadbalancing_kind = IP_VS_CONN_F_MASQ;
+		vs->forwarding_method = IP_VS_CONN_F_MASQ;
 	else if (!strcmp(str, "DR"))
-		vs->loadbalancing_kind = IP_VS_CONN_F_DROUTE;
+		vs->forwarding_method = IP_VS_CONN_F_DROUTE;
 	else if (!strcmp(str, "TUN"))
-		vs->loadbalancing_kind = IP_VS_CONN_F_TUNNEL;
+		vs->forwarding_method = IP_VS_CONN_F_TUNNEL;
 	else
 		log_message(LOG_INFO, "PARSER : unknown [%s] routing method.", str);
 }
@@ -298,6 +298,22 @@ weight_handler(vector_t *strvec)
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	rs->weight = atoi(strvec_slot(strvec, 1));
 	rs->iweight = rs->weight;
+}
+static void
+rs_forwarding_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	char *str = strvec_slot(strvec, 1);
+
+	if (!strcmp(str, "NAT"))
+		rs->forwarding_method = IP_VS_CONN_F_MASQ;
+	else if (!strcmp(str, "DR"))
+		rs->forwarding_method = IP_VS_CONN_F_DROUTE;
+	else if (!strcmp(str, "TUN"))
+		rs->forwarding_method = IP_VS_CONN_F_TUNNEL;
+	else
+		log_message(LOG_INFO, "PARSER : unknown [%s] routing method for real server.", str);
 }
 static void
 uthreshold_handler(vector_t *strvec)
@@ -429,8 +445,8 @@ init_check_keywords(bool active)
 	install_keyword("sh-port", &lbflags_handler);
 	install_keyword("sh-fallback", &lbflags_handler);
 #endif
-	install_keyword("lb_kind", &lbkind_handler);
-	install_keyword("lvs_method", &lbkind_handler);
+	install_keyword("lb_kind", &forwarding_handler);
+	install_keyword("lvs_method", &forwarding_handler);
 #ifdef _HAVE_PE_NAME_
 	install_keyword("persistence_engine", &pengine_handler);
 #endif
@@ -454,6 +470,7 @@ init_check_keywords(bool active)
 	install_keyword("real_server", &rs_handler);
 	install_sublevel();
 	install_keyword("weight", &weight_handler);
+	install_keyword("lvs_method", &rs_forwarding_handler);
 	install_keyword("uthreshold", &uthreshold_handler);
 	install_keyword("lthreshold", &lthreshold_handler);
 	install_keyword("inhibit_on_failure", &inhibit_handler);

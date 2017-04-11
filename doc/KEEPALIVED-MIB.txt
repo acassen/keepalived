@@ -22,12 +22,16 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201702190000Z"
+     LAST-UPDATED "201704110001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201704110001Z"
+     DESCRIPTION "add real server forwarding method"
+     REVISION "201704110000Z"
+     DESCRIPTION "add fo and ovf load balancing types"
      REVISION "201702190000Z"
      DESCRIPTION "add ip rule/route uid support"
      REVISION "201611260000Z"
@@ -2390,7 +2394,7 @@ virtualServerProtocol OBJECT-TYPE
 
 virtualServerLoadBalancingAlgo OBJECT-TYPE
     SYNTAX INTEGER {
-        rr(1),
+    rr(1),
     wrr(2),
     lc(3),
     wlc(4),
@@ -2400,6 +2404,8 @@ virtualServerLoadBalancingAlgo OBJECT-TYPE
     sh(8),
     sed(9),
     nq(10),
+    fo(11),
+    ovf(12),
     unknown(99)
     }
     MAX-ACCESS read-only
@@ -2409,12 +2415,13 @@ virtualServerLoadBalancingAlgo OBJECT-TYPE
         for this virtual server."
     ::= { virtualServerEntry 9 }
 
+-- Note: this object is misnamed. It should be virtualServerForwardingMethod
 virtualServerLoadBalancingKind OBJECT-TYPE
     SYNTAX INTEGER { nat(1), dr(2), tun(3) }
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION
-        "Forwarding method to use for this virtual server."
+        "Default forwarding method to use for this virtual server."
     ::= { virtualServerEntry 10 }
 
 virtualServerStatus OBJECT-TYPE
@@ -2872,7 +2879,8 @@ RealServerEntry ::= SEQUENCE {
     realServerRateInBPSLow Unsigned32,
     realServerRateInBPSHigh Unsigned32,
     realServerRateOutBPSLow Unsigned32,
-    realServerRateOutBPSHigh Unsigned32
+    realServerRateOutBPSHigh Unsigned32,
+    realServerForwardingMethod INTEGER
 }
 
 realServerIndex OBJECT-TYPE
@@ -3225,6 +3233,14 @@ realServerRateOutBPSHigh OBJECT-TYPE
         "Current outgoing rate for this real server.
 	Together with realServerRateOutBPSLow composes 64-bit number."
     ::= { realServerEntry 39 }
+
+realServerForwardingMethod OBJECT-TYPE
+    SYNTAX INTEGER { nat(1), dr(2), tun(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Forwarding method to use for this real server."
+    ::= { realServerEntry 40 }
 
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
@@ -3784,7 +3800,8 @@ realServerGroup OBJECT-GROUP
     realServerRateInBPSLow,
     realServerRateInBPSHigh,
     realServerRateOutBPSLow,
-    realServerRateOutBPSHigh
+    realServerRateOutBPSHigh,
+    realServerForwardingMethod
     }
     STATUS current
     DESCRIPTION
