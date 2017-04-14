@@ -288,7 +288,7 @@ ipvs_flush_cmd(void)
 
 /* IPVS group range rule */
 static int
-ipvs_group_range_cmd(int cmd, ipvs_service_t *srule, virtual_server_group_entry_t *vsg_entry)
+ipvs_group_range_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_server_group_entry_t *vsg_entry)
 {
 	uint32_t addr_start;
 	uint32_t num_addr, i;
@@ -316,7 +316,7 @@ ipvs_group_range_cmd(int cmd, ipvs_service_t *srule, virtual_server_group_entry_
 		}
 
 		/* Talk to the IPVS channel */
-		if (ipvs_talk(cmd, srule, NULL, NULL, false))
+		if (ipvs_talk(cmd, srule, drule, NULL, false))
 			return -1;
 
 		if (srule->af == AF_INET)
@@ -328,19 +328,17 @@ ipvs_group_range_cmd(int cmd, ipvs_service_t *srule, virtual_server_group_entry_
 
 /* set IPVS group rules */
 static int
-ipvs_group_cmd(int cmd, ipvs_service_t *srule, virtual_server_t * vs, real_server_t * rs)
+ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_server_t * vs, real_server_t * rs)
 {
 	virtual_server_group_t *vsg = vs->vsg;
 	virtual_server_group_entry_t *vsg_entry;
-	list l;
 	element e;
 
 	/* return if jointure fails */
 	if (!vsg) return 0;
 
 	/* visit addr_ip list */
-	l = vsg->addr_ip;
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+	for (e = LIST_HEAD(vsg->addr_ip); e; ELEMENT_NEXT(e)) {
 		vsg_entry = ELEMENT_DATA(e);
 		srule->af = vsg_entry->addr.ss_family;
 		if (vsg_entry->addr.ss_family == AF_INET6) {
@@ -353,18 +351,17 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, virtual_server_t * vs, real_serve
 
 		/* Talk to the IPVS channel */
 		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
-			if (ipvs_talk(cmd, srule, NULL, NULL, false))
+			if (ipvs_talk(cmd, srule, drule, NULL, false))
 				return -1;
 			IPVS_SET_ALIVE(cmd, vsg_entry);
 		}
 	}
 
 	/* visit vfwmark list */
-	l = vsg->vfwmark;
 	srule->nf_addr.ip = 0;
 	srule->af = 0;
 	srule->user.port = 0;
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+	for (e = LIST_HEAD(vsg->vfwmark); e; ELEMENT_NEXT(e)) {
 		vsg_entry = ELEMENT_DATA(e);
 		srule->af = vs->af;
 		if (vs->af == AF_INET6)
@@ -373,21 +370,20 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, virtual_server_t * vs, real_serve
 
 		/* Talk to the IPVS channel */
 		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
-			if (ipvs_talk(cmd, srule, NULL, NULL, false))
+			if (ipvs_talk(cmd, srule, drule, NULL, false))
 				return -1;
 			IPVS_SET_ALIVE(cmd, vsg_entry);
 		}
 	}
 
 	/* visit range list */
-	l = vsg->range;
 	srule->user.fwmark = 0;
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+	for (e = LIST_HEAD(vsg->range); e; ELEMENT_NEXT(e)) {
 		vsg_entry = ELEMENT_DATA(e);
 
 		/* Talk to the IPVS channel */
 		if (IPVS_ALIVE(cmd, vsg_entry, rs)) {
-			if (ipvs_group_range_cmd(cmd, srule, vsg_entry))
+			if (ipvs_group_range_cmd(cmd, srule, drule, vsg_entry))
 				return -1;
 			IPVS_SET_ALIVE(cmd, vsg_entry);
 		}
@@ -399,13 +395,15 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, virtual_server_t * vs, real_serve
 static void
 ipvs_set_rule(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_server_t * vs, real_server_t * rs)
 {
-	/* Clean target rule */
-	memset(drule, 0, sizeof(ipvs_dest_t));
+	if (drule) {
+		/* Clean target rule */
+		memset(drule, 0, sizeof(ipvs_dest_t));
 
-	drule->user.weight = 1;
-	drule->user.u_threshold = 0;
-	drule->user.l_threshold = 0;
-	drule->user.conn_flags = vs->loadbalancing_kind;
+		drule->user.weight = 1;
+		drule->user.u_threshold = 0;
+		drule->user.l_threshold = 0;
+	}
+
 	strncpy(srule->user.sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
 	srule->user.flags = vs->flags;
 	srule->user.netmask = (vs->addr.ss_family == AF_INET6) ? 128 : ((uint32_t) 0xffffffff);
@@ -439,6 +437,7 @@ ipvs_set_rule(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_server
 			else
 				drule->nf_addr.ip = inet_sockaddrip4(&rs->addr);
 			drule->user.port = inet_sockaddrport(&rs->addr);
+			drule->user.conn_flags = rs->forwarding_method;
 			drule->user.weight = rs->weight;
 			drule->user.u_threshold = rs->u_threshold;
 			drule->user.l_threshold = rs->l_threshold;
@@ -463,18 +462,18 @@ ipvs_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 		drule.user.weight = 0;
 		cmd = IP_VS_SO_SET_EDITDEST;
 	}
-	if (cmd == IP_VS_SO_SET_ADDDEST && rs->inhibit && rs->set)
+	else if (cmd == IP_VS_SO_SET_ADDDEST && rs->inhibit && rs->set)
 		cmd = IP_VS_SO_SET_EDITDEST;
 
 	/* Set flag */
-	if (cmd == IP_VS_SO_SET_ADDDEST && !rs->set)
+	else if (cmd == IP_VS_SO_SET_ADDDEST && !rs->set)
 		rs->set = true;
-	if (cmd == IP_VS_SO_SET_DELDEST && rs->set)
+	else if (cmd == IP_VS_SO_SET_DELDEST && rs->set)
 		rs->set = false;
 
 	/* Set vs rule and send to kernel */
 	if (vs->vsgname) {
-		err = ipvs_group_cmd(cmd, &srule, vs, rs);
+		err = ipvs_group_cmd(cmd, &srule, &drule, vs, rs);
 	} else {
 		srule.af = vs->af;
 		if (vs->vfwmark) {
@@ -531,7 +530,7 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 
 			/* Set vs rule */
 			if (vsge->range) {
-				ipvs_group_range_cmd(IP_VS_SO_SET_ADDDEST, &srule, vsge);
+				ipvs_group_range_cmd(IP_VS_SO_SET_ADDDEST, &srule, &drule, vsge);
 			} else {
 				srule.af = vsge->addr.ss_family;
 				if (vsge->addr.ss_family == AF_INET6)
@@ -585,7 +584,7 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 
 			/* Set vs rule */
 			if (vsge->range) {
-				ipvs_group_range_cmd(IP_VS_SO_SET_DELDEST, &srule, vsge);
+				ipvs_group_range_cmd(IP_VS_SO_SET_DELDEST, &srule, &drule, vsge);
 			} else {
 				srule.af = vsge->addr.ss_family;
 				if (vsge->addr.ss_family == AF_INET6)
@@ -605,7 +604,7 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 
 	/* Remove VS entry */
 	if (vsge->range)
-		ipvs_group_range_cmd(IP_VS_SO_SET_DEL, &srule, vsge);
+		ipvs_group_range_cmd(IP_VS_SO_SET_DEL, &srule, &drule, vsge);
 	else
 		ipvs_talk(IP_VS_SO_SET_DEL, &srule, NULL, NULL, false);
 	UNSET_ALIVE(vsge);

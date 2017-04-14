@@ -90,7 +90,7 @@ vscript_print(FILE *file, void *data)
 	fprintf(file, "   Interval = %lu sec\n", vscript->interval / TIMER_HZ);
 	fprintf(file, "   Weight = %d\n", vscript->weight);
 	fprintf(file, "   Rise = %d\n", vscript->rise);
-	fprintf(file, "   Full = %d\n", vscript->fall);
+	fprintf(file, "   Fall = %d\n", vscript->fall);
 	fprintf(file, "   Insecure = %s\n", vscript->insecure ? "yes" : "no");
 	fprintf(file, "   uid:gid = %d:%d\n", vscript->uid, vscript->gid);
 

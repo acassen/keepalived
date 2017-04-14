@@ -625,7 +625,7 @@ A virtual_server can be a declaration of one of
     delay_loop <INT>
 
     # LVS scheduler
-    lb_algo rr|wrr|lc|wlc|lblc|sh|dh
+    lb_algo rr|wrr|lc|wlc|lblc|sh|dh|fo|ovf|lblcr|sed|nq
     
     # Enable hashed entry
     hashed
@@ -641,7 +641,7 @@ A virtual_server can be a declaration of one of
     sh-fallback
     # Enable One-Packet-Scheduling for UDP (-O in ipvsadm)
     ops
-    # LVS forwarding method
+    # Default LVS forwarding method
     lb_kind NAT|DR|TUN
     # LVS persistence engine name
     persistence_engine <STRING>
@@ -706,6 +706,8 @@ A virtual_server can be a declaration of one of
        {
            # relative weight to use, default: 1
            weight <INT>
+           # LVS forwarding method
+           lb_kind NAT|DR|TUN
            # Set weight to 0 when healthchecker detects failure
            inhibit_on_failure
 

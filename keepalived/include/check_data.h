@@ -67,6 +67,7 @@ typedef struct _real_server {
 	int				iweight;	/* Initial weight */
 	int				pweight;	/* previous weight
 							 * used for reloading */
+	unsigned			forwarding_method; /* NAT/TUN/DR */
 	uint32_t			u_threshold;   /* Upper connection limit. */
 	uint32_t			l_threshold;   /* Lower connection limit. */
 	int				inhibit;	/* Set weight to 0 instead of removing
@@ -93,7 +94,6 @@ typedef struct _real_server {
 
 /* Virtual Server group definition */
 typedef struct _virtual_server_group_entry {
-/* TODO - vfwmark can be a union with addr and range */
 	struct sockaddr_storage		addr;
 	uint32_t			range;
 	uint32_t			vfwmark;
@@ -127,7 +127,7 @@ typedef struct _virtual_server {
 #ifdef _HAVE_PE_NAME_
 	char				pe_name[IP_VS_PENAME_MAXLEN];
 #endif
-	unsigned			loadbalancing_kind;
+	unsigned			forwarding_method;
 	uint32_t			persistence_granularity;
 #endif
 	char				*virtualhost;
@@ -227,7 +227,7 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			 (X)->vfwmark                 == (Y)->vfwmark			&&\
 			 (X)->af                      == (Y)->af			&&\
 			 (X)->service_type            == (Y)->service_type		&&\
-			 (X)->loadbalancing_kind      == (Y)->loadbalancing_kind	&&\
+			 (X)->forwarding_method       == (Y)->forwarding_method		&&\
 			 (X)->persistence_granularity == (Y)->persistence_granularity	&&\
 			 (  (!(X)->quorum_up && !(Y)->quorum_up) || \
 			    ((X)->quorum_up && (Y)->quorum_up && !strcmp ((X)->quorum_up->name, (Y)->quorum_up->name)) \
@@ -245,7 +245,8 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			 (X)->range     == (Y)->range &&		\
 			 (X)->vfwmark   == (Y)->vfwmark)
 
-#define RS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr))
+#define RS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&& \
+			 (X)->forwarding_method       == (Y)->forwarding_method)
 
 /* Global vars exported */
 extern check_data_t *check_data;

@@ -44,8 +44,8 @@
 #include <libipset/session.h>
 #include <libipset/types.h>
 #include <netinet/in.h>
-#include <linux/types.h>        /* For __beXX types in userland */
-#include <linux/netfilter.h>    /* For nf_inet_addr */
+#include <linux/types.h>	/* For __beXX types in userland */
+#include <linux/netfilter.h>	/* For nf_inet_addr */
 #include <stdint.h>
 #include <stdio.h>
 
