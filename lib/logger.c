@@ -24,6 +24,7 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <time.h>
 
 #include "logger.h"
 
@@ -44,7 +45,14 @@ vlog_message(const int facility, const char* format, va_list args)
 	vsnprintf(buf, sizeof(buf), format, args);
 
 	if (log_console) {
-		fprintf(stderr, "%s\n", buf);
+		/* timestamp setup */
+		time_t t = time(NULL);
+		struct tm tm;
+		localtime_r(&t, &tm);
+		char timestamp[64];
+		strftime(timestamp, sizeof(timestamp), "%c", &tm);
+
+		fprintf(stderr, "%s: %s\n", timestamp, buf);
 	}
 
 	syslog(facility, "%s", buf);
