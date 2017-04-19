@@ -1661,7 +1661,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		}
 	} else {
 		/* !nopreempt and lower priority advert and any preempt delay timer has expired */
-		log_message(LOG_INFO, "VRRP_Instance(%s) received lower priority (%d) advert from %s - discarding", vrrp->iname, hd->priority, inet_sockaddrtos(&vrrp->saddr));
+		log_message(LOG_INFO, "VRRP_Instance(%s) received lower priority (%d) advert from %s - discarding", vrrp->iname, hd->priority, inet_sockaddrtos(&vrrp->pkt_saddr));
 
 		ignore_advert = true;
 	}
