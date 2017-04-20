@@ -486,8 +486,6 @@ start_vrrp_child(void)
 
 	prog_type = PROG_TYPE_VRRP;
 
-	prog_type = PROG_TYPE_VRRP;
-
 	/* Opening local VRRP syslog channel */
 	if ((instance_name
 #if HAVE_DECL_CLONE_NEWNET
