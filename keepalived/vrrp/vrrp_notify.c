@@ -27,11 +27,15 @@
 
 /* local include */
 #include "vrrp_notify.h"
+#ifdef _WITH_DBUS_
+#include "vrrp_dbus.h"
+#endif
+#include "global_data.h"
 #include "memory.h"
 #include "notify.h"
 #include "logger.h"
 
-static char *
+static notify_script_t*
 get_iscript(vrrp_t * vrrp, int state)
 {
 	if (!vrrp->notify_exec)
@@ -45,7 +49,7 @@ get_iscript(vrrp_t * vrrp, int state)
 	return NULL;
 }
 
-static char *
+static notify_script_t*
 get_gscript(vrrp_sgroup_t * vgroup, int state)
 {
 	if (!vgroup->notify_exec)
@@ -59,13 +63,13 @@ get_gscript(vrrp_sgroup_t * vgroup, int state)
 	return NULL;
 }
 
-static char *
+static notify_script_t*
 get_igscript(vrrp_t *vrrp)
 {
 	return vrrp->script;
 }
 
-static char *
+static notify_script_t*
 get_ggscript(vrrp_sgroup_t * vgroup)
 {
 	return vgroup->script;
@@ -76,13 +80,13 @@ notify_script_name(char *cmdline)
 {
 	char *cp = cmdline;
 	char *script;
-	int str_len;
+	size_t str_len;
 
 	if (!cmdline)
 		return NULL;
-	while (!isspace((int) *cp) && *cp != '\0')
+	while (!isspace(*cp) && *cp != '\0')
 		cp++;
-	str_len = cp - cmdline;
+	str_len = (size_t)(cp - cmdline);
 	script = MALLOC(str_len + 1);
 	memcpy(script, cmdline, str_len);
 	*(script + str_len) = '\0';
@@ -90,36 +94,41 @@ notify_script_name(char *cmdline)
 	return script;
 }
 
-static int
-script_open_litteral(char *script)
+static bool
+script_open_literal(char *script)
 {
 	log_message(LOG_DEBUG, "Opening script file %s",script);
 	FILE *fOut = fopen(script, "r");;
 	if (!fOut) {
 		log_message(LOG_INFO, "Can't open %s (errno %d %s)", script,
 		       errno, strerror(errno));
-		return 0;
+		return false;
 	}
 	fclose(fOut);
-	return 1;
+	return true;
 }
 
-static int
-script_open(char *script)
+static bool
+script_open(notify_script_t *script)
 {
-	char *name = notify_script_name(script);
-	int ret = name ? script_open_litteral(name) : 0;
-	if (name)
-		FREE(name);
+	char *name = notify_script_name(script->name);
+	int ret;
+
+	if (!name)
+		return false;
+
+	ret = script_open_literal(name);
+	FREE(name);
+
 	return ret;
 }
 
-static int
-notify_script_exec(char* script, const char *type, int state_num, char* name, int prio)
+static void
+notify_script_exec(notify_script_t* script, const char *type, int state_num, char* name, int prio)
 {
 	const char *state = "{UNKNOWN}";
-	char *command_line = NULL;
-	int size = 0;
+	size_t size = 0;
+	notify_script_t new_script;
 
 	/*
 	 * Determine the length of the buffer that we'll need to generate the command
@@ -154,24 +163,27 @@ notify_script_exec(char* script, const char *type, int state_num, char* name, in
 		case VRRP_STATE_FAULT : state = "FAULT" ; break;
 	}
 
-	size = strlen(script) + strlen(type) + strlen(state) + strlen(name) + 12;
-	command_line = MALLOC(size);
-	if (!command_line)
-		return 0;
+	size = strlen(script->name) + strlen(type) + strlen(state) + strlen(name) + 12;
+	new_script.name = MALLOC(size);
+	if (!new_script.name)
+		return;
 
 	/* Launch the script */
-	snprintf(command_line, size, "\"%s\" %s \"%s\" %s %d",
-		 script, type, name, state, prio);
-	notify_exec(command_line);
-	FREE(command_line);
-	return 1;
+	snprintf(new_script.name, size, "\"%s\" %s \"%s\" %s %d",
+		 script->name, type, name, state, prio);
+	new_script.uid = script->uid;
+	new_script.gid = script->gid;
+
+	notify_exec(&new_script);
+
+	FREE(new_script.name);
 }
 
 int
 notify_instance_exec(vrrp_t * vrrp, int state)
 {
-	char *script = get_iscript(vrrp, state);
-	char *gscript = get_igscript(vrrp);
+	notify_script_t *script = get_iscript(vrrp, state);
+	notify_script_t *gscript = get_igscript(vrrp);
 	int ret = 0;
 
 	/* Launch the notify_* script */
@@ -181,11 +193,16 @@ notify_instance_exec(vrrp_t * vrrp, int state)
 	}
 
 	/* Launch the generic notify script */
-	if (gscript && script_open_litteral(gscript)) {
+	if (gscript && script_open_literal(gscript->name)) {
 		notify_script_exec(gscript, "INSTANCE", state, vrrp->iname,
 				   vrrp->effective_priority);
 		ret = 1;
 	}
+
+#ifdef _WITH_DBUS_
+	if (global_data->enable_dbus)
+		dbus_send_state_signal(vrrp); // send signal to all subscribers
+#endif
 
 	return ret;
 }
@@ -193,8 +210,8 @@ notify_instance_exec(vrrp_t * vrrp, int state)
 int
 notify_group_exec(vrrp_sgroup_t * vgroup, int state)
 {
-	char *script = get_gscript(vgroup, state);
-	char *gscript = get_ggscript(vgroup);
+	notify_script_t *script = get_gscript(vgroup, state);
+	notify_script_t *gscript = get_ggscript(vgroup);
 	int ret = 0;
 
 	/* Launch the notify_* script */
@@ -204,7 +221,7 @@ notify_group_exec(vrrp_sgroup_t * vgroup, int state)
 	}
 
 	/* Launch the generic notify script */
-	if (gscript && script_open_litteral(gscript)) {
+	if (gscript && script_open_literal(gscript->name)) {
 		notify_script_exec(gscript, "GROUP", state, vgroup->gname, 0);
 		ret = 1;
 	}

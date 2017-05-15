@@ -28,10 +28,10 @@
  * In order not to have to specify different pid files for each instance of
  * keepalived, if keepalived is running in a network namespace it will also create
  * its own mount namespace, and will slave bind mount a unique directory
- * (/var/run/keepalived/keepalived.PID) on /var/run/keepalived, so keepalived will
+ * (/var/run/keepalived/NAMESPACE) on /var/run/keepalived, so keepalived will
  * write its usual pid files (but to /var/run/keepalived rather than to /var/run),
  * and outside the mount namespace these will be visible at
- * /var/run/keepalived/keepalived.PID
+ * /var/run/keepalived/NAMESPACE.
  *
  * If you are familiar with network namespaces, then you will know what you can do
  * with them. If not, then the following scenarios should give you an idea of what
@@ -84,8 +84,8 @@
  * # ip netns exec netns2 ip link set eth0 netns netns3
  *
  * Make the link names in netns2 easier to remember
- * # ip netns exec netns1 ip link set 1.eth0 name eth0
- * # ip netns exec netns1 ip link set 3.eth1 name eth1
+ * # ip netns exec netns2 ip link set 1.eth0 name eth0
+ * # ip netns exec netns2 ip link set 3.eth1 name eth1
  *
  * Bring up the interfaces
  * # ip netns exec netns1 ip link set eth0 up
@@ -104,7 +104,7 @@
  * Configure some addresses
  * # ip netns exec netns1 ip addr add 10.2.0.1/24 broadcast 10.2.0.255 dev eth0
  * # ip netns exec netns2 ip addr add 10.2.0.2/24 broadcast 10.2.0.255 dev br0
- * # ip netns exec netns1 ip addr add 10.2.0.3/24 broadcast 10.2.0.255 dev eth0
+ * # ip netns exec netns3 ip addr add 10.2.0.3/24 broadcast 10.2.0.255 dev eth0
  *
  * Test it
  * # ip netns exec netns1 ping 10.2.0.2		# netns1 can talk to netns2
@@ -118,6 +118,8 @@
  * Create three configuration files, keepalived.netns1.conf etc
  * and in each config file in the global_defs section specify
  * net_namespace netns1        # or netns2 or netns3 as appropriate
+ * global_defs {
+ *		....
  *
  * Now run three instances of keepalived. Note, keepalived handles
  * joining the appropriate network namespace, and so the commands don't
@@ -172,9 +174,14 @@
 //#include "linux/unistd.h"
 //_syscall2(int, setns, int, fd, int, nstype)
 #include <unistd.h>
+#ifndef SYS_setns
+#define SYS_setns __NR_setns
+#endif
+
 #include <sys/syscall.h>
 
 #include "namespaces.h"
+#include "main.h"
 
 #ifndef MS_SLAVE	/* Since glibc 2.12, but Linux since 2.6.15 */
 #include <linux/fs.h>
@@ -189,42 +196,33 @@ int setns(int fd, int nstype)
 #include "logger.h"
 #include "pidfile.h"
 
-/* Global data */
-char *network_namespace;
-
 /* Local data */
 static const char *netns_dir = "/var/run/netns/";
-static const char *mount_point = PID_DIR PACKAGE;
-static char *dirname;
+static char *mount_dirname;
 
 void
 free_dirname(void)
 {
-	FREE_PTR(dirname);
+	FREE_PTR(mount_dirname);
 }
 
 static void
 set_run_mount(const char *net_namespace)
 {
-	if (mkdir(mount_point, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) && errno != EEXIST) {
-		log_message(LOG_INFO, "Unable to create directory %s", mount_point);
+	/* /var/run/keepalived/NAMESPACE */
+	mount_dirname = MALLOC(strlen(PID_DIR PACKAGE "/") + 1 + strlen(net_namespace));
+	if (!mount_dirname) {
+		log_message(LOG_INFO, "Unable to allocate memory for pid file dirname");
 		return;
 	}
 
-	/* /var/run/keepalived/keepalived.NAMESPACE */
-	dirname = MALLOC(strlen(PID_DIR PACKAGE "/" PACKAGE) + 1 + strlen(net_namespace) + 1);
-	if (!dirname) {
-		log_message(LOG_INFO, "Unable at allocate memory for pid file dirname");
-		return;
-	}
+	strcpy(mount_dirname, PID_DIR PACKAGE "/");
+	strcat(mount_dirname, net_namespace);
 
-	strcpy(dirname, PID_DIR PACKAGE "/" PACKAGE ".");
-	strcat(dirname, net_namespace);
-
-	if (mkdir(dirname, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) && errno != EEXIST) {
-		log_message(LOG_INFO, "Unable to create directory %s", dirname);
-		FREE(dirname);
-		dirname = NULL;
+	if (mkdir(mount_dirname, S_IRWXU | S_IRGRP | S_IXGRP | S_IROTH | S_IXOTH) && errno != EEXIST) {
+		log_message(LOG_INFO, "Unable to create directory %s", mount_dirname);
+		FREE(mount_dirname);
+		mount_dirname = NULL;
 		return;
 	}
 
@@ -239,22 +237,20 @@ set_run_mount(const char *net_namespace)
 		log_message(LOG_INFO, "Mount slave failed, error (%d) '%s'", errno, strerror(errno));
 #endif
 
-	if (mount(dirname, mount_point, NULL, MS_BIND, NULL))
+	if (mount(mount_dirname, pid_directory, NULL, MS_BIND, NULL))
 		log_message(LOG_INFO, "Mount failed, error (%d) '%s'", errno, strerror(errno));
 }
 
 static void
 unmount_run(void)
 {
-	if (umount(mount_point))
-		log_message(LOG_INFO, "unmount of %s failed - errno %d", mount_point, errno);
-	if (dirname) {
-		if (rmdir(dirname) && errno != ENOTEMPTY && errno != EBUSY)
-			log_message(LOG_INFO, "unlink of %s failed - error (%d) '%s'", dirname, errno, strerror(errno));
-		FREE(dirname);
+	if (umount(pid_directory))
+		log_message(LOG_INFO, "unmount of %s failed - errno %d", pid_directory, errno);
+	if (mount_dirname) {
+		if (rmdir(mount_dirname) && errno != ENOTEMPTY && errno != EBUSY)
+			log_message(LOG_INFO, "unlink of %s failed - error (%d) '%s'", mount_dirname, errno, strerror(errno));
+		FREE(mount_dirname);
 	}
-	if (rmdir(mount_point) && errno != ENOTEMPTY && errno != EBUSY)
-		log_message(LOG_INFO, "unlink of %s failed - error (%d) '%s'", mount_point, errno, strerror(errno));
 }
 
 bool

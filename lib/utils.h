@@ -49,10 +49,13 @@
 extern unsigned long debug;
 
 /* Prototypes defs */
-extern void dump_buffer(char *, int, FILE *);
-extern u_short in_csum(u_short *, int, int, int *);
+extern void dump_buffer(char *, size_t, FILE *);
+#ifdef _WITH_STACKTRACE_
+extern void write_stacktrace(const char *);
+#endif
+extern uint16_t in_csum(const uint16_t *, size_t, uint32_t, uint32_t *);
 extern char *inet_ntop2(uint32_t);
-extern uint8_t inet_stor(const char *);
+extern uint32_t inet_stor(const char *);
 extern int domain_stosockaddr(const char *, const char *, struct sockaddr_storage *);
 extern int inet_stosockaddr(char *, const char *, struct sockaddr_storage *);
 extern void inet_ip4tosockaddr(struct in_addr *, struct sockaddr_storage *);
@@ -65,11 +68,10 @@ extern uint32_t inet_sockaddrip4(struct sockaddr_storage *);
 extern int inet_sockaddrip6(struct sockaddr_storage *, struct in6_addr *);
 extern int inet_inaddrcmp(int, void *, void *);
 extern int inet_sockaddrcmp(struct sockaddr_storage *, struct sockaddr_storage *);
-extern int inet_ston(const char *, uint32_t *);
 extern char *get_local_name(void);
 extern int string_equal(const char *, const char *);
 extern void set_std_fd(int);
-#ifndef _HAVE_LIBIPTC_
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 extern int fork_exec(char **argv);
 #endif
 

@@ -27,7 +27,8 @@
 #ifdef _HAVE_LIBIPTC_
 #include "vrrp_iptables.h"
 #endif
-#include "vrrp_netlink.h"
+#include "vrrp.h"
+#include "keepalived_netlink.h"
 #include "vrrp_data.h"
 #include "logger.h"
 #include "memory.h"
@@ -35,9 +36,19 @@
 #include "bitops.h"
 #include "global_data.h"
 #include "rttables.h"
-
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+#include "utils.h"
+#endif
+#ifdef _LIBIPTC_DYNAMIC_
+#include "vrrp_iptables.h"
+#endif
 
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
+
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+static bool iptables_cmd_available;
+static bool ip6tables_cmd_available;
+#endif
 
 char *
 ipaddresstos(char *buf, ip_address_t *ipaddress)
@@ -85,8 +96,6 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 				cinfo.ifa_prefered = 0;
 				cinfo.ifa_valid = INFINITY_LIFE_TIME;
 
-				log_message(LOG_INFO, "%s has a prefix length of 128, setting "
-						      "preferred_lft to 0", ipaddresstos(NULL, ipaddress));
 				addattr_l(&req.n, sizeof(req), IFA_CACHEINFO, &cinfo,
 					  sizeof(cinfo));
 			}
@@ -109,6 +118,8 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin6_addr, sizeof(ipaddress->u.sin6_addr));
+
+
 	} else {
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin.sin_addr, sizeof(ipaddress->u.sin.sin_addr));
@@ -137,15 +148,16 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 }
 
 /* Add/Delete a list of IP addresses */
-void
+bool
 netlink_iplist(list ip_list, int cmd)
 {
 	ip_address_t *ipaddr;
 	element e;
+	bool changed_entries = false;
 
 	/* No addresses in this list */
 	if (LIST_ISEMPTY(ip_list))
-		return;
+		return false;
 
 	/*
 	 * If "--dont-release-vrrp" is set then try to release addresses
@@ -156,20 +168,24 @@ netlink_iplist(list ip_list, int cmd)
 		if ((cmd == IPADDRESS_ADD && !ipaddr->set) ||
 		    (cmd == IPADDRESS_DEL &&
 		     (ipaddr->set || __test_bit(DONT_RELEASE_VRRP_BIT, &debug)))) {
-			if (netlink_ipaddress(ipaddr, cmd) > 0)
+			if (netlink_ipaddress(ipaddr, cmd) > 0) {
 				ipaddr->set = !(cmd == IPADDRESS_DEL);
+				changed_entries = true;
+			}
 			else
-				ipaddr->set = 0;
+				ipaddr->set = false;
 		}
 	}
+
+	return changed_entries;
 }
 
-#ifndef _HAVE_LIBIPTC_
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 static void
-handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
+handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, bool force)
 {
 	char  *argv[14];
-	unsigned int i = 0;
+	int i = 0;
 	int if_specifier = -1;
 	int type_specifier ;
 	char *addr_str;
@@ -187,7 +203,7 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 	if (IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr)) {
 		if_specifier = i;
 		argv[i++] = "-i";
-		argv[i++] = ifname;
+		argv[i++] = ipaddress->ifp->ifname;
 	}
 	argv[i++] = "-p";
 	argv[i++] = "icmpv6";
@@ -198,13 +214,13 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 	argv[i++] = "ACCEPT";
 	argv[i] = NULL;
 
-	if (fork_exec(argv) < 0)
+	if (fork_exec(argv) < 0 && !force)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to accept NAs sent"
 				     " to vip %s", (cmd) ? "set" : "remove", addr_str);
 
 	argv[type_specifier] = "135";
 
-	if (fork_exec(argv) < 0)
+	if (fork_exec(argv) < 0 && !force)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to accept NSs sent"
 				     " to vip %s", (cmd) ? "set" : "remove", addr_str);
 
@@ -218,32 +234,40 @@ handle_iptable_rule_to_NA(ip_address_t *ipaddress, int cmd, char *ifname)
 
 	/* Allow NSs to be sent - this should only happen if the underlying interface
 	   doesn't have an IPv6 address */
-	if (fork_exec(argv) < 0)
+	if (fork_exec(argv) < 0 && !force)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to allow NSs to be"
 				     " sent from vip %s", (cmd) ? "set" : "remove", addr_str);
 
 	argv[type_specifier] = "136";
 
 	/* Allow NAs to be sent in reply to an NS */
-	if (fork_exec(argv) < 0)
+	if (fork_exec(argv) < 0 && !force)
 		log_message(LOG_ERR, "Failed to %s ip6table rule to allow NAs to be"
 				     " sent from vip %s", (cmd) ? "set" : "remove", addr_str);
 }
 
 /* add/remove iptable drop rule to VIP */
 static void
-handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void *unused)
+handle_iptable_rule_to_vip_cmd(ip_address_t *ipaddress, int cmd, bool force)
 {
-	char  *argv[10];
-	unsigned int i = 0;
+	char *argv[10];
+	int i = 0;
 	int if_specifier = -1;
 	char *addr_str;
-
-	if (global_data->vrrp_iptables_inchain[0] == '\0')
-		return;
+	char *ifname = NULL;
 
 	if (IP_IS6(ipaddress)) {
-		handle_iptable_rule_to_NA(ipaddress, cmd, ifname);
+		if (!ip6tables_cmd_available)
+			return;
+	} else {
+		if (!iptables_cmd_available)
+			return;
+	}
+
+	if (IP_IS6(ipaddress)) {
+		if (IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr))
+			ifname = ipaddress->ifp->ifname;
+		handle_iptable_rule_to_NA(ipaddress, cmd, force);
 		argv[i++] = "ip6tables";
 	} else {
 		argv[i++] = "iptables";
@@ -255,7 +279,7 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void 
 	argv[i++] = global_data->vrrp_iptables_inchain;
 	argv[i++] = "-d";
 	argv[i++] = addr_str;
-	if (IP_IS6(ipaddress) && IN6_IS_ADDR_LINKLOCAL(&ipaddress->u.sin6_addr)) {
+	if (ifname) {
 		if_specifier = i;
 		argv[i++] = "-i";
 		argv[i++] = ifname;
@@ -264,9 +288,11 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void 
 	argv[i++] = "DROP";
 	argv[i] = NULL;
 
-	if (fork_exec(argv) < 0)
-		log_message(LOG_ERR, "Failed to %s iptable drop rule"
-				     " to vip %s", (cmd) ? "set" : "remove", addr_str);
+	if (fork_exec(argv) < 0) {
+		if (!force)
+			log_message(LOG_ERR, "Failed to %s ip%stable drop rule"
+					     " to vip %s", (cmd) ? "set" : "remove", IP_IS6(ipaddress) ? "6" : "", addr_str);
+	}
 	else
 		ipaddress->iptable_rule_set = (cmd != IPADDRESS_DEL);
 
@@ -278,15 +304,47 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddress, int cmd, char *ifname, void 
 	if (if_specifier >= 0)
 		argv[if_specifier] = "-o";
 
-	if (fork_exec(argv) < 0)
-		log_message(LOG_ERR, "Failed to %s iptable drop rule"
-				     " from vip %s", (cmd) ? "set" : "remove", addr_str);
+	if (fork_exec(argv) < 0 && !force)
+		log_message(LOG_ERR, "Failed to %s ip%stable drop rule"
+				     " from vip %s", (cmd) ? "set" : "remove", IP_IS6(ipaddress) ? "6" : "", addr_str);
 }
 #endif
 
+static inline void
+handle_iptable_rule_to_vip(ip_address_t *ipaddr, int cmd,
+#ifdef _HAVE_LIBIPTC_
+							     struct ipt_handle *h,
+#else
+							     __attribute__((unused)) void *unused,
+#endif
+												   bool force)
+{
+	if (IP_IS6(ipaddr)) {
+		if (!block_ipv6)
+			return;
+	} else {
+		if (!block_ipv4)
+			return;
+	}
+
+#ifdef _HAVE_LIBIPTC_
+#ifdef _LIBIPTC_DYNAMIC_
+	if ((IP_IS6(ipaddr) && using_libip6tc) ||
+	    (!IP_IS6(ipaddr) && using_libip4tc))
+#endif
+	{
+		handle_iptable_rule_to_vip_lib(ipaddr, cmd, h, force);
+		return;
+	}
+#endif
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+	handle_iptable_rule_to_vip_cmd(ipaddr, cmd, force);
+#endif
+}
+
 /* add/remove iptable drop rules to iplist */
 void
-handle_iptable_rule_to_iplist(struct ipt_handle *h, list ip_list, int cmd, char *ifname, bool force)
+handle_iptable_rule_to_iplist(struct ipt_handle *h, list ip_list, int cmd, bool force)
 {
 	ip_address_t *ipaddr;
 	element e;
@@ -299,7 +357,7 @@ handle_iptable_rule_to_iplist(struct ipt_handle *h, list ip_list, int cmd, char 
 		ipaddr = ELEMENT_DATA(e);
 		if ((cmd == IPADDRESS_DEL) == ipaddr->iptable_rule_set ||
 		    force)
-			handle_iptable_rule_to_vip(ipaddr, cmd, ifname, h);
+			handle_iptable_rule_to_vip(ipaddr, cmd, h, force);
 	}
 }
 
@@ -361,7 +419,7 @@ parse_ipaddress(ip_address_t *ip_address, char *str, int allow_default)
 	new->ifa.ifa_prefixlen = (IP_IS6(new)) ? 128 : 32;
 	p = strchr(str, '/');
 	if (p) {
-		new->ifa.ifa_prefixlen = atoi(p + 1);
+		new->ifa.ifa_prefixlen = (uint8_t)atoi(p + 1);
 		*p = 0;
 	}
 
@@ -399,13 +457,13 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	interface_t *ifp_local;
 	char *str;
 	unsigned int i = 0, addr_idx = 0;
-	uint32_t scope;
+	uint8_t scope;
 	int param_avail;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 
 	/* We expect the address first */
-	if (!parse_ipaddress(new, vector_slot(strvec,0), false)) {
+	if (!parse_ipaddress(new, strvec_slot(strvec,0), false)) {
 		FREE(new);
 		return;
 	}
@@ -414,7 +472,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 
 	/* FMT parse */
 	while (i < vector_size(strvec)) {
-		str = vector_slot(strvec, i);
+		str = strvec_slot(strvec, i);
 
 		/* cmd parsing */
 		param_avail = (vector_size(strvec) >= i+2);
@@ -430,7 +488,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 				FREE(new);
 				return;
 			}
-			ifp_local = if_get_by_ifname(vector_slot(strvec, ++i));
+			ifp_local = if_get_by_ifname(strvec_slot(strvec, ++i));
 			if (!ifp_local) {
 				log_message(LOG_INFO, "VRRP is trying to assign ip address %s to unknown %s"
 				       " interface !!! go out and fix your conf !!!",
@@ -442,8 +500,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			new->ifa.ifa_index = IF_INDEX(ifp_local);
 			new->ifp = ifp_local;
 		} else if (!strcmp(str, "scope")) {
-			find_rttables_scope(vector_slot(strvec, ++i), &scope);
-			if (scope == -1)
+			if (!find_rttables_scope(strvec_slot(strvec, ++i), &scope))
 				log_message(LOG_INFO, "Invalid scope '%s' specified for %s - ignoring", FMT_STR_VSLOT(strvec,i), FMT_STR_VSLOT(strvec, addr_idx));
 			else
 				new->ifa.ifa_scope = scope;
@@ -455,7 +512,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 				FREE(new);
 				return;
 			}
-			if (!inet_pton(AF_INET, vector_slot(strvec, ++i), &new->u.sin.sin_brd)) {
+			if (!inet_pton(AF_INET, strvec_slot(strvec, ++i), &new->u.sin.sin_brd)) {
 				log_message(LOG_INFO, "VRRP is trying to assign invalid broadcast %s. "
 						      "skipping VIP...", FMT_STR_VSLOT(strvec, i));
 				FREE(new);
@@ -463,7 +520,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			}
 		} else if (!strcmp(str, "label")) {
 			new->label = MALLOC(IFNAMSIZ);
-			strncpy(new->label, vector_slot(strvec, ++i), IFNAMSIZ);
+			strncpy(new->label, strvec_slot(strvec, ++i), IFNAMSIZ);
 		} else
 			log_message(LOG_INFO, "Unknown configuration entry '%s' for ip address - ignoring", str);
 		i++;
@@ -524,25 +581,23 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 {
 	ip_address_t *ipaddr;
 	element e;
-	char *addr_str;
+	char addr_str[INET6_ADDRSTRLEN];
 	void *addr;
-	char *iface_name;
 
 	/* No addresses in previous conf */
 	if (LIST_ISEMPTY(l))
 		return;
 
 	ipaddr = ELEMENT_DATA(LIST_HEAD(l));
-	iface_name = IF_NAME(base_if_get_by_ifindex(ipaddr->ifa.ifa_index));
+
 	/* All addresses removed */
 	if (LIST_ISEMPTY(n)) {
-		log_message(LOG_INFO, "Removing a VIP and e-VIP block");
+		log_message(LOG_INFO, "Removing a complete VIP or e-VIP block");
 		netlink_iplist(l, IPADDRESS_DEL);
-		handle_iptable_rule_to_iplist(h, l, IPADDRESS_DEL, iface_name, false);
+		handle_iptable_rule_to_iplist(h, l, IPADDRESS_DEL, false);
 		return;
 	}
 
-	addr_str = (char *) MALLOC(INET6_ADDRSTRLEN);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		ipaddr = ELEMENT_DATA(e);
 
@@ -556,17 +611,10 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 					    , ipaddr->ifa.ifa_prefixlen
 					    , IF_NAME(if_get_by_ifindex(ipaddr->ifa.ifa_index)));
 			netlink_ipaddress(ipaddr, IPADDRESS_DEL);
-			if (ipaddr->iptable_rule_set
-#ifdef _HAVE_LIBIPTC_
-						     && h
-#endif
-							 )
-
-				handle_iptable_rule_to_vip(ipaddr, IPADDRESS_DEL, iface_name,h);
+			if (ipaddr->iptable_rule_set)
+				handle_iptable_rule_to_vip(ipaddr, IPADDRESS_DEL, h, false);
 		}
 	}
-
-	FREE(addr_str);
 }
 
 /* Clear static ip address */
@@ -574,4 +622,124 @@ void
 clear_diff_saddresses(void)
 {
 	clear_diff_address(NULL, old_vrrp_data->static_addresses, vrrp_data->static_addresses);
+}
+
+static void
+check_chains_exist(void)
+{
+#ifdef _HAVE_LIBIPTC_
+#ifdef _LIBIPTC_DYNAMIC_
+	if (using_libip4tc || using_libip6tc)
+#endif
+		check_chains_exist_lib();
+#endif
+
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+	char *argv[4];
+
+	argv[1] = "-nL";
+	argv[2] = global_data->vrrp_iptables_inchain;
+	argv[3] = NULL;
+
+	if (block_ipv4)
+	{
+#ifdef _LIBIPTC_DYNAMIC_
+		if (!using_libip4tc)
+#endif
+		{
+			argv[0] = "iptables";
+
+			if (fork_exec(argv) < 0) {
+				log_message(LOG_INFO, "iptables chain %s does not exist", global_data->vrrp_iptables_inchain);
+				block_ipv4 = false;
+			}
+			else if (global_data->vrrp_iptables_outchain[0]) {
+				argv[2] = global_data->vrrp_iptables_outchain;
+				if (fork_exec(argv) < 0) {
+					log_message(LOG_INFO, "iptables chain %s does not exist", global_data->vrrp_iptables_outchain);
+					block_ipv4 = false;
+				}
+			}
+		}
+	}
+
+	if (block_ipv6)
+	{
+#ifdef _LIBIPTC_DYNAMIC_
+		if (!using_libip6tc)
+#endif
+		{
+			argv[0] = "ip6tables";
+			argv[2] = global_data->vrrp_iptables_inchain;
+
+			if (fork_exec(argv) < 0) {
+				log_message(LOG_INFO, "ip6tables chain %s does not exist", global_data->vrrp_iptables_inchain);
+				block_ipv6 = false;
+			}
+			else if (global_data->vrrp_iptables_outchain[0]) {
+				argv[2] = global_data->vrrp_iptables_outchain;
+				if (fork_exec(argv) < 0) {
+					log_message(LOG_INFO, "ip6tables chain %s does not exist", global_data->vrrp_iptables_outchain);
+					block_ipv6 = false;
+				}
+			}
+		}
+	}
+#endif
+}
+
+void
+iptables_init(void)
+{
+	if (!block_ipv4 && !block_ipv6) {
+#ifdef _HAVE_LIBIPSET_
+		global_data->using_ipsets = false;
+#endif
+		return;
+	}
+
+#ifdef _HAVE_LIBIPTC_
+	iptables_init_lib();
+#endif
+
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+	char *argv[3];
+
+	/* If can't use libiptc, check iptables command available */
+	argv[1] = "-V";
+	argv[2] = NULL;
+
+	if (block_ipv4
+#ifdef _LIBIPTC_DYNAMIC_
+		       && !using_libip4tc
+#endif
+				       )
+	{
+		argv[0] = "iptables";
+		if (!(iptables_cmd_available = (fork_exec(argv) >= 0))) {
+			log_message(LOG_INFO, "iptables command not available - can't filter IPv4 VIP address destinations");
+			block_ipv4 = false;
+		}
+	}
+
+	if (block_ipv6
+#ifdef _LIBIPTC_DYNAMIC_
+		       && !using_libip6tc
+#endif
+					 )
+	{
+		argv[0] = "ip6tables";
+		if (!(ip6tables_cmd_available = (fork_exec(argv) >= 0))) {
+			log_message(LOG_INFO, "ip6tables command not available - can't filter IPv6 VIP address destinations");
+			block_ipv6 = false;
+		}
+	}
+#endif
+
+	if (block_ipv4 || block_ipv6)
+		check_chains_exist();
+#ifdef _HAVE_LIBIPSET_
+	else
+		global_data->using_ipsets = false;
+#endif
 }

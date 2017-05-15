@@ -1,0 +1,11 @@
+description "load-balancing and high-availability service"
+
+start on runlevel [2345]
+stop on runlevel [!2345]
+
+respawn
+
+script
+	. @sysconfdir@/sysconfig/keepalived
+	exec @sbindir@/keepalived --dont-fork ${KEEPALIVED_OPTIONS}
+end script

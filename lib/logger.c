@@ -23,15 +23,18 @@
 #include "config.h"
 
 #include <stdio.h>
+#include <stdbool.h>
+#include <time.h>
+
 #include "logger.h"
 
 /* Boolean flag - send messages to console as well as syslog */
-static int log_console = 0;
+static bool log_console = false;
 
 void
 enable_console_log(void)
 {
-	log_console = 1;
+	log_console = true;
 }
 
 void
@@ -42,7 +45,14 @@ vlog_message(const int facility, const char* format, va_list args)
 	vsnprintf(buf, sizeof(buf), format, args);
 
 	if (log_console) {
-		fprintf(stderr, "%s\n", buf);
+		/* timestamp setup */
+		time_t t = time(NULL);
+		struct tm tm;
+		localtime_r(&t, &tm);
+		char timestamp[64];
+		strftime(timestamp, sizeof(timestamp), "%c", &tm);
+
+		fprintf(stderr, "%s: %s\n", timestamp, buf);
 	}
 
 	syslog(facility, "%s", buf);

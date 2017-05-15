@@ -25,6 +25,40 @@
 #include "vector.h"
 #include "memory.h"
 
+/* Function to call if attempt to read beyond end of strvec */
+static null_strvec_handler_t null_strvec_handler;
+
+null_strvec_handler_t register_null_strvec_handler(null_strvec_handler_t null_strvec_func)
+{
+	null_strvec_handler_t old_handler = null_strvec_handler;
+
+	null_strvec_handler = null_strvec_func;
+
+	return old_handler;
+}
+
+null_strvec_handler_t unregister_null_strvec_handler(void)
+{
+	null_strvec_handler_t old_handler = null_strvec_handler;
+
+	null_strvec_handler = NULL;
+
+	return old_handler;
+}
+
+void *strvec_slot(const vector_t *strvec, size_t index)
+{
+	if (strvec &&
+	    index < vector_size(strvec) &&
+	    strvec->slot[index])
+		return strvec->slot[index];
+
+	if (null_strvec_handler)
+		(*null_strvec_handler)(strvec, index);
+
+	return "";
+}
+
 /*
  * Initialize vector struct.
  * allocalted 'size' slot elements then return vector.

@@ -32,9 +32,9 @@
 #include "scheduler.h"
 
 typedef struct _tcp_check {
-	int n_retry;
-	long delay_before_retry;
-	int retry_it;
+	unsigned	n_retry;
+	unsigned long	delay_before_retry;
+	unsigned	retry_it;
 } tcp_check_t;
 
 /* macro utility */

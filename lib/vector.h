@@ -24,6 +24,7 @@
 #define _VECTOR_H
 
 #include <stdio.h>
+#include <stdbool.h>
 
 /* vector definition */
 typedef struct _vector {
@@ -32,19 +33,25 @@ typedef struct _vector {
 	void		**slot;
 } vector_t;
 
+typedef char *(*null_strvec_handler_t)(const vector_t *, size_t);
+
 /* Some defines */
 #define VECTOR_DEFAULT_SIZE 1
 
 /* Some useful macros */
+#define vector_size(V)   ((V)->allocated)
 #define vector_slot(V,E) ((V)->slot[(E)])
 //#define vector_slot(V,E) (vector_lookup(V,E))
-#define vector_size(V)   ((V)->allocated)
+
 #define vector_active(V) ((V)->active)
 #define vector_foreach_slot(v,p,i) \
 	for (i = 0; i < (v)->allocated && ((p) = (v)->slot[i]); i++)
-#define FMT_STR_VSLOT(V,E) ((char*)vector_slot(V,E))
+#define FMT_STR_VSLOT(V,E) ((char*)strvec_slot(V,E))
 
 /* Prototypes */
+extern null_strvec_handler_t register_null_strvec_handler(null_strvec_handler_t);
+extern null_strvec_handler_t unregister_null_strvec_handler(void);
+extern void *strvec_slot(const vector_t *strvec, size_t index);
 extern vector_t *vector_alloc(void);
 extern void vector_alloc_slot(vector_t *);
 extern void vector_set_slot(vector_t *, void *);

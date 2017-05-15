@@ -14,6 +14,29 @@ in you configuration file use this char.
 
 <BOOL> is one of on|off|true|false|yes|no
 
+0.2. Conditional configuration and configuration id
+
+Any configuration line starts with '@' is a conditional configuration line.
+The word immediately following (i.e. without any space) the '@' character
+is compared against the string specified with the -i command line option,
+and if they don't match, the configuration line is ignored.
+
+The purpose of this is to allow a single configuration file to be used for
+multiple systems, where the only differences are likely to be the router_id,
+vrrp instance priorities, and possibly interface names.
+
+For example:
+
+global_defs
+{
+@main	router_id main_router
+@backup router_id backup_router
+}
+
+If keepalived is invoked with -i main, then the router_id will be set to main_router,
+if invoked with -i backup, then backup_router, if not invoked with -i, or with
+-i anything else, then the router_id will not be set.
+
 1. Globals configurations
 
 This block is divided in 4 sub-blocks :
@@ -76,10 +99,23 @@ global_defs {				# Block identification
     vrrp_lower_prio_no_advert [<BOOL>]     # If a lower priority advert is received, just discard
 					   # it and don't send another advert. This causes adherence
 					   # to the RFCs.
+    vrrp_higher_prio_send_advert [<BOOL>]  # If we are master and receive a higher priority
+					   # advert, send an advert (which will be lower priority
+					   # than the other master), before we transition to
+					   # backup. This means that if the other master has
+					   # garp_lower_priority_repeat set, it will resend garp
+					   # messages. This is to get around the problem of their
+					   # having been two simultaneous masters, and the last GARP
+					   # messages seen were from us.
     vrrp_version <INTEGER:2..3>            # Default VRRP version (default 2)
     vrrp_iptables [keepalived_in [keepalived_out]]     # default INPUT
 					   # Specifies the iptables chains to add entries to
 					   # If no table names are specied, no entries are added
+    vrrp_ipsets ipset4 [ipset6 [ipset_if6]] # Set the ipset set names to use. If no names are specified,
+					   #   ipsets will not be used. The default ipset4 name is 'keepalived'.
+					   # If ipset6 is not specified, '6' as appended to the ipset4 name.
+					   #   If ipset_if6 is not specified, any trailing '6' from ipset6
+					   #   is removed and '_if6' appended
     vrrp_check_unicast_src		   # Check source address of a unicast packet is a
 					   # unicast peer
     vrrp_strict				   # Enforce strict VRRP protocol compliance. This will prohibit:
@@ -88,6 +124,7 @@ global_defs {				# Block identification
 					   #   IPv6 addresses in VRRP version 2
 					   # Sets:
 					   #   vrrp_lower_priority_dont_send_advert
+					   #
 					   # The following 4 options can be used if vrrp or checker processes
 					   #   are timing out. This can be seen by a backup vrrp instance becoming
 					   #   master even when the master is still running, due to the master or
@@ -109,6 +146,15 @@ global_defs {				# Block identification
     enable_snmp_rfcv2			   # enable SNMP handling of RFC2787 VRRPv2 MIB
     enable_snmp_rfcv3			   # enable SNMP handling of RFC6527 VRRPv3 MIB
     enable_traps			   # enable SNMP trap generation
+					   #
+    enable_dbus				   # enable the DBus interface
+					   #
+    script_user USERNAME [GROUPNAME]	   # Specify the default username/groupname to run scripts under
+					   # If groupname is not specified, the group of the user is used.
+					   # If this option is not specified, the user defaults to keepalived_script
+					   # if that user exists, otherwise root.
+    enable_script_security		   # Don't run scripts configured to be run as root if any part of the path
+					   # is writable by a non-root user.
 }
 
 net_namespace NAME			   # Set the network namespace to run in
@@ -116,6 +162,17 @@ net_namespace NAME			   # Set the network namespace to run in
 					   #   for example for pid files.
 					   # syslog entries will have _NAME appended to the ident.
 					   # Note: the namespace cannot be changed on a configuration reload
+namespace_with_ipsets			   # ipsets wasn't network namespace aware until Linux 3.13, and so if running with
+					   # an earlier version of the kernel, by default use of ipsets is disabled if using
+					   # a namespace and vrrp_ipsets isn't specified.
+					   # This options overrides the default and allows ipsets to be used
+					   # with a namespace on kernels prior to 3.13.
+
+instance NAME				   # If multiple instances of keepalived are run in the same namespace, this will
+					   #   create pid files with NAME as part of the file names, in /var/run/keepalived.
+					   # Note: the instance name cannot be changed on a configuration reload
+
+use_pid_dir				   # Create pid files in /var/run/keepalived
 
 linkbeat_use_polling			   # Use media link failure detection polling fashion
 
@@ -140,9 +197,10 @@ SCOPE can take the following values :
 	1.3 Static rules
 
 static_rules {							# block identification
-								# The syntax is that same as for ip rule add, without "ip rule add" with the addition of tunnel-id option, e.g.
-	from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1 oif wlan0 tos 22 fwmark 24/12 preference 39 realms 30/20 goto 40
-	to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908
+								# The syntax is that same as for ip rule add, without "ip rule add"
+								# with the addition of tunnel-id option, e.g.
+	from 192.168.28.0/24 to 192.168.29.0/26 table small iif p33p1 oif wlan0 tos 22 fwmark 24/12 preference 39 realms 30/20
+	to 1:2:3:4:5:6:7:0/112 from 7:6:5:4:3:2::/96 table 6908 uidrange 10000-19999
 }
 
 	1.4. Static routes
@@ -176,18 +234,24 @@ vrrp_script <STRING> {          # VRRP script declaration
     weight <INTEGER:-254..254>  # adjust priority by this weight
     fall <INTEGER>              # required number of failures for KO switch
     rise <INTEGER>              # required number of successes for OK switch
+    user USERNAME [GROUPNAME]	# specify user/group to run script under
+    init_fail                   # assume script initially is in failed state
 }
 
 The script will be executed periodically, every <interval> seconds. Its exit
-code will be recorded for all VRRP instances which will want to monitor it.
+code will be recorded for all VRRP instances which monitor it.
 Note that the script will only be executed if at least one VRRP instance
-monitors it with a non-zero weight. Thus, any number of scripts may be
-declared without taking the system down.
+monitors.
 
-If unspecified, the weight equals 2, which means that a success will add +2
-to the priority of all VRRP instances which monitor it. On the opposite, a
-negative weight will be subtracted from the initial priority in case of
-failure.
+The default weight equals 0, which means that any VRRP instance monitoring
+the script will transition to the fault state after <fall> consecutive failures
+of the script. After that, <rise> consecutive successes will cause VRRP instances to
+leave the fault state, unless they are also in the fault state due to other scripts
+or interfaces that they are tracking.
+
+A positive weight means that <rise> successes will add <weight> to the priority of all
+VRRP instances which monitor it. On the opposite, a negative weight will be subtracted
+from the initial priority in case of <fall> failures.
 
 	2.2. VRRP synchronization group
 
@@ -199,16 +263,26 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
       <STRING>			#       set
       ...			#             of VRRP_Instance string
     }
-    notify_master <STRING>|<QUOTED-STRING> # Script to run during MASTER transit
-    notify_backup <STRING>|<QUOTED-STRING> # Script to run during BACKUP transit
-    notify_fault <STRING>|<QUOTED-STRING>  # Script to run during FAULT transit
-    notify <STRING>|<QUOTED-STRING>	   # Script to run during ANY state transit (1)
+
+				# The username and groupname specify the user and group
+				# under which the scripts should be run. If username is
+				# specified, the group defaults to the group of the user.
+				# If username is not specified, they default to the
+				# global script_user and script_group
+    notify_master <STRING>|<QUOTED-STRING> [username [groupname]]
+				# Script to run during MASTER transit
+    notify_backup <STRING>|<QUOTED-STRING> [username [groupname]]
+				# Script to run during BACKUP transit
+    notify_fault <STRING>|<QUOTED-STRING> [username [groupname]]
+				# Script to run during FAULT transit
+    notify <STRING>|<QUOTED-STRING> [username [groupname]]
+				# Script to run during ANY state transit (1)
     smtp_alert		 # Send email notification during state transit
 }
 
 (1) The "notify" script is called AFTER the corresponding notify_* script has
     been called, and is given exactly 4 arguments (the whole string is interpreted
-    as a litteral filename so don't add parameters!):
+    as a literal filename so don't add parameters!):
 
     $1 = A string indicating whether it's a "GROUP" or an "INSTANCE"
     $2 = The name of said group or instance
@@ -244,7 +318,7 @@ garp_group {
     gna_interval <DECIMAL>		   # Sets the default interval between unsolicited NA
 					   #   (in seconds, resolution microseconds)
     interface <STRING>			   # The physical interface to which the intervals apply
-    interfaces {			   # A list of interfaces accross which the delays are
+    interfaces {			   # A list of interfaces across which the delays are
 	<STRING>			   #   aggregated.
 	<STRING>
 	...
@@ -260,7 +334,7 @@ garp_group {
 	The configuration block looks like :
 
 vrrp_instance <STRING> {		# VRRP instance declaration
-    use_vmac				# Use VRRP Virtual MAC
+    use_vmac [<NAME>]			# Use VRRP Virtual MAC, optional NAME of interface
     version <INTEGER:2..3>              # VRRP version to use
     vmac_xmit_base			# Send/Recv VRRP messages from base
 					#  interface instead of VMAC interface
@@ -268,6 +342,11 @@ vrrp_instance <STRING> {		# VRRP instance declaration
 					#  when using mixed IPv4&IPv6 conf
     state MASTER|BACKUP			# Start-up default state
     interface <STRING>			# Binding interface
+    accept				# Allow a non address-owner to process packets
+					# destined to VIPs and eVIPs. This is the default
+					# unless strict mode is set.
+    no_accept				# Set non-accept mode (default if strict mode)
+					#
     track_interface {			# Interfaces state we monitor
       <STRING>
       <STRING>
@@ -301,10 +380,19 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     priority <INTEGER-1..255>		# VRRP PRIO
     advert_int <FLOAT>			# VRRP Advert interval (use default)
 
-    lower_prio_no_advert		# If a lower priority advert is received, don't
-					# don't send another advert. This causes adherence
+    lower_prio_no_advert [<BOOL>]	# If a lower priority advert is received, don't
+					# send another advert. This causes adherence
 					# to the RFCs (defaults to global
 					# vrrp_lower_priority_dont_send_advert).
+
+    higher_prio_send_advert [<BOOL>]	# If we are master and receive a higher priority
+					# advert, send an advert (which will be lower priority
+					# than the other master), before we transition to
+					# backup. This means that if the other master has
+					# garp_lower_priority_repeat set, it will resend garp
+					# messages. This is to get around the problem of their
+					# having been two simultaneous masters, and the last GARP
+					# messages seen were from us.
 
     # Note: authentication was removed from the VRRPv2 specification by RFC3768 in 2004.
     #   Use of this option is non-compliant and can cause problems; avoid using if possible,
@@ -323,6 +411,8 @@ vrrp_instance <STRING> {		# VRRP instance declaration
         <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
         ...
     }
+    prompte_secondaries			# Set the promote_secondaries flag on the interface to stop other
+					# addresses in the same CIDR being removed when 1 of them is removed
     virtual_routes {			# VRRP virtual routes
 					# The syntax is the same as static_routes
     }
@@ -337,11 +427,16 @@ vrrp_instance <STRING> {		# VRRP instance declaration
 						# If vrrp_strict is not specified, it takes the value of vrrp_strict
 						# If strict_mode without a parameter is specified, it defaults to on
     debug <LEVEL>				# Debug level. LEVEL is a number in the range 0 to 4.
-    notify_master <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
-    notify_backup <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
-    notify_fault <STRING>|<QUOTED-STRING>	# Same as vrrp_sync_group
-    notify_stop <STRING>|<QUOTED-STRING>	# Script to launch when stopping vrrp
-    notify <STRING>|<QUOTED-STRING>		# Same as vrrp_sync_group
+    notify_master <STRING>|<QUOTED-STRING> [username [groupname]]
+						# Same as vrrp_sync_group
+    notify_backup <STRING>|<QUOTED-STRING> [username [groupname]]
+						# Same as vrrp_sync_group
+    notify_fault <STRING>|<QUOTED-STRING> [username [groupname]]
+						# Same as vrrp_sync_group
+    notify_stop <STRING>|<QUOTED-STRING> [username [groupname]]
+						# Script to launch when stopping vrrp
+    notify <STRING>|<QUOTED-STRING> [username [groupname]]
+						# Same as vrrp_sync_group
     smtp_alert					# Same as vrrp_sync_group
 }
 
@@ -364,7 +459,7 @@ increased by the weight when the interface is up (for positive weights),
 or decreased by the weight's absolute value when the interface is down
 (for negative weights). The weight must be comprised between -254 and +254
 inclusive. 0 is the default behaviour which means that a failure implies a
-FAULT state. The common practise is to use positive weights to count a
+FAULT state. The common practice is to use positive weights to count a
 limited number of good services so that the server with the highest count
 becomes master. Negative weights are better to count unexpected failures
 among a high number of interfaces, as it will not saturate even with high
@@ -372,7 +467,7 @@ number of interfaces.
 
 The same principle can be applied to track_script entries, except that an
 unspecified weight means that the default weight declared in the script
-will be used.
+will be used (which itself defaults to 0).
 
 
 3. LVS configuration
@@ -416,11 +511,20 @@ virtual_server fwmark <INTEGER>    {	# VS fwmark declaration
 virtual_server group <STRING>      {	# VS group declaration
     ip_family inet|inet6		# Address family
     delay_loop <INTEGER>		# delay timer for service polling
-    lvs_sched rr|wrr|lc|wlc|lblc|sh|dh	# LVS scheduler used
+    lvs_sched rr|wrr|lc|wlc|lblc|sh|dh|fo|ovf|lblcr|sed|nq
+					# LVS scheduler used
+    hashed				# Apply hashing
+    flag-1				# Apply scheduler flag 1
+    flag-2				# Apply scheduler flag 2
+    flag-3				# Apply scheduler flag 3
+    sh-port				# Apply sh-port scheduler flag (only for sh scheduler,
+					#  same as flag-2 for sh scheduler)
+    sh-fallback				# Apply sh-fallback scheduler flag (only for sh scheduler,
+					#  same as flag-1 for sh scheduler)
     ops					# Apply One-Packet-Scheduling (only for UDP)
-    lvs_method NAT|DR|TUN		# LVS method used
+    lvs_method NAT|DR|TUN		# default LVS method to use
     persistence_engine <STRING>	        # LVS persistence engine name
-    persistence_timeout <INTEGER>	# LVS persistence timeout
+    persistence_timeout [<INTEGER>]	# LVS persistence timeout, default 6 minutes
     persistence_granularity <NETMASK>	# LVS granularity mask
     protocol TCP|UDP|SCTP               # L4 protocol
     ha_suspend				# If VS IP address is not set, suspend
@@ -463,14 +567,17 @@ virtual_server group <STRING>      {	# VS group declaration
 
     real_server <IP ADDRESS> <PORT> {	# RS declaration
         weight <INTEGER>		# weight to use (default: 1)
+        lvs_method NAT|DR|TUN		# LVS method to use
         inhibit_on_failure		# Set weight to 0 on healthchecker
 					#  failure
-        notify_up <STRING>|<QUOTED-STRING> # Script to launch when
-					   #  healthchecker consider service
-					   #  as up.
-        notify_down <STRING>|<QUOTED-STRING> # Script to launch when
-					     #  healthchecker consider service
-					     #  as down.
+        notify_up <STRING>|<QUOTED-STRING> [username [groupname]]
+					# Script to launch when
+					#  healthchecker consider service
+					#  as up.
+        notify_down <STRING>|<QUOTED-STRING> [username [groupname]]
+					# Script to launch when
+					#  healthchecker consider service
+					#  as down.
 
         HTTP_GET|SSL_GET {		# HTTP and SSL healthcheckers
             url {			# A set of url to test
@@ -499,9 +606,10 @@ virtual_server group <STRING>      {	# VS group declaration
 
     real_server <IP ADDRESS> <PORT> {	# Idem
         weight <INTEGER>		# Idem
+        lvs_method NAT|DR|TUN		# Idem
         inhibit_on_failure		# Idem
-        notify_up <STRING>|<QUOTED-STRING> # Idem
-        notify_down <STRING>|<QUOTED-STRING> # Idem
+        notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
+        notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
 
         TCP_CHECK {			# TCP healthchecker
             connect_ip <IP ADDRESS> # IP address to connect
@@ -517,8 +625,8 @@ virtual_server group <STRING>      {	# VS group declaration
     real_server <IP ADDRESS> <PORT> {	# Idem
         weight <INTEGER>		# Idem
         inhibit_on_failure		# Idem
-        notify_up <STRING>|<QUOTED-STRING> # Idem
-        notify_down <STRING>|<QUOTED-STRING> # Idem
+        notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
+        notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
 
         SMTP_CHECK {                   # SMTP healthchecker
             connect_ip <IP ADDRESS>     # Optional IP address to connect to
@@ -554,9 +662,30 @@ virtual_server group <STRING>      {	# VS group declaration
 
     real_server <IP ADDRESS> <PORT> {	# Idem
         weight <INTEGER>		# Idem
+        lvs_method NAT|DR|TUN		# Idem
         inhibit_on_failure		# Idem
-        notify_up <STRING>|<QUOTED-STRING> # Idem
-        notify_down <STRING>|<QUOTED-STRING> # Idem
+        notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
+        notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
+
+        DNS_CHECK {                     # DNS healthchecker
+            connect_ip <IP ADDRESS>     # Optional IP address to connect to
+            connect_port <PORT>         # Optional port to connect to
+            bindto <IP ADDRESS>         # Optional interface to use to originate the connection
+            bind_port <PORT>            # Optional source port to originate the connection from
+            connect_timeout <INTEGER>   # Optional per-host connection timeout.
+            fwmark <INTEGER>            # Optional fwmark to mark all outgoing checker pakets with
+            retry <INTEGER>             # Number of times to retry a failed check
+            type <STRING>               # DNS query type
+            name <STRING>               # Domain name to use for the DNS query
+        }
+    }
+
+    real_server <IP ADDRESS> <PORT> {	# Idem
+        weight <INTEGER>		# Idem
+        lvs_method NAT|DR|TUN		# Idem
+        inhibit_on_failure		# Idem
+        notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
+        notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
 
         MISC_CHECK {				# MISC healthchecker
             misc_path <STRING>|<QUOTED-STRING>	# External system script or program
@@ -573,6 +702,7 @@ virtual_server group <STRING>      {	# VS group declaration
             #   (for example: exit status of 255 would set
             #     weight to 253)
             misc_dynamic
+	    user USERNAME [GROUPNAME] # Specify user/group to run script under
         }
     }
 }

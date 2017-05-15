@@ -96,14 +96,16 @@ POST_UNINSTALL = :
 @VMAC_TRUE@am__append_2 = vrrp_vmac.c
 @VRRP_AUTH_TRUE@am__append_3 = vrrp_ipsecah.o
 @VRRP_AUTH_TRUE@am__append_4 = vrrp_ipsecah.c
-@FIB_ROUTING_TRUE@am__append_5 = vrrp_iproute.o vrrp_iprule.o vrrp_ip_rule_route_parser.o
-@FIB_ROUTING_TRUE@am__append_6 = vrrp_iproute.c vrrp_iprule.c vrrp_ip_rule_route_parser.c
-@LIBIPTC_TRUE@am__append_7 = vrrp_iptables.o vrrp_iptables_calls.o
-@LIBIPTC_TRUE@am__append_8 = vrrp_iptables.c vrrp_iptables_calls.c
-@LIBIPSET_TRUE@am__append_9 = vrrp_ipset.o
-@LIBIPSET_TRUE@am__append_10 = vrrp_ipset.c
-@SNMP_TRUE@am__append_11 = vrrp_snmp.o
-@SNMP_TRUE@am__append_12 = vrrp_snmp.c
+@WITH_DBUS_TRUE@am__append_5 = vrrp_dbus.o
+@WITH_DBUS_TRUE@am__append_6 = vrrp_dbus.c
+@FIB_ROUTING_TRUE@am__append_7 = vrrp_iproute.o vrrp_iprule.o vrrp_ip_rule_route_parser.o
+@FIB_ROUTING_TRUE@am__append_8 = vrrp_iproute.c vrrp_iprule.c vrrp_ip_rule_route_parser.c
+@LIBIPTC_TRUE@am__append_9 = vrrp_iptables.o vrrp_iptables_calls.o
+@LIBIPTC_TRUE@am__append_10 = vrrp_iptables.c vrrp_iptables_calls.c
+@LIBIPSET_TRUE@am__append_11 = vrrp_ipset.o
+@LIBIPSET_TRUE@am__append_12 = vrrp_ipset.c
+@SNMP_TRUE@am__append_13 = vrrp_snmp.o
+@SNMP_TRUE@am__append_14 = vrrp_snmp.c
 subdir = keepalived/vrrp
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
@@ -122,17 +124,18 @@ am__v_AR_1 =
 libvrrp_a_AR = $(AR) $(ARFLAGS)
 libvrrp_a_DEPENDENCIES = $(am__append_1) $(am__append_3) \
 	$(am__append_5) $(am__append_7) $(am__append_9) \
-	$(am__append_11)
+	$(am__append_11) $(am__append_13)
 am_libvrrp_a_OBJECTS = vrrp_daemon.$(OBJEXT) vrrp_print.$(OBJEXT) \
 	vrrp_data.$(OBJEXT) vrrp_parser.$(OBJEXT) vrrp.$(OBJEXT) \
 	vrrp_notify.$(OBJEXT) vrrp_scheduler.$(OBJEXT) \
-	vrrp_sync.$(OBJEXT) vrrp_index.$(OBJEXT) \
-	vrrp_netlink.$(OBJEXT) vrrp_arp.$(OBJEXT) vrrp_if.$(OBJEXT) \
-	vrrp_track.$(OBJEXT) vrrp_ipaddress.$(OBJEXT) \
-	vrrp_ndisc.$(OBJEXT) vrrp_if_config.$(OBJEXT)
+	vrrp_sync.$(OBJEXT) vrrp_index.$(OBJEXT) vrrp_arp.$(OBJEXT) \
+	vrrp_if.$(OBJEXT) vrrp_track.$(OBJEXT) \
+	vrrp_ipaddress.$(OBJEXT) vrrp_ndisc.$(OBJEXT) \
+	vrrp_if_config.$(OBJEXT)
 am__EXTRA_libvrrp_a_SOURCES_DIST = vrrp_vmac.c vrrp_ipsecah.c \
-	vrrp_iproute.c vrrp_iprule.c vrrp_ip_rule_route_parser.c \
-	vrrp_iptables.c vrrp_iptables_calls.c vrrp_ipset.c vrrp_snmp.c
+	vrrp_dbus.c vrrp_iproute.c vrrp_iprule.c \
+	vrrp_ip_rule_route_parser.c vrrp_iptables.c \
+	vrrp_iptables_calls.c vrrp_ipset.c vrrp_snmp.c
 libvrrp_a_OBJECTS = $(am_libvrrp_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -225,6 +228,7 @@ KA_CFLAGS = @KA_CFLAGS@
 KA_CPPFLAGS = @KA_CPPFLAGS@
 KA_LDFLAGS = @KA_LDFLAGS@
 KA_LIBS = @KA_LIBS@
+LDD = @LDD@
 LDFLAGS = @LDFLAGS@
 LIBOBJS = @LIBOBJS@
 LIBS = @LIBS@
@@ -243,6 +247,10 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PID_DIR = @PID_DIR@
+PKG_CONFIG = @PKG_CONFIG@
+PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
+PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
 RANLIB = @RANLIB@
 SED = @SED@
 SET_MAKE = @SET_MAKE@
@@ -289,6 +297,7 @@ sbindir = @sbindir@
 sharedstatedir = @sharedstatedir@
 srcdir = @srcdir@
 sysconfdir = @sysconfdir@
+systemdsystemunitdir = @systemdsystemunitdir@
 target_alias = @target_alias@
 top_build_prefix = @top_build_prefix@
 top_builddir = @top_builddir@
@@ -302,14 +311,15 @@ AM_LDFLAGS = $(KA_LDFLAGS) $(DEBUG_LDFLAGS)
 noinst_LIBRARIES = libvrrp.a
 libvrrp_a_SOURCES = vrrp_daemon.c vrrp_print.c vrrp_data.c \
 	vrrp_parser.c vrrp.c vrrp_notify.c vrrp_scheduler.c \
-	vrrp_sync.c vrrp_index.c vrrp_netlink.c vrrp_arp.c vrrp_if.c \
-	vrrp_track.c vrrp_ipaddress.c vrrp_ndisc.c vrrp_if_config.c \
+	vrrp_sync.c vrrp_index.c vrrp_arp.c vrrp_if.c vrrp_track.c \
+	vrrp_ipaddress.c vrrp_ndisc.c vrrp_if_config.c \
 	../include/vrrp_daemon.h
 libvrrp_a_LIBADD = $(am__append_1) $(am__append_3) $(am__append_5) \
-	$(am__append_7) $(am__append_9) $(am__append_11)
+	$(am__append_7) $(am__append_9) $(am__append_11) \
+	$(am__append_13)
 EXTRA_libvrrp_a_SOURCES = $(am__append_2) $(am__append_4) \
 	$(am__append_6) $(am__append_8) $(am__append_10) \
-	$(am__append_12)
+	$(am__append_12) $(am__append_14)
 all: all-am
 
 .SUFFIXES:
@@ -362,6 +372,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_arp.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_daemon.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_data.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_dbus.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_if.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_if_config.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_index.Po@am__quote@
@@ -374,7 +385,6 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_iptables.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_iptables_calls.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_ndisc.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_netlink.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_notify.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_parser.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_print.Po@am__quote@

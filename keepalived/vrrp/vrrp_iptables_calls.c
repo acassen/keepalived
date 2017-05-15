@@ -38,13 +38,12 @@
 #include <libiptc/libiptc.h>
 #include <libiptc/libip6tc.h>
 #ifdef _HAVE_LIBIPSET_
-#ifdef XT_SET_H_NEEDS_LINUX_IP_SET_H
-#include <libipset/linux_ip_set.h>
-#endif
+#include <linux/netfilter/ipset/ip_set.h>
 #include <linux/netfilter/xt_set.h>
 #endif
 #include <unistd.h>
 #include <signal.h>
+#include <stdint.h>
 
 #include "vrrp_iptables_calls.h"
 #include "memory.h"
@@ -52,6 +51,10 @@
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
+#ifdef _LIBIPTC_DYNAMIC_
+#include "global_data.h"
+#endif
+#include "vrrp_iptables.h"
 
 /* We sometimes get a resource_busy on iptc_commit. This appears to happen
  * when someone else is also updating it.
@@ -63,6 +66,78 @@
  * state of iptables. This fits with the tests, but also means that we could
  * be interferred with by anyone else doing an update.
  */
+
+#ifdef _LIBIPTC_DYNAMIC_
+#include <dlfcn.h>
+
+/* The addresses of the functions we want */
+struct iptc_handle *(*iptc_init_addr)(const char *tablename);
+void (*iptc_free_addr)(struct iptc_handle *h);
+int (*iptc_is_chain_addr)(const char *chain, struct iptc_handle *const handle);
+int (*iptc_insert_entry_addr)(const ipt_chainlabel chain, const struct ipt_entry *e, unsigned int rulenum, struct iptc_handle *handle);
+int (*iptc_append_entry_addr)(const ipt_chainlabel chain, const struct ipt_entry *e, struct iptc_handle *handle);
+int (*iptc_delete_entry_addr)(const ipt_chainlabel chain, const struct ipt_entry *origfw, unsigned char *matchmask, struct iptc_handle *handle);
+int (*iptc_commit_addr)(struct iptc_handle *handle);
+const char *(*iptc_strerror_addr)(int err);
+
+struct ip6tc_handle *(*ip6tc_init_addr)(const char *tablename);
+void (*ip6tc_free_addr)(struct ip6tc_handle *h);
+int (*ip6tc_is_chain_addr)(const char *chain, struct ip6tc_handle *const handle);
+int (*ip6tc_insert_entry_addr)(const ip6t_chainlabel chain, const struct ip6t_entry *e, unsigned int rulenum, struct ip6tc_handle *handle);
+int (*ip6tc_append_entry_addr)(const ip6t_chainlabel chain, const struct ip6t_entry *e, struct ip6tc_handle *handle);
+int (*ip6tc_delete_entry_addr)(const ip6t_chainlabel chain, const struct ip6t_entry *origfw, unsigned char *matchmask, struct ip6tc_handle *handle);
+int (*ip6tc_commit_addr)(struct ip6tc_handle *handle);
+const char *(*ip6tc_strerror_addr)(int err);
+
+/* We can make it look as though normal linking is being used */
+#define iptc_init (*iptc_init_addr)
+#define iptc_free (*iptc_free_addr)
+#define iptc_is_chain (*iptc_is_chain_addr)
+#define iptc_insert_entry (*iptc_insert_entry_addr)
+#define iptc_append_entry (*iptc_append_entry_addr)
+#define iptc_delete_entry (*iptc_delete_entry_addr)
+#define iptc_commit (*iptc_commit_addr)
+#define iptc_strerror (*iptc_strerror_addr)
+
+#define ip6tc_init (*ip6tc_init_addr)
+#define ip6tc_free (*ip6tc_free_addr)
+#define ip6tc_is_chain (*ip6tc_is_chain_addr)
+#define ip6tc_insert_entry (*ip6tc_insert_entry_addr)
+#define ip6tc_append_entry (*ip6tc_append_entry_addr)
+#define ip6tc_delete_entry (*ip6tc_delete_entry_addr)
+#define ip6tc_commit (*ip6tc_commit_addr)
+#define ip6tc_strerror (*ip6tc_strerror_addr)
+
+static void* libip4tc_handle;
+static void* libip6tc_handle;
+#endif
+
+#ifdef _LIBXTABLES_DYNAMIC_
+#include <dlfcn.h>
+
+/* The addresses of the functions we want */
+int (*xtables_insmod_addr)(const char *, const char *, bool);
+
+/* We can make it look as though normal linking is being used */
+#define xtables_insmod (*xtables_insmod_addr)
+
+static void *libxtables_handle;
+#endif
+
+static void
+set_iface(char *vianame, unsigned char *mask, const char *iface)
+{
+	size_t vialen = strlen(iface);
+
+	memset(vianame, 0, IFNAMSIZ);
+	memset(mask, 0, IFNAMSIZ);
+
+	strcpy(vianame, iface);
+	if (!vialen)
+		return;
+
+	memset(mask, 0xFF, vialen + 1);
+}
 
 /* Initializes a new iptables instance and returns an iptables resource associated with the new iptables table */
 struct iptc_handle* ip4tables_open ( const char* tablename )
@@ -101,7 +176,7 @@ int ip4tables_is_chain(struct iptc_handle* handle, const char* chain_name)
 	return iptc_is_chain(chain_name, handle);
 }
 
-int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name, int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint16_t type, int cmd)
+int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name, unsigned int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint8_t type, int cmd, bool force)
 {
 	size_t size;
 	struct ipt_entry *fw;
@@ -116,14 +191,12 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 	memset (chain, 0, sizeof (chain));
 
 	size = XT_ALIGN (sizeof (struct ipt_entry)) +
-			XT_ALIGN ( sizeof ( struct xt_entry_match ) ) +
 			XT_ALIGN (sizeof (struct xt_entry_target) + 1);
 
 	if ( protocol == IPPROTO_ICMP )
 		size += XT_ALIGN ( sizeof(struct xt_entry_match) ) + XT_ALIGN ( sizeof(struct ipt_icmp) ) ;
 
 	fw = (struct ipt_entry*)MALLOC(size);
-	memset (fw, 0, size);
 
 	fw->target_offset = XT_ALIGN ( sizeof ( struct ipt_entry ) ) ;
 
@@ -139,10 +212,10 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 		memset ( &fw->ip.dmsk, 0xff, sizeof(fw->ip.dmsk));
 	}
 
-	if ( in_iface )
-		strcpy ( fw->ip.iniface, in_iface ) ;
-	if ( out_iface )
-		strcpy ( fw->ip.outiface, out_iface ) ;
+	if (in_iface)
+		set_iface(fw->ip.iniface, fw->ip.iniface_mask, in_iface);
+	if (out_iface)
+		set_iface(fw->ip.outiface, fw->ip.outiface_mask, out_iface);
 
 	if ( protocol != IPPROTO_NONE ) {
 		fw->ip.proto = protocol ;
@@ -152,10 +225,10 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 		if ( protocol == IPPROTO_ICMP )
 		{
 			match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
-			match->u.match_size = XT_ALIGN ( sizeof (struct xt_entry_match) ) + XT_ALIGN ( sizeof (struct ipt_icmp) ) ;
+			match->u.match_size = XT_ALIGN(sizeof (struct xt_entry_match)) + XT_ALIGN(sizeof(struct ipt_icmp));  
 			match->u.user.revision = 0;
-			fw->target_offset += match->u.match_size ;
-			strcpy ( match->u.user.name, "icmpv" ) ;
+			fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
+			strcpy ( match->u.user.name, "icmp" ) ;
 
 			struct ipt_icmp *icmpinfo = (struct ipt_icmp *) match->data;
 			icmpinfo->type = type ;		// type to match
@@ -166,7 +239,7 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 	}
 
 // target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
-	fw->next_offset = size;
+	fw->next_offset = (uint16_t)size;
 	target = ipt_get_target ( fw ) ;
 	target->u.user.target_size = XT_ALIGN (sizeof (struct xt_entry_target) + 1);
 	strcpy (target->u.user.name, target_name );
@@ -178,14 +251,16 @@ int ip4tables_process_entry( struct iptc_handle* handle, const char* chain_name,
 		memset(matchmask, 0xff, fw->next_offset);
 		res = iptc_delete_entry(chain, fw, matchmask, handle);
 	}
-	else if ( rulenum == -1 )
+	else if (rulenum == APPEND_RULE)
 		res = iptc_append_entry (chain, fw, handle ) ;
 	else
 		res = iptc_insert_entry (chain, fw, rulenum, handle ) ;
 
 	sav_errno = errno ;
 
-	if (res!= 1)
+	FREE(fw);
+
+	if (res !=  1 && (!force || sav_errno != ENOENT))
 	{
 		log_message(LOG_INFO, "ip4tables_process_entry for chain %s returned %d: %s", chain, res, iptc_strerror (sav_errno) ) ;
 
@@ -232,7 +307,7 @@ int ip6tables_is_chain(struct ip6tc_handle* handle, const char* chain_name)
 	return ip6tc_is_chain(chain_name, handle);
 }
 
-int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name, int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint16_t type, int cmd)
+int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name, unsigned int rulenum, const char* target_name, const ip_address_t* src_ip_address, const ip_address_t* dst_ip_address, const char* in_iface, const char* out_iface, uint16_t protocol, uint8_t type, int cmd, bool force)
 {
 	size_t size;
 	struct ip6t_entry *fw;
@@ -247,14 +322,12 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 	memset (chain, 0, sizeof (chain));
 
 	size = XT_ALIGN (sizeof (struct ip6t_entry)) +
-			XT_ALIGN ( sizeof ( struct xt_entry_match ) ) +
 			XT_ALIGN (sizeof (struct xt_entry_target) + 1);
 
 	if ( protocol == IPPROTO_ICMPV6 )
 		size += XT_ALIGN ( sizeof(struct xt_entry_match) ) + XT_ALIGN ( sizeof(struct ip6t_icmp) ) ;
 
 	fw = (struct ip6t_entry*)MALLOC(size);
-	memset (fw, 0, size);
 
 	fw->target_offset = XT_ALIGN ( sizeof ( struct ip6t_entry ) ) ;
 
@@ -268,10 +341,10 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 		memset ( &fw->ipv6.dmsk, 0xff, sizeof(fw->ipv6.smsk));
 	}
 
-	if ( in_iface )
-		strcpy ( fw->ipv6.iniface, in_iface ) ;
-	if ( out_iface )
-		strcpy ( fw->ipv6.outiface, out_iface ) ;
+	if (in_iface)
+		set_iface(fw->ipv6.iniface, fw->ipv6.iniface_mask, in_iface);
+	if (out_iface)
+		set_iface(fw->ipv6.outiface, fw->ipv6.outiface_mask, out_iface);
 
 	if ( protocol != IPPROTO_NONE ) {
 		fw->ipv6.proto = protocol ;
@@ -283,7 +356,7 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 			match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 			match->u.match_size = XT_ALIGN ( sizeof (struct xt_entry_match) ) + XT_ALIGN ( sizeof (struct ip6t_icmp) ) ;
 			match->u.user.revision = 0;
-			fw->target_offset += match->u.match_size ;
+			fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 			strcpy ( match->u.user.name, "icmp6" ) ;
 
 			struct ip6t_icmp *icmpinfo = (struct ip6t_icmp *) match->data;
@@ -295,7 +368,7 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 	}
 
 // target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
-	fw->next_offset = size;
+	fw->next_offset = (uint16_t)size;
 	target = ip6t_get_target ( fw ) ;
 	target->u.user.target_size = XT_ALIGN (sizeof (struct xt_entry_target) + 1);
 	strcpy (target->u.user.name, target_name );
@@ -308,14 +381,16 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 		memset(matchmask, 0xff, fw->next_offset);
 		res = ip6tc_delete_entry ( chain, fw, matchmask, handle);
 	}
-	else if ( rulenum == -1 )
+	else if (rulenum == APPEND_RULE)
 		res = ip6tc_append_entry (chain, fw, handle ) ;
 	else
 		res = ip6tc_insert_entry (chain, fw, rulenum, handle ) ;
 
 	sav_errno = errno ;
 
-	if (res != 1)
+	FREE(fw);
+
+	if (res !=  1 && (!force || sav_errno != ENOENT))
 	{
 		log_message(LOG_INFO, "ip6tables_process_entry for chain %s returned %d: %s", chain, res, ip6tc_strerror (sav_errno) ) ;
 
@@ -325,11 +400,57 @@ int ip6tables_process_entry( struct ip6tc_handle* handle, const char* chain_name
 	return 0 ;
 }
 
-#ifdef _HAVE_LIBIPSET_
-int load_mod_xt_set(void)
+#ifdef _HAVE_LIBIPTC_
+#ifdef _LIBXTABLES_DYNAMIC_ 
+static
+bool xtables_load(void)
+{
+	if (libxtables_handle)
+		return true;
+
+	if (!(libxtables_handle = dlopen("libxtables.so", RTLD_NOW)) &&
+	    !(libxtables_handle = dlopen(XTABLES_LIB_NAME, RTLD_NOW))) {
+		log_message(LOG_INFO, "Unable to load xtables library - %s", dlerror());
+		return false;
+	}
+
+	if (!(xtables_insmod_addr = dlsym(libxtables_handle, "xtables_insmod"))) {
+		log_message(LOG_INFO, "Failed to dynamic link xtables_insmod - %s", dlerror());
+		dlclose(libxtables_handle);
+		libxtables_handle = NULL;
+
+		return false;
+	}
+
+	return true;
+}
+
+void xtables_unload(void)
+{
+	if (!libxtables_handle)
+		return;
+
+	dlclose(libxtables_handle);
+	libxtables_handle = NULL;
+}
+#endif
+
+bool
+load_xtables_module(const char *module,
+#ifndef _LIBXTABLES_DYNAMIC_
+					__attribute__((unused))
+#endif
+								const char *function)
 {
 	struct sigaction act, old_act;
 	bool res = true;
+
+#ifdef _LIBXTABLES_DYNAMIC_
+	if (!libxtables_handle && !xtables_load()) {
+		log_message(LOG_INFO, "Module %s cannot be loaded; not using %s", module, function);
+		return false;
+	}
+#endif
 
 	/* Enable SIGCHLD since xtables_insmod forks/execs modprobe */
 	act.sa_handler = SIG_DFL;
@@ -338,13 +459,16 @@ int load_mod_xt_set(void)
 
 	sigaction(SIGCHLD, &act, &old_act);
 
-	if (xtables_insmod("xt_set", NULL, true))
+	if (xtables_insmod(module, NULL, true))
 		res = false;
 
 	sigaction(SIGCHLD, &old_act, NULL);
+
 	return res;
 }
+#endif
 
+#ifdef _HAVE_LIBIPSET_
 #ifndef IP_SET_OP_VERSION	/* Exposed to userspace from Linux 3.4 */
 				/* Copied from <linux/netfilter/ipset/ip_set.h> */
 #define SO_IP_SET	83
@@ -431,12 +555,14 @@ get_set_byname_only(const char *setname, struct xt_set_info *info,
 }
 
 static void
-get_set_byname(const char *setname, struct xt_set_info *info, int family, bool ignore_errors)
+get_set_byname(const char *setname, struct xt_set_info *info, unsigned family, bool ignore_errors)
 {
 #if defined IP_SET_OP_GET_FNAME
 	struct ip_set_req_get_set_family req;
 	socklen_t size = sizeof(struct ip_set_req_get_set_family);
 	int res;
+#else
+	if (family) {};		/* Avoid compiler warning */
 #endif
 	int sockfd;
 	unsigned int version;
@@ -492,13 +618,17 @@ get_set_byname(const char *setname, struct xt_set_info *info, int family, bool i
 #endif
 }
 
-int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int rulenum, int dim, int src_dst, const char* target_name, const char* set_name, uint16_t protocol, int param, int cmd, bool ignore_errors)
+int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, unsigned int rulenum, uint8_t dim, uint8_t src_dst, const char* target_name, const char* set_name, uint16_t protocol, uint8_t param, int cmd, bool ignore_errors)
 {
 	size_t size;
 	struct ipt_entry *fw;
 	struct xt_entry_target *target;
 	struct xt_entry_match *match;
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	struct xt_set_info_match_v4 *setinfo;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	struct xt_set_info_match_v3 *setinfo;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	struct xt_set_info_match_v1 *setinfo;
 #else
 	struct xt_set_info_match *setinfo;
@@ -520,26 +650,35 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 		size += XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ipt_icmp));
 
 	fw = (struct ipt_entry*)MALLOC(size);
-	memset(fw, 0, size);
 
 	fw->target_offset = XT_ALIGN(sizeof(struct ipt_entry));
 
 	// set
 	match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 	match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(*setinfo));
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	match->u.user.revision = 4;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	match->u.user.revision = 3;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	match->u.user.revision = 1;
 #else
 	match->u.user.revision = 0;
 #endif
-	fw->target_offset += match->u.match_size;
+	fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 	strcpy(match->u.user.name, "set");
 
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	setinfo = (struct xt_set_info_match_v4 *)match->data;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	setinfo = (struct xt_set_info_match_v3 *)match->data;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	setinfo = (struct xt_set_info_match_v1 *)match->data;
 #else
 	setinfo = (struct xt_set_info_match *)match->data;
 #endif
+	memset(setinfo, 0, sizeof (*setinfo));
+
 	get_set_byname(set_name, &setinfo->match_set, NFPROTO_IPV4, ignore_errors);
 	if (setinfo->match_set.index == IPSET_INVALID_ID) {
 		FREE(fw);
@@ -559,7 +698,7 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 			match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 			match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ipt_icmp));
 			match->u.user.revision = 0;
-			fw->target_offset += match->u.match_size;
+			fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 			strcpy(match->u.user.name, "icmp");
 
 			struct ipt_icmp *icmpinfo = (struct ipt_icmp *)match->data;
@@ -571,7 +710,7 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 	}
 
 // target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
-	fw->next_offset = size;
+	fw->next_offset = (uint16_t)size;
 	target = ipt_get_target(fw);
 	target->u.user.target_size = XT_ALIGN(sizeof(struct xt_entry_target) + 1);
 	strcpy(target->u.user.name, target_name);
@@ -584,7 +723,7 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 		memset(matchmask, 0xff, fw->next_offset);
 		res = iptc_delete_entry(chain, fw, matchmask, handle);
 	}
-	else if (rulenum == -1)
+	else if (rulenum == APPEND_RULE)
 		res = iptc_append_entry(chain, fw, handle) ;
 	else
 		res = iptc_insert_entry(chain, fw, rulenum, handle) ;
@@ -604,13 +743,17 @@ int ip4tables_add_rules(struct iptc_handle* handle, const char* chain_name, int 
 	return 0;
 }
 
-int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int rulenum, int dim, int src_dst, const char* target_name, const char* set_name, uint16_t protocol, int param, int cmd, bool ignore_errors)
+int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, unsigned int rulenum, uint8_t dim, uint8_t src_dst, const char* target_name, const char* set_name, uint16_t protocol, uint8_t param, int cmd, bool ignore_errors)
 {
 	size_t size;
 	struct ip6t_entry *fw;
 	struct xt_entry_target *target;
 	struct xt_entry_match *match;
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	struct xt_set_info_match_v4 *setinfo;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	struct xt_set_info_match_v3 *setinfo;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	struct xt_set_info_match_v1 *setinfo;
 #else
 	struct xt_set_info_match *setinfo;
@@ -632,26 +775,35 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 		size += XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ip6t_icmp));
 
 	fw = (struct ip6t_entry*)MALLOC(size);
-	memset(fw, 0, size);
 
 	fw->target_offset = XT_ALIGN(sizeof(struct ip6t_entry));
 
 	// set
 	match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 	match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(*setinfo));
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	match->u.user.revision = 4;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	match->u.user.revision = 3;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	match->u.user.revision = 1;
 #else
 	match->u.user.revision = 0;
 #endif
-	fw->target_offset += match->u.match_size;
+	fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 	strcpy(match->u.user.name, "set");
 
-#ifdef HAVE_XT_SET_INFO_MATCH_V1
+#ifdef HAVE_XT_SET_INFO_MATCH_V4
+	setinfo = (struct xt_set_info_match_v4 *)match->data;
+#elif defined HAVE_XT_SET_INFO_MATCH_V3
+	setinfo = (struct xt_set_info_match_v3 *)match->data;
+#elif defined HAVE_XT_SET_INFO_MATCH_V1
 	setinfo = (struct xt_set_info_match_v1 *)match->data;
 #else
 	setinfo = (struct xt_set_info_match *)match->data;
 #endif
+	memset(setinfo, 0, sizeof(*setinfo));
+
 	get_set_byname (set_name, &setinfo->match_set, NFPROTO_IPV6, ignore_errors);
 	if (setinfo->match_set.index == IPSET_INVALID_ID) {
 		FREE(fw);
@@ -671,7 +823,7 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 			match = (struct xt_entry_match*)((char*)fw + fw->target_offset);
 			match->u.match_size = XT_ALIGN(sizeof(struct xt_entry_match)) + XT_ALIGN(sizeof(struct ip6t_icmp));
 			match->u.user.revision = 0;
-			fw->target_offset += match->u.match_size;
+			fw->target_offset = (uint16_t)(fw->target_offset + match->u.match_size);
 			strcpy(match->u.user.name, "icmp6");
 
 			struct ip6t_icmp *icmpinfo = (struct ip6t_icmp *)match->data;
@@ -683,7 +835,7 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 	}
 
 // target is XTC_LABEL_DROP/XTC_LABEL_ACCEPT
-	fw->next_offset = size;
+	fw->next_offset = (uint16_t)size;
 	target = ip6t_get_target(fw);
 	target->u.user.target_size = XT_ALIGN(sizeof(struct xt_entry_target) + 1);
 	strcpy(target->u.user.name, target_name);
@@ -696,7 +848,7 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 		memset(matchmask, 0xff, fw->next_offset);
 		res = ip6tc_delete_entry(chain, fw, matchmask, handle);
 	}
-	else if (rulenum == -1)
+	else if (rulenum == APPEND_RULE)
 		res = ip6tc_append_entry(chain, fw, handle) ;
 	else
 		res = ip6tc_insert_entry(chain, fw, rulenum, handle) ;
@@ -714,5 +866,56 @@ int ip6tables_add_rules(struct ip6tc_handle* handle, const char* chain_name, int
 	}
 
 	return 0;
+}
+#endif
+
+#ifdef _LIBIPTC_DYNAMIC_
+bool iptables_lib_init(void)
+{
+	if (!libip4tc_handle && block_ipv4) {
+		/* Attempt to open the ip4tc library */
+		if (!(libip4tc_handle = dlopen("libip4tc.so", RTLD_NOW)) &&
+		    !(libip4tc_handle = dlopen(IP4TC_LIB_NAME, RTLD_NOW))) {
+			log_message(LOG_INFO, "Unable to load ip4tc library - %s", dlerror());
+			using_libip4tc = false;
+		}
+		else if (!(iptc_init_addr = dlsym(libip4tc_handle, "iptc_init")) ||
+			 !(iptc_free_addr = dlsym(libip4tc_handle, "iptc_free")) ||
+			 !(iptc_is_chain_addr = dlsym(libip4tc_handle,"iptc_is_chain")) ||
+			 !(iptc_insert_entry_addr = dlsym(libip4tc_handle,"iptc_insert_entry")) ||
+			 !(iptc_append_entry_addr = dlsym(libip4tc_handle,"iptc_append_entry")) ||
+			 !(iptc_delete_entry_addr = dlsym(libip4tc_handle,"iptc_delete_entry")) ||
+			 !(iptc_commit_addr = dlsym(libip4tc_handle,"iptc_commit")) ||
+			 !(iptc_strerror_addr = dlsym(libip4tc_handle,"iptc_strerror"))) {
+			log_message(LOG_INFO, "Failed to dynamic link an iptc function - %s", dlerror());
+			using_libip4tc = false;
+			dlclose(libip4tc_handle);
+			libip4tc_handle = NULL;
+		}
+	}
+
+	if (!libip6tc_handle && block_ipv6) {
+		/* Attempt to open the ip6tc library */
+		if (!(libip6tc_handle = dlopen("libip6tc.so", RTLD_NOW)) &&
+		    !(libip6tc_handle = dlopen(IP6TC_LIB_NAME, RTLD_NOW))) {
+			log_message(LOG_INFO, "Unable to load ip6tc library - %s", dlerror());
+			using_libip6tc = false;
+		}
+		else if (!(ip6tc_init_addr = dlsym(libip6tc_handle, "ip6tc_init")) ||
+			 !(ip6tc_free_addr = dlsym(libip6tc_handle, "ip6tc_free")) ||
+			 !(ip6tc_is_chain_addr = dlsym(libip6tc_handle,"ip6tc_is_chain")) ||
+			 !(ip6tc_insert_entry_addr = dlsym(libip6tc_handle,"ip6tc_insert_entry")) ||
+			 !(ip6tc_append_entry_addr = dlsym(libip6tc_handle,"ip6tc_append_entry")) ||
+			 !(ip6tc_delete_entry_addr = dlsym(libip6tc_handle,"ip6tc_delete_entry")) ||
+			 !(ip6tc_commit_addr = dlsym(libip6tc_handle,"ip6tc_commit")) ||
+			 !(ip6tc_strerror_addr = dlsym(libip6tc_handle,"ip6tc_strerror"))) {
+			log_message(LOG_INFO, "Failed to dynamic link an ip6tc function - %s", dlerror());
+			using_libip6tc = false;
+			dlclose(libip6tc_handle);
+			libip6tc_handle = NULL;
+		}
+	}
+
+	return libip4tc_handle || libip6tc_handle;
 }
 #endif

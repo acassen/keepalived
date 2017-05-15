@@ -1,0 +1,11 @@
+# To build the documentation with sphinx, the following packages were required
+# to be installed on Fedora 24:
+
+dnf install python-sphinx \ # this which will pull in python-sphinx_rtd_theme
+	texlive-cm texlive-ec texlive-times texlive-helvetic texlive-courier \
+	texlive-cmap texlive-fancyhdr texlive-fancybox texlive-titlesec texlive-framed texlive-threeparttable texlive-babel-english \
+	texlive-mdwtools texlive-wrapfig texlive-parskip texlive-upquote texlive-capt-of texlive-multirow texlive-eqparbox texlive-dvips
+
+On Fedora 25, the following are also required:
+	texlive-mfware-bin texlive-gsftopk-bin
+

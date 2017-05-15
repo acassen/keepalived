@@ -33,7 +33,7 @@
 #include "list.h"
 #include "check_api.h"
 
-#define SMTP_BUFF_MAX		512
+#define SMTP_BUFF_MAX		512U
 
 #define SMTP_START		1
 #define SMTP_HAVE_BANNER	2
@@ -51,16 +51,16 @@ typedef conn_opts_t smtp_host_t;
 typedef struct _smtp_checker {
 	/* non per host config data goes here */
 	char				*helo_name;
-	long				db_retry;
-	int				retry;
-	int				attempts;
-	int				host_ctr;
+	unsigned long			db_retry;
+	unsigned			retry;
+	unsigned			attempts;
+	unsigned			host_ctr;
 	smtp_host_t			*host_ptr;
 	conn_opts_t			*default_co;
 
 	/* data buffer */
 	char				buff[SMTP_BUFF_MAX];
-	int				buff_ctr;
+	size_t				buff_ctr;
 	int				(*buff_cb) (thread_t *);
 
 	int				state;

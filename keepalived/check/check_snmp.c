@@ -22,6 +22,8 @@
 
 #include "config.h"
 
+#include <stdint.h>
+
 #include "check_data.h"
 #include "check_snmp.h"
 #include "list.h"
@@ -63,6 +65,7 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSPERSIST,
 	CHECK_SNMP_VSPERSISTTIMEOUT,
 	CHECK_SNMP_VSPERSISTGRANULARITY,
+	CHECK_SNMP_VSPERSISTGRANULARITY6,
 	CHECK_SNMP_VSDELAYLOOP,
 	CHECK_SNMP_VSHASUSPEND,
 	CHECK_SNMP_VSOPS,
@@ -75,7 +78,6 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSHYSTERESIS,
 	CHECK_SNMP_VSREALTOTAL,
 	CHECK_SNMP_VSREALUP,
-#ifdef _WITH_LVS_
 	CHECK_SNMP_VSSTATSCONNS,
 	CHECK_SNMP_VSSTATSINPKTS,
 	CHECK_SNMP_VSSTATSOUTPKTS,
@@ -99,9 +101,12 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSRATEINBPSLOW,
 	CHECK_SNMP_VSRATEINBPSHIGH,
 	CHECK_SNMP_VSRATEOUTBPSLOW,
-	CHECK_SNMP_VSRATEOUTBPSHIGH
+	CHECK_SNMP_VSRATEOUTBPSHIGH,
 #endif
-#endif
+	CHECK_SNMP_VSHASHED,
+	CHECK_SNMP_VSSHFALLBACK,
+	CHECK_SNMP_VSSHPORT,
+	CHECK_SNMP_VSSCHED3,
 };
 
 enum check_snmp_realserver_magic {
@@ -117,7 +122,6 @@ enum check_snmp_realserver_magic {
 	CHECK_SNMP_RSNOTIFYUP,
 	CHECK_SNMP_RSNOTIFYDOWN,
 	CHECK_SNMP_RSFAILEDCHECKS,
-#ifdef _WITH_LVS_
 	CHECK_SNMP_RSSTATSCONNS,
 	CHECK_SNMP_RSSTATSACTIVECONNS,
 	CHECK_SNMP_RSSTATSINACTIVECONNS,
@@ -144,9 +148,9 @@ enum check_snmp_realserver_magic {
 	CHECK_SNMP_RSRATEINBPSLOW,
 	CHECK_SNMP_RSRATEINBPSHIGH,
 	CHECK_SNMP_RSRATEOUTBPSLOW,
-	CHECK_SNMP_RSRATEOUTBPSHIGH
+	CHECK_SNMP_RSRATEOUTBPSHIGH,
 #endif
-#endif
+	CHECK_SNMP_RSLOADBALANCINGKIND
 };
 
 #define STATE_VSGM_FWMARK 1
@@ -159,7 +163,7 @@ enum check_snmp_realserver_magic {
 #define STATE_RS_REGULAR_NEXT 3
 #define STATE_RS_END 4
 
-#ifdef _WITH_LVS_
+#ifdef _WITH_VRRP_
 enum check_snmp_lvs_sync_daemon {
 	CHECK_SNMP_LVSSYNCDAEMONENABLED,
 	CHECK_SNMP_LVSSYNCDAEMONINTERFACE,
@@ -196,6 +200,9 @@ do {									\
 } while(0)
 
 
+/* Static return value */
+static longret_t long_ret;
+
 static u_char*
 check_snmp_vsgroup(struct variable *vp, oid *name, size_t *length,
 		   int exact, size_t *var_len, WriteMethod **write_method)
@@ -222,12 +229,12 @@ static u_char*
 check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 			 int exact, size_t *var_len, WriteMethod **write_method)
 {
-	static unsigned long long_ret;
 	static uint32_t ip;
 	static struct in6_addr ip6;
 	oid *target, current[2], best[2];
-	int result, target_len;
-	int curgroup = 0, curentry;
+	int result;
+	size_t target_len;
+	unsigned curgroup = 0, curentry;
 	element e1, e2;
 	virtual_server_group_t *group;
 	virtual_server_group_entry_t *e, *be = NULL;
@@ -314,24 +321,24 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
  vsgmember_be_found:
 	/* Let's use our best match */
 	memcpy(target, best, sizeof(oid) * 2);
-	*length = vp->namelen + 2;
+	*length = (unsigned)vp->namelen + 2;
  vsgmember_found:
 	switch (vp->magic) {
 	case CHECK_SNMP_VSGROUPMEMBERTYPE:
 		if (be->vfwmark)
-			long_ret = 1;
+			long_ret.u = 1;
 		else if (be->range)
-			long_ret = 3;
+			long_ret.u = 3;
 		else
-			long_ret = 2;
+			long_ret.u = 2;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_VSGROUPMEMBERFWMARK:
 		if (!be->vfwmark) break;
-		long_ret = be->vfwmark;
+		long_ret.u = be->vfwmark;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_VSGROUPMEMBERADDRTYPE:
 		if (be->vfwmark) break;
-		long_ret = (be->addr.ss_family == AF_INET6) ? 2:1;
+		long_ret.u = (be->addr.ss_family == AF_INET6) ? 2:1;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_VSGROUPMEMBERADDRESS:
 		if (be->vfwmark || be->range) break;
@@ -353,14 +360,14 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 		} else {
 			struct sockaddr_in *addr4 = (struct sockaddr_in *)&be->addr;
 			*var_len = 4;
-			ip = (*(u_int32_t *)&addr4->sin_addr) & htonl(0xFFFFFF00);
+			ip = (*(uint32_t *)&addr4->sin_addr) & htonl(0xFFFFFF00);
 			ip += htonl(be->range);
 			return (u_char *)&ip;
 		}
 		break;
 	case CHECK_SNMP_VSGROUPMEMBERPORT:
 		if (be->vfwmark) break;
-		long_ret = htons(inet_sockaddrport(&be->addr));
+		long_ret.u = htons(inet_sockaddrport(&be->addr));
 		return (u_char *)&long_ret;
 	default:
 		return NULL;
@@ -377,7 +384,6 @@ static u_char*
 check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 			 int exact, size_t *var_len, WriteMethod **write_method)
 {
-	static unsigned long long_ret;
 	static struct counter64 counter64_ret;
 	virtual_server_t *v;
 	element e;
@@ -391,11 +397,11 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	switch (vp->magic) {
 	case CHECK_SNMP_VSTYPE:
 		if (v->vsgname)
-			long_ret = 3;
+			long_ret.u = 3;
 		else if (v->vfwmark)
-			long_ret = 1;
+			long_ret.u = 1;
 		else
-			long_ret = 2;
+			long_ret.u = 2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSNAMEGROUP:
 		if (!v->vsgname) break;
@@ -403,11 +409,11 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		return (u_char*)v->vsgname;
 	case CHECK_SNMP_VSFWMARK:
 		if (!v->vfwmark) break;
-		long_ret = v->vfwmark;
+		long_ret.u = v->vfwmark;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSADDRTYPE:
 		if (v->vfwmark || v->vsgname) break;
-		long_ret = (v->addr.ss_family == AF_INET6) ? 2:1;
+		long_ret.u = (v->addr.ss_family == AF_INET6) ? 2:1;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSADDRESS:
 		if (v->vfwmark || v->vsgname) break;
@@ -415,133 +421,137 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		break;
 	case CHECK_SNMP_VSPORT:
 		if (v->vfwmark || v->vsgname) break;
-		long_ret = htons(inet_sockaddrport(&v->addr));
+		long_ret.u = htons(inet_sockaddrport(&v->addr));
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_VSPROTOCOL:
-		long_ret = (v->service_type == IPPROTO_TCP)?1:2;
+		long_ret.u = (v->service_type == IPPROTO_TCP)?1:2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSLOADBALANCINGALGO:
-#ifdef _WITH_LVS_
 		if (!strcmp(v->sched, "rr"))
-			long_ret = 1;
+			long_ret.u = 1;
 		else if (!strcmp(v->sched, "wrr"))
-			long_ret = 2;
+			long_ret.u = 2;
 		else if (!strcmp(v->sched, "lc"))
-			long_ret = 3;
+			long_ret.u = 3;
 		else if (!strcmp(v->sched, "wlc"))
-			long_ret = 4;
+			long_ret.u = 4;
 		else if (!strcmp(v->sched, "lblc"))
-			long_ret = 5;
+			long_ret.u = 5;
 		else if (!strcmp(v->sched, "lblcr"))
-			long_ret = 6;
+			long_ret.u = 6;
 		else if (!strcmp(v->sched, "dh"))
-			long_ret = 7;
+			long_ret.u = 7;
 		else if (!strcmp(v->sched, "sh"))
-			long_ret = 8;
+			long_ret.u = 8;
 		else if (!strcmp(v->sched, "sed"))
-			long_ret = 9;
+			long_ret.u = 9;
 		else if (!strcmp(v->sched, "nq"))
-			long_ret = 10;
+			long_ret.u = 10;
+		else if (!strcmp(v->sched, "fo"))
+			long_ret.u = 11;
+		else if (!strcmp(v->sched, "ovf"))
+			long_ret.u = 12;
 		else
-#endif
-			long_ret = 99;
+			long_ret.u = 99;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSLOADBALANCINGKIND:
-		long_ret = 0;
-#ifdef _WITH_LVS_
-		switch (v->loadbalancing_kind) {
+		long_ret.u = 0;
+		switch (v->forwarding_method) {
 		case IP_VS_CONN_F_MASQ:
-			long_ret = 1;
+			long_ret.u = 1;
 			break;
 		case IP_VS_CONN_F_DROUTE:
-			long_ret = 2;
+			long_ret.u = 2;
 			break;
 		case IP_VS_CONN_F_TUNNEL:
-			long_ret = 3;
+			long_ret.u = 3;
 			break;
 		}
-#endif
-		if (!long_ret) break;
+		if (!long_ret.u) break;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSSTATUS:
-		long_ret = v->alive?1:2;
+		long_ret.u = v->alive?1:2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSVIRTUALHOST:
 		if (!v->virtualhost) break;
 		*var_len = strlen(v->virtualhost);
 		return (u_char*)v->virtualhost;
 	case CHECK_SNMP_VSPERSIST:
-		long_ret = (atol(v->timeout_persistence) > 0)?1:2;
+		long_ret.u = (v->persistence_timeout)?1:2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSPERSISTTIMEOUT:
-		if (atol(v->timeout_persistence) <= 0) break;
-		long_ret = atol(v->timeout_persistence);
+		if (!v->persistence_timeout) break;
+		long_ret.u = v->persistence_timeout;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSPERSISTGRANULARITY:
-		if (atol(v->timeout_persistence) <= 0) break;
-		if (!v->granularity_persistence) break;
-		*var_len = 4;
-		return (u_char*)&v->granularity_persistence;
+		if (!v->persistence_granularity || v->addr.ss_family == AF_INET6) break;
+		*var_len = sizeof(v->persistence_granularity);
+		return (u_char*)&v->persistence_granularity;
+	case CHECK_SNMP_VSPERSISTGRANULARITY6:
+		if (!v->persistence_granularity || v->addr.ss_family == AF_INET) break;
+		*var_len = sizeof(v->persistence_granularity);
+		return (u_char*)&v->persistence_granularity;
 	case CHECK_SNMP_VSDELAYLOOP:
 		if (v->delay_loop >= TIMER_MAX_SEC)
-			long_ret = v->delay_loop/TIMER_HZ;
+			long_ret.u = v->delay_loop/TIMER_HZ;
 		else
-			long_ret = v->delay_loop;
+			long_ret.u = v->delay_loop;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSHASUSPEND:
-		long_ret = v->ha_suspend?1:2;
+		long_ret.u = v->ha_suspend?1:2;
 		return (u_char*)&long_ret;
+#ifdef IP_VS_SVC_F_ONEPACKET
 	case CHECK_SNMP_VSOPS:
-		long_ret = v->ops?1:2;
+		long_ret.u = v->flags & IP_VS_SVC_F_ONEPACKET?1:2;
 		return (u_char*)&long_ret;
+#endif
 	case CHECK_SNMP_VSALPHA:
-		long_ret = v->alpha?1:2;
+		long_ret.u = v->alpha?1:2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSOMEGA:
-		long_ret = v->omega?1:2;
+		long_ret.u = v->omega?1:2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSQUORUM:
-		long_ret = v->quorum;
+		long_ret.u = v->quorum;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSQUORUMSTATUS:
-		long_ret = v->quorum_state?1:2;
+		long_ret.u = v->quorum_state?1:2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSQUORUMUP:
 		if (!v->quorum_up) break;
-		*var_len = strlen(v->quorum_up);
-		return (u_char*)v->quorum_up;
+		*var_len = strlen(v->quorum_up->name);
+		return (u_char*)v->quorum_up->name;
 	case CHECK_SNMP_VSQUORUMDOWN:
 		if (!v->quorum_down) break;
-		*var_len = strlen(v->quorum_down);
-		return (u_char*)v->quorum_down;
+		*var_len = strlen(v->quorum_down->name);
+		return (u_char*)v->quorum_down->name;
 	case CHECK_SNMP_VSHYSTERESIS:
-		long_ret = v->hysteresis;
+		long_ret.u = v->hysteresis;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSREALTOTAL:
 		if (LIST_ISEMPTY(v->rs))
-			long_ret = 0;
+			long_ret.u = 0;
 		else
-			long_ret = LIST_SIZE(v->rs);
+			long_ret.u = LIST_SIZE(v->rs);
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSREALUP:
-		long_ret = 0;
+		long_ret.u = 0;
 		if (!LIST_ISEMPTY(v->rs))
 			for (e = LIST_HEAD(v->rs); e; ELEMENT_NEXT(e))
 				if (((real_server_t *)ELEMENT_DATA(e))->alive)
-					long_ret++;
+					long_ret.u++;
 		return (u_char*)&long_ret;
-#ifdef _WITH_LVS_
 	case CHECK_SNMP_VSSTATSCONNS:
 		ipvs_update_stats(v);
-		long_ret = v->stats.conns;
+		long_ret.u = v->stats.conns;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSSTATSINPKTS:
 		ipvs_update_stats(v);
-		long_ret = v->stats.inpkts;
+		long_ret.u = v->stats.inpkts;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSSTATSOUTPKTS:
 		ipvs_update_stats(v);
-		long_ret = v->stats.outpkts;
+		long_ret.u = v->stats.outpkts;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSSTATSINBYTES:
 		ipvs_update_stats(v);
@@ -557,25 +567,24 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_VSRATECPS:
 		ipvs_update_stats(v);
-		long_ret = v->stats.cps;
+		long_ret.u = v->stats.cps;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSRATEINPPS:
 		ipvs_update_stats(v);
-		long_ret = v->stats.inpps;
+		long_ret.u = v->stats.inpps;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSRATEOUTPPS:
 		ipvs_update_stats(v);
-		long_ret = v->stats.outpps;
+		long_ret.u = v->stats.outpps;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSRATEINBPS:
 		ipvs_update_stats(v);
-		long_ret = v->stats.inbps;
+		long_ret.u = v->stats.inbps;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSRATEOUTBPS:
 		ipvs_update_stats(v);
-		long_ret = v->stats.outbps;
+		long_ret.u = v->stats.outbps;
 		return (u_char*)&long_ret;
-#endif
 #ifdef _WITH_LVS_64BIT_STATS_
 	case CHECK_SNMP_VSSTATSCONNS64:
 		ipvs_update_stats(v);
@@ -597,43 +606,57 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_VSRATECPSLOW:
 		ipvs_update_stats(v);
-		long_ret = v->stats.cps & 0xffffffff;
+		long_ret.u = v->stats.cps & 0xffffffff;
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_VSRATECPSHIGH:
 		ipvs_update_stats(v);
-		long_ret = v->stats.cps >> 32;
+		long_ret.u = v->stats.cps >> 32;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSRATEINPPSLOW:
 		ipvs_update_stats(v);
-		long_ret = v->stats.inpps & 0xffffffff;
+		long_ret.u = v->stats.inpps & 0xffffffff;
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_VSRATEINPPSHIGH:
 		ipvs_update_stats(v);
-		long_ret = v->stats.inpps >> 32;
+		long_ret.u = v->stats.inpps >> 32;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSRATEOUTPPSLOW:
 		ipvs_update_stats(v);
-		long_ret = v->stats.outpps & 0xffffffff;
+		long_ret.u = v->stats.outpps & 0xffffffff;
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_VSRATEOUTPPSHIGH:
 		ipvs_update_stats(v);
-		long_ret = v->stats.outpps >> 32;
+		long_ret.u = v->stats.outpps >> 32;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSRATEINBPSLOW:
 		ipvs_update_stats(v);
-		long_ret = v->stats.inbps & 0xffffffff;
+		long_ret.u = v->stats.inbps & 0xffffffff;
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_VSRATEINBPSHIGH:
 		ipvs_update_stats(v);
-		long_ret = v->stats.inbps >> 32;
+		long_ret.u = v->stats.inbps >> 32;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSRATEOUTBPSLOW:
 		ipvs_update_stats(v);
-		long_ret = v->stats.outbps & 0xffffffff;
+		long_ret.u = v->stats.outbps & 0xffffffff;
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_VSRATEOUTBPSHIGH:
 		ipvs_update_stats(v);
-		long_ret = v->stats.outbps >> 32;
+		long_ret.u = v->stats.outbps >> 32;
+		return (u_char*)&long_ret;
+#endif
+#ifdef IP_VS_SVC_F_SCHED1
+	case CHECK_SNMP_VSHASHED:
+		long_ret.u = v->flags & IP_VS_SVC_F_HASHED ? 1 : 2;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSSHFALLBACK:
+		long_ret.u = v->flags & IP_VS_SVC_F_SCHED_SH_FALLBACK ? 1 : 2;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSSHPORT:
+		long_ret.u = v->flags & IP_VS_SVC_F_SCHED_SH_PORT ? 1 : 2;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSSCHED3:
+		long_ret.u = v->flags & IP_VS_SVC_F_SCHED3 ? 1 : 2;
 		return (u_char*)&long_ret;
 #endif
 	default:
@@ -648,12 +671,12 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 static int
 check_snmp_realserver_weight(int action,
 			     u_char *var_val, u_char var_val_type, size_t var_val_len,
-			     u_char *statP, oid *name, size_t name_len)
+			     __attribute__((unused)) u_char *statP, oid *name, size_t name_len)
 {
 	element e1, e2;
 	virtual_server_t *vs = NULL;
 	real_server_t *rs = NULL;
-	int ivs, irs;
+	oid ivs, irs;
 	switch (action) {
 	case RESERVE1:
 		/* Check that the proposed value is acceptable */
@@ -661,8 +684,6 @@ check_snmp_realserver_weight(int action,
 			return SNMP_ERR_WRONGTYPE;
 		if (var_val_len > sizeof(long))
 			return SNMP_ERR_WRONGLENGTH;
-		if ((long)(*var_val) < 0)
-			return SNMP_ERR_WRONGVALUE;
 		break;
 	case RESERVE2:		/* Check that we can find the instance. We should. */
 	case COMMIT:
@@ -694,7 +715,7 @@ check_snmp_realserver_weight(int action,
 		if (action == RESERVE2)
 			break;
 		/* Commit: change values. There is no way to fail. */
-		update_svr_wgt((long)(*var_val), vs, rs, 1);
+		update_svr_wgt((long)(*var_val), vs, rs, true);
 		break;
 	}
 	return SNMP_ERR_NOERROR;
@@ -704,11 +725,11 @@ static u_char*
 check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		      int exact, size_t *var_len, WriteMethod **write_method)
 {
-	static unsigned long long_ret;
 	static struct counter64 counter64_ret;
 	oid *target, current[2], best[2];
-	int result, target_len;
-	int curvirtual = 0, curreal;
+	int result;
+	size_t target_len;
+	unsigned curvirtual = 0, curreal;
 	real_server_t *e = NULL, *be = NULL;
 	element e1, e2 = NULL;
 	virtual_server_t *vs, *bvs = NULL;
@@ -809,85 +830,99 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
  real_be_found:
 	/* Let's use our best match */
 	memcpy(target, best, sizeof(oid) * 2);
-	*length = vp->namelen + 2;
+	*length = (unsigned)vp->namelen + 2;
  real_found:
 	switch (vp->magic) {
 	case CHECK_SNMP_RSTYPE:
-		long_ret = (btype == STATE_RS_SORRY)?2:1;
+		long_ret.u = (btype == STATE_RS_SORRY)?2:1;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSADDRTYPE:
-		long_ret = (be->addr.ss_family == AF_INET6) ? 2:1;
+		long_ret.u = (be->addr.ss_family == AF_INET6) ? 2:1;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSADDRESS:
 		RETURN_IP46ADDRESS(be);
 		break;
 	case CHECK_SNMP_RSPORT:
-		long_ret = htons(inet_sockaddrport(&be->addr));
+		long_ret.u = htons(inet_sockaddrport(&be->addr));
 		return (u_char *)&long_ret;
+	case CHECK_SNMP_RSLOADBALANCINGKIND:
+		long_ret.u = 0;
+		switch (be->forwarding_method) {
+		case IP_VS_CONN_F_MASQ:
+			long_ret.u = 1;
+			break;
+		case IP_VS_CONN_F_DROUTE:
+			long_ret.u = 2;
+			break;
+		case IP_VS_CONN_F_TUNNEL:
+			long_ret.u = 3;
+			break;
+		}
+		if (!long_ret.u) break;
+		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSSTATUS:
 		if (btype == STATE_RS_SORRY) break;
-		long_ret = be->alive?1:2;
+		long_ret.u = be->alive?1:2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSWEIGHT:
 		if (btype == STATE_RS_SORRY) break;
-		long_ret = be->weight;
+		long_ret.s = be->weight;
 		*write_method = check_snmp_realserver_weight;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSUPPERCONNECTIONLIMIT:
 		if (btype == STATE_RS_SORRY) break;
 		if (!be->u_threshold) break;
-		long_ret = be->u_threshold;
+		long_ret.u = be->u_threshold;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSLOWERCONNECTIONLIMIT:
 		if (btype == STATE_RS_SORRY) break;
 		if (!be->l_threshold) break;
-		long_ret = be->l_threshold;
+		long_ret.u = be->l_threshold;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSACTIONWHENDOWN:
 		if (btype == STATE_RS_SORRY) break;
-		long_ret = be->inhibit?2:1;
+		long_ret.u = be->inhibit?2:1;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSNOTIFYUP:
 		if (btype == STATE_RS_SORRY) break;
 		if (!be->notify_up) break;
-		*var_len = strlen(be->notify_up);
-		return (u_char*)be->notify_up;
+		*var_len = strlen(be->notify_up->name);
+		return (u_char*)be->notify_up->name;
 	case CHECK_SNMP_RSNOTIFYDOWN:
 		if (btype == STATE_RS_SORRY) break;
 		if (!be->notify_down) break;
-		*var_len = strlen(be->notify_down);
-		return (u_char*)be->notify_down;
+		*var_len = strlen(be->notify_down->name);
+		return (u_char*)be->notify_down->name;
 	case CHECK_SNMP_RSFAILEDCHECKS:
 		if (btype == STATE_RS_SORRY) break;
 		if (LIST_ISEMPTY(be->failed_checkers))
-			long_ret = 0;
+			long_ret.u = 0;
 		else
-			long_ret = LIST_SIZE(be->failed_checkers);
+			long_ret.u = LIST_SIZE(be->failed_checkers);
 		return (u_char*)&long_ret;
-#ifdef _WITH_LVS_
 	case CHECK_SNMP_RSSTATSCONNS:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.conns;
+		long_ret.u = be->stats.conns;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSSTATSACTIVECONNS:
 		ipvs_update_stats(bvs);
-		long_ret = be->activeconns;
+		long_ret.u = be->activeconns;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSSTATSINACTIVECONNS:
 		ipvs_update_stats(bvs);
-		long_ret = be->inactconns;
+		long_ret.u = be->inactconns;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSSTATSPERSISTENTCONNS:
 		ipvs_update_stats(bvs);
-		long_ret = be->persistconns;
+		long_ret.u = be->persistconns;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSSTATSINPKTS:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.inpkts;
+		long_ret.u = be->stats.inpkts;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSSTATSOUTPKTS:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.outpkts;
+		long_ret.u = be->stats.outpkts;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSSTATSINBYTES:
 		ipvs_update_stats(bvs);
@@ -903,23 +938,23 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_RSRATECPS:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.cps;
+		long_ret.u = be->stats.cps;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSRATEINPPS:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.inpps;
+		long_ret.u = be->stats.inpps;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSRATEOUTPPS:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.outpps;
+		long_ret.u = be->stats.outpps;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSRATEINBPS:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.inbps;
+		long_ret.u = be->stats.inbps;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSRATEOUTBPS:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.outbps;
+		long_ret.u = be->stats.outbps;
 		return (u_char*)&long_ret;
 #ifdef _WITH_LVS_64BIT_STATS_
 	case CHECK_SNMP_RSSTATSCONNS64:
@@ -942,45 +977,44 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_RSRATECPSLOW:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.cps & 0xffffffff;
+		long_ret.u = be->stats.cps & 0xffffffff;
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_RSRATECPSHIGH:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.cps >> 32;
+		long_ret.u = be->stats.cps >> 32;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSRATEINPPSLOW:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.inpps & 0xffffffff;
+		long_ret.u = be->stats.inpps & 0xffffffff;
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_RSRATEINPPSHIGH:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.inpps >> 32;
+		long_ret.u = be->stats.inpps >> 32;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSRATEOUTPPSLOW:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.outpps & 0xffffffff;
+		long_ret.u = be->stats.outpps & 0xffffffff;
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_RSRATEOUTPPSHIGH:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.outpps >> 32;
+		long_ret.u = be->stats.outpps >> 32;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSRATEINBPSLOW:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.inbps & 0xffffffff;
+		long_ret.u = be->stats.inbps & 0xffffffff;
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_RSRATEINBPSHIGH:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.inbps >> 32;
+		long_ret.u = be->stats.inbps >> 32;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSRATEOUTBPSLOW:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.outbps & 0xffffffff;
+		long_ret.u = be->stats.outbps & 0xffffffff;
 		return (u_char*)&counter64_ret;
 	case CHECK_SNMP_RSRATEOUTBPSHIGH:
 		ipvs_update_stats(bvs);
-		long_ret = be->stats.outbps >> 32;
+		long_ret.u = be->stats.outbps >> 32;
 		return (u_char*)&long_ret;
-#endif
 #endif
 	default:
 		return NULL;
@@ -993,58 +1027,56 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 	return NULL;
 }
 
-#ifdef _WITH_LVS_
+#ifdef _WITH_VRRP_
 static u_char*
 check_snmp_lvs_sync_daemon(struct variable *vp, oid *name, size_t *length,
 				 int exact, size_t *var_len, WriteMethod **write_method)
 {
-	static unsigned long long_ret;
-
 	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
 
 	switch (vp->magic) {
 	case CHECK_SNMP_LVSSYNCDAEMONENABLED:
-		long_ret = global_data->lvs_syncd.syncid != -1 ? 1 : 2;
+		long_ret.u = global_data->lvs_syncd.syncid != PARAMETER_UNSET ? 1 : 2;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_LVSSYNCDAEMONINTERFACE:
-		if (global_data->lvs_syncd.syncid == -1)
+		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
 			return NULL;
 		*var_len = strlen(global_data->lvs_syncd.ifname);
 		return (u_char *)global_data->lvs_syncd.ifname;
 	case CHECK_SNMP_LVSSYNCDAEMONVRRPINSTANCE:
-		if (global_data->lvs_syncd.syncid == -1)
+		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
 			return NULL;
 		*var_len = strlen(global_data->lvs_syncd.vrrp_name);
 		return (u_char *)global_data->lvs_syncd.vrrp_name;
 	case CHECK_SNMP_LVSSYNCDAEMONSYNCID:
-		if (global_data->lvs_syncd.syncid == -1)
+		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
 			return NULL;
-		long_ret = global_data->lvs_syncd.syncid;
+		long_ret.u = global_data->lvs_syncd.syncid;
 		return (u_char *)&long_ret;
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
 	case CHECK_SNMP_LVSSYNCDAEMONMAXLEN:
-		if (global_data->lvs_syncd.syncid == -1)
+		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
 			return NULL;
-		long_ret = global_data->lvs_syncd.sync_maxlen;
+		long_ret.u = global_data->lvs_syncd.sync_maxlen;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_LVSSYNCDAEMONPORT:
-		if (global_data->lvs_syncd.syncid == -1)
+		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
 			return NULL;
-		long_ret = global_data->lvs_syncd.mcast_port;
+		long_ret.u = global_data->lvs_syncd.mcast_port;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_LVSSYNCDAEMONTTL:
-		if (global_data->lvs_syncd.syncid == -1)
+		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
 			return NULL;
-		long_ret = global_data->lvs_syncd.mcast_ttl;
+		long_ret.u = global_data->lvs_syncd.mcast_ttl;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRTYPE:
-		if (global_data->lvs_syncd.syncid == -1)
+		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
 			return NULL;
-		long_ret = (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6) ? 2:1;
+		long_ret.u = (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6) ? 2:1;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_LVSSYNCDAEMONMCASTGROUPADDRVALUE:
-		if (global_data->lvs_syncd.syncid == -1)
+		if (global_data->lvs_syncd.syncid == PARAMETER_UNSET)
 			return NULL;
 		if (global_data->lvs_syncd.mcast_group.ss_family == AF_INET6) {
 			struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&global_data->lvs_syncd.mcast_group;
@@ -1065,8 +1097,6 @@ static u_char*
 check_snmp_lvs_timeouts(struct variable *vp, oid *name, size_t *length,
 				 int exact, size_t *var_len, WriteMethod **write_method)
 {
-	static unsigned long long_ret;
-
 	if (header_generic(vp, name, length, exact, var_len, write_method))
 		return NULL;
 
@@ -1074,18 +1104,18 @@ check_snmp_lvs_timeouts(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_LVSTIMEOUTTCP:
 		if (!global_data->lvs_tcp_timeout)
 			return NULL;
-		long_ret = global_data->lvs_tcp_timeout;
+		long_ret.s = global_data->lvs_tcp_timeout;
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_LVSTIMEOUTTCPFIN:
 		if (!global_data->lvs_tcpfin_timeout)
 			return NULL;
-		long_ret = global_data->lvs_tcpfin_timeout;
-		return (u_char *)long_ret;
+		long_ret.s = global_data->lvs_tcpfin_timeout;
+		return (u_char *)&long_ret;
 	case CHECK_SNMP_LVSTIMEOUTUDP:
 		if (!global_data->lvs_udp_timeout)
 			return NULL;
-		long_ret = global_data->lvs_udp_timeout;
-		return (u_char *)long_ret;
+		long_ret.s = global_data->lvs_udp_timeout;
+		return (u_char *)&long_ret;
 	}
 	return NULL;
 }
@@ -1163,7 +1193,6 @@ static struct variable8 check_vars[] = {
 	 check_snmp_virtualserver, 3, {3, 1, 25}},
 	{CHECK_SNMP_VSHYSTERESIS, ASN_UNSIGNED, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 26}},
-#ifdef _WITH_LVS_
 	{CHECK_SNMP_VSSTATSCONNS, ASN_GAUGE, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 27}},
 	{CHECK_SNMP_VSSTATSINPKTS, ASN_COUNTER, RONLY,
@@ -1212,7 +1241,17 @@ static struct variable8 check_vars[] = {
 	{CHECK_SNMP_VSRATEOUTBPSHIGH, ASN_UNSIGNED, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 50}},
 #endif
-#endif
+	{CHECK_SNMP_VSPERSISTGRANULARITY6, ASN_UNSIGNED, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 51}},
+	{CHECK_SNMP_VSHASHED, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 52}},
+	{CHECK_SNMP_VSSHFALLBACK, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 53}},
+	{CHECK_SNMP_VSSHPORT, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 54}},
+	{CHECK_SNMP_VSSCHED3, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 55}},
+
 	/* realServerTable */
 	{CHECK_SNMP_RSTYPE, ASN_INTEGER, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 2}},
@@ -1238,7 +1277,6 @@ static struct variable8 check_vars[] = {
 	 check_snmp_realserver, 3, {4, 1, 12}},
 	{CHECK_SNMP_RSFAILEDCHECKS, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 13}},
-#ifdef _WITH_LVS_
 	{CHECK_SNMP_RSSTATSCONNS, ASN_GAUGE, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 14}},
 	{CHECK_SNMP_RSSTATSACTIVECONNS, ASN_GAUGE, RONLY,
@@ -1293,8 +1331,9 @@ static struct variable8 check_vars[] = {
 	{CHECK_SNMP_RSRATEOUTBPSHIGH, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 39}},
 #endif
-#endif
-#ifdef _WITH_LVS_
+	{CHECK_SNMP_RSLOADBALANCINGKIND, ASN_UNSIGNED, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 40}},
+#ifdef _WITH_VRRP_
 	/* LVS sync daemon configuration */
 	{CHECK_SNMP_LVSSYNCDAEMONENABLED, ASN_INTEGER, RONLY,
 	 check_snmp_lvs_sync_daemon, 2, {6, 1}},

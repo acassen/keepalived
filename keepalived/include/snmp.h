@@ -50,15 +50,20 @@ int header_generic(struct variable *, oid *, size_t *, int,
 #define SNMPTRAP_OID 1, 3, 6, 1, 6, 3, 1, 1, 4, 1, 0
 #define GLOBAL_OID {KEEPALIVED_OID, 1}
 
+typedef union _long_ret {
+	unsigned long u;
+	long s;
+} longret_t;
+
 extern unsigned long snmp_scope(int scope);
 extern void* snmp_header_list_table(struct variable *vp, oid *name, size_t *length,
 				    int exact, size_t *var_len, WriteMethod **write_method,
 				    list dlist);
 extern void snmp_agent_init(const char *snmp_socket, bool base_mib);
-extern void snmp_register_mib(oid *myoid, int len,
+extern void snmp_register_mib(oid *myoid, size_t len,
 			      const char *name, struct variable *variables,
-			      int varsize, int varlen);
-extern void snmp_unregister_mib(oid *myoid, int len);
+			      size_t varsize, size_t varlen);
+extern void snmp_unregister_mib(oid *myoid, size_t len);
 extern void snmp_agent_close(bool base_mib);
 
 #endif

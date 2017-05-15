@@ -29,17 +29,28 @@
 #include <signal.h>
 #include <sys/types.h>
 #include <syslog.h>
+#include <stdbool.h>
+#include <paths.h>
 
 /* lock pidfile */
-#define PID_DIR			"/var/run/"
-#define NAMESPACE_PID_DIR	PID_DIR PACKAGE "/"
-#define KEEPALIVED_PID_FILE	PACKAGE ".pid"
-#define VRRP_PID_FILE		"vrrp.pid"
-#define CHECKERS_PID_FILE 	"checkers.pid"
+#ifdef GNU_STD_PATHS
+#define PID_DIR			LOCAL_STATE_DIR "/run/"
+#else
+#define PID_DIR			_PATH_VARRUN
+#endif
+#define KEEPALIVED_PID_DIR	PID_DIR PACKAGE "/"
+#define KEEPALIVED_PID_FILE	PACKAGE
+#define VRRP_PID_FILE		"vrrp"
+#define CHECKERS_PID_FILE	"checkers"
+#define	PID_EXTENSION		".pid"
+
+extern const char *pid_directory;
 
 /* Prototypes */
+extern void create_pid_dir(void);
+extern void remove_pid_dir(void);
 extern int pidfile_write(const char *, int);
 extern void pidfile_rm(const char *);
-extern int keepalived_running(unsigned long);
+extern bool keepalived_running(unsigned long);
 
 #endif

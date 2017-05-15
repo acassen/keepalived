@@ -24,11 +24,15 @@
 
 #include "config.h"
 
+#include <errno.h>
+#include <stdint.h>
+
 #include "check_parser.h"
 #include "check_data.h"
 #include "check_api.h"
 #include "global_data.h"
 #include "global_parser.h"
+#include "main.h"
 #include "logger.h"
 #include "parser.h"
 #include "memory.h"
@@ -40,7 +44,7 @@
 
 /* SSL handlers */
 static void
-ssl_handler(vector_t *strvec)
+ssl_handler(__attribute__((unused)) vector_t *strvec)
 {
 	check_data->ssl = alloc_ssl();
 }
@@ -70,39 +74,55 @@ static void
 vsg_handler(vector_t *strvec)
 {
 	/* Fetch queued vsg */
-	alloc_vsg(vector_slot(strvec, 1));
-	alloc_value_block(strvec, alloc_vsg_entry);
+	alloc_vsg(strvec_slot(strvec, 1));
+	alloc_value_block(alloc_vsg_entry);
 }
 static void
 vs_handler(vector_t *strvec)
 {
-	alloc_vs(vector_slot(strvec, 1), vector_slot(strvec, 2));
+	alloc_vs(strvec_slot(strvec, 1), strvec_slot(strvec, 2));
 }
 static void
 vs_end_handler(void)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	if (! vs->af)
+	if (!vs->af)
 		vs->af = AF_INET;
 }
 static void
 ip_family_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	if (vs->af)
+	uint16_t af;
+
+	if (!strcmp(strvec_slot(strvec, 1), "inet"))
+		af = AF_INET;
+	else if (!strcmp(strvec_slot(strvec, 1), "inet6")) {
+#ifndef LIBIPVS_USE_NL
+		log_message(LOG_INFO, "IPVS with IPv6 is not supported by this build");
+		skip_block();
 		return;
-	if (0 == strcmp(vector_slot(strvec, 1), "inet"))
-		vs->af = AF_INET;
-	else if (0 == strcmp(vector_slot(strvec, 1), "inet6"))
-		vs->af = AF_INET6;
-	else
-		log_message(LOG_INFO, "unknown address family %s", (char *)vector_slot(strvec, 1));
+#endif
+		af = AF_INET6;
+	}
+	else {
+		log_message(LOG_INFO, "unknown address family %s", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	if (vs->af != AF_UNSPEC &&
+	    af != vs->af) {
+		log_message(LOG_INFO, "Virtual server specified family %s conflicts with server family", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	vs->af = af;
 }
 static void
 delay_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->delay_loop = atoi(vector_slot(strvec, 1)) * TIMER_HZ;
+	vs->delay_loop = strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
 	if (vs->delay_loop < TIMER_HZ)
 		vs->delay_loop = TIMER_HZ;
 }
@@ -110,27 +130,60 @@ static void
 lbalgo_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = vector_slot(strvec, 1);
-	int size = sizeof (vs->sched);
-	int str_len = strlen(str);
+	char *str = strvec_slot(strvec, 1);
+	size_t size = sizeof (vs->sched);
+	size_t str_len = strlen(str);
 
 	if (size > str_len)
 		size = str_len;
 
 	memcpy(vs->sched, str, size);
 }
+
 static void
-lbkind_handler(vector_t *strvec)
+lbflags_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = vector_slot(strvec, 1);
+	char *str = strvec_slot(strvec, 0);
+
+	if (!strcmp(str, "hashed"))
+		vs->flags |= IP_VS_SVC_F_HASHED;
+#ifdef IP_VS_SVC_F_ONEPACKET
+	else if (!strcmp(str, "ops"))
+		vs->flags |= IP_VS_SVC_F_ONEPACKET;
+#endif
+#ifdef IP_VS_SVC_F_SCHED1		/* From Linux 3.11 */
+	else if (!strcmp(str, "flag-1"))
+		vs->flags |= IP_VS_SVC_F_SCHED1;
+	else if (!strcmp(str, "flag-2"))
+		vs->flags |= IP_VS_SVC_F_SCHED2;
+	else if (!strcmp(str, "flag-3"))
+		vs->flags |= IP_VS_SVC_F_SCHED3;
+	else if (!strcmp(vs->sched , "sh") )
+	{
+		/* sh-port and sh-fallback flags are relevant for sh scheduler only */
+		if (!strcmp(str, "sh-port")  )
+			vs->flags |= IP_VS_SVC_F_SCHED_SH_PORT;
+		if (!strcmp(str, "sh-fallback"))
+			vs->flags |= IP_VS_SVC_F_SCHED_SH_FALLBACK;
+	}
+	else
+		log_message(LOG_INFO, "%s only applies to sh scheduler - ignoring", str);
+#endif
+}
+
+static void
+forwarding_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	char *str = strvec_slot(strvec, 1);
 
 	if (!strcmp(str, "NAT"))
-		vs->loadbalancing_kind = IP_VS_CONN_F_MASQ;
+		vs->forwarding_method = IP_VS_CONN_F_MASQ;
 	else if (!strcmp(str, "DR"))
-		vs->loadbalancing_kind = IP_VS_CONN_F_DROUTE;
+		vs->forwarding_method = IP_VS_CONN_F_DROUTE;
 	else if (!strcmp(str, "TUN"))
-		vs->loadbalancing_kind = IP_VS_CONN_F_TUNNEL;
+		vs->forwarding_method = IP_VS_CONN_F_TUNNEL;
 	else
 		log_message(LOG_INFO, "PARSER : unknown [%s] routing method.", str);
 }
@@ -138,39 +191,59 @@ static void
 pto_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = vector_slot(strvec, 1);
-	int size = sizeof (vs->timeout_persistence);
-	int str_len = strlen(str);
+	char *endptr;
+	unsigned long timeout;
 
-	if (size > str_len)
-		size = str_len;
+	if (vector_size(strvec) < 2) {
+		vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
+		return;
+	}
 
-	memcpy(vs->timeout_persistence, str, size);
+	errno = 0;
+	timeout = strtoul(strvec_slot(strvec, 1), &endptr, 10);
+	if (errno || *endptr || timeout > UINT32_MAX || timeout == 0) {
+		log_message(LOG_INFO, "persistent_timeout invalid");
+		return;
+	}
+
+	vs->persistence_timeout = (uint32_t)timeout;
 }
+#ifdef _HAVE_PE_NAME_
 static void
 pengine_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = vector_slot(strvec, 1);
-	int size = sizeof (vs->pe_name);
+	char *str = strvec_slot(strvec, 1);
+	size_t size = sizeof (vs->pe_name);
 
 	strncpy(vs->pe_name, str, size - 1);
 	vs->pe_name[size - 1] = '\0';
 }
+#endif
 static void
 pgr_handler(vector_t *strvec)
 {
+	struct in_addr addr;
+
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->addr.ss_family == AF_INET6)
-		vs->granularity_persistence = atoi(vector_slot(strvec, 1));
-	else
-		inet_ston(vector_slot(strvec, 1), &vs->granularity_persistence);
+		vs->persistence_granularity = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
+	else {
+		if (inet_aton(strvec_slot(strvec, 1), &addr)) {
+			log_message(LOG_INFO, "Invalid persistence_timeout specified - %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+		vs->persistence_granularity = addr.s_addr;
+	}
+
+	if (!vs->persistence_timeout)
+		vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
 }
 static void
 proto_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	char *str = vector_slot(strvec, 1);
+	char *str = strvec_slot(strvec, 1);
 	if (!strcmp(str, "TCP"))
 		vs->service_type = IPPROTO_TCP;
 	else if (!strcmp(str, "SCTP"))
@@ -181,17 +254,12 @@ proto_handler(vector_t *strvec)
 		log_message(LOG_INFO, "Unknown protocol %s - ignoring", str);
 }
 static void
-hasuspend_handler(vector_t *strvec)
+hasuspend_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->ha_suspend = 1;
+	vs->ha_suspend = true;
 }
-static void
-ops_handler(vector_t *strvec)
-{
-	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->ops = 1;
-}
+
 static void
 virtualhost_handler(vector_t *strvec)
 {
@@ -203,10 +271,10 @@ virtualhost_handler(vector_t *strvec)
 static void
 ssvr_handler(vector_t *strvec)
 {
-	alloc_ssvr(vector_slot(strvec, 1), vector_slot(strvec, 2));
+	alloc_ssvr(strvec_slot(strvec, 1), strvec_slot(strvec, 2));
 }
 static void
-ssvri_handler(vector_t *strvec)
+ssvri_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->s_svr) {
@@ -220,101 +288,131 @@ ssvri_handler(vector_t *strvec)
 static void
 rs_handler(vector_t *strvec)
 {
-	alloc_rs(vector_slot(strvec, 1), vector_slot(strvec, 2));
+	alloc_rs(strvec_slot(strvec, 1), strvec_slot(strvec, 2));
 }
 static void
 weight_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->weight = atoi(vector_slot(strvec, 1));
+	rs->weight = atoi(strvec_slot(strvec, 1));
 	rs->iweight = rs->weight;
+}
+static void
+rs_forwarding_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	char *str = strvec_slot(strvec, 1);
+
+	if (!strcmp(str, "NAT"))
+		rs->forwarding_method = IP_VS_CONN_F_MASQ;
+	else if (!strcmp(str, "DR"))
+		rs->forwarding_method = IP_VS_CONN_F_DROUTE;
+	else if (!strcmp(str, "TUN"))
+		rs->forwarding_method = IP_VS_CONN_F_TUNNEL;
+	else
+		log_message(LOG_INFO, "PARSER : unknown [%s] routing method for real server.", str);
 }
 static void
 uthreshold_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->u_threshold = atoi(vector_slot(strvec, 1));
+	rs->u_threshold = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
 }
 static void
 lthreshold_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->l_threshold = atoi(vector_slot(strvec, 1));
+	rs->l_threshold = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
 }
 static void
-inhibit_handler(vector_t *strvec)
+inhibit_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	rs->inhibit = 1;
+}
+static inline notify_script_t*
+set_check_notify_script(vector_t *strvec)
+{
+	return notify_script_init(strvec, "quorum/notify", global_data->script_security);
 }
 static void
 notify_up_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->notify_up = set_value(strvec);
+	if (rs->notify_up) {
+		log_message(LOG_INFO, "(%s): notify_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
+	rs->notify_up = set_check_notify_script(strvec);
 }
 static void
 notify_down_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->notify_down = set_value(strvec);
+	if (rs->notify_down) {
+		log_message(LOG_INFO, "(%s): notify_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
+	rs->notify_down = set_check_notify_script(strvec);
 }
 static void
-alpha_handler(vector_t *strvec)
+alpha_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->alpha = 1;
+	vs->alpha = true;
 	vs->quorum_state = DOWN;
 }
 static void
-omega_handler(vector_t *strvec)
+omega_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->omega = 1;
+	vs->omega = true;
 }
 static void
 quorum_up_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->quorum_up = set_value(strvec);
+	if (vs->quorum_up) {
+		log_message(LOG_INFO, "(%s): quorum_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
+	vs->quorum_up = set_check_notify_script(strvec);
 }
 static void
 quorum_down_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->quorum_down = set_value(strvec);
+	if (vs->quorum_down) {
+		log_message(LOG_INFO, "(%s): quorum_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
+	vs->quorum_down = set_check_notify_script(strvec);
 }
 static void
 quorum_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	long tmp = atol (vector_slot(strvec, 1));
-	if (tmp < 1) {
+	vs->quorum = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
+	if (vs->quorum < 1) {
 		log_message(LOG_ERR, "Condition not met: Quorum >= 1");
 		log_message(LOG_ERR, "Ignoring requested value %s, using 1 instead",
-		  (char *) vector_slot(strvec, 1));
-		tmp = 1;
+		  FMT_STR_VSLOT(strvec, 1));
+		vs->quorum = 1;
 	}
-	vs->quorum = tmp;
 }
 static void
 hysteresis_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	long tmp = atol (vector_slot(strvec, 1));
-	if (tmp < 0) {
-		log_message(LOG_ERR, "Condition not met: 0 <= Hysteresis");
-		log_message(LOG_ERR, "Ignoring requested value %s, using 0 instead",
-		       (char *) vector_slot(strvec, 1));
-		tmp = 0;
-	}
-	vs->hysteresis = tmp;
+
+	vs->hysteresis = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
 }
 
 void
@@ -334,14 +432,27 @@ init_check_keywords(bool active)
 	install_keyword("delay_loop", &delay_handler);
 	install_keyword("lb_algo", &lbalgo_handler);
 	install_keyword("lvs_sched", &lbalgo_handler);
-	install_keyword("lb_kind", &lbkind_handler);
-	install_keyword("lvs_method", &lbkind_handler);
+
+	install_keyword("hashed", &lbflags_handler);
+#ifdef IP_VS_SVC_F_ONEPACKET
+	install_keyword("ops", &lbflags_handler);
+#endif
+#ifdef IP_VS_SVC_F_SCHED1
+	install_keyword("flag-1", &lbflags_handler);
+	install_keyword("flag-2", &lbflags_handler);
+	install_keyword("flag-3", &lbflags_handler);
+	install_keyword("sh-port", &lbflags_handler);
+	install_keyword("sh-fallback", &lbflags_handler);
+#endif
+	install_keyword("lb_kind", &forwarding_handler);
+	install_keyword("lvs_method", &forwarding_handler);
+#ifdef _HAVE_PE_NAME_
 	install_keyword("persistence_engine", &pengine_handler);
+#endif
 	install_keyword("persistence_timeout", &pto_handler);
 	install_keyword("persistence_granularity", &pgr_handler);
 	install_keyword("protocol", &proto_handler);
 	install_keyword("ha_suspend", &hasuspend_handler);
-	install_keyword("ops", &ops_handler);
 	install_keyword("virtualhost", &virtualhost_handler);
 
 	/* Pool regression detection and handling. */
@@ -358,6 +469,7 @@ init_check_keywords(bool active)
 	install_keyword("real_server", &rs_handler);
 	install_sublevel();
 	install_keyword("weight", &weight_handler);
+	install_keyword("lvs_method", &rs_forwarding_handler);
 	install_keyword("uthreshold", &uthreshold_handler);
 	install_keyword("lthreshold", &lthreshold_handler);
 	install_keyword("inhibit_on_failure", &inhibit_handler);

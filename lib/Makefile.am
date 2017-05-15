@@ -34,25 +34,54 @@ MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 
 .PHONY: $(GIT_COMMIT_FILE)
 
+# The git commit file will contain the git version and date of last commit,
+# unless this is a tagged version, in which case the git commit is omitted.
+# If there have been any local modifications, '+' is appended to the git
+# version. However, any files that are autoconf/automake generated we want
+# to ignore, since they aren't really "source" files, and are only included
+# so that users without autotools can build keepalived.
+# The other file that needs to be ignored is deletion of snap/snapcraft.yaml,
+# since in a snapcraft build that file is deleted
+# (see https://bugs.launchpad.net/snapcraft/+bug/1662388).
 $(GIT_COMMIT_FILE):
-	@if [ ! -f $(srcdir)/$(GIT_COMMIT_FILE) -a ! -f $(builddir)/$(GIT_COMMIT_FILE) ]; then \
-		>$(builddir)/$(GIT_COMMIT_FILE); \
+	@if [ ! -f $(srcdir)/$@ -a ! -f $@ ]; then \
+		echo '#define GIT_DATE	"unknown"' >$@; \
+		echo "#define GIT_YEAR	\"`date +%Y`\"" >>$@; \
 	fi; \
 	if [ -x `type -p git` ]; then \
 		cd $(srcdir); \
 		git rev-parse --is-inside-work-tree >/dev/null 2>&1; \
 		if [ $$? -eq 0 ]; then \
 			GIT_REV=`git describe --tags`; \
+			GIT_TIMESTAMP=`git log -1 --format=%ct`; \
+			GIT_DATE=`date -d "1970-01-01 UTC $${GIT_TIMESTAMP} seconds" +"%m/%d,%Y"`; \
+			if test -n "$${GIT_DATE}"; then \
+				GIT_YEAR=`date -d "1970-01-01 UTC $${GIT_TIMESTAMP} seconds" +"%Y"`; \
+			else \
+				GIT_DATE=`git log -1 --date=iso | grep Date: | sed -e "s/^[^ ]* *\(....\)-\(..\)-\(..\).*/\2\/\3,\1/"`; \
+				GIT_YEAR=`echo $${GIT_DATE} | sed -e "s/.*,//"`; \
+			fi; \
+			if [ "`git status --porcelain | \
+			       grep -v '^??' | \
+			       grep -v '[ /]Makefile.in$$' | \
+			       grep -Ev ' (aclocal.m4|ar-lib|compile|configure|depcomp|install-sh|missing)$$' | \
+			       grep -v "^ D snap/snapcraft.yaml" | \
+			       wc -l`" -ne 0 ]; then \
+				EXTRA="+"; \
+			else \
+				EXTRA=""; \
+			fi; \
 			echo $${GIT_REV} | grep -qE -- "-[1-9][0-9]*-g[0-9a-f]{7}$$"; \
+			if [ $$? -eq 0 -o -n "$${EXTRA}" ]; then \
+				echo "#define GIT_COMMIT \"$${GIT_REV}$${EXTRA}\"" >$(abs_builddir)/$@.new; \
+			fi; \
+			echo "#define GIT_DATE \"$${GIT_DATE}\"" >>$(abs_builddir)/$@.new; \
+			echo "#define GIT_YEAR \"$${GIT_YEAR}\"" >>$(abs_builddir)/$@.new; \
+			diff -q $(abs_builddir)/$@ $(abs_builddir)/$@.new 2>/dev/null >/dev/null; \
 			if [ $$? -eq 0 ]; then \
-				if [ "`git status --porcelain | wc -l`" -ne 0 ]; then EXTRA="+"; else EXTRA=""; fi ; \
-				echo "#define GIT_COMMIT \"$${GIT_REV}$${EXTRA}\"" >$(abs_builddir)/$(GIT_COMMIT_FILE).new; \
-				diff -q $(abs_builddir)/$(GIT_COMMIT_FILE) $(abs_builddir)/$(GIT_COMMIT_FILE).new 2>/dev/null >/dev/null; \
-				if [ $$? -eq 0 ]; then \
-					rm $(abs_builddir)/$(GIT_COMMIT_FILE).new; \
-				else \
-					mv $(abs_builddir)/$(GIT_COMMIT_FILE).new $(abs_builddir)/$(GIT_COMMIT_FILE); \
-				fi; \
+				rm $(abs_builddir)/$@.new; \
+			else \
+				mv $(abs_builddir)/$@.new $(abs_builddir)/$@; \
 			fi; \
 		fi; \
 		cd $(abs_builddir); \

@@ -23,6 +23,8 @@
 #ifndef _VRRP_IPTABLES_H
 #define _VRRP_IPTABLES_H
 
+#include <stdbool.h>
+
 #ifdef _HAVE_LIBIPTC_
 #include <libiptc/libxtc.h>
 #endif
@@ -34,13 +36,17 @@ struct ipt_handle;
 
 #define	IPTABLES_MAX_TRIES	3	/* How many times to try adding/deleting when get EAGAIN */
 
+#ifdef _LIBIPTC_DYNAMIC_
+extern bool using_libip4tc;		/* Set if using lib4iptc - for dynamic linking */
+extern bool using_libip6tc;		/* Set if using lib4iptc - for dynamic linking */
+#endif
 
-bool iptables_init(void);
+void iptables_init_lib(void);
 void iptables_fini(void);
-void iptables_startup(void);
+void iptables_startup(bool);
 void iptables_cleanup(void);
 struct ipt_handle *iptables_open(void);
 int iptables_close(struct ipt_handle *h);
-void handle_iptable_rule_to_vip(ip_address_t *, int, char *, struct ipt_handle *);
+void handle_iptable_rule_to_vip_lib(ip_address_t *, int, struct ipt_handle *, bool);
 
 #endif

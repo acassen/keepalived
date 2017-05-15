@@ -1,0 +1,16 @@
+#!/bin/bash
+
+# Get a count of each defined term used in #if directives
+# This can be useful to check for typos in the names
+
+grep "#[ \t]*if" $(find . -name "*.[ch]") | \
+	grep -v "_H$" | \
+	sed -e "s/.*://" | \
+	sed -e "s/#ifn*def *//" -e "s/#if  *//" | \
+	sed -e "s/[!\&()][!\&()]*/@/g" | \
+	tr @ "\n" | \
+	sed -e "s/ *defined[ \t]*//g" | \
+	sed -e "s/^  *//" -e "s/[ \t].*//" | \
+	grep -v "^ *$" | \
+	sort | \
+	uniq -c

@@ -30,6 +30,7 @@
 #include <sys/param.h>
 #include <arpa/inet.h>
 #include <asm/types.h>
+#include <stdint.h>
 #include <stdbool.h>
 
 #include <net/if.h>
@@ -41,14 +42,16 @@
 #ifdef _WITH_LVS_
   #include "libipvs.h"
   #include "ip_vs.h"
-#ifdef _WITH_LVS_
+#ifdef _WITH_VRRP_
   #include "vrrp.h"
 #endif
 #endif
 
 /* locale includes */
 #include "scheduler.h"
+#ifdef _WITH_LVS_
 #include "check_data.h"
+#endif
 
 #define IPVS_ERROR	0
 #define IPVS_SUCCESS	1
@@ -68,6 +71,8 @@
 #define IPVS_FLUSH		5
 #endif
 
+#define IPVS_DEF_SCHED		"wlc"
+
 /* Macro */
 #define IPVS_ALIVE(X,Y,Z)	(((X) == IP_VS_SO_SET_ADD && !(Y)->alive)	|| \
 				 ((X) == IP_VS_SO_SET_DEL && (Y)->alive)	|| \
@@ -84,16 +89,16 @@ do {						\
 		UNSET_ALIVE((V));		\
 } while (0)
 
-#ifdef _WITH_LVS_
+#if defined _WITH_VRRP_ && defined _WITH_LVS_
 struct lvs_syncd_config {
 	char				*ifname;	/* handle LVS sync daemon state using this */
 	vrrp_t				*vrrp;		/* instance FSM & running on specific interface */
-	int				syncid;		/* 0 .. 255 */
+	unsigned			syncid;		/* 0 .. 255 */
 #ifdef _HAVE_IPVS_SYNCD_ATTRIBUTES_
-	int				sync_maxlen;
+	uint16_t			sync_maxlen;
 	struct sockaddr_storage		mcast_group;
-	int				mcast_port;
-	int				mcast_ttl;
+	uint16_t			mcast_port;
+	uint8_t				mcast_ttl;
 #endif
 	char				*vrrp_name;	/* used during configuration and SNMP */
 };
@@ -108,7 +113,7 @@ extern virtual_server_group_t *ipvs_get_group_by_name(char *, list);
 extern void ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge);
 extern void ipvs_group_remove_entry(virtual_server_t *, virtual_server_group_entry_t *);
 extern int ipvs_cmd(int, virtual_server_t *, real_server_t *);
-#ifdef _WITH_LVS_
+#ifdef _WITH_VRRP_
 extern void ipvs_syncd_cmd(int, const struct lvs_syncd_config *, int, bool, bool);
 extern void ipvs_syncd_master(const struct lvs_syncd_config *);
 extern void ipvs_syncd_backup(const struct lvs_syncd_config *);

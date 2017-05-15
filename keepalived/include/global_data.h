@@ -29,23 +29,29 @@
 #include <stdint.h>
 #include <sys/socket.h>
 #include <stdbool.h>
+#include <sys/types.h>
 
 #ifdef HAVE_LINUX_NETFILTER_X_TABLES_H
 #include <linux/netfilter/x_tables.h>
 #endif
 
 #ifdef _HAVE_LIBIPSET_
-#include <libipset/linux_ip_set.h>
+#include <linux/netfilter/ipset/ip_set.h>
 #endif
 
 /* local includes */
 #include "list.h"
 #include "timer.h"
+#ifdef _WITH_VRRP_
 #include "vrrp.h"
+#endif
 #ifdef _WITH_LVS_
 #include "ipvswrapper.h"
 #endif
 
+#ifndef _HAVE_LIBIPTC_
+#define	XT_EXTENSION_MAXNAMELEN		29
+#endif
 
 /* constants */
 #define DEFAULT_SMTP_SERVER 0x7f000001
@@ -63,14 +69,16 @@ typedef struct _data {
 	char				*email_from;
 	struct sockaddr_storage		smtp_server;
 	char				*smtp_helo_name;
-	long				smtp_connection_to;
+	unsigned long			smtp_connection_to;
 	list				email;
+#ifdef _WITH_VRRP_
 	interface_t			*default_ifp;		/* Default interface for static addresses */
+#endif
 #ifdef _WITH_LVS_
 	int				lvs_tcp_timeout;
 	int				lvs_tcpfin_timeout;
 	int				lvs_udp_timeout;
-#ifdef _WITH_LVS_
+#ifdef _WITH_VRRP_
 	struct lvs_syncd_config		lvs_syncd;
 #endif
 	bool				lvs_flush;		/* flush any residual LVS config at startup */
@@ -78,20 +86,19 @@ typedef struct _data {
 #ifdef _WITH_VRRP_
 	struct sockaddr_storage		vrrp_mcast_group4;
 	struct sockaddr_storage		vrrp_mcast_group6;
-	int				vrrp_garp_delay;
+	unsigned			vrrp_garp_delay;
 	timeval_t			vrrp_garp_refresh;
-	int				vrrp_garp_rep;
-	int				vrrp_garp_refresh_rep;
-	int				vrrp_garp_lower_prio_delay;
-	int				vrrp_garp_lower_prio_rep;
-	int				vrrp_garp_interval;
-	int				vrrp_gna_interval;
+	unsigned			vrrp_garp_rep;
+	unsigned			vrrp_garp_refresh_rep;
+	unsigned			vrrp_garp_lower_prio_delay;
+	unsigned			vrrp_garp_lower_prio_rep;
+	unsigned			vrrp_garp_interval;
+	unsigned			vrrp_gna_interval;
 	bool				vrrp_lower_prio_no_advert;
+	bool				vrrp_higher_prio_send_advert;
 	int				vrrp_version;	/* VRRP version (2 or 3) */
 	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];
 	char				vrrp_iptables_outchain[XT_EXTENSION_MAXNAMELEN];
-	bool				block_ipv4;
-	bool				block_ipv6;
 #ifdef _HAVE_LIBIPSET_
 	bool				using_ipsets;
 	char				vrrp_ipset_address[IPSET_MAXNAMELEN];
@@ -120,6 +127,10 @@ typedef struct _data {
 	bool				enable_snmp_checker;
 #endif
 #endif
+#ifdef _WITH_DBUS_
+	bool				enable_dbus;
+#endif
+	bool				script_security;
 } data_t;
 
 /* Global vars exported */

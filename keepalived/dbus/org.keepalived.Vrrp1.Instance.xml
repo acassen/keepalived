@@ -1,0 +1,31 @@
+<!DOCTYPE node PUBLIC "-//freedesktop//DTD D-BUS Object Introspection 1.0//EN"
+"http://www.freedesktop.org/standards/dbus/1.0/introspect.dtd">
+<node>
+  <!--
+	org.keepalived.Vrrp1.Instance:
+	@short_description: interface for a single VRRP instance
+
+	Exposes methods, signals and properties for a VRRP instance,
+	uniquely identified by its interface, group and family.
+  -->
+  <interface name='org.keepalived.Vrrp1.Instance'>
+	<!--
+	  SendGarp:
+
+	  Sends a single gratuitious ARP request from the instance.
+	-->
+	<method name='SendGarp'>
+	</method>
+	<!--
+	  VrrpStatusChange:
+	  @status: numerical value defining the state.
+
+	  Emitted whenever the instance transitions to a new state.
+	-->
+	<signal name='VrrpStatusChange'>
+	  <arg type='u' name='status' />
+	</signal>
+	<property type='s' name='Name' access='read' />
+	<property type='(us)' name='State' access='read' />
+  </interface>
+</node>

@@ -47,16 +47,16 @@ clear_ssl(ssl_data_t *ssl)
 
 /* PEM password callback function */
 static int
-password_cb(char *buf, int num, int rwflag, void *userdata)
+password_cb(char *buf, int num, __attribute__((unused)) int rwflag, void *userdata)
 {
 	ssl_data_t *ssl = (ssl_data_t *) userdata;
-	unsigned int plen = strlen(ssl->password);
+	size_t plen = strlen(ssl->password);
 
-	if (num < plen + 1)
+	if ((unsigned)num < plen + 1)
 		return (0);
 
 	strncpy(buf, ssl->password, plen);
-	return (plen);
+	return (int)plen;
 }
 
 /* Inititalize global SSL context */
@@ -264,8 +264,7 @@ ssl_read_thread(thread_t * thread)
 	fcntl(thread->u.fd, F_SETFL, val | O_NONBLOCK);
 
 	/* read the SSL stream */
-	r = SSL_read(req->ssl, req->buffer + req->len,
-		     MAX_BUFFER_LENGTH - req->len);
+	r = SSL_read(req->ssl, req->buffer + req->len, (int)(MAX_BUFFER_LENGTH - req->len));
 
 	/* restore descriptor flags */
 	fcntl(thread->u.fd, F_SETFL, val);
@@ -278,7 +277,7 @@ ssl_read_thread(thread_t * thread)
 				thread->u.fd, timeout);
 	} else if (r > 0 && req->error == 0) {
 		/* Handle response stream */
-		http_process_response(req, r, (url->digest != NULL));
+		http_process_response(req, (size_t)r, (url->digest != NULL));
 
 		/*
 		 * Register next ssl stream reader.

@@ -26,6 +26,7 @@
 #include <unistd.h>
 #include <net/ethernet.h>
 #include <linux/if_packet.h>
+#include <stdint.h>
 
 /* local includes */
 #include "logger.h"
@@ -47,11 +48,11 @@ static int ndisc_fd;
 /*
  *	Neighbour Advertisement sending routine.
  */
-static int
+static void
 ndisc_send_na(ip_address_t *ipaddress)
 {
 	struct sockaddr_ll sll;
-	int len;
+	ssize_t len;
 	char addr_str[INET6_ADDRSTRLEN] = "";
 
 	/* Build the dst device */
@@ -59,7 +60,7 @@ ndisc_send_na(ip_address_t *ipaddress)
 	sll.sll_family = AF_PACKET;
 	memcpy(sll.sll_addr, IF_HWADDR(ipaddress->ifp), ETH_ALEN);
 	sll.sll_halen = ETHERNET_HW_LEN;
-	sll.sll_ifindex = IF_INDEX(ipaddress->ifp);
+	sll.sll_ifindex = (int)IF_INDEX(ipaddress->ifp);
 
 	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
 		inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, sizeof(addr_str));
@@ -79,14 +80,12 @@ ndisc_send_na(ip_address_t *ipaddress)
 		log_message(LOG_INFO, "VRRP: Error sending ndisc unsolicited neighbour advert on %s for %s",
 			    IF_NAME(ipaddress->ifp), addr_str);
 	}
-
-	return len;
 }
 
 /*
  *	ICMPv6 Checksuming.
  */
-static uint32_t
+static __sum16
 ndisc_icmp6_cksum(const struct ip6hdr *ip6, const struct icmp6hdr *icp, uint32_t len)
 {
 	size_t i;
@@ -116,7 +115,7 @@ ndisc_icmp6_cksum(const struct ip6hdr *ip6, const struct icmp6hdr *icp, uint32_t
 
 	sp = (const uint16_t *)icp;
 
-	for (i = 0; i < (len & ~1); i += 2)
+	for (i = 1; i < len; i += 2)
 		sum += *sp++;
 
 	if (len & 1)
@@ -124,9 +123,8 @@ ndisc_icmp6_cksum(const struct ip6hdr *ip6, const struct icmp6hdr *icp, uint32_t
 
 	while (sum > 0xffff)
 		sum = (sum & 0xffff) + (sum >> 16);
-	sum = ~sum & 0xffff;
 
-	return (sum);
+	return ~sum & 0xffff;
 }
 
 /*
@@ -135,7 +133,7 @@ ndisc_icmp6_cksum(const struct ip6hdr *ip6, const struct icmp6hdr *icp, uint32_t
  *	Neighbor Advertisements in order to (unreliably) propagate
  *	new information quickly.
  */
-int
+void
 ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 {
 	struct ether_header *eth = (struct ether_header *) ndisc_buffer;
@@ -145,10 +143,6 @@ ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	struct nd_opt_hdr *nd_opt_h = (struct nd_opt_hdr *) ((char *)ndh + sizeof(struct ndhdr));
 	char *nd_opt_lladdr = (char *) ((char *)nd_opt_h + sizeof(struct nd_opt_hdr));
 	char *lladdr = (char *) IF_HWADDR(ipaddress->ifp);
-	int len;
-	bool router;
-
-	router = get_ipv6_forwarding(ifp);
 
 	/* Ethernet header:
 	 * Destination ethernet address MUST use specific address Mapping
@@ -171,7 +165,7 @@ ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 
 	/* ICMPv6 Header */
 	icmp6h->icmp6_type = NDISC_NEIGHBOUR_ADVERTISEMENT;
-	icmp6h->icmp6_router = router;
+	icmp6h->icmp6_router = ifp->gna_router;
 
 	/* Override flag is set to indicate that the advertisement
 	 * should override an existing cache entry and update the
@@ -190,7 +184,7 @@ ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 						sizeof(struct ndhdr) + sizeof(struct nd_opt_hdr) + ETH_ALEN);
 
 	/* Send the neighbor advertisement message */
-	len = ndisc_send_na(ipaddress);
+	ndisc_send_na(ipaddress);
 
 	/* Cleanup room for next round */
 	memset(ndisc_buffer, 0, ETHER_HDR_LEN + sizeof(struct ip6hdr) +
@@ -199,14 +193,12 @@ ndisc_send_unsolicited_na_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	/* If we have to delay between sending NAs, note the next time we can */
 	if (ifp->garp_delay && ifp->garp_delay->have_gna_interval)
 		ifp->garp_delay->gna_next_time = timer_add_now(ifp->garp_delay->gna_interval);
-
-	return len;
 }
 
 static void
 queue_ndisc(vrrp_t *vrrp, interface_t *ifp, ip_address_t *ipaddress)
 {
-        timeval_t next_time = timer_add_now(ifp->garp_delay->gna_interval);
+	timeval_t next_time = timer_add_now(ifp->garp_delay->gna_interval);
 
 	vrrp->gna_pending = true;
 	ipaddress->garp_gna_pending = true;
@@ -218,7 +210,7 @@ queue_ndisc(vrrp_t *vrrp, interface_t *ifp, ip_address_t *ipaddress)
 
 		garp_next_time = next_time;
 
-		garp_thread = thread_add_timer(master, vrrp_arp_thread, NULL, -timer_long(timer_sub_now(garp_next_time)));
+		garp_thread = thread_add_timer(master, vrrp_arp_thread, NULL, timer_long(ifp->garp_delay->gna_interval));
 	}
 }
 

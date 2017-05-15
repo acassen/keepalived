@@ -22,12 +22,28 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201608030000Z"
+     LAST-UPDATED "201704110001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201704110001Z"
+     DESCRIPTION "add real server forwarding method"
+     REVISION "201704110000Z"
+     DESCRIPTION "add fo and ovf load balancing types"
+     REVISION "201702190000Z"
+     DESCRIPTION "add ip rule/route uid support"
+     REVISION "201611260000Z"
+     DESCRIPTION "add initfailed state for scripts"
+     REVISION "201610180000Z"
+     DESCRIPTION "add promote_secondaries"
+     REVISION "201609120000Z"
+     DESCRIPTION "dbus support added"
+     REVISION "201609060000Z"
+     DESCRIPTION "add LVS scheduler flags"
+     REVISION "201608230000Z"
+     DESCRIPTION "add IPv6 persistence granularity"
      REVISION "201608030000Z"
      DESCRIPTION "net-namespace added"
      REVISION "201607260000Z"
@@ -266,6 +282,14 @@ netNamespace OBJECT-TYPE
         "The name of the net namespace keepalived is running in."
     ::= { global 8 }
 
+dbus OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "True if the DBus interface is enabled."
+    ::= { global 9 }
+
 -- ----------------------------------------------------------------------
 -- VRRP part
 -- ----------------------------------------------------------------------
@@ -462,7 +486,8 @@ VrrpInstanceEntry ::= SEQUENCE {
     vrrpInstanceScriptFault DisplayString,
     vrrpInstanceScriptStop DisplayString,
     vrrpInstanceScript DisplayString,
-    vrrpInstanceAccept INTEGER
+    vrrpInstanceAccept INTEGER,
+    vrrpInstancePromoteSecondaries INTEGER
 }
 
 vrrpInstanceIndex OBJECT-TYPE
@@ -697,6 +722,14 @@ vrrpInstanceAccept OBJECT-TYPE
     DESCRIPTION
         "Accept allow the non-master owner to process the packets destined to VIP and it is supported for only VRRPv3."
     ::= { vrrpInstanceEntry 27 }
+
+vrrpInstancePromoteSecondaries OBJECT-TYPE
+    SYNTAX INTEGER { true(1), false(2) }
+    MAX-ACCESS read-write
+    STATUS current
+    DESCRIPTION
+        "Set promote_secondaries on interface."
+    ::= { vrrpInstanceEntry 28 }
 
 vrrpTrackedInterfaceTable OBJECT-TYPE
     SYNTAX SEQUENCE OF VrrpTrackedInterfaceEntry
@@ -1657,7 +1690,9 @@ VrrpRuleEntry ::= SEQUENCE {
     vrrpRuleSuppressPrefixLen Unsigned32,
     vrrpRuleSuppressGroup DisplayString,
     vrrpRuleTunnelIdHigh Unsigned32,
-    vrrpRuleTunnelIdLow Unsigned32
+    vrrpRuleTunnelIdLow Unsigned32,
+    vrrpRuleUidRangeStart Unsigned32,
+    vrrpRuleUidRangeEnd Unsigned32
 }
 
 vrrpRuleIndex OBJECT-TYPE
@@ -1892,6 +1927,22 @@ vrrpRuleTunnelIdLow OBJECT-TYPE
         "Rule tunnel-id high 32 bits."
     ::= { vrrpRuleEntry 29 }
 
+vrrpRuleUidRangeStart OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule Uid range start."
+    ::= { vrrpRuleEntry 30 }
+
+vrrpRuleUidRangeEnd OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Rule Uid range end."
+    ::= { vrrpRuleEntry 31 }
+
 -- VRRP scripts
 -- see vrrp_track.h
 
@@ -1970,7 +2021,8 @@ vrrpScriptResult OBJECT-TYPE
         init(1),
         bad(2),
         good(3),
-        initgood(4)
+        initgood(4),
+        initfailed(5)
            }
     MAX-ACCESS read-only
     STATUS current
@@ -2248,7 +2300,12 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerRateInBPSLow Unsigned32,
     virtualServerRateInBPSHigh Unsigned32,
     virtualServerRateOutBPSLow Unsigned32,
-    virtualServerRateOutBPSHigh Unsigned32
+    virtualServerRateOutBPSHigh Unsigned32,
+    virtualServerPersistGranularity6 Unsigned32,
+    virtualServerHashed TruthValue,
+    virtualServerSHFallback TruthValue,
+    virtualServerSHPort TruthValue,
+    virtualServerSched3 TruthValue
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -2327,7 +2384,7 @@ virtualServerProtocol OBJECT-TYPE
 
 virtualServerLoadBalancingAlgo OBJECT-TYPE
     SYNTAX INTEGER {
-        rr(1),
+    rr(1),
     wrr(2),
     lc(3),
     wlc(4),
@@ -2337,6 +2394,8 @@ virtualServerLoadBalancingAlgo OBJECT-TYPE
     sh(8),
     sed(9),
     nq(10),
+    fo(11),
+    ovf(12),
     unknown(99)
     }
     MAX-ACCESS read-only
@@ -2346,12 +2405,13 @@ virtualServerLoadBalancingAlgo OBJECT-TYPE
         for this virtual server."
     ::= { virtualServerEntry 9 }
 
+-- Note: this object is misnamed. It should be virtualServerForwardingMethod
 virtualServerLoadBalancingKind OBJECT-TYPE
     SYNTAX INTEGER { nat(1), dr(2), tun(3) }
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION
-        "Forwarding method to use for this virtual server."
+        "Default forwarding method to use for this virtual server."
     ::= { virtualServerEntry 10 }
 
 virtualServerStatus OBJECT-TYPE
@@ -2392,7 +2452,7 @@ virtualServerPersistGranularity OBJECT-TYPE
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION
-        "Netmask specifying the granularity of the persistence mechanism."
+        "Netmask specifying the granularity of the IPv4 persistence mechanism."
     ::= { virtualServerEntry 15 }
 
 virtualServerDelayLoop OBJECT-TYPE
@@ -2710,6 +2770,47 @@ virtualServerRateOutBPSHigh OBJECT-TYPE
 	Together with virtualServerRateOutBPSLow composes 64-bit number."
     ::= { virtualServerEntry 50 }
 
+virtualServerPersistGranularity6 OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Netmask specifying the granularity of the IPv6 persistence mechanism."
+    ::= { virtualServerEntry 51 }
+
+virtualServerHashed OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If set to true(1), entries will be hashed."
+    ::= { virtualServerEntry 52 }
+
+virtualServerSHFallback OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If set to true(1), SH scheduler fallback."
+    ::= { virtualServerEntry 53 }
+
+virtualServerSHPort OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If set to true(1), SH scheduler use port."
+    ::= { virtualServerEntry 54 }
+
+virtualServerSched3 OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "If set to true(1), scheduler flag 3 set."
+    ::= { virtualServerEntry 55 }
+
+
 -- real servers
 
 realServerTable OBJECT-TYPE
@@ -2768,7 +2869,8 @@ RealServerEntry ::= SEQUENCE {
     realServerRateInBPSLow Unsigned32,
     realServerRateInBPSHigh Unsigned32,
     realServerRateOutBPSLow Unsigned32,
-    realServerRateOutBPSHigh Unsigned32
+    realServerRateOutBPSHigh Unsigned32,
+    realServerForwardingMethod INTEGER
 }
 
 realServerIndex OBJECT-TYPE
@@ -3122,6 +3224,14 @@ realServerRateOutBPSHigh OBJECT-TYPE
 	Together with realServerRateOutBPSLow composes 64-bit number."
     ::= { realServerEntry 39 }
 
+realServerForwardingMethod OBJECT-TYPE
+    SYNTAX INTEGER { nat(1), dr(2), tun(3) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Forwarding method to use for this real server."
+    ::= { realServerEntry 40 }
+
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
 lvsSyncDaemonEnabled OBJECT-TYPE
@@ -3344,7 +3454,8 @@ globalGroup OBJECT-GROUP
     linkBeat,
     lvsFlush,
     ipvs64BitStats,
-    netNamespace
+    netNamespace,
+    dbus
     }
     STATUS current
     DESCRIPTION
@@ -3396,6 +3507,7 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpInstanceScriptStop,
     vrrpInstanceScript,
     vrrpInstanceAccept,
+    vrrpInstancePromoteSecondaries,
     vrrpTrackedInterfaceName,
     vrrpTrackedInterfaceWeight,
     vrrpTrackedScriptName,
@@ -3502,7 +3614,9 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpRuleSuppressPrefixLen,
     vrrpRuleSuppressGroup,
     vrrpRuleTunnelIdHigh,
-    vrrpRuleTunnelIdLow
+    vrrpRuleTunnelIdLow,
+    vrrpRuleUidRangeStart,
+    vrrpRuleUidRangeEnd
     }
     STATUS current
     DESCRIPTION
@@ -3624,7 +3738,12 @@ virtualServerGroup OBJECT-GROUP
     virtualServerRateInBPSLow,
     virtualServerRateInBPSHigh,
     virtualServerRateOutBPSLow,
-    virtualServerRateOutBPSHigh
+    virtualServerRateOutBPSHigh,
+    virtualServerPersistGranularity6,
+    virtualServerHashed,
+    virtualServerSHFallback,
+    virtualServerSHPort,
+    virtualServerSched3
     }
     STATUS current
     DESCRIPTION
@@ -3670,7 +3789,8 @@ realServerGroup OBJECT-GROUP
     realServerRateInBPSLow,
     realServerRateInBPSHigh,
     realServerRateOutBPSLow,
-    realServerRateOutBPSHigh
+    realServerRateOutBPSHigh,
+    realServerForwardingMethod
     }
     STATUS current
     DESCRIPTION
