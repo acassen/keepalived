@@ -55,6 +55,8 @@ typedef struct _ip_address {
 
 	interface_t		*ifp;			/* Interface owning IP address */
 	char			*label;			/* Alias name, e.g. eth0:1 */
+	int			flags;			/* Address flags */
+	int			flagmask;		/* Bitmaps of flags set */
 	bool			set;			/* TRUE if addr is set */
 	bool			iptable_rule_set;	/* TRUE if iptable drop rule
 							 * set to addr */
