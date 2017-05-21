@@ -93,9 +93,9 @@ global_defs {				# Block identification
     vrrp_garp_master_refresh <INTEGER>	   # Periodic delay in seconds sending
 					   #  gratuitous ARP while in MASTER state
 					   #  Default: 0 (no refreshing)
-    vrrp_garp_master_refresh_repeat <INTEGER> # how many gratuitous ARP messages shoule be sent
+    vrrp_garp_master_refresh_repeat <INTEGER> # how many gratuitous ARP messages should be sent
 					   #  at each periodic repeat
-					   #  Default: once (per period)
+					   #  Default: one (per period)
     vrrp_lower_prio_no_advert [<BOOL>]     # If a lower priority advert is received, just discard
 					   # it and don't send another advert. This causes adherence
 					   # to the RFCs.
@@ -338,8 +338,8 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     version <INTEGER:2..3>              # VRRP version to use
     vmac_xmit_base			# Send/Recv VRRP messages from base
 					#  interface instead of VMAC interface
-    native_ipv6				# Force instance to use IPv6
-					#  when using mixed IPv4&IPv6 conf
+    native_ipv6				# Force instance to use IPv6 (this option is deprecated since
+					#   the virtual addresses determine whether IPv4 or IPv6 is used)
     state MASTER|BACKUP			# Start-up default state
     interface <STRING>			# Binding interface
     accept				# Allow a non address-owner to process packets

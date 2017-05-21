@@ -331,7 +331,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 		vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number);
 	} else {
 		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
-					" already proceeded. Packet dropped. Local(%d)",
+					" already processed. Packet dropped. Local(%d)",
 					vrrp->iname, ntohl(ah->seq_number),
 					vrrp->ipsecah_counter->seq_number);
 		++vrrp->stats->auth_failure;
