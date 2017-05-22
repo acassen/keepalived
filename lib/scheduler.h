@@ -117,7 +117,9 @@ typedef enum {
 
 /* global vars exported */
 extern thread_master_t *master;
+#ifndef DEBUG
 extern prog_type_t prog_type;		/* Parent/VRRP/Checker process */
+#endif
 
 /* Prototypes. */
 extern void set_child_finder(bool (*)(pid_t, char const **));

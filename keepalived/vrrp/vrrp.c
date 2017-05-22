@@ -224,6 +224,9 @@ check_vrrp_script_security(void)
 		}
 	}
 
+	if (global_data->vrrp_notify_fifo_script)
+		script_flags |= check_notify_script_secure(&global_data->vrrp_notify_fifo_script, global_data->script_security, false);
+
 	if (!global_data->script_security && script_flags & SC_ISSCRIPT) {
 		log_message(LOG_INFO, "SECURITY VIOLATION - scripts are being executed but script_security not enabled.%s",
 				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
@@ -331,7 +334,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 		vrrp->ipsecah_counter->seq_number = ntohl(ah->seq_number);
 	} else {
 		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
-					" already proceeded. Packet dropped. Local(%d)",
+					" already processed. Packet dropped. Local(%d)",
 					vrrp->iname, ntohl(ah->seq_number),
 					vrrp->ipsecah_counter->seq_number);
 		++vrrp->stats->auth_failure;
@@ -1957,6 +1960,9 @@ shutdown_vrrp_instances(void)
 		/* Run stop script */
 		if (vrrp->script_stop)
 			notify_exec(vrrp->script_stop);
+
+		if (global_data->vrrp_notify_fifo_fd != -1)
+			notify_instance_fifo(vrrp, VRRP_STATE_STOP);
 
 #ifdef _WITH_LVS_
 		/*

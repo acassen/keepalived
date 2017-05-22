@@ -86,6 +86,9 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 	req.n.nlmsg_type = (cmd == IPADDRESS_DEL) ? RTM_DELADDR : RTM_NEWADDR;
 	req.ifa = ipaddress->ifa;
 
+	if (cmd == IPADDRESS_ADD)
+		req.ifa.ifa_flags = ipaddress->flags;
+
 	if (IP_IS6(ipaddress)) {
 		if (cmd == IPADDRESS_ADD) {
 			/* Mark IPv6 address as deprecated (rfc3484) in order to prevent
@@ -100,6 +103,8 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 					  sizeof(cinfo));
 			}
 
+			req.ifa.ifa_flags = ipaddress->flags;
+
 			/* Disable, per VIP, Duplicate Address Detection algorithm (DAD).
 			 * Using the nodad flag has the following benefits:
 			 *
@@ -112,7 +117,8 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 			 *     functionality, so it's not really needed from the IPv6 stack.
 			 */
 #ifdef IFA_F_NODAD	/* Since Linux 2.6.19 */
-			req.ifa.ifa_flags |= IFA_F_NODAD;
+			if (!(ipaddress->flagmask & IFA_F_NODAD))
+				req.ifa.ifa_flags |= IFA_F_NODAD;
 #endif
 		}
 
@@ -128,6 +134,7 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 			if (ipaddress->u.sin.sin_brd.s_addr)
 				addattr_l(&req.n, sizeof(req), IFA_BROADCAST,
 					  &ipaddress->u.sin.sin_brd, sizeof(ipaddress->u.sin.sin_brd));
+			req.ifa.ifa_flags = ipaddress->flags;
 		}
 		else {
 			/* IPADDRESS_DEL */
@@ -521,6 +528,31 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		} else if (!strcmp(str, "label")) {
 			new->label = MALLOC(IFNAMSIZ);
 			strncpy(new->label, strvec_slot(strvec, ++i), IFNAMSIZ);
+#ifdef IFA_F_HOMEADDRESS		/* Linux 2.6.19 */
+		} else if (!strcmp(str, "home")) {
+			new->flags |= IFA_F_HOMEADDRESS;
+			new->flagmask |= IFA_F_HOMEADDRESS;
+#endif
+#ifdef IFA_F_NODAD			/* Linux 2.6.19 */
+		} else if (!strcmp(str, "-nodad")) {
+			new->flags |= IFA_F_NODAD;
+			new->flagmask |= IFA_F_NODAD;
+#endif
+#ifdef IFA_F_MANAGETEMPADDR		/* Linux 3.14 */
+		} else if (!strcmp(str, "mngtmpaddr")) {
+			new->flags |= IFA_F_MANAGETEMPADDR;
+			new->flagmask |= IFA_F_MANAGETEMPADDR;
+#endif
+#ifdef IFA_F_NOPREFIXROUTE		/* Linux 3.14 */
+		} else if (!strcmp(str, "noprefixroute")) {
+			new->flags |= IFA_F_NOPREFIXROUTE;
+			new->flagmask |= IFA_F_NOPREFIXROUTE;
+#endif
+#ifdef IFA_F_MCAUTOJOIN			/* Linux 4.1 */
+		} else if (!strcmp(str, "autojoin")) {
+			new->flags |= IFA_F_MCAUTOJOIN;
+			new->flagmask |= IFA_F_MCAUTOJOIN;
+#endif
 		} else
 			log_message(LOG_INFO, "Unknown configuration entry '%s' for ip address - ignoring", str);
 		i++;

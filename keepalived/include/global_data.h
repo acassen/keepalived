@@ -99,6 +99,10 @@ typedef struct _data {
 	int				vrrp_version;	/* VRRP version (2 or 3) */
 	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];
 	char				vrrp_iptables_outchain[XT_EXTENSION_MAXNAMELEN];
+	char				*vrrp_notify_fifo_name;
+	int				vrrp_notify_fifo_fd;
+	bool				vrrp_created_notify_fifo;
+	notify_script_t			*vrrp_notify_fifo_script;
 #ifdef _HAVE_LIBIPSET_
 	bool				using_ipsets;
 	char				vrrp_ipset_address[IPSET_MAXNAMELEN];

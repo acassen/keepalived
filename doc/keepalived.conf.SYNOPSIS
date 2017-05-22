@@ -93,9 +93,9 @@ global_defs {				# Block identification
     vrrp_garp_master_refresh <INTEGER>	   # Periodic delay in seconds sending
 					   #  gratuitous ARP while in MASTER state
 					   #  Default: 0 (no refreshing)
-    vrrp_garp_master_refresh_repeat <INTEGER> # how many gratuitous ARP messages shoule be sent
+    vrrp_garp_master_refresh_repeat <INTEGER> # how many gratuitous ARP messages should be sent
 					   #  at each periodic repeat
-					   #  Default: once (per period)
+					   #  Default: one (per period)
     vrrp_lower_prio_no_advert [<BOOL>]     # If a lower priority advert is received, just discard
 					   # it and don't send another advert. This causes adherence
 					   # to the RFCs.
@@ -155,6 +155,13 @@ global_defs {				# Block identification
 					   # if that user exists, otherwise root.
     enable_script_security		   # Don't run scripts configured to be run as root if any part of the path
 					   # is writable by a non-root user.
+    vrrp_notify_fifo FIFO_NAME		   # FIFO to write notify events to
+					   # The string written will be a line of the form: INSTANCE "VI_1" MASTER 100
+					   # and will be terminated with a new line character.
+					   # For further details of the output, see the description under vrrp_sync_group
+					   # and doc/samples/sample_notify_fifo.sh for sample usage.
+    vrrp_notify_fifo_script STRING [username [groupname]]
+					   # script to be run by keepalived to process notify events
 }
 
 net_namespace NAME			   # Set the network namespace to run in
@@ -182,8 +189,8 @@ linkbeat_use_polling			   # Use media link failure detection polling fashion
 
 static_ipaddress {			# block identification
 					# If no dev element is specified, it defaults to the default_interface (default eth0)
-    <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
-    <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
+    <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+    <IP ADDRESS>[/<MASK>] ...
     ...
 }
 
@@ -286,11 +293,12 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
 
     $1 = A string indicating whether it's a "GROUP" or an "INSTANCE"
     $2 = The name of said group or instance
-    $3 = The state it's transitioning to ("MASTER", "BACKUP" or "FAULT")
+    $3 = The state it's transitioning to ("MASTER", "BACKUP", "FAULT" or "STOP")
     $4 = The priority value
 
     $1 and $3 are ALWAYS sent in uppercase, and the possible strings sent are the
-    same ones listed above ("GROUP"/"INSTANCE", "MASTER"/"BACKUP"/"FAULT").
+    same ones listed above ("GROUP"/"INSTANCE", "MASTER"/"BACKUP"/"FAULT"/"STOP")
+    (note: STOP is only applicable to instances)
 
 Important: for a SYNC group to run reliably, it is vital that all instances in
 	   the group are MASTER or that they are all either BACKUP or FAULT. A
@@ -338,8 +346,8 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     version <INTEGER:2..3>              # VRRP version to use
     vmac_xmit_base			# Send/Recv VRRP messages from base
 					#  interface instead of VMAC interface
-    native_ipv6				# Force instance to use IPv6
-					#  when using mixed IPv4&IPv6 conf
+    native_ipv6				# Force instance to use IPv6 (this option is deprecated since
+					#   the virtual addresses determine whether IPv4 or IPv6 is used)
     state MASTER|BACKUP			# Start-up default state
     interface <STRING>			# Binding interface
     accept				# Allow a non address-owner to process packets
@@ -402,16 +410,16 @@ vrrp_instance <STRING> {		# VRRP instance declaration
         auth_pass <STRING>		# Password string (up to 8 characters)
     }
     virtual_ipaddress {			# VRRP IP addres block
-        <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE> label <LABEL>
-        <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE> label <LABEL>
+        <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+        <IP ADDRESS>[/<MASK>] ...
         ...
     }
-    virtual_ipaddress_excluded {       	# VRRP IP excluded from VRRP
-        <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>	# packets
-        <IP ADDRESS>/<MASK> brd <IP ADDRESS> dev <STRING> scope <SCOPE>
+    virtual_ipaddress_excluded {       	# VRRP IP excluded from VRRP packets
+        <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+        <IP ADDRESS>[/<MASK>] ...
         ...
     }
-    prompte_secondaries			# Set the promote_secondaries flag on the interface to stop other
+    promote_secondaries			# Set the promote_secondaries flag on the interface to stop other
 					# addresses in the same CIDR being removed when 1 of them is removed
     virtual_routes {			# VRRP virtual routes
 					# The syntax is the same as static_routes
