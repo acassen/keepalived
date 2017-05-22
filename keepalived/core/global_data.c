@@ -188,12 +188,23 @@ void
 init_global_data(data_t * data)
 {
 	char* local_name = NULL;
+	char unknown_name[] = "[unknown]";
+	bool using_unknown_name = false;
 
 	if (!data->router_id ||
 	    (data->smtp_server.ss_family &&
 	     (!data->smtp_helo_name ||
-	      !data->email_from)))
+	      !data->email_from))) {
 		local_name = get_local_name();
+
+		/* If for some reason get_local_name() fails, we need to have
+		 * some string in local_name, otherwise keepalived can segfault */
+		if (!local_name) {
+			local_name = MALLOC(sizeof(unknown_name));
+			strcpy(local_name, unknown_name);
+			using_unknown_name = true;
+		}
+	}
 
 	if (!data->router_id)
 		set_default_router_id(data, local_name);
@@ -202,7 +213,7 @@ init_global_data(data_t * data)
 		if (!data->smtp_connection_to)
 			set_default_smtp_connection_timeout(data);
 
-		if (local_name) {
+		if (!using_unknown_name) {
 			if (!data->email_from)
 				set_default_email_from(data, local_name);
 
