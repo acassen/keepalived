@@ -155,6 +155,13 @@ global_defs {				# Block identification
 					   # if that user exists, otherwise root.
     enable_script_security		   # Don't run scripts configured to be run as root if any part of the path
 					   # is writable by a non-root user.
+    vrrp_notify_fifo FIFO_NAME		   # FIFO to write notify events to
+					   # The string written will be a line of the form: INSTANCE "VI_1" MASTER 100
+					   # and will be terminated with a new line character.
+					   # For further details of the output, see the description under vrrp_sync_group
+					   # and doc/samples/sample_notify_fifo.sh for sample usage.
+    vrrp_notify_fifo_script STRING [username [groupname]]
+					   # script to be run by keepalived to process notify events
 }
 
 net_namespace NAME			   # Set the network namespace to run in
@@ -286,11 +293,12 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
 
     $1 = A string indicating whether it's a "GROUP" or an "INSTANCE"
     $2 = The name of said group or instance
-    $3 = The state it's transitioning to ("MASTER", "BACKUP" or "FAULT")
+    $3 = The state it's transitioning to ("MASTER", "BACKUP", "FAULT" or "STOP")
     $4 = The priority value
 
     $1 and $3 are ALWAYS sent in uppercase, and the possible strings sent are the
-    same ones listed above ("GROUP"/"INSTANCE", "MASTER"/"BACKUP"/"FAULT").
+    same ones listed above ("GROUP"/"INSTANCE", "MASTER"/"BACKUP"/"FAULT"/"STOP")
+    (note: STOP is only applicable to instances)
 
 Important: for a SYNC group to run reliably, it is vital that all instances in
 	   the group are MASTER or that they are all either BACKUP or FAULT. A

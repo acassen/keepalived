@@ -57,8 +57,8 @@ static bool path_is_malloced;
 static size_t getpwnam_buf_len;				/* Buffer length needed for getpwnam_r/getgrname_r */
 
 /* perform a system call */
-static int
-system_call(const char *cmdline, uid_t uid, gid_t gid)
+static bool
+set_privileges(uid_t uid, gid_t gid)
 {
 	int retval;
 
@@ -67,14 +67,14 @@ system_call(const char *cmdline, uid_t uid, gid_t gid)
 		retval = setgid(gid);
 		if (retval < 0) {
 			log_message(LOG_ALERT, "Couldn't setgid: %d (%m)", gid);
-			return -1;
+			return true;
 		}
 
 		/* Clear any extra supplementary groups */
 		retval = setgroups(1, &gid);
 		if (retval < 0) {
 			log_message(LOG_ALERT, "Couldn't setgroups: %d (%m)", gid);
-			return -1;
+			return true;
 		}
 	}
 
@@ -82,9 +82,21 @@ system_call(const char *cmdline, uid_t uid, gid_t gid)
 		retval = setuid(uid);
 		if (retval < 0) {
 			log_message(LOG_ALERT, "Couldn't setuid: %d (%m)", uid);
-			return -1;
+			return true;
 		}
 	}
+
+	return false;
+}
+
+/* perform a system call */
+static int
+system_call(const char *cmdline, uid_t uid, gid_t gid)
+{
+	int retval;
+
+	if (set_privileges(uid, gid))
+		return -1;
 
 	/* system() fails if SIGCHLD is set to SIG_IGN */
 	signal_set(SIGCHLD, (void*)SIG_DFL, NULL);
@@ -115,6 +127,39 @@ script_setup(void)
 }
 
 /* Execute external script/program */
+pid_t
+notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void * arg, const notify_script_t *script)
+{
+	pid_t pid;
+
+	pid = fork();
+
+	/* In case of fork is error. */
+	if (pid < 0) {
+		log_message(LOG_INFO, "Failed fork process");
+		return -1;
+	}
+
+	/* In case of this is parent process */
+	if (pid) {
+		thread_add_child(m, func, arg, pid, TIMER_NEVER);
+		return 0;
+	}
+
+#ifdef _MEM_CHECK_
+	skip_mem_dump();
+#endif
+
+	setpgid(0, 0);
+	set_privileges(script->uid, script->gid);
+	script_setup();
+
+	execlp(script->name, script->name, NULL);
+
+	/* unreached */
+	exit(0);
+}
+
 int
 notify_exec(const notify_script_t *script)
 {

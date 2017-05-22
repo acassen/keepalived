@@ -147,6 +147,7 @@ alloc_global_data(void)
 #ifdef _WITH_VRRP_
 	set_default_mcast_group(new);
 	set_vrrp_defaults(new);
+	new->vrrp_notify_fifo_fd = -1;
 #endif
 
 #ifdef _WITH_SNMP_
@@ -229,6 +230,10 @@ free_global_data(data_t * data)
 	FREE_PTR(data->lvs_syncd.ifname);
 	FREE_PTR(data->lvs_syncd.vrrp_name);
 #endif
+#ifdef _WITH_VRRP_
+	FREE_PTR(data->vrrp_notify_fifo_name);
+	free_notify_script(&data->vrrp_notify_fifo_script);
+#endif
 #if HAVE_DECL_CLONE_NEWNET
 	if (!reload)
 		FREE_PTR(network_namespace);
@@ -287,6 +292,14 @@ dump_global_data(data_t * data)
 		if (data->lvs_syncd.mcast_ttl)
 			log_message(LOG_INFO, " LVS syncd mcast ttl = %u", data->lvs_syncd.mcast_ttl);
 #endif
+	}
+	if (data->vrrp_notify_fifo_name) {
+		log_message(LOG_INFO, " VRRP notify fifo = %s", data->vrrp_notify_fifo_name);
+		if (data->vrrp_notify_fifo_script)
+			log_message(LOG_INFO, " VRRP notify fifo script = %s uid:gid %d:%d",
+				    data->vrrp_notify_fifo_script->name,
+				    data->vrrp_notify_fifo_script->uid,
+				    data->vrrp_notify_fifo_script->gid);
 	}
 #endif
 	log_message(LOG_INFO, " LVS flush = %s", data->lvs_flush ? "true" : "false");

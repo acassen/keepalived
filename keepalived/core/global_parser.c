@@ -538,6 +538,37 @@ vrrp_no_swap_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->vrrp_no_swap = true;
 }
+static void
+vrrp_notify_fifo(vector_t *strvec)
+{
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "No vrrp_notify_fifo name specified");
+		return;
+	}
+
+	if (global_data->vrrp_notify_fifo_name) {
+		log_message(LOG_INFO, "vrrp_notify_fifo already specified - ignoring %s", FMT_STR_VSLOT(strvec,1));
+		return;
+	}
+
+	global_data->vrrp_notify_fifo_name = MALLOC(strlen(strvec_slot(strvec, 1) + 1));
+	strcpy(global_data->vrrp_notify_fifo_name, strvec_slot(strvec, 1));
+}
+static void
+vrrp_notify_fifo_script(vector_t *strvec)
+{
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "No vrrp_notify_fifo_script specified");
+		return;
+	}
+
+	if (global_data->vrrp_notify_fifo_script) {
+		log_message(LOG_INFO, "vrrp_notify_fifo_script already specified - ignoring %s", FMT_STR_VSLOT(strvec,1));
+		return;
+	}
+
+	global_data->vrrp_notify_fifo_script = notify_script_init(strvec, "notify_fifo", global_data->script_security);
+}
 #endif
 #ifdef _WITH_LVS_
 static void
@@ -770,6 +801,8 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_strict", &vrrp_strict_handler);
 	install_keyword("vrrp_priority", &vrrp_prio_handler);
 	install_keyword("vrrp_no_swap", &vrrp_no_swap_handler);
+	install_keyword("vrrp_notify_fifo", &vrrp_notify_fifo);
+	install_keyword("vrrp_notify_fifo_script", &vrrp_notify_fifo_script);
 #endif
 #ifdef _WITH_LVS_
 	install_keyword("checker_priority", &checker_prio_handler);
