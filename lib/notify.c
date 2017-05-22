@@ -126,6 +126,16 @@ script_setup(void)
 	set_std_fd(false);
 }
 
+void print_exit_status(int status) {
+	if (WIFEXITED(status)) {
+		log_message(LOG_DEBUG, "Notify script terminated normally. Exit status = %d", status);
+	} else if (WIFSIGNALED(status)) {
+		log_message(LOG_DEBUG, "Notify script terminated abnormally. Signal number = %d%s", WTERMSIG(status));
+	} else if (WIFSTOPPED(status)) {
+		log_message(LOG_DEBUG, "Notify script stopped. Signal number = %d", WSTOPSIG(status));
+	}
+}
+
 /* Execute external script/program */
 pid_t
 notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void * arg, const notify_script_t *script)
@@ -174,13 +184,17 @@ notify_exec(const notify_script_t *script)
 	}
 
 	/* In case of this is parent process */
-	if (pid)
+	if (pid) {
+		int status = 0;
+		wait(&status);
+		print_exit_status(status);
 		return 0;
+	}
 
 #ifdef _MEM_CHECK_
 	skip_mem_dump();
 #endif
-
+  
 	script_setup();
 
 	system_call(script->name, script->uid, script->gid);
