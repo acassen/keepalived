@@ -306,7 +306,7 @@ start_vrrp(void)
 		if (!sav_errno || sav_errno == EEXIST) {
 			/* Run the notify script if there is one */
 			if (global_data->vrrp_notify_fifo_script)
-				notify_fifo_exec(master, notify_fifo_script_exit, NULL, global_data->vrrp_notify_fifo_script);
+				notify_fifo_exec(master, notify_fifo_script_exit, NULL, global_data->vrrp_notify_fifo_script, global_data->vrrp_notify_fifo_name);
 
 			/* Now open the fifo */
 			if ((global_data->vrrp_notify_fifo_fd = open(global_data->vrrp_notify_fifo_name, O_RDWR | O_CLOEXEC | O_NONBLOCK)) == -1) {

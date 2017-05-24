@@ -162,6 +162,7 @@ global_defs {				# Block identification
 					   # and doc/samples/sample_notify_fifo.sh for sample usage.
     vrrp_notify_fifo_script STRING [username [groupname]]
 					   # script to be run by keepalived to process notify events
+					   # The FIFO name will be passed to the script as the last parameter
 }
 
 net_namespace NAME			   # Set the network namespace to run in

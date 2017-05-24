@@ -128,7 +128,7 @@ script_setup(void)
 
 /* Execute external script/program */
 pid_t
-notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void * arg, const notify_script_t *script)
+notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void *arg, const notify_script_t *script, const char *fifo_name)
 {
 	pid_t pid;
 
@@ -154,7 +154,7 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void * arg, const
 	set_privileges(script->uid, script->gid);
 	script_setup();
 
-	execl(script->name, script->name, NULL);
+	execl(script->name, script->name, fifo_name, NULL);
 
 	if (errno == EACCES)
 		log_message(LOG_INFO, "FIFO notify script %s is not executable", script->name);

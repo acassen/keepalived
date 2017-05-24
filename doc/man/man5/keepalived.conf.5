@@ -206,6 +206,7 @@ and
                               # For further details of the output, see the description under vrrp_sync_group
  vrrp_notify_fifo_script SCRIPT_PATH [username [groupname]]
                               # script to be run by keepalived to process notify events
+                              # The FIFO name will be passed to the script as the last parameter
  }
 
  # For running keepalived in a separate network namespace

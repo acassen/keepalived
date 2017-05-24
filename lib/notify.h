@@ -61,7 +61,7 @@ extern gid_t default_script_gid;
 
 /* prototypes */
 extern int system_call_script(thread_master_t *, int (*) (thread_t *), void *, unsigned long, const char*, uid_t, gid_t);
-extern pid_t notify_fifo_exec(thread_master_t *, int (*func) (thread_t *), void *, const notify_script_t *);
+extern pid_t notify_fifo_exec(thread_master_t *, int (*func) (thread_t *), void *, const notify_script_t *, const char *);
 extern int notify_exec(const notify_script_t *);
 extern void script_killall(thread_master_t *, int);
 extern int check_script_secure(notify_script_t *, bool, bool);

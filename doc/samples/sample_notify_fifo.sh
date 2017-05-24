@@ -12,12 +12,16 @@
 # If this approach is used, comment out the lines 'mkfifo $FIFO' and trap ...
 # below, since keepalived can create the FIFO.
 
-FIFO=/tmp/notify_fifo
+FIFO=$1
 CREATED_FIFO=0
+LOG_FILE=/tmp/${FIFO##*/}.log
 
-trap "{ [[ $CREATED_FIFO -eq 1 ]] && rm -f $FIFO; exit 0; }" HUP INT QUIT USR1 USR2 PIPE TERM
+trap "{ echo STOPPING >>$LOG_FILE; [[ $CREATED_FIFO -eq 1 ]] && rm -f $FIFO; exit 0; }" HUP INT QUIT USR1 USR2 PIPE TERM
 
-[[ ! -p $FIFO ]] && mkfifo $FIFO && CREATED_FIFO=1
+if [[ ! -p $FIFO ]]; then
+	mkfifo $FIFO
+	[[ $? -eq 0 ]] && CREATED_FIFO=1
+fi
 
 # If keepalived terminates, the FIFO will be closed, so
 # read the FIFO in a loop. It keepalived hasn't opened the
@@ -34,6 +38,6 @@ do
 		PRIORITY=$4
 
 		# Now take whatever action is required
-		echo $TYPE $VRRP_INST $STATE $PRIORITY >>/tmp/fifo.log
+		echo $TYPE $VRRP_INST $STATE $PRIORITY >>$LOG_FILE
 	done < $FIFO
 done
