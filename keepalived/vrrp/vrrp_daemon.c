@@ -24,9 +24,6 @@
 
 #include <string.h>
 #include <sys/prctl.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 
 #include "vrrp_daemon.h"
 #include "vrrp_scheduler.h"
@@ -89,9 +86,9 @@ vrrp_ipvs_needed(void)
 #endif
 
 static int
-notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
+vrrp_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
 {
-	log_message(LOG_INFO, "notify fifo script terminated");
+	log_message(LOG_INFO, "vrrp notify fifo script terminated");
 
 	return 0;
 }
@@ -159,13 +156,8 @@ stop_vrrp(int status)
 		dbus_stop();
 #endif
 
-	if (global_data->vrrp_notify_fifo_fd != -1) {
-		close(global_data->vrrp_notify_fifo_fd);
-		global_data->vrrp_notify_fifo_fd = -1;
-		if (global_data->vrrp_created_notify_fifo)
-			unlink(global_data->vrrp_notify_fifo_name);
-	}
-
+	if (global_data->vrrp_notify_fifo.fd != -1)
+		notify_fifo_close(&global_data->notify_fifo, &global_data->vrrp_notify_fifo);
 
 	free_global_data(global_data);
 	free_vrrp_data(vrrp_data);
@@ -195,9 +187,6 @@ stop_vrrp(int status)
 static void
 start_vrrp(void)
 {
-	int ret;
-	int sav_errno;
-
 	/* Initialize sub-system */
 	init_interface_queue();
 	kernel_netlink_init();
@@ -291,36 +280,8 @@ start_vrrp(void)
 	iptables_init();
 
 	/* Create a notify FIFO if needed, and open it */
-	if (global_data->vrrp_notify_fifo_name) {
-		sav_errno = 0;
-
-		if (!(ret = mkfifo(global_data->vrrp_notify_fifo_name, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)))
-			global_data->vrrp_created_notify_fifo = true;
-		else {
-			sav_errno = errno;
-
-			if (sav_errno != EEXIST)
-				log_message(LOG_INFO, "Unable to create notify fifo %s", global_data->vrrp_notify_fifo_name);
-		}
-
-		if (!sav_errno || sav_errno == EEXIST) {
-			/* Run the notify script if there is one */
-			if (global_data->vrrp_notify_fifo_script)
-				notify_fifo_exec(master, notify_fifo_script_exit, NULL, global_data->vrrp_notify_fifo_script, global_data->vrrp_notify_fifo_name);
-
-			/* Now open the fifo */
-			if ((global_data->vrrp_notify_fifo_fd = open(global_data->vrrp_notify_fifo_name, O_RDWR | O_CLOEXEC | O_NONBLOCK)) == -1) {
-				log_message(LOG_INFO, "Unable to open notify fifo %s - errno %d", global_data->vrrp_notify_fifo_name, errno);
-				if (global_data->vrrp_created_notify_fifo)
-					unlink(global_data->vrrp_notify_fifo_name);
-			}
-		}
-
-		if (global_data->vrrp_notify_fifo_fd == -1) {
-			FREE(global_data->vrrp_notify_fifo_name);
-			global_data->vrrp_notify_fifo_name = NULL;
-		}
-	}
+	if (global_data->vrrp_notify_fifo.name)
+		notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
 
 	/* Make sure we don't have any old iptables/ipsets settings left around */
 #ifdef _HAVE_LIBIPTC_
@@ -441,13 +402,8 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 		       true, false);
 #endif
 
-#ifdef _WITH_VRRP_
 	/* Remove the notify fifo - we don't know if it will be the same after a reload */
-	if (global_data->vrrp_notify_fifo_fd)
-		close(global_data->vrrp_notify_fifo_fd);
-	if (global_data->vrrp_created_notify_fifo)
-		unlink(global_data->vrrp_notify_fifo_name);
-#endif
+	notify_fifo_close(&global_data->notify_fifo, &global_data->vrrp_notify_fifo);
 
 	free_global_data(global_data);
 	free_vrrp_buffer();

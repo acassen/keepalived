@@ -124,12 +124,16 @@ script_open(notify_script_t *script)
 }
 
 static void
-notify_fifo(const char *name, int state_num, bool group, int priority)
+notify_fifo(const char *name, int state_num, bool group, uint8_t priority)
 {
 	char *state = "{UNKNOWN}";
 	size_t size;
 	char *line;
 	char *type;
+
+	if (global_data->notify_fifo.fd == -1 &&
+	    global_data->vrrp_notify_fifo.fd == -1)
+		return;
 
 	switch (state_num) {
 		case VRRP_STATE_MAST  : state = "MASTER" ; break;
@@ -146,7 +150,13 @@ notify_fifo(const char *name, int state_num, bool group, int priority)
 		return;
 
 	snprintf(line, size, "%s \"%s\" %s %d\n", type, name, state, priority);
-	write(global_data->vrrp_notify_fifo_fd, line, strlen(line));
+
+	if (global_data->notify_fifo.fd != -1) {
+		if (write(global_data->notify_fifo.fd, line, strlen(line)) == -1) {}
+	}
+	if (global_data->vrrp_notify_fifo.fd != -1) {
+		if (write(global_data->vrrp_notify_fifo.fd, line, strlen(line)) == -1) {}
+	}
 
 	FREE(line);
 }
@@ -239,8 +249,7 @@ notify_instance_exec(vrrp_t * vrrp, int state)
 		ret = 1;
 	}
 
-	if (global_data->vrrp_notify_fifo_fd != -1)
-		notify_instance_fifo(vrrp, state);
+	notify_instance_fifo(vrrp, state);
 
 #ifdef _WITH_DBUS_
 	if (global_data->enable_dbus)
@@ -269,8 +278,7 @@ notify_group_exec(vrrp_sgroup_t * vgroup, int state)
 		ret = 1;
 	}
 
-	if (global_data->vrrp_notify_fifo_fd != -1)
-		notify_group_fifo(vgroup, state);
+	notify_group_fifo(vgroup, state);
 
 	return ret;
 }

@@ -57,6 +57,72 @@ weigh_live_realservers(virtual_server_t * vs)
 	return count;
 }
 
+static void
+notify_fifo_vs(virtual_server_t* vs, bool is_up)
+{
+	char *state = is_up ? "UP" : "DOWN";
+	size_t size;
+	char *line;
+	char *vs_str;
+
+	if (global_data->notify_fifo.fd == -1 &&
+	    global_data->lvs_notify_fifo.fd == -1)
+		return;
+
+	vs_str = FMT_VS(vs);
+	size = strlen(vs_str) + strlen(state) + 6;
+	line = MALLOC(size);
+	if (!line)
+		return;
+
+	snprintf(line, size, "VS %s %s\n", vs_str, state);
+
+	if (global_data->notify_fifo.fd != -1) {
+		if (write(global_data->notify_fifo.fd, line, size - 1) == -1) {}
+	}
+	if (global_data->lvs_notify_fifo.fd != -1) {
+		if (write(global_data->lvs_notify_fifo.fd, line, size - 1) == -1) {}
+	}
+
+	FREE(line);
+}
+
+static void
+notify_fifo_rs(virtual_server_t* vs, real_server_t* rs, bool is_up)
+{
+	char *state = is_up ? "UP" : "DOWN";
+	size_t size;
+	char *line;
+	char *str;
+	char *rs_str;
+	char *vs_str;
+
+	if (global_data->notify_fifo.fd == -1 &&
+	    global_data->lvs_notify_fifo.fd == -1)
+		return;
+
+	str = FMT_RS(rs);
+	rs_str = MALLOC(strlen(str)+1);
+	strcpy(rs_str, str);
+	vs_str = FMT_VS(vs);
+	size = strlen(rs_str) + strlen(vs_str) + strlen(state) + 7;
+	line = MALLOC(size);
+	if (!line)
+		return;
+
+	snprintf(line, size, "RS %s %s %s\n", rs_str, vs_str, state);
+	FREE(rs_str);
+
+	if (global_data->notify_fifo.fd != -1) {
+		if (write(global_data->notify_fifo.fd, line, size - 1) == - 1) {}
+	}
+	if (global_data->lvs_notify_fifo.fd != -1) {
+		if (write(global_data->lvs_notify_fifo.fd, line, size - 1) == -1) {}
+	}
+
+	FREE(line);
+}
+
 /* Remove a realserver IPVS rule */
 static void
 clear_service_rs(virtual_server_t * vs, list l)
@@ -87,6 +153,7 @@ clear_service_rs(virtual_server_t * vs, list l)
 						    , FMT_VS(vs));
 				notify_exec(rs->notify_down);
 			}
+			notify_fifo_rs(vs, rs, false);
 #ifdef _WITH_SNMP_CHECKER_
 			check_snmp_rs_trap(rs, vs);
 #endif
@@ -107,6 +174,7 @@ clear_service_rs(virtual_server_t * vs, list l)
 							    , FMT_VS(vs));
 					notify_exec(vs->quorum_down);
 				}
+				notify_fifo_vs(vs, false);
 #ifdef _WITH_SNMP_CHECKER_
 				check_snmp_quorum_trap(vs);
 #endif
@@ -344,6 +412,7 @@ update_quorum_state(virtual_server_t * vs)
 					    , FMT_VS(vs));
 			notify_exec(vs->quorum_up);
 		}
+		notify_fifo_vs(vs, true);
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_quorum_trap(vs);
 #endif
@@ -367,6 +436,7 @@ update_quorum_state(virtual_server_t * vs)
 					    , FMT_VS(vs));
 			notify_exec(vs->quorum_down);
 		}
+		notify_fifo_vs(vs, false);
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_quorum_trap(vs);
 #endif
@@ -418,6 +488,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 					    , FMT_VS(vs));
 			notify_exec(rs->notify_up);
 		}
+		notify_fifo_rs(vs, rs, true);
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_rs_trap(rs, vs);
 #endif
@@ -447,6 +518,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 					    , FMT_VS(vs));
 			notify_exec(rs->notify_down);
 		}
+		notify_fifo_rs(vs, rs, false);
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_rs_trap(rs, vs);
 #endif
