@@ -563,7 +563,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 		return -1;
 
 #ifdef _WITH_VRRP_
-#ifndef DEBUG
+#ifndef _DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
 #endif
 	{
@@ -584,7 +584,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 #endif
 
 #ifdef _WITH_LVS_
-#ifndef DEBUG
+#ifndef _DEBUG_
 	if (prog_type == PROG_TYPE_CHECKER)
 #endif
 	{
@@ -707,7 +707,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 #ifdef _WITH_VRRP_
 			/* Skip unsolicited messages from cmd channel */
 			if (
-#ifndef DEBUG
+#ifndef _DEBUG_
 			    prog_type == PROG_TYPE_VRRP &&
 #endif
 			    nl != &nl_cmd && h->nlmsg_pid == nl_cmd.nl_pid)
@@ -1154,7 +1154,7 @@ kernel_netlink_init(void)
 	 * subscribtion. We subscribe to LINK and ADDR
 	 * netlink broadcast messages.
 	 */
-#ifdef DEBUG
+#ifdef _DEBUG_
 #ifdef _WITH_VRRP_
 	netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
 #else
@@ -1179,7 +1179,7 @@ kernel_netlink_init(void)
 		log_message(LOG_INFO, "Error while registering Kernel netlink reflector channel");
 
 #ifdef _WITH_VRRP_
-#ifndef DEBUG
+#ifndef _DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
 #endif
 	{
@@ -1198,7 +1198,7 @@ kernel_netlink_close(void)
 {
 	netlink_close(&nl_kernel);
 #ifdef _WITH_VRRP_
-#ifndef DEBUG
+#ifndef _DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
 #endif
 		netlink_close(&nl_cmd);

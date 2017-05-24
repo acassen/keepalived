@@ -250,7 +250,7 @@ init_global_data(data_t * data)
 #ifdef _WITH_LVS_
 	/* If the global and LVS notify FIFOs are the same, then data will be
 	 * duplicated on the FIFO */
-#ifndef _WITH_DEBUG_
+#ifndef _DEBUG_
 	if (prog_type == PROG_TYPE_CHECKER)
 #endif
 	{
