@@ -50,7 +50,7 @@
 
 /* global vars */
 thread_master_t *master = NULL;
-#ifndef DEBUG
+#ifndef _DEBUG_
 prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #endif
 
@@ -103,7 +103,7 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 		}
 
 		if (exit_status != EXIT_SUCCESS
-#if defined _WITH_LVS_ && !defined DEBUG
+#if defined _WITH_LVS_ && !defined _DEBUG_
 					        && prog_type != PROG_TYPE_CHECKER
 #endif
 										 )

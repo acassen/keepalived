@@ -98,6 +98,7 @@ enum snmp_global_magic {
 	SNMP_MAIL_SMTPSERVERTIMEOUT,
 	SNMP_MAIL_EMAILFROM,
 	SNMP_MAIL_EMAILADDRESS,
+	SNMP_MAIL_SMTPSERVERPORT,
 	SNMP_TRAPS,
 	SNMP_LINKBEAT,
 	SNMP_LVSFLUSH,
@@ -137,6 +138,9 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 			return (u_char *)&addr4->sin_addr;
 		}
 		return NULL;
+	case SNMP_MAIL_SMTPSERVERPORT:
+		long_ret = ntohs(inet_sockaddrport(&global_data->smtp_server));
+		return (u_char *)&long_ret;
 	case SNMP_MAIL_SMTPSERVERTIMEOUT:
 		long_ret = global_data->smtp_connection_to / TIMER_HZ;
 		return (u_char *)&long_ret;
@@ -219,6 +223,8 @@ static struct variable8 global_vars[] = {
 	{SNMP_MAIL_EMAILFROM, ASN_OCTET_STR, RONLY, snmp_scalar, 2, {3, 4}},
 	/* emailTable */
 	{SNMP_MAIL_EMAILADDRESS, ASN_OCTET_STR, RONLY, snmp_mail, 4, {3, 5, 1, 2}},
+	/* SMTP server port */
+	{SNMP_MAIL_SMTPSERVERPORT, ASN_UNSIGNED, RONLY, snmp_scalar, 2, {3, 6}},
 	/* trapEnable */
 	{SNMP_TRAPS, ASN_INTEGER, RONLY, snmp_scalar, 1, {4}},
 	/* linkBeat */

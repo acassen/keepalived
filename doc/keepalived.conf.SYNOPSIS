@@ -155,13 +155,29 @@ global_defs {				# Block identification
 					   # if that user exists, otherwise root.
     enable_script_security		   # Don't run scripts configured to be run as root if any part of the path
 					   # is writable by a non-root user.
-    vrrp_notify_fifo FIFO_NAME		   # FIFO to write notify events to
+    notify_fifo FIFO_NAME		   # FIFO to write notify events to
+					   # See vrrp_notify_fifo and lvs_notify_fifo for format of output
+					   # For further details, see the description under vrrp_sync_group see 
+					   # doc/samples/sample_notify_fifo.sh for sample usage.
+    notify_fifo_script STRING [username [groupname]]
+					   # script to be run by keepalived to process notify events
+					   # The FIFO name will be passed to the script as the last parameter
+    vrrp_notify_fifo FIFO_NAME		   # FIFO to write vrrp notify events to (must be different from other FIFO names)
 					   # The string written will be a line of the form: INSTANCE "VI_1" MASTER 100
 					   # and will be terminated with a new line character.
 					   # For further details of the output, see the description under vrrp_sync_group
 					   # and doc/samples/sample_notify_fifo.sh for sample usage.
     vrrp_notify_fifo_script STRING [username [groupname]]
-					   # script to be run by keepalived to process notify events
+					   # script to be run by keepalived to process vrrp notify events
+					   # The FIFO name will be passed to the script as the last parameter
+    lvs_notify_fifo FIFO_NAME		   # FIFO to write notify healthchecker events to (must be different from other FIFO names)
+					   # The string written will be a line of the form:
+					   #   VS [192.168.201.15]:tcp:80 {UP|DOWN}
+					   #   RS [1.2.3.4]:tcp:80 [192.168.201.15]:tcp:80 {UP|DOWN}
+					   # and will be terminated with a new line character.
+    lvs_notify_fifo_script STRING [username [groupname]]
+					   # script to be run by keepalived to process healthchecher notify events
+					   # The FIFO name will be passed to the script as the last parameter
 }
 
 net_namespace NAME			   # Set the network namespace to run in

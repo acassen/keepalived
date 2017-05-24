@@ -200,12 +200,30 @@ and
                               #   is writable by a non-root user.
 
  # Rather than using notify scripts, specifying a fifo allows more efficient processing of notify events, and guarantees that they will be delivered in the correct sequence.
- vrrp_notify_fifo FIFO_NAME   # FIFO to write notify events to
+ # NOTE: the FIFO names must all be different
+ notify_fifo FIFO_NAME        # FIFO to write notify events to
+                              # See vrrp_notify_fifo and lvs_notify_fifo for format of output
+                              # For further details, see the description under vrrp_sync_group see 
+                              # doc/samples/sample_notify_fifo.sh for sample usage.
+ notify_fifo_script STRING [username [groupname]]
+                              # script to be run by keepalived to process notify events
+                              # The FIFO name will be passed to the script as the last parameter
+ vrrp_notify_fifo FIFO_NAME   # FIFO to write vrrp notify events to
                               # The string written will be a line of the form: INSTANCE "VI_1" MASTER 100
                               # and will be terminated with a new line character.
                               # For further details of the output, see the description under vrrp_sync_group
- vrrp_notify_fifo_script SCRIPT_PATH [username [groupname]]
-                              # script to be run by keepalived to process notify events
+                              # and doc/samples/sample_notify_fifo.sh for sample usage.
+ vrrp_notify_fifo_script STRING [username [groupname]]
+                              # script to be run by keepalived to process vrrp notify events
+                              # The FIFO name will be passed to the script as the last parameter
+ lvs_notify_fifo FIFO_NAME    # FIFO to write notify healthchecker events to
+                              # The string written will be a line of the form:
+                              #   VS [192.168.201.15]:tcp:80 {UP|DOWN}
+                              #   RS [1.2.3.4]:tcp:80 [192.168.201.15]:tcp:80 {UP|DOWN}
+                              # and will be terminated with a new line character.
+ lvs_notify_fifo_script STRING [username [groupname]]
+                              # script to be run by keepalived to process healthchecher notify events
+                              # The FIFO name will be passed to the script as the last parameter
  }
 
  # For running keepalived in a separate network namespace

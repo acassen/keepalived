@@ -12,12 +12,21 @@
 # If this approach is used, comment out the lines 'mkfifo $FIFO' and trap ...
 # below, since keepalived can create the FIFO.
 
-FIFO=/tmp/notify_fifo
+FIFO=$1
 CREATED_FIFO=0
+LOG_FILE=/tmp/${FIFO##*/}.log
 
-trap "{ [[ $CREATED_FIFO -eq 1 ]] && rm -f $FIFO; exit 0; }" HUP INT QUIT USR1 USR2 PIPE TERM
+stopping()
+{
+	echo STOPPING >>$LOG_FILE
+}
 
-[[ ! -p $FIFO ]] && mkfifo $FIFO && CREATED_FIFO=1
+trap "{ stopping; [[ $CREATED_FIFO -eq 1 ]] && rm -f $FIFO; exit 0; }" HUP INT QUIT USR1 USR2 PIPE TERM
+
+if [[ ! -p $FIFO ]]; then
+	mkfifo $FIFO
+	[[ $? -eq 0 ]] && CREATED_FIFO=1
+fi
 
 # If keepalived terminates, the FIFO will be closed, so
 # read the FIFO in a loop. It keepalived hasn't opened the
@@ -29,11 +38,28 @@ do
 	while read line; do
 		set $line
 		TYPE=$1
-		VRRP_INST=${2//\"/}
-		STATE=$3
-		PRIORITY=$4
+		if [[ $TYPE = INSTANCE || $TYPE = GROUP ]]; then
+			VRRP_INST=${2//\"/}
+			STATE=$3
+			PRIORITY=$4
 
-		# Now take whatever action is required
-		echo $TYPE $VRRP_INST $STATE $PRIORITY >>/tmp/fifo.log
+			# Now take whatever action is required
+			echo $TYPE $VRRP_INST $STATE $PRIORITY >>$LOG_FILE
+		elif [[ $TYPE = VS ]]; then
+			VS=$2
+			STATE=$3
+
+			# Now take whatever action is required
+			echo $TYPE $VS $STATE >>$LOG_FILE
+		elif [[ $TYPE = RS ]]; then
+			RS=$2
+			VS=$3
+			STATE=$4
+
+			# Now take whatever action is required
+			echo $TYPE $RS $VS $STATE >>$LOG_FILE
+		else
+			echo $TYPE - unknown >>$LOG_FILE
+		fi
 	done < $FIFO
 done

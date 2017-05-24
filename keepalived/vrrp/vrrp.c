@@ -224,8 +224,10 @@ check_vrrp_script_security(void)
 		}
 	}
 
-	if (global_data->vrrp_notify_fifo_script)
-		script_flags |= check_notify_script_secure(&global_data->vrrp_notify_fifo_script, global_data->script_security, false);
+	if (global_data->notify_fifo.script)
+		script_flags |= check_notify_script_secure(&global_data->notify_fifo.script, global_data->script_security, false);
+	if (global_data->vrrp_notify_fifo.script)
+		script_flags |= check_notify_script_secure(&global_data->vrrp_notify_fifo.script, global_data->script_security, false);
 
 	if (!global_data->script_security && script_flags & SC_ISSCRIPT) {
 		log_message(LOG_INFO, "SECURITY VIOLATION - scripts are being executed but script_security not enabled.%s",
@@ -1383,8 +1385,7 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 	if (advF) {
 		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 		++vrrp->stats->pri_zero_sent;
-		syslog(LOG_INFO, "VRRP_Instance(%s) sent 0 priority",
-		       vrrp->iname);
+		log_message(LOG_INFO, "VRRP_Instance(%s) sent 0 priority", vrrp->iname);
 	}
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -1961,8 +1962,7 @@ shutdown_vrrp_instances(void)
 		if (vrrp->script_stop)
 			notify_exec(vrrp->script_stop);
 
-		if (global_data->vrrp_notify_fifo_fd != -1)
-			notify_instance_fifo(vrrp, VRRP_STATE_STOP);
+		notify_instance_fifo(vrrp, VRRP_STATE_STOP);
 
 #ifdef _WITH_LVS_
 		/*

@@ -552,6 +552,11 @@ check_check_script_security(void)
 		}
 	}
 
+	if (global_data->notify_fifo.script)
+		script_flags |= check_notify_script_secure(&global_data->notify_fifo.script, global_data->script_security, false);
+	if (global_data->lvs_notify_fifo.script)
+		script_flags |= check_notify_script_secure(&global_data->lvs_notify_fifo.script, global_data->script_security, false);
+
 	if (!global_data->script_security && script_flags & SC_ISSCRIPT) {
 		log_message(LOG_INFO, "SECURITY VIOLATION - check scripts are being executed but script_security not enabled.%s",
 				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
