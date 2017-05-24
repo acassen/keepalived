@@ -156,7 +156,12 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void * arg, const
 
 	execl(script->name, script->name, NULL);
 
-	/* unreached */
+	if (errno == EACCES)
+		log_message(LOG_INFO, "FIFO notify script %s is not executable", script->name);
+	else
+		log_message(LOG_INFO, "Unable to execute FIFO notify script %s - errno %d", script->name, errno);
+
+	/* unreached unless error */
 	exit(0);
 }
 
