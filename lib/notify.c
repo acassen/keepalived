@@ -154,7 +154,7 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void * arg, const
 	set_privileges(script->uid, script->gid);
 	script_setup();
 
-	execlp(script->name, script->name, NULL);
+	execl(script->name, script->name, NULL);
 
 	/* unreached */
 	exit(0);
