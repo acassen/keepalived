@@ -316,7 +316,7 @@ dump_vs(void *data)
 
 	if (vs->s_svr) {
 		log_message(LOG_INFO, "   sorry server = %s"
-				    , FMT_RS(vs->s_svr));
+				    , FMT_RS(vs->s_svr, vs));
 	}
 	if (!LIST_ISEMPTY(vs->rs))
 		dump_list(vs->rs);
@@ -520,7 +520,7 @@ format_vs (virtual_server_t *vs)
 		snprintf (ret, sizeof (ret) - 1, "FWM %u", vs->vfwmark);
 	else
 		snprintf(ret, sizeof(ret) - 1, "%s"
-			, inet_sockaddrtopair(&vs->addr));
+			, inet_sockaddrtotrio(&vs->addr, vs->service_type));
 
 	return ret;
 }
@@ -646,7 +646,7 @@ bool validate_check_config(void)
 				/* Check any real server in alpha mode has a checker */
 				if (vs->alpha && !rs->alive && LIST_ISEMPTY(rs->failed_checkers))
 					log_message(LOG_INFO, "Warning - real server %s for virtual server %s cannot be activated due to no checker and in alpha mode",
-							FMT_RS(rs), FMT_VS(vs));
+							FMT_RS(rs, vs), FMT_VS(vs));
 
 				/* Set the forwarding method if necessary */
 				if (rs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {

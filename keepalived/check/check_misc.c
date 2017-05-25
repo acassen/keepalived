@@ -266,7 +266,7 @@ misc_check_child_thread(thread_t * thread)
 			log_message(LOG_INFO, "Misc check to [%s] for [%s] timed out"
 					    , inet_sockaddrtos(&checker->rs->addr)
 					    , misck_checker->path);
-			smtp_alert(checker->rs, NULL, NULL,
+			smtp_alert(checker, NULL, NULL,
 				   "DOWN",
 				   "=> MISC CHECK script timeout on service <=");
 			update_svr_checker_state(DOWN, checker->id
@@ -302,7 +302,7 @@ misc_check_child_thread(thread_t * thread)
 				log_message(LOG_INFO, "Misc check to [%s] for [%s] success."
 						    , inet_sockaddrtos(&checker->rs->addr)
 						    , misck_checker->path);
-				smtp_alert(checker->rs, NULL, NULL,
+				smtp_alert(checker, NULL, NULL,
 					   "UP",
 					   "=> MISC CHECK succeed on service <=");
 				update_svr_checker_state(UP, checker->id
@@ -314,7 +314,7 @@ misc_check_child_thread(thread_t * thread)
 				log_message(LOG_INFO, "Misc check to [%s] for [%s] failed."
 						    , inet_sockaddrtos(&checker->rs->addr)
 						    , misck_checker->path);
-				smtp_alert(checker->rs, NULL, NULL,
+				smtp_alert(checker, NULL, NULL,
 					   "DOWN",
 					   "=> MISC CHECK failed on service <=");
 				update_svr_checker_state(DOWN, checker->id

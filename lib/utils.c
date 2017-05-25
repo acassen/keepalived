@@ -325,13 +325,26 @@ inet_sockaddrport(struct sockaddr_storage *addr)
 char *
 inet_sockaddrtopair(struct sockaddr_storage *addr)
 {
-	static char addr_str[INET6_ADDRSTRLEN + 1];
-	static char ret[sizeof(addr_str) + 16];
+	char addr_str[INET6_ADDRSTRLEN];
+	static char ret[sizeof(addr_str) + 8];	/* '[' + addr_str + ']' + ':' + 'nnnnn' */
 
 	inet_sockaddrtos2(addr, addr_str);
 	snprintf(ret, sizeof(ret) - 1, "[%s]:%d"
 		, addr_str
 		, ntohs(inet_sockaddrport(addr)));
+	return ret;
+}
+
+char *
+inet_sockaddrtotrio(struct sockaddr_storage *addr, uint16_t proto)
+{
+	char addr_str[INET6_ADDRSTRLEN];
+	static char ret[sizeof(addr_str) + 13];	/* '[' + addr_str + ']' + ':' + 'sctp' + ':' + 'nnnnn' */
+	char *proto_str = proto == IPPROTO_TCP ? "tcp" : proto == IPPROTO_UDP ? "udp" : proto == IPPROTO_SCTP ? "sctp" : "?";
+
+	inet_sockaddrtos2(addr, addr_str);
+	snprintf(ret, sizeof(ret) - 1, "[%s]:%s:%d" ,addr_str, proto_str,
+		 ntohs(inet_sockaddrport(addr)));
 	return ret;
 }
 

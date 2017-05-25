@@ -483,7 +483,7 @@ alloc_vrrp_track_script(vector_t *strvec)
 
 	if (!LIST_EXISTS(vrrp->track_script))
 		vrrp->track_script = alloc_list(NULL, dump_track_script);
-	alloc_track_script(vrrp->track_script, strvec);
+	alloc_track_script(vrrp->track_script, strvec, vrrp->iname);
 }
 
 void

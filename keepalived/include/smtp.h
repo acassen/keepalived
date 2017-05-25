@@ -31,6 +31,7 @@
 #include "layer4.h"
 #ifdef _WITH_LVS_
 #include "check_data.h"
+#include "check_api.h"
 #endif
 #ifdef _WITH_VRRP_
 #include "vrrp.h"
@@ -103,6 +104,6 @@ typedef void vrrp_sgroup_t;
 #endif
 
 /* Prototypes defs */
-extern void smtp_alert(real_server_t *, vrrp_t *, vrrp_sgroup_t *,
+extern void smtp_alert(checker_t *, vrrp_t *, vrrp_sgroup_t *,
 		       const char *, const char *);
 #endif

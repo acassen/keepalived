@@ -220,7 +220,7 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 #define SET_ALIVE(S)	((S)->alive = 1)
 #define UNSET_ALIVE(S)	((S)->alive = 0)
 #define VHOST(V)	((V)->virtualhost)
-#define FMT_RS(R) (inet_sockaddrtopair (&(R)->addr))
+#define FMT_RS(R, V) (inet_sockaddrtotrio (&(R)->addr, (V)->service_type))
 #define FMT_VS(V) (format_vs((V)))
 
 #define VS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&&\
