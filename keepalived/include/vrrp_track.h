@@ -84,7 +84,7 @@ typedef struct _tracked_sc {
 extern void dump_track(void *);
 extern void alloc_track(list, vector_t *);
 extern void dump_track_script(void *);
-extern void alloc_track_script(list, vector_t *);
+extern void alloc_track_script(list, vector_t *, const char *);
 extern int vrrp_tracked_up(list);
 extern void vrrp_log_tracked_down(list);
 extern int vrrp_tracked_weight(list);

@@ -777,13 +777,18 @@ vrrp_vscript_end_handler(void)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 
-	if (script_user_set)
-		return;
-
-	if (!remove_script &&
-	     set_default_script_user(NULL, NULL, global_data->script_security)) {
-		log_message(LOG_INFO, "Unable to set default user for track script %s - removing", vscript->script);
+	if (!vscript->script) {
+		log_message(LOG_INFO, "No script set for vrrp_script %s - removing", vscript->sname);
 		remove_script = true;
+	}
+	else if (!remove_script) {
+		if (script_user_set)
+			return;
+
+		if (set_default_script_user(NULL, NULL, global_data->script_security)) {
+			log_message(LOG_INFO, "Unable to set default user for vrrp script %s - removing", vscript->sname);
+			remove_script = true;
+		}
 	}
 
 	if (remove_script) {
@@ -793,7 +798,6 @@ vrrp_vscript_end_handler(void)
 
 	vscript->uid = default_script_uid;
 	vscript->gid = default_script_gid;
-
 }
 static void
 vrrp_vscript_init_fail_handler(__attribute__((unused)) vector_t *strvec)
