@@ -118,12 +118,12 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 			}
 			update_svr_checker_state(DOWN, checker->id, checker->vs,
 						 checker->rs);
-			smtp_alert(checker->rs, NULL, NULL, "DOWN",
+			smtp_alert(checker, NULL, NULL, "DOWN",
 				   "=> DNS_CHECK: failed on service <=");
 		}
 	} else {
 		if (!svr_checker_up(checker->id, checker->rs)) {
-			smtp_alert(checker->rs, NULL, NULL, "UP",
+			smtp_alert(checker, NULL, NULL, "UP",
 				   "=> DNS_CHECK: succeed on service <=");
 			update_svr_checker_state(UP, checker->id, checker->vs,
 						 checker->rs);

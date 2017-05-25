@@ -61,7 +61,7 @@ extern list checkers_queue;
 #define CHECKER_VHOST(C) (VHOST((C)->vs))
 #define CHECKER_HA_SUSPEND(C) ((C)->vs->ha_suspend)
 #define CHECKER_NEW_CO() ((conn_opts_t *) MALLOC(sizeof (conn_opts_t)))
-#define FMT_CHK(C) FMT_RS((C)->rs)
+#define FMT_CHK(C) FMT_RS((C)->rs, (C)->vs)
 
 /* Prototypes definition */
 extern void init_checkers_queue(void);

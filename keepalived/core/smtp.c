@@ -36,6 +36,7 @@
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif
+#include "check_api.h"
 
 /* SMTP FSM definition */
 static int connection_error(thread_t *);
@@ -607,7 +608,7 @@ smtp_alert(
 #ifndef _WITH_LVS_
 	   __attribute__((unused))
 #endif
-	   real_server_t * rs,
+	   checker_t* checker,
 #ifndef _WITH_VRRP_
 	   __attribute__((unused))
 #endif
@@ -631,11 +632,11 @@ smtp_alert(
 
 		/* format subject if rserver is specified */
 #ifdef _WITH_LVS_
-		if (rs) {
-			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s - %s"
-					      , global_data->router_id
-					      , FMT_RS(rs)
-					      , subject);
+		if (checker) {
+			snprintf(smtp->subject, MAX_HEADERS_LENGTH, "[%s] Realserver %s - %s",
+						global_data->router_id,
+						FMT_RS(checker->rs, checker->vs),
+						subject);
 		}
 		else
 #endif
