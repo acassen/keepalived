@@ -52,6 +52,15 @@ bool using_ha_suspend;
 /* local variables */
 static char *check_syslog_ident;
 
+static int
+lvs_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
+{
+        log_message(LOG_INFO, "lvs notify fifo script terminated");
+ 
+        return 0;
+}
+
+
 /* Daemon stop sequence */
 static void
 stop_check(int status)
@@ -61,6 +70,9 @@ stop_check(int status)
 
 	/* Terminate all script process */
 	script_killall(master, SIGTERM);
+
+        /* Remove the notify fifo */
+        notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
 	/* Destroy master thread */
 	signal_handler_destroy();
@@ -143,6 +155,10 @@ start_check(void)
 		return;
 	}
 
+        /* Create a notify FIFO if needed, and open it */
+        if (global_data->lvs_notify_fifo.name)
+                notify_fifo_open(&global_data->notify_fifo, &global_data->lvs_notify_fifo, lvs_notify_fifo_script_exit, "lvs_");
+
 	/* Get current active addresses, and start update process */
 	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug))
 		kernel_netlink_init();
@@ -224,6 +240,9 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 
 	/* Terminate all script process */
 	script_killall(master, SIGTERM);
+
+        /* Remove the notify fifo - we don't know if it will be the same after a reload */
+        notify_fifo_close(&global_data->notify_fifo, &global_data->lvs_notify_fifo);
 
 	/* Destroy master thread */
 	if (using_ha_suspend)

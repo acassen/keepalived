@@ -891,7 +891,9 @@ keepalived_main(int argc, char **argv)
 	debug = 0;
 
 	/* We are the parent process */
+#ifndef _DEBUG_
 	prog_type = PROG_TYPE_PARENT;
+#endif
 
 	/* We are the parent process */
 	prog_type = PROG_TYPE_PARENT;

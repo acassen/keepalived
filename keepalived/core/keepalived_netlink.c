@@ -577,7 +577,10 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 		return -1;
 
 #ifdef _WITH_VRRP_
-	if (prog_type == PROG_TYPE_VRRP) {
+#ifndef _DEBUG_
+	if (prog_type == PROG_TYPE_VRRP)
+#endif
+	{
 		/* Fetch interface_t */
 		ifp = if_get_by_ifindex(ifa->ifa_index);
 		if (!ifp)
@@ -602,7 +605,9 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	}
 
 #ifdef _WITH_LVS_
+#ifndef _DEBUG_
 	if (prog_type == PROG_TYPE_CHECKER)
+#endif
 	{
 		/* Refresh checkers state */
 		update_checker_activity(ifa->ifa_family, addr,
@@ -722,7 +727,11 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 
 #ifdef _WITH_VRRP_
 			/* Skip unsolicited messages from cmd channel */
-			if (prog_type == PROG_TYPE_VRRP && nl != &nl_cmd && h->nlmsg_pid == nl_cmd.nl_pid)
+			if (
+#ifndef _DEBUG_
+			    prog_type == PROG_TYPE_VRRP &&
+#endif
+			    nl != &nl_cmd && h->nlmsg_pid == nl_cmd.nl_pid)
 				continue;
 #endif
 
@@ -1354,6 +1363,13 @@ kernel_netlink_init(void)
 	 * We need to reinstate routes/addresses/VMACs when we can.
 	 * We need an option on routes to put the instance in fault state if the route disappears.
 	 */
+#ifdef _DEBUG_
+#ifdef _WITH_VRRP_
+	netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
+#else
+	netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
+#endif
+#else
 #ifdef _WITH_VRRP_
 	if (prog_type == PROG_TYPE_VRRP)
 		netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_LINK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, RTNLGRP_IPV4_ROUTE, RTNLGRP_IPV6_ROUTE, 0);
@@ -1361,6 +1377,7 @@ kernel_netlink_init(void)
 #ifdef _WITH_LVS_
 	if (prog_type == PROG_TYPE_CHECKER)
 		netlink_socket(&nl_kernel, SOCK_NONBLOCK, RTNLGRP_IPV4_IFADDR, RTNLGRP_IPV6_IFADDR, 0);
+#endif
 #endif
 
 	if (nl_kernel.fd > 0) {
@@ -1371,7 +1388,10 @@ kernel_netlink_init(void)
 		log_message(LOG_INFO, "Error while registering Kernel netlink reflector channel");
 
 #ifdef _WITH_VRRP_
-	if (prog_type == PROG_TYPE_VRRP) {
+#ifndef _DEBUG_
+	if (prog_type == PROG_TYPE_VRRP)
+#endif
+	{
 		/* Prepare netlink command channel. */
 		netlink_socket(&nl_cmd, SOCK_NONBLOCK, 0);
 		if (nl_cmd.fd > 0)
@@ -1387,7 +1407,9 @@ kernel_netlink_close(void)
 {
 	netlink_close(&nl_kernel);
 #ifdef _WITH_VRRP_
+#ifndef _DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
+#endif
 		netlink_close(&nl_cmd);
 #endif
 }

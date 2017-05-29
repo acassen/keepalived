@@ -77,6 +77,14 @@ vrrp_ipvs_needed(void)
 }
 #endif
 
+static int
+vrrp_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
+{
+	log_message(LOG_INFO, "vrrp notify fifo script terminated");
+
+	return 0;
+}
+
 /* Daemon stop sequence */
 static void
 stop_vrrp(int status)
@@ -139,6 +147,9 @@ stop_vrrp(int status)
 	if (global_data->enable_dbus)
 		dbus_stop();
 #endif
+
+	if (global_data->vrrp_notify_fifo.fd != -1)
+		notify_fifo_close(&global_data->notify_fifo, &global_data->vrrp_notify_fifo);
 
 	free_global_data(global_data);
 	free_vrrp_data(vrrp_data);
@@ -261,6 +272,10 @@ start_vrrp(void)
 	 * has been called so we know whether we want IPv4 and/or IPv6 */
 	iptables_init();
 
+	/* Create a notify FIFO if needed, and open it */
+	if (global_data->vrrp_notify_fifo.name)
+		notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
+
 	/* Make sure we don't have any old iptables/ipsets settings left around */
 #ifdef _HAVE_LIBIPTC_
 	if (!reload)
@@ -376,6 +391,9 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 										 IPVS_BACKUP,
 		       true, false);
 #endif
+
+	/* Remove the notify fifo - we don't know if it will be the same after a reload */
+	notify_fifo_close(&global_data->notify_fifo, &global_data->vrrp_notify_fifo);
 
 	free_global_data(global_data);
 	free_vrrp_buffer();

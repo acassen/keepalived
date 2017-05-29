@@ -47,6 +47,14 @@ typedef struct _notify_script {
 	gid_t	gid;		/* gid of group to execute script */
 } notify_script_t;
 
+/* notify_fifo details */
+typedef struct _notify_fifo {
+	char	*name;
+	int 	fd;
+	bool	created_fifo;	/* We created the FIFO */
+	notify_script_t *script; /* Script to run to process FIFO */
+} notify_fifo_t;
+
 static inline void
 free_notify_script(notify_script_t **script)
 {
@@ -65,7 +73,9 @@ extern gid_t default_script_gid;
 extern bool script_security;
 
 /* prototypes */
-extern int system_call_script(thread_master_t *, int (*) (thread_t *), void *, unsigned long, notify_script_t *);
+extern void notify_fifo_open(notify_fifo_t*, notify_fifo_t*, int (*)(thread_t *), const char *);
+extern void notify_fifo_close(notify_fifo_t*, notify_fifo_t*);
+extern int system_call_script(thread_master_t *, int (*)(thread_t *), void *, unsigned long, notify_script_t *);
 extern int notify_exec(const notify_script_t *);
 extern void script_killall(thread_master_t *, int);
 extern int check_script_secure(notify_script_t *);
@@ -73,6 +83,7 @@ extern int check_notify_script_secure(notify_script_t **);
 extern bool set_default_script_user(const char *, const char *);
 extern char **set_script_params_array(vector_t *, bool);
 extern notify_script_t* notify_script_init(vector_t *, bool, const char *);
+extern void add_script_param(notify_script_t *, char *);
 extern void notify_resource_release(void);
 
 #endif

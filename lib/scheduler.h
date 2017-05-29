@@ -91,6 +91,7 @@ enum {
 	THREAD_IF_DOWN
 };
 
+#ifndef _DEBUG__
 typedef enum {
 	PROG_TYPE_PARENT,
 #ifdef _WITH_VRRP_
@@ -100,6 +101,7 @@ typedef enum {
 	PROG_TYPE_CHECKER,
 #endif
 } prog_type_t;
+#endif
 
 /* MICRO SEC def */
 #define BOOTSTRAP_DELAY TIMER_HZ
@@ -118,7 +120,9 @@ typedef enum {
 
 /* global vars exported */
 extern thread_master_t *master;
+#ifndef _DEBUG_
 extern prog_type_t prog_type;		/* Parent/VRRP/Checker process */
+#endif
 #ifdef _WITH_SNMP_
 extern bool snmp_running;
 #endif

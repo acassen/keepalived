@@ -22,6 +22,8 @@
 
 #include "config.h"
 
+#include <unistd.h>
+
 #include "ipwrapper.h"
 #include "check_api.h"
 #include "logger.h"
@@ -54,6 +56,72 @@ weigh_live_realservers(virtual_server_t * vs)
 	return count;
 }
 
+static void
+notify_fifo_vs(virtual_server_t* vs, bool is_up)
+{
+	char *state = is_up ? "UP" : "DOWN";
+	size_t size;
+	char *line;
+	char *vs_str;
+
+	if (global_data->notify_fifo.fd == -1 &&
+	    global_data->lvs_notify_fifo.fd == -1)
+		return;
+
+	vs_str = FMT_VS(vs);
+	size = strlen(vs_str) + strlen(state) + 6;
+	line = MALLOC(size);
+	if (!line)
+		return;
+
+	snprintf(line, size, "VS %s %s\n", vs_str, state);
+
+	if (global_data->notify_fifo.fd != -1) {
+		if (write(global_data->notify_fifo.fd, line, size - 1) == -1) {}
+	}
+	if (global_data->lvs_notify_fifo.fd != -1) {
+		if (write(global_data->lvs_notify_fifo.fd, line, size - 1) == -1) {}
+	}
+
+	FREE(line);
+}
+
+static void
+notify_fifo_rs(virtual_server_t* vs, real_server_t* rs, bool is_up)
+{
+	char *state = is_up ? "UP" : "DOWN";
+	size_t size;
+	char *line;
+	char *str;
+	char *rs_str;
+	char *vs_str;
+
+	if (global_data->notify_fifo.fd == -1 &&
+	    global_data->lvs_notify_fifo.fd == -1)
+		return;
+
+	str = FMT_RS(rs, vs);
+	rs_str = MALLOC(strlen(str)+1);
+	strcpy(rs_str, str);
+	vs_str = FMT_VS(vs);
+	size = strlen(rs_str) + strlen(vs_str) + strlen(state) + 7;
+	line = MALLOC(size);
+	if (!line)
+		return;
+
+	snprintf(line, size, "RS %s %s %s\n", rs_str, vs_str, state);
+	FREE(rs_str);
+
+	if (global_data->notify_fifo.fd != -1) {
+		if (write(global_data->notify_fifo.fd, line, size - 1) == - 1) {}
+	}
+	if (global_data->lvs_notify_fifo.fd != -1) {
+		if (write(global_data->lvs_notify_fifo.fd, line, size - 1) == -1) {}
+	}
+
+	FREE(line);
+}
+
 /* Remove a realserver IPVS rule */
 static void
 clear_service_rs(virtual_server_t * vs, list l)
@@ -67,7 +135,7 @@ clear_service_rs(virtual_server_t * vs, list l)
 		rs = ELEMENT_DATA(e);
 		if (ISALIVE(rs)) {
 			log_message(LOG_INFO, "Removing service %s from VS %s"
-						, FMT_RS(rs)
+						, FMT_RS(rs, vs)
 						, FMT_VS(vs));
 			ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs);
 			UNSET_ALIVE(rs);
@@ -80,10 +148,11 @@ clear_service_rs(virtual_server_t * vs, list l)
 			if (rs->notify_down) {
 				log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
 						    , rs->notify_down->cmd_str
-						    , FMT_RS(rs)
+						    , FMT_RS(rs, vs)
 						    , FMT_VS(vs));
 				notify_exec(rs->notify_down);
 			}
+			notify_fifo_rs(vs, rs, false);
 #ifdef _WITH_SNMP_CHECKER_
 			check_snmp_rs_trap(rs, vs);
 #endif
@@ -104,6 +173,7 @@ clear_service_rs(virtual_server_t * vs, list l)
 							    , FMT_VS(vs));
 					notify_exec(vs->quorum_down);
 				}
+				notify_fifo_vs(vs, false);
 #ifdef _WITH_SNMP_CHECKER_
 				check_snmp_quorum_trap(vs);
 #endif
@@ -195,12 +265,12 @@ log_message(LOG_INFO, "Initing vs %s, vsg %s", FMT_VS(vs), vs->vsgname ? vs->vsg
 		 * later upon healthchecks recovery (if ever).
 		 */
 		if (!vs->alpha && !ISALIVE(rs)) {
-log_message(LOG_INFO, "Adding rs %s", FMT_RS(rs));
+log_message(LOG_INFO, "Adding rs %s", FMT_RS(rs, vs));
 			ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
 			SET_ALIVE(rs);
 		}
 else
-log_message(LOG_INFO, "Not adding rs %s", FMT_RS(rs));
+log_message(LOG_INFO, "Not adding rs %s", FMT_RS(rs, vs));
 	}
 
 	return true;
@@ -227,7 +297,7 @@ sync_service_vsg(virtual_server_t * vs)
 			vsge = ELEMENT_DATA(e);
 			if (vs->reloaded && !vsge->reloaded) {
 				log_message(LOG_INFO, "VS [%s:%d:%u] added into group %s"
-						    , inet_sockaddrtopair(&vsge->addr)
+						    , inet_sockaddrtotrio(&vsge->addr, vs->service_type)
 						    , vsge->range
 						    , vsge->vfwmark
 						    , vs->vsgname);
@@ -326,7 +396,7 @@ update_quorum_state(virtual_server_t * vs)
 		if (vs->s_svr && ISALIVE(vs->s_svr)) {
 			log_message(LOG_INFO, "%s sorry server %s from VS %s"
 					    , (vs->s_svr->inhibit ? "Disabling" : "Removing")
-					    , FMT_RS(vs->s_svr)
+					    , FMT_RS(vs->s_svr, vs)
 					    , FMT_VS(vs));
 
 			ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
@@ -341,6 +411,7 @@ update_quorum_state(virtual_server_t * vs)
 					    , FMT_VS(vs));
 			notify_exec(vs->quorum_up);
 		}
+		notify_fifo_vs(vs, true);
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_quorum_trap(vs);
 #endif
@@ -364,6 +435,7 @@ update_quorum_state(virtual_server_t * vs)
 					    , FMT_VS(vs));
 			notify_exec(vs->quorum_down);
 		}
+		notify_fifo_vs(vs, false);
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_quorum_trap(vs);
 #endif
@@ -374,7 +446,7 @@ update_quorum_state(virtual_server_t * vs)
 	    !ISALIVE(vs->s_svr)) {
 		log_message(LOG_INFO, "%s sorry server %s to VS %s"
 				    , (vs->s_svr->inhibit ? "Enabling" : "Adding")
-				    , FMT_RS(vs->s_svr)
+				    , FMT_RS(vs->s_svr, vs)
 				    , FMT_VS(vs));
 
 		/* the sorry server is now up in the pool, we flag it alive */
@@ -400,7 +472,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 	if (!ISALIVE(rs) && alive) {
 		log_message(LOG_INFO, "%s service %s to VS %s"
 				    , (rs->inhibit) ? "Enabling" : "Adding"
-				    , FMT_RS(rs)
+				    , FMT_RS(rs, vs)
 				    , FMT_VS(vs));
 		/* Add only if we have quorum or no sorry server */
 		if (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)) {
@@ -411,10 +483,11 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 		if (rs->notify_up) {
 			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
 					    , rs->notify_up->cmd_str
-					    , FMT_RS(rs)
+					    , FMT_RS(rs, vs)
 					    , FMT_VS(vs));
 			notify_exec(rs->notify_up);
 		}
+		notify_fifo_rs(vs, rs, true);
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_rs_trap(rs, vs);
 #endif
@@ -426,7 +499,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 	if (ISALIVE(rs) && !alive) {
 		log_message(LOG_INFO, "%s service %s from VS %s"
 				    , (rs->inhibit) ? "Disabling" : "Removing"
-				    , FMT_RS(rs)
+				    , FMT_RS(rs, vs)
 				    , FMT_VS(vs));
 
 		/* server is down, it is removed from the LVS realserver pool
@@ -440,10 +513,11 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 		if (rs->notify_down) {
 			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
 					    , rs->notify_down->cmd_str
-					    , FMT_RS(rs)
+					    , FMT_RS(rs, vs)
 					    , FMT_VS(vs));
 			notify_exec(rs->notify_down);
 		}
+		notify_fifo_rs(vs, rs, false);
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_rs_trap(rs, vs);
 #endif
@@ -464,7 +538,7 @@ update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
 				    , rs->weight
 				    , weight
 				    , ISALIVE(rs) ? "active" : "inactive"
-				    , FMT_RS(rs)
+				    , FMT_RS(rs, vs)
 				    , FMT_VS(vs));
 		rs->weight = weight;
 		/*
@@ -584,7 +658,7 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 		}
 		else {
 			log_message(LOG_INFO, "VS [%s:%d:%u] in group %s no longer exist"
-					    , inet_sockaddrtopair(&vsge->addr)
+					    , inet_sockaddrtotrio(&vsge->addr, old_vs->service_type)
 					    , vsge->range
 					    , vsge->vfwmark
 					    , old_vs->vsgname);
@@ -666,7 +740,7 @@ clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 		if (!new_rs) {
 			/* Reset inhibit flag to delete inhibit entries */
 			log_message(LOG_INFO, "service %s no longer exist"
-					    , FMT_RS(rs));
+					    , FMT_RS(rs, old_vs));
 			rs->inhibit = 0;
 			list_add (rs_to_remove, rs);
 		} else {

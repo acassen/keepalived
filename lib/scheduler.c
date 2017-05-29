@@ -54,9 +54,18 @@
 
 /* global vars */
 thread_master_t *master = NULL;
+#ifndef _DEBUG_
 prog_type_t prog_type;		/* Parent/VRRP/Checker process */
+#endif
 #ifdef _WITH_SNMP_
 bool snmp_running;		/* True if this process is running SNMP */
+#endif
+
+#ifdef _WITH_LVS_
+#include "../keepalived/include/check_daemon.h"
+#endif
+#ifdef _WITH_VRRP_
+#include "../keepalived/include/vrrp_daemon.h"
 #endif
 
 /* Function that returns if pid is a known child, and sets *prog_name accordingly */
@@ -95,11 +104,16 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 			return true;
 		}
 
-		if (exit_status != EXIT_SUCCESS && prog_type == PROG_TYPE_PARENT) {
+		if (exit_status != EXIT_SUCCESS
+#ifndef _DEBUG_
+						&& prog_type == PROG_TYPE_PARENT
+#endif
+										) {
 			if (!prog_id) {
 				snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
 				prog_id = pid_buf;
 			}
+
 			log_message(LOG_INFO, "%s exited with status %d", prog_id, exit_status);
 		}
 
@@ -962,7 +976,9 @@ thread_call(thread_t * thread)
 {
 	thread->id = thread_get_id();
 #ifdef _TIMER_DEBUG_
+#ifndef _DEBUG_
 	if (prog_type == PROG_TYPE_VRRP)
+#endif
 		log_message(LOG_INFO, "Calling thread function, type %s, addr 0x%p, val/fd/pid %d, status %d", get_thread_type_str(thread->type), thread->func, thread->u.val, thread->u.c.status);
 #endif
 	(*thread->func) (thread);

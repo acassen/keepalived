@@ -149,6 +149,13 @@ alloc_global_data(void)
 	set_default_mcast_group(new);
 	set_vrrp_defaults(new);
 #endif
+	new->notify_fifo.fd = -1;
+#ifdef _WITH_VRRP_
+	new->vrrp_notify_fifo.fd = -1;
+#endif
+#ifdef _WITH_LVS_
+	new->lvs_notify_fifo.fd = -1;
+#endif
 
 #ifdef _WITH_SNMP_
 	if (snmp) {
@@ -188,12 +195,23 @@ void
 init_global_data(data_t * data)
 {
 	char* local_name = NULL;
+	char unknown_name[] = "[unknown]";
+	bool using_unknown_name = false;
 
 	if (!data->router_id ||
 	    (data->smtp_server.ss_family &&
 	     (!data->smtp_helo_name ||
-	      !data->email_from)))
+	      !data->email_from))) {
 		local_name = get_local_name();
+
+		/* If for some reason get_local_name() fails, we need to have
+		 * some string in local_name, otherwise keepalived can segfault */
+		if (!local_name) {
+			local_name = MALLOC(sizeof(unknown_name));
+			strcpy(local_name, unknown_name);
+			using_unknown_name = true;
+		}
+	}
 
 	if (!data->router_id)
 		set_default_router_id(data, local_name);
@@ -202,7 +220,7 @@ init_global_data(data_t * data)
 		if (!data->smtp_connection_to)
 			set_default_smtp_connection_timeout(data);
 
-		if (local_name) {
+		if (!using_unknown_name) {
 			if (!data->email_from)
 				set_default_email_from(data, local_name);
 
@@ -212,6 +230,60 @@ init_global_data(data_t * data)
 			}
 		}
 	}
+
+	/* Check that there aren't conflicts with the notify FIFOs */
+#ifdef _WITH_VRRP_
+	/* If the global and vrrp notify FIFOs are the same, then data will be
+	 * duplicated on the FIFO */
+	if (
+#ifndef _DEBUG_
+	    prog_type == PROG_TYPE_VRRP &&
+#endif
+	    data->notify_fifo.name && data->vrrp_notify_fifo.name &&
+	    !strcmp(data->notify_fifo.name, data->vrrp_notify_fifo.name)) {
+		log_message(LOG_INFO, "notify FIFO %s has been specified for global and vrrp FIFO - ignoring vrrp FIFO", data->vrrp_notify_fifo.name);
+		FREE_PTR(data->vrrp_notify_fifo.name);
+		data->vrrp_notify_fifo.name = NULL;
+		FREE_PTR(data->vrrp_notify_fifo.script);
+		data->vrrp_notify_fifo.script = NULL;
+	}
+#endif
+#ifdef _WITH_LVS_
+	/* If the global and LVS notify FIFOs are the same, then data will be
+	 * duplicated on the FIFO */
+#ifndef _DEBUG_
+	if (prog_type == PROG_TYPE_CHECKER)
+#endif
+	{
+		if (data->notify_fifo.name && data->lvs_notify_fifo.name &&
+		    !strcmp(data->notify_fifo.name, data->lvs_notify_fifo.name)) {
+			log_message(LOG_INFO, "notify FIFO %s has been specified for global and LVS FIFO - ignoring LVS FIFO", data->lvs_notify_fifo.name);
+			FREE_PTR(data->lvs_notify_fifo.name);
+			data->lvs_notify_fifo.name = NULL;
+			FREE_PTR(data->lvs_notify_fifo.script);
+			data->lvs_notify_fifo.script = NULL;
+		}
+
+#ifdef _WITH_VRRP_
+		/* If LVS and VRRP use the same FIFO, they cannot both have a script for the FIFO.
+		 * Use the VRRP script and ignore the LVS script */
+		if (data->lvs_notify_fifo.name && data->vrrp_notify_fifo.name &&
+		    !strcmp(data->lvs_notify_fifo.name, data->vrrp_notify_fifo.name) &&
+		    data->lvs_notify_fifo.script &&
+		    data->vrrp_notify_fifo.script) {
+			log_message(LOG_INFO, "LVS notify FIFO and vrrp FIFO are the same both with scripts - ignoring LVS FIFO script");
+			FREE_PTR(data->lvs_notify_fifo.script);
+			data->lvs_notify_fifo.script = NULL;
+		}
+
+		/* If there is a script for global notify FIFO, it must only be run once, so let VRRP run it */
+		if (data->notify_fifo.script) {
+			FREE_PTR(data->notify_fifo.script);
+			data->notify_fifo.script = NULL;
+		}
+#endif
+	}
+#endif
 
 	FREE_PTR(local_name);
 }
@@ -229,6 +301,16 @@ free_global_data(data_t * data)
 #if defined _WITH_LVS_ && defined _WITH_VRRP_
 	FREE_PTR(data->lvs_syncd.ifname);
 	FREE_PTR(data->lvs_syncd.vrrp_name);
+#endif
+	FREE_PTR(data->notify_fifo.name);
+	free_notify_script(&data->notify_fifo.script);
+#ifdef _WITH_VRRP_
+	FREE_PTR(data->vrrp_notify_fifo.name);
+	free_notify_script(&data->vrrp_notify_fifo.script);
+#endif
+#ifdef _WITH_LVS_
+	FREE_PTR(data->lvs_notify_fifo.name);
+	free_notify_script(&data->lvs_notify_fifo.script);
 #endif
 #if HAVE_DECL_CLONE_NEWNET
 	if (!reload)
@@ -291,6 +373,34 @@ dump_global_data(data_t * data)
 	}
 #endif
 	log_message(LOG_INFO, " LVS flush = %s", data->lvs_flush ? "true" : "false");
+#endif
+	if (data->notify_fifo.name) {
+		log_message(LOG_INFO, " Global notify fifo = %s", data->notify_fifo.name);
+		if (data->notify_fifo.script)
+			log_message(LOG_INFO, " Global notify fifo script = %s uid:gid %d:%d",
+				    data->notify_fifo.script->args[0],
+				    data->notify_fifo.script->uid,
+				    data->notify_fifo.script->gid);
+	}
+#ifdef _WITH_VRRP_
+	if (data->vrrp_notify_fifo.name) {
+		log_message(LOG_INFO, " VRRP notify fifo = %s", data->vrrp_notify_fifo.name);
+		if (data->vrrp_notify_fifo.script)
+			log_message(LOG_INFO, " VRRP notify fifo script = %s uid:gid %d:%d",
+				    data->vrrp_notify_fifo.script->args[0],
+				    data->vrrp_notify_fifo.script->uid,
+				    data->vrrp_notify_fifo.script->gid);
+	}
+#endif
+#ifdef _WITH_LVS_
+	if (data->lvs_notify_fifo.name) {
+		log_message(LOG_INFO, " LVS notify fifo = %s", data->lvs_notify_fifo.name);
+		if (data->lvs_notify_fifo.script)
+			log_message(LOG_INFO, " LVS notify fifo script = %s uid:gid %d:%d",
+				    data->lvs_notify_fifo.script->args[0],
+				    data->lvs_notify_fifo.script->uid,
+				    data->lvs_notify_fifo.script->gid);
+	}
 #endif
 #ifdef _WITH_VRRP_
 	if (data->vrrp_mcast_group4.ss_family) {

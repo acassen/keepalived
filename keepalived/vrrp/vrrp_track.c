@@ -121,7 +121,7 @@ alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 
 	/* Ignoring if no script found */
 	if (!vsc) {
-		log_message(LOG_INFO, "     %s no match, ignoring...", tracked);
+		log_message(LOG_INFO, "(%s): track script %s not found, ignoring...", vrrp->iname, tracked);
 		return;
 	}
 
@@ -133,9 +133,9 @@ alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 		weight = atoi(strvec_slot(strvec, 2));
 		if (weight < -254 || weight > 254) {
 			weight = vsc->weight;
-			log_message(LOG_INFO, "     %s: weight must be between [-254..254]"
+			log_message(LOG_INFO, "(%s): track script %s: weight must be between [-254..254]"
 					 " inclusive, ignoring...",
-			       tracked);
+			       vrrp->iname, tracked);
 		}
 	}
 

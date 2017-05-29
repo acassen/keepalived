@@ -786,13 +786,18 @@ vrrp_vscript_end_handler(void)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 
-	if (script_user_set)
-		return;
-
-	if (!remove_script &&
-	     set_default_script_user(NULL, NULL)) {
-		log_message(LOG_INFO, "Unable to set default user for track script %s - removing", vscript->script.args[0]);
+	if (!vscript->script.args[0]) {
+		log_message(LOG_INFO, "No script set for vrrp_script %s - removing", vscript->sname);
 		remove_script = true;
+	}
+	else if (!remove_script) {
+		if (script_user_set)
+			return;
+
+		if (set_default_script_user(NULL, NULL)) {
+			log_message(LOG_INFO, "Unable to set default user for vrrp script %s - removing", vscript->sname);
+			remove_script = true;
+		}
 	}
 
 	if (remove_script) {

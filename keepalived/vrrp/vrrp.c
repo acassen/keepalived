@@ -233,6 +233,11 @@ check_vrrp_script_security(void)
 		}
 	}
 
+	if (global_data->notify_fifo.script)
+		script_flags |= check_notify_script_secure(&global_data->notify_fifo.script);
+	if (global_data->vrrp_notify_fifo.script)
+		script_flags |= check_notify_script_secure(&global_data->vrrp_notify_fifo.script);
+
 	if (!script_security && script_flags & SC_ISSCRIPT) {
 		log_message(LOG_INFO, "SECURITY VIOLATION - scripts are being executed but script_security not enabled.%s",
 				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
@@ -351,7 +356,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 		vrrp->ipsecah_counter.seq_number = ntohl(ah->seq_number);
 	} else {
 		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
-					" already proceeded. Packet dropped. Local(%d)",
+					" already processed. Packet dropped. Local(%d)",
 					vrrp->iname, ntohl(ah->seq_number),
 					vrrp->ipsecah_counter.seq_number);
 		return true;
@@ -1470,8 +1475,7 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 	if (advF) {
 		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 		++vrrp->stats->pri_zero_sent;
-		syslog(LOG_INFO, "VRRP_Instance(%s) sent 0 priority",
-		       vrrp->iname);
+		log_message(LOG_INFO, "VRRP_Instance(%s) sent 0 priority", vrrp->iname);
 	}
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -2152,6 +2156,8 @@ shutdown_vrrp_instances(void)
 		if (vrrp->script_stop)
 			notify_exec(vrrp->script_stop);
 
+		notify_instance_fifo(vrrp, VRRP_STATE_STOP);
+
 #ifdef _WITH_LVS_
 		/*
 		 * Stop stalled syncd. IPVS syncd state is the
@@ -2747,6 +2753,12 @@ vrrp_complete_init(void)
 		global_data->vrrp_garp_lower_prio_rep = global_data->vrrp_garp_rep;
 	if (global_data->vrrp_garp_lower_prio_delay == PARAMETER_UNSET)
 		global_data->vrrp_garp_lower_prio_delay = global_data->vrrp_garp_delay;
+
+	/* Add the FIFO name to the end of the parameter list */
+	if (global_data->notify_fifo.script)
+		add_script_param(global_data->notify_fifo.script, global_data->notify_fifo.name);
+	if (global_data->vrrp_notify_fifo.script)
+		add_script_param(global_data->vrrp_notify_fifo.script, global_data->vrrp_notify_fifo.name);
 
 	/* Mark any scripts as insecure */
 	check_vrrp_script_security();

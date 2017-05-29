@@ -532,7 +532,7 @@ read_line(char *buf, size_t size)
 				}
 
 				/* Remove the @config_id from start of line */
-				memmove(buf, buf_start + 1, strlen(buf_start));
+				memset(buf, ' ', buf_start - buf);
 			}
 		}
 		else

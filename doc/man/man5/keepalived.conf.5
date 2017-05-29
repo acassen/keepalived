@@ -230,6 +230,32 @@ and
  script_user username [groupname] # If groupname is not specified, it defaults to the user's group
  enable_script_security       # Don't run scripts configured to be run as root if any part of the path
                               #   is writable by a non-root user.
+
+ # Rather than using notify scripts, specifying a fifo allows more efficient processing of notify events, and guarantees that they will be delivered in the correct sequence.
+ # NOTE: the FIFO names must all be different
+ notify_fifo FIFO_NAME        # FIFO to write notify events to
+                              # See vrrp_notify_fifo and lvs_notify_fifo for format of output
+                              # For further details, see the description under vrrp_sync_group see 
+                              # doc/samples/sample_notify_fifo.sh for sample usage.
+ notify_fifo_script STRING [username [groupname]]
+                              # script to be run by keepalived to process notify events
+                              # The FIFO name will be passed to the script as the last parameter
+ vrrp_notify_fifo FIFO_NAME   # FIFO to write vrrp notify events to
+                              # The string written will be a line of the form: INSTANCE "VI_1" MASTER 100
+                              # and will be terminated with a new line character.
+                              # For further details of the output, see the description under vrrp_sync_group
+                              # and doc/samples/sample_notify_fifo.sh for sample usage.
+ vrrp_notify_fifo_script STRING [username [groupname]]
+                              # script to be run by keepalived to process vrrp notify events
+                              # The FIFO name will be passed to the script as the last parameter
+ lvs_notify_fifo FIFO_NAME    # FIFO to write notify healthchecker events to
+                              # The string written will be a line of the form:
+                              #   VS [192.168.201.15]:tcp:80 {UP|DOWN}
+                              #   RS [1.2.3.4]:tcp:80 [192.168.201.15]:tcp:80 {UP|DOWN}
+                              # and will be terminated with a new line character.
+ lvs_notify_fifo_script STRING [username [groupname]]
+                              # script to be run by keepalived to process healthchecher notify events
+                              # The FIFO name will be passed to the script as the last parameter
  }
 
  # For running keepalived in a separate network namespace
@@ -265,6 +291,7 @@ is specified, it defaults to default_interface (default eth0).
 .PP
  static_ipaddress
  {
+ <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
  192.168.1.1/24 dev eth0 scope global
  ...
  }
@@ -346,8 +373,8 @@ and
     # arguments
     # $1 = "GROUP"|"INSTANCE"
     # $2 = name of the group or instance
-    # $3 = target state of transition
-    #     ("MASTER"|"BACKUP"|"FAULT")
+    # $3 = target state of transition (stop only applies to instances)
+    #     ("MASTER"|"BACKUP"|"FAULT"|"STOP")
     # $4 = priority value
     notify /path/notify.sh [username [groupname]]
 
@@ -416,7 +443,7 @@ which will transition together on any state change.
     # VMAC interface
     vmac_xmit_base
 
-    native_ipv6         # force instance to use IPv6 (when mixed IPv4 and IPv6 config).
+    native_ipv6         # force instance to use IPv6 (this option is deprecated since the virtual ip addresses determine whether IPv4 or IPv6 is used).
 
     # Ignore VRRP interface faults (default unset)
     dont_track_primary
@@ -502,7 +529,7 @@ which will transition together on any state change.
     #With the same entries on other machines,
     #the opposite transition will be occurring.
     virtual_ipaddress {
-        <IPADDR>/<MASK> brd <IPADDR> dev <STRING> scope <SCOPE> label <LABEL>
+	<IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
         192.168.200.17/24 dev eth1
         192.168.200.18/24 dev eth2 label eth2:1
     }
@@ -519,8 +546,8 @@ which will transition together on any state change.
     # addresses in virtual_ipaddress must be of the
     # same family.
     virtual_ipaddress_excluded {
-     <IPADDR>/<MASK> brd <IPADDR> dev <STRING> scope <SCOPE>
-     <IPADDR>/<MASK> brd <IPADDR> dev <STRING> scope <SCOPE>
+	<IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+        <IPADDR>[/<MASK>] ...
         ...
     }
 

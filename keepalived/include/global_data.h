@@ -47,6 +47,7 @@
 #ifdef _WITH_LVS_
 #include "ipvswrapper.h"
 #endif
+#include "notify.h"
 
 #ifndef _HAVE_LIBIPTC_
 #define	XT_EXTENSION_MAXNAMELEN		29
@@ -113,6 +114,13 @@ typedef struct _data {
 #ifdef _WITH_LVS_
 	char				checker_process_priority;
 	bool				checker_no_swap;
+#endif
+	notify_fifo_t			notify_fifo;
+#ifdef _WITH_VRRP_
+	notify_fifo_t			vrrp_notify_fifo;
+#endif
+#ifdef _WITH_LVS_
+	notify_fifo_t			lvs_notify_fifo;
 #endif
 #ifdef _WITH_SNMP_
 	bool				enable_traps;

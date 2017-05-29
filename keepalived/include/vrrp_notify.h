@@ -29,5 +29,6 @@
 
 extern int notify_instance_exec(vrrp_t *, int);
 extern int notify_group_exec(vrrp_sgroup_t *, int);
+extern void notify_instance_fifo(const vrrp_t *, int);
 
 #endif

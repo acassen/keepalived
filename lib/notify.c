@@ -62,9 +62,8 @@ static bool path_is_malloced;
 /* The priority this process is running at */
 static int cur_prio = INT_MAX;
 
-/* perform a system call */
-static int
-system_call(char ** cmdline, uid_t uid, gid_t gid)
+static bool
+set_privileges(uid_t uid, gid_t gid)
 {
 	int retval;
 
@@ -82,14 +81,14 @@ system_call(char ** cmdline, uid_t uid, gid_t gid)
 		retval = setgid(gid);
 		if (retval < 0) {
 			log_message(LOG_ALERT, "Couldn't setgid: %d (%m)", gid);
-			return -1;
+			return true;
 		}
 
 		/* Clear any extra supplementary groups */
 		retval = setgroups(1, &gid);
 		if (retval < 0) {
 			log_message(LOG_ALERT, "Couldn't setgroups: %d (%m)", gid);
-			return -1;
+			return true;
 		}
 	}
 
@@ -97,13 +96,132 @@ system_call(char ** cmdline, uid_t uid, gid_t gid)
 		retval = setuid(uid);
 		if (retval < 0) {
 			log_message(LOG_ALERT, "Couldn't setuid: %d (%m)", uid);
-			return -1;
+			return true;
 		}
 	}
 
 	/* Prepare for invoking process/script */
 	signal_handler_script();
 	set_std_fd(false);
+
+	return false;
+}
+
+/* Execute external script/program to process FIFO */
+static pid_t
+notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void *arg, const notify_script_t *script)
+{
+	pid_t pid;
+
+	pid = fork();
+
+	/* In case of fork is error. */
+	if (pid < 0) {
+		log_message(LOG_INFO, "Failed fork process");
+		return -1;
+	}
+
+	/* In case of this is parent process */
+	if (pid) {
+		thread_add_child(m, func, arg, pid, TIMER_NEVER);
+		return 0;
+	}
+
+#ifdef _MEM_CHECK_
+	skip_mem_dump();
+#endif
+
+	setpgid(0, 0);
+	set_privileges(script->uid, script->gid);
+
+	execv(script->args[0], script->args);
+
+	if (errno == EACCES)
+		log_message(LOG_INFO, "FIFO notify script %s is not executable", script->args[0]);
+	else
+		log_message(LOG_INFO, "Unable to execute FIFO notify script %s - errno %d", script->args[0], errno);
+
+	/* unreached unless error */
+	exit(0);
+}
+
+static void
+fifo_open(notify_fifo_t* fifo, int (*script_exit)(thread_t *), const char *type)
+{
+	int ret;
+	int sav_errno;
+
+	if (fifo->name) {
+		sav_errno = 0;
+
+		if (!(ret = mkfifo(fifo->name, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)))
+			fifo->created_fifo = true;
+		else {
+			sav_errno = errno;
+
+			if (sav_errno != EEXIST)
+				log_message(LOG_INFO, "Unable to create %snotify fifo %s", type, fifo->name);
+		}
+
+		if (!sav_errno || sav_errno == EEXIST) {
+			/* Run the notify script if there is one */
+			if (fifo->script)
+				notify_fifo_exec(master, script_exit, NULL, fifo->script);
+
+			/* Now open the fifo */
+			if ((fifo->fd = open(fifo->name, O_RDWR | O_CLOEXEC | O_NONBLOCK)) == -1) {
+				log_message(LOG_INFO, "Unable to open %snotify fifo %s - errno %d", type, fifo->name, errno);
+				if (fifo->created_fifo) {
+					unlink(fifo->name);
+					fifo->created_fifo = false;
+				}
+			}
+		}
+
+		if (fifo->fd == -1) {
+			FREE(fifo->name);
+			fifo->name = NULL;
+		}
+	}
+}
+
+void
+notify_fifo_open(notify_fifo_t* global_fifo, notify_fifo_t* fifo, int (*script_exit)(thread_t *), const char *type)
+{
+	/* Open the global FIFO if specified */
+	if (global_fifo->name)
+		fifo_open(global_fifo, script_exit, "");
+
+	/* Now the specific FIFO */
+	fifo_open(fifo, script_exit, type);
+}
+
+static void
+fifo_close(notify_fifo_t* fifo)
+{
+	if (fifo->fd != -1) {
+		close(fifo->fd);
+		fifo->fd = -1;
+	}
+	if (fifo->created_fifo)
+		unlink(fifo->name);
+}
+
+void
+notify_fifo_close(notify_fifo_t* global_fifo, notify_fifo_t* fifo)
+{
+	if (global_fifo->fd != -1)
+		fifo_close(global_fifo);
+
+	fifo_close(fifo);
+}
+
+/* perform a system call */
+static int
+system_call(char ** cmdline, uid_t uid, gid_t gid)
+{
+	if (set_privileges(uid, gid))
+		return -1;
 
 	execve(cmdline[0], cmdline, environ);
 
@@ -826,6 +944,25 @@ notify_script_init(vector_t *strvec, bool with_params, const char *type)
 	}
 
 	return script;
+}
+
+void
+add_script_param(notify_script_t *script, char *param)
+{
+	size_t num = 0;
+	char **new_args;
+
+	while (script->args[num++]);
+
+	new_args = MALLOC((num + 2) * sizeof(char *));
+
+	for (num = 0; script->args[num]; num++)
+		new_args[num] = script->args[num];
+	new_args[num++] = param;
+	new_args[num] = NULL;
+
+	FREE(script->args);
+	script->args = new_args;
 }
 
 void

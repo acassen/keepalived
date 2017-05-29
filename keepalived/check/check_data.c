@@ -315,7 +315,7 @@ dump_vs(void *data)
 
 	if (vs->s_svr) {
 		log_message(LOG_INFO, "   sorry server = %s"
-				    , FMT_RS(vs->s_svr));
+				    , FMT_RS(vs->s_svr, vs));
 	}
 	if (!LIST_ISEMPTY(vs->rs))
 		dump_list(vs->rs);
@@ -519,7 +519,7 @@ format_vs (virtual_server_t *vs)
 		snprintf (ret, sizeof (ret) - 1, "FWM %u", vs->vfwmark);
 	else
 		snprintf(ret, sizeof(ret) - 1, "%s"
-			, inet_sockaddrtopair(&vs->addr));
+			, inet_sockaddrtotrio(&vs->addr, vs->service_type));
 
 	return ret;
 }
@@ -550,6 +550,11 @@ check_check_script_security(void)
 			script_flags |= check_notify_script_secure(&rs->notify_down);
 		}
 	}
+
+	if (global_data->notify_fifo.script)
+		script_flags |= check_notify_script_secure(&global_data->notify_fifo.script);
+	if (global_data->lvs_notify_fifo.script)
+		script_flags |= check_notify_script_secure(&global_data->lvs_notify_fifo.script);
 
 	if (!script_security && script_flags & SC_ISSCRIPT) {
 		log_message(LOG_INFO, "SECURITY VIOLATION - check scripts are being executed but script_security not enabled.%s",
@@ -640,7 +645,7 @@ bool validate_check_config(void)
 				/* Check any real server in alpha mode has a checker */
 				if (vs->alpha && !rs->alive && LIST_ISEMPTY(rs->failed_checkers))
 					log_message(LOG_INFO, "Warning - real server %s for virtual server %s cannot be activated due to no checker and in alpha mode",
-							FMT_RS(rs), FMT_VS(vs));
+							FMT_RS(rs, vs), FMT_VS(vs));
 
 				/* Set the forwarding method if necessary */
 				if (rs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
@@ -663,6 +668,12 @@ bool validate_check_config(void)
 				checker->enabled = true;
 		}
 	}
+
+	/* Add the FIFO name to the end of the parameter list */
+	if (global_data->notify_fifo.script)
+		add_script_param(global_data->notify_fifo.script, global_data->notify_fifo.name);
+	if (global_data->lvs_notify_fifo.script)
+		add_script_param(global_data->lvs_notify_fifo.script, global_data->lvs_notify_fifo.name);
 
 	check_check_script_security();
 
