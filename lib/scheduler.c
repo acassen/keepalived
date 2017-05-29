@@ -999,10 +999,15 @@ launch_scheduler(void)
 	while (thread_fetch(master, &thread)) {
 		/* Run until error, used for debuging only */
 #ifdef _DEBUG_
-		if (__test_bit(MEM_ERR_DETECT_BIT, &debug) &&
-		    __test_bit(DONT_RELEASE_VRRP_BIT, &debug)) {
+		if (__test_bit(MEM_ERR_DETECT_BIT, &debug)
+#ifdef _WITH_VRRP_
+		    && __test_bit(DONT_RELEASE_VRRP_BIT, &debug)
+#endif
+							        ) {
 			__clear_bit(MEM_ERR_DETECT_BIT, &debug);
+#ifdef _WITH_VRRP_
 			__clear_bit(DONT_RELEASE_VRRP_BIT, &debug);
+#endif
 			thread_add_terminate_event(master);
 		}
 #endif
