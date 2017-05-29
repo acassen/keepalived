@@ -39,6 +39,7 @@
 #include "daemon.h"
 #include "global_data.h"
 #include "global_parser.h"
+#include "keepalived_magic.h"
 
 static int misc_check_thread(thread_t *);
 static int misc_check_child_thread(thread_t *);
@@ -167,7 +168,7 @@ install_misc_check_keyword(void)
 
 /* Check that the scripts are secure */
 int
-check_misc_script_security(void)
+check_misc_script_security(magic_t magic)
 {
 	element e, next;
 	checker_t *checker;
@@ -188,7 +189,7 @@ check_misc_script_security(void)
 
 		misc_script = CHECKER_ARG(checker);
 
-		script_flags |= (flags = check_script_secure(&misc_script->script));
+		script_flags |= (flags = check_script_secure(&misc_script->script, magic));
 
 		/* Mark not to run if needs inhibiting */
 		insecure = false;

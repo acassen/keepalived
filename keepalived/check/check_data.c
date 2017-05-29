@@ -35,6 +35,7 @@
 #include "ipwrapper.h"
 #include "parser.h"
 #include "libipvs.h"
+#include "keepalived_magic.h"
 
 /* global vars */
 check_data_t *check_data = NULL;
@@ -531,35 +532,41 @@ check_check_script_security(void)
 	virtual_server_t *vs;
 	real_server_t *rs;
 	int script_flags;
+	magic_t magic;
 
 	if (LIST_ISEMPTY(check_data->vs))
 		return;
 
-	script_flags = check_misc_script_security();
+	magic = ka_magic_open();
+
+	script_flags = check_misc_script_security(magic);
 
 	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
 
-		script_flags |= check_notify_script_secure(&vs->quorum_up);
-		script_flags |= check_notify_script_secure(&vs->quorum_down);
+		script_flags |= check_notify_script_secure(&vs->quorum_up, magic);
+		script_flags |= check_notify_script_secure(&vs->quorum_down, magic);
 
 		for (e1 = LIST_HEAD(vs->rs); e1; ELEMENT_NEXT(e1)) {
 			rs = ELEMENT_DATA(e1);
 
-			script_flags |= check_notify_script_secure(&rs->notify_up);
-			script_flags |= check_notify_script_secure(&rs->notify_down);
+			script_flags |= check_notify_script_secure(&rs->notify_up, magic);
+			script_flags |= check_notify_script_secure(&rs->notify_down, magic);
 		}
 	}
 
 	if (global_data->notify_fifo.script)
-		script_flags |= check_notify_script_secure(&global_data->notify_fifo.script);
+		script_flags |= check_notify_script_secure(&global_data->notify_fifo.script, magic);
 	if (global_data->lvs_notify_fifo.script)
-		script_flags |= check_notify_script_secure(&global_data->lvs_notify_fifo.script);
+		script_flags |= check_notify_script_secure(&global_data->lvs_notify_fifo.script, magic);
 
 	if (!script_security && script_flags & SC_ISSCRIPT) {
 		log_message(LOG_INFO, "SECURITY VIOLATION - check scripts are being executed but script_security not enabled.%s",
 				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
 	}
+
+	if (magic)
+		ka_magic_close(magic);
 }
 
 bool validate_check_config(void)

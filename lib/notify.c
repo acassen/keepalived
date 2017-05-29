@@ -40,6 +40,7 @@
 #include "logger.h"
 #include "utils.h"
 #include "parser.h"
+#include "keepalived_magic.h"
 
 /* Default user/group for script execution */
 uid_t default_script_uid;
@@ -112,6 +113,7 @@ static pid_t
 notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void *arg, const notify_script_t *script)
 {
 	pid_t pid;
+	int retval;
 
 	pid = fork();
 
@@ -134,12 +136,26 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void *arg, const 
 	setpgid(0, 0);
 	set_privileges(script->uid, script->gid);
 
-	execve(script->args[0], script->args, environ);
+	if (script->flags | SC_EXECABLE) {
+		execve(script->args[0], script->args, environ);
 
-	if (errno == EACCES)
-		log_message(LOG_INFO, "FIFO notify script %s is not executable", script->args[0]);
-	else
-		log_message(LOG_INFO, "Unable to execute FIFO notify script %s - errno %d", script->args[0], errno);
+		if (errno == EACCES)
+			log_message(LOG_INFO, "FIFO notify script %s is not executable", script->args[0]);
+		else
+			log_message(LOG_INFO, "Unable to execute FIFO notify script %s - errno %d", script->args[0], errno);
+	}
+	else {
+		retval = system(script->cmd_str);
+
+		if (retval == 127) {
+			/* couldn't exec command */
+			log_message(LOG_ALERT, "Couldn't exec FIFO command: %s", script->cmd_str);
+		}
+		else if (retval == -1)
+			log_message(LOG_ALERT, "Error exec-ing FIFO command: %s", script->cmd_str);
+
+		exit(0);
+	}
 
 	/* unreached unless error */
 	exit(0);
@@ -218,15 +234,57 @@ notify_fifo_close(notify_fifo_t* global_fifo, notify_fifo_t* fifo)
 
 /* perform a system call */
 static int
-system_call(char ** cmdline, uid_t uid, gid_t gid)
+system_call(const notify_script_t* script)
 {
-	if (set_privileges(uid, gid))
+	size_t num;
+	size_t len;
+	char *command_line = NULL;
+	char *cmd_str;
+	int retval;
+
+	if (set_privileges(script->uid, script->gid))
 		return -1;
 
-	execve(cmdline[0], cmdline, environ);
+	if (script->flags & SC_EXECABLE) {
+		execve(script->args[0], script->args, environ);
 
-	/* error */
-	log_message(LOG_ALERT, "Error exec-ing command '%s', error %d: %m", cmdline[0], errno);
+		/* error */
+		log_message(LOG_ALERT, "Error exec-ing command '%s', error %d: %m", script->args[0], errno);
+	}
+	else {
+		if (script->cmd_str)
+			cmd_str = script->cmd_str;
+		else {
+			/* It is a notify script - we have to build the command line */
+			for (num = 0, len = 0; script->args[num]; num++)
+				len += strlen(script->args[num]) + 1;	/* Space or '\0' */
+			len += 4;	/* Quotes around command and vrrp instance name */
+
+			command_line = MALLOC(len);
+			for (num = 0; script->args[num]; num++) {
+				if (num)
+					strcat(command_line, " ");
+				if (num == 0 || num == 2)
+					strcat(command_line, "\"");
+				strcat(command_line, script->args[num]);
+				if (num == 0 || num == 2)
+					strcat(command_line, "\"");
+			}
+			cmd_str = command_line;
+		}
+
+		retval = system(cmd_str);
+
+		if (retval == 127) {
+			/* couldn't exec command */
+			log_message(LOG_ALERT, "Couldn't exec command: %s", cmd_str);
+		}
+		else if (retval == -1)
+			log_message(LOG_ALERT, "Error exec-ing command: %s", cmd_str);
+
+		if (command_line)
+			FREE(command_line);
+	}
 
 	return -1;
 }
@@ -254,7 +312,7 @@ notify_exec(const notify_script_t *script)
 	skip_mem_dump();
 #endif
 
-	system_call(script->args, script->uid, script->gid);
+	system_call(script);
 
 	/* We should never get here */
 	exit(0);
@@ -289,7 +347,7 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 	 * all its child processes will also be killed. */
 	setpgid(0, 0);
 
-	system_call(script->args, script->uid, script->gid);
+	system_call(script);
 
 // TODO - Maybe we should exit with status 127 to signify don't change priority
 // unless this is the first return in which was we want to creep out of fault state
@@ -572,7 +630,7 @@ exit1:
 }
 
 int
-check_script_secure(notify_script_t *script)
+check_script_secure(notify_script_t *script, magic_t magic)
 {
 	int flags;
 	char *slash;
@@ -601,7 +659,7 @@ check_script_secure(notify_script_t *script)
 		}
 	}
 
-	/* Remove symbolic links, /./ and /../, and also check script accessible by the user running it */
+	/* Check script accessible by the user running it */
 	if (script->uid)
 		old_uid = geteuid();
 	if (script->gid)
@@ -688,6 +746,18 @@ check_script_secure(notify_script_t *script)
 	} else
 		log_message(LOG_INFO, "WARNING - script '%s' is not executable for uid:gid %d:%d - disabling.", script->cmd_str, script->uid, script->gid);
 
+	/* Default to execable */
+	script->flags |= SC_EXECABLE;
+#ifdef _HAVE_LIBMAGIC_
+	if (magic && flags & SC_EXECUTABLE) {
+		const char *magic_desc = magic_file(magic, script->args[0]);
+		if (!strstr(magic_desc, " executable")) {
+			log_message(LOG_INFO, "Please add a #! shebang to script %s", script->args[0]);
+			script->flags &= ~SC_EXECABLE;
+		}
+	}
+#endif
+
 	if (!need_script_protection)
 		return flags;
 
@@ -740,7 +810,7 @@ check_script_secure(notify_script_t *script)
 }
 
 int
-check_notify_script_secure(notify_script_t **script_p)
+check_notify_script_secure(notify_script_t **script_p, magic_t magic)
 {
 	int flags;
 	notify_script_t *script = *script_p;
@@ -748,7 +818,7 @@ check_notify_script_secure(notify_script_t **script_p)
 	if (!script)
 		return 0;
 
-	flags = check_script_secure(script);
+	flags = check_script_secure(script, magic);
 
 	/* Mark not to run if needs inhibiting */
 	if ((flags & (SC_INHIBIT | SC_NOTFOUND)) ||
@@ -920,6 +990,7 @@ notify_script_init(vector_t *strvec, bool with_params, const char *type)
 
 	script->args = set_script_params_array(strvec, with_params);
 	script->cmd_str = set_value(strvec);
+	script->flags = 0;
 
 	if (vector_size(strvec) > 2) {
 		if (set_script_uid_gid(strvec, 2, &script->uid, &script->gid)) {
@@ -950,19 +1021,40 @@ void
 add_script_param(notify_script_t *script, char *param)
 {
 	size_t num = 0;
+	size_t len;
 	char **new_args;
+	char *cmd_str;
+	char *args;
 
-	while (script->args[num++]);
+	/* Find out how many args there are */
+	for (num = 0, len = 0; script->args[num]; num++)
+		len += sizeof(char *) + strlen(script->args[num]);
+	len += 2 * sizeof(char *) + strlen(param);
+	num += 2;
 
-	new_args = MALLOC((num + 2) * sizeof(char *));
+	new_args = MALLOC(len);
+	args = (char *)new_args + num * sizeof(char *);
 
-	for (num = 0; script->args[num]; num++)
-		new_args[num] = script->args[num];
+	for (num = 0; script->args[num]; num++) {
+		new_args[num] = args;
+		strcpy(args, script->args[num]);
+		args += strlen(script->args[num]) + 1;
+	}
 	new_args[num++] = param;
+	strcpy(args, param);
 	new_args[num] = NULL;
 
 	FREE(script->args);
 	script->args = new_args;
+
+	/* Now update the cmd_str */
+	len = strlen(script->cmd_str) + strlen(param) + 2;	/* Space and '\0' */
+	cmd_str = MALLOC(len);
+	strcpy(cmd_str, script->cmd_str);
+	strcat(cmd_str, " ");
+	strcat(cmd_str, param);
+	FREE(script->cmd_str);
+	script->cmd_str = cmd_str;
 }
 
 void

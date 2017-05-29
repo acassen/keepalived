@@ -34,6 +34,9 @@
 #ifdef _WITH_VRRP_AUTH_
 #include <netinet/in.h>
 #endif
+#include <netinet/ip.h>
+#include <netinet/ip6.h>
+#include <stdint.h>
 
 /* local include */
 #include "parser.h"
@@ -76,10 +79,7 @@
 #include "vrrp_dbus.h"
 #include "global_data.h"
 #endif
-
-#include <netinet/ip.h>
-#include <netinet/ip6.h>
-#include <stdint.h>
+#include "keepalived_magic.h"
 
 /* Set if need to block ip addresses and are able to do so */
 bool block_ipv4;
@@ -161,14 +161,14 @@ vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 
 /* Check that the scripts are secure */
 static int
-check_track_script_secure(tracked_sc_t *script)
+check_track_script_secure(tracked_sc_t *script, magic_t magic)
 {
 	int flags;
 
 	if (script->scr->insecure)
 		return 0;
 
-	flags = check_script_secure(&script->scr->script);
+	flags = check_script_secure(&script->scr->script, magic);
 
 	/* Mark not to run if needs inhibiting */
 	if (flags & SC_INHIBIT) {
@@ -195,18 +195,21 @@ check_vrrp_script_security(void)
 	vrrp_script_t *vscript;
 	int script_flags = 0;
 	int flags;
+	magic_t magic;
 
 	if (LIST_ISEMPTY(vrrp_data->vrrp))
 		return;
 
+	magic = ka_magic_open();
+
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-		script_flags |= check_notify_script_secure(&vrrp->script_backup);
-		script_flags |= check_notify_script_secure(&vrrp->script_master);
-		script_flags |= check_notify_script_secure(&vrrp->script_fault);
-		script_flags |= check_notify_script_secure(&vrrp->script_stop);
-		script_flags |= check_notify_script_secure(&vrrp->script);
+		script_flags |= check_notify_script_secure(&vrrp->script_backup, magic);
+		script_flags |= check_notify_script_secure(&vrrp->script_master, magic);
+		script_flags |= check_notify_script_secure(&vrrp->script_fault, magic);
+		script_flags |= check_notify_script_secure(&vrrp->script_stop, magic);
+		script_flags |= check_notify_script_secure(&vrrp->script, magic);
 
 		if (LIST_ISEMPTY(vrrp->track_script))
 			continue;
@@ -214,7 +217,7 @@ check_vrrp_script_security(void)
 		for (e1 = LIST_HEAD(vrrp->track_script); e1; e1 = next) {
 			next = e1->next;
 			track_script = ELEMENT_DATA(e1);
-			script_flags |= (flags = check_track_script_secure(track_script));
+			script_flags |= (flags = check_track_script_secure(track_script, magic));
 
 			if (track_script->scr->insecure) {
 				/* Remove it from the vrrp instance's queue */
@@ -226,22 +229,25 @@ check_vrrp_script_security(void)
 	if (!LIST_ISEMPTY(vrrp_data->vrrp_sync_group)) {
 		for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
 			sg = ELEMENT_DATA(e);
-			script_flags |= check_notify_script_secure(&sg->script_backup);
-			script_flags |= check_notify_script_secure(&sg->script_master);
-			script_flags |= check_notify_script_secure(&sg->script_fault);
-			script_flags |= check_notify_script_secure(&sg->script);
+			script_flags |= check_notify_script_secure(&sg->script_backup, magic);
+			script_flags |= check_notify_script_secure(&sg->script_master, magic);
+			script_flags |= check_notify_script_secure(&sg->script_fault, magic);
+			script_flags |= check_notify_script_secure(&sg->script, magic);
 		}
 	}
 
 	if (global_data->notify_fifo.script)
-		script_flags |= check_notify_script_secure(&global_data->notify_fifo.script);
+		script_flags |= check_notify_script_secure(&global_data->notify_fifo.script, magic);
 	if (global_data->vrrp_notify_fifo.script)
-		script_flags |= check_notify_script_secure(&global_data->vrrp_notify_fifo.script);
+		script_flags |= check_notify_script_secure(&global_data->vrrp_notify_fifo.script, magic);
 
 	if (!script_security && script_flags & SC_ISSCRIPT) {
 		log_message(LOG_INFO, "SECURITY VIOLATION - scripts are being executed but script_security not enabled.%s",
 				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
 	}
+
+	if (magic)
+		ka_magic_close(magic);
 
 	/* Now walk through the vrrp_script list, removing any that aren't used */
 	for (e = LIST_HEAD(vrrp_data->vrrp_script); e; e = next) {

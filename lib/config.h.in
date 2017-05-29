@@ -534,6 +534,9 @@
 /* Define to 1 if have iptables libraries */
 #undef _HAVE_LIBIPTC_
 
+/* Define to 1 if have magic library */
+#undef _HAVE_LIBMAGIC_
+
 /* Define to 1 if using libnl-1 */
 #undef _HAVE_LIBNL1_
 

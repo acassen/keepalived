@@ -30,6 +30,7 @@
 
 /* user includes */
 #include "notify.h"
+#include "keepalived_magic.h"
 
 /* Checker argument structure  */
 typedef struct _misc_checker {
@@ -41,6 +42,6 @@ typedef struct _misc_checker {
 
 /* Prototypes defs */
 extern void install_misc_check_keyword(void);
-extern int check_misc_script_security(void);
+extern int check_misc_script_security(magic_t);
 
 #endif

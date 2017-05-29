@@ -31,6 +31,7 @@
 #include "scheduler.h"
 #include "memory.h"
 #include "vector.h"
+#include "keepalived_magic.h"
 
 /* Flags returned by check_script_secure() */
 #define SC_INSECURE     0x01    /* Script is insecure */
@@ -38,11 +39,13 @@
 #define SC_INHIBIT      0x04    /* Script needs inhibiting */
 #define SC_NOTFOUND	0x08	/* Cannot find element of path */
 #define	SC_EXECUTABLE	0x10	/* The script is marked executable */
+#define SC_EXECABLE	0x20	/* The script can be invoked via execve() */
 
 /* notify_script details */
 typedef struct _notify_script {
 	char**	args;		/* Script args */
 	char*	cmd_str;	/* Script command string (only used for dumping config)*/
+	int	flags;
 	uid_t	uid;		/* uid of user to execute script */
 	gid_t	gid;		/* gid of group to execute script */
 } notify_script_t;
@@ -78,8 +81,8 @@ extern void notify_fifo_close(notify_fifo_t*, notify_fifo_t*);
 extern int system_call_script(thread_master_t *, int (*)(thread_t *), void *, unsigned long, notify_script_t *);
 extern int notify_exec(const notify_script_t *);
 extern void script_killall(thread_master_t *, int);
-extern int check_script_secure(notify_script_t *);
-extern int check_notify_script_secure(notify_script_t **);
+extern int check_script_secure(notify_script_t *, magic_t);
+extern int check_notify_script_secure(notify_script_t **, magic_t);
 extern bool set_default_script_user(const char *, const char *);
 extern char **set_script_params_array(vector_t *, bool);
 extern notify_script_t* notify_script_init(vector_t *, bool, const char *);

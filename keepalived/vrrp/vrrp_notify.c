@@ -129,7 +129,7 @@ static void
 notify_script_exec(notify_script_t* script, char *type, int state_num, char* name, int prio)
 {
 	notify_script_t new_script;
-	char *words[6];
+	char *args[6];
 	char prio_buf[4];
 
 	/*
@@ -138,22 +138,22 @@ notify_script_exec(notify_script_t* script, char *type, int state_num, char* nam
 	 * Note that the prio will be indicated as zero for a group.
 	 *
 	 */
-	words[0] = script->args[0];
-	words[1] = type;
-	words[2] = name;
+	args[0] = script->args[0];
+	args[1] = type;
+	args[2] = name;
 	switch (state_num) {
-		case VRRP_STATE_MAST  : words[3] = "MASTER" ; break;
-		case VRRP_STATE_BACK  : words[3] = "BACKUP" ; break;
-		case VRRP_STATE_FAULT : words[3] = "FAULT" ; break;
-		default:		words[3] = "{UNKNOWN}"; break;
+		case VRRP_STATE_MAST  : args[3] = "MASTER" ; break;
+		case VRRP_STATE_BACK  : args[3] = "BACKUP" ; break;
+		case VRRP_STATE_FAULT : args[3] = "FAULT" ; break;
+		default:		args[3] = "{UNKNOWN}"; break;
 	}
 	snprintf(prio_buf, sizeof(prio_buf), "%d", prio);
-	words[4] = prio_buf;
-	words[5] = NULL;
-	new_script.args = words;
+	args[4] = prio_buf;
+	args[5] = NULL;
+	new_script.args = args;
 
 	/* Launch the script */
-	new_script.cmd_str = script->args[0];
+	new_script.cmd_str = NULL;
 	new_script.uid = script->uid;
 	new_script.gid = script->gid;
 
