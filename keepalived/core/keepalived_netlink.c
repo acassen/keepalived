@@ -1183,24 +1183,32 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 		if (h->nlmsg_type == RTM_DELLINK) {
 			if (__test_bit(LOG_DETAIL_BIT, &debug))
 				log_message(LOG_INFO, "Interface %s deleted", ifp->ifname);
+#ifndef _DEBUG_
 			if (prog_type == PROG_TYPE_VRRP)
 				cleanup_lost_interface(ifp);
 			else {
 				ifp->ifi_flags = 0;
 				ifp->ifindex = 0;
 			}
+#else
+			cleanup_lost_interface(ifp);
+#endif
 		} else {
 			/* The name can change, so handle that here */
 			char *name = (char *)RTA_DATA(tb[IFLA_IFNAME]);
 			if (strcmp(ifp->ifname, name)) {
 				log_message(LOG_INFO, "Interface name has changed from %s to %s", ifp->ifname, name);
 
+#ifndef _DEBUG_
 				if (prog_type == PROG_TYPE_VRRP)
 					cleanup_lost_interface(ifp);
 				else {
 					ifp->ifi_flags = 0;
 					ifp->ifindex = 0;
 				}
+#else
+				cleanup_lost_interface(ifp);
+#endif
 
 				/* Set ifp to null, to force creating a new interface_t */
 				ifp = NULL;
