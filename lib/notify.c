@@ -134,7 +134,7 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void *arg, const 
 	setpgid(0, 0);
 	set_privileges(script->uid, script->gid);
 
-	execv(script->args[0], script->args);
+	execve(script->args[0], script->args, environ);
 
 	if (errno == EACCES)
 		log_message(LOG_INFO, "FIFO notify script %s is not executable", script->args[0]);
