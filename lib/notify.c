@@ -142,7 +142,7 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void *arg, const 
 		if (errno == EACCES)
 			log_message(LOG_INFO, "FIFO notify script %s is not executable", script->args[0]);
 		else
-			log_message(LOG_INFO, "Unable to execute FIFO notify script %s - errno %d", script->args[0], errno);
+			log_message(LOG_INFO, "Unable to execute FIFO notify script %s - errno %d - %m", script->args[0], errno);
 	}
 	else {
 		retval = system(script->cmd_str);
