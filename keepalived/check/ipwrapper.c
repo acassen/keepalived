@@ -145,13 +145,8 @@ clear_service_rs(virtual_server_t * vs, list l)
 			/* In Omega mode we call VS and RS down notifiers
 			 * all the way down the exit, as necessary.
 			 */
-			if (rs->notify_down) {
-				log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
-						    , rs->notify_down->cmd_str
-						    , FMT_RS(rs, vs)
-						    , FMT_VS(vs));
+			if (rs->notify_down)
 				notify_exec(rs->notify_down);
-			}
 			notify_fifo_rs(vs, rs, false);
 #ifdef _WITH_SNMP_CHECKER_
 			check_snmp_rs_trap(rs, vs);
@@ -167,12 +162,8 @@ clear_service_rs(virtual_server_t * vs, list l)
 				weight_sum < down_threshold)
 			) {
 				vs->quorum_state = DOWN;
-				if (vs->quorum_down) {
-					log_message(LOG_INFO, "Executing [%s] for VS %s"
-							    , vs->quorum_down->cmd_str
-							    , FMT_VS(vs));
+				if (vs->quorum_down)
 					notify_exec(vs->quorum_down);
-				}
 				notify_fifo_vs(vs, false);
 #ifdef _WITH_SNMP_CHECKER_
 				check_snmp_quorum_trap(vs);
@@ -405,12 +396,8 @@ update_quorum_state(virtual_server_t * vs)
 			/* Adding back alive real servers */
 			perform_quorum_state(vs, true);
 		}
-		if (vs->quorum_up) {
-			log_message(LOG_INFO, "Executing [%s] for VS %s"
-					    , vs->quorum_up->cmd_str
-					    , FMT_VS(vs));
+		if (vs->quorum_up)
 			notify_exec(vs->quorum_up);
-		}
 		notify_fifo_vs(vs, true);
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_quorum_trap(vs);
@@ -429,12 +416,8 @@ update_quorum_state(virtual_server_t * vs)
 				    , down_threshold
 				    , weight_sum
 				    , FMT_VS(vs));
-		if (vs->quorum_down) {
-			log_message(LOG_INFO, "Executing [%s] for VS %s"
-					    , vs->quorum_down->cmd_str
-					    , FMT_VS(vs));
+		if (vs->quorum_down)
 			notify_exec(vs->quorum_down);
-		}
 		notify_fifo_vs(vs, false);
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_quorum_trap(vs);
@@ -480,13 +463,8 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 				return -1;
 		}
 		rs->alive = alive;
-		if (rs->notify_up) {
-			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
-					    , rs->notify_up->cmd_str
-					    , FMT_RS(rs, vs)
-					    , FMT_VS(vs));
+		if (rs->notify_up)
 			notify_exec(rs->notify_up);
-		}
 		notify_fifo_rs(vs, rs, true);
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_rs_trap(rs, vs);
@@ -510,13 +488,8 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 				return -1;
 		}
 		rs->alive = alive;
-		if (rs->notify_down) {
-			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
-					    , rs->notify_down->cmd_str
-					    , FMT_RS(rs, vs)
-					    , FMT_VS(vs));
+		if (rs->notify_down)
 			notify_exec(rs->notify_down);
-		}
 		notify_fifo_rs(vs, rs, false);
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_rs_trap(rs, vs);
