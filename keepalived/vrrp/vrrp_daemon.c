@@ -61,6 +61,7 @@
 #ifdef _LIBNL_DYNAMIC_
 #include "libnl_link.h"
 #endif
+#include "vrrp_track.h"
 
 /* Forward declarations */
 static int print_vrrp_data(thread_t * thread);
@@ -93,6 +94,9 @@ stop_vrrp(int status)
 	 * sending a priority 0 vrrp message
 	 */
 	restore_vrrp_interfaces();
+
+	if (vrrp_data->vrrp_track_files)
+		stop_track_files();
 
 #ifdef _HAVE_LIBIPTC_
 	iptables_fini();
@@ -276,6 +280,10 @@ start_vrrp(void)
 	if (global_data->vrrp_notify_fifo.name)
 		notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
 
+	/* Initialise any tracking files */
+	if (vrrp_data->vrrp_track_files)
+		init_track_files(vrrp_data->vrrp_track_files);
+
 	/* Make sure we don't have any old iptables/ipsets settings left around */
 #ifdef _HAVE_LIBIPTC_
 	if (!reload)
@@ -379,6 +387,9 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 
 	/* Terminate all script process */
 	script_killall(master, SIGTERM);
+
+	if (vrrp_data->vrrp_track_files)
+		stop_track_files();
 
 	/* Destroy master thread */
 	vrrp_dispatcher_release(vrrp_data);

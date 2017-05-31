@@ -353,6 +353,8 @@ dnl - pipe2() since Linux 2.6.27 and glibc 2.9.
 AC_CHECK_FUNCS([pipe2], [add_build_opt([PIPE2])])
 dnl - signalfd() since Linux 2.6.22 and glibc 2.8
 AC_CHECK_FUNCS([signalfd], [add_build_opt([SIGNALFD])])
+dnl - inotify_init1() since Linux 2.6.27
+AC_CHECK_FUNCS([inotify_init1], [add_build_opt([INOTIFY_INIT1])])
 
 dnl - Do we want to override dynamic/static linking?
 if test -n "$enable_dynamic_linking"; then

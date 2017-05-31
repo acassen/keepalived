@@ -174,6 +174,7 @@ typedef struct _vrrp_t {
 #endif
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
+	list			track_file;		/* Files whose value we monitor */
 	unsigned		num_script_if_fault;	/* Number of scripts and interfaces in fault state */
 	unsigned		num_script_init;	/* Number of scripts in init state */
 	struct sockaddr_storage	saddr;			/* Src IP address to use in VRRP IP header */
@@ -196,7 +197,7 @@ typedef struct _vrrp_t {
 	uint8_t			vrid;			/* virtual id. from 1(!) to 255 */
 	uint8_t			base_priority;		/* configured priority value */
 	uint8_t			effective_priority;	/* effective priority value */
-	int			total_priority;		/* base_priority +/- track_script and track_interface weights.
+	int			total_priority;		/* base_priority +/- track_script, track_interface and track_file weights.
 							   effective_priority is this within the range [1,254]. */
 	bool			vipset;			/* All the vips are set ? */
 	list			vip;			/* list of virtual ip addresses */

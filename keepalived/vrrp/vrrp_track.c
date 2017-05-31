@@ -24,6 +24,13 @@
 
 #include <net/if.h>
 #include <stdlib.h>
+#include <sys/stat.h>
+#include <limits.h>
+#include <stdlib.h>
+#include <sys/inotify.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <fcntl.h>
 
 /* local include */
 #include "vrrp_track.h"
@@ -33,6 +40,7 @@
 #include "logger.h"
 #include "memory.h"
 #include "vrrp_scheduler.h"
+#include "scheduler.h"
 
 /* Track interface dump */
 void
@@ -144,6 +152,61 @@ alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 	tsc->weight = weight;
 	vsc->result = VRRP_SCRIPT_STATUS_INIT;
 	list_add(vrrp->track_script, tsc);
+}
+
+tracked_file_t *
+find_tracked_file_by_name(char *name)
+{
+	element e;
+	tracked_file_t *file;
+
+	if (LIST_ISEMPTY(vrrp_data->vrrp_track_files))
+		return NULL;
+
+	for (e = LIST_HEAD(vrrp_data->vrrp_track_files); e; ELEMENT_NEXT(e)) {
+		file = ELEMENT_DATA(e);
+		if (!strcmp(file->fname, name))
+			return file;
+	}
+	return NULL;
+}
+
+/* Track file dump */
+void
+dump_track_file(void *track_data)
+{
+	vrrp_tracked_file_t *tfile = track_data;
+	log_message(LOG_INFO, "     %s", tfile->file->fname);
+}
+
+void
+free_track_file(void *tsf)
+{
+	FREE(tsf);
+}
+
+void
+alloc_track_file(vrrp_t *vrrp, vector_t *strvec)
+{
+	tracked_file_t *vsf = NULL;
+	vrrp_tracked_file_t *tfile = NULL;
+	char *tracked = strvec_slot(strvec, 0);
+
+	vsf = find_tracked_file_by_name(tracked);
+
+	/* Ignoring if no file found */
+	if (!vsf) {
+		log_message(LOG_INFO, "(%s): track file %s not found, ignoring...", vrrp->iname, tracked);
+		return;
+	}
+
+	tfile = (vrrp_tracked_file_t *) MALLOC(sizeof(vrrp_tracked_file_t));
+	tfile->file = vsf;
+	list_add(vrrp->track_file, tfile);
+
+	if (!LIST_EXISTS(vsf->vrrp))
+		vsf->vrrp = alloc_list(NULL, dump_vfile_vrrp);
+	list_add(vsf->vrrp, vrrp);
 }
 
 void
@@ -300,4 +363,265 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 	}
 
 	vrrp_set_effective_priority(vrrp);
+}
+
+static void
+remove_track_file(list track_files, element e)
+{
+	tracked_file_t *tfile = ELEMENT_DATA(e);
+	element e1, next1;
+	element e2, next2;
+	vrrp_t *vrrp;
+	vrrp_tracked_file_t *tft;
+
+	if (!LIST_ISEMPTY(tfile->vrrp)) {
+		/* Seach through the vrrp instances tracking this file */
+		for (e1 = LIST_HEAD(tfile->vrrp); e1; e1 = next1) {
+			next1 = e1->next;
+			vrrp = ELEMENT_DATA(e1);
+
+			/* Search for the matching track file */
+			for (e2 = LIST_HEAD(vrrp->track_file); e2; e2 = next2) {
+				next2 = e2->next;
+				tft = ELEMENT_DATA(e2);
+				if (tft->file == tfile)
+					free_list_element(vrrp->track_file, e2);
+			}
+		}
+	}
+	free_list_element(track_files, e);
+}
+
+static void
+update_track_file_status(tracked_file_t* tfile, int new_status)
+{
+	element e;
+	vrrp_t *vrrp;
+
+	if (new_status > 253) {
+		log_message(LOG_INFO, "Track file %s - status value %d out of range, defaulting to 0", tfile->fname, new_status);
+		new_status = 0;
+	}
+	else if (new_status < -253)
+		new_status = -254;
+
+	if (new_status == tfile->last_status)
+		return;
+
+	for (e = LIST_HEAD(tfile->vrrp); e;  ELEMENT_NEXT(e)) {
+		vrrp = ELEMENT_DATA(e);
+
+		if (tfile->last_status == -254)
+			try_up_instance(vrrp, false);
+
+		if (new_status == -254) {
+			down_instance(vrrp);
+			vrrp->total_priority += new_status - tfile->last_status;
+		}
+		else if (vrrp->base_priority == VRRP_PRIO_OWNER)
+			continue;
+		else {
+			vrrp->total_priority += new_status - tfile->last_status;
+			vrrp_set_effective_priority(vrrp);
+		}
+	}
+
+	tfile->last_status = new_status;
+}
+
+static void
+process_track_file(tracked_file_t *tfile)
+{
+	int new_status = 0;
+	char buf[128];
+	int fd;
+	ssize_t len;
+
+	if ((fd = open(tfile->file_path, O_RDONLY | O_NONBLOCK)) != -1) {
+		if ((len = read(fd, buf, sizeof(buf) - 1)) > 0) {
+			buf[len] = '\0';
+			/* If there is an error, we want to use 0,
+			 * so we don't really mind if there is an error */
+			new_status = strtol(buf, NULL, 0);
+		}
+		close(fd);
+	}
+
+	if (tfile->last_status != new_status)
+		update_track_file_status(tfile, new_status);
+}
+
+static void
+process_inotify(int fd)
+{
+	char buf[sizeof(struct inotify_event) + NAME_MAX + 1];
+	char *buf_ptr;
+	ssize_t len;
+	struct inotify_event* event;
+	tracked_file_t *tfile;
+	element e;
+
+	while (true) {
+		if ((len = read(fd, buf, sizeof(buf))) < (ssize_t)sizeof(struct inotify_event)) {
+			if (len == -1) {
+				if (errno == EAGAIN)
+					return;
+
+				if (errno == EINTR)
+					continue;
+
+				log_message(LOG_INFO, "inotify read() returned error %d - %m", errno);
+				return;
+			}
+
+			log_message(LOG_INFO, "inotify read() returned short length %zd", len);
+			return;
+		}
+
+		for (buf_ptr = buf; buf_ptr < buf + len; buf_ptr += event->len + sizeof(struct inotify_event)) {
+			event = (struct inotify_event*)buf_ptr;
+
+			/* We are not interested in directories */
+			if (event->mask & IN_ISDIR)
+				continue;
+
+			if (!(event->mask & (IN_DELETE | IN_CLOSE_WRITE | IN_MOVE))) {
+				log_message(LOG_INFO, "Unknown inotify event 0x%x", event->mask);
+				continue;
+			}
+
+			for (e = LIST_HEAD(vrrp_data->vrrp_track_files); e; ELEMENT_NEXT(e)) {
+				tfile = ELEMENT_DATA(e);
+
+				/* Is this event for our file */
+				if (tfile->wd != event->wd ||
+				    strcmp(tfile->file_part, event->name))
+					continue;
+ 
+				if (event->mask & (IN_MOVED_FROM | IN_DELETE)) {
+					/* The file has disappeared. Treat as though the value is 0 */
+					update_track_file_status(tfile, 0);
+				}
+				else {	/* event->mask & (IN_MOVED_TO | IN_CLOSE_WRITE) */
+					/* The file has been writted/moved in */
+					process_track_file(tfile);
+				}
+			}
+		}
+	}
+}
+
+void
+init_track_files(list track_files)
+{
+	tracked_file_t *tfile;
+	char *resolved_path;
+	char *dir_end = NULL;
+	char *new_path;
+	struct stat stat_buf;
+	char sav_ch;
+	element e, next;
+
+	inotify_fd = -1;
+
+	if (LIST_ISEMPTY(track_files))
+		return;
+
+	set_process_track_inotify(&process_inotify);
+
+#ifdef HAVE_INOTIFY_INIT1
+	inotify_fd = inotify_init1(IN_CLOEXEC | IN_NONBLOCK);
+#else
+	inotify_fd = inotify_init();
+	if (inotify_fd != -1) {
+		fcntl(inotify_fd, F_SETFD, FD_CLOEXEC);
+		fcntl(inotify_fd, F_SETFL, O_NONBLOCK);
+	}
+#endif
+
+	if (inotify_fd == -1) {
+		log_message(LOG_INFO, "Unable to monitor vrrp track files");
+		return ;
+	}
+
+	for (e = LIST_HEAD(track_files); e; e = next) {
+		next = e->next;
+		tfile = ELEMENT_DATA(e);
+
+		if (!tfile->vrrp) {
+			/* No vrrp instance is tracking this file, so forget it */
+			log_message(LOG_INFO, "Track file %s is not being used - removing", tfile->fname);
+			remove_track_file(track_files, e);
+			continue;
+		}
+
+		resolved_path = realpath(tfile->file_path, NULL);
+		if (resolved_path) {
+			if (strcmp(tfile->file_path, resolved_path)) {
+				FREE(tfile->file_path);
+				tfile->file_path = MALLOC(strlen(resolved_path + 1));
+				strcpy(tfile->file_path, resolved_path);
+			}
+
+			/* The file exists, so read it now */
+			process_track_file(tfile);
+		}
+		else if (errno == ENOENT) {
+			/* Resolve the directory */
+			if (!(dir_end = strrchr(tfile->file_path, '/'))) 
+				resolved_path = realpath(".", NULL);
+			else {
+				*dir_end = '\0';
+				resolved_path = realpath(tfile->file_path, NULL);
+
+				/* Check it is a directory */
+				if (resolved_path &&
+				    (stat(resolved_path, &stat_buf) ||
+				     !S_ISDIR(stat_buf.st_mode))) {
+					free(resolved_path);
+					resolved_path = NULL;
+				}
+			}
+
+			if (!resolved_path) {
+				log_message(LOG_INFO, "Track file directory for %s does not exist - removing", tfile->fname);
+				remove_track_file(track_files, e);
+
+				continue;
+			}
+
+			if (strcmp(tfile->file_path, resolved_path)) {
+				new_path = MALLOC(strlen(resolved_path) + strlen((!dir_end) ? tfile->file_path : dir_end + 1) + 2);
+				strcpy(new_path, resolved_path);
+				strcat(new_path, "/");
+				strcat(new_path, dir_end ? dir_end + 1 : tfile->file_path);
+				FREE(tfile->file_path);
+				tfile->file_path = new_path;
+			}
+			else if (dir_end)
+				*dir_end = '/';
+		}
+		else {
+			log_message(LOG_INFO, "track file %s is not accessible - ignoring", tfile->fname);
+			remove_track_file(track_files, e);
+
+			continue;
+		}
+
+		if (resolved_path)
+			free(resolved_path);
+
+		tfile->file_part = strrchr(tfile->file_path, '/') + 1;
+		sav_ch = *tfile->file_part;
+		*tfile->file_part = '\0';
+		tfile->wd = inotify_add_watch(inotify_fd, tfile->file_path, IN_CLOSE_WRITE | IN_DELETE | IN_MOVE);
+		*tfile->file_part = sav_ch;
+	}
+}
+
+void
+stop_track_files(void)
+{
+	close(inotify_fd);
+	inotify_fd = -1;
 }

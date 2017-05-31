@@ -162,6 +162,22 @@ vscript_print(FILE *file, void *data)
 }
 
 static void
+vfile_print(FILE *file, void *data)
+{
+	tracked_file_t *vfile = data;
+
+	fprintf(file, " VRRP Track file = %s\n", vfile->fname);
+	fprintf(file, "   Last status = %d\n", vfile->last_status);
+	fprintf(file, "   Use count = %d\n", (vfile->vrrp) ? LIST_SIZE(vfile->vrrp) : 0);
+
+	fprintf(file, "   Tracking VRRP:\n");
+	if (vfile->vrrp)
+		vrrp_print_list(file, vfile->vrrp, &vrrp_name_print);
+	else
+		fprintf(file, "     (none)\n");
+}
+
+static void
 address_print(FILE *file, void *data)
 {
 	ip_address_t *ipaddr = data;
@@ -443,6 +459,10 @@ vrrp_print_data(void)
 	if (!LIST_ISEMPTY(vrrp_data->vrrp_script)) {
 		fprintf(file, "------< VRRP Scripts >------\n");
 		vrrp_print_list(file, vrrp_data->vrrp_script, &vscript_print);
+	}
+	if (!LIST_ISEMPTY(vrrp_data->vrrp_track_files)) {
+		fprintf(file, "------< VRRP Track files >------\n");
+		vrrp_print_list(file, vrrp_data->vrrp_track_files, &vfile_print);
 	}
 	fclose(file);
 

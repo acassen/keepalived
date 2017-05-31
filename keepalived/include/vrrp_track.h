@@ -78,6 +78,21 @@ typedef struct _tracked_sc {
 	vrrp_script_t		*scr;		/* script pointer, cannot be NULL */
 } tracked_sc_t;
 
+/* external file we read to track local processes */
+typedef struct _vrrp_file {
+	char			*fname;		/* File name */
+	char			*file_path;	/* Path to file */
+	char			*file_part;	/* Pointer to start of filename without directories */
+	int			wd;		/* Watch descriptor */
+	list			vrrp;		/* List of vrrp instances using this script */
+	int			last_status;	/* Last status returned by file. Used to report changes */
+} tracked_file_t;
+
+/* Tracked file structure definition */
+typedef struct _tracked_file {
+	tracked_file_t	*file;		/* track file pointer, cannot be NULL */
+} vrrp_tracked_file_t;
+
 /* Forward references */
 struct _vrrp_t;
 
@@ -94,9 +109,14 @@ extern void alloc_track(struct _vrrp_t *, vector_t *);
 extern void dump_track_script(void *);
 extern void free_track_script(void *);
 extern void alloc_track_script(struct _vrrp_t *, vector_t *);
+extern void dump_track_file(void *);
+extern void free_track_file(void *);
+extern void alloc_track_file(struct _vrrp_t *, vector_t *);
 extern vrrp_script_t *find_script_by_name(char *);
 extern void update_script_priorities(vrrp_script_t *, bool);
 extern void down_instance(struct _vrrp_t *);
 extern void initialise_tracking_priorities(struct _vrrp_t *);
+extern void init_track_files(list);
+extern void stop_track_files(void);
 
 #endif

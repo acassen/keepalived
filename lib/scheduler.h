@@ -126,9 +126,11 @@ extern prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #ifdef _WITH_SNMP_
 extern bool snmp_running;
 #endif
+extern int inotify_fd;
 
 /* Prototypes. */
 extern void set_child_finder(bool (*)(pid_t, char const **));
+extern void set_process_track_inotify(void (*)(int));
 extern bool report_child_status(int, pid_t, const char *);
 extern thread_master_t *thread_make_master(void);
 extern thread_t *thread_add_terminate_event(thread_master_t *);

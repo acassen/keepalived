@@ -60,6 +60,7 @@ prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #ifdef _WITH_SNMP_
 bool snmp_running;		/* True if this process is running SNMP */
 #endif
+int inotify_fd = -1;
 
 #ifdef _WITH_LVS_
 #include "../keepalived/include/check_daemon.h"
@@ -70,11 +71,18 @@ bool snmp_running;		/* True if this process is running SNMP */
 
 /* Function that returns if pid is a known child, and sets *prog_name accordingly */
 static bool (*child_finder)(pid_t pid, char const **prog_name);
+static void (*process_track_inotify)(int fd);
 
 void
 set_child_finder(bool (*func)(pid_t, char const **))
 {
 	child_finder = func;
+}
+
+void
+set_process_track_inotify(void (*func)(int))
+{
+	process_track_inotify = func;
 }
 
 /* report_child_status returns true if the exit is a hard error, so unable to continue */
@@ -725,6 +733,12 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	if (signal_fd >= m->max_fd)
 		fdsetsize = signal_fd + 1;
 
+	if (inotify_fd != -1) {
+		FD_SET(inotify_fd, &readfd);
+		if (inotify_fd > m->max_fd)
+			fdsetsize = inotify_fd + 1;
+	}
+
 #ifdef _WITH_SNMP_
 	/* When SNMP is enabled, we may have to select() on additional
 	 * FD. snmp_select_info() will add them to `readfd'. The trick
@@ -772,6 +786,13 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	/* handle signals synchronously, including child reaping */
 	if (num_fds && FD_ISSET(signal_fd, &readfd)) {
 		signal_run_callback();
+		num_fds--;
+	}
+
+	/* Handle any inotifies */
+	if (num_fds && FD_ISSET(inotify_fd, &readfd)) {
+		if (process_track_inotify)
+			process_track_inotify(inotify_fd);
 		num_fds--;
 	}
 

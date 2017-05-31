@@ -278,9 +278,10 @@ static_routes {							# block identification
 
 2. VRRP configuration
 
-This block is divided in 3 sub-block :
+This block is divided in 5 sub-blocks:
 
 	* VRRP scripts
+	* VRRP track files
 	* VRRP synchronization group
 	* VRRP gratuitous ARP/NA intervals
 	* VRRP instance
@@ -315,7 +316,28 @@ A positive weight means that <rise> successes will add <weight> to the priority 
 VRRP instances which monitor it. On the opposite, a negative weight will be subtracted
 from the initial priority in case of <fall> failures.
 
-	2.2. VRRP synchronization group
+	2.2. VRRP track files
+
+	The configuration block looks like:
+
+vrrp_track_file <STRING> {     # VRRP track file declaration
+    file <QUOTED_STRING>       # file to monitor
+}
+
+The file will be read whenever it is modified. The value in the file
+will be recorded for all VRRP instances which monitor it.
+Note that the file will only be read if at least one VRRP instance
+monitors it.
+
+The weight will be read from the file. If the weight is less than -253 any VRRP
+instance monitoring the script will transition to the fault state.
+
+If the vrrp instance is not the address owner and the weight is between -253 and 253,
+the value will be added to the initial priority of the VRRP instance (a negative value
+will reduce the priority), although the effective priority will be limited to the
+range [1,254].
+
+	2.3. VRRP synchronization group
 
 	The configuration block looks like :
 
@@ -366,7 +388,7 @@ Important: for a SYNC group to run reliably, it is vital that all instances in
 	   tracking weights are automatically set to zero, in order to avoid
 	   inconsistent priorities across instances.
 
-	2.3. VRRP gratuitous ARP/NA intervals
+	2.4. VRRP gratuitous ARP/NA intervals
 
 	This section allows the setting of delays between sending gratuitous ARPs
 	and unsolicited neighbour advertisements. This is intended for when an
@@ -395,7 +417,7 @@ garp_group {
 	interfaces that aren't specified in a garp_group will inherit the global
 	settings.
 
-	2.4. VRRP instance
+	2.5. VRRP instance
 
 	The configuration block looks like :
 
@@ -419,9 +441,14 @@ vrrp_instance <STRING> {		# VRRP instance declaration
       <STRING> weight <INTEGER:-254..254>
       ...
     }
-    track_script {                     # Scripts state we monitor
+    track_script {			# Scripts state we monitor
       <STRING>
       <STRING> weight <INTEGER:-254..254>
+      ...
+    }
+    track_file {			# Files state we monitor
+      <STRING>
+      <STRING>
       ...
     }
     dont_track_primary                  # (default unset) ignore VRRP interface faults.

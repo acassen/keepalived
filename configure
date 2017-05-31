@@ -6484,6 +6484,17 @@ _ACEOF
 fi
 done
 
+for ac_func in inotify_init1
+do :
+  ac_fn_c_check_func "$LINENO" "inotify_init1" "ac_cv_func_inotify_init1"
+if test "x$ac_cv_func_inotify_init1" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_INOTIFY_INIT1 1
+_ACEOF
+ BUILD_OPTIONS="$BUILD_OPTIONS INOTIFY_INIT1"
+fi
+done
+
 
 if test -n "$enable_dynamic_linking"; then
   enable_libiptc_dynamic=$enable_dynamic_linking

@@ -310,6 +310,11 @@ vrrp_track_scr_handler(__attribute__((unused)) vector_t *strvec)
 	alloc_value_block(alloc_vrrp_track_script);
 }
 static void
+vrrp_track_file_handler(__attribute__((unused)) vector_t *strvec)
+{
+	alloc_value_block(alloc_vrrp_track_file);
+}
+static void
 vrrp_dont_track_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -809,6 +814,31 @@ vrrp_vscript_end_handler(void)
 	vscript->script.gid = default_script_gid;
 }
 static void
+vrrp_tfile_handler(vector_t *strvec)
+{
+	alloc_vrrp_file(strvec_slot(strvec, 1));
+}
+static void
+vrrp_tfile_file_handler(vector_t *strvec)
+{
+	tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
+	if (tfile->file_path) {
+		log_message(LOG_INFO, "File already set for track file %s - ignoring %s", tfile->fname, FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+	tfile->file_path = set_value(strvec);
+}
+static void
+vrrp_tfile_end_handler(void)
+{
+	tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
+
+	if (!tfile->file_path) {
+		log_message(LOG_INFO, "No file set for track_file %s - removing", tfile->fname);
+		free_list_element(vrrp_data->vrrp_track_files, vrrp_data->vrrp_track_files->tail);
+	}
+}
+static void
 vrrp_vscript_init_fail_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
@@ -953,7 +983,7 @@ init_vrrp_keywords(bool active)
 	install_keyword_root("static_rules", &static_rules_handler, active);
 #endif
 
-	/* VRRP Instance mapping */
+	/* Sync group declarations */
 	install_keyword_root("vrrp_sync_group", &vrrp_sync_group_handler, active);
 	install_keyword("group", &vrrp_group_handler);
 	install_keyword("notify_backup", &vrrp_gnotify_backup_handler);
@@ -969,6 +999,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("interface", &garp_group_interface_handler);
 	install_keyword("interfaces", &garp_group_interfaces_handler);
 
+	/* VRRP Instance mapping */
 	install_keyword_root("vrrp_instance", &vrrp_handler, active);
 #ifdef _HAVE_VRRP_VMAC_
 	install_keyword("use_vmac", &vrrp_vmac_handler);
@@ -981,6 +1012,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("dont_track_primary", &vrrp_dont_track_handler);
 	install_keyword("track_interface", &vrrp_track_int_handler);
 	install_keyword("track_script", &vrrp_track_scr_handler);
+	install_keyword("track_file", &vrrp_track_file_handler);
 	install_keyword("mcast_src_ip", &vrrp_srcip_handler);
 	install_keyword("unicast_src_ip", &vrrp_srcip_handler);
 	install_keyword("virtual_router_id", &vrrp_vrid_handler);
@@ -1037,6 +1069,11 @@ init_vrrp_keywords(bool active)
 	install_keyword("user", &vrrp_vscript_user_handler);
 	install_keyword("init_fail", &vrrp_vscript_init_fail_handler);
 	install_sublevel_end_handler(&vrrp_vscript_end_handler);
+
+	/* Track file declarations */
+	install_keyword_root("vrrp_track_file", &vrrp_tfile_handler, active);
+	install_keyword("file", &vrrp_tfile_file_handler);
+	install_sublevel_end_handler(&vrrp_tfile_end_handler);
 }
 
 vector_t *

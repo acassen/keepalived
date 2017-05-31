@@ -27,6 +27,7 @@
 #include "logger.h"
 #include "global_data.h"
 #include "main.h"
+#include "utils.h"
 
 #include <net-snmp/agent/agent_sysORTable.h>
 

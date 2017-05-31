@@ -338,6 +338,25 @@ and
     init_fail                   # assume script initially is in failed state
  }
 .PP
+.SH VRRP track files
+.PP
+ # Adds a file to be monitored. The script will be read whenever it is
+ # modified. The value in the file will be recorded for all VRRP instances
+ # which monitor it.
+ # Note that the file will only be read if at least one VRRP instance
+ # monitors it.
+ # 
+ # The weight will be read from the file. If the weight is less than -253 any VRRP 
+ # instance monitoring the script will transition to the fault state.
+ # 
+ # If the vrrp instance is not the address owner and the weight is between -253 and 253,
+ # the value will be added to the initial priority of the VRRP instance (a negative value
+ # will reduce the priority), although the effective priority will be limited to the
+ # range [1,254].
+ vrrp_track_file <STRING> {    # VRRP track file declaration
+    file <QUOTED_STRING>        # file to track
+ }
+.PP
 .SH VRRP synchronization group(s)
 .PP
  #string, name of group of IPs that failover together
@@ -461,6 +480,13 @@ which will transition together on any state change.
     track_script {
         <SCRIPT_NAME>
         <SCRIPT_NAME> weight <-254..254>
+    }
+
+    # Files whose state we monitor, value is added to effective priority. <STRING> is the name of a vrrp_status_file
+    track_file {
+	<STRING>
+	<STRING>
+	...
     }
 
     # default IP for binding vrrpd is the primary IP

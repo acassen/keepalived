@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201704110001Z"
+     LAST-UPDATED "201705300000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201705300000Z"
+     DESCRIPTION "add vrrp track files"
      REVISION "201704110001Z"
      DESCRIPTION "add real server forwarding method"
      REVISION "201704110000Z"
@@ -785,7 +787,7 @@ vrrpTrackedScriptTable OBJECT-TYPE
     MAX-ACCESS not-accessible
     STATUS current
     DESCRIPTION
-        "Table of tracked interfaces for each VRRP instance."
+        "Table of tracked scripts for each VRRP instance."
     ::= { vrrp 5 }
 
 vrrpTrackedScriptEntry OBJECT-TYPE
@@ -2055,6 +2057,105 @@ vrrpScriptFall OBJECT-TYPE
     DESCRIPTION
         "How many times the script should fail before KO."
     ::= { vrrpScriptEntry 8 }
+
+-- VRRP files
+-- see vrrp_track.h
+
+vrrpTrackedFileTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VrrpTrackedFileEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Table of tracked files for each VRRP instance."
+    ::= { vrrp 12 }
+
+vrrpTrackedFileEntry OBJECT-TYPE
+    SYNTAX VrrpTrackedFileEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Information describing a tracked file"
+    INDEX { vrrpInstanceIndex, vrrpTrackedFileIndex }
+    ::= { vrrpTrackedFileTable 1 }
+
+VrrpTrackedFileEntry ::= SEQUENCE {
+    vrrpTrackedFileIndex Integer32,
+    vrrpTrackedFileName DisplayString
+}
+
+vrrpTrackedFileIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Index of the tracked file in the set of tracked files for
+         the given VRRP instance. This index has no relation with the
+         index of vrrpFileTable."
+    ::= { vrrpTrackedFileEntry 1 }
+
+vrrpTrackedFileName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Name of the tracked interface."
+    ::= { vrrpTrackedFileEntry 2 }
+
+vrrpFileTable OBJECT-TYPE
+    SYNTAX SEQUENCE OF VrrpFileEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Table of VRRP files"
+    ::= { vrrp 13 }
+
+vrrpFileEntry OBJECT-TYPE
+    SYNTAX VrrpFileEntry
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "Information describing a VRRP file"
+    INDEX { vrrpFileIndex }
+    ::= { vrrpFileTable 1 }
+
+VrrpFileEntry ::= SEQUENCE {
+    vrrpFileIndex Integer32,
+    vrrpFileName DisplayString,
+    vrrpFilePath DisplayString,
+    vrrpFileResult INTEGER
+}
+
+vrrpFileIndex OBJECT-TYPE
+    SYNTAX Integer32 (1..2147483647)
+    MAX-ACCESS not-accessible
+    STATUS current
+    DESCRIPTION
+        "File index."
+    ::= { vrrpFileEntry 1 }
+
+vrrpFileName OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Symbolic name of the file."
+    ::= { vrrpFileEntry 2 }
+
+vrrpFilePath OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Path of track file."
+    ::= { vrrpFileEntry 3 }
+
+vrrpFileResult OBJECT-TYPE
+    SYNTAX Integer32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Current status of the file."
+    ::= { vrrpFileEntry 4 }
 
 -- Traps
 
@@ -3419,7 +3520,8 @@ vrrpCompliances MODULE-COMPLIANCE
     vrrpScriptGroup,
     vrrpSyncGroup,
     vrrpInstanceGroup,
-    vrrpTrapsGroup
+    vrrpTrapsGroup,
+    vrrpFileGroup
     }
     ::= { compliances 2 }
 
@@ -3523,6 +3625,7 @@ vrrpInstanceGroup OBJECT-GROUP
     vrrpTrackedInterfaceWeight,
     vrrpTrackedScriptName,
     vrrpTrackedScriptWeight,
+    vrrpTrackedFileName,
     vrrpAddressType,
     vrrpAddressValue,
     vrrpAddressBroadcast,
@@ -3680,6 +3783,17 @@ vrrpObsoleteInstanceGroup OBJECT-GROUP
     DESCRIPTION
         "Obsolete group for VRRP instances."
     ::= { vrrpGroups 6 }
+
+vrrpFileGroup OBJECT-GROUP
+    OBJECTS {
+    vrrpFileName,
+    vrrpFilePath,
+    vrrpFileResult
+    }
+    STATUS current
+    DESCRIPTION
+        "Conformance group for VRRP track files."
+    ::= { vrrpGroups 7 }
 
 checkGroups OBJECT IDENTIFIER ::= { groups 3 }
 

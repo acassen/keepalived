@@ -182,6 +182,37 @@ dump_vscript(void *data)
 		log_message(LOG_INFO, "     (none)");
 }
 
+void
+dump_vfile_vrrp(void *data)
+{
+	vrrp_t *vrrp = (vrrp_t *)data;
+	log_message(LOG_INFO, "     %s", vrrp->iname);
+}
+
+static void
+free_vfile(void *data)
+{
+	tracked_file_t *vfile = data;
+
+	free_list(&vfile->vrrp);
+	FREE(vfile->fname);
+	FREE(vfile);
+}
+static void
+dump_vfile(void *data)
+{
+	tracked_file_t *vfile = data;
+
+	log_message(LOG_INFO, " VRRP Track file = %s", vfile->fname);
+	log_message(LOG_INFO, "   File = %s", vfile->file_path);
+	log_message(LOG_INFO, "   Use count = %d", vfile->vrrp ? LIST_SIZE(vfile->vrrp) : 0);
+	log_message(LOG_INFO, "   VRRP instances:");
+	if (vfile->vrrp)
+		dump_list(vfile->vrrp);
+	else
+		log_message(LOG_INFO, "     (none)");
+}
+
 /* Socket pool functions */
 static void
 free_sock(void *sock_data)
@@ -241,6 +272,7 @@ free_vrrp(void *data)
 
 	free_list(&vrrp->track_ifp);
 	free_list(&vrrp->track_script);
+	free_list(&vrrp->track_file);
 	free_list(&vrrp->unicast_peer);
 	free_list(&vrrp->vip);
 	free_list(&vrrp->evip);
@@ -317,6 +349,10 @@ dump_vrrp(void *data)
 	if (!LIST_ISEMPTY(vrrp->track_script)) {
 		log_message(LOG_INFO, "   Tracked scripts = %d", LIST_SIZE(vrrp->track_script));
 		dump_list(vrrp->track_script);
+	}
+	if (!LIST_ISEMPTY(vrrp->track_file)) {
+		log_message(LOG_INFO, "   Tracked files = %d", LIST_SIZE(vrrp->track_file));
+		dump_list(vrrp->track_file);
 	}
 	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
 		log_message(LOG_INFO, "   Unicast Peer = %d", LIST_SIZE(vrrp->unicast_peer));
@@ -482,6 +518,16 @@ alloc_vrrp_track_script(vector_t *strvec)
 }
 
 void
+alloc_vrrp_track_file(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	if (!LIST_EXISTS(vrrp->track_file))
+		vrrp->track_file = alloc_list(free_track_file, dump_track_file);
+	alloc_track_file(vrrp, strvec);
+}
+
+void
 alloc_vrrp_vip(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
@@ -528,7 +574,7 @@ alloc_vrrp_script(char *sname)
 	size_t size = strlen(sname);
 	vrrp_script_t *new;
 
-	/* Allocate new VRRP group structure */
+	/* Allocate new VRRP script structure */
 	new = (vrrp_script_t *) MALLOC(sizeof(vrrp_script_t));
 	new->sname = (char *) MALLOC(size + 1);
 	memcpy(new->sname, sname, size + 1);
@@ -540,6 +586,19 @@ alloc_vrrp_script(char *sname)
 	new->rise = 1;
 	new->fall = 1;
 	list_add(vrrp_data->vrrp_script, new);
+}
+
+void
+alloc_vrrp_file(char *fname)
+{
+	size_t size = strlen(fname);
+	tracked_file_t *new;
+
+	/* Allocate new VRRP file structure */
+	new = (tracked_file_t *) MALLOC(sizeof(tracked_file_t));
+	new->fname = (char *) MALLOC(size + 1);
+	memcpy(new->fname, fname, size + 1);
+	list_add(vrrp_data->vrrp_track_files, new);
 }
 
 /* data facility functions */
@@ -569,6 +628,7 @@ alloc_vrrp_data(void)
 	new->vrrp_index_fd = alloc_mlist(NULL, NULL, 1024+1);
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
 	new->vrrp_script = alloc_list(free_vscript, dump_vscript);
+	new->vrrp_track_files = alloc_list(free_vfile, dump_vfile);
 	new->vrrp_socket_pool = alloc_list(free_sock, dump_sock);
 
 	return new;
@@ -585,6 +645,7 @@ free_vrrp_data(vrrp_data_t * data)
 	free_list(&data->vrrp);
 	free_list(&data->vrrp_sync_group);
 	free_list(&data->vrrp_script);
+	free_list(&data->vrrp_track_files);
 	FREE(data);
 }
 
@@ -614,5 +675,9 @@ dump_vrrp_data(vrrp_data_t * data)
 	if (!LIST_ISEMPTY(data->vrrp_script)) {
 		log_message(LOG_INFO, "------< VRRP Scripts >------");
 		dump_list(data->vrrp_script);
+	}
+	if (!LIST_ISEMPTY(data->vrrp_track_files)) {
+		log_message(LOG_INFO, "------< VRRP Track files >------");
+		dump_list(data->vrrp_track_files);
 	}
 }
