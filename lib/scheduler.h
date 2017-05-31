@@ -91,7 +91,7 @@ enum {
 	THREAD_IF_DOWN
 };
 
-#ifndef _DEBUG__
+#ifndef _DEBUG_
 typedef enum {
 	PROG_TYPE_PARENT,
 #ifdef _WITH_VRRP_
