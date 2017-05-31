@@ -448,15 +448,14 @@ static void
 vrrp_preempt_delay_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-// TODO - make preempt_delay support centi-seconds (see adver_int for implementation)
-	unsigned long preempt_delay = strtoul(vector_slot(strvec, 1), NULL, 10);
+	unsigned long preempt_delay = (unsigned long)(atof(vector_slot(strvec, 1)) * TIMER_HZ);
 
-	if (VRRP_IS_BAD_PREEMPT_DELAY(preempt_delay)) {
+	if (preempt_delay > TIMER_MAX_SEC * TIMER_HZ) {
 		log_message(LOG_INFO, "(%s): Preempt_delay not valid! must be between 0-%d", vrrp->iname, TIMER_MAX_SEC);
 		vrrp->preempt_delay = 0;
 	}
 	else
-		vrrp->preempt_delay = preempt_delay * TIMER_HZ;
+		vrrp->preempt_delay = preempt_delay;
 }
 static void
 vrrp_notify_backup_handler(vector_t *strvec)

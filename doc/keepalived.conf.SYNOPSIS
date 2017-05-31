@@ -514,7 +514,7 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     }
 
     nopreempt					# Override VRRP RFC preemption default
-    preempt_delay				# Seconds after startup or seeing a lower priority master
+    preempt_delay <FLOAT>			# Seconds after startup or seeing a lower priority master
 						#  until preemption. 0 (default) to 1,000
     strict_mode [<BOOL>]			# See description of global vrrp_strict
 						# If vrrp_strict is not specified, it takes the value of vrrp_strict
