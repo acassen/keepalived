@@ -65,6 +65,7 @@
 #ifdef _LIBNL_DYNAMIC_
 #include "libnl_link.h"
 #endif
+#include "vrrp_ipaddress.h"
 
 /* Default values */
 #define IF_DEFAULT_BUFSIZE	(65*1024)
@@ -78,6 +79,61 @@ int netlink_error_ignore;	/* If we get this error, ignore it */
 /* Static vars */
 static nl_handle_t nl_kernel;	/* Kernel reflection channel */
 static int nlmsg_buf_size;	/* Size of netlink message buffer */
+
+static inline bool
+addr_is_equal(struct ifaddrmsg* ifa, void* addr, ip_address_t* vip_addr, interface_t *ifp)
+{
+	struct in_addr* sin_addr;
+	struct in6_addr* sin6_addr;
+
+	if (vip_addr->ifa.ifa_family != ifa->ifa_family)
+		return false;
+	if (vip_addr->ifp != ifp)
+		return false;
+	if (vip_addr->ifa.ifa_family == AF_INET) {
+		sin_addr = (struct in_addr *)addr;
+		return vip_addr->u.sin.sin_addr.s_addr == sin_addr->s_addr;
+	}
+
+	sin6_addr = (struct in6_addr*)addr;
+	return vip_addr->u.sin6_addr.s6_addr32[0] == sin6_addr->s6_addr32[0] &&
+	       vip_addr->u.sin6_addr.s6_addr32[1] == sin6_addr->s6_addr32[1] &&
+	       vip_addr->u.sin6_addr.s6_addr32[2] == sin6_addr->s6_addr32[2] &&
+	       vip_addr->u.sin6_addr.s6_addr32[3] == sin6_addr->s6_addr32[3];
+}
+
+static bool
+address_is_ours(struct ifaddrmsg* ifa, struct in_addr* addr, interface_t* ifp)
+{
+	element e, e1;
+	tracking_vrrp_t* tvp;
+	vrrp_t* vrrp;
+
+	if (LIST_ISEMPTY(ifp->tracking_vrrp))
+		return false;
+
+	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
+		tvp = ELEMENT_DATA(e);
+		vrrp = tvp->vrrp;
+
+		if (ifa->ifa_family == vrrp->family &&
+		    !LIST_ISEMPTY(vrrp->vip)) {
+			for (e1 = LIST_HEAD(vrrp->vip); e1; ELEMENT_NEXT(e1)) {
+				if (addr_is_equal(ifa, addr, ELEMENT_DATA(e1), ifp))
+					return true;
+			}
+		}
+
+		if (!LIST_ISEMPTY(vrrp->evip)) {
+			for (e1 = LIST_HEAD(vrrp->evip); e1; ELEMENT_NEXT(e1)) {
+				if (addr_is_equal(ifa, addr, ELEMENT_DATA(e1), ifp))
+					return true;
+			}
+		}
+	}
+
+	return false;
+}
 
 void
 netlink_set_recv_buf_size(void)
@@ -547,6 +603,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	size_t len;
 	void *addr;
 	char addr_str[INET6_ADDRSTRLEN];
+	bool log_addr = false;
 
 	if (h->nlmsg_type != RTM_NEWADDR && h->nlmsg_type != RTM_DELADDR)
 		return 0;
@@ -586,23 +643,45 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 		if (!ifp)
 			return 0;
 
-		/* If no address is set on interface then set the first time */
-		if (ifa->ifa_family == AF_INET) {
-			if (!ifp->sin_addr.s_addr)
-				ifp->sin_addr = *(struct in_addr *) addr;
-		} else {
-			if (!ifp->sin6_addr.s6_addr16[0] && ifa->ifa_scope == RT_SCOPE_LINK)
-				ifp->sin6_addr = *(struct in6_addr *) addr;
+		if (!ifp->vmac) {
+			if (h->nlmsg_type == RTM_NEWADDR) {
+				/* If no address is set on interface then set the first time */
+				if (ifa->ifa_family == AF_INET) {
+					if (!ifp->sin_addr.s_addr) {
+						ifp->sin_addr = *(struct in_addr *) addr;
+						log_addr = true;
+					}
+				} else {
+					if (!ifp->sin6_addr.s6_addr16[0] && ifa->ifa_scope == RT_SCOPE_LINK) {
+						ifp->sin6_addr = *(struct in6_addr *) addr;
+						log_addr = true;
+					}
+				}
+
+				if (log_addr) {
+					inet_ntop(ifa->ifa_family, addr, addr_str, sizeof(addr_str));
+					log_message(LOG_INFO, "Assigned address %s for interface %s"
+							    , addr_str, ifp->ifname);
+				}
+			}
+			else {
+				/* If the address we are using is deleted - TODO */
+				/* Either send a netlink request for current addresses, or we keep a list */
+			}
 		}
+
+		/* Display netlink operation */
+		if (!log_addr &&
+		    __test_bit(LOG_DETAIL_BIT, &debug) &&
+		    (__test_bit(LOG_ADDRESS_CHANGES, &debug) ||
+		     address_is_ours(ifa, addr, ifp))) {
+			inet_ntop(ifa->ifa_family, addr, addr_str, sizeof(addr_str));
+			log_message(LOG_INFO, "Netlink reflector reports IP %s %s %s"
+					    , addr_str, h->nlmsg_type == RTM_NEWADDR ? "added to" : "removed from", ifp->ifname);
+		}
+
 	}
 #endif
-
-	/* Display netlink operation */
-	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
-		inet_ntop(ifa->ifa_family, addr, addr_str, sizeof(addr_str));
-		log_message(LOG_INFO, "Netlink reflector reports IP %s %s"
-				    , addr_str, h->nlmsg_type == RTM_NEWADDR ? "added" : "removed");
-	}
 
 #ifdef _WITH_LVS_
 #ifndef _DEBUG_
