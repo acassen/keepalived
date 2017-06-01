@@ -224,16 +224,8 @@ clear_services(void)
 		vs = ELEMENT_DATA(e);
 		if (vs->vsg) {
 			/* Only clear the first virtual server for a virtual server group */
-			if (vs->addr.ss_family == AF_INET6) {
-				if (vs->addr.ss_family == AF_INET6) {
-					if (!((struct sockaddr_in6 *)&vs->addr)->sin6_port)
-						continue;
-				}
-				else {
-					if (!((struct sockaddr_in *)&vs->addr)->sin_port)
-						continue;
-				}
-			}
+			if (ntohs(inet_sockaddrport(&vs->addr)))
+				continue;
 		}
 		clear_service_vs(vs, false);
 	}
