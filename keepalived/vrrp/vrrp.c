@@ -1901,6 +1901,11 @@ static void free_tracking_vrrp(void *data)
 	FREE(data);
 }
 
+static void free_tracking_ifp(void *data)
+{
+	FREE(data);
+}
+
 static void
 add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight)
 {
@@ -1919,6 +1924,19 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight)
 	     (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp)) &&
 	    !FLAGS_UP(ifp->ifi_flags))
 		vrrp->num_script_if_fault++;
+}
+
+static void
+add_interface_to_vrrp(vrrp_t *vrrp, interface_t *ifp)
+{
+	tracked_if_t *tip = MALLOC(sizeof *tip);
+
+	tip->ifp = ifp;
+	tip->weight = 0;
+
+	if (!LIST_EXISTS(vrrp->track_ifp))
+		vrrp->track_ifp = alloc_list(free_tracking_ifp, NULL);
+	list_add(vrrp->track_ifp, tip);
 }
 
 /* check for minimum configuration requirements */
@@ -2561,8 +2579,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
-	/* Add this instance to the physical interface */
+	/* Add this instance to the physical interface and vice versa */
 	add_vrrp_to_interface(vrrp, IF_BASE_IFP(vrrp->ifp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0);
+	if (!vrrp->dont_track_primary)
+		add_interface_to_vrrp(vrrp, IF_BASE_IFP(vrrp->ifp));
 
 #ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
@@ -2592,6 +2612,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		/* Add this instance to the vmac interface */
 		add_vrrp_to_interface(vrrp, vrrp->ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0);
+		if (!vrrp->dont_track_primary)
+			add_interface_to_vrrp(vrrp, vrrp->ifp);
 
 		/* set scopeid of source address if IPv6 */
 		if (vrrp->saddr.ss_family == AF_INET6)
