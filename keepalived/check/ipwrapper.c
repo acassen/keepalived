@@ -918,9 +918,9 @@ link_vsg_to_vs(void)
 
 			if (!strcmp(vs->vsgname, vsg->gname)) {
 				if (vs->addr.ss_family == AF_INET6)
-					((struct sockaddr_in6 *)&vs->addr)->sin6_port = ntohs(vsg_member_no);
+					((struct sockaddr_in6 *)&vs->addr)->sin6_port = htons(vsg_member_no);
 				else
-					((struct sockaddr_in *)&vs->addr)->sin_port = ntohs(vsg_member_no);
+					((struct sockaddr_in *)&vs->addr)->sin_port = htons(vsg_member_no);
 				vsg_member_no++;
 			}
 		}
