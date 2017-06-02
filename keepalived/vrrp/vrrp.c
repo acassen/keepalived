@@ -2558,12 +2558,13 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			if (!IF_BASE_IFP(vrrp->ifp)->sin_addr.s_addr)
 				addr_missing = true;
 		}
+		else {
 #ifdef _HAVE_VRRP_VMAC_
-		else if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
-			if (!IF_BASE_IFP(vrrp->ifp)->sin6_addr.s6_addr32[0])
-				addr_missing = true;
-		}
+			if (!__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 #endif
+				if (!IF_BASE_IFP(vrrp->ifp)->sin6_addr.s6_addr32[0])
+					addr_missing = true;
+		}
 
 		if (vrrp->ifp->ifindex && addr_missing) {
 			log_message(LOG_INFO, "(%s): Cannot find an IP address to use for interface %s", vrrp->iname, IF_BASE_IFP(vrrp->ifp)->ifname);
