@@ -2880,13 +2880,20 @@ vrrp_complete_init(void)
 
 		if (vrrp->sync) {
 			if (vrrp->state == VRRP_STATE_FAULT) {
-				vrrp->sync->state = VRRP_STATE_FAULT;
-// TODO-PQA - do we update this elsewhere? */
+				if (vrrp->sync->state != VRRP_STATE_FAULT) {
+					vrrp->sync->state = VRRP_STATE_FAULT;
+					log_message(LOG_INFO, "VRRP_Group(%s): Syncing instances to FAULT state", vrrp->sync->gname);
+					notify_group_exec(vrrp->sync, VRRP_STATE_FAULT);
+#ifdef _WITH_SNMP_KEEPALIVED_
+					vrrp_snmp_group_trap(vrrp->sync);
+#endif
+//					vrrp_sync_smtp_notifier(vrrp->sync);
+				}
+
 				vrrp->sync->num_member_fault++;
 			}
 			if (vrrp->num_script_init) {
 				/* Update init count on sync group if needed */
-// TODO-PQA - do we update this elsewhere? */
 				vrrp->sync->num_member_init++;
 				if (vrrp->sync->state != VRRP_STATE_FAULT)
 					vrrp->sync->state = VRRP_STATE_INIT;
@@ -2901,8 +2908,20 @@ vrrp_complete_init(void)
 	/* Set all sync group members to fault state if sync group is in fault state */
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
-		if (vrrp->sync && vrrp->sync->state == VRRP_STATE_FAULT)
+
+		if (vrrp->state == VRRP_STATE_FAULT ||
+		    (vrrp->sync && vrrp->sync->state == VRRP_STATE_FAULT)) {
 			vrrp->state = VRRP_STATE_FAULT;
+
+			log_message(LOG_INFO, "(%s): entering FAULT state", vrrp->iname);
+
+			notify_instance_exec(vrrp, VRRP_STATE_FAULT);
+#ifdef _WITH_SNMP_KEEPALIVED_
+			vrrp_snmp_instance_trap(vrrp);
+#endif
+//			vrrp_smtp_notifier(vrrp);
+
+		}
 	}
 
 	if (reload) {
