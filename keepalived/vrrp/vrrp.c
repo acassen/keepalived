@@ -2884,7 +2884,7 @@ vrrp_complete_init(void)
 // TODO-PQA - do we update this elsewhere? */
 				vrrp->sync->num_member_fault++;
 			}
-			else if (vrrp->num_script_init) {
+			if (vrrp->num_script_init) {
 				/* Update init count on sync group if needed */
 // TODO-PQA - do we update this elsewhere? */
 				vrrp->sync->num_member_init++;
