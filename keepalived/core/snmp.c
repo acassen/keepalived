@@ -99,6 +99,7 @@ enum snmp_global_magic {
 	SNMP_MAIL_SMTPSERVERTIMEOUT,
 	SNMP_MAIL_EMAILFROM,
 	SNMP_MAIL_EMAILADDRESS,
+	SNMP_MAIL_EMAILFAULTS,
 	SNMP_MAIL_SMTPSERVERPORT,
 	SNMP_TRAPS,
 	SNMP_LINKBEAT,
@@ -149,6 +150,9 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		if (!global_data->email_from) return NULL;
 		*var_len = strlen(global_data->email_from);
 		return (u_char *)global_data->email_from;
+	case SNMP_MAIL_EMAILFAULTS:
+		long_ret = global_data->email_faults?1:2;
+		return (u_char *)&long_ret;
 	case SNMP_TRAPS:
 		long_ret = global_data->enable_traps?1:2;
 		return (u_char *)&long_ret;
@@ -226,6 +230,8 @@ static struct variable8 global_vars[] = {
 	{SNMP_MAIL_EMAILADDRESS, ASN_OCTET_STR, RONLY, snmp_mail, 4, {3, 5, 1, 2}},
 	/* SMTP server port */
 	{SNMP_MAIL_SMTPSERVERPORT, ASN_UNSIGNED, RONLY, snmp_scalar, 2, {3, 6}},
+	/* are vrrp fault state transitions emailed */
+	{SNMP_MAIL_EMAILFAULTS, ASN_OCTET_STR, RONLY, snmp_scalar, 2, {3, 7}},
 	/* trapEnable */
 	{SNMP_TRAPS, ASN_INTEGER, RONLY, snmp_scalar, 1, {4}},
 	/* linkBeat */

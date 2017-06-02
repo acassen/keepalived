@@ -103,6 +103,7 @@ global_defs {				# Block identification
 					   #  defaults to local host name
     smtp_connect_timeout <INTEGER>	   # Number of seconds timeout connect
  					   #  remote SMTP server
+    email_faults			   # Send smtp alerts for fault conditions
     router_id <STRING>			   # String identifying router
     vrrp_garp_interval <DECIMAL>           # Sets the default interval between Gratuitous ARP
 					   #   (in seconds, resolution microseconds)
@@ -364,7 +365,7 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
 				# Script to run during FAULT transit
     notify <STRING>|<QUOTED-STRING> [username [groupname]]
 				# Script to run during ANY state transit (1)
-    smtp_alert		 # Send email notification during state transit
+    smtp_alert			# Send email notification during state transit
 }
 
 (1) The "notify" script is called AFTER the corresponding notify_* script has

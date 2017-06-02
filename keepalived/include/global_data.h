@@ -71,6 +71,7 @@ typedef struct _data {
 	char				*smtp_helo_name;
 	unsigned long			smtp_connection_to;
 	list				email;
+	bool				email_faults;
 #ifdef _WITH_VRRP_
 	interface_t			*default_ifp;		/* Default interface for static addresses */
 #endif

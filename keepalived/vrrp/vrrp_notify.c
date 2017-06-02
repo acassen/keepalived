@@ -223,6 +223,7 @@ static void
 vrrp_smtp_notifier(vrrp_t * vrrp)
 {
 	if (vrrp->smtp_alert &&
+	    (global_data->email_faults || vrrp->state != VRRP_STATE_FAULT) &&
 	    vrrp->last_email_state != vrrp->state) {
 		if (vrrp->state == VRRP_STATE_MAST)
 			smtp_alert(NULL, vrrp, NULL,
@@ -242,6 +243,7 @@ static void
 vrrp_sync_smtp_notifier(vrrp_sgroup_t *vgroup)
 {
 	if (vgroup->smtp_alert &&
+	    (global_data->email_faults || vgroup->state != VRRP_STATE_FAULT) &&
 	    vgroup->last_email_state != vgroup->state) {
 		if (vgroup->state == VRRP_STATE_MAST)
 			smtp_alert(NULL, NULL, vgroup,
@@ -271,8 +273,7 @@ send_instance_notifies(vrrp_t *vrrp)
 		vrrp_rfcv3_snmp_new_master_notify(vrrp);
 #endif
 	}
-	if (vrrp->state != VRRP_STATE_FAULT)
-		vrrp_smtp_notifier(vrrp);
+	vrrp_smtp_notifier(vrrp);
 }
 
 void
@@ -282,6 +283,5 @@ send_group_notifies(vrrp_sgroup_t *vgroup)
 #ifdef _WITH_SNMP_KEEPALIVED_
 	vrrp_snmp_group_trap(vgroup);
 #endif
-	if (vgroup->state != VRRP_STATE_FAULT)
-		vrrp_sync_smtp_notifier(vgroup);
+	vrrp_sync_smtp_notifier(vgroup);
 }

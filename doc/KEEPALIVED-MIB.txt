@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201705300000Z"
+     LAST-UPDATED "201706020000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201706020000Z"
+     DESCRIPTION "add smtpEmailFaults"
      REVISION "201705300000Z"
      DESCRIPTION "add vrrp track files"
      REVISION "201704110001Z"
@@ -212,6 +214,14 @@ smtpServerPort OBJECT-TYPE
     DESCRIPTION
         "Port of SMTP server."
     ::= { mail 6 }
+
+smtpEmailFaults OBJECT-TYPE
+    SYNTAX INTEGER { enabled(1), disabled(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Email vrrp fault state transitions."
+    ::= { mail 7 }
 
 emailEntry OBJECT-TYPE
     SYNTAX EmailEntry
@@ -3562,6 +3572,7 @@ globalGroup OBJECT-GROUP
     emailFrom,
     emailAddress,
     smtpServerPort,
+    smtpEmailFaults,
     trapEnable,
     linkBeat,
     lvsFlush,
