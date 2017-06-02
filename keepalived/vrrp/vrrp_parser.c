@@ -790,7 +790,7 @@ vrrp_vscript_end_handler(void)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
 
-	if (!vscript->script.args[0]) {
+	if (!vscript->script.args || !vscript->script.args[0]) {
 		log_message(LOG_INFO, "No script set for vrrp_script %s - removing", vscript->sname);
 		remove_script = true;
 	}
