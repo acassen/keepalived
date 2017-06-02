@@ -790,7 +790,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	}
 
 	/* Handle any inotifies */
-	if (num_fds && FD_ISSET(inotify_fd, &readfd)) {
+	if (num_fds && inotify_fd != -1 && FD_ISSET(inotify_fd, &readfd)) {
 		if (process_track_inotify)
 			process_track_inotify(inotify_fd);
 		num_fds--;
