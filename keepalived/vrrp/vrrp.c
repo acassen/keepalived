@@ -1556,6 +1556,8 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 #ifdef _WITH_SNMP_KEEPALIVED_
 	vrrp_snmp_instance_trap(vrrp);
 #endif
+	if (vrrp->state != VRRP_STATE_FAULT)
+		vrrp_smtp_notifier(vrrp);
 
 	/* Set the down timer */
 	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
@@ -1567,6 +1569,8 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 void
 vrrp_state_leave_fault(vrrp_t * vrrp)
 {
+	int	old_state;
+
 	/* set the new vrrp state */
 	if (vrrp->wantstate == VRRP_STATE_MAST)
 		vrrp_state_goto_master(vrrp);
@@ -1576,6 +1580,7 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 			vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 			vrrp_restore_interface(vrrp, false, false);
 		}
+		old_state = vrrp->state;
 		vrrp->state = vrrp->wantstate;
 		notify_instance_exec(vrrp, vrrp->state);
 		if (vrrp->state == VRRP_STATE_BACK) {
@@ -1585,6 +1590,9 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 #ifdef _WITH_SNMP_KEEPALIVED_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
+		// TODO SMTP
+		if (old_state == VRRP_STATE_INIT && vrrp->state != VRRP_STATE_FAULT)
+			vrrp_smtp_notifier(vrrp);
 	}
 
 	/* Set the down timer */
@@ -2883,9 +2891,9 @@ vrrp_complete_init(void)
 				if (vrrp->sync->state != VRRP_STATE_FAULT) {
 					vrrp->sync->state = VRRP_STATE_FAULT;
 					log_message(LOG_INFO, "VRRP_Group(%s): Syncing instances to FAULT state", vrrp->sync->gname);
-					notify_group_exec(vrrp->sync, VRRP_STATE_FAULT);
+//					notify_group_exec(vrrp->sync, VRRP_STATE_FAULT);
 #ifdef _WITH_SNMP_KEEPALIVED_
-					vrrp_snmp_group_trap(vrrp->sync);
+//					vrrp_snmp_group_trap(vrrp->sync);
 #endif
 //					vrrp_sync_smtp_notifier(vrrp->sync);
 				}
@@ -2938,31 +2946,6 @@ vrrp_complete_init(void)
 				vrrp->wantstate = old_vrrp->state;
 			}
 		}
-
-#if 0
-		/* Send notifactions for any sync group that has changed state */
-		for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; e = next) {
-			next = e->next;
-			sgroup = ELEMENT_DATA(e);
-
-			for (oe = LIST_HEAD(old_vrrp_data->vrrp_sync_group); oe; ELEMENT_NEXT(oe)) {
-				old_sgroup = ELEMENT_DATA(oe);
-
-				if (strcmp(old_sgroup->gname, sgroup->gname) == 0) {
-					/* Old Sync group matches current Sync group */
-					if (old_sgroup->state != sgroup->state) {
-						log_message(LOG_INFO, "Sync group %s status changed from %s to %s on reload",
-								sgroup->gname, get_state_str(old_sgroup->state), get_state_str(sgroup->state));
-
-						notify_group_exec(sgroup, sgroup->state);
-#ifdef _WITH_SNMP_KEEPALIVED_
-						vrrp_snmp_group_trap(sgroup);
-#endif
-					}
-				}
-			}
-		}
-#endif
 	}
 
 #ifdef _WITH_LVS_

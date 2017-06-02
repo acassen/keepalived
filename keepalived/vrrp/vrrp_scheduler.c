@@ -178,7 +178,7 @@ vrrp_init_state(list l)
 		vgroup = ELEMENT_DATA(e);
 
 		if (vgroup->state == VRRP_STATE_FAULT) {
-			vrrp_sync_smtp_notifier(vgroup);
+//			vrrp_sync_smtp_notifier(vgroup);
 			notify_group_exec(vgroup, VRRP_STATE_FAULT);
 #ifdef _WITH_SNMP_KEEPALIVED_
 			vrrp_snmp_group_trap(vgroup);
@@ -590,10 +590,7 @@ static void
 vrrp_leave_master(vrrp_t * vrrp, char *buffer, ssize_t len)
 {
 	if (vrrp_state_master_rx(vrrp, buffer, len))
-	{
 		vrrp_state_leave_master(vrrp);
-		vrrp_smtp_notifier(vrrp);	// TODO 1 - should this be in state_leave_masteR()?
-	}
 }
 
 static void

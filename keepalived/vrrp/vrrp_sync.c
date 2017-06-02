@@ -184,6 +184,7 @@ vrrp_sync_backup(vrrp_t * vrrp)
 	vrrp_sgroup_t *vgroup = vrrp->sync;
 	list l = vgroup->index_list;
 	element e;
+	int old_state;
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_BACK)
 		return;
@@ -209,8 +210,10 @@ vrrp_sync_backup(vrrp_t * vrrp)
 			vrrp_state_leave_master(isync);
 		vrrp_init_instance_sands(isync);
 	}
+	old_state = vgroup->state;
 	vgroup->state = VRRP_STATE_BACK;
-	vrrp_sync_smtp_notifier(vgroup);
+	if (old_state != VRRP_STATE_FAULT)
+		vrrp_sync_smtp_notifier(vgroup);
 	notify_group_exec(vgroup, VRRP_STATE_BACK);
 #ifdef _WITH_SNMP_KEEPALIVED_
 	vrrp_snmp_group_trap(vgroup);
