@@ -164,7 +164,6 @@ vrrp_sync_backup(vrrp_t * vrrp)
 	vrrp_sgroup_t *vgroup = vrrp->sync;
 	list l = vgroup->index_list;
 	element e;
-	bool was_fault;
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_BACK)
 		return;
@@ -191,9 +190,8 @@ vrrp_sync_backup(vrrp_t * vrrp)
 		vrrp_init_instance_sands(isync);
 	}
 
-	was_fault = vgroup->state == VRRP_STATE_FAULT;
 	vgroup->state = VRRP_STATE_BACK;
-	send_group_notifies(vgroup, was_fault);
+	send_group_notifies(vgroup);
 }
 
 void
@@ -230,7 +228,7 @@ vrrp_sync_master(vrrp_t * vrrp)
 		}
 	}
 	vgroup->state = VRRP_STATE_MAST;
-	send_group_notifies(vgroup, false);
+	send_group_notifies(vgroup);
 }
 
 void
@@ -269,5 +267,5 @@ vrrp_sync_fault(vrrp_t * vrrp)
 		}
 	}
 	vgroup->state = VRRP_STATE_FAULT;
-	send_group_notifies(vgroup, false);
+	send_group_notifies(vgroup);
 }

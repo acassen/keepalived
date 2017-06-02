@@ -161,7 +161,7 @@ vrrp_init_state(list l)
 		vgroup = ELEMENT_DATA(e);
 
 		if (vgroup->state == VRRP_STATE_FAULT)
-			send_group_notifies(vgroup, false);
+			send_group_notifies(vgroup);
 	}
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -225,7 +225,7 @@ vrrp_init_state(list l)
 					vrrp->state = VRRP_STATE_FAULT;
 					log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE (init)", vrrp->iname);
 				}
-				send_instance_notifies(vrrp, false);
+				send_instance_notifies(vrrp);
 			}
 			vrrp->last_transition = timer_now();
 		}

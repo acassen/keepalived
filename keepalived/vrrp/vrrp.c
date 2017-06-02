@@ -1435,7 +1435,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	}
 
 	/* Check if notify is needed */
-	send_instance_notifies(vrrp, false);
+	send_instance_notifies(vrrp);
 
 #ifdef _WITH_LVS_
 	/* Check if sync daemon handling is needed */
@@ -1542,7 +1542,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 	vrrp_restore_interface(vrrp, false, false);
 	vrrp->state = vrrp->wantstate;
 
-	send_instance_notifies(vrrp, false);
+	send_instance_notifies(vrrp);
 
 	/* Set the down timer */
 	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
@@ -1554,8 +1554,6 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 void
 vrrp_state_leave_fault(vrrp_t * vrrp)
 {
-	bool was_fault;
-
 	/* set the new vrrp state */
 	if (vrrp->wantstate == VRRP_STATE_MAST)
 		vrrp_state_goto_master(vrrp);
@@ -1565,9 +1563,8 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 			vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 			vrrp_restore_interface(vrrp, false, false);
 		}
-		was_fault = vrrp->state == VRRP_STATE_FAULT;
 		vrrp->state = vrrp->wantstate;
-		send_instance_notifies(vrrp, was_fault);
+		send_instance_notifies(vrrp);
 
 		if (vrrp->state == VRRP_STATE_BACK) {
 			vrrp->preempt_time.tv_sec = 0;
@@ -1746,7 +1743,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		vrrp->master_adver_int = vrrp->adver_int;
 		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 		vrrp->state = VRRP_STATE_FAULT;
-		send_instance_notifies(vrrp, false);
+		send_instance_notifies(vrrp);
 		vrrp->last_transition = timer_now();
 		return true;
 	}
@@ -2897,7 +2894,7 @@ vrrp_complete_init(void)
 
 			log_message(LOG_INFO, "(%s): entering FAULT state", vrrp->iname);
 
-			send_instance_notifies(vrrp, false);
+			send_instance_notifies(vrrp);
 		}
 	}
 

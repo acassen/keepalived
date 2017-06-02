@@ -40,15 +40,15 @@
 #include "smtp.h"
 
 static notify_script_t*
-get_iscript(vrrp_t * vrrp, int state)
+get_iscript(vrrp_t * vrrp)
 {
 	if (!vrrp->notify_exec)
 		return NULL;
-	if (state == VRRP_STATE_BACK)
+	if (vrrp->state == VRRP_STATE_BACK)
 		return vrrp->script_backup;
-	if (state == VRRP_STATE_MAST)
+	if (vrrp->state == VRRP_STATE_MAST)
 		return vrrp->script_master;
-	if (state == VRRP_STATE_FAULT)
+	if (vrrp->state == VRRP_STATE_FAULT)
 		return vrrp->script_fault;
 	return NULL;
 }
@@ -124,9 +124,9 @@ notify_instance_fifo(const vrrp_t *vrrp, int state_num)
 }
 
 static void
-notify_group_fifo(const vrrp_sgroup_t *vgroup, int state_num)
+notify_group_fifo(const vrrp_sgroup_t *vgroup)
 {
-	notify_fifo(vgroup->gname, state_num, true, 0);
+	notify_fifo(vgroup->gname, vgroup->state, true, 0);
 }
 
 static void
@@ -165,9 +165,9 @@ notify_script_exec(notify_script_t* script, char *type, int state_num, char* nam
 }
 
 static int
-notify_instance_exec(vrrp_t * vrrp, int state)
+notify_instance_exec(vrrp_t * vrrp)
 {
-	notify_script_t *script = get_iscript(vrrp, state);
+	notify_script_t *script = get_iscript(vrrp);
 	notify_script_t *gscript = get_igscript(vrrp);
 	int ret = 0;
 
@@ -179,12 +179,12 @@ notify_instance_exec(vrrp_t * vrrp, int state)
 
 	/* Launch the generic notify script */
 	if (gscript) {
-		notify_script_exec(gscript, "INSTANCE", state, vrrp->iname,
+		notify_script_exec(gscript, "INSTANCE", vrrp->state, vrrp->iname,
 				   vrrp->effective_priority);
 		ret = 1;
 	}
 
-	notify_instance_fifo(vrrp, state);
+	notify_instance_fifo(vrrp, vrrp->state);
 
 #ifdef _WITH_DBUS_
 	if (global_data->enable_dbus)
@@ -195,9 +195,9 @@ notify_instance_exec(vrrp_t * vrrp, int state)
 }
 
 static int
-notify_group_exec(vrrp_sgroup_t * vgroup, int state)
+notify_group_exec(vrrp_sgroup_t * vgroup)
 {
-	notify_script_t *script = get_gscript(vgroup, state);
+	notify_script_t *script = get_gscript(vgroup, vgroup->state);
 	notify_script_t *gscript = get_ggscript(vgroup);
 	int ret = 0;
 
@@ -209,11 +209,11 @@ notify_group_exec(vrrp_sgroup_t * vgroup, int state)
 
 	/* Launch the generic notify script */
 	if (gscript) {
-		notify_script_exec(gscript, "GROUP", state, vgroup->gname, 0);
+		notify_script_exec(gscript, "GROUP", vgroup->state, vgroup->gname, 0);
 		ret = 1;
 	}
 
-	notify_group_fifo(vgroup, state);
+	notify_group_fifo(vgroup);
 
 	return ret;
 }
@@ -222,15 +222,18 @@ notify_group_exec(vrrp_sgroup_t * vgroup, int state)
 static void
 vrrp_smtp_notifier(vrrp_t * vrrp)
 {
-	if (vrrp->smtp_alert) {
+	if (vrrp->smtp_alert &&
+	    vrrp->last_email_state != vrrp->state) {
 		if (vrrp->state == VRRP_STATE_MAST)
 			smtp_alert(NULL, vrrp, NULL,
 				   "Entering MASTER state",
 				   "=> VRRP Instance is now owning VRRP VIPs <=");
-		if (vrrp->state == VRRP_STATE_BACK)
+		else if (vrrp->state == VRRP_STATE_BACK)
 			smtp_alert(NULL, vrrp, NULL,
 				   "Entering BACKUP state",
 				   "=> VRRP Instance is nolonger owning VRRP VIPs <=");
+
+		vrrp->last_email_state = vrrp->state;
 	}
 }
 
@@ -238,22 +241,25 @@ vrrp_smtp_notifier(vrrp_t * vrrp)
 static void
 vrrp_sync_smtp_notifier(vrrp_sgroup_t *vgroup)
 {
-	if (vgroup->smtp_alert) {
+	if (vgroup->smtp_alert &&
+	    vgroup->last_email_state != vgroup->state) {
 		if (vgroup->state == VRRP_STATE_MAST)
 			smtp_alert(NULL, NULL, vgroup,
 				   "Entering MASTER state",
 				   "=> All VRRP group instances are now in MASTER state <=");
-		if (vgroup->state == VRRP_STATE_BACK)
+		else if (vgroup->state == VRRP_STATE_BACK)
 			smtp_alert(NULL, NULL, vgroup,
 				   "Entering BACKUP state",
 				   "=> All VRRP group instances are now in BACKUP state <=");
+
+		vgroup->last_email_state = vgroup->state;
 	}
 }
 
 void
-send_instance_notifies(vrrp_t *vrrp, bool was_fault)
+send_instance_notifies(vrrp_t *vrrp)
 {
-	notify_instance_exec(vrrp, vrrp->state);
+	notify_instance_exec(vrrp);
 #ifdef _WITH_SNMP_KEEPALIVED_
 	vrrp_snmp_instance_trap(vrrp);
 #endif
@@ -265,17 +271,17 @@ send_instance_notifies(vrrp_t *vrrp, bool was_fault)
 		vrrp_rfcv3_snmp_new_master_notify(vrrp);
 #endif
 	}
-	if (vrrp->state != VRRP_STATE_FAULT && !was_fault)
+	if (vrrp->state != VRRP_STATE_FAULT)
 		vrrp_smtp_notifier(vrrp);
 }
 
 void
-send_group_notifies(vrrp_sgroup_t *vgroup, bool was_fault)
+send_group_notifies(vrrp_sgroup_t *vgroup)
 {
-	notify_group_exec(vgroup, vgroup->state);
+	notify_group_exec(vgroup);
 #ifdef _WITH_SNMP_KEEPALIVED_
 	vrrp_snmp_group_trap(vgroup);
 #endif
-	if (vgroup->state != VRRP_STATE_FAULT && !was_fault)
+	if (vgroup->state != VRRP_STATE_FAULT)
 		vrrp_sync_smtp_notifier(vgroup);
 }

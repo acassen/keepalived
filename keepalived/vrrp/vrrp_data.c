@@ -400,6 +400,7 @@ alloc_vrrp_sync_group(char *gname)
 	new = (vrrp_sgroup_t *) MALLOC(sizeof(vrrp_sgroup_t));
 	new->gname = (char *) MALLOC(size + 1);
 	new->state = VRRP_STATE_INIT;
+	new->last_email_state = VRRP_STATE_INIT;
 	memcpy(new->gname, gname, size);
 	new->global_tracking = 0;
 
@@ -441,6 +442,7 @@ alloc_vrrp(char *iname)
 	new->family = AF_UNSPEC;
 	new->saddr.ss_family = AF_UNSPEC;
 	new->init_state = VRRP_STATE_INIT;
+	new->last_email_state = VRRP_STATE_INIT;
 	new->version = 0;
 	new->master_priority = 0;
 	new->last_transition = timer_now();
