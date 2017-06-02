@@ -1435,17 +1435,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	}
 
 	/* Check if notify is needed */
-	notify_instance_exec(vrrp, VRRP_STATE_MAST);
-
-#ifdef _WITH_SNMP_KEEPALIVED_
-	vrrp_snmp_instance_trap(vrrp);
-#endif
-#ifdef _WITH_SNMP_RFCV2_
-	vrrp_rfcv2_snmp_new_master_trap(vrrp);
-#endif
-#ifdef _WITH_SNMP_RFCV3_
-	vrrp_rfcv3_snmp_new_master_notify(vrrp);
-#endif
+	send_instance_notifies(vrrp, false);
 
 #ifdef _WITH_LVS_
 	/* Check if sync daemon handling is needed */
@@ -1551,13 +1541,8 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 
 	vrrp_restore_interface(vrrp, false, false);
 	vrrp->state = vrrp->wantstate;
-	notify_instance_exec(vrrp, vrrp->state);
 
-#ifdef _WITH_SNMP_KEEPALIVED_
-	vrrp_snmp_instance_trap(vrrp);
-#endif
-	if (vrrp->state != VRRP_STATE_FAULT)
-		vrrp_smtp_notifier(vrrp);
+	send_instance_notifies(vrrp, false);
 
 	/* Set the down timer */
 	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
@@ -1569,7 +1554,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 void
 vrrp_state_leave_fault(vrrp_t * vrrp)
 {
-	int	old_state;
+	bool was_fault;
 
 	/* set the new vrrp state */
 	if (vrrp->wantstate == VRRP_STATE_MAST)
@@ -1580,19 +1565,14 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 			vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 			vrrp_restore_interface(vrrp, false, false);
 		}
-		old_state = vrrp->state;
+		was_fault = vrrp->state == VRRP_STATE_FAULT;
 		vrrp->state = vrrp->wantstate;
-		notify_instance_exec(vrrp, vrrp->state);
+		send_instance_notifies(vrrp, was_fault);
+
 		if (vrrp->state == VRRP_STATE_BACK) {
 			vrrp->preempt_time.tv_sec = 0;
 			vrrp->master_adver_int = vrrp->adver_int;
 		}
-#ifdef _WITH_SNMP_KEEPALIVED_
-		vrrp_snmp_instance_trap(vrrp);
-#endif
-		// TODO SMTP
-		if (old_state == VRRP_STATE_INIT && vrrp->state != VRRP_STATE_FAULT)
-			vrrp_smtp_notifier(vrrp);
 	}
 
 	/* Set the down timer */
@@ -1707,7 +1687,6 @@ vrrp_state_master_tx(vrrp_t * vrrp)
 		if (vrrp->garp_delay)
 			thread_add_timer(master, vrrp_gratuitous_arp_thread,
 					 vrrp, vrrp->garp_delay);
-		vrrp_smtp_notifier(vrrp);
 	} else if (timerisset(&vrrp->garp_refresh) &&
 		   timercmp(&time_now, &vrrp->garp_refresh_timer, >)) {
 		vrrp_send_link_update(vrrp, vrrp->garp_refresh_rep);
@@ -1767,7 +1746,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		vrrp->master_adver_int = vrrp->adver_int;
 		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 		vrrp->state = VRRP_STATE_FAULT;
-		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
+		send_instance_notifies(vrrp, false);
 		vrrp->last_transition = timer_now();
 		return true;
 	}
@@ -2891,11 +2870,6 @@ vrrp_complete_init(void)
 				if (vrrp->sync->state != VRRP_STATE_FAULT) {
 					vrrp->sync->state = VRRP_STATE_FAULT;
 					log_message(LOG_INFO, "VRRP_Group(%s): Syncing instances to FAULT state", vrrp->sync->gname);
-//					notify_group_exec(vrrp->sync, VRRP_STATE_FAULT);
-#ifdef _WITH_SNMP_KEEPALIVED_
-//					vrrp_snmp_group_trap(vrrp->sync);
-#endif
-//					vrrp_sync_smtp_notifier(vrrp->sync);
 				}
 
 				vrrp->sync->num_member_fault++;
@@ -2923,12 +2897,7 @@ vrrp_complete_init(void)
 
 			log_message(LOG_INFO, "(%s): entering FAULT state", vrrp->iname);
 
-			notify_instance_exec(vrrp, VRRP_STATE_FAULT);
-#ifdef _WITH_SNMP_KEEPALIVED_
-			vrrp_snmp_instance_trap(vrrp);
-#endif
-//			vrrp_smtp_notifier(vrrp);
-
+			send_instance_notifies(vrrp, false);
 		}
 	}
 

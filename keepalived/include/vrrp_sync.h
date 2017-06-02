@@ -35,7 +35,6 @@
 
 /* extern prototypes */
 extern void vrrp_init_instance_sands(vrrp_t *);
-extern void vrrp_sync_smtp_notifier(vrrp_sgroup_t *);
 extern void vrrp_sync_set_group(vrrp_sgroup_t *);
 extern bool vrrp_sync_can_goto_master(vrrp_t *);
 extern void vrrp_sync_backup(vrrp_t *);

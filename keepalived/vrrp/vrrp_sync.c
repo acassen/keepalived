@@ -28,11 +28,7 @@
 #include "vrrp_track.h"
 #include "vrrp_notify.h"
 #include "vrrp_data.h"
-#ifdef _WITH_SNMP_
-  #include "vrrp_snmp.h"
-#endif
 #include "logger.h"
-#include "smtp.h"
 
 #include "vrrp_print.h"
 
@@ -138,22 +134,6 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 	vgroup->iname = NULL;
 }
 
-/* SMTP alert group notifier */
-void
-vrrp_sync_smtp_notifier(vrrp_sgroup_t *vgroup)
-{
-	if (vgroup->smtp_alert) {
-		if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
-			smtp_alert(NULL, NULL, vgroup,
-				   "Entering MASTER state",
-				   "=> All VRRP group instances are now in MASTER state <=");
-		if (GROUP_STATE(vgroup) == VRRP_STATE_BACK)
-			smtp_alert(NULL, NULL, vgroup,
-				   "Entering BACKUP state",
-				   "=> All VRRP group instances are now in BACKUP state <=");
-	}
-}
-
 /* Check transition to master state */
 bool
 vrrp_sync_can_goto_master(vrrp_t * vrrp)
@@ -184,7 +164,7 @@ vrrp_sync_backup(vrrp_t * vrrp)
 	vrrp_sgroup_t *vgroup = vrrp->sync;
 	list l = vgroup->index_list;
 	element e;
-	int old_state;
+	bool was_fault;
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_BACK)
 		return;
@@ -210,14 +190,10 @@ vrrp_sync_backup(vrrp_t * vrrp)
 			vrrp_state_leave_master(isync);
 		vrrp_init_instance_sands(isync);
 	}
-	old_state = vgroup->state;
+
+	was_fault = vgroup->state == VRRP_STATE_FAULT;
 	vgroup->state = VRRP_STATE_BACK;
-	if (old_state != VRRP_STATE_FAULT)
-		vrrp_sync_smtp_notifier(vgroup);
-	notify_group_exec(vgroup, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_KEEPALIVED_
-	vrrp_snmp_group_trap(vgroup);
-#endif
+	send_group_notifies(vgroup, was_fault);
 }
 
 void
@@ -254,11 +230,7 @@ vrrp_sync_master(vrrp_t * vrrp)
 		}
 	}
 	vgroup->state = VRRP_STATE_MAST;
-	vrrp_sync_smtp_notifier(vgroup);
-	notify_group_exec(vgroup, VRRP_STATE_MAST);
-#ifdef _WITH_SNMP_KEEPALIVED_
-	vrrp_snmp_group_trap(vgroup);
-#endif
+	send_group_notifies(vgroup, false);
 }
 
 void
@@ -297,8 +269,5 @@ vrrp_sync_fault(vrrp_t * vrrp)
 		}
 	}
 	vgroup->state = VRRP_STATE_FAULT;
-	notify_group_exec(vgroup, VRRP_STATE_FAULT);
-#ifdef _WITH_SNMP_KEEPALIVED_
-	vrrp_snmp_group_trap(vgroup);
-#endif
+	send_group_notifies(vgroup, false);
 }

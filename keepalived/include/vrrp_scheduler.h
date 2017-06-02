@@ -47,7 +47,6 @@ do {						\
 } while (0)
 
 /* extern prototypes */
-extern void vrrp_smtp_notifier(vrrp_t *);
 extern int vrrp_dispatcher_init(thread_t *);
 extern void vrrp_dispatcher_release(vrrp_data_t *);
 extern int vrrp_gratuitous_arp_thread(thread_t *);

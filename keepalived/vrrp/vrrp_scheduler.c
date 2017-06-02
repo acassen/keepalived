@@ -47,14 +47,13 @@
 #include "list.h"
 #include "logger.h"
 #include "main.h"
-#include "smtp.h"
 #include "utils.h"
 #include "bitops.h"
-#ifdef _WITH_SNMP_
-#include "vrrp_snmp.h"
-#endif
 #include "vrrp_print.h"
 #include "vrrp_sock.h"
+#ifdef _WITH_SNMP_RFCV3_
+#include "vrrp_snmp.h"
+#endif
 
 /* global vars */
 timeval_t garp_next_time;
@@ -143,22 +142,6 @@ static struct {
 /* FAULT  */	{ {NULL}, {NULL},			{vrrp_sync_master}, {NULL} }
 };
 
-/* SMTP alert notifier */
-void
-vrrp_smtp_notifier(vrrp_t * vrrp)
-{
-	if (vrrp->smtp_alert) {
-		if (vrrp->state == VRRP_STATE_MAST)
-			smtp_alert(NULL, vrrp, NULL,
-				   "Entering MASTER state",
-				   "=> VRRP Instance is now owning VRRP VIPs <=");
-		if (vrrp->state == VRRP_STATE_BACK)
-			smtp_alert(NULL, vrrp, NULL,
-				   "Entering BACKUP state",
-				   "=> VRRP Instance is nolonger owning VRRP VIPs <=");
-	}
-}
-
 /*
  * Initialize state handling
  * --rfc2338.6.4.1
@@ -177,13 +160,8 @@ vrrp_init_state(list l)
 		/* Init group if needed  */
 		vgroup = ELEMENT_DATA(e);
 
-		if (vgroup->state == VRRP_STATE_FAULT) {
-//			vrrp_sync_smtp_notifier(vgroup);
-			notify_group_exec(vgroup, VRRP_STATE_FAULT);
-#ifdef _WITH_SNMP_KEEPALIVED_
-			vrrp_snmp_group_trap(vgroup);
-#endif
-		}
+		if (vgroup->state == VRRP_STATE_FAULT)
+			send_group_notifies(vgroup, false);
 	}
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -247,11 +225,7 @@ vrrp_init_state(list l)
 					vrrp->state = VRRP_STATE_FAULT;
 					log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE (init)", vrrp->iname);
 				}
-				vrrp_smtp_notifier(vrrp);
-				notify_instance_exec(vrrp, vrrp->state);
-#ifdef _WITH_SNMP_KEEPALIVED_
-				vrrp_snmp_instance_trap(vrrp);
-#endif
+				send_instance_notifies(vrrp, false);
 			}
 			vrrp->last_transition = timer_now();
 		}
