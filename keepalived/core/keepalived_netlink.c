@@ -649,16 +649,18 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 				if (ifa->ifa_family == AF_INET) {
 					if (!ifp->sin_addr.s_addr) {
 						ifp->sin_addr = *(struct in_addr *) addr;
-						log_addr = true;
+						if (!LIST_ISEMPTY(ifp->tracking_vrrp))
+							log_addr = true;
 					}
 				} else {
 					if (!ifp->sin6_addr.s6_addr16[0] && ifa->ifa_scope == RT_SCOPE_LINK) {
 						ifp->sin6_addr = *(struct in6_addr *) addr;
-						log_addr = true;
+						if (!LIST_ISEMPTY(ifp->tracking_vrrp))
+							log_addr = true;
 					}
 				}
 
-				if (log_addr) {
+				if (log_addr && __test_bit(LOG_DETAIL_BIT, &debug)) {
 					inet_ntop(ifa->ifa_family, addr, addr_str, sizeof(addr_str));
 					log_message(LOG_INFO, "Assigned address %s for interface %s"
 							    , addr_str, ifp->ifname);

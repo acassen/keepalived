@@ -1894,12 +1894,28 @@ static void
 add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight)
 {
 	tracking_vrrp_t *tvp = MALLOC(sizeof *tvp);
+        char addr_str[INET6_ADDRSTRLEN];
 
 	tvp->vrrp = vrrp;
 	tvp->weight = weight;
 
-	if (!LIST_EXISTS(ifp->tracking_vrrp))
+	if (!LIST_EXISTS(ifp->tracking_vrrp)) {
 		ifp->tracking_vrrp = alloc_list(free_tracking_vrrp, NULL);
+
+		if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+			if (ifp->sin_addr.s_addr) {
+				inet_ntop(AF_INET, &ifp->sin_addr, addr_str, sizeof(addr_str));
+				log_message(LOG_INFO, "Assigned address %s for interface %s"
+						    , addr_str, ifp->ifname);
+			}
+			if (ifp->sin6_addr.s6_addr32[0]) {
+				inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
+				log_message(LOG_INFO, "Assigned address %s for interface %s"
+						    , addr_str, ifp->ifname);
+			}
+		}
+	}
+
 	list_add(ifp->tracking_vrrp, tvp);
 
 	/* If the interface is down, record it against the vrrp instance,
