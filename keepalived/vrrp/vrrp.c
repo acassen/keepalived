@@ -1485,9 +1485,7 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 	}
 #endif
 
-log_message(LOG_INFO, "Going to master");
 	vrrp->state = VRRP_STATE_MAST;
-vrrp_init_instance_sands(vrrp);
 	vrrp_state_master_tx(vrrp);
 }
 
