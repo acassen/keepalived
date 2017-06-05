@@ -1041,7 +1041,7 @@ vrrp_build_pkt(vrrp_t * vrrp)
 
 /* send VRRP packet */
 static int
-vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storage *src)
+vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storage *src, const vrrp_t *vrrp)
 {
 	struct cmsghdr *cmsg;
 	struct in6_pktinfo *pkt;
@@ -1060,7 +1060,7 @@ vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storag
 	pkt = (struct in6_pktinfo *) CMSG_DATA(cmsg);
 	memset(pkt, 0, sizeof(struct in6_pktinfo));
 	pkt->ipi6_addr = ((struct sockaddr_in6 *) src)->sin6_addr;
-	pkt->ipi6_ifindex = ((struct sockaddr_in6 *) src)->sin6_scope_id;
+	pkt->ipi6_ifindex = vrrp->ifp->ifindex;
 
 	return 0;
 }
@@ -1071,6 +1071,7 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 	bool final_update;
 	char *bufptr = vrrp->send_buffer;
 	vrrphdr_t *hd;
+	uint32_t new_saddr = 0;
 
 	/* We will need to be called again if there is more than one unicast peer, so don't calculate checksums */
 	final_update = (LIST_ISEMPTY(vrrp->unicast_peer) || !LIST_HEAD(vrrp->unicast_peer)->next || addr);
@@ -1133,11 +1134,37 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 			}
 		}
 
+		/* Has the source address changed? */
+		if (!vrrp->saddr_from_config &&
+		    ip->saddr != ((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr) {
+/* ??? Update the source address, and the checksum if VRRPv3 */
+			if (vrrp->version == VRRP_VERSION_2)
+				ip->saddr = ((struct sockaddr_in*)&vrrp->saddr)->sin_addr.s_addr;
+			else {
+				uint32_t acc = (~hd->chksum & 0xffff) + (~(ip->saddr >> 16 ) & 0xffff) + (~ip->saddr & 0xffff);
+
+				ip->saddr = ((struct sockaddr_in*)&vrrp->saddr)->sin_addr.s_addr;
+
+				acc += (ip->saddr >> 16) + (ip->saddr & 0xffff);
+
+				/* finally compute vrrp checksum */
+				acc = (acc & 0xffff) + (acc >> 16);
+				acc += acc >> 16;
+
+				hd->chksum = ~acc & 0xffff;
+
+				new_saddr = ip->saddr;
+			}
+		}
+
 #ifdef _WITH_VRRP_AUTH_
 		if (vrrp->auth_type == VRRP_AUTH_AH) {
 			ICV_mutable_fields ip_mutable_fields;
 			unsigned char digest[MD5_DIGEST_LENGTH];
 			ipsec_ah_t *ah = (ipsec_ah_t *) (vrrp->send_buffer + sizeof (struct iphdr));
+
+			if (new_saddr)
+				ah->spi = new_saddr;
 
 			if (!addr) {
 				/* Processing sequence number.
@@ -1214,7 +1241,7 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 	} else if (addr && addr->ss_family == AF_INET6) {
 		msg.msg_name = (struct sockaddr_in6 *) addr;
 		msg.msg_namelen = sizeof(struct sockaddr_in6);
-		vrrp_build_ancillary_data(&msg, cbuf, src);
+		vrrp_build_ancillary_data(&msg, cbuf, src, vrrp);
 	} else if (vrrp->family == AF_INET) { /* Multicast sending path */
 		memset(&dst4, 0, sizeof(dst4));
 		dst4.sin_family = AF_INET;
@@ -1227,7 +1254,7 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 		dst6.sin6_addr = ((struct sockaddr_in6 *) &global_data->vrrp_mcast_group6)->sin6_addr;
 		msg.msg_name = &dst6;
 		msg.msg_namelen = sizeof(dst6);
-		vrrp_build_ancillary_data(&msg, cbuf, src);
+		vrrp_build_ancillary_data(&msg, cbuf, src, vrrp);
 	}
 
 	/* Send the packet */
@@ -1265,7 +1292,6 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 		vrrp_alloc_send_buffer(vrrp);
 		vrrp_build_pkt(vrrp);
 	}
-
 
 	/* build the packet */
 	vrrp_update_pkt(vrrp, prio, NULL);
@@ -1459,7 +1485,9 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 	}
 #endif
 
+log_message(LOG_INFO, "Going to master");
 	vrrp->state = VRRP_STATE_MAST;
+vrrp_init_instance_sands(vrrp);
 	vrrp_state_master_tx(vrrp);
 }
 
@@ -1893,11 +1921,10 @@ static void free_tracking_ifp(void *data)
 static void
 add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight)
 {
-	tracking_vrrp_t *tvp = MALLOC(sizeof *tvp);
-        char addr_str[INET6_ADDRSTRLEN];
-
-	tvp->vrrp = vrrp;
-	tvp->weight = weight;
+	tracking_vrrp_t *tvp;
+	tracking_vrrp_t *etvp;
+	element e;
+	char addr_str[INET6_ADDRSTRLEN];
 
 	if (!LIST_EXISTS(ifp->tracking_vrrp)) {
 		ifp->tracking_vrrp = alloc_list(free_tracking_vrrp, NULL);
@@ -1915,6 +1942,24 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight)
 			}
 		}
 	}
+	else {
+		/* Check if this is alread in the list, and adjust the weight appropriately */
+		for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
+			etvp = ELEMENT_DATA(e);
+			if (etvp->vrrp == vrrp) {
+				if (weight == 0)
+					etvp->weight = 0;
+				else if (etvp->weight == VRRP_NOT_TRACK_IF)
+					etvp->weight = weight;
+				return;
+			}
+		}
+	}
+
+	/* Not in list so add */
+	tvp = MALLOC(sizeof *tvp);
+	tvp->vrrp = vrrp;
+	tvp->weight = weight;
 
 	list_add(ifp->tracking_vrrp, tvp);
 
@@ -2446,6 +2491,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (vrrp->linkbeat_use_polling || global_data->linkbeat_use_polling)
 		vrrp->ifp->linkbeat_use_polling = true;
 
+	/* Clear track_saddr if no saddr specified */
+	if (!vrrp->saddr_from_config)
+		vrrp->track_saddr = false;
+
 #ifdef _HAVE_VRRP_VMAC_
 	/* Set a default interface name for the vmac if needed */
 	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
@@ -2566,17 +2615,22 @@ vrrp_complete_instance(vrrp_t * vrrp)
 					addr_missing = true;
 		}
 
-		if (vrrp->ifp->ifindex && addr_missing) {
+		if (addr_missing) {
 			log_message(LOG_INFO, "(%s): Cannot find an IP address to use for interface %s", vrrp->iname, IF_BASE_IFP(vrrp->ifp)->ifname);
-			return false;
 		}
-
-		if (vrrp->family == AF_INET) {
+		else if (vrrp->family == AF_INET)
 			inet_ip4tosockaddr(&IF_BASE_IFP(vrrp->ifp)->sin_addr, &vrrp->saddr);
-		} else if (vrrp->family == AF_INET6) {
+		else if (vrrp->family == AF_INET6)
 			inet_ip6tosockaddr(&IF_BASE_IFP(vrrp->ifp)->sin6_addr, &vrrp->saddr);
-			/* IPv6 use-case: Binding to link-local address requires an interface */
-			inet_ip6scopeid(IF_INDEX(vrrp->ifp), &vrrp->saddr);
+	}
+
+	/* Now add us to the interfaces we are tracking */
+	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
+		element e2;
+		tracked_if_t *tip;
+		for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
+			tip = ELEMENT_DATA(e2);
+			add_vrrp_to_interface(vrrp, tip->ifp, tip->weight);
 		}
 	}
 
@@ -2615,10 +2669,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		add_vrrp_to_interface(vrrp, vrrp->ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0);
 		if (!vrrp->dont_track_primary)
 			add_interface_to_vrrp(vrrp, vrrp->ifp);
-
-		/* set scopeid of source address if IPv6 */
-		if (vrrp->saddr.ss_family == AF_INET6)
-			inet_ip6scopeid(vrrp->ifp->ifindex, &vrrp->saddr);
 	}
 #endif
 
@@ -2725,16 +2775,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				vsc->vrrp = alloc_list(NULL, dump_vscript_vrrp);
 
 			list_add(vsc->vrrp, vrrp);
-		}
-	}
-
-	/* And now add us to the interfaces we are tracking */
-	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-		element e2;
-		tracked_if_t *tip;
-		for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
-			tip = ELEMENT_DATA(e2);
-			add_vrrp_to_interface(vrrp, tip->ifp, tip->weight);
 		}
 	}
 

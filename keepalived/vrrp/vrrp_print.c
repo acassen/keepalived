@@ -343,7 +343,10 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   Skip checking advert IP addresses\n");
 	if (vrrp->strict_mode)
 		fprintf(file, "   Enforcing VRRP compliance\n");
-	fprintf(file, "   Using src_ip = %s\n", inet_sockaddrtos(&vrrp->saddr));
+	fprintf(file, "   Using src_ip = %s%s\n", vrrp->saddr.ss_family != AF_UNSPEC
+						    ? inet_sockaddrtos(&vrrp->saddr)
+						    : "(none)",
+						  vrrp->saddr_from_config ? " (from configuration)" : "");
 	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
 		fprintf(file, "   Unicast peers = %d\n", LIST_SIZE(vrrp->unicast_peer));
 		for (e = LIST_HEAD(vrrp->unicast_peer); e; ELEMENT_NEXT(e)) {
@@ -365,7 +368,6 @@ vrrp_print(FILE *file, void *data)
 	fprintf(file, "   Priority = %d\n", vrrp->base_priority);
 	fprintf(file, "   Effective priority = %d\n", vrrp->effective_priority);
 	fprintf(file, "   Total priority = %d\n", vrrp->total_priority);
-	fprintf(file, "   Scripts/interfaces in fault state = %d\n", vrrp->num_script_if_fault);
 	fprintf(file, "   Advert interval = %d %s\n",
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
 		(vrrp->adver_int / (TIMER_HZ / 1000)),

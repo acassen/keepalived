@@ -59,7 +59,6 @@ extern int domain_stosockaddr(const char *, const char *, struct sockaddr_storag
 extern int inet_stosockaddr(char *, const char *, struct sockaddr_storage *);
 extern void inet_ip4tosockaddr(struct in_addr *, struct sockaddr_storage *);
 extern void inet_ip6tosockaddr(struct in6_addr *, struct sockaddr_storage *);
-extern void inet_ip6scopeid(uint32_t, struct sockaddr_storage *);
 extern char *inet_sockaddrtos(struct sockaddr_storage *);
 extern char *inet_sockaddrtopair(struct sockaddr_storage *);
 extern char *inet_sockaddrtotrio(struct sockaddr_storage *, uint16_t);

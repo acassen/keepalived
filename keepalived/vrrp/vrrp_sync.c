@@ -39,6 +39,7 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 	set_time_now();
 
 	if (vrrp->state == VRRP_STATE_MAST) {
+log_message(LOG_INFO, "Setting timer to %d for %s (master)", vrrp->adver_int, vrrp->iname);
 		vrrp->sands = timer_add_long(time_now, vrrp->adver_int);
 		return;
 	}
@@ -49,9 +50,15 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 	 * received.
 	 */
 	if (vrrp->state == VRRP_STATE_BACK)
+{
+log_message(LOG_INFO, "Setting timer to %d for %s (backup)", vrrp->ms_down_timer, vrrp->iname);
 		vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
+}
 	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT)
+{
+log_message(LOG_INFO, "Setting timer to disabled for %s (backup)", vrrp->iname);
 		vrrp->sands.tv_sec = TIMER_DISABLED;
+}
 }
 
 /* Instance name lookup */

@@ -956,10 +956,6 @@ update_added_interface(interface_t *ifp)
 #ifdef _HAVE_VRRP_VMAC_
 		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
 			netlink_link_add_vmac(vrrp);
-
-		/* set scopeid of source address if IPv6 */
-		if (vrrp->saddr.ss_family == AF_INET6)
-			inet_ip6scopeid(vrrp->ifp->ifindex, &vrrp->saddr);
 #endif
 
 		/* Find the sockpool entry. If none, then we open the socket */

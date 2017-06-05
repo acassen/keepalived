@@ -498,6 +498,7 @@ which will transition together on any state change.
     # optional
     mcast_src_ip <IPADDR>
     unicast_src_ip <IPADDR>
+    track_src_ip                # if the configured src_ip doesn't exist or is removed put the instance into fault state
 
     version <2 or 3>            # VRRP version to run on interface
                                 #  default is global parameter vrrp_version.

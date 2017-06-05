@@ -58,6 +58,42 @@ make_link_local_address(struct in6_addr* l3_addr, const u_char* ll_addr)
 	l3_addr->s6_addr[15] = ll_addr[5];
 }
 
+bool
+replace_link_local_address(interface_t *ifp)
+{
+	ip_address_t ipaddress;
+
+	memset(&ipaddress, 0, sizeof(ipaddress));
+
+	/* Delete the old address */
+	ipaddress.ifp = ifp;
+	ipaddress.u.sin6_addr = ifp->sin6_addr;
+
+	ipaddress.ifa.ifa_family = AF_INET6;
+	ipaddress.ifa.ifa_prefixlen = 64;
+	ipaddress.ifa.ifa_index = ifp->ifindex;
+
+	if (netlink_ipaddress(&ipaddress, IPADDRESS_DEL) != 1)
+		log_message(LOG_INFO, "Deleting link-local address from vmac failed");
+	else
+		ifp->sin6_addr.s6_addr32[0] = 0;
+
+	/* Create a new address */
+	make_link_local_address(&ipaddress.u.sin6_addr, ifp->hw_addr);
+
+	if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1) {
+		log_message(LOG_INFO, "Adding link-local address to vmac failed");
+		ifp->sin6_addr.s6_addr32[0] = 0;
+
+		return false;
+	}
+
+	/* Save the new address */
+	ifp->sin6_addr = ipaddress.u.sin6_addr;
+
+	return true;
+}
+
 static int
 netlink_link_up(vrrp_t *vrrp)
 {
@@ -272,11 +308,14 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 			if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1 && create_interface)
 				log_message(LOG_INFO, "Adding link-local address to vmac failed");
+			else {
+				/* Save the address as source for vrrp packets */
+				if (vrrp->saddr.ss_family == AF_UNSPEC)
+					inet_ip6tosockaddr(&ipaddress.u.sin6_addr, &vrrp->saddr);
 
-			/* Save the address as source for vrrp packets */
-			if (vrrp->saddr.ss_family == AF_UNSPEC)
-				inet_ip6tosockaddr(&ipaddress.u.sin6_addr, &vrrp->saddr);
-			inet_ip6scopeid(vrrp->ifp->ifindex, &vrrp->saddr);
+				/* Save the interface address */
+				ifp->sin6_addr = ipaddress.u.sin6_addr;
+			}
 		}
 	}
 

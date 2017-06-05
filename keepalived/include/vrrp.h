@@ -179,6 +179,8 @@ typedef struct _vrrp_t {
 	unsigned		num_script_if_fault;	/* Number of scripts and interfaces in fault state */
 	unsigned		num_script_init;	/* Number of scripts in init state */
 	struct sockaddr_storage	saddr;			/* Src IP address to use in VRRP IP header */
+	bool			saddr_from_config;	/* Set if the source address is from configuration */
+	bool			track_saddr;		/* Fault state if configured saddr is missing */
 	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
 	list			unicast_peer;		/* List of Unicast peer to send advert to */
 	struct sockaddr_storage master_saddr;		/* Store last heard Master address */

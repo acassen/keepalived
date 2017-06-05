@@ -293,6 +293,13 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 	tracked_if_t *tip;
 	tracked_sc_t *tsc;
 
+	/* If no src address has been specified, and the interface doesn't have
+	 * an appropriate address, put the interface into fault state */
+	if (vrrp->saddr.ss_family == AF_UNSPEC) {
+		vrrp->num_script_if_fault++;
+		vrrp->state = VRRP_STATE_FAULT;
+	}
+
 	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
 		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e)) {
 			tip = ELEMENT_DATA(e);
@@ -301,6 +308,7 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 				if (!IF_ISUP(tip->ifp)) {
 					/* The instance is down */
 					vrrp->state = VRRP_STATE_FAULT;
+					vrrp->num_script_if_fault++;
 				}
 				continue;
 			}
@@ -308,7 +316,8 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 			/* Don't change effective priority if address owner, or if
 			 * a member of a sync group without global tracking */
 			if (vrrp->base_priority == VRRP_PRIO_OWNER ||
-			    (vrrp->sync && !vrrp->sync->global_tracking))
+			    (vrrp->sync && !vrrp->sync->global_tracking) ||
+			    tip->weight == VRRP_NOT_TRACK_IF)
 				continue;
 
 			if (IF_ISUP(tip->ifp)) {

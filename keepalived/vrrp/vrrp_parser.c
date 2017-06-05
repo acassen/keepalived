@@ -329,20 +329,30 @@ vrrp_srcip_handler(vector_t *strvec)
 
 	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, saddr);
 	if (ret < 0) {
-		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] malformed unicast"
+		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] malformed"
 				     " src address[%s]. Skipping..."
 				   , vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
 
+	vrrp->saddr_from_config = true;
+
 	if (vrrp->family == AF_UNSPEC)
 		vrrp->family = saddr->ss_family;
 	else if (saddr->ss_family != vrrp->family) {
-		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] and unicast src address"
+		log_message(LOG_ERR, "Configuration error: VRRP instance[%s] and src address"
 				     "[%s] MUST be of the same family !!! Skipping..."
 				   , vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 		saddr->ss_family = AF_UNSPEC;
+		vrrp->saddr_from_config = false;
 	}
+}
+static void
+vrrp_track_srcip_handler(__attribute__((unused)) vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	vrrp->track_saddr = true;
 }
 static void
 vrrp_vrid_handler(vector_t *strvec)
@@ -1014,6 +1024,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("track_file", &vrrp_track_file_handler);
 	install_keyword("mcast_src_ip", &vrrp_srcip_handler);
 	install_keyword("unicast_src_ip", &vrrp_srcip_handler);
+	install_keyword("track_src_ip", &vrrp_track_srcip_handler);
 	install_keyword("virtual_router_id", &vrrp_vrid_handler);
 	install_keyword("version", &vrrp_version_handler);
 	install_keyword("priority", &vrrp_prio_handler);

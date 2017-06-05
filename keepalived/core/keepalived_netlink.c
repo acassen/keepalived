@@ -22,6 +22,7 @@
 
 #include "config.h"
 
+#include <netinet/ip.h>
 /* global include */
 #include <stdlib.h>
 #include <unistd.h>
@@ -601,9 +602,16 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	interface_t *ifp;
 #endif
 	size_t len;
-	void *addr;
+	union {
+		void *addr;
+		struct in_addr *in;
+		struct in6_addr *in6;
+	} addr;
 	char addr_str[INET6_ADDRSTRLEN];
-	bool log_addr = false;
+	bool addr_chg = false;
+	element e;
+	vrrp_t *vrrp;
+	tracking_vrrp_t *tvp;
 
 	if (h->nlmsg_type != RTM_NEWADDR && h->nlmsg_type != RTM_DELADDR)
 		return 0;
@@ -628,9 +636,9 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 		tb[IFA_ADDRESS] = tb[IFA_LOCAL];
 
 	/* local interface address */
-	addr = (tb[IFA_LOCAL] ? RTA_DATA(tb[IFA_LOCAL]) : NULL);
+	addr.addr = (tb[IFA_LOCAL] ? RTA_DATA(tb[IFA_LOCAL]) : NULL);
 
-	if (addr == NULL)
+	if (addr.addr == NULL)
 		return -1;
 
 #ifdef _WITH_VRRP_
@@ -643,41 +651,138 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 		if (!ifp)
 			return 0;
 
-		if (!ifp->vmac) {
+// ?? Only interested in link-local for IPv6 unless unicast
+// we take address from vrrp->ifp->base-ifp, unless we have made an IPv6 address
+// do we want to set a flag to say it is a generated link local address (or set saddr and track_saddr, but not saddr_from_config)
+// or can we just compare address to vrrp->ifp->base_ifp address.
+// We still need to consider non-vmac IPv6 if interface doesn't have a
+// link local address.
+		if (!ifp->vmac || ifa->ifa_family == AF_INET6) {
 			if (h->nlmsg_type == RTM_NEWADDR) {
 				/* If no address is set on interface then set the first time */
+// if saddr from config && track saddr, addresses must match
 				if (ifa->ifa_family == AF_INET) {
 					if (!ifp->sin_addr.s_addr) {
-						ifp->sin_addr = *(struct in_addr *) addr;
+						ifp->sin_addr = *addr.in;
 						if (!LIST_ISEMPTY(ifp->tracking_vrrp))
-							log_addr = true;
+							addr_chg = true;
 					}
 				} else {
+// might not be link local if configured address
 					if (!ifp->sin6_addr.s6_addr16[0] && ifa->ifa_scope == RT_SCOPE_LINK) {
-						ifp->sin6_addr = *(struct in6_addr *) addr;
+						ifp->sin6_addr = *addr.in6;
 						if (!LIST_ISEMPTY(ifp->tracking_vrrp))
-							log_addr = true;
+							addr_chg = true;
 					}
 				}
 
-				if (log_addr && __test_bit(LOG_DETAIL_BIT, &debug)) {
-					inet_ntop(ifa->ifa_family, addr, addr_str, sizeof(addr_str));
-					log_message(LOG_INFO, "Assigned address %s for interface %s"
-							    , addr_str, ifp->ifname);
+				if (addr_chg) {
+					if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+						inet_ntop(ifa->ifa_family, addr.addr, addr_str, sizeof(addr_str));
+						log_message(LOG_INFO, "Assigned address %s for interface %s"
+								    , addr_str, ifp->ifname);
+					}
+
+// If IPv6 link local and vmac doesn't have one, add it to the vmac
+					/* Now see if any vrrp instances were missing an interface address
+					 * and see if they can be brought up */
+					for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
+						tvp = ELEMENT_DATA(e);
+						vrrp = tvp->vrrp;
+
+						if (ifp == (vrrp->family == AF_INET ? vrrp->ifp->base_ifp : vrrp->ifp) &&
+						    vrrp->num_script_if_fault &&
+						    vrrp->family == ifa->ifa_family &&
+						    vrrp->saddr.ss_family == AF_UNSPEC &&
+						    (!vrrp->saddr_from_config || vrrp->track_saddr)) {
+							/* Copy the address */
+							if (ifa->ifa_family == AF_INET)
+								inet_ip4tosockaddr(addr.in, &vrrp->saddr);
+							else
+								inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
+							try_up_instance(vrrp, false);
+						}
+					}
 				}
 			}
 			else {
-				/* If the address we are using is deleted - TODO */
 				/* Either send a netlink request for current addresses, or we keep a list */
+// check if a vip/evip, and if so send prio 0, go to backup, with short timer.
+//
+				/* Mark the address as needing to go. We can't delete the address
+				 * until after down_instance is called, since it sends a prio 0 message */
+				if (ifa->ifa_family == AF_INET) {
+					if (ifp->sin_addr.s_addr == addr.in->s_addr)
+						addr_chg = true;
+				}
+				else {
+					if (ifp->sin6_addr.s6_addr32[0] == addr.in6->s6_addr32[0] &&
+					    ifp->sin6_addr.s6_addr32[1] == addr.in6->s6_addr32[1] &&
+					    ifp->sin6_addr.s6_addr32[2] == addr.in6->s6_addr32[2] &&
+					    ifp->sin6_addr.s6_addr32[3] == addr.in6->s6_addr32[3])
+						addr_chg = true;
+				}
+
+				if (addr_chg) {
+					if (!LIST_ISEMPTY(ifp->tracking_vrrp)) {
+						if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+							inet_ntop(ifa->ifa_family, addr.addr, addr_str, sizeof(addr_str));
+							log_message(LOG_INFO, "Deassigned address %s from interface %s"
+									    , addr_str, ifp->ifname);
+						}
+
+						/* See if any vrrp instances need to be downed */
+						for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
+							tvp = ELEMENT_DATA(e);
+							vrrp = tvp->vrrp;
+
+#ifdef _HAVE_VRRP_VMAC_
+							/* If we are a VMAC and took this address from the parent interface, we need to
+							 * release the address and create one for ourself */
+							if (ifa->ifa_family == AF_INET6 &&
+							    __test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+							    ifp == vrrp->ifp->base_ifp &&
+							    ifa->ifa_scope == RT_SCOPE_LINK &&
+							    !vrrp->saddr_from_config &&
+							    vrrp->ifp->base_ifp->sin6_addr.s6_addr32[0] == addr.in6->s6_addr32[0] &&
+							    vrrp->ifp->base_ifp->sin6_addr.s6_addr32[1] == addr.in6->s6_addr32[1] &&
+							    vrrp->ifp->base_ifp->sin6_addr.s6_addr32[2] == addr.in6->s6_addr32[2] &&
+							    vrrp->ifp->base_ifp->sin6_addr.s6_addr32[3] == addr.in6->s6_addr32[3]) {
+								if (replace_link_local_address(vrrp->ifp))
+									inet_ip6tosockaddr(&vrrp->ifp->sin6_addr, &vrrp->saddr);
+								else {
+									/* We failed to add an address, so down the instance */
+									down_instance(vrrp);
+									vrrp->saddr.ss_family = AF_UNSPEC;
+								}
+							}
+							else
+#endif
+							if (ifp == (vrrp->family == AF_INET ? vrrp->ifp->base_ifp : vrrp->ifp) &&
+							    vrrp->family == ifa->ifa_family &&
+							    vrrp->saddr.ss_family != AF_UNSPEC &&
+							    (!vrrp->saddr_from_config || vrrp->track_saddr)) {
+								down_instance(vrrp);
+								vrrp->saddr.ss_family = AF_UNSPEC;
+							}
+						}
+					}
+
+					/* Now we can remove the address */
+					if (ifa->ifa_family == AF_INET)
+						ifp->sin_addr.s_addr = 0;
+					else
+						ifp->sin6_addr.s6_addr32[0] = 0;
+				}
 			}
 		}
 
 		/* Display netlink operation */
-		if (!log_addr &&
+		if (!addr_chg &&
 		    __test_bit(LOG_DETAIL_BIT, &debug) &&
 		    (__test_bit(LOG_ADDRESS_CHANGES, &debug) ||
-		     address_is_ours(ifa, addr, ifp))) {
-			inet_ntop(ifa->ifa_family, addr, addr_str, sizeof(addr_str));
+		     address_is_ours(ifa, addr.addr, ifp))) {
+			inet_ntop(ifa->ifa_family, addr.addr, addr_str, sizeof(addr_str));
 			log_message(LOG_INFO, "Netlink reflector reports IP %s %s %s"
 					    , addr_str, h->nlmsg_type == RTM_NEWADDR ? "added to" : "removed from", ifp->ifname);
 		}
@@ -691,7 +796,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 #endif
 	{
 		/* Refresh checkers state */
-		update_checker_activity(ifa->ifa_family, addr,
+		update_checker_activity(ifa->ifa_family, addr.addr,
 					(h->nlmsg_type == RTM_NEWADDR));
 	}
 #endif

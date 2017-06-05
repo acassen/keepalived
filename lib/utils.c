@@ -281,13 +281,6 @@ inet_ip6tosockaddr(struct in6_addr *sin_addr, struct sockaddr_storage *addr)
 	addr6->sin6_addr = *sin_addr;
 }
 
-void
-inet_ip6scopeid(uint32_t ifindex, struct sockaddr_storage *addr)
-{
-	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
-	addr6->sin6_scope_id = ifindex;
-}
-
 /* IP network to string representation */
 static char *
 inet_sockaddrtos2(struct sockaddr_storage *addr, char *addr_str)
