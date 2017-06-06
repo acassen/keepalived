@@ -286,6 +286,7 @@ vrrp_compute_timer(const int fd)
 	/* Multiple instances on the same interface */
 	timerclear(&timer);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+// TODO - aren't these in time order ?
 		vrrp = ELEMENT_DATA(e);
 		if (!timerisset(&timer) ||
 		    timercmp(&vrrp->sands, &timer, <))
@@ -681,7 +682,6 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 
 	/* We can come up */
 	vrrp_state_leave_fault(vrrp);
-	vrrp_init_instance_sands(vrrp);
 
 	thread_requeue_read(master, vrrp->sockets->fd_in, vrrp->ms_down_timer);
 
@@ -712,6 +712,7 @@ vrrp_dispatcher_read_timeout(int fd)
 		if (vrrp->sockets->fd_in != fd)
 			continue;
 
+// TODO - aren't the entries in time order ?
 		if (timercmp(&vrrp->sands, &time_now, >))
 			continue;
 

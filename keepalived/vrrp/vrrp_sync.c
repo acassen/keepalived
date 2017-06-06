@@ -38,18 +38,16 @@ vrrp_init_instance_sands(vrrp_t * vrrp)
 {
 	set_time_now();
 
-	if (vrrp->state == VRRP_STATE_MAST) {
+	if (vrrp->state == VRRP_STATE_MAST)
 		vrrp->sands = timer_add_long(time_now, vrrp->adver_int);
-		return;
-	}
-
-	/*
-	 * When in the BACKUP state the expiry timer should be updated to
-	 * time_now plus the Master Down Timer, when a non-preemptable packet is
-	 * received.
-	 */
-	if (vrrp->state == VRRP_STATE_BACK)
+	else if (vrrp->state == VRRP_STATE_BACK) {
+		/*
+		 * When in the BACKUP state the expiry timer should be updated to
+		 * time_now plus the Master Down Timer, when a non-preemptable packet is
+		 * received.
+		 */
 		vrrp->sands = timer_add_long(time_now, vrrp->ms_down_timer);
+	}
 	else if (vrrp->state == VRRP_STATE_FAULT || vrrp->state == VRRP_STATE_INIT)
 		vrrp->sands.tv_sec = TIMER_DISABLED;
 }
@@ -187,7 +185,6 @@ vrrp_sync_backup(vrrp_t * vrrp)
 		}
 		else
 			vrrp_state_leave_master(isync);
-		vrrp_init_instance_sands(isync);
 	}
 
 	vgroup->state = VRRP_STATE_BACK;
@@ -218,12 +215,11 @@ vrrp_sync_master(vrrp_t * vrrp)
 			isync->wantstate = VRRP_STATE_MAST;
 // TODO 6 - transition straight to master if PRIO_OWNER
 // TODO 7 - not here, but generally if init_state == MAST && !owner, ms_down_timer = adver_int + 1 skew and be backup
-			vrrp_init_instance_sands(isync);
 			if (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
 				/* ??? */
 			} else {
 				vrrp_state_goto_master(isync);
-				thread_requeue_read(master, vrrp->sockets->fd_in, vrrp->ms_down_timer);
+				thread_requeue_read(master, isync->sockets->fd_in, isync->adver_int);
 			}
 		}
 	}

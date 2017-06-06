@@ -40,6 +40,7 @@
 #ifdef _WITH_STACKTRACE_
 #include <sys/stat.h>
 #include <execinfo.h>
+#include <memory.h>
 #endif
 
 /* Local includes */
@@ -48,6 +49,9 @@
 #include "utils.h"
 #include "signals.h"
 #include "bitops.h"
+#ifdef _WITH_STACKTRACE_
+#include "logger.h"
+#endif
 
 /* global vars */
 unsigned long debug = 0;
@@ -99,16 +103,32 @@ dump_buffer(char *buff, size_t count, FILE* fp)
 void
 write_stacktrace(const char *file_name)
 {
-	int fd = open(file_name, O_WRONLY | O_APPEND | O_CREAT, 0644);
+	int fd;
 	void *buffer[100];
 	int nptrs;
+	int i;
+	char **strs;
 
 	nptrs = backtrace(buffer, 100);
-	backtrace_symbols_fd(buffer, nptrs, fd);
-	if (write(fd, "\n", 1) != 1) {
-		/* We don't care, but this stops a warning on Ubuntu */
+	if (file_name) {
+		fd = open(file_name, O_WRONLY | O_APPEND | O_CREAT, 0644);
+		backtrace_symbols_fd(buffer, nptrs, fd);
+		if (write(fd, "\n", 1) != 1) {
+			/* We don't care, but this stops a warning on Ubuntu */
+		}
+		close(fd);
+	} else {
+		strs = backtrace_symbols(buffer, nptrs);
+		if (strs == NULL) {
+			log_message(LOG_INFO, "Unable to get stack backtrace");
+			return;
+		}
+
+		/* We don't need the call to this function, or the first two entries on the stack */
+		for (i = 1; i < nptrs - 2; i++)
+			log_message(LOG_INFO, "  %s", strs[i]);
+		free(strs);
 	}
-	close(fd);
 }
 #endif
 

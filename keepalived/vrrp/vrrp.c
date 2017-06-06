@@ -1486,6 +1486,7 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 #endif
 
 	vrrp->state = VRRP_STATE_MAST;
+	vrrp_init_instance_sands(vrrp);
 	vrrp_state_master_tx(vrrp);
 }
 
