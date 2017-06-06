@@ -215,7 +215,7 @@ down_instance(vrrp_t *vrrp)
 	if (vrrp->num_script_if_fault++ == 0 || vrrp->state == VRRP_STATE_INIT) {
 		vrrp->wantstate = VRRP_STATE_FAULT;
 		if (vrrp->state == VRRP_STATE_MAST)
-			vrrp_state_leave_master(vrrp);
+			vrrp_state_leave_master(vrrp, true);
 		else
 			vrrp_state_leave_fault(vrrp);
 

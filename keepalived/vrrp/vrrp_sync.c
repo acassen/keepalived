@@ -29,6 +29,7 @@
 #include "vrrp_notify.h"
 #include "vrrp_data.h"
 #include "logger.h"
+#include "vrrp_scheduler.h"
 
 #include "vrrp_print.h"
 
@@ -181,10 +182,10 @@ vrrp_sync_backup(vrrp_t * vrrp)
 		if (isync->state == VRRP_STATE_FAULT ||
 		    isync->state == VRRP_STATE_INIT) {
 			vrrp_state_leave_fault(isync);
-			thread_requeue_read(master, isync->sockets->fd_in, isync->ms_down_timer);
 		}
 		else
-			vrrp_state_leave_master(isync);
+			vrrp_state_leave_master(isync, true);
+		vrrp_thread_requeue_read(isync);
 	}
 
 	vgroup->state = VRRP_STATE_BACK;
@@ -219,7 +220,7 @@ vrrp_sync_master(vrrp_t * vrrp)
 				/* ??? */
 			} else {
 				vrrp_state_goto_master(isync);
-				thread_requeue_read(master, isync->sockets->fd_in, isync->adver_int);
+				vrrp_thread_requeue_read(isync);
 			}
 		}
 	}
@@ -254,7 +255,7 @@ vrrp_sync_fault(vrrp_t * vrrp)
 		if (isync != vrrp && isync->state != VRRP_STATE_FAULT) {
 			isync->wantstate = VRRP_STATE_FAULT;
 			if (isync->state == VRRP_STATE_MAST) {
-				vrrp_state_leave_master(isync);
+				vrrp_state_leave_master(isync, true);
 			}
 			else if (isync->state == VRRP_STATE_BACK || isync->state == VRRP_STATE_INIT) {
 				isync->state = VRRP_STATE_FAULT;	/* This is a bit of a bodge */

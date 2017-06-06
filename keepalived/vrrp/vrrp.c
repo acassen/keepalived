@@ -1540,7 +1540,7 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 }
 
 void
-vrrp_state_leave_master(vrrp_t * vrrp)
+vrrp_state_leave_master(vrrp_t * vrrp, bool advF)
 {
 #ifdef _WITH_LVS_
 	if (VRRP_VIP_ISSET(vrrp)) {
@@ -1566,7 +1566,7 @@ vrrp_state_leave_master(vrrp_t * vrrp)
 		return;
 	}
 
-	vrrp_restore_interface(vrrp, false, false);
+	vrrp_restore_interface(vrrp, advF, false);
 	vrrp->state = vrrp->wantstate;
 
 	send_instance_notifies(vrrp);

@@ -331,7 +331,7 @@ extern bool vrrp_state_master_rx(vrrp_t *, char *, ssize_t);
 extern void vrrp_state_master_tx(vrrp_t *);
 extern void vrrp_state_backup(vrrp_t *, char *, ssize_t);
 extern void vrrp_state_goto_master(vrrp_t *);
-extern void vrrp_state_leave_master(vrrp_t *);
+extern void vrrp_state_leave_master(vrrp_t *, bool);
 extern void vrrp_state_leave_fault(vrrp_t *);
 extern bool vrrp_complete_init(void);
 extern void vrrp_restore_interfaces_startup(void);

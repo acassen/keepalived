@@ -286,7 +286,6 @@ vrrp_compute_timer(const int fd)
 	/* Multiple instances on the same interface */
 	timerclear(&timer);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-// TODO - aren't these in time order ?
 		vrrp = ELEMENT_DATA(e);
 		if (!timerisset(&timer) ||
 		    timercmp(&vrrp->sands, &timer, <))
@@ -314,10 +313,20 @@ vrrp_timer_fd(const int fd)
 	return timer_long(timer);
 }
 
-static void
-thread_requeue_read_relative(vrrp_t *vrrp, uint32_t timer)
+void
+vrrp_thread_requeue_read(vrrp_t *vrrp)
 {
-	thread_read_requeue(master, vrrp->sockets->fd_in, timer_sub_long(vrrp->sands, timer));
+	thread_requeue_read(master, vrrp->sockets->fd_in, vrrp_timer_fd(vrrp->sockets->fd_in));
+}
+
+static void
+vrrp_thread_requeue_read_relative(vrrp_t *vrrp, uint32_t timer)
+{
+	vrrp->sands = timer_sub_long(vrrp->sands, timer);
+	if (timercmp(&vrrp->sands, &time_now, <))
+		vrrp->sands = time_now;
+
+	vrrp_thread_requeue_read(vrrp);
 }
 
 // TODO //static int
@@ -565,7 +574,7 @@ static void
 vrrp_leave_master(vrrp_t * vrrp, char *buffer, ssize_t len)
 {
 	if (vrrp_state_master_rx(vrrp, buffer, len))
-		vrrp_state_leave_master(vrrp);
+		vrrp_state_leave_master(vrrp, false);
 }
 
 static void
@@ -636,7 +645,7 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 
 	if (vrrp->state == VRRP_STATE_BACK && increasing_priority)
-		thread_requeue_read_relative(vrrp, old_down_timer - vrrp->ms_down_timer);
+		vrrp_thread_requeue_read_relative(vrrp, old_down_timer - vrrp->ms_down_timer);
 }
 
 static void
@@ -683,7 +692,8 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 	/* We can come up */
 	vrrp_state_leave_fault(vrrp);
 
-	thread_requeue_read(master, vrrp->sockets->fd_in, vrrp->ms_down_timer);
+	vrrp_init_instance_sands(vrrp);
+	vrrp_thread_requeue_read(vrrp);
 
 	vrrp->wantstate = wantstate;
 
@@ -712,7 +722,6 @@ vrrp_dispatcher_read_timeout(int fd)
 		if (vrrp->sockets->fd_in != fd)
 			continue;
 
-// TODO - aren't the entries in time order ?
 		if (timercmp(&vrrp->sands, &time_now, >))
 			continue;
 
