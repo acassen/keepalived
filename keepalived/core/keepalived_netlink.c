@@ -616,8 +616,9 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	bool addr_chg = false;
 	element e;
 	vrrp_t *vrrp;
-	tracking_vrrp_t *tvp;
+	vrrp_t *sync_vrrp;
 	vrrp_t *address_vrrp;
+	tracking_vrrp_t *tvp;
 
 	if (h->nlmsg_type != RTM_NEWADDR && h->nlmsg_type != RTM_DELADDR)
 		return 0;
@@ -798,6 +799,21 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 			if (address_vrrp && address_vrrp->state == VRRP_STATE_MAST) {
 				address_vrrp->wantstate = VRRP_STATE_BACK;
 				vrrp_state_leave_master(address_vrrp, true);
+				if (address_vrrp->sync) {
+					for (e = LIST_HEAD(address_vrrp->sync->index_list); e; ELEMENT_NEXT(e)) {
+						sync_vrrp = ELEMENT_DATA(e);
+						if (sync_vrrp->state == VRRP_STATE_MAST) {
+							sync_vrrp->wantstate = VRRP_STATE_BACK;
+							vrrp_state_leave_master(sync_vrrp, true);
+
+							/* We want a quick transition back to master */
+							sync_vrrp->ms_down_timer = VRRP_TIMER_SKEW(sync_vrrp);
+							vrrp_init_instance_sands(sync_vrrp);
+							vrrp_thread_requeue_read(sync_vrrp);
+						}
+					}
+					address_vrrp->sync->state = VRRP_STATE_BACK;
+				}
 
 				/* We want a quick transition back to master */
 				address_vrrp->ms_down_timer = VRRP_TIMER_SKEW(address_vrrp);

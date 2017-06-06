@@ -1475,7 +1475,10 @@ void
 vrrp_state_goto_master(vrrp_t * vrrp)
 {
 	if (vrrp->sync && !vrrp_sync_can_goto_master(vrrp))
+	{
+		vrrp->wantstate = VRRP_STATE_MAST;
 		return;
+	}
 
 #if defined _WITH_VRRP_AUTH_
 	/* If becoming MASTER in IPSEC AH AUTH, we reset the anti-replay */

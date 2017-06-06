@@ -219,7 +219,6 @@ down_instance(vrrp_t *vrrp)
 		else
 			vrrp_state_leave_fault(vrrp);
 
-// TODO-PQA
 		if (vrrp->sync && vrrp->sync->num_member_fault++ == 0)
 			vrrp_sync_fault(vrrp);
 	}
