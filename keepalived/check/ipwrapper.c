@@ -800,8 +800,12 @@ clear_diff_s_srv(virtual_server_t *old_vs, real_server_t *new_rs)
 				SET_ALIVE(old_rs);
 			old_rs->inhibit = 0;
 		}
-		if (ISALIVE(old_rs))
+		if (ISALIVE(old_rs)) {
+			log_message(LOG_INFO, "Removing sorry server %s from VS %s"
+					    , FMT_RS(old_rs, old_vs)
+					    , FMT_VS(old_vs));
 			ipvs_cmd(LVS_CMD_DEL_DEST, old_vs, old_rs);
+		}
 	}
 
 }
