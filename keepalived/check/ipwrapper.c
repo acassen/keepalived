@@ -734,7 +734,11 @@ clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 			/* Reset inhibit flag to delete inhibit entries */
 			log_message(LOG_INFO, "service %s no longer exist"
 					    , FMT_RS(rs, old_vs));
-			rs->inhibit = 0;
+			if (rs->inhibit) {
+				if (!ISALIVE(rs) && rs->set)
+					SET_ALIVE(rs);
+				rs->inhibit = 0;
+			}
 			list_add (rs_to_remove, rs);
 		} else {
 			/*
@@ -790,8 +794,19 @@ clear_diff_s_srv(virtual_server_t *old_vs, real_server_t *new_rs)
 		new_rs->pweight = old_rs->iweight;
 		new_rs->reloaded = true;
 	}
-	else if (ISALIVE(old_rs))
-		ipvs_cmd(LVS_CMD_DEL_DEST, old_vs, old_rs);
+	else {
+		if (old_rs->inhibit) {
+			if (!ISALIVE(old_rs) && old_rs->set)
+				SET_ALIVE(old_rs);
+			old_rs->inhibit = 0;
+		}
+		if (ISALIVE(old_rs)) {
+			log_message(LOG_INFO, "Removing sorry server %s from VS %s"
+					    , FMT_RS(old_rs, old_vs)
+					    , FMT_VS(old_vs));
+			ipvs_cmd(LVS_CMD_DEL_DEST, old_vs, old_rs);
+		}
+	}
 
 }
 
