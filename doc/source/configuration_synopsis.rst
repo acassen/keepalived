@@ -134,7 +134,7 @@ VRRP Instance Definitions Synopsis
             (or **notify_fault** “ /path_to_script/script_fault.sh <arg_list>”)
     }
     **vrrp_instance** string {
-        **state** *MASTER|BACKUP*
+        **state** *MASTER|BACKUP|EQUAL*
         **interface** string
         **mcast_src_ip** @IP
         **lvs_sync_daemon_interface** string
