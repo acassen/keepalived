@@ -59,6 +59,34 @@ make_link_local_address(struct in6_addr* l3_addr, const u_char* ll_addr)
 }
 
 bool
+add_link_local_address(interface_t *ifp, struct in6_addr* sin6_addr)
+{
+	ip_address_t ipaddress;
+
+	memset(&ipaddress, 0, sizeof(ipaddress));
+
+	/* Delete the old address */
+	ipaddress.ifp = ifp;
+	ipaddress.u.sin6_addr = *sin6_addr;
+
+	ipaddress.ifa.ifa_family = AF_INET6;
+	ipaddress.ifa.ifa_prefixlen = 64;
+	ipaddress.ifa.ifa_index = ifp->ifindex;
+
+	if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1) {
+		log_message(LOG_INFO, "Adding link-local address to vmac failed");
+		ifp->sin6_addr.s6_addr32[0] = 0;
+
+		return false;
+	}
+
+	/* Save the new address */
+	ifp->sin6_addr = ipaddress.u.sin6_addr;
+
+	return true;
+}
+
+bool
 replace_link_local_address(interface_t *ifp)
 {
 	ip_address_t ipaddress;

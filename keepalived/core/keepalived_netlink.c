@@ -53,9 +53,9 @@
 #include "vrrp_track.h"
 #include "vrrp_data.h"
 #include "vrrp_sync.h"
-#endif
 #ifdef _HAVE_VRRP_VMAC_
 #include "vrrp_vmac.h"
+#endif
 #endif
 #include "logger.h"
 #include "scheduler.h"
@@ -573,6 +573,11 @@ rta_nest_end(struct rtattr *rta, struct rtattr *nest)
 }
 #endif
 
+static inline __u8 rta_getattr_u8(const struct rtattr *rta)
+{
+        return *(__u8 *)RTA_DATA(rta);
+}
+
 static void
 parse_rtattr(struct rtattr **tb, int max, struct rtattr *rta, size_t len)
 {
@@ -619,6 +624,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	vrrp_t *sync_vrrp;
 	vrrp_t *address_vrrp;
 	tracking_vrrp_t *tvp;
+	bool is_tracking_saddr;
 
 	if (h->nlmsg_type != RTM_NEWADDR && h->nlmsg_type != RTM_DELADDR)
 		return 0;
@@ -690,18 +696,23 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 								    , addr_str, ifp->ifname);
 					}
 
-// If IPv6 link local and vmac doesn't have one, add it to the vmac
 					/* Now see if any vrrp instances were missing an interface address
 					 * and see if they can be brought up */
 					for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
 						tvp = ELEMENT_DATA(e);
 						vrrp = tvp->vrrp;
 
+						is_tracking_saddr = false;
+						if (vrrp->track_saddr) {
+							if (vrrp->family == ifa->ifa_family)
+								is_tracking_saddr = inaddr_equal(ifa->ifa_family, &vrrp->saddr, addr.addr);
+						}
+
 						if (ifp == (vrrp->family == AF_INET ? vrrp->ifp->base_ifp : vrrp->ifp) &&
 						    vrrp->num_script_if_fault &&
 						    vrrp->family == ifa->ifa_family &&
 						    vrrp->saddr.ss_family == AF_UNSPEC &&
-						    (!vrrp->saddr_from_config || vrrp->track_saddr)) {
+						    (!vrrp->saddr_from_config || is_tracking_saddr)) {
 							/* Copy the address */
 							if (ifa->ifa_family == AF_INET)
 								inet_ip4tosockaddr(addr.in, &vrrp->saddr);
@@ -709,6 +720,21 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 								inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
 							try_up_instance(vrrp, false);
 						}
+#ifdef _HAVE_VRRP_VMAC_
+						// If IPv6 link local and vmac doesn't have an address, add it to the vmac
+						else if (vrrp->family == AF_INET6 &&
+							 ifp == vrrp->ifp->base_ifp &&
+							 vrrp->ifp->vmac &&
+							 vrrp->num_script_if_fault &&
+							 vrrp->family == ifa->ifa_family &&
+							 vrrp->saddr.ss_family == AF_UNSPEC &&
+							 (!vrrp->saddr_from_config || is_tracking_saddr)) {
+							if (add_link_local_address(vrrp->ifp, addr.in6)) {
+								inet_ip6tosockaddr(addr.in6, &vrrp->saddr);
+								try_up_instance(vrrp, false);
+							}
+						}
+#endif
 					}
 				}
 			}
@@ -739,6 +765,11 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						tvp = ELEMENT_DATA(e);
 						vrrp = tvp->vrrp;
 
+						is_tracking_saddr = false;
+						if (vrrp->track_saddr) {
+							if (vrrp->family == ifa->ifa_family)
+								is_tracking_saddr = inaddr_equal(ifa->ifa_family, &vrrp->saddr, addr.addr);
+						}
 #ifdef _HAVE_VRRP_VMAC_
 						/* If we are a VMAC and took this address from the parent interface, we need to
 						 * release the address and create one for ourself */
@@ -751,7 +782,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						    vrrp->ifp->base_ifp->sin6_addr.s6_addr32[1] == addr.in6->s6_addr32[1] &&
 						    vrrp->ifp->base_ifp->sin6_addr.s6_addr32[2] == addr.in6->s6_addr32[2] &&
 						    vrrp->ifp->base_ifp->sin6_addr.s6_addr32[3] == addr.in6->s6_addr32[3]) {
-							if (replace_link_local_address(vrrp->ifp))
+							if (IF_ISUP(ifp) && replace_link_local_address(vrrp->ifp))
 								inet_ip6tosockaddr(&vrrp->ifp->sin6_addr, &vrrp->saddr);
 							else {
 								/* We failed to add an address, so down the instance */
@@ -761,10 +792,10 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						}
 						else
 #endif
-						if (ifp == (vrrp->family == AF_INET ? vrrp->ifp->base_ifp : vrrp->ifp) &&
-						    vrrp->family == ifa->ifa_family &&
-						    vrrp->saddr.ss_family != AF_UNSPEC &&
-						    (!vrrp->saddr_from_config || vrrp->track_saddr)) {
+						     if (ifp == (vrrp->family == AF_INET ? vrrp->ifp->base_ifp : vrrp->ifp) &&
+							 vrrp->family == ifa->ifa_family &&
+							 vrrp->saddr.ss_family != AF_UNSPEC &&
+							 (!vrrp->saddr_from_config || is_tracking_saddr)) {
 /* There might be another address available. Either send a netlink request for current addresses, or we keep a list */
 							down_instance(vrrp);
 							vrrp->saddr.ss_family = AF_UNSPEC;
@@ -1262,6 +1293,7 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	/* Interface name lookup */
 	memset(tb, 0, sizeof (tb));
 	parse_rtattr(tb, IFLA_MAX, IFLA_RTA(ifi), len);
+
 	if (tb[IFLA_IFNAME] == NULL)
 		return -1;
 	name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
@@ -1400,7 +1432,7 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 
 	if (ifp) {
 		if (h->nlmsg_type == RTM_DELLINK) {
-			if (__test_bit(LOG_DETAIL_BIT, &debug))
+			if (!LIST_ISEMPTY(ifp->tracking_vrrp) || __test_bit(LOG_DETAIL_BIT, &debug))
 				log_message(LOG_INFO, "Interface %s deleted", ifp->ifname);
 #ifndef _DEBUG_
 			if (prog_type == PROG_TYPE_VRRP)
@@ -1428,6 +1460,7 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 #else
 				cleanup_lost_interface(ifp);
 #endif
+// TODO - Remove any vmacs on the interface (internally)
 
 				/* Set ifp to null, to force creating a new interface_t */
 				ifp = NULL;
