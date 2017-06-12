@@ -391,6 +391,8 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 	if (vrrp_data->vrrp_track_files)
 		stop_track_files();
 
+	vrrp_initialised = false;
+
 	/* Destroy master thread */
 	vrrp_dispatcher_release(vrrp_data);
 	kernel_netlink_close();

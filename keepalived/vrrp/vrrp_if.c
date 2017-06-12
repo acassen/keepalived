@@ -50,6 +50,8 @@
 #endif
 #include "vrrp_index.h"
 #include "vrrp_track.h"
+#include "vrrp_sync.h"
+#include "vrrp_scheduler.h"
 
 /* Local vars */
 static list if_queue;
@@ -924,6 +926,7 @@ cleanup_lost_interface(interface_t *ifp)
 		/* Find the sockpool entry. If none, then we have closed the socket */
 		if (vrrp->sockets->fd_in != -1) {
 			remove_vrrp_fd_bucket(vrrp->sockets->fd_in);
+			thread_cancel_read(master, vrrp->sockets->fd_in);
 			close(vrrp->sockets->fd_in);
 			vrrp->sockets->fd_in = -1;
 		}
@@ -973,7 +976,16 @@ update_added_interface(interface_t *ifp)
 			if (vrrp->sockets->fd_in > master->max_fd)
 				master->max_fd = vrrp->sockets->fd_in;
 			vrrp->sockets->ifindex = ifp->ifindex;
+
+			alloc_vrrp_fd_bucket(vrrp);
+
+			if (vrrp_initialised) {
+				vrrp->state = VRRP_STATE_FAULT;
+				vrrp_init_instance_sands(vrrp);
+				vrrp_thread_add_read(vrrp);
+			}
 		}
-		alloc_vrrp_fd_bucket(vrrp);
+		else
+			alloc_vrrp_fd_bucket(vrrp);
 	}
 }

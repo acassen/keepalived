@@ -48,7 +48,7 @@ make_link_local_address(struct in6_addr* l3_addr, const u_char* ll_addr)
 	l3_addr->s6_addr[1] = 0x80;
 	l3_addr->s6_addr16[1] = 0;
 	l3_addr->s6_addr32[1] = 0;
-	l3_addr->s6_addr[8] = ll_addr[0] | 0x02;
+	l3_addr->s6_addr[8] = ll_addr[0] ^ 0x02;
 	l3_addr->s6_addr[9] = ll_addr[1];
 	l3_addr->s6_addr[10] = ll_addr[2];
 	l3_addr->s6_addr[11] = 0xff;
@@ -90,8 +90,16 @@ bool
 replace_link_local_address(interface_t *ifp)
 {
 	ip_address_t ipaddress;
+	struct in6_addr ipaddress_new;
 
 	memset(&ipaddress, 0, sizeof(ipaddress));
+
+	/* Create a new address */
+	make_link_local_address(&ipaddress_new, ifp->base_ifp->hw_addr);
+
+	/* There is no point in replacing the address with the same address */
+	if (inaddr_equal(AF_INET6, &ipaddress_new, &ifp->sin6_addr))
+		return true;
 
 	/* Delete the old address */
 	ipaddress.ifp = ifp;
@@ -106,9 +114,7 @@ replace_link_local_address(interface_t *ifp)
 	else
 		ifp->sin6_addr.s6_addr32[0] = 0;
 
-	/* Create a new address */
-	make_link_local_address(&ipaddress.u.sin6_addr, ifp->hw_addr);
-
+	ipaddress.u.sin6_addr = ipaddress_new;
 	if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1) {
 		log_message(LOG_INFO, "Adding link-local address to vmac failed");
 		ifp->sin6_addr.s6_addr32[0] = 0;
@@ -121,6 +127,33 @@ replace_link_local_address(interface_t *ifp)
 
 	return true;
 }
+
+#if !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
+void
+remove_vmac_auto_gen_addr(interface_t *ifp, struct in6_addr *addr)
+{
+	struct in6_addr auto_addr;
+	ip_address_t ipaddress;
+
+	make_link_local_address(&auto_addr, ifp->hw_addr);
+
+	if (!inaddr_equal(AF_INET6, &auto_addr, addr))
+		return;
+
+	/* Delete the new address */
+	memset(&ipaddress, 0, sizeof(ipaddress));
+
+	ipaddress.ifp = ifp;
+	ipaddress.u.sin6_addr = *addr;
+
+	ipaddress.ifa.ifa_family = AF_INET6;
+	ipaddress.ifa.ifa_prefixlen = 64;
+	ipaddress.ifa.ifa_index = ifp->ifindex;
+
+	if (netlink_ipaddress(&ipaddress, IPADDRESS_DEL) != 1)
+		log_message(LOG_INFO, "Deleting auto generated link-local address from vmac failed");
+}
+#endif
 
 static int
 netlink_link_up(vrrp_t *vrrp)
@@ -336,14 +369,6 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 			if (netlink_ipaddress(&ipaddress, IPADDRESS_ADD) != 1 && create_interface)
 				log_message(LOG_INFO, "Adding link-local address to vmac failed");
-			else {
-				/* Save the address as source for vrrp packets */
-				if (vrrp->saddr.ss_family == AF_UNSPEC)
-					inet_ip6tosockaddr(&ipaddress.u.sin6_addr, &vrrp->saddr);
-
-				/* Save the interface address */
-				ifp->sin6_addr = ipaddress.u.sin6_addr;
-			}
 		}
 	}
 
@@ -373,7 +398,6 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 
 		if (netlink_ipaddress(&ipaddress, IPADDRESS_DEL) != 1 && create_interface)
 			log_message(LOG_INFO, "Deleting auto link-local address from vmac failed");
-
 	}
 #endif
 

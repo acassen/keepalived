@@ -37,6 +37,7 @@
 /* global vars */
 extern timeval_t garp_next_time;
 extern thread_t *garp_thread;
+extern bool vrrp_initialised;
 
 /* VRRP TSM Macro */
 #define VRRP_TSM_HANDLE(S,V)			\
@@ -48,6 +49,7 @@ do {						\
 
 /* extern prototypes */
 extern void vrrp_thread_requeue_read(vrrp_t *);
+extern void vrrp_thread_add_read(vrrp_t *);
 extern int vrrp_dispatcher_init(thread_t *);
 extern void vrrp_dispatcher_release(vrrp_data_t *);
 extern int vrrp_gratuitous_arp_thread(thread_t *);

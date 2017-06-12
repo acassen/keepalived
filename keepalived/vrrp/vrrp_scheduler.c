@@ -58,6 +58,7 @@
 /* global vars */
 timeval_t garp_next_time;
 thread_t *garp_thread;
+bool vrrp_initialised;
 
 /* VRRP FSM (Finite State Machine) design.
  *
@@ -392,6 +393,13 @@ vrrp_register_workers(list l)
 	}
 }
 
+void
+vrrp_thread_add_read(vrrp_t *vrrp)
+{
+	vrrp->sockets->thread = thread_add_read(master, vrrp_read_dispatcher_thread,
+						vrrp->sockets, vrrp->sockets->fd_in, vrrp_timer_fd(vrrp->sockets->fd_in));
+}
+
 /* VRRP dispatcher functions */
 static int
 already_exist_sock(list l, sa_family_t family, int proto, ifindex_t ifindex, bool unicast)
@@ -554,6 +562,9 @@ vrrp_dispatcher_init(__attribute__((unused)) thread_t * thread)
 	/* Dump socket pool */
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
 		dump_list(vrrp_data->vrrp_socket_pool);
+
+	vrrp_initialised = true;
+
 	return 1;
 }
 

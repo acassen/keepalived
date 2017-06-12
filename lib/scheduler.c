@@ -601,6 +601,23 @@ thread_cancel(thread_t * thread)
 	return 0;
 }
 
+void
+thread_cancel_read(thread_master_t *m, int fd)
+{
+	thread_t *thread;
+
+	thread = m->read.head;
+	while (thread) {
+		thread_t *t;
+
+		t = thread;
+		thread = t->next;
+
+		if (t->u.fd == fd)
+			thread_cancel(t);
+	}
+}
+
 #ifdef _INCLUDE_UNUSED_CODE_
 /* Delete all events which has argument value arg. */
 void
@@ -752,7 +769,7 @@ retry:	/* When thread can't fetch try to find next thread again. */
 
 #ifdef _SELECT_DEBUG_
 	/* if (prog_type == PROG_TYPE_VRRP) */
-		log_message(LOG_INFO, "select with timer %lu.%6.6ld, fdsetsize %d", timer_wait.tv_sec, timer_wait.tv_usec, fdsetsize);
+		log_message(LOG_INFO, "select with timer %lu.%6.6ld, fdsetsize %d, readfds 0x%lx", timer_wait.tv_sec, timer_wait.tv_usec, fdsetsize, readfd.fds_bits[0]);
 #endif
 
 	num_fds = select(fdsetsize, &readfd, &writefd, &exceptfd, &timer_wait);
