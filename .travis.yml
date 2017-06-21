@@ -1,0 +1,20 @@
+git:
+  depth: 1
+
+language: c
+
+compiler:
+  - gcc
+
+os:
+  - linux
+
+install:
+  - autoreconf -W portability -visf
+
+before_script:
+  - ./configure
+
+script:
+  - make
+
