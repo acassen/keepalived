@@ -1,3 +1,8 @@
+keepalived: Loadbalancing & High-Availability
+=============================================
+
+[![Build Status](https://travis-ci.org/acassen/keepalived.svg?branch=master)](https://travis-ci.org/acassen/keepalived)
+
 The main goal of the keepalived project is to add a strong & robust
 keepalive facility to the Linux Virtual Server project.
 It implements a multilayer TCP/IP stack checks. Keepalived implements
