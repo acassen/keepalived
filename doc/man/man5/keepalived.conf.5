@@ -789,6 +789,8 @@ A virtual_server can be a declaration of one of
     # applies inhibit_on_failure behaviour to the
     # preceding sorry_server directive
     sorry_server_inhibit
+    # Sorry server LVS forwarding method
+    sorry_server_lvs_method NAT|DR|TUN
 
     # one entry for each realserver
     real_server <IPADDR> <PORT>
@@ -796,7 +798,7 @@ A virtual_server can be a declaration of one of
            # relative weight to use, default: 1
            weight <INT>
            # LVS forwarding method
-           lb_kind NAT|DR|TUN
+           lvs_method NAT|DR|TUN
            # Set weight to 0 when healthchecker detects failure
            inhibit_on_failure
 

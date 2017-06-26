@@ -67,7 +67,7 @@ typedef struct _real_server {
 	unsigned			forwarding_method; /* NAT/TUN/DR */
 	uint32_t			u_threshold;   /* Upper connection limit. */
 	uint32_t			l_threshold;   /* Lower connection limit. */
-	int				inhibit;	/* Set weight to 0 instead of removing
+	bool				inhibit;	/* Set weight to 0 instead of removing
 							 * the service from IPVS topology.
 							 */
 	notify_script_t			*notify_up;	/* Script to launch when RS is added to LVS */

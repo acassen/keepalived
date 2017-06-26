@@ -317,6 +317,17 @@ dump_vs(void *data)
 	if (vs->s_svr) {
 		log_message(LOG_INFO, "   sorry server = %s"
 				    , FMT_RS(vs->s_svr, vs));
+		switch (vs->s_svr->forwarding_method) {
+		case IP_VS_CONN_F_MASQ:
+			log_message(LOG_INFO, "   sorry server forwarding method = NAT");
+			break;
+		case IP_VS_CONN_F_DROUTE:
+			log_message(LOG_INFO, "   sorry server forwarding method = DR");
+			break;
+		case IP_VS_CONN_F_TUNNEL:
+			log_message(LOG_INFO, "   sorry server forwarding method = TUN");
+			break;
+		}
 	}
 	if (!LIST_ISEMPTY(vs->rs))
 		dump_list(vs->rs);
@@ -373,6 +384,7 @@ alloc_ssvr(char *ip, char *port)
 	vs->s_svr = (real_server_t *) MALLOC(sizeof(real_server_t));
 	vs->s_svr->weight = 1;
 	vs->s_svr->iweight = 1;
+	vs->s_svr->forwarding_method = vs->forwarding_method;
 	inet_stosockaddr(ip, port, &vs->s_svr->addr);
 
 	if (!vs->af)
