@@ -504,6 +504,7 @@ thread_cancel(thread_t * thread)
 	case THREAD_READY_FD:
 	case THREAD_READ_TIMEOUT:
 	case THREAD_WRITE_TIMEOUT:
+	case THREAD_CHILD_TIMEOUT:
 		thread_list_delete(&thread->master->ready, thread);
 		break;
 	default:
