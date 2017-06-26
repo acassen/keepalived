@@ -90,7 +90,7 @@ typedef struct _thread_master {
 #define THREAD_TERMINATE	10
 #define THREAD_READY_FD		11
 
-#ifndef _DEBUG__
+#ifndef _DEBUG_
 typedef enum {
 	PROG_TYPE_PARENT,
 #ifdef _WITH_VRRP_

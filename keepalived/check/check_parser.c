@@ -267,6 +267,20 @@ virtualhost_handler(vector_t *strvec)
 	vs->virtualhost = set_value(strvec);
 }
 
+static void
+svr_forwarding_handler(real_server_t *rs, vector_t *strvec)
+{
+	char *str = strvec_slot(strvec, 1);
+
+	if (!strcmp(str, "NAT"))
+		rs->forwarding_method = IP_VS_CONN_F_MASQ;
+	else if (!strcmp(str, "DR"))
+		rs->forwarding_method = IP_VS_CONN_F_DROUTE;
+	else if (!strcmp(str, "TUN"))
+		rs->forwarding_method = IP_VS_CONN_F_TUNNEL;
+	else
+		log_message(LOG_INFO, "PARSER : unknown [%s] routing method for real server.", str);
+}
 /* Sorry Servers handlers */
 static void
 ssvr_handler(vector_t *strvec)
@@ -277,11 +291,20 @@ static void
 ssvri_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	if (vs->s_svr) {
-		vs->s_svr->inhibit = 1;
-	} else {
-		log_message(LOG_ERR, "Ignoring sorry_server_inhibit used before or without sorry_server");
-	}
+	if (vs->s_svr)
+		vs->s_svr->inhibit = true;
+	else
+		log_message(LOG_ERR, "Ignoring sorry_server inhibit used before or without sorry_server");
+}
+static void
+ss_forwarding_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+
+	if (vs->s_svr)
+		svr_forwarding_handler(vs->s_svr, strvec);
+	else
+		log_message(LOG_ERR, "sorry_server forwarding used without sorry_server");
 }
 
 /* Real Servers handlers */
@@ -303,16 +326,8 @@ rs_forwarding_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	char *str = strvec_slot(strvec, 1);
 
-	if (!strcmp(str, "NAT"))
-		rs->forwarding_method = IP_VS_CONN_F_MASQ;
-	else if (!strcmp(str, "DR"))
-		rs->forwarding_method = IP_VS_CONN_F_DROUTE;
-	else if (!strcmp(str, "TUN"))
-		rs->forwarding_method = IP_VS_CONN_F_TUNNEL;
-	else
-		log_message(LOG_INFO, "PARSER : unknown [%s] routing method for real server.", str);
+	svr_forwarding_handler(rs, strvec);
 }
 static void
 uthreshold_handler(vector_t *strvec)
@@ -466,6 +481,7 @@ init_check_keywords(bool active)
 	/* Real server mapping */
 	install_keyword("sorry_server", &ssvr_handler);
 	install_keyword("sorry_server_inhibit", &ssvri_handler);
+	install_keyword("sorry_server_lvs_method", &ss_forwarding_handler);
 	install_keyword("real_server", &rs_handler);
 	install_sublevel();
 	install_keyword("weight", &weight_handler);
