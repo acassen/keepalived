@@ -373,6 +373,7 @@ alloc_ssvr(char *ip, char *port)
 	vs->s_svr = (real_server_t *) MALLOC(sizeof(real_server_t));
 	vs->s_svr->weight = 1;
 	vs->s_svr->iweight = 1;
+	vs->s_svr->forwarding_method = vs->forwarding_method;
 	inet_stosockaddr(ip, port, &vs->s_svr->addr);
 
 	if (!vs->af)
