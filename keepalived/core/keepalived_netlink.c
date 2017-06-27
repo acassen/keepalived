@@ -39,6 +39,9 @@
 #include <stdint.h>
 
 /* local include */
+#ifdef _LIBNL_DYNAMIC_
+#include "libnl_link.h"
+#endif
 #ifdef _WITH_LVS_
 #include "check_api.h"
 #endif
@@ -53,9 +56,6 @@
 #include "bitops.h"
 #if !HAVE_DECL_SOCK_NONBLOCK
 #include "old_socket.h"
-#endif
-#ifdef _LIBNL_DYNAMIC_
-#include "libnl_link.h"
 #endif
 
 /* Default values */

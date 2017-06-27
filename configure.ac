@@ -492,8 +492,8 @@ if test .${enable_libnl} != .no; then
           dnl -- Resolved in libnl3-3.2.26 (release 30/3/2015)
           AC_MSG_CHECKING([for net/if.h and libnl3/netlink/route/link.h namespace collision])
           AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
-              #include <net/if.h>
               #include <netlink/route/link.h>
+              #include <net/if.h>
             ]])], [
               AC_MSG_RESULT([no])
             ], [
@@ -808,6 +808,25 @@ AM_CONDITIONAL([LIBIPSET], [test $USE_LIBIPSET = Yes])
 unset LIBS
 
 dnl ----[Check if have linux/if.h and net/if.h namespace collision]----
+# Including <linux/if.h> and <net/if.h> can cause a namespace collision.
+# Later versions of the headers are OK if linux/if.h is included second
+AC_MSG_CHECKING([for linux/if.h and net/if.h namespace collision])
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $kernelinc"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+    #include <net/if.h>
+    #include <linux/if.h>
+  ]])],
+  [
+    AC_MSG_RESULT([no])
+  ],
+  [
+    AC_MSG_RESULT([yes])
+    AC_DEFINE([_HAVE_NET_LINUX_IF_H_COLLISION_], [ 1 ], [Define to 1 if have linux/if.h followed by net/if.h namespace collision])
+    add_build_opt([NET_LINUX_IF_H_COLLISION])
+  ])
+CPPFLAGS="$SAV_CPPFLAGS"
+
 # Linux 4.5 to 4.5.4 has <libiptc/libiptc.h> indirectly including <net/if.h>
 # and <linux/if.h> which causes a namespace collision.
 AC_MSG_CHECKING([for libiptc/libiptc.h linux/if.h and net/if.h namespace collision])
@@ -821,8 +840,8 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   ],
   [
     AC_MSG_RESULT([yes])
-    AC_DEFINE([_HAVE_LINUX_NET_IF_H_COLLISION_], [ 1 ], [Define to 1 if have libiptc/libiptc.h linux/if.h and net/if.h namespace collision])
-    add_build_opt([LINUX_NET_IF_H_COLLISION])
+    AC_DEFINE([_HAVE_LIBIPTC_LINUX_NET_IF_H_COLLISION_], [ 1 ], [Define to 1 if have libiptc/libiptc.h linux/if.h and net/if.h namespace collision])
+    add_build_opt([LIBIPTC_LINUX_NET_IF_H_COLLISION])
   ])
 CPPFLAGS="$SAV_CPPFLAGS"
 
