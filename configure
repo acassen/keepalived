@@ -3280,6 +3280,7 @@ AM_BACKSLASH='\'
 
 
 
+
 if test "x$ac_cv_env_PKG_CONFIG_set" != "xset"; then
 	if test -n "$ac_tool_prefix"; then
   # Extract the first word of "${ac_tool_prefix}pkg-config", so it can be a program name with args.
@@ -7163,8 +7164,8 @@ $as_echo_n "checking for net/if.h and libnl3/netlink/route/link.h namespace coll
           cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-              #include <net/if.h>
               #include <netlink/route/link.h>
+              #include <net/if.h>
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
@@ -8850,6 +8851,37 @@ fi
 
 unset LIBS
 
+# Including <linux/if.h> and <net/if.h> can cause a namespace collision.
+# Later versions of the headers are OK if linux/if.h is included second
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for linux/if.h and net/if.h namespace collision" >&5
+$as_echo_n "checking for linux/if.h and net/if.h namespace collision... " >&6; }
+SAV_CPPFLAGS="$CPPFLAGS"
+CPPFLAGS="$CPPFLAGS $kernelinc"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+    #include <net/if.h>
+    #include <linux/if.h>
+
+_ACEOF
+if ac_fn_c_try_compile "$LINENO"; then :
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+$as_echo "no" >&6; }
+
+else
+
+    { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+$as_echo "yes" >&6; }
+
+$as_echo "#define _HAVE_NET_LINUX_IF_H_COLLISION_  1 " >>confdefs.h
+
+    BUILD_OPTIONS="$BUILD_OPTIONS NET_LINUX_IF_H_COLLISION"
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+CPPFLAGS="$SAV_CPPFLAGS"
+
 # Linux 4.5 to 4.5.4 has <libiptc/libiptc.h> indirectly including <net/if.h>
 # and <linux/if.h> which causes a namespace collision.
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for libiptc/libiptc.h linux/if.h and net/if.h namespace collision" >&5
@@ -8872,9 +8904,9 @@ else
     { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
-$as_echo "#define _HAVE_LINUX_NET_IF_H_COLLISION_  1 " >>confdefs.h
+$as_echo "#define _HAVE_LIBIPTC_LINUX_NET_IF_H_COLLISION_  1 " >>confdefs.h
 
-    BUILD_OPTIONS="$BUILD_OPTIONS LINUX_NET_IF_H_COLLISION"
+    BUILD_OPTIONS="$BUILD_OPTIONS LIBIPTC_LINUX_NET_IF_H_COLLISION"
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext

@@ -531,15 +531,18 @@
 /* Define to 1 if have iptables libraries */
 #undef _HAVE_LIBIPTC_
 
+/* Define to 1 if have libiptc/libiptc.h linux/if.h and net/if.h namespace
+   collision */
+#undef _HAVE_LIBIPTC_LINUX_NET_IF_H_COLLISION_
+
 /* Define to 1 if using libnl-1 */
 #undef _HAVE_LIBNL1_
 
 /* Define to 1 if using libnl-3 */
 #undef _HAVE_LIBNL3_
 
-/* Define to 1 if have libiptc/libiptc.h linux/if.h and net/if.h namespace
-   collision */
-#undef _HAVE_LINUX_NET_IF_H_COLLISION_
+/* Define to 1 if have linux/if.h followed by net/if.h namespace collision */
+#undef _HAVE_NET_LINUX_IF_H_COLLISION_
 
 /* Define to 1 if have pe selection support */
 #undef _HAVE_PE_NAME_

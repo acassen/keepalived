@@ -40,17 +40,17 @@
 
 #include "config.h"
 
-#ifdef _HAVE_LINUX_NET_IF_H_COLLISION_
-/* The following is a horrible workaround. Linux 4.5 introduced a namespace
- * collision when including libiptc/libiptc.h due to both net/if.h and linux/if.h
+#ifdef _HAVE_LIBIPTC_LINUX_NET_IF_H_COLLISION_
+/* Linux 4.5 introduced a namespace collision when including
+ * libiptc/libiptc.h due to both net/if.h and linux/if.h
  * being included.
  *
  * See: http://bugzilla.netfilter.org/show_bug.cgi?id=1067
  *
- * Defining _LINUX_IF_H stops linux/if.h being included.
+ * Including net/if.h first resolves the issue.
  */
 
-#define _LINUX_IF_H
+#include <net/if.h>
 #endif
 
 #include <libiptc/libiptc.h>
