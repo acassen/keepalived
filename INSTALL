@@ -82,7 +82,7 @@ commands before following the instuctions under 'Installation' above:
 
   1. 'aclocal'
   2. 'autoheader'
-  3. 'automake --add-missing'
+  3. 'automake --add-missing' # add -c option if going to commit to git
   4. 'autoreconf'
 
 If you are attempting to build keepalived after cloning
