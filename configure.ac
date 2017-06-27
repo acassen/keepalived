@@ -289,6 +289,23 @@ if test "$enable_Werror" = yes; then
   KA_CFLAGS="$KA_CFLAGS -Werror"
 fi
 
+AC_MSG_CHECKING([for -Wimplicit-fallthrough])
+SAV_CFLAGS="$CFLAGS"
+CFLAGS="-Wimplicit-fallthrough=3"
+AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
+  int main(int argc, char**argv)
+  {
+  }
+  ]])],
+  [
+    AC_MSG_RESULT([yes])
+    KA_CFLAGS="$KA_CFLAGS -Wimplicit-fallthrough=3"
+  ],
+  [
+    AC_MSG_RESULT([no])
+  ])
+CFLAGS="$SAV_CFLAGS"
+
 AC_SUBST(KA_CPPFLAGS)
 AC_SUBST(KA_CFLAGS)
 AC_SUBST(KA_LDFLAGS)
