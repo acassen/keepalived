@@ -18,15 +18,22 @@
 
 #include <stdbool.h>
 
+#if defined _WITH_VRRP_ && defined _HAVE_LIBNL3_ && defined _HAVE_IPV4_DEVCONF_
+#ifdef _HAVE_IF_H_LINK_H_COLLISION_
+#ifdef _HAVE_NET_LINUX_IF_H_COLLISION_
+#define _LINUX_IF_H
+#else
+#include <net/if.h>
+#endif
+#endif
+#include <netlink/route/link.h>
+#include <netlink/route/link/inet.h>
+#endif
 #include <netlink/socket.h>
 #include <netlink/netlink.h>
 #ifdef LIBIPVS_USE_NL
 #include <netlink/genl/genl.h>
 #include <netlink/genl/ctrl.h>
-#endif
-#if defined _WITH_VRRP_ && defined _HAVE_LIBNL3_ && defined _HAVE_IPV4_DEVCONF_
-#include <netlink/route/link.h>
-#include <netlink/route/link/inet.h>
 #endif
 
 /* The addresses of the functions we want */
@@ -48,7 +55,9 @@ extern int (*nl_send_auto_complete_addr)(struct nl_sock *,  struct nl_msg *);
 extern int (*nl_socket_modify_cb_addr)(struct nl_sock *, enum nl_cb_type, enum nl_cb_kind, nl_recvmsg_msg_cb_t, void *);
 #ifdef _HAVE_LIBNL3_
 extern void * (*nla_data_addr)(const struct nlattr *);
+#ifdef NLA_PUT_S32
 extern int32_t (*nla_get_s32_addr)(const struct nlattr *);
+#endif
 extern char * (*nla_get_string_addr)(const struct nlattr *);
 extern uint16_t (*nla_get_u16_addr)(const struct nlattr *);
 extern uint32_t (*nla_get_u32_addr)(const struct nlattr *);
@@ -94,7 +103,9 @@ extern int (*nl_socket_set_nonblocking_addr)(const struct nl_sock *);
 #define nl_socket_modify_cb (*nl_socket_modify_cb_addr)
 #ifdef _HAVE_LIBNL3_
 #define nla_data (*nla_data_addr)
+#ifdef NLA_PUT_S32
 #define nla_get_s32 (*nla_get_s32_addr)
+#endif
 #define nla_get_string (*nla_get_string_addr)
 #define nla_get_u16 (*nla_get_u16_addr)
 #define nla_get_u32 (*nla_get_u32_addr)

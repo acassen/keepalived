@@ -672,16 +672,23 @@ check_script_secure(notify_script_t *script, magic_t magic)
 
 		log_message(LOG_INFO, "Unable to set uid:gid %d:%d for script %s - disabling", script->uid, script->gid, script->args[0]);
 
+		if ((script->uid && seteuid(old_uid)) ||
+		    (script->gid && setegid(old_gid)))
+			log_message(LOG_INFO, "Unable to restore uid:gid %d:%d after script %s", script->uid, script->gid, script->args[0]);
+
+		if (space)
+			*space = ' ';
+
 		return SC_INHIBIT;
 	}
 
 	/* Remove /./, /../, multiple /'s, and resolve symbolic links */
 	new_path = realpath(script->args[0], NULL);
 	sav_errno = errno;
-	if (script->gid)
-		setegid(old_gid);
-	if (script->uid)
-		seteuid(old_uid);
+
+	if ((script->gid && setegid(old_gid)) ||
+	    (script->uid && seteuid(old_uid)))
+		log_message(LOG_INFO, "Unable to restore uid:gid %d:%d after checking script %s", script->uid, script->gid, script->args[0]);
 
 	if (!new_path)
 	{

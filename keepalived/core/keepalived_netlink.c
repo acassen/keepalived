@@ -44,6 +44,9 @@
 #include <time.h>
 
 /* local include */
+#ifdef _LIBNL_DYNAMIC_
+#include "libnl_link.h"
+#endif
 #include "keepalived_netlink.h"
 #ifdef _WITH_LVS_
 #include "check_api.h"
@@ -63,9 +66,6 @@
 #include "bitops.h"
 #if !HAVE_DECL_SOCK_NONBLOCK
 #include "old_socket.h"
-#endif
-#ifdef _LIBNL_DYNAMIC_
-#include "libnl_link.h"
 #endif
 #include "vrrp_ipaddress.h"
 

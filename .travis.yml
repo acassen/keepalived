@@ -1,0 +1,28 @@
+git:
+  depth: 1
+
+language: c
+compiler: gcc
+os: linux
+dist: trusty
+sudo: require
+
+install:
+  - autoreconf -W portability -visf
+
+before_script:
+  - ./test/ci/setup.sh
+
+script:
+  - ./test/ci/build.sh
+
+env:
+  matrix:
+    - KEEPALIVED_CONFIG_ARGS=""
+    - KEEPALIVED_CONFIG_ARGS="--enable-snmp --enable-snmp-rfc"
+    - KEEPALIVED_CONFIG_ARGS="--enable-sha1"
+    - KEEPALIVED_CONFIG_ARGS="--enable-dynamic-linking"
+    - KEEPALIVED_CONFIG_ARGS="--disable-libiptc --disable-libipset --disable-libnl"
+    - KEEPALIVED_CONFIG_ARGS="--enable-conversion-checks"
+    - KEEPALIVED_CONFIG_ARGS="--enable-stacktrace"
+
