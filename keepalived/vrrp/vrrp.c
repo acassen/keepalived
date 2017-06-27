@@ -2548,7 +2548,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		/* No interface found, find an unused name */
 		if (!vrrp->vmac_ifname[0]) {
-			int num=0;
+			unsigned short num=0;
 			snprintf(ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
 
 			while (true) {
