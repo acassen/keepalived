@@ -599,10 +599,11 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 
 	if ((script->gid && setegid(script->gid)) ||
 	    (script->uid && seteuid(script->uid))) {
-		if (script->uid)
-			seteuid(old_uid);
-
 		log_message(LOG_INFO, "Unable to set uid:gid %d:%d for script %s - disabling", script->uid, script->gid, script->name);
+
+		if ((script->uid && seteuid(old_uid)) ||
+		    (script->gid && setegid(old_gid)))
+			log_message(LOG_INFO, "Unable to restore uid:gid %d:%d after script %s", script->uid, script->gid, script->name);
 
 		if (space)
 			*space = ' ';
@@ -614,10 +615,9 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 	new_path = realpath(script->name, NULL);
 	sav_errno = errno;
 
-	if (script->gid)
-		setegid(old_gid);
-	if (script->uid)
-		seteuid(old_uid);
+	if ((script->gid && setegid(old_gid)) ||
+	    (script->uid && seteuid(old_uid)))
+		log_message(LOG_INFO, "Unable to restore uid:gid %d:%d after checking script %s", script->uid, script->gid, script->name);
 
 	if (!new_path)
 	{

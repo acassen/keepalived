@@ -25,6 +25,20 @@
 #include <netlink/genl/ctrl.h>
 #endif
 #if defined _WITH_VRRP_ && defined _HAVE_LIBNL3_ && defined _HAVE_IPV4_DEVCONF_
+
+#ifdef _HAVE_IF_H_LINK_H_COLLISION_
+/* The following is a horrible workaround. There was a longstanding problem with symbol
+ * collision including both net/if.h and netlink/route/link.h, due to the latter
+ * including linux/if.h unnecessarily.
+ *
+ * See: https://github.com/thom311/libnl/commit/50a76998ac36ace3716d3c979b352fac73cfc80a
+ *
+ * Defining _LINUX_IF_H stops linux/if.h being included.
+ */
+
+#define _LINUX_IF_H
+#endif
+
 #include <netlink/route/link.h>
 #include <netlink/route/link/inet.h>
 #endif
@@ -48,7 +62,9 @@ extern int (*nl_send_auto_complete_addr)(struct nl_sock *,  struct nl_msg *);
 extern int (*nl_socket_modify_cb_addr)(struct nl_sock *, enum nl_cb_type, enum nl_cb_kind, nl_recvmsg_msg_cb_t, void *);
 #ifdef _HAVE_LIBNL3_
 extern void * (*nla_data_addr)(const struct nlattr *);
+#ifdef NLA_PUT_S32
 extern int32_t (*nla_get_s32_addr)(const struct nlattr *);
+#endif
 extern char * (*nla_get_string_addr)(const struct nlattr *);
 extern uint16_t (*nla_get_u16_addr)(const struct nlattr *);
 extern uint32_t (*nla_get_u32_addr)(const struct nlattr *);
@@ -94,7 +110,9 @@ extern int (*nl_socket_set_nonblocking_addr)(const struct nl_sock *);
 #define nl_socket_modify_cb (*nl_socket_modify_cb_addr)
 #ifdef _HAVE_LIBNL3_
 #define nla_data (*nla_data_addr)
+#ifdef NLA_PUT_S32
 #define nla_get_s32 (*nla_get_s32_addr)
+#endif
 #define nla_get_string (*nla_get_string_addr)
 #define nla_get_u16 (*nla_get_u16_addr)
 #define nla_get_u32 (*nla_get_u32_addr)
