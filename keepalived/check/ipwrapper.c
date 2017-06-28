@@ -521,7 +521,7 @@ update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
 }
 
 /* Test if realserver is marked UP for a specific checker */
-int
+bool
 svr_checker_up(checker_id_t cid, real_server_t *rs)
 {
 	element e;
@@ -536,10 +536,10 @@ svr_checker_up(checker_id_t cid, real_server_t *rs)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		id = ELEMENT_DATA(e);
 		if (*id == cid)
-			return 0;
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 
 /* Update checker's state */

@@ -251,9 +251,10 @@ if_print(FILE *file, void *data)
 	fprintf(file, " Name = %s\n", ifp->ifname);
 	fprintf(file, "   index = %u\n", ifp->ifindex);
 	fprintf(file, "   IPv4 address = %s\n",
-		inet_ntop2(ifp->sin_addr.s_addr));
-	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
-	fprintf(file, "   IPv6 address = %s\n", addr_str);
+		ifp->sin_addr.s_addr ? inet_ntop2(ifp->sin_addr.s_addr) : "(none)");
+	if (ifp->sin6_addr.s6_addr32[0])
+		inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
+	fprintf(file, "   IPv6 address = %s\n", ifp->sin6_addr.s6_addr32[0] ? addr_str : "(none)");
 #ifdef _HAVE_VRRP_VMAC_
 	fprintf(file, "   VMAC = %s\n", ifp != ifp->base_ifp ? "true" : "false");
 	if (ifp != ifp->base_ifp)

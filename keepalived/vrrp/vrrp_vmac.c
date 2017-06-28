@@ -237,16 +237,13 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 							    , vrrp->vmac_ifname, vrrp->iname);
 					return -1;
 				}
-
-				/* Interface successfully removed, now recreate */
-				ifp = NULL;
 			}
 		}
 		else
 			create_interface = false;
 	}
 
-	if (create_interface && vrrp->ifp->ifindex) {
+	if (create_interface && vrrp->ifp->base_ifp->ifindex) {
 		/* Request that NETLINK create the VIF interface */
 		req.n.nlmsg_len = NLMSG_LENGTH(sizeof (struct ifinfomsg));
 		req.n.nlmsg_flags = NLM_F_REQUEST | NLM_F_CREATE | NLM_F_EXCL;
@@ -268,7 +265,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			  MACVLAN_MODE_PRIVATE);
 		data->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)data);
 		linkinfo->rta_len = (unsigned short)((void *)NLMSG_TAIL(&req.n) - (void *)linkinfo);
-		addattr_l(&req.n, sizeof(req), IFLA_LINK, &IF_INDEX(vrrp->ifp), sizeof(uint32_t));
+		addattr_l(&req.n, sizeof(req), IFLA_LINK, &vrrp->ifp->base_ifp->ifindex, sizeof(uint32_t));
 		addattr_l(&req.n, sizeof(req), IFLA_IFNAME, vrrp->vmac_ifname, strlen(vrrp->vmac_ifname));
 		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, ll_addr, ETH_ALEN);
 
@@ -285,8 +282,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		 * Update interface queue and vrrp instance interface binding.
 		 */
 		netlink_interface_lookup(vrrp->vmac_ifname);
-		ifp = if_get_by_ifname(vrrp->vmac_ifname, false);
-		if (!ifp)
+		if (!ifp->ifindex)
 			return -1;
 
 		/* If we do anything that might cause the interface state to change, we must
@@ -295,11 +291,16 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		kernel_netlink_poll();
 	}
 
-	ifp->base_ifp = vrrp->ifp;
-	vrrp->ifp = ifp;
-	vrrp->ifp->vmac = true;
+//	if (ifp->base_ifp == ifp) {
+//		ifp->base_ifp = vrrp->ifp;
+//		vrrp->ifp = ifp;
+//log_message(LOG_INFO, "Setting base_ifp for %s to %s", ifp->ifname, ifp->base_ifp->ifname);
+//	}
+//else
+//log_message(LOG_INFO, "Already set base_ifp for %s to %s", ifp->ifname, ifp->base_ifp->ifname);
+	ifp->vmac = true;
 
-	if (!vrrp->ifp->ifindex)
+	if (!ifp->ifindex)
 		return -1;
 
 	if (vrrp->family == AF_INET) {

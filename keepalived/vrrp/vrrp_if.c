@@ -919,7 +919,7 @@ cleanup_lost_interface(interface_t *ifp)
 		/* If vmac going, clear VMAC_UP_BIT on vrrp instance */
 		if (vrrp->ifp->vmac) {
 			__clear_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags);
-			vrrp->ifp = vrrp->ifp->base_ifp;
+//			vrrp->ifp = vrrp->ifp->base_ifp;
 		}
 #endif
 

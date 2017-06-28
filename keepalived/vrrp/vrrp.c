@@ -2250,7 +2250,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 {
 #ifdef _HAVE_VRRP_VMAC_
 	char ifname[IFNAMSIZ];
-	vrrp_t *vrrp_o;
 	interface_t *ifp;
 #endif
 	element e;
@@ -2534,7 +2533,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 			if (!interface_already_existed &&
 			    vrrp->vmac_ifname[0] &&
-			    (ifp = if_get_by_ifname(vrrp->vmac_ifname, false))) {
+			    (ifp = if_get_by_ifname(vrrp->vmac_ifname, false)) &&
+			     ifp->ifindex) {
 				/* An interface with the same name exists, but it doesn't match */
 				if (ifp->vmac)
 					log_message(LOG_INFO, "(%s): VMAC %s already exists but is incompatible. It will be deleted", vrrp->iname, vrrp->vmac_ifname);
@@ -2552,11 +2552,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			snprintf(ifname, IFNAMSIZ, "vrrp.%d", vrrp->vrid);
 
 			while (true) {
-				for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-					vrrp_o = ELEMENT_DATA(e);
-					if (!strcmp(vrrp_o->vmac_ifname, ifname))
-						break;
-				}
 				/* If there is no VMAC with the name and no existing
 				 * interface with the name, we can use it */
 				if (!e && !if_get_by_ifname(ifname, false))
@@ -2580,6 +2575,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			/* We've found a unique name */
 			strncpy(vrrp->vmac_ifname, ifname, IFNAMSIZ);
 		}
+
+		ifp = if_get_by_ifname(vrrp->vmac_ifname, true);
+		ifp->base_ifp = vrrp->ifp;
+		vrrp->ifp = ifp;
+
 		if (vrrp->strict_mode && __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) {
 			log_message(LOG_INFO, "(%s): xmit_base is incompatible with strict mode - resetting", vrrp->iname);
 			__clear_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
@@ -2599,7 +2599,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	/* Make sure we have an IP address as needed */
-	if (vrrp->ifp->ifindex && vrrp->saddr.ss_family == AF_UNSPEC) {
+	if (vrrp->ifp->base_ifp->ifindex && vrrp->saddr.ss_family == AF_UNSPEC) {
 		/* Check the physical interface has a suitable address we can use.
 		 * We don't need an IPv6 address on the underlying interface if it is
 		 * a VMAC since we can create our own. */
@@ -2663,7 +2663,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 		/* Create the interface if it doesn't already exist and
 		 * the underlying interface does exist */
-		if (vrrp->ifp->ifindex &&
+		if (vrrp->ifp->base_ifp->ifindex &&
 		    !__test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags))
 			netlink_link_add_vmac(vrrp);
 
