@@ -104,6 +104,7 @@ addr_is_equal(struct ifaddrmsg* ifa, void* addr, ip_address_t* vip_addr, interfa
 	       vip_addr->u.sin6_addr.s6_addr32[3] == sin6_addr->s6_addr32[3];
 }
 
+#ifdef _WITH_VRRP_
 static vrrp_t *
 address_is_ours(struct ifaddrmsg* ifa, struct in_addr* addr, interface_t* ifp)
 {
@@ -140,6 +141,7 @@ address_is_ours(struct ifaddrmsg* ifa, struct in_addr* addr, interface_t* ifp)
 
 	return NULL;
 }
+#endif
 
 void
 netlink_set_recv_buf_size(void)
@@ -617,6 +619,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 		struct in_addr *in;
 		struct in6_addr *in6;
 	} addr;
+#ifdef _WITH_VRRP_
 	char addr_str[INET6_ADDRSTRLEN];
 	bool addr_chg = false;
 	element e;
@@ -625,6 +628,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 	vrrp_t *address_vrrp;
 	tracking_vrrp_t *tvp;
 	bool is_tracking_saddr;
+#endif
 
 	if (h->nlmsg_type != RTM_NEWADDR && h->nlmsg_type != RTM_DELADDR)
 		return 0;
@@ -830,7 +834,11 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 				address_vrrp = NULL;
 
 			/* Display netlink operation */
-			if (__test_bit(LOG_ADDRESS_CHANGES, &debug) || address_vrrp) {
+			if (
+#ifdef _WITH_LVS_
+			    __test_bit(LOG_ADDRESS_CHANGES, &debug) ||
+#endif
+			    address_vrrp) {
 				inet_ntop(ifa->ifa_family, addr.addr, addr_str, sizeof(addr_str));
 				log_message(LOG_INFO, "Netlink reflector reports IP %s %s %s"
 						    , addr_str, h->nlmsg_type == RTM_NEWADDR ? "added to" : "removed from", ifp->ifname);
