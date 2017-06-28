@@ -48,7 +48,7 @@ for n in $(seq $LOW $HIGH); do
 		$ECHO ip netns exec medium ip link del br${n}
 	elif [[ $CMD = remake ]]; then
 		p=$SIDE
-		[[ $p = low ]] && ip=1 || ip=3
+		[[ $p = low ]] && ip=3 || ip=1
 
 		$ECHO ip netns exec medium ip link add eth${n}.$p type veth peer name eth${n}
 		$ECHO ip netns exec medium ip link set eth${n}.$p master br${n}
