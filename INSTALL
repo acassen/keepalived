@@ -22,6 +22,8 @@ RedHat based systems (RedHat Enterprise/CentOS/Fedora)
 ------------------------------------------------------
 The following libraries need to be installed:
 	openssl-devel libnl3-devel ipset-devel iptables-devel libnfnetlink-devel
+For magic file identification support:
+	file-devel
 For SNMP support:
 	net-snmp-devel
 
@@ -31,6 +33,8 @@ On Debian, install:
 	pkg-config
 The following libraries need to be installed:
 	iptables-dev libipset-dev libnfnetlink-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev libssl-dev
+For magic file identification support:
+	libmagic-dev
 For SNMP support:
 	libsnmp-dev
 
@@ -38,6 +42,8 @@ Alpine Linux
 ------------
 The following libraries need to be installed:
 	iptables-dev ipset-dev libnfnetlink-dev libnl3-dev musl-dev and openssl-dev or libressl-dev
+For magic file identification support:
+	TBD
 For SNMP support:
 	net-snmp-dev (requires libressl-dev and not openssl-dev)
 
@@ -45,6 +51,8 @@ Archlinux
 ---------
 Run the following to install the required libraries:
 	pacman -S ipset libnfnetlink libnl1
+For magic file identification support:
+	TBD
 For SNMP support:
 	pacman -S net-snmp
 

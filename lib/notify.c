@@ -630,7 +630,11 @@ exit1:
 }
 
 int
-check_script_secure(notify_script_t *script, magic_t magic)
+check_script_secure(notify_script_t *script,
+#ifndef _HAVE_LIBMAGIC_
+					     __attribute__((unused))
+#endif
+								     magic_t magic)
 {
 	int flags;
 	char *slash;
