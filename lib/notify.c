@@ -676,9 +676,6 @@ check_script_secure(notify_script_t *script, magic_t magic)
 		    (script->gid && setegid(old_gid)))
 			log_message(LOG_INFO, "Unable to restore uid:gid %d:%d after script %s", script->uid, script->gid, script->args[0]);
 
-		if (space)
-			*space = ' ';
-
 		return SC_INHIBIT;
 	}
 
