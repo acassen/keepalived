@@ -343,9 +343,11 @@ dump_global_data(data_t * data)
 				    , data->email_from);
 		dump_list(data->email);
 	}
+#ifdef _WITH_VRRP_
 	if (data->email_faults)
 		log_message(LOG_INFO, " Send emails for fault transitions = %s"
 				    , data->email_faults ? "true" : "false");
+#endif
 #ifdef _WITH_LVS_
 	if (data->lvs_tcp_timeout)
 		log_message(LOG_INFO, " LVS TCP timeout = %d", data->lvs_tcp_timeout);

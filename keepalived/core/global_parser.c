@@ -74,11 +74,13 @@ smtpto_handler(vector_t *strvec)
 {
 	global_data->smtp_connection_to = strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
 }
+#ifdef _WITH_VRRP_
 static void
 email_faults_handler(__attribute__((unused))vector_t *strvec)
 {
 	global_data->email_faults = true;
 }
+#endif
 static void
 smtpserver_handler(vector_t *strvec)
 {
@@ -811,9 +813,9 @@ init_global_keywords(bool global_active)
 	install_keyword("smtp_server", &smtpserver_handler);
 	install_keyword("smtp_helo_name", &smtphelo_handler);
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
-	install_keyword("email_faults", &email_faults_handler);
 	install_keyword("notification_email", &email_handler);
 #ifdef _WITH_VRRP_
+	install_keyword("email_faults", &email_faults_handler);
 	install_keyword("default_interface", &default_interface_handler);
 #endif
 #ifdef _WITH_LVS_

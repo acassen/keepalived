@@ -232,7 +232,11 @@ vrrp_smtp_notifier(vrrp_t * vrrp)
 		else if (vrrp->state == VRRP_STATE_BACK)
 			smtp_alert(NULL, vrrp, NULL,
 				   "Entering BACKUP state",
-				   "=> VRRP Instance is nolonger owning VRRP VIPs <=");
+				   "=> VRRP Instance is no longer owning VRRP VIPs <=");
+		else if (vrrp->state == VRRP_STATE_FAULT)
+			smtp_alert(NULL, vrrp, NULL,
+				   "Entering FAULT state",
+				   "=> VRRP Instance is no longer owning VRRP VIPs <=");
 
 		vrrp->last_email_state = vrrp->state;
 	}
@@ -253,6 +257,10 @@ vrrp_sync_smtp_notifier(vrrp_sgroup_t *vgroup)
 			smtp_alert(NULL, NULL, vgroup,
 				   "Entering BACKUP state",
 				   "=> All VRRP group instances are now in BACKUP state <=");
+		else if (vgroup->state == VRRP_STATE_FAULT)
+			smtp_alert(NULL, NULL, vgroup,
+				   "Entering FAULT state",
+				   "=> All VRRP group instances are now in FAULT state <=");
 
 		vgroup->last_email_state = vgroup->state;
 	}
