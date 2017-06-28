@@ -349,9 +349,6 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 
 	system_call(script);
 
-// TODO - Maybe we should exit with status 127 to signify don't change priority
-// unless this is the first return in which was we want to creep out of fault state
-// BETTER - kill ourselves with USR1 - parent can then distinguish
 	exit(0); /* Script errors aren't server errors */
 }
 

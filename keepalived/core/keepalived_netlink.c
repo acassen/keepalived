@@ -1629,9 +1629,12 @@ kernel_netlink_init(void)
 	 * If an interface goes down, or an address is removed, any routes that specify the interface or address are deleted.
 	 * If an interface goes down, any address on that interface is deleted. In this case, the vrrp instance should go to fault state.
 	 * If an interface goes down, any VMACs are deleted. We need to recreate them when the interface returns.
-	 * If a static route goes down, some vrrp instances maybe should go down - add a tracking_instance option
+	 * If a static route/ip_address goes down, some vrrp instances maybe should go down - add a tracking_instance option
 	 * We need to reinstate routes/addresses/VMACs when we can.
 	 * We need an option on routes to put the instance in fault state if the route disappears.
+	 * When i/f deleted (? or down), close any sockets
+	 * No ipaddr on i/f <=> link down, for us
+	 * Do LVS services get lost on addr/link deletion?
 	 */
 #ifdef _DEBUG_
 #ifdef _WITH_VRRP_
