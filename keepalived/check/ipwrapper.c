@@ -713,9 +713,28 @@ rs_exist(real_server_t * old_rs, list l)
 	return NULL;
 }
 
+static void
+migrate_failed_checkers(real_server_t *old_rs, real_server_t *new_rs)
+{
+	element e;
+	checker_t *checker;
+	checker_id_t *id;
+
+	/* Notes: It's a provisional implementation */
+	(void)old_rs;
+	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
+		checker = ELEMENT_DATA(e);
+		if (checker->rs == new_rs) {
+			id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
+			*id = checker->id;
+			list_add(new_rs->failed_checkers, id);
+		}
+	}
+}
+
 /* Clear the diff rs of the old vs */
 static void
-clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
+clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs)
 {
 	element e;
 	list l = old_vs->rs;
@@ -729,7 +748,7 @@ clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 	list rs_to_remove = alloc_list (NULL, NULL);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
-		new_rs = rs_exist(rs, new_rs_list);
+		new_rs = rs_exist(rs, new_vs->rs);
 		if (!new_rs) {
 			/* Reset inhibit flag to delete inhibit entries */
 			log_message(LOG_INFO, "service %s no longer exist"
@@ -756,20 +775,15 @@ clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 				free_list_elements(new_rs->failed_checkers);
 			} else {
 				/*
-				 * if not alive, we must copy the failed checker list
+				 * if not alive, we must migrate the failed checker list
 				 * If we do not, the new RS is in a state where it’s reported
 				 * as down with no check failed. As a result, the server will never
 				 * be put up back when it’s alive again in check_tcp.c#83 because
 				 * of the check that put a rs up only if it was not previously up
 				 * based on the failed_checkers list
 				 */
-				element hc_e;
-				list hc_l = rs->failed_checkers;
-				list new_hc_l = new_rs->failed_checkers;
-				for (hc_e = LIST_HEAD(hc_l); hc_e; ELEMENT_NEXT(hc_e)) {
-					list_add(new_hc_l, ELEMENT_DATA(hc_e));
-					ELEMENT_DATA(hc_e) = NULL;
-				}
+				if (!new_vs->alpha)
+					migrate_failed_checkers(rs, new_rs);
 			}
 		}
 	}
@@ -853,7 +867,7 @@ clear_diff_services(void)
 			/* omega = false must not prevent the notifiers from being called,
 			   because the VS still exists in new configuration */
 			vs->omega = true;
-			clear_diff_rs(vs, new_vs->rs);
+			clear_diff_rs(vs, new_vs);
 			clear_diff_s_srv(vs, new_vs->s_svr);
 		}
 	}
