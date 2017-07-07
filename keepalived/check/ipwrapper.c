@@ -716,20 +716,40 @@ rs_exist(real_server_t * old_rs, list l)
 static void
 migrate_failed_checkers(real_server_t *old_rs, real_server_t *new_rs)
 {
-	element e;
-	checker_t *checker;
+	list l;
+	element e, e1;
+	checker_t *old_c, *new_c;
 	checker_id_t *id;
 
-	/* Notes: It's a provisional implementation */
-	(void)old_rs;
-	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
-		checker = ELEMENT_DATA(e);
-		if (checker->rs == new_rs) {
-			id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
-			*id = checker->id;
-			list_add(new_rs->failed_checkers, id);
+	l = alloc_list(NULL, NULL);
+	for (e = LIST_HEAD(old_checkers_queue); e; ELEMENT_NEXT(e)) {
+		old_c = ELEMENT_DATA(e);
+		if (old_c->rs == old_rs) {
+			list_add(l, old_c);
 		}
 	}
+
+	if (LIST_ISEMPTY(l))
+		goto end;
+
+	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
+		new_c = ELEMENT_DATA(e);
+		if (new_c->rs != new_rs || !new_c->compare)
+			continue;
+		for (e1 = LIST_HEAD(l); e1; ELEMENT_NEXT(e1)) {
+			old_c = ELEMENT_DATA(e1);
+			if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c) == 0) {
+				if (svr_checker_up(old_c->id, old_rs) == 0) {
+					id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
+					*id = old_c->id;
+					list_add(new_rs->failed_checkers, id);
+				}
+				break;
+			}
+		}
+	}
+end:
+	free_list(&l);
 }
 
 /* Clear the diff rs of the old vs */

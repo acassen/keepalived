@@ -36,6 +36,7 @@ typedef struct _checker {
 	void				(*free_func) (void *);
 	void				(*dump_func) (void *);
 	int				(*launch) (struct _thread *);
+	int				(*compare) (void *, void *);
 	virtual_server_t		*vs;	/* pointer to the checker thread virtualserver */
 	real_server_t			*rs;	/* pointer to the checker thread realserver */
 	void				*data;
@@ -46,7 +47,9 @@ typedef struct _checker {
 } checker_t;
 
 /* Checkers queue */
+extern checker_id_t ncheckers;
 extern list checkers_queue;
+extern list old_checkers_queue;
 
 /* utility macro */
 #define CHECKER_ARG(X) ((X)->data)
@@ -69,8 +72,10 @@ extern void free_vs_checkers(virtual_server_t *);
 extern void dump_conn_opts(void *);
 extern void queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 			  , int (*launch) (thread_t *)
+			  , int (*compare) (void *, void *)
 			  , void *
 			  , conn_opts_t *);
+extern int  compare_conn_opts(conn_opts_t *, conn_opts_t *);
 extern void dump_checkers_queue(void);
 extern void free_checkers_queue(void);
 extern void register_checkers_thread(void);

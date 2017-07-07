@@ -253,7 +253,11 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	thread_cleanup_master(master);
 	free_global_data(global_data);
 
-	free_checkers_queue();
+	/* Save previous checker data */
+	old_checkers_queue = checkers_queue;
+	checkers_queue = NULL;
+	ncheckers = 0;
+
 	free_ssl();
 	ipvs_stop();
 
@@ -266,6 +270,7 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 
 	/* free backup data */
 	free_check_data(old_check_data);
+	free_list(&old_checkers_queue);
 	UNSET_RELOAD;
 
 	return 0;

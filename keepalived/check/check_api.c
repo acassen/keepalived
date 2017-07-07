@@ -42,8 +42,9 @@
 #include "check_dns.h"
 
 /* Global vars */
-static checker_id_t ncheckers = 0;
+checker_id_t ncheckers = 0;
 list checkers_queue;
+list old_checkers_queue;
 
 /* free checker data */
 static void
@@ -80,6 +81,7 @@ dump_conn_opts(void *data)
 void
 queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	      , int (*launch) (thread_t *)
+	      , int (*compare) (void *, void *)
 	      , void *data
 	      , conn_opts_t *co)
 {
@@ -96,6 +98,7 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	checker->free_func = free_func;
 	checker->dump_func = dump_func;
 	checker->launch = launch;
+	checker->compare = compare;
 	checker->vs = vs;
 	checker->rs = rs;
 	checker->data = data;
@@ -115,6 +118,30 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 		*id = checker->id;
 		list_add (fc, id);
 	}
+}
+
+int
+compare_conn_opts(conn_opts_t *a, conn_opts_t *b)
+{
+	if (a == b)
+		return 0;
+
+	if (!a || !b)
+		goto err;
+	if (!sockstorage_equal(&a->dst, &b->dst))
+		goto err;
+	if (!sockstorage_equal(&a->bindto, &b->bindto))
+		goto err;
+	//if (a->connection_to != b->connection_to)
+	//	goto err;
+#ifdef _WITH_SO_MARK_
+	if (a->fwmark != b->fwmark)
+		goto err;
+#endif
+
+	return  0;
+err:
+	return -1;
 }
 
 static void
