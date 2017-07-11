@@ -748,6 +748,9 @@ migrate_failed_checkers(real_server_t *old_rs, real_server_t *new_rs)
 			}
 		}
 	}
+
+	if (LIST_ISEMPTY(new_rs->failed_checkers))
+		SET_ALIVE(new_rs);
 end:
 	free_list(&l);
 }
