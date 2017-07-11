@@ -741,7 +741,7 @@ migrate_failed_checkers(real_server_t *old_rs, real_server_t *new_rs)
 			if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c) == 0) {
 				if (svr_checker_up(old_c->id, old_rs) == 0) {
 					id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
-					*id = old_c->id;
+					*id = new_c->id;
 					list_add(new_rs->failed_checkers, id);
 				}
 				break;
