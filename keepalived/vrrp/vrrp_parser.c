@@ -289,6 +289,10 @@ vrrp_int_handler(vector_t *strvec)
 				    , name, vrrp->iname);
 		return;
 	}
+	else if (vrrp->ifp->hw_type == ARPHRD_LOOPBACK) {
+		log_message(LOG_INFO, "(%s): cannot use a loopback interface (%s) for vrrp - ignoring", vrrp->iname, vrrp->ifp->ifname);
+		vrrp->ifp = NULL;
+	}
 }
 static void
 vrrp_track_int_handler(__attribute__((unused)) vector_t *strvec)

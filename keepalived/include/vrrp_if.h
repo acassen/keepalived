@@ -94,6 +94,9 @@ typedef struct _interface {
 	uint32_t		reset_arp_ignore_value;	/* Original value of arp_ignore to be restored */
 	uint32_t		reset_arp_filter_value;	/* Original value of arp_filter to be restored */
 	uint32_t		reset_promote_secondaries; /* Count of how many vrrps have changed promote_secondaries on interface */
+#ifdef _HAVE_VRRP_VMAC_
+	int			rp_filter;		/* > -1 if we have changed the value */
+#endif
 	bool			promote_secondaries_already_set; /* Set if promote_secondaries already set on interface */
 } interface_t;
 

@@ -38,6 +38,7 @@
 #include <string.h>
 
 #include "vrrp_if_config.h"
+#include "keepalived_netlink.h"
 #include "memory.h"
 
 #ifdef _HAVE_IPV4_DEVCONF_
@@ -77,6 +78,11 @@
 
 #ifdef _LIBNL_DYNAMIC_
 #include "libnl_link.h"
+#endif
+
+#ifdef _HAVE_VRRP_VMAC_
+static int all_rp_filter = -1;
+static int default_rp_filter = -1;
 #endif
 
 static inline int
@@ -503,9 +509,91 @@ reset_promote_secondaries(interface_t *ifp)
 }
 
 #ifdef _HAVE_VRRP_VMAC_
+static void
+clear_rp_filter(void)
+{
+	list ifs;
+	element e;
+	interface_t *ifp;
+	int rp_filter;
+
+	rp_filter = get_sysctl("net/ipv4/conf", "all", "rp_filter");
+	if (rp_filter == -1) {
+		log_message(LOG_INFO, "Unable to read sysctl net.ipv4.conf.all.rp_filter");
+		return;
+	}
+
+	if (rp_filter == 0)
+		return;
+
+	/* Save current value of all/rp_filter */
+	all_rp_filter = rp_filter;
+
+	/* We want to ensure that default/rp_filter is at least the value of all/rp_filter */
+	rp_filter = get_sysctl("net/ipv4/conf", "default", "rp_filter");
+	if (rp_filter < all_rp_filter) {
+		log_message(LOG_INFO, "NOTICE: setting sysctl net.ipv4.conf.default.rp_filter from %d to %d", rp_filter, all_rp_filter);
+		set_sysctl("net/ipv4/conf", "default", "rp_filter", all_rp_filter);
+		default_rp_filter = rp_filter;
+	}
+
+	/* Now ensure rp_filter for all interfaces is at least all/rp_filter. */
+	kernel_netlink_poll();		/* Update our view of interfaces first */
+	ifs = get_if_list();
+	if (!LIST_ISEMPTY(ifs)) {
+		for (e = LIST_HEAD(ifs); e; ELEMENT_NEXT(e)) {
+			ifp = ELEMENT_DATA(e);
+
+			if ((rp_filter = get_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter")) == -1)
+				log_message(LOG_INFO, "Unable to read rp_filter for %s", ifp->ifname);
+			else if (rp_filter < all_rp_filter) {
+				set_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter", all_rp_filter);
+				ifp->rp_filter = rp_filter;
+			}
+		}
+	}
+
+	/* We have now made sure that all the interfaces have rp_filter >= all_rp_filter */
+	log_message(LOG_INFO, "NOTICE: setting sysctl net.ipv4.conf.all.rp_filter from %d to 0", all_rp_filter);
+	set_sysctl("net/ipv4/conf", "all", "rp_filter", 0);
+}
+
+void
+restore_rp_filter(void)
+{
+	list ifs;
+	element e;
+	interface_t *ifp;
+
+	if (all_rp_filter != -1) {
+		log_message(LOG_INFO, "NOTICE: resetting sysctl net.ipv4.conf.all.rp_filter to %d", all_rp_filter);
+		set_sysctl("net/ipv4/conf", "all", "rp_filter", all_rp_filter);
+	}
+
+	if (default_rp_filter != -1) {
+		log_message(LOG_INFO, "NOTICE: resetting sysctl net.ipv4.conf.default.rp_filter to %d", default_rp_filter);
+		set_sysctl("net/ipv4/conf", "default", "rp_filter", default_rp_filter);
+	}
+
+	ifs = get_if_list();
+	if (!LIST_ISEMPTY(ifs)) {
+		for (e = LIST_HEAD(ifs); e; ELEMENT_NEXT(e)) {
+			ifp = ELEMENT_DATA(e);
+
+			if (ifp->rp_filter != -1) {
+				set_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter", ifp->rp_filter);
+				ifp->rp_filter = -1;
+			}
+		}
+	}
+}
+
 void
 set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 {
+	if (all_rp_filter == -1)
+		clear_rp_filter();
+
 #ifdef _HAVE_IPV4_DEVCONF_
 #ifdef _LIBNL_DYNAMIC_
 	if (use_nl)
