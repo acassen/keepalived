@@ -218,7 +218,7 @@ if_print(FILE *file, void * data)
 	if (IF_MII_SUPPORTED(ifp))
 		fprintf(file, " NIC support MII regs\n");
 	else if (IF_ETHTOOL_SUPPORTED(ifp))
-		fprintf(file, " NIC support EHTTOOL GLINK interface\n");
+		fprintf(file, " NIC support ETHTOOL GLINK interface\n");
 	else
 		fprintf(file, " Enabling NIC ioctl refresh polling\n");
 }

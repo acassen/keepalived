@@ -1943,6 +1943,10 @@ shutdown_vrrp_instances(void)
 	element e;
 	vrrp_t *vrrp;
 
+#ifdef _HAVE_VRRP_VMAC_
+	restore_rp_filter();
+#endif
+
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 

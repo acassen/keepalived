@@ -359,6 +359,13 @@ garp_group {
 
 vrrp_instance <STRING> {		# VRRP instance declaration
     use_vmac [<NAME>]			# Use VRRP Virtual MAC, optional NAME of interface
+					# NOTE: If sysctl net.ipv4.conf.all.rp_filter is set,
+					# and this vrrp_instance is an IPv4 instance, using
+					# this option will cause the individual interfaces to be
+					# updated to the greater of their current setting and
+					# all.rp_filter, as will default.rp_filter, and all.rp_filter
+					# will be set to 0.
+					# The original settings are restored on termination.
     version <INTEGER:2..3>              # VRRP version to use
     vmac_xmit_base			# Send/Recv VRRP messages from base
 					#  interface instead of VMAC interface

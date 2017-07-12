@@ -906,6 +906,8 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 		if ((ifp_base = if_get_by_ifindex(ifp->base_ifindex)))
 			ifp->flags = ifp_base->flags;
 	}
+
+	ifp->rp_filter = -1;	/* We have not read it yet */
 #else
 	ifp->flags = ifi->ifi_flags;
 #endif
@@ -939,10 +941,6 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	if (tb[IFLA_IFNAME] == NULL)
 		return -1;
 	name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
-
-	/* Return if loopback */
-	if (ifi->ifi_type == ARPHRD_LOOPBACK)
-		return 0;
 
 	/* Skip it if already exist */
 	ifp = if_get_by_ifname(name);
@@ -1048,10 +1046,6 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	parse_rtattr(tb, IFLA_MAX, IFLA_RTA(ifi), len);
 	if (tb[IFLA_IFNAME] == NULL)
 		return -1;
-
-	/* ignore loopback device */
-	if (ifi->ifi_type == ARPHRD_LOOPBACK)
-		return 0;
 
 	/* find the interface_t. If the interface doesn't exist in the interface
 	 * list and this is a new interface add it to the interface list.
