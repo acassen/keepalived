@@ -80,6 +80,8 @@ AC_DEFUN([get_lib_name],
     LIBS="$SAV_LIBS"
   ])
 
+# AS_VAR_COPY was introduced in autoconf 2.63b.
+# Remove the following definition once require autoconf >= 2.64.
 m4_ifndef([AS_VAR_COPY],
 [m4_define([AS_VAR_COPY],
 [AS_LITERAL_IF([$1[]$2], [$1=$$2], [eval $1=\$$2])])])
