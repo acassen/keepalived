@@ -74,15 +74,15 @@
 #include <limits.h>
 #include <unistd.h>
 
+#ifdef _HAVE_VRRP_VMAC_
+static int all_rp_filter = -1;
+static int default_rp_filter = -1;
+#endif
+
 #ifdef _HAVE_IPV4_DEVCONF_
 
 #ifdef _LIBNL_DYNAMIC_
 #include "libnl_link.h"
-#endif
-
-#ifdef _HAVE_VRRP_VMAC_
-static int all_rp_filter = -1;
-static int default_rp_filter = -1;
 #endif
 
 static inline int
