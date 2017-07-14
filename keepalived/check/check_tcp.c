@@ -65,9 +65,6 @@ dump_tcp_check(void *data)
 static bool
 tcp_check_compare(void *a, void *b)
 {
-	tcp_check_t *old = CHECKER_DATA(a);
-	tcp_check_t *new = CHECKER_DATA(b);
-
 	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
 		return false;
 

@@ -243,7 +243,6 @@ init_service_rs(virtual_server_t * vs)
 		return true;
 	}
 
-log_message(LOG_INFO, "Initing vs %s, vsg %s", FMT_VS(vs), vs->vsgname ? vs->vsgname : "(none)");
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
 
@@ -258,12 +257,9 @@ log_message(LOG_INFO, "Initing vs %s, vsg %s", FMT_VS(vs), vs->vsgname ? vs->vsg
 		 * later upon healthchecks recovery (if ever).
 		 */
 		if (!vs->alpha && !ISALIVE(rs)) {
-log_message(LOG_INFO, "Adding rs %s", FMT_RS(rs, vs));
 			ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
 			SET_ALIVE(rs);
 		}
-else
-log_message(LOG_INFO, "Not adding rs %s", FMT_RS(rs, vs));
 	}
 
 	return true;
