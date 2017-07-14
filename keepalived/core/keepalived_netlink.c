@@ -1280,6 +1280,8 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 			}
 		}
 	}
+
+	ifp->rp_filter = -1;	/* We have not read it yet */
 #endif
 
 	ifp->ifi_flags = ifi->ifi_flags;
@@ -1315,10 +1317,6 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	if (tb[IFLA_IFNAME] == NULL)
 		return -1;
 	name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
-
-	/* Return if loopback */
-	if (ifi->ifi_type == ARPHRD_LOOPBACK)
-		return 0;
 
 	/* Skip it if already exists */
 	ifp = if_get_by_ifname(name, false);
@@ -1431,10 +1429,6 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	parse_rtattr(tb, IFLA_MAX, IFLA_RTA(ifi), len);
 	if (tb[IFLA_IFNAME] == NULL)
 		return -1;
-
-	/* ignore loopback device */
-	if (ifi->ifi_type == ARPHRD_LOOPBACK)
-		return 0;
 
 	/* Ignore NEWLINK messages with ifi_change == 0 and IFLA_WIRELESS set
 	   See for example https://bugs.chromium.org/p/chromium/issues/detail?id=501982 */

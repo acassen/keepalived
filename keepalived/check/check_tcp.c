@@ -64,6 +64,15 @@ dump_tcp_check(void *data)
 	}
 }
 
+static bool
+tcp_check_compare(void *a, void *b)
+{
+	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
+		return false;
+
+	return true;
+}
+
 static void
 tcp_check_handler(__attribute__((unused)) vector_t *strvec)
 {
@@ -74,8 +83,8 @@ tcp_check_handler(__attribute__((unused)) vector_t *strvec)
 	tcp_check->delay_before_retry = 1 * TIMER_HZ;
 
 	/* queue new checker */
-	queue_checker(free_tcp_check, dump_tcp_check, tcp_connect_thread
-		      ,tcp_check, CHECKER_NEW_CO());
+	queue_checker(free_tcp_check, dump_tcp_check, tcp_connect_thread,
+		      tcp_check_compare, tcp_check, CHECKER_NEW_CO());
 }
 
 static void

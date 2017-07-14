@@ -27,6 +27,7 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdint.h>
+#include <net/if_arp.h>
 
 #include "vrrp_parser.h"
 #include "logger.h"
@@ -291,6 +292,10 @@ vrrp_int_handler(vector_t *strvec)
 	vrrp->ifp = if_get_by_ifname(name, true);
 	if (!vrrp->ifp->ifindex)
 		log_message(LOG_INFO, "WARNING - interface %s for vrrp_instance %s doesn't currently exist - will start in FAULT state", name, vrrp->iname);
+	else if (vrrp->ifp->hw_type == ARPHRD_LOOPBACK) {
+		log_message(LOG_INFO, "(%s): cannot use a loopback interface (%s) for vrrp - ignoring", vrrp->iname, vrrp->ifp->ifname);
+		vrrp->ifp = NULL;
+	}
 }
 static void
 vrrp_linkbeat_handler(__attribute__((unused)) vector_t *strvec)

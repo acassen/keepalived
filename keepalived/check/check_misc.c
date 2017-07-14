@@ -72,6 +72,18 @@ dump_misc_check(void *data)
 	log_message(LOG_INFO, "   uid:gid = %d:%d", misck_checker->script.uid, misck_checker->script.gid);
 }
 
+static bool
+misc_check_compare(void *a, void *b)
+{
+	misc_checker_t *old = CHECKER_DATA(a);
+	misc_checker_t *new = CHECKER_DATA(b);
+
+	if (strcmp(old->script.cmd_str, new->script.cmd_str) != 0)
+		return false;
+
+	return true;
+}
+
 static void
 misc_check_handler(__attribute__((unused)) vector_t *strvec)
 {
@@ -148,7 +160,7 @@ misc_end_handler(void)
 	}
 
 	/* queue new checker */
-	queue_checker(free_misc_check, dump_misc_check, misc_check_thread, misck_checker, NULL);
+	queue_checker(free_misc_check, dump_misc_check, misc_check_thread, misc_check_compare, misck_checker, NULL);
 	misck_checker = NULL;
 }
 

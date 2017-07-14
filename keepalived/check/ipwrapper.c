@@ -233,7 +233,6 @@ init_service_rs(virtual_server_t * vs)
 		return true;
 	}
 
-log_message(LOG_INFO, "Initing vs %s, vsg %s", FMT_VS(vs), vs->vsgname ? vs->vsgname : "(none)");
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
 
@@ -248,12 +247,9 @@ log_message(LOG_INFO, "Initing vs %s, vsg %s", FMT_VS(vs), vs->vsgname ? vs->vsg
 		 * later upon healthchecks recovery (if ever).
 		 */
 		if (!vs->alpha && !ISALIVE(rs)) {
-log_message(LOG_INFO, "Adding rs %s", FMT_RS(rs, vs));
 			ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
 			SET_ALIVE(rs);
 		}
-else
-log_message(LOG_INFO, "Not adding rs %s", FMT_RS(rs, vs));
 	}
 
 	return true;
@@ -685,9 +681,51 @@ rs_exist(real_server_t * old_rs, list l)
 	return NULL;
 }
 
+static void
+migrate_failed_checkers(real_server_t *old_rs, real_server_t *new_rs)
+{
+	list l;
+	element e, e1;
+	checker_t *old_c, *new_c;
+	checker_id_t *id;
+
+	l = alloc_list(NULL, NULL);
+	for (e = LIST_HEAD(old_checkers_queue); e; ELEMENT_NEXT(e)) {
+		old_c = ELEMENT_DATA(e);
+		if (old_c->rs == old_rs) {
+			list_add(l, old_c);
+		}
+	}
+
+	if (LIST_ISEMPTY(l))
+		goto end;
+
+	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
+		new_c = ELEMENT_DATA(e);
+		if (new_c->rs != new_rs || !new_c->compare)
+			continue;
+		for (e1 = LIST_HEAD(l); e1; ELEMENT_NEXT(e1)) {
+			old_c = ELEMENT_DATA(e1);
+			if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c) == 0) {
+				if (svr_checker_up(old_c->id, old_rs) == 0) {
+					id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
+					*id = new_c->id;
+					list_add(new_rs->failed_checkers, id);
+				}
+				break;
+			}
+		}
+	}
+
+	if (LIST_ISEMPTY(new_rs->failed_checkers))
+		SET_ALIVE(new_rs);
+end:
+	free_list(&l);
+}
+
 /* Clear the diff rs of the old vs */
 static void
-clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
+clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs)
 {
 	element e;
 	list l = old_vs->rs;
@@ -701,7 +739,7 @@ clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 	list rs_to_remove = alloc_list (NULL, NULL);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
-		new_rs = rs_exist(rs, new_rs_list);
+		new_rs = rs_exist(rs, new_vs->rs);
 		if (!new_rs) {
 			/* Reset inhibit flag to delete inhibit entries */
 			log_message(LOG_INFO, "service %s no longer exist"
@@ -728,20 +766,15 @@ clear_diff_rs(virtual_server_t * old_vs, list new_rs_list)
 				free_list_elements(new_rs->failed_checkers);
 			} else {
 				/*
-				 * if not alive, we must copy the failed checker list
+				 * if not alive, we must migrate the failed checker list
 				 * If we do not, the new RS is in a state where it’s reported
 				 * as down with no check failed. As a result, the server will never
 				 * be put up back when it’s alive again in check_tcp.c#83 because
 				 * of the check that put a rs up only if it was not previously up
 				 * based on the failed_checkers list
 				 */
-				element hc_e;
-				list hc_l = rs->failed_checkers;
-				list new_hc_l = new_rs->failed_checkers;
-				for (hc_e = LIST_HEAD(hc_l); hc_e; ELEMENT_NEXT(hc_e)) {
-					list_add(new_hc_l, ELEMENT_DATA(hc_e));
-					ELEMENT_DATA(hc_e) = NULL;
-				}
+				if (!new_vs->alpha)
+					migrate_failed_checkers(rs, new_rs);
 			}
 		}
 	}
@@ -825,7 +858,7 @@ clear_diff_services(void)
 			/* omega = false must not prevent the notifiers from being called,
 			   because the VS still exists in new configuration */
 			vs->omega = true;
-			clear_diff_rs(vs, new_vs->rs);
+			clear_diff_rs(vs, new_vs);
 			clear_diff_s_srv(vs, new_vs->s_svr);
 		}
 	}

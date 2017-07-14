@@ -128,6 +128,32 @@ alloc_http_get(char *proto)
 	return http_get_chk;
 }
 
+static bool
+http_get_check_compare(void *a, void *b)
+{
+	http_checker_t *old = CHECKER_DATA(a);
+	http_checker_t *new = CHECKER_DATA(b);
+	size_t n;
+	url_t *u1, *u2;
+
+	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
+		return false;
+	if (LIST_SIZE(old->url) != LIST_SIZE(new->url))
+		return false;
+	for (n = 0; n < LIST_SIZE(new->url); n++) {
+		u1 = (url_t *)list_element(old->url, n);
+		u2 = (url_t *)list_element(new->url, n);
+		if (strcmp(u1->path, u2->path) != 0)
+			return false;
+		if (strcmp(u1->digest, u2->digest) != 0)
+			return false;
+		if (u1->status_code != u2->status_code)
+			return false;
+	}
+
+	return true;
+}
+
 static void
 http_get_handler(vector_t *strvec)
 {
@@ -137,7 +163,8 @@ http_get_handler(vector_t *strvec)
 	/* queue new checker */
 	http_get_chk = alloc_http_get(str);
 	queue_checker(free_http_get_check, dump_http_get_check,
-		      http_connect_thread, http_get_chk, CHECKER_NEW_CO());
+		      http_connect_thread, http_get_check_compare,
+		      http_get_chk, CHECKER_NEW_CO());
 }
 
 static void

@@ -44,7 +44,7 @@
 /* notify_script details */
 typedef struct _notify_script {
 	char**	args;		/* Script args */
-	char*	cmd_str;	/* Script command string (only used for dumping config)*/
+	char*	cmd_str;	/* Script command string (only used for dumping config and comparing at reload)*/
 	int	flags;
 	uid_t	uid;		/* uid of user to execute script */
 	gid_t	gid;		/* gid of group to execute script */

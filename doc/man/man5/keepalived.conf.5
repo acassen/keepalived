@@ -457,6 +457,13 @@ which will transition together on any state change.
     interface eth0
 
     # Use VRRP Virtual MAC.
+    # \fBNOTE\fR: If sysctl net.ipv4.conf.all.rp_filter is set,
+    # and this vrrp_instance is an IPv4 instance, using
+    # this option will cause the individual interfaces to be
+    # updated to the greater of their current setting, and
+    # all.rp_filter, as will default.rp_filter, and all.rp_filter
+    # will be set to 0.
+    # The original settings are restored on termination.
     use_vmac [<VMAC_INTERFACE>]
 
     # Send/Recv VRRP messages from base interface instead of

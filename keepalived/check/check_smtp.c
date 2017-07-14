@@ -83,6 +83,31 @@ dump_smtp_check(void *data)
 	dump_list(smtp_checker->host);
 }
 
+static bool
+smtp_check_compare(void *a, void *b)
+{
+	smtp_checker_t *old = CHECKER_DATA(a);
+	smtp_checker_t *new = CHECKER_DATA(b);
+	size_t n;
+	smtp_host_t *h1, *h2;
+
+	if (strcmp(old->helo_name, new->helo_name) != 0)
+		return false;
+	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
+		return false;
+	if (LIST_SIZE(old->host) != LIST_SIZE(new->host))
+		return false;
+	for (n = 0; n < LIST_SIZE(new->host); n++) {
+		h1 = (smtp_host_t *)list_element(old->host, n);
+		h2 = (smtp_host_t *)list_element(new->host, n);
+		if (!compare_conn_opts(h1, h2)) {
+			return false;
+		}
+	}
+
+	return true;
+}
+
 /* Allocates a default host structure */
 static smtp_host_t *
 smtp_alloc_host(void)
@@ -137,7 +162,7 @@ smtp_check_handler(__attribute__((unused)) vector_t *strvec)
 	 *               void *data, conn_opts_t *)
 	 */
 	queue_checker(free_smtp_check, dump_smtp_check, smtp_connect_thread,
-		      smtp_checker, smtp_checker->default_co);
+		      smtp_check_compare, smtp_checker, smtp_checker->default_co);
 
 	/*
 	 * Last, allocate the list that will hold all the per host

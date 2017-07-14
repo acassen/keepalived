@@ -80,8 +80,14 @@ AC_DEFUN([get_lib_name],
     LIBS="$SAV_LIBS"
   ])
 
+# AS_VAR_COPY was introduced in autoconf 2.63b.
+# Remove the following definition once require autoconf >= 2.64.
+m4_ifndef([AS_VAR_COPY],
+[m4_define([AS_VAR_COPY],
+[AS_LITERAL_IF([$1[]$2], [$1=$$2], [eval $1=\$$2])])])
+
 dnl ----[ Process this file with autoconf to produce a configure script ]----
-AC_PREREQ([2.65])
+AC_PREREQ([2.63])
 AC_INIT([Keepalived], [1.3.5], [keepalived-devel@lists.sourceforge.net], [], [http://www.keepalived.org/])
 AM_INIT_AUTOMAKE([-Wall -Werror -Woverride foreign])
 
