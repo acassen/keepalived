@@ -133,10 +133,6 @@ http_get_check_compare(void *a, void *b)
 
 	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
 		return false;
-	if (old->nb_get_retry != new->nb_get_retry)
-		return false;
-	if (old->delay_before_retry != new->delay_before_retry)
-		return false;
 	if (LIST_SIZE(old->url) != LIST_SIZE(new->url))
 		return false;
 	for (n = 0; n < LIST_SIZE(new->url); n++) {

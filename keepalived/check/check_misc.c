@@ -79,12 +79,6 @@ misc_check_compare(void *a, void *b)
 
 	if (strcmp(old->path, new->path) != 0)
 		return false;
-	if (old->timeout != new->timeout)
-		return false;
-	if (old->dynamic != new->dynamic)
-		return false;
-	if (old->uid != new->uid || new->gid != new->gid)
-		return false;
 
 	return true;
 }

@@ -70,10 +70,6 @@ tcp_check_compare(void *a, void *b)
 
 	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
 		return false;
-	if (old->n_retry != new->n_retry)
-		return false;
-	if (old->delay_before_retry != new->delay_before_retry)
-		return false;
 
 	return true;
 }

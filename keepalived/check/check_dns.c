@@ -396,8 +396,6 @@ dns_check_compare(void *a, void *b)
 
 	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
 		return false;
-	if (old->retry != new->retry)
-		return false;
 	if (strcmp(old->type, new->type) != 0)
 		return false;
 	if (strcmp(old->name, new->name) != 0)

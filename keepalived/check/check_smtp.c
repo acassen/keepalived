@@ -92,10 +92,6 @@ smtp_check_compare(void *a, void *b)
 
 	if (strcmp(old->helo_name, new->helo_name) != 0)
 		return false;
-	if (old->retry != new->retry)
-		return false;
-	if (old->db_retry != new->db_retry)
-		return false;
 	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
 		return false;
 	if (LIST_SIZE(old->host) != LIST_SIZE(new->host))
