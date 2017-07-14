@@ -81,7 +81,7 @@ dump_conn_opts(void *data)
 void
 queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	      , int (*launch) (thread_t *)
-	      , int (*compare) (void *, void *)
+	      , bool (*compare) (void *, void *)
 	      , void *data
 	      , conn_opts_t *co)
 {
@@ -120,28 +120,26 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	}
 }
 
-int
+bool
 compare_conn_opts(conn_opts_t *a, conn_opts_t *b)
 {
 	if (a == b)
-		return 0;
+		return true;
 
 	if (!a || !b)
-		goto err;
+		return false;
 	if (!sockstorage_equal(&a->dst, &b->dst))
-		goto err;
+		return false;
 	if (!sockstorage_equal(&a->bindto, &b->bindto))
-		goto err;
-	//if (a->connection_to != b->connection_to)
-	//	goto err;
+		return false;
+	if (a->connection_to != b->connection_to)
+		return false;
 #ifdef _WITH_SO_MARK_
 	if (a->fwmark != b->fwmark)
-		goto err;
+		return false;
 #endif
 
-	return  0;
-err:
-	return -1;
+	return true;
 }
 
 static void

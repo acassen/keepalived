@@ -62,22 +62,20 @@ dump_tcp_check(void *data)
 	}
 }
 
-static int
-compare_tcp_check(void *a, void *b)
+static bool
+tcp_check_compare(void *a, void *b)
 {
 	tcp_check_t *old = CHECKER_DATA(a);
 	tcp_check_t *new = CHECKER_DATA(b);
 
-	if (compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)) != 0)
-		goto err;
+	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
+		return false;
 	if (old->n_retry != new->n_retry)
-		goto err;
+		return false;
 	if (old->delay_before_retry != new->delay_before_retry)
-		goto err;
+		return false;
 
-	return  0;
-err:
-	return -1;
+	return true;
 }
 
 static void
@@ -91,7 +89,7 @@ tcp_check_handler(__attribute__((unused)) vector_t *strvec)
 
 	/* queue new checker */
 	queue_checker(free_tcp_check, dump_tcp_check, tcp_connect_thread,
-		      compare_tcp_check, tcp_check, CHECKER_NEW_CO());
+		      tcp_check_compare, tcp_check, CHECKER_NEW_CO());
 }
 
 static void

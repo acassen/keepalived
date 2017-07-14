@@ -71,24 +71,22 @@ dump_misc_check(void *data)
 	log_message(LOG_INFO, "   insecure = %s", misck_checker->insecure ? "Yes" : "No");
 }
 
-static int
-compare_misc_check(void *a, void *b)
+static bool
+misc_check_compare(void *a, void *b)
 {
 	misc_checker_t *old = CHECKER_DATA(a);
 	misc_checker_t *new = CHECKER_DATA(b);
 
 	if (strcmp(old->path, new->path) != 0)
-		goto err;
+		return false;
 	if (old->timeout != new->timeout)
-		goto err;
+		return false;
 	if (old->dynamic != new->dynamic)
-		goto err;
+		return false;
 	if (old->uid != new->uid || new->gid != new->gid)
-		goto err;
+		return false;
 
-	return  0;
-err:
-	return -1;
+	return true;
 }
 
 static void
@@ -166,7 +164,7 @@ misc_end_handler(void)
 	}
 
 	/* queue new checker */
-	queue_checker(free_misc_check, dump_misc_check, misc_check_thread, compare_misc_check, misck_checker, NULL);
+	queue_checker(free_misc_check, dump_misc_check, misc_check_thread, misc_check_compare, misck_checker, NULL);
 	misck_checker = NULL;
 }
 

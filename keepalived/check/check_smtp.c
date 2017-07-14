@@ -82,8 +82,8 @@ dump_smtp_check(void *data)
 	dump_list(smtp_checker->host);
 }
 
-static int
-compare_smtp_check(void *a, void *b)
+static bool
+smtp_check_compare(void *a, void *b)
 {
 	smtp_checker_t *old = CHECKER_DATA(a);
 	smtp_checker_t *new = CHECKER_DATA(b);
@@ -91,26 +91,24 @@ compare_smtp_check(void *a, void *b)
 	smtp_host_t *h1, *h2;
 
 	if (strcmp(old->helo_name, new->helo_name) != 0)
-		goto err;
+		return false;
 	if (old->retry != new->retry)
-		goto err;
+		return false;
 	if (old->db_retry != new->db_retry)
-		goto err;
-	if (compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)) != 0)
-		goto err;
+		return false;
+	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
+		return false;
 	if (LIST_SIZE(old->host) != LIST_SIZE(new->host))
-		goto err;
+		return false;
 	for (n = 0; n < LIST_SIZE(new->host); n++) {
 		h1 = (smtp_host_t *)list_element(old->host, n);
 		h2 = (smtp_host_t *)list_element(new->host, n);
-		if (compare_conn_opts(h1, h2) != 0) {
-			goto err;
+		if (!compare_conn_opts(h1, h2)) {
+			return false;
 		}
 	}
 
-	return  0;
-err:
-	return -1;
+	return true;
 }
 
 /* Allocates a default host structure */
@@ -167,7 +165,7 @@ smtp_check_handler(__attribute__((unused)) vector_t *strvec)
 	 *               void *data, conn_opts_t *)
 	 */
 	queue_checker(free_smtp_check, dump_smtp_check, smtp_connect_thread,
-		      compare_smtp_check, smtp_checker, smtp_checker->default_co);
+		      smtp_check_compare, smtp_checker, smtp_checker->default_co);
 
 	/*
 	 * Last, allocate the list that will hold all the per host

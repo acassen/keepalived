@@ -388,24 +388,22 @@ dns_dump(void *data)
 	log_message(LOG_INFO, "   Name = %s", dns_check->name);
 }
 
-static int
-dns_compare(void *a, void *b)
+static bool 
+dns_check_compare(void *a, void *b)
 {
 	dns_check_t *old = CHECKER_DATA(a);
 	dns_check_t *new = CHECKER_DATA(b);
 
-	if (compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)) != 0)
-		goto err;
+	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
+		return false;
 	if (old->retry != new->retry)
-		goto err;
+		return false;
 	if (strcmp(old->type, new->type) != 0)
-		goto err;
+		return false;
 	if (strcmp(old->name, new->name) != 0)
-		goto err;
+		return false;
 
-	return  0;
-err:
-	return -1;
+	return true;
 }
 
 static void
@@ -417,7 +415,7 @@ dns_check_handler(__attribute__((unused)) vector_t * strvec)
 	dns_check->type = DNS_DEFAULT_TYPE;
 	dns_check->name = DNS_DEFAULT_NAME;
 	queue_checker(dns_free, dns_dump, dns_connect_thread,
-		      dns_compare, dns_check, CHECKER_NEW_CO());
+		      dns_check_compare, dns_check, CHECKER_NEW_CO());
 }
 
 static void
