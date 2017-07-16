@@ -49,13 +49,6 @@ typedef struct _request {
 	MD5_CTX				context;
 } request_t;
 
-/* http specific thread arguments defs */
-typedef struct _http {
-	unsigned			retry_it;	/* current number of get retry */
-	unsigned			url_it;		/* current url checked index */
-	request_t			*req;		/* GET buffer and SSL args */
-} http_t ;
-
 typedef struct _url {
 	char				*path;
 	char				*digest;
@@ -66,8 +59,10 @@ typedef struct _http_checker {
 	unsigned			proto;
 	unsigned			retry;
 	unsigned long			delay_before_retry;
+	unsigned			retry_it;	/* current number of get retry */
+	unsigned			url_it;		/* current url checked index */
+	request_t			*req;		/* GET buffer and SSL args */
 	list				url;
-	http_t				*arg;
 } http_checker_t;
 
 /* global defs */
@@ -88,7 +83,6 @@ typedef struct _http_checker {
 
 /* macro utility */
 #define HTTP_ARG(X) ((X)->arg)
-#define HTTP_REQ(X) ((X)->req)
 #define FMT_HTTP_RS(C) FMT_CHK(C)
 
 /* Define prototypes */
