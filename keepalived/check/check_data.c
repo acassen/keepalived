@@ -672,6 +672,8 @@ bool validate_check_config(void)
 		}
 	}
 
+// What if checker doesn't have connect_to/port, bindto/port ?
+// What if HTTP checker has no url ?
 	/* Ensure any checkers that don't have ha_suspend set are enabled */
 	if (!LIST_ISEMPTY(checkers_queue)) {
 		for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {

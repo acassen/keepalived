@@ -305,6 +305,8 @@ misc_check_child_thread(thread_t * thread)
 			 * the exit status returned.  Effective range is 0..253.
 			 * Catch legacy case of status being 0 but misc_dynamic being set.
 			 */
+// ??? What if there are multiple dynamic misc_checkers? We could get weight flip flopping all over the place.
+// ??? If we keep returning a non-zero status, we will keep calling update_svr_wgt
 			if (misck_checker->dynamic && status != 0)
 				update_svr_wgt(status - 2, checker->vs,
 					       checker->rs, true);
