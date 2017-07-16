@@ -667,24 +667,6 @@ virtual_server group <STRING>      {	# VS group declaration
             bind_port <PORT>            # Optional source port to originate the connection from
             connect_timeout <INTEGER>   # Optional per-host connection timeout.
             fwmark <INTEGER>            # Optional fwmark to mark all outgoing checker pakets with
-            host {                      # Optional additional host/port to check
-                connect_ip <IP ADDRESS> # IP address to connect
-                connect_port <PORT>     # TCP port to connect
-                bindto <IP ADDRESS>     # IP address to bind to
-                bind_port <PORT>        # TCP port to bind to
-                connect_timeout <INTEGER>   # Timeout connection
-                fwmark <INTEGER>        # fwmark to set on socket (SO_MARK)
-            }
-            host {
-                connect_ip <IP ADDRESS> # IP address to connect
-                connect_port <PORT>     # TCP port to connect
-                bindto <IP ADDRESS>     # IP address to bind to
-                bind_port <PORT>        # TCP port to bind to
-                connect_timeout <INTEGER>   # Timeout connection
-                fwmark <INTEGER>        # fwmark to set on socket (SO_MARK)
-            }
-            ...
-            connect_timeout <INTEGER>  # Connection and read/write timeout
             warmup <INTEGER>        # random delay for maximum N seconds
             retry <INTEGER>             # Number of times to retry a failed check
             delay_before_retry <INTEGER> # Delay in seconds before retrying

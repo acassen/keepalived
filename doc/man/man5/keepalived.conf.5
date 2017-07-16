@@ -869,32 +869,6 @@ A virtual_server can be a declaration of one of
                # checker packets with
                fwmark <INTEGER>
 
-               # An optional host interface to check.
-               # If no host directives are present, only
-               # the IP address of the realserver will
-               # be checked.
-               host {
-                 # ======== generic connection options
-                 # Optional IP address to connect to.
-                 # The default is the realserver IP
-                 connect_ip <IP ADDRESS>
-                 # Optional port to connect to
-                 # the default is port 25
-                 connect_port <PORT>
-                 # Optional interface to use to
-                 # originate the connection
-                 bindto <IP ADDRESS>
-                 # Optional source port to
-                 # originate the connection from
-                 bind_port <PORT>
-                 # Optional per-host connection timeout.
-                 # Default is outer-scope connect_timeout
-                 connect_timeout <INTEGER>
-                 # Optional fwmark to mark all outgoing
-                 # checker packets with
-                 fwmark <INTEGER>
-              }
-
               # Number of times to retry a failed check
               retry <INTEGER>
               # Delay in seconds before retrying

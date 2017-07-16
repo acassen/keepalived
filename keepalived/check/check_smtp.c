@@ -198,6 +198,8 @@ smtp_host_handler(__attribute__((unused)) vector_t *strvec)
 
 	/* add an empty host to the list, smtp_checker->host */
 	list_add(smtp_checker->host, smtp_alloc_host());
+
+	log_message(LOG_INFO, "The SMTP_CHECK host block is deprecated. Please define additional checkers.");
 }
 
 /* "helo_name" keyword */
