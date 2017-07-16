@@ -81,7 +81,7 @@ typedef struct _dns_header {
 typedef struct _dns_check {
 	unsigned retry;
 	unsigned long delay_before_retry;
-	unsigned int attempts;
+	unsigned retry_it;
 	uint16_t type;
 	char *name;
 	uint8_t sbuf[DNS_BUFFER_SIZE];

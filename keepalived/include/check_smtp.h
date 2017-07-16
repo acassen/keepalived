@@ -53,7 +53,7 @@ typedef struct _smtp_checker {
 	char				*helo_name;
 	unsigned			retry;
 	unsigned long			delay_before_retry;
-	unsigned			attempts;
+	unsigned			retry_it;
 	unsigned			host_ctr;
 	smtp_host_t			*host_ptr;
 	conn_opts_t			*default_co;

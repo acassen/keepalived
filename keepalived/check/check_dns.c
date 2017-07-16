@@ -110,7 +110,7 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 	dns_check_t *dns_check = CHECKER_ARG(checker);
 
 	DNS_DBG("final error=%d attempts=%d retry=%d", error,
-		dns_check->attempts, dns_check->retry);
+		dns_check->retry_it, dns_check->retry);
 
 	close(thread->u.fd);
 
@@ -122,8 +122,8 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 				dns_log_message(thread, LOG_INFO, buf);
 				va_end(args);
 			}
-			if (dns_check->attempts < dns_check->retry) {
-				dns_check->attempts++;
+			if (dns_check->retry_it < dns_check->retry) {
+				dns_check->retry_it++;
 				thread_add_timer(thread->master,
 						 dns_connect_thread, checker,
 						 dns_check->delay_before_retry);
@@ -143,7 +143,7 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 		}
 	}
 
-	dns_check->attempts = 0;
+	dns_check->retry_it = 0;
 	thread_add_timer(thread->master, dns_connect_thread, checker,
 			 checker->vs->delay_loop);
 
@@ -426,7 +426,7 @@ dns_check_handler(__attribute__((unused)) vector_t * strvec)
 	dns_check_t *dns_check = (dns_check_t *) MALLOC(sizeof (dns_check_t));
 	dns_check->retry = DNS_DEFAULT_RETRY;
 	dns_check->delay_before_retry = 1 * TIMER_HZ;
-	dns_check->attempts = 0;
+	dns_check->retry_it = 0;
 	dns_check->type = DNS_DEFAULT_TYPE;
 	dns_check->name = DNS_DEFAULT_NAME;
 	queue_checker(dns_free, dns_dump, dns_connect_thread,

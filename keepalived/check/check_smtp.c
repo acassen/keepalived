@@ -280,7 +280,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 	close(thread->u.fd);
 
 	/* If we're here, an attempt HAS been made already for the current host */
-	smtp_checker->attempts++;
+	smtp_checker->retry_it++;
 
 	if (error) {
 		/* Always syslog the error when the real server is up */
@@ -303,7 +303,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		 * scheduling the main thread to check it again after the
 		 * configured backoff delay. Otherwise down the RS.
 		 */
-		if (smtp_checker->attempts < smtp_checker->retry) {
+		if (smtp_checker->retry_it < smtp_checker->retry) {
 			thread_add_timer(thread->master, smtp_connect_thread, checker,
 					 smtp_checker->delay_before_retry);
 			return 0;
@@ -331,7 +331,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		}
 
 		/* Reset everything back to the first host in the list */
-		smtp_checker->attempts = 0;
+		smtp_checker->retry_it = 0;
 		smtp_checker->host_ctr = 0;
 
 		/* Reschedule the main thread using the configured delay loop */;
@@ -342,11 +342,11 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 
 	/*
 	 * Ok this host was successful, increment to the next host in the list
-	 * and reset the attempts counter. We'll then reschedule the main thread again.
+	 * and reset the retry_it counter. We'll then reschedule the main thread again.
 	 * If host_ctr exceeds the number of hosts in the list, http_main_thread will
 	 * take note and bring up the real server as well as inject the delay_loop.
 	 */
-	smtp_checker->attempts = 0;
+	smtp_checker->retry_it = 0;
 	smtp_checker->host_ctr++;
 
 	thread_add_timer(thread->master, smtp_connect_thread, checker, 1);
@@ -789,7 +789,7 @@ smtp_connect_thread(thread_t *thread)
 			update_svr_checker_state(UP, checker->id, checker->vs, checker->rs);
 		}
 
-		smtp_checker->attempts = 0;
+		smtp_checker->retry_it = 0;
 		smtp_checker->host_ctr = 0;
 		smtp_checker->host_ptr = list_element(smtp_checker->host, 0);
 
