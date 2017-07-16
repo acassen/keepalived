@@ -710,7 +710,7 @@ rs_exist(real_server_t * old_rs, list l)
 }
 
 static void
-migrate_failed_checkers(real_server_t *old_rs, real_server_t *new_rs)
+migrate_failed_checkers(real_server_t *old_rs, real_server_t *new_rs, list old_checkers_queue)
 {
 	list l;
 	element e, e1;
@@ -753,7 +753,7 @@ end:
 
 /* Clear the diff rs of the old vs */
 static void
-clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs)
+clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_checkers_queue)
 {
 	element e;
 	list l = old_vs->rs;
@@ -802,7 +802,7 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs)
 				 * based on the failed_checkers list
 				 */
 				if (!new_vs->alpha)
-					migrate_failed_checkers(rs, new_rs);
+					migrate_failed_checkers(rs, new_rs, old_checkers_queue);
 			}
 		}
 	}
@@ -846,7 +846,7 @@ clear_diff_s_srv(virtual_server_t *old_vs, real_server_t *new_rs)
 /* When reloading configuration, remove negative diff entries
  * and copy status of existing entries to the new ones */
 void
-clear_diff_services(void)
+clear_diff_services(list old_checkers_queue)
 {
 	element e;
 	list l = old_check_data->vs;
@@ -886,7 +886,7 @@ clear_diff_services(void)
 			/* omega = false must not prevent the notifiers from being called,
 			   because the VS still exists in new configuration */
 			vs->omega = true;
-			clear_diff_rs(vs, new_vs);
+			clear_diff_rs(vs, new_vs, old_checkers_queue);
 			clear_diff_s_srv(vs, new_vs->s_svr);
 		}
 	}

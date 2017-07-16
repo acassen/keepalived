@@ -42,9 +42,8 @@
 #include "check_dns.h"
 
 /* Global vars */
-checker_id_t ncheckers = 0;
+static checker_id_t ncheckers;
 list checkers_queue;
-list old_checkers_queue;
 
 /* free checker data */
 static void
@@ -243,6 +242,7 @@ void
 init_checkers_queue(void)
 {
 	checkers_queue = alloc_list(free_checker, dump_checker);
+	ncheckers = 0;
 }
 
 /* release the checkers for a virtual server */
