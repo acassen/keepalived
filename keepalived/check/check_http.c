@@ -97,14 +97,14 @@ dump_http_get_check(void *data)
 {
 	http_checker_t *http_get_chk = CHECKER_DATA(data);
 
-	if (http_get_chk->proto == PROTO_HTTP)
-		log_message(LOG_INFO, "   Keepalive method = HTTP_GET");
-	else
-		log_message(LOG_INFO, "   Keepalive method = SSL_GET");
+	log_message(LOG_INFO, "   Keepalive method = %s_GET",
+			http_get_chk->proto == PROTO_HTTP ? "HTTP" : "SSL");
 	dump_conn_opts(CHECKER_CO(data));
-	log_message(LOG_INFO, "   Nb get retry = %u", http_get_chk->nb_get_retry);
-	log_message(LOG_INFO, "   Delay before retry = %lu",
-	       http_get_chk->delay_before_retry/TIMER_HZ);
+	if (http_get_chk->retry) {
+		log_message(LOG_INFO, "   Retry count = %u", http_get_chk->retry);
+		log_message(LOG_INFO, "   Retry delay = %lu",
+		       http_get_chk->delay_before_retry/TIMER_HZ);
+	}
 	dump_list(http_get_chk->url);
 }
 static http_checker_t *
@@ -117,7 +117,7 @@ alloc_http_get(char *proto)
 	http_get_chk->proto =
 	    (!strcmp(proto, "HTTP_GET")) ? PROTO_HTTP : PROTO_SSL;
 	http_get_chk->url = alloc_list(free_url, dump_url);
-	http_get_chk->nb_get_retry = 1;
+	http_get_chk->retry = 1;
 	http_get_chk->delay_before_retry = 3 * TIMER_HZ;
 
 	return http_get_chk;
@@ -163,14 +163,14 @@ http_get_handler(vector_t *strvec)
 }
 
 static void
-nb_get_retry_handler(vector_t *strvec)
+http_get_retry_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
-	http_get_chk->nb_get_retry = CHECKER_VALUE_UINT(strvec);
+	http_get_chk->retry = CHECKER_VALUE_UINT(strvec);
 }
 
 static void
-delay_before_retry_handler(vector_t *strvec)
+http_get_delay_before_retry_handler(vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
 	http_get_chk->delay_before_retry = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
@@ -222,8 +222,9 @@ install_http_ssl_check_keyword(const char *keyword)
 	install_sublevel();
 	install_connect_keywords();
 	install_keyword("warmup", &warmup_handler);
-	install_keyword("nb_get_retry", &nb_get_retry_handler);
-	install_keyword("delay_before_retry", &delay_before_retry_handler);
+	install_keyword("retry", &http_get_retry_handler);
+	install_keyword("nb_get_retry", &http_get_retry_handler);	/* Deprecated */
+	install_keyword("delay_before_retry", &http_get_delay_before_retry_handler);
 	install_keyword("url", &url_handler);
 	install_sublevel();
 	install_keyword("path", &path_handler);
@@ -316,9 +317,9 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 	 * html buffer. This is sometime needed with some applications
 	 * servers.
 	 */
-	else if (method == REGISTER_CHECKER_RETRY && http->retry_it > http_get_check->nb_get_retry) {
+	else if (method == REGISTER_CHECKER_RETRY && http->retry_it > http_get_check->retry) {
 		if (svr_checker_up(checker->id, checker->rs)) {
-			if (http_get_check->nb_get_retry)
+			if (http_get_check->retry)
 				log_message(LOG_INFO
 				   , "Check on service %s failed after %u retry."
 				   , FMT_HTTP_RS(checker)

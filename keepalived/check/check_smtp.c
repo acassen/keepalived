@@ -77,8 +77,10 @@ dump_smtp_check(void *data)
 	smtp_checker_t *smtp_checker = CHECKER_DATA(data);
 	log_message(LOG_INFO, "   Keepalive method = SMTP_CHECK");
 	log_message(LOG_INFO, "           helo = %s", smtp_checker->helo_name);
-	log_message(LOG_INFO, "           retry = %d", smtp_checker->retry);
-	log_message(LOG_INFO, "           delay before retry = %ld", smtp_checker->db_retry/TIMER_HZ);
+	if (smtp_checker->retry) {
+		log_message(LOG_INFO, "           Retry count = %u", smtp_checker->retry);
+		log_message(LOG_INFO, "           Retry delay = %lu", smtp_checker->delay_before_retry/TIMER_HZ);
+	}
 	dump_list(smtp_checker->host);
 }
 
@@ -143,7 +145,7 @@ smtp_check_handler(__attribute__((unused)) vector_t *strvec)
 	memcpy(smtp_checker->helo_name, SMTP_DEFAULT_HELO, strlen(SMTP_DEFAULT_HELO) + 1);
 
 	/* some other sane values */
-	smtp_checker->db_retry = 1 * TIMER_HZ;
+	smtp_checker->delay_before_retry = 1 * TIMER_HZ;
 	smtp_checker->retry = 1;
 
 	/*
@@ -220,10 +222,10 @@ smtp_retry_handler(vector_t *strvec)
 
 /* "delay_before_retry" keyword */
 static void
-smtp_db_retry_handler(vector_t *strvec)
+smtp_delay_before_retry_handler(vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
-	smtp_checker->db_retry = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
+	smtp_checker->delay_before_retry = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 }
 
 /* Config callback installer */
@@ -240,8 +242,8 @@ install_smtp_check_keyword(void)
 	install_keyword("helo_name", &smtp_helo_name_handler);
 
 	install_keyword("warmup", &warmup_handler);
-	install_keyword("delay_before_retry", &smtp_db_retry_handler);
 	install_keyword("retry", &smtp_retry_handler);
+	install_keyword("delay_before_retry", &smtp_delay_before_retry_handler);
 	install_connect_keywords();
 
 	/*
@@ -303,7 +305,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		 */
 		if (smtp_checker->attempts < smtp_checker->retry) {
 			thread_add_timer(thread->master, smtp_connect_thread, checker,
-					 smtp_checker->db_retry);
+					 smtp_checker->delay_before_retry);
 			return 0;
 		}
 

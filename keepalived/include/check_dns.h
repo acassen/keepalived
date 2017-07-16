@@ -79,10 +79,12 @@ typedef struct _dns_header {
 } dns_header_t;
 
 typedef struct _dns_check {
-	int retry;
-	int attempts;
+	unsigned retry;
+	unsigned long delay_before_retry;
+	unsigned int attempts;
 	char *type;
 	char *name;
+// ?? Change type to be integer
 	uint8_t sbuf[DNS_BUFFER_SIZE];
 	size_t slen;
 } dns_check_t;

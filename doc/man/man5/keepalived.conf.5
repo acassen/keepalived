@@ -757,7 +757,7 @@ A virtual_server can be a declaration of one of
            uthreshold <INTEGER> # maximum number of connections to server
            lthreshold <INTEGER> # minimum number of connections to server
 
-           # pick one healthchecker
+           # healthcheckers. Can be multiple of each type
            # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK
 
            # HTTP and SSL healthcheckers
@@ -869,19 +869,19 @@ A virtual_server can be a declaration of one of
                # checker packets with
                fwmark <INTEGER>
 
-              # Number of times to retry a failed check
-              retry <INTEGER>
-              # Delay in seconds before retrying
-              delay_before_retry <INTEGER>
-              # Optional string to use for the SMTP HELO request
-              helo_name <STRING>|<QUOTED-STRING>
+               # Number of times to retry a failed check
+               retry <INTEGER>
+               # Delay in seconds before retrying
+               delay_before_retry <INTEGER>
+               # Optional string to use for the SMTP HELO request
+               helo_name <STRING>|<QUOTED-STRING>
 
-              # Optional random delay to start the initial check
-              # for maximum N seconds.
-              # Useful to scatter multiple simultaneous
-              # checks to the same RS. Enabled by default, with
-              # the maximum at delay_loop. Specify 0 to disable
-              warmup <INT>
+               # Optional random delay to start the initial check
+               # for maximum N seconds.
+               # Useful to scatter multiple simultaneous
+               # checks to the same RS. Enabled by default, with
+               # the maximum at delay_loop. Specify 0 to disable
+               warmup <INT>
            } #SMTP_CHECK
 
            # DNS healthchecker
@@ -907,9 +907,17 @@ A virtual_server can be a declaration of one of
                # checker packets with
                fwmark <INTEGER>
 
+               # Optional random delay to start the initial check
+               # for maximum N seconds.
+               # Useful to scatter multiple simultaneous
+               # checks to the same RS. Enabled by default, with
+               # the maximum at delay_loop. Specify 0 to disable
+               warmup <INT>
                # Number of times to retry a failed check
                # The default is 3 times.
                retry <INTEGER>
+               # Delay in seconds before retrying
+               delay_before_retry <INTEGER>
                # DNS query type
                #   A|NS|CNAME|SOA|MX|TXT|AAAA
                # The default is SOA

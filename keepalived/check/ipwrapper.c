@@ -587,7 +587,7 @@ update_svr_checker_state(bool alive, checker_id_t cid, virtual_server_t *vs, rea
 
 		/* call the UP handler unless any more failed checks found */
 		if (LIST_SIZE(l) == 0 || (LIST_SIZE(l) == 1 && e)) {
-			if (perform_svr_state(alive, vs, rs))
+			if (perform_svr_state(true, vs, rs))
 				return;
 		}
 
@@ -598,7 +598,7 @@ update_svr_checker_state(bool alive, checker_id_t cid, virtual_server_t *vs, rea
 	/* Handle not alive state */
 	else {
 		if (LIST_SIZE(l) == 0) {
-			if (perform_svr_state(alive, vs, rs))
+			if (perform_svr_state(false, vs, rs))
 				return;
 		} else {
 			/* do not add failed check into list twice */

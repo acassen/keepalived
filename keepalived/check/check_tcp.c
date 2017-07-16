@@ -55,9 +55,9 @@ dump_tcp_check(void *data)
 	log_message(LOG_INFO, "   Keepalive method = TCP_CHECK");
 	dump_conn_opts(CHECKER_CO(data));
 	if (tcp_check->n_retry) {
-		log_message(LOG_INFO, "     Retry count = %d"
+		log_message(LOG_INFO, "     Retry count = %u"
 			    , tcp_check->n_retry);
-		log_message(LOG_INFO, "     Retry delay = %ld"
+		log_message(LOG_INFO, "     Retry delay = %lu"
 			    , tcp_check->delay_before_retry / TIMER_HZ);
 	}
 }
@@ -122,7 +122,7 @@ tcp_epilog(thread_t * thread, int is_success)
 	checker = THREAD_ARG(thread);
 	tcp_check = CHECKER_ARG(checker);
 
-	if (is_success || tcp_check->retry_it > tcp_check->n_retry - 1) {
+	if (is_success || tcp_check->retry_it >= tcp_check->n_retry) {
 		delay = checker->vs->delay_loop;
 		tcp_check->retry_it = 0;
 
@@ -135,7 +135,7 @@ tcp_epilog(thread_t * thread, int is_success)
 			update_svr_checker_state(UP, checker->id
 						   , checker->vs
 						   , checker->rs);
-		} else if (! is_success
+		} else if (!is_success
 			   && svr_checker_up(checker->id, checker->rs)) {
 			if (tcp_check->n_retry)
 				log_message(LOG_INFO

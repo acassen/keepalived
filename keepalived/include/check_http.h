@@ -64,7 +64,7 @@ typedef struct _url {
 
 typedef struct _http_checker {
 	unsigned			proto;
-	unsigned			nb_get_retry;
+	unsigned			retry;
 	unsigned long			delay_before_retry;
 	list				url;
 	http_t				*arg;

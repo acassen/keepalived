@@ -113,7 +113,7 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 				dns_check->attempts++;
 				thread_add_timer(thread->master,
 						 dns_connect_thread, checker,
-						 checker->vs->delay_loop);
+						 dns_check->delay_before_retry);
 				return 0;
 			}
 			update_svr_checker_state(DOWN, checker->id, checker->vs,
@@ -383,7 +383,10 @@ dns_dump(void *data)
 	dns_check_t *dns_check = CHECKER_DATA(data);
 	log_message(LOG_INFO, "   Keepalive method = DNS_CHECK");
 	dump_conn_opts(CHECKER_CO(data));
-	log_message(LOG_INFO, "   Retry = %d", dns_check->retry);
+	if (dns_check->retry) {
+		log_message(LOG_INFO, "   Retry count = %u", dns_check->retry);
+		log_message(LOG_INFO, "   Retry delay = %lu", dns_check->delay_before_retry / TIMER_HZ);
+	}
 	log_message(LOG_INFO, "   Type = %s", dns_check->type);
 	log_message(LOG_INFO, "   Name = %s", dns_check->name);
 }
@@ -409,6 +412,7 @@ dns_check_handler(__attribute__((unused)) vector_t * strvec)
 {
 	dns_check_t *dns_check = (dns_check_t *) MALLOC(sizeof (dns_check_t));
 	dns_check->retry = DNS_DEFAULT_RETRY;
+	dns_check->delay_before_retry = 1 * TIMER_HZ;
 	dns_check->attempts = 0;
 	dns_check->type = DNS_DEFAULT_TYPE;
 	dns_check->name = DNS_DEFAULT_NAME;
@@ -420,7 +424,15 @@ static void
 dns_retry_handler(vector_t * strvec)
 {
 	dns_check_t *dns_check = CHECKER_GET();
-	dns_check->retry = CHECKER_VALUE_INT(strvec);
+	dns_check->retry = CHECKER_VALUE_UINT(strvec);
+}
+
+static void
+dns_delay_before_retry_handler(vector_t *strvec)
+{
+	dns_check_t *dns_check = CHECKER_GET();
+	dns_check->delay_before_retry =
+		CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 }
 
 static void
@@ -443,7 +455,9 @@ install_dns_check_keyword(void)
 	install_keyword("DNS_CHECK", &dns_check_handler);
 	install_sublevel();
 	install_connect_keywords();
+	install_keyword("warmup", &warmup_handler);
 	install_keyword("retry", &dns_retry_handler);
+	install_keyword("delay_before_retry", &dns_delay_before_retry_handler);
 	install_keyword("type", &dns_type_handler);
 	install_keyword("name", &dns_name_handler);
 	install_sublevel_end();

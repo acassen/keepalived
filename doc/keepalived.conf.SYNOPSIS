@@ -624,15 +624,15 @@ virtual_server group <STRING>      {	# VS group declaration
               status_code <INTEGER>
             }
             ...
-            connect_ip <IP ADDRESS> # IP address to connect
-            connect_port <PORT>     # TCP port to connect
-            bindto <IP ADDRESS>     # IP address to bind to
-            bind_port <PORT>        # TCP port to bind to
+            connect_ip <IP ADDRESS>	# IP address to connect
+            connect_port <PORT>		# TCP port to connect
+            bindto <IP ADDRESS>		# IP address to bind to
+            bind_port <PORT>		# TCP port to bind to
             connect_timeout <INTEGER>   # Timeout connection
-            fwmark <INTEGER>        # fwmark to set on socket (SO_MARK)
-            nb_get_retry <INTEGER>  # number of get retry
+            fwmark <INTEGER>		# fwmark to set on socket (SO_MARK)
+            retry <INTEGER>		# number of get retry
             delay_before_retry <INTEGER> # delay before retry
-            warmup <INTEGER>        # random delay for maximum N seconds
+            warmup <INTEGER>		# random delay for maximum N seconds
         }
     }
 
@@ -644,13 +644,15 @@ virtual_server group <STRING>      {	# VS group declaration
         notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
 
         TCP_CHECK {			# TCP healthchecker
-            connect_ip <IP ADDRESS> # IP address to connect
-            connect_port <PORT>     # TCP port to connect
-            bindto <IP ADDRESS>     # IP address to bind to
-            bind_port <PORT>        # TCP port to bind to
-            connect_timeout <INTEGER>   # Timeout connection
-            fwmark <INTEGER>        # fwmark to set on socket (SO_MARK)
-            warmup <INTEGER>        # random delay for maximum N seconds
+            connect_ip <IP ADDRESS>	# IP address to connect
+            connect_port <PORT>		# TCP port to connect
+            bindto <IP ADDRESS>		# IP address to bind to
+            bind_port <PORT>		# TCP port to bind to
+            connect_timeout <INTEGER>	# Timeout connection
+            fwmark <INTEGER>		# fwmark to set on socket (SO_MARK)
+            warmup <INTEGER>		# random delay for maximum N seconds
+            retry <INTEGER>		# Number of times to retry a failed check (default 1)
+            delay_before_retry <INTEGER> # Delay in seconds before retrying (default 1 second)
         }
     }
 
@@ -660,14 +662,14 @@ virtual_server group <STRING>      {	# VS group declaration
         notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
         notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
 
-        SMTP_CHECK {                   # SMTP healthchecker
+        SMTP_CHECK {			# SMTP healthchecker
             connect_ip <IP ADDRESS>     # Optional IP address to connect to
             connect_port <PORT>         # Optional port to connect to
             bindto <IP ADDRESS>         # Optional interface to use to originate the connection
             bind_port <PORT>            # Optional source port to originate the connection from
             connect_timeout <INTEGER>   # Optional per-host connection timeout.
             fwmark <INTEGER>            # Optional fwmark to mark all outgoing checker pakets with
-            warmup <INTEGER>        # random delay for maximum N seconds
+            warmup <INTEGER>		# random delay for maximum N seconds
             retry <INTEGER>             # Number of times to retry a failed check
             delay_before_retry <INTEGER> # Delay in seconds before retrying
             helo_name <STRING>|<QUOTED-STRING> # Host to use for the HELO request
@@ -687,9 +689,10 @@ virtual_server group <STRING>      {	# VS group declaration
             bindto <IP ADDRESS>         # Optional interface to use to originate the connection
             bind_port <PORT>            # Optional source port to originate the connection from
             connect_timeout <INTEGER>   # Optional per-host connection timeout.
-            fwmark <INTEGER>            # Optional fwmark to mark all outgoing checker pakets with
+            fwmark <INTEGER>            # Optional fwmark to mark all outgoing checker packets with
+            warmup <INTEGER>		# random delay for maximum N seconds
             retry <INTEGER>             # Number of times to retry a failed check
-            type <STRING>               # DNS query type
+            delay_before_retry <INTEGER> # Delay in seconds before retrying
             type A|NS|CNAME|SOA|MX|TXT|AAAA # DNS query type (default SOA)
             name <STRING>               # Domain name to use for the DNS query
         }
