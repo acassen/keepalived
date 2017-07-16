@@ -72,6 +72,19 @@ dns_type_lookup(const char *label)
 	return 0;
 }
 
+static const char *
+dns_type_name(uint16_t type)
+{
+	const dns_type_t *t;
+
+	for (t = DNS_TYPE; t->type; t++) {
+		if (type == t->type) {
+			return t->label;
+		}
+	}
+	return "(unknown)";
+}
+
 static void
 dns_log_message(thread_t * thread, int level, const char *fmt, ...)
 {
@@ -247,7 +260,7 @@ dns_make_query(thread_t * thread)
 		*(p++) = 0;
 	}
 
-	APPEND16(p, dns_type_lookup(dns_check->type));
+	APPEND16(p, dns_check->type);
 	APPEND16(p, 1);		/* IN */
 
 	dns_check->slen = (size_t)(p - (uint8_t *)header);
@@ -387,7 +400,7 @@ dns_dump(void *data)
 		log_message(LOG_INFO, "   Retry count = %u", dns_check->retry);
 		log_message(LOG_INFO, "   Retry delay = %lu", dns_check->delay_before_retry / TIMER_HZ);
 	}
-	log_message(LOG_INFO, "   Type = %s", dns_check->type);
+	log_message(LOG_INFO, "   Type = %s", dns_type_name(dns_check->type));
 	log_message(LOG_INFO, "   Name = %s", dns_check->name);
 }
 
@@ -399,7 +412,7 @@ dns_check_compare(void *a, void *b)
 
 	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
 		return false;
-	if (strcmp(old->type, new->type) != 0)
+	if (old->type != new->type)
 		return false;
 	if (strcmp(old->name, new->name) != 0)
 		return false;
@@ -438,8 +451,14 @@ dns_delay_before_retry_handler(vector_t *strvec)
 static void
 dns_type_handler(vector_t * strvec)
 {
+	uint16_t dns_type;
 	dns_check_t *dns_check = CHECKER_GET();
-	dns_check->type = CHECKER_VALUE_STRING(strvec);
+
+	dns_type = dns_type_lookup(CHECKER_VALUE_STRING(strvec));
+	if (!dns_type)
+		log_message(LOG_INFO, "Unknown DNS check type %s - defaulting to SOA", vector_size(strvec) < 2 ? "[blank]" : FMT_STR_VSLOT(strvec, 1));
+	else
+		dns_check->type = dns_type;
 }
 
 static void

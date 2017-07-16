@@ -185,6 +185,9 @@ co_srcport_handler(vector_t *strvec)
 	checker_set_dst_port(&co->bindto, htons(CHECKER_VALUE_INT(strvec)));
 }
 
+/* "bind_if" keyword */
+// This is needed for link local IPv6 addres
+
 /* "connect_timeout" keyword */
 static void
 co_timeout_handler(vector_t *strvec)
