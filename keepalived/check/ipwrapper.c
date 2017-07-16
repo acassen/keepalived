@@ -250,14 +250,12 @@ init_service_rs(virtual_server_t * vs)
 			if (rs->iweight != rs->pweight)
 				update_svr_wgt(rs->iweight, vs, rs, false);
 			/* Do not re-add failed RS instantly on reload */
-// We should if alpha mode
 			continue;
 		}
 		/* In alpha mode, be pessimistic (or realistic?) and don't
 		 * add real servers into the VS pool. They will get there
 		 * later upon healthchecks recovery (if ever).
 		 */
-// ??? We should add rs if alpha mode with priority 0
 		if (!vs->alpha && !ISALIVE(rs)) {
 			ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
 			SET_ALIVE(rs);
@@ -803,9 +801,6 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_check
 				 * of the check that put a rs up only if it was not previously up
 				 * based on the failed_checkers list
 				 */
-// ??? if alpha mode the rs is set to failed. Don't do this
-// but have new checkers in pending state
-// Also, if inhibit_on_failure, the rs should be added with weight 0
 				if (!new_vs->alpha)
 					migrate_failed_checkers(rs, new_rs, old_checkers_queue);
 			}

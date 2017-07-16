@@ -30,7 +30,7 @@
 #include "scheduler.h"
 
 #define DNS_DEFAULT_RETRY    3
-#define DNS_DEFAULT_TYPE  DNS_TYPE_SOA
+#define DNS_DEFAULT_TYPE  "SOA"
 #define DNS_DEFAULT_NAME    "."
 #define DNS_BUFFER_SIZE    768
 
@@ -82,8 +82,9 @@ typedef struct _dns_check {
 	unsigned retry;
 	unsigned long delay_before_retry;
 	unsigned int attempts;
-	uint16_t type;
+	char *type;
 	char *name;
+// ?? Change type to be integer
 	uint8_t sbuf[DNS_BUFFER_SIZE];
 	size_t slen;
 } dns_check_t;

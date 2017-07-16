@@ -142,7 +142,6 @@ tcp_epilog(thread_t * thread, int is_success)
 				    , "Check on service %s failed after %d retry."
 				    , FMT_TCP_RS(checker)
 				    , tcp_check->n_retry);
-// ??? We should log if n_retry == 0
 			smtp_alert(checker, NULL, NULL,
 				   "DOWN",
 				   "=> TCP CHECK failed on service <=");
