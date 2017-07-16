@@ -690,6 +690,7 @@ virtual_server group <STRING>      {	# VS group declaration
             fwmark <INTEGER>            # Optional fwmark to mark all outgoing checker pakets with
             retry <INTEGER>             # Number of times to retry a failed check
             type <STRING>               # DNS query type
+            type A|NS|CNAME|SOA|MX|TXT|AAAA # DNS query type (default SOA)
             name <STRING>               # Domain name to use for the DNS query
         }
     }
