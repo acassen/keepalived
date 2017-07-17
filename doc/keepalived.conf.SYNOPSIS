@@ -585,10 +585,10 @@ virtual_server group <STRING>      {	# VS group declaration
     hysteresis <INT>
 
     # Script to launch when quorum is gained.
-    quorum_up <STRING>|<QUOTED-STRING>
+    quorum_up <STRING>|<QUOTED-STRING> [username [groupname]]
 
     # Script to launch when quorum is lost.
-    quorum_down <STRING>|<QUOTED-STRING>
+    quorum_down <STRING>|<QUOTED-STRING> [username [groupname]]
 
     sorry_server <IP ADDRESS> <PORT>	# RS to add to LVS topology when all
 					#   realserver are down

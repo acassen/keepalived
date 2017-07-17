@@ -718,10 +718,10 @@ A virtual_server can be a declaration of one of
     hysteresis <INT>
 
     # Script to execute when quorum is gained.
-    quorum_up <STRING>|<QUOTED-STRING>
+    quorum_up <STRING>|<QUOTED-STRING> [username [groupname]]
 
     # Script to execute when quorum is lost.
-    quorum_down <STRING>|<QUOTED-STRING>
+    quorum_down <STRING>|<QUOTED-STRING> [username [groupname]]
 
     # IP family for a fwmark service (optional)
     ip_family inet|inet6
