@@ -734,7 +734,7 @@ migrate_failed_checkers(real_server_t *old_rs, real_server_t *new_rs, list old_c
 			continue;
 		for (e1 = LIST_HEAD(l); e1; ELEMENT_NEXT(e1)) {
 			old_c = ELEMENT_DATA(e1);
-			if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c) == 0) {
+			if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c)) {
 				if (svr_checker_up(old_c->id, old_rs) == 0) {
 					id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
 					*id = new_c->id;
