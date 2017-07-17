@@ -120,7 +120,7 @@ stop_check(int status)
 
 /* Daemon init sequence */
 static void
-start_check(void)
+start_check(list old_checkers_queue)
 {
 	init_checkers_queue();
 
@@ -188,7 +188,7 @@ start_check(void)
 
 	/* Processing differential configuration parsing */
 	if (reload)
-		clear_diff_services();
+		clear_diff_services(old_checkers_queue);
 
 	/* Initialize IPVS topology */
 	if (!init_services())
@@ -236,6 +236,8 @@ check_signal_init(void)
 static int
 reload_check_thread(__attribute__((unused)) thread_t * thread)
 {
+	list old_checkers_queue;
+
 	/* set the reloading flag */
 	SET_RELOAD;
 
@@ -256,7 +258,6 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	/* Save previous checker data */
 	old_checkers_queue = checkers_queue;
 	checkers_queue = NULL;
-	ncheckers = 0;
 
 	free_ssl();
 	ipvs_stop();
@@ -266,7 +267,7 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	check_data = NULL;
 
 	/* Reload the conf */
-	start_check();
+	start_check(old_checkers_queue);
 
 	/* free backup data */
 	free_check_data(old_check_data);
@@ -375,7 +376,7 @@ start_check_child(void)
 	check_signal_init();
 
 	/* Start Healthcheck daemon */
-	start_check();
+	start_check(NULL);
 
 	/* Launch the scheduling I/O multiplexer */
 	launch_scheduler();

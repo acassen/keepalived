@@ -47,9 +47,7 @@ typedef struct _checker {
 } checker_t;
 
 /* Checkers queue */
-extern checker_id_t ncheckers;
 extern list checkers_queue;
-extern list old_checkers_queue;
 
 /* utility macro */
 #define CHECKER_ARG(X) ((X)->data)

@@ -55,7 +55,7 @@ extern int svr_checker_up(checker_id_t, real_server_t *);
 extern void update_svr_checker_state(bool, checker_id_t, virtual_server_t *, real_server_t *);
 extern bool init_services(void);
 extern void clear_services(void);
-extern void clear_diff_services(void);
+extern void clear_diff_services(list);
 extern void link_vsg_to_vs(void);
 
 #endif
