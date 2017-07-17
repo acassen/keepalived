@@ -325,8 +325,8 @@ register_checkers_thread(void)
 
 	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 		checker = ELEMENT_DATA(e);
-		log_message(LOG_INFO, "%sctivating healthchecker for service %s"
-				    , checker->enabled ? "A" : "Dea", FMT_VS(checker->vs));
+		log_message(LOG_INFO, "%sctivating healthchecker for service %s for VS %s"
+				    , checker->enabled ? "A" : "Dea", FMT_RS(checker->rs, checker->vs), FMT_VS(checker->vs));
 		if (checker->launch)
 		{
 			/* wait for a random timeout to begin checker thread.
