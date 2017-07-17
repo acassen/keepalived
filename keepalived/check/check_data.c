@@ -368,7 +368,7 @@ alloc_vs(char *param1, char *param2)
 	new->quorum_down = NULL;
 	new->quorum = 1;
 	new->hysteresis = 0;
-	new->quorum_state = UP;
+	new->quorum_state_up = true;
 	new->flags = 0;
 	new->forwarding_method = IP_VS_CONN_F_FWD_MASK;		/* So we can detect if it has been set */
 

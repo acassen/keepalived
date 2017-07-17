@@ -38,7 +38,7 @@
 /* out-of-order functions declarations */
 static void update_quorum_state(virtual_server_t * vs);
 
-/* Returns the sum of all RS weight in a virtual server. */
+/* Returns the sum of all alive RS weight in a virtual server. */
 static long
 weigh_live_realservers(virtual_server_t * vs)
 {
@@ -163,11 +163,11 @@ clear_service_rs(virtual_server_t * vs, list l)
 			 * is intended.
 			 */
 			weight_sum = weigh_live_realservers(vs);
-			if (vs->quorum_state == UP && (
+			if (vs->quorum_state_up && (
 				!weight_sum ||
 				weight_sum < down_threshold)
 			) {
-				vs->quorum_state = DOWN;
+				vs->quorum_state_up = false;
 				if (vs->quorum_down) {
 					log_message(LOG_INFO, "Executing [%s] for VS %s"
 							    , vs->quorum_down->name
@@ -375,9 +375,9 @@ update_quorum_state(virtual_server_t * vs)
 	long down_threshold = vs->quorum - vs->hysteresis;
 
 	/* If we have just gained quorum, it's time to consider notify_up. */
-	if (vs->quorum_state == DOWN &&
+	if (!vs->quorum_state_up &&
 	    weight_sum >= up_threshold) {
-		vs->quorum_state = UP;
+		vs->quorum_state_up = true;
 		log_message(LOG_INFO, "Gained quorum %u+%u=%ld <= %ld for VS %s"
 				    , vs->quorum
 				    , vs->hysteresis
@@ -408,12 +408,12 @@ update_quorum_state(virtual_server_t * vs)
 #endif
 		return;
 	}
-	else if (vs->quorum_state == UP &&
+	else if (vs->quorum_state_up &&
 		 (!weight_sum || weight_sum < down_threshold)) {
 		/* We have just lost quorum for the VS, we need to consider
 		 * VS notify_down and sorry_server cases
 		 */
-		vs->quorum_state = DOWN;
+		vs->quorum_state_up = false;
 		log_message(LOG_INFO, "Lost quorum %u-%u=%ld > %ld for VS %s"
 				    , vs->quorum
 				    , vs->hysteresis
@@ -432,7 +432,7 @@ update_quorum_state(virtual_server_t * vs)
 #endif
 	}
 
-	if (vs->quorum_state == DOWN &&
+	if (!vs->quorum_state_up &&
 	    vs->s_svr &&
 	    !ISALIVE(vs->s_svr)) {
 		log_message(LOG_INFO, "%s sorry server %s to VS %s"
@@ -466,7 +466,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 				    , FMT_RS(rs, vs)
 				    , FMT_VS(vs));
 		/* Add only if we have quorum or no sorry server */
-		if (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)) {
+		if (vs->quorum_state_up || !vs->s_svr || !ISALIVE(vs->s_svr)) {
 			if (ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs))
 				return -1;
 		}
@@ -496,7 +496,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 		/* server is down, it is removed from the LVS realserver pool
 		 * Remove only if we have quorum or no sorry server
 		 */
-		if (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)) {
+		if (vs->quorum_state_up || !vs->s_svr || !ISALIVE(vs->s_svr)) {
 			if (ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs))
 				return -1;
 		}
@@ -539,7 +539,7 @@ update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
 		 * effect later when it becomes alive.
 		 */
 		if (rs->set && ISALIVE(rs) &&
-		    (vs->quorum_state == UP || !vs->s_svr || !ISALIVE(vs->s_svr)))
+		    (vs->quorum_state_up || !vs->s_svr || !ISALIVE(vs->s_svr)))
 			ipvs_cmd(LVS_CMD_EDIT_DEST, vs, rs);
 		if (update_quorum)
 			update_quorum_state(vs);
@@ -881,7 +881,7 @@ clear_diff_services(list old_checkers_queue)
 		} else {
 			/* copy status fields from old VS */
 			SET_ALIVE(new_vs);
-			new_vs->quorum_state = vs->quorum_state;
+			new_vs->quorum_state_up = vs->quorum_state_up;
 			new_vs->reloaded = true;
 
 			if (vs->vsgname)

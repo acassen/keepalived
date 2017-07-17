@@ -515,7 +515,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = v->quorum;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSQUORUMSTATUS:
-		long_ret.u = v->quorum_state?1:2;
+		long_ret.u = v->quorum_state_up ? 1 : 2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSQUORUMUP:
 		if (!v->quorum_up) break;
@@ -1550,7 +1550,7 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs)
 				  (u_char *)&vsprotocol,
 				  sizeof(vsprotocol));
 	if (!rs) {
-		quorumstatus = vs->quorum_state?1:2;
+		quorumstatus = vs->quorum_state_up ? 1 : 2;
 		snmp_varlist_add_variable(&notification_vars,
 					  quorumstatus_oid, quorumstatus_oid_len,
 					  ASN_INTEGER,

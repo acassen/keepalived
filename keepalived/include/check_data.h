@@ -139,7 +139,7 @@ typedef struct _virtual_server {
 	notify_script_t			*quorum_down;	/* A hook to call when the VS loses quorum. */
 	unsigned			quorum;		/* Minimum live RSs to consider VS up. */
 	unsigned			hysteresis;	/* up/down events "lag" WRT quorum. */
-	bool				quorum_state;	/* Reflects result of the last transition done. */
+	bool				quorum_state_up; /* Reflects result of the last transition done. */
 	bool				reloaded;	/* quorum_state was copied from old config while reloading */
 #if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)
 	/* Statistics */

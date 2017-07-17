@@ -351,9 +351,9 @@ inhibit_handler(__attribute__((unused)) vector_t *strvec)
 	rs->inhibit = 1;
 }
 static inline notify_script_t*
-set_check_notify_script(vector_t *strvec)
+set_check_notify_script(vector_t *strvec, const char *type)
 {
-	return notify_script_init(strvec, "quorum/notify", global_data->script_security);
+	return notify_script_init(strvec, type, global_data->script_security);
 }
 static void
 notify_up_handler(vector_t *strvec)
@@ -364,7 +364,7 @@ notify_up_handler(vector_t *strvec)
 		log_message(LOG_INFO, "(%s): notify_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	rs->notify_up = set_check_notify_script(strvec);
+	rs->notify_up = set_check_notify_script(strvec, "notify");
 }
 static void
 notify_down_handler(vector_t *strvec)
@@ -375,14 +375,14 @@ notify_down_handler(vector_t *strvec)
 		log_message(LOG_INFO, "(%s): notify_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	rs->notify_down = set_check_notify_script(strvec);
+	rs->notify_down = set_check_notify_script(strvec, "notify");
 }
 static void
 alpha_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->alpha = true;
-	vs->quorum_state = DOWN;
+	vs->quorum_state_up = false;
 }
 static void
 omega_handler(__attribute__((unused)) vector_t *strvec)
@@ -398,7 +398,7 @@ quorum_up_handler(vector_t *strvec)
 		log_message(LOG_INFO, "(%s): quorum_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vs->quorum_up = set_check_notify_script(strvec);
+	vs->quorum_up = set_check_notify_script(strvec, "quorum");
 }
 static void
 quorum_down_handler(vector_t *strvec)
@@ -408,7 +408,7 @@ quorum_down_handler(vector_t *strvec)
 		log_message(LOG_INFO, "(%s): quorum_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vs->quorum_down = set_check_notify_script(strvec);
+	vs->quorum_down = set_check_notify_script(strvec, "quorum");
 }
 static void
 quorum_handler(vector_t *strvec)
