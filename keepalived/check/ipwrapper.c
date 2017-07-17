@@ -547,7 +547,7 @@ update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
 }
 
 /* Test if realserver is marked UP for a specific checker */
-int
+bool
 svr_checker_up(checker_id_t cid, real_server_t *rs)
 {
 	element e;
@@ -562,10 +562,10 @@ svr_checker_up(checker_id_t cid, real_server_t *rs)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		id = ELEMENT_DATA(e);
 		if (*id == cid)
-			return 0;
+			return false;
 	}
 
-	return 1;
+	return true;
 }
 
 /* Update checker's state */
@@ -737,7 +737,7 @@ migrate_failed_checkers(real_server_t *old_rs, real_server_t *new_rs, list old_c
 		for (e1 = LIST_HEAD(l); e1; ELEMENT_NEXT(e1)) {
 			old_c = ELEMENT_DATA(e1);
 			if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c)) {
-				if (svr_checker_up(old_c->id, old_rs) == 0) {
+				if (!svr_checker_up(old_c->id, old_rs)) {
 					id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
 					*id = new_c->id;
 					list_add(new_rs->failed_checkers, id);

@@ -133,6 +133,23 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	return checker;
 }
 
+void
+dequeue_checker(void)
+{
+	element c_e = checkers_queue->tail;
+	checker_t *checker = ELEMENT_DATA(c_e);
+
+	if (!LIST_ISEMPTY(checker->rs->failed_checkers)) {
+		element e = checker->rs->failed_checkers->tail;
+		checker_id_t *id = ELEMENT_DATA(e);
+
+		if (*id == checker->id)
+			free_list_element(checker->rs->failed_checkers, e);
+	}
+
+	free_list_element(checkers_queue, c_e);
+}
+
 bool
 compare_conn_opts(conn_opts_t *a, conn_opts_t *b)
 {
@@ -227,14 +244,14 @@ co_fwmark_handler(vector_t *strvec)
 static void
 retry_handler(vector_t *strvec)
 {
-	checker_t *checker = CHECKER_GET();
+	checker_t *checker = CHECKER_GET_CURRENT();
 	checker->retry = CHECKER_VALUE_UINT(strvec);
 }
 
 static void
 delay_before_retry_handler(vector_t *strvec)
 {
-	checker_t *checker = CHECKER_GET();
+	checker_t *checker = CHECKER_GET_CURRENT();
 	checker->delay_before_retry = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 }
 

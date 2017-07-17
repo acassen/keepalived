@@ -45,7 +45,7 @@ static int misc_check_child_thread(thread_t *);
 static int misc_check_child_timeout_thread(thread_t *);
 
 static bool script_user_set;
-static misc_checker_t *misck_checker;
+static misc_checker_t *new_misck_checker;
 
 
 /* Configuration stream handling */
@@ -89,53 +89,61 @@ misc_check_compare(void *a, void *b)
 static void
 misc_check_handler(__attribute__((unused)) vector_t *strvec)
 {
-	misck_checker = (misc_checker_t *) MALLOC(sizeof (misc_checker_t));
+	checker_t *checker;
+
+	new_misck_checker = (misc_checker_t *) MALLOC(sizeof (misc_checker_t));
 
 	script_user_set = false;
+
+	/* queue new checker */
+	checker = queue_checker(free_misc_check, dump_misc_check, misc_check_thread, misc_check_compare, new_misck_checker, NULL);
+
+	/* Set non-standard default value */
+	checker->retry = 0;
 }
 
 static void
 misc_path_handler(vector_t *strvec)
 {
-	if (!misck_checker)
+	if (!new_misck_checker)
 		return;
 
-	misck_checker->path = CHECKER_VALUE_STRING(strvec);
+	new_misck_checker->path = CHECKER_VALUE_STRING(strvec);
 }
 
 static void
 misc_timeout_handler(vector_t *strvec)
 {
-	if (!misck_checker)
+	if (!new_misck_checker)
 		return;
 
-	misck_checker->timeout = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
+	new_misck_checker->timeout = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 }
 
 static void
 misc_dynamic_handler(__attribute__((unused)) vector_t *strvec)
 {
-	if (!misck_checker)
+	if (!new_misck_checker)
 		return;
 
-	misck_checker->dynamic = true;
+	new_misck_checker->dynamic = true;
 }
 
 static void
 misc_user_handler(vector_t *strvec)
 {
-	if (!misck_checker)
+	if (!new_misck_checker)
 		return;
 
 	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "No user specified for misc checker script %s", misck_checker->path);
+		log_message(LOG_INFO, "No user specified for misc checker script %s", new_misck_checker->path);
 		return;
 	}
 
-	if (set_script_uid_gid(strvec, 1, &misck_checker->uid, &misck_checker->gid)) {
-		log_message(LOG_INFO, "Failed to set uid/gid for misc checker script %s - removing", misck_checker->path);
-		FREE(misck_checker);
-		misck_checker = NULL;
+	if (set_script_uid_gid(strvec, 1, &new_misck_checker->uid, &new_misck_checker->gid)) {
+		log_message(LOG_INFO, "Failed to set uid/gid for misc checker script %s - removing", new_misck_checker->path);
+		dequeue_checker();
+		new_misck_checker = NULL;
 	}
 	else
 		script_user_set = true;
@@ -144,25 +152,23 @@ misc_user_handler(vector_t *strvec)
 static void
 misc_end_handler(void)
 {
-	if (!misck_checker)
+	if (!new_misck_checker)
 		return;
 
 	if (!script_user_set)
 	{
 		if ( set_default_script_user(NULL, NULL, global_data->script_security)) {
-			log_message(LOG_INFO, "Unable to set default user for misc script %s - removing", misck_checker->path);
-			FREE(misck_checker);
-			misck_checker = NULL;
+			log_message(LOG_INFO, "Unable to set default user for misc script %s - removing", new_misck_checker->path);
+			dequeue_checker();
+			new_misck_checker = NULL;
 			return;
 		}
 
-		misck_checker->uid = default_script_uid;
-		misck_checker->gid = default_script_gid;
+		new_misck_checker->uid = default_script_uid;
+		new_misck_checker->gid = default_script_gid;
 	}
 
-	/* queue new checker */
-	queue_checker(free_misc_check, dump_misc_check, misc_check_thread, misc_check_compare, misck_checker, NULL);
-	misck_checker = NULL;
+	new_misck_checker = NULL;
 }
 
 void
@@ -292,7 +298,7 @@ misc_check_child_thread(thread_t * thread)
 		misck_checker->forcing_termination = true;
 		kill(-pid, SIGTERM);
 		thread_add_child(thread->master, misc_check_child_timeout_thread,
-				 checker, pid, 2 * 1000000);
+				 checker, pid, 2 * TIMER_HZ);
 		return 0;
 	}
 
@@ -326,8 +332,12 @@ misc_check_child_thread(thread_t * thread)
 							   , checker->vs
 							   , checker->rs);
 			}
-		} else {
-			if (svr_checker_up(checker->id, checker->rs)) {
+
+			checker->retry_it = 0;
+		} else if (svr_checker_up(checker->id, checker->rs)) {
+			if (checker->retry_it < checker->retry)
+				checker->retry_it++;
+			else {
 				log_message(LOG_INFO, "Misc check to [%s] for [%s] failed."
 						    , inet_sockaddrtos(&checker->rs->addr)
 						    , misck_checker->path);
@@ -337,6 +347,7 @@ misc_check_child_thread(thread_t * thread)
 				update_svr_checker_state(DOWN, checker->id
 							     , checker->vs
 							     , checker->rs);
+				checker->retry_it = 0;
 			}
 		}
 	}

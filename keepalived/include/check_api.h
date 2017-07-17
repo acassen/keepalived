@@ -77,6 +77,7 @@ extern checker_t *queue_checker(void (*free_func) (void *), void (*dump_func) (v
 			  , bool (*compare) (void *, void *)
 			  , void *
 			  , conn_opts_t *);
+extern void dequeue_checker(void);
 extern bool compare_conn_opts(conn_opts_t *, conn_opts_t *);
 extern void dump_checkers_queue(void);
 extern void free_checkers_queue(void);

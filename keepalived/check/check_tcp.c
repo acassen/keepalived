@@ -59,10 +59,7 @@ dump_tcp_check(void *data)
 static bool
 tcp_check_compare(void *a, void *b)
 {
-	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
-		return false;
-
-	return true;
+	return compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b));
 }
 
 static void
