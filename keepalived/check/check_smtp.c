@@ -74,13 +74,12 @@ free_smtp_check(void *data)
 static void
 dump_smtp_check(void *data)
 {
-	smtp_checker_t *smtp_checker = CHECKER_DATA(data);
+	checker_t *checker = data;
+	smtp_checker_t *smtp_checker = checker->data;
+
 	log_message(LOG_INFO, "   Keepalive method = SMTP_CHECK");
 	log_message(LOG_INFO, "           helo = %s", smtp_checker->helo_name);
-	if (smtp_checker->retry) {
-		log_message(LOG_INFO, "           Retry count = %u", smtp_checker->retry);
-		log_message(LOG_INFO, "           Retry delay = %lu", smtp_checker->delay_before_retry/TIMER_HZ);
-	}
+	dump_checker_opts(checker);
 	dump_list(smtp_checker->host);
 }
 
@@ -144,10 +143,7 @@ smtp_check_handler(__attribute__((unused)) vector_t *strvec)
 	smtp_checker->helo_name = (char *)MALLOC(strlen(SMTP_DEFAULT_HELO) + 1);
 	memcpy(smtp_checker->helo_name, SMTP_DEFAULT_HELO, strlen(SMTP_DEFAULT_HELO) + 1);
 
-	/* some other sane values */
-	smtp_checker->delay_before_retry = 1 * TIMER_HZ;
-	smtp_checker->retry = 1;
-
+// ??? Sort out this default_co nonsense, and at end of config block make separate checkers
 	/*
 	 * Back up checker->co pointer as it will be overwritten by any
 	 * following host{} section
@@ -155,12 +151,7 @@ smtp_check_handler(__attribute__((unused)) vector_t *strvec)
 	smtp_checker->default_co = CHECKER_NEW_CO();
 
 	/*
-	 * Have the checker queue code put our checker into the checkers_queue
-	 * list.
-	 *
-	 * queue_checker(void (*free) (void *), void (*dump) (void *),
-	 *               int (*launch) (thread_t *),
-	 *               void *data, conn_opts_t *)
+	 * Have the checker queue code put our checker into the checkers_queue list.
 	 */
 	queue_checker(free_smtp_check, dump_smtp_check, smtp_connect_thread,
 		      smtp_check_compare, smtp_checker, smtp_checker->default_co);
@@ -173,7 +164,7 @@ smtp_check_handler(__attribute__((unused)) vector_t *strvec)
 	 * be used instead of the default, but all the uninitialized options
 	 * of those hosts will be set to the default's values.
 	 */
-	smtp_checker->host = alloc_list(smtp_free_host, dump_conn_opts);
+	smtp_checker->host = alloc_list(smtp_free_host, dump_checker_opts);
 }
 
 static void
@@ -212,22 +203,6 @@ smtp_helo_name_handler(vector_t *strvec)
 	smtp_checker->helo_name = CHECKER_VALUE_STRING(strvec);
 }
 
-/* "retry" keyword */
-static void
-smtp_retry_handler(vector_t *strvec)
-{
-	smtp_checker_t *smtp_checker = CHECKER_GET();
-	smtp_checker->retry = CHECKER_VALUE_UINT(strvec);
-}
-
-/* "delay_before_retry" keyword */
-static void
-smtp_delay_before_retry_handler(vector_t *strvec)
-{
-	smtp_checker_t *smtp_checker = CHECKER_GET();
-	smtp_checker->delay_before_retry = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
-}
-
 /* Config callback installer */
 void
 install_smtp_check_keyword(void)
@@ -241,10 +216,7 @@ install_smtp_check_keyword(void)
 	install_sublevel();
 	install_keyword("helo_name", &smtp_helo_name_handler);
 
-	install_keyword("warmup", &warmup_handler);
-	install_keyword("retry", &smtp_retry_handler);
-	install_keyword("delay_before_retry", &smtp_delay_before_retry_handler);
-	install_connect_keywords();
+	install_checker_common_keywords(true);
 
 	/*
 	 * The host list feature is deprecated. It makes config fussy by
@@ -255,7 +227,7 @@ install_smtp_check_keyword(void)
 	 */
 	install_keyword("host", &smtp_host_handler);
 	install_sublevel();
-	install_connect_keywords();
+	install_checker_common_keywords(true);
 	install_sublevel_end();
 
 	install_sublevel_end_handler(&smtp_check_end_handler);
@@ -280,7 +252,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 	close(thread->u.fd);
 
 	/* If we're here, an attempt HAS been made already for the current host */
-	smtp_checker->retry_it++;
+	checker->retry_it++;
 
 	if (error) {
 		/* Always syslog the error when the real server is up */
@@ -303,9 +275,9 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		 * scheduling the main thread to check it again after the
 		 * configured backoff delay. Otherwise down the RS.
 		 */
-		if (smtp_checker->retry_it < smtp_checker->retry) {
+		if (checker->retry_it < checker->retry) {
 			thread_add_timer(thread->master, smtp_connect_thread, checker,
-					 smtp_checker->delay_before_retry);
+					 checker->delay_before_retry);
 			return 0;
 		}
 
@@ -331,7 +303,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		}
 
 		/* Reset everything back to the first host in the list */
-		smtp_checker->retry_it = 0;
+		checker->retry_it = 0;
 		smtp_checker->host_ctr = 0;
 
 		/* Reschedule the main thread using the configured delay loop */;
@@ -346,7 +318,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 	 * If host_ctr exceeds the number of hosts in the list, http_main_thread will
 	 * take note and bring up the real server as well as inject the delay_loop.
 	 */
-	smtp_checker->retry_it = 0;
+	checker->retry_it = 0;
 	smtp_checker->host_ctr++;
 
 	thread_add_timer(thread->master, smtp_connect_thread, checker, 1);
@@ -789,7 +761,7 @@ smtp_connect_thread(thread_t *thread)
 			update_svr_checker_state(UP, checker->id, checker->vs, checker->rs);
 		}
 
-		smtp_checker->retry_it = 0;
+		checker->retry_it = 0;
 		smtp_checker->host_ctr = 0;
 		smtp_checker->host_ptr = list_element(smtp_checker->host, 0);
 

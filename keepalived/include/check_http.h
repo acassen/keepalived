@@ -57,9 +57,6 @@ typedef struct _url {
 
 typedef struct _http_checker {
 	unsigned			proto;
-	unsigned			retry;
-	unsigned long			delay_before_retry;
-	unsigned			retry_it;	/* current number of get retry */
 	unsigned			url_it;		/* current url checked index */
 	request_t			*req;		/* GET buffer and SSL args */
 	list				url;
@@ -82,13 +79,11 @@ typedef struct _http_checker {
 			 "Host: [%s]%s\r\n\r\n"
 
 /* macro utility */
-#define HTTP_ARG(X) ((X)->arg)
 #define FMT_HTTP_RS(C) FMT_CHK(C)
 
 /* Define prototypes */
 extern void install_http_check_keyword(void);
 extern int timeout_epilog(thread_t *, const char *);
 extern void http_process_response(request_t *, size_t, bool);
-extern int http_handle_response(thread_t *, unsigned char digest[16]
-				, int);
+extern int http_handle_response(thread_t *, unsigned char digest[16], bool);
 #endif

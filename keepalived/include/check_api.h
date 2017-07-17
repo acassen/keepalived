@@ -37,13 +37,17 @@ typedef struct _checker {
 	void				(*dump_func) (void *);
 	int				(*launch) (struct _thread *);
 	bool				(*compare) (void *, void *);
-	virtual_server_t		*vs;	/* pointer to the checker thread virtualserver */
-	real_server_t			*rs;	/* pointer to the checker thread realserver */
+	virtual_server_t		*vs;			/* pointer to the checker thread virtualserver */
+	real_server_t			*rs;			/* pointer to the checker thread realserver */
 	void				*data;
-	checker_id_t			id;	/* Checker identifier */
-	int				enabled;/* Activation flag */
-	conn_opts_t			*co; /* connection options */
-	unsigned long			warmup;	/* max random timeout to start checker */
+	checker_id_t			id;			/* Checker identifier */
+	bool				enabled;		/* Activation flag */
+	conn_opts_t			*co;			/* connection options */
+	unsigned long			warmup;			/* max random timeout to start checker */
+	unsigned			retry;			/* number of retries before failing */
+	unsigned long			delay_before_retry;	/* interval between retries */
+	unsigned			retry_it;		/* number of successive failures */
+
 } checker_t;
 
 /* Checkers queue */
@@ -67,8 +71,8 @@ extern list checkers_queue;
 /* Prototypes definition */
 extern void init_checkers_queue(void);
 extern void free_vs_checkers(virtual_server_t *);
-extern void dump_conn_opts(void *);
-extern void queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
+extern void dump_checker_opts(void *);
+extern checker_t *queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 			  , int (*launch) (thread_t *)
 			  , bool (*compare) (void *, void *)
 			  , void *
@@ -78,8 +82,7 @@ extern void dump_checkers_queue(void);
 extern void free_checkers_queue(void);
 extern void register_checkers_thread(void);
 extern void install_checkers_keyword(void);
-extern void install_connect_keywords(void);
-extern void warmup_handler(vector_t *);
+extern void install_checker_common_keywords(bool);
 extern void update_checker_activity(sa_family_t, void *, bool);
 
 #endif

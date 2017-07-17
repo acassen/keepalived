@@ -63,21 +63,30 @@ dump_checker(void *data)
 }
 
 void
-dump_conn_opts(void *data)
+dump_checker_opts(void *data)
 {
-	conn_opts_t *conn = data;
-	log_message(LOG_INFO, "   Connection dest = %s", inet_sockaddrtopair(&conn->dst));
-	if (conn->bindto.ss_family)
-		log_message(LOG_INFO, "   Bind to = %s", inet_sockaddrtopair(&conn->bindto));
+	checker_t *checker = data;
+	conn_opts_t *conn = checker->co;
+
+	if (conn) {
+		log_message(LOG_INFO, "   Connection dest = %s", inet_sockaddrtopair(&conn->dst));
+		if (conn->bindto.ss_family)
+			log_message(LOG_INFO, "   Bind to = %s", inet_sockaddrtopair(&conn->bindto));
 #ifdef _WITH_SO_MARK_
-	if (conn->fwmark != 0)
-		log_message(LOG_INFO, "   Connection mark = %u", conn->fwmark);
+		if (conn->fwmark != 0)
+			log_message(LOG_INFO, "   Connection mark = %u", conn->fwmark);
 #endif
-	log_message(LOG_INFO, "   Connection timeout = %d", conn->connection_to/TIMER_HZ);
+		log_message(LOG_INFO, "   Connection timeout = %d", conn->connection_to/TIMER_HZ);
+	}
+
+	if (checker->retry) {
+		log_message(LOG_INFO, "     Retry count = %u" , checker->retry);
+		log_message(LOG_INFO, "     Retry delay = %lu" , checker->delay_before_retry / TIMER_HZ);
+	}
 }
 
 /* Queue a checker into the checkers_queue */
-void
+checker_t *
 queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	      , int (*launch) (thread_t *)
 	      , bool (*compare) (void *, void *)
@@ -106,6 +115,9 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	/* Enable the checker if the virtual server is not configured with ha_suspend */
 	checker->enabled = !vs->ha_suspend;
 	checker->warmup = vs->delay_loop;
+	checker->retry = 1;
+	checker->delay_before_retry = 1 * TIMER_HZ;
+	checker->retry_it = 0;
 
 	/* queue the checker */
 	list_add(checkers_queue, checker);
@@ -117,6 +129,8 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 		*id = checker->id;
 		list_add (fc, id);
 	}
+
+	return checker;
 }
 
 bool
@@ -210,24 +224,44 @@ co_fwmark_handler(vector_t *strvec)
 }
 #endif
 
-void
-install_connect_keywords(void)
+static void
+retry_handler(vector_t *strvec)
 {
-	install_keyword("connect_ip", &co_ip_handler);
-	install_keyword("connect_port", &co_port_handler);
-	install_keyword("bindto", &co_srcip_handler);
-	install_keyword("bind_port", &co_srcport_handler);
-	install_keyword("connect_timeout", &co_timeout_handler);
-#ifdef _WITH_SO_MARK_
-	install_keyword("fwmark", &co_fwmark_handler);
-#endif
+	checker_t *checker = CHECKER_GET();
+	checker->retry = CHECKER_VALUE_UINT(strvec);
+}
+
+static void
+delay_before_retry_handler(vector_t *strvec)
+{
+	checker_t *checker = CHECKER_GET();
+	checker->delay_before_retry = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 }
 
 /* "warmup" keyword */
-void warmup_handler(vector_t *strvec)
+static void
+warmup_handler(vector_t *strvec)
 {
 	checker_t *checker = CHECKER_GET_CURRENT();
 	checker->warmup = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
+}
+
+void
+install_checker_common_keywords(bool connection_keywords)
+{
+	if (connection_keywords) {
+		install_keyword("connect_ip", &co_ip_handler);
+		install_keyword("connect_port", &co_port_handler);
+		install_keyword("bindto", &co_srcip_handler);
+		install_keyword("bind_port", &co_srcport_handler);
+		install_keyword("connect_timeout", &co_timeout_handler);
+#ifdef _WITH_SO_MARK_
+		install_keyword("fwmark", &co_fwmark_handler);
+#endif
+	}
+	install_keyword("retry", &retry_handler);
+	install_keyword("delay_before_retry", &delay_before_retry_handler);
+	install_keyword("warmup", &warmup_handler);
 }
 
 /* dump the checkers_queue */

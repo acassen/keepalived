@@ -51,9 +51,6 @@ typedef conn_opts_t smtp_host_t;
 typedef struct _smtp_checker {
 	/* non per host config data goes here */
 	char				*helo_name;
-	unsigned			retry;
-	unsigned long			delay_before_retry;
-	unsigned			retry_it;
 	unsigned			host_ctr;
 	smtp_host_t			*host_ptr;
 	conn_opts_t			*default_co;

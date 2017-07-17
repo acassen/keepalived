@@ -50,16 +50,10 @@ free_tcp_check(void *data)
 static void
 dump_tcp_check(void *data)
 {
-	tcp_check_t *tcp_check = CHECKER_DATA(data);
+	checker_t *checker = data;
 
 	log_message(LOG_INFO, "   Keepalive method = TCP_CHECK");
-	dump_conn_opts(CHECKER_CO(data));
-	if (tcp_check->retry) {
-		log_message(LOG_INFO, "     Retry count = %u"
-			    , tcp_check->retry);
-		log_message(LOG_INFO, "     Retry delay = %lu"
-			    , tcp_check->delay_before_retry / TIMER_HZ);
-	}
+	dump_checker_opts(checker);
 }
 
 static bool
@@ -74,30 +68,9 @@ tcp_check_compare(void *a, void *b)
 static void
 tcp_check_handler(__attribute__((unused)) vector_t *strvec)
 {
-	tcp_check_t *tcp_check;
-
-	tcp_check = MALLOC(sizeof (tcp_check_t));
-	tcp_check->retry = 1;
-	tcp_check->delay_before_retry = 1 * TIMER_HZ;
-
 	/* queue new checker */
 	queue_checker(free_tcp_check, dump_tcp_check, tcp_connect_thread,
-		      tcp_check_compare, tcp_check, CHECKER_NEW_CO());
-}
-
-static void
-tcp_retry_handler(vector_t *strvec)
-{
-	tcp_check_t *tcp_check = CHECKER_GET();
-	tcp_check->retry = CHECKER_VALUE_UINT(strvec);
-}
-
-static void
-tcp_delay_before_retry_handler(vector_t *strvec)
-{
-	tcp_check_t *tcp_check = CHECKER_GET();
-	tcp_check->delay_before_retry =
-		CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
+		      tcp_check_compare, NULL, CHECKER_NEW_CO());
 }
 
 void
@@ -105,10 +78,7 @@ install_tcp_check_keyword(void)
 {
 	install_keyword("TCP_CHECK", &tcp_check_handler);
 	install_sublevel();
-	install_keyword("retry", &tcp_retry_handler);
-	install_keyword("delay_before_retry", &tcp_delay_before_retry_handler);
-	install_connect_keywords();
-	install_keyword("warmup", &warmup_handler);
+	install_checker_common_keywords(true);
 	install_sublevel_end();
 }
 
@@ -116,15 +86,13 @@ static void
 tcp_epilog(thread_t * thread, int is_success)
 {
 	checker_t *checker;
-	tcp_check_t *tcp_check;
 	unsigned long delay;
 
 	checker = THREAD_ARG(thread);
-	tcp_check = CHECKER_ARG(checker);
 
-	if (is_success || tcp_check->retry_it >= tcp_check->retry) {
+	if (is_success || checker->retry_it >= checker->retry) {
 		delay = checker->vs->delay_loop;
-		tcp_check->retry_it = 0;
+		checker->retry_it = 0;
 
 		if (is_success && !svr_checker_up(checker->id, checker->rs)) {
 			log_message(LOG_INFO, "TCP connection to %s success."
@@ -137,11 +105,11 @@ tcp_epilog(thread_t * thread, int is_success)
 						   , checker->rs);
 		} else if (!is_success
 			   && svr_checker_up(checker->id, checker->rs)) {
-			if (tcp_check->retry)
+			if (checker->retry)
 				log_message(LOG_INFO
 				    , "Check on service %s failed after %d retry."
 				    , FMT_TCP_RS(checker)
-				    , tcp_check->retry);
+				    , checker->retry);
 // ??? We should log if retry == 0
 			smtp_alert(checker, NULL, NULL,
 				   "DOWN",
@@ -151,8 +119,8 @@ tcp_epilog(thread_t * thread, int is_success)
 						     , checker->rs);
 		}
 	} else {
-		delay = tcp_check->delay_before_retry;
-		++tcp_check->retry_it;
+		delay = checker->delay_before_retry;
+		++checker->retry_it;
 	}
 
 	/* Register next timer checker */

@@ -107,10 +107,9 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 	va_list args;
 
 	checker_t *checker = THREAD_ARG(thread);
-	dns_check_t *dns_check = CHECKER_ARG(checker);
 
 	DNS_DBG("final error=%d attempts=%d retry=%d", error,
-		dns_check->retry_it, dns_check->retry);
+		checker->retry_it, checker->retry);
 
 	close(thread->u.fd);
 
@@ -122,11 +121,11 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 				dns_log_message(thread, LOG_INFO, buf);
 				va_end(args);
 			}
-			if (dns_check->retry_it < dns_check->retry) {
-				dns_check->retry_it++;
+			if (checker->retry_it < checker->retry) {
+				checker->retry_it++;
 				thread_add_timer(thread->master,
 						 dns_connect_thread, checker,
-						 dns_check->delay_before_retry);
+						 checker->delay_before_retry);
 				return 0;
 			}
 			update_svr_checker_state(DOWN, checker->id, checker->vs,
@@ -143,7 +142,7 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 		}
 	}
 
-	dns_check->retry_it = 0;
+	checker->retry_it = 0;
 	thread_add_timer(thread->master, dns_connect_thread, checker,
 			 checker->vs->delay_loop);
 
@@ -393,13 +392,11 @@ dns_free(void *data)
 static void
 dns_dump(void *data)
 {
-	dns_check_t *dns_check = CHECKER_DATA(data);
+	checker_t *checker = data;
+	dns_check_t *dns_check = checker->data;
+
 	log_message(LOG_INFO, "   Keepalive method = DNS_CHECK");
-	dump_conn_opts(CHECKER_CO(data));
-	if (dns_check->retry) {
-		log_message(LOG_INFO, "   Retry count = %u", dns_check->retry);
-		log_message(LOG_INFO, "   Retry delay = %lu", dns_check->delay_before_retry / TIMER_HZ);
-	}
+	dump_checker_opts(checker);
 	log_message(LOG_INFO, "   Type = %s", dns_type_name(dns_check->type));
 	log_message(LOG_INFO, "   Name = %s", dns_check->name);
 }
@@ -423,29 +420,16 @@ dns_check_compare(void *a, void *b)
 static void
 dns_check_handler(__attribute__((unused)) vector_t * strvec)
 {
+	checker_t *checker;
+
 	dns_check_t *dns_check = (dns_check_t *) MALLOC(sizeof (dns_check_t));
-	dns_check->retry = DNS_DEFAULT_RETRY;
-	dns_check->delay_before_retry = 1 * TIMER_HZ;
-	dns_check->retry_it = 0;
 	dns_check->type = DNS_DEFAULT_TYPE;
 	dns_check->name = DNS_DEFAULT_NAME;
-	queue_checker(dns_free, dns_dump, dns_connect_thread,
-		      dns_check_compare, dns_check, CHECKER_NEW_CO());
-}
+	checker = queue_checker(dns_free, dns_dump, dns_connect_thread,
+			        dns_check_compare, dns_check, CHECKER_NEW_CO());
 
-static void
-dns_retry_handler(vector_t * strvec)
-{
-	dns_check_t *dns_check = CHECKER_GET();
-	dns_check->retry = CHECKER_VALUE_UINT(strvec);
-}
-
-static void
-dns_delay_before_retry_handler(vector_t *strvec)
-{
-	dns_check_t *dns_check = CHECKER_GET();
-	dns_check->delay_before_retry =
-		CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
+	/* Set the non-standard retry time */
+	checker->retry = DNS_DEFAULT_RETRY;
 }
 
 static void
@@ -473,10 +457,7 @@ install_dns_check_keyword(void)
 {
 	install_keyword("DNS_CHECK", &dns_check_handler);
 	install_sublevel();
-	install_connect_keywords();
-	install_keyword("warmup", &warmup_handler);
-	install_keyword("retry", &dns_retry_handler);
-	install_keyword("delay_before_retry", &dns_delay_before_retry_handler);
+	install_checker_common_keywords(true);
 	install_keyword("type", &dns_type_handler);
 	install_keyword("name", &dns_name_handler);
 	install_sublevel_end();

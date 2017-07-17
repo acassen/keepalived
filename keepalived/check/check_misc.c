@@ -62,13 +62,16 @@ free_misc_check(void *data)
 static void
 dump_misc_check(void *data)
 {
-	misc_checker_t *misck_checker = CHECKER_DATA(data);
+	checker_t *checker = data;
+	misc_checker_t *misck_checker = checker->data;
+
 	log_message(LOG_INFO, "   Keepalive method = MISC_CHECK");
 	log_message(LOG_INFO, "   script = %s", misck_checker->path);
 	log_message(LOG_INFO, "   timeout = %lu", misck_checker->timeout/TIMER_HZ);
 	log_message(LOG_INFO, "   dynamic = %s", misck_checker->dynamic ? "YES" : "NO");
 	log_message(LOG_INFO, "   uid:gid = %d:%d", misck_checker->uid, misck_checker->gid);
 	log_message(LOG_INFO, "   insecure = %s", misck_checker->insecure ? "Yes" : "No");
+	dump_checker_opts(checker);
 }
 
 static bool
@@ -167,10 +170,10 @@ install_misc_check_keyword(void)
 {
 	install_keyword("MISC_CHECK", &misc_check_handler);
 	install_sublevel();
+	install_checker_common_keywords(false);
 	install_keyword("misc_path", &misc_path_handler);
 	install_keyword("misc_timeout", &misc_timeout_handler);
 	install_keyword("misc_dynamic", &misc_dynamic_handler);
-	install_keyword("warmup", &warmup_handler);
 	install_keyword("user", &misc_user_handler);
 	install_sublevel_end_handler(&misc_end_handler);
 	install_sublevel_end();
