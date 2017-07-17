@@ -941,6 +941,11 @@ A virtual_server can be a declaration of one of
                # checks to the same RS. Enabled by default, with
                # the maximum at delay_loop. Specify 0 to disable
                warmup <INT>
+               # Number of times to retry a failed check
+               # The default is none.
+               retry <INTEGER>
+               # Delay in seconds before retrying
+               delay_before_retry <INTEGER>
 
                # If set, the exit code from healthchecker is used
                # to dynamically adjust the weight as follows:

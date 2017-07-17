@@ -708,7 +708,9 @@ virtual_server group <STRING>      {	# VS group declaration
         MISC_CHECK {				# MISC healthchecker
             misc_path <STRING>|<QUOTED-STRING>	# External system script or program
             misc_timeout <INTEGER>		# Script execution timeout
-            warmup <INTEGER>        # random delay for maximum N seconds
+            warmup <INTEGER>			# random delay for maximum N seconds
+            retry <INTEGER>			# Number of times to retry a failed check
+            delay_before_retry <INTEGER>	# Delay in seconds before retrying
 
             # If set, exit code from healthchecker is used
             # to dynamically adjust the weight as follows:

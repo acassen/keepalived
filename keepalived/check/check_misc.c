@@ -258,11 +258,8 @@ misc_check_thread(thread_t * thread)
 
 	misck_checker->forcing_termination = false;
 
-	/* Register next timer checker */
-	thread_add_timer(thread->master, misc_check_thread, checker,
-			 checker->vs->delay_loop);
-
 	/* Execute the script in a child process. Parent returns, child doesn't */
+	misck_checker->last_ran = time_now;
 	return system_call_script(thread->master, misc_check_child_thread,
 				  checker, (misck_checker->timeout) ? misck_checker->timeout : checker->vs->delay_loop,
 				  misck_checker->path, misck_checker->uid, misck_checker->gid);
@@ -275,6 +272,7 @@ misc_check_child_thread(thread_t * thread)
 	pid_t pid;
 	checker_t *checker;
 	misc_checker_t *misck_checker;
+	timeval_t next_time;
 
 	checker = THREAD_ARG(thread);
 	misck_checker = CHECKER_ARG(checker);
@@ -284,15 +282,20 @@ misc_check_child_thread(thread_t * thread)
 
 		/* The child hasn't responded. Kill it off. */
 		if (svr_checker_up(checker->id, checker->rs)) {
-			log_message(LOG_INFO, "Misc check to [%s] for [%s] timed out"
-					    , inet_sockaddrtos(&checker->rs->addr)
-					    , misck_checker->path);
-			smtp_alert(checker, NULL, NULL,
-				   "DOWN",
-				   "=> MISC CHECK script timeout on service <=");
-			update_svr_checker_state(DOWN, checker->id
-						     , checker->vs
-						     , checker->rs);
+			if (checker->retry_it < checker->retry)
+				checker->retry_it++;
+			else {
+				log_message(LOG_INFO, "Misc check to [%s] for [%s] timed out"
+						    , inet_sockaddrtos(&checker->rs->addr)
+						    , misck_checker->path);
+				smtp_alert(checker, NULL, NULL,
+					   "DOWN",
+					   "=> MISC CHECK script timeout on service <=");
+				update_svr_checker_state(DOWN, checker->id
+							     , checker->vs
+							     , checker->rs);
+				checker->retry_it = 0;
+			}
 		}
 
 		misck_checker->forcing_termination = true;
@@ -363,6 +366,14 @@ misc_check_child_thread(thread_t * thread)
 
 	misck_checker->forcing_termination = false;
 
+	/* Register next timer checker */
+	next_time = timer_add_long(misck_checker->last_ran, checker->retry_it ? checker->delay_before_retry : checker->vs->delay_loop);
+	next_time = timer_sub_now(next_time);
+	if (next_time.tv_sec < 0)
+		next_time.tv_sec = 0, next_time.tv_usec = 1;
+
+	thread_add_timer(thread->master, misc_check_thread, checker, timer_tol(next_time));
+
 	return 0;
 }
 
@@ -372,26 +383,34 @@ misc_check_child_timeout_thread(thread_t * thread)
 	pid_t pid;
 	checker_t *checker;
 	misc_checker_t *misck_checker;
+	timeval_t next_time;
 
-	if (thread->type != THREAD_CHILD_TIMEOUT)
-		return 0;
-
-	/* OK, it still hasn't exited. Now really kill it off. */
-	pid = THREAD_CHILD_PID(thread);
-	if (kill(-pid, SIGKILL) < 0) {
-		/* Its possible it finished while we're handing this */
-		if (errno != ESRCH) {
-			DBG("kill error: %s", strerror(errno));
+	if (thread->type == THREAD_CHILD_TIMEOUT) {
+		/* OK, it still hasn't exited. Now really kill it off. */
+		pid = THREAD_CHILD_PID(thread);
+		if (kill(-pid, SIGKILL) < 0) {
+			/* Its possible it finished while we're handing this */
+			if (errno != ESRCH) {
+				DBG("kill error: %s", strerror(errno));
+			}
+			return 0;
 		}
-		return 0;
-	}
 
-	log_message(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
+		log_message(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
+	}
 
 	checker = THREAD_ARG(thread);
 	misck_checker = CHECKER_ARG(checker);
 
 	misck_checker->forcing_termination = false;
+
+	/* Register next timer checker */
+	next_time = timer_add_long(misck_checker->last_ran, checker->retry_it ? checker->delay_before_retry : checker->vs->delay_loop);
+	next_time = timer_sub_now(next_time);
+	if (next_time.tv_sec < 0)
+		next_time.tv_sec = 0, next_time.tv_usec = 1;
+
+	thread_add_timer(thread->master, misc_check_thread, checker, timer_tol(next_time));
 
 	return 0;
 }
