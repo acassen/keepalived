@@ -452,6 +452,7 @@ update_quorum_state(virtual_server_t * vs)
 static bool
 perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 {
+	notify_script_t *notify_script;
 	/*
 	 * | ISALIVE(rs) | alive | context
 	 * | false       | false | first check failed under alpha mode, unreachable here
@@ -463,61 +464,33 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 	if (ISALIVE(rs) == alive)
 		return true;
 
-	if (alive) {
-		log_message(LOG_INFO, "%s service %s to VS %s"
-				    , (rs->inhibit) ? "Enabling" : "Adding"
+	log_message(LOG_INFO, "%sing service %s to VS %s"
+			    , alive ? (rs->inhibit) ? "Enabl" : "Add" :
+				      (rs->inhibit) ? "Disabl" : "Remov"
+			    , FMT_RS(rs, vs)
+			    , FMT_VS(vs));
+
+	/* Change only if we have quorum or no sorry server */
+	if (vs->quorum_state_up || !vs->s_svr || !ISALIVE(vs->s_svr)) {
+		if (ipvs_cmd(alive ? LVS_CMD_ADD_DEST : LVS_CMD_DEL_DEST, vs, rs))
+			return false;
+	}
+	rs->alive = alive;
+	notify_script = alive ? rs->notify_up : rs->notify_down;
+	if (notify_script) {
+		log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
+				    , notify_script->name
 				    , FMT_RS(rs, vs)
 				    , FMT_VS(vs));
-		/* Add only if we have quorum or no sorry server */
-		if (vs->quorum_state_up || !vs->s_svr || !ISALIVE(vs->s_svr)) {
-			if (ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs))
-				return false;
-		}
-		rs->alive = true;
-		if (rs->notify_up) {
-			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
-					    , rs->notify_up->name
-					    , FMT_RS(rs, vs)
-					    , FMT_VS(vs));
-			notify_exec(rs->notify_up);
-		}
-		notify_fifo_rs(vs, rs, true);
+		notify_exec(notify_script);
+	}
+	notify_fifo_rs(vs, rs, alive);
 #ifdef _WITH_SNMP_CHECKER_
-		check_snmp_rs_trap(rs, vs);
+	check_snmp_rs_trap(rs, vs);
 #endif
 
-		/* We may have gained quorum */
-		update_quorum_state(vs);
-	}
-	else {
-		log_message(LOG_INFO, "%s service %s from VS %s"
-				    , (rs->inhibit) ? "Disabling" : "Removing"
-				    , FMT_RS(rs, vs)
-				    , FMT_VS(vs));
-
-		/* server is down, it is removed from the LVS realserver pool
-		 * Remove only if we have quorum or no sorry server
-		 */
-		if (vs->quorum_state_up || !vs->s_svr || !ISALIVE(vs->s_svr)) {
-			if (ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs))
-				return false;
-		}
-		rs->alive = false;
-		if (rs->notify_down) {
-			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
-					    , rs->notify_down->name
-					    , FMT_RS(rs, vs)
-					    , FMT_VS(vs));
-			notify_exec(rs->notify_down);
-		}
-		notify_fifo_rs(vs, rs, false);
-#ifdef _WITH_SNMP_CHECKER_
-		check_snmp_rs_trap(rs, vs);
-#endif
-
-		/* We may have lost quorum */
-		update_quorum_state(vs);
-	}
+	/* We may have changed quorum state */
+	update_quorum_state(vs);
 
 	return true;
 }
