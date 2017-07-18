@@ -228,8 +228,8 @@ free_vs(void *data)
 	FREE_PTR(vs->virtualhost);
 	FREE_PTR(vs->s_svr);
 	free_list(&vs->rs);
-	free_notify_script(&vs->quorum_up);
-	free_notify_script(&vs->quorum_down);
+	free_notify_script(&vs->notify_quorum_up);
+	free_notify_script(&vs->notify_quorum_down);
 	FREE(vs);
 }
 static void
@@ -293,12 +293,12 @@ dump_vs(void *data)
 	log_message(LOG_INFO, "   alpha is %s, omega is %s",
 		    vs->alpha ? "ON" : "OFF", vs->omega ? "ON" : "OFF");
 	log_message(LOG_INFO, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
-	if (vs->quorum_up)
+	if (vs->notify_quorum_up)
 		log_message(LOG_INFO, "   -> Notify script UP = %s, uid:gid %d:%d",
-			    vs->quorum_up->name, vs->quorum_up->uid, vs->quorum_up->gid);
-	if (vs->quorum_down)
+			    vs->notify_quorum_up->name, vs->notify_quorum_up->uid, vs->notify_quorum_up->gid);
+	if (vs->notify_quorum_down)
 		log_message(LOG_INFO, "   -> Notify script DOWN = %s, uid:gid %d:%d",
-			    vs->quorum_down->name, vs->quorum_down->uid, vs->quorum_down->gid);
+			    vs->notify_quorum_down->name, vs->notify_quorum_down->uid, vs->notify_quorum_down->gid);
 	if (vs->ha_suspend)
 		log_message(LOG_INFO, "   Using HA suspend");
 
@@ -364,8 +364,8 @@ alloc_vs(char *param1, char *param2)
 	new->virtualhost = NULL;
 	new->alpha = false;
 	new->omega = false;
-	new->quorum_up = NULL;
-	new->quorum_down = NULL;
+	new->notify_quorum_up = NULL;
+	new->notify_quorum_down = NULL;
 	new->quorum = 1;
 	new->hysteresis = 0;
 	new->quorum_state_up = true;
@@ -545,8 +545,8 @@ check_check_script_security(void)
 	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
 
-		script_flags |= check_notify_script_secure(&vs->quorum_up, global_data->script_security, false);
-		script_flags |= check_notify_script_secure(&vs->quorum_down, global_data->script_security, false);
+		script_flags |= check_notify_script_secure(&vs->notify_quorum_up, global_data->script_security, false);
+		script_flags |= check_notify_script_secure(&vs->notify_quorum_down, global_data->script_security, false);
 
 		for (e1 = LIST_HEAD(vs->rs); e1; ELEMENT_NEXT(e1)) {
 			rs = ELEMENT_DATA(e1);

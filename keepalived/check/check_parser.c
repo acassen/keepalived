@@ -394,21 +394,21 @@ static void
 quorum_up_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	if (vs->quorum_up) {
+	if (vs->notify_quorum_up) {
 		log_message(LOG_INFO, "(%s): quorum_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vs->quorum_up = set_check_notify_script(strvec, "quorum");
+	vs->notify_quorum_up = set_check_notify_script(strvec, "quorum");
 }
 static void
 quorum_down_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	if (vs->quorum_down) {
+	if (vs->notify_quorum_down) {
 		log_message(LOG_INFO, "(%s): quorum_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vs->quorum_down = set_check_notify_script(strvec, "quorum");
+	vs->notify_quorum_down = set_check_notify_script(strvec, "quorum");
 }
 static void
 quorum_handler(vector_t *strvec)

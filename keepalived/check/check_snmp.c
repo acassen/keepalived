@@ -518,13 +518,13 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = v->quorum_state_up ? 1 : 2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSQUORUMUP:
-		if (!v->quorum_up) break;
-		*var_len = strlen(v->quorum_up->name);
-		return (u_char*)v->quorum_up->name;
+		if (!v->notify_quorum_up) break;
+		*var_len = strlen(v->notify_quorum_up->name);
+		return (u_char*)v->notify_quorum_up->name;
 	case CHECK_SNMP_VSQUORUMDOWN:
-		if (!v->quorum_down) break;
-		*var_len = strlen(v->quorum_down->name);
-		return (u_char*)v->quorum_down->name;
+		if (!v->notify_quorum_down) break;
+		*var_len = strlen(v->notify_quorum_down->name);
+		return (u_char*)v->notify_quorum_down->name;
 	case CHECK_SNMP_VSHYSTERESIS:
 		long_ret.u = v->hysteresis;
 		return (u_char*)&long_ret;

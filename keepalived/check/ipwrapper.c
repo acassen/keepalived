@@ -35,9 +35,6 @@
 #endif
 #include "global_data.h"
 
-/* out-of-order functions declarations */
-static void update_quorum_state(virtual_server_t * vs);
-
 /* Returns the sum of all alive RS weight in a virtual server. */
 static long
 weigh_live_realservers(virtual_server_t * vs)
@@ -47,7 +44,7 @@ weigh_live_realservers(virtual_server_t * vs)
 	long count = 0;
 
 	if (LIST_ISEMPTY(vs->rs))
-		return count;
+		return 0;
 
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		svr = ELEMENT_DATA(e);
@@ -168,11 +165,11 @@ clear_service_rs(virtual_server_t * vs, list l)
 				weight_sum < down_threshold)
 			) {
 				vs->quorum_state_up = false;
-				if (vs->quorum_down) {
+				if (vs->notify_quorum_down) {
 					log_message(LOG_INFO, "Executing [%s] for VS %s"
-							    , vs->quorum_down->name
+							    , vs->notify_quorum_down->name
 							    , FMT_VS(vs));
-					notify_exec(vs->quorum_down);
+					notify_exec(vs->notify_quorum_down);
 				}
 				notify_fifo_vs(vs, false);
 #ifdef _WITH_SNMP_CHECKER_
@@ -299,49 +296,6 @@ sync_service_vsg(virtual_server_t * vs)
 		}
 }
 
-/* Set a virtualserver IPVS rules */
-static bool
-init_service_vs(virtual_server_t * vs)
-{
-	/* Init the VS root */
-	if (!ISALIVE(vs) || vs->vsgname) {
-		ipvs_cmd(LVS_CMD_ADD, vs, NULL);
-		SET_ALIVE(vs);
-	}
-
-	/* Processing real server queue */
-	if (!init_service_rs(vs))
-		return false;
-
-	if (vs->reloaded) {
-		if (vs->vsgname)
-			/* add reloaded dests into new vsg entries */
-			sync_service_vsg(vs);
-	}
-
-	/* we may have got/lost quorum due to quorum setting changed */
-	/* also update, in case we need the sorry server in alpha mode */
-	update_quorum_state(vs);
-
-	return true;
-}
-
-/* Set IPVS rules */
-bool
-init_services(void)
-{
-	element e;
-	list l = check_data->vs;
-	virtual_server_t *vs;
-
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		vs = ELEMENT_DATA(e);
-		if (!init_service_vs(vs))
-			return false;
-	}
-	return true;
-}
-
 /* add or remove _alive_ real servers from a virtual server */
 static void
 perform_quorum_state(virtual_server_t *vs, bool add)
@@ -385,6 +339,9 @@ update_quorum_state(virtual_server_t * vs)
 				    , weight_sum
 				    , FMT_VS(vs));
 		if (vs->s_svr && ISALIVE(vs->s_svr)) {
+			/* Adding back alive real servers */
+			perform_quorum_state(vs, true);
+
 			log_message(LOG_INFO, "%s sorry server %s from VS %s"
 					    , (vs->s_svr->inhibit ? "Disabling" : "Removing")
 					    , FMT_RS(vs->s_svr, vs)
@@ -392,15 +349,12 @@ update_quorum_state(virtual_server_t * vs)
 
 			ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
 			vs->s_svr->alive = false;
-
-			/* Adding back alive real servers */
-			perform_quorum_state(vs, true);
 		}
-		if (vs->quorum_up) {
+		if (vs->notify_quorum_up) {
 			log_message(LOG_INFO, "Executing [%s] for VS %s"
-					    , vs->quorum_up->name
+					    , vs->notify_quorum_up->name
 					    , FMT_VS(vs));
-			notify_exec(vs->quorum_up);
+			notify_exec(vs->notify_quorum_up);
 		}
 		notify_fifo_vs(vs, true);
 #ifdef _WITH_SNMP_CHECKER_
@@ -435,11 +389,11 @@ update_quorum_state(virtual_server_t * vs)
 			perform_quorum_state(vs, false);
 		}
 
-		if (vs->quorum_down) {
+		if (vs->notify_quorum_down) {
 			log_message(LOG_INFO, "Executing [%s] for VS %s"
-					    , vs->quorum_down->name
+					    , vs->notify_quorum_down->name
 					    , FMT_VS(vs));
-			notify_exec(vs->quorum_down);
+			notify_exec(vs->notify_quorum_down);
 		}
 		notify_fifo_vs(vs, false);
 #ifdef _WITH_SNMP_CHECKER_
@@ -489,9 +443,53 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 	check_snmp_rs_trap(rs, vs);
 #endif
 
-	/* We may have changed quorum state */
+	/* We may have changed quorum state. If the quorum wasn't up
+	 * but is now up, this is where the rs is added. */
 	update_quorum_state(vs);
 
+	return true;
+}
+
+/* Set a virtualserver IPVS rules */
+static bool
+init_service_vs(virtual_server_t * vs)
+{
+	/* Init the VS root */
+	if (!ISALIVE(vs) || vs->vsgname) {
+		ipvs_cmd(LVS_CMD_ADD, vs, NULL);
+		SET_ALIVE(vs);
+	}
+
+	/* Processing real server queue */
+	if (!init_service_rs(vs))
+		return false;
+
+	if (vs->reloaded) {
+		if (vs->vsgname)
+			/* add reloaded dests into new vsg entries */
+			sync_service_vsg(vs);
+	}
+
+	/* we may have got/lost quorum due to quorum setting changed */
+	/* also update, in case we need the sorry server in alpha mode */
+	update_quorum_state(vs);
+
+	return true;
+}
+
+/* Set IPVS rules */
+bool
+init_services(void)
+{
+	element e;
+	list l = check_data->vs;
+	virtual_server_t *vs;
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		vs = ELEMENT_DATA(e);
+		if (!init_service_vs(vs))
+			return false;
+	}
 	return true;
 }
 

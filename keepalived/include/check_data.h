@@ -132,8 +132,8 @@ typedef struct _virtual_server {
 	bool				alive;
 	bool				alpha;		/* Alpha mode enabled. */
 	bool				omega;		/* Omega mode enabled. */
-	notify_script_t			*quorum_up;	/* A hook to call when the VS gains quorum. */
-	notify_script_t			*quorum_down;	/* A hook to call when the VS loses quorum. */
+	notify_script_t			*notify_quorum_up;	/* A hook to call when the VS gains quorum. */
+	notify_script_t			*notify_quorum_down;	/* A hook to call when the VS loses quorum. */
 	unsigned			quorum;		/* Minimum live RSs to consider VS up. */
 	unsigned			hysteresis;	/* up/down events "lag" WRT quorum. */
 	bool				quorum_state_up; /* Reflects result of the last transition done. */
@@ -226,10 +226,10 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			 (X)->service_type            == (Y)->service_type		&&\
 			 (X)->forwarding_method       == (Y)->forwarding_method		&&\
 			 (X)->persistence_granularity == (Y)->persistence_granularity	&&\
-			 !(X)->quorum_up == !(Y)->quorum_up				&&\
-			 (!(X)->quorum_up || !strcmp ((X)->quorum_up->name, (Y)->quorum_up->name)) &&\
-			 !(X)->quorum_down == !(Y)->quorum_down				&&\
-			 (!(X)->quorum_down || !strcmp ((X)->quorum_down->name, (Y)->quorum_down->name)) &&\
+			 !(X)->notify_quorum_up == !(Y)->notify_quorum_up				&&\
+			 (!(X)->notify_quorum_up || !strcmp ((X)->notify_quorum_up->name, (Y)->notify_quorum_up->name)) &&\
+			 !(X)->notify_quorum_down == !(Y)->notify_quorum_down				&&\
+			 (!(X)->notify_quorum_down || !strcmp ((X)->notify_quorum_down->name, (Y)->notify_quorum_down->name)) &&\
 			 !strcmp((X)->sched, (Y)->sched)				&&\
 			 (X)->persistence_timeout     == (Y)->persistence_timeout	&&\
 			 !(X)->vsgname == !(Y)->vsgname					&&\
