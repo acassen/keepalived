@@ -647,12 +647,6 @@ bool validate_check_config(void)
 			for (e1 = LIST_HEAD(vs->rs); e1; ELEMENT_NEXT(e1)) {
 				rs = ELEMENT_DATA(e1);
 
-				/* Check any real server in alpha mode has a checker */
-// ??? Set rs->alive in following
-				if (vs->alpha && !rs->alive && rs->num_failed_checkers == 0)
-					log_message(LOG_INFO, "Warning - real server %s for virtual server %s cannot be activated due to no checker and in alpha mode",
-							FMT_RS(rs, vs), FMT_VS(vs));
-
 				/* Set the forwarding method if necessary */
 				if (rs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {
 					if (vs->forwarding_method == IP_VS_CONN_F_FWD_MASK) {

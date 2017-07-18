@@ -258,7 +258,7 @@ init_service_rs(virtual_server_t * vs)
 		 * later upon healthchecks recovery (if ever).
 		 */
 // ??? We should add rs if alpha mode with priority 0
-		if (!vs->alpha && !ISALIVE(rs)) {
+		if ((!vs->alpha || !rs->num_failed_checkers) && !ISALIVE(rs)) {
 			ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
 			SET_ALIVE(rs);
 		}
