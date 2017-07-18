@@ -404,7 +404,6 @@ free_rs(void *data)
 	real_server_t *rs = data;
 	free_notify_script(&rs->notify_up);
 	free_notify_script(&rs->notify_down);
-	free_list(&rs->failed_checkers);
 	FREE(rs);
 }
 static void
@@ -437,12 +436,6 @@ dump_rs(void *data)
 		       rs->notify_down->name, rs->notify_down->uid, rs->notify_down->gid);
 }
 
-static void
-free_failed_checkers(void *data)
-{
-	FREE(data);
-}
-
 void
 alloc_rs(char *ip, char *port)
 {
@@ -471,7 +464,6 @@ alloc_rs(char *ip, char *port)
 
 	new->weight = 1;
 	new->iweight = 1;
-	new->failed_checkers = alloc_list(free_failed_checkers, NULL);
 	new->forwarding_method = vs->forwarding_method;
 
 	if (!LIST_EXISTS(vs->rs))
@@ -656,7 +648,8 @@ bool validate_check_config(void)
 				rs = ELEMENT_DATA(e1);
 
 				/* Check any real server in alpha mode has a checker */
-				if (vs->alpha && !rs->alive && LIST_ISEMPTY(rs->failed_checkers))
+// ??? Set rs->alive in following
+				if (vs->alpha && !rs->alive && rs->num_failed_checkers == 0)
 					log_message(LOG_INFO, "Warning - real server %s for virtual server %s cannot be activated due to no checker and in alpha mode",
 							FMT_RS(rs, vs), FMT_VS(vs));
 

@@ -73,7 +73,7 @@ typedef struct _real_server {
 	notify_script_t			*notify_up;	/* Script to launch when RS is added to LVS */
 	notify_script_t			*notify_down;	/* Script to launch when RS is removed from LVS */
 	bool				alive;
-	list				failed_checkers;/* List of failed checkers */
+	unsigned			num_failed_checkers;/* Number of failed checkers */
 	bool				set;		/* in the IPVS table */
 	bool				reloaded;	/* active state was copied from old config while reloading */
 #if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)

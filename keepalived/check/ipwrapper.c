@@ -449,7 +449,7 @@ update_quorum_state(virtual_server_t * vs)
 }
 
 /* manipulate add/remove rs according to alive state */
-static int
+static bool
 perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 {
 	/*
@@ -459,7 +459,11 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 	 * | true        | false | RS went down, remove it from the pool
 	 * | true        | true  | first check succeeded w/o alpha mode, unreachable here
 	 */
-	if (!ISALIVE(rs) && alive) {
+
+	if (ISALIVE(rs) == alive)
+		return true;
+
+	if (alive) {
 		log_message(LOG_INFO, "%s service %s to VS %s"
 				    , (rs->inhibit) ? "Enabling" : "Adding"
 				    , FMT_RS(rs, vs)
@@ -467,7 +471,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 		/* Add only if we have quorum or no sorry server */
 		if (vs->quorum_state_up || !vs->s_svr || !ISALIVE(vs->s_svr)) {
 			if (ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs))
-				return -1;
+				return false;
 		}
 		rs->alive = true;
 		if (rs->notify_up) {
@@ -485,8 +489,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 		/* We may have gained quorum */
 		update_quorum_state(vs);
 	}
-
-	else if (ISALIVE(rs) && !alive) {
+	else {
 		log_message(LOG_INFO, "%s service %s from VS %s"
 				    , (rs->inhibit) ? "Disabling" : "Removing"
 				    , FMT_RS(rs, vs)
@@ -497,7 +500,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 		 */
 		if (vs->quorum_state_up || !vs->s_svr || !ISALIVE(vs->s_svr)) {
 			if (ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs))
-				return -1;
+				return false;
 		}
 		rs->alive = false;
 		if (rs->notify_down) {
@@ -515,7 +518,8 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 		/* We may have lost quorum */
 		update_quorum_state(vs);
 	}
-	return 0;
+
+	return true;
 }
 
 /* Store new weight in real_server struct and then update kernel. */
@@ -545,57 +549,43 @@ update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
 	}
 }
 
+void
+set_checker_state(checker_t *checker, bool up)
+{
+	if (checker->is_up == up)
+		return;
+
+	checker->is_up = up;
+
+	if (!up)
+		checker->rs->num_failed_checkers++;
+	else if (checker->rs->num_failed_checkers)
+		checker->rs->num_failed_checkers--;
+}
+
 /* Update checker's state */
 void
 update_svr_checker_state(bool alive, checker_t *checker)
 {
-	element e;
-	list l = checker->rs->failed_checkers;
-	checker_id_t *id;
+	if (checker->is_up == alive)
+		return;
 
-	/* Handle alive state. Depopulate failed_checkers and call
-	 * perform_svr_state() independently, letting the latter sort
-	 * things out itself.
-	 */
 	if (alive) {
-		for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-			id = ELEMENT_DATA(e);
-			if (*id == checker)
-				break;
-		}
-
 		/* call the UP handler unless any more failed checks found */
-		if (LIST_SIZE(l) == 0 || (LIST_SIZE(l) == 1 && e)) {
-			if (perform_svr_state(true, checker->vs, checker->rs))
+		if (checker->rs->num_failed_checkers <= 1) {
+			if (!perform_svr_state(true, checker->vs, checker->rs))
 				return;
 		}
-
-		checker->is_up = true;
-
-		/* Remove the succeeded check from failed_checkers */
-		if (e)
-			free_list_element(l, e);
 	}
-	/* Handle not alive state */
 	else {
-		if (LIST_SIZE(l) == 0) {
-			if (perform_svr_state(false, checker->vs, checker->rs))
+		/* Handle not alive state */
+		if (checker->rs->num_failed_checkers == 0) {
+			if (!perform_svr_state(false, checker->vs, checker->rs))
 				return;
-		} else {
-			/* do not add failed check into list twice */
-			for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-				id = ELEMENT_DATA(e);
-				if (*id == checker)
-					return;
-			}
 		}
-
-		checker->is_up = false;
-
-		id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
-		*id = checker;
-		list_add(l, id);
 	}
+
+	set_checker_state(checker, alive);
 }
 
 /* Check if a vsg entry is in new data */
@@ -698,7 +688,6 @@ migrate_failed_checkers(real_server_t *old_rs, real_server_t *new_rs, list old_c
 	list l;
 	element e, e1;
 	checker_t *old_c, *new_c;
-	checker_id_t *id;
 
 	l = alloc_list(NULL, NULL);
 	for (e = LIST_HEAD(old_checkers_queue); e; ELEMENT_NEXT(e)) {
@@ -718,18 +707,14 @@ migrate_failed_checkers(real_server_t *old_rs, real_server_t *new_rs, list old_c
 		for (e1 = LIST_HEAD(l); e1; ELEMENT_NEXT(e1)) {
 			old_c = ELEMENT_DATA(e1);
 			if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c)) {
-				if (!old_c->is_up) {
-					id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
-					*id = new_c;
-					list_add(new_rs->failed_checkers, id);
-					new_c->is_up = false;
-				}
+				if (!old_c->is_up)
+					set_checker_state(new_c, false);
 				break;
 			}
 		}
 	}
 
-	if (LIST_ISEMPTY(new_rs->failed_checkers))
+	if (!new_rs->num_failed_checkers)
 		SET_ALIVE(new_rs);
 end:
 	free_list(&l);
@@ -773,17 +758,13 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_check
 			new_rs->weight = rs->weight;
 			new_rs->pweight = rs->iweight;
 			new_rs->reloaded = true;
-			if (new_rs->alive) {
-				/* clear failed_checkers list */
-				free_list_elements(new_rs->failed_checkers);
-			} else {
+			if (!new_rs->alive) {
 				/*
-				 * if not alive, we must migrate the failed checker list
+				 * if not alive, we must migrate the failed checkers.
 				 * If we do not, the new RS is in a state where it’s reported
 				 * as down with no check failed. As a result, the server will never
 				 * be put up back when it’s alive again in check_tcp.c#83 because
-				 * of the check that put a rs up only if it was not previously up
-				 * based on the failed_checkers list
+				 * of the check that put a rs up only if it was not previously up.
 				 */
 // ??? if alpha mode the rs is set to failed. Don't do this
 // but have new checkers in pending state

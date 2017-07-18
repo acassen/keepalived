@@ -116,17 +116,14 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	checker->retry = 1;
 	checker->delay_before_retry = 1 * TIMER_HZ;
 	checker->retry_it = 0;
-	checker->is_up = !vs->alpha;
+	checker->is_up = true;
+
+	/* In Alpha mode also mark the check as failed. */
+	if (vs->alpha)
+		set_checker_state(checker, false);
 
 	/* queue the checker */
 	list_add(checkers_queue, checker);
-
-	/* In Alpha mode also mark the check as failed. */
-	if (!checker->is_up) {
-		checker_id_t *id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
-		*id = checker;
-		list_add (rs->failed_checkers, id);
-	}
 
 	return checker;
 }
@@ -134,18 +131,12 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 void
 dequeue_new_checker(void)
 {
-	element c_e = checkers_queue->tail;
-	checker_t *checker = ELEMENT_DATA(c_e);
+	checker_t *checker = ELEMENT_DATA(checkers_queue->tail);
 
-	if (!checker->is_up && !LIST_ISEMPTY(checker->rs->failed_checkers)) {
-		element e = checker->rs->failed_checkers->tail;
-		checker_id_t *id = ELEMENT_DATA(e);
+	if (!checker->is_up)
+		set_checker_state(checker, true);
 
-		if (*id == checker)
-			free_list_element(checker->rs->failed_checkers, e);
-	}
-
-	free_list_element(checkers_queue, c_e);
+	free_list_element(checkers_queue, checkers_queue->tail);
 }
 
 bool

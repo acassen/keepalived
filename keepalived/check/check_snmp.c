@@ -895,10 +895,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		return (u_char*)be->notify_down->name;
 	case CHECK_SNMP_RSFAILEDCHECKS:
 		if (btype == STATE_RS_SORRY) break;
-		if (LIST_ISEMPTY(be->failed_checkers))
-			long_ret.u = 0;
-		else
-			long_ret.u = LIST_SIZE(be->failed_checkers);
+		long_ret.u = be->num_failed_checkers;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSSTATSCONNS:
 		ipvs_update_stats(bvs);

@@ -51,6 +51,7 @@
 
 /* prototypes */
 extern void update_svr_wgt(int, virtual_server_t *, real_server_t *, bool);
+extern void set_checker_state(checker_t *, bool);
 extern void update_svr_checker_state(bool, checker_t *);
 extern bool init_services(void);
 extern void clear_services(void);
