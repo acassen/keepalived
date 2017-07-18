@@ -307,7 +307,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 		smtp_checker->host_ctr = 0;
 
 		/* Reschedule the main thread using the configured delay loop */;
-		thread_add_timer(thread->master, smtp_connect_thread, checker, checker->vs->delay_loop);
+		thread_add_timer(thread->master, smtp_connect_thread, checker, checker->delay_loop);
 
 		return 0;
 	}
@@ -740,7 +740,7 @@ smtp_connect_thread(thread_t *thread)
 	 */
 	if (!checker->enabled) {
 		thread_add_timer(thread->master, smtp_connect_thread, checker,
-				 checker->vs->delay_loop);
+				 checker->delay_loop);
 		return 0;
 	}
 
@@ -765,7 +765,7 @@ smtp_connect_thread(thread_t *thread)
 		smtp_checker->host_ctr = 0;
 		smtp_checker->host_ptr = list_element(smtp_checker->host, 0);
 
-		thread_add_timer(thread->master, smtp_connect_thread, checker, checker->vs->delay_loop);
+		thread_add_timer(thread->master, smtp_connect_thread, checker, checker->delay_loop);
 		return 0;
 	}
 
@@ -775,7 +775,7 @@ smtp_connect_thread(thread_t *thread)
 	if ((sd = socket(smtp_host->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
 		log_message(LOG_INFO, "SMTP_CHECK connection failed to create socket. Rescheduling.");
 		thread_add_timer(thread->master, smtp_connect_thread, checker,
-				 checker->vs->delay_loop);
+				 checker->delay_loop);
 		return 0;
 	}
 #if !HAVE_DECL_SOCK_CLOEXEC
@@ -790,7 +790,7 @@ smtp_connect_thread(thread_t *thread)
 		close(sd);
 		log_message(LOG_INFO, "SMTP_CHECK socket bind failed. Rescheduling.");
 		thread_add_timer(thread->master, smtp_connect_thread, checker,
-			checker->vs->delay_loop);
+			checker->delay_loop);
 	}
 
 	return 0;

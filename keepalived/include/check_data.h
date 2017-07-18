@@ -72,6 +72,7 @@ typedef struct _real_server {
 							 */
 	notify_script_t			*notify_up;	/* Script to launch when RS is added to LVS */
 	notify_script_t			*notify_down;	/* Script to launch when RS is removed from LVS */
+	unsigned long			delay_loop;	/* Interval between running checkers */
 	bool				alive;
 	unsigned			num_failed_checkers;/* Number of failed checkers */
 	bool				set;		/* in the IPVS table */

@@ -142,7 +142,7 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 
 	checker->retry_it = 0;
 	thread_add_timer(thread->master, dns_connect_thread, checker,
-			 checker->vs->delay_loop);
+			 checker->delay_loop);
 
 	return 0;
 }
@@ -347,7 +347,7 @@ dns_connect_thread(thread_t * thread)
 
 	if (!checker->enabled) {
 		thread_add_timer(thread->master, dns_connect_thread, checker,
-				 checker->vs->delay_loop);
+				 checker->delay_loop);
 		return 0;
 	}
 
@@ -355,7 +355,7 @@ dns_connect_thread(thread_t * thread)
 		dns_log_message(thread, LOG_INFO,
 				"failed to create socket. Rescheduling.");
 		thread_add_timer(thread->master, dns_connect_thread, checker,
-				 checker->vs->delay_loop);
+				 checker->delay_loop);
 		return 0;
 	}
 #if !HAVE_DECL_SOCK_CLOEXEC
@@ -373,7 +373,7 @@ dns_connect_thread(thread_t * thread)
 		dns_log_message(thread, LOG_INFO,
 				"UDP socket bind failed. Rescheduling.");
 		thread_add_timer(thread->master, dns_connect_thread, checker,
-				 checker->vs->delay_loop);
+				 checker->delay_loop);
 	}
 
 	return 0;

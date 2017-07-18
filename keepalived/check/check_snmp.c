@@ -492,10 +492,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		*var_len = sizeof(v->persistence_granularity);
 		return (u_char*)&v->persistence_granularity;
 	case CHECK_SNMP_VSDELAYLOOP:
-		if (v->delay_loop >= TIMER_MAX_SEC)
-			long_ret.u = v->delay_loop/TIMER_HZ;
-		else
-			long_ret.u = v->delay_loop;
+		long_ret.u = v->delay_loop/TIMER_HZ;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSHASUSPEND:
 		long_ret.u = v->ha_suspend?1:2;

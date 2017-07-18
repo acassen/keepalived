@@ -248,10 +248,7 @@ dump_vs(void *data)
 		log_message(LOG_INFO, "   VirtualHost = %s", vs->virtualhost);
 	if (vs->af != AF_UNSPEC)
 		log_message(LOG_INFO, "   Address family = inet%s", vs->af == AF_INET ? "" : "6");
-	log_message(LOG_INFO, "   delay_loop = %lu, lb_algo = %s",
-	       (vs->delay_loop >= TIMER_MAX_SEC) ? vs->delay_loop/TIMER_HZ :
-						   vs->delay_loop,
-	       vs->sched);
+	log_message(LOG_INFO, "   delay_loop = %lu, lb_algo = %s", vs->delay_loop / TIMER_HZ, vs->sched);
 	log_message(LOG_INFO, "   Hashed = %sabled", vs->flags & IP_VS_SVC_F_HASHED ? "en" : "dis");
 #ifdef IP_VS_SVC_F_SCHED1
 	if (!strcmp(vs->sched, "sh"))
@@ -406,6 +403,7 @@ free_rs(void *data)
 	free_notify_script(&rs->notify_down);
 	FREE(rs);
 }
+
 static void
 dump_rs(void *data)
 {
@@ -434,6 +432,7 @@ dump_rs(void *data)
 	if (rs->notify_down)
 		log_message(LOG_INFO, "     -> Notify script DOWN = %s, uid:gid %d:%d",
 		       rs->notify_down->name, rs->notify_down->uid, rs->notify_down->gid);
+	log_message(LOG_INFO, "   delay_loop = %lu", rs->delay_loop/TIMER_HZ);
 }
 
 void
@@ -465,7 +464,9 @@ alloc_rs(char *ip, char *port)
 	new->weight = 1;
 	new->iweight = 1;
 	new->forwarding_method = vs->forwarding_method;
+	new->delay_loop = 0;
 
+// ??? alloc list in alloc_vs
 	if (!LIST_EXISTS(vs->rs))
 		vs->rs = alloc_list(free_rs, dump_rs);
 	list_add(vs->rs, new);
@@ -655,6 +656,10 @@ bool validate_check_config(void)
 					}
 					rs->forwarding_method = vs->forwarding_method;
 				}
+
+				/* Take default values from virtual server */
+				if (!rs->delay_loop)
+					rs->delay_loop = vs->delay_loop;
 			}
 		}
 	}
@@ -668,6 +673,10 @@ bool validate_check_config(void)
 
 			if (!checker->vs->ha_suspend)
 				checker->enabled = true;
+
+			/* Take default values from real server */
+			if (!checker->delay_loop)
+				checker->delay_loop = checker->rs->delay_loop;
 		}
 	}
 

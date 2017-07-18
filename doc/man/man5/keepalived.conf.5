@@ -757,6 +757,9 @@ A virtual_server can be a declaration of one of
            uthreshold <INTEGER> # maximum number of connections to server
            lthreshold <INTEGER> # minimum number of connections to server
 
+           # delay timer for checker polling
+           delay_loop <INT>
+
            # healthcheckers. Can be multiple of each type
            # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK
 
@@ -799,6 +802,9 @@ A virtual_server can be a declaration of one of
                # checks to the same RS. Enabled by default, with
                # the maximum at delay_loop. Specify 0 to disable
                warmup <INT>
+
+               # delay timer for checker polling
+               delay_loop <INT>
            }
 
            # The following options are additional checker specific

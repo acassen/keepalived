@@ -119,12 +119,10 @@ ip_family_handler(vector_t *strvec)
 	vs->af = af;
 }
 static void
-delay_handler(vector_t *strvec)
+vs_delay_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->delay_loop = strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
-	if (vs->delay_loop < TIMER_HZ)
-		vs->delay_loop = TIMER_HZ;
+	vs->delay_loop = read_timer(strvec);
 }
 static void
 lbalgo_handler(vector_t *strvec)
@@ -378,6 +376,13 @@ notify_down_handler(vector_t *strvec)
 	rs->notify_down = set_check_notify_script(strvec, "notify");
 }
 static void
+rs_delay_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	rs->delay_loop = read_timer(strvec);
+}
+static void
 alpha_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -444,7 +449,7 @@ init_check_keywords(bool active)
 	install_keyword_root("virtual_server_group", &vsg_handler, active);
 	install_keyword_root("virtual_server", &vs_handler, active);
 	install_keyword("ip_family", &ip_family_handler);
-	install_keyword("delay_loop", &delay_handler);
+	install_keyword("delay_loop", &vs_delay_handler);
 	install_keyword("lb_algo", &lbalgo_handler);
 	install_keyword("lvs_sched", &lbalgo_handler);
 
@@ -491,6 +496,7 @@ init_check_keywords(bool active)
 	install_keyword("inhibit_on_failure", &inhibit_handler);
 	install_keyword("notify_up", &notify_up_handler);
 	install_keyword("notify_down", &notify_down_handler);
+	install_keyword("delay_loop", &rs_delay_handler);
 
 	install_sublevel_end_handler(&vs_end_handler);
 

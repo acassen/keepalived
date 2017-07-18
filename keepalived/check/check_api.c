@@ -78,6 +78,7 @@ dump_checker_opts(void *data)
 		log_message(LOG_INFO, "   Connection timeout = %d", conn->connection_to/TIMER_HZ);
 	}
 
+	log_message(LOG_INFO, "     Delay loop = %lu" , checker->delay_loop / TIMER_HZ);
 	if (checker->retry) {
 		log_message(LOG_INFO, "     Retry count = %u" , checker->retry);
 		log_message(LOG_INFO, "     Retry delay = %lu" , checker->delay_before_retry / TIMER_HZ);
@@ -112,6 +113,7 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	checker->co = co;
 	/* Enable the checker if the virtual server is not configured with ha_suspend */
 	checker->enabled = !vs->ha_suspend;
+	checker->delay_loop = 0;
 	checker->warmup = vs->delay_loop;
 	checker->retry = 1;
 	checker->delay_before_retry = 1 * TIMER_HZ;
@@ -252,6 +254,13 @@ warmup_handler(vector_t *strvec)
 	checker->warmup = CHECKER_VALUE_UINT(strvec) * TIMER_HZ;
 }
 
+static void
+delay_handler(vector_t *strvec)
+{
+	checker_t *checker = CHECKER_GET_CURRENT();
+	checker->delay_loop = read_timer(strvec);
+}
+
 void
 install_checker_common_keywords(bool connection_keywords)
 {
@@ -268,6 +277,7 @@ install_checker_common_keywords(bool connection_keywords)
 	install_keyword("retry", &retry_handler);
 	install_keyword("delay_before_retry", &delay_before_retry_handler);
 	install_keyword("warmup", &warmup_handler);
+	install_keyword("delay_loop", &delay_handler);
 }
 
 /* dump the checkers_queue */

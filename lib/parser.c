@@ -654,6 +654,18 @@ set_value(vector_t *strvec)
 	return alloc;
 }
 
+unsigned long
+read_timer(vector_t *strvec)
+{
+	unsigned long timer;
+
+	timer = strtoul(strvec_slot(strvec, 1), NULL, 10);
+	if (timer >= ULONG_MAX / TIMER_HZ)
+		return ULONG_MAX;
+
+	return timer * TIMER_HZ;
+}
+
 /* Checks for on/true/yes or off/false/no */
 int
 check_true_false(char *str)

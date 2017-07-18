@@ -320,11 +320,11 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 	/* register next timer thread */
 	switch (method) {
 	case REGISTER_CHECKER_NEW:
-		delay = checker->vs->delay_loop;
+		delay = checker->delay_loop;
 		break;
 	case REGISTER_CHECKER_RETRY:
 		if (http_get_check->url_it == 0 && checker->retry_it == 0)
-			delay = checker->vs->delay_loop;
+			delay = checker->delay_loop;
 		else
 			delay = checker->delay_before_retry;
 		break;
@@ -752,7 +752,7 @@ http_connect_thread(thread_t * thread)
 	 */
 	if (!checker->enabled) {
 		thread_add_timer(thread->master, http_connect_thread, checker,
-				 checker->vs->delay_loop);
+				 checker->delay_loop);
 		return 0;
 	}
 
@@ -765,7 +765,7 @@ http_connect_thread(thread_t * thread)
 	if ((fd = socket(co->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
 		log_message(LOG_INFO, "WEB connection fail to create socket. Rescheduling.");
 		thread_add_timer(thread->master, http_connect_thread, checker,
-				checker->vs->delay_loop);
+				checker->delay_loop);
 
 		return 0;
 	}
@@ -783,7 +783,7 @@ http_connect_thread(thread_t * thread)
 		close(fd);
 		log_message(LOG_INFO, "WEB socket bind failed. Rescheduling");
 		thread_add_timer(thread->master, http_connect_thread, checker,
-				checker->vs->delay_loop);
+				checker->delay_loop);
 	}
 
 	return 0;

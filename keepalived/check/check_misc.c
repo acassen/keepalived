@@ -252,7 +252,7 @@ misc_check_thread(thread_t * thread)
 	if (!checker->enabled) {
 		/* Register next timer checker */
 		thread_add_timer(thread->master, misc_check_thread, checker,
-				 checker->vs->delay_loop);
+				 checker->delay_loop);
 		return 0;
 	}
 
@@ -261,7 +261,7 @@ misc_check_thread(thread_t * thread)
 	/* Execute the script in a child process. Parent returns, child doesn't */
 	misck_checker->last_ran = time_now;
 	return system_call_script(thread->master, misc_check_child_thread,
-				  checker, (misck_checker->timeout) ? misck_checker->timeout : checker->vs->delay_loop,
+				  checker, (misck_checker->timeout) ? misck_checker->timeout : checker->delay_loop,
 				  misck_checker->path, misck_checker->uid, misck_checker->gid);
 }
 
@@ -361,7 +361,7 @@ misc_check_child_thread(thread_t * thread)
 	misck_checker->forcing_termination = false;
 
 	/* Register next timer checker */
-	next_time = timer_add_long(misck_checker->last_ran, checker->retry_it ? checker->delay_before_retry : checker->vs->delay_loop);
+	next_time = timer_add_long(misck_checker->last_ran, checker->retry_it ? checker->delay_before_retry : checker->delay_loop);
 	next_time = timer_sub_now(next_time);
 	if (next_time.tv_sec < 0)
 		next_time.tv_sec = 0, next_time.tv_usec = 1;
@@ -399,7 +399,7 @@ misc_check_child_timeout_thread(thread_t * thread)
 	misck_checker->forcing_termination = false;
 
 	/* Register next timer checker */
-	next_time = timer_add_long(misck_checker->last_ran, checker->retry_it ? checker->delay_before_retry : checker->vs->delay_loop);
+	next_time = timer_add_long(misck_checker->last_ran, checker->retry_it ? checker->delay_before_retry : checker->delay_loop);
 	next_time = timer_sub_now(next_time);
 	if (next_time.tv_sec < 0)
 		next_time.tv_sec = 0, next_time.tv_usec = 1;

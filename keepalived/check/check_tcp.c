@@ -88,7 +88,7 @@ tcp_epilog(thread_t * thread, int is_success)
 	checker = THREAD_ARG(thread);
 
 	if (is_success || checker->retry_it >= checker->retry) {
-		delay = checker->vs->delay_loop;
+		delay = checker->delay_loop;
 		checker->retry_it = 0;
 
 		if (is_success && !checker->is_up) {
@@ -170,14 +170,14 @@ tcp_connect_thread(thread_t * thread)
 	 */
 	if (!checker->enabled) {
 		thread_add_timer(thread->master, tcp_connect_thread, checker,
-				 checker->vs->delay_loop);
+				 checker->delay_loop);
 		return 0;
 	}
 
 	if ((fd = socket(co->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
 		log_message(LOG_INFO, "TCP connect fail to create socket. Rescheduling.");
 		thread_add_timer(thread->master, tcp_connect_thread, checker,
-				checker->vs->delay_loop);
+				checker->delay_loop);
 
 		return 0;
 	}
@@ -195,7 +195,7 @@ tcp_connect_thread(thread_t * thread)
 		close(fd);
 		log_message(LOG_INFO, "TCP socket bind failed. Rescheduling.");
 		thread_add_timer(thread->master, tcp_connect_thread, checker,
-				checker->vs->delay_loop);
+				checker->delay_loop);
 	}
 
 	return 0;
