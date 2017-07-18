@@ -142,7 +142,7 @@ misc_user_handler(vector_t *strvec)
 
 	if (set_script_uid_gid(strvec, 1, &new_misck_checker->uid, &new_misck_checker->gid)) {
 		log_message(LOG_INFO, "Failed to set uid/gid for misc checker script %s - removing", new_misck_checker->path);
-		dequeue_checker();
+		dequeue_new_checker();
 		new_misck_checker = NULL;
 	}
 	else
@@ -159,7 +159,7 @@ misc_end_handler(void)
 	{
 		if ( set_default_script_user(NULL, NULL, global_data->script_security)) {
 			log_message(LOG_INFO, "Unable to set default user for misc script %s - removing", new_misck_checker->path);
-			dequeue_checker();
+			dequeue_new_checker();
 			new_misck_checker = NULL;
 			return;
 		}
@@ -281,7 +281,7 @@ misc_check_child_thread(thread_t * thread)
 		pid = THREAD_CHILD_PID(thread);
 
 		/* The child hasn't responded. Kill it off. */
-		if (svr_checker_up(checker->id, checker->rs)) {
+		if (checker->is_up) {
 			if (checker->retry_it < checker->retry)
 				checker->retry_it++;
 			else {
@@ -291,9 +291,7 @@ misc_check_child_thread(thread_t * thread)
 				smtp_alert(checker, NULL, NULL,
 					   "DOWN",
 					   "=> MISC CHECK script timeout on service <=");
-				update_svr_checker_state(DOWN, checker->id
-							     , checker->vs
-							     , checker->rs);
+				update_svr_checker_state(DOWN, checker);
 				checker->retry_it = 0;
 			}
 		}
@@ -324,20 +322,18 @@ misc_check_child_thread(thread_t * thread)
 					       checker->rs, true);
 
 			/* everything is good */
-			if (!svr_checker_up(checker->id, checker->rs)) {
+			if (!checker->is_up) {
 				log_message(LOG_INFO, "Misc check to [%s] for [%s] success."
 						    , inet_sockaddrtos(&checker->rs->addr)
 						    , misck_checker->path);
 				smtp_alert(checker, NULL, NULL,
 					   "UP",
 					   "=> MISC CHECK succeed on service <=");
-				update_svr_checker_state(UP, checker->id
-							   , checker->vs
-							   , checker->rs);
+				update_svr_checker_state(UP, checker);
 			}
 
 			checker->retry_it = 0;
-		} else if (svr_checker_up(checker->id, checker->rs)) {
+		} else if (checker->is_up) {
 			if (checker->retry_it < checker->retry)
 				checker->retry_it++;
 			else {
@@ -347,9 +343,7 @@ misc_check_child_thread(thread_t * thread)
 				smtp_alert(checker, NULL, NULL,
 					   "DOWN",
 					   "=> MISC CHECK failed on service <=");
-				update_svr_checker_state(DOWN, checker->id
-							     , checker->vs
-							     , checker->rs);
+				update_svr_checker_state(DOWN, checker);
 				checker->retry_it = 0;
 			}
 		}

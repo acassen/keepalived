@@ -42,7 +42,6 @@
 #include "check_dns.h"
 
 /* Global vars */
-static checker_id_t ncheckers;
 list checkers_queue;
 
 /* free checker data */
@@ -111,39 +110,38 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	checker->rs = rs;
 	checker->data = data;
 	checker->co = co;
-	checker->id = ncheckers++;
 	/* Enable the checker if the virtual server is not configured with ha_suspend */
 	checker->enabled = !vs->ha_suspend;
 	checker->warmup = vs->delay_loop;
 	checker->retry = 1;
 	checker->delay_before_retry = 1 * TIMER_HZ;
 	checker->retry_it = 0;
+	checker->is_up = !vs->alpha;
 
 	/* queue the checker */
 	list_add(checkers_queue, checker);
 
 	/* In Alpha mode also mark the check as failed. */
-	if (vs->alpha) {
-		list fc = rs->failed_checkers;
+	if (!checker->is_up) {
 		checker_id_t *id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
-		*id = checker->id;
-		list_add (fc, id);
+		*id = checker;
+		list_add (rs->failed_checkers, id);
 	}
 
 	return checker;
 }
 
 void
-dequeue_checker(void)
+dequeue_new_checker(void)
 {
 	element c_e = checkers_queue->tail;
 	checker_t *checker = ELEMENT_DATA(c_e);
 
-	if (!LIST_ISEMPTY(checker->rs->failed_checkers)) {
+	if (!checker->is_up && !LIST_ISEMPTY(checker->rs->failed_checkers)) {
 		element e = checker->rs->failed_checkers->tail;
 		checker_id_t *id = ELEMENT_DATA(e);
 
-		if (*id == checker->id)
+		if (*id == checker)
 			free_list_element(checker->rs->failed_checkers, e);
 	}
 
@@ -296,7 +294,6 @@ void
 init_checkers_queue(void)
 {
 	checkers_queue = alloc_list(free_checker, dump_checker);
-	ncheckers = 0;
 }
 
 /* release the checkers for a virtual server */
@@ -329,7 +326,6 @@ free_checkers_queue(void)
 		return;
 
 	free_list(&checkers_queue);
-	ncheckers = 0;
 }
 
 /* register checkers to the global I/O scheduler */

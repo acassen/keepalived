@@ -40,8 +40,8 @@ typedef struct _checker {
 	virtual_server_t		*vs;			/* pointer to the checker thread virtualserver */
 	real_server_t			*rs;			/* pointer to the checker thread realserver */
 	void				*data;
-	checker_id_t			id;			/* Checker identifier */
 	bool				enabled;		/* Activation flag */
+	bool				is_up;			/* Set if checker is up */
 	conn_opts_t			*co;			/* connection options */
 	unsigned long			warmup;			/* max random timeout to start checker */
 	unsigned			retry;			/* number of retries before failing */
@@ -49,6 +49,9 @@ typedef struct _checker {
 	unsigned			retry_it;		/* number of successive failures */
 
 } checker_t;
+
+/* Typedefs */
+typedef checker_t * checker_id_t;
 
 /* Checkers queue */
 extern list checkers_queue;
@@ -77,7 +80,7 @@ extern checker_t *queue_checker(void (*free_func) (void *), void (*dump_func) (v
 			  , bool (*compare) (void *, void *)
 			  , void *
 			  , conn_opts_t *);
-extern void dequeue_checker(void);
+extern void dequeue_new_checker(void);
 extern bool compare_conn_opts(conn_opts_t *, conn_opts_t *);
 extern void dump_checkers_queue(void);
 extern void free_checkers_queue(void);

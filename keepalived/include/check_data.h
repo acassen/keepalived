@@ -42,9 +42,6 @@
 #include "timer.h"
 #include "notify.h"
 
-/* Typedefs */
-typedef unsigned int checker_id_t;
-
 /* Daemon dynamic data structure definition */
 #define KEEPALIVED_DEFAULT_DELAY	(60 * TIMER_HZ)
 

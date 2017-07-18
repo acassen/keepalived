@@ -420,6 +420,21 @@ update_quorum_state(virtual_server_t * vs)
 				    , down_threshold
 				    , weight_sum
 				    , FMT_VS(vs));
+
+		if (vs->s_svr && !ISALIVE(vs->s_svr)) {
+			log_message(LOG_INFO, "%s sorry server %s to VS %s"
+					    , (vs->s_svr->inhibit ? "Enabling" : "Adding")
+					    , FMT_RS(vs->s_svr, vs)
+					    , FMT_VS(vs));
+
+			/* the sorry server is now up in the pool, we flag it alive */
+			ipvs_cmd(LVS_CMD_ADD_DEST, vs, vs->s_svr);
+			vs->s_svr->alive = true;
+
+			/* Remove remaining alive real servers */
+			perform_quorum_state(vs, false);
+		}
+
 		if (vs->quorum_down) {
 			log_message(LOG_INFO, "Executing [%s] for VS %s"
 					    , vs->quorum_down->name
@@ -430,22 +445,6 @@ update_quorum_state(virtual_server_t * vs)
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_quorum_trap(vs);
 #endif
-	}
-
-	if (!vs->quorum_state_up &&
-	    vs->s_svr &&
-	    !ISALIVE(vs->s_svr)) {
-		log_message(LOG_INFO, "%s sorry server %s to VS %s"
-				    , (vs->s_svr->inhibit ? "Enabling" : "Adding")
-				    , FMT_RS(vs->s_svr, vs)
-				    , FMT_VS(vs));
-
-		/* the sorry server is now up in the pool, we flag it alive */
-		ipvs_cmd(LVS_CMD_ADD_DEST, vs, vs->s_svr);
-		vs->s_svr->alive = true;
-
-		/* Remove remaining alive real servers */
-		perform_quorum_state(vs, false);
 	}
 }
 
@@ -470,7 +469,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 			if (ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs))
 				return -1;
 		}
-		rs->alive = alive;
+		rs->alive = true;
 		if (rs->notify_up) {
 			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
 					    , rs->notify_up->name
@@ -487,7 +486,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 		update_quorum_state(vs);
 	}
 
-	if (ISALIVE(rs) && !alive) {
+	else if (ISALIVE(rs) && !alive) {
 		log_message(LOG_INFO, "%s service %s from VS %s"
 				    , (rs->inhibit) ? "Disabling" : "Removing"
 				    , FMT_RS(rs, vs)
@@ -500,7 +499,7 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 			if (ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs))
 				return -1;
 		}
-		rs->alive = alive;
+		rs->alive = false;
 		if (rs->notify_down) {
 			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
 					    , rs->notify_down->name
@@ -546,34 +545,12 @@ update_svr_wgt(int weight, virtual_server_t * vs, real_server_t * rs
 	}
 }
 
-/* Test if realserver is marked UP for a specific checker */
-bool
-svr_checker_up(checker_id_t cid, real_server_t *rs)
-{
-	element e;
-	list l = rs->failed_checkers;
-	checker_id_t *id;
-
-	/*
-	 * We assume there is not too much checker per
-	 * real server, so we consider this lookup as
-	 * o(1).
-	 */
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
-		id = ELEMENT_DATA(e);
-		if (*id == cid)
-			return false;
-	}
-
-	return true;
-}
-
 /* Update checker's state */
 void
-update_svr_checker_state(bool alive, checker_id_t cid, virtual_server_t *vs, real_server_t *rs)
+update_svr_checker_state(bool alive, checker_t *checker)
 {
 	element e;
-	list l = rs->failed_checkers;
+	list l = checker->rs->failed_checkers;
 	checker_id_t *id;
 
 	/* Handle alive state. Depopulate failed_checkers and call
@@ -583,15 +560,17 @@ update_svr_checker_state(bool alive, checker_id_t cid, virtual_server_t *vs, rea
 	if (alive) {
 		for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 			id = ELEMENT_DATA(e);
-			if (*id == cid)
+			if (*id == checker)
 				break;
 		}
 
 		/* call the UP handler unless any more failed checks found */
 		if (LIST_SIZE(l) == 0 || (LIST_SIZE(l) == 1 && e)) {
-			if (perform_svr_state(true, vs, rs))
+			if (perform_svr_state(true, checker->vs, checker->rs))
 				return;
 		}
+
+		checker->is_up = true;
 
 		/* Remove the succeeded check from failed_checkers */
 		if (e)
@@ -600,19 +579,21 @@ update_svr_checker_state(bool alive, checker_id_t cid, virtual_server_t *vs, rea
 	/* Handle not alive state */
 	else {
 		if (LIST_SIZE(l) == 0) {
-			if (perform_svr_state(false, vs, rs))
+			if (perform_svr_state(false, checker->vs, checker->rs))
 				return;
 		} else {
 			/* do not add failed check into list twice */
 			for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 				id = ELEMENT_DATA(e);
-				if (*id == cid)
+				if (*id == checker)
 					return;
 			}
 		}
 
+		checker->is_up = false;
+
 		id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
-		*id = cid;
+		*id = checker;
 		list_add(l, id);
 	}
 }
@@ -737,10 +718,11 @@ migrate_failed_checkers(real_server_t *old_rs, real_server_t *new_rs, list old_c
 		for (e1 = LIST_HEAD(l); e1; ELEMENT_NEXT(e1)) {
 			old_c = ELEMENT_DATA(e1);
 			if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c)) {
-				if (!svr_checker_up(old_c->id, old_rs)) {
+				if (!old_c->is_up) {
 					id = (checker_id_t *) MALLOC(sizeof(checker_id_t));
-					*id = new_c->id;
+					*id = new_c;
 					list_add(new_rs->failed_checkers, id);
+					new_c->is_up = false;
 				}
 				break;
 			}

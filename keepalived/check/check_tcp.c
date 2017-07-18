@@ -91,17 +91,15 @@ tcp_epilog(thread_t * thread, int is_success)
 		delay = checker->vs->delay_loop;
 		checker->retry_it = 0;
 
-		if (is_success && !svr_checker_up(checker->id, checker->rs)) {
+		if (is_success && !checker->is_up) {
 			log_message(LOG_INFO, "TCP connection to %s success."
 					, FMT_TCP_RS(checker));
 			smtp_alert(checker, NULL, NULL,
 				   "UP",
 				   "=> TCP CHECK succeed on service <=");
-			update_svr_checker_state(UP, checker->id
-						   , checker->vs
-						   , checker->rs);
+			update_svr_checker_state(UP, checker);
 		} else if (!is_success
-			   && svr_checker_up(checker->id, checker->rs)) {
+			   && checker->is_up) {
 			if (checker->retry)
 				log_message(LOG_INFO
 				    , "Check on service %s failed after %d retry."
@@ -111,9 +109,7 @@ tcp_epilog(thread_t * thread, int is_success)
 			smtp_alert(checker, NULL, NULL,
 				   "DOWN",
 				   "=> TCP CHECK failed on service <=");
-			update_svr_checker_state(DOWN, checker->id
-						     , checker->vs
-						     , checker->rs);
+			update_svr_checker_state(DOWN, checker);
 		}
 	} else {
 		delay = checker->delay_before_retry;
@@ -145,13 +141,13 @@ tcp_check_thread(thread_t * thread)
 		tcp_epilog(thread, 1);
 		break;
 	case connect_timeout:
-		if (svr_checker_up(checker->id, checker->rs))
+		if (checker->is_up)
 			log_message(LOG_INFO, "TCP connection to %s timeout."
 					, FMT_TCP_RS(checker));
 		tcp_epilog(thread, 0);
 		break;
 	default:
-		if (svr_checker_up(checker->id, checker->rs))
+		if (checker->is_up)
 			log_message(LOG_INFO, "TCP connection to %s failed."
 					, FMT_TCP_RS(checker));
 		tcp_epilog(thread, 0);

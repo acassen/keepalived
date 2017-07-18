@@ -279,14 +279,12 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 		 * Check completed.
 		 * check if server is currently alive.
 		 */
-		if (!svr_checker_up(checker->id, checker->rs)) {
+		if (!checker->is_up) {
 			log_message(LOG_INFO, "Remote Web server %s succeed on service."
 					    , FMT_HTTP_RS(checker));
 			smtp_alert(checker, NULL, NULL, "UP",
 				   "=> CHECK succeed on service <=");
-			update_svr_checker_state(UP, checker->id
-						   , checker->vs
-						   , checker->rs);
+			update_svr_checker_state(UP, checker);
 		}
 
 		/* Reset it counters */
@@ -300,7 +298,7 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 	 * servers.
 	 */
 	else if (method == REGISTER_CHECKER_RETRY && checker->retry_it > checker->retry) {
-		if (svr_checker_up(checker->id, checker->rs)) {
+		if (checker->is_up) {
 			if (checker->retry)
 				log_message(LOG_INFO
 				   , "Check on service %s failed after %u retry."
@@ -310,9 +308,7 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 				   "DOWN",
 				   "=> CHECK failed on service"
 				   " : HTTP request failed <=");
-			update_svr_checker_state(DOWN, checker->id
-						     , checker->vs
-						     , checker->rs);
+			update_svr_checker_state(DOWN, checker);
 		}
 
 		/* Reset it counters */
@@ -352,7 +348,7 @@ timeout_epilog(thread_t * thread, const char *debug_msg)
 	checker_t *checker = THREAD_ARG(thread);
 
 	/* check if server is currently alive */
-	if (svr_checker_up(checker->id, checker->rs)) {
+	if (checker->is_up) {
 		log_message(LOG_INFO, "%s server %s."
 				    , debug_msg
 				    , FMT_HTTP_RS(checker));
@@ -417,7 +413,7 @@ http_handle_response(thread_t * thread, unsigned char digest[16]
 		last_success = ON_DIGEST;
 	}
 
-	if (!svr_checker_up(checker->id, checker->rs)) {
+	if (!checker->is_up) {
 		switch (last_success) {
 			case NONE:
 				break;
