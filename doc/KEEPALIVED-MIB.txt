@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201704110001Z"
+     LAST-UPDATED "201707220000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201707220000Z"
+     DESCRIPTION "improve flexibility of checker configuration"
      REVISION "201704110001Z"
      DESCRIPTION "add real server forwarding method"
      REVISION "201704110000Z"
@@ -2305,7 +2307,11 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerHashed TruthValue,
     virtualServerSHFallback TruthValue,
     virtualServerSHPort TruthValue,
-    virtualServerSched3 TruthValue
+    virtualServerSched3 TruthValue,
+    virtualServerActionWhenDown INTEGER,
+    virtualServerRetry Unsigned32,
+    virtualServerDelayBeforeRetry Unsigned32,
+    virtualServerWarmup Unsigned32
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -2810,6 +2816,40 @@ virtualServerSched3 OBJECT-TYPE
         "If set to true(1), scheduler flag 3 set."
     ::= { virtualServerEntry 55 }
 
+virtualServerActionWhenDown OBJECT-TYPE
+    SYNTAX INTEGER { remove(1), inhibit(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "What action is performed when the real servers are down. Its weight
+        can be set to 0 (inhibit) or it can be removed from the pool."
+    ::= { virtualServerEntry 56 }
+
+virtualServerRetry OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Default number of retries of checker before marking failed."
+    ::= { virtualServerEntry 57 }
+
+virtualServerDelayBeforeRetry OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Default number of seconds between retrying a checker ofter it has failed."
+    ::= { virtualServerEntry 58 }
+
+virtualServerWarmup OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Maximum number of seconds to delay before running checker."
+    ::= { virtualServerEntry 59 }
 
 -- real servers
 
@@ -2870,7 +2910,12 @@ RealServerEntry ::= SEQUENCE {
     realServerRateInBPSHigh Unsigned32,
     realServerRateOutBPSLow Unsigned32,
     realServerRateOutBPSHigh Unsigned32,
-    realServerForwardingMethod INTEGER
+    realServerForwardingMethod INTEGER,
+    realServerAlpha INTEGER,
+    realServerRetry Unsigned32,
+    realServerDelayBeforeRetry Unsigned32,
+    realServerWarmup Unsigned32,
+    realServerDelayLoop Unsigned32
 }
 
 realServerIndex OBJECT-TYPE
@@ -3231,6 +3276,49 @@ realServerForwardingMethod OBJECT-TYPE
     DESCRIPTION
         "Forwarding method to use for this real server."
     ::= { realServerEntry 40 }
+
+realServerAlpha OBJECT-TYPE
+    SYNTAX INTEGER { enabled(1), disabled(2) }
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Is alpha mode enabled?"
+    ::= { realServerEntry 41 }
+
+realServerRetry OBJECT-TYPE
+    SYNTAX Unsigned32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Default number of retries of checker before marking failed."
+    ::= { realServerEntry 42 }
+
+realServerDelayBeforeRetry OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Default number of seconds between retrying a checker ofter it has failed."
+    ::= { realServerEntry 43 }
+
+realServerWarmup OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Maximum number of seconds to delay before running checker."
+    ::= { realServerEntry 44 }
+
+realServerDelayLoop OBJECT-TYPE
+    SYNTAX Unsigned32
+    UNITS "seconds"
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Delay in seconds between two checks."
+    ::= { realServerEntry 45 }
 
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
@@ -3743,7 +3831,11 @@ virtualServerGroup OBJECT-GROUP
     virtualServerHashed,
     virtualServerSHFallback,
     virtualServerSHPort,
-    virtualServerSched3
+    virtualServerSched3,
+    virtualServerActionWhenDown,
+    virtualServerRetry,
+    virtualServerDelayBeforeRetry,
+    virtualServerWarmup
     }
     STATUS current
     DESCRIPTION
@@ -3790,7 +3882,12 @@ realServerGroup OBJECT-GROUP
     realServerRateInBPSHigh,
     realServerRateOutBPSLow,
     realServerRateOutBPSHigh,
-    realServerForwardingMethod
+    realServerForwardingMethod,
+    realServerAlpha,
+    realServerRetry,
+    realServerDelayBeforeRetry,
+    realServerWarmup,
+    realServerDelayLoop
     }
     STATUS current
     DESCRIPTION

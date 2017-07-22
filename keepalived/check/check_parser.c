@@ -125,6 +125,33 @@ vs_delay_handler(vector_t *strvec)
 	vs->delay_loop = read_timer(strvec);
 }
 static void
+vs_delay_before_retry_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	vs->delay_before_retry = read_timer(strvec);
+}
+static void
+vs_retry_handler(vector_t *strvec)
+{
+	unsigned long retry;
+	char *endptr;
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+
+	errno = 0;
+	retry = strtoul(strvec_slot(strvec, 1), &endptr, 10);
+	if (errno || *endptr || retry > UINT32_MAX || retry == 0) {
+		log_message(LOG_INFO, "retry value invalid - %s", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+	vs->retry = retry;
+}
+static void
+vs_warmup_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	vs->warmup = read_timer(strvec);
+}
+static void
 lbalgo_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -342,11 +369,10 @@ lthreshold_handler(vector_t *strvec)
 	rs->l_threshold = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
 }
 static void
-inhibit_handler(__attribute__((unused)) vector_t *strvec)
+vs_inhibit_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->inhibit = 1;
+	vs->inhibit = true;
 }
 static inline notify_script_t*
 set_check_notify_script(vector_t *strvec, const char *type)
@@ -383,11 +409,72 @@ rs_delay_handler(vector_t *strvec)
 	rs->delay_loop = read_timer(strvec);
 }
 static void
-alpha_handler(__attribute__((unused)) vector_t *strvec)
+rs_delay_before_retry_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	rs->delay_before_retry = read_timer(strvec);
+}
+static void
+rs_retry_handler(vector_t *strvec)
+{
+	unsigned long retry;
+	char *endptr;
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+
+	errno = 0;
+	retry = strtoul(strvec_slot(strvec, 1), &endptr, 10);
+	if (errno || *endptr || retry > UINT32_MAX || retry == 0) {
+		log_message(LOG_INFO, "retry value invalid - %s", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+	rs->retry = retry;
+}
+static void
+rs_warmup_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	rs->warmup = read_timer(strvec);
+}
+static void
+rs_inhibit_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			log_message(LOG_INFO, "Invalid inhibit_on_failure parameter %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+	rs->inhibit = res;
+}
+static void
+rs_alpha_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			log_message(LOG_INFO, "Invalid alpha parameter %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+	rs->alpha = res;
+}
+static void
+vs_alpha_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->alpha = true;
-	vs->quorum_state_up = false;
 }
 static void
 omega_handler(__attribute__((unused)) vector_t *strvec)
@@ -449,7 +536,11 @@ init_check_keywords(bool active)
 	install_keyword_root("virtual_server_group", &vsg_handler, active);
 	install_keyword_root("virtual_server", &vs_handler, active);
 	install_keyword("ip_family", &ip_family_handler);
+	install_keyword("retry", &vs_retry_handler);
+	install_keyword("delay_before_retry", &vs_delay_before_retry_handler);
+	install_keyword("warmup", &vs_warmup_handler);
 	install_keyword("delay_loop", &vs_delay_handler);
+	install_keyword("inhibit_on_failure", &vs_inhibit_handler);
 	install_keyword("lb_algo", &lbalgo_handler);
 	install_keyword("lvs_sched", &lbalgo_handler);
 
@@ -476,7 +567,7 @@ init_check_keywords(bool active)
 	install_keyword("virtualhost", &virtualhost_handler);
 
 	/* Pool regression detection and handling. */
-	install_keyword("alpha", &alpha_handler);
+	install_keyword("alpha", &vs_alpha_handler);
 	install_keyword("omega", &omega_handler);
 	install_keyword("quorum_up", &quorum_up_handler);
 	install_keyword("quorum_down", &quorum_down_handler);
@@ -493,9 +584,13 @@ init_check_keywords(bool active)
 	install_keyword("lvs_method", &rs_forwarding_handler);
 	install_keyword("uthreshold", &uthreshold_handler);
 	install_keyword("lthreshold", &lthreshold_handler);
-	install_keyword("inhibit_on_failure", &inhibit_handler);
+	install_keyword("inhibit_on_failure", &rs_inhibit_handler);
 	install_keyword("notify_up", &notify_up_handler);
 	install_keyword("notify_down", &notify_down_handler);
+	install_keyword("alpha", &rs_alpha_handler);
+	install_keyword("retry", &rs_retry_handler);
+	install_keyword("delay_before_retry", &rs_delay_before_retry_handler);
+	install_keyword("warmup", &rs_warmup_handler);
 	install_keyword("delay_loop", &rs_delay_handler);
 
 	install_sublevel_end_handler(&vs_end_handler);

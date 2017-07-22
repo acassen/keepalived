@@ -237,6 +237,7 @@ dump_vs(void *data)
 {
 	virtual_server_t *vs = data;
 
+	log_message(LOG_INFO, " ------< Virtual server >------");
 	if (vs->vsgname)
 		log_message(LOG_INFO, " VS GROUP = %s", FMT_VS(vs));
 	else if (vs->vfwmark)
@@ -289,6 +290,13 @@ dump_vs(void *data)
 		log_message(LOG_INFO, "   protocol = %d", vs->service_type);
 	log_message(LOG_INFO, "   alpha is %s, omega is %s",
 		    vs->alpha ? "ON" : "OFF", vs->omega ? "ON" : "OFF");
+        if (vs->retry != UINT_MAX)
+                log_message(LOG_INFO, "   Retry count = %u" , vs->retry);
+	if (vs->delay_before_retry != ULONG_MAX)
+		log_message(LOG_INFO, "   Retry delay = %lu" , vs->delay_before_retry / TIMER_HZ);
+	if (vs->warmup != ULONG_MAX)
+		log_message(LOG_INFO, "   Warmup = %lu", vs->warmup / TIMER_HZ);
+        log_message(LOG_INFO, "   Inhibit on failure is %s", vs->inhibit ? "ON" : "OFF");
 	log_message(LOG_INFO, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
 	if (vs->notify_quorum_up)
 		log_message(LOG_INFO, "   -> Notify script UP = %s, uid:gid %d:%d",
@@ -357,7 +365,6 @@ alloc_vs(char *param1, char *param2)
 #endif
 	}
 
-	new->delay_loop = KEEPALIVED_DEFAULT_DELAY;
 	new->virtualhost = NULL;
 	new->alpha = false;
 	new->omega = false;
@@ -368,6 +375,10 @@ alloc_vs(char *param1, char *param2)
 	new->quorum_state_up = true;
 	new->flags = 0;
 	new->forwarding_method = IP_VS_CONN_F_FWD_MASK;		/* So we can detect if it has been set */
+	new->delay_loop = KEEPALIVED_DEFAULT_DELAY;
+        new->warmup = ULONG_MAX;
+        new->retry = UINT_MAX;
+        new->delay_before_retry = ULONG_MAX;
 
 	list_add(check_data->vs, new);
 }
@@ -409,6 +420,7 @@ dump_rs(void *data)
 {
 	real_server_t *rs = data;
 
+	log_message(LOG_INFO, "   ------< Real server >------");
 	log_message(LOG_INFO, "   RIP = %s, RPORT = %d, WEIGHT = %d"
 			    , inet_sockaddrtos(&rs->addr)
 			    , ntohs(inet_sockaddrport(&rs->addr))
@@ -424,8 +436,17 @@ dump_rs(void *data)
 		log_message(LOG_INFO, "   forwarding method = TUN");
 		break;
 	}
-	if (rs->inhibit)
-		log_message(LOG_INFO, "     -> Inhibit service on failure");
+
+	log_message(LOG_INFO, "   Alpha is %s", rs->alpha ? "ON" : "OFF");
+        log_message(LOG_INFO, "   Delay loop = %lu" , rs->delay_loop / TIMER_HZ);
+        if (rs->retry != UINT_MAX)
+                log_message(LOG_INFO, "   Retry count = %u" , rs->retry);
+	if (rs->delay_before_retry != ULONG_MAX)
+                log_message(LOG_INFO, "   Retry delay = %lu" , rs->delay_before_retry / TIMER_HZ);
+	if (rs->warmup != ULONG_MAX)
+		log_message(LOG_INFO, "   Warmup = %lu", rs->warmup / TIMER_HZ);
+        log_message(LOG_INFO, "   Inhibit on failure is %s", rs->inhibit ? "ON" : "OFF");
+
 	if (rs->notify_up)
 		log_message(LOG_INFO, "     -> Notify script UP = %s, uid:gid %d:%d",
 		       rs->notify_up->name, rs->notify_up->uid, rs->notify_up->gid);
@@ -433,6 +454,7 @@ dump_rs(void *data)
 		log_message(LOG_INFO, "     -> Notify script DOWN = %s, uid:gid %d:%d",
 		       rs->notify_down->name, rs->notify_down->uid, rs->notify_down->gid);
 	log_message(LOG_INFO, "   delay_loop = %lu", rs->delay_loop/TIMER_HZ);
+log_message(LOG_INFO, "   alive %d, num_failed checkers = %u", rs->alive, rs->num_failed_checkers);
 }
 
 void
@@ -464,7 +486,11 @@ alloc_rs(char *ip, char *port)
 	new->weight = 1;
 	new->iweight = 1;
 	new->forwarding_method = vs->forwarding_method;
-	new->delay_loop = 0;
+	new->alpha = -1;
+	new->delay_loop = ULONG_MAX;
+        new->warmup = ULONG_MAX;
+        new->retry = UINT_MAX;
+        new->delay_before_retry = ULONG_MAX;
 
 // ??? alloc list in alloc_vs
 	if (!LIST_EXISTS(vs->rs))
@@ -644,6 +670,8 @@ bool validate_check_config(void)
 			}
 
 
+			/* Set default values */
+
 			/* Spin through all the real servers */
 			for (e1 = LIST_HEAD(vs->rs); e1; ELEMENT_NEXT(e1)) {
 				rs = ELEMENT_DATA(e1);
@@ -658,27 +686,60 @@ bool validate_check_config(void)
 				}
 
 				/* Take default values from virtual server */
-				if (!rs->delay_loop)
+				if (rs->alpha == -1)
+					rs->alpha = vs->alpha;
+				if (rs->inhibit == -1)
+					rs->inhibit = vs->inhibit;
+				if (rs->retry == UINT_MAX)
+					rs->retry = vs->retry;
+				if (rs->delay_loop == ULONG_MAX)
 					rs->delay_loop = vs->delay_loop;
+				if (rs->warmup == ULONG_MAX)
+					rs->warmup = vs->warmup;
+				if (rs->delay_before_retry == ULONG_MAX)
+					rs->delay_before_retry = vs->delay_before_retry;
 			}
 		}
 	}
 
 // What if checker doesn't have connect_to/port, bindto/port ?
 // What if HTTP checker has no url ?
-	/* Ensure any checkers that don't have ha_suspend set are enabled */
 	if (!LIST_ISEMPTY(checkers_queue)) {
 		for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
 			checker = ELEMENT_DATA(e);
 
+			/* Ensure any checkers that don't have ha_suspend set are enabled */
 			if (!checker->vs->ha_suspend)
 				checker->enabled = true;
 
 			/* Take default values from real server */
-			if (!checker->delay_loop)
+			if (checker->alpha == -1)
+				checker->alpha = checker->rs->alpha;
+log_message(LOG_INFO, "%s: checker->retry %d, checker->rs->retry %d, checker->default_retry %d", FMT_RS(checker->rs, checker->vs), checker->retry, checker->rs->retry, checker->default_retry);
+			if (checker->retry == UINT_MAX)
+				checker->retry = checker->rs->retry != UINT_MAX ? checker->rs->retry : checker->default_retry;
+			if (checker->delay_loop == ULONG_MAX)
 				checker->delay_loop = checker->rs->delay_loop;
+			if (checker->warmup == ULONG_MAX)
+				checker->warmup = checker->rs->warmup != ULONG_MAX ? checker->rs->warmup : checker->delay_loop;
+			if (checker->delay_before_retry == ULONG_MAX) {
+				checker->delay_before_retry =
+					checker->rs->delay_before_retry != ULONG_MAX ?
+						checker->rs->delay_before_retry :
+					checker->default_delay_before_retry ?
+						checker->default_delay_before_retry :
+						checker->delay_loop;
+			}
+
+			/* In Alpha mode also mark the checker as failed. */
+			if (checker->alpha) {
+				set_checker_state(checker, false);
+				UNSET_ALIVE(checker->rs);
+			}
 		}
 	}
+
+	set_quorum_states();
 
 	check_check_script_security();
 

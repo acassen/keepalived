@@ -152,7 +152,7 @@ http_get_handler(vector_t *strvec)
 	checker = queue_checker(free_http_get_check, dump_http_get_check,
 		      http_connect_thread, http_get_check_compare,
 		      http_get_chk, CHECKER_NEW_CO());
-	checker->delay_before_retry = 3 * TIMER_HZ;
+	checker->default_delay_before_retry = 3 * TIMER_HZ;
 }
 
 static void

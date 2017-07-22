@@ -43,11 +43,14 @@ typedef struct _checker {
 	bool				enabled;		/* Activation flag */
 	bool				is_up;			/* Set if checker is up */
 	conn_opts_t			*co;			/* connection options */
+	int				alpha;			/* Alpha mode enabled */
 	unsigned long			delay_loop;		/* Interval between running checker */
 	unsigned long			warmup;			/* max random timeout to start checker */
 	unsigned			retry;			/* number of retries before failing */
 	unsigned long			delay_before_retry;	/* interval between retries */
 	unsigned			retry_it;		/* number of successive failures */
+	unsigned			default_retry;		/* number of retries before failing */
+	unsigned long			default_delay_before_retry; /* interval between retries */
 
 } checker_t;
 

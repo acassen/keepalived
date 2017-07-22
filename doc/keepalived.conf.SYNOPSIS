@@ -12,7 +12,7 @@ in you configuration file use this char.
 
 0.1. Parameter syntax
 
-<BOOL> is one of on|off|true|false|yes|no
+<BOOL> is one of on|off|true|false|yes|no or omitted which defaults to on
 
 0.2. Conditional configuration and configuration id
 
@@ -537,6 +537,10 @@ Note:	<IP ADDRESS RANGE> has the form of : XXX.YYY.ZZZ.WWW-VVV, define
 	* fwmark declaration
 	* group declaration
 
+	Note: Where an option can be configured for a virtual server, real server,
+	and possibly checker, the virtual server setting is the default for real servers,
+	and the real server setting is the default for checkers.
+
 virtual_server <IP ADDRESS> <PORT> {	# VS IP/PORT declaration
 virtual_server fwmark <INTEGER>    {	# VS fwmark declaration
 virtual_server group <STRING>      {	# VS group declaration
@@ -597,11 +601,15 @@ virtual_server group <STRING>      {	# VS group declaration
 					# directive
     sorry_server_lvs_method NAT|DR|TUN	# LVS method to use for sorry server
 
+    retry <INTEGER>			# number of retries before fail
+    delay_before_retry <INTEGER>	# delay before retry (default 1 unless otherwise specified)
+    warmup <INTEGER>			# random delay for maximum N seconds
+    delay_loop <INTEGER>		# delay timer for service polling
+    inhibit_on_failure			# Set weight to 0 on healthchecker failure
+
     real_server <IP ADDRESS> <PORT> {	# RS declaration
         weight <INTEGER>		# weight to use (default: 1)
         lvs_method NAT|DR|TUN		# LVS method to use
-        inhibit_on_failure		# Set weight to 0 on healthchecker
-					#  failure
         notify_up <STRING>|<QUOTED-STRING> [username [groupname]]
 					# Script to launch when
 					#  healthchecker consider service
@@ -610,7 +618,12 @@ virtual_server group <STRING>      {	# VS group declaration
 					# Script to launch when
 					#  healthchecker consider service
 					#  as down.
-	delay_loop <INTEGER>		# delay timer for service polling
+	alpha <BOOL>			# see above
+	retry <INTEGER>			# see above
+        delay_before_retry <INTEGER>	# see above
+        warmup <INTEGER>		# see above
+	delay_loop <INTEGER>		# see above
+        inhibit_on_failure <BOOL>	# see above
 
         # healthcheckers. Can be multiple of each type
         # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK
@@ -623,7 +636,8 @@ virtual_server group <STRING>      {	# VS group declaration
             bind_port <PORT>		# TCP port to bind to
             connect_timeout <INTEGER>   # Timeout connection
             fwmark <INTEGER>		# fwmark to set on socket (SO_MARK)
-            retry <INTEGER>		# number of get retry
+	    alpha <BOOL>		# see above
+            retry <INTEGER>		# number of retries before fail
             delay_before_retry <INTEGER> # delay before retry (default 1 unless otherwise specified)
             warmup <INTEGER>		# random delay for maximum N seconds
 	    delay_loop <INTEGER>	# delay timer for service polling

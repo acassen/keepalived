@@ -737,6 +737,26 @@ A virtual_server can be a declaration of one of
     # Sorry server LVS forwarding method
     sorry_server_lvs_method NAT|DR|TUN
 
+    # Retry count to make additional checks if check
+    # of an alive server fails. Default: 1 unless specified below
+    retry <INT>
+
+    # delay before retry
+    delay_before_retry <INT>
+
+    # Optional random delay to start the initial check
+    # for maximum N seconds.
+    # Useful to scatter multiple simultaneous
+    # checks to the same RS. Enabled by default, with
+    # the maximum at delay_loop. Specify 0 to disable
+    warmup <INT>
+
+    # delay timer for checker polling
+    delay_loop <INT>
+
+    # Set weight to 0 when healthchecker detects failure
+    inhibit_on_failure
+
     # one entry for each realserver
     real_server <IPADDR> <PORT>
        {
@@ -744,8 +764,6 @@ A virtual_server can be a declaration of one of
            weight <INT>
            # LVS forwarding method
            lvs_method NAT|DR|TUN
-           # Set weight to 0 when healthchecker detects failure
-           inhibit_on_failure
 
            # Script to execute when healthchecker
            # considers service as up.
@@ -757,8 +775,12 @@ A virtual_server can be a declaration of one of
            uthreshold <INTEGER> # maximum number of connections to server
            lthreshold <INTEGER> # minimum number of connections to server
 
-           # delay timer for checker polling
-           delay_loop <INT>
+           alpha <BOOL>                    # see above
+           retry <INTEGER>                 # see above
+           delay_before_retry <INTEGER>    # see above
+           warmup <INTEGER>                # see above
+           delay_loop <INTEGER>            # see above
+           inhibit_on_failure <BOOL>       # see above
 
            # healthcheckers. Can be multiple of each type
            # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK
@@ -789,22 +811,12 @@ A virtual_server can be a declaration of one of
                # checker packets with
                fwmark <INTEGER>
 
-               # Retry count to make additional checks if check
-               # of an alive server fails. Default: 1 unless specified below
-               retry <INT>
-
-               # delay before retry
-               delay_before_retry <INT>
-
-               # Optional random delay to start the initial check
-               # for maximum N seconds.
-               # Useful to scatter multiple simultaneous
-               # checks to the same RS. Enabled by default, with
-               # the maximum at delay_loop. Specify 0 to disable
-               warmup <INT>
-
-               # delay timer for checker polling
-               delay_loop <INT>
+               alpha <BOOL>                    # see above
+               retry <INTEGER>                 # see above
+               delay_before_retry <INTEGER>    # see above
+               warmup <INTEGER>                # see above
+               delay_loop <INTEGER>            # see above
+               inhibit_on_failure <BOOL>       # see above
            }
 
            # The following options are additional checker specific

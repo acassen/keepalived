@@ -255,7 +255,7 @@ init_service_rs(virtual_server_t * vs)
 		 * later upon healthchecks recovery (if ever).
 		 */
 // ??? We should add rs if alpha mode with priority 0
-		if ((!vs->alpha || !rs->num_failed_checkers) && !ISALIVE(rs)) {
+		if (!rs->num_failed_checkers && !ISALIVE(rs)) {
 			ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
 			SET_ALIVE(rs);
 		}
@@ -317,6 +317,22 @@ perform_quorum_state(virtual_server_t *vs, bool add)
 			rs->alive = false;
 		ipvs_cmd(add?LVS_CMD_ADD_DEST:LVS_CMD_DEL_DEST, vs, rs);
 		rs->alive = true;
+	}
+}
+
+void
+set_quorum_states(void)
+{
+	virtual_server_t *vs;
+	element e;
+
+	if (LIST_ISEMPTY(check_data->vs))
+		return;
+
+	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
+		vs = ELEMENT_DATA(e);
+
+		vs->quorum_state_up = (weigh_live_realservers(vs) >= vs->quorum + vs->hysteresis);
 	}
 }
 

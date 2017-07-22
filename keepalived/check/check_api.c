@@ -78,11 +78,13 @@ dump_checker_opts(void *data)
 		log_message(LOG_INFO, "   Connection timeout = %d", conn->connection_to/TIMER_HZ);
 	}
 
-	log_message(LOG_INFO, "     Delay loop = %lu" , checker->delay_loop / TIMER_HZ);
+	log_message(LOG_INFO, "   Alpha is %s", checker->alpha ? "ON" : "OFF");
+	log_message(LOG_INFO, "   Delay loop = %lu" , checker->delay_loop / TIMER_HZ);
 	if (checker->retry) {
-		log_message(LOG_INFO, "     Retry count = %u" , checker->retry);
-		log_message(LOG_INFO, "     Retry delay = %lu" , checker->delay_before_retry / TIMER_HZ);
+		log_message(LOG_INFO, "   Retry count = %u" , checker->retry);
+		log_message(LOG_INFO, "   Retry delay = %lu" , checker->delay_before_retry / TIMER_HZ);
 	}
+	log_message(LOG_INFO, "   Warmup = %lu", checker->warmup / TIMER_HZ);
 }
 
 /* Queue a checker into the checkers_queue */
@@ -113,16 +115,15 @@ queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 	checker->co = co;
 	/* Enable the checker if the virtual server is not configured with ha_suspend */
 	checker->enabled = !vs->ha_suspend;
-	checker->delay_loop = 0;
-	checker->warmup = vs->delay_loop;
-	checker->retry = 1;
-	checker->delay_before_retry = 1 * TIMER_HZ;
+	checker->alpha = -1;
+	checker->delay_loop = ULONG_MAX;
+	checker->warmup = ULONG_MAX;
+	checker->retry = UINT_MAX;
+	checker->delay_before_retry = ULONG_MAX;
 	checker->retry_it = 0;
 	checker->is_up = true;
-
-	/* In Alpha mode also mark the check as failed. */
-	if (vs->alpha)
-		set_checker_state(checker, false);
+	checker->default_delay_before_retry = 1 * TIMER_HZ;
+	checker->default_retry = 1 ;
 
 	/* queue the checker */
 	list_add(checkers_queue, checker);
@@ -261,6 +262,21 @@ delay_handler(vector_t *strvec)
 	checker->delay_loop = read_timer(strvec);
 }
 
+static void
+alpha_handler(vector_t *strvec)
+{
+	checker_t *checker = CHECKER_GET_CURRENT();
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			log_message(LOG_INFO, "Invalid alpha parameter %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+	checker->alpha = res;
+}
 void
 install_checker_common_keywords(bool connection_keywords)
 {
@@ -278,6 +294,7 @@ install_checker_common_keywords(bool connection_keywords)
 	install_keyword("delay_before_retry", &delay_before_retry_handler);
 	install_keyword("warmup", &warmup_handler);
 	install_keyword("delay_loop", &delay_handler);
+	install_keyword("alpha", &alpha_handler);
 }
 
 /* dump the checkers_queue */

@@ -427,7 +427,8 @@ dns_check_handler(__attribute__((unused)) vector_t * strvec)
 			        dns_check_compare, dns_check, CHECKER_NEW_CO());
 
 	/* Set the non-standard retry time */
-	checker->retry = DNS_DEFAULT_RETRY;
+	checker->default_retry = DNS_DEFAULT_RETRY;
+	checker->default_delay_before_retry = 0;	/* This will default to delay_loop */
 }
 
 static void

@@ -67,12 +67,17 @@ typedef struct _real_server {
 	unsigned			forwarding_method; /* NAT/TUN/DR */
 	uint32_t			u_threshold;   /* Upper connection limit. */
 	uint32_t			l_threshold;   /* Lower connection limit. */
-	bool				inhibit;	/* Set weight to 0 instead of removing
+	int				inhibit;	/* Set weight to 0 instead of removing
 							 * the service from IPVS topology.
 							 */
 	notify_script_t			*notify_up;	/* Script to launch when RS is added to LVS */
 	notify_script_t			*notify_down;	/* Script to launch when RS is removed from LVS */
-	unsigned long			delay_loop;	/* Interval between running checkers */
+	int				alpha;		/* Alpha mode enabled. */
+	unsigned long                   delay_loop;	/* Interval between running checker */
+	unsigned long                   warmup;		/* max random timeout to start checker */
+	unsigned                        retry;		/* number of retries before failing */
+	unsigned long                   delay_before_retry; /* interval between retries */
+
 	bool				alive;
 	unsigned			num_failed_checkers;/* Number of failed checkers */
 	bool				set;		/* in the IPVS table */
@@ -115,7 +120,6 @@ typedef struct _virtual_server {
 	uint32_t			vfwmark;
 	uint16_t			af;
 	uint16_t			service_type;
-	unsigned long			delay_loop;
 	bool				ha_suspend;
 	int				ha_suspend_addr_count;
 #ifdef _WITH_LVS_
@@ -133,6 +137,12 @@ typedef struct _virtual_server {
 	bool				alive;
 	bool				alpha;		/* Alpha mode enabled. */
 	bool				omega;		/* Omega mode enabled. */
+	bool				inhibit;	/* Set weight to 0 instead of removing
+							 * the service from IPVS topology. */
+	unsigned long                   delay_loop;	/* Interval between running checker */
+	unsigned long                   warmup;		/* max random timeout to start checker */
+	unsigned                        retry;		/* number of retries before failing */
+	unsigned long                   delay_before_retry; /* interval between retries */
 	notify_script_t			*notify_quorum_up;	/* A hook to call when the VS gains quorum. */
 	notify_script_t			*notify_quorum_down;	/* A hook to call when the VS loses quorum. */
 	unsigned			quorum;		/* Minimum live RSs to consider VS up. */
