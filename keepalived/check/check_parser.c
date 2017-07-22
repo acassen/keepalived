@@ -339,7 +339,7 @@ rs_handler(vector_t *strvec)
 	alloc_rs(strvec_slot(strvec, 1), strvec_slot(strvec, 2));
 }
 static void
-weight_handler(vector_t *strvec)
+rs_weight_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -521,6 +521,12 @@ hysteresis_handler(vector_t *strvec)
 
 	vs->hysteresis = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
 }
+static void
+vs_weight_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	vs->weight = atoi(strvec_slot(strvec, 1));
+}
 
 void
 init_check_keywords(bool active)
@@ -573,6 +579,7 @@ init_check_keywords(bool active)
 	install_keyword("quorum_down", &quorum_down_handler);
 	install_keyword("quorum", &quorum_handler);
 	install_keyword("hysteresis", &hysteresis_handler);
+	install_keyword("weight", &vs_weight_handler);
 
 	/* Real server mapping */
 	install_keyword("sorry_server", &ssvr_handler);
@@ -580,7 +587,7 @@ init_check_keywords(bool active)
 	install_keyword("sorry_server_lvs_method", &ss_forwarding_handler);
 	install_keyword("real_server", &rs_handler);
 	install_sublevel();
-	install_keyword("weight", &weight_handler);
+	install_keyword("weight", &rs_weight_handler);
 	install_keyword("lvs_method", &rs_forwarding_handler);
 	install_keyword("uthreshold", &uthreshold_handler);
 	install_keyword("lthreshold", &lthreshold_handler);

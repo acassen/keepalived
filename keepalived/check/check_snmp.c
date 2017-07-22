@@ -111,6 +111,7 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSRETRY,
 	CHECK_SNMP_VSDELAYBEFORERETRY,
 	CHECK_SNMP_VSWARMUP,
+	CHECK_SNMP_VSWEIGHT,
 };
 
 enum check_snmp_realserver_magic {
@@ -677,6 +678,9 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 	case CHECK_SNMP_VSWARMUP:
 		long_ret.u = v->warmup / TIMER_HZ;
 		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSWEIGHT:
+		long_ret.s = v->weight;
+		return (u_char*)&long_ret;
 	default:
 		return NULL;
 	}
@@ -733,7 +737,7 @@ check_snmp_realserver_weight(int action,
 		if (action == RESERVE2)
 			break;
 		/* Commit: change values. There is no way to fail. */
-		update_svr_wgt((long)(*var_val), vs, rs, true);
+		update_svr_wgt((unsigned)(*var_val), vs, rs, true);
 		break;
 	}
 	return SNMP_ERR_NOERROR;
@@ -1289,6 +1293,8 @@ static struct variable8 check_vars[] = {
 	 check_snmp_virtualserver, 3, {3, 1, 58}},
 	{CHECK_SNMP_VSWARMUP, ASN_INTEGER, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 59}},
+	{CHECK_SNMP_VSWEIGHT, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 60}},
 
 	/* realServerTable */
 	{CHECK_SNMP_RSTYPE, ASN_INTEGER, RONLY,

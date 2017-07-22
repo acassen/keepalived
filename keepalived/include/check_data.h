@@ -133,6 +133,7 @@ typedef struct _virtual_server {
 	uint32_t			persistence_granularity;
 #endif
 	char				*virtualhost;
+	int				weight;
 	list				rs;
 	bool				alive;
 	bool				alpha;		/* Alpha mode enabled. */

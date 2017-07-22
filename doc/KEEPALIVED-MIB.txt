@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201707220000Z"
+     LAST-UPDATED "201707220001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201707220001Z"
+     DESCRIPTION "add default weight setting on a virtual server"
      REVISION "201707220000Z"
      DESCRIPTION "improve flexibility of checker configuration"
      REVISION "201704110001Z"
@@ -2311,7 +2313,8 @@ VirtualServerEntry ::= SEQUENCE {
     virtualServerActionWhenDown INTEGER,
     virtualServerRetry Unsigned32,
     virtualServerDelayBeforeRetry Unsigned32,
-    virtualServerWarmup Unsigned32
+    virtualServerWarmup Unsigned32,
+    virtualServerWeight INTEGER
 }
 
 virtualServerIndex OBJECT-TYPE
@@ -2850,6 +2853,14 @@ virtualServerWarmup OBJECT-TYPE
     DESCRIPTION
         "Maximum number of seconds to delay before running checker."
     ::= { virtualServerEntry 59 }
+
+virtualServerWeight OBJECT-TYPE
+    SYNTAX Integer32
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Default wieght for each real server."
+    ::= { virtualServerEntry 60 }
 
 -- real servers
 
@@ -3835,7 +3846,8 @@ virtualServerGroup OBJECT-GROUP
     virtualServerActionWhenDown,
     virtualServerRetry,
     virtualServerDelayBeforeRetry,
-    virtualServerWarmup
+    virtualServerWarmup,
+    virtualServerWeight
     }
     STATUS current
     DESCRIPTION

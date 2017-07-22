@@ -376,9 +376,10 @@ alloc_vs(char *param1, char *param2)
 	new->flags = 0;
 	new->forwarding_method = IP_VS_CONN_F_FWD_MASK;		/* So we can detect if it has been set */
 	new->delay_loop = KEEPALIVED_DEFAULT_DELAY;
-        new->warmup = ULONG_MAX;
-        new->retry = UINT_MAX;
-        new->delay_before_retry = ULONG_MAX;
+	new->warmup = ULONG_MAX;
+	new->retry = UINT_MAX;
+	new->delay_before_retry = ULONG_MAX;
+	new->weight = 1;
 
 	list_add(check_data->vs, new);
 }
@@ -454,7 +455,6 @@ dump_rs(void *data)
 		log_message(LOG_INFO, "     -> Notify script DOWN = %s, uid:gid %d:%d",
 		       rs->notify_down->name, rs->notify_down->uid, rs->notify_down->gid);
 	log_message(LOG_INFO, "   delay_loop = %lu", rs->delay_loop/TIMER_HZ);
-log_message(LOG_INFO, "   alive %d, num_failed checkers = %u", rs->alive, rs->num_failed_checkers);
 }
 
 void
@@ -483,8 +483,7 @@ alloc_rs(char *ip, char *port)
 		return;
 	}
 
-	new->weight = 1;
-	new->iweight = 1;
+	new->weight = INT_MAX;
 	new->forwarding_method = vs->forwarding_method;
 	new->alpha = -1;
 	new->delay_loop = ULONG_MAX;
@@ -698,6 +697,10 @@ bool validate_check_config(void)
 					rs->warmup = vs->warmup;
 				if (rs->delay_before_retry == ULONG_MAX)
 					rs->delay_before_retry = vs->delay_before_retry;
+				if (rs->weight == INT_MAX) {
+					rs->weight = vs->weight;
+					rs->iweight = rs->weight;
+				}
 			}
 		}
 	}
@@ -715,7 +718,6 @@ bool validate_check_config(void)
 			/* Take default values from real server */
 			if (checker->alpha == -1)
 				checker->alpha = checker->rs->alpha;
-log_message(LOG_INFO, "%s: checker->retry %d, checker->rs->retry %d, checker->default_retry %d", FMT_RS(checker->rs, checker->vs), checker->retry, checker->rs->retry, checker->default_retry);
 			if (checker->retry == UINT_MAX)
 				checker->retry = checker->rs->retry != UINT_MAX ? checker->rs->retry : checker->default_retry;
 			if (checker->delay_loop == ULONG_MAX)
