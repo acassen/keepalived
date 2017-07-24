@@ -254,7 +254,6 @@ init_service_rs(virtual_server_t * vs)
 		 * add real servers into the VS pool. They will get there
 		 * later upon healthchecks recovery (if ever).
 		 */
-// ??? We should add rs if alpha mode with priority 0
 		if (!rs->num_failed_checkers && !ISALIVE(rs)) {
 			ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
 			SET_ALIVE(rs);
@@ -670,7 +669,7 @@ rs_exist(real_server_t * old_rs, list l)
 }
 
 static void
-migrate_failed_checkers(real_server_t *old_rs, real_server_t *new_rs, list old_checkers_queue)
+migrate_checkers(real_server_t *old_rs, real_server_t *new_rs, list old_checkers_queue)
 {
 	list l;
 	element e, e1;
@@ -684,26 +683,27 @@ migrate_failed_checkers(real_server_t *old_rs, real_server_t *new_rs, list old_c
 		}
 	}
 
-	if (LIST_ISEMPTY(l))
-		goto end;
-
-	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
-		new_c = ELEMENT_DATA(e);
-		if (new_c->rs != new_rs || !new_c->compare)
-			continue;
-		for (e1 = LIST_HEAD(l); e1; ELEMENT_NEXT(e1)) {
-			old_c = ELEMENT_DATA(e1);
-			if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c)) {
-				if (!old_c->is_up)
-					set_checker_state(new_c, false);
-				break;
+	if (!LIST_ISEMPTY(l)) {
+		for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
+			new_c = ELEMENT_DATA(e);
+			if (new_c->rs != new_rs || !new_c->compare)
+				continue;
+			for (e1 = LIST_HEAD(l); e1; ELEMENT_NEXT(e1)) {
+				old_c = ELEMENT_DATA(e1);
+				if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c)) {
+					if (!old_c->is_up && !new_c->alpha)
+						set_checker_state(new_c, false);
+					else if (old_c->is_up && new_c->alpha)
+						set_checker_state(new_c, true);
+					break;
+				}
 			}
 		}
+
+		if (!new_rs->num_failed_checkers)
+			SET_ALIVE(new_rs);
 	}
 
-	if (!new_rs->num_failed_checkers)
-		SET_ALIVE(new_rs);
-end:
 	free_list(&l);
 }
 
@@ -731,7 +731,7 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_check
 			if (rs->inhibit) {
 				if (!ISALIVE(rs) && rs->set)
 					SET_ALIVE(rs);
-				rs->inhibit = 0;
+				rs->inhibit = false;
 			}
 			list_add (rs_to_remove, rs);
 		} else {
@@ -740,25 +740,24 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_check
 			 * flag value to not try to set
 			 * already set IPVS rule.
 			 */
-			new_rs->alive = rs->alive;
+			if (new_rs->alive)
+				new_rs->alive = rs->alive;
 			new_rs->set = rs->set;
 			new_rs->weight = rs->weight;
 			new_rs->pweight = rs->iweight;
 			new_rs->reloaded = true;
-			if (!new_rs->alive) {
-				/*
-				 * if not alive, we must migrate the failed checkers.
-				 * If we do not, the new RS is in a state where it’s reported
-				 * as down with no check failed. As a result, the server will never
-				 * be put up back when it’s alive again in check_tcp.c#83 because
-				 * of the check that put a rs up only if it was not previously up.
-				 */
-// ??? if alpha mode the rs is set to failed. Don't do this
-// but have new checkers in pending state
-// Also, if inhibit_on_failure, the rs should be added with weight 0
-				if (!new_vs->alpha)
-					migrate_failed_checkers(rs, new_rs, old_checkers_queue);
-			}
+
+			/*
+			 * We must migrate the state of the old checkers.
+			 * If we do not, the new RS is in a state where it’s reported
+			 * as down with no check failed. As a result, the server will never
+			 * be put back up when it’s alive again in check_tcp.c#83 because
+			 * of the check that put a rs up only if it was not previously up.
+			 * For alpha mode checkers, if it was up, we don't need another
+			 * success to say it is now up.
+			 */
+// ??? Also, if inhibit_on_failure, the rs should be added with weight 0
+			migrate_checkers(rs, new_rs, old_checkers_queue);
 		}
 	}
 	clear_service_rs (old_vs, rs_to_remove);
