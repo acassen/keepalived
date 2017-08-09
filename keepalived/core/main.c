@@ -445,6 +445,9 @@ signal_init(void)
 	signal_set(SIGHUP, propogate_signal, NULL);
 	signal_set(SIGUSR1, propogate_signal, NULL);
 	signal_set(SIGUSR2, propogate_signal, NULL);
+#ifdef _JSON_
+	signal_set(SIGJSON, propogate_signal, NULL);
+#endif
 	signal_set(SIGINT, sigend, NULL);
 	signal_set(SIGTERM, sigend, NULL);
 	signal_ignore(SIGPIPE);

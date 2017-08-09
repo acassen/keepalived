@@ -833,6 +833,7 @@ enable_profile
 enable_conversion_checks
 enable_force_conversion_checks
 enable_Werror
+enable_json
 with_systemdsystemunitdir
 enable_dependency_tracking
 '
@@ -1511,6 +1512,8 @@ Optional Features:
   --enable-force-conversion-checks
                           compile with conversion warnings
   --enable-Werror         compile with warnings being errors
+  --enable-json           compile with signal to dump configuration and stats
+                          as json
   --enable-dependency-tracking
                           do not reject slow dependency extractors
   --disable-dependency-tracking
@@ -3583,6 +3586,11 @@ fi
 # Check whether --enable-Werror was given.
 if test "${enable_Werror+set}" = set; then :
   enableval=$enable_Werror;
+fi
+
+# Check whether --enable-json was given.
+if test "${enable_json+set}" = set; then :
+  enableval=$enable_json;
 fi
 
 
@@ -10113,6 +10121,32 @@ else
 fi
 
 
+if test "${enable_json}" = yes; then
+	for ac_header in json-c/json.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "json-c/json.h" "ac_cv_header_json_c_json_h" "$ac_includes_default"
+if test "x$ac_cv_header_json_c_json_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_JSON_C_JSON_H 1
+_ACEOF
+
+else
+  as_fn_error $? "unable to find json-c/json.h" "$LINENO" 5
+fi
+
+done
+
+
+$as_echo "#define _JSON_  1 " >>confdefs.h
+
+	KA_CFLAGS="$KA_CFLAGS -I/usr/include/json-c/"
+	KA_LDFLAGS="$KA_LDFLAGS -ljson-c"
+	ENABLE_JSON=Yes
+	BUILD_OPTIONS="$BUILD_OPTIONS JSON"
+else
+	ENABLE_JSON=No
+fi
+
 if test "${enable_stacktrace}" = yes; then
 
 $as_echo "#define _WITH_STACKTRACE_  1 " >>confdefs.h
@@ -11857,6 +11891,7 @@ if test ${DBUS_SUPPORT} = Yes; then
 fi
 echo "SHA1 support             : ${SHA1_SUPPORT}"
 echo "Use Debug flags          : ${ENABLE_DEBUG}"
+echo "Use Json output          : ${ENABLE_JSON}"
 echo "Stacktrace support       : ${ENABLE_STACKTRACE}"
 echo "Memory alloc check       : ${MEM_CHECK}"
 if test ${MEM_CHECK} = Yes; then

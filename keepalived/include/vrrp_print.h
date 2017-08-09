@@ -25,3 +25,6 @@
 
 extern void vrrp_print_data(void);
 extern void vrrp_print_stats(void);
+#ifdef _JSON_
+extern void vrrp_print_json(void);
+#endif

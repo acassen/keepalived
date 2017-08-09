@@ -98,6 +98,7 @@ AH_TOP(
   [
 #ifndef _CONFIG_H
 #define _CONFIG_H
+#define SIGJSON ( __SIGRTMIN + 4 )
   ])
 AH_BOTTOM(
   [
@@ -194,6 +195,8 @@ AC_ARG_ENABLE(force-conversion-checks,
   [AS_HELP_STRING([--enable-force-conversion-checks], [compile with conversion warnings])])
 AC_ARG_ENABLE(Werror,
   [AS_HELP_STRING([--enable-Werror], [compile with warnings being errors])])
+AC_ARG_ENABLE(json,
+  [AS_HELP_STRING([--enable-json], [compile with signal to dump configuration and stats as json])])
 
 AC_ARG_WITH([systemdsystemunitdir],
         AS_HELP_STRING([--with-systemdsystemunitdir=DIR], [Directory for systemd service files]),
@@ -231,7 +234,7 @@ KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2"
 KA_LDFLAGS=
 KA_LIBS=
 NEED_LIBDL=No
-#KA_LIBTOOLFLAGS = 
+#KA_LIBTOOLFLAGS =
 
 if test "$enable_conversion_checks" = yes; then
   # Check if we can sensibly enable -Wconversion
@@ -1294,6 +1297,18 @@ else
 fi
 AM_CONDITIONAL([DEBUG], [test $ENABLE_DEBUG = Yes])
 
+dnl ----[ Json output or not ? ]----
+if test "${enable_json}" = yes; then
+	AC_CHECK_HEADERS(json-c/json.h,,AC_MSG_ERROR([unable to find json-c/json.h]))
+	AC_DEFINE([_JSON_], [ 1 ], [Define to 1 to build with json output support])
+	KA_CFLAGS="$KA_CFLAGS -I/usr/include/json-c/"
+	KA_LDFLAGS="$KA_LDFLAGS -ljson-c"
+	ENABLE_JSON=Yes
+	add_build_opt([JSON])
+else
+	ENABLE_JSON=No
+fi
+
 dnl ----[ Stacktrace support or not ? ]----
 if test "${enable_stacktrace}" = yes; then
   AC_DEFINE([_WITH_STACKTRACE_], [ 1 ], [Define to 1 to build with stacktrace support])
@@ -1408,6 +1423,7 @@ if test ${DBUS_SUPPORT} = Yes; then
 fi
 echo "SHA1 support             : ${SHA1_SUPPORT}"
 echo "Use Debug flags          : ${ENABLE_DEBUG}"
+echo "Use Json output          : ${ENABLE_JSON}"
 echo "Stacktrace support       : ${ENABLE_STACKTRACE}"
 echo "Memory alloc check       : ${MEM_CHECK}"
 if test ${MEM_CHECK} = Yes; then

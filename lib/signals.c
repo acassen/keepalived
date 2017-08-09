@@ -58,6 +58,10 @@ static void (*signal_SIGUSR1_handler) (void *, int sig);
 static void *signal_SIGUSR1_v;
 static void (*signal_SIGUSR2_handler) (void *, int sig);
 static void *signal_SIGUSR2_v;
+#ifdef _JSON_
+static void (*signal_SIGJSON_handler) (void *, int sig);
+static void *signal_SIGJSON_v;
+#endif
 
 static int signal_pipe[2] = { -1, -1 };
 
@@ -165,6 +169,13 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 		signal_SIGUSR2_handler = func;
 		signal_SIGUSR2_v = v;
 		break;
+#ifdef _JSON_
+	case SIGJSON:
+		signal_SIGJSON_handler = func;
+		signal_SIGJSON_v = v;
+		break;
+#endif
+
 	}
 
 	if (ret < 0)
@@ -193,6 +204,9 @@ clear_signal_handler_addresses(void)
 	signal_SIGCHLD_handler = NULL;
 	signal_SIGUSR1_handler = NULL;
 	signal_SIGUSR2_handler = NULL;
+#ifdef _JSON_
+	signal_SIGJSON_handler = NULL;
+#endif
 }
 
 /* Handlers intialization */
@@ -295,6 +309,9 @@ signal_handlers_clear(void *state)
 	signal_set(SIGCHLD, state, NULL);
 	signal_set(SIGUSR1, state, NULL);
 	signal_set(SIGUSR2, state, NULL);
+#ifdef _JSON_
+  signal_set(SIGJSON, state, NULL);
+#endif
 }
 
 void
@@ -368,6 +385,12 @@ signal_run_callback(void)
 			if (signal_SIGUSR2_handler)
 				signal_SIGUSR2_handler(signal_SIGUSR2_v, SIGUSR2);
 			break;
+#ifdef _JSON_
+		case SIGJSON:
+			if (signal_SIGJSON_handler)
+				signal_SIGJSON_handler(signal_SIGJSON_v, SIGJSON);
+			break;
+#endif
 		default:
 			break;
 		}
