@@ -598,9 +598,9 @@ http_request_thread(thread_t * thread)
 	request_t *req = HTTP_REQ(http);
 	struct sockaddr_storage *addr = &checker->co->dst;
 	unsigned timeout = checker->co->connection_to;
-	char *vhost = CHECKER_VHOST(checker);
-	char *request_host = 0;
-	char *request_host_port = 0;
+	char *vhost;
+	char *request_host;
+	char request_host_port[7];	/* ":" [0-9][0-9][0-9][0-9][0-9] "\0" */
 	char *str_request;
 	url_t *fetched_url;
 	int ret = 0;
@@ -615,17 +615,21 @@ http_request_thread(thread_t * thread)
 
 	fetched_url = fetch_next_url(http_get_check);
 
+       	if (checker->rs->virtualhost)
+		vhost = checker->rs->virtualhost;
+	else if (checker->vs->virtualhost)
+		vhost = checker->vs->virtualhost;
+	else
+		vhost = NULL;
+
 	if (vhost) {
 		/* If vhost was defined we don't need to override it's port */
 		request_host = vhost;
-		request_host_port = (char*) MALLOC(1);
-		*request_host_port = 0;
+		request_host_port[0] = '\0';
 	} else {
 		request_host = inet_sockaddrtos(addr);
 
-		/* Allocate a buffer for the port string ( ":" [0-9][0-9][0-9][0-9][0-9] "\0" ) */
-		request_host_port = (char*) MALLOC(7);
-		snprintf(request_host_port, 7, ":%d",
+		snprintf(request_host_port, sizeof(request_host_port), ":%d",
 			 ntohs(inet_sockaddrport(addr)));
 	}
 
@@ -638,11 +642,7 @@ http_request_thread(thread_t * thread)
 			fetched_url->path, request_host, request_host_port);
 	}
 
-	FREE(request_host_port);
-
-	DBG("Processing url(%u) of %s.",
-	    http->url_it + 1
-	    , FMT_HTTP_RS(checker));
+	DBG("Processing url(%u) of %s.", http->url_it + 1 , FMT_HTTP_RS(checker));
 
 	/* Set descriptor non blocking */
 	val = fcntl(thread->u.fd, F_GETFL, 0);
@@ -652,16 +652,15 @@ http_request_thread(thread_t * thread)
 	if (http_get_check->proto == PROTO_SSL)
 		ret = ssl_send_request(req->ssl, str_request, (int)strlen(str_request));
 	else
-		ret = (send(thread->u.fd, str_request, strlen(str_request), 0) != -1) ? 1 : 0;
+		ret = (send(thread->u.fd, str_request, strlen(str_request), 0) != -1);
 
 	/* restore descriptor flags */
 	fcntl(thread->u.fd, F_SETFL, val);
 
 	FREE(str_request);
 
-	if (!ret) {
+	if (!ret)
 		return timeout_epilog(thread, "Cannot send get request to");
-	}
 
 	/* Register read timeouted thread */
 	thread_add_read(thread->master, http_response_thread, checker,

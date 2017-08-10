@@ -692,8 +692,9 @@ A virtual_server can be a declaration of one of
     lvs_sched   # synonym for lb_algo
     lvs_method  # synonym for lb_kind
 
-    # VirtualHost string for HTTP_GET or SSL_GET
+    # Default VirtualHost string for HTTP_GET or SSL_GET
     # eg virtualhost www.firewall.loc
+    # Overridden by virtualhost config of real server or checker
     virtualhost <STRING>
 
     # On daemon startup assume that all RSs are down
@@ -756,6 +757,11 @@ A virtual_server can be a declaration of one of
 
            uthreshold <INTEGER> # maximum number of connections to server
            lthreshold <INTEGER> # minimum number of connections to server
+
+           # Default VirtualHost string for HTTP_GET or SSL_GET
+           # eg virtualhost www.firewall.loc
+           # Overridden by virtualhost config of a checker
+           virtualhost <STRING>
 
            # pick one healthchecker
            # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK
