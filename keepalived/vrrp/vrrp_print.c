@@ -437,6 +437,7 @@ vrrp_print_json(void)
 	list l = vrrp_data->vrrp;
 	if LIST_ISEMPTY(vrrp_data->vrrp) {
 		log_message(LOG_INFO, "vrrp_data->vrrp is empty");
+		fclose(file);
 		return;
 	}
 
