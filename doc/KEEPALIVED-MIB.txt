@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201704110001Z"
+     LAST-UPDATED "201708100000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201708100000Z"
+     DESCRIPTION "virtualhost config to real server"
      REVISION "201704110001Z"
      DESCRIPTION "add real server forwarding method"
      REVISION "201704110000Z"
