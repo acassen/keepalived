@@ -653,12 +653,17 @@ virtual_server group <STRING>      {	# VS group declaration
               path <STRING>		# Path
               digest <STRING>		# Digest computed with genhash
               status_code <INTEGER>	# status code returned into the HTTP
-            }                           #   header. I not specified, then any
+                                        #   header. I not specified, then any
 					#   2xx code is accepted.
+              virtualhost <STRING>	# VirtualHost string to use. If not set
+					#  uses virtualhost from checker or real
+					#  or virtual_server.
+            }
             url {
               path <STRING>
               digest <STRING>
               status_code <INTEGER>
+	      virtualhost <STRING>
             }
             ...
 
