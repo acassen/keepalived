@@ -79,6 +79,7 @@ typedef struct _real_server {
 	list				failed_checkers;/* List of failed checkers */
 	bool				set;		/* in the IPVS table */
 	bool				reloaded;	/* active state was copied from old config while reloading */
+	char				*virtualhost;	/* Default virtualhost for HTTP and SSL health checkers */
 #if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)
 	/* Statistics */
 	uint32_t			activeconns;	/* active connections */
@@ -130,7 +131,8 @@ typedef struct _virtual_server {
 	unsigned			forwarding_method;
 	uint32_t			persistence_granularity;
 #endif
-	char				*virtualhost;
+	char				*virtualhost;	/* Default virtualhost for HTTP and SSL healthcheckers
+							   if not set on real servers */
 	list				rs;
 	bool				alive;
 	bool				alpha;		/* Alpha mode enabled. */
@@ -217,9 +219,8 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 
 /* macro utility */
 #define ISALIVE(S)	((S)->alive)
-#define SET_ALIVE(S)	((S)->alive = 1)
-#define UNSET_ALIVE(S)	((S)->alive = 0)
-#define VHOST(V)	((V)->virtualhost)
+#define SET_ALIVE(S)	((S)->alive = true)
+#define UNSET_ALIVE(S)	((S)->alive = false)
 #define FMT_RS(R, V) (inet_sockaddrtotrio (&(R)->addr, (V)->service_type))
 #define FMT_VS(V) (format_vs((V)))
 
@@ -229,24 +230,25 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			 (X)->service_type            == (Y)->service_type		&&\
 			 (X)->forwarding_method       == (Y)->forwarding_method		&&\
 			 (X)->persistence_granularity == (Y)->persistence_granularity	&&\
-			 (  (!(X)->quorum_up && !(Y)->quorum_up) || \
-			    ((X)->quorum_up && (Y)->quorum_up && !strcmp ((X)->quorum_up->name, (Y)->quorum_up->name)) \
-			 ) &&\
-			 (  (!(X)->quorum_down && !(Y)->quorum_down) || \
-			    ((X)->quorum_down && (Y)->quorum_down && !strcmp ((X)->quorum_down->name, (Y)->quorum_down->name)) \
-			 ) &&\
+			 !(X)->quorum_up              == !(Y)->quorum_up		&& \
+			 (!(X)->quorum_up || !strcmp ((X)->quorum_up->name, (Y)->quorum_up->name)) && \
+			 !(X)->quorum_down            == !(Y)->quorum_down		&& \
+			 (!(X)->quorum_down || !strcmp ((X)->quorum_down->name, (Y)->quorum_down->name)) && \
 			 !strcmp((X)->sched, (Y)->sched)				&&\
 			 (X)->persistence_timeout     == (Y)->persistence_timeout	&&\
-			 (((X)->vsgname && (Y)->vsgname &&				\
-			   !strcmp((X)->vsgname, (Y)->vsgname)) ||			\
-			  (!(X)->vsgname && !(Y)->vsgname)))
+			 !(X)->vsgname                == !(Y)->vsgname			&& \
+			 (!(X)->vsgname || !strcmp((X)->vsgname, (Y)->vsgname))		&& \
+			 !(X)->virtualhost            == !(Y)->virtualhost		&& \
+			 (!(X)->virtualhost || !strcmp((X)->virtualhost, (Y)->virtualhost)))
 
 #define VSGE_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr) &&	\
 			 (X)->range     == (Y)->range &&		\
 			 (X)->vfwmark   == (Y)->vfwmark)
 
 #define RS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&& \
-			 (X)->forwarding_method       == (Y)->forwarding_method)
+			 (X)->forwarding_method       == (Y)->forwarding_method		&& \
+			 !(X)->virtualhost            == !(Y)->virtualhost		&& \
+			 (!(X)->virtualhost || !strcmp((X)->virtualhost, (Y)->virtualhost)))
 
 /* Global vars exported */
 extern check_data_t *check_data;

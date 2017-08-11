@@ -405,6 +405,7 @@ free_rs(void *data)
 	free_notify_script(&rs->notify_up);
 	free_notify_script(&rs->notify_down);
 	free_list(&rs->failed_checkers);
+	FREE_PTR(rs->virtualhost);
 	FREE(rs);
 }
 static void
@@ -418,13 +419,13 @@ dump_rs(void *data)
 			    , rs->weight);
 	switch (rs->forwarding_method) {
 	case IP_VS_CONN_F_MASQ:
-		log_message(LOG_INFO, "   forwarding method = NAT");
+		log_message(LOG_INFO, "    forwarding method = NAT");
 		break;
 	case IP_VS_CONN_F_DROUTE:
-		log_message(LOG_INFO, "   forwarding method = DR");
+		log_message(LOG_INFO, "    forwarding method = DR");
 		break;
 	case IP_VS_CONN_F_TUNNEL:
-		log_message(LOG_INFO, "   forwarding method = TUN");
+		log_message(LOG_INFO, "    forwarding method = TUN");
 		break;
 	}
 	if (rs->inhibit)
@@ -435,6 +436,8 @@ dump_rs(void *data)
 	if (rs->notify_down)
 		log_message(LOG_INFO, "     -> Notify script DOWN = %s, uid:gid %d:%d",
 		       rs->notify_down->name, rs->notify_down->uid, rs->notify_down->gid);
+	if (rs->virtualhost)
+		log_message(LOG_INFO, "    VirtualHost = %s", rs->virtualhost);
 }
 
 static void
@@ -473,6 +476,7 @@ alloc_rs(char *ip, char *port)
 	new->iweight = 1;
 	new->failed_checkers = alloc_list(free_failed_checkers, NULL);
 	new->forwarding_method = vs->forwarding_method;
+	new->virtualhost = NULL;
 
 	if (!LIST_EXISTS(vs->rs))
 		vs->rs = alloc_list(free_rs, dump_rs);
@@ -630,7 +634,7 @@ bool validate_check_config(void)
 			     (!vs->vsg && !vs->vfwmark))) {
 				/* OPS is only valid for UDP, or with a firewall mark */
 				log_message(LOG_INFO, "Virtual server %s: one packet scheduling requires UDP - resetting", FMT_VS(vs));
-				vs->flags &= ~IP_VS_SVC_F_ONEPACKET;
+				vs->flags &= ~(unsigned)IP_VS_SVC_F_ONEPACKET;
 			}
 #endif
 

@@ -150,7 +150,8 @@ enum check_snmp_realserver_magic {
 	CHECK_SNMP_RSRATEOUTBPSLOW,
 	CHECK_SNMP_RSRATEOUTBPSHIGH,
 #endif
-	CHECK_SNMP_RSLOADBALANCINGKIND
+	CHECK_SNMP_RSLOADBALANCINGKIND,
+	CHECK_SNMP_RSVIRTUALHOST
 };
 
 #define STATE_VSGM_FWMARK 1
@@ -893,6 +894,10 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		if (!be->notify_down) break;
 		*var_len = strlen(be->notify_down->name);
 		return (u_char*)be->notify_down->name;
+	case CHECK_SNMP_RSVIRTUALHOST:
+		if (!be->virtualhost) break;
+		*var_len = strlen(be->virtualhost);
+		return (u_char*)be->virtualhost;
 	case CHECK_SNMP_RSFAILEDCHECKS:
 		if (btype == STATE_RS_SORRY) break;
 		if (LIST_ISEMPTY(be->failed_checkers))
@@ -1333,6 +1338,8 @@ static struct variable8 check_vars[] = {
 #endif
 	{CHECK_SNMP_RSLOADBALANCINGKIND, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 40}},
+	{CHECK_SNMP_RSVIRTUALHOST, ASN_OCTET_STR, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 41}},
 #ifdef _WITH_VRRP_
 	/* LVS sync daemon configuration */
 	{CHECK_SNMP_LVSSYNCDAEMONENABLED, ASN_INTEGER, RONLY,

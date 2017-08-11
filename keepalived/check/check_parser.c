@@ -261,7 +261,7 @@ hasuspend_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-virtualhost_handler(vector_t *strvec)
+vs_virtualhost_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->virtualhost = set_value(strvec);
@@ -378,6 +378,13 @@ notify_down_handler(vector_t *strvec)
 	rs->notify_down = set_check_notify_script(strvec);
 }
 static void
+rs_virtualhost_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	rs->virtualhost = set_value(strvec);
+}
+static void
 alpha_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -468,7 +475,7 @@ init_check_keywords(bool active)
 	install_keyword("persistence_granularity", &pgr_handler);
 	install_keyword("protocol", &proto_handler);
 	install_keyword("ha_suspend", &hasuspend_handler);
-	install_keyword("virtualhost", &virtualhost_handler);
+	install_keyword("virtualhost", &vs_virtualhost_handler);
 
 	/* Pool regression detection and handling. */
 	install_keyword("alpha", &alpha_handler);
@@ -491,6 +498,7 @@ init_check_keywords(bool active)
 	install_keyword("inhibit_on_failure", &inhibit_handler);
 	install_keyword("notify_up", &notify_up_handler);
 	install_keyword("notify_down", &notify_down_handler);
+	install_keyword("virtualhost", &rs_virtualhost_handler);
 
 	install_sublevel_end_handler(&vs_end_handler);
 
