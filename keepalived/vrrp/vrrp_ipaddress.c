@@ -465,7 +465,8 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	char *str;
 	unsigned int i = 0, addr_idx = 0;
 	uint8_t scope;
-	int param_avail;
+	bool param_avail;
+	bool param_missing = false;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 
@@ -484,12 +485,12 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		/* cmd parsing */
 		param_avail = (vector_size(strvec) >= i+2);
 
-		/* All keywords require a following word, so check if one is there */
-		if (!param_avail) {
-			log_message(LOG_INFO, "No %s parameter specified for %s", str, FMT_STR_VSLOT(strvec, addr_idx));
-			break;
-		}
 		if (!strcmp(str, "dev")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+
 			if (new->ifp) {
 				log_message(LOG_INFO, "Cannot specify static ipaddress device more than once for %s", FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
@@ -507,11 +508,21 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			new->ifa.ifa_index = IF_INDEX(ifp_local);
 			new->ifp = ifp_local;
 		} else if (!strcmp(str, "scope")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+
 			if (!find_rttables_scope(strvec_slot(strvec, ++i), &scope))
 				log_message(LOG_INFO, "Invalid scope '%s' specified for %s - ignoring", FMT_STR_VSLOT(strvec,i), FMT_STR_VSLOT(strvec, addr_idx));
 			else
 				new->ifa.ifa_scope = scope;
 		} else if (!strcmp(str, "broadcast") || !strcmp(str, "brd")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+
 			if (IP_IS6(new)) {
 				log_message(LOG_INFO, "VRRP is trying to assign a broadcast %s to the IPv6 address %s !!?? "
 						      "WTF... skipping VIP..."
@@ -526,6 +537,11 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 				return;
 			}
 		} else if (!strcmp(str, "label")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+
 			new->label = MALLOC(IFNAMSIZ);
 			strncpy(new->label, strvec_slot(strvec, ++i), IFNAMSIZ);
 #ifdef IFA_F_HOMEADDRESS		/* Linux 2.6.19 */
@@ -535,7 +551,6 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 #endif
 #ifdef IFA_F_NODAD			/* Linux 2.6.19 */
 		} else if (!strcmp(str, "-nodad")) {
-			new->flags |= IFA_F_NODAD;
 			new->flagmask |= IFA_F_NODAD;
 #endif
 #ifdef IFA_F_MANAGETEMPADDR		/* Linux 3.14 */
@@ -556,6 +571,13 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		} else
 			log_message(LOG_INFO, "Unknown configuration entry '%s' for ip address - ignoring", str);
 		i++;
+	}
+
+	/* Check if there was a missing parameter for a keyword */
+	if (param_missing) {
+		log_message(LOG_INFO, "No %s parameter specified for %s", str, FMT_STR_VSLOT(strvec, addr_idx));
+		free(new);
+		return;
 	}
 
 	if (!ifp && !new->ifp) {
