@@ -81,10 +81,10 @@ list_del(list l, void *data)
 }
 
 void *
-list_element(list l, unsigned num)
+list_element(list l, size_t num)
 {
 	element e = LIST_HEAD(l);
-	unsigned i = 0;
+	size_t i = 0;
 
 	/* fetch element number num */
 	for (i = 0; i < num; i++) {

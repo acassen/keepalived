@@ -53,6 +53,7 @@ typedef struct _url {
 	char				*path;
 	char				*digest;
 	int				status_code;
+	char				*virtualhost;
 } url_t;
 
 typedef struct _http_checker {
@@ -60,6 +61,7 @@ typedef struct _http_checker {
 	unsigned			url_it;		/* current url checked index */
 	request_t			*req;		/* GET buffer and SSL args */
 	list				url;
+	char				*virtualhost;
 } http_checker_t;
 
 /* global defs */

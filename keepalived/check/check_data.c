@@ -413,6 +413,7 @@ free_rs(void *data)
 	real_server_t *rs = data;
 	free_notify_script(&rs->notify_up);
 	free_notify_script(&rs->notify_down);
+	FREE_PTR(rs->virtualhost);
 	FREE(rs);
 }
 
@@ -428,13 +429,13 @@ dump_rs(void *data)
 			    , rs->weight);
 	switch (rs->forwarding_method) {
 	case IP_VS_CONN_F_MASQ:
-		log_message(LOG_INFO, "   forwarding method = NAT");
+		log_message(LOG_INFO, "    forwarding method = NAT");
 		break;
 	case IP_VS_CONN_F_DROUTE:
-		log_message(LOG_INFO, "   forwarding method = DR");
+		log_message(LOG_INFO, "    forwarding method = DR");
 		break;
 	case IP_VS_CONN_F_TUNNEL:
-		log_message(LOG_INFO, "   forwarding method = TUN");
+		log_message(LOG_INFO, "    forwarding method = TUN");
 		break;
 	}
 
@@ -454,7 +455,8 @@ dump_rs(void *data)
 	if (rs->notify_down)
 		log_message(LOG_INFO, "     -> Notify script DOWN = %s, uid:gid %d:%d",
 		       rs->notify_down->name, rs->notify_down->uid, rs->notify_down->gid);
-	log_message(LOG_INFO, "   delay_loop = %lu", rs->delay_loop/TIMER_HZ);
+	if (rs->virtualhost)
+		log_message(LOG_INFO, "    VirtualHost = %s", rs->virtualhost);
 }
 
 void
@@ -490,6 +492,7 @@ alloc_rs(char *ip, char *port)
         new->warmup = ULONG_MAX;
         new->retry = UINT_MAX;
         new->delay_before_retry = ULONG_MAX;
+	new->virtualhost = NULL;
 
 // ??? alloc list in alloc_vs
 	if (!LIST_EXISTS(vs->rs))
@@ -648,7 +651,7 @@ bool validate_check_config(void)
 			     (!vs->vsg && !vs->vfwmark))) {
 				/* OPS is only valid for UDP, or with a firewall mark */
 				log_message(LOG_INFO, "Virtual server %s: one packet scheduling requires UDP - resetting", FMT_VS(vs));
-				vs->flags &= ~IP_VS_SVC_F_ONEPACKET;
+				vs->flags &= ~(unsigned)IP_VS_SVC_F_ONEPACKET;
 			}
 #endif
 

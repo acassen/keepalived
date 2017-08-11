@@ -156,6 +156,7 @@ enum check_snmp_realserver_magic {
 	CHECK_SNMP_RSRATEOUTBPSHIGH,
 #endif
 	CHECK_SNMP_RSLOADBALANCINGKIND,
+	CHECK_SNMP_RSVIRTUALHOST,
 	CHECK_SNMP_RSALPHA,
 	CHECK_SNMP_RSRETRY,
 	CHECK_SNMP_RSDELAYBEFORERETRY,
@@ -915,6 +916,10 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		if (!be->notify_down) break;
 		*var_len = strlen(be->notify_down->name);
 		return (u_char*)be->notify_down->name;
+	case CHECK_SNMP_RSVIRTUALHOST:
+		if (!be->virtualhost) break;
+		*var_len = strlen(be->virtualhost);
+		return (u_char*)be->virtualhost;
 	case CHECK_SNMP_RSFAILEDCHECKS:
 		if (btype == STATE_RS_SORRY) break;
 		long_ret.u = be->num_failed_checkers;
@@ -1377,16 +1382,18 @@ static struct variable8 check_vars[] = {
 #endif
 	{CHECK_SNMP_RSLOADBALANCINGKIND, ASN_UNSIGNED, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 40}},
-	{CHECK_SNMP_RSALPHA, ASN_INTEGER, RONLY,
+	{CHECK_SNMP_RSVIRTUALHOST, ASN_OCTET_STR, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 41}},
-	{CHECK_SNMP_RSRETRY, ASN_INTEGER, RONLY,
+	{CHECK_SNMP_RSALPHA, ASN_INTEGER, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 42}},
-	{CHECK_SNMP_RSDELAYBEFORERETRY, ASN_INTEGER, RONLY,
+	{CHECK_SNMP_RSRETRY, ASN_INTEGER, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 43}},
-	{CHECK_SNMP_RSWARMUP, ASN_INTEGER, RONLY,
+	{CHECK_SNMP_RSDELAYBEFORERETRY, ASN_INTEGER, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 44}},
-	{CHECK_SNMP_RSDELAYLOOP, ASN_INTEGER, RONLY,
+	{CHECK_SNMP_RSWARMUP, ASN_INTEGER, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 45}},
+	{CHECK_SNMP_RSDELAYLOOP, ASN_INTEGER, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 46}},
 #ifdef _WITH_VRRP_
 	/* LVS sync daemon configuration */
 	{CHECK_SNMP_LVSSYNCDAEMONENABLED, ASN_INTEGER, RONLY,

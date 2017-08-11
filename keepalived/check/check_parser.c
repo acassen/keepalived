@@ -286,7 +286,7 @@ hasuspend_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-virtualhost_handler(vector_t *strvec)
+vs_virtualhost_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->virtualhost = set_value(strvec);
@@ -471,6 +471,13 @@ rs_alpha_handler(vector_t *strvec)
 	rs->alpha = res;
 }
 static void
+rs_virtualhost_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	rs->virtualhost = set_value(strvec);
+}
+static void
 vs_alpha_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -570,7 +577,7 @@ init_check_keywords(bool active)
 	install_keyword("persistence_granularity", &pgr_handler);
 	install_keyword("protocol", &proto_handler);
 	install_keyword("ha_suspend", &hasuspend_handler);
-	install_keyword("virtualhost", &virtualhost_handler);
+	install_keyword("virtualhost", &vs_virtualhost_handler);
 
 	/* Pool regression detection and handling. */
 	install_keyword("alpha", &vs_alpha_handler);
@@ -599,6 +606,7 @@ init_check_keywords(bool active)
 	install_keyword("delay_before_retry", &rs_delay_before_retry_handler);
 	install_keyword("warmup", &rs_warmup_handler);
 	install_keyword("delay_loop", &rs_delay_handler);
+	install_keyword("virtualhost", &rs_virtualhost_handler);
 
 	install_sublevel_end_handler(&vs_end_handler);
 

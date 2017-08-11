@@ -2922,6 +2922,7 @@ RealServerEntry ::= SEQUENCE {
     realServerRateOutBPSLow Unsigned32,
     realServerRateOutBPSHigh Unsigned32,
     realServerForwardingMethod INTEGER,
+    realServerVirtualHost DisplayString,
     realServerAlpha INTEGER,
     realServerRetry Unsigned32,
     realServerDelayBeforeRetry Unsigned32,
@@ -3288,13 +3289,21 @@ realServerForwardingMethod OBJECT-TYPE
         "Forwarding method to use for this real server."
     ::= { realServerEntry 40 }
 
+realServerVirtualHost OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Virtualhost of this real server for HTTP like requests."
+    ::= { realServerEntry 41 }
+
 realServerAlpha OBJECT-TYPE
     SYNTAX INTEGER { enabled(1), disabled(2) }
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION
         "Is alpha mode enabled?"
-    ::= { realServerEntry 41 }
+    ::= { realServerEntry 42 }
 
 realServerRetry OBJECT-TYPE
     SYNTAX Unsigned32
@@ -3302,7 +3311,7 @@ realServerRetry OBJECT-TYPE
     STATUS current
     DESCRIPTION
         "Default number of retries of checker before marking failed."
-    ::= { realServerEntry 42 }
+    ::= { realServerEntry 43 }
 
 realServerDelayBeforeRetry OBJECT-TYPE
     SYNTAX Unsigned32
@@ -3311,7 +3320,7 @@ realServerDelayBeforeRetry OBJECT-TYPE
     STATUS current
     DESCRIPTION
         "Default number of seconds between retrying a checker ofter it has failed."
-    ::= { realServerEntry 43 }
+    ::= { realServerEntry 44 }
 
 realServerWarmup OBJECT-TYPE
     SYNTAX Unsigned32
@@ -3320,7 +3329,7 @@ realServerWarmup OBJECT-TYPE
     STATUS current
     DESCRIPTION
         "Maximum number of seconds to delay before running checker."
-    ::= { realServerEntry 44 }
+    ::= { realServerEntry 45 }
 
 realServerDelayLoop OBJECT-TYPE
     SYNTAX Unsigned32
@@ -3329,7 +3338,7 @@ realServerDelayLoop OBJECT-TYPE
     STATUS current
     DESCRIPTION
         "Delay in seconds between two checks."
-    ::= { realServerEntry 45 }
+    ::= { realServerEntry 46 }
 
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
@@ -3895,6 +3904,7 @@ realServerGroup OBJECT-GROUP
     realServerRateOutBPSLow,
     realServerRateOutBPSHigh,
     realServerForwardingMethod,
+    realServerVirtualHost,
     realServerAlpha,
     realServerRetry,
     realServerDelayBeforeRetry,
