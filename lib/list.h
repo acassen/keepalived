@@ -57,7 +57,7 @@ extern list alloc_list(void (*free_func) (void *), void (*dump_func) (void *));
 extern void free_list(list *);
 extern void free_list_elements(list l);
 extern void free_list_element(list l, element e);
-extern void *list_element(list l, unsigned num);
+extern void *list_element(list l, size_t num);
 extern void dump_list(list l);
 extern void list_add(list l, void *data);
 extern void list_del(list l, void *data);

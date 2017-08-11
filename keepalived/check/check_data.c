@@ -640,7 +640,7 @@ bool validate_check_config(void)
 			     (!vs->vsg && !vs->vfwmark))) {
 				/* OPS is only valid for UDP, or with a firewall mark */
 				log_message(LOG_INFO, "Virtual server %s: one packet scheduling requires UDP - resetting", FMT_VS(vs));
-				vs->flags &= ~IP_VS_SVC_F_ONEPACKET;
+				vs->flags &= ~(unsigned)IP_VS_SVC_F_ONEPACKET;
 			}
 #endif
 

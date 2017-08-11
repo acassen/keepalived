@@ -83,6 +83,11 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		struct ifaddrmsg ifa;
 		char buf[256];
 	} req;
+#if HAVE_DECL_IFA_FLAGS
+	uint32_t ifa_flags;
+#else
+	uint8_t ifa_flags;
+#endif
 
 	if (cmd == IPADDRESS_ADD) {
 		/* We can't add the address if the interface doesn't exist */
@@ -107,7 +112,7 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 	req.ifa = ipaddress->ifa;
 
 	if (cmd == IPADDRESS_ADD)
-		req.ifa.ifa_flags = ipaddress->flags;
+		ifa_flags = ipaddress->flags;
 
 	if (IP_IS6(ipaddress)) {
 		if (cmd == IPADDRESS_ADD) {
@@ -123,8 +128,6 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 					  sizeof(cinfo));
 			}
 
-			req.ifa.ifa_flags = ipaddress->flags;
-
 			/* Disable, per VIP, Duplicate Address Detection algorithm (DAD).
 			 * Using the nodad flag has the following benefits:
 			 *
@@ -138,7 +141,7 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 			 */
 #ifdef IFA_F_NODAD	/* Since Linux 2.6.19 */
 			if (!(ipaddress->flagmask & IFA_F_NODAD))
-				req.ifa.ifa_flags |= IFA_F_NODAD;
+				ifa_flags |= IFA_F_NODAD;
 #endif
 		}
 
@@ -154,7 +157,6 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 			if (ipaddress->u.sin.sin_brd.s_addr)
 				addattr_l(&req.n, sizeof(req), IFA_BROADCAST,
 					  &ipaddress->u.sin.sin_brd, sizeof(ipaddress->u.sin.sin_brd));
-			req.ifa.ifa_flags = ipaddress->flags;
 		}
 		else {
 			/* IPADDRESS_DEL */
@@ -163,10 +165,17 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		}
 	}
 
-	if (cmd == IPADDRESS_ADD)
+	if (cmd == IPADDRESS_ADD) {
+#if HAVE_DECL_IFA_FLAGS
+		if (ifa_flags)
+			addattr32(&req.n, sizeof(req), IFA_FLAGS, ifa_flags);
+#else
+		req.ifa.ifa_flags = ifa_flags;
+#endif
 		if (ipaddress->label)
 			addattr_l(&req.n, sizeof (req), IFA_LABEL,
 				  ipaddress->label, strlen(ipaddress->label) + 1);
+	}
 
 	/* If the state of the interface or its parent is down, it might be because the interface
 	 * has been deleted, but we get the link status change message before the RTM_DELLINK message */
@@ -492,7 +501,8 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	char *str;
 	unsigned int i = 0, addr_idx = 0;
 	uint8_t scope;
-	int param_avail;
+	bool param_avail;
+	bool param_missing = false;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 
@@ -511,12 +521,12 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		/* cmd parsing */
 		param_avail = (vector_size(strvec) >= i+2);
 
-		/* All keywords require a following word, so check if one is there */
-		if (!param_avail) {
-			log_message(LOG_INFO, "No %s parameter specified for %s", str, FMT_STR_VSLOT(strvec, addr_idx));
-			break;
-		}
 		if (!strcmp(str, "dev")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+
 			if (new->ifp) {
 				log_message(LOG_INFO, "Cannot specify static ipaddress device more than once for %s", FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
@@ -529,11 +539,21 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			}
 			new->ifp = ifp_local;
 		} else if (!strcmp(str, "scope")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+
 			if (!find_rttables_scope(strvec_slot(strvec, ++i), &scope))
 				log_message(LOG_INFO, "Invalid scope '%s' specified for %s - ignoring", FMT_STR_VSLOT(strvec,i), FMT_STR_VSLOT(strvec, addr_idx));
 			else
 				new->ifa.ifa_scope = scope;
 		} else if (!strcmp(str, "broadcast") || !strcmp(str, "brd")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+
 			if (IP_IS6(new)) {
 				log_message(LOG_INFO, "VRRP is trying to assign a broadcast %s to the IPv6 address %s !!?? "
 						      "WTF... skipping VIP..."
@@ -548,6 +568,11 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 				return;
 			}
 		} else if (!strcmp(str, "label")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+
 			new->label = MALLOC(IFNAMSIZ);
 			strncpy(new->label, strvec_slot(strvec, ++i), IFNAMSIZ);
 #ifdef IFA_F_HOMEADDRESS		/* Linux 2.6.19 */
@@ -557,7 +582,6 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 #endif
 #ifdef IFA_F_NODAD			/* Linux 2.6.19 */
 		} else if (!strcmp(str, "-nodad")) {
-			new->flags |= IFA_F_NODAD;
 			new->flagmask |= IFA_F_NODAD;
 #endif
 #ifdef IFA_F_MANAGETEMPADDR		/* Linux 3.14 */
@@ -578,6 +602,13 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		} else
 			log_message(LOG_INFO, "Unknown configuration entry '%s' for ip address - ignoring", str);
 		i++;
+	}
+
+	/* Check if there was a missing parameter for a keyword */
+	if (param_missing) {
+		log_message(LOG_INFO, "No %s parameter specified for %s", str, FMT_STR_VSLOT(strvec, addr_idx));
+		free(new);
+		return;
 	}
 
 	if (!ifp && !new->ifp) {

@@ -184,7 +184,7 @@ AC_ARG_ENABLE(libnl,
 AC_ARG_ENABLE(mem-check,
   [AS_HELP_STRING([--enable-mem-check], [compile with memory alloc checking])])
 AC_ARG_ENABLE(mem-check-log,
-  [AS_HELP_STRING([--enable-mem-check-log], [compile with memory alloc checking wriging to syslog])])
+  [AS_HELP_STRING([--enable-mem-check-log], [compile with memory alloc checking writing to syslog])])
 AC_ARG_ENABLE(debug,
   [AS_HELP_STRING([--enable-debug], [compile with debugging flags])])
 AC_ARG_ENABLE(stacktrace,
@@ -643,6 +643,9 @@ for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF RTA_VIA FRA_OIFNAME FRA_SU
     add_build_opt[${flag}]
   fi
 done
+
+dnl - Introduced in Linux 3.14
+AC_CHECK_DECLS([IFA_FLAGS], [], [], [[#include <linux/if_addr.h>]])
 
 dnl -- RedHat backported ENCAP_IP and ENCAP_IP6 without MPLS and ILA
 AC_CHECK_DECLS([LWTUNNEL_ENCAP_MPLS, LWTUNNEL_ENCAP_ILA], [], [],

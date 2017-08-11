@@ -26,6 +26,8 @@ For magic file identification support:
 	file-devel
 For SNMP support:
 	net-snmp-devel
+For DBUS support:
+	glib2-devel
 
 Debian/Ubuntu
 -------------
