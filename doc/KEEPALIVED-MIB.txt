@@ -2991,7 +2991,8 @@ RealServerEntry ::= SEQUENCE {
     realServerRateInBPSHigh Unsigned32,
     realServerRateOutBPSLow Unsigned32,
     realServerRateOutBPSHigh Unsigned32,
-    realServerForwardingMethod INTEGER
+    realServerForwardingMethod INTEGER,
+    realServerVirtualHost DisplayString
 }
 
 realServerIndex OBJECT-TYPE
@@ -3352,6 +3353,14 @@ realServerForwardingMethod OBJECT-TYPE
     DESCRIPTION
         "Forwarding method to use for this real server."
     ::= { realServerEntry 40 }
+
+realServerVirtualHost OBJECT-TYPE
+    SYNTAX DisplayString
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "Virtualhost of this real server for HTTP like requests."
+    ::= { realServerEntry 41 }
 
 lvsSyncDaemon    OBJECT IDENTIFIER ::= { check 6 }
 
@@ -3926,7 +3935,8 @@ realServerGroup OBJECT-GROUP
     realServerRateInBPSHigh,
     realServerRateOutBPSLow,
     realServerRateOutBPSHigh,
-    realServerForwardingMethod
+    realServerForwardingMethod,
+    realServerVirtualHost
     }
     STATUS current
     DESCRIPTION
