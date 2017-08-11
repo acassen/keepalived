@@ -895,9 +895,9 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		*var_len = strlen(be->notify_down->name);
 		return (u_char*)be->notify_down->name;
 	case CHECK_SNMP_RSVIRTUALHOST:
-		if (!br->virtualhost) break;
-		*var_len = strlen(br->virtualhost);
-		return (u_char*)br->virtualhost;
+		if (!be->virtualhost) break;
+		*var_len = strlen(be->virtualhost);
+		return (u_char*)be->virtualhost;
 	case CHECK_SNMP_RSFAILEDCHECKS:
 		if (btype == STATE_RS_SORRY) break;
 		if (LIST_ISEMPTY(be->failed_checkers))
