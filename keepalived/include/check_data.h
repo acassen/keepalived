@@ -230,24 +230,25 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			 (X)->service_type            == (Y)->service_type		&&\
 			 (X)->forwarding_method       == (Y)->forwarding_method		&&\
 			 (X)->persistence_granularity == (Y)->persistence_granularity	&&\
-			 (  (!(X)->quorum_up && !(Y)->quorum_up) || \
-			    ((X)->quorum_up && (Y)->quorum_up && !strcmp ((X)->quorum_up->name, (Y)->quorum_up->name)) \
-			 ) &&\
-			 (  (!(X)->quorum_down && !(Y)->quorum_down) || \
-			    ((X)->quorum_down && (Y)->quorum_down && !strcmp ((X)->quorum_down->name, (Y)->quorum_down->name)) \
-			 ) &&\
+			 !(X)->quorum_up              == !(Y)->quorum_up		&& \
+			 (!(X)->quorum_up || !strcmp ((X)->quorum_up->name, (Y)->quorum_up->name)) && \
+			 !(X)->quorum_down            == !(Y)->quorum_down		&& \
+			 (!(X)->quorum_down || !strcmp ((X)->quorum_down->name, (Y)->quorum_down->name)) && \
 			 !strcmp((X)->sched, (Y)->sched)				&&\
 			 (X)->persistence_timeout     == (Y)->persistence_timeout	&&\
-			 (((X)->vsgname && (Y)->vsgname &&				\
-			   !strcmp((X)->vsgname, (Y)->vsgname)) ||			\
-			  (!(X)->vsgname && !(Y)->vsgname)))
+			 !(X)->vsgname                == !(Y)->vsgname			&& \
+			 (!(X)->vsgname || !strcmp((X)->vsgname, (Y)->vsgname))		&& \
+			 !(X)->virtualhost            == !(Y)->virtualhost		&& \
+			 (!(X)->virtualhost || !strcmp((X)->virtualhost, (Y)->virtualhost)))
 
 #define VSGE_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr) &&	\
 			 (X)->range     == (Y)->range &&		\
 			 (X)->vfwmark   == (Y)->vfwmark)
 
 #define RS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&& \
-			 (X)->forwarding_method       == (Y)->forwarding_method)
+			 (X)->forwarding_method       == (Y)->forwarding_method		&& \
+			 !(X)->virtualhost            == !(Y)->virtualhost		&& \
+			 (!(X)->virtualhost || !strcmp((X)->virtualhost, (Y)->virtualhost)))
 
 /* Global vars exported */
 extern check_data_t *check_data;

@@ -636,6 +636,9 @@ virtual_server group <STRING>      {	# VS group declaration
             nb_get_retry <INTEGER>  # number of get retry
             delay_before_retry <INTEGER> # delay before retry
             warmup <INTEGER>        # random delay for maximum N seconds
+            virtualhost <STRING>    # VirtualHost string to use. If not set
+				    #  uses virtualhost from real or
+				    #  virtual_server.
         }
     }
 

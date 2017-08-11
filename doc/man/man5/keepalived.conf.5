@@ -787,6 +787,9 @@ A virtual_server can be a declaration of one of
                nb_get_retry <INT>
                # delay before retry
                delay_before_retry <INT>
+               # VirtualHost string. eg virtualhost www.firewall.loc
+               # If not set, uses virtualhost from real or virtual server
+               virtualhost <STRING>
 
                # ======== generic connection options
                # Optional IP address to connect to.

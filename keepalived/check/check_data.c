@@ -419,13 +419,13 @@ dump_rs(void *data)
 			    , rs->weight);
 	switch (rs->forwarding_method) {
 	case IP_VS_CONN_F_MASQ:
-		log_message(LOG_INFO, "   forwarding method = NAT");
+		log_message(LOG_INFO, "    forwarding method = NAT");
 		break;
 	case IP_VS_CONN_F_DROUTE:
-		log_message(LOG_INFO, "   forwarding method = DR");
+		log_message(LOG_INFO, "    forwarding method = DR");
 		break;
 	case IP_VS_CONN_F_TUNNEL:
-		log_message(LOG_INFO, "   forwarding method = TUN");
+		log_message(LOG_INFO, "    forwarding method = TUN");
 		break;
 	}
 	if (rs->inhibit)
@@ -437,7 +437,7 @@ dump_rs(void *data)
 		log_message(LOG_INFO, "     -> Notify script DOWN = %s, uid:gid %d:%d",
 		       rs->notify_down->name, rs->notify_down->uid, rs->notify_down->gid);
 	if (rs->virtualhost)
-		log_message(LOG_INFO, "   VirtualHost = %s", rs->virtualhost);
+		log_message(LOG_INFO, "    VirtualHost = %s", rs->virtualhost);
 }
 
 static void
