@@ -844,6 +844,10 @@ A virtual_server can be a declaration of one of
                  # status code returned in the HTTP header
                  # eg status_code 200. Default is any 2xx value
                  status_code <INT>
+                 # VirtualHost string. eg virtualhost www.firewall.loc
+                 # If not set, uses virtualhost from checker or real
+                 # or virtual server
+                 virtualhost <STRING>
                }
                # number of get retries
                nb_get_retry <INT>
