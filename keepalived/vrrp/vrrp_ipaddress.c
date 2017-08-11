@@ -78,6 +78,11 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		struct ifaddrmsg ifa;
 		char buf[256];
 	} req;
+#if HAVE_DECL_IFA_FLAGS
+	uint32_t ifa_flags;
+#else
+	uint8_t ifa_flags;
+#endif
 
 	memset(&req, 0, sizeof (req));
 
@@ -87,7 +92,7 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 	req.ifa = ipaddress->ifa;
 
 	if (cmd == IPADDRESS_ADD)
-		req.ifa.ifa_flags = ipaddress->flags;
+		ifa_flags = ipaddress->flags;
 
 	if (IP_IS6(ipaddress)) {
 		if (cmd == IPADDRESS_ADD) {
@@ -103,8 +108,6 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 					  sizeof(cinfo));
 			}
 
-			req.ifa.ifa_flags = ipaddress->flags;
-
 			/* Disable, per VIP, Duplicate Address Detection algorithm (DAD).
 			 * Using the nodad flag has the following benefits:
 			 *
@@ -118,7 +121,7 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 			 */
 #ifdef IFA_F_NODAD	/* Since Linux 2.6.19 */
 			if (!(ipaddress->flagmask & IFA_F_NODAD))
-				req.ifa.ifa_flags |= IFA_F_NODAD;
+				ifa_flags |= IFA_F_NODAD;
 #endif
 		}
 
@@ -134,7 +137,6 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 			if (ipaddress->u.sin.sin_brd.s_addr)
 				addattr_l(&req.n, sizeof(req), IFA_BROADCAST,
 					  &ipaddress->u.sin.sin_brd, sizeof(ipaddress->u.sin.sin_brd));
-			req.ifa.ifa_flags = ipaddress->flags;
 		}
 		else {
 			/* IPADDRESS_DEL */
@@ -143,10 +145,17 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		}
 	}
 
-	if (cmd == IPADDRESS_ADD)
+	if (cmd == IPADDRESS_ADD) {
+#if HAVE_DECL_IFA_FLAGS
+		if (ifa_flags)
+			addattr32(&req.n, sizeof(req), IFA_FLAGS, ifa_flags);
+#else
+		req.ifa.ifa_flags = ifa_flags;
+#endif
 		if (ipaddress->label)
 			addattr_l(&req.n, sizeof (req), IFA_LABEL,
 				  ipaddress->label, strlen(ipaddress->label) + 1);
+	}
 
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;

@@ -1502,7 +1502,7 @@ Optional Features:
   --disable-libipset      compile without libipset
   --disable-libnl         compile without libnl
   --enable-mem-check      compile with memory alloc checking
-  --enable-mem-check-log  compile with memory alloc checking wriging to syslog
+  --enable-mem-check-log  compile with memory alloc checking writing to syslog
   --enable-debug          compile with debugging flags
   --enable-stacktrace     compile with stacktrace support
   --enable-profile        compile with profiling flags
@@ -7983,6 +7983,19 @@ for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF RTA_VIA FRA_OIFNAME FRA_SU
     BUILD_OPTIONS="$BUILD_OPTIONS "${flag}
   fi
 done
+
+ac_fn_c_check_decl "$LINENO" "IFA_FLAGS" "ac_cv_have_decl_IFA_FLAGS" "#include <linux/if_addr.h>
+"
+if test "x$ac_cv_have_decl_IFA_FLAGS" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_IFA_FLAGS $ac_have_decl
+_ACEOF
+
 
 ac_fn_c_check_decl "$LINENO" "LWTUNNEL_ENCAP_MPLS" "ac_cv_have_decl_LWTUNNEL_ENCAP_MPLS" "#include <linux/lwtunnel.h>
 "
