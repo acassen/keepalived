@@ -733,10 +733,11 @@ A virtual_server can be a declaration of one of
 
     # setup realserver(s)
 
-    # RS to add when all realservers are down
+    # RS to add to LVS topology when the quorum isn't achieved.
+    #  If a sorry server is configured, all real servers will
+    #  be brought down when the quorum is not achieved.
     sorry_server <IPADDR> <PORT>
-    # applies inhibit_on_failure behaviour to the
-    # preceding sorry_server directive
+    # applies inhibit_on_failure behaviour to the sorry_server
     sorry_server_inhibit
     # Sorry server LVS forwarding method
     sorry_server_lvs_method NAT|DR|TUN

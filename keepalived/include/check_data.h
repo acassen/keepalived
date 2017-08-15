@@ -72,7 +72,7 @@ typedef struct _real_server {
 							 */
 	notify_script_t			*notify_up;	/* Script to launch when RS is added to LVS */
 	notify_script_t			*notify_down;	/* Script to launch when RS is removed from LVS */
-	int				alpha;		/* Alpha mode enabled. */
+	int				alpha;		/* 1 if alpha mode is default. */
 	unsigned long                   delay_loop;	/* Interval between running checker */
 	unsigned long                   warmup;		/* max random timeout to start checker */
 	unsigned                        retry;		/* number of retries before failing */
@@ -117,8 +117,8 @@ typedef struct _virtual_server {
 	char				*vsgname;
 	virtual_server_group_t		*vsg;
 	struct sockaddr_storage		addr;
-	real_server_t			*s_svr;
 	uint32_t			vfwmark;
+	real_server_t			*s_svr;
 	uint16_t			af;
 	uint16_t			service_type;
 	bool				ha_suspend;
@@ -137,8 +137,9 @@ typedef struct _virtual_server {
 							   if not set on real servers */
 	int				weight;
 	list				rs;
+// ??? alive should be set
 	bool				alive;
-	bool				alpha;		/* Alpha mode enabled. */
+	bool				alpha;		/* Set if alpha mode is default. */
 	bool				omega;		/* Omega mode enabled. */
 	bool				inhibit;	/* Set weight to 0 instead of removing
 							 * the service from IPVS topology. */

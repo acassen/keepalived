@@ -744,6 +744,7 @@ bool validate_check_config(void)
 		}
 	}
 
+// ??? This should probably be done in check_daemon after clear_diff_services()
 	set_quorum_states();
 
 	check_check_script_security();

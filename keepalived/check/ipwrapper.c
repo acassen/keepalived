@@ -131,58 +131,58 @@ clear_service_rs(virtual_server_t * vs, list l)
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
-		if (ISALIVE(rs)) {
-			log_message(LOG_INFO, "Removing service %s from VS %s"
-						, FMT_RS(rs, vs)
-						, FMT_VS(vs));
-			ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs);
-			UNSET_ALIVE(rs);
-			if (!vs->omega)
-				continue;
+// ??? What about alpha mode. Use ->set
+		if (!ISALIVE(rs))
+			continue;
 
-			/* In Omega mode we call VS and RS down notifiers
-			 * all the way down the exit, as necessary.
-			 */
-			if (rs->notify_down) {
-				log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
-						    , rs->notify_down->name
-						    , FMT_RS(rs, vs)
+		log_message(LOG_INFO, "Removing service %s from VS %s"
+					, FMT_RS(rs, vs)
+					, FMT_VS(vs));
+		ipvs_cmd(LVS_CMD_DEL_DEST, vs, rs);
+		UNSET_ALIVE(rs);
+		if (!vs->omega)
+			continue;
+
+		/* In Omega mode we call VS and RS down notifiers
+		 * all the way down the exit, as necessary.
+		 */
+		if (rs->notify_down) {
+			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
+					    , rs->notify_down->name
+					    , FMT_RS(rs, vs)
+					    , FMT_VS(vs));
+			notify_exec(rs->notify_down);
+		}
+		notify_fifo_rs(vs, rs, false);
+#ifdef _WITH_SNMP_CHECKER_
+		check_snmp_rs_trap(rs, vs);
+#endif
+
+		/* Sooner or later VS will lose the quorum (if any). However,
+		 * we don't push in a sorry server then, hence the regression
+		 * is intended.
+		 */
+		weight_sum = weigh_live_realservers(vs);
+		if (vs->quorum_state_up &&
+		    (!weight_sum || weight_sum < down_threshold)) {
+			vs->quorum_state_up = false;
+			if (vs->notify_quorum_down) {
+				log_message(LOG_INFO, "Executing [%s] for VS %s"
+						    , vs->notify_quorum_down->name
 						    , FMT_VS(vs));
-				notify_exec(rs->notify_down);
+				notify_exec(vs->notify_quorum_down);
 			}
-			notify_fifo_rs(vs, rs, false);
+			notify_fifo_vs(vs, false);
 #ifdef _WITH_SNMP_CHECKER_
-			check_snmp_rs_trap(rs, vs);
+			check_snmp_quorum_trap(vs);
 #endif
-
-			/* Sooner or later VS will lose the quorum (if any). However,
-			 * we don't push in a sorry server then, hence the regression
-			 * is intended.
-			 */
-			weight_sum = weigh_live_realservers(vs);
-			if (vs->quorum_state_up && (
-				!weight_sum ||
-				weight_sum < down_threshold)
-			) {
-				vs->quorum_state_up = false;
-				if (vs->notify_quorum_down) {
-					log_message(LOG_INFO, "Executing [%s] for VS %s"
-							    , vs->notify_quorum_down->name
-							    , FMT_VS(vs));
-					notify_exec(vs->notify_quorum_down);
-				}
-				notify_fifo_vs(vs, false);
-#ifdef _WITH_SNMP_CHECKER_
-				check_snmp_quorum_trap(vs);
-#endif
-			}
 		}
 	}
 }
 
 /* Remove a virtualserver IPVS rule */
 static void
-clear_service_vs(virtual_server_t * vs, bool leave_vs)
+clear_service_vs(virtual_server_t * vs, bool remove_vs)
 {
 	/* Processing real server queue */
 	if (!LIST_ISEMPTY(vs->rs)) {
@@ -191,12 +191,13 @@ clear_service_vs(virtual_server_t * vs, bool leave_vs)
 				ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
 				UNSET_ALIVE(vs->s_svr);
 			}
+// ??? what about alpha mode ?
 		} else
 			clear_service_rs(vs, vs->rs);
 		/* The above will handle Omega case for VS as well. */
 	}
 
-	if (!leave_vs)
+	if (remove_vs)
 		ipvs_cmd(LVS_CMD_DEL, vs, NULL);
 
 	UNSET_ALIVE(vs);
@@ -214,17 +215,10 @@ clear_services(void)
 
 	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
-		clear_service_vs(vs, true);
-	}
 
-	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
-		vs = ELEMENT_DATA(e);
-		if (vs->vsg) {
-			/* Only clear the first virtual server for a virtual server group */
-			if (ntohs(inet_sockaddrport(&vs->addr)))
-				continue;
-		}
-		clear_service_vs(vs, false);
+		/* If it is a virtual server group, only clear the vs if it is the first vs using the group.
+		   For a vs that uses a vsg, the port is the sequence no of the vs using that vsg. */
+		clear_service_vs(vs, !(vs->vsg && ntohs(inet_sockaddrport(&vs->addr))));
 	}
 }
 
@@ -247,7 +241,7 @@ init_service_rs(virtual_server_t * vs)
 			if (rs->iweight != rs->pweight)
 				update_svr_wgt(rs->iweight, vs, rs, false);
 			/* Do not re-add failed RS instantly on reload */
-// We should if alpha mode
+// ??? We should if alpha mode
 			continue;
 		}
 		/* In alpha mode, be pessimistic (or realistic?) and don't
@@ -312,6 +306,7 @@ perform_quorum_state(virtual_server_t *vs, bool add)
 		rs = ELEMENT_DATA(e);
 		if (!ISALIVE(rs)) /* We only handle alive servers */
 			continue;
+// ??? The following seems unnecessary
 		if (add)
 			rs->alive = false;
 		ipvs_cmd(add?LVS_CMD_ADD_DEST:LVS_CMD_DEL_DEST, vs, rs);
@@ -471,6 +466,8 @@ init_service_vs(virtual_server_t * vs)
 {
 	/* Init the VS root */
 	if (!ISALIVE(vs) || vs->vsgname) {
+// ??? If reload, why add if already there. If vs-vsgname, it may already be added
+// Should only do if vsgname if port == 0
 		ipvs_cmd(LVS_CMD_ADD, vs, NULL);
 		SET_ALIVE(vs);
 	}
@@ -691,10 +688,9 @@ migrate_checkers(real_server_t *old_rs, real_server_t *new_rs, list old_checkers
 			for (e1 = LIST_HEAD(l); e1; ELEMENT_NEXT(e1)) {
 				old_c = ELEMENT_DATA(e1);
 				if (old_c->compare == new_c->compare && new_c->compare(old_c, new_c)) {
-					if (!old_c->is_up && !new_c->alpha)
-						set_checker_state(new_c, false);
-					else if (old_c->is_up && new_c->alpha)
-						set_checker_state(new_c, true);
+					/* Update status if different */
+					if (old_c->is_up != new_c->is_up)
+						set_checker_state(new_c, old_c->is_up);
 					break;
 				}
 			}
@@ -725,9 +721,10 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_check
 		rs = ELEMENT_DATA(e);
 		new_rs = rs_exist(rs, new_vs->rs);
 		if (!new_rs) {
-			/* Reset inhibit flag to delete inhibit entries */
 			log_message(LOG_INFO, "service %s no longer exist"
 					    , FMT_RS(rs, old_vs));
+
+			/* Reset inhibit flag to delete inhibit entries */
 			if (rs->inhibit) {
 				if (!ISALIVE(rs) && rs->set)
 					SET_ALIVE(rs);
@@ -760,7 +757,7 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_check
 			migrate_checkers(rs, new_rs, old_checkers_queue);
 		}
 	}
-	clear_service_rs (old_vs, rs_to_remove);
+	clear_service_rs(old_vs, rs_to_remove);
 	free_list(&rs_to_remove);
 }
 
@@ -826,7 +823,7 @@ clear_diff_services(list old_checkers_queue)
 				log_message(LOG_INFO, "Removing Virtual Server %s", FMT_VS(vs));
 
 			/* Clear VS entry */
-			clear_service_vs(vs, false);
+			clear_service_vs(vs, true);
 		} else {
 			/* copy status fields from old VS */
 			SET_ALIVE(new_vs);
