@@ -84,7 +84,7 @@ typedef struct _interface {
 	int			lb_type;		/* Interface regs selection */
 	bool			linkbeat;		/* LinkBeat from MII BMSR req, SIOCETHTOOL or SIOCGIFFLAGS ioctls */
 #ifdef _HAVE_VRRP_VMAC_
-	int			vmac;			/* Set if interface is a VMAC interface */
+	bool			vmac;			/* Set if interface is a VMAC interface */
 	ifindex_t		base_ifindex;		/* Base interface index (if interface is a VMAC interface),
 							   otherwise the physical interface (i.e. ifindex) */
 #endif
