@@ -245,6 +245,8 @@ linkbeat_use_polling			   # Use media link failure detection polling fashion
 
 static_ipaddress {			# block identification
 					# If no dev element is specified, it defaults to the default_interface (default eth0)
+					# Note: the broadcast address may be specified as '-' or '+' to clear or set the host
+					#       bits of the address.
     <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
     <IP ADDRESS>[/<MASK>] ...
     ...
