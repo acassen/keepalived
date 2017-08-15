@@ -256,6 +256,9 @@ The syntax for rules and routes is that same as for ip rule add/ip route add.
 .PP
 The syntax is the same for virtual addresses and virtual routes. If no dev element
 is specified, it defaults to default_interface (default eth0).
+Note: the broadcast address may be specified as '-' or '+' to clear or set the host
+bits of the address.
+
 .PP
  static_ipaddress
  {
