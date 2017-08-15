@@ -372,12 +372,14 @@ alloc_vrrp_stats(void)
 	new->become_master = 0;
 	new->release_master = 0;
 	new->invalid_authtype = 0;
+#ifdef _WITH_VRRP_AUTH_
 	new->authtype_mismatch = 0;
+	new->auth_failure = 0;
+#endif
 	new->packet_len_err = 0;
 	new->advert_rcvd = 0;
 	new->advert_sent = 0;
 	new->advert_interval_err = 0;
-	new->auth_failure = 0;
 	new->ip_ttl_err = 0;
 	new->pri_zero_rcvd = 0;
 	new->pri_zero_sent = 0;

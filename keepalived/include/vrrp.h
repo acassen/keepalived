@@ -132,8 +132,10 @@ typedef struct _vrrp_stats {
 	uint64_t	addr_list_err;
 
 	uint32_t	invalid_authtype;
+#ifdef _WITH_VRRP_AUTH_
 	uint32_t	authtype_mismatch;
 	uint32_t	auth_failure;
+#endif
 
 	uint64_t	pri_zero_rcvd;
 	uint64_t	pri_zero_sent;

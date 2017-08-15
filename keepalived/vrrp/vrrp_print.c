@@ -408,10 +408,12 @@ vrrp_print_stats(void)
 		fprintf(file, "  Authentication Errors:\n");
 		fprintf(file, "    Invalid Type: %d\n",
 			vrrp->stats->invalid_authtype);
+#ifdef _WITH_VRRP_AUTH_
 		fprintf(file, "    Type Mismatch: %d\n",
 			vrrp->stats->authtype_mismatch);
 		fprintf(file, "    Failure: %d\n",
 			vrrp->stats->auth_failure);
+#endif
 		fprintf(file, "  Priority Zero:\n");
 		fprintf(file, "    Received: %" PRIu64 "\n", vrrp->stats->pri_zero_rcvd);
 		fprintf(file, "    Sent: %" PRIu64 "\n", vrrp->stats->pri_zero_sent);
