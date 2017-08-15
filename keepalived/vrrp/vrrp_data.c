@@ -259,6 +259,10 @@ dump_vrrp(void *data)
 	else
 		log_message(LOG_INFO, "   Want State = MASTER");
 	log_message(LOG_INFO, "   Running on device = %s", IF_NAME(vrrp->ifp));
+#ifdef _WITH_VRRP_VMAC_
+	if (vrrp->ifp->vmac)
+		log_message(LOG_INFO, "   Real interface = %s\n", IF_NAME(if_get_by_ifindex(vrrp->ifp->base_ifindex)));
+#endif
 	if (vrrp->dont_track_primary)
 		log_message(LOG_INFO, "   VRRP interface tracking disabled");
 	log_message(LOG_INFO, "   Skip checking advert IP addresses = %s", vrrp->skip_check_adv_addr ? "yes" : "no");

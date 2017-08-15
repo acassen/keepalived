@@ -233,7 +233,7 @@ vrrp_print(FILE *file, void *data)
 	char time_str[26];
 
 	fprintf(file, " VRRP Instance = %s\n", vrrp->iname);
-	fprintf(file, " VRRP Version = %d\n", vrrp->version);
+	fprintf(file, "   VRRP Version = %d\n", vrrp->version);
 	if (vrrp->family == AF_INET6)
 		fprintf(file, "   Using Native IPv6\n");
 	if (vrrp->state == VRRP_STATE_BACK) {
@@ -254,6 +254,10 @@ vrrp_print(FILE *file, void *data)
 	fprintf(file, "   Last transition = %ld (%s)\n",
 		vrrp->last_transition.tv_sec, time_str);
 	fprintf(file, "   Listening device = %s\n", IF_NAME(vrrp->ifp));
+#ifdef _HAVE_VRRP_VMAC_
+	if (vrrp->ifp->vmac)
+		fprintf(file, "   Real interface = %s\n", IF_NAME(if_get_by_ifindex(vrrp->ifp->base_ifindex)));
+#endif
 	if (vrrp->dont_track_primary)
 		fprintf(file, "   VRRP interface tracking disabled\n");
 	if (vrrp->skip_check_adv_addr)
@@ -273,10 +277,13 @@ vrrp_print(FILE *file, void *data)
 	fprintf(file, "   Send advert after receive higher priority advert = %s\n", vrrp->higher_prio_send_advert ? "true" : "false");
 	fprintf(file, "   Virtual Router ID = %d\n", vrrp->vrid);
 	fprintf(file, "   Priority = %d\n", vrrp->base_priority);
+	fprintf(file, "   Effective priority = %d\n", vrrp->effective_priority);
 	fprintf(file, "   Advert interval = %d %s\n",
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
 		(vrrp->adver_int / (TIMER_HZ / 1000)),
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
+	if (vrrp->state == VRRP_STATE_BACK && vrrp->version == VRRP_VERSION_3)
+		fprintf(file, "   Master advert interval = %d milli-sec", vrrp->master_adver_int / (TIMER_HZ / 1000));
 	fprintf(file, "   Accept = %s\n", vrrp->accept ? "enabled" : "disabled");
 	fprintf(file, "   Preempt = %s\n", vrrp->nopreempt ? "disabled" : "enabled");
 	fprintf(file, "   Promote_secondaries = %s\n", vrrp->promote_secondaries ? "enabled" : "disabled");
