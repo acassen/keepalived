@@ -98,7 +98,6 @@ AH_TOP(
   [
 #ifndef _CONFIG_H
 #define _CONFIG_H
-#define SIGJSON ( __SIGRTMIN + 4 )
   ])
 AH_BOTTOM(
   [
@@ -1300,14 +1299,14 @@ AM_CONDITIONAL([DEBUG], [test $ENABLE_DEBUG = Yes])
 dnl ----[ Json output or not ? ]----
 if test "${enable_json}" = yes; then
 	AC_CHECK_HEADERS(json-c/json.h,,AC_MSG_ERROR([unable to find json-c/json.h]))
-	AC_DEFINE([_JSON_], [ 1 ], [Define to 1 to build with json output support])
-	KA_CFLAGS="$KA_CFLAGS -I/usr/include/json-c/"
-	KA_LDFLAGS="$KA_LDFLAGS -ljson-c"
+	AC_DEFINE([_WITH_JSON_], [ 1 ], [Define to 1 to build with json output support])
+	add_pkg_config([json-c])
 	ENABLE_JSON=Yes
 	add_build_opt([JSON])
 else
 	ENABLE_JSON=No
 fi
+AM_CONDITIONAL([WITH_JSON], [test $ENABLE_JSON = Yes])
 
 dnl ----[ Stacktrace support or not ? ]----
 if test "${enable_stacktrace}" = yes; then

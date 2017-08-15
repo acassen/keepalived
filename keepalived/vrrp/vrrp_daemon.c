@@ -69,11 +69,14 @@
 #ifdef _LIBNL_DYNAMIC_
 #include "libnl_link.h"
 #endif
+#ifdef _WITH_JSON_
+#include "vrrp_json.h"
+#endif
 
 /* Forward declarations */
 static int print_vrrp_data(thread_t * thread);
 static int print_vrrp_stats(thread_t * thread);
-#ifdef _JSON_
+#ifdef _WITH_JSON_
 static int print_vrrp_json(thread_t * thread);
 #endif
 static int reload_vrrp_thread(thread_t * thread);
@@ -362,7 +365,7 @@ sigusr2_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	thread_add_event(master, print_vrrp_stats, NULL, 0);
 }
 
-#ifdef _JSON_
+#ifdef _WITH_JSON_
 static void
 sigjson_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 {
@@ -390,7 +393,7 @@ vrrp_signal_init(void)
 	signal_set(SIGTERM, sigend_vrrp, NULL);
 	signal_set(SIGUSR1, sigusr1_vrrp, NULL);
 	signal_set(SIGUSR2, sigusr2_vrrp, NULL);
-#ifdef _JSON_
+#ifdef _WITH_JSON_
 	signal_set(SIGJSON, sigjson_vrrp, NULL);
 #endif
 	signal_ignore(SIGPIPE);
@@ -472,7 +475,7 @@ print_vrrp_stats(__attribute__((unused)) thread_t * thread)
 	return 0;
 }
 
-#ifdef _JSON_
+#ifdef _WITH_JSON_
 static int
 print_vrrp_json(__attribute__((unused)) thread_t * thread)
 {

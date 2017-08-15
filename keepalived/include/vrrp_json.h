@@ -4,9 +4,9 @@
  *              master fails, a backup server takes over.
  *              The original implementation has been made by jerome etienne.
  *
- * Part:        vrrp_print.c program include file.
+ * Part:        Output running VRRP state information in JSON format
  *
- * Author:      John Southworth, <john.southworth@vyatta.com>
+ * Author:      Damien Clabaut, <Damien.Clabaut@corp.ovh.com>
  *
  *              This program is distributed in the hope that it will be useful,
  *              but WITHOUT ANY WARRANTY; without even the implied warranty of
@@ -18,10 +18,16 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2012 John Southworth, <john.southworth@vyatta.com>
+ * Copyright (C) 2017 Damien Clabaut, <Damien.Clabaut@corp.ovh.com>
  */
 
-#include <stdio.h>
+#ifndef _VRRP_JSON_H
+#define _VRRP_JSON_H
 
-extern void vrrp_print_data(void);
-extern void vrrp_print_stats(void);
+/* Static definitions */
+#define SIGJSON ( __SIGRTMIN + 4 )
+
+/* Prototypes */
+extern void vrrp_print_json(void);
+
+#endif

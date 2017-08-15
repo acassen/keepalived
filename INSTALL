@@ -24,6 +24,8 @@ The following libraries need to be installed:
 	openssl-devel libnl3-devel ipset-devel iptables-devel libnfnetlink-devel
 For SNMP support:
 	net-snmp-devel
+For JSON support:
+	json-c-devel
 
 Debian/Ubuntu
 -------------
