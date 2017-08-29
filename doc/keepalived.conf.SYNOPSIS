@@ -21,6 +21,10 @@ The word immediately following (i.e. without any space) the '@' character
 is compared against the string specified with the -i command line option,
 and if they don't match, the configuration line is ignored.
 
+Alternatively, '@^' is a negative comparison, so if the word immediately
+following does NOT match the -i command line option, the configuration line
+IS included.
+
 The purpose of this is to allow a single configuration file to be used for
 multiple systems, where the only differences are likely to be the router_id,
 vrrp instance priorities, and possibly interface names.
@@ -32,10 +36,24 @@ global_defs
 @main	router_id main_router
 @backup router_id backup_router
 }
+...
+vrrp_instance VRRP1 {
+...
+@main    unicast_src_ip 1.2.3.4
+@backup  unicast_src_ip 1.2.3.5
+@backup2 unicast_src_ip 1.2.3.6
+
+	 unicast_peer {
+@^main        1.2.3.4
+@^backup      1.2.3.5
+@^backup2     1.2.3.6
+ 	}
+}
 
 If keepalived is invoked with -i main, then the router_id will be set to main_router,
 if invoked with -i backup, then backup_router, if not invoked with -i, or with
--i anything else, then the router_id will not be set.
+-i anything else, then the router_id will not be set. The unicast peers for main will
+be 1.2.3.5 and 1.2.3.6.
 
 1. Globals configurations
 
