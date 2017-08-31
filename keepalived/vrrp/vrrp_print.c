@@ -137,14 +137,6 @@ address_print(FILE *file, void *data)
 		, ipaddr->label ? ipaddr->label : "");
 }
 
-static void
-sockaddr_print(FILE *file, void *data)
-{
-	struct sockaddr_storage *addr = data;
-
-	fprintf(file, "     %s\n", inet_sockaddrtos(addr));
-}
-
 #ifdef _HAVE_FIB_ROUTING_
 static void
 route_print(FILE *file, void *data)
@@ -325,11 +317,6 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   Virtual IP Excluded = %d\n",
 			LIST_SIZE(vrrp->evip));
 		vrrp_print_list(file, vrrp->evip, &address_print);
-	}
-	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
-		fprintf(file, "   Unicast Peer = %d\n",
-			LIST_SIZE(vrrp->unicast_peer));
-		vrrp_print_list(file, vrrp->unicast_peer, &sockaddr_print);
 	}
 #ifdef _HAVE_FIB_ROUTING_
 	if (!LIST_ISEMPTY(vrrp->vroutes)) {
