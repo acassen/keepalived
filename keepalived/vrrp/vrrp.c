@@ -965,6 +965,10 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, uint8_t prio, char *buffer)
 	hd->naddr = (uint8_t)((!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) : 0);
 	hd->v3.adver_int  = htons((vrrp->adver_int / TIMER_CENTI_HZ) & 0x0FFF); /* interval in centiseconds, reserved bits zero */
 
+	/* For IPv4 to calculate the checksum, the value must start as 0.
+	 * For IPv6, the kernel will update checksum field. */
+	hd->chksum = 0;
+
 	/* Family specific */
 	if (vrrp->family == AF_INET) {
 		/* copy the ip addresses */
@@ -994,8 +998,6 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, uint8_t prio, char *buffer)
 				ip6arr[i++] = ip_addr->u.sin6_addr;
 			}
 		}
-		/* Kernel will update checksum field. let it be 0 now. */
-		hd->chksum = 0;
 	}
 
 	return 0;
