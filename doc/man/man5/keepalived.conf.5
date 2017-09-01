@@ -478,6 +478,14 @@ which will transition together on any state change.
       <IPADDR>
       ...
     }
+    # The checksum calculation when using VRRPv3 changed after v1.3.6.
+    #  Setting this flag forces the old checksum algorithm to be used
+    #  to maintain backward compatibility, although keepalived will
+    #  attempt to maintain compatibility anyway if it sees an old
+    #  version checksum. Sepcifying never will turn off auto detection
+    #  of old checksums. [This option may not be enabled - check output
+    #  of `keepalived -v` for OLD_CHKSUM_COMPAT.]
+    old_unicast_checksum [never]
 
     # interface specific settings, same as global parameters; default to global parameters
     garp_master_delay 10

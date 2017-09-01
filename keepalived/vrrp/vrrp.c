@@ -424,6 +424,9 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 	ip = NULL;
 	struct sockaddr_storage *up_addr;
 	size_t buflen, expected_len;
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+	bool chksum_error;
+#endif
 
 	if (buflen_ret < 0) {
 		log_message(LOG_INFO, "recvmsg returned %zd", buflen_ret);
@@ -638,22 +641,43 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		if (vrrp->version == VRRP_VERSION_3) {
 			/* Create IPv4 pseudo-header */
 			ipv4_phdr.src   = ip->saddr;
-			ipv4_phdr.dst   = ip->daddr;
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+			ipv4_phdr.dst   = vrrp->unicast_chksum_compat <= CHKSUM_COMPATIBILITY_MIN_COMPAT
+					  ? ip->daddr : htonl(INADDR_VRRP_GROUP);
+#else
+			ipv4_phdr.dst	= ip->daddr;
+#endif
 			ipv4_phdr.zero  = 0;
 			ipv4_phdr.proto = IPPROTO_VRRP;
 			ipv4_phdr.len   = htons(vrrppkt_len);
 
 			in_csum((u_short *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
 			if (in_csum((u_short *) hd, vrrppkt_len, acc_csum, NULL)) {
-				log_message(LOG_INFO, "(%s): Invalid VRRPv3 checksum", vrrp->iname);
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+				chksum_error = true;
+				if (vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE) {
+					ipv4_phdr.dst = htonl(INADDR_VRRP_GROUP);
+					in_csum((u_short *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
+					if (!in_csum((u_short *)hd, vrrppkt_len, acc_csum, NULL)) {
+						vrrp->unicast_chksum_compat = CHKSUM_COMPATIBILITY_AUTO;
+						log_message(LOG_INFO, "(%s): Setting unicast VRRPv3 checksum to old version", vrrp->iname);
+						chksum_error = false;
+					}
+				}
+
+				if (chksum_error)
+#endif
+				{
+					log_message(LOG_INFO, "(%s): Invalid VRRPv3 checksum", vrrp->iname);
 #ifdef _WITH_SNMP_RFC_
-				vrrp->stats->chk_err++;
+					vrrp->stats->chk_err++;
 #ifdef _WITH_SNMP_RFCV3_
-				vrrp->stats->proto_err_reason = checksumError;
-				vrrp_rfcv3_snmp_proto_err_notify(vrrp);
+					vrrp->stats->proto_err_reason = checksumError;
+					vrrp_rfcv3_snmp_proto_err_notify(vrrp);
 #endif
 #endif
-				return VRRP_PACKET_KO;
+					return VRRP_PACKET_KO;
+				}
 			}
 		} else {
 			vrrppkt_len += VRRP_AUTH_LEN;
@@ -982,7 +1006,12 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, uint8_t prio, char *buffer, struct iphdr *ip)
 
 		/* Create IPv4 pseudo-header */
 		ipv4_phdr.src   = VRRP_PKT_SADDR(vrrp);
-		ipv4_phdr.dst   = ip->daddr;
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+		ipv4_phdr.dst   = vrrp->unicast_chksum_compat <= CHKSUM_COMPATIBILITY_MIN_COMPAT
+				    ? ip->daddr : htonl(INADDR_VRRP_GROUP);
+#else
+		ipv4_phdr.dst	= ip->daddr;
+#endif
 		ipv4_phdr.zero  = 0;
 		ipv4_phdr.proto = IPPROTO_VRRP;
 		ipv4_phdr.len   = htons(vrrp_pkt_len(vrrp));

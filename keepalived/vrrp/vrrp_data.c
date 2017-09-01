@@ -319,6 +319,11 @@ dump_vrrp(void *data)
 	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
 		log_message(LOG_INFO, "   Unicast Peer = %d", LIST_SIZE(vrrp->unicast_peer));
 		dump_list(vrrp->unicast_peer);
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+		log_message(LOG_INFO, "   Unicast checksum compatibility = %s",
+					vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE ? "no" :
+					vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NEVER ? "never" : "yes");
+#endif
 	}
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		log_message(LOG_INFO, "   Virtual IP = %d", LIST_SIZE(vrrp->vip));
@@ -431,6 +436,7 @@ alloc_vrrp(char *iname)
 	new->garp_lower_prio_rep = PARAMETER_UNSET;
 	new->lower_prio_no_advert = PARAMETER_UNSET;
 	new->higher_prio_send_advert = PARAMETER_UNSET;
+	new->unicast_chksum_compat = CHKSUM_COMPATIBILITY_NONE;
 
 	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
 	new->strict_mode = PARAMETER_UNSET;

@@ -337,6 +337,13 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   Unicast Peer = %d\n",
 			LIST_SIZE(vrrp->unicast_peer));
 		vrrp_print_list(file, vrrp->unicast_peer, &sockaddr_print);
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+		fprintf(file, "   Unicast checksum compatibility = %s",
+				vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE ? "no" :
+			        vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NEVER ? "never" :
+			        vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_CONFIG ? "config" :
+			        vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_AUTO ? "auto" : "unknown");
+#endif
 	}
 #ifdef _HAVE_FIB_ROUTING_
 	if (!LIST_ISEMPTY(vrrp->vroutes)) {

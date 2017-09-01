@@ -246,6 +246,22 @@ vrrp_unicast_peer_handler(__attribute__((unused)) vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_unicast_peer);
 }
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+static void
+vrrp_unicast_chksum_handler(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	if (vector_size(strvec) >= 2) {
+		if (!strcmp(strvec_slot(strvec, 1), "never"))
+			vrrp->unicast_chksum_compat = CHKSUM_COMPATIBILITY_NEVER;
+		else
+			log_message(LOG_INFO, "(%s): Unknown old_unicast_chksum mode %s - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+	}
+	else
+		vrrp->unicast_chksum_compat = CHKSUM_COMPATIBILITY_CONFIG;
+}
+#endif
 static void
 vrrp_native_ipv6_handler(__attribute__((unused)) vector_t *strvec)
 {
@@ -973,6 +989,9 @@ init_vrrp_keywords(bool active)
 	install_keyword("vmac_xmit_base", &vrrp_vmac_xmit_base_handler);
 #endif
 	install_keyword("unicast_peer", &vrrp_unicast_peer_handler);
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+	install_keyword("old_unicast_checksum", &vrrp_unicast_chksum_handler);
+#endif
 	install_keyword("native_ipv6", &vrrp_native_ipv6_handler);
 	install_keyword("state", &vrrp_state_handler);
 	install_keyword("interface", &vrrp_int_handler);

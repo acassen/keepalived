@@ -417,6 +417,13 @@ vrrp_instance <STRING> {		# VRRP instance declaration
       <IP ADDRESS>			#  adverts to following list of ip address
       ...				#  in unicast design fashion
     }
+    old_unicast_checksum [never]	# The checksum calculation when using VRRPv3 changed after v1.3.6.
+					#  Setting this flag forces the old checksum algorithm to be used
+					#  to maintain backward compatibility, although keepalived will
+					#  attempt to maintain compatibility anyway if it sees an old
+					#  version checksum. Specifying never will turn off autodetection
+					#  of old checksums. [This option may not be enabled - check output
+					#  of `keepalived -v` for OLD_CHKSUM_COMPAT.]
 
     # The following garp parameters take their defaults from the global config for vrrp_garp_...
     # See their descriptions for the meaning of the parameters.
