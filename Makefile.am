@@ -8,6 +8,9 @@ export			DEBUG_CFLAGS
 export			DEBUG_CPPFLAGS
 export			DEBUG_LDFLAGS
 
+edit = echo "  EDIT     $@"; \
+	 sed -e "/^\[\!\[/d"
+
 SUBDIRS 		= lib keepalived doc
 
 if BUILD_GENHASH
@@ -18,11 +21,21 @@ SUBDIRS			+= bin_install
 
 EXTRA_DIST		= AUTHOR CONTRIBUTORS snap README.md
 
+doc_DATA		= README
+
+MOSTLYCLEANFILES	= README
+
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
+
+README:	$(srcdir)/README.md
+	@$(edit) '$(srcdir)/$@.md' >$@
 
 distclean-local:
 	@rm -f aclocal.m4 ar-lib compile depcomp missing keepalived-$(VERSION).tar.gz config.log config.status
 	@rm -rf autom4te.cache
+
+dist-hook:
+	@rm -f $(distdir)/README
 
 .PHONY: docker
 docker:
