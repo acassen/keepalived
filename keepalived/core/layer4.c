@@ -77,11 +77,8 @@ socket_bind_connect(int fd, conn_opts_t *co)
 	/* Bind socket */
 	if (((struct sockaddr *) bind_addr)->sa_family != AF_UNSPEC) {
 		addrlen = sizeof(*bind_addr);
-		if (bind(fd, (struct sockaddr *) bind_addr, addrlen) != 0) {
-			log_message(LOG_INFO, "bind() failed - %m");
+		if (bind(fd, (struct sockaddr *) bind_addr, addrlen) != 0)
 			return connect_error;
-		}
-		log_message(LOG_INFO, "bind() successful");
 	}
 
 	/* Set remote IP and connect */
