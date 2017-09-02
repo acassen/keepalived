@@ -640,6 +640,8 @@ virtual_server group <STRING>      {	# VS group declaration
             connect_ip <IP ADDRESS>	# IP address to connect
             connect_port <PORT>		# TCP port to connect
             bindto <IP ADDRESS>		# IP address to bind to
+	    bind_if <IFNAME>		# Interface to bind to; needed if the bindto
+					#  address is IPv6 link local
             bind_port <PORT>		# TCP port to bind to
             connect_timeout <INTEGER>   # Timeout connection
             fwmark <INTEGER>		# fwmark to set on socket (SO_MARK)

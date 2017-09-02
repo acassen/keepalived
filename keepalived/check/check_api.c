@@ -34,6 +34,7 @@
 #include "logger.h"
 #include "bitops.h"
 #include "global_data.h"
+#include "keepalived_netlink.h"
 #include "check_misc.h"
 #include "check_smtp.h"
 #include "check_tcp.h"
@@ -71,6 +72,8 @@ dump_checker_opts(void *data)
 		log_message(LOG_INFO, "   Connection dest = %s", inet_sockaddrtopair(&conn->dst));
 		if (conn->bindto.ss_family)
 			log_message(LOG_INFO, "   Bind to = %s", inet_sockaddrtopair(&conn->bindto));
+		if (conn->bind_if[0])
+			log_message(LOG_INFO, "   Bind i/f = %s", conn->bind_if);
 #ifdef _WITH_SO_MARK_
 		if (conn->fwmark != 0)
 			log_message(LOG_INFO, "   Connection mark = %u", conn->fwmark);
@@ -154,6 +157,8 @@ compare_conn_opts(conn_opts_t *a, conn_opts_t *b)
 		return false;
 	if (!sockstorage_equal(&a->bindto, &b->bindto))
 		return false;
+	if (strcmp(a->bind_if, b->bind_if))
+		return false;
 	if (a->connection_to != b->connection_to)
 		return false;
 #ifdef _WITH_SO_MARK_
@@ -209,7 +214,18 @@ co_srcport_handler(vector_t *strvec)
 }
 
 /* "bind_if" keyword */
-// This is needed for link local IPv6 addres
+static void
+co_srcif_handler(vector_t *strvec)
+{
+	// This is needed for link local IPv6 bindto address
+	conn_opts_t *co = CHECKER_GET_CO();
+
+	if (strlen(strvec_slot(strvec, 1)) > sizeof(co->bind_if) - 1) {
+		log_message(LOG_INFO, "Interface name %s is too long - ignoring", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+	strcpy(co->bind_if, strvec_slot(strvec, 1));
+}
 
 /* "connect_timeout" keyword */
 static void
@@ -285,6 +301,7 @@ install_checker_common_keywords(bool connection_keywords)
 		install_keyword("connect_port", &co_port_handler);
 		install_keyword("bindto", &co_srcip_handler);
 		install_keyword("bind_port", &co_srcport_handler);
+		install_keyword("bind_if", &co_srcif_handler);
 		install_keyword("connect_timeout", &co_timeout_handler);
 #ifdef _WITH_SO_MARK_
 		install_keyword("fwmark", &co_fwmark_handler);

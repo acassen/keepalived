@@ -67,11 +67,21 @@ socket_bind_connect(int fd, conn_opts_t *co)
 	}
 #endif
 
+	if (co->bind_if[0]) {
+		if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, co->bind_if, strlen(co->bind_if) + 1) < 0) {
+			log_message(LOG_INFO, "Checker can't bind to device %s: %s", co->bind_if, strerror(errno));
+			return connect_error;
+		}
+	}
+
 	/* Bind socket */
 	if (((struct sockaddr *) bind_addr)->sa_family != AF_UNSPEC) {
 		addrlen = sizeof(*bind_addr);
-		if (bind(fd, (struct sockaddr *) bind_addr, addrlen) != 0)
+		if (bind(fd, (struct sockaddr *) bind_addr, addrlen) != 0) {
+			log_message(LOG_INFO, "bind() failed - %m");
 			return connect_error;
+		}
+		log_message(LOG_INFO, "bind() successful");
 	}
 
 	/* Set remote IP and connect */

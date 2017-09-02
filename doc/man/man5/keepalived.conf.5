@@ -838,9 +838,13 @@ A virtual_server can be a declaration of one of
                # The default is the realserver port
                connect_port <PORT>
 
-               # Optional interface to use to
+               # Optional address to use to
                # originate the connection
                bindto <IP ADDRESS>
+
+               # Optional interface to use; needed if
+               # the bindto address is IPv6 link local
+               bind_if <IFNAME>
 
                # Optional source port to
                # originate the connection from
