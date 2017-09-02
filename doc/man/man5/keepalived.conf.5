@@ -189,8 +189,10 @@ and
  enable_snmp_rfcv3            # enable SNMP handling of RFC6527 VRRP MIB
  enable_traps                 # enable SNMP traps
 
- # If Keepalived has been build with DBus support, the following keyword is available
- enable_dbus                  # enable the DBus interface
+ # If Keepalived has been build with DBus support, the following keywords are available
+ enable_dbus                       # enable the DBus interface
+ dbus_service_name SERVICE_NAME    # Name of DBus service (default org.keepalived.Vrrp1)
+                                   # Useful if you want to run multiple keepalived processes with DBus enabled
 
  # Specify the default username/groupname to run scripts under.
  # If this option is not specified, the user defaults to keepalived_script

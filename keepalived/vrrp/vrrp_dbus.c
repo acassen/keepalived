@@ -55,6 +55,7 @@
 #include "vrrp_data.h"
 #include "vrrp_if.h"
 #include "vrrp_print.h"
+#include "global_data.h"
 #include "main.h"
 #include "memory.h"
 #include "logger.h"
@@ -578,6 +579,7 @@ dbus_main(__attribute__ ((unused)) void *unused)
 {
 	gchar *introspection_xml;
 	guint owner_id;
+	const char *service_name;
 
 	objects = g_hash_table_new(g_str_hash, g_str_equal);
 
@@ -613,8 +615,9 @@ dbus_main(__attribute__ ((unused)) void *unused)
 		return NULL;
 	}
 
+	service_name = global_data->dbus_service_name ? global_data->dbus_service_name : DBUS_SERVICE_NAME;
 	owner_id = g_bus_own_name(G_BUS_TYPE_SYSTEM,
-				  DBUS_SERVICE_NAME,
+				  service_name,
 				  G_BUS_NAME_OWNER_FLAGS_NONE,
 				  on_bus_acquired,
 				  on_name_acquired,

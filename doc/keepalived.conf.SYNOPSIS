@@ -148,6 +148,8 @@ global_defs {				# Block identification
     enable_traps			   # enable SNMP trap generation
 					   #
     enable_dbus				   # enable the DBus interface
+    dbus_service_name SERVICE_NAME	   # Name of DBus service (default org.keepalived.Vrrp1)
+					   # Useful if you want to run multiple keepalived processes with DBus enabled
 					   #
     script_user USERNAME [GROUPNAME]	   # Specify the default username/groupname to run scripts under
 					   # If groupname is not specified, the group of the user is used.
