@@ -85,6 +85,7 @@ bool use_pid_dir;					/* Put pid files in /var/run/keepalived or @localstatedir@
 unsigned os_major;					/* Kernel version */
 unsigned os_minor;
 unsigned os_release;
+char *hostname;						/* Initial part of hostname */
 
 #if HAVE_DECL_CLONE_NEWNET
 char *network_namespace;				/* The network namespace we are running in */
@@ -560,7 +561,9 @@ usage(const char *prog)
 #ifdef _MEM_CHECK_LOG_
 	fprintf(stderr, "  -L, --mem-check-log          Log malloc/frees to syslog\n");
 #endif
-	fprintf(stderr, "  -i, --config-id id           Skip any configuration lines beginning '@' that don't match id\n");
+	fprintf(stderr, "  -i, --config-id [id]         Skip any configuration lines beginning '@' that don't match id\n"
+		        "                                or any lines beginning @^ that do match.\n"
+		        "                                id defaults to node name for --config-id\n");
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -611,7 +614,7 @@ parse_cmdline(int argc, char **argv)
 #if HAVE_DECL_CLONE_NEWNET
 		{"namespace",         required_argument, 0, 's'},
 #endif	
-		{"config-id",         required_argument, 0, 'i'},
+		{"config-id",         optional_argument, 0, 'i'},
 		{"version",           no_argument,       0, 'v'},
 		{"help",              no_argument,       0, 'h'},
 		{0, 0, 0, 0}
@@ -743,7 +746,10 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'i':
-			config_id = optarg;
+			if (optarg && optarg[0])
+				config_id = optarg;
+			else
+				config_id = hostname;
 			break;
 		default:
 			exit(0);
@@ -795,6 +801,32 @@ keepalived_main(int argc, char **argv)
 	mem_log_init(PACKAGE_NAME, "Parent process");
 #endif
 
+	/* Some functionality depends on kernel version, so get the version here */
+	if (uname(&uname_buf))
+		log_message(LOG_INFO, "Unable to get uname() information - error %d", errno);
+	else {
+		os_major = (unsigned)strtoul(uname_buf.release, &end, 10);
+		if (*end != '.')
+			os_major = 0;
+		else {
+			os_minor = (unsigned)strtoul(end + 1, &end, 10);
+			if (*end != '.')
+				os_major = 0;
+			else {
+				os_release = (unsigned)strtoul(end + 1, &end, 10);
+				if (*end && *end != '-')
+					os_major = 0;
+			}
+		}
+		if (!os_major)
+			log_message(LOG_INFO, "Unable to parse kernel version %s", uname_buf.release);
+
+		/* Set the hostname, removing any domain part */
+		hostname = uname_buf.nodename;
+		if ((end = strchr(hostname, '.')))
+			*end = '\0';
+	}
+
 	/*
 	 * Parse command line and set debug level.
 	 * bits 0..7 reserved by main.c
@@ -817,27 +849,6 @@ keepalived_main(int argc, char **argv)
 	core_dump_init();
 
 	netlink_set_recv_buf_size();
-
-	/* Some functionality depends on kernel version, so get the version here */
-	if (uname(&uname_buf))
-		log_message(LOG_INFO, "Unable to get uname() information - error %d", errno);
-	else {
-		os_major = (unsigned)strtoul(uname_buf.release, &end, 10);
-		if (*end != '.')
-			os_major = 0;
-		else {
-			os_minor = (unsigned)strtoul(end + 1, &end, 10);
-			if (*end != '.')
-				os_major = 0;
-			else {
-				os_release = (unsigned)strtoul(end + 1, &end, 10);
-				if (*end && *end != '-')
-					os_major = 0;
-			}
-		}
-		if (!os_major)
-			log_message(LOG_INFO, "Unable to parse kernel version %s", uname_buf.release);
-	}
 
 	/* Check we can read the configuration file(s).
 	   NOTE: the working directory will be / if we
