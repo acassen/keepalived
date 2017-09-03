@@ -46,7 +46,13 @@ static int misc_check_child_timeout_thread(thread_t *);
 
 static bool script_user_set;
 static misc_checker_t *new_misck_checker;
+static bool have_dynamic_misc_checker;
 
+void
+clear_dynamic_misc_check_flag(void)
+{
+	have_dynamic_misc_checker = false;
+}
 
 /* Configuration stream handling */
 static void
@@ -127,6 +133,11 @@ misc_dynamic_handler(__attribute__((unused)) vector_t *strvec)
 		return;
 
 	new_misck_checker->dynamic = true;
+
+	if (have_dynamic_misc_checker)
+		log_message(LOG_INFO, "Warning - more than one dynamic misc checker per real srver will cause problems");
+	else
+		have_dynamic_misc_checker = true;
 }
 
 static void
@@ -315,8 +326,6 @@ misc_check_child_thread(thread_t * thread)
 			 * the exit status returned.  Effective range is 0..253.
 			 * Catch legacy case of status being 0 but misc_dynamic being set.
 			 */
-// ??? What if there are multiple dynamic misc_checkers? We could get weight flip flopping all over the place.
-// ??? If we keep returning a non-zero status, we will keep calling update_svr_wgt
 			if (misck_checker->dynamic && status != 0)
 				update_svr_wgt(status - 2, checker->vs,
 					       checker->rs, true);

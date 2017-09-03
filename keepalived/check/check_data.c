@@ -498,6 +498,8 @@ alloc_rs(char *ip, char *port)
 	if (!LIST_EXISTS(vs->rs))
 		vs->rs = alloc_list(free_rs, dump_rs);
 	list_add(vs->rs, new);
+
+	clear_dynamic_misc_check_flag();
 }
 
 /* data facility functions */

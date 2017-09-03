@@ -795,41 +795,9 @@ A virtual_server can be a declaration of one of
            # healthcheckers. Can be multiple of each type
            # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK
 
-<<<<<<< HEAD
            # All checkers have the following options:
            CHECKER_TYPE {
-=======
-           # HTTP and SSL healthcheckers
-           HTTP_GET|SSL_GET
-           {
-               # An url to test
-               # can have multiple entries here
-               url {
-                 #eg path / , or path /mrtg2/
-                 path <STRING>
-                 # healthcheck needs status_code
-                 # or status_code and digest
-                 # Digest computed with genhash
-                 # eg digest 9b3a0c85a887a256d6939da88aabd8cd
-                 digest <STRING>
-                 # status code returned in the HTTP header
-                 # eg status_code 200. Default is any 2xx value
-                 status_code <INT>
-                 # VirtualHost string. eg virtualhost www.firewall.loc
-                 # If not set, uses virtualhost from checker or real
-                 # or virtual server
-                 virtualhost <STRING>
-               }
-               # number of get retries
-               nb_get_retry <INT>
-               # delay before retry
-               delay_before_retry <INT>
-               # VirtualHost string. eg virtualhost www.firewall.loc
-               # If not set, uses virtualhost from real or virtual server
-               virtualhost <STRING>
-
                # ======== generic connection options
->>>>>>> fixes
                # Optional IP address to connect to.
                # The default is the realserver IP
                connect_ip <IP ADDRESS>
@@ -937,6 +905,7 @@ A virtual_server can be a declaration of one of
                #     changed to 2 less than exit status.
                #   (for example: exit status of 255 would set
                #     weight to 253)
+               # NOTE: do not have more than one dynamic MISC_CHECK per real_server.
                misc_dynamic
 
                # Specify the username/groupname that the script should

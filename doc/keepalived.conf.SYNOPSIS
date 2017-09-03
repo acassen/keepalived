@@ -704,6 +704,7 @@ virtual_server group <STRING>      {	# VS group declaration
             #     changed to 2 less than exit status.
             #   (for example: exit status of 255 would set
             #     weight to 253)
+	    # NOTE: do not have more than one dynamic MISC_CHECK per real_server.
             misc_dynamic
 	    user USERNAME [GROUPNAME]		# Specify user/group to run script under
         }

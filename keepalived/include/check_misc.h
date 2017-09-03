@@ -45,6 +45,7 @@ typedef struct _misc_checker {
 } misc_checker_t;
 
 /* Prototypes defs */
+extern void clear_dynamic_misc_check_flag(void);
 extern void install_misc_check_keyword(void);
 extern int check_misc_script_security(void);
 
