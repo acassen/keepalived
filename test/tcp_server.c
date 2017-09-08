@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
+#include <signal.h>
+#include <string.h>
 
 int main(int argc, char **argv)
 {
@@ -19,6 +21,7 @@ int main(int argc, char **argv)
 	int sock_type = SOCK_STREAM;
 	int n;
 	char buf[128];
+	struct sigaction sa;
 
 	while ((opt = getopt(argc, argv, "46p:u")) != -1) {
 		switch (opt) {
@@ -35,7 +38,7 @@ int main(int argc, char **argv)
 			sock_type = SOCK_DGRAM;
 			break;
 		default: /* '?' */
-			fprintf(stderr, "Usage: %s [-p port] [-4] [-6]\n", argv[0]);
+			fprintf(stderr, "Usage: %s [-p port] [-4] [-6] [-u]\n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -58,6 +61,11 @@ int main(int argc, char **argv)
 
 		bind(listenfd, (struct sockaddr *)&servaddr6, sizeof(servaddr6));
 	}
+
+	memset(&sa, 0, sizeof(sa));
+	sa.sa_handler = SIG_DFL;
+	sa.sa_flags = SA_NOCLDWAIT;
+	sigaction(SIGCHLD, &sa, NULL);
 
 	if (sock_type == SOCK_STREAM) {
 		listen(listenfd, 4);
