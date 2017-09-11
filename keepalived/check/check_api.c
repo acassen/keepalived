@@ -186,7 +186,13 @@ static void
 co_ip_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
-	inet_stosockaddr(strvec_slot(strvec, 1), 0, &co->dst);
+	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, &co->dst))
+		log_message(LOG_INFO, "Invalid connect_ip address %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+	if (co->bindto.ss_family != AF_UNSPEC &&
+	    co->bindto.ss_family != co->dst.ss_family) {
+		log_message(LOG_INFO, "connect_ip address %s does not match address family of bindto - skipping", FMT_STR_VSLOT(strvec, 1));
+		co->dst.ss_family = AF_UNSPEC;
+	}
 }
 
 /* "connect_port" keyword */
@@ -202,7 +208,13 @@ static void
 co_srcip_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
-	inet_stosockaddr(strvec_slot(strvec, 1), 0, &co->bindto);
+	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, &co->bindto))
+		log_message(LOG_INFO, "Invalid bindto address %s - ignoring", FMT_STR_VSLOT(strvec, 1));
+	if (co->dst.ss_family != AF_UNSPEC &&
+	    co->dst.ss_family != co->bindto.ss_family) {
+		log_message(LOG_INFO, "bindto address %s does not match address family of connect_ip - skipping", FMT_STR_VSLOT(strvec, 1));
+		co->bindto.ss_family = AF_UNSPEC;
+	}
 }
 
 /* "bind_port" keyword */

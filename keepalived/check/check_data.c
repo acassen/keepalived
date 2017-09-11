@@ -165,7 +165,11 @@ alloc_vsg_entry(vector_t *strvec)
 		list_add(vsg->vfwmark, new);
 	} else {
 		new->range = inet_stor(strvec_slot(strvec, 0));
-		inet_stosockaddr(strvec_slot(strvec, 0), strvec_slot(strvec, 1), &new->addr);
+		if (inet_stosockaddr(strvec_slot(strvec, 0), strvec_slot(strvec, 1), &new->addr)) {
+			log_message(LOG_INFO, "Invalid virtual server group IP address %s - skipping", FMT_STR_VSLOT(strvec, 0));
+			FREE(new);
+			return;
+		}
 #ifndef LIBIPVS_USE_NL
 		if (new->addr.ss_family != AF_INET) {
 			log_message(LOG_INFO, "IPVS does not support IPv6 in this build - skipping %s", FMT_STR_VSLOT(strvec, 0));
@@ -353,7 +357,13 @@ alloc_vs(char *param1, char *param2)
 	} else if (!strcmp(param1, "fwmark")) {
 		new->vfwmark = (uint32_t)strtoul(param2, NULL, 10);
 	} else {
-		inet_stosockaddr(param1, param2, &new->addr);
+		if (inet_stosockaddr(param1, param2, &new->addr)) {
+			log_message(LOG_INFO, "Invalid virtual server IP address %s - skipping", param1);
+			skip_block();
+			FREE(new);
+			return;
+		}
+
 		new->af = new->addr.ss_family;
 #ifndef LIBIPVS_USE_NL
 		if (new->af != AF_INET) {
@@ -394,9 +404,14 @@ alloc_ssvr(char *ip, char *port)
 	vs->s_svr->weight = 1;
 	vs->s_svr->iweight = 1;
 	vs->s_svr->forwarding_method = vs->forwarding_method;
-	inet_stosockaddr(ip, port, &vs->s_svr->addr);
+	if (inet_stosockaddr(ip, port, &vs->s_svr->addr)) {
+		log_message(LOG_INFO, "Invalid sorry server IP address %s - skipping", ip);
+		FREE(vs->s_svr);
+		vs->s_svr = NULL;
+		return;
+	}
 
-	if (!vs->af)
+	if (vs->af == AF_UNSPEC)
 		vs->af = vs->s_svr->addr.ss_family;
 	else if (vs->af != vs->s_svr->addr.ss_family) {
 		log_message(LOG_INFO, "Address family of virtual server and sorry server %s don't match - skipping.", ip);
@@ -466,7 +481,12 @@ alloc_rs(char *ip, char *port)
 	real_server_t *new;
 
 	new = (real_server_t *) MALLOC(sizeof(real_server_t));
-	inet_stosockaddr(ip, port, &new->addr);
+	if (inet_stosockaddr(ip, port, &new->addr)) {
+		log_message(LOG_INFO, "Invalid real server ip address %s - skipping", ip)
+		skip_block();
+		FREE(new);
+		return;
+	}
 
 #ifndef LIBIPVS_USE_NL
 	if (new->addr.ss_family != AF_INET) {
@@ -477,7 +497,7 @@ alloc_rs(char *ip, char *port)
 	}
 #endif
 
-	if (!vs->af)
+	if (vs->af == AF_UNSPEC)
 		vs->af = new->addr.ss_family;
 	else if (vs->af != new->addr.ss_family) {
 		log_message(LOG_INFO, "Address family of virtual server and real server %s don't match - skipping.", ip);
