@@ -677,28 +677,28 @@ ipvs_update_stats(virtual_server_t *vs)
 			}
 			vsg_entry = ELEMENT_DATA(ge);
 			addr_ip = (vsg_entry->addr.ss_family == AF_INET6) ?
-				  ((struct sockaddr_in6 *)&vsg_entry->addr)->sin6_addr.s6_addr32[3]:
-				  ((struct sockaddr_in *)&vsg_entry->addr)->sin_addr.s_addr;
+				    ntohs(((struct sockaddr_in6 *)&vsg_entry->addr)->sin6_addr.s6_addr16[7]) :
+				    ntohl(((struct sockaddr_in *)&vsg_entry->addr)->sin_addr.s_addr);
 			state = UPDATE_STATS_VSG_IP_RANGE_CONT;
-			range_end = addr_ip + vsg_entry->range * 0x01000000;
+			range_end = addr_ip + vsg_entry->range;
+			if (vsg_entry->addr.ss_family == AF_INET6)
+				inet_sockaddrip6(&vsg_entry->addr, &nfaddr.in6);
 			continue;
 		case UPDATE_STATS_VSG_IP_RANGE_CONT:
-			if (((addr_ip >> 24) & 0xFF) > range_end) {
+			if (addr_ip > range_end) {
 				state = UPDATE_STATS_VSG_IP_RANGE;
 				continue;
 			}
-			if (vsg_entry->addr.ss_family == AF_INET6) {
-				inet_sockaddrip6(&vsg_entry->addr, &nfaddr.in6);
-				nfaddr.in6.s6_addr32[3] = addr_ip;
-			} else {
-				nfaddr.ip = addr_ip;
-			}
+			if (vsg_entry->addr.ss_family == AF_INET6)
+				nfaddr.in6.s6_addr16[7] = htons(addr_ip);
+			else
+				nfaddr.ip = htonl(addr_ip);
 			serv = ipvs_get_service(0,
 						vsg_entry->addr.ss_family,
 						vs->service_type,
 						nfaddr,
 						inet_sockaddrport(&vsg_entry->addr));
-			addr_ip += 0x01000000;
+			addr_ip++;
 			break;
 		}
 		if (!serv)
