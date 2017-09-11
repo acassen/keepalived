@@ -423,8 +423,6 @@ ipvs_set_drule(int cmd, ipvs_dest_t *drule, real_server_t * rs)
 	/* Clean target rule */
 	memset(drule, 0, sizeof(ipvs_dest_t));
 
-	drule->user.weight = 1;
-
 	drule->af = rs->addr.ss_family;
 	if (rs->addr.ss_family == AF_INET6)
 		inet_sockaddrip6(&rs->addr, &drule->nf_addr.in6);
