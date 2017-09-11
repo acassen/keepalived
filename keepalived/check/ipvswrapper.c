@@ -572,14 +572,15 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 
 #ifdef _WITH_SNMP_CHECKER_
 static void
-ipvs_update_vs_stats(virtual_server_t *vs, ipvs_service_entry_t *serv)
+ipvs_update_vs_stats(virtual_server_t *vs, uint32_t fwmark, union nf_inet_addr *nfaddr, uint16_t port)
 {
 	element e;
 	struct ip_vs_get_dests_app *dests = NULL;
 	real_server_t *rs;
 	unsigned int i;
+	ipvs_service_entry_t *serv;
 
-	if (!serv)
+	if (!(serv = ipvs_get_service(fwmark, vs->af, vs->service_type, nfaddr, port)))
 		return;
 
 	/* Update virtual server stats */
@@ -657,11 +658,10 @@ void
 ipvs_update_stats(virtual_server_t *vs)
 {
 	element e, ge;
-	virtual_server_group_entry_t *vsg_entry = NULL;
-	uint32_t addr_ip = 0;
+	virtual_server_group_entry_t *vsg_entry;
+	uint32_t addr_ip;
 	uint16_t port;
 	union nf_inet_addr nfaddr;
-	ipvs_service_entry_t *serv = NULL;
 	unsigned i;
 	real_server_t *rs;
 	time_t time_now = time(NULL);
@@ -689,8 +689,7 @@ ipvs_update_stats(virtual_server_t *vs)
 	if (vs->vsgname) {
 		for (ge = LIST_HEAD(vs->vsg->vfwmark); ge; ELEMENT_NEXT(ge)) {
 			vsg_entry = ELEMENT_DATA(ge);
-			serv = ipvs_get_service(vsg_entry->vfwmark, vs->af, vs->service_type, nfaddr, 0);
-			ipvs_update_vs_stats(vs, serv);
+			ipvs_update_vs_stats(vs, vsg_entry->vfwmark, &nfaddr, 0);
 		}
 		for (ge = LIST_HEAD(vs->vsg->addr_range); ge; ELEMENT_NEXT(ge)) {
 			vsg_entry = ELEMENT_DATA(ge);
@@ -707,28 +706,18 @@ ipvs_update_stats(virtual_server_t *vs)
 				else
 					nfaddr.ip = htonl(addr_ip);
 
-				serv = ipvs_get_service(0, vs->af, vs->service_type, nfaddr, port);
-				ipvs_update_vs_stats(vs, serv);
+				ipvs_update_vs_stats(vs, 0, &nfaddr, port);
 			}
 		}
 	} else if (vs->vfwmark) {
 		memset(&nfaddr, 0, sizeof(nfaddr));
-		serv = ipvs_get_service(vs->vfwmark,
-					vs->af,
-					vs->service_type,
-					nfaddr, 0);
-		ipvs_update_vs_stats(vs, serv);
+		ipvs_update_vs_stats(vs, vs->vfwmark, &nfaddr, 0);
 	} else {
 		memcpy(&nfaddr, (vs->addr.ss_family == AF_INET6)?
 		       (void*)(&((struct sockaddr_in6 *)&vs->addr)->sin6_addr):
 		       (void*)(&((struct sockaddr_in *)&vs->addr)->sin_addr),
 		       sizeof(nfaddr));
-		serv = ipvs_get_service(0,
-					vs->addr.ss_family,
-					vs->service_type,
-					nfaddr,
-					inet_sockaddrport(&vs->addr));
-		ipvs_update_vs_stats(vs, serv);
+		ipvs_update_vs_stats(vs, 0, &nfaddr, inet_sockaddrport(&vs->addr));
 	}
 }
 #endif /* _WITH_SNMP_CHECKER_ */
