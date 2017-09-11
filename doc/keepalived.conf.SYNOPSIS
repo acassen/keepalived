@@ -622,6 +622,8 @@ virtual_server group <STRING>      {	# VS group declaration
 					# Script to launch when
 					#  healthchecker consider service
 					#  as down.
+	uthreshold <INTEGER>		# maximum number of connections to server
+	lthreshold <INTEGER>		# minimum number of connections to server
 	alpha <BOOL>			# see above
 	retry <INTEGER>			# see above
         delay_before_retry <INTEGER>	# see above
