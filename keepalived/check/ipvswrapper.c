@@ -571,6 +571,27 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 }
 
 #ifdef _WITH_SNMP_CHECKER_
+static inline bool
+vsd_equal(real_server_t *rs, struct ip_vs_dest_entry_app *entry)
+{
+	if (entry->af != AF_INET && entry->af != AF_INET6)
+		return false;
+
+	if (rs->addr.ss_family != entry->af)
+		return false;
+
+	if (!inaddr_equal(entry->af, &entry->nf_addr,
+			entry->af == AF_INET ? (void *)&((struct sockaddr_in *)&rs->addr)->sin_addr
+					     : (void *)&((struct sockaddr_in6 *)&rs->addr)->sin6_addr))
+		return false;
+
+	if (entry->user.port != (entry->af == AF_INET) ? ((struct sockaddr_in *)&rs->addr)->sin_port
+						       : ((struct sockaddr_in6 *)&rs->addr)->sin6_port)
+		return false;
+
+	return true;
+}
+
 static void
 ipvs_update_vs_stats(virtual_server_t *vs, uint32_t fwmark, union nf_inet_addr *nfaddr, uint16_t port)
 {
@@ -584,17 +605,16 @@ ipvs_update_vs_stats(virtual_server_t *vs, uint32_t fwmark, union nf_inet_addr *
 		return;
 
 	/* Update virtual server stats */
-#define ADD_TO_VSSTATS(X) vs->stats.X += serv->stats.X;
-	ADD_TO_VSSTATS(conns);
-	ADD_TO_VSSTATS(inpkts);
-	ADD_TO_VSSTATS(outpkts);
-	ADD_TO_VSSTATS(inbytes);
-	ADD_TO_VSSTATS(outbytes);
-	ADD_TO_VSSTATS(cps);
-	ADD_TO_VSSTATS(inpps);
-	ADD_TO_VSSTATS(outpps);
-	ADD_TO_VSSTATS(inbps);
-	ADD_TO_VSSTATS(outbps);
+	vs->stats.conns		+= serv->stats.conns;
+	vs->stats.inpkts	+= serv->stats.inpkts;
+	vs->stats.outpkts	+= serv->stats.outpkts;
+	vs->stats.inbytes	+= serv->stats.inbytes;
+	vs->stats.outbytes	+= serv->stats.outbytes;
+	vs->stats.cps		+= serv->stats.cps;
+	vs->stats.inpps		+= serv->stats.inpps;
+	vs->stats.outpps	+= serv->stats.outpps;
+	vs->stats.inbps		+= serv->stats.inbps;
+	vs->stats.outbps	+= serv->stats.outbps;
 
 	/* Get real servers */
 	dests = ipvs_get_dests(serv);
@@ -605,47 +625,32 @@ ipvs_update_vs_stats(virtual_server_t *vs, uint32_t fwmark, union nf_inet_addr *
 	for (i = 0; i < dests->user.num_dests; i++) {
 		rs = NULL;
 
-#define VSD_EQUAL(entity) (((entity)->addr.ss_family == AF_INET &&	\
-		    dests->user.entrytable[i].af == AF_INET &&	\
-		    inaddr_equal(AF_INET,			\
-				 &dests->user.entrytable[i].nf_addr,    \
-				 &((struct sockaddr_in *)&(entity)->addr)->sin_addr) &&	\
-		    dests->user.entrytable[i].user.port == ((struct sockaddr_in *)&(entity)->addr)->sin_port) || \
-		    ((entity)->addr.ss_family == AF_INET6 &&	\
-		    dests->user.entrytable[i].af == AF_INET6 &&	\
-		    inaddr_equal(AF_INET6,			\
-				 &dests->user.entrytable[i].nf_addr,	\
-				 &((struct sockaddr_in6 *)&(entity)->addr)->sin6_addr) &&	\
-		    dests->user.entrytable[i].user.port == ((struct sockaddr_in6 *)&(entity)->addr)->sin6_port))
 		/* Is it the sorry server? */
-		if (vs->s_svr && VSD_EQUAL(vs->s_svr))
+		if (vs->s_svr && vsd_equal(vs->s_svr, &dests->user.entrytable[i]))
 			rs = vs->s_svr;
-		else if (!LIST_ISEMPTY(vs->rs))
+		else if (!LIST_ISEMPTY(vs->rs)) {
 			/* Search for a match in the list of real servers */
 			for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 				rs = ELEMENT_DATA(e);
-				if (VSD_EQUAL(rs))
+				if (vsd_equal(rs, &dests->user.entrytable[i]))
 					break;
 			}
+		}
+
 		if (rs) {
-#define ADD_TO_RSSTATS(X) rs->X += dests->user.entrytable[i].X
-#define ADD_TO_RSSTATS_USER(X) rs->X += dests->user.entrytable[i].user.X
-			ADD_TO_RSSTATS_USER(activeconns);
-			ADD_TO_RSSTATS_USER(inactconns);
-			ADD_TO_RSSTATS_USER(persistconns);
-//			rs->activeconns = dests->user.entrytable[i].user.activeconns;
-//			rs->inactconns = dests->user.entrytable[i].user.inactconns;
-//			rs->persistconns = dests->user.entrytable[i].user.persistconns;
-			ADD_TO_RSSTATS(stats.conns);
-			ADD_TO_RSSTATS(stats.inpkts);
-			ADD_TO_RSSTATS(stats.outpkts);
-			ADD_TO_RSSTATS(stats.inbytes);
-			ADD_TO_RSSTATS(stats.outbytes);
-			ADD_TO_RSSTATS(stats.cps);
-			ADD_TO_RSSTATS(stats.inpps);
-			ADD_TO_RSSTATS(stats.outpps);
-			ADD_TO_RSSTATS(stats.inbps);
-			ADD_TO_RSSTATS(stats.outbps);
+			rs->activeconns		+= dests->user.entrytable[i].user.activeconns;
+			rs->inactconns		+= dests->user.entrytable[i].user.inactconns;
+			rs->persistconns	+= dests->user.entrytable[i].user.persistconns;
+			rs->stats.conns		+= dests->user.entrytable[i].stats.conns;
+			rs->stats.inpkts	+= dests->user.entrytable[i].stats.inpkts;
+			rs->stats.outpkts	+= dests->user.entrytable[i].stats.outpkts;
+			rs->stats.inbytes	+= dests->user.entrytable[i].stats.inbytes;
+			rs->stats.outbytes	+= dests->user.entrytable[i].stats.outbytes;
+			rs->stats.cps		+= dests->user.entrytable[i].stats.cps;
+			rs->stats.inpps		+= dests->user.entrytable[i].stats.inpps;
+			rs->stats.outpps	+= dests->user.entrytable[i].stats.outpps;
+			rs->stats.inbps		+= dests->user.entrytable[i].stats.inbps;
+			rs->stats.outbps	+= dests->user.entrytable[i].stats.outbps;
 		}
 	}
 	FREE(dests);
