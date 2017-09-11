@@ -227,7 +227,7 @@ pto_handler(vector_t *strvec)
 	errno = 0;
 	timeout = strtoul(strvec_slot(strvec, 1), &endptr, 10);
 	if (errno || *endptr || timeout > UINT32_MAX || timeout == 0) {
-		log_message(LOG_INFO, "persistent_timeout invalid");
+		log_message(LOG_INFO, "persistence_timeout invalid");
 		return;
 	}
 
@@ -249,17 +249,40 @@ static void
 pgr_handler(vector_t *strvec)
 {
 	struct in_addr addr;
-
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	if (vs->addr.ss_family == AF_INET6)
-		vs->persistence_granularity = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
-	else {
-		if (inet_aton(strvec_slot(strvec, 1), &addr)) {
-			log_message(LOG_INFO, "Invalid persistence_timeout specified - %s", FMT_STR_VSLOT(strvec, 1));
+	char *endptr;
+	int af = vs->af;
+
+	if (af == AF_UNSPEC)
+		af = strchr(strvec_slot(strvec, 1), '.') ? AF_INET : AF_INET6;
+
+	if (af == AF_INET6) {
+		vs->persistence_granularity = (uint32_t)strtoul(strvec_slot(strvec, 1), &endptr, 10);
+		if (*endptr || vs->persistence_granularity < 1 || vs->persistence_granularity > 128) {
+			log_message(LOG_INFO, "Invalid IPv6 persistence_granularity specified - %s", FMT_STR_VSLOT(strvec, 1));
+			vs->persistence_granularity = 0;
 			return;
 		}
+	} else {
+		if (inet_aton(strvec_slot(strvec, 1), &addr)) {
+			log_message(LOG_INFO, "Invalid IPv4 persistence_granularity specified - %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+
+		/* Ensure the netmask is solid */
+		uint32_t haddr = ntohl(addr.s_addr);
+		while (!(haddr & 1))
+			haddr = (haddr >> 1) | 0x80000000;
+		if (haddr != 0xffffffff) {
+			log_message(LOG_INFO, "IPv4 persistence_granularity netmask is not solid - %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+
 		vs->persistence_granularity = addr.s_addr;
 	}
+
+	if (vs->af == AF_UNSPEC)
+		vs->af = af;
 
 	if (!vs->persistence_timeout)
 		vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
