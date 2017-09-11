@@ -52,7 +52,7 @@ void
 free_ssl(void)
 {
 	ssl_data_t *ssl;
-       
+
 	if (!check_data)
 		return;
 
@@ -90,8 +90,7 @@ free_vsg(void *data)
 {
 	virtual_server_group_t *vsg = data;
 	FREE_PTR(vsg->gname);
-	free_list(&vsg->addr_ip);
-	free_list(&vsg->range);
+	free_list(&vsg->addr_range);
 	free_list(&vsg->vfwmark);
 	FREE(vsg);
 }
@@ -101,8 +100,7 @@ dump_vsg(void *data)
 	virtual_server_group_t *vsg = data;
 
 	log_message(LOG_INFO, " Virtual Server Group = %s", vsg->gname);
-	dump_list(vsg->addr_ip);
-	dump_list(vsg->range);
+	dump_list(vsg->addr_range);
 	dump_list(vsg->vfwmark);
 }
 static void
@@ -114,25 +112,27 @@ static void
 dump_vsg_entry(void *data)
 {
 	virtual_server_group_entry_t *vsg_entry = data;
+	uint16_t start;
 
 	if (vsg_entry->vfwmark)
 		log_message(LOG_INFO, "   FWMARK = %u", vsg_entry->vfwmark);
-	else if (vsg_entry->range) {
-		if (vsg_entry->addr.ss_family == AF_INET)
-			log_message(LOG_INFO, "   VIP Range = %s-%d, VPORT = %d"
+	else {
+		if (vsg_entry->range) {
+			start = vsg_entry->addr.ss_family == AF_INET ?
+				  ntohl(((struct sockaddr_in*)&vsg_entry->addr)->sin_addr.s_addr) & 0xFF :
+				  ntohs(((struct sockaddr_in6*)&vsg_entry->addr)->sin6_addr.s6_addr16[7]);
+			log_message(LOG_INFO,
+				    vsg_entry->addr.ss_family == AF_INET ?
+					"   VIP Range = %s-%d, VPORT = %d" :
+					"   VIP Range = %s-%x, VPORT = %d",
+				    inet_sockaddrtos(&vsg_entry->addr),
+				    start + vsg_entry->range,
+				    ntohs(inet_sockaddrport(&vsg_entry->addr)));
+		} else
+			log_message(LOG_INFO, "   VIP = %s, VPORT = %d"
 					    , inet_sockaddrtos(&vsg_entry->addr)
-					    , vsg_entry->range
-					    , ntohs(inet_sockaddrport(&vsg_entry->addr)));
-		else
-			log_message(LOG_INFO, "   VIP Range = %s-%x, VPORT = %d"
-					    , inet_sockaddrtos(&vsg_entry->addr)
-					    , vsg_entry->range
 					    , ntohs(inet_sockaddrport(&vsg_entry->addr)));
 	}
-	else
-		log_message(LOG_INFO, "   VIP = %s, VPORT = %d"
-				    , inet_sockaddrtos(&vsg_entry->addr)
-				    , ntohs(inet_sockaddrport(&vsg_entry->addr)));
 }
 void
 alloc_vsg(char *gname)
@@ -143,8 +143,7 @@ alloc_vsg(char *gname)
 	new = (virtual_server_group_t *) MALLOC(sizeof(virtual_server_group_t));
 	new->gname = (char *) MALLOC(size + 1);
 	memcpy(new->gname, gname, size);
-	new->addr_ip = alloc_list(free_vsg_entry, dump_vsg_entry);
-	new->range = alloc_list(free_vsg_entry, dump_vsg_entry);
+	new->addr_range = alloc_list(free_vsg_entry, dump_vsg_entry);
 	new->vfwmark = alloc_list(free_vsg_entry, dump_vsg_entry);
 
 	list_add(check_data->vs_group, new);
@@ -179,8 +178,8 @@ alloc_vsg_entry(vector_t *strvec)
 #endif
 
 		/* Ensure the address family matches any previously configured addresses */
-		if (!LIST_ISEMPTY(vsg->addr_ip)) {
-			e = LIST_HEAD(vsg->addr_ip);
+		if (!LIST_ISEMPTY(vsg->addr_range)) {
+			e = LIST_HEAD(vsg->addr_range);
 			old = ELEMENT_DATA(e);
 			if (old->addr.ss_family != new->addr.ss_family) {
 				log_message(LOG_INFO, "Cannot mix IPv4 and IPv6 in virtual server group - %s", vsg->gname);
@@ -188,38 +187,31 @@ alloc_vsg_entry(vector_t *strvec)
 				return;
 			}
 		}
-		if (!LIST_ISEMPTY(vsg->range)) {
-			e = LIST_HEAD(vsg->range);
-			old = ELEMENT_DATA(e);
-			if (old->addr.ss_family != new->addr.ss_family) {
-				log_message(LOG_INFO, "Cannot mix IPv4 and IPv6 in virtual server group -  %s", vsg->gname);
-				FREE(new);
-				return;
-			}
-		}
-		if (!new->range) {
-			list_add(vsg->addr_ip, new);
-			return;
-		}
 
-		if ((new->addr.ss_family == AF_INET && new->range > 255) ||
-		    (new->addr.ss_family == AF_INET6 && new->range > 0xffff)) {
+		/* If no range specified, new->range == 0 */
+		if (new->range &&
+		    ((new->addr.ss_family == AF_INET && new->range > 255) ||
+		     (new->addr.ss_family == AF_INET6 && new->range > 0xffff))) {
 			log_message(LOG_INFO, "End address of range exceeds limit for address family - %s - skipping", FMT_STR_VSLOT(strvec, 0));
 			FREE(new);
 			return;
 		}
 
 		if (new->addr.ss_family == AF_INET)
-			start = htonl(((struct sockaddr_in *)&new->addr)->sin_addr.s_addr) & 0xFF;
+			start = ntohl(((struct sockaddr_in *)&new->addr)->sin_addr.s_addr) & 0xFF;
 		else
-			start = htons(((struct sockaddr_in6 *)&new->addr)->sin6_addr.s6_addr16[7]);
-		if (start >= new->range) {
-			log_message(LOG_INFO, "Address range end is not greater than address range start - %s - skipping", FMT_STR_VSLOT(strvec, 0));
-			FREE(new);
-			return;
+			start = ntohs(((struct sockaddr_in6 *)&new->addr)->sin6_addr.s6_addr16[7]);
+
+		if (new->range) {
+			if (start >= new->range) {
+				log_message(LOG_INFO, "Address range end is not greater than address range start - %s - skipping", FMT_STR_VSLOT(strvec, 0));
+				FREE(new);
+				return;
+			}
+			new->range -= start;
 		}
 
-		list_add(vsg->range, new);
+		list_add(vsg->addr_range, new);
 	}
 }
 
@@ -482,7 +474,7 @@ alloc_rs(char *ip, char *port)
 
 	new = (real_server_t *) MALLOC(sizeof(real_server_t));
 	if (inet_stosockaddr(ip, port, &new->addr)) {
-		log_message(LOG_INFO, "Invalid real server ip address %s - skipping", ip)
+		log_message(LOG_INFO, "Invalid real server ip address %s - skipping", ip);
 		skip_block();
 		FREE(new);
 		return;
@@ -656,35 +648,33 @@ bool validate_check_config(void)
 			if (vs->ha_suspend)
 				using_ha_suspend = true;
 
-			/* Check protocol set */
-			if (!vs->service_type &&
-			    ((vs->vsg && (!LIST_ISEMPTY(vs->vsg->addr_ip) || !LIST_ISEMPTY(vs->vsg->range))) ||
-			     (!vs->vsg && !vs->vfwmark))) {
-				/* If the protocol is 0, the kernel defaults to UDP, so set it explicitly */
-				log_message(LOG_INFO, "Virtual server %s: no protocol set - defaulting to UDP", FMT_VS(vs));
-				vs->service_type = IPPROTO_UDP;
-			}
+			/* If the virtual server is specified by address (rather than fwmark), make some further checks */
+			if ((vs->vsg && !LIST_ISEMPTY(vs->vsg->addr_range)) ||
+			    (!vs->vsg && !vs->vfwmark)) {
+				/* Check protocol set */
+				if (!vs->service_type) {
+					/* If the protocol is 0, the kernel defaults to UDP, so set it explicitly */
+					log_message(LOG_INFO, "Virtual server %s: no protocol set - defaulting to UDP", FMT_VS(vs));
+					vs->service_type = IPPROTO_UDP;
+				}
 
 #ifdef IP_VS_SVC_F_ONEPACKET
-			/* Check OPS not set for TCP or SCTP */
-			if (vs->flags & IP_VS_SVC_F_ONEPACKET &&
-			    vs->service_type != IPPROTO_UDP &&
-			    ((vs->vsg && (!LIST_ISEMPTY(vs->vsg->addr_ip) || !LIST_ISEMPTY(vs->vsg->range))) ||
-			     (!vs->vsg && !vs->vfwmark))) {
-				/* OPS is only valid for UDP, or with a firewall mark */
-				log_message(LOG_INFO, "Virtual server %s: one packet scheduling requires UDP - resetting", FMT_VS(vs));
-				vs->flags &= ~(unsigned)IP_VS_SVC_F_ONEPACKET;
-			}
+				/* Check OPS not set for TCP or SCTP */
+				if (vs->flags & IP_VS_SVC_F_ONEPACKET &&
+				    vs->service_type != IPPROTO_UDP) {
+					/* OPS is only valid for UDP, or with a firewall mark */
+					log_message(LOG_INFO, "Virtual server %s: one packet scheduling requires UDP - resetting", FMT_VS(vs));
+					vs->flags &= ~(unsigned)IP_VS_SVC_F_ONEPACKET;
+				}
 #endif
 
-			/* Check port specified for udp/tcp/sctp unless persistent */
-			if (!(vs->persistence_timeout || vs->persistence_granularity) &&
-			    ((!vs->vsg && !vs->vfwmark) ||
-			     (vs->vsg && (!LIST_ISEMPTY(vs->vsg->addr_ip) || !LIST_ISEMPTY(vs->vsg->range)))) &&
-			    ((vs->addr.ss_family == AF_INET6 && !((struct sockaddr_in6 *)&vs->addr)->sin6_port) ||
-			     (vs->addr.ss_family == AF_INET && !((struct sockaddr_in *)&vs->addr)->sin_port))) {
-				log_message(LOG_INFO, "Virtual server %s: zero port only valid for persistent sevices - setting", FMT_VS(vs));
-				vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
+				/* Check port specified for udp/tcp/sctp unless persistent */
+				if (!(vs->persistence_timeout || vs->persistence_granularity) &&
+				    ((vs->addr.ss_family == AF_INET6 && !((struct sockaddr_in6 *)&vs->addr)->sin6_port) ||
+				     (vs->addr.ss_family == AF_INET && !((struct sockaddr_in *)&vs->addr)->sin_port))) {
+					log_message(LOG_INFO, "Virtual server %s: zero port only valid for persistent sevices - setting", FMT_VS(vs));
+					vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
+				}
 			}
 
 			/* Check scheduler set */

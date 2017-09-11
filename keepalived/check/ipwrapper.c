@@ -267,9 +267,8 @@ sync_service_vsg(virtual_server_t * vs)
 
 	vsg = vs->vsg;
 	list ll[] = {
-		vsg->addr_ip,
+		vsg->addr_range,
 		vsg->vfwmark,
-		vsg->range,
 		NULL,
 	};
 
@@ -278,6 +277,7 @@ sync_service_vsg(virtual_server_t * vs)
 			vsge = ELEMENT_DATA(e);
 			if (vs->reloaded && !vsge->reloaded) {
 				log_message(LOG_INFO, "VS [%s:%d:%u] added into group %s"
+// Does this work with no address?
 						    , inet_sockaddrtotrio(&vsge->addr, vs->service_type)
 						    , vsge->range
 						    , vsge->vfwmark
@@ -602,7 +602,7 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 			new_vsge->reloaded = true;
 		}
 		else {
-			log_message(LOG_INFO, "VS [%s:%d:%u] in group %s no longer exist"
+			log_message(LOG_INFO, "VS [%s:%d:%u] in group %s no longer exists"
 					    , inet_sockaddrtotrio(&vsge->addr, old_vs->service_type)
 					    , vsge->range
 					    , vsge->vfwmark
@@ -621,8 +621,7 @@ clear_diff_vsg(virtual_server_t * old_vs, virtual_server_t * new_vs)
 	virtual_server_group_t *new = new_vs->vsg;
 
 	/* Diff the group entries */
-	clear_diff_vsge(old->addr_ip, new->addr_ip, old_vs);
-	clear_diff_vsge(old->range, new->range, old_vs);
+	clear_diff_vsge(old->addr_range, new->addr_range, old_vs);
 	clear_diff_vsge(old->vfwmark, new->vfwmark, old_vs);
 }
 
@@ -870,8 +869,7 @@ link_vsg_to_vs(void)
 			}
 
 			/* Check the vsg has some configuration */
-			if (LIST_ISEMPTY(vs->vsg->addr_ip) &&
-			    LIST_ISEMPTY(vs->vsg->range) &&
+			if (LIST_ISEMPTY(vs->vsg->addr_range) &&
 			    LIST_ISEMPTY(vs->vsg->vfwmark)) {
 				log_message(LOG_INFO, "Virtual server group %s has no configuration - ignoring virtual server %s", vs->vsgname, FMT_VS(vs));
 				free_vs_checkers(vs);
@@ -880,12 +878,8 @@ link_vsg_to_vs(void)
 			}
 
 			/* Check the vs and vsg address families match */
-			if (!LIST_ISEMPTY(vs->vsg->addr_ip)) {
-				vsge = ELEMENT_DATA(LIST_HEAD(vs->vsg->addr_ip));
-				vsg_af = vsge->addr.ss_family;
-			}
-			else if (!LIST_ISEMPTY(vs->vsg->range)) {
-				vsge = ELEMENT_DATA(LIST_HEAD(vs->vsg->range));
+			if (!LIST_ISEMPTY(vs->vsg->addr_range)) {
+				vsge = ELEMENT_DATA(LIST_HEAD(vs->vsg->addr_range));
 				vsg_af = vsge->addr.ss_family;
 			}
 			else {

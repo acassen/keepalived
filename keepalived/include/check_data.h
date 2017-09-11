@@ -107,8 +107,7 @@ typedef struct _virtual_server_group_entry {
 
 typedef struct _virtual_server_group {
 	char				*gname;
-	list				addr_ip;
-	list				range;
+	list				addr_range;
 	list				vfwmark;
 } virtual_server_group_t;
 

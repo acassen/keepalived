@@ -165,9 +165,8 @@ enum check_snmp_realserver_magic {
 };
 
 #define STATE_VSGM_FWMARK 1
-#define STATE_VSGM_ADDRESS 2
-#define STATE_VSGM_RANGE 3
-#define STATE_VSGM_END 4
+#define STATE_VSGM_ADDRESS_RANGE 2
+#define STATE_VSGM_END 3
 
 #define STATE_RS_SORRY 1
 #define STATE_RS_REGULAR_FIRST 2
@@ -279,16 +278,13 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 		if (be)
 			break; /* Optimization: cannot be the lower anymore */
 		state = STATE_VSGM_FWMARK;
-		while (state != STATE_VSGM_END) {
+		while (state < STATE_VSGM_END) {
 			switch (state) {
 			case STATE_VSGM_FWMARK:
 				l = group->vfwmark;
 				break;
-			case STATE_VSGM_ADDRESS:
-				l = group->addr_ip;
-				break;
-			case STATE_VSGM_RANGE:
-				l = group->range;
+			case STATE_VSGM_ADDRESS_RANGE:
+				l = group->addr_range;
 				break;
 			default:
 				/* Dunno? */
@@ -365,13 +361,12 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 			struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&be->addr;
 			*var_len = 16;
 			memcpy(&ip6, &addr6->sin6_addr, sizeof(ip6));
-			ip6.s6_addr32[3] &= htonl(0xFFFFFF00);
-			ip6.s6_addr32[3] += htonl(be->range);
+			ip6.s6_addr16[7] = htons(ntohs(ip6.s6_addr16[7]) + be->range);
 			return (u_char *)&ip6;
 		} else {
 			struct sockaddr_in *addr4 = (struct sockaddr_in *)&be->addr;
 			*var_len = 4;
-			ip = (*(uint32_t *)&addr4->sin_addr) & htonl(0xFFFFFF00);
+			ip = *(uint32_t *)&addr4->sin_addr;
 			ip += htonl(be->range);
 			return (u_char *)&ip;
 		}
