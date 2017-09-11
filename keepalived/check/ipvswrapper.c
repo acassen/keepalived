@@ -389,7 +389,7 @@ ipvs_set_srule(int cmd, ipvs_service_t *srule, virtual_server_t * vs)
 
 	strncpy(srule->user.sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
 	srule->user.flags = vs->flags;
-	srule->user.netmask = (vs->addr.ss_family == AF_INET6) ? 128 : ((uint32_t) 0xffffffff);
+	srule->user.netmask = (vs->af == AF_INET6) ? 128 : ((uint32_t) 0xffffffff);
 	srule->user.protocol = vs->service_type;
 
 	srule->user.timeout = vs->persistence_timeout;

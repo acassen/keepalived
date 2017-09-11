@@ -269,7 +269,7 @@ dump_vs(void *data)
 	if (vs->persistence_timeout)
 		log_message(LOG_INFO, "   persistence timeout = %u", vs->persistence_timeout);
 	if (vs->persistence_granularity) {
-		if (vs->addr.ss_family == AF_INET6)
+		if (vs->af == AF_INET6)
 			log_message(LOG_INFO, "   persistence granularity = %d",
 				       vs->persistence_granularity);
 		else
@@ -669,7 +669,7 @@ bool validate_check_config(void)
 #endif
 
 				/* Check port specified for udp/tcp/sctp unless persistent */
-				if (!(vs->persistence_timeout || vs->persistence_granularity) &&
+				if (!vs->persistence_timeout &&
 				    ((vs->addr.ss_family == AF_INET6 && !((struct sockaddr_in6 *)&vs->addr)->sin6_port) ||
 				     (vs->addr.ss_family == AF_INET && !((struct sockaddr_in *)&vs->addr)->sin_port))) {
 					log_message(LOG_INFO, "Virtual server %s: zero port only valid for persistent sevices - setting", FMT_VS(vs));
