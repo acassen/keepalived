@@ -582,15 +582,15 @@ ipvs_update_stats(virtual_server_t *vs)
 	virtual_server_group_t *vsg = NULL;
 	virtual_server_group_entry_t *vsg_entry = NULL;
 	uint32_t addr_ip = 0;
+	uint32_t range_end;
 	union nf_inet_addr nfaddr;
 	ipvs_service_entry_t *serv = NULL;
 	struct ip_vs_get_dests_app *dests = NULL;
 	unsigned i;
 #define UPDATE_STATS_INIT 1
-#define UPDATE_STATS_VSG_IP 2
-#define UPDATE_STATS_VSG_FWMARK 4
-#define UPDATE_STATS_VSG_RANGE 6
-#define UPDATE_STATS_VSG_RANGE_IP 7
+#define UPDATE_STATS_VSG_FWMARK 2
+#define UPDATE_STATS_VSG_IP_RANGE 3
+#define UPDATE_STATS_VSG_IP_RANGE_CONT 4
 #define UPDATE_STATS_END 99
 	int state = UPDATE_STATS_INIT;
 
@@ -626,7 +626,7 @@ ipvs_update_stats(virtual_server_t *vs)
 				if (!vsg)
 					state = UPDATE_STATS_END;
 				else {
-					state = UPDATE_STATS_VSG_IP;
+					state = UPDATE_STATS_VSG_IP_RANGE;
 					ge = NULL;
 				}
 				continue;
@@ -650,33 +650,13 @@ ipvs_update_stats(virtual_server_t *vs)
 						nfaddr,
 						inet_sockaddrport(&vs->addr));
 			break;
-		case UPDATE_STATS_VSG_IP:
-			if (!ge)
-				ge = LIST_HEAD(vsg->addr_ip);
-			else
-				ELEMENT_NEXT(ge);
-			if (!ge) {
-				state = UPDATE_STATS_VSG_FWMARK;
-				continue;
-			}
-			vsg_entry = ELEMENT_DATA(ge);
-			memcpy(&nfaddr, (vsg_entry->addr.ss_family == AF_INET6)?
-			       (void*)(&((struct sockaddr_in6 *)&vsg_entry->addr)->sin6_addr):
-			       (void*)(&((struct sockaddr_in *)&vsg_entry->addr)->sin_addr),
-			       sizeof(nfaddr));
-			serv = ipvs_get_service(0,
-						vsg_entry->addr.ss_family,
-						vs->service_type,
-						nfaddr,
-						inet_sockaddrport(&vsg_entry->addr));
-			break;
 		case UPDATE_STATS_VSG_FWMARK:
 			if (!ge)
 				ge = LIST_HEAD(vsg->vfwmark);
 			else
 				ELEMENT_NEXT(ge);
 			if (!ge) {
-				state = UPDATE_STATS_VSG_RANGE;
+				state = UPDATE_STATS_VSG_IP_RANGE;
 				continue;
 			}
 			vsg_entry = ELEMENT_DATA(ge);
@@ -686,9 +666,9 @@ ipvs_update_stats(virtual_server_t *vs)
 						vs->service_type,
 						nfaddr, 0);
 			break;
-		case UPDATE_STATS_VSG_RANGE:
+		case UPDATE_STATS_VSG_IP_RANGE:
 			if (!ge)
-				ge = LIST_HEAD(vsg->range);
+				ge = LIST_HEAD(vsg->addr_range);
 			else
 				ELEMENT_NEXT(ge);
 			if (!ge) {
@@ -699,11 +679,12 @@ ipvs_update_stats(virtual_server_t *vs)
 			addr_ip = (vsg_entry->addr.ss_family == AF_INET6) ?
 				  ((struct sockaddr_in6 *)&vsg_entry->addr)->sin6_addr.s6_addr32[3]:
 				  ((struct sockaddr_in *)&vsg_entry->addr)->sin_addr.s_addr;
-			state = UPDATE_STATS_VSG_RANGE_IP;
+			state = UPDATE_STATS_VSG_IP_RANGE_CONT;
+			range_end = addr_ip + vsg_entry->range * 0x01000000;
 			continue;
-		case UPDATE_STATS_VSG_RANGE_IP:
-			if (((addr_ip >> 24) & 0xFF) > vsg_entry->range) {
-				state = UPDATE_STATS_VSG_RANGE;
+		case UPDATE_STATS_VSG_IP_RANGE_CONT:
+			if (((addr_ip >> 24) & 0xFF) > range_end) {
+				state = UPDATE_STATS_VSG_IP_RANGE;
 				continue;
 			}
 			if (vsg_entry->addr.ss_family == AF_INET6) {
