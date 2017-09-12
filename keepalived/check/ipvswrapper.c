@@ -292,19 +292,13 @@ ipvs_group_range_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual
 {
 	uint32_t i;
 
-	if (vsg_entry->addr.ss_family == AF_INET6) {
-		if (srule->user.netmask == 0xffffffff)
-			srule->user.netmask = 128;
+	/* Set address and port */
+	if (vsg_entry->addr.ss_family == AF_INET6)
 		inet_sockaddrip6(&vsg_entry->addr, &srule->nf_addr.in6);
-	} else
+	else
 		srule->nf_addr.ip = inet_sockaddrip4(&vsg_entry->addr);
 
-// ??? General issue - vsg_entry may not have an address
-	/* Set Address Family and port */
-	srule->af = vsg_entry->addr.ss_family;
-	srule->user.port = inet_sockaddrport(&vsg_entry->addr);
-
-	/* Parse the whole range */
+	/* Process the whole range */
 	for (i = 0; i <= vsg_entry->range; i++) {
 		/* Talk to the IPVS channel */
 		if (ipvs_talk(cmd, srule, drule, NULL, false))
@@ -321,7 +315,7 @@ ipvs_group_range_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual
 
 /* set IPVS group rules */
 static int
-ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_server_t * vs, real_server_t * rs)
+ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_server_t *vs, real_server_t *rs)
 {
 	virtual_server_group_t *vsg = vs->vsg;
 	virtual_server_group_entry_t *vsg_entry;
@@ -336,18 +330,16 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 		vsg_entry = ELEMENT_DATA(e);
 
 		if (IPVS_CHANGE_NEEDED(cmd, vsg_entry, rs)) {
+			srule->user.port = inet_sockaddrport(&vsg_entry->addr);
+
 			if (vsg_entry->range) {
 				if (ipvs_group_range_cmd(cmd, srule, drule, vsg_entry))
 					return -1;
 			} else {
-				srule->af = vsg_entry->addr.ss_family;
-				if (vsg_entry->addr.ss_family == AF_INET6) {
-					if (srule->user.netmask == 0xffffffff)
-						srule->user.netmask = 128;
+				if (vsg_entry->addr.ss_family == AF_INET6)
 					inet_sockaddrip6(&vsg_entry->addr, &srule->nf_addr.in6);
-				} else
+				else
 					srule->nf_addr.ip = inet_sockaddrip4(&vsg_entry->addr);
-				srule->user.port = inet_sockaddrport(&vsg_entry->addr);
 
 				/* Talk to the IPVS channel */
 				if (ipvs_talk(cmd, srule, drule, NULL, false))
@@ -358,15 +350,10 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 	}
 
 	/* visit vfwmark list */
-// ??? If this is needed, then what about IPv6
-	srule->nf_addr.ip = 0;
-	srule->af = AF_UNSPEC;
+	memset(&srule->nf_addr, 0, sizeof(srule->nf_addr));
 	srule->user.port = 0;
 	for (e = LIST_HEAD(vsg->vfwmark); e; ELEMENT_NEXT(e)) {
 		vsg_entry = ELEMENT_DATA(e);
-		srule->af = vs->af;
-		if (vs->af == AF_INET6)
-			srule->user.netmask = 128;
 		srule->user.fwmark = vsg_entry->vfwmark;
 
 		/* Talk to the IPVS channel */
@@ -382,29 +369,24 @@ ipvs_group_cmd(int cmd, ipvs_service_t *srule, ipvs_dest_t *drule, virtual_serve
 
 /* Fill IPVS rule with root vs infos */
 static void
-ipvs_set_srule(int cmd, ipvs_service_t *srule, virtual_server_t * vs)
+ipvs_set_srule(int cmd, ipvs_service_t *srule, virtual_server_t *vs)
 {
 	/* Clean service rule */
 	memset(srule, 0, sizeof(ipvs_service_t));
 
 	strncpy(srule->user.sched_name, vs->sched, IP_VS_SCHEDNAME_MAXLEN);
+	srule->af = vs->af;
 	srule->user.flags = vs->flags;
 	srule->user.netmask = (vs->af == AF_INET6) ? 128 : ((uint32_t) 0xffffffff);
 	srule->user.protocol = vs->service_type;
 
-	srule->user.timeout = vs->persistence_timeout;
-	if (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL)
-		if (vs->persistence_granularity)
-			srule->user.netmask = vs->persistence_granularity;
-
-	if (vs->persistence_timeout || vs->persistence_granularity)
+	if (vs->persistence_timeout) {
+		srule->user.timeout = vs->persistence_timeout;
 		srule->user.flags |= IP_VS_SVC_F_PERSISTENT;
 
-#ifdef IP_VS_SVC_F_ONEPACKET
-	/* Disable ops flag if service is not UDP */
-	if (vs->flags & IP_VS_SVC_F_ONEPACKET && srule->user.protocol != IPPROTO_UDP)
-		srule->user.flags &= (unsigned)~IP_VS_SVC_F_ONEPACKET;
-#endif
+		if (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL)
+			srule->user.netmask = vs->persistence_granularity;
+	}
 
 #ifdef _HAVE_PE_NAME_
 	strcpy(srule->pe_name, vs->pe_name);
@@ -437,7 +419,7 @@ ipvs_set_drule(int cmd, ipvs_dest_t *drule, real_server_t * rs)
 
 /* Set/Remove a RS from a VS */
 int
-ipvs_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
+ipvs_cmd(int cmd, virtual_server_t *vs, real_server_t *rs)
 {
 	ipvs_service_t srule;
 	ipvs_dest_t drule;
@@ -466,10 +448,7 @@ ipvs_cmd(int cmd, virtual_server_t * vs, real_server_t * rs)
 	if (vs->vsgname)
 		return ipvs_group_cmd(cmd, &srule, &drule, vs, rs);
 
-	srule.af = vs->af;
 	if (vs->vfwmark) {
-		if (vs->af == AF_INET6)
-			srule.user.netmask = 128;
 		srule.user.fwmark = vs->vfwmark;
 	} else {
 		if (vs->af == AF_INET6)
@@ -489,33 +468,35 @@ ipvs_group_sync_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge)
 {
 	real_server_t *rs;
 	element e;
-	list l = vs->rs;
 	ipvs_service_t srule;
 	ipvs_dest_t drule;
 
 	ipvs_set_srule(IP_VS_SO_SET_ADDDEST, &srule, vs);
-// What if no address??
-	srule.af = vsge->addr.ss_family;
-	if (vsge->addr.ss_family == AF_INET6)
-		inet_sockaddrip6(&vsge->addr, &srule.nf_addr.in6);
-	else
-		srule.nf_addr.ip = inet_sockaddrip4(&vsge->addr);
-	srule.user.port = inet_sockaddrport(&vsge->addr);
-	srule.user.fwmark = vsge->vfwmark;
+	if (!vsge->vfwmark)
+		srule.user.port = inet_sockaddrport(&vsge->addr);
 
 	/* Process realserver queue */
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
 
 // ??? What if !quorum_state_up?
 		if (rs->reloaded && (rs->alive || (rs->inhibit && rs->set))) {
+			/* Prepare the IPVS drule */
+			ipvs_set_drule(IP_VS_SO_SET_ADDDEST, &drule, rs);
+			drule.user.weight = rs->inhibit && !rs->alive ? 0 : rs->weight;
+
 			/* Set vs rule */
-			if (vsge->range) {
+			if (vsge->range)
 				ipvs_group_range_cmd(IP_VS_SO_SET_ADDDEST, &srule, &drule, vsge);
-			} else {
-				/* Prepare the IPVS drule */
-				ipvs_set_drule(IP_VS_SO_SET_ADDDEST, &drule, rs);
-				drule.user.weight = rs->inhibit && !rs->alive ? 0 : rs->weight;
+			else {
+				if (vsge->vfwmark)
+					srule.user.fwmark = vsge->vfwmark;
+				else {
+					if (vsge->addr.ss_family == AF_INET6)
+						inet_sockaddrip6(&vsge->addr, &srule.nf_addr.in6);
+					else
+						srule.nf_addr.ip = inet_sockaddrip4(&vsge->addr);
+				}
 
 				/* Talk to the IPVS channel */
 				ipvs_talk(IP_VS_SO_SET_ADDDEST, &srule, &drule, NULL, false);
@@ -530,31 +511,34 @@ ipvs_group_remove_entry(virtual_server_t *vs, virtual_server_group_entry_t *vsge
 {
 	real_server_t *rs;
 	element e;
-	list l = vs->rs;
 	ipvs_service_t srule;
 	ipvs_dest_t drule;
 
 	/* Prepare target rules */
 	ipvs_set_srule(IP_VS_SO_SET_DELDEST, &srule, vs);
-	srule.af = vsge->addr.ss_family;
-	if (vsge->addr.ss_family == AF_INET6)
-		inet_sockaddrip6(&vsge->addr, &srule.nf_addr.in6);
-	else
-		srule.nf_addr.ip = inet_sockaddrip4(&vsge->addr);
-	srule.user.port = inet_sockaddrport(&vsge->addr);
-	srule.user.fwmark = vsge->vfwmark;
+	if (!vsge->vfwmark)
+		srule.user.port = inet_sockaddrport(&vsge->addr);
 
 	/* Process realserver queue */
-	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
 
 		if (rs->alive) {
+			/* Setting IPVS drule */
+			ipvs_set_drule(IP_VS_SO_SET_DELDEST, &drule, rs);
+
 			/* Set vs rule */
-			if (vsge->range) {
+			if (vsge->range)
 				ipvs_group_range_cmd(IP_VS_SO_SET_DELDEST, &srule, &drule, vsge);
-			} else {
-				/* Setting IPVS drule */
-				ipvs_set_drule(IP_VS_SO_SET_DELDEST, &drule, rs);
+			else {
+				if (vsge->vfwmark)
+					srule.user.fwmark = vsge->vfwmark;
+				else {
+					if (vsge->addr.ss_family == AF_INET6)
+						inet_sockaddrip6(&vsge->addr, &srule.nf_addr.in6);
+					else
+						srule.nf_addr.ip = inet_sockaddrip4(&vsge->addr);
+				}
 
 				/* Talk to the IPVS channel */
 				ipvs_talk(IP_VS_SO_SET_DELDEST, &srule, &drule, NULL, false);
