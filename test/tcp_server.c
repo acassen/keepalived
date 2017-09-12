@@ -7,6 +7,7 @@
 #include <unistd.h>
 #include <signal.h>
 #include <string.h>
+#include <stdbool.h>
 
 int main(int argc, char **argv)
 {
@@ -22,8 +23,9 @@ int main(int argc, char **argv)
 	int n;
 	char buf[128];
 	struct sigaction sa;
+	bool silent = false;
 
-	while ((opt = getopt(argc, argv, "46p:u")) != -1) {
+	while ((opt = getopt(argc, argv, "46p:su")) != -1) {
 		switch (opt) {
 		case '4':
 			family = AF_INET;
@@ -34,11 +36,14 @@ int main(int argc, char **argv)
 		case 'p':
 			port = atoi(optarg);
 			break;
+		case 's':
+			silent = true;
+			break;
 		case 'u':
 			sock_type = SOCK_DGRAM;
 			break;
 		default: /* '?' */
-			fprintf(stderr, "Usage: %s [-p port] [-4] [-6] [-u]\n", argv[0]);
+			fprintf(stderr, "Usage: %s [-p port] [-4] [-6] [-s] [-u]\n", argv[0]);
 			exit(EXIT_FAILURE);
 		}
 	}
@@ -80,7 +85,8 @@ int main(int argc, char **argv)
 				connfd = accept(listenfd, (struct sockaddr *)&cliaddr6, &clilen);
 			}
 
-			printf("Received connection\n");
+			if (!silent)
+				printf("Received connection\n");
 			if ((childpid = fork()) == 0) {
 				close(listenfd);
 				sleep (1);
@@ -103,7 +109,8 @@ int main(int argc, char **argv)
 				clilen = sizeof (cliaddr6);
 				sendto(listenfd, buf, n, 0, (struct sockaddr *)&cliaddr6, clilen);
 			}
-			printf("Received %d bytes\n", n);
+			if (!silent)
+				printf("Received %d bytes\n", n);
 		}
 	}
 }
