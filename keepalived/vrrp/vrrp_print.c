@@ -137,6 +137,14 @@ address_print(FILE *file, void *data)
 		, ipaddr->label ? ipaddr->label : "");
 }
 
+static void
+sockaddr_print(FILE *file, void *data)
+{
+	struct sockaddr_storage *addr = data;
+
+	fprintf(file, "     %s\n", inet_sockaddrtos(addr));
+}
+
 #ifdef _HAVE_FIB_ROUTING_
 static void
 route_print(FILE *file, void *data)
@@ -233,7 +241,7 @@ vrrp_print(FILE *file, void *data)
 	char time_str[26];
 
 	fprintf(file, " VRRP Instance = %s\n", vrrp->iname);
-	fprintf(file, " VRRP Version = %d\n", vrrp->version);
+	fprintf(file, "   VRRP Version = %d\n", vrrp->version);
 	if (vrrp->family == AF_INET6)
 		fprintf(file, "   Using Native IPv6\n");
 	if (vrrp->state == VRRP_STATE_BACK) {
@@ -254,6 +262,10 @@ vrrp_print(FILE *file, void *data)
 	fprintf(file, "   Last transition = %ld (%s)\n",
 		vrrp->last_transition.tv_sec, time_str);
 	fprintf(file, "   Listening device = %s\n", IF_NAME(vrrp->ifp));
+#ifdef _HAVE_VRRP_VMAC_
+	if (vrrp->ifp->vmac)
+		fprintf(file, "   Real interface = %s\n", IF_NAME(if_get_by_ifindex(vrrp->ifp->base_ifindex)));
+#endif
 	if (vrrp->dont_track_primary)
 		fprintf(file, "   VRRP interface tracking disabled\n");
 	if (vrrp->skip_check_adv_addr)
@@ -273,10 +285,13 @@ vrrp_print(FILE *file, void *data)
 	fprintf(file, "   Send advert after receive higher priority advert = %s\n", vrrp->higher_prio_send_advert ? "true" : "false");
 	fprintf(file, "   Virtual Router ID = %d\n", vrrp->vrid);
 	fprintf(file, "   Priority = %d\n", vrrp->base_priority);
+	fprintf(file, "   Effective priority = %d\n", vrrp->effective_priority);
 	fprintf(file, "   Advert interval = %d %s\n",
 		(vrrp->version == VRRP_VERSION_2) ? (vrrp->adver_int / TIMER_HZ) :
 		(vrrp->adver_int / (TIMER_HZ / 1000)),
 		(vrrp->version == VRRP_VERSION_2) ? "sec" : "milli-sec");
+	if (vrrp->state == VRRP_STATE_BACK && vrrp->version == VRRP_VERSION_3)
+		fprintf(file, "   Master advert interval = %d milli-sec", vrrp->master_adver_int / (TIMER_HZ / 1000));
 	fprintf(file, "   Accept = %s\n", vrrp->accept ? "enabled" : "disabled");
 	fprintf(file, "   Preempt = %s\n", vrrp->nopreempt ? "disabled" : "enabled");
 	fprintf(file, "   Promote_secondaries = %s\n", vrrp->promote_secondaries ? "enabled" : "disabled");
@@ -317,6 +332,18 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   Virtual IP Excluded = %d\n",
 			LIST_SIZE(vrrp->evip));
 		vrrp_print_list(file, vrrp->evip, &address_print);
+	}
+	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
+		fprintf(file, "   Unicast Peer = %d\n",
+			LIST_SIZE(vrrp->unicast_peer));
+		vrrp_print_list(file, vrrp->unicast_peer, &sockaddr_print);
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+		fprintf(file, "   Unicast checksum compatibility = %s",
+				vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE ? "no" :
+			        vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NEVER ? "never" :
+			        vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_CONFIG ? "config" :
+			        vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_AUTO ? "auto" : "unknown");
+#endif
 	}
 #ifdef _HAVE_FIB_ROUTING_
 	if (!LIST_ISEMPTY(vrrp->vroutes)) {
@@ -408,10 +435,12 @@ vrrp_print_stats(void)
 		fprintf(file, "  Authentication Errors:\n");
 		fprintf(file, "    Invalid Type: %d\n",
 			vrrp->stats->invalid_authtype);
+#ifdef _WITH_VRRP_AUTH_
 		fprintf(file, "    Type Mismatch: %d\n",
 			vrrp->stats->authtype_mismatch);
 		fprintf(file, "    Failure: %d\n",
 			vrrp->stats->auth_failure);
+#endif
 		fprintf(file, "  Priority Zero:\n");
 		fprintf(file, "    Received: %" PRIu64 "\n", vrrp->stats->pri_zero_rcvd);
 		fprintf(file, "    Sent: %" PRIu64 "\n", vrrp->stats->pri_zero_sent);

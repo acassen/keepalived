@@ -132,8 +132,10 @@ typedef struct _vrrp_stats {
 	uint64_t	addr_list_err;
 
 	uint32_t	invalid_authtype;
+#ifdef _WITH_VRRP_AUTH_
 	uint32_t	authtype_mismatch;
 	uint32_t	auth_failure;
+#endif
 
 	uint64_t	pri_zero_rcvd;
 	uint64_t	pri_zero_sent;
@@ -149,6 +151,17 @@ typedef struct _vrrp_stats {
 #endif
 #endif
 } vrrp_stats;
+
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+/* Whether we are using v1.3.6 and earlier VRRPv3 unicast checksums */
+typedef enum chksum_compatibility {
+	CHKSUM_COMPATIBILITY_NONE,		/* Default setting, will revert to old if receive advert with old */
+	CHKSUM_COMPATIBILITY_NEVER,		/* Do not auto set old checksum mode */
+	CHKSUM_COMPATIBILITY_MIN_COMPAT,	/* Values before this are new chksum, values after are old */
+	CHKSUM_COMPATIBILITY_CONFIG,		/* Configuration specifies old chksum */
+	CHKSUM_COMPATIBILITY_AUTO,		/* Use old chksum mode due to received advert with old mode */
+} chksum_compatibility_t;
+#endif
 
 /* parameters per virtual router -- rfc2338.6.1.2 */
 typedef struct _vrrp_t {
@@ -171,6 +184,9 @@ typedef struct _vrrp_t {
 	struct sockaddr_storage	saddr;			/* Src IP address to use in VRRP IP header */
 	struct sockaddr_storage	pkt_saddr;		/* Src IP address received in VRRP IP header */
 	list			unicast_peer;		/* List of Unicast peer to send advert to */
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+	chksum_compatibility_t	unicast_chksum_compat;	/* Whether v1.3.6 and earlier chksum is used */
+#endif
 	struct sockaddr_storage master_saddr;		/* Store last heard Master address */
 	uint8_t			master_priority;	/* Store last heard priority */
 	timeval_t		last_transition;	/* Store transition time */

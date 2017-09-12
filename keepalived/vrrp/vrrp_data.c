@@ -259,6 +259,10 @@ dump_vrrp(void *data)
 	else
 		log_message(LOG_INFO, "   Want State = MASTER");
 	log_message(LOG_INFO, "   Running on device = %s", IF_NAME(vrrp->ifp));
+#ifdef _WITH_VRRP_VMAC_
+	if (vrrp->ifp->vmac)
+		log_message(LOG_INFO, "   Real interface = %s\n", IF_NAME(if_get_by_ifindex(vrrp->ifp->base_ifindex)));
+#endif
 	if (vrrp->dont_track_primary)
 		log_message(LOG_INFO, "   VRRP interface tracking disabled");
 	log_message(LOG_INFO, "   Skip checking advert IP addresses = %s", vrrp->skip_check_adv_addr ? "yes" : "no");
@@ -315,6 +319,11 @@ dump_vrrp(void *data)
 	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
 		log_message(LOG_INFO, "   Unicast Peer = %d", LIST_SIZE(vrrp->unicast_peer));
 		dump_list(vrrp->unicast_peer);
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+		log_message(LOG_INFO, "   Unicast checksum compatibility = %s",
+					vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE ? "no" :
+					vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NEVER ? "never" : "yes");
+#endif
 	}
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		log_message(LOG_INFO, "   Virtual IP = %d", LIST_SIZE(vrrp->vip));
@@ -372,12 +381,14 @@ alloc_vrrp_stats(void)
 	new->become_master = 0;
 	new->release_master = 0;
 	new->invalid_authtype = 0;
+#ifdef _WITH_VRRP_AUTH_
 	new->authtype_mismatch = 0;
+	new->auth_failure = 0;
+#endif
 	new->packet_len_err = 0;
 	new->advert_rcvd = 0;
 	new->advert_sent = 0;
 	new->advert_interval_err = 0;
-	new->auth_failure = 0;
 	new->ip_ttl_err = 0;
 	new->pri_zero_rcvd = 0;
 	new->pri_zero_sent = 0;
@@ -425,6 +436,7 @@ alloc_vrrp(char *iname)
 	new->garp_lower_prio_rep = PARAMETER_UNSET;
 	new->lower_prio_no_advert = PARAMETER_UNSET;
 	new->higher_prio_send_advert = PARAMETER_UNSET;
+	new->unicast_chksum_compat = CHKSUM_COMPATIBILITY_NONE;
 
 	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
 	new->strict_mode = PARAMETER_UNSET;

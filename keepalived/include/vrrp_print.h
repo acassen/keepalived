@@ -21,7 +21,12 @@
  * Copyright (C) 2012 John Southworth, <john.southworth@vyatta.com>
  */
 
+#ifndef _VRRP_PRINT_H
+#define _VRRP_PRINT_H
+
 #include <stdio.h>
 
 extern void vrrp_print_data(void);
 extern void vrrp_print_stats(void);
+
+#endif

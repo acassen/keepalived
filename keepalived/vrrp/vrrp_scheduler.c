@@ -661,7 +661,7 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 
 static void
 vrrp_become_master(vrrp_t * vrrp,
-#ifdef _WITH_VRRP_AUTH_
+#ifndef _WITH_VRRP_AUTH_
 				 __attribute__((unused))
 #endif
 							 char *buffer, __attribute__((unused)) ssize_t len)

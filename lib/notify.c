@@ -567,7 +567,7 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 	char *new_path;
 	size_t len;
 	char *new_script_name;
-	char *new_space;
+	size_t new_path_len;
 	int sav_errno;
 
 	if (!script)
@@ -631,16 +631,15 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 
 	if (strcmp(script->name, new_path)) {
 		/* The path name is different */
-		len = strlen(new_path) + 1;
+		new_path_len = strlen(new_path);
+		len = new_path_len + 1;
 		if (space)
 			len += strlen(space + 1) + 1;
 		new_script_name = MALLOC(len);
 		strcpy(new_script_name, new_path);
 		if (space) {
-			new_space = new_script_name + strlen(new_script_name);
-			strcat(new_script_name, " ");
-			strcat(new_script_name, space + 1);
-			space = new_space;
+			strcpy(new_script_name + new_path_len + 1, space + 1);
+			space = new_script_name + new_path_len;
 		}
 
 		FREE(script->name);
