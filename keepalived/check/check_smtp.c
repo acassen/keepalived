@@ -97,7 +97,7 @@ smtp_check_compare(void *a, void *b)
 	smtp_checker_t *old = CHECKER_DATA(a);
 	smtp_checker_t *new = CHECKER_DATA(b);
 	size_t n;
-	smtp_host_t *h1, *h2;
+	conn_opts_t *h1, *h2;
 
 	if (strcmp(old->helo_name, new->helo_name) != 0)
 		return false;
@@ -106,8 +106,8 @@ smtp_check_compare(void *a, void *b)
 	if (LIST_SIZE(old->host) != LIST_SIZE(new->host))
 		return false;
 	for (n = 0; n < LIST_SIZE(new->host); n++) {
-		h1 = (smtp_host_t *)list_element(old->host, n);
-		h2 = (smtp_host_t *)list_element(new->host, n);
+		h1 = (conn_opts_t *)list_element(old->host, n);
+		h2 = (conn_opts_t *)list_element(new->host, n);
 		if (!compare_conn_opts(h1, h2)) {
 			return false;
 		}
@@ -117,15 +117,15 @@ smtp_check_compare(void *a, void *b)
 }
 
 /* Allocates a default host structure */
-static smtp_host_t *
+static conn_opts_t *
 smtp_alloc_host(void)
 {
-	smtp_host_t *new;
+	conn_opts_t *new;
 	smtp_checker_t *smtp_checker = CHECKER_GET();
 
 	/* Allocate the new host data structure and copy default values */
-	new = (smtp_host_t *)MALLOC(sizeof(smtp_host_t));
-	memcpy(new, smtp_checker->default_co, sizeof(smtp_host_t));
+	new = (conn_opts_t *)MALLOC(sizeof(conn_opts_t));
+	memcpy(new, smtp_checker->default_co, sizeof(conn_opts_t));
 
 	/*
 	 * Overwrite the checker->co field to make the standard connect_opts
@@ -323,7 +323,7 @@ smtp_final(thread_t *thread, int error, const char *format, ...)
 	/*
 	 * Ok this host was successful, increment to the next host in the list
 	 * and reset the retry_it counter. We'll then reschedule the main thread again.
-	 * If host_ctr exceeds the number of hosts in the list, http_main_thread will
+	 * If host_ptr exceeds the end of the list, http_main_thread will
 	 * take note and bring up the real server as well as inject the delay_loop.
 	 */
 	checker->retry_it = 0;
@@ -356,7 +356,7 @@ smtp_get_line_cb(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
-	smtp_host_t *smtp_host = smtp_checker->host_ptr;
+	conn_opts_t *smtp_host = smtp_checker->host_ptr;
 	int f;
 	unsigned x;
 	ssize_t r;
@@ -444,7 +444,7 @@ smtp_get_line(thread_t *thread, int (*callback) (thread_t *))
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
-	smtp_host_t *smtp_host = smtp_checker->host_ptr;
+	conn_opts_t *smtp_host = smtp_checker->host_ptr;
 
 	/* clear the buffer */
 	smtp_clear_buff(thread);
@@ -469,7 +469,7 @@ smtp_put_line_cb(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
-	smtp_host_t *smtp_host = smtp_checker->host_ptr;
+	conn_opts_t *smtp_host = smtp_checker->host_ptr;
 	int f;
 	ssize_t w;
 
@@ -526,7 +526,7 @@ smtp_put_line(thread_t *thread, int (*callback) (thread_t *))
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
-	smtp_host_t *smtp_host = smtp_checker->host_ptr;
+	conn_opts_t *smtp_host = smtp_checker->host_ptr;
 
 	smtp_checker->buff[SMTP_BUFF_MAX - 1] = '\0';
 	smtp_checker->buff_ctr = strlen(smtp_checker->buff);
@@ -575,7 +575,7 @@ smtp_engine_thread(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
-	smtp_host_t *smtp_host = smtp_checker->host_ptr;
+	conn_opts_t *smtp_host = smtp_checker->host_ptr;
 
 	switch (smtp_checker->state) {
 
@@ -663,7 +663,7 @@ smtp_check_thread(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
-	smtp_host_t *smtp_host = smtp_checker->host_ptr;
+	conn_opts_t *smtp_host = smtp_checker->host_ptr;
 	int status;
 
 	status = tcp_socket_state(thread, smtp_check_thread);
@@ -712,7 +712,7 @@ smtp_connect_thread(thread_t *thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
-	smtp_host_t *smtp_host;
+	conn_opts_t *smtp_host;
 	enum connect_result status;
 	int sd;
 
@@ -753,7 +753,7 @@ smtp_connect_thread(thread_t *thread)
 	}
 
 	/*
-	 * Set the internal host pointer to the host that well be
+	 * Set the internal host pointer to the host that we'll be
 	 * working on. If it's NULL, we've successfully tested all hosts.
 	 * We'll bring the service up (if it's not already), reset the host list,
 	 * and insert the delay loop. When we get scheduled again the host list
