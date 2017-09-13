@@ -77,6 +77,7 @@ extern list checkers_queue;
 /* Prototypes definition */
 extern void init_checkers_queue(void);
 extern void free_vs_checkers(virtual_server_t *);
+extern void dump_connection_opts(void *);
 extern void dump_checker_opts(void *);
 extern checker_t *queue_checker(void (*free_func) (void *), void (*dump_func) (void *)
 			  , int (*launch) (thread_t *)

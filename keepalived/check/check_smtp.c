@@ -78,8 +78,21 @@ dump_smtp_check(void *data)
 	smtp_checker_t *smtp_checker = checker->data;
 
 	log_message(LOG_INFO, "   Keepalive method = SMTP_CHECK");
-	log_message(LOG_INFO, "           helo = %s", smtp_checker->helo_name);
+	log_message(LOG_INFO, "   helo = %s", smtp_checker->helo_name);
 	dump_checker_opts(checker);
+	if (smtp_checker->default_co) {
+                log_message(LOG_INFO, "   Default connection dest = %s", inet_sockaddrtopair(&smtp_checker->default_co->dst));
+                if (smtp_checker->default_co->bindto.ss_family)
+                        log_message(LOG_INFO, "   Default bind to = %s", inet_sockaddrtopair(&smtp_checker->default_co->bindto));
+                if (smtp_checker->default_co->bind_if[0])
+                        log_message(LOG_INFO, "   Default bind i/f = %s", smtp_checker->default_co->bind_if);
+#ifdef _WITH_SO_MARK_
+                if (smtp_checker->default_co->fwmark != 0)
+                        log_message(LOG_INFO, "   Default connection mark = %u", smtp_checker->default_co->fwmark);
+#endif
+                log_message(LOG_INFO, "   Default connection timeout = %d", smtp_checker->default_co->connection_to/TIMER_HZ);
+        }
+
 	dump_list(smtp_checker->host);
 }
 
@@ -141,7 +154,7 @@ smtp_check_handler(__attribute__((unused)) vector_t *strvec)
 	 * May be overridden by a "helo_name" keyword later.
 	 */
 	smtp_checker->helo_name = (char *)MALLOC(strlen(SMTP_DEFAULT_HELO) + 1);
-	memcpy(smtp_checker->helo_name, SMTP_DEFAULT_HELO, strlen(SMTP_DEFAULT_HELO) + 1);
+	strcpy(smtp_checker->helo_name, SMTP_DEFAULT_HELO);
 
 // ??? Sort out this default_co nonsense, and at end of config block make separate checkers
 	/*
@@ -164,7 +177,7 @@ smtp_check_handler(__attribute__((unused)) vector_t *strvec)
 	 * be used instead of the default, but all the uninitialized options
 	 * of those hosts will be set to the default's values.
 	 */
-	smtp_checker->host = alloc_list(smtp_free_host, dump_checker_opts);
+	smtp_checker->host = alloc_list(smtp_free_host, dump_connection_opts);
 }
 
 static void

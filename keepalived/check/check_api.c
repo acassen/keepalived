@@ -63,23 +63,30 @@ dump_checker(void *data)
 }
 
 void
+dump_connection_opts(void *data)
+{
+	conn_opts_t *conn = data;
+
+	log_message(LOG_INFO, "   Connection dest = %s", inet_sockaddrtopair(&conn->dst));
+	if (conn->bindto.ss_family)
+		log_message(LOG_INFO, "   Bind to = %s", inet_sockaddrtopair(&conn->bindto));
+	if (conn->bind_if[0])
+		log_message(LOG_INFO, "   Bind i/f = %s", conn->bind_if);
+#ifdef _WITH_SO_MARK_
+	if (conn->fwmark != 0)
+		log_message(LOG_INFO, "   Connection mark = %u", conn->fwmark);
+#endif
+	log_message(LOG_INFO, "   Connection timeout = %d", conn->connection_to/TIMER_HZ);
+}
+
+void
 dump_checker_opts(void *data)
 {
 	checker_t *checker = data;
 	conn_opts_t *conn = checker->co;
 
-	if (conn) {
-		log_message(LOG_INFO, "   Connection dest = %s", inet_sockaddrtopair(&conn->dst));
-		if (conn->bindto.ss_family)
-			log_message(LOG_INFO, "   Bind to = %s", inet_sockaddrtopair(&conn->bindto));
-		if (conn->bind_if[0])
-			log_message(LOG_INFO, "   Bind i/f = %s", conn->bind_if);
-#ifdef _WITH_SO_MARK_
-		if (conn->fwmark != 0)
-			log_message(LOG_INFO, "   Connection mark = %u", conn->fwmark);
-#endif
-		log_message(LOG_INFO, "   Connection timeout = %d", conn->connection_to/TIMER_HZ);
-	}
+	if (conn)
+		dump_connection_opts(conn);
 
 	log_message(LOG_INFO, "   Alpha is %s", checker->alpha ? "ON" : "OFF");
 	log_message(LOG_INFO, "   Delay loop = %lu" , checker->delay_loop / TIMER_HZ);
