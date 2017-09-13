@@ -59,11 +59,11 @@ dump_url(void *data)
 	url_t *url = data;
 	log_message(LOG_INFO, "   Checked url = %s", url->path);
 	if (url->digest)
-		log_message(LOG_INFO, "           digest = %s", url->digest);
+		log_message(LOG_INFO, "     digest = %s", url->digest);
 	if (url->status_code)
-		log_message(LOG_INFO, "           HTTP Status Code = %d", url->status_code);
+		log_message(LOG_INFO, "     HTTP Status Code = %d", url->status_code);
 	if (url->virtualhost)
-		log_message(LOG_INFO, "           Virtual host = %s", url->virtualhost);
+		log_message(LOG_INFO, "     Virtual host = %s", url->virtualhost);
 }
 
 static void
@@ -184,6 +184,17 @@ virtualhost_handler(vector_t *strvec)
 }
 
 static void
+http_get_check(void)
+{
+	http_checker_t *http_get_chk = CHECKER_GET();
+
+	if (LIST_ISEMPTY(http_get_chk->url)) {
+		log_message(LOG_INFO, "HTTP/SSL_GET checker has no urls specified - ignoring");
+		free_list_element(checkers_queue, checkers_queue->tail);
+	}
+}
+
+static void
 url_handler(__attribute__((unused)) vector_t *strvec)
 {
 	http_checker_t *http_get_chk = CHECKER_GET();
@@ -232,6 +243,17 @@ url_virtualhost_handler(vector_t *strvec)
 }
 
 static void
+url_check(void)
+{
+	http_checker_t *http_get_chk = CHECKER_GET();
+	url_t *url = LIST_TAIL_DATA(http_get_chk->url);
+
+	if (!url->path) {
+		log_message(LOG_INFO, "HTTP/SSL_GET checker url has no path - ignoring");
+		free_list_element(http_get_chk->url, http_get_chk->url->tail);
+	}
+}
+static void
 install_http_ssl_check_keyword(const char *keyword)
 {
 	install_keyword(keyword, &http_get_handler);
@@ -245,7 +267,9 @@ install_http_ssl_check_keyword(const char *keyword)
 	install_keyword("digest", &digest_handler);
 	install_keyword("status_code", &status_code_handler);
 	install_keyword("virtualhost", &url_virtualhost_handler);
+	install_sublevel_end_handler(url_check);
 	install_sublevel_end();
+	install_sublevel_end_handler(http_get_check);
 	install_sublevel_end();
 }
 
