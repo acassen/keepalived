@@ -156,7 +156,6 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 	char file_name[21];
 
 	if (!level) {
-		sprintf(file_name, "/tmp/keywords.%d", getpid());
 		snprintf(file_name, sizeof(file_name), "/tmp/keywords.%d", getpid());
 		fp = fopen(file_name, "w");
 		if (!fp)
