@@ -81,19 +81,14 @@ dump_smtp_check(void *data)
 	log_message(LOG_INFO, "   helo = %s", smtp_checker->helo_name);
 	dump_checker_opts(checker);
 	if (smtp_checker->default_co) {
-                log_message(LOG_INFO, "   Default connection dest = %s", inet_sockaddrtopair(&smtp_checker->default_co->dst));
-                if (smtp_checker->default_co->bindto.ss_family)
-                        log_message(LOG_INFO, "   Default bind to = %s", inet_sockaddrtopair(&smtp_checker->default_co->bindto));
-                if (smtp_checker->default_co->bind_if[0])
-                        log_message(LOG_INFO, "   Default bind i/f = %s", smtp_checker->default_co->bind_if);
-#ifdef _WITH_SO_MARK_
-                if (smtp_checker->default_co->fwmark != 0)
-                        log_message(LOG_INFO, "   Default connection mark = %u", smtp_checker->default_co->fwmark);
-#endif
-                log_message(LOG_INFO, "   Default connection timeout = %d", smtp_checker->default_co->connection_to/TIMER_HZ);
-        }
+		log_message(LOG_INFO, "   Default connection");
+		dump_connection_opts(smtp_checker->default_co);
+	}
 
-	dump_list(smtp_checker->host);
+	if (smtp_checker->host) {
+		log_message(LOG_INFO,"   Host list");
+		dump_list(smtp_checker->host);
+	}
 }
 
 static bool
