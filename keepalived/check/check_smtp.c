@@ -149,13 +149,6 @@ smtp_check_handler(__attribute__((unused)) vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = (smtp_checker_t *)MALLOC(sizeof(smtp_checker_t));
 
-	/*
-	 * Set something sane for the default HELO banner
-	 * May be overridden by a "helo_name" keyword later.
-	 */
-	smtp_checker->helo_name = (char *)MALLOC(strlen(SMTP_DEFAULT_HELO) + 1);
-	strcpy(smtp_checker->helo_name, SMTP_DEFAULT_HELO);
-
 // ??? Sort out this default_co nonsense, and at end of config block make separate checkers
 	/*
 	 * Back up checker->co pointer as it will be overwritten by any
@@ -184,6 +177,11 @@ static void
 smtp_check_end_handler(void)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
+
+	if (!smtp_checker->helo_name) {
+		smtp_checker->helo_name = (char *)MALLOC(strlen(SMTP_DEFAULT_HELO) + 1);
+		strcpy(smtp_checker->helo_name, SMTP_DEFAULT_HELO);
+	}
 
 	/*
 	 * If there was no host{} section, add a single host to the list
