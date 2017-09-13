@@ -200,6 +200,8 @@ static void
 smtp_helo_name_handler(vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
+	if (smtp_checker->helo_name)
+		FREE(smtp_checker->helo_name);
 	smtp_checker->helo_name = CHECKER_VALUE_STRING(strvec);
 }
 
