@@ -241,14 +241,14 @@ init_service_rs(virtual_server_t * vs)
 			if (rs->iweight != rs->pweight)
 				update_svr_wgt(rs->iweight, vs, rs, false);
 			/* Do not re-add failed RS instantly on reload */
-// ??? We should if alpha mode
+// ??? We should if alpha mode ? inhibit
 			continue;
 		}
 		/* In alpha mode, be pessimistic (or realistic?) and don't
 		 * add real servers into the VS pool. They will get there
 		 * later upon healthchecks recovery (if ever).
 		 */
-		if (!rs->num_failed_checkers && !ISALIVE(rs)) {
+		if ((!rs->num_failed_checkers || rs->inhibit) && !ISALIVE(rs)) {
 			ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
 			SET_ALIVE(rs);
 		}

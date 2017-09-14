@@ -438,8 +438,11 @@ ipvs_cmd(int cmd, virtual_server_t *vs, real_server_t *rs)
 			cmd = IP_VS_SO_SET_EDITDEST;
 
 		/* Set flag */
-		else if (cmd == IP_VS_SO_SET_ADDDEST && !rs->set)
+		else if (cmd == IP_VS_SO_SET_ADDDEST && !rs->set) {
 			rs->set = true;
+			if (rs->inhibit && rs->num_failed_checkers)
+				drule.user.weight = 0;
+		}
 		else if (cmd == IP_VS_SO_SET_DELDEST && rs->set)
 			rs->set = false;
 	}
