@@ -241,7 +241,6 @@ init_service_rs(virtual_server_t * vs)
 			if (rs->iweight != rs->pweight)
 				update_svr_wgt(rs->iweight, vs, rs, false);
 			/* Do not re-add failed RS instantly on reload */
-// ??? We should if alpha mode ? inhibit
 			continue;
 		}
 		/* In alpha mode, be pessimistic (or realistic?) and don't
@@ -466,8 +465,6 @@ init_service_vs(virtual_server_t * vs)
 {
 	/* Init the VS root */
 	if (!ISALIVE(vs) || vs->vsgname) {
-// ??? If reload, why add if already there. If vs-vsgname, it may already be added
-// Should only do if vsgname if port == 0
 		ipvs_cmd(LVS_CMD_ADD, vs, NULL);
 		SET_ALIVE(vs);
 	}
@@ -751,7 +748,6 @@ clear_diff_rs(virtual_server_t *old_vs, virtual_server_t *new_vs, list old_check
 			 * For alpha mode checkers, if it was up, we don't need another
 			 * success to say it is now up.
 			 */
-// ??? Also, if inhibit_on_failure, the rs should be added with weight 0
 			migrate_checkers(rs, new_rs, old_checkers_queue);
 		}
 	}
