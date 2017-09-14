@@ -54,6 +54,8 @@ const dns_type_t DNS_TYPE[] = {
 	{DNS_TYPE_MX, "MX"},
 	{DNS_TYPE_TXT, "TXT"},
 	{DNS_TYPE_AAAA, "AAAA"},
+	{DNS_TYPE_RRSIG, "RRSIG"},
+	{DNS_TYPE_DNSKEY, "DNSKEY"},
 	{0, NULL}
 };
 
