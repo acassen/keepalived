@@ -161,6 +161,7 @@ smtp_check_end_handler(void)
 	    co->bindto.ss_family != AF_UNSPEC ||
 	    (co->bindto.ss_family == AF_UNSPEC && ((struct sockaddr_in *)&co->bindto)->sin_port) ||
 	    co->bind_if[0] ||
+	    co->fwmark ||
 	    co->connection_to) {
 		/* Set any necessary defaults */
 		if (co->dst.ss_family == AF_UNSPEC) {
