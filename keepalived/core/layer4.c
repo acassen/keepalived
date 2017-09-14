@@ -77,8 +77,10 @@ socket_bind_connect(int fd, conn_opts_t *co)
 	/* Bind socket */
 	if (((struct sockaddr *) bind_addr)->sa_family != AF_UNSPEC) {
 		addrlen = sizeof(*bind_addr);
-		if (bind(fd, (struct sockaddr *) bind_addr, addrlen) != 0)
+		if (bind(fd, (struct sockaddr *) bind_addr, addrlen) != 0) {
+			log_message(LOG_INFO, "Checker bind failed: %s", strerror(errno));
 			return connect_error;
+		}
 	}
 
 	/* Set remote IP and connect */
@@ -93,8 +95,10 @@ socket_bind_connect(int fd, conn_opts_t *co)
 
 	/* If connect is in progress then return 1 else it's real error. */
 	if (ret < 0) {
-		if (errno != EINPROGRESS)
+		if (errno != EINPROGRESS) {
+/*			log_message(LOG_INFO, "Checker connect failed: %s", strerror(errno)); */
 			return connect_error;
+		}
 	}
 
 	/* restore previous fd args */
