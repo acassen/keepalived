@@ -155,6 +155,19 @@ dequeue_new_checker(void)
 }
 
 bool
+check_conn_opts(conn_opts_t *co)
+{
+	if (co->dst.ss_family == AF_INET6 &&
+	    IN6_IS_ADDR_LINKLOCAL(&((struct sockaddr_in6*)&co->dst)->sin6_addr) &&
+	    !co->bind_if[0]) {
+		log_message(LOG_INFO, "Checker link local address %s requires a bind_if", inet_sockaddrtos(&co->dst));
+		return false;
+	}
+
+	return true;
+}
+
+bool
 compare_conn_opts(conn_opts_t *a, conn_opts_t *b)
 {
 	if (a == b)

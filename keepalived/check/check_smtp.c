@@ -176,7 +176,11 @@ smtp_check_end_handler(void)
 		if (!co->connection_to)
 			co->connection_to = 5 * TIMER_HZ;
 
-		list_add(smtp_checker->host, co);
+		if (!check_conn_opts(co)) {
+			dequeue_new_checker();
+			FREE(co);
+		} else
+			list_add(smtp_checker->host, co);
 	}
 	else
 		FREE(co);
@@ -210,7 +214,11 @@ smtp_host_end_handler(void)
 	checker_t *checker = CHECKER_GET_CURRENT();
 	smtp_checker_t *smtp_checker = (smtp_checker_t *)checker->data;
 
-	list_add(smtp_checker->host, checker->co);
+	if (!check_conn_opts(checker->co))
+		FREE(checker->co);
+	else
+		list_add(smtp_checker->host, checker->co);
+
 	checker->co = sav_co;
 }
 

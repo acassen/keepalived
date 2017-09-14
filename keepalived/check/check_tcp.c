@@ -70,12 +70,21 @@ tcp_check_handler(__attribute__((unused)) vector_t *strvec)
 		      tcp_check_compare, NULL, CHECKER_NEW_CO());
 }
 
+static void
+tcp_check_end_handler(void)
+{
+	if (!check_conn_opts(CHECKER_GET_CO())) {
+		dequeue_new_checker();
+	}
+}
+
 void
 install_tcp_check_keyword(void)
 {
 	install_keyword("TCP_CHECK", &tcp_check_handler);
 	install_sublevel();
 	install_checker_common_keywords(true);
+	install_sublevel_end_handler(tcp_check_end_handler);
 	install_sublevel_end();
 }
 

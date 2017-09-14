@@ -453,6 +453,14 @@ dns_name_handler(vector_t * strvec)
 	dns_check->name = CHECKER_VALUE_STRING(strvec);
 }
 
+static void
+dns_check_end(void)
+{
+	if (!check_conn_opts(CHECKER_GET_CO())) {
+		dequeue_new_checker();
+	}
+}
+
 void
 install_dns_check_keyword(void)
 {
@@ -461,5 +469,6 @@ install_dns_check_keyword(void)
 	install_checker_common_keywords(true);
 	install_keyword("type", &dns_type_handler);
 	install_keyword("name", &dns_name_handler);
+	install_sublevel_end_handler(dns_check_end);
 	install_sublevel_end();
 }

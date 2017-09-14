@@ -190,7 +190,11 @@ http_get_check(void)
 
 	if (LIST_ISEMPTY(http_get_chk->url)) {
 		log_message(LOG_INFO, "HTTP/SSL_GET checker has no urls specified - ignoring");
-		free_list_element(checkers_queue, checkers_queue->tail);
+		dequeue_new_checker();
+	}
+
+	if (!check_conn_opts(CHECKER_GET_CO())) {
+		dequeue_new_checker();
 	}
 }
 
