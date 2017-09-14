@@ -178,9 +178,11 @@ compare_conn_opts(conn_opts_t *a, conn_opts_t *b)
 	return true;
 }
 
-static void
+void
 checker_set_dst_port(struct sockaddr_storage *dst, uint16_t port)
 {
+	/* NOTE: we are relying on the offset of sin_port and sin6_port being
+	 * the same if an IPv6 address is specified after the port */
 	if (dst->ss_family == AF_INET6) {
 		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) dst;
 		addr6->sin6_port = port;
@@ -195,10 +197,11 @@ static void
 co_ip_handler(vector_t *strvec)
 {
 	conn_opts_t *co = CHECKER_GET_CO();
+
 	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, &co->dst))
 		log_message(LOG_INFO, "Invalid connect_ip address %s - ignoring", FMT_STR_VSLOT(strvec, 1));
-	if (co->bindto.ss_family != AF_UNSPEC &&
-	    co->bindto.ss_family != co->dst.ss_family) {
+	else if (co->bindto.ss_family != AF_UNSPEC &&
+		 co->bindto.ss_family != co->dst.ss_family) {
 		log_message(LOG_INFO, "connect_ip address %s does not match address family of bindto - skipping", FMT_STR_VSLOT(strvec, 1));
 		co->dst.ss_family = AF_UNSPEC;
 	}
@@ -219,8 +222,8 @@ co_srcip_handler(vector_t *strvec)
 	conn_opts_t *co = CHECKER_GET_CO();
 	if (inet_stosockaddr(strvec_slot(strvec, 1), 0, &co->bindto))
 		log_message(LOG_INFO, "Invalid bindto address %s - ignoring", FMT_STR_VSLOT(strvec, 1));
-	if (co->dst.ss_family != AF_UNSPEC &&
-	    co->dst.ss_family != co->bindto.ss_family) {
+	else if (co->dst.ss_family != AF_UNSPEC &&
+		 co->dst.ss_family != co->bindto.ss_family) {
 		log_message(LOG_INFO, "bindto address %s does not match address family of connect_ip - skipping", FMT_STR_VSLOT(strvec, 1));
 		co->bindto.ss_family = AF_UNSPEC;
 	}

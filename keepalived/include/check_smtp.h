@@ -50,7 +50,6 @@ typedef struct _smtp_checker {
 	char				*helo_name;
 	unsigned			host_ctr;
 	conn_opts_t			*host_ptr;
-	conn_opts_t			*default_co;
 
 	/* data buffer */
 	char				buff[SMTP_BUFF_MAX];

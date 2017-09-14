@@ -38,6 +38,9 @@
 #include "string.h"
 #endif
 
+static conn_opts_t* default_co;	/* Default conn_opts for SMTP_CHECK */
+static conn_opts_t *sav_co;	/* Saved conn_opts while host{} block processed */
+
 static int smtp_connect_thread(thread_t *);
 static int smtp_final(thread_t *thread, int error, const char *format, ...)
 	 __attribute__ ((format (printf, 3, 4)));
@@ -62,7 +65,6 @@ free_smtp_check(void *data)
 	smtp_checker_t *smtp_checker = CHECKER_DATA(data);
 	free_list(&smtp_checker->host);
 	FREE(smtp_checker->helo_name);
-	FREE(smtp_checker->default_co);
 	FREE(smtp_checker);
 	FREE(data);
 }
@@ -80,10 +82,6 @@ dump_smtp_check(void *data)
 	log_message(LOG_INFO, "   Keepalive method = SMTP_CHECK");
 	log_message(LOG_INFO, "   helo = %s", smtp_checker->helo_name);
 	dump_checker_opts(checker);
-	if (smtp_checker->default_co) {
-		log_message(LOG_INFO, "   Default connection");
-		dump_connection_opts(smtp_checker->default_co);
-	}
 
 	if (smtp_checker->host) {
 		log_message(LOG_INFO,"   Host list");
@@ -116,25 +114,6 @@ smtp_check_compare(void *a, void *b)
 	return true;
 }
 
-/* Allocates a default host structure */
-static conn_opts_t *
-smtp_alloc_host(void)
-{
-	conn_opts_t *new;
-	smtp_checker_t *smtp_checker = CHECKER_GET();
-
-	/* Allocate the new host data structure and copy default values */
-	new = (conn_opts_t *)MALLOC(sizeof(conn_opts_t));
-	memcpy(new, smtp_checker->default_co, sizeof(conn_opts_t));
-
-	/*
-	 * Overwrite the checker->co field to make the standard connect_opts
-	 * keyword handlers modify the newly created co object.
-	 */
-	CHECKER_GET_CO() = new;
-	return new;
-}
-
 /*
  * Callback for whenever an SMTP_CHECK keyword is encountered
  * in the config file.
@@ -144,18 +123,15 @@ smtp_check_handler(__attribute__((unused)) vector_t *strvec)
 {
 	smtp_checker_t *smtp_checker = (smtp_checker_t *)MALLOC(sizeof(smtp_checker_t));
 
-// ??? Sort out this default_co nonsense, and at end of config block make separate checkers
-	/*
-	 * Back up checker->co pointer as it will be overwritten by any
-	 * following host{} section
-	 */
-	smtp_checker->default_co = CHECKER_NEW_CO();
+	/* We keep a copy of the default settings for completing incomplete settings */
+	default_co = (conn_opts_t*)MALLOC(sizeof(conn_opts_t));
 
-	/*
-	 * Have the checker queue code put our checker into the checkers_queue list.
-	 */
+	/* Have the checker queue code put our checker into the checkers_queue list. */
 	queue_checker(free_smtp_check, dump_smtp_check, smtp_connect_thread,
-		      smtp_check_compare, smtp_checker, smtp_checker->default_co);
+		      smtp_check_compare, smtp_checker, default_co);
+
+	/* Set an empty conn_opts for any connection configured */
+	((checker_t *)checkers_queue->tail->data)->co = (conn_opts_t*)MALLOC(sizeof(conn_opts_t));
 
 	/*
 	 * Last, allocate the list that will hold all the per host
@@ -172,33 +148,69 @@ static void
 smtp_check_end_handler(void)
 {
 	smtp_checker_t *smtp_checker = CHECKER_GET();
+	conn_opts_t *co = CHECKER_GET_CO();
 
 	if (!smtp_checker->helo_name) {
 		smtp_checker->helo_name = (char *)MALLOC(strlen(SMTP_DEFAULT_HELO) + 1);
 		strcpy(smtp_checker->helo_name, SMTP_DEFAULT_HELO);
 	}
 
-	/*
-	 * If there was no host{} section, add a single host to the list
-	 * by duplicating the default co.
-	 */
-	if (LIST_ISEMPTY(smtp_checker->host))
-		list_add(smtp_checker->host, smtp_alloc_host());
+	/* If any connection component has been configured, we want to add it to the host list */
+	if (co->dst.ss_family != AF_UNSPEC ||
+	    (co->dst.ss_family == AF_UNSPEC && ((struct sockaddr_in *)&co->dst)->sin_port) ||
+	    co->bindto.ss_family != AF_UNSPEC ||
+	    (co->bindto.ss_family == AF_UNSPEC && ((struct sockaddr_in *)&co->bindto)->sin_port) ||
+	    co->bind_if[0] ||
+	    co->connection_to) {
+		/* Set any necessary defaults */
+		if (co->dst.ss_family == AF_UNSPEC) {
+			if (((struct sockaddr_in *)&co->dst)->sin_port) {
+				uint16_t saved_port = ((struct sockaddr_in *)&co->dst)->sin_port;
+				co->dst = default_co->dst;
+				checker_set_dst_port(&co->dst, saved_port);
+			}
+			else
+				co->dst = default_co->dst;
+		}
+		if (!co->connection_to)
+			co->connection_to = 5 * TIMER_HZ;
+
+		list_add(smtp_checker->host, co);
+	}
+	else
+		FREE(co);
+	CHECKER_GET_CO() = NULL;
+
+	/* If there was no host{} section, add a single host to the list */
+	if (LIST_ISEMPTY(smtp_checker->host)) {
+		list_add(smtp_checker->host, default_co);
+	} else
+		FREE(default_co);
+	default_co = NULL;
 }
 
-/*
- * Callback for whenever the "host" keyword is encountered
- * in the config file.
- */
+/* Callback for "host" keyword */
 static void
 smtp_host_handler(__attribute__((unused)) vector_t *strvec)
 {
-	smtp_checker_t *smtp_checker = CHECKER_GET();
+	checker_t *checker = CHECKER_GET_CURRENT();
 
-	/* add an empty host to the list, smtp_checker->host */
-	list_add(smtp_checker->host, smtp_alloc_host());
+	/* save the main conn_opts_t and set a new default for the host */
+	sav_co = checker->co;
+	checker->co = (conn_opts_t*)MALLOC(sizeof(conn_opts_t));
+	memcpy(checker->co, default_co, sizeof(*default_co));
 
 	log_message(LOG_INFO, "The SMTP_CHECK host block is deprecated. Please define additional checkers.");
+}
+
+static void
+smtp_host_end_handler(void)
+{
+	checker_t *checker = CHECKER_GET_CURRENT();
+	smtp_checker_t *smtp_checker = (smtp_checker_t *)checker->data;
+
+	list_add(smtp_checker->host, checker->co);
+	checker->co = sav_co;
 }
 
 /* "helo_name" keyword */
@@ -236,6 +248,7 @@ install_smtp_check_keyword(void)
 	install_keyword("host", &smtp_host_handler);
 	install_sublevel();
 	install_checker_common_keywords(true);
+	install_sublevel_end_handler(smtp_host_end_handler);
 	install_sublevel_end();
 
 	install_sublevel_end_handler(&smtp_check_end_handler);
