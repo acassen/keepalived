@@ -476,10 +476,9 @@ init_service_vs(virtual_server_t * vs)
 	if (!init_service_rs(vs))
 		return false;
 
-	if (vs->reloaded) {
-		if (vs->vsgname)
-			/* add reloaded dests into new vsg entries */
-			sync_service_vsg(vs);
+	if (vs->reloaded && vs->vsgname)
+		/* add reloaded dests into new vsg entries */
+		sync_service_vsg(vs);
 	}
 
 	/* we may have got/lost quorum due to quorum setting changed */
