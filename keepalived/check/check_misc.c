@@ -166,6 +166,13 @@ misc_end_handler(void)
 	if (!new_misck_checker)
 		return;
 
+	if (!new_misck_checker->path) {
+		log_message(LOG_INFO, "No script path has been specified for MISC_CHECKER - skipping");
+		dequeue_new_checker();
+		new_misck_checker = NULL;
+		return;
+	}
+
 	if (!script_user_set)
 	{
 		if ( set_default_script_user(NULL, NULL, global_data->script_security)) {
