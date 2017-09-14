@@ -662,7 +662,7 @@ virtual_server group <STRING>      {	# VS group declaration
         # healthcheckers. Can be multiple of each type
         # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK
 
-	# All checkers have the following options:
+	# All checkers have the following options, except MISC_CHECK which only has alpha onwards:
         CHECKER_TYPE {
             connect_ip <IP ADDRESS>	# IP address to connect (default real_server address)
             connect_port <PORT>		# TCP port to connect (default real_server port)

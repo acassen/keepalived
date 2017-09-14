@@ -820,7 +820,8 @@ A virtual_server can be a declaration of one of
            # healthcheckers. Can be multiple of each type
            # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK
 
-           # All checkers have the following options:
+           # All checkers have the following options, except MISC_CHECK
+           # which only has options alpha onwards:
            CHECKER_TYPE {
                # ======== generic connection options
                # Optional IP address to connect to.
