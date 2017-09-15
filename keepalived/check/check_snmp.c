@@ -430,7 +430,9 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = htons(inet_sockaddrport(&v->addr));
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_VSPROTOCOL:
-		long_ret.u = (v->service_type == IPPROTO_TCP)?1:2;
+		long_ret.u = (v->service_type == IPPROTO_TCP) ? 1 :
+			     (v->service_type == IPPROTO_UDP) ? 2 :
+			     (v->service_type == IPPROTO_SCTP) ? 3 : 4;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSLOADBALANCINGALGO:
 		if (!strcmp(v->sched, "rr"))

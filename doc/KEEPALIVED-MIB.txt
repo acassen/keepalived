@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201708100000Z"
+     LAST-UPDATED "201709150000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201709150000Z"
+     DESCRIPTION "add sctp and none as virtual server protocol types"
      REVISION "201708100000Z"
      DESCRIPTION "virtualhost config to real server"
      REVISION "201707220001Z"
@@ -2386,7 +2388,7 @@ virtualServerPort OBJECT-TYPE
     ::= { virtualServerEntry 7 }
 
 virtualServerProtocol OBJECT-TYPE
-    SYNTAX INTEGER { tcp(1), udp(2) }
+    SYNTAX INTEGER { tcp(1), udp(2), sctp(3), none(4) }
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION
