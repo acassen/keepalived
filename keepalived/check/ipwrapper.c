@@ -43,9 +43,6 @@ weigh_live_realservers(virtual_server_t * vs)
 	real_server_t *svr;
 	long count = 0;
 
-	if (LIST_ISEMPTY(vs->rs))
-		return 0;
-
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		svr = ELEMENT_DATA(e);
 		if (ISALIVE(svr))
@@ -185,17 +182,15 @@ static void
 clear_service_vs(virtual_server_t * vs)
 {
 	/* Processing real server queue */
-	if (!LIST_ISEMPTY(vs->rs)) {
-		if (vs->s_svr) {
-			if (ISALIVE(vs->s_svr)) {
-				ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
-				UNSET_ALIVE(vs->s_svr);
-			}
+	if (vs->s_svr) {
+		if (ISALIVE(vs->s_svr)) {
+			ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
+			UNSET_ALIVE(vs->s_svr);
+		}
 // ??? what about alpha mode ?
-		} else
-			clear_service_rs(vs, vs->rs);
-		/* The above will handle Omega case for VS as well. */
-	}
+	} else
+		clear_service_rs(vs, vs->rs);
+	/* The above will handle Omega case for VS as well. */
 
 	ipvs_cmd(LVS_CMD_DEL, vs, NULL);
 
@@ -227,11 +222,6 @@ init_service_rs(virtual_server_t * vs)
 {
 	element e;
 	real_server_t *rs;
-
-	if (LIST_ISEMPTY(vs->rs)) {
-		log_message(LOG_WARNING, "VS [%s] has no configured RS! Skipping RS activation.", FMT_VS(vs));
-		return true;
-	}
 
 	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 		rs = ELEMENT_DATA(e);
@@ -296,9 +286,6 @@ perform_quorum_state(virtual_server_t *vs, bool add)
 {
 	element e;
 	real_server_t *rs;
-
-	if (LIST_ISEMPTY(vs->rs))
-		return;
 
 	log_message(LOG_INFO, "%s the pool for VS %s"
 			    , add?"Adding alive servers to":"Removing alive servers from"

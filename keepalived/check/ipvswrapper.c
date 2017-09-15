@@ -692,7 +692,7 @@ ipvs_update_vs_stats(virtual_server_t *vs, uint32_t fwmark, union nf_inet_addr *
 		/* Is it the sorry server? */
 		if (vs->s_svr && vsd_equal(vs->s_svr, &dests->user.entrytable[i]))
 			rs = vs->s_svr;
-		else if (!LIST_ISEMPTY(vs->rs)) {
+		else {
 			/* Search for a match in the list of real servers */
 			for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
 				rs = ELEMENT_DATA(e);
@@ -746,12 +746,10 @@ ipvs_update_stats(virtual_server_t *vs)
 		vs->s_svr->activeconns =
 			vs->s_svr->inactconns = vs->s_svr->persistconns = 0;
 	}
-	if (!LIST_ISEMPTY(vs->rs)) {
-		for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
-			rs = ELEMENT_DATA(e);
-			memset(&rs->stats, 0, sizeof(rs->stats));
-			rs->activeconns = rs->inactconns = rs->persistconns = 0;
-		}
+	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
+		rs = ELEMENT_DATA(e);
+		memset(&rs->stats, 0, sizeof(rs->stats));
+		rs->activeconns = rs->inactconns = rs->persistconns = 0;
 	}
 
 	/* Update the stats */

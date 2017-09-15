@@ -86,6 +86,8 @@ static void
 vs_end_handler(void)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+
+	/* I'm not sure how the following can happen so long as we have a real server */
 	if (!vs->af)
 		vs->af = AF_INET;
 }

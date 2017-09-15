@@ -715,7 +715,6 @@ check_snmp_realserver_weight(int action,
 		for (e1 = LIST_HEAD(check_data->vs); e1; ELEMENT_NEXT(e1)) {
 			vs = ELEMENT_DATA(e1);
 			if (--ivs == 0) {
-				if (LIST_ISEMPTY(vs->rs)) return SNMP_ERR_NOSUCHNAME;
 				if (vs->s_svr) {
 					/* We don't want to set weight
 					   of sorry server */
@@ -789,11 +788,6 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 				type = state++;
 				break;
 			case STATE_RS_REGULAR_FIRST:
-				if (LIST_ISEMPTY(vs->rs)) {
-					e = NULL;
-					state = STATE_RS_END;
-					break;
-				}
 				e2 = LIST_HEAD(vs->rs);
 				e = ELEMENT_DATA(e2);
 				type = state++;
@@ -1506,15 +1500,11 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs)
 		notification_oid[notification_oid_len - 1] = 2;
 
 	/* Initialize data */
-	if (LIST_ISEMPTY(vs->rs))
-		realtotal = 0;
-	else
-		realtotal = LIST_SIZE(vs->rs);
+	realtotal = LIST_SIZE(vs->rs);
 	realup = 0;
-	if (!LIST_ISEMPTY(vs->rs))
-		for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e))
-			if (((real_server_t *)ELEMENT_DATA(e))->alive)
-				realup++;
+	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e))
+		if (((real_server_t *)ELEMENT_DATA(e))->alive)
+			realup++;
 
 	/* snmpTrapOID */
 	snmp_varlist_add_variable(&notification_vars,

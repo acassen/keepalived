@@ -332,8 +332,7 @@ dump_vs(void *data)
 			break;
 		}
 	}
-	if (!LIST_ISEMPTY(vs->rs))
-		dump_list(vs->rs);
+	dump_list(vs->rs);
 }
 
 void
