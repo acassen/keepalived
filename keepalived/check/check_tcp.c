@@ -89,7 +89,7 @@ install_tcp_check_keyword(void)
 }
 
 static void
-tcp_epilog(thread_t * thread, int is_success)
+tcp_epilog(thread_t * thread, bool is_success)
 {
 	checker_t *checker;
 	unsigned long delay;
@@ -114,7 +114,6 @@ tcp_epilog(thread_t * thread, int is_success)
 				    , "Check on service %s failed after %d retry."
 				    , FMT_TCP_RS(checker)
 				    , checker->retry);
-// ??? We should log if retry == 0
 			smtp_alert(checker, NULL, NULL,
 				   "DOWN",
 				   "=> TCP CHECK failed on service <=");
@@ -147,19 +146,19 @@ tcp_check_thread(thread_t * thread)
 		break;
 	case connect_success:
 		close(thread->u.fd);
-		tcp_epilog(thread, 1);
+		tcp_epilog(thread, true);
 		break;
 	case connect_timeout:
 		if (checker->is_up)
 			log_message(LOG_INFO, "TCP connection to %s timeout."
 					, FMT_TCP_RS(checker));
-		tcp_epilog(thread, 0);
+		tcp_epilog(thread, false);
 		break;
 	default:
 		if (checker->is_up)
 			log_message(LOG_INFO, "TCP connection to %s failed."
 					, FMT_TCP_RS(checker));
-		tcp_epilog(thread, 0);
+		tcp_epilog(thread, false);
 	}
 
 	return 0;
