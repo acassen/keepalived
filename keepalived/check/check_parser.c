@@ -145,7 +145,7 @@ vs_retry_handler(vector_t *strvec)
 		log_message(LOG_INFO, "retry value invalid - %s", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
-	vs->retry = retry;
+	vs->retry = (unsigned)retry;
 }
 static void
 vs_warmup_handler(vector_t *strvec)
@@ -454,7 +454,7 @@ rs_retry_handler(vector_t *strvec)
 		log_message(LOG_INFO, "retry value invalid - %s", FMT_STR_VSLOT(strvec, 1));
 		return;
 	}
-	rs->retry = retry;
+	rs->retry = (unsigned)retry;
 }
 static void
 rs_warmup_handler(vector_t *strvec)
