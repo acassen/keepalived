@@ -375,7 +375,6 @@ epilog(thread_t * thread, int method, unsigned t, unsigned c)
 		http_get_check->url_it = 0;
 		checker->retry_it = 0;
 	}
-// Check retry, url_it, retry_it, method.
 
 	/* register next timer thread */
 	switch (method) {
