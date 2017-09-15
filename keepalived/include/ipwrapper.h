@@ -51,10 +51,11 @@
 
 /* prototypes */
 extern void update_svr_wgt(int, virtual_server_t *, real_server_t *, bool);
-extern int svr_checker_up(checker_id_t, real_server_t *);
-extern void update_svr_checker_state(bool, checker_id_t, virtual_server_t *, real_server_t *);
+extern void set_checker_state(checker_t *, bool);
+extern void update_svr_checker_state(bool, checker_t *);
 extern bool init_services(void);
 extern void clear_services(void);
+extern void set_quorum_states(void);
 extern void clear_diff_services(list);
 extern void link_vsg_to_vs(void);
 

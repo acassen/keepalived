@@ -156,7 +156,6 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 	char file_name[21];
 
 	if (!level) {
-		sprintf(file_name, "/tmp/keywords.%d", getpid());
 		snprintf(file_name, sizeof(file_name), "/tmp/keywords.%d", getpid());
 		fp = fopen(file_name, "w");
 		if (!fp)
@@ -663,6 +662,18 @@ set_value(vector_t *strvec)
 	memcpy(alloc, str, size);
 
 	return alloc;
+}
+
+unsigned long
+read_timer(vector_t *strvec)
+{
+	unsigned long timer;
+
+	timer = strtoul(strvec_slot(strvec, 1), NULL, 10);
+	if (timer >= ULONG_MAX / TIMER_HZ)
+		return ULONG_MAX;
+
+	return timer * TIMER_HZ;
 }
 
 /* Checks for on/true/yes or off/false/no */

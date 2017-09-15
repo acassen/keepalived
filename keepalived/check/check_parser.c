@@ -73,9 +73,18 @@ sslkey_handler(vector_t *strvec)
 static void
 vsg_handler(vector_t *strvec)
 {
+	virtual_server_group_t *vsg;
+
 	/* Fetch queued vsg */
 	alloc_vsg(strvec_slot(strvec, 1));
 	alloc_value_block(alloc_vsg_entry);
+
+	/* Ensure the virtual server group has some configuration */
+	vsg = LIST_TAIL_DATA(check_data->vs_group);
+	if (LIST_ISEMPTY(vsg->vfwmark) && LIST_ISEMPTY(vsg->addr_range)) {
+		log_message(LOG_INFO, "virtual server group %s has no entries - removing", vsg->gname);
+		free_list_element(check_data->vs_group, check_data->vs_group->tail);
+	}
 }
 static void
 vs_handler(vector_t *strvec)
@@ -86,6 +95,8 @@ static void
 vs_end_handler(void)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+
+	/* I'm not sure how the following can happen so long as we have a real server */
 	if (!vs->af)
 		vs->af = AF_INET;
 }
@@ -119,12 +130,37 @@ ip_family_handler(vector_t *strvec)
 	vs->af = af;
 }
 static void
-delay_handler(vector_t *strvec)
+vs_delay_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	vs->delay_loop = strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
-	if (vs->delay_loop < TIMER_HZ)
-		vs->delay_loop = TIMER_HZ;
+	vs->delay_loop = read_timer(strvec);
+}
+static void
+vs_delay_before_retry_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	vs->delay_before_retry = read_timer(strvec);
+}
+static void
+vs_retry_handler(vector_t *strvec)
+{
+	unsigned long retry;
+	char *endptr;
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+
+	errno = 0;
+	retry = strtoul(strvec_slot(strvec, 1), &endptr, 10);
+	if (errno || *endptr || retry > UINT32_MAX || retry == 0) {
+		log_message(LOG_INFO, "retry value invalid - %s", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+	vs->retry = (unsigned)retry;
+}
+static void
+vs_warmup_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	vs->warmup = read_timer(strvec);
 }
 static void
 lbalgo_handler(vector_t *strvec)
@@ -202,7 +238,7 @@ pto_handler(vector_t *strvec)
 	errno = 0;
 	timeout = strtoul(strvec_slot(strvec, 1), &endptr, 10);
 	if (errno || *endptr || timeout > UINT32_MAX || timeout == 0) {
-		log_message(LOG_INFO, "persistent_timeout invalid");
+		log_message(LOG_INFO, "persistence_timeout invalid");
 		return;
 	}
 
@@ -224,17 +260,40 @@ static void
 pgr_handler(vector_t *strvec)
 {
 	struct in_addr addr;
-
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	if (vs->addr.ss_family == AF_INET6)
-		vs->persistence_granularity = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
-	else {
-		if (inet_aton(strvec_slot(strvec, 1), &addr)) {
-			log_message(LOG_INFO, "Invalid persistence_timeout specified - %s", FMT_STR_VSLOT(strvec, 1));
+	char *endptr;
+	uint16_t af = vs->af;
+
+	if (af == AF_UNSPEC)
+		af = strchr(strvec_slot(strvec, 1), '.') ? AF_INET : AF_INET6;
+
+	if (af == AF_INET6) {
+		vs->persistence_granularity = (uint32_t)strtoul(strvec_slot(strvec, 1), &endptr, 10);
+		if (*endptr || vs->persistence_granularity < 1 || vs->persistence_granularity > 128) {
+			log_message(LOG_INFO, "Invalid IPv6 persistence_granularity specified - %s", FMT_STR_VSLOT(strvec, 1));
+			vs->persistence_granularity = 0;
 			return;
 		}
+	} else {
+		if (inet_aton(strvec_slot(strvec, 1), &addr)) {
+			log_message(LOG_INFO, "Invalid IPv4 persistence_granularity specified - %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+
+		/* Ensure the netmask is solid */
+		uint32_t haddr = ntohl(addr.s_addr);
+		while (!(haddr & 1))
+			haddr = (haddr >> 1) | 0x80000000;
+		if (haddr != 0xffffffff) {
+			log_message(LOG_INFO, "IPv4 persistence_granularity netmask is not solid - %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+
 		vs->persistence_granularity = addr.s_addr;
 	}
+
+	if (vs->af == AF_UNSPEC)
+		vs->af = af;
 
 	if (!vs->persistence_timeout)
 		vs->persistence_timeout = IPVS_SVC_PERSISTENT_TIMEOUT;
@@ -314,7 +373,7 @@ rs_handler(vector_t *strvec)
 	alloc_rs(strvec_slot(strvec, 1), strvec_slot(strvec, 2));
 }
 static void
-weight_handler(vector_t *strvec)
+rs_weight_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
@@ -344,16 +403,15 @@ lthreshold_handler(vector_t *strvec)
 	rs->l_threshold = (uint32_t)strtoul(strvec_slot(strvec, 1), NULL, 10);
 }
 static void
-inhibit_handler(__attribute__((unused)) vector_t *strvec)
+vs_inhibit_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
-	rs->inhibit = 1;
+	vs->inhibit = true;
 }
 static inline notify_script_t*
-set_check_notify_script(vector_t *strvec)
+set_check_notify_script(vector_t *strvec, const char *type)
 {
-	return notify_script_init(strvec, "quorum/notify", global_data->script_security);
+	return notify_script_init(strvec, type, global_data->script_security);
 }
 static void
 notify_up_handler(vector_t *strvec)
@@ -364,7 +422,7 @@ notify_up_handler(vector_t *strvec)
 		log_message(LOG_INFO, "(%s): notify_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	rs->notify_up = set_check_notify_script(strvec);
+	rs->notify_up = set_check_notify_script(strvec, "notify");
 }
 static void
 notify_down_handler(vector_t *strvec)
@@ -375,7 +433,76 @@ notify_down_handler(vector_t *strvec)
 		log_message(LOG_INFO, "(%s): notify_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	rs->notify_down = set_check_notify_script(strvec);
+	rs->notify_down = set_check_notify_script(strvec, "notify");
+}
+static void
+rs_delay_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	rs->delay_loop = read_timer(strvec);
+}
+static void
+rs_delay_before_retry_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	rs->delay_before_retry = read_timer(strvec);
+}
+static void
+rs_retry_handler(vector_t *strvec)
+{
+	unsigned long retry;
+	char *endptr;
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+
+	errno = 0;
+	retry = strtoul(strvec_slot(strvec, 1), &endptr, 10);
+	if (errno || *endptr || retry > UINT32_MAX || retry == 0) {
+		log_message(LOG_INFO, "retry value invalid - %s", FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+	rs->retry = (unsigned)retry;
+}
+static void
+rs_warmup_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	rs->warmup = read_timer(strvec);
+}
+static void
+rs_inhibit_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			log_message(LOG_INFO, "Invalid inhibit_on_failure parameter %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+	rs->inhibit = res;
+}
+static void
+rs_alpha_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+	int res = true;
+
+	if (vector_size(strvec) >= 2) {
+		res = check_true_false(strvec_slot(strvec, 1));
+		if (res == -1) {
+			log_message(LOG_INFO, "Invalid alpha parameter %s", FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+	}
+	rs->alpha = res;
 }
 static void
 rs_virtualhost_handler(vector_t *strvec)
@@ -385,11 +512,10 @@ rs_virtualhost_handler(vector_t *strvec)
 	rs->virtualhost = set_value(strvec);
 }
 static void
-alpha_handler(__attribute__((unused)) vector_t *strvec)
+vs_alpha_handler(__attribute__((unused)) vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	vs->alpha = true;
-	vs->quorum_state = DOWN;
 }
 static void
 omega_handler(__attribute__((unused)) vector_t *strvec)
@@ -401,21 +527,21 @@ static void
 quorum_up_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	if (vs->quorum_up) {
+	if (vs->notify_quorum_up) {
 		log_message(LOG_INFO, "(%s): quorum_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vs->quorum_up = set_check_notify_script(strvec);
+	vs->notify_quorum_up = set_check_notify_script(strvec, "quorum");
 }
 static void
 quorum_down_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
-	if (vs->quorum_down) {
+	if (vs->notify_quorum_down) {
 		log_message(LOG_INFO, "(%s): quorum_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
-	vs->quorum_down = set_check_notify_script(strvec);
+	vs->notify_quorum_down = set_check_notify_script(strvec, "quorum");
 }
 static void
 quorum_handler(vector_t *strvec)
@@ -436,6 +562,12 @@ hysteresis_handler(vector_t *strvec)
 
 	vs->hysteresis = (unsigned)strtoul(strvec_slot(strvec, 1), NULL, 10);
 }
+static void
+vs_weight_handler(vector_t *strvec)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	vs->weight = atoi(strvec_slot(strvec, 1));
+}
 
 void
 init_check_keywords(bool active)
@@ -451,7 +583,11 @@ init_check_keywords(bool active)
 	install_keyword_root("virtual_server_group", &vsg_handler, active);
 	install_keyword_root("virtual_server", &vs_handler, active);
 	install_keyword("ip_family", &ip_family_handler);
-	install_keyword("delay_loop", &delay_handler);
+	install_keyword("retry", &vs_retry_handler);
+	install_keyword("delay_before_retry", &vs_delay_before_retry_handler);
+	install_keyword("warmup", &vs_warmup_handler);
+	install_keyword("delay_loop", &vs_delay_handler);
+	install_keyword("inhibit_on_failure", &vs_inhibit_handler);
 	install_keyword("lb_algo", &lbalgo_handler);
 	install_keyword("lvs_sched", &lbalgo_handler);
 
@@ -478,12 +614,13 @@ init_check_keywords(bool active)
 	install_keyword("virtualhost", &vs_virtualhost_handler);
 
 	/* Pool regression detection and handling. */
-	install_keyword("alpha", &alpha_handler);
+	install_keyword("alpha", &vs_alpha_handler);
 	install_keyword("omega", &omega_handler);
 	install_keyword("quorum_up", &quorum_up_handler);
 	install_keyword("quorum_down", &quorum_down_handler);
 	install_keyword("quorum", &quorum_handler);
 	install_keyword("hysteresis", &hysteresis_handler);
+	install_keyword("weight", &vs_weight_handler);
 
 	/* Real server mapping */
 	install_keyword("sorry_server", &ssvr_handler);
@@ -491,13 +628,18 @@ init_check_keywords(bool active)
 	install_keyword("sorry_server_lvs_method", &ss_forwarding_handler);
 	install_keyword("real_server", &rs_handler);
 	install_sublevel();
-	install_keyword("weight", &weight_handler);
+	install_keyword("weight", &rs_weight_handler);
 	install_keyword("lvs_method", &rs_forwarding_handler);
 	install_keyword("uthreshold", &uthreshold_handler);
 	install_keyword("lthreshold", &lthreshold_handler);
-	install_keyword("inhibit_on_failure", &inhibit_handler);
+	install_keyword("inhibit_on_failure", &rs_inhibit_handler);
 	install_keyword("notify_up", &notify_up_handler);
 	install_keyword("notify_down", &notify_down_handler);
+	install_keyword("alpha", &rs_alpha_handler);
+	install_keyword("retry", &rs_retry_handler);
+	install_keyword("delay_before_retry", &rs_delay_before_retry_handler);
+	install_keyword("warmup", &rs_warmup_handler);
+	install_keyword("delay_loop", &rs_delay_handler);
 	install_keyword("virtualhost", &rs_virtualhost_handler);
 
 	install_sublevel_end_handler(&vs_end_handler);

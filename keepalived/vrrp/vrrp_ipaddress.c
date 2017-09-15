@@ -547,9 +547,9 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 					new->u.sin.sin_brd = new->u.sin.sin_addr;
 					for (i = 31; i >= new->ifa.ifa_prefixlen; i--) {
 						if (param[0] == '+')
-							new->u.sin.sin_brd.s_addr |= htonl(1<<(31-i));
+							new->u.sin.sin_brd.s_addr |= htonl(1U<<(31-i));
 						else
-							new->u.sin.sin_brd.s_addr &= ~htonl(1<<(31-i));
+							new->u.sin.sin_brd.s_addr &= ~htonl(1U<<(31-i));
 					}
 				}
 			}

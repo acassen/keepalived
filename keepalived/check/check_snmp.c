@@ -107,6 +107,11 @@ enum check_snmp_virtualserver_magic {
 	CHECK_SNMP_VSSHFALLBACK,
 	CHECK_SNMP_VSSHPORT,
 	CHECK_SNMP_VSSCHED3,
+	CHECK_SNMP_VSACTIONWHENDOWN,
+	CHECK_SNMP_VSRETRY,
+	CHECK_SNMP_VSDELAYBEFORERETRY,
+	CHECK_SNMP_VSWARMUP,
+	CHECK_SNMP_VSWEIGHT,
 };
 
 enum check_snmp_realserver_magic {
@@ -151,13 +156,17 @@ enum check_snmp_realserver_magic {
 	CHECK_SNMP_RSRATEOUTBPSHIGH,
 #endif
 	CHECK_SNMP_RSLOADBALANCINGKIND,
-	CHECK_SNMP_RSVIRTUALHOST
+	CHECK_SNMP_RSVIRTUALHOST,
+	CHECK_SNMP_RSALPHA,
+	CHECK_SNMP_RSRETRY,
+	CHECK_SNMP_RSDELAYBEFORERETRY,
+	CHECK_SNMP_RSWARMUP,
+	CHECK_SNMP_RSDELAYLOOP
 };
 
 #define STATE_VSGM_FWMARK 1
-#define STATE_VSGM_ADDRESS 2
-#define STATE_VSGM_RANGE 3
-#define STATE_VSGM_END 4
+#define STATE_VSGM_ADDRESS_RANGE 2
+#define STATE_VSGM_END 3
 
 #define STATE_RS_SORRY 1
 #define STATE_RS_REGULAR_FIRST 2
@@ -269,16 +278,13 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 		if (be)
 			break; /* Optimization: cannot be the lower anymore */
 		state = STATE_VSGM_FWMARK;
-		while (state != STATE_VSGM_END) {
+		while (state < STATE_VSGM_END) {
 			switch (state) {
 			case STATE_VSGM_FWMARK:
 				l = group->vfwmark;
 				break;
-			case STATE_VSGM_ADDRESS:
-				l = group->addr_ip;
-				break;
-			case STATE_VSGM_RANGE:
-				l = group->range;
+			case STATE_VSGM_ADDRESS_RANGE:
+				l = group->addr_range;
 				break;
 			default:
 				/* Dunno? */
@@ -355,13 +361,12 @@ check_snmp_vsgroupmember(struct variable *vp, oid *name, size_t *length,
 			struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *)&be->addr;
 			*var_len = 16;
 			memcpy(&ip6, &addr6->sin6_addr, sizeof(ip6));
-			ip6.s6_addr32[3] &= htonl(0xFFFFFF00);
-			ip6.s6_addr32[3] += htonl(be->range);
+			ip6.s6_addr16[7] = htons(ntohs(ip6.s6_addr16[7]) + be->range);
 			return (u_char *)&ip6;
 		} else {
 			struct sockaddr_in *addr4 = (struct sockaddr_in *)&be->addr;
 			*var_len = 4;
-			ip = (*(uint32_t *)&addr4->sin_addr) & htonl(0xFFFFFF00);
+			ip = *(uint32_t *)&addr4->sin_addr;
 			ip += htonl(be->range);
 			return (u_char *)&ip;
 		}
@@ -425,7 +430,9 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = htons(inet_sockaddrport(&v->addr));
 		return (u_char *)&long_ret;
 	case CHECK_SNMP_VSPROTOCOL:
-		long_ret.u = (v->service_type == IPPROTO_TCP)?1:2;
+		long_ret.u = (v->service_type == IPPROTO_TCP) ? 1 :
+			     (v->service_type == IPPROTO_UDP) ? 2 :
+			     (v->service_type == IPPROTO_SCTP) ? 3 : 4;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSLOADBALANCINGALGO:
 		if (!strcmp(v->sched, "rr"))
@@ -493,10 +500,7 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		*var_len = sizeof(v->persistence_granularity);
 		return (u_char*)&v->persistence_granularity;
 	case CHECK_SNMP_VSDELAYLOOP:
-		if (v->delay_loop >= TIMER_MAX_SEC)
-			long_ret.u = v->delay_loop/TIMER_HZ;
-		else
-			long_ret.u = v->delay_loop;
+		long_ret.u = v->delay_loop/TIMER_HZ;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSHASUSPEND:
 		long_ret.u = v->ha_suspend?1:2;
@@ -516,16 +520,16 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = v->quorum;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSQUORUMSTATUS:
-		long_ret.u = v->quorum_state?1:2;
+		long_ret.u = v->quorum_state_up ? 1 : 2;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_VSQUORUMUP:
-		if (!v->quorum_up) break;
-		*var_len = strlen(v->quorum_up->name);
-		return (u_char*)v->quorum_up->name;
+		if (!v->notify_quorum_up) break;
+		*var_len = strlen(v->notify_quorum_up->name);
+		return (u_char*)v->notify_quorum_up->name;
 	case CHECK_SNMP_VSQUORUMDOWN:
-		if (!v->quorum_down) break;
-		*var_len = strlen(v->quorum_down->name);
-		return (u_char*)v->quorum_down->name;
+		if (!v->notify_quorum_down) break;
+		*var_len = strlen(v->notify_quorum_down->name);
+		return (u_char*)v->notify_quorum_down->name;
 	case CHECK_SNMP_VSHYSTERESIS:
 		long_ret.u = v->hysteresis;
 		return (u_char*)&long_ret;
@@ -660,6 +664,21 @@ check_snmp_virtualserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = v->flags & IP_VS_SVC_F_SCHED3 ? 1 : 2;
 		return (u_char*)&long_ret;
 #endif
+	case CHECK_SNMP_VSACTIONWHENDOWN:
+		long_ret.u = v->inhibit?2:1;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSRETRY:
+		long_ret.u = v->retry;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSDELAYBEFORERETRY:
+		long_ret.u = v->delay_before_retry / TIMER_HZ;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSWARMUP:
+		long_ret.u = v->warmup / TIMER_HZ;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_VSWEIGHT:
+		long_ret.s = v->weight;
+		return (u_char*)&long_ret;
 	default:
 		return NULL;
 	}
@@ -696,7 +715,6 @@ check_snmp_realserver_weight(int action,
 		for (e1 = LIST_HEAD(check_data->vs); e1; ELEMENT_NEXT(e1)) {
 			vs = ELEMENT_DATA(e1);
 			if (--ivs == 0) {
-				if (LIST_ISEMPTY(vs->rs)) return SNMP_ERR_NOSUCHNAME;
 				if (vs->s_svr) {
 					/* We don't want to set weight
 					   of sorry server */
@@ -716,7 +734,7 @@ check_snmp_realserver_weight(int action,
 		if (action == RESERVE2)
 			break;
 		/* Commit: change values. There is no way to fail. */
-		update_svr_wgt((long)(*var_val), vs, rs, true);
+		update_svr_wgt((unsigned)(*var_val), vs, rs, true);
 		break;
 	}
 	return SNMP_ERR_NOERROR;
@@ -770,11 +788,6 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 				type = state++;
 				break;
 			case STATE_RS_REGULAR_FIRST:
-				if (LIST_ISEMPTY(vs->rs)) {
-					e = NULL;
-					state = STATE_RS_END;
-					break;
-				}
 				e2 = LIST_HEAD(vs->rs);
 				e = ELEMENT_DATA(e2);
 				type = state++;
@@ -900,10 +913,7 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		return (u_char*)be->virtualhost;
 	case CHECK_SNMP_RSFAILEDCHECKS:
 		if (btype == STATE_RS_SORRY) break;
-		if (LIST_ISEMPTY(be->failed_checkers))
-			long_ret.u = 0;
-		else
-			long_ret.u = LIST_SIZE(be->failed_checkers);
+		long_ret.u = be->num_failed_checkers;
 		return (u_char*)&long_ret;
 	case CHECK_SNMP_RSSTATSCONNS:
 		ipvs_update_stats(bvs);
@@ -1021,6 +1031,21 @@ check_snmp_realserver(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = be->stats.outbps >> 32;
 		return (u_char*)&long_ret;
 #endif
+	case CHECK_SNMP_RSALPHA:
+		long_ret.u = be->alpha?1:2;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_RSRETRY:
+		long_ret.u = be->retry;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_RSDELAYBEFORERETRY:
+		long_ret.u = be->delay_before_retry / TIMER_HZ;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_RSWARMUP:
+		long_ret.u = be->warmup / TIMER_HZ;
+		return (u_char*)&long_ret;
+	case CHECK_SNMP_RSDELAYLOOP:
+		long_ret.u = be->delay_loop / TIMER_HZ;
+		return (u_char*)&long_ret;
 	default:
 		return NULL;
 	}
@@ -1256,6 +1281,16 @@ static struct variable8 check_vars[] = {
 	 check_snmp_virtualserver, 3, {3, 1, 54}},
 	{CHECK_SNMP_VSSCHED3, ASN_INTEGER, RONLY,
 	 check_snmp_virtualserver, 3, {3, 1, 55}},
+	{CHECK_SNMP_VSACTIONWHENDOWN, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 56}},
+	{CHECK_SNMP_VSRETRY, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 57}},
+	{CHECK_SNMP_VSDELAYBEFORERETRY, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 58}},
+	{CHECK_SNMP_VSWARMUP, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 59}},
+	{CHECK_SNMP_VSWEIGHT, ASN_INTEGER, RONLY,
+	 check_snmp_virtualserver, 3, {3, 1, 60}},
 
 	/* realServerTable */
 	{CHECK_SNMP_RSTYPE, ASN_INTEGER, RONLY,
@@ -1340,6 +1375,16 @@ static struct variable8 check_vars[] = {
 	 check_snmp_realserver, 3, {4, 1, 40}},
 	{CHECK_SNMP_RSVIRTUALHOST, ASN_OCTET_STR, RONLY,
 	 check_snmp_realserver, 3, {4, 1, 41}},
+	{CHECK_SNMP_RSALPHA, ASN_INTEGER, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 42}},
+	{CHECK_SNMP_RSRETRY, ASN_INTEGER, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 43}},
+	{CHECK_SNMP_RSDELAYBEFORERETRY, ASN_INTEGER, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 44}},
+	{CHECK_SNMP_RSWARMUP, ASN_INTEGER, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 45}},
+	{CHECK_SNMP_RSDELAYLOOP, ASN_INTEGER, RONLY,
+	 check_snmp_realserver, 3, {4, 1, 46}},
 #ifdef _WITH_VRRP_
 	/* LVS sync daemon configuration */
 	{CHECK_SNMP_LVSSYNCDAEMONENABLED, ASN_INTEGER, RONLY,
@@ -1455,15 +1500,11 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs)
 		notification_oid[notification_oid_len - 1] = 2;
 
 	/* Initialize data */
-	if (LIST_ISEMPTY(vs->rs))
-		realtotal = 0;
-	else
-		realtotal = LIST_SIZE(vs->rs);
+	realtotal = LIST_SIZE(vs->rs);
 	realup = 0;
-	if (!LIST_ISEMPTY(vs->rs))
-		for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e))
-			if (((real_server_t *)ELEMENT_DATA(e))->alive)
-				realup++;
+	for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e))
+		if (((real_server_t *)ELEMENT_DATA(e))->alive)
+			realup++;
 
 	/* snmpTrapOID */
 	snmp_varlist_add_variable(&notification_vars,
@@ -1557,7 +1598,7 @@ check_snmp_rs_trap(real_server_t *rs, virtual_server_t *vs)
 				  (u_char *)&vsprotocol,
 				  sizeof(vsprotocol));
 	if (!rs) {
-		quorumstatus = vs->quorum_state?1:2;
+		quorumstatus = vs->quorum_state_up ? 1 : 2;
 		snmp_varlist_add_variable(&notification_vars,
 					  quorumstatus_oid, quorumstatus_oid_len,
 					  ASN_INTEGER,

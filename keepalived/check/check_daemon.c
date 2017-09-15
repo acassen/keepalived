@@ -204,34 +204,6 @@ start_check(list old_checkers_queue)
 	register_checkers_thread();
 }
 
-/* Reload handler */
-static int reload_check_thread(thread_t *);
-
-static void
-sighup_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
-{
-	thread_add_event(master, reload_check_thread, NULL, 0);
-}
-
-/* Terminate handler */
-static void
-sigend_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
-{
-	if (master)
-		thread_add_terminate_event(master);
-}
-
-/* CHECK Child signal handling */
-static void
-check_signal_init(void)
-{
-	signal_handler_child_clear();
-	signal_set(SIGHUP, sighup_check, NULL);
-	signal_set(SIGINT, sigend_check, NULL);
-	signal_set(SIGTERM, sigend_check, NULL);
-	signal_ignore(SIGPIPE);
-}
-
 /* Reload thread */
 static int
 reload_check_thread(__attribute__((unused)) thread_t * thread)
@@ -275,6 +247,31 @@ reload_check_thread(__attribute__((unused)) thread_t * thread)
 	UNSET_RELOAD;
 
 	return 0;
+}
+
+static void
+sighup_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
+{
+	thread_add_event(master, reload_check_thread, NULL, 0);
+}
+
+/* Terminate handler */
+static void
+sigend_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
+{
+	if (master)
+		thread_add_terminate_event(master);
+}
+
+/* CHECK Child signal handling */
+static void
+check_signal_init(void)
+{
+	signal_handler_child_clear();
+	signal_set(SIGHUP, sighup_check, NULL);
+	signal_set(SIGINT, sigend_check, NULL);
+	signal_set(SIGTERM, sigend_check, NULL);
+	signal_ignore(SIGPIPE);
 }
 
 /* CHECK Child respawning thread */

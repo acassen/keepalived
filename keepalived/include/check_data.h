@@ -42,9 +42,6 @@
 #include "timer.h"
 #include "notify.h"
 
-/* Typedefs */
-typedef unsigned int checker_id_t;
-
 /* Daemon dynamic data structure definition */
 #define KEEPALIVED_DEFAULT_DELAY	(60 * TIMER_HZ)
 
@@ -70,13 +67,19 @@ typedef struct _real_server {
 	unsigned			forwarding_method; /* NAT/TUN/DR */
 	uint32_t			u_threshold;   /* Upper connection limit. */
 	uint32_t			l_threshold;   /* Lower connection limit. */
-	bool				inhibit;	/* Set weight to 0 instead of removing
+	int				inhibit;	/* Set weight to 0 instead of removing
 							 * the service from IPVS topology.
 							 */
 	notify_script_t			*notify_up;	/* Script to launch when RS is added to LVS */
 	notify_script_t			*notify_down;	/* Script to launch when RS is removed from LVS */
+	int				alpha;		/* 1 if alpha mode is default. */
+	unsigned long                   delay_loop;	/* Interval between running checker */
+	unsigned long                   warmup;		/* max random timeout to start checker */
+	unsigned                        retry;		/* number of retries before failing */
+	unsigned long                   delay_before_retry; /* interval between retries */
+
 	bool				alive;
-	list				failed_checkers;/* List of failed checkers */
+	unsigned			num_failed_checkers;/* Number of failed checkers */
 	bool				set;		/* in the IPVS table */
 	bool				reloaded;	/* active state was copied from old config while reloading */
 	char				*virtualhost;	/* Default virtualhost for HTTP and SSL health checkers */
@@ -98,14 +101,17 @@ typedef struct _virtual_server_group_entry {
 	struct sockaddr_storage		addr;
 	uint32_t			range;
 	uint32_t			vfwmark;
-	bool				alive;
+	unsigned			tcp_alive;
+	unsigned			udp_alive;
+	unsigned			sctp_alive;
+	unsigned			fwm4_alive;
+	unsigned			fwm6_alive;
 	bool				reloaded;
 } virtual_server_group_entry_t;
 
 typedef struct _virtual_server_group {
 	char				*gname;
-	list				addr_ip;
-	list				range;
+	list				addr_range;
 	list				vfwmark;
 } virtual_server_group_t;
 
@@ -114,11 +120,10 @@ typedef struct _virtual_server {
 	char				*vsgname;
 	virtual_server_group_t		*vsg;
 	struct sockaddr_storage		addr;
-	real_server_t			*s_svr;
 	uint32_t			vfwmark;
+	real_server_t			*s_svr;
 	uint16_t			af;
 	uint16_t			service_type;
-	unsigned long			delay_loop;
 	bool				ha_suspend;
 	int				ha_suspend_addr_count;
 #ifdef _WITH_LVS_
@@ -133,15 +138,22 @@ typedef struct _virtual_server {
 #endif
 	char				*virtualhost;	/* Default virtualhost for HTTP and SSL healthcheckers
 							   if not set on real servers */
+	int				weight;
 	list				rs;
-	bool				alive;
-	bool				alpha;		/* Alpha mode enabled. */
+	int				alive;
+	bool				alpha;		/* Set if alpha mode is default. */
 	bool				omega;		/* Omega mode enabled. */
-	notify_script_t			*quorum_up;	/* A hook to call when the VS gains quorum. */
-	notify_script_t			*quorum_down;	/* A hook to call when the VS loses quorum. */
+	bool				inhibit;	/* Set weight to 0 instead of removing
+							 * the service from IPVS topology. */
+	unsigned long                   delay_loop;	/* Interval between running checker */
+	unsigned long                   warmup;		/* max random timeout to start checker */
+	unsigned                        retry;		/* number of retries before failing */
+	unsigned long                   delay_before_retry; /* interval between retries */
+	notify_script_t			*notify_quorum_up;	/* A hook to call when the VS gains quorum. */
+	notify_script_t			*notify_quorum_down;	/* A hook to call when the VS loses quorum. */
 	unsigned			quorum;		/* Minimum live RSs to consider VS up. */
 	unsigned			hysteresis;	/* up/down events "lag" WRT quorum. */
-	bool				quorum_state;	/* Reflects result of the last transition done. */
+	bool				quorum_state_up; /* Reflects result of the last transition done. */
 	bool				reloaded;	/* quorum_state was copied from old config while reloading */
 #if defined(_WITH_SNMP_CHECKER_) && defined(_WITH_LVS_)
 	/* Statistics */
@@ -218,9 +230,9 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 }
 
 /* macro utility */
-#define ISALIVE(S)	((S)->alive)
-#define SET_ALIVE(S)	((S)->alive = true)
-#define UNSET_ALIVE(S)	((S)->alive = false)
+#define ISALIVE(S)		((S)->alive)
+#define SET_ALIVE(S)		((S)->alive = true)
+#define UNSET_ALIVE(S)		((S)->alive = false)
 #define FMT_RS(R, V) (inet_sockaddrtotrio (&(R)->addr, (V)->service_type))
 #define FMT_VS(V) (format_vs((V)))
 
@@ -230,10 +242,10 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 			 (X)->service_type            == (Y)->service_type		&&\
 			 (X)->forwarding_method       == (Y)->forwarding_method		&&\
 			 (X)->persistence_granularity == (Y)->persistence_granularity	&&\
-			 !(X)->quorum_up              == !(Y)->quorum_up		&& \
-			 (!(X)->quorum_up || !strcmp ((X)->quorum_up->name, (Y)->quorum_up->name)) && \
-			 !(X)->quorum_down            == !(Y)->quorum_down		&& \
-			 (!(X)->quorum_down || !strcmp ((X)->quorum_down->name, (Y)->quorum_down->name)) && \
+			 !(X)->notify_quorum_up       == !(Y)->notify_quorum_up		&& \
+			 (!(X)->notify_quorum_up || !strcmp ((X)->notify_quorum_up->name, (Y)->notify_quorum_up->name)) && \
+			 !(X)->notify_quorum_down     == !(Y)->notify_quorum_down	&& \
+			 (!(X)->notify_quorum_down || !strcmp ((X)->notify_quorum_down->name, (Y)->notify_quorum_down->name)) && \
 			 !strcmp((X)->sched, (Y)->sched)				&&\
 			 (X)->persistence_timeout     == (Y)->persistence_timeout	&&\
 			 !(X)->vsgname                == !(Y)->vsgname			&& \
