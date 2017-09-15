@@ -243,13 +243,16 @@ init_service_rs(virtual_server_t * vs)
 			/* Do not re-add failed RS instantly on reload */
 			continue;
 		}
+
 		/* In alpha mode, be pessimistic (or realistic?) and don't
-		 * add real servers into the VS pool. They will get there
-		 * later upon healthchecks recovery (if ever).
+		 * add real servers into the VS pool unless inhibit_on_failure.
+		 * They will get there later upon healthchecks recovery (if ever).
 		 */
-		if ((!rs->num_failed_checkers || rs->inhibit) && !ISALIVE(rs)) {
+		if ((!rs->num_failed_checkers && !ISALIVE(rs)) ||
+		    (rs->inhibit && !rs->set)) {
 			ipvs_cmd(LVS_CMD_ADD_DEST, vs, rs);
-			SET_ALIVE(rs);
+			if (!rs->num_failed_checkers)
+				SET_ALIVE(rs);
 		}
 	}
 
