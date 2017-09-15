@@ -73,23 +73,6 @@
 
 #define IPVS_DEF_SCHED		"wlc"
 
-/* Macro */
-#define IPVS_CHANGE_NEEDED(X,Y,Z) \
-				(((X) == IP_VS_SO_SET_ADD && !(Y)->alive)	|| \
-				 ((X) == IP_VS_SO_SET_DEL && (Y)->alive)	|| \
-				 ((X) == IP_VS_SO_SET_ADDDEST && !(Z)->alive)	|| \
-				 ((X) == IP_VS_SO_SET_DELDEST && (Z)->alive)	|| \
-				 (X) == IP_VS_SO_SET_EDITDEST			   \
-				)
-
-#define IPVS_SET_ALIVE_STATE(C,V)		\
-do {						\
-	if ((C) == IP_VS_SO_SET_ADD)		\
-		SET_ALIVE((V));			\
-	else if ((C) == IP_VS_SO_SET_DEL)	\
-		UNSET_ALIVE((V));		\
-} while (0)
-
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 struct lvs_syncd_config {
 	char				*ifname;	/* handle LVS sync daemon state using this */

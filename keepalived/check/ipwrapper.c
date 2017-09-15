@@ -182,7 +182,7 @@ clear_service_rs(virtual_server_t * vs, list l)
 
 /* Remove a virtualserver IPVS rule */
 static void
-clear_service_vs(virtual_server_t * vs, bool remove_vs)
+clear_service_vs(virtual_server_t * vs)
 {
 	/* Processing real server queue */
 	if (!LIST_ISEMPTY(vs->rs)) {
@@ -197,8 +197,7 @@ clear_service_vs(virtual_server_t * vs, bool remove_vs)
 		/* The above will handle Omega case for VS as well. */
 	}
 
-	if (remove_vs)
-		ipvs_cmd(LVS_CMD_DEL, vs, NULL);
+	ipvs_cmd(LVS_CMD_DEL, vs, NULL);
 
 	UNSET_ALIVE(vs);
 }
@@ -216,9 +215,9 @@ clear_services(void)
 	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
 
-		/* If it is a virtual server group, only clear the vs if it is the first vs using the group.
-		   For a vs that uses a vsg, the port is the sequence no of the vs using that vsg. */
-		clear_service_vs(vs, !(vs->vsg && ntohs(inet_sockaddrport(&vs->addr))));
+		/* If it is a virtual server group, only clear the vs if it is the last vs using the group
+		 * of the same protocol or address family. */
+		clear_service_vs(vs);
 	}
 }
 
@@ -597,7 +596,11 @@ clear_diff_vsge(list old, list new, virtual_server_t * old_vs)
 		vsge = ELEMENT_DATA(e);
 		new_vsge = vsge_exist(vsge, new);
 		if (new_vsge) {
-			new_vsge->alive = vsge->alive;
+			new_vsge->tcp_alive = vsge->tcp_alive;
+			new_vsge->udp_alive = vsge->udp_alive;
+			new_vsge->sctp_alive = vsge->sctp_alive;
+			new_vsge->fwm4_alive = vsge->fwm4_alive;
+			new_vsge->fwm6_alive = vsge->fwm6_alive;
 			new_vsge->reloaded = true;
 		}
 		else {
@@ -820,7 +823,7 @@ clear_diff_services(list old_checkers_queue)
 				log_message(LOG_INFO, "Removing Virtual Server %s", FMT_VS(vs));
 
 			/* Clear VS entry */
-			clear_service_vs(vs, true);
+			clear_service_vs(vs);
 		} else {
 			/* copy status fields from old VS */
 			SET_ALIVE(new_vs);

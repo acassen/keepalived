@@ -101,7 +101,11 @@ typedef struct _virtual_server_group_entry {
 	struct sockaddr_storage		addr;
 	uint32_t			range;
 	uint32_t			vfwmark;
-	bool				alive;
+	unsigned			tcp_alive;
+	unsigned			udp_alive;
+	unsigned			sctp_alive;
+	unsigned			fwm4_alive;
+	unsigned			fwm6_alive;
 	bool				reloaded;
 } virtual_server_group_entry_t;
 
@@ -136,8 +140,7 @@ typedef struct _virtual_server {
 							   if not set on real servers */
 	int				weight;
 	list				rs;
-// ??? alive should be set
-	bool				alive;
+	int				alive;
 	bool				alpha;		/* Set if alpha mode is default. */
 	bool				omega;		/* Omega mode enabled. */
 	bool				inhibit;	/* Set weight to 0 instead of removing
@@ -227,9 +230,9 @@ static inline int inaddr_equal(sa_family_t family, void *addr1, void *addr2)
 }
 
 /* macro utility */
-#define ISALIVE(S)	((S)->alive)
-#define SET_ALIVE(S)	((S)->alive = true)
-#define UNSET_ALIVE(S)	((S)->alive = false)
+#define ISALIVE(S)		((S)->alive)
+#define SET_ALIVE(S)		((S)->alive = true)
+#define UNSET_ALIVE(S)		((S)->alive = false)
 #define FMT_RS(R, V) (inet_sockaddrtotrio (&(R)->addr, (V)->service_type))
 #define FMT_VS(V) (format_vs((V)))
 
