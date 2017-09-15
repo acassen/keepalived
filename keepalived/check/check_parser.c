@@ -73,9 +73,18 @@ sslkey_handler(vector_t *strvec)
 static void
 vsg_handler(vector_t *strvec)
 {
+	virtual_server_group_t *vsg;
+
 	/* Fetch queued vsg */
 	alloc_vsg(strvec_slot(strvec, 1));
 	alloc_value_block(alloc_vsg_entry);
+
+	/* Ensure the virtual server group has some configuration */
+	vsg = LIST_TAIL_DATA(check_data->vs_group);
+	if (LIST_ISEMPTY(vsg->vfwmark) && LIST_ISEMPTY(vsg->addr_range)) {
+		log_message(LOG_INFO, "virtual server group %s has no entries - removing", vsg->gname);
+		free_list_element(check_data->vs_group, check_data->vs_group->tail);
+	}
 }
 static void
 vs_handler(vector_t *strvec)
