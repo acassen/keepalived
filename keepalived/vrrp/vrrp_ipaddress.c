@@ -476,6 +476,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	uint8_t scope;
 	bool param_avail;
 	bool param_missing = false;
+	char *param;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 
@@ -539,7 +540,20 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 				FREE(new);
 				return;
 			}
-			if (!inet_pton(AF_INET, strvec_slot(strvec, ++i), &new->u.sin.sin_brd)) {
+
+			param = strvec_slot(strvec, ++i);
+			if (!strcmp(param, "-") || !strcmp(param, "+")) {
+				if (new->ifa.ifa_prefixlen <= 30) {
+					new->u.sin.sin_brd = new->u.sin.sin_addr;
+					for (i = 31; i >= new->ifa.ifa_prefixlen; i--) {
+						if (param[0] == '+')
+							new->u.sin.sin_brd.s_addr |= htonl(1<<(31-i));
+						else
+							new->u.sin.sin_brd.s_addr &= ~htonl(1<<(31-i));
+					}
+				}
+			}
+			else if (!inet_pton(AF_INET, param, &new->u.sin.sin_brd)) {
 				log_message(LOG_INFO, "VRRP is trying to assign invalid broadcast %s. "
 						      "skipping VIP...", FMT_STR_VSLOT(strvec, i));
 				FREE(new);
