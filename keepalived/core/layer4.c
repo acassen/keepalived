@@ -68,7 +68,7 @@ socket_bind_connect(int fd, conn_opts_t *co)
 #endif
 
 	if (co->bind_if[0]) {
-		if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, co->bind_if, strlen(co->bind_if) + 1) < 0) {
+		if (setsockopt(fd, SOL_SOCKET, SO_BINDTODEVICE, co->bind_if, (unsigned)strlen(co->bind_if) + 1) < 0) {
 			log_message(LOG_INFO, "Checker can't bind to device %s: %s", co->bind_if, strerror(errno));
 			return connect_error;
 		}
