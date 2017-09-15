@@ -253,7 +253,7 @@ pgr_handler(vector_t *strvec)
 	struct in_addr addr;
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	char *endptr;
-	int af = vs->af;
+	uint16_t af = vs->af;
 
 	if (af == AF_UNSPEC)
 		af = strchr(strvec_slot(strvec, 1), '.') ? AF_INET : AF_INET6;
