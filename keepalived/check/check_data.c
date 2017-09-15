@@ -282,6 +282,8 @@ dump_vs(void *data)
 		log_message(LOG_INFO, "   protocol = UDP");
 	else if (vs->service_type == IPPROTO_SCTP)
 		log_message(LOG_INFO, "   protocol = SCTP");
+	else if (vs->service_type == 0)
+		log_message(LOG_INFO, "   protocol = none");
 	else
 		log_message(LOG_INFO, "   protocol = %d", vs->service_type);
 	log_message(LOG_INFO, "   alpha is %s, omega is %s",
