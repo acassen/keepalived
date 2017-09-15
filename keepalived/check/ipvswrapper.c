@@ -332,32 +332,39 @@ is_vsge_alive(virtual_server_group_entry_t *vsge, virtual_server_t *vs)
 }
 
 static void
-update_vsge_alive_count(virtual_server_group_entry_t *vsge, virtual_server_t *vs, int chg)
+update_vsge_alive_count(virtual_server_group_entry_t *vsge, virtual_server_t *vs, bool up)
 {
+	unsigned *alive_p;
+
 	if (vsge->vfwmark) {
 		if (vs->af == AF_INET)
-			vsge->fwm4_alive += chg;
+			alive_p = &vsge->fwm4_alive;
 		else
-			vsge->fwm6_alive += chg;
+			alive_p = &vsge->fwm6_alive;
 	}
 	else if (vs->service_type == IPPROTO_TCP)
-		vsge->tcp_alive += chg;
+		alive_p = &vsge->tcp_alive;
 	else if (vs->service_type == IPPROTO_UDP)
-		vsge->udp_alive += chg;
+		alive_p = &vsge->udp_alive;
 	else
-		vsge->sctp_alive += chg;
+		alive_p = &vsge->sctp_alive;
+
+	if (up)
+		(*alive_p)++;
+	else
+		(*alive_p)--;
 }
 
 static void
 set_vsge_alive(virtual_server_group_entry_t *vsge, virtual_server_t *vs)
 {
-	update_vsge_alive_count(vsge, vs, 1);
+	update_vsge_alive_count(vsge, vs, true);
 }
 
 static void
 unset_vsge_alive(virtual_server_group_entry_t *vsge, virtual_server_t *vs)
 {
-	update_vsge_alive_count(vsge, vs, -1);
+	update_vsge_alive_count(vsge, vs, false);
 }
 
 static bool
