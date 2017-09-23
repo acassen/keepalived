@@ -643,7 +643,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 			ipv4_phdr.src   = ip->saddr;
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 			ipv4_phdr.dst   = vrrp->unicast_chksum_compat <= CHKSUM_COMPATIBILITY_MIN_COMPAT
-					  ? ip->daddr : htonl(INADDR_VRRP_GROUP);
+					  ? ip->daddr : ((struct sockaddr_in *)&global_data->vrrp_mcast_group4)->sin_addr.s_addr;
 #else
 			ipv4_phdr.dst	= ip->daddr;
 #endif
@@ -656,7 +656,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 				chksum_error = true;
 				if (vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE) {
-					ipv4_phdr.dst = htonl(INADDR_VRRP_GROUP);
+					ipv4_phdr.dst = ((struct sockaddr_in *)&global_data->vrrp_mcast_group4)->sin_addr.s_addr;
 					in_csum((u_short *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
 					if (!in_csum((u_short *)hd, vrrppkt_len, acc_csum, NULL)) {
 						vrrp->unicast_chksum_compat = CHKSUM_COMPATIBILITY_AUTO;
@@ -1008,7 +1008,7 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, uint8_t prio, char *buffer, struct iphdr *ip)
 		ipv4_phdr.src   = VRRP_PKT_SADDR(vrrp);
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 		ipv4_phdr.dst   = vrrp->unicast_chksum_compat <= CHKSUM_COMPATIBILITY_MIN_COMPAT
-				    ? ip->daddr : htonl(INADDR_VRRP_GROUP);
+				    ? ip->daddr : ((struct sockaddr_in *)&global_data->vrrp_mcast_group4)->sin_addr.s_addr;
 #else
 		ipv4_phdr.dst	= ip->daddr;
 #endif
