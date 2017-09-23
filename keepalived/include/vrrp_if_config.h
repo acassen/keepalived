@@ -26,8 +26,8 @@
 #include "vrrp_if.h"
 
 /* prototypes */
-extern int set_promote_secondaries(interface_t*);
-extern int reset_promote_secondaries(interface_t*);
+extern void set_promote_secondaries(interface_t*);
+extern void reset_promote_secondaries(interface_t*);
 #ifdef _HAVE_VRRP_VMAC_
 extern void restore_rp_filter(void);
 extern void set_interface_parameters(const interface_t*, interface_t*);

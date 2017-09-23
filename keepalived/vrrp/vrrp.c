@@ -2450,8 +2450,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* See if we need to set promote_secondaries */
 	if (vrrp->promote_secondaries &&
-	    !vrrp->ifp->promote_secondaries_already_set &&
-	    !vrrp->ifp->reset_promote_secondaries)
+	    !vrrp->ifp->promote_secondaries_already_set)
 		set_promote_secondaries(vrrp->ifp);
 
 	/* If we are adding a large number of interfaces, the netlink socket
