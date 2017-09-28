@@ -384,9 +384,12 @@ read_conf_file(const char *conf_file)
 	globbuf.gl_offs = 0;
 	res = glob(conf_file, 0, NULL, &globbuf);
 
-	if (res) {
-		log_message(LOG_INFO, "Unable to find config file(s) '%s'.", conf_file);
-		exit(KEEPALIVED_EXIT_CONFIG);
+	if (res == GLOB_NOMATCH) {
+		log_message(LOG_INFO, "No config files matched '%s'.", conf_file);
+		goto done;
+	} else if (res) {
+		log_message(LOG_INFO, "Error reading config file(s): glob(\"%s\") returned %d, skipping.", res);
+		goto done;
 	}
 
 	for(i = 0; i < globbuf.gl_pathc; i++){
@@ -434,6 +437,7 @@ read_conf_file(const char *conf_file)
 		}
 	}
 
+done:
 	globfree(&globbuf);
 }
 
