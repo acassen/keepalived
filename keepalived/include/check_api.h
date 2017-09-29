@@ -58,9 +58,6 @@ typedef struct _checker {
 
 } checker_t;
 
-/* Typedefs */
-typedef checker_t * checker_id_t;
-
 /* Checkers queue */
 extern list checkers_queue;
 
