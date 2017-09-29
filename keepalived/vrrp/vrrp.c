@@ -401,7 +401,6 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 		/* Has the source address changed? */
 		if (!vrrp->saddr_from_config &&
 		    ip->saddr != ((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr) {
-/* ??? Update the source address, and the checksum if VRRPv3 */
 			if (vrrp->version == VRRP_VERSION_2)
 				ip->saddr = ((struct sockaddr_in*)&vrrp->saddr)->sin_addr.s_addr;
 			else {
@@ -828,7 +827,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 			ipv4_phdr.src   = ip->saddr;
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 			ipv4_phdr.dst   = vrrp->unicast_chksum_compat <= CHKSUM_COMPATIBILITY_MIN_COMPAT
-					  ? ip->daddr : ((struct sockaddr_in *)&global_data->vrrp_mcast_group4)->sin_addr.s_addr;
+					  ? ip->daddr : global_data->vrrp_mcast_group4.sin_addr.s_addr;
 #else
 			ipv4_phdr.dst	= ip->daddr;
 #endif
@@ -841,11 +840,11 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 #ifdef _WITH_UNICAST_CHKSUM_COMPAT_
 				chksum_error = true;
 				if (vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE) {
-					ipv4_phdr.dst = ((struct sockaddr_in *)&global_data->vrrp_mcast_group4)->sin_addr.s_addr;
+					ipv4_phdr.dst = global_data->vrrp_mcast_group4.sin_addr.s_addr;
 					in_csum((uint16_t *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
 					if (!in_csum((uint16_t *)hd, vrrppkt_len, acc_csum, NULL)) {
 						/* Update the checksum for the pseudo header IP address */
-						vrrp_update_pkt(vrrp, vrrp->effective_priority, &global_data->vrrp_mcast_group4);
+						vrrp_update_pkt(vrrp, vrrp->effective_priority, (struct sockaddr_storage *)&global_data->vrrp_mcast_group4);
 
 						/* Now we can specify that we are going to use the compatibility mode */
 						vrrp->unicast_chksum_compat = CHKSUM_COMPATIBILITY_AUTO;
@@ -1018,7 +1017,7 @@ vrrp_build_ip4(vrrp_t *vrrp, char *buffer)
 		}
 	}
 	else
-		ip->daddr = ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr.s_addr;
+		ip->daddr = global_data->vrrp_mcast_group4.sin_addr.s_addr;
 
 	ip->check = 0;
 }
@@ -1160,7 +1159,7 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer)
 
 		/* Create IPv4 pseudo-header */
 		ipv4_phdr.src   = VRRP_PKT_SADDR(vrrp);
-		ipv4_phdr.dst   = ((struct sockaddr_in *)&global_data->vrrp_mcast_group4)->sin_addr.s_addr;
+		ipv4_phdr.dst   = global_data->vrrp_mcast_group4.sin_addr.s_addr;
 		ipv4_phdr.zero  = 0;
 		ipv4_phdr.proto = IPPROTO_VRRP;
 		ipv4_phdr.len   = htons(vrrp_pkt_len(vrrp));
@@ -1276,13 +1275,13 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 	} else if (vrrp->family == AF_INET) { /* Multicast sending path */
 		memset(&dst4, 0, sizeof(dst4));
 		dst4.sin_family = AF_INET;
-		dst4.sin_addr = ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr;
+		dst4.sin_addr = global_data->vrrp_mcast_group4.sin_addr;
 		msg.msg_name = &dst4;
 		msg.msg_namelen = sizeof(dst4);
 	} else if (vrrp->family == AF_INET6) {
 		memset(&dst6, 0, sizeof(dst6));
 		dst6.sin6_family = AF_INET6;
-		dst6.sin6_addr = ((struct sockaddr_in6 *) &global_data->vrrp_mcast_group6)->sin6_addr;
+		dst6.sin6_addr = global_data->vrrp_mcast_group6.sin6_addr;
 		msg.msg_name = &dst6;
 		msg.msg_namelen = sizeof(dst6);
 		vrrp_build_ancillary_data(&msg, cbuf, src, vrrp);

@@ -82,8 +82,8 @@ set_default_smtp_connection_timeout(data_t * data)
 static void
 set_default_mcast_group(data_t * data)
 {
-	inet_stosockaddr("224.0.0.18", 0, &data->vrrp_mcast_group4);
-	inet_stosockaddr("ff02::12", 0, &data->vrrp_mcast_group6);
+	inet_stosockaddr(INADDR_VRRP_GROUP, 0, (struct sockaddr_storage *)&data->vrrp_mcast_group4);
+	inet_stosockaddr(INADDR6_VRRP_GROUP, 0, (struct sockaddr_storage *)&data->vrrp_mcast_group6);
 }
 
 static void
@@ -408,13 +408,13 @@ dump_global_data(data_t * data)
 	}
 #endif
 #ifdef _WITH_VRRP_
-	if (data->vrrp_mcast_group4.ss_family) {
+	if (data->vrrp_mcast_group4.sin_family) {
 		log_message(LOG_INFO, " VRRP IPv4 mcast group = %s"
-				    , inet_sockaddrtos(&data->vrrp_mcast_group4));
+				    , inet_sockaddrtos((struct sockaddr_storage *)&data->vrrp_mcast_group4));
 	}
-	if (data->vrrp_mcast_group6.ss_family) {
+	if (data->vrrp_mcast_group6.sin6_family) {
 		log_message(LOG_INFO, " VRRP IPv6 mcast group = %s"
-				    , inet_sockaddrtos(&data->vrrp_mcast_group6));
+				    , inet_sockaddrtos((struct sockaddr_storage *)&data->vrrp_mcast_group6));
 	}
 	log_message(LOG_INFO, " Gratuitous ARP delay = %u",
 		       data->vrrp_garp_delay/TIMER_HZ);

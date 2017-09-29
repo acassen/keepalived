@@ -79,7 +79,8 @@ typedef struct {
 } ipv4_phdr_t;
 
 /* protocol constants */
-#define INADDR_VRRP_GROUP	0xe0000012	/* multicast addr - rfc2338.5.2.2 */
+#define INADDR_VRRP_GROUP	"224.0.0.18"	/* multicast IPv4 addr - rfc2338.5.2.2 */
+#define INADDR6_VRRP_GROUP	"ff02::12"	/* multicast IPv6 addr - rfc5798.5.1.2.2 */
 #define VRRP_IP_TTL		255		/* in and out pkt ttl -- rfc2338.5.2.3 */
 #define IPPROTO_VRRP		112		/* IP protocol number -- rfc2338.5.2.4 */
 #define VRRP_VERSION_2		2		/* VRRP version 2 -- rfc2338.5.3.1 */

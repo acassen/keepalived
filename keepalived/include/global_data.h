@@ -85,8 +85,8 @@ typedef struct _data {
 	bool				lvs_flush;		/* flush any residual LVS config at startup */
 #endif
 #ifdef _WITH_VRRP_
-	struct sockaddr_storage		vrrp_mcast_group4;
-	struct sockaddr_storage		vrrp_mcast_group6;
+	struct sockaddr_in		vrrp_mcast_group4;
+	struct sockaddr_in6		vrrp_mcast_group6;
 	unsigned			vrrp_garp_delay;
 	timeval_t			vrrp_garp_refresh;
 	unsigned			vrrp_garp_rep;

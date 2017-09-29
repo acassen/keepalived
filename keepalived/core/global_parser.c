@@ -326,10 +326,10 @@ lvs_flush_handler(__attribute__((unused)) vector_t *strvec)
 static void
 vrrp_mcast_group4_handler(vector_t *strvec)
 {
-	struct sockaddr_storage *mcast = &global_data->vrrp_mcast_group4;
+	struct sockaddr_in *mcast = &global_data->vrrp_mcast_group4;
 	int ret;
 
-	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, mcast);
+	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, (struct sockaddr_storage *)mcast);
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: Cant parse vrrp_mcast_group4 [%s]. Skipping"
 				   , FMT_STR_VSLOT(strvec, 1));
@@ -338,10 +338,10 @@ vrrp_mcast_group4_handler(vector_t *strvec)
 static void
 vrrp_mcast_group6_handler(vector_t *strvec)
 {
-	struct sockaddr_storage *mcast = &global_data->vrrp_mcast_group6;
+	struct sockaddr_in6 *mcast = &global_data->vrrp_mcast_group6;
 	int ret;
 
-	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, mcast);
+	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, (struct sockaddr_storage *)mcast);
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: Cant parse vrrp_mcast_group6 [%s]. Skipping"
 				   , FMT_STR_VSLOT(strvec, 1));
