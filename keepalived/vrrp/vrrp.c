@@ -1301,13 +1301,12 @@ vrrp_alloc_send_buffer(vrrp_t * vrrp)
 }
 
 /* send VRRP advertisement */
-int
+static void
 vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 {
 	struct sockaddr_storage *addr;
 	list l = vrrp->unicast_peer;
 	element e;
-	ssize_t ret;
 
 	/* alloc send buffer */
 	if (!vrrp->send_buffer) {
@@ -1323,18 +1322,14 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 			addr = ELEMENT_DATA(e);
 			if (vrrp->family == AF_INET)
 				vrrp_update_pkt(vrrp, prio, addr);
-			ret = vrrp_send_pkt(vrrp, addr);
-			if (ret < 0) {
+			if (vrrp_send_pkt(vrrp, addr) < 0)
 				log_message(LOG_INFO, "VRRP_Instance(%s) Cant send advert to %s (%m)"
 						    , vrrp->iname, inet_sockaddrtos(addr));
-			}
 		}
 	} else
 		vrrp_send_pkt(vrrp, NULL);
 
 	++vrrp->stats->advert_sent;
-	/* sent it */
-	return 0;
 }
 
 /* Received packet processing */
