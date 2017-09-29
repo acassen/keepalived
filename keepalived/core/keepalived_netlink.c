@@ -1281,7 +1281,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 		}
 	}
 
-	ifp->rp_filter = -1;	/* We have not read it yet */
+	ifp->rp_filter = UINT_MAX;	/* We have not read it yet */
 #endif
 
 	ifp->ifi_flags = ifi->ifi_flags;

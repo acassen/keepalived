@@ -73,8 +73,8 @@
 #include <unistd.h>
 
 #ifdef _HAVE_VRRP_VMAC_
-static int all_rp_filter = -1;
-static int default_rp_filter = -1;
+static unsigned all_rp_filter = UINT_MAX;
+static unsigned default_rp_filter = UINT_MAX;
 #endif
 
 #ifdef _HAVE_IPV4_DEVCONF_
@@ -376,7 +376,7 @@ set_sysctl(const char* prefix, const char* iface, const char* parameter, unsigne
 	return 0;
 }
 
-static int
+static unsigned
 get_sysctl(const char* prefix, const char* iface, const char* parameter)
 {
 	char *filename;
@@ -391,24 +391,24 @@ get_sysctl(const char* prefix, const char* iface, const char* parameter)
 	fd = open(filename, O_RDONLY);
 	FREE(filename);
 	if (fd < 0)
-		return -1;
+		return UINT_MAX;
 
 	len = read(fd, &buf, 1);
 	close(fd);
 
 	/* We only read integers 0-9 */
 	if (len <= 0)
-		return -1;
+		return UINT_MAX;
 
 	/* Return the value of the string read */
-	return buf[0] - '0';
+	return (unsigned)buf[0] - '0';
 }
 
 #if !defined _HAVE_IPV4_DEVCONF_ || defined _LIBNL_DYNAMIC_
 static inline void
 set_promote_secondaries_sysctl(interface_t *ifp)
 {
-	if (get_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries") > 0) {
+	if (get_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries") == 1) {
 		ifp->promote_secondaries_already_set = true;
 		return;
 	}
@@ -436,11 +436,11 @@ set_interface_parameters_sysctl(const interface_t *ifp, interface_t *base_ifp)
 	if (base_ifp->reset_arp_config)
 		base_ifp->reset_arp_config++;
 	else {
-		if ((val = get_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore")) != -1 &&
+		if ((val = get_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore")) != UINT_MAX &&
 		    (base_ifp->reset_arp_ignore_value = (uint32_t)val) != 1)
 			set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_ignore", 1);
 
-		if ((val = get_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter")) != -1 &&
+		if ((val = get_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter")) != UINT_MAX &&
 		    (base_ifp->reset_arp_filter_value = (uint32_t)val) != 1)
 			set_sysctl("net/ipv4/conf", base_ifp->ifname, "arp_filter", 1);
 
@@ -526,10 +526,10 @@ clear_rp_filter(void)
 	list ifs;
 	element e;
 	interface_t *ifp;
-	int rp_filter;
+	unsigned rp_filter;
 
 	rp_filter = get_sysctl("net/ipv4/conf", "all", "rp_filter");
-	if (rp_filter == -1) {
+	if (rp_filter == UINT_MAX) {
 		log_message(LOG_INFO, "Unable to read sysctl net.ipv4.conf.all.rp_filter");
 		return;
 	}
@@ -555,7 +555,7 @@ clear_rp_filter(void)
 		for (e = LIST_HEAD(ifs); e; ELEMENT_NEXT(e)) {
 			ifp = ELEMENT_DATA(e);
 
-			if ((rp_filter = get_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter")) == -1)
+			if ((rp_filter = get_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter")) == UINT_MAX)
 				log_message(LOG_INFO, "Unable to read rp_filter for %s", ifp->ifname);
 			else if (rp_filter < all_rp_filter) {
 				set_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter", all_rp_filter);
@@ -575,11 +575,11 @@ restore_rp_filter(void)
 	list ifs;
 	element e;
 	interface_t *ifp;
-	int rp_filter;
+	unsigned rp_filter;
 
 	/* Restore the original settings of rp_filter, but only if they
 	 * are the same as what we set them to */
-	if (all_rp_filter == -1)
+	if (all_rp_filter == UINT_MAX)
 		return;
 
 	rp_filter = get_sysctl("net/ipv4/conf", "all", "rp_filter");
@@ -588,13 +588,13 @@ restore_rp_filter(void)
 		set_sysctl("net/ipv4/conf", "all", "rp_filter", all_rp_filter);
 	}
 
-	if (default_rp_filter != -1) {
+	if (default_rp_filter != UINT_MAX) {
 		rp_filter = get_sysctl("net/ipv4/conf", "default", "rp_filter");
 		if (rp_filter == all_rp_filter) {
 			log_message(LOG_INFO, "NOTICE: resetting sysctl net.ipv4.conf.default.rp_filter to %d", default_rp_filter);
 			set_sysctl("net/ipv4/conf", "default", "rp_filter", default_rp_filter);
 		}
-		default_rp_filter = -1;
+		default_rp_filter = UINT_MAX;
 	}
 
 	ifs = get_if_list();
@@ -602,23 +602,23 @@ restore_rp_filter(void)
 		for (e = LIST_HEAD(ifs); e; ELEMENT_NEXT(e)) {
 			ifp = ELEMENT_DATA(e);
 
-			if (ifp->rp_filter != -1) {
+			if (ifp->rp_filter != UINT_MAX) {
 				rp_filter = get_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter");
 				if (rp_filter == all_rp_filter) {
 					set_sysctl("net/ipv4/conf", ifp->ifname, "rp_filter", ifp->rp_filter);
-					ifp->rp_filter = -1;
+					ifp->rp_filter = UINT_MAX;
 				}
 			}
 		}
 	}
 
-	all_rp_filter = -1;
+	all_rp_filter = UINT_MAX;
 }
 
 void
 set_interface_parameters(const interface_t *ifp, interface_t *base_ifp)
 {
-	if (all_rp_filter == -1)
+	if (all_rp_filter == UINT_MAX)
 		clear_rp_filter();
 
 #ifdef _HAVE_IPV4_DEVCONF_

@@ -401,16 +401,16 @@ remove_track_file(list track_files, element e)
 }
 
 static void
-update_track_file_status(tracked_file_t* tfile, int new_status)
+update_track_file_status(tracked_file_t* tfile, long new_status)
 {
 	element e;
 	vrrp_t *vrrp;
 
 	if (new_status > 253) {
-		log_message(LOG_INFO, "Track file %s - status value %d out of range, defaulting to 0", tfile->fname, new_status);
+		log_message(LOG_INFO, "Track file %s - status value %ld out of range, defaulting to 0", tfile->fname, new_status);
 		new_status = 0;
 	}
-	else if (new_status < -253)
+	else if (new_status < -254)
 		new_status = -254;
 
 	if (new_status == tfile->last_status)
@@ -424,23 +424,23 @@ update_track_file_status(tracked_file_t* tfile, int new_status)
 
 		if (new_status == -254) {
 			down_instance(vrrp);
-			vrrp->total_priority += new_status - tfile->last_status;
+			vrrp->total_priority += (int)new_status - tfile->last_status;
 		}
 		else if (vrrp->base_priority == VRRP_PRIO_OWNER)
 			continue;
 		else {
-			vrrp->total_priority += new_status - tfile->last_status;
+			vrrp->total_priority += (int)new_status - tfile->last_status;
 			vrrp_set_effective_priority(vrrp);
 		}
 	}
 
-	tfile->last_status = new_status;
+	tfile->last_status = (int)new_status;
 }
 
 static void
 process_track_file(tracked_file_t *tfile)
 {
-	int new_status = 0;
+	long new_status = 0;
 	char buf[128];
 	int fd;
 	ssize_t len;
@@ -455,8 +455,7 @@ process_track_file(tracked_file_t *tfile)
 		close(fd);
 	}
 
-	if (tfile->last_status != new_status)
-		update_track_file_status(tfile, new_status);
+	update_track_file_status(tfile, new_status);
 }
 
 static void

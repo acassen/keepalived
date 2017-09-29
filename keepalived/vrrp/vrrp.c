@@ -2842,9 +2842,9 @@ vrrp_complete_init(void)
 	 * e - Element equal to a specific VRRP instance
 	 * eo- Element equal to a specific group within old global group list
 	 */
-	element e, oe;
+	element e;
 	vrrp_t *vrrp, *old_vrrp;
-	vrrp_sgroup_t *sgroup, *old_sgroup;
+	vrrp_sgroup_t *sgroup;
 	list l_o;
 	element e_o;
 	element next;
