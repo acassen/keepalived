@@ -1251,8 +1251,6 @@ static ssize_t
 vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 {
 	struct sockaddr_storage *src = &vrrp->saddr;
-	struct sockaddr_in6 dst6;
-	struct sockaddr_in dst4;
 	struct msghdr msg;
 	struct iovec iov;
 	char cbuf[256];
@@ -1265,25 +1263,19 @@ vrrp_send_pkt(vrrp_t * vrrp, struct sockaddr_storage *addr)
 	iov.iov_len = vrrp->send_buffer_size;
 
 	/* Unicast sending path */
-	if (addr && addr->ss_family == AF_INET) {
-		msg.msg_name = (struct sockaddr_in *) addr;
+	if (addr && addr->ss_family) {
+		msg.msg_name = addr;
 		msg.msg_namelen = sizeof(struct sockaddr_in);
 	} else if (addr && addr->ss_family == AF_INET6) {
-		msg.msg_name = (struct sockaddr_in6 *) addr;
+		msg.msg_name = addr;
 		msg.msg_namelen = sizeof(struct sockaddr_in6);
 		vrrp_build_ancillary_data(&msg, cbuf, src, vrrp);
 	} else if (vrrp->family == AF_INET) { /* Multicast sending path */
-		memset(&dst4, 0, sizeof(dst4));
-		dst4.sin_family = AF_INET;
-		dst4.sin_addr = global_data->vrrp_mcast_group4.sin_addr;
-		msg.msg_name = &dst4;
-		msg.msg_namelen = sizeof(dst4);
+		msg.msg_name = &global_data->vrrp_mcast_group4;
+		msg.msg_namelen = sizeof(struct sockaddr_in);
 	} else if (vrrp->family == AF_INET6) {
-		memset(&dst6, 0, sizeof(dst6));
-		dst6.sin6_family = AF_INET6;
-		dst6.sin6_addr = global_data->vrrp_mcast_group6.sin6_addr;
-		msg.msg_name = &dst6;
-		msg.msg_namelen = sizeof(dst6);
+		msg.msg_name = &global_data->vrrp_mcast_group6;
+		msg.msg_namelen = sizeof(struct sockaddr_in6);
 		vrrp_build_ancillary_data(&msg, cbuf, src, vrrp);
 	}
 
