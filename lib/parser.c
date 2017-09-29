@@ -156,7 +156,6 @@ dump_keywords(vector_t *keydump, int level, FILE *fp)
 	char file_name[21];
 
 	if (!level) {
-		sprintf(file_name, "/tmp/keywords.%d", getpid());
 		snprintf(file_name, sizeof(file_name), "/tmp/keywords.%d", getpid());
 		fp = fopen(file_name, "w");
 		if (!fp)
@@ -512,6 +511,8 @@ read_line(char *buf, size_t size)
 	bool eof = false;
 	size_t config_id_len;
 	char *buf_start;
+	bool rev_cmp = false;
+	size_t ofs = 1;
 
 	config_id_len = config_id ? strlen(config_id) : 0;
 	do {
@@ -522,11 +523,20 @@ read_line(char *buf, size_t size)
 			if (len > 1 && (buf[len-2] == '\n' || buf[len-2] == '\r'))
 				buf[len-2] = '\0';
 			if (buf[0] == '@') {
-				/* If the line starts '@', check the following word matches the system id */
-				if (!config_id ||
-				    !(buf_start = strpbrk(buf, " \t")) ||
-				    (size_t)(buf_start - (buf + 1)) != config_id_len ||
-				    strncmp(buf + 1, config_id, config_id_len)) {
+				/* If the line starts '@', check the following word matches the system id.
+				   @^ reverses the sense of the match */
+				if (buf[1] == '^') {
+					rev_cmp = true;
+					ofs = 2;
+				}
+
+				/* We need something after the system_id */
+				if (!(buf_start = strpbrk(buf, " \t")))
+					break;
+
+				if ((!config_id ||
+				     (size_t)(buf_start - (buf + ofs)) != config_id_len ||
+				     strncmp(buf + ofs, config_id, config_id_len)) != rev_cmp) {
 					buf[0] = '\0';
 					break;
 				}
@@ -652,6 +662,18 @@ set_value(vector_t *strvec)
 	memcpy(alloc, str, size);
 
 	return alloc;
+}
+
+unsigned long
+read_timer(vector_t *strvec)
+{
+	unsigned long timer;
+
+	timer = strtoul(strvec_slot(strvec, 1), NULL, 10);
+	if (timer >= ULONG_MAX / TIMER_HZ)
+		return ULONG_MAX;
+
+	return timer * TIMER_HZ;
 }
 
 /* Checks for on/true/yes or off/false/no */

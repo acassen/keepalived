@@ -101,6 +101,7 @@ bool use_pid_dir;					/* Put pid files in /var/run/keepalived or @localstatedir@
 unsigned os_major;					/* Kernel version */
 unsigned os_minor;
 unsigned os_release;
+char *hostname;						/* Initial part of hostname */
 
 #if HAVE_DECL_CLONE_NEWNET
 char *network_namespace;				/* The network namespace we are running in */
@@ -677,7 +678,9 @@ usage(const char *prog)
 #ifdef _MEM_CHECK_LOG_
 	fprintf(stderr, "  -L, --mem-check-log          Log malloc/frees to syslog\n");
 #endif
-	fprintf(stderr, "  -i, --config-id id           Skip any configuration lines beginning '@' that don't match id\n");
+	fprintf(stderr, "  -i, --config-id [id]         Skip any configuration lines beginning '@' that don't match id\n"
+		        "                                or any lines beginning @^ that do match.\n"
+		        "                                id defaults to node name for --config-id\n");
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -913,6 +916,32 @@ keepalived_main(int argc, char **argv)
 #ifdef _MEM_CHECK_
 	mem_log_init(PACKAGE_NAME, "Parent process");
 #endif
+
+	/* Some functionality depends on kernel version, so get the version here */
+	if (uname(&uname_buf))
+		log_message(LOG_INFO, "Unable to get uname() information - error %d", errno);
+	else {
+		os_major = (unsigned)strtoul(uname_buf.release, &end, 10);
+		if (*end != '.')
+			os_major = 0;
+		else {
+			os_minor = (unsigned)strtoul(end + 1, &end, 10);
+			if (*end != '.')
+				os_major = 0;
+			else {
+				os_release = (unsigned)strtoul(end + 1, &end, 10);
+				if (*end && *end != '-')
+					os_major = 0;
+			}
+		}
+		if (!os_major)
+			log_message(LOG_INFO, "Unable to parse kernel version %s", uname_buf.release);
+
+		/* Set the hostname, removing any domain part */
+		hostname = uname_buf.nodename;
+		if ((end = strchr(hostname, '.')))
+			*end = '\0';
+	}
 
 	/*
 	 * Parse command line and set debug level.

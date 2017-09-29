@@ -23,12 +23,6 @@
 #ifndef _CHECK_TCP_H
 #define _CHECK_TCP_H
 
-typedef struct _tcp_check {
-	unsigned	n_retry;
-	unsigned long	delay_before_retry;
-	unsigned	retry_it;
-} tcp_check_t;
-
 /* macro utility */
 #define FMT_TCP_RS(C) FMT_CHK(C)
 

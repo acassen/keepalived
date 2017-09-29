@@ -38,9 +38,11 @@ typedef struct _misc_checker {
 	unsigned long		timeout;
 	bool			dynamic;	/* false: old-style, true: exit code from checker affects weight */
 	bool			forcing_termination; /* Set if we have sent the process a SIGTERM */
+	timeval_t		last_ran;	/* Time script last ran */
 } misc_checker_t;
 
 /* Prototypes defs */
+extern void clear_dynamic_misc_check_flag(void);
 extern void install_misc_check_keyword(void);
 extern int check_misc_script_security(magic_t);
 

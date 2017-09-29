@@ -25,6 +25,7 @@
 
 /* system includes */
 #include <sys/socket.h>
+#include <net/if.h>
 
 /* local includes */
 #include "scheduler.h"
@@ -40,6 +41,7 @@ enum connect_result {
 typedef struct _conn_opts {
 	struct sockaddr_storage		dst;
 	struct sockaddr_storage		bindto;
+	char				bind_if[IFNAMSIZ];
 	unsigned int			connection_to; /* connection time-out */
 #ifdef _WITH_SO_MARK_
 	unsigned int			fwmark; /* to mark packets going out of the socket using SO_MARK */

@@ -137,6 +137,7 @@ typedef struct _data {
 #endif
 #ifdef _WITH_DBUS_
 	bool				enable_dbus;
+	char				*dbus_service_name;
 #endif
 } data_t;
 

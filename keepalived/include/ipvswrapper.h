@@ -25,9 +25,6 @@
 
 #include "config.h"
 
-#include <stdint.h>
-
-/* local includes */
 #ifdef _WITH_VRRP_
   #include "vrrp.h"
 #endif
@@ -55,22 +52,6 @@
 #endif
 
 #define IPVS_DEF_SCHED		"wlc"
-
-/* Macro */
-#define IPVS_ALIVE(X,Y,Z)	(((X) == IP_VS_SO_SET_ADD && !(Y)->alive)	|| \
-				 ((X) == IP_VS_SO_SET_DEL && (Y)->alive)	|| \
-				 ((X) == IP_VS_SO_SET_ADDDEST && !(Z)->alive)	|| \
-				 ((X) == IP_VS_SO_SET_DELDEST && (Z)->alive)	|| \
-				 (X) == IP_VS_SO_SET_EDITDEST			   \
-				)
-
-#define IPVS_SET_ALIVE(C,V)			\
-do {						\
-	if ((C) == IP_VS_SO_SET_ADD)		\
-		SET_ALIVE((V));			\
-	if ((C) == IP_VS_SO_SET_DEL)		\
-		UNSET_ALIVE((V));		\
-} while (0)
 
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 struct lvs_syncd_config {

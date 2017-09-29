@@ -474,6 +474,7 @@ dump_global_data(data_t * data)
 #endif
 #ifdef _WITH_DBUS_
 	log_message(LOG_INFO, " DBus %s", data->enable_dbus ? "enabled" : "disabled");
+	log_message(LOG_INFO, " DBus service name = %s", data->dbus_service_name);
 #endif
 	log_message(LOG_INFO, " Script security %s", script_security ? "enabled" : "disabled");
 	log_message(LOG_INFO, " Default script uid:gid %d:%d", default_script_uid, default_script_gid);

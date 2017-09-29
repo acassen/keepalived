@@ -1,4 +1,3 @@
-
 /*
  * Soft:        Keepalived is a failover program for the LVS project
  *              <www.linuxvirtualserver.org>. It monitor & manipulate
@@ -254,9 +253,8 @@ check_vrrp_script_security(void)
 		next = e->next;
 		vscript = ELEMENT_DATA(e);
 
-		if (vscript->insecure) {
+		if (vscript->insecure)
 			free_list_element(vrrp_data->vrrp_script, e);
-		}
 	}
 }
 
@@ -323,6 +321,164 @@ vrrp_get_header(sa_family_t family, char *buf, unsigned *proto)
 	}
 
 	return hd;
+}
+
+static void
+vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
+{
+	bool final_update;
+	char *bufptr = vrrp->send_buffer;
+	vrrphdr_t *hd;
+	uint32_t new_saddr = 0;
+
+	/* We will need to be called again if there is more than one unicast peer, so don't calculate checksums */
+	final_update = (LIST_ISEMPTY(vrrp->unicast_peer) || !LIST_HEAD(vrrp->unicast_peer)->next || addr);
+
+	if (vrrp->family == AF_INET) {
+		bufptr += vrrp_iphdr_len();
+
+#ifdef _WITH_VRRP_AUTH_
+		if (vrrp->auth_type == VRRP_AUTH_AH)
+			bufptr += vrrp_ipsecah_len();
+#endif
+	}
+
+	hd = (vrrphdr_t *)bufptr;
+	if (hd->priority != prio) {
+		if (vrrp->family == AF_INET) {
+			/* HC' = ~(~HC + ~m + m') */
+			uint16_t *prio_addr = (uint16_t *)((char *)&hd->priority - (((char *)hd -(char *)&hd->priority) & 1));
+			uint32_t acc = (uint32_t)((~hd->chksum & 0xffff) + (~(*prio_addr) & 0xffff));
+
+			hd->priority = prio;
+
+			/* finally compute vrrp checksum */
+			acc += *prio_addr;
+			acc = (acc & 0xffff) + (acc >> 16);
+			acc += acc >> 16;
+
+			hd->chksum = ~acc & 0xffff;
+		}
+		else
+			hd->priority = prio;
+	}
+
+	if (vrrp->family == AF_INET) {
+		struct iphdr *ip = (struct iphdr *) (vrrp->send_buffer);
+		if (!addr) {
+			ip->id = htons(++vrrp->ip_id);
+			if (vrrp->ip_id == 0) {
+				/* kernel will fill in ID if left to 0, so we overflow to 1 */
+				ip->id = htons(++vrrp->ip_id);
+			}
+		}
+		else {
+			// If unicast address
+			if (vrrp->version == VRRP_VERSION_2)
+				ip->daddr = inet_sockaddrip4(addr);
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+			else if (vrrp->unicast_chksum_compat >= CHKSUM_COMPATIBILITY_MIN_COMPAT) {
+				/* The checksum is calculated using the standard unicast address */
+				ip->daddr = inet_sockaddrip4(addr);
+			}
+#endif
+			else {
+				/* Update the destination address, and the checksum */
+				uint32_t acc = (~hd->chksum & 0xffff) + (~(ip->daddr >> 16 ) & 0xffff) + (~ip->daddr & 0xffff);
+
+				ip->daddr = inet_sockaddrip4(addr);
+
+				acc += (ip->daddr >> 16) + (ip->daddr & 0xffff);
+
+				/* finally compute vrrp checksum */
+				acc = (acc & 0xffff) + (acc >> 16);
+				acc += acc >> 16;
+
+				hd->chksum = ~acc & 0xffff;
+			}
+		}
+
+		/* Has the source address changed? */
+		if (!vrrp->saddr_from_config &&
+		    ip->saddr != ((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr) {
+/* ??? Update the source address, and the checksum if VRRPv3 */
+			if (vrrp->version == VRRP_VERSION_2)
+				ip->saddr = ((struct sockaddr_in*)&vrrp->saddr)->sin_addr.s_addr;
+			else {
+				uint32_t acc = (~hd->chksum & 0xffff) + (~(ip->saddr >> 16 ) & 0xffff) + (~ip->saddr & 0xffff);
+
+				ip->saddr = ((struct sockaddr_in*)&vrrp->saddr)->sin_addr.s_addr;
+
+				acc += (ip->saddr >> 16) + (ip->saddr & 0xffff);
+
+				/* finally compute vrrp checksum */
+				acc = (acc & 0xffff) + (acc >> 16);
+				acc += acc >> 16;
+
+				hd->chksum = ~acc & 0xffff;
+
+				new_saddr = ip->saddr;
+			}
+		}
+
+#ifdef _WITH_VRRP_AUTH_
+		if (vrrp->auth_type == VRRP_AUTH_AH) {
+			ICV_mutable_fields ip_mutable_fields;
+			unsigned char digest[MD5_DIGEST_LENGTH];
+			ipsec_ah_t *ah = (ipsec_ah_t *) (vrrp->send_buffer + sizeof (struct iphdr));
+
+			if (new_saddr)
+				ah->spi = new_saddr;
+
+			if (!addr) {
+				/* Processing sequence number.
+				   Cycled assumed if 0xFFFFFFFD reached. So the MASTER state is free for another srv.
+				   Here can result a flapping MASTER state owner when max seq_number value reached.
+				   => We REALLY REALLY REALLY don't need to worry about this. We only use authentication
+				   for VRRPv2, for which the adver_int is specified in whole seconds, therefore the minimum
+				   adver_int is 1 second. 2^32-3 seconds is 4294967293 seconds, or in excess of 136 years,
+				   so since the sequence number always starts from 0, we are not going to reach the limit.
+				   In the current implementation if counter has cycled, we stop sending adverts and
+				   become BACKUP. We are ever the optimist and think we might run continuously for over
+				   136 years without someone redesigning their network!
+				   If all the master are down we reset the counter for becoming MASTER.
+				 */
+				if (vrrp->ipsecah_counter.seq_number > 0xFFFFFFFD) {
+					vrrp->ipsecah_counter.cycle = true;
+				} else {
+					vrrp->ipsecah_counter.seq_number++;
+				}
+
+				ah->seq_number = htonl(vrrp->ipsecah_counter.seq_number);
+			}
+
+			if (final_update) {
+				/* backup the ip mutable fields */
+				ip_mutable_fields.tos = ip->tos;
+				ip_mutable_fields.ttl = ip->ttl;
+				ip_mutable_fields.frag_off = ip->frag_off;
+
+				/* zero the ip mutable fields */
+				ip->tos = 0;
+				ip->frag_off = 0;
+				if (!LIST_ISEMPTY(vrrp->unicast_peer))
+					ip->ttl = 0;
+				/* Compute the ICV & trunc the digest to 96bits
+				   => No padding needed.
+				   -- rfc2402.3.3.3.1.1.1 & rfc2401.5
+				 */
+				memset(&ah->auth_data, 0, sizeof(ah->auth_data));
+				hmac_md5((unsigned char *)vrrp->send_buffer, vrrp->send_buffer_size, vrrp->auth_data, sizeof (vrrp->auth_data), digest);
+				memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
+
+				/* Restore the ip mutable fields */
+				ip->tos = ip_mutable_fields.tos;
+				ip->frag_off = ip_mutable_fields.frag_off;
+				ip->ttl = ip_mutable_fields.ttl;
+			}
+		}
+#endif
+	}
 }
 
 #ifdef _WITH_VRRP_AUTH_
@@ -449,6 +605,9 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 	ip = NULL;
 	struct sockaddr_storage *up_addr;
 	size_t buflen, expected_len;
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+	bool chksum_error;
+#endif
 
 	if (buflen_ret < 0) {
 		log_message(LOG_INFO, "recvmsg returned %zd", buflen_ret);
@@ -667,22 +826,48 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		if (vrrp->version == VRRP_VERSION_3) {
 			/* Create IPv4 pseudo-header */
 			ipv4_phdr.src   = ip->saddr;
-			ipv4_phdr.dst   = ip->daddr;
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+			ipv4_phdr.dst   = vrrp->unicast_chksum_compat <= CHKSUM_COMPATIBILITY_MIN_COMPAT
+					  ? ip->daddr : ((struct sockaddr_in *)&global_data->vrrp_mcast_group4)->sin_addr.s_addr;
+#else
+			ipv4_phdr.dst	= ip->daddr;
+#endif
 			ipv4_phdr.zero  = 0;
 			ipv4_phdr.proto = IPPROTO_VRRP;
 			ipv4_phdr.len   = htons(vrrppkt_len);
 
 			in_csum((uint16_t *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
 			if (in_csum((uint16_t *) hd, vrrppkt_len, acc_csum, NULL)) {
-				log_message(LOG_INFO, "(%s): Invalid VRRPv3 checksum", vrrp->iname);
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+				chksum_error = true;
+				if (vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE) {
+					ipv4_phdr.dst = ((struct sockaddr_in *)&global_data->vrrp_mcast_group4)->sin_addr.s_addr;
+					in_csum((uint16_t *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
+					if (!in_csum((uint16_t *)hd, vrrppkt_len, acc_csum, NULL)) {
+						/* Update the checksum for the pseudo header IP address */
+						vrrp_update_pkt(vrrp, vrrp->effective_priority, &global_data->vrrp_mcast_group4);
+
+						/* Now we can specify that we are going to use the compatibility mode */
+						vrrp->unicast_chksum_compat = CHKSUM_COMPATIBILITY_AUTO;
+
+						log_message(LOG_INFO, "(%s): Setting unicast VRRPv3 checksum to old version", vrrp->iname);
+						chksum_error = false;
+					}
+				}
+
+				if (chksum_error)
+#endif
+				{
+					log_message(LOG_INFO, "(%s): Invalid VRRPv3 checksum", vrrp->iname);
 #ifdef _WITH_SNMP_RFC_
-				vrrp->stats->chk_err++;
+					vrrp->stats->chk_err++;
 #ifdef _WITH_SNMP_RFCV3_
-				vrrp->stats->proto_err_reason = checksumError;
-				vrrp_rfcv3_snmp_proto_err_notify(vrrp);
+					vrrp->stats->proto_err_reason = checksumError;
+					vrrp_rfcv3_snmp_proto_err_notify(vrrp);
 #endif
 #endif
-				return VRRP_PACKET_KO;
+					return VRRP_PACKET_KO;
+				}
 			}
 		} else {
 			vrrppkt_len += VRRP_AUTH_LEN;
@@ -958,6 +1143,10 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer)
 	hd->naddr = (uint8_t)((!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) : 0);
 	hd->v3.adver_int  = htons((vrrp->adver_int / TIMER_CENTI_HZ) & 0x0FFF); /* interval in centiseconds, reserved bits zero */
 
+	/* For IPv4 to calculate the checksum, the value must start as 0.
+	 * For IPv6, the kernel will update checksum field. */
+	hd->chksum = 0;
+
 	/* Family specific */
 	if (vrrp->family == AF_INET) {
 		/* copy the ip addresses */
@@ -971,11 +1160,7 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer)
 
 		/* Create IPv4 pseudo-header */
 		ipv4_phdr.src   = VRRP_PKT_SADDR(vrrp);
-		if (LIST_ISEMPTY(vrrp->unicast_peer))
-			ipv4_phdr.dst   = htonl(INADDR_VRRP_GROUP);
-		else
-			ipv4_phdr.dst = 0;
-
+		ipv4_phdr.dst   = ((struct sockaddr_in *)&global_data->vrrp_mcast_group4)->sin_addr.s_addr;
 		ipv4_phdr.zero  = 0;
 		ipv4_phdr.proto = IPPROTO_VRRP;
 		ipv4_phdr.len   = htons(vrrp_pkt_len(vrrp));
@@ -992,8 +1177,6 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer)
 				ip6arr[i++] = ip_addr->u.sin6_addr;
 			}
 		}
-		/* Kernel will update checksum field. let it be 0 now. */
-		hd->chksum = 0;
 	}
 }
 
@@ -1063,158 +1246,6 @@ vrrp_build_ancillary_data(struct msghdr *msg, char *cbuf, struct sockaddr_storag
 	pkt->ipi6_ifindex = vrrp->ifp->ifindex;
 
 	return 0;
-}
-
-static void
-vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
-{
-	bool final_update;
-	char *bufptr = vrrp->send_buffer;
-	vrrphdr_t *hd;
-	uint32_t new_saddr = 0;
-
-	/* We will need to be called again if there is more than one unicast peer, so don't calculate checksums */
-	final_update = (LIST_ISEMPTY(vrrp->unicast_peer) || !LIST_HEAD(vrrp->unicast_peer)->next || addr);
-
-	if (vrrp->family == AF_INET) {
-		bufptr += vrrp_iphdr_len();
-
-#ifdef _WITH_VRRP_AUTH_
-		if (vrrp->auth_type == VRRP_AUTH_AH)
-			bufptr += vrrp_ipsecah_len();
-#endif
-	}
-
-	hd = (vrrphdr_t *)bufptr;
-	if (hd->priority != prio) {
-		if (vrrp->family == AF_INET) {
-			/* HC' = ~(~HC + ~m + m') */
-			uint16_t *prio_addr = (uint16_t *)((char *)&hd->priority - (((char *)hd -(char *)&hd->priority) & 1));
-			uint32_t acc = (uint32_t)((~hd->chksum & 0xffff) + (~(*prio_addr) & 0xffff));
-
-			hd->priority = prio;
-
-			/* finally compute vrrp checksum */
-			acc += *prio_addr;
-			acc = (acc & 0xffff) + (acc >> 16);
-			acc += acc >> 16;
-
-			hd->chksum = ~acc & 0xffff;
-		}
-		else
-			hd->priority = prio;
-	}
-
-	if (vrrp->family == AF_INET) {
-		struct iphdr *ip = (struct iphdr *) (vrrp->send_buffer);
-		if (!addr) {
-			ip->id = htons(++vrrp->ip_id);
-			if (vrrp->ip_id == 0) {
-				/* kernel will fill in ID if left to 0, so we overflow to 1 */
-				ip->id = htons(++vrrp->ip_id);
-			}
-		}
-		else {
-			// If unicast address
-			if (vrrp->version == VRRP_VERSION_2)
-				ip->daddr = inet_sockaddrip4(addr);
-			else {
-				/* Update the destination address, and the checksum */
-				uint32_t acc = (~hd->chksum & 0xffff) + (~(ip->daddr >> 16 ) & 0xffff) + (~ip->daddr & 0xffff);
-
-				ip->daddr = inet_sockaddrip4(addr);
-
-				acc += (ip->daddr >> 16) + (ip->daddr & 0xffff);
-
-				/* finally compute vrrp checksum */
-				acc = (acc & 0xffff) + (acc >> 16);
-				acc += acc >> 16;
-
-				hd->chksum = ~acc & 0xffff;
-			}
-		}
-
-		/* Has the source address changed? */
-		if (!vrrp->saddr_from_config &&
-		    ip->saddr != ((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr) {
-/* ??? Update the source address, and the checksum if VRRPv3 */
-			if (vrrp->version == VRRP_VERSION_2)
-				ip->saddr = ((struct sockaddr_in*)&vrrp->saddr)->sin_addr.s_addr;
-			else {
-				uint32_t acc = (~hd->chksum & 0xffff) + (~(ip->saddr >> 16 ) & 0xffff) + (~ip->saddr & 0xffff);
-
-				ip->saddr = ((struct sockaddr_in*)&vrrp->saddr)->sin_addr.s_addr;
-
-				acc += (ip->saddr >> 16) + (ip->saddr & 0xffff);
-
-				/* finally compute vrrp checksum */
-				acc = (acc & 0xffff) + (acc >> 16);
-				acc += acc >> 16;
-
-				hd->chksum = ~acc & 0xffff;
-
-				new_saddr = ip->saddr;
-			}
-		}
-
-#ifdef _WITH_VRRP_AUTH_
-		if (vrrp->auth_type == VRRP_AUTH_AH) {
-			ICV_mutable_fields ip_mutable_fields;
-			unsigned char digest[MD5_DIGEST_LENGTH];
-			ipsec_ah_t *ah = (ipsec_ah_t *) (vrrp->send_buffer + sizeof (struct iphdr));
-
-			if (new_saddr)
-				ah->spi = new_saddr;
-
-			if (!addr) {
-				/* Processing sequence number.
-				   Cycled assumed if 0xFFFFFFFD reached. So the MASTER state is free for another srv.
-				   Here can result a flapping MASTER state owner when max seq_number value reached.
-				   => We REALLY REALLY REALLY don't need to worry about this. We only use authentication
-				   for VRRPv2, for which the adver_int is specified in whole seconds, therefore the minimum
-				   adver_int is 1 second. 2^32-3 seconds is 4294967293 seconds, or in excess of 136 years,
-				   so since the sequence number always starts from 0, we are not going to reach the limit.
-				   In the current implementation if counter has cycled, we stop sending adverts and
-				   become BACKUP. We are ever the optimist and think we might run continuously for over
-				   136 years without someone redesigning their network!
-				   If all the master are down we reset the counter for becoming MASTER.
-				 */
-				if (vrrp->ipsecah_counter.seq_number > 0xFFFFFFFD) {
-					vrrp->ipsecah_counter.cycle = true;
-				} else {
-					vrrp->ipsecah_counter.seq_number++;
-				}
-
-				ah->seq_number = htonl(vrrp->ipsecah_counter.seq_number);
-			}
-
-			if (final_update) {
-				/* backup the ip mutable fields */
-				ip_mutable_fields.tos = ip->tos;
-				ip_mutable_fields.ttl = ip->ttl;
-				ip_mutable_fields.frag_off = ip->frag_off;
-
-				/* zero the ip mutable fields */
-				ip->tos = 0;
-				ip->frag_off = 0;
-				if (!LIST_ISEMPTY(vrrp->unicast_peer))
-					ip->ttl = 0;
-				/* Compute the ICV & trunc the digest to 96bits
-				   => No padding needed.
-				   -- rfc2402.3.3.3.1.1.1 & rfc2401.5
-				 */
-				memset(&ah->auth_data, 0, sizeof(ah->auth_data));
-				hmac_md5((unsigned char *)vrrp->send_buffer, vrrp->send_buffer_size, vrrp->auth_data, sizeof (vrrp->auth_data), digest);
-				memcpy(ah->auth_data, digest, HMAC_MD5_TRUNC);
-
-				/* Restore the ip mutable fields */
-				ip->tos = ip_mutable_fields.tos;
-				ip->frag_off = ip_mutable_fields.frag_off;
-				ip->ttl = ip_mutable_fields.ttl;
-			}
-		}
-#endif
-	}
 }
 
 static ssize_t
@@ -2793,8 +2824,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* See if we need to set promote_secondaries */
 	if (vrrp->promote_secondaries &&
-	    !vrrp->ifp->promote_secondaries_already_set &&
-	    !vrrp->ifp->reset_promote_secondaries)
+	    !vrrp->ifp->promote_secondaries_already_set)
 		set_promote_secondaries(vrrp->ifp);
 
 	/* If we are adding a large number of interfaces, the netlink socket
