@@ -1339,7 +1339,7 @@ if test "${enable_dump_threads}" = yes; then
   ENABLE_DUMP_THREADS=Yes
   add_build_opt([DUMP_THREADS])
 else
-  ENABLE_STACKTRACE=No
+  ENABLE_DUMP_THREADS=No
 fi
 
 dnl ----[ Profiling or not ? ]----
