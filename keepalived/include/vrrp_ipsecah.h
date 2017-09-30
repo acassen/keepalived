@@ -42,8 +42,8 @@ typedef struct _ipsec_ah {				/* rfc2402.2 */
 	uint16_t		reserved;	/* Reserved field */
 	uint32_t		spi;		/* Security Parameter Index */
 	uint32_t		seq_number;	/* Sequence number */
-	uint32_t		auth_data[3];	/* Authentication data 128-bit MD5 digest trucated
-						   => HMAC_MD5_TRUNC*8/32 */
+	char			auth_data[HMAC_MD5_TRUNC];
+						/* Authentication data 128-bit MD5 digest trucated */
 } ipsec_ah_t;
 
 typedef struct {		/* rfc2402.3.3.3.1.1.1 */

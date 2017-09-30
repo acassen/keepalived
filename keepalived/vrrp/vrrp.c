@@ -490,7 +490,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	struct iphdr *ip = (struct iphdr *) (buffer);
 	ipsec_ah_t *ah = (ipsec_ah_t *) ((char *) ip + (ip->ihl << 2));
 	unsigned char digest[MD5_DIGEST_LENGTH];
-	uint32_t backup_auth_data[3];
+	char backup_auth_data[sizeof(ah->auth_data)];
 
 	/* first verify that the SPI value is equal to src IP */
 	if (ah->spi != ip->saddr) {
@@ -535,7 +535,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 		ip->ttl = 0;
 	memcpy(backup_auth_data, ah->auth_data, sizeof (ah->auth_data));
 	memset(ah->auth_data, 0, sizeof (ah->auth_data));
-	memset(digest, 0, 16);
+	memset(digest, 0, MD5_DIGEST_LENGTH);
 
 	/* Compute the ICV */
 	hmac_md5((unsigned char *) buffer,
