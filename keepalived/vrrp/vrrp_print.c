@@ -312,8 +312,6 @@ vrrp_print(FILE *file, void *data)
 	char auth_data[sizeof(vrrp->auth_data) + 1];
 #endif
 	char time_str[26];
-	element e;
-	struct sockaddr_storage *addr;
 
 	fprintf(file, " VRRP Instance = %s\n", vrrp->iname);
 	fprintf(file, "   VRRP Version = %d\n", vrrp->version);
@@ -356,13 +354,6 @@ vrrp_print(FILE *file, void *data)
 						    ? inet_sockaddrtos(&vrrp->saddr)
 						    : "(none)",
 						  vrrp->saddr_from_config ? " (from configuration)" : "");
-	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
-		fprintf(file, "   Unicast peers = %d\n", LIST_SIZE(vrrp->unicast_peer));
-		for (e = LIST_HEAD(vrrp->unicast_peer); e; ELEMENT_NEXT(e)) {
-			addr = ELEMENT_DATA(e);
-			fprintf(file, "     %s\n", inet_sockaddrtos(addr));
-		}
-	}
 	fprintf(file, "   Gratuitous ARP delay = %d\n",
 		       vrrp->garp_delay/TIMER_HZ);
 	fprintf(file, "   Gratuitous ARP repeat = %d\n", vrrp->garp_rep);

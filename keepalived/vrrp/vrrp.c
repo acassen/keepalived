@@ -1157,7 +1157,6 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, char *buffer)
 
 		/* finally compute vrrp checksum */
 		in_csum((uint16_t *)&ipv4_phdr, sizeof(ipv4_phdr), 0, &vrrp->ipv4_csum);
-		hd->chksum = 0;
 		hd->chksum = in_csum((uint16_t *) hd, vrrp_pkt_len(vrrp), vrrp->ipv4_csum, NULL);
 	} else if (vrrp->family == AF_INET6) {
 		ip6arr = (struct in6_addr *)((char *) hd + sizeof(*hd));
