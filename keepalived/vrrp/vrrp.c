@@ -533,15 +533,10 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	/*
 	 * then proceed with the sequence number to prevent against replay attack.
 	 */
-	if (ntohl(ah->seq_number) > vrrp->ipsecah_counter.seq_number ||
-	    vrrp->sync
-#ifdef _HAVE_VRRP_VMAC_
-	    || __test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
-#endif
-							) {
-// TODO - why do we ignore seq no for vmac (commit 3efff46b6 8/4/2015) and sync groups?
+// TODO - why do we ignore seq no for sync groups?
+	if (ntohl(ah->seq_number) > vrrp->ipsecah_counter.seq_number || vrrp->sync)
 		vrrp->ipsecah_counter.seq_number = ntohl(ah->seq_number);
-	} else {
+	else {
 		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
 					" already processed. Packet dropped. Local(%d)",
 					vrrp->iname, ntohl(ah->seq_number),
