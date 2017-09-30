@@ -366,11 +366,10 @@ vrrp_update_pkt(vrrp_t *vrrp, uint8_t prio, struct sockaddr_storage* addr)
 	if (vrrp->family == AF_INET) {
 		struct iphdr *ip = (struct iphdr *) (vrrp->send_buffer);
 		if (!addr) {
-			ip->id = htons(++vrrp->ip_id);
-			if (vrrp->ip_id == 0) {
-				/* kernel will fill in ID if left to 0, so we overflow to 1 */
-				ip->id = htons(++vrrp->ip_id);
-			}
+			/* kernel will fill in ID if left to 0, so we overflow to 1 */
+			if (!++vrrp->ip_id)
+				++vrrp->ip_id;
+			ip->id = htons(vrrp->ip_id);
 		}
 		else {
 			// If unicast address
