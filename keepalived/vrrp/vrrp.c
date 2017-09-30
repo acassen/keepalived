@@ -1871,10 +1871,6 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 #ifdef _WITH_VRRP_AUTH_
 		if (proto == IPPROTO_AH) {
 			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
-			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
-					      " - Decrement seq"
-					    , vrrp->iname);
-			vrrp->ipsecah_counter.seq_number = ntohl(ah->seq_number) - 1;
 			vrrp->ipsecah_counter.cycle = false;
 		}
 #endif
