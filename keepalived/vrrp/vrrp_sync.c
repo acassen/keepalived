@@ -184,7 +184,7 @@ vrrp_sync_backup(vrrp_t * vrrp)
 			vrrp_state_leave_fault(isync);
 		}
 		else
-			vrrp_state_leave_master(isync, true);
+			vrrp_state_leave_master(isync, false);
 		vrrp_thread_requeue_read(isync);
 	}
 
@@ -255,7 +255,7 @@ vrrp_sync_fault(vrrp_t * vrrp)
 		if (isync != vrrp && isync->state != VRRP_STATE_FAULT) {
 			isync->wantstate = VRRP_STATE_FAULT;
 			if (isync->state == VRRP_STATE_MAST) {
-				vrrp_state_leave_master(isync, true);
+				vrrp_state_leave_master(isync, false);
 			}
 			else if (isync->state == VRRP_STATE_BACK || isync->state == VRRP_STATE_INIT) {
 				isync->state = VRRP_STATE_FAULT;	/* This is a bit of a bodge */
