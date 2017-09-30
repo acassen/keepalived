@@ -532,11 +532,8 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 // TODO - If SPI doesn't match previous SPI, we are starting again
 	/*
 	 * then proceed with the sequence number to prevent against replay attack.
-	 * For inbound processing, we increment seq_number counter to audit
-	 * sender counter.
 	 */
-	vrrp->ipsecah_counter.seq_number++;
-	if (ntohl(ah->seq_number) >= vrrp->ipsecah_counter.seq_number ||
+	if (ntohl(ah->seq_number) > vrrp->ipsecah_counter.seq_number ||
 	    vrrp->sync
 #ifdef _HAVE_VRRP_VMAC_
 	    || __test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)
