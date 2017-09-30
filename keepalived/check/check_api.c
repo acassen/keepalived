@@ -520,6 +520,13 @@ update_checker_activity(sa_family_t family, void *address, bool enable)
 	char addr_str[INET6_ADDRSTRLEN];
 	bool address_logged = false;
 
+	if (__test_bit(LOG_ADDRESS_CHANGES, &debug)) {
+		inet_ntop(family, address, addr_str, sizeof(addr_str));
+		log_message(LOG_INFO, "Netlink reflector reports IP %s %s"
+				    , addr_str, (enable) ? "added" : "removed");
+		address_logged = true;
+	}
+
 	if (!using_ha_suspend)
 		return;
 

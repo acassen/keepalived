@@ -65,7 +65,7 @@ lvs_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
 static void
 stop_check(int status)
 {
-	if (using_ha_suspend)
+	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug))
 		kernel_netlink_close();
 
 	/* Terminate all script process */

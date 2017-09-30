@@ -751,8 +751,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 #endif
 					}
 				}
-			}
-			else {
+			} else {
 				/* Mark the address as needing to go. We can't delete the address
 				 * until after down_instance is called, since it sends a prio 0 message */
 				if (ifa->ifa_family == AF_INET) {
@@ -834,11 +833,8 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 				address_vrrp = NULL;
 
 			/* Display netlink operation */
-			if (
-#ifdef _WITH_LVS_
-			    __test_bit(LOG_ADDRESS_CHANGES, &debug) ||
-#endif
-			    address_vrrp) {
+			if (__test_bit(LOG_ADDRESS_CHANGES, &debug) ||
+			    (__test_bit(LOG_DETAIL_BIT, &debug) && address_vrrp)) {
 				inet_ntop(ifa->ifa_family, addr.addr, addr_str, sizeof(addr_str));
 				log_message(LOG_INFO, "Netlink reflector reports IP %s %s %s"
 						    , addr_str, h->nlmsg_type == RTM_NEWADDR ? "added to" : "removed from", ifp->ifname);
