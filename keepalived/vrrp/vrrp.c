@@ -533,8 +533,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	/*
 	 * then proceed with the sequence number to prevent against replay attack.
 	 */
-// TODO - why do we ignore seq no for sync groups?
-	if (ntohl(ah->seq_number) > vrrp->ipsecah_counter.seq_number || vrrp->sync)
+	if (ntohl(ah->seq_number) > vrrp->ipsecah_counter.seq_number)
 		vrrp->ipsecah_counter.seq_number = ntohl(ah->seq_number);
 	else {
 		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
