@@ -1,3 +1,162 @@
+2017-10-01 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.3.7 released.
+	* Allow broadcast address to be specified as '-' or '+'
+	  When configuring an ip address with a broadcast address, allow the
+	  use of - and + (like ip(8)) to clear or set the host specfic bits of
+	  the address, i.e.
+	  10.6.23.254/16 broadcast + result in a broadcast address of 10.6.255.255
+	  10.6.23.254/16 broadcast - results in a broadcast address of 10.6.0.0
+	* Change some code layout and macro/variable names
+	* Print unicast peer addresses in /tmp/keepalived.data
+	* Add negative conditional configuration.
+	  A configuration line starting @main will only be included if
+	  keepalived is started with option -i main.
+	  This commit adds configuration option @^main, meaning that the
+	  remainder of the configuration line will only be included if
+	  -i main was NOT specified.
+	* Fix calculation of checksum for VRRPv3 IPv4 unicast peers.
+	  Alternate unicast peers were being sent adverts with the checksum
+	  set to 0. The reason for this was that the checksum field was not
+	  being set to 0 before the checksum calculation, hence causing the
+	  calculated checksum to be 0 for the second, fourth, sixth etc
+	  unicast peer.
+	* Generate README from README.md.
+	* Only declare (and use) auth variables if compiling with authentication.
+	  authtype_mismatch and auth_failure are only used if authentication is
+	  enabled.
+	* The vrrp_t vmac flag should be a bool.
+	* Add include guard for vrrp_print.h.
+	* Log some additional vrrp variables.
+	* Make checksum change backwards compatible.
+	  This commits adds the ability of keepalived to revert to using the old
+	  checksum calculation if it sees an advert that has an old checksum. This
+	  means that if an old and a new version of keepalived are working
+	  together, once the new version has seen an advert from an old version,
+	  it will drop back to using the old style checksum, and so the two
+	  keepalived instances will work together.
+	  There is a slight problem with this, though. If the old version starts
+	  when a new version is master, if will report bad checksums. This should
+	  be fine, since keepalived should discard the adverts, time out and send
+	  an advert which would make the new keepalived revert to old checksums.
+	  Unfortunately, keepalived does not completely ignore bad adverts, since
+	  it resets its master down timer, even for bad adverts, and so it never
+	  times out. However, in this scenario, there will still remain one master
+	  and all the other keepalived instances will be in backup state, and so
+	  VRRP functionality is preserved.
+	  As identified in commit bcf2936 until commit 67275d2 keepalived did not
+	  work with VRRPv3 and more than one other unicast peer, so for migration
+	  we only need to consider two unicast peers. To upgrade, first upgrade
+	  the keepalived instance that is in backup mode. This will see old
+	  checksums when it starts, and so start using old checksums. The other
+	  keepalived instance can then be upgraded and it will also see old
+	  checksums when it starts up. In order to switch to using new checksums,
+	  temporarily add the following line in the configuration of each vrrp
+	  instance that is in master state:
+	  old_unicast_checksum never
+	  and then reload the keepalived instance by sending it SIGHUP. After the
+	  master has restarted, restart the backup with a SIGHUP, and they will
+	  then be using new checksums. The temporary old_unicast_checksum never
+	  lines can now be removed from the configuration.
+	* Add checker bind_if keyword.
+	  If a checker binds to a link local IPv6 address, the interface has
+	  to be specified.
+	* Make DBus service name configurable.
+	* Make --config-id option default to hostname.
+	  This is the equivalent of specifying --config-id `hostname -s`, and
+	  makes it more straightforward to deploy the same configuration to
+	  multiple hosts.
+	* Issue warning if more than 1 dynamic misc_checker per real server.
+	  If different scripts return different exit statuses, the priority
+	  of the real server will keep changing. The solution is to combine
+	  the functionality into 1 script.
+	* Improve DBus error handling.
+	  . Always clear errors to avoid leaks
+	  . Check for errors when emitting signals
+	  . Check for errors when registering objects
+	* Stop test tcp_server leaving zombie processes.
+	* Fix persistence_granularity handling
+	  1. vs->addr.ss_family should never be used to check address family of
+	     vs since there may not be an address is using fwmark.
+	  2. If using fwmark, the address family may not be known when parsing
+	     persistence_granularity
+	  3. Set address family from format of persistence_granularity if not
+	     already set
+	  4. Ensure entire string is a number and is between 1 and 128 for IPv6
+	  5. Ensure netmask specified for IPv4 is solid
+	* Ensure always check return from inet_stosockaddr when parsing config.
+	* Add lthreshold and uthreshold to keepalived.SYNOPSIS.
+	* Merge virtual server group addresses and ranges into one list.
+	  A single address can be treated as a range with only 1 address, so
+	  this reduces the number of lists that need to be processed when
+	  handling a virtual server group.
+	  A number of corrections were also made re hton/ntoh(s|l).
+	* Remove redundant setting of real server weight.
+	* Don't use vs->addr.ss_family for address family of virtual server.
+	  A virtual server won't use vs->addr if it is defined by a fwmark or
+	  it is uses a firtual server group. vs->af is the correct field to use.
+	* Make ipvs_update_stats() little/big endian aware.
+	* Simplify ipvs_update_stats().
+	  Don't run a state machine to collect all the stats, simple iterate
+	  through the entries.
+	* Move fetching ipvs stats into ipvs_update_vs_stats().
+	* Remove some #defines in ipvs_update_stats().
+	* Streamline setup for changing ipvs configuration.
+	* Fix updating resolved notify script path names with parameters.
+	* Add silent option to test/tcp_server.
+	* Document default checker connect ip/port.
+	* Remove duplicate setting up of file name.
+	* Validate HTTP_GET and SSL_GET checkers.
+	  Unsure that urls have a path specified, and that the checkers have
+	  at least one url specified.
+	* Fix memory leak if SMTP_CHECK helo_name specified.
+	* Fix dumping of SMTP_CHECK host list.
+	* Don't allocate and copy default SMTP_CHECK helo name unless needed.
+	* Tidy up dumping SMTP checkers.
+	* Remove smtp_host_t typedef.
+	  If is passed to functions that take a conn_opts_t parameter, so
+	  we need to explicitly use the correct type.
+	* Simplify handling of host{} block in SMTP_CHECK.
+	  This also allows specifying connect_ip, connect_port as well as
+	  unsing host blocks.
+	* Add DNS_CHECK RRSIG and DNSKEY query types.
+	* Fix documentation re MISC_CHECK.
+	* Detect if no misc_path specified for MISC_CHECK.
+	  If no path was specified, keepalived was segfaulting.
+	* Add some more error messages to socket_bind_connect().
+	* Checker connections aren't always TCP.
+	* Report if checker bind_if is missing
+	  If a link local IPv6 address is specified for a checker to
+	  connect to, then a bind interface must also be specified,
+	  otherwise the connect() call fails.
+	* If a real server has inhibit_on_failure, configure it at start up
+	  If a real server had inhibit_on_failure set, but it also had an
+	  alpha mode checker, then the real server should be installed at
+	  startup with weight 0 to be consistent with what would happen if
+	  the checker had been successful but then failed.
+	* Improve handling of virtual server groups.
+	  If multiple virtual servers use the same virtual server group, and
+	  the virtual servers have different protocols, or the virtual server
+	  groups are defined using only fwmarks and the virtual servers have
+	  different address families, then multiple versions of the entries
+	  in the virtual server groups will need to be created as IPVS
+	  virtual servers.
+	  This patch handles the creation and removal of the necessary different
+	  virtual servers for the virtual server groups.
+	* Add virtual server protocol types SCTP and none for SNMP.
+	* Handle virtual server with no protocol specified
+	  This is valid if fwmarks are being used.
+	* Warn if a protocol is set on a virtual server using firewall marks.
+	* Don't check !LIST_ISEMPTY(vs->rs) after config is validated
+	  In validate_check_config() any virtual server without any real
+	  servers is removed, so there is no need to check subsequently.
+	* Don't allow virtual server groups without any addresses for fwmarks.
+	* Fix and optimise handling of promote_secondaries.
+	  The promote_secondaries flag was being cleared by the first vrrp
+	  instance that stopped using an interface, rather than by the last
+	  instance.
+	* Fix the setting of mcast address for checksum compatibility
+	  It was using INADDR_VRRP_GROUP rather than vrrp_mcast_group4.
+
 2017-09-15 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.3.6 released.
 	* Ensure locations of pid files is consistent
