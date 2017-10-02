@@ -233,7 +233,7 @@ static struct variable8 global_vars[] = {
 	/* SMTP server port */
 	{SNMP_MAIL_SMTPSERVERPORT, ASN_UNSIGNED, RONLY, snmp_scalar, 2, {3, 6}},
 	/* are vrrp fault state transitions emailed */
-	{SNMP_MAIL_EMAILFAULTS, ASN_OCTET_STR, RONLY, snmp_scalar, 2, {3, 7}},
+	{SNMP_MAIL_EMAILFAULTS, ASN_INTEGER, RONLY, snmp_scalar, 2, {3, 7}},
 	/* trapEnable */
 	{SNMP_TRAPS, ASN_INTEGER, RONLY, snmp_scalar, 1, {4}},
 	/* linkBeat */

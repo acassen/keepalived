@@ -1598,9 +1598,10 @@ vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 	int result;
 	size_t target_len;
 	unsigned curgroup, curinstance;
-	char *instance, *binstance = NULL;
-	element e;
+	char *binstance = NULL;
+	element e, e1;
 	vrrp_sgroup_t *group;
+	vrrp_t *vrrp;
 
 	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
 		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
@@ -1628,7 +1629,7 @@ vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 		if (binstance)
 			break; /* Optimization: cannot be the lower
 				  anymore, see break below */
-		vector_foreach_slot(group->iname, instance, curinstance) {
+		for (e1 = LIST_HEAD(group->index_list), curinstance = 0; e1; ELEMENT_NEXT(e1), curinstance++) {
 			/* We build our current match */
 			current[0] = curgroup;
 			current[1] = curinstance + 1;
@@ -1638,15 +1639,16 @@ vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 				continue;
 			if ((result == 0) && !exact)
 				continue;
+			vrrp = ELEMENT_DATA(e1);
 			if (result == 0) {
 				/* Got an exact match and asked for it */
-				*var_len = strlen(instance);
-				return (u_char *)instance;
+				*var_len = strlen(vrrp->iname);
+				return (u_char *)vrrp->iname;
 			}
 			if (snmp_oid_compare(current, 2, best, 2) < 0) {
 				/* This is our best match */
 				memcpy(best, current, sizeof(oid) * 2);
-				binstance = instance;
+				binstance = vrrp->iname;
 				/* (current[0],current[1]) are
 				   strictly increasing, this is our
 				   lower element of our set */
@@ -1975,7 +1977,7 @@ vrrp_snmp_trackedinterface(struct variable *vp, oid *name, size_t *length,
 	oid *target, current[2], best[2];
 	int result;
 	size_t target_len;
-	unsigned curinstance;
+	unsigned curinstance, curif;
 	element e1, e2;
 	vrrp_t *instance;
 	tracked_if_t *ifp, *bifp = NULL;
@@ -2007,11 +2009,13 @@ vrrp_snmp_trackedinterface(struct variable *vp, oid *name, size_t *length,
 			break; /* Optimization: cannot be the lower anymore */
 		if (LIST_ISEMPTY(instance->track_ifp))
 			continue;
+		curif = 0;
 		for (e2 = LIST_HEAD(instance->track_ifp); e2; ELEMENT_NEXT(e2)) {
 			ifp = ELEMENT_DATA(e2);
+			curif++;
 			/* We build our current match */
 			current[0] = curinstance;
-			current[1] = ifp->ifp->ifindex;
+			current[1] = curif;
 			/* And compare it to our target match */
 			if ((result = snmp_oid_compare(current, 2, target,
 						       target_len)) < 0)
@@ -2237,7 +2241,7 @@ vrrp_snmp_group_trackedinterface(struct variable *vp, oid *name, size_t *length,
 	oid *target, current[2], best[2];
 	int result;
 	size_t target_len;
-	unsigned curinstance;
+	unsigned curinstance, curif;
 	element e1, e2;
 	vrrp_sgroup_t *sgroup;
 	tracked_if_t *ifp, *bifp = NULL;
@@ -2269,12 +2273,14 @@ vrrp_snmp_group_trackedinterface(struct variable *vp, oid *name, size_t *length,
 			break; /* Optimization: cannot be the lower anymore */
 		if (LIST_ISEMPTY(sgroup->track_ifp))
 			continue;
+		curif = 0;
 		for (e2 = LIST_HEAD(sgroup->track_ifp); e2; ELEMENT_NEXT(e2)) {
 			ifp = ELEMENT_DATA(e2);
+			curif++;
 
 			/* We build our current match */
 			current[0] = curinstance;
-			current[1] = ifp->ifp->ifindex;
+			current[1] = curif;
 			/* And compare it to our target match */
 			if ((result = snmp_oid_compare(current, 2, target,
 						       target_len)) < 0)
