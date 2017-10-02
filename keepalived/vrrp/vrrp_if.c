@@ -456,6 +456,9 @@ dump_if(void *data)
 		if (ifp->garp_delay->aggregation_group)
 			log_message(LOG_INFO, " Gratuitous ARP aggregation group %d", ifp->garp_delay->aggregation_group);
 	}
+	log_message(LOG_INFO, " Tracking VRRP = %d", !LIST_ISEMPTY(ifp->tracking_vrrp) ? LIST_SIZE(ifp->tracking_vrrp) : 0);
+	if (!LIST_ISEMPTY(ifp->tracking_vrrp))
+		dump_list(ifp->tracking_vrrp);
 }
 
 static void

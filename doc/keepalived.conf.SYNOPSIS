@@ -345,20 +345,22 @@ from the initial priority in case of <fall> failures.
 
 vrrp_track_file <STRING> {     # VRRP track file declaration
     file <QUOTED_STRING>       # file to monitor
+    weight <-254..-1,1..253>
 }
 
 The file will be read whenever it is modified. The value in the file
-will be recorded for all VRRP instances which monitor it.
-Note that the file will only be read if at least one VRRP instance
-monitors it.
+will be recorded for all VRRP instances and sync groups which monitor it.
+Note that the file will only be read if at least one VRRP instance or
+sync group monitors it.
 
-The weight will be read from the file. If the weight is less than -253 any VRRP
-instance monitoring the script will transition to the fault state.
+The weight will be read from the file and multiplied by the weight configured
+in the track_file statement. If the resulting weight is less than -253 any VRRP
+instance or sync group monitoring the script will transition to the fault state.
 
-If the vrrp instance is not the address owner and the weight is between -253 and 253,
-the value will be added to the initial priority of the VRRP instance (a negative value
-will reduce the priority), although the effective priority will be limited to the
-range [1,254].
+If the vrrp instance or sync group is not the address owner and the weight is between
+-253 and 253, the value will be added to the initial priority of the VRRP instance
+(a negative value will reduce the priority), although the effective priority will
+be limited to the range [1,254].
 
 	2.3. VRRP synchronization group
 
@@ -372,7 +374,24 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
     }
     global_tracking		# allow sync groups to use weights. In order for this
 				# to work, all members of the sync group must track
-				# exactly the same interfaces and scripts
+				# exactly the same files, interfaces and scripts, and
+				# with the same weights.
+    track_interface {		# Interfaces state we monitor
+      <STRING>
+      <STRING>
+      <STRING> weight <INTEGER:-254..254>
+      ...
+    }
+    track_script {		# Scripts state we monitor
+      <STRING>
+      <STRING> weight <INTEGER:-254..254>
+      ...
+    }
+    track_file {		# Files state we monitor
+      <STRING>
+      <STRING> weight <INTEGER: -254..-1,1..253>
+      ...
+    }
 
 				# The username and groupname specify the user and group
 				# under which the scripts should be run. If username is
@@ -389,6 +408,10 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
 				# Script to run during ANY state transit (1)
     smtp_alert			# Send email notification during state transit
 }
+
+    Synchronization group tracking scripts and files will update
+    the status/priority of all VRRP instances which are members of
+    the sync group.
 
 (1) The "notify" script is called AFTER the corresponding notify_* script has
     been called, and is given exactly 4 arguments (the whole string is interpreted
@@ -407,8 +430,9 @@ Important: for a SYNC group to run reliably, it is vital that all instances in
 	   the group are MASTER or that they are all either BACKUP or FAULT. A
 	   situation with half instances having higher priority on machine A
 	   half others with higher priority on machine B will lead to constant
-	   re-elections. For this reason, when instances are grouped, their
-	   tracking weights are automatically set to zero, in order to avoid
+	   re-elections. For this reason, when instances are grouped, any
+	   track scripts/files configured against member VRRP instances will have
+	   their tracking weights automatically set to zero, in order to avoid
 	   inconsistent priorities across instances.
 
 	2.4. VRRP gratuitous ARP/NA intervals
@@ -479,6 +503,7 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     track_file {			# Files state we monitor
       <STRING>
       <STRING>
+      <STRING> weight <INTEGER: -254..-1,1..253>
       ...
     }
     dont_track_primary                  # (default unset) ignore VRRP interface faults.

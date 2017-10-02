@@ -1913,18 +1913,20 @@ vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	return false;
 }
 
-static void free_tracking_vrrp(void *data)
-{
-	FREE(data);
-}
-
-static void free_tracking_ifp(void *data)
+static void
+free_tracking_vrrp(void *data)
 {
 	FREE(data);
 }
 
 static void
-add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight)
+free_tracking_ifp(void *data)
+{
+	FREE(data);
+}
+
+static void
+add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr)
 {
 	tracking_vrrp_t *tvp;
 	tracking_vrrp_t *etvp;
@@ -1932,9 +1934,9 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight)
 	char addr_str[INET6_ADDRSTRLEN];
 
 	if (!LIST_EXISTS(ifp->tracking_vrrp)) {
-		ifp->tracking_vrrp = alloc_list(free_tracking_vrrp, NULL);
+		ifp->tracking_vrrp = alloc_list(free_tracking_vrrp, dump_tracking_vrrp);
 
-		if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+		if (log_addr && __test_bit(LOG_DETAIL_BIT, &debug)) {
 			if (ifp->sin_addr.s_addr) {
 				inet_ntop(AF_INET, &ifp->sin_addr, addr_str, sizeof(addr_str));
 				log_message(LOG_INFO, "Assigned address %s for interface %s"
@@ -1948,7 +1950,7 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight)
 		}
 	}
 	else {
-		/* Check if this is alread in the list, and adjust the weight appropriately */
+		/* Check if this is already in the list, and adjust the weight appropriately */
 		for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
 			etvp = ELEMENT_DATA(e);
 			if (etvp->vrrp == vrrp) {
@@ -2249,6 +2251,32 @@ shutdown_vrrp_instances(void)
 				       true, false);
 #endif
 	}
+}
+
+static void
+add_vrrp_to_track_script(vrrp_t *vrrp, tracked_sc_t *sc)
+{
+	tracking_vrrp_t *tvp = MALLOC(sizeof(tracking_vrrp_t));
+
+	if (!LIST_EXISTS(sc->scr->tracking_vrrp))
+		sc->scr->tracking_vrrp = alloc_list(free_tracking_vrrp, dump_tracking_vrrp);
+
+	tvp->vrrp = vrrp;
+	tvp->weight = sc->weight;
+	list_add(sc->scr->tracking_vrrp, tvp);
+}
+
+static void
+add_vrrp_to_track_file(vrrp_t *vrrp, tracked_file_t *tfl)
+{
+	tracking_vrrp_t *tvp = MALLOC(sizeof(tracking_vrrp_t));
+
+	if (!LIST_EXISTS(tfl->file->tracking_vrrp))
+		tfl->file->tracking_vrrp = alloc_list(free_tracking_vrrp, dump_tracking_vrrp);
+
+	tvp->vrrp = vrrp;
+	tvp->weight = tfl->weight;
+	list_add(tfl->file->tracking_vrrp, tvp);
 }
 
 /* complete vrrp structure */
@@ -2635,16 +2663,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Now add us to the interfaces we are tracking */
 	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-		element e2;
 		tracked_if_t *tip;
-		for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
-			tip = ELEMENT_DATA(e2);
-			add_vrrp_to_interface(vrrp, tip->ifp, tip->weight);
+		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e)) {
+			tip = ELEMENT_DATA(e);
+			add_vrrp_to_interface(vrrp, tip->ifp, tip->weight, true);
 		}
 	}
 
 	/* Add this instance to the physical interface and vice versa */
-	add_vrrp_to_interface(vrrp, IF_BASE_IFP(vrrp->ifp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0);
+	add_vrrp_to_interface(vrrp, IF_BASE_IFP(vrrp->ifp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true);
 	if (!vrrp->dont_track_primary)
 		add_interface_to_vrrp(vrrp, IF_BASE_IFP(vrrp->ifp));
 
@@ -2675,7 +2702,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			netlink_link_add_vmac(vrrp);
 
 		/* Add this instance to the vmac interface */
-		add_vrrp_to_interface(vrrp, vrrp->ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0);
+		add_vrrp_to_interface(vrrp, vrrp->ifp, vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true);
 		if (!vrrp->dont_track_primary)
 			add_interface_to_vrrp(vrrp, vrrp->ifp);
 	}
@@ -2720,17 +2747,15 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		 * are all running with the same tracking conf.
 		 */
 // TODO - We also want to ensure if global_tracking on a group, then it really is all the same
-// TODO - Can it be merged into 1 list held against the sync group ?
 
 		if (vrrp->sync && !vrrp->sync->global_tracking) {
-			element e2, next;
 			tracked_sc_t *sc;
 			tracked_if_t *tip;
 
 			/* Set weight to 0 of any interface we are tracking */
 			if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-				for (e2 = LIST_HEAD(vrrp->track_ifp); e2; ELEMENT_NEXT(e2)) {
-					tip = ELEMENT_DATA(e2);
+				for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e)) {
+					tip = ELEMENT_DATA(e);
 					if (tip->weight) {
 						tip->weight = 0;
 						log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring weight of "
@@ -2740,13 +2765,13 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			}
 
 			if (!LIST_ISEMPTY(vrrp->track_script)) {
-				for (e2 = LIST_HEAD(vrrp->track_script); e2; e2 = next) {
-					next = e2->next;
-					sc = ELEMENT_DATA(e2);
+				for (e = LIST_HEAD(vrrp->track_script); e; e = next) {
+					next = e->next;
+					sc = ELEMENT_DATA(e);
 					if (sc->weight) {
 						log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring "
 								 "tracked script %s with weights due to SYNC group", vrrp->iname, sc->scr->sname);
-						free_list_element(vrrp->track_script, e2);
+						free_list_element(vrrp->track_script, e);
 					}
 				}
 				if (LIST_ISEMPTY(vrrp->track_script))
@@ -2759,14 +2784,11 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	/* Add us to the vrrp list of the script, and update
 	 * effective_priority and num_script_if_fault */
 	if (!LIST_ISEMPTY(vrrp->track_script)) {
-		element e2, next;
 		tracked_sc_t *sc;
 		vrrp_script_t *vsc;
 
-		for (e2 = LIST_HEAD(vrrp->track_script); e2; e2 = next) {
-			next = e2->next;
-
-			sc = ELEMENT_DATA(e2);
+		for (e = LIST_HEAD(vrrp->track_script); e; ELEMENT_NEXT(e)) {
+			sc = ELEMENT_DATA(e);
 			vsc = sc->scr;
 
 			if (vsc->insecure) {
@@ -2780,10 +2802,19 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				continue;
 			}
 
-			if (!LIST_EXISTS(vsc->vrrp))
-				vsc->vrrp = alloc_list(NULL, dump_vscript_vrrp);
+			add_vrrp_to_track_script(vrrp, sc);
+		}
+	}
 
-			list_add(vsc->vrrp, vrrp);
+
+	/* Add our track files to the tracking file tracking_vrrp list */
+	if (!LIST_ISEMPTY(vrrp->track_file)) {
+		tracked_file_t *tfl;
+
+		for (e = LIST_HEAD(vrrp->track_file); e; ELEMENT_NEXT(e)) {
+			tfl = ELEMENT_DATA(e);
+
+			add_vrrp_to_track_file(vrrp, tfl);
 		}
 	}
 
@@ -2805,6 +2836,78 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	kernel_netlink_poll();
 
 	return true;
+}
+
+static void
+sync_group_tracking_init(void)
+{
+	element e, e1, e2;
+	vrrp_sgroup_t *sgroup;
+	tracked_sc_t *sc;
+	vrrp_script_t *vsc;
+	tracked_if_t *tif;
+	tracked_file_t *tfl;
+	vrrp_t *vrrp;
+
+	if (LIST_ISEMPTY(vrrp_data->vrrp_sync_group))
+		return;
+
+	/* Add sync group members to the vrrp list of the script, file, i/f,
+	 * and update effective_priority and num_script_if_fault */
+	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
+		sgroup = ELEMENT_DATA(e);
+
+		if (LIST_ISEMPTY(sgroup->index_list))
+			continue;
+
+		if (!LIST_ISEMPTY(sgroup->track_script)) {
+			for (e1 = LIST_HEAD(sgroup->track_script); e1; ELEMENT_NEXT(e1)) {
+				sc = ELEMENT_DATA(e1);
+				vsc = sc->scr;
+
+				if (vsc->insecure)
+					continue;
+
+				for (e2 = LIST_HEAD(sgroup->index_list); e2; ELEMENT_NEXT(e2)) {
+					vrrp = ELEMENT_DATA(e2);
+// TODO
+					if (vrrp->base_priority == VRRP_PRIO_OWNER && sc->weight) {
+						log_message(LOG_INFO, "(%s): Cannot have weighted track script '%s' with priority %d", vrrp->iname, vsc->sname, VRRP_PRIO_OWNER);
+//						list_del(vrrp->track_script, sc);
+						continue;
+					}
+
+					add_vrrp_to_track_script(vrrp, sc);
+				}
+			}
+		}
+
+		/* tracked files */
+		if (!LIST_ISEMPTY(sgroup->track_file)) {
+			for (e1 = LIST_HEAD(sgroup->track_file); e1; ELEMENT_NEXT(e1)) {
+				tfl = ELEMENT_DATA(e1);
+
+				for (e2 = LIST_HEAD(sgroup->index_list); e2; ELEMENT_NEXT(e2)) {
+					vrrp = ELEMENT_DATA(e2);
+
+					add_vrrp_to_track_file(vrrp, tfl);
+				}
+			}
+		}
+
+		/* tracked interfaces */
+		if (!LIST_ISEMPTY(sgroup->track_ifp)) {
+			for (e1 = LIST_HEAD(sgroup->track_ifp); e1; ELEMENT_NEXT(e1)) {
+				tif = ELEMENT_DATA(e1);
+
+				for (e2 = LIST_HEAD(sgroup->index_list); e2; ELEMENT_NEXT(e2)) {
+					vrrp = ELEMENT_DATA(e2);
+
+					add_vrrp_to_interface(vrrp, tif->ifp, tif->weight, false);
+				}
+			}
+		}
+	}
 }
 
 bool
@@ -2906,6 +3009,10 @@ vrrp_complete_init(void)
 		if (vrrp->ifp->mtu > max_mtu_len)
 			max_mtu_len = vrrp->ifp->mtu;
 	}
+
+	/* Add pointers from sync group tracked scripts, file and interfaces
+	 * to members of the sync groups */
+	sync_group_tracking_init();
 
 	/* If we have a global garp_delay add it to any interfaces without a garp_delay */
 	if (global_data->vrrp_garp_interval || global_data->vrrp_gna_interval)
@@ -3013,7 +3120,7 @@ vrrp_complete_init(void)
 		for (e = LIST_HEAD(vrrp_data->vrrp_script); e; e = next) {
 			next = e->next;
 			vrrp_script_t *scr = ELEMENT_DATA(e);
-			if (LIST_ISEMPTY(scr->vrrp)) {
+			if (LIST_ISEMPTY(scr->tracking_vrrp)) {
 				log_message(LOG_INFO, "Warning - script %s is not used", scr->sname);
 				free_list_element(vrrp_data->vrrp_script, e);
 			}

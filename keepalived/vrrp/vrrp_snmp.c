@@ -121,6 +121,7 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_FILE_NAME,
 	VRRP_SNMP_FILE_PATH,
 	VRRP_SNMP_FILE_RESULT,
+	VRRP_SNMP_FILE_WEIGHT,
 	VRRP_SNMP_ADDRESS_ADDRESSTYPE,
 	VRRP_SNMP_ADDRESS_VALUE,
 	VRRP_SNMP_ADDRESS_BROADCAST,
@@ -174,6 +175,13 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_TRACKEDSCRIPT_NAME,
 	VRRP_SNMP_TRACKEDSCRIPT_WEIGHT,
 	VRRP_SNMP_TRACKEDFILE_NAME,
+	VRRP_SNMP_TRACKEDFILE_WEIGHT,
+	VRRP_SNMP_SGROUPTRACKEDINTERFACE_NAME,
+	VRRP_SNMP_SGROUPTRACKEDINTERFACE_WEIGHT,
+	VRRP_SNMP_SGROUPTRACKEDSCRIPT_NAME,
+	VRRP_SNMP_SGROUPTRACKEDSCRIPT_WEIGHT,
+	VRRP_SNMP_SGROUPTRACKEDFILE_NAME,
+	VRRP_SNMP_SGROUPTRACKEDFILE_WEIGHT,
 };
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -520,9 +528,9 @@ static u_char*
 vrrp_snmp_file(struct variable *vp, oid *name, size_t *length,
 		 int exact, size_t *var_len, WriteMethod **write_method)
 {
-	tracked_file_t *file;
+	vrrp_tracked_file_t *file;
 
-	if ((file = (tracked_file_t *)snmp_header_list_table(vp, name, length, exact,
+	if ((file = (vrrp_tracked_file_t *)snmp_header_list_table(vp, name, length, exact,
 							   var_len, write_method,
 							   vrrp_data->vrrp_track_files)) == NULL)
 		return NULL;
@@ -536,6 +544,9 @@ vrrp_snmp_file(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)file->file_path;
 	case VRRP_SNMP_FILE_RESULT:
 		long_ret.s = file->last_status;
+		return (u_char *)&long_ret;
+	case VRRP_SNMP_FILE_WEIGHT:
+		long_ret.s = file->weight;
 		return (u_char *)&long_ret;
 	default:
 		break;
@@ -2139,7 +2150,7 @@ vrrp_snmp_trackedfile(struct variable *vp, oid *name, size_t *length,
 	unsigned curinstance, curfile;
 	element e1, e2;
 	vrrp_t *instance;
-	vrrp_tracked_file_t *file, *bfile = NULL;
+	tracked_file_t *file, *bfile = NULL;
 
 	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
 		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
@@ -2207,9 +2218,276 @@ vrrp_snmp_trackedfile(struct variable *vp, oid *name, size_t *length,
 	memcpy(target, best, sizeof(oid) * 2);
 	*length = (unsigned)vp->namelen + 2;
  trackedfile_found:
-	if (vp->magic == VRRP_SNMP_TRACKEDFILE_NAME) {
+	switch(vp->magic) {
+	case VRRP_SNMP_TRACKEDFILE_NAME:
 		*var_len = strlen(bfile->file->fname);
 		return (u_char *)bfile->file->fname;
+	case VRRP_SNMP_TRACKEDFILE_WEIGHT:
+		long_ret.s = bfile->file->weight;
+		return (u_char *)&long_ret;
+	}
+
+	return NULL;
+}
+
+static u_char*
+vrrp_snmp_group_trackedinterface(struct variable *vp, oid *name, size_t *length,
+			   int exact, size_t *var_len, WriteMethod **write_method)
+{
+	oid *target, current[2], best[2];
+	int result;
+	size_t target_len;
+	unsigned curinstance;
+	element e1, e2;
+	vrrp_sgroup_t *sgroup;
+	tracked_if_t *ifp, *bifp = NULL;
+
+	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
+		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
+		*length = vp->namelen;
+	}
+
+	*write_method = 0;
+	*var_len = sizeof(long);
+
+	if (LIST_ISEMPTY(vrrp_data->vrrp_sync_group))
+		return NULL;
+
+	/* We search the best match: equal if exact, the lower OID in
+	   the set of the OID strictly superior to the target
+	   otherwise. */
+	best[0] = best[1] = MAX_SUBID; /* Our best match */
+	target = &name[vp->namelen];   /* Our target match */
+	target_len = *length - vp->namelen;
+	curinstance = 0;
+	for (e1 = LIST_HEAD(vrrp_data->vrrp_sync_group); e1; ELEMENT_NEXT(e1)) {
+		sgroup = ELEMENT_DATA(e1);
+		curinstance++;
+		if (target_len && (curinstance < target[0]))
+			continue; /* Optimization: cannot be part of our set */
+		if (target_len && bifp && (curinstance > target[0] + 1))
+			break; /* Optimization: cannot be the lower anymore */
+		if (LIST_ISEMPTY(sgroup->track_ifp))
+			continue;
+		for (e2 = LIST_HEAD(sgroup->track_ifp); e2; ELEMENT_NEXT(e2)) {
+			ifp = ELEMENT_DATA(e2);
+
+			/* We build our current match */
+			current[0] = curinstance;
+			current[1] = ifp->ifp->ifindex;
+			/* And compare it to our target match */
+			if ((result = snmp_oid_compare(current, 2, target,
+						       target_len)) < 0)
+				continue;
+			if ((result == 0) && !exact)
+				continue;
+			if (result == 0) {
+				/* Got an exact match and asked for it */
+				bifp = ifp;
+				goto group_trackedinterface_found;
+			}
+			if (snmp_oid_compare(current, 2, best, 2) < 0) {
+				/* This is our best match */
+				memcpy(best, current, sizeof(oid) * 2);
+				bifp = ifp;
+			}
+		}
+	}
+	if (bifp == NULL)
+		/* No best match */
+		return NULL;
+	if (exact)
+		/* No exact match */
+		return NULL;
+	/* Let's use our best match */
+	memcpy(target, best, sizeof(oid) * 2);
+	*length = (unsigned)vp->namelen + 2;
+ group_trackedinterface_found:
+	switch (vp->magic) {
+	case VRRP_SNMP_SGROUPTRACKEDINTERFACE_NAME:
+		*var_len = strlen(bifp->ifp->ifname);
+		return (u_char *)bifp->ifp->ifname;
+	case VRRP_SNMP_SGROUPTRACKEDINTERFACE_WEIGHT:
+		long_ret.s = bifp->weight;
+		return (u_char *)&long_ret;
+	}
+	return NULL;
+}
+
+static u_char*
+vrrp_snmp_group_trackedscript(struct variable *vp, oid *name, size_t *length,
+			int exact, size_t *var_len, WriteMethod **write_method)
+{
+	oid *target, current[2], best[2];
+	int result;
+	size_t target_len;
+	unsigned curinstance, curscr;
+	element e1, e2;
+	vrrp_sgroup_t *sgroup;
+	tracked_sc_t *scr, *bscr = NULL;
+
+	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
+		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
+		*length = vp->namelen;
+	}
+
+	*write_method = 0;
+	*var_len = sizeof(long);
+
+	if (LIST_ISEMPTY(vrrp_data->vrrp_sync_group))
+		return NULL;
+
+	/* We search the best match: equal if exact, the lower OID in
+	   the set of the OID strictly superior to the target
+	   otherwise. */
+	best[0] = best[1] = MAX_SUBID; /* Our best match */
+	target = &name[vp->namelen];   /* Our target match */
+	target_len = *length - vp->namelen;
+	curinstance = 0;
+	for (e1 = LIST_HEAD(vrrp_data->vrrp_sync_group); e1; ELEMENT_NEXT(e1)) {
+		sgroup = ELEMENT_DATA(e1);
+		curinstance++;
+		if (target_len && (curinstance < target[0]))
+			continue; /* Optimization: cannot be part of our set */
+		if (bscr)
+			break; /* Optimization, see below */
+		if (LIST_ISEMPTY(sgroup->track_script))
+			continue;
+		curscr = 0;
+		for (e2 = LIST_HEAD(sgroup->track_script); e2; ELEMENT_NEXT(e2)) {
+			scr = ELEMENT_DATA(e2);
+			curscr++;
+			/* We build our current match */
+			current[0] = curinstance;
+			current[1] = curscr;
+			/* And compare it to our target match */
+			if ((result = snmp_oid_compare(current, 2, target,
+						       target_len)) < 0)
+				continue;
+			if ((result == 0) && !exact)
+				continue;
+			if (result == 0) {
+				/* Got an exact match and asked for it */
+				bscr = scr;
+				goto group_trackedscript_found;
+			}
+			if (snmp_oid_compare(current, 2, best, 2) < 0) {
+				/* This is our best match */
+				memcpy(best, current, sizeof(oid) * 2);
+				bscr = scr;
+				/* (current[0],current[1]) are
+				   strictly increasing, this is our
+				   lower element of our set */
+				break;
+			}
+		}
+	}
+	if (bscr == NULL)
+		/* No best match */
+		return NULL;
+	if (exact)
+		/* No exact match */
+		return NULL;
+	/* Let's use our best match */
+	memcpy(target, best, sizeof(oid) * 2);
+	*length = (unsigned)vp->namelen + 2;
+ group_trackedscript_found:
+	switch (vp->magic) {
+	case VRRP_SNMP_SGROUPTRACKEDSCRIPT_NAME:
+		*var_len = strlen(bscr->scr->sname);
+		return (u_char *)bscr->scr->sname;
+	case VRRP_SNMP_SGROUPTRACKEDSCRIPT_WEIGHT:
+		long_ret.s = bscr->weight;
+		return (u_char *)&long_ret;
+	}
+	return NULL;
+}
+
+static u_char*
+vrrp_snmp_group_trackedfile(struct variable *vp, oid *name, size_t *length,
+			int exact, size_t *var_len, WriteMethod **write_method)
+{
+	oid *target, current[2], best[2];
+	int result;
+	size_t target_len;
+	unsigned curinstance, curfile;
+	element e1, e2;
+	vrrp_sgroup_t *sgroup;
+	tracked_file_t *file, *bfile = NULL;
+
+	if ((result = snmp_oid_compare(name, *length, vp->name, vp->namelen)) < 0) {
+		memcpy(name, vp->name, sizeof(oid) * vp->namelen);
+		*length = vp->namelen;
+	}
+
+	*write_method = 0;
+	*var_len = sizeof(long);
+
+	if (LIST_ISEMPTY(vrrp_data->vrrp_sync_group))
+		return NULL;
+
+	/* We search the best match: equal if exact, the lower OID in
+	   the set of the OID strictly superior to the target
+	   otherwise. */
+	best[0] = best[1] = MAX_SUBID; /* Our best match */
+	target = &name[vp->namelen];   /* Our target match */
+	target_len = *length - vp->namelen;
+	curinstance = 0;
+	for (e1 = LIST_HEAD(vrrp_data->vrrp_sync_group); e1; ELEMENT_NEXT(e1)) {
+		sgroup = ELEMENT_DATA(e1);
+		curinstance++;
+		if (target_len && (curinstance < target[0]))
+			continue; /* Optimization: cannot be part of our set */
+		if (bfile)
+			break; /* Optimization, see below */
+		if (LIST_ISEMPTY(sgroup->track_file))
+			continue;
+		curfile = 0;
+		for (e2 = LIST_HEAD(sgroup->track_file); e2; ELEMENT_NEXT(e2)) {
+			file = ELEMENT_DATA(e2);
+			curfile++;
+			/* We build our current match */
+			current[0] = curinstance;
+			current[1] = curfile;
+			/* And compare it to our target match */
+			if ((result = snmp_oid_compare(current, 2, target,
+						       target_len)) < 0)
+				continue;
+			if ((result == 0) && !exact)
+				continue;
+			if (result == 0) {
+				/* Got an exact match and asked for it */
+				bfile = file;
+				goto group_trackedfile_found;
+			}
+			if (snmp_oid_compare(current, 2, best, 2) < 0) {
+				/* This is our best match */
+				memcpy(best, current, sizeof(oid) * 2);
+				bfile = file;
+				/* (current[0],current[1]) are
+				   strictly increasing, this is our
+				   lower element of our set */
+				break;
+			}
+		}
+	}
+	if (bfile == NULL)
+		/* No best match */
+		return NULL;
+	if (exact)
+		/* No exact match */
+		return NULL;
+	/* Let's use our best match */
+	memcpy(target, best, sizeof(oid) * 2);
+	*length = (unsigned)vp->namelen + 2;
+ group_trackedfile_found:
+	switch(vp->magic) {
+	case VRRP_SNMP_SGROUPTRACKEDFILE_NAME:
+		*var_len = strlen(bfile->file->fname);
+		return (u_char *)bfile->file->fname;
+	case VRRP_SNMP_SGROUPTRACKEDFILE_WEIGHT:
+		long_ret.s = bfile->file->weight;
+		return (u_char *)&long_ret;
 	}
 
 	return NULL;
@@ -2234,9 +2512,11 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_syncgroup, 3, {1, 1, 8}},
 	{VRRP_SNMP_SYNCGROUP_SCRIPT, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_syncgroup, 3, {1, 1, 9}},
+
 	/* vrrpSyncGroupMemberTable */
 	{VRRP_SNMP_SYNCGROUPMEMBER_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_syncgroupmember, 3, {2, 1, 2}},
+
 	/* vrrpInstanceTable */
 	{VRRP_SNMP_INSTANCE_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_instance, 3, {3, 1, 2}},
@@ -2294,16 +2574,19 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_instance, 3, {3, 1, 28} },
 	{VRRP_SNMP_INSTANCE_USE_LINKBEAT, ASN_INTEGER, RWRITE,
 	 vrrp_snmp_instance, 3, {3, 1, 29} },
+
 	/* vrrpTrackedInterfaceTable */
 	{VRRP_SNMP_TRACKEDINTERFACE_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_trackedinterface, 3, {4, 1, 1}},
 	{VRRP_SNMP_TRACKEDINTERFACE_WEIGHT, ASN_INTEGER, RONLY,
 	 vrrp_snmp_trackedinterface, 3, {4, 1, 2}},
+
 	/* vrrpTrackedScriptTable */
 	{VRRP_SNMP_TRACKEDSCRIPT_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_trackedscript, 3, {5, 1, 2}},
 	{VRRP_SNMP_TRACKEDSCRIPT_WEIGHT, ASN_INTEGER, RONLY,
 	 vrrp_snmp_trackedscript, 3, {5, 1, 3}},
+
 	/* vrrpAddressTable */
 	{VRRP_SNMP_ADDRESS_ADDRESSTYPE, ASN_INTEGER, RONLY,
 	 vrrp_snmp_address, 3, {6, 1, 2}},
@@ -2562,11 +2845,33 @@ static struct variable8 vrrp_vars[] = {
 	/* vrrpTrackedFileTable */
 	{VRRP_SNMP_TRACKEDFILE_NAME, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_trackedfile, 3, {12, 1, 2}},
+	{VRRP_SNMP_TRACKEDFILE_WEIGHT, ASN_INTEGER, RONLY,
+	 vrrp_snmp_trackedfile, 3, {12, 1, 3}},
 
 	/* vrrpFileTable */
 	{VRRP_SNMP_FILE_NAME, ASN_OCTET_STR, RONLY, vrrp_snmp_file, 3, {13, 1, 2}},
 	{VRRP_SNMP_FILE_PATH, ASN_OCTET_STR, RONLY, vrrp_snmp_file, 3, {13, 1, 3}},
 	{VRRP_SNMP_FILE_RESULT, ASN_INTEGER, RONLY, vrrp_snmp_file, 3, {13, 1, 4}},
+	{VRRP_SNMP_FILE_WEIGHT, ASN_INTEGER, RONLY, vrrp_snmp_file, 3, {13, 1, 5}},
+
+	/* syncGroupTrackedInterfaceTable */
+	{VRRP_SNMP_SGROUPTRACKEDINTERFACE_NAME, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_group_trackedinterface, 3, {14, 1, 1}},
+	{VRRP_SNMP_SGROUPTRACKEDINTERFACE_WEIGHT, ASN_INTEGER, RONLY,
+	 vrrp_snmp_group_trackedinterface, 3, {14, 1, 2}},
+
+	/* syncGroupTrackedScriptTable */
+	{VRRP_SNMP_SGROUPTRACKEDSCRIPT_NAME, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_group_trackedscript, 3, {15, 1, 2}},
+	{VRRP_SNMP_SGROUPTRACKEDSCRIPT_WEIGHT, ASN_INTEGER, RONLY,
+	 vrrp_snmp_group_trackedscript, 3, {15, 1, 3}},
+
+	/* syncGroupTrackedFileTable */
+	{VRRP_SNMP_SGROUPTRACKEDFILE_NAME, ASN_OCTET_STR, RONLY,
+	 vrrp_snmp_group_trackedfile, 3, {16, 1, 2}},
+	{VRRP_SNMP_SGROUPTRACKEDFILE_WEIGHT, ASN_INTEGER, RONLY,
+	 vrrp_snmp_group_trackedfile, 3, {16, 1, 3}},
+
 };
 
 void

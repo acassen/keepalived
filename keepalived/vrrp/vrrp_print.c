@@ -51,14 +51,6 @@ vrrp_print_list(FILE *file, list l, void (*fptr)(FILE*, void*))
 }
 
 static void
-vrrp_name_print(FILE *file, void *data)
-{
-	vrrp_t *vrrp = data;
-
-	fprintf(file, "     %s\n", vrrp->iname);
-}
-
-static void
 vrrp_track_print(FILE *file, void *data)
 {
 	tracking_vrrp_t *tvp = data;
@@ -86,6 +78,31 @@ print_script(FILE *file, const notify_script_t *script, const char *type)
 }
 
 static void
+if_name_print(FILE *file, void *data)
+{
+	tracked_if_t *tip = data;
+
+	fprintf(file, "     %s, weight %d\n", tip->ifp->ifname, tip->weight);
+}
+
+static void
+vscript_name_print(FILE *file, void *data)
+{
+	tracked_sc_t *tsc = data;
+
+	fprintf(file, "     %s, weight %d\n", tsc->scr->sname, tsc->weight);
+}
+
+static void
+vfile_name_print(FILE *file, void *data)
+{
+	tracked_file_t *tfl = data;
+
+fprintf(file, "vfile_name_print %p, file %p, tfile->file->fname %p\n", tfl, tfl->file, tfl->file->fname); fflush(file);
+	fprintf(file, "     %s, weight %d\n", tfl->file->fname, tfl->weight);
+}
+
+static void
 vgroup_print(FILE *file, void *data)
 {
 	element e;
@@ -93,15 +110,28 @@ vgroup_print(FILE *file, void *data)
 	vrrp_sgroup_t *vgroup = data;
 	fprintf(file, " VRRP Sync Group = %s, %s\n", vgroup->gname, get_state_str(vgroup->state));
 	if (vgroup->index_list) {
+		fprintf(file, "   VRRP member instances = %d\n", LIST_SIZE(vgroup->index_list));
 		for (e = LIST_HEAD(vgroup->index_list); e; ELEMENT_NEXT(e)) {
 			vrrp_t *vrrp = ELEMENT_DATA(e);
-			fprintf(file, "   monitor = %s\n", vrrp->iname);
+			fprintf(file, "     %s\n", vrrp->iname);
 		}
 	}
 	fprintf(file, "   member instances down = %d\n", vgroup->num_member_fault);
 	fprintf(file, "   member instances init = %d\n", vgroup->num_member_init);
 	if (vgroup->global_tracking)
 		fprintf(file, "   global tracking set\n");
+	if (!LIST_ISEMPTY(vgroup->track_ifp)) {
+		fprintf(file, "   Tracked interfaces = %d\n", LIST_SIZE(vgroup->track_ifp));
+		vrrp_print_list(file, vgroup->track_ifp, &if_name_print);
+	}
+	if (!LIST_ISEMPTY(vgroup->track_script)) {
+		fprintf(file, "   Tracked scripts = %d\n", LIST_SIZE(vgroup->track_script));
+		vrrp_print_list(file, vgroup->track_script, &vscript_name_print);
+	}
+	if (!LIST_ISEMPTY(vgroup->track_file)) {
+		fprintf(file, "   Tracked files = %d\n", LIST_SIZE(vgroup->track_file));
+		vrrp_print_list(file, vgroup->track_file, &vfile_name_print);
+	}
 	if (vgroup->script_backup)
 		print_script(file, vgroup->script_backup, "Backup");
 	if (vgroup->script_master)
@@ -113,14 +143,6 @@ vgroup_print(FILE *file, void *data)
 	if (vgroup->smtp_alert)
 		fprintf(file, "   Using smtp notification\n");
 
-}
-
-static void
-vscript_name_print(FILE *file, void *data)
-{
-	tracked_sc_t *tsc = data;
-
-	fprintf(file, "     %s, weight %d\n", tsc->scr->sname, tsc->weight);
 }
 
 static void
@@ -138,7 +160,6 @@ vscript_print(FILE *file, void *data)
 	fprintf(file, "   Rise = %d\n", vscript->rise);
 	fprintf(file, "   Fall = %d\n", vscript->fall);
 	fprintf(file, "   Last exit status = %d\n", vscript->last_status);
-	fprintf(file, "   Use count = %d\n", (vscript->vrrp) ? LIST_SIZE(vscript->vrrp) : 0);
 	fprintf(file, "   Insecure = %s\n", vscript->insecure ? "yes" : "no");
 	fprintf(file, "   uid:gid = %d:%d\n", vscript->script.uid, vscript->script.gid);
 
@@ -154,27 +175,23 @@ vscript_print(FILE *file, void *data)
 	}
 	fprintf(file, "   Result = %d (%s)\n", vscript->result, str);
 
-	fprintf(file, "   Tracking VRRP:\n");
-	if (vscript->vrrp)
-		vrrp_print_list(file, vscript->vrrp, &vrrp_name_print);
-	else
-		fprintf(file, "     (none)\n");
+	fprintf(file, "   Tracking VRRP = %d\n", (vscript->tracking_vrrp) ? LIST_SIZE(vscript->tracking_vrrp) : 0);
+	if (vscript->tracking_vrrp)
+		vrrp_print_list(file, vscript->tracking_vrrp, &vrrp_track_print);
 }
 
 static void
 vfile_print(FILE *file, void *data)
 {
-	tracked_file_t *vfile = data;
+	vrrp_tracked_file_t *vfile = data;
 
 	fprintf(file, " VRRP Track file = %s\n", vfile->fname);
+	fprintf(file, "   File = %s\n", vfile->file_path);
+	fprintf(file, "   Weight = %d\n", vfile->weight);
 	fprintf(file, "   Last status = %d\n", vfile->last_status);
-	fprintf(file, "   Use count = %d\n", (vfile->vrrp) ? LIST_SIZE(vfile->vrrp) : 0);
-
-	fprintf(file, "   Tracking VRRP:\n");
-	if (vfile->vrrp)
-		vrrp_print_list(file, vfile->vrrp, &vrrp_name_print);
-	else
-		fprintf(file, "     (none)\n");
+	fprintf(file, "   Tracking VRRP = %d\n", (vfile->tracking_vrrp) ? LIST_SIZE(vfile->tracking_vrrp) : 0);
+	if (vfile->tracking_vrrp)
+		vrrp_print_list(file, vfile->tracking_vrrp, &vrrp_track_print);
 }
 
 static void
@@ -240,14 +257,6 @@ rule_print(FILE *file, void *data)
 	FREE(buf);
 }
 #endif
-
-static void
-if_name_print(FILE *file, void *data)
-{
-	tracked_if_t *tip = data;
-
-	fprintf(file, "     %s, weight %d\n", tip->ifp->ifname, tip->weight);
-}
 
 static void
 if_print(FILE *file, void *data)
@@ -403,6 +412,10 @@ vrrp_print(FILE *file, void *data)
 	if (!LIST_ISEMPTY(vrrp->track_script)) {
 		fprintf(file, "   Tracked scripts = %d\n", LIST_SIZE(vrrp->track_script));
 		vrrp_print_list(file, vrrp->track_script, &vscript_name_print);
+	}
+	if (!LIST_ISEMPTY(vrrp->track_file)) {
+		fprintf(file, "   Tracked files = %d\n", LIST_SIZE(vrrp->track_file));
+		vrrp_print_list(file, vrrp->track_file, &vfile_name_print);
 	}
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		fprintf(file, "   Virtual IP = %d\n", LIST_SIZE(vrrp->vip));

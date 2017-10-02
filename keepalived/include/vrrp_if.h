@@ -96,7 +96,7 @@ typedef struct _interface {
 	unsigned		rp_filter;		/* < UINT_MAX if we have changed the value */
 #endif
 	bool			promote_secondaries_already_set; /* Set if promote_secondaries already set on interface */
-	list			tracking_vrrp;		/* vrrp instances tracking this interface */
+	list			tracking_vrrp;		/* List of tracking_vrrp_t for vrrp instances tracking this interface */
 } interface_t;
 
 #define GARP_DELAY_PTR(X) ((X)->switch_delay ? (X)->switch_delay : &((X)->if_delay))

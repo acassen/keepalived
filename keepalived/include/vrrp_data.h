@@ -60,11 +60,14 @@ extern void alloc_srule(vector_t *);
 extern void alloc_vrrp_sync_group(char *);
 extern void alloc_vrrp(char *);
 extern void alloc_vrrp_unicast_peer(vector_t *);
-extern void alloc_vrrp_track(vector_t *);
+extern void alloc_vrrp_track_if(vector_t *);
 extern void alloc_vrrp_script(char *);
 extern void alloc_vrrp_track_script(vector_t *);
 extern void alloc_vrrp_file(char *);
 extern void alloc_vrrp_track_file(vector_t *);
+extern void alloc_vrrp_group_track_if(vector_t *);
+extern void alloc_vrrp_group_track_script(vector_t *);
+extern void alloc_vrrp_group_track_file(vector_t *);
 extern void alloc_vrrp_vip(vector_t *);
 extern void alloc_vrrp_evip(vector_t *);
 extern void alloc_vrrp_vroute(vector_t *);
@@ -73,8 +76,7 @@ extern void alloc_vrrp_buffer(size_t);
 extern void free_vrrp_buffer(void);
 extern vrrp_data_t *alloc_vrrp_data(void);
 extern void free_vrrp_data(vrrp_data_t *);
-extern void dump_vscript_vrrp(void *);
-extern void dump_vfile_vrrp(void *);
+extern void dump_tracking_vrrp(void *);
 extern void dump_vrrp_data(vrrp_data_t *);
 
 #endif

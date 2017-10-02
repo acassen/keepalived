@@ -124,6 +124,24 @@ vrrp_group_handler(vector_t *strvec)
 	vgroup->iname = read_value_block(strvec);
 }
 
+static void
+vrrp_group_track_if_handler(__attribute__((unused)) vector_t *strvec)
+{
+	alloc_value_block(alloc_vrrp_group_track_if);
+}
+
+static void
+vrrp_group_track_scr_handler(__attribute__((unused)) vector_t *strvec)
+{
+	alloc_value_block(alloc_vrrp_group_track_script);
+}
+
+static void
+vrrp_group_track_file_handler(__attribute__((unused)) vector_t *strvec)
+{
+	alloc_value_block(alloc_vrrp_group_track_file);
+}
+
 static inline notify_script_t*
 set_vrrp_notify_script(vector_t *strvec, bool with_params)
 {
@@ -321,9 +339,9 @@ vrrp_linkbeat_handler(__attribute__((unused)) vector_t *strvec)
 	vrrp->linkbeat_use_polling = true;
 }
 static void
-vrrp_track_int_handler(__attribute__((unused)) vector_t *strvec)
+vrrp_track_if_handler(__attribute__((unused)) vector_t *strvec)
 {
-	alloc_value_block(alloc_vrrp_track);
+	alloc_value_block(alloc_vrrp_track_if);
 }
 static void
 vrrp_track_scr_handler(__attribute__((unused)) vector_t *strvec)
@@ -851,7 +869,7 @@ vrrp_tfile_handler(vector_t *strvec)
 static void
 vrrp_tfile_file_handler(vector_t *strvec)
 {
-	tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
+	vrrp_tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
 	if (tfile->file_path) {
 		log_message(LOG_INFO, "File already set for track file %s - ignoring %s", tfile->fname, FMT_STR_VSLOT(strvec, 1));
 		return;
@@ -859,9 +877,33 @@ vrrp_tfile_file_handler(vector_t *strvec)
 	tfile->file_path = set_value(strvec);
 }
 static void
+vrrp_tfile_weight_handler(vector_t *strvec)
+{
+	int weight;
+	vrrp_tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "No weight specified for track file %s - ignoring", tfile->fname);
+		return;
+	}
+	if (tfile->weight != 1) {
+		log_message(LOG_INFO, "Weight already set for track file %s - ignoring %s", tfile->fname, FMT_STR_VSLOT(strvec, 1));
+		return;
+	}
+
+	weight = atoi(strvec_slot(strvec, 2));
+	if (weight < -254 || weight > 253 || !weight) {
+		log_message(LOG_INFO, "Weight for %s must be between "
+				 "[-254..-1,1..253] inclusive. Ignoring...", tfile->fname);
+		weight = 1;
+	}
+
+	tfile->weight = weight;
+}
+static void
 vrrp_tfile_end_handler(void)
 {
-	tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
+	vrrp_tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
 
 	if (!tfile->file_path) {
 		log_message(LOG_INFO, "No file set for track_file %s - removing", tfile->fname);
@@ -1016,6 +1058,9 @@ init_vrrp_keywords(bool active)
 	/* Sync group declarations */
 	install_keyword_root("vrrp_sync_group", &vrrp_sync_group_handler, active);
 	install_keyword("group", &vrrp_group_handler);
+	install_keyword("track_interface", &vrrp_group_track_if_handler);
+	install_keyword("track_script", &vrrp_group_track_scr_handler);
+	install_keyword("track_file", &vrrp_group_track_file_handler);
 	install_keyword("notify_backup", &vrrp_gnotify_backup_handler);
 	install_keyword("notify_master", &vrrp_gnotify_master_handler);
 	install_keyword("notify_fault", &vrrp_gnotify_fault_handler);
@@ -1043,7 +1088,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("state", &vrrp_state_handler);
 	install_keyword("interface", &vrrp_int_handler);
 	install_keyword("dont_track_primary", &vrrp_dont_track_handler);
-	install_keyword("track_interface", &vrrp_track_int_handler);
+	install_keyword("track_interface", &vrrp_track_if_handler);
 	install_keyword("track_script", &vrrp_track_scr_handler);
 	install_keyword("track_file", &vrrp_track_file_handler);
 	install_keyword("mcast_src_ip", &vrrp_srcip_handler);
@@ -1107,6 +1152,7 @@ init_vrrp_keywords(bool active)
 	/* Track file declarations */
 	install_keyword_root("vrrp_track_file", &vrrp_tfile_handler, active);
 	install_keyword("file", &vrrp_tfile_file_handler);
+	install_keyword("file", &vrrp_tfile_weight_handler);
 	install_sublevel_end_handler(&vrrp_tfile_end_handler);
 }
 

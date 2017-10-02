@@ -114,13 +114,26 @@ dump_vgroup(void *data)
 
 	log_message(LOG_INFO, " VRRP Sync Group = %s, %s", vgroup->gname, get_state_str(vgroup->state));
 	if (vgroup->index_list) {
+		log_message(LOG_INFO, "   VRRP member instances = %d\n", LIST_SIZE(vgroup->index_list));
 		for (e = LIST_HEAD(vgroup->index_list); e; ELEMENT_NEXT(e)) {
 			vrrp_t *vrrp = ELEMENT_DATA(e);
-			log_message(LOG_INFO, "   monitor = %s", vrrp->iname);
+			log_message(LOG_INFO, "     %s", vrrp->iname);
 		}
 	}
 	if (vgroup->global_tracking)
-		log_message(LOG_INFO, "   Same tracking for all VRRP instances");
+		log_message(LOG_INFO, "   global tracking set");
+	if (!LIST_ISEMPTY(vgroup->track_ifp)) {
+		log_message(LOG_INFO, "   Tracked interfaces = %d", LIST_SIZE(vgroup->track_ifp));
+		dump_list(vgroup->track_ifp);
+	}
+	if (!LIST_ISEMPTY(vgroup->track_script)) {
+		log_message(LOG_INFO, "   Tracked scripts = %d", LIST_SIZE(vgroup->track_script));
+		dump_list(vgroup->track_script);
+	}
+	if (!LIST_ISEMPTY(vgroup->track_file)) {
+		log_message(LOG_INFO, "   Tracked files = %d", LIST_SIZE(vgroup->track_file));
+		dump_list(vgroup->track_file);
+	}
 	dump_notify_script(vgroup->script_backup, "Backup");
 	dump_notify_script(vgroup->script_master, "Master");
 	dump_notify_script(vgroup->script_fault, "Fault");
@@ -130,10 +143,12 @@ dump_vgroup(void *data)
 }
 
 void
-dump_vscript_vrrp(void *data)
+dump_tracking_vrrp(void *data)
 {
-	vrrp_t *vrrp = (vrrp_t *)data;
-	log_message(LOG_INFO, "     %s", vrrp->iname);
+	tracking_vrrp_t *tvp = (tracking_vrrp_t *)data;
+	vrrp_t *vrrp = tvp->vrrp;
+
+	log_message(LOG_INFO, "     %s, weight %d", vrrp->iname, tvp->weight);
 }
 
 static void
@@ -141,7 +156,7 @@ free_vscript(void *data)
 {
 	vrrp_script_t *vscript = data;
 
-	free_list(&vscript->vrrp);
+	free_list(&vscript->tracking_vrrp);
 	FREE(vscript->sname);
 	FREE_PTR(vscript->script.cmd_str);
 	FREE_PTR(vscript->script.args);
@@ -174,43 +189,31 @@ dump_vscript(void *data)
 	}
 	log_message(LOG_INFO, "   Status = %s", str);
 	log_message(LOG_INFO, "   Script uid:gid = %d:%d", vscript->script.uid, vscript->script.gid);
-	log_message(LOG_INFO, "   Use count = %d", vscript->vrrp ? LIST_SIZE(vscript->vrrp) : 0);
-	log_message(LOG_INFO, "   VRRP instances:");
-	if (vscript->vrrp)
-		dump_list(vscript->vrrp);
-	else
-		log_message(LOG_INFO, "     (none)");
-}
-
-void
-dump_vfile_vrrp(void *data)
-{
-	vrrp_t *vrrp = (vrrp_t *)data;
-	log_message(LOG_INFO, "     %s", vrrp->iname);
+	log_message(LOG_INFO, "   VRRP instances = %d", vscript->tracking_vrrp ? LIST_SIZE(vscript->tracking_vrrp) : 0);
+	if (vscript->tracking_vrrp)
+		dump_list(vscript->tracking_vrrp);
 }
 
 static void
 free_vfile(void *data)
 {
-	tracked_file_t *vfile = data;
+	vrrp_tracked_file_t *vfile = data;
 
-	free_list(&vfile->vrrp);
+	free_list(&vfile->tracking_vrrp);
 	FREE(vfile->fname);
 	FREE(vfile);
 }
 static void
 dump_vfile(void *data)
 {
-	tracked_file_t *vfile = data;
+	vrrp_tracked_file_t *vfile = data;
 
 	log_message(LOG_INFO, " VRRP Track file = %s", vfile->fname);
 	log_message(LOG_INFO, "   File = %s", vfile->file_path);
-	log_message(LOG_INFO, "   Use count = %d", vfile->vrrp ? LIST_SIZE(vfile->vrrp) : 0);
-	log_message(LOG_INFO, "   VRRP instances:");
-	if (vfile->vrrp)
-		dump_list(vfile->vrrp);
-	else
-		log_message(LOG_INFO, "     (none)");
+	log_message(LOG_INFO, "   Weight = %d", vfile->weight);
+	log_message(LOG_INFO, "   Tracking VRRP = %d", vfile->tracking_vrrp ? LIST_SIZE(vfile->tracking_vrrp) : 0);
+	if (vfile->tracking_vrrp)
+		dump_list(vfile->tracking_vrrp);
 }
 
 /* Socket pool functions */
@@ -512,13 +515,13 @@ alloc_vrrp_unicast_peer(vector_t *strvec)
 }
 
 void
-alloc_vrrp_track(vector_t *strvec)
+alloc_vrrp_track_if(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	if (!LIST_EXISTS(vrrp->track_ifp))
-		vrrp->track_ifp = alloc_list(free_track, dump_track);
-	alloc_track(vrrp, strvec);
+		vrrp->track_ifp = alloc_list(free_track_if, dump_track_if);
+	alloc_track_if(vrrp, strvec);
 }
 
 void
@@ -539,6 +542,36 @@ alloc_vrrp_track_file(vector_t *strvec)
 	if (!LIST_EXISTS(vrrp->track_file))
 		vrrp->track_file = alloc_list(free_track_file, dump_track_file);
 	alloc_track_file(vrrp, strvec);
+}
+
+void
+alloc_vrrp_group_track_if(vector_t *strvec)
+{
+	vrrp_sgroup_t *sgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+
+	if (!LIST_EXISTS(sgroup->track_ifp))
+		sgroup->track_ifp = alloc_list(free_track_if, dump_track_if);
+	alloc_group_track_if(sgroup, strvec);
+}
+
+void
+alloc_vrrp_group_track_script(vector_t *strvec)
+{
+	vrrp_sgroup_t *sgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+
+	if (!LIST_EXISTS(sgroup->track_script))
+		sgroup->track_script = alloc_list(free_track_script, dump_track_script);
+	alloc_group_track_script(sgroup, strvec);
+}
+
+void
+alloc_vrrp_group_track_file(vector_t *strvec)
+{
+	vrrp_sgroup_t *sgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+
+	if (!LIST_EXISTS(sgroup->track_file))
+		sgroup->track_file = alloc_list(free_track_file, dump_track_file);
+	alloc_group_track_file(sgroup, strvec);
 }
 
 void
@@ -606,12 +639,13 @@ void
 alloc_vrrp_file(char *fname)
 {
 	size_t size = strlen(fname);
-	tracked_file_t *new;
+	vrrp_tracked_file_t *new;
 
 	/* Allocate new VRRP file structure */
-	new = (tracked_file_t *) MALLOC(sizeof(tracked_file_t));
+	new = (vrrp_tracked_file_t *) MALLOC(sizeof(vrrp_tracked_file_t));
 	new->fname = (char *) MALLOC(size + 1);
 	memcpy(new->fname, fname, size + 1);
+	new->weight = 1;
 	list_add(vrrp_data->vrrp_track_files, new);
 }
 

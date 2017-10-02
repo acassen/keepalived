@@ -66,16 +66,16 @@ typedef struct _vrrp_script {
 	int			result;		/* result of last call to this script: 0..R-1 = KO, R..R+F-1 = OK */
 	int			rise;		/* R: how many successes before OK */
 	int			fall;		/* F: how many failures before KO */
-	list			vrrp;		/* List of vrrp instances using this script */
+	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this script */
 	int			last_status;	/* Last status returned by script. Used to report changes */
-	bool			forcing_termination;	/* Set if script didn't respond and we sent it SIGTERM */
+	bool			forcing_termination; /* Set if script didn't respond and we sent it SIGTERM */
 	bool			insecure;	/* Set if script is run by root, but is non-root modifiable */
 } vrrp_script_t;
 
 /* Tracked script structure definition */
 typedef struct _tracked_sc {
-	int			weight;		/* tracking weight when non-zero */
 	vrrp_script_t		*scr;		/* script pointer, cannot be NULL */
+	int			weight;		/* tracking weight when non-zero */
 } tracked_sc_t;
 
 /* external file we read to track local processes */
@@ -83,35 +83,41 @@ typedef struct _vrrp_file {
 	char			*fname;		/* File name */
 	char			*file_path;	/* Path to file */
 	char			*file_part;	/* Pointer to start of filename without directories */
+	int			weight;		/* Default weight */
 	int			wd;		/* Watch descriptor */
-	list			vrrp;		/* List of vrrp instances using this script */
+	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this file */
 	int			last_status;	/* Last status returned by file. Used to report changes */
-} tracked_file_t;
+} vrrp_tracked_file_t;
 
 /* Tracked file structure definition */
 typedef struct _tracked_file {
-	tracked_file_t	*file;		/* track file pointer, cannot be NULL */
-} vrrp_tracked_file_t;
+	vrrp_tracked_file_t	*file;		/* track file pointer, cannot be NULL */
+	int			weight;		/* Multiplier for file value */
+} tracked_file_t;
 
 /* Forward references */
 struct _vrrp_t;
+struct _vrrp_sgroup;
 
-/* Tracked interface structure definition */
+/* List structure from scripts, files and interfaces to tracking vrrp */
 typedef struct _tracking_vrrp {
 	int			weight;		/* Tracking weight, or zero for down instance */
 	struct _vrrp_t		*vrrp;		/* The vrrp instance */
 } tracking_vrrp_t;
 
 /* prototypes */
-extern void dump_track(void *);
-extern void free_track(void *);
-extern void alloc_track(struct _vrrp_t *, vector_t *);
+extern void dump_track_if(void *);
+extern void free_track_if(void *);
+extern void alloc_track_if(struct _vrrp_t *, vector_t *);
+extern void alloc_group_track_if(struct _vrrp_sgroup *, vector_t *);
 extern void dump_track_script(void *);
 extern void free_track_script(void *);
 extern void alloc_track_script(struct _vrrp_t *, vector_t *);
+extern void alloc_group_track_script(struct _vrrp_sgroup *, vector_t *);
 extern void dump_track_file(void *);
 extern void free_track_file(void *);
 extern void alloc_track_file(struct _vrrp_t *, vector_t *);
+extern void alloc_group_track_file(struct _vrrp_sgroup *, vector_t *);
 extern vrrp_script_t *find_script_by_name(char *);
 extern void update_script_priorities(vrrp_script_t *, bool);
 extern void down_instance(struct _vrrp_t *);

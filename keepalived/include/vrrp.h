@@ -114,6 +114,9 @@ typedef struct _vrrp_sgroup {
 	int			state;			/* current stable state */
 	bool			global_tracking;	/* Use floating priority and scripts
 							 * All VRRP must share same tracking conf */
+	list			track_ifp;		/* Interface state we monitor */
+	list			track_script;		/* Script state we monitor */
+	list			track_file;		/* Files whose value we monitor */
 
 	/* State transition notification */
 	bool			notify_exec;

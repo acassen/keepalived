@@ -348,7 +348,7 @@ and
 .SH VRRP script(s)
 .PP
  # Adds a script to be executed periodically. Its exit code will be
- # recorded for all VRRP instances which are monitoring it.
+ # recorded for all VRRP instances and sync groups which are monitoring it.
  vrrp_script <SCRIPT_NAME> {
     script <STRING>|<QUOTED-STRING> # path of the script to execute
     interval <INTEGER>  # seconds between script invocations, default 1 second
@@ -365,17 +365,18 @@ and
 .PP
  # Adds a file to be monitored. The script will be read whenever it is
  # modified. The value in the file will be recorded for all VRRP instances
- # which monitor it.
+ # and sync groups which monitor it.
  # Note that the file will only be read if at least one VRRP instance
- # monitors it.
+ # or sync group monitors it.
  # 
- # The weight will be read from the file. If the weight is less than -253 any VRRP 
- # instance monitoring the script will transition to the fault state.
+ # The weight will be read from the file and multiplied by the weight configured
+ # in the track_file statement. If the resulting weight is less than -253 any VRRP
+ # instance or sync group monitoring the script will transition to the fault state.
  # 
- # If the vrrp instance is not the address owner and the weight is between -253 and 253,
- # the value will be added to the initial priority of the VRRP instance (a negative value
- # will reduce the priority), although the effective priority will be limited to the
- # range [1,254].
+ # If the vrrp instance or sync group is not the address owner and the weight is
+ # between -253 and 253, the value will be added to the initial priority of the VRRP
+ # instance (a negative value will reduce the priority), although the effective
+ # priority will be limited to the # range [1,254].
  vrrp_track_file <STRING> {    # VRRP track file declaration
     file <QUOTED_STRING>        # file to track
  }
@@ -390,115 +391,140 @@ and
       ...
     }
 
-    # notify scripts and alerts are optional
-    #
-    # filenames of scripts to run on transitions
-    # can be unquoted (if just filename)
-    # or quoted (if it has parameters)
-    # The username and groupname specify the user and group
-    # under which the scripts should be run. If username is
-    # specified, the group defaults to the group of the user.
-    # If username is not specified, they default to the
-    # global script_user and script_group
-    # to MASTER transition
-    notify_master /path/to_master.sh [username [groupname]]
-    # to BACKUP transition
-    notify_backup /path/to_backup.sh [username [groupname]]
-    # FAULT transition
-    notify_fault "/path/fault.sh VG_1" [username [groupname]]
+    # Synchronization group tracking scripts and files will update
+    # the status/priority of all VRRP instances which are members of
+    # the sync group.
 
-    # for ANY state transition.
-    # "notify" script is called AFTER the
-    # notify_* script(s) and is executed
-    # with 4 arguments provided by Keepalived
-    # (so don't include parameters in the notify line).
-    # arguments
-    # $1 = "GROUP"|"INSTANCE"
-    # $2 = name of the group or instance
-    # $3 = target state of transition (stop only applies to instances)
-    #     ("MASTER"|"BACKUP"|"FAULT"|"STOP")
-    # $4 = priority value
-    notify /path/notify.sh [username [groupname]]
+    # add a tracking script to the sync group (<SCRIPT_NAME> is the name of the vrrp_script entry)
+    # go to FAULT state if any of these go down if unweighted.
+            track_interface {
+              eth0
+              eth1
+              eth2 weight <-254..254>
+              ...
+            }
+	    track_script {
+		<SCRIPT_NAME>
+		<SCRIPT_NAME> weight <-254..254>
+	    }
 
-    # Send email notification during state transition,
-    # using addresses in global_defs above.
-    smtp_alert
+	    # Files whose state we monitor, value is added to effective priority. <STRING> is the name of a vrrp_status_file
+	    track_file {
+		<STRING>
+		<STRING> weight <-254..-1,1..253>
+		...
+	    }
 
-    global_tracking     # All VRRP share the same tracking config
-                        # This enables weights for script and interface tracking,
-                        # which by default are disabled for sync groups.
- }
+	    # notify scripts and alerts are optional
+	    #
+	    # filenames of scripts to run on transitions
+	    # can be unquoted (if just filename)
+	    # or quoted (if it has parameters)
+	    # The username and groupname specify the user and group
+	    # under which the scripts should be run. If username is
+	    # specified, the group defaults to the group of the user.
+	    # If username is not specified, they default to the
+	    # global script_user and script_group
+	    # to MASTER transition
+	    notify_master /path/to_master.sh [username [groupname]]
+	    # to BACKUP transition
+	    notify_backup /path/to_backup.sh [username [groupname]]
+	    # FAULT transition
+	    notify_fault "/path/fault.sh VG_1" [username [groupname]]
 
-.SH VRRP gratuitous ARP and unsolicited neighbour advert delay group(s)
-.PP
-specifies the setting of delays between sending gratuitous ARPs
-and unsolicited neighbour advertisements. This is intended for when an
-upstream switch is unable to handle being flooded with ARPs/NAs.
+	    # for ANY state transition.
+	    # "notify" script is called AFTER the
+	    # notify_* script(s) and is executed
+	    # with 4 arguments provided by Keepalived
+	    # (so don't include parameters in the notify line).
+	    # arguments
+	    # $1 = "GROUP"|"INSTANCE"
+	    # $2 = name of the group or instance
+	    # $3 = target state of transition (stop only applies to instances)
+	    #     ("MASTER"|"BACKUP"|"FAULT"|"STOP")
+	    # $4 = priority value
+	    notify /path/notify.sh [username [groupname]]
 
-Use interface when the limits apply on the single physical interface.
-Use interfaces when a group of interfaces are linked to the same switch
-and the limits apply to the switch as a whole.
+	    # Send email notification during state transition,
+	    # using addresses in global_defs above.
+	    smtp_alert
 
-.BNote.B: Only one of interface or interfaces should be used per block.
+	    global_tracking     # All VRRP share the same weighted tracking config
+                                # with the same weights.
+				# This enables files, script and interface tracking,
+				# which by default are disabled for sync groups.
+	 }
 
-If the global vrrp_garp_interval and/or vrrp_gna_interval are set, any 
-interfaces that aren't specified in a garp_group will inherit the global
-settings.
-.PP
-garp_group {
-    # Sets the interval between Gratuitous ARP (in seconds, resolution microseconds)
-    garp_interval <DECIMAL>
-    # Sets the default interval between unsolicited NA (in seconds, resolution microseconds)
-    gna_interval <DECIMAL>
-    # The physical interface to which the intervals apply
-    interface <STRING>
-    # A list of interfaces accross which the delays are aggregated.
-    interfaces {
-        <STRING>
-        <STRING>
-        ...
-        }
-    }
-.SH VRRP instance(s)
-.PP
-describes the movable IP for each instance of a group in vrrp_sync_group.
-Here are described two IPs (on inside_network and on outside_network),
-on machine "my_hostname", which belong to the group VG_1 and
-which will transition together on any state change.
-.PP
- #You will need to write another block for outside_network.
- vrrp_instance inside_network {
-    # Initial state, MASTER|BACKUP
-    # As soon as the other machine(s) come up,
-    # an election will be held and the machine
-    # with the highest priority will become MASTER.
-    # So the entry here doesn't matter a whole lot.
-    state MASTER
+	.SH VRRP gratuitous ARP and unsolicited neighbour advert delay group(s)
+	.PP
+	specifies the setting of delays between sending gratuitous ARPs
+	and unsolicited neighbour advertisements. This is intended for when an
+	upstream switch is unable to handle being flooded with ARPs/NAs.
 
-    # interface for inside_network, bound by vrrp
-    interface eth0
+	Use interface when the limits apply on the single physical interface.
+	Use interfaces when a group of interfaces are linked to the same switch
+	and the limits apply to the switch as a whole.
 
-    # Use VRRP Virtual MAC.
-    # \fBNOTE\fR: If sysctl net.ipv4.conf.all.rp_filter is set,
-    # and this vrrp_instance is an IPv4 instance, using
-    # this option will cause the individual interfaces to be
-    # updated to the greater of their current setting, and
-    # all.rp_filter, as will default.rp_filter, and all.rp_filter
-    # will be set to 0.
-    # The original settings are restored on termination.
-    use_vmac [<VMAC_INTERFACE>]
+	.BNote.B: Only one of interface or interfaces should be used per block.
 
-    # Send/Recv VRRP messages from base interface instead of
-    # VMAC interface
-    vmac_xmit_base
+	If the global vrrp_garp_interval and/or vrrp_gna_interval are set, any 
+	interfaces that aren't specified in a garp_group will inherit the global
+	settings.
+	.PP
+	garp_group {
+	    # Sets the interval between Gratuitous ARP (in seconds, resolution microseconds)
+	    garp_interval <DECIMAL>
+	    # Sets the default interval between unsolicited NA (in seconds, resolution microseconds)
+	    gna_interval <DECIMAL>
+	    # The physical interface to which the intervals apply
+	    interface <STRING>
+	    # A list of interfaces accross which the delays are aggregated.
+	    interfaces {
+		<STRING>
+		<STRING>
+		...
+		}
+	    }
+	.SH VRRP instance(s)
+	.PP
+	describes the movable IP for each instance of a group in vrrp_sync_group.
+	Here are described two IPs (on inside_network and on outside_network),
+	on machine "my_hostname", which belong to the group VG_1 and
+	which will transition together on any state change.
+	.PP
+	 #You will need to write another block for outside_network.
+	 vrrp_instance inside_network {
+	    # Initial state, MASTER|BACKUP
+	    # As soon as the other machine(s) come up,
+	    # an election will be held and the machine
+	    # with the highest priority will become MASTER.
+	    # So the entry here doesn't matter a whole lot.
+	    state MASTER
 
-    native_ipv6         # force instance to use IPv6 (this option is deprecated since the virtual ip addresses determine whether IPv4 or IPv6 is used).
+	    # interface for inside_network, bound by vrrp
+	    interface eth0
 
-    # Ignore VRRP interface faults (default unset)
-    dont_track_primary
+	    # Use VRRP Virtual MAC.
+	    # \fBNOTE\fR: If sysctl net.ipv4.conf.all.rp_filter is set,
+	    # and this vrrp_instance is an IPv4 instance, using
+	    # this option will cause the individual interfaces to be
+	    # updated to the greater of their current setting, and
+	    # all.rp_filter, as will default.rp_filter, and all.rp_filter
+	    # will be set to 0.
+	    # The original settings are restored on termination.
+	    use_vmac [<VMAC_INTERFACE>]
 
-    # optional, monitor these as well.
-    # go to FAULT state if any of these go down.
+	    # Send/Recv VRRP messages from base interface instead of
+	    # VMAC interface
+	    vmac_xmit_base
+
+	    native_ipv6         # force instance to use IPv6 (this option is deprecated since the virtual ip addresses determine whether IPv4 or IPv6 is used).
+
+	    # Ignore VRRP interface faults (default unset)
+	    dont_track_primary
+
+	    # optional, monitor these as well.
+	    # go to FAULT state if any of these go down if unweighted.
     track_interface {
       eth0
       eth1
@@ -506,16 +532,17 @@ which will transition together on any state change.
       ...
     }
 
-    # add a tracking script to the interface (<SCRIPT_NAME> is the name of the vrrp_script entry)
+    # add a tracking script to the interface (<SCRIPT_NAME> is the name of the vrrp_track_script entry)
     track_script {
         <SCRIPT_NAME>
         <SCRIPT_NAME> weight <-254..254>
     }
 
-    # Files whose state we monitor, value is added to effective priority. <STRING> is the name of a vrrp_status_file
+    # Files whose state we monitor, value is added to effective priority. <STRING> is the name of a vrrp_track_file
     track_file {
 	<STRING>
 	<STRING>
+        <STRING> weight <-254..-1,1..253>
 	...
     }
 
