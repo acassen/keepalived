@@ -202,7 +202,15 @@ static void
 vrrp_gglobal_tracking_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
-	vgroup->global_tracking = 1;
+
+	log_message(LOG_INFO, "(%s): global_tracking is deprecated. Use track_interface/script/file on the sync group", vgroup->gname);
+	vgroup->sgroup_tracking_weight = true;
+}
+static void
+vrrp_sg_tracking_weight_handler(__attribute__((unused)) vector_t *strvec)
+{
+	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+	vgroup->sgroup_tracking_weight = true;
 }
 static void
 vrrp_handler(vector_t *strvec)
@@ -1067,6 +1075,7 @@ init_vrrp_keywords(bool active)
 	install_keyword("notify", &vrrp_gnotify_handler);
 	install_keyword("smtp_alert", &vrrp_gsmtp_handler);
 	install_keyword("global_tracking", &vrrp_gglobal_tracking_handler);
+	install_keyword("sync_group_tracking_weight", &vrrp_sg_tracking_weight_handler);
 
 	install_keyword_root("garp_group", &garp_group_handler, active);
 	install_keyword("garp_interval", &garp_group_garp_interval_handler);

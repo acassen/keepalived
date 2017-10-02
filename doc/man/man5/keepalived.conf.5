@@ -454,10 +454,13 @@ and
 	    # using addresses in global_defs above.
 	    smtp_alert
 
-	    global_tracking     # All VRRP share the same weighted tracking config
-                                # with the same weights.
-				# This enables files, script and interface tracking,
-				# which by default are disabled for sync groups.
+            global_tracking     # DEPRECATED. Use track_interface, track_script and
+                                # track_file on vrrp_sync_groups instead.
+            sync_group_tracking_weight  # allow sync groups to use differing weights.
+                                # This probably WON'T WORK, but is a replacement for
+                                # global_tracking in case different weights were used
+                                # across different vrrp instances in the same sync
+                                # group.
 	 }
 
 	.SH VRRP gratuitous ARP and unsolicited neighbour advert delay group(s)

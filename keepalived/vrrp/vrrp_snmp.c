@@ -134,6 +134,7 @@ enum snmp_vrrp_magic {
 	VRRP_SNMP_ADDRESS_ISADVERTISED,
 	VRRP_SNMP_SYNCGROUP_NAME,
 	VRRP_SNMP_SYNCGROUP_STATE,
+	VRRP_SNMP_SYNCGROUP_TRACKINGWEIGHT,
 	VRRP_SNMP_SYNCGROUP_SMTPALERT,
 	VRRP_SNMP_SYNCGROUP_NOTIFYEXEC,
 	VRRP_SNMP_SYNCGROUP_SCRIPTMASTER,
@@ -1549,6 +1550,9 @@ vrrp_snmp_syncgroup(struct variable *vp, oid *name, size_t *length,
 	case VRRP_SNMP_SYNCGROUP_STATE:
 		long_ret.s = vrrp_snmp_state(group->state);
 		return (u_char *)&long_ret;
+	case VRRP_SNMP_SYNCGROUP_TRACKINGWEIGHT:
+		long_ret.u = group->sgroup_tracking_weight?1:2;
+		return (u_char *)&long_ret;
 	case VRRP_SNMP_SYNCGROUP_SMTPALERT:
 		long_ret.u = group->smtp_alert?1:2;
 		return (u_char *)&long_ret;
@@ -2518,6 +2522,8 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_syncgroup, 3, {1, 1, 8}},
 	{VRRP_SNMP_SYNCGROUP_SCRIPT, ASN_OCTET_STR, RONLY,
 	 vrrp_snmp_syncgroup, 3, {1, 1, 9}},
+	{VRRP_SNMP_SYNCGROUP_TRACKINGWEIGHT, ASN_INTEGER, RONLY,
+	 vrrp_snmp_syncgroup, 3, {1, 1, 10}},
 
 	/* vrrpSyncGroupMemberTable */
 	{VRRP_SNMP_SYNCGROUPMEMBER_NAME, ASN_OCTET_STR, RONLY,

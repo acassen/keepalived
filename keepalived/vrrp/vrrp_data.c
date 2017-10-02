@@ -120,8 +120,8 @@ dump_vgroup(void *data)
 			log_message(LOG_INFO, "     %s", vrrp->iname);
 		}
 	}
-	if (vgroup->global_tracking)
-		log_message(LOG_INFO, "   global tracking set");
+	if (vgroup->sgroup_tracking_weight)
+		log_message(LOG_INFO, "   sync group tracking weight set");
 	if (!LIST_ISEMPTY(vgroup->track_ifp)) {
 		log_message(LOG_INFO, "   Tracked interfaces = %d", LIST_SIZE(vgroup->track_ifp));
 		dump_list(vgroup->track_ifp);
@@ -414,7 +414,7 @@ alloc_vrrp_sync_group(char *gname)
 	new->state = VRRP_STATE_INIT;
 	new->last_email_state = VRRP_STATE_INIT;
 	memcpy(new->gname, gname, size);
-	new->global_tracking = 0;
+	new->sgroup_tracking_weight = false;
 
 	list_add(vrrp_data->vrrp_sync_group, new);
 }

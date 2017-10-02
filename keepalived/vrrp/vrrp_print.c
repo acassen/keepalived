@@ -118,8 +118,8 @@ vgroup_print(FILE *file, void *data)
 	}
 	fprintf(file, "   member instances down = %d\n", vgroup->num_member_fault);
 	fprintf(file, "   member instances init = %d\n", vgroup->num_member_init);
-	if (vgroup->global_tracking)
-		fprintf(file, "   global tracking set\n");
+	if (vgroup->sgroup_tracking_weight)
+		fprintf(file, "   sync group tracking weight set\n");
 	if (!LIST_ISEMPTY(vgroup->track_ifp)) {
 		fprintf(file, "   Tracked interfaces = %d\n", LIST_SIZE(vgroup->track_ifp));
 		vrrp_print_list(file, vgroup->track_ifp, &if_name_print);

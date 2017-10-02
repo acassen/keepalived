@@ -453,10 +453,6 @@ process_script_update_priority(tracked_sc_t *tsc, vrrp_script_t *vscript, bool s
 		return;
 	}
 
-	/* Don't change effective priority if address owner */
-	if (vrrp->base_priority == VRRP_PRIO_OWNER)
-		return;
-
 	if (script_ok)
 		vrrp->total_priority += abs(tsc->weight);
 	else
@@ -517,10 +513,8 @@ initialise_track_script_state(tracked_sc_t *tsc, vrrp_t *vrrp)
 		return;
 	}
 
-	/* Don't change effective priority if address owner, or if
-	 * a member of a sync group with global tracking */
-	if (vrrp->base_priority == VRRP_PRIO_OWNER ||
-	    (vrrp->sync && !vrrp->sync->global_tracking))
+	/* Don't change effective priority if address owner */
+	if (vrrp->base_priority == VRRP_PRIO_OWNER)
 		return;
 
 	if (tsc->scr->last_status != VRRP_SCRIPT_STATUS_NOT_SET)
@@ -553,6 +547,9 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e)) {
 			tip = ELEMENT_DATA(e);
 
+			if (tip->weight == VRRP_NOT_TRACK_IF)
+				continue;
+
 			if (!tip->weight) {
 				if (!IF_ISUP(tip->ifp)) {
 					/* The instance is down */
@@ -561,13 +558,6 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 				}
 				continue;
 			}
-
-			/* Don't change effective priority if address owner, or if
-			 * a member of a sync group without global tracking */
-			if (vrrp->base_priority == VRRP_PRIO_OWNER ||
-			    (vrrp->sync && !vrrp->sync->global_tracking) ||
-			    tip->weight == VRRP_NOT_TRACK_IF)
-				continue;
 
 			if (IF_ISUP(tip->ifp)) {
 				if (tip->weight > 0)

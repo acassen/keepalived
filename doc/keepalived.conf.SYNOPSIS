@@ -376,10 +376,13 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
       <STRING>			#       set
       ...			#             of VRRP_Instance string
     }
-    global_tracking		# allow sync groups to use weights. In order for this
-				# to work, all members of the sync group must track
-				# exactly the same files, interfaces and scripts, and
-				# with the same weights.
+    global_tracking		# DEPRECATED. Use track_interface, track_script and
+				# track_file on vrrp_sync_groups instead.
+    sync_group_tracking_weight	# allow sync groups to use differing weights. This
+				# probably WON'T WORK, but is a replacement for
+				# global_tracking in case different weights were used
+				# across different vrrp instances in the same sync
+				# group.
     track_interface {		# Interfaces state we monitor
       <STRING>
       <STRING>

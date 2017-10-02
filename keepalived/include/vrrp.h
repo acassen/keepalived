@@ -112,8 +112,9 @@ typedef struct _vrrp_sgroup {
 	unsigned		num_member_fault;	/* Number of members of group in fault state */
 	unsigned		num_member_init;	/* Number of members of group in pending state */
 	int			state;			/* current stable state */
-	bool			global_tracking;	/* Use floating priority and scripts
-							 * All VRRP must share same tracking conf */
+	bool			sgroup_tracking_weight;	/* Use floating priority and scripts
+							 * Used if need different priorities needed on a track object in a sync group.
+							 * It probably won't work properly. */
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
 	list			track_file;		/* Files whose value we monitor */

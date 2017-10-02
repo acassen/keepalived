@@ -2735,49 +2735,62 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 	}
 
-	// TODO
-	// If in sync group, check if priority and adver_int match first (if exists)
-	// member of sync group, and if not ? remove from sync group or set priority
-	// and adver_int to first.
+	/* In case of VRRP SYNC, we have to carefully check that we are
+	 * not running floating priorities on any VRRP instance, unless
+	 * sgroup_tracking_weight is set.
+	 */
+	if (vrrp->sync &&
+	    (!vrrp->sync->sgroup_tracking_weight || vrrp->base_priority == VRRP_PRIO_OWNER)) {
+		tracked_sc_t *sc;
+		tracked_if_t *tip;
+		tracked_file_t *tfl;
 
-	/* The effective priority is never changed for PRIO_OWNER */
-	if (vrrp->base_priority != VRRP_PRIO_OWNER) {
-		/* In case of VRRP SYNC, we have to carefully check that we are
-		 * not running floating priorities on any VRRP instance, or they
-		 * are all running with the same tracking conf.
-		 */
-// TODO - We also want to ensure if global_tracking on a group, then it really is all the same
-
-		if (vrrp->sync && !vrrp->sync->global_tracking) {
-			tracked_sc_t *sc;
-			tracked_if_t *tip;
-
-			/* Set weight to 0 of any interface we are tracking */
-			if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-				for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e)) {
-					tip = ELEMENT_DATA(e);
-					if (tip->weight) {
+		/* Set weight to 0 of any interface we are tracking,
+		 * unless we are the address owner, in which case stop tracking it */
+		if (!LIST_ISEMPTY(vrrp->track_ifp)) {
+			for (e = LIST_HEAD(vrrp->track_ifp); e; e = next) {
+				next = e->next;
+				tip = ELEMENT_DATA(e);
+				if (tip->weight && tip->weight != VRRP_NOT_TRACK_IF) {
+					if (vrrp->base_priority == VRRP_PRIO_OWNER)
+						free_list_element(vrrp->track_ifp, e);
+					else {
 						tip->weight = 0;
 						log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring weight of "
 								 "tracked interface %s due to SYNC group", vrrp->iname, tip->ifp->ifname);
 					}
 				}
 			}
+			if (LIST_ISEMPTY(vrrp->track_ifp))
+				free_list(&vrrp->track_ifp);
+		}
 
-			if (!LIST_ISEMPTY(vrrp->track_script)) {
-				for (e = LIST_HEAD(vrrp->track_script); e; e = next) {
-					next = e->next;
-					sc = ELEMENT_DATA(e);
-					if (sc->weight) {
-						log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring "
-								 "tracked script %s with weights due to SYNC group", vrrp->iname, sc->scr->sname);
-						free_list_element(vrrp->track_script, e);
-					}
+		if (!LIST_ISEMPTY(vrrp->track_script)) {
+			for (e = LIST_HEAD(vrrp->track_script); e; e = next) {
+				next = e->next;
+				sc = ELEMENT_DATA(e);
+				if (sc->weight) {
+					log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring "
+							 "tracked script %s with weights due to SYNC group", vrrp->iname, sc->scr->sname);
+					free_list_element(vrrp->track_script, e);
 				}
-				if (LIST_ISEMPTY(vrrp->track_script))
-					free_list(&vrrp->track_script);
 			}
+			if (LIST_ISEMPTY(vrrp->track_script))
+				free_list(&vrrp->track_script);
+		}
 
+		if (!LIST_ISEMPTY(vrrp->track_file)) {
+			for (e = LIST_HEAD(vrrp->track_file); e; e = next) {
+				next = e->next;
+				tfl = ELEMENT_DATA(e);
+				if (tfl->weight) {
+					log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring "
+							 "tracked file %s with weights due to SYNC group", vrrp->iname, tfl->file->fname);
+					free_list_element(vrrp->track_file, e);
+				}
+			}
+			if (LIST_ISEMPTY(vrrp->track_file))
+				free_list(&vrrp->track_file);
 		}
 	}
 
@@ -3032,7 +3045,12 @@ vrrp_complete_init(void)
 	}
 
 	/* Add pointers from sync group tracked scripts, file and interfaces
-	 * to members of the sync groups */
+	 * to members of the sync groups.
+	 * This must be called after vrrp_complete_instance() since this adds
+	 * (possibly weighted) tracking objects to vrrp instances, but any
+	 * weighted tracking objects configured directly against a vrrp instance
+	 * in a sync group must have the tracking objects removed unless
+	 * sgroup_tracking_weight is set */
 	sync_group_tracking_init();
 
 	/* If we have a global garp_delay add it to any interfaces without a garp_delay */
