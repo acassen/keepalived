@@ -1206,7 +1206,7 @@ update_interface_flags(interface_t *ifp, unsigned ifi_flags)
 	process_if_status_change(ifp);
 }
 
-static int
+static bool
 netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg *ifi)
 {
 	char *name;
@@ -1229,22 +1229,21 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 	if (tb[IFLA_ADDRESS]) {
 		size_t hw_addr_len = RTA_PAYLOAD(tb[IFLA_ADDRESS]);
 
-		if (hw_addr_len > IFHWADDRLEN) {
+		if (hw_addr_len > sizeof(ifp->hw_addr)) {
 			log_message(LOG_ERR, "MAC address for %s is too large: %zu",
 				name, hw_addr_len);
-			return -1;
+			return false;
 		}
-		else {
-			ifp->hw_addr_len = hw_addr_len;
-			memcpy(ifp->hw_addr, RTA_DATA(tb[IFLA_ADDRESS]), hw_addr_len);
-			for (i = 0; i < hw_addr_len; i++)
-				if (ifp->hw_addr[i] != 0)
-					break;
-			if (i == hw_addr_len)
-				ifp->hw_addr_len = 0;
-			else
-				ifp->hw_addr_len = hw_addr_len;
-		}
+
+		ifp->hw_addr_len = hw_addr_len;
+		memcpy(ifp->hw_addr, RTA_DATA(tb[IFLA_ADDRESS]), hw_addr_len);
+
+		/* Don't allow a hw address of all 0s */
+		for (i = 0; i < hw_addr_len; i++)
+			if (ifp->hw_addr[i])
+				break;
+		if (i == hw_addr_len)
+			ifp->hw_addr_len = 0;
 	}
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -1282,7 +1281,7 @@ netlink_if_link_populate(interface_t *ifp, struct rtattr *tb[], struct ifinfomsg
 
 	ifp->ifi_flags = ifi->ifi_flags;
 
-	return 1;
+	return true;
 }
 
 /* Netlink interface link lookup filter */
@@ -1293,9 +1292,7 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	struct rtattr *tb[IFLA_MAX + 1];
 	interface_t *ifp;
 	size_t len;
-	int status;
 	char *name;
-	bool new_if;
 
 	ifi = NLMSG_DATA(h);
 
@@ -1315,31 +1312,17 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
 
 	/* Skip it if already exists */
-	ifp = if_get_by_ifname(name, false);
+	ifp = if_get_by_ifname(name, true);
 
-	if (ifp && ifp->ifindex) {
+	if (ifp->ifindex) {
 		update_interface_flags(ifp, ifi->ifi_flags);
 
 		return 0;
 	}
 
 	/* Fill the interface structure */
-	if (ifp)
-		new_if = false;
-	else {
-		ifp = (interface_t *) MALLOC(sizeof(interface_t));
-		new_if = true;
-	}
-
-	status = netlink_if_link_populate(ifp, tb, ifi);
-	if (status < 0) {
-		FREE(ifp);
+	if (!netlink_if_link_populate(ifp, tb, ifi))
 		return -1;
-	}
-
-	/* Queue this new interface_t */
-	if (new_if)
-		if_add_queue(ifp);
 
 	return 0;
 }
@@ -1410,7 +1393,6 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	struct rtattr *tb[IFLA_MAX + 1];
 	interface_t *ifp;
 	size_t len;
-	int status;
 
 	if (!(h->nlmsg_type == RTM_NEWLINK || h->nlmsg_type == RTM_DELLINK))
 		return 0;
@@ -1484,24 +1466,20 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 		if (h->nlmsg_type == RTM_NEWLINK) {
 			char *name;
 			name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
-			ifp = if_get_by_ifname(name, false);
-			if (!ifp) {
-				ifp = (interface_t *) MALLOC(sizeof(interface_t));
-				if_add_queue(ifp);
-			} else {
-				/* Since the garp_delay and tracking_vrrp are set up by name,
-				 * it is reasonable to preserve them.
-				 * If what is created is a vmac, we could end up in a complete mess. */
-				garp_delay_t *sav_garp_delay = ifp->garp_delay;
-				list sav_tracking_vrrp = ifp->tracking_vrrp;
+			ifp = if_get_by_ifname(name, true);
 
-				memset(ifp, 0, sizeof(interface_t));
+			/* Since the garp_delay and tracking_vrrp are set up by name,
+			 * it is reasonable to preserve them.
+			 * If what is created is a vmac, we could end up in a complete mess. */
+			garp_delay_t *sav_garp_delay = ifp->garp_delay;
+			list sav_tracking_vrrp = ifp->tracking_vrrp;
 
-				ifp->garp_delay = sav_garp_delay;
-				ifp->tracking_vrrp = sav_tracking_vrrp;
-			}
-			status = netlink_if_link_populate(ifp, tb, ifi);
-			if (status < 0)
+			memset(ifp, 0, sizeof(interface_t));
+
+			ifp->garp_delay = sav_garp_delay;
+			ifp->tracking_vrrp = sav_tracking_vrrp;
+
+			if (!netlink_if_link_populate(ifp, tb, ifi))
 				return -1;
 
 			if (__test_bit(LOG_DETAIL_BIT, &debug))
