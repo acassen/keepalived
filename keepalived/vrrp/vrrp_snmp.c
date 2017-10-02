@@ -1633,7 +1633,7 @@ vrrp_snmp_syncgroupmember(struct variable *vp, oid *name, size_t *length,
 		if (binstance)
 			break; /* Optimization: cannot be the lower
 				  anymore, see break below */
-		for (e1 = LIST_HEAD(group->index_list), curinstance = 0; e1; ELEMENT_NEXT(e1), curinstance++) {
+		for (e1 = LIST_HEAD(group->vrrp_instances), curinstance = 0; e1; ELEMENT_NEXT(e1), curinstance++) {
 			/* We build our current match */
 			current[0] = curgroup;
 			current[1] = curinstance + 1;

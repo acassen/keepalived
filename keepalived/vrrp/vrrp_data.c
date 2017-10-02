@@ -88,7 +88,7 @@ free_vgroup(void *data)
 		free_strvec(vgroup->iname);
 	}
 	FREE(vgroup->gname);
-	free_list(&vgroup->index_list);
+	free_list(&vgroup->vrrp_instances);
 	free_notify_script(&vgroup->script_backup);
 	free_notify_script(&vgroup->script_master);
 	free_notify_script(&vgroup->script_fault);
@@ -113,9 +113,9 @@ dump_vgroup(void *data)
 	element e;
 
 	log_message(LOG_INFO, " VRRP Sync Group = %s, %s", vgroup->gname, get_state_str(vgroup->state));
-	if (vgroup->index_list) {
-		log_message(LOG_INFO, "   VRRP member instances = %d\n", LIST_SIZE(vgroup->index_list));
-		for (e = LIST_HEAD(vgroup->index_list); e; ELEMENT_NEXT(e)) {
+	if (vgroup->vrrp_instances) {
+		log_message(LOG_INFO, "   VRRP member instances = %d\n", LIST_SIZE(vgroup->vrrp_instances));
+		for (e = LIST_HEAD(vgroup->vrrp_instances); e; ELEMENT_NEXT(e)) {
 			vrrp_t *vrrp = ELEMENT_DATA(e);
 			log_message(LOG_INFO, "     %s", vrrp->iname);
 		}

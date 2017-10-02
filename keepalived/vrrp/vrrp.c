@@ -2871,12 +2871,12 @@ sync_group_tracking_init(void)
 	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
 		sgroup = ELEMENT_DATA(e);
 
-		if (LIST_ISEMPTY(sgroup->index_list))
+		if (LIST_ISEMPTY(sgroup->vrrp_instances))
 			continue;
 
 		/* Find out if any of the sync group members are address owners, since then
 		 * we cannot have weights */
-		for (e2 = LIST_HEAD(sgroup->index_list), sgroup_has_prio_owner = false; e2; ELEMENT_NEXT(e2)) {
+		for (e2 = LIST_HEAD(sgroup->vrrp_instances), sgroup_has_prio_owner = false; e2; ELEMENT_NEXT(e2)) {
 			vrrp = ELEMENT_DATA(e2);
 
 			if (vrrp->base_priority == VRRP_PRIO_OWNER) {
@@ -2898,7 +2898,7 @@ sync_group_tracking_init(void)
 					sc->weight = 0;
 				}
 
-				for (e2 = LIST_HEAD(sgroup->index_list); e2; ELEMENT_NEXT(e2)) {
+				for (e2 = LIST_HEAD(sgroup->vrrp_instances); e2; ELEMENT_NEXT(e2)) {
 					vrrp = ELEMENT_DATA(e2);
 
 					add_vrrp_to_track_script(vrrp, sc);
@@ -2916,7 +2916,7 @@ sync_group_tracking_init(void)
 					tfl->weight = 0;
 				}
 
-				for (e2 = LIST_HEAD(sgroup->index_list); e2; ELEMENT_NEXT(e2)) {
+				for (e2 = LIST_HEAD(sgroup->vrrp_instances); e2; ELEMENT_NEXT(e2)) {
 					vrrp = ELEMENT_DATA(e2);
 
 					add_vrrp_to_track_file(vrrp, tfl);
@@ -2934,7 +2934,7 @@ sync_group_tracking_init(void)
 					tif->weight = 0;
 				}
 
-				for (e2 = LIST_HEAD(sgroup->index_list); e2; ELEMENT_NEXT(e2)) {
+				for (e2 = LIST_HEAD(sgroup->vrrp_instances); e2; ELEMENT_NEXT(e2)) {
 					vrrp = ELEMENT_DATA(e2);
 
 					add_vrrp_to_interface(vrrp, tif->ifp, tif->weight, false);
@@ -3028,7 +3028,7 @@ vrrp_complete_init(void)
 		if (sgroup->iname->active > 1)
 			vrrp_sync_set_group(sgroup);
 
-		if (!sgroup->index_list) {
+		if (!sgroup->vrrp_instances) {
 			free_list_element(vrrp_data->vrrp_sync_group, e);
 			continue;
 		}

@@ -83,7 +83,7 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 	if (!vgroup->iname)
 		return;
 
-	vgroup->index_list = alloc_list(NULL, NULL);
+	vgroup->vrrp_instances = alloc_list(NULL, NULL);
 
 	for (i = 0; i < vector_size(vgroup->iname); i++) {
 		str = vector_slot(vgroup->iname, i);
@@ -98,7 +98,7 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 			continue;
 		}
 
-		list_add(vgroup->index_list, vrrp);
+		list_add(vgroup->vrrp_instances, vrrp);
 		vrrp->sync = vgroup;
 		vrrp_last = vrrp;
 
@@ -117,15 +117,15 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 	if (group_member_down)
 		vgroup->state = VRRP_STATE_FAULT;
 
-	if (LIST_SIZE(vgroup->index_list) <= 1) {
+	if (LIST_SIZE(vgroup->vrrp_instances) <= 1) {
 		/* The sync group will be removed by the calling function */
-		log_message(LOG_INFO, "Sync group %s has only %d virtual router(s) - removing", vgroup->gname, LIST_SIZE(vgroup->index_list));
+		log_message(LOG_INFO, "Sync group %s has only %d virtual router(s) - removing", vgroup->gname, LIST_SIZE(vgroup->vrrp_instances));
 
 		/* If there is only one entry in the group, remove the group from the vrrp entry */
 		if (vrrp_last)
 			vrrp_last->sync = NULL;
 
-		free_list(&vgroup->index_list);
+		free_list(&vgroup->vrrp_instances);
 	}
 
 	/* The iname vector is only used for us to set up the sync groups, so delete it */
@@ -139,7 +139,7 @@ vrrp_sync_can_goto_master(vrrp_t * vrrp)
 {
 	vrrp_t *isync;
 	vrrp_sgroup_t *vgroup = vrrp->sync;
-	list l = vgroup->index_list;
+	list l = vgroup->vrrp_instances;
 	element e;
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
@@ -161,7 +161,7 @@ vrrp_sync_backup(vrrp_t * vrrp)
 {
 	vrrp_t *isync;
 	vrrp_sgroup_t *vgroup = vrrp->sync;
-	list l = vgroup->index_list;
+	list l = vgroup->vrrp_instances;
 	element e;
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_BACK)
@@ -197,7 +197,7 @@ vrrp_sync_master(vrrp_t * vrrp)
 {
 	vrrp_t *isync;
 	vrrp_sgroup_t *vgroup = vrrp->sync;
-	list l = vgroup->index_list;
+	list l = vgroup->vrrp_instances;
 	element e;
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_MAST)
@@ -233,7 +233,7 @@ vrrp_sync_fault(vrrp_t * vrrp)
 {
 	vrrp_t *isync;
 	vrrp_sgroup_t *vgroup = vrrp->sync;
-	list l = vgroup->index_list;
+	list l = vgroup->vrrp_instances;
 	element e;
 
 	if (GROUP_STATE(vgroup) == VRRP_STATE_FAULT)

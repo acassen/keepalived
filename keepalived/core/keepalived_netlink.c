@@ -845,7 +845,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 				address_vrrp->wantstate = VRRP_STATE_BACK;
 				vrrp_state_leave_master(address_vrrp, true);
 				if (address_vrrp->sync) {
-					for (e = LIST_HEAD(address_vrrp->sync->index_list); e; ELEMENT_NEXT(e)) {
+					for (e = LIST_HEAD(address_vrrp->sync->vrrp_instances); e; ELEMENT_NEXT(e)) {
 						sync_vrrp = ELEMENT_DATA(e);
 						if (sync_vrrp->state == VRRP_STATE_MAST) {
 							sync_vrrp->wantstate = VRRP_STATE_BACK;

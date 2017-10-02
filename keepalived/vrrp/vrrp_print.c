@@ -109,9 +109,9 @@ vgroup_print(FILE *file, void *data)
 
 	vrrp_sgroup_t *vgroup = data;
 	fprintf(file, " VRRP Sync Group = %s, %s\n", vgroup->gname, get_state_str(vgroup->state));
-	if (vgroup->index_list) {
-		fprintf(file, "   VRRP member instances = %d\n", LIST_SIZE(vgroup->index_list));
-		for (e = LIST_HEAD(vgroup->index_list); e; ELEMENT_NEXT(e)) {
+	if (vgroup->vrrp_instances) {
+		fprintf(file, "   VRRP member instances = %d\n", LIST_SIZE(vgroup->vrrp_instances));
+		for (e = LIST_HEAD(vgroup->vrrp_instances); e; ELEMENT_NEXT(e)) {
 			vrrp_t *vrrp = ELEMENT_DATA(e);
 			fprintf(file, "     %s\n", vrrp->iname);
 		}
