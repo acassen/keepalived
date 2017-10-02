@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201710020000Z"
+     LAST-UPDATED "201710020001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201710020001Z"
+     DESCRIPTION "allow tracking file weights of 0 and 254"
      REVISION "201710020000Z"
      DESCRIPTION
 	"add weights for tracking files and
@@ -553,7 +555,7 @@ vrrpSyncTrackedFileName OBJECT-TYPE
     ::= { vrrpSyncTrackedFileEntry 2 }
 
 vrrpSyncTrackedFileWeight OBJECT-TYPE
-    SYNTAX Integer32 (-254..253)
+    SYNTAX Integer32 (-254..254)
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION
@@ -2261,7 +2263,7 @@ vrrpTrackedFileName OBJECT-TYPE
     ::= { vrrpTrackedFileEntry 2 }
 
 vrrpTrackedFileWeight OBJECT-TYPE
-    SYNTAX Integer32 (-254..253)
+    SYNTAX Integer32 (-254..254)
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION

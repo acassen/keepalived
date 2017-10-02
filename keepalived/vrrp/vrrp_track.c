@@ -338,9 +338,9 @@ alloc_track_file(vrrp_t *vrrp, vector_t *strvec)
 		}
 		if (vector_size(strvec) >= 3) {
 			weight = atoi(strvec_slot(strvec, 2));
-			if (weight < -254 || weight > 253 || !weight) {
+			if (weight < -254 || weight > 253) {
 				log_message(LOG_INFO, "(%s): weight for track file %s must be in "
-						 "[-254..-1,1...253] inclusive. Ignoring...", vrrp->iname, tracked);
+						 "[-254..253] inclusive. Ignoring...", vrrp->iname, tracked);
 				weight = vsf->weight;
 			}
 		} else {
@@ -394,9 +394,9 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, vector_t *strvec)
 		}
 		if (vector_size(strvec) >= 3) {
 			weight = atoi(strvec_slot(strvec, 2));
-			if (weight < -254 || weight > 253 || !weight) {
+			if (weight < -254 || weight > 253) {
 				log_message(LOG_INFO, "(%s): weight for track file %s must be in "
-						 "[-254..-1,1...253] inclusive. Ignoring...", sgroup->gname, tracked);
+						 "[-254..253] inclusive. Ignoring...", sgroup->gname, tracked);
 				weight = vsf->weight;
 			}
 		} else {
@@ -628,7 +628,7 @@ remove_track_file(list track_files, element e)
 }
 
 static void
-process_update_track_file_status(vrrp_tracked_file_t *tfile, long new_status, vrrp_t *vrrp)
+process_update_track_file_status(vrrp_tracked_file_t *tfile, int new_status, vrrp_t *vrrp)
 {
 	if (tfile->last_status == -254)
 		try_up_instance(vrrp, false);
@@ -638,24 +638,17 @@ process_update_track_file_status(vrrp_tracked_file_t *tfile, long new_status, vr
 		vrrp->total_priority += (int)new_status - tfile->last_status;
 	}
 	else if (vrrp->base_priority != VRRP_PRIO_OWNER) {
-		vrrp->total_priority += (int)new_status - tfile->last_status;
+		vrrp->total_priority += new_status - tfile->last_status;
 		vrrp_set_effective_priority(vrrp);
 	}
 }
 
 static void
-update_track_file_status(vrrp_tracked_file_t* tfile, long new_status)
+update_track_file_status(vrrp_tracked_file_t* tfile, int new_status)
 {
 	element e;
 	tracking_vrrp_t *tvp;
 	int status;
-
-	if (new_status > 253) {
-		log_message(LOG_INFO, "Track file %s - status value %ld out of range, defaulting to 0", tfile->fname, new_status);
-		new_status = 0;
-	}
-	else if (new_status < -254)
-		new_status = -254;
 
 	if (new_status == tfile->last_status)
 		return;
@@ -664,16 +657,22 @@ update_track_file_status(vrrp_tracked_file_t* tfile, long new_status)
 	for (e = LIST_HEAD(tfile->tracking_vrrp); e;  ELEMENT_NEXT(e)) {
 		tvp = ELEMENT_DATA(e);
 
-		status = new_status * tvp->weight;
-		if (status < -254)
-			status = -254;
-		else if (status > 253)
-			status = 253;
+		/* If the tracking weight is 0, a non-zero value means
+		 * failure, a 0 status means success */
+		if (!tvp->weight)
+			status = new_status ? -254 : 0;
+		else {
+			status = new_status * tvp->weight;
+			if (status < -254)
+				status = -254;
+			else if (status > 253)
+				status = 253;
+		}
 
 		process_update_track_file_status(tfile, status, tvp->vrrp);
 	}
 
-	tfile->last_status = (int)new_status;
+	tfile->last_status = new_status;
 }
 
 static void
@@ -694,7 +693,12 @@ process_track_file(vrrp_tracked_file_t *tfile)
 		close(fd);
 	}
 
-	update_track_file_status(tfile, new_status);
+	if (new_status > 254)
+		new_status = 254;
+	else if (new_status < -254)
+		new_status = -254;
+
+	update_track_file_status(tfile, (int)new_status);
 }
 
 static void

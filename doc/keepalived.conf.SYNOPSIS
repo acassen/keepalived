@@ -343,9 +343,9 @@ from the initial priority in case of <fall> failures.
 
 	The configuration block looks like:
 
-vrrp_track_file <STRING> {     # VRRP track file declaration
-    file <QUOTED_STRING>       # file to monitor
-    weight <-254..-1,1..253>
+vrrp_track_file <STRING> {	# VRRP track file declaration
+    file <QUOTED_STRING>	# file to monitor
+    weight <-254..254>		# default weight
 }
 
 The file will be read whenever it is modified. The value in the file
@@ -353,12 +353,16 @@ will be recorded for all VRRP instances and sync groups which monitor it.
 Note that the file will only be read if at least one VRRP instance or
 sync group monitors it.
 
-The weight will be read from the file and multiplied by the weight configured
-in the track_file statement. If the resulting weight is less than -253 any VRRP
-instance or sync group monitoring the script will transition to the fault state.
+A value will be read as a number in text from the file.  If the weight
+configured against the track_file is 0, a non-zero value in the file will
+be treated as a failure status, and a zero value will be treaded as
+an OK status, otherwise the value will be  multiplied by the weight configured
+in the track_file statement. If the result is less than -253 any VRRP
+instance or sync group monitoring the script will transition to the fault state
+(the weight can be 254 to allow for a negative value being read from the file).
 
-If the vrrp instance or sync group is not the address owner and the weight is between
--253 and 253, the value will be added to the initial priority of the VRRP instance
+If the vrrp instance or sync group is not the address owner and the result is between
+-253 and 253, the result will be added to the initial priority of the VRRP instance
 (a negative value will reduce the priority), although the effective priority will
 be limited to the range [1,254].
 
@@ -389,7 +393,7 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
     }
     track_file {		# Files state we monitor
       <STRING>
-      <STRING> weight <INTEGER: -254..-1,1..253>
+      <STRING> weight <INTEGER: -254..253>
       ...
     }
 
@@ -503,7 +507,7 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     track_file {			# Files state we monitor
       <STRING>
       <STRING>
-      <STRING> weight <INTEGER: -254..-1,1..253>
+      <STRING> weight <INTEGER: -254..254>
       ...
     }
     dont_track_primary                  # (default unset) ignore VRRP interface faults.

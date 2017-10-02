@@ -2848,6 +2848,7 @@ sync_group_tracking_init(void)
 	tracked_if_t *tif;
 	tracked_file_t *tfl;
 	vrrp_t *vrrp;
+	bool sgroup_has_prio_owner;
 
 	if (LIST_ISEMPTY(vrrp_data->vrrp_sync_group))
 		return;
@@ -2860,6 +2861,17 @@ sync_group_tracking_init(void)
 		if (LIST_ISEMPTY(sgroup->index_list))
 			continue;
 
+		/* Find out if any of the sync group members are address owners, since then
+		 * we cannot have weights */
+		for (e2 = LIST_HEAD(sgroup->index_list), sgroup_has_prio_owner = false; e2; ELEMENT_NEXT(e2)) {
+			vrrp = ELEMENT_DATA(e2);
+
+			if (vrrp->base_priority == VRRP_PRIO_OWNER) {
+				sgroup_has_prio_owner = true;
+				break;
+			}
+		}
+
 		if (!LIST_ISEMPTY(sgroup->track_script)) {
 			for (e1 = LIST_HEAD(sgroup->track_script); e1; ELEMENT_NEXT(e1)) {
 				sc = ELEMENT_DATA(e1);
@@ -2868,14 +2880,13 @@ sync_group_tracking_init(void)
 				if (vsc->insecure)
 					continue;
 
+				if (sgroup_has_prio_owner && sc->weight) {
+					log_message(LOG_INFO, "(%s): Cannot have weighted track script '%s' with member having priority %d - clearing weight", sgroup->gname, vsc->sname, VRRP_PRIO_OWNER);
+					sc->weight = 0;
+				}
+
 				for (e2 = LIST_HEAD(sgroup->index_list); e2; ELEMENT_NEXT(e2)) {
 					vrrp = ELEMENT_DATA(e2);
-// TODO
-					if (vrrp->base_priority == VRRP_PRIO_OWNER && sc->weight) {
-						log_message(LOG_INFO, "(%s): Cannot have weighted track script '%s' with priority %d", vrrp->iname, vsc->sname, VRRP_PRIO_OWNER);
-//						list_del(vrrp->track_script, sc);
-						continue;
-					}
 
 					add_vrrp_to_track_script(vrrp, sc);
 				}
@@ -2886,6 +2897,11 @@ sync_group_tracking_init(void)
 		if (!LIST_ISEMPTY(sgroup->track_file)) {
 			for (e1 = LIST_HEAD(sgroup->track_file); e1; ELEMENT_NEXT(e1)) {
 				tfl = ELEMENT_DATA(e1);
+
+				if (sgroup_has_prio_owner && tfl->weight) {
+					log_message(LOG_INFO, "(%s): Cannot have weighted track file '%s' with member having priority %d - clearing weight", sgroup->gname, tfl->file->fname, VRRP_PRIO_OWNER);
+					tfl->weight = 0;
+				}
 
 				for (e2 = LIST_HEAD(sgroup->index_list); e2; ELEMENT_NEXT(e2)) {
 					vrrp = ELEMENT_DATA(e2);
@@ -2899,6 +2915,11 @@ sync_group_tracking_init(void)
 		if (!LIST_ISEMPTY(sgroup->track_ifp)) {
 			for (e1 = LIST_HEAD(sgroup->track_ifp); e1; ELEMENT_NEXT(e1)) {
 				tif = ELEMENT_DATA(e1);
+
+				if (sgroup_has_prio_owner && tif->weight) {
+					log_message(LOG_INFO, "(%s): Cannot have weighted track interface '%s' with member having priority %d - clearing weight", sgroup->gname, tif->ifp->ifname, VRRP_PRIO_OWNER);
+					tif->weight = 0;
+				}
 
 				for (e2 = LIST_HEAD(sgroup->index_list); e2; ELEMENT_NEXT(e2)) {
 					vrrp = ELEMENT_DATA(e2);

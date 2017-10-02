@@ -369,16 +369,21 @@ and
  # Note that the file will only be read if at least one VRRP instance
  # or sync group monitors it.
  # 
- # The weight will be read from the file and multiplied by the weight configured
- # in the track_file statement. If the resulting weight is less than -253 any VRRP
- # instance or sync group monitoring the script will transition to the fault state.
- # 
- # If the vrrp instance or sync group is not the address owner and the weight is
- # between -253 and 253, the value will be added to the initial priority of the VRRP
- # instance (a negative value will reduce the priority), although the effective
- # priority will be limited to the # range [1,254].
+ # A value will be read as a number in text from the file.  If the weight
+ # configured against the track_file is 0, a non-zero value in the file will 
+ # be treated as a failure status, and a zero value will be treaded as
+ # an OK status, otherwise the value will be  multiplied by the weight configured
+ # in the track_file statement. If the result is less than -253 any VRRP
+ # instance or sync group monitoring the script will transition to the fault state
+ # (the weight can be 254 to allow for a negative value being read from the file).
+
+ # If the vrrp instance or sync group is not the address owner and the result is between
+ # -253 and 253, the result will be added to the initial priority of the VRRP instance
+ # (a negative value will reduce the priority), although the effective priority will
+ # be limited to the range [1,254].
  vrrp_track_file <STRING> {    # VRRP track file declaration
-    file <QUOTED_STRING>        # file to track
+    file <QUOTED_STRING>       # file to track
+    weight <-254..254>         # optional default weight
  }
 .PP
 .SH VRRP synchronization group(s)
@@ -411,7 +416,7 @@ and
 	    # Files whose state we monitor, value is added to effective priority. <STRING> is the name of a vrrp_status_file
 	    track_file {
 		<STRING>
-		<STRING> weight <-254..-1,1..253>
+		<STRING> weight <-254..254>
 		...
 	    }
 
@@ -542,7 +547,7 @@ and
     track_file {
 	<STRING>
 	<STRING>
-        <STRING> weight <-254..-1,1..253>
+        <STRING> weight <-254..254>
 	...
     }
 
