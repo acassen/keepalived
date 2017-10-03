@@ -428,11 +428,11 @@ down_instance(vrrp_t *vrrp)
 }
 
 static void
-process_script_update_priority(tracked_sc_t *tsc, vrrp_script_t *vscript, bool script_ok, vrrp_t *vrrp)
+process_script_update_priority(int weight, vrrp_script_t *vscript, bool script_ok, vrrp_t *vrrp)
 {
 	bool instance_left_init = false;
 
-	if (!tsc->weight) {
+	if (!weight) {
 		if (vscript->last_status == VRRP_SCRIPT_STATUS_NOT_SET) {
 			/* We need to adjust the number of scripts in init state */
 			if (!--vrrp->num_script_init) {
@@ -454,9 +454,9 @@ process_script_update_priority(tracked_sc_t *tsc, vrrp_script_t *vscript, bool s
 	}
 
 	if (script_ok)
-		vrrp->total_priority += abs(tsc->weight);
+		vrrp->total_priority += abs(weight);
 	else
-		vrrp->total_priority -= abs(tsc->weight);
+		vrrp->total_priority -= abs(weight);
 
 	vrrp_set_effective_priority(vrrp);
 }
@@ -464,9 +464,8 @@ process_script_update_priority(tracked_sc_t *tsc, vrrp_script_t *vscript, bool s
 void
 update_script_priorities(vrrp_script_t *vscript, bool script_ok)
 {
-	element e, e1;
+	element e;
 	vrrp_t *vrrp;
-	tracked_sc_t *tsc;
 	tracking_vrrp_t* tvp;
 
 	/* First process the vrrp instances tracking the script */
@@ -475,20 +474,7 @@ update_script_priorities(vrrp_script_t *vscript, bool script_ok)
 			tvp = ELEMENT_DATA(e);
 			vrrp = tvp->vrrp;
 
-			if (LIST_ISEMPTY(vrrp->track_script))
-				continue;
-
-			for (e1 = LIST_HEAD(vrrp->track_script); e1; ELEMENT_NEXT(e1)) {
-				tsc = ELEMENT_DATA(e1);
-
-				/* Skip if we haven't found the matching entry */
-				if (tsc->scr != vscript)
-					continue;
-
-				process_script_update_priority(tsc, vscript, script_ok, vrrp);
-
-				break;
-			}
+			process_script_update_priority(tvp->weight, vscript, script_ok, vrrp);
 		}
 	}
 }
