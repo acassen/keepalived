@@ -68,7 +68,6 @@
 #define	LOG_FACILITY_MAX	7
 #define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" GIT_DATE ")"
 #define COPYRIGHT_STRING	"Copyright(C) 2001-" GIT_YEAR " Alexandre Cassen, <acassen@gmail.com>"
-#define BUILD_OPTIONS		CONFIGURATION_OPTIONS
 
 #define CHILD_WAIT_SECS	5
 
@@ -764,7 +763,8 @@ parse_cmdline(int argc, char **argv)
 			fprintf(stderr, ", git commit %s", GIT_COMMIT);
 #endif
 			fprintf(stderr, "\n\n%s\n\n", COPYRIGHT_STRING);
-			fprintf(stderr, "Build options: %s\n", BUILD_OPTIONS);
+			fprintf(stderr, "Config options: %s\n\n", CONFIGURATION_OPTIONS);
+			fprintf(stderr, "System options: %s\n", SYSTEM_OPTIONS);
 			exit(0);
 			break;
 		case 'h':

@@ -5,7 +5,7 @@
 #define _CONFIG_H
   
 
-/* The configuration and build options from which the package is built */
+/* The configuration options from which the package is built */
 #undef CONFIGURATION_OPTIONS
 
 /* Define to 1 if need to call g_type_init() */
@@ -506,6 +506,9 @@
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
+
+/* The system options from which the package is built */
+#undef SYSTEM_OPTIONS
 
 /* Version number of package */
 #undef VERSION

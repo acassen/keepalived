@@ -55,7 +55,9 @@ AC_DEFUN([add_pkg_config_without_libs],
     add_to_var_ind_unique([${KA_PKG_PFX}_CFLAGS], [$($PKG_CONFIG --cflags-only-other $1)])
   ])
 
-AC_DEFUN([add_build_opt], [add_to_var([BUILD_OPTIONS], [$1])])
+AC_DEFUN([add_config_opt], [add_to_var([CONFIG_OPTIONS], [$1])])
+
+AC_DEFUN([add_system_opt], [add_to_var([SYSTEM_OPTIONS], [$1])])
 
 AC_DEFUN([get_lib_name],
   [
@@ -114,7 +116,8 @@ AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makef
 
 MAINTAINERCLEANFILES="*~ *.orig *.rej core core.*"
 AC_SUBST(MAINTAINERCLEANFILES)
-BUILD_OPTIONS=
+CONFIG_OPTIONS=
+SYSTEM_OPTIONS
 
 AM_SILENT_RULES([yes])
 
@@ -375,11 +378,11 @@ AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_CHECK_FUNCS([dup2 getcwd gettimeofday memmove memset select setenv socket strcasecmp strchr strdup strerror strpbrk strstr strtol strtoul uname])
 dnl - pipe2() since Linux 2.6.27 and glibc 2.9.
-AC_CHECK_FUNCS([pipe2], [add_build_opt([PIPE2])])
+AC_CHECK_FUNCS([pipe2], [add_system_opt([PIPE2])])
 dnl - signalfd() since Linux 2.6.22 and glibc 2.8
-AC_CHECK_FUNCS([signalfd], [add_build_opt([SIGNALFD])])
+AC_CHECK_FUNCS([signalfd], [add_system_opt([SIGNALFD])])
 dnl - inotify_init1() since Linux 2.6.27
-AC_CHECK_FUNCS([inotify_init1], [add_build_opt([INOTIFY_INIT1])])
+AC_CHECK_FUNCS([inotify_init1], [add_system_opt([INOTIFY_INIT1])])
 
 dnl - Do we want to override dynamic/static linking?
 if test -n "$enable_dynamic_linking"; then
@@ -520,7 +523,7 @@ if test .${enable_libnl} != .no; then
           CPPFLAGS="$SAV_CPPFLAGS $NL3_CPPFLAGS"
           AC_CHECK_HEADERS([netlink/route/link.h netlink/route/link/inet.h], [], [AC_MSG_ERROR([libnl-3 route link headers missing])])
           AC_DEFINE([_HAVE_IPV4_DEVCONF_], [ 1 ], [Define to 1 if have IPv4 netlink device configuration])
-          add_build_opt([IPV4_DEVCONF])
+          add_system_opt([IPV4_DEVCONF])
 
           dnl ----[Check if have net/if.h and netlink/route/link.h namespace collision]----
           dnl -- Resolved in libnl3-3.2.26 (release 30/3/2015)
@@ -533,7 +536,7 @@ if test .${enable_libnl} != .no; then
             ], [
               AC_MSG_RESULT([yes])
               AC_DEFINE([_HAVE_IF_H_LINK_H_COLLISION_], [ 1 ], [Define to 1 if <net/if.h> and <netlink/route/link.h> namespace collision])
-              add_build_opt([IF_H_LINK_H_COLLISION])
+              add_system_opt([IF_H_LINK_H_COLLISION])
             ])
         fi
         CPPFLAGS="$SAV_CPPFLAGS"
@@ -555,9 +558,9 @@ if test .${enable_libnl} != .no; then
 
       if test $NEED_NL3 = Yes; then
         AC_DEFINE([_HAVE_LIBNL3_], [ 1 ], [Define to 1 if using libnl-3])
-        add_build_opt([LIBNL3])
+        add_system_opt([LIBNL3])
 	if test .$enable_libnl_dynamic = .yes; then
-          add_build_opt([LIBNL_DYNAMIC])
+          add_system_opt([LIBNL_DYNAMIC])
 	  add_pkg_config_without_libs([libnl-3.0])
 	  AC_DEFINE([_LIBNL_DYNAMIC_], [ 1 ], [Define to 1 if building with libnl dynamic linking])
 	  NEED_LIBDL=Yes
@@ -575,10 +578,10 @@ if test .${enable_libnl} != .no; then
             IPVS_USE_NL=Yes
             NETLINK_VER=1
             AC_DEFINE([_HAVE_LIBNL1_], [ 1 ], [Define to 1 if using libnl-1])
-            add_build_opt([LIBNL1])
+            add_system_opt([LIBNL1])
 	    if test .$enable_libnl_dynamic = .yes; then
               add_pkg_config_without_libs([libnl-1])
-              add_build_opt([LIBNL_DYNAMIC])
+              add_config_opt([LIBNL_DYNAMIC])
 	      AC_DEFINE([_LIBNL_DYNAMIC_], [ 1 ], [Define to 1 if building with libnl dynamic linking])
 	      NEED_LIBDL=Yes
 	      get_lib_name([nl], [nl_socket_modify_cb])
@@ -642,7 +645,7 @@ AC_CHECK_DECLS([RTA_VIA, FRA_OIFNAME], [], [],
 for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF RTA_VIA FRA_OIFNAME FRA_SUPPRESS_PREFIXLEN FRA_SUPPRESS_IFGROUP FRA_TUN_ID RTAX_CC_ALGO RTAX_QUICKACK FRA_UID_RANGE; do
   AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
   if test ${decl_var} = yes; then
-    add_build_opt[${flag}]
+    add_system_opt[${flag}]
   fi
 done
 
@@ -656,7 +659,7 @@ if test ${ac_cv_have_decl_RTA_ENCAP}; then
   for flag in LWTUNNEL_ENCAP_MPLS LWTUNNEL_ENCAP_ILA; do
     AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
     if test ${decl_var} = yes; then
-      add_build_opt[${flag}]
+      add_system_opt[${flag}]
     fi
   done
 fi
@@ -684,6 +687,7 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
     AC_CHECK_LIB(iptc, iptc_init,
       [
         AC_DEFINE([_HAVE_LIBIPTC_], [ 1 ], [Define to 1 if have iptables libraries])
+	add_system_opt([LIBIPTC])
 	if test .${enable_libiptc_dynamic} != .yes; then
           add_pkg_config([--static libiptc])
 	  dnl - Older versions of libiptc produced a requirement for -liptc, but we don't need it
@@ -693,10 +697,9 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
 	  if test ".$IPTC_LIBS" = .; then
 	    KA_LIBS=`echo $KA_LIBS -lip4tc -lip6tc`
 	  fi
-	  add_build_opt([LIBIPTC])
 	else
           add_pkg_config_without_libs([libiptc])
-	  add_build_opt([LIBIPTC_DYNAMIC])
+	  add_config_opt([LIBIPTC_DYNAMIC])
 	  AC_DEFINE([_LIBIPTC_DYNAMIC_], [ 1 ], [Define to 1 if building with libiptc dynamic linking])
 	  NEED_LIBDL=Yes
 	  get_lib_name([ip4tc], [iptc_init])
@@ -715,7 +718,7 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
     else
       add_pkg_config_without_libs([xtables])
       AC_DEFINE([_LIBXTABLES_DYNAMIC_], [ 1 ], [Define to 1 if building with libxtables dynamic linking])
-      add_build_opt([XTABLES_DYNAMIC])
+      add_config_opt([XTABLES_DYNAMIC])
       NEED_LIBDL=Yes
       get_lib_name([xtables], [xtables_insmod])
       AC_DEFINE_UNQUOTED([XTABLES_LIB_NAME], [ "$LIB_NAME" ], [Define the xtables library name])
@@ -774,12 +777,12 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
             fi
 	    if test .${enable_libipset_dynamic} != .no; then
 	      AC_DEFINE([_LIBIPSET_DYNAMIC_], [ 1 ], [Define to 1 if building with libipset dynamic linking])
-              add_build_opt([LIBIPSET_DYNAMIC])
+              add_config_opt([LIBIPSET_DYNAMIC])
 	      NEED_LIBDL=Yes
 	      get_lib_name([ipset], [ipset_session_init])
 	      AC_DEFINE_UNQUOTED([IPSET_LIB_NAME], [ "$LIB_NAME" ], [Define the ipset library name])
 	    else
-              add_build_opt([LIBIPSET])
+              add_config_opt([LIBIPSET])
 	    fi
 
 	    dnl - xt_set_info_match first introduced in Linux 2.6.39
@@ -867,7 +870,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   [
     AC_MSG_RESULT([yes])
     AC_DEFINE([_HAVE_NET_LINUX_IF_H_COLLISION_], [ 1 ], [Define to 1 if have linux/if.h followed by net/if.h namespace collision])
-    add_build_opt([NET_LINUX_IF_H_COLLISION])
+    add_system_opt([NET_LINUX_IF_H_COLLISION])
   ])
 CPPFLAGS="$SAV_CPPFLAGS"
 
@@ -885,7 +888,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   [
     AC_MSG_RESULT([yes])
     AC_DEFINE([_HAVE_LIBIPTC_LINUX_NET_IF_H_COLLISION_], [ 1 ], [Define to 1 if have libiptc/libiptc.h linux/if.h and net/if.h namespace collision])
-    add_build_opt([LIBIPTC_LINUX_NET_IF_H_COLLISION])
+    add_system_opt([LIBIPTC_LINUX_NET_IF_H_COLLISION])
   ])
 CPPFLAGS="$SAV_CPPFLAGS"
 
@@ -894,7 +897,7 @@ IPVS_SYNCD_ATTRIBUTES=No
 IPVS_64BIT_STATS=No
 if test "$enable_lvs" != no; then
   IPVS_SUPPORT=Yes
-  add_build_opt([LVS])
+  add_config_opt([LVS])
   AC_DEFINE([_WITH_LVS_], [ 1 ], [Define to 1 if have IPVS support])
 
   dnl -- <linux/ip_vs.h> exists from 2.6.27; prior to that <net/ip_vs.h> is used
@@ -907,7 +910,7 @@ if test "$enable_lvs" != no; then
 
   if test $IPVS_USE_NL = Yes; then
     AC_DEFINE([LIBIPVS_USE_NL], [ 1 ], [Define to 1 if libipvs can use netlink])
-    add_build_opt([LIBIPVS_NETLINK])
+    add_system_opt([LIBIPVS_NETLINK])
   fi
 
   dnl ----[ IPVS syncd options ]---
@@ -915,7 +918,7 @@ if test "$enable_lvs" != no; then
   CPPFLAGS="$CPPFLAGS $kernelinc"
 
   dnl -- Since Linux 3.18
-  AC_CHECK_DECLS([IPVS_DEST_ATTR_ADDR_FAMILY], [add_build_opt([IPVS_DEST_ATTR_ADDR_FAMILY])], [], [#include <linux/ip_vs.h>])
+  AC_CHECK_DECLS([IPVS_DEST_ATTR_ADDR_FAMILY], [add_system_opt([IPVS_DEST_ATTR_ADDR_FAMILY])], [], [#include <linux/ip_vs.h>])
 
   IPVS_SYNCD_ATTRIBUTES=Yes
   AC_CHECK_DECLS([
@@ -933,7 +936,7 @@ if test "$enable_lvs" != no; then
   dnl -- Since Linux 4.3
   if test $IPVS_SYNCD_ATTRIBUTES = Yes; then
     AC_DEFINE([_HAVE_IPVS_SYNCD_ATTRIBUTES_], [ 1 ], [Define to 1 if have IPVS syncd attributes])
-    add_build_opt([IPVS_SYNCD_ATTRIBUTES])
+    add_system_opt([IPVS_SYNCD_ATTRIBUTES])
   fi
 
   dnl ----[ IPVS 64-bit stats ]----
@@ -950,7 +953,7 @@ if test "$enable_lvs" != no; then
       [[#include <linux/ip_vs.h>]])
     if test $IPVS_64BIT_STATS = Yes; then
       AC_DEFINE([_WITH_LVS_64BIT_STATS_], [ 1 ], [Define to 1 if have IPVS 64 bit stats])
-      add_build_opt([IPVS_64BIT_STATS])
+      add_system_opt([IPVS_64BIT_STATS])
     fi
   fi
   CPPFLAGS="$SAV_CPPFLAGS"
@@ -966,13 +969,13 @@ MACVLAN_SUPPORT=No
 if test "$enable_vrrp" != no; then
   VRRP_SUPPORT=Yes
   AC_DEFINE([_WITH_VRRP_], [ 1 ], [Define to 1 if have VRRP support])
-  add_build_opt([VRRP])
+  add_config_opt([VRRP])
 
   dnl ----[ check for VRRP authentication support ]----
   if test "${enable_vrrp_auth}" != no; then
     VRRP_AUTH_SUPPORT=Yes
     AC_DEFINE([_WITH_VRRP_AUTH_], [ 1 ], [Define to 1 if want ARRP authentication support])
-    add_build_opt([VRRP_AUTH])
+    add_config_opt([VRRP_AUTH])
   fi
 
   dnl ----[ Checks for kernel VMAC support ]----
@@ -992,7 +995,7 @@ if test "$enable_vrrp" != no; then
     ]])
   if test $MACVLAN_SUPPORT = Yes; then
     AC_DEFINE([_HAVE_VRRP_VMAC_], [ 1 ], [Define to 1 if have MAC VLAN support])
-    add_build_opt([VRRP_VMAC])
+    add_system_opt([VRRP_VMAC])
   fi
   CPPFLAGS="$SAV_CPPFLAGS"
 fi
@@ -1006,12 +1009,12 @@ fi
 
 dnl ----[ Checks for glibc SOCK_NONBLOCK support ]----
 # Introduced in Linux 2.6.27 and glibc 2.9
-AC_CHECK_DECLS([SOCK_NONBLOCK], [add_build_opt([SOCK_NONBLOCK])], [],[[#include <sys/socket.h>]])
+AC_CHECK_DECLS([SOCK_NONBLOCK], [add_system_opt([SOCK_NONBLOCK])], [],[[#include <sys/socket.h>]])
 AM_CONDITIONAL([SOCK_NONBLOCK], [test $ac_cv_have_decl_SOCK_NONBLOCK = yes])
 
 dnl ----[ Checks for glibc SOCK_CLOEXEC support ]----
 # Introduced in Linux 2.6.27 and glibc 2.9
-AC_CHECK_DECLS([SOCK_CLOEXEC], [add_build_opt([SOCK_CLOEXEC])], [],[[#include <sys/socket.h>]])
+AC_CHECK_DECLS([SOCK_CLOEXEC], [add_system_opt([SOCK_CLOEXEC])], [],[[#include <sys/socket.h>]])
 
 dnl ----[ Checks for pe support ]----
 # Introduced in Linux 2.6.37
@@ -1026,7 +1029,7 @@ UNICAST_CHKSUM_COMPAT_SUPPORT=No
 if test .$enable_chksum_compat != .no; then
   UNICAST_CHKSUM_COMPAT_SUPPORT=Yes
   AC_DEFINE([_WITH_UNICAST_CHKSUM_COMPAT_], [ 1 ], [Define to 1 to enable v1.3.6 and earlier VRRPv3 unicast checksum compatibility])
-  add_build_opt([OLD_CHKSUM_COMPAT])
+  add_config_opt([OLD_CHKSUM_COMPAT])
 fi
 
 dnl ----[ Checks for FIB routing support ]----
@@ -1039,7 +1042,7 @@ if test .$enable_routes != .no; then
     [
       FIB_ROUTING_SUPPORT=Yes
       AC_DEFINE([_HAVE_FIB_ROUTING_], [ 1 ], [Define to 1 if have FIB routing support])
-      add_build_opt([FIB_ROUTING])
+      add_config_opt([FIB_ROUTING])
     ], [],
     [[#include <sys/socket.h>
       #include <linux/fib_rules.h>]])
@@ -1054,7 +1057,7 @@ if test ${MACVLAN_SUPPORT} = Yes; then
   # Introduced in Linux 3.17
   AC_CHECK_DECLS([IFLA_INET6_ADDR_GEN_MODE],
     [
-      add_build_opt([INET6_ADDR_GEN_MODE])
+      add_system_opt([INET6_ADDR_GEN_MODE])
     ], [], [[
       #include <linux/if_link.h>
     ]])
@@ -1145,7 +1148,7 @@ if test "$enable_snmp" = yes -o \
           "$enable_snmp_reply_v3_for_v2" != no; then
     AC_DEFINE([_SNMP_REPLY_V3_FOR_V2_], [ 1 ], [Define to 1 to have keepalived send RFC6257 SNMP responses for VRRPv2 instances])
     SNMP_V3_FOR_V2=Yes
-    add_build_opt([SNMP_V3_FOR_V2])
+    add_config_opt([SNMP_V3_FOR_V2])
   fi
 
   if test "$enable_snmp" = yes; then
@@ -1176,27 +1179,27 @@ fi
 dnl ----[What SNMP support is required]----
 if test $SNMP_SUPPORT = Yes; then
   AC_DEFINE([_WITH_SNMP_], [ 1 ], [Define to 1 to have keepalived SNMP support])
-  add_build_opt([SNMP])
+  add_config_opt([SNMP])
 fi
 if test $SNMP_VRRP_SUPPORT = Yes; then
   AC_DEFINE([_WITH_SNMP_KEEPALIVED_], [ 1 ], [Define to 1 to have keepalived SNMP VRRP support])
-  add_build_opt([SNMP_KEEPALIVED])
+  add_config_opt([SNMP_KEEPALIVED])
 fi
 if test $SNMP_CHECKER_SUPPORT = Yes; then
   AC_DEFINE([_WITH_SNMP_CHECKER_], [ 1 ], [Define to 1 to have keepalived SNMP checker support])
-  add_build_opt([SNMP_CHECKER])
+  add_config_opt([SNMP_CHECKER])
 fi
 if test $SNMP_RFC_SUPPORT = Yes; then
   AC_DEFINE([_WITH_SNMP_RFC_], [ 1 ], [Define to 1 to have RFC SNMP support])
-  add_build_opt([SNMP_RFC])
+  add_config_opt([SNMP_RFC])
 fi
 if test $SNMP_RFCV2_SUPPORT = Yes; then
   AC_DEFINE([_WITH_SNMP_RFCV2_], [ 1 ], [Define to 1 to have RFCv2 SNMP support])
-  add_build_opt([SNMP_RFCV2])
+  add_config_opt([SNMP_RFCV2])
 fi
 if test $SNMP_RFCV3_SUPPORT = Yes; then
   AC_DEFINE([_WITH_SNMP_RFCV3_], [ 1 ], [Define to 1 to have RFCv3 SNMP support])
-  add_build_opt([SNMP_RFCV3])
+  add_config_opt([SNMP_RFCV3])
 fi
 AM_CONDITIONAL([SNMP], [test $SNMP_SUPPORT = Yes])
 AM_CONDITIONAL([SNMP_VRRP], [test $SNMP_VRRP_SUPPORT = Yes])
@@ -1214,7 +1217,7 @@ if test "$enable_dbus" = yes; then
       add_pkg_config([gio-2.0])
       DBUS_SUPPORT=Yes
       AC_DEFINE([_WITH_DBUS_], [ 1 ], [Define to 1 to have DBUS support])
-      add_build_opt([DBUS])
+      add_config_opt([DBUS])
 
       dnl -- g_type_init() not needed and deprecated since glib 2.36
       CFLAGS="$($PKG_CONFIG --cflags gio-2.0)"
@@ -1238,7 +1241,7 @@ if test "$enable_dbus" = yes; then
       if test "$enable_dbus_create_instance" = yes; then
         AC_DEFINE([_WITH_DBUS_CREATE_INSTANCE_], [ 1 ], [Define to 1 to have DBus create instance support])
         DBUS_CREATE_INSTANCE=Yes
-        add_build_opt([DBUS_CREATE_INSTANCE])
+        add_config_opt([DBUS_CREATE_INSTANCE])
         AC_MSG_WARN([DBus create instance functionality is dangerous - why do you want it?])
       fi
     ],
@@ -1264,7 +1267,7 @@ if test "${enable_fwmark}" != no; then
     [
       SO_MARK_SUPPORT=Yes
       AC_DEFINE([_WITH_SO_MARK_], [ 1 ], [Define to 1 if have SO_MARK])
-      add_build_opt([SO_MARK])
+      add_system_opt([SO_MARK])
     ], [],
     [[#include <sys/socket.h>]])
 fi
@@ -1305,11 +1308,11 @@ MEM_CHECK_LOG=No
 if test "${enable_mem_check}" = "yes"; then
   MEM_CHECK=Yes
   AC_DEFINE([_MEM_CHECK_], [ 1 ], [Define to 1 to build with malloc/free checks])
-  add_build_opt([MEM_CHECK])
+  add_config_opt([MEM_CHECK])
   if test "${enable_mem_check_log}" = "yes"; then
     MEM_CHECK_LOG=Yes
     AC_DEFINE([_MEM_CHECK_LOG_], [ 1 ], [Define to 1 to log malloc/free checks to syslog])
-    add_build_opt([MEM_CHECK_LOG])
+    add_config_opt([MEM_CHECK_LOG])
   fi
 fi
 
@@ -1317,7 +1320,7 @@ dnl ----[ Debug or not ? ]----
 if test "${enable_debug}" = yes; then
   AC_DEFINE([_DEBUG_], [ 1 ], [Define to 1 to build with debugging support])
   ENABLE_DEBUG=Yes
-  add_build_opt([DEBUG])
+  add_config_opt([DEBUG])
 else
   ENABLE_DEBUG=No
 fi
@@ -1327,7 +1330,7 @@ dnl ----[ Stacktrace support or not ? ]----
 if test "${enable_stacktrace}" = yes; then
   AC_DEFINE([_WITH_STACKTRACE_], [ 1 ], [Define to 1 to build with stacktrace support])
   ENABLE_STACKTRACE=Yes
-  add_build_opt([STACKTRACE])
+  add_config_opt([STACKTRACE])
   add_to_var([KA_LDFLAGS], [-rdynamic])
 else
   ENABLE_STACKTRACE=No
@@ -1337,7 +1340,7 @@ dnl ----[ Thread dumping support or not ? ]----
 if test "${enable_dump_threads}" = yes; then
   AC_DEFINE([_WITH_DUMP_THREADS_], [ 1 ], [Define to 1 to build with thread dumping support])
   ENABLE_DUMP_THREADS=Yes
-  add_build_opt([DUMP_THREADS])
+  add_config_opt([DUMP_THREADS])
 else
   ENABLE_DUMP_THREADS=No
 fi
@@ -1398,7 +1401,8 @@ AM_CONDITIONAL([INIT_SYSV], [test $INIT_TYPE = SYSV])
 AM_CONDITIONAL([INIT_OPENRC], [test $INIT_TYPE = openrc])
 AM_CONDITIONAL([INIT_SUSE], [test $INIT_TYPE = SUSE])
 
-AC_DEFINE_UNQUOTED([CONFIGURATION_OPTIONS], ["$BUILD_OPTIONS"], [The configuration and build options from which the package is built])
+AC_DEFINE_UNQUOTED([CONFIGURATION_OPTIONS], ["$CONFIG_OPTIONS"], [The configuration options from which the package is built])
+AC_DEFINE_UNQUOTED([SYSTEM_OPTIONS], ["$SYSTEM_OPTIONS"], [The system options from which the package is built])
 
 if test $NETLINK_VER -eq 0; then
 	NETLINK_VER=None
