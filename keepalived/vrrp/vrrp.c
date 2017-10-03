@@ -574,6 +574,8 @@ vrrp_in_chk_vips(vrrp_t * vrrp, ip_address_t *ipaddress, unsigned char *buffer)
  *	  VRRP_PACKET_KO if packet invalid or
  *	  VRRP_PACKET_DROP if packet not relevant to us
  *	  VRRP_PACKET_OTHER if packet has wrong vrid
+ *
+ * Note: If we return anything other that VRRP_PACKET_OK, we should log the reason why
  */
 static int
 vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr)
@@ -720,7 +722,6 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		else if (hd->v2.auth_type == VRRP_AUTH_AH) {
 			/* check the authentication if it is ipsec ah */
 			if (vrrp_in_chk_ipsecah(vrrp, buffer)) {
-				log_message(LOG_INFO, "(%s) received an invalid auth header!", vrrp->iname);
 				++vrrp->stats->auth_failure;
 #ifdef _WITH_SNMP_RFCV2_
 				vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authFailure);
@@ -1326,22 +1327,10 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 static int
 vrrp_check_packet(vrrp_t * vrrp, char *buf, ssize_t buflen, bool check_vip_addr)
 {
-	int ret;
-
 	if (!buflen)
 		return VRRP_PACKET_NULL;
 
-	ret = vrrp_in_chk(vrrp, buf, buflen, check_vip_addr);
-
-	if (ret == VRRP_PACKET_DROP) {
-		log_message(LOG_INFO, "Sync instance needed on %s !!!",
-		       IF_NAME(vrrp->ifp));
-	}
-
-	else if (ret == VRRP_PACKET_KO)
-		log_message(LOG_INFO, "bogus VRRP packet received on %s !!!",
-		       IF_NAME(vrrp->ifp));
-	return ret;
+	return vrrp_in_chk(vrrp, buf, buflen, check_vip_addr);
 }
 
 /* Gratuitous ARP on each VIP */
@@ -1644,11 +1633,9 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	}
 	ret = vrrp_check_packet(vrrp, buf, buflen, check_addr);
 
-	if (ret != VRRP_PACKET_OK) {
-		log_message(LOG_INFO, "(%s) ignoring received advertisment..." ,  vrrp->iname);
-
+	if (ret != VRRP_PACKET_OK)
 		ignore_advert = true;
-	} else if (hd->priority == 0) {
+	else if (hd->priority == 0) {
 		log_message(LOG_INFO, "(%s) Backup received priority 0 advertisement", vrrp->iname);
 		vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
 #ifdef _WITH_SNMP_RFCV3_
@@ -1789,12 +1776,8 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	hd = vrrp_get_header(vrrp->family, buf, &proto);
 	ret = vrrp_check_packet(vrrp, buf, buflen, true);
 
-	if (ret != VRRP_PACKET_OK) {
-		log_message(LOG_INFO,
-		       "(%s) Dropping received VRRP packet...",
-		       vrrp->iname);
+	if (ret != VRRP_PACKET_OK)
 		return false;
-	}
 
 	addr_cmp = vrrp_saddr_cmp(&vrrp->pkt_saddr, vrrp);
 
@@ -1900,11 +1883,8 @@ vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	hd = vrrp_get_header(vrrp->family, buf, &proto);
 	ret = vrrp_check_packet(vrrp, buf, buflen, true);
 
-	if (ret != VRRP_PACKET_OK) {
-		log_message(LOG_INFO, "(%s) Dropping received VRRP packet..."
-				    , vrrp->iname);
+	if (ret != VRRP_PACKET_OK)
 		return false;
-	}
 
 	if (vrrp->base_priority == VRRP_PRIO_OWNER ||
 	    (vrrp->effective_priority > hd->priority && !vrrp->nopreempt))
