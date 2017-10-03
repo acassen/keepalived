@@ -41,6 +41,7 @@
 #include "global_data.h"
 #include "vrrp.h"
 #include "vrrp_if.h"
+#include "vrrp_daemon.h"
 #include "keepalived_netlink.h"
 #include "utils.h"
 #include "logger.h"
@@ -94,7 +95,7 @@ base_if_get_by_ifp(interface_t *ifp)
 }
 
 interface_t *
-if_get_by_ifname(const char *ifname, bool create)
+if_get_by_ifname(const char *ifname, if_lookup_t create)
 {
 	interface_t *ifp;
 	element e;
@@ -107,8 +108,12 @@ if_get_by_ifname(const char *ifname, bool create)
 		}
 	}
 
-	if (!create)
+	if (create == IF_NO_CREATE ||
+	    (create == IF_CREATE_IF_DYNAMIC && (!global_data || !global_data->dynamic_interfaces))) {
+		if (create == IF_CREATE_IF_DYNAMIC)
+			non_existent_interface_specified = true;
 		return NULL;
+	}
 
 	if (!(ifp = MALLOC(sizeof(interface_t))))
 		return NULL;
@@ -118,6 +123,9 @@ if_get_by_ifname(const char *ifname, bool create)
 	ifp->base_ifp = ifp;
 #endif
 	if_add_queue(ifp);
+
+	if (create == IF_CREATE_IF_DYNAMIC)
+		log_message(LOG_INFO, "Configuration specifies interface %s which doesn't currently exist - will use if created", ifname);
 
 	return ifp;
 }

@@ -65,11 +65,14 @@ alloc_track_if(vrrp_t *vrrp, vector_t *strvec)
 	char *tracked = strvec_slot(strvec, 0);
 	element e;
 
-	ifp = if_get_by_ifname(tracked, true);
+	ifp = if_get_by_ifname(tracked, IF_CREATE_IF_DYNAMIC);
 
-	if (!ifp->ifindex)
-		log_message(LOG_INFO, "(%s): tracked interface %s doesn't currently exist", vrrp->iname, tracked);
-	else if (!LIST_ISEMPTY(vrrp->track_ifp)) {
+	if (!ifp) {
+		log_message(LOG_INFO, "(%s): tracked interface %s doesn't exist", vrrp->iname, tracked);
+		return;
+	}
+
+	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
 		/* Check this vrrp isn't already tracking the i/f */
 		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e)) {
 			tip = ELEMENT_DATA(e);
@@ -106,10 +109,12 @@ alloc_group_track_if(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	char *tracked = strvec_slot(strvec, 0);
 	element e;
 
-	ifp = if_get_by_ifname(tracked, true);
+	ifp = if_get_by_ifname(tracked, IF_CREATE_IF_DYNAMIC);
 
-	if (!ifp->ifindex)
-		log_message(LOG_INFO, "(%s): tracked interface %s doesn't currently exist", sgroup->gname, tracked);
+	if (!ifp) {
+		log_message(LOG_INFO, "(%s): tracked interface %s doesn't exist", sgroup->gname, tracked);
+		return;
+	}
 	else if (!LIST_ISEMPTY(sgroup->track_ifp)) {
 		/* Check this sgroup isn't already tracking the i/f */
 		for (e = LIST_HEAD(sgroup->track_ifp); e; ELEMENT_NEXT(e)) {

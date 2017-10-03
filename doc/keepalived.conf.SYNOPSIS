@@ -238,6 +238,8 @@ global_defs {				# Block identification
     lvs_notify_fifo_script STRING [username [groupname]]
 					   # script to be run by keepalived to process healthchecher notify events
 					   # The FIFO name will be passed to the script as the last parameter
+    dynamic_interfaces			   # Allow configuration to include interfaces that don't exist at startup.
+					   #   This allows keepalived to work with interfaces that may be deleted and restored.
 }
 
 net_namespace NAME			   # Set the network namespace to run in

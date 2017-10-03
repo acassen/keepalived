@@ -533,10 +533,11 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 				FREE(new);
 				return;
 			}
-			ifp_local = if_get_by_ifname(strvec_slot(strvec, ++i), true);
-			if (!ifp_local->ifindex) {
-				log_message(LOG_INFO, "WARNING - interface %s for ip address %s doesn't currently exist",
-					ifp_local->ifname, FMT_STR_VSLOT(strvec, addr_idx));
+			if (!(ifp_local = if_get_by_ifname(strvec_slot(strvec, ++i), IF_CREATE_IF_DYNAMIC))) {
+				log_message(LOG_INFO, "WARNING - interface %s for ip address %s doesn't exist",
+						FMT_STR_VSLOT(strvec, i), FMT_STR_VSLOT(strvec, addr_idx));
+				FREE(new);
+				return;
 			}
 			new->ifp = ifp_local;
 		} else if (!strcmp(str, "scope")) {
@@ -627,10 +628,12 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 
 	if (!ifp && !new->ifp) {
 		if (!global_data->default_ifp) {
-			global_data->default_ifp = if_get_by_ifname(DFLT_INT, true);
-			if (!global_data->default_ifp->ifindex) {
-				log_message(LOG_INFO, "Default interface %s doesn't currently exist for static address %s.",
+			global_data->default_ifp = if_get_by_ifname(DFLT_INT, IF_CREATE_IF_DYNAMIC);
+			if (!global_data->default_ifp) {
+				log_message(LOG_INFO, "Default interface %s doesn't exist for static address %s.",
 							DFLT_INT, FMT_STR_VSLOT(strvec, addr_idx));
+				FREE(new);
+				return;
 			}
 		}
 		new->ifp = global_data->default_ifp;

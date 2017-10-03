@@ -2617,7 +2617,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 			if (!interface_already_existed &&
 			    vrrp->vmac_ifname[0] &&
-			    (ifp = if_get_by_ifname(vrrp->vmac_ifname, false)) &&
+			    (ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
 			     ifp->ifindex) {
 				/* An interface with the same name exists, but it doesn't match */
 				if (ifp->vmac)
@@ -2638,7 +2638,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			while (true) {
 				/* If there is no VMAC with the name and no existing
 				 * interface with the name, we can use it */
-				if (!e && !if_get_by_ifname(ifname, false))
+				if (!e && !if_get_by_ifname(ifname, IF_NO_CREATE))
 					break;
 
 				/* For IPv6 try vrrp6 as second attempt */
@@ -2660,7 +2660,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			strncpy(vrrp->vmac_ifname, ifname, IFNAMSIZ);
 		}
 
-		ifp = if_get_by_ifname(vrrp->vmac_ifname, true);
+		ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_CREATE_ALWAYS);
 		ifp->base_ifp = vrrp->ifp;
 		vrrp->ifp = ifp;
 

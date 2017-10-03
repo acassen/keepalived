@@ -256,7 +256,7 @@ vrrp_vmac_handler(vector_t *strvec)
 		strncpy(vrrp->vmac_ifname, strvec_slot(strvec, 1), IFNAMSIZ - 1);
 
 		/* Check if the interface exists and is a macvlan we can use */
-		if ((ifp = if_get_by_ifname(vrrp->vmac_ifname, false)) &&
+		if ((ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
 		    !ifp->vmac) {
 			log_message(LOG_INFO, "(%s): interface %s already exists and is not a private macvlan; ignoring vmac if_name", vrrp->iname, vrrp->vmac_ifname);
 			vrrp->vmac_ifname[0] = '\0';
@@ -331,9 +331,9 @@ vrrp_int_handler(vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	char *name = strvec_slot(strvec, 1);
 
-	vrrp->ifp = if_get_by_ifname(name, true);
-	if (!vrrp->ifp->ifindex)
-		log_message(LOG_INFO, "WARNING - interface %s for vrrp_instance %s doesn't currently exist - will start in FAULT state", name, vrrp->iname);
+	vrrp->ifp = if_get_by_ifname(name, IF_CREATE_IF_DYNAMIC);
+	if (!vrrp->ifp)
+		log_message(LOG_INFO, "WARNING - interface %s for vrrp_instance %s doesn't exist", name, vrrp->iname);
 	else if (vrrp->ifp->hw_type == ARPHRD_LOOPBACK) {
 		log_message(LOG_INFO, "(%s): cannot use a loopback interface (%s) for vrrp - ignoring", vrrp->iname, vrrp->ifp->ifname);
 		vrrp->ifp = NULL;
@@ -995,9 +995,11 @@ garp_group_gna_interval_handler(vector_t *strvec)
 static void
 garp_group_interface_handler(vector_t *strvec)
 {
-	interface_t *ifp = if_get_by_ifname(strvec_slot(strvec, 1), true);
-	if (!ifp->ifindex)
-		log_message(LOG_INFO, "WARNING - interface %s specified for garp_group doesn't currently exist", ifp->ifname);
+	interface_t *ifp = if_get_by_ifname(strvec_slot(strvec, 1), IF_CREATE_IF_DYNAMIC);
+	if (!ifp) {
+		log_message(LOG_INFO, "WARNING - interface %s specified for garp_group doesn't exist", ifp->ifname);
+		return;
+	}
 
 	if (ifp->garp_delay) {
 		log_message(LOG_INFO, "garp_group already specified for %s - ignoring", FMT_STR_VSLOT(strvec, 1));
@@ -1032,9 +1034,11 @@ garp_group_interfaces_handler(vector_t *strvec)
 	}
 
 	for (i = 0; i < vector_size(interface_vec); i++) {
-		ifp = if_get_by_ifname(vector_slot(interface_vec, i), true);
-		if (!ifp->ifindex)
-			log_message(LOG_INFO, "WARNING - interface %s specified for garp_group doesn't currently exist", ifp->ifname);
+		ifp = if_get_by_ifname(vector_slot(interface_vec, i), IF_CREATE_IF_DYNAMIC);
+		if (!ifp) {
+			log_message(LOG_INFO, "WARNING - interface %s specified for garp_group doesn't exist", ifp->ifname);
+			continue;
+		}
 
 		if (ifp->garp_delay) {
 			log_message(LOG_INFO, "garp_group already specified for %s - ignoring", FMT_STR_VSLOT(strvec, 1));

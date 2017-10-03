@@ -1174,9 +1174,11 @@ parse_nexthops(vector_t *strvec, unsigned int i, ip_route_t *route)
 					route->family = new->addr->ifa.ifa_family;
 			}
 			else if (!strcmp(str, "dev")) {
-				new->ifp = if_get_by_ifname(strvec_slot(strvec, ++i), true);
-				if (!new->ifp->ifindex)
-					log_message(LOG_INFO, "WARNING - interface %s for VROUTE nexthop doesn't currently exist", new->ifp->ifname);
+				new->ifp = if_get_by_ifname(strvec_slot(strvec, ++i), IF_CREATE_IF_DYNAMIC);
+				if (!new->ifp) {
+					log_message(LOG_INFO, "WARNING - interface %s for VROUTE nexthop doesn't exist", new->ifp->ifname);
+					goto err;
+				}
 			}
 			else if (!strcmp(str, "weight")) {
 				if (get_u32(&val, strvec_slot(strvec, ++i), 256, "Invalid weight %s specified for route"))
@@ -1388,9 +1390,11 @@ alloc_route(list rt_list, vector_t *strvec)
 			new->mask |= IPROUTE_BIT_METRIC;
 		}
 		else if (!strcmp(str, "dev") || !strcmp(str, "oif")) {
-			ifp = if_get_by_ifname(strvec_slot(strvec, ++i), true);
-			if (!ifp->ifindex)
-				log_message(LOG_INFO, "WARNING - interface %s for VROUTE nexthop doesn't currently exist", ifp->ifname);
+			ifp = if_get_by_ifname(strvec_slot(strvec, ++i), IF_CREATE_IF_DYNAMIC);
+			if (!ifp) {
+				log_message(LOG_INFO, "WARNING - interface %s for VROUTE nexthop doesn't exist", ifp->ifname);
+				goto err;
+			}
 			new->oif = ifp;
 		}
 		else if (!strcmp(str, "onlink")) {

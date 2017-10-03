@@ -107,6 +107,7 @@ enum snmp_global_magic {
 	SNMP_IPVS_64BIT_STATS,
 	SNMP_NET_NAMESPACE,
 	SNMP_DBUS,
+	SNMP_DYNAMIC_INTERFACES,
 };
 
 static u_char*
@@ -190,6 +191,11 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 #endif
 			long_ret = 2;
 		return (u_char *)&long_ret;
+#ifdef _WITH_VRRP_
+	case SNMP_DYNAMIC_INTERFACES:
+		long_ret = global_data->dynamic_interfaces ? 1 : 2;
+		return (u_char *)&long_ret;
+#endif
 	default:
 		break;
 	}
@@ -247,6 +253,9 @@ static struct variable8 global_vars[] = {
 	{SNMP_NET_NAMESPACE, ASN_OCTET_STR, RONLY, snmp_scalar, 1, {8}},
 #ifdef _WITH_DBUS_
 	{SNMP_DBUS, ASN_INTEGER, RONLY, snmp_scalar, 1, {9}},
+#endif
+#ifdef _WITH_VRRP_
+	{SNMP_DYNAMIC_INTERFACES, ASN_INTEGER, RONLY, snmp_scalar, 1, {10}},
 #endif
 };
 

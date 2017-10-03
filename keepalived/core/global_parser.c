@@ -76,6 +76,11 @@ smtpto_handler(vector_t *strvec)
 }
 #ifdef _WITH_VRRP_
 static void
+dynamic_interfaces_handler(__attribute__((unused))vector_t *strvec)
+{
+	global_data->dynamic_interfaces = true;
+}
+static void
 email_faults_handler(__attribute__((unused))vector_t *strvec)
 {
 	global_data->email_faults = true;
@@ -138,9 +143,9 @@ default_interface_handler(vector_t *strvec)
 		log_message(LOG_INFO, "default_interface requires interface name");
 		return;
 	}
-	ifp = if_get_by_ifname(strvec_slot(strvec, 1), true);
-	if (!ifp->ifindex)
-		log_message(LOG_INFO, "WARNING - default interface %s doesn't currently exist", ifp->ifname);
+	ifp = if_get_by_ifname(strvec_slot(strvec, 1), IF_CREATE_IF_DYNAMIC);
+	if (!ifp)
+		log_message(LOG_INFO, "WARNING - default interface %s doesn't exist", ifp->ifname);
 
 	global_data->default_ifp = ifp;
 }
@@ -822,6 +827,7 @@ init_global_keywords(bool global_active)
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
 #ifdef _WITH_VRRP_
+	install_keyword("dynamic_interfaces", &dynamic_interfaces_handler);
 	install_keyword("email_faults", &email_faults_handler);
 	install_keyword("default_interface", &default_interface_handler);
 #endif

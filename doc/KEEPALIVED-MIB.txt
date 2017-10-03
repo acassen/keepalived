@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201710020002Z"
+     LAST-UPDATED "201710020003Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201710020003Z"
+     DESCRIPTION "add dynamic_interfaces"
      REVISION "201710020002Z"
      DESCRIPTION "add sync_group_tracking_weight"
      REVISION "201710020001Z"
@@ -319,6 +321,14 @@ dbus OBJECT-TYPE
     DESCRIPTION
         "True if the DBus interface is enabled."
     ::= { global 9 }
+
+dynamicInterfaces OBJECT-TYPE
+    SYNTAX TruthValue
+    MAX-ACCESS read-only
+    STATUS current
+    DESCRIPTION
+        "True if dynamic interfaces is enabled."
+    ::= { global 10 }
 
 -- ----------------------------------------------------------------------
 -- VRRP part
@@ -3862,7 +3872,8 @@ globalGroup OBJECT-GROUP
     lvsFlush,
     ipvs64BitStats,
     netNamespace,
-    dbus
+    dbus,
+    dynamicInterfaces
     }
     STATUS current
     DESCRIPTION

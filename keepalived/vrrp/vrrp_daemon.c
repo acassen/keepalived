@@ -63,6 +63,9 @@
 #endif
 #include "vrrp_track.h"
 
+/* Global variables */
+bool non_existent_interface_specified;
+
 /* Forward declarations */
 static int print_vrrp_data(thread_t * thread);
 static int print_vrrp_stats(thread_t * thread);
@@ -199,6 +202,12 @@ start_vrrp(void)
 	}
 
 	init_data(conf_file, vrrp_init_keywords);
+
+	if (non_existent_interface_specified) {
+		log_message(LOG_INFO, "Non-existent interface specified in configuration");
+		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
+		return;
+	}
 
 	init_global_data(global_data);
 

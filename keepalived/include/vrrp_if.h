@@ -131,13 +131,20 @@ typedef struct _tracked_if {
 #define IF_ISUP(X) (IF_FLAGS_UP(X))
 #endif
 
+typedef enum if_lookup {
+	IF_NO_CREATE,
+	IF_CREATE_IF_DYNAMIC,
+	IF_CREATE_ALWAYS,
+	IF_CREATE_NETLINK
+} if_lookup_t;
+
 /* Global data */
 list garp_delay;
 
 /* prototypes */
 extern interface_t *if_get_by_ifindex(ifindex_t);
 extern interface_t *base_if_get_by_ifp(interface_t *);
-extern interface_t *if_get_by_ifname(const char *, bool);
+extern interface_t *if_get_by_ifname(const char *, if_lookup_t);
 #ifdef _HAVE_VRRP_VMAC_
 extern void set_base_ifp(void);
 #endif

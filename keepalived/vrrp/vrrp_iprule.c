@@ -508,17 +508,19 @@ fwmark_err:
 #endif
 		else if (!strcmp(str, "dev") || !strcmp(str, "iif")) {
 			str = strvec_slot(strvec, ++i);
-			ifp = if_get_by_ifname(str, true);
-			if (!ifp->ifindex)
-				log_message(LOG_INFO, "WARNING - interface %s for rule doesn't currently exist",  str);
+			ifp = if_get_by_ifname(str, IF_CREATE_IF_DYNAMIC);
+			if (!ifp) {
+				log_message(LOG_INFO, "WARNING - interface %s for rule doesn't exist",  str);
+				goto err;
+			}
 			new->iif = ifp;
 		}
 #if HAVE_DECL_FRA_OIFNAME
 		else if (!strcmp(str, "oif")) {
 			str = strvec_slot(strvec, ++i);
-			ifp = if_get_by_ifname(str, true);
-			if (!ifp->ifindex) {
-				log_message(LOG_INFO, "WARNING - interface %s for rule doesn't currently exist",  str);
+			ifp = if_get_by_ifname(str, IF_CREATE_IF_DYNAMIC);
+			if (!ifp) {
+				log_message(LOG_INFO, "WARNING - interface %s for rule doesn't exist",  str);
 				goto err;
 			}
 			new->oif = ifp;

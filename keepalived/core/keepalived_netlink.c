@@ -1312,7 +1312,7 @@ netlink_if_link_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 	name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
 
 	/* Skip it if already exists */
-	ifp = if_get_by_ifname(name, true);
+	ifp = if_get_by_ifname(name, IF_CREATE_NETLINK);
 
 	if (ifp->ifindex) {
 		update_interface_flags(ifp, ifi->ifi_flags);
@@ -1466,7 +1466,7 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 		if (h->nlmsg_type == RTM_NEWLINK) {
 			char *name;
 			name = (char *) RTA_DATA(tb[IFLA_IFNAME]);
-			ifp = if_get_by_ifname(name, true);
+			ifp = if_get_by_ifname(name, IF_CREATE_NETLINK);
 
 			/* Since the garp_delay and tracking_vrrp are set up by name,
 			 * it is reasonable to preserve them.
