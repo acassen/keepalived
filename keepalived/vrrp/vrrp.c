@@ -1929,7 +1929,7 @@ static void
 add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr)
 {
 	tracking_vrrp_t *tvp;
-	tracking_vrrp_t *etvp;
+	tracking_vrrp_t *etvp = NULL;
 	element e;
 	char addr_str[INET6_ADDRSTRLEN];
 
@@ -1954,27 +1954,38 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr)
 		for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
 			etvp = ELEMENT_DATA(e);
 			if (etvp->vrrp == vrrp) {
-				if (weight == 0)
-					etvp->weight = 0;
-				else if (etvp->weight == VRRP_NOT_TRACK_IF)
+				/* Update the weight appropriately. We will use the sync group's
+				 * weight unless the vrrp setting is unweighted. */
+				log_message(LOG_INFO, "(%s): track_interface %s is configured on VRRP instance and sync group. Remove vrrp instance or sync group config",
+						vrrp->iname, ifp->ifname);
+				if (etvp->weight)
 					etvp->weight = weight;
-				return;
+				else {
+					/* We don't need to update the failed state
+					 * if previously it was unweighted. */
+					return;
+				}
+				break;
 			}
 		}
+		if (!e)
+			etvp = NULL;
 	}
 
-	/* Not in list so add */
-	tvp = MALLOC(sizeof *tvp);
-	tvp->vrrp = vrrp;
-	tvp->weight = weight;
+	if (!etvp) {
+		/* Not in list so add */
+		tvp = MALLOC(sizeof *tvp);
+		tvp->vrrp = vrrp;
+		tvp->weight = weight;
 
-	list_add(ifp->tracking_vrrp, tvp);
+		list_add(ifp->tracking_vrrp, tvp);
+
+		etvp = tvp;
+	}
 
 	/* If the interface is down, record it against the vrrp instance,
-	 * unless we are not tracking the primary i/f */
-	if ((!vrrp->dont_track_primary ||
-	     (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp)) &&
-	    !FLAGS_UP(ifp->ifi_flags))
+	 * unless this is weighted or not tracking */
+	if (!etvp->weight && !FLAGS_UP(ifp->ifi_flags))
 		vrrp->num_script_if_fault++;
 }
 
@@ -1996,13 +2007,11 @@ static bool
 chk_min_cfg(vrrp_t * vrrp)
 {
 	if (vrrp->vrid == 0) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) the virtual id must be set!",
-		       vrrp->iname);
+		log_message(LOG_INFO, "VRRP_Instance(%s) the virtual id must be set!", vrrp->iname);
 		return false;
 	}
 	if (!vrrp->ifp) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) Unknown interface !",
-		       vrrp->iname);
+		log_message(LOG_INFO, "VRRP_Instance(%s) Unknown interface!", vrrp->iname);
 		return false;
 	}
 
@@ -2256,11 +2265,31 @@ shutdown_vrrp_instances(void)
 static void
 add_vrrp_to_track_script(vrrp_t *vrrp, tracked_sc_t *sc)
 {
-	tracking_vrrp_t *tvp = MALLOC(sizeof(tracking_vrrp_t));
+	tracking_vrrp_t *tvp, *etvp;
+	element e;
 
 	if (!LIST_EXISTS(sc->scr->tracking_vrrp))
 		sc->scr->tracking_vrrp = alloc_list(free_tracking_vrrp, dump_tracking_vrrp);
+	else {
+		/* Is this script already tracking the vrrp instance directly?
+		 * For this to be the case, the script was added directly on the vrrp instance,
+		 * and now we are adding it for a sync group. */
+		for (e = LIST_HEAD(sc->scr->tracking_vrrp); e; ELEMENT_NEXT(e)) {
+			etvp = ELEMENT_DATA(e);
+			if (etvp->vrrp == vrrp) {
+				/* Update the weight appropriately. We will use the sync group's
+				 * weight unless the vrrp setting is unweighted. */
+				log_message(LOG_INFO, "(%s): track_script %s is configured on VRRP instance and sync group. Remove vrrp instance config",
+						vrrp->iname, sc->scr->sname);
 
+				if (etvp->weight)
+					etvp->weight = sc->weight;
+				return;
+			}
+		}
+	}
+
+       	tvp = MALLOC(sizeof(tracking_vrrp_t));
 	tvp->vrrp = vrrp;
 	tvp->weight = sc->weight;
 	list_add(sc->scr->tracking_vrrp, tvp);
@@ -2269,11 +2298,31 @@ add_vrrp_to_track_script(vrrp_t *vrrp, tracked_sc_t *sc)
 static void
 add_vrrp_to_track_file(vrrp_t *vrrp, tracked_file_t *tfl)
 {
-	tracking_vrrp_t *tvp = MALLOC(sizeof(tracking_vrrp_t));
+	tracking_vrrp_t *tvp, *etvp;
+	element e;
 
 	if (!LIST_EXISTS(tfl->file->tracking_vrrp))
 		tfl->file->tracking_vrrp = alloc_list(free_tracking_vrrp, dump_tracking_vrrp);
+	else {
+		/* Is this file already tracking the vrrp instance directly?
+		 * For this to be the case, the file was added directly on the vrrp instance,
+		 * and now we are adding it for a sync group. */
+		for (e = LIST_HEAD(tfl->file->tracking_vrrp); e; ELEMENT_NEXT(e)) {
+			etvp = ELEMENT_DATA(e);
+			if (etvp->vrrp == vrrp) {
+				/* Update the weight appropriately. We will use the sync group's
+				 * weight unless the vrrp setting is unweighted. */
+				log_message(LOG_INFO, "(%s): track_file %s is configured on VRRP instance and sync group. Remove vrrp instance config",
+						vrrp->iname, tfl->file->fname);
 
+				if (etvp->weight)
+					etvp->weight = tfl->weight;
+				return;
+			}
+		}
+	}
+
+       	tvp = MALLOC(sizeof(tracking_vrrp_t));
 	tvp->vrrp = vrrp;
 	tvp->weight = tfl->weight;
 	list_add(tfl->file->tracking_vrrp, tvp);
