@@ -366,6 +366,10 @@ If the vrrp instance or sync group is not the address owner and the result is be
 (a negative value will reduce the priority), although the effective priority will
 be limited to the range [1,254].
 
+If a vrrp instance using a track_file is a member of a sync group, unless
+sync_group_tracking_weight is set on the group weight 0 must be set.
+Likewise, if the vrrp instance is the address owner, weight 0 must also be set.
+
 	2.3. VRRP synchronization group
 
 	The configuration block looks like :
@@ -396,7 +400,7 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
     }
     track_file {		# Files state we monitor
       <STRING>
-      <STRING> weight <INTEGER: -254..253>
+      <STRING> weight <INTEGER: -254..254>
       ...
     }
 

@@ -2738,12 +2738,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	/* In case of VRRP SYNC, we have to carefully check that we are
 	 * not running floating priorities on any VRRP instance, unless
 	 * sgroup_tracking_weight is set.
+	 * If address owner, then we must totally ignore weights.
 	 */
-	if (vrrp->sync &&
-	    (!vrrp->sync->sgroup_tracking_weight || vrrp->base_priority == VRRP_PRIO_OWNER)) {
+	if ((vrrp->sync && !vrrp->sync->sgroup_tracking_weight) ||
+	    vrrp->base_priority == VRRP_PRIO_OWNER) {
 		tracked_sc_t *sc;
 		tracked_if_t *tip;
 		tracked_file_t *tfl;
+		bool sync_no_tracking_weight = (vrrp->sync && !vrrp->sync->sgroup_tracking_weight);
 
 		/* Set weight to 0 of any interface we are tracking,
 		 * unless we are the address owner, in which case stop tracking it */
@@ -2752,26 +2754,31 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				next = e->next;
 				tip = ELEMENT_DATA(e);
 				if (tip->weight && tip->weight != VRRP_NOT_TRACK_IF) {
-					if (vrrp->base_priority == VRRP_PRIO_OWNER)
-						free_list_element(vrrp->track_ifp, e);
-					else {
+					log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring %s"
+							 "tracked interface %s due to %s",
+							 vrrp->iname, tip->ifp->ifname,
+							 sync_no_tracking_weight ? "weight of " : "",
+							 sync_no_tracking_weight ? "SYNC group" : "address owner");
+					if (sync_no_tracking_weight)
 						tip->weight = 0;
-						log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring weight of "
-								 "tracked interface %s due to SYNC group", vrrp->iname, tip->ifp->ifname);
-					}
+					else
+						free_list_element(vrrp->track_ifp, e);
 				}
 			}
 			if (LIST_ISEMPTY(vrrp->track_ifp))
 				free_list(&vrrp->track_ifp);
 		}
 
+		/* Ignore any weighted script */
 		if (!LIST_ISEMPTY(vrrp->track_script)) {
 			for (e = LIST_HEAD(vrrp->track_script); e; e = next) {
 				next = e->next;
 				sc = ELEMENT_DATA(e);
 				if (sc->weight) {
 					log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring "
-							 "tracked script %s with weights due to SYNC group", vrrp->iname, sc->scr->sname);
+							 "tracked script %s with weights due to %s",
+							 vrrp->iname, sc->scr->sname,
+							 sync_no_tracking_weight ? "SYNC group" : "address_owner");
 					free_list_element(vrrp->track_script, e);
 				}
 			}
@@ -2779,13 +2786,23 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				free_list(&vrrp->track_script);
 		}
 
+		/* Set tracking files to unweighted if weight not explicitly set, otherwise ignore */
 		if (!LIST_ISEMPTY(vrrp->track_file)) {
 			for (e = LIST_HEAD(vrrp->track_file); e; e = next) {
 				next = e->next;
 				tfl = ELEMENT_DATA(e);
-				if (tfl->weight) {
+				if (tfl->weight == 1) {		/* weight == 1 is the default */
+					log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring weight from "
+							 "tracked file %s due to %s - specify weight 0",
+							 vrrp->iname, tfl->file->fname,
+							 sync_no_tracking_weight ? "SYNC group" : "address_owner");
+					tfl->weight = 0;
+				}
+				else if (tfl->weight) {
 					log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring "
-							 "tracked file %s with weights due to SYNC group", vrrp->iname, tfl->file->fname);
+							 "tracked file %s with weight %d due to %s",
+							 vrrp->iname, tfl->file->fname, tfl->weight,
+							 sync_no_tracking_weight ? "SYNC group" : "address_owner");
 					free_list_element(vrrp->track_file, e);
 				}
 			}

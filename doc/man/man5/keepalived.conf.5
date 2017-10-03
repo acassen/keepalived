@@ -381,6 +381,10 @@ and
  # -253 and 253, the result will be added to the initial priority of the VRRP instance
  # (a negative value will reduce the priority), although the effective priority will
  # be limited to the range [1,254].
+
+ # If a vrrp instance using a track_file is a member of a sync group, unless
+ # sync_group_tracking_weight is set on the group weight 0 must be set.
+ # Likewise, if the vrrp instance is the address owner, weight 0 must also be set.
  vrrp_track_file <STRING> {    # VRRP track file declaration
     file <QUOTED_STRING>       # file to track
     weight <-254..254>         # optional default weight
