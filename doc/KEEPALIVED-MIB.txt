@@ -22,12 +22,18 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201710020003Z"
+     LAST-UPDATED "201710030001Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201710030001Z"
+     DESCRIPTION
+	"correct max weight for track scripts
+	 and track interfaces"
+     REVISION "201710030000Z"
+     DESCRIPTION "correct max weight for vrrpTrackFile"
      REVISION "201710020003Z"
      DESCRIPTION "add dynamic_interfaces"
      REVISION "201710020002Z"
@@ -2350,7 +2356,7 @@ vrrpFileResult OBJECT-TYPE
     ::= { vrrpFileEntry 4 }
 
 vrrpFileWeight OBJECT-TYPE
-    SYNTAX Integer32 (-254..253)
+    SYNTAX Integer32 (-254..254)
     MAX-ACCESS read-only
     STATUS current
     DESCRIPTION

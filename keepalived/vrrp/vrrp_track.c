@@ -86,9 +86,14 @@ alloc_track_if(vrrp_t *vrrp, vector_t *strvec)
 	if (vector_size(strvec) >= 3 &&
 	    !strcmp(strvec_slot(strvec, 1), "weight")) {
 		weight = atoi(strvec_slot(strvec, 2));
-		if (weight < -254 || weight > 254) {
+		if (weight == -254 || weight == 254) {
+			/* This check can be removed once users have migrated away from +/-254 */
+			log_message(LOG_INFO, "(%s) weight for %s cannot be +/-254. Setting to +/-253", vrrp->iname, tracked);
+			weight = weight == -254 ? -253 : 253;
+		}
+		else if (weight < -253 || weight > 253) {
 			log_message(LOG_INFO, "(%s) weight for %s must be between "
-					 "[-254..254] inclusive. Ignoring...", vrrp->iname, tracked);
+					 "[-253..253] inclusive. Ignoring...", vrrp->iname, tracked);
 			weight = 0;
 		}
 	}
@@ -129,9 +134,14 @@ alloc_group_track_if(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	if (vector_size(strvec) >= 3 &&
 	    !strcmp(strvec_slot(strvec, 1), "weight")) {
 		weight = atoi(strvec_slot(strvec, 2));
-		if (weight < -254 || weight > 254) {
+		if (weight == -254 || weight == 254) {
+			/* This check can be removed once users have migrated away from +/-254 */
+			log_message(LOG_INFO, "(%s) weight for %s cannot be +/-254. Setting to +/-253", sgroup->gname, tracked);
+			weight = weight == -254 ? -253 : 253;
+		}
+		else if (weight < -253 || weight > 253) {
 			log_message(LOG_INFO, "(%s) weight for %s must be between "
-					 "[-254..254] inclusive. Ignoring...", sgroup->gname, tracked);
+					 "[-253..253] inclusive. Ignoring...", sgroup->gname, tracked);
 			weight = 0;
 		}
 	}
@@ -209,9 +219,14 @@ alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 	if (vector_size(strvec) >= 3 &&
 	    !strcmp(strvec_slot(strvec, 1), "weight")) {
 		weight = atoi(strvec_slot(strvec, 2));
-		if (weight < -254 || weight > 254) {
+		if (weight == -254 || weight == 254) {
+			/* This check can be removed once users have migrated away from +/-254 */
+			log_message(LOG_INFO, "(%s) weight for %s cannot be +/-254. Setting to +/-253", vrrp->iname, tracked);
+			weight = weight == -254 ? -253 : 253;
+		}
+		else if (weight < -253 || weight > 253) {
 			weight = vsc->weight;
-			log_message(LOG_INFO, "(%s) track script %s: weight must be between [-254..254]"
+			log_message(LOG_INFO, "(%s) track script %s: weight must be between [-253..253]"
 					 " inclusive, ignoring...",
 			       vrrp->iname, tracked);
 		}
@@ -259,9 +274,14 @@ alloc_group_track_script(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	if (vector_size(strvec) >= 3 &&
 	    !strcmp(strvec_slot(strvec, 1), "weight")) {
 		weight = atoi(strvec_slot(strvec, 2));
-		if (weight < -254 || weight > 254) {
+		if (weight == -254 || weight == 254) {
+			/* This check can be removed once users have migrated away from +/-254 */
+			log_message(LOG_INFO, "(%s) weight for %s cannot be +/-254. Setting to +/-253", sgroup->gname, tracked);
+			weight = weight == -254 ? -253 : 253;
+		}
+		else if (weight < -253 || weight > 253) {
 			weight = vsc->weight;
-			log_message(LOG_INFO, "(%s) track script %s: weight must be between [-254..254]"
+			log_message(LOG_INFO, "(%s) track script %s: weight must be between [-253..253]"
 					 " inclusive, ignoring...",
 			       sgroup->gname, tracked);
 		}
@@ -343,9 +363,9 @@ alloc_track_file(vrrp_t *vrrp, vector_t *strvec)
 		}
 		if (vector_size(strvec) >= 3) {
 			weight = atoi(strvec_slot(strvec, 2));
-			if (weight < -254 || weight > 253) {
+			if (weight < -254 || weight > 254) {
 				log_message(LOG_INFO, "(%s) weight for track file %s must be in "
-						 "[-254..253] inclusive. Ignoring...", vrrp->iname, tracked);
+						 "[-254..254] inclusive. Ignoring...", vrrp->iname, tracked);
 				weight = vsf->weight;
 			}
 		} else {
@@ -399,9 +419,9 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, vector_t *strvec)
 		}
 		if (vector_size(strvec) >= 3) {
 			weight = atoi(strvec_slot(strvec, 2));
-			if (weight < -254 || weight > 253) {
+			if (weight < -254 || weight > 254) {
 				log_message(LOG_INFO, "(%s) weight for track file %s must be in "
-						 "[-254..253] inclusive. Ignoring...", sgroup->gname, tracked);
+						 "[-254..254] inclusive. Ignoring...", sgroup->gname, tracked);
 				weight = vsf->weight;
 			}
 		} else {
@@ -430,6 +450,41 @@ down_instance(vrrp_t *vrrp)
 		if (vrrp->sync && vrrp->sync->num_member_fault++ == 0)
 			vrrp_sync_fault(vrrp);
 	}
+}
+
+/* Set effective priorty, issue message on changes */
+void
+vrrp_set_effective_priority(vrrp_t *vrrp)
+{
+	uint8_t new_prio;
+	bool increasing_priority;
+	uint32_t old_down_timer;
+
+	/* Don't change priority if address owner */
+	if (vrrp->base_priority == VRRP_PRIO_OWNER)
+		return;
+
+	if (vrrp->total_priority < 1)
+		new_prio = 1;
+	else if (vrrp->total_priority >= VRRP_PRIO_OWNER)
+		new_prio = VRRP_PRIO_OWNER - 1;
+	else
+		new_prio = (uint8_t)vrrp->total_priority;
+
+	if (vrrp->effective_priority == new_prio)
+		return;
+
+	log_message(LOG_INFO, "(%s) Changing effective priority from %d to %d",
+		    vrrp->iname, vrrp->effective_priority, new_prio);
+
+	increasing_priority = (new_prio > vrrp->effective_priority);
+
+	vrrp->effective_priority = new_prio;
+	old_down_timer = vrrp->ms_down_timer;
+	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+
+	if (vrrp->state == VRRP_STATE_BACK && increasing_priority)
+		vrrp_thread_requeue_read_relative(vrrp, old_down_timer - vrrp->ms_down_timer);
 }
 
 static void

@@ -320,7 +320,7 @@ vrrp_thread_requeue_read(vrrp_t *vrrp)
 	thread_requeue_read(master, vrrp->sockets->fd_in, vrrp_timer_fd(vrrp->sockets->fd_in));
 }
 
-static void
+void
 vrrp_thread_requeue_read_relative(vrrp_t *vrrp, uint32_t timer)
 {
 	vrrp->sands = timer_sub_long(vrrp->sands, timer);
@@ -622,41 +622,6 @@ vrrp_lower_prio_gratuitous_arp_thread(thread_t * thread)
 	vrrp_send_link_update(vrrp, vrrp->garp_lower_prio_rep);
 
 	return 0;
-}
-
-/* Set effective priorty, issue message on changes */
-void
-vrrp_set_effective_priority(vrrp_t *vrrp)
-{
-	uint8_t new_prio;
-	bool increasing_priority;
-	uint32_t old_down_timer;
-
-	/* Don't change priority if address owner */
-	if (vrrp->base_priority == VRRP_PRIO_OWNER)
-		return;
-
-	if (vrrp->total_priority < 1)
-		new_prio = 1;
-	else if (vrrp->total_priority >= VRRP_PRIO_OWNER)
-		new_prio = VRRP_PRIO_OWNER - 1;
-	else
-		new_prio = (uint8_t)vrrp->total_priority;
-
-	if (vrrp->effective_priority == new_prio)
-		return;
-
-	log_message(LOG_INFO, "(%s) Changing effective priority from %d to %d",
-		    vrrp->iname, vrrp->effective_priority, new_prio);
-
-	increasing_priority = (new_prio > vrrp->effective_priority);
-
-	vrrp->effective_priority = new_prio;
-	old_down_timer = vrrp->ms_down_timer;
-	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
-
-	if (vrrp->state == VRRP_STATE_BACK && increasing_priority)
-		vrrp_thread_requeue_read_relative(vrrp, old_down_timer - vrrp->ms_down_timer);
 }
 
 static void

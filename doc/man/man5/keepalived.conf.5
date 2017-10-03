@@ -355,7 +355,7 @@ and
     script <STRING>|<QUOTED-STRING> # path of the script to execute
     interval <INTEGER>  # seconds between script invocations, default 1 second
     timeout <INTEGER>   # seconds after which script is considered to have failed
-    weight <INTEGER:-254..254>  # adjust priority by this weight, default 0
+    weight <INTEGER:-253..253>  # adjust priority by this weight, default 0
     rise <INTEGER>              # required number of successes for OK transition
     fall <INTEGER>              # required number of successes for KO transition
     user USERNAME [GROUPNAME]   # user/group names to run script under
@@ -411,12 +411,12 @@ and
             track_interface {
               eth0
               eth1
-              eth2 weight <-254..254>
+              eth2 weight <-253..253>
               ...
             }
 	    track_script {
 		<SCRIPT_NAME>
-		<SCRIPT_NAME> weight <-254..254>
+		<SCRIPT_NAME> weight <-253..253>
 	    }
 
 	    # Files whose state we monitor, value is added to effective priority. <STRING> is the name of a vrrp_status_file
@@ -542,14 +542,14 @@ and
     track_interface {
       eth0
       eth1
-      eth2 weight <-254..254>
+      eth2 weight <-253..253>
       ...
     }
 
     # add a tracking script to the interface (<SCRIPT_NAME> is the name of the vrrp_track_script entry)
     track_script {
         <SCRIPT_NAME>
-        <SCRIPT_NAME> weight <-254..254>
+        <SCRIPT_NAME> weight <-253..253>
     }
 
     # Files whose state we monitor, value is added to effective priority. <STRING> is the name of a vrrp_track_file

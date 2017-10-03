@@ -319,7 +319,7 @@ vrrp_script <STRING> {          # VRRP script declaration
     script <QUOTED_STRING>      # script to run periodically
     interval <INTEGER>          # run the script this every seconds
     timeout <INTEGER>           # script considered failed after 'timeout' seconds
-    weight <INTEGER:-254..254>  # adjust priority by this weight
+    weight <INTEGER:-253..253>  # adjust priority by this weight
     fall <INTEGER>              # required number of failures for KO switch
     rise <INTEGER>              # required number of successes for OK switch
     user USERNAME [GROUPNAME]	# specify user/group to run script under
@@ -392,12 +392,12 @@ vrrp_sync_group <STRING> {	# VRRP sync group declaration
     track_interface {		# Interfaces state we monitor
       <STRING>
       <STRING>
-      <STRING> weight <INTEGER:-254..254>
+      <STRING> weight <INTEGER:-253..253>
       ...
     }
     track_script {		# Scripts state we monitor
       <STRING>
-      <STRING> weight <INTEGER:-254..254>
+      <STRING> weight <INTEGER:-253..253>
       ...
     }
     track_file {		# Files state we monitor
@@ -505,12 +505,12 @@ vrrp_instance <STRING> {		# VRRP instance declaration
     track_interface {			# Interfaces state we monitor
       <STRING>
       <STRING>
-      <STRING> weight <INTEGER:-254..254>
+      <STRING> weight <INTEGER:-253..253>
       ...
     }
     track_script {			# Scripts state we monitor
       <STRING>
-      <STRING> weight <INTEGER:-254..254>
+      <STRING> weight <INTEGER:-253..253>
       ...
     }
     track_file {			# Files state we monitor
