@@ -203,7 +203,7 @@ vrrp_gglobal_tracking_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_sgroup_t *vgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
 
-	log_message(LOG_INFO, "(%s): global_tracking is deprecated. Use track_interface/script/file on the sync group", vgroup->gname);
+	log_message(LOG_INFO, "(%s) global_tracking is deprecated. Use track_interface/script/file on the sync group", vgroup->gname);
 	vgroup->sgroup_tracking_weight = true;
 }
 static void
@@ -258,7 +258,7 @@ vrrp_vmac_handler(vector_t *strvec)
 		/* Check if the interface exists and is a macvlan we can use */
 		if ((ifp = if_get_by_ifname(vrrp->vmac_ifname, IF_NO_CREATE)) &&
 		    !ifp->vmac) {
-			log_message(LOG_INFO, "(%s): interface %s already exists and is not a private macvlan; ignoring vmac if_name", vrrp->iname, vrrp->vmac_ifname);
+			log_message(LOG_INFO, "(%s) interface %s already exists and is not a private macvlan; ignoring vmac if_name", vrrp->iname, vrrp->vmac_ifname);
 			vrrp->vmac_ifname[0] = '\0';
 		}
 	}
@@ -286,7 +286,7 @@ vrrp_unicast_chksum_handler(vector_t *strvec)
 		if (!strcmp(strvec_slot(strvec, 1), "never"))
 			vrrp->unicast_chksum_compat = CHKSUM_COMPATIBILITY_NEVER;
 		else
-			log_message(LOG_INFO, "(%s): Unknown old_unicast_chksum mode %s - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+			log_message(LOG_INFO, "(%s) Unknown old_unicast_chksum mode %s - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 	}
 	else
 		vrrp->unicast_chksum_compat = CHKSUM_COMPATIBILITY_CONFIG;
@@ -298,7 +298,7 @@ vrrp_native_ipv6_handler(__attribute__((unused)) vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	if (vrrp->family == AF_INET) {
-		log_message(LOG_INFO,"(%s): Cannot specify native_ipv6 with IPv4 addresses", vrrp->iname);
+		log_message(LOG_INFO,"(%s) Cannot specify native_ipv6 with IPv4 addresses", vrrp->iname);
 		return;
 	}
 
@@ -316,12 +316,12 @@ vrrp_state_handler(vector_t *strvec)
 	else if (!strcmp(str, "BACKUP"))
 	{
 		if (vrrp->init_state == VRRP_STATE_MAST)
-			log_message(LOG_INFO, "(%s): state previously set as MASTER - ignoring BACKUP", vrrp->iname);
+			log_message(LOG_INFO, "(%s) state previously set as MASTER - ignoring BACKUP", vrrp->iname);
 		else
 			vrrp->init_state = VRRP_STATE_BACK;
 	}
 	else {
-		log_message(LOG_INFO,"(%s): unknown state '%s', defaulting to BACKUP", vrrp->iname, str);
+		log_message(LOG_INFO,"(%s) unknown state '%s', defaulting to BACKUP", vrrp->iname, str);
 		vrrp->init_state = VRRP_STATE_BACK;
 	}
 }
@@ -335,7 +335,7 @@ vrrp_int_handler(vector_t *strvec)
 	if (!vrrp->ifp)
 		log_message(LOG_INFO, "WARNING - interface %s for vrrp_instance %s doesn't exist", name, vrrp->iname);
 	else if (vrrp->ifp->hw_type == ARPHRD_LOOPBACK) {
-		log_message(LOG_INFO, "(%s): cannot use a loopback interface (%s) for vrrp - ignoring", vrrp->iname, vrrp->ifp->ifname);
+		log_message(LOG_INFO, "(%s) cannot use a loopback interface (%s) for vrrp - ignoring", vrrp->iname, vrrp->ifp->ifname);
 		vrrp->ifp = NULL;
 	}
 }
@@ -424,7 +424,7 @@ vrrp_prio_handler(vector_t *strvec)
 	unsigned long base_priority = strtoul(strvec_slot(strvec, 1), &endptr, 10);
 
 	if (*endptr || VRRP_IS_BAD_PRIORITY(base_priority)) {
-		log_message(LOG_INFO, "(%s): Priority not valid! must be between 1 & 255. Reconfigure !", vrrp->iname);
+		log_message(LOG_INFO, "(%s) Priority not valid! must be between 1 & 255. Reconfigure !", vrrp->iname);
 		log_message(LOG_INFO, "%*sUsing default value : %d", (int)strlen(vrrp->iname) + 4, "", VRRP_PRIO_DFL);
 
 		vrrp->base_priority = VRRP_PRIO_DFL;
@@ -440,7 +440,7 @@ vrrp_adv_handler(vector_t *strvec)
 
 	/* Simple check - just positive */
 	if (adver_int <= 0)
-		log_message(LOG_INFO, "(%s): Advert interval (%s) not valid! Must be > 0 - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+		log_message(LOG_INFO, "(%s) Advert interval (%s) not valid! Must be > 0 - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 	else
 		vrrp->adver_int = (unsigned)adver_int;
 }
@@ -451,7 +451,7 @@ vrrp_debug_handler(vector_t *strvec)
 	vrrp->debug = atoi(strvec_slot(strvec, 1));
 
 	if (VRRP_IS_BAD_DEBUG_INT(vrrp->debug)) {
-		log_message(LOG_INFO, "(%s): Debug value not valid! must be between 0-4", vrrp->iname);
+		log_message(LOG_INFO, "(%s) Debug value not valid! must be between 0-4", vrrp->iname);
 		vrrp->debug = 0;
 	}
 }
@@ -466,7 +466,7 @@ vrrp_skip_check_adv_addr_handler(vector_t *strvec)
 		if (res >= 0)
 			vrrp->skip_check_adv_addr = (bool)res;
 		else
-			log_message(LOG_INFO, "(%s): invalid skip_check_adv_addr %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+			log_message(LOG_INFO, "(%s) invalid skip_check_adv_addr %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 	} else {
 		/* Defaults to true */
 		vrrp->skip_check_adv_addr = true;
@@ -483,7 +483,7 @@ vrrp_strict_mode_handler(vector_t *strvec)
 		if (res >= 0)
 			vrrp->strict_mode = (bool)res;
 		else
-			log_message(LOG_INFO, "(%s): invalid strict_mode %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+			log_message(LOG_INFO, "(%s) invalid strict_mode %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 	} else {
 		/* Defaults to true */
 		vrrp->strict_mode = true;
@@ -508,7 +508,7 @@ vrrp_preempt_delay_handler(vector_t *strvec)
 	unsigned long preempt_delay = (unsigned long)(atof(vector_slot(strvec, 1)) * TIMER_HZ);
 
 	if (preempt_delay > TIMER_MAX_SEC * TIMER_HZ) {
-		log_message(LOG_INFO, "(%s): Preempt_delay not valid! must be between 0-%d", vrrp->iname, TIMER_MAX_SEC);
+		log_message(LOG_INFO, "(%s) Preempt_delay not valid! must be between 0-%d", vrrp->iname, TIMER_MAX_SEC);
 		vrrp->preempt_delay = 0;
 	}
 	else
@@ -519,7 +519,7 @@ vrrp_notify_backup_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script_backup) {
-		log_message(LOG_INFO, "(%s): notify_backup script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		log_message(LOG_INFO, "(%s) notify_backup script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vrrp->script_backup = set_vrrp_notify_script(strvec, true);
@@ -530,7 +530,7 @@ vrrp_notify_master_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script_master) {
-		log_message(LOG_INFO, "(%s): notify_master script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		log_message(LOG_INFO, "(%s) notify_master script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vrrp->script_master = set_vrrp_notify_script(strvec, true);
@@ -541,7 +541,7 @@ vrrp_notify_fault_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script_fault) {
-		log_message(LOG_INFO, "(%s): notify_fault script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		log_message(LOG_INFO, "(%s) notify_fault script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vrrp->script_fault = set_vrrp_notify_script(strvec, true);
@@ -552,7 +552,7 @@ vrrp_notify_stop_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script_stop) {
-		log_message(LOG_INFO, "(%s): notify_stop script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		log_message(LOG_INFO, "(%s) notify_stop script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vrrp->script_stop = set_vrrp_notify_script(strvec, true);
@@ -563,7 +563,7 @@ vrrp_notify_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	if (vrrp->script) {
-		log_message(LOG_INFO, "(%s): notify script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
+		log_message(LOG_INFO, "(%s) notify script already specified - ignoring %s", vrrp->iname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vrrp->script = set_vrrp_notify_script(strvec, false);
@@ -581,11 +581,11 @@ vrrp_lvs_syncd_handler(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
-	log_message(LOG_INFO, "(%s): Specifying lvs_sync_daemon_interface against a vrrp is deprecated.", vrrp->iname);  /* Deprecated after v1.2.19 */
+	log_message(LOG_INFO, "(%s) Specifying lvs_sync_daemon_interface against a vrrp is deprecated.", vrrp->iname);  /* Deprecated after v1.2.19 */
 	log_message(LOG_INFO, "      %*sPlease use global lvs_sync_daemon", (int)strlen(vrrp->iname) - 2, "");
 
 	if (global_data->lvs_syncd.ifname) {
-		log_message(LOG_INFO, "(%s): lvs_sync_daemon_interface has already been specified as %s - ignoring", vrrp->iname, global_data->lvs_syncd.ifname);
+		log_message(LOG_INFO, "(%s) lvs_sync_daemon_interface has already been specified as %s - ignoring", vrrp->iname, global_data->lvs_syncd.ifname);
 		return;
 	}
 
@@ -654,7 +654,7 @@ vrrp_lower_prio_no_advert_handler(vector_t *strvec)
 		if (res >= 0)
 			vrrp->lower_prio_no_advert = (unsigned)res;
 		else
-			log_message(LOG_INFO, "(%s): invalid lower_prio_no_advert %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+			log_message(LOG_INFO, "(%s) invalid lower_prio_no_advert %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 	} else {
 		/* Defaults to true */
 		vrrp->lower_prio_no_advert = true;
@@ -672,7 +672,7 @@ vrrp_higher_prio_send_advert_handler(vector_t *strvec)
 		if (res >= 0)
 			vrrp->higher_prio_send_advert = (unsigned)res;
 		else
-			log_message(LOG_INFO, "(%s): invalid higher_prio_send_advert %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+			log_message(LOG_INFO, "(%s) invalid higher_prio_send_advert %s specified", vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 	} else {
 		/* Defaults to true */
 		vrrp->higher_prio_send_advert = true;
@@ -692,7 +692,7 @@ vrrp_auth_type_handler(vector_t *strvec)
 	else if (!strcmp(str, "PASS"))
 		vrrp->auth_type = VRRP_AUTH_PASS;
 	else
-		log_message(LOG_INFO, "(%s): unknown authentication type '%s'", vrrp->iname, str);
+		log_message(LOG_INFO, "(%s) unknown authentication type '%s'", vrrp->iname, str);
 }
 static void
 vrrp_auth_pass_handler(vector_t *strvec)
@@ -742,7 +742,7 @@ vrrp_vip_handler(__attribute__((unused)) vector_t *strvec)
 				if (vrrp->family == AF_UNSPEC)
 					vrrp->family = address_family;
 				else if (address_family != vrrp->family) {
-					log_message(LOG_INFO, "(%s): address family must match VRRP instance [%s] - ignoring", vrrp->iname, str);
+					log_message(LOG_INFO, "(%s) address family must match VRRP instance [%s] - ignoring", vrrp->iname, str);
 					free_list_element(vrrp->vip, vrrp->vip->tail);
 				}
 			}
@@ -938,7 +938,7 @@ vrrp_version_handler(vector_t *strvec)
 
 	if ((vrrp->version && vrrp->version != version) ||
 	    (version == VRRP_VERSION_2 && vrrp->family == AF_INET6)) {
-		log_message(LOG_INFO, "(%s): vrrp_version conflicts with configured or deduced version; ignoring.", vrrp->iname);
+		log_message(LOG_INFO, "(%s) vrrp_version conflicts with configured or deduced version; ignoring.", vrrp->iname);
 		return;
 	}
 

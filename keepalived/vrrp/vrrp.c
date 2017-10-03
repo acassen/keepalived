@@ -89,7 +89,7 @@ static bool
 vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type)
 {
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol %s", vrrp->iname,
+		log_message(LOG_INFO, "(%s) %s protocol %s", vrrp->iname,
 		       (cmd == IPADDRESS_ADD) ? "setting" : "removing",
 		       (type == VRRP_VIP_TYPE) ? "VIPs." : "E-VIPs.");
 	return netlink_iplist((type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip, cmd);
@@ -101,7 +101,7 @@ static void
 vrrp_handle_iproutes(vrrp_t * vrrp, int cmd)
 {
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol Virtual Routes",
+		log_message(LOG_INFO, "(%s) %s protocol Virtual Routes",
 		       vrrp->iname,
 		       (cmd == IPROUTE_ADD) ? "setting" : "removing");
 	netlink_rtlist(vrrp->vroutes, cmd);
@@ -112,7 +112,7 @@ static void
 vrrp_handle_iprules(vrrp_t * vrrp, int cmd, bool force)
 {
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
-		log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol Virtual Rules",
+		log_message(LOG_INFO, "(%s) %s protocol Virtual Rules",
 		       vrrp->iname,
 		       (cmd == IPRULE_ADD) ? "setting" : "removing");
 	netlink_rulelist(vrrp->vrules, cmd, force);
@@ -131,7 +131,7 @@ vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 
 	if (vrrp->base_priority != VRRP_PRIO_OWNER && !vrrp->accept) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "VRRP_Instance(%s) %s protocol %s", vrrp->iname,
+			log_message(LOG_INFO, "(%s) %s protocol %s", vrrp->iname,
 				(cmd == IPADDRESS_ADD) ? "setting" : "removing", "iptable drop rule");
 
 #ifdef _HAVE_LIBIPTC_
@@ -515,7 +515,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 		 , digest);
 
 	if (memcmp(backup_auth_data, digest, HMAC_MD5_TRUNC) != 0) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : invalid"
+		log_message(LOG_INFO, "(%s) IPSEC-AH : invalid"
 				      " IPSEC HMAC-MD5 value. Due to fields mutation"
 				      " or bad password !",
 			    vrrp->iname);
@@ -536,7 +536,7 @@ vrrp_in_chk_ipsecah(vrrp_t * vrrp, char *buffer)
 	if (ntohl(ah->seq_number) > vrrp->ipsecah_counter.seq_number)
 		vrrp->ipsecah_counter.seq_number = ntohl(ah->seq_number);
 	else {
-		log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : sequence number %d"
+		log_message(LOG_INFO, "(%s) IPSEC-AH : sequence number %d"
 					" already processed. Packet dropped. Local(%d)",
 					vrrp->iname, ntohl(ah->seq_number),
 					vrrp->ipsecah_counter.seq_number);
@@ -620,7 +620,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		 */
 		if (buflen < expected_len) {
 			log_message(LOG_INFO,
-			       "(%s): ip/vrrp header too short. %zu and expect at least %zu",
+			       "(%s) ip/vrrp header too short. %zu and expect at least %zu",
 			      vrrp->iname, buflen, expected_len);
 			++vrrp->stats->packet_len_err;
 			return VRRP_PACKET_KO;
@@ -642,7 +642,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 
 		/* MUST verify that the IP TTL is 255 */
 		if (LIST_ISEMPTY(vrrp->unicast_peer) && ip->ttl != VRRP_IP_TTL) {
-			log_message(LOG_INFO, "(%s): invalid ttl. %d and expect %d",
+			log_message(LOG_INFO, "(%s) invalid ttl. %d and expect %d",
 				vrrp->iname, ip->ttl, VRRP_IP_TTL);
 			++vrrp->stats->ip_ttl_err;
 #ifdef _WITH_SNMP_RFCV3_
@@ -658,7 +658,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		 */
 		if (buflen < sizeof(vrrphdr_t)) {
 			log_message(LOG_INFO,
-			       "(%s): vrrp header too short. %zu and expect at least %zu",
+			       "(%s) vrrp header too short. %zu and expect at least %zu",
 			      vrrp->iname, buflen, sizeof(vrrphdr_t));
 			++vrrp->stats->packet_len_err;
 			return VRRP_PACKET_KO;
@@ -669,7 +669,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		/* Set expected vrrp packet length */
 		expected_len = sizeof(vrrphdr_t) + (LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip)) * sizeof(struct in6_addr);
 	} else {
-		log_message(LOG_INFO, "(%s): configured address family is %d, which is neither AF_INET or AF_INET6. This is probably a bug - please report", vrrp->iname, vrrp->family);
+		log_message(LOG_INFO, "(%s) configured address family is %d, which is neither AF_INET or AF_INET6. This is probably a bug - please report", vrrp->iname, vrrp->family);
 		return VRRP_PACKET_KO;
 	}
 
@@ -681,7 +681,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		    hd->v2.auth_type != VRRP_AUTH_PASS &&
 #endif
 		    hd->v2.auth_type != VRRP_AUTH_NONE) {
-			log_message(LOG_INFO, "(%s): Invalid auth type: %d", vrrp->iname, hd->v2.auth_type);
+			log_message(LOG_INFO, "(%s) Invalid auth type: %d", vrrp->iname, hd->v2.auth_type);
 			++vrrp->stats->invalid_authtype;
 #ifdef _WITH_SNMP_RFCV2_
 			vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, invalidAuthType);
@@ -695,7 +695,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		 * check the authentication type
 		 */
 		if (vrrp->auth_type != hd->v2.auth_type) {
-			log_message(LOG_INFO, "(%s): received a %d auth, expecting %d!",
+			log_message(LOG_INFO, "(%s) received a %d auth, expecting %d!",
 			       vrrp->iname, hd->v2.auth_type, vrrp->auth_type);
 			++vrrp->stats->authtype_mismatch;
 #ifdef _WITH_SNMP_RFCV2_
@@ -709,7 +709,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 			char *pw = (char *) ip + ntohs(ip->tot_len)
 			    - sizeof (vrrp->auth_data);
 			if (memcmp(pw, vrrp->auth_data, sizeof(vrrp->auth_data)) != 0) {
-				log_message(LOG_INFO, "(%s): received an invalid passwd!", vrrp->iname);
+				log_message(LOG_INFO, "(%s) received an invalid passwd!", vrrp->iname);
 				++vrrp->stats->auth_failure;
 #ifdef _WITH_SNMP_RFCV2_
 				vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authFailure);
@@ -720,7 +720,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		else if (hd->v2.auth_type == VRRP_AUTH_AH) {
 			/* check the authentication if it is ipsec ah */
 			if (vrrp_in_chk_ipsecah(vrrp, buffer)) {
-				log_message(LOG_INFO, "(%s): received an invalid auth header!", vrrp->iname);
+				log_message(LOG_INFO, "(%s) received an invalid auth header!", vrrp->iname);
 				++vrrp->stats->auth_failure;
 #ifdef _WITH_SNMP_RFCV2_
 				vrrp_rfcv2_snmp_auth_err_trap(vrrp, ((struct sockaddr_in *)&vrrp->pkt_saddr)->sin_addr, authFailure);
@@ -741,7 +741,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		 * the locally configured for this virtual router if VRRPv2
 		 */
 		if (vrrp->adver_int != hd->v2.adver_int * TIMER_HZ) {
-			log_message(LOG_INFO, "(%s): advertisement interval mismatch mine=%d sec rcved=%d sec",
+			log_message(LOG_INFO, "(%s) advertisement interval mismatch mine=%d sec rcved=%d sec",
 				vrrp->iname, vrrp->adver_int / TIMER_HZ, adver_int / TIMER_HZ);
 			/* to prevent concurent VRID running => multiple master in 1 VRID */
 			return VRRP_PACKET_DROP;
@@ -751,7 +751,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 
 	/* MUST verify the VRRP version */
 	if ((hd->vers_type >> 4) != vrrp->version) {
-		log_message(LOG_INFO, "(%s): invalid version. %d and expect %d",
+		log_message(LOG_INFO, "(%s) invalid version. %d and expect %d",
 		       vrrp->iname, (hd->vers_type >> 4), vrrp->version);
 #ifdef _WITH_SNMP_RFC_
 		vrrp->stats->vers_err++;
@@ -765,7 +765,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 
 	/* verify packet type */
 	if ((hd->vers_type & 0x0f) != VRRP_PKT_ADVERT) {
-		log_message(LOG_INFO, "(%s): Invalid packet type. %d and expect %d",
+		log_message(LOG_INFO, "(%s) Invalid packet type. %d and expect %d",
 			vrrp->iname, (hd->vers_type & 0x0f), VRRP_PKT_ADVERT);
 		++vrrp->stats->invalid_type_rcvd;
 		return VRRP_PACKET_KO;
@@ -774,7 +774,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 	/* MUST verify that the VRID is valid on the receiving interface_t */
 	if (vrrp->vrid != hd->vrid) {
 		log_message(LOG_INFO,
-		       "(%s): received VRID mismatch. Received %d, Expected %d",
+		       "(%s) received VRID mismatch. Received %d, Expected %d",
 		       vrrp->iname, hd->vrid, vrrp->vrid);
 #ifdef _WITH_SNMP_RFC_
 		vrrp->stats->vrid_err++;
@@ -788,7 +788,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 
 	if ((LIST_ISEMPTY(vrrp->vip) && hd->naddr > 0) ||
 	    (!LIST_ISEMPTY(vrrp->vip) && LIST_SIZE(vrrp->vip) != hd->naddr)) {
-		log_message(LOG_INFO, "(%s): received an invalid ip number count %d, expected %d!",
+		log_message(LOG_INFO, "(%s) received an invalid ip number count %d, expected %d!",
 			vrrp->iname, hd->naddr, LIST_ISEMPTY(vrrp->vip) ? 0 : LIST_SIZE(vrrp->vip));
 		++vrrp->stats->addr_list_err;
 		return VRRP_PACKET_KO;
@@ -796,7 +796,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 
 	if (vrrp->family == AF_INET && ntohs(ip->tot_len) != buflen) {
 		log_message(LOG_INFO,
-		       "(%s): ip_tot_len mismatch against received length. %d and received %zu",
+		       "(%s) ip_tot_len mismatch against received length. %d and received %zu",
 		       vrrp->iname, ntohs(ip->tot_len), buflen);
 		++vrrp->stats->packet_len_err;
 		return VRRP_PACKET_KO;
@@ -804,7 +804,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 
 	if (expected_len != buflen) {
 		log_message(LOG_INFO,
-		       "(%s): Received packet length mismatch against expected. %zu and expect %zu",
+		       "(%s) Received packet length mismatch against expected. %zu and expect %zu",
 		      vrrp->iname, buflen, expected_len);
 		++vrrp->stats->packet_len_err;
 		return VRRP_PACKET_KO;
@@ -840,7 +840,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 						/* Now we can specify that we are going to use the compatibility mode */
 						vrrp->unicast_chksum_compat = CHKSUM_COMPATIBILITY_AUTO;
 
-						log_message(LOG_INFO, "(%s): Setting unicast VRRPv3 checksum to old version", vrrp->iname);
+						log_message(LOG_INFO, "(%s) Setting unicast VRRPv3 checksum to old version", vrrp->iname);
 						chksum_error = false;
 					}
 				}
@@ -848,7 +848,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 				if (chksum_error)
 #endif
 				{
-					log_message(LOG_INFO, "(%s): Invalid VRRPv3 checksum", vrrp->iname);
+					log_message(LOG_INFO, "(%s) Invalid VRRPv3 checksum", vrrp->iname);
 #ifdef _WITH_SNMP_RFC_
 					vrrp->stats->chk_err++;
 #ifdef _WITH_SNMP_RFCV3_
@@ -862,7 +862,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		} else {
 			vrrppkt_len += VRRP_AUTH_LEN;
 			if (in_csum((uint16_t *) hd, vrrppkt_len, 0, NULL)) {
-				log_message(LOG_INFO, "(%s): Invalid VRRPv2 checksum", vrrp->iname);
+				log_message(LOG_INFO, "(%s) Invalid VRRPv2 checksum", vrrp->iname);
 #ifdef _WITH_SNMP_RFC_
 				vrrp->stats->chk_err++;
 #ifdef _WITH_SNMP_RFCV3_
@@ -891,7 +891,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 				for (e = LIST_HEAD(vrrp->vip); e; ELEMENT_NEXT(e)) {
 					ipaddress = ELEMENT_DATA(e);
 					if (!vrrp_in_chk_vips(vrrp, ipaddress, vips)) {
-						log_message(LOG_INFO, "(%s): ip address associated with VRID %d"
+						log_message(LOG_INFO, "(%s) ip address associated with VRID %d"
 						       " not present in MASTER advert : %s",
 						       vrrp->iname, vrrp->vrid,
 						       inet_ntop2(ipaddress->u.sin.sin_addr.s_addr));
@@ -909,7 +909,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 						break;
 				}
 				if (!e) {
-					log_message(LOG_INFO, "(%s): unicast source address %s not a unicast peer",
+					log_message(LOG_INFO, "(%s) unicast source address %s not a unicast peer",
 						vrrp->iname, inet_ntop2(((struct sockaddr_in*)&vrrp->pkt_saddr)->sin_addr.s_addr));
 					return VRRP_PACKET_KO;
 				}
@@ -922,7 +922,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 				 */
 				if (hd->naddr != LIST_SIZE(vrrp->vip)) {
 					log_message(LOG_INFO,
-						"(%s): receive an invalid ip number count associated with VRID!", vrrp->iname);
+						"(%s) receive an invalid ip number count associated with VRID!", vrrp->iname);
 					++vrrp->stats->addr_list_err;
 					return VRRP_PACKET_KO;
 				}
@@ -949,7 +949,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 						break;
 				}
 				if (!e) {
-					log_message(LOG_INFO, "(%s): unicast source address %s not a unicast peer",
+					log_message(LOG_INFO, "(%s) unicast source address %s not a unicast peer",
 						vrrp->iname, inet_ntop(AF_INET6, &((struct sockaddr_in6 *)&vrrp->pkt_saddr)->sin6_addr,
 							    addr_str, sizeof(addr_str)));
 					return VRRP_PACKET_KO;
@@ -967,7 +967,7 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		 * advertisement interval to match the MASTER's. */
 		adver_int = (ntohs(hd->v3.adver_int) & 0x0FFF) * TIMER_CENTI_HZ;
 		if (vrrp->master_adver_int != adver_int) {
-			log_message(LOG_INFO, "(%s): advertisement interval changed: mine=%d milli-sec, rcved=%d milli-sec",
+			log_message(LOG_INFO, "(%s) advertisement interval changed: mine=%d milli-sec, rcved=%d milli-sec",
 				vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), adver_int / (TIMER_HZ / 1000));
 		}
 	}
@@ -1313,7 +1313,7 @@ vrrp_send_adv(vrrp_t * vrrp, uint8_t prio)
 			if (vrrp->family == AF_INET)
 				vrrp_update_pkt(vrrp, prio, addr);
 			if (vrrp_send_pkt(vrrp, addr) < 0)
-				log_message(LOG_INFO, "VRRP_Instance(%s) Cant send advert to %s (%m)"
+				log_message(LOG_INFO, "(%s) Cant send advert to %s (%m)"
 						    , vrrp->iname, inet_sockaddrtos(addr));
 		}
 	} else
@@ -1365,7 +1365,7 @@ vrrp_send_update(vrrp_t * vrrp, ip_address_t * ipaddress, bool log_msg)
 			inet_ntop(AF_INET6, &ipaddress->u.sin6_addr, addr_str, sizeof(addr_str));
 		}
 
-		log_message(LOG_INFO, "VRRP_Instance(%s) Sending/queueing %s on %s for %s",
+		log_message(LOG_INFO, "(%s) Sending/queueing %s on %s for %s",
 			    vrrp->iname, msg, IF_NAME(ipaddress->ifp), addr_str);
 	}
 }
@@ -1431,7 +1431,7 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	++vrrp->stats->become_master;
 
 	if (vrrp->version == VRRP_VERSION_3)
-		log_message(LOG_INFO, "VRRP_Instance(%s) using locally configured advertisement interval (%d milli-sec)",
+		log_message(LOG_INFO, "(%s) using locally configured advertisement interval (%d milli-sec)",
 					vrrp->iname, vrrp->adver_int / (TIMER_HZ / 1000));
 
 	/* add the ip addresses */
@@ -1508,7 +1508,7 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 	if (advF) {
 		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 		++vrrp->stats->pri_zero_sent;
-		log_message(LOG_INFO, "VRRP_Instance(%s) sent 0 priority", vrrp->iname);
+		log_message(LOG_INFO, "(%s) sent 0 priority", vrrp->iname);
 	}
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -1562,17 +1562,17 @@ vrrp_state_leave_master(vrrp_t * vrrp, bool advF)
 
 	/* set the new vrrp state */
 	if (vrrp->wantstate == VRRP_STATE_BACK) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE", vrrp->iname);
+		log_message(LOG_INFO, "(%s) Entering BACKUP STATE", vrrp->iname);
 		vrrp->preempt_time.tv_sec = 0;
 // TODO - if we are called due to receiving a higher priority advert, do we overwrite master adver int ?
 		vrrp->master_adver_int = vrrp->adver_int;
 	}
 	else if (vrrp->wantstate == VRRP_STATE_FAULT) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE", vrrp->iname);
+		log_message(LOG_INFO, "(%s) Entering FAULT STATE", vrrp->iname);
 		vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 	}
 	else {
-		log_message(LOG_INFO, "(%s): vrrp_state_leave_master called with invalid wantstate %d", vrrp->iname, vrrp->wantstate);
+		log_message(LOG_INFO, "(%s) vrrp_state_leave_master called with invalid wantstate %d", vrrp->iname, vrrp->wantstate);
 		return;
 	}
 
@@ -1595,7 +1595,7 @@ vrrp_state_leave_fault(vrrp_t * vrrp)
 	if (vrrp->wantstate == VRRP_STATE_MAST)
 		vrrp_state_goto_master(vrrp);
 	else {
-		log_message(LOG_INFO, "VRRP_Instance(%s) Entering %s STATE", vrrp->iname, vrrp->wantstate == VRRP_STATE_BACK ? "BACKUP" : "FAULT");
+		log_message(LOG_INFO, "(%s) Entering %s STATE", vrrp->iname, vrrp->wantstate == VRRP_STATE_BACK ? "BACKUP" : "FAULT");
 		if (vrrp->wantstate == VRRP_STATE_FAULT && vrrp->state == VRRP_STATE_MAST) {
 			vrrp_send_adv(vrrp, VRRP_PRIO_STOP);
 			vrrp_restore_interface(vrrp, false, false);
@@ -1645,11 +1645,11 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	ret = vrrp_check_packet(vrrp, buf, buflen, check_addr);
 
 	if (ret != VRRP_PACKET_OK) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) ignoring received advertisment..." ,  vrrp->iname);
+		log_message(LOG_INFO, "(%s) ignoring received advertisment..." ,  vrrp->iname);
 
 		ignore_advert = true;
 	} else if (hd->priority == 0) {
-		log_message(LOG_INFO, "(%s): Backup received priority 0 advertisement", vrrp->iname);
+		log_message(LOG_INFO, "(%s) Backup received priority 0 advertisement", vrrp->iname);
 		vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
 #ifdef _WITH_SNMP_RFCV3_
 		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PRIORITY;
@@ -1666,7 +1666,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 			 * in the ADVERTISEMENT
 			 */
 			if (vrrp->master_adver_int != master_adver_int) {
-				log_message(LOG_INFO, "(%s): advertisement interval updated to %d milli-sec from %d milli-sec",
+				log_message(LOG_INFO, "(%s) advertisement interval updated to %d milli-sec from %d milli-sec",
 						vrrp->iname, master_adver_int / (TIMER_HZ / 1000), vrrp->master_adver_int / (TIMER_HZ / 1000));
 				vrrp->master_adver_int = master_adver_int;
 			}
@@ -1693,7 +1693,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		}
 	} else {
 		/* !nopreempt and lower priority advert and any preempt delay timer has expired */
-		log_message(LOG_INFO, "VRRP_Instance(%s) received lower priority (%d) advert from %s - discarding", vrrp->iname, hd->priority, inet_sockaddrtos(&vrrp->pkt_saddr));
+		log_message(LOG_INFO, "(%s) received lower priority (%d) advert from %s - discarding", vrrp->iname, hd->priority, inet_sockaddrtos(&vrrp->pkt_saddr));
 
 		ignore_advert = true;
 	}
@@ -1711,7 +1711,7 @@ void
 vrrp_state_master_tx(vrrp_t * vrrp)
 {
 	if (!VRRP_VIP_ISSET(vrrp)) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) Entering MASTER STATE"
+		log_message(LOG_INFO, "(%s) Entering MASTER STATE"
 				    , vrrp->iname);
 		vrrp_state_become_master(vrrp);
 		/*
@@ -1791,7 +1791,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 
 	if (ret != VRRP_PACKET_OK) {
 		log_message(LOG_INFO,
-		       "VRRP_Instance(%s) Dropping received VRRP packet...",
+		       "(%s) Dropping received VRRP packet...",
 		       vrrp->iname);
 		return false;
 	}
@@ -1802,7 +1802,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	    (vrrp->higher_prio_send_advert &&
 	     (hd->priority > vrrp->effective_priority ||
 	      (hd->priority == vrrp->effective_priority && addr_cmp > 0)))) {
-		log_message(LOG_INFO, "(%s): Master received priority 0 message", vrrp->iname);
+		log_message(LOG_INFO, "(%s) Master received priority 0 message", vrrp->iname);
 		vrrp_send_adv(vrrp, vrrp->effective_priority);
 
 		if (hd->priority == 0)
@@ -1811,12 +1811,12 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 
 	if (hd->priority == vrrp->effective_priority) {
 		if (addr_cmp == 0)
-			log_message(LOG_INFO, "(%s): WARNING - equal priority advert received from remote host with our IP address.", vrrp->iname);
+			log_message(LOG_INFO, "(%s) WARNING - equal priority advert received from remote host with our IP address.", vrrp->iname);
 		else if (vrrp->effective_priority == VRRP_PRIO_OWNER) {
 			/* If we are configured as the address owner (priority == 255), and we receive an advertisement
 			 * from another system indicating it is also the address owner, then there is a clear conflict.
 			 * Report a configuration error, and drop our priority as a workaround. */
-			log_message(LOG_INFO, "(%s): CONFIGURATION ERROR: local instance and a remote instance are both configured as address owner, please fix - reducing local priority", vrrp->iname);
+			log_message(LOG_INFO, "(%s) CONFIGURATION ERROR: local instance and a remote instance are both configured as address owner, please fix - reducing local priority", vrrp->iname);
 			vrrp->effective_priority = VRRP_PRIO_OWNER - 1;
 			vrrp->base_priority = VRRP_PRIO_OWNER - 1;
 		}
@@ -1826,7 +1826,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	    (hd->priority == vrrp->effective_priority &&
 	     addr_cmp < 0)) {
 		/* We receive a lower prio adv we just refresh remote ARP cache */
-		log_message(LOG_INFO, "VRRP_Instance(%s) Received advert from %s with lower priority %d, ours %d%s",
+		log_message(LOG_INFO, "(%s) Received advert from %s with lower priority %d, ours %d%s",
 					vrrp->iname,
 					inet_sockaddrtos(&vrrp->pkt_saddr),
 					hd->priority,
@@ -1835,7 +1835,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 #ifdef _WITH_VRRP_AUTH_
 		if (proto == IPPROTO_AH) {
 			ah = (ipsec_ah_t *) (buf + sizeof(struct iphdr));
-			log_message(LOG_INFO, "VRRP_Instance(%s) IPSEC-AH : Syncing seq_num"
+			log_message(LOG_INFO, "(%s) IPSEC-AH : Syncing seq_num"
 					      " - Increment seq"
 					    , vrrp->iname);
 // TODO - why is seq_number taken from lower priority advert?
@@ -1856,7 +1856,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 
 	if (hd->priority > vrrp->effective_priority ||
 	    (hd->priority == vrrp->effective_priority && addr_cmp > 0)) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) Received advert from %s with higher priority %d, ours %d",
+		log_message(LOG_INFO, "(%s) Received advert from %s with higher priority %d, ours %d",
 					vrrp->iname,
 					inet_sockaddrtos(&vrrp->pkt_saddr),
 					hd->priority,
@@ -1874,7 +1874,7 @@ vrrp_state_master_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 			 * in the ADVERTISEMENT
 			 */
 			if (vrrp->master_adver_int != master_adver_int) {
-				log_message(LOG_INFO, "(%s): advertisement interval updated from %d to %d milli-sec from higher priority master",
+				log_message(LOG_INFO, "(%s) advertisement interval updated from %d to %d milli-sec from higher priority master",
 						vrrp->iname, vrrp->master_adver_int / (TIMER_HZ / 1000), master_adver_int / (TIMER_HZ / 1000));
 				vrrp->master_adver_int = master_adver_int;
 			}
@@ -1901,7 +1901,7 @@ vrrp_state_fault_rx(vrrp_t * vrrp, char *buf, ssize_t buflen)
 	ret = vrrp_check_packet(vrrp, buf, buflen, true);
 
 	if (ret != VRRP_PACKET_OK) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) Dropping received VRRP packet..."
+		log_message(LOG_INFO, "(%s) Dropping received VRRP packet..."
 				    , vrrp->iname);
 		return false;
 	}
@@ -1956,7 +1956,7 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr)
 			if (etvp->vrrp == vrrp) {
 				/* Update the weight appropriately. We will use the sync group's
 				 * weight unless the vrrp setting is unweighted. */
-				log_message(LOG_INFO, "(%s): track_interface %s is configured on VRRP instance and sync group. Remove vrrp instance or sync group config",
+				log_message(LOG_INFO, "(%s) track_interface %s is configured on VRRP instance and sync group. Remove vrrp instance or sync group config",
 						vrrp->iname, ifp->ifname);
 				if (etvp->weight)
 					etvp->weight = weight;
@@ -2007,11 +2007,11 @@ static bool
 chk_min_cfg(vrrp_t * vrrp)
 {
 	if (vrrp->vrid == 0) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) the virtual id must be set!", vrrp->iname);
+		log_message(LOG_INFO, "(%s) the virtual id must be set!", vrrp->iname);
 		return false;
 	}
 	if (!vrrp->ifp) {
-		log_message(LOG_INFO, "VRRP_Instance(%s) Unknown interface!", vrrp->iname);
+		log_message(LOG_INFO, "(%s) Unknown interface!", vrrp->iname);
 		return false;
 	}
 
@@ -2279,7 +2279,7 @@ add_vrrp_to_track_script(vrrp_t *vrrp, tracked_sc_t *sc)
 			if (etvp->vrrp == vrrp) {
 				/* Update the weight appropriately. We will use the sync group's
 				 * weight unless the vrrp setting is unweighted. */
-				log_message(LOG_INFO, "(%s): track_script %s is configured on VRRP instance and sync group. Remove vrrp instance config",
+				log_message(LOG_INFO, "(%s) track_script %s is configured on VRRP instance and sync group. Remove vrrp instance config",
 						vrrp->iname, sc->scr->sname);
 
 				if (etvp->weight)
@@ -2312,7 +2312,7 @@ add_vrrp_to_track_file(vrrp_t *vrrp, tracked_file_t *tfl)
 			if (etvp->vrrp == vrrp) {
 				/* Update the weight appropriately. We will use the sync group's
 				 * weight unless the vrrp setting is unweighted. */
-				log_message(LOG_INFO, "(%s): track_file %s is configured on VRRP instance and sync group. Remove vrrp instance config",
+				log_message(LOG_INFO, "(%s) track_file %s is configured on VRRP instance and sync group. Remove vrrp instance config",
 						vrrp->iname, tfl->file->fname);
 
 				if (etvp->weight)
@@ -2349,7 +2349,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	if (vrrp->family == AF_INET6) {
 		if (vrrp->version == VRRP_VERSION_2 && vrrp->strict_mode) {
-			log_message(LOG_INFO,"(%s): cannot use IPv6 with VRRP version 2; setting version 3", vrrp->iname);
+			log_message(LOG_INFO,"(%s) cannot use IPv6 with VRRP version 2; setting version 3", vrrp->iname);
 			vrrp->version = VRRP_VERSION_3;
 		}
 		else if (!vrrp->version)
@@ -2368,30 +2368,30 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	if (LIST_ISEMPTY(vrrp->vip) && (vrrp->version == VRRP_VERSION_3 || vrrp->family == AF_INET6 || vrrp->strict_mode)) {
-		log_message(LOG_INFO, "(%s): No VIP specified; at least one is required", vrrp->iname);
+		log_message(LOG_INFO, "(%s) No VIP specified; at least one is required", vrrp->iname);
 		return false;
 	}
 
 #ifdef _WITH_VRRP_AUTH_
 	if (vrrp->strict_mode && vrrp->auth_type != VRRP_AUTH_NONE) {
-		log_message(LOG_INFO, "(%s): Strict mode does not support authentication. Ignoring.", vrrp->iname);
+		log_message(LOG_INFO, "(%s) Strict mode does not support authentication. Ignoring.", vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
 	else if (vrrp->version == VRRP_VERSION_3 && vrrp->auth_type != VRRP_AUTH_NONE) {
-		log_message(LOG_INFO, "(%s): VRRP version 3 does not support authentication. Ignoring.", vrrp->iname);
+		log_message(LOG_INFO, "(%s) VRRP version 3 does not support authentication. Ignoring.", vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
 	else if (vrrp->auth_type != VRRP_AUTH_NONE && !vrrp->auth_data[0]) {
-		log_message(LOG_INFO, "(%s): Authentication specified but no password given. Ignoring", vrrp->iname);
+		log_message(LOG_INFO, "(%s) Authentication specified but no password given. Ignoring", vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
 	else if (vrrp->family == AF_INET6 && vrrp->auth_type == VRRP_AUTH_AH) {
-		log_message(LOG_INFO, "(%s): Cannot use AH authentication with IPv6 - ignoring", vrrp->iname);
+		log_message(LOG_INFO, "(%s) Cannot use AH authentication with IPv6 - ignoring", vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
 	else if (vrrp->auth_type == VRRP_AUTH_AH && vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority != VRRP_PRIO_OWNER) {
 		/* We need to have received an advert to get the AH sequence no before taking over, if possible */
-		log_message(LOG_INFO, "(%s): Initial state master is incompatible with AH authentication - clearing", vrrp->iname);
+		log_message(LOG_INFO, "(%s) Initial state master is incompatible with AH authentication - clearing", vrrp->iname);
 		vrrp->init_state = VRRP_STATE_BACK;
 	}
 #endif
@@ -2401,14 +2401,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* unicast peers aren't allowed in strict mode */
 	if (vrrp->strict_mode && !LIST_ISEMPTY(vrrp->unicast_peer)) {
-		log_message(LOG_INFO, "(%s): Unicast peers are not supported in strict mode", vrrp->iname);
+		log_message(LOG_INFO, "(%s) Unicast peers are not supported in strict mode", vrrp->iname);
 		return false;
 	}
 
 	/* If the addresses are IPv6, then the first one must be link local */
 	if (vrrp->family == AF_INET6 && LIST_ISEMPTY(vrrp->unicast_peer) &&
 		  !IN6_IS_ADDR_LINKLOCAL(&((ip_address_t *)LIST_HEAD(vrrp->vip)->data)->u.sin6_addr)) {
-		log_message(LOG_INFO, "(%s): the first IPv6 VIP address must be link local", vrrp->iname);
+		log_message(LOG_INFO, "(%s) the first IPv6 VIP address must be link local", vrrp->iname);
 	}
 
 	/* Check we can fit the VIPs into a packet */
@@ -2436,7 +2436,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* Move any extra addresses to be evips. We won't advertise them, but at least we can respond to them */
 	if (!LIST_ISEMPTY(vrrp->vip) && LIST_SIZE(vrrp->vip) > max_addr) {
-		log_message(LOG_INFO, "(%s): Number of VIPs (%d) exceeds maximum/space available in packet (max %zu addresses) - excess moved to eVIPs",
+		log_message(LOG_INFO, "(%s) Number of VIPs (%d) exceeds maximum/space available in packet (max %zu addresses) - excess moved to eVIPs",
 				vrrp->iname, LIST_SIZE(vrrp->vip), max_addr);
 		for (i = 0, e = LIST_HEAD(vrrp->vip); e; i++, e = next) {
 			next = e->next;
@@ -2460,12 +2460,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->init_state = vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK;
 	else if (vrrp->strict_mode &&
 		 ((vrrp->init_state == VRRP_STATE_MAST) != (vrrp->base_priority == VRRP_PRIO_OWNER))) {
-			log_message(LOG_INFO,"(%s): State MASTER must match being address owner", vrrp->iname);
+			log_message(LOG_INFO,"(%s) State MASTER must match being address owner", vrrp->iname);
 			vrrp->init_state = vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK;
 	}
 
 	if (vrrp->base_priority == VRRP_PRIO_OWNER && vrrp->nopreempt) {
-		log_message(LOG_INFO, "(%s): nopreempt is incompatible with priority %d - resetting nopreempt", vrrp->iname, VRRP_PRIO_OWNER);
+		log_message(LOG_INFO, "(%s) nopreempt is incompatible with priority %d - resetting nopreempt", vrrp->iname, VRRP_PRIO_OWNER);
 		vrrp->nopreempt = false;
 	}
 
@@ -2474,21 +2474,21 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	if (vrrp->init_state == VRRP_STATE_MAST) {
 		if (vrrp->nopreempt) {
-			log_message(LOG_INFO, "(%s): Warning - nopreempt will not work with initial state MASTER - clearing", vrrp->iname);
+			log_message(LOG_INFO, "(%s) Warning - nopreempt will not work with initial state MASTER - clearing", vrrp->iname);
 			vrrp->nopreempt = false;
 		}
 		if (vrrp->preempt_delay) {
-			log_message(LOG_INFO, "(%s): Warning - preempt delay will not work with initial state MASTER - clearing", vrrp->iname);
+			log_message(LOG_INFO, "(%s) Warning - preempt delay will not work with initial state MASTER - clearing", vrrp->iname);
 			vrrp->preempt_delay = false;
 		}
 	}
 	if (vrrp->preempt_delay) {
 		if (vrrp->strict_mode) {
-			log_message(LOG_INFO, "(%s): preempt_delay is incompatible with strict mode - resetting", vrrp->iname);
+			log_message(LOG_INFO, "(%s) preempt_delay is incompatible with strict mode - resetting", vrrp->iname);
 			vrrp->preempt_delay = 0;
 		}
 		if (vrrp->nopreempt) {
-			log_message(LOG_INFO, "(%s): preempt_delay is incompatible with nopreempt mode - resetting", vrrp->iname);
+			log_message(LOG_INFO, "(%s) preempt_delay is incompatible with nopreempt mode - resetting", vrrp->iname);
 			vrrp->preempt_delay = 0;
 		}
 	}
@@ -2506,7 +2506,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	    vrrp->base_priority != VRRP_PRIO_OWNER &&
 	    vrrp->strict_mode &&
 	    vrrp->version == VRRP_VERSION_2) {
-		log_message(LOG_INFO, "(%s): warning - accept mode for VRRP version 2 does not comply with RFC3768 - resetting", vrrp->iname);
+		log_message(LOG_INFO, "(%s) warning - accept mode for VRRP version 2 does not comply with RFC3768 - resetting", vrrp->iname);
 		vrrp->accept = 0;
 	}
 
@@ -2531,7 +2531,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	if (vrrp->higher_prio_send_advert == PARAMETER_UNSET)
 		vrrp->higher_prio_send_advert = vrrp->strict_mode ? false : global_data->vrrp_higher_prio_send_advert;
 	else if (vrrp->strict_mode && vrrp->higher_prio_send_advert) {
-		log_message(LOG_INFO, "(%s): strict mode requires higherer_prio_send_advert to be clear - resetting", vrrp->iname);
+		log_message(LOG_INFO, "(%s) strict mode requires higherer_prio_send_advert to be clear - resetting", vrrp->iname);
 		vrrp->higher_prio_send_advert = false;
 	}
 
@@ -2540,12 +2540,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->adver_int = VRRP_ADVER_DFL * TIMER_HZ;
 	if (vrrp->version == VRRP_VERSION_2) {
 		if (vrrp->adver_int >= (1<<8) * TIMER_HZ) {
-			log_message(LOG_INFO, "(%s): VRRPv2 advertisement interval %.2fs is out of range. Must be less than %ds. Setting to %ds",
+			log_message(LOG_INFO, "(%s) VRRPv2 advertisement interval %.2fs is out of range. Must be less than %ds. Setting to %ds",
 					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ, 1<<8, (1<<8) - 1);
 			vrrp->adver_int = ((1<<8) - 1) * TIMER_HZ;
 		}
 		else if (vrrp->adver_int % TIMER_HZ) {
-			log_message(LOG_INFO, "(%s): VRRPv2 advertisement interval %fs must be an integer - rounding",
+			log_message(LOG_INFO, "(%s) VRRPv2 advertisement interval %fs must be an integer - rounding",
 					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ);
 			vrrp->adver_int = vrrp->adver_int + (TIMER_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_HZ;
@@ -2556,12 +2556,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	else
 	{
 		if (vrrp->adver_int >= (1<<12) * TIMER_CENTI_HZ) {
-			log_message(LOG_INFO, "(%s): VRRPv3 advertisement interval %.2fs is out of range. Must be less than %.2fs. Setting to %.2fs",
+			log_message(LOG_INFO, "(%s) VRRPv3 advertisement interval %.2fs is out of range. Must be less than %.2fs. Setting to %.2fs",
 					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ, (float)(1<<12) / 100, (float)((1<<12) - 1) / 100);
 			vrrp->adver_int = ((1<<12) - 1) * TIMER_CENTI_HZ;
 		}
 		else if (vrrp->adver_int % TIMER_CENTI_HZ) {
-			log_message(LOG_INFO, "(%s): VRRPv3 advertisement interval %fs must be in units of 10ms - rounding",
+			log_message(LOG_INFO, "(%s) VRRPv3 advertisement interval %fs must be in units of 10ms - rounding",
 					vrrp->iname, (float)vrrp->adver_int / TIMER_HZ);
 			vrrp->adver_int = vrrp->adver_int + (TIMER_CENTI_HZ / 2);
 			vrrp->adver_int -= vrrp->adver_int % TIMER_CENTI_HZ;
@@ -2599,10 +2599,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				    ifp->hw_addr[sizeof(ll_addr) - 1] == vrrp->vrid &&
 				    ifp->base_ifp == vrrp->ifp)
 				{
-					log_message(LOG_INFO, "(%s): Found matching interface %s", vrrp->iname, ifp->ifname);
+					log_message(LOG_INFO, "(%s) Found matching interface %s", vrrp->iname, ifp->ifname);
 					if (vrrp->vmac_ifname[0] &&
 					    strcmp(vrrp->vmac_ifname, ifp->ifname))
-						log_message(LOG_INFO, "(%s): vmac name mismatch %s <=> %s; changing to %s.", vrrp->iname, vrrp->vmac_ifname, ifp->ifname, ifp->ifname);
+						log_message(LOG_INFO, "(%s) vmac name mismatch %s <=> %s; changing to %s.", vrrp->iname, vrrp->vmac_ifname, ifp->ifname, ifp->ifname);
 
 					strcpy(vrrp->vmac_ifname, ifp->ifname);
 					vrrp->ifp = ifp;
@@ -2621,9 +2621,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			     ifp->ifindex) {
 				/* An interface with the same name exists, but it doesn't match */
 				if (ifp->vmac)
-					log_message(LOG_INFO, "(%s): VMAC %s already exists but is incompatible. It will be deleted", vrrp->iname, vrrp->vmac_ifname);
+					log_message(LOG_INFO, "(%s) VMAC %s already exists but is incompatible. It will be deleted", vrrp->iname, vrrp->vmac_ifname);
 				else {
-					log_message(LOG_INFO, "(%s): VMAC interface name %s already exists as a non VMAC interface - ignoring configured name",
+					log_message(LOG_INFO, "(%s) VMAC interface name %s already exists as a non VMAC interface - ignoring configured name",
 						    vrrp->iname, vrrp->vmac_ifname);
 					vrrp->vmac_ifname[0] = 0;
 				}
@@ -2665,12 +2665,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->ifp = ifp;
 
 		if (vrrp->strict_mode && __test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags)) {
-			log_message(LOG_INFO, "(%s): xmit_base is incompatible with strict mode - resetting", vrrp->iname);
+			log_message(LOG_INFO, "(%s) xmit_base is incompatible with strict mode - resetting", vrrp->iname);
 			__clear_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
 		}
 
 		if (vrrp->promote_secondaries) {
-			log_message(LOG_INFO, "(%s): promote_secondaries is automatically set for vmacs - ignoring", vrrp->iname);
+			log_message(LOG_INFO, "(%s) promote_secondaries is automatically set for vmacs - ignoring", vrrp->iname);
 			vrrp->promote_secondaries = false;
 		}
 	}
@@ -2702,7 +2702,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		}
 
 		if (addr_missing) {
-			log_message(LOG_INFO, "(%s): Cannot find an IP address to use for interface %s", vrrp->iname, IF_BASE_IFP(vrrp->ifp)->ifname);
+			log_message(LOG_INFO, "(%s) Cannot find an IP address to use for interface %s", vrrp->iname, IF_BASE_IFP(vrrp->ifp)->ifname);
 		}
 		else if (vrrp->family == AF_INET)
 			inet_ip4tosockaddr(&IF_BASE_IFP(vrrp->ifp)->sin_addr, &vrrp->saddr);
@@ -2727,7 +2727,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 #ifdef _HAVE_VRRP_VMAC_
 	if (__test_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags) &&
 	    !__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags)) {
-		log_message(LOG_INFO, "(%s): vmac_xmit_base is only valid with a vmac", vrrp->iname);
+		log_message(LOG_INFO, "(%s) vmac_xmit_base is only valid with a vmac", vrrp->iname);
 		__clear_bit(VRRP_VMAC_XMITBASE_BIT, &vrrp->vmac_flags);
 	}
 
@@ -2763,7 +2763,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 //TODO = we have a problem since SNMP may change accept mode
 //it can also change priority
 		if (!global_data->vrrp_iptables_inchain[0])
-			log_message(LOG_INFO, "(%s): Unable to set no_accept mode since iptables chain name unset", vrrp->iname);
+			log_message(LOG_INFO, "(%s) Unable to set no_accept mode since iptables chain name unset", vrrp->iname);
 		else if (vrrp->family == AF_INET)
 			block_ipv4 = true;
 		else
@@ -2803,7 +2803,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				next = e->next;
 				tip = ELEMENT_DATA(e);
 				if (tip->weight && tip->weight != VRRP_NOT_TRACK_IF) {
-					log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring %s"
+					log_message(LOG_INFO, "(%s) ignoring %s"
 							 "tracked interface %s due to %s",
 							 vrrp->iname, tip->ifp->ifname,
 							 sync_no_tracking_weight ? "weight of " : "",
@@ -2824,7 +2824,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				next = e->next;
 				sc = ELEMENT_DATA(e);
 				if (sc->weight) {
-					log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring "
+					log_message(LOG_INFO, "(%s) ignoring "
 							 "tracked script %s with weights due to %s",
 							 vrrp->iname, sc->scr->sname,
 							 sync_no_tracking_weight ? "SYNC group" : "address_owner");
@@ -2841,14 +2841,14 @@ vrrp_complete_instance(vrrp_t * vrrp)
 				next = e->next;
 				tfl = ELEMENT_DATA(e);
 				if (tfl->weight == 1) {		/* weight == 1 is the default */
-					log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring weight from "
+					log_message(LOG_INFO, "(%s) ignoring weight from "
 							 "tracked file %s due to %s - specify weight 0",
 							 vrrp->iname, tfl->file->fname,
 							 sync_no_tracking_weight ? "SYNC group" : "address_owner");
 					tfl->weight = 0;
 				}
 				else if (tfl->weight) {
-					log_message(LOG_INFO, "VRRP_Instance(%s) : ignoring "
+					log_message(LOG_INFO, "(%s) ignoring "
 							 "tracked file %s with weight %d due to %s",
 							 vrrp->iname, tfl->file->fname, tfl->weight,
 							 sync_no_tracking_weight ? "SYNC group" : "address_owner");
@@ -2876,7 +2876,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			}
 
 			if (vrrp->base_priority == VRRP_PRIO_OWNER && sc->weight) {
-				log_message(LOG_INFO, "(%s): Cannot have weighted track script '%s' with priority %d", vrrp->iname, vsc->sname, VRRP_PRIO_OWNER);
+				log_message(LOG_INFO, "(%s) Cannot have weighted track script '%s' with priority %d", vrrp->iname, vsc->sname, VRRP_PRIO_OWNER);
 				list_del(vrrp->track_script, sc);
 				continue;
 			}
@@ -2960,7 +2960,7 @@ sync_group_tracking_init(void)
 					continue;
 
 				if (sgroup_has_prio_owner && sc->weight) {
-					log_message(LOG_INFO, "(%s): Cannot have weighted track script '%s' with member having priority %d - clearing weight", sgroup->gname, vsc->sname, VRRP_PRIO_OWNER);
+					log_message(LOG_INFO, "(%s) Cannot have weighted track script '%s' with member having priority %d - clearing weight", sgroup->gname, vsc->sname, VRRP_PRIO_OWNER);
 					sc->weight = 0;
 				}
 
@@ -2978,7 +2978,7 @@ sync_group_tracking_init(void)
 				tfl = ELEMENT_DATA(e1);
 
 				if (sgroup_has_prio_owner && tfl->weight) {
-					log_message(LOG_INFO, "(%s): Cannot have weighted track file '%s' with member having priority %d - setting weight 0", sgroup->gname, tfl->file->fname, VRRP_PRIO_OWNER);
+					log_message(LOG_INFO, "(%s) Cannot have weighted track file '%s' with member having priority %d - setting weight 0", sgroup->gname, tfl->file->fname, VRRP_PRIO_OWNER);
 					tfl->weight = 0;
 				}
 
@@ -2996,7 +2996,7 @@ sync_group_tracking_init(void)
 				tif = ELEMENT_DATA(e1);
 
 				if (sgroup_has_prio_owner && tif->weight) {
-					log_message(LOG_INFO, "(%s): Cannot have weighted track interface '%s' with member having priority %d - clearing weight", sgroup->gname, tif->ifp->ifname, VRRP_PRIO_OWNER);
+					log_message(LOG_INFO, "(%s) Cannot have weighted track interface '%s' with member having priority %d - clearing weight", sgroup->gname, tif->ifp->ifname, VRRP_PRIO_OWNER);
 					tif->weight = 0;
 				}
 
@@ -3169,7 +3169,7 @@ vrrp_complete_init(void)
 		    (vrrp->sync && vrrp->sync->state == VRRP_STATE_FAULT)) {
 			vrrp->state = VRRP_STATE_FAULT;
 
-			log_message(LOG_INFO, "(%s): entering FAULT state", vrrp->iname);
+			log_message(LOG_INFO, "(%s) entering FAULT state", vrrp->iname);
 
 			send_instance_notifies(vrrp);
 		}

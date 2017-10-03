@@ -624,7 +624,7 @@ if_join_vrrp_group(sa_family_t family, int *sd, interface_t *ifp)
 	}
 
 	if (ret < 0) {
-		log_message(LOG_INFO, "(%s): cant do IP%s_ADD_MEMBERSHIP errno=%s (%d)",
+		log_message(LOG_INFO, "(%s) cant do IP%s_ADD_MEMBERSHIP errno=%s (%d)",
 			    ifp->ifname, (family == AF_INET) ? "" : "V6", strerror(errno), errno);
 		close(*sd);
 		*sd = -1;
@@ -660,7 +660,7 @@ if_leave_vrrp_group(sa_family_t family, int sd, interface_t *ifp)
 	}
 
 	if (ret < 0) {
-		log_message(LOG_INFO, "(%s): cant do IP%s_DROP_MEMBERSHIP errno=%s (%d)",
+		log_message(LOG_INFO, "(%s) cant do IP%s_DROP_MEMBERSHIP errno=%s (%d)",
 			    ifp->ifname, (family == AF_INET) ? "" : "V6", strerror(errno), errno);
 		return -1;
 	}

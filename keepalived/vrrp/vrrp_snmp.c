@@ -1726,7 +1726,7 @@ vrrp_snmp_instance_accept(int action,
 		switch ((long)(*var_val)) {
 		case 1:
 			log_message(LOG_INFO,
-				    "VRRP_Instance(%s) accept mode enabled with SNMP",
+				    "(%s) accept mode enabled with SNMP",
 				     vrrp->iname);
 // TODO - What do we do about adding/removing iptables blocks?
 // RFC6527 requires the instance to be down to change this - can't find now where it says that
@@ -1734,7 +1734,7 @@ vrrp_snmp_instance_accept(int action,
 			break;
 		case 2:
 			log_message(LOG_INFO,
-				    "VRRP_Instance(%s) accept mode disabled with SNMP",
+				    "(%s) accept mode disabled with SNMP",
 				    vrrp->iname);
 			vrrp->accept = false;
 			break;
@@ -1771,7 +1771,7 @@ vrrp_snmp_instance_priority(int action,
 			break;
 		/* Commit: change values. There is no way to fail. */
 		log_message(LOG_INFO,
-			    "VRRP_Instance(%s) base priority changed from"
+			    "(%s) base priority changed from"
 			    " %u to %u via SNMP.",
 			    vrrp->iname, vrrp->base_priority, *var_val);
 		vrrp->total_priority += *var_val - vrrp->base_priority;
@@ -1815,13 +1815,13 @@ vrrp_snmp_instance_preempt(int action,
 		switch ((long)(*var_val)) {
 		case 1:
 			log_message(LOG_INFO,
-				    "VRRP_Instance(%s) preemption enabled with SNMP",
+				    "(%s) preemption enabled with SNMP",
 				    vrrp->iname);
 			vrrp->nopreempt = 0;
 			break;
 		case 2:
 			log_message(LOG_INFO,
-				    "VRRP_Instance(%s) preemption disabled with SNMP",
+				    "(%s) preemption disabled with SNMP",
 				    vrrp->iname);
 			vrrp->nopreempt = 1;
 			break;
@@ -2944,7 +2944,7 @@ vrrp_snmp_instance_trap(vrrp_t *vrrp)
 				  strlen(global_data->router_id));
 
 	log_message(LOG_INFO,
-		    "VRRP_Instance(%s): Sending SNMP notification",
+		    "(%s) Sending SNMP notification",
 		    vrrp->iname);
 	send_v2trap(notification_vars);
 	snmp_free_varbind(notification_vars);
@@ -3591,7 +3591,7 @@ vrrp_rfcv2_snmp_new_master_trap(vrrp_t *vrrp)
 				  ASN_IPADDRESS,
 				  (u_char *)&((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr,
 				  sizeof(((struct sockaddr_in *)&vrrp->saddr)->sin_addr.s_addr));
-	log_message(LOG_INFO, "VRRP_Instance(%s): Sending SNMP notification"
+	log_message(LOG_INFO, "(%s) Sending SNMP notification"
 			      " vrrpTrapNewMaster"
 			    , vrrp->iname);
 	send_v2trap(notification_vars);
@@ -3640,7 +3640,7 @@ vrrp_rfcv2_snmp_auth_err_trap(vrrp_t *vrrp, struct in_addr src, enum rfcv2_trap_
 				  ASN_INTEGER,
 				  (u_char *)&auth_err,
 				  sizeof(auth_err));
-	log_message(LOG_INFO, "VRRP_Instance(%s): Sending SNMP notification"
+	log_message(LOG_INFO, "(%s) Sending SNMP notification"
 			      " vrrpTrapAuthFailure"
 			    , vrrp->iname);
 	send_v2trap(notification_vars);
@@ -4308,7 +4308,7 @@ vrrp_rfcv3_snmp_new_master_notify(vrrp_t *vrrp)
 				  ASN_INTEGER,
 				  (u_char *)&reason,
 				  sizeof(reason));
-	log_message(LOG_INFO, "VRRP_Instance(%s): Sending SNMP notification"
+	log_message(LOG_INFO, "(%s) Sending SNMP notification"
 			      " vrrpv3NotifyNewMaster, reason %d"
 			    , vrrp->iname, reason);
 	send_v2trap(notification_vars);
@@ -4348,7 +4348,7 @@ vrrp_rfcv3_snmp_proto_err_notify(vrrp_t *vrrp)
 				  ASN_INTEGER,
 				  (u_char *)&vrrp->stats->proto_err_reason,
 				  sizeof(vrrp->stats->proto_err_reason));
-	log_message(LOG_INFO, "VRRP_Instance(%s): Sending SNMP notification"
+	log_message(LOG_INFO, "(%s) Sending SNMP notification"
 			      " vrrpTrapProtoError"
 			    , vrrp->iname);
 	send_v2trap(notification_vars);

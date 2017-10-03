@@ -220,11 +220,11 @@ vrrp_init_state(list l)
 			if (is_up && new_state != VRRP_STATE_FAULT && !vrrp->num_script_init && (!vrrp->sync || !vrrp->sync->num_member_init)) {
 				if (is_up) {
 					vrrp->state = VRRP_STATE_BACK;
-					log_message(LOG_INFO, "VRRP_Instance(%s) Entering BACKUP STATE (init)", vrrp->iname);
+					log_message(LOG_INFO, "(%s) Entering BACKUP STATE (init)", vrrp->iname);
 				}
 				else {
 					vrrp->state = VRRP_STATE_FAULT;
-					log_message(LOG_INFO, "VRRP_Instance(%s) Entering FAULT STATE (init)", vrrp->iname);
+					log_message(LOG_INFO, "(%s) Entering FAULT STATE (init)", vrrp->iname);
 				}
 				send_instance_notifies(vrrp);
 			}
@@ -646,7 +646,7 @@ vrrp_set_effective_priority(vrrp_t *vrrp)
 	if (vrrp->effective_priority == new_prio)
 		return;
 
-	log_message(LOG_INFO, "VRRP_Instance(%s) Changing effective priority from %d to %d",
+	log_message(LOG_INFO, "(%s) Changing effective priority from %d to %d",
 		    vrrp->iname, vrrp->effective_priority, new_prio);
 
 	increasing_priority = (new_prio > vrrp->effective_priority);
@@ -799,7 +799,7 @@ vrrp_dispatcher_read(sock_t * sock)
 	else if (vrrp->state == VRRP_STATE_MAST)
 		vrrp_leave_master(vrrp, vrrp_buffer, len);
 	else
-		log_message(LOG_INFO, "(%s): In dispatcher_read with state %d", vrrp->iname, vrrp->state);
+		log_message(LOG_INFO, "(%s) In dispatcher_read with state %d", vrrp->iname, vrrp->state);
 
 	/* handle instance synchronization */
 #ifdef TSM_DEBUG

@@ -68,7 +68,7 @@ alloc_track_if(vrrp_t *vrrp, vector_t *strvec)
 	ifp = if_get_by_ifname(tracked, IF_CREATE_IF_DYNAMIC);
 
 	if (!ifp) {
-		log_message(LOG_INFO, "(%s): tracked interface %s doesn't exist", vrrp->iname, tracked);
+		log_message(LOG_INFO, "(%s) tracked interface %s doesn't exist", vrrp->iname, tracked);
 		return;
 	}
 
@@ -77,7 +77,7 @@ alloc_track_if(vrrp_t *vrrp, vector_t *strvec)
 		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e)) {
 			tip = ELEMENT_DATA(e);
 			if (tip->ifp == ifp) {
-				log_message(LOG_INFO, "(%s): duplicate track_interface %s - ignoring", vrrp->iname, tracked);
+				log_message(LOG_INFO, "(%s) duplicate track_interface %s - ignoring", vrrp->iname, tracked);
 				return;
 			}
 		}
@@ -87,7 +87,7 @@ alloc_track_if(vrrp_t *vrrp, vector_t *strvec)
 	    !strcmp(strvec_slot(strvec, 1), "weight")) {
 		weight = atoi(strvec_slot(strvec, 2));
 		if (weight < -254 || weight > 254) {
-			log_message(LOG_INFO, "(%s): weight for %s must be between "
+			log_message(LOG_INFO, "(%s) weight for %s must be between "
 					 "[-254..254] inclusive. Ignoring...", vrrp->iname, tracked);
 			weight = 0;
 		}
@@ -112,7 +112,7 @@ alloc_group_track_if(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	ifp = if_get_by_ifname(tracked, IF_CREATE_IF_DYNAMIC);
 
 	if (!ifp) {
-		log_message(LOG_INFO, "(%s): tracked interface %s doesn't exist", sgroup->gname, tracked);
+		log_message(LOG_INFO, "(%s) tracked interface %s doesn't exist", sgroup->gname, tracked);
 		return;
 	}
 	else if (!LIST_ISEMPTY(sgroup->track_ifp)) {
@@ -120,7 +120,7 @@ alloc_group_track_if(vrrp_sgroup_t *sgroup, vector_t *strvec)
 		for (e = LIST_HEAD(sgroup->track_ifp); e; ELEMENT_NEXT(e)) {
 			tip = ELEMENT_DATA(e);
 			if (tip->ifp == ifp) {
-				log_message(LOG_INFO, "(%s): duplicate track_interface %s - ignoring", sgroup->gname, tracked);
+				log_message(LOG_INFO, "(%s) duplicate track_interface %s - ignoring", sgroup->gname, tracked);
 				return;
 			}
 		}
@@ -130,7 +130,7 @@ alloc_group_track_if(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	    !strcmp(strvec_slot(strvec, 1), "weight")) {
 		weight = atoi(strvec_slot(strvec, 2));
 		if (weight < -254 || weight > 254) {
-			log_message(LOG_INFO, "(%s): weight for %s must be between "
+			log_message(LOG_INFO, "(%s) weight for %s must be between "
 					 "[-254..254] inclusive. Ignoring...", sgroup->gname, tracked);
 			weight = 0;
 		}
@@ -188,7 +188,7 @@ alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 
 	/* Ignoring if no script found */
 	if (!vsc) {
-		log_message(LOG_INFO, "(%s): track script %s not found, ignoring...", vrrp->iname, tracked);
+		log_message(LOG_INFO, "(%s) track script %s not found, ignoring...", vrrp->iname, tracked);
 		return;
 	}
 
@@ -197,7 +197,7 @@ alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 		for (e = LIST_HEAD(vrrp->track_script); e; ELEMENT_NEXT(e)) {
 			etsc = ELEMENT_DATA(e);
 			if (etsc->scr == vsc) {
-				log_message(LOG_INFO, "(%s): duplicate track_script %s - ignoring", vrrp->iname, tracked);
+				log_message(LOG_INFO, "(%s) duplicate track_script %s - ignoring", vrrp->iname, tracked);
 				return;
 			}
 		}
@@ -211,7 +211,7 @@ alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 		weight = atoi(strvec_slot(strvec, 2));
 		if (weight < -254 || weight > 254) {
 			weight = vsc->weight;
-			log_message(LOG_INFO, "(%s): track script %s: weight must be between [-254..254]"
+			log_message(LOG_INFO, "(%s) track script %s: weight must be between [-254..254]"
 					 " inclusive, ignoring...",
 			       vrrp->iname, tracked);
 		}
@@ -238,7 +238,7 @@ alloc_group_track_script(vrrp_sgroup_t *sgroup, vector_t *strvec)
 
 	/* Ignoring if no script found */
 	if (!vsc) {
-		log_message(LOG_INFO, "(%s): track script %s not found, ignoring...", sgroup->gname, tracked);
+		log_message(LOG_INFO, "(%s) track script %s not found, ignoring...", sgroup->gname, tracked);
 		return;
 	}
 
@@ -247,7 +247,7 @@ alloc_group_track_script(vrrp_sgroup_t *sgroup, vector_t *strvec)
 		for (e = LIST_HEAD(sgroup->track_script); e; ELEMENT_NEXT(e)) {
 			etsc = ELEMENT_DATA(e);
 			if (etsc->scr == vsc) {
-				log_message(LOG_INFO, "(%s): duplicate track_script %s - ignoring", sgroup->gname, tracked);
+				log_message(LOG_INFO, "(%s) duplicate track_script %s - ignoring", sgroup->gname, tracked);
 				return;
 			}
 		}
@@ -261,7 +261,7 @@ alloc_group_track_script(vrrp_sgroup_t *sgroup, vector_t *strvec)
 		weight = atoi(strvec_slot(strvec, 2));
 		if (weight < -254 || weight > 254) {
 			weight = vsc->weight;
-			log_message(LOG_INFO, "(%s): track script %s: weight must be between [-254..254]"
+			log_message(LOG_INFO, "(%s) track script %s: weight must be between [-254..254]"
 					 " inclusive, ignoring...",
 			       sgroup->gname, tracked);
 		}
@@ -319,7 +319,7 @@ alloc_track_file(vrrp_t *vrrp, vector_t *strvec)
 
 	/* Ignoring if no file found */
 	if (!vsf) {
-		log_message(LOG_INFO, "(%s): track file %s not found, ignoring...", vrrp->iname, tracked);
+		log_message(LOG_INFO, "(%s) track file %s not found, ignoring...", vrrp->iname, tracked);
 		return;
 	}
 
@@ -328,7 +328,7 @@ alloc_track_file(vrrp_t *vrrp, vector_t *strvec)
 		for (e = LIST_HEAD(vrrp->track_file); e; ELEMENT_NEXT(e)) {
 			etfile = ELEMENT_DATA(e);
 			if (etfile->file == vsf) {
-				log_message(LOG_INFO, "(%s): duplicate track_file %s - ignoring", vrrp->iname, tracked);
+				log_message(LOG_INFO, "(%s) duplicate track_file %s - ignoring", vrrp->iname, tracked);
 				return;
 			}
 		}
@@ -337,19 +337,19 @@ alloc_track_file(vrrp_t *vrrp, vector_t *strvec)
 	weight = vsf->weight;
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
-			log_message(LOG_INFO, "(%s): unknown track file option %s - ignoring",
+			log_message(LOG_INFO, "(%s) unknown track file option %s - ignoring",
 					 vrrp->iname, FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
 			weight = atoi(strvec_slot(strvec, 2));
 			if (weight < -254 || weight > 253) {
-				log_message(LOG_INFO, "(%s): weight for track file %s must be in "
+				log_message(LOG_INFO, "(%s) weight for track file %s must be in "
 						 "[-254..253] inclusive. Ignoring...", vrrp->iname, tracked);
 				weight = vsf->weight;
 			}
 		} else {
-			log_message(LOG_INFO, "(%s): weight without value specified for track file %s - ignoring",
+			log_message(LOG_INFO, "(%s) weight without value specified for track file %s - ignoring",
 					vrrp->iname, tracked);
 			return;
 		}
@@ -375,7 +375,7 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, vector_t *strvec)
 
 	/* Ignoring if no file found */
 	if (!vsf) {
-		log_message(LOG_INFO, "(%s): track file %s not found, ignoring...", sgroup->gname, tracked);
+		log_message(LOG_INFO, "(%s) track file %s not found, ignoring...", sgroup->gname, tracked);
 		return;
 	}
 
@@ -384,7 +384,7 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, vector_t *strvec)
 		for (e = LIST_HEAD(sgroup->track_file); e; ELEMENT_NEXT(e)) {
 			etfile = ELEMENT_DATA(e);
 			if (etfile->file == vsf) {
-				log_message(LOG_INFO, "(%s): duplicate track_file %s - ignoring", sgroup->gname, tracked);
+				log_message(LOG_INFO, "(%s) duplicate track_file %s - ignoring", sgroup->gname, tracked);
 				return;
 			}
 		}
@@ -393,19 +393,19 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	weight = vsf->weight;
 	if (vector_size(strvec) >= 2) {
 		if (strcmp(strvec_slot(strvec, 1), "weight")) {
-			log_message(LOG_INFO, "(%s): unknown track file option %s - ignoring",
+			log_message(LOG_INFO, "(%s) unknown track file option %s - ignoring",
 					 sgroup->gname, FMT_STR_VSLOT(strvec, 1));
 			return;
 		}
 		if (vector_size(strvec) >= 3) {
 			weight = atoi(strvec_slot(strvec, 2));
 			if (weight < -254 || weight > 253) {
-				log_message(LOG_INFO, "(%s): weight for track file %s must be in "
+				log_message(LOG_INFO, "(%s) weight for track file %s must be in "
 						 "[-254..253] inclusive. Ignoring...", sgroup->gname, tracked);
 				weight = vsf->weight;
 			}
 		} else {
-			log_message(LOG_INFO, "(%s): weight without value specified for track file %s - ignoring",
+			log_message(LOG_INFO, "(%s) weight without value specified for track file %s - ignoring",
 					sgroup->gname, tracked);
 			return;
 		}

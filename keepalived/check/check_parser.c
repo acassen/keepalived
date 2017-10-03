@@ -419,7 +419,7 @@ notify_up_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	if (rs->notify_up) {
-		log_message(LOG_INFO, "(%s): notify_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		log_message(LOG_INFO, "(%s) notify_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	rs->notify_up = set_check_notify_script(strvec, "notify");
@@ -430,7 +430,7 @@ notify_down_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	if (rs->notify_down) {
-		log_message(LOG_INFO, "(%s): notify_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		log_message(LOG_INFO, "(%s) notify_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	rs->notify_down = set_check_notify_script(strvec, "notify");
@@ -528,7 +528,7 @@ quorum_up_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->notify_quorum_up) {
-		log_message(LOG_INFO, "(%s): quorum_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		log_message(LOG_INFO, "(%s) quorum_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vs->notify_quorum_up = set_check_notify_script(strvec, "quorum");
@@ -538,7 +538,7 @@ quorum_down_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->notify_quorum_down) {
-		log_message(LOG_INFO, "(%s): quorum_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		log_message(LOG_INFO, "(%s) quorum_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vs->notify_quorum_down = set_check_notify_script(strvec, "quorum");
