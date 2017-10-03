@@ -2929,7 +2929,7 @@ sync_group_tracking_init(void)
 				tfl = ELEMENT_DATA(e1);
 
 				if (sgroup_has_prio_owner && tfl->weight) {
-					log_message(LOG_INFO, "(%s): Cannot have weighted track file '%s' with member having priority %d - clearing weight", sgroup->gname, tfl->file->fname, VRRP_PRIO_OWNER);
+					log_message(LOG_INFO, "(%s): Cannot have weighted track file '%s' with member having priority %d - setting weight 0", sgroup->gname, tfl->file->fname, VRRP_PRIO_OWNER);
 					tfl->weight = 0;
 				}
 
