@@ -565,9 +565,9 @@ usage(const char *prog)
 #ifdef _MEM_CHECK_LOG_
 	fprintf(stderr, "  -L, --mem-check-log          Log malloc/frees to syslog\n");
 #endif
-	fprintf(stderr, "  -i, --config-id [id]         Skip any configuration lines beginning '@' that don't match id\n"
+	fprintf(stderr, "  -i, --config-id id           Skip any configuration lines beginning '@' that don't match id\n"
 		        "                                or any lines beginning @^ that do match.\n"
-		        "                                id defaults to node name for --config-id\n");
+		        "                                The config-id defaults to the node name if option not used\n");
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -618,7 +618,7 @@ parse_cmdline(int argc, char **argv)
 #if HAVE_DECL_CLONE_NEWNET
 		{"namespace",         required_argument, 0, 's'},
 #endif	
-		{"config-id",         optional_argument, 0, 'i'},
+		{"config-id",         required_argument, 0, 'i'},
 		{"version",           no_argument,       0, 'v'},
 		{"help",              no_argument,       0, 'h'},
 		{0, 0, 0, 0}

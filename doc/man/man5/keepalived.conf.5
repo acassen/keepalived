@@ -19,14 +19,16 @@ the main configuration file.
 is one of on|off|true|false|yes|no
 .PP
 .SH Conditional configuration and configuration id
-Any configuration line starts with '@' is a conditional configuration line.
+The config-id defaults to the first part of the node name as returned by
+uname, and can be overridden with the -i or --config-id command line option.
+.PP
+Any configuration line starting with '@' is a conditional configuration line.
 The word immediately following (i.e. without any space) the '@' character
-is compared against the string specified with the -i command line option,
-and if they don't match, the configuration line is ignored.
+is compared against the config-id, and if they don't match, the configuration
+line is ignored.
 .PP
 Alternatively, '@^' is a negative comparison, so if the word immediately
-following does NOT match the -i command line option, the configuration line
-IS included.
+following does NOT match the config-id, the configuration line IS included.
 .PP
 The purpose of this is to allow a single configuration file to be used for
 multiple systems, where the only differences are likely to be the router_id,
