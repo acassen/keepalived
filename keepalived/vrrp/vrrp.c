@@ -424,6 +424,9 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 	ip = NULL;
 	struct sockaddr_storage *up_addr;
 	size_t buflen, expected_len;
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+	bool chksum_error;
+#endif
 
 	if (buflen_ret < 0) {
 		log_message(LOG_INFO, "recvmsg returned %zd", buflen_ret);
@@ -638,22 +641,43 @@ vrrp_in_chk(vrrp_t * vrrp, char *buffer, ssize_t buflen_ret, bool check_vip_addr
 		if (vrrp->version == VRRP_VERSION_3) {
 			/* Create IPv4 pseudo-header */
 			ipv4_phdr.src   = ip->saddr;
-			ipv4_phdr.dst   = htonl(INADDR_VRRP_GROUP);
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+			ipv4_phdr.dst   = vrrp->unicast_chksum_compat <= CHKSUM_COMPATIBILITY_MIN_COMPAT
+					  ? ip->daddr : ((struct sockaddr_in *)&global_data->vrrp_mcast_group4)->sin_addr.s_addr;
+#else
+			ipv4_phdr.dst	= ip->daddr;
+#endif
 			ipv4_phdr.zero  = 0;
 			ipv4_phdr.proto = IPPROTO_VRRP;
 			ipv4_phdr.len   = htons(vrrppkt_len);
 
 			in_csum((u_short *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
 			if (in_csum((u_short *) hd, vrrppkt_len, acc_csum, NULL)) {
-				log_message(LOG_INFO, "(%s): Invalid VRRPv3 checksum", vrrp->iname);
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+				chksum_error = true;
+				if (vrrp->unicast_chksum_compat == CHKSUM_COMPATIBILITY_NONE) {
+					ipv4_phdr.dst = ((struct sockaddr_in *)&global_data->vrrp_mcast_group4)->sin_addr.s_addr;
+					in_csum((u_short *) &ipv4_phdr, sizeof(ipv4_phdr), 0, &acc_csum);
+					if (!in_csum((u_short *)hd, vrrppkt_len, acc_csum, NULL)) {
+						vrrp->unicast_chksum_compat = CHKSUM_COMPATIBILITY_AUTO;
+						log_message(LOG_INFO, "(%s): Setting unicast VRRPv3 checksum to old version", vrrp->iname);
+						chksum_error = false;
+					}
+				}
+
+				if (chksum_error)
+#endif
+				{
+					log_message(LOG_INFO, "(%s): Invalid VRRPv3 checksum", vrrp->iname);
 #ifdef _WITH_SNMP_RFC_
-				vrrp->stats->chk_err++;
+					vrrp->stats->chk_err++;
 #ifdef _WITH_SNMP_RFCV3_
-				vrrp->stats->proto_err_reason = checksumError;
-				vrrp_rfcv3_snmp_proto_err_notify(vrrp);
+					vrrp->stats->proto_err_reason = checksumError;
+					vrrp_rfcv3_snmp_proto_err_notify(vrrp);
 #endif
 #endif
-				return VRRP_PACKET_KO;
+					return VRRP_PACKET_KO;
+				}
 			}
 		} else {
 			vrrppkt_len += VRRP_AUTH_LEN;
@@ -947,7 +971,7 @@ vrrp_build_vrrp_v2(vrrp_t *vrrp, uint8_t prio, char *buffer)
 
 /* build VRRPv3 header */
 static int
-vrrp_build_vrrp_v3(vrrp_t *vrrp, uint8_t prio, char *buffer)
+vrrp_build_vrrp_v3(vrrp_t *vrrp, uint8_t prio, char *buffer, struct iphdr *ip)
 {
 	int i = 0;
 	vrrphdr_t *hd = (vrrphdr_t *) buffer;
@@ -965,6 +989,10 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, uint8_t prio, char *buffer)
 	hd->naddr = (uint8_t)((!LIST_ISEMPTY(vrrp->vip)) ? LIST_SIZE(vrrp->vip) : 0);
 	hd->v3.adver_int  = htons((vrrp->adver_int / TIMER_CENTI_HZ) & 0x0FFF); /* interval in centiseconds, reserved bits zero */
 
+	/* For IPv4 to calculate the checksum, the value must start as 0.
+	 * For IPv6, the kernel will update checksum field. */
+	hd->chksum = 0;
+
 	/* Family specific */
 	if (vrrp->family == AF_INET) {
 		/* copy the ip addresses */
@@ -978,7 +1006,12 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, uint8_t prio, char *buffer)
 
 		/* Create IPv4 pseudo-header */
 		ipv4_phdr.src   = VRRP_PKT_SADDR(vrrp);
-		ipv4_phdr.dst   = htonl(INADDR_VRRP_GROUP);
+#ifdef _WITH_UNICAST_CHKSUM_COMPAT_
+		ipv4_phdr.dst   = vrrp->unicast_chksum_compat <= CHKSUM_COMPATIBILITY_MIN_COMPAT
+				    ? ip->daddr : ((struct sockaddr_in *)&global_data->vrrp_mcast_group4)->sin_addr.s_addr;
+#else
+		ipv4_phdr.dst	= ip->daddr;
+#endif
 		ipv4_phdr.zero  = 0;
 		ipv4_phdr.proto = IPPROTO_VRRP;
 		ipv4_phdr.len   = htons(vrrp_pkt_len(vrrp));
@@ -994,8 +1027,6 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, uint8_t prio, char *buffer)
 				ip6arr[i++] = ip_addr->u.sin6_addr;
 			}
 		}
-		/* Kernel will update checksum field. let it be 0 now. */
-		hd->chksum = 0;
 	}
 
 	return 0;
@@ -1003,10 +1034,10 @@ vrrp_build_vrrp_v3(vrrp_t *vrrp, uint8_t prio, char *buffer)
 
 /* build VRRP header */
 static int
-vrrp_build_vrrp(vrrp_t *vrrp, uint8_t prio, char *buffer)
+vrrp_build_vrrp(vrrp_t *vrrp, uint8_t prio, char *buffer, struct iphdr* ip)
 {
 	if (vrrp->version == VRRP_VERSION_3)
-		return vrrp_build_vrrp_v3(vrrp, prio, buffer);
+		return vrrp_build_vrrp_v3(vrrp, prio, buffer, ip);
 
 	return vrrp_build_vrrp_v2(vrrp, prio, buffer);
 }
@@ -1018,6 +1049,7 @@ vrrp_build_pkt(vrrp_t * vrrp, uint8_t prio, struct sockaddr_storage *addr)
 	char *bufptr;
 	uint32_t dst;
 	size_t len;
+	struct iphdr *ip;
 
 	/* save reference values */
 	bufptr = VRRP_SEND_BUFFER(vrrp);
@@ -1028,6 +1060,7 @@ vrrp_build_pkt(vrrp_t * vrrp, uint8_t prio, struct sockaddr_storage *addr)
 		dst = (addr) ? inet_sockaddrip4(addr) :
 			       ((struct sockaddr_in *) &global_data->vrrp_mcast_group4)->sin_addr.s_addr;
 		vrrp_build_ip4(vrrp, bufptr, dst);
+		ip = (struct iphdr *)bufptr;
 
 		/* build the vrrp header */
 		vrrp->send_buffer += vrrp_iphdr_len();
@@ -1042,7 +1075,7 @@ vrrp_build_pkt(vrrp_t * vrrp, uint8_t prio, struct sockaddr_storage *addr)
 		if (vrrp->auth_type == VRRP_AUTH_AH)
 			vrrp->send_buffer_size -= vrrp_ipsecah_len();
 #endif
-		vrrp_build_vrrp(vrrp, prio, vrrp->send_buffer);
+		vrrp_build_vrrp(vrrp, prio, vrrp->send_buffer, ip);
 
 #ifdef _WITH_VRRP_AUTH_
 		/* build the IPSEC AH header */
@@ -1052,7 +1085,7 @@ vrrp_build_pkt(vrrp_t * vrrp, uint8_t prio, struct sockaddr_storage *addr)
 		}
 #endif
 	} else if (vrrp->family == AF_INET6) {
-		vrrp_build_vrrp(vrrp, prio, VRRP_SEND_BUFFER(vrrp));
+		vrrp_build_vrrp(vrrp, prio, VRRP_SEND_BUFFER(vrrp), NULL);
 	}
 
 	/* restore reference values */
@@ -2417,8 +2450,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 
 	/* See if we need to set promote_secondaries */
 	if (vrrp->promote_secondaries &&
-	    !vrrp->ifp->promote_secondaries_already_set &&
-	    !vrrp->ifp->reset_promote_secondaries)
+	    !vrrp->ifp->promote_secondaries_already_set)
 		set_promote_secondaries(vrrp->ifp);
 
 	/* If we are adding a large number of interfaces, the netlink socket

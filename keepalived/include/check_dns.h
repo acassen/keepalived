@@ -30,7 +30,7 @@
 #include "scheduler.h"
 
 #define DNS_DEFAULT_RETRY    3
-#define DNS_DEFAULT_TYPE  "SOA"
+#define DNS_DEFAULT_TYPE  DNS_TYPE_SOA
 #define DNS_DEFAULT_NAME    "."
 #define DNS_BUFFER_SIZE    768
 
@@ -52,13 +52,15 @@
 #define DNS_SET_Z(flags, val)  (flags |= ((val & 0x0007) <<  4))
 #define DNS_SET_RC(flags, val) (flags |= ((val & 0x000F) <<  0))
 
-#define DNS_TYPE_A     1
-#define DNS_TYPE_NS    2
-#define DNS_TYPE_CNAME 5
-#define DNS_TYPE_SOA   6
-#define DNS_TYPE_MX   15
-#define DNS_TYPE_TXT  16
-#define DNS_TYPE_AAAA 28
+#define DNS_TYPE_A       1
+#define DNS_TYPE_NS      2
+#define DNS_TYPE_CNAME   5
+#define DNS_TYPE_SOA     6
+#define DNS_TYPE_MX     15
+#define DNS_TYPE_TXT    16
+#define DNS_TYPE_AAAA   28
+#define DNS_TYPE_RRSIG  46
+#define DNS_TYPE_DNSKEY 48
 
 #define FMT_DNS_RS(C) FMT_CHK(C)
 
@@ -79,9 +81,7 @@ typedef struct _dns_header {
 } dns_header_t;
 
 typedef struct _dns_check {
-	int retry;
-	int attempts;
-	char *type;
+	uint16_t type;
 	char *name;
 	uint8_t sbuf[DNS_BUFFER_SIZE];
 	size_t slen;

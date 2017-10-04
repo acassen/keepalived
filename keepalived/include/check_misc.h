@@ -41,9 +41,11 @@ typedef struct _misc_checker {
 	uid_t			uid;		/* uid for script execution */
 	gid_t			gid;		/* gid for script execution */
 	bool			insecure;	/* script is insecure */
+	timeval_t		last_ran;	/* Time script last ran */
 } misc_checker_t;
 
 /* Prototypes defs */
+extern void clear_dynamic_misc_check_flag(void);
 extern void install_misc_check_keyword(void);
 extern int check_misc_script_security(void);
 

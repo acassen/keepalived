@@ -1,3 +1,439 @@
+2017-10-01 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.3.7 released.
+	* Allow broadcast address to be specified as '-' or '+'
+	  When configuring an ip address with a broadcast address, allow the
+	  use of - and + (like ip(8)) to clear or set the host specfic bits of
+	  the address, i.e.
+	  10.6.23.254/16 broadcast + result in a broadcast address of 10.6.255.255
+	  10.6.23.254/16 broadcast - results in a broadcast address of 10.6.0.0
+	* Change some code layout and macro/variable names
+	* Print unicast peer addresses in /tmp/keepalived.data
+	* Add negative conditional configuration.
+	  A configuration line starting @main will only be included if
+	  keepalived is started with option -i main.
+	  This commit adds configuration option @^main, meaning that the
+	  remainder of the configuration line will only be included if
+	  -i main was NOT specified.
+	* Fix calculation of checksum for VRRPv3 IPv4 unicast peers.
+	  Alternate unicast peers were being sent adverts with the checksum
+	  set to 0. The reason for this was that the checksum field was not
+	  being set to 0 before the checksum calculation, hence causing the
+	  calculated checksum to be 0 for the second, fourth, sixth etc
+	  unicast peer.
+	* Generate README from README.md.
+	* Only declare (and use) auth variables if compiling with authentication.
+	  authtype_mismatch and auth_failure are only used if authentication is
+	  enabled.
+	* The vrrp_t vmac flag should be a bool.
+	* Add include guard for vrrp_print.h.
+	* Log some additional vrrp variables.
+	* Make checksum change backwards compatible.
+	  This commits adds the ability of keepalived to revert to using the old
+	  checksum calculation if it sees an advert that has an old checksum. This
+	  means that if an old and a new version of keepalived are working
+	  together, once the new version has seen an advert from an old version,
+	  it will drop back to using the old style checksum, and so the two
+	  keepalived instances will work together.
+	  There is a slight problem with this, though. If the old version starts
+	  when a new version is master, if will report bad checksums. This should
+	  be fine, since keepalived should discard the adverts, time out and send
+	  an advert which would make the new keepalived revert to old checksums.
+	  Unfortunately, keepalived does not completely ignore bad adverts, since
+	  it resets its master down timer, even for bad adverts, and so it never
+	  times out. However, in this scenario, there will still remain one master
+	  and all the other keepalived instances will be in backup state, and so
+	  VRRP functionality is preserved.
+	  As identified in commit bcf2936 until commit 67275d2 keepalived did not
+	  work with VRRPv3 and more than one other unicast peer, so for migration
+	  we only need to consider two unicast peers. To upgrade, first upgrade
+	  the keepalived instance that is in backup mode. This will see old
+	  checksums when it starts, and so start using old checksums. The other
+	  keepalived instance can then be upgraded and it will also see old
+	  checksums when it starts up. In order to switch to using new checksums,
+	  temporarily add the following line in the configuration of each vrrp
+	  instance that is in master state:
+	  old_unicast_checksum never
+	  and then reload the keepalived instance by sending it SIGHUP. After the
+	  master has restarted, restart the backup with a SIGHUP, and they will
+	  then be using new checksums. The temporary old_unicast_checksum never
+	  lines can now be removed from the configuration.
+	* Add checker bind_if keyword.
+	  If a checker binds to a link local IPv6 address, the interface has
+	  to be specified.
+	* Make DBus service name configurable.
+	* Make --config-id option default to hostname.
+	  This is the equivalent of specifying --config-id `hostname -s`, and
+	  makes it more straightforward to deploy the same configuration to
+	  multiple hosts.
+	* Issue warning if more than 1 dynamic misc_checker per real server.
+	  If different scripts return different exit statuses, the priority
+	  of the real server will keep changing. The solution is to combine
+	  the functionality into 1 script.
+	* Improve DBus error handling.
+	  . Always clear errors to avoid leaks
+	  . Check for errors when emitting signals
+	  . Check for errors when registering objects
+	* Stop test tcp_server leaving zombie processes.
+	* Fix persistence_granularity handling
+	  1. vs->addr.ss_family should never be used to check address family of
+	     vs since there may not be an address is using fwmark.
+	  2. If using fwmark, the address family may not be known when parsing
+	     persistence_granularity
+	  3. Set address family from format of persistence_granularity if not
+	     already set
+	  4. Ensure entire string is a number and is between 1 and 128 for IPv6
+	  5. Ensure netmask specified for IPv4 is solid
+	* Ensure always check return from inet_stosockaddr when parsing config.
+	* Add lthreshold and uthreshold to keepalived.SYNOPSIS.
+	* Merge virtual server group addresses and ranges into one list.
+	  A single address can be treated as a range with only 1 address, so
+	  this reduces the number of lists that need to be processed when
+	  handling a virtual server group.
+	  A number of corrections were also made re hton/ntoh(s|l).
+	* Remove redundant setting of real server weight.
+	* Don't use vs->addr.ss_family for address family of virtual server.
+	  A virtual server won't use vs->addr if it is defined by a fwmark or
+	  it is uses a firtual server group. vs->af is the correct field to use.
+	* Make ipvs_update_stats() little/big endian aware.
+	* Simplify ipvs_update_stats().
+	  Don't run a state machine to collect all the stats, simple iterate
+	  through the entries.
+	* Move fetching ipvs stats into ipvs_update_vs_stats().
+	* Remove some #defines in ipvs_update_stats().
+	* Streamline setup for changing ipvs configuration.
+	* Fix updating resolved notify script path names with parameters.
+	* Add silent option to test/tcp_server.
+	* Document default checker connect ip/port.
+	* Remove duplicate setting up of file name.
+	* Validate HTTP_GET and SSL_GET checkers.
+	  Unsure that urls have a path specified, and that the checkers have
+	  at least one url specified.
+	* Fix memory leak if SMTP_CHECK helo_name specified.
+	* Fix dumping of SMTP_CHECK host list.
+	* Don't allocate and copy default SMTP_CHECK helo name unless needed.
+	* Tidy up dumping SMTP checkers.
+	* Remove smtp_host_t typedef.
+	  If is passed to functions that take a conn_opts_t parameter, so
+	  we need to explicitly use the correct type.
+	* Simplify handling of host{} block in SMTP_CHECK.
+	  This also allows specifying connect_ip, connect_port as well as
+	  unsing host blocks.
+	* Add DNS_CHECK RRSIG and DNSKEY query types.
+	* Fix documentation re MISC_CHECK.
+	* Detect if no misc_path specified for MISC_CHECK.
+	  If no path was specified, keepalived was segfaulting.
+	* Add some more error messages to socket_bind_connect().
+	* Checker connections aren't always TCP.
+	* Report if checker bind_if is missing
+	  If a link local IPv6 address is specified for a checker to
+	  connect to, then a bind interface must also be specified,
+	  otherwise the connect() call fails.
+	* If a real server has inhibit_on_failure, configure it at start up
+	  If a real server had inhibit_on_failure set, but it also had an
+	  alpha mode checker, then the real server should be installed at
+	  startup with weight 0 to be consistent with what would happen if
+	  the checker had been successful but then failed.
+	* Improve handling of virtual server groups.
+	  If multiple virtual servers use the same virtual server group, and
+	  the virtual servers have different protocols, or the virtual server
+	  groups are defined using only fwmarks and the virtual servers have
+	  different address families, then multiple versions of the entries
+	  in the virtual server groups will need to be created as IPVS
+	  virtual servers.
+	  This patch handles the creation and removal of the necessary different
+	  virtual servers for the virtual server groups.
+	* Add virtual server protocol types SCTP and none for SNMP.
+	* Handle virtual server with no protocol specified
+	  This is valid if fwmarks are being used.
+	* Warn if a protocol is set on a virtual server using firewall marks.
+	* Don't check !LIST_ISEMPTY(vs->rs) after config is validated
+	  In validate_check_config() any virtual server without any real
+	  servers is removed, so there is no need to check subsequently.
+	* Don't allow virtual server groups without any addresses for fwmarks.
+	* Fix and optimise handling of promote_secondaries.
+	  The promote_secondaries flag was being cleared by the first vrrp
+	  instance that stopped using an interface, rather than by the last
+	  instance.
+	* Fix the setting of mcast address for checksum compatibility
+	  It was using INADDR_VRRP_GROUP rather than vrrp_mcast_group4.
+
+2017-09-15 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.3.6 released.
+	* Ensure locations of pid files is consistent
+	  Issue #563 identified that the generated keepalived.service has the
+	  wrong location for the pid file. On investigating this it was discovered
+	  that keepalived isn't following the GNU coding standards for location of
+	  pid files; however, we can't now move the default location of pid files.
+	  This commit ensures that the keepalived.service file's location for pid
+	  files is consistent with where keepalived is placing them, but also adds
+	  a configure option --enable-gnu-std-paths, which means that keepalived
+	  will use ${localstatedir} for the location of pid files, while the default
+	  remains /var/run
+	* Stop logging that preferred_lft has been set to 0.
+	  Some users are interpreting the message as a warning, and hence are
+	  unnecessarily avoiding using a /128 netmask for IPv6 addresses. The
+	  message doesn't really tell us anything useful, so remove it.
+	* Handle not being able to load ip_tables or ip6_tables modules.
+	  When running in a docker container it isn't possible to load kernel
+	  modules, so we need to cleanly handle a failure to load the modules.
+	* Don't segfault if unable to load ip_vs module.
+	  In a docker container it isn't possible to load a kernel module. The
+	  check code was detecting that it couldn't load the module, but the
+	  checker process, when cleaning up prior to exiting, was assuming that
+	  certain pointers had been initialised which hadn't been when an error
+	  was detected so early in the initialisation.
+	  This commit adds testing for uninitialised pointers during the exit
+	  sequence.
+	* Fix releasing malloc'd memory for saved core pattern.
+	* Fix memory leak when adding iptables entries.
+	* Handle missing virtual server configuration.
+	  keepalived was segfaulting if a virtual server had no real servers
+	  configured. There were also issues of checkers running even if there
+	  was missing essential configuration from a virtual server which meant
+	  it could be set up. The problems were a virtual server group specified
+	  but it didn't exist, a virtual server group with no configuration, and
+	  a virtual server address family not match the address family of a virtual
+	  server group.
+	* Don't attempt to remove ipsets if ipset handling not initialised.
+	* Delay initialising IPVS until affter processing configuration.
+	  If IPVS isn't configured, there is not point in loading the ip_vs
+	  module.
+	* Fix conditional compilation tests for _HAVE_LIBNL3_
+	* Make dynamic flag bool.
+	* Don't report exit status of misc_check scripts.
+	  The result of a change in status from a misc_check script is reported
+	  by the code anyway, so to log any non-zero exit code is superfluous and
+	  annoying.
+	* Work around conflict between kernel and libipset header files.
+	  ipset copies linux/netfilter/ipset/ip_set.h (and other) header
+	  files, producing local copies that are installed as
+	  libipset/linux_ip_set.h etc as part of the libipset development
+	  package. Unfortunately although the kernel changes the include
+	  guards when processing its source code, ipset does not, and so
+	  the duplicated header files have different include guards.
+	  This patch detects if the include guards don't match, and if so
+	  if linux/netfilter/ipset/ip_set.h is included, it defines the
+	  include guard used by libipset/linux_ip_set.h before the latter is
+	  indirectly included.
+	* add Dockerfile.
+	* Fix detecting default script uid/gid.
+	* Stop segfault when keepalived can't load ip_vs module.
+	* Add some additional docker support files and add make target docker.
+	  The configuration file installed by make install isn't ideal to run
+	  keepalived with, so add a simple keepalived.conf that will be
+	  installed into the container.
+	  Add make target docker, to build the docker image.
+	  Add docker/README to give some information about building and using
+	  containers (this is mainly so that I don't forget how to the details).
+	* Remove a line of debugging code.
+	* Don't complain about keepalived_script user if not needed.
+	  keepalived logged a warning every time if the keepalived_script user
+	  didn't exist. We only need that warning if there is a script that uses
+	  the default user, and an alternative defult user isn't specified.
+	* Fix relative script path names with embedded spaces.
+	  The space wasn't being restored after resolving the path name.
+	* Fix memory leak if notify scripts specified multiple times.
+	* Remove some residual debugging messages.
+	* Fix memory leak if quorum up/down scripts specified multiple times.
+	* Use realpath() to canonicalize script names.
+	* Fix missing PARAMETER_UNSET, which caused the global value of
+	  vrrp_higher_prio_send_advert not to be used for each VRRP instance.
+	* Remove unused variable introduced in commit 1c5bfa29.
+	* Fix using virtual server groups following commit 5ca36cb.
+	* Set address port to be sequence number for virtual server group.
+	  The format_vs() function uses the virtual server address port as
+	  the sequence number of the virtual server instance using the virtual
+	  server group, so we need to set it up.
+	* Warn if real server has no checkers when alpha mode.
+	  If a virtual server is configured with alpha mode, and a real server
+	  has no checkers, the real server will never be able to be activated,
+	  so generate an appropriate warning.
+	* Only delete virtual server once if using a virtual server group.
+	  If multiple virtual servers are using a virtual server group, the
+	  virtual servers are defined by the virtual server group, and so they
+	  should only be deleted for the first virtual server using the group.
+	  There is still an issue that the configuration of all virtual servers
+	  using the virtual server group needs to be consistent.
+	* Add further checks for LVS configuration.
+	* Document additional scheduling algorithms for IPVS.
+	* Change virtual_server_t loadbalancing_kind to forwarding_method.
+	  The variable name loadbalancing_kind didn't represent the meaning of
+	  the parameter, so change it to forwarding_method.
+	* Add fo and ovf scheduling types to SNMP.
+	* Only check one packet scheduling if supported.
+	* Add lvs_method per real server.
+	  The lvs_method should be settable for each real server within a
+	  virtual server. This commit maintains existing default behaviour
+	  by using the lvs_method set against the virtual server as the default
+	  for the real servers, but adds the option to configure the lvs_method
+	  individually for each real server.
+	* Fix type in printing config of scripts.
+	* Convert some spaces to tabs.
+	* logger: output timestamps to console logs.
+	* Optimise handling of config_id in parser.
+	* Fix some typos.
+	* prog_type variable doesn't make sense when building a DEBUG version.
+	  The DEBUG version runs everything in a single process, and to the
+	  prog_type variable is meaningless in this case. This commit excludes
+	  the prog_type variable by conditional compilation when building a
+	  DEBUG version.
+	* Add home, -nodad, mngtmpaddr, noprefixroute, and autojoin address flags.
+	* Update documentation for commit cc67476.
+	* Add notify FIFO.
+	  pull requests #568 and #587 and issue #584 have all identified that if
+	  notify scripts are run in close succession, then order if processing of
+	  those scripts is indeterminate, and this is causing systems that are
+	  monitoring the state of vrrp instances to have the wrong state.
+	  There have been various suggestions about how this should be resolved,
+	  principally along the lines that the notify scripts should be run
+	  synchronously, i.e. a notify script should not be run until the previous
+	  notify script completed. While this would work, it adds some overhead to
+	  keepalived, which currently does not monitor the exit status of notify
+	  scripts.
+	  There is a further issue with notify scripts that if a large number of
+	  events occur in rapid succession (e.g. due to an interface flapping), this
+	  can cause a large number of child processes to be created very rapidly.
+	  This commit adds an alternative method for external processes receiving
+	  notification of events. Instead of forking a script for each event, keepalived
+	  will write to a named pipe. An external process can then read the pipe to
+	  receive notification of events, and process them appropriately. This is
+	  guaranteed to deliver events in the correct order. It also has the benefit
+	  that there isn't the overhead of forking a child process for each event.
+	* If can't get local host name, set default router_id to "[unknown]".
+	  Issue #588 reported that keepalived was segfaulting when generating
+	  an SNMP trap in strlen(global_data->router_id), which presumable is
+	  due to global_data->router_id being NULL. As a precaution set
+	  router_id to "[unknown]" if get_local_name() fails".
+	* Implement SNMP reporting smtpServerPort.
+	  Commit 128cd24 added functionality for specifying smtp server port
+	  and commit bcb09b8a added smtpServerPort to the keepalived MIB, but
+	  no code was added to report the port. This commit adds that functionality.
+	* Don't use PATH when executing FIFO script.
+	  The path has already been resolved as part of checking the script
+	  security, so there is no need to search the path.
+	* Log error if unable to execute FIFO notify script.
+	* Pass FIFO name to notify_fifo_script as parameter.
+	* Add FIFO notify for LVS notifies.
+	  To match the FIFO notifies for VRRP, this commit adds FIFO notifies
+	  for LVS. There are now three FIFOs available, a global one that
+	  will send output for VRRP and LVS, one for VRRP only and one for
+	  LVS only.
+	* Fix conditional compilation for --enable-debug
+	  Commit 7947247 attempted to sort out making keepalived work with
+	  --enable-debug, but unfortunately it used the wrong conditional
+	  compilation variable (DEBUG instead of _DEBUG_). This commit
+	  corrects the conditional compilation tests.
+	* Include protocol in virtual and real server output.
+	* Stop segfaulting if no script given for a vrrp_script.
+	* Fix a _DEBUG_ conditional compilation test.
+	* Fix incorrect expression in clear_services().
+	* Fix use htons() instead of ntohs().
+	* Fix bad file descriptor error at reload with no virtual servers.
+	* Delete disabled inhibit servers at reload.
+	* Add logging to remove sorry server at reload.
+	* Fix bad file descriptor error at reload with no virtual servers.
+	* Delete disabled inhibit servers at reload.
+	* Fix thread_cancel() for timed out threads.
+	* build: add basic .travis.yml file
+	* README.md: rename from README.
+	* build: add build status tag in readme file
+	  All that's needed now, is for user `acassen` to
+	  go to `https://travis-ci.org/` login with the Github
+	  account, import repos from Github, and enable build
+	  for keepalived [a checkbox/button].
+	* Set sorry_server's fowarding_method.
+	* Further fix for thread_cancel() for child timeout threads.
+	  Commit ade3d699 fixed removing read and write timeout threads
+	  from the ready queue when they are cancelled. This commits adds
+	  removing child timeout threads from the ready queue too.
+	* Fix warnings from ignoring seteuid/setegid return results.
+	* Fix dynamic linking with early versions of libnl3 without nla_get_s32.
+	* Updated autoconf files due to autoconf upgrade.
+	* Fix compiling with namespace collisions in net/if.h and linux.if.h.
+	* Update travis configuration.
+	  This commit includes the installation of development library
+	  packages, updated kernel header files, using trusty for the builds,
+	  and adding more build options.
+	* Reinstate distributing (renamed) README.md file.
+	* More updates for updated automake/autoconf.
+	* Fix new warnings produced by gcc 7.
+	*  Migrate failed checkers at reload (provisional implementation).
+	* Implement comparison of checkers.
+	  genhash: libraries to link with should be put in LDADD, not LDFLAGS.
+	* configure.ac: fixed build on older systems, namely CentOS 6.
+	  Provide AS_VAR_COPY if missing and downgrade autoconf dep to 2.63.
+	* Fix worng migrate of checker-id.
+	* Set active if new failed_checkers is empty.
+	* Fix typo in interface details printing.
+	* Enable vmacs to work when sysctl net.ipv4.conf.all.rp_filter > 0.
+	  A number of distros now set net.ipv4.conf.all.rp_filter = 1 by default.
+	  This means that when a vrrp instance is in the master state, it cannot
+	  receive adverts sent by a higher priority master, and hence we end up
+	  with 2 masters.
+	  I tried an alternative of receiving on the base interface, but no packets
+	  that have the same source MAC address as an interface on the system
+	  (i.e. the vmac interface) get delivered to the socket.
+	  For distros such as Fedora, RHEL, CentOS, ArchLinux, all.rp_filter = 1
+	  due to systemd commit
+	  https://github.com/systemd/systemd/commit/1836bf9e1d70240c8079e4db4312309f4f1f91fd
+	  The reason given for the commit is to work around a boot-time race condition
+	  where interfaces created before default.rp_filter is set do not get the
+	  updated default.rp_filter setting, and so the all.rp_filter setting is used
+	  to override the individual interface settings. This doesn't seem the right
+	  solution to the problem, since it prevents any interface running with
+	  rp_filter = 0, and that is what we need for vmacs. I have filed an issue
+	  report for systemd at https://github.com/systemd/systemd/issues/6282, but
+	  in the mean time we need to work around the issue. Ubuntu sets all.rp_filter=1
+	  in /etc/sysctl.d/10-network-security.conf provided by the procps package.
+	  Debian doesn't set all.rp_filter.
+	  The only solution I have found, and I am not entirely happy with this since
+	  it has effects beyond keepalived and affects the system as a whole, is to set
+	  all.rp_filter = 0. In order to seek not to change the operation of the system,
+	  if default.rp_filter < all.rp_filter, default.rp_filter is set to all.rp_filter,
+	  thereby ensuring that any new interfaces created will take the original value
+	  of all.rp_filter. It then iterates through all existing interfaces, and
+	  {interface}.rp_filter is set to the value of all.rp_filter if
+	  {interface}.rp_filter < all.rp_filter. all.rp_filter is then set to 0.
+	  This means that all interfaces should behave in the same way as before, since
+	  the behaviour of rp_filter is defined by the maximum of
+	  {interface,all}.rp_filter, but we are not able to operate the vmac interfaces
+	  with rp_filter = 0. When keepalived exists, it restores the original settings
+	  of rp_filter if they are the same as what we set them to.
+	* Only restore rp_filter on interfaces if same as we set them to.
+	  If rp_filter has been altered since we set it, then do not restore
+	  it to the original value.
+	* Update files for build fix commits.
+	  Commits 2cccc97 and a932cf2 provided fixes for building on CentOS6.
+	  This commit updates genhash/Makefile.in in line with
+	  genhash/Makefile.am and adds a comment to autoconf.ac regarding
+	  when autoconf introduced support of AS_VAR_COPY.
+	* Fix build error at when _HAVE_IPV4_DEVCONF_ was undefined.
+	* Remove unnecessary parameter compare.
+	* Resolve compiler warning introduced by commit 8361b11.
+	* Remove debugging log messages added in commits 99fe626 and 6ec26e0.
+	* Fix compiler warning and remove unwanted log messages.
+	* Make a couple of checker variables non global.
+	* Correct comparison for checker compare in migrate_failed_checkers.
+	  Commit 2ff6b3f changed the sense of the comparisons of checkers,
+	  but didn't make the corresponding change to checking the result.
+	* Fix keepalived.doc(5) man page.
+	* Add virtualhost config for real servers.
+	  Different real servers may want different virtualhost config
+	  settings. The real server virtualhost setting overrides the
+	  virtual server virtualhost setting.
+	* Allow virtualhost to be specified per checker and per url.
+	* Fix compiling with SNMP enabled.
+	* Fix compiler warnings when use configure --enable-conversion-checks.
+	* Fix an unintentional case fall-through.
+	  gcc 7 identified two case statement fall-throughs. One was intentional,
+	  but the other was a bug. The latter is now fixed, a comment is added
+	  for the former so the warning isn't generated.
+	* Fix commit cc67476 to allow flags for static and virtual ip addresses.
+	* Fix handling of more recent ip address flags.
+	  Recent ip address flags have exceeded 8 bits, and so the IFA_FLAGS
+	  attribute needs to be used, rather than the ifa_flags field.
+	* Fix typo in help.
+
 2017-03-19 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.3.5 released.
 	* Ensure nopreempt is not set if address owner.

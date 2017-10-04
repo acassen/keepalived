@@ -12,7 +12,7 @@ in you configuration file use this char.
 
 0.1. Parameter syntax
 
-<BOOL> is one of on|off|true|false|yes|no
+<BOOL> is one of on|off|true|false|yes|no or omitted which defaults to on
 
 0.2. Conditional configuration and configuration id
 
@@ -20,6 +20,10 @@ Any configuration line starts with '@' is a conditional configuration line.
 The word immediately following (i.e. without any space) the '@' character
 is compared against the string specified with the -i command line option,
 and if they don't match, the configuration line is ignored.
+
+Alternatively, '@^' is a negative comparison, so if the word immediately
+following does NOT match the -i command line option, the configuration line
+IS included.
 
 The purpose of this is to allow a single configuration file to be used for
 multiple systems, where the only differences are likely to be the router_id,
@@ -32,10 +36,24 @@ global_defs
 @main	router_id main_router
 @backup router_id backup_router
 }
+...
+vrrp_instance VRRP1 {
+...
+@main    unicast_src_ip 1.2.3.4
+@backup  unicast_src_ip 1.2.3.5
+@backup2 unicast_src_ip 1.2.3.6
+
+	 unicast_peer {
+@^main        1.2.3.4
+@^backup      1.2.3.5
+@^backup2     1.2.3.6
+	}
+}
 
 If keepalived is invoked with -i main, then the router_id will be set to main_router,
 if invoked with -i backup, then backup_router, if not invoked with -i, or with
--i anything else, then the router_id will not be set.
+-i anything else, then the router_id will not be set. The unicast peers for main will
+be 1.2.3.5 and 1.2.3.6.
 
 1. Globals configurations
 
@@ -148,6 +166,8 @@ global_defs {				# Block identification
     enable_traps			   # enable SNMP trap generation
 					   #
     enable_dbus				   # enable the DBus interface
+    dbus_service_name SERVICE_NAME	   # Name of DBus service (default org.keepalived.Vrrp1)
+					   # Useful if you want to run multiple keepalived processes with DBus enabled
 					   #
     script_user USERNAME [GROUPNAME]	   # Specify the default username/groupname to run scripts under
 					   # If groupname is not specified, the group of the user is used.
@@ -205,6 +225,8 @@ linkbeat_use_polling			   # Use media link failure detection polling fashion
 
 static_ipaddress {			# block identification
 					# If no dev element is specified, it defaults to the default_interface (default eth0)
+					# Note: the broadcast address may be specified as '-' or '+' to clear or set the host
+					#       bits of the address.
     <IP ADDRESS>[/<MASK>] [brd <IP ADDRESS>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
     <IP ADDRESS>[/<MASK>] ...
     ...
@@ -397,6 +419,13 @@ vrrp_instance <STRING> {		# VRRP instance declaration
       <IP ADDRESS>			#  adverts to following list of ip address
       ...				#  in unicast design fashion
     }
+    old_unicast_checksum [never]	# The checksum calculation when using VRRPv3 changed after v1.3.6.
+					#  Setting this flag forces the old checksum algorithm to be used
+					#  to maintain backward compatibility, although keepalived will
+					#  attempt to maintain compatibility anyway if it sees an old
+					#  version checksum. Specifying never will turn off autodetection
+					#  of old checksums. [This option may not be enabled - check output
+					#  of `keepalived -v` for OLD_CHKSUM_COMPAT.]
 
     # The following garp parameters take their defaults from the global config for vrrp_garp_...
     # See their descriptions for the meaning of the parameters.
@@ -537,6 +566,10 @@ Note:	<IP ADDRESS RANGE> has the form of : XXX.YYY.ZZZ.WWW-VVV, define
 	* fwmark declaration
 	* group declaration
 
+	Note: Where an option can be configured for a virtual server, real server,
+	and possibly checker, the virtual server setting is the default for real servers,
+	and the real server setting is the default for checkers.
+
 virtual_server <IP ADDRESS> <PORT> {	# VS IP/PORT declaration
 virtual_server fwmark <INTEGER>    {	# VS fwmark declaration
 virtual_server group <STRING>      {	# VS group declaration
@@ -560,7 +593,7 @@ virtual_server group <STRING>      {	# VS group declaration
     protocol TCP|UDP|SCTP               # L4 protocol
     ha_suspend				# If VS IP address is not set, suspend
 					#  healthcheckers activity
-    virtualhost <STRING>		# VirtualHost string to use for
+    virtualhost <STRING>		# Default VirtualHost string to use for
 					#  HTTP_GET or SSL_GET
 
     # Assume silently all RSs down and healthchecks
@@ -585,23 +618,29 @@ virtual_server group <STRING>      {	# VS group declaration
     hysteresis <INT>
 
     # Script to launch when quorum is gained.
-    quorum_up <STRING>|<QUOTED-STRING>
+    quorum_up <STRING>|<QUOTED-STRING> [username [groupname]]
 
     # Script to launch when quorum is lost.
-    quorum_down <STRING>|<QUOTED-STRING>
+    quorum_down <STRING>|<QUOTED-STRING> [username [groupname]]
 
-    sorry_server <IP ADDRESS> <PORT>	# RS to add to LVS topology when all
-					#   realserver are down
+    sorry_server <IP ADDRESS> <PORT>	# RS to add to LVS topology when the
+					#  quorum isn't achieved.
+					#  If a sorry server is configured, all
+					#  real servers will be brought down when
+					#  the quorum is not achieved.
     sorry_server_inhibit		# applies inhibit_on_failure behaviour
-					# to the preceding sorry_server
-					# directive
+					# to the sorry_server
     sorry_server_lvs_method NAT|DR|TUN	# LVS method to use for sorry server
+
+    retry <INTEGER>			# number of retries before fail
+    delay_before_retry <INTEGER>	# delay before retry (default 1 unless otherwise specified)
+    warmup <INTEGER>			# random delay for maximum N seconds
+    delay_loop <INTEGER>		# delay timer for service polling
+    inhibit_on_failure			# Set weight to 0 on healthchecker failure
 
     real_server <IP ADDRESS> <PORT> {	# RS declaration
         weight <INTEGER>		# weight to use (default: 1)
         lvs_method NAT|DR|TUN		# LVS method to use
-        inhibit_on_failure		# Set weight to 0 on healthchecker
-					#  failure
         notify_up <STRING>|<QUOTED-STRING> [username [groupname]]
 					# Script to launch when
 					#  healthchecker consider service
@@ -610,119 +649,80 @@ virtual_server group <STRING>      {	# VS group declaration
 					# Script to launch when
 					#  healthchecker consider service
 					#  as down.
+	uthreshold <INTEGER>		# maximum number of connections to server
+	lthreshold <INTEGER>		# minimum number of connections to server
+	alpha <BOOL>			# see above
+	retry <INTEGER>			# see above
+        delay_before_retry <INTEGER>	# see above
+        warmup <INTEGER>		# see above
+	delay_loop <INTEGER>		# see above
+        inhibit_on_failure <BOOL>	# see above
+        virtualhost <STRING>		# Default VirtualHost string to use for
+					#  HTTP_GET or SSL_GET (overrides
+					#  virtual_server virtualhost)
+
+        # healthcheckers. Can be multiple of each type
+        # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK
+
+	# All checkers have the following options, except MISC_CHECK which only has alpha onwards:
+        CHECKER_TYPE {
+            connect_ip <IP ADDRESS>	# IP address to connect (default real_server address)
+            connect_port <PORT>		# Port to connect (default real_server port)
+            bindto <IP ADDRESS>		# IP address to bind to
+	    bind_if <IFNAME>		# Interface to bind to; needed if the bindto
+					#  address is IPv6 link local
+            bind_port <PORT>		# Port to bind to
+            connect_timeout <INTEGER>   # Timeout connection
+            fwmark <INTEGER>		# fwmark to set on socket (SO_MARK)
+	    alpha <BOOL>		# see above
+            retry <INTEGER>		# number of retries before fail
+            delay_before_retry <INTEGER> # delay before retry (default 1 unless otherwise specified)
+            warmup <INTEGER>		# random delay for maximum N seconds
+	    delay_loop <INTEGER>	# delay timer for service polling
+	}
+
+	# The following options are additional checker specific
 
         HTTP_GET|SSL_GET {		# HTTP and SSL healthcheckers
             url {			# A set of url to test
               path <STRING>		# Path
               digest <STRING>		# Digest computed with genhash
               status_code <INTEGER>	# status code returned into the HTTP
-            }                           #   header. I not specified, then any
+                                        #   header. I not specified, then any
 					#   2xx code is accepted.
+              virtualhost <STRING>	# VirtualHost string to use. If not set
+					#  uses virtualhost from checker or real
+					#  or virtual_server.
+            }
             url {
               path <STRING>
               digest <STRING>
               status_code <INTEGER>
+	      virtualhost <STRING>
             }
             ...
-            connect_ip <IP ADDRESS> # IP address to connect
-            connect_port <PORT>     # TCP port to connect
-            bindto <IP ADDRESS>     # IP address to bind to
-            bind_port <PORT>        # TCP port to bind to
-            connect_timeout <INTEGER>   # Timeout connection
-            fwmark <INTEGER>        # fwmark to set on socket (SO_MARK)
-            nb_get_retry <INTEGER>  # number of get retry
-            delay_before_retry <INTEGER> # delay before retry
-            warmup <INTEGER>        # random delay for maximum N seconds
+
+            virtualhost <STRING>	# VirtualHost string to use. If not set
+					#  uses virtualhost from real or
+					#  virtual_server.
         }
-    }
 
-    real_server <IP ADDRESS> <PORT> {	# Idem
-        weight <INTEGER>		# Idem
-        lvs_method NAT|DR|TUN		# Idem
-        inhibit_on_failure		# Idem
-        notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
-        notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
-
-        TCP_CHECK {			# TCP healthchecker
-            connect_ip <IP ADDRESS> # IP address to connect
-            connect_port <PORT>     # TCP port to connect
-            bindto <IP ADDRESS>     # IP address to bind to
-            bind_port <PORT>        # TCP port to bind to
-            connect_timeout <INTEGER>   # Timeout connection
-            fwmark <INTEGER>        # fwmark to set on socket (SO_MARK)
-            warmup <INTEGER>        # random delay for maximum N seconds
+        TCP_CHECK {				# TCP healthchecker
+	    # No additional options
         }
-    }
 
-    real_server <IP ADDRESS> <PORT> {	# Idem
-        weight <INTEGER>		# Idem
-        inhibit_on_failure		# Idem
-        notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
-        notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
-
-        SMTP_CHECK {                   # SMTP healthchecker
-            connect_ip <IP ADDRESS>     # Optional IP address to connect to
-            connect_port <PORT>         # Optional port to connect to
-            bindto <IP ADDRESS>         # Optional interface to use to originate the connection
-            bind_port <PORT>            # Optional source port to originate the connection from
-            connect_timeout <INTEGER>   # Optional per-host connection timeout.
-            fwmark <INTEGER>            # Optional fwmark to mark all outgoing checker pakets with
-            host {                      # Optional additional host/port to check
-                connect_ip <IP ADDRESS> # IP address to connect
-                connect_port <PORT>     # TCP port to connect
-                bindto <IP ADDRESS>     # IP address to bind to
-                bind_port <PORT>        # TCP port to bind to
-                connect_timeout <INTEGER>   # Timeout connection
-                fwmark <INTEGER>        # fwmark to set on socket (SO_MARK)
-            }
-            host {
-                connect_ip <IP ADDRESS> # IP address to connect
-                connect_port <PORT>     # TCP port to connect
-                bindto <IP ADDRESS>     # IP address to bind to
-                bind_port <PORT>        # TCP port to bind to
-                connect_timeout <INTEGER>   # Timeout connection
-                fwmark <INTEGER>        # fwmark to set on socket (SO_MARK)
-            }
-            ...
-            connect_timeout <INTEGER>  # Connection and read/write timeout
-            warmup <INTEGER>        # random delay for maximum N seconds
-            retry <INTEGER>             # Number of times to retry a failed check
-            delay_before_retry <INTEGER> # Delay in seconds before retrying
-            helo_name <STRING>|<QUOTED-STRING> # Host to use for the HELO request
+        SMTP_CHECK {				# SMTP healthchecker
+            helo_name <STRING>|<QUOTED-STRING>	# Host to use for the HELO request
         }
-    }
 
-    real_server <IP ADDRESS> <PORT> {	# Idem
-        weight <INTEGER>		# Idem
-        lvs_method NAT|DR|TUN		# Idem
-        inhibit_on_failure		# Idem
-        notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
-        notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
-
-        DNS_CHECK {                     # DNS healthchecker
-            connect_ip <IP ADDRESS>     # Optional IP address to connect to
-            connect_port <PORT>         # Optional port to connect to
-            bindto <IP ADDRESS>         # Optional interface to use to originate the connection
-            bind_port <PORT>            # Optional source port to originate the connection from
-            connect_timeout <INTEGER>   # Optional per-host connection timeout.
-            fwmark <INTEGER>            # Optional fwmark to mark all outgoing checker pakets with
-            retry <INTEGER>             # Number of times to retry a failed check
-            type <STRING>               # DNS query type
-            name <STRING>               # Domain name to use for the DNS query
+        DNS_CHECK {				# DNS healthchecker
+            type A|NS|CNAME|SOA|MX|TXT|AAAA	# DNS query type (default SOA)
+            name <STRING>			# Domain name to use for the DNS query
         }
-    }
-
-    real_server <IP ADDRESS> <PORT> {	# Idem
-        weight <INTEGER>		# Idem
-        lvs_method NAT|DR|TUN		# Idem
-        inhibit_on_failure		# Idem
-        notify_up <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
-        notify_down <STRING>|<QUOTED-STRING> [username [groupname]] # Idem
 
         MISC_CHECK {				# MISC healthchecker
             misc_path <STRING>|<QUOTED-STRING>	# External system script or program
             misc_timeout <INTEGER>		# Script execution timeout
-            warmup <INTEGER>        # random delay for maximum N seconds
 
             # If set, exit code from healthchecker is used
             # to dynamically adjust the weight as follows:
@@ -733,8 +733,9 @@ virtual_server group <STRING>      {	# VS group declaration
             #     changed to 2 less than exit status.
             #   (for example: exit status of 255 would set
             #     weight to 253)
+	    # NOTE: do not have more than one dynamic MISC_CHECK per real_server.
             misc_dynamic
-	    user USERNAME [GROUPNAME] # Specify user/group to run script under
+	    user USERNAME [GROUPNAME]		# Specify user/group to run script under
         }
     }
 }

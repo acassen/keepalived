@@ -54,6 +54,8 @@ const dns_type_t DNS_TYPE[] = {
 	{DNS_TYPE_MX, "MX"},
 	{DNS_TYPE_TXT, "TXT"},
 	{DNS_TYPE_AAAA, "AAAA"},
+	{DNS_TYPE_RRSIG, "RRSIG"},
+	{DNS_TYPE_DNSKEY, "DNSKEY"},
 	{0, NULL}
 };
 
@@ -70,6 +72,19 @@ dns_type_lookup(const char *label)
 		}
 	}
 	return 0;
+}
+
+static const char *
+dns_type_name(uint16_t type)
+{
+	const dns_type_t *t;
+
+	for (t = DNS_TYPE; t->type; t++) {
+		if (type == t->type) {
+			return t->label;
+		}
+	}
+	return "(unknown)";
 }
 
 static void
@@ -94,45 +109,42 @@ dns_final(thread_t * thread, int error, const char *fmt, ...)
 	va_list args;
 
 	checker_t *checker = THREAD_ARG(thread);
-	dns_check_t *dns_check = CHECKER_ARG(checker);
 
 	DNS_DBG("final error=%d attempts=%d retry=%d", error,
-		dns_check->attempts, dns_check->retry);
+		checker->retry_it, checker->retry);
 
 	close(thread->u.fd);
 
 	if (error) {
-		if (svr_checker_up(checker->id, checker->rs)) {
+		if (checker->is_up) {
 			if (fmt) {
 				va_start(args, fmt);
 				vsnprintf(buf, sizeof (buf), fmt, args);
 				dns_log_message(thread, LOG_INFO, buf);
 				va_end(args);
 			}
-			if (dns_check->attempts < dns_check->retry) {
-				dns_check->attempts++;
+			if (checker->retry_it < checker->retry) {
+				checker->retry_it++;
 				thread_add_timer(thread->master,
 						 dns_connect_thread, checker,
-						 checker->vs->delay_loop);
+						 checker->delay_before_retry);
 				return 0;
 			}
-			update_svr_checker_state(DOWN, checker->id, checker->vs,
-						 checker->rs);
+			update_svr_checker_state(DOWN, checker);
 			smtp_alert(checker, NULL, NULL, "DOWN",
 				   "=> DNS_CHECK: failed on service <=");
 		}
 	} else {
-		if (!svr_checker_up(checker->id, checker->rs)) {
+		if (!checker->is_up) {
 			smtp_alert(checker, NULL, NULL, "UP",
 				   "=> DNS_CHECK: succeed on service <=");
-			update_svr_checker_state(UP, checker->id, checker->vs,
-						 checker->rs);
+			update_svr_checker_state(UP, checker);
 		}
 	}
 
-	dns_check->attempts = 0;
+	checker->retry_it = 0;
 	thread_add_timer(thread->master, dns_connect_thread, checker,
-			 checker->vs->delay_loop);
+			 checker->delay_loop);
 
 	return 0;
 }
@@ -247,7 +259,7 @@ dns_make_query(thread_t * thread)
 		*(p++) = 0;
 	}
 
-	APPEND16(p, dns_type_lookup(dns_check->type));
+	APPEND16(p, dns_check->type);
 	APPEND16(p, 1);		/* IN */
 
 	dns_check->slen = (size_t)(p - (uint8_t *)header);
@@ -337,7 +349,7 @@ dns_connect_thread(thread_t * thread)
 
 	if (!checker->enabled) {
 		thread_add_timer(thread->master, dns_connect_thread, checker,
-				 checker->vs->delay_loop);
+				 checker->delay_loop);
 		return 0;
 	}
 
@@ -345,7 +357,7 @@ dns_connect_thread(thread_t * thread)
 		dns_log_message(thread, LOG_INFO,
 				"failed to create socket. Rescheduling.");
 		thread_add_timer(thread->master, dns_connect_thread, checker,
-				 checker->vs->delay_loop);
+				 checker->delay_loop);
 		return 0;
 	}
 #if !HAVE_DECL_SOCK_CLOEXEC
@@ -363,7 +375,7 @@ dns_connect_thread(thread_t * thread)
 		dns_log_message(thread, LOG_INFO,
 				"UDP socket bind failed. Rescheduling.");
 		thread_add_timer(thread->master, dns_connect_thread, checker,
-				 checker->vs->delay_loop);
+				 checker->delay_loop);
 	}
 
 	return 0;
@@ -380,11 +392,12 @@ dns_free(void *data)
 static void
 dns_dump(void *data)
 {
-	dns_check_t *dns_check = CHECKER_DATA(data);
+	checker_t *checker = data;
+	dns_check_t *dns_check = checker->data;
+
 	log_message(LOG_INFO, "   Keepalive method = DNS_CHECK");
-	dump_conn_opts(CHECKER_CO(data));
-	log_message(LOG_INFO, "   Retry = %d", dns_check->retry);
-	log_message(LOG_INFO, "   Type = %s", dns_check->type);
+	dump_checker_opts(checker);
+	log_message(LOG_INFO, "   Type = %s", dns_type_name(dns_check->type));
 	log_message(LOG_INFO, "   Name = %s", dns_check->name);
 }
 
@@ -396,7 +409,7 @@ dns_check_compare(void *a, void *b)
 
 	if (!compare_conn_opts(CHECKER_CO(a), CHECKER_CO(b)))
 		return false;
-	if (strcmp(old->type, new->type) != 0)
+	if (old->type != new->type)
 		return false;
 	if (strcmp(old->name, new->name) != 0)
 		return false;
@@ -407,27 +420,30 @@ dns_check_compare(void *a, void *b)
 static void
 dns_check_handler(__attribute__((unused)) vector_t * strvec)
 {
+	checker_t *checker;
+
 	dns_check_t *dns_check = (dns_check_t *) MALLOC(sizeof (dns_check_t));
-	dns_check->retry = DNS_DEFAULT_RETRY;
-	dns_check->attempts = 0;
 	dns_check->type = DNS_DEFAULT_TYPE;
 	dns_check->name = DNS_DEFAULT_NAME;
-	queue_checker(dns_free, dns_dump, dns_connect_thread,
-		      dns_check_compare, dns_check, CHECKER_NEW_CO());
-}
+	checker = queue_checker(dns_free, dns_dump, dns_connect_thread,
+			        dns_check_compare, dns_check, CHECKER_NEW_CO());
 
-static void
-dns_retry_handler(vector_t * strvec)
-{
-	dns_check_t *dns_check = CHECKER_GET();
-	dns_check->retry = CHECKER_VALUE_INT(strvec);
+	/* Set the non-standard retry time */
+	checker->default_retry = DNS_DEFAULT_RETRY;
+	checker->default_delay_before_retry = 0;	/* This will default to delay_loop */
 }
 
 static void
 dns_type_handler(vector_t * strvec)
 {
+	uint16_t dns_type;
 	dns_check_t *dns_check = CHECKER_GET();
-	dns_check->type = CHECKER_VALUE_STRING(strvec);
+
+	dns_type = dns_type_lookup(CHECKER_VALUE_STRING(strvec));
+	if (!dns_type)
+		log_message(LOG_INFO, "Unknown DNS check type %s - defaulting to SOA", vector_size(strvec) < 2 ? "[blank]" : FMT_STR_VSLOT(strvec, 1));
+	else
+		dns_check->type = dns_type;
 }
 
 static void
@@ -437,14 +453,22 @@ dns_name_handler(vector_t * strvec)
 	dns_check->name = CHECKER_VALUE_STRING(strvec);
 }
 
+static void
+dns_check_end(void)
+{
+	if (!check_conn_opts(CHECKER_GET_CO())) {
+		dequeue_new_checker();
+	}
+}
+
 void
 install_dns_check_keyword(void)
 {
 	install_keyword("DNS_CHECK", &dns_check_handler);
 	install_sublevel();
-	install_connect_keywords();
-	install_keyword("retry", &dns_retry_handler);
+	install_checker_common_keywords(true);
 	install_keyword("type", &dns_type_handler);
 	install_keyword("name", &dns_name_handler);
+	install_sublevel_end_handler(dns_check_end);
 	install_sublevel_end();
 }

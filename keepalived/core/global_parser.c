@@ -752,6 +752,13 @@ enable_dbus_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->enable_dbus = true;
 }
+
+static void
+dbus_service_name_handler(vector_t *strvec)
+{
+	FREE_PTR(global_data->dbus_service_name);
+	global_data->dbus_service_name = set_value(strvec);
+}
 #endif
 
 static void
@@ -878,6 +885,7 @@ init_global_keywords(bool global_active)
 #endif
 #ifdef _WITH_DBUS_
 	install_keyword("enable_dbus", &enable_dbus_handler);
+	install_keyword("dbus_service_name", &dbus_service_name_handler);
 #endif
 	install_keyword("script_user", &script_user_handler);
 	install_keyword("enable_script_security", &script_security_handler);

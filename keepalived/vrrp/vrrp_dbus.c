@@ -55,6 +55,7 @@
 #include "vrrp_data.h"
 #include "vrrp_if.h"
 #include "vrrp_print.h"
+#include "global_data.h"
 #include "main.h"
 #include "memory.h"
 #include "logger.h"
@@ -450,6 +451,7 @@ static int
 dbus_create_object_params(char *instance_name, const char *interface_name, int vrid, sa_family_t family, bool log_success)
 {
 	gchar *object_path;
+	GError *local_error = NULL;
 
 	if (g_hash_table_lookup(objects, instance_name)) {
 		log_message(LOG_INFO, "An object for instance %s already exists", instance_name);
@@ -460,7 +462,12 @@ dbus_create_object_params(char *instance_name, const char *interface_name, int v
 
 	guint instance = g_dbus_connection_register_object(global_connection, object_path,
 						vrrp_instance_introspection_data->interfaces[0],
-						&interface_vtable, NULL, NULL, NULL);
+						&interface_vtable, NULL, NULL, &local_error);
+	if (local_error != NULL) {
+		log_message(LOG_INFO, "Registering DBus object on %s failed: %s",
+			    object_path, local_error->message);
+		g_clear_error(&local_error);
+	}
 
 	if (instance) {
 		g_hash_table_insert(objects, instance_name, GUINT_TO_POINTER(instance));
@@ -476,6 +483,27 @@ static void
 dbus_create_object(vrrp_t *vrrp)
 {
 	dbus_create_object_params(vrrp->iname, IF_NAME(IF_BASE_IFP(vrrp->ifp)), vrrp->vrid, vrrp->family, false);
+}
+
+static bool
+dbus_emit_signal(GDBusConnection *connection,
+		 const gchar *object_path,
+		 const gchar *interface_name,
+		 const gchar *signal_name,
+		 GVariant *parameters)
+{
+	GError *local_error = NULL;
+
+	g_dbus_connection_emit_signal(connection, NULL, object_path, interface_name, signal_name, parameters,
+				      &local_error);
+
+	if (local_error != NULL) {
+		log_message(LOG_INFO, "Emitting DBus signal %s.%s on %s failed: %s",
+			    interface_name, signal_name, object_path, local_error->message);
+		g_clear_error(&local_error);
+		return false;
+	}
+	return true;
 }
 
 /* first function to be run when trying to own bus,
@@ -496,9 +524,14 @@ on_bus_acquired(GDBusConnection *connection,
 	path = dbus_object_create_path_vrrp();
 	guint vrrp = g_dbus_connection_register_object(connection, path,
 							 vrrp_introspection_data->interfaces[0],
-							 &interface_vtable, NULL, NULL, NULL);
+							 &interface_vtable, NULL, NULL, &local_error);
 	g_hash_table_insert(objects, "__Vrrp__", GUINT_TO_POINTER(vrrp));
 	g_free(path);
+	if (local_error != NULL) {
+		log_message(LOG_INFO, "Registering VRRP object on %s failed: %s",
+			    path, local_error->message);
+		g_clear_error(&local_error);
+	}
 
 	/* for each available VRRP instance, register an object */
 	if (LIST_ISEMPTY(vrrp_data->vrrp))
@@ -511,8 +544,7 @@ on_bus_acquired(GDBusConnection *connection,
 
 	/* Send a signal to say we have started */
 	path = dbus_object_create_path_vrrp();
-	g_dbus_connection_emit_signal(global_connection, NULL, path,
-				      DBUS_VRRP_INTERFACE, "VrrpStarted", NULL, &local_error);
+	dbus_emit_signal(global_connection, path, DBUS_VRRP_INTERFACE, "VrrpStarted", NULL);
 	g_free(path);
 
 	/* Notify DBus of the state of our instances */
@@ -578,6 +610,7 @@ dbus_main(__attribute__ ((unused)) void *unused)
 {
 	gchar *introspection_xml;
 	guint owner_id;
+	const char *service_name;
 
 	objects = g_hash_table_new(g_str_hash, g_str_equal);
 
@@ -590,7 +623,7 @@ dbus_main(__attribute__ ((unused)) void *unused)
 #ifdef DBUS_NEED_G_TYPE_INIT
 	g_type_init();
 #endif
-	GError *error;
+	GError *error = NULL;
 
 	/* read service interface data from xml files */
 	introspection_xml = read_file(DBUS_VRRP_INTERFACE_FILE_PATH);
@@ -598,8 +631,10 @@ dbus_main(__attribute__ ((unused)) void *unused)
 		return NULL;
 	vrrp_introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, &error);
 	free(introspection_xml);
-	if (!vrrp_introspection_data) {
-		log_message(LOG_INFO, "%s", error->message);
+	if (error != NULL) {
+		log_message(LOG_INFO, "Parsing DBus interface %s from file %s failed: %s",
+			    DBUS_VRRP_INTERFACE, DBUS_VRRP_INTERFACE_FILE_PATH, error->message);
+		g_clear_error(&error);
 		return NULL;
 	}
 
@@ -608,13 +643,16 @@ dbus_main(__attribute__ ((unused)) void *unused)
 		return NULL;
 	vrrp_instance_introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, &error);
 	free(introspection_xml);
-	if (!vrrp_instance_introspection_data) {
-		log_message(LOG_INFO, "%s", error->message);
+	if (error != NULL) {
+		log_message(LOG_INFO, "Parsing DBus interface %s from file %s failed: %s",
+			    DBUS_VRRP_INSTANCE_INTERFACE, DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH, error->message);
+		g_clear_error(&error);
 		return NULL;
 	}
 
+	service_name = global_data->dbus_service_name ? global_data->dbus_service_name : DBUS_SERVICE_NAME;
 	owner_id = g_bus_own_name(G_BUS_TYPE_SYSTEM,
-				  DBUS_SERVICE_NAME,
+				  service_name,
 				  G_BUS_NAME_OWNER_FLAGS_NONE,
 				  on_bus_acquired,
 				  on_name_acquired,
@@ -641,7 +679,6 @@ dbus_main(__attribute__ ((unused)) void *unused)
 void
 dbus_send_state_signal(vrrp_t *vrrp)
 {
-	GError *local_error = NULL;
 	gchar *object_path;
 	GVariant *args;
 
@@ -653,10 +690,7 @@ dbus_send_state_signal(vrrp_t *vrrp)
 	object_path = dbus_object_create_path_instance(IF_NAME(IF_BASE_IFP(vrrp->ifp)), vrrp->vrid, vrrp->family);
 
 	args = g_variant_new("(u)", vrrp->state);
-	g_dbus_connection_emit_signal(global_connection, NULL, object_path,
-				      DBUS_VRRP_INSTANCE_INTERFACE,
-				      "VrrpStatusChange", args, &local_error);
-
+	dbus_emit_signal(global_connection, object_path, DBUS_VRRP_INSTANCE_INTERFACE, "VrrpStatusChange", args);
 	g_free(object_path);
 }
 
@@ -664,15 +698,13 @@ dbus_send_state_signal(vrrp_t *vrrp)
 static void
 dbus_send_reload_signal(void)
 {
-	GError *local_error = NULL;
 	gchar *path;
 
 	if (global_connection == NULL)
 		return;
 
 	path = dbus_object_create_path_vrrp();
-	g_dbus_connection_emit_signal(global_connection, NULL, path,
-				      DBUS_VRRP_INTERFACE, "VrrpReloaded", NULL, &local_error);
+	dbus_emit_signal(global_connection, path, DBUS_VRRP_INTERFACE, "VrrpReloaded", NULL);
 	g_free(path);
 }
 
@@ -891,15 +923,13 @@ dbus_start(void)
 void
 dbus_stop(void)
 {
-	GError *local_error = NULL;
 	struct timespec thread_end_wait;
 	int ret;
 	gchar *path;
 
 	if (global_connection != NULL) {
 		path = dbus_object_create_path_vrrp();
-		g_dbus_connection_emit_signal(global_connection, NULL, path,
-					      DBUS_VRRP_INTERFACE, "VrrpStopped", NULL, &local_error);
+		dbus_emit_signal(global_connection, path, DBUS_VRRP_INTERFACE, "VrrpStopped", NULL);
 		g_free(path);
 	}
 

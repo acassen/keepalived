@@ -1264,6 +1264,7 @@ vrrp_snmp_next_hop(struct variable *vp, oid *name, size_t *length,
 		if (!nh->realms)
 			break;
 		long_ret.u = nh->realms & 0xFFFF;
+		return (u_char *)&long_ret;
 	case VRRP_SNMP_ROUTE_NEXT_HOP_REALM_SRC:
 		if (!(nh->realms & 0xFFFF0000))
 			break;
@@ -1845,10 +1846,11 @@ vrrp_snmp_instance(struct variable *vp, oid *name, size_t *length,
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_INSTANCE_AUTHTYPE:
 		long_ret.u = 0;
-		if (rt->version == VRRP_VERSION_2)
+		if (rt->version == VRRP_VERSION_2) {
 #ifdef _WITH_VRRP_AUTH_
 			long_ret.u = rt->auth_type;
 #endif
+		}
 		return (u_char *)&long_ret;
 #ifdef _WITH_LVS_
 	case VRRP_SNMP_INSTANCE_USELVSSYNCDAEMON:
@@ -2998,7 +3000,11 @@ vrrp_rfcv2_snmp_statstable(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = rt->stats->advert_interval_err;
 		return (u_char *)&long_ret;
 	case VRRP_RFC_SNMP_STATS_AUTH_FAIL:
+#ifdef _WITH_VRRP_AUTH_
 		long_ret.u = rt->stats->auth_failure;
+#else
+		long_ret.u = 0;
+#endif
 		return (u_char *)&long_ret;
 	case VRRP_RFC_SNMP_STATS_TTL_ERR:
 		long_ret.u = rt->stats->ip_ttl_err;
@@ -3019,7 +3025,11 @@ vrrp_rfcv2_snmp_statstable(struct variable *vp, oid *name, size_t *length,
 		long_ret.u = rt->stats->invalid_authtype;
 		return (u_char *)&long_ret;
 	case VRRP_RFC_SNMP_STATS_AUTH_MIS:
+#ifdef _WITH_VRRP_AUTH_
 		long_ret.u = rt->stats->authtype_mismatch;
+#else
+		long_ret.u = 0;
+#endif
 		return (u_char *)&long_ret;
 	case VRRP_RFC_SNMP_STATS_PL_ERR:
 		long_ret.u = rt->stats->packet_len_err;
@@ -3506,7 +3516,8 @@ vrrp_rfcv3_snmp_opertable(struct variable *vp, oid *name, size_t *length,
 			*var_len = sizeof(struct in6_addr);
 			return (u_char*)&((struct sockaddr_in6 *)&rt->master_saddr)->sin6_addr;
 		}
-		/* Fall through. If we are master, we want to return the Primary IP address */
+		/* If we are master, we want to return the Primary IP address */
+		/* Falls through. */
 	case VRRP_RFCv3_SNMP_OPER_PIP:
 #ifdef _HAVE_VRRP_VMAC_
 		if (rt->ifp->vmac)

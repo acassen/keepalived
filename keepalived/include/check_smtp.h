@@ -44,19 +44,12 @@
 
 #define SMTP_DEFAULT_HELO	"smtpchecker.keepalived.org"
 
-/* Per host configuration structure  */
-typedef conn_opts_t smtp_host_t;
-
 /* Checker argument structure  */
 typedef struct _smtp_checker {
 	/* non per host config data goes here */
 	char				*helo_name;
-	unsigned long			db_retry;
-	unsigned			retry;
-	unsigned			attempts;
 	unsigned			host_ctr;
-	smtp_host_t			*host_ptr;
-	conn_opts_t			*default_co;
+	conn_opts_t			*host_ptr;
 
 	/* data buffer */
 	char				buff[SMTP_BUFF_MAX];

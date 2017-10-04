@@ -85,19 +85,18 @@ static int default_rp_filter = -1;
 #include "libnl_link.h"
 #endif
 
-static inline int
+static inline void
 set_promote_secondaries_devconf(interface_t *ifp)
 {
 	struct nl_sock *sk;
 	struct nl_cache *cache;
 	struct rtnl_link *link = NULL;
 	struct rtnl_link *new_state = NULL;
-	int res = 0;
 	uint32_t prom_secs;
 
 	if (!(sk = nl_socket_alloc())) {
 		log_message(LOG_INFO, "Unable to open netlink socket");
-		return -1;
+		return;
 	}
 
 	if (nl_connect(sk, NETLINK_ROUTE) < 0)
@@ -121,7 +120,6 @@ set_promote_secondaries_devconf(interface_t *ifp)
 	if (rtnl_link_inet_set_conf(new_state, IPV4_DEVCONF_PROMOTE_SECONDARIES, 1) ||
 	    rtnl_link_change (sk, link, new_state, 0))
 		goto err;
-	ifp->reset_promote_secondaries = 1;
 
 	rtnl_link_put(new_state);
 	new_state = NULL;
@@ -131,8 +129,6 @@ set_promote_secondaries_devconf(interface_t *ifp)
 
 	goto exit;
 err:
-	res = -1;
-
 exit_ok:
 	if (link)
 		rtnl_link_put(link);
@@ -142,25 +138,20 @@ exit_ok:
 exit:
 	nl_socket_free(sk);
 
-	return res;
+	return;
 }
 
-static inline int
+static inline void
 reset_promote_secondaries_devconf(interface_t *ifp)
 {
 	struct nl_sock *sk;
 	struct nl_cache *cache;
 	struct rtnl_link *link = NULL;
 	struct rtnl_link *new_state = NULL;
-	int res = 0;
-
-	if (!ifp->reset_promote_secondaries ||
-	    --ifp->reset_promote_secondaries)
-		return 0;
 
 	if (!(sk = nl_socket_alloc())) {
 		log_message(LOG_INFO, "Unable to open netlink socket");
-		return -1;
+		return;
 	}
 
 	if (nl_connect(sk, NETLINK_ROUTE) < 0)
@@ -183,8 +174,6 @@ reset_promote_secondaries_devconf(interface_t *ifp)
 
 	goto exit;
 err:
-	res = -1;
-
 	if (link)
 		rtnl_link_put(link);
 	if (new_state)
@@ -193,7 +182,7 @@ err:
 exit:
 	nl_socket_free(sk);
 
-	return res;
+	return;
 }
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -423,21 +412,16 @@ set_promote_secondaries_sysctl(interface_t *ifp)
 {
 	if (get_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries")) {
 		ifp->promote_secondaries_already_set = true;
-		return 0;
+		return;
 	}
-	set_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries", 1);
-	ifp->reset_promote_secondaries = 1;
 
-	return 0;
+	set_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries", 1);
 }
 
 static inline int
 reset_promote_secondaries_sysctl(interface_t *ifp)
 {
-	if (ifp->reset_promote_secondaries && !--ifp->reset_promote_secondaries)
-		set_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries", 0);
-
-	return 0;
+	set_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries", 0);
 }
 
 #ifdef _HAVE_VRRP_VMAC_
@@ -478,33 +462,49 @@ reset_interface_parameters_sysctl(interface_t *base_ifp)
 #endif
 #endif
 
-int
+void
 set_promote_secondaries(interface_t *ifp)
 {
+	if (ifp->promote_secondaries_already_set)
+		return;
+
+	if (ifp->reset_promote_secondaries++)
+		return;
+
 #ifdef _HAVE_IPV4_DEVCONF_
 #ifdef _LIBNL_DYNAMIC_
 	if (use_nl)
 #endif
-		return set_promote_secondaries_devconf(ifp);
+	{
+		set_promote_secondaries_devconf(ifp);
+		return;
+	}
 #endif
 
 #if !defined _HAVE_IPV4_DEVCONF_ || defined _LIBNL_DYNAMIC_
-	return set_promote_secondaries_sysctl(ifp);
+	set_promote_secondaries_sysctl(ifp);
 #endif
 }
 
-int
+void
 reset_promote_secondaries(interface_t *ifp)
 {
+	if (!ifp->reset_promote_secondaries ||
+	    --ifp->reset_promote_secondaries)
+		return;
+
 #ifdef _HAVE_IPV4_DEVCONF_
 #ifdef _LIBNL_DYNAMIC_
 	if (use_nl)
 #endif
-		return reset_promote_secondaries_devconf(ifp);
+	{
+		reset_promote_secondaries_devconf(ifp);
+		return;
+	}
 #endif
 
 #if !defined _HAVE_IPV4_DEVCONF_ || defined _LIBNL_DYNAMIC_
-	return reset_promote_secondaries_sysctl(ifp);
+	reset_promote_secondaries_sysctl(ifp);
 #endif
 }
 

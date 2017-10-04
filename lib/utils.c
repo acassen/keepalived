@@ -315,6 +315,8 @@ inet_sockaddrport(struct sockaddr_storage *addr)
 		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
 		port = addr6->sin6_port;
 	} else {
+		/* Note: this might be AF_UNSPEC if it is the sequence number of
+		 * a virtual server in a virtual server group */
 		struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
 		port = addr4->sin_port;
 	}
@@ -340,7 +342,7 @@ inet_sockaddrtotrio(struct sockaddr_storage *addr, uint16_t proto)
 {
 	char addr_str[INET6_ADDRSTRLEN];
 	static char ret[sizeof(addr_str) + 13];	/* '[' + addr_str + ']' + ':' + 'sctp' + ':' + 'nnnnn' */
-	char *proto_str = proto == IPPROTO_TCP ? "tcp" : proto == IPPROTO_UDP ? "udp" : proto == IPPROTO_SCTP ? "sctp" : "?";
+	char *proto_str = proto == IPPROTO_TCP ? "tcp" : proto == IPPROTO_UDP ? "udp" : proto == IPPROTO_SCTP ? "sctp" : proto == 0 ? "none" : "?";
 
 	inet_sockaddrtos2(addr, addr_str);
 	snprintf(ret, sizeof(ret) - 1, "[%s]:%s:%d" ,addr_str, proto_str,
