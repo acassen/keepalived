@@ -174,12 +174,13 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 		signal_SIGUSR2_v = v;
 		break;
 #ifdef _WITH_JSON_
-	case SIGJSON:
-		signal_SIGJSON_handler = func;
-		signal_SIGJSON_v = v;
-		break;
+	default:
+		if (signo == SIGJSON) {
+			signal_SIGJSON_handler = func;
+			signal_SIGJSON_v = v;
+			break;
+		}
 #endif
-
 	}
 
 	if (ret < 0)
@@ -389,13 +390,14 @@ signal_run_callback(void)
 			if (signal_SIGUSR2_handler)
 				signal_SIGUSR2_handler(signal_SIGUSR2_v, SIGUSR2);
 			break;
-#ifdef _WITH_JSON_
-		case SIGJSON:
-			if (signal_SIGJSON_handler)
-				signal_SIGJSON_handler(signal_SIGJSON_v, SIGJSON);
-			break;
-#endif
 		default:
+#ifdef _WITH_JSON_
+			if (sig == SIGJSON) {
+				if (signal_SIGJSON_handler)
+					signal_SIGJSON_handler(signal_SIGJSON_v, SIGJSON);
+				break;
+			}
+#endif
 			break;
 		}
 	}

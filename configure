@@ -670,6 +670,8 @@ FIB_ROUTING_FALSE
 FIB_ROUTING_TRUE
 SOCK_NONBLOCK_FALSE
 SOCK_NONBLOCK_TRUE
+WITH_JSON_FALSE
+WITH_JSON_TRUE
 VMAC_FALSE
 VMAC_TRUE
 VRRP_AUTH_FALSE
@@ -9199,6 +9201,7 @@ fi
 VRRP_SUPPORT=No
 VRRP_AUTH_SUPPORT=No
 MACVLAN_SUPPORT=No
+ENABLE_JSON=No
 if test "$enable_vrrp" != no; then
   VRRP_SUPPORT=Yes
 
@@ -9269,6 +9272,77 @@ $as_echo "#define _HAVE_VRRP_VMAC_  1 " >>confdefs.h
     BUILD_OPTIONS="$BUILD_OPTIONS VRRP_VMAC"
   fi
   CPPFLAGS="$SAV_CPPFLAGS"
+
+    if test "${enable_json}" = yes; then
+    for ac_header in json-c/json.h
+do :
+  ac_fn_c_check_header_mongrel "$LINENO" "json-c/json.h" "ac_cv_header_json_c_json_h" "$ac_includes_default"
+if test "x$ac_cv_header_json_c_json_h" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_JSON_C_JSON_H 1
+_ACEOF
+
+else
+  as_fn_error $? "unable to find json-c/json.h" "$LINENO" 5
+fi
+
+done
+
+
+$as_echo "#define _WITH_JSON_  1 " >>confdefs.h
+
+     if test -n ""; then
+      KA_PKG_PFX=
+    else
+      KA_PKG_PFX=KA
+    fi
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CPPFLAGS
+    for item in `$PKG_CONFIG --cflags-only-I json-c`; do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CPPFLAGS=\"\$${KA_PKG_PFX}_CPPFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_CFLAGS
+    for item in `$PKG_CONFIG --cflags-only-other json-c`; do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
+
+    ADD_NEW=
+   eval var=\$${KA_PKG_PFX}_LIBS
+    for item in `$PKG_CONFIG --libs json-c`; do
+      echo " $var " | $GREP -q " $item "
+      if test $? -ne 0; then
+	ADD_NEW="$ADD_NEW $item"
+      fi
+    done
+    eval ${KA_PKG_PFX}_LIBS=\"\$${KA_PKG_PFX}_LIBS $ADD_NEW\"
+
+
+    if test . = .remove-requires; then
+      REQUIRES=`$PKG_CONFIG --print-requires json-c`
+      eval var=\$${KA_PKG_PFX}_LIBS
+      for r in $REQUIRES; do
+	REQ_LIBS=`$PKG_CONFIG --libs $r`
+	for l in $REQ_LIBS; do
+	  var=`echo " $var " | sed -e "s/ $l / /g"`
+	done
+      done
+      var=`echo $var | sed -e "s/^ *//" -e "s/  *$//"`
+      eval ${KA_PKG_PFX}_LIBS="\"$var\""
+    fi
+
+    ENABLE_JSON=Yes
+    BUILD_OPTIONS="$BUILD_OPTIONS JSON"
+  fi
 fi
  if test $VRRP_SUPPORT = Yes; then
   WITH_VRRP_TRUE=
@@ -9292,6 +9366,14 @@ fi
 else
   VMAC_TRUE='#'
   VMAC_FALSE=
+fi
+
+ if test $ENABLE_JSON = Yes; then
+  WITH_JSON_TRUE=
+  WITH_JSON_FALSE='#'
+else
+  WITH_JSON_TRUE='#'
+  WITH_JSON_FALSE=
 fi
 
 
@@ -10152,32 +10234,6 @@ else
 fi
 
 
-if test "${enable_json}" = yes; then
-	for ac_header in json-c/json.h
-do :
-  ac_fn_c_check_header_mongrel "$LINENO" "json-c/json.h" "ac_cv_header_json_c_json_h" "$ac_includes_default"
-if test "x$ac_cv_header_json_c_json_h" = xyes; then :
-  cat >>confdefs.h <<_ACEOF
-#define HAVE_JSON_C_JSON_H 1
-_ACEOF
-
-else
-  as_fn_error $? "unable to find json-c/json.h" "$LINENO" 5
-fi
-
-done
-
-
-$as_echo "#define _JSON_  1 " >>confdefs.h
-
-	KA_CFLAGS="$KA_CFLAGS -I/usr/include/json-c/"
-	KA_LDFLAGS="$KA_LDFLAGS -ljson-c"
-	ENABLE_JSON=Yes
-	BUILD_OPTIONS="$BUILD_OPTIONS JSON"
-else
-	ENABLE_JSON=No
-fi
-
 if test "${enable_stacktrace}" = yes; then
 
 $as_echo "#define _WITH_STACKTRACE_  1 " >>confdefs.h
@@ -10463,6 +10519,10 @@ Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${VMAC_TRUE}" && test -z "${VMAC_FALSE}"; then
   as_fn_error $? "conditional \"VMAC\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
+if test -z "${WITH_JSON_TRUE}" && test -z "${WITH_JSON_FALSE}"; then
+  as_fn_error $? "conditional \"WITH_JSON\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
 if test -z "${SOCK_NONBLOCK_TRUE}" && test -z "${SOCK_NONBLOCK_FALSE}"; then
