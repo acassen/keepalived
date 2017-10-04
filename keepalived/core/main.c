@@ -43,6 +43,9 @@
 #endif
 #ifdef _WITH_VRRP_
 #include "vrrp_parser.h"
+#ifdef _WITH_JSON_
+#include "vrrp_json.h"
+#endif
 #endif
 #include "global_parser.h"
 #if HAVE_DECL_CLONE_NEWNET
@@ -446,6 +449,9 @@ signal_init(void)
 	signal_set(SIGHUP, propogate_signal, NULL);
 	signal_set(SIGUSR1, propogate_signal, NULL);
 	signal_set(SIGUSR2, propogate_signal, NULL);
+#ifdef _WITH_JSON_
+	signal_set(SIGJSON, propogate_signal, NULL);
+#endif
 	signal_set(SIGINT, sigend, NULL);
 	signal_set(SIGTERM, sigend, NULL);
 	signal_ignore(SIGPIPE);
