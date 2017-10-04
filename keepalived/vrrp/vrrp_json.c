@@ -49,10 +49,8 @@ vrrp_print_json(void)
 	element e;
 	struct json_object *array;
 
-	if LIST_ISEMPTY(vrrp_data->vrrp) {
-		log_message(LOG_INFO, "vrrp_data->vrrp is empty");
+	if (LIST_ISEMPTY(vrrp_data->vrrp))
 		return;
-	}
 
 	file = fopen ("/tmp/keepalived.json","w");
 	if (!file) {
@@ -105,7 +103,7 @@ vrrp_print_json(void)
 		// Tracked scripts also
 		if (!LIST_ISEMPTY(vrrp->track_script)) {
 			for (f = LIST_HEAD(vrrp->track_script); f; ELEMENT_NEXT(f)) {
-        tracked_sc_t *tsc = ELEMENT_DATA(f);
+				tracked_sc_t *tsc = ELEMENT_DATA(f);
 				vrrp_script_t *vscript = tsc->scr;
 				json_object_array_add(track_script,
 					json_object_new_string(vscript->script));
@@ -164,8 +162,8 @@ vrrp_print_json(void)
 				char ipaddr[INET6_ADDRSTRLEN];
 				inet_ntop(vrrp->family, &(evip->u.sin.sin_addr.s_addr),
 					ipaddr, INET6_ADDRSTRLEN);
-			json_object_array_add(evips,
-				json_object_new_string(ipaddr));
+				json_object_array_add(evips,
+					json_object_new_string(ipaddr));
 			}
 		}
 		json_object_object_add(json_data, "evips", evips);
@@ -193,7 +191,7 @@ vrrp_print_json(void)
 				format_iprule(rule, buf, RULE_BUF_SIZE);
 				json_object_array_add(vrules,
 					json_object_new_string(buf));
-				}
+			}
 		}
 		json_object_object_add(json_data, "vrules", vrules);
 
@@ -272,10 +270,12 @@ vrrp_print_json(void)
 			json_object_new_int64((int64_t)vrrp->stats->addr_list_err));
 		json_object_object_add(json_stats, "invalid_authtype",
 			json_object_new_int64(vrrp->stats->invalid_authtype));
+#ifdef _WITH_VRRP_AUTH_
 		json_object_object_add(json_stats, "authtype_mismatch",
 			json_object_new_int64(vrrp->stats->authtype_mismatch));
 		json_object_object_add(json_stats, "auth_failure",
 			json_object_new_int64(vrrp->stats->auth_failure));
+#endif
 		json_object_object_add(json_stats, "pri_zero_rcvd",
 			json_object_new_int64((int64_t)vrrp->stats->pri_zero_rcvd));
 		json_object_object_add(json_stats, "pri_zero_sent",

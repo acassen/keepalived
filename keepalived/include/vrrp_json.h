@@ -25,7 +25,7 @@
 #define _VRRP_JSON_H
 
 /* Static definitions */
-#define SIGJSON ( __SIGRTMIN + 4 )
+#define SIGJSON (SIGRTMIN + 2)
 
 /* Prototypes */
 extern void vrrp_print_json(void);

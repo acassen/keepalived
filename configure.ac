@@ -949,6 +949,7 @@ dnl ----[ Checks for kernel netlink support ]----
 VRRP_SUPPORT=No
 VRRP_AUTH_SUPPORT=No
 MACVLAN_SUPPORT=No
+ENABLE_JSON=No
 if test "$enable_vrrp" != no; then
   VRRP_SUPPORT=Yes
   AC_DEFINE([_WITH_VRRP_], [ 1 ], [Define to 1 if have VRRP support])
@@ -981,10 +982,20 @@ if test "$enable_vrrp" != no; then
     add_build_opt([VRRP_VMAC])
   fi
   CPPFLAGS="$SAV_CPPFLAGS"
+
+  dnl ----[ Json output or not ? ]----
+  if test "${enable_json}" = yes; then
+    AC_CHECK_HEADERS(json-c/json.h,,AC_MSG_ERROR([unable to find json-c/json.h]))
+    AC_DEFINE([_WITH_JSON_], [ 1 ], [Define to 1 to build with json output support])
+    add_pkg_config([json-c])
+    ENABLE_JSON=Yes
+    add_build_opt([JSON])
+  fi
 fi
 AM_CONDITIONAL([WITH_VRRP], [test $VRRP_SUPPORT = Yes])
 AM_CONDITIONAL([VRRP_AUTH], [test $VRRP_AUTH_SUPPORT = Yes])
 AM_CONDITIONAL([VMAC], [test $MACVLAN_SUPPORT = Yes])
+AM_CONDITIONAL([WITH_JSON], [test $ENABLE_JSON = Yes])
 
 if test ${IPVS_SUPPORT} = No -a ${VRRP_SUPPORT} = No; then
   AC_MSG_ERROR([keepalived MUST be compiled with at least one of LVS or VRRP framework])
@@ -1308,18 +1319,6 @@ else
   ENABLE_DEBUG=No
 fi
 AM_CONDITIONAL([DEBUG], [test $ENABLE_DEBUG = Yes])
-
-dnl ----[ Json output or not ? ]----
-if test "${enable_json}" = yes; then
-	AC_CHECK_HEADERS(json-c/json.h,,AC_MSG_ERROR([unable to find json-c/json.h]))
-	AC_DEFINE([_WITH_JSON_], [ 1 ], [Define to 1 to build with json output support])
-	add_pkg_config([json-c])
-	ENABLE_JSON=Yes
-	add_build_opt([JSON])
-else
-	ENABLE_JSON=No
-fi
-AM_CONDITIONAL([WITH_JSON], [test $ENABLE_JSON = Yes])
 
 dnl ----[ Stacktrace support or not ? ]----
 if test "${enable_stacktrace}" = yes; then
