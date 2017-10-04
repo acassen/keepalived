@@ -26,6 +26,8 @@ For SNMP support:
 	net-snmp-devel
 For DBUS support:
 	glib2-devel
+For JSON support:
+	json-c-devel
 
 Debian/Ubuntu
 -------------
