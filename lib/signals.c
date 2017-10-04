@@ -76,6 +76,26 @@ static sigset_t dfl_sig;
 /* Signal handlers set in parent */
 static sigset_t parent_sig;
 
+int
+get_signum(const char *sigfunc)
+{
+	if (!strcmp(sigfunc, "STOP"))
+		return SIGTERM;
+	else if (!strcmp(sigfunc, "RELOAD"))
+		return SIGHUP;
+	else if (!strcmp(sigfunc, "DATA"))
+		return SIGUSR1;
+	else if (!strcmp(sigfunc, "STATS"))
+		return SIGUSR2;
+#ifdef _WITH_JSON_
+	else if (!strcmp(sigfunc, "JSON"))
+		return SIGJSON;
+#endif
+
+	/* Not found */
+	return -1;
+}
+
 #ifdef _INCLUDE_UNUSED_CODE_
 /* Local signal test */
 int

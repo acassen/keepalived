@@ -25,6 +25,7 @@
 #define _SIGNALS_H
 
 /* Prototypes */
+extern int get_signum(const char *);
 extern void *signal_set(int signo, void (*func) (void *, int), void *);
 extern void *signal_ignore(int signo);
 extern void signal_handler_init(void);

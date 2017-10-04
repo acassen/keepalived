@@ -527,7 +527,7 @@ core_dump_init(void)
 			log_message(LOG_INFO, "Failed to set core file size");
 	}
 }
-		
+
 /* Usage function */
 static void
 usage(const char *prog)
@@ -574,6 +574,11 @@ usage(const char *prog)
 	fprintf(stderr, "  -i, --config-id id           Skip any configuration lines beginning '@' that don't match id\n"
 		        "                                or any lines beginning @^ that do match.\n"
 		        "                                The config-id defaults to the node name if option not used\n");
+	fprintf(stderr, "      --signum=SIGFUNC         Return signal number for STOP, RELOAD, DATA, STATS"
+#ifdef _WITH_JSON_
+								", JSON"
+#endif
+								"\n");
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -584,6 +589,7 @@ parse_cmdline(int argc, char **argv)
 {
 	int c;
 	bool reopen_log = false;
+	int signum;
 
 	struct option long_options[] = {
 		{"use-file",		required_argument,	NULL, 'f'},
@@ -625,13 +631,14 @@ parse_cmdline(int argc, char **argv)
 		{"namespace",		required_argument,	NULL, 's'},
 #endif	
 		{"config-id",		required_argument,	NULL, 'i'},
+		{"signum",		required_argument,	NULL,  1 },
 		{"version",		no_argument,		NULL, 'v'},
 		{"help",		no_argument,		NULL, 'h'},
 
 		{NULL,			0,			NULL,  0 }
 	};
 
-	while ((c = getopt_long(argc, argv, "vhlndDRS:f:p:i:mM"
+	while ((c = getopt_long(argc, argv, "vhlndDRS:f:p:i::mM"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
@@ -760,6 +767,16 @@ parse_cmdline(int argc, char **argv)
 			FREE_PTR(config_id);
 			config_id = MALLOC(strlen(optarg) + 1);
 			strcpy(config_id, optarg);
+			break;
+		case 1:
+			signum = get_signum(optarg);
+			if (signum == -1) {
+				fprintf(stderr, "Unknown sigfunc %s\n", optarg);
+				exit(1);
+			}
+
+			printf("%d\n", signum);
+			exit(0);
 			break;
 		default:
 			exit(0);
