@@ -191,6 +191,9 @@
 /* Define to 1 if ipset supports iface type */
 #undef HAVE_IPSET_ATTR_IFACE
 
+/* Define to 1 if you have the <json-c/json.h> header file. */
+#undef HAVE_JSON_C_JSON_H
+
 /* Define to 1 if you have the `crypto' library (-lcrypto). */
 #undef HAVE_LIBCRYPTO
 
@@ -612,6 +615,9 @@
 /* Define to 1 to build with thread dumping support */
 #undef _WITH_DUMP_THREADS_
 
+/* Define to 1 to build with json output support */
+#undef _WITH_JSON_
+
 /* Define to 1 if have IPVS support */
 #undef _WITH_LVS_
 
@@ -648,7 +654,7 @@
 /* Define to 1 to build with stacktrace support */
 #undef _WITH_STACKTRACE_
 
-/* Define to 1 to enable v1.3.6 and earlier VRRPv3 unicast checksum
+/* Define to 1 to enable v1.3.7 and earlier VRRPv3 unicast checksum
    compatibility */
 #undef _WITH_UNICAST_CHKSUM_COMPAT_
 

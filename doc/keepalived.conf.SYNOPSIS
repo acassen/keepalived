@@ -16,15 +16,16 @@ in you configuration file use this char.
 
 0.2. Conditional configuration and configuration id
 
+The config-id defaults to the first part of the node name as returned by
+uname, and can be overridden with the -i or --config-id command line option.
+
 Any configuration line starting with '@' is a conditional configuration line.
 The word immediately following (i.e. without any space) the '@' character
-is compared against the string specified with the -i command line option,
-or if none specified, the first part of the node name as returned by uname,
-and if they don't match, the configuration line is ignored.
+is compared against the config-id, and if they don't match, the configuration
+line is ignored.
 
 Alternatively, '@^' is a negative comparison, so if the word immediately
-following does NOT match the -i command line option, the configuration line
-IS included.
+following does NOT match the config-id, the configuration line IS included.
 
 The purpose of this is to allow a single configuration file to be used for
 multiple systems, where the only differences are likely to be the router_id,
@@ -55,8 +56,9 @@ If keepalived is invoked with -i main, or if -i is not specified and the node
 name is main.SOMETHING, then the router_id will be set to main_router,
 if invoked with -i backup, or the node name is backup, then backup_router,
 if not invoked with -i and the node name is not main or backup, or with
--i anything else, then the router_id will not be set. The unicast peers for main
-will be 1.2.3.5 and 1.2.3.6.
+-i anything else, then the router_id will not be set.
+
+The unicast peers for main will be 1.2.3.5 and 1.2.3.6.
 
 0.3. Scripts
 
@@ -91,7 +93,6 @@ the keepalived is awaiting its exit status and it has run for too long.
 Traditionally the configuration file parser has not been one of the strengths of
 keepalived. yukki maintains a project on github that is a keepalived syntax
 checker that may be of use. It can be downloaded from https://github.com/yuuki/gokc
-
 
 1. Globals configurations
 

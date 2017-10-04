@@ -40,6 +40,7 @@ sigmask_func(int how, const sigset_t *set, sigset_t *oldset)
 }
 
 /* Prototypes */
+extern int get_signum(const char *);
 extern void signal_set(int, void (*) (void *, int), void *);
 extern void signal_ignore(int);
 extern void signal_handler_init(void);

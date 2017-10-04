@@ -40,6 +40,10 @@
 #include "utils.h"
 #include "logger.h"
 
+#ifdef _WITH_JSON_
+#include "../keepalived/include/vrrp_json.h"
+#endif
+
 /* Local Vars */
 static void (*signal_SIGHUP_handler) (void *, int sig);
 static void *signal_SIGHUP_v;
@@ -53,6 +57,10 @@ static void (*signal_SIGUSR1_handler) (void *, int sig);
 static void *signal_SIGUSR1_v;
 static void (*signal_SIGUSR2_handler) (void *, int sig);
 static void *signal_SIGUSR2_v;
+#ifdef _WITH_JSON_
+static void (*signal_SIGJSON_handler) (void *, int sig);
+static void *signal_SIGJSON_v;
+#endif
 
 #ifdef HAVE_SIGNALFD
 static int signal_fd = -1;
@@ -66,6 +74,26 @@ static sigset_t dfl_sig;
 
 /* Signal handlers set in parent */
 static sigset_t parent_sig;
+
+int
+get_signum(const char *sigfunc)
+{
+	if (!strcmp(sigfunc, "STOP"))
+		return SIGTERM;
+	else if (!strcmp(sigfunc, "RELOAD"))
+		return SIGHUP;
+	else if (!strcmp(sigfunc, "DATA"))
+		return SIGUSR1;
+	else if (!strcmp(sigfunc, "STATS"))
+		return SIGUSR2;
+#ifdef _WITH_JSON_
+	else if (!strcmp(sigfunc, "JSON"))
+		return SIGJSON;
+#endif
+
+	/* Not found */
+	return -1;
+}
 
 #ifdef _INCLUDE_UNUSED_CODE_
 /* Local signal test */
@@ -211,6 +239,14 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 		signal_SIGUSR2_handler = func;
 		signal_SIGUSR2_v = v;
 		break;
+#ifdef _WITH_JSON_
+	default:
+		if (signo == SIGJSON) {
+			signal_SIGJSON_handler = func;
+			signal_SIGJSON_v = v;
+			break;
+		}
+#endif
 	}
 
 #ifndef HAVE_SIGNALFD
@@ -239,6 +275,9 @@ clear_signal_handler_addresses(void)
 	signal_SIGCHLD_handler = NULL;
 	signal_SIGUSR1_handler = NULL;
 	signal_SIGUSR2_handler = NULL;
+#ifdef _WITH_JSON_
+	signal_SIGJSON_handler = NULL;
+#endif
 }
 
 /* Handlers intialization */
@@ -350,6 +389,9 @@ signal_handlers_clear(void *state)
 	signal_set(SIGCHLD, state, NULL);
 	signal_set(SIGUSR1, state, NULL);
 	signal_set(SIGUSR2, state, NULL);
+#ifdef _WITH_JSON_
+	signal_set(SIGJSON, state, NULL);
+#endif
 }
 
 void
@@ -452,6 +494,17 @@ signal_run_callback(void)
 				signal_SIGUSR2_handler(signal_SIGUSR2_v, SIGUSR2);
 			break;
 		default:
+#ifdef _WITH_JSON_
+			if (siginfo.ssi_signo == SIGJSON) {
+#ifdef HAVE_SIGNALFD
+#else
+			if (sig == SIGJSON) {
+#endif
+				if (signal_SIGJSON_handler)
+					signal_SIGJSON_handler(signal_SIGJSON_v, SIGJSON);
+				break;
+			}
+#endif
 			break;
 		}
 	}
