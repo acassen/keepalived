@@ -580,48 +580,49 @@ parse_cmdline(int argc, char **argv)
 	bool reopen_log = false;
 
 	struct option long_options[] = {
-		{"use-file",          required_argument, 0, 'f'},
+		{"use-file",		required_argument,	NULL, 'f'},
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
-		{"vrrp",              no_argument,       0, 'P'},
-		{"check",             no_argument,       0, 'C'},
+		{"vrrp",		no_argument,		NULL, 'P'},
+		{"check",		no_argument,		NULL, 'C'},
 #endif
-		{"log-console",       no_argument,       0, 'l'},
-		{"log-detail",        no_argument,       0, 'D'},
-		{"log-facility",      required_argument, 0, 'S'},
+		{"log-console",		no_argument,		NULL, 'l'},
+		{"log-detail",		no_argument,		NULL, 'D'},
+		{"log-facility",	required_argument,	NULL, 'S'},
 #ifdef _WITH_VRRP_
-		{"release-vips",      no_argument,       0, 'X'},
-		{"dont-release-vrrp", no_argument,       0, 'V'},
+		{"release-vips",	no_argument,		NULL, 'X'},
+		{"dont-release-vrrp",	no_argument,		NULL, 'V'},
 #endif
 #ifdef _WITH_LVS_
-		{"dont-release-ipvs", no_argument,       0, 'I'},
+		{"dont-release-ipvs",	no_argument,		NULL, 'I'},
 #endif
-		{"dont-respawn",      no_argument,       0, 'R'},
-		{"dont-fork",         no_argument,       0, 'n'},
-		{"dump-conf",         no_argument,       0, 'd'},
-		{"pid",               required_argument, 0, 'p'},
+		{"dont-respawn",	no_argument,		NULL, 'R'},
+		{"dont-fork",		no_argument,		NULL, 'n'},
+		{"dump-conf",		no_argument,		NULL, 'd'},
+		{"pid",			required_argument,	NULL, 'p'},
 #ifdef _WITH_VRRP_
-		{"vrrp_pid",          required_argument, 0, 'r'},
+		{"vrrp_pid",		required_argument,	NULL, 'r'},
 #endif
 #ifdef _WITH_LVS_
-		{"checkers_pid",      required_argument, 0, 'c'},
-		{"address-monitoring",no_argument,       0, 'a'},
+		{"checkers_pid",	required_argument,	NULL, 'c'},
+		{"address-monitoring",	no_argument,		NULL, 'a'},
 #endif
 #ifdef _WITH_SNMP_
-		{"snmp",              no_argument,       0, 'x'},
-		{"snmp-agent-socket", required_argument, 0, 'A'},
+		{"snmp",		no_argument,		NULL, 'x'},
+		{"snmp-agent-socket",	required_argument,	NULL, 'A'},
 #endif
-		{"core-dump",         no_argument,       0, 'm'},
-		{"core-dump-pattern", optional_argument, 0, 'M'},
+		{"core-dump",		no_argument,		NULL, 'm'},
+		{"core-dump-pattern",	optional_argument,	NULL, 'M'},
 #ifdef _MEM_CHECK_LOG_
-		{"mem-check-log",     no_argument,       0, 'L'},
+		{"mem-check-log",	no_argument,		NULL, 'L'},
 #endif
 #if HAVE_DECL_CLONE_NEWNET
-		{"namespace",         required_argument, 0, 's'},
+		{"namespace",		required_argument,	NULL, 's'},
 #endif	
-		{"config-id",         required_argument, 0, 'i'},
-		{"version",           no_argument,       0, 'v'},
-		{"help",              no_argument,       0, 'h'},
-		{0, 0, 0, 0}
+		{"config-id",		required_argument,	NULL, 'i'},
+		{"version",		no_argument,		NULL, 'v'},
+		{"help",		no_argument,		NULL, 'h'},
+
+		{NULL,			0,			NULL,  0 }
 	};
 
 	while ((c = getopt_long(argc, argv, "vhlndDRS:f:p:i:mM"
