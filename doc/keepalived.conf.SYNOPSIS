@@ -19,10 +19,10 @@ in you configuration file use this char.
 The config-id defaults to the first part of the node name as returned by
 uname, and can be overridden with the -i or --config-id command line option.
 
-Any configuration line starting with '@' is a conditional configuration line.
-The word immediately following (i.e. without any space) the '@' character
-is compared against the config-id, and if they don't match, the configuration
-line is ignored.
+Any configuration line starting with (i.e. before any whitespace) '@' is a
+conditional configuration line.  The word immediately following (i.e.
+without any space) the '@' character is compared against the config-id,
+and if they don't match, the configuration line is ignored.
 
 Alternatively, '@^' is a negative comparison, so if the word immediately
 following does NOT match the config-id, the configuration line IS included.
