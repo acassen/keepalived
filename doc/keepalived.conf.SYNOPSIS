@@ -60,6 +60,21 @@ if not invoked with -i and the node name is not main or backup, or with
 
 The unicast peers for main will be 1.2.3.5 and 1.2.3.6.
 
+0.3 include directive
+
+It is possible to include further configuration files from within a configuration
+file, and this can be done to any depth.
+
+The format of the include directive is:
+include FILENAME
+
+FILENAME can be a fully qualified or relative pathname, and can include wildcards,
+including csh style brace expressions such as "{foo/{,cat,dog},bar}".
+
+After opening an included file, the current directory is set to the directory of
+the file itself, so any relative paths included from a file are relative to the
+directory of the including file itself.
+
 1. Globals configurations
 
 This block is divided in 4 sub-blocks :
