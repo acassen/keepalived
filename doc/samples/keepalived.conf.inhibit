@@ -12,7 +12,7 @@ global_defs {
 
 virtual_server 10.10.10.2 1358 {
     delay_loop 6
-    lb_algo rr 
+    lb_algo rr
     lb_kind NAT
     persistence_timeout 50
     protocol TCP
@@ -22,7 +22,7 @@ virtual_server 10.10.10.2 1358 {
         weight 1
         inhibit_on_failure        ! set weight to 0 instead of removing service
         HTTP_GET {
-            url { 
+            url {
               path /testurl3/test.jsp
               digest 640205b7b0fc66c1ea91c463fac6334d
             }

@@ -12,7 +12,7 @@ global_defs {
 
 virtual_server 192.168.200.100 443 {
     delay_loop 6
-    lb_algo rr 
+    lb_algo rr
     lb_kind NAT
     persistence_timeout 50
     protocol TCP
@@ -20,11 +20,11 @@ virtual_server 192.168.200.100 443 {
     real_server 192.168.201.100 443 {
         weight 1
         SSL_GET {
-            url { 
+            url {
               path /
               status_code 200	# Can only specify a HTTP status_code
             }
-            url { 
+            url {
               path /mrtg/
               digest 9b3a0c85a887a256d6939da88aabd8cd
               status_code 200	# Can mix digest and status_code
