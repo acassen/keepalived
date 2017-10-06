@@ -638,7 +638,7 @@ parse_cmdline(int argc, char **argv)
 		{NULL,			0,			NULL,  0 }
 	};
 
-	while ((c = getopt_long(argc, argv, "vhlndDRS:f:p:i::mM"
+	while ((c = getopt_long(argc, argv, "vhlndDRS:f:p:i:mM"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
