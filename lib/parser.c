@@ -53,7 +53,7 @@ static int skip_sublevel = 0;
 
 static char *
 null_strvec(const vector_t *strvec, size_t index)
-{ 
+{
 	if (index - 1 < vector_size(strvec) && index > 0 && vector_slot(strvec, index - 1))
 		log_message(LOG_INFO, "*** Configuration line starting `%s` is missing a parameter after keyword `%s` at word position %zu", vector_slot(strvec, 0) ? (char *)vector_slot(strvec, 0) : "***MISSING ***", (char *)vector_slot(strvec, index - 1), index + 1);
 	else
@@ -62,7 +62,7 @@ null_strvec(const vector_t *strvec, size_t index)
 	exit(KEEPALIVED_EXIT_CONFIG);
 
 	return NULL;
-} 
+}
 
 static void
 keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (vector_t *), bool active)
@@ -489,7 +489,7 @@ bool check_conf_file(const char *conf_file)
 	}
 
 	if (ret) {
-	       	if (num_matches > 1)
+		if (num_matches > 1)
 			log_message(LOG_INFO, "WARNING, more than one file matches configuration file %s, using %s", conf_file, globbuf.gl_pathv[0]);
 		else if (num_matches == 0) {
 			log_message(LOG_INFO, "Unable to find configuration file %s", conf_file);
