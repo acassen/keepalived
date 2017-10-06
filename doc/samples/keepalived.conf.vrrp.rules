@@ -1,4 +1,6 @@
 ! Configuration File for keepalived
+! This example demonstrates static_rules and virtual_rules, components of IP
+! Tables configuration.
 
 global_defs {
    router_id LVS_DEVEL

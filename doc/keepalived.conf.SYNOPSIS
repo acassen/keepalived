@@ -111,6 +111,7 @@ global_defs {                # Block identification
                                            # (in seconds, resolution microseconds)
     vrrp_mcast_group4 <IPv4 ADDRESS>       # optional, default 224.0.0.18
     vrrp_mcast_group6 <IPv6 ADDRESS>       # optional, default ff02::12
+    vrrp_skip_check_adv_addr <BOOL>        # ?
     default_interface <INTERFACE>          # sets the default interface for static addresses, default eth0
     lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE>    [id <SYNC_ID>] [maxlen <LEN>] [port <PORT>] [ttl <TTL>] [group <IP ADDR>]
                                            # Binding interface, vrrp instance and optional
@@ -671,13 +672,13 @@ virtual_server group <STRING>      {  # VS group declaration
                     # Script to launch when
                     # healthchecker consider service
                     # as down.
-    uthreshold <INTEGER>        # maximum number of connections to server
-    lthreshold <INTEGER>        # minimum number of connections to server
-    alpha <BOOL>            # see above
-    retry <INTEGER>         # see above
+        uthreshold <INTEGER>    # maximum number of connections to server
+        lthreshold <INTEGER>    # minimum number of connections to server
+        alpha <BOOL>            # see above
+        retry <INTEGER>         # see above
         delay_before_retry <INTEGER>  # see above
-        warmup <INTEGER>        # see above
-    delay_loop <INTEGER>        # see above
+        warmup <INTEGER>            # see above
+        delay_loop <INTEGER>        # see above
         inhibit_on_failure <BOOL>   # see above
         virtualhost <STRING>        # Default VirtualHost string to use for
                                     # HTTP_GET or SSL_GET (overrides
@@ -722,7 +723,8 @@ virtual_server group <STRING>      {  # VS group declaration
                 status_code <INTEGER>
                 virtualhost <STRING>
             }
-            ...
+
+            nb_get_retry # ?
 
             virtualhost <STRING>  # VirtualHost string to use. If not set
                                   #  uses virtualhost from real or

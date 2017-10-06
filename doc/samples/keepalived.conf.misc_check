@@ -1,4 +1,5 @@
 ! Configuration File for keepalived
+! This example demonstrates MISC_CHECK, a component of LVS configuration.
 
 global_defs {
    notification_email {
