@@ -24,11 +24,11 @@
 
 #include "config.h"
 
+#define _GNU_SOURCE
 #include <glob.h>
 #include <unistd.h>
 #include <libgen.h>
 #include <errno.h>
-#include <sys/types.h>
 #include <sys/stat.h>
 #include <stdbool.h>
 
@@ -374,7 +374,6 @@ static bool
 read_conf_file(const char *conf_file)
 {
 	FILE *stream;
-	char *path;
 	glob_t globbuf;
 	size_t i;
 	int	res;
@@ -419,19 +418,10 @@ read_conf_file(const char *conf_file)
 
 		current_stream = stream;
 
-		path = NULL;
-#ifdef _GETCWD_NO_MALLOC_
-		char *prev_path = MALLOC(PATH_MAX);
-#endif
+		int curdir_fd = -1;
 		if (strchr(globbuf.gl_pathv[i], '/')) {
 			/* If the filename contains a directory element, change to that directory */
-#ifdef _GETCWD_NO_MALLOC_
-			path = getcwd(prev_path, PATH_MAX);
-#else
-			path = getcwd(NULL, 0);
-#endif
-			if (!path)
-				log_message(LOG_INFO, "getcwd() error (%s)", strerror(errno));
+			curdir_fd = open(".", O_RDONLY | O_DIRECTORY | O_PATH);
 
 			char *confpath = strdup(globbuf.gl_pathv[i]);
 			dirname(confpath);
@@ -444,14 +434,9 @@ read_conf_file(const char *conf_file)
 		fclose(stream);
 
 		/* If we changed directory, restore the previous directory */
-		if (path) {
-			if (chdir(path) < 0)
-				log_message(LOG_INFO, "chdir(%s) error (%s)", path, strerror(errno));
-#ifdef _GET_CWD_NO_MALLOC_
-			FREE(prev_path);
-#else
-			free(path);
-#endif
+		if (curdir_fd != -1) {
+			fchdir(curdir_fd);
+			close(curdir_fd);
 		}
 	}
 

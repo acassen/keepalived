@@ -374,24 +374,6 @@ AC_CHECK_FUNCS([dup2 getcwd gettimeofday memmove memset select setenv socket str
 dnl - pipe2() since Linux 2.6.27 and glibc 2.9.
 AC_CHECK_FUNCS([pipe2], [add_build_opt([PIPE2])])
 
-dnl ---[ Does whether getcwd(NULL, n) do malloc? ]---
-AC_MSG_CHECKING([getcwd(NULL,0) does malloc])
-AC_RUN_IFELSE([AC_LANG_SOURCE([[
-    #include <unistd.h>
-
-    int main(int argc, char **argv)
-    {
-      exit (!getcwd(NULL, 0));
-    }
-  ]])],
-  [AC_MSG_RESULT([yes])],
-  [
-    AC_MSG_RESULT([no])
-    AC_DEFINE([_GETCWD_NO_MALLOC_], [ 1 ], [Define to 1 if getcwd(NULL,n) does not malloc])
-    add_build_opt([GETCWD_NO_MALLOC])
-  ])
-CPPFLAGS="$SAV_CPPFLAGS"
-
 dnl - Do we want to override dynamic/static linking?
 if test -n "$enable_dynamic_linking"; then
   enable_libiptc_dynamic=$enable_dynamic_linking

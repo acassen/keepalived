@@ -520,9 +520,6 @@
 /* Define to 1 to build with debugging support */
 #undef _DEBUG_
 
-/* Define to 1 if getcwd(NULL,n) does not malloc */
-#undef _GETCWD_NO_MALLOC_
-
 /* Define to 1 if have FIB routing support */
 #undef _HAVE_FIB_ROUTING_
 
