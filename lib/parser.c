@@ -413,27 +413,35 @@ read_conf_file(const char *conf_file)
 		current_stream = stream;
 
 		char prev_path[PATH_MAX];
-		path = getcwd(prev_path, PATH_MAX);
-		if (!path) {
-			log_message(LOG_INFO, "getcwd(%s) error (%s)"
-					    , prev_path, strerror(errno));
+		prev_path[0] = '\0';
+		if (strchr(globbuf.gl_pathv[i], '/')) {
+			/* If the filename contains a directory element, change to that directory */
+			path = getcwd(prev_path, PATH_MAX);
+			if (!path) {
+				log_message(LOG_INFO, "getcwd(%s) error (%s)"
+						    , prev_path, strerror(errno));
+			}
+
+			char *confpath = strdup(globbuf.gl_pathv[i]);
+			dirname(confpath);
+			ret = chdir(confpath);
+			if (ret < 0) {
+				log_message(LOG_INFO, "chdir(%s) error (%s)"
+						    , confpath, strerror(errno));
+			}
+			free(confpath);
 		}
 
-		char *confpath = strdup(globbuf.gl_pathv[i]);
-		dirname(confpath);
-		ret = chdir(confpath);
-		if (ret < 0) {
-			log_message(LOG_INFO, "chdir(%s) error (%s)"
-					    , confpath, strerror(errno));
-		}
-		free(confpath);
 		process_stream(current_keywords, 0);
 		fclose(stream);
 
-		ret = chdir(prev_path);
-		if (ret < 0) {
-			log_message(LOG_INFO, "chdir(%s) error (%s)"
-					    , prev_path, strerror(errno));
+		if (prev_path[0]) {
+			/* If we changed directory, restore the previous directory */
+			ret = chdir(prev_path);
+			if (ret < 0) {
+				log_message(LOG_INFO, "chdir(%s) error (%s)"
+						    , prev_path, strerror(errno));
+			}
 		}
 	}
 
