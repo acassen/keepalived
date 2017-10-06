@@ -13,7 +13,18 @@ Comments start with '#' or '!' to the end of the line and can start
 anywhere in a line.
 .PP
 The keyword 'include' allows inclusion of other configuration files from within
-the main configuration file.
+the main configuration file, or from subsequently included files.
+.PP
+The format of the include directive is:
+
+include FILENAME
+.PP
+FILENAME can be a fully qualified or relative pathname, and can include wildcards,
+including csh style brace expressions such as "{foo/{,cat,dog},bar}".
+.PP
+After opening an included file, the current directory is set to the directory of
+the file itself, so any relative paths included from a file are relative to the
+directory of the including file itself.
 .SH PARAMETER SYNTAX
 .B <BOOL>
 is one of on|off|true|false|yes|no
