@@ -17,7 +17,6 @@ virtual_server 10.10.10.2 1358 {
     persistence_timeout 50
     protocol TCP
 
-
     real_server 192.168.200.2 1358 {
         weight 1
         inhibit_on_failure        ! set weight to 0 instead of removing service

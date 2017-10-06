@@ -550,7 +550,6 @@ The same principle can be applied to track_script entries, except that an
 unspecified weight means that the default weight declared in the script
 will be used (which itself defaults to 0).
 
-
 3. LVS configuration
 
 This block is divided in 2 sub-block :

@@ -70,7 +70,6 @@ vrrp_instance VI_5 {
     }
 }
 
-
 vrrp_instance VI_6 {
     state MASTER
     interface eth0
