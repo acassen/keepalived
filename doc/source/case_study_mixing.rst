@@ -112,7 +112,7 @@ our case study this file on LVS director 1 looks like::
                     digest 640205b7b0fc66c1ea91c463fac6334c
                 }
                 connect_timeout 3
-                nb_get_retry 3
+                retry 3
                 delay_before_retry 2
             }
         }
@@ -124,7 +124,7 @@ our case study this file on LVS director 1 looks like::
                     digest 640205b7b0fc66c1ea91c463fac6334c
                 }
                 connect_timeout 3
-                nb_get_retry 3
+                retry 3
                 delay_before_retry 2
             }
         }
@@ -149,4 +149,4 @@ our case study this file on LVS director 1 looks like::
         }
     }
 
-We define the symmetric VRRP configuration file on LVS director 2. That way both directors are active at a time, director 1 handling HTTP stream and director 2 SSL stream. 
+We define the symmetric VRRP configuration file on LVS director 2. That way both directors are active at a time, director 1 handling HTTP stream and director 2 SSL stream.

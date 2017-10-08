@@ -46,7 +46,7 @@ virtual_server 192.168.200.100 443 {
               digest 9b3a0c85a887a256d6939da88aabd8cd
             }
             connect_timeout 3
-            nb_get_retry 3
+            retry 3
             delay_before_retry 3
         }
     }
@@ -71,7 +71,7 @@ virtual_server 192.168.200.100 80 {
               digest 9b3a0c85a887a256d6939da88aabd8cd
             }
             connect_timeout 3
-            nb_get_retry 3
+            retry 3
             delay_before_retry 3
         }
     }

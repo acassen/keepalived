@@ -35,20 +35,20 @@ For example:
 
 global_defs
 {
-    @main    router_id main_router
-    @backup router_id backup_router
+@main    router_id main_router
+@backup router_id backup_router
 }
 ...
 vrrp_instance VRRP1 {
     ...
-    @main    unicast_src_ip 1.2.3.4
-    @backup  unicast_src_ip 1.2.3.5
-    @backup2 unicast_src_ip 1.2.3.6
+@main    unicast_src_ip 1.2.3.4
+@backup  unicast_src_ip 1.2.3.5
+@backup2 unicast_src_ip 1.2.3.6
 
      unicast_peer {
-        @^main        1.2.3.4
-        @^backup      1.2.3.5
-        @^backup2     1.2.3.6
+@^main        1.2.3.4
+@^backup      1.2.3.5
+@^backup2     1.2.3.6
     }
 }
 
@@ -95,69 +95,72 @@ global_defs {                # Block identification
        <EMAIL ADDRESS>
        ...
     }
-    notification_email_from <EMAIL ADDRESS> # Email From dealing with SMTP proto
-                                            # defaults to keepalived@<local host name>
+    notification_email_from <EMAIL ADDRESS>   # Email From dealing with SMTP proto
+                                              # defaults to keepalived@<local host name>
     smtp_server <ADDRESS>|<DOMAIN_NAME> [<PORT>]
-                       # SMTP server IP address or domain name
-                       # with optional port number (defaults to 25)
-    smtp_helo_name <HOST_NAME>           # name to use in HELO messages
-                                         # defaults to local host name
-    smtp_connect_timeout <INTEGER>       # Number of seconds timeout connect
-                                         # remote SMTP server
-    router_id <STRING>               # String identifying router
-    vrrp_garp_interval <DECIMAL>           # Sets the default interval between Gratuitous ARP
-                                           # (in seconds, resolution microseconds)
-    vrrp_gna_interval <DECIMAL>            # Sets the default interval between unsolicited NA
-                                           # (in seconds, resolution microseconds)
-    vrrp_mcast_group4 <IPv4 ADDRESS>       # optional, default 224.0.0.18
-    vrrp_mcast_group6 <IPv6 ADDRESS>       # optional, default ff02::12
-    vrrp_skip_check_adv_addr <BOOL>        # ?
-    default_interface <INTERFACE>          # sets the default interface for static addresses, default eth0
+                                              # SMTP server IP address or domain name
+                                              # with optional port number (defaults to 25)
+    smtp_helo_name <HOST_NAME>                # name to use in HELO messages
+                                              # defaults to local host name
+    smtp_connect_timeout <INTEGER>            # Number of seconds timeout connect
+                                              # remote SMTP server
+    router_id <STRING>                        # String identifying router
+    vrrp_garp_interval <DECIMAL>              # Sets the default interval between Gratuitous ARP
+                                              # (in seconds, resolution microseconds)
+    vrrp_gna_interval <DECIMAL>               # Sets the default interval between unsolicited NA
+                                              # (in seconds, resolution microseconds)
+    vrrp_mcast_group4 <IPv4 ADDRESS>          # optional, default 224.0.0.18
+    vrrp_mcast_group6 <IPv6 ADDRESS>          # optional, default ff02::12
+    vrrp_skip_check_adv_addr <BOOL>           # Checking all the addresses in a received VRRP advert can be time consuming.
+                                              # Setting this flag means the check won't be carried out if the advert is
+                                              # from the same master router as the previous advert received.
+                                              # Default: Don't skip.
+    default_interface <INTERFACE>             # sets the default interface for static addresses, default eth0
     lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE>    [id <SYNC_ID>] [maxlen <LEN>] [port <PORT>] [ttl <TTL>] [group <IP ADDR>]
-                                           # Binding interface, vrrp instance and optional
-                                           # syncid (0 to 255) for lvs syncd
-                                           # maxlen (1..65507) maximum packet length
-                                           # port (1..65535) UDP port number to use
-                                           # ttl (1..255)
-                                           # group - multicast group address (IPv4 or IPv6)
-                                           # NOTE: maxlen, port, ttl and group are only available on Linux 4.3 or later.
-    lvs_flush                              # flush any existing LVS configuration at startup
-    vrrp_garp_master_delay <INTEGER>       # delay in seconds for second set of gratuitous ARP
-                                           # messages after MASTER state transition, default 5
-    vrrp_garp_master_repeat <INTEGER>      # how many gratuitous ARP messages after MASTER
-                                           # state transition should be sent, default 5
-    vrrp_garp_lower_prio_delay <INTEGER>   # delay for second set of gratuitous ARPs after lower
-                                           # priority advert received when MASTER
-    vrrp_garp_lower_prio_repeat <INTEGER>  # number of gratuitous ARP messages to send at a time
-                                           # after lower priority advert received when MASTER
-    vrrp_garp_master_refresh <INTEGER>       # Periodic delay in seconds sending
-                                             # gratuitous ARP while in MASTER state
-                                             # Default: 0 (no refreshing)
+                                              # Binding interface, vrrp instance and optional
+                                              # syncid (0 to 255) for lvs syncd
+                                              # maxlen (1..65507) maximum packet length
+                                              # port (1..65535) UDP port number to use
+                                              # ttl (1..255)
+                                              # group - multicast group address (IPv4 or IPv6)
+                                              # NOTE: maxlen, port, ttl and group are only available on Linux 4.3 or later.
+    lvs_flush                                 # flush any existing LVS configuration at startup
+    vrrp_garp_master_delay <INTEGER>          # delay in seconds for second set of gratuitous ARP
+                                              # messages after MASTER state transition, default 5
+    vrrp_garp_master_repeat <INTEGER>         # how many gratuitous ARP messages after MASTER
+                                              # state transition should be sent, default 5
+    vrrp_garp_lower_prio_delay <INTEGER>      # delay for second set of gratuitous ARPs after lower
+                                              # priority advert received when MASTER
+    vrrp_garp_lower_prio_repeat <INTEGER>     # number of gratuitous ARP messages to send at a time
+                                              # after lower priority advert received when MASTER
+    vrrp_garp_master_refresh <INTEGER>        # Periodic delay in seconds sending
+                                              # gratuitous ARP while in MASTER state
+                                              # Default: 0 (no refreshing)
     vrrp_garp_master_refresh_repeat <INTEGER> # how many gratuitous ARP messages should be sent
                                               # at each periodic repeat
                                               # Default: one (per period)
-    vrrp_lower_prio_no_advert [<BOOL>]     # If a lower priority advert is received, just discard
-                                           # it and don't send another advert. This causes adherence
-                                           # to the RFCs.
-    vrrp_higher_prio_send_advert [<BOOL>]  # If we are master and receive a higher priority
-                                           # advert, send an advert (which will be lower priority
-                                           # than the other master), before we transition to
-                                           # backup. This means that if the other master has
-                                           # garp_lower_priority_repeat set, it will resend garp
-                                           # messages. This is to get around the problem of their
-                                           # having been two simultaneous masters, and the last GARP
-                                           # messages seen were from us.
-    vrrp_version <INTEGER:2..3>            # Default VRRP version (default 2)
+    vrrp_lower_prio_no_advert [<BOOL>]        # If a lower priority advert is received, just discard
+                                              # it and don't send another advert. This causes adherence
+                                              # to the RFCs.
+    vrrp_higher_prio_send_advert [<BOOL>]     # If we are master and receive a higher priority
+                                              # advert, send an advert (which will be lower priority
+                                              # than the other master), before we transition to
+                                              # backup. This means that if the other master has
+                                              # garp_lower_priority_repeat set, it will resend garp
+                                              # messages. This is to get around the problem of their
+                                              # having been two simultaneous masters, and the last GARP
+                                              # messages seen were from us.
+    vrrp_version <INTEGER:2..3>               # Default VRRP version (default 2)
     vrrp_iptables [keepalived_in [keepalived_out]]  # default INPUT
                                                     # Specifies the iptables chains to add entries to
                                                     # If no table names are specied, no entries are added
-    vrrp_ipsets ipset4 [ipset6 [ipset_if6]] # Set the ipset set names to use. If no names are specified,
-                                            # ipsets will not be used. The default ipset4 name is 'keepalived'.
-                                            # If ipset6 is not specified, '6' as appended to the ipset4 name.
-                                            # If ipset_if6 is not specified, any trailing '6' from ipset6
-                                            # is removed and '_if6' appended
-    vrrp_check_unicast_src                  # Check source address of a unicast packet is a
-                                            # unicast peer
+    vrrp_ipsets ipset4 [ipset6 [ipset_if6]]         # Set the ipset set names to use. If no names are specified,
+                                                    # ipsets will not be used. The default ipset4 name is 'keepalived'.
+                                                    # If ipset6 is not specified, '6' as appended to the ipset4 name.
+                                                    # If ipset_if6 is not specified, any trailing '6' from ipset6
+                                                    # is removed and '_if6' appended
+    vrrp_check_unicast_src                          # Check source address of a unicast packet is a
+                                                    # unicast peer
     vrrp_strict                   # Enforce strict VRRP protocol compliance. This will prohibit:
                                   #   0 VIPs
                                   #   unicast peers
@@ -171,8 +174,8 @@ global_defs {                # Block identification
                                   # backup systems being busy, they are not processing the vrrp packets.
     vrrp_priority <INTEGER:-20..19>     # Set the vrrp child process priority (negative values increase priority)
     checker_priority <INTEGER:-20..19>  # Set the checker child process priority
-    vrrp_no_swap               # Set the vrrp child process non swappable
-    checker_no_swap            # Set the checker child process non swappable
+    vrrp_no_swap                        # Set the vrrp child process non swappable
+    checker_no_swap                     # Set the checker child process non swappable
 
                        # If keepalived has been build with SNMP support,
                        # the following keywords are available
@@ -180,12 +183,12 @@ global_defs {                # Block identification
                        # individually enabled/disabled
     snmp_socket <PROTOCOL>:<ADDRESS>[:<PORT>] # specify socket to use for connecting to SNMP master agent (default unix:/var/agentx/master)
                                               #   unless using a network namespace, when the default is udp:localhost:705
-    enable_snmp_keepalived           # enable SNMP handling of vrrp element of KEEPALIVED MIB
-    enable_snmp_checker              # enable SNMP handling of checker element of KEEPALIVED MIB
-    enable_snmp_rfc                  # enable SNMP handling of RFC2787 and RFC6527 VRRP MIBs
-    enable_snmp_rfcv2                # enable SNMP handling of RFC2787 VRRPv2 MIB
-    enable_snmp_rfcv3                # enable SNMP handling of RFC6527 VRRPv3 MIB
-    enable_traps                     # enable SNMP trap generation
+    enable_snmp_keepalived                    # enable SNMP handling of vrrp element of KEEPALIVED MIB
+    enable_snmp_checker                       # enable SNMP handling of checker element of KEEPALIVED MIB
+    enable_snmp_rfc                           # enable SNMP handling of RFC2787 and RFC6527 VRRP MIBs
+    enable_snmp_rfcv2                         # enable SNMP handling of RFC2787 VRRPv2 MIB
+    enable_snmp_rfcv3                         # enable SNMP handling of RFC6527 VRRPv3 MIB
+    enable_traps                              # enable SNMP trap generation
 
     enable_dbus  # enable the DBus interface
     dbus_service_name SERVICE_NAME       # Name of DBus service (default org.keepalived.Vrrp1)
@@ -202,31 +205,31 @@ global_defs {                # Block identification
                                     # For further details, see the description under vrrp_sync_group see
                                     # doc/samples/sample_notify_fifo.sh for sample usage.
     notify_fifo_script STRING [username [groupname]]
-                       # script to be run by keepalived to process notify events
-                       # The FIFO name will be passed to the script as the last parameter
+                                         # script to be run by keepalived to process notify events
+                                         # The FIFO name will be passed to the script as the last parameter
     vrrp_notify_fifo FIFO_NAME           # FIFO to write vrrp notify events to (must be different from other FIFO names)
                                          # The string written will be a line of the form: INSTANCE "VI_1" MASTER 100
                                          # and will be terminated with a new line character.
                                          # For further details of the output, see the description under vrrp_sync_group
                                          # and doc/samples/sample_notify_fifo.sh for sample usage.
     vrrp_notify_fifo_script STRING [username [groupname]]
-                       # script to be run by keepalived to process vrrp notify events
-                       # The FIFO name will be passed to the script as the last parameter
+                                        # script to be run by keepalived to process vrrp notify events
+                                        # The FIFO name will be passed to the script as the last parameter
     lvs_notify_fifo FIFO_NAME           # FIFO to write notify healthchecker events to (must be different from other FIFO names)
                                         # The string written will be a line of the form:
                                         #   VS [192.168.201.15]:tcp:80 {UP|DOWN}
                                         #   RS [1.2.3.4]:tcp:80 [192.168.201.15]:tcp:80 {UP|DOWN}
                                         # and will be terminated with a new line character.
     lvs_notify_fifo_script STRING [username [groupname]]
-                       # script to be run by keepalived to process healthchecher notify events
-                       # The FIFO name will be passed to the script as the last parameter
+                                        # script to be run by keepalived to process healthchecher notify events
+                                        # The FIFO name will be passed to the script as the last parameter
 }
 
-net_namespace NAME               # Set the network namespace to run in
-                                 # The directory /var/run/keepalived will be created as an unshared mount point,
-                                 #   for example for pid files.
-                                 # syslog entries will have _NAME appended to the ident.
-                                 # Note: the namespace cannot be changed on a configuration reload
+net_namespace NAME                  # Set the network namespace to run in
+                                    # The directory /var/run/keepalived will be created as an unshared mount point,
+                                    #   for example for pid files.
+                                    # syslog entries will have _NAME appended to the ident.
+                                    # Note: the namespace cannot be changed on a configuration reload
 namespace_with_ipsets               # ipsets wasn't network namespace aware until Linux 3.13, and so if running with
                                     # an earlier version of the kernel, by default use of ipsets is disabled if using
                                     # a namespace and vrrp_ipsets isn't specified.
@@ -237,9 +240,9 @@ instance NAME                   # If multiple instances of keepalived are run in
                                 # create pid files with NAME as part of the file names, in /var/run/keepalived.
                                 # Note: the instance name cannot be changed on a configuration reload
 
-use_pid_dir                   # Create pid files in /var/run/keepalived
+use_pid_dir                     # Create pid files in /var/run/keepalived
 
-linkbeat_use_polling          # Use media link failure detection polling fashion
+linkbeat_use_polling            # Use media link failure detection polling fashion
 
     1.2. Static addresses
 
@@ -386,8 +389,8 @@ garp_group {
     gna_interval <DECIMAL>           # Sets the default interval between unsolicited NA
                                      # (in seconds, resolution microseconds)
     interface <STRING>               # The physical interface to which the intervals apply
-    interfaces {           # A list of interfaces across which the delays are
-        <STRING>           # aggregated.
+    interfaces {                     # A list of interfaces across which the delays are
+        <STRING>                     # aggregated.
         <STRING>
         ...
     }
@@ -411,16 +414,18 @@ vrrp_instance <STRING> {  # VRRP instance declaration
                        # will be set to 0.
                        # The original settings are restored on termination.
     version <INTEGER:2..3>    # VRRP version to use
-    vmac_xmit_base  # Send/Recv VRRP messages from base
-                    # interface instead of VMAC interface
-    native_ipv6     # Force instance to use IPv6 (this option is deprecated since
-                    # the virtual addresses determine whether IPv4 or IPv6 is used)
+    vmac_xmit_base     # Send/Recv VRRP messages from base
+                       # interface instead of VMAC interface
+    native_ipv6        # Force instance to use IPv6 (this option is deprecated since
+                       # the virtual addresses determine whether IPv4 or IPv6 is used)
     state MASTER|BACKUP           # Start-up default state
     interface <STRING>            # Binding interface
-    accept          # Allow a non address-owner to process packets
-                    # destined to VIPs and eVIPs. This is the default
-                    # unless strict mode is set.
-    no_accept       # Set non-accept mode (default if strict mode)
+    accept             # Allow a non address-owner to process packets
+                       # destined to VIPs and eVIPs. This is the default
+                       # unless strict mode is set.
+    no_accept          # Set non-accept mode (default if strict mode)
+    skip_check_adv_addr [BOOLEAN] # See description of global vrrp_skip_check_adv_addr, which
+                                  # sets the default value. Defaults to vrrp_skip_check_adv_addr
 
     track_interface {  # Interfaces state we monitor
       <STRING>
@@ -433,13 +438,13 @@ vrrp_instance <STRING> {  # VRRP instance declaration
       <STRING> weight <INTEGER:-254..254>
       ...
     }
-    dont_track_primary  # (default unset) ignore VRRP interface faults.
-                        #  useful for cross-connect VRRP config.
+    dont_track_primary               # (default unset) ignore VRRP interface faults.
+                                     #  useful for cross-connect VRRP config.
     mcast_src_ip <IP ADDRESS>        # src_ip to use into the VRRP packets
     unicast_src_ip <IP ADDRESS>      # src_ip to use into the VRRP packets (alias to mcast_src_ip)
-    unicast_peer {  # Do not use multicast, instead send VRRP
-      <IP ADDRESS>  # adverts to following list of ip address
-      ...           # in unicast design fashion
+    unicast_peer {                   # Do not use multicast, instead send VRRP
+      <IP ADDRESS>                   # adverts to following list of ip address
+      ...                            # in unicast design fashion
     }
     old_unicast_checksum [never]  # The checksum calculation when using VRRPv3 changed after v1.3.6.
                                   # Setting this flag forces the old checksum algorithm to be used
@@ -502,24 +507,24 @@ vrrp_instance <STRING> {  # VRRP instance declaration
                      # The syntax is the same as static_rules
     }
 
-    nopreempt           # Override VRRP RFC preemption default
-    preempt_delay       # Seconds after startup or seeing a lower priority master
-                        # until preemption. 0 (default) to 1,000
+    nopreempt             # Override VRRP RFC preemption default
+    preempt_delay         # Seconds after startup or seeing a lower priority master
+                          # until preemption. 0 (default) to 1,000
     strict_mode [<BOOL>]  # See description of global vrrp_strict
                           # If vrrp_strict is not specified, it takes the value of vrrp_strict
                           # If strict_mode without a parameter is specified, it defaults to on
     debug <LEVEL>  # Debug level. LEVEL is a number in the range 0 to 4.
     notify_master <STRING>|<QUOTED-STRING> [username [groupname]]
-                        # Same as vrrp_sync_group
+                          # Same as vrrp_sync_group
     notify_backup <STRING>|<QUOTED-STRING> [username [groupname]]
-                        # Same as vrrp_sync_group
+                          # Same as vrrp_sync_group
     notify_fault <STRING>|<QUOTED-STRING> [username [groupname]]
-                        # Same as vrrp_sync_group
+                          # Same as vrrp_sync_group
     notify_stop <STRING>|<QUOTED-STRING> [username [groupname]]
-                        # Script to launch when stopping vrrp
+                          # Script to launch when stopping vrrp
     notify <STRING>|<QUOTED-STRING> [username [groupname]]
-                        # Same as vrrp_sync_group
-    smtp_alert          # Same as vrrp_sync_group
+                          # Same as vrrp_sync_group
+    smtp_alert            # Same as vrrp_sync_group
 }
 
 SCOPE can take the following values :
@@ -609,13 +614,13 @@ virtual_server group <STRING>      {  # VS group declaration
     sh-fallback     # Apply sh-fallback scheduler flag (only for sh scheduler,
                     # same as flag-1 for sh scheduler)
     ops             # Apply One-Packet-Scheduling (only for UDP)
-    lvs_method NAT|DR|TUN        # default LVS method to use
-    persistence_engine <STRING>  # LVS persistence engine name
+    lvs_method NAT|DR|TUN              # default LVS method to use
+    persistence_engine <STRING>        # LVS persistence engine name
     persistence_timeout [<INTEGER>]    # LVS persistence timeout, default 6 minutes
     persistence_granularity <NETMASK>  # LVS granularity mask
     protocol TCP|UDP|SCTP              # L4 protocol
-    ha_suspend      # If VS IP address is not set, suspend
-                    # healthcheckers activity
+    ha_suspend            # If VS IP address is not set, suspend
+                          # healthcheckers activity
     virtualhost <STRING>  # Default VirtualHost string to use for
                           # HTTP_GET or SSL_GET
 
@@ -651,8 +656,8 @@ virtual_server group <STRING>      {  # VS group declaration
                                       # If a sorry server is configured, all
                                       # real servers will be brought down when
                                       # the quorum is not achieved.
-    sorry_server_inhibit        # applies inhibit_on_failure behaviour
-                                # to the sorry_server
+    sorry_server_inhibit              # applies inhibit_on_failure behaviour
+                                      # to the sorry_server
     sorry_server_lvs_method NAT|DR|TUN  # LVS method to use for sorry server
 
     retry <INTEGER>  # number of retries before fail
@@ -677,12 +682,12 @@ virtual_server group <STRING>      {  # VS group declaration
         alpha <BOOL>            # see above
         retry <INTEGER>         # see above
         delay_before_retry <INTEGER>  # see above
-        warmup <INTEGER>            # see above
-        delay_loop <INTEGER>        # see above
-        inhibit_on_failure <BOOL>   # see above
-        virtualhost <STRING>        # Default VirtualHost string to use for
-                                    # HTTP_GET or SSL_GET (overrides
-                                    # virtual_server virtualhost)
+        warmup <INTEGER>              # see above
+        delay_loop <INTEGER>          # see above
+        inhibit_on_failure <BOOL>     # see above
+        virtualhost <STRING>          # Default VirtualHost string to use for
+                                      # HTTP_GET or SSL_GET (overrides
+                                      # virtual_server virtualhost)
 
         # healthcheckers. Can be multiple of each type
         # HTTP_GET|SSL_GET|TCP_CHECK|SMTP_CHECK|DNS_CHECK|MISC_CHECK
@@ -692,22 +697,23 @@ virtual_server group <STRING>      {  # VS group declaration
             connect_ip <IP ADDRESS>    # IP address to connect (default real_server address)
             connect_port <PORT>        # Port to connect (default real_server port)
             bindto <IP ADDRESS>        # IP address to bind to
-        bind_if <IFNAME>            # Interface to bind to; needed if the bindto
-                                    # address is IPv6 link local
-            bind_port <PORT>        # Port to bind to
+        bind_if <IFNAME>               # Interface to bind to; needed if the bindto
+                                       # address is IPv6 link local
+            bind_port <PORT>           # Port to bind to
             connect_timeout <INTEGER>    # Timeout connection
             fwmark <INTEGER>             # fwmark to set on socket (SO_MARK)
         alpha <BOOL>                     # see above
-            retry <INTEGER>              # number of retries before fail
+            retry <INTEGER>              # number of retries before fail.
+                                         # nb_get_retry is a deprecated alias for this.
             delay_before_retry <INTEGER> # delay before retry (default 1 unless otherwise specified)
-            warmup <INTEGER>        # random delay for maximum N seconds
-        delay_loop <INTEGER>        # delay timer for service polling
+            warmup <INTEGER>             # random delay for maximum N seconds
+        delay_loop <INTEGER>             # delay timer for service polling
     }
 
     # The following options are additional checker specific
 
-        HTTP_GET|SSL_GET {   # HTTP and SSL healthcheckers
-            url {            # A set of url to test
+        HTTP_GET|SSL_GET {           # HTTP and SSL healthcheckers
+            url {                    # A set of url to test
               path <STRING>          # Path
               digest <STRING>        # Digest computed with genhash
               status_code <INTEGER>  # status code returned into the HTTP
@@ -724,8 +730,6 @@ virtual_server group <STRING>      {  # VS group declaration
                 virtualhost <STRING>
             }
 
-            nb_get_retry # ?
-
             virtualhost <STRING>  # VirtualHost string to use. If not set
                                   #  uses virtualhost from real or
                                   #  virtual_server.
@@ -735,16 +739,16 @@ virtual_server group <STRING>      {  # VS group declaration
             # No additional options
         }
 
-        SMTP_CHECK {  # SMTP healthchecker
+        SMTP_CHECK {                            # SMTP healthchecker
             helo_name <STRING>|<QUOTED-STRING>  # Host to use for the HELO request
         }
 
-        DNS_CHECK {  # DNS healthchecker
+        DNS_CHECK {                          # DNS healthchecker
             type A|NS|CNAME|SOA|MX|TXT|AAAA  # DNS query type (default SOA)
-            name <STRING>  # Domain name to use for the DNS query
+            name <STRING>                    # Domain name to use for the DNS query
         }
 
-        MISC_CHECK {  # MISC healthchecker
+        MISC_CHECK {                            # MISC healthchecker
             misc_path <STRING>|<QUOTED-STRING>  # External system script or program
             misc_timeout <INTEGER>              # Script execution timeout
 

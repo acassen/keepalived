@@ -31,7 +31,7 @@ virtual_server 192.168.200.100 443 {
               status_code 200  # Can mix digest and status_code
             }
             connect_timeout 3
-            nb_get_retry 3
+            retry 3
             delay_before_retry 3
         }
     }

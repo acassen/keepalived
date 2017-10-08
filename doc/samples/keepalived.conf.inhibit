@@ -26,7 +26,7 @@ virtual_server 10.10.10.2 1358 {
               digest 640205b7b0fc66c1ea91c463fac6334d
             }
             connect_timeout 3
-            nb_get_retry 3
+            retry 3
             delay_before_retry 3
         }
     }
