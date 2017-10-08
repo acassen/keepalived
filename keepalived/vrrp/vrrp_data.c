@@ -578,11 +578,28 @@ void
 alloc_vrrp_vip(vector_t *strvec)
 {
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+	void *list_end = NULL;
+	sa_family_t address_family;
 
 	if (!LIST_EXISTS(vrrp->vip))
 		vrrp->vip = alloc_list(free_ipaddress, dump_ipaddress);
+	else if (!LIST_ISEMPTY(vrrp->vip))
+		list_end = LIST_TAIL_DATA(vrrp->vip);
+
 	alloc_ipaddress(vrrp->vip, strvec, vrrp->ifp);
+
+	if (!LIST_ISEMPTY(vrrp->vip) && LIST_TAIL_DATA(vrrp->vip) != list_end) {
+		address_family = IP_FAMILY((ip_address_t*)LIST_TAIL_DATA(vrrp->vip));
+
+		if (vrrp->family == AF_UNSPEC)
+			vrrp->family = address_family;
+		else if (address_family != vrrp->family) {
+			log_message(LOG_INFO, "(%s): address family must match VRRP instance [%s] - ignoring", vrrp->iname, FMT_STR_VSLOT(strvec, 0));
+			free_list_element(vrrp->vip, vrrp->vip->tail);
+		}
+	}
 }
+
 void
 alloc_vrrp_evip(vector_t *strvec)
 {

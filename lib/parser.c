@@ -24,6 +24,7 @@
 
 #include "config.h"
 
+#define _GNU_SOURCE
 #include <glob.h>
 #include <unistd.h>
 #include <libgen.h>
@@ -370,26 +371,33 @@ process_stream(vector_t *keywords_vec, int need_bob)
 	return;
 }
 
-static void
+static bool
 read_conf_file(const char *conf_file)
 {
 	FILE *stream;
-	char *path;
-	int ret;
 	glob_t globbuf;
 	size_t i;
 	int	res;
 	struct stat stb;
+	unsigned num_matches = 0;
 
 	globbuf.gl_offs = 0;
-	res = glob(conf_file, 0, NULL, &globbuf);
+	res = glob(conf_file, GLOB_MARK | GLOB_BRACE, NULL, &globbuf);
 
 	if (res) {
-		log_message(LOG_INFO, "Unable to find config file(s) '%s'.", conf_file);
-		exit(KEEPALIVED_EXIT_CONFIG);
+		if (res == GLOB_NOMATCH)
+			log_message(LOG_INFO, "No config files matched '%s'.", conf_file);
+		else
+			log_message(LOG_INFO, "Error reading config file(s): glob(\"%s\") returned %d, skipping.", conf_file, res);
+		return true;
 	}
 
-	for(i = 0; i < globbuf.gl_pathc; i++){
+	for (i = 0; i < globbuf.gl_pathc; i++) {
+		if (globbuf.gl_pathv[i][strlen(globbuf.gl_pathv[i])-1] == '/') {
+			/* This is a directory - so skip */
+			continue;
+		}
+
 		log_message(LOG_INFO, "Opening file '%s'.", globbuf.gl_pathv[i]);
 		stream = fopen(globbuf.gl_pathv[i], "r");
 		if (!stream) {
@@ -407,34 +415,38 @@ read_conf_file(const char *conf_file)
 			continue;
 		}
 
+		num_matches++;
+
 		current_stream = stream;
 
-		char prev_path[PATH_MAX];
-		path = getcwd(prev_path, PATH_MAX);
-		if (!path) {
-			log_message(LOG_INFO, "getcwd(%s) error (%s)"
-					    , prev_path, strerror(errno));
+		int curdir_fd = -1;
+		if (strchr(globbuf.gl_pathv[i], '/')) {
+			/* If the filename contains a directory element, change to that directory */
+			curdir_fd = open(".", O_RDONLY | O_DIRECTORY | O_PATH);
+
+			char *confpath = strdup(globbuf.gl_pathv[i]);
+			dirname(confpath);
+			if (chdir(confpath) < 0)
+				log_message(LOG_INFO, "chdir(%s) error (%s)", confpath, strerror(errno));
+			free(confpath);
 		}
 
-		char *confpath = strdup(globbuf.gl_pathv[i]);
-		dirname(confpath);
-		ret = chdir(confpath);
-		if (ret < 0) {
-			log_message(LOG_INFO, "chdir(%s) error (%s)"
-					    , confpath, strerror(errno));
-		}
-		free(confpath);
 		process_stream(current_keywords, 0);
 		fclose(stream);
 
-		ret = chdir(prev_path);
-		if (ret < 0) {
-			log_message(LOG_INFO, "chdir(%s) error (%s)"
-					    , prev_path, strerror(errno));
+		/* If we changed directory, restore the previous directory */
+		if (curdir_fd != -1) {
+			fchdir(curdir_fd);
+			close(curdir_fd);
 		}
 	}
 
 	globfree(&globbuf);
+
+	if (!num_matches)
+		log_message(LOG_INFO, "No config files matched '%s'.", conf_file);
+
+	return false;
 }
 
 bool check_conf_file(const char *conf_file)
@@ -444,33 +456,45 @@ bool check_conf_file(const char *conf_file)
 	bool ret = true;
 	int res;
 	struct stat stb;
+	unsigned num_matches = 0;
 
 	globbuf.gl_offs = 0;
-	res = glob(conf_file, 0, NULL, &globbuf);
+	res = glob(conf_file, GLOB_MARK | GLOB_BRACE, NULL, &globbuf);
 	if (res) {
 		log_message(LOG_INFO, "Unable to find configuration file %s (glob returned %d)", conf_file, res);
 		return false;
 	}
 
-	if (globbuf.gl_pathc == 0) {
-		log_message(LOG_INFO, "Unable to find configuration file %s", conf_file);
-		ret = false;
-	} else {
-		for (i = 0; i < globbuf.gl_pathc; i++) {
-			if (access(globbuf.gl_pathv[i], R_OK)) {
-				log_message(LOG_INFO, "Unable to read configuration file %s", globbuf.gl_pathv[i]);
-				ret = false;
-				break;
-			}
+	for (i = 0; i < globbuf.gl_pathc; i++) {
+		if (globbuf.gl_pathv[i][strlen(globbuf.gl_pathv[i])-1] == '/') {
+			/* This is a directory - so skip */
+			continue;
+		}
 
-			/* Make sure that the file is a regular file, and not for example a directory or executable */
-			if (stat(globbuf.gl_pathv[i], &stb) ||
-			    !S_ISREG(stb.st_mode) ||
-			     (stb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
-				log_message(LOG_INFO, "Configuration file '%s' is not a regular non-executable file", globbuf.gl_pathv[i]);
-				ret = false;
-				break;
-			}
+		if (access(globbuf.gl_pathv[i], R_OK)) {
+			log_message(LOG_INFO, "Unable to read configuration file %s", globbuf.gl_pathv[i]);
+			ret = false;
+			break;
+		}
+
+		/* Make sure that the file is a regular file, and not for example a directory or executable */
+		if (stat(globbuf.gl_pathv[i], &stb) ||
+		    !S_ISREG(stb.st_mode) ||
+		     (stb.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+			log_message(LOG_INFO, "Configuration file '%s' is not a regular non-executable file", globbuf.gl_pathv[i]);
+			ret = false;
+			break;
+		}
+
+		num_matches++;
+	}
+
+	if (ret) {
+		if (num_matches > 1)
+			log_message(LOG_INFO, "WARNING, more than one file matches configuration file %s, using %s", conf_file, globbuf.gl_pathv[0]);
+		else if (num_matches == 0) {
+			log_message(LOG_INFO, "Unable to find configuration file %s", conf_file);
+			ret = false;
 		}
 	}
 
@@ -637,7 +661,6 @@ alloc_value_block(void (*alloc_func) (vector_t *))
 
 			free_strvec(vec);
 		}
-		memset(buf, 0, MAXBUF);
 	}
 	FREE(buf);
 }

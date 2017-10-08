@@ -19,10 +19,10 @@ in you configuration file use this char.
 The config-id defaults to the first part of the node name as returned by
 uname, and can be overridden with the -i or --config-id command line option.
 
-Any configuration line starting with '@' is a conditional configuration line.
-The word immediately following (i.e. without any space) the '@' character
-is compared against the config-id, and if they don't match, the configuration
-line is ignored.
+Any configuration line starting with (i.e. before any whitespace) '@' is a
+conditional configuration line.  The word immediately following (i.e.
+without any space) the '@' character is compared against the config-id,
+and if they don't match, the configuration line is ignored.
 
 Alternatively, '@^' is a negative comparison, so if the word immediately
 following does NOT match the config-id, the configuration line IS included.
@@ -88,7 +88,22 @@ All scripts should be written so that they will terminate on receipt of a SIGTER
 signal. Scripts will be sent SIGTERM if their parent terminates, or it is a script
 the keepalived is awaiting its exit status and it has run for too long.
 
-0.4 Configuration file syntax parser
+0.4 include directive
+
+It is possible to include further configuration files from within a configuration
+file, and this can be done to any depth.
+
+The format of the include directive is:
+include FILENAME
+
+FILENAME can be a fully qualified or relative pathname, and can include wildcards,
+including csh style brace expressions such as "{foo/{,cat,dog},bar}".
+
+After opening an included file, the current directory is set to the directory of
+the file itself, so any relative paths included from a file are relative to the
+directory of the including file itself.
+
+0.5 Configuration file syntax parser
 
 Traditionally the configuration file parser has not been one of the strengths of
 keepalived. yukki maintains a project on github that is a keepalived syntax

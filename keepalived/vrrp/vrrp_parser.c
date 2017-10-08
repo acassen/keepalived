@@ -715,43 +715,7 @@ vrrp_auth_pass_handler(vector_t *strvec)
 static void
 vrrp_vip_handler(__attribute__((unused)) vector_t *strvec)
 {
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-	char *buf;
-	char *str = NULL;
-	vector_t *vec = NULL;
-	sa_family_t address_family;
-
-	buf = (char *) MALLOC(MAXBUF);
-	while (read_line(buf, MAXBUF)) {
-		address_family = AF_UNSPEC;
-		vec = alloc_strvec(buf);
-		if (vec) {
-			str = strvec_slot(vec, 0);
-			if (!strcmp(str, EOB)) {
-				free_strvec(vec);
-				break;
-			}
-
-			if (vector_size(vec)) {
-				alloc_vrrp_vip(vec);
-				if (!LIST_ISEMPTY(vrrp->vip))
-					address_family = IP_FAMILY((ip_address_t*)LIST_TAIL_DATA(vrrp->vip));
-			}
-
-			if (address_family != AF_UNSPEC) {
-				if (vrrp->family == AF_UNSPEC)
-					vrrp->family = address_family;
-				else if (address_family != vrrp->family) {
-					log_message(LOG_INFO, "(%s) address family must match VRRP instance [%s] - ignoring", vrrp->iname, str);
-					free_list_element(vrrp->vip, vrrp->vip->tail);
-				}
-			}
-
-			free_strvec(vec);
-		}
-		memset(buf, 0, MAXBUF);
-	}
-	FREE(buf);
+	alloc_value_block(alloc_vrrp_vip);
 }
 static void
 vrrp_evip_handler(__attribute__((unused)) vector_t *strvec)
