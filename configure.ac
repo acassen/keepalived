@@ -1018,6 +1018,9 @@ AC_CHECK_DECL([IPVS_SVC_ATTR_PE_NAME],
    ],
    [], [[#include <linux/ip_vs.h>]])
 
+dnl ----[ Check for GLOB_BRACE support ]----
+AC_CHECK_DECLS([GLOB_BRACE], [add_build_opt([GLOB_BRACE])], [], [[#include <glob.h>]])
+
 dnl ----[ Do we want v1.3.7 and earlier VRRPv3 unicast checksum compatibility support ]----
 UNICAST_CHKSUM_COMPAT_SUPPORT=No
 if test .$enable_chksum_compat != .no; then
