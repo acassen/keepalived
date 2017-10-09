@@ -117,7 +117,7 @@ AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makef
 MAINTAINERCLEANFILES="*~ *.orig *.rej core core.*"
 AC_SUBST(MAINTAINERCLEANFILES)
 CONFIG_OPTIONS=
-SYSTEM_OPTIONS
+SYSTEM_OPTIONS=
 
 AM_SILENT_RULES([yes])
 

@@ -3244,7 +3244,7 @@ ac_config_files="$ac_config_files Makefile keepalived/Makefile lib/Makefile keep
 MAINTAINERCLEANFILES="*~ *.orig *.rej core core.*"
 
 CONFIG_OPTIONS=
-SYSTEM_OPTIONS
+SYSTEM_OPTIONS=
 
 # Check whether --enable-silent-rules was given.
 if test "${enable_silent_rules+set}" = set; then :
