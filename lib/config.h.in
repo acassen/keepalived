@@ -51,6 +51,10 @@
    don't. */
 #undef HAVE_DECL_FRA_UID_RANGE
 
+/* Define to 1 if you have the declaration of `GLOB_BRACE', and to 0 if you
+   don't. */
+#undef HAVE_DECL_GLOB_BRACE
+
 /* Define to 1 if you have the declaration of `IFA_FLAGS', and to 0 if you
    don't. */
 #undef HAVE_DECL_IFA_FLAGS

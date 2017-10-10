@@ -97,7 +97,8 @@ The format of the include directive is:
 include FILENAME
 
 FILENAME can be a fully qualified or relative pathname, and can include wildcards,
-including csh style brace expressions such as "{foo/{,cat,dog},bar}".
+including csh style brace expressions such as "{foo/{,cat,dog},bar}" if glob()
+supports them.
 
 After opening an included file, the current directory is set to the directory of
 the file itself, so any relative paths included from a file are relative to the

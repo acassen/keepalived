@@ -25,6 +25,7 @@ RUN apk --no-cache add \
        musl-dev \
        openssl \
        openssl-dev \
+       autoconf \
 
     && cd /tmp/keepalived-sources \
     && ./configure --disable-dynamic-linking \
@@ -40,7 +41,8 @@ RUN apk --no-cache add \
         libnl3-dev \
         make \
         musl-dev \
-        openssl-dev
+        openssl-dev \
+        autoconf
 
 ADD docker/keepalived.conf /usr/local/etc/keepalived/keepalived.conf
 
