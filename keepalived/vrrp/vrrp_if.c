@@ -29,8 +29,16 @@
 #include <errno.h>
 #include <syslog.h>
 #include <linux/ip.h>
+#include <netinet/in.h>
 #include <stdio.h>
 #include <linux/mii.h>
+#if defined _HAVE_NETINET_LINUX_IF_ETHER_H_COLLISION_ && \
+    defined _LINUX_IF_ETHER_H && \
+    !defined _NETINET_IF_ETHER_H
+/* musl libc throws an error if <linux/if_ether.h> is included before <netinet/if_ether.h>,
+ * so we stop <netinet/if_ether.h> being included if <linux/if_ether.h> has been included. */
+#define _NETINET_IF_ETHER_H
+#endif
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
 #endif

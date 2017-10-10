@@ -74,6 +74,14 @@
 #include "keepalived_netlink.h"
 #include "git-commit.h"
 
+/* musl libc doesn't define the following */
+#ifndef	W_EXITCODE
+#define	W_EXITCODE(ret, sig)	((ret) << 8 | (sig))
+#endif
+#ifndef	WCOREFLAG
+#define	WCOREFLAG		((int32_t)WCOREDUMP(0xffffffff))
+#endif
+
 #define	LOG_FACILITY_MAX	7
 #define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" GIT_DATE ")"
 #define COPYRIGHT_STRING	"Copyright(C) 2001-" GIT_YEAR " Alexandre Cassen, <acassen@gmail.com>"

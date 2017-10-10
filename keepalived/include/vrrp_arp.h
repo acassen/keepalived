@@ -25,7 +25,7 @@
 
 /* system includes */
 #include <sys/types.h>
-#include <linux/if_ether.h>
+#include <netinet/if_ether.h>	/* musl libc has name collisions if use <linux/if_ether.h> */
 
 /* local includes */
 #include "vrrp.h"
