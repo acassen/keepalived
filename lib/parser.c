@@ -30,6 +30,8 @@
 #include <libgen.h>
 #include <errno.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <fcntl.h>
 #include <stdbool.h>
 
 #include "parser.h"
@@ -381,7 +383,11 @@ read_conf_file(const char *conf_file)
 	unsigned num_matches = 0;
 
 	globbuf.gl_offs = 0;
-	res = glob(conf_file, GLOB_MARK | GLOB_BRACE, NULL, &globbuf);
+	res = glob(conf_file, GLOB_MARK
+#if HAVE_DECL_GLOB_BRACE
+					| GLOB_BRACE
+#endif
+						    , NULL, &globbuf);
 
 	if (res) {
 		if (res == GLOB_NOMATCH)
@@ -458,7 +464,11 @@ bool check_conf_file(const char *conf_file)
 	unsigned num_matches = 0;
 
 	globbuf.gl_offs = 0;
-	res = glob(conf_file, GLOB_MARK | GLOB_BRACE, NULL, &globbuf);
+	res = glob(conf_file, GLOB_MARK
+#if HAVE_DECL_GLOB_BRACE
+					| GLOB_BRACE
+#endif
+						    , NULL, &globbuf);
 	if (res) {
 		log_message(LOG_INFO, "Unable to find configuration file %s (glob returned %d)", conf_file, res);
 		return false;
