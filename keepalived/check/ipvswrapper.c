@@ -464,11 +464,12 @@ ipvs_set_srule(int cmd, ipvs_service_t *srule, virtual_server_t *vs)
 	srule->user.netmask = (vs->af == AF_INET6) ? 128 : ((uint32_t) 0xffffffff);
 	srule->user.protocol = vs->service_type;
 
-	if (vs->persistence_timeout) {
+	if (vs->persistence_timeout &&
+	    (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL)) {
 		srule->user.timeout = vs->persistence_timeout;
 		srule->user.flags |= IP_VS_SVC_F_PERSISTENT;
 
-		if (cmd == IP_VS_SO_SET_ADD || cmd == IP_VS_SO_SET_DEL)
+		if (vs->persistence_granularity)
 			srule->user.netmask = vs->persistence_granularity;
 	}
 

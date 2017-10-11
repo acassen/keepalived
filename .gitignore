@@ -1,4 +1,5 @@
 *.orig
+*.rej
 *.o
 *.a
 README
