@@ -372,9 +372,18 @@ vrrp_compute_timer(const int fd)
 	element e;
 	list l = &vrrp_data->vrrp_index_fd[fd%1024 + 1];
 	timeval_t timer;
+	timer_reset(timer);
+
+	/*
+	 * If list size's is 1 then no collisions. So
+	 * Test and return the singleton.
+	 */
+	if (LIST_SIZE(l) == 1) {
+		vrrp = ELEMENT_DATA(LIST_HEAD(l));
+			return vrrp->sands;
+	}
 
 	/* Multiple instances on the same interface */
-	timer_reset(timer);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 		if (timer_cmp(vrrp->sands, timer) < 0 ||
@@ -441,8 +450,9 @@ vrrp_register_workers(list l)
 	vrrp_init_sands(vrrp_data->vrrp);
 
 	/* Init VRRP tracking scripts */
-	if (!LIST_ISEMPTY(vrrp_data->vrrp_script))
+	if (!LIST_ISEMPTY(vrrp_data->vrrp_script)) {
 		vrrp_init_script(vrrp_data->vrrp_script);
+	}
 
 	/* Register VRRP workers threads */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
@@ -579,6 +589,7 @@ vrrp_set_fds(list l)
 
 				/* append to hash index */
 				alloc_vrrp_fd_bucket(vrrp);
+				alloc_vrrp_bucket(vrrp);
 			}
 		}
 	}

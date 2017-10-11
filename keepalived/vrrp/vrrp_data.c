@@ -582,7 +582,7 @@ alloc_vrrp_data(void)
 
 	new = (vrrp_data_t *) MALLOC(sizeof(vrrp_data_t));
 	new->vrrp = alloc_list(free_vrrp, dump_vrrp);
-	new->vrrp_index = alloc_mlist(NULL, NULL, 255+1);
+	new->vrrp_index = alloc_mlist(NULL, NULL, 1024+1);
 	new->vrrp_index_fd = alloc_mlist(NULL, NULL, 1024+1);
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
 	new->vrrp_script = alloc_list(free_vscript, dump_vscript);
@@ -597,7 +597,7 @@ free_vrrp_data(vrrp_data_t * data)
 	free_list(&data->static_addresses);
 	free_list(&data->static_routes);
 	free_list(&data->static_rules);
-	free_mlist(data->vrrp_index, 255+1);
+	free_mlist(data->vrrp_index, 1024+1);
 	free_mlist(data->vrrp_index_fd, 1024+1);
 	free_list(&data->vrrp);
 	free_list(&data->vrrp_sync_group);
