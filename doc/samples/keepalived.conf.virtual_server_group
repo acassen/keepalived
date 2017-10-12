@@ -21,7 +21,7 @@ virtual_server_group VSG_1 {
 
 virtual_server group VSG_1 {
     delay_loop 6
-    lb_algo rr 
+    lb_algo rr
     lb_kind NAT
     persistence_timeout 50
     protocol TCP
@@ -29,12 +29,12 @@ virtual_server group VSG_1 {
     real_server 192.168.200.1 1358 {
         weight 1
         HTTP_GET {
-            url { 
+            url {
               path /testurl3/test.jsp
               digest 640205b7b0fc66c1ea91c463fac6334d
             }
             connect_timeout 3
-            nb_get_retry 3
+            retry 3
             delay_before_retry 3
         }
     }
@@ -42,12 +42,12 @@ virtual_server group VSG_1 {
     real_server 192.168.200.2 1358 {
         weight 1
         HTTP_GET {
-            url { 
+            url {
               path /testurl3/test.jsp
               digest 640205b7b0fc66c1ea91c463fac6334d
             }
             connect_timeout 3
-            nb_get_retry 3
+            retry 3
             delay_before_retry 3
         }
     }

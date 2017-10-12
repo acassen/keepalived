@@ -75,7 +75,6 @@ virtual_server 192.168.200.100 25 {
         }
     }
 
-
 ! Final example showing some of the more extended
 ! features.
 !

@@ -109,7 +109,6 @@ and
  vrrp_mcast_group6 ff02::12   # optional, default ff02::12
  default_interface p33p1.3    # sets the default interface for static addresses, default eth0
 
-
  lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE> [id <SYNC_ID>] [maxlen <LEN>] [port <PORT>] [ttl <TTL>] [group <IP ADDR>]
                               # Binding interface, vrrp instance and optional
                               #  syncid for lvs syncd
@@ -236,7 +235,7 @@ and
  # NOTE: the FIFO names must all be different
  notify_fifo FIFO_NAME        # FIFO to write notify events to
                               # See vrrp_notify_fifo and lvs_notify_fifo for format of output
-                              # For further details, see the description under vrrp_sync_group see 
+                              # For further details, see the description under vrrp_sync_group see
                               # doc/samples/sample_notify_fifo.sh for sample usage.
  notify_fifo_script STRING [username [groupname]]
                               # script to be run by keepalived to process notify events
@@ -274,7 +273,7 @@ and
                               #   create pid files with NAME as part of the file names, in /var/run/keepalived.
                               # Note: the instance name cannot be changed on a configuration reload
 
- use_pid_dir		      # Create pid files in /var/run/keepalived
+ use_pid_dir                  # Create pid files in /var/run/keepalived
 
  linkbeat_use_polling         # Poll to detect media link failure otherwise attempt to use ETHTOOL or MII interface
 
@@ -401,7 +400,7 @@ and the limits apply to the switch as a whole.
 
 .BNote.B: Only one of interface or interfaces should be used per block.
 
-If the global vrrp_garp_interval and/or vrrp_gna_interval are set, any 
+If the global vrrp_garp_interval and/or vrrp_gna_interval are set, any
 interfaces that aren't specified in a garp_group will inherit the global
 settings.
 .PP
@@ -546,7 +545,7 @@ which will transition together on any state change.
     #With the same entries on other machines,
     #the opposite transition will be occurring.
     virtual_ipaddress {
-	<IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+        <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
         192.168.200.17/24 dev eth1
         192.168.200.18/24 dev eth2 label eth2:1
     }
@@ -563,7 +562,7 @@ which will transition together on any state change.
     # addresses in virtual_ipaddress must be of the
     # same family.
     virtual_ipaddress_excluded {
-	<IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+        <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
         <IPADDR>[/<MASK>] ...
         ...
     }
@@ -597,9 +596,9 @@ which will transition together on any state change.
 
     # VRRPv3 has an Accept Mode to allow the virtual router when not the address owner to
     # receive packets addressed to a VIP. This is the default setting unless strict mode is set.
-    # As an extension, this also works for VRRPv2 (RFC 3768 doesn't define an accept mode). 
-    accept		# Accept packets to non address-owner
-    no_accept		# Drop packets to non address-owner.
+    # As an extension, this also works for VRRPv2 (RFC 3768 doesn't define an accept mode).
+    accept     # Accept packets to non address-owner
+    no_accept  # Drop packets to non address-owner.
 
     # VRRP will normally preempt a lower priority
     # machine when a higher priority machine comes
@@ -613,7 +612,7 @@ which will transition together on any state change.
 
     # See description of global vrrp_skip_check_adv_addr, which
     # sets the default value. Defaults to vrrp_skip_check_adv_addr
-    skip_check_adv_addr [on|off|true|false|yes|no]      # Default on if no word specified
+    skip_check_adv_addr [on|off|true|false|yes|no]
 
     # See description of global vrrp_strict
     # If vrrp_strict is not specified, it takes the value of vrrp_strict
@@ -703,8 +702,8 @@ A virtual_server can be a declaration of one of
     delay_loop <INT>
 
     # LVS scheduler
-    lb_algo rr|wrr|lc|wlc|lblc|sh|dh|fo|ovf|lblcr|sed|nq
-    
+    lvs_sched rr|wrr|lc|wlc|lblc|sh|dh|fo|ovf|lblcr|sed|nq
+
     # Enable hashed entry
     hashed
     # Enable flag-1 for scheduler (-b flag-1 in ipvsadm)
@@ -720,7 +719,7 @@ A virtual_server can be a declaration of one of
     # Enable One-Packet-Scheduling for UDP (-O in ipvsadm)
     ops
     # Default LVS forwarding method
-    lb_kind NAT|DR|TUN
+    lvs_method NAT|DR|TUN
     # LVS persistence engine name
     persistence_engine <STRING>
     # LVS persistence timeout in seconds, default 6 minutes
@@ -733,8 +732,8 @@ A virtual_server can be a declaration of one of
     # suspend healthchecker's activity
     ha_suspend
 
-    lvs_sched   # synonym for lb_algo
-    lvs_method  # synonym for lb_kind
+    lb_algo    # deprecated synonym for lvs_sched
+    lb_kind    # deprecated synonym for lvs_method
 
     # Default VirtualHost string for HTTP_GET or SSL_GET
     # eg virtualhost www.firewall.loc
@@ -770,7 +769,6 @@ A virtual_server can be a declaration of one of
 
     # IP family for a fwmark service (optional)
     ip_family inet|inet6
-
 
     # setup realserver(s)
 
@@ -958,7 +956,6 @@ A virtual_server can be a declaration of one of
            }
        } # realserver defn
     } # virtual service
-
 
 .SH AUTHOR
 .br
