@@ -1,4 +1,5 @@
 ! Configuration File for keepalived
+! This example demonstrates MISC_CHECK, a component of LVS configuration.
 
 global_defs {
    notification_email {
@@ -12,7 +13,7 @@ global_defs {
 
 virtual_server 10.10.10.2 1358 {
     delay_loop 6
-    lb_algo rr 
+    lb_algo rr
     lb_kind NAT
     persistence_timeout 50
     protocol TCP
@@ -21,7 +22,7 @@ virtual_server 10.10.10.2 1358 {
         weight 1
         MISC_CHECK {
           misc_path /usr/local/bin/script.sh
-!          misc_dynamic
+!         misc_dynamic
         }
     }
 

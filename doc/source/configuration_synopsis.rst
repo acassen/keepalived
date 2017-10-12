@@ -2,7 +2,7 @@
 Keepalived configuration synopsis
 #################################
 
-The Keepalived configuration file uses the following synopsis (configuration keywords are Bold/Italic): 
+The Keepalived configuration file uses the following synopsis (configuration keywords are Bold/Italic):
 
 Global Definitions Synopsis
 ***************************
@@ -28,10 +28,10 @@ notification_email          email accounts that will receive the notification ma
 notification_email_from     email to use when processing “MAIL FROM:” SMTP command  List
 smtp_server remote SMTP     server to use for sending mail notifications            alphanum
 smtp_connection_timeout     specify a timeout for SMTP stream processing            numerical
-lvs_id                      specify the name of the LVS director                    alphanum 
+lvs_id                      specify the name of the LVS director                    alphanum
 ========================    ======================================================  =========
 
-Email type: Is a string using charset as specified into the SMTP RFC eg: “user@domain.com” 
+Email type: Is a string using charset as specified into the SMTP RFC eg: “user@domain.com”
 
 Virtual Server Definitions Synopsis
 ***********************************
@@ -47,7 +47,7 @@ Virtual Server Definitions Synopsis
         **persistence_granularity** @IP
         **virtualhost** string
         **protocol** *TCP|UDP*
-        
+
         **sorry_server** @IP PORT
         **real_server** @IP PORT {
             **weight** num
@@ -73,11 +73,11 @@ Virtual Server Definitions Synopsis
             }
             **connect_port** num
             **connect_timeout** num
-            **nb_get_retry** num
+            **retry** num
             **delay_before_retry** num
         }
     }
-    
+
 ======================= =========================================================== =========
 Keyword                 Definition                                                  Type
 ======================= =========================================================== =========
@@ -103,18 +103,18 @@ path                    specify the url path                                    
 digest                  specify the digest for a specific url path                  alphanum
 connect_port            connect remote server on specified TCP port                 numerical
 connect_timeout         connect remote server using timeout                         numerical
-nb_get_retry            maximum number of retries                                   numerical
-delay_before_retry      delay between two successive retries                        numerical 
+retry                   maximum number of retries                                   numerical
+delay_before_retry      delay between two successive retries                        numerical
 ======================= =========================================================== =========
 
-.. note:: 
+.. note::
    The "nat_mask" keyword is obsolete if you are not using LVS with Linux kernel 2.2 series.  This flag give you the ability to define the reverse NAT granularity.
 
-.. note:: 
+.. note::
    Currently, Healthcheck framework, only implements TCP protocol for service monitoring.
 
-.. note:: 
-   Type "path" refers to the full path of the script being called. Note that for scripts requiring arguments the path and arguments must be enclosed in double quotes ("). 
+.. note::
+   Type "path" refers to the full path of the script being called. Note that for scripts requiring arguments the path and arguments must be enclosed in double quotes (").
 
 VRRP Instance Definitions Synopsis
 **********************************
@@ -184,7 +184,7 @@ virtual_ipaddress_excluded  identify a VRRP VIP excluded definition block (not p
 notify_master               specify a shell script to be executed during transition to master state path
 notify_backup               specify a shell script to be executed during transition to backup state path
 notify_fault                specify a shell script to be executed during transition to fault state  path
-vrrp_sync_group             Identify the VRRP synchronization instances group                       string 
+vrrp_sync_group             Identify the VRRP synchronization instances group                       string
 ==========================  ======================================================================= =========
 
-Path type: A system path to a script eg: “/usr/local/bin/transit.sh <arg_list>” 
+Path type: A system path to a script eg: “/usr/local/bin/transit.sh <arg_list>”

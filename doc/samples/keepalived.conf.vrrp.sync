@@ -70,7 +70,6 @@ vrrp_instance VI_5 {
     }
 }
 
-
 vrrp_instance VI_6 {
     state MASTER
     interface eth0
@@ -110,4 +109,3 @@ vrrp_instance VI_9 {
         192.168.200.24/27
     }
 }
-

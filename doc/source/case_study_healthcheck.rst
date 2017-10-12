@@ -10,7 +10,7 @@ Main architecture components
 ****************************
 
 * LVS Router: Owning the load balanced IP Class routed (192.168.100.0/24).
-* Network Router : The default router for the entire internal network. All the LAN workstations are handled through this IP address. 
+* Network Router : The default router for the entire internal network. All the LAN workstations are handled through this IP address.
 * Network DNS Server: Referencing the internal network IP topology.
 * SMTP Server: SMTP server receiving the mail alerts.
 * SERVER POOL: Set of servers hosting load balanced services.
@@ -21,7 +21,7 @@ Server pool specifications
 In this sample configuration we have 2 server pools:
 
 * Server pool 1: Hosting the HTTP & SSL services. Each server owns two application servers (IBM WEBSPHERE & BEA WEBLOGIC)
-* Server pool 2: Hosting the SMTP service. 
+* Server pool 2: Hosting the SMTP service.
 
 Keepalived configuration
 ************************
@@ -45,9 +45,9 @@ You are now ready to configure the Keepalived daemon according to your LVS topol
         lb_kind NAT
         persistence_timeout 50
         protocol TCP
-        
+
         sorry_server 192.168.100.100 80
-        
+
         real_server 192.168.100.2 80 {
             weight 2
             HTTP_GET {
@@ -60,7 +60,7 @@ You are now ready to configure the Keepalived daemon according to your LVS topol
                     digest 640205b7b0fc66c1ea91c463fac6334c
                 }
                 connect_timeout 3
-                nb_get_retry 3
+                retry 3
                 delay_before_retry 2
             }
         }
@@ -72,7 +72,7 @@ You are now ready to configure the Keepalived daemon according to your LVS topol
                     digest 640205b7b0fc66c1ea91c463fac6334c
                 }
                 connect_timeout 3
-                nb_get_retry 3
+                retry 3
                 delay_before_retry 2
             }
         }
@@ -119,7 +119,7 @@ You are now ready to configure the Keepalived daemon according to your LVS topol
 According to this configuration example, the Keepalived daemon will drive the kernel using following information:
 
 * The LVS server will own the name: LVS_MAIN
-* Notification: 
+* Notification:
 
     * SMTP server will be: 192.168.200.20
     * SMTP connection timeout is set to: 30 seconded
@@ -136,12 +136,12 @@ According to this configuration example, the Keepalived daemon will drive the ke
 
     * SSL: VIP 192.168.200.15 port 443
 
-        * Load balancing: Using Round Robin scheduler with NAT forwarding.  Connection persistence is set to 360 seconds on each TCP service.  The delay loop is set to 20 seconds 
+        * Load balancing: Using Round Robin scheduler with NAT forwarding.  Connection persistence is set to 360 seconds on each TCP service.  The delay loop is set to 20 seconds
         * Real server 192.168.100.2 port 443 will be weighted to 2. Failure detection will be based on TCP_CHECK. The real server will be considered down after a 3 second connection timeout.
-        * Real server 192.168.100.3 port 443 will be weighted to 2. Failure detection will be based on TCP_CHECK. The real server will be considered down after a 3 second connection timeout. 
+        * Real server 192.168.100.3 port 443 will be weighted to 2. Failure detection will be based on TCP_CHECK. The real server will be considered down after a 3 second connection timeout.
 
     * SMTP: VIP 192.168.200.15 port 25
-    
+
         * Load balancing: Using Weighted Least Connection scheduling algorithm in a NAT topology with connection persistence set to 50 seconds. The delay loop is set to 15 seconds
         * Real server 192.168.100.4 port 25 will be weighted to 1. Failure detection will be based on TCP_CHECK. The real server will be considered down after a 3 second connection timeout.
         * Real server 192.168.100.5 port 25 will be weighted to 2. Failure detection will be based on TCP_CHECK. The real server will be considered down after a 3 second connection timeout.
@@ -167,7 +167,7 @@ For SSL server health check, we can use SSL_GET checkers. The configuration bloc
                     digest 640205b7b0fc66c1ea91c463fac6334c
                 }
                 connect_timeout 3
-                nb_get_retry 3
+                retry 3
                 delay_before_retry 2
             }
         }
@@ -180,7 +180,7 @@ For SSL server health check, we can use SSL_GET checkers. The configuration bloc
                     digest 640205b7b0fc66c1ea91c463fac6334c
                 }
                 connect_timeout 3
-                nb_get_retry 3
+                retry 3
                 delay_before_retry 2
             }
         }
@@ -221,5 +221,5 @@ To generate a sum over an URL simply proceed as follows::
     -----------------------[ HTML MD5 final resulting ]-----------------------
     MD5 Digest : ec90a42b99ea9a2f5ecbe213ac9eba03
 
-The only thing to do is to copy the generated MD5 Digest value generated and paste it into your Keepalived configuration file as a digest value keyword. 
+The only thing to do is to copy the generated MD5 Digest value generated and paste it into your Keepalived configuration file as a digest value keyword.
 
