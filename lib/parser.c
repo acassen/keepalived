@@ -546,6 +546,7 @@ read_line(char *buf, size_t size)
 	char *buf_start;
 	bool rev_cmp;
 	size_t ofs;
+	char *text_start;
 
 	config_id_len = config_id ? strlen(config_id) : 0;
 	do {
@@ -555,10 +556,11 @@ read_line(char *buf, size_t size)
 				buf[len-1] = '\0';
 			if (len > 1 && (buf[len-2] == '\n' || buf[len-2] == '\r'))
 				buf[len-2] = '\0';
-			if (buf[0] == '@') {
+			text_start = buf + strspn(buf, " \t");
+			if (text_start[0] == '@') {
 				/* If the line starts '@', check the following word matches the system id.
 				   @^ reverses the sense of the match */
-				if (buf[1] == '^') {
+				if (text_start[1] == '^') {
 					rev_cmp = true;
 					ofs = 2;
 				} else {
@@ -567,18 +569,21 @@ read_line(char *buf, size_t size)
 				}
 
 				/* We need something after the system_id */
-				if (!(buf_start = strpbrk(buf, " \t")))
+				if (!(buf_start = strpbrk(text_start + ofs, " \t"))) {
+					buf[0] = '\0';
 					break;
+				}
 
+				/* Check if config_id matches/doesn't match as appropriate */
 				if ((!config_id ||
-				     (size_t)(buf_start - (buf + ofs)) != config_id_len ||
-				     strncmp(buf + ofs, config_id, config_id_len)) != rev_cmp) {
+				     (size_t)(buf_start - (text_start + ofs)) != config_id_len ||
+				     strncmp(text_start + ofs, config_id, config_id_len)) != rev_cmp) {
 					buf[0] = '\0';
 					break;
 				}
 
 				/* Remove the @config_id from start of line */
-				memset(buf, ' ', (size_t)(buf_start - buf));
+				memset(text_start, ' ', (size_t)(buf_start - text_start));
 			}
 		}
 		else
