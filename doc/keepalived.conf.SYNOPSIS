@@ -116,7 +116,7 @@ global_defs {                # Block identification
                                               # from the same master router as the previous advert received.
                                               # Default: Don't skip.
     default_interface <INTERFACE>             # sets the default interface for static addresses, default eth0
-    lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE>    [id <SYNC_ID>] [maxlen <LEN>] [port <PORT>] [ttl <TTL>] [group <IP ADDR>]
+    lvs_sync_daemon <INTERFACE> <VRRP_INSTANCE> [id <SYNC_ID>] [maxlen <LEN>] [port <PORT>] [ttl <TTL>] [group <IP ADDR>]
                                               # Binding interface, vrrp instance and optional
                                               # syncid (0 to 255) for lvs syncd
                                               # maxlen (1..65507) maximum packet length
@@ -601,8 +601,6 @@ virtual_server fwmark <INTEGER>    {  # VS fwmark declaration
 virtual_server group <STRING>      {  # VS group declaration
     ip_family inet|inet6  # Address family
     delay_loop <INTEGER>  # delay timer for service polling
-    lb_algo rr|[?]        # Which load-balancing algorithm to use?
-    lb_kind NAT|[?]       # What sort of load-balancing to apply?
     lvs_sched rr|wrr|lc|wlc|lblc|sh|dh|fo|ovf|lblcr|sed|nq
                     # LVS scheduler used
     hashed          # Apply hashing

@@ -702,7 +702,7 @@ A virtual_server can be a declaration of one of
     delay_loop <INT>
 
     # LVS scheduler
-    lb_algo rr|wrr|lc|wlc|lblc|sh|dh|fo|ovf|lblcr|sed|nq
+    lvs_sched rr|wrr|lc|wlc|lblc|sh|dh|fo|ovf|lblcr|sed|nq
 
     # Enable hashed entry
     hashed
@@ -719,7 +719,7 @@ A virtual_server can be a declaration of one of
     # Enable One-Packet-Scheduling for UDP (-O in ipvsadm)
     ops
     # Default LVS forwarding method
-    lb_kind NAT|DR|TUN
+    lvs_method NAT|DR|TUN
     # LVS persistence engine name
     persistence_engine <STRING>
     # LVS persistence timeout in seconds, default 6 minutes
@@ -732,8 +732,8 @@ A virtual_server can be a declaration of one of
     # suspend healthchecker's activity
     ha_suspend
 
-    lvs_sched   # synonym for lb_algo
-    lvs_method  # synonym for lb_kind
+    lb_algo    # deprecated synonym for lvs_sched
+    lb_kind    # deprecated synonym for lvs_method
 
     # Default VirtualHost string for HTTP_GET or SSL_GET
     # eg virtualhost www.firewall.loc
