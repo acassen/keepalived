@@ -544,8 +544,8 @@ read_line(char *buf, size_t size)
 	bool eof = false;
 	size_t config_id_len;
 	char *buf_start;
-	bool rev_cmp = false;
-	size_t ofs = 1;
+	bool rev_cmp;
+	size_t ofs;
 
 	config_id_len = config_id ? strlen(config_id) : 0;
 	do {
@@ -561,6 +561,9 @@ read_line(char *buf, size_t size)
 				if (buf[1] == '^') {
 					rev_cmp = true;
 					ofs = 2;
+				} else {
+					rev_cmp = false;
+					ofs = 1;
 				}
 
 				/* We need something after the system_id */
