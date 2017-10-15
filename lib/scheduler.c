@@ -225,6 +225,14 @@ thread_list_delete(thread_list_t * list, thread_t * thread)
 	return thread;
 }
 
+static void
+thread_list_make_ready(thread_list_t *list, thread_t *thread, thread_master_t *m, unsigned char type)
+{
+	thread_list_delete(list, thread);
+	thread->type = type;
+	thread_list_add(&m->ready, thread);
+}
+
 /* Free all unused thread. */
 static void
 thread_clean_unuse(thread_master_t * m)
@@ -694,6 +702,7 @@ thread_fetch(thread_master_t * m, thread_t * fetch)
 {
 	int num_fds, old_errno;
 	thread_t *thread;
+	thread_t *t;
 	fd_set readfd;
 	fd_set writefd;
 	fd_set exceptfd;
@@ -704,6 +713,7 @@ thread_fetch(thread_master_t * m, thread_t * fetch)
 	int snmpblock = 0;
 #endif
 	bool timer_expired;
+	bool timers_done;
 
 	assert(m != NULL);
 
@@ -825,69 +835,58 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		/* Timeout children */
 		thread = m->child.head;
 		while (thread) {
-			thread_t *t;
-
 			t = thread;
 			thread = t->next;
 
-			if (timercmp(&time_now, &t->sands, >=)) {
-				thread_list_delete(&m->child, t);
-				thread_list_add(&m->ready, t);
-				t->type = THREAD_CHILD_TIMEOUT;
-			} else
+			if (timercmp(&time_now, &t->sands, >=))
+				thread_list_make_ready(&m->child, t, m, THREAD_CHILD_TIMEOUT);
+			else
 				break;
 		}
 	}
 
 	/* Read thread. */
 	thread = m->read.head;
+	timers_done = !timer_expired;
 	while (thread && (num_fds || timer_expired)) {
-		thread_t *t;
-
 		t = thread;
 		thread = t->next;
 
 		if (num_fds && FD_ISSET(t->u.fd, &readfd)) {
 			assert(FD_ISSET(t->u.fd, &m->readfd));
-			FD_CLR(t->u.fd, &m->readfd);
-			thread_list_delete(&m->read, t);
-			thread_list_add(&m->ready, t);
-			t->type = THREAD_READY_FD;
 			num_fds--;
-		} else if (timer_expired &&
+			FD_CLR(t->u.fd, &m->readfd);
+			thread_list_make_ready(&m->read, t, m, THREAD_READY_FD);
+		} else if (!timers_done &&
 			   t->sands.tv_sec != TIMER_DISABLED &&
 			   timercmp(&time_now, &t->sands, >=)) {
 			FD_CLR(t->u.fd, &m->readfd);
-			thread_list_delete(&m->read, t);
-			thread_list_add(&m->ready, t);
-			t->type = THREAD_READ_TIMEOUT;
+			thread_list_make_ready(&m->read, t, m, THREAD_READ_TIMEOUT);
 		}
+		else
+			timers_done = true;
 	}
 
 	/* Write thead. */
 	thread = m->write.head;
+	timers_done = !timer_expired;
 	while (thread && (num_fds || timer_expired)) {
-		thread_t *t;
-
 		t = thread;
 		thread = t->next;
 
 		if (num_fds && FD_ISSET(t->u.fd, &writefd)) {
 			assert(FD_ISSET(t->u.fd, &writefd));
-			FD_CLR(t->u.fd, &m->writefd);
-			thread_list_delete(&m->write, t);
-			thread_list_add(&m->ready, t);
-			t->type = THREAD_READY_FD;
 			num_fds--;
-		} else {
-			if (timer_expired &&
-			    timercmp(&time_now, &t->sands, >=)) {
-				FD_CLR(t->u.fd, &m->writefd);
-				thread_list_delete(&m->write, t);
-				thread_list_add(&m->ready, t);
-				t->type = THREAD_WRITE_TIMEOUT;
-			}
+			FD_CLR(t->u.fd, &m->writefd);
+			thread_list_make_ready(&m->write, t, m, THREAD_READY_FD);
+		} else if (!timers_done &&
+			   t->sands.tv_sec != TIMER_DISABLED &&
+			   timercmp(&time_now, &t->sands, >=)) {
+			FD_CLR(t->u.fd, &m->writefd);
+			thread_list_make_ready(&m->write, t, m, THREAD_WRITE_TIMEOUT);
 		}
+		else
+			timers_done = true;
 	}
 	/* Exception thead. */
 	/*... */
@@ -896,27 +895,23 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	if (timer_expired) {
 		thread = m->timer.head;
 		while (thread) {
-			thread_t *t;
-
 			t = thread;
 			thread = t->next;
 
-			if (timercmp(&time_now, &t->sands, >=)) {
-				thread_list_delete(&m->timer, t);
-				thread_list_add(&m->ready, t);
-				t->type = THREAD_READY;
-			} else
+			if (timercmp(&time_now, &t->sands, >=))
+				thread_list_make_ready(&m->timer, t, m, THREAD_READY);
+			else
 				break;
 		}
 	}
-
-	/* Return one event. */
-	thread = thread_trim_head(&m->ready);
 
 #ifdef _WITH_SNMP_
 	run_alarms();
 	netsnmp_check_outstanding_agent_requests();
 #endif
+
+	/* Return one event. */
+	thread = thread_trim_head(&m->ready);
 
 	/* There is no ready thread. */
 	if (!thread)
