@@ -30,10 +30,28 @@
 
 #include "timer.h"
 
+/* Thread types. */
+typedef enum {
+	THREAD_READ,
+	THREAD_WRITE,
+	THREAD_TIMER,
+	THREAD_EVENT,
+	THREAD_CHILD,
+	THREAD_READY,
+	THREAD_UNUSED,
+	THREAD_WRITE_TIMEOUT,
+	THREAD_READ_TIMEOUT,
+	THREAD_CHILD_TIMEOUT,
+	THREAD_TERMINATE,
+	THREAD_READY_FD,
+	THREAD_IF_UP,
+	THREAD_IF_DOWN
+} thread_type_t;
+
 /* Thread itself. */
 typedef struct _thread {
 	unsigned long id;
-	unsigned char type;		/* thread type */
+	thread_type_t type;		/* thread type */
 	struct _thread *next;		/* next pointer of the thread */
 	struct _thread *prev;		/* previous pointer of the thread */
 	struct _thread_master *master;	/* pointer to the struct thread_master. */
@@ -72,24 +90,6 @@ typedef struct _thread_master {
 	int max_fd;
 	unsigned long alloc;
 } thread_master_t;
-
-/* Thread types. */
-enum {
-	THREAD_READ,
-	THREAD_WRITE,
-	THREAD_TIMER,
-	THREAD_EVENT,
-	THREAD_CHILD,
-	THREAD_READY,
-	THREAD_UNUSED,
-	THREAD_WRITE_TIMEOUT,
-	THREAD_READ_TIMEOUT,
-	THREAD_CHILD_TIMEOUT,
-	THREAD_TERMINATE,
-	THREAD_READY_FD,
-	THREAD_IF_UP,
-	THREAD_IF_DOWN
-};
 
 #ifndef _DEBUG_
 typedef enum {

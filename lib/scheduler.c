@@ -226,7 +226,7 @@ thread_list_delete(thread_list_t * list, thread_t * thread)
 }
 
 static void
-thread_list_make_ready(thread_list_t *list, thread_t *thread, thread_master_t *m, unsigned char type)
+thread_list_make_ready(thread_list_t *list, thread_t *thread, thread_master_t *m, thread_type_t type)
 {
 	thread_list_delete(list, thread);
 	thread->type = type;
@@ -987,7 +987,7 @@ thread_get_id(void)
 
 #ifdef _TIMER_DEBUG_
 static const char *
-get_thread_type_str(int id)
+get_thread_type_str(thread_type_t id)
 {
 	if (id == THREAD_READ) return "READ";
 	if (id == THREAD_WRITE) return "WRITE";
