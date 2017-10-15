@@ -611,13 +611,13 @@ thread_cancel_read(thread_master_t *m, int fd)
 
 	thread = m->read.head;
 	while (thread) {
-		thread_t *t;
-
-		t = thread;
+		thread_t *t = thread;
 		thread = t->next;
 
-		if (t->u.fd == fd)
+		if (t->u.fd == fd) {
 			thread_cancel(t);
+			return;
+		}
 	}
 }
 
