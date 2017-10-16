@@ -670,6 +670,7 @@ This block is divided in 2 sub-block :
 
     * Virtual server group
     * Virtual server
+    * SSL config
 
     3.1. Virtual server group
 
@@ -872,4 +873,16 @@ virtual_server group <STRING>      {          # VS group declaration
             user USERNAME [GROUPNAME]         # Specify user/group to run script under
         }
     }
+}
+
+    3.3. SSL config
+
+    Parameters used for SSL_GET check.
+    If none of the parameters is specified, the SSL context will be auto generated.
+
+SSL {
+    password <STRING>           # password
+    ca <STRING>                 # ca file
+    certificate <STRING>        # certificate file
+    key <STRING>                # key file
 }
