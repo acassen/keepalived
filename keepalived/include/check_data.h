@@ -168,6 +168,7 @@ typedef struct _virtual_server {
 
 /* Configuration data root */
 typedef struct _check_data {
+	bool				ssl_required;
 	ssl_data_t			*ssl;
 	list				vs_group;
 	list				vs;
