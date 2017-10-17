@@ -53,24 +53,28 @@ free_ssl(void)
 {
 	ssl_data_t *ssl;
 
-	if (!check_data)
+	if (!check_data || !check_data->ssl)
 		return;
 
 	ssl = check_data->ssl;
 
-	if (!ssl)
-		return;
 	clear_ssl(ssl);
 	FREE_PTR(ssl->password);
 	FREE_PTR(ssl->cafile);
 	FREE_PTR(ssl->certfile);
 	FREE_PTR(ssl->keyfile);
 	FREE(ssl);
+	check_data->ssl = NULL;
 }
 static void
 dump_ssl(void)
 {
 	ssl_data_t *ssl = check_data->ssl;
+
+	if (!ssl->password && !ssl->cafile && !ssl->certfile && !ssl->keyfile) {
+		log_message(LOG_INFO, " Using autogen SSL context");
+		return;
+	}
 
 	if (ssl->password)
 		log_message(LOG_INFO, " Password : %s", ssl->password);
@@ -80,8 +84,6 @@ dump_ssl(void)
 		log_message(LOG_INFO, " Certificate file : %s", ssl->certfile);
 	if (ssl->keyfile)
 		log_message(LOG_INFO, " Key file : %s", ssl->keyfile);
-	if (!ssl->password && !ssl->cafile && !ssl->certfile && !ssl->keyfile)
-		log_message(LOG_INFO, " Using autogen SSL context");
 }
 
 /* Virtual server group facility functions */
