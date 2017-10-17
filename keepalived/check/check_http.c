@@ -116,6 +116,9 @@ alloc_http_get(char *proto)
 	http_get_chk->url = alloc_list(free_url, dump_url);
 	http_get_chk->virtualhost = NULL;
 
+	if (http_get_chk->proto == PROTO_SSL)
+		check_data->ssl_required = true;
+
 	return http_get_chk;
 }
 

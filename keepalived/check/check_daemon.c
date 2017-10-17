@@ -178,7 +178,7 @@ start_check(list old_checkers_queue)
 #endif
 
 	/* SSL load static data & initialize common ctx context */
-	if (!init_ssl_ctx())
+	if (check_data->ssl_required && !init_ssl_ctx())
 		stop_check(KEEPALIVED_EXIT_FATAL);
 
 	/* Set the process priority and non swappable if configured */
