@@ -68,11 +68,12 @@
 #include <stdint.h>
 
 #include "vrrp_if.h"
-#include "logger.h"
 #endif
 
 #include <limits.h>
 #include <unistd.h>
+
+#include "logger.h"
 
 #ifdef _HAVE_VRRP_VMAC_
 static int all_rp_filter = -1;
@@ -407,7 +408,7 @@ get_sysctl(const char* prefix, const char* iface, const char* parameter)
 }
 
 #if !defined _HAVE_IPV4_DEVCONF_ || defined _LIBNL_DYNAMIC_
-static inline int
+static inline void
 set_promote_secondaries_sysctl(interface_t *ifp)
 {
 	if (get_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries")) {
@@ -418,7 +419,7 @@ set_promote_secondaries_sysctl(interface_t *ifp)
 	set_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries", 1);
 }
 
-static inline int
+static inline void
 reset_promote_secondaries_sysctl(interface_t *ifp)
 {
 	set_sysctl("net/ipv4/conf", ifp->ifname, "promote_secondaries", 0);
