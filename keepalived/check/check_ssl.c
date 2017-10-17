@@ -38,8 +38,10 @@
 void
 clear_ssl(ssl_data_t *ssl)
 {
-	if (ssl && ssl->ctx)
+	if (ssl && ssl->ctx) {
 		SSL_CTX_free(ssl->ctx);
+		ssl->ctx = NULL;
+	}
 }
 
 /* PEM password callback function */

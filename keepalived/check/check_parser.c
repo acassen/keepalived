@@ -46,26 +46,46 @@
 static void
 ssl_handler(__attribute__((unused)) vector_t *strvec)
 {
+	if (check_data->ssl) {
+		free_ssl();
+		log_message(LOG_INFO, "SSL context already specified - replacing");
+	}
 	check_data->ssl = alloc_ssl();
 }
 static void
 sslpass_handler(vector_t *strvec)
 {
+	if (check_data->ssl->password) {
+		log_message(LOG_INFO, "SSL password already specified - replacing");
+		FREE(check_data->ssl->password);
+	}
 	check_data->ssl->password = set_value(strvec);
 }
 static void
 sslca_handler(vector_t *strvec)
 {
+	if (check_data->ssl->cafile) {
+		log_message(LOG_INFO, "SSL cafile already specified - replacing");
+		FREE(check_data->ssl->cafile);
+	}
 	check_data->ssl->cafile = set_value(strvec);
 }
 static void
 sslcert_handler(vector_t *strvec)
 {
+	if (check_data->ssl->certfile) {
+		log_message(LOG_INFO, "SSL certfile already specified - replacing");
+		FREE(check_data->ssl->certfile);
+	}
 	check_data->ssl->certfile = set_value(strvec);
 }
 static void
 sslkey_handler(vector_t *strvec)
 {
+	if (check_data->ssl->keyfile) {
+		log_message(LOG_INFO, "SSL keyfile already specified - replacing");
+		FREE(check_data->ssl->keyfile);
+	}
 	check_data->ssl->keyfile = set_value(strvec);
 }
 

@@ -90,7 +90,7 @@ m4_ifndef([AS_VAR_COPY],
 
 dnl ----[ Process this file with autoconf to produce a configure script ]----
 AC_PREREQ([2.63])
-AC_INIT([Keepalived], [1.3.7], [keepalived-devel@lists.sourceforge.net], [], [http://www.keepalived.org/])
+AC_INIT([Keepalived], [1.3.8], [keepalived-devel@lists.sourceforge.net], [], [http://www.keepalived.org/])
 AM_INIT_AUTOMAKE([-Wall -Werror -Woverride foreign])
 
 AC_CONFIG_SRCDIR([keepalived/core/main.c])
@@ -165,7 +165,7 @@ AC_ARG_WITH(init,
 AC_ARG_ENABLE(vrrp-auth,
   [AS_HELP_STRING([--disable-vrrp-auth], [compile without VRRP authentication])])
 AC_ARG_ENABLE(chksum_compat,
-  [AS_HELP_STRING([--disable-checksum_compat], [compile without v1.3.7 and earlier VRRPv3 unicast checksum compatibility])])
+  [AS_HELP_STRING([--disable-checksum_compat], [compile without v1.3.6 and earlier VRRPv3 unicast checksum compatibility])])
 AC_ARG_ENABLE(routes,
   [AS_HELP_STRING([--disable-routes], [compile without ip rules/routes])])
 AC_ARG_ENABLE(gnu-std-paths,
@@ -1062,11 +1062,11 @@ AC_CHECK_DECL([IPVS_SVC_ATTR_PE_NAME],
 dnl ----[ Check for GLOB_BRACE support ]----
 AC_CHECK_DECLS([GLOB_BRACE], [add_system_opt([GLOB_BRACE])], [], [[#include <glob.h>]])
 
-dnl ----[ Do we want v1.3.7 and earlier VRRPv3 unicast checksum compatibility support ]----
+dnl ----[ Do we want v1.3.6 and earlier VRRPv3 unicast checksum compatibility support ]----
 UNICAST_CHKSUM_COMPAT_SUPPORT=No
 if test .$enable_chksum_compat != .no; then
   UNICAST_CHKSUM_COMPAT_SUPPORT=Yes
-  AC_DEFINE([_WITH_UNICAST_CHKSUM_COMPAT_], [ 1 ], [Define to 1 to enable v1.3.7 and earlier VRRPv3 unicast checksum compatibility])
+  AC_DEFINE([_WITH_UNICAST_CHKSUM_COMPAT_], [ 1 ], [Define to 1 to enable v1.3.6 and earlier VRRPv3 unicast checksum compatibility])
   add_config_opt([OLD_CHKSUM_COMPAT])
 fi
 

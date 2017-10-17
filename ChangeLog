@@ -1,3 +1,62 @@
+2017-10-15 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.3.8 released.
+	* parser: do not exit when glob() doesn't match any files.
+	* Use nodename as default id for conditional configuration.
+	  If the node name returned by uname() is host123.abc.de, then
+	  lines in the configuration file matching @host123 will match the
+	  conditional configuration test. This means that it is no longer
+	  necessary to specify the -i command line option if the conditional
+	  configuration string used in the configuration is the node name.
+	* Option --i/--config-id parameter is not optional.
+	  Since the config-id defaults to the hostname, there is no point
+	  in allowing --config-id to be used without a parameter, just to mean
+	  use the hostname.
+	* Use NULL instead of 0 for pointers in get_longopts struct.
+	* Some minor tidying up of the new JSON output code.
+	  1. Use SIGRTMIN+2 rather than (_SIGRTMIN + 4)
+	  2. Don't include JSON code if not building with VRRP
+	  3. Some code alignment fixes
+	  4. Some conditional compilation additions
+	* Add --signum command line option to report signal numbers.
+	  Since keepalived is starting to use real time signals, and those
+	  signal numbers are not fixes, this commit introduces a way to
+	  ask keepalived to report those signal numbers.
+	* Stop command line option -i segfaulting.
+	* Fix config include files when file has no directory par.
+	  When an include file name has no directory part, there is no
+	  directory to change to, so don't try to do so.
+	* Use getcwd() malloc functionality if available.
+	* Add support for csh brace globs in config file names.
+	* Update documentation for config file include directive.
+	* Use fchdir() when changing direcories while reading include files.
+	  The getcwd(3) man page recommends using open()/fchdir() rather than
+	  getcwd()/chdir() since fchdir() is guarantee to return to the previous
+	  directory even if directories have been renamed in between the first
+	  chdir and the second. It also suggests that it is faster, and saves
+	  mallocs or allocation of arrays on the stack of size PATH_MAX.
+	* Use alloc_value_block() for vrrp_vip_handler().
+	* Fix whitespace error introduced in commit 9458c9b9.
+	* Reinforce that '@' conditional config character must be 1st on line.
+	  The '@' conditional configuration character must be the very first
+	  on a configuration, meaning that there cannot even by whitespace
+	  before the '@' character.
+	* Check whether GLOB_BRACE is supported (it is not part of POSIX.2).
+	* When building a docker image, it appears that autoheader is required.
+	* Fix IPVS virtual server setup with persistence.
+	* Remove a merge conflict .rej file accidentally added to git.
+	  This commit also updates the .gitconfig file to ensure that .rej
+	  files will not be added in the future.
+	* config synopsis - cleanup line endings and comment alignment.
+	* conf examples - clean eol whitespace.
+	* conf examples - clean triple line breaks.
+	* add pair of config options used in misc_check.
+	* clean surprise tab character.
+	* many whitespace fixes; some missing docu added to synopsis.
+	* config docs - apply code review markups.
+	* Trivial updates to latest format cleaning patches.
+	* Allow conditional configuration to work with include statements.
+	* Allow '@' conditional configuration to be preceeded by whitespace.
+
 2017-10-01 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.3.7 released.
 	* Allow broadcast address to be specified as '-' or '+'
