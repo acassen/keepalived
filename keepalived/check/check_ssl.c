@@ -79,7 +79,7 @@ build_ssl_ctx(void)
 		ssl = check_data->ssl;
 
 	/* Initialize SSL context for SSL v2/3 */
-	ssl->meth = (SSL_METHOD *) SSLv23_method();
+	ssl->meth = SSLv23_method();
 	ssl->ctx = SSL_CTX_new(ssl->meth);
 
 	/* return for autogen context */

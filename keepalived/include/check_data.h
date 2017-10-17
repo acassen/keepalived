@@ -49,7 +49,7 @@ typedef struct _ssl_data {
 	int				enable;
 	int				strong_check;
 	SSL_CTX				*ctx;
-	SSL_METHOD			*meth;
+	const SSL_METHOD		*meth;
 	char				*password;
 	char				*cafile;
 	char				*certfile;
