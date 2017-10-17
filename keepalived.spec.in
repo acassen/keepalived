@@ -4,7 +4,7 @@
 Summary: HA monitor built upon LVS, VRRP and services poller
 Name: keepalived
 Version: @VERSION@
-Release: 2
+Release: 1
 License: GPL
 Group: Applications/System
 URL: http://www.keepalived.org/
@@ -68,6 +68,8 @@ autoreconf -f -i
 %{__make} install DESTDIR=%{buildroot}
 # Remove "samples", as we include them in %%doc
 %{__rm} -rf %{buildroot}%{_sysconfdir}/keepalived/samples/
+# Likewise remove README
+%{__rm} -f %{buildroot}%{_docdir}/%{name}/README
 
 %check
 # A build could silently have LVS support disabled if the kernel includes can't
@@ -130,6 +132,9 @@ fi
 @WITH_DBUS_TRUE@%attr(0644,root,root) %{_datarootdir}/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
 
 %changelog
+* Tue Oct 17 2017 Quentin Armitage <quentin@armitage.org.uk> 1.3.8-1
+- Handle Fedora and CentOS differences for %{_docdir_fmt}
+
 * Fri Sep 16 2016 Quentin Armitage <quentin@armitage.org.uk> 1.2.24-2
 - Fixes to allow building on a systemd based system
 
