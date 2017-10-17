@@ -640,7 +640,7 @@
 /* Define to 1 to build with stacktrace support */
 #undef _WITH_STACKTRACE_
 
-/* Define to 1 to enable v1.3.7 and earlier VRRPv3 unicast checksum
+/* Define to 1 to enable v1.3.6 and earlier VRRPv3 unicast checksum
    compatibility */
 #undef _WITH_UNICAST_CHKSUM_COMPAT_
 

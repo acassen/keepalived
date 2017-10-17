@@ -1491,7 +1491,7 @@ Optional Features:
   --enable-sha1           compile with SHA1 support
   --disable-vrrp-auth     compile without VRRP authentication
   --disable-checksum_compat
-                          compile without v1.3.8 and earlier VRRPv3 unicast
+                          compile without v1.3.6 and earlier VRRPv3 unicast
                           checksum compatibility
   --disable-routes        compile without ip rules/routes
   --enable-gnu-std-paths  use GNU standard paths for pid files etc
