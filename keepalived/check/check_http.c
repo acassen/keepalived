@@ -23,7 +23,6 @@
 
 #include "config.h"
 
-#include <fcntl.h>
 #include <openssl/err.h>
 #include <unistd.h>
 
@@ -535,22 +534,14 @@ http_read_thread(thread_t * thread)
 	unsigned timeout = checker->co->connection_to;
 	unsigned char digest[16];
 	ssize_t r = 0;
-	int val;
 
 	/* Handle read timeout */
 	if (thread->type == THREAD_READ_TIMEOUT)
 		return timeout_epilog(thread, "Timeout HTTP read");
 
-	/* Set descriptor non blocking */
-	val = fcntl(thread->u.fd, F_GETFL, 0);
-	fcntl(thread->u.fd, F_SETFL, val | O_NONBLOCK);
-
 	/* read the HTTP stream */
 	r = read(thread->u.fd, req->buffer + req->len,
 		 MAX_BUFFER_LENGTH - req->len);
-
-	/* restore descriptor flags */
-	fcntl(thread->u.fd, F_SETFL, val);
 
 	/* Test if data are ready */
 	if (r == -1 && (errno == EAGAIN || errno == EINTR)) {
@@ -642,7 +633,6 @@ http_request_thread(thread_t * thread)
 	char *str_request;
 	url_t *fetched_url;
 	int ret = 0;
-	int val;
 
 	/* Handle write timeout */
 	if (thread->type == THREAD_WRITE_TIMEOUT)
@@ -686,18 +676,11 @@ http_request_thread(thread_t * thread)
 
 	DBG("Processing url(%u) of %s.", http->url_it + 1 , FMT_HTTP_RS(checker));
 
-	/* Set descriptor non blocking */
-	val = fcntl(thread->u.fd, F_GETFL, 0);
-	fcntl(thread->u.fd, F_SETFL, val | O_NONBLOCK);
-
 	/* Send the GET request to remote Web server */
 	if (http_get_check->proto == PROTO_SSL)
 		ret = ssl_send_request(req->ssl, str_request, (int)strlen(str_request));
 	else
 		ret = (send(thread->u.fd, str_request, strlen(str_request), 0) != -1);
-
-	/* restore descriptor flags */
-	fcntl(thread->u.fd, F_SETFL, val);
 
 	FREE(str_request);
 
@@ -829,13 +812,18 @@ http_connect_thread(thread_t * thread)
 		return epilog(thread, REGISTER_CHECKER_NEW, 1, 0) + 1;
 
 	/* Create the socket */
-	if ((fd = socket(co->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
+	if ((fd = socket(co->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
 		log_message(LOG_INFO, "WEB connection fail to create socket. Rescheduling.");
 		thread_add_timer(thread->master, http_connect_thread, checker,
 				checker->delay_loop);
 
 		return 0;
 	}
+
+#if !HAVE_DECL_SOCK_NONBLOCK
+	if (set_sock_flags(fd, F_SETFL, O_NONBLOCK))
+		log_message(LOG_INFO, "Unable to set NONBLOCK on http_connect socket - %s (%d)", strerror(errno), errno);
+#endif
 
 #if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))

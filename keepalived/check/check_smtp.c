@@ -24,7 +24,6 @@
 #include "config.h"
 
 #include <errno.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <ctype.h>
 
@@ -380,7 +379,6 @@ smtp_get_line_cb(thread_t *thread)
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
 	conn_opts_t *smtp_host = smtp_checker->host_ptr;
-	int f;
 	unsigned x;
 	ssize_t r;
 
@@ -399,10 +397,6 @@ smtp_get_line_cb(thread_t *thread)
 		smtp_clear_buff(thread);
 	}
 
-	/* Set descriptor non blocking */
-	f = fcntl(thread->u.fd, F_GETFL, 0);
-	fcntl(thread->u.fd, F_SETFL, f | O_NONBLOCK);
-
 	/* read the data */
 	r = read(thread->u.fd, smtp_checker->buff + smtp_checker->buff_ctr,
 		 SMTP_BUFF_MAX - smtp_checker->buff_ctr);
@@ -410,13 +404,9 @@ smtp_get_line_cb(thread_t *thread)
 	if (r == -1 && (errno == EAGAIN || errno == EINTR)) {
 		thread_add_read(thread->master, smtp_get_line_cb, checker,
 				thread->u.fd, smtp_host->connection_to);
-		fcntl(thread->u.fd, F_SETFL, f);
 		return 0;
 	} else if (r > 0)
 		smtp_checker->buff_ctr += (size_t)r;
-
-	/* restore descriptor flags */
-	fcntl(thread->u.fd, F_SETFL, f);
 
 	/* check if we have a newline, if so, callback */
 	for (x = 0; x < SMTP_BUFF_MAX; x++) {
@@ -493,7 +483,6 @@ smtp_put_line_cb(thread_t *thread)
 	checker_t *checker = THREAD_ARG(thread);
 	smtp_checker_t *smtp_checker = CHECKER_ARG(checker);
 	conn_opts_t *smtp_host = smtp_checker->host_ptr;
-	int f;
 	ssize_t w;
 
 
@@ -504,22 +493,14 @@ smtp_put_line_cb(thread_t *thread)
 		return 0;
 	}
 
-	/* Set descriptor non blocking */
-	f = fcntl(thread->u.fd, F_GETFL, 0);
-	fcntl(thread->u.fd, F_SETFL, f | O_NONBLOCK);
-
 	/* write the data */
 	w = write(thread->u.fd, smtp_checker->buff, smtp_checker->buff_ctr);
 
 	if (w == -1 && (errno == EAGAIN || errno == EINTR)) {
 		thread_add_write(thread->master, smtp_put_line_cb, checker,
 				 thread->u.fd, smtp_host->connection_to);
-		fcntl(thread->u.fd, F_SETFL, f);
 		return 0;
 	}
-
-	/* restore descriptor flags */
-	fcntl(thread->u.fd, F_SETFL, f);
 
 	DBG("SMTP_CHECK %s > %s"
 	    , FMT_SMTP_RS(smtp_host)
@@ -802,13 +783,19 @@ smtp_connect_thread(thread_t *thread)
 
 	smtp_host = smtp_checker->host_ptr;
 
-	/* Create the socket, failling here should be an oddity */
-	if ((sd = socket(smtp_host->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
+	/* Create the socket, failing here should be an oddity */
+	if ((sd = socket(smtp_host->dst.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
 		log_message(LOG_INFO, "SMTP_CHECK connection failed to create socket. Rescheduling.");
 		thread_add_timer(thread->master, smtp_connect_thread, checker,
 				 checker->delay_loop);
 		return 0;
 	}
+
+#if !HAVE_DECL_SOCK_NONBLOCK
+	if (set_sock_flags(sd, F_SETFL, O_NONBLOCK))
+		log_message(LOG_INFO, "Unable to set NONBLOCK on smtp socket - %s (%d)", strerror(errno), errno);
+#endif
+
 #if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(sd, F_SETFD, FD_CLOEXEC))
 		log_message(LOG_INFO, "Unable to set CLOEXEC on smtp socket - %s (%d)", strerror(errno), errno);

@@ -24,7 +24,6 @@
 #include "config.h"
 
 #include <errno.h>
-#include <fcntl.h>
 #include <unistd.h>
 #include <stdint.h>
 
@@ -201,14 +200,14 @@ dns_recv_thread(thread_t * thread)
 	flags = ntohs(r_header->flags);
 
 	if (!DNS_QR(flags)) {
-		DNS_DBG("recieve query message?");
+		DNS_DBG("receive query message?");
 		thread_add_read(thread->master, dns_recv_thread, checker,
 				thread->u.fd, timeout);
 		return 0;
 	}
 
 	if ((rcode = DNS_RC(flags)) != 0) {
-		dns_final(thread, 1, "error occurread. (rcode = %d)", rcode);
+		dns_final(thread, 1, "read error occurred. (rcode = %d)", rcode);
 		return 0;
 	}
 
@@ -329,8 +328,6 @@ dns_check_thread(thread_t * thread)
 		break;
 	case connect_success:
 		dns_make_query(thread);
-		fcntl(thread->u.fd, F_SETFL,
-		      fcntl(thread->u.fd, F_GETFL, 0) | O_NONBLOCK);
 		timeout = timer_long(thread->sands) - timer_long(time_now);
 		thread_add_write(thread->master, dns_send_thread, checker,
 				 thread->u.fd, timeout);
@@ -354,13 +351,21 @@ dns_connect_thread(thread_t * thread)
 		return 0;
 	}
 
-	if ((fd = socket(co->dst.ss_family, SOCK_DGRAM | SOCK_CLOEXEC, IPPROTO_UDP)) == -1) {
+	if ((fd = socket(co->dst.ss_family, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_UDP)) == -1) {
 		dns_log_message(thread, LOG_INFO,
 				"failed to create socket. Rescheduling.");
 		thread_add_timer(thread->master, dns_connect_thread, checker,
 				 checker->delay_loop);
 		return 0;
 	}
+
+#if !HAVE_DECL_SOCK_NONBLOCK
+	if (set_sock_flags(fd, F_SETFL, O_NONBLOCK))
+		dns_log_message(thread, LOG_INFO,
+				"unable to set NONBLOCK on socket - %s (%d)",
+				strerror(errno), errno);
+#endif
+
 #if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
 		dns_log_message(thread, LOG_INFO,

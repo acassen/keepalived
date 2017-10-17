@@ -57,7 +57,7 @@ password_cb(char *buf, int num, __attribute__((unused)) int rwflag, void *userda
 }
 
 /* Inititalize global SSL context */
-static int
+static bool
 build_ssl_ctx(void)
 {
 	ssl_data_t *ssl;
@@ -93,7 +93,7 @@ build_ssl_ctx(void)
 		     (ssl->ctx, check_data->ssl->certfile))) {
 			log_message(LOG_INFO,
 			       "SSL error : Cant load certificate file...");
-			return 0;
+			return false;
 		}
 
 	/* Handle password callback using userdata ssl */
@@ -108,7 +108,7 @@ build_ssl_ctx(void)
 		    (SSL_CTX_use_PrivateKey_file
 		     (ssl->ctx, check_data->ssl->keyfile, SSL_FILETYPE_PEM))) {
 			log_message(LOG_INFO, "SSL error : Cant load key file...");
-			return 0;
+			return false;
 		}
 
 	/* Load the CAs we trust */
@@ -117,7 +117,7 @@ build_ssl_ctx(void)
 		    (SSL_CTX_load_verify_locations
 		     (ssl->ctx, check_data->ssl->cafile, 0))) {
 			log_message(LOG_INFO, "SSL error : Cant load CA file...");
-			return 0;
+			return false;
 		}
 
       end:
@@ -125,14 +125,14 @@ build_ssl_ctx(void)
 	SSL_CTX_set_verify_depth(ssl->ctx, 1);
 #endif
 
-	return 1;
+	return true;
 }
 
 /*
  * Initialize the SSL context, with or without specific
  * configuration files.
  */
-int
+bool
 init_ssl_ctx(void)
 {
 	ssl_data_t *ssl = check_data->ssl;
@@ -144,9 +144,9 @@ init_ssl_ctx(void)
 		log_message(LOG_INFO, "  SSL   cafile:%s", ssl->cafile);
 		log_message(LOG_INFO, "Terminate...");
 		clear_ssl(ssl);
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 /* Display SSL error to readable string */
@@ -187,7 +187,6 @@ ssl_connect(thread_t * thread, int new_req)
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
 	request_t *req = http_get_check->req;
 	int ret = 0;
-	int val = 0;
 
 	/* First round, create SSL context */
 	if (new_req) {
@@ -205,24 +204,17 @@ ssl_connect(thread_t * thread, int new_req)
 #endif
 	}
 
-	/* Set descriptor non blocking */
-	val = fcntl(thread->u.fd, F_GETFL, 0);
-	fcntl(thread->u.fd, F_SETFL, val | O_NONBLOCK);
-
 	ret = SSL_connect(req->ssl);
-
-	/* restore descriptor flags */
-	fcntl(thread->u.fd, F_SETFL, val);
 
 	return ret;
 }
 
-int
+bool
 ssl_send_request(SSL * ssl, char *str_request, int request_len)
 {
 	int err, r = 0;
 
-	while (1) {
+	while (true) {
 		err = 1;
 		r = SSL_write(ssl, str_request, request_len);
 		if (SSL_ERROR_NONE != SSL_get_error(ssl, r))
@@ -234,7 +226,7 @@ ssl_send_request(SSL * ssl, char *str_request, int request_len)
 		break;
 	}
 
-	return (err == 3) ? 1 : 0;
+	return (err == 3);
 }
 
 /* Asynchronous SSL stream reader */
@@ -248,21 +240,13 @@ ssl_read_thread(thread_t * thread)
 	unsigned timeout = checker->co->connection_to;
 	unsigned char digest[16];
 	int r = 0;
-	int val;
 
 	/* Handle read timeout */
 	if (thread->type == THREAD_READ_TIMEOUT && !req->extracted)
 		return timeout_epilog(thread, "Timeout SSL read");
 
-	/* Set descriptor non blocking */
-	val = fcntl(thread->u.fd, F_GETFL, 0);
-	fcntl(thread->u.fd, F_SETFL, val | O_NONBLOCK);
-
 	/* read the SSL stream */
 	r = SSL_read(req->ssl, req->buffer + req->len, (int)(MAX_BUFFER_LENGTH - req->len));
-
-	/* restore descriptor flags */
-	fcntl(thread->u.fd, F_SETFL, val);
 
 	req->error = SSL_get_error(req->ssl, r);
 
