@@ -582,7 +582,7 @@ alloc_vrrp_data(void)
 
 	new = (vrrp_data_t *) MALLOC(sizeof(vrrp_data_t));
 	new->vrrp = alloc_list(free_vrrp, dump_vrrp);
-	new->vrrp_index = alloc_mlist(NULL, NULL, 1024+1);
+	new->vrrp_index = alloc_mlist(NULL, NULL, 1151+1);
 	new->vrrp_index_fd = alloc_mlist(NULL, NULL, 1024+1);
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
 	new->vrrp_script = alloc_list(free_vscript, dump_vscript);

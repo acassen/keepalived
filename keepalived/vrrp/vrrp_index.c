@@ -33,8 +33,7 @@
 int
 get_vrrp_hash(const int vrid, const int fd)
 {
-	/* Cantor pairing function, modulus 1024 */
-	return ((( vrid + fd ) * ( vrid + fd + 1 ) / 2 ) + vrid )%1024;
+	return ( vrid * 31 + ( fd/2 ) * 37 )%1151;
 }
 
 void
