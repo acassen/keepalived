@@ -495,8 +495,8 @@ signal_run_callback(void)
 			break;
 		default:
 #ifdef _WITH_JSON_
-			if (siginfo.ssi_signo == SIGJSON) {
 #ifdef HAVE_SIGNALFD
+			if ((int)siginfo.ssi_signo == SIGJSON) {
 #else
 			if (sig == SIGJSON) {
 #endif
