@@ -76,7 +76,7 @@ bool
 report_child_status(int status, pid_t pid, char const *prog_name)
 {
 	char const *prog_id = NULL;
-	char pid_buf[10];	/* "pid 32767" + '\0' */
+	char pid_buf[12];	/* "pid 4194303" + '\0' - see definition of PID_MAX_LIMIT in include/linux/threads.h */
 	int exit_status ;
 	bool keepalived_child_process = false;
 
