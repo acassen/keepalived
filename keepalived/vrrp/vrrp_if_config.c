@@ -66,11 +66,12 @@
 #include <stdint.h>
 
 #include "vrrp_if.h"
-#include "logger.h"
 #endif
 
 #include <limits.h>
 #include <unistd.h>
+
+#include "logger.h"
 
 #ifdef _HAVE_VRRP_VMAC_
 static unsigned all_rp_filter = UINT_MAX;
