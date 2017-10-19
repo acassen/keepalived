@@ -597,7 +597,7 @@ free_vrrp_data(vrrp_data_t * data)
 	free_list(&data->static_addresses);
 	free_list(&data->static_routes);
 	free_list(&data->static_rules);
-	free_mlist(data->vrrp_index, 1024+1);
+	free_mlist(data->vrrp_index, 1151+1);
 	free_mlist(data->vrrp_index_fd, 1024+1);
 	free_list(&data->vrrp);
 	free_list(&data->vrrp_sync_group);
