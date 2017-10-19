@@ -513,10 +513,23 @@ process_script_update_priority(int weight, vrrp_script_t *vscript, bool script_o
 		return;
 	}
 
-	if (script_ok)
-		vrrp->total_priority += abs(weight);
-	else
-		vrrp->total_priority -= abs(weight);
+	if (vscript->last_status == VRRP_SCRIPT_STATUS_NOT_SET) {
+		/* If the script hasn't previously exitted, we need
+		   to only adjust the priority if the state the script
+		   is now in causes an adjustment to the priority */
+		if (script_ok) {
+			if (weight > 0)	
+				vrrp->total_priority += weight;
+		} else {
+			if (weight < 0)
+				vrrp->total_priority += weight;
+		}
+	} else {
+		if (script_ok)
+			vrrp->total_priority += abs(weight);
+		else
+			vrrp->total_priority -= abs(weight);
+	}
 
 	vrrp_set_effective_priority(vrrp);
 }
