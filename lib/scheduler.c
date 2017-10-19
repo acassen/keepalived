@@ -601,6 +601,7 @@ thread_fetch(thread_master_t * m, thread_t * fetch)
 	int snmpblock = 0;
 	int fdsetsize;
 #endif
+	bool timers_done;
 
 	assert(m != NULL);
 
@@ -675,15 +676,13 @@ retry:	/* When thread can't fetch try to find next thread again. */
 #endif
 
 	/* handle signals synchronously, including child reaping */
-	if (FD_ISSET(signal_fd, &readfd))
+	if (ret > 0 && FD_ISSET(signal_fd, &readfd))
 		signal_run_callback();
 
 	/* Update current time */
 	set_time_now();
 
-	if (ret < 0) {
-		if (old_errno == EINTR)
-			goto retry;
+	if (ret < 0 && old_errno != EINTR) {
 		/* Real error. */
 		DBG("select error: %s", strerror(old_errno));
 		assert(0);
@@ -707,49 +706,55 @@ retry:	/* When thread can't fetch try to find next thread again. */
 
 	/* Read thead. */
 	thread = m->read.head;
+	timers_done = false;
 	while (thread) {
 		thread_t *t;
 
 		t = thread;
 		thread = t->next;
 
-		if (FD_ISSET(t->u.fd, &readfd)) {
+		if (ret > 0 && FD_ISSET(t->u.fd, &readfd)) {
 			assert(FD_ISSET(t->u.fd, &m->readfd));
 			FD_CLR(t->u.fd, &m->readfd);
 			thread_list_delete(&m->read, t);
 			thread_list_add(&m->ready, t);
 			t->type = THREAD_READY_FD;
-		} else {
+		} else if (!timers_done) {
 			if (timer_cmp(time_now, t->sands) >= 0) {
 				FD_CLR(t->u.fd, &m->readfd);
 				thread_list_delete(&m->read, t);
 				thread_list_add(&m->ready, t);
 				t->type = THREAD_READ_TIMEOUT;
 			}
+			else
+				timers_done = true;
 		}
 	}
 
 	/* Write thead. */
 	thread = m->write.head;
+	timers_done = false;
 	while (thread) {
 		thread_t *t;
 
 		t = thread;
 		thread = t->next;
 
-		if (FD_ISSET(t->u.fd, &writefd)) {
+		if (ret > 0 && FD_ISSET(t->u.fd, &writefd)) {
 			assert(FD_ISSET(t->u.fd, &writefd));
 			FD_CLR(t->u.fd, &m->writefd);
 			thread_list_delete(&m->write, t);
 			thread_list_add(&m->ready, t);
 			t->type = THREAD_READY_FD;
-		} else {
+		} else if (!timers_done) {
 			if (timer_cmp(time_now, t->sands) >= 0) {
 				FD_CLR(t->u.fd, &m->writefd);
 				thread_list_delete(&m->write, t);
 				thread_list_add(&m->ready, t);
 				t->type = THREAD_WRITE_TIMEOUT;
 			}
+			else
+				timers_done = true;
 		}
 	}
 	/* Exception thead. */
