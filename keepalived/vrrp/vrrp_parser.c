@@ -864,9 +864,9 @@ vrrp_tfile_weight_handler(vector_t *strvec)
 	}
 
 	weight = atoi(strvec_slot(strvec, 2));
-	if (weight < -254 || weight > 253 || !weight) {
+	if (weight < -254 || weight > 254) {
 		log_message(LOG_INFO, "Weight for %s must be between "
-				 "[-254..-1,1..253] inclusive. Ignoring...", tfile->fname);
+				 "[-254..254] inclusive. Ignoring...", tfile->fname);
 		weight = 1;
 	}
 
@@ -1129,7 +1129,7 @@ init_vrrp_keywords(bool active)
 	/* Track file declarations */
 	install_keyword_root("vrrp_track_file", &vrrp_tfile_handler, active);
 	install_keyword("file", &vrrp_tfile_file_handler);
-	install_keyword("file", &vrrp_tfile_weight_handler);
+	install_keyword("weight", &vrrp_tfile_weight_handler);
 	install_sublevel_end_handler(&vrrp_tfile_end_handler);
 }
 

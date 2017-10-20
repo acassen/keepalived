@@ -401,7 +401,7 @@ and
  # sync_group_tracking_weight is set on the group weight 0 must be set.
  # Likewise, if the vrrp instance is the address owner, weight 0 must also be set.
  vrrp_track_file <STRING> {    # VRRP track file declaration
-    file <QUOTED_STRING>       # file to track
+    file <QUOTED_STRING>       # file to track (weight defaults to 1)
     weight <-254..254>         # optional default weight
  }
 .PP
@@ -434,7 +434,7 @@ and
 
 	    # Files whose state we monitor, value is added to effective priority. <STRING> is the name of a vrrp_status_file
 	    track_file {
-		<STRING>
+		<STRING>		# weight defaults to weight configured in vrrp_track_file
 		<STRING> weight <-254..254>
 		...
 	    }

@@ -368,7 +368,7 @@ from the initial priority in case of <fall> failures.
 
 vrrp_track_file <STRING> {      # VRRP track file declaration
     file <QUOTED_STRING>        # file to monitor
-    weight <-254..254>          # default weight
+    weight <-254..254>          # default weight (default is 1)
 }
 
 The file will be read whenever it is modified. The value in the file
@@ -378,7 +378,7 @@ sync group monitors it.
 
 A value will be read as a number in text from the file.  If the weight
 configured against the track_file is 0, a non-zero value in the file will
-be treated as a failure status, and a zero value will be treaded as
+be treated as a failure status, and a zero value will be treated as
 an OK status, otherwise the value will be  multiplied by the weight configured
 in the track_file statement. If the result is less than -253 any VRRP
 instance or sync group monitoring the script will transition to the fault state
@@ -422,7 +422,7 @@ vrrp_sync_group <STRING> {      # VRRP sync group declaration
       ...
     }
     track_file {                # Files state we monitor
-      <STRING>
+      <STRING>			# weight defaults to value configured in the vrrp_track_file
       <STRING> weight <INTEGER: -254..254>
       ...
     }
