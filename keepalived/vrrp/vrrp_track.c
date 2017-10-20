@@ -677,18 +677,30 @@ remove_track_file(list track_files, element e)
 }
 
 static void
-process_update_track_file_status(vrrp_tracked_file_t *tfile, int new_status, vrrp_t *vrrp)
+process_update_track_file_status(vrrp_tracked_file_t *tfile, int new_status, tracking_vrrp_t *tvp)
 {
-	if (tfile->last_status == -254)
-		try_up_instance(vrrp, false);
+	int previous_status;
+
+	previous_status = tfile->last_status * tvp->weight;
+	if (previous_status < -254)
+		previous_status = -254;
+	else if (previous_status > 253)
+		previous_status = 253;
+
+	if (previous_status == new_status)
+		return;
 
 	if (new_status == -254) {
-		down_instance(vrrp);
-		vrrp->total_priority += (int)new_status - tfile->last_status;
-	}
-	else if (vrrp->base_priority != VRRP_PRIO_OWNER) {
-		vrrp->total_priority += new_status - tfile->last_status;
-		vrrp_set_effective_priority(vrrp);
+		down_instance(tvp->vrrp);
+		tvp->vrrp->total_priority += new_status - previous_status;
+	} else {
+		if (previous_status == -254)
+			try_up_instance(tvp->vrrp, false);
+
+		if (tvp->vrrp->base_priority != VRRP_PRIO_OWNER) {
+			tvp->vrrp->total_priority += new_status - previous_status;
+			vrrp_set_effective_priority(tvp->vrrp);
+		}
 	}
 }
 
@@ -718,7 +730,7 @@ update_track_file_status(vrrp_tracked_file_t* tfile, int new_status)
 				status = 253;
 		}
 
-		process_update_track_file_status(tfile, status, tvp->vrrp);
+		process_update_track_file_status(tfile, status, tvp);
 	}
 
 	tfile->last_status = new_status;

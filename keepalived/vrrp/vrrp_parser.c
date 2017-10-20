@@ -931,7 +931,7 @@ vrrp_tfile_end_handler(void)
 
 	ret = stat(tfile->file_path, &statb);
 	if (!ret) {
-	       	if (track_file_init == TRACK_FILE_CREATE) {
+		if (track_file_init == TRACK_FILE_CREATE) {
 			/* The file exists */
 			return;
 		}
