@@ -36,6 +36,7 @@
 /* Macro definition */
 
 /* prototypes */
+extern int get_vrrp_hash(const int, const int);
 extern void alloc_vrrp_bucket(vrrp_t *);
 extern void alloc_vrrp_fd_bucket(vrrp_t *);
 extern void remove_vrrp_fd_bucket(vrrp_t *);

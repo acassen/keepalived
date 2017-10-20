@@ -363,7 +363,6 @@ vrrp_vrid_handler(vector_t *strvec)
 	}
 
 	vrrp->vrid = (uint8_t)vrid;
-	alloc_vrrp_bucket(vrrp);
 }
 static void
 vrrp_prio_handler(vector_t *strvec)
