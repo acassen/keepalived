@@ -27,6 +27,11 @@ keepalived_offset_folder = "/etc/keepalived_offset/"
 # Path to the output file
 output_file = "keepalived.conf"
 
+# Underlying interface.
+# For this configuration to work you need vlan subinterfaces.
+# For example, if the value below is bond0, you need to have
+# interfaces bond0.2 to bond0.<last_vlan>
+interface = "bond0"
 
 class Vlan:
     def __init__(self, name, ip4addr, ip4net, ip6addr):
@@ -48,7 +53,8 @@ to_return = ""
 templateLoader = jinja2.FileSystemLoader(searchpath="./")
 templateEnv = jinja2.Environment(loader=templateLoader)
 vrrpconf = templateEnv.get_template('template_vrrp_instance').render(
-                vlans=vlans, track_files=keepalived_offset_folder
+                vlans=vlans, track_files=keepalived_offset_folder,
+                interface=interface
                 ) + "\n"
 
 output_file = open(output_file, "w")

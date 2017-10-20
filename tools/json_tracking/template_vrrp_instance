@@ -17,7 +17,7 @@ vrrp_track_file offset_instance_6{{ vlan.name }} {
 {% for vlan in vlans %}
 vrrp_instance 4{{ vlan.name }} {
     state BACKUP
-    interface bond0.{{ vlan.name }}
+    interface {{ interface }}.{{ vlan.name }}
     use_vmac vrrp4.{{ vlan.name }}.1
     virtual_router_id 1
     priority 100
@@ -36,7 +36,7 @@ vrrp_instance 6{{ vlan.name }} {
     version 3
     native_ipv6
     state BACKUP
-    interface bond0.{{ vlan.name }}
+    interface {{ interface }}.{{ vlan.name }}
     use_vmac vrrp6.{{ vlan.name }}.1
     virtual_router_id 1
     priority 100
