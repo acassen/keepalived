@@ -58,11 +58,12 @@
 #endif
 
 /* Used for initialising track files */
-enum {  TRACK_FILE_NO_INIT,
+static enum {
+	TRACK_FILE_NO_INIT,
 	TRACK_FILE_CREATE,
 	TRACK_FILE_INIT,
 } track_file_init;
-int track_file_init_weight;
+static int track_file_init_weight;
 
 static bool script_user_set;
 static bool remove_script;
