@@ -161,7 +161,11 @@ dump_vscript(void *data)
 	}
 	log_message(LOG_INFO, "   Status = %s", str);
 	log_message(LOG_INFO, "   Script uid:gid = %d:%d", vscript->uid, vscript->gid);
-
+	log_message(LOG_INFO, "   State = %s",
+			vscript->state == SCRIPT_STATE_IDLE ? "idle" :
+			vscript->state == SCRIPT_STATE_RUNNING ? "running" :
+			vscript->state == SCRIPT_STATE_REQUESTING_TERMINATION ? "requested termination" :
+			vscript->state == SCRIPT_STATE_FORCING_TERMINATION ? "forcing termination" : "unknown");
 }
 
 /* Socket pool functions */
