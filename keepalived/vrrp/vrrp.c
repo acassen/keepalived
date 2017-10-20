@@ -2690,6 +2690,17 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			inet_ip6tosockaddr(&IF_BASE_IFP(vrrp->ifp)->sin6_addr, &vrrp->saddr);
 	}
 
+	/* Add us to the interfaces we are tracking. This must be
+	 * done before the vrrp's own interface(s) is added, since
+	 * the interface is then added to the track_ifp list */
+	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
+		tracked_if_t *tip;
+		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e)) {
+			tip = ELEMENT_DATA(e);
+			add_vrrp_to_interface(vrrp, tip->ifp, tip->weight, false);
+		}
+	}
+
 	/* Add this instance to the physical interface and vice versa */
 	add_vrrp_to_interface(vrrp, IF_BASE_IFP(vrrp->ifp), vrrp->dont_track_primary ? VRRP_NOT_TRACK_IF : 0, true);
 	if (!vrrp->dont_track_primary)
@@ -2727,15 +2738,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			add_interface_to_vrrp(vrrp, vrrp->ifp);
 	}
 #endif
-
-	/* Now add us to the interfaces we are tracking */
-	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-		tracked_if_t *tip;
-		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e)) {
-			tip = ELEMENT_DATA(e);
-			add_vrrp_to_interface(vrrp, tip->ifp, tip->weight, false);
-		}
-	}
 
 	/* Spin through all our addresses, setting ifindex and ifp.
 	   We also need to know what addresses we might block */
