@@ -1,0 +1,172 @@
+#!/usr/bin/env python3
+
+#####
+#
+# This script is used to start a slow transition of many vrrp instances
+# towards the peer router. Launch with -h to get the full list of options.
+# For this script to work you need each instance to track a different file.
+# You can generate such config with the templates in the same folder.
+#
+# Author: Damien Clabaut <damien.clabaut@corp.ovh.com>
+#
+#####
+
+import argparse
+import json
+import os
+from termcolor import cprint
+import time
+import _thread
+import sys
+
+# Configuration
+# Path to the keepalived json dump
+keepalived_json_file = "/tmp/keepalived.json"
+
+# Path to the keepalived PID file
+keepalived_pid_file = "/var/run/keepalived.pid"
+
+# Path to the folder containing files tracked by each instance
+keepalived_offset_folder = "/etc/keepalived_offset/"
+
+# Offset we want with the "-r" option
+offset_default = 0
+
+# Offset we want without the "-r" option
+offset_slave = -100
+
+# Delay in seconds between each priority change
+offset_delay = 1
+
+# Delay in seconds between each update given to the user
+check_delay = 5
+
+
+def main(args):
+    keepalived_data = getFreshData()
+
+    if args.reset:
+        offset = offset_default
+        action = "Removing"
+        partial_list = getSlaves(keepalived_data)
+    else:
+        offset = offset_slave
+        action = "Adding"
+        partial_list = getMasters(keepalived_data)
+
+    # No specification of count or instances: we impact everything
+    if args.count == 0 and args.instances == 0:
+        for instance in keepalived_data:
+            print(action + " offset for instance " + instance["data"]["iname"])
+            if (updateOffset(instance["data"]["iname"], offset) == 1):
+                time.sleep(offset_delay)
+
+    # Here we impact a certain count of instances
+    elif args.count != 0:
+        done = 0
+        for instance in partial_list:
+            if (updateOffset(instance["data"]["iname"], offset) == 1):
+                print(action + " offset for instance " + instance["data"]["iname"])
+                done += 1
+                if done >= args.count:
+                    break
+                time.sleep(offset_delay)
+
+    # Here we impact specific instances. There is no check that this instance actually exists.
+    # It may be populated in the future
+    elif args.instances != 0:
+        for instance in args.instances:
+            print(action + " offset for instance " + str(instance))
+            if (updateOffset(str(instance), offset) == 1):
+                time.sleep(offset_delay)
+
+
+def getFreshData():
+    with open(keepalived_pid_file, "r") as f:
+        keepalived_pid = int(f.read())
+    os.kill(keepalived_pid, 36)
+    time.sleep(0.1)
+    try:
+        with open(keepalived_json_file) as jsonfile:
+            return json.load(jsonfile)
+    except:
+        return {}
+
+
+def getMasters(keepalived_data):
+    masters = []
+    for instance in keepalived_data:
+        if instance["data"]["state"] == 2:
+            masters.append(instance)
+    return masters
+
+
+def getSlaves(keepalived_data):
+    slaves = []
+    for instance in keepalived_data:
+        if instance["data"]["state"] == 1:
+            slaves.append(instance)
+    return slaves
+
+
+def updateOffset(instance, offset):
+    try:
+        with open(keepalived_offset_folder + str(instance), "r") as f:
+            offset_cur = f.read()
+    except:
+        offset_cur = 0
+
+    try:
+        if int(offset_cur) == int(offset):
+            # Notify that we did not change anything
+            to_return = 0
+
+        else:
+            # Notify that we changed something
+            to_return = 1
+    # Value does not exist in json file
+    except:
+        offset_cur = int(offset)
+        if int(offset) == 0:
+            # Notify that we did not change anything
+            to_return = 0
+        else:
+            # Notify that we changed something
+            to_return = 1
+
+    if to_return == 1:
+        with open(keepalived_offset_folder + str(instance), "w") as f:
+            f.write(str(offset))
+
+    return to_return
+
+
+def checkStatus():
+    while True:
+        keepalived_data = getFreshData()
+        instance_count = len(keepalived_data)
+        master_count = len(getMasters(keepalived_data))
+        slave_count = len(getSlaves(keepalived_data))
+        cprint(
+               "Instances: " + str(instance_count) + ", Masters: "
+               + str(master_count) + ", Slaves: " + str(slave_count), 'green'
+        )
+        time.sleep(check_delay)
+    return 0
+
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Arguments')
+    parser.add_argument('--count', '-c', type=int, default=0, help="Number of instances to impact")
+    parser.add_argument('--instances', '-i', type=int, nargs='+', default=0, help="List of instances to impact")
+    parser.add_argument('--reset', '-r', action='store_true', help="Set to get instances back to their base priority")
+    args = parser.parse_args()
+    if (args.count != 0) and (args.instances) != 0:
+        sys.exit("You cannot define instances and count at the same time")
+    mon = _thread.start_new_thread(checkStatus, ())
+    main(args)
+    cprint(
+           "All modifications in priorities have been made. I will keep monitoring Keepalived until you press enter",
+           'yellow'
+    )
+    input()
