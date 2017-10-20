@@ -35,6 +35,7 @@
 /* local includes */
 #include "vector.h"
 #include "list.h"
+#include "notify.h"
 
 /* Macro definition */
 #define TRACK_ISUP(L)	(vrrp_tracked_up((L)))
@@ -68,7 +69,7 @@ typedef struct _vrrp_script {
 	int			inuse;		/* how many users have weight>0 ? */
 	int			rise;		/* R: how many successes before OK */
 	int			fall;		/* F: how many failures before KO */
-	bool			forcing_termination;	/* Set if script didn't respond and we sent it SIGTERM */
+	script_state_t		state;		/* current state of script */
 	uid_t			uid;		/* uid to run script as */
 	gid_t			gid;		/* gid to run script as */
 	bool			insecure;	/* Set if script is run by root, but is non-root modifiable */

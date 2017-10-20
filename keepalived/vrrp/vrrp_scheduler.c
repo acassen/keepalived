@@ -95,7 +95,6 @@ static void vrrp_master(vrrp_t *);
 static void vrrp_fault(vrrp_t *);
 
 static int vrrp_update_priority(thread_t * thread);
-static int vrrp_script_child_timeout_thread(thread_t * thread);
 static int vrrp_script_child_thread(thread_t * thread);
 static int vrrp_script_thread(thread_t * thread);
 
@@ -1111,17 +1110,28 @@ static int
 vrrp_script_thread(thread_t * thread)
 {
 	vrrp_script_t *vscript = THREAD_ARG(thread);
-
-	vscript->forcing_termination = false;
+	int ret;
 
 	/* Register next timer tracker */
 	thread_add_timer(thread->master, vrrp_script_thread, vscript,
 			 vscript->interval);
 
+	if (vscript->state != SCRIPT_STATE_IDLE) {
+		/* We don't want the system to be overloaded with scripts that we are executing */
+		log_message(LOG_INFO, "Track script %s is %s, expect idle - skipping run",
+			    vscript->sname, vscript->state == SCRIPT_STATE_RUNNING ? "already running" : "being timed out");
+
+		return 0;
+	}
+
 	/* Execute the script in a child process. Parent returns, child doesn't */
-	return system_call_script(thread->master, vrrp_script_child_thread,
+	ret = system_call_script(thread->master, vrrp_script_child_thread,
 				  vscript, (vscript->timeout) ? vscript->timeout : vscript->interval,
 				  vscript->script, vscript->uid, vscript->gid);
+	if (!ret)
+		vscript->state = SCRIPT_STATE_RUNNING;
+
+	return ret;
 }
 
 static int
@@ -1130,30 +1140,43 @@ vrrp_script_child_thread(thread_t * thread)
 	int wait_status;
 	pid_t pid;
 	vrrp_script_t *vscript = THREAD_ARG(thread);
+	int sig_num;
+	int timeout = 0;
 
 	if (thread->type == THREAD_CHILD_TIMEOUT) {
 		pid = THREAD_CHILD_PID(thread);
 
-		/* The child hasn't responded. Kill it off. */
-		if (vscript->result > vscript->rise) {
-			vscript->result--;
-		} else {
-			if (vscript->result == vscript->rise)
-				log_message(LOG_INFO, "VRRP_Script(%s) timed out", vscript->sname);
-			vscript->result = 0;
+		if (vscript->state == SCRIPT_STATE_RUNNING) {
+			vscript->state = SCRIPT_STATE_REQUESTING_TERMINATION;
+			sig_num = SIGTERM;
+			timeout = 2;
+		} else if (vscript->state == SCRIPT_STATE_REQUESTING_TERMINATION) {
+			vscript->state = SCRIPT_STATE_FORCING_TERMINATION;
+			sig_num = SIGKILL;
+			timeout = 2;
+		} else if (vscript->state == SCRIPT_STATE_FORCING_TERMINATION) {
+			log_message(LOG_INFO, "Child (PID %d) failed to terminate after kill", pid);
+			sig_num = SIGKILL;
+			timeout = 10;	/* Give it longer to terminate */
 		}
-		vscript->forcing_termination = true;
-		kill(-pid, SIGTERM);
-		thread_add_child(thread->master, vrrp_script_child_timeout_thread,
-				 vscript, pid, 2 * 1000000);
+
+		if (timeout) {
+			if (!kill(-pid, sig_num)) {
+				/* If kill returns an error, we can't kill the process since either the process has terminated,
+				 * or we don't have permission. If we can't kill it, there is no point trying again. */
+				thread_add_child(thread->master, vrrp_script_child_thread, vscript, pid, timeout * TIMER_HZ);
+			}
+		} else
+			log_message(LOG_INFO, "Child thread pid %d timeout with unknown script state %d", pid, vscript->state);
+
 		return 0;
 	}
 
 	wait_status = THREAD_CHILD_STATUS(thread);
 
 	if (WIFEXITED(wait_status)) {
-		int status;
-		status = WEXITSTATUS(wait_status);
+		int status = WEXITSTATUS(wait_status);
+
 		if (status == 0) {
 			/* success */
 			if (vscript->result < vscript->rise - 1) {
@@ -1168,50 +1191,35 @@ vrrp_script_child_thread(thread_t * thread)
 			if (vscript->result > vscript->rise) {
 				vscript->result--;
 			} else {
-				if (vscript->result >= vscript->rise)
+				if (vscript->result == vscript->rise)
 					log_message(LOG_INFO, "VRRP_Script(%s) failed", vscript->sname);
 				vscript->result = 0;
 			}
 		}
 	}
 	else if (WIFSIGNALED(wait_status)) {
-		if (vscript->forcing_termination && WTERMSIG(wait_status) == SIGTERM) {
+		if (vscript->state == SCRIPT_STATE_REQUESTING_TERMINATION && WTERMSIG(wait_status) == SIGTERM) {
 			/* The script terminated due to a SIGTERM, and we sent it a SIGTERM to
 			 * terminate the process. Now make sure any children it created have
 			 * died too. */
 			pid = THREAD_CHILD_PID(thread);
 			kill(-pid, SIGKILL);
 		}
-	}
 
-	vscript->forcing_termination = false;
-
-	return 0;
-}
-
-static int
-vrrp_script_child_timeout_thread(thread_t * thread)
-{
-	pid_t pid;
-	vrrp_script_t *vscript = THREAD_ARG(thread);
-
-	if (thread->type != THREAD_CHILD_TIMEOUT)
-		return 0;
-
-	/* OK, it still hasn't exited. Now really kill it off. */
-	pid = THREAD_CHILD_PID(thread);
-	if (kill(-pid, SIGKILL) < 0) {
-		/* Its possible it finished while we're handing this */
-		if (errno != ESRCH) {
-			DBG("kill error: %s", strerror(errno));
+		/* We treat forced termination as a failure */
+		if (vscript->state == SCRIPT_STATE_REQUESTING_TERMINATION ||
+		    vscript->state == SCRIPT_STATE_FORCING_TERMINATION) {
+			if (vscript->result > vscript->rise) {
+				vscript->result--;
+			} else {
+				if (vscript->result == vscript->rise)
+					log_message(LOG_INFO, "VRRP_Script(%s) timed out", vscript->sname);
+				vscript->result = 0;
+			}
 		}
-
-		return 0;
 	}
 
-	log_message(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
-
-	vscript->forcing_termination = false;
+	vscript->state = SCRIPT_STATE_IDLE;
 
 	return 0;
 }

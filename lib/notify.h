@@ -38,6 +38,13 @@
 #define SC_NOTFOUND	0x08	/* Cannot find element of path */
 #define	SC_EXECUTABLE	0x10	/* The script is marked executable */
 
+typedef enum {
+        SCRIPT_STATE_IDLE,
+        SCRIPT_STATE_RUNNING,
+        SCRIPT_STATE_REQUESTING_TERMINATION,
+        SCRIPT_STATE_FORCING_TERMINATION
+} script_state_t;
+
 /* notify_script details */
 typedef struct _notify_script {
 	char	*name;		/* Script name */

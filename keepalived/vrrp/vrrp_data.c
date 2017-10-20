@@ -570,6 +570,7 @@ alloc_vrrp_script(char *sname)
 	new->timeout = VRRP_SCRIPT_DT * TIMER_HZ;
 	new->weight = VRRP_SCRIPT_DW;
 	new->result = VRRP_SCRIPT_STATUS_INIT;
+	new->state = SCRIPT_STATE_IDLE;
 	new->inuse = 0;
 	new->rise = 1;
 	new->fall = 1;
