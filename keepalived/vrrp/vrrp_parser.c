@@ -28,6 +28,11 @@
 #include <string.h>
 #include <stdint.h>
 #include <net/if_arp.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+//#include <unistd.h>
+#include <stdio.h>
+#include <ctype.h>
 
 #include "vrrp_parser.h"
 #include "logger.h"
@@ -51,6 +56,13 @@
 #ifdef _WITH_LVS_
 #include "check_parser.h"
 #endif
+
+/* Used for initialising track files */
+enum {  TRACK_FILE_NO_INIT,
+	TRACK_FILE_CREATE,
+	TRACK_FILE_INIT,
+} track_file_init;
+int track_file_init_weight;
 
 static bool script_user_set;
 static bool remove_script;
@@ -837,6 +849,8 @@ static void
 vrrp_tfile_handler(vector_t *strvec)
 {
 	alloc_vrrp_file(strvec_slot(strvec, 1));
+
+	track_file_init = TRACK_FILE_NO_INIT;
 }
 static void
 vrrp_tfile_file_handler(vector_t *strvec)
@@ -863,7 +877,7 @@ vrrp_tfile_weight_handler(vector_t *strvec)
 		return;
 	}
 
-	weight = atoi(strvec_slot(strvec, 2));
+	weight = atoi(strvec_slot(strvec, 1));
 	if (weight < -254 || weight > 254) {
 		log_message(LOG_INFO, "Weight for %s must be between "
 				 "[-254..254] inclusive. Ignoring...", tfile->fname);
@@ -873,14 +887,68 @@ vrrp_tfile_weight_handler(vector_t *strvec)
 	tfile->weight = weight;
 }
 static void
+vrrp_tfile_init_handler(vector_t *strvec)
+{
+	unsigned i;
+	char *word;
+	char *endptr;
+	vrrp_tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
+
+	track_file_init = TRACK_FILE_CREATE;
+	track_file_init_weight = 0;
+
+	for (i = 1; i < vector_size(strvec); i++) {
+		word = strvec_slot(strvec, i);
+		if (isdigit(word[0])) {
+			track_file_init_weight = strtol(word, &endptr, 0);
+			if (*endptr) {
+				/* It is not a valid integer */
+				log_message(LOG_INFO, "Track file %s init weight %s is invalid", tfile->fname, word);
+				track_file_init_weight = 0;
+			}
+		}
+		else if (!strcmp(word, "overwrite"))
+			track_file_init = TRACK_FILE_INIT;
+		else
+			log_message(LOG_INFO, "Unknown track file init option %s", word);
+	}
+}
+static void
 vrrp_tfile_end_handler(void)
 {
 	vrrp_tracked_file_t *tfile = LIST_TAIL_DATA(vrrp_data->vrrp_track_files);
+	struct stat statb;
+	FILE *tf;
+	int ret;
 
 	if (!tfile->file_path) {
 		log_message(LOG_INFO, "No file set for track_file %s - removing", tfile->fname);
 		free_list_element(vrrp_data->vrrp_track_files, vrrp_data->vrrp_track_files->tail);
 	}
+
+	if (track_file_init == TRACK_FILE_NO_INIT)
+		return;
+
+	ret = stat(tfile->file_path, &statb);
+	if (!ret) {
+	       	if (track_file_init == TRACK_FILE_CREATE) {
+			/* The file exists */
+			return;
+		}
+		if ((statb.st_mode & S_IFMT) != S_IFREG) {
+			/* It is not a regular file */
+			log_message(LOG_INFO, "Cannot initialise track file %s - it is not a regular file", tfile->fname);
+			return;
+		}
+	}
+
+	/* Write the value to the file */
+	if ((tf = fopen(tfile->file_path, "w"))) {
+		fprintf(tf, "%d\n", track_file_init_weight);
+		fclose(tf);
+	}
+	else
+		log_message(LOG_INFO, "Unable to initialise track file %s", tfile->fname);
 }
 static void
 vrrp_vscript_init_fail_handler(__attribute__((unused)) vector_t *strvec)
@@ -1130,6 +1198,7 @@ init_vrrp_keywords(bool active)
 	install_keyword_root("vrrp_track_file", &vrrp_tfile_handler, active);
 	install_keyword("file", &vrrp_tfile_file_handler);
 	install_keyword("weight", &vrrp_tfile_weight_handler);
+	install_keyword("init_file", &vrrp_tfile_init_handler);
 	install_sublevel_end_handler(&vrrp_tfile_end_handler);
 }
 

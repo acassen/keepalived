@@ -369,6 +369,12 @@ from the initial priority in case of <fall> failures.
 vrrp_track_file <STRING> {      # VRRP track file declaration
     file <QUOTED_STRING>        # file to monitor
     weight <-254..254>          # default weight (default is 1)
+    init_file [VALUE] [overwrite] # create the file and/or initialise the value
+                                # This causes VALUE (default 0) to be written to
+                                # the specified file at startup if the file doesn't
+                                # exist, unless overwrite is specified in which case
+                                # any existing file contents will be overwritten with
+                                # the specified value.
 }
 
 The file will be read whenever it is modified. The value in the file

@@ -403,6 +403,12 @@ and
  vrrp_track_file <STRING> {    # VRRP track file declaration
     file <QUOTED_STRING>       # file to track (weight defaults to 1)
     weight <-254..254>         # optional default weight
+    init_file [VALUE] [overwrite] # create the file and/or initialise the value
+                               # This causes VALUE (default 0) to be written to
+                               # the specified file at startup if the file doesn't
+                               # exist, unless overwrite is specified in which case
+                               # any existing file contents will be overwritten with
+                               # the specified value.
  }
 .PP
 .SH VRRP synchronization group(s)
