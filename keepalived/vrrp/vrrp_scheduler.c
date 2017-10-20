@@ -1142,6 +1142,8 @@ vrrp_script_child_thread(thread_t * thread)
 	vrrp_script_t *vscript = THREAD_ARG(thread);
 	int sig_num;
 	int timeout = 0;
+	char *script_exit_type = NULL;
+	bool script_success;
 
 	if (thread->type == THREAD_CHILD_TIMEOUT) {
 		pid = THREAD_CHILD_PID(thread);
@@ -1179,22 +1181,12 @@ vrrp_script_child_thread(thread_t * thread)
 
 		if (status == 0) {
 			/* success */
-			if (vscript->result < vscript->rise - 1) {
-				vscript->result++;
-			} else {
-				if (vscript->result < vscript->rise)
-					log_message(LOG_INFO, "VRRP_Script(%s) succeeded", vscript->sname);
-				vscript->result = vscript->rise + vscript->fall - 1;
-			}
+			script_exit_type = "succeeded";
+			script_success = true;
 		} else {
 			/* failure */
-			if (vscript->result > vscript->rise) {
-				vscript->result--;
-			} else {
-				if (vscript->result == vscript->rise)
-					log_message(LOG_INFO, "VRRP_Script(%s) failed", vscript->sname);
-				vscript->result = 0;
-			}
+			script_exit_type = "failed";
+			script_success = false;
 		}
 	}
 	else if (WIFSIGNALED(wait_status)) {
@@ -1209,11 +1201,26 @@ vrrp_script_child_thread(thread_t * thread)
 		/* We treat forced termination as a failure */
 		if (vscript->state == SCRIPT_STATE_REQUESTING_TERMINATION ||
 		    vscript->state == SCRIPT_STATE_FORCING_TERMINATION) {
+			script_exit_type = "timed_out";
+			script_success = false;
+		}
+	}
+
+	if (script_exit_type) {
+		if (script_success) {
+			if (vscript->result < vscript->rise - 1) {
+				vscript->result++;
+			} else {
+				if (vscript->result < vscript->rise)
+					log_message(LOG_INFO, "VRRP_Script(%s) %s", vscript->sname, script_exit_type);
+				vscript->result = vscript->rise + vscript->fall - 1;
+			}
+		} else {
 			if (vscript->result > vscript->rise) {
 				vscript->result--;
 			} else {
 				if (vscript->result == vscript->rise)
-					log_message(LOG_INFO, "VRRP_Script(%s) timed out", vscript->sname);
+					log_message(LOG_INFO, "VRRP_Script(%s) %s", vscript->sname, script_exit_type);
 				vscript->result = 0;
 			}
 		}

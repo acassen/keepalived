@@ -296,6 +296,8 @@ misc_check_child_thread(thread_t * thread)
 	timeval_t next_time;
 	int sig_num;
 	int timeout = 0;
+	char *script_exit_type = NULL;
+	bool script_success;
 
 	checker = THREAD_ARG(thread);
 	misck_checker = CHECKER_ARG(checker);
@@ -347,13 +349,8 @@ misc_check_child_thread(thread_t * thread)
 
 			/* everything is good */
 			if (!checker->is_up) {
-				log_message(LOG_INFO, "Misc check to [%s] for [%s] success."
-						    , inet_sockaddrtos(&checker->rs->addr)
-						    , misck_checker->path);
-				smtp_alert(checker, NULL, NULL,
-					   "UP",
-					   "=> MISC CHECK succeed on service <=");
-				update_svr_checker_state(UP, checker);
+				script_exit_type = "succeeded";
+				script_success = true;
 			}
 
 			checker->retry_it = 0;
@@ -361,13 +358,9 @@ misc_check_child_thread(thread_t * thread)
 			if (checker->retry_it < checker->retry)
 				checker->retry_it++;
 			else {
-				log_message(LOG_INFO, "Misc check to [%s] for [%s] failed."
-						    , inet_sockaddrtos(&checker->rs->addr)
-						    , misck_checker->path);
-				smtp_alert(checker, NULL, NULL,
-					   "DOWN",
-					   "=> MISC CHECK failed on service <=");
-				update_svr_checker_state(DOWN, checker);
+				script_exit_type = "failed";
+				script_success = false;
+
 				checker->retry_it = 0;
 			}
 		}
@@ -388,16 +381,25 @@ misc_check_child_thread(thread_t * thread)
 			if (checker->retry_it < checker->retry)
 				checker->retry_it++;
 			else {
-				log_message(LOG_INFO, "Misc check to [%s] for [%s] timed out"
-						    , inet_sockaddrtos(&checker->rs->addr)
-						    , misck_checker->path);
-				smtp_alert(checker, NULL, NULL,
-					   "DOWN",
-					   "=> MISC CHECK script timeout on service <=");
-				update_svr_checker_state(DOWN, checker);
+				script_exit_type = "timed out";
+				script_success = false;
+
 				checker->retry_it = 0;
 			}
 		}
+	}
+
+	if (script_exit_type) {
+		char message[40];
+
+		log_message(LOG_INFO, "Misc check to [%s] for [%s] %s."
+				    , inet_sockaddrtos(&checker->rs->addr)
+				    , misck_checker->path
+				    , script_exit_type);
+		snprintf(message, sizeof(message), "=> MISC CHECK %s on service <=", script_exit_type);
+		smtp_alert(checker, NULL, NULL,
+			   script_success ? "UP " : "DOWN", message);
+		update_svr_checker_state(script_success ? UP : DOWN, checker);
 	}
 
 	/* Register next timer checker */
