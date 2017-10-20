@@ -2,7 +2,7 @@
 
 #####
 #
-# This script isolate Keepalived's dump-to-json function
+# This script triggers Keepalived's dump-to-json function
 # and prints most of the interesting info into a table.
 #
 # Author: Damien Clabaut <damien.clabaut@corp.ovh.com>
