@@ -405,7 +405,8 @@ misc_check_child_thread(thread_t * thread)
 	/* Register next timer checker */
 	next_time = timer_add_long(misck_checker->last_ran, checker->retry_it ? checker->delay_before_retry : checker->delay_loop);
 	next_time = timer_sub_now(next_time);
-	if (next_time.tv_sec < 0)
+	if (next_time.tv_sec < 0 ||
+	    (next_time.tv_sec == 0 && next_time.tv_usec == 0))
 		next_time.tv_sec = 0, next_time.tv_usec = 1;
 
 	thread_add_timer(thread->master, misc_check_thread, checker, timer_tol(next_time));
