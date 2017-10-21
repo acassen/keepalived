@@ -1,3 +1,14 @@
+2017-10-21 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.3.9 released.
+	* Stop segfault if SSL context cannot be initialised.
+	* Don't leave point to SSL data after freeing it.
+	* Fix memory leak if duplicate SSL context values specified.
+	* Don't initialise an SSL context if it isn't being used.
+	* Checksum compatibility should refer to v1.3.6.
+	* Update keepalived.spec.in for differences between Fedora and CentOS.
+	* change hash to something more even and hash size accordingly.
+	* also update size of hash in free_list.
+
 2017-10-15 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.3.8 released.
 	* parser: do not exit when glob() doesn't match any files.
