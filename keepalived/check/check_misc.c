@@ -298,6 +298,8 @@ misc_check_child_thread(thread_t * thread)
 	int timeout = 0;
 	char *script_exit_type = NULL;
 	bool script_success;
+	char *reason = NULL;
+	int reason_code;
 
 	checker = THREAD_ARG(thread);
 	misck_checker = CHECKER_ARG(checker);
@@ -348,9 +350,10 @@ misc_check_child_thread(thread_t * thread)
 					       checker->rs, true);
 
 			/* everything is good */
-			if (!checker->is_up) {
+			if (!checker->is_up || !misck_checker->initial_state_reported) {
 				script_exit_type = "succeeded";
 				script_success = true;
+				misck_checker->initial_state_reported = false;
 			}
 
 			checker->retry_it = 0;
@@ -360,6 +363,8 @@ misc_check_child_thread(thread_t * thread)
 			else {
 				script_exit_type = "failed";
 				script_success = false;
+				reason = "exited with status";
+				reason_code = status;
 
 				checker->retry_it = 0;
 			}
@@ -375,13 +380,21 @@ misc_check_child_thread(thread_t * thread)
 	        }
 
 		/* We treat forced termination as a failure */
-		if ((misck_checker->state == SCRIPT_STATE_REQUESTING_TERMINATION ||
-		     misck_checker->state == SCRIPT_STATE_FORCING_TERMINATION) &&
-		    checker->is_up) {
+		if (checker->is_up) {
 			if (checker->retry_it < checker->retry)
 				checker->retry_it++;
 			else {
-				script_exit_type = "timed out";
+				if ((misck_checker->state == SCRIPT_STATE_REQUESTING_TERMINATION &&
+				     WTERMSIG(wait_status) == SIGTERM) ||
+				    (misck_checker->state == SCRIPT_STATE_FORCING_TERMINATION &&
+				     (WTERMSIG(wait_status) == SIGTERM || WTERMSIG(wait_status) == SIGKILL)))
+					script_exit_type = "timed out";
+				else {
+					script_exit_type = "failed";
+					reason = "due to signal";
+					reason_code = WTERMSIG(wait_status);
+				}
+
 				script_success = false;
 
 				checker->retry_it = 0;
@@ -392,10 +405,19 @@ misc_check_child_thread(thread_t * thread)
 	if (script_exit_type) {
 		char message[40];
 
-		log_message(LOG_INFO, "Misc check to [%s] for [%s] %s."
-				    , inet_sockaddrtos(&checker->rs->addr)
-				    , misck_checker->path
-				    , script_exit_type);
+		if (reason)
+			log_message(LOG_INFO, "Misc check to [%s] for [%s] %s (%s %d)."
+					    , inet_sockaddrtos(&checker->rs->addr)
+					    , misck_checker->path
+					    , script_exit_type
+					    , reason
+					    , reason_code);
+		else
+			log_message(LOG_INFO, "Misc check to [%s] for [%s] %s."
+					    , inet_sockaddrtos(&checker->rs->addr)
+					    , misck_checker->path
+					    , script_exit_type);
+
 		snprintf(message, sizeof(message), "=> MISC CHECK %s on service <=", script_exit_type);
 		smtp_alert(checker, NULL, NULL,
 			   script_success ? "UP " : "DOWN", message);

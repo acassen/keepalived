@@ -344,17 +344,21 @@ vrrp_init_script(list l)
 			vscript->result = vscript->rise;
 		}
 		else if (!vscript->inuse)
-			vscript->result = VRRP_SCRIPT_STATUS_DISABLED;
+			vscript->init_state = SCRIPT_INIT_STATE_DISABLED;
 		else {
-			switch (vscript->result) {
-			case VRRP_SCRIPT_STATUS_INIT:
+			switch (vscript->init_state) {
+			case SCRIPT_INIT_STATE_INIT:
 				vscript->result = vscript->rise - 1; /* one success is enough */
 				break;
-			case VRRP_SCRIPT_STATUS_INIT_GOOD:
+			case SCRIPT_INIT_STATE_GOOD:
 				vscript->result = vscript->rise; /* one failure is enough */
 				break;
-			case VRRP_SCRIPT_STATUS_INIT_FAILED:
+			case SCRIPT_INIT_STATE_FAILED:
 				vscript->result = 0; /* assume failed by config */
+				break;
+			case SCRIPT_INIT_STATE_DONE:
+			case SCRIPT_INIT_STATE_DISABLED:
+				/* Just to stop compiler warnings */
 				break;
 			}
 
@@ -1144,6 +1148,8 @@ vrrp_script_child_thread(thread_t * thread)
 	int timeout = 0;
 	char *script_exit_type = NULL;
 	bool script_success;
+	char *reason = NULL;
+	int reason_code;
 
 	if (thread->type == THREAD_CHILD_TIMEOUT) {
 		pid = THREAD_CHILD_PID(thread);
@@ -1187,6 +1193,8 @@ vrrp_script_child_thread(thread_t * thread)
 			/* failure */
 			script_exit_type = "failed";
 			script_success = false;
+			reason = "exited with status";
+			reason_code = status;
 		}
 	}
 	else if (WIFSIGNALED(wait_status)) {
@@ -1199,11 +1207,15 @@ vrrp_script_child_thread(thread_t * thread)
 		}
 
 		/* We treat forced termination as a failure */
-		if (vscript->state == SCRIPT_STATE_REQUESTING_TERMINATION ||
-		    vscript->state == SCRIPT_STATE_FORCING_TERMINATION) {
+		if ((vscript->state == SCRIPT_STATE_REQUESTING_TERMINATION && WTERMSIG(wait_status) == SIGTERM) ||
+		    (vscript->state == SCRIPT_STATE_FORCING_TERMINATION && (WTERMSIG(wait_status) == SIGKILL || WTERMSIG(wait_status) == SIGTERM)))
 			script_exit_type = "timed_out";
-			script_success = false;
+		else {
+			script_exit_type = "failed";
+			reason = "due to signal";
+			reason_code = WTERMSIG(wait_status);
 		}
+		script_success = false;
 	}
 
 	if (script_exit_type) {
@@ -1211,7 +1223,7 @@ vrrp_script_child_thread(thread_t * thread)
 			if (vscript->result < vscript->rise - 1) {
 				vscript->result++;
 			} else {
-				if (vscript->result < vscript->rise)
+				if (vscript->result < vscript->rise)	/* i.e. == vscript->rise - 1 */
 					log_message(LOG_INFO, "VRRP_Script(%s) %s", vscript->sname, script_exit_type);
 				vscript->result = vscript->rise + vscript->fall - 1;
 			}
@@ -1219,14 +1231,20 @@ vrrp_script_child_thread(thread_t * thread)
 			if (vscript->result > vscript->rise) {
 				vscript->result--;
 			} else {
-				if (vscript->result == vscript->rise)
-					log_message(LOG_INFO, "VRRP_Script(%s) %s", vscript->sname, script_exit_type);
+				if (vscript->result == vscript->rise ||
+				    vscript->init_state == SCRIPT_INIT_STATE_INIT) {
+					if (reason)
+						log_message(LOG_INFO, "VRRP_Script(%s) %s (%s %d)", vscript->sname, script_exit_type, reason, reason_code);
+					else
+						log_message(LOG_INFO, "VRRP_Script(%s) %s", vscript->sname, script_exit_type);
+				}
 				vscript->result = 0;
 			}
 		}
 	}
 
 	vscript->state = SCRIPT_STATE_IDLE;
+	vscript->init_state = SCRIPT_INIT_STATE_DONE;
 
 	return 0;
 }

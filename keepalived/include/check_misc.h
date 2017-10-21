@@ -42,6 +42,7 @@ typedef struct _misc_checker {
 	uid_t			uid;		/* uid for script execution */
 	gid_t			gid;		/* gid for script execution */
 	bool			insecure;	/* script is insecure */
+	bool			initial_state_reported;
 	timeval_t		last_ran;	/* Time script last ran */
 } misc_checker_t;
 

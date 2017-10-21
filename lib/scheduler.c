@@ -71,6 +71,7 @@ set_child_finder(char const * (*func)(pid_t))
 	child_finder = func;
 }
 
+#ifndef _DEBUG_
 /* report_child_status returns true if the exit is a hard error, so unable to continue */
 bool
 report_child_status(int status, pid_t pid, char const *prog_name)
@@ -78,16 +79,13 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 	char const *prog_id = NULL;
 	char pid_buf[12];	/* "pid 4194303" + '\0' - see definition of PID_MAX_LIMIT in include/linux/threads.h */
 	int exit_status ;
-	bool keepalived_child_process;
 
 	if (prog_name)
 		prog_id = prog_name;
 	else if (child_finder)
 		prog_id = child_finder(pid);
 
-	if (prog_id)
-		keepalived_child_process = true;
-	else {
+	if (!prog_id) {
 		snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
 		prog_id = pid_buf;
 	}
@@ -96,23 +94,16 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 		exit_status = WEXITSTATUS(status);
 
 		/* Handle exit codes of vrrp or checker child */
-		if (keepalived_child_process &&
-		    (exit_status == KEEPALIVED_EXIT_FATAL ||
-		     exit_status == KEEPALIVED_EXIT_CONFIG)) {
+		if (exit_status == KEEPALIVED_EXIT_FATAL ||
+		    exit_status == KEEPALIVED_EXIT_CONFIG) {
 			log_message(LOG_INFO, "%s exited with permanent error %s. Terminating", prog_id, exit_status == KEEPALIVED_EXIT_CONFIG ? "CONFIG" : "FATAL" );
 			return true;
 		}
 
-		if (exit_status != EXIT_SUCCESS
-#if defined _WITH_LVS_ && !defined _DEBUG_
-					        && prog_type != PROG_TYPE_CHECKER
-#endif
-										 )
+		if (exit_status != EXIT_SUCCESS)
 			log_message(LOG_INFO, "%s exited with status %d", prog_id, exit_status);
-		return false;
-	}
-	if (WIFSIGNALED(status)) {
-		if (keepalived_child_process && WTERMSIG(status) == SIGSEGV) {
+	} else if (WIFSIGNALED(status)) {
+		if (WTERMSIG(status) == SIGSEGV) {
 			log_message(LOG_INFO, "%s exited due to segmentation fault (SIGSEGV).", prog_id);
 			log_message(LOG_INFO, "  Please report a bug at %s", "https://github.com/acassen/keepalived/issues");
 			log_message(LOG_INFO, "  %s", "and include this log from when keepalived started, what happened");
@@ -120,12 +111,11 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 		}
 		else
 			log_message(LOG_INFO, "%s exited due to signal %d", prog_id, WTERMSIG(status));
-
-		return false;
 	}
 
 	return false;
 }
+#endif
 
 /* Make thread master. */
 thread_master_t *
@@ -809,7 +799,7 @@ thread_child_handler(void * v, __attribute__ ((unused)) int unused)
 	thread_t *thread;
 	pid_t pid;
 	int status;
-	bool respawn;
+	bool permanent_vrrp_checker_error = false;
 
 	while ((pid = waitpid(-1, &status, WNOHANG))) {
 		if (pid == -1) {
@@ -818,7 +808,10 @@ thread_child_handler(void * v, __attribute__ ((unused)) int unused)
 			DBG("waitpid error: %s", strerror(errno));
 			assert(0);
 		} else {
-			respawn = !report_child_status(status, pid, NULL);
+#ifndef _DEBUG_
+			if (prog_type == PROG_TYPE_PARENT)
+				permanent_vrrp_checker_error = report_child_status(status, pid, NULL);
+#endif
 
 			thread = m->child.head;
 			while (thread) {
@@ -828,13 +821,15 @@ thread_child_handler(void * v, __attribute__ ((unused)) int unused)
 				if (pid == t->u.c.pid) {
 					thread_list_delete(&m->child, t);
 					t->u.c.status = status;
-					if (respawn) {
-						t->type = THREAD_READY;
-						thread_list_add(&m->ready, t);
-					}
-					else {
+					if (permanent_vrrp_checker_error)
+					{
 						/* The child had a permanant error, so no point in respawning */
 						raise(SIGTERM);
+					}
+					else
+					{
+						t->type = THREAD_READY;
+						thread_list_add(&m->ready, t);
 					}
 
 					break;

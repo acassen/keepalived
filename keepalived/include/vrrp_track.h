@@ -53,10 +53,6 @@
  * success, we increase result and set it to rise+fall-1 when we pass above
  * rise-1.
  */
-#define VRRP_SCRIPT_STATUS_DISABLED    -4
-#define VRRP_SCRIPT_STATUS_INIT_FAILED -3
-#define VRRP_SCRIPT_STATUS_INIT_GOOD   -2
-#define VRRP_SCRIPT_STATUS_INIT        -1
 
 /* external script we call to track local processes */
 typedef struct _vrrp_script {
@@ -70,6 +66,7 @@ typedef struct _vrrp_script {
 	int			rise;		/* R: how many successes before OK */
 	int			fall;		/* F: how many failures before KO */
 	script_state_t		state;		/* current state of script */
+	script_init_state_t	init_state;	/* current initialisation state of script */
 	uid_t			uid;		/* uid to run script as */
 	gid_t			gid;		/* gid to run script as */
 	bool			insecure;	/* Set if script is run by root, but is non-root modifiable */

@@ -94,14 +94,14 @@ vscript_print(FILE *file, void *data)
 	fprintf(file, "   Insecure = %s\n", vscript->insecure ? "yes" : "no");
 	fprintf(file, "   uid:gid = %d:%d\n", vscript->uid, vscript->gid);
 
-	switch (vscript->result) {
-	case VRRP_SCRIPT_STATUS_INIT:
+	switch (vscript->init_state) {
+	case SCRIPT_INIT_STATE_INIT:
 		str = "INIT"; break;
-	case VRRP_SCRIPT_STATUS_INIT_GOOD:
+	case SCRIPT_INIT_STATE_GOOD:
 		str = "INIT/GOOD"; break;
-	case VRRP_SCRIPT_STATUS_INIT_FAILED:
+	case SCRIPT_INIT_STATE_FAILED:
 		str = "INIT/FAILED"; break;
-	case VRRP_SCRIPT_STATUS_DISABLED:
+	case SCRIPT_INIT_STATE_DISABLED:
 		str = "DISABLED"; break;
 	default:
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
