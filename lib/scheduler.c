@@ -112,7 +112,7 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 		return false;
 	}
 	if (WIFSIGNALED(status)) {
-		if (WTERMSIG(status) == SIGSEGV) {
+		if (keepalived_child_process && WTERMSIG(status) == SIGSEGV) {
 			log_message(LOG_INFO, "%s exited due to segmentation fault (SIGSEGV).", prog_id);
 			log_message(LOG_INFO, "  Please report a bug at %s", "https://github.com/acassen/keepalived/issues");
 			log_message(LOG_INFO, "  %s", "and include this log from when keepalived started, what happened");
