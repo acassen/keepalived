@@ -296,7 +296,10 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 
 	status = system_call(script, uid, gid);
 
-	if (status < 0 || !WIFEXITED(status) || WEXITSTATUS(status >= 126))
+	if (WIFSIGNALED(status))
+		kill(getpid(), WTERMSIG(status));
+
+	if (status < 0 || !WIFEXITED(status) || WEXITSTATUS(status) >= 126)
 		exit(0); /* Script errors aren't server errors */
 
 	exit(WEXITSTATUS(status));
