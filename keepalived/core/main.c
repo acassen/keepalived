@@ -32,6 +32,7 @@
 #include <sys/utsname.h>
 #include <sys/resource.h>
 #include <stdbool.h>
+#include <linux/version.h>
 
 #include "main.h"
 #include "config.h"
@@ -590,6 +591,7 @@ parse_cmdline(int argc, char **argv)
 	int c;
 	bool reopen_log = false;
 	int signum;
+	struct utsname uname_buf;
 
 	struct option long_options[] = {
 		{"use-file",		required_argument,	NULL, 'f'},
@@ -665,6 +667,12 @@ parse_cmdline(int argc, char **argv)
 			fprintf(stderr, ", git commit %s", GIT_COMMIT);
 #endif
 			fprintf(stderr, "\n\n%s\n\n", COPYRIGHT_STRING);
+			fprintf(stderr, "Built with kernel headers for Linux %d.%d.%d\n",
+						(LINUX_VERSION_CODE >> 16) & 0xff,
+						(LINUX_VERSION_CODE >>  8) & 0xff,
+						(LINUX_VERSION_CODE      ) & 0xff);
+			uname(&uname_buf);
+			fprintf(stderr, "Running on %s %s %s\n\n", uname_buf.sysname, uname_buf.release, uname_buf.version);
 			fprintf(stderr, "Build options: %s\n", BUILD_OPTIONS);
 			exit(0);
 			break;
