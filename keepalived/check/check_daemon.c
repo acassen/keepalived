@@ -332,6 +332,8 @@ start_check_child(void)
 	}
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
+	set_child_finder(NULL);
+
 	prog_type = PROG_TYPE_CHECKER;
 
 	if ((instance_name

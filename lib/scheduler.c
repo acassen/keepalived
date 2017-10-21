@@ -62,11 +62,11 @@ prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #endif
 #include "../keepalived/include/main.h"
 
-/* Function that returns if pid is a known child, and sets *prog_name accordingly */
-static bool (*child_finder)(pid_t pid, char const **prog_name);
+/* Function that returns if pid is a known child, and returns prog_name accordingly */
+static char const * (*child_finder)(pid_t pid);
 
 void
-set_child_finder(bool (*func)(pid_t, char const **))
+set_child_finder(char const * (*func)(pid_t))
 {
 	child_finder = func;
 }
@@ -78,15 +78,16 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 	char const *prog_id = NULL;
 	char pid_buf[12];	/* "pid 4194303" + '\0' - see definition of PID_MAX_LIMIT in include/linux/threads.h */
 	int exit_status ;
-	bool keepalived_child_process = false;
+	bool keepalived_child_process;
 
-	if (prog_name) {
+	if (prog_name)
 		prog_id = prog_name;
+	else if (child_finder)
+		prog_id = child_finder(pid);
+
+	if (prog_id)
 		keepalived_child_process = true;
-	}
-	else if (child_finder && child_finder(pid, &prog_id))
-		keepalived_child_process = true;
-	if (!prog_id) {
+	else {
 		snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
 		prog_id = pid_buf;
 	}

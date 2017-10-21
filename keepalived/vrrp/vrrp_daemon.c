@@ -147,7 +147,7 @@ stop_vrrp(int status)
 	}
 #endif
 
-	/* Terminate all script process */
+	/* Terminate all script processes */
 	script_killall(master, SIGTERM);
 
 	/* We mustn't receive a SIGCHLD after master is destroyed */
@@ -544,6 +544,7 @@ start_vrrp_child(void)
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	signal_handler_destroy();
+	set_child_finder(NULL);
 
 	prog_type = PROG_TYPE_VRRP;
 

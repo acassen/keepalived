@@ -225,22 +225,19 @@ make_pidfile_name(const char* start, const char* instance, const char* extn)
 	return name;
 }
 
-static bool
-find_keepalived_child(pid_t pid, char const **prog_name)
+static char const *
+find_keepalived_child(pid_t pid)
 {
 #ifdef _WITH_LVS_
-	if (pid == checkers_child) {
-		*prog_name = PROG_CHECK;
-		return true;
-	}
+	if (pid == checkers_child)
+		return PROG_CHECK;
 #endif
 #ifdef _WITH_VRRP_
-	if (pid == vrrp_child) {
-		*prog_name = PROG_VRRP;
-		return true;
-	}
+	if (pid == vrrp_child)
+		return PROG_VRRP;
 #endif
-	return false;
+
+	return NULL;
 }
 
 #if HAVE_DECL_CLONE_NEWNET

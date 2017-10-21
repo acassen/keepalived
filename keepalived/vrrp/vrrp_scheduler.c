@@ -1090,8 +1090,8 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 }
 
 /* Script tracking threads */
-bool
-vrrp_child_finder(pid_t pid, char const **name)
+char const *
+vrrp_child_finder(pid_t pid)
 {
 	thread_t *thread;
 
@@ -1099,11 +1099,11 @@ vrrp_child_finder(pid_t pid, char const **name)
 	{
 		if (thread->u.c.pid == pid) {
 			vrrp_script_t* scr = THREAD_ARG(thread);
-			*name = scr->script;
-			return false;
+			return scr->script;
 		}
 	}
-	return false;
+
+	return NULL;
 }
 
 static int
