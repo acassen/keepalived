@@ -134,7 +134,8 @@ stop_vrrp(int status)
 	 * of an IGMP leave group being sent for some reason.
 	 * Since we are about to exit, it doesn't affect anything else
 	 * running. */
-	sleep(1);
+	if (!LIST_ISEMPTY(vrrp_data->vrrp))
+		sleep(1);
 
 	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
 		shutdown_vrrp_instances();
