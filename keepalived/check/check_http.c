@@ -682,7 +682,7 @@ http_request_thread(thread_t * thread)
 			fetched_url->path, request_host, request_host_port);
 	}
 
-	DBG("Processing url(%u) of %s.", http->url_it + 1 , FMT_HTTP_RS(checker));
+	DBG("Processing url(%u) of %s.", http_get_check->url_it + 1 , FMT_HTTP_RS(checker));
 
 	/* Set descriptor non blocking */
 	val = fcntl(thread->u.fd, F_GETFL, 0);

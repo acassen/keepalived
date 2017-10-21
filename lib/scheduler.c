@@ -874,7 +874,7 @@ launch_scheduler(void)
 	 */
 	while (thread_fetch(master, &thread)) {
 		/* Run until error, used for debuging only */
-#ifdef _DEBUG_
+#if defined _DEBUG_ && defined _MEM_CHECK_
 		if (__test_bit(MEM_ERR_DETECT_BIT, &debug)
 #ifdef _WITH_VRRP_
 		    && __test_bit(DONT_RELEASE_VRRP_BIT, &debug)
