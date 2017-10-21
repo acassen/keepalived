@@ -30,10 +30,16 @@
 #include "list.h"
 
 /* VRID hash table */
+int
+get_vrrp_hash(const int vrid, const int fd)
+{
+	return ( vrid * 31 + ( fd/2 ) * 37 )%1151;
+}
+
 void
 alloc_vrrp_bucket(vrrp_t *vrrp)
 {
-	list_add(&vrrp_data->vrrp_index[vrrp->vrid], vrrp);
+	list_add(&vrrp_data->vrrp_index[get_vrrp_hash(vrrp->vrid, vrrp->fd_in)], vrrp);
 }
 
 vrrp_t *
@@ -41,7 +47,7 @@ vrrp_index_lookup(const int vrid, const int fd)
 {
 	vrrp_t *vrrp;
 	element e;
-	list l = &vrrp_data->vrrp_index[vrid];
+	list l = &vrrp_data->vrrp_index[get_vrrp_hash(vrid, fd)];
 
 	/* return if list is empty */
 	if (LIST_ISEMPTY(l))
@@ -53,7 +59,7 @@ vrrp_index_lookup(const int vrid, const int fd)
 	 */
 	if (LIST_SIZE(l) == 1) {
 		vrrp = ELEMENT_DATA(LIST_HEAD(l));
-		return (vrrp->fd_in == fd) ? vrrp : NULL;
+		return ((vrrp->fd_in == fd) && (vrrp->vrid == vrid)) ? vrrp : NULL;
 	}
 
 	/*
@@ -63,7 +69,7 @@ vrrp_index_lookup(const int vrid, const int fd)
 	 */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp =  ELEMENT_DATA(e);
-		if (vrrp->fd_in == fd)
+		if ((vrrp->fd_in == fd) && (vrrp->vrid == vrid))
 			return vrrp;
 	}
 
