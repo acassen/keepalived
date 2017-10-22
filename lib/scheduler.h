@@ -124,7 +124,7 @@ extern prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #endif
 
 /* Prototypes. */
-extern void set_child_finder(char const * (*)(pid_t));
+extern void set_child_finder_name(char const * (*)(pid_t));
 #ifndef _DEBUG_
 extern bool report_child_status(int, pid_t, const char *);
 #endif

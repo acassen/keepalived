@@ -1105,7 +1105,7 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 }
 
 /* Script tracking threads */
-char const *
+static char const *
 vrrp_child_finder(pid_t pid)
 {
 	thread_t *thread;

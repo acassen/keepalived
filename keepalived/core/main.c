@@ -226,7 +226,7 @@ make_pidfile_name(const char* start, const char* instance, const char* extn)
 }
 
 static char const *
-find_keepalived_child(pid_t pid)
+find_keepalived_child_name(pid_t pid)
 {
 #ifdef _WITH_LVS_
 	if (pid == checkers_child)
@@ -816,7 +816,7 @@ keepalived_main(int argc, char **argv)
 #endif
 
 	/* Initialise pointer to child finding function */
-	set_child_finder(find_keepalived_child);
+	set_child_finder_name(find_keepalived_child_name);
 
 	/* Initialise daemon_mode */
 #ifdef _WITH_VRRP_

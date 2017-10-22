@@ -63,12 +63,12 @@ prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #include "../keepalived/include/main.h"
 
 /* Function that returns if pid is a known child, and returns prog_name accordingly */
-static char const * (*child_finder)(pid_t pid);
+static char const * (*child_finder_name)(pid_t pid);
 
 void
-set_child_finder(char const * (*func)(pid_t))
+set_child_finder_name(char const * (*func)(pid_t))
 {
-	child_finder = func;
+	child_finder_name = func;
 }
 
 #ifndef _DEBUG_
@@ -82,8 +82,8 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 
 	if (prog_name)
 		prog_id = prog_name;
-	else if (child_finder)
-		prog_id = child_finder(pid);
+	else if (child_finder_name)
+		prog_id = child_finder_name(pid);
 
 	if (!prog_id) {
 		snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
@@ -813,27 +813,27 @@ thread_child_handler(void * v, __attribute__ ((unused)) int unused)
 				permanent_vrrp_checker_error = report_child_status(status, pid, NULL);
 #endif
 
-			thread = m->child.head;
-			while (thread) {
-				thread_t *t;
-				t = thread;
-				thread = t->next;
-				if (pid == t->u.c.pid) {
-					thread_list_delete(&m->child, t);
-					t->u.c.status = status;
-					if (permanent_vrrp_checker_error)
-					{
-						/* The child had a permanant error, so no point in respawning */
-						raise(SIGTERM);
-					}
-					else
-					{
-						t->type = THREAD_READY;
-						thread_list_add(&m->ready, t);
-					}
+			for (thread = m->child.head; thread; thread = thread->next) {
+				if (pid != thread->u.c.pid)
+					continue;
 
-					break;
+				thread_list_delete(&m->child, thread);
+				if (permanent_vrrp_checker_error)
+				{
+					/* The child had a permanant error, so no point in respawning */
+					thread->type = THREAD_UNUSED;
+					thread_list_add(&m->unuse, thread);
+
+					raise(SIGTERM);
 				}
+				else
+				{
+					thread->type = THREAD_READY;
+					thread->u.c.status = status;
+					thread_list_add(&m->ready, thread);
+				}
+
+				break;
 			}
 		}
 	}

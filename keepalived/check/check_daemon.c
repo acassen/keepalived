@@ -332,7 +332,7 @@ start_check_child(void)
 	}
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
-	set_child_finder(NULL);
+	set_child_finder_name(NULL);
 
 	prog_type = PROG_TYPE_CHECKER;
 

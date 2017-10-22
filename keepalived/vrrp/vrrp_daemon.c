@@ -544,7 +544,7 @@ start_vrrp_child(void)
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	signal_handler_destroy();
-	set_child_finder(NULL);
+	set_child_finder_name(NULL);
 
 	prog_type = PROG_TYPE_VRRP;
 
