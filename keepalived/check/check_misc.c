@@ -353,7 +353,7 @@ misc_check_child_thread(thread_t * thread)
 			if (!checker->is_up || !misck_checker->initial_state_reported) {
 				script_exit_type = "succeeded";
 				script_success = true;
-				misck_checker->initial_state_reported = false;
+				misck_checker->initial_state_reported = true;
 			}
 
 			checker->retry_it = 0;
