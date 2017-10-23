@@ -49,6 +49,7 @@ static inline bool __test_bit(unsigned idx, unsigned long *bmap)
 /* Bits */
 enum global_bits {
 	LOG_CONSOLE_BIT,
+	NO_SYSLOG_BIT,
 	DONT_FORK_BIT,
 	DUMP_CONF_BIT,
 #ifdef _WITH_VRRP_

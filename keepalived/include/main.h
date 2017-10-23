@@ -58,6 +58,7 @@ extern const char *version_string;	/* keepalived version */
 extern unsigned long daemon_mode;	/* Which child processes are run */
 extern char *conf_file;			/* Configuration file */
 extern int log_facility;		/* Optional logging facilities */
+extern char *log_file_name;		/* log file name */
 extern pid_t vrrp_child;		/* VRRP child process ID */
 extern pid_t checkers_child;		/* Healthcheckers child process ID */
 extern char *main_pidfile;		/* overrule default pidfile */

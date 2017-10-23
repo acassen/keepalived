@@ -106,6 +106,8 @@ stop_check(int status)
 	 */
 	log_message(LOG_INFO, "Stopped");
 
+	if (log_file_name)
+		close_log_file();
 	closelog();
 
 	FREE(config_id);
@@ -347,8 +349,12 @@ start_check_child(void)
 		syslog_ident = PROG_CHECK;
 
 	/* Opening local CHECK syslog channel */
-	openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
-			    , (log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
+	if (!__test_bit(NO_SYSLOG_BIT, &debug))
+		openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
+				    , (log_facility==LOG_DAEMON) ? LOG_LOCAL2 : log_facility);
+
+	if (log_file_name)
+		open_log_file(log_file_name, "check", network_namespace, instance_name);
 
 #ifdef _MEM_CHECK_
 	mem_log_init(PROG_CHECK, "Healthcheck child process");

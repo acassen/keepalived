@@ -69,6 +69,7 @@
 const char *version_string = VERSION_STRING;		/* keepalived version */
 char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
 int log_facility = LOG_DAEMON;				/* Optional logging facilities */
+char *log_file_name;					/* Name of log file */
 char *main_pidfile;					/* overrule default pidfile */
 static bool free_main_pidfile;
 #ifdef _WITH_LVS_
@@ -539,6 +540,8 @@ usage(const char *prog)
 	fprintf(stderr, "  -l, --log-console            Log messages to local console\n");
 	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");
 	fprintf(stderr, "  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n");
+	fprintf(stderr, "  -g, --log-file=FILE          Also log to FILE (default /tmp/keepalived.log)\n");
+	fprintf(stderr, "  -G, --no-syslog              Don't log via syslog\n");
 #ifdef _WITH_VRRP_
 	fprintf(stderr, "  -X, --release-vips           Drop VIP on transition from signal.\n");
 	fprintf(stderr, "  -V, --dont-release-vrrp      Don't remove VRRP VIPs and VROUTEs on daemon stop\n");
@@ -599,6 +602,8 @@ parse_cmdline(int argc, char **argv)
 		{"log-console",		no_argument,		NULL, 'l'},
 		{"log-detail",		no_argument,		NULL, 'D'},
 		{"log-facility",	required_argument,	NULL, 'S'},
+		{"log-file",		optional_argument,	NULL, 'g'},
+		{"no-syslog",		no_argument,		NULL, 'G'},
 #ifdef _WITH_VRRP_
 		{"release-vips",	no_argument,		NULL, 'X'},
 		{"dont-release-vrrp",	no_argument,		NULL, 'V'},
@@ -637,7 +642,7 @@ parse_cmdline(int argc, char **argv)
 		{NULL,			0,			NULL,  0 }
 	};
 
-	while ((c = getopt_long(argc, argv, "vhlndDRS:f:p:i:mM"
+	while ((c = getopt_long(argc, argv, "vhlndDRS:f:p:i:mMg:G"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
@@ -710,6 +715,17 @@ parse_cmdline(int argc, char **argv)
 #endif
 		case 'S':
 			log_facility = LOG_FACILITY[atoi(optarg)].facility;
+			reopen_log = true;
+			break;
+		case 'g':
+			if (optarg && optarg[0])
+				log_file_name = optarg;
+			else
+				log_file_name = "/tmp/keepalived.log";
+			open_log_file(log_file_name, NULL, NULL, NULL);
+			break;
+		case 'G':
+			__set_bit(NO_SYSLOG_BIT, &debug);
 			reopen_log = true;
 			break;
 		case 'f':
@@ -868,7 +884,8 @@ keepalived_main(int argc, char **argv)
 	 */
 	if (parse_cmdline(argc, argv)) {
 		closelog();
-		openlog(PACKAGE_NAME, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0) , log_facility);
+		if (!__test_bit(NO_SYSLOG_BIT, &debug))
+			openlog(PACKAGE_NAME, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0) , log_facility);
 	}
 
 	if (__test_bit(LOG_CONSOLE_BIT, &debug))
@@ -940,6 +957,8 @@ keepalived_main(int argc, char **argv)
 			log_message(LOG_INFO, "Unable to change syslog ident");
 
 		use_pid_dir = true;
+
+		open_log_file(log_file_name, NULL, network_namespace, instance_name);
 	}
 
 	if (use_pid_dir) {
