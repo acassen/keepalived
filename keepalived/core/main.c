@@ -69,7 +69,6 @@
 const char *version_string = VERSION_STRING;		/* keepalived version */
 char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
 int log_facility = LOG_DAEMON;				/* Optional logging facilities */
-char *log_file_name;					/* Name of log file */
 char *main_pidfile;					/* overrule default pidfile */
 static bool free_main_pidfile;
 #ifdef _WITH_LVS_
@@ -541,6 +540,7 @@ usage(const char *prog)
 	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");
 	fprintf(stderr, "  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n");
 	fprintf(stderr, "  -g, --log-file=FILE          Also log to FILE (default /tmp/keepalived.log)\n");
+	fprintf(stderr, "      --flush-log-file         Flush log file on write\n");
 	fprintf(stderr, "  -G, --no-syslog              Don't log via syslog\n");
 #ifdef _WITH_VRRP_
 	fprintf(stderr, "  -X, --release-vips           Drop VIP on transition from signal.\n");
@@ -603,6 +603,7 @@ parse_cmdline(int argc, char **argv)
 		{"log-detail",		no_argument,		NULL, 'D'},
 		{"log-facility",	required_argument,	NULL, 'S'},
 		{"log-file",		optional_argument,	NULL, 'g'},
+		{"flush-log-file",	no_argument,		NULL,  2 },
 		{"no-syslog",		no_argument,		NULL, 'G'},
 #ifdef _WITH_VRRP_
 		{"release-vips",	no_argument,		NULL, 'X'},
@@ -731,6 +732,9 @@ parse_cmdline(int argc, char **argv)
 		case 'f':
 			conf_file = optarg;
 			break;
+		case 2:		/* --flush-log-file */
+			set_flush_log_file();
+			break;
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 		case 'P':
 			daemon_mode = 0;
@@ -789,7 +793,7 @@ parse_cmdline(int argc, char **argv)
 			config_id = MALLOC(strlen(optarg) + 1);
 			strcpy(config_id, optarg);
 			break;
-		case 1:
+		case 1:			/* --signum */
 			signum = get_signum(optarg);
 			if (signum == -1) {
 				fprintf(stderr, "Unknown sigfunc %s\n", optarg);

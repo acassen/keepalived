@@ -316,6 +316,9 @@ start_check_child(void)
 	char *syslog_ident;
 
 	/* Initialize child process */
+	if (log_file_name)
+		flush_log_file();
+
 	pid = fork();
 
 	if (pid < 0) {

@@ -29,10 +29,13 @@
 
 /* Daemonization function coming from zebra source code */
 pid_t
-xdaemon(int nochdir, int noclose, int exitflag)
+xdaemon(bool nochdir, bool noclose, bool exitflag)
 {
 	pid_t pid;
 	int ret;
+
+	if (log_file_name)
+		flush_log_file();
 
 	/* In case of fork is error. */
 	pid = fork();

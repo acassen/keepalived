@@ -28,9 +28,13 @@
 
 #define	MAX_LOG_MSG	255
 
+extern char *log_file_name;
+
 extern void enable_console_log(void);
+extern void set_flush_log_file(void);
 extern void close_log_file(void);
 extern void open_log_file(const char *, const char *, const char *, const char *);
+extern void flush_log_file(void);
 extern void vlog_message(const int facility, const char* format, va_list args)
 	__attribute__ ((format (printf, 2, 0)));
 extern void log_message(int priority, const char* format, ...)

@@ -38,12 +38,20 @@
 static bool log_console = false;
 
 /* File to write log messages to */
-FILE *log_file;
+char *log_file_name;
+static FILE *log_file;
+bool always_flush_log_file;
 
 void
 enable_console_log(void)
 {
 	log_console = true;
+}
+
+void
+set_flush_log_file(void)
+{
+	always_flush_log_file = true;
 }
 
 void
@@ -107,6 +115,13 @@ open_log_file(const char *name, const char *prog, const char *namespace, const c
 }
 
 void
+flush_log_file(void)
+{
+	if (log_file)
+		fflush(log_file);
+}
+
+void
 vlog_message(const int facility, const char* format, va_list args)
 {
 	char buf[MAX_LOG_MSG+1];
@@ -125,7 +140,8 @@ vlog_message(const int facility, const char* format, va_list args)
 			fprintf(stderr, "%s: %s\n", timestamp, buf);
 		if (log_file) {
 			fprintf(log_file, "%s: %s\n", timestamp, buf);
-			fflush(log_file);
+			if (always_flush_log_file)
+				fflush(log_file);
 		}
 	}
 
