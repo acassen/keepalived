@@ -336,6 +336,7 @@ vrrp_init_script(list l)
 {
 	vrrp_script_t *vscript;
 	element e;
+	size_t num_active_scripts = 0;
 
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vscript = ELEMENT_DATA(e);
@@ -363,8 +364,14 @@ vrrp_init_script(list l)
 			}
 
 			thread_add_event(master, vrrp_script_thread, vscript, (int)vscript->interval);
+
+			num_active_scripts++;
 		}
 	}
+
+	if (num_active_scripts)
+		set_child_finder(DEFAULT_CHILD_FINDER, NULL, NULL, NULL, NULL, num_active_scripts);
+
 }
 
 /* Timer functions */
@@ -1104,23 +1111,6 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 	return 0;
 }
 
-/* Script tracking threads */
-static char const *
-vrrp_child_finder(pid_t pid)
-{
-	thread_t *thread;
-
-	for (thread = master->child.head; thread; thread = thread->next)
-	{
-		if (thread->u.c.pid == pid) {
-			vrrp_script_t* scr = THREAD_ARG(thread);
-			return scr->script;
-		}
-	}
-
-	return NULL;
-}
-
 static int
 vrrp_script_thread(thread_t * thread)
 {
@@ -1180,11 +1170,10 @@ vrrp_script_child_thread(thread_t * thread)
 		}
 
 		if (timeout) {
-			if (!kill(-pid, sig_num)) {
-				/* If kill returns an error, we can't kill the process since either the process has terminated,
-				 * or we don't have permission. If we can't kill it, there is no point trying again. */
+			/* If kill returns an error, we can't kill the process since either the process has terminated,
+			 * or we don't have permission. If we can't kill it, there is no point trying again. */
+			if (!kill(-pid, sig_num))
 				thread_add_child(thread->master, vrrp_script_child_thread, vscript, pid, timeout * TIMER_HZ);
-			}
 		} else
 			log_message(LOG_INFO, "Child thread pid %d timeout with unknown script state %d", pid, vscript->state);
 

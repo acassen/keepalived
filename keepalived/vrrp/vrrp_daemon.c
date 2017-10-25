@@ -549,7 +549,6 @@ start_vrrp_child(void)
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
 	signal_handler_destroy();
-	set_child_finder_name(NULL);
 
 	prog_type = PROG_TYPE_VRRP;
 
@@ -576,6 +575,10 @@ start_vrrp_child(void)
 #endif
 
 	free_parent_mallocs_startup(true);
+
+	/* Clear any child finder functions set in parent */
+	set_child_finder_name(NULL);
+	set_child_finder(NULL, NULL, NULL, NULL, NULL, 0);	/* Currently these won't be set */
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(vrrp_pidfile, getpid())) {

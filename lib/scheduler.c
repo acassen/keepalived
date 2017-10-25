@@ -41,6 +41,7 @@
 #include <sys/wait.h>
 #include <sys/select.h>
 #include <unistd.h>
+
 #include "scheduler.h"
 #include "memory.h"
 #include "utils.h"
@@ -62,13 +63,131 @@ prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #endif
 #include "../keepalived/include/main.h"
 
-/* Function that returns if pid is a known child, and returns prog_name accordingly */
-static char const * (*child_finder_name)(pid_t pid);
+/* Function that returns prog_name if pid is a known child */
+static char const * (*child_finder_name)(pid_t);
+
+/* Functions for handling an optimised list of child threads if there can be many */
+static void (*child_adder)(thread_t *);
+static thread_t *(*child_finder)(pid_t);
+static void (*child_remover)(thread_t *);
+static void (*child_finder_destroy)(void);
+static size_t child_finder_list_size;
+
+static size_t
+get_pid_hash(pid_t pid)
+{
+	return (unsigned)pid % child_finder_list_size;
+}
+
+static void
+default_child_adder(thread_t *thread)
+{
+	list_add(&thread->master->child_pid_index[get_pid_hash(thread->u.c.pid)], thread);
+}
+
+static thread_t *
+default_child_finder(pid_t pid)
+{
+	thread_t *thread;
+	element e;
+	list l = &master->child_pid_index[get_pid_hash(pid)];
+
+	if (LIST_ISEMPTY(l))
+		return NULL;
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		thread = ELEMENT_DATA(e);
+		if (thread->u.c.pid == pid)
+			return thread;
+	}
+
+	return NULL;
+}
+
+static void
+default_child_remover(thread_t *thread)
+{
+	list_del(&thread->master->child_pid_index[get_pid_hash(thread->u.c.pid)], thread);
+}
+
+static bool
+default_child_finder_init(size_t num_entries)
+{
+	child_finder_list_size = 1;
+
+	if (num_entries < 32)
+		return false;
+
+	/* We make the default list size largest power of 2 < num_entries / 2,
+	 * subject to a limit of 256 */
+	while ((num_entries /= 2) > 1 && child_finder_list_size < 256)
+		child_finder_list_size <<= 1;
+
+	master->child_pid_index = alloc_mlist(NULL, NULL, child_finder_list_size);
+
+	return true;
+}
+
+static void
+default_child_finder_destroy(void)
+{
+	if (master->child_pid_index) {
+		free_mlist(master->child_pid_index, child_finder_list_size);
+		master->child_pid_index = NULL;
+	}
+}
 
 void
 set_child_finder_name(char const * (*func)(pid_t))
 {
 	child_finder_name = func;
+}
+
+void
+set_child_finder(void (*adder_func)(thread_t *),
+		 thread_t *(*finder_func)(pid_t),
+		 void (*remover_func)(thread_t *),
+		 bool (*init_func)(size_t),	/* returns true if child_finder to be used */
+		 void (*destroy_func)(void),
+		 size_t num_entries)
+{
+	bool using_child_finder = false;
+
+	if (child_finder_destroy)
+		child_finder_destroy();
+
+	if (adder_func == DEFAULT_CHILD_FINDER) {
+		if (default_child_finder_init(num_entries)) {
+			child_adder = default_child_adder;
+			child_finder = default_child_finder;
+			child_remover = default_child_remover;
+			child_finder_destroy = default_child_finder_destroy;
+
+			using_child_finder = true;
+		}
+	} else if (child_adder && init_func && init_func(num_entries)) {
+		child_adder = adder_func;
+		child_finder = finder_func;
+		child_remover = remover_func;
+		child_finder_destroy = destroy_func;
+
+		using_child_finder = true;
+	}
+
+	if (using_child_finder)
+		log_message(LOG_INFO, "Using optimised child finder");
+	else {
+		child_adder = NULL;
+		child_finder = NULL;
+		child_remover = NULL;
+		child_finder_destroy = NULL;
+	}
+}
+
+void remove_child(thread_t *thread)
+{
+	if (child_remover)
+		child_remover(thread);
 }
 
 #ifndef _DEBUG_
@@ -253,6 +372,11 @@ thread_cleanup_master(thread_master_t * m)
 	thread_destroy_list(m, m->event);
 	thread_destroy_list(m, m->ready);
 
+	if (m->child_pid_index) {
+		free_mlist(m->child_pid_index, child_finder_list_size);
+		m->child_pid_index = NULL;
+	}
+
 	/* Clear all FDs */
 	FD_ZERO(&m->readfd);
 	FD_ZERO(&m->writefd);
@@ -415,6 +539,9 @@ thread_add_child(thread_master_t * m, int (*func) (thread_t *)
 
 	/* Sort by timeval. */
 	thread_list_add_timeval(&m->child, thread);
+
+	if (child_adder)
+		child_adder(thread);
 
 	return thread;
 }
@@ -690,6 +817,8 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		if (timer_cmp(time_now, t->sands) >= 0) {
 			thread_list_delete(&m->child, t);
 			thread_list_add(&m->ready, t);
+			if (child_remover)
+				child_remover(t);
 			t->type = THREAD_CHILD_TIMEOUT;
 		} else
 			break;
@@ -791,11 +920,6 @@ static void
 thread_child_handler(void * v, __attribute__ ((unused)) int unused)
 {
 	thread_master_t * m = v;
-
-	/*
-	 * This is O(n^2), but there will only be a few entries on
-	 * this list.
-	 */
 	thread_t *thread;
 	pid_t pid;
 	int status;
@@ -813,27 +937,35 @@ thread_child_handler(void * v, __attribute__ ((unused)) int unused)
 				permanent_vrrp_checker_error = report_child_status(status, pid, NULL);
 #endif
 
-			for (thread = m->child.head; thread; thread = thread->next) {
-				if (pid != thread->u.c.pid)
-					continue;
-
-				thread_list_delete(&m->child, thread);
-				if (permanent_vrrp_checker_error)
-				{
-					/* The child had a permanant error, so no point in respawning */
-					thread->type = THREAD_UNUSED;
-					thread_list_add(&m->unuse, thread);
-
-					raise(SIGTERM);
+			if (child_finder)
+				thread = child_finder(pid);
+			else {
+				for (thread = m->child.head; thread; thread = thread->next) {
+					if (pid == thread->u.c.pid)
+						break;
 				}
-				else
-				{
-					thread->type = THREAD_READY;
-					thread->u.c.status = status;
-					thread_list_add(&m->ready, thread);
-				}
+			}
 
-				break;
+			if (!thread)
+				return;
+
+			thread_list_delete(&m->child, thread);
+			if (child_remover)
+				child_remover(thread);
+
+			if (permanent_vrrp_checker_error)
+			{
+				/* The child had a permanant error, so no point in respawning */
+				thread->type = THREAD_UNUSED;
+				thread_list_add(&m->unuse, thread);
+
+				raise(SIGTERM);
+			}
+			else
+			{
+				thread->type = THREAD_READY;
+				thread->u.c.status = status;
+				thread_list_add(&m->ready, thread);
 			}
 		}
 	}

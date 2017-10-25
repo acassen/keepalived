@@ -249,6 +249,34 @@ check_misc_script_security(void)
 	return script_flags;
 }
 
+void
+check_misc_set_child_finder(void)
+{
+	element e;
+	checker_t *checker;
+	misc_checker_t *misc_script;
+	size_t num_misc_checkers = 0;
+
+	if (LIST_ISEMPTY(checkers_queue))
+		return;
+
+	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
+		checker = ELEMENT_DATA(e);
+
+		if (checker->launch != misc_check_thread)
+			continue;
+
+		misc_script = CHECKER_ARG(checker);
+		if (!misc_script->insecure)
+			num_misc_checkers++;
+	}
+
+	if (!num_misc_checkers)
+		return;
+
+	set_child_finder(DEFAULT_CHILD_FINDER, NULL, NULL, NULL, NULL, num_misc_checkers);
+}
+
 static int
 misc_check_thread(thread_t * thread)
 {
@@ -322,16 +350,19 @@ misc_check_child_thread(thread_t * thread)
 		}
 
 		if (timeout) {
-			if (!kill(-pid, sig_num)) {
-				/* If kill returns an error, we can't kill the process since either the process has terminated,
-				 * or we don't have permission. If we can't kill it, there is no point trying again. */
+			/* If kill returns an error, we can't kill the process since either the process has terminated,
+			 * or we don't have permission. If we can't kill it, there is no point trying again. */
+			if (!kill(-pid, sig_num))
 				thread_add_child(thread->master, misc_check_child_thread, checker, pid, timeout * TIMER_HZ);
-			}
-		} else
+		} else {
+			remove_child(thread);
 			log_message(LOG_INFO, "Child thread pid %d timeout with unknown script state %d", pid, misck_checker->state);
+		}
 
 		return 0;
 	}
+
+	remove_child(thread);
 
 	wait_status = THREAD_CHILD_STATUS(thread);
 

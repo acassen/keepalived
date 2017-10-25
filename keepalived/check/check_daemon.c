@@ -337,7 +337,9 @@ start_check_child(void)
 	}
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
+	/* Clear any child finder functions set in parent */
 	set_child_finder_name(NULL);
+	set_child_finder(NULL, NULL, NULL, NULL, NULL, 0);	/* Currently these won't be set */
 
 	prog_type = PROG_TYPE_CHECKER;
 
