@@ -1156,7 +1156,7 @@ vrrp_script_child_thread(thread_t * thread)
 	pid_t pid;
 	vrrp_script_t *vscript = THREAD_ARG(thread);
 	int sig_num;
-	int timeout = 0;
+	unsigned timeout = 0;
 	char *script_exit_type = NULL;
 	bool script_success;
 	char *reason = NULL;

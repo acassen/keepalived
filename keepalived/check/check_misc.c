@@ -295,7 +295,7 @@ misc_check_child_thread(thread_t * thread)
 	misc_checker_t *misck_checker;
 	timeval_t next_time;
 	int sig_num;
-	int timeout = 0;
+	unsigned timeout = 0;
 	char *script_exit_type = NULL;
 	bool script_success;
 	char *reason = NULL;

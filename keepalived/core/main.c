@@ -876,8 +876,8 @@ keepalived_main(int argc, char **argv)
 		/* config_id defaults to hostname */
 		if (!config_id) {
 			end = strchrnul(uname_buf.nodename, '.');
-			config_id = MALLOC(end - uname_buf.nodename + 1);
-			strncpy(config_id, uname_buf.nodename, end - uname_buf.nodename);
+			config_id = MALLOC((size_t)(end - uname_buf.nodename) + 1);
+			strncpy(config_id, uname_buf.nodename, (size_t)(end - uname_buf.nodename));
 			config_id[end - uname_buf.nodename] = '\0';
 		}
 	}

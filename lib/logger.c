@@ -68,7 +68,7 @@ open_log_file(const char *name, const char *prog, const char *namespace, const c
 {
 	const char *extn_start;
 	const char *dir_end;
-	ssize_t len;
+	size_t len;
 	char *file_name;
 
 	if (log_file) {
@@ -90,7 +90,7 @@ open_log_file(const char *name, const char *prog, const char *namespace, const c
 	file_name = MALLOC(len + 1);
 	dir_end = strrchr(name, '/');
 	extn_start = strrchr(dir_end ? dir_end : name, '.');
-	strncpy(file_name, name, extn_start ? extn_start - name : len);
+	strncpy(file_name, name, extn_start ? (size_t)(extn_start - name) : len);
 
 	if (prog) {
 		strcat(file_name, "_");
