@@ -29,6 +29,7 @@
 #include <netinet/in.h>
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 /* needed to get correct values for SIOC* */
 #include <linux/sockios.h>
@@ -162,5 +163,6 @@ extern int if_setsockopt_mcast_hops(sa_family_t, int *);
 extern int if_setsockopt_mcast_if(sa_family_t, int *, interface_t *);
 extern int if_setsockopt_priority(int *, int);
 extern int if_setsockopt_rcvbuf(int *, int);
+extern void print_interface_list(FILE *fp);
 
 #endif

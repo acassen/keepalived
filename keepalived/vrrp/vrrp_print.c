@@ -34,6 +34,7 @@
 #include "keepalived_netlink.h"
 #include "rttables.h"
 #include "logger.h"
+#include "vrrp_if.h"
 
 #include <time.h>
 #include <errno.h>
@@ -393,6 +394,9 @@ vrrp_print_data(void)
 		fprintf(file, "------< VRRP Sync groups >------\n");
 		vrrp_print_list(file, vrrp_data->vrrp_sync_group, &vgroup_print);
 	}
+
+	print_interface_list(file);
+
 	fclose(file);
 
 	clear_rt_names();
