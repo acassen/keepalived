@@ -2453,11 +2453,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	    !vrrp->ifp->promote_secondaries_already_set)
 		set_promote_secondaries(vrrp->ifp);
 
-	/* If we are adding a large number of interfaces, the netlink socket
-	 * may run out of buffers if we don't receive the netlink messages
-	 * as we progress */
-	kernel_netlink_poll();
-
 	return true;
 }
 

@@ -540,7 +540,7 @@ void
 init_interface_queue(void)
 {
 	init_if_queue();
-	netlink_interface_lookup();
+	netlink_interface_lookup(NULL);
 //	dump_list(if_queue);
 }
 
