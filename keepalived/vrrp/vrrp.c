@@ -2848,7 +2848,8 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		tracked_sc_t *sc;
 		vrrp_script_t *vsc;
 
-		for (e = LIST_HEAD(vrrp->track_script); e; ELEMENT_NEXT(e)) {
+		for (e = LIST_HEAD(vrrp->track_script); e; e = next) {
+			next = e->next;
 			sc = ELEMENT_DATA(e);
 			vsc = sc->scr;
 
