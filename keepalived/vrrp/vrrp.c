@@ -160,26 +160,26 @@ vrrp_handle_accept_mode(vrrp_t *vrrp, int cmd, bool force)
 
 /* Check that the scripts are secure */
 static int
-check_track_script_secure(tracked_sc_t *script, magic_t magic)
+check_track_script_secure(vrrp_script_t *script, magic_t magic)
 {
 	int flags;
 
-	if (script->scr->insecure)
+	if (script->insecure)
 		return 0;
 
-	flags = check_script_secure(&script->scr->script, magic);
+	flags = check_script_secure(&script->script, magic);
 
 	/* Mark not to run if needs inhibiting */
 	if (flags & SC_INHIBIT) {
-		log_message(LOG_INFO, "Disabling track script %s due to insecure", script->scr->sname);
-		script->scr->insecure = true;
+		log_message(LOG_INFO, "Disabling track script %s due to insecure", script->sname);
+		script->insecure = true;
 	}
 	else if (flags & SC_NOTFOUND) {
-		log_message(LOG_INFO, "Disabling track script %s since not found/accessible", script->scr->sname);
-		script->scr->insecure = true;
+		log_message(LOG_INFO, "Disabling track script %s since not found/accessible", script->sname);
+		script->insecure = true;
 	}
 	else if (!(flags & SC_EXECUTABLE))
-		script->scr->insecure = true;
+		script->insecure = true;
 
 	return flags;
 }
@@ -193,13 +193,20 @@ check_vrrp_script_security(void)
 	tracked_sc_t *track_script;
 	vrrp_script_t *vscript;
 	int script_flags = 0;
-	int flags;
 	magic_t magic;
 
 	if (LIST_ISEMPTY(vrrp_data->vrrp))
 		return;
 
 	magic = ka_magic_open();
+
+	/* Set the insecure flag of any insecure scripts */
+	if (!LIST_ISEMPTY(vrrp_data->vrrp_script)) {
+		for (e = LIST_HEAD(vrrp_data->vrrp_script); e; ELEMENT_NEXT(e)) {
+			vscript = ELEMENT_DATA(e);
+			script_flags |= check_track_script_secure(vscript, magic);
+		}
+	}
 
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
@@ -216,7 +223,6 @@ check_vrrp_script_security(void)
 		for (e1 = LIST_HEAD(vrrp->track_script); e1; e1 = next) {
 			next = e1->next;
 			track_script = ELEMENT_DATA(e1);
-			script_flags |= (flags = check_track_script_secure(track_script, magic));
 
 			if (track_script->scr->insecure) {
 				/* Remove it from the vrrp instance's queue */
@@ -236,7 +242,6 @@ check_vrrp_script_security(void)
 			for (e1 = LIST_HEAD(sg->track_script); e1; e1 = next) {
 				next = e1->next;
 				track_script = ELEMENT_DATA(e1);
-				script_flags |= (flags = check_track_script_secure(track_script, magic));
 
 				if (track_script->scr->insecure) {
 					/* Remove it from the vrrp sync group's queue */
