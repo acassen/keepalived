@@ -1353,11 +1353,6 @@ netlink_interface_lookup(char *name)
 	}
 	status = netlink_parse_info(netlink_if_link_filter, &nlh, NULL, false);
 
-#ifdef _HAVE_VRRP_VMAC_
-	/* We now need to ensure that all the base_ifp are set */
-	set_base_ifp();
-#endif
-
 end_int:
 	netlink_close(&nlh);
 	return status;

@@ -151,7 +151,8 @@ set_base_ifp(void)
 
 	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
 		ifp = ELEMENT_DATA(e);
-		if (!ifp->base_ifp) {
+		if (!ifp->base_ifp &&
+		    ifp->base_ifindex) {
 			ifp->base_ifp = if_get_by_ifindex(ifp->base_ifindex);
 			ifp->base_ifindex = 0;	/* This is only used at startup, so ensure not used later */
 		}
@@ -594,6 +595,12 @@ init_interface_queue(void)
 {
 	init_if_queue();
 	netlink_interface_lookup(NULL);
+#ifdef _HAVE_VRRP_VMAC_
+	/* Since we are reading all the interfaces, we might have received details of
+	 * a vmac before the underlying interface, so now we need to ensure the
+	 * interface pointers are all set */
+	set_base_ifp();
+#endif
 //	dump_list(if_queue);
 }
 
