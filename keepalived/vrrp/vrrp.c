@@ -3443,11 +3443,11 @@ clear_diff_script(void)
 				log_message(LOG_INFO, "VRRP_Script(%s) considered unsuccessful on reload", nvscript->sname);
 			} else {
 				if (vscript->result == vscript->rise + vscript->fall - 1)
-					nvscript->result = vscript->rise + vscript->fall - 1;
+					nvscript->result = nvscript->rise + nvscript->fall - 1;
 				else {
-					nvscript->result = nvscript->rise + (vscript->rise - vscript->result);
+					nvscript->result = nvscript->rise + (vscript->result - vscript->rise);
 					if (nvscript->result >= nvscript->rise + nvscript->fall)
-						nvscript->result = vscript->rise + vscript->fall - 1;
+						nvscript->result = nvscript->rise + nvscript->fall - 1;
 				}
 				log_message(LOG_INFO, "VRRP_Script(%s) considered successful on reload", nvscript->sname);
 			}
