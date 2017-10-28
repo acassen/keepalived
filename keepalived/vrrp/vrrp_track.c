@@ -555,11 +555,6 @@ update_script_priorities(vrrp_script_t *vscript, bool script_ok)
 static void
 initialise_track_script_state(tracked_sc_t *tsc, vrrp_t *vrrp)
 {
-	if (tsc->scr->insecure) {
-		/* This script won't be run, so ignore it */
-		return;
-	}
-
 	if (!tsc->weight) {
 		if (tsc->scr->init_state == SCRIPT_INIT_STATE_INIT)
 			vrrp->num_script_init++;

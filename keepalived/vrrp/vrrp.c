@@ -232,6 +232,17 @@ check_vrrp_script_security(void)
 			script_flags |= check_notify_script_secure(&sg->script_master, magic);
 			script_flags |= check_notify_script_secure(&sg->script_fault, magic);
 			script_flags |= check_notify_script_secure(&sg->script, magic);
+
+			for (e1 = LIST_HEAD(sg->track_script); e1; e1 = next) {
+				next = e1->next;
+				track_script = ELEMENT_DATA(e1);
+				script_flags |= (flags = check_track_script_secure(track_script, magic));
+
+				if (track_script->scr->insecure) {
+					/* Remove it from the vrrp sync group's queue */
+					free_list_element(sg->track_script, e1);
+				}
+			}
 		}
 	}
 
@@ -2853,11 +2864,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 			sc = ELEMENT_DATA(e);
 			vsc = sc->scr;
 
-			if (vsc->insecure) {
-				list_del(vrrp->track_script, sc);
-				continue;
-			}
-
 			if (vrrp->base_priority == VRRP_PRIO_OWNER && sc->weight) {
 				log_message(LOG_INFO, "(%s) Cannot have weighted track script '%s' with priority %d", vrrp->iname, vsc->sname, VRRP_PRIO_OWNER);
 				list_del(vrrp->track_script, sc);
@@ -2933,9 +2939,6 @@ sync_group_tracking_init(void)
 			for (e1 = LIST_HEAD(sgroup->track_script); e1; ELEMENT_NEXT(e1)) {
 				sc = ELEMENT_DATA(e1);
 				vsc = sc->scr;
-
-				if (vsc->insecure)
-					continue;
 
 				if (sgroup_has_prio_owner && sc->weight) {
 					log_message(LOG_INFO, "(%s) Cannot have weighted track script '%s' with member having priority %d - clearing weight", sgroup->gname, vsc->sname, VRRP_PRIO_OWNER);
