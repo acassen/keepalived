@@ -22,12 +22,14 @@ IMPORTS
         FROM SNMPv2-TC;
 
 keepalived MODULE-IDENTITY
-     LAST-UPDATED "201710030001Z"
+     LAST-UPDATED "201710260000Z"
      ORGANIZATION "Keepalived"
      CONTACT-INFO "http://www.keepalived.org"
      DESCRIPTION
         "This MIB describes objects used by keepalived, both
          for VRRP and health checker."
+     REVISION "201710260000Z"
+     DESCRIPTION "remove vrrpScriptResult disabled status"
      REVISION "201710030001Z"
      DESCRIPTION
 	"correct max weight for track scripts
@@ -2218,7 +2220,6 @@ vrrpScriptWeight OBJECT-TYPE
 
 vrrpScriptResult OBJECT-TYPE
     SYNTAX INTEGER {
-        disabled(0),
         init(1),
         bad(2),
         good(3),

@@ -32,6 +32,7 @@
 #include "list.h"
 #include "vrrp_if.h"
 #include "vrrp.h"
+#include "notify.h"
 
 /* VRRP script tracking defaults */
 #define VRRP_SCRIPT_DI 1	/* external script track interval (in sec) */
@@ -45,11 +46,6 @@
  * success, we increase result and set it to rise+fall-1 when we pass above
  * rise-1.
  */
-#define VRRP_SCRIPT_STATUS_TIMEDOUT	-5
-#define VRRP_SCRIPT_STATUS_NOT_SET	-4
-#define VRRP_SCRIPT_STATUS_DISABLED	-3
-#define VRRP_SCRIPT_STATUS_INIT_FAILED	-2
-#define VRRP_SCRIPT_STATUS_INIT		-1
 
 /* If a VRRP instance doesn't track it's own interface, we still
  * want the interface to have a reference to the VRRP instance,
@@ -68,7 +64,8 @@ typedef struct _vrrp_script {
 	int			fall;		/* F: how many failures before KO */
 	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this script */
 	int			last_status;	/* Last status returned by script. Used to report changes */
-	bool			forcing_termination; /* Set if script didn't respond and we sent it SIGTERM */
+	script_state_t		state;		/* current state of script */
+	script_init_state_t	init_state;	/* current initialisation state of script */
 	bool			insecure;	/* Set if script is run by root, but is non-root modifiable */
 } vrrp_script_t;
 

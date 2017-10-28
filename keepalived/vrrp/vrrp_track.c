@@ -235,7 +235,7 @@ alloc_track_script(vrrp_t *vrrp, vector_t *strvec)
 	tsc	    = (tracked_sc_t *) MALLOC(sizeof(tracked_sc_t));
 	tsc->scr    = vsc;
 	tsc->weight = weight;
-	vsc->result = VRRP_SCRIPT_STATUS_INIT;
+	vsc->init_state = SCRIPT_INIT_STATE_INIT;
 	list_add(vrrp->track_script, tsc);
 }
 
@@ -290,7 +290,7 @@ alloc_group_track_script(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	tsc	    = (tracked_sc_t *) MALLOC(sizeof(tracked_sc_t));
 	tsc->scr    = vsc;
 	tsc->weight = weight;
-	vsc->result = VRRP_SCRIPT_STATUS_INIT;
+	vsc->init_state = SCRIPT_INIT_STATE_INIT;
 	list_add(sgroup->track_script, tsc);
 }
 
@@ -493,7 +493,7 @@ process_script_update_priority(int weight, vrrp_script_t *vscript, bool script_o
 	bool instance_left_init = false;
 
 	if (!weight) {
-		if (vscript->last_status == VRRP_SCRIPT_STATUS_NOT_SET) {
+		if (vscript->init_state == SCRIPT_INIT_STATE_INIT) {
 			/* We need to adjust the number of scripts in init state */
 			if (!--vrrp->num_script_init) {
 				instance_left_init = true;
@@ -513,8 +513,8 @@ process_script_update_priority(int weight, vrrp_script_t *vscript, bool script_o
 		return;
 	}
 
-	if (vscript->last_status == VRRP_SCRIPT_STATUS_NOT_SET) {
-		/* If the script hasn't previously exitted, we need
+	if (vscript->init_state == SCRIPT_INIT_STATE_INIT) {
+		/* If the script hasn't previously exited, we need
 		   to only adjust the priority if the state the script
 		   is now in causes an adjustment to the priority */
 		if (script_ok) {
@@ -561,9 +561,9 @@ initialise_track_script_state(tracked_sc_t *tsc, vrrp_t *vrrp)
 	}
 
 	if (!tsc->weight) {
-		if (tsc->scr->result == VRRP_SCRIPT_STATUS_INIT)
+		if (tsc->scr->init_state == SCRIPT_INIT_STATE_INIT)
 			vrrp->num_script_init++;
-		else if (tsc->scr->result == VRRP_SCRIPT_STATUS_INIT_FAILED ||
+		else if (tsc->scr->init_state == SCRIPT_INIT_STATE_FAILED ||
 			 (tsc->scr->result >= 0 && tsc->scr->result < tsc->scr->rise)) {
 			/* The script is in fault state */
 			vrrp->num_script_if_fault++;
@@ -576,7 +576,8 @@ initialise_track_script_state(tracked_sc_t *tsc, vrrp_t *vrrp)
 	if (vrrp->base_priority == VRRP_PRIO_OWNER)
 		return;
 
-	if (tsc->scr->last_status != VRRP_SCRIPT_STATUS_NOT_SET)
+//	if (tsc->scr->last_status != VRRP_SCRIPT_STATUS_NOT_SET)
+	if (tsc->scr->init_state != SCRIPT_INIT_STATE_INIT)
 	{
 		if (tsc->scr->result >= tsc->scr->rise) {
 			if (tsc->weight > 0)

@@ -233,7 +233,9 @@ notify_fifo_close(notify_fifo_t* global_fifo, notify_fifo_t* fifo)
 }
 
 /* perform a system call */
-static int
+static void system_call(const notify_script_t *) __attribute__ ((noreturn));
+
+static void
 system_call(const notify_script_t* script)
 {
 	size_t num;
@@ -243,7 +245,7 @@ system_call(const notify_script_t* script)
 	int retval;
 
 	if (set_privileges(script->uid, script->gid))
-		return -1;
+		exit(0);
 
 	if (script->flags & SC_EXECABLE) {
 		execve(script->args[0], script->args, environ);
@@ -275,18 +277,33 @@ system_call(const notify_script_t* script)
 
 		retval = system(cmd_str);
 
-		if (retval == 127) {
-			/* couldn't exec command */
-			log_message(LOG_ALERT, "Couldn't exec command: %s", cmd_str);
-		}
-		else if (retval == -1)
+		if (retval == -1)
 			log_message(LOG_ALERT, "Error exec-ing command: %s", cmd_str);
+		else if (WIFEXITED(retval)) {
+			if (WEXITSTATUS(retval) == 127) {
+				/* couldn't find command */
+				log_message(LOG_ALERT, "Couldn't find command: %s", cmd_str);
+			}
+			else if (WEXITSTATUS(retval) == 126) {
+				/* couldn't find command */
+				log_message(LOG_ALERT, "Couldn't execute command: %s", cmd_str);
+			}
+		}
 
 		if (command_line)
 			FREE(command_line);
+
+		if (retval == -1 ||
+		    (WIFEXITED(retval) && (WEXITSTATUS(retval) == 126 || WEXITSTATUS(retval) == 127)))
+			exit(0);
+		if (WIFEXITED(retval))
+			exit(WEXITSTATUS(retval));
+		if (WIFSIGNALED(retval))
+			kill(getpid(), WTERMSIG(retval));
+		exit(0);
 	}
 
-	return -1;
+	exit(0);
 }
 
 /* Execute external script/program */
@@ -294,6 +311,9 @@ int
 notify_exec(const notify_script_t *script)
 {
 	pid_t pid;
+
+	if (log_file_name)
+		flush_log_file();
 
 	pid = fork();
 
@@ -324,6 +344,9 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 	pid_t pid;
 
 	/* Daemonization to not degrade our scheduling timer */
+	if (log_file_name)
+		flush_log_file();
+
 	pid = fork();
 
 	if (pid < 0) {

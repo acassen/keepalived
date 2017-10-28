@@ -502,13 +502,11 @@ vrrp_snmp_script(struct variable *vp, oid *name, size_t *length,
 		long_ret.s = scr->weight;
 		return (u_char *)&long_ret;
 	case VRRP_SNMP_SCRIPT_RESULT:
-		switch (scr->result) {
-		case VRRP_SCRIPT_STATUS_INIT:
+		switch (scr->init_state) {
+		case SCRIPT_INIT_STATE_INIT:
 			long_ret.u = 1; break;
-		case VRRP_SCRIPT_STATUS_INIT_FAILED:
+		case SCRIPT_INIT_STATE_FAILED:
 			long_ret.u = 5; break;
-		case VRRP_SCRIPT_STATUS_DISABLED:
-			long_ret.u = 0; break;
 		default:
 			long_ret.u = (scr->result >= scr->rise) ? 3 : 2;
 		}

@@ -29,6 +29,7 @@
 /* Macro definition */
 
 /* prototypes */
+extern int get_vrrp_hash(const int, const int);
 extern void alloc_vrrp_bucket(vrrp_t *);
 extern void alloc_vrrp_fd_bucket(vrrp_t *);
 extern vrrp_t *vrrp_index_lookup(const int, const int);

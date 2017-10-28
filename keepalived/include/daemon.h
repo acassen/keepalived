@@ -24,9 +24,9 @@
 #define _DAEMON_H
 
 /* System includes */
-#include <sys/types.h>
+#include <stdbool.h>
 
 /* prototype */
-extern pid_t xdaemon(int, int, int);
+extern pid_t xdaemon(bool, bool, bool);
 
 #endif

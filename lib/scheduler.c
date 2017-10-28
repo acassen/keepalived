@@ -69,14 +69,86 @@ int inotify_fd = -1;
 #include "../keepalived/include/vrrp_daemon.h"
 #endif
 
-/* Function that returns if pid is a known child, and sets *prog_name accordingly */
-static bool (*child_finder)(pid_t pid, char const **prog_name);
+/* Function that returns prog_name if pid is a known child */
+static char const * (*child_finder_name)(pid_t);
+
+/* Functions for handling an optimised list of child threads if there can be many */
+static void (*child_adder)(thread_t *);
+static thread_t *(*child_finder)(pid_t);
+static void (*child_remover)(thread_t *);
+static void (*child_finder_destroy)(void);
+static size_t child_finder_list_size;
+
 static void (*process_track_inotify)(int fd);
 
-void
-set_child_finder(bool (*func)(pid_t, char const **))
+static size_t
+get_pid_hash(pid_t pid)
 {
-	child_finder = func;
+	return (unsigned)pid % child_finder_list_size;
+}
+
+static void
+default_child_adder(thread_t *thread)
+{
+	list_add(&thread->master->child_pid_index[get_pid_hash(thread->u.c.pid)], thread);
+}
+
+static thread_t *
+default_child_finder(pid_t pid)
+{
+	thread_t *thread;
+	element e;
+	list l = &master->child_pid_index[get_pid_hash(pid)];
+
+	if (LIST_ISEMPTY(l))
+		return NULL;
+
+	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
+		thread = ELEMENT_DATA(e);
+		if (thread->u.c.pid == pid)
+			return thread;
+	}
+
+	return NULL;
+}
+
+static void
+default_child_remover(thread_t *thread)
+{
+	list_del(&thread->master->child_pid_index[get_pid_hash(thread->u.c.pid)], thread);
+}
+
+static bool
+default_child_finder_init(size_t num_entries)
+{
+	child_finder_list_size = 1;
+
+	if (num_entries < 32)
+		return false;
+
+	/* We make the default list size largest power of 2 < num_entries / 2,
+	 * subject to a limit of 256 */
+	while ((num_entries /= 2) > 1 && child_finder_list_size < 256)
+		child_finder_list_size <<= 1;
+
+	master->child_pid_index = alloc_mlist(NULL, NULL, child_finder_list_size);
+
+	return true;
+}
+
+static void
+default_child_finder_destroy(void)
+{
+	if (master->child_pid_index) {
+		free_mlist(master->child_pid_index, child_finder_list_size);
+		master->child_pid_index = NULL;
+	}
+}
+
+void
+set_child_finder_name(char const * (*func)(pid_t))
+{
+	child_finder_name = func;
 }
 
 void
@@ -85,6 +157,54 @@ set_process_track_inotify(void (*func)(int))
 	process_track_inotify = func;
 }
 
+void
+set_child_finder(void (*adder_func)(thread_t *),
+		 thread_t *(*finder_func)(pid_t),
+		 void (*remover_func)(thread_t *),
+		 bool (*init_func)(size_t),	/* returns true if child_finder to be used */
+		 void (*destroy_func)(void),
+		 size_t num_entries)
+{
+	bool using_child_finder = false;
+
+	if (child_finder_destroy)
+		child_finder_destroy();
+
+	if (adder_func == DEFAULT_CHILD_FINDER) {
+		if (default_child_finder_init(num_entries)) {
+			child_adder = default_child_adder;
+			child_finder = default_child_finder;
+			child_remover = default_child_remover;
+			child_finder_destroy = default_child_finder_destroy;
+
+			using_child_finder = true;
+		}
+	} else if (child_adder && init_func && init_func(num_entries)) {
+		child_adder = adder_func;
+		child_finder = finder_func;
+		child_remover = remover_func;
+		child_finder_destroy = destroy_func;
+
+		using_child_finder = true;
+	}
+
+	if (using_child_finder)
+		log_message(LOG_INFO, "Using optimised child finder");
+	else {
+		child_adder = NULL;
+		child_finder = NULL;
+		child_remover = NULL;
+		child_finder_destroy = NULL;
+	}
+}
+
+void remove_child(thread_t *thread)
+{
+	if (child_remover)
+		child_remover(thread);
+}
+
+#ifndef _DEBUG_
 /* report_child_status returns true if the exit is a hard error, so unable to continue */
 bool
 report_child_status(int status, pid_t pid, char const *prog_name)
@@ -92,47 +212,30 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 	char const *prog_id = NULL;
 	char pid_buf[12];	/* "pid 4194303" + '\0' - see definition of PID_MAX_LIMIT in include/linux/threads.h */
 	int exit_status ;
-	bool keepalived_child_process = false;
 
-	if (prog_name) {
+	if (prog_name)
 		prog_id = prog_name;
-		keepalived_child_process = true;
+	else if (child_finder_name)
+		prog_id = child_finder_name(pid);
+
+	if (!prog_id) {
+		snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
+		prog_id = pid_buf;
 	}
-	else if (child_finder && child_finder(pid, &prog_id))
-		keepalived_child_process = true;
 
 	if (WIFEXITED(status)) {
 		exit_status = WEXITSTATUS(status);
 
 		/* Handle exit codes of vrrp or checker child */
-		if (keepalived_child_process &&
-		    (exit_status == KEEPALIVED_EXIT_FATAL ||
-		     exit_status == KEEPALIVED_EXIT_CONFIG)) {
+		if (exit_status == KEEPALIVED_EXIT_FATAL ||
+		    exit_status == KEEPALIVED_EXIT_CONFIG) {
 			log_message(LOG_INFO, "%s exited with permanent error %s. Terminating", prog_id, exit_status == KEEPALIVED_EXIT_CONFIG ? "CONFIG" : "FATAL" );
 			return true;
 		}
 
-		if (exit_status != EXIT_SUCCESS
-#ifndef _DEBUG_
-						&& prog_type == PROG_TYPE_PARENT
-#endif
-										) {
-			if (!prog_id) {
-				snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
-				prog_id = pid_buf;
-			}
-
+		if (exit_status != EXIT_SUCCESS)
 			log_message(LOG_INFO, "%s exited with status %d", prog_id, exit_status);
-		}
-
-		return false;
-	}
-	if (WIFSIGNALED(status)) {
-		if (!prog_id) {
-			snprintf(pid_buf, sizeof(pid_buf), "pid %d", pid);
-			prog_id = pid_buf;
-		}
-
+	} else if (WIFSIGNALED(status)) {
 		if (WTERMSIG(status) == SIGSEGV) {
 			log_message(LOG_INFO, "%s exited due to segmentation fault (SIGSEGV).", prog_id);
 			log_message(LOG_INFO, "  Please report a bug at %s", "https://github.com/acassen/keepalived/issues");
@@ -141,12 +244,11 @@ report_child_status(int status, pid_t pid, char const *prog_name)
 		}
 		else
 			log_message(LOG_INFO, "%s exited due to signal %d", prog_id, WTERMSIG(status));
-
-		return false;
 	}
 
 	return false;
 }
+#endif
 
 /* Make thread master. */
 thread_master_t *
@@ -296,6 +398,11 @@ thread_cleanup_master(thread_master_t * m)
 	thread_destroy_list(m, m->child);
 	thread_destroy_list(m, m->event);
 	thread_destroy_list(m, m->ready);
+
+	if (m->child_pid_index) {
+		free_mlist(m->child_pid_index, child_finder_list_size);
+		m->child_pid_index = NULL;
+	}
 
 	/* Clear all FDs */
 	FD_ZERO(&m->readfd);
@@ -520,6 +627,9 @@ thread_add_child(thread_master_t * m, int (*func) (thread_t *)
 
 	/* Sort by timeval. */
 	thread_list_add_timeval(&m->child, thread);
+
+	if (child_adder)
+		child_adder(thread);
 
 	return thread;
 }
@@ -830,7 +940,6 @@ retry:	/* When thread can't fetch try to find next thread again. */
 	set_time_now();
 
 	timer_expired = !timerisset(&timer_wait);
-
 	if (timer_expired) {
 		/* Timeout children */
 		thread = m->child.head;
@@ -838,8 +947,11 @@ retry:	/* When thread can't fetch try to find next thread again. */
 			t = thread;
 			thread = t->next;
 
-			if (timercmp(&time_now, &t->sands, >=))
+			if (timercmp(&time_now, &t->sands, >=)) {
 				thread_list_make_ready(&m->child, t, m, THREAD_CHILD_TIMEOUT);
+				if (child_remover)
+					child_remover(t);
+			}
 			else
 				break;
 		}
@@ -927,35 +1039,44 @@ retry:	/* When thread can't fetch try to find next thread again. */
 static void
 process_child_termination(pid_t pid, int status)
 {
-	bool respawn;
 	thread_master_t * m = master;
-	/*
-	 * This is O(n^2), but there will only be a few entries on
-	 * this list.
-	 */
 	thread_t *thread;
+	bool permanent_vrrp_checker_error = false;
 
-	respawn = !report_child_status(status, pid, NULL);
+#ifndef _DEBUG_
+	if (prog_type == PROG_TYPE_PARENT)
+		permanent_vrrp_checker_error = report_child_status(status, pid, NULL);
+#endif
 
-	thread = m->child.head;
-	while (thread) {
-		thread_t *t;
-		t = thread;
-		thread = t->next;
-		if (pid == t->u.c.pid) {
-			thread_list_delete(&m->child, t);
-			t->u.c.status = status;
-			if (respawn) {
-				t->type = THREAD_READY;
-				thread_list_add(&m->ready, t);
-			}
-			else {
-				/* The child had a permanant error, so no point in respawning */
-				raise(SIGTERM);
-			}
-
-			break;
+	if (child_finder)
+		thread = child_finder(pid);
+	else {
+		for (thread = m->child.head; thread; thread = thread->next) {
+			if (pid == thread->u.c.pid)
+				break;
 		}
+	}
+
+	if (!thread)
+		return;
+
+	thread_list_delete(&m->child, thread);
+	if (child_remover)
+		child_remover(thread);
+
+	if (permanent_vrrp_checker_error)
+	{
+		/* The child had a permanant error, so no point in respawning */
+		thread->type = THREAD_UNUSED;
+		thread_list_add(&m->unuse, thread);
+
+		raise(SIGTERM);
+	}
+	else
+	{
+		thread->type = THREAD_READY;
+		thread->u.c.status = status;
+		thread_list_add(&m->ready, thread);
 	}
 }
 
@@ -1034,7 +1155,7 @@ launch_scheduler(void)
 	 */
 	while (thread_fetch(master, &thread)) {
 		/* Run until error, used for debuging only */
-#ifdef _DEBUG_
+#if defined _DEBUG_ && defined _MEM_CHECK_
 		if (__test_bit(MEM_ERR_DETECT_BIT, &debug)
 #ifdef _WITH_VRRP_
 		    && __test_bit(DONT_RELEASE_VRRP_BIT, &debug)

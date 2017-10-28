@@ -62,6 +62,6 @@ extern void dump_list(list l);
 extern void list_add(list l, void *data);
 extern void list_del(list l, void *data);
 extern list alloc_mlist(void (*free_func) (void *), void (*dump_func) (void *), size_t size);
-extern void free_mlist(list l, int size);
+extern void free_mlist(list l, size_t size);
 
 #endif

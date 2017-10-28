@@ -37,7 +37,7 @@
 /* Local defines */
 #ifdef _MEM_CHECK_
 
-#define MAX_ALLOC_LIST 2048
+#define MAX_ALLOC_LIST 2048*4
 
 #define MALLOC(n)    ( keepalived_malloc((n), \
 		      (__FILE__), (char *)(__FUNCTION__), (__LINE__)) )

@@ -40,6 +40,7 @@
 #include "vrrp_iprule.h"
 #endif
 #include "vrrp_track.h"
+#include "vrrp_if.h"
 
 static void
 vrrp_print_list(FILE *file, list l, void (*fptr)(FILE*, void*))
@@ -163,13 +164,11 @@ vscript_print(FILE *file, void *data)
 	fprintf(file, "   Insecure = %s\n", vscript->insecure ? "yes" : "no");
 	fprintf(file, "   uid:gid = %d:%d\n", vscript->script.uid, vscript->script.gid);
 
-	switch (vscript->result) {
-	case VRRP_SCRIPT_STATUS_INIT:
+	switch (vscript->init_state) {
+	case SCRIPT_INIT_STATE_INIT:
 		str = "INIT"; break;
-	case VRRP_SCRIPT_STATUS_INIT_FAILED:
+	case SCRIPT_INIT_STATE_FAILED:
 		str = "INIT/FAILED"; break;
-	case VRRP_SCRIPT_STATUS_DISABLED:
-		str = "DISABLED"; break;
 	default:
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
@@ -493,6 +492,7 @@ vrrp_print_data(void)
 		fprintf(file, "------< VRRP Track files >------\n");
 		vrrp_print_list(file, vrrp_data->vrrp_track_files, &vfile_print);
 	}
+
 	fclose(file);
 
 	clear_rt_names();

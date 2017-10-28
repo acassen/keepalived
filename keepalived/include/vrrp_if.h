@@ -32,6 +32,7 @@
 #include <stdint.h>
 #include <sys/types.h>
 #include <net/if.h>
+#include <stdio.h>
 
 /* local includes */
 #include "scheduler.h"

@@ -177,13 +177,11 @@ dump_vscript(void *data)
 	log_message(LOG_INFO, "   Fall = %d", vscript->fall);
 	log_message(LOG_INFO, "   Insecure = %s", vscript->insecure ? "yes" : "no");
 
-	switch (vscript->result) {
-	case VRRP_SCRIPT_STATUS_INIT:
+	switch (vscript->init_state) {
+	case SCRIPT_INIT_STATE_INIT:
 		str = "INIT"; break;
-	case VRRP_SCRIPT_STATUS_INIT_FAILED:
+	case SCRIPT_INIT_STATE_FAILED:
 		str = "INIT/FAILED"; break;
-	case VRRP_SCRIPT_STATUS_DISABLED:
-		str = "DISABLED"; break;
 	default:
 		str = (vscript->result >= vscript->rise) ? "GOOD" : "BAD";
 	}
@@ -192,6 +190,11 @@ dump_vscript(void *data)
 	log_message(LOG_INFO, "   VRRP instances = %d", vscript->tracking_vrrp ? LIST_SIZE(vscript->tracking_vrrp) : 0);
 	if (vscript->tracking_vrrp)
 		dump_list(vscript->tracking_vrrp);
+	log_message(LOG_INFO, "   State = %s",
+			vscript->state == SCRIPT_STATE_IDLE ? "idle" :
+			vscript->state == SCRIPT_STATE_RUNNING ? "running" :
+			vscript->state == SCRIPT_STATE_REQUESTING_TERMINATION ? "requested termination" :
+			vscript->state == SCRIPT_STATE_FORCING_TERMINATION ? "forcing termination" : "unknown");
 }
 
 static void
@@ -645,8 +648,9 @@ alloc_vrrp_script(char *sname)
 	new->interval = VRRP_SCRIPT_DI * TIMER_HZ;
 	new->timeout = VRRP_SCRIPT_DT * TIMER_HZ;
 	new->weight = VRRP_SCRIPT_DW;
-	new->result = VRRP_SCRIPT_STATUS_DISABLED;	/* Disabled until a vrrp instance uses it */
-	new->last_status = VRRP_SCRIPT_STATUS_NOT_SET;
+//	new->last_status = VRRP_SCRIPT_STATUS_NOT_SET;
+	new->init_state = SCRIPT_INIT_STATE_INIT;
+	new->state = SCRIPT_STATE_IDLE;
 	new->rise = 1;
 	new->fall = 1;
 	list_add(vrrp_data->vrrp_script, new);
@@ -689,7 +693,7 @@ alloc_vrrp_data(void)
 
 	new = (vrrp_data_t *) MALLOC(sizeof(vrrp_data_t));
 	new->vrrp = alloc_list(free_vrrp, dump_vrrp);
-	new->vrrp_index = alloc_mlist(NULL, NULL, 255+1);
+	new->vrrp_index = alloc_mlist(NULL, NULL, 1151+1);
 	new->vrrp_index_fd = alloc_mlist(NULL, NULL, 1024+1);
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
 	new->vrrp_script = alloc_list(free_vscript, dump_vscript);
@@ -705,7 +709,7 @@ free_vrrp_data(vrrp_data_t * data)
 	free_list(&data->static_addresses);
 	free_list(&data->static_routes);
 	free_list(&data->static_rules);
-	free_mlist(data->vrrp_index, 255+1);
+	free_mlist(data->vrrp_index, 1151+1);
 	free_mlist(data->vrrp_index_fd, 1024+1);
 	free_list(&data->vrrp);
 	free_list(&data->vrrp_sync_group);

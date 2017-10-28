@@ -281,7 +281,7 @@ clear_signal_handler_addresses(void)
 }
 
 /* Handlers intialization */
-void
+static void
 open_signal_fd(void)
 {
 #ifdef HAVE_SIGNALFD

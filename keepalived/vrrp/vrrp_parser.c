@@ -63,7 +63,7 @@ static enum {
 	TRACK_FILE_CREATE,
 	TRACK_FILE_INIT,
 } track_file_init;
-static int track_file_init_weight;
+static long track_file_init_weight;
 
 static bool script_user_set;
 static bool remove_script;
@@ -427,7 +427,6 @@ vrrp_vrid_handler(vector_t *strvec)
 	}
 
 	vrrp->vrid = (uint8_t)vrid;
-	alloc_vrrp_bucket(vrrp);
 }
 static void
 vrrp_prio_handler(vector_t *strvec)
@@ -945,7 +944,7 @@ vrrp_tfile_end_handler(void)
 
 	/* Write the value to the file */
 	if ((tf = fopen(tfile->file_path, "w"))) {
-		fprintf(tf, "%d\n", track_file_init_weight);
+		fprintf(tf, "%ld\n", track_file_init_weight);
 		fclose(tf);
 	}
 	else
@@ -955,7 +954,7 @@ static void
 vrrp_vscript_init_fail_handler(__attribute__((unused)) vector_t *strvec)
 {
 	vrrp_script_t *vscript = LIST_TAIL_DATA(vrrp_data->vrrp_script);
-	vscript->result = VRRP_SCRIPT_STATUS_INIT_FAILED;
+	vscript->init_state = SCRIPT_INIT_STATE_FAILED;
 }
 static void
 vrrp_version_handler(vector_t *strvec)

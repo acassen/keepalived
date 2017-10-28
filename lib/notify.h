@@ -41,6 +41,19 @@
 #define	SC_EXECUTABLE	0x10	/* The script is marked executable */
 #define SC_EXECABLE	0x20	/* The script can be invoked via execve() */
 
+typedef enum {
+	SCRIPT_STATE_IDLE,
+	SCRIPT_STATE_RUNNING,
+	SCRIPT_STATE_REQUESTING_TERMINATION,
+	SCRIPT_STATE_FORCING_TERMINATION
+} script_state_t;
+
+typedef enum {
+	SCRIPT_INIT_STATE_DONE,
+	SCRIPT_INIT_STATE_INIT,
+	SCRIPT_INIT_STATE_FAILED,
+} script_init_state_t;
+
 /* notify_script details */
 typedef struct _notify_script {
 	char**	args;		/* Script args */

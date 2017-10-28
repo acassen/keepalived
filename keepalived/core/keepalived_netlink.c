@@ -892,7 +892,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 	int ret = 0;
 	int error;
 
-	while (1) {
+	while (true) {
 		char buf[nlmsg_buf_size];
 		struct iovec iov = {
 			.iov_base = buf,
@@ -917,8 +917,17 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				continue;
 			if (errno == EWOULDBLOCK || errno == EAGAIN)
 				break;
-			if (errno == ENOBUFS)
+			if (errno == ENOBUFS) {
+				/* It appears the if we add a large number of interfaces, then
+				 * within a few seconds of starting up the kernel can decide to
+				 * notify us again of all the new interfaces (or it may have something
+				 * to do with becoming master). In any event, if we add a
+				 * kernel_netlink_poll() at every stage of the process, we suddenly
+				 * go from having nothing to receive on nl_kernel to ENOBUFS. Since it
+				 * relates to the interfaces, and we have already got the information
+				 * about the interfaces, it appears that we aren't losing any useful info. */
 				log_message(LOG_INFO, "Netlink: Received message overrun - (%m)");
+			}
 			else
 				log_message(LOG_INFO, "Netlink: recvmsg error - %d (%m)", errno);
 			continue;
@@ -951,7 +960,7 @@ netlink_parse_info(int (*filter) (struct sockaddr_nl *, struct nlmsghdr *),
 				 * return if not related to multipart message.
 				 */
 				if (err->error == 0) {
-					if (!(h->nlmsg_flags & NLM_F_MULTI))
+					if (!(h->nlmsg_flags & NLM_F_MULTI) && !read_all)
 						return 0;
 					continue;
 				}
@@ -1120,7 +1129,7 @@ netlink_request(nl_handle_t *nl, unsigned char family, uint16_t type,
 	else
 #endif
 		req.nlh.nlmsg_flags |= NLM_F_DUMP;
-	addattr32(&req.nlh, sizeof req, IFLA_EXT_MASK, RTEXT_FILTER_VF);
+	addattr32(&req.nlh, sizeof req, IFLA_EXT_MASK, RTEXT_FILTER_SKIP_STATS);
 
 	status = sendto(nl->fd, (void *) &req, sizeof (req)
 			, 0, (struct sockaddr *) &snl, sizeof (snl));
@@ -1574,7 +1583,7 @@ kernel_netlink(thread_t * thread)
 	nl_handle_t *nl = THREAD_ARG(thread);
 
 	if (thread->type != THREAD_READ_TIMEOUT)
-		netlink_parse_info(netlink_broadcast_filter, nl, NULL, false);
+		netlink_parse_info(netlink_broadcast_filter, nl, NULL, true);
 	nl->thread = thread_add_read(master, kernel_netlink, nl, nl->fd,
 				      NETLINK_TIMER);
 	return 0;
@@ -1584,6 +1593,9 @@ kernel_netlink(thread_t * thread)
 void
 kernel_netlink_poll(void)
 {
+	if (!nl_kernel.fd)
+		return;
+
 	netlink_parse_info(netlink_broadcast_filter, &nl_kernel, NULL, true);
 }
 #endif

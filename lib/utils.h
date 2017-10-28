@@ -126,7 +126,7 @@ extern int inet_inaddrcmp(int, void *, void *);
 extern int inet_sockaddrcmp(struct sockaddr_storage *, struct sockaddr_storage *);
 extern char *get_local_name(void);
 extern int string_equal(const char *, const char *);
-extern void set_std_fd(int);
+extern void set_std_fd(bool);
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 extern int fork_exec(char **argv);
 #endif
