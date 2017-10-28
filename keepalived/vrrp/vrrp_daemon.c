@@ -181,8 +181,6 @@ stop_vrrp(int status)
 		close_log_file();
 	closelog();
 
-	FREE(config_id);
-
 #ifndef _MEM_CHECK_LOG_
 	FREE_PTR(vrrp_syslog_ident);
 #else

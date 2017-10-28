@@ -1250,8 +1250,6 @@ end:
 
 	closelog();
 
-	FREE(config_id);
-
 #ifndef _MEM_CHECK_LOG_
 	FREE_PTR(syslog_ident);
 #else
