@@ -33,6 +33,7 @@
 #include <stdbool.h>
 
 #include "timer.h"
+#include "list.h"
 
 /* Thread itself. */
 typedef struct _thread {
@@ -70,6 +71,7 @@ typedef struct _thread_master {
 	thread_list_t event;
 	thread_list_t ready;
 	thread_list_t unuse;
+	list child_pid_index;
 	fd_set readfd;
 	fd_set writefd;
 	fd_set exceptfd;
@@ -117,6 +119,8 @@ typedef enum {
 #define KEEPALIVED_EXIT_FATAL	(EXIT_FAILURE+1)
 #define KEEPALIVED_EXIT_CONFIG	(EXIT_FAILURE+2)
 
+#define DEFAULT_CHILD_FINDER ((void *)1)
+
 /* global vars exported */
 extern thread_master_t *master;
 #ifndef _DEBUG_
@@ -124,8 +128,11 @@ extern prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 #endif
 
 /* Prototypes. */
-extern void set_child_finder(bool (*)(pid_t, char const **));
+extern void set_child_finder_name(char const * (*)(pid_t));
+extern void set_child_finder(void (*)(thread_t *), thread_t *(*)(pid_t), void (*)(thread_t *), bool (*)(size_t), void(*)(void), size_t);
+#ifndef _DEBUG_
 extern bool report_child_status(int, pid_t, const char *);
+#endif
 extern thread_master_t *thread_make_master(void);
 extern thread_t *thread_add_terminate_event(thread_master_t *);
 extern void thread_cleanup_master(thread_master_t *);

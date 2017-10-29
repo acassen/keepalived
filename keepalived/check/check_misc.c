@@ -42,7 +42,6 @@
 
 static int misc_check_thread(thread_t *);
 static int misc_check_child_thread(thread_t *);
-static int misc_check_child_timeout_thread(thread_t *);
 
 static bool script_user_set;
 static misc_checker_t *new_misck_checker;
@@ -98,6 +97,7 @@ misc_check_handler(__attribute__((unused)) vector_t *strvec)
 	checker_t *checker;
 
 	new_misck_checker = (misc_checker_t *) MALLOC(sizeof (misc_checker_t));
+	new_misck_checker->state = SCRIPT_STATE_IDLE;
 
 	script_user_set = false;
 
@@ -249,13 +249,41 @@ check_misc_script_security(void)
 	return script_flags;
 }
 
+void
+check_misc_set_child_finder(void)
+{
+	element e;
+	checker_t *checker;
+	misc_checker_t *misc_script;
+	size_t num_misc_checkers = 0;
+
+	if (LIST_ISEMPTY(checkers_queue))
+		return;
+
+	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
+		checker = ELEMENT_DATA(e);
+
+		if (checker->launch != misc_check_thread)
+			continue;
+
+		misc_script = CHECKER_ARG(checker);
+		if (!misc_script->insecure)
+			num_misc_checkers++;
+	}
+
+	if (!num_misc_checkers)
+		return;
+
+	set_child_finder(DEFAULT_CHILD_FINDER, NULL, NULL, NULL, NULL, num_misc_checkers);
+}
+
 static int
 misc_check_thread(thread_t * thread)
 {
-	checker_t *checker;
+	checker_t *checker = THREAD_ARG(thread);
 	misc_checker_t *misck_checker;
+	int ret;
 
-	checker = THREAD_ARG(thread);
 	misck_checker = CHECKER_ARG(checker);
 
 	/* If the script has been identified as insecure, don't execute it.
@@ -274,13 +302,16 @@ misc_check_thread(thread_t * thread)
 		return 0;
 	}
 
-	misck_checker->forcing_termination = false;
-
 	/* Execute the script in a child process. Parent returns, child doesn't */
-	misck_checker->last_ran = time_now;
-	return system_call_script(thread->master, misc_check_child_thread,
+	ret = system_call_script(thread->master, misc_check_child_thread,
 				  checker, (misck_checker->timeout) ? misck_checker->timeout : checker->delay_loop,
 				  misck_checker->path, misck_checker->uid, misck_checker->gid);
+	if (!ret) {
+		misck_checker->last_ran = time_now;
+		misck_checker->state = SCRIPT_STATE_RUNNING;
+	}
+
+	return ret;
 }
 
 static int
@@ -291,6 +322,12 @@ misc_check_child_thread(thread_t * thread)
 	checker_t *checker;
 	misc_checker_t *misck_checker;
 	timeval_t next_time;
+	int sig_num;
+	unsigned timeout = 0;
+	char *script_exit_type = NULL;
+	bool script_success;
+	char *reason = NULL;
+	int reason_code;
 
 	checker = THREAD_ARG(thread);
 	misck_checker = CHECKER_ARG(checker);
@@ -298,34 +335,41 @@ misc_check_child_thread(thread_t * thread)
 	if (thread->type == THREAD_CHILD_TIMEOUT) {
 		pid = THREAD_CHILD_PID(thread);
 
-		/* The child hasn't responded. Kill it off. */
-		if (checker->is_up) {
-			if (checker->retry_it < checker->retry)
-				checker->retry_it++;
-			else {
-				log_message(LOG_INFO, "Misc check to [%s] for [%s] timed out"
-						    , inet_sockaddrtos(&checker->rs->addr)
-						    , misck_checker->path);
-				smtp_alert(checker, NULL, NULL,
-					   "DOWN",
-					   "=> MISC CHECK script timeout on service <=");
-				update_svr_checker_state(DOWN, checker);
-				checker->retry_it = 0;
-			}
+		if (misck_checker->state == SCRIPT_STATE_RUNNING) {
+			misck_checker->state = SCRIPT_STATE_REQUESTING_TERMINATION;
+			sig_num = SIGTERM;
+			timeout = 2;
+		} else if (misck_checker->state == SCRIPT_STATE_REQUESTING_TERMINATION) {
+			misck_checker->state = SCRIPT_STATE_FORCING_TERMINATION;
+			sig_num = SIGKILL;
+			timeout = 2;
+		} else if (misck_checker->state == SCRIPT_STATE_FORCING_TERMINATION) {
+			log_message(LOG_INFO, "Child (PID %d) failed to terminate after kill", pid);
+			sig_num = SIGKILL;
+			timeout = 10;	/* Give it longer to terminate */
 		}
 
-		misck_checker->forcing_termination = true;
-		kill(-pid, SIGTERM);
-		thread_add_child(thread->master, misc_check_child_timeout_thread,
-				 checker, pid, 2 * TIMER_HZ);
+		if (timeout) {
+			/* If kill returns an error, we can't kill the process since either the process has terminated,
+			 * or we don't have permission. If we can't kill it, there is no point trying again. */
+			if (!kill(-pid, sig_num))
+				timeout = 1000;
+		} else if (misck_checker->state != SCRIPT_STATE_IDLE) {
+			log_message(LOG_INFO, "Child thread pid %d timeout with unknown script state %d", pid, misck_checker->state);
+			timeout = 10;	/* We need some timeout */
+		}
+
+		if (timeout)
+			thread_add_child(thread->master, misc_check_child_thread, checker, pid, timeout * TIMER_HZ);
+
 		return 0;
 	}
 
 	wait_status = THREAD_CHILD_STATUS(thread);
 
 	if (WIFEXITED(wait_status)) {
-		int status;
-		status = WEXITSTATUS(wait_status);
+		int status = WEXITSTATUS(wait_status);
+
 		if (status == 0 ||
 		    (misck_checker->dynamic && status >= 2 && status <= 255)) {
 			/*
@@ -338,14 +382,10 @@ misc_check_child_thread(thread_t * thread)
 					       checker->rs, true);
 
 			/* everything is good */
-			if (!checker->is_up) {
-				log_message(LOG_INFO, "Misc check to [%s] for [%s] success."
-						    , inet_sockaddrtos(&checker->rs->addr)
-						    , misck_checker->path);
-				smtp_alert(checker, NULL, NULL,
-					   "UP",
-					   "=> MISC CHECK succeed on service <=");
-				update_svr_checker_state(UP, checker);
+			if (!checker->is_up || !misck_checker->initial_state_reported) {
+				script_exit_type = "succeeded";
+				script_success = true;
+				misck_checker->initial_state_reported = true;
 			}
 
 			checker->retry_it = 0;
@@ -353,74 +393,79 @@ misc_check_child_thread(thread_t * thread)
 			if (checker->retry_it < checker->retry)
 				checker->retry_it++;
 			else {
-				log_message(LOG_INFO, "Misc check to [%s] for [%s] failed."
-						    , inet_sockaddrtos(&checker->rs->addr)
-						    , misck_checker->path);
-				smtp_alert(checker, NULL, NULL,
-					   "DOWN",
-					   "=> MISC CHECK failed on service <=");
-				update_svr_checker_state(DOWN, checker);
+				script_exit_type = "failed";
+				script_success = false;
+				reason = "exited with status";
+				reason_code = status;
+
 				checker->retry_it = 0;
 			}
 		}
 	}
 	else if (WIFSIGNALED(wait_status)) {
-	        if (misck_checker->forcing_termination && WTERMSIG(wait_status) == SIGTERM) {
+	        if (misck_checker->state == SCRIPT_STATE_REQUESTING_TERMINATION && WTERMSIG(wait_status) == SIGTERM) {
 	                /* The script terminated due to a SIGTERM, and we sent it a SIGTERM to
 	                 * terminate the process. Now make sure any children it created have
 	                 * died too. */
 	                pid = THREAD_CHILD_PID(thread);
 	                kill(-pid, SIGKILL);
 	        }
-	}
 
-	misck_checker->forcing_termination = false;
+		/* We treat forced termination as a failure */
+		if (checker->is_up) {
+			if (checker->retry_it < checker->retry)
+				checker->retry_it++;
+			else {
+				if ((misck_checker->state == SCRIPT_STATE_REQUESTING_TERMINATION &&
+				     WTERMSIG(wait_status) == SIGTERM) ||
+				    (misck_checker->state == SCRIPT_STATE_FORCING_TERMINATION &&
+				     (WTERMSIG(wait_status) == SIGTERM || WTERMSIG(wait_status) == SIGKILL)))
+					script_exit_type = "timed out";
+				else {
+					script_exit_type = "failed";
+					reason = "due to signal";
+					reason_code = WTERMSIG(wait_status);
+				}
 
-	/* Register next timer checker */
-	next_time = timer_add_long(misck_checker->last_ran, checker->retry_it ? checker->delay_before_retry : checker->delay_loop);
-	next_time = timer_sub_now(next_time);
-	if (next_time.tv_sec < 0)
-		next_time.tv_sec = 0, next_time.tv_usec = 1;
+				script_success = false;
 
-	thread_add_timer(thread->master, misc_check_thread, checker, timer_tol(next_time));
-
-	return 0;
-}
-
-static int
-misc_check_child_timeout_thread(thread_t * thread)
-{
-	pid_t pid;
-	checker_t *checker;
-	misc_checker_t *misck_checker;
-	timeval_t next_time;
-
-	if (thread->type == THREAD_CHILD_TIMEOUT) {
-		/* OK, it still hasn't exited. Now really kill it off. */
-		pid = THREAD_CHILD_PID(thread);
-		if (kill(-pid, SIGKILL) < 0) {
-			/* Its possible it finished while we're handing this */
-			if (errno != ESRCH) {
-				DBG("kill error: %s", strerror(errno));
+				checker->retry_it = 0;
 			}
-			return 0;
 		}
-
-		log_message(LOG_WARNING, "Process [%d] didn't respond to SIGTERM", pid);
 	}
 
-	checker = THREAD_ARG(thread);
-	misck_checker = CHECKER_ARG(checker);
+	if (script_exit_type) {
+		char message[40];
 
-	misck_checker->forcing_termination = false;
+		if (reason)
+			log_message(LOG_INFO, "Misc check to [%s] for [%s] %s (%s %d)."
+					    , inet_sockaddrtos(&checker->rs->addr)
+					    , misck_checker->path
+					    , script_exit_type
+					    , reason
+					    , reason_code);
+		else
+			log_message(LOG_INFO, "Misc check to [%s] for [%s] %s."
+					    , inet_sockaddrtos(&checker->rs->addr)
+					    , misck_checker->path
+					    , script_exit_type);
+
+		snprintf(message, sizeof(message), "=> MISC CHECK %s on service <=", script_exit_type);
+		smtp_alert(checker, NULL, NULL,
+			   script_success ? "UP " : "DOWN", message);
+		update_svr_checker_state(script_success ? UP : DOWN, checker);
+	}
 
 	/* Register next timer checker */
 	next_time = timer_add_long(misck_checker->last_ran, checker->retry_it ? checker->delay_before_retry : checker->delay_loop);
 	next_time = timer_sub_now(next_time);
-	if (next_time.tv_sec < 0)
+	if (next_time.tv_sec < 0 ||
+	    (next_time.tv_sec == 0 && next_time.tv_usec == 0))
 		next_time.tv_sec = 0, next_time.tv_usec = 1;
 
 	thread_add_timer(thread->master, misc_check_thread, checker, timer_tol(next_time));
+
+	misck_checker->state = SCRIPT_STATE_IDLE;
 
 	return 0;
 }

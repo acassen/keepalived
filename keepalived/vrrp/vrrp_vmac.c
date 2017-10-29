@@ -190,7 +190,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		/*
 		 * Update interface queue and vrrp instance interface binding.
 		 */
-		netlink_interface_lookup();
+		netlink_interface_lookup(ifname);
 		ifp = if_get_by_ifname(ifname);
 		if (!ifp)
 			return -1;
@@ -299,6 +299,11 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 			log_message(LOG_INFO, "Deleting auto link-local address from vmac failed");
 	}
 #endif
+
+	/* If we are adding a large number of interfaces, the netlink socket
+	 * may run out of buffers if we don't receive the netlink messages
+	 * as we progress */
+	kernel_netlink_poll();
 
 	return 1;
 }

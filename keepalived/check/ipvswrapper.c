@@ -100,6 +100,9 @@ modprobe_ipvs(void)
 
 	sigaction ( SIGCHLD, &act, &old_act);
 
+	if (log_file_name)
+		flush_log_file();
+
 	if (!(child = fork())) {
 		execv(argv[0], argv);
 		exit(1);

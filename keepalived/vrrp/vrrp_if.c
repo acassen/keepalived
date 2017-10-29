@@ -540,7 +540,7 @@ void
 init_interface_queue(void)
 {
 	init_if_queue();
-	netlink_interface_lookup();
+	netlink_interface_lookup(NULL);
 //	dump_list(if_queue);
 }
 
@@ -862,4 +862,93 @@ if_setsockopt_rcvbuf(int *sd, int val)
 	}
 
 	return *sd;
+}
+
+static void
+print_interface(FILE *fp, interface_t *ifp)
+{
+#ifdef _HAVE_VRRP_VMAC_
+	interface_t *ifp_u;
+#endif
+	char addr_str[INET6_ADDRSTRLEN];
+
+	fprintf(fp, "------< NIC >------\n");
+	fprintf(fp, " Name = %s\n", ifp->ifname);
+	fprintf(fp, " index = %u\n", ifp->ifindex);
+	fprintf(fp, " IPv4 address = %s\n", inet_ntop2(ifp->sin_addr.s_addr));
+	inet_ntop(AF_INET6, &ifp->sin6_addr, addr_str, sizeof(addr_str));
+	fprintf(fp, " IPv6 address = %s\n", addr_str);
+
+	/* FIXME: Hardcoded for ethernet */
+	if (ifp->hw_type == ARPHRD_ETHER)
+		fprintf(fp, " MAC = %.2x:%.2x:%.2x:%.2x:%.2x:%.2x\n",
+		       ifp->hw_addr[0], ifp->hw_addr[1], ifp->hw_addr[2]
+		       , ifp->hw_addr[3], ifp->hw_addr[4], ifp->hw_addr[5]);
+
+	if (ifp->flags & IFF_UP)
+		fprintf(fp, " is UP\n");
+
+	if (ifp->flags & IFF_RUNNING)
+		fprintf(fp, " is RUNNING\n");
+
+	if (!(ifp->flags & IFF_UP) && !(ifp->flags & IFF_RUNNING))
+		fprintf(fp, " is DOWN\n");
+
+	fprintf(fp, " MTU = %d\n", ifp->mtu);
+
+	switch (ifp->hw_type) {
+	case ARPHRD_LOOPBACK:
+		fprintf(fp, " HW Type = LOOPBACK\n");
+		break;
+	case ARPHRD_ETHER:
+		fprintf(fp, " HW Type = ETHERNET\n");
+		break;
+	default:
+		fprintf(fp, " HW Type = UNKNOWN\n");
+		break;
+	}
+
+#ifdef _HAVE_VRRP_VMAC_
+	if (ifp->vmac && (ifp_u = if_get_by_ifindex(ifp->base_ifindex)))
+		fprintf(fp, " VMAC underlying interface = %s\n", ifp_u->ifname);
+#endif
+
+	if (global_data->linkbeat_use_polling) {
+		/* MII channel supported ? */
+		if (IF_MII_SUPPORTED(ifp))
+			fprintf(fp, " NIC support MII regs\n");
+		else if (IF_ETHTOOL_SUPPORTED(ifp))
+			fprintf(fp, " NIC support ETHTOOL GLINK interface\n");
+		else
+			fprintf(fp, " NIC ioctl refresh polling\n");
+	}
+
+	if (ifp->garp_delay) {
+		if (ifp->garp_delay->have_garp_interval)
+			fprintf(fp, " Gratuitous ARP interval %ldms\n",
+				    ifp->garp_delay->garp_interval.tv_sec * 100 +
+				     ifp->garp_delay->garp_interval.tv_usec / (TIMER_HZ / 100));
+
+		if (ifp->garp_delay->have_gna_interval)
+			fprintf(fp, " Gratuitous NA interval %ldms\n",
+				    ifp->garp_delay->gna_interval.tv_sec * 100 +
+				     ifp->garp_delay->gna_interval.tv_usec / (TIMER_HZ / 100));
+		if (ifp->garp_delay->aggregation_group)
+			fprintf(fp, " Gratuitous ARP aggregation group %d\n", ifp->garp_delay->aggregation_group);
+	}
+}
+
+void
+print_interface_list(FILE *fp)
+{
+	element e;
+	interface_t *ifp;
+
+	if (LIST_ISEMPTY(if_queue))
+		return;
+
+	for (e = LIST_HEAD(if_queue); e; ELEMENT_NEXT(e)) {
+		ifp = ELEMENT_DATA(e);
+		print_interface(fp, ifp);
+	}
 }

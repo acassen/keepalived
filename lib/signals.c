@@ -235,7 +235,7 @@ clear_signal_handler_addresses(void)
 }
 
 /* Handlers intialization */
-void
+static void
 open_signal_pipe(void)
 {
 	int n;

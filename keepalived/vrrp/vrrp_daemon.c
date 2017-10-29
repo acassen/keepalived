@@ -134,7 +134,8 @@ stop_vrrp(int status)
 	 * of an IGMP leave group being sent for some reason.
 	 * Since we are about to exit, it doesn't affect anything else
 	 * running. */
-	sleep(1);
+	if (!LIST_ISEMPTY(vrrp_data->vrrp))
+		sleep(1);
 
 	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
 		shutdown_vrrp_instances();
@@ -146,7 +147,7 @@ stop_vrrp(int status)
 	}
 #endif
 
-	/* Terminate all script process */
+	/* Terminate all script processes */
 	script_killall(master, SIGTERM);
 
 	/* We mustn't receive a SIGCHLD after master is destroyed */
@@ -177,6 +178,8 @@ stop_vrrp(int status)
 	 */
 	log_message(LOG_INFO, "Stopped");
 
+	if (log_file_name)
+		close_log_file();
 	closelog();
 
 	FREE(config_id);
@@ -524,6 +527,9 @@ start_vrrp_child(void)
 	char *syslog_ident;
 
 	/* Initialize child process */
+	if (log_file_name)
+		flush_log_file();
+
 	pid = fork();
 
 	if (pid < 0) {
@@ -557,14 +563,22 @@ start_vrrp_child(void)
 	else
 		syslog_ident = PROG_VRRP;
 
-	openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
-			    , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
+	if (!__test_bit(NO_SYSLOG_BIT, &debug))
+		openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
+				    , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
+
+	if (log_file_name)
+		open_log_file(log_file_name, "vrrp", network_namespace, instance_name);
 
 #ifdef _MEM_CHECK_
 	mem_log_init(PROG_VRRP, "VRRP Child process");
 #endif
 
 	free_parent_mallocs_startup(true);
+
+	/* Clear any child finder functions set in parent */
+	set_child_finder_name(NULL);
+	set_child_finder(NULL, NULL, NULL, NULL, NULL, 0);	/* Currently these won't be set */
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(vrrp_pidfile, getpid())) {

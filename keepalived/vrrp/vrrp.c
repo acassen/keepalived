@@ -2453,11 +2453,6 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	    !vrrp->ifp->promote_secondaries_already_set)
 		set_promote_secondaries(vrrp->ifp);
 
-	/* If we are adding a large number of interfaces, the netlink socket
-	 * may run out of buffers if we don't receive the netlink messages
-	 * as we progress */
-	kernel_netlink_poll();
-
 	return true;
 }
 
@@ -2665,8 +2660,6 @@ vrrp_complete_init(void)
 #endif
 
 	alloc_vrrp_buffer(max_mtu_len);
-
-	set_child_finder(vrrp_child_finder);
 
 	return true;
 }
@@ -2924,7 +2917,7 @@ clear_diff_script(void)
 			if (nvscript) {
 				log_message(LOG_INFO, "VRRP_Script(%s) considered successful on reload",
 					   nvscript->sname);
-				nvscript->result = VRRP_SCRIPT_STATUS_INIT_GOOD;
+				nvscript->init_state = SCRIPT_INIT_STATE_GOOD;
 			}
 		}
 	}

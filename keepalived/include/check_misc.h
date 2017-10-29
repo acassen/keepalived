@@ -31,16 +31,18 @@
 
 /* local includes */
 #include "scheduler.h"
+#include "notify.h"
 
 /* Checker argument structure  */
 typedef struct _misc_checker {
 	char			*path;
 	unsigned long		timeout;
 	bool			dynamic;	/* false: old-style, true: exit code from checker affects weight */
-	bool			forcing_termination; /* Set if we have sent the process a SIGTERM */
+	script_state_t		state;		/* current state of script */
 	uid_t			uid;		/* uid for script execution */
 	gid_t			gid;		/* gid for script execution */
 	bool			insecure;	/* script is insecure */
+	bool			initial_state_reported;
 	timeval_t		last_ran;	/* Time script last ran */
 } misc_checker_t;
 

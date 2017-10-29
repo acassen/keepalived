@@ -203,6 +203,9 @@ notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void *arg, const 
 {
 	pid_t pid;
 
+	if (log_file_name)
+		flush_log_file();
+
 	pid = fork();
 
 	/* In case of fork is error. */
@@ -241,6 +244,9 @@ notify_exec(const notify_script_t *script)
 {
 	pid_t pid;
 
+	if (log_file_name)
+		flush_log_file();
+
 	pid = fork();
 
 	/* In case of fork is error. */
@@ -271,6 +277,9 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 	pid_t pid;
 
 	/* Daemonization to not degrade our scheduling timer */
+	if (log_file_name)
+		flush_log_file();
+
 	pid = fork();
 
 	/* In case of fork is error. */
@@ -296,7 +305,10 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 
 	status = system_call(script, uid, gid);
 
-	if (status < 0 || !WIFEXITED(status) || WEXITSTATUS(status >= 126))
+	if (WIFSIGNALED(status))
+		kill(getpid(), WTERMSIG(status));
+
+	if (status < 0 || !WIFEXITED(status) || WEXITSTATUS(status) >= 126)
 		exit(0); /* Script errors aren't server errors */
 
 	exit(WEXITSTATUS(status));

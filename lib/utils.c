@@ -534,7 +534,7 @@ string_equal(const char *str1, const char *str2)
 }
 
 void
-set_std_fd(int force)
+set_std_fd(bool force)
 {
 	int fd;
 
@@ -566,6 +566,9 @@ fork_exec(char **argv)
 	act.sa_flags = 0;
 
 	sigaction(SIGCHLD, &act, &old_act);
+
+	if (log_file_name)
+		flush_log_file();
 
 	pid = fork();
 	if (pid < 0)
