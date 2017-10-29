@@ -1173,9 +1173,14 @@ vrrp_script_child_thread(thread_t * thread)
 			/* If kill returns an error, we can't kill the process since either the process has terminated,
 			 * or we don't have permission. If we can't kill it, there is no point trying again. */
 			if (!kill(-pid, sig_num))
-				thread_add_child(thread->master, vrrp_script_child_thread, vscript, pid, timeout * TIMER_HZ);
-		} else
+				timeout = 1000;
+		} else if (vscript->state != SCRIPT_STATE_IDLE) {
 			log_message(LOG_INFO, "Child thread pid %d timeout with unknown script state %d", pid, vscript->state);
+			timeout = 10;	/* We need some timeout */
+		}
+
+		if (timeout)
+			thread_add_child(thread->master, vrrp_script_child_thread, vscript, pid, timeout * TIMER_HZ);
 
 		return 0;
 	}

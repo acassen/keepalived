@@ -130,7 +130,6 @@ extern prog_type_t prog_type;		/* Parent/VRRP/Checker process */
 /* Prototypes. */
 extern void set_child_finder_name(char const * (*)(pid_t));
 extern void set_child_finder(void (*)(thread_t *), thread_t *(*)(pid_t), void (*)(thread_t *), bool (*)(size_t), void(*)(void), size_t);
-extern void remove_child(thread_t *);
 #ifndef _DEBUG_
 extern bool report_child_status(int, pid_t, const char *);
 #endif

@@ -184,12 +184,6 @@ set_child_finder(void (*adder_func)(thread_t *),
 	}
 }
 
-void remove_child(thread_t *thread)
-{
-	if (child_remover)
-		child_remover(thread);
-}
-
 #ifndef _DEBUG_
 /* report_child_status returns true if the exit is a hard error, so unable to continue */
 bool

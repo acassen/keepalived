@@ -353,16 +353,17 @@ misc_check_child_thread(thread_t * thread)
 			/* If kill returns an error, we can't kill the process since either the process has terminated,
 			 * or we don't have permission. If we can't kill it, there is no point trying again. */
 			if (!kill(-pid, sig_num))
-				thread_add_child(thread->master, misc_check_child_thread, checker, pid, timeout * TIMER_HZ);
-		} else {
-			remove_child(thread);
+				timeout = 1000;
+		} else if (misck_checker->state != SCRIPT_STATE_IDLE) {
 			log_message(LOG_INFO, "Child thread pid %d timeout with unknown script state %d", pid, misck_checker->state);
+			timeout = 10;	/* We need some timeout */
 		}
+
+		if (timeout)
+			thread_add_child(thread->master, misc_check_child_thread, checker, pid, timeout * TIMER_HZ);
 
 		return 0;
 	}
-
-	remove_child(thread);
 
 	wait_status = THREAD_CHILD_STATUS(thread);
 
