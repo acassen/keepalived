@@ -31,7 +31,14 @@
 int
 get_vrrp_hash(const int vrid, const int fd)
 {
-	return ( vrid * 31 + ( fd/2 ) * 37 )%1151;
+	/* The values 31 and 37 are somewhat arbitrary, but need to be prime and
+	 * coprime to VRRP_INDEX_FD_SIZE. They are chosen as being reasonably close
+	 * to the square root of VRRP_INDEX_FD_SIZE. VRRP_INDEX_FD_SIZE should
+	 * ideally be prime too.
+	 * The reason that fd is divided by 2 is that each vrrp instance uses two
+	 * sockets, and so the difference between the fds of consecutive vrrp
+	 * instances is likely to be 2. */
+	return (vrid * 31 + (fd/2) * 37) % VRRP_INDEX_FD_SIZE;
 }
 
 void
