@@ -278,7 +278,7 @@ vrrp_compute_timer(const int fd)
 {
 	vrrp_t *vrrp;
 	element e;
-	list l = &vrrp_data->vrrp_index_fd[fd%1024 + 1];
+	list l = &vrrp_data->vrrp_index_fd[FD_INDEX_HASH(fd)];
 	timeval_t timer;
 
 	/*
@@ -287,7 +287,7 @@ vrrp_compute_timer(const int fd)
 	 */
 	if (LIST_SIZE(l) == 1) {
 		vrrp = ELEMENT_DATA(LIST_HEAD(l));
-			return vrrp->sands;
+		return vrrp->sands;
 	}
 
 	/* Multiple instances on the same interface */
@@ -342,7 +342,7 @@ vrrp_thread_requeue_read_relative(vrrp_t *vrrp, uint32_t timer)
 //{
 //	vrrp_t *vrrp;
 //	element e;
-//	list l = &vrrp_data->vrrp_index_fd[fd%1024 + 1];
+//	list l = &vrrp_data->vrrp_index_fd[FD_INDEX_HASH(fd)];
 //	timeval_t timer;
 //	vrrp_t *best_vrrp = NULL;
 //
@@ -696,7 +696,7 @@ vrrp_dispatcher_read_timeout(int fd)
 	vrrp_t *vrrp;
 	int prev_state;
 	element e;
-	list l = &vrrp_data->vrrp_index_fd[fd%1024 + 1];
+	list l = &vrrp_data->vrrp_index_fd[FD_INDEX_HASH(fd)];
 
 	set_time_now();
 

@@ -27,6 +27,8 @@
 #include "vrrp.h"
 
 /* Macro definition */
+#define	FD_INDEX_SIZE		1024
+#define	FD_INDEX_HASH(fd)	(fd % FD_INDEX_SIZE)
 
 /* prototypes */
 extern int get_vrrp_hash(const int, const int);

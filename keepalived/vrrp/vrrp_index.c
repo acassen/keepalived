@@ -79,8 +79,8 @@ vrrp_index_lookup(const int vrid, const int fd)
 void
 alloc_vrrp_fd_bucket(vrrp_t *vrrp)
 {
-	/* We use a mod key plus 1 */
-	list_add(&vrrp_data->vrrp_index_fd[vrrp->sockets->fd_in%1024 + 1], vrrp);
+	/* We use a mod key */
+	list_add(&vrrp_data->vrrp_index_fd[FD_INDEX_HASH(vrrp->sockets->fd_in)], vrrp);
 }
 
 void remove_vrrp_fd_bucket(int old_fd)
@@ -88,7 +88,7 @@ void remove_vrrp_fd_bucket(int old_fd)
 	vrrp_t *vrrp_ptr;
 	element e;
 	element next;
-	list l = &vrrp_data->vrrp_index_fd[old_fd%1024 + 1];
+	list l = &vrrp_data->vrrp_index_fd[FD_INDEX_HASH(old_fd)];
 
 	for (e = LIST_HEAD(l); e; e = next) {
 		next = e->next;
@@ -115,7 +115,7 @@ void remove_vrrp_fd_bucket(int old_fd)
 void
 remove_vrrp_fd_bucket(vrrp_t *vrrp)
 {
-	list l = &vrrp_data->vrrp_index_fd[vrrp->sockets->fd_in%1024 + 1];
+	list l = &vrrp_data->vrrp_index_fd[FD_INDEX_HASH(vrrp->sockets->fd_in)];
 	list_del(l, vrrp);
 }
 
@@ -124,7 +124,7 @@ void set_vrrp_fd_bucket(int old_fd, vrrp_t *vrrp)
 	vrrp_t *vrrp_ptr;
 	element e;
 	element next;
-	list l = &vrrp_data->vrrp_index_fd[old_fd%1024 + 1];
+	list l = &vrrp_data->vrrp_index_fd[FD_INDEX_HASH(old_fd)];
 
 	/* Release old stalled entries */
 	remove_vrrp_fd_bucket(old_fd);

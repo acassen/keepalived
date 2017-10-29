@@ -41,6 +41,7 @@
 #endif
 #include "vrrp_track.h"
 #include "vrrp_sock.h"
+#include "vrrp_index.h"
 
 /* global vars */
 vrrp_data_t *vrrp_data = NULL;
@@ -694,7 +695,7 @@ alloc_vrrp_data(void)
 	new = (vrrp_data_t *) MALLOC(sizeof(vrrp_data_t));
 	new->vrrp = alloc_list(free_vrrp, dump_vrrp);
 	new->vrrp_index = alloc_mlist(NULL, NULL, 1151+1);
-	new->vrrp_index_fd = alloc_mlist(NULL, NULL, 1024+1);
+	new->vrrp_index_fd = alloc_mlist(NULL, NULL, FD_INDEX_SIZE);
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
 	new->vrrp_script = alloc_list(free_vscript, dump_vscript);
 	new->vrrp_track_files = alloc_list(free_vfile, dump_vfile);
@@ -710,7 +711,7 @@ free_vrrp_data(vrrp_data_t * data)
 	free_list(&data->static_routes);
 	free_list(&data->static_rules);
 	free_mlist(data->vrrp_index, 1151+1);
-	free_mlist(data->vrrp_index_fd, 1024+1);
+	free_mlist(data->vrrp_index_fd, FD_INDEX_SIZE);
 	free_list(&data->vrrp);
 	free_list(&data->vrrp_sync_group);
 	free_list(&data->vrrp_script);
