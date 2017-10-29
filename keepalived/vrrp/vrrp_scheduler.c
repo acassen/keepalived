@@ -294,6 +294,8 @@ vrrp_compute_timer(const int fd)
 	timerclear(&timer);
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
+		if (vrrp->sockets->fd_in != fd)
+			continue;
 		if (!timerisset(&timer) ||
 		    timercmp(&vrrp->sands, &timer, <))
 			timer = vrrp->sands;
