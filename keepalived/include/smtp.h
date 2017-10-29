@@ -24,13 +24,13 @@
 #define _SMTP_H
 
 /* globales includes */
-#include <netdb.h>
+#include <sys/types.h>
 
 /* local includes */
-#include "scheduler.h"
-#include "layer4.h"
+#include "global_data.h"
 #ifdef _WITH_LVS_
 #include "check_data.h"
+#include "check_api.h"
 #endif
 #ifdef _WITH_VRRP_
 #include "vrrp.h"
@@ -103,6 +103,17 @@ typedef void vrrp_sgroup_t;
 #endif
 
 /* Prototypes defs */
-extern void smtp_alert(real_server_t *, vrrp_t *, vrrp_sgroup_t *,
-		       const char *, const char *);
+extern void smtp_alert(
+#ifdef _WITH_LVS_
+			checker_t *,
+#else
+			__attribute__((unused)) void *,
+#endif
+#ifdef _WITH_VRRP_
+			vrrp_t *, vrrp_sgroup_t *,
+#else
+			void *, void *,
+#endif
+			const char *, const char *);
+
 #endif

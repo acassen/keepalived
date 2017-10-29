@@ -28,7 +28,6 @@
 #include <assert.h>
 #include <unistd.h>
 #include <fcntl.h>
-#include <stdio.h>
 #include <stdlib.h>
 #endif
 
@@ -144,7 +143,10 @@ keepalived_malloc(size_t size, char *file, char *function, int line)
 	if (i == number_alloc_list)
 		number_alloc_list++;
 
-	assert(number_alloc_list < MAX_ALLOC_LIST);
+	if (number_alloc_list >= MAX_ALLOC_LIST) {
+		log_message(LOG_INFO, "number_alloc_list = %d exceeds MAX_ALLOC_LIST. Please increase value in lib/memory.h", number_alloc_list);
+		assert(number_alloc_list < MAX_ALLOC_LIST);
+	}
 
 	alloc_list[i].ptr = buf;
 	alloc_list[i].size = size;

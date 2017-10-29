@@ -24,16 +24,15 @@
 #define _PIDFILE_H
 
 /* system include */
-#include <unistd.h>
-#include <stdio.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <syslog.h>
 #include <stdbool.h>
 #include <paths.h>
 
 /* lock pidfile */
+#ifdef GNU_STD_PATHS
+#define PID_DIR			LOCAL_STATE_DIR "/run/"
+#else
 #define PID_DIR			_PATH_VARRUN
+#endif
 #define KEEPALIVED_PID_DIR	PID_DIR PACKAGE "/"
 #define KEEPALIVED_PID_FILE	PACKAGE
 #define VRRP_PID_FILE		"vrrp"

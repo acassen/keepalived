@@ -22,27 +22,38 @@
 
 #include "config.h"
 
+/* Global include */
+#include <errno.h>
+#include <arpa/inet.h>
+
 /* local include */
 #include "vrrp_ipaddress.h"
 #ifdef _HAVE_LIBIPTC_
 #include "vrrp_iptables.h"
 #endif
+#include "vrrp.h"
 #include "keepalived_netlink.h"
 #include "vrrp_data.h"
 #include "logger.h"
-#include "memory.h"
 #include "utils.h"
 #include "bitops.h"
 #include "global_data.h"
 #include "rttables.h"
+#include "memory.h"
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 #include "utils.h"
 #endif
+#ifdef _WITH_LIBIPTC_
+#include "vrrp_iptables.h"
+#endif
+
 
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
 
-bool iptables_cmd_available = true;
-bool ip6tables_cmd_available = true;
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+static bool iptables_cmd_available;
+static bool ip6tables_cmd_available;
+#endif
 
 char *
 ipaddresstos(char *buf, ip_address_t *ipaddress)
@@ -72,6 +83,26 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		struct ifaddrmsg ifa;
 		char buf[256];
 	} req;
+#if HAVE_DECL_IFA_FLAGS
+	uint32_t ifa_flags;
+#else
+	uint8_t ifa_flags;
+#endif
+
+	if (cmd == IPADDRESS_ADD) {
+		/* We can't add the address if the interface doesn't exist */
+		if (!ipaddress->ifp->ifindex) {
+			log_message(LOG_INFO, "Not adding address %s to %s since interface doesn't exist", ipaddresstos(NULL, ipaddress), ipaddress->ifp->ifname);
+			return -1;
+		}
+
+		/* Make sure the ifindex for the address is current */
+		ipaddress->ifa.ifa_index = ipaddress->ifp->ifindex;
+	}
+	else if (!ipaddress->ifp->ifindex) {
+		/* The interface has been deleted, so there is no point deleting the address */
+		return 0;
+	}
 
 	memset(&req, 0, sizeof (req));
 
@@ -79,6 +110,9 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 	req.n.nlmsg_flags = NLM_F_REQUEST;
 	req.n.nlmsg_type = (cmd == IPADDRESS_DEL) ? RTM_DELADDR : RTM_NEWADDR;
 	req.ifa = ipaddress->ifa;
+
+	if (cmd == IPADDRESS_ADD)
+		ifa_flags = ipaddress->flags;
 
 	if (IP_IS6(ipaddress)) {
 		if (cmd == IPADDRESS_ADD) {
@@ -90,8 +124,6 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 				cinfo.ifa_prefered = 0;
 				cinfo.ifa_valid = INFINITY_LIFE_TIME;
 
-				log_message(LOG_INFO, "%s has a prefix length of 128, setting "
-						      "preferred_lft to 0", ipaddresstos(NULL, ipaddress));
 				addattr_l(&req.n, sizeof(req), IFA_CACHEINFO, &cinfo,
 					  sizeof(cinfo));
 			}
@@ -108,12 +140,15 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 			 *     functionality, so it's not really needed from the IPv6 stack.
 			 */
 #ifdef IFA_F_NODAD	/* Since Linux 2.6.19 */
-			req.ifa.ifa_flags |= IFA_F_NODAD;
+			if (!(ipaddress->flagmask & IFA_F_NODAD))
+				ifa_flags |= IFA_F_NODAD;
 #endif
 		}
 
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin6_addr, sizeof(ipaddress->u.sin6_addr));
+
+
 	} else {
 		addattr_l(&req.n, sizeof(req), IFA_LOCAL,
 			  &ipaddress->u.sin.sin_addr, sizeof(ipaddress->u.sin.sin_addr));
@@ -130,13 +165,27 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 		}
 	}
 
-	if (cmd == IPADDRESS_ADD)
+	if (cmd == IPADDRESS_ADD) {
+#if HAVE_DECL_IFA_FLAGS
+		if (ifa_flags)
+			addattr32(&req.n, sizeof(req), IFA_FLAGS, ifa_flags);
+#else
+		req.ifa.ifa_flags = ifa_flags;
+#endif
 		if (ipaddress->label)
 			addattr_l(&req.n, sizeof (req), IFA_LABEL,
 				  ipaddress->label, strlen(ipaddress->label) + 1);
+	}
 
+	/* If the state of the interface or its parent is down, it might be because the interface
+	 * has been deleted, but we get the link status change message before the RTM_DELLINK message */
+	if (cmd == IPADDRESS_DEL &&
+	    (((ipaddress->ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING)) ||
+	     ((IF_BASE_IFP(ipaddress->ifp)->ifi_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING))))
+		netlink_error_ignore = ENODEV;
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;
+	netlink_error_ignore = 0;
 
 	return status;
 }
@@ -250,9 +299,6 @@ handle_iptable_rule_to_vip_cmd(ip_address_t *ipaddress, int cmd, bool force)
 	char *addr_str;
 	char *ifname = NULL;
 
-	if (global_data->vrrp_iptables_inchain[0] == '\0')
-		return;
-
 	if (IP_IS6(ipaddress)) {
 		if (!ip6tables_cmd_available)
 			return;
@@ -316,9 +362,18 @@ handle_iptable_rule_to_vip(ip_address_t *ipaddr, int cmd,
 #endif
 												   bool force)
 {
+	if (IP_IS6(ipaddr)) {
+		if (!block_ipv6)
+			return;
+	} else {
+		if (!block_ipv4)
+			return;
+	}
+
 #ifdef _HAVE_LIBIPTC_
 #ifdef _LIBIPTC_DYNAMIC_
-	if (using_libiptc)
+	if ((IP_IS6(ipaddr) && using_libip6tc) ||
+	    (!IP_IS6(ipaddr) && using_libip4tc))
 #endif
 	{
 		handle_iptable_rule_to_vip_lib(ipaddr, cmd, h, force);
@@ -446,7 +501,9 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	char *str;
 	unsigned int i = 0, addr_idx = 0;
 	uint8_t scope;
-	int param_avail;
+	bool param_avail;
+	bool param_missing = false;
+	char *param;
 
 	new = (ip_address_t *) MALLOC(sizeof(ip_address_t));
 
@@ -465,34 +522,40 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 		/* cmd parsing */
 		param_avail = (vector_size(strvec) >= i+2);
 
-		/* All keywords require a following word, so check if one is there */
-		if (!param_avail) {
-			log_message(LOG_INFO, "No %s parameter specified for %s", str, FMT_STR_VSLOT(strvec, addr_idx));
-			break;
-		}
 		if (!strcmp(str, "dev")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+
 			if (new->ifp) {
 				log_message(LOG_INFO, "Cannot specify static ipaddress device more than once for %s", FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
 				return;
 			}
-			ifp_local = if_get_by_ifname(strvec_slot(strvec, ++i));
-			if (!ifp_local) {
-				log_message(LOG_INFO, "VRRP is trying to assign ip address %s to unknown %s"
-				       " interface !!! go out and fix your conf !!!",
-				       FMT_STR_VSLOT(strvec, addr_idx),
-				       FMT_STR_VSLOT(strvec, i));
+			if (!(ifp_local = if_get_by_ifname(strvec_slot(strvec, ++i), IF_CREATE_IF_DYNAMIC))) {
+				log_message(LOG_INFO, "WARNING - interface %s for ip address %s doesn't exist",
+						FMT_STR_VSLOT(strvec, i), FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
 				return;
 			}
-			new->ifa.ifa_index = IF_INDEX(ifp_local);
 			new->ifp = ifp_local;
 		} else if (!strcmp(str, "scope")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+
 			if (!find_rttables_scope(strvec_slot(strvec, ++i), &scope))
 				log_message(LOG_INFO, "Invalid scope '%s' specified for %s - ignoring", FMT_STR_VSLOT(strvec,i), FMT_STR_VSLOT(strvec, addr_idx));
 			else
 				new->ifa.ifa_scope = scope;
 		} else if (!strcmp(str, "broadcast") || !strcmp(str, "brd")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+
 			if (IP_IS6(new)) {
 				log_message(LOG_INFO, "VRRP is trying to assign a broadcast %s to the IPv6 address %s !!?? "
 						      "WTF... skipping VIP..."
@@ -500,32 +563,79 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 				FREE(new);
 				return;
 			}
-			if (!inet_pton(AF_INET, strvec_slot(strvec, ++i), &new->u.sin.sin_brd)) {
+
+			param = strvec_slot(strvec, ++i);
+			if (!strcmp(param, "-") || !strcmp(param, "+")) {
+				if (new->ifa.ifa_prefixlen <= 30) {
+					new->u.sin.sin_brd = new->u.sin.sin_addr;
+					for (i = 31; i >= new->ifa.ifa_prefixlen; i--) {
+						if (param[0] == '+')
+							new->u.sin.sin_brd.s_addr |= htonl(1U<<(31-i));
+						else
+							new->u.sin.sin_brd.s_addr &= ~htonl(1U<<(31-i));
+					}
+				}
+			}
+			else if (!inet_pton(AF_INET, param, &new->u.sin.sin_brd)) {
 				log_message(LOG_INFO, "VRRP is trying to assign invalid broadcast %s. "
 						      "skipping VIP...", FMT_STR_VSLOT(strvec, i));
 				FREE(new);
 				return;
 			}
 		} else if (!strcmp(str, "label")) {
+			if (!param_avail) {
+				param_missing = true;
+				break;
+			}
+
 			new->label = MALLOC(IFNAMSIZ);
 			strncpy(new->label, strvec_slot(strvec, ++i), IFNAMSIZ);
+#ifdef IFA_F_HOMEADDRESS		/* Linux 2.6.19 */
+		} else if (!strcmp(str, "home")) {
+			new->flags |= IFA_F_HOMEADDRESS;
+			new->flagmask |= IFA_F_HOMEADDRESS;
+#endif
+#ifdef IFA_F_NODAD			/* Linux 2.6.19 */
+		} else if (!strcmp(str, "-nodad")) {
+			new->flagmask |= IFA_F_NODAD;
+#endif
+#ifdef IFA_F_MANAGETEMPADDR		/* Linux 3.14 */
+		} else if (!strcmp(str, "mngtmpaddr")) {
+			new->flags |= IFA_F_MANAGETEMPADDR;
+			new->flagmask |= IFA_F_MANAGETEMPADDR;
+#endif
+#ifdef IFA_F_NOPREFIXROUTE		/* Linux 3.14 */
+		} else if (!strcmp(str, "noprefixroute")) {
+			new->flags |= IFA_F_NOPREFIXROUTE;
+			new->flagmask |= IFA_F_NOPREFIXROUTE;
+#endif
+#ifdef IFA_F_MCAUTOJOIN			/* Linux 4.1 */
+		} else if (!strcmp(str, "autojoin")) {
+			new->flags |= IFA_F_MCAUTOJOIN;
+			new->flagmask |= IFA_F_MCAUTOJOIN;
+#endif
 		} else
 			log_message(LOG_INFO, "Unknown configuration entry '%s' for ip address - ignoring", str);
 		i++;
 	}
 
+	/* Check if there was a missing parameter for a keyword */
+	if (param_missing) {
+		log_message(LOG_INFO, "No %s parameter specified for %s", str, FMT_STR_VSLOT(strvec, addr_idx));
+		free(new);
+		return;
+	}
+
 	if (!ifp && !new->ifp) {
 		if (!global_data->default_ifp) {
-			global_data->default_ifp = if_get_by_ifname(DFLT_INT);
+			global_data->default_ifp = if_get_by_ifname(DFLT_INT, IF_CREATE_IF_DYNAMIC);
 			if (!global_data->default_ifp) {
-				log_message(LOG_INFO, "Default interface " DFLT_INT
-					    " does not exist and no interface specified. "
-					    "Skipping static address %s.", FMT_STR_VSLOT(strvec, addr_idx));
+				log_message(LOG_INFO, "Default interface %s doesn't exist for static address %s.",
+							DFLT_INT, FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
 				return;
 			}
 		}
-		new->ifa.ifa_index = IF_INDEX(global_data->default_ifp);
 		new->ifp = global_data->default_ifp;
 	}
 
@@ -597,7 +707,7 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 			log_message(LOG_INFO, "ip address %s/%d dev %s, no longer exist"
 					    , addr_str
 					    , ipaddr->ifa.ifa_prefixlen
-					    , IF_NAME(if_get_by_ifindex(ipaddr->ifa.ifa_index)));
+					    , ipaddr->ifp->ifname);
 			netlink_ipaddress(ipaddr, IPADDRESS_DEL);
 			if (ipaddr->iptable_rule_set)
 				handle_iptable_rule_to_vip(ipaddr, IPADDRESS_DEL, h, false);
@@ -612,31 +722,122 @@ clear_diff_saddresses(void)
 	clear_diff_address(NULL, old_vrrp_data->static_addresses, vrrp_data->static_addresses);
 }
 
+static void
+check_chains_exist(void)
+{
+#ifdef _HAVE_LIBIPTC_
+#ifdef _LIBIPTC_DYNAMIC_
+	if (using_libip4tc || using_libip6tc)
+#endif
+		check_chains_exist_lib();
+#endif
+
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+	char *argv[4];
+
+	argv[1] = "-nL";
+	argv[2] = global_data->vrrp_iptables_inchain;
+	argv[3] = NULL;
+
+	if (block_ipv4)
+	{
+#ifdef _LIBIPTC_DYNAMIC_
+		if (!using_libip4tc)
+#endif
+		{
+			argv[0] = "iptables";
+
+			if (fork_exec(argv) < 0) {
+				log_message(LOG_INFO, "iptables chain %s does not exist", global_data->vrrp_iptables_inchain);
+				block_ipv4 = false;
+			}
+			else if (global_data->vrrp_iptables_outchain[0]) {
+				argv[2] = global_data->vrrp_iptables_outchain;
+				if (fork_exec(argv) < 0) {
+					log_message(LOG_INFO, "iptables chain %s does not exist", global_data->vrrp_iptables_outchain);
+					block_ipv4 = false;
+				}
+			}
+		}
+	}
+
+	if (block_ipv6)
+	{
+#ifdef _LIBIPTC_DYNAMIC_
+		if (!using_libip6tc)
+#endif
+		{
+			argv[0] = "ip6tables";
+			argv[2] = global_data->vrrp_iptables_inchain;
+
+			if (fork_exec(argv) < 0) {
+				log_message(LOG_INFO, "ip6tables chain %s does not exist", global_data->vrrp_iptables_inchain);
+				block_ipv6 = false;
+			}
+			else if (global_data->vrrp_iptables_outchain[0]) {
+				argv[2] = global_data->vrrp_iptables_outchain;
+				if (fork_exec(argv) < 0) {
+					log_message(LOG_INFO, "ip6tables chain %s does not exist", global_data->vrrp_iptables_outchain);
+					block_ipv6 = false;
+				}
+			}
+		}
+	}
+#endif
+}
+
 void
 iptables_init(void)
 {
-#ifdef _HAVE_LIBIPTC_
-	if (iptables_init_lib())
+	if (!block_ipv4 && !block_ipv6) {
+#ifdef _HAVE_LIBIPSET_
+		global_data->using_ipsets = false;
+#endif
 		return;
+	}
+
+#ifdef _HAVE_LIBIPTC_
+	iptables_init_lib();
 #endif
 
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 	char *argv[3];
 
-	/* We can't use libiptc, so check iptables command available */
-	argv[0] = "iptables";
+	/* If can't use libiptc, check iptables command available */
 	argv[1] = "-V";
 	argv[2] = NULL;
 
-	if (fork_exec(argv) < 0) {
-		log_message(LOG_INFO, "iptables command not available - can't filter IPv4 VIP address destinations");
-		iptables_cmd_available = false;
+	if (block_ipv4
+#ifdef _LIBIPTC_DYNAMIC_
+		       && !using_libip4tc
+#endif
+				       )
+	{
+		argv[0] = "iptables";
+		if (!(iptables_cmd_available = (fork_exec(argv) >= 0))) {
+			log_message(LOG_INFO, "iptables command not available - can't filter IPv4 VIP address destinations");
+			block_ipv4 = false;
+		}
 	}
 
-	argv[0] = "ip6tables";
-	if (fork_exec(argv) < 0) {
-		log_message(LOG_INFO, "ip6tables command not available - can't filter IPv6 VIP address destinations");
-		ip6tables_cmd_available = false;
+	if (block_ipv6
+#ifdef _LIBIPTC_DYNAMIC_
+		       && !using_libip6tc
+#endif
+					 )
+	{
+		argv[0] = "ip6tables";
+		if (!(ip6tables_cmd_available = (fork_exec(argv) >= 0))) {
+			log_message(LOG_INFO, "ip6tables command not available - can't filter IPv6 VIP address destinations");
+			block_ipv6 = false;
+		}
 	}
+#endif
+
+	if (block_ipv4 || block_ipv6)
+		check_chains_exist();
+#ifdef _HAVE_LIBIPSET_
+	else
+		global_data->using_ipsets = false;
 #endif
 }

@@ -23,24 +23,23 @@
 #ifndef _GLOBAL_DATA_H
 #define _GLOBAL_DATA_H
 
+#include "config.h"
+
 /* system includes */
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <sys/socket.h>
 #include <stdbool.h>
-#include <sys/types.h>
+#include <sys/socket.h>
 
 #ifdef HAVE_LINUX_NETFILTER_X_TABLES_H
 #include <linux/netfilter/x_tables.h>
 #endif
 
 #ifdef _HAVE_LIBIPSET_
-#include <libipset/linux_ip_set.h>
+#include <linux/netfilter/ipset/ip_set.h>
 #endif
 
 /* local includes */
 #include "list.h"
+#include "vrrp_if.h"
 #include "timer.h"
 #ifdef _WITH_VRRP_
 #include "vrrp.h"
@@ -48,6 +47,7 @@
 #ifdef _WITH_LVS_
 #include "ipvswrapper.h"
 #endif
+#include "notify.h"
 
 #ifndef _HAVE_LIBIPTC_
 #define	XT_EXTENSION_MAXNAMELEN		29
@@ -72,6 +72,8 @@ typedef struct _data {
 	unsigned long			smtp_connection_to;
 	list				email;
 #ifdef _WITH_VRRP_
+	bool				dynamic_interfaces;
+	bool				email_faults;
 	interface_t			*default_ifp;		/* Default interface for static addresses */
 #endif
 #ifdef _WITH_LVS_
@@ -84,8 +86,8 @@ typedef struct _data {
 	bool				lvs_flush;		/* flush any residual LVS config at startup */
 #endif
 #ifdef _WITH_VRRP_
-	struct sockaddr_storage		vrrp_mcast_group4;
-	struct sockaddr_storage		vrrp_mcast_group6;
+	struct sockaddr_in		vrrp_mcast_group4;
+	struct sockaddr_in6		vrrp_mcast_group6;
 	unsigned			vrrp_garp_delay;
 	timeval_t			vrrp_garp_refresh;
 	unsigned			vrrp_garp_rep;
@@ -99,8 +101,6 @@ typedef struct _data {
 	int				vrrp_version;	/* VRRP version (2 or 3) */
 	char				vrrp_iptables_inchain[XT_EXTENSION_MAXNAMELEN];
 	char				vrrp_iptables_outchain[XT_EXTENSION_MAXNAMELEN];
-	bool				block_ipv4;
-	bool				block_ipv6;
 #ifdef _HAVE_LIBIPSET_
 	bool				using_ipsets;
 	char				vrrp_ipset_address[IPSET_MAXNAMELEN];
@@ -117,6 +117,13 @@ typedef struct _data {
 	char				checker_process_priority;
 	bool				checker_no_swap;
 #endif
+	notify_fifo_t			notify_fifo;
+#ifdef _WITH_VRRP_
+	notify_fifo_t			vrrp_notify_fifo;
+#endif
+#ifdef _WITH_LVS_
+	notify_fifo_t			lvs_notify_fifo;
+#endif
 #ifdef _WITH_SNMP_
 	bool				enable_traps;
 	char				*snmp_socket;
@@ -131,8 +138,8 @@ typedef struct _data {
 #endif
 #ifdef _WITH_DBUS_
 	bool				enable_dbus;
+	char				*dbus_service_name;
 #endif
-	bool				script_security;
 } data_t;
 
 /* Global vars exported */

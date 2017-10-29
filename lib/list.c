@@ -81,10 +81,10 @@ list_del(list l, void *data)
 }
 
 void *
-list_element(list l, unsigned num)
+list_element(list l, size_t num)
 {
 	element e = LIST_HEAD(l);
-	unsigned i = 0;
+	size_t i = 0;
 
 	/* fetch element number num */
 	for (i = 0; i < num; i++) {
@@ -183,7 +183,7 @@ alloc_mlist(void (*free_func) (void *), void (*dump_func) (void *), size_t size)
 
 #ifdef _INCLUDE_UNUSED_CODE_
 void
-dump_mlist(list l, int size)
+dump_mlist(list l, size_t size)
 {
 	element e;
 	int i;
@@ -211,9 +211,9 @@ free_melement(list l, void (*free_func) (void *))
 }
 
 void
-free_mlist(list l, int size)
+free_mlist(list l, size_t size)
 {
-	int i;
+	size_t i;
 
 	if (!l)
 		return;

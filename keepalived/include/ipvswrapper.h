@@ -23,32 +23,12 @@
 #ifndef _IPVSWRAPPER_H
 #define _IPVSWRAPPER_H
 
-/* system includes */
-#include <unistd.h>
-#include <errno.h>
-#include <sys/socket.h>
-#include <sys/param.h>
-#include <arpa/inet.h>
-#include <asm/types.h>
-#include <stdint.h>
-#include <stdbool.h>
+#include "config.h"
 
-#include <net/if.h>
-//#include <netinet/ip_icmp.h>
-#include <netinet/udp.h>
-#include <netinet/tcp.h>
-#include <sys/wait.h>
-
-#ifdef _WITH_LVS_
-  #include "libipvs.h"
-  #include "ip_vs.h"
 #ifdef _WITH_VRRP_
   #include "vrrp.h"
 #endif
-#endif
 
-/* locale includes */
-#include "scheduler.h"
 #ifdef _WITH_LVS_
 #include "check_data.h"
 #endif
@@ -71,21 +51,7 @@
 #define IPVS_FLUSH		5
 #endif
 
-/* Macro */
-#define IPVS_ALIVE(X,Y,Z)	(((X) == IP_VS_SO_SET_ADD && !(Y)->alive)	|| \
-				 ((X) == IP_VS_SO_SET_DEL && (Y)->alive)	|| \
-				 ((X) == IP_VS_SO_SET_ADDDEST && !(Z)->alive)	|| \
-				 ((X) == IP_VS_SO_SET_DELDEST && (Z)->alive)	|| \
-				 (X) == IP_VS_SO_SET_EDITDEST			   \
-				)
-
-#define IPVS_SET_ALIVE(C,V)			\
-do {						\
-	if ((C) == IP_VS_SO_SET_ADD)		\
-		SET_ALIVE((V));			\
-	if ((C) == IP_VS_SO_SET_DEL)		\
-		UNSET_ALIVE((V));		\
-} while (0)
+#define IPVS_DEF_SCHED		"wlc"
 
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 struct lvs_syncd_config {

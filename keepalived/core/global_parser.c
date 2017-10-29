@@ -24,14 +24,13 @@
 
 #include "config.h"
 
-#include <netdb.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <pwd.h>
 #include <grp.h>
+#include <ctype.h>
 
 #ifdef _WITH_SNMP_
 #include "snmp.h"
@@ -41,7 +40,6 @@
 #include "global_data.h"
 #include "main.h"
 #include "parser.h"
-#include "memory.h"
 #include "smtp.h"
 #include "utils.h"
 #include "logger.h"
@@ -76,6 +74,18 @@ smtpto_handler(vector_t *strvec)
 {
 	global_data->smtp_connection_to = strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
 }
+#ifdef _WITH_VRRP_
+static void
+dynamic_interfaces_handler(__attribute__((unused))vector_t *strvec)
+{
+	global_data->dynamic_interfaces = true;
+}
+static void
+email_faults_handler(__attribute__((unused))vector_t *strvec)
+{
+	global_data->email_faults = true;
+}
+#endif
 static void
 smtpserver_handler(vector_t *strvec)
 {
@@ -86,7 +96,7 @@ smtpserver_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 3)
 		port_str = strvec_slot(strvec,2);
 
-	/* It can't be an IP address if it contains '-' or '/', and 
+	/* It can't be an IP address if it contains '-' or '/', and
 	   inet_stosockaddr() modifies the string if it contains either of them */
 	if (!strpbrk(strvec_slot(strvec, 1), "-/"))
 		ret = inet_stosockaddr(strvec_slot(strvec, 1), port_str, &global_data->smtp_server);
@@ -133,11 +143,11 @@ default_interface_handler(vector_t *strvec)
 		log_message(LOG_INFO, "default_interface requires interface name");
 		return;
 	}
-	ifp = if_get_by_ifname(strvec_slot(strvec, 1));
+	ifp = if_get_by_ifname(strvec_slot(strvec, 1), IF_CREATE_IF_DYNAMIC);
 	if (!ifp)
-		log_message(LOG_INFO, "Cannot find default interface %s", FMT_STR_VSLOT(strvec, 1));
-	else
-		global_data->default_ifp = ifp;
+		log_message(LOG_INFO, "WARNING - default interface %s doesn't exist", ifp->ifname);
+
+	global_data->default_ifp = ifp;
 }
 #endif
 #ifdef _WITH_LVS_
@@ -321,10 +331,10 @@ lvs_flush_handler(__attribute__((unused)) vector_t *strvec)
 static void
 vrrp_mcast_group4_handler(vector_t *strvec)
 {
-	struct sockaddr_storage *mcast = &global_data->vrrp_mcast_group4;
+	struct sockaddr_in *mcast = &global_data->vrrp_mcast_group4;
 	int ret;
 
-	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, mcast);
+	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, (struct sockaddr_storage *)mcast);
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: Cant parse vrrp_mcast_group4 [%s]. Skipping"
 				   , FMT_STR_VSLOT(strvec, 1));
@@ -333,10 +343,10 @@ vrrp_mcast_group4_handler(vector_t *strvec)
 static void
 vrrp_mcast_group6_handler(vector_t *strvec)
 {
-	struct sockaddr_storage *mcast = &global_data->vrrp_mcast_group6;
+	struct sockaddr_in6 *mcast = &global_data->vrrp_mcast_group6;
 	int ret;
 
-	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, mcast);
+	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, (struct sockaddr_storage *)mcast);
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: Cant parse vrrp_mcast_group6 [%s]. Skipping"
 				   , FMT_STR_VSLOT(strvec, 1));
@@ -539,6 +549,78 @@ vrrp_no_swap_handler(__attribute__((unused)) vector_t *strvec)
 	global_data->vrrp_no_swap = true;
 }
 #endif
+static void
+notify_fifo(vector_t *strvec, const char *type, notify_fifo_t *fifo)
+{
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "No %snotify_fifo name specified", type);
+		return;
+	}
+
+	if (fifo->name) {
+		log_message(LOG_INFO, "%snotify_fifo already specified - ignoring %s", type, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
+
+	fifo->name = MALLOC(strlen(strvec_slot(strvec, 1) + 1));
+	strcpy(fifo->name, strvec_slot(strvec, 1));
+}
+static void
+notify_fifo_script(vector_t *strvec, const char *type, notify_fifo_t *fifo)
+{
+	char *id_str;
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "No %snotify_fifo_script specified", type);
+		return;
+	}
+
+	if (fifo->script) {
+		log_message(LOG_INFO, "%snotify_fifo_script already specified - ignoring %s", type, FMT_STR_VSLOT(strvec,1));
+		return;
+	}
+
+	id_str = MALLOC(strlen(type) + strlen("notify_fifo"));
+	strcpy(id_str, type);
+	strcat(id_str, "notify_fifo");
+	fifo->script = notify_script_init(strvec, true, id_str);
+
+	FREE(id_str);
+}
+static void
+global_notify_fifo(vector_t *strvec)
+{
+	notify_fifo(strvec, "", &global_data->notify_fifo);
+}
+static void
+global_notify_fifo_script(vector_t *strvec)
+{
+	notify_fifo_script(strvec, "", &global_data->notify_fifo);
+}
+#ifdef _WITH_VRRP_
+static void
+vrrp_notify_fifo(vector_t *strvec)
+{
+	notify_fifo(strvec, "vrrp_", &global_data->vrrp_notify_fifo);
+}
+static void
+vrrp_notify_fifo_script(vector_t *strvec)
+{
+	notify_fifo_script(strvec, "vrrp_", &global_data->vrrp_notify_fifo);
+}
+#endif
+#ifdef _WITH_LVS_
+static void
+lvs_notify_fifo(vector_t *strvec)
+{
+	notify_fifo(strvec, "lvs_", &global_data->lvs_notify_fifo);
+}
+static void
+lvs_notify_fifo_script(vector_t *strvec)
+{
+	notify_fifo_script(strvec, "lvs_", &global_data->lvs_notify_fifo);
+}
+#endif
 #ifdef _WITH_LVS_
 static void
 checker_prio_handler(vector_t *strvec)
@@ -638,7 +720,7 @@ static void
 net_namespace_handler(vector_t *strvec)
 {
 	/* If we are reloading, there has already been a check that the
-	 * namespace hasn't changed */ 
+	 * namespace hasn't changed */
 	if (!reload) {
 		if (!network_namespace) {
 			network_namespace = set_value(strvec);
@@ -680,6 +762,13 @@ enable_dbus_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->enable_dbus = true;
 }
+
+static void
+dbus_service_name_handler(vector_t *strvec)
+{
+	FREE_PTR(global_data->dbus_service_name);
+	global_data->dbus_service_name = set_value(strvec);
+}
 #endif
 
 static void
@@ -701,53 +790,6 @@ use_pid_dir_handler(__attribute__((unused)) vector_t *strvec)
 	use_pid_dir = true;
 }
 
-bool
-set_script_uid_gid(vector_t *strvec, unsigned keyword_offset, uid_t *uid_p, gid_t *gid_p)
-{
-	char *username;
-	char *groupname;
-	uid_t uid;
-	gid_t gid;
-	struct passwd pwd;
-	struct passwd *pwd_p;
-	struct group grp;
-	struct group *grp_p;
-	int ret;
-	char buf[getpwnam_buf_len];
-
-	username = strvec_slot(strvec, keyword_offset);
-
-	if ((ret = getpwnam_r(username, &pwd, buf, sizeof(buf), &pwd_p))) {
-		log_message(LOG_INFO, "Unable to resolve script username '%s' - ignoring", username);
-		return true;
-	}
-	if (!pwd_p) {
-		log_message(LOG_INFO, "Script user '%s' does not exist", username);
-		return true;
-	}
-
-	uid = pwd.pw_uid;
-	gid = pwd.pw_gid;
-
-	if (vector_size(strvec) > keyword_offset + 1) {
-		groupname = strvec_slot(strvec, keyword_offset + 1);
-		if ((ret = getgrnam_r(groupname, &grp, buf, sizeof(buf), &grp_p))) {
-			log_message(LOG_INFO, "Unable to resolve script group name '%s' - ignoring", groupname);
-			return true;
-		}
-		if (!grp_p) {
-			log_message(LOG_INFO, "Script group '%s' does not exist", groupname);
-			return true;
-		}
-		gid = grp.gr_gid;
-	}
-
-	*uid_p = uid;
-	*gid_p = gid;
-
-	return false;
-}
-
 static void
 script_user_handler(vector_t *strvec)
 {
@@ -756,14 +798,14 @@ script_user_handler(vector_t *strvec)
 		return;
 	}
 
-	if (set_script_uid_gid(strvec, 1, &default_script_uid, &default_script_gid))
+	if (set_default_script_user(strvec_slot(strvec, 1), vector_size(strvec) > 2 ? strvec_slot(strvec, 2) : NULL))
 		log_message(LOG_INFO, "Error setting global script uid/gid");
 }
 
 static void
 script_security_handler(__attribute__((unused)) vector_t *strvec)
 {
-	global_data->script_security = true;
+	script_security = true;
 }
 
 void
@@ -785,6 +827,8 @@ init_global_keywords(bool global_active)
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
 #ifdef _WITH_VRRP_
+	install_keyword("dynamic_interfaces", &dynamic_interfaces_handler);
+	install_keyword("email_faults", &email_faults_handler);
 	install_keyword("default_interface", &default_interface_handler);
 #endif
 #ifdef _WITH_LVS_
@@ -818,6 +862,16 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_priority", &vrrp_prio_handler);
 	install_keyword("vrrp_no_swap", &vrrp_no_swap_handler);
 #endif
+	install_keyword("notify_fifo", &global_notify_fifo);
+	install_keyword("notify_fifo_script", &global_notify_fifo_script);
+#ifdef _WITH_VRRP_
+	install_keyword("vrrp_notify_fifo", &vrrp_notify_fifo);
+	install_keyword("vrrp_notify_fifo_script", &vrrp_notify_fifo_script);
+#endif
+#ifdef _WITH_LVS_
+	install_keyword("lvs_notify_fifo", &lvs_notify_fifo);
+	install_keyword("lvs_notify_fifo_script", &lvs_notify_fifo_script);
+#endif
 #ifdef _WITH_LVS_
 	install_keyword("checker_priority", &checker_prio_handler);
 	install_keyword("checker_no_swap", &checker_no_swap_handler);
@@ -843,6 +897,7 @@ init_global_keywords(bool global_active)
 #endif
 #ifdef _WITH_DBUS_
 	install_keyword("enable_dbus", &enable_dbus_handler);
+	install_keyword("dbus_service_name", &dbus_service_name_handler);
 #endif
 	install_keyword("script_user", &script_user_handler);
 	install_keyword("enable_script_security", &script_security_handler);

@@ -23,6 +23,7 @@
 #ifndef VRRP_DBUS_H
 #define VRRP_DBUS_H
 
+/* System includes */
 #include <stdbool.h>
 
 /* Local includes */
@@ -30,13 +31,13 @@
 #include "list.h"
 
 /* Defines */
-#define DBUS_SERVICE_NAME                       "org.keepalived.Vrrp1"
-#define DBUS_VRRP_INTERFACE                     "org.keepalived.Vrrp1.Vrrp"
-#define DBUS_VRRP_OBJECT_ROOT                   "/org/keepalived/Vrrp1"
-#define DBUS_VRRP_INSTANCE_PATH_DEFAULT_LENGTH  8
-#define DBUS_VRRP_INSTANCE_INTERFACE            "org.keepalived.Vrrp1.Instance"
-#define DBUS_VRRP_INTERFACE_FILE_PATH           "/usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml"
-#define DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH  "/usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml"
+#define DBUS_SERVICE_NAME			"org.keepalived.Vrrp1"
+#define DBUS_VRRP_INTERFACE			"org.keepalived.Vrrp1.Vrrp"
+#define DBUS_VRRP_OBJECT_ROOT			"/org/keepalived/Vrrp1"
+#define DBUS_VRRP_INSTANCE_PATH_DEFAULT_LENGTH	8
+#define DBUS_VRRP_INSTANCE_INTERFACE		"org.keepalived.Vrrp1.Instance"
+#define DBUS_VRRP_INTERFACE_FILE_PATH		"/usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml"
+#define DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH	"/usr/share/dbus-1/interfaces/org.keepalived.Vrrp1.Instance.xml"
 
 void dbus_send_state_signal(vrrp_t *);
 void dbus_remove_object(vrrp_t *);

@@ -25,24 +25,23 @@
 
 #include "config.h"
 
+#include <fcntl.h>
 #include <openssl/err.h>
+
 #include "check_ssl.h"
 #include "check_api.h"
+#include "check_http.h"
 #include "logger.h"
-#include "memory.h"
-#include "parser.h"
-#include "smtp.h"
-#include "utils.h"
-#include "html.h"
 
 /* SSL primitives */
 /* Free an SSL context */
 void
 clear_ssl(ssl_data_t *ssl)
 {
-	if (ssl)
-		if (ssl->ctx)
-			SSL_CTX_free(ssl->ctx);
+	if (ssl && ssl->ctx) {
+		SSL_CTX_free(ssl->ctx);
+		ssl->ctx = NULL;
+	}
 }
 
 /* PEM password callback function */
@@ -60,17 +59,19 @@ password_cb(char *buf, int num, __attribute__((unused)) int rwflag, void *userda
 }
 
 /* Inititalize global SSL context */
-static BIO *bio_err = 0;
-static int
+static bool
 build_ssl_ctx(void)
 {
 	ssl_data_t *ssl;
 
 	/* Library initialization */
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
 	SSL_library_init();
-
 	SSL_load_error_strings();
-	bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
+#else
+	if (!OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG, NULL))
+		log_message(LOG_INFO, "OPENSSL_init_crypto failed");
+#endif
 
 	if (!check_data->ssl)
 		ssl = (ssl_data_t *) MALLOC(sizeof(ssl_data_t));
@@ -78,7 +79,7 @@ build_ssl_ctx(void)
 		ssl = check_data->ssl;
 
 	/* Initialize SSL context for SSL v2/3 */
-	ssl->meth = (SSL_METHOD *) SSLv23_method();
+	ssl->meth = SSLv23_method();
 	ssl->ctx = SSL_CTX_new(ssl->meth);
 
 	/* return for autogen context */
@@ -94,7 +95,7 @@ build_ssl_ctx(void)
 		     (ssl->ctx, check_data->ssl->certfile))) {
 			log_message(LOG_INFO,
 			       "SSL error : Cant load certificate file...");
-			return 0;
+			return false;
 		}
 
 	/* Handle password callback using userdata ssl */
@@ -109,7 +110,7 @@ build_ssl_ctx(void)
 		    (SSL_CTX_use_PrivateKey_file
 		     (ssl->ctx, check_data->ssl->keyfile, SSL_FILETYPE_PEM))) {
 			log_message(LOG_INFO, "SSL error : Cant load key file...");
-			return 0;
+			return false;
 		}
 
 	/* Load the CAs we trust */
@@ -118,7 +119,7 @@ build_ssl_ctx(void)
 		    (SSL_CTX_load_verify_locations
 		     (ssl->ctx, check_data->ssl->cafile, 0))) {
 			log_message(LOG_INFO, "SSL error : Cant load CA file...");
-			return 0;
+			return false;
 		}
 
       end:
@@ -126,14 +127,14 @@ build_ssl_ctx(void)
 	SSL_CTX_set_verify_depth(ssl->ctx, 1);
 #endif
 
-	return 1;
+	return true;
 }
 
 /*
  * Initialize the SSL context, with or without specific
  * configuration files.
  */
-int
+bool
 init_ssl_ctx(void)
 {
 	ssl_data_t *ssl = check_data->ssl;
@@ -145,18 +146,15 @@ init_ssl_ctx(void)
 		log_message(LOG_INFO, "  SSL   cafile:%s", ssl->cafile);
 		log_message(LOG_INFO, "Terminate...");
 		clear_ssl(ssl);
-		return 0;
+		return false;
 	}
-	return 1;
+	return true;
 }
 
 /* Display SSL error to readable string */
 int
 ssl_printerr(int err)
 {
-	unsigned long extended_error = 0;
-	char *ssl_strerr;
-
 	switch (err) {
 	case SSL_ERROR_ZERO_RETURN:
 		log_message(LOG_INFO, "  SSL error: (zero return)");
@@ -176,15 +174,10 @@ ssl_printerr(int err)
 	case SSL_ERROR_SYSCALL:
 		log_message(LOG_INFO, "  SSL error: (syscall error)");
 		break;
-	case SSL_ERROR_SSL:{
-			ssl_strerr = (char *) MALLOC(500);
-
-			extended_error = ERR_get_error();
-			ERR_error_string(extended_error, ssl_strerr);
-			log_message(LOG_INFO, "  SSL error: (%s)", ssl_strerr);
-			FREE(ssl_strerr);
-			break;
-		}
+	case SSL_ERROR_SSL:
+		/* Note: the following is not thread safe. Use MALLOC(256) and ERR_error_string_n if need thread safety */
+		log_message(LOG_INFO, "  SSL error: (%s)", ERR_error_string(ERR_get_error(), NULL));
+		break;
 	}
 	return 0;
 }
@@ -194,10 +187,8 @@ ssl_connect(thread_t * thread, int new_req)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
-	http_t *http = HTTP_ARG(http_get_check);
-	request_t *req = HTTP_REQ(http);
+	request_t *req = http_get_check->req;
 	int ret = 0;
-	int val = 0;
 
 	/* First round, create SSL context */
 	if (new_req) {
@@ -206,27 +197,26 @@ ssl_connect(thread_t * thread, int new_req)
 		req->bio = BIO_new_socket(thread->u.fd, BIO_NOCLOSE);
 		BIO_get_fd(req->bio, &bio_fd);
 		fcntl(bio_fd, F_SETFD, fcntl(bio_fd, F_GETFD) | FD_CLOEXEC);
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
 		SSL_set_bio(req->ssl, req->bio, req->bio);
+#else
+		BIO_up_ref(req->bio);
+		SSL_set0_rbio(req->ssl, req->bio);
+		SSL_set0_wbio(req->ssl, req->bio);
+#endif
 	}
 
-	/* Set descriptor non blocking */
-	val = fcntl(thread->u.fd, F_GETFL, 0);
-	fcntl(thread->u.fd, F_SETFL, val | O_NONBLOCK);
-
 	ret = SSL_connect(req->ssl);
-
-	/* restore descriptor flags */
-	fcntl(thread->u.fd, F_SETFL, val);
 
 	return ret;
 }
 
-int
+bool
 ssl_send_request(SSL * ssl, char *str_request, int request_len)
 {
 	int err, r = 0;
 
-	while (1) {
+	while (true) {
 		err = 1;
 		r = SSL_write(ssl, str_request, request_len);
 		if (SSL_ERROR_NONE != SSL_get_error(ssl, r))
@@ -238,7 +228,7 @@ ssl_send_request(SSL * ssl, char *str_request, int request_len)
 		break;
 	}
 
-	return (err == 3) ? 1 : 0;
+	return (err == 3);
 }
 
 /* Asynchronous SSL stream reader */
@@ -247,27 +237,18 @@ ssl_read_thread(thread_t * thread)
 {
 	checker_t *checker = THREAD_ARG(thread);
 	http_checker_t *http_get_check = CHECKER_ARG(checker);
-	http_t *http = HTTP_ARG(http_get_check);
-	request_t *req = HTTP_REQ(http);
-	url_t *url = list_element(http_get_check->url, http->url_it);
+	request_t *req = http_get_check->req;
+	url_t *url = list_element(http_get_check->url, http_get_check->url_it);
 	unsigned timeout = checker->co->connection_to;
 	unsigned char digest[16];
 	int r = 0;
-	int val;
 
 	/* Handle read timeout */
 	if (thread->type == THREAD_READ_TIMEOUT && !req->extracted)
 		return timeout_epilog(thread, "Timeout SSL read");
 
-	/* Set descriptor non blocking */
-	val = fcntl(thread->u.fd, F_GETFL, 0);
-	fcntl(thread->u.fd, F_SETFL, val | O_NONBLOCK);
-
 	/* read the SSL stream */
 	r = SSL_read(req->ssl, req->buffer + req->len, (int)(MAX_BUFFER_LENGTH - req->len));
-
-	/* restore descriptor flags */
-	fcntl(thread->u.fd, F_SETFL, val);
 
 	req->error = SSL_get_error(req->ssl, r);
 
@@ -299,9 +280,17 @@ ssl_read_thread(thread_t * thread)
 		}
 
 		/* Handle response stream */
-		http_handle_response(thread, digest, (!req->extracted) ? 1 : 0);
+		http_handle_response(thread, digest, !req->extracted);
 
 	}
 
 	return 0;
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_check_ssl_addresses(void)
+{
+	log_message(LOG_INFO, "Address of ssl_read_thread() is 0x%p", ssl_read_thread);
+}
+#endif

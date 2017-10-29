@@ -28,6 +28,7 @@ keepalived \- load\-balancing and high\-availability service
 [\fB\-A\fP|\fB\-\-snmp-agent-socket\fP=FILE]
 [\fB\-m\fP|\fB\-\-core\-dump\fP]
 [\fB\-M\fP|\fB\-\-core\-dump\-format\fP[=PATTERN]]
+[\fB  \fP|\fB\-\-signum\fP=SIGFUNC\fP]
 [\fB\-v\fP|\fB\-\-version\fP]
 [\fB\-h\fP|\fB\-\-help\fP]
 
@@ -131,6 +132,14 @@ Provided the parent process doesn't terminate abnormally, it will restore
 
 \fBNote:\fP This will also affect any other process producing a core dump while keepalived is running.
 .TP
+\fB --signum\fP=PATTERN
+Returns the signal number to use for STOP, RELOAD, DATA, STATS and JSON.
+For example, to stop keepalived running, execute:
+.IP
+.nf
+kill -s $(keepalived --signum=STOP) $(cat /var/run/keepalived.pid)
+.fi
+.TP
 \fB -v, --version\fP
 Display the version and exit.
 .TP
@@ -161,31 +170,47 @@ process using the following:
 kill -SIGNAL $(cat /var/run/keepalived.pid)
 .fi
 .PP
-Note that -SIGNAL must be replaced with the actual signal
-you are trying to send, e.g. with HUP. So it then becomes:
+or better:
+.IP
+.nf
+kill -s $(keepalived --signum=SIGFUNC) $(cat /var/run/keepalived.pid)
+.fi
+.PP
+Note that if the first option is used, -SIGNAL must be
+replaced with the actual signal you are trying to send,
+e.g. with HUP. So it then becomes:
 .IP
 .nf
 kill -HUP $(cat /var/run/keepalived.pid)
 .fi
 .PP
+Signals other than for STOP, RELOAD, DATA and STATS may change depending
+on the kernel, and also what functionality is included in the version of
+the keepalived depending on the build options used.
+.PP
 .TP
-.B HUP
+.B HUP\fP or \fBSIGFUNC=RELOAD
 This causes
 .B keepalived
 to close down all interfaces, reload its configuration, and
 start up with the new configuration.
 .TP
-.B TERM, INT
+.B TERM\fP, \fBINT\fP or \fBSIGFUNC=STOP
 .B keepalived
 will shut down.
 .TP
-.B USR1
+.B USR1\fP or \fBSIGFUNC=DATA
 Write configuration data to
 .B /tmp/keepalived.data
 .TP
-.B USR2
+.B USR2\fP or \fBSIGFUNC=STATS
 Write statistics info to
 .B /tmp/keepalived.stats
+.LP
+.TP
+.B SIGFUNC=JSON
+Write configuration data is JSON format to
+.B /tmp/keepalived.json
 .LP
 
 .SH "SEE ALSO"

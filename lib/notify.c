@@ -22,52 +22,74 @@
 
 #include "config.h"
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
 #include <unistd.h>
 #include <stdlib.h>
-#include <syslog.h>
 #include <fcntl.h>
 #include <errno.h>
 #include <signal.h>
 #include <grp.h>
-#include <sys/types.h>
 #include <string.h>
 #include <sys/stat.h>
 #include <pwd.h>
+#include <sys/resource.h>
+#include <limits.h>
+#include <sys/prctl.h>
 
 #include "notify.h"
 #include "signals.h"
 #include "logger.h"
 #include "utils.h"
-#include "vector.h"
 #include "parser.h"
+#include "keepalived_magic.h"
 
-size_t getpwnam_buf_len;				/* Buffer length needed for getpwnam_r/getgrname_r */
+/* Default user/group for script execution */
+uid_t default_script_uid;
+gid_t default_script_gid;
+
+/* Have we got a default user OK? */
+static bool default_script_uid_set = false;
+static bool default_user_fail = false;			/* Set if failed to set default user,
+							   unless it defaults to root */
+
+/* Script security enabled */
+bool script_security = false;
+
+/* Buffer length needed for getpwnam_r/getgrname_r */
+static size_t getpwnam_buf_len;
 
 static char *path;
 static bool path_is_malloced;
 
-/* perform a system call */
-static int
-system_call(const char *cmdline, uid_t uid, gid_t gid)
+/* The priority this process is running at */
+static int cur_prio = INT_MAX;
+
+static bool
+set_privileges(uid_t uid, gid_t gid)
 {
 	int retval;
+
+	/* Ensure we receive SIGTERM if our parent process dies */
+	prctl(PR_SET_PDEATHSIG, SIGTERM);
+
+	/* If we have increased our priority, set it to default for the script */
+	if (cur_prio != INT_MAX)
+		cur_prio = getpriority(PRIO_PROCESS, 0);
+	if (cur_prio < 0)
+		setpriority(PRIO_PROCESS, 0, 0);
 
 	/* Drop our privileges if configured */
 	if (gid) {
 		retval = setgid(gid);
 		if (retval < 0) {
 			log_message(LOG_ALERT, "Couldn't setgid: %d (%m)", gid);
-			return -1;
+			return true;
 		}
 
 		/* Clear any extra supplementary groups */
 		retval = setgroups(1, &gid);
 		if (retval < 0) {
 			log_message(LOG_ALERT, "Couldn't setgroups: %d (%m)", gid);
-			return -1;
+			return true;
 		}
 	}
 
@@ -75,74 +97,24 @@ system_call(const char *cmdline, uid_t uid, gid_t gid)
 		retval = setuid(uid);
 		if (retval < 0) {
 			log_message(LOG_ALERT, "Couldn't setuid: %d (%m)", uid);
-			return -1;
+			return true;
 		}
 	}
 
-	/* system() fails if SIGCHLD is set to SIG_IGN */
-	signal_set(SIGCHLD, (void*)SIG_DFL, NULL);
-
-	retval = system(cmdline);
-	if (retval == -1) {
-		/* other error */
-		log_message(LOG_ALERT, "Error exec-ing command: %s", cmdline);
-	} else if (WIFEXITED(retval)) {
-		if (retval == 127) {
-			/* couldn't exec /bin/sh or couldn't find command */
-			log_message(LOG_ALERT, "Couldn't find command: %s", cmdline);
-		} else if (retval == 126) {
-			/* don't have sufficient privilege to exec command */
-			log_message(LOG_ALERT, "Insufficient privilege to exec command: %s", cmdline);
-		}
-	}
-
-	return retval;
-}
-
-static void
-script_setup(void)
-{
+	/* Prepare for invoking process/script */
 	signal_handler_script();
-
 	set_std_fd(false);
+
+	return false;
 }
 
-/* Execute external script/program */
-int
-notify_exec(const notify_script_t *script)
+/* Execute external script/program to process FIFO */
+static pid_t
+notify_fifo_exec(thread_master_t *m, int (*func) (thread_t *), void *arg, const notify_script_t *script)
 {
 	pid_t pid;
+	int retval;
 
-	pid = fork();
-
-	/* In case of fork is error. */
-	if (pid < 0) {
-		log_message(LOG_INFO, "Failed fork process");
-		return -1;
-	}
-
-	/* In case of this is parent process */
-	if (pid)
-		return 0;
-
-#ifdef _MEM_CHECK_
-	skip_mem_dump();
-#endif
-
-	script_setup();
-
-	system_call(script->name, script->uid, script->gid);
-
-	exit(0);
-}
-
-int
-system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, unsigned long timer, const char* script, uid_t uid, gid_t gid)
-{
-	int status;
-	pid_t pid;
-
-	/* Daemonization to not degrade our scheduling timer */
 	pid = fork();
 
 	/* In case of fork is error. */
@@ -153,25 +125,254 @@ system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, uns
 
 	/* In case of this is parent process */
 	if (pid) {
-		thread_add_child(m, func, arg, pid, timer);
+		thread_add_child(m, func, arg, pid, TIMER_NEVER);
 		return 0;
 	}
 
-	/* Child part */
 #ifdef _MEM_CHECK_
 	skip_mem_dump();
 #endif
 
 	setpgid(0, 0);
+	set_privileges(script->uid, script->gid);
 
-	script_setup();
+	if (script->flags | SC_EXECABLE) {
+		execve(script->args[0], script->args, environ);
 
-	status = system_call(script, uid, gid);
+		if (errno == EACCES)
+			log_message(LOG_INFO, "FIFO notify script %s is not executable", script->args[0]);
+		else
+			log_message(LOG_INFO, "Unable to execute FIFO notify script %s - errno %d - %m", script->args[0], errno);
+	}
+	else {
+		retval = system(script->cmd_str);
 
-	if (status < 0 || !WIFEXITED(status) || WEXITSTATUS(status >= 126))
-		exit(0); /* Script errors aren't server errors */
+		if (retval == 127) {
+			/* couldn't exec command */
+			log_message(LOG_ALERT, "Couldn't exec FIFO command: %s", script->cmd_str);
+		}
+		else if (retval == -1)
+			log_message(LOG_ALERT, "Error exec-ing FIFO command: %s", script->cmd_str);
 
-	exit(WEXITSTATUS(status));
+		exit(0);
+	}
+
+	/* unreached unless error */
+	exit(0);
+}
+
+static void
+fifo_open(notify_fifo_t* fifo, int (*script_exit)(thread_t *), const char *type)
+{
+	int ret;
+	int sav_errno;
+
+	if (fifo->name) {
+		sav_errno = 0;
+
+		if (!(ret = mkfifo(fifo->name, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH)))
+			fifo->created_fifo = true;
+		else {
+			sav_errno = errno;
+
+			if (sav_errno != EEXIST)
+				log_message(LOG_INFO, "Unable to create %snotify fifo %s", type, fifo->name);
+		}
+
+		if (!sav_errno || sav_errno == EEXIST) {
+			/* Run the notify script if there is one */
+			if (fifo->script)
+				notify_fifo_exec(master, script_exit, NULL, fifo->script);
+
+			/* Now open the fifo */
+			if ((fifo->fd = open(fifo->name, O_RDWR | O_CLOEXEC | O_NONBLOCK)) == -1) {
+				log_message(LOG_INFO, "Unable to open %snotify fifo %s - errno %d", type, fifo->name, errno);
+				if (fifo->created_fifo) {
+					unlink(fifo->name);
+					fifo->created_fifo = false;
+				}
+			}
+		}
+
+		if (fifo->fd == -1) {
+			FREE(fifo->name);
+			fifo->name = NULL;
+		}
+	}
+}
+
+void
+notify_fifo_open(notify_fifo_t* global_fifo, notify_fifo_t* fifo, int (*script_exit)(thread_t *), const char *type)
+{
+	/* Open the global FIFO if specified */
+	if (global_fifo->name)
+		fifo_open(global_fifo, script_exit, "");
+
+	/* Now the specific FIFO */
+	fifo_open(fifo, script_exit, type);
+}
+
+static void
+fifo_close(notify_fifo_t* fifo)
+{
+	if (fifo->fd != -1) {
+		close(fifo->fd);
+		fifo->fd = -1;
+	}
+	if (fifo->created_fifo)
+		unlink(fifo->name);
+}
+
+void
+notify_fifo_close(notify_fifo_t* global_fifo, notify_fifo_t* fifo)
+{
+	if (global_fifo->fd != -1)
+		fifo_close(global_fifo);
+
+	fifo_close(fifo);
+}
+
+/* perform a system call */
+static void system_call(const notify_script_t *) __attribute__ ((noreturn));
+
+static void
+system_call(const notify_script_t* script)
+{
+	size_t num;
+	size_t len;
+	char *command_line = NULL;
+	char *cmd_str;
+	int retval;
+
+	if (set_privileges(script->uid, script->gid))
+		exit(0);
+
+	if (script->flags & SC_EXECABLE) {
+		execve(script->args[0], script->args, environ);
+
+		/* error */
+		log_message(LOG_ALERT, "Error exec-ing command '%s', error %d: %m", script->args[0], errno);
+	}
+	else {
+		if (script->cmd_str)
+			cmd_str = script->cmd_str;
+		else {
+			/* It is a notify script - we have to build the command line */
+			for (num = 0, len = 0; script->args[num]; num++)
+				len += strlen(script->args[num]) + 1;	/* Space or '\0' */
+			len += 4;	/* Quotes around command and vrrp instance name */
+
+			command_line = MALLOC(len);
+			for (num = 0; script->args[num]; num++) {
+				if (num)
+					strcat(command_line, " ");
+				if (num == 0 || num == 2)
+					strcat(command_line, "\"");
+				strcat(command_line, script->args[num]);
+				if (num == 0 || num == 2)
+					strcat(command_line, "\"");
+			}
+			cmd_str = command_line;
+		}
+
+		retval = system(cmd_str);
+
+		if (retval == -1)
+			log_message(LOG_ALERT, "Error exec-ing command: %s", cmd_str);
+		else if (WIFEXITED(retval)) {
+			if (WEXITSTATUS(retval) == 127) {
+				/* couldn't find command */
+				log_message(LOG_ALERT, "Couldn't find command: %s", cmd_str);
+			}
+			else if (WEXITSTATUS(retval) == 126) {
+				/* couldn't find command */
+				log_message(LOG_ALERT, "Couldn't execute command: %s", cmd_str);
+			}
+		}
+
+		if (command_line)
+			FREE(command_line);
+
+		if (retval == -1 ||
+		    (WIFEXITED(retval) && (WEXITSTATUS(retval) == 126 || WEXITSTATUS(retval) == 127)))
+			exit(0);
+		if (WIFEXITED(retval))
+			exit(WEXITSTATUS(retval));
+		if (WIFSIGNALED(retval))
+			kill(getpid(), WTERMSIG(retval));
+		exit(0);
+	}
+
+	exit(0);
+}
+
+/* Execute external script/program */
+int
+notify_exec(const notify_script_t *script)
+{
+	pid_t pid;
+
+	if (log_file_name)
+		flush_log_file();
+
+	pid = fork();
+
+	if (pid < 0) {
+		/* fork error */
+		log_message(LOG_INFO, "Failed fork process");
+		return -1;
+	}
+
+	if (pid) {
+		/* parent process */
+		return 0;
+	}
+
+#ifdef _MEM_CHECK_
+	skip_mem_dump();
+#endif
+
+	system_call(script);
+
+	/* We should never get here */
+	exit(0);
+}
+
+int
+system_call_script(thread_master_t *m, int (*func) (thread_t *), void * arg, unsigned long timer, notify_script_t* script)
+{
+	pid_t pid;
+
+	/* Daemonization to not degrade our scheduling timer */
+	if (log_file_name)
+		flush_log_file();
+
+	pid = fork();
+
+	if (pid < 0) {
+		/* fork error */
+		log_message(LOG_INFO, "Failed fork process");
+		return -1;
+	}
+
+	if (pid) {
+		/* parent process */
+		thread_add_child(m, func, arg, pid, timer);
+		return 0;
+	}
+
+	/* Child process */
+#ifdef _MEM_CHECK_
+	skip_mem_dump();
+#endif
+
+	/* Move us into our own process group, so if the script needs to be killed
+	 * all its child processes will also be killed. */
+	setpgid(0, 0);
+
+	system_call(script);
+
+	exit(0); /* Script errors aren't server errors */
 }
 
 void
@@ -181,11 +382,11 @@ script_killall(thread_master_t *m, int signo)
 	thread_t *thread;
 	pid_t p_pgid, c_pgid;
 
-	sigprocmask(0, NULL, &old_set);
+	sigmask_func(0, NULL, &old_set);
 	if (!sigismember(&old_set, SIGCHLD)) {
 		sigemptyset(&child_wait);
 		sigaddset(&child_wait, SIGCHLD);
-		sigprocmask(SIG_BLOCK, &child_wait, NULL);
+		sigmask_func(SIG_BLOCK, &child_wait, NULL);
 	}
 
 	thread = m->child.head;
@@ -201,7 +402,7 @@ script_killall(thread_master_t *m, int signo)
 	}
 
 	if (!sigismember(&old_set, SIGCHLD))
-		sigprocmask(SIG_UNBLOCK, &child_wait, NULL);
+		sigmask_func(SIG_UNBLOCK, &child_wait, NULL);
 }
 
 static bool
@@ -209,25 +410,71 @@ is_executable(struct stat *buf, uid_t uid, gid_t gid)
 {
 	return (uid == 0 && buf->st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) ||
 	       (uid == buf->st_uid && buf->st_mode & S_IXUSR) ||
-	       (uid != buf->st_uid && 
+	       (uid != buf->st_uid &&
 		((gid == buf->st_gid && buf->st_mode & S_IXGRP) ||
 		 (gid != buf->st_gid && buf->st_mode & S_IXOTH)));
 }
 
+static void
+replace_cmd_name(notify_script_t *script, char *new_cmd)
+{
+	size_t new_len = sizeof(char *) + strlen(new_cmd) + 1;
+	char **word_ptrs = script->args;
+	size_t num_words = 1;
+	char **new_args;
+	char *new_words;
+	char **new_word_ptrs;
+	char *new_cmd_str;
+
+	while (*++word_ptrs) {
+		new_len += sizeof(char *) + strlen(*word_ptrs) + 1;
+		num_words++;
+	}
+
+	/* Allow for terminating null pointer */
+	new_len += sizeof(char *);
+
+	new_args = MALLOC(new_len);
+	word_ptrs = script->args;
+	new_words = (char *)new_args + (num_words + 1) * sizeof(char *);
+	new_word_ptrs = new_args;
+
+	strcpy(new_words, new_cmd);
+	*new_word_ptrs = new_words;
+	new_words += strlen(new_words) + 1;
+
+	while (*++word_ptrs) {
+		strcpy(new_words, *word_ptrs);
+		*++new_word_ptrs = new_words;
+		new_words += strlen(new_words) + 1;
+	}
+	*++new_word_ptrs = NULL;
+
+	/* Now do the cmd_str */
+	new_cmd_str = MALLOC(strlen(script->cmd_str) - strlen(script->args[0]) + strlen(new_args[0]) + 1);
+	strcpy(new_cmd_str, new_args[0]);
+	strcat(new_cmd_str, script->cmd_str + strlen(script->args[0]));
+
+	FREE(script->cmd_str);
+	script->cmd_str = new_cmd_str;
+
+	FREE(script->args);
+	script->args = new_args;
+}
+
 /* The following function is essentially __execve() from glibc */
 static int
-find_path(notify_script_t *script, bool full_string)
+find_path(notify_script_t *script)
 {
 	size_t filename_len;
 	size_t file_len;
 	size_t path_len;
-	char *file = script->name;
+	char *file = script->args[0];
 	struct stat buf;
 	int ret;
 	int ret_val = ENOENT;
 	int sgid_num;
 	gid_t *sgid_list = NULL;
-	char *space = NULL;
 	const char *subp;
 	bool got_eacces = false;
 	const char *p;
@@ -235,11 +482,6 @@ find_path(notify_script_t *script, bool full_string)
 	/* We check the simple case first. */
 	if (*file == '\0')
 		return ENOENT;
-
-	if (!full_string) {
-		if ((space = strchr(file, ' ')))
-			*space = '\0';
-	}
 
 	filename_len = strlen(file);
 	if (filename_len >= PATH_MAX) {
@@ -331,44 +573,31 @@ find_path(notify_script_t *script, bool full_string)
 		ret = stat (buffer, &buf);
 		if (!ret) {
 			if (!S_ISREG(buf.st_mode))
-				ret = EACCES;
+				errno = EACCES;
 			else if (!is_executable(&buf, script->uid, script->gid)) {
-				ret = EACCES;
+				errno = EACCES;
+			} else {
+				/* Success */
+				log_message(LOG_INFO, "WARNING - script `%s` resolved by path search to `%s`. Please specify full path.", script->args[0], buffer);
+
+				/* Copy the found file name, and any parameters */
+				replace_cmd_name(script, buffer);
+
+				ret_val = 0;
+				got_eacces = false;
+				goto exit;
 			}
 		}
-		else
-			ret = errno;
 
-		if (!ret) {
-			/* Success */
-			log_message(LOG_INFO, "WARNING - script `%s` resolved by path search to `%s`. Please specify full path.", script->name, buffer); 
-
-			/* Copy the found file name, and append any parameters */
-			file = MALLOC(strlen(buffer) + (space ? strlen(space + 1) + 1 : 0) + 1);
-			strcpy(file, buffer);
-			if (space) {
-				filename_len = strlen(file);
-				file[filename_len] = ' ';
-				strcpy(file + filename_len + 1, space + 1);
-				space = NULL;
-			}
-
-			FREE(script->name);
-			script->name = file;
-
-			ret_val = 0;
-			got_eacces = false;
-			goto exit;
-		}
-
-		switch (ret)
+		switch (errno)
 		{
 		case ENOEXEC:
 		case EACCES:
 			/* Record that we got a 'Permission denied' error.  If we end
 			   up finding no executable we can use, we want to diagnose
 			   that we did find one but were denied access. */
-			got_eacces = true;
+			if (!ret)
+				got_eacces = true;
 		case ENOENT:
 		case ESTALE:
 		case ENOTDIR:
@@ -411,9 +640,6 @@ exit:
 	}
 
 exit1:
-	if (space)
-		*space = 0;
-
 	/* We tried every element and none of them worked. */
 	if (got_eacces) {
 		/* At least one failure was due to permissions, so report that error. */
@@ -424,45 +650,117 @@ exit1:
 }
 
 int
-check_script_secure(notify_script_t *script, bool script_security, bool full_string)
+check_script_secure(notify_script_t *script,
+#ifndef _HAVE_LIBMAGIC_
+					     __attribute__((unused))
+#endif
+								     magic_t magic)
 {
 	int flags;
 	char *slash;
-	char *space = NULL;
-	char *next = script->name;
+	char *next;
 	char sav;
 	int ret;
 	struct stat buf, file_buf;
 	bool need_script_protection = false;
+	uid_t old_uid = 0;
+	gid_t old_gid = 0;
+	char *new_path;
+	int sav_errno;
 
 	if (!script)
 		return 0;
 
-	if (!strchr(script->name, '/')) {
+	next = script->args[0];
+	if (!strchr(script->args[0], '/')) {
 		/* It is a bare file name, so do a path search */
-		if ((ret = find_path(script, full_string))) {
+		if ((ret = find_path(script))) {
 			if (ret == EACCES)
-				log_message(LOG_INFO, "Permissions failure for script %s in path", script->name);
+				log_message(LOG_INFO, "Permissions failure for script %s in path - disabling", script->cmd_str);
 			else
-				log_message(LOG_INFO, "Cannot find script %s in path", script->name);
+				log_message(LOG_INFO, "Cannot find script %s in path - disabling", script->cmd_str);
 			return SC_NOTFOUND;
 		}
 	}
 
-	/* Get the permissions for the file itself */
-	if (!full_string) {
-		space = strchr(script->name, ' ');
-		if (space)
-			*space = '\0';
+	/* Check script accessible by the user running it */
+	if (script->uid)
+		old_uid = geteuid();
+	if (script->gid)
+		old_gid = getegid();
+
+	if ((script->gid && setegid(script->gid)) ||
+	    (script->uid && seteuid(script->uid))) {
+		if (script->uid)
+			seteuid(old_uid);
+
+		log_message(LOG_INFO, "Unable to set uid:gid %d:%d for script %s - disabling", script->uid, script->gid, script->args[0]);
+
+		if ((script->uid && seteuid(old_uid)) ||
+		    (script->gid && setegid(old_gid)))
+			log_message(LOG_INFO, "Unable to restore uid:gid %d:%d after script %s", script->uid, script->gid, script->args[0]);
+
+		return SC_INHIBIT;
 	}
-	if (stat(script->name, &file_buf)) {
-		log_message(LOG_INFO, "Unable to access script `%s`", script->name);
-		if (space)
-			*space = ' ';
+
+	/* Remove /./, /../, multiple /'s, and resolve symbolic links */
+	new_path = realpath(script->args[0], NULL);
+	sav_errno = errno;
+
+	if ((script->gid && setegid(old_gid)) ||
+	    (script->uid && seteuid(old_uid)))
+		log_message(LOG_INFO, "Unable to restore uid:gid %d:%d after checking script %s", script->uid, script->gid, script->args[0]);
+
+	if (!new_path)
+	{
+		log_message(LOG_INFO, "Script %s cannot be accessed - %s", script->args[0], strerror(sav_errno));
+
 		return SC_NOTFOUND;
 	}
-	if (space)
-		*space = ' ';
+
+	if (strcmp(script->args[0], new_path)) {
+		/* The path name is different */
+		size_t len;
+		size_t num_words = 1;
+		char **wp = &script->args[1];
+		char **params;
+		char **word_ptrs;
+		char *words;
+
+		/* We need to set up all the args again */
+		len = strlen(new_path) + 1;
+		while (*wp) {
+			len += strlen(*wp) + 1;
+			num_words++;
+			wp++;
+		}
+		params = word_ptrs = MALLOC((num_words + 1) * sizeof(char *) + len);
+		words = (char *)params + (num_words + 1) * sizeof(char *);
+		strcpy(words, new_path);
+		*(word_ptrs++) = words;
+		words += strlen(words) + 1;
+		wp = &script->args[1];
+		while (*wp) {
+			strcpy(words, *wp);
+			*(word_ptrs++) = words;
+			words += strlen(*wp) + 1;
+			wp++;
+		}
+		*word_ptrs = NULL;
+		FREE(script->args);
+		script->args = params;
+
+		FREE(script->cmd_str);
+		script->cmd_str = MALLOC(strlen(new_path) + 1);
+		strcpy(script->cmd_str, new_path);
+	}
+	free(new_path);
+
+	/* Get the permissions for the file itself */
+	if (stat(script->args[0], &file_buf)) {
+		log_message(LOG_INFO, "Unable to access script `%s` - disabling", script->cmd_str);
+		return SC_NOTFOUND;
+	}
 
 	flags = SC_ISSCRIPT;
 
@@ -474,14 +772,26 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 		    (file_buf.st_gid == 0 && (file_buf.st_mode & S_IXGRP) && (file_buf.st_mode & S_ISGID)))
 			need_script_protection = true;
 	} else
-		log_message(LOG_INFO, "WARNING - script '%s' is not executable for uid:gid %d:%d - disabling.", script->name, script->uid, script->gid);
+		log_message(LOG_INFO, "WARNING - script '%s' is not executable for uid:gid %d:%d - disabling.", script->cmd_str, script->uid, script->gid);
+
+	/* Default to execable */
+	script->flags |= SC_EXECABLE;
+#ifdef _HAVE_LIBMAGIC_
+	if (magic && flags & SC_EXECUTABLE) {
+		const char *magic_desc = magic_file(magic, script->args[0]);
+		if (!strstr(magic_desc, " executable")) {
+			log_message(LOG_INFO, "Please add a #! shebang to script %s", script->args[0]);
+			script->flags &= ~SC_EXECABLE;
+		}
+	}
+#endif
 
 	if (!need_script_protection)
 		return flags;
 
-	next = script->name;
+	next = script->args[0];
 	while (next) {
-		slash = next + strcspn(next, "/ ");
+		slash = strchrnul(next, '/');
 		if (*slash)
 			next = slash + 1;
 		else {
@@ -490,25 +800,14 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 		}
 
 		if (slash) {
-			/* If full_string, then file name can contain spaces, otherwise it terminates the command */
-			if (*slash == ' ') {
-				if (full_string)
-					continue;
-				next = NULL;
-			}
-
-			/* If there are multiple consecutive '/'s, don't check subsequent ones */
-			if (slash > script->name && slash[-1] == '/')
-				continue;
-
 			/* We want to check '/' for first time around */
-			if (slash == script->name)
+			if (slash == script->args[0])
 				slash++;
 			sav = *slash;
 			*slash = 0;
 		}
 
-		ret = stat(script->name, &buf);
+		ret = stat(script->args[0], &buf);
 
 		/* Restore the full path name */
 		if (slash)
@@ -516,9 +815,9 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 
 		if (ret) {
 			if (errno == EACCES || errno == ELOOP || errno == ENOENT || errno == ENOTDIR)
-				log_message(LOG_INFO, "check_script_secure could not find script '%s'", script->name);
+				log_message(LOG_INFO, "check_script_secure could not find script '%s' - disabling", script->cmd_str);
 			else
-				log_message(LOG_INFO, "check_script_secure('%s') returned errno %d - %s", script->name, errno, strerror(errno));
+				log_message(LOG_INFO, "check_script_secure('%s') returned errno %d - %s - disabling", script->cmd_str, errno, strerror(errno));
 			return flags | SC_NOTFOUND;
 		}
 
@@ -527,20 +826,19 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 		      buf.st_mode & S_IFREG) &&			/* This is a file */
 		     ((buf.st_gid && buf.st_mode & S_IWGRP) ||	/* Group is not root and group write permission */
 		      buf.st_mode & S_IWOTH))) {		/* World has write permission */
-			log_message(LOG_INFO, "Unsafe permissions found for script '%s'.", script->name);
+			log_message(LOG_INFO, "Unsafe permissions found for script '%s'%s.", script->cmd_str, script_security ? " - disabling" : "");
 			flags |= SC_INSECURE;
 			if (script_security)
 				flags |= SC_INHIBIT;
 			break;
 		}
-
 	}
 
 	return flags;
 }
 
 int
-check_notify_script_secure(notify_script_t **script_p, bool script_security, bool full_string)
+check_notify_script_secure(notify_script_t **script_p, magic_t magic)
 {
 	int flags;
 	notify_script_t *script = *script_p;
@@ -548,57 +846,251 @@ check_notify_script_secure(notify_script_t **script_p, bool script_security, boo
 	if (!script)
 		return 0;
 
-	flags = check_script_secure(script, script_security, full_string);
+	flags = check_script_secure(script, magic);
 
 	/* Mark not to run if needs inhibiting */
-	if (flags & SC_INHIBIT) {
-		log_message(LOG_INFO, "Disabling notify script %s due to insecure", script->name);
-		free_notify_script(script_p);
-	}
-	else if (flags & SC_NOTFOUND) {
-		log_message(LOG_INFO, "Disabling notify script %s since not found", script->name);
-		free_notify_script(script_p);
-	}
-	else if (!(flags & SC_EXECUTABLE))
+	if ((flags & (SC_INHIBIT | SC_NOTFOUND)) ||
+	    !(flags & SC_EXECUTABLE))
 		free_notify_script(script_p);
 
 	return flags;
 }
 
-/* The default script user/group is keepalived_script if it exists, or root otherwise */
-void
-set_default_script_user(uid_t *uid, gid_t *gid)
+static void
+set_pwnam_buf_len(void)
 {
-	char buf[getpwnam_buf_len];
-	char *default_user_name = "keepalived_script";
+	long buf_len;
+
+	/* Get buffer length needed for getpwnam_r/getgrnam_r */
+	if ((buf_len = sysconf(_SC_GETPW_R_SIZE_MAX)) == -1)
+		getpwnam_buf_len = 1024;	/* A safe default if no value is returned */
+	else
+		getpwnam_buf_len = (size_t)buf_len;
+	if ((buf_len = sysconf(_SC_GETGR_R_SIZE_MAX)) != -1 &&
+	    (size_t)buf_len > getpwnam_buf_len)
+		getpwnam_buf_len = (size_t)buf_len;
+}
+
+bool
+set_uid_gid(const char *username, const char *groupname, uid_t *uid_p, gid_t *gid_p, bool default_user)
+{
+	uid_t uid;
+	gid_t gid;
 	struct passwd pwd;
 	struct passwd *pwd_p;
+	struct group grp;
+	struct group *grp_p;
+	int ret;
+	bool using_default_default_user = false;
 
-	if (getpwnam_r(default_user_name, &pwd, buf, sizeof(buf), &pwd_p)) {
-		log_message(LOG_INFO, "Unable to resolve default script username '%s' - ignoring", default_user_name);
-		return;
+	if (!getpwnam_buf_len)
+		set_pwnam_buf_len();
+
+	{
+		char buf[getpwnam_buf_len];
+
+		if (default_user && !username) {
+			using_default_default_user = true;
+			username = "keepalived_script";
+		}
+
+		if ((ret = getpwnam_r(username, &pwd, buf, sizeof(buf), &pwd_p))) {
+			log_message(LOG_INFO, "Unable to resolve %sscript username '%s' - ignoring", default_user ? "default " : "", username);
+			return true;
+		}
+		if (!pwd_p) {
+			if (using_default_default_user)
+				log_message(LOG_INFO, "WARNING - default user '%s' for script execution does not exist - please create.", username);
+			else
+				log_message(LOG_INFO, "%script user '%s' does not exist", default_user ? "Default s" : "S", username);
+			return true;
+		}
+
+		uid = pwd.pw_uid;
+		gid = pwd.pw_gid;
+
+		if (groupname) {
+			if ((ret = getgrnam_r(groupname, &grp, buf, sizeof(buf), &grp_p))) {
+				log_message(LOG_INFO, "Unable to resolve %sscript group name '%s' - ignoring", default_user ? "default " : "", groupname);
+				return true;
+			}
+			if (!grp_p) {
+				log_message(LOG_INFO, "%script group '%s' does not exist", default_user ? "Default s" : "S", groupname);
+				return true;
+			}
+			gid = grp.gr_gid;
+		}
+
+		*uid_p = uid;
+		*gid_p = gid;
 	}
-	if (!pwd_p) {
-		/* The username does not exist */
-		log_message(LOG_INFO, "WARNING - default user '%s' for script execution does not exist - please create.", default_user_name);
-		return;
+
+	return false;
+}
+
+/* The default script user/group is keepalived_script if it exists, or root otherwise */
+bool
+set_default_script_user(const char *username, const char *groupname)
+{
+	if (!default_script_uid_set || username) {
+		/* Even if we fail to set it, there is no point in trying again */
+		default_script_uid_set = true;
+
+		if (set_uid_gid(username, groupname, &default_script_uid, &default_script_gid, true)) {
+			if (username || script_security)
+				default_user_fail = true;
+		}
+		else
+			default_user_fail = false;
 	}
 
-	*uid = pwd.pw_uid;
-	*gid = pwd.pw_gid;
+	return default_user_fail;
+}
 
-	log_message(LOG_INFO, "Setting default script user to '%s', uid:gid %d:%d", default_user_name, pwd.pw_uid, pwd.pw_gid);
+bool
+set_script_uid_gid(vector_t *strvec, unsigned keyword_offset, uid_t *uid_p, gid_t *gid_p)
+{
+	char *username;
+	char *groupname;
+
+	username = strvec_slot(strvec, keyword_offset);
+	if (vector_size(strvec) > keyword_offset + 1)
+		groupname = strvec_slot(strvec, keyword_offset + 1);
+	else
+		groupname = NULL;
+
+	return set_uid_gid(username, groupname, uid_p, gid_p, false);
+}
+
+char **
+set_script_params_array(vector_t *strvec, bool with_params)
+{
+	unsigned num_words = 0;
+	size_t len = 0;
+	char *w, *save_p;
+	char **word_ptrs, **params;
+	char *words;
+	char *str_cpy;
+
+	/* Count the number of words, and total string length */
+	if (!with_params) {
+		num_words = 1;
+		len = strlen(strvec_slot(strvec, 1)) + 1;
+	} else {
+		str_cpy = MALLOC(strlen(strvec_slot(strvec, 1)) + 1);
+		strcpy(str_cpy, strvec_slot(strvec, 1));
+		w = strtok_r(str_cpy, " \t", &save_p);
+		while (w) {
+			num_words++;
+			len += strlen(w) + 1;
+			w = strtok_r(NULL, " \t", &save_p);
+		}
+	}
+
+	/* Allocate memory for pointers to words and words themselves */
+	params = word_ptrs = MALLOC((num_words + 1) * sizeof(char *) + len);
+	words = (char *)params + (num_words + 1) * sizeof(char *);
+
+	/* Set up pointers to words, and copy the words */
+	if (!with_params) {
+		strcpy(words, strvec_slot(strvec, 1));
+		*(word_ptrs++) = words;
+	} else {
+		strcpy(str_cpy, strvec_slot(strvec, 1));
+		w = strtok_r(str_cpy, " \t", &save_p);
+		while (w) {
+			strcpy(words, w);
+			*(word_ptrs++) = words;
+			words += strlen(w) + 1;
+			w = strtok_r(NULL, " \t", &save_p);
+		}
+		FREE(str_cpy);
+	}
+	*word_ptrs = NULL;
+
+	return params;
 }
 
 notify_script_t*
-notify_script_init(vector_t *strvec, uid_t uid, gid_t gid)
+notify_script_init(vector_t *strvec, bool with_params, const char *type)
 {
 	notify_script_t *script = MALLOC(sizeof(notify_script_t));
 
-	script->name = set_value(strvec);
-	script->uid = uid;
-	script->gid = gid;
+	script->args = set_script_params_array(strvec, with_params);
+	script->cmd_str = set_value(strvec);
+	script->flags = 0;
+
+	if (vector_size(strvec) > 2) {
+		if (set_script_uid_gid(strvec, 2, &script->uid, &script->gid)) {
+			log_message(LOG_INFO, "Invalid user/group for %s script %s - ignoring", type, script->args[0]);
+			FREE(script->args);
+			FREE(script->cmd_str);
+			FREE(script);
+			return NULL;
+		}
+	}
+	else {
+		if (set_default_script_user(NULL, NULL)) {
+			log_message(LOG_INFO, "Failed to set default user for %s script %s - ignoring", type, script->args[0]);
+			FREE(script->args);
+			FREE(script->cmd_str);
+			FREE(script);
+			return NULL;
+		}
+
+		script->uid = default_script_uid;
+		script->gid = default_script_gid;
+	}
 
 	return script;
 }
 
+void
+add_script_param(notify_script_t *script, char *param)
+{
+	size_t num = 0;
+	size_t len;
+	char **new_args;
+	char *cmd_str;
+	char *args;
+
+	/* Find out how many args there are */
+	for (num = 0, len = 0; script->args[num]; num++)
+		len += sizeof(char *) + strlen(script->args[num]);
+	len += 2 * sizeof(char *) + strlen(param);
+	num += 2;
+
+	new_args = MALLOC(len);
+	args = (char *)new_args + num * sizeof(char *);
+
+	for (num = 0; script->args[num]; num++) {
+		new_args[num] = args;
+		strcpy(args, script->args[num]);
+		args += strlen(script->args[num]) + 1;
+	}
+	new_args[num++] = param;
+	strcpy(args, param);
+	new_args[num] = NULL;
+
+	FREE(script->args);
+	script->args = new_args;
+
+	/* Now update the cmd_str */
+	len = strlen(script->cmd_str) + strlen(param) + 2;	/* Space and '\0' */
+	cmd_str = MALLOC(len);
+	strcpy(cmd_str, script->cmd_str);
+	strcat(cmd_str, " ");
+	strcat(cmd_str, param);
+	FREE(script->cmd_str);
+	script->cmd_str = cmd_str;
+}
+
+void
+notify_resource_release(void)
+{
+	if (path_is_malloced) {
+		FREE(path);
+		path_is_malloced = false;
+		path = NULL;
+	}
+}

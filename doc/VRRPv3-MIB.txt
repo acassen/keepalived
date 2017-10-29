@@ -23,7 +23,7 @@ VRRPV3-MIB DEFINITIONS ::= BEGIN
             FROM INET-ADDRESS-MIB;          -- RFC4001
 
    vrrpv3MIB  MODULE-IDENTITY
-        LAST-UPDATED "201202130000Z"         -- Feb 13, 2012
+        LAST-UPDATED "201708140000Z"         -- Aug 14, 2017
         ORGANIZATION "IETF VRRP Working Group"
         CONTACT-INFO
                "WG E-Mail: vrrp@ietf.org
@@ -52,6 +52,9 @@ VRRPV3-MIB DEFINITIONS ::= BEGIN
 
              This version of the MIB module is part of RFC 6527.
              Please see the RFC for full legal notices."
+
+        REVISION "201708140000Z"    -- Aug 14, 2017
+        DESCRIPTION "Apply RFC 6527 errata id 4168 and 5086."
 
         REVISION "201202130000Z"    -- Feb 13, 2012
         DESCRIPTION "Initial version as published in RFC 6527."
@@ -315,10 +318,8 @@ VRRPV3-MIB DEFINITIONS ::= BEGIN
         DESCRIPTION
            "Controls whether a virtual router in master state
            will accept packets addressed to the address owner's
-           IPv6 address as its own if it is not the IPv6 address
-           owner.  Default is false(2).
-           This object is not relevant for rows representing VRRP
-           over IPv4 and should be set to false(2)."
+           address as its own if it is not the address
+           owner.  Default is false(2)."
         DEFVAL       { false }
         ::= { vrrpv3OperationsEntry 11 }
 

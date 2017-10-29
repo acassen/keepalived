@@ -106,6 +106,8 @@ POST_UNINSTALL = :
 @LIBIPSET_TRUE@am__append_12 = vrrp_ipset.c
 @SNMP_TRUE@am__append_13 = vrrp_snmp.o
 @SNMP_TRUE@am__append_14 = vrrp_snmp.c
+@WITH_JSON_TRUE@am__append_15 = vrrp_json.o
+@WITH_JSON_TRUE@am__append_16 = vrrp_json.c
 subdir = keepalived/vrrp
 ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 am__aclocal_m4_deps = $(top_srcdir)/configure.ac
@@ -124,7 +126,7 @@ am__v_AR_1 =
 libvrrp_a_AR = $(AR) $(ARFLAGS)
 libvrrp_a_DEPENDENCIES = $(am__append_1) $(am__append_3) \
 	$(am__append_5) $(am__append_7) $(am__append_9) \
-	$(am__append_11) $(am__append_13)
+	$(am__append_11) $(am__append_13) $(am__append_15)
 am_libvrrp_a_OBJECTS = vrrp_daemon.$(OBJEXT) vrrp_print.$(OBJEXT) \
 	vrrp_data.$(OBJEXT) vrrp_parser.$(OBJEXT) vrrp.$(OBJEXT) \
 	vrrp_notify.$(OBJEXT) vrrp_scheduler.$(OBJEXT) \
@@ -135,7 +137,7 @@ am_libvrrp_a_OBJECTS = vrrp_daemon.$(OBJEXT) vrrp_print.$(OBJEXT) \
 am__EXTRA_libvrrp_a_SOURCES_DIST = vrrp_vmac.c vrrp_ipsecah.c \
 	vrrp_dbus.c vrrp_iproute.c vrrp_iprule.c \
 	vrrp_ip_rule_route_parser.c vrrp_iptables.c \
-	vrrp_iptables_calls.c vrrp_ipset.c vrrp_snmp.c
+	vrrp_iptables_calls.c vrrp_ipset.c vrrp_snmp.c vrrp_json.c
 libvrrp_a_OBJECTS = $(am_libvrrp_a_OBJECTS)
 AM_V_P = $(am__v_P_@AM_V@)
 am__v_P_ = $(am__v_P_@AM_DEFAULT_V@)
@@ -247,6 +249,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PID_DIR = @PID_DIR@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
@@ -315,10 +318,10 @@ libvrrp_a_SOURCES = vrrp_daemon.c vrrp_print.c vrrp_data.c \
 	../include/vrrp_daemon.h
 libvrrp_a_LIBADD = $(am__append_1) $(am__append_3) $(am__append_5) \
 	$(am__append_7) $(am__append_9) $(am__append_11) \
-	$(am__append_13)
+	$(am__append_13) $(am__append_15)
 EXTRA_libvrrp_a_SOURCES = $(am__append_2) $(am__append_4) \
 	$(am__append_6) $(am__append_8) $(am__append_10) \
-	$(am__append_12) $(am__append_14)
+	$(am__append_12) $(am__append_14) $(am__append_16)
 all: all-am
 
 .SUFFIXES:
@@ -383,6 +386,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_ipset.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_iptables.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_iptables_calls.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_json.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_ndisc.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_notify.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/vrrp_parser.Po@am__quote@

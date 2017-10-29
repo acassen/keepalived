@@ -18,15 +18,13 @@
 
 #include "config.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
 #include <errno.h>
-#include <netinet/in.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
+#include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef LIBIPVS_USE_NL
 #include <netlink/netlink.h>
@@ -1071,7 +1069,7 @@ ipvs_nl_dest_failure:
 
 
 ipvs_service_entry_t *
-ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr addr, __u16 port)
+ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr *addr, __u16 port)
 {
 	ipvs_service_entry_t *svc;
 	socklen_t len;
@@ -1092,7 +1090,7 @@ ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr addr
 		tsvc.user.fwmark = fwmark;
 		tsvc.af = af;
 		tsvc.user.protocol= protocol;
-		tsvc.nf_addr = addr;
+		tsvc.nf_addr = *addr;
 		tsvc.user.port = port;
 
 		if (!(get = MALLOC(sizeof(*get) + sizeof(ipvs_service_entry_t))))
@@ -1130,7 +1128,7 @@ ipvs_get_service_err2:
 	svc->user.fwmark = fwmark;
 	svc->af = af;
 	svc->user.protocol = protocol;
-	svc->nf_addr = addr;
+	svc->nf_addr = *addr;
 	svc->user.port = port;
 
 	CHECK_COMPAT_SVC(svc, NULL);
@@ -1157,7 +1155,10 @@ void ipvs_close(void)
 	if (try_nl)
 		return;
 #endif
-	close(sockfd);
+	if (sockfd != -1) {
+		close(sockfd);
+		sockfd = -1;
+	}
 }
 
 const char *ipvs_strerror(int err)

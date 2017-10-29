@@ -22,22 +22,36 @@
 
 #include "config.h"
 
-#include <sys/wait.h>
+/* System includes */
+#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdlib.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <sys/utsname.h>
 #include <stdint.h>
 
-#ifdef _WITH_STACKTRACE_
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <execinfo.h>
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+#include <signal.h>
+#include <sys/wait.h>
 #endif
 
+#ifdef _WITH_STACKTRACE_
+#include <sys/stat.h>
+#include <execinfo.h>
+#include <memory.h>
+#endif
+
+/* Local includes */
+#include "utils.h"
 #include "memory.h"
 #include "utils.h"
 #include "signals.h"
 #include "bitops.h"
+#ifdef _WITH_STACKTRACE_
+#include "logger.h"
+#endif
 
 /* global vars */
 unsigned long debug = 0;
@@ -89,16 +103,32 @@ dump_buffer(char *buff, size_t count, FILE* fp)
 void
 write_stacktrace(const char *file_name)
 {
-	int fd = open(file_name, O_WRONLY | O_APPEND | O_CREAT, 0644);
+	int fd;
 	void *buffer[100];
 	int nptrs;
+	int i;
+	char **strs;
 
 	nptrs = backtrace(buffer, 100);
-	backtrace_symbols_fd(buffer, nptrs, fd);
-	if (write(fd, "\n", 1) != 1) {
-		/* We don't care, but this stops a warning on Ubuntu */
+	if (file_name) {
+		fd = open(file_name, O_WRONLY | O_APPEND | O_CREAT, 0644);
+		backtrace_symbols_fd(buffer, nptrs, fd);
+		if (write(fd, "\n", 1) != 1) {
+			/* We don't care, but this stops a warning on Ubuntu */
+		}
+		close(fd);
+	} else {
+		strs = backtrace_symbols(buffer, nptrs);
+		if (strs == NULL) {
+			log_message(LOG_INFO, "Unable to get stack backtrace");
+			return;
+		}
+
+		/* We don't need the call to this function, or the first two entries on the stack */
+		for (i = 1; i < nptrs - 2; i++)
+			log_message(LOG_INFO, "  %s", strs[i]);
+		free(strs);
 	}
-	close(fd);
 }
 #endif
 
@@ -271,13 +301,6 @@ inet_ip6tosockaddr(struct in6_addr *sin_addr, struct sockaddr_storage *addr)
 	addr6->sin6_addr = *sin_addr;
 }
 
-void
-inet_ip6scopeid(uint32_t ifindex, struct sockaddr_storage *addr)
-{
-	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
-	addr6->sin6_scope_id = ifindex;
-}
-
 /* IP network to string representation */
 static char *
 inet_sockaddrtos2(struct sockaddr_storage *addr, char *addr_str)
@@ -315,6 +338,8 @@ inet_sockaddrport(struct sockaddr_storage *addr)
 		struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
 		port = addr6->sin6_port;
 	} else {
+		/* Note: this might be AF_UNSPEC if it is the sequence number of
+		 * a virtual server in a virtual server group */
 		struct sockaddr_in *addr4 = (struct sockaddr_in *) addr;
 		port = addr4->sin_port;
 	}
@@ -325,13 +350,26 @@ inet_sockaddrport(struct sockaddr_storage *addr)
 char *
 inet_sockaddrtopair(struct sockaddr_storage *addr)
 {
-	static char addr_str[INET6_ADDRSTRLEN + 1];
-	static char ret[sizeof(addr_str) + 16];
+	char addr_str[INET6_ADDRSTRLEN];
+	static char ret[sizeof(addr_str) + 8];	/* '[' + addr_str + ']' + ':' + 'nnnnn' */
 
 	inet_sockaddrtos2(addr, addr_str);
 	snprintf(ret, sizeof(ret) - 1, "[%s]:%d"
 		, addr_str
 		, ntohs(inet_sockaddrport(addr)));
+	return ret;
+}
+
+char *
+inet_sockaddrtotrio(struct sockaddr_storage *addr, uint16_t proto)
+{
+	char addr_str[INET6_ADDRSTRLEN];
+	static char ret[sizeof(addr_str) + 13];	/* '[' + addr_str + ']' + ':' + 'sctp' + ':' + 'nnnnn' */
+	char *proto_str = proto == IPPROTO_TCP ? "tcp" : proto == IPPROTO_UDP ? "udp" : proto == IPPROTO_SCTP ? "sctp" : proto == 0 ? "none" : "?";
+
+	inet_sockaddrtos2(addr, addr_str);
+	snprintf(ret, sizeof(ret) - 1, "[%s]:%s:%d" ,addr_str, proto_str,
+		 ntohs(inet_sockaddrport(addr)));
 	return ret;
 }
 
@@ -519,7 +557,7 @@ string_equal(const char *str1, const char *str2)
 }
 
 void
-set_std_fd(int force)
+set_std_fd(bool force)
 {
 	int fd;
 
@@ -534,7 +572,7 @@ set_std_fd(int force)
 		}
 	}
 
-	signal_pipe_close(STDERR_FILENO+1);
+	signal_fd_close(STDERR_FILENO+1);
 }
 
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
@@ -551,6 +589,9 @@ fork_exec(char **argv)
 	act.sa_flags = 0;
 
 	sigaction(SIGCHLD, &act, &old_act);
+
+	if (log_file_name)
+		flush_log_file();
 
 	pid = fork();
 	if (pid < 0)

@@ -59,4 +59,9 @@ if SNMP
   EXTRA_libvrrp_a_SOURCES += vrrp_snmp.c
 endif
 
+if WITH_JSON
+  libvrrp_a_LIBADD	+= vrrp_json.o
+  EXTRA_libvrrp_a_SOURCES += vrrp_json.c
+endif
+
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@

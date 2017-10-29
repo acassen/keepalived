@@ -22,57 +22,59 @@
 
 #include "config.h"
 
-#include <string.h>
+#include <errno.h>
+#include <signal.h>
+#include <stdlib.h>
+#include <unistd.h>
 #include <sys/prctl.h>
 
 #include "vrrp_daemon.h"
 #include "vrrp_scheduler.h"
-#include "vrrp_if.h"
 #include "vrrp_arp.h"
 #include "vrrp_ndisc.h"
 #include "keepalived_netlink.h"
-#include "vrrp_ipaddress.h"
 #include "vrrp_iptables.h"
 #ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iprule.h"
 #include "vrrp_iproute.h"
 #endif
 #include "vrrp_parser.h"
-#include "vrrp_data.h"
 #include "vrrp.h"
 #include "vrrp_print.h"
 #include "global_data.h"
 #include "pidfile.h"
-#include "daemon.h"
 #include "logger.h"
 #include "signals.h"
-#include "notify.h"
 #include "process.h"
 #include "bitops.h"
 #include "rttables.h"
-#ifdef _WITH_LVS_
-  #include "ipvswrapper.h"
-#endif
 #ifdef _WITH_SNMP_
   #include "vrrp_snmp.h"
 #endif
 #ifdef _WITH_DBUS_
   #include "vrrp_dbus.h"
 #endif
-#ifdef _HAVE_LIBIPSET_
-  #include "vrrp_ipset.h"
-#endif
 #include "list.h"
 #include "main.h"
-#include "memory.h"
 #include "parser.h"
+#include "utils.h"
 #ifdef _LIBNL_DYNAMIC_
 #include "libnl_link.h"
 #endif
+#include "vrrp_track.h"
+#ifdef _WITH_JSON_
+#include "vrrp_json.h"
+#endif
+
+/* Global variables */
+bool non_existent_interface_specified;
 
 /* Forward declarations */
 static int print_vrrp_data(thread_t * thread);
 static int print_vrrp_stats(thread_t * thread);
+#ifdef _WITH_JSON_
+static int print_vrrp_json(thread_t * thread);
+#endif
 static int reload_vrrp_thread(thread_t * thread);
 
 static char *vrrp_syslog_ident;
@@ -85,6 +87,14 @@ vrrp_ipvs_needed(void)
 }
 #endif
 
+static int
+vrrp_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
+{
+	log_message(LOG_INFO, "vrrp notify fifo script terminated");
+
+	return 0;
+}
+
 /* Daemon stop sequence */
 static void
 stop_vrrp(int status)
@@ -93,6 +103,9 @@ stop_vrrp(int status)
 	 * sending a priority 0 vrrp message
 	 */
 	restore_vrrp_interfaces();
+
+	if (vrrp_data->vrrp_track_files)
+		stop_track_files();
 
 #ifdef _HAVE_LIBIPTC_
 	iptables_fini();
@@ -120,7 +133,8 @@ stop_vrrp(int status)
 	 * of an IGMP leave group being sent for some reason.
 	 * Since we are about to exit, it doesn't affect anything else
 	 * running. */
-	sleep(1);
+	if (!LIST_ISEMPTY(vrrp_data->vrrp))
+		sleep(1);
 
 	if (!__test_bit(DONT_RELEASE_VRRP_BIT, &debug))
 		shutdown_vrrp_instances();
@@ -132,7 +146,7 @@ stop_vrrp(int status)
 	}
 #endif
 
-	/* Terminate all script process */
+	/* Terminate all script processes */
 	script_killall(master, SIGTERM);
 
 	/* We mustn't receive a SIGCHLD after master is destroyed */
@@ -148,6 +162,9 @@ stop_vrrp(int status)
 		dbus_stop();
 #endif
 
+	if (global_data->vrrp_notify_fifo.fd != -1)
+		notify_fifo_close(&global_data->notify_fifo, &global_data->vrrp_notify_fifo);
+
 	free_global_data(global_data);
 	free_vrrp_data(vrrp_data);
 	free_vrrp_buffer();
@@ -160,6 +177,8 @@ stop_vrrp(int status)
 	 */
 	log_message(LOG_INFO, "Stopped");
 
+	if (log_file_name)
+		close_log_file();
 	closelog();
 
 #ifndef _MEM_CHECK_LOG_
@@ -193,16 +212,21 @@ start_vrrp(void)
 
 	init_data(conf_file, vrrp_init_keywords);
 
+	if (non_existent_interface_specified) {
+		log_message(LOG_INFO, "Non-existent interface specified in configuration");
+		stop_vrrp(KEEPALIVED_EXIT_CONFIG);
+		return;
+	}
+
 	init_global_data(global_data);
 
 	/* Set the process priority and non swappable if configured */
 	if (global_data->vrrp_process_priority)
 		set_process_priority(global_data->vrrp_process_priority);
 
+// TODO - measure max stack usage
 	if (global_data->vrrp_no_swap)
 		set_process_dont_swap(4096);	/* guess a stack size to reserve */
-
-	iptables_init();
 
 #ifdef _WITH_SNMP_
 	if (!reload && (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {
@@ -266,12 +290,31 @@ start_vrrp(void)
 		return;
 	}
 
+	/* We need to delay the init of iptables to after vrrp_complete_init()
+	 * has been called so we know whether we want IPv4 and/or IPv6 */
+	iptables_init();
+
+	/* Create a notify FIFO if needed, and open it */
+	if (global_data->vrrp_notify_fifo.name)
+		notify_fifo_open(&global_data->notify_fifo, &global_data->vrrp_notify_fifo, vrrp_notify_fifo_script_exit, "vrrp_");
+
+	/* Initialise any tracking files */
+	if (vrrp_data->vrrp_track_files)
+		init_track_files(vrrp_data->vrrp_track_files);
+
+	/* Make sure we don't have any old iptables/ipsets settings left around */
 #ifdef _HAVE_LIBIPTC_
+	if (!reload)
+		iptables_cleanup();
+
 	iptables_startup(reload);
 #endif
 
+	if (!reload)
+		vrrp_restore_interfaces_startup();
+
 	/* clear_diff_vrrp must be called after vrrp_complete_init, since the latter
-	 * sets ifa_index on the addresses, which is used for the address comparison */
+	 * sets ifp on the addresses, which is used for the address comparison */
 	if (reload)
 		clear_diff_vrrp();
 
@@ -305,9 +348,6 @@ start_vrrp(void)
 		clear_rt_names();
 	}
 
-	/* Initialize linkbeat */
-	init_interface_linkbeat();
-
 	/* Init & start the VRRP packet dispatcher */
 	thread_add_event(master, vrrp_dispatcher_init, NULL,
 			 VRRP_DISPATCHER);
@@ -335,6 +375,16 @@ sigusr2_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	thread_add_event(master, print_vrrp_stats, NULL, 0);
 }
 
+#ifdef _WITH_JSON_
+static void
+sigjson_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
+{
+	log_message(LOG_INFO, "Printing VRRP as json for process(%d) on signal",
+		getpid());
+	thread_add_event(master, print_vrrp_json, NULL, 0);
+}
+#endif
+
 /* Terminate handler */
 static void
 sigend_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
@@ -347,12 +397,15 @@ sigend_vrrp(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 vrrp_signal_init(void)
 {
-	signal_handler_child_clear();
+	signal_handler_child_init();
 	signal_set(SIGHUP, sighup_vrrp, NULL);
 	signal_set(SIGINT, sigend_vrrp, NULL);
 	signal_set(SIGTERM, sigend_vrrp, NULL);
 	signal_set(SIGUSR1, sigusr1_vrrp, NULL);
 	signal_set(SIGUSR2, sigusr2_vrrp, NULL);
+#ifdef _WITH_JSON_
+	signal_set(SIGJSON, sigjson_vrrp, NULL);
+#endif
 	signal_ignore(SIGPIPE);
 }
 
@@ -366,6 +419,11 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 	/* Terminate all script process */
 	script_killall(master, SIGTERM);
 
+	if (vrrp_data->vrrp_track_files)
+		stop_track_files();
+
+	vrrp_initialised = false;
+
 	/* Destroy master thread */
 	vrrp_dispatcher_release(vrrp_data);
 	kernel_netlink_close();
@@ -377,6 +435,9 @@ reload_vrrp_thread(__attribute__((unused)) thread_t * thread)
 										 IPVS_BACKUP,
 		       true, false);
 #endif
+
+	/* Remove the notify fifo - we don't know if it will be the same after a reload */
+	notify_fifo_close(&global_data->notify_fifo, &global_data->vrrp_notify_fifo);
 
 	free_global_data(global_data);
 	free_vrrp_buffer();
@@ -429,6 +490,15 @@ print_vrrp_stats(__attribute__((unused)) thread_t * thread)
 	return 0;
 }
 
+#ifdef _WITH_JSON_
+static int
+print_vrrp_json(__attribute__((unused)) thread_t * thread)
+{
+	vrrp_print_json();
+	return 0;
+}
+#endif
+
 /* VRRP Child respawning thread */
 #ifndef _DEBUG_
 static int
@@ -467,6 +537,9 @@ start_vrrp_child(void)
 	char *syslog_ident;
 
 	/* Initialize child process */
+	if (log_file_name)
+		flush_log_file();
+
 	pid = fork();
 
 	if (pid < 0) {
@@ -485,8 +558,6 @@ start_vrrp_child(void)
 	}
 	prctl(PR_SET_PDEATHSIG, SIGTERM);
 
-	signal_handler_destroy();
-
 	prog_type = PROG_TYPE_VRRP;
 
 	/* Opening local VRRP syslog channel */
@@ -500,14 +571,24 @@ start_vrrp_child(void)
 	else
 		syslog_ident = PROG_VRRP;
 
-	openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
-			    , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
+	if (!__test_bit(NO_SYSLOG_BIT, &debug))
+		openlog(syslog_ident, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0)
+				    , (log_facility==LOG_DAEMON) ? LOG_LOCAL1 : log_facility);
+
+	if (log_file_name)
+		open_log_file(log_file_name, "vrrp", network_namespace, instance_name);
+
+	signal_handler_destroy();
 
 #ifdef _MEM_CHECK_
 	mem_log_init(PROG_VRRP, "VRRP Child process");
 #endif
 
 	free_parent_mallocs_startup(true);
+
+	/* Clear any child finder functions set in parent */
+	set_child_finder_name(NULL);
+	set_child_finder(NULL, NULL, NULL, NULL, NULL, 0);	/* Currently these won't be set */
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(vrrp_pidfile, getpid())) {
@@ -545,3 +626,14 @@ start_vrrp_child(void)
 	/* unreachable */
 	exit(EXIT_SUCCESS);
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_vrrp_daemon_addresses(void)
+{
+	log_message(LOG_INFO, "Address of print_vrrp_data() is 0x%p", print_vrrp_data);
+	log_message(LOG_INFO, "Address of print_vrrp_stats() is 0x%p", print_vrrp_stats);
+	log_message(LOG_INFO, "Address of reload_vrrp_thread() is 0x%p", reload_vrrp_thread);
+	log_message(LOG_INFO, "Address of vrrp_respawn_thread() is 0x%p", vrrp_respawn_thread);
+}
+#endif

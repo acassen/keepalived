@@ -296,6 +296,7 @@ PACKAGE_TARNAME = @PACKAGE_TARNAME@
 PACKAGE_URL = @PACKAGE_URL@
 PACKAGE_VERSION = @PACKAGE_VERSION@
 PATH_SEPARATOR = @PATH_SEPARATOR@
+PID_DIR = @PID_DIR@
 PKG_CONFIG = @PKG_CONFIG@
 PKG_CONFIG_LIBDIR = @PKG_CONFIG_LIBDIR@
 PKG_CONFIG_PATH = @PKG_CONFIG_PATH@
@@ -359,7 +360,8 @@ edit = echo "  EDIT     $@"; \
 	sed \
 	 -e 's|@sbindir[@]|$(sbindir)|g' \
 	 -e 's|@localstatedir[@]|$(localstatedir)|g' \
-	 -e 's|@sysconfdir[@]|$(sysconfdir)|g'
+	 -e 's|@sysconfdir[@]|$(sysconfdir)|g' \
+	 -e 's|@PID_DIR[@]|$(PID_DIR)|g'
 
 keepalived_SOURCES = main.c
 noinst_HEADERS = $(srcdir)/include/*.h

@@ -23,6 +23,8 @@
 #ifndef _HTML_H
 #define _HTML_H
 
+#include <sys/types.h>
+
 /* Prototypes */
 extern int extract_status_code(char *buffer, size_t size);
 extern char *extract_html(char *buffer, size_t size_buffer);

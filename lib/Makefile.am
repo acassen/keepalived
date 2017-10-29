@@ -18,7 +18,8 @@ noinst_LIBRARIES	= liblib.a
 liblib_a_SOURCES	= memory.c utils.c notify.c timer.c scheduler.c \
 	vector.c list.c html.c parser.c signals.c logger.c rttables.c \
 	bitops.h timer.h scheduler.h rttables.h vector.h parser.h \
-	signals.h notify.h logger.h list.h memory.h html.h utils.h
+	signals.h notify.h logger.h list.h memory.h html.h utils.h \
+	keepalived_magic.h
 
 liblib_a_LIBADD		=
 EXTRA_liblib_a_SOURCES	=
@@ -32,7 +33,7 @@ EXTRA_DIST		= $(GIT_COMMIT_FILE)
 
 MAINTAINERCLEANFILES	= @MAINTAINERCLEANFILES@
 
-.PHONY: $(GIT_COMMIT_FILE)
+.FORCE:
 
 # The git commit file will contain the git version and date of last commit,
 # unless this is a tagged version, in which case the git commit is omitted.

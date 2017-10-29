@@ -1,0 +1,66 @@
+#!/bin/bash
+
+ECHO=
+IP_BASE_ADDR=10.1
+IP6_BASE_ADDR=fd00:0:1
+
+CMD=$1
+LOW=$2
+HIGH=$3
+SIDE=$4
+
+if [[ $CMD = add ]]; then
+	for n in high medium low; do
+		unshare -n ip netns add $n
+		ip netns exec $n ip link set up lo
+	done
+fi
+
+for n in $(seq $LOW $HIGH); do
+	if [[ $CMD = add ]]; then
+		$ECHO ip netns exec medium ip link add br${n} type bridge
+		$ECHO ip netns exec medium ip link set br${n} up
+		$ECHO ip netns exec medium ip addr add ${IP_BASE_ADDR}.${n}.2/24 broadcast ${IP_BASE_ADDR}.${n}.255 dev br${n}
+		$ECHO ip netns exec medium ip addr add ${IP6_BASE_ADDR}:$((100 + $n))::2/64 dev br${n}
+
+		ip=1
+		for p in high low; do
+			$ECHO ip netns exec medium ip link add eth${n}.$p type veth peer name eth${n}
+			$ECHO ip netns exec medium ip link set eth${n}.$p master br${n}
+			$ECHO ip netns exec medium ip link set eth${n}.$p up
+
+			$ECHO ip netns exec medium ip link set eth${n} netns $p
+
+			$ECHO ip netns exec $p ip link set eth${n} up
+			$ECHO ip netns exec $p ip addr add ${IP_BASE_ADDR}.${n}.${ip}/24 broadcast ${IP_BASE_ADDR}.${n}.255 dev eth${n}
+			$ECHO ip netns exec $p ip addr add ${IP6_BASE_ADDR}:$((100 + $n))::${ip}/64 dev eth${n}
+
+			((ip += 2))
+		done
+
+		$ECHO ip netns exec medium ip link add eth${n} type dummy
+		$ECHO ip netns exec medium ip link set eth${n} master br${n}
+		$ECHO ip netns exec medium ip link set up eth${n}
+	elif [[ $CMD = del ]]; then
+		$ECHO ip netns exec medium ip link del eth${n}.low
+		$ECHO ip netns exec medium ip link del eth${n}.high
+		$ECHO ip netns exec medium ip link del eth${n}
+		$ECHO ip netns exec medium ip link del br${n}
+	elif [[ $CMD = remake ]]; then
+		p=$SIDE
+		[[ $p = low ]] && ip=3 || ip=1
+
+		$ECHO ip netns exec medium ip link add eth${n}.$p type veth peer name eth${n}
+		$ECHO ip netns exec medium ip link set eth${n}.$p master br${n}
+		$ECHO ip netns exec medium ip link set eth${n}.$p up
+
+		$ECHO ip netns exec medium ip link set eth${n} netns $p
+
+		$ECHO ip netns exec $p ip addr add ${IP_BASE_ADDR}.${n}.${ip}/24 broadcast ${IP_BASE_ADDR}.${n}.255 dev eth${n}
+		$ECHO ip netns exec $p ip addr add ${IP6_BASE_ADDR}:$((100 + $n))::${ip}/64 dev eth${n}
+
+		$ECHO ip netns exec $p ip link set eth${n} up
+	else
+		echo Unknown command $CMD
+	fi
+done

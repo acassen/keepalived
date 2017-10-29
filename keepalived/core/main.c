@@ -24,12 +24,28 @@
 
 #include "git-commit.h"
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <stdlib.h>
 #include <sys/utsname.h>
 #include <sys/resource.h>
 #include <stdbool.h>
+#ifdef HAVE_SIGNALFD
+#include <sys/signalfd.h>
+#endif
+#include <errno.h>
+#include <signal.h>
+#include <fcntl.h>
+#include <sys/wait.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <getopt.h>
+#include <linux/version.h>
 
 #include "main.h"
+#include "daemon.h"
 #include "config.h"
 #include "git-commit.h"
 #include "signals.h"
@@ -38,22 +54,38 @@
 #include "logger.h"
 #include "parser.h"
 #include "notify.h"
+#include "utils.h"
 #ifdef _WITH_LVS_
 #include "check_parser.h"
+#include "check_daemon.h"
 #endif
 #ifdef _WITH_VRRP_
+#include "vrrp_daemon.h"
 #include "vrrp_parser.h"
+#include "vrrp_if.h"
+#ifdef _WITH_JSON_
+#include "vrrp_json.h"
+#endif
 #endif
 #include "global_parser.h"
 #if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
 #endif
+#include "scheduler.h"
 #include "keepalived_netlink.h"
+#include "git-commit.h"
+
+/* musl libc doesn't define the following */
+#ifndef	W_EXITCODE
+#define	W_EXITCODE(ret, sig)	((ret) << 8 | (sig))
+#endif
+#ifndef	WCOREFLAG
+#define	WCOREFLAG		((int32_t)WCOREDUMP(0xffffffff))
+#endif
 
 #define	LOG_FACILITY_MAX	7
 #define	VERSION_STRING		PACKAGE_NAME " v" PACKAGE_VERSION " (" GIT_DATE ")"
 #define COPYRIGHT_STRING	"Copyright(C) 2001-" GIT_YEAR " Alexandre Cassen, <acassen@gmail.com>"
-#define BUILD_OPTIONS		CONFIGURATION_OPTIONS
 
 #define CHILD_WAIT_SECS	5
 
@@ -61,6 +93,7 @@
 const char *version_string = VERSION_STRING;		/* keepalived version */
 char *conf_file = KEEPALIVED_CONFIG_FILE;		/* Configuration file */
 int log_facility = LOG_DAEMON;				/* Optional logging facilities */
+bool reload;						/* Set during a reload */
 char *main_pidfile;					/* overrule default pidfile */
 static bool free_main_pidfile;
 #ifdef _WITH_LVS_
@@ -80,12 +113,12 @@ const char *snmp_socket;				/* Socket to use for SNMP agent */
 #endif
 static char *syslog_ident;				/* syslog ident if not default */
 char *instance_name;					/* keepalived instance name */
-bool use_pid_dir;					/* Put pid files in /var/run/keepalived */
-uid_t default_script_uid;				/* Default user/group for script execution */
-gid_t default_script_gid;
+bool use_pid_dir;					/* Put pid files in /var/run/keepalived or @localstatedir@/run/keepalived */
+
 unsigned os_major;					/* Kernel version */
 unsigned os_minor;
 unsigned os_release;
+char *hostname;						/* Initial part of hostname */
 
 #if HAVE_DECL_CLONE_NEWNET
 char *network_namespace;				/* The network namespace we are running in */
@@ -107,6 +140,43 @@ static bool create_core_dump = false;
 static const char *core_dump_pattern = "core";
 static char *orig_core_dump_pattern = NULL;
 
+#ifdef _TIMER_DEBUG_
+extern void print_smtp_addresses(void);
+extern void print_check_daemon_addresses(void);
+extern void print_check_dns_addresses(void);
+extern void print_check_http_addresses(void);
+extern void print_check_misc_addresses(void);
+extern void print_check_smtp_addresses(void);
+extern void print_check_tcp_addresses(void);
+#ifdef _WITH_DBUS_
+extern void print_vrrp_dbus_addresses(void);
+#endif
+extern void print_vrrp_if_addresses(void);
+extern void print_vrrp_netlink_addresses(void);
+extern void print_vrrp_daemon_addresses(void);
+extern void print_check_ssl_addresses(void);
+extern void print_vrrp_scheduler_addresses(void);
+
+void global_print(void)
+{
+	print_smtp_addresses();
+	print_check_daemon_addresses();
+	print_check_dns_addresses();
+	print_check_http_addresses();
+	print_check_misc_addresses();
+	print_check_smtp_addresses();
+	print_check_tcp_addresses();
+#ifdef _WITH_DBUS_
+	print_vrrp_dbus_addresses();
+#endif
+	print_vrrp_if_addresses();
+	print_vrrp_netlink_addresses();
+	print_vrrp_daemon_addresses();
+	print_check_ssl_addresses();
+	print_vrrp_scheduler_addresses();
+}
+#endif
+
 void
 free_parent_mallocs_startup(bool am_child)
 {
@@ -119,6 +189,9 @@ free_parent_mallocs_startup(bool am_child)
 #else
 		free(syslog_ident);
 #endif
+
+		if (orig_core_dump_pattern)
+			FREE_PTR(orig_core_dump_pattern);
 	}
 
 	if (free_main_pidfile) {
@@ -144,6 +217,7 @@ free_parent_mallocs_exit(void)
 #endif
 
 	FREE_PTR(instance_name);
+	FREE_PTR(config_id);
 }
 
 char *
@@ -214,22 +288,19 @@ make_pidfile_name(const char* start, const char* instance, const char* extn)
 	return name;
 }
 
-static bool
-find_keepalived_child(pid_t pid, char const **prog_name)
+static char const *
+find_keepalived_child_name(pid_t pid)
 {
 #ifdef _WITH_LVS_
-	if (pid == checkers_child) {
-		*prog_name = PROG_CHECK;
-		return true;
-	}
+	if (pid == checkers_child)
+		return PROG_CHECK;
 #endif
 #ifdef _WITH_VRRP_
-	if (pid == vrrp_child) {
-		*prog_name = PROG_VRRP;
-		return true;
-	}
+	if (pid == vrrp_child)
+		return PROG_VRRP;
 #endif
-	return false;
+
+	return NULL;
 }
 
 #if HAVE_DECL_CLONE_NEWNET
@@ -354,23 +425,43 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	int status;
 	int ret;
 	int wait_count = 0;
+	struct timeval start_time, now;
+#ifdef HAVE_SIGNALFD
+	struct timeval timeout = {
+		.tv_sec = CHILD_WAIT_SECS,
+		.tv_usec = 0
+	};
+	int signal_fd = signal_rfd();
+	fd_set read_set;
+	struct signalfd_siginfo siginfo;
+	sigset_t sigmask;
+#else
 	sigset_t old_set, child_wait;
 	struct timespec timeout = {
 		.tv_sec = CHILD_WAIT_SECS,
 		.tv_nsec = 0
 	};
-	struct timeval start_time, now;
+#endif
 
 	/* register the terminate thread */
 	thread_add_terminate_event(master);
 
 	log_message(LOG_INFO, "Stopping");
-	sigprocmask(0, NULL, &old_set);
+
+#ifdef HAVE_SIGNALFD
+	/* We only want to receive SIGCHLD now */
+	sigemptyset(&sigmask);
+	sigaddset(&sigmask, SIGCHLD);
+	signalfd(signal_fd, &sigmask, 0);
+	FD_ZERO(&read_set);
+#else
+	sigmask_func(0, NULL, &old_set);
 	if (!sigismember(&old_set, SIGCHLD)) {
 		sigemptyset(&child_wait);
 		sigaddset(&child_wait, SIGCHLD);
-		sigprocmask(SIG_BLOCK, &child_wait, NULL);
+		sigmask_func(SIG_BLOCK, &child_wait, NULL);
 	}
+#endif
 
 #ifdef _WITH_VRRP_
 	if (vrrp_child > 0) {
@@ -387,6 +478,47 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 
 	gettimeofday(&start_time, NULL);
 	while (wait_count) {
+#ifdef HAVE_SIGNALFD
+		FD_SET(signal_fd, &read_set);
+		ret = select(signal_fd + 1, &read_set, NULL, NULL, &timeout);
+		if (ret == 0)
+			break;
+		if (ret == -1) {
+			if (errno == EINTR)
+				continue;
+
+			log_message(LOG_INFO, "Terminating select returned errno %d", errno);
+			break;
+		}
+
+		if (!FD_ISSET(signal_fd, &read_set)) {
+			log_message(LOG_INFO, "Terminating select did not return select_fd");
+			continue;
+		}
+
+		if (read(signal_fd, &siginfo, sizeof(siginfo)) != sizeof(siginfo)) {
+			log_message(LOG_INFO, "Terminating signal read did not read entire siginfo");
+			break;
+		}
+
+		status = siginfo.ssi_code == CLD_EXITED ? W_EXITCODE(siginfo.ssi_status, 0) :
+			 siginfo.ssi_code == CLD_KILLED ? W_EXITCODE(0, siginfo.ssi_status) :
+							   WCOREFLAG;
+
+#ifdef _WITH_VRRP_
+		if (vrrp_child > 0 && vrrp_child == (pid_t)siginfo.ssi_pid) {
+			report_child_status(status, vrrp_child, PROG_VRRP);
+			wait_count--;
+		}
+#endif
+
+#ifdef _WITH_LVS_
+		if (checkers_child > 0 && checkers_child == (pid_t)siginfo.ssi_pid) {
+			report_child_status(status, checkers_child, PROG_CHECK);
+			wait_count--;
+		}
+#endif
+#else
 		ret = sigtimedwait(&child_wait, NULL, &timeout);
 		if (ret == -1) {
 			if (errno == EINTR)
@@ -408,31 +540,33 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 			wait_count--;
 		}
 #endif
+#endif
 
 		if (wait_count) {
 			gettimeofday(&now, NULL);
-			if (now.tv_usec < start_time.tv_usec) {
-				timeout.tv_nsec = (start_time.tv_usec - now.tv_usec) * 1000;
-				timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec);
-			} else if (now.tv_usec == start_time.tv_usec) {
-				timeout.tv_nsec = 0;
-				timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec);
-			} else {
-				timeout.tv_nsec = (1000000L + start_time.tv_usec - now.tv_usec) * 1000;
-				timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec + 1);
-			}
-
-			timeout.tv_nsec = (start_time.tv_usec - now.tv_usec) * 1000;
 			timeout.tv_sec = CHILD_WAIT_SECS - (now.tv_sec - start_time.tv_sec);
+#ifdef HAVE_SIGNALFD
+			timeout.tv_usec = (start_time.tv_usec - now.tv_usec);
+			if (timeout.tv_usec < 0) {
+				timeout.tv_usec += 1000000L;
+				timeout.tv_sec--;
+			}
+#else
+			timeout.tv_nsec = (start_time.tv_usec - now.tv_usec) * 1000;
 			if (timeout.tv_nsec < 0) {
 				timeout.tv_nsec += 1000000000L;
 				timeout.tv_sec--;
 			}
+#endif
+			if (timeout.tv_sec < 0)
+				break;
 		}
 	}
 
+#ifndef HAVE_SIGNALFD
 	if (!sigismember(&old_set, SIGCHLD))
-		sigprocmask(SIG_UNBLOCK, &child_wait, NULL);
+		sigmask_func(SIG_UNBLOCK, &child_wait, NULL);
+#endif
 }
 
 /* Initialize signal handler */
@@ -443,6 +577,9 @@ signal_init(void)
 	signal_set(SIGHUP, propogate_signal, NULL);
 	signal_set(SIGUSR1, propogate_signal, NULL);
 	signal_set(SIGUSR2, propogate_signal, NULL);
+#ifdef _WITH_JSON_
+	signal_set(SIGJSON, propogate_signal, NULL);
+#endif
 	signal_set(SIGINT, sigend, NULL);
 	signal_set(SIGTERM, sigend, NULL);
 	signal_ignore(SIGPIPE);
@@ -501,7 +638,7 @@ core_dump_init(void)
 
 	if (set_core_dump_pattern) {
 		/* If we set the core_pattern here, we will attempt to restore it when we
-		 * exit. This will be fine if it is a child of ours that core dumps, 
+		 * exit. This will be fine if it is a child of ours that core dumps,
 		 * but if we ourself core dump, then the core_pattern will not be restored */
 		update_core_dump_pattern(core_dump_pattern);
 	}
@@ -514,7 +651,7 @@ core_dump_init(void)
 			log_message(LOG_INFO, "Failed to set core file size");
 	}
 }
-		
+
 /* Usage function */
 static void
 usage(const char *prog)
@@ -528,6 +665,9 @@ usage(const char *prog)
 	fprintf(stderr, "  -l, --log-console            Log messages to local console\n");
 	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");
 	fprintf(stderr, "  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n");
+	fprintf(stderr, "  -g, --log-file=FILE          Also log to FILE (default /tmp/keepalived.log)\n");
+	fprintf(stderr, "      --flush-log-file         Flush log file on write\n");
+	fprintf(stderr, "  -G, --no-syslog              Don't log via syslog\n");
 #ifdef _WITH_VRRP_
 	fprintf(stderr, "  -X, --release-vips           Drop VIP on transition from signal.\n");
 	fprintf(stderr, "  -V, --dont-release-vrrp      Don't remove VRRP VIPs and VROUTEs on daemon stop\n");
@@ -558,7 +698,14 @@ usage(const char *prog)
 #ifdef _MEM_CHECK_LOG_
 	fprintf(stderr, "  -L, --mem-check-log          Log malloc/frees to syslog\n");
 #endif
-	fprintf(stderr, "  -i, --config_id id           Skip any configuration lines beginning '@' that don't match id\n");
+	fprintf(stderr, "  -i, --config-id id           Skip any configuration lines beginning '@' that don't match id\n"
+		        "                                or any lines beginning @^ that do match.\n"
+		        "                                The config-id defaults to the node name if option not used\n");
+	fprintf(stderr, "      --signum=SIGFUNC         Return signal number for STOP, RELOAD, DATA, STATS"
+#ifdef _WITH_JSON_
+								", JSON"
+#endif
+								"\n");
 	fprintf(stderr, "  -v, --version                Display the version number\n");
 	fprintf(stderr, "  -h, --help                   Display this help message\n");
 }
@@ -569,57 +716,64 @@ parse_cmdline(int argc, char **argv)
 {
 	int c;
 	bool reopen_log = false;
+	int signum;
+	struct utsname uname_buf;
 
 	struct option long_options[] = {
-		{"use-file",          required_argument, 0, 'f'},
+		{"use-file",		required_argument,	NULL, 'f'},
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
-		{"vrrp",              no_argument,       0, 'P'},
-		{"check",             no_argument,       0, 'C'},
+		{"vrrp",		no_argument,		NULL, 'P'},
+		{"check",		no_argument,		NULL, 'C'},
 #endif
-		{"log-console",       no_argument,       0, 'l'},
-		{"log-detail",        no_argument,       0, 'D'},
-		{"log-facility",      required_argument, 0, 'S'},
+		{"log-console",		no_argument,		NULL, 'l'},
+		{"log-detail",		no_argument,		NULL, 'D'},
+		{"log-facility",	required_argument,	NULL, 'S'},
+		{"log-file",		optional_argument,	NULL, 'g'},
+		{"flush-log-file",	no_argument,		NULL,  2 },
+		{"no-syslog",		no_argument,		NULL, 'G'},
 #ifdef _WITH_VRRP_
-		{"release-vips",      no_argument,       0, 'X'},
-		{"dont-release-vrrp", no_argument,       0, 'V'},
+		{"release-vips",	no_argument,		NULL, 'X'},
+		{"dont-release-vrrp",	no_argument,		NULL, 'V'},
 #endif
 #ifdef _WITH_LVS_
-		{"dont-release-ipvs", no_argument,       0, 'I'},
+		{"dont-release-ipvs",	no_argument,		NULL, 'I'},
 #endif
-		{"dont-respawn",      no_argument,       0, 'R'},
-		{"dont-fork",         no_argument,       0, 'n'},
-		{"dump-conf",         no_argument,       0, 'd'},
-		{"pid",               required_argument, 0, 'p'},
+		{"dont-respawn",	no_argument,		NULL, 'R'},
+		{"dont-fork",		no_argument,		NULL, 'n'},
+		{"dump-conf",		no_argument,		NULL, 'd'},
+		{"pid",			required_argument,	NULL, 'p'},
 #ifdef _WITH_VRRP_
-		{"vrrp_pid",          required_argument, 0, 'r'},
+		{"vrrp_pid",		required_argument,	NULL, 'r'},
 #endif
 #ifdef _WITH_LVS_
-		{"checkers_pid",      required_argument, 0, 'c'},
-		{"address-monitoring",no_argument,       0, 'a'},
+		{"checkers_pid",	required_argument,	NULL, 'c'},
+		{"address-monitoring",	no_argument,		NULL, 'a'},
 #endif
 #ifdef _WITH_SNMP_
-		{"snmp",              no_argument,       0, 'x'},
-		{"snmp-agent-socket", required_argument, 0, 'A'},
+		{"snmp",		no_argument,		NULL, 'x'},
+		{"snmp-agent-socket",	required_argument,	NULL, 'A'},
 #endif
-		{"core-dump",         no_argument,       0, 'm'},
-		{"core-dump-pattern", optional_argument, 0, 'M'},
+		{"core-dump",		no_argument,		NULL, 'm'},
+		{"core-dump-pattern",	optional_argument,	NULL, 'M'},
 #ifdef _MEM_CHECK_LOG_
-		{"mem-check-log",     no_argument,       0, 'L'},
+		{"mem-check-log",	no_argument,		NULL, 'L'},
 #endif
 #if HAVE_DECL_CLONE_NEWNET
-		{"namespace",         required_argument, 0, 's'},
+		{"namespace",		required_argument,	NULL, 's'},
 #endif	
-		{"config-id",         required_argument, 0, 'i'},
-		{"version",           no_argument,       0, 'v'},
-		{"help",              no_argument,       0, 'h'},
-		{0, 0, 0, 0}
+		{"config-id",		required_argument,	NULL, 'i'},
+		{"signum",		required_argument,	NULL,  1 },
+		{"version",		no_argument,		NULL, 'v'},
+		{"help",		no_argument,		NULL, 'h'},
+
+		{NULL,			0,			NULL,  0 }
 	};
 
-	while ((c = getopt_long(argc, argv, "vhlndDRS:f:p:i:mM"
+	while ((c = getopt_long(argc, argv, "vhlndDRS:f:p:i:mMg:G"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
-#ifdef _WITH_VRRP_ 
+#ifdef _WITH_VRRP_
 					    "r:VX"
 #endif
 #ifdef _WITH_LVS_
@@ -642,7 +796,14 @@ parse_cmdline(int argc, char **argv)
 			fprintf(stderr, ", git commit %s", GIT_COMMIT);
 #endif
 			fprintf(stderr, "\n\n%s\n\n", COPYRIGHT_STRING);
-			fprintf(stderr, "Build options: %s\n", BUILD_OPTIONS);
+			fprintf(stderr, "Built with kernel headers for Linux %d.%d.%d\n",
+						(LINUX_VERSION_CODE >> 16) & 0xff,
+						(LINUX_VERSION_CODE >>  8) & 0xff,
+						(LINUX_VERSION_CODE      ) & 0xff);
+			uname(&uname_buf);
+			fprintf(stderr, "Running on %s %s %s\n\n", uname_buf.sysname, uname_buf.release, uname_buf.version);
+			fprintf(stderr, "Config options: %s\n\n", CONFIGURATION_OPTIONS);
+			fprintf(stderr, "System options: %s\n", SYSTEM_OPTIONS);
 			exit(0);
 			break;
 		case 'h':
@@ -684,8 +845,22 @@ parse_cmdline(int argc, char **argv)
 			log_facility = LOG_FACILITY[atoi(optarg)].facility;
 			reopen_log = true;
 			break;
+		case 'g':
+			if (optarg && optarg[0])
+				log_file_name = optarg;
+			else
+				log_file_name = "/tmp/keepalived.log";
+			open_log_file(log_file_name, NULL, NULL, NULL);
+			break;
+		case 'G':
+			__set_bit(NO_SYSLOG_BIT, &debug);
+			reopen_log = true;
+			break;
 		case 'f':
 			conf_file = optarg;
+			break;
+		case 2:		/* --flush-log-file */
+			set_flush_log_file();
 			break;
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 		case 'P':
@@ -725,6 +900,7 @@ parse_cmdline(int argc, char **argv)
 			set_core_dump_pattern = true;
 			if (optarg && optarg[0])
 				core_dump_pattern = optarg;
+			/* ... falls through ... */
 		case 'm':
 			create_core_dump = true;
 			break;
@@ -740,7 +916,19 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'i':
-			config_id = optarg;
+			FREE_PTR(config_id);
+			config_id = MALLOC(strlen(optarg) + 1);
+			strcpy(config_id, optarg);
+			break;
+		case 1:			/* --signum */
+			signum = get_signum(optarg);
+			if (signum == -1) {
+				fprintf(stderr, "Unknown sigfunc %s\n", optarg);
+				exit(1);
+			}
+
+			printf("%d\n", signum);
+			exit(0);
 			break;
 		default:
 			exit(0);
@@ -765,16 +953,17 @@ keepalived_main(int argc, char **argv)
 	bool report_stopped = true;
 	struct utsname uname_buf;
 	char *end;
-	long buf_len;
 
 	/* Init debugging level */
 	debug = 0;
 
 	/* We are the parent process */
+#ifndef _DEBUG_
 	prog_type = PROG_TYPE_PARENT;
+#endif
 
 	/* Initialise pointer to child finding function */
-	set_child_finder(find_keepalived_child);
+	set_child_finder_name(find_keepalived_child_name);
 
 	/* Initialise daemon_mode */
 #ifdef _WITH_VRRP_
@@ -790,40 +979,6 @@ keepalived_main(int argc, char **argv)
 #ifdef _MEM_CHECK_
 	mem_log_init(PACKAGE_NAME, "Parent process");
 #endif
-
-	/*
-	 * Parse command line and set debug level.
-	 * bits 0..7 reserved by main.c
-	 */
-	if (parse_cmdline(argc, argv)) {
-		closelog();
-		openlog(PACKAGE_NAME, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0) , log_facility);
-	}
-
-	if (__test_bit(LOG_CONSOLE_BIT, &debug))
-		enable_console_log();
-
-#ifdef GIT_COMMIT
-	log_message(LOG_INFO, "Starting %s, git commit %s", version_string, GIT_COMMIT);
-#else
-	log_message(LOG_INFO, "Starting %s", version_string);
-#endif
-
-	/* Handle any core file requirements */
-	core_dump_init();
-
-	netlink_set_recv_buf_size();
-
-	set_default_script_user(&default_script_uid, &default_script_gid);
-
-	/* Get buffer length needed for getpwnam_r/getgrnam_r */
-	if ((buf_len = sysconf(_SC_GETPW_R_SIZE_MAX)) == -1)
-		getpwnam_buf_len = 1024;	/* A safe default if no value is returned */
-	else
-		getpwnam_buf_len = (size_t)buf_len;
-	if ((buf_len = sysconf(_SC_GETGR_R_SIZE_MAX)) != -1 &&
-	    (size_t)buf_len > getpwnam_buf_len)
-		getpwnam_buf_len = (size_t)buf_len;
 
 	/* Some functionality depends on kernel version, so get the version here */
 	if (uname(&uname_buf))
@@ -844,6 +999,85 @@ keepalived_main(int argc, char **argv)
 		}
 		if (!os_major)
 			log_message(LOG_INFO, "Unable to parse kernel version %s", uname_buf.release);
+
+		/* config_id defaults to hostname */
+		if (!config_id) {
+			end = strchrnul(uname_buf.nodename, '.');
+			config_id = MALLOC((size_t)(end - uname_buf.nodename) + 1);
+			strncpy(config_id, uname_buf.nodename, (size_t)(end - uname_buf.nodename));
+			config_id[end - uname_buf.nodename] = '\0';
+		}
+	}
+
+	/*
+	 * Parse command line and set debug level.
+	 * bits 0..7 reserved by main.c
+	 */
+	if (parse_cmdline(argc, argv)) {
+		closelog();
+		if (!__test_bit(NO_SYSLOG_BIT, &debug))
+			openlog(PACKAGE_NAME, LOG_PID | ((__test_bit(LOG_CONSOLE_BIT, &debug)) ? LOG_CONS : 0) , log_facility);
+	}
+
+	if (__test_bit(LOG_CONSOLE_BIT, &debug))
+		enable_console_log();
+
+#ifdef GIT_COMMIT
+	log_message(LOG_INFO, "Starting %s, git commit %s", version_string, GIT_COMMIT);
+#else
+	log_message(LOG_INFO, "Starting %s", version_string);
+#endif
+
+	/* Handle any core file requirements */
+	core_dump_init();
+
+	if (os_major) {
+		if (KERNEL_VERSION(os_major, os_minor, os_release) < LINUX_VERSION_CODE) {
+			/* keepalived was build for a later kernel version */
+			log_message(LOG_INFO, "WARNING - keepalived was build for newer Linux %d.%d.%d, running on %s %s %s",
+					(LINUX_VERSION_CODE >> 16) & 0xff,
+					(LINUX_VERSION_CODE >>  8) & 0xff,
+					(LINUX_VERSION_CODE      ) & 0xff,
+					uname_buf.sysname, uname_buf.release, uname_buf.version);
+		} else {
+			/* keepalived was build for a later kernel version */
+			log_message(LOG_INFO, "Running on %s %s %s (built for Linux %d.%d.%d)",
+					uname_buf.sysname, uname_buf.release, uname_buf.version,
+					(LINUX_VERSION_CODE >> 16) & 0xff,
+					(LINUX_VERSION_CODE >>  8) & 0xff,
+					(LINUX_VERSION_CODE      ) & 0xff);
+		}
+	}
+
+	netlink_set_recv_buf_size();
+
+	/* Some functionality depends on kernel version, so get the version here */
+	if (uname(&uname_buf))
+		log_message(LOG_INFO, "Unable to get uname() information - error %d", errno);
+	else {
+		os_major = (unsigned)strtoul(uname_buf.release, &end, 10);
+		if (*end != '.')
+			os_major = 0;
+		else {
+			os_minor = (unsigned)strtoul(end + 1, &end, 10);
+			if (*end != '.')
+				os_major = 0;
+			else {
+				os_release = (unsigned)strtoul(end + 1, &end, 10);
+				if (*end && *end != '-')
+					os_major = 0;
+			}
+		}
+		if (!os_major)
+			log_message(LOG_INFO, "Unable to parse kernel version %s", uname_buf.release);
+
+		/* config_id defaults to hostname */
+		if (!config_id) {
+			end = strchrnul(uname_buf.nodename, '.');
+			config_id = MALLOC((size_t)(end - uname_buf.nodename) + 1);
+			strncpy(config_id, uname_buf.nodename, ((size_t)(end - uname_buf.nodename)));
+			config_id[end - uname_buf.nodename] = '\0';
+		}
 	}
 
 	/* Check we can read the configuration file(s).
@@ -883,7 +1117,13 @@ keepalived_main(int argc, char **argv)
 			log_message(LOG_INFO, "Unable to change syslog ident");
 
 		use_pid_dir = true;
+
+		open_log_file(log_file_name, NULL, network_namespace, instance_name);
 	}
+
+#ifdef _TIMER_DEBUG_
+	global_print();
+#endif
 
 	if (use_pid_dir) {
 		/* Create the directory for pid files */
@@ -969,6 +1209,7 @@ keepalived_main(int argc, char **argv)
 	master = thread_make_master();
 
 	/* Init daemon */
+	signal_set(SIGCHLD, thread_child_handler, master);	/* Set this before creating children */
 	start_keepalived();
 
 #ifndef _DEBUG_

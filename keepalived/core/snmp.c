@@ -22,11 +22,12 @@
 
 #include "config.h"
 
+#include "scheduler.h"
 #include "snmp.h"
 #include "logger.h"
-#include "config.h"
 #include "global_data.h"
 #include "main.h"
+#include "utils.h"
 
 #include <net-snmp/agent/agent_sysORTable.h>
 
@@ -98,12 +99,15 @@ enum snmp_global_magic {
 	SNMP_MAIL_SMTPSERVERTIMEOUT,
 	SNMP_MAIL_EMAILFROM,
 	SNMP_MAIL_EMAILADDRESS,
+	SNMP_MAIL_EMAILFAULTS,
+	SNMP_MAIL_SMTPSERVERPORT,
 	SNMP_TRAPS,
 	SNMP_LINKBEAT,
 	SNMP_LVSFLUSH,
 	SNMP_IPVS_64BIT_STATS,
 	SNMP_NET_NAMESPACE,
 	SNMP_DBUS,
+	SNMP_DYNAMIC_INTERFACES,
 };
 
 static u_char*
@@ -137,6 +141,9 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 			return (u_char *)&addr4->sin_addr;
 		}
 		return NULL;
+	case SNMP_MAIL_SMTPSERVERPORT:
+		long_ret = ntohs(inet_sockaddrport(&global_data->smtp_server));
+		return (u_char *)&long_ret;
 	case SNMP_MAIL_SMTPSERVERTIMEOUT:
 		long_ret = global_data->smtp_connection_to / TIMER_HZ;
 		return (u_char *)&long_ret;
@@ -144,6 +151,11 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 		if (!global_data->email_from) return NULL;
 		*var_len = strlen(global_data->email_from);
 		return (u_char *)global_data->email_from;
+#ifdef _WITH_VRRP_
+	case SNMP_MAIL_EMAILFAULTS:
+		long_ret = global_data->email_faults?1:2;
+		return (u_char *)&long_ret;
+#endif
 	case SNMP_TRAPS:
 		long_ret = global_data->enable_traps?1:2;
 		return (u_char *)&long_ret;
@@ -179,6 +191,11 @@ snmp_scalar(struct variable *vp, oid *name, size_t *length,
 #endif
 			long_ret = 2;
 		return (u_char *)&long_ret;
+#ifdef _WITH_VRRP_
+	case SNMP_DYNAMIC_INTERFACES:
+		long_ret = global_data->dynamic_interfaces ? 1 : 2;
+		return (u_char *)&long_ret;
+#endif
 	default:
 		break;
 	}
@@ -219,6 +236,10 @@ static struct variable8 global_vars[] = {
 	{SNMP_MAIL_EMAILFROM, ASN_OCTET_STR, RONLY, snmp_scalar, 2, {3, 4}},
 	/* emailTable */
 	{SNMP_MAIL_EMAILADDRESS, ASN_OCTET_STR, RONLY, snmp_mail, 4, {3, 5, 1, 2}},
+	/* SMTP server port */
+	{SNMP_MAIL_SMTPSERVERPORT, ASN_UNSIGNED, RONLY, snmp_scalar, 2, {3, 6}},
+	/* are vrrp fault state transitions emailed */
+	{SNMP_MAIL_EMAILFAULTS, ASN_INTEGER, RONLY, snmp_scalar, 2, {3, 7}},
 	/* trapEnable */
 	{SNMP_TRAPS, ASN_INTEGER, RONLY, snmp_scalar, 1, {4}},
 	/* linkBeat */
@@ -232,6 +253,9 @@ static struct variable8 global_vars[] = {
 	{SNMP_NET_NAMESPACE, ASN_OCTET_STR, RONLY, snmp_scalar, 1, {8}},
 #ifdef _WITH_DBUS_
 	{SNMP_DBUS, ASN_INTEGER, RONLY, snmp_scalar, 1, {9}},
+#endif
+#ifdef _WITH_VRRP_
+	{SNMP_DYNAMIC_INTERFACES, ASN_INTEGER, RONLY, snmp_scalar, 1, {10}},
 #endif
 };
 
@@ -315,6 +339,8 @@ snmp_agent_init(const char *snmp_socket, bool base_mib)
 				  sizeof(struct variable8),
 				  sizeof(global_vars)/sizeof(struct variable8));
 	init_snmp(global_name);
+
+	snmp_running = true;
 }
 
 void
@@ -323,4 +349,6 @@ snmp_agent_close(bool base_mib)
 	if (base_mib)
 		snmp_unregister_mib(global_oid, OID_LENGTH(global_oid));
 	snmp_shutdown(global_name);
+
+	snmp_running = false;
 }

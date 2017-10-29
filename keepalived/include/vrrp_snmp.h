@@ -24,9 +24,12 @@
 #ifndef _VRRP_SNMP_H
 #define _VRRP_SNMP_H
 
+#include "config.h"
+
 #ifdef _WITH_SNMP_RFC_
 #include "timer.h"
 #endif
+#include "vrrp.h"
 
 #ifdef _WITH_SNMP_RFCV2_
 enum rfcv2_trap_auth_error_type {

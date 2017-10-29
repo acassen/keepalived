@@ -24,8 +24,6 @@
 #define _CHECK_DAEMON_H
 
 /* system include */
-#include <stdlib.h>
-#include <signal.h>
 #include <stdbool.h>
 
 /* Daemon define */

@@ -1,5 +1,5 @@
 /*
- * libnl_link:	Handle dynamic linking to netlink libraries 
+ * libnl_link:	Handle dynamic linking to netlink libraries
  *
  * Authors:	P. Quentin Armitage <Quentin@Armitage.org.uk>
  *
@@ -27,6 +27,13 @@
 #endif
 
 #if defined _WITH_VRRP_ && defined _HAVE_LIBNL3_ && defined _HAVE_IPV4_DEVCONF_
+#ifdef _HAVE_IF_H_LINK_H_COLLISION_
+#ifdef _HAVE_NET_LINUX_IF_H_COLLISION_
+#define _LINUX_IF_H
+#else
+#include <net/if.h>
+#endif
+#endif
 #include <netlink/route/link.h>
 #include <netlink/route/link/inet.h>
 #endif

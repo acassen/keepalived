@@ -24,7 +24,10 @@
 #ifndef _VRRP_IPTABLES_CALLS_H
 #define	_VRRP_IPTABLES_CALLS_H
 
+#include "config.h"
+
 #include <limits.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdbool.h>
 
@@ -33,8 +36,7 @@
 #define	APPEND_RULE	UINT_MAX
 
 #ifdef _HAVE_LIBIPTC_
-#ifdef _LIBXTABLES_DYNAMIC_ 
-extern bool xtables_load(void);
+#ifdef _LIBXTABLES_DYNAMIC_
 extern void xtables_unload(void);
 #endif
 extern bool load_xtables_module(const char *, const char *);

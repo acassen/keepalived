@@ -8,8 +8,9 @@
 #ifndef _LIBIPVS_H
 #define _LIBIPVS_H
 
-#include "ip_vs.h"
+#include "config.h"
 
+#include "ip_vs.h"
 
 /*
  * The default IPVS_SVC_PERSISTENT_TIMEOUT is a little larger than average
@@ -79,7 +80,7 @@ extern struct ip_vs_get_dests_app *ipvs_get_dests(ipvs_service_entry_t *svc);
 
 /* get an ipvs service entry */
 extern ipvs_service_entry_t *
-ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr addr, __u16 port);
+ipvs_get_service(__u32 fwmark, __u16 af, __u16 protocol, union nf_inet_addr *addr, __u16 port);
 #endif
 
 /* close the socket */

@@ -13,7 +13,8 @@ edit = echo "  EDIT     $@"; \
 	sed \
 	 -e 's|@sbindir[@]|$(sbindir)|g' \
 	 -e 's|@localstatedir[@]|$(localstatedir)|g' \
-	 -e 's|@sysconfdir[@]|$(sysconfdir)|g'
+	 -e 's|@sysconfdir[@]|$(sysconfdir)|g' \
+	 -e 's|@PID_DIR[@]|$(PID_DIR)|g'
 
 sbin_PROGRAMS		= keepalived
 keepalived_SOURCES	= main.c
