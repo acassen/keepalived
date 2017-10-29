@@ -485,7 +485,7 @@ thread_add_read(thread_master_t * m, int (*func) (thread_t *)
 	return thread;
 }
 
-void
+static void
 thread_read_requeue(thread_master_t *m, int fd, timeval_t new_sands)
 {
 	thread_t *tt;

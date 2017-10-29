@@ -144,7 +144,6 @@ extern thread_t *thread_add_terminate_event(thread_master_t *);
 extern void thread_cleanup_master(thread_master_t *);
 extern void thread_destroy_master(thread_master_t *);
 extern thread_t *thread_add_read(thread_master_t *, int (*func) (thread_t *), void *, int, unsigned long);
-extern void thread_read_requeue(thread_master_t *, int, timeval_t);
 extern void thread_requeue_read(thread_master_t *, int, unsigned long);
 extern thread_t *thread_add_write(thread_master_t *, int (*func) (thread_t *), void *, int, unsigned long);
 extern thread_t *thread_add_timer(thread_master_t *, int (*func) (thread_t *), void *, unsigned long);
