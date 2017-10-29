@@ -36,8 +36,7 @@ extern void alloc_vrrp_bucket(vrrp_t *);
 extern void alloc_vrrp_fd_bucket(vrrp_t *);
 extern vrrp_t *vrrp_index_lookup(const int, const int);
 extern void remove_vrrp_fd_bucket(int);
-#ifdef UNUSED
-extern void remove_vrrp_fd_bucket(vrrp_t *);
+#ifdef _INCLUDE_UNUSED_CODE_
 extern void set_vrrp_fd_bucket(int, vrrp_t *);
 #endif
 

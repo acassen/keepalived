@@ -2107,7 +2107,7 @@ open_vrrp_read_socket(sa_family_t family, int proto, interface_t *ifp, bool unic
 	return fd;
 }
 
-#ifdef UNUSED
+#ifdef _INCLUDE_UNUSED_CODE_
 static void
 close_vrrp_socket(vrrp_t * vrrp)
 {

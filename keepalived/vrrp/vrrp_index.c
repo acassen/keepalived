@@ -111,14 +111,7 @@ void remove_vrrp_fd_bucket(int old_fd)
 		l->head = l->tail = NULL;
 }
 
-#ifdef UNUSED
-void
-remove_vrrp_fd_bucket(vrrp_t *vrrp)
-{
-	list l = &vrrp_data->vrrp_index_fd[FD_INDEX_HASH(vrrp->sockets->fd_in)];
-	list_del(l, vrrp);
-}
-
+#ifdef _INCLUDE_UNUSED_CODE_
 void set_vrrp_fd_bucket(int old_fd, vrrp_t *vrrp)
 {
 	vrrp_t *vrrp_ptr;
