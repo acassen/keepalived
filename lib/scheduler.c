@@ -198,6 +198,12 @@ set_child_finder(void (*adder_func)(thread_t *),
 	}
 }
 
+static void
+destroy_child_finder(void)
+{
+	set_child_finder(NULL, NULL, NULL, NULL, NULL, 0);
+}
+
 #ifndef _DEBUG_
 /* report_child_status returns true if the exit is a hard error, so unable to continue */
 bool
@@ -393,10 +399,7 @@ thread_cleanup_master(thread_master_t * m)
 	thread_destroy_list(m, m->event);
 	thread_destroy_list(m, m->ready);
 
-	if (m->child_pid_index) {
-		free_mlist(m->child_pid_index, child_finder_list_size);
-		m->child_pid_index = NULL;
-	}
+	destroy_child_finder();
 
 	/* Clear all FDs */
 	FD_ZERO(&m->readfd);
