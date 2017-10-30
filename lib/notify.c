@@ -677,8 +677,8 @@ check_security(char *filename, bool script_security)
 			*slash = 0;
 		}
 
-		ret = stat(filename, &buf);
-log_message(LOG_INFO, "stat of %s gives 0%o", filename, buf.st_mode);
+		ret = fstatat(0, filename, &buf, AT_SYMLINK_NOFOLLOW);
+
 		/* Restore the full path name */
 		if (slash)
 			*slash = sav;
