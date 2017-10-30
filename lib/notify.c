@@ -564,7 +564,7 @@ exit1:
 }
 
 static int
-check_security(char *filename, bool script_security, bool full_string)
+check_security(char *filename, bool script_security)
 {
 	char *next;
 	char *slash;
@@ -575,7 +575,7 @@ check_security(char *filename, bool script_security, bool full_string)
 
 	next = filename;
 	while (next) {
-		slash = next + strcspn(next, "/ ");
+		slash = next + strcspn(next, "/");
 		if (*slash)
 			next = slash + 1;
 		else {
@@ -584,13 +584,6 @@ check_security(char *filename, bool script_security, bool full_string)
 		}
 
 		if (slash) {
-			/* If full_string, then file name can contain spaces, otherwise it terminates the command */
-			if (*slash == ' ') {
-				if (full_string)
-					continue;
-				next = NULL;
-			}
-
 			/* We want to check '/' for first time around */
 			if (slash == filename)
 				slash++;
@@ -609,26 +602,32 @@ check_security(char *filename, bool script_security, bool full_string)
 				log_message(LOG_INFO, "check_script_secure could not find script '%s'", filename);
 			else
 				log_message(LOG_INFO, "check_script_secure('%s') returned errno %d - %s", filename, errno, strerror(errno));
-			return SC_NOTFOUND;
+			return flags | SC_NOTFOUND;
 		}
 
-		/* If the last item is a symbolic link, then the
-		 * permissions and ownership are unimportant */
-		if (!slash && S_ISLNK(buf.st_mode))
-			return 0;
+		/* If it is not the last item, it must be a directory. If it is the last item
+		 * it must be a file or a symbolic link. */
+		if ((slash && !S_ISDIR(buf.st_mode)) ||
+		    (!slash &&
+		     !S_ISREG(buf.st_mode) &&
+		     !S_ISLNK(buf.st_mode))) {
+			log_message(LOG_INFO, "Wrong file type found in script path '%s'.", filename);
+			return flags | SC_INHIBIT;
+		}
 
 		if (buf.st_uid ||				/* Owner is not root */
-		    ((!(buf.st_mode & S_ISVTX) ||		/* Sticky bit not set */
+		    (((S_ISDIR(buf.st_mode) &&			/* A directory without the sticky bit set */
+		       !(buf.st_mode & S_ISVTX)) ||
 		      S_ISREG(buf.st_mode)) &&			/* This is a file */
 		     ((buf.st_gid && buf.st_mode & S_IWGRP) ||	/* Group is not root and group write permission */
 		      buf.st_mode & S_IWOTH))) {		/* World has write permission */
 			log_message(LOG_INFO, "Unsafe permissions found for script '%s'.", filename);
 			flags |= SC_INSECURE;
-			return script_security ? SC_INHIBIT : 0;
+			return flags | (script_security ? SC_INHIBIT : 0);
 		}
 	}
 
-	return 0;
+	return flags;
 }
 
 int
@@ -754,8 +753,6 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 			*space = ' ';
 		return SC_NOTFOUND;
 	}
-	if (space)
-		*space = ' ';
 
 	flags = SC_ISSCRIPT;
 
@@ -772,16 +769,23 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 	if (!need_script_protection) {
 		if (real_file_path)
 			free(real_file_path);
+
+		if (space)
+			*space = ' ';
+
 		return flags;
 	}
 
 	/* Make sure that all parts of the path are not non-root writable */
-	flags |= check_security(script->name, script_security, full_string);
+	flags |= check_security(script->name, script_security);
 
 	if (real_file_path) {
-		flags |= check_security(real_file_path, script_security, false);
+		flags |= check_security(real_file_path, script_security);
 		free(real_file_path);
 	}
+
+	if (space)
+		*space = ' ';
 
 	return flags;
 }
