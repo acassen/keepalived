@@ -740,7 +740,6 @@ check_script_secure(notify_script_t *script, bool script_security, bool full_str
 			space = new_script_name + new_path_len;
 		}
 
-log_message(LOG_INFO, "Script changed from %s to %s, real path %s", script->name, new_script_name, real_file_path);
 		FREE(script->name);
 		script->name = new_script_name;
 	}
