@@ -649,6 +649,73 @@ exit1:
 	return ret_val;
 }
 
+static int
+check_security(char *filename, bool script_security)
+{
+	char *next;
+	char *slash;
+	char sav;
+	int ret;
+	struct stat buf;
+	int flags = 0;
+
+	next = filename;
+	while (next) {
+		slash = strchrnul(next, '/');
+		if (*slash)
+			next = slash + 1;
+		else {
+			slash = NULL;
+			next = NULL;
+		}
+
+		if (slash) {
+			/* We want to check '/' for first time around */
+			if (slash == filename)
+				slash++;
+			sav = *slash;
+			*slash = 0;
+		}
+
+		ret = fstatat(0, filename, &buf, AT_SYMLINK_NOFOLLOW);
+
+		/* Restore the full path name */
+		if (slash)
+			*slash = sav;
+
+		if (ret) {
+			if (errno == EACCES || errno == ELOOP || errno == ENOENT || errno == ENOTDIR)
+				log_message(LOG_INFO, "check_script_secure could not find script '%s' - disabling", filename);
+			else
+				log_message(LOG_INFO, "check_script_secure('%s') returned errno %d - %s - disabling", filename, errno, strerror(errno));
+			return flags | SC_NOTFOUND;
+		}
+
+		/* If it is not the last item, it must be a directory. If it is the last item
+		 * it must be a file or a symbolic link. */
+		if ((slash && !S_ISDIR(buf.st_mode)) ||
+		    (!slash &&
+		     !S_ISREG(buf.st_mode) &&
+		     !S_ISLNK(buf.st_mode))) {
+			log_message(LOG_INFO, "Wrong file type found in script path '%s'.", filename);
+			return flags | SC_INHIBIT;
+		}
+
+		if (buf.st_uid ||				/* Owner is not root */
+		    (((S_ISDIR(buf.st_mode) &&			/* A directory without the sticky bit set */
+		       !(buf.st_mode & S_ISVTX)) ||
+		      S_ISREG(buf.st_mode)) &&			/* This is a file */
+		     ((buf.st_gid && buf.st_mode & S_IWGRP) ||	/* Group is not root and group write permission */
+		      buf.st_mode & S_IWOTH))) {		/* World has write permission */
+			log_message(LOG_INFO, "Unsafe permissions found for script '%s'%s.", filename, script_security ? " - disabling" : "");
+			flags |= SC_INSECURE;
+			return flags | (script_security ? SC_INHIBIT : 0);
+		}
+	}
+
+	return flags;
+}
+
 int
 check_script_secure(notify_script_t *script,
 #ifndef _HAVE_LIBMAGIC_
@@ -657,21 +724,20 @@ check_script_secure(notify_script_t *script,
 								     magic_t magic)
 {
 	int flags;
-	char *slash;
-	char *next;
-	char sav;
 	int ret;
-	struct stat buf, file_buf;
+	struct stat file_buf;
 	bool need_script_protection = false;
 	uid_t old_uid = 0;
 	gid_t old_gid = 0;
 	char *new_path;
 	int sav_errno;
+	char *real_file_path;
+	char *orig_file_part, *new_file_part;
+	char *dir_path;
 
 	if (!script)
 		return 0;
 
-	next = script->args[0];
 	if (!strchr(script->args[0], '/')) {
 		/* It is a bare file name, so do a path search */
 		if ((ret = find_path(script))) {
@@ -718,6 +784,7 @@ check_script_secure(notify_script_t *script,
 		return SC_NOTFOUND;
 	}
 
+	real_file_path = NULL;
 	if (strcmp(script->args[0], new_path)) {
 		/* The path name is different */
 		size_t len;
@@ -726,6 +793,22 @@ check_script_secure(notify_script_t *script,
 		char **params;
 		char **word_ptrs;
 		char *words;
+
+		/* If the file name parts don't match, we need to be careful to
+		 * ensure that we preserve the file name part since some executables
+		 * alter their behaviour based on what they are called */
+		orig_file_part = strrchr(script->args[0], '/');
+		new_file_part = strrchr(new_path, '/');
+		if (strcmp(orig_file_part + 1, new_file_part + 1)) {
+			*orig_file_part = '\0';
+			dir_path = realpath(script->args[0], NULL);
+			*orig_file_part = '/';
+			real_file_path = new_path;
+			new_path = MALLOC(strlen(dir_path) + 1 + strlen(orig_file_part + 1) + 1);
+			strcpy(new_path, dir_path);
+			strcat(new_path, "/");
+			strcat(new_path, orig_file_part + 1);
+		}
 
 		/* We need to set up all the args again */
 		len = strlen(new_path) + 1;
@@ -754,10 +837,13 @@ check_script_secure(notify_script_t *script,
 		script->cmd_str = MALLOC(strlen(new_path) + 1);
 		strcpy(script->cmd_str, new_path);
 	}
-	free(new_path);
+	if (!real_file_path)
+		free(new_path);
+	else
+		FREE(new_path);
 
 	/* Get the permissions for the file itself */
-	if (stat(script->args[0], &file_buf)) {
+	if (stat(real_file_path ? real_file_path : script->args[0], &file_buf)) {
 		log_message(LOG_INFO, "Unable to access script `%s` - disabling", script->cmd_str);
 		return SC_NOTFOUND;
 	}
@@ -778,7 +864,7 @@ check_script_secure(notify_script_t *script,
 	script->flags |= SC_EXECABLE;
 #ifdef _HAVE_LIBMAGIC_
 	if (magic && flags & SC_EXECUTABLE) {
-		const char *magic_desc = magic_file(magic, script->args[0]);
+		const char *magic_desc = magic_file(magic, real_file_path ? real_file_path : script->args[0]);
 		if (!strstr(magic_desc, " executable")) {
 			log_message(LOG_INFO, "Please add a #! shebang to script %s", script->args[0]);
 			script->flags &= ~SC_EXECABLE;
@@ -786,52 +872,19 @@ check_script_secure(notify_script_t *script,
 	}
 #endif
 
-	if (!need_script_protection)
+	if (!need_script_protection) {
+		if (real_file_path)
+			free(real_file_path);
+
 		return flags;
+	}
 
-	next = script->args[0];
-	while (next) {
-		slash = strchrnul(next, '/');
-		if (*slash)
-			next = slash + 1;
-		else {
-			slash = NULL;
-			next = NULL;
-		}
+	/* Make sure that all parts of the path are not non-root writable */
+	flags |= check_security(script->args[0], script_security);
 
-		if (slash) {
-			/* We want to check '/' for first time around */
-			if (slash == script->args[0])
-				slash++;
-			sav = *slash;
-			*slash = 0;
-		}
-
-		ret = stat(script->args[0], &buf);
-
-		/* Restore the full path name */
-		if (slash)
-			*slash = sav;
-
-		if (ret) {
-			if (errno == EACCES || errno == ELOOP || errno == ENOENT || errno == ENOTDIR)
-				log_message(LOG_INFO, "check_script_secure could not find script '%s' - disabling", script->cmd_str);
-			else
-				log_message(LOG_INFO, "check_script_secure('%s') returned errno %d - %s - disabling", script->cmd_str, errno, strerror(errno));
-			return flags | SC_NOTFOUND;
-		}
-
-		if (buf.st_uid ||				/* Owner is not root */
-		    ((!(buf.st_mode & S_ISVTX) ||		/* Sticky bit not set */
-		      buf.st_mode & S_IFREG) &&			/* This is a file */
-		     ((buf.st_gid && buf.st_mode & S_IWGRP) ||	/* Group is not root and group write permission */
-		      buf.st_mode & S_IWOTH))) {		/* World has write permission */
-			log_message(LOG_INFO, "Unsafe permissions found for script '%s'%s.", script->cmd_str, script_security ? " - disabling" : "");
-			flags |= SC_INSECURE;
-			if (script_security)
-				flags |= SC_INHIBIT;
-			break;
-		}
+	if (real_file_path) {
+		flags |= check_security(real_file_path, script_security);
+		free(real_file_path);
 	}
 
 	return flags;
