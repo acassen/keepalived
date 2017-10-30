@@ -678,7 +678,7 @@ check_security(char *filename, bool script_security)
 		}
 
 		ret = stat(filename, &buf);
-
+log_message(LOG_INFO, "stat of %s gives 0%o", filename, buf.st_mode);
 		/* Restore the full path name */
 		if (slash)
 			*slash = sav;
@@ -688,26 +688,32 @@ check_security(char *filename, bool script_security)
 				log_message(LOG_INFO, "check_script_secure could not find script '%s' - disabling", filename);
 			else
 				log_message(LOG_INFO, "check_script_secure('%s') returned errno %d - %s - disabling", filename, errno, strerror(errno));
-			return SC_NOTFOUND;
+			return flags | SC_NOTFOUND;
 		}
 
-		/* If the last item is a symbolic link, then the
-		 * permissions and ownership are unimportant */
-		if (!slash && S_ISLNK(buf.st_mode))
-			return 0;
+		/* If it is not the last item, it must be a directory. If it is the last item
+		 * it must be a file or a symbolic link. */
+		if ((slash && !S_ISDIR(buf.st_mode)) ||
+		    (!slash &&
+		     !S_ISREG(buf.st_mode) &&
+		     !S_ISLNK(buf.st_mode))) {
+			log_message(LOG_INFO, "Wrong file type found in script path '%s'.", filename);
+			return flags | SC_INHIBIT;
+		}
 
 		if (buf.st_uid ||				/* Owner is not root */
-		    ((!(buf.st_mode & S_ISVTX) ||		/* Sticky bit not set */
+		    (((S_ISDIR(buf.st_mode) &&			/* A directory without the sticky bit set */
+		       !(buf.st_mode & S_ISVTX)) ||
 		      S_ISREG(buf.st_mode)) &&			/* This is a file */
 		     ((buf.st_gid && buf.st_mode & S_IWGRP) ||	/* Group is not root and group write permission */
 		      buf.st_mode & S_IWOTH))) {		/* World has write permission */
 			log_message(LOG_INFO, "Unsafe permissions found for script '%s'%s.", filename, script_security ? " - disabling" : "");
 			flags |= SC_INSECURE;
-			return script_security ? SC_INHIBIT : 0;
+			return flags | (script_security ? SC_INHIBIT : 0);
 		}
 	}
 
-	return 0;
+	return flags;
 }
 
 int
@@ -869,6 +875,7 @@ check_script_secure(notify_script_t *script,
 	if (!need_script_protection) {
 		if (real_file_path)
 			free(real_file_path);
+
 		return flags;
 	}
 
