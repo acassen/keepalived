@@ -591,7 +591,7 @@ check_security(char *filename, bool script_security)
 			*slash = 0;
 		}
 
-		ret = stat(filename, &buf);
+		ret = fstatat(0, filename, &buf, AT_SYMLINK_NOFOLLOW);
 
 		/* Restore the full path name */
 		if (slash)
