@@ -441,8 +441,11 @@ read_conf_file(const char *conf_file)
 
 		/* If we changed directory, restore the previous directory */
 		if (curdir_fd != -1) {
-			fchdir(curdir_fd);
+			if ((res = fchdir(curdir_fd)))
+				log_message(LOG_INFO, "Failed to restore previous directory after include");
 			close(curdir_fd);
+			if (res)
+				return true;
 		}
 	}
 
