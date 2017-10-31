@@ -840,7 +840,9 @@ netlink_request(nl_handle_t *nl, unsigned char family, uint16_t type, char *name
 	else
 #endif
 		req.nlh.nlmsg_flags |= NLM_F_DUMP;
+#if HAVE_DECL_RTEXT_FILTER_SKIP_STATS
 	addattr32(&req.nlh, sizeof req, IFLA_EXT_MASK, RTEXT_FILTER_SKIP_STATS);
+#endif
 
 	status = sendto(nl->fd, (void *) &req, sizeof (req)
 			, 0, (struct sockaddr *) &snl, sizeof (snl));
