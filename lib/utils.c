@@ -38,6 +38,9 @@
 #include "utils.h"
 #include "signals.h"
 #include "bitops.h"
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+#include "logger.h"
+#endif
 
 /* global vars */
 unsigned long debug = 0;
