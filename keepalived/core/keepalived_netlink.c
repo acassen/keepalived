@@ -331,6 +331,7 @@ netlink_set_nonblock(nl_handle_t *nl,
 
 	return 0;
 }
+#endif
 
 /* iproute2 utility function */
 int
@@ -352,11 +353,13 @@ addattr_l(struct nlmsghdr *n, size_t maxlen, unsigned short type, void *data, si
 	return 0;
 }
 
+#ifdef _WITH_VRRP_
 int
 addattr8(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint8_t data)
 {
 	return addattr_l(n, maxlen, type, &data, sizeof data);
 }
+#endif
 
 int
 addattr32(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint32_t data)
@@ -364,6 +367,7 @@ addattr32(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint32_t data)
 	return addattr_l(n, maxlen, type, &data, sizeof data);
 }
 
+#ifdef _WITH_VRRP_
 int
 addattr64(struct nlmsghdr *n, size_t maxlen, unsigned short type, uint64_t data)
 {
@@ -812,7 +816,13 @@ netlink_talk(nl_handle_t *nl, struct nlmsghdr *n)
 
 /* Fetch a specific type information from netlink kernel */
 static int
-netlink_request(nl_handle_t *nl, unsigned char family, uint16_t type, char *name)
+netlink_request(nl_handle_t *nl,
+		unsigned char family,
+		uint16_t type,
+#ifndef _WITH_VRRP_
+		__attribute__((unused))
+#endif
+					char *name)
 {
 	ssize_t status;
 	struct sockaddr_nl snl;
