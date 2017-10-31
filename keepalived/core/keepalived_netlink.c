@@ -1097,7 +1097,9 @@ netlink_talk(nl_handle_t *nl, struct nlmsghdr *n)
 
 /* Fetch a specific type of information from netlink kernel */
 static int
-netlink_request(nl_handle_t *nl, unsigned char family, uint16_t type,
+netlink_request(nl_handle_t *nl,
+		unsigned char family,
+		uint16_t type,
 #ifndef _WITH_VRRP_
 		__attribute__((unused))
 #endif
@@ -1129,7 +1131,9 @@ netlink_request(nl_handle_t *nl, unsigned char family, uint16_t type,
 	else
 #endif
 		req.nlh.nlmsg_flags |= NLM_F_DUMP;
+#if HAVE_DECL_RTEXT_FILTER_SKIP_STATS
 	addattr32(&req.nlh, sizeof req, IFLA_EXT_MASK, RTEXT_FILTER_SKIP_STATS);
+#endif
 
 	status = sendto(nl->fd, (void *) &req, sizeof (req)
 			, 0, (struct sockaddr *) &snl, sizeof (snl));
