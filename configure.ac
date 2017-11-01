@@ -231,7 +231,7 @@ AC_SUBST(ARFLAGS)
 # AC_PROG_LIBTOOL
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2"
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2 -fPIE"
 KA_LDFLAGS=
 KA_LIBS=
 NEED_LIBDL=No
@@ -1357,7 +1357,6 @@ if test -z $init_type; then
     if test \( $? -eq 0 -a -x "$init_path" \); then
       systemctl | grep -q -- "-\.mount"
       if test $? -eq 0; then
-	AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
 	INIT_TYPE=systemd
       fi
     fi
@@ -1377,6 +1376,11 @@ if test -z $init_type; then
 else
   INIT_TYPE=$init_type
 fi
+
+if test $INIT_TYPE = systemd; then
+  AC_SUBST([systemdsystemunitdir], [$with_systemdsystemunitdir])
+fi
+
 if test -z $INIT_TYPE; then INIT_TYPE=undetected; fi
 AM_CONDITIONAL([INIT_UPSTART], [test $INIT_TYPE = upstart])
 AM_CONDITIONAL([INIT_SYSTEMD], [test $INIT_TYPE = systemd])
