@@ -24,11 +24,10 @@
 #define _SMTP_H
 
 /* globales includes */
-#include <netdb.h>
+#include <sys/types.h>
 
 /* local includes */
-#include "scheduler.h"
-#include "layer4.h"
+#include "global_data.h"
 #ifdef _WITH_LVS_
 #include "check_data.h"
 #include "check_api.h"

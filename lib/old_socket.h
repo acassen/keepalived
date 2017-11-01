@@ -40,7 +40,7 @@
 #define SOCK_CLOEXEC	0
 #endif
 
-bool set_sock_flags(int fd, int cmd, long flags);
+extern bool set_sock_flags(int fd, int cmd, long flags);
 #endif
 
 #endif

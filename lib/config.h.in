@@ -5,7 +5,7 @@
 #define _CONFIG_H
   
 
-/* The configuration and build options from which the package is built */
+/* The configuration options from which the package is built */
 #undef CONFIGURATION_OPTIONS
 
 /* Define to 1 if need to call g_type_init() */
@@ -190,6 +190,9 @@
 /* Define to 1 if you have the `gettimeofday' function. */
 #undef HAVE_GETTIMEOFDAY
 
+/* Define to 1 if you have the `inotify_init1' function. */
+#undef HAVE_INOTIFY_INIT1
+
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
@@ -355,6 +358,9 @@
 /* Define to 1 if you have the `setns' function. */
 #undef HAVE_SETNS
 
+/* Define to 1 if you have the `signalfd' function. */
+#undef HAVE_SIGNALFD
+
 /* Define to 1 if you have the `socket' function. */
 #undef HAVE_SOCKET
 
@@ -512,6 +518,9 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
+/* The system options from which the package is built */
+#undef SYSTEM_OPTIONS
+
 /* Version number of package */
 #undef VERSION
 
@@ -550,11 +559,18 @@
    collision */
 #undef _HAVE_LIBIPTC_LINUX_NET_IF_H_COLLISION_
 
+/* Define to 1 if have magic library */
+#undef _HAVE_LIBMAGIC_
+
 /* Define to 1 if using libnl-1 */
 #undef _HAVE_LIBNL1_
 
 /* Define to 1 if using libnl-3 */
 #undef _HAVE_LIBNL3_
+
+/* Define to 1 if have linux/if_ether.h then netinet/if_ether.h namespace
+   collision */
+#undef _HAVE_NETINET_LINUX_IF_ETHER_H_COLLISION_
 
 /* Define to 1 if have linux/if.h followed by net/if.h namespace collision */
 #undef _HAVE_NET_LINUX_IF_H_COLLISION_
@@ -608,6 +624,9 @@
 /* Define to 1 to have DBus create instance support */
 #undef _WITH_DBUS_CREATE_INSTANCE_
 
+/* Define to 1 to build with thread dumping support */
+#undef _WITH_DUMP_THREADS_
+
 /* Define to 1 to build with json output support */
 #undef _WITH_JSON_
 
@@ -616,6 +635,9 @@
 
 /* Define to 1 if have IPVS 64 bit stats */
 #undef _WITH_LVS_64BIT_STATS_
+
+/* Define to 1 if using pthreads */
+#undef _WITH_PTHREADS_
 
 /* Define to 1 to have SHA1 support */
 #undef _WITH_SHA1_
@@ -699,5 +721,8 @@
 #undef vfork
 
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
 #endif
-  
+
+#endif

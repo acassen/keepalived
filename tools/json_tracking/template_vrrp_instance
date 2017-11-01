@@ -1,0 +1,55 @@
+! Configuration File for keepalived
+
+global_defs {
+}
+{% for vlan in vlans %}
+vrrp_track_file offset_instance_4{{ vlan.name }} {
+    file "{{ track_files }}4{{ vlan.name }}"
+    init_file 0
+}
+
+vrrp_track_file offset_instance_6{{ vlan.name }} {
+    file "{{ track_files }}6{{ vlan.name }}"
+    init_file 0
+}
+
+{% endfor %}
+{% for vlan in vlans %}
+vrrp_instance 4{{ vlan.name }} {
+    state BACKUP
+    interface {{ interface }}.{{ vlan.name }}
+    use_vmac vrrp4.{{ vlan.name }}.1
+    virtual_router_id 1
+    priority 100
+    advert_int 1
+    preempt_delay 5
+    virtual_ipaddress {
+        {{ vlan.ip4addr }}
+    }
+    unicast_src_ip {{ vlan.ip4addr }}
+
+    track_file {
+        offset_instance_4{{ vlan.name }}
+    }
+}
+vrrp_instance 6{{ vlan.name }} {
+    version 3
+    native_ipv6
+    state BACKUP
+    interface {{ interface }}.{{ vlan.name }}
+    use_vmac vrrp6.{{ vlan.name }}.1
+    virtual_router_id 1
+    priority 100
+    advert_int 1
+    preempt_delay 5
+    virtual_ipaddress {
+        fe80::1/64
+        {{ vlan.ip6addr }}
+    }
+
+
+    track_file {
+        offset_instance_6{{ vlan.name }}
+    }
+}
+{% endfor %}

@@ -22,32 +22,29 @@
 
 #include "config.h"
 
-#include <string.h>
+#include <errno.h>
+#include <signal.h>
+#include <unistd.h>
 #include <sys/prctl.h>
 
 #include "check_daemon.h"
 #include "check_parser.h"
 #include "ipwrapper.h"
-#include "ipvswrapper.h"
-#include "check_data.h"
 #include "check_ssl.h"
 #include "check_api.h"
 #include "global_data.h"
 #include "pidfile.h"
-#include "daemon.h"
 #include "signals.h"
-#include "notify.h"
 #include "process.h"
 #include "logger.h"
-#include "list.h"
 #include "main.h"
-#include "memory.h"
 #include "parser.h"
 #include "bitops.h"
 #include "keepalived_netlink.h"
 #ifdef _WITH_SNMP_CHECKER_
   #include "check_snmp.h"
 #endif
+#include "utils.h"
 
 /* Global variables */
 bool using_ha_suspend;
@@ -68,7 +65,7 @@ lvs_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
 static void
 stop_check(int status)
 {
-	if (using_ha_suspend)
+	if (using_ha_suspend || __test_bit(LOG_ADDRESS_CHANGES, &debug))
 		kernel_netlink_close();
 
 	/* Terminate all script process */
@@ -109,8 +106,6 @@ stop_check(int status)
 	if (log_file_name)
 		close_log_file();
 	closelog();
-
-	FREE(config_id);
 
 #ifndef _MEM_CHECK_LOG_
 	FREE_PTR(check_syslog_ident);
@@ -271,7 +266,7 @@ sigend_check(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 static void
 check_signal_init(void)
 {
-	signal_handler_child_clear();
+	signal_handler_child_init();
 	signal_set(SIGHUP, sighup_check, NULL);
 	signal_set(SIGINT, sigend_check, NULL);
 	signal_set(SIGTERM, sigend_check, NULL);
@@ -399,3 +394,12 @@ start_check_child(void)
 	/* unreachable */
 	exit(EXIT_SUCCESS);
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_check_daemon_addresses(void)
+{
+	log_message(LOG_INFO, "Address of check_respawn_thread() is 0x%p", check_respawn_thread);
+	log_message(LOG_INFO, "Address of reload_check_thread() is 0x%p", reload_check_thread);
+}
+#endif

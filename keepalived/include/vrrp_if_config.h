@@ -23,6 +23,8 @@
 #ifndef _VRRP_IF_CONFIG_H
 #define _VRRP_IF_CONFIG_H 1
 
+#include "config.h"
+
 #include "vrrp_if.h"
 
 /* prototypes */
@@ -33,7 +35,7 @@ extern void restore_rp_filter(void);
 extern void set_interface_parameters(const interface_t*, interface_t*);
 extern void reset_interface_parameters(interface_t*);
 #endif
-extern void link_disable_ipv6(const interface_t*);
-extern int get_ipv6_forwarding(const interface_t*);
+extern void link_set_ipv6(const interface_t*, bool);
+extern bool get_ipv6_forwarding(const interface_t*);
 
 #endif

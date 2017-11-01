@@ -18,15 +18,13 @@
 
 #include "config.h"
 
-#include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
-#include <string.h>
 #include <errno.h>
-#include <netinet/in.h>
 #include <sys/socket.h>
-#include <arpa/inet.h>
+#include <string.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef LIBIPVS_USE_NL
 #include <netlink/netlink.h>

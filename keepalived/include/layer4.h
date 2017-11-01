@@ -24,14 +24,9 @@
 #define _LAYER4_H
 
 /* system includes */
-#include <unistd.h>
-#include <string.h>
-#include <stdint.h>
-#include <netdb.h>
-#include <arpa/inet.h>
-#include <sys/types.h>
 #include <sys/socket.h>
 #include <net/if.h>
+#include <stdbool.h>
 
 /* local includes */
 #include "scheduler.h"
@@ -67,7 +62,7 @@ extern enum connect_result
  socket_state(thread_t *, int (*func) (thread_t *));
 
 #ifdef _WITH_LVS_
-extern int
+extern bool
  socket_connection_state(int, enum connect_result
 		      , thread_t *, int (*func) (thread_t *)
 		      , unsigned long);
@@ -95,9 +90,9 @@ tcp_socket_state(thread_t * thread, int (*func) (thread_t *))
 }
 
 #ifdef _WITH_LVS_
-static inline int
+static inline bool
 tcp_connection_state(int fd, enum connect_result status, thread_t * thread,
-             int (*func) (thread_t *), unsigned long timeout)
+		     int (*func) (thread_t *), unsigned long timeout)
 {
 	return socket_connection_state(fd, status, thread, func, timeout);
 }

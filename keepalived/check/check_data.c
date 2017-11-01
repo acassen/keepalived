@@ -22,7 +22,6 @@
 
 #include "config.h"
 
-#include <netdb.h>
 #include <stdint.h>
 
 #include "check_data.h"
@@ -32,10 +31,11 @@
 #include "global_data.h"
 #include "check_ssl.h"
 #include "logger.h"
-#include "memory.h"
 #include "utils.h"
 #include "ipwrapper.h"
 #include "parser.h"
+#include "libipvs.h"
+#include "keepalived_magic.h"
 
 /* global vars */
 check_data_t *check_data = NULL;
@@ -300,10 +300,10 @@ dump_vs(void *data)
 	log_message(LOG_INFO, "   quorum = %u, hysteresis = %u", vs->quorum, vs->hysteresis);
 	if (vs->notify_quorum_up)
 		log_message(LOG_INFO, "   -> Notify script UP = %s, uid:gid %d:%d",
-			    vs->notify_quorum_up->name, vs->notify_quorum_up->uid, vs->notify_quorum_up->gid);
+			    vs->notify_quorum_up->cmd_str, vs->notify_quorum_up->uid, vs->notify_quorum_up->gid);
 	if (vs->notify_quorum_down)
 		log_message(LOG_INFO, "   -> Notify script DOWN = %s, uid:gid %d:%d",
-			    vs->notify_quorum_down->name, vs->notify_quorum_down->uid, vs->notify_quorum_down->gid);
+			    vs->notify_quorum_down->cmd_str, vs->notify_quorum_down->uid, vs->notify_quorum_down->gid);
 	if (vs->ha_suspend)
 		log_message(LOG_INFO, "   Using HA suspend");
 
@@ -461,10 +461,10 @@ dump_rs(void *data)
 
 	if (rs->notify_up)
 		log_message(LOG_INFO, "     -> Notify script UP = %s, uid:gid %d:%d",
-		       rs->notify_up->name, rs->notify_up->uid, rs->notify_up->gid);
+		       rs->notify_up->cmd_str, rs->notify_up->uid, rs->notify_up->gid);
 	if (rs->notify_down)
 		log_message(LOG_INFO, "     -> Notify script DOWN = %s, uid:gid %d:%d",
-		       rs->notify_down->name, rs->notify_down->uid, rs->notify_down->gid);
+		       rs->notify_down->cmd_str, rs->notify_down->uid, rs->notify_down->gid);
 	if (rs->virtualhost)
 		log_message(LOG_INFO, "    VirtualHost = %s", rs->virtualhost);
 }
@@ -582,35 +582,41 @@ check_check_script_security(void)
 	virtual_server_t *vs;
 	real_server_t *rs;
 	int script_flags;
+	magic_t magic;
 
 	if (LIST_ISEMPTY(check_data->vs))
 		return;
 
-	script_flags = check_misc_script_security();
+	magic = ka_magic_open();
+
+	script_flags = check_misc_script_security(magic);
 
 	for (e = LIST_HEAD(check_data->vs); e; ELEMENT_NEXT(e)) {
 		vs = ELEMENT_DATA(e);
 
-		script_flags |= check_notify_script_secure(&vs->notify_quorum_up, global_data->script_security, false);
-		script_flags |= check_notify_script_secure(&vs->notify_quorum_down, global_data->script_security, false);
+		script_flags |= check_notify_script_secure(&vs->notify_quorum_up, magic);
+		script_flags |= check_notify_script_secure(&vs->notify_quorum_down, magic);
 
 		for (e1 = LIST_HEAD(vs->rs); e1; ELEMENT_NEXT(e1)) {
 			rs = ELEMENT_DATA(e1);
 
-			script_flags |= check_notify_script_secure(&rs->notify_up, global_data->script_security, false);
-			script_flags |= check_notify_script_secure(&rs->notify_down, global_data->script_security, false);
+			script_flags |= check_notify_script_secure(&rs->notify_up, magic);
+			script_flags |= check_notify_script_secure(&rs->notify_down, magic);
 		}
 	}
 
 	if (global_data->notify_fifo.script)
-		script_flags |= check_notify_script_secure(&global_data->notify_fifo.script, global_data->script_security, false);
+		script_flags |= check_notify_script_secure(&global_data->notify_fifo.script, magic);
 	if (global_data->lvs_notify_fifo.script)
-		script_flags |= check_notify_script_secure(&global_data->lvs_notify_fifo.script, global_data->script_security, false);
+		script_flags |= check_notify_script_secure(&global_data->lvs_notify_fifo.script, magic);
 
-	if (!global_data->script_security && script_flags & SC_ISSCRIPT) {
+	if (!script_security && script_flags & SC_ISSCRIPT) {
 		log_message(LOG_INFO, "SECURITY VIOLATION - check scripts are being executed but script_security not enabled.%s",
 				script_flags & SC_INSECURE ? " There are insecure scripts." : "");
 	}
+
+	if (magic)
+		ka_magic_close(magic);
 }
 
 bool validate_check_config(void)
@@ -761,6 +767,12 @@ bool validate_check_config(void)
 			}
 		}
 	}
+
+	/* Add the FIFO name to the end of the parameter list */
+	if (global_data->notify_fifo.script)
+		add_script_param(global_data->notify_fifo.script, global_data->notify_fifo.name);
+	if (global_data->lvs_notify_fifo.script)
+		add_script_param(global_data->lvs_notify_fifo.script, global_data->lvs_notify_fifo.name);
 
 // ??? This should probably be done in check_daemon after clear_diff_services()
 	set_quorum_states();

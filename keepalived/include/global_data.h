@@ -23,13 +23,11 @@
 #ifndef _GLOBAL_DATA_H
 #define _GLOBAL_DATA_H
 
+#include "config.h"
+
 /* system includes */
-#include <stdlib.h>
-#include <string.h>
-#include <stdint.h>
-#include <sys/socket.h>
 #include <stdbool.h>
-#include <sys/types.h>
+#include <sys/socket.h>
 
 #ifdef HAVE_LINUX_NETFILTER_X_TABLES_H
 #include <linux/netfilter/x_tables.h>
@@ -41,6 +39,7 @@
 
 /* local includes */
 #include "list.h"
+#include "vrrp_if.h"
 #include "timer.h"
 #ifdef _WITH_VRRP_
 #include "vrrp.h"
@@ -73,6 +72,8 @@ typedef struct _data {
 	unsigned long			smtp_connection_to;
 	list				email;
 #ifdef _WITH_VRRP_
+	bool				dynamic_interfaces;
+	bool				email_faults;
 	interface_t			*default_ifp;		/* Default interface for static addresses */
 #endif
 #ifdef _WITH_LVS_
@@ -85,8 +86,8 @@ typedef struct _data {
 	bool				lvs_flush;		/* flush any residual LVS config at startup */
 #endif
 #ifdef _WITH_VRRP_
-	struct sockaddr_storage		vrrp_mcast_group4;
-	struct sockaddr_storage		vrrp_mcast_group6;
+	struct sockaddr_in		vrrp_mcast_group4;
+	struct sockaddr_in6		vrrp_mcast_group6;
 	unsigned			vrrp_garp_delay;
 	timeval_t			vrrp_garp_refresh;
 	unsigned			vrrp_garp_rep;
@@ -139,7 +140,6 @@ typedef struct _data {
 	bool				enable_dbus;
 	char				*dbus_service_name;
 #endif
-	bool				script_security;
 } data_t;
 
 /* Global vars exported */

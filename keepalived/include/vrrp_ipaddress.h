@@ -23,15 +23,10 @@
 #ifndef _VRRP_IPADDR_H
 #define _VRRP_IPADDR_H
 
+#include "config.h"
+
 /* global includes */
-#include <stdio.h>
-#include <stdlib.h>
-#ifndef _USE_GNU
-#define __USE_GNU 1
-#endif
 #include <netinet/in.h>
-#include <string.h>
-#include <syslog.h>
 #include <linux/if_addr.h>
 #include <stdbool.h>
 
@@ -39,7 +34,6 @@
 #include "vrrp_if.h"
 #include "list.h"
 #include "vector.h"
-#include "utils.h"
 
 /* types definition */
 typedef struct _ip_address {
@@ -80,8 +74,8 @@ typedef struct _ip_address {
 
 #define IP4_ISEQ(X,Y)   ((X)->u.sin.sin_addr.s_addr == (Y)->u.sin.sin_addr.s_addr	&& \
 			 (X)->ifa.ifa_prefixlen     == (Y)->ifa.ifa_prefixlen		&& \
-			 (X)->ifa.ifa_index         == (Y)->ifa.ifa_index		&& \
-			 (X)->ifa.ifa_scope         == (Y)->ifa.ifa_scope		&& \
+			 (X)->ifp		    == (Y)->ifp				&& \
+			 (X)->ifa.ifa_scope	    == (Y)->ifa.ifa_scope		&& \
 			 string_equal((X)->label, (Y)->label))
 
 #define IP6_ISEQ(X,Y)   ((X)->u.sin6_addr.s6_addr32[0] == (Y)->u.sin6_addr.s6_addr32[0]	&& \
@@ -89,13 +83,14 @@ typedef struct _ip_address {
 			 (X)->u.sin6_addr.s6_addr32[2] == (Y)->u.sin6_addr.s6_addr32[2]	&& \
 			 (X)->u.sin6_addr.s6_addr32[3] == (Y)->u.sin6_addr.s6_addr32[3]	&& \
 			 (X)->ifa.ifa_prefixlen     == (Y)->ifa.ifa_prefixlen		&& \
-			 (X)->ifa.ifa_index         == (Y)->ifa.ifa_index		&& \
-			 (X)->ifa.ifa_scope         == (Y)->ifa.ifa_scope		&& \
+			 (X)->ifp		    == (Y)->ifp				&& \
+			 (X)->ifa.ifa_scope	    == (Y)->ifa.ifa_scope		&& \
 			 string_equal((X)->label, (Y)->label))
 
 #define IP_ISEQ(X,Y)    (!(X) && !(Y) ? true : !(X) != !(Y) ? false : (IP_FAMILY(X) != IP_FAMILY(Y) ? false : IP_IS6(X) ? IP6_ISEQ(X, Y) : IP4_ISEQ(X, Y)))
 
-struct ipt_handle;	// AAGH - TODO
+/* Forward reference */
+struct ipt_handle;
 
 /* prototypes */
 extern char *ipaddresstos(char *, ip_address_t *);

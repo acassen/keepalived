@@ -24,13 +24,13 @@
 
 #include "config.h"
 
+#include <errno.h>
+#include <unistd.h>
 #include <time.h>
 
 #include "smtp.h"
-#include "global_data.h"
-#include "scheduler.h"
 #include "memory.h"
-#include "list.h"
+#include "layer4.h"
 #include "logger.h"
 #include "utils.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
@@ -587,11 +587,16 @@ smtp_connect(smtp_t * smtp)
 {
 	enum connect_result status;
 
-	if ((smtp->fd = socket(global_data->smtp_server.ss_family, SOCK_STREAM | SOCK_CLOEXEC, IPPROTO_TCP)) == -1) {
+	if ((smtp->fd = socket(global_data->smtp_server.ss_family, SOCK_STREAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_TCP)) == -1) {
 		DBG("SMTP connect fail to create socket.");
 		free_smtp_all(smtp);
 		return;
 	}
+
+#if !HAVE_DECL_SOCK_NONBLOCK
+	if (set_sock_flags(smtp->fd, F_SETFL, O_NONBLOCK))
+		log_message(LOG_INFO, "Unable to set NONBLOCK on smtp_connect socket - %s (%d)", strerror(errno), errno);
+#endif
 
 #if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(smtp->fd, F_SETFD, FD_CLOEXEC))
@@ -666,3 +671,22 @@ smtp_alert(
 		smtp_connect(smtp);
 	}
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_smtp_addresses(void)
+{
+	log_message(LOG_INFO, "Address of body_cmd() is 0x%p", body_cmd);
+	log_message(LOG_INFO, "Address of connection_error() is 0x%p", connection_error);
+	log_message(LOG_INFO, "Address of connection_in_progress() is 0x%p", connection_in_progress);
+	log_message(LOG_INFO, "Address of connection_success() is 0x%p", connection_success);
+	log_message(LOG_INFO, "Address of connection_timeout() is 0x%p", connection_timeout);
+	log_message(LOG_INFO, "Address of data_cmd() is 0x%p", data_cmd);
+	log_message(LOG_INFO, "Address of helo_cmd() is 0x%p", helo_cmd);
+	log_message(LOG_INFO, "Address of mail_cmd() is 0x%p", mail_cmd);
+	log_message(LOG_INFO, "Address of quit_cmd() is 0x%p", quit_cmd);
+	log_message(LOG_INFO, "Address of rcpt_cmd() is 0x%p", rcpt_cmd);
+	log_message(LOG_INFO, "Address of smtp_read_thread() is 0x%p", smtp_read_thread);
+	log_message(LOG_INFO, "Address of smtp_send_thread() is 0x%p", smtp_send_thread);
+}
+#endif

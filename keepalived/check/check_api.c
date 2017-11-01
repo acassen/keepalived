@@ -22,14 +22,12 @@
 
 #include "config.h"
 
-#include <dirent.h>
 #include <dlfcn.h>
 #include <stdint.h>
 
 #include "check_api.h"
 #include "main.h"
 #include "parser.h"
-#include "memory.h"
 #include "utils.h"
 #include "logger.h"
 #include "bitops.h"
@@ -41,6 +39,8 @@
 #include "check_http.h"
 #include "check_ssl.h"
 #include "check_dns.h"
+#include "ipwrapper.h"
+#include "check_daemon.h"
 
 /* Global vars */
 list checkers_queue;
@@ -432,7 +432,7 @@ static bool
 addr_matches(const virtual_server_t *vs, void *address)
 {
 	void *addr;
-        virtual_server_group_entry_t *vsg_entry;
+	virtual_server_group_entry_t *vsg_entry;
 
 	if (vs->addr.ss_family != AF_UNSPEC) {
 		if (vs->addr.ss_family == AF_INET6)
@@ -520,54 +520,54 @@ update_checker_activity(sa_family_t family, void *address, bool enable)
 	char addr_str[INET6_ADDRSTRLEN];
 	bool address_logged = false;
 
-	/* Display netlink operation */
 	if (__test_bit(LOG_ADDRESS_CHANGES, &debug)) {
 		inet_ntop(family, address, addr_str, sizeof(addr_str));
 		log_message(LOG_INFO, "Netlink reflector reports IP %s %s"
 				    , addr_str, (enable) ? "added" : "removed");
-
 		address_logged = true;
 	}
 
 	if (!using_ha_suspend)
 		return;
 
+	if (LIST_ISEMPTY(checkers_queue))
+		return;
+
 	/* Processing Healthcheckers queue */
-	if (!LIST_ISEMPTY(checkers_queue)) {
-		for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
-			checker = ELEMENT_DATA(e);
+	for (e = LIST_HEAD(checkers_queue); e; ELEMENT_NEXT(e)) {
+		checker = ELEMENT_DATA(e);
 
-			if (!CHECKER_HA_SUSPEND(checker))
-				continue;
+		if (!CHECKER_HA_SUSPEND(checker))
+			continue;
 
-			/* If there is no address configured, the family will be AF_UNSPEC */
-			if (checker->vs->af != family)
-				continue;
+		/* If there is no address configured, the family will be AF_UNSPEC */
+		if (checker->vs->af != family)
+			continue;
 
-			/* If we have that same address (IPv6 link local) on multiple interfaces,
-			 * we want to count them multiple times so that we only suspend the checkers
-			 * if they are all deleted */
-			if (addr_matches(checker->vs, address)) {
-				if (!address_logged &&
-				    __test_bit(LOG_DETAIL_BIT, &debug)) {
-					inet_ntop(family, address, addr_str, sizeof(addr_str));
-					log_message(LOG_INFO, "Netlink reflector reports IP %s %s"
-							    , addr_str, (enable) ? "added" : "removed");
-				}
-				address_logged = true;
-
-				if (enable)
-					checker->vs->ha_suspend_addr_count++;
-				else
-					checker->vs->ha_suspend_addr_count--;
+		/* If we have that same address (IPv6 link local) on multiple interfaces,
+		 * we want to count them multiple times so that we only suspend the checkers
+		 * if they are all deleted */
+		if (addr_matches(checker->vs, address)) {
+			if (!address_logged &&
+			    __test_bit(LOG_DETAIL_BIT, &debug) &&
+			    !__test_bit(LOG_ADDRESS_CHANGES, &debug)) {
+				inet_ntop(family, address, addr_str, sizeof(addr_str));
+				log_message(LOG_INFO, "Netlink reflector reports IP %s %s"
+						    , addr_str, (enable) ? "added" : "removed");
 			}
+			address_logged = true;
 
-			if ((!(checker->vs->ha_suspend_addr_count)) == checker->enabled) {
-				log_message(LOG_INFO, "%sing healthchecker for service %s",
-							!checker->enabled ? "Activat" : "Suspend",
-							FMT_VS(checker->vs));
-				checker->enabled = enable;
-			}
+			if (enable)
+				checker->vs->ha_suspend_addr_count++;
+			else
+				checker->vs->ha_suspend_addr_count--;
+		}
+
+		if ((!(checker->vs->ha_suspend_addr_count)) == checker->enabled) {
+			log_message(LOG_INFO, "%sing healthchecker for service %s",
+						!checker->enabled ? "Activat" : "Suspend",
+						FMT_VS(checker->vs));
+			checker->enabled = enable;
 		}
 	}
 }

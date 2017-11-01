@@ -24,14 +24,13 @@
 
 #include "config.h"
 
-#include <netdb.h>
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include <unistd.h>
-#include <sys/types.h>
 #include <pwd.h>
 #include <grp.h>
+#include <ctype.h>
 
 #ifdef _WITH_SNMP_
 #include "snmp.h"
@@ -41,7 +40,6 @@
 #include "global_data.h"
 #include "main.h"
 #include "parser.h"
-#include "memory.h"
 #include "smtp.h"
 #include "utils.h"
 #include "logger.h"
@@ -76,6 +74,18 @@ smtpto_handler(vector_t *strvec)
 {
 	global_data->smtp_connection_to = strtoul(strvec_slot(strvec, 1), NULL, 10) * TIMER_HZ;
 }
+#ifdef _WITH_VRRP_
+static void
+dynamic_interfaces_handler(__attribute__((unused))vector_t *strvec)
+{
+	global_data->dynamic_interfaces = true;
+}
+static void
+email_faults_handler(__attribute__((unused))vector_t *strvec)
+{
+	global_data->email_faults = true;
+}
+#endif
 static void
 smtpserver_handler(vector_t *strvec)
 {
@@ -86,7 +96,7 @@ smtpserver_handler(vector_t *strvec)
 	if (vector_size(strvec) >= 3)
 		port_str = strvec_slot(strvec,2);
 
-	/* It can't be an IP address if it contains '-' or '/', and 
+	/* It can't be an IP address if it contains '-' or '/', and
 	   inet_stosockaddr() modifies the string if it contains either of them */
 	if (!strpbrk(strvec_slot(strvec, 1), "-/"))
 		ret = inet_stosockaddr(strvec_slot(strvec, 1), port_str, &global_data->smtp_server);
@@ -133,11 +143,11 @@ default_interface_handler(vector_t *strvec)
 		log_message(LOG_INFO, "default_interface requires interface name");
 		return;
 	}
-	ifp = if_get_by_ifname(strvec_slot(strvec, 1));
+	ifp = if_get_by_ifname(strvec_slot(strvec, 1), IF_CREATE_IF_DYNAMIC);
 	if (!ifp)
-		log_message(LOG_INFO, "Cannot find default interface %s", FMT_STR_VSLOT(strvec, 1));
-	else
-		global_data->default_ifp = ifp;
+		log_message(LOG_INFO, "WARNING - default interface %s doesn't exist", ifp->ifname);
+
+	global_data->default_ifp = ifp;
 }
 #endif
 #ifdef _WITH_LVS_
@@ -321,10 +331,10 @@ lvs_flush_handler(__attribute__((unused)) vector_t *strvec)
 static void
 vrrp_mcast_group4_handler(vector_t *strvec)
 {
-	struct sockaddr_storage *mcast = &global_data->vrrp_mcast_group4;
+	struct sockaddr_in *mcast = &global_data->vrrp_mcast_group4;
 	int ret;
 
-	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, mcast);
+	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, (struct sockaddr_storage *)mcast);
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: Cant parse vrrp_mcast_group4 [%s]. Skipping"
 				   , FMT_STR_VSLOT(strvec, 1));
@@ -333,10 +343,10 @@ vrrp_mcast_group4_handler(vector_t *strvec)
 static void
 vrrp_mcast_group6_handler(vector_t *strvec)
 {
-	struct sockaddr_storage *mcast = &global_data->vrrp_mcast_group6;
+	struct sockaddr_in6 *mcast = &global_data->vrrp_mcast_group6;
 	int ret;
 
-	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, mcast);
+	ret = inet_stosockaddr(strvec_slot(strvec, 1), 0, (struct sockaddr_storage *)mcast);
 	if (ret < 0) {
 		log_message(LOG_ERR, "Configuration error: Cant parse vrrp_mcast_group6 [%s]. Skipping"
 				   , FMT_STR_VSLOT(strvec, 1));
@@ -573,7 +583,7 @@ notify_fifo_script(vector_t *strvec, const char *type, notify_fifo_t *fifo)
 	id_str = MALLOC(strlen(type) + strlen("notify_fifo"));
 	strcpy(id_str, type);
 	strcat(id_str, "notify_fifo");
-	fifo->script = notify_script_init(strvec, id_str, global_data->script_security);
+	fifo->script = notify_script_init(strvec, true, id_str);
 
 	FREE(id_str);
 }
@@ -710,7 +720,7 @@ static void
 net_namespace_handler(vector_t *strvec)
 {
 	/* If we are reloading, there has already been a check that the
-	 * namespace hasn't changed */ 
+	 * namespace hasn't changed */
 	if (!reload) {
 		if (!network_namespace) {
 			network_namespace = set_value(strvec);
@@ -788,14 +798,14 @@ script_user_handler(vector_t *strvec)
 		return;
 	}
 
-	if (set_default_script_user(strvec_slot(strvec, 1), vector_size(strvec) > 2 ? strvec_slot(strvec, 2) : NULL, true))
+	if (set_default_script_user(strvec_slot(strvec, 1), vector_size(strvec) > 2 ? strvec_slot(strvec, 2) : NULL))
 		log_message(LOG_INFO, "Error setting global script uid/gid");
 }
 
 static void
 script_security_handler(__attribute__((unused)) vector_t *strvec)
 {
-	global_data->script_security = true;
+	script_security = true;
 }
 
 void
@@ -817,6 +827,8 @@ init_global_keywords(bool global_active)
 	install_keyword("smtp_connect_timeout", &smtpto_handler);
 	install_keyword("notification_email", &email_handler);
 #ifdef _WITH_VRRP_
+	install_keyword("dynamic_interfaces", &dynamic_interfaces_handler);
+	install_keyword("email_faults", &email_faults_handler);
 	install_keyword("default_interface", &default_interface_handler);
 #endif
 #ifdef _WITH_LVS_

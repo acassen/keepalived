@@ -30,7 +30,6 @@
 
 #include "config.h"
 
-#include <unistd.h>
 #define LIBIPSET_NFPROTO_H
 #define LIBIPSET_NF_INET_ADDR_H
 #if defined LIBIPSET_H_ADD_UAPI_IP_SET_H_GUARD || defined LIBIPSET_H_ADD_IP_SET_H_GUARD
@@ -53,8 +52,7 @@
 #include "global_data.h"
 #include "vrrp_iptables.h"
 #include "vrrp_ipset.h"
-#include "vrrp_ipaddress.h"
-#include "vrrp.h"
+#include "vrrp_iptables_calls.h"
 #include "main.h"
 
 #ifdef _LIBIPSET_DYNAMIC_
@@ -153,7 +151,7 @@ bool
 has_ipset_setname(void* vsession, const char *setname)
 {
 	struct ipset_session *session = vsession;
- 
+
 	ipset_session_data_set(session, IPSET_SETNAME, setname);
 
 	return ipset_cmd1(session, IPSET_CMD_HEADER, 0) == 0;

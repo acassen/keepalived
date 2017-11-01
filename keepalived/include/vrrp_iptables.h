@@ -23,13 +23,10 @@
 #ifndef _VRRP_IPTABLES_H
 #define _VRRP_IPTABLES_H
 
+#include "config.h"
+
 #include <stdbool.h>
 
-#ifdef _HAVE_LIBIPTC_
-#include <libiptc/libxtc.h>
-#endif
-
-#include "vrrp_iptables_calls.h"
 #include "vrrp_ipaddress.h"
 
 struct ipt_handle;
@@ -47,6 +44,7 @@ void iptables_startup(bool);
 void iptables_cleanup(void);
 struct ipt_handle *iptables_open(void);
 int iptables_close(struct ipt_handle *h);
+extern void check_chains_exist_lib(void);
 void handle_iptable_rule_to_vip_lib(ip_address_t *, int, struct ipt_handle *, bool);
 
 #endif

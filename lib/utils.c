@@ -22,23 +22,34 @@
 
 #include "config.h"
 
-#include <sys/wait.h>
+/* System includes */
+#include <string.h>
 #include <unistd.h>
 #include <fcntl.h>
+#include <stdlib.h>
+#include <netdb.h>
+#include <arpa/inet.h>
+#include <sys/utsname.h>
 #include <stdint.h>
 
-#ifdef _WITH_STACKTRACE_
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <execinfo.h>
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+#include <signal.h>
+#include <sys/wait.h>
 #endif
 
+#ifdef _WITH_STACKTRACE_
+#include <sys/stat.h>
+#include <execinfo.h>
+#include <memory.h>
+#endif
+
+/* Local includes */
+#include "utils.h"
 #include "memory.h"
 #include "utils.h"
 #include "signals.h"
 #include "bitops.h"
-#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_ || defined _WITH_STACKTRACE_
 #include "logger.h"
 #endif
 
@@ -92,16 +103,32 @@ dump_buffer(char *buff, size_t count, FILE* fp)
 void
 write_stacktrace(const char *file_name)
 {
-	int fd = open(file_name, O_WRONLY | O_APPEND | O_CREAT, 0644);
+	int fd;
 	void *buffer[100];
 	int nptrs;
+	int i;
+	char **strs;
 
 	nptrs = backtrace(buffer, 100);
-	backtrace_symbols_fd(buffer, nptrs, fd);
-	if (write(fd, "\n", 1) != 1) {
-		/* We don't care, but this stops a warning on Ubuntu */
+	if (file_name) {
+		fd = open(file_name, O_WRONLY | O_APPEND | O_CREAT, 0644);
+		backtrace_symbols_fd(buffer, nptrs, fd);
+		if (write(fd, "\n", 1) != 1) {
+			/* We don't care, but this stops a warning on Ubuntu */
+		}
+		close(fd);
+	} else {
+		strs = backtrace_symbols(buffer, nptrs);
+		if (strs == NULL) {
+			log_message(LOG_INFO, "Unable to get stack backtrace");
+			return;
+		}
+
+		/* We don't need the call to this function, or the first two entries on the stack */
+		for (i = 1; i < nptrs - 2; i++)
+			log_message(LOG_INFO, "  %s", strs[i]);
+		free(strs);
 	}
-	close(fd);
 }
 #endif
 
@@ -272,13 +299,6 @@ inet_ip6tosockaddr(struct in6_addr *sin_addr, struct sockaddr_storage *addr)
 	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
 	addr6->sin6_family = AF_INET6;
 	addr6->sin6_addr = *sin_addr;
-}
-
-void
-inet_ip6scopeid(uint32_t ifindex, struct sockaddr_storage *addr)
-{
-	struct sockaddr_in6 *addr6 = (struct sockaddr_in6 *) addr;
-	addr6->sin6_scope_id = ifindex;
 }
 
 /* IP network to string representation */
@@ -552,7 +572,7 @@ set_std_fd(bool force)
 		}
 	}
 
-	signal_pipe_close(STDERR_FILENO+1);
+	signal_fd_close(STDERR_FILENO+1);
 }
 
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_

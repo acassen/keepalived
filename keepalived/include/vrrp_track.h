@@ -24,22 +24,15 @@
 #define _VRRP_TRACK_H
 
 /* global includes */
-#include <stdio.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <syslog.h>
 #include <stdbool.h>
 #include <sys/types.h>
 
 /* local includes */
 #include "vector.h"
 #include "list.h"
+#include "vrrp_if.h"
+#include "vrrp.h"
 #include "notify.h"
-
-/* Macro definition */
-#define TRACK_ISUP(L)	(vrrp_tracked_up((L)))
-#define SCRIPT_ISUP(L)	(vrrp_script_up((L)))
 
 /* VRRP script tracking defaults */
 #define VRRP_SCRIPT_DI 1	/* external script track interval (in sec) */
@@ -54,40 +47,80 @@
  * rise-1.
  */
 
+/* If a VRRP instance doesn't track it's own interface, we still
+ * want the interface to have a reference to the VRRP instance,
+ * but it needs to know the instance isn't tracking it. */
+#define	VRRP_NOT_TRACK_IF	255
+
 /* external script we call to track local processes */
 typedef struct _vrrp_script {
 	char			*sname;		/* instance name */
-	char			*script;	/* the command to be called */
+	notify_script_t		script;		/* The script details */
 	unsigned long		interval;	/* interval between script calls */
 	unsigned long		timeout;	/* microseconds before script timeout */
 	int			weight;		/* weight associated to this script */
 	int			result;		/* result of last call to this script: 0..R-1 = KO, R..R+F-1 = OK */
-	int			inuse;		/* how many users have weight>0 ? */
 	int			rise;		/* R: how many successes before OK */
 	int			fall;		/* F: how many failures before KO */
+	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this script */
+	int			last_status;	/* Last status returned by script. Used to report changes */
 	script_state_t		state;		/* current state of script */
 	script_init_state_t	init_state;	/* current initialisation state of script */
-	uid_t			uid;		/* uid to run script as */
-	gid_t			gid;		/* gid to run script as */
 	bool			insecure;	/* Set if script is run by root, but is non-root modifiable */
 } vrrp_script_t;
 
 /* Tracked script structure definition */
 typedef struct _tracked_sc {
-	int			weight;		/* tracking weight when non-zero */
 	vrrp_script_t		*scr;		/* script pointer, cannot be NULL */
+	int			weight;		/* tracking weight when non-zero */
 } tracked_sc_t;
 
+/* external file we read to track local processes */
+typedef struct _vrrp_file {
+	char			*fname;		/* File name */
+	char			*file_path;	/* Path to file */
+	char			*file_part;	/* Pointer to start of filename without directories */
+	int			weight;		/* Default weight */
+	int			wd;		/* Watch descriptor */
+	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this file */
+	int			last_status;	/* Last status returned by file. Used to report changes */
+} vrrp_tracked_file_t;
+
+/* Tracked file structure definition */
+typedef struct _tracked_file {
+	vrrp_tracked_file_t	*file;		/* track file pointer, cannot be NULL */
+	int			weight;		/* Multiplier for file value */
+} tracked_file_t;
+
+/* Forward references */
+struct _vrrp_t;
+struct _vrrp_sgroup;
+
+/* List structure from scripts, files and interfaces to tracking vrrp */
+typedef struct _tracking_vrrp {
+	int			weight;		/* Tracking weight, or zero for down instance */
+	struct _vrrp_t		*vrrp;		/* The vrrp instance */
+} tracking_vrrp_t;
+
 /* prototypes */
-extern void dump_track(void *);
-extern void alloc_track(list, vector_t *);
+extern void dump_track_if(void *);
+extern void free_track_if(void *);
+extern void alloc_track_if(struct _vrrp_t *, vector_t *);
+extern void alloc_group_track_if(struct _vrrp_sgroup *, vector_t *);
 extern void dump_track_script(void *);
-extern void alloc_track_script(list, vector_t *, const char *);
-extern int vrrp_tracked_up(list);
-extern void vrrp_log_tracked_down(list);
-extern int vrrp_tracked_weight(list);
-extern int vrrp_script_up(list);
-extern int vrrp_script_weight(list);
+extern void free_track_script(void *);
+extern void alloc_track_script(struct _vrrp_t *, vector_t *);
+extern void alloc_group_track_script(struct _vrrp_sgroup *, vector_t *);
+extern void dump_track_file(void *);
+extern void free_track_file(void *);
+extern void alloc_track_file(struct _vrrp_t *, vector_t *);
+extern void alloc_group_track_file(struct _vrrp_sgroup *, vector_t *);
 extern vrrp_script_t *find_script_by_name(char *);
+extern void update_script_priorities(vrrp_script_t *, bool);
+extern void down_instance(struct _vrrp_t *);
+extern void vrrp_set_effective_priority(struct _vrrp_t *);
+extern void initialise_tracking_priorities(struct _vrrp_t *);
+extern void init_track_files(list);
+extern void stop_track_files(void);
 
 #endif

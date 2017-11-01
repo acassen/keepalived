@@ -23,7 +23,8 @@
 
 #include "config.h"
 
-#include <strings.h>
+#include <errno.h>
+#include <unistd.h>
 #include <stdint.h>
 
 #include "check_dns.h"
@@ -34,11 +35,10 @@
 #include "smtp.h"
 #include "utils.h"
 #include "parser.h"
-#include "timer.h"
 #if !HAVE_DECL_SOCK_CLOEXEC
 #include "old_socket.h"
-#include "string.h"
 #endif
+#include "layer4.h"
 
 #ifdef _DEBUG_
 #define DNS_DBG(args...) dns_log_message(thread, LOG_DEBUG, ## args)
@@ -200,14 +200,14 @@ dns_recv_thread(thread_t * thread)
 	flags = ntohs(r_header->flags);
 
 	if (!DNS_QR(flags)) {
-		DNS_DBG("recieve query message?");
+		DNS_DBG("receive query message?");
 		thread_add_read(thread->master, dns_recv_thread, checker,
 				thread->u.fd, timeout);
 		return 0;
 	}
 
 	if ((rcode = DNS_RC(flags)) != 0) {
-		dns_final(thread, 1, "error occurread. (rcode = %d)", rcode);
+		dns_final(thread, 1, "read error occurred. (rcode = %d)", rcode);
 		return 0;
 	}
 
@@ -328,8 +328,6 @@ dns_check_thread(thread_t * thread)
 		break;
 	case connect_success:
 		dns_make_query(thread);
-		fcntl(thread->u.fd, F_SETFL,
-		      fcntl(thread->u.fd, F_GETFL, 0) | O_NONBLOCK);
 		timeout = timer_long(thread->sands) - timer_long(time_now);
 		thread_add_write(thread->master, dns_send_thread, checker,
 				 thread->u.fd, timeout);
@@ -353,13 +351,21 @@ dns_connect_thread(thread_t * thread)
 		return 0;
 	}
 
-	if ((fd = socket(co->dst.ss_family, SOCK_DGRAM | SOCK_CLOEXEC, IPPROTO_UDP)) == -1) {
+	if ((fd = socket(co->dst.ss_family, SOCK_DGRAM | SOCK_CLOEXEC | SOCK_NONBLOCK, IPPROTO_UDP)) == -1) {
 		dns_log_message(thread, LOG_INFO,
 				"failed to create socket. Rescheduling.");
 		thread_add_timer(thread->master, dns_connect_thread, checker,
 				 checker->delay_loop);
 		return 0;
 	}
+
+#if !HAVE_DECL_SOCK_NONBLOCK
+	if (set_sock_flags(fd, F_SETFL, O_NONBLOCK))
+		dns_log_message(thread, LOG_INFO,
+				"unable to set NONBLOCK on socket - %s (%d)",
+				strerror(errno), errno);
+#endif
+
 #if !HAVE_DECL_SOCK_CLOEXEC
 	if (set_sock_flags(fd, F_SETFD, FD_CLOEXEC))
 		dns_log_message(thread, LOG_INFO,
@@ -472,3 +478,15 @@ install_dns_check_keyword(void)
 	install_sublevel_end_handler(dns_check_end);
 	install_sublevel_end();
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_check_dns_addresses(void)
+{
+	log_message(LOG_INFO, "Address of dns_check_thread() is 0x%p", dns_check_thread);
+	log_message(LOG_INFO, "Address of dns_connect_thread() is 0x%p", dns_connect_thread);
+	log_message(LOG_INFO, "Address of dns_dump() is 0x%p", dns_dump);
+	log_message(LOG_INFO, "Address of dns_recv_thread() is 0x%p", dns_recv_thread);
+	log_message(LOG_INFO, "Address of dns_send_thread() is 0x%p", dns_send_thread);
+}
+#endif

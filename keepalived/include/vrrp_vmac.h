@@ -24,16 +24,11 @@
 #define _VRRP_VMAC_H
 
 /* global includes */
-#include <stdio.h>
-#include <stdlib.h>
-#include <arpa/inet.h>
-#include <string.h>
-#include <syslog.h>
+#include <sys/types.h>
 #include <net/ethernet.h>
 
 /* local includes */
 #include "vrrp.h"
-#include "vrrp_if.h"
 
 /* Defines */
 enum vrrp_vmac_bits {
@@ -46,6 +41,11 @@ extern const char * const macvlan_ll_kind;
 extern u_char ll_addr[ETH_ALEN];
 
 /* prototypes */
+extern bool add_link_local_address(interface_t *, struct in6_addr*);
+extern bool replace_link_local_address(interface_t *);
+#if !HAVE_DECL_IFLA_INET6_ADDR_GEN_MODE
+extern void remove_vmac_auto_gen_addr(interface_t *, struct in6_addr *);
+#endif
 extern int netlink_link_add_vmac(vrrp_t *);
 extern int netlink_link_del_vmac(vrrp_t *);
 

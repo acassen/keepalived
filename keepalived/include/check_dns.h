@@ -24,10 +24,8 @@
 #ifndef _CHECK_DNS_CHECK_H
 #define _CHECK_DNS_CHECK_H
 
-#include <stddef.h>
 #include <stdint.h>
-
-#include "scheduler.h"
+#include <sys/types.h>
 
 #define DNS_DEFAULT_RETRY    3
 #define DNS_DEFAULT_TYPE  DNS_TYPE_SOA

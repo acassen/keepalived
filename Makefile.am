@@ -11,10 +11,10 @@ export			DEBUG_LDFLAGS
 edit = echo "  EDIT     $@"; \
 	 sed -e "/^\[\!\[/d"
 
-SUBDIRS 		= lib keepalived doc
+SUBDIRS			= lib keepalived doc
 
 if BUILD_GENHASH
-  SUBDIRS 		+= genhash
+  SUBDIRS		+= genhash
 endif
 
 SUBDIRS			+= bin_install

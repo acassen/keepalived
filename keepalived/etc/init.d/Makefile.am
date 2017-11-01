@@ -19,8 +19,8 @@ keepalived.suse.init: Makefile
 keepalived.suse.init: $(srcdir)/keepalived.suse.init.in
 
 if INIT_SYSV
-initdir                 = $(sysconfdir)/rc.d/init.d
-init_DATA               = keepalived
+initdir			= $(sysconfdir)/rc.d/init.d
+init_DATA		= keepalived
 endif
 
 if INIT_SUSE

@@ -22,13 +22,12 @@
 
 #include "config.h"
 
+#include <unistd.h>
+
 #include "ipwrapper.h"
-#include "ipvswrapper.h"
 #include "check_api.h"
 #include "logger.h"
-#include "memory.h"
 #include "utils.h"
-#include "notify.h"
 #include "main.h"
 #ifdef _WITH_SNMP_CHECKER_
   #include "check_snmp.h"
@@ -143,13 +142,8 @@ clear_service_rs(virtual_server_t * vs, list l)
 		/* In Omega mode we call VS and RS down notifiers
 		 * all the way down the exit, as necessary.
 		 */
-		if (rs->notify_down) {
-			log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
-					    , rs->notify_down->name
-					    , FMT_RS(rs, vs)
-					    , FMT_VS(vs));
+		if (rs->notify_down)
 			notify_exec(rs->notify_down);
-		}
 		notify_fifo_rs(vs, rs, false);
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_rs_trap(rs, vs);
@@ -163,12 +157,8 @@ clear_service_rs(virtual_server_t * vs, list l)
 		if (vs->quorum_state_up &&
 		    (!weight_sum || weight_sum < down_threshold)) {
 			vs->quorum_state_up = false;
-			if (vs->notify_quorum_down) {
-				log_message(LOG_INFO, "Executing [%s] for VS %s"
-						    , vs->notify_quorum_down->name
-						    , FMT_VS(vs));
+			if (vs->notify_quorum_down)
 				notify_exec(vs->notify_quorum_down);
-			}
 			notify_fifo_vs(vs, false);
 #ifdef _WITH_SNMP_CHECKER_
 			check_snmp_quorum_trap(vs);
@@ -348,12 +338,8 @@ update_quorum_state(virtual_server_t * vs)
 			ipvs_cmd(LVS_CMD_DEL_DEST, vs, vs->s_svr);
 			vs->s_svr->alive = false;
 		}
-		if (vs->notify_quorum_up) {
-			log_message(LOG_INFO, "Executing [%s] for VS %s"
-					    , vs->notify_quorum_up->name
-					    , FMT_VS(vs));
+		if (vs->notify_quorum_up)
 			notify_exec(vs->notify_quorum_up);
-		}
 		notify_fifo_vs(vs, true);
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_quorum_trap(vs);
@@ -387,12 +373,8 @@ update_quorum_state(virtual_server_t * vs)
 			perform_quorum_state(vs, false);
 		}
 
-		if (vs->notify_quorum_down) {
-			log_message(LOG_INFO, "Executing [%s] for VS %s"
-					    , vs->notify_quorum_down->name
-					    , FMT_VS(vs));
+		if (vs->notify_quorum_down)
 			notify_exec(vs->notify_quorum_down);
-		}
 		notify_fifo_vs(vs, false);
 #ifdef _WITH_SNMP_CHECKER_
 		check_snmp_quorum_trap(vs);
@@ -429,13 +411,8 @@ perform_svr_state(bool alive, virtual_server_t * vs, real_server_t * rs)
 	}
 	rs->alive = alive;
 	notify_script = alive ? rs->notify_up : rs->notify_down;
-	if (notify_script) {
-		log_message(LOG_INFO, "Executing [%s] for service %s in VS %s"
-				    , notify_script->name
-				    , FMT_RS(rs, vs)
-				    , FMT_VS(vs));
+	if (notify_script)
 		notify_exec(notify_script);
-	}
 	notify_fifo_rs(vs, rs, alive);
 #ifdef _WITH_SNMP_CHECKER_
 	check_snmp_rs_trap(rs, vs);

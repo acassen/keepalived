@@ -28,6 +28,8 @@
 #include <stdio.h>
 #include <json.h>
 
+#include "vrrp.h"
+#include "vrrp_track.h"
 #include "list.h"
 #include "vrrp_data.h"
 #include "vrrp_iproute.h"
@@ -106,7 +108,7 @@ vrrp_print_json(void)
 				tracked_sc_t *tsc = ELEMENT_DATA(f);
 				vrrp_script_t *vscript = tsc->scr;
 				json_object_array_add(track_script,
-					json_object_new_string(vscript->script));
+					json_object_new_string(vscript->script.cmd_str));
 			}
 		}
 		json_object_object_add(json_data, "track_script", track_script);
@@ -215,19 +217,19 @@ vrrp_print_json(void)
 			json_object_new_int(vrrp->version));
 		if (vrrp->script_backup) 
 		json_object_object_add(json_data, "script_backup",
-			json_object_new_string(vrrp->script_backup->name));
+			json_object_new_string(vrrp->script_backup->cmd_str));
 		if (vrrp->script_master)
 		json_object_object_add(json_data, "script_master",
-			json_object_new_string(vrrp->script_master->name));
+			json_object_new_string(vrrp->script_master->cmd_str));
 		if (vrrp->script_fault)
 		json_object_object_add(json_data, "script_fault",
-			json_object_new_string(vrrp->script_fault->name));
+			json_object_new_string(vrrp->script_fault->cmd_str));
 		if (vrrp->script_stop)
 		json_object_object_add(json_data, "script_stop",
-			json_object_new_string(vrrp->script_stop->name));
+			json_object_new_string(vrrp->script_stop->cmd_str));
 		if (vrrp->script)
 		json_object_object_add(json_data, "script",
-			json_object_new_string(vrrp->script->name));
+			json_object_new_string(vrrp->script->cmd_str));
 		json_object_object_add(json_data, "smtp_alert",
 			json_object_new_boolean(vrrp->smtp_alert));
 #ifdef _WITH_VRRP_AUTH_

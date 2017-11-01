@@ -22,6 +22,10 @@
 
 #include "config.h"
 
+/* Global include */
+#include <errno.h>
+#include <arpa/inet.h>
+
 /* local include */
 #include "vrrp_ipaddress.h"
 #ifdef _HAVE_LIBIPTC_
@@ -31,17 +35,18 @@
 #include "keepalived_netlink.h"
 #include "vrrp_data.h"
 #include "logger.h"
-#include "memory.h"
 #include "utils.h"
 #include "bitops.h"
 #include "global_data.h"
 #include "rttables.h"
+#include "memory.h"
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 #include "utils.h"
 #endif
-#ifdef _LIBIPTC_DYNAMIC_
+#ifdef _WITH_LIBIPTC_
 #include "vrrp_iptables.h"
 #endif
+
 
 #define INFINITY_LIFE_TIME      0xFFFFFFFF
 
@@ -83,6 +88,21 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 #else
 	uint8_t ifa_flags;
 #endif
+
+	if (cmd == IPADDRESS_ADD) {
+		/* We can't add the address if the interface doesn't exist */
+		if (!ipaddress->ifp->ifindex) {
+			log_message(LOG_INFO, "Not adding address %s to %s since interface doesn't exist", ipaddresstos(NULL, ipaddress), ipaddress->ifp->ifname);
+			return -1;
+		}
+
+		/* Make sure the ifindex for the address is current */
+		ipaddress->ifa.ifa_index = ipaddress->ifp->ifindex;
+	}
+	else if (!ipaddress->ifp->ifindex) {
+		/* The interface has been deleted, so there is no point deleting the address */
+		return 0;
+	}
 
 	memset(&req, 0, sizeof (req));
 
@@ -157,8 +177,15 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 				  ipaddress->label, strlen(ipaddress->label) + 1);
 	}
 
+	/* If the state of the interface or its parent is down, it might be because the interface
+	 * has been deleted, but we get the link status change message before the RTM_DELLINK message */
+	if (cmd == IPADDRESS_DEL &&
+	    (((ipaddress->ifp->ifi_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING)) ||
+	     ((IF_BASE_IFP(ipaddress->ifp)->ifi_flags & (IFF_UP | IFF_RUNNING)) != (IFF_UP | IFF_RUNNING))))
+		netlink_error_ignore = ENODEV;
 	if (netlink_talk(&nl_cmd, &req.n) < 0)
 		status = -1;
+	netlink_error_ignore = 0;
 
 	return status;
 }
@@ -506,16 +533,12 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 				FREE(new);
 				return;
 			}
-			ifp_local = if_get_by_ifname(strvec_slot(strvec, ++i));
-			if (!ifp_local) {
-				log_message(LOG_INFO, "VRRP is trying to assign ip address %s to unknown %s"
-				       " interface !!! go out and fix your conf !!!",
-				       FMT_STR_VSLOT(strvec, addr_idx),
-				       FMT_STR_VSLOT(strvec, i));
+			if (!(ifp_local = if_get_by_ifname(strvec_slot(strvec, ++i), IF_CREATE_IF_DYNAMIC))) {
+				log_message(LOG_INFO, "WARNING - interface %s for ip address %s doesn't exist",
+						FMT_STR_VSLOT(strvec, i), FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
 				return;
 			}
-			new->ifa.ifa_index = IF_INDEX(ifp_local);
 			new->ifp = ifp_local;
 		} else if (!strcmp(str, "scope")) {
 			if (!param_avail) {
@@ -605,16 +628,14 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 
 	if (!ifp && !new->ifp) {
 		if (!global_data->default_ifp) {
-			global_data->default_ifp = if_get_by_ifname(DFLT_INT);
+			global_data->default_ifp = if_get_by_ifname(DFLT_INT, IF_CREATE_IF_DYNAMIC);
 			if (!global_data->default_ifp) {
-				log_message(LOG_INFO, "Default interface " DFLT_INT
-					    " does not exist and no interface specified. "
-					    "Skipping static address %s.", FMT_STR_VSLOT(strvec, addr_idx));
+				log_message(LOG_INFO, "Default interface %s doesn't exist for static address %s.",
+							DFLT_INT, FMT_STR_VSLOT(strvec, addr_idx));
 				FREE(new);
 				return;
 			}
 		}
-		new->ifa.ifa_index = IF_INDEX(global_data->default_ifp);
 		new->ifp = global_data->default_ifp;
 	}
 
@@ -686,7 +707,7 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 			log_message(LOG_INFO, "ip address %s/%d dev %s, no longer exist"
 					    , addr_str
 					    , ipaddr->ifa.ifa_prefixlen
-					    , IF_NAME(if_get_by_ifindex(ipaddr->ifa.ifa_index)));
+					    , ipaddr->ifp->ifname);
 			netlink_ipaddress(ipaddr, IPADDRESS_DEL);
 			if (ipaddr->iptable_rule_set)
 				handle_iptable_rule_to_vip(ipaddr, IPADDRESS_DEL, h, false);

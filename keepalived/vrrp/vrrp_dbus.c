@@ -38,29 +38,22 @@
 
 #include "config.h"
 
-#ifndef _GNU_SOURCE
-#define _GNU_SOURCE
-#endif
+#include <errno.h>
 #include <pthread.h>
 #include <semaphore.h>
-#include <signal.h>
 #include <gio/gio.h>
 #include <ctype.h>
 #include <fcntl.h>
-#include <unistd.h>
 #include <sys/types.h>
+#include <stdlib.h>
 #include <stdint.h>
 
 #include "vrrp_dbus.h"
 #include "vrrp_data.h"
-#include "vrrp_if.h"
 #include "vrrp_print.h"
 #include "global_data.h"
 #include "main.h"
-#include "memory.h"
 #include "logger.h"
-#include "timer.h"
-#include "scheduler.h"
 
 typedef enum dbus_action {
 	DBUS_ACTION_NONE,
@@ -160,10 +153,6 @@ state_str(int state)
 		return "Master";
 	case VRRP_STATE_FAULT:
 		return "Fault";
-	case VRRP_STATE_GOTO_MASTER:
-		return "Goto master";
-	case VRRP_STATE_GOTO_FAULT:
-		return "Goto fault";
 	}
 	return "Unknown";
 }
@@ -299,13 +288,13 @@ get_interface_ids(const gchar *object_path, gchar *interface, uint8_t *vrid, uin
 
 /* handles reply to org.freedesktop.DBus.Properties.Get method on any object*/
 static GVariant *
-handle_get_property(__attribute__((unused)) GDBusConnection  *connection,
-		    __attribute__((unused)) const gchar      *sender,
-		    const gchar      *object_path,
-		    const gchar      *interface_name,
-		    const gchar      *property_name,
-		    GError          **error,
-		    __attribute__((unused)) gpointer          user_data)
+handle_get_property(__attribute__((unused)) GDBusConnection *connection,
+		    __attribute__((unused)) const gchar     *sender,
+					    const gchar     *object_path,
+					    const gchar     *interface_name,
+					    const gchar     *property_name,
+					    GError	   **error,
+		    __attribute__((unused)) gpointer	     user_data)
 {
 	GVariant *ret = NULL;
 	dbus_queue_ent_t ent;
@@ -343,10 +332,10 @@ handle_get_property(__attribute__((unused)) GDBusConnection  *connection,
 /* handles method_calls on any object */
 static void
 handle_method_call(__attribute__((unused)) GDBusConnection *connection,
-		   __attribute__((unused)) const gchar           *sender,
-		   const gchar           *object_path,
-		   const gchar           *interface_name,
-		   const gchar           *method_name,
+		   __attribute__((unused)) const gchar	   *sender,
+					   const gchar	   *object_path,
+					   const gchar	   *interface_name,
+					   const gchar	   *method_name,
 #ifndef _WITH_DBUS_CREATE_INSTANCE_
 		   __attribute__((unused))
 #endif
@@ -590,7 +579,7 @@ read_file(gchar* filepath)
 		fseek(f, 0, SEEK_SET);
 
 		/* We can't use MALLOC since it isn't thread safe */
-		ret = malloc(length + 1);
+		ret = MALLOC(length + 1);
 		if (ret) {
 			if (fread(ret, length, 1, f) != 1) {
 				log_message(LOG_INFO, "Failed to read all of %s", filepath);
@@ -630,7 +619,7 @@ dbus_main(__attribute__ ((unused)) void *unused)
 	if (!introspection_xml)
 		return NULL;
 	vrrp_introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, &error);
-	free(introspection_xml);
+	FREE(introspection_xml);
 	if (error != NULL) {
 		log_message(LOG_INFO, "Parsing DBus interface %s from file %s failed: %s",
 			    DBUS_VRRP_INTERFACE, DBUS_VRRP_INTERFACE_FILE_PATH, error->message);
@@ -642,7 +631,7 @@ dbus_main(__attribute__ ((unused)) void *unused)
 	if (!introspection_xml)
 		return NULL;
 	vrrp_instance_introspection_data = g_dbus_node_info_new_for_xml(introspection_xml, &error);
-	free(introspection_xml);
+	FREE(introspection_xml);
 	if (error != NULL) {
 		log_message(LOG_INFO, "Parsing DBus interface %s from file %s failed: %s",
 			    DBUS_VRRP_INSTANCE_INTERFACE, DBUS_VRRP_INSTANCE_INTERFACE_FILE_PATH, error->message);
@@ -908,7 +897,7 @@ dbus_start(void)
 	sem_init(&thread_end, 0, 0);
 
 	/* Block signals (all) we don't want the new thread to process */
-	sigemptyset(&sigset);
+	sigfillset(&sigset);
 	pthread_sigmask(SIG_SETMASK, &sigset, &cursigset);
 
 	/* Now create the dbus thread */
@@ -953,3 +942,11 @@ dbus_stop(void)
 		sem_destroy(&thread_end);
 	}
 }
+
+#ifdef _TIMER_DEBUG_
+void
+print_vrrp_dbus_addresses(void)
+{
+	log_message(LOG_INFO, "Address of handle_dbus_msg() is 0x%p", handle_dbus_msg);
+}
+#endif

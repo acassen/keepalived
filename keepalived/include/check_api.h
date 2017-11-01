@@ -23,12 +23,16 @@
 #ifndef _CHECK_API_H
 #define _CHECK_API_H
 
+#include "config.h"
+
 /* global includes */
 #include <stdbool.h>
 
 /* local includes */
+#include "list.h"
+#include <sys/socket.h>
 #include "check_data.h"
-#include "scheduler.h"
+#include "vector.h"
 #include "layer4.h"
 
 /* Checkers structure definition */
@@ -53,9 +57,6 @@ typedef struct _checker {
 	unsigned long			default_delay_before_retry; /* interval between retries */
 
 } checker_t;
-
-/* Typedefs */
-typedef checker_t * checker_id_t;
 
 /* Checkers queue */
 extern list checkers_queue;

@@ -24,12 +24,11 @@
 #define _IPWRAPPER_H
 
 /* system includes */
-#include <syslog.h>
 #include <stdbool.h>
 
-/* locale includes */
+/* local includes */
 #include "check_data.h"
-#include "smtp.h"
+#include "check_api.h"
 
 /* NAT netmask */
 #define HOST_NETMASK   0xffffffff

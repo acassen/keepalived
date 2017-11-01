@@ -73,7 +73,7 @@ typedef struct {
 	int		verbose;
 	int		ssl;
 	SSL_CTX		*ctx;
-	SSL_METHOD	*meth;
+	const SSL_METHOD *meth;
 	enum		feat_hashes hash;
 	unsigned long	ref_time;
 	unsigned long	response_time;

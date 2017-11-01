@@ -22,19 +22,20 @@
 
 #include "config.h"
 
-#include <syslog.h>
 #include <unistd.h>
 #include <pwd.h>
-#include <netdb.h>
+
 #include "global_data.h"
-#include "memory.h"
 #include "list.h"
 #include "logger.h"
+#include "parser.h"
 #include "utils.h"
+#include "main.h"
+#include "memory.h"
 #ifdef _WITH_VRRP_
 #include "vrrp.h"
+#include "vrrp_ipaddress.h"
 #endif
-#include "main.h"
 
 /* global vars */
 data_t *global_data = NULL;
@@ -81,8 +82,8 @@ set_default_smtp_connection_timeout(data_t * data)
 static void
 set_default_mcast_group(data_t * data)
 {
-	inet_stosockaddr("224.0.0.18", 0, &data->vrrp_mcast_group4);
-	inet_stosockaddr("ff02::12", 0, &data->vrrp_mcast_group6);
+	inet_stosockaddr(INADDR_VRRP_GROUP, 0, (struct sockaddr_storage *)&data->vrrp_mcast_group4);
+	inet_stosockaddr(INADDR6_VRRP_GROUP, 0, (struct sockaddr_storage *)&data->vrrp_mcast_group6);
 }
 
 static void
@@ -342,6 +343,12 @@ dump_global_data(data_t * data)
 				    , data->email_from);
 		dump_list(data->email);
 	}
+#ifdef _WITH_VRRP_
+	log_message(LOG_INFO, " Dynamic interfaces = %s", data->dynamic_interfaces ? "true" : "false");
+	if (data->email_faults)
+		log_message(LOG_INFO, " Send emails for fault transitions = %s"
+				    , data->email_faults ? "true" : "false");
+#endif
 #ifdef _WITH_LVS_
 	if (data->lvs_tcp_timeout)
 		log_message(LOG_INFO, " LVS TCP timeout = %d", data->lvs_tcp_timeout);
@@ -377,7 +384,7 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO, " Global notify fifo = %s", data->notify_fifo.name);
 		if (data->notify_fifo.script)
 			log_message(LOG_INFO, " Global notify fifo script = %s uid:gid %d:%d",
-				    data->notify_fifo.script->name,
+				    data->notify_fifo.script->args[0],
 				    data->notify_fifo.script->uid,
 				    data->notify_fifo.script->gid);
 	}
@@ -386,7 +393,7 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO, " VRRP notify fifo = %s", data->vrrp_notify_fifo.name);
 		if (data->vrrp_notify_fifo.script)
 			log_message(LOG_INFO, " VRRP notify fifo script = %s uid:gid %d:%d",
-				    data->vrrp_notify_fifo.script->name,
+				    data->vrrp_notify_fifo.script->args[0],
 				    data->vrrp_notify_fifo.script->uid,
 				    data->vrrp_notify_fifo.script->gid);
 	}
@@ -396,19 +403,19 @@ dump_global_data(data_t * data)
 		log_message(LOG_INFO, " LVS notify fifo = %s", data->lvs_notify_fifo.name);
 		if (data->lvs_notify_fifo.script)
 			log_message(LOG_INFO, " LVS notify fifo script = %s uid:gid %d:%d",
-				    data->lvs_notify_fifo.script->name,
+				    data->lvs_notify_fifo.script->args[0],
 				    data->lvs_notify_fifo.script->uid,
 				    data->lvs_notify_fifo.script->gid);
 	}
 #endif
 #ifdef _WITH_VRRP_
-	if (data->vrrp_mcast_group4.ss_family) {
+	if (data->vrrp_mcast_group4.sin_family) {
 		log_message(LOG_INFO, " VRRP IPv4 mcast group = %s"
-				    , inet_sockaddrtos(&data->vrrp_mcast_group4));
+				    , inet_sockaddrtos((struct sockaddr_storage *)&data->vrrp_mcast_group4));
 	}
-	if (data->vrrp_mcast_group6.ss_family) {
+	if (data->vrrp_mcast_group6.sin6_family) {
 		log_message(LOG_INFO, " VRRP IPv6 mcast group = %s"
-				    , inet_sockaddrtos(&data->vrrp_mcast_group6));
+				    , inet_sockaddrtos((struct sockaddr_storage *)&data->vrrp_mcast_group6));
 	}
 	log_message(LOG_INFO, " Gratuitous ARP delay = %u",
 		       data->vrrp_garp_delay/TIMER_HZ);
@@ -470,6 +477,6 @@ dump_global_data(data_t * data)
 	log_message(LOG_INFO, " DBus %s", data->enable_dbus ? "enabled" : "disabled");
 	log_message(LOG_INFO, " DBus service name = %s", data->dbus_service_name);
 #endif
-	log_message(LOG_INFO, " Script security %s", data->script_security ? "enabled" : "disabled");
+	log_message(LOG_INFO, " Script security %s", script_security ? "enabled" : "disabled");
 	log_message(LOG_INFO, " Default script uid:gid %d:%d", default_script_uid, default_script_gid);
 }

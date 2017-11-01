@@ -1,0 +1,59 @@
+#!/bin/bash
+
+cat <<EOF
+@high net_namespace high
+@medium net_namespace medium
+@low net_namespace low
+
+global_defs {
+    vrrp_garp_master_delay 0
+    vrrp_garp_master_repeat 1
+    vrrp_garp_lower_prio_delay 0
+    vrrp_garp_lower_prio_repeat 2
+    vrrp_lower_prio_no_advert true
+}
+EOF
+
+for n in $(seq 0 3); do
+	cat <<EOF
+
+vrrp_sync_group sync_${n} {
+	group {
+EOF
+for i in $(seq 0 3); do
+	cat <<EOF
+		VI_$((i * 4 + n))
+EOF
+	done
+cat <<EOF
+	}
+}
+EOF
+done
+
+I=0
+for n in $(seq 0 3); do
+	for i in $(seq 0 3); do
+		[[ $i -ge 2 ]] && USE_VMAC= || USE_VMAC=use_vmac
+
+cat <<EOF
+
+vrrp_instance VI_${I} {
+	state BACKUP
+	interface eth${n}
+	virtual_router_id $((i + 1))
+@high	priority 170
+@medium	priority 127
+@low	priority 85
+	advert_int 1
+	version 3
+	$USE_VMAC
+
+	virtual_ipaddress {
+		141.1.${n}.$((254-$i))/32
+	}
+}
+EOF
+		((I++))
+	done
+done

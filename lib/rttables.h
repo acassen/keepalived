@@ -24,6 +24,7 @@
 #ifndef _READ_RTTABLES_H
 #define _READ_RTTABLES_H
 
+#include <stdbool.h>
 #include <stdint.h>
 
 extern void clear_rt_names(void);

@@ -35,12 +35,12 @@
 #include "main.h"
 #include "logger.h"
 #include "parser.h"
-#include "memory.h"
 #include "utils.h"
 #include "ipwrapper.h"
 #if defined _WITH_VRRP_
 #include "vrrp_parser.h"
 #endif
+#include "libipvs.h"
 
 /* SSL handlers */
 static void
@@ -431,7 +431,7 @@ vs_inhibit_handler(__attribute__((unused)) vector_t *strvec)
 static inline notify_script_t*
 set_check_notify_script(vector_t *strvec, const char *type)
 {
-	return notify_script_init(strvec, type, global_data->script_security);
+	return notify_script_init(strvec, true, type);
 }
 static void
 notify_up_handler(vector_t *strvec)
@@ -439,7 +439,7 @@ notify_up_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	if (rs->notify_up) {
-		log_message(LOG_INFO, "(%s): notify_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		log_message(LOG_INFO, "(%s) notify_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	rs->notify_up = set_check_notify_script(strvec, "notify");
@@ -450,7 +450,7 @@ notify_down_handler(vector_t *strvec)
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
 	if (rs->notify_down) {
-		log_message(LOG_INFO, "(%s): notify_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		log_message(LOG_INFO, "(%s) notify_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	rs->notify_down = set_check_notify_script(strvec, "notify");
@@ -548,7 +548,7 @@ quorum_up_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->notify_quorum_up) {
-		log_message(LOG_INFO, "(%s): quorum_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		log_message(LOG_INFO, "(%s) quorum_up script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vs->notify_quorum_up = set_check_notify_script(strvec, "quorum");
@@ -558,7 +558,7 @@ quorum_down_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
 	if (vs->notify_quorum_down) {
-		log_message(LOG_INFO, "(%s): quorum_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
+		log_message(LOG_INFO, "(%s) quorum_down script already specified - ignoring %s", vs->vsgname, FMT_STR_VSLOT(strvec,1));
 		return;
 	}
 	vs->notify_quorum_down = set_check_notify_script(strvec, "quorum");

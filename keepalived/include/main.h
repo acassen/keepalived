@@ -23,25 +23,11 @@
 #ifndef _MAIN_H
 #define _MAIN_H
 
-/* global includes */
-#include <sys/stat.h>
-#include <sys/wait.h>
-#include <getopt.h>
+#include "config.h"
 
-/* local includes */
-#include "daemon.h"
-#include "memory.h"
-#include "utils.h"
-#include "pidfile.h"
-#include "scheduler.h"
-#include "parser.h"
-#ifdef _WITH_VRRP_
-#include "vrrp_daemon.h"
-#endif
-#ifdef _WITH_LVS_
-#include "check_daemon.h"
-#endif
-#include "global_data.h"
+/* global includes */
+#include <stdbool.h>
+#include <sys/types.h>
 
 /* State flags */
 enum daemon_bits {
@@ -53,6 +39,10 @@ enum daemon_bits {
 #endif
 };
 
+/* Reloading helpers */
+#define SET_RELOAD      (reload = 1)
+#define UNSET_RELOAD    (reload = 0)
+
 /* Global vars exported */
 extern const char *version_string;	/* keepalived version */
 extern unsigned long daemon_mode;	/* Which child processes are run */
@@ -60,6 +50,7 @@ extern char *conf_file;			/* Configuration file */
 extern int log_facility;		/* Optional logging facilities */
 extern pid_t vrrp_child;		/* VRRP child process ID */
 extern pid_t checkers_child;		/* Healthcheckers child process ID */
+extern bool reload;			/* Set during a reload */
 extern char *main_pidfile;		/* overrule default pidfile */
 extern char *checkers_pidfile;		/* overrule default pidfile */
 extern char *vrrp_pidfile;		/* overrule default pidfile */
