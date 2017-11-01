@@ -159,6 +159,10 @@
    don't. */
 #undef HAVE_DECL_RTA_VIA
 
+/* Define to 1 if you have the declaration of `RTEXT_FILTER_SKIP_STATS', and
+   to 0 if you don't. */
+#undef HAVE_DECL_RTEXT_FILTER_SKIP_STATS
+
 /* Define to 1 if you have the declaration of `SOCK_CLOEXEC', and to 0 if you
    don't. */
 #undef HAVE_DECL_SOCK_CLOEXEC
