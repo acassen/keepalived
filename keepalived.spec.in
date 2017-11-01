@@ -16,6 +16,8 @@ BuildRequires: openssl-devel
 # We need both of these for proper LVS support
 BuildRequires: kernel, kernel-devel
 BuildRequires: libnfnetlink-devel
+@SNMP_TRUE@BuildRequires: net-snmp-devel
+@WITH_DBUS_TRUE@BuildRequires: glib2-devel
 @LIBIPTC_TRUE@BuildRequires: iptables-devel
 @LIBIPSET_TRUE@BuildRequires: ipset-devel
 @LIBNL1_TRUE@BuildRequires: libnl-devel
@@ -53,6 +55,7 @@ CONFIG_OPTS=
 @SNMP_RFC_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-snmp-rfc"
 @WITH_SHA1_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-sha1"
 @WITH_DBUS_TRUE@CONFIG_OPTS="$CONFIG_OPTS --enable-dbus"
+@INIT_SYSTEMD_TRUE@CONFIG_OPTS="$CONFIG_OPTS --with-init=systemd"
 %{?el3:export CPPFLAGS="-I/usr/kerberos/include"}
 %{?rh9:export CPPFLAGS="-I/usr/kerberos/include"}
 autoreconf -f -i
@@ -132,6 +135,9 @@ fi
 @WITH_DBUS_TRUE@%attr(0644,root,root) %{_datarootdir}/dbus-1/interfaces/org.keepalived.Vrrp1.Vrrp.xml
 
 %changelog
+* Wed Nov  1 2017 Quentin Armitage <quentin@armitage.org.uk> 1.3.9-1
+- Fix installation of keepalived.service
+
 * Tue Oct 17 2017 Quentin Armitage <quentin@armitage.org.uk> 1.3.8-1
 - Handle Fedora and CentOS differences for %{_docdir_fmt}
 
