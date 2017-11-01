@@ -797,7 +797,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						    vrrp->ifp->base_ifp->sin6_addr.s6_addr32[3] == addr.in6->s6_addr32[3]) {
 							if (IF_ISUP(ifp) && replace_link_local_address(vrrp->ifp))
 								inet_ip6tosockaddr(&vrrp->ifp->sin6_addr, &vrrp->saddr);
-							else {
+							else if (IF_ISUP(ifp)) {
 								/* We failed to add an address, so down the instance */
 								down_instance(vrrp);
 								vrrp->saddr.ss_family = AF_UNSPEC;

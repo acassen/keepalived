@@ -195,7 +195,12 @@ vrrp_init_state(list l)
 #ifdef _WITH_SNMP_RFCV3_
 			vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
-			vrrp->state = VRRP_STATE_MAST;
+
+			/* The simplest way to become master is to timeout from the backup state
+			 * very quickly (1usec) */
+			vrrp->state = VRRP_STATE_BACK;
+			vrrp->ms_down_timer = 1;
+
 // TODO Do we need ->	vrrp_restore_interface(vrrp, false, false);
 // It removes everything, so probably if !reload
 		} else {
@@ -249,10 +254,7 @@ vrrp_init_sands(list l)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-		if (vrrp->base_priority != VRRP_PRIO_OWNER || vrrp->init_state != VRRP_STATE_MAST)
-			vrrp_init_instance_sands(vrrp);
-		else
-			vrrp->sands = timer_now();
+		vrrp_init_instance_sands(vrrp);
 	}
 }
 

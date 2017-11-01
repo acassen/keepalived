@@ -1993,10 +1993,8 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr)
 		etvp = tvp;
 	}
 
-	/* If the interface is down, record it against the vrrp instance,
-	 * unless this is weighted or not tracking */
-	if (!etvp->weight && !FLAGS_UP(ifp->ifi_flags))
-		vrrp->num_script_if_fault++;
+	/* if vrrp->num_if_script_fault needs incrementing, it will be
+	 * done in initialise_tracking_priorities() */
 }
 
 static void
