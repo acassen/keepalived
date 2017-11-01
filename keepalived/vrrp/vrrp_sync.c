@@ -216,12 +216,15 @@ vrrp_sync_master(vrrp_t * vrrp)
 			isync->wantstate = VRRP_STATE_MAST;
 // TODO 6 - transition straight to master if PRIO_OWNER
 // TODO 7 - not here, but generally if init_state == MAST && !owner, ms_down_timer = adver_int + 1 skew and be backup
-			if (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
-				/* ??? */
-			} else {
+//			if (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
+//				/* ??? */
+//			} else {
+#ifdef _WITH_SNMP_RFCV3_
+				isync->stats->next_master_reason = vrrp->stats->master_reason;
+#endif
 				vrrp_state_goto_master(isync);
 				vrrp_thread_requeue_read(isync);
-			}
+//			}
 		}
 	}
 	vgroup->state = VRRP_STATE_MAST;

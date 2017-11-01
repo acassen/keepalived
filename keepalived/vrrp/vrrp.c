@@ -1500,6 +1500,10 @@ vrrp_state_goto_master(vrrp_t * vrrp)
 	}
 #endif
 
+#ifdef _WITH_SNMP_RFCV3_
+	vrrp->stats->master_reason = vrrp->stats->next_master_reason;
+#endif
+
 	vrrp->state = VRRP_STATE_MAST;
 	vrrp_init_instance_sands(vrrp);
 	vrrp_state_master_tx(vrrp);
@@ -1655,7 +1659,7 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		log_message(LOG_INFO, "(%s) Backup received priority 0 advertisement", vrrp->iname);
 		vrrp->ms_down_timer = VRRP_TIMER_SKEW(vrrp);
 #ifdef _WITH_SNMP_RFCV3_
-		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PRIORITY;
+		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PRIORITY;
 #endif
 	} else if (vrrp->nopreempt ||
 		   hd->priority >= vrrp->effective_priority ||
@@ -1678,6 +1682,9 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		vrrp->master_saddr = vrrp->pkt_saddr;
 		vrrp->master_priority = hd->priority;
 
+#ifdef _WITH_SNMP_RFCV3_
+		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
+#endif
 		if (vrrp->preempt_delay) {
 			if (hd->priority >= vrrp->effective_priority) {
 				if (vrrp->preempt_time.tv_sec) {
@@ -1699,6 +1706,13 @@ vrrp_state_backup(vrrp_t * vrrp, char *buf, ssize_t buflen)
 		log_message(LOG_INFO, "(%s) received lower priority (%d) advert from %s - discarding", vrrp->iname, hd->priority, inet_sockaddrtos(&vrrp->pkt_saddr));
 
 		ignore_advert = true;
+
+#ifdef _WITH_SNMP_RFCV3_
+		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+#endif
+
+		/* We still want to record the master's address for SNMP purposes */
+		vrrp->master_saddr = vrrp->pkt_saddr;
 	}
 
 	if (ignore_advert) {
@@ -1979,10 +1993,8 @@ add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr)
 		etvp = tvp;
 	}
 
-	/* If the interface is down, record it against the vrrp instance,
-	 * unless this is weighted or not tracking */
-	if (!etvp->weight && !FLAGS_UP(ifp->ifi_flags))
-		vrrp->num_script_if_fault++;
+	/* if vrrp->num_if_script_fault needs incrementing, it will be
+	 * done in initialise_tracking_priorities() */
 }
 
 static void

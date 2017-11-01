@@ -186,6 +186,8 @@ AC_ARG_ENABLE(libipset,
   [AS_HELP_STRING([--disable-libipset], [compile without libipset])])
 AC_ARG_ENABLE(libnl,
   [AS_HELP_STRING([--disable-libnl], [compile without libnl])])
+AC_ARG_ENABLE(hardening,
+  [AS_HELP_STRING([--disable-hardening], [do not build with security hardening])])
 AC_ARG_ENABLE(mem-check,
   [AS_HELP_STRING([--enable-mem-check], [compile with memory alloc checking])])
 AC_ARG_ENABLE(mem-check-log,
@@ -239,7 +241,7 @@ AC_SUBST(ARFLAGS)
 # AC_PROG_LIBTOOL
 
 KA_CPPFLAGS="$kernelinc"
-KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2"
+KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -Winit-self -g -O2"
 KA_LDFLAGS=
 KA_LIBS=
 NEED_LIBDL=No
@@ -323,6 +325,72 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
     AC_MSG_RESULT([no])
   ])
 CFLAGS="$SAV_CFLAGS"
+
+if test "$enable_hardening" != no; then
+  AC_MSG_CHECKING([for PIE support])
+  SAV_CFLAGS="$CFLAGS"
+  SAV_LDFLAGS="$LDFLAGS"
+  CFLAGS="$CFLAGS -fPIE"
+  LDFLAGS="$LDFLAGS -pie"
+  AC_LINK_IFELSE([AC_LANG_SOURCE([[
+    int main(int argc, char **argv)
+    {
+      int i = 0;
+    }
+    ]])],
+    AC_MSG_RESULT([yes])
+      add_to_var([KA_CFLAGS], [-fPIE])
+      add_to_var([KA_LDFLAGS], [-pie]),
+    AC_MSG_RESULT([no]))
+  CFLAGS=$SAV_CFLAGS
+  LDFLAGS=$SAV_LDFLAGS
+
+  for FLAG in \
+	  "-Wformat -Werror=format-security" \
+	  "-Wp,-D_FORTIFY_SOURCE=2" \
+	  "-fexceptions" \
+	  "-fstack-protector-strong" \
+	  "--param=ssp-buffer-size=4" \
+	  "-grecord-gcc-switches"
+  do
+    AC_MSG_CHECKING([for $FLAG support])
+    CFLAGS="$CFLAGS $FLAG"
+    AC_COMPILE_IFELSE(
+      [AC_LANG_SOURCE([[ ]])],
+      [AC_MSG_RESULT([yes])]
+        add_to_var([KA_CFLAGS], [$FLAG]),
+      [AC_MSG_RESULT([no])])
+    CFLAGS=$SAV_CFLAGS
+  done
+
+  WL_FLAGS=
+  for FLAG in \
+	  "-z,relro" \
+	  "-z,now"
+  do
+    AC_MSG_CHECKING([for -Wl,$FLAG support])
+    LDFLAGS="$LDFLAGS -Wl,$FLAG"
+    AC_LINK_IFELSE(
+      [AC_LANG_SOURCE([[
+      int main(int argc, char **argv)
+      {
+        int i = 0;
+      }
+      ]])],
+      (
+        AC_MSG_RESULT([yes])
+        [WL_FLAGS="$WL_FLAGS,$FLAG"]
+      ),
+      (
+        [AC_MSG_RESULT([no])]
+      )
+    )
+    CFLAGS=$SAV_CFLAGS
+  done
+  if test -n "$WL_FLAGS"; then
+    add_to_var([KA_LDFLAGS], [-Wl$WL_FLAGS])
+  fi
+fi
 
 AC_SUBST(KA_CPPFLAGS)
 AC_SUBST(KA_CFLAGS)
@@ -633,9 +701,10 @@ dnl --RTA_NEWDST		dnl -- Linux 4.1
 dnl --RTA_PREF			dnl -- Linux 4.1
 dnl --FRA_TUN_ID		dnl -- Linux 4.3
 dnl --RTA_ENCAP			dnl -- Linux 4.3
+dnl --RTEXT_FILTER_SKIP_STATS	dnl -- Linux 4.4
 dnl --RTA_EXPIRES		dnl -- Linux 4.5
 dnl --FRA_UID_RANGE		dnl -- Linux 4.10
-AC_CHECK_DECLS([RTA_ENCAP, RTA_EXPIRES, RTA_NEWDST, RTA_PREF, FRA_SUPPRESS_PREFIXLEN, FRA_SUPPRESS_IFGROUP, FRA_TUN_ID, RTAX_CC_ALGO, RTAX_QUICKACK, FRA_UID_RANGE], [], [],
+AC_CHECK_DECLS([RTA_ENCAP, RTA_EXPIRES, RTA_NEWDST, RTA_PREF, FRA_SUPPRESS_PREFIXLEN, FRA_SUPPRESS_IFGROUP, FRA_TUN_ID, RTAX_CC_ALGO, RTAX_QUICKACK, RTEXT_FILTER_SKIP_STATS, FRA_UID_RANGE], [], [],
   [[#include <linux/rtnetlink.h>
     #include <sys/socket.h>
     #include <linux/fib_rules.h>]])
@@ -644,7 +713,7 @@ AC_CHECK_DECLS([RTA_VIA, FRA_OIFNAME], [], [],
   [[#include <linux/rtnetlink.h>
     #include <sys/socket.h>
     #include <linux/fib_rules.h>]])
-for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF RTA_VIA FRA_OIFNAME FRA_SUPPRESS_PREFIXLEN FRA_SUPPRESS_IFGROUP FRA_TUN_ID RTAX_CC_ALGO RTAX_QUICKACK FRA_UID_RANGE; do
+for flag in RTA_ENCAP RTA_EXPIRES RTA_NEWDST RTA_PREF RTA_VIA FRA_OIFNAME FRA_SUPPRESS_PREFIXLEN FRA_SUPPRESS_IFGROUP FRA_TUN_ID RTAX_CC_ALGO RTAX_QUICKACK RTEXT_FILTER_SKIP_STATS FRA_UID_RANGE; do
   AS_VAR_COPY([decl_var], [ac_cv_have_decl_$flag])
   if test ${decl_var} = yes; then
     add_system_opt[${flag}]

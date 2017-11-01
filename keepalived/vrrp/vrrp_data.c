@@ -42,6 +42,9 @@
 #include "vrrp_track.h"
 #include "vrrp_sock.h"
 #include "vrrp_index.h"
+#ifdef _WITH_SNMP_RFCV3_
+#include "vrrp_snmp.h"
+#endif
 
 /* global vars */
 vrrp_data_t *vrrp_data = NULL;
@@ -444,6 +447,10 @@ alloc_vrrp_stats(void)
 	new->pri_zero_sent = 0;
 	new->invalid_type_rcvd = 0;
 	new->addr_list_err = 0;
+#ifdef _WITH_SNMP_RFCV3_
+	new->master_reason = VRRPV3_MASTER_REASON_NOT_MASTER;
+	new->next_master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
+#endif
 	return new;
 }
 

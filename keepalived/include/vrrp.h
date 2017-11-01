@@ -159,6 +159,7 @@ typedef struct _vrrp_stats {
 	timeval_t	uptime;
 #ifdef _WITH_SNMP_RFCV3_
 	uint32_t	master_reason;
+	uint32_t	next_master_reason;
 	uint32_t	proto_err_reason;
 #endif
 #endif

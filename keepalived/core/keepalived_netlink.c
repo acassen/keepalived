@@ -797,7 +797,7 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 						    vrrp->ifp->base_ifp->sin6_addr.s6_addr32[3] == addr.in6->s6_addr32[3]) {
 							if (IF_ISUP(ifp) && replace_link_local_address(vrrp->ifp))
 								inet_ip6tosockaddr(&vrrp->ifp->sin6_addr, &vrrp->saddr);
-							else {
+							else if (IF_ISUP(ifp)) {
 								/* We failed to add an address, so down the instance */
 								down_instance(vrrp);
 								vrrp->saddr.ss_family = AF_UNSPEC;
@@ -1097,7 +1097,9 @@ netlink_talk(nl_handle_t *nl, struct nlmsghdr *n)
 
 /* Fetch a specific type of information from netlink kernel */
 static int
-netlink_request(nl_handle_t *nl, unsigned char family, uint16_t type,
+netlink_request(nl_handle_t *nl,
+		unsigned char family,
+		uint16_t type,
 #ifndef _WITH_VRRP_
 		__attribute__((unused))
 #endif
@@ -1129,7 +1131,9 @@ netlink_request(nl_handle_t *nl, unsigned char family, uint16_t type,
 	else
 #endif
 		req.nlh.nlmsg_flags |= NLM_F_DUMP;
+#if HAVE_DECL_RTEXT_FILTER_SKIP_STATS
 	addattr32(&req.nlh, sizeof req, IFLA_EXT_MASK, RTEXT_FILTER_SKIP_STATS);
+#endif
 
 	status = sendto(nl->fd, (void *) &req, sizeof (req)
 			, 0, (struct sockaddr *) &snl, sizeof (snl));

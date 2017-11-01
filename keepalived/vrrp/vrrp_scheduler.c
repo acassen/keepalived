@@ -193,9 +193,14 @@ vrrp_init_state(list l)
 					       false);
 #endif
 #ifdef _WITH_SNMP_RFCV3_
-			vrrp->stats->master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+			vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
 #endif
-			vrrp->state = VRRP_STATE_MAST;
+
+			/* The simplest way to become master is to timeout from the backup state
+			 * very quickly (1usec) */
+			vrrp->state = VRRP_STATE_BACK;
+			vrrp->ms_down_timer = 1;
+
 // TODO Do we need ->	vrrp_restore_interface(vrrp, false, false);
 // It removes everything, so probably if !reload
 		} else {
@@ -203,6 +208,11 @@ vrrp_init_state(list l)
 				vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
 			else
 				vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+
+#ifdef _WITH_SNMP_RFCV3_
+			vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
+#endif
+
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
 			if (global_data->lvs_syncd.ifname &&
@@ -244,10 +254,7 @@ vrrp_init_sands(list l)
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		vrrp = ELEMENT_DATA(e);
 
-		if (vrrp->base_priority != VRRP_PRIO_OWNER || vrrp->init_state != VRRP_STATE_MAST)
-			vrrp_init_instance_sands(vrrp);
-		else
-			vrrp->sands = timer_now();
+		vrrp_init_instance_sands(vrrp);
 	}
 }
 
@@ -601,10 +608,6 @@ vrrp_leave_master(vrrp_t * vrrp, char *buffer, ssize_t len)
 static void
 vrrp_goto_master(vrrp_t * vrrp)
 {
-#ifdef _WITH_SNMP_RFCV3_
-	if (vrrp->ms_down_timer >= 3 * vrrp->master_adver_int)
-		vrrp->stats->master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
-#endif
 	/* handle master state transition */
 	vrrp->wantstate = VRRP_STATE_MAST;
 	vrrp_state_goto_master(vrrp);
@@ -653,10 +656,17 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 	else if (--vrrp->num_script_if_fault || vrrp->num_script_init)
 		return;
 
-	if (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER)
+	if (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
 		vrrp->wantstate = VRRP_STATE_MAST;
-	else
+#ifdef _WITH_SNMP_RFCV3_
+		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
+#endif
+	} else {
 		vrrp->wantstate = VRRP_STATE_BACK;
+#ifdef _WITH_SNMP_RFCV3_
+		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_MASTER_NO_RESPONSE;
+#endif
+	}
 
 	vrrp->master_adver_int = vrrp->adver_int;
 	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);

@@ -49,7 +49,7 @@
 #include "utils.h"
 #include "signals.h"
 #include "bitops.h"
-#ifdef _WITH_STACKTRACE_
+#if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_ || defined _WITH_STACKTRACE_
 #include "logger.h"
 #endif
 

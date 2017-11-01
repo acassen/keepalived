@@ -757,9 +757,6 @@ check_script_secure(notify_script_t *script,
 
 	if ((script->gid && setegid(script->gid)) ||
 	    (script->uid && seteuid(script->uid))) {
-		if (script->uid)
-			seteuid(old_uid);
-
 		log_message(LOG_INFO, "Unable to set uid:gid %d:%d for script %s - disabling", script->uid, script->gid, script->args[0]);
 
 		if ((script->uid && seteuid(old_uid)) ||
