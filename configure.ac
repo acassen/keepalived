@@ -198,6 +198,10 @@ AC_ARG_ENABLE(stacktrace,
   [AS_HELP_STRING([--enable-stacktrace], [compile with stacktrace support])])
 AC_ARG_ENABLE(dump-threads,
   [  --enable-dump-threads   compile with thread dumping support])
+AC_ARG_ENABLE(select-debug,
+  [  --enable-select-debug   compile with select debugging support])
+AC_ARG_ENABLE(timer-debug-threads,
+  [  --enable-timer-debug   compile with timer debugging support])
 AC_ARG_ENABLE(profile,
   [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
 AC_ARG_ENABLE(conversion-checks,
@@ -1452,6 +1456,24 @@ else
   ENABLE_DUMP_THREADS=No
 fi
 
+dnl ----[ select() debugging support or not ? ]----
+if test "${enable_select_debug}" = yes; then
+  AC_DEFINE([_SELECT_DEBUG_], [ 1 ], [Define to 1 to build with select debugging support])
+  ENABLE_SELECT_DEBUG=Yes
+  add_config_opt([SELECT_DEBUG])
+else
+  ENABLE_SELECT_DEBUG=No
+fi
+
+dnl ----[ Timer debugging support or not ? ]----
+if test "${enable_timer_debug}" = yes; then
+  AC_DEFINE([_TIMER_DEBUG_], [ 1 ], [Define to 1 to build with timer debugging support])
+  ENABLE_TIMER_DEBUG=Yes
+  add_config_opt([TIMER_DEBUG])
+else
+  ENABLE_TIMER_DEBUG=No
+fi
+
 dnl ----[ Profiling or not ? ]----
 WITH_PROFILING=No
 if test "${enable_profile}" = yes; then
@@ -1573,6 +1595,9 @@ echo "Memory alloc check       : ${MEM_CHECK}"
 if test ${MEM_CHECK} = Yes; then
   echo "Memory alloc check log   : ${MEM_CHECK_LOG}"
 fi
+echo "Thread debugging         : ${ENABLE_DUMP_THREADS}"
+echo "Select() debugging       : ${ENABLE_SELECT_DEBUG}"
+echo "Timer debugging          : ${ENABLE_TIMER_DEBUG}"
 echo "libnl version            : ${NETLINK_VER}"
 echo "Use IPv4 devconf         : ${IPV4_DEVCONF}"
 echo "Use libiptc              : ${USE_LIBIPTC}"

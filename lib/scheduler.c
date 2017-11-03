@@ -834,14 +834,11 @@ retry:	/* When thread can't fetch try to find next thread again. */
 		*fetch = *thread;
 
 		/* If daemon hanging event is received return NULL pointer */
-		if (thread->type == THREAD_TERMINATE) {
-			thread->type = THREAD_UNUSED;
-			thread_add_unuse(m, thread);
-			return NULL;
-		}
+		t = thread->type == THREAD_TERMINATE ? NULL : fetch;
+
 		thread->type = THREAD_UNUSED;
 		thread_add_unuse(m, thread);
-		return fetch;
+		return t;
 	}
 
 	/* If there is ready threads process them */
@@ -888,14 +885,14 @@ retry:	/* When thread can't fetch try to find next thread again. */
 #endif
 
 #ifdef _SELECT_DEBUG_
-	/* if (prog_type == PROG_TYPE_VRRP) */
+	if (prog_type == PROG_TYPE_VRRP)
 		log_message(LOG_INFO, "select with timer %lu.%6.6ld, fdsetsize %d, readfds 0x%lx", timer_wait.tv_sec, timer_wait.tv_usec, fdsetsize, readfd.fds_bits[0]);
 #endif
 
 	num_fds = select(fdsetsize, &readfd, &writefd, &exceptfd, &timer_wait);
 
 #ifdef _SELECT_DEBUG_
-	/* if (prog_type == PROG_TYPE_VRRP) */
+	if (prog_type == PROG_TYPE_VRRP)
 		log_message(LOG_INFO, "Select returned %d, readfd 0x%lx, writefd 0x%lx, exceptfd 0x%lx, timer %lu.%6.6ld", num_fds, readfd.fds_bits[0], writefd.fds_bits[0], exceptfd.fds_bits[0], timer_wait.tv_sec, timer_wait.tv_usec);
 #endif
 

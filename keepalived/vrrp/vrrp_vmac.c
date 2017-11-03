@@ -181,7 +181,7 @@ netlink_link_up(vrrp_t *vrrp)
 	return status;
 }
 
-int
+bool
 netlink_link_add_vmac(vrrp_t *vrrp)
 {
 	struct rtattr *linkinfo;
@@ -195,7 +195,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	} req;
 
 	if (!vrrp->ifp || __test_bit(VRRP_VMAC_UP_BIT, &vrrp->vmac_flags) || !vrrp->vrid)
-		return -1;
+		return false;
 
 	if (vrrp->family == AF_INET6)
 		ll_addr[ETH_ALEN-2] = 0x02;
@@ -235,7 +235,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 					log_message(LOG_INFO, "vmac: Error removing VMAC interface %s for "
 							      "vrrp_instance %s!!!"
 							    , vrrp->vmac_ifname, vrrp->iname);
-					return -1;
+					return false;
 				}
 			}
 		}
@@ -270,20 +270,20 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, ll_addr, ETH_ALEN);
 
 		if (netlink_talk(&nl_cmd, &req.n) < 0) {
-			log_message(LOG_INFO, "vmac: Error creating VMAC interface %s for vrrp_instance %s!!!"
-					    , vrrp->vmac_ifname, vrrp->iname);
-			return -1;
+			log_message(LOG_INFO, "(%s): Unable to create VMAC interface %s"
+					    , vrrp->iname, vrrp->vmac_ifname);
+			return false;
 		}
 
-		log_message(LOG_INFO, "vmac: Success creating VMAC interface %s for vrrp_instance %s"
-				    , vrrp->vmac_ifname, vrrp->iname);
+		log_message(LOG_INFO, "(%s): Success creating VMAC interface %s"
+				    , vrrp->iname, vrrp->vmac_ifname);
 
 		/*
 		 * Update interface queue and vrrp instance interface binding.
 		 */
 		netlink_interface_lookup(vrrp->vmac_ifname);
 		if (!ifp->ifindex)
-			return -1;
+			return false;
 
 		/* If we do anything that might cause the interface state to change, we must
 		 * read the reflected netlink messages to ensure that the link status doesn't
@@ -301,7 +301,7 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	ifp->vmac = true;
 
 	if (!ifp->ifindex)
-		return -1;
+		return false;
 
 	if (vrrp->family == AF_INET) {
 		/* Set the necessary kernel parameters to make macvlans work for us */
@@ -407,13 +407,12 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 	 * as we progress */
 	kernel_netlink_poll();
 
-	return 1;
+	return true;
 }
 
-int
+bool
 netlink_link_del_vmac(vrrp_t *vrrp)
 {
-	int status = 1;
 	struct {
 		struct nlmsghdr n;
 		struct ifinfomsg ifi;
@@ -421,12 +420,12 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 	} req;
 
 	if (!vrrp->ifp)
-		return -1;
+		return false;
 
 	/* Make sure we don't remove a real interface */
 	if (!vrrp->ifp->vmac) {
 		log_message(LOG_INFO, "BUG - Attempting to remove non VMAC i/f %s", vrrp->ifp->ifname);
-		return -1;
+		return false;
 	}
 
 	/* Reset arp_ignore and arp_filter on the base interface if necessary */
@@ -448,11 +447,11 @@ netlink_link_del_vmac(vrrp_t *vrrp)
 	if (netlink_talk(&nl_cmd, &req.n) < 0) {
 		log_message(LOG_INFO, "vmac: Error removing VMAC interface %s for vrrp_instance %s!!!"
 				    , vrrp->vmac_ifname, vrrp->iname);
-		return -1;
+		return false;
 	}
 
 	log_message(LOG_INFO, "vmac: Success removing VMAC interface %s for vrrp_instance %s"
 			    , vrrp->vmac_ifname, vrrp->iname);
 
-	return status;
+	return true;
 }

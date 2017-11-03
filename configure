@@ -834,6 +834,8 @@ enable_mem_check_log
 enable_debug
 enable_stacktrace
 enable_dump_threads
+enable_select_debug
+enable_timer_debug_threads
 enable_profile
 enable_conversion_checks
 enable_force_conversion_checks
@@ -1516,6 +1518,8 @@ Optional Features:
   --enable-debug          compile with debugging flags
   --enable-stacktrace     compile with stacktrace support
   --enable-dump-threads   compile with thread dumping support
+  --enable-select-debug   compile with select debugging support
+  --enable-timer-debug   compile with timer debugging support
   --enable-profile        compile with profiling flags
   --enable-conversion-checks
                           compile with conversion warnings if sensible
@@ -3592,6 +3596,16 @@ fi
 # Check whether --enable-dump-threads was given.
 if test "${enable_dump_threads+set}" = set; then :
   enableval=$enable_dump_threads;
+fi
+
+# Check whether --enable-select-debug was given.
+if test "${enable_select_debug+set}" = set; then :
+  enableval=$enable_select_debug;
+fi
+
+# Check whether --enable-timer-debug-threads was given.
+if test "${enable_timer_debug_threads+set}" = set; then :
+  enableval=$enable_timer_debug_threads;
 fi
 
 # Check whether --enable-profile was given.
@@ -10497,6 +10511,26 @@ else
   ENABLE_DUMP_THREADS=No
 fi
 
+if test "${enable_select_debug}" = yes; then
+
+$as_echo "#define _SELECT_DEBUG_  1 " >>confdefs.h
+
+  ENABLE_SELECT_DEBUG=Yes
+  CONFIG_OPTIONS="$CONFIG_OPTIONS SELECT_DEBUG"
+else
+  ENABLE_SELECT_DEBUG=No
+fi
+
+if test "${enable_timer_debug}" = yes; then
+
+$as_echo "#define _TIMER_DEBUG_  1 " >>confdefs.h
+
+  ENABLE_TIMER_DEBUG=Yes
+  CONFIG_OPTIONS="$CONFIG_OPTIONS TIMER_DEBUG"
+else
+  ENABLE_TIMER_DEBUG=No
+fi
+
 WITH_PROFILING=No
 if test "${enable_profile}" = yes; then
   WITH_PROFILING=Yes
@@ -12256,6 +12290,9 @@ echo "Memory alloc check       : ${MEM_CHECK}"
 if test ${MEM_CHECK} = Yes; then
   echo "Memory alloc check log   : ${MEM_CHECK_LOG}"
 fi
+echo "Thread debugging         : ${ENABLE_DUMP_THREADS}"
+echo "Select() debugging       : ${ENABLE_SELECT_DEBUG}"
+echo "Timer debugging          : ${ENABLE_TIMER_DEBUG}"
 echo "libnl version            : ${NETLINK_VER}"
 echo "Use IPv4 devconf         : ${IPV4_DEVCONF}"
 echo "Use libiptc              : ${USE_LIBIPTC}"
