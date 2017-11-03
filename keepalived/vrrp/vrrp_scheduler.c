@@ -399,11 +399,8 @@ vrrp_register_workers(list l)
 		/* jump to asynchronous handling */
 		vrrp_timer = vrrp_timer_fd(sock->fd_in);
 
-		/* Register a timer thread if interface is shut */
-		if (sock->fd_in == -1)
-			sock->thread = thread_add_timer(master, vrrp_read_dispatcher_thread,
-							sock, vrrp_timer);
-		else
+		/* Register a timer thread if interface exists */
+		if (sock->fd_in != -1)
 			sock->thread = thread_add_read(master, vrrp_read_dispatcher_thread,
 						       sock, sock->fd_in, vrrp_timer);
 	}
@@ -819,10 +816,7 @@ vrrp_read_dispatcher_thread(thread_t * thread)
 
 	/* register next dispatcher thread */
 	vrrp_timer = vrrp_timer_fd(fd);
-	if (fd == -1)
-		sock->thread = thread_add_timer(thread->master, vrrp_read_dispatcher_thread,
-						sock, vrrp_timer);
-	else
+	if (fd != -1)
 		sock->thread = thread_add_read(thread->master, vrrp_read_dispatcher_thread,
 					       sock, fd, vrrp_timer);
 
@@ -1100,8 +1094,6 @@ func
 	if (func == vrrp_gratuitous_arp_thread) return "vrrp_gratuitous_arp_thread";
 	if (func == vrrp_lower_prio_gratuitous_arp_thread) return "vrrp_lower_prio_gratuitous_arp_thread";
 	if (func == vrrp_read_dispatcher_thread) return "vrrp_read_dispatcher_thread";
-//	if (func == vrrp_respawn_thread) return "vrrp_respawn_thread";
-	if (func == vrrp_script_child_timeout_thread) return "vrrp_script_child_timeout_thread";
 	if (func == vrrp_script_thread) return "vrrp_script_thread";
 
 	return NULL;
@@ -1197,8 +1189,10 @@ print_vrrp_scheduler_addresses(void)
 {
 	log_message(LOG_INFO, "Address of vrrp_arp_thread() is 0x%p", vrrp_arp_thread);
 	log_message(LOG_INFO, "Address of vrrp_dispatcher_init() is 0x%p", vrrp_dispatcher_init);
+	log_message(LOG_INFO, "Address of vrrp_gratuitous_arp_thread() is 0x%p", vrrp_gratuitous_arp_thread);
 	log_message(LOG_INFO, "Address of vrrp_lower_prio_gratuitous_arp_thread() is 0x%p", vrrp_lower_prio_gratuitous_arp_thread);
 	log_message(LOG_INFO, "Address of vrrp_script_child_thread() is 0x%p", vrrp_script_child_thread);
+	log_message(LOG_INFO, "Address of vrrp_script_thread() is 0x%p", vrrp_script_thread);
 	log_message(LOG_INFO, "Address of vrrp_read_dispatcher_thread() is 0x%p", vrrp_read_dispatcher_thread);
 }
 #endif

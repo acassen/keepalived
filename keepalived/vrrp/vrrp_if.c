@@ -979,29 +979,34 @@ update_added_interface(interface_t *ifp)
 		vrrp = tvp->vrrp;
 
 		/* If this is just a tracking interface, we don't need to do anything */
-		if (vrrp->ifp != ifp && IF_BASE_IFP(ifp) != ifp)
+		if (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp)
 			continue;
 
 #ifdef _HAVE_VRRP_VMAC_
-		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags))
-			netlink_link_add_vmac(vrrp);
+		/* If the vrrp instance uses a vmac, and that vmac i/f doesn't
+		 * exist, then create it */
+		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+		    !vrrp->ifp->ifindex) {
+			if (!netlink_link_add_vmac(vrrp))
+				return;
+		}
 #endif
 
 		/* Find the sockpool entry. If none, then we open the socket */
 		if (vrrp->sockets->fd_in == -1) {
 			vrrp->sockets->fd_in = open_vrrp_read_socket(vrrp->sockets->family, vrrp->sockets->proto,
-								ifp, vrrp->sockets->unicast);
+								vrrp->ifp, vrrp->sockets->unicast);
 			if (vrrp->sockets->fd_in == -1)
 				vrrp->sockets->fd_out = -1;
 			else
 				vrrp->sockets->fd_out = open_vrrp_send_socket(vrrp->sockets->family, vrrp->sockets->proto,
-								ifp, vrrp->sockets->unicast);
+								vrrp->ifp, vrrp->sockets->unicast);
 
 			if (vrrp->sockets->fd_out > master->max_fd)
 				master->max_fd = vrrp->sockets->fd_out;
 			if (vrrp->sockets->fd_in > master->max_fd)
 				master->max_fd = vrrp->sockets->fd_in;
-			vrrp->sockets->ifindex = ifp->ifindex;
+			vrrp->sockets->ifindex = vrrp->ifp->ifindex;
 
 			alloc_vrrp_fd_bucket(vrrp);
 
