@@ -1444,10 +1444,9 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 #endif
 
 #ifdef _HAVE_VRRP_VMAC_
-			/* If this was one of our vmacs, create it again, so long as the underlying i/f exists */
-// TODO - this should call a different function, just to create the vmac and open sockets
+			/* If this was a vmac we created, create it again, so long as the underlying i/f exists */
 			if (!LIST_ISEMPTY(ifp->tracking_vrrp) && ifp->vmac && ifp->base_ifp->ifindex)
-				update_added_interface(ifp);
+				recreate_vmac(ifp);
 #endif
 		} else {
 			/* The name can change, so handle that here */
@@ -1467,15 +1466,13 @@ netlink_reflect_filter(__attribute__((unused)) struct sockaddr_nl *snl, struct n
 #endif
 
 #ifdef _HAVE_VRRP_VMAC_
-// TODO - Remove any vmacs on the interface (internally)
-
 				/* If this was one of our vmacs, create it again */
 				if (!LIST_ISEMPTY(ifp->tracking_vrrp) && ifp->vmac) {
 					/* Change the mac address on the interface, so we can create a new vmac */
 
 					/* Now create our VMAC again */
-// TODO - this should be the same as update_added_interface above */
-					update_added_interface(ifp);
+					if (ifp->base_ifp->ifindex)
+						recreate_vmac(ifp);
 				}
 				else
 #endif

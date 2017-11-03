@@ -270,13 +270,13 @@ netlink_link_add_vmac(vrrp_t *vrrp)
 		addattr_l(&req.n, sizeof(req), IFLA_ADDRESS, ll_addr, ETH_ALEN);
 
 		if (netlink_talk(&nl_cmd, &req.n) < 0) {
-			log_message(LOG_INFO, "vmac: Error creating VMAC interface %s for vrrp_instance %s!!!"
-					    , vrrp->vmac_ifname, vrrp->iname);
+			log_message(LOG_INFO, "(%s): Unable to create VMAC interface %s"
+					    , vrrp->iname, vrrp->vmac_ifname);
 			return false;
 		}
 
-		log_message(LOG_INFO, "vmac: Success creating VMAC interface %s for vrrp_instance %s"
-				    , vrrp->vmac_ifname, vrrp->iname);
+		log_message(LOG_INFO, "(%s): Success creating VMAC interface %s"
+				    , vrrp->iname, vrrp->vmac_ifname);
 
 		/*
 		 * Update interface queue and vrrp instance interface binding.

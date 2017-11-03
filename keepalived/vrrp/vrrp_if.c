@@ -964,6 +964,74 @@ cleanup_lost_interface(interface_t *ifp)
 	}
 }
 
+static bool
+setup_interface(vrrp_t *vrrp)
+{
+#ifdef _HAVE_VRRP_VMAC_
+	/* If the vrrp instance uses a vmac, and that vmac i/f doesn't
+	 * exist, then create it */
+	if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
+	    !vrrp->ifp->ifindex) {
+		if (!netlink_link_add_vmac(vrrp))
+			return false;
+	}
+#endif
+
+	/* Find the sockpool entry. If none, then we open the socket */
+	if (vrrp->sockets->fd_in == -1) {
+		vrrp->sockets->fd_in = open_vrrp_read_socket(vrrp->sockets->family, vrrp->sockets->proto,
+							vrrp->ifp, vrrp->sockets->unicast);
+		if (vrrp->sockets->fd_in == -1)
+			vrrp->sockets->fd_out = -1;
+		else
+			vrrp->sockets->fd_out = open_vrrp_send_socket(vrrp->sockets->family, vrrp->sockets->proto,
+							vrrp->ifp, vrrp->sockets->unicast);
+
+		if (vrrp->sockets->fd_out > master->max_fd)
+			master->max_fd = vrrp->sockets->fd_out;
+		if (vrrp->sockets->fd_in > master->max_fd)
+			master->max_fd = vrrp->sockets->fd_in;
+		vrrp->sockets->ifindex = vrrp->ifp->ifindex;
+
+		alloc_vrrp_fd_bucket(vrrp);
+
+		if (vrrp_initialised) {
+			vrrp->state = VRRP_STATE_FAULT;
+			vrrp_init_instance_sands(vrrp);
+			vrrp_thread_add_read(vrrp);
+		}
+	}
+	else
+		alloc_vrrp_fd_bucket(vrrp);
+
+	return true;
+}
+
+void
+recreate_vmac(interface_t *ifp)
+{
+	vrrp_t *vrrp;
+	tracking_vrrp_t *tvp;
+	element e;
+
+	if (LIST_ISEMPTY(ifp->tracking_vrrp) || !ifp->vmac)
+		return;
+
+	for (e = LIST_HEAD(ifp->tracking_vrrp); e; ELEMENT_NEXT(e)) {
+		tvp = ELEMENT_DATA(e);
+		vrrp = tvp->vrrp;
+
+		/* If this isn't the vrrp's interface, skip */
+		if (vrrp->ifp != ifp)
+			continue;
+
+		netlink_error_ignore = ENODEV;
+		setup_interface(vrrp);
+		netlink_error_ignore = 0;
+		break;
+	}
+}
+
 void
 update_added_interface(interface_t *ifp)
 {
@@ -982,41 +1050,6 @@ update_added_interface(interface_t *ifp)
 		if (vrrp->ifp != ifp && IF_BASE_IFP(vrrp->ifp) != ifp)
 			continue;
 
-#ifdef _HAVE_VRRP_VMAC_
-		/* If the vrrp instance uses a vmac, and that vmac i/f doesn't
-		 * exist, then create it */
-		if (__test_bit(VRRP_VMAC_BIT, &vrrp->vmac_flags) &&
-		    !vrrp->ifp->ifindex) {
-			if (!netlink_link_add_vmac(vrrp))
-				return;
-		}
-#endif
-
-		/* Find the sockpool entry. If none, then we open the socket */
-		if (vrrp->sockets->fd_in == -1) {
-			vrrp->sockets->fd_in = open_vrrp_read_socket(vrrp->sockets->family, vrrp->sockets->proto,
-								vrrp->ifp, vrrp->sockets->unicast);
-			if (vrrp->sockets->fd_in == -1)
-				vrrp->sockets->fd_out = -1;
-			else
-				vrrp->sockets->fd_out = open_vrrp_send_socket(vrrp->sockets->family, vrrp->sockets->proto,
-								vrrp->ifp, vrrp->sockets->unicast);
-
-			if (vrrp->sockets->fd_out > master->max_fd)
-				master->max_fd = vrrp->sockets->fd_out;
-			if (vrrp->sockets->fd_in > master->max_fd)
-				master->max_fd = vrrp->sockets->fd_in;
-			vrrp->sockets->ifindex = vrrp->ifp->ifindex;
-
-			alloc_vrrp_fd_bucket(vrrp);
-
-			if (vrrp_initialised) {
-				vrrp->state = VRRP_STATE_FAULT;
-				vrrp_init_instance_sands(vrrp);
-				vrrp_thread_add_read(vrrp);
-			}
-		}
-		else
-			alloc_vrrp_fd_bucket(vrrp);
+		setup_interface(vrrp);
 	}
 }
