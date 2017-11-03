@@ -599,9 +599,15 @@
 /* Define to 1 to log malloc/free checks to syslog */
 #undef _MEM_CHECK_LOG_
 
+/* Define to 1 to build with select debugging support */
+#undef _SELECT_DEBUG_
+
 /* Define to 1 to have keepalived send RFC6257 SNMP responses for VRRPv2
    instances */
 #undef _SNMP_REPLY_V3_FOR_V2_
+
+/* Define to 1 to build with timer debugging support */
+#undef _TIMER_DEBUG_
 
 /* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
    <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
