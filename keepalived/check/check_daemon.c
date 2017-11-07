@@ -296,6 +296,7 @@ check_respawn_thread(thread_t * thread)
 		start_check_child();
 	} else {
 		log_message(LOG_ALERT, "Healthcheck child process(%d) died: Exiting", pid);
+		checkers_child = 0;
 		raise(SIGTERM);
 	}
 	return 0;
