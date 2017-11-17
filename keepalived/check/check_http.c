@@ -143,7 +143,9 @@ http_get_check_compare(void *a, void *b)
 		u2 = (url_t *)list_element(new->url, n);
 		if (strcmp(u1->path, u2->path))
 			return false;
-		if (strcmp(u1->digest, u2->digest))
+		if (!u1->digest != !u2->digest)
+			return false;
+		if (u1->digest && strcmp(u1->digest, u2->digest))
 			return false;
 		if (u1->status_code != u2->status_code)
 			return false;
