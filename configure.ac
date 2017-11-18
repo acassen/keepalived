@@ -232,7 +232,7 @@ AC_SUBST(ARFLAGS)
 
 KA_CPPFLAGS="$kernelinc"
 KA_CFLAGS="-Wall -Wunused -Wstrict-prototypes -Wextra -g -O2 -fPIE"
-KA_LDFLAGS=
+KA_LDFLAGS="-pie"
 KA_LIBS=
 NEED_LIBDL=No
 #KA_LIBTOOLFLAGS =
