@@ -374,6 +374,7 @@ AC_CHECK_FUNCS([dup2 getcwd gettimeofday memmove memset select setenv socket str
 dnl - pipe2() since Linux 2.6.27 and glibc 2.9.
 AC_CHECK_FUNCS([pipe2], [add_build_opt([PIPE2])])
 
+_
 dnl - Do we want to override dynamic/static linking?
 if test -n "$enable_dynamic_linking"; then
   enable_libiptc_dynamic=$enable_dynamic_linking
@@ -1018,6 +1019,17 @@ AC_CHECK_DECL([IPVS_SVC_ATTR_PE_NAME],
      AC_DEFINE([_HAVE_PE_NAME_], [ 1 ], [Define to 1 if have pe selection support])
    ],
    [], [[#include <linux/ip_vs.h>]])
+
+dnl ----[ Checks for O_PATH support ]----
+# Introduced in Linux 2.6.39
+SAV_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -D_GNU_SOURCE"
+AC_CHECK_DECLS([O_PATH],
+  [
+    add_build_opt([O_PATH])
+    add_to_var([KA_CFLAGS], ["-D_GNU_SOURCE"])
+  ], [],[[#include <fcntl.h>]])
+CFLAGS="$SAV_CFLAGS"
 
 dnl ----[ Check for GLOB_BRACE support ]----
 AC_CHECK_DECLS([GLOB_BRACE], [add_build_opt([GLOB_BRACE])], [], [[#include <glob.h>]])

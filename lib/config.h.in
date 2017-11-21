@@ -131,6 +131,10 @@
    if you don't. */
 #undef HAVE_DECL_MACVLAN_MODE_PRIVATE
 
+/* Define to 1 if you have the declaration of `O_PATH', and to 0 if you don't.
+   */
+#undef HAVE_DECL_O_PATH
+
 /* Define to 1 if you have the declaration of `RTAX_CC_ALGO', and to 0 if you
    don't. */
 #undef HAVE_DECL_RTAX_CC_ALGO
