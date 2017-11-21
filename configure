@@ -6514,6 +6514,7 @@ fi
 done
 
 
+_
 if test -n "$enable_dynamic_linking"; then
   enable_libiptc_dynamic=$enable_dynamic_linking
   enable_libipset_dynamic=$enable_dynamic_linking
@@ -9447,6 +9448,29 @@ $as_echo "#define _HAVE_PE_NAME_  1 " >>confdefs.h
 
 fi
 
+
+# Introduced in Linux 2.6.39
+SAV_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -D_GNU_SOURCE"
+ac_fn_c_check_decl "$LINENO" "O_PATH" "ac_cv_have_decl_O_PATH" "#include <fcntl.h>
+"
+if test "x$ac_cv_have_decl_O_PATH" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_O_PATH $ac_have_decl
+_ACEOF
+if test $ac_have_decl = 1; then :
+
+    BUILD_OPTIONS="$BUILD_OPTIONS O_PATH"
+    KA_CFLAGS="$KA_CFLAGS "-D_GNU_SOURCE""
+
+fi
+
+CFLAGS="$SAV_CFLAGS"
 
 ac_fn_c_check_decl "$LINENO" "GLOB_BRACE" "ac_cv_have_decl_GLOB_BRACE" "#include <glob.h>
 "
