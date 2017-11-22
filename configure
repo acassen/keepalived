@@ -6514,7 +6514,6 @@ fi
 done
 
 
-_
 if test -n "$enable_dynamic_linking"; then
   enable_libiptc_dynamic=$enable_dynamic_linking
   enable_libipset_dynamic=$enable_dynamic_linking
