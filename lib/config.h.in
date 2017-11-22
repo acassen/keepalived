@@ -131,6 +131,10 @@
    if you don't. */
 #undef HAVE_DECL_MACVLAN_MODE_PRIVATE
 
+/* Define to 1 if you have the declaration of `O_PATH', and to 0 if you don't.
+   */
+#undef HAVE_DECL_O_PATH
+
 /* Define to 1 if you have the declaration of `RTAX_CC_ALGO', and to 0 if you
    don't. */
 #undef HAVE_DECL_RTAX_CC_ALGO
@@ -521,6 +525,10 @@
 /* The system options from which the package is built */
 #undef SYSTEM_OPTIONS
 
+/* Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>
+   */
+#undef USE_LIBIPSET_LINUX_IP_SET_H
+
 /* Version number of package */
 #undef VERSION
 
@@ -529,10 +537,6 @@
 
 /* Define if <linux/netfilter/x_tables.h> doesnt define it */
 #undef XT_EXTENSION_MAXNAMELEN
-
-/* Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>
-   */
-#undef XT_SET_H_NEEDS_LINUX_IP_SET_H
 
 /* Define to 1 to build with debugging support */
 #undef _DEBUG_

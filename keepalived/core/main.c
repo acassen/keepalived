@@ -508,6 +508,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #ifdef _WITH_VRRP_
 		if (vrrp_child > 0 && vrrp_child == (pid_t)siginfo.ssi_pid) {
 			report_child_status(status, vrrp_child, PROG_VRRP);
+			vrrp_child = 0;
 			wait_count--;
 		}
 #endif
@@ -515,6 +516,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #ifdef _WITH_LVS_
 		if (checkers_child > 0 && checkers_child == (pid_t)siginfo.ssi_pid) {
 			report_child_status(status, checkers_child, PROG_CHECK);
+			checkers_child = 0;
 			wait_count--;
 		}
 #endif
@@ -530,6 +532,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #ifdef _WITH_VRRP_
 		if (vrrp_child > 0 && vrrp_child == waitpid(vrrp_child, &status, WNOHANG)) {
 			report_child_status(status, vrrp_child, PROG_VRRP);
+			vrrp_child = 0;
 			wait_count--;
 		}
 #endif
@@ -537,6 +540,7 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 #ifdef _WITH_LVS_
 		if (checkers_child > 0 && checkers_child == waitpid(checkers_child, &status, WNOHANG)) {
 			report_child_status(status, checkers_child, PROG_CHECK);
+			checkers_child = 0;
 			wait_count--;
 		}
 #endif
@@ -561,6 +565,16 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 			if (timeout.tv_sec < 0)
 				break;
 		}
+	}
+
+	/* A child may not have terminated, so force its termination */
+	if (vrrp_child) {
+		log_message(LOG_INFO, "vrrp process failed to die - forcing termination");
+		kill(vrrp_child, SIGKILL);
+	}
+	if (checkers_child) {
+		log_message(LOG_INFO, "checker process failed to die - forcing termination");
+		kill(checkers_child, SIGKILL);
 	}
 
 #ifndef HAVE_SIGNALFD

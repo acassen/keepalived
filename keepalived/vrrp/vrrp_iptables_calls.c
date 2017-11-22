@@ -38,7 +38,11 @@
 #include <libiptc/libiptc.h>
 #include <libiptc/libip6tc.h>
 #ifdef _HAVE_LIBIPSET_
+#ifdef USE_LIBIPSET_LINUX_IP_SET_H
+#include <libipset/linux_ip_set.h>
+#else
 #include <linux/netfilter/ipset/ip_set.h>
+#endif
 #include <linux/netfilter/xt_set.h>
 #endif
 #include <unistd.h>

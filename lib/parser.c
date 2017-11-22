@@ -24,7 +24,6 @@
 
 #include "config.h"
 
-#define _GNU_SOURCE
 #include <glob.h>
 #include <unistd.h>
 #include <libgen.h>
@@ -34,6 +33,8 @@
 #include <fcntl.h>
 #include <stdlib.h>
 #include <ctype.h>
+#include <stdbool.h>
+#include <linux/version.h>
 
 #include "parser.h"
 #include "memory.h"
@@ -427,8 +428,15 @@ read_conf_file(const char *conf_file)
 
 		int curdir_fd = -1;
 		if (strchr(globbuf.gl_pathv[i], '/')) {
-			/* If the filename contains a directory element, change to that directory */
-			curdir_fd = open(".", O_RDONLY | O_DIRECTORY | O_PATH);
+			/* If the filename contains a directory element, change to that directory.
+			   The man page open(2) states that fchdir() didn't support O_PATH until Linux 3.5,
+			   even though testing on Linux 3.1 shows it appears to work. To be safe, don't
+			   use it until Linux 3.5. */
+			curdir_fd = open(".", O_RDONLY | O_DIRECTORY
+#if HAVE_DECL_O_PATH && LINUX_VERSION_CODE >= KERNEL_VERSION(3,5,0)
+								     | O_PATH
+#endif
+									     );
 
 			char *confpath = strdup(globbuf.gl_pathv[i]);
 			dirname(confpath);

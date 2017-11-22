@@ -500,6 +500,7 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 	interface_t *ifp_local;
 	char *str;
 	unsigned int i = 0, addr_idx = 0;
+	unsigned int j;
 	uint8_t scope;
 	bool param_avail;
 	bool param_missing = false;
@@ -568,11 +569,11 @@ alloc_ipaddress(list ip_list, vector_t *strvec, interface_t *ifp)
 			if (!strcmp(param, "-") || !strcmp(param, "+")) {
 				if (new->ifa.ifa_prefixlen <= 30) {
 					new->u.sin.sin_brd = new->u.sin.sin_addr;
-					for (i = 31; i >= new->ifa.ifa_prefixlen; i--) {
+					for (j = 31; j >= new->ifa.ifa_prefixlen; j--) {
 						if (param[0] == '+')
-							new->u.sin.sin_brd.s_addr |= htonl(1U<<(31-i));
+							new->u.sin.sin_brd.s_addr |= htonl(1U<<(31-j));
 						else
-							new->u.sin.sin_brd.s_addr &= ~htonl(1U<<(31-i));
+							new->u.sin.sin_brd.s_addr &= ~htonl(1U<<(31-j));
 					}
 				}
 			}

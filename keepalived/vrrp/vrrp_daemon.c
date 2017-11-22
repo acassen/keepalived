@@ -522,6 +522,7 @@ vrrp_respawn_thread(thread_t * thread)
 		start_vrrp_child();
 	} else {
 		log_message(LOG_ALERT, "VRRP child process(%d) died: Exiting", pid);
+		vrrp_child = 0;
 		raise(SIGTERM);
 	}
 	return 0;
