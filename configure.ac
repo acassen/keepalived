@@ -826,19 +826,23 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
           fi
 
           if test $USE_LIBIPSET = Yes; then
-            dnl -- Need to include <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
+            dnl -- Need to use <libipset/linux_ip_set.h> for <linux/netfilter/xt_set.h> prior to Linux 3.4
             EXTRA_INCLUDE=
             AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
               #include <linux/netfilter/xt_set.h>
-              ]])], [],
+              ]])],
+              [AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [])],
               [AC_CHECK_HEADER([linux/netfilter/xt_set.h],
                 [
-                  AC_DEFINE([XT_SET_H_NEEDS_LINUX_IP_SET_H], [ 1 ], [Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>])
+                  AC_DEFINE([USE_LIBIPSET_LINUX_IP_SET_H], [ 1 ], [Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>])
                   EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
-                ], [AC_MSG_ERROR([Missing/unusable kernel header file <linux/netfilter/xt_set.h>])],
-                [[#include <libipset/linux_ip_set.h>]])])
-            AC_CHECK_HEADERS([linux/netfilter/xt_set.h], [], [USE_LIBIPSET=No], [$EXTRA_INCLUDE])
+                ], [USE_LIBIPSET=No],
+                [[#include <libipset/linux_ip_set.h>]])
+	      ]
+	    )
+	  fi
 
+	  if test $USE_LIBIPSET = Yes; then
             AC_DEFINE([_HAVE_LIBIPSET_], [ 1 ], [Define to 1 if have ipset library])
             $PKG_CONFIG --exists libipset
             if test $? -eq 0; then
@@ -860,20 +864,20 @@ if test .${enable_libiptc} != .no -a .$enable_vrrp != .no; then
               add_config_opt([LIBIPSET])
 	    fi
 
-	    dnl - xt_set_info_match first introduced in Linux 2.6.39
+	    dnl -- xt_set_info_match first introduced in Linux 2.6.39 (initial implementation of ipsets)
             dnl -- xt_set_info_match_v1 declared since Linux 3.1
             AC_CHECK_MEMBER([struct xt_set_info_match_v1.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V1], [ 1 ], [Define to 1 if have struct xt_set_info_match_v1])], [],
               [
                 $EXTRA_INCLUDE
                 #include <linux/netfilter/xt_set.h>
               ])
-            dnl -- xt_set_info_match_v1 declared since Linux 3.10
+            dnl -- xt_set_info_match_v3 declared since Linux 3.10
             AC_CHECK_MEMBER([struct xt_set_info_match_v3.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V3], [ 1 ], [Define to 1 if have struct xt_set_info_match_v3])], [],
               [
                 $EXTRA_INCLUDE
                 #include <linux/netfilter/xt_set.h>
               ])
-            dnl -- xt_set_info_match_v1 declared since Linux 3.19
+            dnl -- xt_set_info_match_v4 declared since Linux 3.19
             AC_CHECK_MEMBER([struct xt_set_info_match_v4.match_set.index], [AC_DEFINE([HAVE_XT_SET_INFO_MATCH_V4], [ 1 ], [Define to 1 if have struct xt_set_info_match_v4])], [],
               [
                 $EXTRA_INCLUDE
@@ -1131,6 +1135,17 @@ AC_CHECK_DECL([IPVS_SVC_ATTR_PE_NAME],
      AC_DEFINE([_HAVE_PE_NAME_], [ 1 ], [Define to 1 if have pe selection support])
    ],
    [], [[#include <linux/ip_vs.h>]])
+
+dnl ----[ Checks for O_PATH support ]----
+# Introduced in Linux 2.6.39
+SAV_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -D_GNU_SOURCE"
+AC_CHECK_DECLS([O_PATH],
+  [
+    add_system_opt([O_PATH])
+    add_to_var([KA_CFLAGS], ["-D_GNU_SOURCE"])
+  ], [],[[#include <fcntl.h>]])
+CFLAGS="$SAV_CFLAGS"
 
 dnl ----[ Check for GLOB_BRACE support ]----
 AC_CHECK_DECLS([GLOB_BRACE], [add_system_opt([GLOB_BRACE])], [], [[#include <glob.h>]])
