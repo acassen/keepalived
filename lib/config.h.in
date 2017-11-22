@@ -516,6 +516,10 @@
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
+/* Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>
+   */
+#undef USE_LIBIPSET_LINUX_IP_SET_H
+
 /* Version number of package */
 #undef VERSION
 
@@ -524,10 +528,6 @@
 
 /* Define if <linux/netfilter/x_tables.h> doesnt define it */
 #undef XT_EXTENSION_MAXNAMELEN
-
-/* Define to 1 if <linux/netfilter/xt_set.h> needs <libipset/linux_ip_set.h>
-   */
-#undef XT_SET_H_NEEDS_LINUX_IP_SET_H
 
 /* Define to 1 to build with debugging support */
 #undef _DEBUG_

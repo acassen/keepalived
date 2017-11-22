@@ -8639,28 +8639,9 @@ fi
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
-
-else
-  ac_fn_c_check_header_compile "$LINENO" "linux/netfilter/xt_set.h" "ac_cv_header_linux_netfilter_xt_set_h" "#include <libipset/linux_ip_set.h>
-"
-if test "x$ac_cv_header_linux_netfilter_xt_set_h" = xyes; then :
-
-
-$as_echo "#define XT_SET_H_NEEDS_LINUX_IP_SET_H  1 " >>confdefs.h
-
-                  EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
-
-else
-  as_fn_error $? "Missing/unusable kernel header file <linux/netfilter/xt_set.h>" "$LINENO" 5
-fi
-
-
-fi
-rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-            for ac_header in linux/netfilter/xt_set.h
+  for ac_header in linux/netfilter/xt_set.h
 do :
-  ac_fn_c_check_header_compile "$LINENO" "linux/netfilter/xt_set.h" "ac_cv_header_linux_netfilter_xt_set_h" "$EXTRA_INCLUDE
-"
+  ac_fn_c_check_header_mongrel "$LINENO" "linux/netfilter/xt_set.h" "ac_cv_header_linux_netfilter_xt_set_h" "$ac_includes_default"
 if test "x$ac_cv_header_linux_netfilter_xt_set_h" = xyes; then :
   cat >>confdefs.h <<_ACEOF
 #define HAVE_LINUX_NETFILTER_XT_SET_H 1
@@ -8672,7 +8653,28 @@ fi
 
 done
 
+else
+  ac_fn_c_check_header_compile "$LINENO" "linux/netfilter/xt_set.h" "ac_cv_header_linux_netfilter_xt_set_h" "#include <libipset/linux_ip_set.h>
+"
+if test "x$ac_cv_header_linux_netfilter_xt_set_h" = xyes; then :
 
+
+$as_echo "#define USE_LIBIPSET_LINUX_IP_SET_H  1 " >>confdefs.h
+
+                  EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
+
+else
+  USE_LIBIPSET=No
+fi
+
+
+
+
+fi
+rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
+ 	  fi
+
+	  if test $USE_LIBIPSET = Yes; then
 
 $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
 
