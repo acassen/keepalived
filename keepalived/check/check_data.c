@@ -496,6 +496,7 @@ alloc_rs(char *ip, char *port)
 		vs->af = new->addr.ss_family;
 	else if (vs->af != new->addr.ss_family) {
 		log_message(LOG_INFO, "Address family of virtual server and real server %s don't match - skipping.", ip);
+		skip_block();
 		FREE(new);
 		return;
 	}
