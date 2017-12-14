@@ -659,6 +659,19 @@ Knowledge of
 .I ipvsadm(8)
 will be helpful here.
 .PP
+.B Note:
+Where an option can be configured for a virtual server, real server,
+and possibly checker, the virtual server setting is the default for real servers,
+and the real server setting is the default for checkers.
+.PP
+.B Note:
+Tunnelled real/sorry servers can differ from the address family of
+the virtual server and non tunnelled real/sorry servers, which all have to be the
+same. If a virtual server uses a fwmark, and all the real/sorry servers are
+tunnelled, the address family of the virtual server will be the same as the
+address family of the real/sorry servers if they are all the same, otherwise
+it will default to IPv4 (use ip_family inet6 to override this).
+.PP
 .SH Virtual server group(s)
 .PP
  # optional
