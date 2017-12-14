@@ -602,6 +602,7 @@ init_check_keywords(bool active)
 	/* Virtual server mapping */
 	install_keyword_root("virtual_server_group", &vsg_handler, active);
 	install_keyword_root("virtual_server", &vs_handler, active);
+	install_root_end_handler(&vs_end_handler);
 	install_keyword("ip_family", &ip_family_handler);
 	install_keyword("retry", &vs_retry_handler);
 	install_keyword("delay_before_retry", &vs_delay_before_retry_handler);
@@ -661,8 +662,6 @@ init_check_keywords(bool active)
 	install_keyword("warmup", &rs_warmup_handler);
 	install_keyword("delay_loop", &rs_delay_handler);
 	install_keyword("virtualhost", &rs_virtualhost_handler);
-
-	install_sublevel_end_handler(&vs_end_handler);
 
 	/* Checkers mapping */
 	install_checkers_keyword();

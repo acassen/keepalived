@@ -62,6 +62,7 @@ extern char *config_id;
 
 /* Prototypes */
 extern void install_keyword_root(const char *, void (*handler) (vector_t *), bool);
+extern void install_root_end_handler(void (*handler) (void));
 extern void install_sublevel(void);
 extern void install_sublevel_end(void);
 extern void install_sublevel_end_handler(void (*handler) (void));
