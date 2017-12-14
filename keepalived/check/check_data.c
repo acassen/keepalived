@@ -385,6 +385,7 @@ alloc_vs(char *param1, char *param2)
 	new->retry = UINT_MAX;
 	new->delay_before_retry = ULONG_MAX;
 	new->weight = 1;
+	new->af = AF_UNSPEC;
 
 	list_add(check_data->vs, new);
 }
@@ -664,8 +665,9 @@ bool validate_check_config(void)
 			}
 
 			/* A virtual server using fwmarks will ignore any protocol setting, so warn if one is set */
-			if ((vs->vsg && !LIST_ISEMPTY(vs->vsg->vfwmark)) ||
-			    (!vs->vsg && vs->vfwmark))
+			if (vs->service_type &&
+			    ((vs->vsg && !LIST_ISEMPTY(vs->vsg->vfwmark)) ||
+			     (!vs->vsg && vs->vfwmark)))
 				log_message(LOG_INFO, "Warning: Virtual server %s: protocol specified for fwmark - protocol will be ignored", FMT_VS(vs));
 
 			/* Check scheduler set */
