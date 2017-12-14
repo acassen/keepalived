@@ -128,6 +128,20 @@ install_keyword_root(const char *string, void (*handler) (vector_t *), bool acti
 }
 
 void
+install_root_end_handler(void (*handler) (void))
+{
+	keyword_t *keyword;
+
+	/* fetch last keyword */
+	keyword = vector_slot(keywords, vector_size(keywords) - 1);
+
+	if (!keyword->active)
+		return;
+
+	keyword->sub_close_handler = handler;
+}
+
+void
 install_keyword(const char *string, void (*handler) (vector_t *))
 {
 	keyword_alloc_sub(keywords, string, handler);
