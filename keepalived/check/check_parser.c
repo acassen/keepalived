@@ -115,10 +115,54 @@ static void
 vs_end_handler(void)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs;
+	element e;
 
-	/* I'm not sure how the following can happen so long as we have a real server */
-	if (!vs->af)
-		vs->af = AF_INET;
+	/* If the real (sorry) server uses tunnel forwarding, the address family
+	 * does not have to match the address family of the virtaul server */
+	if (vs->s_svr->forwarding_method != IP_VS_CONN_F_TUNNEL) {
+		if (vs->af == AF_UNSPEC)
+			vs->af = vs->s_svr->addr.ss_family;
+		else if (vs->af != vs->s_svr->addr.ss_family) {
+			log_message(LOG_INFO, "Address family of virtual server and sorry server %s don't match - skipping sorry server.", inet_sockaddrtos(&vs->s_svr->addr));
+			FREE(vs->s_svr);
+			vs->s_svr = NULL;
+		}
+	}
+
+	if (!vs->af) {
+		/* This only occurs if the virtual server uses a fwmark, and all the
+		 * real/sorry servers are tunnelled.
+		 *
+		 * Maintain backward compatibility. Prior to the commit following 17fa4a3c
+		 * the address family of the virtual server was set from any of its
+		 * real or sorry servers, even if it was tunnelled. However, all the real
+		 * and sorry servers had to be the same address family, even if tunnelled,
+		 * so only set the address family from the tunnelled real/sorry servers
+		 * if all the real/sorry servers are of the same address family. */
+		if (vs->s_svr)
+			vs->af = vs->s_svr->addr.ss_family;
+		else
+			vs->af = AF_UNSPEC;
+
+		if (!LIST_ISEMPTY(vs->rs)) {
+			for (e = LIST_HEAD(vs->rs); e; ELEMENT_NEXT(e)) {
+				rs = ELEMENT_DATA(e);
+				if (vs->af == AF_UNSPEC)
+					vs->af = rs->addr.ss_family;
+				else if (vs->af != rs->addr.ss_family) {
+					vs->af = AF_UNSPEC;
+					break;
+				}
+			}
+		}
+
+		if (vs->af == AF_UNSPEC) {
+			/* We have a mixture of IPv4 and IPv6 tunnelled real/sorry servers.
+			 * Default to IPv4. */
+			vs->af = AF_INET;
+		}
+	}
 }
 static void
 ip_family_handler(vector_t *strvec)
@@ -393,6 +437,22 @@ rs_handler(vector_t *strvec)
 	alloc_rs(strvec_slot(strvec, 1), strvec_slot(strvec, 2));
 }
 static void
+rs_end_handler(void)
+{
+	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
+	real_server_t *rs = LIST_TAIL_DATA(vs->rs);
+
+	/* For tunnelled forwarding, the address families don't have to be the same */
+	if (rs->forwarding_method != IP_VS_CONN_F_TUNNEL) {
+		if (vs->af == AF_UNSPEC)
+			vs->af = rs->addr.ss_family;
+		else if (vs->af != rs->addr.ss_family) {
+			log_message(LOG_INFO, "Address family of virtual server and real server %s don't match - skipping real server.", inet_sockaddrtos(&rs->addr));
+			free_list_element(vs->rs, vs->rs->tail);
+		}
+        }
+}
+static void
 rs_weight_handler(vector_t *strvec)
 {
 	virtual_server_t *vs = LIST_TAIL_DATA(check_data->vs);
@@ -662,6 +722,8 @@ init_check_keywords(bool active)
 	install_keyword("warmup", &rs_warmup_handler);
 	install_keyword("delay_loop", &rs_delay_handler);
 	install_keyword("virtualhost", &rs_virtualhost_handler);
+
+	install_sublevel_end_handler(&rs_end_handler);
 
 	/* Checkers mapping */
 	install_checkers_keyword();

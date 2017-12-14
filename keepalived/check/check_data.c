@@ -405,15 +405,6 @@ alloc_ssvr(char *ip, char *port)
 		vs->s_svr = NULL;
 		return;
 	}
-
-	if (vs->af == AF_UNSPEC)
-		vs->af = vs->s_svr->addr.ss_family;
-	else if (vs->af != vs->s_svr->addr.ss_family) {
-		log_message(LOG_INFO, "Address family of virtual server and sorry server %s don't match - skipping.", ip);
-		FREE(vs->s_svr);
-		vs->s_svr = NULL;
-		return;
-	}
 }
 
 /* Real server facility functions */
@@ -491,15 +482,6 @@ alloc_rs(char *ip, char *port)
 		return;
 	}
 #endif
-
-	if (vs->af == AF_UNSPEC)
-		vs->af = new->addr.ss_family;
-	else if (vs->af != new->addr.ss_family) {
-		log_message(LOG_INFO, "Address family of virtual server and real server %s don't match - skipping.", ip);
-		skip_block();
-		FREE(new);
-		return;
-	}
 
 	new->weight = INT_MAX;
 	new->forwarding_method = vs->forwarding_method;
