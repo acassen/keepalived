@@ -385,6 +385,7 @@ alloc_vs(char *param1, char *param2)
 	new->retry = UINT_MAX;
 	new->delay_before_retry = ULONG_MAX;
 	new->weight = 1;
+	new->af = AF_UNSPEC;
 
 	list_add(check_data->vs, new);
 }
@@ -401,15 +402,6 @@ alloc_ssvr(char *ip, char *port)
 	vs->s_svr->forwarding_method = vs->forwarding_method;
 	if (inet_stosockaddr(ip, port, &vs->s_svr->addr)) {
 		log_message(LOG_INFO, "Invalid sorry server IP address %s - skipping", ip);
-		FREE(vs->s_svr);
-		vs->s_svr = NULL;
-		return;
-	}
-
-	if (vs->af == AF_UNSPEC)
-		vs->af = vs->s_svr->addr.ss_family;
-	else if (vs->af != vs->s_svr->addr.ss_family) {
-		log_message(LOG_INFO, "Address family of virtual server and sorry server %s don't match - skipping.", ip);
 		FREE(vs->s_svr);
 		vs->s_svr = NULL;
 		return;
@@ -491,15 +483,6 @@ alloc_rs(char *ip, char *port)
 		return;
 	}
 #endif
-
-	if (vs->af == AF_UNSPEC)
-		vs->af = new->addr.ss_family;
-	else if (vs->af != new->addr.ss_family) {
-		log_message(LOG_INFO, "Address family of virtual server and real server %s don't match - skipping.", ip);
-		skip_block();
-		FREE(new);
-		return;
-	}
 
 	new->weight = INT_MAX;
 	new->forwarding_method = vs->forwarding_method;
@@ -688,8 +671,9 @@ bool validate_check_config(void)
 			}
 
 			/* A virtual server using fwmarks will ignore any protocol setting, so warn if one is set */
-			if ((vs->vsg && !LIST_ISEMPTY(vs->vsg->vfwmark)) ||
-			    (!vs->vsg && vs->vfwmark))
+			if (vs->service_type &&
+			    ((vs->vsg && !LIST_ISEMPTY(vs->vsg->vfwmark)) ||
+			     (!vs->vsg && vs->vfwmark)))
 				log_message(LOG_INFO, "Warning: Virtual server %s: protocol specified for fwmark - protocol will be ignored", FMT_VS(vs));
 
 			/* Check scheduler set */
