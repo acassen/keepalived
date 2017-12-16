@@ -116,7 +116,7 @@ stop_vrrp(int status)
 	netlink_rulelist(vrrp_data->static_rules, IPRULE_DEL, false);
 	netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
 #endif
-	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL);
+	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL, false);
 
 #ifdef _WITH_SNMP_
 	if (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)
@@ -269,7 +269,7 @@ start_vrrp(void)
 	}
 	else {
 		/* Clear leftover static entries */
-		netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL);
+		netlink_iplist(vrrp_data->static_addresses, IPADDRESS_DEL, false);
 #ifdef _HAVE_FIB_ROUTING_
 		netlink_rtlist(vrrp_data->static_routes, IPROUTE_DEL);
 		netlink_error_ignore = ENOENT;
@@ -329,7 +329,7 @@ start_vrrp(void)
 #endif
 
 	/* Set static entries */
-	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_ADD);
+	netlink_iplist(vrrp_data->static_addresses, IPADDRESS_ADD, false);
 #ifdef _HAVE_FIB_ROUTING_
 	netlink_rtlist(vrrp_data->static_routes, IPROUTE_ADD);
 	netlink_rulelist(vrrp_data->static_rules, IPRULE_ADD, false);
