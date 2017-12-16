@@ -2137,7 +2137,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	if (vrrp->base_priority == 0) {
-		if (vrrp->init_state == VRRP_STATE_MAST)
+		if (vrrp->wantstate == VRRP_STATE_MAST)
 			vrrp->base_priority = VRRP_PRIO_OWNER;
 		else
 			vrrp->base_priority = VRRP_PRIO_DFL;
@@ -2150,18 +2150,16 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		vrrp->nopreempt = false;
 	}
 
-	if (vrrp->strict_mode && (vrrp->init_state == VRRP_STATE_MAST) && (vrrp->base_priority != VRRP_PRIO_OWNER)) {
+	if (vrrp->strict_mode && (vrrp->wantstate == VRRP_STATE_MAST) && (vrrp->base_priority != VRRP_PRIO_OWNER)) {
 		log_message(LOG_INFO,"(%s): Cannot start in MASTER state if not address owner", vrrp->iname);
-		vrrp->init_state = VRRP_STATE_BACK;
 		vrrp->wantstate = VRRP_STATE_BACK;
 	}
 	else if (vrrp->base_priority == VRRP_PRIO_OWNER && !vrrp->nopreempt) {
 		/* Act as though state MASTER had been specified, to speed transition to master state */
-		vrrp->init_state = VRRP_STATE_MAST;
 		vrrp->wantstate = VRRP_STATE_MAST;
 	}
 
-	if (vrrp->nopreempt && vrrp->init_state == VRRP_STATE_MAST)
+	if (vrrp->nopreempt && vrrp->wantstate == VRRP_STATE_MAST)
 		log_message(LOG_INFO, "(%s): Warning - nopreempt will not work with initial state MASTER", vrrp->iname);
 	if (vrrp->strict_mode && vrrp->preempt_delay) {
 		log_message(LOG_INFO, "(%s): preempt_delay is incompatible with strict mode - resetting", vrrp->iname);
@@ -2784,7 +2782,6 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 
 	/* Keep VRRP state, ipsec AH seq_number */
 	vrrp->state = old_vrrp->state;
-	vrrp->init_state = old_vrrp->state;
 	vrrp->wantstate = old_vrrp->state;
 	if (!old_vrrp->sync)
 		vrrp->effective_priority = old_vrrp->effective_priority;
