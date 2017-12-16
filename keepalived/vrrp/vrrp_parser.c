@@ -284,7 +284,9 @@ vrrp_state_handler(vector_t *strvec)
 
 	if (!strcmp(str, "MASTER")) {
 		vrrp->wantstate = VRRP_STATE_MAST;
+#ifdef _WITH_SNMP_VRRP_
 		vrrp->init_state = VRRP_STATE_MAST;
+#endif
 	}
 	else if (strcmp(str, "BACKUP"))
 		log_message(LOG_INFO,"(%s): unknown state '%s', defaulting to BACKUP", vrrp->iname, str);

@@ -229,8 +229,10 @@ typedef struct _vrrp_t {
 							 * prio is allowed.  0 means no delay.
 							 */
 	timeval_t		preempt_time;		/* Time after which preemption can happen */
-	int			state;			/* internal state (init/backup/master) */
+	int			state;			/* internal state (init/backup/master/fault) */
+#ifdef _WITH_SNMP_VRRP_
 	int			init_state;		/* the initial state of the instance */
+#endif
 	int			wantstate;		/* user explicitly wants a state (back/mast) */
 	int			fd_in;			/* IN socket descriptor */
 	int			fd_out;			/* OUT socket descriptor */

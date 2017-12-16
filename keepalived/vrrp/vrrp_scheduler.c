@@ -293,7 +293,7 @@ vrrp_init_state(list l)
 			vrrp->state = VRRP_STATE_BACK;
 			vrrp_smtp_notifier(vrrp);
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_KEEPALIVED_
+#ifdef _WITH_SNMP_VRRP_
 			vrrp_snmp_instance_trap(vrrp);
 #endif
 			vrrp->last_transition = timer_now();
@@ -304,7 +304,7 @@ vrrp_init_state(list l)
 					vgroup->state = VRRP_STATE_BACK;
 					vrrp_sync_smtp_notifier(vgroup);
 					notify_group_exec(vgroup, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_KEEPALIVED_
+#ifdef _WITH_SNMP_VRRP_
 					vrrp_snmp_group_trap(vgroup);
 #endif
 				}
@@ -671,7 +671,7 @@ vrrp_backup(vrrp_t * vrrp, char *buffer, ssize_t len)
 		if (vrrp->state != VRRP_STATE_FAULT) {
 			notify_instance_exec(vrrp, VRRP_STATE_FAULT);
 			vrrp->state = VRRP_STATE_FAULT;
-#ifdef _WITH_SNMP_KEEPALIVED_
+#ifdef _WITH_SNMP_VRRP_
 			vrrp_snmp_instance_trap(vrrp);
 #endif
 		}
@@ -767,7 +767,7 @@ vrrp_leave_fault(vrrp_t * vrrp, char *buffer, ssize_t len)
 			vrrp->state = VRRP_STATE_BACK;
 			vrrp_smtp_notifier(vrrp);
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);
-#ifdef _WITH_SNMP_KEEPALIVED_
+#ifdef _WITH_SNMP_VRRP_
 			vrrp_snmp_instance_trap(vrrp);
 #endif
 			vrrp->last_transition = timer_now();
@@ -790,7 +790,7 @@ vrrp_goto_master(vrrp_t * vrrp)
 		vrrp->state = VRRP_STATE_FAULT;
 		vrrp->ms_down_timer = 3 * vrrp->adver_int + VRRP_TIMER_SKEW(vrrp);
 		notify_instance_exec(vrrp, VRRP_STATE_FAULT);
-#ifdef _WITH_SNMP_KEEPALIVED_
+#ifdef _WITH_SNMP_VRRP_
 		vrrp_snmp_instance_trap(vrrp);
 #endif
 		vrrp->last_transition = timer_now();
@@ -966,12 +966,12 @@ vrrp_fault(vrrp_t * vrrp)
 #endif
 	{
 		/* Otherwise, we transit to init state */
-		if (vrrp->init_state == VRRP_STATE_BACK) {
+		if (vrrp->base_priority != VRRP_PRIO_OWNER) {
 			vrrp->state = VRRP_STATE_BACK;
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);
 			if (vrrp->preempt_delay)
 				vrrp->preempt_time = timer_add_long(timer_now(), vrrp->preempt_delay);
-#ifdef _WITH_SNMP_KEEPALIVED_
+#ifdef _WITH_SNMP_VRRP_
 			vrrp_snmp_instance_trap(vrrp);
 #endif
 			vrrp->last_transition = timer_now();

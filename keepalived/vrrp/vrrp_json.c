@@ -207,8 +207,6 @@ vrrp_print_json(void)
 			json_object_new_int((int)(vrrp->preempt_delay / TIMER_HZ)));
 		json_object_object_add(json_data, "state",
 			json_object_new_int(vrrp->state));
-		json_object_object_add(json_data, "init_state",
-			json_object_new_int(vrrp->init_state));
 		json_object_object_add(json_data, "wantstate",
 			json_object_new_int(vrrp->wantstate));
 		json_object_object_add(json_data, "version",
