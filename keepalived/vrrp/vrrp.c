@@ -86,13 +86,13 @@ bool block_ipv6;
 
 /* add/remove Virtual IP addresses */
 static bool
-vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type)
+vrrp_handle_ipaddress(vrrp_t * vrrp, int cmd, int type, bool force)
 {
 	if (__test_bit(LOG_DETAIL_BIT, &debug))
 		log_message(LOG_INFO, "(%s) %s protocol %s", vrrp->iname,
 		       (cmd == IPADDRESS_ADD) ? "setting" : "removing",
 		       (type == VRRP_VIP_TYPE) ? "VIPs." : "E-VIPs.");
-	return netlink_iplist((type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip, cmd);
+	return netlink_iplist((type == VRRP_VIP_TYPE) ? vrrp->vip : vrrp->evip, cmd, force);
 }
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -1442,9 +1442,9 @@ vrrp_state_become_master(vrrp_t * vrrp)
 	/* add the ip addresses */
 	vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, false);
 	if (!LIST_ISEMPTY(vrrp->vip))
-		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
+		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE, false);
 	if (!LIST_ISEMPTY(vrrp->evip))
-		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE);
+		vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE, false);
 	vrrp->vipset = 1;
 
 #ifdef _HAVE_FIB_ROUTING_
@@ -1550,9 +1550,9 @@ vrrp_restore_interface(vrrp_t * vrrp, bool advF, bool force)
 	    __test_bit(DONT_RELEASE_VRRP_BIT, &debug) ||
 	    __test_bit(RELEASE_VIPS_BIT, &debug)) {
 		if (!LIST_ISEMPTY(vrrp->vip))
-			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL, VRRP_VIP_TYPE);
+			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL, VRRP_VIP_TYPE, force);
 		if (!LIST_ISEMPTY(vrrp->evip))
-			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL, VRRP_EVIP_TYPE);
+			vrrp_handle_ipaddress(vrrp, IPADDRESS_DEL, VRRP_EVIP_TYPE, force);
 		vrrp_handle_accept_mode(vrrp, IPADDRESS_DEL, force);
 		vrrp->vipset = 0;
 	}
@@ -3333,9 +3333,9 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 	if (vrrp->vipset) {
 		vrrp_handle_accept_mode(vrrp, IPADDRESS_ADD, false);
 		if (!LIST_ISEMPTY(vrrp->vip))
-			added_ip_addr = vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE);
+			added_ip_addr = vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_VIP_TYPE, false);
 		if (!LIST_ISEMPTY(vrrp->evip)) {
-			if (vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE))
+			if (vrrp_handle_ipaddress(vrrp, IPADDRESS_ADD, VRRP_EVIP_TYPE, false))
 				added_ip_addr = true;
 		}
 #ifdef _HAVE_FIB_ROUTING_

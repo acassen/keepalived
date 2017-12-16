@@ -192,7 +192,7 @@ netlink_ipaddress(ip_address_t *ipaddress, int cmd)
 
 /* Add/Delete a list of IP addresses */
 bool
-netlink_iplist(list ip_list, int cmd)
+netlink_iplist(list ip_list, int cmd, bool force)
 {
 	ip_address_t *ipaddr;
 	element e;
@@ -210,7 +210,7 @@ netlink_iplist(list ip_list, int cmd)
 		ipaddr = ELEMENT_DATA(e);
 		if ((cmd == IPADDRESS_ADD && !ipaddr->set) ||
 		    (cmd == IPADDRESS_DEL &&
-		     (ipaddr->set || __test_bit(DONT_RELEASE_VRRP_BIT, &debug)))) {
+		     (force || ipaddr->set || __test_bit(DONT_RELEASE_VRRP_BIT, &debug)))) {
 			if (netlink_ipaddress(ipaddr, cmd) > 0) {
 				ipaddr->set = !(cmd == IPADDRESS_DEL);
 				changed_entries = true;
@@ -692,7 +692,7 @@ clear_diff_address(struct ipt_handle *h, list l, list n)
 	/* All addresses removed */
 	if (LIST_ISEMPTY(n)) {
 		log_message(LOG_INFO, "Removing a complete VIP or e-VIP block");
-		netlink_iplist(l, IPADDRESS_DEL);
+		netlink_iplist(l, IPADDRESS_DEL, false);
 		handle_iptable_rule_to_iplist(h, l, IPADDRESS_DEL, false);
 		return;
 	}
