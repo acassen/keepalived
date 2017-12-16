@@ -64,7 +64,7 @@ extern timeval_t vrrp_start_time;
 extern void vrrp_snmp_agent_init(const char *);
 extern void vrrp_snmp_agent_close(void);
 
-#ifdef _WITH_SNMP_KEEPALIVED_
+#ifdef _WITH_SNMP_VRRP_
 extern void vrrp_snmp_instance_trap(vrrp_t *);
 extern void vrrp_snmp_group_trap(vrrp_sgroup_t *);
 #endif

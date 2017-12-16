@@ -158,7 +158,7 @@ alloc_global_data(void)
 
 #ifdef _WITH_SNMP_
 	if (snmp) {
-#ifdef _WITH_SNMP_KEEPALIVED_
+#ifdef _WITH_SNMP_VRRP_
 		new->enable_snmp_keepalived = true;
 #endif
 #ifdef _WITH_SNMP_RFCV2_
@@ -447,7 +447,7 @@ dump_global_data(data_t * data)
 	log_message(LOG_INFO, " Checker process priority = %d", data->checker_process_priority);
 	log_message(LOG_INFO, " Checker don't swap = %s", data->checker_no_swap ? "true" : "false");
 #endif
-#ifdef _WITH_SNMP_KEEPALIVED_
+#ifdef _WITH_SNMP_VRRP_
 	log_message(LOG_INFO, " SNMP keepalived %s", data->enable_snmp_keepalived ? "enabled" : "disabled");
 #endif
 #ifdef _WITH_SNMP_CHECKER_
