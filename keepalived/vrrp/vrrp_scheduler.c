@@ -966,7 +966,7 @@ vrrp_fault(vrrp_t * vrrp)
 #endif
 	{
 		/* Otherwise, we transit to init state */
-		if (vrrp->init_state == VRRP_STATE_BACK) {
+		if (vrrp->base_priority != VRRP_PRIO_OWNER) {
 			vrrp->state = VRRP_STATE_BACK;
 			notify_instance_exec(vrrp, VRRP_STATE_BACK);
 			if (vrrp->preempt_delay)
