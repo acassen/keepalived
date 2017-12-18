@@ -1519,7 +1519,7 @@ Optional Features:
   --enable-stacktrace     compile with stacktrace support
   --enable-dump-threads   compile with thread dumping support
   --enable-select-debug   compile with select debugging support
-  --enable-timer-debug   compile with timer debugging support
+  --enable-timer-debug    compile with timer debugging support
   --enable-profile        compile with profiling flags
   --enable-conversion-checks
                           compile with conversion warnings if sensible

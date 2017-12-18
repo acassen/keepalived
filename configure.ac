@@ -201,7 +201,7 @@ AC_ARG_ENABLE(dump-threads,
 AC_ARG_ENABLE(select-debug,
   [  --enable-select-debug   compile with select debugging support])
 AC_ARG_ENABLE(timer-debug-threads,
-  [  --enable-timer-debug   compile with timer debugging support])
+  [  --enable-timer-debug    compile with timer debugging support])
 AC_ARG_ENABLE(profile,
   [AS_HELP_STRING([--enable-profile], [compile with profiling flags])])
 AC_ARG_ENABLE(conversion-checks,
