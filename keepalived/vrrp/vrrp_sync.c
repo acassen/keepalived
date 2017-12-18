@@ -104,10 +104,10 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 
 		/* set eventual sync group state. Unless all members are master and address owner,
 		 * then we must be backup */
-		if (vgroup->state == VRRP_STATE_MAST && vrrp->init_state == VRRP_STATE_BACK)
+		if (vgroup->state == VRRP_STATE_MAST && vrrp->wantstate == VRRP_STATE_BACK)
 			log_message(LOG_INFO, "Sync group %s has some member(s) as address owner and some not as address owner. This won't work", vgroup->gname);
 		if (vgroup->state != VRRP_STATE_BACK)
-			vgroup->state = (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) ? VRRP_STATE_MAST : VRRP_STATE_BACK;
+			vgroup->state = (vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) ? VRRP_STATE_MAST : VRRP_STATE_BACK;
 
 // TODO - what about track scripts down?
 		if (vrrp->state == VRRP_STATE_FAULT)
@@ -215,8 +215,8 @@ vrrp_sync_master(vrrp_t * vrrp)
 		if (isync != vrrp && isync->state != VRRP_STATE_MAST) {
 			isync->wantstate = VRRP_STATE_MAST;
 // TODO 6 - transition straight to master if PRIO_OWNER
-// TODO 7 - not here, but generally if init_state == MAST && !owner, ms_down_timer = adver_int + 1 skew and be backup
-//			if (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
+// TODO 7 - not here, but generally if wantstate == MAST && !owner, ms_down_timer = adver_int + 1 skew and be backup
+//			if (vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
 //				/* ??? */
 //			} else {
 #ifdef _WITH_SNMP_RFCV3_

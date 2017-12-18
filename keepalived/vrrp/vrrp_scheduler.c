@@ -170,7 +170,7 @@ vrrp_init_state(list l)
 		/* wantstate is the state we would be in disregarding any sync group */
 		if (vrrp->wantstate == VRRP_STATE_INIT) {
 			vrrp->wantstate = vrrp->state == VRRP_STATE_FAULT ? VRRP_STATE_FAULT :
-					    vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST :
+					    vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST :
 					    VRRP_STATE_BACK;
 		}
 		new_state = vrrp->sync ? vrrp->sync->state : vrrp->wantstate;
@@ -181,7 +181,7 @@ vrrp_init_state(list l)
 		    new_state == VRRP_STATE_MAST &&
 		    !vrrp->num_script_init && (!vrrp->sync || !vrrp->sync->num_member_init) &&
 		    vrrp->base_priority == VRRP_PRIO_OWNER &&
-		    vrrp->init_state == VRRP_STATE_MAST) {
+		    vrrp->wantstate == VRRP_STATE_MAST) {
 #ifdef _WITH_LVS_
 			/* Check if sync daemon handling is needed */
 			if (global_data->lvs_syncd.ifname &&
@@ -204,7 +204,7 @@ vrrp_init_state(list l)
 // TODO Do we need ->	vrrp_restore_interface(vrrp, false, false);
 // It removes everything, so probably if !reload
 		} else {
-			if (new_state == VRRP_STATE_BACK && vrrp->init_state == VRRP_STATE_MAST)
+			if (new_state == VRRP_STATE_BACK && vrrp->wantstate == VRRP_STATE_MAST)
 				vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW_MIN(vrrp);
 			else
 				vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
@@ -653,7 +653,7 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 	else if (--vrrp->num_script_if_fault || vrrp->num_script_init)
 		return;
 
-	if (vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
+	if (vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER) {
 		vrrp->wantstate = VRRP_STATE_MAST;
 #ifdef _WITH_SNMP_RFCV3_
 		vrrp->stats->next_master_reason = VRRPV3_MASTER_REASON_PREEMPTED;
