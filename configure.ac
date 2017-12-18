@@ -1177,7 +1177,7 @@ if test "$enable_snmp" = yes -o \
   fi
   if test ${VRRP_SUPPORT} != Yes -a \
           ${SNMP_VRRP_SUPPORT} = Yes; then
-    AC_MSG_ERROR([KEEPALIVED SNMP support requires VRRP])
+    AC_MSG_ERROR([VRRP SNMP support requires VRRP])
   fi
   if test ${IPVS_SUPPORT} = No -a \
           ${SNMP_CHECKER_SUPPORT} = Yes; then

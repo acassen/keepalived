@@ -9790,7 +9790,7 @@ $as_echo "#define _SNMP_REPLY_V3_FOR_V2_  1 " >>confdefs.h
   fi
   if test ${VRRP_SUPPORT} != Yes -a \
           ${SNMP_VRRP_SUPPORT} = Yes; then
-    as_fn_error $? "KEEPALIVED SNMP support requires VRRP" "$LINENO" 5
+    as_fn_error $? "VRRP SNMP support requires VRRP" "$LINENO" 5
   fi
   if test ${IPVS_SUPPORT} = No -a \
           ${SNMP_CHECKER_SUPPORT} = Yes; then
