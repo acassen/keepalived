@@ -1195,8 +1195,8 @@ if test $SNMP_SUPPORT = Yes; then
   add_build_opt([SNMP])
 fi
 if test $SNMP_VRRP_SUPPORT = Yes; then
-  AC_DEFINE([_WITH_SNMP_KEEPALIVED_], [ 1 ], [Define to 1 to have keepalived SNMP VRRP support])
-  add_build_opt([SNMP_KEEPALIVED])
+  AC_DEFINE([_WITH_SNMP_VRRP_], [ 1 ], [Define to 1 to have keepalived SNMP VRRP support])
+  add_build_opt([SNMP_VRRP])
 fi
 if test $SNMP_CHECKER_SUPPORT = Yes; then
   AC_DEFINE([_WITH_SNMP_CHECKER_], [ 1 ], [Define to 1 to have keepalived SNMP checker support])

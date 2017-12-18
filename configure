@@ -9810,9 +9810,9 @@ $as_echo "#define _WITH_SNMP_  1 " >>confdefs.h
 fi
 if test $SNMP_VRRP_SUPPORT = Yes; then
 
-$as_echo "#define _WITH_SNMP_KEEPALIVED_  1 " >>confdefs.h
+$as_echo "#define _WITH_SNMP_VRRP_  1 " >>confdefs.h
 
-  BUILD_OPTIONS="$BUILD_OPTIONS SNMP_KEEPALIVED"
+  BUILD_OPTIONS="$BUILD_OPTIONS SNMP_VRRP"
 fi
 if test $SNMP_CHECKER_SUPPORT = Yes; then
 
