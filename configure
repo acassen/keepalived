@@ -817,7 +817,7 @@ enable_dbus_create_instance
 enable_sha1
 with_init
 enable_vrrp_auth
-enable_chksum_compat
+enable_checksum_compat
 enable_routes
 enable_gnu_std_paths
 enable_dynamic_linking
@@ -1490,7 +1490,7 @@ Optional Features:
                           compile with dbus support for creating instances
   --enable-sha1           compile with SHA1 support
   --disable-vrrp-auth     compile without VRRP authentication
-  --disable-checksum_compat
+  --disable-checksum-compat
                           compile without v1.3.6 and earlier VRRPv3 unicast
                           checksum compatibility
   --disable-routes        compile without ip rules/routes
@@ -3504,9 +3504,9 @@ if test "${enable_vrrp_auth+set}" = set; then :
   enableval=$enable_vrrp_auth;
 fi
 
-# Check whether --enable-chksum_compat was given.
-if test "${enable_chksum_compat+set}" = set; then :
-  enableval=$enable_chksum_compat;
+# Check whether --enable-checksum_compat was given.
+if test "${enable_checksum_compat+set}" = set; then :
+  enableval=$enable_checksum_compat;
 fi
 
 # Check whether --enable-routes was given.
@@ -9490,7 +9490,7 @@ fi
 
 
 UNICAST_CHKSUM_COMPAT_SUPPORT=No
-if test .$enable_chksum_compat != .no; then
+if test .$enable_checksum_compat != .no; then
   UNICAST_CHKSUM_COMPAT_SUPPORT=Yes
 
 $as_echo "#define _WITH_UNICAST_CHKSUM_COMPAT_  1 " >>confdefs.h
