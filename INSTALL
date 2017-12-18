@@ -41,6 +41,10 @@ For magic file identification support:
 	libmagic-dev
 For SNMP support:
 	libsnmp-dev
+For DBUS support:
+	libglib2.0-dev
+For JSON support:
+	libjson-c-dev
 
 Alpine Linux
 ------------
