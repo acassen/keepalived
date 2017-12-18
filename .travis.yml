@@ -24,6 +24,6 @@ env:
     - KEEPALIVED_CONFIG_ARGS="--enable-dynamic-linking --disable-vrrp-auth --enable-snmp-rfc --disable-snmp-reply-v3-for-v2"
     - KEEPALIVED_CONFIG_ARGS="--disable-libiptc --disable-libipset --disable-libnl"
     - KEEPALIVED_CONFIG_ARGS="--enable-conversion-checks --enable-stacktrace --enable-mem-check --enable-mem-check-log --disable-lvs-64bit-stats"
-    - KEEPALIVED_CONFIG_ARGS="--disable-lvs --enable-snmp --enable-snmp-rfc --enable-json --enable-sha1 --enable-dbus --disable-routes"
+    - KEEPALIVED_CONFIG_ARGS="--disable-lvs --enable-snmp-vrrp --enable-snmp-rfc --enable-json --enable-sha1 --enable-dbus --disable-routes"
     - KEEPALIVED_CONFIG_ARGS="--disable-vrrp --enable-snmp-checker --enable-json --enable-sha1 --enable-dbus"
     - KEEPALIVED_CONFIG_ARGS="--disable-hardening --enable-dump-threads --enable-select-debug --enable-timer-debug"

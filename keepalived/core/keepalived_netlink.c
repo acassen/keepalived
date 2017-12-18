@@ -833,7 +833,10 @@ netlink_if_address_filter(__attribute__((unused)) struct sockaddr_nl *snl, struc
 				address_vrrp = NULL;
 
 			/* Display netlink operation */
-			if (__test_bit(LOG_ADDRESS_CHANGES, &debug) ||
+			if (
+#ifdef _WITH_LVS_
+			    __test_bit(LOG_ADDRESS_CHANGES, &debug) ||
+#endif
 			    (__test_bit(LOG_DETAIL_BIT, &debug) && address_vrrp)) {
 				inet_ntop(ifa->ifa_family, addr.addr, addr_str, sizeof(addr_str));
 				log_message(LOG_INFO, "Netlink reflector reports IP %s %s %s"

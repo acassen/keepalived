@@ -91,6 +91,7 @@
 #include "vrrp.h"
 #include "vrrp_snmp.h"
 #include "vrrp_track.h"
+#include "vrrp_ipaddress.h"
 #ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"
@@ -2791,12 +2792,12 @@ static struct variable8 vrrp_vars[] = {
 	 vrrp_snmp_rule, 3, {8, 1, 28}},
 	{VRRP_SNMP_RULE_TUNNELID_LOW, ASN_UNSIGNED, RONLY,
 	 vrrp_snmp_rule, 3, {8, 1, 29}},
-#endif
 #if HAVE_DECL_FRA_UID_RANGE
 	{VRRP_SNMP_RULE_UID_RANGE_START, ASN_UNSIGNED, RONLY,
 	 vrrp_snmp_rule, 3, {8, 1, 30}},
 	{VRRP_SNMP_RULE_UID_RANGE_END, ASN_UNSIGNED, RONLY,
 	 vrrp_snmp_rule, 3, {8, 1, 31}},
+#endif
 #endif
 
 	/* vrrpScriptTable */

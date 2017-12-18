@@ -65,7 +65,10 @@ vrrp_print_json(void)
 
 	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
 		struct json_object *instance_json, *json_stats, *json_data,
-			*vips, *evips, *track_ifp, *track_script, *vroutes, *vrules;
+			*vips, *evips, *track_ifp, *track_script;
+#ifdef _HAVE_FIB_ROUTING_
+		struct json_object *vroutes, *vrules;
+#endif
 		element f;
 
 		vrrp_t *vrrp = ELEMENT_DATA(e);
@@ -76,8 +79,10 @@ vrrp_print_json(void)
 		evips = json_object_new_array();
 		track_ifp = json_object_new_array();
 		track_script = json_object_new_array();
+#ifdef _HAVE_FIB_ROUTING_
 		vroutes = json_object_new_array();
 		vrules = json_object_new_array();
+#endif
 
 		// Dump data to json
 		json_object_object_add(json_data, "iname",
@@ -173,6 +178,7 @@ vrrp_print_json(void)
 		json_object_object_add(json_data, "promote_secondaries",
 			json_object_new_boolean(vrrp->promote_secondaries));
 
+#ifdef _HAVE_FIB_ROUTING_
 		// Dump vroutes
 		if (!LIST_ISEMPTY(vrrp->vroutes)) {
 			for (f = LIST_HEAD(vrrp->vroutes); f; ELEMENT_NEXT(f)) {
@@ -196,6 +202,7 @@ vrrp_print_json(void)
 			}
 		}
 		json_object_object_add(json_data, "vrules", vrules);
+#endif
 
 		json_object_object_add(json_data, "adver_int",
 			json_object_new_double(vrrp->adver_int / TIMER_HZ_FLOAT));
