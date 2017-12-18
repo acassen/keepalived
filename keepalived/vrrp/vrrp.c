@@ -2397,10 +2397,10 @@ vrrp_complete_instance(vrrp_t * vrrp)
 		log_message(LOG_INFO, "(%s) Cannot use AH authentication with IPv6 - ignoring", vrrp->iname);
 		vrrp->auth_type = VRRP_AUTH_NONE;
 	}
-	else if (vrrp->auth_type == VRRP_AUTH_AH && vrrp->init_state == VRRP_STATE_MAST && vrrp->base_priority != VRRP_PRIO_OWNER) {
+	else if (vrrp->auth_type == VRRP_AUTH_AH && vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority != VRRP_PRIO_OWNER) {
 		/* We need to have received an advert to get the AH sequence no before taking over, if possible */
 		log_message(LOG_INFO, "(%s) Initial state master is incompatible with AH authentication - clearing", vrrp->iname);
-		vrrp->init_state = VRRP_STATE_BACK;
+		vrrp->wantstate = VRRP_STATE_BACK;
 	}
 #endif
 
@@ -2459,17 +2459,17 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	if (vrrp->base_priority == 0) {
-		if (vrrp->init_state == VRRP_STATE_MAST)
+		if (vrrp->wantstate == VRRP_STATE_MAST)
 			vrrp->base_priority = VRRP_PRIO_OWNER;
 		else
 			vrrp->base_priority = VRRP_PRIO_DFL;
 	}
-	else if (vrrp->init_state == VRRP_STATE_INIT)
-		vrrp->init_state = vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK;
+	else if (vrrp->wantstate == VRRP_STATE_INIT)
+		vrrp->wantstate = vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK;
 	else if (vrrp->strict_mode &&
-		 ((vrrp->init_state == VRRP_STATE_MAST) != (vrrp->base_priority == VRRP_PRIO_OWNER))) {
+		 ((vrrp->wantstate == VRRP_STATE_MAST) != (vrrp->base_priority == VRRP_PRIO_OWNER))) {
 			log_message(LOG_INFO,"(%s) State MASTER must match being address owner", vrrp->iname);
-			vrrp->init_state = vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK;
+			vrrp->wantstate = vrrp->base_priority == VRRP_PRIO_OWNER ? VRRP_STATE_MAST : VRRP_STATE_BACK;
 	}
 
 	if (vrrp->base_priority == VRRP_PRIO_OWNER && vrrp->nopreempt) {
@@ -2480,7 +2480,7 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	vrrp->effective_priority = vrrp->base_priority;
 	vrrp->total_priority = vrrp->base_priority;
 
-	if (vrrp->init_state == VRRP_STATE_MAST) {
+	if (vrrp->wantstate == VRRP_STATE_MAST) {
 		if (vrrp->nopreempt) {
 			log_message(LOG_INFO, "(%s) Warning - nopreempt will not work with initial state MASTER - clearing", vrrp->iname);
 			vrrp->nopreempt = false;
@@ -2502,6 +2502,9 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	}
 
 	vrrp->state = VRRP_STATE_INIT;
+#ifdef _WITH_SNMP_VRRP_
+	vrrp->init_state = vrrp->wantstate;
+#endif
 
 	/* Set default for accept mode if not specified. If we are running in strict mode,
 	 * default is to disable accept mode, otherwise default is to enable it.
@@ -3318,9 +3321,11 @@ restore_vrrp_state(vrrp_t *old_vrrp, vrrp_t *vrrp)
 	bool added_ip_addr = false;
 
 	/* Keep VRRP state, ipsec AH seq_number */
-// TODO - if base_priority changed, then the next must be wrong
+	vrrp->state = old_vrrp->state;
+	vrrp->wantstate = old_vrrp->wantstate;
 	if (!old_vrrp->sync)
-		vrrp->effective_priority = old_vrrp->effective_priority;
+		vrrp->effective_priority = old_vrrp->effective_priority + vrrp->base_priority - old_vrrp->base_priority;
+
 	/* Save old stats */
 	memcpy(vrrp->stats, old_vrrp->stats, sizeof(vrrp_stats));
 

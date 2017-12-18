@@ -1290,7 +1290,7 @@ if test "$enable_snmp" = yes -o \
   fi
   if test ${VRRP_SUPPORT} != Yes -a \
           ${SNMP_VRRP_SUPPORT} = Yes; then
-    AC_MSG_ERROR([KEEPALIVED SNMP support requires VRRP])
+    AC_MSG_ERROR([VRRP SNMP support requires VRRP])
   fi
   if test ${IPVS_SUPPORT} = No -a \
           ${SNMP_CHECKER_SUPPORT} = Yes; then
@@ -1308,8 +1308,8 @@ if test $SNMP_SUPPORT = Yes; then
   add_config_opt([SNMP])
 fi
 if test $SNMP_VRRP_SUPPORT = Yes; then
-  AC_DEFINE([_WITH_SNMP_KEEPALIVED_], [ 1 ], [Define to 1 to have keepalived SNMP VRRP support])
-  add_config_opt([SNMP_KEEPALIVED])
+  AC_DEFINE([_WITH_SNMP_VRRP_], [ 1 ], [Define to 1 to have keepalived SNMP VRRP support])
+  add_config_opt([SNMP_VRRP])
 fi
 if test $SNMP_CHECKER_SUPPORT = Yes; then
   AC_DEFINE([_WITH_SNMP_CHECKER_], [ 1 ], [Define to 1 to have keepalived SNMP checker support])

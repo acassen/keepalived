@@ -666,7 +666,10 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 	}
 
 	vrrp->master_adver_int = vrrp->adver_int;
-	vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+	if (vrrp->wantstate == VRRP_STATE_MAST && vrrp->base_priority == VRRP_PRIO_OWNER)
+		vrrp->ms_down_timer = vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
+	else
+		vrrp->ms_down_timer = 3 * vrrp->master_adver_int + VRRP_TIMER_SKEW(vrrp);
 
 	if (vrrp->sync) {
 		if (leaving_init) {

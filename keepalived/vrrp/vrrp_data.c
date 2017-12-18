@@ -302,7 +302,7 @@ dump_vrrp(void *data)
 	log_message(LOG_INFO, "   Using VRRPv%d", vrrp->version);
 	if (vrrp->family == AF_INET6)
 		log_message(LOG_INFO, "   Using Native IPv6");
-	if (vrrp->init_state == VRRP_STATE_BACK)
+	if (vrrp->wantstate == VRRP_STATE_BACK)
 		log_message(LOG_INFO, "   Want State = BACKUP");
 	else
 		log_message(LOG_INFO, "   Want State = MASTER");
@@ -466,7 +466,7 @@ alloc_vrrp(char *iname)
 	/* Set default values */
 	new->family = AF_UNSPEC;
 	new->saddr.ss_family = AF_UNSPEC;
-	new->init_state = VRRP_STATE_INIT;
+	new->wantstate = VRRP_STATE_BACK;
 	new->last_email_state = VRRP_STATE_INIT;
 	new->version = 0;
 	new->master_priority = 0;
