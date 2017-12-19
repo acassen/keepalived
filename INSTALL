@@ -37,6 +37,10 @@ The following libraries need to be installed:
 	iptables-dev libipset-dev libnfnetlink-dev libnl-3-dev libnl-genl-3-dev libnl-route-3-dev libssl-dev
 For SNMP support:
 	libsnmp-dev
+For DBUS support:
+	libglib2.0-dev
+For JSON support:
+	libjson-c-dev
 
 Alpine Linux
 ------------
