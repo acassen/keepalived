@@ -118,9 +118,9 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 	if (LIST_SIZE(vgroup->vrrp_instances) <= 1) {
 		/* The sync group will be removed by the calling function if it has no members */
 		log_message(LOG_INFO, "Sync group %s has only %d virtual router(s) - %s", vgroup->gname, LIST_SIZE(vgroup->vrrp_instances),
-				LIST_SIZE(vgroup->index_list) ? "this probably isn't what you want" : "removing");
+				LIST_SIZE(vgroup->vrrp_instances) ? "this probably isn't what you want" : "removing");
 
-		if (!LIST_SIZE(vgroup->index_list)
+		if (!LIST_SIZE(vgroup->vrrp_instances))
 			free_list(&vgroup->vrrp_instances);
 	}
 
