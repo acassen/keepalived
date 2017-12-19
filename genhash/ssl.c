@@ -57,7 +57,7 @@ init_ssl(void)
 	req->meth = (SSL_METHOD *) SSLv23_method();
 	req->ctx = SSL_CTX_new(req->meth);
 
-#if (OPENSSL_VERSION_NUMBER < 0x00905100L)
+#if (OPENSSL_VERSION_NUMBER < 0x00905100L) || defined LIBRESSL_VERSION_NUMBER
 	SSL_CTX_set_verify_depth(req->ctx, 1);
 #endif
 }
