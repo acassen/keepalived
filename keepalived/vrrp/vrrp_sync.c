@@ -83,7 +83,6 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 	vrrp_t *vrrp;
 	char *str;
 	unsigned int i;
-	vrrp_t *vrrp_last = NULL;
 
 	/* Can't handle no members of the group */
 	if (!vgroup->iname)
@@ -100,19 +99,17 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 			else {
 				list_add(vgroup->index_list, vrrp);
 				vrrp->sync = vgroup;
-				vrrp_last = vrrp;
 			}
 		}
 		else
 			log_message(LOG_INFO, "Virtual router %s specified in sync group %s doesn't exist - ignoring",
 				str, vgroup->gname);
 	}
+
 	if (LIST_SIZE(vgroup->index_list) <= 1) {
-		/* The sync group will be removed by the calling function */
-		log_message(LOG_INFO, "Sync group %s has only %d virtual router(s) - removing", vgroup->gname, LIST_SIZE(vgroup->index_list));
-		/* If there is only one entry in the group, remove the group from the vrrp entry */
-		if (vrrp_last)
-			vrrp_last->sync = NULL;
+		/* The sync group will be removed by the calling function if it has no members */
+		log_message(LOG_INFO, "Sync group %s has only %d virtual router(s) - %s", vgroup->gname, LIST_SIZE(vgroup->index_list),
+				LIST_SIZE(vgroup->index_list) ? "this probably isn't what you want" : "removing");
 	}
 }
 
