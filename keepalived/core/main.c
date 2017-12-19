@@ -128,13 +128,17 @@ free_parent_mallocs_startup(bool am_child)
 #else
 		free(syslog_ident);
 #endif
+		syslog_ident = NULL;
 
-		if (orig_core_dump_pattern)
+		if (orig_core_dump_pattern) {
 			FREE_PTR(orig_core_dump_pattern);
+			orig_core_dump_pattern = NULL;
+		}
 	}
 
 	if (free_main_pidfile) {
 		FREE_PTR(main_pidfile);
+		main_pidfile = NULL;
 		free_main_pidfile = false;
 	}
 }
