@@ -5,8 +5,6 @@
  *
  * Part:        http.c include file.
  *
- * Version:     $Id: http.h,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
- *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *
  *              This program is distributed in the hope that it will be useful,
