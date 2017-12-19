@@ -61,17 +61,19 @@ password_cb(char *buf, int num, __attribute__((unused)) int rwflag, void *userda
 }
 
 /* Inititalize global SSL context */
-static BIO *bio_err = 0;
 static int
 build_ssl_ctx(void)
 {
 	ssl_data_t *ssl;
 
 	/* Library initialization */
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
 	SSL_library_init();
-
 	SSL_load_error_strings();
-	bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
+#else
+	if (!OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG, NULL))
+		log_message(LOG_INFO, "OPENSSL_init_crypto failed");
+#endif
 
 	if (!check_data->ssl)
 		ssl = (ssl_data_t *) MALLOC(sizeof(ssl_data_t));
@@ -155,9 +157,6 @@ init_ssl_ctx(void)
 int
 ssl_printerr(int err)
 {
-	unsigned long extended_error = 0;
-	char *ssl_strerr;
-
 	switch (err) {
 	case SSL_ERROR_ZERO_RETURN:
 		log_message(LOG_INFO, "  SSL error: (zero return)");
@@ -177,15 +176,10 @@ ssl_printerr(int err)
 	case SSL_ERROR_SYSCALL:
 		log_message(LOG_INFO, "  SSL error: (syscall error)");
 		break;
-	case SSL_ERROR_SSL:{
-			ssl_strerr = (char *) MALLOC(500);
-
-			extended_error = ERR_get_error();
-			ERR_error_string(extended_error, ssl_strerr);
-			log_message(LOG_INFO, "  SSL error: (%s)", ssl_strerr);
-			FREE(ssl_strerr);
-			break;
-		}
+	case SSL_ERROR_SSL:
+		/* Note: the following is not thread safe. Use MALLOC(256) and ERR_error_string_n if need thread safety */
+		log_message(LOG_INFO, "  SSL error: (%s)", ERR_error_string(ERR_get_error(), NULL));
+		break;
 	}
 	return 0;
 }
@@ -206,7 +200,13 @@ ssl_connect(thread_t * thread, int new_req)
 		req->bio = BIO_new_socket(thread->u.fd, BIO_NOCLOSE);
 		BIO_get_fd(req->bio, &bio_fd);
 		fcntl(bio_fd, F_SETFD, fcntl(bio_fd, F_GETFD) | FD_CLOEXEC);
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
 		SSL_set_bio(req->ssl, req->bio, req->bio);
+#else
+		BIO_up_ref(req->bio);
+		SSL_set0_rbio(req->ssl, req->bio);
+		SSL_set0_wbio(req->ssl, req->bio);
+#endif
 	}
 
 	/* Set descriptor non blocking */
