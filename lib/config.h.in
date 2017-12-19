@@ -658,9 +658,6 @@
 /* Define to 1 to have keepalived SNMP checker support */
 #undef _WITH_SNMP_CHECKER_
 
-/* Define to 1 to have keepalived SNMP VRRP support */
-#undef _WITH_SNMP_KEEPALIVED_
-
 /* Define to 1 to have RFCv2 SNMP support */
 #undef _WITH_SNMP_RFCV2_
 
@@ -669,6 +666,9 @@
 
 /* Define to 1 to have RFC SNMP support */
 #undef _WITH_SNMP_RFC_
+
+/* Define to 1 to have keepalived SNMP VRRP support */
+#undef _WITH_SNMP_VRRP_
 
 /* Define to 1 if have SO_MARK */
 #undef _WITH_SO_MARK_

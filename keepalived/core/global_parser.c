@@ -678,7 +678,7 @@ trap_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->enable_traps = true;
 }
-#ifdef _WITH_SNMP_KEEPALIVED_
+#ifdef _WITH_SNMP_VRRP_
 static void
 snmp_keepalived_handler(__attribute__((unused)) vector_t *strvec)
 {
@@ -879,7 +879,7 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_SNMP_
 	install_keyword("snmp_socket", &snmp_socket_handler);
 	install_keyword("enable_traps", &trap_handler);
-#ifdef _WITH_SNMP_KEEPALIVED_
+#ifdef _WITH_SNMP_VRRP_
 	install_keyword("enable_snmp_keepalived", &snmp_keepalived_handler);
 #endif
 #ifdef _WITH_SNMP_RFC_

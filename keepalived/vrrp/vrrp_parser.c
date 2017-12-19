@@ -325,17 +325,17 @@ vrrp_state_handler(vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 
 	if (!strcmp(str, "MASTER"))
-		vrrp->init_state = VRRP_STATE_MAST;
+		vrrp->wantstate = VRRP_STATE_MAST;
 	else if (!strcmp(str, "BACKUP"))
 	{
-		if (vrrp->init_state == VRRP_STATE_MAST)
+		if (vrrp->wantstate == VRRP_STATE_MAST)
 			log_message(LOG_INFO, "(%s) state previously set as MASTER - ignoring BACKUP", vrrp->iname);
 		else
-			vrrp->init_state = VRRP_STATE_BACK;
+			vrrp->wantstate = VRRP_STATE_BACK;
 	}
 	else {
 		log_message(LOG_INFO,"(%s) unknown state '%s', defaulting to BACKUP", vrrp->iname, str);
-		vrrp->init_state = VRRP_STATE_BACK;
+		vrrp->wantstate = VRRP_STATE_BACK;
 	}
 }
 static void

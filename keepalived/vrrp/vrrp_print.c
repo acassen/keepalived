@@ -35,6 +35,7 @@
 #include "vrrp.h"
 #include "vrrp_data.h"
 #include "vrrp_print.h"
+#include "vrrp_ipaddress.h"
 #ifdef _HAVE_FIB_ROUTING_
 #include "vrrp_iproute.h"
 #include "vrrp_iprule.h"

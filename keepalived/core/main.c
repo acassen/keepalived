@@ -568,14 +568,18 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	}
 
 	/* A child may not have terminated, so force its termination */
+#ifdef _WITH_VRRP_
 	if (vrrp_child) {
 		log_message(LOG_INFO, "vrrp process failed to die - forcing termination");
 		kill(vrrp_child, SIGKILL);
 	}
+#endif
+#ifdef _WITH_LVS_
 	if (checkers_child) {
 		log_message(LOG_INFO, "checker process failed to die - forcing termination");
 		kill(checkers_child, SIGKILL);
 	}
+#endif
 
 #ifndef HAVE_SIGNALFD
 	if (!sigismember(&old_set, SIGCHLD))
