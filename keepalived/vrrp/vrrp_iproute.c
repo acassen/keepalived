@@ -991,7 +991,7 @@ err:
 	}
 	if (encap->ip.src){
 		FREE_PTR(encap->ip.src);
-		encap->ip.dst = NULL;
+		encap->ip.src = NULL;
 	}
 
 	return true;
