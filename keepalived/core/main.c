@@ -37,6 +37,7 @@
 #include "main.h"
 #include "config.h"
 #include "git-commit.h"
+#include "utils.h"
 #include "signals.h"
 #include "pidfile.h"
 #include "bitops.h"
@@ -1026,8 +1027,14 @@ keepalived_main(int argc, char **argv)
 	}
 
 	/* daemonize process */
-	if (!__test_bit(DONT_FORK_BIT, &debug))
-		xdaemon(0, 0, 0);
+	if (!__test_bit(DONT_FORK_BIT, &debug) &&
+	    xdaemon(false, false, true) > 0) {
+		closelog();
+		FREE(config_id);
+		FREE(orig_core_dump_pattern);
+		close_std_fd();
+		exit(0);
+	}
 
 	/* Set file creation mask */
 	umask(0);
@@ -1097,6 +1104,7 @@ end:
 	if (syslog_ident)
 		free(syslog_ident);
 #endif
+	close_std_fd();
 
 	exit(0);
 }

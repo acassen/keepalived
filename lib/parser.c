@@ -33,6 +33,7 @@
 #include <fcntl.h>
 #include <stdbool.h>
 #include <linux/version.h>
+#include <pwd.h>
 
 #include "parser.h"
 #include "memory.h"
@@ -778,6 +779,9 @@ init_data(const char *conf_file, vector_t * (*init_keywords) (void))
 	register_null_strvec_handler(null_strvec);
 	read_conf_file(conf_file);
 	unregister_null_strvec_handler();
+
+	/* Close the password database if it was opened */
+	endpwent();
 
 	free_keywords(keywords);
 	clear_rt_names();

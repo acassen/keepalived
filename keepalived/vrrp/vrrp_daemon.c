@@ -190,6 +190,7 @@ stop_vrrp(int status)
 	if (vrrp_syslog_ident)
 		free(vrrp_syslog_ident);
 #endif
+	close_std_fd();
 
 	exit(status);
 }
