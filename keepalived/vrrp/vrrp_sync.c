@@ -76,7 +76,6 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 	vrrp_t *vrrp;
 	char *str;
 	unsigned int i;
-	vrrp_t *vrrp_last = NULL;
 	bool group_member_down = false;
 
 	/* Can't handle no members of the group */
@@ -100,7 +99,6 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 
 		list_add(vgroup->vrrp_instances, vrrp);
 		vrrp->sync = vgroup;
-		vrrp_last = vrrp;
 
 		/* set eventual sync group state. Unless all members are master and address owner,
 		 * then we must be backup */
@@ -118,14 +116,12 @@ vrrp_sync_set_group(vrrp_sgroup_t *vgroup)
 		vgroup->state = VRRP_STATE_FAULT;
 
 	if (LIST_SIZE(vgroup->vrrp_instances) <= 1) {
-		/* The sync group will be removed by the calling function */
-		log_message(LOG_INFO, "Sync group %s has only %d virtual router(s) - removing", vgroup->gname, LIST_SIZE(vgroup->vrrp_instances));
+		/* The sync group will be removed by the calling function if it has no members */
+		log_message(LOG_INFO, "Sync group %s has only %d virtual router(s) - %s", vgroup->gname, LIST_SIZE(vgroup->vrrp_instances),
+				LIST_SIZE(vgroup->index_list) ? "this probably isn't what you want" : "removing");
 
-		/* If there is only one entry in the group, remove the group from the vrrp entry */
-		if (vrrp_last)
-			vrrp_last->sync = NULL;
-
-		free_list(&vgroup->vrrp_instances);
+		if (!LIST_SIZE(vgroup->index_list)
+			free_list(&vgroup->vrrp_instances);
 	}
 
 	/* The iname vector is only used for us to set up the sync groups, so delete it */

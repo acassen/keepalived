@@ -985,8 +985,15 @@ static int parse_encap_ip(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 err:
 	*i_ptr = i;
 
-	FREE_PTR(encap->ip.dst);
-	FREE_PTR(encap->ip.src);
+	if (encap->ip.dst) {
+		FREE_PTR(encap->ip.dst);
+		encap->ip.dst = NULL;
+	}
+	if (encap->ip.src){
+		FREE_PTR(encap->ip.src);
+		encap->ip.dst = NULL;
+	}
+
 	return true;
 }
 
@@ -1084,8 +1091,15 @@ int parse_encap_ip6(vector_t *strvec, unsigned int *i_ptr, encap_t *encap)
 
 err:
 	*i_ptr = i;
-	FREE_PTR(encap->ip6.dst);
-	FREE_PTR(encap->ip6.src);
+	if (encap->ip6.dst) {
+		FREE_PTR(encap->ip6.dst);
+		encap->ip6.dst = NULL;
+	}
+	if (encap->ip6.src) {
+		FREE_PTR(encap->ip6.src);
+		encap->ip6.src = NULL;
+	}
+
 	return true;
 }
 

@@ -575,6 +575,14 @@ set_std_fd(bool force)
 	signal_fd_close(STDERR_FILENO+1);
 }
 
+void
+close_std_fd(void)
+{
+	close(STDIN_FILENO);
+	close(STDOUT_FILENO);
+	close(STDERR_FILENO);
+}
+
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 int
 fork_exec(char **argv)

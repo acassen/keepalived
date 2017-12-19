@@ -201,6 +201,7 @@ void
 free_dirname(void)
 {
 	FREE_PTR(mount_dirname);
+	mount_dirname = NULL;
 }
 
 static void
@@ -281,6 +282,7 @@ set_namespaces(const char* net_namespace)
 	set_run_mount(net_namespace);
 
 	FREE_PTR(netns_path);
+	netns_path = NULL;
 
 	return true;
 
@@ -288,6 +290,7 @@ err:
 	if (fd != -1)
 		close(fd);
 	FREE_PTR(netns_path);
+	netns_path = NULL;
 
 	return false;
 }

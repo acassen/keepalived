@@ -711,7 +711,7 @@ http_check_thread(thread_t * thread)
 	int status;
 	unsigned long timeout = 0;
 	int ssl_err = 0;
-	int new_req = 0;
+	bool new_req = false;
 
 	status = tcp_socket_state(thread, http_check_thread);
 	switch (status) {
@@ -723,67 +723,65 @@ http_check_thread(thread_t * thread)
 		return timeout_epilog(thread, "Timeout connecting");
 		break;
 
-	case connect_success:{
-			if (!http_get_check->req) {
-				http_get_check->req = (request_t *) MALLOC(sizeof (request_t));
-				new_req = 1;
-			} else
-				new_req = 0;
+	case connect_success:
+		if (!http_get_check->req) {
+			http_get_check->req = (request_t *) MALLOC(sizeof (request_t));
+			new_req = true;
+		} else
+			new_req = false;
 
-			if (http_get_check->proto == PROTO_SSL) {
-				timeout = timer_long(thread->sands) - timer_long(time_now);
-				if (thread->type != THREAD_WRITE_TIMEOUT &&
-				    thread->type != THREAD_READ_TIMEOUT)
-					ret = ssl_connect(thread, new_req);
-				else {
-					return timeout_epilog(thread, "Timeout connecting");
-				}
+		if (http_get_check->proto == PROTO_SSL) {
+			timeout = timer_long(thread->sands) - timer_long(time_now);
+			if (thread->type != THREAD_WRITE_TIMEOUT &&
+			    thread->type != THREAD_READ_TIMEOUT)
+				ret = ssl_connect(thread, new_req);
+			else
+				return timeout_epilog(thread, "Timeout connecting");
 
-				if (ret == -1) {
-					switch ((ssl_err = SSL_get_error(http_get_check->req->ssl,
-									 ret))) {
-					case SSL_ERROR_WANT_READ:
-						thread_add_read(thread->master,
-								http_check_thread,
-								THREAD_ARG(thread),
-								thread->u.fd, timeout);
-						break;
-					case SSL_ERROR_WANT_WRITE:
-						thread_add_write(thread->master,
-								 http_check_thread,
-								 THREAD_ARG(thread),
-								 thread->u.fd, timeout);
-						break;
-					default:
-						ret = 0;
-						break;
-					}
-					if (ret == -1)
-						break;
-				} else if (ret != 1)
+			if (ret == -1) {
+				switch ((ssl_err = SSL_get_error(http_get_check->req->ssl,
+								 ret))) {
+				case SSL_ERROR_WANT_READ:
+					thread_add_read(thread->master,
+							http_check_thread,
+							THREAD_ARG(thread),
+							thread->u.fd, timeout);
+					break;
+				case SSL_ERROR_WANT_WRITE:
+					thread_add_write(thread->master,
+							 http_check_thread,
+							 THREAD_ARG(thread),
+							 thread->u.fd, timeout);
+					break;
+				default:
 					ret = 0;
-			}
+					break;
+				}
+				if (ret == -1)
+					break;
+			} else if (ret != 1)
+				ret = 0;
+		}
 
-			if (ret) {
-				/* Remote WEB server is connected.
-				 * Register the next step thread ssl_request_thread.
-				 */
-				DBG("Remote Web server %s connected.", FMT_HTTP_RS(checker));
-				thread_add_write(thread->master,
-						 http_request_thread, checker,
-						 thread->u.fd,
-						 checker->co->connection_to);
-			} else {
-				DBG("Connection trouble to: %s."
-						 , FMT_HTTP_RS(checker));
+		if (ret) {
+			/* Remote WEB server is connected.
+			 * Register the next step thread ssl_request_thread.
+			 */
+			DBG("Remote Web server %s connected.", FMT_HTTP_RS(checker));
+			thread_add_write(thread->master,
+					 http_request_thread, checker,
+					 thread->u.fd,
+					 checker->co->connection_to);
+		} else {
+			DBG("Connection trouble to: %s."
+					 , FMT_HTTP_RS(checker));
 #ifdef _DEBUG_
-				if (http_get_check->proto == PROTO_SSL)
-					ssl_printerr(SSL_get_error
-						     (req->ssl, ret));
+			if (http_get_check->proto == PROTO_SSL)
+				ssl_printerr(SSL_get_error
+					     (req->ssl, ret));
 #endif
-				return timeout_epilog(thread, "SSL handshake/communication error"
-							 " connecting to");
-			}
+			return timeout_epilog(thread, "SSL handshake/communication error"
+						 " connecting to");
 		}
 		break;
 	}

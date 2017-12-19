@@ -113,6 +113,7 @@ stop_check(int status)
 	if (check_syslog_ident)
 		free(check_syslog_ident);
 #endif
+	close_std_fd();
 
 	exit(status);
 }

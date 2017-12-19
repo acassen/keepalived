@@ -45,7 +45,7 @@ void
 init_ssl(void)
 {
 	/* Library initialization */
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined LIBRESSL_VERSION_NUMBER
 	SSL_library_init();
 	SSL_load_error_strings();
 #else
@@ -57,7 +57,7 @@ init_ssl(void)
 	req->meth = SSLv23_method();
 	req->ctx = SSL_CTX_new(req->meth);
 
-#if (OPENSSL_VERSION_NUMBER < 0x00905100L)
+#if (OPENSSL_VERSION_NUMBER < 0x00905100L) || defined LIBRESSL_VERSION_NUMBER
 	SSL_CTX_set_verify_depth(req->ctx, 1);
 #endif
 }
@@ -101,7 +101,7 @@ ssl_connect(thread_t * thread)
 	sock_obj->ssl = SSL_new(req->ctx);
 	sock_obj->bio = BIO_new_socket(sock_obj->fd, BIO_NOCLOSE);
 	BIO_set_nbio(sock_obj->bio, 1);	/* Set the Non-Blocking flag */
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined LIBRESSL_VERSION_NUMBER
 	SSL_set_bio(sock_obj->ssl, sock_obj->bio, sock_obj->bio);
 #else
 	BIO_up_ref(sock_obj->bio);
