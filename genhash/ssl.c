@@ -5,8 +5,6 @@
  *
  * Part:        SSL engine. 'Semi' asyncrhonous stream handling.
  *
- * Version:     $Id: ssl.c,v 1.1.16 2009/02/14 03:25:07 acassen Exp $
- *
  * Authors:     Alexandre Cassen, <acassen@linux-vs.org>
  *
  *              This program is distributed in the hope that it will be useful,
@@ -19,7 +17,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #include "config.h"
@@ -44,20 +42,23 @@ extern REQ *req;
  * Initialize the SSL context, with or without specific
  * configuration files.
  */
-static BIO *bio_err = 0;
 void
 init_ssl(void)
 {
 	/* Library initialization */
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined LIBRESSL_VERSION_NUMBER
 	SSL_library_init();
-
 	SSL_load_error_strings();
-	bio_err = BIO_new_fp(stderr, BIO_NOCLOSE);
+#else
+	if (!OPENSSL_init_crypto(OPENSSL_INIT_NO_LOAD_CONFIG, NULL))
+		fprintf(stderr, "OPENSSL_init_crypto failed\n");
+#endif
+
 	/* Initialize SSL context for SSL v2/3 */
 	req->meth = (SSL_METHOD *) SSLv23_method();
 	req->ctx = SSL_CTX_new(req->meth);
 
-#if (OPENSSL_VERSION_NUMBER < 0x00905100L)
+#if (OPENSSL_VERSION_NUMBER < 0x00905100L) || defined LIBRESSL_VERSION_NUMBER
 	SSL_CTX_set_verify_depth(req->ctx, 1);
 #endif
 }
@@ -110,7 +111,14 @@ ssl_connect(thread_t * thread)
 	sock_obj->ssl = SSL_new(req->ctx);
 	sock_obj->bio = BIO_new_socket(sock_obj->fd, BIO_NOCLOSE);
 	BIO_set_nbio(sock_obj->bio, 1);	/* Set the Non-Blocking flag */
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined LIBRESSL_VERSION_NUMBER
 	SSL_set_bio(sock_obj->ssl, sock_obj->bio, sock_obj->bio);
+#else
+	BIO_up_ref(sock_obj->bio);
+	SSL_set0_rbio(sock_obj->ssl, sock_obj->bio);
+	SSL_set0_wbio(sock_obj->ssl, sock_obj->bio);
+#endif
+
 	ret = SSL_connect(sock_obj->ssl);
 
 	DBG("  SSL_connect return code = %d on fd:%d\n", ret, thread->u.fd);

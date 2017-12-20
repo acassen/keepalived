@@ -19,6 +19,7 @@
  *              2 of the License, or (at your option) any later version.
  *
  * Copyright (C) 2017 Damien Clabaut, <Damien.Clabaut@corp.ovh.com>
+ * Copyright (C) 2017-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _VRRP_JSON_H

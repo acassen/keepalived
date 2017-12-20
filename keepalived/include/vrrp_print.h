@@ -19,6 +19,7 @@
  *              2 of the License, or (at your option) any later version.
  *
  * Copyright (C) 2012 John Southworth, <john.southworth@vyatta.com>
+ * Copyright (C) 2015-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _VRRP_PRINT_H

@@ -17,7 +17,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@linux-vs.org>
+ * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _UTILS_H
@@ -72,6 +72,7 @@ extern int inet_sockaddrcmp(struct sockaddr_storage *, struct sockaddr_storage *
 extern char *get_local_name(void);
 extern int string_equal(const char *, const char *);
 extern void set_std_fd(bool);
+extern void close_std_fd(void);
 #if !defined _HAVE_LIBIPTC_ || defined _LIBIPTC_DYNAMIC_
 extern int fork_exec(char **argv);
 #endif
