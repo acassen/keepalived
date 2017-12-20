@@ -20,6 +20,7 @@
  *              2 of the License, or (at your option) any later version.
  *
  * Copyright 2013 Red Hat, Inc.
+ * Copyright (C) 2014-2016 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _HASH_H

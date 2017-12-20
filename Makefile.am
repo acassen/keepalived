@@ -2,7 +2,7 @@
 #
 # Keepalived OpenSource project.
 #
-# Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
+# Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
 
 export			DEBUG_CFLAGS
 export			DEBUG_CPPFLAGS
