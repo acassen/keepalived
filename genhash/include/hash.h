@@ -5,8 +5,6 @@
  *
  * Part:        Hash-related declarations (to break circular deps).
  *
- * Version:     hash.h 2013/07/22
- *
  * Authors:     Jan Pokorny, <jpokorny@redhat.com>
  *
  *              This program is distributed in the hope that it will be useful,
@@ -20,7 +18,7 @@
  *              2 of the License, or (at your option) any later version.
  *
  * Copyright 2013 Red Hat, Inc.
- * Copyright (C) 2014-2016 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2014-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _HASH_H
