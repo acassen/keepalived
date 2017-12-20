@@ -20,7 +20,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #include "config.h"
@@ -65,7 +65,7 @@ build_ssl_ctx(void)
 	ssl_data_t *ssl;
 
 	/* Library initialization */
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined LIBRESSL_VERSION_NUMBER
 	SSL_library_init();
 	SSL_load_error_strings();
 #else
@@ -123,7 +123,7 @@ build_ssl_ctx(void)
 		}
 
       end:
-#if (OPENSSL_VERSION_NUMBER < 0x00905100L)
+#if (OPENSSL_VERSION_NUMBER < 0x00905100L) || defined LIBRESSL_VERSION_NUMBER
 	SSL_CTX_set_verify_depth(ssl->ctx, 1);
 #endif
 
@@ -197,7 +197,7 @@ ssl_connect(thread_t * thread, int new_req)
 		req->bio = BIO_new_socket(thread->u.fd, BIO_NOCLOSE);
 		BIO_get_fd(req->bio, &bio_fd);
 		fcntl(bio_fd, F_SETFD, fcntl(bio_fd, F_GETFD) | FD_CLOEXEC);
-#if (OPENSSL_VERSION_NUMBER < 0x10100000L)
+#if (OPENSSL_VERSION_NUMBER < 0x10100000L) || defined LIBRESSL_VERSION_NUMBER
 		SSL_set_bio(req->ssl, req->bio, req->bio);
 #else
 		BIO_up_ref(req->bio);

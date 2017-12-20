@@ -17,7 +17,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #include "config.h"
@@ -113,6 +113,7 @@ stop_check(int status)
 	if (check_syslog_ident)
 		free(check_syslog_ident);
 #endif
+	close_std_fd();
 
 	exit(status);
 }

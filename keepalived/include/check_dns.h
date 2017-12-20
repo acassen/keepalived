@@ -19,6 +19,7 @@
  *              2 of the License, or (at your option) any later version.
  *
  * Copyright (C) 2016 KLab Inc.
+ * Copyright (C) 2016-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #ifndef _CHECK_DNS_CHECK_H

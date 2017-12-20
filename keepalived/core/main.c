@@ -17,7 +17,7 @@
  *              as published by the Free Software Foundation; either version
  *              2 of the License, or (at your option) any later version.
  *
- * Copyright (C) 2001-2012 Alexandre Cassen, <acassen@gmail.com>
+ * Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
  */
 
 #include "config.h"
@@ -48,6 +48,7 @@
 #include "daemon.h"
 #include "config.h"
 #include "git-commit.h"
+#include "utils.h"
 #include "signals.h"
 #include "pidfile.h"
 #include "bitops.h"
@@ -189,13 +190,17 @@ free_parent_mallocs_startup(bool am_child)
 #else
 		free(syslog_ident);
 #endif
+		syslog_ident = NULL;
 
-		if (orig_core_dump_pattern)
+		if (orig_core_dump_pattern) {
 			FREE_PTR(orig_core_dump_pattern);
+			orig_core_dump_pattern = NULL;
+		}
 	}
 
 	if (free_main_pidfile) {
 		FREE_PTR(main_pidfile);
+		main_pidfile = NULL;
 		free_main_pidfile = false;
 	}
 }
@@ -1204,8 +1209,14 @@ keepalived_main(int argc, char **argv)
 	}
 
 	/* daemonize process */
-	if (!__test_bit(DONT_FORK_BIT, &debug))
-		xdaemon(0, 0, 0);
+	if (!__test_bit(DONT_FORK_BIT, &debug) &&
+	    xdaemon(false, false, true) > 0) {
+		closelog();
+		FREE(config_id);
+		FREE(orig_core_dump_pattern);
+		close_std_fd();
+		exit(0);
+	}
 
 	/* Set file creation mask */
 	umask(0);
@@ -1274,6 +1285,7 @@ end:
 	if (syslog_ident)
 		free(syslog_ident);
 #endif
+	close_std_fd();
 
 	exit(0);
 }
