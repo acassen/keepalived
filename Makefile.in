@@ -18,7 +18,7 @@
 #
 # Keepalived OpenSource project.
 #
-# Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
+# Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
 
 VPATH = @srcdir@
 am__is_gnu_make = { \
