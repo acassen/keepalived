@@ -18,7 +18,7 @@
 #
 # Keepalived OpenSource project.
 #
-# Copyright (C) 2001-2016 Alexandre Cassen, <acassen@gmail.com>
+# Copyright (C) 2001-2017 Alexandre Cassen, <acassen@gmail.com>
 
 # XML_MATCH is used for converting an .xml_template file into an
 # .xml file. Any lines in the .xml_template file that don't start with

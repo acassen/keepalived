@@ -36,6 +36,7 @@
 #include <stdbool.h>
 #include <linux/version.h>
 #include <pwd.h>
+#include <ctype.h>
 
 #include "parser.h"
 #include "memory.h"
@@ -43,8 +44,16 @@
 #include "rttables.h"
 #include "scheduler.h"
 #include "notify.h"
+#include "list.h"
 
 #define DUMP_KEYWORDS	0
+
+typedef struct _defs {
+	char *name;
+	size_t name_len;
+	char *value;
+	size_t value_len;
+} def_t;
 
 /* global vars */
 vector_t *keywords;
@@ -55,6 +64,11 @@ static vector_t *current_keywords;
 static FILE *current_stream;
 static int sublevel = 0;
 static int skip_sublevel = 0;
+
+static list defs;
+
+/* Forward declarations for recursion */
+static bool read_line(char *, size_t);
 
 static char *
 null_strvec(const vector_t *strvec, size_t index)
@@ -474,6 +488,8 @@ read_conf_file(const char *conf_file)
 	}
 
 	globfree(&globbuf);
+	if (LIST_EXISTS(defs))
+		free_list(&defs);
 
 	if (!num_matches)
 		log_message(LOG_INFO, "No config files matched '%s'.", conf_file);
@@ -564,7 +580,162 @@ check_include(char *buf)
 	return ret;
 }
 
-bool
+static def_t *
+find_definition(const char *name, size_t len, bool definition)
+{
+	element e;
+	def_t *def;
+	const char *p;
+	bool using_braces = false;
+
+	if (LIST_ISEMPTY(defs))
+		return NULL;
+
+	if (!definition && *name == '{') {
+		using_braces = true;
+		name++;
+	}
+
+	if (!isalpha(*name) && *name != '_')
+		return NULL;
+
+	if (!len) {
+		for (len = 1, p = name + 1; *p != '\0' && (isalnum(*p) || *p == '_'); len++, p++);
+
+		/* Check we have a suitable end character */
+		if (using_braces && *p != '}')
+			return NULL;
+
+		if (!using_braces && !definition &&
+		     *p != ' ' && *p != '\t' && *p != '\0')
+			return NULL;
+	}
+
+	for (e = LIST_HEAD(defs); e; ELEMENT_NEXT(e)) {
+		def = ELEMENT_DATA(e);
+		if (def->name_len == len &&
+		    !strncmp(def->name, name, len))
+			return def;
+	}
+
+	return NULL;
+}
+
+static void
+replace_param(char *buf, size_t max_len)
+{
+	char *cur_pos = buf;
+	size_t len_used = strlen(buf);
+	def_t *def;
+	char *s, *d, *e;
+	ssize_t i;
+	size_t extra_braces;
+
+	while ((cur_pos = strchr(cur_pos, '$')) && cur_pos[1] != '\0') {
+		if ((def = find_definition(cur_pos + 1, 0, false))) {
+			extra_braces = cur_pos[1] == '{' ? 2 : 0;
+
+			/* Ensure their is enough room to replace $PARAM or ${PARAM} with value */
+			if (len_used + def->value_len - (def->name_len + 1 + extra_braces) >= max_len) {
+				log_message(LOG_INFO, "Parameter substitution on line '%s' would exceed maximum line length", buf);
+				return;
+			}
+
+			if (def->name_len + 1 + extra_braces != def->value_len) {
+				/* We need to move the existing text */
+				if (def->name_len + 1 + extra_braces < def->value_len) {
+					/* We are lengthening the buf text */
+					s = cur_pos + strlen(cur_pos);
+					d = s - (def->name_len + 1 + extra_braces) + def->value_len;
+					e = cur_pos;
+					i = -1;
+				} else {
+					/* We are shortening the buf text */
+					s = cur_pos + (def->name_len + 1 + extra_braces) - def->value_len;
+					d = cur_pos;
+					e = cur_pos + strlen(cur_pos);
+					i = 1;
+				}
+
+				do {
+					*d = *s;
+					if (s == e)
+						break;
+					d += i;
+					s += i;
+				} while (true);
+
+				len_used = len_used + def->value_len - (def->name_len + 1 + extra_braces);
+			}
+
+			/* Now copy the replacement text */
+			strncpy(cur_pos, def->value, def->value_len);
+		}
+		else
+			cur_pos++;
+	}
+}
+
+static void
+free_definition(void *d)
+{
+	def_t *def = d;
+
+	FREE(def->name);
+	FREE(def->value);
+}
+
+/* A definition is of the form $NAME=TEXT */
+static bool
+check_definition(const char *buf)
+{
+	const char *p;
+	def_t* def;
+	char *str;
+
+	if (buf[0] != '$')
+		return false;
+
+	if (!isalpha(buf[1]) && buf[1] != '_')
+		return false;
+
+	for (p = &buf[2]; *p; p++) {
+		if (*p == '=')
+			break;
+		if (!isalnum(*p) &&
+		    !isdigit(*p) &&
+		    *p != '_')
+			return false;
+	}
+
+	if (*p != '=')
+		return false;
+
+	if ((def = find_definition(&buf[1], p - &buf[1], true)))
+		FREE(def->value);
+	else {
+		def = MALLOC(sizeof(*def));
+		def->name_len = p - &buf[1];
+		str = MALLOC(def->name_len + 1);
+		strncpy(str, &buf[1], def->name_len);
+		str[def->name_len] = '\0';
+		def->name = str;
+	}
+
+	p++;
+	def->value_len = strlen(p);
+	str = MALLOC(def->value_len + 1);
+	strcpy(str, p);
+	def->value = str;
+
+	if (!LIST_EXISTS(defs))
+		defs = alloc_list(free_definition, NULL);
+	list_add(defs, def);
+
+	return true;
+}
+
+static bool
 read_line(char *buf, size_t size)
 {
 	size_t len ;
@@ -574,16 +745,33 @@ read_line(char *buf, size_t size)
 	bool rev_cmp;
 	size_t ofs;
 	char *text_start;
+	bool recheck;
 
 	config_id_len = config_id ? strlen(config_id) : 0;
 	do {
-		if (fgets(buf, (int)size, current_stream)) {
-			len = strlen(buf);
-			if (len && (buf[len-1] == '\n' || buf[len-1] == '\r'))
-				buf[len-1] = '\0';
-			if (len > 1 && (buf[len-2] == '\n' || buf[len-2] == '\r'))
-				buf[len-2] = '\0';
-			text_start = buf + strspn(buf, " \t");
+		if (!fgets(buf, (int)size, current_stream))
+		{
+			eof = true;
+			buf[0] = '\0';
+			break;
+		}
+
+		len = strlen(buf);
+		if (len == 0)
+			continue;
+
+		if (buf[len-1] == '\n' || buf[len-1] == '\r')
+			buf[len-1] = '\0';
+		if (len > 1 && (buf[len-2] == '\n' || buf[len-2] == '\r'))
+			buf[len-2] = '\0';
+		text_start = buf + strspn(buf, " \t");
+		if (text_start[0] == '\0') {
+			buf[0] = '\0';
+			continue;
+		}
+
+		recheck = false;
+		do {
 			if (text_start[0] == '@') {
 				/* If the line starts '@', check the following word matches the system id.
 				   @^ reverses the sense of the match */
@@ -611,15 +799,23 @@ read_line(char *buf, size_t size)
 
 				/* Remove the @config_id from start of line */
 				memset(text_start, ' ', (size_t)(buf_start - text_start));
+
+				text_start += strspn(text_start, " \t");
 			}
-		}
-		else
-		{
-			eof = true;
-			buf[0] = '\0';
-			break;
-		}
-	} while (buf[0] && check_include(buf));
+
+			if (text_start[0] == '$' && check_definition(text_start)) {
+				/* check_definition() saves the definition */
+				buf[0] = '\0';
+				break;
+			}
+			else if (!LIST_ISEMPTY(defs) && strchr(text_start, '$')) {
+				replace_param(buf, size);
+				text_start += strspn(text_start, " \t");
+				if (text_start[0] == '@')
+					recheck = true;
+			}
+		} while (recheck);
+	} while (buf[0] == '\0' || check_include(buf));
 
 	return !eof;
 }
