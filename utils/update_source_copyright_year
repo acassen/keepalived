@@ -55,7 +55,7 @@ if [[ $GIT_UPDATE -eq 1 && \
 fi
 
 for FILE in $(git ls-tree --name-status -r HEAD); do
-	[[ " Makefile.in configure COPYING aclocal.m4 ChangeLog ar-lib compile depcomp " =~ " ${FILE##*/} " ]] && continue
+	[[ "configure COPYING aclocal.m4 ChangeLog ar-lib compile depcomp " =~ " ${FILE##*/} " ]] && continue
 
 	CP=$(grep "[Cc]opyright" $FILE)
 	[[ $? -ne 0 ]] && continue

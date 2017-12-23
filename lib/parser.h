@@ -58,7 +58,6 @@ extern void install_sublevel_end_handler(void (*handler) (void));
 extern void install_keyword(const char *, void (*handler) (vector_t *));
 extern vector_t *alloc_strvec(char *);
 extern bool check_conf_file(const char*);
-extern bool read_line(char *, size_t);
 extern vector_t *read_value_block(vector_t *);
 extern void alloc_value_block(void (*alloc_func) (vector_t *));
 extern void *set_value(vector_t *);

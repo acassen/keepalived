@@ -104,7 +104,73 @@ After opening an included file, the current directory is set to the directory of
 the file itself, so any relative paths included from a file are relative to the
 directory of the including file itself.
 
-0.5 Configuration file syntax parser
+0.4 Parameter substitution
+
+Substitutable parameters can be specified. The format for defining a parameter is:
+$PARAMETER=VALUE
+where there must be no space before the '=' and only whitespace may preceed to '$'.
+Empty values are allowed.
+
+Parameter names can be made up of any combination of A-Za-z0-9 and _, but cannot start
+with a digit.
+
+After a parameter is defined, any occurrence of $PARAMETER followed by
+whitespace, or any occurrence of ${PARAMETER} (which need not be followed by
+whitespace) will be replaced by VALUE.
+
+Replacement is recursive, so that if a parameter value itself includes a
+replaceable parameter, then after the first substitution, the parameter
+in the value will then be replaced; the substitution is done at replacement
+time and not at definition time, so for example:
+
+$ADDRESS_BASE=10.2.${ADDRESS_BASE_SUB}
+$ADDRESS_BASE_SUB=0
+    ${ADDRESS_BASE}.100/32
+$ADDRESS_BASE_SUB=10
+    ${ADDRESS_BASE}.100/32
+
+will produce:
+    10.2.0.100/32
+    10.2.10.100/32
+
+Note in the above examples the use of both ADDRESS_BASE and ADDRESS_BASE_SUB
+required braces ({}) since the parameters were not followed by whitespace
+(after the first substitution which produced 10.2.${ADDRESS_BASE_SUB}.100/32
+the parameter is still not followed by whitespace).
+
+If a parameter is not defined, it will not be replaced at all, so for
+example ${UNDEF_PARAMETER} will remain in the configuration if it is
+undefined; this means that existing configuration that contains a '$'
+character (for example in a script definition) will not be changed so
+long as no new parameter definitions are added to the configuration.
+
+Parameter substitution works in conjunction with conditional configuration.
+For example:
+@main $PRIORITY=240
+@backup $PRIORITY=200
+...
+vrrp_instance VI_0 {
+    priority $PRIORITY
+}
+
+will produce:
+...
+vrrp_instance VI_0 }
+    priority 240
+}
+if the config_id is main.
+
+$IF_MAIN=@main
+$IF_MAIN priority 240
+
+will produce
+ priority 240
+if the config_id is main and nothing if the config_id is not main, although
+why anyone would want to use this rather than simply
+@main priority 240
+is not known.
+
+0.6 Configuration file syntax parser
 
 Traditionally the configuration file parser has not been one of the strengths of
 keepalived. yukki maintains a project on github that is a keepalived syntax
