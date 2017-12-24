@@ -681,6 +681,7 @@ free_definition(void *d)
 
 	FREE(def->name);
 	FREE(def->value);
+	FREE(def);
 }
 
 /* A definition is of the form $NAME=TEXT */
@@ -718,6 +719,10 @@ check_definition(const char *buf)
 		strncpy(str, &buf[1], def->name_len);
 		str[def->name_len] = '\0';
 		def->name = str;
+
+		if (!LIST_EXISTS(defs))
+			defs = alloc_list(free_definition, NULL);
+		list_add(defs, def);
 	}
 
 	p++;
@@ -725,10 +730,6 @@ check_definition(const char *buf)
 	str = MALLOC(def->value_len + 1);
 	strcpy(str, p);
 	def->value = str;
-
-	if (!LIST_EXISTS(defs))
-		defs = alloc_list(free_definition, NULL);
-	list_add(defs, def);
 
 	return true;
 }
