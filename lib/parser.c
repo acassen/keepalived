@@ -491,15 +491,7 @@ read_conf_file(const char *conf_file)
 
 	globfree(&globbuf);
 	if (LIST_EXISTS(defs))
-{
-element e;
-def_t *d;
-for (e = LIST_HEAD(defs); e; ELEMENT_NEXT(e)) {
-d = ELEMENT_DATA(e);
-log_message(LOG_INFO, "def %p (%p,%p) %s -> %s", d, d->name, d->value, d->name, d->value);
-}
 		free_list(&defs);
-}
 
 	if (!num_matches)
 		log_message(LOG_INFO, "No config files matched '%s'.", conf_file);
@@ -719,7 +711,6 @@ free_definition(void *d)
 {
 	def_t *def = d;
 
-log_message(LOG_INFO, "Freeing %p", d);
 	FREE(def->name);
 	FREE(def->value);
 	FREE(def);
@@ -764,7 +755,6 @@ check_definition(const char *buf)
 		if (!LIST_EXISTS(defs))
 			defs = alloc_list(free_definition, NULL);
 		list_add(defs, def);
-log_message(LOG_INFO, "Added %s at %p", def->name, def);
 	}
 
 	p++;
