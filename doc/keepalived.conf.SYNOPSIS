@@ -170,6 +170,34 @@ why anyone would want to use this rather than simply
 @main priority 240
 is not known.
 
+Multiline definitions are also suppored, but when used there must be nothing on
+the line after the parameter name. A multiline definition is specified by ending
+each line except the last with a '\' character.
+
+Example:
+
+$INSTANCE= \
+vrrp_instance VI_${NUM} { \
+    interface eth0.${NUM} \
+    use_vmac vrrp${NUM}.1 \
+    virtual_router_id 1 \
+@high priority 130 \
+@low priority 120 \
+    advert_int 1 \
+    virtual_ipaddress { \
+        10.0.${NUM}.254/24 \
+    } \
+    track_script { \
+        offset_instance_${NUM} \
+    } \
+}
+
+$NUM=0
+$INSTANCE
+
+$NUM=1
+$INSTANCE
+
 0.6 Configuration file syntax parser
 
 Traditionally the configuration file parser has not been one of the strengths of

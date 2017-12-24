@@ -142,6 +142,34 @@ why anyone would want to use this rather than simply
     @main priority 240
 .PP
 is not known.
+.PP
+Multiline definitions are also supported, but when used there must be nothing on
+the line after the parameter name. A multiline definition is specified by ending
+each line except the last with a '\' character.
+.PP
+Example:
+.PP
+$INSTANCE= \e
+vrrp_instance VI_${NUM} { \e
+    interface eth0.${NUM} \e
+    use_vmac vrrp${NUM}.1 \e
+    virtual_router_id 1 \e
+ @high priority 130 \e
+ @low priority 120 \e
+    advert_int 1 \e
+    virtual_ipaddress { \e
+        10.0.${NUM}.254/24 \e
+    } \e
+    track_script { \e
+        offset_instance_${NUM} \e
+    } \e
+}
+.PP
+ $NUM=0
+ $INSTANCE
+.PP
+ $NUM=1
+ $INSTANCE
 .SH SCRIPTS
 There are three classes of scripts can be configured to be executed.
 
@@ -173,7 +201,6 @@ the keepalived is awaiting its exit status and it has run for too long.
 Traditionally the configuration file parser has not been one of the strengths of
 keepalived. yukki maintains a project on github that is a keepalived syntax
 checker that may be of use. It can be downloaded from https://github.com/yuuki/gokc
-
 .SH TOP HIERACHY
 .PP
 .B GLOBAL CONFIGURATION
