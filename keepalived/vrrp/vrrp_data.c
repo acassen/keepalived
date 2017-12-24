@@ -594,6 +594,11 @@ alloc_vrrp_buffer(size_t len)
 void
 free_vrrp_buffer(void)
 {
+	/* If the configuration failed, we may not have
+	 * allocated a buffer */
+	if (!vrrp_buffer)
+		return;
+
 	FREE(vrrp_buffer);
 	vrrp_buffer = NULL;
 	vrrp_buffer_len = 0;
