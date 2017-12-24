@@ -367,7 +367,7 @@ and
  # NOTE: the FIFO names must all be different
  notify_fifo FIFO_NAME        # FIFO to write notify events to
                               # See vrrp_notify_fifo and lvs_notify_fifo for format of output
-                              # For further details, see the description under vrrp_sync_group see 
+                              # For further details, see the description under vrrp_sync_group see
                               # doc/samples/sample_notify_fifo.sh for sample usage.
  notify_fifo_script STRING [username [groupname]]
                               # script to be run by keepalived to process notify events
@@ -482,9 +482,9 @@ and
  # and sync groups which monitor it.
  # Note that the file will only be read if at least one VRRP instance
  # or sync group monitors it.
- # 
+ #
  # A value will be read as a number in text from the file.  If the weight
- # configured against the track_file is 0, a non-zero value in the file will 
+ # configured against the track_file is 0, a non-zero value in the file will
  # be treated as a failure status, and a zero value will be treaded as
  # an OK status, otherwise the value will be  multiplied by the weight configured
  # in the track_file statement. If the result is less than -253 any VRRP

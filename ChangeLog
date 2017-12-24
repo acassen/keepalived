@@ -2882,7 +2882,7 @@
 	  . garp_master_repeat : Gratuitous ARP count sent on the wire
 				 after MASTER state transition.
 	  . garp_master_refresh_repeat : Gratuitous ARP count sent on the
-				         wire when garp_refresh_timer fir
+					 wire when garp_refresh_timer fir
 	* vrrp: fix preempt and state BACKUP when prio 255.
 	  This makes it so that keepalived will respect various settings that
 	  should prevent it from assuming the MASTER role for a vrrp_instance
@@ -3428,7 +3428,7 @@
 	  of the digest (provided that extra care is taken that no two
 	  algorithms will ever alias in this regard).  Also the test
 	  script for genhash was extended to conditionally use SHA1.
-	* Jan Pokorný cleaned up genhash code. 
+	* Jan Pokorný cleaned up genhash code.
 	  Access to the hash-specific context was simplified as I've
 	  now checked some C guarantees regarding union/it's members
 	  initial address vs. aligning so now extra inlined accessor
@@ -3588,7 +3588,7 @@
 	  disruption for VRRP.
 	* Copyright update
 	* some cosmetics.
-	
+
 2012-07-27  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.4 released.
 	* Please look at git repo for credits.
@@ -3656,16 +3656,16 @@
 2011-01-09  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.2.2 released.
 	* IPv6 : extended autoconf script to support libnl detection.
-	         IPv6 IPVS kernel subsystem is reachable through
-	         generic netlink configuration interface.
+		 IPv6 IPVS kernel subsystem is reachable through
+		 generic netlink configuration interface.
 	* IPv6 : Enhanced libipvs-2.6 to support generic netlink
-	         configuration interface. If generic netlink is
-	         available with kernel then it will be the
-	         prefered path to configure IPVS.
+		 configuration interface. If generic netlink is
+		 available with kernel then it will be the
+		 prefered path to configure IPVS.
 	* IPv6 : Enhanced the whole checker API to use
-	         sockaddr_storage.
+		 sockaddr_storage.
 	* IPv6 : Enhanced the whole core framework to use
-	         sockaddr_storage.
+		 sockaddr_storage.
 	* IPv6 : Enhanced all checkers to use sockaddr_storage.
 	* fixed a long time pending issue in all checkers. If
 	  first connection attempt to remote peer was failing
@@ -3825,7 +3825,7 @@
 	  address display.
 	* Vincent Bernat <bernat <at> luffy.cx> extended genhash to
 	  display an error when giving an incorrect IP address.
-	* Vincent Bernat <bernat <at> luffy.cx>: When parsing 
+	* Vincent Bernat <bernat <at> luffy.cx>: When parsing
 	  "blackhole" route, also parse IP mask.
 	* Vincent Bernat <bernat <at> luffy.cx>:
 	  On reload, destroy signal pipes before recreating them.
@@ -3836,16 +3836,16 @@
 	  Handle non-existant default interface in VIP definition.
 	* Vincent Bernat <bernat <at> luffy.cx>:
 	  Remove alive real servers when quorum is lost.
-	* Vincent Bernat <bernat <at> luffy.cx>: 
+	* Vincent Bernat <bernat <at> luffy.cx>:
 	  Fix a segfault when a virtual_server is empty.
-	* Vincent Bernat <bernat <at> luffy.cx>: 
+	* Vincent Bernat <bernat <at> luffy.cx>:
 	  Add real servers to new member of a virtual server group
 	  on reload.
-	* Vincent Bernat <bernat <at> luffy.cx>: 
+	* Vincent Bernat <bernat <at> luffy.cx>:
 	  Keep previous effective VRRP priority on reload.
-	* Vincent Bernat <bernat <at> luffy.cx>: 
+	* Vincent Bernat <bernat <at> luffy.cx>:
 	  Fix VRRP script not running any more after reload.
-	* Vincent Bernat <bernat <at> luffy.cx>: 
+	* Vincent Bernat <bernat <at> luffy.cx>:
 	  On reload, keep status for all VRRP scripts.
 	* Removed IPVS Kernel 2.2 support
 
@@ -3980,7 +3980,7 @@
 	  stream. It appears some webserver cause healthchecker crash.
 	* Chris Marchesi, <chris.marchesi at canadawebhosting.com> provided
 	  a patch for better handling of SSL handshake errors.
-	* Shinji Tanaka, <stanaka at hatena.ne.jp> fixed parser "include" 
+	* Shinji Tanaka, <stanaka at hatena.ne.jp> fixed parser "include"
 	  directive to support declaration inside configuration directives,
 	  like including file inside vrrp_instance declaration.
 	* Andreas Kotes, <count at flatline.de> fixed HTTP healthchecker
@@ -3989,13 +3989,13 @@
 	* VRRP : Willy Tarreau, <w at 1wt.eu> fixed a missing notifications
 	  upon transition from fault to backup.
 	* VRRP : Add support to route metric in virtual_routes definition.
-	
+
 2007-09-13  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.14 released.
 	* Shinji Tanaka, <stanaka at hatena.ne.jp> extended parsing
 	  framework to support "include" directives. For more
 	  informations and documentation please refer to Shinji
-	  website : 
+	  website :
 	    http://misccs.dyndns.org/index.php?keepalived%20include%20patch
 	* Tobias Klausmann, <klausman at schwarzvogel.de> add error loggin
 	  while parsing configuration file.
@@ -4010,7 +4010,7 @@
 	* VRRP : Michael Smith, <msmith at cbnco.com> extended
 	  virtual_ipaddress setting to support Old-style Linux interface
 	  aliases like eth0:1.
-	* VRRP : Ward Wouts, <ward.wouts at gmail.com> add support to 
+	* VRRP : Ward Wouts, <ward.wouts at gmail.com> add support to
 	  vrrp_script logging.
 
 2006-10-11  Alexandre Cassen  <acassen@linux-vs.org>
@@ -4231,7 +4231,7 @@
 	* Ronald Wahl <rwa@peppercon.com>, moved the definition of variables
 	  to C files
 	* Ronald Wahl <rwa@peppercon.com> and I fixed scanning for header/body
-	  separator in HTTP protocol 
+	  separator in HTTP protocol
 	* Ronald Wahl <rwa@peppercon.com> replaced memcpy by memmove where source
 	  & destination may overlap
 	* Extended checker API to only register checkers when checker callback
@@ -4319,9 +4319,9 @@
 	  detection.
 	* To work-around the SMP forking bug, added support to two
 	  new daemon starting options :
-	  --vrrp               -P    Only run with VRRP subsystem.
-	  --check              -C    Only run with Health-checker
-	                             subsystem.
+	  --vrrp	       -P    Only run with VRRP subsystem.
+	  --check	       -C    Only run with Health-checker
+				     subsystem.
 	  Those options extend daemon design to support VRRP &
 	  heathchecking subsystem selection. You can now run
 	  two Keepalived daemon one invoqued with --vrrp and
@@ -4349,7 +4349,7 @@
 	* keepalived-1.1.3 released.
 	* Stephan von Krawczynski, <skraw@ithnet.com> extended ip
 	  address framework to support broadcast address selection.
-	* Extended the scheduling framework to support plain 'long' 
+	* Extended the scheduling framework to support plain 'long'
 	  timer. Visited the layer4 framework to support this new
 	  scheduling scheme. Reviewed the checkers and VRRP framework
 	  to support long timer.
@@ -4359,7 +4359,7 @@
 	  log level selection for main daemon. A new command line
 	  argument has been created :
 	  --log-facility  -S  0-7 Set syslog facility to
-	                      LOG_LOCAL[0-7]. (default=LOG_DAEMON)
+			      LOG_LOCAL[0-7]. (default=LOG_DAEMON)
 	* Extended the HTTP checker to support non blocking read
 	  while processing stream. NONBLOCK flags is set before
 	  read operation to catch EAGAIN error.
@@ -4434,14 +4434,14 @@
 	* keepalived-1.1.1 released.
 	* VRRP : Fixed an issue while reloading configuration. Fixed
 	  a dereferencing pointer.
-	* Fixed misc checker to perform server state according to 
+	* Fixed misc checker to perform server state according to
 	  checker result !!!
 
 2003-07-22  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.1.0 released.
 	* The release focus is : "High Performance"
-	* Name cleanup for the healthchecking directory. use check 
-	  instead of healthcheck to be in conformance with watchdog and 
+	* Name cleanup for the healthchecking directory. use check
+	  instead of healthcheck to be in conformance with watchdog and
 	  global software architecture.
 	* updated the SYNOPSIS file for documenting the table arg inside
 	  virtual/static_routes declaration. You can set routes refering
@@ -4454,7 +4454,7 @@
 	* VRRP : Added support to a global shared buffer for incoming
 	  advert handling. A new buffer is no longer allocated each time
 	  processing incoming advert, instead a shared room is used.
-	* VRRP : Added support to pre-allocated shared buffer for 
+	* VRRP : Added support to pre-allocated shared buffer for
 	  outgoing adverts. Each vrrp instance use a 'one time'
 	  allocated buffer instead of a 'all time' one.
 	* VRRP : Extended the socket pool design to support shared fd
@@ -4468,12 +4468,12 @@
 	  "static_ipaddress".
 	  look at doc/samples/keepalived.conf.static_ipaddress.
 	  IP addresses specified into this block will be added during
-	  daemon bootstrap and removed during daemon shutdown. 
-	  Differential conf parsing is enabled for this block, 
-	  removing/adding static_ipaddress can be done on the fly 
+	  daemon bootstrap and removed during daemon shutdown.
+	  Differential conf parsing is enabled for this block,
+	  removing/adding static_ipaddress can be done on the fly
 	  sending SIGHUP signal to daemon.
 	* VRRP : Extended track_interface to support multiple interface
-	  tracking. For those familiar with Nokia monitored circuit, 
+	  tracking. For those familiar with Nokia monitored circuit,
 	  this extention provide the same functionality.
 	  look at doc/samples/keepalived.conf.track_interface.
 	* VRRP : The VRRP instance lookup framework has been extended
@@ -4498,30 +4498,30 @@
 	  perf, differents VRID on all instance must be used. The
 	  design can be sumed by :
 
-          VRID hash table :
+	  VRID hash table :
 
-             +---+---+---+---+---+---+.........+-----+
-             | 1 | 2 | 3 | 4 | 5 | 6 |.........| 255 |
-             +---+---+---+---+---+---+.........+-----+
-                   |       |
-                 +---+   +---+
-                 |fd3|   |fd1|
-                 +---+   +---+
-                           |
-                         +---+
-                         |fd5|
-                         +---+ 
+	     +---+---+---+---+---+---+.........+-----+
+	     | 1 | 2 | 3 | 4 | 5 | 6 |.........| 255 |
+	     +---+---+---+---+---+---+.........+-----+
+		   |       |
+		 +---+   +---+
+		 |fd3|   |fd1|
+		 +---+   +---+
+			   |
+			 +---+
+			 |fd5|
+			 +---+
 
 	  This hash table is filled during configuration parsing and
 	  VRRP instances are not duplicated but dynamically pointed
 	  to optimize memory.
-	* VRRP : The VRRP synchronization group lookup has been 
+	* VRRP : The VRRP synchronization group lookup has been
 	  extended. During bootstrap a VRRP instance index is built upon
-	  sync_group instance name. This extension speed up 
-	  synchronization since while synchronizing it perfoms the 
-	  instance index instead of lookup by instance_name. The 
-	  previous synchornization code has been rewritten to use this 
-	  'list visiting' design for FAULT/BACKUP/MASTER states 
+	  sync_group instance name. This extension speed up
+	  synchronization since while synchronizing it perfoms the
+	  instance index instead of lookup by instance_name. The
+	  previous synchornization code has been rewritten to use this
+	  'list visiting' design for FAULT/BACKUP/MASTER states
 	  synchronization.
 	* VRRP : Optimized the vrrp_timer_vrid_timeout(...) to speed
 	  up vrid lookup over timeouted fd using a one pass lookup.
@@ -4572,9 +4572,9 @@
 	  selection via daemon command line. Created two new
 	  cmdline options :
 	       --wdog-vrrp  -R  Define VRRP watchdog polling
-	                        delay. (default=5s)
-               --wdog-check -H  Define checkers watchdog
-	                        polling delay. (default=5s)
+				delay. (default=5s)
+	       --wdog-check -H  Define checkers watchdog
+				polling delay. (default=5s)
 	* Extended SMTP code to support bigger buffer while
 	  processing remote mta messages.
 	* Erik Barker, <erikb@netnation.com> extended initscript
@@ -4700,7 +4700,7 @@
 	  Creative Internet Techniques, <www.httpd.net>
 	  Please visit sponsor homepage, open minded people here !
 	* Fixed some Makefile and autoconf code dependence issues.
-	* Move keepalived.conf.SYNOPSIS and samples into "doc" directory. 
+	* Move keepalived.conf.SYNOPSIS and samples into "doc" directory.
 	* Enhanced HTTP|SSL check to support large url. Get buffer request is
 	  now 2KBytes.
 	* Removed \n in healthchecker smtp_alert call. This cause some troubles
@@ -5135,7 +5135,7 @@
 	  VRRP packet lenght are limited to a 20 VIPs, if you want more VRRP VIPs
 	  add them to the "virtual_ipaddress_excluded" configuration block.
 	* VRRP : Added more logging facility when setting/removings VIPs & E-VIPs.
-	* VRRP : Created a new FSM state called become_master in charge of 
+	* VRRP : Created a new FSM state called become_master in charge of
 	  VIPs/E-VIPs/notifications handling. The goto_master state is now a state
 	  where the instance send an advert to force a new MASTER election setting
 	  the instance into a transition mode. If election success its finaly
@@ -5242,7 +5242,7 @@
 	  MII transceiver status register thread poller. Monitoring Basic Mode
 	  Status Register (BMSR) of the MII status words. Waiting for kernel
 	  NIC drivers hackers to support this functionnality through netlink
-          (=> Like a IFF_RUNNING update broadcast).
+	  (=> Like a IFF_RUNNING update broadcast).
 	* VRRP : Linked the state machine to the global interface structure.
 	  NIC failure/events are handled.
 	* VRRP : Review the whole state machine code to be more realistic. The
@@ -5277,7 +5277,7 @@
 	  the socket, multicast advert can be sent but not received ?
 	  really strange don t know why probably an IGMP resubmit ?.
 	  So multicast group is left during failover (media trouble,
-          IFF_DOWN or !IFF_RUNNING). In fallback, we register a new
+	  IFF_DOWN or !IFF_RUNNING). In fallback, we register a new
 	  membership and synchronize all the packet dispatcher fds.
 	* VRRP : Fixed a checksum trouble using password authentication.
 	* VRRP : Added support to the LVS sync daemon. This permit
@@ -5359,20 +5359,20 @@
 	* Rewrite the whole VRRP previous code.
 	* VRRP : Created a hierarchic scheduling framework.
 	  Handle VRRP instances multiplexing on the same I/O fd.
-	  VRRP I/O events are handled by our global scheduling 
+	  VRRP I/O events are handled by our global scheduling
 	  framework. Then the global sheduling framework call a VRRP
 	  I/O instance dispatcher to manage VRRP instances.
 	* VRRP : Created a temporary socket pool to handle register
-	         our VRRP thread instances.
+		 our VRRP thread instances.
 	  We create & allocate a socket pool here. The soft design
 	  can be sum up by the following sketch :
- 
+
 	         fd1  fd2    fd3  fd4          fdi  fdi+1
 	      -----\__/--------\__/---........---\__/---
 	         | ETH0 |    | ETH1 |          | ETHn |
 	         +------+    +------+          +------+
- 
- 	  Here we have n physical NIC. Each NIC own a maximum of 2 fds.
+
+	  Here we have n physical NIC. Each NIC own a maximum of 2 fds.
 	  (one for VRRP the other for IPSEC_AH). All our VRRP instances
 	  are multiplexed through this fds. So our design can handle 2*n
 	  multiplexing points.
@@ -5387,7 +5387,7 @@
 	  Handle VRRP states & transition states.
 	* VRRP : Created a VRRP synchronization instance circuit. This
 	  functionnality gave you the ability to monitor VRRP instance
-	  each other. This mean that if 2 VRRP instances are monitoring 
+	  each other. This mean that if 2 VRRP instances are monitoring
 	  themself and if one of this instance change state, the other
 	  follow the same state. ex.: With 2 VRRP instances (VI_1 & VI_2)
 	  if VI_1 become backup then VI_2 become backup too. (symetricly
@@ -5412,12 +5412,12 @@
 	  Thanks goes to Gianni D'Aprile for pointing it to me.
 
 2001-11-04  Alexandre Cassen  <acassen@linux-vs.org>
-        * keepalived-0.3.8 released.
-        * Added support to native IPTABLE LVS CODE
-          => using NAT on 2.4 kernel ipchains kernel support
-             has been removed.
-        * Added support to Direct Routing & Tunneling.
-        * Review the keepalived.init script to be much more generic.
+	* keepalived-0.3.8 released.
+	* Added support to native IPTABLE LVS CODE
+	  => using NAT on 2.4 kernel ipchains kernel support
+	     has been removed.
+	* Added support to Direct Routing & Tunneling.
+	* Review the keepalived.init script to be much more generic.
 
 2001-09-14  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.4.1 released.
@@ -5447,50 +5447,50 @@
 
 2001-07-15  Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-0.3.5 released.
-        * Rewrite the whole signal handling, registering a terminating
-          thread on signal.
-        * Move logsystem to syslog using facility LOG_INFO & LOG_DEBUG.
-        * Added a daemonization function imported from zebra.
-        * Rewrite the pidfile handling, check if daemon is running, if not
-          remove eventual stalled pidfile and create new pidfile.
-        * Added a strong scheduling framework based on an I/O multiplexer
-          to handle asynchronous process. This code is imported from zebra
-          and have been enhanced for keepalived purposes.
+	* Rewrite the whole signal handling, registering a terminating
+	  thread on signal.
+	* Move logsystem to syslog using facility LOG_INFO & LOG_DEBUG.
+	* Added a daemonization function imported from zebra.
+	* Rewrite the pidfile handling, check if daemon is running, if not
+	  remove eventual stalled pidfile and create new pidfile.
+	* Added a strong scheduling framework based on an I/O multiplexer
+	  to handle asynchronous process. This code is imported from zebra
+	  and have been enhanced for keepalived purposes.
 
-          Thread types are :
-          . timeouted read on fd.
-          . timeouted write on fd.
-          . timer.
-          . event.
-          . terminate event.
+	  Thread types are :
+	  . timeouted read on fd.
+	  . timeouted write on fd.
+	  . timer.
+	  . event.
+	  . terminate event.
 
-          => The zebra framework have been enhanced to add support for timeouted
-             read/write fds.
+	  => The zebra framework have been enhanced to add support for timeouted
+	     read/write fds.
 
-          => With this framework keepalived use a Boss/Worker thread model design,
-             fetching ready thread from a master threading queues.
+	  => With this framework keepalived use a Boss/Worker thread model design,
+	     fetching ready thread from a master threading queues.
 
-        * Rewrite the configuration file reader to add flexibility on extending.
-          The dynamic data structure has been rewritten to use apropriate types.
-          Right now parsing framework is ready for easy new checker structures
-          integration.
-        * Rewrite the smtp connector. The implementation take advantage of the
-          I/O multiplexer. All read/write operations from/to the remote smtp server
-          are done asynchronously. The implementation is rfc 821 compliant (multiple
-          receiver are handled by a multiple RCPT TO command as specified in rfc821.3.1).
-        * Rewrite the IPFW & IPVS wrappers.
-        * Added support for NAT mask on IP MASQ rules (keyword nat_mask in configuration
-          file). Added support for sorry server facility, so when all the server from a 
-          VS server pool are removed, a sorry server is automaticaly added to the VS pool 
-          (typically this is used when you have a spare server online).
-        * Rewrite the previous checkers. Checkers are now based on a hierarchic layer
-          stack framework. The protocol implemented for the moment is TCP. All layer 5
-          checkers are using layer4.c primitives with the same design :
+	* Rewrite the configuration file reader to add flexibility on extending.
+	  The dynamic data structure has been rewritten to use apropriate types.
+	  Right now parsing framework is ready for easy new checker structures
+	  integration.
+	* Rewrite the smtp connector. The implementation take advantage of the
+	  I/O multiplexer. All read/write operations from/to the remote smtp server
+	  are done asynchronously. The implementation is rfc 821 compliant (multiple
+	  receiver are handled by a multiple RCPT TO command as specified in rfc821.3.1).
+	* Rewrite the IPFW & IPVS wrappers.
+	* Added support for NAT mask on IP MASQ rules (keyword nat_mask in configuration
+	  file). Added support for sorry server facility, so when all the server from a
+	  VS server pool are removed, a sorry server is automaticaly added to the VS pool
+	  (typically this is used when you have a spare server online).
+	* Rewrite the previous checkers. Checkers are now based on a hierarchic layer
+	  stack framework. The protocol implemented for the moment is TCP. All layer 5
+	  checkers are using layer4.c primitives with the same design :
 
-          . a checker connector thread (creating the socket) registering the connection
-            checker thread.
-          . a connection checker thread testing connection states (error, in_progress,
-            timeout, success). When connection success upper level thread are registered
-            to handle checks.
-        * Delay loop is now checkers specifics since we can use a multithreaded framework.
-        * Update the PDF documentation file.
+	  . a checker connector thread (creating the socket) registering the connection
+	    checker thread.
+	  . a connection checker thread testing connection states (error, in_progress,
+	    timeout, success). When connection success upper level thread are registered
+	    to handle checks.
+	* Delay loop is now checkers specifics since we can use a multithreaded framework.
+	* Update the PDF documentation file.

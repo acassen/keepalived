@@ -1154,7 +1154,7 @@ launch_scheduler(void)
 #ifdef _WITH_VRRP_
 		    && __test_bit(DONT_RELEASE_VRRP_BIT, &debug)
 #endif
-							        ) {
+								) {
 			__clear_bit(MEM_ERR_DETECT_BIT, &debug);
 #ifdef _WITH_VRRP_
 			__clear_bit(DONT_RELEASE_VRRP_BIT, &debug);

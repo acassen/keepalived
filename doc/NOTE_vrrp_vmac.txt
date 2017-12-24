@@ -44,14 +44,14 @@ net.ipv4.conf.eth0.arp_filter = 1
 
 3) VMAC interface
 
-consider the following VRRP configuration : 
+consider the following VRRP configuration :
 
 vrrp_instance instance1 {
 	state BACKUP
 	interface eth0
 	virtual_router_id 250
 	use_vmac
-        vmac_xmit_base         # Transmit VRRP adverts over physical interface
+	vmac_xmit_base         # Transmit VRRP adverts over physical interface
 	priority 150
 	advert_int 1
 	virtual_ipaddress {

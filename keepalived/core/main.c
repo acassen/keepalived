@@ -783,7 +783,7 @@ parse_cmdline(int argc, char **argv)
 #endif
 #if HAVE_DECL_CLONE_NEWNET
 		{"namespace",		required_argument,	NULL, 's'},
-#endif	
+#endif
 		{"config-id",		required_argument,	NULL, 'i'},
 		{"signum",		required_argument,	NULL,  1 },
 		{"version",		no_argument,		NULL, 'v'},

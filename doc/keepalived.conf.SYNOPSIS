@@ -810,7 +810,7 @@ Note:   <IP ADDRESS RANGE> has the form of : XXX.YYY.ZZZ.WWW-VVV, define
     same. If a virtual server uses a fwmark, and all the real/sorry servers are
     tunnelled, the address family of the virtual server will be the same as the
     address family of the real/sorry servers if they are all the same, otherwise
-    it will default to IPv4 (use ip_family inet6 to override this). 
+    it will default to IPv4 (use ip_family inet6 to override this).
 
 virtual_server <IP ADDRESS> <PORT> {          # VS IP/PORT declaration
 virtual_server fwmark <INTEGER>    {          # VS fwmark declaration

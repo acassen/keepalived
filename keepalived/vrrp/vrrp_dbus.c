@@ -341,7 +341,7 @@ handle_method_call(__attribute__((unused)) GDBusConnection *connection,
 #endif
 					   GVariant *parameters,
 		   GDBusMethodInvocation *invocation,
-		   __attribute__((unused)) gpointer               user_data)
+		   __attribute__((unused)) gpointer user_data)
 {
 #ifdef _WITH_DBUS_CREATE_INSTANCE_
 	char *iname;
@@ -500,7 +500,7 @@ dbus_emit_signal(GDBusConnection *connection,
 static void
 on_bus_acquired(GDBusConnection *connection,
 		const gchar     *name,
-		__attribute__((unused)) gpointer         user_data)
+		__attribute__((unused)) gpointer user_data)
 {
 	global_connection = connection;
 	gchar *path;
@@ -547,7 +547,7 @@ on_bus_acquired(GDBusConnection *connection,
 static void
 on_name_acquired(__attribute__((unused)) GDBusConnection *connection,
 		 const gchar     *name,
-		 __attribute__((unused)) gpointer         user_data)
+		 __attribute__((unused)) gpointer user_data)
 {
 	log_message(LOG_INFO, "Acquired the name %s on the session bus\n", name);
 }

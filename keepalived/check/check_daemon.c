@@ -56,7 +56,7 @@ static int
 lvs_notify_fifo_script_exit(__attribute__((unused)) thread_t *thread)
 {
         log_message(LOG_INFO, "lvs notify fifo script terminated");
- 
+
         return 0;
 }
 

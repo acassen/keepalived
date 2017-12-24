@@ -34,9 +34,9 @@ Compiling and Building from Source
 
 In order to run the latest stable version, compile keepalived from source.
 Compiling keepalived requires a compiler, OpenSSL and the Netlink Library.  You
-may optionally install Net-SNMP, which is required for SNMP support. 
+may optionally install Net-SNMP, which is required for SNMP support.
 
-Install Prerequisites on RHEL/CentOS 
+Install Prerequisites on RHEL/CentOS
 ====================================
 
 On RHEL, install the following prerequisites::
@@ -60,7 +60,7 @@ https://github.com/acassen/keepalived. Then, compile the package::
 
     curl --progress http://keepalived.org/software/keepalived-1.2.15.tar.gz | tar xz
     cd keepalived-1.2.15
-    ./configure 
+    ./configure
     make
     sudo make install
 
@@ -89,4 +89,4 @@ Setup Init Scripts
 After compiling, create an init script in order to control the keepalived
 daemon.
 
-On RHEL, 
+On RHEL,

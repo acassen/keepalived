@@ -65,11 +65,11 @@ case "$1" in
 		if test ! -f ${DAEMON_CONF}; then
 		    echo -n >&2 "Configuration file, ${DAEMON_CONF} does not exist. "
 		    rc_status -s
-	    	    exit 6
+		    exit 6
 		fi
 		checkproc $pid_par ${DAEMON_BIN}
 		case $? in
-	    	    0) echo -n "- Warning: daemon already running. " ;;
+		    0) echo -n "- Warning: daemon already running. " ;;
 		    1) echo -n "- Warning: ${DAEMON_PIDFILE} exists. " ;;
 		esac
 #		echo "startproc $usr_par $pid_par ${DAEMON_BIN} ${DAEMON_OPT}"

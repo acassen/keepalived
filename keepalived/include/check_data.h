@@ -72,10 +72,10 @@ typedef struct _real_server {
 	notify_script_t			*notify_up;	/* Script to launch when RS is added to LVS */
 	notify_script_t			*notify_down;	/* Script to launch when RS is removed from LVS */
 	int				alpha;		/* 1 if alpha mode is default. */
-	unsigned long                   delay_loop;	/* Interval between running checker */
-	unsigned long                   warmup;		/* max random timeout to start checker */
-	unsigned                        retry;		/* number of retries before failing */
-	unsigned long                   delay_before_retry; /* interval between retries */
+	unsigned long			delay_loop;	/* Interval between running checker */
+	unsigned long			warmup;		/* max random timeout to start checker */
+	unsigned			retry;		/* number of retries before failing */
+	unsigned long			delay_before_retry; /* interval between retries */
 
 	bool				alive;
 	unsigned			num_failed_checkers;/* Number of failed checkers */
@@ -148,10 +148,10 @@ typedef struct _virtual_server {
 	bool				omega;		/* Omega mode enabled. */
 	bool				inhibit;	/* Set weight to 0 instead of removing
 							 * the service from IPVS topology. */
-	unsigned long                   delay_loop;	/* Interval between running checker */
-	unsigned long                   warmup;		/* max random timeout to start checker */
-	unsigned                        retry;		/* number of retries before failing */
-	unsigned long                   delay_before_retry; /* interval between retries */
+	unsigned long			delay_loop;	/* Interval between running checker */
+	unsigned long			warmup;		/* max random timeout to start checker */
+	unsigned			retry;		/* number of retries before failing */
+	unsigned long			delay_before_retry; /* interval between retries */
 	notify_script_t			*notify_quorum_up;	/* A hook to call when the VS gains quorum. */
 	notify_script_t			*notify_quorum_down;	/* A hook to call when the VS loses quorum. */
 	unsigned			quorum;		/* Minimum live RSs to consider VS up. */
@@ -201,9 +201,9 @@ typedef struct _check_data {
 			 VS_SCRIPT_ISEQ((X)->notify_quorum_down, (Y)->notify_quorum_down) && \
 			 !strcmp((X)->sched, (Y)->sched)				&&\
 			 (X)->persistence_timeout     == (Y)->persistence_timeout	&&\
-			 !(X)->vsgname                == !(Y)->vsgname			&& \
+			 !(X)->vsgname		      == !(Y)->vsgname			&& \
 			 (!(X)->vsgname || !strcmp((X)->vsgname, (Y)->vsgname))		&& \
-			 !(X)->virtualhost            == !(Y)->virtualhost		&& \
+			 !(X)->virtualhost	      == !(Y)->virtualhost		&& \
 			 (!(X)->virtualhost || !strcmp((X)->virtualhost, (Y)->virtualhost)))
 
 #define VSGE_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr) &&	\
@@ -212,7 +212,7 @@ typedef struct _check_data {
 
 #define RS_ISEQ(X,Y)	(sockstorage_equal(&(X)->addr,&(Y)->addr)			&& \
 			 (X)->forwarding_method       == (Y)->forwarding_method		&& \
-			 !(X)->virtualhost            == !(Y)->virtualhost		&& \
+			 !(X)->virtualhost	      == !(Y)->virtualhost		&& \
 			 (!(X)->virtualhost || !strcmp((X)->virtualhost, (Y)->virtualhost)))
 
 /* Global vars exported */

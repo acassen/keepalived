@@ -2297,7 +2297,7 @@ add_vrrp_to_track_script(vrrp_t *vrrp, tracked_sc_t *sc)
 		}
 	}
 
-       	tvp = MALLOC(sizeof(tracking_vrrp_t));
+	tvp = MALLOC(sizeof(tracking_vrrp_t));
 	tvp->vrrp = vrrp;
 	tvp->weight = sc->weight;
 	list_add(sc->scr->tracking_vrrp, tvp);
@@ -2330,7 +2330,7 @@ add_vrrp_to_track_file(vrrp_t *vrrp, tracked_file_t *tfl)
 		}
 	}
 
-       	tvp = MALLOC(sizeof(tracking_vrrp_t));
+	tvp = MALLOC(sizeof(tracking_vrrp_t));
 	tvp->vrrp = vrrp;
 	tvp->weight = tfl->weight;
 	list_add(tfl->file->tracking_vrrp, tvp);

@@ -14,7 +14,7 @@ show_help()
 	cat <<EOF
 $0 - Usage:
 
-	-h              Show this!
+	-h		Show this!
 	-g		Do git update for copyright messages
 	-o		Override requiring clean working tree for git update
 	-t		Test mode - don't do a git commit

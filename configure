@@ -3647,7 +3647,7 @@ fi
 if test -n "$kernel_src_path"; then
   kernelinc="-I$kernel_src_path/include"
 elif test ! -d /usr/include/linux -a \
-            -d /usr/src/linux/include; then
+	    -d /usr/src/linux/include; then
   kernelinc="-I/usr/src/linux/include"
 else
   kernelinc=
@@ -5477,7 +5477,7 @@ _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-        KA_CFLAGS="$KA_CFLAGS $FLAG"
+	KA_CFLAGS="$KA_CFLAGS $FLAG"
 else
   { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
@@ -5499,19 +5499,19 @@ $as_echo_n "checking for -Wl,$FLAG support... " >&6; }
 
       int main(int argc, char **argv)
       {
-        int i = 0;
+	int i = 0;
       }
 
 _ACEOF
 if ac_fn_c_try_link "$LINENO"; then :
   (
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
-        WL_FLAGS="$WL_FLAGS,$FLAG"
+	WL_FLAGS="$WL_FLAGS,$FLAG"
       )
 else
   (
-        { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
       )
 
@@ -6696,7 +6696,7 @@ BUILD_GENHASH=Yes
 NEED_MD5=no
 NEED_SSL=no
 if test "$enable_vrrp" != no -a \
-        "$enable_vrrp_auth" != no; then
+	"$enable_vrrp_auth" != no; then
   NEED_MD5=yes
 fi
 if test "$enable_lvs" != no; then
@@ -7174,7 +7174,7 @@ fi
       int main(void)
       {
 	genl_connect();
-        return 0;
+	return 0;
       }
 
 _ACEOF
@@ -7250,10 +7250,10 @@ _ACEOF
       if test $NETLINK_VER -eq 3 -a .$disable_vrrp != .no; then
 	NEED_NL3=Yes
 
-                SAV_CPPFLAGS="$CPPFLAGS"
-        CPPFLAGS="$CPP_FLAGS $kernelinc"
-        IPV4_DEVCONF=Yes
-        ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ARP_IGNORE" "ac_cv_have_decl_IPV4_DEVCONF_ARP_IGNORE" "#include <linux/ip.h>
+		SAV_CPPFLAGS="$CPPFLAGS"
+	CPPFLAGS="$CPP_FLAGS $kernelinc"
+	IPV4_DEVCONF=Yes
+	ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ARP_IGNORE" "ac_cv_have_decl_IPV4_DEVCONF_ARP_IGNORE" "#include <linux/ip.h>
 "
 if test "x$ac_cv_have_decl_IPV4_DEVCONF_ARP_IGNORE" = xyes; then :
   ac_have_decl=1
@@ -7268,8 +7268,8 @@ if test $ac_have_decl = 1; then :
 
 else
 
-            IPV4_DEVCONF=No
-            break
+	    IPV4_DEVCONF=No
+	    break
 
 fi
 ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ACCEPT_LOCAL" "ac_cv_have_decl_IPV4_DEVCONF_ACCEPT_LOCAL" "#include <linux/ip.h>
@@ -7287,8 +7287,8 @@ if test $ac_have_decl = 1; then :
 
 else
 
-            IPV4_DEVCONF=No
-            break
+	    IPV4_DEVCONF=No
+	    break
 
 fi
 ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_RP_FILTER" "ac_cv_have_decl_IPV4_DEVCONF_RP_FILTER" "#include <linux/ip.h>
@@ -7306,8 +7306,8 @@ if test $ac_have_decl = 1; then :
 
 else
 
-            IPV4_DEVCONF=No
-            break
+	    IPV4_DEVCONF=No
+	    break
 
 fi
 ac_fn_c_check_decl "$LINENO" "IPV4_DEVCONF_ARPFILTER" "ac_cv_have_decl_IPV4_DEVCONF_ARPFILTER" "#include <linux/ip.h>
@@ -7325,14 +7325,14 @@ if test $ac_have_decl = 1; then :
 
 else
 
-            IPV4_DEVCONF=No
-            break
+	    IPV4_DEVCONF=No
+	    break
 
 fi
 
-        if test $IPV4_DEVCONF = Yes; then
-          CPPFLAGS="$SAV_CPPFLAGS $NL3_CPPFLAGS"
-          for ac_header in netlink/route/link.h netlink/route/link/inet.h
+	if test $IPV4_DEVCONF = Yes; then
+	  CPPFLAGS="$SAV_CPPFLAGS $NL3_CPPFLAGS"
+	  for ac_header in netlink/route/link.h netlink/route/link/inet.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -7350,35 +7350,35 @@ done
 
 $as_echo "#define _HAVE_IPV4_DEVCONF_  1 " >>confdefs.h
 
-          SYSTEM_OPTIONS="$SYSTEM_OPTIONS IPV4_DEVCONF"
+	  SYSTEM_OPTIONS="$SYSTEM_OPTIONS IPV4_DEVCONF"
 
-                              { $as_echo "$as_me:${as_lineno-$LINENO}: checking for net/if.h and libnl3/netlink/route/link.h namespace collision" >&5
+	  	  	  { $as_echo "$as_me:${as_lineno-$LINENO}: checking for net/if.h and libnl3/netlink/route/link.h namespace collision" >&5
 $as_echo_n "checking for net/if.h and libnl3/netlink/route/link.h namespace collision... " >&6; }
-          cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+	  cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-              #include <netlink/route/link.h>
-              #include <net/if.h>
+	      #include <netlink/route/link.h>
+	      #include <net/if.h>
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
 
-              { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
+	      { $as_echo "$as_me:${as_lineno-$LINENO}: result: no" >&5
 $as_echo "no" >&6; }
 
 else
 
-              { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
+	      { $as_echo "$as_me:${as_lineno-$LINENO}: result: yes" >&5
 $as_echo "yes" >&6; }
 
 $as_echo "#define _HAVE_IF_H_LINK_H_COLLISION_  1 " >>confdefs.h
 
-              SYSTEM_OPTIONS="$SYSTEM_OPTIONS IF_H_LINK_H_COLLISION"
+	      SYSTEM_OPTIONS="$SYSTEM_OPTIONS IF_H_LINK_H_COLLISION"
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-        fi
-        CPPFLAGS="$SAV_CPPFLAGS"
+	fi
+	CPPFLAGS="$SAV_CPPFLAGS"
       fi
 
       if test $IPV4_DEVCONF = Yes; then
@@ -7522,7 +7522,7 @@ fi
       int main(void)
       {
 	rtgen_request();
-        return 0;
+	return 0;
       }
 
 _ACEOF
@@ -7598,9 +7598,9 @@ _ACEOF
 
 $as_echo "#define _HAVE_LIBNL3_  1 " >>confdefs.h
 
-        SYSTEM_OPTIONS="$SYSTEM_OPTIONS LIBNL3"
+	SYSTEM_OPTIONS="$SYSTEM_OPTIONS LIBNL3"
 	if test .$enable_libnl_dynamic = .yes; then
-          SYSTEM_OPTIONS="$SYSTEM_OPTIONS LIBNL_DYNAMIC"
+	  SYSTEM_OPTIONS="$SYSTEM_OPTIONS LIBNL_DYNAMIC"
 	   if test -n ""; then
       KA_PKG_PFX=
     else
@@ -7645,7 +7645,7 @@ $as_echo "#define _LIBNL_DYNAMIC_  1 " >>confdefs.h
       int main(void)
       {
 	nl_socket_alloc();
-        return 0;
+	return 0;
       }
 
 _ACEOF
@@ -7720,7 +7720,7 @@ _ACEOF
 else
 
       if test .$enable_lvs != .no; then
-        { $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_socket_modify_cb in -lnl" >&5
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for nl_socket_modify_cb in -lnl" >&5
 $as_echo_n "checking for nl_socket_modify_cb in -lnl... " >&6; }
 if ${ac_cv_lib_nl_nl_socket_modify_cb+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -7758,14 +7758,14 @@ fi
 $as_echo "$ac_cv_lib_nl_nl_socket_modify_cb" >&6; }
 if test "x$ac_cv_lib_nl_nl_socket_modify_cb" = xyes; then :
 
-            IPVS_USE_NL=Yes
-            NETLINK_VER=1
+	    IPVS_USE_NL=Yes
+	    NETLINK_VER=1
 
 $as_echo "#define _HAVE_LIBNL1_  1 " >>confdefs.h
 
-            SYSTEM_OPTIONS="$SYSTEM_OPTIONS LIBNL1"
+	    SYSTEM_OPTIONS="$SYSTEM_OPTIONS LIBNL1"
 	    if test .$enable_libnl_dynamic = .yes; then
-               if test -n ""; then
+	       if test -n ""; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -7791,7 +7791,7 @@ $as_echo "#define _HAVE_LIBNL1_  1 " >>confdefs.h
     eval ${KA_PKG_PFX}_CFLAGS=\"\$${KA_PKG_PFX}_CFLAGS $ADD_NEW\"
 
 
-              CONFIG_OPTIONS="$CONFIG_OPTIONS LIBNL_DYNAMIC"
+	      CONFIG_OPTIONS="$CONFIG_OPTIONS LIBNL_DYNAMIC"
 
 $as_echo "#define _LIBNL_DYNAMIC_  1 " >>confdefs.h
 
@@ -7810,7 +7810,7 @@ $as_echo "#define _LIBNL_DYNAMIC_  1 " >>confdefs.h
       int main(void)
       {
 	nl_socket_modify_cb();
-        return 0;
+	return 0;
       }
 
 _ACEOF
@@ -7830,7 +7830,7 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 	    else
-               if test -n ""; then
+	       if test -n ""; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -7883,7 +7883,7 @@ _ACEOF
 
 else
 
-            { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: keepalived will be built without libnl support." >&5
+	    { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: keepalived will be built without libnl support." >&5
 $as_echo "$as_me: WARNING: keepalived will be built without libnl support." >&2;}
 
 fi
@@ -8377,7 +8377,7 @@ $as_echo "#define _HAVE_LIBIPTC_  1 " >>confdefs.h
 
 	SYSTEM_OPTIONS="$SYSTEM_OPTIONS LIBIPTC"
 	if test .${enable_libiptc_dynamic} != .yes; then
-           if test -n ""; then
+	   if test -n ""; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -8432,7 +8432,7 @@ $as_echo "#define _HAVE_LIBIPTC_  1 " >>confdefs.h
 	    KA_LIBS=`echo $KA_LIBS -lip4tc -lip6tc`
 	  fi
 	else
-           if test -n ""; then
+	   if test -n ""; then
       KA_PKG_PFX=
     else
       KA_PKG_PFX=KA
@@ -8477,7 +8477,7 @@ $as_echo "#define _LIBIPTC_DYNAMIC_  1 " >>confdefs.h
       int main(void)
       {
 	iptc_init();
-        return 0;
+	return 0;
       }
 
 _ACEOF
@@ -8510,7 +8510,7 @@ _ACEOF
       int main(void)
       {
 	ip6tc_init();
-        return 0;
+	return 0;
       }
 
 _ACEOF
@@ -8635,7 +8635,7 @@ $as_echo "#define _LIBXTABLES_DYNAMIC_  1 " >>confdefs.h
       int main(void)
       {
 	xtables_insmod();
-        return 0;
+	return 0;
       }
 
 _ACEOF
@@ -8661,7 +8661,7 @@ _ACEOF
     if test "${enable_libipset}" != no; then
       $PKG_CONFIG --exists libipset
       if test $? -eq 0; then
-         if test -n "IPSET"; then
+	 if test -n "IPSET"; then
       KA_PKG_PFX=IPSET
     else
       KA_PKG_PFX=KA
@@ -8711,7 +8711,7 @@ _ACEOF
     fi
 
       else
-        IPSET_LIBS="-lipset"
+	IPSET_LIBS="-lipset"
       fi
       SAV_LIBS=$LIBS
       LIBS="$IPTC_LIBS $IPSET_LIBS"
@@ -8754,8 +8754,8 @@ fi
 $as_echo "$ac_cv_lib_ipset_ipset_session_init" >&6; }
 if test "x$ac_cv_lib_ipset_ipset_session_init" = xyes; then :
 
-          USE_LIBIPSET=Yes
-          for ac_header in libipset/data.h libipset/linux_ip_set.h libipset/session.h libipset/types.h
+	  USE_LIBIPSET=Yes
+	  for ac_header in libipset/data.h libipset/linux_ip_set.h libipset/session.h libipset/types.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
@@ -8766,16 +8766,16 @@ _ACEOF
 
 else
 
-              USE_LIBIPSET=No
-              break
+	      USE_LIBIPSET=No
+	      break
 
 fi
 
 done
 
 
-          if test $USE_LIBIPSET = Yes; then
-            { $as_echo "$as_me:${as_lineno-$LINENO}: checking for xtables_insmod in -lxtables" >&5
+	  if test $USE_LIBIPSET = Yes; then
+	    { $as_echo "$as_me:${as_lineno-$LINENO}: checking for xtables_insmod in -lxtables" >&5
 $as_echo_n "checking for xtables_insmod in -lxtables... " >&6; }
 if ${ac_cv_lib_xtables_xtables_insmod+:} false; then :
   $as_echo_n "(cached) " >&6
@@ -8822,14 +8822,14 @@ else
   USE_LIBIPSET=No
 fi
 
-          fi
+	  fi
 
-          if test $USE_LIBIPSET = Yes; then
-                        EXTRA_INCLUDE=
-            cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+	  if test $USE_LIBIPSET = Yes; then
+	    	    EXTRA_INCLUDE=
+	    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-              #include <linux/netfilter/xt_set.h>
+	      #include <linux/netfilter/xt_set.h>
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
@@ -8855,7 +8855,7 @@ if test "x$ac_cv_header_linux_netfilter_xt_set_h" = xyes; then :
 
 $as_echo "#define USE_LIBIPSET_LINUX_IP_SET_H  1 " >>confdefs.h
 
-                  EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
+		  EXTRA_INCLUDE="#include <libipset/linux_ip_set.h>"
 
 else
   USE_LIBIPSET=No
@@ -8872,8 +8872,8 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
 $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
 
-            $PKG_CONFIG --exists libipset
-            if test $? -eq 0; then
+	    $PKG_CONFIG --exists libipset
+	    if test $? -eq 0; then
 	      if test .${enable_libipset_dynamic} = .no; then
 		 if test -n ""; then
       KA_PKG_PFX=
@@ -8954,12 +8954,12 @@ $as_echo "#define _HAVE_LIBIPSET_  1 " >>confdefs.h
 	      fi
 	    elif test .${enable_libipset_dynamic} = .no; then
 	      KA_LIBS="$KA_LIBS -lipset"
-            fi
+	    fi
 	    if test .${enable_libipset_dynamic} != .no; then
 
 $as_echo "#define _LIBIPSET_DYNAMIC_  1 " >>confdefs.h
 
-              CONFIG_OPTIONS="$CONFIG_OPTIONS LIBIPSET_DYNAMIC"
+	      CONFIG_OPTIONS="$CONFIG_OPTIONS LIBIPSET_DYNAMIC"
 	      NEED_LIBDL=Yes
 
     if test $LDD = :; then
@@ -8975,7 +8975,7 @@ $as_echo "#define _LIBIPSET_DYNAMIC_  1 " >>confdefs.h
       int main(void)
       {
 	ipset_session_init();
-        return 0;
+	return 0;
       }
 
 _ACEOF
@@ -8995,12 +8995,12 @@ cat >>confdefs.h <<_ACEOF
 _ACEOF
 
 	    else
-              CONFIG_OPTIONS="$CONFIG_OPTIONS LIBIPSET"
+	      CONFIG_OPTIONS="$CONFIG_OPTIONS LIBIPSET"
 	    fi
 
-	                            ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v1" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v1_match_set_index" "
-                $EXTRA_INCLUDE
-                #include <linux/netfilter/xt_set.h>
+	    	    	    ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v1" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v1_match_set_index" "
+		$EXTRA_INCLUDE
+		#include <linux/netfilter/xt_set.h>
 
 "
 if test "x$ac_cv_member_struct_xt_set_info_match_v1_match_set_index" = xyes; then :
@@ -9009,9 +9009,9 @@ $as_echo "#define HAVE_XT_SET_INFO_MATCH_V1  1 " >>confdefs.h
 
 fi
 
-                        ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v3" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v3_match_set_index" "
-                $EXTRA_INCLUDE
-                #include <linux/netfilter/xt_set.h>
+	    	    ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v3" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v3_match_set_index" "
+		$EXTRA_INCLUDE
+		#include <linux/netfilter/xt_set.h>
 
 "
 if test "x$ac_cv_member_struct_xt_set_info_match_v3_match_set_index" = xyes; then :
@@ -9020,9 +9020,9 @@ $as_echo "#define HAVE_XT_SET_INFO_MATCH_V3  1 " >>confdefs.h
 
 fi
 
-                        ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v4" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v4_match_set_index" "
-                $EXTRA_INCLUDE
-                #include <linux/netfilter/xt_set.h>
+	    	    ac_fn_c_check_member "$LINENO" "struct xt_set_info_match_v4" "match_set.index" "ac_cv_member_struct_xt_set_info_match_v4_match_set_index" "
+		$EXTRA_INCLUDE
+		#include <linux/netfilter/xt_set.h>
 
 "
 if test "x$ac_cv_member_struct_xt_set_info_match_v4_match_set_index" = xyes; then :
@@ -9032,11 +9032,11 @@ $as_echo "#define HAVE_XT_SET_INFO_MATCH_V4  1 " >>confdefs.h
 fi
 
 
-                        cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+	    	    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-              #include <linux/netfilter/ipset/ip_set.h>
-              int main(void) { int var = IPSET_ATTR_IFACE; }
+	      #include <linux/netfilter/ipset/ip_set.h>
+	      int main(void) { int var = IPSET_ATTR_IFACE; }
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
@@ -9046,12 +9046,12 @@ $as_echo "#define HAVE_IPSET_ATTR_IFACE  1 " >>confdefs.h
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
-	    	    	    	    	    	    	    	    	    	                cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+	    	    	    	    	    	    	    	    	    	    	    cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-              #include <linux/netfilter/ipset/ip_set.h>
-              #include <libipset/linux_ip_set.h>
-              int main(void) {}
+	      #include <linux/netfilter/ipset/ip_set.h>
+	      #include <libipset/linux_ip_set.h>
+	      int main(void) {}
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
@@ -9060,11 +9060,11 @@ else
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-                 #include <linux/netfilter/ipset/ip_set.h>
+		 #include <linux/netfilter/ipset/ip_set.h>
 		 #ifdef _UAPI_IP_SET_H
 		 #error _UAPI_IP_SET_H defined
 		 #endif
-                 int main(void) {}
+		 int main(void) {}
 
 _ACEOF
 if ac_fn_c_try_compile "$LINENO"; then :
@@ -9080,7 +9080,7 @@ rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
 
 fi
 rm -f core conftest.err conftest.$ac_objext conftest.$ac_ext
-          fi
+	  fi
 
 fi
 
@@ -9396,8 +9396,8 @@ if test $ac_have_decl = 1; then :
 
 else
 
-        IPVS_64BIT_STATS=No
-        break
+	IPVS_64BIT_STATS=No
+	break
 
 fi
 ac_fn_c_check_decl "$LINENO" "IPVS_DEST_ATTR_STATS64" "ac_cv_have_decl_IPVS_DEST_ATTR_STATS64" "#include <linux/ip_vs.h>
@@ -9415,8 +9415,8 @@ if test $ac_have_decl = 1; then :
 
 else
 
-        IPVS_64BIT_STATS=No
-        break
+	IPVS_64BIT_STATS=No
+	break
 
 fi
 
@@ -9915,7 +9915,7 @@ $as_echo_n "checking whether C compiler supports flag \"${NETSNMP_CFLAGS} ${NETS
 
       int main(void)
       {
-        return 0;
+	return 0;
       }
 
 _ACEOF
@@ -9989,14 +9989,14 @@ done
     fi
   fi
   if test ${SNMP_RFCV2_SUPPORT} = Yes -o \
-          ${SNMP_RFCV3_SUPPORT} = Yes; then
-      if test ${VRRP_SUPPORT} != Yes; then
-        as_fn_error $? "RFC SNMP support requires VRRP" "$LINENO" 5
-      fi
-      SNMP_RFC_SUPPORT=Yes
+	  ${SNMP_RFCV3_SUPPORT} = Yes; then
+    if test ${VRRP_SUPPORT} != Yes; then
+      as_fn_error $? "RFC SNMP support requires VRRP" "$LINENO" 5
+    fi
+    SNMP_RFC_SUPPORT=Yes
   fi
   if test ${SNMP_RFCV3_SUPPORT} = Yes -a \
-          "$enable_snmp_reply_v3_for_v2" != no; then
+	  "$enable_snmp_reply_v3_for_v2" != no; then
 
 $as_echo "#define _SNMP_REPLY_V3_FOR_V2_  1 " >>confdefs.h
 
@@ -10016,11 +10016,11 @@ $as_echo "#define _SNMP_REPLY_V3_FOR_V2_  1 " >>confdefs.h
     fi
   fi
   if test ${VRRP_SUPPORT} != Yes -a \
-          ${SNMP_VRRP_SUPPORT} = Yes; then
+	  ${SNMP_VRRP_SUPPORT} = Yes; then
     as_fn_error $? "VRRP SNMP support requires VRRP" "$LINENO" 5
   fi
   if test ${IPVS_SUPPORT} = No -a \
-          ${SNMP_CHECKER_SUPPORT} = Yes; then
+	  ${SNMP_CHECKER_SUPPORT} = Yes; then
     as_fn_error $? "CHECKER SNMP support requires checker" "$LINENO" 5
   fi
 
@@ -10214,15 +10214,15 @@ $as_echo "#define _WITH_DBUS_  1 " >>confdefs.h
       LIBS="$($PKG_CONFIG --libs gio-2.0)"
       if test "$cross_compiling" = yes; then :
 
-          { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Cannot determine if need to call g_type_init(). Assuming yes for safety." >&5
+	  { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: Cannot determine if need to call g_type_init(). Assuming yes for safety." >&5
 $as_echo "$as_me: WARNING: Cannot determine if need to call g_type_init(). Assuming yes for safety." >&2;}
-          need_g_type_init=1
+	  need_g_type_init=1
 
 else
   cat confdefs.h - <<_ACEOF >conftest.$ac_ext
 /* end confdefs.h.  */
 
-          #include <gio/gio.h>
+	  #include <gio/gio.h>
 int
 main ()
 {
@@ -10251,9 +10251,9 @@ $as_echo "#define DBUS_NEED_G_TYPE_INIT  1 " >>confdefs.h
 
 $as_echo "#define _WITH_DBUS_CREATE_INSTANCE_  1 " >>confdefs.h
 
-        DBUS_CREATE_INSTANCE=Yes
-        CONFIG_OPTIONS="$CONFIG_OPTIONS DBUS_CREATE_INSTANCE"
-        { $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: DBus create instance functionality is dangerous - why do you want it?" >&5
+	DBUS_CREATE_INSTANCE=Yes
+	CONFIG_OPTIONS="$CONFIG_OPTIONS DBUS_CREATE_INSTANCE"
+	{ $as_echo "$as_me:${as_lineno-$LINENO}: WARNING: DBus create instance functionality is dangerous - why do you want it?" >&5
 $as_echo "$as_me: WARNING: DBus create instance functionality is dangerous - why do you want it?" >&2;}
       fi
 
@@ -10597,10 +10597,10 @@ if test -z $init_type; then
     if test \( -z "$INIT_TYPE" -a -f /etc/init.d/networking \); then
       init_path=`which openrc-run 2>/dev/null`
       if test \( $? -eq 0 -a -x "$init_path" \); then
-        head -1 /etc/init.d/networking | grep -q "^#! */.*/openrc-run$"
-        if test $? -eq 0; then
+	head -1 /etc/init.d/networking | grep -q "^#! */.*/openrc-run$"
+	if test $? -eq 0; then
 	  INIT_TYPE=openrc
-        fi
+	fi
       fi
     fi
     if test \( -z "$INIT_TYPE" -a -f /etc/init.d/cron -a ! -h /etc/init.d/cron \); then

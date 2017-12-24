@@ -5,7 +5,7 @@
 # global_defs section:
 #     vrrp_notify_fifo /tmp/notify_fifo
 # This script will then need to be executed.
-# 
+#
 # As an alternative to executing this script manually, add the following
 # in the global_defs section of the config:
 #     vrrp_notify_fifo_script /etc/keepalived/scripts/sample_notify_fifo.sh

@@ -24,7 +24,7 @@ Add noreturn function attribute on stop_vrrp/check
 
 bin/genhash -s 2001:470:69dd:35::188 --port 80 -u /Harriet/     # works, but
 bin/genhash -s 2001:470:69dd:35::188 --port 80 -u /Harriet/     # -S doesn;t
-                                                                # but -S is OK with IPv4 address
+								# but -S is OK with IPv4 address
 
 in ipvswrapper.c, get rid of static srule etc and make them procedure local and pass as parameters
 
@@ -80,7 +80,7 @@ to make vrrp instances go to backup or fault state if anything they added goes a
 (backup if can re-add, fault it not).
 
 Add option `track` to virtual route to do same as global track_added, but for
-that route for that vrrp instance. If route has a dev, then 
+that route for that vrrp instance. If route has a dev, then
 
 Add option track for virtual ip address, which will add specified dev to tracked interfaces.
 

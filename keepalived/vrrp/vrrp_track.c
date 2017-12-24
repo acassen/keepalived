@@ -518,7 +518,7 @@ process_script_update_priority(int weight, vrrp_script_t *vscript, bool script_o
 		   to only adjust the priority if the state the script
 		   is now in causes an adjustment to the priority */
 		if (script_ok) {
-			if (weight > 0)	
+			if (weight > 0)
 				vrrp->total_priority += weight;
 		} else {
 			if (weight < 0)
@@ -804,7 +804,7 @@ process_inotify(int fd)
 				if (tfile->wd != event->wd ||
 				    strcmp(tfile->file_part, event->name))
 					continue;
- 
+
 				if (event->mask & (IN_MOVED_FROM | IN_DELETE)) {
 					/* The file has disappeared. Treat as though the value is 0 */
 					update_track_file_status(tfile, 0);
@@ -875,7 +875,7 @@ init_track_files(list track_files)
 		}
 		else if (errno == ENOENT) {
 			/* Resolve the directory */
-			if (!(dir_end = strrchr(tfile->file_path, '/'))) 
+			if (!(dir_end = strrchr(tfile->file_path, '/')))
 				resolved_path = realpath(".", NULL);
 			else {
 				*dir_end = '\0';

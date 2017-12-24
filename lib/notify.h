@@ -66,7 +66,7 @@ typedef struct _notify_script {
 /* notify_fifo details */
 typedef struct _notify_fifo {
 	char	*name;
-	int 	fd;
+	int	fd;
 	bool	created_fifo;	/* We created the FIFO */
 	notify_script_t *script; /* Script to run to process FIFO */
 } notify_fifo_t;
