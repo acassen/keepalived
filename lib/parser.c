@@ -50,7 +50,10 @@ typedef struct _defs {
 	size_t name_len;
 	char *value;
 	size_t value_len;
+	bool multiline;
 } def_t;
+
+#define DEF_LINE_END	'\n'
 
 /* global vars */
 vector_t *keywords;
@@ -63,6 +66,7 @@ static FILE *current_stream;
 static int sublevel = 0;
 static int skip_sublevel = 0;
 
+/* Parameter definitions */
 static list defs;
 
 /* Forward declarations for recursion */
@@ -487,7 +491,15 @@ read_conf_file(const char *conf_file)
 
 	globfree(&globbuf);
 	if (LIST_EXISTS(defs))
+{
+element e;
+def_t *d;
+for (e = LIST_HEAD(defs); e; ELEMENT_NEXT(e)) {
+d = ELEMENT_DATA(e);
+log_message(LOG_INFO, "def %p (%p,%p) %s -> %s", d, d->name, d->value, d->name, d->value);
+}
 		free_list(&defs);
+}
 
 	if (!num_matches)
 		log_message(LOG_INFO, "No config files matched '%s'.", conf_file);
@@ -585,6 +597,7 @@ find_definition(const char *name, size_t len, bool definition)
 	def_t *def;
 	const char *p;
 	bool using_braces = false;
+	bool allow_multiline;
 
 	if (LIST_ISEMPTY(defs))
 		return NULL;
@@ -609,9 +622,17 @@ find_definition(const char *name, size_t len, bool definition)
 			return NULL;
 	}
 
+	if (definition ||
+	    (!using_braces && name[len] == '\0') ||
+	    (using_braces && name[len+1] == '\0'))
+		allow_multiline = true;
+	else
+		allow_multiline = false;
+
 	for (e = LIST_HEAD(defs); e; ELEMENT_NEXT(e)) {
 		def = ELEMENT_DATA(e);
 		if (def->name_len == len &&
+		    (allow_multiline || !def->multiline) &&
 		    !strncmp(def->name, name, len))
 			return def;
 	}
@@ -619,8 +640,8 @@ find_definition(const char *name, size_t len, bool definition)
 	return NULL;
 }
 
-static void
-replace_param(char *buf, size_t max_len)
+static char *
+replace_param(char *buf, size_t max_len, bool in_multiline)
 {
 	char *cur_pos = buf;
 	size_t len_used = strlen(buf);
@@ -628,28 +649,45 @@ replace_param(char *buf, size_t max_len)
 	char *s, *d, *e;
 	ssize_t i;
 	size_t extra_braces;
+	size_t replacing_len;
+	char *next_ptr = NULL;
 
 	while ((cur_pos = strchr(cur_pos, '$')) && cur_pos[1] != '\0') {
 		if ((def = find_definition(cur_pos + 1, 0, false))) {
 			extra_braces = cur_pos[1] == '{' ? 2 : 0;
 
-			/* Ensure their is enough room to replace $PARAM or ${PARAM} with value */
-			if (len_used + def->value_len - (def->name_len + 1 + extra_braces) >= max_len) {
-				log_message(LOG_INFO, "Parameter substitution on line '%s' would exceed maximum line length", buf);
-				return;
+			/* We can't handle nest multiline definitions */
+			if (def->multiline && in_multiline) {
+				log_message(LOG_INFO, "Expansion of multiline definition within multiline definitions not supported");
+				cur_pos += def->name_len + 1 + extra_braces;
+				continue;
 			}
 
-			if (def->name_len + 1 + extra_braces != def->value_len) {
+			/* Ensure there is enough room to replace $PARAM or ${PARAM} with value */
+			if (def->multiline) {
+				replacing_len = strchr(def->value, DEF_LINE_END) - def->value;
+				in_multiline = true;
+				next_ptr = def->value + replacing_len + 1;
+			}
+			else
+				replacing_len = def->value_len;
+
+			if (len_used + replacing_len - (def->name_len + 1 + extra_braces) >= max_len) {
+				log_message(LOG_INFO, "Parameter substitution on line '%s' would exceed maximum line length", buf);
+				return NULL;
+			}
+
+			if (def->name_len + 1 + extra_braces != replacing_len) {
 				/* We need to move the existing text */
-				if (def->name_len + 1 + extra_braces < def->value_len) {
+				if (def->name_len + 1 + extra_braces < replacing_len) {
 					/* We are lengthening the buf text */
 					s = cur_pos + strlen(cur_pos);
-					d = s - (def->name_len + 1 + extra_braces) + def->value_len;
+					d = s - (def->name_len + 1 + extra_braces) + replacing_len;
 					e = cur_pos;
 					i = -1;
 				} else {
 					/* We are shortening the buf text */
-					s = cur_pos + (def->name_len + 1 + extra_braces) - def->value_len;
+					s = cur_pos + (def->name_len + 1 + extra_braces) - replacing_len;
 					d = cur_pos;
 					e = cur_pos + strlen(cur_pos);
 					i = 1;
@@ -663,15 +701,17 @@ replace_param(char *buf, size_t max_len)
 					s += i;
 				} while (true);
 
-				len_used = len_used + def->value_len - (def->name_len + 1 + extra_braces);
+				len_used = len_used + replacing_len - (def->name_len + 1 + extra_braces);
 			}
 
 			/* Now copy the replacement text */
-			strncpy(cur_pos, def->value, def->value_len);
+			strncpy(cur_pos, def->value, replacing_len);
 		}
 		else
 			cur_pos++;
 	}
+
+	return next_ptr;
 }
 
 static void
@@ -679,13 +719,14 @@ free_definition(void *d)
 {
 	def_t *def = d;
 
+log_message(LOG_INFO, "Freeing %p", d);
 	FREE(def->name);
 	FREE(def->value);
 	FREE(def);
 }
 
 /* A definition is of the form $NAME=TEXT */
-static bool
+static def_t*
 check_definition(const char *buf)
 {
 	const char *p;
@@ -723,15 +764,33 @@ check_definition(const char *buf)
 		if (!LIST_EXISTS(defs))
 			defs = alloc_list(free_definition, NULL);
 		list_add(defs, def);
+log_message(LOG_INFO, "Added %s at %p", def->name, def);
 	}
 
 	p++;
 	def->value_len = strlen(p);
+	if (p[def->value_len - 1] == '\\') {
+		/* Remove leading and trailing whitespace */
+		while (isblank(*p))
+			p++, def->value_len--;
+		while (def->value_len >= 2) {
+			if (isblank(p[def->value_len - 2]))
+				def->value_len--;
+		}
+		if (def->value_len >= 2)
+			def->value[def->value_len - 1] = DEF_LINE_END;
+		else {
+			p += def->value_len;
+			def->value_len = 0;
+		}
+		def->multiline = true;
+	} else
+		def->multiline = false;
 	str = MALLOC(def->value_len + 1);
 	strcpy(str, p);
 	def->value = str;
 
-	return true;
+	return def;
 }
 
 static bool
@@ -745,24 +804,77 @@ read_line(char *buf, size_t size)
 	size_t ofs;
 	char *text_start;
 	bool recheck;
+	static def_t *def = NULL;
+	static char *next_ptr = NULL;
+	bool multiline_param_def = false;
+	char *new_str;
+	char *end;
+	char *next_ptr1;
 
 	config_id_len = config_id ? strlen(config_id) : 0;
 	do {
-		if (!fgets(buf, (int)size, current_stream))
+		if (next_ptr) {
+			/* We are expanding a multiline parameter, so copy next line */
+			end = strchr(next_ptr, DEF_LINE_END);
+			if (!end) {
+				strcpy(buf, next_ptr);
+				next_ptr = NULL;
+			} else {
+				strncpy(buf, next_ptr, end - next_ptr);
+				buf[end - next_ptr] = '\0';
+				next_ptr = end + 1;
+			}
+		}
+		else if (!fgets(buf, (int)size, current_stream))
 		{
 			eof = true;
 			buf[0] = '\0';
 			break;
 		}
 
+		/* Remove trailing <CR>/<LF> */
 		len = strlen(buf);
+		while (len && (buf[len-1] == '\n' || buf[len-1] == '\r'))
+			buf[--len] = '\0';
+
+		/* Handle multi-line definitions */
+		if (multiline_param_def) {
+			/* Remove leading and trailing spaces and tabs */
+			text_start = buf + strspn(buf, " \t");
+			len -= text_start - buf;
+			if (len && text_start[len-1] == '\\') {
+				while (len >= 2 && isblank(text_start[len - 2]))
+					len--;
+				text_start[len-1] = DEF_LINE_END;
+			} else {
+				while (len >= 1 && isblank(text_start[len - 1]))
+					len--;
+				multiline_param_def = false;
+			}
+
+			/* Skip blank lines */
+			if (!len ||
+			    (len == 1 && multiline_param_def)) {
+				buf[0] = '\0';
+				continue;
+			}
+
+			/* Add the line to the definition */
+			new_str = MALLOC(def->value_len + len + 1);
+			strcpy(new_str, def->value);
+			strncpy(new_str + def->value_len, text_start, len);
+			new_str[def->value_len + len] = '\0';
+			FREE(def->value);
+			def->value = new_str;
+			def->value_len += len;
+
+			buf[0] = '\0';
+			continue;
+		}
+
 		if (len == 0)
 			continue;
 
-		if (buf[len-1] == '\n' || buf[len-1] == '\r')
-			buf[len-1] = '\0';
-		if (len > 1 && (buf[len-2] == '\n' || buf[len-2] == '\r'))
-			buf[len-2] = '\0';
 		text_start = buf + strspn(buf, " \t");
 		if (text_start[0] == '\0') {
 			buf[0] = '\0';
@@ -802,13 +914,18 @@ read_line(char *buf, size_t size)
 				text_start += strspn(text_start, " \t");
 			}
 
-			if (text_start[0] == '$' && check_definition(text_start)) {
+			if (text_start[0] == '$' && (def = check_definition(text_start))) {
 				/* check_definition() saves the definition */
+				if (def->multiline)
+					multiline_param_def = true;
 				buf[0] = '\0';
 				break;
 			}
-			else if (!LIST_ISEMPTY(defs) && strchr(text_start, '$')) {
-				replace_param(buf, size);
+
+			if (!LIST_ISEMPTY(defs) && strchr(text_start, '$')) {
+				next_ptr1 = replace_param(buf, size, !!next_ptr);
+				if (!next_ptr)
+					next_ptr = next_ptr1;
 				text_start += strspn(text_start, " \t");
 				if (text_start[0] == '@')
 					recheck = true;
