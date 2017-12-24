@@ -85,9 +85,6 @@ typedef struct _ip_rule {
 #define IPRULE_DEL 0
 #define IPRULE_ADD 1
 
-#define VRRP_RULE_FROM	1
-#define VRRP_RULE_TO	2
-
 /* prototypes */
 extern void netlink_rulelist(list, int, bool);
 extern void free_iprule(void *);

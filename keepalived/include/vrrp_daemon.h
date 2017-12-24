@@ -27,7 +27,6 @@
 
 /* Daemon define */
 #define PROG_VRRP	"Keepalived_vrrp"
-#define WDOG_VRRP	"/tmp/.vrrp"
 
 extern bool non_existent_interface_specified;
 

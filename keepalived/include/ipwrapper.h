@@ -30,13 +30,6 @@
 #include "check_data.h"
 #include "check_api.h"
 
-/* NAT netmask */
-#define HOST_NETMASK   0xffffffff
-
-/* firewall rules framework command */
-#define IP_FW_CMD_ADD 0x0001
-#define IP_FW_CMD_DEL 0x0002
-
 /* UP & DOWN value */
 #define UP   true
 #define DOWN false

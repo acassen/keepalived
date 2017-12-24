@@ -323,7 +323,6 @@ typedef struct _vrrp_t {
 #define VRRP_IS_BAD_VERSION(id)		((id) < 2 || (id) > 3)
 #define VRRP_IS_BAD_VID(id)		((id) < 1 || (id) > 255)	/* rfc2338.6.1.vrid */
 #define VRRP_IS_BAD_PRIORITY(p)		((p) < 1 || (p) > VRRP_PRIO_OWNER)	/* rfc2338.6.1.prio */
-#define VRRP_IS_BAD_ADVERT_INT(d)	((d) < 1)
 #define VRRP_IS_BAD_DEBUG_INT(d)	((d) < 0 || (d) > 4)
 
 /* We have to do some reduction of the calculation for VRRPv3 in order not to overflow a uint32; 625 / 16 == TIMER_CENTI_HZ / 256 */
@@ -335,7 +334,6 @@ typedef struct _vrrp_t {
 #define VRRP_MAX(a, b)	((a) > (b)?(a):(b))
 
 #define VRRP_PKT_SADDR(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in *) &(V)->saddr)->sin_addr.s_addr : IF_ADDR((V)->ifp))
-#define VRRP_PKT_SADDR6(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in6 *) &(V)->saddr)->sin6_addr : IF_ADDR6((V)->ifp))
 
 #define VRRP_ISUP(V)		(!(V)->num_script_if_fault)
 

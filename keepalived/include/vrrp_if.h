@@ -100,8 +100,6 @@ typedef struct _interface {
 	list			tracking_vrrp;		/* List of tracking_vrrp_t for vrrp instances tracking this interface */
 } interface_t;
 
-#define GARP_DELAY_PTR(X) ((X)->switch_delay ? (X)->switch_delay : &((X)->if_delay))
-
 /* Tracked interface structure definition */
 typedef struct _tracked_if {
 	int			weight;		/* tracking weight when non-zero */
@@ -120,7 +118,6 @@ typedef struct _tracked_if {
 #endif
 #define IF_ADDR(X) ((X)->sin_addr.s_addr)
 #define IF_ADDR6(X)	((X)->sin6_addr)
-#define IF_MTU(X) ((X)->mtu)
 #define IF_HWADDR(X) ((X)->hw_addr)
 #define IF_MII_SUPPORTED(X) ((X)->lb_type & LB_MII)
 #define IF_ETHTOOL_SUPPORTED(X) ((X)->lb_type & LB_ETHTOOL)

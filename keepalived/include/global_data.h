@@ -54,7 +54,6 @@
 #endif
 
 /* constants */
-#define DEFAULT_SMTP_SERVER 0x7f000001
 #define DEFAULT_SMTP_CONNECTION_TIMEOUT (30 * TIMER_HZ)
 
 /* email link list */
