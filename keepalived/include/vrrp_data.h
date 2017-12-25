@@ -44,7 +44,6 @@ typedef struct _vrrp_data {
 	list			vrrp_socket_pool;
 	list			vrrp_script;
 	list			vrrp_track_files;
-	list			vrrp_switch;
 } vrrp_data_t;
 
 /* Global Vars exported */
