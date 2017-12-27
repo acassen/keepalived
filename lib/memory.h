@@ -71,5 +71,6 @@ extern void *zalloc(unsigned long size);
 #endif
 
 /* Common defines */
+#define PMALLOC(p)	{ p = MALLOC(sizeof(*p)); }
 #define FREE_PTR(p)	{ if (p) { FREE(p);} }
 #endif
