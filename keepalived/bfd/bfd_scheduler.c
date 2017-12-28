@@ -235,7 +235,7 @@ bfd_expire_thread(thread_t *thread)
 		    bfd->iname, dead_time / 1000, overdue_time);
 
 	/*
-	 * RFC5580:
+	 * RFC5880:
 	 * <...> If a period of a Detection Time passes without the
 	 * receipt of a valid, authenticated BFD packet from the remote
 	 * system, this <bfd.RemoteDiscr> variable MUST be set to zero.
