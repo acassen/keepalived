@@ -142,6 +142,34 @@ why anyone would want to use this rather than simply
     @main priority 240
 .PP
 is not known.
+.PP
+Multiline definitions are also supported, but when used there must be nothing on
+the line after the parameter name. A multiline definition is specified by ending
+each line except the last with a '\' character.
+.PP
+Example:
+.PP
+$INSTANCE= \e
+vrrp_instance VI_${NUM} { \e
+    interface eth0.${NUM} \e
+    use_vmac vrrp${NUM}.1 \e
+    virtual_router_id 1 \e
+ @high priority 130 \e
+ @low priority 120 \e
+    advert_int 1 \e
+    virtual_ipaddress { \e
+        10.0.${NUM}.254/24 \e
+    } \e
+    track_script { \e
+        offset_instance_${NUM} \e
+    } \e
+}
+.PP
+ $NUM=0
+ $INSTANCE
+.PP
+ $NUM=1
+ $INSTANCE
 .SH TOP HIERACHY
 .PP
 .B GLOBAL CONFIGURATION
