@@ -466,7 +466,7 @@ bfd_state_down(bfd_t *bfd, char diag)
 
 	log_message(LOG_WARNING, "BFD_Instance(%s) Entering %s state"
 		    " (Local diagnostic - %s, Remote diagnostic - %s)",
-		    bfd->iname, BFD_STATE_STR(bfd->local_state),
+		    bfd->iname, BFD_STATE_STR(BFD_STATE_DOWN),
 		    BFD_DIAG_STR(bfd->local_diag),
 		    BFD_DIAG_STR(bfd->remote_diag));
 
