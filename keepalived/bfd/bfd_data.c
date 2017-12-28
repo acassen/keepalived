@@ -276,7 +276,7 @@ rand_intv(uint32_t min, uint32_t max)
 
 /* Returns random disciminator number */
 uint32_t
-bfd_get_random_discr(bfd_data_t * data)
+bfd_get_random_discr(bfd_data_t *data)
 {
 	bfd_t *bfd;
 	uint32_t discr;
@@ -284,14 +284,18 @@ bfd_get_random_discr(bfd_data_t * data)
 
 	assert(data);
 
-	discr = rand_intv(1, UINT32_MAX);
+	do {
+		discr = rand_intv(1, UINT32_MAX);
 
-	/* Check for collisions */
-	for (e = LIST_HEAD(data->bfd); e; ELEMENT_NEXT(e)) {
-		bfd = ELEMENT_DATA(e);
-		if (bfd->local_discr == discr)
-			return bfd_get_random_discr(data);
-	}
+		/* Check for collisions */
+		for (e = LIST_HEAD(data->bfd); e; ELEMENT_NEXT(e)) {
+			bfd = ELEMENT_DATA(e);
+			if (bfd->local_discr == discr) {
+				discr = 0;
+				break;
+			}
+		}
+	} while (!discr);
 
 	return discr;
 }
