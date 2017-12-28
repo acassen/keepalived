@@ -984,12 +984,10 @@ bfd_register_workers(bfd_data_t *data)
 		/* Do not start anything if instance is in AdminDown state.
 		   Discard saved state if any */
 		if (bfd_sender_suspended(bfd)) {
-			if (bfd_sender_suspended(bfd)) {
-				if (BFD_ISADMINDOWN(bfd))
-					bfd_sender_discard(bfd);
-				else
-					bfd_sender_resume(bfd);
-			}
+			if (BFD_ISADMINDOWN(bfd))
+				bfd_sender_discard(bfd);
+			else
+				bfd_sender_resume(bfd);
 		} else if (!BFD_ISADMINDOWN(bfd))
 			bfd_sender_schedule(bfd);
 
