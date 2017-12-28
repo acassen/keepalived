@@ -508,8 +508,6 @@ bfd_state_rise(bfd_t *bfd)
 
 	if (!bfd_expire_scheduled(bfd))
 		bfd_expire_schedule(bfd);
-
-	bfd_event_send(bfd);
 }
 
 /* Runs when BFD session state goes Up */
@@ -520,6 +518,8 @@ bfd_state_up(bfd_t *bfd)
 
 	bfd->local_state = BFD_STATE_UP;
 	bfd_state_rise(bfd);
+
+	bfd_event_send(bfd);
 }
 
 /* Runs when BFD session state goes Init */
@@ -1004,6 +1004,9 @@ bfd_register_workers(bfd_data_t *data)
 			else
 				bfd_reset_resume(bfd);
 		}
+
+		/* Send our status to VRRP process */
+		bfd_event_send(bfd);
 	}
 }
 

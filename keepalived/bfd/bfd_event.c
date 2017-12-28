@@ -44,7 +44,7 @@ bfd_event_send(bfd_t *bfd)
 
 	memset(&evt, 0, sizeof evt);
 	strcpy(evt.iname, bfd->iname);
-	evt.state = bfd->local_state;
+	evt.state = bfd->local_state == BFD_STATE_UP ? BFD_STATE_UP : BFD_STATE_DOWN;
 	evt.sent_time = timer_now();
 
 	ret = write(bfd_event_pipe[1], &evt, sizeof evt);
