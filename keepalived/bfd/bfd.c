@@ -102,7 +102,7 @@ bfd_set_poll(bfd_t *bfd)
 
 /* Copies BFD state */
 void
-bfd_copy_state(bfd_t *bfd, const bfd_t *bfd_old)
+bfd_copy_state(bfd_t *bfd, const bfd_t *bfd_old, bool all_fields)
 {
 	assert(bfd_old);
 	assert(bfd);
@@ -110,24 +110,34 @@ bfd_copy_state(bfd_t *bfd, const bfd_t *bfd_old)
 	/* Copy state variables */
 	bfd->local_state = bfd_old->local_state;
 	bfd->remote_state = bfd_old->remote_state;
-	bfd->local_discr = bfd_old->local_discr;
 	bfd->remote_discr = bfd_old->remote_discr;
-	bfd->local_diag = bfd_old->local_diag;
 	bfd->remote_diag = bfd_old->remote_diag;
-	bfd->remote_min_tx_intv = bfd_old->remote_min_tx_intv;
-	bfd->remote_min_rx_intv = bfd_old->remote_min_rx_intv;
 	bfd->local_demand = bfd_old->local_demand;
 	bfd->remote_demand = bfd_old->remote_demand;
-	bfd->remote_detect_mult = bfd_old->remote_detect_mult;
 	bfd->poll = bfd_old->poll;
 	bfd->final = bfd_old->final;
 
-	bfd->local_tx_intv = bfd_old->local_tx_intv;
-	bfd->remote_tx_intv = bfd_old->remote_tx_intv;
-	bfd->local_detect_time = bfd_old->local_detect_time;
-	bfd->remote_detect_time = bfd_old->remote_detect_time;
+	/*
+	 * RFC5880:
+	 * When the text refers to initializing a state variable, this takes
+	 * place only at the time that the session (and the corresponding state
+	 * variables) is created.  The state variables are subsequently
+	 * manipulated by the state machine and are never reinitialized, even if
+	 * the session fails and is reestablished.
+	 */
+	if (all_fields) {
+		bfd->local_diag = bfd_old->local_diag;
+		bfd->local_discr = bfd_old->local_discr;
+		bfd->remote_min_tx_intv = bfd_old->remote_min_tx_intv;
+		bfd->remote_min_rx_intv = bfd_old->remote_min_rx_intv;
+		bfd->remote_detect_mult = bfd_old->remote_detect_mult;
+		bfd->local_tx_intv = bfd_old->local_tx_intv;
+		bfd->remote_tx_intv = bfd_old->remote_tx_intv;
+		bfd->local_detect_time = bfd_old->local_detect_time;
+		bfd->remote_detect_time = bfd_old->remote_detect_time;
 
-	bfd->last_seen = bfd_old->last_seen;
+		bfd->last_seen = bfd_old->last_seen;
+	}
 }
 
 /* Copies thread sands */
@@ -145,7 +155,17 @@ bfd_init_state(bfd_t *bfd)
 {
 	assert(bfd);
 
-	bfd_copy_state(bfd, &bfd0);
+	bfd_copy_state(bfd, &bfd0, true);
+	bfd->local_discr = bfd_get_random_discr(bfd_data);
+	bfd->local_tx_intv = bfd->local_idle_tx_intv;
+}
+
+void
+bfd_reset_state(bfd_t *bfd)
+{
+	assert(bfd);
+
+	bfd_copy_state(bfd, &bfd0, false);
 	bfd->local_discr = bfd_get_random_discr(bfd_data);
 	bfd->local_tx_intv = bfd->local_idle_tx_intv;
 }

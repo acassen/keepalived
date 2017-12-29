@@ -936,7 +936,10 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'D':
-			__set_bit(LOG_DETAIL_BIT, &debug);
+			if (__test_bit(LOG_DETAIL_BIT, &debug))
+				__set_bit(LOG_EXTRA_DETAIL_BIT, &debug);
+			else
+				__set_bit(LOG_DETAIL_BIT, &debug);
 			break;
 		case 'R':
 			__set_bit(DONT_RESPAWN_BIT, &debug);

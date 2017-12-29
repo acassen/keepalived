@@ -217,8 +217,9 @@ extern void bfd_update_local_tx_intv(bfd_t *);
 extern void bfd_update_remote_tx_intv(bfd_t *);
 extern void bfd_idle_local_tx_intv(bfd_t * bfd);
 extern void bfd_set_poll(bfd_t *);
+extern void bfd_reset_state(bfd_t *);
 extern void bfd_init_state(bfd_t *);
-extern void bfd_copy_state(bfd_t *, const bfd_t *);
+extern void bfd_copy_state(bfd_t *, const bfd_t *, bool);
 extern void bfd_copy_sands(bfd_t *, const bfd_t *);
 extern bool bfd_check_packet(const bfdpkt_t *);
 extern void bfd_build_packet(bfdpkt_t * pkt, const bfd_t *, char *,

@@ -230,9 +230,11 @@ bfd_expire_thread(thread_t *thread)
 	/* Difference between expected and actual failure detection time */
 	overdue_time = dead_time - bfd->local_detect_time;
 
-	log_message(LOG_WARNING, "BFD_Instance(%s) Expired after"
-		    " %i ms (%i usec overdue)",
-		    bfd->iname, dead_time / 1000, overdue_time);
+	if (bfd->local_state == BFD_STATE_UP ||
+	    __test_bit(LOG_EXTRA_DETAIL_BIT, &debug))
+		log_message(LOG_WARNING, "BFD_Instance(%s) Expired after"
+			    " %i ms (%i usec overdue)",
+			    bfd->iname, dead_time / 1000, overdue_time);
 
 	/*
 	 * RFC5880:
@@ -352,7 +354,7 @@ bfd_reset_thread(thread_t *thread)
 
 	bfd->thread_rst = NULL;
 
-	bfd_init_state(bfd);
+	bfd_reset_state(bfd);
 	return 0;
 }
 
@@ -436,7 +438,7 @@ bfd_reset_discard(bfd_t *bfd)
  */
 /* Common actions for Down and AdminDown states */
 static void
-bfd_state_fall(bfd_t *bfd)
+bfd_state_fall(bfd_t *bfd, bool send_event)
 {
 	assert(bfd);
 
@@ -451,7 +453,9 @@ bfd_state_fall(bfd_t *bfd)
 	if (bfd_expire_scheduled(bfd))
 		bfd_expire_cancel(bfd);
 
-	bfd_event_send(bfd);
+	if (send_event &&
+	    bfd->remote_state != BFD_STATE_ADMINDOWN)
+		bfd_event_send(bfd);
 }
 
 /* Runs when BFD session state goes Down */
@@ -460,19 +464,22 @@ bfd_state_down(bfd_t *bfd, char diag)
 {
 	assert(bfd);
 	assert(BFD_VALID_DIAG(diag));
+	int old_state = bfd->local_state;
+
+	if (bfd->local_state == BFD_STATE_UP ||
+	    __test_bit(LOG_EXTRA_DETAIL_BIT, &debug))
+		log_message(LOG_WARNING, "BFD_Instance(%s) Entering %s state"
+			    " (Local diagnostic - %s, Remote diagnostic - %s)",
+			    bfd->iname, BFD_STATE_STR(BFD_STATE_DOWN),
+			    BFD_DIAG_STR(diag),
+			    BFD_DIAG_STR(bfd->remote_diag));
 
 	bfd->local_state = BFD_STATE_DOWN;
 	bfd->local_diag = diag;
 
-	log_message(LOG_WARNING, "BFD_Instance(%s) Entering %s state"
-		    " (Local diagnostic - %s, Remote diagnostic - %s)",
-		    bfd->iname, BFD_STATE_STR(BFD_STATE_DOWN),
-		    BFD_DIAG_STR(bfd->local_diag),
-		    BFD_DIAG_STR(bfd->remote_diag));
-
 	bfd_reset_schedule(bfd);
 
-	bfd_state_fall(bfd);
+	bfd_state_fall(bfd, old_state == BFD_STATE_UP);
 }
 
 /* Runs when BFD session state goes AdminDown */
@@ -490,7 +497,7 @@ bfd_state_admindown(bfd_t *bfd)
 	log_message(LOG_WARNING, "BFD_Instance(%s) Entering %s state",
 		    bfd->iname, BFD_STATE_STR(bfd->local_state));
 
-	bfd_state_fall(bfd);
+	bfd_state_fall(bfd, false);
 }
 
 /* Common actions for Init and Up states */
@@ -500,8 +507,10 @@ bfd_state_rise(bfd_t *bfd)
 	/* RFC5880 doesn't state if this must be done or not */
 	bfd->local_diag = BFD_DIAG_NO_DIAG;
 
-	log_message(LOG_INFO, "BFD_Instance(%s) Entering %s state",
-		    bfd->iname, BFD_STATE_STR(bfd->local_state));
+	if (bfd->local_state == BFD_STATE_UP ||
+	    __test_bit(LOG_EXTRA_DETAIL_BIT, &debug))
+		log_message(LOG_INFO, "BFD_Instance(%s) Entering %s state",
+			    bfd->iname, BFD_STATE_STR(bfd->local_state));
 
 	if (bfd_reset_scheduled(bfd))
 		bfd_reset_cancel(bfd);
@@ -597,9 +606,10 @@ static void
 bfd_handle_packet(bfdpkt_t *pkt)
 {
 	unsigned int old_local_tx_intv;
+	unsigned int old_remote_rx_intv;
 	unsigned int old_remote_tx_intv;
+	unsigned int old_remote_detect_mult;
 	unsigned int old_local_detect_time;
-	unsigned int old_remote_detect_time;
 	bfd_t *bfd;
 
 	assert(pkt);
@@ -653,6 +663,13 @@ bfd_handle_packet(bfdpkt_t *pkt)
 		return;
 	}
 
+	/* Save old timers */
+	old_remote_rx_intv = bfd->remote_min_rx_intv;
+	old_remote_tx_intv = bfd->remote_min_tx_intv;
+	old_remote_detect_mult = bfd->remote_detect_mult;
+	old_local_detect_time = bfd->local_detect_time ;
+	old_local_tx_intv = bfd->local_tx_intv ;
+
 	/* Update state variables */
 	bfd->remote_discr = ntohl(pkt->hdr->local_discr);
 	bfd->remote_state = pkt->hdr->state;
@@ -666,11 +683,6 @@ bfd_handle_packet(bfdpkt_t *pkt)
 	if (pkt->hdr->final)
 		bfd->poll = 0;
 
-	/* Save old timers */
-	old_local_tx_intv = bfd->local_tx_intv;
-	old_remote_tx_intv = bfd->remote_tx_intv;
-	old_local_detect_time = bfd->local_detect_time;
-	old_remote_detect_time = bfd->remote_detect_time;
 
 	/*
 	 * Recalculate local and remote TX intervals if:
@@ -690,12 +702,12 @@ bfd_handle_packet(bfdpkt_t *pkt)
 	bfd->remote_detect_time = bfd->local_detect_mult * bfd->local_tx_intv;
 
 	/* Check if timers are changed */
-	if (bfd->local_tx_intv != old_local_tx_intv ||
-	    bfd->remote_tx_intv != old_remote_tx_intv ||
-	    bfd->local_detect_time != old_local_detect_time ||
-	    bfd->remote_detect_time != old_remote_detect_time)
-		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			bfd_dump_timers(bfd);
+	if (__test_bit(LOG_EXTRA_DETAIL_BIT, &debug) ||
+	    (__test_bit(LOG_DETAIL_BIT, &debug) &&
+	     (bfd->remote_min_rx_intv != old_remote_rx_intv ||
+	      bfd->remote_min_tx_intv != old_remote_tx_intv ||
+	      bfd->remote_detect_mult != old_remote_detect_mult)))
+		bfd_dump_timers(bfd);
 
 	/* Reschedule sender if local_tx_intv is being reduced */
 	if (bfd->local_tx_intv < old_local_tx_intv &&
@@ -749,7 +761,8 @@ bfd_handle_packet(bfdpkt_t *pkt)
 	bfd->last_seen = timer_now();
 
 	/* Delay expiration if scheduled */
-	if (bfd_expire_scheduled(bfd))
+	if (bfd->local_state == BFD_STATE_UP &&
+	    bfd_expire_scheduled(bfd))
 		bfd_expire_reschedule(bfd);
 }
 

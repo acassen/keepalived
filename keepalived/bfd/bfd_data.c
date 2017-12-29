@@ -192,7 +192,7 @@ bfd_complete_init(void)
 		/* If there was an old instance with the same name
 		   copy its state and thread sands during reload */
 		if (reload && (bfd_old = find_bfd_by_name2(bfd->iname, old_bfd_data))) {
-			bfd_copy_state(bfd, bfd_old);
+			bfd_copy_state(bfd, bfd_old, true);
 			bfd_copy_sands(bfd, bfd_old);
 			if (bfd_cmp_timers(bfd_old, bfd))
 				bfd_set_poll(bfd);
