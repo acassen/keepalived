@@ -80,7 +80,8 @@ bfd_update_remote_tx_intv(bfd_t *bfd)
 void
 bfd_idle_local_tx_intv(bfd_t *bfd)
 {
-	bfd->local_tx_intv = bfd->local_idle_tx_intv;
+	bfd->local_tx_intv = bfd->local_idle_tx_intv > bfd->remote_min_rx_intv ?
+	    bfd->local_idle_tx_intv : bfd->remote_min_rx_intv;
 }
 
 void
@@ -166,7 +167,7 @@ bfd_reset_state(bfd_t *bfd)
 	assert(bfd);
 
 	bfd_copy_state(bfd, &bfd0, false);
-	bfd->local_tx_intv = bfd->local_idle_tx_intv;
+	bfd->local_tx_intv = bfd_idle_local_tx_intv(bfd);
 }
 
 /*
