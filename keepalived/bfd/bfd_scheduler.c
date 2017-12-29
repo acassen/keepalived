@@ -466,6 +466,9 @@ bfd_state_down(bfd_t *bfd, char diag)
 	assert(BFD_VALID_DIAG(diag));
 	int old_state = bfd->local_state;
 
+	if (bfd->local_state == BFD_STATE_UP)
+		bfd->local_discr = bfd_get_random_discr(bfd_data);
+
 	if (bfd->local_state == BFD_STATE_UP ||
 	    __test_bit(LOG_EXTRA_DETAIL_BIT, &debug))
 		log_message(LOG_WARNING, "BFD_Instance(%s) Entering %s state"

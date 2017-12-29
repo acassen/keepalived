@@ -166,7 +166,6 @@ bfd_reset_state(bfd_t *bfd)
 	assert(bfd);
 
 	bfd_copy_state(bfd, &bfd0, false);
-	bfd->local_discr = bfd_get_random_discr(bfd_data);
 	bfd->local_tx_intv = bfd->local_idle_tx_intv;
 }
 
