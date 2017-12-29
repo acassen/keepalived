@@ -689,17 +689,20 @@ bfd_handle_packet(bfdpkt_t *pkt)
 	if (pkt->hdr->final)
 		bfd->poll = 0;
 
-
 	/*
 	 * Recalculate local and remote TX intervals if:
 	 *  Control packet with 'Final' bit is received OR
 	 *  Control packet with 'Poll' bit is received OR
 	 *  Session is not UP
 	 */
-	if ((pkt->hdr->final && bfd->local_state == BFD_STATE_UP) ||
-	    (pkt->hdr->poll && bfd->local_state == BFD_STATE_UP) ||
+	if ((bfd->local_state == BFD_STATE_UP &&
+	     (pkt->hdr->poll || pkt->hdr->final)) ||
 	    bfd->local_state != BFD_STATE_UP) {
-		bfd_update_local_tx_intv(bfd);
+		if (bfd->remote_state == BFD_STATE_UP &&
+		    (bfd->local_state == BFD_STATE_INIT || bfd->local_state == BFD_STATE_UP))
+			bfd_update_local_tx_intv(bfd);
+		else
+			bfd_idle_local_tx_intv(bfd);
 		bfd_update_remote_tx_intv(bfd);
 	}
 
