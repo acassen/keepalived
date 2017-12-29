@@ -200,7 +200,7 @@ bfd_build_packet(bfdpkt_t *pkt, bfd_t *bfd, char *buf,
 	pkt->hdr->len = len;
 	pkt->hdr->local_discr = htonl(bfd->local_discr);
 	pkt->hdr->remote_discr = htonl(bfd->remote_discr);
-	pkt->hdr->min_tx_intv = htonl(bfd->local_min_tx_intv);
+	pkt->hdr->min_tx_intv = bfd->local_state == BFD_STATE_UP ? htonl(bfd->local_min_tx_intv) : htonl(bfd->local_idle_tx_intv);
 	pkt->hdr->min_rx_intv = htonl(bfd->local_min_rx_intv);
 	pkt->hdr->min_echo_rx_intv = 0;	/* Echo function is not supported */
 

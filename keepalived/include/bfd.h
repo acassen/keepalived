@@ -222,7 +222,7 @@ extern void bfd_init_state(bfd_t *);
 extern void bfd_copy_state(bfd_t *, const bfd_t *, bool);
 extern void bfd_copy_sands(bfd_t *, const bfd_t *);
 extern bool bfd_check_packet(const bfdpkt_t *);
-extern void bfd_build_packet(bfdpkt_t * pkt, const bfd_t *, char *,
+extern void bfd_build_packet(bfdpkt_t * pkt, bfd_t *, char *,
 			     const ssize_t);
 
 #endif				/* _BFD_H_ */

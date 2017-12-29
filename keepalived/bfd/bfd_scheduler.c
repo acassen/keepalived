@@ -531,6 +531,9 @@ bfd_state_up(bfd_t *bfd)
 	bfd->local_state = BFD_STATE_UP;
 	bfd_state_rise(bfd);
 
+	if (bfd->local_idle_tx_intv != bfd->local_min_tx_intv)
+		bfd_set_poll(bfd);
+
 	bfd_event_send(bfd);
 }
 
