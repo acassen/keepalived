@@ -1,3 +1,183 @@
+2017-12-29 Alexandre Cassen  <acassen@linux-vs.org>
+	* keepalived-1.4.0 released.
+	* Add Linux build and runtime versions to -v output.
+	* Log kernel version and build kernel version to log at startup.
+	* Fix compiling with --enable-debug.
+	* Don't sleep for 1 send when exiting vrrp process if no vrrp instances.
+	* Streamline and rationalise use of child_finder function.
+	  The child_finder function is simplified, and also stop using the
+	  parent process' child_finder function in the checker process.
+	* Don't request bug report if script terminates due to seg fault.
+	  The report_child_status() function would log a message requesting a
+	  bug report if a check_misc script or a vrrp_track script exited due
+	  to a seg fault.
+	*  Handle vrrp track and check_misc scripts being killed by signal.
+	*  Rationalise reporting of child process exit status.
+	  report_child_status() is now only called in the main keepalived
+	  program. The reporting of the exit status of vrrp track scripts
+	  and MISC_CHECK scripts is now handled in the specific code for
+	  those scripts. This means that non 0 exit statuses aren't
+	  repeatedly reported for vrrp track scripts.
+	* eally fix reporting of child process exit status.
+	* Log a helpful message i using mem-check and too many allocs.
+	  keepalived simply being terminated by SIGABRT with no diagnostic
+	  message was unhelpful.
+	* Rename child_finder() to child_finder_name() etc
+	  The function only finds the name of the child process, and not
+	  the thread for the child process, so rename the function accordingly.
+	* Add log to file and no syslog options.
+	  With large configurations the syslog can get flooded and drop output.
+	  This commit adds options to not log to syslog, and also to log all
+	  output to files.
+	* Add option to only flush log files before forking.
+	* Don't poll netlink for all interfaces each time add a VMAC.
+	  We can poll for the individual interface details which significantly
+	  reduces what we have to process.
+	* Print interface details in keepalived.data output.
+	* Be consistent with type of size parameter for mlists.
+	* Fix sign conversion warnings.
+	* Add high performace child finder code.
+	  The code to find the relevant thread to execute afer a child process
+	  (either a vrrp track script or a misc_check healthchecker) was doing
+	  a linear search for the matching pid, which if there are a large number
+	  of child processes running could become time consuming.
+	  The code now will enable high performance child finding, based on using
+	  mlists hashed by the pid, if there are 32 or more vrrp track scripts or
+	  misc check healthcheckers. The size of the mlist is based on the number
+	  of scripts, with a limit of 256.
+	* Improve high performance child termination timeout code.
+	* Fix high performance child finder cleanup code.
+	* Preserve filename in script path name resolution.
+	  Some executables change their behaviour depending on the name by
+	  which they are invoked (e.g. /usr/sbin/pidof when it is a link to
+	  /usr/sbin/killall5). Using realpath() changes the file name part
+	  if it is a symbolic link. This commit resolves all symbolic links
+	  to directories, but leaves the file name part unaltered. It then
+	  checks the security of both the path to the link and the path to
+	  the real file.
+	* Handle scripts names that are symbolic links properly.
+	* Use fstatat() rather than stat() for checking script security.
+	  If we use fstatat() we can discover if a file is a symbolic
+	  link and treat it accordingly.
+	* Fix building with kernels older than v4.4.
+	* Fix building with --disable-lipiptc and --enable-dynamic-linking.
+	* Fix building with --without-vrrp configure option.
+	* Resolve unused return value warning.
+	* Fix some RFC SNMP issues.
+	* Attempt to fix mock builds.
+	* Fix parsing of broadcast + and broadcast -
+	* check_http.c: http_get_check_compare crash fixed in case of absense
+	  of digest.
+	* Add -pie linker option.
+	  Since -fPIE is specified for the compiler, -pie should be specified
+	  for the linker.
+	* check_http.c: http_get_check_compare crash fixed in case of absense o.
+	* Fix use S_PATH and fchdir().
+	  S_PATH wasn't defined until Linux 2.6.39 and fchdir() doesn't work
+	  with S_PATH until Linux 3.5 (according to open(2) man page).
+	* Fix building with Linux versions between 2.6.39 and 3.3
+	  Linux 2.6.39 introduced ipsets, but the kernel had some omissions
+	  from linux/netfilter/ipset/ip_set.h header file, so the libipset
+	  provided version needed to be used.
+	  Note: RedHat backported ipsets to at least 2.6.32, so the problem
+	  applied to earlier versions of RedHat Linux and Centos.
+	* Fix segfault when parsing invalid real server.
+	  If the first real server ip address doesn't match the address
+	  family of the virtual server, then we need to skip parsing the
+	  rest of the real_server block.
+	* Make when vs_end_handler is executed
+	  Commit 1ba7180b ('ipvs: new service option "ip_family"') added a
+	  sublevel_end_handler vs_end_handler, but this was being executed
+	  at the end of each real_server rather than after the virtual_server.
+	  This commit adds a new parser function install_root_end_handler(),
+	  and vs_end_handler is now installed using that function so that it
+	  is executed at the end of the virtual_server rather than after each
+	  real_server.
+	* Allow tunnelled rs address family not to match vs family.
+	  The address family of a tunnelled real server does not have to
+	  match the address family of its virtual server, so we need to
+	  delay any setting of the vs address family from an rs address
+	  until the end of the real_server block, so that we know whether
+	  the forwarding method is tunnelling or not. Likewise the check
+	  of the sorry server has to be delayed until the end of the
+	  virtual server configuration (the tunnelling method may be
+	  specified after the address of the real/sorry server).
+	  The address family of a virtual server is only not determined
+	  by the virtual server configuration itself if the virtual server
+	  is defined by a fwmark and all of the real/sorry servers are
+	  tunnelled. In this case the address family cannot properly be
+	  determined from the address family of any tunnelled real servers.
+	  However, to maintain backward compatibility with configurations
+	  used prior to this commit, the address family of the virtual
+	  server will be taken from the address family of the (tunnelled)
+	  real/sorry servers if they are all the same; if they are not all
+	  the same it will default to IPv4 (this is not incompatible since
+	  previously mixed IPv4 and IPv6 real/sorry servers were not allowed,
+	  even if tunnelled).
+	* Remove bogus warning for fwmark virtual servers.
+	  "Warning: Virtual server FWM 83: protocol specified for fwmark
+	  - protocol will be ignored" should not be given if no protocol has
+	  been specified.
+	* Fix removing left-over addresses if keepalived aborts.
+	* Fix use of init_state after a reload.
+	  Issue #627 identified that vrrp->init_state was being incorrectly
+	  used in vrrp_fault(), since it is modified at a reload.
+	  Instead of using init_state, we now use the configured priority
+	  of the vrrp instance, so if the vrrp instance is the address owner
+	  (priority 255) it will transition to master after leaving to fault
+	  state, otherwise it transitions to backup.
+	* Remove init_state from vrrp structure
+	  init_state is no longer used, so remove it from the vrrp structure.
+	  Since it has been included in keepalived SNMP, it is preserved
+	  solely for reporting in SNMP requests.
+	* Change conditional compilation _WITH_SNMP_KEEPALIVED_ to
+	  _WITH_SNMP_VRRP_
+	  The functionality that the conditional compilation enabled was snmp
+	  vrrp functionality, so make the name more relevant.
+	* Update error message in configure.ac.
+	* Add more configure options to Travis build matrix.
+	* Install additional libraries in Travis environment for new options.
+	* Fix some problem found by Travis-ci.
+	* Fix configure --disable-checksum-compat option.
+	* Remove DOS file formatting from .travis.yml.
+	* Add more configuration option to Travis builds and some build fixes.
+	* Tidy up some code alignment.
+	* Update openssl use to stop using deprecated functions
+	  openssl from version 1.1 deprecated certain functions that keepalived
+	  was using. This commit ceases using those functions if the version
+	  of openssl is >= 1.1.
+	* Fix some issues identified by valgrind.
+	  Some file descriptors weren't being closed at exit, and also one
+	  or two mallocs weren't being freed.
+	* Set pointer to NULL after FREE_PTR() unless exiting.
+	* Allow sync groups with only 1 member, but issue a warning.
+	* Fix building with LibreSSL version of OpenSSL.
+	  Unfortunately LibreSSL updates OPENSSL_VERSION_NUMBER, and its value
+	  is higher that OpenSSL's latest version. When checking the version
+	  number we need to check that we are not using LibreSSL (by checking
+	  whether LIBRESSL_VERSION_NUMBER is defined).
+	  LibreSSL also hasn't implemented the new functions that OpenSSL has
+	  provided to replace functions that are deprecated or it is recommended
+	  should not be used, and so if using LibreSSL the old functions need
+	  to be used.
+	* Update genhash to stop using deprecated functions openssl functions.
+	* Remove last few Subversion source file version Id strings.
+	  Some of the genhash source code still had Subversion Id strings,
+	  and these are now removed.
+	* Add copyright update script.
+	* Copyright update.
+	* Remove outdated Version comment.
+	* Fix update copyright script.
+	* Include Makefile.in files in copyright update.
+	* Add replaceable parameters in configuration files.
+	* Fix some MALLOC/FREE issues with config parameters.
+	* Add multiline configuration definitions.
+	* Remove debugging messages left in lib/parser.c.
+	* Fix a FREE error.
+	* Fix keepalived.conf(5) man page.
+	* Fix type in keepalived.conf(5) man page.
+	* Suppress error message when removing leftover addresses at startup.
+
 2017-10-21 Alexandre Cassen  <acassen@linux-vs.org>
 	* keepalived-1.3.9 released.
 	* Stop segfault if SSL context cannot be initialised.
