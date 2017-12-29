@@ -174,13 +174,18 @@ bfd_reset_state(bfd_t *bfd)
  * Builds BFD packet
  */
 void
-bfd_build_packet(bfdpkt_t *pkt, const bfd_t *bfd, char *buf,
+bfd_build_packet(bfdpkt_t *pkt, bfd_t *bfd, char *buf,
 		 const ssize_t bufsz)
 {
 	ssize_t len = sizeof (bfdhdr_t);
 
 	memset(buf, 0, bufsz);
 	pkt->hdr = (bfdhdr_t *) buf;
+
+	/* If we are responding to a poll, but also wanted
+	 * to send a poll, we can send the parameters now */
+	if (bfd->poll && bfd->final)
+		bfd->poll = false;
 
 	pkt->hdr->diag = bfd->local_diag;
 	pkt->hdr->version = BFD_VERSION_1;
