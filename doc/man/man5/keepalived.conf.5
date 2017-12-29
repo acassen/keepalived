@@ -339,8 +339,10 @@ and
  vrrp_priority <-20 to 19>    # Set the vrrp child process priority
                               #   Negative values increase priority.
  checker_priority <-20 to 19> # Set the checker child process priority
+ bfd_priority <-20 to 19>i    # Set the BFD child process priority
  vrrp_no_swap                 # Set the vrrp child process non swappable
  checker_no_swap              # Set the checker child process non swappable
+ bfd_no_swap                  # Set the BFD child process non swappable
 
  # If Keepalived has been build with SNMP support, the following keywords are available
  # Note: Keepalived, checker and RFC support can be individually enabled/disabled

@@ -116,6 +116,10 @@ typedef struct _data {
 	char				checker_process_priority;
 	bool				checker_no_swap;
 #endif
+#ifdef _WITH_BFD_
+	char				bfd_process_priority;
+	bool				bfd_no_swap;
+#endif
 	notify_fifo_t			notify_fifo;
 #ifdef _WITH_VRRP_
 	notify_fifo_t			vrrp_notify_fifo;

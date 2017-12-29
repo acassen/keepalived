@@ -646,6 +646,31 @@ checker_no_swap_handler(__attribute__((unused)) vector_t *strvec)
 	global_data->checker_no_swap = true;
 }
 #endif
+#ifdef _WITH_BFD_
+static void
+bfd_prio_handler(vector_t *strvec)
+{
+	int priority;
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "No BFD process priority specified");
+		return;
+	}
+
+	priority = atoi(strvec_slot(strvec, 1));
+	if (priority < -20 || priority > 19) {
+		log_message(LOG_INFO, "Invalid BFD process priority specified");
+		return;
+	}
+
+	global_data->bfd_process_priority = (int8_t)priority;
+}
+static void
+bfd_no_swap_handler(__attribute__((unused)) vector_t *strvec)
+{
+	global_data->bfd_no_swap = true;
+}
+#endif
 #ifdef _WITH_SNMP_
 static void
 snmp_socket_handler(vector_t *strvec)
@@ -871,10 +896,12 @@ init_global_keywords(bool global_active)
 #ifdef _WITH_LVS_
 	install_keyword("lvs_notify_fifo", &lvs_notify_fifo);
 	install_keyword("lvs_notify_fifo_script", &lvs_notify_fifo_script);
-#endif
-#ifdef _WITH_LVS_
 	install_keyword("checker_priority", &checker_prio_handler);
 	install_keyword("checker_no_swap", &checker_no_swap_handler);
+#endif
+#ifdef _WITH_BFD_
+	install_keyword("bfd_priority", &bfd_prio_handler);
+	install_keyword("bfd_no_swap", &bfd_no_swap_handler);
 #endif
 #ifdef _WITH_SNMP_
 	install_keyword("snmp_socket", &snmp_socket_handler);

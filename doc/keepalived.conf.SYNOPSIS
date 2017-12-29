@@ -305,8 +305,10 @@ global_defs {                                 # Block identification
                                               #   backup systems being busy, they are not processing the vrrp packets.
     vrrp_priority <INTEGER:-20..19>           # Set the vrrp child process priority (negative values increase priority)
     checker_priority <INTEGER:-20..19>        # Set the checker child process priority
+    bfd_priority <INTEGER:-20..19>            # Set the BFD child process priority
     vrrp_no_swap                              # Set the vrrp child process non swappable
     checker_no_swap                           # Set the checker child process non swappable
+    bfd_no_swap                               # Set the BFD child process non swappable
                                               #
                                               # If keepalived has been build with SNMP support,
                                               #   the following keywords are available

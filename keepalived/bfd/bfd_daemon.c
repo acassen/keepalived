@@ -48,6 +48,7 @@
 #include "bitops.h"
 #include "utils.h"
 #include "scheduler.h"
+#include "process.h"
 
 /* Global variables */
 int bfd_event_pipe[2] = { -1, -1};
@@ -127,6 +128,14 @@ start_bfd(void)
 	alloc_bfd_buffer();
 
 	init_data(conf_file, bfd_init_keywords);
+
+	/* Set the process priority and non swappable if configured */
+	if (global_data->bfd_process_priority)
+		set_process_priority(global_data->bfd_process_priority);
+
+// TODO - measure max stack usage
+	if (global_data->bfd_no_swap)
+		set_process_dont_swap(4096);	/* guess a stack size to reserve */
 
 	bfd_complete_init();
 
