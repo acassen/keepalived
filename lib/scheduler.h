@@ -102,6 +102,9 @@ typedef enum {
 #ifdef _WITH_LVS_
 	PROG_TYPE_CHECKER,
 #endif
+#ifdef _WITH_BFD_
+	PROG_TYPE_BFD,
+#endif
 } prog_type_t;
 #endif
 

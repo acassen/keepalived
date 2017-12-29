@@ -4,6 +4,7 @@ file is compounded by three configurations parts :
     * Globals configurations
     * VRRP configuration
     * LVS configuration
+    * BFD configuration
 
 0. Comment string
 
@@ -643,6 +644,7 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
       <STRING> weight <INTEGER: -254..254>
       ...
     }
+    track_bfd <STRING>                        # BFD instance we monitor
     dont_track_primary                        # (default unset) ignore VRRP interface faults.
                                               #  useful for cross-connect VRRP config.
     mcast_src_ip <IP ADDRESS>                 # src_ip to use into the VRRP packets
@@ -993,3 +995,25 @@ SSL {
     certificate <STRING>        # certificate file
     key <STRING>                # key file
 }
+
+
+4. BFD Configuration
+
+The configuration block looks like :
+
+bfd_instance <STRING> {
+    neighbor_ip <IP ADDRESS>           # BFD Neighbor IP
+    source_ip <IP ADDRESS>             # Source IP to use (optional)
+    mix_rx <INTEGER>                   # Required min RX interval, in ms
+                                       # (default is 10 ms)
+    min_tx <INTEGER>                   # Desired min TX interval, in ms
+                                       # (default is 10 ms)
+    idle_tx <INTEGER>                  # Desired idle TX interval, in ms
+                                       # (default is 1000 ms)
+    multiplier <INTEGER>               # Number of missed packets after
+                                       # which the session is declared down
+                                       # (default is 5)
+    disabled                           # Disable instance
+}
+
+

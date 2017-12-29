@@ -369,6 +369,11 @@ dump_vrrp(void *data)
 		log_message(LOG_INFO, "   Tracked files = %d", LIST_SIZE(vrrp->track_file));
 		dump_list(vrrp->track_file);
 	}
+#ifdef _WITH_BFD_
+	if (vrrp->track_bfd)
+		log_message(LOG_INFO, "   Tracked BFD instance = %s", vrrp->track_bfd);
+#endif
+
 	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
 		log_message(LOG_INFO, "   Unicast Peer = %d", LIST_SIZE(vrrp->unicast_peer));
 		dump_list(vrrp->unicast_peer);
@@ -490,6 +495,9 @@ alloc_vrrp(char *iname)
 
 	new->skip_check_adv_addr = global_data->vrrp_skip_check_adv_addr;
 	new->strict_mode = PARAMETER_UNSET;
+#ifdef _WITH_BFD_
+	new->bfd_up = true;
+#endif
 
 	list_add(vrrp_data->vrrp, new);
 }

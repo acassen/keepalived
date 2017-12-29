@@ -670,6 +670,8 @@ FIB_ROUTING_FALSE
 FIB_ROUTING_TRUE
 SOCK_NONBLOCK_FALSE
 SOCK_NONBLOCK_TRUE
+WITH_BFD_FALSE
+WITH_BFD_TRUE
 WITH_JSON_FALSE
 WITH_JSON_TRUE
 VMAC_FALSE
@@ -802,6 +804,7 @@ enable_lvs_syncd
 enable_lvs
 enable_lvs_64bit_stats
 enable_vrrp
+enable_bfd
 with_kernel_dir
 enable_fwmark
 enable_snmp
@@ -1477,6 +1480,7 @@ Optional Features:
   --disable-lvs-64bit-stats
                           do not use the LVS 64-bit stats
   --disable-vrrp          do not use the VRRP framework
+  --enable-bfd            use the BFD framework
   --disable-fwmark        compile without SO_MARK support
   --enable-snmp           compile with SNMP support
   --enable-snmp-vrrp      compile with SNMP vrrp support
@@ -3244,7 +3248,8 @@ ac_config_headers="$ac_config_headers lib/config.h"
 
 
 
-ac_config_files="$ac_config_files Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile doc/Makefile bin_install/Makefile keepalived/dbus/Makefile keepalived/etc/Makefile keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile"
+ac_config_files="$ac_config_files Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile keepalived/bfd/Makefile doc/Makefile bin_install/Makefile keepalived/dbus/Makefile keepalived/etc/Makefile keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile"
+
 
 
 MAINTAINERCLEANFILES="*~ *.orig *.rej core core.*"
@@ -3431,6 +3436,11 @@ fi
 # Check whether --enable-vrrp was given.
 if test "${enable_vrrp+set}" = set; then :
   enableval=$enable_vrrp;
+fi
+
+# Check whether --enable-bfd was given.
+if test "${enable_bfd+set}" = set; then :
+  enableval=$enable_bfd;
 fi
 
 
@@ -9444,6 +9454,7 @@ VRRP_SUPPORT=No
 VRRP_AUTH_SUPPORT=No
 MACVLAN_SUPPORT=No
 ENABLE_JSON=No
+BFD_SUPPORT=No
 if test "$enable_vrrp" != no; then
   VRRP_SUPPORT=Yes
 
@@ -9585,6 +9596,14 @@ $as_echo "#define _WITH_JSON_  1 " >>confdefs.h
     ENABLE_JSON=Yes
     CONFIG_OPTIONS="$CONFIG_OPTIONS JSON"
   fi
+
+    if test "${enable_bfd}" = yes; then
+    BFD_SUPPORT=Yes
+
+$as_echo "#define _WITH_BFD_  1 " >>confdefs.h
+
+    CONFIG_OPTIONS="$CONFIG_OPTIONS BFD"
+  fi
 fi
  if test $VRRP_SUPPORT = Yes; then
   WITH_VRRP_TRUE=
@@ -9616,6 +9635,14 @@ fi
 else
   WITH_JSON_TRUE='#'
   WITH_JSON_FALSE=
+fi
+
+ if test $BFD_SUPPORT = Yes; then
+  WITH_BFD_TRUE=
+  WITH_BFD_FALSE='#'
+else
+  WITH_BFD_TRUE='#'
+  WITH_BFD_FALSE=
 fi
 
 
@@ -10852,6 +10879,10 @@ if test -z "${WITH_JSON_TRUE}" && test -z "${WITH_JSON_FALSE}"; then
   as_fn_error $? "conditional \"WITH_JSON\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
 fi
+if test -z "${WITH_BFD_TRUE}" && test -z "${WITH_BFD_FALSE}"; then
+  as_fn_error $? "conditional \"WITH_BFD\" was never defined.
+Usually this means the macro was only invoked conditionally." "$LINENO" 5
+fi
 if test -z "${SOCK_NONBLOCK_TRUE}" && test -z "${SOCK_NONBLOCK_FALSE}"; then
   as_fn_error $? "conditional \"SOCK_NONBLOCK\" was never defined.
 Usually this means the macro was only invoked conditionally." "$LINENO" 5
@@ -11534,6 +11565,7 @@ do
     "genhash/Makefile") CONFIG_FILES="$CONFIG_FILES genhash/Makefile" ;;
     "keepalived/check/Makefile") CONFIG_FILES="$CONFIG_FILES keepalived/check/Makefile" ;;
     "keepalived/vrrp/Makefile") CONFIG_FILES="$CONFIG_FILES keepalived/vrrp/Makefile" ;;
+    "keepalived/bfd/Makefile") CONFIG_FILES="$CONFIG_FILES keepalived/bfd/Makefile" ;;
     "doc/Makefile") CONFIG_FILES="$CONFIG_FILES doc/Makefile" ;;
     "bin_install/Makefile") CONFIG_FILES="$CONFIG_FILES bin_install/Makefile" ;;
     "keepalived/dbus/Makefile") CONFIG_FILES="$CONFIG_FILES keepalived/dbus/Makefile" ;;
@@ -12296,6 +12328,7 @@ if test ${VRRP_SUPPORT} = Yes; then
   echo "Use VRRP authentication  : ${VRRP_AUTH_SUPPORT}"
   echo "With ip rules/routes     : ${FIB_ROUTING_SUPPORT}"
 fi
+echo "Use BFD Framework        : ${BFD_SUPPORT}"
 echo "SNMP vrrp support        : ${SNMP_VRRP_SUPPORT}"
 echo "SNMP checker support     : ${SNMP_CHECKER_SUPPORT}"
 echo "SNMP RFCv2 support       : ${SNMP_RFCV2_SUPPORT}"

@@ -110,9 +110,10 @@ AH_BOTTOM(
 #endif])
 
 AC_CONFIG_FILES([Makefile keepalived/Makefile lib/Makefile keepalived/core/Makefile keepalived.spec \
-		 genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile doc/Makefile \
-		 bin_install/Makefile keepalived/dbus/Makefile keepalived/etc/Makefile \
-		 keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile])
+		 genhash/Makefile keepalived/check/Makefile keepalived/vrrp/Makefile \
+		 keepalived/bfd/Makefile doc/Makefile bin_install/Makefile keepalived/dbus/Makefile \
+		 keepalived/etc/Makefile keepalived/etc/init/Makefile keepalived/etc/init.d/Makefile])
+
 
 MAINTAINERCLEANFILES="*~ *.orig *.rej core core.*"
 AC_SUBST(MAINTAINERCLEANFILES)
@@ -132,6 +133,8 @@ AC_ARG_ENABLE(lvs-64bit-stats,
   [AS_HELP_STRING([--disable-lvs-64bit-stats], [do not use the LVS 64-bit stats])])
 AC_ARG_ENABLE(vrrp,
   [AS_HELP_STRING([--disable-vrrp], [do not use the VRRP framework])])
+AC_ARG_ENABLE(bfd,
+  [AS_HELP_STRING([--enable-bfd], [use the BFD framework])])
 AC_ARG_WITH(kernel-dir,
   [AS_HELP_STRING([--with-kernel-dir=DIR], [path to linux kernel source directory])],
   [AS_HELP_STRING([kernel_src_path="$withval"],], [[kernel_src_path=""])])
@@ -993,7 +996,7 @@ AC_COMPILE_IFELSE([AC_LANG_SOURCE([[
   ])
 CPPFLAGS="$SAV_CPPFLAGS"
 
-dnl ----[ Checks for LVS and VRRP support ]----
+dnl ----[ Checks for LVS, VRRP and BFD support ]----
 IPVS_SYNCD_ATTRIBUTES=No
 IPVS_64BIT_STATS=No
 if test "$enable_lvs" != no; then
@@ -1068,6 +1071,7 @@ VRRP_SUPPORT=No
 VRRP_AUTH_SUPPORT=No
 MACVLAN_SUPPORT=No
 ENABLE_JSON=No
+BFD_SUPPORT=No
 if test "$enable_vrrp" != no; then
   VRRP_SUPPORT=Yes
   AC_DEFINE([_WITH_VRRP_], [ 1 ], [Define to 1 if have VRRP support])
@@ -1109,11 +1113,19 @@ if test "$enable_vrrp" != no; then
     ENABLE_JSON=Yes
     add_config_opt([JSON])
   fi
+
+  dnl ----[ BFD support ? ]----
+  if test "${enable_bfd}" = yes; then
+    BFD_SUPPORT=Yes
+    AC_DEFINE([_WITH_BFD_], [ 1 ], [Define to 1 if have BFD support])
+    add_config_opt([BFD])
+  fi
 fi
 AM_CONDITIONAL([WITH_VRRP], [test $VRRP_SUPPORT = Yes])
 AM_CONDITIONAL([VRRP_AUTH], [test $VRRP_AUTH_SUPPORT = Yes])
 AM_CONDITIONAL([VMAC], [test $MACVLAN_SUPPORT = Yes])
 AM_CONDITIONAL([WITH_JSON], [test $ENABLE_JSON = Yes])
+AM_CONDITIONAL([WITH_BFD], [test $BFD_SUPPORT = Yes])
 
 if test ${IPVS_SUPPORT} = No -a ${VRRP_SUPPORT} = No; then
   AC_MSG_ERROR([keepalived MUST be compiled with at least one of LVS or VRRP framework])
@@ -1591,6 +1603,7 @@ if test ${VRRP_SUPPORT} = Yes; then
   echo "Use VRRP authentication  : ${VRRP_AUTH_SUPPORT}"
   echo "With ip rules/routes     : ${FIB_ROUTING_SUPPORT}"
 fi
+echo "Use BFD Framework        : ${BFD_SUPPORT}"
 echo "SNMP vrrp support        : ${SNMP_VRRP_SUPPORT}"
 echo "SNMP checker support     : ${SNMP_CHECKER_SUPPORT}"
 echo "SNMP RFCv2 support       : ${SNMP_RFCV2_SUPPORT}"

@@ -628,6 +628,9 @@
    #define below would cause a syntax error. */
 #undef _UINT8_T
 
+/* Define to 1 if have BFD support */
+#undef _WITH_BFD_
+
 /* Define to 1 to have DBUS support */
 #undef _WITH_DBUS_
 

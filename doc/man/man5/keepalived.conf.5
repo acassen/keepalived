@@ -209,6 +209,8 @@ checker that may be of use. It can be downloaded from https://github.com/yuuki/g
 .PP
 .B LVS CONFIGURATION
 .PP
+.B BFD CONFIGURATION
+.PP
 .SH GLOBAL CONFIGURATION
 contains subblocks of
 .B Global definitions,
@@ -615,8 +617,8 @@ and
                 <STRING>
                 <STRING>
                 ...
-                }
             }
+        }
 .SH VRRP instance(s)
 .PP
         describes the movable IP for each instance of a group in vrrp_sync_group.
@@ -624,8 +626,8 @@ and
         on machine "my_hostname", which belong to the group VG_1 and
         which will transition together on any state change.
 .PP
-         #You will need to write another block for outside_network.
-         vrrp_instance inside_network {
+        #You will need to write another block for outside_network.
+        vrrp_instance inside_network {
             # Initial state, MASTER|BACKUP
             # As soon as the other machine(s) come up,
             # an election will be held and the machine
@@ -652,209 +654,202 @@ and
 
             native_ipv6         # force instance to use IPv6 (this option is deprecated since the virtual ip addresses determine whether IPv4 or IPv6 is used).
 
+            # BFD instance to monitor
+            track_bfd <STRING>
+
             # Ignore VRRP interface faults (default unset)
             dont_track_primary
 
             # optional, monitor these as well.
             # go to FAULT state if any of these go down if unweighted.
-    track_interface {
-      eth0
-      eth1
-      eth2 weight <-253..253>
-      ...
-    }
-
-    # add a tracking script to the interface (<SCRIPT_NAME> is the name of the vrrp_track_script entry)
-    track_script {
-        <SCRIPT_NAME>
-        <SCRIPT_NAME> weight <-253..253>
-    }
-
-    # Files whose state we monitor, value is added to effective priority. <STRING> is the name of a vrrp_track_file
-    track_file {
-        <STRING>
-        <STRING>
-        <STRING> weight <-254..254>
-        ...
-    }
-
-    # default IP for binding vrrpd is the primary IP
-    # on interface. If you want to hide the location of vrrpd,
-    # use this IP as src_addr for multicast or unicast vrrp
-    # packets. (since it's multicast, vrrpd will get the reply
-    # packet no matter what src_addr is used).
-    # optional
-    mcast_src_ip <IPADDR>
-    unicast_src_ip <IPADDR>
-    track_src_ip                # if the configured src_ip doesn't exist or is removed put the instance into fault state
-
-    version <2 or 3>            # VRRP version to run on interface
-                                #  default is global parameter vrrp_version.
-
-    # Do not send VRRP adverts over a VRRP multicast group.
-    # Instead it sends adverts to the following list of
-    # ip addresses using unicast. It can be cool to use
-    # the VRRP FSM and features in a networking
-    # environment where multicast is not supported!
-    # IP addresses specified can be IPv4 as well as IPv6.
-    unicast_peer {
-      <IPADDR>
-      ...
-    }
-    # The checksum calculation when using VRRPv3 changed after v1.3.6.
-    #  Setting this flag forces the old checksum algorithm to be used
-    #  to maintain backward compatibility, although keepalived will
-    #  attempt to maintain compatibility anyway if it sees an old
-    #  version checksum. Sepcifying never will turn off auto detection
-    #  of old checksums. [This option may not be enabled - check output
-    #  of `keepalived -v` for OLD_CHKSUM_COMPAT.]
-    old_unicast_checksum [never]
-
-    # interface specific settings, same as global parameters; default to global parameters
-    garp_master_delay 10
-    garp_master_repeat 1
-    garp_lower_prio_delay 10
-    garp_lower_prio_repeat 1
-    garp_master_refresh 60
-    garp_master_refresh_repeat 2
-    garp_interval 100
-    gna_interval 100
-
-    lower_prio_no_advert [<BOOL>]
-    higher_prio_send_advert [<BOOL>]
-
-    # arbitrary unique number from 0 to 255
-    # used to differentiate multiple instances of vrrpd
-    # running on the same NIC (and hence same socket).
-    virtual_router_id 51
-
-    # for electing MASTER, highest priority wins.
-    # to be MASTER, make this 50 more than on other machines.
-    priority 100
-
-    # VRRP Advert interval in seconds (e.g. 0.92) (use default)
-    advert_int 1
-
-    # Note: authentication was removed from the VRRPv2 specification by RFC3768 in 2004.
-    #   Use of this option is non-compliant and can cause problems; avoid using if possible,
-    #   except when using unicast, where it can be helpful.
-    authentication {     # Authentication block
-        # PASS||AH
-        # PASS - Simple password (suggested)
-        # AH - IPSEC (not recommended))
-        auth_type PASS
-        # Password for accessing vrrpd.
-        # should be the same on all machines.
-        # Only the first eight (8) characters are used.
-        auth_pass 1234
-    }
-
-    #addresses add|del on change to MASTER, to BACKUP.
-    #With the same entries on other machines,
-    #the opposite transition will be occurring.
-    virtual_ipaddress {
-        <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
-        192.168.200.17/24 dev eth1
-        192.168.200.18/24 dev eth2 label eth2:1
-    }
-
-    #VRRP IP excluded from VRRP
-    #optional.
-    #For cases with large numbers (eg 200) of IPs
-    #on the same interface. To decrease the number
-    #of packets sent in adverts, you can exclude
-    #most IPs from adverts.
-    #The IPs are add|del as for virtual_ipaddress.
-    # Can also be used if you want to be able to add
-    # a mixture of IPv4 and IPv6 addresses, since all
-    # addresses in virtual_ipaddress must be of the
-    # same family.
-    virtual_ipaddress_excluded {
-        <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
-        <IPADDR>[/<MASK>] ...
-        ...
-    }
-
-    # Set the promote_secondaries flag on the interface to stop other
-    # addresses in the same CIDR being removed when 1 of them is removed
-    # For example if 10.1.1.2/24 and 10.1.1.3/24 are both configured on an
-    # interface, and one is removed, unless promote_secondaries is set on
-    # the interface the other address will also be removed.
-    prompte_secondaries
-
-    # routes add|del when changing to MASTER, to BACKUP.
-    # See static_routes for more details
-    virtual_routes {
-        # src <IPADDR> [to] <IPADDR>/<MASK> via|gw <IPADDR> [or <IPADDR>] dev <STRING> scope <SCOPE> table <TABLE>
-        src 192.168.100.1 to 192.168.109.0/24 via 192.168.200.254 dev eth1
-        192.168.110.0/24 via 192.168.200.254 dev eth1
-        192.168.111.0/24 dev eth2
-        192.168.112.0/24 via 192.168.100.254
-        192.168.113.0/24 via 192.168.200.254 or 192.168.100.254 dev eth1
-        blackhole 192.168.114.0/24
-        0.0.0.0/0 gw 192.168.0.1 table 100  # To set a default gateway into table 100.
-    }
-
-    # rules add|del when changing to MASTER, to BACKUP
-    # See static_rules for more details
-    virtual_rules {
-        from 192.168.2.0/24 table 1
-        to 192.168.2.0/24 table 1
-    }
-
-    # VRRPv3 has an Accept Mode to allow the virtual router when not the address owner to
-    # receive packets addressed to a VIP. This is the default setting unless strict mode is set.
-    # As an extension, this also works for VRRPv2 (RFC 3768 doesn't define an accept mode).
-    accept              # Accept packets to non address-owner
-    no_accept           # Drop packets to non address-owner.
-
-    # VRRP will normally preempt a lower priority
-    # machine when a higher priority machine comes
-    # online.  "nopreempt" allows the lower priority
-    # machine to maintain the master role, even when
-    # a higher priority machine comes back online.
-    # NOTE: For this to work, the initial state of this
-    # entry must be BACKUP.
-    nopreempt
-    preempt             # for backwards compatibility
-
-    # See description of global vrrp_skip_check_adv_addr, which
-    # sets the default value. Defaults to vrrp_skip_check_adv_addr
-    skip_check_adv_addr [on|off|true|false|yes|no]
-
-    # See description of global vrrp_strict
-    # If vrrp_strict is not specified, it takes the value of vrrp_strict
-    # If strict_mode without a parameter is specified, it defaults to on
-    strict_mode [on|off|true|false|yes|no]
-
-    # Seconds after startup or seeing a lower priority master until preemption
-    # (if not disabled by "nopreempt").
-    # Range: 0 (default) to 1000 (e.g. 4.12)
-    # NOTE: For this to work, the initial state of this
-    # entry must be BACKUP.
-    preempt_delay 300    # waits 5 minutes
-
-    # Debug level, not implemented yet.
-    debug <LEVEL>        # LEVEL is a number in the range 0 to 4
-
-    # notify scripts, alert as above
-    notify_master <STRING>|<QUOTED-STRING> [username [groupname]]
-    notify_backup <STRING>|<QUOTED-STRING> [username [groupname]]
-    notify_fault <STRING>|<QUOTED-STRING> [username [groupname]]
-    notify_stop <STRING>|<QUOTED-STRING> [username [groupname]]      # executed when stopping vrrp
-    notify <STRING>|<QUOTED-STRING> [username [groupname]]
-    smtp_alert
- }
-
- # Parameters used for SSL_GET check.
- # If none of the parameters are specified, the SSL context will be auto generated.
- SSL {
-    password <STRING>   # password
-    ca <STRING>         # ca file
-    certificate <STRING>  # certificate file
-    key <STRING>        # key file
- }
-
+            track_interface {
+             eth0
+             eth1
+             eth2 weight <-253..253>
+             ...
+           }
+       
+           # add a tracking script to the interface (<SCRIPT_NAME> is the name of the vrrp_track_script entry)
+           track_script {
+               <SCRIPT_NAME>
+               <SCRIPT_NAME> weight <-253..253>
+           }
+       
+           # Files whose state we monitor, value is added to effective priority. <STRING> is the name of a vrrp_track_file
+           track_file {
+               <STRING>
+               <STRING>
+               <STRING> weight <-254..254>
+               ...
+           }
+       
+           # default IP for binding vrrpd is the primary IP
+           # on interface. If you want to hide the location of vrrpd,
+           # use this IP as src_addr for multicast or unicast vrrp
+           # packets. (since it's multicast, vrrpd will get the reply
+           # packet no matter what src_addr is used).
+           # optional
+           mcast_src_ip <IPADDR>
+           unicast_src_ip <IPADDR>
+           track_src_ip                # if the configured src_ip doesn't exist or is removed put the instance into fault state
+       
+           version <2 or 3>            # VRRP version to run on interface
+                                       #  default is global parameter vrrp_version.
+       
+           # Do not send VRRP adverts over a VRRP multicast group.
+           # Instead it sends adverts to the following list of
+           # ip addresses using unicast. It can be cool to use
+           # the VRRP FSM and features in a networking
+           # environment where multicast is not supported!
+           # IP addresses specified can be IPv4 as well as IPv6.
+           unicast_peer {
+             <IPADDR>
+             ...
+           }
+           # The checksum calculation when using VRRPv3 changed after v1.3.6.
+           #  Setting this flag forces the old checksum algorithm to be used
+           #  to maintain backward compatibility, although keepalived will
+           #  attempt to maintain compatibility anyway if it sees an old
+           #  version checksum. Sepcifying never will turn off auto detection
+           #  of old checksums. [This option may not be enabled - check output
+           #  of `keepalived -v` for OLD_CHKSUM_COMPAT.]
+           old_unicast_checksum [never]
+       
+           # interface specific settings, same as global parameters; default to global parameters
+           garp_master_delay 10
+           garp_master_repeat 1
+           garp_lower_prio_delay 10
+           garp_lower_prio_repeat 1
+           garp_master_refresh 60
+           garp_master_refresh_repeat 2
+           garp_interval 100
+           gna_interval 100
+       
+           lower_prio_no_advert [<BOOL>]
+           higher_prio_send_advert [<BOOL>]
+       
+           # arbitrary unique number from 0 to 255
+           # used to differentiate multiple instances of vrrpd
+           # running on the same NIC (and hence same socket).
+           virtual_router_id 51
+       
+           # for electing MASTER, highest priority wins.
+           # to be MASTER, make this 50 more than on other machines.
+           priority 100
+       
+           # VRRP Advert interval in seconds (e.g. 0.92) (use default)
+           advert_int 1
+       
+           # Note: authentication was removed from the VRRPv2 specification by RFC3768 in 2004.
+           #   Use of this option is non-compliant and can cause problems; avoid using if possible,
+           #   except when using unicast, where it can be helpful.
+           authentication {     # Authentication block
+               # PASS||AH
+               # PASS - Simple password (suggested)
+               # AH - IPSEC (not recommended))
+               auth_type PASS
+               # Password for accessing vrrpd.
+               # should be the same on all machines.
+               # Only the first eight (8) characters are used.
+               auth_pass 1234
+           }
+       
+           #addresses add|del on change to MASTER, to BACKUP.
+           #With the same entries on other machines,
+           #the opposite transition will be occurring.
+           virtual_ipaddress {
+               <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+               192.168.200.17/24 dev eth1
+               192.168.200.18/24 dev eth2 label eth2:1
+           }
+       
+           #VRRP IP excluded from VRRP
+           #optional.
+           #For cases with large numbers (eg 200) of IPs
+           #on the same interface. To decrease the number
+           #of packets sent in adverts, you can exclude
+           #most IPs from adverts.
+           #The IPs are add|del as for virtual_ipaddress.
+           # Can also be used if you want to be able to add
+           # a mixture of IPv4 and IPv6 addresses, since all
+           # addresses in virtual_ipaddress must be of the
+           # same family.
+           virtual_ipaddress_excluded {
+               <IPADDR>[/<MASK>] [brd <IPADDR>] [dev <STRING>] [scope <SCOPE>] [label <LABEL>] [home] [-nodad] [mngtmpaddr] [noprefixroute] [autojoin]
+               <IPADDR>[/<MASK>] ...
+               ...
+           }
+       
+           # Set the promote_secondaries flag on the interface to stop other
+           # addresses in the same CIDR being removed when 1 of them is removed
+           # For example if 10.1.1.2/24 and 10.1.1.3/24 are both configured on an
+           # interface, and one is removed, unless promote_secondaries is set on
+           # the interface the other address will also be removed.
+           prompte_secondaries
+       
+           # routes add|del when changing to MASTER, to BACKUP.
+           # See static_routes for more details
+           virtual_routes {
+               # src <IPADDR> [to] <IPADDR>/<MASK> via|gw <IPADDR> [or <IPADDR>] dev <STRING> scope <SCOPE> table <TABLE>
+               src 192.168.100.1 to 192.168.109.0/24 via 192.168.200.254 dev eth1
+               192.168.110.0/24 via 192.168.200.254 dev eth1
+               192.168.111.0/24 dev eth2
+               192.168.112.0/24 via 192.168.100.254
+               192.168.113.0/24 via 192.168.200.254 or 192.168.100.254 dev eth1
+               blackhole 192.168.114.0/24
+               0.0.0.0/0 gw 192.168.0.1 table 100  # To set a default gateway into table 100.
+           }
+       
+           # rules add|del when changing to MASTER, to BACKUP
+           # See static_rules for more details
+           virtual_rules {
+               from 192.168.2.0/24 table 1
+               to 192.168.2.0/24 table 1
+           }
+       
+           # VRRPv3 has an Accept Mode to allow the virtual router when not the address owner to
+           # receive packets addressed to a VIP. This is the default setting unless strict mode is set.
+           # As an extension, this also works for VRRPv2 (RFC 3768 doesn't define an accept mode).
+           accept              # Accept packets to non address-owner
+           no_accept           # Drop packets to non address-owner.
+       
+           # VRRP will normally preempt a lower priority
+           # machine when a higher priority machine comes
+           # online.  "nopreempt" allows the lower priority
+           # machine to maintain the master role, even when
+           # a higher priority machine comes back online.
+           # NOTE: For this to work, the initial state of this
+           # entry must be BACKUP.
+           nopreempt
+           preempt             # for backwards compatibility
+       
+           # See description of global vrrp_skip_check_adv_addr, which
+           # sets the default value. Defaults to vrrp_skip_check_adv_addr
+           skip_check_adv_addr [on|off|true|false|yes|no]
+       
+           # See description of global vrrp_strict
+           # If vrrp_strict is not specified, it takes the value of vrrp_strict
+           # If strict_mode without a parameter is specified, it defaults to on
+           strict_mode [on|off|true|false|yes|no]
+       
+           # Seconds after startup or seeing a lower priority master until preemption
+           # (if not disabled by "nopreempt").
+           # Range: 0 (default) to 1000 (e.g. 4.12)
+           # NOTE: For this to work, the initial state of this
+           # entry must be BACKUP.
+           preempt_delay 300    # waits 5 minutes
+       
+           # Debug level, not implemented yet.
+           debug <LEVEL>        # LEVEL is a number in the range 0 to 4
+       
+           # notify scripts, alert as above
+           notify_master <STRING>|<QUOTED-STRING> [username [groupname]]
+           notify_backup <STRING>|<QUOTED-STRING> [username [groupname]]
+           notify_fault <STRING>|<QUOTED-STRING> [username [groupname]]
+           notify_stop <STRING>|<QUOTED-STRING> [username [groupname]]      # executed when stopping vrrp
+           notify <STRING>|<QUOTED-STRING> [username [groupname]]
+           smtp_alert
+       }
 .SH LVS CONFIGURATION
 contains subblocks of
 .B Virtual server group(s)
@@ -1177,7 +1172,32 @@ A virtual_server can be a declaration of one of
            }
        } # realserver defn
     } # virtual service
-
+.PP
+ # Parameters used for SSL_GET check.
+ # If none of the parameters are specified, the SSL context will be auto generated.
+ SSL {
+    password <STRING>   # password
+    ca <STRING>         # ca file
+    certificate <STRING>  # certificate file
+    key <STRING>        # key file
+ }
+.SH BFD Configuration
+.PP
+The configuration block looks like:
+.PP
+bfd_instance <STRING> {
+    neighbor_ip <IP ADDRESS>           # BFD Neighbor IP
+    source_ip <IP ADDRESS>             # Source IP to use (optional)
+    mix_rx <INTEGER>                   # Required min RX interval, in ms
+                                       # (default is 10 ms)
+    min_tx <INTEGER>                   # Desired min TX interval, in ms
+                                       # (default is 10 ms)
+    idle_tx <INTEGER>                  # Desired idle TX interval, in ms
+                                       # (default is 1000 ms)
+    multiplier <INTEGER>               # Number of missed packets after
+                                       # which the session is declared down
+                                       # (default is 5)
+    disabled                           # Disable instance
 .SH AUTHOR
 .br
 Joseph Mack.

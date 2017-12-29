@@ -195,6 +195,10 @@ typedef struct _vrrp_t {
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
 	list			track_file;		/* Files whose value we monitor */
+#ifdef _WITH_BFD_
+	char			*track_bfd;		/* BFD instance we monitor */
+	bool			bfd_up;			/* last BFD state */
+#endif
 	unsigned		num_script_if_fault;	/* Number of scripts and interfaces in fault state */
 	unsigned		num_script_init;	/* Number of scripts in init state */
 	struct sockaddr_storage	saddr;			/* Src IP address to use in VRRP IP header */

@@ -37,6 +37,9 @@ enum daemon_bits {
 #ifdef _WITH_LVS_
 	DAEMON_CHECKERS,
 #endif
+#ifdef _WITH_BFD_
+	DAEMON_BFD,
+#endif
 };
 
 /* Reloading helpers */
@@ -48,12 +51,20 @@ extern const char *version_string;	/* keepalived version */
 extern unsigned long daemon_mode;	/* Which child processes are run */
 extern char *conf_file;			/* Configuration file */
 extern int log_facility;		/* Optional logging facilities */
+#ifdef _WITH_VRRP_
 extern pid_t vrrp_child;		/* VRRP child process ID */
+extern char *vrrp_pidfile;		/* overrule default pidfile */
+#endif
+#ifdef _WITH_LVS_
 extern pid_t checkers_child;		/* Healthcheckers child process ID */
+extern char *checkers_pidfile;		/* overrule default pidfile */
+#endif
+#ifdef _WITH_BFD_
+extern pid_t bfd_child;			/* BFD child process ID */
+extern char *bfd_pidfile;		/* overrule default pidfile */
+#endif
 extern bool reload;			/* Set during a reload */
 extern char *main_pidfile;		/* overrule default pidfile */
-extern char *checkers_pidfile;		/* overrule default pidfile */
-extern char *vrrp_pidfile;		/* overrule default pidfile */
 #ifdef _WITH_SNMP_
 extern bool snmp;			/* Enable SNMP support */
 extern const char *snmp_socket;		/* Socket to use for SNMP agent */
@@ -72,5 +83,6 @@ extern void free_parent_mallocs_startup(bool);
 extern void free_parent_mallocs_exit(void);
 extern char *make_syslog_ident(const char*);
 
+extern void stop_keepalived(void);
 extern int keepalived_main(int, char**); /* The "real" main function */
 #endif
