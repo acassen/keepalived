@@ -54,6 +54,10 @@
 #define BFD_MULTIPLIER_MAX	10
 #define BFD_MULTIPLIER_DEFAULT	5
 
+#define BFD_WEIGHT_MIN		-253
+#define BFD_WEIGHT_MAX		253
+#define BFD_WEIGHT_DEFAULT	0
+
 /*
  * BFD Session
  */
@@ -69,7 +73,6 @@ typedef struct _bfd {
 	uint32_t local_min_tx_intv;	/* Desired min TX interval */
 	uint32_t local_idle_tx_intv;	/* Desired idle TX interval */
 	u_char local_detect_mult;	/* Local detection multiplier */
-	bool disabled;			/* True if disabled in config */
 
 	/* Internal variables */
 	int fd_out;		/* Output socket fd */

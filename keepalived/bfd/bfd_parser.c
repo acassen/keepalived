@@ -37,40 +37,37 @@
 #endif
 #ifdef _WITH_VRRP_
 #include "vrrp_parser.h"
+#include "vrrp_track.h"
+#include "vrrp_data.h"
 #endif
 
 static void
 bfd_handler(vector_t *strvec)
 {
-	char iname[BFD_INAME_MAX] = { 0 };
 	char *name;
-	bool disabled = false;
 
 	assert(strvec);
 
 	name = vector_slot(strvec, 1);
-	strncpy(iname, name, BFD_INAME_MAX);
 
-	if (iname[BFD_INAME_MAX - 1] != '\0') {
-		iname[BFD_INAME_MAX - 1] = '\0';
+	if (strlen(name) >= BFD_INAME_MAX) {
 		log_message(LOG_ERR, "Configuration error: BFD instance %s"
-			    " name was truncated to %s (maximum length is %i"
-			    " characters), disabling instance", name, iname,
+			    " name too long (maximum length is %i"
+			    " characters) - ignoring", name,
 			    BFD_INAME_MAX - 1);
-		disabled = true;
+		skip_block();
+		return;
 	}
 
-	if (find_bfd_by_name(iname)) {
-		(void) snprintf(iname, BFD_INAME_MAX, "<DUP-%i>",
-				LIST_SIZE(bfd_data->bfd));
+	if (find_bfd_by_name(name)) {
 		log_message(LOG_ERR,
 			    "Configuration error: BFD instance %s"
-			    " was renamed to %s due to a duplicate name,"
-			    " disabling instance", name, iname);
-		disabled = true;
+			    " already configured - ignoring", name);
+		skip_block();
+		return;
 	}
 
-	alloc_bfd(iname, disabled);
+	alloc_bfd(name);
 }
 
 static void
@@ -90,15 +87,19 @@ bfd_nbrip_handler(vector_t *strvec)
 	if (ret < 0) {
 		log_message(LOG_ERR,
 			    "Configuration error: BFD instance %s has"
-			    " malformed neighbor address %s, disabling instance",
+			    " malformed neighbor address %s, ignoring instance",
 			    bfd->iname, FMT_STR_VSLOT(strvec, 1));
-		bfd->disabled = true;
+		list_del(bfd_data->bfd, bfd);
+		skip_block();
+		return;
 	} else if (find_bfd_by_addr(&nbr_addr)) {
 		log_message(LOG_ERR,
 			    "Configuration error: BFD instance %s has"
-			    " duplicate neighbor address %s, disabling instance",
+			    " duplicate neighbor address %s, ignoring instance",
 			    bfd->iname, FMT_STR_VSLOT(strvec, 1));
-		bfd->disabled = true;
+		list_del(bfd_data->bfd, bfd);
+		skip_block();
+		return;
 	} else
 		bfd->nbr_addr = nbr_addr;
 }
@@ -188,7 +189,7 @@ bfd_idletx_handler(vector_t *strvec)
 
 	if (value < BFD_IDLETX_MIN || value > BFD_IDLETX_MAX) {
 		log_message(LOG_ERR, "Configuration error: BFD instance %s"
-			    " min_tx value %i is not valid (must be in range"
+			    " idle_tx value %i is not valid (must be in range"
 			    " [%u-%u]), ignoring", bfd->iname, value,
 			    BFD_IDLETX_MIN, BFD_IDLETX_MAX);
 	} else
@@ -211,38 +212,140 @@ bfd_multiplier_handler(vector_t *strvec)
 
 	if (value < BFD_MULTIPLIER_MIN || value > BFD_MULTIPLIER_MAX) {
 		log_message(LOG_ERR, "Configuration error: BFD instance %s"
-			    " min_tx value %i not valid (must be in range"
+			    " multiplier value %i not valid (must be in range"
 			    " [%u-%u]), ignoring", bfd->iname, value,
 			    BFD_MULTIPLIER_MIN, BFD_MULTIPLIER_MAX);
 	} else
 		bfd->local_detect_mult = value;
 }
 
+/* Checks for minimum configuration requirements */
 static void
-bfd_disabled_handler(__attribute__((unused)) vector_t *strvec)
+bfd_config_check_handler(void)
 {
-	bfd_t *bfd;
+	bfd_t *bfd = LIST_TAIL_DATA(bfd_data->bfd);
 
-	assert(strvec);
-	assert(bfd_data);
-
-	bfd = LIST_TAIL_DATA(bfd_data->bfd);
 	assert(bfd);
 
-	bfd->disabled = true;
+	if (!bfd->nbr_addr.ss_family) {
+		log_message(LOG_ERR,
+			    "Configuration error: BFD instance %s has"
+			    " no neighbor address set, disabling instance",
+			    bfd->iname);
+		list_del(bfd_data->bfd, bfd);
+	}
+
+	if (bfd->src_addr.ss_family
+	    && bfd->nbr_addr.ss_family != bfd->src_addr.ss_family) {
+		log_message(LOG_ERR,
+			    "Configuration error: BFD instance %s source"
+			    " address %s and neighbor address %s"
+			    " are not of the same family, disabling instance",
+			    bfd->iname, inet_sockaddrtos(&bfd->src_addr)
+			    , inet_sockaddrtos(&bfd->nbr_addr));
+		list_del(bfd_data->bfd, bfd);
+	}
 }
+
+#ifdef _WITH_VRRP_
+static void
+bfd_vrrp_handler(vector_t *strvec)
+{
+	vrrp_tracked_bfd_t *tbfd;
+	element e;
+	char *name;
+
+	assert(strvec);
+
+	name = vector_slot(strvec, 1);
+
+	if (strlen(name) >= BFD_INAME_MAX) {
+		log_message(LOG_ERR, "Configuration error: BFD instance %s"
+			    " name too long (maximum length is %i"
+			    " characters), ignoring instance", name,
+			    BFD_INAME_MAX - 1);
+		skip_block();
+		return;
+	}
+
+	LIST_FOREACH(vrrp_data->vrrp_track_bfds, tbfd, e) {
+		if (!strcmp(tbfd->bname, name)) {
+			log_message(LOG_ERR,
+				    "Configuration error: BFD instance %s"
+				    " already configured,"
+				    " ignoring instance", name);
+			skip_block();
+			return;
+		}
+	}
+
+	PMALLOC(tbfd);
+	strcpy(tbfd->bname, name);
+	tbfd->weight = 0;
+	tbfd->bfd_up = false;
+	list_add(vrrp_data->vrrp_track_bfds, tbfd);
+}
+
+static void
+bfd_vrrp_weight_handler(vector_t *strvec)
+{
+	vrrp_tracked_bfd_t *tbfd;
+	int value;
+
+	assert(strvec);
+	assert(vrrp_data);
+
+	tbfd = LIST_TAIL_DATA(vrrp_data->vrrp_track_bfds);
+	assert(tbfd);
+
+	value = atoi(vector_slot(strvec, 1));
+
+	if (value < -253 || value > 253) {
+		log_message(LOG_ERR, "Configuration error: BFD instance %s"
+			    " weight value %i not valid (must be in range"
+			    " [%u-%u]), ignoring", tbfd->bname, value,
+			    -253, 253);
+	} else
+		tbfd->weight = value;
+}
+
+static void
+ignore_handler(__attribute__((unused)) vector_t *strvec)
+{
+	return;
+}
+#endif
 
 void
 init_bfd_keywords(bool active)
 {
-	install_keyword_root("bfd_instance", &bfd_handler, active);
-	install_keyword("source_ip", &bfd_srcip_handler);
-	install_keyword("neighbor_ip", &bfd_nbrip_handler);
-	install_keyword("min_rx", &bfd_minrx_handler);
-	install_keyword("min_tx", &bfd_mintx_handler);
-	install_keyword("idle_tx", &bfd_idletx_handler);
-	install_keyword("multiplier", &bfd_multiplier_handler);
-	install_keyword("disabled", &bfd_disabled_handler);
+	if (prog_type == PROG_TYPE_BFD) {
+		install_keyword_root("bfd_instance", &bfd_handler, active);
+		install_sublevel_end_handler(bfd_config_check_handler);
+		install_keyword("source_ip", &bfd_srcip_handler);
+		install_keyword("neighbor_ip", &bfd_nbrip_handler);
+		install_keyword("min_rx", &bfd_minrx_handler);
+		install_keyword("min_tx", &bfd_mintx_handler);
+		install_keyword("idle_tx", &bfd_idletx_handler);
+		install_keyword("multiplier", &bfd_multiplier_handler);
+
+#ifdef _WITH_VRRP_
+		install_keyword("weight", &ignore_handler);
+#endif
+	}
+#ifdef _WITH_VRRP_
+	else {
+		install_keyword_root("bfd_instance", &bfd_vrrp_handler, active);
+		install_keyword("source_ip", &ignore_handler);
+		install_keyword("neighbor_ip", &ignore_handler);
+		install_keyword("min_rx", &ignore_handler);
+		install_keyword("min_tx", &ignore_handler);
+		install_keyword("idle_tx", &ignore_handler);
+		install_keyword("multiplier", &ignore_handler);
+
+		install_keyword("weight", &bfd_vrrp_weight_handler);
+	}
+#endif
 }
 
 vector_t *

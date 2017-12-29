@@ -723,8 +723,10 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 static void
 vrrp_handle_bfd_event(bfd_event_t * evt)
 {
+	vrrp_tracked_bfd_t *vbfd;
+	tracking_vrrp_t *tbfd;
 	vrrp_t * vrrp;
-	element e;
+	element e, e1;
 	struct timeval time_now;
 	struct timeval timer_tmp;
 	uint32_t delivery_time;
@@ -738,28 +740,28 @@ vrrp_handle_bfd_event(bfd_event_t * evt)
 			    evt->iname, BFD_STATE_STR(evt->state), delivery_time);
 	}
 
-	for (e = LIST_HEAD(vrrp_data->vrrp); e; ELEMENT_NEXT(e)) {
-		vrrp = ELEMENT_DATA(e);
-
-		if (!vrrp->track_bfd)
+	LIST_FOREACH(vrrp_data->vrrp_track_bfds, vbfd, e) {
+		if (strcmp(vbfd->bname, evt->iname))
 			continue;
 
-		if (strcmp(vrrp->track_bfd, evt->iname))
+		if ((vbfd->bfd_up && evt->state == BFD_STATE_UP) ||
+		    (!vbfd->bfd_up && evt->state == BFD_STATE_DOWN))
 			continue;
 
-		if ((vrrp->bfd_up && evt->state == BFD_STATE_UP) ||
-		    (!vrrp->bfd_up && evt->state == BFD_STATE_DOWN))
-			continue;
+		vbfd->bfd_up = (evt->state == BFD_STATE_UP);
 
-		log_message(LOG_INFO, "VRRP_Instance(%s) Tracked BFD"
-			    " instance %s is %s", vrrp->iname, evt->iname, evt->state == BFD_STATE_UP ? "UP" : "DOWN");
-		if (evt->state == BFD_STATE_DOWN) {
-			vrrp->bfd_up = false;
-			down_instance(vrrp);
-		} else {
-			vrrp->bfd_up = true;
-			try_up_instance(vrrp, false);
+		LIST_FOREACH(vbfd->tracking_vrrp, tbfd, e1) {
+			vrrp = tbfd->vrrp;
+
+			log_message(LOG_INFO, "VRRP_Instance(%s) Tracked BFD"
+				    " instance %s is %s", vrrp->iname, evt->iname, vbfd->bfd_up ? "UP" : "DOWN");
+			if (vbfd->bfd_up)
+				try_up_instance(vrrp, false);
+			else
+				down_instance(vrrp);
 		}
+
+		break;
 	}
 }
 

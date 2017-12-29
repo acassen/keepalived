@@ -38,13 +38,14 @@ typedef struct _vrrp_data {
 	list			static_routes;
 	list			static_rules;
 	list			vrrp_sync_group;
-	list			vrrp;
+	list			vrrp;			/* vrrp_t */
 	list			vrrp_index;
 	list			vrrp_index_fd;
 	list			vrrp_socket_pool;
-	list			vrrp_script;
-	list			vrrp_track_files;
+	list			vrrp_script;		/* vrrp_script_t */
+	list			vrrp_track_files;	/* vrrp_tracked_file_t */
 #ifdef _WITH_BFD_
+	list			vrrp_track_bfds;	/* vrrp_tracked_bfd_t */
 	/* BFD control pipe read thread */
 	thread_t		*bfd_thread;
 #endif
@@ -68,9 +69,15 @@ extern void alloc_vrrp_script(char *);
 extern void alloc_vrrp_track_script(vector_t *);
 extern void alloc_vrrp_file(char *);
 extern void alloc_vrrp_track_file(vector_t *);
+#ifdef _WITH_BFD_
+extern void alloc_vrrp_track_bfd(vector_t *);
+#endif
 extern void alloc_vrrp_group_track_if(vector_t *);
 extern void alloc_vrrp_group_track_script(vector_t *);
 extern void alloc_vrrp_group_track_file(vector_t *);
+#ifdef _WITH_BFD_
+extern void alloc_vrrp_group_track_bfd(vector_t *);
+#endif
 extern void alloc_vrrp_vip(vector_t *);
 extern void alloc_vrrp_evip(vector_t *);
 extern void alloc_vrrp_vroute(vector_t *);

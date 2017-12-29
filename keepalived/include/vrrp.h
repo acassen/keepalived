@@ -118,6 +118,7 @@ typedef struct _vrrp_sgroup {
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
 	list			track_file;		/* Files whose value we monitor */
+	list			track_bfd;		/* bfds we monitor */
 
 	/* State transition notification */
 	bool			notify_exec;
@@ -196,8 +197,7 @@ typedef struct _vrrp_t {
 	list			track_script;		/* Script state we monitor */
 	list			track_file;		/* Files whose value we monitor */
 #ifdef _WITH_BFD_
-	char			*track_bfd;		/* BFD instance we monitor */
-	bool			bfd_up;			/* last BFD state */
+	list			track_bfd;		/* bfds we monitor */
 #endif
 	unsigned		num_script_if_fault;	/* Number of scripts and interfaces in fault state */
 	unsigned		num_script_init;	/* Number of scripts in init state */
@@ -364,6 +364,7 @@ extern void restore_vrrp_interfaces(void);
 extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);
 extern void clear_diff_script(void);
+extern void clear_diff_bfd(void);
 extern void vrrp_restore_interface(vrrp_t *, bool, bool);
 
 #endif

@@ -158,6 +158,14 @@ vrrp_group_track_file_handler(__attribute__((unused)) vector_t *strvec)
 	alloc_value_block(alloc_vrrp_group_track_file);
 }
 
+#if defined _WITH_BFD_
+static void
+vrrp_group_track_bfd_handler(__attribute__((unused)) vector_t *strvec)
+{
+	alloc_value_block(alloc_vrrp_group_track_bfd);
+}
+#endif
+
 static inline notify_script_t*
 set_vrrp_notify_script(vector_t *strvec, bool with_params)
 {
@@ -385,18 +393,9 @@ vrrp_dont_track_handler(__attribute__((unused)) vector_t *strvec)
 }
 #ifdef _WITH_BFD_
 static void
-vrrp_track_bfd_handler(vector_t *strvec)
+vrrp_track_bfd_handler(__attribute__((unused)) vector_t *strvec)
 {
-	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
-
-	if (vrrp->track_bfd) {
-		log_message(LOG_INFO, "(%s) track_bfd %s already set - ignoring %s", vrrp->iname, vrrp->track_bfd, FMT_STR_VSLOT(strvec, 1));
-		return;
-	}
-
-	vrrp->track_bfd = set_value(strvec);
-	vrrp->bfd_up = false;
-	vrrp->num_script_if_fault++;
+	alloc_value_block(alloc_vrrp_track_bfd);
 }
 #endif
 static void
@@ -1124,6 +1123,9 @@ init_vrrp_keywords(bool active)
 	install_keyword("track_interface", &vrrp_group_track_if_handler);
 	install_keyword("track_script", &vrrp_group_track_scr_handler);
 	install_keyword("track_file", &vrrp_group_track_file_handler);
+#ifdef _WITH_BFD_
+	install_keyword("track_bfd", &vrrp_group_track_bfd_handler);
+#endif
 	install_keyword("notify_backup", &vrrp_gnotify_backup_handler);
 	install_keyword("notify_master", &vrrp_gnotify_master_handler);
 	install_keyword("notify_fault", &vrrp_gnotify_fault_handler);
@@ -1235,7 +1237,7 @@ vrrp_init_keywords(void)
 	init_check_keywords(false);
 #endif
 #ifdef _WITH_BFD_
-	init_bfd_keywords(false);
+	init_bfd_keywords(true);
 #endif
 
 	return keywords;

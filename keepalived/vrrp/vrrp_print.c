@@ -101,9 +101,18 @@ vfile_name_print(FILE *file, void *data)
 {
 	tracked_file_t *tfl = data;
 
-fprintf(file, "vfile_name_print %p, file %p, tfile->file->fname %p\n", tfl, tfl->file, tfl->file->fname); fflush(file);
 	fprintf(file, "     %s, weight %d\n", tfl->file->fname, tfl->weight);
 }
+
+#ifdef _WITH_BFD_
+static void
+vbfd_name_print(FILE *file, void *data)
+{
+	tracked_bfd_t *tbfd = data;
+
+	fprintf(file, "     %s, weight %d\n", tbfd->bfd->bname, tbfd->weight);
+}
+#endif
 
 static void
 vgroup_print(FILE *file, void *data)
@@ -135,6 +144,12 @@ vgroup_print(FILE *file, void *data)
 		fprintf(file, "   Tracked files = %d\n", LIST_SIZE(vgroup->track_file));
 		vrrp_print_list(file, vgroup->track_file, &vfile_name_print);
 	}
+#ifdef _WITH_BFD_
+	if (!LIST_ISEMPTY(vgroup->track_bfd)) {
+		fprintf(file, "   Tracked BFDs = %d\n", LIST_SIZE(vgroup->track_bfd));
+		vrrp_print_list(file, vgroup->track_bfd, &vbfd_name_print);
+	}
+#endif
 	if (vgroup->script_backup)
 		print_script(file, vgroup->script_backup, "Backup");
 	if (vgroup->script_master)
@@ -194,6 +209,21 @@ vfile_print(FILE *file, void *data)
 	if (vfile->tracking_vrrp)
 		vrrp_print_list(file, vfile->tracking_vrrp, &vrrp_track_print);
 }
+
+#ifdef _WITH_BFD_
+static void
+vbfd_print(FILE *file, void *data)
+{
+	vrrp_tracked_bfd_t *vbfd = data;
+
+	fprintf(file, " VRRP Track bfd = %s\n", vbfd->bname);
+	fprintf(file, "   Weight = %d\n", vbfd->weight);
+	fprintf(file, "   Last status = %d\n", vbfd->bfd_up);
+	fprintf(file, "   Tracking VRRP = %d\n", (vbfd->tracking_vrrp) ? LIST_SIZE(vbfd->tracking_vrrp) : 0);
+	if (vbfd->tracking_vrrp)
+		vrrp_print_list(file, vbfd->tracking_vrrp, &vrrp_track_print);
+}
+#endif
 
 static void
 address_print(FILE *file, void *data)
@@ -418,6 +448,12 @@ vrrp_print(FILE *file, void *data)
 		fprintf(file, "   Tracked files = %d\n", LIST_SIZE(vrrp->track_file));
 		vrrp_print_list(file, vrrp->track_file, &vfile_name_print);
 	}
+#ifdef _WITH_BFD_
+	if (!LIST_ISEMPTY(vrrp->track_bfd)) {
+		fprintf(file, "   Tracked BFDs = %d\n", LIST_SIZE(vrrp->track_bfd));
+		vrrp_print_list(file, vrrp->track_bfd, &vbfd_name_print);
+	}
+#endif
 	if (!LIST_ISEMPTY(vrrp->vip)) {
 		fprintf(file, "   Virtual IP = %d\n", LIST_SIZE(vrrp->vip));
 		vrrp_print_list(file, vrrp->vip, &address_print);
@@ -494,6 +530,12 @@ vrrp_print_data(void)
 		fprintf(file, "------< VRRP Track files >------\n");
 		vrrp_print_list(file, vrrp_data->vrrp_track_files, &vfile_print);
 	}
+#ifdef _WITH_BFD_
+	if (!LIST_ISEMPTY(vrrp_data->vrrp_track_bfds)) {
+		fprintf(file, "------< VRRP Track BFDs >------\n");
+		vrrp_print_list(file, vrrp_data->vrrp_track_bfds, &vbfd_print);
+	}
+#endif
 
 	fclose(file);
 

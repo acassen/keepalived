@@ -512,6 +512,24 @@ and
                                # the specified value.
  }
 .PP
+.SH BFD Configuration
+.PP
+The configuration block looks like:
+.PP
+bfd_instance <STRING> {
+    neighbor_ip <IP ADDRESS>           # BFD Neighbor IP
+    source_ip <IP ADDRESS>             # Source IP to use (optional)
+    mix_rx <INTEGER>                   # Required min RX interval, in ms
+                                       # (default is 10 ms)
+    min_tx <INTEGER>                   # Desired min TX interval, in ms
+                                       # (default is 10 ms)
+    idle_tx <INTEGER>                  # Desired idle TX interval, in ms
+                                       # (default is 1000 ms)
+    multiplier <INTEGER>               # Number of missed packets after
+                                       # which the session is declared down
+                                       # (default is 5)
+    weight                             # Default tracking weight
+}
 .SH VRRP synchronization group(s)
 .PP
  #string, name of group of IPs that failover together
@@ -544,6 +562,14 @@ and
                 <STRING>                # weight defaults to weight configured in vrrp_track_file
                 <STRING> weight <-254..254>
                 ...
+            }
+
+            # BFD instances we monitor, value is added to effective priority. <STRING> is the name of a BFD instance
+            track_bfd {
+              <STRING>
+              <STRING>
+              <STRING> weight <INTEGER: -253..253>
+              ...
             }
 
             # notify scripts and alerts are optional
@@ -654,9 +680,6 @@ and
 
             native_ipv6         # force instance to use IPv6 (this option is deprecated since the virtual ip addresses determine whether IPv4 or IPv6 is used).
 
-            # BFD instance to monitor
-            track_bfd <STRING>
-
             # Ignore VRRP interface faults (default unset)
             dont_track_primary
 
@@ -683,6 +706,14 @@ and
                ...
            }
        
+           # BFD instances we monitor, value is added to effective priority. <STRING> is the name of a BFD instance
+           track_bfd {
+               <STRING>
+               <STRING>
+               <STRING> weight <INTEGER: -253..253>
+               ...
+           }
+
            # default IP for binding vrrpd is the primary IP
            # on interface. If you want to hide the location of vrrpd,
            # use this IP as src_addr for multicast or unicast vrrp
@@ -1181,23 +1212,6 @@ A virtual_server can be a declaration of one of
     certificate <STRING>  # certificate file
     key <STRING>        # key file
  }
-.SH BFD Configuration
-.PP
-The configuration block looks like:
-.PP
-bfd_instance <STRING> {
-    neighbor_ip <IP ADDRESS>           # BFD Neighbor IP
-    source_ip <IP ADDRESS>             # Source IP to use (optional)
-    mix_rx <INTEGER>                   # Required min RX interval, in ms
-                                       # (default is 10 ms)
-    min_tx <INTEGER>                   # Desired min TX interval, in ms
-                                       # (default is 10 ms)
-    idle_tx <INTEGER>                  # Desired idle TX interval, in ms
-                                       # (default is 1000 ms)
-    multiplier <INTEGER>               # Number of missed packets after
-                                       # which the session is declared down
-                                       # (default is 5)
-    disabled                           # Disable instance
 .SH AUTHOR
 .br
 Joseph Mack.

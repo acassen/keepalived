@@ -400,7 +400,7 @@ start_keepalived(void)
 		start_vrrp_child();
 #endif
 #ifdef _WITH_BFD_
-	/* start bfd child - must be started before vrrp */
+	/* start bfd child */
 	if (__test_bit(DAEMON_BFD, &daemon_mode))
 		start_bfd_child();
 #endif

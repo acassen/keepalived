@@ -423,6 +423,7 @@ This block is divided in 5 sub-blocks:
 
     * VRRP scripts
     * VRRP track files
+    * VRRP track BFDs
     * VRRP synchronization group
     * VRRP gratuitous ARP/NA intervals
     * VRRP instance
@@ -494,7 +495,26 @@ If a vrrp instance using a track_file is a member of a sync group, unless
 sync_group_tracking_weight is set on the group weight 0 must be set.
 Likewise, if the vrrp instance is the address owner, weight 0 must also be set.
 
-    2.3. VRRP synchronization group
+    2.3. BFD Configuration
+
+    The configuration block looks like :
+
+bfd_instance <STRING> {
+    neighbor_ip <IP ADDRESS>           # BFD Neighbor IP
+    source_ip <IP ADDRESS>             # Source IP to use (optional)
+    mix_rx <INTEGER>                   # Required min RX interval, in ms
+                                       # (default is 10 ms)
+    min_tx <INTEGER>                   # Desired min TX interval, in ms
+                                       # (default is 10 ms)
+    idle_tx <INTEGER>                  # Desired idle TX interval, in ms
+                                       # (default is 1000 ms)
+    multiplier <INTEGER>               # Number of missed packets after
+                                       # which the session is declared down
+                                       # (default is 5)
+    weight                             # Default tracking weight
+}
+
+    2.4. VRRP synchronization group
 
     The configuration block looks like :
 
@@ -525,6 +545,12 @@ vrrp_sync_group <STRING> {      # VRRP sync group declaration
     track_file {                # Files state we monitor
       <STRING>			# weight defaults to value configured in the vrrp_track_file
       <STRING> weight <INTEGER: -254..254>
+      ...
+    }
+    track_bfd {                 # BFD instance we monitor
+      <STRING>
+      <STRING>
+      <STRING> weight <INTEGER: -253..253>
       ...
     }
 
@@ -570,7 +596,7 @@ Important: for a SYNC group to run reliably, it is vital that all instances in
            their tracking weights automatically set to zero, in order to avoid
            inconsistent priorities across instances.
 
-    2.4. VRRP gratuitous ARP/NA intervals
+    2.5. VRRP gratuitous ARP/NA intervals
 
     This section allows the setting of delays between sending gratuitous ARPs
     and unsolicited neighbour advertisements. This is intended for when an
@@ -599,7 +625,7 @@ garp_group {
     interfaces that aren't specified in a garp_group will inherit the global
     settings.
 
-    2.5. VRRP instance
+    2.6. VRRP instance
 
     The configuration block looks like :
 
@@ -644,7 +670,12 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
       <STRING> weight <INTEGER: -254..254>
       ...
     }
-    track_bfd <STRING>                        # BFD instance we monitor
+    track_bfd {                               # BFD instance we monitor
+      <STRING>
+      <STRING>
+      <STRING> weight <INTEGER: -253..253>
+      ...
+    }
     dont_track_primary                        # (default unset) ignore VRRP interface faults.
                                               #  useful for cross-connect VRRP config.
     mcast_src_ip <IP ADDRESS>                 # src_ip to use into the VRRP packets
@@ -995,25 +1026,3 @@ SSL {
     certificate <STRING>        # certificate file
     key <STRING>                # key file
 }
-
-
-4. BFD Configuration
-
-The configuration block looks like :
-
-bfd_instance <STRING> {
-    neighbor_ip <IP ADDRESS>           # BFD Neighbor IP
-    source_ip <IP ADDRESS>             # Source IP to use (optional)
-    mix_rx <INTEGER>                   # Required min RX interval, in ms
-                                       # (default is 10 ms)
-    min_tx <INTEGER>                   # Desired min TX interval, in ms
-                                       # (default is 10 ms)
-    idle_tx <INTEGER>                  # Desired idle TX interval, in ms
-                                       # (default is 1000 ms)
-    multiplier <INTEGER>               # Number of missed packets after
-                                       # which the session is declared down
-                                       # (default is 5)
-    disabled                           # Disable instance
-}
-
-

@@ -230,7 +230,6 @@ bfd_expire_thread(thread_t *thread)
 	/* Difference between expected and actual failure detection time */
 	overdue_time = dead_time - bfd->local_detect_time;
 
-	log_message(LOG_INFO, "last_seen %ld.%6.6ld dead_time %u overdue_time %u, now %ld.%6.6ld, local_detect_time %u", bfd->last_seen.tv_sec, bfd->last_seen.tv_usec, dead_time, overdue_time, time_now.tv_sec, time_now.tv_usec, bfd->local_detect_time); 
 	log_message(LOG_WARNING, "BFD_Instance(%s) Expired after"
 		    " %i ms (%i usec overdue)",
 		    bfd->iname, dead_time / 1000, overdue_time);
@@ -610,9 +609,8 @@ bfd_handle_packet(bfdpkt_t *pkt)
 	if (bfd_check_packet(pkt)) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_ERR,
-				    "Discarding bogus packet from %s:%i",
-				    inet_sockaddrtos(&pkt->src_addr),
-				    inet_sockaddrport(&pkt->src_addr));
+				    "Discarding bogus packet from %s",
+				    inet_sockaddrtopair(&pkt->src_addr));
 
 		return;
 	}
@@ -625,11 +623,10 @@ bfd_handle_packet(bfdpkt_t *pkt)
 
 	if (!bfd) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_ERR, "Discarding packet from %s:%i"
+			log_message(LOG_ERR, "Discarding packet from %s"
 				    " (session is not found - your"
 				    " discriminator field is %u)",
-				    inet_sockaddrtos(&pkt->src_addr),
-				    inet_sockaddrport(&pkt->src_addr),
+				    inet_sockaddrtopair(&pkt->src_addr),
 				    pkt->hdr->remote_discr);
 
 		return;
@@ -638,11 +635,10 @@ bfd_handle_packet(bfdpkt_t *pkt)
 	/* Authentication is not supported for now */
 	if (pkt->hdr->auth != 0) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_ERR, "Discarding packet from %s:%i"
+			log_message(LOG_ERR, "Discarding packet from %s"
 				    " (auth bit is set, but no authentication"
 				    "  is in use)",
-				    inet_sockaddrtos(&pkt->src_addr),
-				    inet_sockaddrport(&pkt->src_addr));
+				    inet_sockaddrtopair(&pkt->src_addr));
 
 		return;
 	}
@@ -650,10 +646,9 @@ bfd_handle_packet(bfdpkt_t *pkt)
 	/* Discard all packets while in AdminDown state */
 	if (bfd->local_state == BFD_STATE_ADMINDOWN) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_INFO, "Discarding packet from %s:%i"
+			log_message(LOG_INFO, "Discarding packet from %s"
 				    " (session is in AdminDown state)",
-				    inet_sockaddrtos(&pkt->src_addr),
-				    inet_sockaddrport(&pkt->src_addr));
+				    inet_sockaddrtopair(&pkt->src_addr));
 
 		return;
 	}
@@ -849,7 +844,7 @@ bfd_receiver_thread(thread_t *thread)
 
 	data->thread_in =
 	    thread_add_read(thread->master, bfd_receiver_thread, data,
-			    fd, 60 * TIMER_HZ);
+			    fd, TIMER_NEVER);
 
 	return 0;
 }
@@ -957,10 +952,6 @@ bfd_open_fds(bfd_data_t *data)
 		bfd = ELEMENT_DATA(e);
 		assert(bfd);
 
-		/* Skip disabled instances */
-		if (bfd->disabled)
-			continue;
-
 		if (bfd_open_fd_out(bfd)) {
 			log_message(LOG_ERR, "BFD_Instance(%s) Unable to"
 				    " open output socket, disabling instance",
@@ -982,17 +973,13 @@ bfd_register_workers(bfd_data_t *data)
 	assert(data);
 	assert(!data->thread_in);
 
-	/* Set timeout to 1 minute */
+	/* Set timeout to not expire */
 	data->thread_in = thread_add_read(master, bfd_receiver_thread,
-					  data, data->fd_in, 60 * TIMER_HZ);
+					  data, data->fd_in, TIMER_NEVER);
 
 	/* Resume or schedule threads */
 	for (e = LIST_HEAD(data->bfd); e; ELEMENT_NEXT(e)) {
 		bfd = ELEMENT_DATA(e);
-
-		/* Skip disabled instances */
-		if (bfd->disabled)
-			continue;
 
 		/* Do not start anything if instance is in AdminDown state.
 		   Discard saved state if any */
@@ -1051,10 +1038,6 @@ bfd_dispatcher_release(bfd_data_t *data)
 	set_time_now();
 	for (e = LIST_HEAD(data->bfd); e; ELEMENT_NEXT(e)) {
 		bfd = ELEMENT_DATA(e);
-
-		/* Skip disabled instances */
-		if (bfd->disabled)
-			continue;
 
 		if (bfd_sender_scheduled(bfd))
 			bfd_sender_suspend(bfd);

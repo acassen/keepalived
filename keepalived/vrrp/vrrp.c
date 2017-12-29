@@ -1930,12 +1930,6 @@ free_tracking_vrrp(void *data)
 }
 
 static void
-free_tracking_ifp(void *data)
-{
-	FREE(data);
-}
-
-static void
 add_vrrp_to_interface(vrrp_t *vrrp, interface_t *ifp, int weight, bool log_addr)
 {
 	tracking_vrrp_t *tvp;
@@ -2006,7 +2000,7 @@ add_interface_to_vrrp(vrrp_t *vrrp, interface_t *ifp)
 	tip->weight = 0;
 
 	if (!LIST_EXISTS(vrrp->track_ifp))
-		vrrp->track_ifp = alloc_list(free_tracking_ifp, NULL);
+		vrrp->track_ifp = alloc_list(free_track_if, dump_track_if);
 	list_add(vrrp->track_ifp, tip);
 }
 
@@ -2336,6 +2330,40 @@ add_vrrp_to_track_file(vrrp_t *vrrp, tracked_file_t *tfl)
 	list_add(tfl->file->tracking_vrrp, tvp);
 }
 
+#ifdef _WITH_BFD_
+static void
+add_vrrp_to_track_bfd(vrrp_t *vrrp, tracked_bfd_t *tbfd)
+{
+	tracking_vrrp_t *tvp, *etvp;
+	element e;
+
+	if (!LIST_EXISTS(tbfd->bfd->tracking_vrrp))
+		tbfd->bfd->tracking_vrrp = alloc_list(free_tracking_vrrp, dump_tracking_vrrp);
+	else {
+		/* Is this bfd already tracking the vrrp instance directly?
+		 * For this to be the case, the bfd was added directly on the vrrp instance,
+		 * and now we are adding it for a sync group. */
+		LIST_FOREACH(tbfd->bfd->tracking_vrrp, etvp, e) {
+			if (etvp->vrrp == vrrp) {
+				/* Update the weight appropriately. We will use the sync group's
+				 * weight unless the vrrp setting is unweighted. */
+				log_message(LOG_INFO, "(%s) track_bfd %s is configured on VRRP instance and sync group. Remove vrrp instance config",
+						vrrp->iname, tbfd->bfd->bname);
+
+				if (etvp->weight)
+					etvp->weight = tbfd->weight;
+				return;
+			}
+		}
+	}
+
+	PMALLOC(tvp);
+	tvp->vrrp = vrrp;
+	tvp->weight = tbfd->weight;
+	list_add(tbfd->bfd->tracking_vrrp, tvp);
+}
+#endif
+
 /* complete vrrp structure */
 static bool
 vrrp_complete_instance(vrrp_t * vrrp)
@@ -2351,6 +2379,12 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	size_t i;
 	element next;
 	bool interface_already_existed = false;
+	tracked_sc_t *sc;
+	tracked_if_t *tip;
+	tracked_file_t *tfl;
+#ifdef _WITH_BFD_
+	tracked_bfd_t *tbfd;
+#endif
 
 	if (vrrp->strict_mode == PARAMETER_UNSET)
 		vrrp->strict_mode = global_data->vrrp_strict;
@@ -2804,107 +2838,104 @@ vrrp_complete_instance(vrrp_t * vrrp)
 	 */
 	if ((vrrp->sync && !vrrp->sync->sgroup_tracking_weight) ||
 	    vrrp->base_priority == VRRP_PRIO_OWNER) {
-		tracked_sc_t *sc;
-		tracked_if_t *tip;
-		tracked_file_t *tfl;
 		bool sync_no_tracking_weight = (vrrp->sync && !vrrp->sync->sgroup_tracking_weight);
 
 		/* Set weight to 0 of any interface we are tracking,
 		 * unless we are the address owner, in which case stop tracking it */
-		if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-			for (e = LIST_HEAD(vrrp->track_ifp); e; e = next) {
-				next = e->next;
-				tip = ELEMENT_DATA(e);
-				if (tip->weight && tip->weight != VRRP_NOT_TRACK_IF) {
-					log_message(LOG_INFO, "(%s) ignoring %s"
-							 "tracked interface %s due to %s",
-							 vrrp->iname, tip->ifp->ifname,
-							 sync_no_tracking_weight ? "weight of " : "",
-							 sync_no_tracking_weight ? "SYNC group" : "address owner");
-					if (sync_no_tracking_weight)
-						tip->weight = 0;
-					else
-						free_list_element(vrrp->track_ifp, e);
-				}
+		LIST_FOREACH_NEXT(vrrp->track_ifp, tip, e, next) {
+			if (tip->weight && tip->weight != VRRP_NOT_TRACK_IF) {
+				log_message(LOG_INFO, "(%s) ignoring %s"
+						 "tracked interface %s due to %s",
+						 vrrp->iname, tip->ifp->ifname,
+						 sync_no_tracking_weight ? "weight of " : "",
+						 sync_no_tracking_weight ? "SYNC group" : "address owner");
+				if (sync_no_tracking_weight)
+					tip->weight = 0;
+				else
+					free_list_element(vrrp->track_ifp, e);
 			}
-			if (LIST_ISEMPTY(vrrp->track_ifp))
-				free_list(&vrrp->track_ifp);
 		}
+		if (LIST_ISEMPTY(vrrp->track_ifp))
+			free_list(&vrrp->track_ifp);
 
 		/* Ignore any weighted script */
-		if (!LIST_ISEMPTY(vrrp->track_script)) {
-			for (e = LIST_HEAD(vrrp->track_script); e; e = next) {
-				next = e->next;
-				sc = ELEMENT_DATA(e);
-				if (sc->weight) {
-					log_message(LOG_INFO, "(%s) ignoring "
-							 "tracked script %s with weights due to %s",
-							 vrrp->iname, sc->scr->sname,
-							 sync_no_tracking_weight ? "SYNC group" : "address_owner");
-					free_list_element(vrrp->track_script, e);
-				}
+		LIST_FOREACH_NEXT(vrrp->track_script, sc, e, next) {
+			if (sc->weight) {
+				log_message(LOG_INFO, "(%s) ignoring "
+						 "tracked script %s with weights due to %s",
+						 vrrp->iname, sc->scr->sname,
+						 sync_no_tracking_weight ? "SYNC group" : "address_owner");
+				free_list_element(vrrp->track_script, e);
 			}
-			if (LIST_ISEMPTY(vrrp->track_script))
-				free_list(&vrrp->track_script);
 		}
+		if (LIST_ISEMPTY(vrrp->track_script))
+			free_list(&vrrp->track_script);
 
 		/* Set tracking files to unweighted if weight not explicitly set, otherwise ignore */
-		if (!LIST_ISEMPTY(vrrp->track_file)) {
-			for (e = LIST_HEAD(vrrp->track_file); e; e = next) {
-				next = e->next;
-				tfl = ELEMENT_DATA(e);
-				if (tfl->weight == 1) {		/* weight == 1 is the default */
-					log_message(LOG_INFO, "(%s) ignoring weight from "
-							 "tracked file %s due to %s - specify weight 0",
-							 vrrp->iname, tfl->file->fname,
-							 sync_no_tracking_weight ? "SYNC group" : "address_owner");
-					tfl->weight = 0;
-				}
-				else if (tfl->weight) {
-					log_message(LOG_INFO, "(%s) ignoring "
-							 "tracked file %s with weight %d due to %s",
-							 vrrp->iname, tfl->file->fname, tfl->weight,
-							 sync_no_tracking_weight ? "SYNC group" : "address_owner");
-					free_list_element(vrrp->track_file, e);
-				}
+		LIST_FOREACH_NEXT(vrrp->track_file, tfl, e, next) {
+			if (tfl->weight == 1) {		/* weight == 1 is the default */
+				log_message(LOG_INFO, "(%s) ignoring weight from "
+						 "tracked file %s due to %s - specify weight 0",
+						 vrrp->iname, tfl->file->fname,
+						 sync_no_tracking_weight ? "SYNC group" : "address_owner");
+				tfl->weight = 0;
 			}
-			if (LIST_ISEMPTY(vrrp->track_file))
-				free_list(&vrrp->track_file);
+			else if (tfl->weight) {
+				log_message(LOG_INFO, "(%s) ignoring "
+						 "tracked file %s with weight %d due to %s",
+						 vrrp->iname, tfl->file->fname, tfl->weight,
+						 sync_no_tracking_weight ? "SYNC group" : "address_owner");
+				free_list_element(vrrp->track_file, e);
+			}
 		}
+		if (LIST_ISEMPTY(vrrp->track_file))
+			free_list(&vrrp->track_file);
+
+#ifdef _WITH_BFD_
+		/* Ignore any weighted tracked bfd */
+		LIST_FOREACH_NEXT(vrrp->track_bfd, tbfd, e, next) {
+			if (tbfd->weight) {
+				log_message(LOG_INFO, "(%s) ignoring "
+						 "tracked bfd %s with weight %d due to %s",
+						 vrrp->iname, tbfd->bfd->bname, tbfd->weight,
+						 sync_no_tracking_weight ? "SYNC group" : "address_owner");
+				free_list_element(vrrp->track_bfd, e);
+			}
+		}
+		if (LIST_ISEMPTY(vrrp->track_bfd))
+			free_list(&vrrp->track_bfd);
+#endif
 	}
 
 	/* Add us to the vrrp list of the script, and update
 	 * effective_priority and num_script_if_fault */
-	if (!LIST_ISEMPTY(vrrp->track_script)) {
-		tracked_sc_t *sc;
-		vrrp_script_t *vsc;
+	LIST_FOREACH_NEXT(vrrp->track_script, sc, e, next) {
+		vrrp_script_t *vsc = sc->scr;
 
-		for (e = LIST_HEAD(vrrp->track_script); e; e = next) {
-			next = e->next;
-			sc = ELEMENT_DATA(e);
-			vsc = sc->scr;
-
-			if (vrrp->base_priority == VRRP_PRIO_OWNER && sc->weight) {
-				log_message(LOG_INFO, "(%s) Cannot have weighted track script '%s' with priority %d", vrrp->iname, vsc->sname, VRRP_PRIO_OWNER);
-				list_del(vrrp->track_script, sc);
-				continue;
-			}
-
-			add_vrrp_to_track_script(vrrp, sc);
+		if (vrrp->base_priority == VRRP_PRIO_OWNER && sc->weight) {
+			log_message(LOG_INFO, "(%s) Cannot have weighted track script '%s' with priority %d", vrrp->iname, vsc->sname, VRRP_PRIO_OWNER);
+			list_del(vrrp->track_script, sc);
+			continue;
 		}
-	}
 
+		add_vrrp_to_track_script(vrrp, sc);
+	}
 
 	/* Add our track files to the tracking file tracking_vrrp list */
-	if (!LIST_ISEMPTY(vrrp->track_file)) {
-		tracked_file_t *tfl;
+	LIST_FOREACH(vrrp->track_file, tfl, e) {
+		tfl = ELEMENT_DATA(e);
 
-		for (e = LIST_HEAD(vrrp->track_file); e; ELEMENT_NEXT(e)) {
-			tfl = ELEMENT_DATA(e);
-
-			add_vrrp_to_track_file(vrrp, tfl);
-		}
+		add_vrrp_to_track_file(vrrp, tfl);
 	}
+
+#ifdef _WITH_BFD_
+	/* Add our track bfd to the tracking bfd tracking_vrrp list */
+	LIST_FOREACH(vrrp->track_bfd, tbfd, e) {
+		tfl = ELEMENT_DATA(e);
+
+		add_vrrp_to_track_bfd(vrrp, tbfd);
+	}
+#endif
 
 	if (!vrrp->ifp->ifindex)
 		return true;
@@ -2930,6 +2961,9 @@ sync_group_tracking_init(void)
 	vrrp_script_t *vsc;
 	tracked_if_t *tif;
 	tracked_file_t *tfl;
+#ifdef _WITH_BFD_
+	tracked_bfd_t *tbfd;
+#endif
 	vrrp_t *vrrp;
 	bool sgroup_has_prio_owner;
 
@@ -2938,75 +2972,65 @@ sync_group_tracking_init(void)
 
 	/* Add sync group members to the vrrp list of the script, file, i/f,
 	 * and update effective_priority and num_script_if_fault */
-	for (e = LIST_HEAD(vrrp_data->vrrp_sync_group); e; ELEMENT_NEXT(e)) {
-		sgroup = ELEMENT_DATA(e);
-
+	LIST_FOREACH(vrrp_data->vrrp_sync_group, sgroup, e) {
 		if (LIST_ISEMPTY(sgroup->vrrp_instances))
 			continue;
 
 		/* Find out if any of the sync group members are address owners, since then
 		 * we cannot have weights */
-		for (e2 = LIST_HEAD(sgroup->vrrp_instances), sgroup_has_prio_owner = false; e2; ELEMENT_NEXT(e2)) {
-			vrrp = ELEMENT_DATA(e2);
-
+		sgroup_has_prio_owner = false;
+		LIST_FOREACH(sgroup->vrrp_instances, vrrp, e1) {
 			if (vrrp->base_priority == VRRP_PRIO_OWNER) {
 				sgroup_has_prio_owner = true;
 				break;
 			}
 		}
 
-		if (!LIST_ISEMPTY(sgroup->track_script)) {
-			for (e1 = LIST_HEAD(sgroup->track_script); e1; ELEMENT_NEXT(e1)) {
-				sc = ELEMENT_DATA(e1);
-				vsc = sc->scr;
+		LIST_FOREACH(sgroup->track_script, sc, e1) {
+			vsc = sc->scr;
 
-				if (sgroup_has_prio_owner && sc->weight) {
-					log_message(LOG_INFO, "(%s) Cannot have weighted track script '%s' with member having priority %d - clearing weight", sgroup->gname, vsc->sname, VRRP_PRIO_OWNER);
-					sc->weight = 0;
-				}
-
-				for (e2 = LIST_HEAD(sgroup->vrrp_instances); e2; ELEMENT_NEXT(e2)) {
-					vrrp = ELEMENT_DATA(e2);
-
-					add_vrrp_to_track_script(vrrp, sc);
-				}
+			if (sgroup_has_prio_owner && sc->weight) {
+				log_message(LOG_INFO, "(%s) Cannot have weighted track script '%s' with member having priority %d - clearing weight", sgroup->gname, vsc->sname, VRRP_PRIO_OWNER);
+				sc->weight = 0;
 			}
+
+			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e2)
+				add_vrrp_to_track_script(vrrp, sc);
 		}
 
 		/* tracked files */
-		if (!LIST_ISEMPTY(sgroup->track_file)) {
-			for (e1 = LIST_HEAD(sgroup->track_file); e1; ELEMENT_NEXT(e1)) {
-				tfl = ELEMENT_DATA(e1);
-
-				if (sgroup_has_prio_owner && tfl->weight) {
-					log_message(LOG_INFO, "(%s) Cannot have weighted track file '%s' with member having priority %d - setting weight 0", sgroup->gname, tfl->file->fname, VRRP_PRIO_OWNER);
-					tfl->weight = 0;
-				}
-
-				for (e2 = LIST_HEAD(sgroup->vrrp_instances); e2; ELEMENT_NEXT(e2)) {
-					vrrp = ELEMENT_DATA(e2);
-
-					add_vrrp_to_track_file(vrrp, tfl);
-				}
+		LIST_FOREACH(sgroup->track_file, tfl, e1) {
+			if (sgroup_has_prio_owner && tfl->weight) {
+				log_message(LOG_INFO, "(%s) Cannot have weighted track file '%s' with member having priority %d - setting weight 0", sgroup->gname, tfl->file->fname, VRRP_PRIO_OWNER);
+				tfl->weight = 0;
 			}
+
+			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e2)
+				add_vrrp_to_track_file(vrrp, tfl);
 		}
 
-		/* tracked interfaces */
-		if (!LIST_ISEMPTY(sgroup->track_ifp)) {
-			for (e1 = LIST_HEAD(sgroup->track_ifp); e1; ELEMENT_NEXT(e1)) {
-				tif = ELEMENT_DATA(e1);
-
-				if (sgroup_has_prio_owner && tif->weight) {
-					log_message(LOG_INFO, "(%s) Cannot have weighted track interface '%s' with member having priority %d - clearing weight", sgroup->gname, tif->ifp->ifname, VRRP_PRIO_OWNER);
-					tif->weight = 0;
-				}
-
-				for (e2 = LIST_HEAD(sgroup->vrrp_instances); e2; ELEMENT_NEXT(e2)) {
-					vrrp = ELEMENT_DATA(e2);
-
-					add_vrrp_to_interface(vrrp, tif->ifp, tif->weight, true);
-				}
+#ifdef _WITH_BFD_
+		/* tracked files */
+		LIST_FOREACH(sgroup->track_bfd, tbfd, e1) {
+			if (sgroup_has_prio_owner && tbfd->weight) {
+				log_message(LOG_INFO, "(%s) Cannot have weighted track bfd '%s' with member having priority %d - setting weight 0", sgroup->gname, tbfd->bfd->bname, VRRP_PRIO_OWNER);
+				tbfd->weight = 0;
 			}
+
+			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e2)
+				add_vrrp_to_track_bfd(vrrp, tbfd);
+		}
+#endif
+
+		/* tracked interfaces */
+		LIST_FOREACH(sgroup->track_ifp, tif, e1) {
+			if (sgroup_has_prio_owner && tif->weight) {
+				log_message(LOG_INFO, "(%s) Cannot have weighted track interface '%s' with member having priority %d - clearing weight", sgroup->gname, tif->ifp->ifname, VRRP_PRIO_OWNER);
+				tif->weight = 0;
+			}
+
+			LIST_FOREACH(sgroup->vrrp_instances, vrrp, e2)
+				add_vrrp_to_interface(vrrp, tif->ifp, tif->weight, true);
 		}
 	}
 }
@@ -3446,11 +3470,7 @@ clear_diff_script(void)
 	element e;
 	vrrp_script_t *vscript, *nvscript;
 
-	if (LIST_ISEMPTY(old_vrrp_data->vrrp_script))
-		return;
-
-	for (e = LIST_HEAD(old_vrrp_data->vrrp_script); e; ELEMENT_NEXT(e)) {
-		vscript = ELEMENT_DATA(e);
+	LIST_FOREACH(old_vrrp_data->vrrp_script, vscript, e) {
 		nvscript = find_script_by_name(vscript->sname);
 		if (nvscript) {
 			/* Set the script result to match the previous result */
@@ -3478,3 +3498,19 @@ clear_diff_script(void)
 		}
 	}
 }
+
+#ifdef _WITH_BFD_
+/* Set bfd status to match old instance */
+void
+clear_diff_bfd(void)
+{
+	element e;
+	vrrp_tracked_bfd_t *vbfd, *nvbfd;
+
+	LIST_FOREACH(old_vrrp_data->vrrp_track_bfds, vbfd, e) {
+		nvbfd = find_tracked_bfd_by_name(vbfd->bname);
+		if (nvbfd)
+			vbfd->bfd_up = nvbfd->bfd_up;
+	}
+}
+#endif

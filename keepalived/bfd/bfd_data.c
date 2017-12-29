@@ -42,7 +42,7 @@ char *bfd_buffer;
  */
 /* Initialize bfd_t */
 void
-alloc_bfd(char *name, bool disabled)
+alloc_bfd(char *name)
 {
 	bfd_t *bfd;
 
@@ -56,7 +56,6 @@ alloc_bfd(char *name, bool disabled)
 	bfd->local_min_tx_intv = BFD_MINTX_DEFAULT * 1000;
 	bfd->local_idle_tx_intv = BFD_IDLETX_DEFAULT * 1000;
 	bfd->local_detect_mult = BFD_MULTIPLIER_DEFAULT;
-	bfd->disabled = disabled;
 
 	/* Initialize internal variables */
 	bfd->fd_out = -1;
@@ -133,32 +132,6 @@ find_bfd_by_name(char *name)
 	return find_bfd_by_name2(name, bfd_data);
 }
 
-/* Checks for minimum configuration requirements */
-static void
-bfd_check_config(bfd_t * bfd)
-{
-	assert(bfd);
-
-	if (!bfd->nbr_addr.ss_family) {
-		log_message(LOG_ERR,
-			    "Configuration error: BFD instance %s has"
-			    " no neighbor address set, disabling instance",
-			    bfd->iname);
-		bfd->disabled = true;
-	}
-
-	if (bfd->src_addr.ss_family
-	    && bfd->nbr_addr.ss_family != bfd->src_addr.ss_family) {
-		log_message(LOG_ERR,
-			    "Configuration error: BFD instance %s source"
-			    " address %s and neighbor address %s"
-			    " are not of the same family, disabling instance",
-			    bfd->iname, inet_sockaddrtos(&bfd->src_addr)
-			    , inet_sockaddrtos(&bfd->nbr_addr));
-		bfd->disabled = true;
-	}
-}
-
 /* compares old and new timers, returns 0 if they are the same */
 static int
 bfd_cmp_timers(bfd_t * old_bfd, bfd_t * bfd)
@@ -215,10 +188,7 @@ bfd_complete_init(void)
 	assert(bfd_data->bfd);
 
 	/* Build configuration */
-	for (e = LIST_HEAD(bfd_data->bfd); e; ELEMENT_NEXT(e)) {
-		bfd = ELEMENT_DATA(e);
-		bfd_check_config(bfd);
-
+	LIST_FOREACH(bfd_data->bfd, bfd, e) {
 		/* If there was an old instance with the same name
 		   copy its state and thread sands during reload */
 		if (reload && (bfd_old = find_bfd_by_name2(bfd->iname, old_bfd_data))) {
@@ -226,15 +196,6 @@ bfd_complete_init(void)
 			bfd_copy_sands(bfd, bfd_old);
 			if (bfd_cmp_timers(bfd_old, bfd))
 				bfd_set_poll(bfd);
-
-			/* If instance was disabled, enable it */
-			if (bfd_old->disabled
-				&& !bfd->disabled
-				&& BFD_ISADMINDOWN(bfd)) {
-				bfd->local_state = BFD_STATE_DOWN;
-				log_message(LOG_INFO, "BFD_Instance(%s)"
-					    " Enabling instance", bfd->iname);
-			}
 		} else
 			bfd_init_state(bfd);
 	}

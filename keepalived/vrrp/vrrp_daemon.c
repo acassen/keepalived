@@ -267,6 +267,9 @@ start_vrrp(void)
 		clear_diff_sroutes();
 #endif
 		clear_diff_script();
+#ifdef _WITH_BFD_
+		clear_diff_bfd();
+#endif
 	}
 	else {
 		/* Clear leftover static entries */
