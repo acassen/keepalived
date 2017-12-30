@@ -697,7 +697,7 @@ lvs_notify_fifo_script(vector_t *strvec)
 static void
 checker_prio_handler(vector_t *strvec)
 {
-	global_data->vrrp_process_priority = get_priority(strvec, "checker");
+	global_data->checker_process_priority = get_priority(strvec, "checker");
 }
 static void
 checker_no_swap_handler(__attribute__((unused)) vector_t *strvec)
@@ -726,7 +726,7 @@ checker_rt_rlimit_handler(vector_t *strvec)
 static void
 bfd_prio_handler(vector_t *strvec)
 {
-	global_data->vrrp_process_priority = get_priority(strvec, "bfd");
+	global_data->bfd_process_priority = get_priority(strvec, "bfd");
 }
 static void
 bfd_no_swap_handler(__attribute__((unused)) vector_t *strvec)
