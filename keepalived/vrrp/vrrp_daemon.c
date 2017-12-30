@@ -22,6 +22,9 @@
 
 #include "config.h"
 
+#ifdef _HAVE_SCHED_RT_
+#include <sched.h>
+#endif
 #include <errno.h>
 #include <signal.h>
 #include <stdlib.h>
@@ -222,12 +225,8 @@ start_vrrp(void)
 	init_global_data(global_data);
 
 	/* Set the process priority and non swappable if configured */
-	if (global_data->vrrp_process_priority)
-		set_process_priority(global_data->vrrp_process_priority);
-
-// TODO - measure max stack usage
-	if (global_data->vrrp_no_swap)
-		set_process_dont_swap(4096);	/* guess a stack size to reserve */
+	set_process_priorities(global_data->vrrp_realtime_priority, global_data->vrrp_rlimit_rt,
+			global_data->vrrp_process_priority, global_data->vrrp_no_swap ? 4096 : 0);
 
 #ifdef _WITH_SNMP_
 	if (!reload && (global_data->enable_snmp_keepalived || global_data->enable_snmp_rfcv2 || global_data->enable_snmp_rfcv3)) {

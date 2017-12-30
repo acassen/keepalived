@@ -37,6 +37,10 @@
 #include <linux/netfilter/ipset/ip_set.h>
 #endif
 
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+#include <sys/resource.h>
+#endif
+
 /* local includes */
 #include "list.h"
 #include "vrrp_if.h"
@@ -111,14 +115,32 @@ typedef struct _data {
 	bool				vrrp_strict;
 	char				vrrp_process_priority;
 	bool				vrrp_no_swap;
+#ifdef _HAVE_SCHED_RT_
+	unsigned			vrrp_realtime_priority;
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	rlim_t				vrrp_rlimit_rt;
+#endif
+#endif
 #endif
 #ifdef _WITH_LVS_
 	char				checker_process_priority;
 	bool				checker_no_swap;
+#ifdef _HAVE_SCHED_RT_
+	unsigned			checker_realtime_priority;
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	rlim_t				checker_rlimit_rt;
+#endif
+#endif
 #endif
 #ifdef _WITH_BFD_
 	char				bfd_process_priority;
 	bool				bfd_no_swap;
+#ifdef _HAVE_SCHED_RT_
+	unsigned			bfd_realtime_priority;
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	rlim_t				bfd_rlimit_rt;
+#endif
+#endif
 #endif
 	notify_fifo_t			notify_fifo;
 #ifdef _WITH_VRRP_

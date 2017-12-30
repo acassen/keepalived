@@ -22,6 +22,9 @@
 
 #include "config.h"
 
+#ifdef _HAVE_SCHED_RT_
+#include <sched.h>
+#endif
 #include <errno.h>
 #include <signal.h>
 #include <unistd.h>
@@ -180,11 +183,8 @@ start_check(list old_checkers_queue)
 		stop_check(KEEPALIVED_EXIT_FATAL);
 
 	/* Set the process priority and non swappable if configured */
-	if (global_data->checker_process_priority)
-		set_process_priority(global_data->checker_process_priority);
-
-	if (global_data->checker_no_swap)
-		set_process_dont_swap(4096);	/* guess a stack size to reserve */
+	set_process_priorities(global_data->checker_realtime_priority, global_data->checker_rlimit_rt,
+			global_data->checker_process_priority, global_data->checker_no_swap ? 4096 : 0);
 
 	/* Processing differential configuration parsing */
 	if (reload)

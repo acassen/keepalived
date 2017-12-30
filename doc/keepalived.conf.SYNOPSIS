@@ -309,6 +309,12 @@ global_defs {                                 # Block identification
     vrrp_no_swap                              # Set the vrrp child process non swappable
     checker_no_swap                           # Set the checker child process non swappable
     bfd_no_swap                               # Set the BFD child process non swappable
+    vrrp_rt_priority <INTEGER:1..99>          # Set the vrrp child process to use real-time scheduling at the specified priority
+    checker_rt_priority <INTEGER:1..99>       # Set the checker child process to use real-time scheduling at the specified priority
+    bfd_rt_priority <INTEGER:1..99>           # Set the BFD child process to use real-time scheduling at the specified  priority
+    vrrp_rlimit_rtime <INTEGER>               # Set the limit on CPU time between blocking system calls, in microseconds (default 1000)
+    checker_rlimit_rtime <INTEGER>            #   as above
+    bfd_rlimit_rtime <INTEGER>                #   as above
                                               #
                                               # If keepalived has been build with SNMP support,
                                               #   the following keywords are available

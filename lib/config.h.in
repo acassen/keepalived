@@ -135,6 +135,10 @@
    */
 #undef HAVE_DECL_O_PATH
 
+/* Define to 1 if you have the declaration of `RLIMIT_RTTIME', and to 0 if you
+   don't. */
+#undef HAVE_DECL_RLIMIT_RTTIME
+
 /* Define to 1 if you have the declaration of `RTAX_CC_ALGO', and to 0 if you
    don't. */
 #undef HAVE_DECL_RTAX_CC_ALGO
@@ -166,6 +170,14 @@
 /* Define to 1 if you have the declaration of `RTEXT_FILTER_SKIP_STATS', and
    to 0 if you don't. */
 #undef HAVE_DECL_RTEXT_FILTER_SKIP_STATS
+
+/* Define to 1 if you have the declaration of `SCHED_RESET_ON_FORK', and to 0
+   if you don't. */
+#undef HAVE_DECL_SCHED_RESET_ON_FORK
+
+/* Define to 1 if you have the declaration of `SCHED_RR', and to 0 if you
+   don't. */
+#undef HAVE_DECL_SCHED_RR
 
 /* Define to 1 if you have the declaration of `SOCK_CLOEXEC', and to 0 if you
    don't. */
@@ -519,6 +531,9 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
+/* Dummy definition if not defined in system headers */
+#undef SCHED_RESET_ON_FORK
+
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
 
@@ -581,6 +596,9 @@
 
 /* Define to 1 if have pe selection support */
 #undef _HAVE_PE_NAME_
+
+/* Define to 1 if have SCHED_RR */
+#undef _HAVE_SCHED_RT_
 
 /* Define to 1 if have MAC VLAN support */
 #undef _HAVE_VRRP_VMAC_

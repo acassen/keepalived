@@ -10443,6 +10443,68 @@ else
 fi
 
 
+SAV_CFLAGS="$CFLAGS"
+CFLAGS="$CFLAGS -D_GNU_SOURCE"
+ac_fn_c_check_decl "$LINENO" "SCHED_RR" "ac_cv_have_decl_SCHED_RR" "#include <sched.h>
+"
+if test "x$ac_cv_have_decl_SCHED_RR" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_SCHED_RR $ac_have_decl
+_ACEOF
+if test $ac_have_decl = 1; then :
+
+    SCHED_RT_SUPPORT=Yes
+
+$as_echo "#define _HAVE_SCHED_RT_  1 " >>confdefs.h
+
+    SYSTEM_OPTIONS="$SYSTEM_OPTIONS SCHED_RT"
+
+        ac_fn_c_check_decl "$LINENO" "RLIMIT_RTTIME" "ac_cv_have_decl_RLIMIT_RTTIME" "#include <sys/resource.h>
+"
+if test "x$ac_cv_have_decl_RLIMIT_RTTIME" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_RLIMIT_RTTIME $ac_have_decl
+_ACEOF
+
+
+        ac_fn_c_check_decl "$LINENO" "SCHED_RESET_ON_FORK" "ac_cv_have_decl_SCHED_RESET_ON_FORK" "#include <sched.h>
+"
+if test "x$ac_cv_have_decl_SCHED_RESET_ON_FORK" = xyes; then :
+  ac_have_decl=1
+else
+  ac_have_decl=0
+fi
+
+cat >>confdefs.h <<_ACEOF
+#define HAVE_DECL_SCHED_RESET_ON_FORK $ac_have_decl
+_ACEOF
+if test $ac_have_decl = 1; then :
+  SYSTEM_OPTIONS="$SYSTEM_OPTIONS SCHED_RESET_ON_FORK"
+else
+
+$as_echo "#define SCHED_RESET_ON_FORK  0 " >>confdefs.h
+
+fi
+
+
+else
+
+    SCHED_RT_SUPPORT=No
+
+fi
+
+CFLAGS="$SAV_CFLAGS"
+
 GNU_STD_PATHS=No
 if test "${enable_gnu_std_paths}" = "yes"; then
 

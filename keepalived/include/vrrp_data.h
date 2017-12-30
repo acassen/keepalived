@@ -46,8 +46,6 @@ typedef struct _vrrp_data {
 	list			vrrp_track_files;	/* vrrp_tracked_file_t */
 #ifdef _WITH_BFD_
 	list			vrrp_track_bfds;	/* vrrp_tracked_bfd_t */
-	/* BFD control pipe read thread */
-	thread_t		*bfd_thread;
 #endif
 } vrrp_data_t;
 

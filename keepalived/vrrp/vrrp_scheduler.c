@@ -64,6 +64,11 @@ timeval_t garp_next_time;
 thread_t *garp_thread;
 bool vrrp_initialised;
 
+/* local variables */
+#ifdef _WITH_BFD_
+thread_t *bfd_thread;		 /* BFD control pipe read thread */
+#endif
+
 /* VRRP FSM (Finite State Machine) design.
  *
  * The state transition diagram implemented is :
@@ -403,8 +408,8 @@ vrrp_register_workers(list l)
 #ifdef _WITH_BFD_
 	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
 		/* Init BFD tracking thread */
-		vrrp_data->bfd_thread = thread_add_read(master, vrrp_bfd_thread, NULL,
-							 bfd_event_pipe[0], TIMER_HZ);
+		bfd_thread = thread_add_read(master, vrrp_bfd_thread, NULL,
+					     bfd_event_pipe[0], TIMER_HZ);
 	}
 #endif
 
@@ -602,7 +607,7 @@ vrrp_dispatcher_release(vrrp_data_t *data)
 {
 	free_list(&data->vrrp_socket_pool);
 #ifdef _WITH_BFD_
-	thread_cancel(data->bfd_thread);
+	thread_cancel(bfd_thread);
 #endif
 }
 
@@ -770,8 +775,8 @@ vrrp_bfd_thread(thread_t * thread)
 {
 	bfd_event_t evt;
 
-	vrrp_data->bfd_thread = thread_add_read(master, vrrp_bfd_thread, NULL,
-						thread->u.fd, TIMER_HZ * 60);
+	bfd_thread = thread_add_read(master, vrrp_bfd_thread, NULL,
+				     thread->u.fd, TIMER_HZ * 60);
 
 	if (thread->type != THREAD_READY_FD)
 		return 0;

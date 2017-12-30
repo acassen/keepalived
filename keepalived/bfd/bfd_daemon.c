@@ -22,9 +22,6 @@
 
 #include "config.h"
 
-#ifdef BFD_SCHED_RT
-#include <sched.h>
-#endif
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -130,12 +127,9 @@ start_bfd(void)
 	init_data(conf_file, bfd_init_keywords);
 
 	/* Set the process priority and non swappable if configured */
-	if (global_data->bfd_process_priority)
-		set_process_priority(global_data->bfd_process_priority);
-
 // TODO - measure max stack usage
-	if (global_data->bfd_no_swap)
-		set_process_dont_swap(4096);	/* guess a stack size to reserve */
+	set_process_priorities(global_data->bfd_realtime_priority, global_data->bfd_rlimit_rt,
+			global_data->bfd_process_priority, global_data->bfd_no_swap ? 4096 : 0);
 
 	bfd_complete_init();
 
@@ -297,15 +291,6 @@ start_bfd_child(void)
 #endif
 
 	free_parent_mallocs_startup(true);
-
-#ifdef BFD_SCHED_RT
-	/* Set realtime priority */
-	struct sched_param sp;
-	sp.sched_priority = sched_get_priority_max(SCHED_RR);
-	if (sched_setscheduler(pid, SCHED_RR, &sp))
-		log_message(LOG_WARNING,
-			    "BFD child process: cannot raise priority");
-#endif
 
 	/* Child process part, write pidfile */
 	if (!pidfile_write(bfd_pidfile, getpid())) {

@@ -40,6 +40,10 @@
 #include "utils.h"
 #include "logger.h"
 
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+#include "scheduler.h"
+#endif
+
 #ifdef _WITH_JSON_
 #include "../keepalived/include/vrrp_json.h"
 #endif
@@ -57,6 +61,10 @@ static void (*signal_SIGUSR1_handler) (void *, int sig);
 static void *signal_SIGUSR1_v;
 static void (*signal_SIGUSR2_handler) (void *, int sig);
 static void *signal_SIGUSR2_v;
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+static void (*signal_SIGXCPU_handler) (void *, int sig);
+static void *signal_SIGXCPU_v;
+#endif
 #ifdef _WITH_JSON_
 static void (*signal_SIGJSON_handler) (void *, int sig);
 static void *signal_SIGJSON_v;
@@ -94,6 +102,34 @@ get_signum(const char *sigfunc)
 	/* Not found */
 	return -1;
 }
+
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+static void
+log_sigxcpu(__attribute__((unused)) void * ptr, __attribute__((unused)) int signum)
+{
+	log_message(LOG_INFO, "%s process has used too much CPU time, %s_rlimit_rtime may need to be increased",
+#ifdef _WITH_VRRP_
+		    prog_type == PROG_TYPE_VRRP ? "VRRP" :
+#endif
+#ifdef _WITH_LVS_
+		    prog_type == PROG_TYPE_CHECKER ? "Checker" :
+#endif
+#ifdef _WITH_BFD_
+		    prog_type == PROG_TYPE_BFD ? "BFD" :
+#endif
+		    "Unknown",
+#ifdef _WITH_VRRP_
+		    prog_type == PROG_TYPE_VRRP ? "vrrp" :
+#endif
+#ifdef _WITH_LVS_
+		    prog_type == PROG_TYPE_CHECKER ? "checker" :
+#endif
+#ifdef _WITH_BFD_
+		    prog_type == PROG_TYPE_BFD ? "bfd" :
+#endif
+		    "Unknown");
+}
+#endif
 
 #ifdef _INCLUDE_UNUSED_CODE_
 /* Local signal test */
@@ -239,6 +275,12 @@ signal_set(int signo, void (*func) (void *, int), void *v)
 		signal_SIGUSR2_handler = func;
 		signal_SIGUSR2_v = v;
 		break;
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	case SIGXCPU:
+		signal_SIGXCPU_handler = func;
+		signal_SIGXCPU_v = v;
+		break;
+#endif
 #ifdef _WITH_JSON_
 	default:
 		if (signo == SIGJSON) {
@@ -275,6 +317,9 @@ clear_signal_handler_addresses(void)
 	signal_SIGCHLD_handler = NULL;
 	signal_SIGUSR1_handler = NULL;
 	signal_SIGUSR2_handler = NULL;
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	signal_SIGXCPU_handler = NULL;
+#endif
 #ifdef _WITH_JSON_
 	signal_SIGJSON_handler = NULL;
 #endif
@@ -389,6 +434,9 @@ signal_handlers_clear(void *state)
 	signal_set(SIGCHLD, state, NULL);
 	signal_set(SIGUSR1, state, NULL);
 	signal_set(SIGUSR2, state, NULL);
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	signal_set(SIGXCPU, state, NULL);
+#endif
 #ifdef _WITH_JSON_
 	signal_set(SIGJSON, state, NULL);
 #endif
@@ -493,6 +541,12 @@ signal_run_callback(void)
 			if (signal_SIGUSR2_handler)
 				signal_SIGUSR2_handler(signal_SIGUSR2_v, SIGUSR2);
 			break;
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+		case SIGXCPU:
+			if (signal_SIGXCPU_handler)
+				signal_SIGXCPU_handler(signal_SIGXCPU_v, SIGXCPU);
+			break;
+#endif
 		default:
 #ifdef _WITH_JSON_
 #ifdef HAVE_SIGNALFD
@@ -509,6 +563,14 @@ signal_run_callback(void)
 		}
 	}
 }
+
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+void
+set_sigxcpu_handler(void)
+{
+	signal_set(SIGXCPU, log_sigxcpu, NULL);
+}
+#endif
 
 void signal_fd_close(int min_fd)
 {

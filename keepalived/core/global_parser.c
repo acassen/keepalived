@@ -327,6 +327,71 @@ lvs_flush_handler(__attribute__((unused)) vector_t *strvec)
 	global_data->lvs_flush = true;
 }
 #endif
+#ifdef _HAVE_SCHED_RT_
+static int
+get_realtime_priority(vector_t *strvec, const char *process)
+{
+	int min_priority;
+	int max_priority;
+	int priority;
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "No %s process real-time priority specified", process);
+		return -1;
+	}
+
+	min_priority = sched_get_priority_min(SCHED_RR);
+	max_priority = sched_get_priority_max(SCHED_RR);
+
+	priority = atoi(strvec_slot(strvec, 1));
+
+	if (priority < min_priority) {
+		log_message(LOG_INFO, "%s process real-time priority %d less than minimum %d - setting to minimum", process, priority, min_priority);
+		priority = min_priority;
+	}
+	if (priority > max_priority) {
+		log_message(LOG_INFO, "%s process real-time priority %d greater than maximum %d - setting to maximum", process, priority, max_priority);
+		priority = max_priority;
+	}
+
+	return priority;
+}
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+static rlim_t
+get_rt_rlimit(vector_t *strvec, const char *process)
+{
+	char *endptr;
+	unsigned long limit = strtoul(strvec_slot(strvec,1), &endptr, 10);
+	rlim_t rlim = limit;	/* check for overflow */
+
+	if (*endptr || rlim != limit) {
+		log_message(LOG_INFO, "Invalid %s real-time limit - %s", process, FMT_STR_VSLOT(strvec, 1));
+		return 0;
+	}
+
+	return rlim;
+}
+#endif
+#endif
+static int8_t
+get_priority(vector_t *strvec, const char *process)
+{
+	int priority;
+
+	if (vector_size(strvec) < 2) {
+		log_message(LOG_INFO, "No %s process priority specified", process);
+		return 0;
+	}
+
+	priority = atoi(strvec_slot(strvec, 1));
+	if (priority < -20 || priority > 19) {
+		log_message(LOG_INFO, "Invalid %s process priority specified", process);
+		return 0;
+	}
+
+	return (int8_t)priority;
+}
+
 #ifdef _WITH_VRRP_
 static void
 vrrp_mcast_group4_handler(vector_t *strvec)
@@ -528,26 +593,30 @@ vrrp_strict_handler(__attribute__((unused)) vector_t *strvec)
 static void
 vrrp_prio_handler(vector_t *strvec)
 {
-	int priority;
-
-	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "No vrrp process priority specified");
-		return;
-	}
-
-	priority = atoi(strvec_slot(strvec, 1));
-	if (priority < -20 || priority > 19) {
-		log_message(LOG_INFO, "Invalid vrrp process priority specified");
-		return;
-	}
-
-	global_data->vrrp_process_priority = (int8_t)priority;
+	global_data->vrrp_process_priority = get_priority(strvec, "vrrp");
 }
 static void
 vrrp_no_swap_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->vrrp_no_swap = true;
 }
+#ifdef _HAVE_SCHED_RT_
+static void
+vrrp_rt_priority_handler(vector_t *strvec)
+{
+	int priority = get_realtime_priority(strvec, "vrrp");
+
+	if (priority >= 0)
+		global_data->vrrp_realtime_priority = priority;
+}
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+static void
+vrrp_rt_rlimit_handler(vector_t *strvec)
+{
+	global_data->vrrp_rlimit_rt = get_rt_rlimit(strvec, "vrrp");
+}
+#endif
+#endif
 #endif
 static void
 notify_fifo(vector_t *strvec, const char *type, notify_fifo_t *fifo)
@@ -625,51 +694,59 @@ lvs_notify_fifo_script(vector_t *strvec)
 static void
 checker_prio_handler(vector_t *strvec)
 {
-	int priority;
-
-	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "No checker process priority specified");
-		return;
-	}
-
-	priority = atoi(strvec_slot(strvec, 1));
-	if (priority < -20 || priority > 19) {
-		log_message(LOG_INFO, "Invalid checker process priority specified");
-		return;
-	}
-
-	global_data->checker_process_priority = (int8_t)priority;
+	global_data->vrrp_process_priority = get_priority(strvec, "checker");
 }
 static void
 checker_no_swap_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->checker_no_swap = true;
 }
+#ifdef _HAVE_SCHED_RT_
+static void
+checker_rt_priority_handler(vector_t *strvec)
+{
+	int priority = get_realtime_priority(strvec, "checker");
+
+	if (priority >= 0)
+		global_data->checker_realtime_priority = priority;
+}
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+static void
+checker_rt_rlimit_handler(vector_t *strvec)
+{
+	global_data->checker_rlimit_rt = get_rt_rlimit(strvec, "checker");
+}
+#endif
+#endif
 #endif
 #ifdef _WITH_BFD_
 static void
 bfd_prio_handler(vector_t *strvec)
 {
-	int priority;
-
-	if (vector_size(strvec) < 2) {
-		log_message(LOG_INFO, "No BFD process priority specified");
-		return;
-	}
-
-	priority = atoi(strvec_slot(strvec, 1));
-	if (priority < -20 || priority > 19) {
-		log_message(LOG_INFO, "Invalid BFD process priority specified");
-		return;
-	}
-
-	global_data->bfd_process_priority = (int8_t)priority;
+	global_data->vrrp_process_priority = get_priority(strvec, "bfd");
 }
 static void
 bfd_no_swap_handler(__attribute__((unused)) vector_t *strvec)
 {
 	global_data->bfd_no_swap = true;
 }
+#ifdef _HAVE_SCHED_RT_
+static void
+bfd_rt_priority_handler(vector_t *strvec)
+{
+	int priority = get_realtime_priority(strvec, "BFD");
+
+	if (priority >= 0)
+		global_data->bfd_realtime_priority = priority;
+}
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+static void
+bfd_rt_rlimit_handler(vector_t *strvec)
+{
+	global_data->bfd_rlimit_rt = get_rt_rlimit(strvec, "bfd");
+}
+#endif
+#endif
 #endif
 #ifdef _WITH_SNMP_
 static void
@@ -886,6 +963,12 @@ init_global_keywords(bool global_active)
 	install_keyword("vrrp_strict", &vrrp_strict_handler);
 	install_keyword("vrrp_priority", &vrrp_prio_handler);
 	install_keyword("vrrp_no_swap", &vrrp_no_swap_handler);
+#ifdef _HAVE_SCHED_RT_
+	install_keyword("vrrp_rt_priority", &vrrp_rt_priority_handler);
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	install_keyword("vrrp_rlimit_rtime", &vrrp_rt_rlimit_handler);
+#endif
+#endif
 #endif
 	install_keyword("notify_fifo", &global_notify_fifo);
 	install_keyword("notify_fifo_script", &global_notify_fifo_script);
@@ -898,10 +981,22 @@ init_global_keywords(bool global_active)
 	install_keyword("lvs_notify_fifo_script", &lvs_notify_fifo_script);
 	install_keyword("checker_priority", &checker_prio_handler);
 	install_keyword("checker_no_swap", &checker_no_swap_handler);
+#ifdef _HAVE_SCHED_RT_
+	install_keyword("checker_rt_priority", &checker_rt_priority_handler);
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	install_keyword("checker_rlimit_rtime", &checker_rt_rlimit_handler);
+#endif
+#endif
 #endif
 #ifdef _WITH_BFD_
 	install_keyword("bfd_priority", &bfd_prio_handler);
 	install_keyword("bfd_no_swap", &bfd_no_swap_handler);
+#ifdef _HAVE_SCHED_RT_
+	install_keyword("bfd_rt_priority", &bfd_rt_priority_handler);
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	install_keyword("bfd_rlimit_rtime", &bfd_rt_rlimit_handler);
+#endif
+#endif
 #endif
 #ifdef _WITH_SNMP_
 	install_keyword("snmp_socket", &snmp_socket_handler);
