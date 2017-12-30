@@ -648,6 +648,11 @@ bfd_handle_packet(bfdpkt_t *pkt)
 		return;
 	}
 
+	/* We can't check the TTL any earlier, since we need to know what
+	 * is configured for this particular instance */
+	if (bfd->max_hops != UCHAR_MAX && bfd_check_packet_ttl(pkt, bfd))
+		return;
+
 	/* Authentication is not supported for now */
 	if (pkt->hdr->auth != 0) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
@@ -950,13 +955,11 @@ bfd_open_fd_out(bfd_t *bfd)
 		}
 	}
 
-	if (bfd->nbr_addr.ss_family == AF_INET) {
-		ttl = BFD_CONTROL_TTL;
+	ttl = bfd->ttl;
+	if (bfd->nbr_addr.ss_family == AF_INET)
 		ret = setsockopt(bfd->fd_out, IPPROTO_IP, IP_TTL, &ttl, sizeof (ttl));
-	} else {
-		ttl = BFD_CONTROL_HOPLIMIT;
+	else
 		ret = setsockopt(bfd->fd_out, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &ttl, sizeof (ttl));
-	}
 
 	if (ret == -1) {
 		log_message(LOG_ERR, "BFD_Instance(%s) setsockopt() "

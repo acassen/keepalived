@@ -59,6 +59,8 @@
 #define BFD_WEIGHT_MAX		253
 #define BFD_WEIGHT_DEFAULT	0
 
+#define BFD_TTL_MAX		255
+
 /*
  * BFD Session
  */
@@ -98,6 +100,8 @@ typedef struct _bfd {
 	u_char remote_detect_mult;	/* Remote detection multiplier */
 	u_char poll;		/* Poll sequence flag */
 	u_char final;		/* Final flag */
+	uint8_t ttl;		/* TTL/hopcount to send */
+	uint8_t max_hops;	/* Maximum number of hops allowed to be traversed by received packet */
 
 	/* Calculated values */
 	uint32_t local_tx_intv;	/* Local transmit interval */
@@ -223,6 +227,7 @@ extern void bfd_init_state(bfd_t *);
 extern void bfd_copy_state(bfd_t *, const bfd_t *, bool);
 extern void bfd_copy_sands(bfd_t *, const bfd_t *);
 extern bool bfd_check_packet(const bfdpkt_t *);
+extern bool bfd_check_packet_ttl(const bfdpkt_t *, const bfd_t *);
 extern void bfd_build_packet(bfdpkt_t * pkt, bfd_t *, char *,
 			     const ssize_t);
 
