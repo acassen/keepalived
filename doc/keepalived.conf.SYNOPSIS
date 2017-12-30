@@ -4,6 +4,7 @@ file is compounded by three configurations parts :
     * Globals configurations
     * VRRP configuration
     * LVS configuration
+    * BFD configuration
 
 0. Comment string
 
@@ -170,6 +171,34 @@ why anyone would want to use this rather than simply
 @main priority 240
 is not known.
 
+Multiline definitions are also suppored, but when used there must be nothing on
+the line after the parameter name. A multiline definition is specified by ending
+each line except the last with a '\' character.
+
+Example:
+
+$INSTANCE= \
+vrrp_instance VI_${NUM} { \
+    interface eth0.${NUM} \
+    use_vmac vrrp${NUM}.1 \
+    virtual_router_id 1 \
+@high priority 130 \
+@low priority 120 \
+    advert_int 1 \
+    virtual_ipaddress { \
+        10.0.${NUM}.254/24 \
+    } \
+    track_script { \
+        offset_instance_${NUM} \
+    } \
+}
+
+$NUM=0
+$INSTANCE
+
+$NUM=1
+$INSTANCE
+
 0.6 Configuration file syntax parser
 
 Traditionally the configuration file parser has not been one of the strengths of
@@ -276,8 +305,16 @@ global_defs {                                 # Block identification
                                               #   backup systems being busy, they are not processing the vrrp packets.
     vrrp_priority <INTEGER:-20..19>           # Set the vrrp child process priority (negative values increase priority)
     checker_priority <INTEGER:-20..19>        # Set the checker child process priority
+    bfd_priority <INTEGER:-20..19>            # Set the BFD child process priority
     vrrp_no_swap                              # Set the vrrp child process non swappable
     checker_no_swap                           # Set the checker child process non swappable
+    bfd_no_swap                               # Set the BFD child process non swappable
+    vrrp_rt_priority <INTEGER:1..99>          # Set the vrrp child process to use real-time scheduling at the specified priority
+    checker_rt_priority <INTEGER:1..99>       # Set the checker child process to use real-time scheduling at the specified priority
+    bfd_rt_priority <INTEGER:1..99>           # Set the BFD child process to use real-time scheduling at the specified  priority
+    vrrp_rlimit_rtime <INTEGER>               # Set the limit on CPU time between blocking system calls, in microseconds (default 1000)
+    checker_rlimit_rtime <INTEGER>            #   as above
+    bfd_rlimit_rtime <INTEGER>                #   as above
                                               #
                                               # If keepalived has been build with SNMP support,
                                               #   the following keywords are available
@@ -394,6 +431,7 @@ This block is divided in 5 sub-blocks:
 
     * VRRP scripts
     * VRRP track files
+    * VRRP track BFDs
     * VRRP synchronization group
     * VRRP gratuitous ARP/NA intervals
     * VRRP instance
@@ -465,7 +503,26 @@ If a vrrp instance using a track_file is a member of a sync group, unless
 sync_group_tracking_weight is set on the group weight 0 must be set.
 Likewise, if the vrrp instance is the address owner, weight 0 must also be set.
 
-    2.3. VRRP synchronization group
+    2.3. BFD Configuration
+
+    The configuration block looks like :
+
+bfd_instance <STRING> {
+    neighbor_ip <IP ADDRESS>           # BFD Neighbor IP
+    source_ip <IP ADDRESS>             # Source IP to use (optional)
+    mix_rx <INTEGER>                   # Required min RX interval, in ms
+                                       # (default is 10 ms)
+    min_tx <INTEGER>                   # Desired min TX interval, in ms
+                                       # (default is 10 ms)
+    idle_tx <INTEGER>                  # Desired idle TX interval, in ms
+                                       # (default is 1000 ms)
+    multiplier <INTEGER>               # Number of missed packets after
+                                       # which the session is declared down
+                                       # (default is 5)
+    weight                             # Default tracking weight
+}
+
+    2.4. VRRP synchronization group
 
     The configuration block looks like :
 
@@ -496,6 +553,12 @@ vrrp_sync_group <STRING> {      # VRRP sync group declaration
     track_file {                # Files state we monitor
       <STRING>			# weight defaults to value configured in the vrrp_track_file
       <STRING> weight <INTEGER: -254..254>
+      ...
+    }
+    track_bfd {                 # BFD instance we monitor
+      <STRING>
+      <STRING>
+      <STRING> weight <INTEGER: -253..253>
       ...
     }
 
@@ -541,7 +604,7 @@ Important: for a SYNC group to run reliably, it is vital that all instances in
            their tracking weights automatically set to zero, in order to avoid
            inconsistent priorities across instances.
 
-    2.4. VRRP gratuitous ARP/NA intervals
+    2.5. VRRP gratuitous ARP/NA intervals
 
     This section allows the setting of delays between sending gratuitous ARPs
     and unsolicited neighbour advertisements. This is intended for when an
@@ -570,7 +633,7 @@ garp_group {
     interfaces that aren't specified in a garp_group will inherit the global
     settings.
 
-    2.5. VRRP instance
+    2.6. VRRP instance
 
     The configuration block looks like :
 
@@ -613,6 +676,12 @@ vrrp_instance <STRING> {                      # VRRP instance declaration
       <STRING>
       <STRING>
       <STRING> weight <INTEGER: -254..254>
+      ...
+    }
+    track_bfd {                               # BFD instance we monitor
+      <STRING>
+      <STRING>
+      <STRING> weight <INTEGER: -253..253>
       ...
     }
     dont_track_primary                        # (default unset) ignore VRRP interface faults.
@@ -782,7 +851,7 @@ Note:   <IP ADDRESS RANGE> has the form of : XXX.YYY.ZZZ.WWW-VVV, define
     same. If a virtual server uses a fwmark, and all the real/sorry servers are
     tunnelled, the address family of the virtual server will be the same as the
     address family of the real/sorry servers if they are all the same, otherwise
-    it will default to IPv4 (use ip_family inet6 to override this). 
+    it will default to IPv4 (use ip_family inet6 to override this).
 
 virtual_server <IP ADDRESS> <PORT> {          # VS IP/PORT declaration
 virtual_server fwmark <INTEGER>    {          # VS fwmark declaration

@@ -437,6 +437,141 @@ alloc_group_track_file(vrrp_sgroup_t *sgroup, vector_t *strvec)
 	list_add(sgroup->track_file, tfile);
 }
 
+#ifdef _WITH_BFD_
+vrrp_tracked_bfd_t *
+find_tracked_bfd_by_name(char *name)
+{
+	element e;
+	vrrp_tracked_bfd_t *bfd;
+
+	LIST_FOREACH(vrrp_data->vrrp_track_bfds, bfd, e) {
+		if (!strcmp(bfd->bname, name))
+			return bfd;
+	}
+	return NULL;
+}
+
+/* Track bfd dump */
+void
+dump_track_bfd(void *track_data)
+{
+	tracked_bfd_t *tbfd = track_data;
+	log_message(LOG_INFO, "     %s: weight %d", tbfd->bfd->bname, tbfd->weight);
+}
+
+void
+free_track_bfd(void *bfd)
+{
+	FREE(bfd);
+}
+
+void
+alloc_track_bfd(vrrp_t *vrrp, vector_t *strvec)
+{
+	vrrp_tracked_bfd_t *vtb;
+	tracked_bfd_t *tbfd;
+	char *tracked = strvec_slot(strvec, 0);
+	tracked_bfd_t *etbfd;
+	element e;
+	int weight;
+
+	vtb = find_tracked_bfd_by_name(tracked);
+
+	/* Ignoring if no bfd found */
+	if (!vtb) {
+		log_message(LOG_INFO, "(%s) track bfd %s not found, ignoring...", vrrp->iname, tracked);
+		return;
+	}
+
+	/* Check this vrrp isn't already tracking the bfd */
+	LIST_FOREACH(vrrp->track_bfd, etbfd, e) {
+		if (etbfd->bfd == vtb) {
+			log_message(LOG_INFO, "(%s) duplicate track_bfd %s - ignoring", vrrp->iname, tracked);
+			return;
+		}
+	}
+
+	weight = vtb->weight;
+	if (vector_size(strvec) >= 2) {
+		if (strcmp(strvec_slot(strvec, 1), "weight")) {
+			log_message(LOG_INFO, "(%s) unknown track bfd option %s - ignoring",
+					 vrrp->iname, FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+		if (vector_size(strvec) >= 3) {
+			weight = atoi(strvec_slot(strvec, 2));
+			if (weight < -253 || weight > 253) {
+				log_message(LOG_INFO, "(%s) weight for track bfd %s must be in "
+						 "[-253..253] inclusive. Ignoring...", vrrp->iname, tracked);
+				weight = vtb->weight;
+			}
+		} else {
+			log_message(LOG_INFO, "(%s) weight without value specified for track bfd %s - ignoring",
+					vrrp->iname, tracked);
+			return;
+		}
+	}
+
+	tbfd = (tracked_bfd_t *) MALLOC(sizeof(tracked_bfd_t));
+	tbfd->bfd = vtb;
+	tbfd->weight = weight;
+	list_add(vrrp->track_bfd, tbfd);
+}
+
+void
+alloc_group_track_bfd(vrrp_sgroup_t *sgroup, vector_t *strvec)
+{
+	vrrp_tracked_bfd_t *vtb;
+	tracked_bfd_t *tbfd;
+	char *tracked = strvec_slot(strvec, 0);
+	tracked_bfd_t *etbfd;
+	element e;
+	int weight;
+
+	vtb = find_tracked_bfd_by_name(tracked);
+
+	/* Ignoring if no bfd found */
+	if (!vtb) {
+		log_message(LOG_INFO, "(%s) track bfd %s not found, ignoring...", sgroup->gname, tracked);
+		return;
+	}
+
+	/* Check this vrrp isn't already tracking the script */
+	LIST_FOREACH(sgroup->track_bfd, etbfd, e) {
+		if (etbfd->bfd == vtb) {
+			log_message(LOG_INFO, "(%s) duplicate track_bfd %s - ignoring", sgroup->gname, tracked);
+			return;
+		}
+	}
+
+	weight = vtb->weight;
+	if (vector_size(strvec) >= 2) {
+		if (strcmp(strvec_slot(strvec, 1), "weight")) {
+			log_message(LOG_INFO, "(%s) unknown track bfd option %s - ignoring",
+					 sgroup->gname, FMT_STR_VSLOT(strvec, 1));
+			return;
+		}
+		if (vector_size(strvec) >= 3) {
+			weight = atoi(strvec_slot(strvec, 2));
+			if (weight < -253 || weight > 253) {
+				log_message(LOG_INFO, "(%s) weight for track bfd %s must be in "
+						 "[-253..253] inclusive. Ignoring...", sgroup->gname, tracked);
+				weight = vtb->weight;
+			}
+		} else {
+			log_message(LOG_INFO, "(%s) weight without value specified for track bfd %s - ignoring",
+					sgroup->gname, tracked);
+			return;
+		}
+	}
+
+	tbfd = (tracked_bfd_t *) MALLOC(sizeof(tracked_bfd_t));
+	tbfd->bfd = vtb;
+	tbfd->weight = weight;
+	list_add(sgroup->track_bfd, tbfd);
+}
+#endif
+
 void
 down_instance(vrrp_t *vrrp)
 {
@@ -518,7 +653,7 @@ process_script_update_priority(int weight, vrrp_script_t *vscript, bool script_o
 		   to only adjust the priority if the state the script
 		   is now in causes an adjustment to the priority */
 		if (script_ok) {
-			if (weight > 0)	
+			if (weight > 0)
 				vrrp->total_priority += weight;
 		} else {
 			if (weight < 0)
@@ -584,12 +719,33 @@ initialise_track_script_state(tracked_sc_t *tsc, vrrp_t *vrrp)
 	}
 }
 
+#ifdef _WITH_BFD_
+static void
+initialise_track_bfd_state(tracked_bfd_t *tbfd, vrrp_t *vrrp)
+{
+	if (tbfd->bfd->bfd_up) {
+		if (tbfd->weight > 0)
+			vrrp->total_priority += tbfd->weight;
+	} else {
+		if (tbfd->weight < 0)
+			vrrp->total_priority += tbfd->weight;
+		else if (!tbfd->weight) {
+			vrrp->num_script_if_fault++;
+			vrrp->state = VRRP_STATE_FAULT;
+		}
+	}
+}
+#endif
+
 void
 initialise_tracking_priorities(vrrp_t *vrrp)
 {
 	element e;
 	tracked_if_t *tip;
 	tracked_sc_t *tsc;
+#ifdef _WITH_BFD_
+	tracked_bfd_t *tbfd;
+#endif
 
 	/* If no src address has been specified, and the interface doesn't have
 	 * an appropriate address, put the interface into fault state */
@@ -598,49 +754,43 @@ initialise_tracking_priorities(vrrp_t *vrrp)
 		vrrp->state = VRRP_STATE_FAULT;
 	}
 
-	if (!LIST_ISEMPTY(vrrp->track_ifp)) {
-		for (e = LIST_HEAD(vrrp->track_ifp); e; ELEMENT_NEXT(e)) {
-			tip = ELEMENT_DATA(e);
+	LIST_FOREACH(vrrp->track_ifp, tip, e) {
+		if (tip->weight == VRRP_NOT_TRACK_IF)
+			continue;
 
-			if (tip->weight == VRRP_NOT_TRACK_IF)
-				continue;
+		if (!tip->weight) {
+			if (!IF_ISUP(tip->ifp)) {
+				/* The instance is down */
+				vrrp->state = VRRP_STATE_FAULT;
+				vrrp->num_script_if_fault++;
+			}
+			continue;
+		}
 
-			if (!tip->weight) {
-				if (!IF_ISUP(tip->ifp)) {
-					/* The instance is down */
-					vrrp->state = VRRP_STATE_FAULT;
-					vrrp->num_script_if_fault++;
-				}
-				continue;
-			}
-
-			if (IF_ISUP(tip->ifp)) {
-				if (tip->weight > 0)
-					vrrp->total_priority += tip->weight;
-			}
-			else {
-				if (tip->weight < 0)
-					vrrp->total_priority += tip->weight;
-			}
+		if (IF_ISUP(tip->ifp)) {
+			if (tip->weight > 0)
+				vrrp->total_priority += tip->weight;
+		}
+		else {
+			if (tip->weight < 0)
+				vrrp->total_priority += tip->weight;
 		}
 	}
 
 	/* Initialise the vrrp instance's tracked scripts */
-	if (!LIST_ISEMPTY(vrrp->track_script)) {
-		for (e = LIST_HEAD(vrrp->track_script); e; ELEMENT_NEXT(e)) {
-			tsc = ELEMENT_DATA(e);
+	LIST_FOREACH(vrrp->track_script, tsc, e)
+		initialise_track_script_state(tsc, vrrp);
 
+#ifdef _WITH_BFD_
+	/* Initialise the vrrp instance's tracked scripts */
+	LIST_FOREACH(vrrp->track_bfd, tbfd, e)
+		initialise_track_bfd_state(tbfd, vrrp);
+#endif
+
+	/* If have a sync group, initialise it's tracked scripts and bfds */
+	if (vrrp->sync) {
+		LIST_FOREACH(vrrp->sync->track_script, tsc, e)
 			initialise_track_script_state(tsc, vrrp);
-		}
-	}
-
-	/* If have a sync group, initialise it's tracked scripts */
-	if (vrrp->sync && !LIST_ISEMPTY(vrrp->sync->track_script)) {
-		for (e = LIST_HEAD(vrrp->sync->track_script); e; ELEMENT_NEXT(e)) {
-			tsc = ELEMENT_DATA(e);
-
-			initialise_track_script_state(tsc, vrrp);
-		}
 	}
 
 	vrrp_set_effective_priority(vrrp);
@@ -655,20 +805,15 @@ remove_track_file(list track_files, element e)
 	vrrp_t *vrrp;
 	tracked_file_t *tft;
 
-	if (!LIST_ISEMPTY(tfile->tracking_vrrp)) {
-		/* Seach through the vrrp instances tracking this file */
-		for (e1 = LIST_HEAD(tfile->tracking_vrrp); e1; ELEMENT_NEXT(e1)) {
-			vrrp = ELEMENT_DATA(e1);
-
-			/* Search for the matching track file */
-			for (e2 = LIST_HEAD(vrrp->track_file); e2; e2 = next2) {
-				next2 = e2->next;
-				tft = ELEMENT_DATA(e2);
-				if (tft->file == tfile)
-					free_list_element(vrrp->track_file, e2);
-			}
+	/* Search through the vrrp instances tracking this file */
+	LIST_FOREACH(tfile->tracking_vrrp, vrrp, e1) {
+		/* Search for the matching track file */
+		LIST_FOREACH_NEXT(vrrp->track_file, tft, e2, next2) {
+			if (tft->file == tfile)
+				free_list_element(vrrp->track_file, e2);
 		}
 	}
+
 	free_list_element(track_files, e);
 }
 
@@ -804,7 +949,7 @@ process_inotify(int fd)
 				if (tfile->wd != event->wd ||
 				    strcmp(tfile->file_part, event->name))
 					continue;
- 
+
 				if (event->mask & (IN_MOVED_FROM | IN_DELETE)) {
 					/* The file has disappeared. Treat as though the value is 0 */
 					update_track_file_status(tfile, 0);
@@ -875,7 +1020,7 @@ init_track_files(list track_files)
 		}
 		else if (errno == ENOENT) {
 			/* Resolve the directory */
-			if (!(dir_end = strrchr(tfile->file_path, '/'))) 
+			if (!(dir_end = strrchr(tfile->file_path, '/')))
 				resolved_path = realpath(".", NULL);
 			else {
 				*dir_end = '\0';

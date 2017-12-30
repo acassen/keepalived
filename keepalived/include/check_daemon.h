@@ -28,7 +28,6 @@
 
 /* Daemon define */
 #define PROG_CHECK	"Keepalived_healthcheckers"
-#define WDOG_CHECK	"/tmp/.healthcheckers"
 
 /* Global data */
 extern bool using_ha_suspend;

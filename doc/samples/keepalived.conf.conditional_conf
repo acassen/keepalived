@@ -1,4 +1,4 @@
-# Run keepalived with either '-i high' or '-i low' 
+# Run keepalived with either '-i high' or '-i low'
 
 @high net_namespace high
 @low net_namespace low

@@ -28,7 +28,7 @@ vrrp_instance VI_1 {
         192.168.111.0/24 dev eth2
         192.168.112.0/24 via 192.168.100.254
         192.168.113.0/24 via 192.168.100.252 or 192.168.100.253
-    	blackhole 192.168.113.1/32
+	blackhole 192.168.113.1/32
         0.0.0.0/0 gw 192.168.0.1 table 100  # To set a default gateway into table 100.
     }
 }

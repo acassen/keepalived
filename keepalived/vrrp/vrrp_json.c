@@ -221,7 +221,7 @@ vrrp_print_json(void)
 			json_object_new_int(vrrp->wantstate));
 		json_object_object_add(json_data, "version",
 			json_object_new_int(vrrp->version));
-		if (vrrp->script_backup) 
+		if (vrrp->script_backup)
 		json_object_object_add(json_data, "script_backup",
 			json_object_new_string(vrrp->script_backup->cmd_str));
 		if (vrrp->script_master)
@@ -243,7 +243,7 @@ vrrp_print_json(void)
 			json_object_object_add(json_data, "auth_type",
 				json_object_new_int(vrrp->auth_type));
 
-		 	if (vrrp->auth_type != VRRP_AUTH_AH) {
+			if (vrrp->auth_type != VRRP_AUTH_AH) {
 				char auth_data[sizeof(vrrp->auth_data) + 1];
 				memcpy(auth_data, vrrp->auth_data, sizeof(vrrp->auth_data));
 				auth_data[sizeof(vrrp->auth_data)] = '\0';
@@ -254,7 +254,6 @@ vrrp_print_json(void)
 		else
 			json_object_object_add(json_data, "auth_type",
 				json_object_new_int(0));
-			
 #endif
 
 		// Dump stats to json

@@ -211,6 +211,11 @@ netlink_iplist(list ip_list, int cmd, bool force)
 		if ((cmd == IPADDRESS_ADD && !ipaddr->set) ||
 		    (cmd == IPADDRESS_DEL &&
 		     (force || ipaddr->set || __test_bit(DONT_RELEASE_VRRP_BIT, &debug)))) {
+			/* If we are removing addresses left over from previous run
+			 * and they don't exist, don't report an error */
+			if (force)
+				netlink_error_ignore = ENODEV;
+
 			if (netlink_ipaddress(ipaddr, cmd) > 0) {
 				ipaddr->set = !(cmd == IPADDRESS_DEL);
 				changed_entries = true;

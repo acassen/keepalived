@@ -40,6 +40,9 @@
 #if defined _WITH_VRRP_
 #include "vrrp_parser.h"
 #endif
+#if defined _WITH_BFD_
+#include "bfd_parser.h"
+#endif
 #include "libipvs.h"
 
 /* SSL handlers */
@@ -739,6 +742,9 @@ check_init_keywords(void)
 	init_check_keywords(true);
 #ifdef _WITH_VRRP_
 	init_vrrp_keywords(false);
+#endif
+#ifdef _WITH_BFD_
+	init_bfd_keywords(false);
 #endif
 	return keywords;
 }

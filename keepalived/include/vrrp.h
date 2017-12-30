@@ -118,6 +118,7 @@ typedef struct _vrrp_sgroup {
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
 	list			track_file;		/* Files whose value we monitor */
+	list			track_bfd;		/* bfds we monitor */
 
 	/* State transition notification */
 	bool			notify_exec;
@@ -195,6 +196,9 @@ typedef struct _vrrp_t {
 	list			track_ifp;		/* Interface state we monitor */
 	list			track_script;		/* Script state we monitor */
 	list			track_file;		/* Files whose value we monitor */
+#ifdef _WITH_BFD_
+	list			track_bfd;		/* bfds we monitor */
+#endif
 	unsigned		num_script_if_fault;	/* Number of scripts and interfaces in fault state */
 	unsigned		num_script_init;	/* Number of scripts in init state */
 	struct sockaddr_storage	saddr;			/* Src IP address to use in VRRP IP header */
@@ -323,7 +327,6 @@ typedef struct _vrrp_t {
 #define VRRP_IS_BAD_VERSION(id)		((id) < 2 || (id) > 3)
 #define VRRP_IS_BAD_VID(id)		((id) < 1 || (id) > 255)	/* rfc2338.6.1.vrid */
 #define VRRP_IS_BAD_PRIORITY(p)		((p) < 1 || (p) > VRRP_PRIO_OWNER)	/* rfc2338.6.1.prio */
-#define VRRP_IS_BAD_ADVERT_INT(d)	((d) < 1)
 #define VRRP_IS_BAD_DEBUG_INT(d)	((d) < 0 || (d) > 4)
 
 /* We have to do some reduction of the calculation for VRRPv3 in order not to overflow a uint32; 625 / 16 == TIMER_CENTI_HZ / 256 */
@@ -335,7 +338,6 @@ typedef struct _vrrp_t {
 #define VRRP_MAX(a, b)	((a) > (b)?(a):(b))
 
 #define VRRP_PKT_SADDR(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in *) &(V)->saddr)->sin_addr.s_addr : IF_ADDR((V)->ifp))
-#define VRRP_PKT_SADDR6(V) (((V)->saddr.ss_family) ? ((struct sockaddr_in6 *) &(V)->saddr)->sin6_addr : IF_ADDR6((V)->ifp))
 
 #define VRRP_ISUP(V)		(!(V)->num_script_if_fault)
 
@@ -362,6 +364,7 @@ extern void restore_vrrp_interfaces(void);
 extern void shutdown_vrrp_instances(void);
 extern void clear_diff_vrrp(void);
 extern void clear_diff_script(void);
+extern void clear_diff_bfd(void);
 extern void vrrp_restore_interface(vrrp_t *, bool, bool);
 
 #endif

@@ -11,7 +11,7 @@ other, a private, inside-facing IP address.  In this method, the Load-Balancer
 receives requests from users on the public network and uses network address
 translation (NAT) to forward those requests to the real servers located on the
 private network.  The replies are also translated in the reverse direction,
-when the real servers reply to the users’ requests. 
+when the real servers reply to the users’ requests.
 
 As a result, an advantage is that the real servers are protected from the
 public network as they are hidden behind the Load-Balancer.  Another advantage
@@ -20,7 +20,7 @@ ranges.
 
 The main disadvantage is that the Load-Balancer becomes a bottleneck.  It has
 to service not only requests but also replies to and from the public users,
-while also forwarding to and from the private real servers. 
+while also forwarding to and from the private real servers.
 
 Virtual Server via Tunneling
 ****************************

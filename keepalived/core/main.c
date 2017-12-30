@@ -68,6 +68,10 @@
 #include "vrrp_json.h"
 #endif
 #endif
+#ifdef _WITH_BFD_
+#include "bfd_daemon.h"
+#include "bfd_parser.h"
+#endif
 #include "global_parser.h"
 #if HAVE_DECL_CLONE_NEWNET
 #include "namespaces.h"
@@ -106,6 +110,11 @@ static bool free_checkers_pidfile;
 pid_t vrrp_child = -1;					/* VRRP child process ID */
 char *vrrp_pidfile;					/* overrule default pidfile */
 static bool free_vrrp_pidfile;
+#endif
+#ifdef _WITH_BFD_
+pid_t bfd_child = -1;					/* BFD child process ID */
+char *bfd_pidfile;					/* overrule default pidfile */
+static bool free_bfd_pidfile;
 #endif
 unsigned long daemon_mode;				/* VRRP/CHECK subsystem selection */
 #ifdef _WITH_SNMP_
@@ -220,6 +229,10 @@ free_parent_mallocs_exit(void)
 	if (free_checkers_pidfile)
 		FREE_PTR(checkers_pidfile);
 #endif
+#ifdef _WITH_BFD_
+	if (free_bfd_pidfile)
+		FREE_PTR(bfd_pidfile);
+#endif
 
 	FREE_PTR(instance_name);
 	FREE_PTR(config_id);
@@ -304,6 +317,10 @@ find_keepalived_child_name(pid_t pid)
 	if (pid == vrrp_child)
 		return PROG_VRRP;
 #endif
+#ifdef _WITH_BFD_
+	if (pid == bfd_child)
+		return PROG_BFD;
+#endif
 
 	return NULL;
 }
@@ -321,6 +338,9 @@ global_init_keywords(void)
 #ifdef _WITH_LVS_
 	init_check_keywords(false);
 #endif
+#ifdef _WITH_BFD_
+	init_bfd_keywords(false);
+#endif
 
 	return keywords;
 }
@@ -333,7 +353,7 @@ read_config_file(void)
 #endif
 
 /* Daemon stop sequence */
-static void
+void
 stop_keepalived(void)
 {
 #ifndef _DEBUG_
@@ -351,6 +371,11 @@ stop_keepalived(void)
 		pidfile_rm(checkers_pidfile);
 #endif
 
+#ifdef _WITH_BFD_
+	if (__test_bit(DAEMON_BFD, &daemon_mode))
+		pidfile_rm(bfd_pidfile);
+#endif
+
 	pidfile_rm(main_pidfile);
 #endif
 }
@@ -359,6 +384,11 @@ stop_keepalived(void)
 static void
 start_keepalived(void)
 {
+#ifdef _WITH_BFD_
+	/* must be opened before vrrp and bfd */
+	open_bfd_pipe();
+#endif
+
 #ifdef _WITH_LVS_
 	/* start healthchecker child */
 	if (__test_bit(DAEMON_CHECKERS, &daemon_mode))
@@ -368,6 +398,11 @@ start_keepalived(void)
 	/* start vrrp child */
 	if (__test_bit(DAEMON_VRRP, &daemon_mode))
 		start_vrrp_child();
+#endif
+#ifdef _WITH_BFD_
+	/* start bfd child */
+	if (__test_bit(DAEMON_BFD, &daemon_mode))
+		start_bfd_child();
 #endif
 }
 
@@ -420,6 +455,10 @@ propogate_signal(__attribute__((unused)) void *v, int sig)
 #ifdef _WITH_LVS_
 	if (checkers_child > 0 && sig == SIGHUP)
 		kill(checkers_child, sig);
+#endif
+#ifdef _WITH_BFD_
+	if (bfd_child > 0 && sig == SIGHUP)
+		kill(bfd_child, sig);
 #endif
 }
 
@@ -480,6 +519,12 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 		wait_count++;
 	}
 #endif
+#ifdef _WITH_BFD_
+	if (bfd_child > 0) {
+		kill(bfd_child, SIGTERM);
+		wait_count++;
+	}
+#endif
 
 	gettimeofday(&start_time, NULL);
 	while (wait_count) {
@@ -525,6 +570,14 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 			wait_count--;
 		}
 #endif
+#ifdef _WITH_BFD_
+		if (bfd_child > 0 && bfd_child == (pid_t)siginfo.ssi_pid) {
+			report_child_status(status, bfd_child, PROG_BFD);
+			bfd_child = 0;
+			wait_count--;
+		}
+#endif
+
 #else
 		ret = sigtimedwait(&child_wait, NULL, &timeout);
 		if (ret == -1) {
@@ -549,6 +602,14 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 			wait_count--;
 		}
 #endif
+#ifdef _WITH_BFD_
+		if (bfd_child > 0 && bfd_child == waitpid(bfd_child, &status, WNOHANG)) {
+			report_child_status(status, bfd_child, PROG_BFD);
+			bfd_child = 0;
+			wait_count--;
+		}
+#endif
+
 #endif
 
 		if (wait_count) {
@@ -583,6 +644,12 @@ sigend(__attribute__((unused)) void *v, __attribute__((unused)) int sig)
 	if (checkers_child) {
 		log_message(LOG_INFO, "checker process failed to die - forcing termination");
 		kill(checkers_child, SIGKILL);
+	}
+#endif
+#ifdef _WITH_BFD_
+	if (bfd_child) {
+		log_message(LOG_INFO, "bfd process failed to die - forcing termination");
+		kill(bfd_child, SIGKILL);
 	}
 #endif
 
@@ -685,6 +752,9 @@ usage(const char *prog)
 	fprintf(stderr, "  -P, --vrrp                   Only run with VRRP subsystem\n");
 	fprintf(stderr, "  -C, --check                  Only run with Health-checker subsystem\n");
 #endif
+#ifdef _WITH_BFD_
+	fprintf(stderr, "  -B, --no_bfd                    Don't run BFD subsystem\n");
+#endif
 	fprintf(stderr, "  -l, --log-console            Log messages to local console\n");
 	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");
 	fprintf(stderr, "  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n");
@@ -708,6 +778,9 @@ usage(const char *prog)
 #ifdef _WITH_LVS_
 	fprintf(stderr, "  -c, --checkers_pid=FILE      Use specified pidfile for checkers child process\n");
 	fprintf(stderr, "  -a, --address-monitoring     Report all address additions/deletions notified via netlink\n");
+#endif
+#ifdef _WITH_BFD_
+	fprintf(stderr, "  -b, --bfd_pid=FILE           Use specified pidfile for BFD child process\n");
 #endif
 #ifdef _WITH_SNMP_
 	fprintf(stderr, "  -x, --snmp                   Enable SNMP subsystem\n");
@@ -748,6 +821,9 @@ parse_cmdline(int argc, char **argv)
 		{"vrrp",		no_argument,		NULL, 'P'},
 		{"check",		no_argument,		NULL, 'C'},
 #endif
+#ifdef _WITH_BFD_
+		{"no_bfd",		no_argument,		NULL, 'B'},
+#endif
 		{"log-console",		no_argument,		NULL, 'l'},
 		{"log-detail",		no_argument,		NULL, 'D'},
 		{"log-facility",	required_argument,	NULL, 'S'},
@@ -772,6 +848,9 @@ parse_cmdline(int argc, char **argv)
 		{"checkers_pid",	required_argument,	NULL, 'c'},
 		{"address-monitoring",	no_argument,		NULL, 'a'},
 #endif
+#ifdef _WITH_BFD_
+		{"bfd_pid",		required_argument,	NULL, 'b'},
+#endif
 #ifdef _WITH_SNMP_
 		{"snmp",		no_argument,		NULL, 'x'},
 		{"snmp-agent-socket",	required_argument,	NULL, 'A'},
@@ -783,7 +862,7 @@ parse_cmdline(int argc, char **argv)
 #endif
 #if HAVE_DECL_CLONE_NEWNET
 		{"namespace",		required_argument,	NULL, 's'},
-#endif	
+#endif
 		{"config-id",		required_argument,	NULL, 'i'},
 		{"signum",		required_argument,	NULL,  1 },
 		{"version",		no_argument,		NULL, 'v'},
@@ -801,6 +880,9 @@ parse_cmdline(int argc, char **argv)
 #endif
 #ifdef _WITH_LVS_
 					    "ac:I"
+#endif
+#ifdef _WITH_BFD_
+					    "Bb:"
 #endif
 #ifdef _WITH_SNMP_
 					    "xA:"
@@ -854,7 +936,10 @@ parse_cmdline(int argc, char **argv)
 			break;
 #endif
 		case 'D':
-			__set_bit(LOG_DETAIL_BIT, &debug);
+			if (__test_bit(LOG_DETAIL_BIT, &debug))
+				__set_bit(LOG_EXTRA_DETAIL_BIT, &debug);
+			else
+				__set_bit(LOG_DETAIL_BIT, &debug);
 			break;
 		case 'R':
 			__set_bit(DONT_RESPAWN_BIT, &debug);
@@ -887,12 +972,15 @@ parse_cmdline(int argc, char **argv)
 			break;
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 		case 'P':
-			daemon_mode = 0;
-			__set_bit(DAEMON_VRRP, &daemon_mode);
+			__clear_bit(DAEMON_CHECKERS, &daemon_mode);
 			break;
 		case 'C':
-			daemon_mode = 0;
-			__set_bit(DAEMON_CHECKERS, &daemon_mode);
+			__clear_bit(DAEMON_VRRP, &daemon_mode);
+			break;
+#endif
+#ifdef _WITH_BFD_
+		case 'B':
+			__clear_bit(DAEMON_BFD, &daemon_mode);
 			break;
 #endif
 		case 'p':
@@ -909,6 +997,11 @@ parse_cmdline(int argc, char **argv)
 #ifdef _WITH_VRRP_
 		case 'r':
 			vrrp_pidfile = optarg;
+			break;
+#endif
+#ifdef _WITH_BFD_
+		case 'b':
+			bfd_pidfile = optarg;
 			break;
 #endif
 #ifdef _WITH_SNMP_
@@ -994,6 +1087,9 @@ keepalived_main(int argc, char **argv)
 #endif
 #ifdef _WITH_LVS_
 	__set_bit(DAEMON_CHECKERS, &daemon_mode);
+#endif
+#ifdef _WITH_BFD_
+	__set_bit(DAEMON_BFD, &daemon_mode);
 #endif
 
 	/* Open log with default settings so we can log initially */
@@ -1173,6 +1269,10 @@ keepalived_main(int argc, char **argv)
 		if (!vrrp_pidfile && (vrrp_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, instance_name, PID_EXTENSION)))
 			free_vrrp_pidfile = true;
 #endif
+#ifdef _WITH_BFD_
+		if (!bfd_pidfile && (bfd_pidfile = make_pidfile_name(KEEPALIVED_PID_DIR VRRP_PID_FILE, instance_name, PID_EXTENSION)))
+			free_bfd_pidfile = true;
+#endif
 	}
 
 	if (use_pid_dir) {
@@ -1186,6 +1286,10 @@ keepalived_main(int argc, char **argv)
 		if (!vrrp_pidfile)
 			vrrp_pidfile = KEEPALIVED_PID_DIR VRRP_PID_FILE PID_EXTENSION;
 #endif
+#ifdef _WITH_BFD_
+		if (!bfd_pidfile)
+			bfd_pidfile = KEEPALIVED_PID_DIR BFD_PID_FILE PID_EXTENSION;
+#endif
 	}
 	else
 	{
@@ -1198,6 +1302,10 @@ keepalived_main(int argc, char **argv)
 #ifdef _WITH_VRRP_
 		if (!vrrp_pidfile)
 			vrrp_pidfile = PID_DIR VRRP_PID_FILE PID_EXTENSION;
+#endif
+#ifdef _WITH_BFD_
+		if (!bfd_pidfile)
+			bfd_pidfile = PID_DIR BFD_PID_FILE PID_EXTENSION;
 #endif
 	}
 

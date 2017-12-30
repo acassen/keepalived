@@ -33,6 +33,9 @@
 #include "vrrp_if.h"
 #include "vrrp.h"
 #include "notify.h"
+#ifdef _WITH_BFD_
+#include "bfd.h"
+#endif
 
 /* VRRP script tracking defaults */
 #define VRRP_SCRIPT_DI 1	/* external script track interval (in sec) */
@@ -92,6 +95,22 @@ typedef struct _tracked_file {
 	int			weight;		/* Multiplier for file value */
 } tracked_file_t;
 
+#ifdef _WITH_BFD_
+/* external bfd we read to track forwarding to remote systems */
+typedef struct _vrrp_bfd {
+	char			bname[BFD_INAME_MAX];	/* bfd name */
+	int			weight;		/* Default weight */
+	list			tracking_vrrp;	/* List of tracking_vrrp_t for vrrp instances tracking this bfd */
+	bool			bfd_up;		/* Last status returned by bfd. Used to report changes */
+} vrrp_tracked_bfd_t;
+
+/* Tracked bfd structure definition */
+typedef struct _tracked_bfd {
+	vrrp_tracked_bfd_t	*bfd;		/* track bfd pointer, cannot be NULL */
+	int			weight;		/* Weight for bfd */
+} tracked_bfd_t;
+#endif
+
 /* Forward references */
 struct _vrrp_t;
 struct _vrrp_sgroup;
@@ -115,6 +134,13 @@ extern void dump_track_file(void *);
 extern void free_track_file(void *);
 extern void alloc_track_file(struct _vrrp_t *, vector_t *);
 extern void alloc_group_track_file(struct _vrrp_sgroup *, vector_t *);
+#ifdef _WITH_BFD_
+extern vrrp_tracked_bfd_t *find_tracked_bfd_by_name(char *);
+extern void dump_track_bfd(void *);
+extern void free_track_bfd(void *);
+extern void alloc_track_bfd(struct _vrrp_t *, vector_t *);
+extern void alloc_group_track_bfd(struct _vrrp_sgroup *, vector_t *);
+#endif
 extern vrrp_script_t *find_script_by_name(char *);
 extern void update_script_priorities(vrrp_script_t *, bool);
 extern void down_instance(struct _vrrp_t *);

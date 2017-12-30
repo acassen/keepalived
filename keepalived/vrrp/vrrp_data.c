@@ -224,6 +224,21 @@ dump_vfile(void *data)
 		dump_list(vfile->tracking_vrrp);
 }
 
+#ifdef _WITH_BFD_
+/* Track bfd dump */
+static void
+dump_vbfd(void *track_data)
+{
+	vrrp_tracked_bfd_t *vbfd = track_data;
+
+	log_message(LOG_INFO, " VRRP Track BFD = %s", vbfd->bname);
+	log_message(LOG_INFO, "   Weight = %d", vbfd->weight);
+	log_message(LOG_INFO, "   Tracking VRRP = %d", vbfd->tracking_vrrp ? LIST_SIZE(vbfd->tracking_vrrp) : 0);
+	if (vbfd->tracking_vrrp)
+		dump_list(vbfd->tracking_vrrp);
+}
+#endif
+
 /* Socket pool functions */
 static void
 free_sock(void *sock_data)
@@ -369,6 +384,13 @@ dump_vrrp(void *data)
 		log_message(LOG_INFO, "   Tracked files = %d", LIST_SIZE(vrrp->track_file));
 		dump_list(vrrp->track_file);
 	}
+#ifdef _WITH_BFD_
+	if (vrrp->track_bfd) {
+		log_message(LOG_INFO, "   Tracked BFD instances = %d", LIST_SIZE(vrrp->track_bfd));
+		dump_list(vrrp->track_bfd);
+	}
+#endif
+
 	if (!LIST_ISEMPTY(vrrp->unicast_peer)) {
 		log_message(LOG_INFO, "   Unicast Peer = %d", LIST_SIZE(vrrp->unicast_peer));
 		dump_list(vrrp->unicast_peer);
@@ -558,6 +580,18 @@ alloc_vrrp_track_file(vector_t *strvec)
 	alloc_track_file(vrrp, strvec);
 }
 
+#ifdef _WITH_BFD_
+void
+alloc_vrrp_track_bfd(vector_t *strvec)
+{
+	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
+
+	if (!LIST_EXISTS(vrrp->track_bfd))
+		vrrp->track_bfd = alloc_list(free_track_bfd, dump_track_bfd);
+	alloc_track_bfd(vrrp, strvec);
+}
+#endif
+
 void
 alloc_vrrp_group_track_if(vector_t *strvec)
 {
@@ -587,6 +621,18 @@ alloc_vrrp_group_track_file(vector_t *strvec)
 		sgroup->track_file = alloc_list(free_track_file, dump_track_file);
 	alloc_group_track_file(sgroup, strvec);
 }
+
+#ifdef _WITH_BFD_
+void
+alloc_vrrp_group_track_bfd(vector_t *strvec)
+{
+	vrrp_sgroup_t *sgroup = LIST_TAIL_DATA(vrrp_data->vrrp_sync_group);
+
+	if (!LIST_EXISTS(sgroup->track_bfd))
+		sgroup->track_bfd = alloc_list(free_track_bfd, dump_track_bfd);
+	alloc_group_track_bfd(sgroup, strvec);
+}
+#endif
 
 void
 alloc_vrrp_vip(vector_t *strvec)
@@ -692,6 +738,11 @@ alloc_vrrp_buffer(size_t len)
 void
 free_vrrp_buffer(void)
 {
+	/* If the configuration failed, we may not have
+	 * allocated a buffer */
+	if (!vrrp_buffer)
+		return;
+
 	FREE(vrrp_buffer);
 	vrrp_buffer = NULL;
 	vrrp_buffer_len = 0;
@@ -709,6 +760,9 @@ alloc_vrrp_data(void)
 	new->vrrp_sync_group = alloc_list(free_vgroup, dump_vgroup);
 	new->vrrp_script = alloc_list(free_vscript, dump_vscript);
 	new->vrrp_track_files = alloc_list(free_vfile, dump_vfile);
+#ifdef _WITH_BFD_
+	new->vrrp_track_bfds = alloc_list(free_track_bfd, dump_vbfd);
+#endif
 	new->vrrp_socket_pool = alloc_list(free_sock, dump_sock);
 
 	return new;
@@ -726,6 +780,9 @@ free_vrrp_data(vrrp_data_t * data)
 	free_list(&data->vrrp_sync_group);
 	free_list(&data->vrrp_script);
 	free_list(&data->vrrp_track_files);
+#ifdef _WITH_BFD_
+	free_list(&data->vrrp_track_bfds);
+#endif
 	FREE(data);
 }
 
@@ -760,4 +817,10 @@ dump_vrrp_data(vrrp_data_t * data)
 		log_message(LOG_INFO, "------< VRRP Track files >------");
 		dump_list(data->vrrp_track_files);
 	}
+#ifdef _WITH_BFD_
+	if (!LIST_ISEMPTY(data->vrrp_track_bfds)) {
+		log_message(LOG_INFO, "------< VRRP Track BFDs >------");
+		dump_list(data->vrrp_track_bfds);
+	}
+#endif
 }

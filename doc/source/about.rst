@@ -12,8 +12,8 @@ document processor specifically written for the Python documentation.
 Building The Documentation
 **************************
 
-To build the keepalived documentation, you will need to have a recent version 
-of Sphinx installed on your system.  Alternatively, you could use a python 
+To build the keepalived documentation, you will need to have a recent version
+of Sphinx installed on your system.  Alternatively, you could use a python
 virtualenv.
 
 From the root of the repository clone, run the following command to build the

@@ -27,6 +27,8 @@
 #include <netpacket/packet.h>
 #include <net/ethernet.h>
 #include <net/if_arp.h>
+#include <netinet/if_ether.h>   /* musl libc has name collisions if use <linux/if_ether.h> */
+
 
 /* local includes */
 #include "logger.h"
@@ -60,7 +62,7 @@ static ssize_t send_arp(ip_address_t *ipaddress)
 			    IF_NAME(ipaddress->ifp), inet_ntop2(ipaddress->u.sin.sin_addr.s_addr));
 
 	/* Send packet */
-	len = sendto(garp_fd, garp_buffer, sizeof(arphdr_t) + ETHER_HDR_LEN
+	len = sendto(garp_fd, garp_buffer, sizeof(struct ether_arp) + ETHER_HDR_LEN
 		     , 0, (struct sockaddr *)&sll, sizeof(sll));
 	if (len < 0)
 		log_message(LOG_INFO, "Error sending gratuitous ARP on %s for %s",
@@ -72,7 +74,7 @@ static ssize_t send_arp(ip_address_t *ipaddress)
 ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 {
 	struct ether_header *eth = (struct ether_header *) garp_buffer;
-	arphdr_t *arph		 = (arphdr_t *) (garp_buffer + ETHER_HDR_LEN);
+	struct ether_arp *arph	 = (struct ether_arp *) (garp_buffer + ETHER_HDR_LEN);
 	char *hwaddr		 = (char *) IF_HWADDR(ipaddress->ifp);
 	ssize_t len;
 
@@ -82,15 +84,15 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 	eth->ether_type = htons(ETHERTYPE_ARP);
 
 	/* ARP payload */
-	arph->ar_hrd = htons(ARPHRD_ETHER);
-	arph->ar_pro = htons(ETHERTYPE_IP);
-	arph->ar_hln = ETH_ALEN;
-	arph->ar_pln = IPPROTO_ADDR_LEN;
-	arph->ar_op = htons(ARPOP_REQUEST);
-	memcpy(arph->__ar_sha, hwaddr, ETH_ALEN);
-	memcpy(arph->__ar_sip, &ipaddress->u.sin.sin_addr.s_addr, sizeof(struct in_addr));
-	memset(arph->__ar_tha, 0xFF, ETH_ALEN);
-	memcpy(arph->__ar_tip, &ipaddress->u.sin.sin_addr.s_addr, sizeof(struct in_addr));
+	arph->arp_hrd = htons(ARPHRD_ETHER);
+	arph->arp_pro = htons(ETHERTYPE_IP);
+	arph->arp_hln = ETH_ALEN;
+	arph->arp_pln = sizeof(arph->arp_spa);
+	arph->arp_op = htons(ARPOP_REQUEST);
+	memcpy(arph->arp_sha, hwaddr, ETH_ALEN);
+	memcpy(arph->arp_spa, &ipaddress->u.sin.sin_addr.s_addr, sizeof(arph->arp_spa));
+	memset(arph->arp_tha, 0xFF, ETH_ALEN);
+	memcpy(arph->arp_tpa, &ipaddress->u.sin.sin_addr.s_addr, sizeof(arph->arp_tpa));
 
 	/* Send the ARP message */
 	len = send_arp(ipaddress);
@@ -100,7 +102,7 @@ ssize_t send_gratuitous_arp_immediate(interface_t *ifp, ip_address_t *ipaddress)
 		ifp->garp_delay->garp_next_time = timer_add_now(ifp->garp_delay->garp_interval);
 
 	/* Cleanup room for next round */
-	memset(garp_buffer, 0, sizeof(arphdr_t) + ETHER_HDR_LEN);
+	memset(garp_buffer, 0, sizeof(struct ether_arp) + ETHER_HDR_LEN);
 	return len;
 }
 
@@ -147,7 +149,7 @@ void send_gratuitous_arp(vrrp_t *vrrp, ip_address_t *ipaddress)
 void gratuitous_arp_init(void)
 {
 	/* Initalize shared buffer */
-	garp_buffer = (char *)MALLOC(sizeof(arphdr_t) + ETHER_HDR_LEN);
+	garp_buffer = (char *)MALLOC(sizeof(struct ether_arp) + ETHER_HDR_LEN);
 
 	/* Create the socket descriptor */
 	garp_fd = socket(PF_PACKET, SOCK_RAW | SOCK_CLOEXEC, htons(ETH_P_RARP));

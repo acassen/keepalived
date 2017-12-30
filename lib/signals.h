@@ -48,6 +48,9 @@ extern void signal_handler_child_init(void);
 extern void signal_handler_destroy(void);
 extern void signal_handler_script(void);
 extern void signal_run_callback(void);
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+extern void set_sigxcpu_handler(void);
+#endif
 
 extern int signal_rfd(void);
 extern void signal_fd_close(int);

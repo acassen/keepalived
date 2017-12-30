@@ -56,6 +56,9 @@
 #ifdef _WITH_LVS_
 #include "check_parser.h"
 #endif
+#ifdef _WITH_BFD_
+#include "bfd_parser.h"
+#endif
 
 /* Used for initialising track files */
 static enum {
@@ -154,6 +157,14 @@ vrrp_group_track_file_handler(__attribute__((unused)) vector_t *strvec)
 {
 	alloc_value_block(alloc_vrrp_group_track_file);
 }
+
+#if defined _WITH_BFD_
+static void
+vrrp_group_track_bfd_handler(__attribute__((unused)) vector_t *strvec)
+{
+	alloc_value_block(alloc_vrrp_group_track_bfd);
+}
+#endif
 
 static inline notify_script_t*
 set_vrrp_notify_script(vector_t *strvec, bool with_params)
@@ -380,6 +391,13 @@ vrrp_dont_track_handler(__attribute__((unused)) vector_t *strvec)
 	vrrp_t *vrrp = LIST_TAIL_DATA(vrrp_data->vrrp);
 	vrrp->dont_track_primary = true;
 }
+#ifdef _WITH_BFD_
+static void
+vrrp_track_bfd_handler(__attribute__((unused)) vector_t *strvec)
+{
+	alloc_value_block(alloc_vrrp_track_bfd);
+}
+#endif
 static void
 vrrp_srcip_handler(vector_t *strvec)
 {
@@ -1105,6 +1123,9 @@ init_vrrp_keywords(bool active)
 	install_keyword("track_interface", &vrrp_group_track_if_handler);
 	install_keyword("track_script", &vrrp_group_track_scr_handler);
 	install_keyword("track_file", &vrrp_group_track_file_handler);
+#ifdef _WITH_BFD_
+	install_keyword("track_bfd", &vrrp_group_track_bfd_handler);
+#endif
 	install_keyword("notify_backup", &vrrp_gnotify_backup_handler);
 	install_keyword("notify_master", &vrrp_gnotify_master_handler);
 	install_keyword("notify_fault", &vrrp_gnotify_fault_handler);
@@ -1136,6 +1157,9 @@ init_vrrp_keywords(bool active)
 	install_keyword("track_interface", &vrrp_track_if_handler);
 	install_keyword("track_script", &vrrp_track_scr_handler);
 	install_keyword("track_file", &vrrp_track_file_handler);
+#ifdef _WITH_BFD_
+	install_keyword("track_bfd", &vrrp_track_bfd_handler);
+#endif
 	install_keyword("mcast_src_ip", &vrrp_srcip_handler);
 	install_keyword("unicast_src_ip", &vrrp_srcip_handler);
 	install_keyword("track_src_ip", &vrrp_track_srcip_handler);
@@ -1211,6 +1235,9 @@ vrrp_init_keywords(void)
 	init_vrrp_keywords(true);
 #ifdef _WITH_LVS_
 	init_check_keywords(false);
+#endif
+#ifdef _WITH_BFD_
+	init_bfd_keywords(true);
 #endif
 
 	return keywords;

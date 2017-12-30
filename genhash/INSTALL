@@ -40,7 +40,7 @@ Utilisation
   We want to generate a MD5SUM over the server root url (/).
   To proceed, simply use :
 
-  [user@lvs]$ genhash -s 192.168.200.10 -p 80 -u / 
+  [user@lvs]$ genhash -s 192.168.200.10 -p 80 -u /
   -----------------------[    HTTP Header Buffer    ]-----------------------
   0000  48 54 54 50 2f 31 2e 31 - 20 32 30 30 20 4f 4b 0d   HTTP/1.1 200 OK.
   0010  0a 44 61 74 65 3a 20 57 - 65 64 2c 20 32 38 20 4e   .Date: Wed, 28 N
@@ -62,7 +62,7 @@ Utilisation
 
   Genhash can generate hash values over SSL content. Using the same sample
   we will obtain :
-  [user@lvs]$ genhash -S -s 192.168.200.10 -p 443 -u / 
+  [user@lvs]$ genhash -S -s 192.168.200.10 -p 443 -u /
   -----------------------[    HTTP Header Buffer    ]-----------------------
   0000  48 54 54 50 2f 31 2e 31 - 20 32 30 30 20 4f 4b 0d   HTTP/1.1 200 OK.
   0010  0a 44 61 74 65 3a 20 57 - 65 64 2c 20 32 38 20 4e   .Date: Wed, 28 N

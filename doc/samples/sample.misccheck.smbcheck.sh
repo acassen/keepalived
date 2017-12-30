@@ -10,7 +10,7 @@ fi
 if [ -z "$1" ] ; then
 	echo "Usage: $0 <ip address>"
 	exit 2
-fi 
+fi
 
 ($SAMBA_BIN -N -L $1 -W CENTRALB -U nobody) \
  | egrep '^Domain=\[[A-Za-z0-9_-]+\]' > /dev/null 2>&1

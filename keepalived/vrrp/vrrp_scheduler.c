@@ -54,11 +54,20 @@
 #ifdef _WITH_SNMP_RFCV3_
 #include "vrrp_snmp.h"
 #endif
+#ifdef _WITH_BFD_
+#include "bfd_event.h"
+#include "bfd_daemon.h"
+#endif
 
 /* global vars */
 timeval_t garp_next_time;
 thread_t *garp_thread;
 bool vrrp_initialised;
+
+/* local variables */
+#ifdef _WITH_BFD_
+thread_t *bfd_thread;		 /* BFD control pipe read thread */
+#endif
 
 /* VRRP FSM (Finite State Machine) design.
  *
@@ -87,6 +96,9 @@ bool vrrp_initialised;
 
 static int vrrp_script_child_thread(thread_t * thread);
 static int vrrp_script_thread(thread_t * thread);
+#ifdef _WITH_BFD_
+static int vrrp_bfd_thread(thread_t * thread);
+#endif
 
 static int vrrp_read_dispatcher_thread(thread_t *);
 
@@ -393,6 +405,14 @@ vrrp_register_workers(list l)
 		vrrp_init_script(vrrp_data->vrrp_script);
 	}
 
+#ifdef _WITH_BFD_
+	if (!LIST_ISEMPTY(vrrp_data->vrrp)) {
+		/* Init BFD tracking thread */
+		bfd_thread = thread_add_read(master, vrrp_bfd_thread, NULL,
+					     bfd_event_pipe[0], TIMER_HZ);
+	}
+#endif
+
 	/* Register VRRP workers threads */
 	for (e = LIST_HEAD(l); e; ELEMENT_NEXT(e)) {
 		sock = ELEMENT_DATA(e);
@@ -586,6 +606,9 @@ void
 vrrp_dispatcher_release(vrrp_data_t *data)
 {
 	free_list(&data->vrrp_socket_pool);
+#ifdef _WITH_BFD_
+	thread_cancel(bfd_thread);
+#endif
 }
 
 static void
@@ -700,6 +723,70 @@ try_up_instance(vrrp_t *vrrp, bool leaving_init)
 			vrrp_sync_backup(vrrp);
 	}
 }
+
+#ifdef _WITH_BFD_
+static void
+vrrp_handle_bfd_event(bfd_event_t * evt)
+{
+	vrrp_tracked_bfd_t *vbfd;
+	tracking_vrrp_t *tbfd;
+	vrrp_t * vrrp;
+	element e, e1;
+	struct timeval time_now;
+	struct timeval timer_tmp;
+	uint32_t delivery_time;
+
+	if (__test_bit(LOG_DETAIL_BIT, &debug)) {
+		time_now = timer_now();
+		timersub(&time_now, &evt->sent_time, &timer_tmp);
+		delivery_time = timer_tol(timer_tmp);
+		log_message(LOG_INFO, "Received BFD event: instance %s is in"
+			    " state %s (delivered in %i usec)",
+			    evt->iname, BFD_STATE_STR(evt->state), delivery_time);
+	}
+
+	LIST_FOREACH(vrrp_data->vrrp_track_bfds, vbfd, e) {
+		if (strcmp(vbfd->bname, evt->iname))
+			continue;
+
+		if ((vbfd->bfd_up && evt->state == BFD_STATE_UP) ||
+		    (!vbfd->bfd_up && evt->state == BFD_STATE_DOWN))
+			continue;
+
+		vbfd->bfd_up = (evt->state == BFD_STATE_UP);
+
+		LIST_FOREACH(vbfd->tracking_vrrp, tbfd, e1) {
+			vrrp = tbfd->vrrp;
+
+			log_message(LOG_INFO, "VRRP_Instance(%s) Tracked BFD"
+				    " instance %s is %s", vrrp->iname, evt->iname, vbfd->bfd_up ? "UP" : "DOWN");
+			if (vbfd->bfd_up)
+				try_up_instance(vrrp, false);
+			else
+				down_instance(vrrp);
+		}
+
+		break;
+	}
+}
+
+static int
+vrrp_bfd_thread(thread_t * thread)
+{
+	bfd_event_t evt;
+
+	bfd_thread = thread_add_read(master, vrrp_bfd_thread, NULL,
+				     thread->u.fd, TIMER_HZ * 60);
+
+	if (thread->type != THREAD_READY_FD)
+		return 0;
+
+	while (read(thread->u.fd, &evt, sizeof(bfd_event_t)) != -1)
+		vrrp_handle_bfd_event(&evt);
+
+	return 0;
+}
+#endif
 
 /* Handle dispatcher read timeout */
 static int

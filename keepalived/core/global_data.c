@@ -36,6 +36,9 @@
 #include "vrrp.h"
 #include "vrrp_ipaddress.h"
 #endif
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+#include "process.h"
+#endif
 
 /* global vars */
 data_t *global_data = NULL;
@@ -152,9 +155,20 @@ alloc_global_data(void)
 	new->notify_fifo.fd = -1;
 #ifdef _WITH_VRRP_
 	new->vrrp_notify_fifo.fd = -1;
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	new->vrrp_rlimit_rt = RT_RLIMIT_DEFAULT;
+#endif
 #endif
 #ifdef _WITH_LVS_
 	new->lvs_notify_fifo.fd = -1;
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	new->checker_rlimit_rt = RT_RLIMIT_DEFAULT;
+#endif
+#ifdef _WITH_BFD_
+#if HAVE_DECL_RLIMIT_RTTIME == 1
+	new->bfd_rlimit_rt = RT_RLIMIT_DEFAULT;
+#endif
+#endif
 #endif
 
 #ifdef _WITH_SNMP_
