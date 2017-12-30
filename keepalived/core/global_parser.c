@@ -31,6 +31,9 @@
 #include <pwd.h>
 #include <grp.h>
 #include <ctype.h>
+#ifdef _HAVE_SCHED_RT_
+#include <sched.h>
+#endif
 
 #ifdef _WITH_SNMP_
 #include "snmp.h"

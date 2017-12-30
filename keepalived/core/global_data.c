@@ -164,8 +164,10 @@ alloc_global_data(void)
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	new->checker_rlimit_rt = RT_RLIMIT_DEFAULT;
 #endif
+#ifdef _WITH_BFD_
 #if HAVE_DECL_RLIMIT_RTTIME == 1
 	new->bfd_rlimit_rt = RT_RLIMIT_DEFAULT;
+#endif
 #endif
 #endif
 
