@@ -233,10 +233,14 @@ bfd_check_packet(const bfdpkt_t *pkt)
 	}
 
 	/* Generalized TTL Security Mechanism Check (RFC5881) */
-	if (pkt->ttl && pkt->ttl != BFD_CONTROL_TTL) {
+	if (pkt->ttl &&
+	    ((pkt->src_addr.ss_family == AF_INET && pkt->ttl != BFD_CONTROL_TTL) ||
+	     (pkt->src_addr.ss_family == AF_INET6 && pkt->ttl != BFD_CONTROL_HOPLIMIT))) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_ERR, "Packet ttl(%i) != %i",
-				    pkt->ttl, BFD_CONTROL_TTL);
+			log_message(LOG_ERR, "Packet %s(%i) != %i",
+				    pkt->src_addr.ss_family == AF_INET ? "ttl" : "hop_limit",
+				    pkt->ttl,
+				    pkt->src_addr.ss_family == AF_INET ? BFD_CONTROL_TTL : BFD_CONTROL_HOPLIMIT);
 		return true;
 	}
 

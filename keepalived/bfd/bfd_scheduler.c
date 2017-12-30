@@ -817,11 +817,13 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
 	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-		if (cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_TTL) {
-			log_message(LOG_WARNING, "recvmsg() received"
-				    " unexpected control message");
-		} else
+		if ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_TTL) ||
+		    (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_HOPLIMIT))
 			ttl = *CMSG_DATA(cmsg);
+		else
+			log_message(LOG_WARNING, "recvmsg() received"
+				    " unexpected control message (level %d type %d)",
+				    cmsg->cmsg_level, cmsg->cmsg_type);
 	}
 
 	if (!ttl)
@@ -846,6 +848,7 @@ bfd_receiver_thread(thread_t *thread)
 	bfdpkt_t pkt;
 	int ret;
 	int fd;
+	thread_t **thread_p;
 
 	assert(thread);
 
@@ -855,7 +858,12 @@ bfd_receiver_thread(thread_t *thread)
 	fd = thread->u.fd;
 	assert(fd >= 0);
 
-	data->thread_in = NULL;
+	if (fd == data->fd_in)
+		thread_p = &data->thread_in;
+	else
+		thread_p = &data->thread_in6;
+
+	*thread_p = NULL;
 
 	/* Ignore THREAD_READ_TIMEOUT */
 	if (thread->type == THREAD_READY_FD) {
@@ -864,7 +872,7 @@ bfd_receiver_thread(thread_t *thread)
 			bfd_handle_packet(&pkt);
 	}
 
-	data->thread_in =
+	*thread_p =
 	    thread_add_read(thread->master, bfd_receiver_thread, data,
 			    fd, TIMER_NEVER);
 
@@ -877,18 +885,18 @@ bfd_receiver_thread(thread_t *thread)
 
 /* Prepares UDP socket for listening on *:3784 (both IPv4 and IPv6) */
 static int
-bfd_open_fd_in(bfd_data_t *data)
+bfd_open_fd_in(bfd_data_t *data, int family)
 {
 	struct addrinfo hints;
 	struct addrinfo *ai_in;
 	int ret;
 	int yes = 1;
+	int fd_in = -1;
 
 	assert(data);
-	assert(data->fd_in == -1);
 
 	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
+	hints.ai_family = family;
 	hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
 	hints.ai_protocol = IPPROTO_UDP;
 	hints.ai_socktype = SOCK_DGRAM;
@@ -897,25 +905,31 @@ bfd_open_fd_in(bfd_data_t *data)
 
 	if ((ret = getaddrinfo(NULL, BFD_CONTROL_PORT, &hints, &ai_in)))
 		log_message(LOG_ERR, "getaddrinfo() error (%s)", gai_strerror(ret));
-	else if ((data->fd_in = socket(ai_in->ai_family, ai_in->ai_socktype, ai_in->ai_protocol)) == -1)
+	else if ((fd_in = socket(family, ai_in->ai_socktype, ai_in->ai_protocol)) == -1)
 		log_message(LOG_ERR, "socket() error (%m)");
-	else if ((ret = setsockopt(data->fd_in, IPPROTO_IP, IP_RECVTTL, &yes, sizeof (yes))) == -1)
+	else if ((ret = setsockopt(fd_in, (family == AF_INET) ? IPPROTO_IP : IPPROTO_IPV6, (family == AF_INET) ? IP_RECVTTL : IPV6_RECVHOPLIMIT, &yes, sizeof (yes))) == -1)
 		log_message(LOG_ERR, "setsockopt() error (%m)");
-	else if ((ret = bind(data->fd_in, ai_in->ai_addr, ai_in->ai_addrlen)) == -1)
+	else if (family == AF_INET6 && (ret = setsockopt(fd_in, IPPROTO_IPV6, IPV6_V6ONLY, &yes, sizeof(yes))) == -1)
+		log_message(LOG_ERR, "setsockopt(IPV6ONLY) error (%m)");
+	else if ((ret = bind(fd_in, ai_in->ai_addr, ai_in->ai_addrlen)) == -1)
 		log_message(LOG_ERR, "bind() error (%m)");
 
-	if (ret)
-		ret = 1;
+	if (ret) {
+		if (fd_in != -1) {
+			close(fd_in);
+			fd_in = -1;
+		}
+	}
 
 	freeaddrinfo(ai_in);
-	return ret;
+	return fd_in;
 }
 
 /* Prepares UDP socket for sending data to neighbor */
 static int
 bfd_open_fd_out(bfd_t *bfd)
 {
-	int ttl = BFD_CONTROL_TTL;
+	int ttl;
 	int ret;
 
 	assert(bfd);
@@ -940,7 +954,13 @@ bfd_open_fd_out(bfd_t *bfd)
 		}
 	}
 
-	ret = setsockopt(bfd->fd_out, IPPROTO_IP, IP_TTL, &ttl, sizeof (ttl));
+	if (bfd->nbr_addr.ss_family == AF_INET) {
+		ttl = BFD_CONTROL_TTL;
+		ret = setsockopt(bfd->fd_out, IPPROTO_IP, IP_TTL, &ttl, sizeof (ttl));
+	} else {
+		ttl = BFD_CONTROL_HOPLIMIT;
+		ret = setsockopt(bfd->fd_out, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &ttl, sizeof (ttl));
+	}
 	if (ret == -1) {
 		log_message(LOG_ERR, "BFD_Instance(%s) setsockopt() "
 			    " error (%m)", bfd->iname);
@@ -951,24 +971,16 @@ bfd_open_fd_out(bfd_t *bfd)
 }
 
 /* Opens all needed sockets */
-static int
+static bool
 bfd_open_fds(bfd_data_t *data)
 {
 	bfd_t *bfd;
 	element e;
+	bool using_ipv4 = false;
+	bool using_ipv6 = false;
 
 	assert(data);
 	assert(data->bfd);
-
-	/* Do not reopen input socket on reload */
-	if (bfd_data->fd_in == -1) {
-		if (bfd_open_fd_in(data)) {
-			log_message(LOG_ERR, "Unable to open listening socket");
-
-			/* There is no point to stay alive w/o listening socket */
-			return 1;
-		}
-	}
 
 	for (e = LIST_HEAD(data->bfd); e; ELEMENT_NEXT(e)) {
 		bfd = ELEMENT_DATA(e);
@@ -980,6 +992,39 @@ bfd_open_fds(bfd_data_t *data)
 				    bfd->iname);
 			bfd_state_admindown(bfd);
 		}
+		else {
+			if (bfd->nbr_addr.ss_family == AF_INET6)
+				using_ipv6 = true;
+			else
+				using_ipv4 = true;
+		}
+	}
+
+	/* Do not reopen input socket on reload */
+	if (bfd_data->fd_in == -1) {
+		if (using_ipv4 && (bfd_data->fd_in = bfd_open_fd_in(data, AF_INET)) == -1) {
+			log_message(LOG_ERR, "Unable to open IPv4 listening socket");
+
+			/* There is no point to stay alive w/o listening socket */
+			return 1;
+		}
+	}
+	else if (!using_ipv4) {
+		close(bfd_data->fd_in);
+		bfd_data->fd_in = -1;
+	}
+
+	if (bfd_data->fd_in6 == -1) {
+		if (using_ipv6 && (bfd_data->fd_in6 = bfd_open_fd_in(data, AF_INET6)) == -1) {
+			log_message(LOG_ERR, "Unable to open IPv6 listening socket");
+
+			/* There is no point to stay alive w/o listening socket */
+			return 1;
+		}
+	}
+	else if (!using_ipv6) {
+		close(bfd_data->fd_in6);
+		bfd_data->fd_in6 = -1;
 	}
 
 	return 0;
@@ -996,8 +1041,12 @@ bfd_register_workers(bfd_data_t *data)
 	assert(!data->thread_in);
 
 	/* Set timeout to not expire */
-	data->thread_in = thread_add_read(master, bfd_receiver_thread,
-					  data, data->fd_in, TIMER_NEVER);
+	if (data->fd_in != -1)
+		data->thread_in = thread_add_read(master, bfd_receiver_thread,
+						  data, data->fd_in, TIMER_NEVER);
+	if (data->fd_in6 != -1)
+		data->thread_in6 = thread_add_read(master, bfd_receiver_thread,
+						  data, data->fd_in6, TIMER_NEVER);
 
 	/* Resume or schedule threads */
 	for (e = LIST_HEAD(data->bfd); e; ELEMENT_NEXT(e)) {
@@ -1087,7 +1136,7 @@ bfd_dispatcher_init(thread_t *thread)
 	assert(thread);
 
 	data = THREAD_ARG(thread);
-	if (bfd_open_fds(data) == -1)
+	if (bfd_open_fds(data))
 		exit(EXIT_FAILURE);
 
 	bfd_register_workers(data);

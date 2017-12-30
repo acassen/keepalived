@@ -34,6 +34,7 @@
  */
 #define BFD_CONTROL_PORT	"3784"
 #define BFD_CONTROL_TTL		255
+#define BFD_CONTROL_HOPLIMIT	64
 
 /*
  * Default parameters and limits

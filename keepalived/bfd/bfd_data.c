@@ -154,6 +154,7 @@ alloc_bfd_data(void)
 	/* Initialize internal variables */
 	data->thread_in = NULL;
 	data->fd_in = -1;
+	data->fd_in6 = -1;
 
 	return data;
 }
@@ -201,8 +202,10 @@ bfd_complete_init(void)
 	}
 
 	/* Copy old input fd on reload */
-	if (reload)
+	if (reload) {
 		bfd_data->fd_in = old_bfd_data->fd_in;
+		bfd_data->fd_in6 = old_bfd_data->fd_in6;
+	}
 }
 
 /*
