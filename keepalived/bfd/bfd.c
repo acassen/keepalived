@@ -241,6 +241,7 @@ bfd_check_packet(const bfdpkt_t *pkt)
 				    pkt->src_addr.ss_family == AF_INET ? "ttl" : "hop_limit",
 				    pkt->ttl,
 				    pkt->src_addr.ss_family == AF_INET ? BFD_CONTROL_TTL : BFD_CONTROL_HOPLIMIT);
+
 		return true;
 	}
 
