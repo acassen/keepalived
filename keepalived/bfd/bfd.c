@@ -232,14 +232,6 @@ bfd_check_packet(const bfdpkt_t *pkt)
 		return true;
 	}
 
-	/* Generalized TTL Security Mechanism Check (RFC5881) */
-	if (pkt->ttl && pkt->ttl != BFD_CONTROL_TTL) {
-		if (__test_bit(LOG_DETAIL_BIT, &debug))
-			log_message(LOG_ERR, "Packet ttl(%i) != %i",
-				    pkt->ttl, BFD_CONTROL_TTL);
-		return true;
-	}
-
 	/* Main Checks (RFC5880) */
 	if (pkt->hdr->version != BFD_VERSION_1) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
@@ -298,6 +290,24 @@ bfd_check_packet(const bfdpkt_t *pkt)
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
 			log_message(LOG_ERR, "Packet has invalid 'diag'"
 				    " field: %u", pkt->hdr->diag);
+		return true;
+	}
+
+	return false;
+}
+
+bool
+bfd_check_packet_ttl(const bfdpkt_t *pkt, const bfd_t *bfd)
+{
+	/* Generalized TTL Security Mechanism Check (RFC5881)
+	 * - extended so we can specify a maximum number of hops */
+	if (pkt->ttl && bfd->max_hops + pkt->ttl < bfd->ttl) {
+		if (__test_bit(LOG_DETAIL_BIT, &debug))
+			log_message(LOG_ERR, "Packet %s(%i) < %i - discarding",
+				    pkt->src_addr.ss_family == AF_INET ? "ttl" : "hop_limit",
+				    pkt->ttl,
+				    bfd->ttl - bfd->max_hops);
+
 		return true;
 	}
 

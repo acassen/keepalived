@@ -426,7 +426,7 @@ reset_promote_secondaries_sysctl(interface_t *ifp)
 static inline void
 set_interface_parameters_sysctl(const interface_t *ifp, interface_t *base_ifp)
 {
-	int val;
+	unsigned val;
 
 	set_sysctl("net/ipv4/conf", ifp->ifname, "arp_ignore", 1);
 	set_sysctl("net/ipv4/conf", ifp->ifname, "accept_local", 1);

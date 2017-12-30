@@ -219,6 +219,54 @@ bfd_multiplier_handler(vector_t *strvec)
 		bfd->local_detect_mult = value;
 }
 
+static void
+bfd_ttl_handler(vector_t *strvec)
+{
+	bfd_t *bfd;
+	char *endptr;
+	unsigned long value;
+
+	assert(strvec);
+	assert(bfd_data);
+
+	bfd = LIST_TAIL_DATA(bfd_data->bfd);
+	assert(bfd);
+
+	value = strtoul(vector_slot(strvec, 1), &endptr, 10);
+
+	if (*endptr || value == 0 || value > BFD_TTL_MAX) {
+		log_message(LOG_ERR, "Configuration error: BFD instance %s"
+			    " ttl/hoplimit value %s not valid (must be in range"
+			    " [1-%u]), ignoring", bfd->iname,
+			    FMT_STR_VSLOT(strvec, 1), BFD_TTL_MAX);
+	} else
+		bfd->ttl = value;
+}
+
+static void
+bfd_maxhops_handler(vector_t *strvec)
+{
+	bfd_t *bfd;
+	char *endptr;
+	long value;
+
+	assert(strvec);
+	assert(bfd_data);
+
+	bfd = LIST_TAIL_DATA(bfd_data->bfd);
+	assert(bfd);
+
+	value = strtol(vector_slot(strvec, 1), &endptr, 10);
+
+	if (*endptr || value < -1 || value > BFD_TTL_MAX) {
+		log_message(LOG_ERR, "Configuration error: BFD instance %s"
+			    " max_hops value %s not valid (must be in range"
+			    " [-1-%u]), ignoring", bfd->iname,
+			    FMT_STR_VSLOT(strvec, 1), BFD_TTL_MAX);
+	} else
+		bfd->max_hops = value;
+}
+
 /* Checks for minimum configuration requirements */
 static void
 bfd_config_check_handler(void)
@@ -233,6 +281,7 @@ bfd_config_check_handler(void)
 			    " no neighbor address set, disabling instance",
 			    bfd->iname);
 		list_del(bfd_data->bfd, bfd);
+		return;
 	}
 
 	if (bfd->src_addr.ss_family
@@ -244,6 +293,14 @@ bfd_config_check_handler(void)
 			    bfd->iname, inet_sockaddrtos(&bfd->src_addr)
 			    , inet_sockaddrtos(&bfd->nbr_addr));
 		list_del(bfd_data->bfd, bfd);
+		return;
+	}
+
+	if (!bfd->ttl)
+		bfd->ttl = bfd->nbr_addr.ss_family == AF_INET ? BFD_CONTROL_TTL : BFD_CONTROL_HOPLIMIT;
+	if (bfd->max_hops > bfd->ttl) {
+		log_message(LOG_INFO, "BFD instance %s: max_hops exceeds ttl/hoplimit - setting to ttl/hoplimit", bfd->iname);
+		bfd->max_hops = bfd->ttl;
 	}
 }
 
@@ -328,6 +385,9 @@ init_bfd_keywords(bool active)
 		install_keyword("min_tx", &bfd_mintx_handler);
 		install_keyword("idle_tx", &bfd_idletx_handler);
 		install_keyword("multiplier", &bfd_multiplier_handler);
+		install_keyword("ttl", &bfd_ttl_handler);
+		install_keyword("hoplimit", &bfd_ttl_handler);
+		install_keyword("max_hops", &bfd_maxhops_handler);
 
 #ifdef _WITH_VRRP_
 		install_keyword("weight", &ignore_handler);
@@ -342,6 +402,9 @@ init_bfd_keywords(bool active)
 		install_keyword("min_tx", &ignore_handler);
 		install_keyword("idle_tx", &ignore_handler);
 		install_keyword("multiplier", &ignore_handler);
+		install_keyword("ttl", &ignore_handler);
+		install_keyword("hoplimit", &ignore_handler);
+		install_keyword("max_hops", &ignore_handler);
 
 		install_keyword("weight", &bfd_vrrp_weight_handler);
 	}

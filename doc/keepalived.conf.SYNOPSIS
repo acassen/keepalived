@@ -519,6 +519,10 @@ bfd_instance <STRING> {
     multiplier <INTEGER>               # Number of missed packets after
                                        # which the session is declared down
                                        # (default is 5)
+    ttl <INTEGER 0..255>               # outgoing IPv4 ttl to use (default 255)
+    hoplimit <INTEGER 0..255>          # outgoing IPv6 hoplimit to use (default 64)
+    max_hops <INTEGER 0..255>          # maximum reduction of ttl/hoplimit in received packet (default 0)
+                                       #   (255 disables hop count checking)
     weight                             # Default tracking weight
 }
 

@@ -648,6 +648,11 @@ bfd_handle_packet(bfdpkt_t *pkt)
 		return;
 	}
 
+	/* We can't check the TTL any earlier, since we need to know what
+	 * is configured for this particular instance */
+	if (bfd->max_hops != UCHAR_MAX && bfd_check_packet_ttl(pkt, bfd))
+		return;
+
 	/* Authentication is not supported for now */
 	if (pkt->hdr->auth != 0) {
 		if (__test_bit(LOG_DETAIL_BIT, &debug))
@@ -817,11 +822,13 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 
 	for (cmsg = CMSG_FIRSTHDR(&msg); cmsg != NULL;
 	     cmsg = CMSG_NXTHDR(&msg, cmsg)) {
-		if (cmsg->cmsg_level != IPPROTO_IP || cmsg->cmsg_type != IP_TTL) {
-			log_message(LOG_WARNING, "recvmsg() received"
-				    " unexpected control message");
-		} else
+                if ((cmsg->cmsg_level == IPPROTO_IP && cmsg->cmsg_type == IP_TTL) ||
+                    (cmsg->cmsg_level == IPPROTO_IPV6 && cmsg->cmsg_type == IPV6_HOPLIMIT))
 			ttl = *CMSG_DATA(cmsg);
+		else
+			log_message(LOG_WARNING, "recvmsg() received"
+				    " unexpected control message (level %d type %d)",
+				    cmsg->cmsg_level, cmsg->cmsg_type);
 	}
 
 	if (!ttl)
@@ -830,6 +837,12 @@ bfd_receive_packet(bfdpkt_t *pkt, int fd, char *buf, ssize_t bufsz)
 	pkt->hdr = (bfdhdr_t *) buf;
 	pkt->len = len;
 	pkt->ttl = ttl;
+
+	/* Convert an IPv4-mapped IPv6 address to a real IPv4 address */
+	if (IN6_IS_ADDR_V4MAPPED(&((struct sockaddr_in6 *)&pkt->src_addr)->sin6_addr)) {
+		((struct sockaddr_in *)&pkt->src_addr)->sin_addr.s_addr = ((struct sockaddr_in6 *)&pkt->src_addr)->sin6_addr.s6_addr32[3];
+		pkt->src_addr.ss_family = AF_INET;
+	}
 
 	return 0;
 }
@@ -888,7 +901,7 @@ bfd_open_fd_in(bfd_data_t *data)
 	assert(data->fd_in == -1);
 
 	memset(&hints, 0, sizeof hints);
-	hints.ai_family = AF_UNSPEC;
+	hints.ai_family = AF_INET6;
 	hints.ai_flags = AI_NUMERICSERV | AI_PASSIVE;
 	hints.ai_protocol = IPPROTO_UDP;
 	hints.ai_socktype = SOCK_DGRAM;
@@ -897,10 +910,12 @@ bfd_open_fd_in(bfd_data_t *data)
 
 	if ((ret = getaddrinfo(NULL, BFD_CONTROL_PORT, &hints, &ai_in)))
 		log_message(LOG_ERR, "getaddrinfo() error (%s)", gai_strerror(ret));
-	else if ((data->fd_in = socket(ai_in->ai_family, ai_in->ai_socktype, ai_in->ai_protocol)) == -1)
+	else if ((data->fd_in = socket(AF_INET6, ai_in->ai_socktype, ai_in->ai_protocol)) == -1)
 		log_message(LOG_ERR, "socket() error (%m)");
 	else if ((ret = setsockopt(data->fd_in, IPPROTO_IP, IP_RECVTTL, &yes, sizeof (yes))) == -1)
-		log_message(LOG_ERR, "setsockopt() error (%m)");
+		log_message(LOG_ERR, "setsockopt(IP_RECVTTL) error (%m)");
+	else if ((ret = setsockopt(data->fd_in, IPPROTO_IPV6, IPV6_RECVHOPLIMIT, &yes, sizeof (yes))) == -1)
+		log_message(LOG_ERR, "setsockopt(IPV6_RECVHOPLIMIT) error (%m)");
 	else if ((ret = bind(data->fd_in, ai_in->ai_addr, ai_in->ai_addrlen)) == -1)
 		log_message(LOG_ERR, "bind() error (%m)");
 
@@ -915,7 +930,7 @@ bfd_open_fd_in(bfd_data_t *data)
 static int
 bfd_open_fd_out(bfd_t *bfd)
 {
-	int ttl = BFD_CONTROL_TTL;
+	int ttl;
 	int ret;
 
 	assert(bfd);
@@ -940,7 +955,12 @@ bfd_open_fd_out(bfd_t *bfd)
 		}
 	}
 
-	ret = setsockopt(bfd->fd_out, IPPROTO_IP, IP_TTL, &ttl, sizeof (ttl));
+	ttl = bfd->ttl;
+	if (bfd->nbr_addr.ss_family == AF_INET)
+		ret = setsockopt(bfd->fd_out, IPPROTO_IP, IP_TTL, &ttl, sizeof (ttl));
+	else
+		ret = setsockopt(bfd->fd_out, IPPROTO_IPV6, IPV6_UNICAST_HOPS, &ttl, sizeof (ttl));
+
 	if (ret == -1) {
 		log_message(LOG_ERR, "BFD_Instance(%s) setsockopt() "
 			    " error (%m)", bfd->iname);
@@ -1087,7 +1107,7 @@ bfd_dispatcher_init(thread_t *thread)
 	assert(thread);
 
 	data = THREAD_ARG(thread);
-	if (bfd_open_fds(data) == -1)
+	if (bfd_open_fds(data))
 		exit(EXIT_FAILURE);
 
 	bfd_register_workers(data);

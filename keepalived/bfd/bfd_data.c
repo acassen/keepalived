@@ -57,6 +57,9 @@ alloc_bfd(char *name)
 	bfd->local_idle_tx_intv = BFD_IDLETX_DEFAULT * 1000;
 	bfd->local_detect_mult = BFD_MULTIPLIER_DEFAULT;
 
+	bfd->ttl = 0;
+	bfd->max_hops = 0;
+
 	/* Initialize internal variables */
 	bfd->fd_out = -1;
 	bfd->thread_out = NULL;
