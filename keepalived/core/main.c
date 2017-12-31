@@ -597,6 +597,9 @@ parse_cmdline(int argc, char **argv)
 	bool reopen_log = false;
 	int signum;
 	struct utsname uname_buf;
+	int longindex;
+	int curind;
+	bool bad_option = false;
 
 	struct option long_options[] = {
 		{"use-file",		required_argument,	NULL, 'f'},
@@ -641,14 +644,15 @@ parse_cmdline(int argc, char **argv)
 		{"namespace",		required_argument,	NULL, 's'},
 #endif	
 		{"config-id",		required_argument,	NULL, 'i'},
-		{"signum",		required_argument,	NULL,  1 },
+		{"signum",		required_argument,	NULL,  4 },
 		{"version",		no_argument,		NULL, 'v'},
 		{"help",		no_argument,		NULL, 'h'},
 
 		{NULL,			0,			NULL,  0 }
 	};
 
-	while ((c = getopt_long(argc, argv, "vhlndDRS:f:p:i:mMg:G"
+	curind = optind;
+	while ((c = getopt_long(argc, argv, ":vhlndDRS:f:p:i:mM::g::G"
 #if defined _WITH_VRRP_ && defined _WITH_LVS_
 					    "PC"
 #endif
@@ -667,7 +671,20 @@ parse_cmdline(int argc, char **argv)
 #if HAVE_DECL_CLONE_NEWNET
 					    "s:"
 #endif
-				, long_options, NULL)) != EOF) {
+				, long_options, &longindex)) != -1) {
+
+		/* If there isn't a corresponding long option, getopt_long()
+		 * unfortunately sets longindex == 0, which isn't helpful. */
+		if (longindex == 0 && c != long_options[0].val)
+			longindex = -1;
+
+		/* Check for an empty option argument. For example --use-file= returns
+		 * a 0 length option, which we don't want */
+		if (longindex >= 0 && long_options[longindex].has_arg == required_argument && !optarg[0]) {
+			c = ':';
+			optarg = NULL;
+		}
+
 		switch (c) {
 		case 'v':
 			fprintf(stderr, "%s", version_string);
@@ -798,7 +815,7 @@ parse_cmdline(int argc, char **argv)
 			config_id = MALLOC(strlen(optarg) + 1);
 			strcpy(config_id, optarg);
 			break;
-		case 1:			/* --signum */
+		case 4:			/* --signum */
 			signum = get_signum(optarg);
 			if (signum == -1) {
 				fprintf(stderr, "Unknown sigfunc %s\n", optarg);
@@ -808,10 +825,25 @@ parse_cmdline(int argc, char **argv)
 			printf("%d\n", signum);
 			exit(0);
 			break;
+		case '?':
+			if (optopt && argv[curind][1] != '-')
+				fprintf(stderr, "Unknown option -%c\n", optopt);
+			else
+				fprintf(stderr, "Unknown option --%s\n", argv[curind]);
+			bad_option = true;
+			break;
+		case ':':
+			if (optopt && argv[curind][1] != '-')
+				fprintf(stderr, "Missing parameter for option -%c\n", optopt);
+			else
+				fprintf(stderr, "Missing parameter for option --%s\n", long_options[longindex].name);
+			bad_option = true;
+			break;
 		default:
-			exit(0);
+			exit(1);
 			break;
 		}
+		curind = optind;
 	}
 
 	if (optind < argc) {
@@ -820,6 +852,9 @@ parse_cmdline(int argc, char **argv)
 			printf("%s ", argv[optind++]);
 		printf("\n");
 	}
+
+	if (bad_option)
+		exit(1);
 
 	return reopen_log;
 }
