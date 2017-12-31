@@ -35,7 +35,7 @@
 #include "global_data.h"
 
 /* Returns the sum of all alive RS weight in a virtual server. */
-static long
+static unsigned long
 weigh_live_realservers(virtual_server_t * vs)
 {
 	element e;
