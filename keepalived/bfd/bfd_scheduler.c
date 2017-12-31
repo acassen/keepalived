@@ -573,7 +573,7 @@ bfd_dump_timers(bfd_t *bfd)
 		    bfd->iname);
 	log_message(LOG_INFO, "BFD_Instance(%s)"
 		    " local %7u %7u %8u %5u %12u",
-		    bfd->iname, bfd->local_min_tx_intv / 1000,
+		    bfd->iname, (bfd->local_state == BFD_STATE_UP ? bfd->local_min_tx_intv : bfd->local_idle_tx_intv) / 1000,
 		    bfd->local_min_rx_intv / 1000,
 		    bfd->local_tx_intv / 1000, bfd->local_detect_mult,
 		    bfd->local_detect_time / 1000);
@@ -728,7 +728,10 @@ bfd_handle_packet(bfdpkt_t *pkt)
 	    (__test_bit(LOG_DETAIL_BIT, &debug) &&
 	     (bfd->remote_min_rx_intv != old_remote_rx_intv ||
 	      bfd->remote_min_tx_intv != old_remote_tx_intv ||
-	      bfd->remote_detect_mult != old_remote_detect_mult)))
+	      bfd->remote_detect_mult != old_remote_detect_mult ||
+	      (bfd->local_min_tx_intv != bfd->local_idle_tx_intv &&
+	       ((bfd->local_state == BFD_STATE_DOWN && bfd->remote_state == BFD_STATE_INIT) ||
+	        (bfd->local_state == BFD_STATE_INIT && (bfd->remote_state == BFD_STATE_INIT || bfd->remote_state == BFD_STATE_UP)))))))
 		bfd_dump_timers(bfd);
 
 	/* Reschedule sender if local_tx_intv is being reduced */
