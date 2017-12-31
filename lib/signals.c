@@ -343,25 +343,8 @@ open_signal_fd(void)
 	if (signal_fd == -1)
 		log_message(LOG_INFO, "BUG - signal_fd init failed - %d (%s), please report", errno, strerror(errno));
 #else
-	int n;
-
-#ifdef HAVE_PIPE2
-	n = pipe2(signal_pipe, O_CLOEXEC | O_NONBLOCK);
-#else
-	n = pipe(signal_pipe);
-#endif
-
-	assert(!n);
-	if (n)
+	if (open_pipe(signal_pipe))
 		log_message(LOG_INFO, "BUG - pipe in signal_handler_init failed - %d (%s), please report", errno, strerror(errno));
-
-#ifndef HAVE_PIPE2
-	fcntl(signal_pipe[0], F_SETFL, O_NONBLOCK | fcntl(signal_pipe[0], F_GETFL));
-	fcntl(signal_pipe[1], F_SETFL, O_NONBLOCK | fcntl(signal_pipe[1], F_GETFL));
-
-	fcntl(signal_pipe[0], F_SETFD, FD_CLOEXEC | fcntl(signal_pipe[0], F_GETFD));
-	fcntl(signal_pipe[1], F_SETFD, FD_CLOEXEC | fcntl(signal_pipe[1], F_GETFD));
-#endif
 #endif
 }
 

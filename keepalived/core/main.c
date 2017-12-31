@@ -385,7 +385,7 @@ static void
 start_keepalived(void)
 {
 #ifdef _WITH_BFD_
-	/* must be opened before vrrp and bfd */
+	/* must be opened before vrrp and bfd start */
 	open_bfd_pipe();
 #endif
 

@@ -54,6 +54,7 @@
 #include "global_data.h"
 #include "main.h"
 #include "logger.h"
+#include "utils.h"
 
 typedef enum dbus_action {
 	DBUS_ACTION_NONE,
@@ -859,37 +860,21 @@ dbus_start(void)
 	pthread_t dbus_thread;
 	sigset_t sigset, cursigset;
 
-#ifdef HAVE_PIPE2
-	if (pipe2(dbus_in_pipe, O_CLOEXEC)) {
+	if (open_pipe(dbus_in_pipe)) {
 		log_message(LOG_INFO, "Unable to create inbound dbus pipe - disabling DBus");
 		return false;
 	}
-	if (pipe2(dbus_out_pipe, O_CLOEXEC)) {
+	if (open_pipe(dbus_out_pipe)) {
 		log_message(LOG_INFO, "Unable to create outbound dbus pipe - disabling DBus");
 		close(dbus_in_pipe[0]);
 		close(dbus_in_pipe[1]);
 		return false;
 	}
-#else
-	if (pipe(dbus_in_pipe)) {
-		log_message(LOG_INFO, "Unable to create inbound dbus pipe - disabling DBus");
-		return false;
-	}
-	if (pipe(dbus_out_pipe)) {
-		log_message(LOG_INFO, "Unable to create outbound dbus pipe - disabling DBus");
-		close(dbus_in_pipe[0]);
-		close(dbus_in_pipe[1]);
-		return false;
-	}
-	fcntl (dbus_in_pipe[0], F_SETFD, FD_CLOEXEC | fcntl(dbus_in_pipe[0], F_GETFD));
-	fcntl (dbus_in_pipe[1], F_SETFD, FD_CLOEXEC | fcntl(dbus_in_pipe[1], F_GETFD));
-	fcntl (dbus_out_pipe[0], F_SETFD, FD_CLOEXEC | fcntl(dbus_out_pipe[0], F_GETFD));
-	fcntl (dbus_out_pipe[1], F_SETFD, FD_CLOEXEC | fcntl(dbus_out_pipe[1], F_GETFD));
-#endif
 
-	/* We don't want the main thread to block when using the pipes */
-	fcntl(dbus_in_pipe[0], F_SETFL, O_NONBLOCK | fcntl(dbus_in_pipe[0], F_GETFL));
-	fcntl(dbus_out_pipe[1], F_SETFL, O_NONBLOCK | fcntl(dbus_out_pipe[1], F_GETFL));
+	/* We don't want the main thread to block when using the pipes,
+	 * but the other side of the pipes should block. */
+	fcntl(dbus_in_pipe[1], F_SETFL, fcntl(dbus_in_pipe[1], F_GETFL) & ~O_NONBLOCK);
+	fcntl(dbus_out_pipe[0], F_SETFL, fcntl(dbus_out_pipe[0], F_GETFL) & ~O_NONBLOCK);
 
 	thread_add_read(master, handle_dbus_msg, NULL, dbus_in_pipe[0], TIMER_NEVER);
 

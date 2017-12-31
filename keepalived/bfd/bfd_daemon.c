@@ -46,6 +46,7 @@
 #include "utils.h"
 #include "scheduler.h"
 #include "process.h"
+#include "utils.h"
 
 /* Global variables */
 int bfd_event_pipe[2] = { -1, -1};
@@ -101,13 +102,10 @@ void
 open_bfd_pipe(void)
 {
 	/* Open BFD control pipe */
-	if (pipe(bfd_event_pipe) == -1) {
+	if (open_pipe(bfd_event_pipe) == -1) {
 		log_message(LOG_ERR, "Unable to create BFD event pipe: %m");
 		stop_keepalived();
-		return;
 	}
-	fcntl(bfd_event_pipe[0], F_SETFL, O_NONBLOCK | fcntl(bfd_event_pipe[0], F_GETFL));
-	fcntl(bfd_event_pipe[1], F_SETFL, O_NONBLOCK | fcntl(bfd_event_pipe[1], F_GETFL));
 }
 
 /* Daemon init sequence */
@@ -265,6 +263,9 @@ start_bfd_child(void)
 	set_child_finder(NULL, NULL, NULL, NULL, NULL, 0);	/* Currently these won't be set */
 
 	prog_type = PROG_TYPE_BFD;
+
+	/* Close the read end of the event notification pipe */
+	close(bfd_event_pipe[0]);
 
 	if ((instance_name
 #if HAVE_DECL_CLONE_NEWNET
