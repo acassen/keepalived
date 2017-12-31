@@ -39,21 +39,25 @@
 /*
  * Default parameters and limits
  */
-#define BFD_MINRX_MIN		1
-#define BFD_MINRX_MAX		1000
-#define BFD_MINRX_DEFAULT	10
+#define BFD_MINRX_MIN		1U
+#define BFD_MINRX_MAX_SENSIBLE	1000U
+#define BFD_MINRX_MAX		(UINT32_MAX / 1000U)
+#define BFD_MINRX_DEFAULT	10U
 
-#define BFD_MINTX_MIN		1
-#define BFD_MINTX_MAX		1000
-#define BFD_MINTX_DEFAULT	10
+#define BFD_MINTX_MIN		1U
+#define BFD_MINTX_MAX_SENSIBLE	1000U
+#define BFD_MINTX_MAX		(UINT32_MAX / 1000U)
+#define BFD_MINTX_DEFAULT	10U
 
-#define BFD_IDLETX_MIN		1000
-#define BFD_IDLETX_MAX		10000
-#define BFD_IDLETX_DEFAULT	1000
+#define BFD_IDLETX_MIN		1000U
+#define BFD_IDLETX_MAX_SENSIBLE	10000U
+#define BFD_IDLETX_MAX		(UINT32_MAX / 1000U)
+#define BFD_IDLETX_DEFAULT	1000U
 
-#define BFD_MULTIPLIER_MIN	1
-#define BFD_MULTIPLIER_MAX	10
-#define BFD_MULTIPLIER_DEFAULT	5
+#define BFD_MULTIPLIER_MIN	1U
+#define BFD_MULTIPLIER_MAX_SENSIBLE 10U
+#define BFD_MULTIPLIER_MAX	255U
+#define BFD_MULTIPLIER_DEFAULT	5U
 
 #define BFD_WEIGHT_MIN		-253
 #define BFD_WEIGHT_MAX		253
@@ -75,7 +79,7 @@ typedef struct _bfd {
 	uint32_t local_min_rx_intv;	/* Required min RX interval */
 	uint32_t local_min_tx_intv;	/* Desired min TX interval */
 	uint32_t local_idle_tx_intv;	/* Desired idle TX interval */
-	u_char local_detect_mult;	/* Local detection multiplier */
+	uint8_t local_detect_mult;	/* Local detection multiplier */
 	uint8_t ttl;			/* TTL/hopcount to send */
 	uint8_t max_hops;		/* Maximum number of hops allowed to be traversed by received packet */
 	bool passive;			/* Operate in passive mode */
@@ -98,17 +102,17 @@ typedef struct _bfd {
 	u_char remote_diag:5;	/* Local diagnostic code */
 	uint32_t remote_min_tx_intv;	/* Remote min TX interval */
 	uint32_t remote_min_rx_intv;	/* Remote min RX interval */
-	u_char local_demand;	/* Local demand mode */
-	u_char remote_demand;	/* Remote demand mode */
-	u_char remote_detect_mult;	/* Remote detection multiplier */
-	u_char poll;		/* Poll sequence flag */
-	u_char final;		/* Final flag */
+	uint8_t local_demand;	/* Local demand mode */
+	uint8_t remote_demand;	/* Remote demand mode */
+	uint8_t remote_detect_mult;	/* Remote detection multiplier */
+	bool poll;		/* Poll sequence flag */
+	bool final;		/* Final flag */
 
 	/* Calculated values */
 	uint32_t local_tx_intv;	/* Local transmit interval */
 	uint32_t remote_tx_intv;	/* Remote transmit interval */
-	uint32_t local_detect_time;	/* Local detection time */
-	uint32_t remote_detect_time;	/* Remote detection time */
+	uint64_t local_detect_time;	/* Local detection time */
+	uint64_t remote_detect_time;	/* Remote detection time */
 	timeval_t last_seen;	/* Time of the last packet received */
 } bfd_t;
 
