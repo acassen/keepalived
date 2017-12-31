@@ -753,7 +753,7 @@ usage(const char *prog)
 	fprintf(stderr, "  -C, --check                  Only run with Health-checker subsystem\n");
 #endif
 #ifdef _WITH_BFD_
-	fprintf(stderr, "  -B, --no_bfd                    Don't run BFD subsystem\n");
+	fprintf(stderr, "  -B, --no_bfd                 Don't run BFD subsystem\n");
 #endif
 	fprintf(stderr, "  -l, --log-console            Log messages to local console\n");
 	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");

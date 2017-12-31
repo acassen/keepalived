@@ -505,6 +505,15 @@ Likewise, if the vrrp instance is the address owner, weight 0 must also be set.
 
     2.3. BFD Configuration
 
+    This is an implementation of RFC5880 (Bidirectional forwarding detection),
+    and this can be configured to work between 2 keepalived instances, but using
+    unweighted track_bfds between a master/backup pair of VRRP instances means that
+    the VRRP instance will only be able to come up if both VRRP instance are running,
+    which somewhat defeats the purpose of VRRP.
+
+    This imlpementation has been tested with OpenBFDD (available at
+    https://github.com/dyninc/OpenBFDD).
+
     The configuration block looks like :
 
 bfd_instance <STRING> {

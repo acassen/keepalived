@@ -522,6 +522,15 @@ and
 .PP
 .SH BFD Configuration
 .PP
+This is an implementation of RFC5880 (Bidirectional forwarding detection),
+and this can be configured to work between 2 keepalived instances, but using
+unweighted track_bfds between a master/backup pair of VRRP instances means that
+the VRRP instance will only be able to come up if both VRRP instance are running,
+which somewhat defeats the purpose of VRRP.
+.PP
+This imlpementation has been tested with OpenBFDD (available at
+https://github.com/dyninc/OpenBFDD).
+.PP
 The configuration block looks like:
 .PP
 bfd_instance <STRING> {
@@ -543,7 +552,7 @@ bfd_instance <STRING> {
                                        #  in received packet (default 0)
                                        #  (255 disables hop count checking)
     weight                             # Default tracking weight
-}
+ }
 .SH VRRP synchronization group(s)
 .PP
  #string, name of group of IPs that failover together
