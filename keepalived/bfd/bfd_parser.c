@@ -31,6 +31,7 @@
 #include "parser.h"
 #include "global_parser.h"
 #include "utils.h"
+#include "global_data.h"
 
 #ifdef _WITH_LVS_
 #include "check_parser.h"
@@ -40,13 +41,17 @@
 #include "vrrp_track.h"
 #include "vrrp_data.h"
 #endif
+#include "main.h"
 
 static void
 bfd_handler(vector_t *strvec)
 {
 	char *name;
 
-	assert(strvec);
+	if (!strvec) {
+		have_bfd_instances = true;
+		return;
+	}
 
 	name = vector_slot(strvec, 1);
 
@@ -344,7 +349,8 @@ bfd_vrrp_handler(vector_t *strvec)
 	element e;
 	char *name;
 
-	assert(strvec);
+	if (!strvec)
+		return;
 
 	name = vector_slot(strvec, 1);
 
@@ -409,7 +415,10 @@ ignore_handler(__attribute__((unused)) vector_t *strvec)
 void
 init_bfd_keywords(bool active)
 {
-	if (prog_type == PROG_TYPE_BFD) {
+#ifdef _WITH_VRRP_
+	if (prog_type != PROG_TYPE_VRRP)
+#endif
+	{
 		install_keyword_root("bfd_instance", &bfd_handler, active);
 		install_sublevel_end_handler(bfd_config_check_handler);
 		install_keyword("source_ip", &bfd_srcip_handler);

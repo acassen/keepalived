@@ -47,8 +47,11 @@
 
 /* SSL handlers */
 static void
-ssl_handler(__attribute__((unused)) vector_t *strvec)
+ssl_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	if (check_data->ssl) {
 		free_ssl();
 		log_message(LOG_INFO, "SSL context already specified - replacing");
@@ -98,6 +101,9 @@ vsg_handler(vector_t *strvec)
 {
 	virtual_server_group_t *vsg;
 
+	if (!strvec)
+		return;
+
 	/* Fetch queued vsg */
 	alloc_vsg(strvec_slot(strvec, 1));
 	alloc_value_block(alloc_vsg_entry);
@@ -112,6 +118,11 @@ vsg_handler(vector_t *strvec)
 static void
 vs_handler(vector_t *strvec)
 {
+	if (!strvec) {
+		have_virtual_servers = true;
+		return;
+	}
+
 	alloc_vs(strvec_slot(strvec, 1), strvec_slot(strvec, 2));
 }
 static void

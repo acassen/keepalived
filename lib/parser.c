@@ -96,7 +96,7 @@ keyword_alloc(vector_t *keywords_vec, const char *string, void (*handler) (vecto
 
 	keyword = (keyword_t *) MALLOC(sizeof(keyword_t));
 	keyword->string = string;
-	keyword->handler = (active) ? handler : NULL;
+	keyword->handler = handler;
 	keyword->active = active;
 
 	vector_set_slot(keywords_vec, keyword);
@@ -143,6 +143,8 @@ install_sublevel_end(void)
 void
 install_keyword_root(const char *string, void (*handler) (vector_t *), bool active)
 {
+	/* If the root keyword is inactive, the handler will still be called,
+	 * but with a NUMM strvec */
 	keyword_alloc(keywords, string, handler, active);
 }
 
@@ -366,6 +368,14 @@ process_stream(vector_t *keywords_vec, int need_bob)
 						skip_sublevel = 1;
 					else
 						skip_sublevel = -1;
+
+					/* Sometimes a process wants to know if another process
+					 * has any of a type of configuration. For example, there
+					 * is no point starting the VRRP process of there are no
+					 * vrrp instances, and so the parent process would be
+					 * interested in that. */
+					if (keyword_vec->handler)
+						(*keyword_vec->handler)(NULL);
 				}
 
 				/* There is an inconsistency here. 'static_ipaddress' for example
@@ -382,7 +392,7 @@ process_stream(vector_t *keywords_vec, int need_bob)
 						bob_needed = 1;
 				}
 
-				if (keyword_vec->handler)
+				if (keyword_vec->active && keyword_vec->handler)
 					(*keyword_vec->handler) (strvec);
 
 				if (keyword_vec->sub) {

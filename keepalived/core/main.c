@@ -45,6 +45,7 @@
 #include <linux/version.h>
 
 #include "main.h"
+#include "global_data.h"
 #include "daemon.h"
 #include "config.h"
 #include "git-commit.h"
@@ -102,21 +103,24 @@ bool reload;						/* Set during a reload */
 char *main_pidfile;					/* overrule default pidfile */
 static bool free_main_pidfile;
 #ifdef _WITH_LVS_
-pid_t checkers_child = -1;				/* Healthcheckers child process ID */
+pid_t checkers_child;					/* Healthcheckers child process ID */
 char *checkers_pidfile;					/* overrule default pidfile */
+bool have_virtual_servers;				/* virtual servers configured */
 static bool free_checkers_pidfile;
 #endif
 #ifdef _WITH_VRRP_
-pid_t vrrp_child = -1;					/* VRRP child process ID */
+pid_t vrrp_child;					/* VRRP child process ID */
 char *vrrp_pidfile;					/* overrule default pidfile */
+bool have_vrrp_instances;				/* vrrp instances configured */
 static bool free_vrrp_pidfile;
 #endif
 #ifdef _WITH_BFD_
-pid_t bfd_child = -1;					/* BFD child process ID */
+pid_t bfd_child;					/* BFD child process ID */
 char *bfd_pidfile;					/* overrule default pidfile */
+bool have_bfd_instances;				/* bfd instances configured */
 static bool free_bfd_pidfile;
 #endif
-unsigned long daemon_mode;				/* VRRP/CHECK subsystem selection */
+unsigned long daemon_mode;				/* VRRP/CHECK/BFD subsystem selection */
 #ifdef _WITH_SNMP_
 bool snmp;						/* Enable SNMP support */
 const char *snmp_socket;				/* Socket to use for SNMP agent */
@@ -391,17 +395,23 @@ start_keepalived(void)
 
 #ifdef _WITH_LVS_
 	/* start healthchecker child */
-	if (__test_bit(DAEMON_CHECKERS, &daemon_mode))
+	if (__test_bit(DAEMON_CHECKERS, &daemon_mode) &&
+	    (have_virtual_servers ||
+	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)))
 		start_check_child();
 #endif
 #ifdef _WITH_VRRP_
 	/* start vrrp child */
-	if (__test_bit(DAEMON_VRRP, &daemon_mode))
+	if (__test_bit(DAEMON_VRRP, &daemon_mode) &&
+	    (have_vrrp_instances ||
+	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)))
 		start_vrrp_child();
 #endif
 #ifdef _WITH_BFD_
 	/* start bfd child */
-	if (__test_bit(DAEMON_BFD, &daemon_mode))
+	if (__test_bit(DAEMON_BFD, &daemon_mode) &&
+	    (have_bfd_instances ||
+	     __test_bit(RUN_ALL_CHILDREN, &daemon_mode)))
 		start_bfd_child();
 #endif
 }
@@ -422,7 +432,6 @@ propogate_signal(__attribute__((unused)) void *v, int sig)
 		char *old_instance_name = instance_name;
 		instance_name = NULL;
 
-		/* The only parameters handled are net_namespace and instance_name */
 		read_config_file();
 
 #if HAVE_DECL_CLONE_NEWNET
@@ -447,18 +456,32 @@ propogate_signal(__attribute__((unused)) void *v, int sig)
 			return;
 	}
 
-	/* Signal child process */
+	/* Signal child processes */
 #ifdef _WITH_VRRP_
 	if (vrrp_child > 0)
 		kill(vrrp_child, sig);
+	else if (sig == SIGHUP &&
+		 __test_bit(DAEMON_VRRP, &daemon_mode) &&
+		 have_vrrp_instances)
+		 start_vrrp_child();
 #endif
 #ifdef _WITH_LVS_
-	if (checkers_child > 0 && sig == SIGHUP)
-		kill(checkers_child, sig);
+	if (sig == SIGHUP) {
+		if (checkers_child > 0)
+			kill(checkers_child, sig);
+		else if (__test_bit(DAEMON_CHECKERS, &daemon_mode) &&
+			 have_vrrp_instances)
+			start_check_child();
+	}
 #endif
 #ifdef _WITH_BFD_
-	if (bfd_child > 0 && sig == SIGHUP)
-		kill(bfd_child, sig);
+	if (sig == SIGHUP) {
+		if (bfd_child > 0)
+			kill(bfd_child, sig);
+		else if (__test_bit(DAEMON_BFD, &daemon_mode) &&
+			 have_bfd_instances)
+			start_bfd_child();
+	}
 #endif
 }
 
@@ -755,6 +778,7 @@ usage(const char *prog)
 #ifdef _WITH_BFD_
 	fprintf(stderr, "  -B, --no_bfd                 Don't run BFD subsystem\n");
 #endif
+	fprintf(stderr, "      --all                    Force all child processes to run, even if have no configuration\n");
 	fprintf(stderr, "  -l, --log-console            Log messages to local console\n");
 	fprintf(stderr, "  -D, --log-detail             Detailed log messages\n");
 	fprintf(stderr, "  -S, --log-facility=[0-7]     Set syslog facility to LOG_LOCAL[0-7]\n");
@@ -824,6 +848,7 @@ parse_cmdline(int argc, char **argv)
 #ifdef _WITH_BFD_
 		{"no_bfd",		no_argument,		NULL, 'B'},
 #endif
+		{"all",			no_argument,		NULL,  3 },
 		{"log-console",		no_argument,		NULL, 'l'},
 		{"log-detail",		no_argument,		NULL, 'D'},
 		{"log-facility",	required_argument,	NULL, 'S'},
@@ -1045,6 +1070,18 @@ parse_cmdline(int argc, char **argv)
 
 			printf("%d\n", signum);
 			exit(0);
+			break;
+		case 3:			/* --all */
+			__set_bit(RUN_ALL_CHILDREN, &daemon_mode);
+#ifdef _WITH_VRRP_
+			__set_bit(DAEMON_VRRP, &daemon_mode);
+#endif
+#ifdef _WITH_LVS_
+			__set_bit(DAEMON_CHECKERS, &daemon_mode);
+#endif
+#ifdef _WITH_BFD_
+			__set_bit(DAEMON_BFD, &daemon_mode);
+#endif
 			break;
 		default:
 			exit(0);

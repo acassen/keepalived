@@ -73,23 +73,32 @@ static bool remove_script;
 
 /* Static addresses handler */
 static void
-static_addresses_handler(__attribute__((unused)) vector_t *strvec)
+static_addresses_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	alloc_value_block(alloc_saddress);
 }
 
 #ifdef _HAVE_FIB_ROUTING_
 /* Static routes handler */
 static void
-static_routes_handler(__attribute__((unused)) vector_t *strvec)
+static_routes_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	alloc_value_block(alloc_sroute);
 }
 
 /* Static rules handler */
 static void
-static_rules_handler(__attribute__((unused)) vector_t *strvec)
+static_rules_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	alloc_value_block(alloc_srule);
 }
 #endif
@@ -102,6 +111,9 @@ vrrp_sync_group_handler(vector_t *strvec)
 	element e;
 	vrrp_sgroup_t *sg;
 	char* gname;
+
+	if (!strvec)
+		return;
 
 	if (vector_count(strvec) != 2) {
 		log_message(LOG_INFO, "vrrp_sync_group must have a name - skipping");
@@ -243,6 +255,11 @@ vrrp_handler(vector_t *strvec)
 	element e;
 	vrrp_t *vrrp;
 	char *iname;
+
+	if (!strvec) {
+		have_vrrp_instances = true;
+		return;
+	}
 
 	if (vector_count(strvec) != 2) {
 		log_message(LOG_INFO, "vrrp_instance must have a name");
@@ -774,6 +791,9 @@ vrrp_vrules_handler(__attribute__((unused)) vector_t *strvec)
 static void
 vrrp_script_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	alloc_vrrp_script(strvec_slot(strvec, 1));
 	script_user_set = false;
 	remove_script = false;
@@ -866,6 +886,9 @@ vrrp_vscript_end_handler(void)
 static void
 vrrp_tfile_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	alloc_vrrp_file(strvec_slot(strvec, 1));
 
 	track_file_init = TRACK_FILE_NO_INIT;
@@ -1012,8 +1035,11 @@ vrrp_no_accept_handler(__attribute__((unused)) vector_t *strvec)
 }
 
 static void
-garp_group_handler(__attribute__((unused)) vector_t *strvec)
+garp_group_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	alloc_garp_delay();
 }
 static void

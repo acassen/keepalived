@@ -56,8 +56,11 @@
 /* data handlers */
 /* Global def handlers */
 static void
-use_polling_handler(__attribute__((unused)) vector_t *strvec)
+use_polling_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	global_data->linkbeat_use_polling = true;
 }
 static void
@@ -824,6 +827,9 @@ snmp_checker_handler(__attribute__((unused)) vector_t *strvec)
 static void
 net_namespace_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	/* If we are reloading, there has already been a check that the
 	 * namespace hasn't changed */
 	if (!reload) {
@@ -855,8 +861,11 @@ net_namespace_handler(vector_t *strvec)
 }
 
 static void
-namespace_ipsets_handler(__attribute__((unused)) vector_t *strvec)
+namespace_ipsets_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	namespace_with_ipsets = true;
 }
 #endif
@@ -879,6 +888,9 @@ dbus_service_name_handler(vector_t *strvec)
 static void
 instance_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	if (!reload) {
 		if (!instance_name) {
 			instance_name = set_value(strvec);
@@ -890,8 +902,11 @@ instance_handler(vector_t *strvec)
 }
 
 static void
-use_pid_dir_handler(__attribute__((unused)) vector_t *strvec)
+use_pid_dir_handler(vector_t *strvec)
 {
+	if (!strvec)
+		return;
+
 	use_pid_dir = true;
 }
 

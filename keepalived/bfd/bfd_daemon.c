@@ -251,6 +251,7 @@ start_bfd_child(void)
 		bfd_child = pid;
 		log_message(LOG_INFO, "Starting BFD child process, pid=%d",
 			    pid);
+
 		/* Start respawning thread */
 		thread_add_child(master, bfd_respawn_thread, NULL,
 				 pid, RESPAWN_TIMER);

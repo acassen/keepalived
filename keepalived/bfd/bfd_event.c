@@ -33,6 +33,7 @@
 #include "memory.h"
 #include "bitops.h"
 #include "utils.h"
+#include "global_data.h"
 
 void
 bfd_event_send(bfd_t *bfd)
@@ -41,6 +42,10 @@ bfd_event_send(bfd_t *bfd)
 	int ret;
 
 	assert(bfd);
+
+	/* If there is no VRRP process running, don't write to the pipe */
+	if (!__test_bit(DAEMON_VRRP, &daemon_mode) || !have_vrrp_instances)
+		return;
 
 	memset(&evt, 0, sizeof evt);
 	strcpy(evt.iname, bfd->iname);
