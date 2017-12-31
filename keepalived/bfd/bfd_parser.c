@@ -220,6 +220,19 @@ bfd_multiplier_handler(vector_t *strvec)
 }
 
 static void
+bfd_passive_handler(__attribute__((unused)) vector_t *strvec)
+{
+	bfd_t *bfd;
+
+	assert(bfd_data);
+
+	bfd = LIST_TAIL_DATA(bfd_data->bfd);
+	assert(bfd);
+
+	bfd->passive = true;
+}
+
+static void
 bfd_ttl_handler(vector_t *strvec)
 {
 	bfd_t *bfd;
@@ -385,6 +398,7 @@ init_bfd_keywords(bool active)
 		install_keyword("min_tx", &bfd_mintx_handler);
 		install_keyword("idle_tx", &bfd_idletx_handler);
 		install_keyword("multiplier", &bfd_multiplier_handler);
+		install_keyword("passive", &bfd_passive_handler);
 		install_keyword("ttl", &bfd_ttl_handler);
 		install_keyword("hoplimit", &bfd_ttl_handler);
 		install_keyword("max_hops", &bfd_maxhops_handler);
@@ -402,6 +416,7 @@ init_bfd_keywords(bool active)
 		install_keyword("min_tx", &ignore_handler);
 		install_keyword("idle_tx", &ignore_handler);
 		install_keyword("multiplier", &ignore_handler);
+		install_keyword("passive", &ignore_handler);
 		install_keyword("ttl", &ignore_handler);
 		install_keyword("hoplimit", &ignore_handler);
 		install_keyword("max_hops", &ignore_handler);

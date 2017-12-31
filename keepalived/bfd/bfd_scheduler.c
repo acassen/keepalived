@@ -175,8 +175,9 @@ bfd_sender_resume(bfd_t *bfd)
 	assert(!bfd->thread_out);
 	assert(bfd->sands_out != -1);
 
-	bfd->thread_out =
-	    thread_add_timer(master, bfd_sender_thread, bfd, bfd->sands_out);
+	if (!bfd->passive || bfd->local_state == BFD_STATE_UP)
+		bfd->thread_out =
+		    thread_add_timer(master, bfd_sender_thread, bfd, bfd->sands_out);
 	bfd->sands_out = -1;
 }
 
@@ -355,6 +356,7 @@ bfd_reset_thread(thread_t *thread)
 	bfd->thread_rst = NULL;
 
 	bfd_reset_state(bfd);
+
 	return 0;
 }
 
@@ -482,6 +484,9 @@ bfd_state_down(bfd_t *bfd, char diag)
 
 	bfd_reset_schedule(bfd);
 
+	if (bfd->passive && bfd_sender_scheduled(bfd))
+		bfd_sender_cancel(bfd);
+
 	bfd_state_fall(bfd, old_state == BFD_STATE_UP);
 }
 
@@ -549,6 +554,9 @@ bfd_state_init(bfd_t *bfd)
 
 	bfd->local_state = BFD_STATE_INIT;
 	bfd_state_rise(bfd);
+
+	if (bfd->passive && !bfd_sender_scheduled(bfd))
+		bfd_sender_schedule(bfd);
 }
 
 /* Dumps current timers values */
@@ -565,7 +573,7 @@ bfd_dump_timers(bfd_t *bfd)
 		    bfd->iname);
 	log_message(LOG_INFO, "BFD_Instance(%s)"
 		    " local %7u %7u %8u %5u %12u",
-		    bfd->iname, bfd->local_min_tx_intv / 1000,
+		    bfd->iname, (bfd->local_state == BFD_STATE_UP ? bfd->local_min_tx_intv : bfd->local_idle_tx_intv) / 1000,
 		    bfd->local_min_rx_intv / 1000,
 		    bfd->local_tx_intv / 1000, bfd->local_detect_mult,
 		    bfd->local_detect_time / 1000);
@@ -720,7 +728,10 @@ bfd_handle_packet(bfdpkt_t *pkt)
 	    (__test_bit(LOG_DETAIL_BIT, &debug) &&
 	     (bfd->remote_min_rx_intv != old_remote_rx_intv ||
 	      bfd->remote_min_tx_intv != old_remote_tx_intv ||
-	      bfd->remote_detect_mult != old_remote_detect_mult)))
+	      bfd->remote_detect_mult != old_remote_detect_mult ||
+	      (bfd->local_min_tx_intv != bfd->local_idle_tx_intv &&
+	       ((bfd->local_state == BFD_STATE_DOWN && bfd->remote_state == BFD_STATE_INIT) ||
+	        (bfd->local_state == BFD_STATE_INIT && (bfd->remote_state == BFD_STATE_INIT || bfd->remote_state == BFD_STATE_UP)))))))
 		bfd_dump_timers(bfd);
 
 	/* Reschedule sender if local_tx_intv is being reduced */
@@ -1030,7 +1041,7 @@ bfd_register_workers(bfd_data_t *data)
 				bfd_sender_discard(bfd);
 			else
 				bfd_sender_resume(bfd);
-		} else if (!BFD_ISADMINDOWN(bfd))
+		} else if (!BFD_ISADMINDOWN(bfd) && !bfd->passive)
 			bfd_sender_schedule(bfd);
 
 		if (bfd_expire_suspended(bfd)) {
@@ -1049,6 +1060,10 @@ bfd_register_workers(bfd_data_t *data)
 
 		/* Send our status to VRRP process */
 		bfd_event_send(bfd);
+
+		/* If we are starting up, send a packet */
+		if (!reload && !bfd->passive)
+			thread_add_event(master, bfd_sender_thread, bfd, 0);
 	}
 }
 

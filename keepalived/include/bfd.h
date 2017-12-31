@@ -76,6 +76,9 @@ typedef struct _bfd {
 	uint32_t local_min_tx_intv;	/* Desired min TX interval */
 	uint32_t local_idle_tx_intv;	/* Desired idle TX interval */
 	u_char local_detect_mult;	/* Local detection multiplier */
+	uint8_t ttl;			/* TTL/hopcount to send */
+	uint8_t max_hops;		/* Maximum number of hops allowed to be traversed by received packet */
+	bool passive;			/* Operate in passive mode */
 
 	/* Internal variables */
 	int fd_out;		/* Output socket fd */
@@ -100,8 +103,6 @@ typedef struct _bfd {
 	u_char remote_detect_mult;	/* Remote detection multiplier */
 	u_char poll;		/* Poll sequence flag */
 	u_char final;		/* Final flag */
-	uint8_t ttl;		/* TTL/hopcount to send */
-	uint8_t max_hops;	/* Maximum number of hops allowed to be traversed by received packet */
 
 	/* Calculated values */
 	uint32_t local_tx_intv;	/* Local transmit interval */
